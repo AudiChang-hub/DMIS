@@ -5,9 +5,11 @@
     <field name="model">dms.dealer</field>
     <field name="arch" type="xml">
       <tree string="經銷商">
+        <field name="code"/>
         <field name="name"/>
+        <field name="level"/>
         <field name="phone"/>
-        <field name="email"/>
+        <field name="active"/>
       </tree>
     </field>
   </record>
@@ -19,12 +21,30 @@
       <form string="經銷商">
         <sheet>
           <group>
+            <field name="code"/>
             <field name="name"/>
+            <field name="level"/>
+            <field name="active"/>
+            <field name="contact_name"/>
             <field name="phone"/>
             <field name="email"/>
+            <field name="address"/>
           </group>
         </sheet>
       </form>
+    </field>
+  </record>
+
+  <record id="view_dealer_search" model="ir.ui.view">
+    <field name="name">dms.dealer.search</field>
+    <field name="model">dms.dealer</field>
+    <field name="arch" type="xml">
+      <search>
+        <field name="code"/>
+        <field name="name"/>
+        <field name="phone"/>
+        <filter name="active" string="啟用" domain="[('active','=',True)]"/>
+      </search>
     </field>
   </record>
 

@@ -1,3 +1,19 @@
+如何載入示範資料（Seed / Demo）：
+
+1. 安裝 `DMS Core` 模組時，系統會自動載入 `data/seed.xml` 的示範資料（若 manifest 中 `data` 包含 `data/seed.xml`）。
+2. 若需要重新載入示範資料，可於模組安裝前先移除模組後重新安裝；或在開發環境使用匯入工具匯入 `addons/dms_core/data/seed.xml` 中的紀錄。
+
+驗證步驟（示範資料）：
+
+1. 啟動專案：
+
+```bash
+make up
+```
+
+2. 確認 Odoo 可達並登入後台（http://localhost:8069）。
+3. 在 Apps 更新應用清單，安裝 `DMS Core`。
+4. 安裝完成後，前往 `DMS -> 經銷商`，應可看到至少三筆示範資料（D001、D002、D003）。
 # DMIS
 
 此專案為 Odoo Community 最小專案骨架，包含 docker-compose 一鍵啟動、smoke 測試與規格治理。所有文件皆以繁體中文為主。

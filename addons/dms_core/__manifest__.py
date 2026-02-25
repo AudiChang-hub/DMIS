@@ -10,6 +10,7 @@
     'data': [
         'security/ir.model.access.csv',
         'views/dealer_views.xml',
+        'data/seed.xml',
     ],
     'installable': True,
     'application': True,

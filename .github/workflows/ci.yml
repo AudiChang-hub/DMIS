@@ -1,0 +1,50 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Docker Compose
+        run: |
+          sudo apt-get update && sudo apt-get install -y curl jq
+          # docker and docker-compose should be available on runners
+
+      - name: Start services
+        run: |
+          docker compose up -d --build
+
+      - name: Make smoke executable
+        run: chmod +x scripts/smoke_odoo.sh || true
+
+      - name: Wait for Odoo smoke
+        run: ./scripts/smoke_odoo.sh
+
+  pr-spec-check:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Detect changes and enforce specs
+        run: |
+          BASE=origin/${{ github.event.pull_request.base.ref }}
+          git fetch origin ${{ github.event.pull_request.base.ref }} --depth=1 || true
+          CHANGED=$(git diff --name-only $BASE...HEAD || true)
+          echo "Changed files:\n$CHANGED"
+          echo "$CHANGED" | grep -E '^(addons/|docker-compose.yml)' && (
+            echo "$CHANGED" | grep -q '^specs/' || (echo "Error: 修改 addons/** 或 docker-compose.yml 時必須同步更新 specs/**" && exit 1)
+          ) || echo "No addons/docker-compose changes or specs OK"

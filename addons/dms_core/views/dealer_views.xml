@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+  <record id="view_dealer_tree" model="ir.ui.view">
+    <field name="name">dms.dealer.tree</field>
+    <field name="model">dms.dealer</field>
+    <field name="arch" type="xml">
+      <tree string="經銷商">
+        <field name="name"/>
+        <field name="phone"/>
+        <field name="email"/>
+      </tree>
+    </field>
+  </record>
+
+  <record id="view_dealer_form" model="ir.ui.view">
+    <field name="name">dms.dealer.form</field>
+    <field name="model">dms.dealer</field>
+    <field name="arch" type="xml">
+      <form string="經銷商">
+        <sheet>
+          <group>
+            <field name="name"/>
+            <field name="phone"/>
+            <field name="email"/>
+          </group>
+        </sheet>
+      </form>
+    </field>
+  </record>
+
+  <menuitem id="menu_dms_root" name="DMS"/>
+  <menuitem id="menu_dealer" name="經銷商" parent="menu_dms_root"/>
+
+  <act_window id="action_dealer" name="經銷商" res_model="dms.dealer" view_mode="tree,form"/>
+  <menuitem id="menu_dealer_action" name="列表" parent="menu_dealer" action="action_dealer"/>
+</odoo>

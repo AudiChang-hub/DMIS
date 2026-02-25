@@ -1,0 +1,31 @@
+version: '3.8'
+
+services:
+  odoo:
+    image: odoo:16
+    env_file: .env
+    environment:
+      - HOST=0.0.0.0
+    ports:
+      - "${ODOO_PORT:-8069}:8069"
+    depends_on:
+      - db
+    volumes:
+      - ./addons:/mnt/extra-addons
+    restart: always
+
+  db:
+    image: postgres:15
+    env_file: .env
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER:-odoo}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-odoo}
+      - POSTGRES_DB=${POSTGRES_DB:-postgres}
+    ports:
+      - "${DB_PORT:-5433}:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    restart: always
+
+volumes:
+  db_data:

@@ -39,6 +39,34 @@ make logs
 make smoke
 ```
 
+Windows 使用者備註：
+
+- 若系統沒有 `make` 或使用 Windows 原生 PowerShell，可改用下列等效指令：
+
+	- 啟動服務（PowerShell / CMD）：
+
+		```powershell
+		docker compose up -d --build
+		```
+
+	- 在 Git Bash 下使用原有 bash 腳本：
+
+		```bash
+		bash scripts/smoke_odoo.sh
+		```
+
+	- 或在 PowerShell 直接執行新增的檢查腳本：
+
+		```powershell
+		.\scripts\smoke_odoo.ps1
+		```
+
+VS Code 建議設定（讓自動化/Tasks 使用 PowerShell 不載入使用者 profile）：
+
+- 檔案：`.vscode/settings.json`
+- 內容示例：已加入 `terminal.integrated.automationProfile.windows`，會使用 PowerShell 並帶 `-NoProfile` 參數，避免在自動化終端載入使用者的 profile，減少非預期中斷（例如 3 秒退出問題）。
+
+
 開發：新增 module 至 `addons/`，並同步更新 `specs/` 下對應規格檔。
 
 如何安裝 `dms_core` 模組（繁中）：

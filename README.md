@@ -51,6 +51,7 @@ make smoke
 
 提示：若在 Apps 找不到模組，請確認 `addons/` 已正確掛載到容器的 `/mnt/extra-addons`，並在 Odoo 的 Apps 頁面中按「更新應用清單」。
 
+
 使用 Slash Commands（Copilot Chat）:
 
 - Prompt 檔放置位置：`.github/prompts/`，副檔名 `.prompt.md`。
@@ -58,6 +59,11 @@ make smoke
 	- `/dms-specify`：需求變更入口，輸入需求描述後會產出 Spec-first 的影響分析、要更新的 specs 檔案草稿、最小實作步驟與 PR 範本。
 	- `/dms-feature`：新功能入口，會在 `specs/` 中建立新的 00~05 檔案骨架、列出 Open Questions/Assumptions，並產出最小實作建議。
 	- `/dms-merge`：合併前檢查清單產生器，輸入 PR 編號或連結會回傳繁中合併檢查項與建議（不會合併）。
+
+快速開始（示例）：
+
+- /dms-specify <貼上需求變更>
+- /dms-feature <新功能一句話目標>
 
 工作流程（簡要）：
 

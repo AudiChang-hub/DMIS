@@ -52,3 +52,7 @@
 - 理由：`.github/prompts` 保持為 repository 的 canonical prompts（供 CI、automation 或非 VS Code 使用者），而 `.vscode/prompts` 可讓 VS Code 的 Copilot Chat 顯示在命令面板或 `/` 選單中，降低使用門檻並加速互動流程。
 - 影響：新增 `.vscode/settings.json` 的 `chat.promptFilesLocations` 設定以同時啟用兩個資料夾；此設定為建議（用於本 repo 的推薦工作區設定），不會強制更改使用者個人設定。
 
+## 非必要容器紀錄（2026-02-25）
+
+- 決策：`redis` 目前為非必要容器，僅為環境輔助服務存在；若後續確認無使用需求，將移除或改成以 `profiles` 管理。 (2026-02-25)
+

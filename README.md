@@ -50,3 +50,19 @@ make smoke
 5. 安裝後可在側邊選單 `DMS -> 經銷商` 瀏覽/建立經銷商。
 
 提示：若在 Apps 找不到模組，請確認 `addons/` 已正確掛載到容器的 `/mnt/extra-addons`，並在 Odoo 的 Apps 頁面中按「更新應用清單」。
+
+使用 Slash Commands（Copilot Chat）:
+
+- Prompt 檔放置位置：`.github/prompts/`，副檔名 `.prompt.md`。
+- 可用的指令（在 Copilot Chat 輸入 `/` 後可見）：
+	- `/dms-specify`：需求變更入口，輸入需求描述後會產出 Spec-first 的影響分析、要更新的 specs 檔案草稿、最小實作步驟與 PR 範本。
+	- `/dms-feature`：新功能入口，會在 `specs/` 中建立新的 00~05 檔案骨架、列出 Open Questions/Assumptions，並產出最小實作建議。
+	- `/dms-merge`：合併前檢查清單產生器，輸入 PR 編號或連結會回傳繁中合併檢查項與建議（不會合併）。
+
+工作流程（簡要）：
+
+1. 使用 `/dms-specify` 或 `/dms-feature` 產出或更新 specs（Spec-first）。
+2. 在 `specs/` 完成並確認後，建立 feature branch、實作最小變更、執行 `make smoke`。
+3. 開 PR，PR 描述必填對應 specs 路徑；CI 會檢查若修改 `addons/**` 或 `docker-compose.yml`、`scripts/**`、`Makefile` 必須同步更新 `specs/**`。
+4. 使用 `/dms-merge` 產出合併檢查清單後再合併。
+

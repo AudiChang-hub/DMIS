@@ -45,6 +45,9 @@ jobs:
           git fetch origin ${{ github.event.pull_request.base.ref }} --depth=1 || true
           CHANGED=$(git diff --name-only $BASE...HEAD || true)
           echo "Changed files:\n$CHANGED"
-          echo "$CHANGED" | grep -E '^(addons/|docker-compose.yml)' && (
-            echo "$CHANGED" | grep -q '^specs/' || (echo "Error: 修改 addons/** 或 docker-compose.yml 時必須同步更新 specs/**" && exit 1)
-          ) || echo "No addons/docker-compose changes or specs OK"
+          # If any of these critical files changed, require specs/ to also change
+          echo "$CHANGED" | grep -E '^(addons/|docker-compose.yml|scripts/|Makefile)' && (
+            echo "$CHANGED" | grep -q '^specs/' || (
+              echo "Error: 修改 addons/**、docker-compose.yml、scripts/** 或 Makefile 時，必須同步更新 specs/**。" && exit 1
+            )
+          ) || echo "No critical changes or specs OK"

@@ -2,21 +2,21 @@
 <odoo>
   <record id="dealer_demo_1" model="dms.dealer">
     <field name="code">D001</field>
-    <field name="name">示範經銷商一</field>
+    <field name="name">示範車行一</field>
     <field name="level">distributor</field>
     <field name="phone">+886-2-0000-0001</field>
   </record>
 
   <record id="dealer_demo_2" model="dms.dealer">
     <field name="code">D002</field>
-    <field name="name">示範經銷商二</field>
+    <field name="name">示範車行二</field>
     <field name="level">tier1</field>
     <field name="phone">+886-2-0000-0002</field>
   </record>
 
   <record id="dealer_demo_3" model="dms.dealer">
     <field name="code">D003</field>
-    <field name="name">示範經銷商三</field>
+    <field name="name">示範車行三</field>
     <field name="level">tier2</field>
     <field name="phone">+886-2-0000-0003</field>
   </record>

@@ -40,3 +40,15 @@
 	- 初期以示範資料方便開發與 QA 快速確認功能，如需更進階的資料管理（例如選擇載入、Wizard 或批次匯入），將在後續評估並設計對應流程。
 - 風險/未決事項：
 	- 若未來示範資料與正式資料需分離，可能改為放在 `demo` 或提供安裝選項/初始化 Wizard 以選擇是否載入。
+
+## 名稱/用語決策（2026-02-25）
+
+- 決策：對使用者顯示的用語統一採用「車行」，包含選單、視圖標題與欄位標籤。但為了避免資料庫 migration 的額外風險，程式內模型的技術名稱暫時維持 `dms.dealer` 不變（包括資料庫 table 與欄位名稱）。
+- 未來選項：若要完整替換技術名稱，可考慮建立 migration path，將模型改為 `dms.store`（或其他命名），並在升級時同步轉換資料表與記錄；此為一次較大的 breaking change，需另行擬定 01~05 規格與遷移計畫。
+
+## 支援 VS Code prompts 位置決策（2026-02-25）
+
+- 決策：為了讓開發者在 VS Code 中能透過選單快速選擇並執行 prompt，repo 同時支援 `.github/prompts`（CI/集中管理）與 `.vscode/prompts`（個人/工作區選單使用）。
+- 理由：`.github/prompts` 保持為 repository 的 canonical prompts（供 CI、automation 或非 VS Code 使用者），而 `.vscode/prompts` 可讓 VS Code 的 Copilot Chat 顯示在命令面板或 `/` 選單中，降低使用門檻並加速互動流程。
+- 影響：新增 `.vscode/settings.json` 的 `chat.promptFilesLocations` 設定以同時啟用兩個資料夾；此設定為建議（用於本 repo 的推薦工作區設定），不會強制更改使用者個人設定。
+

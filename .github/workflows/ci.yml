@@ -20,6 +20,15 @@ jobs:
           sudo apt-get update && sudo apt-get install -y curl jq
           # docker and docker-compose should be available on runners
 
+      - name: Ensure .env exists
+        run: |
+          if [ ! -f .env ] && [ -f .env.example ]; then
+            cp .env.example .env
+            echo ".env created from .env.example"
+          else
+            echo ".env already present or .env.example missing"
+          fi
+
       - name: Start services
         run: |
           docker compose up -d --build

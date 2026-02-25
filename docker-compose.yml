@@ -5,7 +5,10 @@ services:
     image: odoo:16
     env_file: .env
     environment:
-      - HOST=0.0.0.0
+      - DB_HOST=db
+      - DB_PORT=5432
+      - DB_USER=${POSTGRES_USER:-odoo}
+      - DB_PASSWORD=${POSTGRES_PASSWORD:-odoo}
     ports:
       - "${ODOO_PORT:-8069}:8069"
     depends_on:

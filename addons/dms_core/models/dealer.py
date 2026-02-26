@@ -1,5 +1,9 @@
+import logging
+
 from odoo import models, fields, api
 from odoo.exceptions import ValidationError
+
+_logger = logging.getLogger(__name__)
 
 
 class DealerTag(models.Model):
@@ -125,9 +129,31 @@ class Dealer(models.Model):
 
     def fields_view_get(self, view_id=None, view_type='form', toolbar=False, submenu=False):
         # Call super() but guard against view-cache / combination errors; add logs for debugging
+        # Add richer tracing: log context keys, HTTP request info (if present), and mark logs for easy grepping
         try:
-            _logger.debug('Dealer.fields_view_get called view_id=%s view_type=%s uid=%s', view_id, view_type, self.env.uid)
+            ctx_keys = list(self.env.context.keys()) if self.env and getattr(self.env, 'context', None) else []
+        except Exception:
+            ctx_keys = []
+        try:
+            from odoo import http as _http
+            _req = getattr(_http, 'request', None)
+            req_path = None
+            req_params = None
+            try:
+                if _req and getattr(_req, 'httprequest', None):
+                    req_path = getattr(_req.httprequest, 'path', None)
+                req_params = getattr(_req, 'params', None)
+            except Exception:
+                req_path = None
+                req_params = None
+        except Exception:
+            _req = None
+            req_path = None
+            req_params = None
+        _logger.info('[DMS-CUSTOM-ARCH] ENTRY fields_view_get view_id=%s view_type=%s uid=%s ctx_keys=%s http_path=%s http_params=%s', view_id, view_type, self.env.uid, ctx_keys, req_path, bool(req_params))
+        try:
             res = super().fields_view_get(view_id=view_id, view_type=view_type, toolbar=toolbar, submenu=submenu)
+            _logger.info('[DMS-CUSTOM-ARCH] super returned view_id=%s view_type=%s uid=%s arch_is_str=%s', view_id, view_type, self.env.uid, isinstance(res.get('arch'), str))
         except Exception:
             # If super() fails (cache/view combination edge cases), try to return a safe tree arch
             try:
@@ -150,7 +176,7 @@ class Dealer(models.Model):
                 except Exception:
                     cols = False
                 if cols:
-                    _logger.debug('Dealer.fields_view_get found cols=%r for uid=%s', cols, self.env.uid)
+                    _logger.info('[DMS-CUSTOM-ARCH] found saved_cols for uid=%s: %r', self.env.uid, cols)
                     field_names = [f.strip() for f in cols.split(',') if f.strip()]
                     if field_names:
                         # build a new tree element and attempt to preserve basic attributes
@@ -168,7 +194,7 @@ class Dealer(models.Model):
                             node = etree.SubElement(root, 'field')
                             node.set('name', name)
                         arch_str = etree.tostring(root, encoding='unicode')
-                        _logger.debug('Dealer.fields_view_get returning custom arch for uid=%s: %s', self.env.uid, arch_str)
+                        _logger.info('[DMS-CUSTOM-ARCH] returning custom arch for uid=%s arch=%s', self.env.uid, arch_str)
                         # return a minimal response with our custom arch so callers don't use cached combined arch
                         return {'arch': arch_str, 'fields': res.get('fields', {}), 'type': 'tree'}
             except Exception:
@@ -200,10 +226,61 @@ class DealerColumnsWizard(models.TransientModel):
     field_labels = fields.Char(string='欄位標籤', compute='_compute_field_labels', readonly=True)
 
     def apply(self):
+        uid = self.env.uid
         names = ','.join(self.field_ids.mapped('name'))
+        _logger.info('[DMS-CUSTOM-APPLY] uid=%s applying cols=%r', uid, names)
         self.env.user.sudo().write({'dms_dealer_tree_cols': names})
-        # reload the client so the list view is re-rendered with new columns
-        return {'type': 'ir.actions.client', 'tag': 'reload'}
+        _logger.info('[DMS-CUSTOM-APPLY] uid=%s wrote dms_dealer_tree_cols=%r', uid, names)
+        # Build a minimal tree arch based on selected names and create a temporary
+        # per-user ir.ui.view so we can return an act_window that forces the
+        # client to open the list with our custom tree view immediately.
+        try:
+            try:
+                from lxml import etree
+            except Exception:
+                etree = None
+            if etree and names:
+                root = etree.Element('tree')
+                for n in [f.strip() for f in names.split(',') if f.strip()]:
+                    node = etree.SubElement(root, 'field')
+                    node.set('name', n)
+                arch_str = etree.tostring(root, encoding='unicode')
+            else:
+                arch_str = '<tree/>'
+        except Exception:
+            _logger.exception('[DMS-CUSTOM-ARCH] failed to build arch in apply()')
+            arch_str = '<tree/>'
+
+        # create a temporary view record for this user and return an act_window
+        try:
+            uid = self.env.uid
+            name_prefix = 'dms.dealer.tree.user.%s.' % (uid,)
+            v_env = self.env['ir.ui.view'].sudo()
+            # cleanup any previous temporary views for this user (best-effort)
+            try:
+                old = v_env.search([('name', 'like', name_prefix)])
+                if old:
+                    old.unlink()
+            except Exception:
+                pass
+            view = v_env.create({
+                'name': name_prefix + fields.Datetime.now(),
+                'type': 'tree',
+                'model': 'dms.dealer',
+                'arch_db': arch_str,
+            })
+            _logger.info('[DMS-CUSTOM-APPLY] created temporary view id=%s name=%s for uid=%s', view.id, view.name, uid)
+            return {
+                'type': 'ir.actions.act_window',
+                'name': '車行',
+                'res_model': 'dms.dealer',
+                'view_mode': 'tree,form',
+                'views': [(view.id, 'tree')],
+                'target': 'current',
+            }
+        except Exception:
+            _logger.exception('[DMS-CUSTOM-ARCH] failed to create temporary view for uid=%s; falling back to client reload', self.env.uid)
+            return {'type': 'ir.actions.client', 'tag': 'reload'}
 
     @api.model
     def default_get(self, fields_list):

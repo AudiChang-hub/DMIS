@@ -33,36 +33,23 @@
     <field name="name">dms.dealer.tree</field>
     <field name="model">dms.dealer</field>
     <field name="arch" type="xml">
-      <tree string="車行" create="true" edit="true">
-        <field name="code"/>
-        <field name="name" string="店名"/>
-        <field name="short_name" string="簡稱"/>
-        <field name="owner_name" string="負責人"/>
-        <field name="store_manager" string="店長"/>
-        <field name="level"/>
-        <field name="store_type"/>
-        <field name="parent_id"/>
-        <field name="city"/>
-        <field name="district"/>
-        <field name="phone_1" string="電話1"/>
-        <field name="phone_2" string="電話2"/>
-        <field name="phone" string="電話(舊)"/>
-        <field name="mobile" string="手機"/>
-        <field name="mobile_fax"/>
-        <field name="email"/>
-        <field name="sym_gas_price_list"/>
-        <field name="sym_ev_price_list"/>
-        <field name="suzuki_gas_price_list"/>
-        <field name="suzuki_ev_price_list"/>
-        <field name="sym_dispatch_capacity"/>
-        <field name="suzuki_dispatch_capacity"/>
-        <field name="sym_line_group"/>
-        <field name="suzuki_line_group"/>
-        <field name="common_line_group"/>
-        <field name="special_line_group"/>
-        <field name="holiday_gift"/>
-        <field name="tags" widget="many2many_tags"/>
-        <field name="active"/>
+      <tree string="車行">
+        <field name="code" optional="show"/>
+        <field name="name" optional="show"/>
+        <field name="short_name" optional="hide"/>
+        <field name="owner_name" optional="show"/>
+        <field name="store_manager" optional="show"/>
+        <field name="phone_1" optional="show"/>
+        <field name="phone_2" optional="hide"/>
+        <field name="mobile" optional="show"/>
+        <field name="mobile_fax" optional="hide"/>
+        <field name="city" optional="hide"/>
+        <field name="sym_gas_price_list" optional="hide"/>
+        <field name="sym_ev_price_list" optional="hide"/>
+        <field name="suzuki_gas_price_list" optional="hide"/>
+        <field name="suzuki_ev_price_list" optional="hide"/>
+        <field name="holiday_gift" optional="hide"/>
+        <field name="active" optional="hide"/>
       </tree>
     </field>
   </record>
@@ -144,8 +131,8 @@
         <filter name="suzuki_gas_price_list" string="台鈴油表" domain="[('suzuki_gas_price_list','=',True)]"/>
         <filter name="suzuki_ev_price_list" string="台鈴電表" domain="[('suzuki_ev_price_list','=',True)]"/>
         <group expand="0" string="分組">
-          <filter name="group_by_store_type" string="車行類型" context="{'group_by':'store_type'}"/>
-          <filter name="group_by_city" string="縣市" context="{'group_by':'city'}"/>
+          <filter string="車行類型" context="{'group_by': 'store_type'}"/>
+          <filter string="縣市" context="{'group_by': 'city'}"/>
         </group>
         </search>
     </field>

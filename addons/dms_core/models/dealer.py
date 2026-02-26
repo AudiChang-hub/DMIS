@@ -16,6 +16,8 @@ class Dealer(models.Model):
     code = fields.Char(string='車行代碼', required=True)
     name = fields.Char(string='車行名稱', required=True)
     short_name = fields.Char(string='簡稱')
+    owner_name = fields.Char(string='負責人', required=True)
+    store_manager = fields.Char(string='店長', required=True)
     level = fields.Selection([
         ('distributor', '總經銷'),
         ('tier1', '一級'),
@@ -33,6 +35,11 @@ class Dealer(models.Model):
     active = fields.Boolean(string='啟用', default=True)
     contact_name = fields.Char(string='聯絡人')
     phone = fields.Char(string='電話')
+    # New contact fields
+    phone_1 = fields.Char(string='電話1')
+    phone_2 = fields.Char(string='電話2')
+    mobile = fields.Char(string='手機')
+    mobile_fax = fields.Char(string='手機/傳真')
     email = fields.Char(string='電子郵件')
     address = fields.Text(string='地址')
     city = fields.Char(string='縣市')
@@ -40,6 +47,23 @@ class Dealer(models.Model):
     tags = fields.Many2many('dms.dealer.tag', string='標籤')
     note = fields.Html(string='備註')
     partner_id = fields.Many2one('res.partner', string='Partner (選用)')
+
+    # Price list permissions
+    sym_gas_price_list = fields.Boolean(string='三陽油車價格表', default=False)
+    sym_ev_price_list = fields.Boolean(string='三陽電車價格表', default=False)
+    suzuki_gas_price_list = fields.Boolean(string='台鈴油車價格表', default=False)
+    suzuki_ev_price_list = fields.Boolean(string='台鈴電車價格表', default=False)
+
+    # Dispatch capacities
+    sym_dispatch_capacity = fields.Integer(string='三陽排車容量')
+    suzuki_dispatch_capacity = fields.Integer(string='台鈴排車容量')
+
+    # Groups / activities
+    sym_line_group = fields.Boolean(string='三陽LINE群組', default=False)
+    suzuki_line_group = fields.Boolean(string='台鈴LINE群組', default=False)
+    common_line_group = fields.Boolean(string='通用LINE群組', default=False)
+    special_line_group = fields.Boolean(string='特殊LINE群組', default=False)
+    holiday_gift = fields.Boolean(string='年節送禮', default=False)
 
     _sql_constraints = [
         ('code_uniq', 'unique(code)', '車行代碼必須唯一')
@@ -60,6 +84,14 @@ class Dealer(models.Model):
                     raise ValidationError('parent_id 造成循環，請檢查上層設定')
                 seen.add(parent.id)
                 parent = parent.parent_id
+
+    @api.constrains('sym_dispatch_capacity', 'suzuki_dispatch_capacity')
+    def _check_capacities_non_negative(self):
+        for rec in self:
+            for field_name in ('sym_dispatch_capacity', 'suzuki_dispatch_capacity'):
+                val = getattr(rec, field_name)
+                if val is not None and val < 0:
+                    raise ValidationError('%s 不可為負數' % (self._fields[field_name].string or field_name))
 
     @api.model
     def name_get(self):

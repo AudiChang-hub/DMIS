@@ -8,6 +8,7 @@
     'category': 'Custom',
     'depends': ['base'],
     'data': [
+        'security/dms_security.xml',
         'security/ir.model.access.csv',
         'views/dealer_views.xml',
         'data/seed.xml',

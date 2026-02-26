@@ -1,0 +1,500 @@
+odoo-1  | 2026-02-26 04:11:01,101 1 INFO dmis_dev odoo.modules.loading: 8 modules loaded in 0.00s, 0 queries (+0 extra) 
+odoo-1  | 2026-02-26 04:11:01,102 1 INFO dmis_dev odoo.modules.loading: loading 9 modules... 
+odoo-1  | 2026-02-26 04:11:01,103 1 INFO dmis_dev odoo.modules.loading: Loading module dms_core (2/9) 
+odoo-1  | 2026-02-26 04:11:01,165 1 INFO dmis_dev odoo.modules.registry: module dms_core: creating or updating database tables 
+odoo-1  | 2026-02-26 04:11:01,363 1 INFO dmis_dev odoo.modules.loading: loading dms_core/security/dms_security.xml 
+odoo-1  | 2026-02-26 04:11:01,394 1 INFO dmis_dev odoo.modules.loading: loading dms_core/security/ir.model.access.csv 
+odoo-1  | 2026-02-26 04:11:01,410 1 INFO dmis_dev odoo.modules.loading: loading dms_core/views/dealer_views.xml 
+odoo-1  | 2026-02-26 04:11:01,423 1 WARNING dmis_dev odoo.modules.loading: Transient module states were reset 
+odoo-1  | 2026-02-26 04:11:01,436 1 ERROR dmis_dev odoo.modules.registry: Failed to load registry 
+odoo-1  | Traceback (most recent call last):
+odoo-1  |   File "/usr/lib/python3/dist-packages/odoo/tools/cache.py", line 85, in lookup
+odoo-1  |     r = d[key]
+odoo-1  |   File "<decorator-gen-8>", line 2, in __getitem__
+odoo-1  |   File "/usr/lib/python3/dist-packages/odoo/tools/func.py", line 87, in locked
+odoo-1  |     return func(inst, *args, **kwargs)
+odoo-1  |   File "/usr/lib/python3/dist-packages/odoo/tools/lru.py", line 34, in __getitem__
+odoo-1  |     a = self.d[obj]
+odoo-1  | KeyError: ('ir.model.data', <function IrModelData._xmlid_lookup at 0x7fdf1f5f59d0>, 'dms_core.action_dealer_columns_wizard')
+odoo-1  | 
+odoo-1  | During handling of the above exception, another exception occurred:
+odoo-1  | 
+odoo-1  | Traceback (most recent call last):
+odoo-1  |   File "/usr/lib/python3/dist-packages/odoo/tools/convert.py", line 706, in _tag_root
+odoo-1  |     f(rec)
+odoo-1  |   File "/usr/lib/python3/dist-packages/odoo/tools/convert.py", line 581, in _tag_record
+odoo-1  |     f_val = _eval_xml(self, field, env)
+odoo-1  |   File "/usr/lib/python3/dist-packages/odoo/tools/convert.py", line 143, in _eval_xml
+odoo-1  |     +_process("".join(etree.tostring(n, encoding='unicode') for n in node))
+odoo-1  |   File "/usr/lib/python3/dist-packages/odoo/tools/convert.py", line 132, in _process
+odoo-1  |     self.idref[id] = self.id_get(id)
+odoo-1  |   File "/usr/lib/python3/dist-packages/odoo/tools/convert.py", line 689, in id_get
+odoo-1  |     res = self.model_id_get(id_str, raise_if_not_found)
+odoo-1  |   File "/usr/lib/python3/dist-packages/odoo/tools/convert.py", line 695, in model_id_get
+odoo-1  |     return self.env['ir.model.data']._xmlid_to_res_model_res_id(id_str, raise_if_not_found=raise_if_not_found)
+odoo-1  |   File "/usr/lib/python3/dist-packages/odoo/addons/base/models/ir_model.py", line 2059, in _xmlid_to_res_model_res_id
+odoo-1  |     return self._xmlid_lookup(xmlid)[1:3]
+odoo-1  |   File "<decorator-gen-43>", line 2, in _xmlid_lookup
+odoo-1  |   File "/usr/lib/python3/dist-packages/odoo/tools/cache.py", line 90, in lookup
+odoo-1  |     value = d[key] = self.method(*args, **kwargs)
+odoo-1  |   File "/usr/lib/python3/dist-packages/odoo/addons/base/models/ir_model.py", line 2052, in _xmlid_lookup
+odoo-1  |     raise ValueError('External ID not found in the system: %s' % xmlid)
+odoo-1  | ValueError: External ID not found in the system: dms_core.action_dealer_columns_wizard
+odoo-1  | 
+odoo-1  | The above exception was the direct cause of the following exception:
+odoo-1  | 
+odoo-1  | Traceback (most recent call last):
+odoo-1  |   File "/usr/lib/python3/dist-packages/odoo/modules/registry.py", line 87, in new
+odoo-1  |     odoo.modules.load_modules(registry, force_demo, status, update_module)
+odoo-1  |   File "/usr/lib/python3/dist-packages/odoo/modules/loading.py", line 493, in load_modules
+odoo-1  |     processed_modules += load_marked_modules(cr, graph,
+odoo-1  |   File "/usr/lib/python3/dist-packages/odoo/modules/loading.py", line 374, in load_marked_modules
+odoo-1  |     loaded, processed = load_module_graph(
+odoo-1  |   File "/usr/lib/python3/dist-packages/odoo/modules/loading.py", line 233, in load_module_graph
+odoo-1  |     load_data(cr, idref, mode, kind='data', package=package)
+odoo-1  |   File "/usr/lib/python3/dist-packages/odoo/modules/loading.py", line 73, in load_data
+odoo-1  |     tools.convert_file(cr, package.name, filename, idref, mode, noupdate, kind)
+odoo-1  |   File "/usr/lib/python3/dist-packages/odoo/tools/convert.py", line 771, in convert_file
+odoo-1  |     convert_xml_import(cr, module, fp, idref, mode, noupdate)
+odoo-1  |   File "/usr/lib/python3/dist-packages/odoo/tools/convert.py", line 837, in convert_xml_import
+odoo-1  |     obj.parse(doc.getroot())
+odoo-1  |   File "/usr/lib/python3/dist-packages/odoo/tools/convert.py", line 757, in parse
+odoo-1  |     self._tag_root(de)
+odoo-1  |   File "/usr/lib/python3/dist-packages/odoo/tools/convert.py", line 719, in _tag_root
+odoo-1  |     raise ParseError('while parsing %s:%s, somewhere inside\n%s' % (
+odoo-1  | odoo.tools.convert.ParseError: while parsing /mnt/extra-addons/dms_core/views/dealer_views.xml:3, somewhere inside
+odoo-1  | <record id="view_dealer_tree" model="ir.ui.view">
+odoo-1  |     <field name="name">dms.dealer.tree</field>
+odoo-1  |     <field name="model">dms.dealer</field>
+odoo-1  |     <field name="arch" type="xml">
+odoo-1  |       <tree string="頠?" create="true" edit="true">
+odoo-1  |         <button name="%(dms_core.action_dealer_columns_wizard)d" type="action" string="甈??豢?" class="oe_highlight"/>
+odoo-1  |         <field name="code"/>
+odoo-1  |         <field name="name" string="摨?"/>
+odoo-1  |         <field name="short_name" string="蝪∠迂"/>
+odoo-1  |         <field name="owner_name" string="鞎痊鈭?/>
+odoo-1  |         <field name="store_manager" string="摨"/>
+odoo-1  |         <field name="level"/>
+odoo-1  |         <field name="store_type"/>
+odoo-1  |         <field name="parent_id"/>
+odoo-1  |         <field name="city"/>
+odoo-1  |         <field name="district"/>
+odoo-1  |         <field name="phone_1" string="?餉店1"/>
+odoo-1  |         <field name="phone_2" string="?餉店2"/>
+odoo-1  |         <field name="phone" string="?餉店(??"/>
+odoo-1  |         <field name="mobile" string="??"/>
+odoo-1  |         <field name="mobile_fax"/>
+odoo-1  |         <field name="email"/>
+odoo-1  |         <field name="sym_gas_price_list"/>
+odoo-1  |         <field name="sym_ev_price_list"/>
+odoo-1  |         <field name="suzuki_gas_price_list"/>
+odoo-1  |         <field name="suzuki_ev_price_list"/>
+odoo-1  |         <field name="sym_dispatch_capacity"/>
+odoo-1  |         <field name="suzuki_dispatch_capacity"/>
+odoo-1  |         <field name="sym_line_group"/>
+odoo-1  |         <field name="suzuki_line_group"/>
+odoo-1  |         <field name="common_line_group"/>
+odoo-1  |         <field name="special_line_group"/>
+odoo-1  |         <field name="holiday_gift"/>
+odoo-1  |         <field name="tags" widget="many2many_tags"/>
+odoo-1  |         <field name="active"/>
+odoo-1  |       </tree>
+odoo-1  |     </field>
+odoo-1  |   </record>
+odoo-1  | 2026-02-26 04:11:01,442 1 INFO dmis_dev odoo.modules.loading: loading 1 modules... 
+odoo-1  | 2026-02-26 04:11:01,446 1 INFO dmis_dev odoo.modules.loading: 1 modules loaded in 0.00s, 0 queries (+0 extra) 
+odoo-1  | 2026-02-26 04:11:01,447 1 INFO dmis_dev odoo.modules.loading: loading 8 modules... 
+odoo-1  | 2026-02-26 04:11:01,451 1 INFO dmis_dev odoo.modules.loading: 8 modules loaded in 0.00s, 0 queries (+0 extra) 
+odoo-1  | 2026-02-26 04:11:01,466 1 INFO dmis_dev odoo.modules.loading: Modules loaded. 
+odoo-1  | 2026-02-26 04:11:01,467 1 INFO dmis_dev odoo.modules.registry: Registry loaded in 0.029s 
+odoo-1  | 2026-02-26 04:11:01,470 1 ERROR dmis_dev odoo.http: Exception during request handling. 
+odoo-1  | Traceback (most recent call last):
+odoo-1  |   File "/usr/lib/python3/dist-packages/odoo/tools/cache.py", line 85, in lookup
+odoo-1  |     r = d[key]
+odoo-1  |   File "<decorator-gen-8>", line 2, in __getitem__
+odoo-1  |   File "/usr/lib/python3/dist-packages/odoo/tools/func.py", line 87, in locked
+odoo-1  |     return func(inst, *args, **kwargs)
+odoo-1  |   File "/usr/lib/python3/dist-packages/odoo/tools/lru.py", line 34, in __getitem__
+odoo-1  |     a = self.d[obj]
+odoo-1  | KeyError: ('ir.model.data', <function IrModelData._xmlid_lookup at 0x7fdf1f5f59d0>, 'dms_core.action_dealer_columns_wizard')
+odoo-1  | 
+odoo-1  | During handling of the above exception, another exception occurred:
+odoo-1  | 
+odoo-1  | Traceback (most recent call last):
+odoo-1  |   File "/usr/lib/python3/dist-packages/odoo/tools/convert.py", line 706, in _tag_root
+odoo-1  |     f(rec)
+odoo-1  |   File "/usr/lib/python3/dist-packages/odoo/tools/convert.py", line 581, in _tag_record
+odoo-1  |     f_val = _eval_xml(self, field, env)
+odoo-1  |   File "/usr/lib/python3/dist-packages/odoo/tools/convert.py", line 143, in _eval_xml
+odoo-1  |     +_process("".join(etree.tostring(n, encoding='unicode') for n in node))
+odoo-1  |   File "/usr/lib/python3/dist-packages/odoo/tools/convert.py", line 132, in _process
+odoo-1  |     self.idref[id] = self.id_get(id)
+odoo-1  |   File "/usr/lib/python3/dist-packages/odoo/tools/convert.py", line 689, in id_get
+odoo-1  |     res = self.model_id_get(id_str, raise_if_not_found)
+odoo-1  |   File "/usr/lib/python3/dist-packages/odoo/tools/convert.py", line 695, in model_id_get
+odoo-1  |     return self.env['ir.model.data']._xmlid_to_res_model_res_id(id_str, raise_if_not_found=raise_if_not_found)
+odoo-1  |   File "/usr/lib/python3/dist-packages/odoo/addons/base/models/ir_model.py", line 2059, in _xmlid_to_res_model_res_id
+odoo-1  |     return self._xmlid_lookup(xmlid)[1:3]
+odoo-1  |   File "<decorator-gen-43>", line 2, in _xmlid_lookup
+odoo-1  |   File "/usr/lib/python3/dist-packages/odoo/tools/cache.py", line 90, in lookup
+odoo-1  |     value = d[key] = self.method(*args, **kwargs)
+odoo-1  |   File "/usr/lib/python3/dist-packages/odoo/addons/base/models/ir_model.py", line 2052, in _xmlid_lookup
+odoo-1  |     raise ValueError('External ID not found in the system: %s' % xmlid)
+odoo-1  | ValueError: External ID not found in the system: dms_core.action_dealer_columns_wizard
+odoo-1  | 
+odoo-1  | The above exception was the direct cause of the following exception:
+odoo-1  | 
+odoo-1  | Traceback (most recent call last):
+odoo-1  |   File "/usr/lib/python3/dist-packages/odoo/http.py", line 2261, in __call__
+odoo-1  |     response = request._serve_db()
+odoo-1  |   File "/usr/lib/python3/dist-packages/odoo/http.py", line 1848, in _serve_db
+odoo-1  |     return service_model.retrying(self._serve_ir_http, self.env)
+odoo-1  |   File "/usr/lib/python3/dist-packages/odoo/service/model.py", line 152, in retrying
+odoo-1  |     result = func()
+odoo-1  |   File "/usr/lib/python3/dist-packages/odoo/http.py", line 1876, in _serve_ir_http
+odoo-1  |     response = self.dispatcher.dispatch(rule.endpoint, args)
+odoo-1  |   File "/usr/lib/python3/dist-packages/odoo/http.py", line 2080, in dispatch
+odoo-1  |     result = self.request.registry['ir.http']._dispatch(endpoint)
+odoo-1  |   File "/usr/lib/python3/dist-packages/odoo/addons/base/models/ir_http.py", line 154, in _dispatch
+odoo-1  |     result = endpoint(**request.params)
+odoo-1  |   File "/usr/lib/python3/dist-packages/odoo/http.py", line 763, in route_wrapper
+odoo-1  |     result = endpoint(self, *args, **params_ok)
+odoo-1  |   File "/usr/lib/python3/dist-packages/odoo/addons/web/controllers/dataset.py", line 47, in call_button
+odoo-1  |     action = self._call_kw(model, method, args, kwargs)
+odoo-1  |   File "/usr/lib/python3/dist-packages/odoo/addons/web/controllers/dataset.py", line 34, in _call_kw
+odoo-1  |     return call_kw(Model, method, args, kwargs)
+odoo-1  |   File "/usr/lib/python3/dist-packages/odoo/api.py", line 484, in call_kw
+odoo-1  |     result = _call_kw_multi(method, model, args, kwargs)
+odoo-1  |   File "/usr/lib/python3/dist-packages/odoo/api.py", line 469, in _call_kw_multi
+odoo-1  |     result = method(recs, *args, **kwargs)
+odoo-1  |   File "<decorator-gen-77>", line 2, in button_immediate_install
+odoo-1  |   File "/usr/lib/python3/dist-packages/odoo/addons/base/models/ir_module.py", line 74, in check_and_log
+odoo-1  |     return method(self, *args, **kwargs)
+odoo-1  |   File "/usr/lib/python3/dist-packages/odoo/addons/base/models/ir_module.py", line 478, in button_immediate_install
+odoo-1  |     return self._button_immediate_function(self.env.registry[self._name].button_install)
+odoo-1  |   File "/usr/lib/python3/dist-packages/odoo/addons/base/models/ir_module.py", line 602, in _button_immediate_function
+odoo-1  |     registry = modules.registry.Registry.new(self._cr.dbname, update_module=True)
+odoo-1  |   File "<decorator-gen-16>", line 2, in new
+odoo-1  |   File "/usr/lib/python3/dist-packages/odoo/tools/func.py", line 87, in locked
+odoo-1  |     return func(inst, *args, **kwargs)
+odoo-1  |   File "/usr/lib/python3/dist-packages/odoo/modules/registry.py", line 87, in new
+odoo-1  |     odoo.modules.load_modules(registry, force_demo, status, update_module)
+odoo-1  |   File "/usr/lib/python3/dist-packages/odoo/modules/loading.py", line 493, in load_modules
+odoo-1  |     processed_modules += load_marked_modules(cr, graph,
+odoo-1  |   File "/usr/lib/python3/dist-packages/odoo/modules/loading.py", line 374, in load_marked_modules
+odoo-1  |     loaded, processed = load_module_graph(
+odoo-1  |   File "/usr/lib/python3/dist-packages/odoo/modules/loading.py", line 233, in load_module_graph
+odoo-1  |     load_data(cr, idref, mode, kind='data', package=package)
+odoo-1  |   File "/usr/lib/python3/dist-packages/odoo/modules/loading.py", line 73, in load_data
+odoo-1  |     tools.convert_file(cr, package.name, filename, idref, mode, noupdate, kind)
+odoo-1  |   File "/usr/lib/python3/dist-packages/odoo/tools/convert.py", line 771, in convert_file
+odoo-1  |     convert_xml_import(cr, module, fp, idref, mode, noupdate)
+odoo-1  |   File "/usr/lib/python3/dist-packages/odoo/tools/convert.py", line 837, in convert_xml_import
+odoo-1  |     obj.parse(doc.getroot())
+odoo-1  |   File "/usr/lib/python3/dist-packages/odoo/tools/convert.py", line 757, in parse
+odoo-1  |     self._tag_root(de)
+odoo-1  |   File "/usr/lib/python3/dist-packages/odoo/tools/convert.py", line 719, in _tag_root
+odoo-1  |     raise ParseError('while parsing %s:%s, somewhere inside\n%s' % (
+odoo-1  | odoo.tools.convert.ParseError: while parsing /mnt/extra-addons/dms_core/views/dealer_views.xml:3, somewhere inside
+odoo-1  | <record id="view_dealer_tree" model="ir.ui.view">
+odoo-1  |     <field name="name">dms.dealer.tree</field>
+odoo-1  |     <field name="model">dms.dealer</field>
+odoo-1  |     <field name="arch" type="xml">
+odoo-1  |       <tree string="頠?" create="true" edit="true">
+odoo-1  |         <button name="%(dms_core.action_dealer_columns_wizard)d" type="action" string="甈??豢?" class="oe_highlight"/>
+odoo-1  |         <field name="code"/>
+odoo-1  |         <field name="name" string="摨?"/>
+odoo-1  |         <field name="short_name" string="蝪∠迂"/>
+odoo-1  |         <field name="owner_name" string="鞎痊鈭?/>
+odoo-1  |         <field name="store_manager" string="摨"/>
+odoo-1  |         <field name="level"/>
+odoo-1  |         <field name="store_type"/>
+odoo-1  |         <field name="parent_id"/>
+odoo-1  |         <field name="city"/>
+odoo-1  |         <field name="district"/>
+odoo-1  |         <field name="phone_1" string="?餉店1"/>
+odoo-1  |         <field name="phone_2" string="?餉店2"/>
+odoo-1  |         <field name="phone" string="?餉店(??"/>
+odoo-1  |         <field name="mobile" string="??"/>
+odoo-1  |         <field name="mobile_fax"/>
+odoo-1  |         <field name="email"/>
+odoo-1  |         <field name="sym_gas_price_list"/>
+odoo-1  |         <field name="sym_ev_price_list"/>
+odoo-1  |         <field name="suzuki_gas_price_list"/>
+odoo-1  |         <field name="suzuki_ev_price_list"/>
+odoo-1  |         <field name="sym_dispatch_capacity"/>
+odoo-1  |         <field name="suzuki_dispatch_capacity"/>
+odoo-1  |         <field name="sym_line_group"/>
+odoo-1  |         <field name="suzuki_line_group"/>
+odoo-1  |         <field name="common_line_group"/>
+odoo-1  |         <field name="special_line_group"/>
+odoo-1  |         <field name="holiday_gift"/>
+odoo-1  |         <field name="tags" widget="many2many_tags"/>
+odoo-1  |         <field name="active"/>
+odoo-1  |       </tree>
+odoo-1  |     </field>
+odoo-1  |   </record>
+odoo-1  | 2026-02-26 04:11:01,471 1 INFO dmis_dev werkzeug: 172.18.0.1 - - [26/Feb/2026 04:11:01] "POST /web/dataset/call_button HTTP/1.1" 200 - 1426 0.415 0.340
+odoo-1  | 2026-02-26 04:11:06,381 1 INFO dmis_dev odoo.addons.base.models.ir_http: Generating routing map for key None 
+odoo-1  | 2026-02-26 04:11:06,453 1 INFO dmis_dev werkzeug: 172.18.0.1 - - [26/Feb/2026 04:11:06] "GET /websocket HTTP/1.1" 101 - 13 0.006 0.074
+odoo-1  | 2026-02-26 04:11:31,722 1 INFO dmis_dev werkzeug: 172.18.0.1 - - [26/Feb/2026 04:11:31] "GET /web/service-worker.js HTTP/1.1" 404 - 2 0.001 0.002
+odoo-1  | 2026-02-26 04:11:42,098 1 INFO dmis_dev werkzeug: 172.18.0.1 - - [26/Feb/2026 04:11:42] "POST /web/action/load HTTP/1.1" 200 - 27 0.007 0.012
+odoo-1  | 2026-02-26 04:11:42,152 1 INFO dmis_dev werkzeug: 172.18.0.1 - - [26/Feb/2026 04:11:42] "POST /web/dataset/call_kw/res.users/get_views HTTP/1.1" 200 - 58 0.023 0.026
+odoo-1  | 2026-02-26 04:11:42,168 1 INFO dmis_dev werkzeug: 172.18.0.1 - - [26/Feb/2026 04:11:42] "POST /web/dataset/call_kw/res.users/has_group HTTP/1.1" 200 - 2 0.001 0.003
+odoo-1  | 2026-02-26 04:11:42,173 1 INFO dmis_dev werkzeug: 172.18.0.1 - - [26/Feb/2026 04:11:42] "POST /web/dataset/call_kw/res.users/web_search_read HTTP/1.1" 200 - 13 0.004 0.005
+odoo-1  | 2026-02-26 04:11:46,905 1 INFO dmis_dev werkzeug: 172.18.0.1 - - [26/Feb/2026 04:11:46] "POST /web/action/load HTTP/1.1" 200 - 10 0.002 0.004
+odoo-1  | 2026-02-26 04:11:46,928 1 INFO dmis_dev werkzeug: 172.18.0.1 - - [26/Feb/2026 04:11:46] "POST /web/dataset/call_kw/res.company/get_views HTTP/1.1" 200 - 28 0.007 0.011
+odoo-1  | 2026-02-26 04:11:46,941 1 INFO dmis_dev werkzeug: 172.18.0.1 - - [26/Feb/2026 04:11:46] "POST /web/dataset/call_kw/res.company/web_search_read HTTP/1.1" 200 - 8 0.002 0.003
+odoo-1  | 2026-02-26 04:11:46,954 1 INFO ? werkzeug: 172.18.0.1 - - [26/Feb/2026 04:11:46] "GET /web/static/img/openhand.cur HTTP/1.1" 200 - 0 0.000 0.003
+odoo-1  | 2026-02-26 04:11:47,897 1 INFO dmis_dev werkzeug: 172.18.0.1 - - [26/Feb/2026 04:11:47] "POST /web/dataset/call_kw/res.users/web_search_read HTTP/1.1" 200 - 6 0.002 0.003
+odoo-1  | 2026-02-26 04:11:50,035 1 INFO dmis_dev werkzeug: 172.18.0.1 - - [26/Feb/2026 04:11:50] "POST /web/dataset/call_kw/res.users/read HTTP/1.1" 200 - 29 0.006 0.009
+odoo-1  | 2026-02-26 04:11:50,047 1 INFO dmis_dev werkzeug: 172.18.0.1 - - [26/Feb/2026 04:11:50] "POST /web/dataset/call_kw/res.company/read HTTP/1.1" 200 - 2 0.001 0.002
+odoo-1  | 2026-02-26 04:11:51,307 1 INFO dmis_dev odoo.addons.base.models.assetsbundle: Failed to find attachment for assets /web/assets/%-1a28212/web_editor.assets_wysiwyg.min.css 
+odoo-1  | 2026-02-26 04:11:51,474 1 INFO dmis_dev odoo.addons.base.models.assetsbundle: Failed to find attachment for assets /web/assets/%-1a28212/web_editor.assets_wysiwyg.min.js 
+odoo-1  | 2026-02-26 04:11:51,652 1 INFO dmis_dev werkzeug: 172.18.0.1 - - [26/Feb/2026 04:11:51] "GET /web/bundle/web_editor.assets_wysiwyg?lang=en_US HTTP/1.1" 200 - 22 0.011 0.416
+odoo-1  | 2026-02-26 04:11:51,729 1 INFO dmis_dev werkzeug: 172.18.0.1 - - [26/Feb/2026 04:11:51] "POST /web/dataset/call_kw/ HTTP/1.1" 200 - 20 0.010 0.031
+odoo-1  | 2026-02-26 04:11:55,012 1 INFO dmis_dev odoo.addons.base.models.ir_cron: Starting job `Base: Auto-vacuum internal data`. 
+odoo-1  | 2026-02-26 04:11:55,034 1 INFO dmis_dev odoo.addons.base.models.ir_attachment: filestore gc 3 checked, 0 removed 
+odoo-1  | 2026-02-26 04:11:55,058 1 INFO dmis_dev odoo.addons.base.models.res_users: GC'd 0 user log entries 
+odoo-1  | 2026-02-26 04:11:55,070 1 INFO dmis_dev odoo.addons.auth_totp.models.auth_totp: GC'd 0 totp devices entries 
+odoo-1  | 2026-02-26 04:11:55,076 1 INFO dmis_dev odoo.addons.base.models.ir_cron: Job `Base: Auto-vacuum internal data` done. 
+odoo-1  | 2026-02-26 04:11:59,943 1 INFO dmis_dev werkzeug: 172.18.0.1 - - [26/Feb/2026 04:11:59] "POST /web/dataset/call_kw/res.users/write HTTP/1.1" 200 - 3 0.002 0.006
+odoo-1  | 2026-02-26 04:11:59,965 1 INFO dmis_dev werkzeug: 172.18.0.1 - - [26/Feb/2026 04:11:59] "POST /web/dataset/call_kw/res.users/web_search_read HTTP/1.1" 200 - 6 0.004 0.006
+odoo-1  | 2026-02-26 04:12:00,987 1 INFO dmis_dev werkzeug: 172.18.0.1 - - [26/Feb/2026 04:12:00] "POST /web/dataset/call_kw/ir.module.module/web_search_read HTTP/1.1" 200 - 4 0.003 0.004
+odoo-1  | 2026-02-26 04:12:01,005 1 INFO dmis_dev werkzeug: 172.18.0.1 - - [26/Feb/2026 04:12:01] "POST /web/dataset/call_kw/ir.module.module/search_panel_select_range HTTP/1.1" 200 - 39 0.016 0.009
+odoo-1  | 2026-02-26 04:12:32,073 1 INFO dmis_dev werkzeug: 172.18.0.1 - - [26/Feb/2026 04:12:32] "GET /web/service-worker.js HTTP/1.1" 404 - 2 0.001 0.002
+odoo-1  | 2026-02-26 04:14:49,461 1 INFO dmis_dev werkzeug: 172.18.0.1 - - [26/Feb/2026 04:14:49] "GET /web?db=dmis_dev HTTP/1.1" 303 - 2 0.002 0.012
+odoo-1  | 2026-02-26 04:14:49,671 1 INFO dmis_dev werkzeug: 172.18.0.1 - - [26/Feb/2026 04:14:49] "GET /web/login HTTP/1.1" 200 - 53 0.020 0.185
+odoo-1  | 2026-02-26 04:14:49,703 1 INFO ? werkzeug: 172.18.0.1 - - [26/Feb/2026 04:14:49] "GET /web/static/src/libs/fontawesome/fonts/fontawesome-webfont.woff2?v=4.7.0 HTTP/1.1" 200 - 1 0.002 0.016
+odoo-1  | 2026-02-26 04:14:49,708 1 INFO dmis_dev werkzeug: 172.18.0.1 - - [26/Feb/2026 04:14:49] "GET /web/binary/company_logo HTTP/1.1" 200 - 3 0.003 0.018
+odoo-1  | 2026-02-26 04:14:49,709 1 INFO dmis_dev werkzeug: 172.18.0.1 - - [26/Feb/2026 04:14:49] "GET /web/assets/16-1c35fff/web.assets_frontend.min.css HTTP/1.1" 200 - 6 0.004 0.022
+odoo-1  | 2026-02-26 04:14:49,726 1 INFO dmis_dev werkzeug: 172.18.0.1 - - [26/Feb/2026 04:14:49] "GET /web/assets/17-82c8452/web.assets_frontend_minimal.min.js HTTP/1.1" 200 - 6 0.002 0.008
+odoo-1  | 2026-02-26 04:14:49,780 1 INFO ? werkzeug: 172.18.0.1 - - [26/Feb/2026 04:14:49] "GET /web/static/img/favicon.ico HTTP/1.1" 200 - 1 0.001 0.013
+odoo-1  | 2026-02-26 04:14:49,786 1 INFO dmis_dev werkzeug: 172.18.0.1 - - [26/Feb/2026 04:14:49] "GET /web/assets/18-71de4d9/web.assets_frontend_lazy.min.js HTTP/1.1" 200 - 6 0.005 0.016
+odoo-1  | 2026-02-26 04:14:49,930 1 INFO dmis_dev werkzeug: 172.18.0.1 - - [26/Feb/2026 04:14:49] "GET /web/webclient/translations/1772079289836 HTTP/1.1" 200 - 4 0.002 0.010
+odoo-1  | 2026-02-26 04:14:49,948 1 INFO dmis_dev werkzeug: 172.18.0.1 - - [26/Feb/2026 04:14:49] "GET /web/webclient/translations/1772079289859 HTTP/1.1" 200 - 4 0.002 0.008
+odoo-1  | 2026-02-26 04:14:55,932 1 INFO dmis_dev odoo.addons.base.models.ir_cron: Starting job `Base: Auto-vacuum internal data`. 
+odoo-1  | 2026-02-26 04:14:55,948 1 INFO dmis_dev odoo.addons.base.models.ir_attachment: filestore gc 0 checked, 0 removed 
+odoo-1  | 2026-02-26 04:14:55,967 1 INFO dmis_dev odoo.addons.base.models.res_users: GC'd 0 user log entries 
+odoo-1  | 2026-02-26 04:14:55,976 1 INFO dmis_dev odoo.addons.auth_totp.models.auth_totp: GC'd 0 totp devices entries 
+odoo-1  | 2026-02-26 04:14:55,984 1 INFO dmis_dev odoo.models.unlink: User #1 deleted bus.bus records with IDs: [1, 2, 3, 4] 
+odoo-1  | 2026-02-26 04:14:55,989 1 INFO dmis_dev odoo.addons.base.models.ir_cron: Job `Base: Auto-vacuum internal data` done. 
+odoo-1  | 2026-02-26 04:15:14,888 1 INFO dmis_dev odoo.addons.base.models.res_users: Login successful for db:dmis_dev login:hongsian.c@gmail.com from 172.18.0.1 
+odoo-1  | 2026-02-26 04:15:14,895 1 INFO dmis_dev werkzeug: 172.18.0.1 - - [26/Feb/2026 04:15:14] "POST /web/login HTTP/1.1" 303 - 36 0.017 0.313
+odoo-1  | 2026-02-26 04:15:14,908 1 ERROR dmis_dev odoo.addons.base.models.ir_model: Missing model dms.dealer 
+odoo-1  | 2026-02-26 04:15:14,908 1 ERROR dmis_dev odoo.addons.base.models.ir_model: Missing model dms.dealer 
+odoo-1  | 2026-02-26 04:15:14,908 1 ERROR dmis_dev odoo.addons.base.models.ir_model: Missing model dms.dealer.columns.wizard 
+odoo-1  | 2026-02-26 04:15:15,006 1 INFO dmis_dev werkzeug: 172.18.0.1 - - [26/Feb/2026 04:15:15] "GET /web HTTP/1.1" 200 - 62 0.017 0.088
+odoo-1  | 2026-02-26 04:15:15,046 1 INFO dmis_dev werkzeug: 172.18.0.1 - - [26/Feb/2026 04:15:15] "GET /web/assets/19-fe57db6/web.assets_common.min.css HTTP/1.1" 200 - 4 0.008 0.022
+odoo-1  | 2026-02-26 04:15:15,053 1 INFO dmis_dev werkzeug: 172.18.0.1 - - [26/Feb/2026 04:15:15] "GET /web/webclient/load_menus/3b5665afdb76f0b35edca6c8b7486724a31b5c9e8fd5a2aa71a636993cb1dd9b HTTP/1.1" 200 - 1 0.001 0.025
+odoo-1  | 2026-02-26 04:15:15,055 1 INFO dmis_dev werkzeug: 172.18.0.1 - - [26/Feb/2026 04:15:15] "GET /web/assets/20-6b01176/web.assets_backend.min.css HTTP/1.1" 200 - 4 0.004 0.033
+odoo-1  | 2026-02-26 04:15:15,055 1 INFO dmis_dev werkzeug: 172.18.0.1 - - [26/Feb/2026 04:15:15] "GET /web/assets/23-6bf707c/web.assets_backend_prod_only.min.js HTTP/1.1" 200 - 4 0.004 0.027
+odoo-1  | 2026-02-26 04:15:15,056 1 INFO dmis_dev werkzeug: 172.18.0.1 - - [26/Feb/2026 04:15:15] "GET /web/assets/22-6b01176/web.assets_backend.min.js HTTP/1.1" 200 - 4 0.004 0.030
+odoo-1  | 2026-02-26 04:15:15,066 1 INFO dmis_dev werkzeug: 172.18.0.1 - - [26/Feb/2026 04:15:15] "GET /web/assets/21-fe57db6/web.assets_common.min.js HTTP/1.1" 200 - 4 0.007 0.040
+odoo-1  | 2026-02-26 04:15:15,071 1 INFO dmis_dev werkzeug: 172.18.0.1 - - [26/Feb/2026 04:15:15] "GET /web/webclient/translations/65607f58d5469d51a5b051eb66c57db2c3d405a5?lang=en_US HTTP/1.1" 200 - 2 0.003 0.007
+odoo-1  | 2026-02-26 04:15:15,338 1 INFO dmis_dev werkzeug: 172.18.0.1 - - [26/Feb/2026 04:15:15] "GET /web/webclient/locale/en_US HTTP/1.1" 200 - 1 0.001 0.005
+odoo-1  | 2026-02-26 04:15:15,344 1 INFO dmis_dev werkzeug: 172.18.0.1 - - [26/Feb/2026 04:15:15] "GET /bus/websocket_worker_bundle?v=1.0.5 HTTP/1.1" 200 - 5 0.003 0.007
+odoo-1  | 2026-02-26 04:15:15,383 1 INFO ? werkzeug: 172.18.0.1 - - [26/Feb/2026 04:15:15] "GET /web/static/lib/odoo_ui_icons/fonts/odoo_ui_icons.woff2 HTTP/1.1" 200 - 0 0.000 0.008
+odoo-1  | 2026-02-26 04:15:15,391 1 INFO dmis_dev werkzeug: 172.18.0.1 - - [26/Feb/2026 04:15:15] "GET /web/image?model=res.users&field=avatar_128&id=2 HTTP/1.1" 200 - 8 0.012 0.012
+odoo-1  | 2026-02-26 04:15:15,395 1 INFO dmis_dev werkzeug: 172.18.0.1 - - [26/Feb/2026 04:15:15] "GET /websocket HTTP/1.1" 101 - 1 0.002 0.013
+odoo-1  | 2026-02-26 04:15:15,401 1 INFO dmis_dev werkzeug: 172.18.0.1 - - [26/Feb/2026 04:15:15] "POST /web/action/load HTTP/1.1" 200 - 11 0.017 0.015
+odoo-1  | 2026-02-26 04:15:15,401 1 INFO dmis_dev werkzeug: 172.18.0.1 - - [26/Feb/2026 04:15:15] "GET /web/image/res.company/1/favicon HTTP/1.1" 200 - 10 0.018 0.014
+odoo-1  | 2026-02-26 04:15:15,440 1 INFO dmis_dev werkzeug: 172.18.0.1 - - [26/Feb/2026 04:15:15] "POST /web/dataset/call_kw/ir.module.module/get_views HTTP/1.1" 200 - 36 0.013 0.017
+odoo-1  | 2026-02-26 04:15:15,463 1 INFO dmis_dev werkzeug: 172.18.0.1 - - [26/Feb/2026 04:15:15] "POST /web/dataset/call_kw/ir.module.module/web_search_read HTTP/1.1" 200 - 3 0.002 0.004
+odoo-1  | 2026-02-26 04:15:15,476 1 INFO dmis_dev werkzeug: 172.18.0.1 - - [26/Feb/2026 04:15:15] "POST /web/dataset/call_kw/ir.module.module/search_panel_select_range HTTP/1.1" 200 - 37 0.014 0.008
+odoo-1  | 2026-02-26 04:15:15,569 1 INFO ? werkzeug: 172.18.0.1 - - [26/Feb/2026 04:15:15] "GET /account/static/description/icon.png HTTP/1.1" 200 - 0 0.000 0.010
+odoo-1  | 2026-02-26 04:15:15,571 1 INFO ? werkzeug: 172.18.0.1 - - [26/Feb/2026 04:15:15] "GET /crm/static/description/icon.png HTTP/1.1" 200 - 0 0.000 0.009
+odoo-1  | 2026-02-26 04:15:15,574 1 INFO ? werkzeug: 172.18.0.1 - - [26/Feb/2026 04:15:15] "GET /sale_management/static/description/icon.png HTTP/1.1" 200 - 0 0.000 0.016
+odoo-1  | 2026-02-26 04:15:15,575 1 INFO ? werkzeug: 172.18.0.1 - - [26/Feb/2026 04:15:15] "GET /base/static/img/icons/mrp_workorder.png HTTP/1.1" 200 - 0 0.000 0.008
+odoo-1  | 2026-02-26 04:15:15,578 1 INFO ? werkzeug: 172.18.0.1 - - [26/Feb/2026 04:15:15] "GET /stock/static/description/icon.png HTTP/1.1" 200 - 0 0.000 0.007
+odoo-1  | 2026-02-26 04:15:15,581 1 INFO ? werkzeug: 172.18.0.1 - - [26/Feb/2026 04:15:15] "GET /website/static/description/icon.png HTTP/1.1" 200 - 0 0.000 0.011
+odoo-1  | 2026-02-26 04:15:15,591 1 INFO ? werkzeug: 172.18.0.1 - - [26/Feb/2026 04:15:15] "GET /purchase/static/description/icon.png HTTP/1.1" 200 - 0 0.000 0.009
+odoo-1  | 2026-02-26 04:15:15,594 1 INFO ? werkzeug: 172.18.0.1 - - [26/Feb/2026 04:15:15] "GET /base/static/img/icons/knowledge.png HTTP/1.1" 200 - 0 0.000 0.004
+odoo-1  | 2026-02-26 04:15:15,597 1 INFO ? werkzeug: 172.18.0.1 - - [26/Feb/2026 04:15:15] "GET /base/static/img/icons/account_accountant.png HTTP/1.1" 200 - 0 0.000 0.011
+odoo-1  | 2026-02-26 04:15:15,598 1 INFO ? werkzeug: 172.18.0.1 - - [26/Feb/2026 04:15:15] "GET /point_of_sale/static/description/icon.png HTTP/1.1" 200 - 0 0.000 0.011
+odoo-1  | 2026-02-26 04:15:15,600 1 INFO ? werkzeug: 172.18.0.1 - - [26/Feb/2026 04:15:15] "GET /project/static/description/icon.png HTTP/1.1" 200 - 0 0.000 0.005
+odoo-1  | 2026-02-26 04:15:15,604 1 INFO ? werkzeug: 172.18.0.1 - - [26/Feb/2026 04:15:15] "GET /website_sale/static/description/icon.png HTTP/1.1" 200 - 0 0.000 0.008
+odoo-1  | 2026-02-26 04:15:15,608 1 INFO ? werkzeug: 172.18.0.1 - - [26/Feb/2026 04:15:15] "GET /mrp/static/description/icon.png HTTP/1.1" 200 - 0 0.000 0.003
+odoo-1  | 2026-02-26 04:15:15,615 1 INFO ? werkzeug: 172.18.0.1 - - [26/Feb/2026 04:15:15] "GET /mass_mailing/static/description/icon.png HTTP/1.1" 200 - 0 0.000 0.006
+odoo-1  | 2026-02-26 04:15:15,616 1 INFO ? werkzeug: 172.18.0.1 - - [26/Feb/2026 04:15:15] "GET /hr_expense/static/description/icon.png HTTP/1.1" 200 - 0 0.000 0.005
+odoo-1  | 2026-02-26 04:15:15,623 1 INFO ? werkzeug: 172.18.0.1 - - [26/Feb/2026 04:15:15] "GET /base/static/img/icons/timesheet_grid.png HTTP/1.1" 200 - 0 0.000 0.012
+odoo-1  | 2026-02-26 04:15:15,625 1 INFO ? werkzeug: 172.18.0.1 - - [26/Feb/2026 04:15:15] "GET /hr_holidays/static/description/icon.png HTTP/1.1" 200 - 0 0.000 0.008
+odoo-1  | 2026-02-26 04:15:15,628 1 INFO ? werkzeug: 172.18.0.1 - - [26/Feb/2026 04:15:15] "GET /hr_recruitment/static/description/icon.png HTTP/1.1" 200 - 0 0.000 0.009
+odoo-1  | 2026-02-26 04:15:15,628 1 INFO ? werkzeug: 172.18.0.1 - - [26/Feb/2026 04:15:15] "GET /base/static/img/icons/web_studio.png HTTP/1.1" 200 - 0 0.000 0.015
+odoo-1  | 2026-02-26 04:15:15,633 1 INFO ? werkzeug: 172.18.0.1 - - [26/Feb/2026 04:15:15] "GET /hr/static/description/icon.png HTTP/1.1" 200 - 0 0.000 0.006
+odoo-1  | 2026-02-26 04:15:15,636 1 INFO ? werkzeug: 172.18.0.1 - - [26/Feb/2026 04:15:15] "GET /data_recycle/static/description/icon.png HTTP/1.1" 200 - 0 0.000 0.006
+odoo-1  | 2026-02-26 04:15:15,636 1 INFO ? werkzeug: 172.18.0.1 - - [26/Feb/2026 04:15:15] "GET /base/static/img/icons/industry_fsm.png HTTP/1.1" 200 - 0 0.000 0.010
+odoo-1  | 2026-02-26 04:15:15,644 1 INFO ? werkzeug: 172.18.0.1 - - [26/Feb/2026 04:15:15] "GET /base/static/description/icon.png HTTP/1.1" 200 - 0 0.000 0.005
+odoo-1  | 2026-02-26 04:15:15,644 1 INFO ? werkzeug: 172.18.0.1 - - [26/Feb/2026 04:15:15] "GET /maintenance/static/description/icon.png HTTP/1.1" 200 - 0 0.000 0.007
+odoo-1  | 2026-02-26 04:15:15,647 1 INFO ? werkzeug: 172.18.0.1 - - [26/Feb/2026 04:15:15] "GET /base/static/img/icons/sign.png HTTP/1.1" 200 - 0 0.000 0.004
+odoo-1  | 2026-02-26 04:15:15,655 1 INFO ? werkzeug: 172.18.0.1 - - [26/Feb/2026 04:15:15] "GET /base/static/img/icons/sale_subscription.png HTTP/1.1" 200 - 0 0.000 0.008
+odoo-1  | 2026-02-26 04:15:15,658 1 INFO ? werkzeug: 172.18.0.1 - - [26/Feb/2026 04:15:15] "GET /base/static/img/icons/quality_control.png HTTP/1.1" 200 - 0 0.000 0.008
+odoo-1  | 2026-02-26 04:15:15,659 1 INFO ? werkzeug: 172.18.0.1 - - [26/Feb/2026 04:15:15] "GET /base/static/img/icons/helpdesk.png HTTP/1.1" 200 - 0 0.000 0.013
+odoo-1  | 2026-02-26 04:15:15,660 1 INFO ? werkzeug: 172.18.0.1 - - [26/Feb/2026 04:15:15] "GET /website_slides/static/description/icon.png HTTP/1.1" 200 - 0 0.000 0.007
+odoo-1  | 2026-02-26 04:15:15,660 1 INFO ? werkzeug: 172.18.0.1 - - [26/Feb/2026 04:15:15] "GET /website_event/static/description/icon.png HTTP/1.1" 200 - 0 0.000 0.005
+odoo-1  | 2026-02-26 04:15:15,661 1 INFO ? werkzeug: 172.18.0.1 - - [26/Feb/2026 04:15:15] "GET /base/static/img/icons/planning.png HTTP/1.1" 200 - 0 0.000 0.007
+odoo-1  | 2026-02-26 04:15:15,674 1 INFO ? werkzeug: 172.18.0.1 - - [26/Feb/2026 04:15:15] "GET /mail/static/description/icon.png HTTP/1.1" 200 - 0 0.000 0.010
+odoo-1  | 2026-02-26 04:15:15,678 1 INFO ? werkzeug: 172.18.0.1 - - [26/Feb/2026 04:15:15] "GET /calendar/static/description/icon.png HTTP/1.1" 200 - 0 0.000 0.006
+odoo-1  | 2026-02-26 04:15:15,680 1 INFO ? werkzeug: 172.18.0.1 - - [26/Feb/2026 04:15:15] "GET /base/static/img/icons/social.png HTTP/1.1" 200 - 0 0.000 0.005
+odoo-1  | 2026-02-26 04:15:15,681 1 INFO ? werkzeug: 172.18.0.1 - - [26/Feb/2026 04:15:15] "GET /contacts/static/description/icon.png HTTP/1.1" 200 - 0 0.000 0.012
+odoo-1  | 2026-02-26 04:15:15,682 1 INFO ? werkzeug: 172.18.0.1 - - [26/Feb/2026 04:15:15] "GET /base/static/img/icons/mrp_plm.png HTTP/1.1" 200 - 0 0.000 0.013
+odoo-1  | 2026-02-26 04:15:15,688 1 INFO ? werkzeug: 172.18.0.1 - - [26/Feb/2026 04:15:15] "GET /fleet/static/description/icon.png HTTP/1.1" 200 - 0 0.000 0.007
+odoo-1  | 2026-02-26 04:15:15,693 1 INFO ? werkzeug: 172.18.0.1 - - [26/Feb/2026 04:15:15] "GET /base/static/img/icons/hr_appraisal.png HTTP/1.1" 200 - 0 0.000 0.015
+odoo-1  | 2026-02-26 04:15:15,695 1 INFO ? werkzeug: 172.18.0.1 - - [26/Feb/2026 04:15:15] "GET /base/static/img/icons/marketing_automation.png HTTP/1.1" 200 - 0 0.000 0.009
+odoo-1  | 2026-02-26 04:15:15,695 1 INFO ? werkzeug: 172.18.0.1 - - [26/Feb/2026 04:15:15] "GET /im_livechat/static/description/icon.png HTTP/1.1" 200 - 0 0.000 0.006
+odoo-1  | 2026-02-26 04:15:15,701 1 INFO ? werkzeug: 172.18.0.1 - - [26/Feb/2026 04:15:15] "GET /base/static/img/icons/appointment.png HTTP/1.1" 200 - 0 0.000 0.010
+odoo-1  | 2026-02-26 04:15:15,704 1 INFO ? werkzeug: 172.18.0.1 - - [26/Feb/2026 04:15:15] "GET /survey/static/description/icon.png HTTP/1.1" 200 - 0 0.000 0.009
+odoo-1  | 2026-02-26 04:15:15,705 1 INFO ? werkzeug: 172.18.0.1 - - [26/Feb/2026 04:15:15] "GET /base/static/img/icons/web_mobile.png HTTP/1.1" 200 - 0 0.000 0.006
+odoo-1  | 2026-02-26 04:15:15,709 1 INFO ? werkzeug: 172.18.0.1 - - [26/Feb/2026 04:15:15] "GET /repair/static/description/icon.png HTTP/1.1" 200 - 0 0.000 0.006
+odoo-1  | 2026-02-26 04:15:15,713 1 INFO ? werkzeug: 172.18.0.1 - - [26/Feb/2026 04:15:15] "GET /mass_mailing_sms/static/description/icon.png HTTP/1.1" 200 - 0 0.000 0.006
+odoo-1  | 2026-02-26 04:15:15,717 1 INFO ? werkzeug: 172.18.0.1 - - [26/Feb/2026 04:15:15] "GET /hr_attendance/static/description/icon.png HTTP/1.1" 200 - 0 0.000 0.011
+odoo-1  | 2026-02-26 04:15:15,720 1 INFO ? werkzeug: 172.18.0.1 - - [26/Feb/2026 04:15:15] "GET /hr_skills/static/description/icon.png HTTP/1.1" 200 - 0 0.000 0.003
+odoo-1  | 2026-02-26 04:15:15,724 1 INFO ? werkzeug: 172.18.0.1 - - [26/Feb/2026 04:15:15] "GET /note/static/description/icon.png HTTP/1.1" 200 - 0 0.000 0.011
+odoo-1  | 2026-02-26 04:15:15,726 1 INFO ? werkzeug: 172.18.0.1 - - [26/Feb/2026 04:15:15] "GET /base/static/img/icons/stock_barcode.png HTTP/1.1" 200 - 0 0.000 0.014
+odoo-1  | 2026-02-26 04:15:15,731 1 INFO ? werkzeug: 172.18.0.1 - - [26/Feb/2026 04:15:15] "GET /lunch/static/description/icon.png HTTP/1.1" 200 - 0 0.000 0.008
+odoo-1  | 2026-02-26 04:15:15,734 1 INFO ? werkzeug: 172.18.0.1 - - [26/Feb/2026 04:15:15] "GET /base/static/img/icons/sale_ebay.png HTTP/1.1" 200 - 0 0.000 0.006
+odoo-1  | 2026-02-26 04:15:15,734 1 INFO ? werkzeug: 172.18.0.1 - - [26/Feb/2026 04:15:15] "GET /base/static/img/icons/voip.png HTTP/1.1" 200 - 0 0.000 0.014
+odoo-1  | 2026-02-26 04:15:15,735 1 INFO ? werkzeug: 172.18.0.1 - - [26/Feb/2026 04:15:15] "GET /website_hr_recruitment/static/description/icon.png HTTP/1.1" 200 - 0 0.000 0.011
+odoo-1  | 2026-02-26 04:15:15,739 1 INFO ? werkzeug: 172.18.0.1 - - [26/Feb/2026 04:15:15] "GET /hr_contract/static/description/icon.png HTTP/1.1" 200 - 0 0.000 0.005
+odoo-1  | 2026-02-26 04:16:54,289 1 INFO dmis_dev werkzeug: 172.18.0.1 - - [26/Feb/2026 04:16:54] "GET /web?db=dmis_dev HTTP/1.1" 303 - 2 0.006 0.017
+odoo-1  | 2026-02-26 04:16:54,330 1 INFO dmis_dev werkzeug: 172.18.0.1 - - [26/Feb/2026 04:16:54] "GET /web/login HTTP/1.1" 200 - 5 0.009 0.025
+odoo-1  | 2026-02-26 04:16:54,373 1 INFO ? werkzeug: 172.18.0.1 - - [26/Feb/2026 04:16:54] "GET /web/static/src/libs/fontawesome/fonts/fontawesome-webfont.woff2?v=4.7.0 HTTP/1.1" 200 - 1 0.003 0.029
+odoo-1  | 2026-02-26 04:16:54,383 1 INFO dmis_dev werkzeug: 172.18.0.1 - - [26/Feb/2026 04:16:54] "GET /web/binary/company_logo HTTP/1.1" 200 - 3 0.005 0.030
+odoo-1  | 2026-02-26 04:16:54,384 1 INFO dmis_dev werkzeug: 172.18.0.1 - - [26/Feb/2026 04:16:54] "GET /web/assets/16-1c35fff/web.assets_frontend.min.css HTTP/1.1" 200 - 6 0.007 0.033
+odoo-1  | 2026-02-26 04:16:54,406 1 INFO dmis_dev werkzeug: 172.18.0.1 - - [26/Feb/2026 04:16:54] "GET /web/assets/17-82c8452/web.assets_frontend_minimal.min.js HTTP/1.1" 200 - 6 0.004 0.011
+odoo-1  | 2026-02-26 04:16:54,453 1 INFO ? werkzeug: 172.18.0.1 - - [26/Feb/2026 04:16:54] "GET /web/static/img/favicon.ico HTTP/1.1" 200 - 1 0.001 0.016
+odoo-1  | 2026-02-26 04:16:54,455 1 INFO dmis_dev werkzeug: 172.18.0.1 - - [26/Feb/2026 04:16:54] "GET /web/assets/18-71de4d9/web.assets_frontend_lazy.min.js HTTP/1.1" 200 - 6 0.004 0.018
+odoo-1  | 2026-02-26 04:16:54,593 1 INFO dmis_dev werkzeug: 172.18.0.1 - - [26/Feb/2026 04:16:54] "GET /web/webclient/translations/1772079414541 HTTP/1.1" 200 - 4 0.002 0.009
+odoo-1  | 2026-02-26 04:16:54,613 1 INFO dmis_dev werkzeug: 172.18.0.1 - - [26/Feb/2026 04:16:54] "GET /web/webclient/translations/1772079414562 HTTP/1.1" 200 - 4 0.003 0.009
+odoo-1  | 2026-02-26 04:17:23,373 1 INFO dmis_dev odoo.addons.base.models.res_users: Login successful for db:dmis_dev login:hongsian.c@gmail.com from 172.18.0.1 
+odoo-1  | 2026-02-26 04:17:23,377 1 INFO dmis_dev werkzeug: 172.18.0.1 - - [26/Feb/2026 04:17:23] "POST /web/login HTTP/1.1" 303 - 18 0.007 0.307
+odoo-1  | 2026-02-26 04:17:23,391 1 INFO dmis_dev werkzeug: 172.18.0.1 - - [26/Feb/2026 04:17:23] "GET /web HTTP/1.1" 200 - 9 0.004 0.005
+odoo-1  | 2026-02-26 04:17:23,417 1 INFO dmis_dev werkzeug: 172.18.0.1 - - [26/Feb/2026 04:17:23] "GET /web/assets/19-fe57db6/web.assets_common.min.css HTTP/1.1" 200 - 4 0.003 0.015
+odoo-1  | 2026-02-26 04:17:23,426 1 INFO dmis_dev werkzeug: 172.18.0.1 - - [26/Feb/2026 04:17:23] "GET /web/assets/20-6b01176/web.assets_backend.min.css HTTP/1.1" 200 - 4 0.004 0.018
+odoo-1  | 2026-02-26 04:17:23,428 1 INFO dmis_dev werkzeug: 172.18.0.1 - - [26/Feb/2026 04:17:23] "GET /web/assets/23-6bf707c/web.assets_backend_prod_only.min.js HTTP/1.1" 200 - 4 0.004 0.016
+odoo-1  | 2026-02-26 04:17:23,428 1 INFO dmis_dev werkzeug: 172.18.0.1 - - [26/Feb/2026 04:17:23] "GET /web/assets/21-fe57db6/web.assets_common.min.js HTTP/1.1" 200 - 4 0.005 0.020
+odoo-1  | 2026-02-26 04:17:23,431 1 INFO dmis_dev werkzeug: 172.18.0.1 - - [26/Feb/2026 04:17:23] "GET /web/assets/22-6b01176/web.assets_backend.min.js HTTP/1.1" 200 - 4 0.009 0.017
+odoo-1  | 2026-02-26 04:17:23,433 1 INFO dmis_dev werkzeug: 172.18.0.1 - - [26/Feb/2026 04:17:23] "GET /web/webclient/load_menus/3b5665afdb76f0b35edca6c8b7486724a31b5c9e8fd5a2aa71a636993cb1dd9b HTTP/1.1" 200 - 1 0.002 0.010
+odoo-1  | 2026-02-26 04:17:23,447 1 INFO dmis_dev werkzeug: 172.18.0.1 - - [26/Feb/2026 04:17:23] "GET /web/webclient/translations/65607f58d5469d51a5b051eb66c57db2c3d405a5?lang=en_US HTTP/1.1" 200 - 2 0.002 0.009
+odoo-1  | 2026-02-26 04:17:23,699 1 INFO dmis_dev werkzeug: 172.18.0.1 - - [26/Feb/2026 04:17:23] "GET /web/webclient/locale/en_US HTTP/1.1" 200 - 1 0.001 0.004
+odoo-1  | 2026-02-26 04:17:23,703 1 INFO dmis_dev werkzeug: 172.18.0.1 - - [26/Feb/2026 04:17:23] "GET /bus/websocket_worker_bundle?v=1.0.5 HTTP/1.1" 200 - 4 0.003 0.004
+odoo-1  | 2026-02-26 04:17:23,749 1 INFO ? werkzeug: 172.18.0.1 - - [26/Feb/2026 04:17:23] "GET /web/static/lib/odoo_ui_icons/fonts/odoo_ui_icons.woff2 HTTP/1.1" 200 - 0 0.000 0.009
+odoo-1  | 2026-02-26 04:17:23,750 1 INFO dmis_dev werkzeug: 172.18.0.1 - - [26/Feb/2026 04:17:23] "GET /web/image?model=res.users&field=avatar_128&id=2 HTTP/1.1" 200 - 8 0.010 0.010
+odoo-1  | 2026-02-26 04:17:23,750 1 INFO dmis_dev werkzeug: 172.18.0.1 - - [26/Feb/2026 04:17:23] "GET /web/image/res.company/1/favicon HTTP/1.1" 200 - 5 0.006 0.011
+odoo-1  | 2026-02-26 04:17:23,757 1 INFO dmis_dev werkzeug: 172.18.0.1 - - [26/Feb/2026 04:17:23] "GET /websocket HTTP/1.1" 101 - 1 0.001 0.009
+odoo-1  | 2026-02-26 04:17:23,762 1 INFO dmis_dev werkzeug: 172.18.0.1 - - [26/Feb/2026 04:17:23] "POST /web/action/load HTTP/1.1" 200 - 10 0.015 0.015
+odoo-1  | 2026-02-26 04:17:23,774 1 INFO dmis_dev werkzeug: 172.18.0.1 - - [26/Feb/2026 04:17:23] "POST /web/dataset/call_kw/ir.module.module/get_views HTTP/1.1" 200 - 3 0.001 0.004
+odoo-1  | 2026-02-26 04:17:23,800 1 INFO dmis_dev werkzeug: 172.18.0.1 - - [26/Feb/2026 04:17:23] "POST /web/dataset/call_kw/ir.module.module/web_search_read HTTP/1.1" 200 - 3 0.003 0.005
+odoo-1  | 2026-02-26 04:17:23,814 1 INFO dmis_dev werkzeug: 172.18.0.1 - - [26/Feb/2026 04:17:23] "POST /web/dataset/call_kw/ir.module.module/search_panel_select_range HTTP/1.1" 200 - 37 0.016 0.010
+odoo-1  | 2026-02-26 04:17:23,892 1 INFO ? werkzeug: 172.18.0.1 - - [26/Feb/2026 04:17:23] "GET /account/static/description/icon.png HTTP/1.1" 200 - 0 0.000 0.008
+odoo-1  | 2026-02-26 04:17:23,895 1 INFO ? werkzeug: 172.18.0.1 - - [26/Feb/2026 04:17:23] "GET /website/static/description/icon.png HTTP/1.1" 200 - 0 0.000 0.006
+odoo-1  | 2026-02-26 04:17:23,897 1 INFO ? werkzeug: 172.18.0.1 - - [26/Feb/2026 04:17:23] "GET /stock/static/description/icon.png HTTP/1.1" 200 - 0 0.000 0.006
+odoo-1  | 2026-02-26 04:17:23,898 1 INFO ? werkzeug: 172.18.0.1 - - [26/Feb/2026 04:17:23] "GET /sale_management/static/description/icon.png HTTP/1.1" 200 - 0 0.000 0.013
+odoo-1  | 2026-02-26 04:17:23,902 1 INFO ? werkzeug: 172.18.0.1 - - [26/Feb/2026 04:17:23] "GET /crm/static/description/icon.png HTTP/1.1" 200 - 0 0.000 0.016
+odoo-1  | 2026-02-26 04:17:23,906 1 INFO ? werkzeug: 172.18.0.1 - - [26/Feb/2026 04:17:23] "GET /purchase/static/description/icon.png HTTP/1.1" 200 - 0 0.000 0.002
+odoo-1  | 2026-02-26 04:17:23,906 1 INFO ? werkzeug: 172.18.0.1 - - [26/Feb/2026 04:17:23] "GET /base/static/img/icons/mrp_workorder.png HTTP/1.1" 200 - 0 0.000 0.019
+odoo-1  | 2026-02-26 04:17:23,910 1 INFO ? werkzeug: 172.18.0.1 - - [26/Feb/2026 04:17:23] "GET /base/static/img/icons/account_accountant.png HTTP/1.1" 200 - 0 0.000 0.009
+odoo-1  | 2026-02-26 04:17:23,918 1 INFO ? werkzeug: 172.18.0.1 - - [26/Feb/2026 04:17:23] "GET /project/static/description/icon.png HTTP/1.1" 200 - 0 0.000 0.004
+odoo-1  | 2026-02-26 04:17:23,920 1 INFO ? werkzeug: 172.18.0.1 - - [26/Feb/2026 04:17:23] "GET /point_of_sale/static/description/icon.png HTTP/1.1" 200 - 0 0.000 0.008
+odoo-1  | 2026-02-26 04:17:23,926 1 INFO ? werkzeug: 172.18.0.1 - - [26/Feb/2026 04:17:23] "GET /website_sale/static/description/icon.png HTTP/1.1" 200 - 0 0.000 0.009
+odoo-1  | 2026-02-26 04:17:23,928 1 INFO ? werkzeug: 172.18.0.1 - - [26/Feb/2026 04:17:23] "GET /base/static/img/icons/knowledge.png HTTP/1.1" 200 - 0 0.000 0.015
+odoo-1  | 2026-02-26 04:17:23,931 1 INFO ? werkzeug: 172.18.0.1 - - [26/Feb/2026 04:17:23] "GET /mrp/static/description/icon.png HTTP/1.1" 200 - 0 0.000 0.008
+odoo-1  | 2026-02-26 04:17:23,934 1 INFO ? werkzeug: 172.18.0.1 - - [26/Feb/2026 04:17:23] "GET /base/static/img/icons/timesheet_grid.png HTTP/1.1" 200 - 0 0.000 0.006
+odoo-1  | 2026-02-26 04:17:23,935 1 INFO ? werkzeug: 172.18.0.1 - - [26/Feb/2026 04:17:23] "GET /hr_expense/static/description/icon.png HTTP/1.1" 200 - 0 0.000 0.004
+odoo-1  | 2026-02-26 04:17:23,940 1 INFO ? werkzeug: 172.18.0.1 - - [26/Feb/2026 04:17:23] "GET /base/static/img/icons/web_studio.png HTTP/1.1" 200 - 0 0.000 0.003
+odoo-1  | 2026-02-26 04:17:23,944 1 INFO ? werkzeug: 172.18.0.1 - - [26/Feb/2026 04:17:23] "GET /mass_mailing/static/description/icon.png HTTP/1.1" 200 - 0 0.000 0.017
+odoo-1  | 2026-02-26 04:17:23,948 1 INFO ? werkzeug: 172.18.0.1 - - [26/Feb/2026 04:17:23] "GET /hr_holidays/static/description/icon.png HTTP/1.1" 200 - 0 0.000 0.006
+odoo-1  | 2026-02-26 04:17:23,953 1 INFO ? werkzeug: 172.18.0.1 - - [26/Feb/2026 04:17:23] "GET /hr/static/description/icon.png HTTP/1.1" 200 - 0 0.000 0.002
+odoo-1  | 2026-02-26 04:17:23,957 1 INFO ? werkzeug: 172.18.0.1 - - [26/Feb/2026 04:17:23] "GET /base/static/img/icons/industry_fsm.png HTTP/1.1" 200 - 0 0.000 0.008
+odoo-1  | 2026-02-26 04:17:23,957 1 INFO ? werkzeug: 172.18.0.1 - - [26/Feb/2026 04:17:23] "GET /hr_recruitment/static/description/icon.png HTTP/1.1" 200 - 0 0.000 0.012
+odoo-1  | 2026-02-26 04:17:23,961 1 INFO ? werkzeug: 172.18.0.1 - - [26/Feb/2026 04:17:23] "GET /data_recycle/static/description/icon.png HTTP/1.1" 200 - 0 0.000 0.007
+odoo-1  | 2026-02-26 04:17:23,963 1 INFO ? werkzeug: 172.18.0.1 - - [26/Feb/2026 04:17:23] "GET /base/static/description/icon.png HTTP/1.1" 200 - 0 0.000 0.009
+odoo-1  | 2026-02-26 04:17:23,967 1 INFO ? werkzeug: 172.18.0.1 - - [26/Feb/2026 04:17:23] "GET /base/static/img/icons/helpdesk.png HTTP/1.1" 200 - 0 0.000 0.004
+odoo-1  | 2026-02-26 04:17:23,969 1 INFO ? werkzeug: 172.18.0.1 - - [26/Feb/2026 04:17:23] "GET /maintenance/static/description/icon.png HTTP/1.1" 200 - 0 0.000 0.011
+odoo-1  | 2026-02-26 04:17:23,973 1 INFO ? werkzeug: 172.18.0.1 - - [26/Feb/2026 04:17:23] "GET /base/static/img/icons/sign.png HTTP/1.1" 200 - 0 0.000 0.014
+odoo-1  | 2026-02-26 04:17:23,974 1 INFO ? werkzeug: 172.18.0.1 - - [26/Feb/2026 04:17:23] "GET /base/static/img/icons/quality_control.png HTTP/1.1" 200 - 0 0.000 0.003
+odoo-1  | 2026-02-26 04:17:23,978 1 INFO ? werkzeug: 172.18.0.1 - - [26/Feb/2026 04:17:23] "GET /base/static/img/icons/sale_subscription.png HTTP/1.1" 200 - 0 0.000 0.009
+odoo-1  | 2026-02-26 04:17:23,979 1 INFO ? werkzeug: 172.18.0.1 - - [26/Feb/2026 04:17:23] "GET /website_slides/static/description/icon.png HTTP/1.1" 200 - 0 0.000 0.004
+odoo-1  | 2026-02-26 04:17:23,988 1 INFO ? werkzeug: 172.18.0.1 - - [26/Feb/2026 04:17:23] "GET /base/static/img/icons/planning.png HTTP/1.1" 200 - 0 0.000 0.011
+odoo-1  | 2026-02-26 04:17:23,989 1 INFO ? werkzeug: 172.18.0.1 - - [26/Feb/2026 04:17:23] "GET /mail/static/description/icon.png HTTP/1.1" 200 - 0 0.000 0.006
+odoo-1  | 2026-02-26 04:17:23,990 1 INFO ? werkzeug: 172.18.0.1 - - [26/Feb/2026 04:17:23] "GET /calendar/static/description/icon.png HTTP/1.1" 200 - 0 0.000 0.002
+odoo-1  | 2026-02-26 04:17:23,991 1 INFO ? werkzeug: 172.18.0.1 - - [26/Feb/2026 04:17:23] "GET /website_event/static/description/icon.png HTTP/1.1" 200 - 0 0.000 0.011
+odoo-1  | 2026-02-26 04:17:23,992 1 INFO ? werkzeug: 172.18.0.1 - - [26/Feb/2026 04:17:23] "GET /contacts/static/description/icon.png HTTP/1.1" 200 - 0 0.000 0.007
+odoo-1  | 2026-02-26 04:17:23,993 1 INFO ? werkzeug: 172.18.0.1 - - [26/Feb/2026 04:17:23] "GET /base/static/img/icons/mrp_plm.png HTTP/1.1" 200 - 0 0.000 0.006
+odoo-1  | 2026-02-26 04:17:23,998 1 INFO ? werkzeug: 172.18.0.1 - - [26/Feb/2026 04:17:23] "GET /base/static/img/icons/social.png HTTP/1.1" 200 - 0 0.000 0.004
+odoo-1  | 2026-02-26 04:17:24,004 1 INFO ? werkzeug: 172.18.0.1 - - [26/Feb/2026 04:17:24] "GET /base/static/img/icons/hr_appraisal.png HTTP/1.1" 200 - 0 0.000 0.004
+odoo-1  | 2026-02-26 04:17:24,012 1 INFO ? werkzeug: 172.18.0.1 - - [26/Feb/2026 04:17:24] "GET /im_livechat/static/description/icon.png HTTP/1.1" 200 - 0 0.000 0.005
+odoo-1  | 2026-02-26 04:17:24,014 1 INFO ? werkzeug: 172.18.0.1 - - [26/Feb/2026 04:17:24] "GET /fleet/static/description/icon.png HTTP/1.1" 200 - 0 0.000 0.013
+odoo-1  | 2026-02-26 04:17:24,016 1 INFO ? werkzeug: 172.18.0.1 - - [26/Feb/2026 04:17:24] "GET /survey/static/description/icon.png HTTP/1.1" 200 - 0 0.000 0.003
+odoo-1  | 2026-02-26 04:17:24,017 1 INFO ? werkzeug: 172.18.0.1 - - [26/Feb/2026 04:17:24] "GET /base/static/img/icons/marketing_automation.png HTTP/1.1" 200 - 0 0.000 0.012
+odoo-1  | 2026-02-26 04:17:24,019 1 INFO ? werkzeug: 172.18.0.1 - - [26/Feb/2026 04:17:24] "GET /base/static/img/icons/appointment.png HTTP/1.1" 200 - 0 0.000 0.008
+odoo-1  | 2026-02-26 04:17:24,022 1 INFO ? werkzeug: 172.18.0.1 - - [26/Feb/2026 04:17:24] "GET /base/static/img/icons/web_mobile.png HTTP/1.1" 200 - 0 0.000 0.004
+odoo-1  | 2026-02-26 04:17:24,035 1 INFO ? werkzeug: 172.18.0.1 - - [26/Feb/2026 04:17:24] "GET /mass_mailing_sms/static/description/icon.png HTTP/1.1" 200 - 0 0.000 0.004
+odoo-1  | 2026-02-26 04:17:24,035 1 INFO ? werkzeug: 172.18.0.1 - - [26/Feb/2026 04:17:24] "GET /repair/static/description/icon.png HTTP/1.1" 200 - 0 0.000 0.009
+odoo-1  | 2026-02-26 04:17:24,042 1 INFO ? werkzeug: 172.18.0.1 - - [26/Feb/2026 04:17:24] "GET /hr_attendance/static/description/icon.png HTTP/1.1" 200 - 0 0.000 0.013
+odoo-1  | 2026-02-26 04:17:24,044 1 INFO ? werkzeug: 172.18.0.1 - - [26/Feb/2026 04:17:24] "GET /note/static/description/icon.png HTTP/1.1" 200 - 0 0.000 0.009
+odoo-1  | 2026-02-26 04:17:24,045 1 INFO ? werkzeug: 172.18.0.1 - - [26/Feb/2026 04:17:24] "GET /base/static/img/icons/stock_barcode.png HTTP/1.1" 200 - 0 0.000 0.013
+odoo-1  | 2026-02-26 04:17:24,048 1 INFO ? werkzeug: 172.18.0.1 - - [26/Feb/2026 04:17:24] "GET /hr_skills/static/description/icon.png HTTP/1.1" 200 - 0 0.000 0.010
+odoo-1  | 2026-02-26 04:17:24,050 1 INFO ? werkzeug: 172.18.0.1 - - [26/Feb/2026 04:17:24] "GET /lunch/static/description/icon.png HTTP/1.1" 200 - 0 0.000 0.006
+odoo-1  | 2026-02-26 04:17:24,053 1 INFO ? werkzeug: 172.18.0.1 - - [26/Feb/2026 04:17:24] "GET /base/static/img/icons/voip.png HTTP/1.1" 200 - 0 0.000 0.013
+odoo-1  | 2026-02-26 04:17:24,056 1 INFO ? werkzeug: 172.18.0.1 - - [26/Feb/2026 04:17:24] "GET /hr_contract/static/description/icon.png HTTP/1.1" 200 - 0 0.000 0.004
+odoo-1  | 2026-02-26 04:17:24,058 1 INFO ? werkzeug: 172.18.0.1 - - [26/Feb/2026 04:17:24] "GET /base/static/img/icons/sale_ebay.png HTTP/1.1" 200 - 0 0.000 0.007
+odoo-1  | 2026-02-26 04:17:24,059 1 INFO ? werkzeug: 172.18.0.1 - - [26/Feb/2026 04:17:24] "GET /website_hr_recruitment/static/description/icon.png HTTP/1.1" 200 - 0 0.000 0.010
+odoo-1  | 2026-02-26 04:17:37,642 1 ERROR dmis_dev odoo.http: Exception during request handling. 
+odoo-1  | Traceback (most recent call last):
+odoo-1  |   File "/usr/lib/python3/dist-packages/odoo/api.py", line 1013, in get
+odoo-1  |     cache_value = field_cache[record._ids[0]]
+odoo-1  | KeyError: 86
+odoo-1  | 
+odoo-1  | During handling of the above exception, another exception occurred:
+odoo-1  | 
+odoo-1  | Traceback (most recent call last):
+odoo-1  |   File "/usr/lib/python3/dist-packages/odoo/fields.py", line 1161, in __get__
+odoo-1  |     value = env.cache.get(record, self)
+odoo-1  |   File "/usr/lib/python3/dist-packages/odoo/api.py", line 1020, in get
+odoo-1  |     raise CacheMiss(record, field)
+odoo-1  | odoo.exceptions.CacheMiss: 'ir.actions.act_window(86,).search_view'
+odoo-1  | 
+odoo-1  | During handling of the above exception, another exception occurred:
+odoo-1  | 
+odoo-1  | Traceback (most recent call last):
+odoo-1  |   File "/usr/lib/python3/dist-packages/odoo/http.py", line 2261, in __call__
+odoo-1  |     response = request._serve_db()
+odoo-1  |   File "/usr/lib/python3/dist-packages/odoo/http.py", line 1848, in _serve_db
+odoo-1  |     return service_model.retrying(self._serve_ir_http, self.env)
+odoo-1  |   File "/usr/lib/python3/dist-packages/odoo/service/model.py", line 152, in retrying
+odoo-1  |     result = func()
+odoo-1  |   File "/usr/lib/python3/dist-packages/odoo/http.py", line 1876, in _serve_ir_http
+odoo-1  |     response = self.dispatcher.dispatch(rule.endpoint, args)
+odoo-1  |   File "/usr/lib/python3/dist-packages/odoo/http.py", line 2080, in dispatch
+odoo-1  |     result = self.request.registry['ir.http']._dispatch(endpoint)
+odoo-1  |   File "/usr/lib/python3/dist-packages/odoo/addons/base/models/ir_http.py", line 154, in _dispatch
+odoo-1  |     result = endpoint(**request.params)
+odoo-1  |   File "/usr/lib/python3/dist-packages/odoo/http.py", line 763, in route_wrapper
+odoo-1  |     result = endpoint(self, *args, **params_ok)
+odoo-1  |   File "/usr/lib/python3/dist-packages/odoo/addons/web/controllers/action.py", line 34, in load
+odoo-1  |     action = request.env[action_type].sudo().browse([action_id]).read()
+odoo-1  |   File "/usr/lib/python3/dist-packages/odoo/addons/base/models/ir_actions.py", line 275, in read
+odoo-1  |     result = super(IrActionsActWindow, self).read(fields, load=load)
+odoo-1  |   File "/usr/lib/python3/dist-packages/odoo/models.py", line 3038, in read
+odoo-1  |     return self._read_format(fnames=fields, load=load)
+odoo-1  |   File "/usr/lib/python3/dist-packages/odoo/models.py", line 3219, in _read_format
+odoo-1  |     vals[name] = convert(record[name], record, use_name_get)
+odoo-1  |   File "/usr/lib/python3/dist-packages/odoo/models.py", line 6007, in __getitem__
+odoo-1  |     return self._fields[key].__get__(self, self.env.registry[self._name])
+odoo-1  |   File "/usr/lib/python3/dist-packages/odoo/fields.py", line 1222, in __get__
+odoo-1  |     self.compute_value(recs)
+odoo-1  |   File "/usr/lib/python3/dist-packages/odoo/fields.py", line 1404, in compute_value
+odoo-1  |     records._compute_field_value(self)
+odoo-1  |   File "/usr/lib/python3/dist-packages/odoo/models.py", line 4276, in _compute_field_value
+odoo-1  |     fields.determine(field.compute, self)
+odoo-1  |   File "/usr/lib/python3/dist-packages/odoo/fields.py", line 98, in determine
+odoo-1  |     return needle(*args)
+odoo-1  |   File "/usr/lib/python3/dist-packages/odoo/addons/base/models/ir_actions.py", line 243, in _compute_search_view
+odoo-1  |     fvg = self.env[act.res_model].get_view(act.search_view_id.id, 'search')
+odoo-1  |   File "/usr/lib/python3/dist-packages/odoo/api.py", line 566, in __getitem__
+odoo-1  |     return self.registry[model_name](self, (), ())
+odoo-1  |   File "/usr/lib/python3/dist-packages/odoo/modules/registry.py", line 186, in __getitem__
+odoo-1  |     return self.models[model_name]
+odoo-1  | KeyError: 'dms.dealer'
+odoo-1  | 2026-02-26 04:17:37,642 1 INFO dmis_dev werkzeug: 172.18.0.1 - - [26/Feb/2026 04:17:37] "POST /web/action/load HTTP/1.1" 200 - 9 0.006 0.011

@@ -124,15 +124,16 @@ class Dealer(models.Model):
         return self.search(domain + args, limit=limit).name_get()
 
     def fields_view_get(self, view_id=None, view_type='form', toolbar=False, submenu=False):
-        # Call super() but guard against view-cache / combination errors.
+        # Call super() but guard against view-cache / combination errors; add logs for debugging
         try:
+            _logger.debug('Dealer.fields_view_get called view_id=%s view_type=%s uid=%s', view_id, view_type, self.env.uid)
             res = super().fields_view_get(view_id=view_id, view_type=view_type, toolbar=toolbar, submenu=submenu)
         except Exception:
             # If super() fails (cache/view combination edge cases), try to return a safe tree arch
             try:
                 view = self.env['ir.ui.view'].search([('model', '=', 'dms.dealer'), ('type', '=', 'tree')], limit=1)
                 if view:
-                    return {'arch': view.arch_db or '<tree/>' , 'fields': view.get('fields') if hasattr(view, 'get') else {}, 'type': 'tree'}
+                    return {'arch': view.arch_db or '<tree/>', 'fields': view.get('fields') if hasattr(view, 'get') else {}, 'type': 'tree'}
             except Exception:
                 # fallback minimal response
                 return {'arch': '<tree/>', 'fields': {}, 'type': view_type}
@@ -149,6 +150,7 @@ class Dealer(models.Model):
                 except Exception:
                     cols = False
                 if cols:
+                    _logger.debug('Dealer.fields_view_get found cols=%r for uid=%s', cols, self.env.uid)
                     field_names = [f.strip() for f in cols.split(',') if f.strip()]
                     if field_names:
                         # build a new tree element and attempt to preserve basic attributes
@@ -165,10 +167,13 @@ class Dealer(models.Model):
                         for name in field_names:
                             node = etree.SubElement(root, 'field')
                             node.set('name', name)
+                        arch_str = etree.tostring(root, encoding='unicode')
+                        _logger.debug('Dealer.fields_view_get returning custom arch for uid=%s: %s', self.env.uid, arch_str)
                         # return a minimal response with our custom arch so callers don't use cached combined arch
-                        return {'arch': etree.tostring(root, encoding='unicode'), 'fields': res.get('fields', {}), 'type': 'tree'}
+                        return {'arch': arch_str, 'fields': res.get('fields', {}), 'type': 'tree'}
             except Exception:
                 # On any failure, return the original res unmodified
+                _logger.exception('Dealer.fields_view_get failure; returning original res')
                 return res
         return res
 

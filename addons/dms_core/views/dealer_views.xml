@@ -96,6 +96,7 @@
           <filter name="group_by_store_type" string="車行類型" context="{'group_by':'store_type'}"/>
           <filter name="group_by_city" string="縣市" context="{'group_by':'city'}"/>
         </group>
+        </search>
     </field>
   </record>
 

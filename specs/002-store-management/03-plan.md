@@ -11,3 +11,14 @@
 
 4. 合併與交付
 - PR 審查通過後以 Squash 合併，並把驗收步驟寫入 PR 描述，供 CI 或 reviewer 驗證。
+
+Implementation details (high level)
+- Model: add fields listed in 01-specify; ensure SQL and Python constraints; add `dms.dealer.tag` for tags.
+- Views: update tree/form/search per UI guidance and group fields into notebook pages.
+- Security: add two groups (read-only / manager) and update `ir.model.access.csv` accordingly.
+- Data: update `data/seed.xml` with examples for new fields; avoid destructive migrations.
+
+Testing
+- Manual: follow PR validation steps (start compose, smoke, install/upgrade module, exercise DoD items).
+- Automated: add lightweight server-side tests if possible to assert constraints and name_get behavior.
+

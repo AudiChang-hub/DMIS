@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
-  <record id="view_dealer_tree" model="ir.ui.view">
+      <record id="view_dealer_tree" model="ir.ui.view">
     <field name="name">dms.dealer.tree</field>
     <field name="model">dms.dealer</field>
     <field name="arch" type="xml">
-      <tree string="車行">
+      <tree string="車行" create="true" edit="true">
         <field name="name" string="店名"/>
         <field name="owner_name" string="負責人"/>
         <field name="store_manager" string="店長"/>

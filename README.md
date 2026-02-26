@@ -100,3 +100,10 @@ VS Code 建議設定（讓自動化/Tasks 使用 PowerShell 不載入使用者 p
 3. 開 PR，PR 描述必填對應 specs 路徑；CI 會檢查若修改 `addons/**` 或 `docker-compose.yml`、`scripts/**`、`Makefile` 必須同步更新 `specs/**`。
 4. 使用 `/dms-merge` 產出合併檢查清單後再合併。
 
+## Repository Visibility
+
+This repository was transitioned from private to public to enable architectural review and transparency.
+
+No credentials or secrets are stored in this repository.
+
+

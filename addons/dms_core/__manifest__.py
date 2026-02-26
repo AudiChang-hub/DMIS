@@ -13,6 +13,7 @@
         'views/dealer_views.xml',
         'data/seed.xml',
     ],
+    
     'installable': True,
     'application': True,
 }

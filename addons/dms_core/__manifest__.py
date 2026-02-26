@@ -13,11 +13,7 @@
         'views/dealer_views.xml',
         'data/seed.xml',
     ],
-    'assets': {
-        'web.assets_backend': [
-            'addons/dms_core/static/src/js/dealer_columns_button.js',
-        ],
-    },
+    # 已移除自建前端資產（dealer_columns_button.js）
 
     'installable': True,
     'application': True,

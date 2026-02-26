@@ -163,8 +163,8 @@ class Dealer(models.Model):
             except Exception:
                 # fallback minimal response
                 return {'arch': '<tree/>', 'fields': {}, 'type': view_type}
-        # Only modify the arch for tree views and only when it's safe to parse/replace
-        if view_type == 'tree' and res and isinstance(res.get('arch'), str):
+        # Only modify the arch for tree/list views and only when it's safe to parse/replace
+        if view_type in ('tree', 'list') and res and isinstance(res.get('arch'), str):
             try:
                 try:
                     from lxml import etree

@@ -25,3 +25,39 @@
 6. 遵守憲章規則
   - 內容：確認未新增匯入 wizard、未加入計算邏輯，並且為未來 003/004 留下擴充介面（tags/partner/link points）。
   - 驗收：代碼審查確認無匯入或計算邏輯，且新增欄位提供擴充可能。
+
+7. 欄位細項驗收（依據需求清單）
+  - 基本資料
+    - 目標：`name`（店名）、`owner_name`（負責人）、`manager_name`（店長）皆為必填；`address` 與 `note` 可空。
+    - 驗收：嘗試在表單省略必填欄位會被拒絕；能建立含 optional 欄位的紀錄且資料可讀回。
+
+  - 聯絡資訊
+    - 目標：`phone_1`、`phone_2`、`mobile`、`fax_mobile` 為選填欄位。
+    - 驗收：可以任意組合建立/編輯聯絡欄位；搜尋可使用 phone_1/phone_2/mobile。
+
+  - 價格表權限（勾選）
+    - 目標：四個 boolean 欄位代表各品牌價格表的啟用權限。
+    - 驗收：在 form 可以勾選/取消；資料儲存後值正確呈現。
+
+  - 排車容量
+    - 目標：`sanyang_capacity`、`tailin_capacity` 必須為整數或空值，且不得為負數。
+    - 驗收：輸入負數時會被拒絕；接受 0 或正整數。
+
+  - 群組/活動（勾選）
+    - 目標：多個 boolean 欄位表示群組或活動參與狀態。
+    - 驗收：能在表單中切換勾選並於 tree/search 顯示或作為 filter 條件。
+
+8. UI 與搜尋驗收
+  - Tree：顯示 `code`,`name`,`short_name`,`store_type`,`phone_1`,`city`,`active`。
+  - Form：使用 notebook 分頁（Basic / Contact / Prices & Capacities / Groups & Tags / Notes）。
+  - Search：支援透過 `code/name/phone_1/short_name` 搜尋，且能 filter by `active`、`store_type`，支援 group by `store_type` 與 `city`。
+  - 驗收：UI 元素存在且可互動，搜尋/分組/過濾回傳正確結果。
+
+9. 權限驗收
+  - 目標：`DMS/車行使用者`（只讀），`DMS/車行管理者`（可讀寫建立刪除）。
+  - 驗收：以兩個不同使用者帳號驗證權限差異：使用者只能讀取、管理者可新增/修改/刪除。
+
+10. Smoke 驗收
+  - 目標：整合驗證流程在 PR 中提供可重現步驟。
+  - 驗收：依照 PR 的驗證步驟執行後，API/HTTP smoke 與 UI 操作皆成功。
+

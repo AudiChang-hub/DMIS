@@ -17,10 +17,10 @@
         <field name="mobile" optional="show"/>
         <field name="mobile_fax" optional="hide"/>
         <field name="city" optional="hide"/>
-        <field name="sym_gas_price_list" optional="hide"/>
-        <field name="sym_ev_price_list" optional="hide"/>
-        <field name="suzuki_gas_price_list" optional="hide"/>
-        <field name="suzuki_ev_price_list" optional="hide"/>
+        <field name="sym_price_list" optional="hide"/>
+        <field name="suzuki_price_list" optional="hide"/>
+        <field name="store_type_id" optional="hide"/>
+        <field name="brand_ids" optional="hide"/>
         <field name="holiday_gift" optional="hide"/>
         <field name="active" optional="hide"/>
       </tree>
@@ -37,9 +37,11 @@
             <page string="基本資料">
               <group>
                 <field name="code"/>
-                <field name="name" string="店名"/>
+                <field name="name" string="車行名稱"/>
                 <field name="owner_name" string="負責人"/>
                 <field name="store_manager" string="店長"/>
+                <field name="store_type_id"/>
+                <field name="brand_ids" widget="many2many_tags"/>
                 <field name="address"/>
                 <field name="note"/>
               </group>
@@ -55,29 +57,21 @@
             </page>
             <page string="價格表 / 群組">
               <group>
-                <field name="sym_gas_price_list"/>
-                <field name="sym_ev_price_list"/>
-                <field name="suzuki_gas_price_list"/>
-                <field name="suzuki_ev_price_list"/>
+                <field name="sym_price_list"/>
+                <field name="suzuki_price_list"/>
               </group>
               <group>
                 <field name="sym_dispatch_capacity"/>
                 <field name="suzuki_dispatch_capacity"/>
               </group>
               <group>
-                <field name="sym_line_group"/>
-                <field name="suzuki_line_group"/>
-                <field name="common_line_group"/>
-                <field name="special_line_group"/>
+                <field name="line_group"/>
                 <field name="holiday_gift"/>
               </group>
             </page>
             <page string="進階">
               <group>
-                <field name="parent_id"/>
                 <field name="tags" widget="many2many_tags"/>
-                <field name="partner_id"/>
-                <field name="level"/>
                 <field name="active"/>
               </group>
             </page>
@@ -99,12 +93,12 @@
         <field name="short_name"/>
         <filter name="active" string="啟用" domain="[('active','=',True)]"/>
         <filter name="holiday_gift" string="年節送禮" domain="[('holiday_gift','=',True)]"/>
-        <filter name="sym_gas_price_list" string="三陽油表" domain="[('sym_gas_price_list','=',True)]"/>
-        <filter name="sym_ev_price_list" string="三陽電表" domain="[('sym_ev_price_list','=',True)]"/>
-        <filter name="suzuki_gas_price_list" string="台鈴油表" domain="[('suzuki_gas_price_list','=',True)]"/>
-        <filter name="suzuki_ev_price_list" string="台鈴電表" domain="[('suzuki_ev_price_list','=',True)]"/>
+        <filter name="sym_price_gas" string="三陽-油車" domain="[('sym_price_list','=','gas')]"/>
+        <filter name="sym_price_ev" string="三陽-電車" domain="[('sym_price_list','=','ev')]"/>
+        <filter name="suzuki_price_gas" string="台鈴-油車" domain="[('suzuki_price_list','=','gas')]"/>
+        <filter name="suzuki_price_ev" string="台鈴-電車" domain="[('suzuki_price_list','=','ev')]"/>
         <group expand="0" string="分組">
-          <filter name="groupby_store_type" string="車行類型" context="{'group_by': 'store_type'}"/>
+          <filter name="groupby_store_type" string="車行類型" context="{'group_by': 'store_type_id'}"/>
           <filter name="groupby_city" string="縣市" context="{'group_by': 'city'}"/>
         </group>
         </search>
@@ -118,5 +112,35 @@
   <menuitem id="menu_dealer_action" name="列表" parent="menu_dealer" action="action_dealer"/>
   <act_window id="action_dealer_create" name="新增車行" res_model="dms.dealer" view_mode="form" target="current" context="{'form_view_initial_mode':'edit'}"/>
   <menuitem id="menu_dealer_create" name="新增" parent="menu_dealer" action="action_dealer_create"/>
+  <!-- Tag 管理介面 -->
+  <record id="view_dealer_tag_tree" model="ir.ui.view">
+    <field name="name">dms.dealer.tag.tree</field>
+    <field name="model">dms.dealer.tag</field>
+    <field name="arch" type="xml">
+      <tree string="車行標籤">
+        <field name="name"/>
+      </tree>
+    </field>
+  </record>
+  <record id="view_dealer_tag_form" model="ir.ui.view">
+    <field name="name">dms.dealer.tag.form</field>
+    <field name="model">dms.dealer.tag</field>
+    <field name="arch" type="xml">
+      <form string="車行標籤">
+        <sheet>
+          <group>
+            <field name="name"/>
+          </group>
+        </sheet>
+      </form>
+    </field>
+  </record>
+  <record id="action_dealer_tag" model="ir.actions.act_window">
+    <field name="name">車行標籤</field>
+    <field name="res_model">dms.dealer.tag</field>
+    <field name="view_mode">tree,form</field>
+    <field name="view_id" ref="view_dealer_tag_tree"/>
+  </record>
+  <menuitem id="menu_dealer_tags" name="標籤管理" parent="menu_dms_root" action="action_dealer_tag"/>
   <!-- 已移除自建欄位選擇選單，改用 Odoo 內建欄位選擇 -->
 </odoo>

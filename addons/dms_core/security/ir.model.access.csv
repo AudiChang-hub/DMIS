@@ -4,3 +4,5 @@ access_dms_dealer_manager,dms.dealer,model_dms_dealer,dms_core.group_dms_dealer_
 access_dms_dealer_tag,dms.dealer.tag,model_dms_dealer_tag,dms_core.group_dms_dealer_manager,1,1,1,1
 access_dms_dealer_tag_user,dms.dealer.tag,model_dms_dealer_tag,,1,0,0,0
 access_dms_dealer_columns,access_dms_dealer_columns,model_dms_dealer_columns,base.group_user,1,0,0,0
+access_dms_dealer_columns_wizard,access_dms_dealer_columns_wizard,model_dms_dealer_columns_wizard,,1,1,1,1
+access_dms_dealer_columns_wizard_internal,access_dms_dealer_columns_wizard_internal,model_dms_dealer_columns_wizard,base.group_user,1,1,1,1

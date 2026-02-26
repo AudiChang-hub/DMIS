@@ -13,7 +13,12 @@
         'views/dealer_views.xml',
         'data/seed.xml',
     ],
-    
+    'assets': {
+        'web.assets_backend': [
+            'addons/dms_core/static/src/js/dealer_columns_button.js',
+        ],
+    },
+
     'installable': True,
     'application': True,
 }

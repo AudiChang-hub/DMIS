@@ -31,7 +31,14 @@ odoo.define('dms_core.dealer_columns_button', function (require) {
             }
         },
         onColumnsButton: function () {
-            return this.do_action('dms_core.action_dealer_columns_wizard');
+            // Use explicit action dict to avoid xmlid resolution timing issues.
+            return this.do_action({
+                type: 'ir.actions.act_window',
+                res_model: 'dms.dealer.columns.wizard',
+                name: '欄位選擇',
+                view_mode: 'form',
+                target: 'new'
+            });
         },
     });
 

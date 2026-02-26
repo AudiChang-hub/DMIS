@@ -1,33 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
-  <!-- Wizard to choose visible columns for the current user -->
-  <record id="view_dealer_columns_wizard_form" model="ir.ui.view">
-    <field name="name">dms.dealer.columns.wizard.form</field>
-    <field name="model">dms.dealer.columns.wizard</field>
-    <field name="arch" type="xml">
-      <form string="欄位選擇">
-        <sheet>
-          <group>
-            <field name="field_ids" widget="many2many_checkboxes" options="{'no_create': True}"/>
-          </group>
-          <group>
-            <field name="field_labels" readonly="1" string="欄位標籤"/>
-          </group>
-        </sheet>
-        <footer>
-          <button string="套用" type="object" name="apply" class="btn-primary"/>
-          <button string="取消" class="btn-secondary" special="cancel"/>
-        </footer>
-      </form>
-    </field>
-  </record>
-  <record id="action_dealer_columns_wizard" model="ir.actions.act_window">
-    <field name="name">欄位選擇</field>
-    <field name="res_model">dms.dealer.columns.wizard</field>
-    <field name="view_mode">form</field>
-    <field name="view_id" ref="view_dealer_columns_wizard_form"/>
-    <field name="target">new</field>
-  </record>
+  <!-- 使用 Odoo 內建欄位選擇，已移除自建 Wizard -->
 
   <record id="view_dealer_tree" model="ir.ui.view">
     <field name="name">dms.dealer.tree</field>
@@ -145,6 +118,5 @@
   <menuitem id="menu_dealer_action" name="列表" parent="menu_dealer" action="action_dealer"/>
   <act_window id="action_dealer_create" name="新增車行" res_model="dms.dealer" view_mode="form" target="current" context="{'form_view_initial_mode':'edit'}"/>
   <menuitem id="menu_dealer_create" name="新增" parent="menu_dealer" action="action_dealer_create"/>
-  <menuitem id="menu_dealer_columns" name="欄位選擇" parent="menu_dealer" action="action_dealer_columns_wizard"/>
-  <!-- 欄位選擇視圖/動作定義已置於檔案頂端，避免重複定義 -->
+  <!-- 已移除自建欄位選擇選單，改用 Odoo 內建欄位選擇 -->
 </odoo>

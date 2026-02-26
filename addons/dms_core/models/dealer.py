@@ -165,7 +165,8 @@ class Dealer(models.Model):
                         for name in field_names:
                             node = etree.SubElement(root, 'field')
                             node.set('name', name)
-                        res['arch'] = etree.tostring(root, encoding='unicode')
+                        # return a minimal response with our custom arch so callers don't use cached combined arch
+                        return {'arch': etree.tostring(root, encoding='unicode'), 'fields': res.get('fields', {}), 'type': 'tree'}
             except Exception:
                 # On any failure, return the original res unmodified
                 return res

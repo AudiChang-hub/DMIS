@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+  <record id="group_dms_dealer_user" model="res.groups">
+    <field name="name">DMS/車行使用者</field>
+    <field name="category_id" ref="base.module_category_user_type"/>
+  </record>
+
+  <record id="group_dms_dealer_manager" model="res.groups">
+    <field name="name">DMS/車行管理者</field>
+    <field name="category_id" ref="base.module_category_user_type"/>
+  </record>
+</odoo>

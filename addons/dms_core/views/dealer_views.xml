@@ -7,8 +7,11 @@
       <tree string="車行">
         <field name="code"/>
         <field name="name"/>
+        <field name="short_name"/>
         <field name="level"/>
+        <field name="store_type"/>
         <field name="phone"/>
+        <field name="city"/>
         <field name="active"/>
       </tree>
     </field>
@@ -20,16 +23,40 @@
     <field name="arch" type="xml">
       <form string="車行">
         <sheet>
-          <group>
-            <field name="code"/>
-            <field name="name"/>
-            <field name="level"/>
-            <field name="active"/>
-            <field name="contact_name"/>
-            <field name="phone"/>
-            <field name="email"/>
-            <field name="address"/>
-          </group>
+          <notebook>
+            <page string="基本資料">
+              <group>
+                <field name="code"/>
+                <field name="name"/>
+                <field name="short_name"/>
+                <field name="level"/>
+                <field name="store_type"/>
+                <field name="active"/>
+              </group>
+            </page>
+            <page string="聯絡資訊">
+              <group>
+                <field name="contact_name"/>
+                <field name="phone"/>
+                <field name="email"/>
+                <field name="address"/>
+                <field name="city"/>
+                <field name="district"/>
+              </group>
+            </page>
+            <page string="組織與標籤">
+              <group>
+                <field name="parent_id"/>
+                <field name="tags" widget="many2many_tags"/>
+                <field name="partner_id"/>
+              </group>
+            </page>
+            <page string="備註">
+              <group>
+                <field name="note"/>
+              </group>
+            </page>
+          </notebook>
         </sheet>
       </form>
     </field>
@@ -43,7 +70,15 @@
         <field name="code"/>
         <field name="name"/>
         <field name="phone"/>
-        <filter name="active" string="啟用" domain="[('active','=',True)]"/>
+        <field name="short_name"/>
+        <filter name="active" string="啟用" domain="[(\'active\',\'=\',True)]"/>
+        <filter name="level" string="層級" domain="[]"/>
+        <filter name="store_type" string="類型" domain="[]"/>
+        <group expand="0" string="群組">
+          <groupby name="level"/>
+          <groupby name="store_type"/>
+          <groupby name="city"/>
+        </group>
       </search>
     </field>
   </record>

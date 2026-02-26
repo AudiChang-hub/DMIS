@@ -1,2 +1,5 @@
 id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
-access_dms_dealer,dms.dealer,model_dms_dealer,,1,1,1,1
+# 以群組為單位授權，使用者為唯讀，管理者為讀寫
+access_dms_dealer_user,dms.dealer,model_dms_dealer,addons.dms_core.group_dms_dealer_user,1,0,0,0
+access_dms_dealer_manager,dms.dealer,model_dms_dealer,addons.dms_core.group_dms_dealer_manager,1,1,1,1
+access_dms_dealer_tag, dms.dealer.tag, model_dms_dealer_tag, addons.dms_core.group_dms_dealer_manager,1,1,1,1

@@ -28,6 +28,9 @@
     <field name="code">D003</field>
     <field name="name">示範車行三</field>
     <field name="level">tier2</field>
-    <field name="phone">+886-2-0000-0003</field>
+    <field name="phone_1">+886-2-0000-0003</field>
+    <field name="mobile">+886-9-0000-0003</field>
+    <field name="owner_name">林老闆</field>
+    <field name="store_manager">林店長</field>
   </record>
 </odoo>

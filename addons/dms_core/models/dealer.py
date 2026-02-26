@@ -97,12 +97,28 @@ class Dealer(models.Model):
     def name_get(self):
         result = []
         for rec in self:
-            display = '[%s] %s' % (rec.code or '', rec.name or '')
+            if rec.code:
+                display = '[%s] %s' % (rec.code, rec.name or '')
+            else:
+                display = rec.name or ''
             result.append((rec.id, display))
         return result
 
     @api.model
     def name_search(self, name, args=None, operator='ilike', limit=100):
         args = args or []
-        domain = ['|', '|', '|', ('code', operator, name), ('name', operator, name), ('phone', operator, name), ('short_name', operator, name)]
+        terms = [
+            ('code', operator, name),
+            ('name', operator, name),
+            ('short_name', operator, name),
+            ('phone_1', operator, name),
+            ('phone_2', operator, name),
+            ('mobile', operator, name),
+            ('mobile_fax', operator, name),
+        ]
+        # build OR domain
+        domain = []
+        for term in terms[:-1]:
+            domain += ['|', term]
+        domain += [terms[-1]]
         return self.search(domain + args, limit=limit).name_get()

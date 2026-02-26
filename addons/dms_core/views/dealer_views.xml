@@ -86,15 +86,15 @@
         <field name="mobile"/>
         <field name="phone_2"/>
         <field name="short_name"/>
-        <filter name="active" string="啟用" domain="[(\'active\',\'=\',True)]"/>
-        <filter name="holiday_gift" string="年節送禮" domain="[(\'holiday_gift\',\'=\',True)]"/>
-        <filter name="sym_gas_price_list" string="三陽油表" domain="[(\'sym_gas_price_list\',\'=\',True)]"/>
-        <filter name="sym_ev_price_list" string="三陽電表" domain="[(\'sym_ev_price_list\',\'=\',True)]"/>
-        <filter name="suzuki_gas_price_list" string="台鈴油表" domain="[(\'suzuki_gas_price_list\',\'=\',True)]"/>
-        <filter name="suzuki_ev_price_list" string="台鈴電表" domain="[(\'suzuki_ev_price_list\',\'=\',True)]"/>
-        <group expand="0" string="群組">
-          <groupby name="store_type"/>
-          <groupby name="city"/>
+        <filter name="active" string="啟用" domain="[('active','=',True)]"/>
+        <filter name="holiday_gift" string="年節送禮" domain="[('holiday_gift','=',True)]"/>
+        <filter name="sym_gas_price_list" string="三陽油表" domain="[('sym_gas_price_list','=',True)]"/>
+        <filter name="sym_ev_price_list" string="三陽電表" domain="[('sym_ev_price_list','=',True)]"/>
+        <filter name="suzuki_gas_price_list" string="台鈴油表" domain="[('suzuki_gas_price_list','=',True)]"/>
+        <filter name="suzuki_ev_price_list" string="台鈴電表" domain="[('suzuki_ev_price_list','=',True)]"/>
+        <group expand="0" string="分組">
+          <filter name="group_by_store_type" string="車行類型" context="{'group_by':'store_type'}"/>
+          <filter name="group_by_city" string="縣市" context="{'group_by':'city'}"/>
         </group>
     </field>
   </record>

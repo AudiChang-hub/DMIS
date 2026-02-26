@@ -100,3 +100,11 @@ VS Code 建議設定（讓自動化/Tasks 使用 PowerShell 不載入使用者 p
 3. 開 PR，PR 描述必填對應 specs 路徑；CI 會檢查若修改 `addons/**` 或 `docker-compose.yml`、`scripts/**`、`Makefile` 必須同步更新 `specs/**`。
 4. 使用 `/dms-merge` 產出合併檢查清單後再合併。
 
+## 倉庫公開說明（治理）
+
+- 本倉庫為了便於架構審查與透明性，已由 Private 轉為 Public。
+- 公開決策與安全檢查紀錄請參考：Issue #8（治理：DMIS 轉為 Public 之決策記錄）。
+- 本倉庫不存放任何憑證或密鑰；敏感設定請放於 `.env`（不加入版本控制），並以 `.env.example` 提供範例。
+
+
+

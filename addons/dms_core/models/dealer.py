@@ -122,3 +122,81 @@ class Dealer(models.Model):
             domain += ['|', term]
         domain += [terms[-1]]
         return self.search(domain + args, limit=limit).name_get()
+
+
+class ResUsers(models.Model):
+    _inherit = 'res.users'
+
+    dms_dealer_tree_cols = fields.Char(string='DMS 列表顯示欄位', help='逗號分隔的 dms.dealer 欄位名稱，順序決定列表顯示順序')
+
+
+class DealerColumnsWizard(models.TransientModel):
+    _name = 'dms.dealer.columns.wizard'
+    _description = '車行欄位選擇 Wizard'
+
+    field_ids = fields.Many2many(
+        'ir.model.fields',
+        'dms_dealer_wizard_rel',
+        'wiz_id',
+        'field_id',
+        string='欄位',
+        domain=[('model', '=', 'dms.dealer')]
+    )
+
+    field_labels = fields.Char(string='欄位標籤', compute='_compute_field_labels', readonly=True)
+
+    def apply(self):
+        names = ','.join(self.field_ids.mapped('name'))
+        self.env.user.sudo().write({'dms_dealer_tree_cols': names})
+        return {'type': 'ir.actions.act_window_close'}
+
+    @api.depends('field_ids')
+    def _compute_field_labels(self):
+        for rec in self:
+            rec.field_labels = ', '.join(rec.field_ids.mapped('field_description') or [])
+
+    def fields_view_get(self, view_id=None, view_type='form', toolbar=False, submenu=False):
+        res = super().fields_view_get(view_id=view_id, view_type=view_type, toolbar=toolbar, submenu=submenu)
+        # allow per-user column selection for tree view
+        if view_type == 'tree':
+            try:
+                # delay import to avoid import-time failure when lxml is not available
+                try:
+                    from lxml import etree
+                except Exception:
+                    return res
+                # read per-user comma-separated field list from res.users
+                cols = False
+                try:
+                    cols = self.env.user.dms_dealer_tree_cols
+                except Exception:
+                    cols = False
+                if cols:
+                    field_names = [f.strip() for f in cols.split(',') if f.strip()]
+                    if field_names:
+                        root = etree.Element('tree')
+                    # keep create/edit flags from existing arch if present
+                    try:
+                        orig = etree.fromstring(res.get('arch', '<tree/>'))
+                        for attr in ('create', 'edit', 'string'):
+                            if orig.get(attr):
+                                root.set(attr, orig.get(attr))
+                    except Exception:
+                        pass
+                    for name in field_names:
+                        node = etree.SubElement(root, 'field')
+                        node.set('name', name)
+                    res['arch'] = etree.tostring(root, encoding='unicode')
+            except Exception:
+                # if anything fails, fall back to default view
+                pass
+        return res
+
+
+class DealerColumns(models.Model):
+    _name = 'dms.dealer.columns'
+    _description = '使用者車行欄位設定'
+
+    user_id = fields.Many2one('res.users', string='使用者', required=True, default=lambda self: self.env.user)
+    field_ids = fields.Many2many('ir.model.fields', 'dms_dealer_cols_rel', 'config_id', 'field_id', string='欄位',
+                                 domain=[('model', '=', 'dms.dealer')])

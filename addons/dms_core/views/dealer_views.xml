@@ -5,13 +5,36 @@
     <field name="model">dms.dealer</field>
     <field name="arch" type="xml">
       <tree string="車行" create="true" edit="true">
+        <button name="%(dms_core.action_dealer_columns_wizard)d" type="action" string="欄位選擇" class="oe_highlight"/>
+        <field name="code"/>
         <field name="name" string="店名"/>
+        <field name="short_name" string="簡稱"/>
         <field name="owner_name" string="負責人"/>
         <field name="store_manager" string="店長"/>
+        <field name="level"/>
+        <field name="store_type"/>
+        <field name="parent_id"/>
+        <field name="city"/>
+        <field name="district"/>
         <field name="phone_1" string="電話1"/>
+        <field name="phone_2" string="電話2"/>
+        <field name="phone" string="電話(舊)"/>
         <field name="mobile" string="手機"/>
-        <field name="sym_gas_price_list" string="三陽油表"/>
-        <field name="suzuki_gas_price_list" string="台鈴油表"/>
+        <field name="mobile_fax"/>
+        <field name="email"/>
+        <field name="sym_gas_price_list"/>
+        <field name="sym_ev_price_list"/>
+        <field name="suzuki_gas_price_list"/>
+        <field name="suzuki_ev_price_list"/>
+        <field name="sym_dispatch_capacity"/>
+        <field name="suzuki_dispatch_capacity"/>
+        <field name="sym_line_group"/>
+        <field name="suzuki_line_group"/>
+        <field name="common_line_group"/>
+        <field name="special_line_group"/>
+        <field name="holiday_gift"/>
+        <field name="tags" widget="many2many_tags"/>
+        <field name="active"/>
       </tree>
     </field>
   </record>
@@ -107,4 +130,34 @@
   <menuitem id="menu_dealer_action" name="列表" parent="menu_dealer" action="action_dealer"/>
   <act_window id="action_dealer_create" name="新增車行" res_model="dms.dealer" view_mode="form" target="current" context="{'form_view_initial_mode':'edit'}"/>
   <menuitem id="menu_dealer_create" name="新增" parent="menu_dealer" action="action_dealer_create"/>
+  <!-- Wizard to choose visible columns for the current user -->
+  <record id="view_dealer_columns_wizard_form" model="ir.ui.view">
+    <field name="name">dms.dealer.columns.wizard.form</field>
+    <field name="model">dms.dealer.columns.wizard</field>
+    <field name="arch" type="xml">
+      <form string="欄位選擇">
+        <sheet>
+          <group>
+            <field name="field_ids" widget="many2many_tags" options="{'no_create': True}"/>
+          </group>
+          <group>
+            <field name="field_labels" readonly="1" string="欄位標籤"/>
+          </group>
+        </sheet>
+        <footer>
+          <button string="套用" type="object" name="apply" class="btn-primary"/>
+          <button string="取消" class="btn-secondary" special="cancel"/>
+        </footer>
+      </form>
+    </field>
+  </record>
+  <record id="action_dealer_columns_wizard" model="ir.actions.act_window">
+    <field name="name">欄位選擇</field>
+    <field name="res_model">dms.dealer.columns.wizard</field>
+    <field name="view_mode">form</field>
+    <field name="view_id" ref="view_dealer_columns_wizard_form"/>
+    <field name="target">new</field>
+  </record>
+  <menuitem id="menu_dealer_columns" name="欄位選擇" parent="menu_dealer" action="action_dealer_columns_wizard"/>
+  <!-- 欄位選擇視圖已暫時移除，改為由系統內建設定或後續透過後端建立設定記錄 -->
 </odoo>

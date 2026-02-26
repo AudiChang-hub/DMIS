@@ -123,6 +123,54 @@ class Dealer(models.Model):
         domain += [terms[-1]]
         return self.search(domain + args, limit=limit).name_get()
 
+    def fields_view_get(self, view_id=None, view_type='form', toolbar=False, submenu=False):
+        # Call super() but guard against view-cache / combination errors.
+        try:
+            res = super().fields_view_get(view_id=view_id, view_type=view_type, toolbar=toolbar, submenu=submenu)
+        except Exception:
+            # If super() fails (cache/view combination edge cases), try to return a safe tree arch
+            try:
+                view = self.env['ir.ui.view'].search([('model', '=', 'dms.dealer'), ('type', '=', 'tree')], limit=1)
+                if view:
+                    return {'arch': view.arch_db or '<tree/>' , 'fields': view.get('fields') if hasattr(view, 'get') else {}, 'type': 'tree'}
+            except Exception:
+                # fallback minimal response
+                return {'arch': '<tree/>', 'fields': {}, 'type': view_type}
+        # Only modify the arch for tree views and only when it's safe to parse/replace
+        if view_type == 'tree' and res and isinstance(res.get('arch'), str):
+            try:
+                try:
+                    from lxml import etree
+                except Exception:
+                    return res
+                cols = False
+                try:
+                    cols = self.env.user.dms_dealer_tree_cols
+                except Exception:
+                    cols = False
+                if cols:
+                    field_names = [f.strip() for f in cols.split(',') if f.strip()]
+                    if field_names:
+                        # build a new tree element and attempt to preserve basic attributes
+                        root = etree.Element('tree')
+                        try:
+                            orig = etree.fromstring(res.get('arch', '<tree/>'))
+                            for attr in ('create', 'edit', 'string'):
+                                val = orig.get(attr)
+                                if val:
+                                    root.set(attr, val)
+                        except Exception:
+                            # if original arch can't be parsed, continue with minimal root
+                            pass
+                        for name in field_names:
+                            node = etree.SubElement(root, 'field')
+                            node.set('name', name)
+                        res['arch'] = etree.tostring(root, encoding='unicode')
+            except Exception:
+                # On any failure, return the original res unmodified
+                return res
+        return res
+
 
 class ResUsers(models.Model):
     _inherit = 'res.users'
@@ -148,49 +196,34 @@ class DealerColumnsWizard(models.TransientModel):
     def apply(self):
         names = ','.join(self.field_ids.mapped('name'))
         self.env.user.sudo().write({'dms_dealer_tree_cols': names})
-        return {'type': 'ir.actions.act_window_close'}
+        # reload the client so the list view is re-rendered with new columns
+        return {'type': 'ir.actions.client', 'tag': 'reload'}
+
+    @api.model
+    def default_get(self, fields_list):
+        res = super(DealerColumnsWizard, self).default_get(fields_list)
+        # pre-select the fields that are currently saved on the user
+        cols = False
+        try:
+            cols = self.env.user.dms_dealer_tree_cols
+        except Exception:
+            cols = False
+        if cols:
+            names = [f.strip() for f in cols.split(',') if f.strip()]
+            if names:
+                imf = self.env['ir.model.fields'].sudo()
+                records = imf.search([('model', '=', 'dms.dealer'), ('name', 'in', names)])
+                if records:
+                    res['field_ids'] = [(6, 0, records.ids)]
+        return res
 
     @api.depends('field_ids')
     def _compute_field_labels(self):
         for rec in self:
             rec.field_labels = ', '.join(rec.field_ids.mapped('field_description') or [])
-
-    def fields_view_get(self, view_id=None, view_type='form', toolbar=False, submenu=False):
-        res = super().fields_view_get(view_id=view_id, view_type=view_type, toolbar=toolbar, submenu=submenu)
-        # allow per-user column selection for tree view
-        if view_type == 'tree':
-            try:
-                # delay import to avoid import-time failure when lxml is not available
-                try:
-                    from lxml import etree
-                except Exception:
-                    return res
-                # read per-user comma-separated field list from res.users
-                cols = False
-                try:
-                    cols = self.env.user.dms_dealer_tree_cols
-                except Exception:
-                    cols = False
-                if cols:
-                    field_names = [f.strip() for f in cols.split(',') if f.strip()]
-                    if field_names:
-                        root = etree.Element('tree')
-                    # keep create/edit flags from existing arch if present
-                    try:
-                        orig = etree.fromstring(res.get('arch', '<tree/>'))
-                        for attr in ('create', 'edit', 'string'):
-                            if orig.get(attr):
-                                root.set(attr, orig.get(attr))
-                    except Exception:
-                        pass
-                    for name in field_names:
-                        node = etree.SubElement(root, 'field')
-                        node.set('name', name)
-                    res['arch'] = etree.tostring(root, encoding='unicode')
-            except Exception:
-                # if anything fails, fall back to default view
-                pass
-        return res
+    def _nop(self):
+        # placeholder to keep class structure stable
+        return True
 
 
 class DealerColumns(models.Model):

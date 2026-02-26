@@ -36,7 +36,6 @@
           <notebook>
             <page string="基本資料">
               <group>
-                <field name="code"/>
                 <field name="name" string="車行名稱"/>
                 <field name="owner_name" string="負責人"/>
                 <field name="store_manager" string="店長"/>

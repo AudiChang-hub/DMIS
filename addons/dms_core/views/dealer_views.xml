@@ -38,7 +38,10 @@
               <group>
                 <field name="name" string="車行名稱"/>
                 <field name="owner_name" string="負責人"/>
-                <field name="store_manager" string="店長"/>
+                <group>
+                  <field name="manager_same_as_owner"/>
+                  <field name="store_manager" string="店長"/>
+                </group>
                 <field name="store_type_id"/>
                 <field name="brand_ids" widget="many2many_tags"/>
                 <field name="address"/>
@@ -111,6 +114,69 @@
   <menuitem id="menu_dealer_action" name="列表" parent="menu_dealer" action="action_dealer"/>
   <act_window id="action_dealer_create" name="新增車行" res_model="dms.dealer" view_mode="form" target="current" context="{'form_view_initial_mode':'edit'}"/>
   <menuitem id="menu_dealer_create" name="新增" parent="menu_dealer" action="action_dealer_create"/>
+  <!-- 車行類型管理 -->
+  <record id="view_dealer_type_tree" model="ir.ui.view">
+    <field name="name">dms.dealer.type.tree</field>
+    <field name="model">dms.dealer.type</field>
+    <field name="arch" type="xml">
+      <tree string="車行類型">
+        <field name="name"/>
+        <field name="code"/>
+      </tree>
+    </field>
+  </record>
+  <record id="view_dealer_type_form" model="ir.ui.view">
+    <field name="name">dms.dealer.type.form</field>
+    <field name="model">dms.dealer.type</field>
+    <field name="arch" type="xml">
+      <form string="車行類型">
+        <sheet>
+          <group>
+            <field name="name"/>
+            <field name="code"/>
+          </group>
+        </sheet>
+      </form>
+    </field>
+  </record>
+  <record id="action_dealer_type" model="ir.actions.act_window">
+    <field name="name">車行類型</field>
+    <field name="res_model">dms.dealer.type</field>
+    <field name="view_mode">tree,form</field>
+    <field name="view_id" ref="view_dealer_type_tree"/>
+  </record>
+  <menuitem id="menu_dealer_types" name="車行類型管理" parent="menu_dms_root" action="action_dealer_type"/>
+
+  <!-- 品牌管理 -->
+  <record id="view_brand_tree" model="ir.ui.view">
+    <field name="name">dms.brand.tree</field>
+    <field name="model">dms.brand</field>
+    <field name="arch" type="xml">
+      <tree string="品牌">
+        <field name="name"/>
+      </tree>
+    </field>
+  </record>
+  <record id="view_brand_form" model="ir.ui.view">
+    <field name="name">dms.brand.form</field>
+    <field name="model">dms.brand</field>
+    <field name="arch" type="xml">
+      <form string="品牌">
+        <sheet>
+          <group>
+            <field name="name"/>
+          </group>
+        </sheet>
+      </form>
+    </field>
+  </record>
+  <record id="action_brand" model="ir.actions.act_window">
+    <field name="name">品牌</field>
+    <field name="res_model">dms.brand</field>
+    <field name="view_mode">tree,form</field>
+    <field name="view_id" ref="view_brand_tree"/>
+  </record>
+  <menuitem id="menu_brands" name="品牌管理" parent="menu_dms_root" action="action_brand"/>
   <!-- Tag 管理介面 -->
   <record id="view_dealer_tag_tree" model="ir.ui.view">
     <field name="name">dms.dealer.tag.tree</field>

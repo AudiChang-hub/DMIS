@@ -105,4 +105,6 @@
 
   <act_window id="action_dealer" name="車行" res_model="dms.dealer" view_mode="tree,form"/>
   <menuitem id="menu_dealer_action" name="列表" parent="menu_dealer" action="action_dealer"/>
+  <act_window id="action_dealer_create" name="新增車行" res_model="dms.dealer" view_mode="form" target="current" context="{'form_view_initial_mode':'edit'}"/>
+  <menuitem id="menu_dealer_create" name="新增" parent="menu_dealer" action="action_dealer_create"/>
 </odoo>

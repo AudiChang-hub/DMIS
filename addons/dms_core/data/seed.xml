@@ -5,6 +5,8 @@
     <field name="name">示範車行一</field>
     <field name="level">distributor</field>
     <field name="phone">+886-2-0000-0001</field>
+    <field name="short_name">示一</field>
+    <field name="city">臺北市</field>
   </record>
 
   <record id="dealer_demo_2" model="dms.dealer">
@@ -12,6 +14,8 @@
     <field name="name">示範車行二</field>
     <field name="level">tier1</field>
     <field name="phone">+886-2-0000-0002</field>
+    <field name="short_name">示二</field>
+    <field name="city">新北市</field>
   </record>
 
   <record id="dealer_demo_3" model="dms.dealer">

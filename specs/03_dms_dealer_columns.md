@@ -44,6 +44,16 @@ docker compose exec -T odoo bash -lc "curl -s -o /dev/null -w '%{http_code}' htt
 - 若修改 `addons/`、`docker-compose.yml`，請同時更新 `specs/`。此檔案即為本次變更的 specs。
 - ACL 建議：初期可允許 `base.group_user` 讀取 wizard，正式環境請依權限策略收斂建立/修改權限。
 
+變更紀錄（工程摘要）
+- 新增：Wizard `default_get` 預填使用者目前已選欄位（`field_ids`），開啟時會看到已勾選的欄位。
+- 修改：`DealerColumnsWizard.apply()` 在套用後改回傳 `{'type':'ir.actions.client','tag':'reload'}`，以要求前端重新整理列表視圖。
+- 修改：前端資產 `static/src/js/dealer_columns_button.js` 強化按鈕注入邏輯，避免重複並增加 selector 兼容性。
+- 修正：`dms.dealer` 的 `fields_view_get` 實作改為更保守且具備錯誤回退（避免 view-cache / 組合時造成的 ValueError），當無法安全產生自訂 arch 時會回退到原生 tree arch。
+
+驗證補充
+- 已在本地執行 smoke 與 XML-RPC 測試：以測試使用者建立 wizard 並呼叫 `apply()`，伺服器端已寫入 `res.users.dms_dealer_tree_cols`（範例值 `code,name,phone_1`）。
+- 若前端仍未立即變更，請於瀏覽器做一次強制重新整理（Ctrl+F5），或由我代為重新啟動 Odoo Container 並再次驗證。
+
 驗證命令摘要
 
 ```powershell

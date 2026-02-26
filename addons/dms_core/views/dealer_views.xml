@@ -5,14 +5,13 @@
     <field name="model">dms.dealer</field>
     <field name="arch" type="xml">
       <tree string="車行">
-        <field name="code"/>
-        <field name="name"/>
-        <field name="short_name"/>
-        <field name="level"/>
-        <field name="store_type"/>
-        <field name="phone"/>
-        <field name="city"/>
-        <field name="active"/>
+        <field name="name" string="店名"/>
+        <field name="owner_name" string="負責人"/>
+        <field name="store_manager" string="店長"/>
+        <field name="phone_1" string="電話1"/>
+        <field name="mobile" string="手機"/>
+        <field name="sym_gas_price_list" string="三陽油表"/>
+        <field name="suzuki_gas_price_list" string="台鈴油表"/>
       </tree>
     </field>
   </record>
@@ -27,33 +26,48 @@
             <page string="基本資料">
               <group>
                 <field name="code"/>
-                <field name="name"/>
-                <field name="short_name"/>
-                <field name="level"/>
-                <field name="store_type"/>
-                <field name="active"/>
+                <field name="name" string="店名"/>
+                <field name="owner_name" string="負責人"/>
+                <field name="store_manager" string="店長"/>
+                <field name="address"/>
+                <field name="note"/>
               </group>
             </page>
             <page string="聯絡資訊">
               <group>
-                <field name="contact_name"/>
-                <field name="phone"/>
+                <field name="phone_1"/>
+                <field name="phone_2"/>
+                <field name="mobile"/>
+                <field name="mobile_fax"/>
                 <field name="email"/>
-                <field name="address"/>
-                <field name="city"/>
-                <field name="district"/>
               </group>
             </page>
-            <page string="組織與標籤">
+            <page string="價格表 / 群組">
+              <group>
+                <field name="sym_gas_price_list"/>
+                <field name="sym_ev_price_list"/>
+                <field name="suzuki_gas_price_list"/>
+                <field name="suzuki_ev_price_list"/>
+              </group>
+              <group>
+                <field name="sym_dispatch_capacity"/>
+                <field name="suzuki_dispatch_capacity"/>
+              </group>
+              <group>
+                <field name="sym_line_group"/>
+                <field name="suzuki_line_group"/>
+                <field name="common_line_group"/>
+                <field name="special_line_group"/>
+                <field name="holiday_gift"/>
+              </group>
+            </page>
+            <page string="進階">
               <group>
                 <field name="parent_id"/>
                 <field name="tags" widget="many2many_tags"/>
                 <field name="partner_id"/>
-              </group>
-            </page>
-            <page string="備註">
-              <group>
-                <field name="note"/>
+                <field name="level"/>
+                <field name="active"/>
               </group>
             </page>
           </notebook>
@@ -68,18 +82,20 @@
     <field name="arch" type="xml">
       <search>
         <field name="code"/>
-        <field name="name"/>
-        <field name="phone"/>
+        <field name="phone_1"/>
+        <field name="mobile"/>
+        <field name="phone_2"/>
         <field name="short_name"/>
         <filter name="active" string="啟用" domain="[(\'active\',\'=\',True)]"/>
-        <filter name="level" string="層級" domain="[]"/>
-        <filter name="store_type" string="類型" domain="[]"/>
+        <filter name="holiday_gift" string="年節送禮" domain="[(\'holiday_gift\',\'=\',True)]"/>
+        <filter name="sym_gas_price_list" string="三陽油表" domain="[(\'sym_gas_price_list\',\'=\',True)]"/>
+        <filter name="sym_ev_price_list" string="三陽電表" domain="[(\'sym_ev_price_list\',\'=\',True)]"/>
+        <filter name="suzuki_gas_price_list" string="台鈴油表" domain="[(\'suzuki_gas_price_list\',\'=\',True)]"/>
+        <filter name="suzuki_ev_price_list" string="台鈴電表" domain="[(\'suzuki_ev_price_list\',\'=\',True)]"/>
         <group expand="0" string="群組">
-          <groupby name="level"/>
           <groupby name="store_type"/>
           <groupby name="city"/>
         </group>
-      </search>
     </field>
   </record>
 

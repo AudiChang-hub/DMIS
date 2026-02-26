@@ -3,31 +3,31 @@
   <record id="dealer_demo_1" model="dms.dealer">
     <field name="code">D001</field>
     <field name="name">示範車行一</field>
-    <field name="level">distributor</field>
+    <!-- level 已移除，保留基本資料 -->
     <field name="phone_1">+886-2-0000-0001</field>
     <field name="mobile">+886-9-0000-0001</field>
     <field name="owner_name">張大哥</field>
     <field name="store_manager">王小明</field>
-    <field name="sym_gas_price_list">True</field>
+    <field name="sym_price_list">gas</field>
     <field name="sym_dispatch_capacity">10</field>
   </record>
 
   <record id="dealer_demo_2" model="dms.dealer">
     <field name="code">D002</field>
     <field name="name">示範車行二</field>
-    <field name="level">tier1</field>
+    <!-- level 已移除，保留基本資料 -->
     <field name="phone_1">+886-2-0000-0002</field>
     <field name="mobile">+886-9-0000-0002</field>
     <field name="owner_name">李老闆</field>
     <field name="store_manager">陳經理</field>
-    <field name="suzuki_ev_price_list">True</field>
+    <field name="suzuki_price_list">ev</field>
     <field name="suzuki_dispatch_capacity">5</field>
   </record>
 
   <record id="dealer_demo_3" model="dms.dealer">
     <field name="code">D003</field>
     <field name="name">示範車行三</field>
-    <field name="level">tier2</field>
+    <!-- level 已移除，保留基本資料 -->
     <field name="phone_1">+886-2-0000-0003</field>
     <field name="mobile">+886-9-0000-0003</field>
     <field name="owner_name">林老闆</field>

@@ -12,7 +12,7 @@ Required Field Model (suggested Odoo field names)
 Basic Information
 - store name (required): `name` (fields.Char, required=True)
 - owner (required): `owner_name` (fields.Char, required=True)
-- manager (required): `manager_name` (fields.Char, required=True)
+- manager (required): `store_manager` (fields.Char, required=True)
 - address (optional): `address` (fields.Text)
 - note (optional): `note` (fields.Html)
 
@@ -20,7 +20,7 @@ Contact Information
 - phone 1 (optional): `phone_1` (fields.Char)
 - phone 2 (optional): `phone_2` (fields.Char)
 - mobile (optional): `mobile` (fields.Char)
-- fax_or_mobile (optional): `fax_mobile` (fields.Char)
+- fax_or_mobile (optional): `mobile_fax` (fields.Char)
 
 Price-Table Permissions (checkboxes)
 - sanyang_fuel_price (boolean): 三陽油車價格表
@@ -28,9 +28,9 @@ Price-Table Permissions (checkboxes)
 - tailin_fuel_price (boolean): 台鈴油車價格表
 - tailin_electric_price (boolean): 台鈴電車價格表
 
-Capacities
-- sanyang_capacity (integer, optional): 三陽排車容量 (non-negative integer)
-- tailin_capacity (integer, optional): 台鈴排車容量 (non-negative integer)
+CapaCities
+- `sym_dispatch_capacity` (integer, optional): 三陽排車容量 (non-negative integer)
+- `suzuki_dispatch_capacity` (integer, optional): 台鈴排車容量 (non-negative integer)
 
 Groups / Activities (checkboxes)
 - sanyang_line_group (boolean)
@@ -48,8 +48,8 @@ Other master-data fields (recommended)
 
 Validation & Governance Rules
 - `code` and `name` MUST be present and `code` MUST be unique (SQL constraint).
-- `owner_name` and `manager_name` MUST be present.
-- Capacities (`sanyang_capacity`, `tailin_capacity`) MUST be non-negative integers if provided (validation in Python).
+- `owner_name` and `store_manager` MUST be present.
+- Capacities (`sym_dispatch_capacity`, `suzuki_dispatch_capacity`) MUST be non-negative integers if provided (validation in Python).
 - `parent_id` MUST NOT point to self and MUST NOT create cycles (python constraint to detect loops).
 - No import wizards or direct file ingestion logic are allowed in this spec (imports must be handled by `specs/003-import-pipeline`).
 

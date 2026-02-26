@@ -28,11 +28,11 @@
 
 7. 欄位細項驗收（依據需求清單）
   - 基本資料
-    - 目標：`name`（店名）、`owner_name`（負責人）、`manager_name`（店長）皆為必填；`address` 與 `note` 可空。
+    - 目標：`name`（店名）、`owner_name`（負責人）、`store_manager`（店長）皆為必填；`address` 與 `note` 可空。
     - 驗收：嘗試在表單省略必填欄位會被拒絕；能建立含 optional 欄位的紀錄且資料可讀回。
 
   - 聯絡資訊
-    - 目標：`phone_1`、`phone_2`、`mobile`、`fax_mobile` 為選填欄位。
+    - 目標：`phone_1`、`phone_2`、`mobile`、`mobile_fax` 為選填欄位。
     - 驗收：可以任意組合建立/編輯聯絡欄位；搜尋可使用 phone_1/phone_2/mobile。
 
   - 價格表權限（勾選）
@@ -40,7 +40,7 @@
     - 驗收：在 form 可以勾選/取消；資料儲存後值正確呈現。
 
   - 排車容量
-    - 目標：`sanyang_capacity`、`tailin_capacity` 必須為整數或空值，且不得為負數。
+    - 目標：`sym_dispatch_capacity`、`suzuki_dispatch_capacity` 必須為整數或空值，且不得為負數。
     - 驗收：輸入負數時會被拒絕；接受 0 或正整數。
 
   - 群組/活動（勾選）

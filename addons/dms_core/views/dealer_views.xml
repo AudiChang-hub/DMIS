@@ -131,8 +131,8 @@
         <filter name="suzuki_gas_price_list" string="台鈴油表" domain="[('suzuki_gas_price_list','=',True)]"/>
         <filter name="suzuki_ev_price_list" string="台鈴電表" domain="[('suzuki_ev_price_list','=',True)]"/>
         <group expand="0" string="分組">
-          <filter string="車行類型" context="{'group_by': 'store_type'}"/>
-          <filter string="縣市" context="{'group_by': 'city'}"/>
+          <filter name="groupby_store_type" string="車行類型" context="{'group_by': 'store_type'}"/>
+          <filter name="groupby_city" string="縣市" context="{'group_by': 'city'}"/>
         </group>
         </search>
     </field>

@@ -1,3 +1,15 @@
+# 02 - Clarify (Open Questions 與 Assumptions)
+
+## Open Questions
+- UI 風格：是否接受簡單 SCSS 調整（labels 加粗、欄位分隔）？
+- 種子資料：是否希望我填入多筆品牌/車行類型，或只建立一兩筆示例？
+
+## Assumptions
+- 假設 `code` 欄位已存在且不可更動顯示邏輯。
+- 所有修改會在 `addons/dms_core` 內完成，並且符合 Spec-first 規定。
+- 欄位名稱需與現有程式兼容（例如保留 `name` 作店名）。
+
+請在此回覆若需修正或補充，任何新增 model/欄位若超出本規格會在此列出並等待你的確認。
 # Clarify（澄清）
 
 - 目標：最小可用模組，能在 Odoo Apps 中看到並安裝。

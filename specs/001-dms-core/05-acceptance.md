@@ -1,3 +1,21 @@
+# 05 - Acceptance
+
+驗收條件：
+
+1. 能夠在 Odoo UI 中建立/編輯 `車行`，表單分頁與欄位正確顯示。
+2. 勾選 `店長同上` 後，UI 即時 (onchange) 將 `負責人` 同步到 `店長`。
+3. 透過 API/import 建立或更新時，若 `manager_same_as_owner=True` 且未提供 `store_manager`，系統會補上 `owner_name`。
+4. `sym_dispatch_capacity` 與 `suzuki_dispatch_capacity` 不可為負，會觸發 ValidationError。
+5. tree/search/view 可正確篩選與群組，並且 `品牌` / `車行類型` 的選單存在。 
+
+驗證指令：
+
+```bash
+docker compose ps
+make smoke
+```
+
+（若新增 tests，請在 smoke 中包含執行測試）
 # Acceptance Criteria（驗收）
 
 - `docker compose up` 可啟動 Odoo 與 Postgres

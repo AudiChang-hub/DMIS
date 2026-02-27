@@ -1,3 +1,14 @@
+# 04 - Tasks
+
+- [ ] 補齊 models/dms.dealer
+- [ ] 新增 models/dms.brand, models/dms.store_type
+- [ ] 更新 views/dealer_views.xml
+- [ ] 新增 views/brand_views.xml, views/store_type_views.xml
+- [ ] 更新 ir.model.access.csv
+- [ ] 更新 seed.xml
+- [ ] 新增 SCSS assets
+- [ ] 新增 tests
+- [ ] 執行 `make smoke` 並修正問題
 # 任務清單（Tasks）
 
 - 建立 `addons/dms_core` 模組

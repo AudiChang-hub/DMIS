@@ -1,3 +1,45 @@
+# 01 - Spec
+
+此文件列出 dms.dealer 的詳細規格項目（欄位 / 視圖 / 搜尋 / 验证 / 測試）。
+
+## 模型欄位（dms.dealer）
+- `name` (string) 店名，required
+- `owner_name` (char) 負責人，required
+- `store_manager` (char) 店長，可空
+- `manager_same_as_owner` (boolean) 店長同負責人，default False
+- `address` (text) 地址
+- `note` (html) 備註
+- `brand_ids` (many2many dms.brand, relation dms_dealer_brand_rel)
+- `store_type_id` (many2one dms.store_type)
+- `active` boolean default True
+
+## 聯絡欄位
+- `phone_1`, `phone_2`, `mobile`, `mobile_fax`, `email` (email label 為「電子信箱」)
+
+## 價格表權限
+- `sym_gas_price_list`, `sym_ev_price_list`, `suzuki_gas_price_list`, `suzuki_ev_price_list` (boolean, default False)
+
+## 排車容量
+- `sym_dispatch_capacity`, `suzuki_dispatch_capacity` (integer, >=0 constraint)
+
+## 群組/活動
+- `line_group`, `holiday_gift` (boolean default False)
+
+## name_get / name_search
+- name_get: 若 `code` 有值，顯示 `[code] 店名`，否則顯示 `店名`。
+- name_search: 支援以 code、name、phone_1、mobile、owner_name、store_manager、address、brand_ids.name 搜尋
+
+## 主檔
+- `dms.brand` : name required, unique, active True
+- `dms.store_type` : name required, unique, active True
+
+## 視圖
+- tree: 顯示店名、負責人、店長、電話1、手機
+- form: notebook 分頁（基本資料/聯絡資訊/價格表/排車容量）
+- search: 店名、負責人、店長、電話1、手機、地址、品牌 + filters
+
+## Security
+- 新增 ACL 讓所有使用者可讀寫 `dms.brand`、`dms.store_type`，以及保持 dms.dealer 的讀寫
 # 規格（01-spec）
 
 此檔為 DMS Core 的規格文件（繁體中文）。

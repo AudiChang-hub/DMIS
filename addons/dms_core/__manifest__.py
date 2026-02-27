@@ -15,6 +15,12 @@
     ],
     # 已移除自建前端資產（dealer_columns_button.js）
 
+    'assets': {
+        'web.assets_backend': [
+            'dms_core/static/src/scss/dealer.scss',
+        ],
+    },
+
     'installable': True,
     'application': True,
 }

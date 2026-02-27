@@ -124,30 +124,31 @@ class Dealer(models.Model):
         ]
         return self.search(domain + args, limit=limit).name_get()
 
-    @api.model
-    def create(self, vals):
-        if vals.get('manager_same_as_owner') and not vals.get('store_manager'):
-            vals['store_manager'] = vals.get('owner_name', '')
-        if not vals.get('code'):
-            type_code = 'XX'
-            t_id = vals.get('store_type_id')
-            if t_id:
-                try:
-                    t = self.env['dms.store_type'].browse(int(t_id))
-                    if t and t.name:
-                        type_code = t.name[:2].upper()
-                except Exception:
-                    pass
-            date_part = datetime.now().strftime('%y%m%d')
-            base = (type_code[:2] + date_part)[:8]
-            code = base
-            for _attempt in range(10):
-                if not self.search([('code', '=', code)], limit=1):
-                    break
-                suffix = str(random.randint(0, 99)).zfill(2)
-                code = (base[:-2] + suffix)[:8]
-            vals['code'] = code
-        return super().create(vals)
+    @api.model_create_multi
+    def create(self, vals_list):
+        for vals in vals_list:
+            if vals.get('manager_same_as_owner') and not vals.get('store_manager'):
+                vals['store_manager'] = vals.get('owner_name', '')
+            if not vals.get('code'):
+                type_code = 'XX'
+                t_id = vals.get('store_type_id')
+                if t_id:
+                    try:
+                        t = self.env['dms.store_type'].browse(int(t_id))
+                        if t and t.name:
+                            type_code = t.name[:2].upper()
+                    except Exception:
+                        pass
+                date_part = datetime.now().strftime('%y%m%d')
+                base = (type_code[:2] + date_part)[:8]
+                code = base
+                for _attempt in range(10):
+                    if not self.search([('code', '=', code)], limit=1):
+                        break
+                    suffix = str(random.randint(0, 99)).zfill(2)
+                    code = (base[:-2] + suffix)[:8]
+                vals['code'] = code
+        return super().create(vals_list)
 
     @api.onchange('manager_same_as_owner', 'owner_name')
     def _onchange_manager_same(self):

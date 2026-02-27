@@ -29,6 +29,8 @@
         <field name="suzuki_dispatch_capacity" optional="hide"/>
         <field name="line_group"             optional="hide"/>
         <field name="holiday_gift"           optional="hide"/>
+        <field name="address"                optional="hide"/>
+        <field name="note"                   optional="hide"/>
       </tree>
     </field>
   </record>

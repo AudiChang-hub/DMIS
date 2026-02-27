@@ -6,7 +6,7 @@
     'author': 'DMIS',
     'license': 'LGPL-3',
     'category': 'Custom',
-    'depends': ['base'],
+    'depends': ['base', 'web'],
     'data': [
         'security/dms_security.xml',
         'security/ir.model.access.csv',
@@ -20,6 +20,7 @@
     'assets': {
         'web.assets_backend': [
             'dms_core/static/src/scss/dealer.scss',
+            'dms_core/static/src/js/dms_dealer_column_limit.js',
         ],
     },
 

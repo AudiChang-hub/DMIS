@@ -7,21 +7,14 @@
     <field name="model">dms.dealer</field>
     <field name="arch" type="xml">
       <tree string="車行">
-        <field name="code" optional="show"/>
-        <field name="name" optional="show"/>
-        <field name="short_name" optional="hide"/>
-        <field name="owner_name" optional="show"/>
-        <field name="store_manager" optional="show"/>
-        <field name="phone_1" optional="show"/>
-        <field name="phone_2" optional="hide"/>
+        <field name="code"/>
+        <field name="name"/>
+        <field name="owner_name"/>
+        <field name="store_manager"/>
+        <field name="phone_1"/>
         <field name="mobile" optional="show"/>
-        <field name="mobile_fax" optional="hide"/>
-        <field name="city" optional="hide"/>
-        <field name="sym_price_list" optional="hide"/>
-        <field name="suzuki_price_list" optional="hide"/>
-        <field name="store_type_id" optional="hide"/>
-        <field name="brand_ids" optional="hide"/>
-        <field name="holiday_gift" optional="hide"/>
+        <field name="store_type_id" optional="show"/>
+        <field name="brand_ids" widget="many2many_tags" optional="show"/>
         <field name="active" optional="hide"/>
       </tree>
     </field>
@@ -33,48 +26,66 @@
     <field name="arch" type="xml">
       <form string="車行">
         <sheet>
+          <div class="oe_title">
+            <label for="code" string="車行代碼"/>
+            <h1><field name="code" placeholder="車行代碼"/></h1>
+            <label for="name"/>
+            <h2><field name="name" placeholder="車行名稱"/></h2>
+          </div>
           <notebook>
             <page string="基本資料">
-              <group>
-                <field name="name" string="車行名稱"/>
-                <field name="owner_name" string="負責人"/>
+              <group string="車行資訊">
                 <group>
-                  <field name="manager_same_as_owner"/>
+                  <field name="short_name" string="簡稱"/>
+                  <field name="store_type_id" string="車行類型"/>
+                  <field name="brand_ids" string="品牌" widget="many2many_tags"/>
+                  <field name="active" string="啟用"/>
+                </group>
+                <group>
+                  <field name="address" string="地址"/>
+                  <field name="city" string="縣市"/>
+                  <field name="district" string="鄉鎮市區"/>
+                </group>
+              </group>
+              <group string="人員">
+                <group>
+                  <field name="owner_name" string="負責人"/>
+                  <field name="manager_same_as_owner" string="店長同上（同負責人）"/>
                   <field name="store_manager" string="店長"/>
                 </group>
-                <field name="store_type_id"/>
-                <field name="brand_ids" widget="many2many_tags"/>
-                <field name="address"/>
-                <field name="note"/>
+              </group>
+              <group string="備註">
+                <field name="note" nolabel="1" colspan="2"/>
               </group>
             </page>
             <page string="聯絡資訊">
               <group>
-                <field name="phone_1"/>
-                <field name="phone_2"/>
-                <field name="mobile"/>
-                <field name="mobile_fax"/>
-                <field name="email"/>
+                <field name="phone_1" string="電話1"/>
+                <field name="phone_2" string="電話2"/>
+                <field name="mobile" string="手機"/>
+                <field name="mobile_fax" string="手機/傳真"/>
+                <field name="email" string="電子郵件"/>
               </group>
             </page>
             <page string="價格表 / 群組">
               <group>
-                <field name="sym_price_list"/>
-                <field name="suzuki_price_list"/>
+                <group string="三陽">
+                  <field name="sym_price_list" string="三陽價格表"/>
+                  <field name="sym_dispatch_capacity" string="三陽排車容量"/>
+                </group>
+                <group string="台鈴">
+                  <field name="suzuki_price_list" string="台鈴價格表"/>
+                  <field name="suzuki_dispatch_capacity" string="台鈴排車容量"/>
+                </group>
               </group>
               <group>
-                <field name="sym_dispatch_capacity"/>
-                <field name="suzuki_dispatch_capacity"/>
-              </group>
-              <group>
-                <field name="line_group"/>
-                <field name="holiday_gift"/>
+                <field name="line_group" string="有 LINE 群組"/>
+                <field name="holiday_gift" string="年節送禮"/>
               </group>
             </page>
             <page string="進階">
               <group>
-                <field name="tags" widget="many2many_tags"/>
-                <field name="active"/>
+                <field name="tags" widget="many2many_tags" string="標籤"/>
               </group>
             </page>
           </notebook>
@@ -114,6 +125,7 @@
     <field name="name">車行</field>
     <field name="res_model">dms.dealer</field>
     <field name="view_mode">tree,form</field>
+    <field name="context">{'form_view_initial_mode': 'edit'}</field>
   </record>
   <menuitem id="menu_dealer_action" name="列表" parent="menu_dealer" action="action_dealer"/>
   <record id="action_dealer_create" model="ir.actions.act_window">

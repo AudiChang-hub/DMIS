@@ -92,7 +92,16 @@ Odoo list view 右上角欄位選擇器需包含**所有**車行業務欄位，�
      - title: `"欄位顯示上限"`
      - message: `"列表最多只能顯示 15 個欄位，請先取消勾選其他欄位再新增。"`
      - type: `"warning"`
+  3. 強制觸發 OWL 重新渲染（`this.state.columns = [...this.state.columns]`），使 dropdown checkbox 反映未勾選狀態，確保 checkbox 不會停留在已勾選外觀。
 - 取消勾選（隱藏欄位）時永遠允許，不阻擋。
+
+#### 複製動作（Duplicate）
+- `ir.actions.server`（`action_dealer_duplicate`）：綁定 `dms.dealer`、`binding_view_types="list"`。
+- 動作名稱：`複製`；出現在 list view 右上角 Action 下拉選單。
+- Server action code：`for record in records: record.copy()`。
+- `dms.dealer.copy(default=None)` override：
+  - 自動產生唯一 `code`：取原 `code`，依序嘗試 `{code}-C`、`{code}-C2`…`{code}-C19`，找到第一個資料庫中不存在的值後寫入 `default['code']`。
+  - 複製後的記錄 `code` 須通過唯一約束，不得與任何現有記錄重複。
 
 不顯示（不加入 tree view）：`short_name`、`city`、`district`、`phone`（舊）、`contact_name`（舊）等已廢棄欄位。
 

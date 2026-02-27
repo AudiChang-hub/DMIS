@@ -150,4 +150,17 @@
   <menuitem id="menu_dealer" name="車行" parent="menu_dms_root"
             action="action_dealer" sequence="10"/>
 
+  <!-- ===== Server Action：車行複製 ===== -->
+  <record id="action_dealer_duplicate" model="ir.actions.server">
+    <field name="name">複製</field>
+    <field name="model_id" ref="model_dms_dealer"/>
+    <field name="binding_model_id" ref="model_dms_dealer"/>
+    <field name="binding_view_types">list</field>
+    <field name="state">code</field>
+    <field name="code">
+for record in records:
+    record.copy()
+    </field>
+  </record>
+
 </odoo>

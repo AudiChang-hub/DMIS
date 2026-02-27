@@ -41,6 +41,8 @@ patch(ListRenderer.prototype, "dms_core.dealerColumnLimit", {
                         sticky: false,
                     }
                 );
+                // 強制觸發 OWL 重新渲染，確保 dropdown checkbox 回復未勾選狀態
+                this.state.columns = [...this.state.columns];
                 // 阻止切換：不呼叫 _super，optionalActiveFields 維持不變
                 return;
             }

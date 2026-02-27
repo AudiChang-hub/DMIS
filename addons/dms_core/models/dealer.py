@@ -166,3 +166,15 @@ class Dealer(models.Model):
                     vals['store_manager'] = rec.owner_name
                     break
         return super().write(vals)
+
+    def copy(self, default=None):
+        default = dict(default or {})
+        if 'code' not in default:
+            base = self.code or 'COPY'
+            candidate = f'{base}-C'
+            for n in range(2, 20):
+                if not self.search([('code', '=', candidate)], limit=1):
+                    break
+                candidate = f'{base}-C{n}'
+            default['code'] = candidate
+        return super().copy(default)

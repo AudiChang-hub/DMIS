@@ -18,7 +18,11 @@
 ### Step 3 — Views
 - [ ] `dealer_views.xml`: 4分頁表單 + 新清單 + 搜尋 + action
 - [ ] `dealer_views.xml`：tree view 欄位選擇器全面化（所有業務欄位加 `optional` 屬性；預設顯示 ≤15；其餘欄位預設隱藏但可選）
+- [ ] `dealer_views.xml`：tree view 補齊缺漏欄位 `address`（地址）、`note`（備註）為 `optional="hide"`
 - [ ] `brand_views.xml`: 新增 tree/form/action/menu
+- [ ] `store_type_views.xml`: 新增 tree/form/action/menu
+- [ ] `static/src/js/dms_dealer_column_limit.js`：新增前端 JS patch，hardcode 最多顯示 15 欄（超過時阻止 + warning notification），僅對 `dms.dealer` list view 生效
+- [ ] `__manifest__.py`：在 `web.assets_backend` 補充 JS 資產宣告
 - [ ] `store_type_views.xml`: 新增 tree/form/action/menu
 
 ### Step 4 — Security / Seed / Manifest

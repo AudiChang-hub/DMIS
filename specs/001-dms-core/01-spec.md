@@ -1,100 +1,102 @@
-# 01 - Spec
-
-此文件列出 dms.dealer 的詳細規格項目（欄位 / 視圖 / 搜尋 / 验证 / 測試）。
-
-## 模型欄位（dms.dealer）
-- `name` (string) 店名，required
-- `owner_name` (char) 負責人，required
-- `store_manager` (char) 店長，可空
-- `manager_same_as_owner` (boolean) 店長同負責人，default False
-- `address` (text) 地址
-- `note` (html) 備註
-- `brand_ids` (many2many dms.brand, relation dms_dealer_brand_rel)
-- `store_type_id` (many2one dms.store_type)
-- `active` boolean default True
-
-## 聯絡欄位
-- `phone_1`, `phone_2`, `mobile`, `mobile_fax`, `email` (email label 為「電子信箱」)
-
-## 價格表權限
-- `sym_gas_price_list`, `sym_ev_price_list`, `suzuki_gas_price_list`, `suzuki_ev_price_list` (boolean, default False)
-
-## 排車容量
-- `sym_dispatch_capacity`, `suzuki_dispatch_capacity` (integer, >=0 constraint)
-
-## 群組/活動
-- `line_group`, `holiday_gift` (boolean default False)
-
-## name_get / name_search
-- name_get: 若 `code` 有值，顯示 `[code] 店名`，否則顯示 `店名`。
-- name_search: 支援以 code、name、phone_1、mobile、owner_name、store_manager、address、brand_ids.name 搜尋
-
-## 主檔
-- `dms.brand` : name required, unique, active True
-- `dms.store_type` : name required, unique, active True
-
-## 視圖
-- tree: 顯示店名、負責人、店長、電話1、手機
-- form: notebook 分頁（基本資料/聯絡資訊/價格表/排車容量）
-- search: 店名、負責人、店長、電話1、手機、地址、品牌 + filters
-
-## Security
-- 新增 ACL 讓所有使用者可讀寫 `dms.brand`、`dms.store_type`，以及保持 dms.dealer 的讀寫
 # 規格（01-spec）
 
 此檔為 DMS Core 的規格文件（繁體中文）。
 
 功能概述：
-- 提供 `dms.dealer`（車行）模型，含負責人/店長/同負責人同步、車行類型與多品牌選擇。
+- 提供 `dms.dealer`（車行）模型，含負責人/店長/同負責人同步、車行類型與多品牌選擇、四個品牌價格表開關、排車容量限制。
 
-欄位定義（繁體中文）：
+## 主要模型
 
-### 基本識別
-- `code`（車行代碼）：Char，必填、唯一，用於識別與搜尋；若未填入則自動產生（type_code + YYMMDD）。
-- `name`（車行名稱）：Char，必填，作為主要名稱顯示。
-- `short_name`（簡稱）：Char，可選，不顯示於列表。
+### `dms.dealer`（車行）
+
+#### 基本識別
+- `code`（車行代碼）：Char，必填、唯一；未填則自動產生（type_prefix + YYMMDD）。
+- `name`（店名）：Char，必填，string 顯示為「店名」。
 - `active`（啟用）：Boolean，預設 True。
 
-### 人員
-- `owner_name`（負責人）：Char，必填，顯示於基本資料區塊。
-- `store_manager`（店長）：Char，必填；當 `manager_same_as_owner=True` 時，自動同步為負責人姓名。
-- `manager_same_as_owner`（同負責人）：Boolean，預設 False；勾選後即時帶入 `owner_name` 至 `store_manager`（透過 `@api.onchange` 實作），`create/write` 時亦防呆同步。
+#### 人員
+- `owner_name`（負責人）：Char，必填。
+- `store_manager`（店長）：Char，**可空**（非 required）。
+- `manager_same_as_owner`（同負責人）：Boolean，預設 False。
+  - 勾選時：`@api.onchange` 即時將 `owner_name` 帶入 `store_manager`；UI 上 `store_manager` 顯示為 readonly。
+  - 取消勾選時：不自動清空 `store_manager`，保留現有值。
+  - `create()/write()` 防呆：若勾選且未提供 `store_manager`，自動補入 `owner_name`。
 
-### 分類
-- `store_type_id`（車行類型）：Many2one → `dms.dealer.type`，可選擇型別（如加盟、直營、代理、合作）。
-- `brand_ids`（品牌）：Many2many → `dms.brand`，多品牌車行支援，使用 `many2many_tags` widget；品牌主檔可在 `DMS → 品牌管理` 維護。
+#### 分類
+- `store_type_id`（車行類型）：Many2one → `dms.store_type`，可選，可在 `DMS → 車行類型管理` 維護。
+- `brand_ids`（品牌）：Many2many → `dms.brand`，關聯表 `dms_dealer_brand_rel`（column1=dealer_id, column2=brand_id），使用 `many2many_tags` widget。
 
-### 聯絡資訊
-- `phone_1`、`phone_2`（電話1/2）：Char。
-- `mobile`（手機）、`mobile_fax`（手機/傳真）：Char。
-- `email`（電子郵件）：Char。
-- `address`（地址）：Text。
-- `city`（縣市）：Char，不顯示於列表。
+#### 聯絡資訊
+- `phone_1`（電話1）、`phone_2`（電話2）：Char，可空。
+- `mobile`（手機）、`mobile_fax`（手機/傳真）：Char，可空。
+- `email`（電子信箱）：Char，可空，string 顯示為「電子信箱」。
+- `address`（地址）：Text，可空。
 
-### 價格表/排車
-- `sym_price_list`、`suzuki_price_list`：Selection（無/油車/電車/全部）。
-- `sym_dispatch_capacity`、`suzuki_dispatch_capacity`：Integer，不可為負數。
+#### 品牌價格表（Boolean，default False）
+- `sym_gas_price_list`：三陽油車價格表
+- `sym_ev_price_list`：三陽電車價格表
+- `suzuki_gas_price_list`：台鈴油車價格表
+- `suzuki_ev_price_list`：台鈴電車價格表
 
-### 其他
-- `line_group`（有 LINE 群組）：Boolean。
-- `holiday_gift`（年節送禮）：Boolean。
-- `tags`：Many2many → `dms.dealer.tag`。
-- `note`（備註）：Html。
+#### 排車容量
+- `sym_dispatch_capacity`（三陽排車容量）：Integer，不可為負（`@api.constrains` + ValidationError）。
+- `suzuki_dispatch_capacity`（台鈴排車容量）：Integer，不可為負。
 
-索引/唯一性：
-- `code` 欄位需唯一，透過資料庫約束 (`_sql_constraints`) 強制。
+#### 群組/活動（Boolean，default False）
+- `line_group`（LINE群組）
+- `holiday_gift`（年節送禮）
 
-搜尋需求：
-- 支援以 `code`、`name`、`short_name`、`phone_1`、`phone_2`、`mobile`、`mobile_fax` 搜尋。
+#### 備註
+- `note`（備註）：Text，可空。
 
-介面：
-- tree、form、search view；選單位置：`DMS` → `車行`。
-- tree view 顯示：`code`、`name`、`owner_name`、`store_manager`、`phone_1`、`mobile`、`store_type_id`、`brand_ids`（不含簡稱、縣市）。
-- form view 分為頁籤：基本資料（含人員區塊）、聯絡資訊、價格表/群組、進階。
-- 點進明細預設以編輯模式開啟（`form_view_initial_mode: edit`）。
-- 品牌管理選單：`DMS → 品牌管理`。
-- 車行類型管理選單：`DMS → 車行類型管理`。
+#### name_get
+- 有 code：`[code] 店名`
+- 無 code：`店名`
 
-### 輔助模型
-- `dms.brand`：品牌主檔，Char `name`（必填）。ACL：manager 全讀寫，一般使用者唯讀。
-- `dms.dealer.type`：車行類型，`name`（必填）、`code`（短碼）。
+#### name_search（模糊搜尋欄位）
+`code`、`name`、`phone_1`、`mobile`、`owner_name`、`store_manager`、`address`、`brand_ids.name`
+
+---
+
+### `dms.brand`（品牌主檔）
+- `name`（品牌名稱）：Char，必填，唯一。
+- `active`（啟用）：Boolean，預設 True。
+- ACL：所有使用者讀寫（內部人員系統，全部開放）。
+
+### `dms.store_type`（車行類型主檔）
+- `name`（類型名稱）：Char，必填，唯一。
+- `active`（啟用）：Boolean，預設 True。
+- ACL：所有使用者讀寫（全部開放）。
+
+---
+
+## 介面規格
+
+### tree view（`dms.dealer`）
+顯示欄位（依序）：`code`、`name`（店名）、`owner_name`（負責人）、`store_manager`（店長）、`phone_1`（電話1）、`mobile`（手機）。
+不顯示：`short_name`、`city`、`district`。
+
+### form view（`dms.dealer`）
+4 個 notebook 頁籤：
+1. **基本資料**：店名、負責人、同負責人 checkbox + 店長（勾選時 readonly）、地址、品牌（tags）、車行類型、啟用、備註。
+2. **聯絡資訊**：電話1、電話2、手機、手機/傳真、電子信箱。
+3. **價格表／群組**：四個 Boolean 價格表 + LINE群組 + 年節送禮。
+4. **排車容量**：三陽排車容量、台鈴排車容量（提示：不得為負）。
+
+### search view（`dms.dealer`）
+搜尋欄位：店名、負責人、店長、電話1、手機、地址、品牌。
+Filters：啟用、年節送禮、LINE群組、三陽油車價格表、三陽電車價格表、台鈴油車價格表、台鈴電車價格表。
+
+### 選單結構
+- DMS（根選單）
+  - 車行 → 列表 / 新增
+  - 品牌管理
+  - 車行類型管理
+
+### Action 設定
+- `action_dealer`：加入 `context={'form_view_initial_mode': 'edit'}`
+
+---
+
+## 安全規則
+所有 DMS 模型（`dms.dealer`、`dms.brand`、`dms.store_type`）：perm_read/write/create/unlink 全 1（無群組限制，所有登入使用者皆可操作）。

@@ -1,19 +1,28 @@
-# 02 - Clarify (Open Questions 與 Assumptions)
-
-## Open Questions
-- UI 風格：是否接受簡單 SCSS 調整（labels 加粗、欄位分隔）？
-- 種子資料：是否希望我填入多筆品牌/車行類型，或只建立一兩筆示例？
-
-## Assumptions
-- 假設 `code` 欄位已存在且不可更動顯示邏輯。
-- 所有修改會在 `addons/dms_core` 內完成，並且符合 Spec-first 規定。
-- 欄位名稱需與現有程式兼容（例如保留 `name` 作店名）。
-
-請在此回覆若需修正或補充，任何新增 model/欄位若超出本規格會在此列出並等待你的確認。
 # Clarify（澄清）
 
-- 目標：最小可用模組，能在 Odoo Apps 中看到並安裝。
-- 不包含複雜權限或額外商業邏輯。
+## 假設與决策（Assumptions）
+
+1. **`store_manager` 非必填**：店長允許空白（不設 required=True）。
+
+2. **品牌價格表改為 4 個獨立 Boolean**：移除舊版 `sym_price_list`/`suzuki_price_list` Selection 欄位（僅保留於 DB 以防 migration 失敗，不在 UI 顯示），改用 4 個 Boolean：`sym_gas_price_list`、`sym_ev_price_list`、`suzuki_gas_price_list`、`suzuki_ev_price_list`。
+
+3. **車行類型模型改為 `dms.store_type`**：旧模型 `dms.dealer.type` 保留於 `dealer.py`（DB 向後相容），新增 `dms.store_type` 主檔模型（獨立檔案 `store_type.py`），`store_type_id` 欄位改參照新模型。
+
+4. **`dms.brand` 分離為獨立檔案**：從 `dealer.py` 移出，新增 `brand.py`，並加入 `active` 和 唯一性約束。
+
+5. **取消勾選同負責人時不清空店長**：保留現有 `store_manager` 值，使用者可自行修改。
+
+6. **全部開放 ACL**：所有 DMS 模型皆無群組限制，`perm_read/write/create/unlink` 全 1（內部人員系統）。
+
+7. **`note` 欄位改為 Text**：移除 Html widget，改用純文本。
+
+8. **`email` label 改為「電子信箱」**：配傐內部用語。
+
+9. **舊欄位保留於模型**：`short_name`、`city`、`district`、`phone`、`contact_name`、`tags`、`sym_price_list`、`suzuki_price_list` 保留於 model（防止 DB column 消失），但不在新視圖顯示。
+
+10. **`manager_same_as_owner` 推模式限制**：當勾選時店長欄位顯示為 readonly（`attrs`），避免用者直接編輯。
+
+11. **Python 模型變更必需重啟容器**：重要提醒 — 每次修改 Python 模型檔案，必須先 `docker compose restart odoo` 再執行 CLI upgrade，否則 Web UI 升級會報「欄位不存在」（registry 仍載舊 Python）。
 
 ## UI/UX 改善（2026-02-27）
 

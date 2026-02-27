@@ -7,15 +7,28 @@
     <field name="model">dms.dealer</field>
     <field name="arch" type="xml">
       <tree string="車行">
-        <field name="code" optional="show"/>
-        <field name="name"/>
-        <field name="owner_name"/>
-        <field name="store_manager"/>
-        <field name="phone_1"/>
-        <field name="mobile"/>
-        <field name="store_type_id" optional="hide"/>
-        <field name="brand_ids" widget="many2many_tags" optional="hide"/>
-        <field name="active" optional="hide"/>
+        <!-- 預設顯示（optional="show"）：9 欄，≤ 15 軟性上限 -->
+        <field name="code"          optional="show"/>
+        <field name="name"          optional="show"/>
+        <field name="owner_name"    optional="show"/>
+        <field name="store_manager" optional="show"/>
+        <field name="phone_1"       optional="show"/>
+        <field name="mobile"        optional="show"/>
+        <field name="store_type_id" optional="show"/>
+        <field name="brand_ids" widget="many2many_tags" optional="show"/>
+        <field name="active"        optional="show"/>
+        <!-- 預設隱藏（optional="hide"）：可在欄位選擇器勾選顯示 -->
+        <field name="phone_2"                optional="hide"/>
+        <field name="mobile_fax"             optional="hide"/>
+        <field name="email"                  optional="hide"/>
+        <field name="sym_gas_price_list"     optional="hide"/>
+        <field name="sym_ev_price_list"      optional="hide"/>
+        <field name="suzuki_gas_price_list"  optional="hide"/>
+        <field name="suzuki_ev_price_list"   optional="hide"/>
+        <field name="sym_dispatch_capacity"  optional="hide"/>
+        <field name="suzuki_dispatch_capacity" optional="hide"/>
+        <field name="line_group"             optional="hide"/>
+        <field name="holiday_gift"           optional="hide"/>
       </tree>
     </field>
   </record>

@@ -17,6 +17,7 @@
 
 ### Step 3 — Views
 - [ ] `dealer_views.xml`: 4分頁表單 + 新清單 + 搜尋 + action
+- [ ] `dealer_views.xml`：tree view 欄位選擇器全面化（所有業務欄位加 `optional` 屬性；預設顯示 ≤15；其餘欄位預設隱藏但可選）
 - [ ] `brand_views.xml`: 新增 tree/form/action/menu
 - [ ] `store_type_views.xml`: 新增 tree/form/action/menu
 

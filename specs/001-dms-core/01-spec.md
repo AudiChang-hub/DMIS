@@ -73,8 +73,17 @@
 ## 介面規格
 
 ### tree view（`dms.dealer`）
-顯示欄位（依序）：`code`、`name`（店名）、`owner_name`（負責人）、`store_manager`（店長）、`phone_1`（電話1）、`mobile`（手機）。
-不顯示：`short_name`、`city`、`district`。
+
+#### 欄位選擇器規格
+Odoo list view 右上角欄位選擇器需包含**所有**車行業務欄位，使用者可自由勾選顯示或隱藏任意欄位。實作方式：tree view 內所有欄位必須加上 `optional` 屬性（`optional="show"` 或 `optional="hide"`）。
+
+- **預設顯示** (`optional="show"`，共 9 欄，≤ 15 軟性上限)：  
+  `code`（車行代碼）、`name`（店名）、`owner_name`（負責人）、`store_manager`（店長）、`phone_1`（電話1）、`mobile`（手機）、`store_type_id`（車行類型）、`brand_ids`（品牌，widget=many2many_tags）、`active`（啟用）
+
+- **預設隱藏** (`optional="hide"`，可在選擇器勾選後顯示)：  
+  `phone_2`（電話2）、`mobile_fax`（手機/傳真）、`email`（電子信箱）、`sym_gas_price_list`（三陽油車價格表）、`sym_ev_price_list`（三陽電車價格表）、`suzuki_gas_price_list`（台鈴油車價格表）、`suzuki_ev_price_list`（台鈴電車價格表）、`sym_dispatch_capacity`（三陽排車容量）、`suzuki_dispatch_capacity`（台鈴排車容量）、`line_group`（LINE群組）、`holiday_gift`（年節送禮）
+
+不顯示（不加入 tree view）：`short_name`、`city`、`district`、`phone`（舊）、`contact_name`（舊）等已廢棄欄位。
 
 ### form view（`dms.dealer`）
 4 個 notebook 頁籤：

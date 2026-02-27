@@ -67,19 +67,11 @@ class Dealer(models.Model):
     tags = fields.Many2many('dms.dealer.tag', string='標籤')
     note = fields.Html(string='備註')
 
-    # Price list: 改為可選類型（無 / 油車 / 電車 / 全部）
-    sym_price_list = fields.Selection([
-        ('none', '無'),
-        ('gas', '油車'),
-        ('ev', '電車'),
-        ('all', '全部'),
-    ], string='三陽價格表', default='none')
-    suzuki_price_list = fields.Selection([
-        ('none', '無'),
-        ('gas', '油車'),
-        ('ev', '電車'),
-        ('all', '全部'),
-    ], string='台鈴價格表', default='none')
+    # 品牌價格表權限（Boolean）
+    sym_gas_price_list = fields.Boolean(string='三陽-油車價格表', default=False)
+    sym_ev_price_list = fields.Boolean(string='三陽-電車價格表', default=False)
+    suzuki_gas_price_list = fields.Boolean(string='台鈴-油車價格表', default=False)
+    suzuki_ev_price_list = fields.Boolean(string='台鈴-電車價格表', default=False)
 
     # Dispatch capacities
     sym_dispatch_capacity = fields.Integer(string='三陽排車容量')
@@ -124,13 +116,25 @@ class Dealer(models.Model):
             ('phone_1', operator, name),
             ('phone_2', operator, name),
             ('mobile', operator, name),
-            ('mobile_fax', operator, name),
+            ('owner_name', operator, name),
+            ('store_manager', operator, name),
+            ('address', operator, name),
         ]
+        # brand name search: find matching brand ids
+        brand_ids = []
+        if name:
+            brand_ids = self.env['dms.brand'].sudo().search([('name', operator, name)]).ids
         # build OR domain
         domain = []
-        for term in terms[:-1]:
-            domain += ['|', term]
-        domain += [terms[-1]]
+        for term in terms:
+            if domain:
+                domain += ['|', term]
+            else:
+                domain += [term]
+        # include brand_ids if any
+        if brand_ids:
+            # add OR (brand_ids in brand_ids)
+            domain = ['|', ('brand_ids', 'in', brand_ids)] + domain
         return self.search(domain + args, limit=limit).name_get()
 
     @api.model

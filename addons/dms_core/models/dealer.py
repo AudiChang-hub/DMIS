@@ -44,7 +44,14 @@ class Dealer(models.Model):
     # 原先的 level/parent/child/ store_type 被調整
     # 車行類型改為可管理的 model，並支援選品牌
     store_type_id = fields.Many2one('dms.dealer.type', string='車行類型')
-    brand_ids = fields.Many2many('dms.brand', string='品牌', help='適用品牌（可多選）')
+    brand_ids = fields.Many2many(
+        'dms.brand',
+        'dms_dealer_brand_rel',
+        'dealer_id',
+        'brand_id',
+        string='品牌',
+        help='適用品牌（可多選）',
+    )
     active = fields.Boolean(string='啟用', default=True)
     contact_name = fields.Char(string='聯絡人')
     phone = fields.Char(string='電話')

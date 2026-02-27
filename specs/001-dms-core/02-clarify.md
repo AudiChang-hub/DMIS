@@ -3,6 +3,26 @@
 - 目標：最小可用模組，能在 Odoo Apps 中看到並安裝。
 - 不包含複雜權限或額外商業邏輯。
 
+## UI/UX 改善（2026-02-27）
+
+### 未決問題與假設
+
+1. **同負責人取消勾選後，店長姓名是否保留？**
+   - 假設：取消勾選後保留現有店長姓名，不自動清空；若要清空需手動回填。
+
+2. **車行類型選項**：使用 `dms.dealer.type` 可管理主檔，不用 Selection 硬編碼，可自由新增刪除。
+
+3. **品牌是否允許自由新增？**
+   - 假設：允許，manager 可在 `DMS → 品牌管理` 中新增品牌；一般使用者唯讀。
+
+4. **`form_view_initial_mode: edit` 可能因 Studio 或欄位層級權限造成無法編輯**：
+   - 此 context 僅指示 UI 預設切換至編輯模式，不繞過 ACL；若使用者無 write 權限仍會被 block。
+   - 若安裝 Odoo Studio，Studio 可能覆寫 view，導致 context 失效；需於安裝後驗證。
+
+5. **多品牌 Many2many relation table 名稱**：使用 `dms_dealer_brand_rel`（`column1=dealer_id`, `column2=brand_id`），以避免 Odoo 自動命名衝突。
+
+6. **tree view 不顯示「簡稱」「縣市」**：已確認 tree view 欄位清單鎖定，不得加入 `short_name`、`city`。
+
 ## 問題紀錄（自動化啟動驗證時遇到）
 ## 清理與組態整理紀錄
 

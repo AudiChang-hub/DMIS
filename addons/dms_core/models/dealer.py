@@ -40,7 +40,7 @@ class Dealer(models.Model):
     owner_name = fields.Char(string='負責人', required=True)
     store_manager = fields.Char(string='店長', required=True)
     # 若店長同負責人，減少重複輸入
-    manager_same_as_owner = fields.Boolean(string='店長同上')
+    manager_same_as_owner = fields.Boolean(string='店長同上', default=False)
     # 原先的 level/parent/child/ store_type 被調整
     # 車行類型改為可管理的 model，並支援選品牌
     store_type_id = fields.Many2one('dms.dealer.type', string='車行類型')
@@ -128,6 +128,11 @@ class Dealer(models.Model):
 
     @api.model
     def create(self, vals):
+        # 若表單勾選「店長同上」，在建立時若未給 store_manager，使用 owner_name
+        if vals.get('manager_same_as_owner') and not vals.get('store_manager'):
+            owner_val = vals.get('owner_name')
+            if owner_val:
+                vals['store_manager'] = owner_val
         # 若未提供 code，嘗試自動產生：type.code(2) + YYMMDD (6) -> 共 8 碼
         if not vals.get('code'):
             type_code = 'XX'
@@ -151,10 +156,6 @@ class Dealer(models.Model):
                 code = (base[:-2] + suffix)[:8]
             vals['code'] = code
         return super(Dealer, self).create(vals)
-
-    def fields_view_get(self, view_id=None, view_type='form', toolbar=False, submenu=False):
-        # 使用預設行為，移除自建的 arch 注入邏輯以回歸 Odoo 內建欄位選取
-        return super(Dealer, self).fields_view_get(view_id=view_id, view_type=view_type, toolbar=toolbar, submenu=submenu)
 
     @api.onchange('manager_same_as_owner', 'owner_name')
     def _onchange_manager_same(self):

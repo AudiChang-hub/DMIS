@@ -9,5 +9,5 @@ class StoreType(models.Model):
     active = fields.Boolean(string='啟用', default=True)
 
     _sql_constraints = [
-        ('dms_store_type_name_uniq', 'unique(name)', '車行類型名稱必須唯一'),
+        ('name_uniq', 'unique(name)', '車行類型名稱必須唯一'),
     ]

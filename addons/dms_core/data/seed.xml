@@ -1,36 +1,58 @@
 <?xml version="1.0" encoding="utf-8"?>
-<odoo>
+<odoo noupdate="1">
+
+  <!-- ===== 車行類型 ===== -->
+  <record id="store_type_direct" model="dms.store_type">
+    <field name="name">直營</field>
+  </record>
+  <record id="store_type_franchise" model="dms.store_type">
+    <field name="name">加盟</field>
+  </record>
+
+  <!-- ===== 品牌 ===== -->
+  <record id="brand_sym" model="dms.brand">
+    <field name="name">三陽 SYM</field>
+  </record>
+  <record id="brand_suzuki" model="dms.brand">
+    <field name="name">台鈴 Suzuki</field>
+  </record>
+
+  <!-- ===== 示範車行 ===== -->
   <record id="dealer_demo_1" model="dms.dealer">
     <field name="code">D001</field>
     <field name="name">示範車行一</field>
-    <!-- level 已移除，保留基本資料 -->
     <field name="phone_1">+886-2-0000-0001</field>
     <field name="mobile">+886-9-0000-0001</field>
     <field name="owner_name">張大哥</field>
     <field name="store_manager">王小明</field>
-    <field name="sym_price_list">gas</field>
+    <field name="store_type_id" ref="store_type_direct"/>
+    <field name="brand_ids" eval="[(4, ref('brand_sym'))]"/>
+    <field name="sym_gas_price_list" eval="True"/>
     <field name="sym_dispatch_capacity">10</field>
   </record>
 
   <record id="dealer_demo_2" model="dms.dealer">
     <field name="code">D002</field>
     <field name="name">示範車行二</field>
-    <!-- level 已移除，保留基本資料 -->
     <field name="phone_1">+886-2-0000-0002</field>
     <field name="mobile">+886-9-0000-0002</field>
     <field name="owner_name">李老闆</field>
     <field name="store_manager">陳經理</field>
-    <field name="suzuki_price_list">ev</field>
+    <field name="store_type_id" ref="store_type_franchise"/>
+    <field name="brand_ids" eval="[(4, ref('brand_suzuki'))]"/>
+    <field name="suzuki_ev_price_list" eval="True"/>
     <field name="suzuki_dispatch_capacity">5</field>
   </record>
 
   <record id="dealer_demo_3" model="dms.dealer">
     <field name="code">D003</field>
     <field name="name">示範車行三</field>
-    <!-- level 已移除，保留基本資料 -->
     <field name="phone_1">+886-2-0000-0003</field>
     <field name="mobile">+886-9-0000-0003</field>
     <field name="owner_name">林老闆</field>
-    <field name="store_manager">林店長</field>
+    <field name="brand_ids" eval="[(4, ref('brand_sym')), (4, ref('brand_suzuki'))]"/>
+    <field name="sym_gas_price_list" eval="True"/>
+    <field name="suzuki_gas_price_list" eval="True"/>
   </record>
+
 </odoo>

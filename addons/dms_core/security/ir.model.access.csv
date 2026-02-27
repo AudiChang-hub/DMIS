@@ -1,9 +1,6 @@
 id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
-access_dms_dealer_user,dms.dealer,model_dms_dealer,,1,0,0,0
-access_dms_dealer_manager,dms.dealer,model_dms_dealer,dms_core.group_dms_dealer_manager,1,1,1,1
-access_dms_dealer_tag,dms.dealer.tag,model_dms_dealer_tag,dms_core.group_dms_dealer_manager,1,1,1,1
-access_dms_dealer_tag_user,dms.dealer.tag,model_dms_dealer_tag,,1,0,0,0
-access_dms_dealer_type,dms.dealer.type,model_dms_dealer_type,dms_core.group_dms_dealer_manager,1,1,1,1
-access_dms_dealer_type_user,dms.dealer.type,model_dms_dealer_type,,1,0,0,0
-access_dms_brand,dms.brand,model_dms_brand,dms_core.group_dms_dealer_manager,1,1,1,1
-access_dms_brand_user,dms.brand,model_dms_brand,,1,0,0,0
+access_dms_dealer,dms.dealer,model_dms_dealer,,1,1,1,1
+access_dms_dealer_tag,dms.dealer.tag,model_dms_dealer_tag,,1,1,1,1
+access_dms_dealer_type,dms.dealer.type,model_dms_dealer_type,,1,1,1,1
+access_dms_brand,dms.brand,model_dms_brand,,1,1,1,1
+access_dms_store_type,dms.store_type,model_dms_store_type,,1,1,1,1

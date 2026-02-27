@@ -24,6 +24,8 @@
 
 11. **Python 模型變更必需重啟容器**：重要提醒 — 每次修改 Python 模型檔案，必須先 `docker compose restart odoo` 再執行 CLI upgrade，否則 Web UI 升級會報「欄位不存在」（registry 仍載舊 Python）。
 
+12. **欄位選擇器 15 欄上限為前端限制**：透過 JS patch `ListRenderer.prototype.toggleOptionalField` 實作，僅套用於 `dms.dealer` 的 list view（以 `this.props.list.resModel === "dms.dealer"` 判斷）。此限制儲存於瀏覽器 localStorage；若使用者清除 localStorage，上限仍由 JS patch 維護但預設顯示欄位重置為 `optional="show"` 的 9 欄。舊有超過 15 欄的 localStorage 設定，使用者自行取消勾選降至 15 以內即可，JS patch 不會強制清除。
+
 ## UI/UX 改善（2026-02-27）
 
 ### 未決問題與假設

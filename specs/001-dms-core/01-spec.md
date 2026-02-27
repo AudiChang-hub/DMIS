@@ -81,7 +81,18 @@ Odoo list view 右上角欄位選擇器需包含**所有**車行業務欄位，�
   `code`（車行代碼）、`name`（店名）、`owner_name`（負責人）、`store_manager`（店長）、`phone_1`（電話1）、`mobile`（手機）、`store_type_id`（車行類型）、`brand_ids`（品牌，widget=many2many_tags）、`active`（啟用）
 
 - **預設隱藏** (`optional="hide"`，可在選擇器勾選後顯示)：  
-  `phone_2`（電話2）、`mobile_fax`（手機/傳真）、`email`（電子信箱）、`sym_gas_price_list`（三陽油車價格表）、`sym_ev_price_list`（三陽電車價格表）、`suzuki_gas_price_list`（台鈴油車價格表）、`suzuki_ev_price_list`（台鈴電車價格表）、`sym_dispatch_capacity`（三陽排車容量）、`suzuki_dispatch_capacity`（台鈴排車容量）、`line_group`（LINE群組）、`holiday_gift`（年節送禮）
+  `phone_2`（電話2）、`mobile_fax`（手機/傳真）、`email`（電子信箱）、`address`（地址）、`note`（備註）、`sym_gas_price_list`（三陽油車價格表）、`sym_ev_price_list`（三陽電車價格表）、`suzuki_gas_price_list`（台鈴油車價格表）、`suzuki_ev_price_list`（台鈴電車價格表）、`sym_dispatch_capacity`（三陽排車容量）、`suzuki_dispatch_capacity`（台鈴排車容量）、`line_group`（LINE群組）、`holiday_gift`（年節送禮）
+
+#### 欄位顯示硬性上限（15 欄）
+前端 JS patch（`dms_core/static/src/js/dms_dealer_column_limit.js`）patch `ListRenderer.prototype.toggleOptionalField`：
+- 僅對 `dms.dealer` 模型的 list view 生效。
+- 當使用者嘗試勾選第 16 個欄位（`turningOn = true` 且 `visibleCount >= 15`）時：
+  1. 阻止切換（不呼叫 `_super`，`optionalActiveFields` 不變）。
+  2. 使用 `this.env.services.notification.add()` 顯示警告通知：
+     - title: `"欄位顯示上限"`
+     - message: `"列表最多只能顯示 15 個欄位，請先取消勾選其他欄位再新增。"`
+     - type: `"warning"`
+- 取消勾選（隱藏欄位）時永遠允許，不阻擋。
 
 不顯示（不加入 tree view）：`short_name`、`city`、`district`、`phone`（舊）、`contact_name`（舊）等已廢棄欄位。
 

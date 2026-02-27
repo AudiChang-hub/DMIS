@@ -1,0 +1,19 @@
+// DMS Dealer Form Styles
+// 加強表單欄位標籤可讀性
+
+.o_form_view {
+    .o_group > .o_wrap_field > .o_cell.o_wrap_label > label,
+    .o_group .o_field_widget label,
+    .o_field_label {
+        font-weight: 600;
+    }
+}
+
+// 車行代碼標題
+.o_form_view .oe_title label {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #6c757d;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}

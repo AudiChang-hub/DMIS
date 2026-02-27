@@ -9,5 +9,5 @@ class Brand(models.Model):
     active = fields.Boolean(string='啟用', default=True)
 
     _sql_constraints = [
-        ('dms_brand_name_uniq', 'unique(name)', '品牌名稱必須唯一'),
+        ('name_uniq', 'unique(name)', '品牌名稱必須唯一'),
     ]

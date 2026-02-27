@@ -15,19 +15,13 @@ class DealerTag(models.Model):
     name = fields.Char(string='標籤名稱', required=True)
 
 
-class DealerType(models.Model):
+class DealerTypeLegacy(models.Model):
+    """舊版車行類型（保留以避免 DB migration 失敗，不在新視圖顯示）"""
     _name = 'dms.dealer.type'
-    _description = '車行類型'
+    _description = '車行類型（舊）'
 
     name = fields.Char(string='類型名稱', required=True)
-    code = fields.Char(string='代碼', help='短碼 (建議 2 碼)，會用於自動產生車行代碼')
-
-
-class Brand(models.Model):
-    _name = 'dms.brand'
-    _description = '品牌'
-
-    name = fields.Char(string='品牌名稱', required=True)
+    code = fields.Char(string='代碼', help='短碼 (建議 2 碼)')
 
 
 class Dealer(models.Model):
@@ -35,51 +29,57 @@ class Dealer(models.Model):
     _description = '車行'
 
     code = fields.Char(string='車行代碼', required=True)
-    name = fields.Char(string='車行名稱', required=True)
-    short_name = fields.Char(string='簡稱')
+    name = fields.Char(string='店名', required=True)
     owner_name = fields.Char(string='負責人', required=True)
-    store_manager = fields.Char(string='店長', required=True)
-    # 若店長同負責人，減少重複輸入
+    store_manager = fields.Char(string='店長')
     manager_same_as_owner = fields.Boolean(string='店長同上', default=False)
-    # 原先的 level/parent/child/ store_type 被調整
-    # 車行類型改為可管理的 model，並支援選品牌
-    store_type_id = fields.Many2one('dms.dealer.type', string='車行類型')
+
+    store_type_id = fields.Many2one('dms.store_type', string='車行類型')
     brand_ids = fields.Many2many(
         'dms.brand',
-        'dms_dealer_brand_rel',
-        'dealer_id',
-        'brand_id',
+        relation='dms_dealer_brand_rel',
+        column1='dealer_id',
+        column2='brand_id',
         string='品牌',
-        help='適用品牌（可多選）',
     )
     active = fields.Boolean(string='啟用', default=True)
-    contact_name = fields.Char(string='聯絡人')
-    phone = fields.Char(string='電話')
-    # New contact fields
+
+    # 聯絡資訊
     phone_1 = fields.Char(string='電話1')
     phone_2 = fields.Char(string='電話2')
     mobile = fields.Char(string='手機')
     mobile_fax = fields.Char(string='手機/傳真')
-    email = fields.Char(string='電子郵件')
+    email = fields.Char(string='電子信箱')
     address = fields.Text(string='地址')
-    city = fields.Char(string='縣市')
-    district = fields.Char(string='鄉鎮市區')
-    tags = fields.Many2many('dms.dealer.tag', string='標籤')
-    note = fields.Html(string='備註')
+    note = fields.Text(string='備註')
 
-    # 品牌價格表權限（Boolean）
-    sym_gas_price_list = fields.Boolean(string='三陽-油車價格表', default=False)
-    sym_ev_price_list = fields.Boolean(string='三陽-電車價格表', default=False)
-    suzuki_gas_price_list = fields.Boolean(string='台鈴-油車價格表', default=False)
-    suzuki_ev_price_list = fields.Boolean(string='台鈴-電車價格表', default=False)
+    # 品牌價格表 (Boolean)
+    sym_gas_price_list = fields.Boolean(string='三陽油車價格表', default=False)
+    sym_ev_price_list = fields.Boolean(string='三陽電車價格表', default=False)
+    suzuki_gas_price_list = fields.Boolean(string='台鈴油車價格表', default=False)
+    suzuki_ev_price_list = fields.Boolean(string='台鈴電車價格表', default=False)
 
-    # Dispatch capacities
+    # 排車容量
     sym_dispatch_capacity = fields.Integer(string='三陽排車容量')
     suzuki_dispatch_capacity = fields.Integer(string='台鈴排車容量')
 
-    # Groups / activities
+    # 群組/活動
     line_group = fields.Boolean(string='有 LINE 群組', default=False)
     holiday_gift = fields.Boolean(string='年節送禮', default=False)
+
+    # 保留舊欄位（DB backward compatibility，不在新視圖顯示）
+    short_name = fields.Char(string='簡稱')
+    city = fields.Char(string='縣市')
+    district = fields.Char(string='鄉鎮市區')
+    phone = fields.Char(string='電話')
+    contact_name = fields.Char(string='聯絡人')
+    tags = fields.Many2many('dms.dealer.tag', string='標籤')
+    sym_price_list = fields.Selection([
+        ('none', '無'), ('gas', '油車'), ('ev', '電車'), ('all', '全部'),
+    ], string='三陽價格表(舊)', default='none')
+    suzuki_price_list = fields.Selection([
+        ('none', '無'), ('gas', '油車'), ('ev', '電車'), ('all', '全部'),
+    ], string='台鈴價格表(舊)', default='none')
 
     _sql_constraints = [
         ('code_uniq', 'unique(code)', '車行代碼必須唯一')
@@ -107,66 +107,47 @@ class Dealer(models.Model):
         return result
 
     @api.model
-    def name_search(self, name, args=None, operator='ilike', limit=100):
+    def name_search(self, name='', args=None, operator='ilike', limit=100):
         args = args or []
-        terms = [
+        if not name:
+            return self.search(args, limit=limit).name_get()
+        domain = [
+            '|', '|', '|', '|', '|', '|', '|',
             ('code', operator, name),
             ('name', operator, name),
-            ('short_name', operator, name),
             ('phone_1', operator, name),
-            ('phone_2', operator, name),
             ('mobile', operator, name),
             ('owner_name', operator, name),
             ('store_manager', operator, name),
             ('address', operator, name),
+            ('brand_ids.name', operator, name),
         ]
-        # brand name search: find matching brand ids
-        brand_ids = []
-        if name:
-            brand_ids = self.env['dms.brand'].sudo().search([('name', operator, name)]).ids
-        # build OR domain
-        domain = []
-        for term in terms:
-            if domain:
-                domain += ['|', term]
-            else:
-                domain += [term]
-        # include brand_ids if any
-        if brand_ids:
-            # add OR (brand_ids in brand_ids)
-            domain = ['|', ('brand_ids', 'in', brand_ids)] + domain
         return self.search(domain + args, limit=limit).name_get()
 
     @api.model
     def create(self, vals):
-        # 若表單勾選「店長同上」，在建立時若未給 store_manager，使用 owner_name
         if vals.get('manager_same_as_owner') and not vals.get('store_manager'):
-            owner_val = vals.get('owner_name')
-            if owner_val:
-                vals['store_manager'] = owner_val
-        # 若未提供 code，嘗試自動產生：type.code(2) + YYMMDD (6) -> 共 8 碼
+            vals['store_manager'] = vals.get('owner_name', '')
         if not vals.get('code'):
             type_code = 'XX'
             t_id = vals.get('store_type_id')
             if t_id:
                 try:
-                    t = self.env['dms.dealer.type'].browse(int(t_id))
-                    if t and t.code:
-                        type_code = (t.code or 'XX')[:2].upper()
+                    t = self.env['dms.store_type'].browse(int(t_id))
+                    if t and t.name:
+                        type_code = t.name[:2].upper()
                 except Exception:
                     pass
             date_part = datetime.now().strftime('%y%m%d')
             base = (type_code[:2] + date_part)[:8]
             code = base
-            # 確保唯一（簡單嘗試幾次）
-            for attempt in range(10):
+            for _attempt in range(10):
                 if not self.search([('code', '=', code)], limit=1):
                     break
-                # 若重複，加入隨機尾碼替換最後 1-2 碼
                 suffix = str(random.randint(0, 99)).zfill(2)
                 code = (base[:-2] + suffix)[:8]
             vals['code'] = code
-        return super(Dealer, self).create(vals)
+        return super().create(vals)
 
     @api.onchange('manager_same_as_owner', 'owner_name')
     def _onchange_manager_same(self):
@@ -175,19 +156,12 @@ class Dealer(models.Model):
                 rec.store_manager = rec.owner_name
 
     def write(self, vals):
-        # 若表單勾選「店長同上」，在寫入時確保店長欄位與負責人一致
         if vals.get('manager_same_as_owner'):
-            # 如果同時提供 owner_name，優先使用新的 owner_name
             owner_val = vals.get('owner_name')
             if owner_val and not vals.get('store_manager'):
                 vals['store_manager'] = owner_val
-            else:
-                # 若無 owner_name 的變更，從記錄中讀取現有 owner_name
-                if 'store_manager' not in vals:
-                    for rec in self:
-                        vals['store_manager'] = rec.owner_name
-                        break
-        return super(Dealer, self).write(vals)
-
-
-    # 移除自建的 Wizard、User 設定欄位與臨時 view 流程，回歸 Odoo 內建欄位選取功能
+            elif 'store_manager' not in vals:
+                for rec in self:
+                    vals['store_manager'] = rec.owner_name
+                    break
+        return super().write(vals)

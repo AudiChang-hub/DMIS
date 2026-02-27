@@ -1,24 +1,37 @@
-# 04 - Tasks
+# 任務清單 (04-tasks)
 
-- [ ] 補齊 models/dms.dealer
-- [ ] 新增 models/dms.brand, models/dms.store_type
-- [ ] 更新 views/dealer_views.xml
-- [ ] 新增 views/brand_views.xml, views/store_type_views.xml
-- [ ] 更新 ir.model.access.csv
-- [ ] 更新 seed.xml
-- [ ] 新增 SCSS assets
-- [ ] 新增 tests
-- [ ] 執行 `make smoke` 並修正問題
-# 任務清單（Tasks）
+## 完整車行需求實作清單
 
-- 建立 `addons/dms_core` 模組
-- 建立 views 與 menu
-- 撰寫 specs 文件
-- 準備 CI 與 smoke 檢查
+### Step 1 — Specs
+- [ ] 01-spec.md — 完整欄位定義與視圖規格
+- [ ] 02-clarify.md — 假設與决策
+- [ ] 03-plan.md — 實作步驟
+- [ ] 04-tasks.md — 任務清單
+- [ ] 05-acceptance.md — 驗收條件
 
-新增任務（MVP#1 - Dealer）：
+### Step 2 — Models
+- [ ] `dealer.py`: 更新 `name` label/`store_manager`/`note`/`email`/`address`/`brand_ids`/`store_type_id`/Boolean price fields/`name_search`
+- [ ] `brand.py`: 建立 `dms.brand` model
+- [ ] `store_type.py`: 建立 `dms.store_type` model
+- [ ] `__init__.py`: import brand, store_type, dealer
 
-- 在 `addons/dms_core/models/dealer.py` 新增欄位：`code,name,level,active,contact_name,phone,email,address`，並加入 `code` 唯一性約束。
+### Step 3 — Views
+- [ ] `dealer_views.xml`: 4分頁表單 + 新清單 + 搜尋 + action
+- [ ] `brand_views.xml`: 新增 tree/form/action/menu
+- [ ] `store_type_views.xml`: 新增 tree/form/action/menu
+
+### Step 4 — Security / Seed / Manifest
+- [ ] `ir.model.access.csv`: 全部開放，新增 store_type
+- [ ] `seed.xml`: 新欄位 引用
+- [ ] `__manifest__.py`: 新增 brand/store_type views 檔案
+
+### Step 5 — Tests
+- [ ] `test_dealer.py`: 新增 Boolean 價格欄位測試，更新旧氋設現 store_manager 非必填
+
+### Step 6 — Upgrade
+- [ ] `docker compose restart odoo`
+- [ ] CLI upgrade `dms_core` 在 `dmis_dev`
+- [ ] `make smoke` 通過
 - 更新 `views/dealer_views.xml`：tree/form/search 支援欄位顯示與搜尋（code/name/phone）。
 - 更新 `security/ir.model.access.csv`（確認一般使用者可讀寫）。
 - 更新 `specs`（01/04/05）與 `README` 的安裝說明。

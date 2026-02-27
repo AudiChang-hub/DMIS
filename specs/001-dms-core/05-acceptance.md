@@ -1,31 +1,43 @@
-# 05 - Acceptance
+# 驗收條件 (05-acceptance)
 
-驗收條件：
+## 庺穎/環境
+- `docker compose up` 為一鍵啟動 Odoo + PostgreSQL
+- `make smoke` 在 180 秒內得到 200/302/303 回應
+- PR 若修改 `addons/**` 或 `docker-compose.yml`，且未同步更新 `specs/**`，CI 必須失敗
 
-1. 能夠在 Odoo UI 中建立/編輯 `車行`，表單分頁與欄位正確顯示。
-2. 勾選 `店長同上` 後，UI 即時 (onchange) 將 `負責人` 同步到 `店長`。
-3. 透過 API/import 建立或更新時，若 `manager_same_as_owner=True` 且未提供 `store_manager`，系統會補上 `owner_name`。
-4. `sym_dispatch_capacity` 與 `suzuki_dispatch_capacity` 不可為負，會觸發 ValidationError。
-5. tree/search/view 可正確篩選與群組，並且 `品牌` / `車行類型` 的選單存在。 
+## 車行 (dms.dealer) 驗收條件
 
-驗證指令：
+### 模型
+- [ ] `dms.dealer.code` 唯一約束 + 建立時自動產生
+- [ ] `store_manager` 非必填可空白
+- [ ] `manager_same_as_owner=True` 時，`store_manager` 自動帶入負責人名稱且只讀
+- [ ] 4 個 Boolean 價格欄位可獨立勾選
+- [ ] `sym_dispatch_capacity`/`suzuki_dispatch_capacity` 負數引發 ValidationError
+- [ ] `name_search` 支援 code/name/phone_1/mobile/owner_name/store_manager/address/brand_ids.name
 
-```bash
-docker compose ps
-make smoke
-```
+### 品牌 (dms.brand)
+- [ ] 可新增、編輯、刪除品牌
+- [ ] 名稱唯一約束，重複時顯示錯誤
+- [ ] `active` 支援欸檔 (Archive)
 
-（若新增 tests，請在 smoke 中包含執行測試）
-# Acceptance Criteria（驗收）
+### 車行類型 (dms.store_type)
+- [ ] 可新增、編輯、刪除車行類型
+- [ ] 名稱唯一約束，重複時顯示錯誤
+- [ ] `active` 支援歸檔
 
-- `docker compose up` 可啟動 Odoo 與 Postgres
-- `make smoke` 能在 180 秒內得到 200/302/303 回應
-- PR 若修改 `addons/**` 或 `docker-compose.yml`，且未同步更新 `specs/**`，CI 失敗
-- 可在 Odoo Apps 中看到並安裝「車行」模組（dealer）
+### 視圖/UX
+- [ ] `DMS -> 車行` 選單可進入 tree/form
+- [ ] Form 有 4 個分頁：基本資料/聯絡資訊/價格表群組/排車容量
+- [ ] Tree 列 name/owner_name/store_manager/phone_1/mobile
+- [ ] 搜尋列 name/owner_name/store_manager/phone_1/mobile
+- [ ] 搜尋列含 4 個 Boolean 價格表 filter
+- [ ] `DMS -> 品牌` / `DMS -> 車行類型` 選單存在
 
-新增車行（Dealer）MVP 驗收條件：
-
-- 在 Odoo 後台能看到 `DMS -> 車行` 選單，點入後可看到清單（tree）與明細（form）。
+### 測試
+- [ ] `make test` / `odoo -u dms_core --test-enable` 所有測試通過
+- [ ] Boolean 價格欄位持久化測試
+- [ ] 排車容量負數測試
+- [ ] `manager_same_as_owner` create/write 流程測試
 - 能夠建立新的車行並填寫 `code`、`name`（必填）。
 - `code` 欄位為唯一（重複代碼建立時會失敗並提示）。
 - 搜尋功能應能以 `code`、`name`、`phone` 查詢到正確記錄。

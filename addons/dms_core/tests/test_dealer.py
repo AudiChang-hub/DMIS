@@ -145,3 +145,46 @@ class TestDealerManagerSync(TransactionCase):
                 'store_manager': '負號老闆',
                 'sym_dispatch_capacity': -1,
             })
+
+    # ------------------------------------------------------------------
+    # Boolean 價格表欄位
+    # ------------------------------------------------------------------
+
+    def test_boolean_price_fields_persist(self):
+        """4 個 Boolean 價格欄位儲存後應可正確讀取"""
+        dealer = self.env['dms.dealer'].create({
+            'name': '價格車行',
+            'owner_name': '價格老闆',
+            'sym_gas_price_list': True,
+            'sym_ev_price_list': False,
+            'suzuki_gas_price_list': True,
+            'suzuki_ev_price_list': True,
+        })
+        self.assertTrue(dealer.sym_gas_price_list, '三陽油車應為 True')
+        self.assertFalse(dealer.sym_ev_price_list, '三陽電車應為 False')
+        self.assertTrue(dealer.suzuki_gas_price_list, '台鈴油車應為 True')
+        self.assertTrue(dealer.suzuki_ev_price_list, '台鈴電車應為 True')
+
+    def test_boolean_price_fields_default_false(self):
+        """未設定時 Boolean 價格欄位預設應為 False"""
+        dealer = self.env['dms.dealer'].create({
+            'name': '未設價格車行',
+            'owner_name': '無價格老闆',
+        })
+        self.assertFalse(dealer.sym_gas_price_list)
+        self.assertFalse(dealer.sym_ev_price_list)
+        self.assertFalse(dealer.suzuki_gas_price_list)
+        self.assertFalse(dealer.suzuki_ev_price_list)
+
+    # ------------------------------------------------------------------
+    # store_manager 為可選欄位
+    # ------------------------------------------------------------------
+
+    def test_create_without_store_manager(self):
+        """store_manager 為非必填，可省略建立車行"""
+        dealer = self.env['dms.dealer'].create({
+            'name': '無店長車行',
+            'owner_name': '無店長老闆',
+        })
+        self.assertTrue(dealer.id, '未填 store_manager 應可成功建立')
+

@@ -128,4 +128,67 @@ Filters：啟用、年節送禮、LINE群組、三陽油車價格表、三陽電
 ---
 
 ## 安全規則
-所有 DMS 模型（`dms.dealer`、`dms.brand`、`dms.store_type`）：perm_read/write/create/unlink 全 1（無群組限制，所有登入使用者皆可操作）。
+所有 DMS 模型（`dms.dealer`、`dms.brand`、`dms.store_type`、`dms.product`）：perm_read/write/create/unlink 全 1（無群組限制，所有登入使用者皆可操作）。
+
+---
+
+## 產品管理 (dms.product)
+
+### 模型：`dms.product`
+
+#### 基本資料
+- `brand_id`（品牌）：Many2one → `dms.brand`，必填。
+- `name`（名稱）：Char，必填。
+- `model`（型號）：Char，可空。
+- `brake_type`（煞車型式）：Char，可空。
+- `energy_type`（能源型式）：Selection `[('oil','油車'),('electric','電車')]`，必填；控制動力分頁顯示。
+- `color`（顏色）：Char，可空。
+
+#### 動力規格（油車）— 僅 `energy_type == 'oil'` 時顯示分頁
+- `engine_displacement`（總排氣量）：Float。
+- `fuel_tank`（油箱容量）：Float。
+- `engine_type`（引擎型式）：Char。
+- `consumption_grade`（能耗等級）：Char。
+- `efficiency`（能源效率）：Char。
+- `max_hp`（最大馬力）：Integer。
+- `max_torque`（最大扭力）：Integer。
+
+#### 動力規格（電車）— 僅 `energy_type == 'electric'` 時顯示分頁
+- `power_system`（動力系統）：Char。
+- `max_output`（最大功率）：Float。
+- `ev_max_hp`（最大馬力）：Integer。
+- `ev_max_torque`（最大扭力）：Integer。
+- `ev_efficiency`（能源效率）：Char。
+- `transmission`（傳動系統）：Char。
+- `battery_capacity`（電池容量）：Float。
+- `battery_type`（電池型式）：Char。
+- `charge_time`（充電時間）：Float（小時）。
+
+#### 車身規格
+- `dimensions`（車輛尺寸）：Text。
+- `seat_height`（座高）：Float（mm）。
+- `wheel_base`（軸距）：Float（mm）。
+- `vehicle_weight`（車重）：Float（kg）。
+- `tire_front`（前輪規格）：Char。
+- `tire_rear`（後輪規格）：Char。
+
+### 介面規格（`dms.product`）
+
+#### tree view
+顯示欄位：品牌、名稱、型號、煞車型式、能源型式、顏色。
+
+#### form view（4 個分頁）
+1. **基本資料**：brand_id、name、model、brake_type、energy_type、color。
+2. **動力規格(油車)**：`attrs="{'invisible': [('energy_type','!=','oil')]}"` — engine_displacement、fuel_tank、engine_type、consumption_grade、efficiency、max_hp、max_torque。
+3. **動力規格(電車)**：`attrs="{'invisible': [('energy_type','!=','electric')]}"` — power_system、max_output、ev_max_hp、ev_max_torque、ev_efficiency、transmission、battery_capacity、battery_type、charge_time。
+4. **車身規格**（永遠顯示）：dimensions、seat_height、wheel_base、vehicle_weight、tire_front、tire_rear。
+
+#### search view
+搜尋欄位：名稱 (`name`)、型號 (`model`)、品牌 (`brand_id`)。
+Filters：油車 (`energy_type = 'oil'`)、電車 (`energy_type = 'electric'`)。
+
+#### 選單
+`DMS → 產品管理`（`menu_product`，parent=`menu_dms_root`，sequence=20）。
+
+#### ACL
+`access_dms_product`：全 1，無群組限制（與其他 DMS 模型一致）。

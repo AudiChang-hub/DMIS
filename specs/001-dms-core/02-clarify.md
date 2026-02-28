@@ -26,6 +26,12 @@
 
 12. **欄位選擇器 15 欄上限為前端限制**：透過 JS patch `ListRenderer.prototype.toggleOptionalField` 實作，僅套用於 `dms.dealer` 的 list view（以 `this.props.list.resModel === "dms.dealer"` 判斷）。此限制儲存於瀏覽器 localStorage；若使用者清除 localStorage，上限仍由 JS patch 維護但預設顯示欄位重置為 `optional="show"` 的 9 欄。舊有超過 15 欄的 localStorage 設定，使用者自行取消勾選降至 15 以內即可，JS patch 不會強制清除。
 
+13. **`dms.product` 動力分頁以 `attrs` 控制顯示**：`energy_type` 為 `'oil'` 時，「動力規格(油車)」分頁顯示、「動力規格(電車)」分頁隱藏；反之亦然。「基本資料」與「車身規格」分頁永遠顯示（無 `attrs`）。
+
+14. **`dms.product` 油車/電車欄位命名分離**：最大馬力/最大扭力在油車（`max_hp`/`max_torque`）與電車（`ev_max_hp`/`ev_max_torque`）為**不同欄位**，以避免 UI 合併顯示時的混淆。
+
+15. **`dms.product` 無 `active` 欄位**：目前版本不支援歸檔；若後續有需求再行新增。
+
 ## UI/UX 改善（2026-02-27）
 
 ### 未決問題與假設

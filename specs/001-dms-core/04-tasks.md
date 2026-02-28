@@ -69,3 +69,26 @@
 ### 步驟 6：TransactionCase 測試
 - `addons/dms_core/tests/__init__.py`（新建）。
 - `addons/dms_core/tests/test_dealer.py`（新建）。
+
+## 產品管理任務（dms.product）
+
+### Step P1 — Specs
+- [ ] `01-spec.md`：新增「產品管理」章節（欄位定義、分頁規格）
+- [ ] `02-clarify.md`：新增 energy_type 分頁控制假設
+- [ ] `04-tasks.md`：本清單
+- [ ] `05-acceptance.md`：新增產品管理驗收條件
+
+### Step P2 — Model
+- [ ] `models/product.py`：新增 `dms.product` 模型（基本資料、油車動力、電車動力、車身規格欄位）
+- [ ] `models/__init__.py`：加入 `from . import product`
+
+### Step P3 — Views / ACL / Manifest
+- [ ] `views/product_views.xml`：tree view（6 欄）、form view（4 分頁含條件分頁）、search view、action、menu
+- [ ] `security/ir.model.access.csv`：新增 `access_dms_product` 行（全 1）
+- [ ] `__manifest__.py`：在 `data` 清單加入 `views/product_views.xml`
+
+### Step P4 — Upgrade & Smoke
+- [ ] `docker compose restart odoo`
+- [ ] CLI upgrade `dms_core` (`--stop-after-init`)
+- [ ] HTTP /web/login 回應 200
+- [ ] 手動測試：DMS → 產品管理 → 新增產品，切換能源型式，驗證分頁顯示切換

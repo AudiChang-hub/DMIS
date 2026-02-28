@@ -8,7 +8,7 @@
 | 版本 | 16.0.1.0.0 |
 | 依賴 | `dms_core`, `web` |
 | installable | True |
-| application | False |
+| application | True（顯示在 Apps 列表） |
 
 ## 主要模型：`dms.product`（產品管理）
 

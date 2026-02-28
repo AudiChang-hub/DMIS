@@ -16,7 +16,7 @@ import { patch } from "@web/core/utils/patch";
 const DMS_PRODUCT_MODEL = "dms.product";
 const MAX_VISIBLE_COLUMNS = 15;
 
-patch(ListRenderer.prototype, "dms_core.productColumnLimit", {
+patch(ListRenderer.prototype, "dms_product.productColumnLimit", {
     async toggleOptionalField(fieldName) {
         // 僅限 dms.product list view
         if (this.props?.list?.resModel !== DMS_PRODUCT_MODEL) {

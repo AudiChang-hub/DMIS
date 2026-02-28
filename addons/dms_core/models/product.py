@@ -29,9 +29,9 @@ class DmsProduct(models.Model):
     # ── 動力規格（電車） ──────────────────────────────────
     power_system = fields.Char(string="動力系統")
     max_output = fields.Float(string="最大功率")
-    ev_max_hp = fields.Integer(string="最大馬力")
-    ev_max_torque = fields.Integer(string="最大扭力")
-    ev_efficiency = fields.Char(string="能源效率")
+    ev_max_hp = fields.Integer(string="最大馬力(EV)")
+    ev_max_torque = fields.Integer(string="最大扭力(EV)")
+    ev_efficiency = fields.Char(string="能源效率(EV)")
     transmission = fields.Char(string="傳動系統")
     battery_capacity = fields.Float(string="電池容量")
     battery_type = fields.Char(string="電池型式")

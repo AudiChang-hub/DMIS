@@ -140,42 +140,50 @@ Filters：啟用、年節送禮、LINE群組、三陽油車價格表、三陽電
 - `brand_id`（品牌）：Many2one → `dms.brand`，必填。
 - `name`（名稱）：Char，必填。
 - `model`（型號）：Char，可空。
+- `year`（年份）：Char，可空（例：2024、2025）。
 - `brake_type`（煞車型式）：Char，可空。
 - `energy_type`（能源型式）：Selection `[('oil','油車'),('electric','電車')]`，必填；控制動力分頁顯示。
 - `color`（顏色）：Char，可空。
+- `active`（啟用）：Boolean，預設 True；支援歸檔（Archive）。
 
 #### 動力規格（油車）— 僅 `energy_type == 'oil'` 時顯示分頁
-- `engine_displacement`（總排氣量）：Float，單位 cc。
-- `fuel_tank`（油箱容量）：Float，單位 L。
+> 說明：數值欄位改用 Char 型別，以便輸入含單位的文字規格（如「125cc」「35L」）。
+
+- `engine_displacement`（總排氣量）：Char，單位 cc。
+- `fuel_tank`（油箱容量）：Char，單位 L。
 - `engine_type`（引擎型式）：Char。
 - `consumption_grade`（能耗等級）：Char。
 - `efficiency`（能源效率）：Char，單位 km/L。
-- `max_hp`（最大馬力）：Integer，單位 hp。
-- `max_torque`（最大扭力）：Integer，單位 Nm。
+- `max_hp`（最大馬力）：Char，單位 hp。
+- `max_torque`（最大扭力）：Char，單位 Nm。
 
 #### 動力規格（電車）— 僅 `energy_type == 'electric'` 時顯示分頁
+> 說明：數值欄位改用 Char 型別。
+
 - `power_system`（動力系統）：Char。
-- `max_output`（最大功率）：Float，單位 kW。
-- `ev_max_hp`（最大馬力 EV）：Integer，單位 hp（label 顯示為「最大馬力 EV (hp)」以與油車欄位區分）。
-- `ev_max_torque`（最大扭力 EV）：Integer，單位 Nm（label 顯示為「最大扭力 EV (Nm)」）。
-- `ev_efficiency`（能源效率 EV）：Char，單位 km/kWh（label 顯示為「能源效率 EV (km/kWh)」）。
+- `max_output`（最大功率）：Char，單位 kW。
+- `ev_max_hp`（最大馬力 EV）：Char，單位 hp（label 為「最大馬力 EV (hp)」以與油車欄位區分）。
+- `ev_max_torque`（最大扭力 EV）：Char，單位 Nm（label 為「最大扭力 EV (Nm)」）。
+- `ev_efficiency`（能源效率 EV）：Char，單位 kWh/km（label 為「能源效率 EV (kWh/km)」）。
 - `transmission`（傳動系統）：Char。
-- `battery_capacity`（電池容量）：Float，單位 kWh。
+- `battery_capacity`（電池容量）：Char，單位 kWh。
 - `battery_type`（電池型式）：Char。
-- `charge_time`（充電時間）：Float，單位 hr。
+- `charge_time`（充電時間）：Char，單位 hr。
 
 #### 車身規格
+> 說明：數值欄位改用 Char 型別。
+
 - `dimensions`（車輛尺寸）：Text，單位 mm（長×寬×高）。
-- `seat_height`（座高）：Float，單位 mm。
-- `wheel_base`（軸距）：Float，單位 mm。
-- `vehicle_weight`（車重）：Float，單位 kg。
+- `seat_height`（座高）：Char，單位 mm。
+- `wheel_base`（軸距）：Char，單位 mm。
+- `vehicle_weight`（車重）：Char，單位 kg。
 - `tire_front`（前輪規格）：Char。
 - `tire_rear`（後輪規格）：Char。
 
 ### 介面規格（`dms.product`）
 
 #### tree view
-預設顯示（`optional="show"`，共 6 欄）：`brand_id`（品牌）、`name`（名稱）、`model`（型號）、`brake_type`（煞車型式）、`energy_type`（能源型式）、`color`（顏色）。
+預設顯示（`optional="show"`，共 8 欄）：`brand_id`（品牌）、`name`（名稱）、`model`（型號）、`year`（年份）、`brake_type`（煞車型式）、`energy_type`（能源型式）、`color`（顏色）、`active`（啟用）。
 
 預設隱藏（`optional="hide"`，可在欄位選擇器勾選）：所有動力規格欄位（油車 7 欄 + 電車 9 欄）及車身規格欄位（6 欄）共 22 欄。
 
@@ -190,7 +198,7 @@ Filters：啟用、年節送禮、LINE群組、三陽油車價格表、三陽電
 - JS 檔在 `__manifest__.py` 的 `web.assets_backend` 中宣告。
 
 #### form view（4 個分頁）
-1. **基本資料**：brand_id、name、model、brake_type、energy_type、color。
+1. **基本資料**：brand_id、name、model、year、brake_type、energy_type、color、active。
 2. **動力規格(油車)**：`attrs="{'invisible': [('energy_type','!=','oil')]}"` — engine_displacement、fuel_tank、engine_type、consumption_grade、efficiency、max_hp、max_torque。
 3. **動力規格(電車)**：`attrs="{'invisible': [('energy_type','!=','electric')]}"` — power_system、max_output、ev_max_hp、ev_max_torque、ev_efficiency、transmission、battery_capacity、battery_type、charge_time。
 4. **車身規格**（永遠顯示）：dimensions、seat_height、wheel_base、vehicle_weight、tire_front、tire_rear。

@@ -145,37 +145,49 @@ Filters：啟用、年節送禮、LINE群組、三陽油車價格表、三陽電
 - `color`（顏色）：Char，可空。
 
 #### 動力規格（油車）— 僅 `energy_type == 'oil'` 時顯示分頁
-- `engine_displacement`（總排氣量）：Float。
-- `fuel_tank`（油箱容量）：Float。
+- `engine_displacement`（總排氣量）：Float，單位 cc。
+- `fuel_tank`（油箱容量）：Float，單位 L。
 - `engine_type`（引擎型式）：Char。
 - `consumption_grade`（能耗等級）：Char。
-- `efficiency`（能源效率）：Char。
-- `max_hp`（最大馬力）：Integer。
-- `max_torque`（最大扭力）：Integer。
+- `efficiency`（能源效率）：Char，單位 km/L。
+- `max_hp`（最大馬力）：Integer，單位 hp。
+- `max_torque`（最大扭力）：Integer，單位 Nm。
 
 #### 動力規格（電車）— 僅 `energy_type == 'electric'` 時顯示分頁
 - `power_system`（動力系統）：Char。
-- `max_output`（最大功率）：Float。
-- `ev_max_hp`（最大馬力）：Integer。
-- `ev_max_torque`（最大扭力）：Integer。
-- `ev_efficiency`（能源效率）：Char。
+- `max_output`（最大功率）：Float，單位 kW。
+- `ev_max_hp`（最大馬力 EV）：Integer，單位 hp（label 顯示為「最大馬力 EV (hp)」以與油車欄位區分）。
+- `ev_max_torque`（最大扭力 EV）：Integer，單位 Nm（label 顯示為「最大扭力 EV (Nm)」）。
+- `ev_efficiency`（能源效率 EV）：Char，單位 km/kWh（label 顯示為「能源效率 EV (km/kWh)」）。
 - `transmission`（傳動系統）：Char。
-- `battery_capacity`（電池容量）：Float。
+- `battery_capacity`（電池容量）：Float，單位 kWh。
 - `battery_type`（電池型式）：Char。
-- `charge_time`（充電時間）：Float（小時）。
+- `charge_time`（充電時間）：Float，單位 hr。
 
 #### 車身規格
-- `dimensions`（車輛尺寸）：Text。
-- `seat_height`（座高）：Float（mm）。
-- `wheel_base`（軸距）：Float（mm）。
-- `vehicle_weight`（車重）：Float（kg）。
+- `dimensions`（車輛尺寸）：Text，單位 mm（長×寬×高）。
+- `seat_height`（座高）：Float，單位 mm。
+- `wheel_base`（軸距）：Float，單位 mm。
+- `vehicle_weight`（車重）：Float，單位 kg。
 - `tire_front`（前輪規格）：Char。
 - `tire_rear`（後輪規格）：Char。
 
 ### 介面規格（`dms.product`）
 
 #### tree view
-顯示欄位：品牌、名稱、型號、煞車型式、能源型式、顏色。
+預設顯示（`optional="show"`，共 6 欄）：`brand_id`（品牌）、`name`（名稱）、`model`（型號）、`brake_type`（煞車型式）、`energy_type`（能源型式）、`color`（顏色）。
+
+預設隱藏（`optional="hide"`，可在欄位選擇器勾選）：所有動力規格欄位（油車 7 欄 + 電車 9 欄）及車身規格欄位（6 欄）共 22 欄。
+
+#### 欄位顯示硬性上限（15 欄）
+前端 JS patch（`dms_core/static/src/js/dms_product_column_limit.js`）patch `ListRenderer.prototype.toggleOptionalField`：
+- 僅對 `dms.product` 模型的 list view 生效（與 `dms_dealer_column_limit.js` 同樣機制）。
+- 當使用者嘗試勾選第 16 個欄位（`turningOn = true` 且 `visibleCount >= 15`）時：
+  1. 阻止切換（不呼叫 `_super`，`optionalActiveFields` 不變）。
+  2. 顯示 warning notification（title: `"欄位顯示上限"`，message 含「15 個欄位」說明）。
+  3. 強制觸發 OWL 重新渲染（`this.state.columns = [...this.state.columns]`）確保 checkbox 回復未勾選狀態。
+- 取消勾選永遠允許。
+- JS 檔在 `__manifest__.py` 的 `web.assets_backend` 中宣告。
 
 #### form view（4 個分頁）
 1. **基本資料**：brand_id、name、model、brake_type、energy_type、color。

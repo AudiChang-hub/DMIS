@@ -73,8 +73,9 @@
   4. 車身規格（永遠顯示）
 
 ### 選單
-- 掛載於 `dms_core.menu_dms_root`（DMS 主選單）
-- 選單名稱：產品管理，sequence=20
+- 頂層：`menu_dms_product_root`（無 parent，與 DMS Core 並列出現在 Odoo 首頁）
+- 子層：`menu_product` 掛載於 `menu_dms_product_root`，action → `action_product`
+- 不再掛載於 `dms_core.menu_dms_root`
 
 ## 安全設定
 | id | 模型 | group | R | W | C | D |

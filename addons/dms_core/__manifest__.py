@@ -13,7 +13,6 @@
         'views/dealer_views.xml',
         'views/brand_views.xml',
         'views/store_type_views.xml',
-        'views/product_views.xml',
         'data/seed.xml',
     ],
     # 已移除自建前端資產（dealer_columns_button.js）

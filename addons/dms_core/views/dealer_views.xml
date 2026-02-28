@@ -146,7 +146,7 @@
   </record>
 
   <!-- ===== 選單 ===== -->
-  <menuitem id="menu_dms_root" name="DMS"/>
+  <menuitem id="menu_dms_root" name="車行管理"/>
   <menuitem id="menu_dealer" name="車行" parent="menu_dms_root"
             action="action_dealer" sequence="10"/>
 

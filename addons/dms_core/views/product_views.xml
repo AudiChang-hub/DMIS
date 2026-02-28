@@ -7,13 +7,15 @@
     <field name="model">dms.product</field>
     <field name="arch" type="xml">
       <tree string="產品清單">
-        <!-- 預設顯示（optional="show"）：共 6 欄 -->
+        <!-- 預設顯示（optional="show"）：共 8 欄 -->
         <field name="brand_id"    optional="show"/>
         <field name="name"        optional="show"/>
         <field name="model"       optional="show"/>
+        <field name="year"        optional="show"/>
         <field name="brake_type"  optional="show"/>
         <field name="energy_type" optional="show"/>
         <field name="color"       optional="show"/>
+        <field name="active"      optional="show"/>
         <!-- 動力規格（油車）— 預設隱藏 -->
         <field name="engine_displacement" optional="hide"/>
         <field name="fuel_tank"           optional="hide"/>
@@ -33,6 +35,7 @@
         <field name="battery_type"     optional="hide"/>
         <field name="charge_time"      optional="hide"/>
         <!-- 車身規格 — 預設隱藏 -->
+        <field name="dimensions"      optional="hide"/>
         <field name="seat_height"     optional="hide"/>
         <field name="wheel_base"      optional="hide"/>
         <field name="vehicle_weight"  optional="hide"/>
@@ -57,9 +60,11 @@
                 <field name="brand_id"/>
                 <field name="name"/>
                 <field name="model"/>
+                <field name="year"/>
                 <field name="brake_type"/>
                 <field name="energy_type"/>
                 <field name="color"/>
+                <field name="active"/>
               </group>
             </page>
 
@@ -123,6 +128,8 @@
         <separator/>
         <filter name="filter_oil" string="油車" domain="[('energy_type', '=', 'oil')]"/>
         <filter name="filter_electric" string="電車" domain="[('energy_type', '=', 'electric')]"/>
+        <filter name="filter_active" string="啟用" domain="[('active', '=', True)]"/>
+        <filter name="filter_archived" string="已歸檔" domain="[('active', '=', False)]"/>
         <group expand="0" string="分組">
           <filter name="groupby_brand" string="品牌" context="{'group_by': 'brand_id'}"/>
           <filter name="groupby_energy" string="能源型式" context="{'group_by': 'energy_type'}"/>

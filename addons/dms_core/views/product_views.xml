@@ -7,12 +7,37 @@
     <field name="model">dms.product</field>
     <field name="arch" type="xml">
       <tree string="產品清單">
-        <field name="brand_id"/>
-        <field name="name"/>
-        <field name="model"/>
-        <field name="brake_type"/>
-        <field name="energy_type"/>
-        <field name="color"/>
+        <!-- 預設顯示（optional="show"）：共 6 欄 -->
+        <field name="brand_id"    optional="show"/>
+        <field name="name"        optional="show"/>
+        <field name="model"       optional="show"/>
+        <field name="brake_type"  optional="show"/>
+        <field name="energy_type" optional="show"/>
+        <field name="color"       optional="show"/>
+        <!-- 動力規格（油車）— 預設隱藏 -->
+        <field name="engine_displacement" optional="hide"/>
+        <field name="fuel_tank"           optional="hide"/>
+        <field name="engine_type"         optional="hide"/>
+        <field name="consumption_grade"   optional="hide"/>
+        <field name="efficiency"          optional="hide"/>
+        <field name="max_hp"              optional="hide"/>
+        <field name="max_torque"          optional="hide"/>
+        <!-- 動力規格（電車）— 預設隱藏 -->
+        <field name="power_system"     optional="hide"/>
+        <field name="max_output"       optional="hide"/>
+        <field name="ev_max_hp"        optional="hide"/>
+        <field name="ev_max_torque"    optional="hide"/>
+        <field name="ev_efficiency"    optional="hide"/>
+        <field name="transmission"     optional="hide"/>
+        <field name="battery_capacity" optional="hide"/>
+        <field name="battery_type"     optional="hide"/>
+        <field name="charge_time"      optional="hide"/>
+        <!-- 車身規格 — 預設隱藏 -->
+        <field name="seat_height"     optional="hide"/>
+        <field name="wheel_base"      optional="hide"/>
+        <field name="vehicle_weight"  optional="hide"/>
+        <field name="tire_front"      optional="hide"/>
+        <field name="tire_rear"       optional="hide"/>
       </tree>
     </field>
   </record>

@@ -1,5 +1,5 @@
 {
-    'name': 'DMS Core',
+    'name': 'DMS 車行管理',
     'version': '16.0.1.0.0',
     'summary': '最小車行管理示範',
     'description': '提供 dealer（車行）模型與基本 view，作為專案骨架示範。',

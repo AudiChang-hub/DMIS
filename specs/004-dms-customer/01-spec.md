@@ -40,8 +40,11 @@ return f"{roc_year}/{dms_birthday.month:02d}/{dms_birthday.day:02d}"
 
 ## 視圖規格
 
+> 遵循全域 UI 標準（specs/000-roadmap/03-ui-standards.md）：active 欄位、全 optional、15 欄 JS 限制、歸檔篩選。
+
 ### 客戶 List View
-欄位：name、phone、id_number、dms_birthday_roc、address_registered
+- `optional="show"`（預設顯示，共 8 欄）：name、phone、mobile、email、id_number、dms_birthday_roc、address_registered、active
+- `optional="hide"`（預設隱藏）：dms_birthday
 
 ### 客戶 Form View
 3 頁籤：
@@ -51,7 +54,15 @@ return f"{roc_year}/{dms_birthday.month:02d}/{dms_birthday.day:02d}"
 
 ### Search View
 搜尋欄位：name、id_number、phone
-Filter：「DMS 客戶」= is_dms_customer=True
+Filter：
+- 「DMS 客戶」= is_dms_customer=True
+- 「啟用中」= active=True
+- 「已歸檔」= active=False
+
+### JS 15 欄限制
+- 檔案：`dms_customer/static/src/js/dms_customer_column_limit.js`
+- resModel：`res.partner`
+- Patch 名稱：`dms_customer.partnerColumnLimit`
 
 ### 選單
 - 頂層：`menu_dms_customer_root`（無 parent，獨立 App）

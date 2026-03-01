@@ -7,16 +7,12 @@
     <field name="model">dms.vehicle.price</field>
     <field name="arch" type="xml">
       <tree string="車款售價">
-        <field name="product_id"          optional="show"/>
-        <field name="dealer_id"           optional="show"/>
-        <field name="cash_price"          optional="show"/>
-        <field name="installment_periods" optional="show"/>
-        <field name="installment_monthly" optional="hide"/>
-        <field name="finance_company"     optional="hide"/>
-        <field name="valid_year_month"    optional="show"/>
-        <field name="is_promotion"        optional="hide"/>
-        <field name="active"              optional="show"/>
-        <field name="note"                optional="hide"/>
+        <field name="product_id"       optional="show"/>
+        <field name="cash_price"        optional="show"/>
+        <field name="valid_year_month" optional="show"/>
+        <field name="is_promotion"     optional="hide"/>
+        <field name="active"           optional="show"/>
+        <field name="note"             optional="hide"/>
       </tree>
     </field>
   </record>
@@ -31,23 +27,29 @@
           <group>
             <group>
               <field name="product_id"/>
-              <field name="dealer_id"/>
+              <field name="valid_year_month"/>
+              <field name="is_promotion"/>
               <field name="active"/>
             </group>
             <group>
               <field name="cash_price"/>
-              <field name="installment_periods"/>
-              <field name="installment_monthly"/>
-              <field name="finance_company"/>
             </group>
           </group>
-          <group>
-            <field name="valid_year_month"/>
-            <field name="is_promotion"/>
-          </group>
-          <group>
-            <field name="note" colspan="2"/>
-          </group>
+          <notebook>
+            <page string="分期方案">
+              <field name="installment_ids">
+                <tree editable="bottom">
+                  <field name="installment_periods"/>
+                  <field name="installment_monthly"/>
+                  <field name="finance_company"/>
+                  <field name="active"/>
+                </tree>
+              </field>
+            </page>
+            <page string="備註">
+              <field name="note" nolabel="1"/>
+            </page>
+          </notebook>
         </sheet>
       </form>
     </field>
@@ -60,18 +62,15 @@
     <field name="arch" type="xml">
       <search string="搜尋車款售價">
         <field name="product_id" string="車款"/>
-        <field name="dealer_id" string="車行"/>
-        <field name="finance_company" string="分期公司"/>
         <field name="valid_year_month" string="有效月份"/>
         <separator/>
         <filter name="filter_promotion" string="當月活動" domain="[('is_promotion','=',True)]"/>
-        <filter name="filter_installment" string="分期方案" domain="[('installment_periods','>',0)]"/>
         <separator/>
         <filter name="filter_active" string="啟用中" domain="[('active','=',True)]"/>
         <filter name="filter_archived" string="已歸檔" domain="[('active','=',False)]"/>
         <group expand="0" string="分組">
           <filter name="groupby_product" string="車款" context="{'group_by': 'product_id'}"/>
-          <filter name="groupby_dealer" string="車行" context="{'group_by': 'dealer_id'}"/>
+          <filter name="groupby_month" string="月份" context="{'group_by': 'valid_year_month'}"/>
         </group>
       </search>
     </field>

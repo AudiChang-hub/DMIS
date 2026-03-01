@@ -83,6 +83,6 @@
 
   <!-- ===== 選單 ===== -->
   <menuitem id="menu_commission_rule" name="傭金規則" parent="menu_dms_pricelist_root"
-            action="action_commission_rule" sequence="50"/>
+            action="action_commission_rule" sequence="40"/>
 
 </odoo>

@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+  <!-- ===== 清單視圖 ===== -->
+  <record id="view_accessory_price_tree" model="ir.ui.view">
+    <field name="name">dms.accessory.price.tree</field>
+    <field name="model">dms.accessory.price</field>
+    <field name="arch" type="xml">
+      <tree string="精品售價">
+        <field name="accessory_id" optional="show"/>
+        <field name="unit_price"   optional="show"/>
+        <field name="install_fee"  optional="show"/>
+        <field name="bundle_name"  optional="hide"/>
+        <field name="valid_from"   optional="show"/>
+        <field name="valid_to"     optional="hide"/>
+        <field name="active"       optional="show"/>
+      </tree>
+    </field>
+  </record>
+
+  <!-- ===== 表單視圖 ===== -->
+  <record id="view_accessory_price_form" model="ir.ui.view">
+    <field name="name">dms.accessory.price.form</field>
+    <field name="model">dms.accessory.price</field>
+    <field name="arch" type="xml">
+      <form string="精品售價">
+        <sheet>
+          <group>
+            <group>
+              <field name="accessory_id"/>
+              <field name="active"/>
+            </group>
+            <group>
+              <field name="unit_price"/>
+              <field name="install_fee"/>
+              <field name="bundle_name"/>
+            </group>
+          </group>
+          <group string="有效期間">
+            <field name="valid_from"/>
+            <field name="valid_to"/>
+          </group>
+        </sheet>
+      </form>
+    </field>
+  </record>
+
+  <!-- ===== 搜尋視圖 ===== -->
+  <record id="view_accessory_price_search" model="ir.ui.view">
+    <field name="name">dms.accessory.price.search</field>
+    <field name="model">dms.accessory.price</field>
+    <field name="arch" type="xml">
+      <search string="搜尋精品售價">
+        <field name="accessory_id" string="精品"/>
+        <field name="bundle_name" string="套裝組合"/>
+        <separator/>
+        <filter name="filter_active" string="啟用中" domain="[('active','=',True)]"/>
+        <filter name="filter_archived" string="已歸檔" domain="[('active','=',False)]"/>
+        <group expand="0" string="分組">
+          <filter name="groupby_accessory" string="精品" context="{'group_by': 'accessory_id'}"/>
+        </group>
+      </search>
+    </field>
+  </record>
+
+  <!-- ===== 動作 ===== -->
+  <record id="action_accessory_price" model="ir.actions.act_window">
+    <field name="name">精品售價</field>
+    <field name="res_model">dms.accessory.price</field>
+    <field name="view_mode">tree,form</field>
+    <field name="context">{'form_view_initial_mode': 'edit'}</field>
+  </record>
+
+  <!-- ===== 選單 ===== -->
+  <menuitem id="menu_accessory_price" name="精品售價" parent="menu_dms_pricelist_root"
+            action="action_accessory_price" sequence="30"/>
+
+</odoo>

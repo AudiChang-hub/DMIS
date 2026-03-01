@@ -128,7 +128,7 @@
         <separator/>
         <filter name="filter_oil" string="油車" domain="[('energy_type', '=', 'oil')]"/>
         <filter name="filter_electric" string="電車" domain="[('energy_type', '=', 'electric')]"/>
-        <filter name="filter_active" string="啟用" domain="[('active', '=', True)]"/>
+        <filter name="filter_active" string="啟用中" domain="[('active', '=', True)]"/>
         <filter name="filter_archived" string="已歸檔" domain="[('active', '=', False)]"/>
         <group expand="0" string="分組">
           <filter name="groupby_brand" string="品牌" context="{'group_by': 'brand_id'}"/>

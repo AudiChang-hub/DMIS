@@ -45,12 +45,17 @@
     <field name="model">res.partner</field>
     <field name="arch" type="xml">
       <tree string="客戶清單">
-        <field name="name"/>
-        <field name="phone"/>
-        <field name="mobile"/>
-        <field name="id_number"/>
-        <field name="dms_birthday_roc"/>
-        <field name="address_registered"/>
+        <!-- 預設顯示：8 欄 -->
+        <field name="name"              optional="show"/>
+        <field name="phone"             optional="show"/>
+        <field name="mobile"            optional="show"/>
+        <field name="email"             optional="show"/>
+        <field name="id_number"         optional="show"/>
+        <field name="dms_birthday_roc"  optional="show"/>
+        <field name="address_registered" optional="show"/>
+        <field name="active"            optional="show"/>
+        <!-- 預設隱藏 -->
+        <field name="dms_birthday"      optional="hide"/>
       </tree>
     </field>
   </record>
@@ -67,6 +72,11 @@
         <separator/>
         <filter name="filter_dms_customer" string="DMS 客戶"
                 domain="[('is_dms_customer', '=', True)]"/>
+        <separator/>
+        <filter name="filter_active" string="啟用中"
+                domain="[('active', '=', True)]"/>
+        <filter name="filter_archived" string="已歸檔"
+                domain="[('active', '=', False)]"/>
       </search>
     </field>
   </record>

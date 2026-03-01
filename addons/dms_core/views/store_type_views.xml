@@ -7,8 +7,8 @@
     <field name="model">dms.store_type</field>
     <field name="arch" type="xml">
       <tree string="車行類型">
-        <field name="name"/>
-        <field name="active" optional="hide"/>
+        <field name="name"   optional="show"/>
+        <field name="active" optional="show"/>
       </tree>
     </field>
   </record>
@@ -26,6 +26,20 @@
           </group>
         </sheet>
       </form>
+    </field>
+  </record>
+
+  <!-- ===== 搜尋視圖 ===== -->
+  <record id="view_store_type_search" model="ir.ui.view">
+    <field name="name">dms.store_type.search</field>
+    <field name="model">dms.store_type</field>
+    <field name="arch" type="xml">
+      <search string="搜尋車行類型">
+        <field name="name" string="類型名稱"/>
+        <separator/>
+        <filter name="filter_active" string="啟用中" domain="[('active','=',True)]"/>
+        <filter name="filter_archived" string="已歸檔" domain="[('active','=',False)]"/>
+      </search>
     </field>
   </record>
 

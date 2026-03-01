@@ -7,8 +7,8 @@
     <field name="model">dms.brand</field>
     <field name="arch" type="xml">
       <tree string="品牌">
-        <field name="name"/>
-        <field name="active" optional="hide"/>
+        <field name="name"   optional="show"/>
+        <field name="active" optional="show"/>
       </tree>
     </field>
   </record>
@@ -26,6 +26,20 @@
           </group>
         </sheet>
       </form>
+    </field>
+  </record>
+
+  <!-- ===== 搜尋視圖 ===== -->
+  <record id="view_brand_search" model="ir.ui.view">
+    <field name="name">dms.brand.search</field>
+    <field name="model">dms.brand</field>
+    <field name="arch" type="xml">
+      <search string="搜尋品牌">
+        <field name="name" string="品牌名稱"/>
+        <separator/>
+        <filter name="filter_active" string="啟用中" domain="[('active','=',True)]"/>
+        <filter name="filter_archived" string="已歸檔" domain="[('active','=',False)]"/>
+      </search>
     </field>
   </record>
 

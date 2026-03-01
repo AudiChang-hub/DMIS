@@ -28,6 +28,7 @@
         <field name="sym_dispatch_capacity"  optional="hide"/>
         <field name="suzuki_dispatch_capacity" optional="hide"/>
         <field name="line_group"             optional="hide"/>
+        <field name="manager_same_as_owner"   optional="hide"/>
         <field name="holiday_gift"           optional="hide"/>
         <field name="address"                optional="hide"/>
         <field name="note"                   optional="hide"/>
@@ -122,7 +123,8 @@
         <field name="address"/>
         <field name="brand_ids" string="品牌"/>
         <separator/>
-        <filter name="filter_active" string="啟用" domain="[('active','=',True)]"/>
+        <filter name="filter_active" string="啟用中" domain="[('active','=',True)]"/>
+        <filter name="filter_archived" string="已歸檔" domain="[('active','=',False)]"/>
         <filter name="filter_holiday_gift" string="年節送禮" domain="[('holiday_gift','=',True)]"/>
         <filter name="filter_line_group" string="LINE群組" domain="[('line_group','=',True)]"/>
         <separator/>

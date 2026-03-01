@@ -12,4 +12,9 @@
     ],
     'installable': True,
     'application': True,
+    'assets': {
+        'web.assets_backend': [
+            'dms_customer/static/src/js/dms_customer_column_limit.js',
+        ],
+    },
 }

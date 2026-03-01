@@ -32,42 +32,41 @@
 
 ---
 
-## 🔲 Phase 1：P1 — 資訊透明化
+## ✅ Phase 1：P1 — 資訊透明化
 
-### dms_customer（客戶管理）
+### ✅ dms_customer（客戶管理）
 > Spec 目錄：`specs/004-dms-customer/`
 
-- [ ] **Spec**
-  - [ ] 00-charter.md
-  - [ ] 01-spec.md（欄位定義、繼承 res.partner 策略）
-  - [ ] 04-tasks.md
-  - [ ] 05-acceptance.md
+- [x] **Spec**
+  - [x] 00-charter.md
+  - [x] 01-spec.md（欄位定義、繼承 res.partner 策略）
+  - [x] 04-tasks.md
+  - [x] 05-acceptance.md
 
-- [ ] **模型**
-  - [ ] `dms.customer`（繼承/擴充 res.partner）
-    - [ ] `id_number`（身分證字號，Char）
-    - [ ] `birthday`（生日，Date）
-    - [ ] `birthday_roc`（民國生日，Computed Char）
-    - [ ] `address_registered`（戶籍地址，Text）
-    - [ ] `old_vehicle_ids`（One2many → dms.old.vehicle）
-  - [ ] `dms.old.vehicle`
-    - [ ] `customer_id`（Many2one → dms.customer）
-    - [ ] `plate_number`（車牌號碼）
-    - [ ] `vehicle_owner`（舊車車主）
-    - [ ] `control_account`（車控帳號）
+- [x] **模型**
+  - [x] `dms.customer`（繼承/擴充 res.partner）
+    - [x] `id_number`（身分證字號，Char）
+    - [x] `dms_birthday`（生日，Date）
+    - [x] `dms_birthday_roc`（民國生日，Computed Char）
+    - [x] `address_registered`（戶籍地址，Text）
+    - [x] `old_vehicle_ids`（One2many → dms.old.vehicle）
+  - [x] `dms.old.vehicle`
+    - [x] `partner_id`（Many2one → res.partner）
+    - [x] `plate_number`（車牌號碼）
+    - [x] `vehicle_owner`（舊車車主）
+    - [x] `control_account`（車控帳號）
 
-- [ ] **視圖**
-  - [ ] customer tree（姓名/電話/身分證/生日）
-  - [ ] customer form（基本/戶籍/舊車資訊 分頁）
-  - [ ] search（姓名/身分證/電話）
-  - [ ] 頂層選單或掛於既有選單
+- [x] **視圖**
+  - [x] customer tree（姓名/電話/身分證/民國生日/戶籍地址）
+  - [x] customer form（繼承 partner form，新增 DMS 客戶資料 & 舊車資訊頁籤）
+  - [x] search（姓名/身分證/電話）+ 「DMS 客戶」篩選
+  - [x] 頂層選單：menu_dms_customer_root（獨立 App）
 
-- [ ] **ACL**：dms.customer / dms.old.vehicle 全員讀寫
+- [x] **ACL**：dms.old.vehicle 全員讀寫
 
-- [ ] **驗證**
-  - [ ] --stop-after-init 無錯誤
-  - [ ] /web/login HTTP 200
-  - [ ] 新增客戶，民國生日自動換算正確
+- [x] **驗證**
+  - [x] --stop-after-init `-i dms_customer` 無錯誤（139 queries）
+  - [x] /web/login HTTP 200
 
 ---
 

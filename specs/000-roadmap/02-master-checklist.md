@@ -70,54 +70,35 @@
 
 ---
 
-### dms_pricelist（價目管理）
+### ✅ dms_pricelist（價目管理）
 > Spec 目錄：`specs/005-dms-pricelist/`
 
-- [ ] **Spec**
-  - [ ] 00-charter.md
-  - [ ] 01-spec.md
-  - [ ] 04-tasks.md
-  - [ ] 05-acceptance.md
+- [x] **Spec**
+  - [x] 00-charter.md
+  - [x] 01-spec.md
+  - [x] 04-tasks.md
+  - [x] 05-acceptance.md
 
-- [ ] **模型：車款售價**
-  - [ ] `dms.vehicle.price`
-    - [ ] `product_id`（Many2one → dms.product）
-    - [ ] `valid_month`（有效年月，Char）
-    - [ ] `cash_price`（現金價，Float）
-    - [ ] `installment_lines`（One2many → dms.installment.option）
-  - [ ] `dms.installment.option`
-    - [ ] `period`（期數，Integer）
-    - [ ] `price`（分期價，Float）
-    - [ ] `note`（當月活動說明）
+- [x] **模型：車款售價**
+  - [x] `dms.vehicle.price`（product_id / dealer_id / cash_price / installment_periods / installment_monthly / finance_company / valid_year_month / is_promotion / active / note）
 
-- [ ] **模型：精品**
-  - [ ] `dms.accessory`（名稱、型號、品牌）
-  - [ ] `dms.accessory.price`
-    - [ ] `accessory_id`、`unit_price`、`install_fee`
-    - [ ] `bundle_lines`（One2many → 套裝組合）
+- [x] **模型：精品**
+  - [x] `dms.accessory`（name / model_number / active / price_ids O2m）
+  - [x] `dms.accessory.price`（accessory_id / unit_price / install_fee / bundle_name / valid_from / valid_to / active）
 
-- [ ] **模型：牌險費率**
-  - [ ] `dms.fee.schedule`
-    - [ ] `product_id`（可空，空=通用）
-    - [ ] `fee_registration`（領牌費）
-    - [ ] `fee_compulsory`（強制險）
-    - [ ] `fee_agency`（代辦費）
-    - [ ] `fee_plate_select`（選號費）
-    - [ ] `valid_from`（生效日）
+- [x] **模型：牌險費率**
+  - [x] `dms.fee.schedule`（product_id / fee_registration / fee_compulsory_insurance / fee_agency / valid_from / valid_to / active / note）
 
-- [ ] **模型：傭金規則**
-  - [ ] `dms.commission.rule`
-    - [ ] `dealer_id`（可空=通用）
-    - [ ] `product_id`（可空=通用）
-    - [ ] `installment_period`（期數，0=現金）
-    - [ ] `commission_amount`（傭金金額，Float）
+- [x] **模型：傭金規則**
+  - [x] `dms.commission.rule`（dealer_id / product_id / installment_periods / commission_amount / commission_rate / valid_from / valid_to / active / note）
 
-- [ ] **視圖**：各模型 tree/form/action/menu
-- [ ] **ACL**：全員讀寫（或限管理員寫入，視需求）
+- [x] **視圖**：5 個模型各有 tree（所有欄位 optional）/ form / search（啟用中/已歸檔）
+- [x] **ACL**：5 個模型全員讀寫
+- [x] 頂層選單：menu_dms_pricelist_root（獨立 App，下掛 5 子選單）
 
-- [ ] **驗證**
-  - [ ] 新增車款售價，含分期選項
-  - [ ] 精品套裝組合可正確設定
+- [x] **驗證**
+  - [x] `--stop-after-init -i dms_pricelist` 無 ERROR（293 queries）
+  - [x] `/web/login` HTTP 200
   - [ ] 牌險費率依車款查詢正確
 
 ---

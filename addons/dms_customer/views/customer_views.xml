@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+  <!-- ===== 繼承 res.partner Form：新增 DMS 頁籤 ===== -->
+  <record id="view_partner_form_dms" model="ir.ui.view">
+    <field name="name">res.partner.form.dms</field>
+    <field name="model">res.partner</field>
+    <field name="inherit_id" ref="base.view_partner_form"/>
+    <field name="arch" type="xml">
+      <!-- 在聯絡人 form 最上方加入「DMS 客戶」勾選欄 -->
+      <xpath expr="//field[@name='name']" position="before">
+        <field name="is_dms_customer" widget="boolean_toggle"/>
+      </xpath>
+      <!-- 在 notebook 最後加入 DMS 專屬頁籤 -->
+      <xpath expr="//notebook" position="inside">
+        <page string="DMS 客戶資料"
+              attrs="{'invisible': [('is_dms_customer', '=', False)]}">
+          <group string="基本資料">
+            <field name="id_number"/>
+            <field name="dms_birthday"/>
+            <field name="dms_birthday_roc"/>
+          </group>
+          <group string="地址">
+            <field name="address_registered" placeholder="戶籍地址"/>
+          </group>
+        </page>
+        <page string="舊車資訊"
+              attrs="{'invisible': [('is_dms_customer', '=', False)]}">
+          <field name="old_vehicle_ids">
+            <tree editable="bottom">
+              <field name="plate_number"/>
+              <field name="vehicle_owner"/>
+              <field name="control_account"/>
+              <field name="note"/>
+            </tree>
+          </field>
+        </page>
+      </xpath>
+    </field>
+  </record>
+
+  <!-- ===== 客戶專用 Tree View ===== -->
+  <record id="view_dms_customer_tree" model="ir.ui.view">
+    <field name="name">res.partner.dms.tree</field>
+    <field name="model">res.partner</field>
+    <field name="arch" type="xml">
+      <tree string="客戶清單">
+        <field name="name"/>
+        <field name="phone"/>
+        <field name="mobile"/>
+        <field name="id_number"/>
+        <field name="dms_birthday_roc"/>
+        <field name="address_registered"/>
+      </tree>
+    </field>
+  </record>
+
+  <!-- ===== 客戶專用 Search View ===== -->
+  <record id="view_dms_customer_search" model="ir.ui.view">
+    <field name="name">res.partner.dms.search</field>
+    <field name="model">res.partner</field>
+    <field name="arch" type="xml">
+      <search string="搜尋客戶">
+        <field name="name" string="姓名"/>
+        <field name="id_number" string="身分證字號"/>
+        <field name="phone" string="電話"/>
+        <separator/>
+        <filter name="filter_dms_customer" string="DMS 客戶"
+                domain="[('is_dms_customer', '=', True)]"/>
+      </search>
+    </field>
+  </record>
+
+  <!-- ===== Action ===== -->
+  <record id="action_dms_customer" model="ir.actions.act_window">
+    <field name="name">客戶清單</field>
+    <field name="res_model">res.partner</field>
+    <field name="view_mode">tree,form</field>
+    <field name="domain">[('is_dms_customer', '=', True)]</field>
+    <field name="context">{'default_is_dms_customer': True}</field>
+    <field name="view_ids" eval="[(5, 0, 0),
+      (0, 0, {'view_mode': 'tree', 'view_id': ref('view_dms_customer_tree')}),
+      (0, 0, {'view_mode': 'form', 'view_id': ref('base.view_partner_form')}),
+    ]"/>
+  </record>
+
+  <!-- ===== 選單：獨立頂層 App ===== -->
+  <menuitem id="menu_dms_customer_root" name="客戶管理" sequence="25"/>
+  <menuitem id="menu_dms_customer" name="客戶清單"
+            parent="menu_dms_customer_root"
+            action="action_dms_customer" sequence="10"/>
+
+</odoo>

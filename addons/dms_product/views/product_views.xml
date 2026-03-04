@@ -64,15 +64,14 @@
                 <field name="energy_type"/>
                 <field name="active"/>
               </group>
-              <group string="顏色清單">
-                <field name="color_ids" nolabel="1">
-                  <tree editable="bottom">
-                    <field name="sequence" widget="handle"/>
-                    <field name="name" string="顏色名稱"/>
-                    <field name="active"/>
-                  </tree>
-                </field>
-              </group>
+              <separator string="顏色清單"/>
+              <field name="color_ids" nolabel="1">
+                <tree editable="bottom">
+                  <field name="sequence" widget="handle"/>
+                  <field name="name" string="顏色名稱"/>
+                  <field name="active"/>
+                </tree>
+              </field>
             </page>
 
             <!-- 頁籤2：動力規格（油車）— 僅 energy_type == 'oil' 時顯示 -->

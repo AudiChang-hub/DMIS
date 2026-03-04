@@ -1,0 +1,169 @@
+# 規格（01-spec）— dms_sale 銷售管理模組
+
+## 模組資訊
+
+| 項目 | 值 |
+|---|---|
+| 技術名稱 | `dms_sale` |
+| 顯示名稱 | DMS 銷售管理 |
+| 版本 | 16.0.1.0.0 |
+| 依賴 | `dms_core`, `dms_product`, `dms_pricelist`, `dms_customer` |
+| installable | True |
+| application | True |
+
+---
+
+## 模型 1：`dms.sale.order`（銷售訂單）
+
+### 識別區塊
+
+| 欄位 | 型別 | 必填 | 說明 |
+|---|---|---|---|
+| `name` | Char | ✓ | 訂單編號（自動序號 `SO{YYYYMM}{四碼}`，default='/'） |
+| `order_date` | Date | ✓ | 訂單日期（default=today） |
+| `sale_type` | Selection | ✓ | 交易類型：`store`=店面、`dealer`=車行（default='store'） |
+| `state` | Selection | ✓ | 狀態：`draft`=草稿、`confirmed`=確認、`cancel`=取消（default='draft'） |
+| `active` | Boolean | | 啟用（default=True） |
+
+### 客戶資訊區塊
+
+| 欄位 | 型別 | 必填 | 說明 |
+|---|---|---|---|
+| `customer_id` | Many2one → res.partner | | 客戶 |
+| `id_number` | Char（related） | | 身分證字號（唯讀，自 customer_id 帶出） |
+| `birthday_roc` | Char（related） | | 民國生日（唯讀，自 customer_id 帶出） |
+| `address_registered` | Text（related） | | 戶籍地址（唯讀，自 customer_id 帶出） |
+
+### 車輛資訊區塊
+
+| 欄位 | 型別 | 必填 | 說明 |
+|---|---|---|---|
+| `product_id` | Many2one → dms.product | ✓ | 車款 |
+| `product_energy_type` | Selection（related） | | 能源型式（唯讀，store=False，供 invisible 判斷） |
+| `color` | Char | | 顏色 |
+| `engine_number` | Char | | 引擎號碼 |
+| `frame_number` | Char | | 車身號碼 |
+| `plate_number` | Char | | 車牌號碼 |
+| `registration_date` | Date | | 領牌日期 |
+
+### 金流區塊
+
+| 欄位 | 型別 | 必填 | 說明 |
+|---|---|---|---|
+| `cash_price` | Float(12,0) | | 參考售價（onchange product_id 自動帶出） |
+| `amount_total` | Float(12,0) | | 實際收款價 |
+| `cost` | Float(12,0) | | 成本 |
+| `payment_method` | Selection | | 付款方式：`cash`=現金、`credit`=信用卡、`installment`=分期 |
+| `finance_company` | Char | | 分期公司（payment_method=installment 時顯示） |
+| `installment_periods` | Integer | | 分期期數（default=0） |
+| `installment_monthly` | Float(12,0) | | 月付金 |
+
+### 車行金流區塊（sale_type=dealer 時顯示）
+
+| 欄位 | 型別 | 必填 | 說明 |
+|---|---|---|---|
+| `dealer_id` | Many2one → dms.dealer | | 車行 |
+| `dealer_amount` | Float(12,0) | | 車行收款 |
+| `commission` | Float(12,0) | | 傭金（onchange dealer_id/product_id/periods 自動帶出） |
+
+### 牌險費區塊
+
+| 欄位 | 型別 | 說明 |
+|---|---|---|
+| `fee_vehicle_registration` | Float(12,0) | 代繳行照費 |
+| `fee_inspection` | Float(12,0) | 代繳檢驗費 |
+| `fee_plate` | Float(12,0) | 代繳號牌費 |
+| `fee_stamp` | Float(12,0) | 代繳刻印費 |
+| `fee_insurance` | Float(12,0) | 代繳保險費 |
+| `fee_guild_cert` | Float(12,0) | 公會證明費 |
+| `fee_document` | Float(12,0) | 文件處理費 |
+| `fee_other` | Float(12,0) | 其他 |
+| `fee_plate_selection` | Float(12,0) | 選號費 |
+| `fee_total` | Float（compute, store=True） | 牌險合計（以上 9 欄加總） |
+
+> 電車：onchange product_id 時自動從 `dms.ev.fee.schedule` 帶入，Form 頂部顯示資訊橫幅。
+> 油車：由使用者依監理站單據手動填入，Form 頂部顯示警告橫幅。
+
+### 精品與其他
+
+| 欄位 | 型別 | 說明 |
+|---|---|---|
+| `order_line_ids` | One2many → dms.sale.order.line | 精品明細 |
+| `helmet_count` | Integer | 安全帽（頂） |
+| `gift_voucher` | Float(12,0) | 禮卷/匯款 |
+| `gift_note` | Char | 贈品說明 |
+| `special_plan` | Char | 特殊方案 |
+| `note` | Text | 備註 |
+
+`_rec_name = 'name'`，`_order = 'order_date desc, name desc'`
+
+---
+
+## 模型 2：`dms.sale.order.line`（精品明細）
+
+| 欄位 | 型別 | 必填 | 說明 |
+|---|---|---|---|
+| `order_id` | Many2one → dms.sale.order | ✓ | 所屬訂單（ondelete=cascade） |
+| `sequence` | Integer | | 排序（handle widget，default=10） |
+| `accessory_id` | Many2one → dms.accessory | ✓ | 精品 |
+| `unit_price` | Float(12,0) | | 單價（onchange 自動帶入） |
+| `install_fee` | Float(12,0) | | 安裝費（onchange 自動帶入） |
+| `quantity` | Integer | | 數量（default=1） |
+| `subtotal` | Float（compute, store=True） | | 小計：(unit_price + install_fee) × quantity |
+
+`_rec_name = 'accessory_id'`，`_order = 'order_id, sequence'`
+
+---
+
+## 自動帶入邏輯（Onchange）
+
+| 觸發欄位 | 目標欄位 | 來源 | 邏輯 |
+|---|---|---|---|
+| `product_id` | `cash_price` | `dms.vehicle.price` | 取最新 valid_year_month，active=True |
+| `product_id`（電車） | 牌險費 8 欄 | `dms.ev.fee.schedule` | 取最新 valid_from，active=True |
+| `dealer_id` + `product_id` + `installment_periods` | `commission` | `dms.commission.rule` | 精確匹配 dealer+product+periods；fallback 至 product=留空 |
+| `accessory_id`（在 line） | `unit_price`, `install_fee` | `dms.accessory` | 直接帶出欄位值 |
+
+---
+
+## 狀態機
+
+```
+草稿（draft）→ 確認訂單 → 確認（confirmed）
+草稿（draft）→ 取消訂單 → 取消（cancel）
+確認（confirmed）→ 重回草稿 → 草稿（draft）
+取消（cancel）→ 重回草稿 → 草稿（draft）
+```
+
+---
+
+## 序號規則（ir.sequence）
+
+| 項目 | 值 |
+|---|---|
+| code | `dms.sale.order` |
+| prefix | `SO%(year)s%(month)s` |
+| padding | 4 |
+| 範例 | `SO2026030001` |
+
+---
+
+## 視圖規範
+
+- **tree**：所有欄位 optional（active=show，One2many 不顯示）
+- **form**：5 個 notebook tab（客戶與車輛、金流、牌險費、精品、其他）
+- **search**：欄位搜尋 + 店面/車行/狀態篩選 + 月份 groupby
+
+## 選單架構
+
+```
+DMS 銷售管理（menu_dms_sale_root，頂層）
+  └── 銷售訂單（sequence=10）→ action_sale_order
+```
+
+## ACL
+
+| model | group | R | W | C | D |
+|---|---|---|---|---|---|
+| dms.sale.order | 全員 | ✓ | ✓ | ✓ | ✓ |
+| dms.sale.order.line | 全員 | ✓ | ✓ | ✓ | ✓ |

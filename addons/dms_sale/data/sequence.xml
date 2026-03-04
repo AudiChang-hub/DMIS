@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+  <record id="seq_dms_sale_order" model="ir.sequence">
+    <field name="name">DMS 銷售訂單序號</field>
+    <field name="code">dms.sale.order</field>
+    <field name="prefix">SO%(year)s%(month)s</field>
+    <field name="padding">4</field>
+    <field name="number_increment">1</field>
+    <field name="number_next">1</field>
+  </record>
+</odoo>

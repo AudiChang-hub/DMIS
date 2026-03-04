@@ -9,7 +9,6 @@
     'data': [
         'security/ir.model.access.csv',
         'data/sequence.xml',
-        'views/vehicle_color_views.xml',
         'views/sale_order_views.xml',
     ],
     'installable': True,

@@ -1,4 +1,3 @@
 id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
 access_dms_sale_order_all,dms.sale.order all,model_dms_sale_order,,1,1,1,1
 access_dms_sale_order_line_all,dms.sale.order.line all,model_dms_sale_order_line,,1,1,1,1
-access_dms_vehicle_color_all,dms.vehicle.color all,model_dms_vehicle_color,,1,1,1,1

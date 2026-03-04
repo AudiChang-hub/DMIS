@@ -14,7 +14,6 @@
         <field name="year"        optional="show"/>
         <field name="brake_type"  optional="show"/>
         <field name="energy_type" optional="show"/>
-        <field name="color"       optional="show"/>
         <field name="active"      optional="show"/>
         <!-- 動力規格（油車）— 預設隱藏 -->
         <field name="engine_displacement" optional="hide"/>
@@ -63,8 +62,16 @@
                 <field name="year"/>
                 <field name="brake_type"/>
                 <field name="energy_type"/>
-                <field name="color"/>
                 <field name="active"/>
+              </group>
+              <group string="顏色清單">
+                <field name="color_ids" nolabel="1">
+                  <tree editable="bottom">
+                    <field name="sequence" widget="handle"/>
+                    <field name="name" string="顏色名稱"/>
+                    <field name="active"/>
+                  </tree>
+                </field>
               </group>
             </page>
 

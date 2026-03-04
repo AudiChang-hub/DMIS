@@ -37,7 +37,7 @@ class SaleOrder(models.Model):
         related='product_id.energy_type',
         string='能源型式', readonly=True, store=False)
     color_id = fields.Many2one(
-        'dms.vehicle.color', string='顏色',
+        'dms.product.color', string='顏色',
         domain="[('product_id', '=', product_id)]",
         ondelete='restrict')
     engine_number = fields.Char(string='引擎號碼')

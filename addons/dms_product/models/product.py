@@ -16,7 +16,8 @@ class DmsProduct(models.Model):
         string="能源型式",
         required=True,
     )
-    color = fields.Char(string="顏色")
+    color_ids = fields.One2many(
+        'dms.product.color', 'product_id', string='顏色清單')
     active = fields.Boolean(string="啟用", default=True)
 
     # ── 動力規格（油車） ──────────────────────────────────

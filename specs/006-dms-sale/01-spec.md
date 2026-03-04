@@ -29,10 +29,14 @@
 
 | 欄位 | 型別 | 必填 | 說明 |
 |---|---|---|---|
-| `customer_id` | Many2one → res.partner | | 客戶 |
-| `id_number` | Char（related） | | 身分證字號（唯讀，自 customer_id 帶出） |
-| `birthday_roc` | Char（related） | | 民國生日（唯讀，自 customer_id 帶出） |
-| `address_registered` | Text（related） | | 戶籍地址（唯讀，自 customer_id 帶出） |
+| `customer_id` | Many2one → res.partner | | 已建檔客戶（可選）；選取後 onchange 自動填入以下欄位 |
+| `customer_name` | Char | ✓ | 客戶姓名（可直接填入，不需先建檔） |
+| `customer_phone` | Char | | 聯絡電話 |
+| `id_number` | Char（stored） | | 身分證字號（可直接填入） |
+| `birthday_roc` | Char（stored） | | 民國生日（可直接填入，例：080年01月01日） |
+| `address_registered` | Text（stored） | | 戶籍地址（可直接填入） |
+
+> **UX 說明**：`customer_id` 僅為連結已建檔 Partner 的可選欄位；所有客戶資料欄位均可直接填寫，不需預先建立客戶資料。選取 `customer_id` 時 onchange 自動帶入姓名、電話、身分證、生日、戶籍地址。
 
 ### 車輛資訊區塊
 
@@ -40,7 +44,7 @@
 |---|---|---|---|
 | `product_id` | Many2one → dms.product | ✓ | 車款 |
 | `product_energy_type` | Selection（related） | | 能源型式（唯讀，store=False，供 invisible 判斷） |
-| `color` | Char | | 顏色 |
+| `color_id` | Many2one → dms.vehicle.color | | 顏色（domain: product_id，可選清單） |
 | `engine_number` | Char | | 引擎號碼 |
 | `frame_number` | Char | | 車身號碼 |
 | `plate_number` | Char | | 車牌號碼 |
@@ -81,14 +85,19 @@
 | `fee_plate_selection` | Float(12,0) | 選號費 |
 | `fee_total` | Float（compute, store=True） | 牌險合計（以上 9 欄加總） |
 
-> 電車：onchange product_id 時自動從 `dms.ev.fee.schedule` 帶入，Form 頂部顯示資訊橫幅。
-> 油車：由使用者依監理站單據手動填入，Form 頂部顯示警告橫幅。
+> **電車**：onchange product_id 時自動從 `dms.ev.fee.schedule` 帶入全部 9 個欄位，Form 頂部顯示資訊橫幅。
+> **油車**：僅顯示 3 個欄位：`fee_insurance`（強制險）、`fee_vehicle_registration`（領牌費）、`fee_other`（其他），其餘欄位隱藏，Form 頂部顯示警告橫幅。
+> 未選車款（product_energy_type 為空）：牌險費欄位全部隱藏，顯示提示訊息。
 
 ### 精品與其他
 
 | 欄位 | 型別 | 說明 |
 |---|---|---|
 | `order_line_ids` | One2many → dms.sale.order.line | 精品明細 |
+| `deposit_amount` | Float(12,0) | 訂金 |
+| `balance_amount` | Float（compute, store=True） | 尾款：amount_total - deposit_amount |
+| `is_settled` | Boolean | 已結清（default=False） |
+| `settle_date` | Date | 結清日期 |
 | `helmet_count` | Integer | 安全帽（頂） |
 | `gift_voucher` | Float(12,0) | 禮卷/匯款 |
 | `gift_note` | Char | 贈品說明 |

@@ -10,9 +10,13 @@
         <field name="name"              optional="show"/>
         <field name="order_date"        optional="show"/>
         <field name="sale_type"         optional="show"/>
-        <field name="customer_id"       optional="show"/>
+        <field name="customer_name"     optional="show"/>
+        <field name="customer_phone"    optional="hide"/>
         <field name="product_id"        optional="show"/>
         <field name="amount_total"      optional="show"/>
+        <field name="deposit_amount"    optional="hide"/>
+        <field name="balance_amount"    optional="hide"/>
+        <field name="is_settled"        optional="show"/>
         <field name="plate_number"      optional="hide"/>
         <field name="registration_date" optional="hide"/>
         <field name="dealer_id"         optional="hide"/>
@@ -43,7 +47,7 @@
           <div class="oe_title">
             <h1><field name="name" readonly="1"/></h1>
           </div>
-          <!-- 隱藏欄位供 attrs 條件使用 -->
+          <!-- 供 attrs 條件使用的隱藏欄位 -->
           <field name="product_energy_type" invisible="1"/>
           <group>
             <group>
@@ -61,20 +65,31 @@
 
             <!-- ===== Tab 1：客戶與車輛 ===== -->
             <page string="客戶與車輛">
+
               <group string="客戶資訊">
                 <group>
-                  <field name="customer_id"/>
-                  <field name="id_number" readonly="1"/>
-                  <field name="birthday_roc" readonly="1"/>
+                  <!-- 客戶姓名：必填，可直接填寫，不需預先建檔 -->
+                  <field name="customer_name"/>
+                  <field name="customer_phone"/>
+                  <field name="id_number"/>
+                  <field name="birthday_roc"/>
                 </group>
                 <group>
-                  <field name="address_registered" readonly="1"/>
+                  <field name="address_registered"/>
+                  <!-- 已建檔客戶（可選）：選取後自動帶入以上欄位 -->
+                  <field name="customer_id"
+                         string="已建檔客戶（可選）"
+                         options="{'no_create': False}"
+                         help="選取已建檔客戶可自動帶入姓名、電話、身分證等資料；若客戶未建檔，可直接在上方欄位填寫資料。"/>
                 </group>
               </group>
+
               <group string="車輛資訊">
                 <group>
                   <field name="product_id"/>
-                  <field name="color"/>
+                  <field name="color_id"
+                         attrs="{'invisible': [('product_id', '=', False)]}"
+                         options="{'no_create': False}"/>
                   <field name="engine_number"/>
                   <field name="frame_number"/>
                 </group>
@@ -90,7 +105,7 @@
               <group string="售價">
                 <group>
                   <field name="cash_price"/>
-                  <field name="amount_total"/>
+                  <field name="amount_total" string="總成交價"/>
                   <field name="cost"/>
                 </group>
                 <group>
@@ -103,6 +118,19 @@
                          attrs="{'invisible': [('payment_method', '!=', 'installment')]}"/>
                 </group>
               </group>
+
+              <group string="付款狀態">
+                <group>
+                  <field name="deposit_amount"/>
+                  <field name="balance_amount" readonly="1"/>
+                </group>
+                <group>
+                  <field name="is_settled"/>
+                  <field name="settle_date"
+                         attrs="{'invisible': [('is_settled', '=', False)]}"/>
+                </group>
+              </group>
+
               <group string="車行金流"
                      attrs="{'invisible': [('sale_type', '!=', 'dealer')]}">
                 <group>
@@ -114,15 +142,19 @@
 
             <!-- ===== Tab 3：牌險費 ===== -->
             <page string="牌險費">
+
+              <!-- 未選擇車款時提示 -->
+              <div class="alert alert-secondary" role="alert"
+                   attrs="{'invisible': [('product_id', '!=', False)]}">
+                請先在「客戶與車輛」頁籤選擇車款後，系統將顯示對應的牌險費欄位。
+              </div>
+
+              <!-- ── 電車：自動帶入全部欄位 ── -->
               <div class="alert alert-info" role="alert"
                    attrs="{'invisible': [('product_energy_type', '!=', 'electric')]}">
-                <strong>電車：</strong>牌險費已從費率表自動帶入，如有異動請手動調整。
+                <strong>電車牌險費</strong>：已從費率表自動帶入，如有異動請手動調整。
               </div>
-              <div class="alert alert-warning" role="alert"
-                   attrs="{'invisible': [('product_energy_type', '!=', 'oil')]}">
-                <strong>油車牌險費：</strong>請依監理站換發單據填入實際金額。
-              </div>
-              <group>
+              <group attrs="{'invisible': [('product_energy_type', '!=', 'electric')]}">
                 <group>
                   <field name="fee_vehicle_registration"/>
                   <field name="fee_inspection"/>
@@ -137,7 +169,22 @@
                   <field name="fee_other"/>
                 </group>
               </group>
-              <group>
+
+              <!-- ── 油車：僅顯示 3 個必要欄位 ── -->
+              <div class="alert alert-warning" role="alert"
+                   attrs="{'invisible': [('product_energy_type', '!=', 'oil')]}">
+                <strong>油車牌險費</strong>：請依監理站換發單據填入實際金額。
+              </div>
+              <group attrs="{'invisible': [('product_energy_type', '!=', 'oil')]}">
+                <group>
+                  <field name="fee_insurance"            string="強制險"/>
+                  <field name="fee_vehicle_registration" string="領牌費"/>
+                  <field name="fee_other"                string="其他"/>
+                </group>
+              </group>
+
+              <!-- 合計（需已選車款） -->
+              <group attrs="{'invisible': [('product_id', '=', False)]}">
                 <field name="fee_total" readonly="1"/>
               </group>
             </page>
@@ -185,20 +232,25 @@
     <field name="model">dms.sale.order</field>
     <field name="arch" type="xml">
       <search string="搜尋銷售訂單">
-        <field name="name" string="訂單編號"/>
-        <field name="customer_id" string="客戶"/>
-        <field name="product_id" string="車款"/>
-        <field name="dealer_id" string="車行"/>
-        <field name="plate_number" string="車牌"/>
+        <field name="name"          string="訂單編號"/>
+        <field name="customer_name" string="客戶姓名"/>
+        <field name="customer_id"   string="已建檔客戶"/>
+        <field name="id_number"     string="身分證字號"/>
+        <field name="product_id"    string="車款"/>
+        <field name="dealer_id"     string="車行"/>
+        <field name="plate_number"  string="車牌"/>
         <field name="engine_number" string="引擎號碼"/>
-        <field name="frame_number" string="車身號碼"/>
+        <field name="frame_number"  string="車身號碼"/>
         <separator/>
         <filter name="filter_store"  string="店面" domain="[('sale_type','=','store')]"/>
         <filter name="filter_dealer" string="車行" domain="[('sale_type','=','dealer')]"/>
         <separator/>
-        <filter name="filter_draft"     string="草稿" domain="[('state','=','draft')]"/>
-        <filter name="filter_confirmed" string="確認" domain="[('state','=','confirmed')]"/>
+        <filter name="filter_draft"     string="草稿"   domain="[('state','=','draft')]"/>
+        <filter name="filter_confirmed" string="確認"   domain="[('state','=','confirmed')]"/>
         <filter name="filter_cancel"    string="已取消" domain="[('state','=','cancel')]"/>
+        <separator/>
+        <filter name="filter_unsettled" string="未結清" domain="[('is_settled','=',False),('state','=','confirmed')]"/>
+        <filter name="filter_settled"   string="已結清" domain="[('is_settled','=',True)]"/>
         <separator/>
         <filter name="filter_active"   string="啟用中" domain="[('active','=',True)]"/>
         <filter name="filter_archived" string="已歸檔" domain="[('active','=',False)]"/>
@@ -207,6 +259,7 @@
           <filter name="groupby_product" string="車款"     context="{'group_by': 'product_id'}"/>
           <filter name="groupby_dealer"  string="車行"     context="{'group_by': 'dealer_id'}"/>
           <filter name="groupby_month"   string="月份"     context="{'group_by': 'order_date:month'}"/>
+          <filter name="groupby_settled" string="結清狀態" context="{'group_by': 'is_settled'}"/>
         </group>
       </search>
     </field>

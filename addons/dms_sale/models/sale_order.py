@@ -21,13 +21,14 @@ class SaleOrder(models.Model):
     active = fields.Boolean(string='啟用', default=True)
 
     # ── 客戶資訊 ──────────────────────────────────────────
-    customer_id = fields.Many2one('res.partner', string='客戶', ondelete='restrict')
-    id_number = fields.Char(
-        related='customer_id.id_number', string='身分證字號', readonly=True)
-    birthday_roc = fields.Char(
-        related='customer_id.dms_birthday_roc', string='民國生日', readonly=True)
-    address_registered = fields.Text(
-        related='customer_id.address_registered', string='戶籍地址', readonly=True)
+    customer_id = fields.Many2one(
+        'res.partner', string='已建檔客戶', ondelete='restrict',
+        help='可選：選取已建檔客戶時自動帶入下方資料，不常化也可直接填寫')
+    customer_name = fields.Char(string='客戶姓名', required=True)
+    customer_phone = fields.Char(string='聯絡電話')
+    id_number = fields.Char(string='身分證字號')
+    birthday_roc = fields.Char(string='民國生日')
+    address_registered = fields.Text(string='戶籍地址')
 
     # ── 車輛資訊 ──────────────────────────────────────────
     product_id = fields.Many2one(
@@ -35,7 +36,10 @@ class SaleOrder(models.Model):
     product_energy_type = fields.Selection(
         related='product_id.energy_type',
         string='能源型式', readonly=True, store=False)
-    color = fields.Char(string='顏色')
+    color_id = fields.Many2one(
+        'dms.vehicle.color', string='顏色',
+        domain="[('product_id', '=', product_id)]",
+        ondelete='restrict')
     engine_number = fields.Char(string='引擎號碼')
     frame_number = fields.Char(string='車身號碼')
     plate_number = fields.Char(string='車牌號碼')
@@ -75,7 +79,13 @@ class SaleOrder(models.Model):
     # ── 精品明細 ──────────────────────────────────────────
     order_line_ids = fields.One2many(
         'dms.sale.order.line', 'order_id', string='精品明細')
-
+    # ── 付款狀態 ──────────────────────────────────────────
+    deposit_amount = fields.Float(string='訂金', digits=(12, 0), default=0)
+    balance_amount = fields.Float(
+        string='尾款', digits=(12, 0),
+        compute='_compute_balance', store=True)
+    is_settled = fields.Boolean(string='已結清', default=False)
+    settle_date = fields.Date(string='結清日期')
     # ── 其他 ──────────────────────────────────────────────
     helmet_count = fields.Integer(string='安全帽（頂）')
     gift_voucher = fields.Float(string='禮卷/匯款', digits=(12, 0))
@@ -97,6 +107,11 @@ class SaleOrder(models.Model):
                 rec.fee_other + rec.fee_plate_selection
             )
 
+    @api.depends('amount_total', 'deposit_amount')
+    def _compute_balance(self):
+        for rec in self:
+            rec.balance_amount = (rec.amount_total or 0) - (rec.deposit_amount or 0)
+
     # ── 序號 ──────────────────────────────────────────────
     @api.model_create_multi
     def create(self, vals_list):
@@ -107,8 +122,19 @@ class SaleOrder(models.Model):
         return super().create(vals_list)
 
     # ── Onchange ──────────────────────────────────────────
+    @api.onchange('customer_id')
+    def _onchange_customer_id(self):
+        if self.customer_id:
+            p = self.customer_id
+            self.customer_name = p.name
+            self.customer_phone = p.phone or p.mobile or ''
+            self.id_number = getattr(p, 'id_number', '') or ''
+            self.birthday_roc = getattr(p, 'dms_birthday_roc', '') or ''
+            self.address_registered = getattr(p, 'address_registered', '') or ''
+
     @api.onchange('product_id')
     def _onchange_product_id(self):
+        self.color_id = False  # 車款變更時清空顏色
         if not self.product_id:
             return
         # 帶入現金售價（取最新有效月份）

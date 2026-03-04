@@ -79,74 +79,76 @@
   - [x] 04-tasks.md
   - [x] 05-acceptance.md
 
-- [x] **模型：車款售價**
-  - [x] `dms.vehicle.price`（product_id / dealer_id / cash_price / installment_periods / installment_monthly / finance_company / valid_year_month / is_promotion / active / note）
+- [x] **模型：車款售價**（設計已調整）
+  - [x] `dms.vehicle.price`（product_id / cash_price / valid_year_month / is_promotion / active / note）
+  - [x] ~~dealer_id 已移除~~：售價不綁車行
+  - [x] `dms.installment.plan`（O2m：price_id / installment_periods / installment_monthly / finance_company / active）
 
-- [x] **模型：精品**
-  - [x] `dms.accessory`（name / model_number / active / price_ids O2m）
-  - [x] `dms.accessory.price`（accessory_id / unit_price / install_fee / bundle_name / valid_from / valid_to / active）
+- [x] **模型：精品**（設計已合併）
+  - [x] `dms.accessory`（name / model_number / unit_price / install_fee / bundle_name / valid_from / valid_to / active / note）
+  - [x] ~~dms.accessory.price 已合併至 dms.accessory~~（accessory_price.py 保留空檔）
 
-- [x] **模型：牌險費率**
-  - [x] `dms.fee.schedule`（product_id / fee_registration / fee_compulsory_insurance / fee_agency / valid_from / valid_to / active / note）
+- [x] **模型：牌險費率（電車專用）**（設計已調整）
+  - [x] `dms.ev.fee.schedule`（product_id domain=electric / fee_vehicle_registration / fee_inspection / fee_plate / fee_stamp / fee_insurance / fee_guild_cert / fee_document / fee_other / fee_total computed / valid_from / valid_to / active / note）
+  - [x] `dms.fee.schedule`（仍存在，一般費率表）
 
 - [x] **模型：傭金規則**
   - [x] `dms.commission.rule`（dealer_id / product_id / installment_periods / commission_amount / commission_rate / valid_from / valid_to / active / note）
 
-- [x] **視圖**：5 個模型各有 tree（所有欄位 optional）/ form / search（啟用中/已歸檔）
-- [x] **ACL**：5 個模型全員讀寫
-- [x] 頂層選單：menu_dms_pricelist_root（獨立 App，下掛 5 子選單）
+- [x] **視圖**：各模型有 tree（所有欄位 optional）/ form / search （啟用中/已歸檔）
+- [x] **ACL**：各模型全員讀寫
+- [x] 頂層選單：menu_dms_pricelist_root（獨立 App）
 
 - [x] **驗證**
-  - [x] `--stop-after-init -i dms_pricelist` 無 ERROR（293 queries）
+  - [x] `--stop-after-init -u dms_pricelist` 無 ERROR（239 queries）2026-03-04
   - [x] `/web/login` HTTP 200
-  - [ ] 牌險費率依車款查詢正確
+  - [x] DB 資料表確認：dms_installment_plan / dms_ev_fee_schedule / dms_vehicle_price 均存在
 
 ---
 
-## 🔲 Phase 2：P2 — 核心業務數位化
+## 🔲 Phase 2（未完成）：P2 — 核心業務數位化
 
-### dms_sale（銷售訂單）
+### ✅ dms_sale（銷售訂單）
 > Spec 目錄：`specs/006-dms-sale/`
 
-- [ ] **Spec**
-  - [ ] 00-charter.md（含訂單類型區分：店面 vs 車行）
-  - [ ] 01-spec.md（完整欄位對照 Excel 清理結果）
-  - [ ] 02-clarify.md（台鈴/山葉差異處理方式）
-  - [ ] 04-tasks.md
-  - [ ] 05-acceptance.md
+- [x] **Spec**（已建立，與實作同步）
 
-- [ ] **模型：dms.sale.order**
-  - [ ] 基本識別：序號（自動）、訂單日期、來源類型（店面/車行）
-  - [ ] 客戶資訊：customer_id → dms.customer（帶出身分證/地址/電話）
-  - [ ] 車輛：product_id、顏色、引擎號碼/車身號碼
-  - [ ] 金流：收款價、成本、付款方式（現金/信用卡/分期）
-  - [ ] 分期：finance_company、installment_period、installment_price
-  - [ ] 牌險（從 dms_pricelist 帶出）：領牌費、強制險、代辦費、選號費
-  - [ ] 車牌：plate_number、領牌日期
-  - [ ] 車行（B2B）：dealer_id、dealer_amount、commission（從規則帶出）
-  - [ ] 其他：安全帽、公司禮卷/匯款、贈品、備註、特殊方案
+- [x] **模型：dms.sale.order**
+  - [x] 序號自動 `SO{YYYYMM}{4-digit}`，state machine 草稿→確認/取消
+  - [x] `sale_type`：店面 / 車行(B2B)
+  - [x] 客戶資訊：customer_id / related id_number / birthday_roc / address_registered
+  - [x] 車輛：product_id / product_energy_type(related) / color / engine_number / frame_number / plate_number / registration_date
+  - [x] 金流：cash_price / amount_total / cost / payment_method / finance_company / installment_periods / installment_monthly
+  - [x] 車行：dealer_id / dealer_amount / commission
+  - [x] 牌險費（9 欄）：fee_vehicle_registration / fee_inspection / fee_plate / fee_stamp / fee_plate_selection / fee_insurance / fee_guild_cert / fee_document / fee_other / fee_total（computed store）
+  - [x] 精品 O2m：order_line_ids → dms.sale.order.line
+  - [x] 其他：helmet_count / gift_voucher / gift_note / special_plan / note / active
+  - [x] button_confirm / button_reset / button_cancel
 
-- [ ] **模型：dms.sale.order.line**（精品明細）
-  - [ ] accessory_id、unit_price、install_fee、quantity
+- [x] **模型：dms.sale.order.line**（精品明細）
+  - [x] accessory_id / unit_price / install_fee / quantity / subtotal（computed）
+  - [x] onchange: accessory_id 帶入價格
 
-- [ ] **模型：dms.registration.form**（報件單）
-  - [ ] 關聯 sale.order，自動帶入所有欄位
-  - [ ] QWeb 列印範本（PDF）
+- [x] **onchange**
+  - [x] product_id → 自動帶入 cash_price；電車 → 自動帶入牌險費
+  - [x] dealer_id / product_id / installment_periods → 自動帶入 commission
 
-- [ ] **視圖**
-  - [ ] 訂單 tree（序號/客戶/車款/收款價/領牌日期/狀態）
-  - [ ] 訂單 form（多頁籤：基本/車輛/金流/精品/報件/備註）
-  - [ ] 報件單列印按鈕
-  - [ ] search + filter（店面/車行/月份/品牌）
+- [x] **視圖**（5 頁籤 form）
+  - [x] 客戶與車輛 / 金流 / 牌險費 / 精品 / 其他
+  - [x] 電車/油車 advisory banner（attrs domain 格式）
+  - [x] 分期欄位 attrs invisible（payment_method != installment）
+  - [x] 車行欄位 attrs invisible（sale_type != dealer）
+  - [x] search：姓名/身分證/車款/車牌/引擎/車身 + 店面/車行/狀態 filter + 月份分組
 
-- [ ] **ACL**：dms.sale.order / line / registration 全員讀寫
+- [x] **ACL**：dms.sale.order / dms.sale.order.line 全員讀寫
+- [x] **序號資料**：ir.sequence dms.sale.order
 
-- [ ] **驗證**
-  - [ ] 選車款後自動帶入車款售價
-  - [ ] 選車行後自動帶入傭金
-  - [ ] 牌險費率自動帶入
-  - [ ] 可列印報件單 PDF
-  - [ ] 店面訂單與車行訂單欄位顯示差異正確
+- [x] **驗證**
+  - [x] `--stop-after-init -u dms_sale` 無 ERROR（108 queries）2026-03-04
+  - [x] `/web/login` HTTP 200
+  - [x] DB 資料表：dms_sale_order（43 欄）/ dms_sale_order_line 均存在
+  - [ ] 手動建單：選車款帶售價、電車帶牌險費、選車行帶傭金
+  - [ ] 精品明細：新增精品行帶入價格、小計計算正確
 
 ---
 

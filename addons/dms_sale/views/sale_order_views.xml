@@ -1,0 +1,223 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+  <!-- ===== 清單視圖 ===== -->
+  <record id="view_sale_order_tree" model="ir.ui.view">
+    <field name="name">dms.sale.order.tree</field>
+    <field name="model">dms.sale.order</field>
+    <field name="arch" type="xml">
+      <tree string="銷售訂單">
+        <field name="name"              optional="show"/>
+        <field name="order_date"        optional="show"/>
+        <field name="sale_type"         optional="show"/>
+        <field name="customer_id"       optional="show"/>
+        <field name="product_id"        optional="show"/>
+        <field name="amount_total"      optional="show"/>
+        <field name="plate_number"      optional="hide"/>
+        <field name="registration_date" optional="hide"/>
+        <field name="dealer_id"         optional="hide"/>
+        <field name="state"             optional="show"/>
+        <field name="active"            optional="show"/>
+      </tree>
+    </field>
+  </record>
+
+  <!-- ===== 表單視圖 ===== -->
+  <record id="view_sale_order_form" model="ir.ui.view">
+    <field name="name">dms.sale.order.form</field>
+    <field name="model">dms.sale.order</field>
+    <field name="arch" type="xml">
+      <form string="銷售訂單">
+        <header>
+          <button string="確認訂單" name="button_confirm" type="object"
+                  class="oe_highlight" invisible="state != 'draft'"/>
+          <button string="重回草稿" name="button_reset" type="object"
+                  invisible="state not in ('confirmed', 'cancel')"/>
+          <button string="取消訂單" name="button_cancel" type="object"
+                  invisible="state not in ('draft', 'confirmed')"/>
+          <field name="state" widget="statusbar"
+                 statusbar_visible="draft,confirmed,cancel"/>
+        </header>
+        <sheet>
+          <div class="oe_title">
+            <h1><field name="name" readonly="1"/></h1>
+          </div>
+          <group>
+            <group>
+              <field name="order_date"/>
+              <field name="sale_type"/>
+              <field name="active"/>
+            </group>
+            <group>
+              <field name="dealer_id" invisible="sale_type != 'dealer'"/>
+            </group>
+          </group>
+
+          <notebook>
+
+            <!-- ===== Tab 1：客戶與車輛 ===== -->
+            <page string="客戶與車輛">
+              <group string="客戶資訊">
+                <group>
+                  <field name="customer_id"/>
+                  <field name="id_number" readonly="1"/>
+                  <field name="birthday_roc" readonly="1"/>
+                </group>
+                <group>
+                  <field name="address_registered" readonly="1"/>
+                </group>
+              </group>
+              <group string="車輛資訊">
+                <group>
+                  <field name="product_id"/>
+                  <field name="color"/>
+                  <field name="engine_number"/>
+                  <field name="frame_number"/>
+                </group>
+                <group>
+                  <field name="plate_number"/>
+                  <field name="registration_date"/>
+                </group>
+              </group>
+            </page>
+
+            <!-- ===== Tab 2：金流 ===== -->
+            <page string="金流">
+              <group string="售價">
+                <group>
+                  <field name="cash_price"/>
+                  <field name="amount_total"/>
+                  <field name="cost"/>
+                </group>
+                <group>
+                  <field name="payment_method"/>
+                  <field name="finance_company"
+                         invisible="payment_method != 'installment'"/>
+                  <field name="installment_periods"
+                         invisible="payment_method != 'installment'"/>
+                  <field name="installment_monthly"
+                         invisible="payment_method != 'installment'"/>
+                </group>
+              </group>
+              <group string="車行金流" invisible="sale_type != 'dealer'">
+                <group>
+                  <field name="dealer_amount"/>
+                  <field name="commission"/>
+                </group>
+              </group>
+            </page>
+
+            <!-- ===== Tab 3：牌險費 ===== -->
+            <page string="牌險費">
+              <div class="alert alert-info" role="alert"
+                   invisible="product_energy_type != 'electric'">
+                <strong>電車：</strong>牌險費已從費率表自動帶入，如有異動請手動調整。
+              </div>
+              <div class="alert alert-warning" role="alert"
+                   invisible="product_energy_type != 'oil'">
+                <strong>油車牌險費：</strong>請依監理站換發單據填入實際金額。
+              </div>
+              <group>
+                <group>
+                  <field name="fee_vehicle_registration"/>
+                  <field name="fee_inspection"/>
+                  <field name="fee_plate"/>
+                  <field name="fee_stamp"/>
+                  <field name="fee_plate_selection"/>
+                </group>
+                <group>
+                  <field name="fee_insurance"/>
+                  <field name="fee_guild_cert"/>
+                  <field name="fee_document"/>
+                  <field name="fee_other"/>
+                </group>
+              </group>
+              <group>
+                <field name="fee_total" readonly="1"/>
+              </group>
+            </page>
+
+            <!-- ===== Tab 4：精品 ===== -->
+            <page string="精品">
+              <field name="order_line_ids">
+                <tree editable="bottom">
+                  <field name="sequence" widget="handle"/>
+                  <field name="accessory_id"/>
+                  <field name="unit_price"/>
+                  <field name="install_fee"/>
+                  <field name="quantity"/>
+                  <field name="subtotal" readonly="1"/>
+                </tree>
+              </field>
+            </page>
+
+            <!-- ===== Tab 5：其他 ===== -->
+            <page string="其他">
+              <group>
+                <group>
+                  <field name="helmet_count"/>
+                  <field name="gift_voucher"/>
+                  <field name="gift_note"/>
+                </group>
+                <group>
+                  <field name="special_plan"/>
+                </group>
+              </group>
+              <group string="備註">
+                <field name="note" nolabel="1"/>
+              </group>
+            </page>
+
+          </notebook>
+        </sheet>
+      </form>
+    </field>
+  </record>
+
+  <!-- ===== 搜尋視圖 ===== -->
+  <record id="view_sale_order_search" model="ir.ui.view">
+    <field name="name">dms.sale.order.search</field>
+    <field name="model">dms.sale.order</field>
+    <field name="arch" type="xml">
+      <search string="搜尋銷售訂單">
+        <field name="name" string="訂單編號"/>
+        <field name="customer_id" string="客戶"/>
+        <field name="product_id" string="車款"/>
+        <field name="dealer_id" string="車行"/>
+        <field name="plate_number" string="車牌"/>
+        <field name="engine_number" string="引擎號碼"/>
+        <field name="frame_number" string="車身號碼"/>
+        <separator/>
+        <filter name="filter_store"  string="店面" domain="[('sale_type','=','store')]"/>
+        <filter name="filter_dealer" string="車行" domain="[('sale_type','=','dealer')]"/>
+        <separator/>
+        <filter name="filter_draft"     string="草稿" domain="[('state','=','draft')]"/>
+        <filter name="filter_confirmed" string="確認" domain="[('state','=','confirmed')]"/>
+        <filter name="filter_cancel"    string="已取消" domain="[('state','=','cancel')]"/>
+        <separator/>
+        <filter name="filter_active"   string="啟用中" domain="[('active','=',True)]"/>
+        <filter name="filter_archived" string="已歸檔" domain="[('active','=',False)]"/>
+        <group expand="0" string="分組">
+          <filter name="groupby_type"    string="交易類型" context="{'group_by': 'sale_type'}"/>
+          <filter name="groupby_product" string="車款"     context="{'group_by': 'product_id'}"/>
+          <filter name="groupby_dealer"  string="車行"     context="{'group_by': 'dealer_id'}"/>
+          <filter name="groupby_month"   string="月份"     context="{'group_by': 'order_date:month'}"/>
+        </group>
+      </search>
+    </field>
+  </record>
+
+  <!-- ===== 動作 ===== -->
+  <record id="action_sale_order" model="ir.actions.act_window">
+    <field name="name">銷售訂單</field>
+    <field name="res_model">dms.sale.order</field>
+    <field name="view_mode">tree,form</field>
+    <field name="context">{'form_view_initial_mode': 'edit'}</field>
+  </record>
+
+  <!-- ===== 選單 ===== -->
+  <menuitem id="menu_dms_sale_root" name="DMS 銷售管理"/>
+  <menuitem id="menu_sale_order" name="銷售訂單" parent="menu_dms_sale_root"
+            action="action_sale_order" sequence="10"/>
+
+</odoo>

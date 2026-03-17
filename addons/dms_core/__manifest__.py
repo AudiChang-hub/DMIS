@@ -22,6 +22,8 @@
             'dms_core/static/src/scss/dealer.scss',
             'dms_core/static/src/scss/dms_theme.scss',
             'dms_core/static/src/js/dms_dealer_column_limit.js',
+            'dms_core/static/src/xml/color_dot_field.xml',
+            'dms_core/static/src/js/color_dot_field.js',
         ],
     },
 

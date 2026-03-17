@@ -177,3 +177,86 @@ a:not(.btn):not(.nav-link):not(.o_menu_brand):not(.o_nav_entry) {
         }
     }
 }
+
+// ── 11. 標色圓點（ColorDotField）────────────────────────────
+// 規格：specs/000-roadmap/03-ui-standards.md § 9. 標色圓點
+//
+// 色碼慣例（與 LINE 群組管理一致）：
+//   yellow → 三陽專賣   blue → 台鈴   pink → 三陽   gray → 其他
+
+// 圓點本體
+.dms-color-dot {
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    vertical-align: middle;
+    flex-shrink: 0;
+
+    &[data-color="yellow"] { background-color: #FFD000; }
+    &[data-color="blue"]   { background-color: #003087; }
+    &[data-color="pink"]   { background-color: #FF8FAB; }
+    &[data-color="gray"],
+    &[data-color=""]       { background-color: #BDBDBD; }
+}
+
+// 列表視圖中：color_tag 欄位極窄，視覺上貼近店名欄
+.o_list_view {
+    td[name="color_tag"],
+    th[data-name="color_tag"] {
+        width: 24px;
+        min-width: 24px;
+        max-width: 32px;
+        padding-right: 0 !important;
+        text-align: center;
+    }
+}
+
+// 表單視圖：調色盤（可點選的圓點列）
+.dms-color-dot-picker {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 14px;
+    align-items: center;
+    padding: 6px 0;
+
+    .dms-color-dot-option {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        cursor: pointer;
+        margin: 0;
+
+        input[type="radio"] {
+            // 隱藏原生 radio，由圓點本身作狀態指示
+            position: absolute;
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .dms-color-dot {
+            width: 20px;
+            height: 20px;
+            border: 2px solid transparent;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+            transition: transform 0.15s ease, border-color 0.15s ease;
+        }
+
+        input[type="radio"]:checked + .dms-color-dot {
+            border-color: #444;
+            transform: scale(1.30);
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.30);
+        }
+
+        .dms-color-dot-label {
+            font-size: 0.85rem;
+            color: #555;
+        }
+
+        &:hover .dms-color-dot {
+            transform: scale(1.15);
+        }
+    }
+}
+

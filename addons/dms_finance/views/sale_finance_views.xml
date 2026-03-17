@@ -1,0 +1,123 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+  <!-- ===== 財務結算 清單視圖 ===== -->
+  <record id="view_sale_finance_tree" model="ir.ui.view">
+    <field name="name">dms.sale.finance.tree</field>
+    <field name="model">dms.sale.finance</field>
+    <field name="arch" type="xml">
+      <tree string="財務結算">
+        <field name="sale_order_id"  optional="show"/>
+        <field name="total_income"   optional="show" sum="收入合計"/>
+        <field name="total_expense"  optional="show" sum="支出合計"/>
+        <field name="net_profit"     optional="show" sum="淨利合計"/>
+      </tree>
+    </field>
+  </record>
+
+  <!-- ===== 財務結算 表單視圖 ===== -->
+  <record id="view_sale_finance_form" model="ir.ui.view">
+    <field name="name">dms.sale.finance.form</field>
+    <field name="model">dms.sale.finance</field>
+    <field name="arch" type="xml">
+      <form string="財務結算">
+        <sheet>
+          <div class="oe_title">
+            <h1><field name="sale_order_id" readonly="1"/></h1>
+          </div>
+
+          <group>
+            <group>
+              <field name="sale_order_id"/>
+            </group>
+          </group>
+
+          <notebook>
+
+            <!-- ===== Tab 1：收入明細 ===== -->
+            <page string="收入明細">
+              <field name="income_ids">
+                <tree editable="bottom">
+                  <field name="type"/>
+                  <field name="amount" sum="小計"/>
+                  <field name="note"/>
+                </tree>
+              </field>
+              <group>
+                <group>
+                  <field name="total_income" readonly="1"/>
+                </group>
+              </group>
+            </page>
+
+            <!-- ===== Tab 2：支出明細 ===== -->
+            <page string="支出明細">
+              <field name="expense_ids">
+                <tree editable="bottom">
+                  <field name="type"/>
+                  <field name="amount" sum="小計"/>
+                  <field name="note"/>
+                </tree>
+              </field>
+              <group>
+                <group>
+                  <field name="total_expense" readonly="1"/>
+                </group>
+              </group>
+            </page>
+
+            <!-- ===== Tab 3：彙總 ===== -->
+            <page string="彙總">
+              <group string="淨利計算">
+                <group>
+                  <field name="total_income"  readonly="1"/>
+                  <field name="total_expense" readonly="1"/>
+                  <field name="net_profit"    readonly="1"/>
+                </group>
+              </group>
+              <group string="備註">
+                <field name="note" nolabel="1"/>
+              </group>
+            </page>
+
+          </notebook>
+        </sheet>
+      </form>
+    </field>
+  </record>
+
+  <!-- ===== 財務結算 搜尋視圖 ===== -->
+  <record id="view_sale_finance_search" model="ir.ui.view">
+    <field name="name">dms.sale.finance.search</field>
+    <field name="model">dms.sale.finance</field>
+    <field name="arch" type="xml">
+      <search string="搜尋財務結算">
+        <field name="sale_order_id" string="銷售訂單"/>
+        <separator/>
+        <filter name="filter_profit_positive" string="有淨利"
+                domain="[('net_profit', '&gt;', 0)]"/>
+        <filter name="filter_profit_negative" string="虧損"
+                domain="[('net_profit', '&lt;', 0)]"/>
+        <group expand="0" string="分組">
+          <filter name="groupby_order" string="銷售訂單"
+                  context="{'group_by': 'sale_order_id'}"/>
+        </group>
+      </search>
+    </field>
+  </record>
+
+  <!-- ===== 動作 ===== -->
+  <record id="action_dms_sale_finance" model="ir.actions.act_window">
+    <field name="name">財務結算</field>
+    <field name="res_model">dms.sale.finance</field>
+    <field name="view_mode">tree,form</field>
+    <field name="context">{'form_view_initial_mode': 'edit'}</field>
+  </record>
+
+  <!-- ===== 選單 ===== -->
+  <menuitem id="menu_dms_finance_root" name="財務結算" sequence="30"/>
+  <menuitem id="menu_dms_finance_list" name="財務結算"
+            parent="menu_dms_finance_root"
+            action="action_dms_sale_finance" sequence="10"/>
+
+</odoo>

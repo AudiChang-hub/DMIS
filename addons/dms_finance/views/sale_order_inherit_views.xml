@@ -7,12 +7,18 @@
     <field name="model">dms.sale.order</field>
     <field name="inherit_id" ref="dms_sale.view_sale_order_form"/>
     <field name="arch" type="xml">
-      <xpath expr="//sheet/div[@class='oe_title']" position="before">
+      <xpath expr="//sheet/div[hasclass('oe_title')]" position="before">
         <div class="oe_button_box" name="button_box">
           <button name="action_view_finance" type="object"
                   class="oe_stat_button" icon="fa-calculator">
-            <field name="finance_count" widget="statinfo" string="財務結算"/>
+            <field name="finance_count" widget="statinfo" string="查看財務結算"/>
           </button>
+        </div>
+      </xpath>
+      <xpath expr="//sheet/div[hasclass('oe_title')]" position="after">
+        <div class="alert alert-info" role="alert"
+             attrs="{'invisible': [('finance_count', '=', 0)]}">
+          ℹ 此訂單已建立財務結算。若後續修改售價、牌險費或傭金等金流欄位，請記得至財務結算記錄中同步更新對應金額。
         </div>
       </xpath>
     </field>

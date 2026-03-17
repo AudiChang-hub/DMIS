@@ -1,0 +1,188 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo noupdate="1">
+
+  <!-- ===== 收入類別（15 種）===== -->
+  <record id="cat_plate_fee_income" model="dms.finance.category">
+    <field name="name">牌險費收入</field>
+    <field name="code">plate_fee_income</field>
+    <field name="type">income</field>
+    <field name="sequence">10</field>
+  </record>
+
+  <record id="cat_handling_income" model="dms.finance.category">
+    <field name="name">代辦費收入</field>
+    <field name="code">handling_income</field>
+    <field name="type">income</field>
+    <field name="sequence">20</field>
+  </record>
+
+  <record id="cat_scrap_handling_income" model="dms.finance.category">
+    <field name="name">報廢代辦收入</field>
+    <field name="code">scrap_handling_income</field>
+    <field name="type">income</field>
+    <field name="sequence">30</field>
+  </record>
+
+  <record id="cat_plate_selection_income" model="dms.finance.category">
+    <field name="name">選號收入</field>
+    <field name="code">plate_selection_income</field>
+    <field name="type">income</field>
+    <field name="sequence">40</field>
+  </record>
+
+  <record id="cat_used_vehicle_income" model="dms.finance.category">
+    <field name="name">中古車收入</field>
+    <field name="code">used_vehicle_income</field>
+    <field name="type">income</field>
+    <field name="sequence">50</field>
+  </record>
+
+  <record id="cat_scrap_vehicle_income" model="dms.finance.category">
+    <field name="name">報廢車收入</field>
+    <field name="code">scrap_vehicle_income</field>
+    <field name="type">income</field>
+    <field name="sequence">60</field>
+  </record>
+
+  <record id="cat_service_fee_income" model="dms.finance.category">
+    <field name="name">手續費收入</field>
+    <field name="code">service_fee_income</field>
+    <field name="type">income</field>
+    <field name="sequence">70</field>
+  </record>
+
+  <record id="cat_yamaha_bonus_income" model="dms.finance.category">
+    <field name="name">山葉獎金收入</field>
+    <field name="code">yamaha_bonus_income</field>
+    <field name="type">income</field>
+    <field name="sequence">80</field>
+  </record>
+
+  <record id="cat_friendly_dealer_income" model="dms.finance.category">
+    <field name="name">友善車行獎金收入</field>
+    <field name="code">friendly_dealer_income</field>
+    <field name="type">income</field>
+    <field name="sequence">90</field>
+  </record>
+
+  <record id="cat_other_income" model="dms.finance.category">
+    <field name="name">其他收入</field>
+    <field name="code">other_income</field>
+    <field name="type">income</field>
+    <field name="sequence">100</field>
+  </record>
+
+  <record id="cat_actual_sales_incentive" model="dms.finance.category">
+    <field name="name">實銷獎勵金</field>
+    <field name="code">actual_sales_incentive</field>
+    <field name="type">income</field>
+    <field name="sequence">110</field>
+  </record>
+
+  <record id="cat_promo_subsidy" model="dms.finance.category">
+    <field name="name">促銷補助金</field>
+    <field name="code">promo_subsidy</field>
+    <field name="type">income</field>
+    <field name="sequence">120</field>
+  </record>
+
+  <record id="cat_installment_subsidy" model="dms.finance.category">
+    <field name="name">分期補貼息</field>
+    <field name="code">installment_subsidy</field>
+    <field name="type">income</field>
+    <field name="sequence">130</field>
+  </record>
+
+  <record id="cat_insurance_commission" model="dms.finance.category">
+    <field name="name">強制險傭金收入</field>
+    <field name="code">insurance_commission</field>
+    <field name="type">income</field>
+    <field name="sequence">140</field>
+  </record>
+
+  <record id="cat_credit_card_commission" model="dms.finance.category">
+    <field name="name">信用卡傭金收入</field>
+    <field name="code">credit_card_commission</field>
+    <field name="type">income</field>
+    <field name="sequence">150</field>
+  </record>
+
+  <!-- ===== 支出類別（11 種）===== -->
+  <record id="cat_credit_card_fee" model="dms.finance.category">
+    <field name="name">信用卡手續費支出</field>
+    <field name="code">credit_card_fee</field>
+    <field name="type">expense</field>
+    <field name="sequence">10</field>
+  </record>
+
+  <record id="cat_installment_fee" model="dms.finance.category">
+    <field name="name">分期手續費支出</field>
+    <field name="code">installment_fee</field>
+    <field name="type">expense</field>
+    <field name="sequence">20</field>
+  </record>
+
+  <record id="cat_plate_fee_expense" model="dms.finance.category">
+    <field name="name">牌險費支出</field>
+    <field name="code">plate_fee_expense</field>
+    <field name="type">expense</field>
+    <field name="sequence">30</field>
+  </record>
+
+  <record id="cat_plate_selection" model="dms.finance.category">
+    <field name="name">選號支出</field>
+    <field name="code">plate_selection</field>
+    <field name="type">expense</field>
+    <field name="sequence">40</field>
+  </record>
+
+  <record id="cat_used_vehicle_expense" model="dms.finance.category">
+    <field name="name">中古車支出</field>
+    <field name="code">used_vehicle</field>
+    <field name="type">expense</field>
+    <field name="sequence">50</field>
+  </record>
+
+  <record id="cat_gift_shipping" model="dms.finance.category">
+    <field name="name">贈品及運費支出</field>
+    <field name="code">gift_shipping</field>
+    <field name="type">expense</field>
+    <field name="sequence">60</field>
+  </record>
+
+  <record id="cat_dealer_commission" model="dms.finance.category">
+    <field name="name">車行傭金支出</field>
+    <field name="code">dealer_commission</field>
+    <field name="type">expense</field>
+    <field name="sequence">70</field>
+  </record>
+
+  <record id="cat_friendly_dealer_bonus" model="dms.finance.category">
+    <field name="name">友善車行獎金支出</field>
+    <field name="code">friendly_dealer_bonus</field>
+    <field name="type">expense</field>
+    <field name="sequence">80</field>
+  </record>
+
+  <record id="cat_first_sale_bonus" model="dms.finance.category">
+    <field name="name">首賣獎金支出</field>
+    <field name="code">first_sale_bonus</field>
+    <field name="type">expense</field>
+    <field name="sequence">90</field>
+  </record>
+
+  <record id="cat_unit_bonus" model="dms.finance.category">
+    <field name="name">台數獎金支出</field>
+    <field name="code">unit_bonus</field>
+    <field name="type">expense</field>
+    <field name="sequence">100</field>
+  </record>
+
+  <record id="cat_other_expense" model="dms.finance.category">
+    <field name="name">其他支出</field>
+    <field name="code">other_expense</field>
+    <field name="type">expense</field>
+    <field name="sequence">110</field>
+  </record>
+
+</odoo>

@@ -79,6 +79,18 @@ VS Code 建議設定（讓自動化/Tasks 使用 PowerShell 不載入使用者 p
 
 提示：若在 Apps 找不到模組，請確認 `addons/` 已正確掛載到容器的 `/mnt/extra-addons`，並在 Odoo 的 Apps 頁面中按「更新應用清單」。
 
+## 模組清單
+
+| Phase | 模組 | 選單名稱 | 狀態 |
+|-------|------|----------|------|
+| 0 | dms_core | 車行管理 | ✅ 完成 |
+| 0 | dms_product | 產品管理 | ✅ 完成 |
+| 1 | dms_customer | 客戶管理 | ✅ 完成 |
+| 1 | dms_pricelist | 價目管理 | ✅ 完成 |
+| 2 | dms_sale | 銷售管理 | ✅ 完成 |
+| 3 | dms_finance | 財務結算 | 🚧 開發中 |
+| 4 | dms_report | 報表分析 | 🔲 未開始 |
+
 
 使用 Slash Commands（Copilot Chat）:
 

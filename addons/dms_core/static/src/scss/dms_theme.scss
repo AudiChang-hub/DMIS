@@ -88,18 +88,18 @@ a:not(.btn):not(.nav-link):not(.o_menu_brand):not(.o_nav_entry) {
     border-radius: 4px;
     overflow: hidden;
 
-    // 標題列：品牌漸層底色
+    // 標題列：素藍底色，文字比內容大兩號
     thead th,
     .o_column_headers th {
-        background: linear-gradient(90deg, darken(#1A7B3A, 5%) 0%, $dms-suzuki-blue 100%) !important;
+        background: $dms-suzuki-blue !important;
         color: white !important;
         font-weight: 600 !important;
-        font-size: 0.82rem !important;
+        font-size: 0.95rem !important;   // 內容列約 0.8rem，大兩號
         letter-spacing: 0.02em;
         border-right: 1px solid rgba(255, 255, 255, 0.20) !important;
-        border-bottom: 2px solid $dms-sym-green-dark !important;
-        padding-top: 8px !important;
-        padding-bottom: 8px !important;
+        border-bottom: 2px solid $dms-suzuki-blue-dark !important;
+        padding-top: 9px !important;
+        padding-bottom: 9px !important;
 
         &:last-child { border-right: none !important; }
     }

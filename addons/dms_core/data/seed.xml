@@ -2,14 +2,6 @@
 <odoo noupdate="1">
 
   <!-- ===== 車行類型 ===== -->
-  <record id="store_type_direct" model="dms.store_type">
-    <field name="name">直營</field>
-    <field name="category">dealer</field>
-  </record>
-  <record id="store_type_franchise" model="dms.store_type">
-    <field name="name">加盟</field>
-    <field name="category">dealer</field>
-  </record>
   <record id="store_type_dealer" model="dms.store_type">
     <field name="name">經銷</field>
     <field name="category">dealer</field>
@@ -39,8 +31,8 @@
     <field name="mobile">+886-9-0000-0001</field>
     <field name="owner_name">張大哥</field>
     <field name="store_manager">王小明</field>
-    <field name="store_type_id" ref="store_type_direct"/>
-    <field name="brand_ids" eval="[(4, ref('brand_sym'))]"/>
+    <field name="store_type_id" ref="store_type_dealer"/>
+    <field name="active" eval="True"/>
     <field name="sym_gas_price_list" eval="True"/>
     <field name="sym_dispatch_capacity">10</field>
   </record>
@@ -52,8 +44,8 @@
     <field name="mobile">+886-9-0000-0002</field>
     <field name="owner_name">李老闆</field>
     <field name="store_manager">陳經理</field>
-    <field name="store_type_id" ref="store_type_franchise"/>
-    <field name="brand_ids" eval="[(4, ref('brand_suzuki'))]"/>
+    <field name="store_type_id" ref="store_type_exclusive"/>
+    <field name="active" eval="True"/>
     <field name="suzuki_ev_price_list" eval="True"/>
     <field name="suzuki_dispatch_capacity">5</field>
   </record>

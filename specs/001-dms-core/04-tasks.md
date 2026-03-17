@@ -1,6 +1,23 @@
 # 任務清單 (04-tasks)
 
-## 車行代碼自動產生（feat: auto-code-generation）
+## 品牌授權子表（feat: dealer-brand-auth）
+
+### 規格說明
+- 新增 `dms.dealer.brand.auth` 模型，取代原 `brand_ids` Many2many
+- 欄位：`dealer_id`（車行）、`brand_id`（品牌）、`auth_type`（廠商認定類型：dealer/exclusive/none）
+- 車行表單新增「品牌授權」分頁，呈現子表格
+- 原 `brand_ids` 欄位保留於 DB（backward compat），但從視圖移除
+
+### 實作項目
+- [x] 新增 `addons/dms_core/models/dealer_brand_auth.py`
+- [x] `dealer.py` 新增 `brand_auth_ids` One2many
+- [x] `dealer_views.xml` 品牌授權分頁（子表格）
+- [x] `ir.model.access.csv` 新增 `dms.dealer.brand.auth` 存取權
+- [x] `models/__init__.py` import dealer_brand_auth
+
+---
+
+
 
 ### 規格說明
 - 車行代碼改為系統自動產生，使用者無法手動輸入

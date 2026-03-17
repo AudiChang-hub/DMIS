@@ -34,6 +34,9 @@ class Dealer(models.Model):
     manager_same_as_owner = fields.Boolean(string='店長同上', default=False)
 
     store_type_id = fields.Many2one('dms.store_type', string='車行類型')
+    brand_auth_ids = fields.One2many(
+        'dms.dealer.brand.auth', 'dealer_id', string='品牌授權',
+    )
     brand_ids = fields.Many2many(
         'dms.brand',
         relation='dms_dealer_brand_rel',

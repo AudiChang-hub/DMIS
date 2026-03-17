@@ -15,7 +15,7 @@
         <field name="phone_1"       optional="show"/>
         <field name="mobile"        optional="show"/>
         <field name="store_type_id" optional="show"/>
-        <field name="brand_auth_brand_ids" widget="many2many_tags" optional="show"/>
+        <field name="brand_auth_brand_display" optional="show"/>
         <field name="active"        optional="show"/>
         <!-- 預設隱藏（optional="hide"）：可在欄位選擇器勾選顯示 -->
         <field name="phone_2"                optional="hide"/>

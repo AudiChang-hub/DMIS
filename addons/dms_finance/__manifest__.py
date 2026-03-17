@@ -10,8 +10,8 @@
     'data': [
         'security/ir.model.access.csv',
         'data/finance_category_data.xml',
-        'views/finance_category_views.xml',
         'views/sale_finance_views.xml',
+        'views/finance_category_views.xml',
         'views/sale_order_inherit_views.xml',
     ],
     'installable': True,

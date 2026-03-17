@@ -138,3 +138,42 @@ a:not(.btn):not(.nav-link):not(.o_menu_brand):not(.o_nav_entry) {
         color: $dms-suzuki-blue-dark;
     }
 }
+
+// ── 10. 響應式清單視圖（RWD）────────────────────────────────
+// 規格：specs/000-roadmap/03-ui-standards.md § 7. 響應式清單視圖
+//
+// 手機（≤575px）：只保留代碼、店名、電話1
+@media (max-width: 575px) {
+    .o_list_view {
+        th[data-name="owner_name"],
+        td[name="owner_name"],
+        th[data-name="store_manager"],
+        td[name="store_manager"],
+        th[data-name="mobile"],
+        td[name="mobile"],
+        th[data-name="store_type_id"],
+        td[name="store_type_id"],
+        th[data-name="brand_auth_brand_display"],
+        td[name="brand_auth_brand_display"],
+        th[data-name="active"],
+        td[name="active"] {
+            display: none !important;
+        }
+    }
+}
+
+// 直式平板（576px–767px）：隱藏次要欄位，保留店名 / 代碼 / 電話 / 車行類型
+@media (min-width: 576px) and (max-width: 767px) {
+    .o_list_view {
+        th[data-name="store_manager"],
+        td[name="store_manager"],
+        th[data-name="mobile"],
+        td[name="mobile"],
+        th[data-name="brand_auth_brand_display"],
+        td[name="brand_auth_brand_display"],
+        th[data-name="active"],
+        td[name="active"] {
+            display: none !important;
+        }
+    }
+}

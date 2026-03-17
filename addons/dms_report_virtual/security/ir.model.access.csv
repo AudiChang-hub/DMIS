@@ -1,0 +1,6 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_vf_user,dms.report.virtual.field (user),model_dms_report_virtual_field,dms_report_virtual.group_dms_report_virtual_user,1,1,1,1
+access_vf_rule_user,dms.report.virtual.field.rule (user),model_dms_report_virtual_field_rule,dms_report_virtual.group_dms_report_virtual_user,1,1,1,1
+access_vf_test_wizard,dms.report.vf.test.wizard,model_dms_report_vf_test_wizard,,1,1,1,1
+access_vf_preview,dms.report.vf.preview,model_dms_report_vf_preview,,1,1,1,1
+access_vf_preview_line,dms.report.vf.preview.line,model_dms_report_vf_preview_line,,1,1,1,1

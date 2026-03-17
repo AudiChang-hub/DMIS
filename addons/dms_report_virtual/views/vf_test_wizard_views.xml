@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+  <!-- ╔══════════════════════════════════════════════════════╗ -->
+  <!-- ║  測試虛擬欄位精靈視圖                               ║ -->
+  <!-- ╚══════════════════════════════════════════════════════╝ -->
+
+  <record id="view_vf_test_wizard_form" model="ir.ui.view">
+    <field name="name">dms.report.vf.test.wizard.form</field>
+    <field name="model">dms.report.vf.test.wizard</field>
+    <field name="arch" type="xml">
+      <form string="測試虛擬欄位">
+        <sheet>
+          <group string="測試設定">
+            <field name="virtual_field_id"
+                   options="{'no_create': True, 'no_open': True}"
+                   readonly="1"
+                   attrs="{'readonly': [('computation_done','=',True)]}"/>
+            <field name="model_name" string="目標模型" readonly="1"/>
+            <field name="record_id"
+                   string="測試記錄 ID"
+                   attrs="{'readonly': [('computation_done','=',True)]}"/>
+          </group>
+
+          <!-- 計算結果（執行後顯示） -->
+          <group string="計算結果"
+                 attrs="{'invisible': [('computation_done','=',False)]}">
+            <field name="result_value" readonly="1" string="輸出結果"/>
+          </group>
+
+          <group string="評估日誌"
+                 attrs="{'invisible': [('computation_done','=',False)]}">
+            <field name="computation_log"
+                   widget="text"
+                   readonly="1"
+                   nolabel="1"/>
+          </group>
+
+          <field name="computation_done" invisible="1"/>
+        </sheet>
+
+        <footer>
+          <button name="action_compute"
+                  string="執行計算"
+                  type="object"
+                  class="btn-primary"/>
+          <button string="關閉"
+                  class="btn-secondary"
+                  special="cancel"/>
+        </footer>
+      </form>
+    </field>
+  </record>
+
+</odoo>

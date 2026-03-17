@@ -125,10 +125,8 @@ a:not(.btn):not(.nav-link):not(.o_menu_brand):not(.o_nav_entry) {
         background-color: rgba($dms-sym-green, 0.09) !important;
     }
 
-    // 選中行：固定淡藍色，覆蓋奇偶交替底色讓所有選取列視覺一致
-    .o_data_row.o_row_selected > td,
-    .o_data_row.o_row_selected:nth-child(odd) > td,
-    .o_data_row.o_row_selected:nth-child(even) > td {
+    // 選中行：提高選擇器特異度，確保覆蓋奇偶交替底色
+    table tbody tr.o_data_row.o_row_selected > td {
         background-color: #D6E4F7 !important;
         border-bottom-color: #A8C8EE !important;
     }

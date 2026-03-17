@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+  <data noupdate="0">
+
+    <!-- ╔═══════════════════════════════════════════════════╗ -->
+    <!-- ║  報表虛擬欄位 — 安全性群組                         ║ -->
+    <!-- ╚═══════════════════════════════════════════════════╝ -->
+
+    <record id="group_dms_report_virtual_user" model="res.groups">
+      <field name="name">報表虛擬欄位使用者</field>
+      <field name="category_id" ref="base.module_category_hidden"/>
+      <field name="comment">可建立並管理自己的虛擬欄位；瀏覽公開虛擬欄位並在報表中使用。</field>
+    </record>
+
+    <record id="group_dms_report_virtual_admin" model="res.groups">
+      <field name="name">報表虛擬欄位管理員</field>
+      <field name="category_id" ref="base.module_category_hidden"/>
+      <field name="users" eval="[(4, ref('base.user_admin'))]"/>
+      <field name="implied_ids" eval="[(4, ref('group_dms_report_virtual_user'))]"/>
+      <field name="comment">可新增、編輯、刪除所有使用者的虛擬欄位定義及其規則。</field>
+    </record>
+
+  </data>
+
+</odoo>

@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+  <!-- ╔══════════════════════════════════════════════════════════╗ -->
+  <!-- ║  繼承 dms.report.rule Form — 新增「虛擬維度」頁籤       ║ -->
+  <!-- ╚══════════════════════════════════════════════════════════╝ -->
+
+  <record id="view_report_rule_form_virtual_inherit" model="ir.ui.view">
+    <field name="name">dms.report.rule.form.virtual.inherit</field>
+    <field name="model">dms.report.rule</field>
+    <field name="inherit_id" ref="dms_report_rule.view_report_rule_form"/>
+    <field name="arch" type="xml">
+
+      <!-- 在 notebook 最後新增「虛擬維度」頁籤 -->
+      <xpath expr="//notebook" position="inside">
+        <page string="虛擬維度" name="virtual_dimensions">
+          <!-- model_name 必須在視圖中宣告才能用於 domain -->
+          <field name="model_name" invisible="1"/>
+          <group>
+            <field name="virtual_dimension_ids"
+                   widget="many2many_tags"
+                   domain="[('model_name', '=', model_name),
+                             ('active', '=', True),
+                             '|', ('public', '=', True), ('owner_id', '=', uid)]"
+                   options="{'no_create': True}"
+                   string="虛擬維度欄位"
+                   help="選擇依規則動態計算的分類虛擬欄位（V1 預覽取第一個，最多 1,000 筆記錄）"/>
+          </group>
+          <div class="alert alert-warning" role="alert"
+               attrs="{'invisible': [('virtual_dimension_ids', '=', [])]}">
+            <strong>注意（V1 限制）：</strong>
+            已選取虛擬維度。點擊「預覽報表」將開啟 Python 側計算的分組結果精靈，
+            而非原生 Pivot 視圖。V2 升級後可支援儲存式欄位以直接使用原生分組。
+          </div>
+        </page>
+      </xpath>
+
+    </field>
+  </record>
+
+</odoo>

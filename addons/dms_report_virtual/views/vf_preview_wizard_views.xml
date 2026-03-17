@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+  <!-- ╔══════════════════════════════════════════════════════╗ -->
+  <!-- ║  虛擬欄位報表預覽精靈視圖                           ║ -->
+  <!-- ╚══════════════════════════════════════════════════════╝ -->
+
+  <record id="view_vf_preview_form" model="ir.ui.view">
+    <field name="name">dms.report.vf.preview.form</field>
+    <field name="model">dms.report.vf.preview</field>
+    <field name="arch" type="xml">
+      <form string="虛擬欄位報表預覽">
+        <sheet>
+
+          <!-- 截斷警告 -->
+          <div class="alert alert-warning" role="alert"
+               attrs="{'invisible': [('truncated', '=', False)]}">
+            <strong>注意：</strong>
+            資料筆數超過 1,000 筆，本次預覽僅取前 1,000 筆計算，結果可能不完整。
+          </div>
+
+          <group>
+            <group string="報表資訊">
+              <field name="rule_id" readonly="1" string="報表規則"/>
+              <field name="virtual_field_id" readonly="1" string="虛擬維度"/>
+            </group>
+            <group string="指標說明"
+                   attrs="{'invisible': [('measure_label_1', '=', False)]}">
+              <field name="measure_label_1" readonly="1" string="指標 1"/>
+              <field name="measure_label_2" readonly="1" string="指標 2"
+                     attrs="{'invisible': [('measure_label_2', '=', False)]}"/>
+              <field name="measure_label_3" readonly="1" string="指標 3"
+                     attrs="{'invisible': [('measure_label_3', '=', False)]}"/>
+            </group>
+          </group>
+
+          <!-- 分組結果表格 -->
+          <field name="line_ids" readonly="1" nolabel="1">
+            <tree string="分組結果" decoration-muted="record_count == 0">
+              <field name="virtual_value" string="虛擬分組值"/>
+              <field name="record_count" string="記錄數"/>
+              <field name="measure_total_1" string="指標 1" optional="show"/>
+              <field name="measure_total_2" string="指標 2" optional="show"/>
+              <field name="measure_total_3" string="指標 3" optional="show"/>
+            </tree>
+          </field>
+
+          <field name="truncated" invisible="1"/>
+          <field name="measure_label_1" invisible="1"/>
+          <field name="measure_label_2" invisible="1"/>
+          <field name="measure_label_3" invisible="1"/>
+
+        </sheet>
+
+        <footer>
+          <button string="關閉"
+                  class="btn-secondary"
+                  special="cancel"/>
+        </footer>
+      </form>
+    </field>
+  </record>
+
+</odoo>

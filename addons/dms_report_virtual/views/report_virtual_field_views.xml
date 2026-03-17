@@ -1,0 +1,172 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+  <!-- ╔══════════════════════════════════════════════════════╗ -->
+  <!-- ║  Tree / List 視圖                                   ║ -->
+  <!-- ╚══════════════════════════════════════════════════════╝ -->
+
+  <record id="view_report_vf_tree" model="ir.ui.view">
+    <field name="name">dms.report.virtual.field.tree</field>
+    <field name="model">dms.report.virtual.field</field>
+    <field name="arch" type="xml">
+      <tree string="虛擬欄位" decoration-muted="not active">
+        <field name="color" widget="color_picker"/>
+        <field name="name"/>
+        <field name="code"/>
+        <field name="model_id"/>
+        <field name="compute_type"/>
+        <field name="rule_count" string="規則數"/>
+        <field name="public"/>
+        <field name="owner_id"/>
+        <field name="active" invisible="1"/>
+      </tree>
+    </field>
+  </record>
+
+  <!-- ╔══════════════════════════════════════════════════════╗ -->
+  <!-- ║  Form 視圖                                          ║ -->
+  <!-- ╚══════════════════════════════════════════════════════╝ -->
+
+  <record id="view_report_vf_form" model="ir.ui.view">
+    <field name="name">dms.report.virtual.field.form</field>
+    <field name="model">dms.report.virtual.field</field>
+    <field name="arch" type="xml">
+      <form string="虛擬欄位定義">
+
+        <header>
+          <button name="action_open_test_wizard"
+                  string="測試虛擬欄位"
+                  type="object"
+                  class="btn-secondary"
+                  icon="fa-flask"/>
+        </header>
+
+        <sheet>
+          <widget name="web_ribbon" title="已停用"
+                  bg_color="bg-danger"
+                  attrs="{'invisible': [('active', '=', True)]}"/>
+
+          <div class="oe_title">
+            <label for="name" class="oe_edit_only"/>
+            <h1>
+              <field name="name" placeholder="虛擬欄位名稱…" required="1"/>
+            </h1>
+            <h2>
+              <field name="code" placeholder="system_code（英數字底線）" required="1"/>
+            </h2>
+          </div>
+
+          <group>
+            <group string="設定">
+              <field name="model_id"
+                     options="{'no_create': True, 'no_open': True}"/>
+              <field name="compute_type"/>
+              <field name="default_value" placeholder="未匹配時的預設輸出值"/>
+            </group>
+            <group string="共享">
+              <field name="owner_id"
+                     options="{'no_create': True, 'no_open': True}"/>
+              <field name="public"/>
+              <field name="active"/>
+              <field name="color" widget="color_picker"/>
+            </group>
+          </group>
+
+          <notebook>
+            <page string="規則列表" name="rules">
+
+              <div class="alert alert-info" role="alert">
+                <strong>說明：</strong>
+                規則依「順序」由小到大依序評估，第一個匹配的規則即停止並輸出對應值。
+                若所有規則均未匹配，系統使用上方設定的「預設值」。
+              </div>
+
+              <field name="rule_ids" context="{'default_virtual_field_id': active_id}">
+                <tree editable="bottom" string="規則">
+                  <field name="sequence" widget="handle"/>
+                  <field name="match_type"/>
+                  <field name="field_name"
+                         placeholder="例: dealer_id.name"/>
+                  <field name="condition"
+                         placeholder="包含字串或正則"
+                         attrs="{'invisible': [('match_type', '=', 'python')],
+                                  'required': [('match_type', 'in', ['contains','regex'])]}"/>
+                  <field name="python_expression"
+                         widget="text"
+                         attrs="{'invisible': [('match_type', '!=', 'python')],
+                                  'required': [('match_type', '=', 'python')]}"/>
+                  <field name="value" string="輸出值"/>
+                  <field name="description" optional="hide"/>
+                  <field name="virtual_field_id" invisible="1"/>
+                </tree>
+              </field>
+            </page>
+          </notebook>
+        </sheet>
+
+      </form>
+    </field>
+  </record>
+
+  <!-- ╔══════════════════════════════════════════════════════╗ -->
+  <!-- ║  Search 視圖                                        ║ -->
+  <!-- ╚══════════════════════════════════════════════════════╝ -->
+
+  <record id="view_report_vf_search" model="ir.ui.view">
+    <field name="name">dms.report.virtual.field.search</field>
+    <field name="model">dms.report.virtual.field</field>
+    <field name="arch" type="xml">
+      <search string="虛擬欄位">
+        <field name="name" string="名稱"/>
+        <field name="code" string="代碼"/>
+        <field name="model_id" string="作用模型"/>
+        <field name="owner_id" string="建立者"/>
+
+        <separator/>
+        <filter name="filter_mine"     string="我的虛擬欄位"
+                domain="[('owner_id', '=', uid)]"/>
+        <filter name="filter_public"   string="公開"
+                domain="[('public', '=', True)]"/>
+        <filter name="filter_inactive" string="已停用"
+                domain="[('active', '=', False)]"/>
+
+        <group expand="0" string="群組依據">
+          <filter name="group_model" string="作用模型"
+                  context="{'group_by': 'model_id'}"/>
+          <filter name="group_owner" string="建立者"
+                  context="{'group_by': 'owner_id'}"/>
+        </group>
+      </search>
+    </field>
+  </record>
+
+  <!-- ╔══════════════════════════════════════════════════════╗ -->
+  <!-- ║  Action                                             ║ -->
+  <!-- ╚══════════════════════════════════════════════════════╝ -->
+
+  <record id="action_report_vf" model="ir.actions.act_window">
+    <field name="name">虛擬欄位</field>
+    <field name="res_model">dms.report.virtual.field</field>
+    <field name="view_mode">tree,form</field>
+    <field name="context">{'search_default_filter_mine': 1}</field>
+    <field name="help" type="html">
+      <p class="o_view_nocontent_smiling_face">
+        尚無任何虛擬欄位定義
+      </p>
+      <p>
+        點擊「新增」建立第一個虛擬欄位，定義規則後即可在「報表規則」中引用作為分組維度。
+      </p>
+    </field>
+  </record>
+
+  <!-- ╔══════════════════════════════════════════════════════╗ -->
+  <!-- ║  選單：報表分析 → 虛擬欄位（sequence=50）            ║ -->
+  <!-- ╚══════════════════════════════════════════════════════╝ -->
+
+  <menuitem id="menu_report_virtual_field"
+            name="虛擬欄位"
+            parent="dms_report.menu_dms_report_root"
+            action="action_report_vf"
+            sequence="50"/>
+
+</odoo>

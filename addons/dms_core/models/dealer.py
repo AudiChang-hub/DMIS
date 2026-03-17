@@ -30,11 +30,11 @@ class Dealer(models.Model):
     code = fields.Char(string='車行代碼', readonly=True, copy=False)
     name = fields.Char(string='店名', required=True)
     color_tag = fields.Selection([
-        ('yellow', '黃・三陽專賣'),
-        ('blue',   '藍・台鈴'),
-        ('pink',   '粉・三陽'),
-        ('gray',   '灰・其他'),
-    ], string='標色', default='gray')
+        ('yellow', '黃'),
+        ('blue',   '藍'),
+        ('pink',   '粉'),
+        ('gray',   '灰'),
+    ], string='LINE 群組大頭貼顏色', default='gray')
     owner_name = fields.Char(string='負責人', required=True)
     store_manager = fields.Char(string='店長')
     manager_same_as_owner = fields.Boolean(string='店長同上', default=False)

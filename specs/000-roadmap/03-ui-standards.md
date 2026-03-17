@@ -79,6 +79,7 @@
 
 ```javascript
 patch(ListRenderer.prototype, "{module}.{Model}ColumnLimit", {
+
     async toggleOptionalField(fieldName) {
         if (this.props?.list?.resModel !== "model.name") {
             return this._super(fieldName);
@@ -100,3 +101,35 @@ patch(ListRenderer.prototype, "{module}.{Model}ColumnLimit", {
     },
 });
 ```
+
+---
+
+## 品牌色彩規範（Brand Theme）
+
+> 本系統主要服務三陽（SYM）與台鈴（Suzuki Taiwan）兩大品牌，全後台使用雙品牌主題色貫穿視覺。
+
+### 品牌色定義
+
+| 用途 | 色票 | 說明 |
+|---|---|---|
+| 主色（Primary） | `#1A7B3A` | 三陽 SYM 品牌綠 |
+| 主色深版 | `#145F2D` | 按鈕 hover / active |
+| 輔色（Secondary） | `#003087` | 台鈴 Suzuki 深海軍藍 |
+| 輔色深版 | `#00236B` | 連結 hover |
+| 輔色中版 | `#1A4B9C` | 選中行背景 tint |
+
+### 套用範圍
+
+- **頂部導覽列**：左紅右藍漸層背景（`linear-gradient(90deg, #CC0000, #003B8E)`）
+- **主要按鈕（btn-primary）**：三陽紅
+- **超連結**：台鈴藍
+- **列表 hover**：三陽紅 4% 透明度
+- **列表選中行**：台鈴藍 8% 透明度
+- **狀態列 active 節點**：三陽紅
+- **Notebook 分頁 active**：三陽紅底線
+- **搜尋 facet 標籤**：台鈴藍底色
+
+### 實作位置
+
+- 樣式檔：`addons/dms_core/static/src/scss/dms_theme.scss`
+- 掛載點：`web.assets_backend`（append，覆蓋 Odoo 預設樣式）

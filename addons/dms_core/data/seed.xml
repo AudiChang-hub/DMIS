@@ -4,9 +4,23 @@
   <!-- ===== 車行類型 ===== -->
   <record id="store_type_direct" model="dms.store_type">
     <field name="name">直營</field>
+    <field name="category">dealer</field>
   </record>
   <record id="store_type_franchise" model="dms.store_type">
     <field name="name">加盟</field>
+    <field name="category">dealer</field>
+  </record>
+  <record id="store_type_dealer" model="dms.store_type">
+    <field name="name">經銷</field>
+    <field name="category">dealer</field>
+  </record>
+  <record id="store_type_exclusive" model="dms.store_type">
+    <field name="name">專賣</field>
+    <field name="category">exclusive</field>
+  </record>
+  <record id="store_type_general" model="dms.store_type">
+    <field name="name">一般</field>
+    <field name="category">other</field>
   </record>
 
   <!-- ===== 品牌 ===== -->

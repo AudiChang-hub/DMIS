@@ -105,10 +105,11 @@ a:not(.btn):not(.nav-link):not(.o_menu_brand):not(.o_nav_entry) {
     }
 
     // 資料列：交替底色（奇數白、偶數淡綠）
-    .o_data_row:nth-child(odd) > td {
+    // 資料列交替底色：排除已選取列，避免與選取色衝突
+    .o_data_row:nth-child(odd):not(.o_row_selected) > td {
         background-color: #FFFFFF;
     }
-    .o_data_row:nth-child(even) > td {
+    .o_data_row:nth-child(even):not(.o_row_selected) > td {
         background-color: #F2F7F0;   // 三陽綠 4% tint
     }
 
@@ -120,13 +121,13 @@ a:not(.btn):not(.nav-link):not(.o_menu_brand):not(.o_nav_entry) {
         &:last-child { border-right: none !important; }
     }
 
-    // hover 行：維持綠色 tint，加強對比
-    .o_data_row:hover > td {
+    // hover 行（未選取）：維持綠色 tint
+    .o_data_row:not(.o_row_selected):hover > td {
         background-color: rgba($dms-sym-green, 0.09) !important;
     }
 
-    // 選中行：提高選擇器特異度，確保覆蓋奇偶交替底色
-    table tbody tr.o_data_row.o_row_selected > td {
+    // 選中行：奇偶列已用 :not(.o_row_selected) 排除，這裡不須 !important 也能贏
+    .o_data_row.o_row_selected > td {
         background-color: #D6E4F7 !important;
         border-bottom-color: #A8C8EE !important;
     }

@@ -4,7 +4,7 @@
   <!--
     dms_core.ColorDotField  OWL 模板
     - readonly（列表）：顯示單一彩色圓點 + tooltip
-    - editable（表單）：顯示調色盤供點選
+    - editable（表單）：圓點預覽 + 下拉式選單
   -->
   <t t-name="dms_core.ColorDotField" owl="1">
 
@@ -19,26 +19,25 @@
 
     <!-- ── 可編輯模式（表單視圖）── -->
     <t t-else="">
-      <div class="dms-color-dot-picker">
-        <t t-foreach="options" t-as="opt" t-key="opt.value">
-          <label
-            class="dms-color-dot-option"
-            t-att-title="opt.label"
-          >
-            <input
-              type="radio"
-              t-att-name="'color_tag_' + props.id"
+      <div class="dms-color-dot-select-wrapper">
+        <!-- 目前選色的圓點預覽 -->
+        <span
+          class="dms-color-dot dms-color-dot-preview"
+          t-att-data-color="props.value or 'gray'"
+        />
+        <!-- 下拉式選單 -->
+        <select
+          class="dms-color-dot-select o_input"
+          t-on-change="(ev) => this.onChange(ev)"
+        >
+          <t t-foreach="options" t-as="opt" t-key="opt.value">
+            <option
               t-att-value="opt.value"
-              t-att-checked="props.value === opt.value ? true : undefined"
-              t-on-change="(ev) => this.onChange(ev)"
+              t-att-selected="props.value === opt.value ? true : undefined"
+              t-esc="opt.label"
             />
-            <span
-              class="dms-color-dot"
-              t-att-data-color="opt.value"
-            />
-            <span class="dms-color-dot-label" t-esc="opt.label"/>
-          </label>
-        </t>
+          </t>
+        </select>
       </div>
     </t>
 

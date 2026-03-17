@@ -37,6 +37,12 @@ class Dealer(models.Model):
     brand_auth_ids = fields.One2many(
         'dms.dealer.brand.auth', 'dealer_id', string='品牌授權',
     )
+    brand_auth_brand_ids = fields.Many2many(
+        'dms.brand',
+        compute='_compute_brand_auth_brand_ids',
+        string='品牌',
+        store=False,
+    )
     brand_ids = fields.Many2many(
         'dms.brand',
         relation='dms_dealer_brand_rel',
@@ -125,6 +131,11 @@ class Dealer(models.Model):
             ('brand_ids.name', operator, name),
         ]
         return self.search(domain + args, limit=limit).name_get()
+
+    @api.depends('brand_auth_ids.brand_id')
+    def _compute_brand_auth_brand_ids(self):
+        for rec in self:
+            rec.brand_auth_brand_ids = rec.brand_auth_ids.mapped('brand_id')
 
     def _generate_dealer_code(self, store_type_id):
         """依車行類型分類產生代碼：{D|S|N}{YY}{MM}{DD}{seq:02d}"""

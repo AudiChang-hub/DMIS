@@ -10,30 +10,30 @@
         <!-- 標色圓點：固定顯示，不可隱藏，無欄位標題 -->
         <field name="color_tag" widget="dms_color_dot" string="●" nolabel="0"/>
         <!-- 預設顯示（optional="show"）：9 欄，≤ 15 軟性上限 -->
-        <field name="code"          optional="show"/>
-        <field name="name"          optional="show"/>
-        <field name="owner_name"    optional="show"/>
-        <field name="store_manager" optional="show"/>
-        <field name="phone_1"       optional="show"/>
-        <field name="mobile"        optional="show"/>
-        <field name="store_type_id" optional="show"/>
-        <field name="brand_auth_brand_display" optional="show"/>
-        <field name="active"        optional="show" readonly="1"/>
+        <field name="code"          optional="show" width="110px"/>
+        <field name="name"          optional="show" width="200px"/>
+        <field name="owner_name"    optional="show" width="90px"/>
+        <field name="store_manager" optional="show" width="90px"/>
+        <field name="phone_1"       optional="show" width="120px"/>
+        <field name="mobile"        optional="show" width="120px"/>
+        <field name="store_type_id" optional="show" width="80px"/>
+        <field name="brand_auth_brand_display" optional="show" width="130px"/>
+        <field name="active"        optional="show" readonly="1" width="50px"/>
         <!-- 預設隱藏（optional="hide"）：可在欄位選擇器勾選顯示 -->
-        <field name="phone_2"                optional="hide"/>
-        <field name="mobile_fax"             optional="hide"/>
-        <field name="email"                  optional="hide"/>
-        <field name="sym_gas_price_list"     optional="hide"/>
-        <field name="sym_ev_price_list"      optional="hide"/>
-        <field name="suzuki_gas_price_list"  optional="hide"/>
-        <field name="suzuki_ev_price_list"   optional="hide"/>
-        <field name="sym_dispatch_capacity"  optional="hide"/>
-        <field name="suzuki_dispatch_capacity" optional="hide"/>
-        <field name="line_group"             optional="hide"/>
-        <field name="manager_same_as_owner"   optional="hide"/>
-        <field name="holiday_gift"           optional="hide"/>
-        <field name="address"                optional="hide"/>
-        <field name="note"                   optional="hide"/>
+        <field name="phone_2"                optional="hide" width="120px"/>
+        <field name="mobile_fax"             optional="hide" width="120px"/>
+        <field name="email"                  optional="hide" width="150px"/>
+        <field name="sym_gas_price_list"     optional="hide" width="70px"/>
+        <field name="sym_ev_price_list"      optional="hide" width="70px"/>
+        <field name="suzuki_gas_price_list"  optional="hide" width="70px"/>
+        <field name="suzuki_ev_price_list"   optional="hide" width="70px"/>
+        <field name="sym_dispatch_capacity"  optional="hide" width="80px"/>
+        <field name="suzuki_dispatch_capacity" optional="hide" width="80px"/>
+        <field name="line_group"             optional="hide" width="70px"/>
+        <field name="manager_same_as_owner"  optional="hide" width="70px"/>
+        <field name="holiday_gift"           optional="hide" width="70px"/>
+        <field name="address"                optional="hide" width="200px"/>
+        <field name="note"                   optional="hide" width="200px"/>
       </tree>
     </field>
   </record>

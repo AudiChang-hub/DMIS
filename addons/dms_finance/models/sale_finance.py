@@ -1,5 +1,5 @@
 from odoo import models, fields, api
-from odoo.exceptions import ValidationError
+from odoo.exceptions import UserError
 
 
 class SaleFinance(models.Model):
@@ -12,6 +12,12 @@ class SaleFinance(models.Model):
     sale_order_id = fields.Many2one(
         'dms.sale.order', string='銷售訂單',
         required=True, ondelete='restrict', index=True)
+    order_date = fields.Date(
+        related='sale_order_id.order_date', string='訂單日期',
+        store=True, readonly=True)
+    customer_name = fields.Char(
+        related='sale_order_id.customer_name', string='客戶',
+        store=False, readonly=True)
 
     # ── 明細 ────────────────────────────────────────────────
     income_ids = fields.One2many(
@@ -50,10 +56,20 @@ class SaleFinance(models.Model):
     # ── 建立時自動帶入預設明細 ────────────────────────────────
     @api.model_create_multi
     def create(self, vals_list):
+        for vals in vals_list:
+            order_id = vals.get('sale_order_id')
+            if order_id and self.search([('sale_order_id', '=', order_id)], limit=1):
+                raise UserError(
+                    '該銷售訂單已存在財務結算記錄，請直接編輯現有記錄。'
+                )
         records = super().create(vals_list)
         for rec in records:
             rec._populate_default_lines()
         return records
+
+    def _get_category(self, code):
+        return self.env['dms.finance.category'].search(
+            [('code', '=', code), ('active', '=', True)], limit=1)
 
     def _populate_default_lines(self):
         """依據銷售訂單欄位產生預設收入/支出明細（只帶入有值的項目）。"""
@@ -62,46 +78,46 @@ class SaleFinance(models.Model):
             return
 
         # ── 支出預設 ─────────────────────────────────────────
-        expense_defaults = []
+        expense_vals = []
 
         plate_fee = (order.fee_vehicle_registration or 0) + (order.fee_insurance or 0)
         if plate_fee:
-            expense_defaults.append({
-                'finance_id': self.id,
-                'type': 'plate_fee_expense',
-                'amount': plate_fee,
-                'note': '自動帶入（行照費 + 保險費）',
-            })
+            cat = self._get_category('plate_fee_expense')
+            if cat:
+                expense_vals.append({
+                    'finance_id': self.id, 'category_id': cat.id,
+                    'amount': plate_fee, 'note': '自動帶入（行照費 + 保險費）',
+                })
 
         if order.fee_plate_selection:
-            expense_defaults.append({
-                'finance_id': self.id,
-                'type': 'plate_selection',
-                'amount': order.fee_plate_selection,
-                'note': '自動帶入',
-            })
+            cat = self._get_category('plate_selection')
+            if cat:
+                expense_vals.append({
+                    'finance_id': self.id, 'category_id': cat.id,
+                    'amount': order.fee_plate_selection, 'note': '自動帶入',
+                })
 
         if order.commission:
-            expense_defaults.append({
-                'finance_id': self.id,
-                'type': 'dealer_commission',
-                'amount': order.commission,
-                'note': '自動帶入',
-            })
+            cat = self._get_category('dealer_commission')
+            if cat:
+                expense_vals.append({
+                    'finance_id': self.id, 'category_id': cat.id,
+                    'amount': order.commission, 'note': '自動帶入',
+                })
 
-        if expense_defaults:
-            self.env['dms.sale.finance.expense'].create(expense_defaults)
+        if expense_vals:
+            self.env['dms.sale.finance.expense'].create(expense_vals)
 
         # ── 收入預設 ─────────────────────────────────────────
-        income_defaults = []
+        income_vals = []
 
         if plate_fee:
-            income_defaults.append({
-                'finance_id': self.id,
-                'type': 'plate_fee_income',
-                'amount': plate_fee,
-                'note': '自動帶入（行照費 + 保險費）',
-            })
+            cat = self._get_category('plate_fee_income')
+            if cat:
+                income_vals.append({
+                    'finance_id': self.id, 'category_id': cat.id,
+                    'amount': plate_fee, 'note': '自動帶入（行照費 + 保險費）',
+                })
 
-        if income_defaults:
-            self.env['dms.sale.finance.income'].create(income_defaults)
+        if income_vals:
+            self.env['dms.sale.finance.income'].create(income_vals)

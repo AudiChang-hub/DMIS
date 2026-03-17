@@ -1,4 +1,5 @@
 id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_dms_finance_category_all,dms.finance.category,model_dms_finance_category,,1,1,1,1
 access_dms_sale_finance_all,dms.sale.finance,model_dms_sale_finance,,1,1,1,1
 access_dms_sale_finance_income_all,dms.sale.finance.income,model_dms_sale_finance_income,,1,1,1,1
 access_dms_sale_finance_expense_all,dms.sale.finance.expense,model_dms_sale_finance_expense,,1,1,1,1

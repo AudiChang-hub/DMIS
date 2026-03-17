@@ -1,0 +1,134 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+  <!-- ╔══════════════════════════════════════════════════════╗ -->
+  <!-- ║  銷售報表：dms.sale.order — Pivot / Graph           ║ -->
+  <!-- ╚══════════════════════════════════════════════════════╝ -->
+
+  <record id="view_report_sales_pivot" model="ir.ui.view">
+    <field name="name">dms.sale.order.pivot.report</field>
+    <field name="model">dms.sale.order</field>
+    <field name="arch" type="xml">
+      <pivot string="銷售報表" display_quantity="true" sample="1">
+        <field name="order_date"  type="row" interval="month"/>
+        <field name="product_id"  type="col"/>
+        <field name="amount_total" type="measure"/>
+        <field name="cost"         type="measure"/>
+        <field name="deposit_amount" type="measure"/>
+      </pivot>
+    </field>
+  </record>
+
+  <record id="view_report_sales_graph" model="ir.ui.view">
+    <field name="name">dms.sale.order.graph.report</field>
+    <field name="model">dms.sale.order</field>
+    <field name="arch" type="xml">
+      <graph string="銷售趨勢" type="bar" sample="1">
+        <field name="order_date" interval="month" type="row"/>
+        <field name="amount_total" type="measure"/>
+      </graph>
+    </field>
+  </record>
+
+  <record id="action_report_sales" model="ir.actions.act_window">
+    <field name="name">銷售報表</field>
+    <field name="res_model">dms.sale.order</field>
+    <field name="view_mode">pivot,graph,tree</field>
+    <field name="domain">[('state','=','confirmed')]</field>
+    <field name="context">{
+      'search_default_filter_confirmed': 1,
+      'group_by': ['order_date:month']
+    }</field>
+    <field name="view_ids" eval="[
+      (5, 0, 0),
+      (0, 0, {'view_mode': 'pivot', 'view_id': ref('view_report_sales_pivot')}),
+      (0, 0, {'view_mode': 'graph', 'view_id': ref('view_report_sales_graph')}),
+      (0, 0, {'view_mode': 'tree',  'view_id': ref('dms_sale.view_sale_order_tree')}),
+    ]"/>
+  </record>
+
+  <!-- ╔══════════════════════════════════════════════════════╗ -->
+  <!-- ║  利潤報表：dms.sale.finance — Pivot / Graph         ║ -->
+  <!-- ╚══════════════════════════════════════════════════════╝ -->
+
+  <record id="view_report_profit_pivot" model="ir.ui.view">
+    <field name="name">dms.sale.finance.pivot.report</field>
+    <field name="model">dms.sale.finance</field>
+    <field name="arch" type="xml">
+      <pivot string="利潤報表" display_quantity="true" sample="1">
+        <field name="order_date"    type="row" interval="month"/>
+        <field name="total_income"  type="measure"/>
+        <field name="total_expense" type="measure"/>
+        <field name="net_profit"    type="measure"/>
+      </pivot>
+    </field>
+  </record>
+
+  <record id="view_report_profit_graph" model="ir.ui.view">
+    <field name="name">dms.sale.finance.graph.report</field>
+    <field name="model">dms.sale.finance</field>
+    <field name="arch" type="xml">
+      <graph string="利潤趨勢" type="bar" sample="1">
+        <field name="order_date" interval="month" type="row"/>
+        <field name="net_profit" type="measure"/>
+      </graph>
+    </field>
+  </record>
+
+  <record id="action_report_profit" model="ir.actions.act_window">
+    <field name="name">利潤報表</field>
+    <field name="res_model">dms.sale.finance</field>
+    <field name="view_mode">pivot,graph,tree</field>
+    <field name="view_ids" eval="[
+      (5, 0, 0),
+      (0, 0, {'view_mode': 'pivot', 'view_id': ref('view_report_profit_pivot')}),
+      (0, 0, {'view_mode': 'graph', 'view_id': ref('view_report_profit_graph')}),
+      (0, 0, {'view_mode': 'tree',  'view_id': ref('dms_finance.view_sale_finance_tree')}),
+    ]"/>
+  </record>
+
+  <!-- ╔══════════════════════════════════════════════════════╗ -->
+  <!-- ║  傭金報表：依車行分組的銷售統計                       ║ -->
+  <!-- ╚══════════════════════════════════════════════════════╝ -->
+
+  <record id="view_report_commission_pivot" model="ir.ui.view">
+    <field name="name">dms.sale.order.commission.pivot.report</field>
+    <field name="model">dms.sale.order</field>
+    <field name="arch" type="xml">
+      <pivot string="傭金報表" sample="1">
+        <field name="dealer_id"   type="row"/>
+        <field name="order_date"  type="col" interval="month"/>
+        <field name="commission"  type="measure"/>
+        <field name="amount_total" type="measure"/>
+      </pivot>
+    </field>
+  </record>
+
+  <record id="action_report_commission" model="ir.actions.act_window">
+    <field name="name">傭金報表</field>
+    <field name="res_model">dms.sale.order</field>
+    <field name="view_mode">pivot,tree</field>
+    <field name="domain">[('sale_type','=','dealer'),('state','=','confirmed')]</field>
+    <field name="view_ids" eval="[
+      (5, 0, 0),
+      (0, 0, {'view_mode': 'pivot', 'view_id': ref('view_report_commission_pivot')}),
+      (0, 0, {'view_mode': 'tree',  'view_id': ref('dms_sale.view_sale_order_tree')}),
+    ]"/>
+  </record>
+
+  <!-- ╔══════════════════════════════════════════════════════╗ -->
+  <!-- ║  選單：報表分析（頂層，sequence=40）                  ║ -->
+  <!-- ╚══════════════════════════════════════════════════════╝ -->
+
+  <menuitem id="menu_dms_report_root"     name="報表分析" sequence="40"/>
+  <menuitem id="menu_report_sales"        name="銷售報表"
+            parent="menu_dms_report_root"
+            action="action_report_sales"      sequence="10"/>
+  <menuitem id="menu_report_profit"       name="利潤報表"
+            parent="menu_dms_report_root"
+            action="action_report_profit"     sequence="20"/>
+  <menuitem id="menu_report_commission"   name="傭金報表"
+            parent="menu_dms_report_root"
+            action="action_report_commission" sequence="30"/>
+
+</odoo>

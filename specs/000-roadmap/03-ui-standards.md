@@ -102,6 +102,29 @@ patch(ListRenderer.prototype, "{module}.{Model}ColumnLimit", {
 });
 ```
 
+### 7. 響應式清單視圖（RWD）
+
+行動裝置/平板瀏覽時，透過 CSS 媒體查詢自動隱藏次要欄位，降低橫向捲動負擔。
+
+| 裝置寬度 | 保留欄位 | 自動隱藏欄位 |
+|---|---|---|
+| ≤ 575px（手機） | `code`、`name`、`phone_1` | 其餘所有 optional="show" 欄位 |
+| 576–767px（直式平板） | 手機欄位 + `store_type_id` | `owner_name`、`store_manager`、`mobile`、`brand_auth_brand_display`、`active` |
+| ≥ 768px（橫式平板以上） | 依 `optional` 設定全部顯示 | — |
+
+- 隱藏規則寫在 `dms_theme.scss`（section 10），以 `[data-name]` / `[name]` 屬性選取欄位。
+- 不影響使用者手動切換 optional columns，只控制「初始顯示行為」。
+
+### 8. 防誤觸規範（Anti-Accidental-Edit）
+
+目的：在手機/平板上降低誤觸修改資料的機率。
+
+| 措施 | 說明 |
+|---|---|
+| 清單不可直接編輯 | `<tree>` 不設 `editable` 屬性，所有列均需點入 form view 才能編輯 |
+| boolean 欄位清單唯讀 | 清單視圖中的 Boolean 欄位加 `readonly="1"`，如 `active`、`manager_same_as_owner` 等，防止觸碰直接翻轉 |
+| 預設欄數最小化 | 手機視圖下 CSS 強制只顯示最少必要欄位，減少誤觸面積 |
+
 ---
 
 ## 品牌色彩規範（Brand Theme）

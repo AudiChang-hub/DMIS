@@ -20,6 +20,7 @@
     'assets': {
         'web.assets_backend': [
             'dms_core/static/src/scss/dealer.scss',
+            'dms_core/static/src/scss/dms_theme.scss',
             'dms_core/static/src/js/dms_dealer_column_limit.js',
         ],
     },

@@ -1,0 +1,140 @@
+// ============================================================
+// DMS 品牌主題：三陽（SYM 綠）× 台鈴（Suzuki 藍）
+// 色調參考：三陽維修系統介面綠 / 台鈴官網深海軍藍
+// 規格參照：specs/000-roadmap/03-ui-standards.md § 品牌色彩規範
+// ============================================================
+
+// 品牌色彩變數
+$dms-sym-green:          #1A7B3A;   // 三陽 SYM 品牌綠
+$dms-sym-green-dark:     #145F2D;   // hover / active 深版
+$dms-sym-green-light:    #228944;   // 按鈕 focus tint
+$dms-suzuki-blue:        #003087;   // 台鈴 Suzuki 深海軍藍
+$dms-suzuki-blue-dark:   #00236B;   // 連結 hover 深版
+$dms-suzuki-blue-mid:    #1A4B9C;   // 選中行 tint
+
+// ── 1. 頂部導覽列 ──────────────────────────────────────────
+.o_main_navbar {
+    background: linear-gradient(90deg, $dms-sym-green 0%, $dms-suzuki-blue 100%) !important;
+    border-bottom: 2px solid $dms-sym-green-dark !important;
+
+    // 品牌名稱
+    .o_menu_brand {
+        color: white !important;
+        font-weight: 700 !important;
+    }
+
+    // 選單項目（一般）
+    .o_nav_entry,
+    .o_menu_sections > .o_dropdown > .dropdown-toggle,
+    .o_menu_entry_lvl_1 {
+        color: rgba(255, 255, 255, 0.92) !important;
+
+        &:hover,
+        &.open,
+        &.active {
+            background: rgba(255, 255, 255, 0.16) !important;
+            color: white !important;
+        }
+    }
+
+    // 右側系統列（通知、設定、使用者）
+    .o_menu_systray {
+        .o_nav_entry,
+        > li > a {
+            color: rgba(255, 255, 255, 0.92) !important;
+
+            &:hover {
+                background: rgba(255, 255, 255, 0.16) !important;
+                color: white !important;
+            }
+        }
+    }
+}
+
+// ── 2. 主要按鈕（btn-primary）──────────────────────────────
+.btn-primary {
+    background-color: $dms-sym-green !important;
+    border-color: $dms-sym-green !important;
+    color: white !important;
+
+    &:hover,
+    &:focus,
+    &:active,
+    &.active {
+        background-color: $dms-sym-green-dark !important;
+        border-color: $dms-sym-green-dark !important;
+        color: white !important;
+    }
+
+    &:focus {
+        box-shadow: 0 0 0 0.2rem rgba($dms-sym-green, 0.30) !important;
+    }
+}
+
+// ── 3. 超連結 ──────────────────────────────────────────────
+a:not(.btn):not(.nav-link):not(.o_menu_brand):not(.o_nav_entry) {
+    color: $dms-suzuki-blue;
+
+    &:hover {
+        color: $dms-suzuki-blue-dark;
+    }
+}
+
+// ── 4. 列表視圖 ────────────────────────────────────────────
+// hover 行
+.o_list_view .o_data_row:hover > td {
+    background-color: rgba($dms-sym-green, 0.05) !important;
+}
+
+// 選中行
+.o_list_view .o_data_row.o_row_selected > td {
+    background-color: rgba($dms-suzuki-blue-mid, 0.08) !important;
+}
+
+// ── 5. 狀態列（Statusbar）──────────────────────────────────
+.o_statusbar_status {
+    .btn-primary,
+    .btn.active,
+    .btn-primary.active {
+        background-color: $dms-sym-green !important;
+        border-color: $dms-sym-green !important;
+        color: white !important;
+    }
+}
+
+// ── 6. Notebook 分頁標籤 ───────────────────────────────────
+.o_notebook .nav-tabs .nav-link.active,
+.o_notebook .nav-tabs .nav-link:hover {
+    color: $dms-sym-green !important;
+    border-bottom-color: $dms-sym-green !important;
+}
+
+// ── 7. 搜尋 Facet 標籤 ────────────────────────────────────
+.o_searchview .o_facet {
+    background-color: $dms-suzuki-blue !important;
+    border-color: $dms-suzuki-blue-dark !important;
+    color: white !important;
+
+    .o_facet_remove {
+        color: rgba(255, 255, 255, 0.75);
+
+        &:hover {
+            color: white;
+        }
+    }
+}
+
+// ── 8. 計數按鈕（Stat Button）─────────────────────────────
+.o_stat_info .o_value {
+    color: $dms-sym-green;
+}
+
+// ── 9. 麵包屑 ─────────────────────────────────────────────
+.o_breadcrumb .o_back_button,
+.o_breadcrumb .o_breadcrumb_item > a {
+    color: $dms-suzuki-blue;
+
+    &:hover {
+        color: $dms-suzuki-blue-dark;
+    }
+}

@@ -104,15 +104,6 @@ a:not(.btn):not(.nav-link):not(.o_menu_brand):not(.o_nav_entry) {
         &:last-child { border-right: none !important; }
     }
 
-    // 資料列：交替底色（奇數白、偶數淡綠）
-    // 資料列交替底色：排除已選取列，避免與選取色衝突
-    .o_data_row:nth-child(odd):not(.o_row_selected) > td {
-        background-color: #FFFFFF;
-    }
-    .o_data_row:nth-child(even):not(.o_row_selected) > td {
-        background-color: #F2F7F0;   // 三陽綠 4% tint
-    }
-
     // 所有資料格：右側分隔線 + 下分隔線
     .o_data_row > td {
         border-right: 1px solid #DDE8D5 !important;
@@ -120,17 +111,27 @@ a:not(.btn):not(.nav-link):not(.o_menu_brand):not(.o_nav_entry) {
 
         &:last-child { border-right: none !important; }
     }
+}
 
-    // hover 行（未選取）：維持綠色 tint
-    .o_data_row:not(.o_row_selected):hover > td {
-        background-color: rgba($dms-sym-green, 0.09) !important;
-    }
-
-    // 選中行：奇偶列已用 :not(.o_row_selected) 排除，這裡不須 !important 也能贏
-    .o_data_row.o_row_selected > td {
-        background-color: #D6E4F7 !important;
-        border-bottom-color: #A8C8EE !important;
-    }
+// ── 4b. 清單視圖：交替底色、hover、選取色（高特異度，擺在 .o_list_view 區塊外）──
+// 奇數列背景：僅在未選取時顯示
+.o_list_view tbody tr.o_data_row:nth-child(odd):not(.o_row_selected):not(.o_list_row_selected):not(.table-active) > td {
+    background-color: #FFFFFF;
+}
+// 偶數列背景：僅在未選取時顯示
+.o_list_view tbody tr.o_data_row:nth-child(even):not(.o_row_selected):not(.o_list_row_selected):not(.table-active) > td {
+    background-color: #F2F7F0;
+}
+// Hover（未選取列）
+.o_list_view tbody tr.o_data_row:not(.o_row_selected):not(.o_list_row_selected):not(.table-active):hover > td {
+    background-color: #E6F0FB !important;
+}
+// 選取列：涵蓋 Odoo 16 所有可能的選取 class
+.o_list_view tbody tr.o_data_row.o_row_selected > td,
+.o_list_view tbody tr.o_data_row.o_list_row_selected > td,
+.o_list_view tbody tr.o_data_row.table-active > td {
+    background-color: #D6E4F7 !important;
+    border-color: #A8C8EE !important;
 }
 
 // ── 5. 狀態列（Statusbar）──────────────────────────────────

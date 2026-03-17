@@ -113,23 +113,31 @@ a:not(.btn):not(.nav-link):not(.o_menu_brand):not(.o_nav_entry) {
     }
 }
 
-// ── 4b. 清單視圖：交替底色、hover、選取色（高特異度，擺在 .o_list_view 區塊外）──
-// 奇數列背景：僅在未選取時顯示
-.o_list_view tbody tr.o_data_row:nth-child(odd):not(.o_row_selected):not(.o_list_row_selected):not(.table-active) > td {
+// ── 4b. 清單視圖：交替底色、hover、選取色 ──────────────────
+// Odoo 16 真實選取 class（由 list_renderer.js 確認）：
+//   record.selected → tr 加上 .o_data_row_selected 和 Bootstrap .table-info
+//   isInEdition     → tr 加上 .o_selected_row
+//   mouseenter/out  → tr 加上/移除 .table-active（純 hover，非選取）
+
+// 奇數列底色：排除選取與編輯狀態
+.o_list_view tbody tr.o_data_row:nth-child(odd):not(.o_data_row_selected):not(.o_selected_row):not(.table-info) > td {
     background-color: #FFFFFF;
 }
-// 偶數列背景：僅在未選取時顯示
-.o_list_view tbody tr.o_data_row:nth-child(even):not(.o_row_selected):not(.o_list_row_selected):not(.table-active) > td {
+// 偶數列底色：排除選取與編輯狀態
+.o_list_view tbody tr.o_data_row:nth-child(even):not(.o_data_row_selected):not(.o_selected_row):not(.table-info) > td {
     background-color: #F2F7F0;
 }
-// Hover（未選取列）
-.o_list_view tbody tr.o_data_row:not(.o_row_selected):not(.o_list_row_selected):not(.table-active):hover > td {
+// Hover（排除已選取/編輯的行）
+.o_list_view tbody tr.o_data_row:not(.o_data_row_selected):not(.o_selected_row):not(.table-info):hover > td,
+.o_list_view tbody tr.o_data_row:not(.o_data_row_selected):not(.o_selected_row):not(.table-info).table-active > td {
     background-color: #E6F0FB !important;
 }
-// 選取列：涵蓋 Odoo 16 所有可能的選取 class
-.o_list_view tbody tr.o_data_row.o_row_selected > td,
-.o_list_view tbody tr.o_data_row.o_list_row_selected > td,
-.o_list_view tbody tr.o_data_row.table-active > td {
+// 選取列：.o_data_row_selected（Odoo）+ .table-info（Bootstrap）+ .o_selected_row（編輯中）
+// 同時重設 Bootstrap 的 CSS 變數，避免 --bs-table-accent-bg 覆蓋
+.o_list_view tbody tr.o_data_row.o_data_row_selected > td,
+.o_list_view tbody tr.o_data_row.table-info > td,
+.o_list_view tbody tr.o_data_row.o_selected_row > td {
+    --bs-table-accent-bg: #D6E4F7;
     background-color: #D6E4F7 !important;
     border-color: #A8C8EE !important;
 }

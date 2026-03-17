@@ -125,10 +125,12 @@ a:not(.btn):not(.nav-link):not(.o_menu_brand):not(.o_nav_entry) {
         background-color: rgba($dms-sym-green, 0.09) !important;
     }
 
-    // 選中行
-    .o_data_row.o_row_selected > td {
-        background-color: rgba($dms-suzuki-blue-mid, 0.12) !important;
-        border-bottom-color: rgba($dms-suzuki-blue-mid, 0.25) !important;
+    // 選中行：固定淡藍色，覆蓋奇偶交替底色讓所有選取列視覺一致
+    .o_data_row.o_row_selected > td,
+    .o_data_row.o_row_selected:nth-child(odd) > td,
+    .o_data_row.o_row_selected:nth-child(even) > td {
+        background-color: #D6E4F7 !important;
+        border-bottom-color: #A8C8EE !important;
     }
 }
 

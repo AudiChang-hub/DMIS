@@ -81,14 +81,55 @@ a:not(.btn):not(.nav-link):not(.o_menu_brand):not(.o_nav_entry) {
 }
 
 // ── 4. 列表視圖 ────────────────────────────────────────────
-// hover 行
-.o_list_view .o_data_row:hover > td {
-    background-color: rgba($dms-sym-green, 0.05) !important;
-}
+// 表格外框與格線
+.o_list_view {
+    // 表格整體外框
+    border: 1px solid #C8D6B9 !important;
+    border-radius: 4px;
+    overflow: hidden;
 
-// 選中行
-.o_list_view .o_data_row.o_row_selected > td {
-    background-color: rgba($dms-suzuki-blue-mid, 0.08) !important;
+    // 標題列：品牌漸層底色
+    thead th,
+    .o_column_headers th {
+        background: linear-gradient(90deg, darken(#1A7B3A, 5%) 0%, $dms-suzuki-blue 100%) !important;
+        color: white !important;
+        font-weight: 600 !important;
+        font-size: 0.82rem !important;
+        letter-spacing: 0.02em;
+        border-right: 1px solid rgba(255, 255, 255, 0.20) !important;
+        border-bottom: 2px solid $dms-sym-green-dark !important;
+        padding-top: 8px !important;
+        padding-bottom: 8px !important;
+
+        &:last-child { border-right: none !important; }
+    }
+
+    // 資料列：交替底色（奇數白、偶數淡綠）
+    .o_data_row:nth-child(odd) > td {
+        background-color: #FFFFFF;
+    }
+    .o_data_row:nth-child(even) > td {
+        background-color: #F2F7F0;   // 三陽綠 4% tint
+    }
+
+    // 所有資料格：右側分隔線 + 下分隔線
+    .o_data_row > td {
+        border-right: 1px solid #DDE8D5 !important;
+        border-bottom: 1px solid #DDE8D5 !important;
+
+        &:last-child { border-right: none !important; }
+    }
+
+    // hover 行：維持綠色 tint，加強對比
+    .o_data_row:hover > td {
+        background-color: rgba($dms-sym-green, 0.09) !important;
+    }
+
+    // 選中行
+    .o_data_row.o_row_selected > td {
+        background-color: rgba($dms-suzuki-blue-mid, 0.12) !important;
+        border-bottom-color: rgba($dms-suzuki-blue-mid, 0.25) !important;
+    }
 }
 
 // ── 5. 狀態列（Statusbar）──────────────────────────────────

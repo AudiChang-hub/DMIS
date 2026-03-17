@@ -85,7 +85,7 @@
   </record>
 
   <!-- ===== 選單 ===== -->
-  <menuitem id="menu_dms_pricelist_root" name="DMS 價目管理"/>
+  <menuitem id="menu_dms_pricelist_root" name="價目管理"/>
   <menuitem id="menu_vehicle_price" name="車款售價" parent="menu_dms_pricelist_root"
             action="action_vehicle_price" sequence="10"/>
 

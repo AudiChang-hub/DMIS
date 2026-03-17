@@ -7,6 +7,8 @@
     <field name="model">dms.dealer</field>
     <field name="arch" type="xml">
       <tree string="車行">
+        <!-- 標色圓點：固定顯示，不可隱藏，無欄位標題 -->
+        <field name="color_tag" widget="dms_color_dot" string="●" nolabel="0"/>
         <!-- 預設顯示（optional="show"）：9 欄，≤ 15 軟性上限 -->
         <field name="code"          optional="show"/>
         <field name="name"          optional="show"/>
@@ -63,6 +65,9 @@
                 <field name="manager_same_as_owner"/>
                 <field name="store_manager"
                        attrs="{'readonly': [('manager_same_as_owner', '=', True)]}"/>
+              </group>
+              <group string="標色">
+                <field name="color_tag" widget="dms_color_dot" nolabel="0"/>
               </group>
               <group string="地點與備註">
                 <field name="address" colspan="2"/>

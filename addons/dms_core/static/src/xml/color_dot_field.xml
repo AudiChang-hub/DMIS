@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+
+  <!--
+    dms_core.ColorDotField  OWL 模板
+    - readonly（列表）：顯示單一彩色圓點 + tooltip
+    - editable（表單）：顯示調色盤供點選
+  -->
+  <t t-name="dms_core.ColorDotField" owl="1">
+
+    <!-- ── 唯讀模式（列表視圖）── -->
+    <t t-if="props.readonly">
+      <span
+        class="dms-color-dot"
+        t-att-data-color="props.value or 'gray'"
+        t-att-title="colorLabel"
+      />
+    </t>
+
+    <!-- ── 可編輯模式（表單視圖）── -->
+    <t t-else="">
+      <div class="dms-color-dot-picker">
+        <t t-foreach="options" t-as="opt" t-key="opt.value">
+          <label
+            class="dms-color-dot-option"
+            t-att-title="opt.label"
+          >
+            <input
+              type="radio"
+              t-att-name="'color_tag_' + props.id"
+              t-att-value="opt.value"
+              t-att-checked="props.value === opt.value ? true : undefined"
+              t-on-change="(ev) => this.onChange(ev)"
+            />
+            <span
+              class="dms-color-dot"
+              t-att-data-color="opt.value"
+            />
+            <span class="dms-color-dot-label" t-esc="opt.label"/>
+          </label>
+        </t>
+      </div>
+    </t>
+
+  </t>
+</templates>

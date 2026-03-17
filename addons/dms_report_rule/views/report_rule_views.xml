@@ -1,0 +1,163 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+  <!-- ╔══════════════════════════════════════════════════════╗ -->
+  <!-- ║  Tree / List 視圖                                   ║ -->
+  <!-- ╚══════════════════════════════════════════════════════╝ -->
+
+  <record id="view_report_rule_tree" model="ir.ui.view">
+    <field name="name">dms.report.rule.tree</field>
+    <field name="model">dms.report.rule</field>
+    <field name="arch" type="xml">
+      <tree string="報表規則" decoration-muted="not active">
+        <field name="name"/>
+        <field name="model_id"/>
+        <field name="chart_type"/>
+        <field name="public"/>
+        <field name="owner_id"/>
+        <field name="active" invisible="1"/>
+      </tree>
+    </field>
+  </record>
+
+  <!-- ╔══════════════════════════════════════════════════════╗ -->
+  <!-- ║  Form 視圖                                          ║ -->
+  <!-- ╚══════════════════════════════════════════════════════╝ -->
+
+  <record id="view_report_rule_form" model="ir.ui.view">
+    <field name="name">dms.report.rule.form</field>
+    <field name="model">dms.report.rule</field>
+    <field name="arch" type="xml">
+      <form string="報表規則">
+
+        <!-- 頂部操作按鈕 -->
+        <header>
+          <button name="action_preview_report"
+                  string="預覽報表"
+                  type="object"
+                  class="btn-primary"
+                  icon="fa-bar-chart"/>
+        </header>
+
+        <sheet>
+          <!-- 標題列 -->
+          <div class="oe_title">
+            <h1>
+              <field name="name" placeholder="規則名稱…" required="1"/>
+            </h1>
+          </div>
+
+          <group>
+            <group string="規則設定">
+              <field name="model_id"
+                     options="{'no_create': True, 'no_open': True}"/>
+              <field name="chart_type" widget="radio"/>
+            </group>
+            <group string="共享設定">
+              <field name="owner_id"
+                     options="{'no_create': True, 'no_open': True}"/>
+              <field name="public"/>
+              <field name="active"/>
+            </group>
+          </group>
+
+          <notebook>
+            <page string="維度與指標">
+              <group>
+                <field name="dimension_ids"
+                       widget="many2many_tags"
+                       domain="[('model_id', '=', model_id),
+                                 ('ttype', 'in', ['date','datetime','many2one','selection','char'])]"
+                       options="{'no_create': True}"
+                       string="維度欄位（group by）"
+                       help="選擇用於分組的欄位（日期、多選、字元等）"/>
+                <field name="measure_ids"
+                       widget="many2many_tags"
+                       domain="[('model_id', '=', model_id),
+                                 ('ttype', 'in', ['float','integer','monetary'])]"
+                       options="{'no_create': True}"
+                       string="指標欄位（數值聚合）"
+                       help="選擇要加總/計算的數值欄位"/>
+              </group>
+            </page>
+            <page string="篩選條件">
+              <group>
+                <field name="filter_domain"
+                       widget="text"
+                       placeholder="例如：[('state', '=', 'confirmed')]"
+                       string="篩選條件（Domain）"/>
+              </group>
+              <div class="alert alert-info" role="alert">
+                <strong>提示：</strong>
+                篩選條件使用 Odoo domain 格式，例如：
+                <code>[('state', '=', 'confirmed')]</code>。
+                留空表示不篩選。非法格式將自動忽略（不會崩潰）。
+              </div>
+            </page>
+          </notebook>
+        </sheet>
+      </form>
+    </field>
+  </record>
+
+  <!-- ╔══════════════════════════════════════════════════════╗ -->
+  <!-- ║  Search 視圖                                        ║ -->
+  <!-- ╚══════════════════════════════════════════════════════╝ -->
+
+  <record id="view_report_rule_search" model="ir.ui.view">
+    <field name="name">dms.report.rule.search</field>
+    <field name="model">dms.report.rule</field>
+    <field name="arch" type="xml">
+      <search string="報表規則">
+        <field name="name" string="規則名稱"/>
+        <field name="model_id" string="資料模型"/>
+        <field name="owner_id" string="建立者"/>
+
+        <separator/>
+        <filter name="filter_mine"   string="我的規則"
+                domain="[('owner_id', '=', uid)]"/>
+        <filter name="filter_public" string="公開規則"
+                domain="[('public', '=', True)]"/>
+        <filter name="filter_inactive" string="已停用"
+                domain="[('active', '=', False)]"/>
+
+        <group expand="0" string="群組依據">
+          <filter name="group_model"      string="資料模型"  context="{'group_by': 'model_id'}"/>
+          <filter name="group_chart_type" string="圖表類型"  context="{'group_by': 'chart_type'}"/>
+          <filter name="group_owner"      string="建立者"    context="{'group_by': 'owner_id'}"/>
+        </group>
+      </search>
+    </field>
+  </record>
+
+  <!-- ╔══════════════════════════════════════════════════════╗ -->
+  <!-- ║  Action                                             ║ -->
+  <!-- ╚══════════════════════════════════════════════════════╝ -->
+
+  <record id="action_report_rule" model="ir.actions.act_window">
+    <field name="name">報表規則</field>
+    <field name="res_model">dms.report.rule</field>
+    <field name="view_mode">tree,form</field>
+    <field name="context">{'search_default_filter_mine': 1}</field>
+    <field name="help" type="html">
+      <p class="o_view_nocontent_smiling_face">
+        尚無任何報表規則
+      </p>
+      <p>
+        點擊「新增」建立第一個動態報表規則，
+        選擇資料模型、維度、指標與圖表類型後，即可一鍵預覽報表。
+      </p>
+    </field>
+  </record>
+
+  <!-- ╔══════════════════════════════════════════════════════╗ -->
+  <!-- ║  選單：報表分析 → 報表規則（sequence=40）            ║ -->
+  <!-- ╚══════════════════════════════════════════════════════╝ -->
+
+  <menuitem id="menu_report_rule"
+            name="報表規則"
+            parent="dms_report.menu_dms_report_root"
+            action="action_report_rule"
+            sequence="40"/>
+
+</odoo>

@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+  <data noupdate="1">
+
+    <!-- ╔════════════════════════════════════════════════════════════╗ -->
+    <!-- ║  Record Rules — dms.report.rule                           ║ -->
+    <!-- ╚════════════════════════════════════════════════════════════╝ -->
+
+    <!--
+      一般使用者（User 群組）：
+       讀取：自己建立的規則 OR 公開規則
+       寫入/刪除：僅自己建立的規則
+
+      管理員（Admin 群組：implied_ids 包含 User）：
+       不套用 user-write 規則（Admin 自身有 global access）
+    -->
+
+    <!-- 讀取規則：自己 OR public -->
+    <record id="rule_report_rule_user_read" model="ir.rule">
+      <field name="name">報表規則：使用者可讀取（自己 + 公開）</field>
+      <field name="model_id" ref="model_dms_report_rule"/>
+      <field name="domain_force">
+        ['|', ('owner_id', '=', user.id), ('public', '=', True)]
+      </field>
+      <field name="groups" eval="[(4, ref('group_dms_report_rule_user'))]"/>
+      <field name="perm_read"   eval="True"/>
+      <field name="perm_write"  eval="False"/>
+      <field name="perm_create" eval="False"/>
+      <field name="perm_unlink" eval="False"/>
+    </record>
+
+    <!-- 寫入/刪除規則：僅自己 -->
+    <record id="rule_report_rule_user_write" model="ir.rule">
+      <field name="name">報表規則：使用者只能修改/刪除自己的規則</field>
+      <field name="model_id" ref="model_dms_report_rule"/>
+      <field name="domain_force">
+        [('owner_id', '=', user.id)]
+      </field>
+      <field name="groups" eval="[(4, ref('group_dms_report_rule_user'))]"/>
+      <field name="perm_read"   eval="False"/>
+      <field name="perm_write"  eval="True"/>
+      <field name="perm_create" eval="False"/>
+      <field name="perm_unlink" eval="True"/>
+    </record>
+
+  </data>
+
+</odoo>

@@ -1,5 +1,24 @@
 # 任務清單 (04-tasks)
 
+## 車行代碼自動產生（feat: auto-code-generation）
+
+### 規格說明
+- 車行代碼改為系統自動產生，使用者無法手動輸入
+- 格式：`{前綴}{YY}{MM}{DD}{seq:02d}`，共 9 碼
+  - 前綴依車行類型 `category` 欄位決定：`dealer`（經銷）→ `D`、`exclusive`（專賣）→ `S`、其他/未設定 → `N`
+  - `YY`：年份後兩碼；`MM`：月；`DD`：日；`seq`：當日同前綴流水碼（01 起跳）
+  - 範例：`D260317**01**`（2026-03-17 第一筆經銷車行）
+- 產生時機：按下儲存（`create()` 觸發）
+- 唯一性：`_sql_constraints` + 建立時迴圈檢查確保不重複
+
+### 實作項目
+- [x] `dms.store_type` 新增 `category` 欄位（Selection: dealer/exclusive/other）
+- [x] `store_type_views.xml` 加入 `category` 欄位
+- [x] `dealer.py`：`code` 改為 `readonly=True`；`create()` 依新格式自動產生
+- [x] `dealer_views.xml`：`code` 欄位加 `readonly="1"`
+
+---
+
 ## 完整車行需求實作清單
 
 ### Step 1 — Specs

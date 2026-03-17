@@ -1,6 +1,5 @@
 import logging
 from datetime import datetime
-import random
 
 from odoo import models, fields, api
 from odoo.exceptions import ValidationError
@@ -28,7 +27,7 @@ class Dealer(models.Model):
     _name = 'dms.dealer'
     _description = '車行'
 
-    code = fields.Char(string='車行代碼', required=True)
+    code = fields.Char(string='車行代碼', readonly=True, copy=False)
     name = fields.Char(string='店名', required=True)
     owner_name = fields.Char(string='負責人', required=True)
     store_manager = fields.Char(string='店長')
@@ -124,30 +123,46 @@ class Dealer(models.Model):
         ]
         return self.search(domain + args, limit=limit).name_get()
 
+    def _generate_dealer_code(self, store_type_id):
+        """依車行類型分類產生代碼：{D|S|N}{YY}{MM}{DD}{seq:02d}"""
+        prefix = 'N'
+        if store_type_id:
+            try:
+                st = self.env['dms.store_type'].browse(int(store_type_id))
+                if st and st.category == 'dealer':
+                    prefix = 'D'
+                elif st and st.category == 'exclusive':
+                    prefix = 'S'
+            except Exception:
+                pass
+        date_part = datetime.now().strftime('%y%m%d')
+        base = prefix + date_part  # e.g. 'D260317'
+        # 找出同前綴同日期最大流水碼
+        existing = self.search([('code', 'like', base + '%')]).mapped('code')
+        max_seq = 0
+        for c in existing:
+            if len(c) == 9 and c[:7] == base:
+                try:
+                    seq = int(c[7:])
+                    if seq > max_seq:
+                        max_seq = seq
+                except ValueError:
+                    pass
+        seq = max_seq + 1
+        code = '%s%02d' % (base, seq)
+        # 防止極端情況下的重複（競態條件保護）
+        while self.search([('code', '=', code)], limit=1):
+            seq += 1
+            code = '%s%02d' % (base, seq)
+        return code
+
     @api.model_create_multi
     def create(self, vals_list):
         for vals in vals_list:
             if vals.get('manager_same_as_owner') and not vals.get('store_manager'):
                 vals['store_manager'] = vals.get('owner_name', '')
             if not vals.get('code'):
-                type_code = 'XX'
-                t_id = vals.get('store_type_id')
-                if t_id:
-                    try:
-                        t = self.env['dms.store_type'].browse(int(t_id))
-                        if t and t.name:
-                            type_code = t.name[:2].upper()
-                    except Exception:
-                        pass
-                date_part = datetime.now().strftime('%y%m%d')
-                base = (type_code[:2] + date_part)[:8]
-                code = base
-                for _attempt in range(10):
-                    if not self.search([('code', '=', code)], limit=1):
-                        break
-                    suffix = str(random.randint(0, 99)).zfill(2)
-                    code = (base[:-2] + suffix)[:8]
-                vals['code'] = code
+                vals['code'] = self._generate_dealer_code(vals.get('store_type_id'))
         return super().create(vals_list)
 
     @api.onchange('manager_same_as_owner', 'owner_name')

@@ -7,8 +7,9 @@
     <field name="model">dms.store_type</field>
     <field name="arch" type="xml">
       <tree string="車行類型">
-        <field name="name"   optional="show"/>
-        <field name="active" optional="show"/>
+        <field name="name"     optional="show"/>
+        <field name="category" optional="show"/>
+        <field name="active"   optional="show"/>
       </tree>
     </field>
   </record>
@@ -22,6 +23,7 @@
         <sheet>
           <group>
             <field name="name"/>
+            <field name="category"/>
             <field name="active"/>
           </group>
         </sheet>
@@ -37,7 +39,11 @@
       <search string="搜尋車行類型">
         <field name="name" string="類型名稱"/>
         <separator/>
-        <filter name="filter_active" string="啟用中" domain="[('active','=',True)]"/>
+        <filter name="filter_dealer"    string="經銷" domain="[('category','=','dealer')]"/>
+        <filter name="filter_exclusive" string="專賣" domain="[('category','=','exclusive')]"/>
+        <filter name="filter_other"     string="其他" domain="[('category','=','other')]"/>
+        <separator/>
+        <filter name="filter_active"   string="啟用中" domain="[('active','=',True)]"/>
         <filter name="filter_archived" string="已歸檔" domain="[('active','=',False)]"/>
       </search>
     </field>

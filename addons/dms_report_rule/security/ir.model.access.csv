@@ -1,0 +1,3 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_dms_report_rule_user,dms.report.rule (user),model_dms_report_rule,dms_report_rule.group_dms_report_rule_user,1,1,1,1
+access_dms_report_rule_admin,dms.report.rule (admin),model_dms_report_rule,dms_report_rule.group_dms_report_rule_admin,1,1,1,1

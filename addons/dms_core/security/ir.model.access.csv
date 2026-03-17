@@ -4,3 +4,4 @@ access_dms_dealer_tag,dms.dealer.tag,model_dms_dealer_tag,,1,1,1,1
 access_dms_dealer_type,dms.dealer.type,model_dms_dealer_type,,1,1,1,1
 access_dms_brand,dms.brand,model_dms_brand,,1,1,1,1
 access_dms_store_type,dms.store_type,model_dms_store_type,,1,1,1,1
+access_dms_dealer_brand_auth,dms.dealer.brand.auth,model_dms_dealer_brand_auth,,1,1,1,1

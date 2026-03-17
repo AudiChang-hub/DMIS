@@ -54,7 +54,6 @@
               <field name="active"/>
             </group>
             <group>
-              <field name="brand_ids" widget="many2many_tags"/>
             </group>
           </group>
           <notebook>
@@ -103,6 +102,14 @@
                 <span>排車容量不得為負數，儲存時將自動驗證。</span>
               </div>
             </page>
+            <page string="品牌授權">
+              <field name="brand_auth_ids">
+                <tree string="品牌授權" editable="bottom">
+                  <field name="brand_id"/>
+                  <field name="auth_type"/>
+                </tree>
+              </field>
+            </page>
           </notebook>
         </sheet>
       </form>
@@ -121,7 +128,7 @@
         <field name="phone_1"/>
         <field name="mobile"/>
         <field name="address"/>
-        <field name="brand_ids" string="品牌"/>
+        <field name="brand_auth_ids" string="品牌" filter_domain="[('brand_auth_ids.brand_id.name', 'ilike', self)]"/>
         <separator/>
         <filter name="filter_active" string="啟用中" domain="[('active','=',True)]"/>
         <filter name="filter_archived" string="已歸檔" domain="[('active','=',False)]"/>

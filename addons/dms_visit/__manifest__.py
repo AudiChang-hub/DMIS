@@ -22,6 +22,12 @@
         'views/dealer_kanban_inherit.xml',
         'views/kanban_config_views.xml',
     ],
+    'assets': {
+        'web.assets_backend': [
+            'dms_visit/static/src/css/pwa_pull_refresh.css',
+            'dms_visit/static/src/js/pwa_pull_refresh.js',
+        ],
+    },
     'installable': True,
     'application': False,
 }

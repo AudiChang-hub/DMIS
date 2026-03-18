@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+  <record id="group_dms_visit_user" model="res.groups">
+    <field name="name">DMS/拜訪使用者</field>
+    <field name="category_id" ref="base.module_category_user_type"/>
+  </record>
+
+  <record id="group_dms_visit_admin" model="res.groups">
+    <field name="name">DMS/拜訪管理者</field>
+    <field name="category_id" ref="base.module_category_user_type"/>
+    <field name="implied_ids" eval="[(4, ref('dms_visit.group_dms_visit_user'))]"/>
+  </record>
+</odoo>

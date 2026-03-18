@@ -1,0 +1,156 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+  <!-- ===== 清單視圖 ===== -->
+  <record id="view_dms_visit_tree" model="ir.ui.view">
+    <field name="name">dms.visit.tree</field>
+    <field name="model">dms.visit</field>
+    <field name="arch" type="xml">
+      <tree string="拜訪清單" default_order="visit_date desc">
+        <field name="visit_date"/>
+        <field name="dealer_id"/>
+        <field name="visitor_id"/>
+        <field name="purpose_id"/>
+        <field name="state" widget="badge"
+               decoration-success="state == 'done'"
+               decoration-warning="state == 'draft'"
+               decoration-danger="state == 'cancel'"/>
+      </tree>
+    </field>
+  </record>
+
+  <!-- ===== 表單視圖 ===== -->
+  <record id="view_dms_visit_form" model="ir.ui.view">
+    <field name="name">dms.visit.form</field>
+    <field name="model">dms.visit</field>
+    <field name="arch" type="xml">
+      <form string="拜訪紀錄">
+        <header>
+          <button name="action_done" string="確認完成" type="object"
+                  class="btn-primary"
+                  attrs="{'invisible': [('state', 'in', ['done', 'cancel'])]}"/>
+          <button name="action_cancel" string="取消拜訪" type="object"
+                  attrs="{'invisible': [('state', 'in', ['cancel'])]}"/>
+          <button name="action_draft" string="重置草稿" type="object"
+                  attrs="{'invisible': [('state', '=', 'draft')]}"/>
+          <field name="state" widget="statusbar"
+                 statusbar_visible="draft,done,cancel"/>
+        </header>
+        <sheet>
+          <div class="oe_title">
+            <label for="name"/>
+            <h1><field name="name" placeholder="拜訪名稱"/></h1>
+          </div>
+          <group>
+            <group string="拜訪資訊">
+              <field name="visit_date"/>
+              <field name="dealer_id"/>
+              <field name="dealer_address" readonly="1"
+                     attrs="{'invisible': [('dealer_id', '=', False)]}"/>
+              <field name="dealer_phone" readonly="1"
+                     attrs="{'invisible': [('dealer_id', '=', False)]}"/>
+              <field name="visitor_id"/>
+              <field name="purpose_id"/>
+            </group>
+            <group string="其他">
+              <field name="company_id" groups="base.group_multi_company"/>
+            </group>
+          </group>
+          <notebook>
+            <page string="備註" name="page_note">
+              <field name="note" placeholder="拜訪內容說明…"/>
+            </page>
+            <page string="送出物品" name="page_items">
+              <field name="item_ids">
+                <tree string="送出物品" editable="bottom">
+                  <field name="product_id"/>
+                  <field name="quantity"/>
+                  <field name="note"/>
+                </tree>
+              </field>
+            </page>
+          </notebook>
+        </sheet>
+      </form>
+    </field>
+  </record>
+
+  <!-- ===== 行事曆視圖 ===== -->
+  <record id="view_dms_visit_calendar" model="ir.ui.view">
+    <field name="name">dms.visit.calendar</field>
+    <field name="model">dms.visit</field>
+    <field name="arch" type="xml">
+      <calendar string="拜訪行事曆"
+                date_start="visit_date"
+                color="state"
+                mode="month"
+                quick_add="False">
+        <field name="dealer_id"/>
+        <field name="visitor_id"/>
+      </calendar>
+    </field>
+  </record>
+
+  <!-- ===== 搜尋視圖 ===== -->
+  <record id="view_dms_visit_search" model="ir.ui.view">
+    <field name="name">dms.visit.search</field>
+    <field name="model">dms.visit</field>
+    <field name="arch" type="xml">
+      <search string="搜尋拜訪紀錄">
+        <field name="dealer_id"/>
+        <field name="visitor_id"/>
+        <field name="purpose_id"/>
+        <separator/>
+        <filter name="filter_today"
+                string="今日拜訪"
+                domain="[('visit_date', '&gt;=', datetime.datetime.combine(context_today(), datetime.time(0,0,0))),
+                          ('visit_date', '&lt;=', datetime.datetime.combine(context_today(), datetime.time(23,59,59)))]"/>
+        <filter name="filter_draft" string="草稿" domain="[('state', '=', 'draft')]"/>
+        <filter name="filter_done" string="已完成" domain="[('state', '=', 'done')]"/>
+        <filter name="filter_cancel" string="已取消" domain="[('state', '=', 'cancel')]"/>
+        <group expand="0" string="分組">
+          <filter name="groupby_month" string="按月份"
+                  context="{'group_by': 'visit_date:month'}"/>
+          <filter name="groupby_dealer" string="按車行"
+                  context="{'group_by': 'dealer_id'}"/>
+          <filter name="groupby_visitor" string="按拜訪人員"
+                  context="{'group_by': 'visitor_id'}"/>
+          <filter name="groupby_state" string="按狀態"
+                  context="{'group_by': 'state'}"/>
+        </group>
+      </search>
+    </field>
+  </record>
+
+  <!-- ===== 動作：清單（tree 預設）===== -->
+  <record id="action_dms_visit_list" model="ir.actions.act_window">
+    <field name="name">拜訪清單</field>
+    <field name="res_model">dms.visit</field>
+    <field name="view_mode">tree,form,calendar</field>
+    <field name="context">{'form_view_initial_mode': 'edit'}</field>
+  </record>
+
+  <!-- ===== 動作：行事曆（calendar 預設）===== -->
+  <record id="action_dms_visit_calendar" model="ir.actions.act_window">
+    <field name="name">拜訪行事曆</field>
+    <field name="res_model">dms.visit</field>
+    <field name="view_mode">calendar,tree,form</field>
+    <field name="context">{'form_view_initial_mode': 'edit'}</field>
+  </record>
+
+  <!-- ===== 選單：掛載於「車行管理」下 ===== -->
+  <menuitem id="menu_dms_visit_list"
+            name="拜訪清單"
+            parent="dms_core.menu_dms_root"
+            action="action_dms_visit_list"
+            groups="dms_visit.group_dms_visit_user,dms_visit.group_dms_visit_admin"
+            sequence="20"/>
+
+  <menuitem id="menu_dms_visit_calendar"
+            name="拜訪行事曆"
+            parent="dms_core.menu_dms_root"
+            action="action_dms_visit_calendar"
+            groups="dms_visit.group_dms_visit_user,dms_visit.group_dms_visit_admin"
+            sequence="25"/>
+
+</odoo>

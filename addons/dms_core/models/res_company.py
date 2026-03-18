@@ -33,6 +33,8 @@ class ResCompany(models.Model):
 
         companies = self.search([])
         companies.write({'favicon': favicon_b64})
+        # 強制刷新 filestore（--stop-after-init 模式下需要明確 commit）
+        self.env.cr.commit()
         _logger.info(
             'dms_core: 已更新 %d 間公司的 favicon', len(companies)
         )

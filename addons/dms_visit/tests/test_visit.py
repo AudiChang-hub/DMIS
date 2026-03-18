@@ -1,6 +1,7 @@
 from odoo.tests.common import TransactionCase
 from odoo import fields
 from odoo.exceptions import AccessError
+from datetime import date
 
 
 class TestDmsVisit(TransactionCase):
@@ -31,6 +32,11 @@ class TestDmsVisit(TransactionCase):
         cls.purpose = cls.env['dms.visit.purpose'].create({
             'name': '洽談訂單',
             'code': 'TALK',
+        })
+
+        cls.purpose_price = cls.env['dms.visit.purpose'].create({
+            'name': '價格表發放',
+            'code': 'PRICE',
         })
 
         # ── 群組參考 ──────────────────────────────────────────────
@@ -153,3 +159,84 @@ class TestDmsVisit(TransactionCase):
         ])
         self.assertIn(visit_a, visible_admin, '管理者應能看到 user_visit1 的拜訪')
         self.assertIn(visit_b, visible_admin, '管理者應能看到 user_visit2 的拜訪')
+
+    # ── Test 06：cron 為啟用車行建立拜訪 ────────────────────────────
+    def test_06_cron_creates_visit_for_enabled_dealer(self):
+        """cron 執行後：auto_price_list_visit=True 的車行應產生一筆當月拜訪"""
+        self.dealer.write({
+            'auto_price_list_visit': True,
+            'price_list_visitor_id': self.user_visit1.id,
+        })
+        today = date.today()
+        # 確保測試前無當月拜訪
+        month_start = fields.Datetime.from_string(
+            '%04d-%02d-01 00:00:00' % (today.year, today.month)
+        )
+        self.env['dms.visit'].search([
+            ('dealer_id', '=', self.dealer.id),
+            ('visit_date', '>=', month_start),
+            ('purpose_id', '=', self.purpose_price.id),
+        ]).unlink()
+
+        self.env['dms.dealer'].cron_generate_price_list_visits()
+
+        visits = self.env['dms.visit'].sudo().search([
+            ('dealer_id', '=', self.dealer.id),
+            ('visit_date', '>=', month_start),
+            ('purpose_id', '=', self.purpose_price.id),
+        ])
+        self.assertEqual(len(visits), 1, 'cron 應為啟用車行建立 1 筆拜訪')
+        self.assertEqual(visits[0].visitor_id, self.user_visit1, '拜訪人員應為 price_list_visitor_id')
+        self.assertEqual(visits[0].state, 'done', '自動建立的拜訪狀態應為已完成')
+
+    # ── Test 07：cron 不重複建立同月份拜訪 ─────────────────────────
+    def test_07_cron_no_duplicate_same_month(self):
+        """cron 執行兩次：同車行同月份僅有一筆拜訪，不重複建立"""
+        self.dealer.write({
+            'auto_price_list_visit': True,
+            'price_list_visitor_id': self.user_visit1.id,
+        })
+        today = date.today()
+        month_start = fields.Datetime.from_string(
+            '%04d-%02d-01 00:00:00' % (today.year, today.month)
+        )
+        # 清除舊資料確保乾淨
+        self.env['dms.visit'].search([
+            ('dealer_id', '=', self.dealer.id),
+            ('visit_date', '>=', month_start),
+            ('purpose_id', '=', self.purpose_price.id),
+        ]).unlink()
+
+        # 執行兩次
+        self.env['dms.dealer'].cron_generate_price_list_visits()
+        self.env['dms.dealer'].cron_generate_price_list_visits()
+
+        visits = self.env['dms.visit'].sudo().search([
+            ('dealer_id', '=', self.dealer.id),
+            ('visit_date', '>=', month_start),
+            ('purpose_id', '=', self.purpose_price.id),
+        ])
+        self.assertEqual(len(visits), 1, 'cron 執行兩次後，同月份仍只應有 1 筆拜訪')
+
+    # ── Test 08：auto_price_list_visit=False 的車行不產生拜訪 ────────
+    def test_08_cron_skip_disabled_dealer(self):
+        """cron 執行後：auto_price_list_visit=False 的車行不應建立拜訪"""
+        self.dealer.write({'auto_price_list_visit': False})
+        today = date.today()
+        month_start = fields.Datetime.from_string(
+            '%04d-%02d-01 00:00:00' % (today.year, today.month)
+        )
+        before_count = self.env['dms.visit'].sudo().search_count([
+            ('dealer_id', '=', self.dealer.id),
+            ('visit_date', '>=', month_start),
+            ('purpose_id', '=', self.purpose_price.id),
+        ])
+
+        self.env['dms.dealer'].cron_generate_price_list_visits()
+
+        after_count = self.env['dms.visit'].sudo().search_count([
+            ('dealer_id', '=', self.dealer.id),
+            ('visit_date', '>=', month_start),
+            ('purpose_id', '=', self.purpose_price.id),
+        ])
+        self.assertEqual(before_count, after_count, '未啟用的車行不應新增拜訪')

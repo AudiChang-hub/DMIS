@@ -18,6 +18,16 @@
           </button>
         </div>
       </xpath>
+      <!-- 在備註頁籤後新增「自動拜訪」設定頁籤 -->
+      <xpath expr="//notebook" position="inside">
+        <page string="自動拜訪設定" groups="dms_visit.group_dms_visit_admin">
+          <group>
+            <field name="auto_price_list_visit"/>
+            <field name="price_list_visitor_id"
+                   attrs="{'invisible': [('auto_price_list_visit', '=', False)]}"/>
+          </group>
+        </page>
+      </xpath>
     </field>
   </record>
 

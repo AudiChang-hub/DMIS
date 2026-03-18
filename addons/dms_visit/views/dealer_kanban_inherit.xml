@@ -115,7 +115,13 @@
                 <t t-if="record.kanban_cfg_address.raw_value and record.address.value">
                   <div>
                     <i class="fa fa-map-marker text-muted" style="width:16px;" title="地址"/>
-                    <t t-esc="record.address.value"/>
+                    <a t-att-href="'https://maps.google.com/maps?q=' + encodeURIComponent(record.address.value.replace(/\n/g, ' '))"
+                       target="_blank"
+                       rel="noopener noreferrer"
+                       style="color:inherit; text-decoration:underline dotted;"
+                       onclick="event.stopPropagation();">
+                      <t t-esc="record.address.value"/>
+                    </a>
                   </div>
                 </t>
                 <t t-if="record.kanban_cfg_brand.raw_value and record.brand_auth_brand_display.value">

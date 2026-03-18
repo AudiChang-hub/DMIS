@@ -1,0 +1,36 @@
+/* ================================================================
+   iOS PWA 下拉重新整理指示器樣式
+   僅在 standalone （桌面捷徑）模式下可見（JS 已限制）
+   ================================================================ */
+
+#dms-ptr-indicator {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 9000;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    padding-bottom: 10px;
+    background: linear-gradient(to bottom, #ede8fe 0%, transparent 100%);
+    pointer-events: none;
+    overflow: hidden;
+    /* 不使用 transition，讓 JS control 更流暢 */
+}
+
+.dms-ptr-arrow {
+    display: inline-block;
+    font-size: 18px;
+    margin-right: 6px;
+    color: #7c52ff;
+    transition: transform 0.25s ease;
+    line-height: 1;
+}
+
+.dms-ptr-label {
+    font-size: 13px;
+    color: #7c52ff;
+    font-weight: 500;
+    letter-spacing: 0.02em;
+}

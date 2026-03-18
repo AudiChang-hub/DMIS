@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+  <!-- ===== Kanban 卡片欄位設定 — 表單視圖 ===== -->
+  <record id="view_dms_kanban_dealer_config_form" model="ir.ui.view">
+    <field name="name">dms.kanban.dealer.config.form</field>
+    <field name="model">dms.kanban.dealer.config</field>
+    <field name="arch" type="xml">
+      <form string="車行卡片顯示設定">
+        <sheet>
+          <!-- 已選數量提示 -->
+          <div class="alert alert-info o_form_no_cog mb16" role="alert">
+            已選 <strong><field name="selected_count" style="display:inline;"/></strong> 個欄位（最多 10 個）
+          </div>
+          <div class="row">
+            <div class="col-6">
+              <group string="基本資訊">
+                <field name="show_code"       widget="boolean_toggle"/>
+                <field name="show_store_type" widget="boolean_toggle"/>
+                <field name="show_brand"      widget="boolean_toggle"/>
+              </group>
+              <group string="人員">
+                <field name="show_owner_name"    widget="boolean_toggle"/>
+                <field name="show_store_manager" widget="boolean_toggle"/>
+              </group>
+              <group string="拜訪與活動">
+                <field name="show_visit_count"  widget="boolean_toggle"/>
+                <field name="show_line_group"   widget="boolean_toggle"/>
+                <field name="show_holiday_gift" widget="boolean_toggle"/>
+              </group>
+            </div>
+            <div class="col-6">
+              <group string="聯絡資訊">
+                <field name="show_phone_1" widget="boolean_toggle"/>
+                <field name="show_phone_2" widget="boolean_toggle"/>
+                <field name="show_mobile"  widget="boolean_toggle"/>
+                <field name="show_email"   widget="boolean_toggle"/>
+                <field name="show_address" widget="boolean_toggle"/>
+              </group>
+              <group string="價格表">
+                <field name="show_sym_gas"     widget="boolean_toggle"/>
+                <field name="show_sym_ev"      widget="boolean_toggle"/>
+                <field name="show_suzuki_gas"  widget="boolean_toggle"/>
+                <field name="show_suzuki_ev"   widget="boolean_toggle"/>
+              </group>
+            </div>
+          </div>
+        </sheet>
+      </form>
+    </field>
+  </record>
+
+  <!-- ===== Server Action：開啟 singleton 設定 ===== -->
+  <record id="action_open_kanban_dealer_config" model="ir.actions.server">
+    <field name="name">車行卡片設定</field>
+    <field name="model_id" ref="model_dms_kanban_dealer_config"/>
+    <field name="state">code</field>
+    <field name="code">
+config = env['dms.kanban.dealer.config'].get_kanban_config()
+action = {
+    'type': 'ir.actions.act_window',
+    'name': '車行卡片顯示設定',
+    'res_model': 'dms.kanban.dealer.config',
+    'view_mode': 'form',
+    'res_id': config.id,
+    'target': 'new',
+}
+    </field>
+  </record>
+
+  <!-- ===== 選單項目 ===== -->
+  <menuitem id="menu_dms_kanban_dealer_config"
+            name="車行卡片設定"
+            parent="dms_core.menu_dms_root"
+            action="action_open_kanban_dealer_config"
+            groups="dms_visit.group_dms_visit_admin"
+            sequence="36"/>
+
+</odoo>

@@ -313,6 +313,38 @@ dms_report_virtual_field_rule {
 }
 
 %% ─────────────────────────────────────────────
+%%  dms_visit
+%% ─────────────────────────────────────────────
+
+dms_visit_purpose {
+    int    id        PK
+    string name
+    string code
+    int    sequence
+    bool   active
+}
+
+dms_visit {
+    int      id            PK
+    string   name          "computed"
+    datetime visit_date
+    int      dealer_id     FK
+    int      visitor_id    FK
+    int      purpose_id    FK
+    text     note
+    string   state         "draft / done / cancel"
+    int      company_id    FK
+}
+
+dms_visit_item {
+    int   id          PK
+    int   visit_id    FK
+    int   product_id  FK
+    float quantity
+    text  note
+}
+
+%% ─────────────────────────────────────────────
 %%  關聯定義
 %% ─────────────────────────────────────────────
 
@@ -374,39 +406,7 @@ dms_report_virtual_field_rule }o--|| dms_report_virtual_field : "virtual_field_i
 %% dms_report_rule + dms_report_virtual 延伸
 dms_report_rule            }o--o{  dms_report_virtual_field  : "virtual_dimension_ids (M2M)"
 
-%% ─────────────────────────────────────────────
-%%  dms_visit（新增）
-%% ─────────────────────────────────────────────
-
-dms_visit_purpose {
-    int    id        PK
-    string name
-    string code
-    int    sequence
-    bool   active
-}
-
-dms_visit {
-    int      id            PK
-    string   name          "computed"
-    datetime visit_date
-    int      dealer_id     FK
-    int      visitor_id    FK
-    int      purpose_id    FK
-    text     note
-    string   state         "draft / done / cancel"
-    int      company_id    FK
-}
-
-dms_visit_item {
-    int   id          PK
-    int   visit_id    FK
-    int   product_id  FK
-    float quantity
-    text  note
-}
-
-%% dms_visit 關聯
+%% dms_visit
 dms_visit              }o--||  dms_dealer           : "dealer_id"
 dms_visit              }o--||  res_users            : "visitor_id"
 dms_visit              }o--o|  dms_visit_purpose    : "purpose_id"

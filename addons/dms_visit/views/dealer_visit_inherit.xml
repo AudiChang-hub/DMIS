@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+  <!-- 在車行表單視圖加入「拜訪紀錄」Smart Button -->
+  <record id="view_dealer_form_visit_inherit" model="ir.ui.view">
+    <field name="name">dms.dealer.form.visit.button</field>
+    <field name="model">dms.dealer</field>
+    <field name="inherit_id" ref="dms_core.view_dealer_form"/>
+    <field name="arch" type="xml">
+      <xpath expr="//form/sheet/div[hasclass('oe_title')]" position="before">
+        <div class="oe_button_box" name="button_box">
+          <button class="oe_stat_button"
+                  type="object"
+                  name="action_open_visits"
+                  icon="fa-calendar"
+                  groups="dms_visit.group_dms_visit_user,dms_visit.group_dms_visit_admin">
+            <field name="visit_count" widget="statinfo" string="拜訪紀錄"/>
+          </button>
+        </div>
+      </xpath>
+    </field>
+  </record>
+
+</odoo>

@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo noupdate="0">
+    <!--
+        更新所有公司的 favicon 為 DMIS 自訂圖示。
+        noupdate="0" 確保每次 -u dms_core 都會重新套用。
+
+        使用 <function> 而非 <record>，是因為 base.main_company
+        在 ir.model.data 中 noupdate=True，直接用 <record> 無效。
+        透過呼叫 res.company._action_set_dmis_favicon() 可繞過此限制，
+        並同時對所有公司套用。
+    -->
+    <function model="res.company" name="_action_set_dmis_favicon"/>
+</odoo>

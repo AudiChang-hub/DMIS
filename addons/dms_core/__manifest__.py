@@ -14,6 +14,7 @@
         'views/brand_views.xml',
         'views/store_type_views.xml',
         'views/web_layout_override.xml',
+        'data/company_config.xml',
         'data/seed.xml',
     ],
     # 已移除自建前端資產（dealer_columns_button.js）
@@ -25,6 +26,7 @@
             'dms_core/static/src/js/dms_dealer_column_limit.js',
             'dms_core/static/src/xml/color_dot_field.xml',
             'dms_core/static/src/js/color_dot_field.js',
+            'dms_core/static/src/js/dms_webclient_patch.js',
         ],
     },
 

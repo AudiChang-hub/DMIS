@@ -152,9 +152,68 @@ Tree + Form 視圖，管理員可讀寫。
         'security/dms_visit_security.xml',
         'security/ir.model.access.csv',
         'security/record_rules.xml',
+        'data/visit_cron.xml',
         'views/visit_purpose_views.xml',
         'views/visit_views.xml',
         'views/dealer_visit_inherit.xml',
     ],
 }
 ```
+
+---
+
+## 6. 月度自動建立拜訪（v1.1 新增）
+
+### 6.1 新增欄位（dms.dealer）
+
+| 欄位 | 類型 | 說明 |
+|------|------|------|
+| `auto_price_list_visit` | Boolean | 是否啟用每月自動建立價格表拜訪，預設 False |
+| `price_list_visitor_id` | Many2one → res.users | 負責業務，自動拜訪的 visitor_id 來源 |
+
+### 6.2 方法（dms.dealer）
+
+#### `cron_generate_price_list_visits()`
+- 由 `ir.cron` 每月 1 日 00:00 UTC 呼叫（`interval_number=1, interval_type='months'`）
+- 邏輯：
+  1. 搜尋所有 `auto_price_list_visit = True` 且 `active = True` 的車行
+  2. 取得「目的名稱 contains 價格表」的 `dms.visit.purpose`（或 code='PRICE'）
+  3. 對每個車行，以當月 1 日作為 `visit_date`
+  4. 去重：若同月份該車行已有 purpose=PRICE 的拜訪，跳過
+  5. `sudo()` 建立拜訪記錄（state='done'），visitor=`price_list_visitor_id` 或 fallback 到 SUPERUSER
+  6. 記錄 `_logger.info(...)` 彙報建立數量
+
+### 6.3 排程（data/visit_cron.xml）
+
+```xml
+<record id="ir_cron_generate_price_list_visits" model="ir.cron">
+  <field name="name">DMS：月度自動建立價格表拜訪</field>
+  <field name="model_id" ref="model_dms_dealer"/>
+  <field name="state">code</field>
+  <field name="code">model.cron_generate_price_list_visits()</field>
+  <field name="interval_number">1</field>
+  <field name="interval_type">months</field>
+  <field name="numbercall">-1</field>
+  <field name="active">True</field>
+</record>
+```
+
+---
+
+## 7. 車行列表 Kanban 視圖（v1.1 新增）
+
+在 `dms_visit` 模組新增 `views/dealer_kanban_inherit.xml`，繼承並補充 `dms_core` 的 act_window。
+
+### 7.1 Kanban 視圖規格
+
+| 項目 | 內容 |
+|------|------|
+| 視圖 model | dms.dealer |
+| 排序 | 預設（dealer_id order） |
+| 每卡顯示欄位 | name、store_type_id、owner_name、phone_1、visit_count |
+| Smart Button 連結 | action_open_visits（拜訪次數） |
+| 手機行動友善 | 字體 ≥ 14px，按鈕高度 ≥ 44px |
+
+### 7.2 act_window 更新
+
+`dms_core.action_dealer` 的 `view_mode` 擴充為 `tree,kanban,form`。

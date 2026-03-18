@@ -65,10 +65,10 @@ class Visit(models.Model):
     @api.depends('visit_date', 'dealer_id')
     def _compute_name(self):
         for rec in self:
-            date_str = (
-                rec.visit_date.strftime('%Y-%m-%d')
-                if rec.visit_date else ''
-            )
+            date_str = ''
+            if rec.visit_date:
+                local_dt = fields.Datetime.context_timestamp(rec, rec.visit_date)
+                date_str = local_dt.strftime('%Y-%m-%d')
             dealer_name = rec.dealer_id.name if rec.dealer_id else ''
             if date_str or dealer_name:
                 rec.name = '拜訪 %s %s' % (date_str, dealer_name)

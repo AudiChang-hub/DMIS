@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!--
+        覆寫 Odoo 16 web.layout 模板：
+          - 將瀏覽器分頁標題改為 DMIS-經營管理系統
+          - 將 favicon 換成自訂圖示 /dms_core/static/src/img/favicon.png
+    -->
+    <template id="dmis_web_layout" inherit_id="web.layout" name="DMIS 自訂標題與圖示">
+
+        <!-- 覆寫 <title> -->
+        <xpath expr="//title" position="replace">
+            <title>DMIS-經營管理系統</title>
+        </xpath>
+
+        <!-- 覆寫 favicon -->
+        <xpath expr="//link[@rel='shortcut icon']" position="replace">
+            <link type="image/png" rel="shortcut icon"
+                  href="/dms_core/static/src/img/favicon.png"/>
+        </xpath>
+
+    </template>
+</odoo>

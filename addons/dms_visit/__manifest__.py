@@ -20,6 +20,7 @@
         'views/visit_views.xml',
         'views/dealer_visit_inherit.xml',
         'views/dealer_kanban_inherit.xml',
+        'views/kanban_config_views.xml',
     ],
     'installable': True,
     'application': False,

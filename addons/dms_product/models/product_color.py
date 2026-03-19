@@ -4,7 +4,7 @@ from odoo import models, fields
 class ProductColor(models.Model):
     _name = 'dms.product.color'
     _description = '車款顏色'
-    _order = 'product_id, sequence, name'
+    _order = 'product_id, sequence'
     _rec_name = 'name'
     _inherit = ['image.mixin']
 

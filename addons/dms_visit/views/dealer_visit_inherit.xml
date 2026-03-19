@@ -25,10 +25,13 @@
             <field name="auto_price_list_visit"/>
             <field name="price_list_visitor_id"
                    attrs="{'invisible': [('auto_price_list_visit', '=', False)]}"/>
+            <field name="auto_visit_purpose_id"
+                   attrs="{'invisible': [('auto_price_list_visit', '=', False)]}"/>
           </group>
           <!-- 週期設定區塊 -->
           <group string="週期設定"
                  attrs="{'invisible': [('auto_price_list_visit', '=', False)]}">
+            <field name="auto_visit_interval_months"/>
             <field name="auto_visit_schedule_type"/>
             <!-- fixed_day -->
             <field name="auto_visit_day_of_month"

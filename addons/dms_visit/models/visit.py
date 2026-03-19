@@ -27,6 +27,11 @@ class Visit(models.Model):
         string='車行地址',
         readonly=True,
     )
+    dealer_address_map_url = fields.Char(
+        related='dealer_id.address_map_url',
+        string='車行地址（地圖）',
+        readonly=True,
+    )
     dealer_phone = fields.Char(
         related='dealer_id.phone_1',
         string='車行電話',

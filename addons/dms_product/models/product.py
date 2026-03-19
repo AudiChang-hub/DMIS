@@ -21,10 +21,10 @@ class DmsProduct(models.Model):
         'dms.product.color', 'product_id', string='顏色清單')
     active = fields.Boolean(string="啟用", default=True)
 
-    # ── 顏色相冊：第一個有圖片的顏色 ID（供 Kanban 顯示縮圖）──
+    # ── 第一個有圖片的顏色 ID（供 Kanban 顯示封面縮圖）──
     first_color_id = fields.Many2one(
         'dms.product.color',
-        string='首張顏色圖片',
+        string='封面圖片',
         compute='_compute_first_color_id',
         store=False,
     )

@@ -61,7 +61,7 @@
             <h1><field name="name" placeholder="產品名稱"/></h1>
           </div>
           <notebook>
-            <!-- 頁籤1：基本資料（永遠顯示） -->
+            <!-- 頁籤1：基本資料 -->
             <page string="基本資料">
               <group>
                 <field name="brand_id"/>
@@ -72,12 +72,18 @@
                 <field name="energy_type"/>
                 <field name="active"/>
               </group>
-              <separator string="顏色清單"/>
+            </page>
+
+            <!-- 頁籤2：圖片集（每個顏色一張圖） -->
+            <page string="圖片集">
+              <p class="text-muted" style="font-size:12px; margin-bottom:8px;">
+                每一列為一個顏色，對應一張圖片；排序最前的圖片將作為產品封面縮圖。
+              </p>
               <field name="color_ids" nolabel="1">
                 <tree editable="bottom">
                   <field name="sequence" widget="handle"/>
                   <field name="image_128" widget="image" string="圖片"
-                         options="{'size': [40, 40], 'accepted_file_extensions': '.jpg,.jpeg,.png,.webp,.gif'}"
+                         options="{'size': [60, 60], 'accepted_file_extensions': '.jpg,.jpeg,.png,.webp,.gif'}"
                          readonly="0"/>
                   <field name="name" string="顏色名稱"/>
                   <field name="active"/>
@@ -85,48 +91,7 @@
               </field>
             </page>
 
-            <!-- 頁籁2：圖片相凊（每個顏色一張照片）-->
-            <page string="圖片相凊">
-              <p class="text-muted" style="font-size:12px; margin-bottom:8px;">
-                点擊下方卡片的照片可放大查看。新增或編輯照片請到「基本資料」頁簼的顏色清單上傳。
-              </p>
-              <field name="color_ids" nolabel="1">
-                <kanban>
-                  <field name="id"/>
-                  <field name="name"/>
-                  <field name="image_256"/>
-                  <field name="active"/>
-                  <templates>
-                    <t t-name="kanban-box">
-                      <div class="dms-color-gallery-card"
-                           t-att-data-color-active="record.active.raw_value">
-                        <div class="dms-color-gallery-img">
-                          <t t-if="record.image_256.value">
-                            <img t-att-src="record.image_256.value"
-                                 t-att-alt="record.name.value"
-                                 class="dms-color-gallery-thumb"
-                                 data-dms-expand-img="1"
-                                 data-model="dms.product.color"
-                                 t-att-data-record-id="record.id.value"
-                                 t-att-data-product-name="record.name.value"/>
-                          </t>
-                          <t t-else="">
-                            <div class="dms-color-gallery-empty">
-                              <i class="fa fa-image" title="尚未上傳圖片"/>
-                            </div>
-                          </t>
-                        </div>
-                        <div class="dms-color-gallery-label">
-                          <t t-esc="record.name.value"/>
-                        </div>
-                      </div>
-                    </t>
-                  </templates>
-                </kanban>
-              </field>
-            </page>
-
-            <!-- 頁籁3：動力規格（油車）— 僅 energy_type == 'oil' 時顯示 -->
+            <!-- 頁籤3：動力規格（油車）— 僅 energy_type == 'oil' 時顯示 -->
             <page string="動力規格(油車)"
                   attrs="{'invisible': [('energy_type', '!=', 'oil')]}">
               <group>

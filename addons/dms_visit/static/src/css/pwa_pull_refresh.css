@@ -1,8 +1,8 @@
 /* ================================================================
-   iOS PWA 下拉重新整理指示器樣式
-   僅在 standalone （桌面捷徑）模式下可見（JS 已限制）
+   iOS PWA 下拉重新整理指示器 + 回頂按鈕
    ================================================================ */
 
+/* ── PTR 指示器 ─────────────────────────────────────────────── */
 #dms-ptr-indicator {
     position: fixed;
     top: 0;
@@ -16,7 +16,6 @@
     background: linear-gradient(to bottom, #ede8fe 0%, transparent 100%);
     pointer-events: none;
     overflow: hidden;
-    /* 不使用 transition，讓 JS control 更流暢 */
 }
 
 .dms-ptr-arrow {
@@ -33,4 +32,41 @@
     color: #7c52ff;
     font-weight: 500;
     letter-spacing: 0.02em;
+}
+
+/* ── 回頂按鈕 ───────────────────────────────────────────────── */
+#dms-to-top-btn {
+    position: fixed;
+    bottom: 80px;   /* 避免蓋到 iOS home indicator */
+    right: 18px;
+    z-index: 8990;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    border: none;
+    background: rgba(124, 82, 255, 0.85);
+    color: #fff;
+    font-size: 16px;
+    box-shadow: 0 3px 12px rgba(0,0,0,0.25);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    /* 預設隱藏 */
+    opacity: 0;
+    pointer-events: none;
+    transform: translateY(12px);
+    transition: opacity 0.22s ease, transform 0.22s ease;
+    -webkit-tap-highlight-color: transparent;
+}
+
+#dms-to-top-btn.visible {
+    opacity: 1;
+    pointer-events: auto;
+    transform: translateY(0);
+}
+
+#dms-to-top-btn:active {
+    background: rgba(100, 60, 220, 0.95);
+    transform: scale(0.93);
 }

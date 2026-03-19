@@ -44,17 +44,17 @@
                    attrs="{'invisible': [('auto_visit_schedule_type', '!=', 'weekday_of_month')],
                             'required': [('auto_visit_schedule_type', '=', 'weekday_of_month'),
                                          ('auto_price_list_visit', '=', True)]}"/>
-            <field name="auto_visit_next_date"/>
+            <field name="auto_visit_next_date" readonly="1"/>
           </group>
-          <!-- 手動觸發 -->
+          <!-- 操作 -->
           <div attrs="{'invisible': [('auto_price_list_visit', '=', False)]}">
-            <button name="action_create_visit_now"
-                    string="立即建立本次拜訪"
+            <button name="action_regenerate_visits"
+                    string="重新產生未來排程"
                     type="object"
-                    class="btn-primary"
-                    confirm="將以今天日期立即建立一筆草稿拜訪紀錄，確定嗎？"/>
+                    class="btn-secondary"
+                    confirm="將刪除未來所有排程草稿並依目前設定重新產生，確定嗎？"/>
             <span class="text-muted ml8" style="font-size:12px;">
-              下次排程日期到達前，可用此按鈕立即建立（重複日期不會重複建立）
+              儲存設定時會自動重新產生；此按鈕可手動強制重建。
             </span>
           </div>
         </page>

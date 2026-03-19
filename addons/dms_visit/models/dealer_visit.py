@@ -166,7 +166,7 @@ class DealerVisit(models.Model):
         )
         scheduled_dates = self._generate_all_dates()
         vals_list = [{
-            'visit_date':        fields.Datetime.from_string('%s 09:00:00' % d),
+            'visit_date':        fields.Datetime.from_string('%s 04:00:00' % d),
             'dealer_id':         self.id,
             'visitor_id':        visitor,
             'purpose_id':        purpose.id if purpose else False,
@@ -211,7 +211,7 @@ class DealerVisit(models.Model):
             ])
             if not exists:
                 self.env['dms.visit'].sudo().create({
-                    'visit_date':        fields.Datetime.from_string('%s 09:00:00' % d),
+                    'visit_date':        fields.Datetime.from_string('%s 04:00:00' % d),
                     'dealer_id':         self.id,
                     'visitor_id':        visitor,
                     'purpose_id':        purpose.id if purpose else False,

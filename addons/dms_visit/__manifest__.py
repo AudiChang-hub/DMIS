@@ -29,6 +29,8 @@
         'web.assets_backend': [
             'dms_visit/static/src/css/pwa_pull_refresh.css',
             'dms_visit/static/src/js/pwa_pull_refresh.js',
+            'dms_visit/static/src/css/calendar_holiday.css',
+            'dms_visit/static/src/js/calendar_holiday.js',
         ],
     },
     'installable': True,

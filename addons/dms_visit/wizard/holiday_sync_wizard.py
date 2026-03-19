@@ -10,20 +10,15 @@ from odoo.exceptions import UserError
 
 _logger = logging.getLogger(__name__)
 
-# 政府資料開放平台：中華民國政府行政機關辦公日曆表
-# https://data.gov.tw/dataset/14718
-_API_URL = (
-    'https://data.gov.tw/api/v2/rest/datastore/382000000A-000077-001'
-    '?filters[%E6%98%AF%E5%90%A6%E6%94%BE%E5%81%87%E6%97%A5]=2'  # 是否放假日=2 表示放假
-    '&limit=500'
-    '&fields=%E8%A5%BF%E5%85%83%E6%97%A5%E6%9C%9F,%E5%81%87%E6%9C%9F%E5%90%8D%E7%A8%B1'
+# 資料來源：ruyut/TaiwanCalendar（整合自行政院人事行政總處公告）
+# https://github.com/ruyut/TaiwanCalendar
+_API_URL_TMPL = (
+    'https://raw.githubusercontent.com/ruyut/TaiwanCalendar/master/data/{year}.json'
 )
 
-# 欄位名稱（API 回傳的中文 key）
-_COL_DATE = '西元日期'
-_COL_NAME = '假期名稱'
-# 是否放假欄位值：'2' 代表放假
-_COL_IS_HOLIDAY = '是否放假日'
+# 支援年份範圍（資料庫從 2017 年開始）
+_YEAR_MIN = 2017
+_YEAR_MAX = 2030
 
 
 class HolidaySyncWizard(models.TransientModel):
@@ -45,38 +40,43 @@ class HolidaySyncWizard(models.TransientModel):
     def action_sync(self):
         self.ensure_one()
         year = self.year
-        if year < 2017 or year > 2030:
-            raise UserError('目前支援的同步年份範圍為 2017–2030。')
+        if year < _YEAR_MIN or year > _YEAR_MAX:
+            raise UserError('目前支援的同步年份範圍為 %d–%d。' % (_YEAR_MIN, _YEAR_MAX))
 
-        # ── 呼叫政府開放資料 API ────────────────────────────────
-        url = _API_URL + '&filters[%E8%A5%BF%E5%85%83%E6%97%A5%E6%9C%9F]=' + str(year)
+        # ── 下載 TaiwanCalendar JSON ─────────────────────────────
+        url = _API_URL_TMPL.format(year=year)
         try:
             req = urllib.request.Request(url, headers={'User-Agent': 'DMIS/1.0'})
             with urllib.request.urlopen(req, timeout=15) as resp:
-                data = json.loads(resp.read().decode('utf-8'))
+                records = json.loads(resp.read().decode('utf-8'))
+        except urllib.error.HTTPError as e:
+            if e.code == 404:
+                raise UserError(
+                    '%d 年的假日資料尚未公告，請稍後再試或手動輸入。' % year
+                ) from e
+            raise UserError(
+                '無法連線至資料來源，請確認伺服器網路連線。\n錯誤：%s' % e
+            ) from e
         except urllib.error.URLError as e:
             raise UserError(
-                '無法連線至政府開放資料平台，請確認伺服器網路連線。\n錯誤：%s' % e
+                '無法連線至資料來源，請確認伺服器網路連線。\n錯誤：%s' % e
             ) from e
         except Exception as e:
             raise UserError('讀取假日資料失敗：%s' % e) from e
 
-        records = (data.get('result') or {}).get('records') or []
-        if not records:
-            raise UserError(
-                '政府開放資料平台未回傳 %d 年的假日資料，'
-                '可能尚未公告，請稍後再試或手動輸入。' % year
-            )
+        if not isinstance(records, list) or not records:
+            raise UserError('%d 年的假日資料為空，請確認資料來源是否正常。' % year)
 
-        # ── 整理資料，只取「放假日=2」的紀錄 ──────────────────
-        holiday_map = {}   # date_str -> name
+        # ── 整理資料，只取 isHoliday=True 的紀錄 ───────────────
+        # 格式：[{"date": "20250101", "isHoliday": true, "description": "開國紀念日"}, ...]
+        holiday_map = {}   # 'YYYY-MM-DD' -> name
         for row in records:
-            if str(row.get(_COL_IS_HOLIDAY, '')).strip() != '2':
+            if not row.get('isHoliday'):
                 continue
-            date_str = str(row.get(_COL_DATE, '')).strip()  # e.g. '20260101'
-            name = str(row.get(_COL_NAME, '')).strip() or '國定假日'
+            date_str = str(row.get('date', '')).strip()  # e.g. '20260101'
             if len(date_str) != 8 or not date_str.isdigit():
                 continue
+            name = str(row.get('description', '')).strip() or '例假日'
             formatted = '%s-%s-%s' % (date_str[:4], date_str[4:6], date_str[6:])
             holiday_map[formatted] = name
 

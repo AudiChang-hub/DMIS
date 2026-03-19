@@ -56,6 +56,12 @@ class Visit(models.Model):
         required=True,
         index=True,
     )
+    is_auto_generated = fields.Boolean(
+        string='排程自動建立',
+        default=False,
+        readonly=True,
+        help='由自動週期排程建立，取消勾選「自動建立」時將自動取消未來草稿。',
+    )
     company_id = fields.Many2one(
         'res.company', string='公司',
         default=lambda self: self.env.company,

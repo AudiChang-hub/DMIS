@@ -26,6 +26,26 @@
             <field name="price_list_visitor_id"
                    attrs="{'invisible': [('auto_price_list_visit', '=', False)]}"/>
           </group>
+          <!-- 週期設定區塊 -->
+          <group string="週期設定"
+                 attrs="{'invisible': [('auto_price_list_visit', '=', False)]}">
+            <field name="auto_visit_schedule_type"/>
+            <!-- fixed_day -->
+            <field name="auto_visit_day_of_month"
+                   attrs="{'invisible': [('auto_visit_schedule_type', '!=', 'fixed_day')],
+                            'required': [('auto_visit_schedule_type', '=', 'fixed_day'),
+                                         ('auto_price_list_visit', '=', True)]}"/>
+            <!-- weekday_of_month -->
+            <field name="auto_visit_week_number"
+                   attrs="{'invisible': [('auto_visit_schedule_type', '!=', 'weekday_of_month')],
+                            'required': [('auto_visit_schedule_type', '=', 'weekday_of_month'),
+                                         ('auto_price_list_visit', '=', True)]}"/>
+            <field name="auto_visit_weekday"
+                   attrs="{'invisible': [('auto_visit_schedule_type', '!=', 'weekday_of_month')],
+                            'required': [('auto_visit_schedule_type', '=', 'weekday_of_month'),
+                                         ('auto_price_list_visit', '=', True)]}"/>
+            <field name="auto_visit_next_date"/>
+          </group>
         </page>
       </xpath>
     </field>

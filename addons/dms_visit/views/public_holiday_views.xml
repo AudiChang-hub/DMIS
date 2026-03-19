@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+  <!-- ===== 清單視圖 ===== -->
+  <record id="view_dms_public_holiday_tree" model="ir.ui.view">
+    <field name="name">dms.public.holiday.tree</field>
+    <field name="model">dms.public.holiday</field>
+    <field name="arch" type="xml">
+      <tree string="台灣國定假日" editable="bottom">
+        <field name="date"/>
+        <field name="name"/>
+        <field name="note"/>
+      </tree>
+    </field>
+  </record>
+
+  <!-- ===== 動作 ===== -->
+  <record id="action_dms_public_holiday" model="ir.actions.act_window">
+    <field name="name">台灣國定假日</field>
+    <field name="res_model">dms.public.holiday</field>
+    <field name="view_mode">tree</field>
+    <field name="context">{'form_view_initial_mode': 'edit'}</field>
+  </record>
+
+  <!-- ===== 選單：掛載於「車行管理」設定區 ===== -->
+  <menuitem id="menu_dms_public_holiday"
+            name="台灣假日設定"
+            parent="dms_core.menu_dms_root"
+            action="action_dms_public_holiday"
+            groups="dms_visit.group_dms_visit_admin"
+            sequence="40"/>
+
+</odoo>

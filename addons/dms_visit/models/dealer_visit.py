@@ -88,9 +88,10 @@ class DealerVisit(models.Model):
                 candidate = (from_date.replace(day=1) + relativedelta(months=1)).replace(day=day)
             if candidate <= from_date:
                 candidate = candidate + relativedelta(months=1)
-            return candidate
+            # 遇到週末或國定假日，順延至最近工作日
+            return self._advance_to_working_day(candidate)
 
-        # weekday_of_month
+        # weekday_of_month（使用者主動選定星期幾，不做假日順延）
         week_n  = int(self.auto_visit_week_number or '1')
         weekday = int(self.auto_visit_weekday or '0')
         candidate = self._nth_weekday_of_month(from_date.year, from_date.month, week_n, weekday)
@@ -98,6 +99,21 @@ class DealerVisit(models.Model):
             nm = from_date + relativedelta(months=1)
             candidate = self._nth_weekday_of_month(nm.year, nm.month, week_n, weekday)
         return candidate
+
+    def _advance_to_working_day(self, target_date):
+        """若 target_date 為週末或台灣國定假日，逐日順延至最近工作日。"""
+        # 一次性取出目標日期後 30 天內的假日集合，避免迴圈內重複查 DB
+        window_end = target_date + timedelta(days=30)
+        holidays = set(
+            self.env['dms.public.holiday'].sudo().search([
+                ('date', '>=', fields.Date.to_string(target_date)),
+                ('date', '<=', fields.Date.to_string(window_end)),
+            ]).mapped('date')
+        )
+        d = target_date
+        while d.weekday() >= 5 or d in holidays:   # 5=Sat, 6=Sun
+            d += timedelta(days=1)
+        return d
 
     @staticmethod
     def _nth_weekday_of_month(year, month, nth, weekday):

@@ -8,10 +8,10 @@ from odoo import models, fields, api
 
 _logger = logging.getLogger(__name__)
 
-# 政府資料開放平台：行政機關辦公日曆表（資源 ID）
-_GOV_API_BASE = (
-    'https://data.gov.tw/api/v2/rest/datastore/382000000A-000077-001'
-    '?limit=1&fields=%E8%A5%BF%E5%85%83%E6%97%A5%E6%9C%9F'
+# 資料來源：ruyut/TaiwanCalendar（整合自行政院人事行政總處公告）
+# https://github.com/ruyut/TaiwanCalendar
+_GOV_API_URL_TMPL = (
+    'https://raw.githubusercontent.com/ruyut/TaiwanCalendar/master/data/{year}.json'
 )
 
 
@@ -49,18 +49,21 @@ class PublicHoliday(models.Model):
             if local_count > 0:
                 continue
 
-            # 查詢政府 API 是否已有該年資料
-            url = _GOV_API_BASE + (
-                '&filters[%%E8%%A5%%BF%%E5%%85%%83%%E6%%97%%A5%%E6%%9C%%9F]=%d' % year
-            )
+            # 查詢 GitHub 是否已有該年 JSON 資料
+            url = _GOV_API_URL_TMPL.format(year=year)
             try:
                 req = urllib.request.Request(url, headers={'User-Agent': 'DMIS/1.0'})
                 with urllib.request.urlopen(req, timeout=10) as resp:
-                    data = json.loads(resp.read().decode('utf-8'))
-                total = (data.get('result') or {}).get('total', 0)
-                if int(total) > 0:
+                    records = json.loads(resp.read().decode('utf-8'))
+                # 只要有任何放假日，就認定資料已公告
+                has_holiday = any(r.get('isHoliday') for r in records)
+                if has_holiday:
                     pending.append(str(year))
-                    _logger.info('DMS 假日檢查：政府已有 %d 年資料，本地尚未同步。', year)
+                    _logger.info('DMS 假日檢查：GitHub 已有 %d 年資料，本地尚未同步。', year)
+            except urllib.error.HTTPError as e:
+                if e.code != 404:
+                    _logger.warning('DMS 假日檢查：無法查詢 %d 年資料 - HTTP %s', year, e.code)
+                # 404 表示該年份資料尚未公告，靜默略過
             except Exception as e:
                 _logger.warning('DMS 假日檢查：無法查詢 %d 年資料 - %s', year, e)
 

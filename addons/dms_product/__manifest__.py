@@ -14,6 +14,7 @@
         'web.assets_backend': [
             'dms_product/static/src/css/product_kanban.css',
             'dms_product/static/src/js/dms_product_column_limit.js',
+            'dms_product/static/src/js/product_gallery.js',
             'dms_product/static/src/js/product_image_zoom.js',
         ],
     },

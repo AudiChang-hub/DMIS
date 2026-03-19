@@ -4,6 +4,7 @@ from odoo import models, fields
 class DmsProduct(models.Model):
     _name = "dms.product"
     _description = "產品管理"
+    _inherit = ['image.mixin']
 
     # ── 基本資料 ──────────────────────────────────────────
     brand_id = fields.Many2one('dms.brand', string="品牌", required=True, ondelete='restrict')

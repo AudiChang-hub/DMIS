@@ -62,6 +62,14 @@ class Visit(models.Model):
         readonly=True,
         help='由自動週期排程建立，取消勾選「自動建立」時將自動取消未來草稿。',
     )
+    schedule_id = fields.Many2one(
+        'dms.visit.schedule',
+        string='來源排程',
+        ondelete='set null',
+        index=True,
+        readonly=True,
+        help='產生此拜訪的排程設定；手動建立的拜訪此欄為空。',
+    )
     company_id = fields.Many2one(
         'res.company', string='公司',
         default=lambda self: self.env.company,

@@ -40,11 +40,13 @@ class ProductImageDialog extends Component {
 // ── Systray / 頁面層級的事件委派處理 ──────────────────────────────
 registry.category("services").add("dms_product_image_zoom", {
     start(env) {
+        // capture:true → 在 Odoo oe_kanban_global_click 之前攔截
         document.addEventListener("click", async (ev) => {
             const target = ev.target.closest("[data-dms-expand-img]");
             if (!target) return;
 
             ev.stopPropagation();
+            ev.stopImmediatePropagation();
             ev.preventDefault();
 
             // 支援 data-model + data-record-id（新格式）
@@ -66,6 +68,6 @@ registry.category("services").add("dms_product_image_zoom", {
             }, {
                 title: displayName || "產品圖片",
             });
-        });
+        }, true);  // capture:true
     },
 });

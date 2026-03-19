@@ -23,6 +23,7 @@
         'views/dealer_kanban_inherit.xml',
         'views/kanban_config_views.xml',
         'views/public_holiday_views.xml',
+        'wizard/holiday_sync_wizard_views.xml',
     ],
     'assets': {
         'web.assets_backend': [

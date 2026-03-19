@@ -71,6 +71,10 @@
               </group>
               <group string="地點與備註">
                 <field name="address" colspan="2"/>
+                <field name="address_map_url" widget="url"
+                       string="在 Google Maps 開啟"
+                       colspan="2"
+                       attrs="{'invisible': [('address_map_url', '=', False)]}"/>
                 <field name="note" colspan="2"/>
               </group>
             </page>

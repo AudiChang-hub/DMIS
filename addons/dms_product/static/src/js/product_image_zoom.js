@@ -5,10 +5,17 @@
  *
  * 使用委派事件監聽，點擊 [data-dms-expand-img] 元素時
  * 用 Odoo 16 Dialog 顯示大圖。
+ *
+ * 支援的 data 屬性：
+ *   data-model       — Odoo model 名稱（如 dms.product 或 dms.product.color）
+ *   data-record-id   — 記錄 ID
+ *   data-product-name — 顯示用名稱
+ *
+ * 舊版相容：
+ *   data-product-id  — 等同 data-record-id（model 預設為 dms.product）
  */
 
 import { registry } from "@web/core/registry";
-import { useService } from "@web/core/utils/hooks";
 import { Component, xml } from "@odoo/owl";
 
 // ── 大圖對話框元件 ─────────────────────────────────────────────
@@ -33,10 +40,6 @@ class ProductImageDialog extends Component {
 // ── Systray / 頁面層級的事件委派處理 ──────────────────────────────
 registry.category("services").add("dms_product_image_zoom", {
     start(env) {
-        /**
-         * 委派到 document，捕捉任何出現在 DOM 中的
-         * [data-dms-expand-img] 圖片點擊，開啟 Dialog。
-         */
         document.addEventListener("click", async (ev) => {
             const target = ev.target.closest("[data-dms-expand-img]");
             if (!target) return;
@@ -44,20 +47,24 @@ registry.category("services").add("dms_product_image_zoom", {
             ev.stopPropagation();
             ev.preventDefault();
 
-            const productId = parseInt(target.dataset.productId, 10);
-            const productName = target.dataset.productName || "";
+            // 支援 data-model + data-record-id（新格式）
+            // 也支援舊的 data-product-id（當 model 為 dms.product 時）
+            const model = target.dataset.model || "dms.product";
+            const recordId = parseInt(
+                target.dataset.recordId || target.dataset.productId, 10
+            );
+            const displayName = target.dataset.productName || "";
 
-            if (!productId) return;
+            if (!recordId) return;
 
-            // 組合大圖 URL（使用 Odoo image 路由，取 image_1920）
             const imgSrc =
-                `/web/image/dms.product/${productId}/image_1920?unique=${Date.now()}`;
+                `/web/image/${model}/${recordId}/image_1920?unique=${Date.now()}`;
 
             env.services.dialog.add(ProductImageDialog, {
                 src: imgSrc,
-                name: productName,
+                name: displayName,
             }, {
-                title: productName || "產品圖片",
+                title: displayName || "產品圖片",
             });
         });
     },

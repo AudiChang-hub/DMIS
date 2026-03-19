@@ -76,13 +76,57 @@
               <field name="color_ids" nolabel="1">
                 <tree editable="bottom">
                   <field name="sequence" widget="handle"/>
+                  <field name="image_128" widget="image" string="圖片"
+                         options="{'size': [40, 40], 'accepted_file_extensions': '.jpg,.jpeg,.png,.webp,.gif'}"
+                         readonly="0"/>
                   <field name="name" string="顏色名稱"/>
                   <field name="active"/>
                 </tree>
               </field>
             </page>
 
-            <!-- 頁籤2：動力規格（油車）— 僅 energy_type == 'oil' 時顯示 -->
+            <!-- 頁籁2：圖片相凊（每個顏色一張照片）-->
+            <page string="圖片相凊">
+              <p class="text-muted" style="font-size:12px; margin-bottom:8px;">
+                点擊下方卡片的照片可放大查看。新增或編輯照片請到「基本資料」頁簼的顏色清單上傳。
+              </p>
+              <field name="color_ids" nolabel="1">
+                <kanban>
+                  <field name="id"/>
+                  <field name="name"/>
+                  <field name="image_256"/>
+                  <field name="active"/>
+                  <templates>
+                    <t t-name="kanban-box">
+                      <div class="dms-color-gallery-card"
+                           t-att-data-color-active="record.active.raw_value">
+                        <div class="dms-color-gallery-img">
+                          <t t-if="record.image_256.value">
+                            <img t-att-src="record.image_256.value"
+                                 t-att-alt="record.name.value"
+                                 class="dms-color-gallery-thumb"
+                                 data-dms-expand-img="1"
+                                 data-model="dms.product.color"
+                                 t-att-data-record-id="record.id.value"
+                                 t-att-data-product-name="record.name.value"/>
+                          </t>
+                          <t t-else="">
+                            <div class="dms-color-gallery-empty">
+                              <i class="fa fa-image" title="尚未上傳圖片"/>
+                            </div>
+                          </t>
+                        </div>
+                        <div class="dms-color-gallery-label">
+                          <t t-esc="record.name.value"/>
+                        </div>
+                      </div>
+                    </t>
+                  </templates>
+                </kanban>
+              </field>
+            </page>
+
+            <!-- 頁籁3：動力規格（油車）— 僅 energy_type == 'oil' 時顯示 -->
             <page string="動力規格(油車)"
                   attrs="{'invisible': [('energy_type', '!=', 'oil')]}">
               <group>
@@ -96,7 +140,7 @@
               </group>
             </page>
 
-            <!-- 頁籤3：動力規格（電車）— 僅 energy_type == 'electric' 時顯示 -->
+            <!-- 頁籁4：動力規格（電車）— 僅 energy_type == 'electric' 時顯示 -->
             <page string="動力規格(電車)"
                   attrs="{'invisible': [('energy_type', '!=', 'electric')]}">
               <group>
@@ -144,17 +188,29 @@
         <field name="energy_type"/>
         <field name="active"/>
         <field name="image_128"/>
+        <field name="first_color_id"/>
         <templates>
           <t t-name="kanban-box">
             <div class="oe_kanban_card oe_kanban_global_click dms-product-kanban-card">
-              <!-- 圖片區 -->
+              <!-- 圖片區：優先顯示第一個顏色的圖片，否則用產品主圖 -->
               <div class="dms-product-kanban-img">
-                <t t-if="record.image_128.value">
+                <t t-if="record.first_color_id.raw_value">
+                  <!-- 顏色圖片：由 zoom JS 以 /web/image 路由取得 -->
+                  <img class="dms-product-img-thumb"
+                       t-att-alt="record.name.value"
+                       data-dms-expand-img="1"
+                       data-model="dms.product.color"
+                       t-att-data-record-id="record.first_color_id.raw_value"
+                       t-att-data-product-name="record.name.value"
+                       t-att-src="'/web/image/dms.product.color/' + record.first_color_id.raw_value + '/image_128'"/>
+                </t>
+                <t t-elif="record.image_128.value">
                   <img t-att-src="record.image_128.value"
                        t-att-alt="record.name.value"
                        class="dms-product-img-thumb"
                        data-dms-expand-img="1"
-                       t-att-data-product-id="record.id.value"
+                       data-model="dms.product"
+                       t-att-data-record-id="record.id.value"
                        t-att-data-product-name="record.name.value"/>
                 </t>
                 <t t-else="">

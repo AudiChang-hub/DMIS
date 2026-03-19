@@ -1,4 +1,4 @@
-from odoo import models, fields, api
+from odoo import models, fields
 
 
 class DmsProduct(models.Model):
@@ -17,23 +17,7 @@ class DmsProduct(models.Model):
         string="能源型式",
         required=True,
     )
-    color_ids = fields.One2many(
-        'dms.product.color', 'product_id', string='顏色清單')
     active = fields.Boolean(string="啟用", default=True)
-
-    # ── 第一個有圖片的顏色 ID（供 Kanban 顯示封面縮圖）──
-    first_color_id = fields.Many2one(
-        'dms.product.color',
-        string='封面圖片',
-        compute='_compute_first_color_id',
-        store=False,
-    )
-
-    @api.depends('color_ids', 'color_ids.active', 'color_ids.sequence')
-    def _compute_first_color_id(self):
-        for rec in self:
-            first = rec.color_ids.filtered(lambda c: c.active)
-            rec.first_color_id = first[0] if first else False
 
     # ── 動力規格（油車） ──────────────────────────────────
     engine_displacement = fields.Char(string="總排氣量 (cc)")

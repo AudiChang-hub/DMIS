@@ -63,11 +63,10 @@
                       </t>
                       <t t-esc="record.name.value"/>
                     </strong>
-                    <!-- LINE 群組顏色方塊 -->
+                    <!-- LINE 群組顏色方塊（t-att-style 須包含全部樣式，否則會覆蓋靜態 style）-->
                     <span class="dms-line-color-dot"
-                          t-att-style="'background:' + ({'yellow':'#f5c518','blue':'#4a9de2','pink':'#ff85b3','gray':'#b0b0b0'}[record.color_tag.raw_value] || '#b0b0b0') + ';'"
-                          style="flex-shrink:0; display:inline-block; width:14px; height:14px; border-radius:3px;"
-                          t-att-title="({'yellow':'黃','blue':'藍','pink':'粉','gray':'灰'}[record.color_tag.raw_value] || '') + ' LINE 群組'"/>
+                          t-att-style="'flex-shrink:0; display:inline-block; width:14px; height:14px; border-radius:3px; background:' + ({'yellow':'#f5c518','blue':'#4a9de2','pink':'#ff85b3','gray':'#b0b0b0'}[record.color_tag.raw_value] || '#b0b0b0') + ';'"
+                          t-att-title="({'yellow':'黃','blue':'藍','pink':'粉','gray':'灰'}[record.color_tag.raw_value] || '') + ' LINE 群組'">&#8203;</span>
                   </div>
                   <t t-if="record.kanban_cfg_store_type.raw_value and record.store_type_id.value">
                     <span class="text-muted" style="font-size:12px;"

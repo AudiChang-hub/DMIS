@@ -1,0 +1,60 @@
+/* ============================================================
+   DMS 行事曆假日標色
+   - .dms-cal-red  : 週日 & 國定假日（紅色系）
+   - .dms-cal-green: 週六（綠色系）
+   ============================================================ */
+
+/* ── 紅色日（週日 + 節日） ───────────────────────────────── */
+.fc .fc-day.dms-cal-red,
+.fc td.fc-day.dms-cal-red {
+    background-color: rgba(211, 47, 47, 0.07) !important;
+}
+
+.fc .fc-day.dms-cal-red .fc-day-number {
+    color: #c62828 !important;
+    font-weight: 700;
+}
+
+/* ── 綠色日（週六） ───────────────────────────────────────── */
+.fc .fc-day.dms-cal-green,
+.fc td.fc-day.dms-cal-green {
+    background-color: rgba(46, 125, 50, 0.07) !important;
+}
+
+.fc .fc-day.dms-cal-green .fc-day-number {
+    color: #2e7d32 !important;
+    font-weight: 700;
+}
+
+/* ── 假日標籤（節日名稱 / 例假日 / 休假日） ─────────────── */
+.dms-cal-holiday-label {
+    display: block;
+    font-size: 10px;
+    line-height: 1.3;
+    padding: 0 4px 2px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: #888;
+    pointer-events: none;
+}
+
+.dms-cal-red .dms-cal-holiday-label {
+    color: #c62828;
+}
+
+.dms-cal-green .dms-cal-holiday-label {
+    color: #2e7d32;
+}
+
+/* ── 頂部欄位的星期標題也套色 ────────────────────────────── */
+/* FullCalendar 4 的週日欄標題（.fc-sun）*/
+.fc .fc-day-header.fc-sun {
+    color: #c62828;
+    font-weight: 700;
+}
+
+.fc .fc-day-header.fc-sat {
+    color: #2e7d32;
+    font-weight: 700;
+}

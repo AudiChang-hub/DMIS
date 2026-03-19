@@ -7,6 +7,13 @@
     <field name="model">dms.public.holiday</field>
     <field name="arch" type="xml">
       <tree string="台灣國定假日" editable="bottom">
+        <header>
+          <button name="action_check_holiday_update"
+                  string="檢查政府假日更新"
+                  type="object"
+                  class="btn-warning"
+                  groups="dms_visit.group_dms_visit_admin"/>
+        </header>
         <field name="date"/>
         <field name="name"/>
         <field name="note"/>

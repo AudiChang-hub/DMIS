@@ -11,4 +11,16 @@
     <field name="active">True</field>
     <field name="user_id" ref="base.user_admin"/>
   </record>
+
+  <record id="ir_cron_check_holiday_update" model="ir.cron">
+    <field name="name">DMS：每日檢查台灣假日資料是否有更新</field>
+    <field name="model_id" ref="model_dms_public_holiday"/>
+    <field name="state">code</field>
+    <field name="code">model.cron_check_holiday_update()</field>
+    <field name="interval_number">1</field>
+    <field name="interval_type">days</field>
+    <field name="numbercall">-1</field>
+    <field name="active">True</field>
+    <field name="user_id" ref="base.user_admin"/>
+  </record>
 </odoo>

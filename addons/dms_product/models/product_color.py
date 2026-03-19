@@ -6,6 +6,7 @@ class ProductColor(models.Model):
     _description = '車款顏色'
     _order = 'product_id, sequence, name'
     _rec_name = 'name'
+    _inherit = ['image.mixin']
 
     product_id = fields.Many2one(
         'dms.product', string='車款', required=True, ondelete='cascade')

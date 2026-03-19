@@ -1,4 +1,4 @@
-from odoo import models, fields
+from odoo import models, fields, api
 
 
 class DmsProduct(models.Model):
@@ -20,6 +20,20 @@ class DmsProduct(models.Model):
     color_ids = fields.One2many(
         'dms.product.color', 'product_id', string='顏色清單')
     active = fields.Boolean(string="啟用", default=True)
+
+    # ── 顏色相冊：第一個有圖片的顏色 ID（供 Kanban 顯示縮圖）──
+    first_color_id = fields.Many2one(
+        'dms.product.color',
+        string='首張顏色圖片',
+        compute='_compute_first_color_id',
+        store=False,
+    )
+
+    @api.depends('color_ids', 'color_ids.image_128')
+    def _compute_first_color_id(self):
+        for rec in self:
+            first = rec.color_ids.filtered(lambda c: c.image_128)
+            rec.first_color_id = first[0] if first else False
 
     # ── 動力規格（油車） ──────────────────────────────────
     engine_displacement = fields.Char(string="總排氣量 (cc)")

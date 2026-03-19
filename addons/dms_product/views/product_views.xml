@@ -76,8 +76,11 @@
 
             <!-- 頁籤2：圖片集（每個顏色一張圖） -->
             <page string="圖片集">
+              <!-- Gallery 預覽（read-only，左右切換） -->
+              <widget name="dms_product_gallery"/>
+              <separator string="管理圖片"/>
               <p class="text-muted" style="font-size:12px; margin-bottom:8px;">
-                每一列為一個顏色，對應一張圖片；排序最前的圖片將作為產品封面縮圖。
+                每一列為一個顏色對應一張圖片；排序最前的圖片將作為 Kanban 封面縮圖。儲存後 Gallery 即更新。
               </p>
               <field name="color_ids" nolabel="1">
                 <tree editable="bottom">
@@ -167,7 +170,7 @@
                        data-model="dms.product.color"
                        t-att-data-record-id="record.first_color_id.raw_value"
                        t-att-data-product-name="record.name.value"
-                       t-att-src="'/web/image/dms.product.color/' + record.first_color_id.raw_value + '/image_128'"/>
+                       t-att-src="'/web/image/dms.product.color/' + record.first_color_id.raw_value + '/image_512'"/>
                 </t>
                 <t t-elif="record.image_128.value">
                   <img t-att-src="record.image_128.value"

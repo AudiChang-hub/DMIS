@@ -29,10 +29,10 @@ class DmsProduct(models.Model):
         store=False,
     )
 
-    @api.depends('color_ids', 'color_ids.image_128')
+    @api.depends('color_ids', 'color_ids.active', 'color_ids.sequence')
     def _compute_first_color_id(self):
         for rec in self:
-            first = rec.color_ids.filtered(lambda c: c.image_128)
+            first = rec.color_ids.filtered(lambda c: c.active)
             rec.first_color_id = first[0] if first else False
 
     # ── 動力規格（油車） ──────────────────────────────────

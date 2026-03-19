@@ -20,6 +20,7 @@
         <field name="mobile"/>
         <field name="email"/>
         <field name="address"/>
+        <field name="address_map_url"/>
         <field name="brand_auth_brand_display"/>
         <field name="visit_count"/>
         <field name="line_group"/>
@@ -122,7 +123,16 @@
                 <t t-if="record.kanban_cfg_address.raw_value and record.address.value">
                   <div>
                     <i class="fa fa-map-marker text-muted" style="width:16px;" title="地址"/>
-                    <t t-esc="record.address.value"/>
+                    <t t-if="record.address_map_url.value">
+                      <a t-att-href="record.address_map_url.value" target="_blank"
+                         style="color:inherit;text-decoration:underline dotted;"
+                         onclick="event.stopPropagation();">
+                        <t t-esc="record.address.value"/>
+                      </a>
+                    </t>
+                    <t t-else="">
+                      <t t-esc="record.address.value"/>
+                    </t>
                   </div>
                 </t>
                 <t t-if="record.kanban_cfg_brand.raw_value and record.brand_auth_brand_display.value">

@@ -47,6 +47,10 @@
               <field name="dealer_id"/>
               <field name="dealer_address" readonly="1"
                      attrs="{'invisible': [('dealer_id', '=', False)]}"/>
+              <field name="dealer_address_map_url" widget="url"
+                     string="在 Google Maps 開啟"
+                     readonly="1"
+                     attrs="{'invisible': [('dealer_address_map_url', '=', False)]}"/>
               <field name="dealer_phone" readonly="1"
                      attrs="{'invisible': [('dealer_id', '=', False)]}"/>
               <field name="visitor_id"/>

@@ -64,6 +64,11 @@ class Dealer(models.Model):
     mobile_fax = fields.Char(string='手機/傳真')
     email = fields.Char(string='電子信箱')
     address = fields.Text(string='地址')
+    address_map_url = fields.Char(
+        string='地址（地圖）',
+        compute='_compute_address_map_url',
+        store=False,
+    )
     note = fields.Text(string='備註')
 
     # 品牌價格表 (Boolean)
@@ -136,6 +141,18 @@ class Dealer(models.Model):
             ('brand_ids.name', operator, name),
         ]
         return self.search(domain + args, limit=limit).name_get()
+
+    @api.depends('address')
+    def _compute_address_map_url(self):
+        for rec in self:
+            if rec.address:
+                import urllib.parse
+                rec.address_map_url = (
+                    'https://www.google.com/maps/search/?api=1&query='
+                    + urllib.parse.quote(rec.address)
+                )
+            else:
+                rec.address_map_url = False
 
     @api.depends('brand_auth_ids.brand_id')
     def _compute_brand_auth_brand_display(self):

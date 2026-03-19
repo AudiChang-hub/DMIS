@@ -14,6 +14,8 @@ _SCHEDULE_FIELDS = frozenset({
     'auto_visit_day_of_month',
     'auto_visit_week_number',
     'auto_visit_weekday',
+    'auto_visit_interval_months',
+    'auto_visit_purpose_id',
     'price_list_visitor_id',
 })
 
@@ -41,12 +43,24 @@ class DealerVisit(models.Model):
         string='自動拜訪業務人員',
         help='排程拜訪指定的拜訪人員；留空則以系統管理員建立。',
     )
+    auto_visit_purpose_id = fields.Many2one(
+        'dms.visit.purpose',
+        string='自動拜訪目的',
+        help='排程自動建立時使用的拜訪目的；留空則自動尋找代碼 PRICE 或名稱含「價格表」的目的。',
+    )
 
     # ── 自動拜訪週期設定 ─────────────────────────────────────────
+    auto_visit_interval_months = fields.Selection([
+        ('1',  '每個月'),
+        ('2',  '每兩個月'),
+        ('3',  '每季（每三個月）'),
+        ('6',  '每半年'),
+        ('12', '每年'),
+    ], string='拜訪頻率', default='1')
     auto_visit_schedule_type = fields.Selection([
-        ('fixed_day',        '每月固定日期'),
-        ('weekday_of_month', '每月第 N 個星期幾'),
-    ], string='週期類型', default='fixed_day')
+        ('fixed_day',        '固定日期（每月幾號）'),
+        ('weekday_of_month', '第 N 個星期幾'),
+    ], string='日期選取方式', default='fixed_day')
 
     auto_visit_day_of_month = fields.Integer(
         string='每月幾號',
@@ -122,9 +136,17 @@ class DealerVisit(models.Model):
             limit=1,
         )
 
-    def _generate_all_dates(self, months=_GENERATE_MONTHS):
+    def _get_auto_visit_purpose(self):
+        """取得排程拜訪目的：優先用使用者設定，fallback 到價格表目的。"""
+        self.ensure_one()
+        return self.auto_visit_purpose_id or self._get_price_list_purpose()
+
+    def _generate_all_dates(self, months=None):
         """計算未來 N 個月內所有排程日期（一次載入假日，效能最佳）。"""
         self.ensure_one()
+        if months is None:
+            interval = int(self.auto_visit_interval_months or '1')
+            months = max(_GENERATE_MONTHS, interval * 2)
         today = date.today()
         horizon = today + relativedelta(months=months)
 
@@ -158,7 +180,7 @@ class DealerVisit(models.Model):
             ('visit_date',        '>=', today_dt),
         ]).unlink()
 
-        purpose = self._get_price_list_purpose()
+        purpose = self._get_auto_visit_purpose()
         visitor = (
             self.price_list_visitor_id.id
             if self.price_list_visitor_id
@@ -193,7 +215,7 @@ class DealerVisit(models.Model):
         self.ensure_one()
         today = date.today()
         today_dt = fields.Datetime.from_string('%s 00:00:00' % today)
-        purpose = self._get_price_list_purpose()
+        purpose = self._get_auto_visit_purpose()
         visitor = (
             self.price_list_visitor_id.id
             if self.price_list_visitor_id
@@ -228,6 +250,7 @@ class DealerVisit(models.Model):
             holidays: 已預載的假日 set（date），傳入則不再查 DB；None 時內部查詢。
         """
         self.ensure_one()
+        interval = int(self.auto_visit_interval_months or '1')
         if self.auto_visit_schedule_type == 'fixed_day':
             day = max(1, min(int(self.auto_visit_day_of_month or 1), 28))
             try:
@@ -235,7 +258,7 @@ class DealerVisit(models.Model):
             except ValueError:
                 candidate = (from_date.replace(day=1) + relativedelta(months=1)).replace(day=day)
             if candidate <= from_date:
-                candidate = candidate + relativedelta(months=1)
+                candidate = candidate + relativedelta(months=interval)
             return self._advance_to_working_day(candidate, holidays=holidays)
 
         # weekday_of_month（使用者指定星期幾，不做假日順延）
@@ -243,7 +266,7 @@ class DealerVisit(models.Model):
         weekday = int(self.auto_visit_weekday or '0')
         candidate = self._nth_weekday_of_month(from_date.year, from_date.month, week_n, weekday)
         if candidate <= from_date:
-            nm = from_date + relativedelta(months=1)
+            nm = from_date + relativedelta(months=interval)
             candidate = self._nth_weekday_of_month(nm.year, nm.month, week_n, weekday)
         return candidate
 

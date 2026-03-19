@@ -76,7 +76,7 @@ class DealerVisit(models.Model):
         ('3', '星期四'), ('4', '星期五'), ('5', '星期六'), ('6', '星期日'),
     ], string='星期幾', default='0')
 
-    # 顯示最近一筆未來草稿日期（只讀，不儲存，從 visit_ids 計算）
+    # 顯示依目前設定計算出的下一個排程日期（即時反映表單欄位變動）
     auto_visit_next_date = fields.Date(
         string='下一筆排程拜訪',
         compute='_compute_auto_visit_next_date',
@@ -89,27 +89,24 @@ class DealerVisit(models.Model):
         for rec in self:
             rec.visit_count = len(rec.visit_ids)
 
-    @api.depends('visit_ids.visit_date', 'visit_ids.state', 'visit_ids.is_auto_generated',
-                 'auto_price_list_visit')
+    @api.depends(
+        'auto_price_list_visit',
+        'auto_visit_schedule_type',
+        'auto_visit_day_of_month',
+        'auto_visit_week_number',
+        'auto_visit_weekday',
+        'auto_visit_interval_months',
+    )
     def _compute_auto_visit_next_date(self):
-        today_str = fields.Datetime.to_string(
-            fields.Datetime.from_string('%s 00:00:00' % fields.Date.today())
-        )
+        today = date.today()
         for rec in self:
             if not rec.auto_price_list_visit:
                 rec.auto_visit_next_date = False
-                continue
-            next_v = self.env['dms.visit'].search([
-                ('dealer_id',       '=',  rec.id),
-                ('is_auto_generated', '=', True),
-                ('state',           '=',  'draft'),
-                ('visit_date',      '>=', today_str),
-            ], order='visit_date asc', limit=1)
-            if next_v and next_v.visit_date:
-                local_dt = fields.Datetime.context_timestamp(next_v, next_v.visit_date)
-                rec.auto_visit_next_date = local_dt.date()
             else:
-                rec.auto_visit_next_date = False
+                try:
+                    rec.auto_visit_next_date = rec._calc_next_auto_date(today)
+                except Exception:
+                    rec.auto_visit_next_date = False
 
     # ── write() 覆寫：週期設定變更時自動重新產生 ─────────────────
     def write(self, vals):

@@ -49,7 +49,7 @@ class HolidaySyncWizard(models.TransientModel):
             raise UserError('目前支援的同步年份範圍為 2017–2030。')
 
         # ── 呼叫政府開放資料 API ────────────────────────────────
-        url = _API_URL + '&filters[%E8%A5%BF%E5%85%83%E6%97%A5%E6%9C%9F]=%d' % year
+        url = _API_URL + '&filters[%E8%A5%BF%E5%85%83%E6%97%A5%E6%9C%9F]=' + str(year)
         try:
             req = urllib.request.Request(url, headers={'User-Agent': 'DMIS/1.0'})
             with urllib.request.urlopen(req, timeout=15) as resp:

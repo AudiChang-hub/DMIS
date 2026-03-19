@@ -2,32 +2,49 @@
 /**
  * iOS PWA 下拉重新整理 + 回頂按鈕
  *
- * 行為設計：
- * - 「回頂按鈕」：向下滑超過 120px 後出現，點擊平滑回到頂端
- * - 「下拉重新整理」：必須真的在頂端（scrollTop === 0）才能觸發，
- *   且初始觸碰方向必須是向下，避免向上滑動時誤觸
- * - 僅在 iOS PWA standalone 模式（加到桌面）下啟用
+ * 三道防護確保不誤觸：
+ * 1. trustedScrollEl — 由 scroll 事件的 e.target 直接取得真正在滾的容器，
+ *    不再用 CSS selector 猜測（解決 Kanban scrollTop 永遠是 0 的問題）
+ * 2. SETTLE_TIME 靜置門檻 — 距上次滾動事件必須超過 350ms，
+ *    排除「慣性滾到頂再觸碰」的誤觸場景
+ * 3. 首次移動方向判斷 — touchmove 第一下若是向上則立即關閉 PTR
  */
 (function () {
     "use strict";
 
     if (!window.navigator.standalone) return;
 
-    const THRESHOLD      = 72;   // PTR 觸發閾值（px）
-    const MAX_SHOW       = 96;   // PTR 指示器最大高度（px）
-    const SCROLL_TOP_BTN = 120;  // 顯示回頂按鈕的滾動距離（px）
+    const THRESHOLD      = 72;    // PTR 觸發閾值（px）
+    const MAX_SHOW       = 96;    // PTR 指示器最大高度（px）
+    const SCROLL_TOP_BTN = 120;   // 顯示回頂按鈕的滾動距離（px）
+    const SETTLE_TIME    = 350;   // 滾動停止後須靜置多久才允許 PTR（ms）
 
-    let startY     = null;
-    let startST    = null;  // touchstart 當下的 scrollTop
-    let pullDist   = 0;
-    let indicator  = null;
-    let topBtn     = null;
-    let rafId      = null;
-    let scrollEl   = null;
+    let startY          = null;
+    let pullDist        = 0;
+    let ptrEnabled      = false;  // 由 touchstart 決定，touchmove 才使用
+    let indicator       = null;
+    let topBtn          = null;
+    let rafId           = null;
+    let trustedScrollEl = null;   // 真正在捲動的 DOM 節點（scroll 事件設定）
+    let lastScrollTime  = 0;      // 上次 scroll 事件的 timestamp
 
-    // ── 取得正確的滾動容器（動態找，因為 Odoo route 切換後 DOM 會重建）──
+    // ── scroll 事件：記住真正在滾的容器與時間 ─────────────────────
+    // capture: true 確保能捕捉到子元素的 scroll
+    document.addEventListener("scroll", function (e) {
+        const t = e.target;
+        if (t && t !== document && t !== window && t.nodeType === 1) {
+            trustedScrollEl = t;
+        }
+        lastScrollTime = Date.now();
+        onScroll();
+    }, { capture: true, passive: true });
+
     function getScrollEl() {
-        // 優先找 Kanban / List 的內容容器（真正在滾動的那個）
+        // 優先用 scroll 事件直接確認的容器
+        if (trustedScrollEl && trustedScrollEl.isConnected) {
+            return trustedScrollEl;
+        }
+        // Fallback：依序嘗試常見容器
         const candidates = [
             ".o_kanban_renderer",
             ".o_list_renderer",
@@ -38,15 +55,10 @@
             const el = document.querySelector(sel);
             if (el && el.scrollHeight > el.clientHeight + 2) return el;
         }
-        // fallback：找 scrollTop > 0 的任何可滾元素
-        const all = document.querySelectorAll(".o_content *");
-        for (const el of all) {
-            if (el.scrollTop > 0) return el;
-        }
         return document.querySelector(".o_content") || document.documentElement;
     }
 
-    // ── 建立 PTR 指示器 ────────────────────────────────────────
+    // ── PTR 指示器 ─────────────────────────────────────────────────
     function createIndicator() {
         const el = document.createElement("div");
         el.id = "dms-ptr-indicator";
@@ -74,55 +86,57 @@
         if (indicator) { indicator.remove(); indicator = null; }
     }
 
-    // ── 建立「回頂按鈕」────────────────────────────────────────
+    // ── 回頂按鈕 ───────────────────────────────────────────────────
     function createTopBtn() {
         const btn = document.createElement("button");
         btn.id = "dms-to-top-btn";
         btn.setAttribute("aria-label", "回到頂端");
         btn.innerHTML = '<i class="fa fa-arrow-up"></i>';
         btn.addEventListener("click", function () {
-            const el = getScrollEl();
-            el.scrollTo({ top: 0, behavior: "smooth" });
+            getScrollEl().scrollTo({ top: 0, behavior: "smooth" });
         });
         document.body.appendChild(btn);
         return btn;
     }
 
-    // ── 監聽滾動，控制回頂按鈕顯示/隱藏 ──────────────────────
     function onScroll() {
-        const el = scrollEl || getScrollEl();
         if (!topBtn) topBtn = createTopBtn();
-        if (el.scrollTop > SCROLL_TOP_BTN) {
-            topBtn.classList.add("visible");
-        } else {
-            topBtn.classList.remove("visible");
-        }
+        const scrollTop = trustedScrollEl ? trustedScrollEl.scrollTop
+                        : getScrollEl().scrollTop;
+        topBtn.classList.toggle("visible", scrollTop > SCROLL_TOP_BTN);
     }
 
-    // ── Touch 事件處理 ──────────────────────────────────────────
+    // ── Touch 事件 ─────────────────────────────────────────────────
     document.addEventListener("touchstart", function (e) {
-        scrollEl = getScrollEl();
-        // 記錄當下 scrollTop，用於判斷是否真的在頂端
-        startST = scrollEl.scrollTop;
-        startY  = e.touches[0].clientY;
+        const el        = getScrollEl();
+        const scrollTop = el.scrollTop;
+        const idleMs    = Date.now() - lastScrollTime;
+
+        // PTR 啟用條件（三者同時成立）：
+        //   A. 目前在頂端（scrollTop === 0）
+        //   B. 距上次滾動已靜置 SETTLE_TIME（排除慣性到頂後立即誤觸）
+        ptrEnabled = (scrollTop <= 0 && idleMs >= SETTLE_TIME);
+
+        startY   = e.touches[0].clientY;
         pullDist = 0;
     }, { passive: true });
 
     document.addEventListener("touchmove", function (e) {
-        if (startY === null || startST === null) return;
+        if (!ptrEnabled || startY === null) return;
 
         const diff = e.touches[0].clientY - startY;
 
-        // 條件：1) 初始在頂端  2) 向下拉（diff > 0）
-        if (startST <= 0 && diff > 4) {
+        if (diff > 4) {
+            // 向下拉 → 顯示指示器
             pullDist = diff;
             if (rafId) cancelAnimationFrame(rafId);
             rafId = requestAnimationFrame(function () {
                 renderIndicator(pullDist);
             });
-        } else if (diff < 0 || startST > 0) {
-            // 向上滑或不在頂端 → 確保不顯示 PTR
-            if (indicator) hideIndicator();
+        } else if (diff < -4) {
+            // 向上滑 → 立即關閉 PTR（第三道防護：首次方向判斷）
+            ptrEnabled = false;
+            hideIndicator();
             pullDist = 0;
         }
     }, { passive: true });
@@ -131,7 +145,7 @@
         if (rafId) cancelAnimationFrame(rafId);
         rafId = null;
 
-        if (pullDist >= THRESHOLD && indicator) {
+        if (ptrEnabled && pullDist >= THRESHOLD && indicator) {
             indicator.querySelector(".dms-ptr-arrow").textContent = "↻";
             indicator.querySelector(".dms-ptr-label").textContent = "重新整理中…";
             setTimeout(function () { window.location.reload(); }, 350);
@@ -139,26 +153,21 @@
             hideIndicator();
         }
 
-        startY   = null;
-        startST  = null;
-        pullDist = 0;
+        startY     = null;
+        pullDist   = 0;
+        ptrEnabled = false;
     }, { passive: true });
 
-    // ── 滾動監聽（用 capture 確保抓到正確容器）──────────────────
-    // 用 document 層捕捉，因為 Odoo 路由切換後容器會換
-    document.addEventListener("scroll", function () {
-        scrollEl = getScrollEl();
-        onScroll();
-    }, { capture: true, passive: true });
-
-    // 路由切換後重設滾動容器
+    // ── 路由切換後重設（Odoo SPA 換頁後 DOM 重建）────────────────
     window.addEventListener("hashchange", function () {
-        scrollEl = null;
-        if (topBtn) { topBtn.classList.remove("visible"); }
+        trustedScrollEl = null;
+        lastScrollTime  = 0;
+        if (topBtn) topBtn.classList.remove("visible");
     });
     window.addEventListener("popstate", function () {
-        scrollEl = null;
-        if (topBtn) { topBtn.classList.remove("visible"); }
+        trustedScrollEl = null;
+        lastScrollTime  = 0;
+        if (topBtn) topBtn.classList.remove("visible");
     });
 
 })();

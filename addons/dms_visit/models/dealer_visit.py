@@ -140,6 +140,57 @@ class DealerVisit(models.Model):
             },
         }
 
+    def action_create_visit_now(self):
+        """立即為此車行建立一筆價格表拜訪紀錄（草稿），並更新下次日期。"""
+        self.ensure_one()
+        purpose = self.env['dms.visit.purpose'].search(
+            ['|', ('code', '=', 'PRICE'), ('name', 'ilike', '價格表')],
+            limit=1,
+        )
+        today = date.today()
+        dt_now = fields.Datetime.from_string('%s 09:00:00' % today)
+
+        # 防重複：同日已有相同目的則不再建立
+        exists = self.env['dms.visit'].sudo().search_count([
+            ('dealer_id',  '=', self.id),
+            ('visit_date', '>=', fields.Datetime.from_string('%s 00:00:00' % today)),
+            ('visit_date', '<=', fields.Datetime.from_string('%s 23:59:59' % today)),
+            ('purpose_id', '=', purpose.id if purpose else False),
+        ])
+        if not exists:
+            visitor = (
+                self.price_list_visitor_id.id
+                if self.price_list_visitor_id
+                else self.env.ref('base.user_admin').id
+            )
+            visit = self.env['dms.visit'].sudo().create({
+                'visit_date': dt_now,
+                'dealer_id':  self.id,
+                'visitor_id': visitor,
+                'purpose_id': purpose.id if purpose else False,
+                'state':      'draft',
+            })
+            # 更新下次週期日期
+            self.auto_visit_next_date = self._calc_next_auto_date(today)
+            return {
+                'type': 'ir.actions.act_window',
+                'res_model': 'dms.visit',
+                'res_id': visit.id,
+                'view_mode': 'form',
+                'target': 'current',
+            }
+        # 已存在則提示
+        return {
+            'type': 'ir.actions.client',
+            'tag': 'display_notification',
+            'params': {
+                'title': '已存在',
+                'message': '今日已有一筆相同目的的拜訪紀錄，無需重複建立。',
+                'type': 'warning',
+                'sticky': False,
+            },
+        }
+
     @api.model
     def cron_generate_price_list_visits(self):
         """

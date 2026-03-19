@@ -16,11 +16,13 @@
         'security/ir.model.access.csv',
         'security/record_rules.xml',
         'data/visit_cron.xml',
+        'data/tw_holidays_2025_2026.xml',
         'views/visit_purpose_views.xml',
         'views/visit_views.xml',
         'views/dealer_visit_inherit.xml',
         'views/dealer_kanban_inherit.xml',
         'views/kanban_config_views.xml',
+        'views/public_holiday_views.xml',
     ],
     'assets': {
         'web.assets_backend': [

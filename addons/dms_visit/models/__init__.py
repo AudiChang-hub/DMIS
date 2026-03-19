@@ -4,3 +4,4 @@ from . import visit
 from . import dealer_visit
 from . import kanban_config
 from . import dealer_kanban
+from . import public_holiday

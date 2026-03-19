@@ -7,3 +7,5 @@ access_dms_visit_item_user,dms.visit.item user,model_dms_visit_item,dms_visit.gr
 access_dms_visit_item_admin,dms.visit.item admin,model_dms_visit_item,dms_visit.group_dms_visit_admin,1,1,1,1
 access_dms_kanban_config_user,dms.kanban.dealer.config user,model_dms_kanban_dealer_config,dms_visit.group_dms_visit_user,1,0,0,0
 access_dms_kanban_config_admin,dms.kanban.dealer.config admin,model_dms_kanban_dealer_config,dms_visit.group_dms_visit_admin,1,1,1,1
+access_dms_public_holiday_user,dms.public.holiday user,model_dms_public_holiday,dms_visit.group_dms_visit_user,1,0,0,0
+access_dms_public_holiday_admin,dms.public.holiday admin,model_dms_public_holiday,dms_visit.group_dms_visit_admin,1,1,1,1

@@ -21,45 +21,34 @@
       <!-- 在備註頁籤後新增「自動拜訪」設定頁籤 -->
       <xpath expr="//notebook" position="inside">
         <page string="自動拜訪設定" groups="dms_visit.group_dms_visit_admin">
-          <group>
-            <field name="auto_price_list_visit"/>
-            <field name="price_list_visitor_id"
-                   attrs="{'invisible': [('auto_price_list_visit', '=', False)]}"/>
-            <field name="auto_visit_purpose_id"
-                   attrs="{'invisible': [('auto_price_list_visit', '=', False)]}"/>
-          </group>
-          <!-- 週期設定區塊 -->
-          <group string="週期設定"
-                 attrs="{'invisible': [('auto_price_list_visit', '=', False)]}">
-            <field name="auto_visit_interval_months"/>
-            <field name="auto_visit_schedule_type"/>
-            <!-- fixed_day -->
-            <field name="auto_visit_day_of_month"
-                   attrs="{'invisible': [('auto_visit_schedule_type', '!=', 'fixed_day')],
-                            'required': [('auto_visit_schedule_type', '=', 'fixed_day'),
-                                         ('auto_price_list_visit', '=', True)]}"/>
-            <!-- weekday_of_month -->
-            <field name="auto_visit_week_number"
-                   attrs="{'invisible': [('auto_visit_schedule_type', '!=', 'weekday_of_month')],
-                            'required': [('auto_visit_schedule_type', '=', 'weekday_of_month'),
-                                         ('auto_price_list_visit', '=', True)]}"/>
-            <field name="auto_visit_weekday"
-                   attrs="{'invisible': [('auto_visit_schedule_type', '!=', 'weekday_of_month')],
-                            'required': [('auto_visit_schedule_type', '=', 'weekday_of_month'),
-                                         ('auto_price_list_visit', '=', True)]}"/>
-            <field name="auto_visit_next_date" readonly="1"/>
-          </group>
-          <!-- 操作 -->
-          <div attrs="{'invisible': [('auto_price_list_visit', '=', False)]}">
-            <button name="action_regenerate_visits"
-                    string="重新產生未來排程"
-                    type="object"
-                    class="btn-secondary"
-                    confirm="將刪除未來所有排程草稿並依目前設定重新產生，確定嗎？"/>
-            <span class="text-muted ml8" style="font-size:12px;">
-              儲存設定時會自動重新產生；此按鈕可手動強制重建。
-            </span>
-          </div>
+          <field name="visit_schedule_ids" nolabel="1">
+            <tree editable="bottom" decoration-muted="not active">
+              <field name="active" optional="show"/>
+              <field name="purpose_id"/>
+              <field name="visitor_id"/>
+              <field name="interval_months"/>
+              <field name="schedule_type"/>
+              <field name="day_of_month"
+                     attrs="{'column_invisible': [('parent.id', '=', False)],
+                             'invisible': [('schedule_type', '!=', 'fixed_day')]}"/>
+              <field name="week_number"
+                     attrs="{'column_invisible': [('parent.id', '=', False)],
+                             'invisible': [('schedule_type', '!=', 'weekday_of_month')]}"/>
+              <field name="weekday"
+                     attrs="{'column_invisible': [('parent.id', '=', False)],
+                             'invisible': [('schedule_type', '!=', 'weekday_of_month')]}"/>
+              <field name="next_date" optional="show" readonly="1"/>
+              <button name="action_regenerate_visits"
+                      string="重新產生"
+                      type="object"
+                      icon="fa-refresh"
+                      title="重新產生未來排程草稿"
+                      confirm="將刪除此排程未來所有草稿並重新建立，確定嗎？"/>
+            </tree>
+          </field>
+          <p class="text-muted" style="font-size:12px; margin-top:4px;">
+            新增或修改排程後儲存，系統將自動產生未來 12 個月的草稿拜訪紀錄。
+          </p>
         </page>
       </xpath>
     </field>

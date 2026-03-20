@@ -2,6 +2,26 @@
    DMS 產品 Kanban 文字卡片樣式（無圖片，可設定欄位）
    ============================================================ */
 
+/* ━━━━━━━━━━━━━━━━━━━━ 車輛圖片頁籤 ━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+.dms-product-img-page {
+    display: flex;
+    justify-content: center;
+    padding: 12px 0;
+}
+
+.dms-product-img-full {
+    width: 100% !important;
+    max-width: 100% !important;
+    height: auto !important;
+}
+
+.dms-product-img-full img {
+    width: 100% !important;
+    height: auto !important;
+    object-fit: contain;
+    border-radius: 6px;
+}
+
 /* ━━━━━━━━━━━━━━━━━━━━ 手機圖片 Lightbox ━━━━━━━━━━━━━━━━━━━━ */
 .dms-img-lightbox {
     position: fixed;

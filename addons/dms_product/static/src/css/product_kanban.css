@@ -71,9 +71,26 @@
     padding: 12px 14px 14px;
 }
 
-/* 標題列：品牌（小字）+ 產品名（大字） */
+/* 標題列：品牌（小字）+ 產品名（大字）+ Logo 右上角 */
 .dms-product-kanban-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 8px;
     margin-bottom: 8px;
+}
+
+.dms-product-kanban-header-left {
+    flex: 1;
+    min-width: 0;
+}
+
+.dms-product-kanban-brand-logo {
+    width: 40px;
+    height: 40px;
+    object-fit: contain;
+    flex-shrink: 0;
+    border-radius: 4px;
 }
 
 .dms-product-kanban-brand {

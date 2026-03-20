@@ -8,6 +8,7 @@ class DmsProduct(models.Model):
 
     # ── 基本資料 ──────────────────────────────────────────
     brand_id = fields.Many2one('dms.brand', string="品牌", required=True, ondelete='restrict')
+    brand_logo = fields.Binary(related='brand_id.image_128', string="品牌Logo", store=False)
     name = fields.Char(string="名稱", required=True)
     model = fields.Char(string="型號")
     year = fields.Char(string="年份")

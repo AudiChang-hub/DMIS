@@ -144,6 +144,7 @@
         <field name="id"/>
         <field name="name"/>
         <field name="brand_id"/>
+        <field name="brand_logo"/>
         <field name="model"/>
         <field name="year"/>
         <field name="energy_type"/>
@@ -205,14 +206,21 @@
           <t t-name="kanban-box">
             <div class="oe_kanban_card oe_kanban_global_click dms-product-kanban-card">
               <div class="dms-product-kanban-body">
-                <!-- 常驅：品牌 + 產品名 -->
+                <!-- 品牌名 + Logo 右上角 + 產品名 -->
                 <div class="dms-product-kanban-header">
-                  <span class="dms-product-kanban-brand text-muted">
-                    <t t-esc="record.brand_id.value"/>
-                  </span>
-                  <strong class="dms-product-kanban-name">
-                    <t t-esc="record.name.value"/>
-                  </strong>
+                  <div class="dms-product-kanban-header-left">
+                    <span class="dms-product-kanban-brand text-muted">
+                      <t t-esc="record.brand_id.value"/>
+                    </span>
+                    <strong class="dms-product-kanban-name">
+                      <t t-esc="record.name.value"/>
+                    </strong>
+                  </div>
+                  <t t-if="record.brand_logo.raw_value">
+                    <img t-att-src="'/web/image/dms.brand/' + record.brand_id.raw_value + '/image_128'"
+                         class="dms-product-kanban-brand-logo"
+                         alt=""/>
+                  </t>
                 </div>
                 <!-- 可設定欄位 -->
                 <div class="dms-product-kanban-fields">

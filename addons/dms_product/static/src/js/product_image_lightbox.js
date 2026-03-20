@@ -17,8 +17,10 @@ document.addEventListener('click', (ev) => {
     ev.preventDefault();
     ev.stopImmediatePropagation();
 
-    // 將 URL 中的縮圖尺寸替換為 image_1920 取得原圖
-    const src = img.src.replace(/\/image_\d+(?=\/|$|\?)/, '/image_1920');
+    // 把欄位換成 image_1920，並移除尺寸限制（如 /90x90）
+    const src = img.src
+        .replace(/\/image_\w+/, '/image_1920')
+        .replace(/\/\d+x\d+(?=[?#&]|$)/, '');
 
     const overlay = document.createElement('div');
     overlay.className = 'dms-img-lightbox';

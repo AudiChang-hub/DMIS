@@ -7,13 +7,15 @@
     <field name="model">dms.product</field>
     <field name="arch" type="xml">
       <tree string="產品清單">
-        <!-- 預設顯示（optional="show"）：共 8 欄 -->
+        <!-- 預設顯示（optional="show"）-->
         <field name="brand_id"    optional="show"/>
         <field name="name"        optional="show"/>
         <field name="model"       optional="show"/>
         <field name="year"        optional="show"/>
         <field name="brake_type"  optional="show"/>
         <field name="energy_type" optional="show"/>
+        <field name="color"       optional="show"/>
+        <field name="color_code"  optional="hide"/>
         <field name="active"      optional="show"/>
         <!-- 動力規格（油車）— 預設隱藏 -->
         <field name="engine_displacement" optional="hide"/>
@@ -70,6 +72,8 @@
                 <field name="year"/>
                 <field name="brake_type"/>
                 <field name="energy_type"/>
+                <field name="color"/>
+                <field name="color_code"/>
                 <field name="active"/>
               </group>
             </page>
@@ -134,50 +138,74 @@
         <field name="model"/>
         <field name="year"/>
         <field name="energy_type"/>
+        <field name="color"/>
+        <field name="color_code"/>
         <field name="active"/>
-        <field name="image_128"/>
+        <field name="kanban_cfg_model"/>
+        <field name="kanban_cfg_year"/>
+        <field name="kanban_cfg_brake_type"/>
+        <field name="kanban_cfg_energy_type"/>
+        <field name="kanban_cfg_color"/>
+        <field name="kanban_cfg_color_code"/>
+        <field name="brake_type"/>
         <templates>
           <t t-name="kanban-box">
             <div class="oe_kanban_card oe_kanban_global_click dms-product-kanban-card">
-              <div class="dms-product-kanban-img">
-                <t t-if="record.image_128.value">
-                  <img t-att-src="record.image_128.value"
-                       t-att-alt="record.name.value"
-                       class="dms-product-img-thumb"/>
-                </t>
-                <t t-else="">
-                  <div class="dms-product-img-placeholder">
-                    <i class="fa fa-motorcycle" title="無圖片"/>
-                  </div>
-                </t>
-              </div>
-              <!-- 文字資訊 -->
               <div class="dms-product-kanban-body">
-                <strong class="dms-product-kanban-name">
-                  <t t-esc="record.name.value"/>
-                </strong>
-                <div class="text-muted">
-                  <t t-esc="record.brand_id.value"/>
-                  <t t-if="record.model.value">
-                    &#160;··&#160;<t t-esc="record.model.value"/>
-                  </t>
+                <!-- 常驅：品牌 + 產品名 -->
+                <div class="dms-product-kanban-header">
+                  <span class="dms-product-kanban-brand text-muted">
+                    <t t-esc="record.brand_id.value"/>
+                  </span>
+                  <strong class="dms-product-kanban-name">
+                    <t t-esc="record.name.value"/>
+                  </strong>
                 </div>
-                <div style="margin-top:4px; display:flex; gap:4px; flex-wrap:wrap;">
-                  <t t-if="record.year.value">
-                    <span class="badge badge-secondary">
-                      <t t-esc="record.year.value"/>
+                <!-- 可設定欄位 -->
+                <div class="dms-product-kanban-fields">
+                  <t t-if="record.kanban_cfg_model.raw_value and record.model.value">
+                    <span class="dms-field-row">
+                      <span class="dms-field-label">型號</span>
+                      <span class="dms-field-val"><t t-esc="record.model.value"/></span>
                     </span>
                   </t>
-                  <t t-if="record.energy_type.value === 'oil'">
-                    <span class="badge badge-warning">油車</span>
+                  <t t-if="record.kanban_cfg_year.raw_value and record.year.value">
+                    <span class="dms-field-row">
+                      <span class="dms-field-label">年份</span>
+                      <span class="dms-field-val"><t t-esc="record.year.value"/></span>
+                    </span>
                   </t>
-                  <t t-if="record.energy_type.value === 'electric'">
-                    <span class="badge badge-success">電車</span>
+                  <t t-if="record.kanban_cfg_brake_type.raw_value and record.brake_type.value">
+                    <span class="dms-field-row">
+                      <span class="dms-field-label">煮車型式</span>
+                      <span class="dms-field-val"><t t-esc="record.brake_type.value"/></span>
+                    </span>
                   </t>
-                  <t t-if="!record.active.raw_value">
-                    <span class="badge badge-danger">停用</span>
+                  <t t-if="record.kanban_cfg_energy_type.raw_value">
+                    <span class="dms-field-row">
+                      <span class="dms-field-label">能源</span>
+                      <span t-att-class="'badge ' + (record.energy_type.raw_value === 'oil' ? 'badge-warning' : 'badge-success')">
+                        <t t-esc="record.energy_type.value"/>
+                      </span>
+                    </span>
+                  </t>
+                  <t t-if="record.kanban_cfg_color.raw_value and record.color.value">
+                    <span class="dms-field-row">
+                      <span class="dms-field-label">顏色</span>
+                      <span class="dms-field-val"><t t-esc="record.color.value"/></span>
+                    </span>
+                  </t>
+                  <t t-if="record.kanban_cfg_color_code.raw_value and record.color_code.value">
+                    <span class="dms-field-row">
+                      <span class="dms-field-label">色碼</span>
+                      <span class="dms-field-val"><t t-esc="record.color_code.value"/></span>
+                    </span>
                   </t>
                 </div>
+                <!-- 停用 badge -->
+                <t t-if="!record.active.raw_value">
+                  <span class="badge badge-danger mt4">停用</span>
+                </t>
               </div>
             </div>
           </t>

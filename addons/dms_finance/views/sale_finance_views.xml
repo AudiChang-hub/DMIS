@@ -108,11 +108,53 @@
     </field>
   </record>
 
+  <!-- ===== Kanban 視圖 ===== -->
+  <record id="view_sale_finance_kanban" model="ir.ui.view">
+    <field name="name">dms.sale.finance.kanban</field>
+    <field name="model">dms.sale.finance</field>
+    <field name="arch" type="xml">
+      <kanban class="o_kanban_mobile" sample="1">
+        <field name="id"/>
+        <field name="sale_order_id"/>
+        <field name="customer_name"/>
+        <field name="total_income"/>
+        <field name="total_expense"/>
+        <field name="net_profit"/>
+        <templates>
+          <t t-name="kanban-box">
+            <div class="oe_kanban_card oe_kanban_global_click" style="padding:12px;">
+              <strong style="font-size:14px;">
+                <t t-esc="record.sale_order_id.value"/>
+              </strong>
+              <t t-if="record.customer_name.value">
+                <div class="text-muted" style="font-size:12px; margin-top:4px;">
+                  <t t-esc="record.customer_name.value"/>
+                </div>
+              </t>
+              <div class="mt8" style="display:flex; gap:8px; flex-wrap:wrap;">
+                <span style="font-size:12px; color:#28a745;">
+                  收入&#160;<strong><t t-esc="record.total_income.value"/></strong>
+                </span>
+                <span style="font-size:12px; color:#dc3545;">
+                  支出&#160;<strong><t t-esc="record.total_expense.value"/></strong>
+                </span>
+              </div>
+              <div class="mt4" style="font-size:13px; font-weight:700;"
+                   t-att-style="'font-size:13px; font-weight:700; color:' + (record.net_profit.raw_value >= 0 ? '#28a745' : '#dc3545') + ';'">
+                淨利&#160;<t t-esc="record.net_profit.value"/>
+              </div>
+            </div>
+          </t>
+        </templates>
+      </kanban>
+    </field>
+  </record>
+
   <!-- ===== 動作 ===== -->
   <record id="action_dms_sale_finance" model="ir.actions.act_window">
     <field name="name">財務結算</field>
     <field name="res_model">dms.sale.finance</field>
-    <field name="view_mode">tree,form</field>
+    <field name="view_mode">kanban,tree,form</field>
     <field name="context">{'form_view_initial_mode': 'edit'}</field>
   </record>
 

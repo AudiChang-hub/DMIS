@@ -89,3 +89,7 @@
 
 - 頂部導覽：`財務結算`（主選單）
 - 子選單：`財務結算` → 所有結算記錄
+
+## 視圖規範（新增）
+
+- **kanban**：新增，顯示結算單號（sale_order_id）、net_profit、note；action view_mode 改為 `kanban,tree,form`

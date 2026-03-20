@@ -17,7 +17,43 @@ class DmsProduct(models.Model):
         string="能源型式",
         required=True,
     )
+    color = fields.Char(string="顏色")
+    color_code = fields.Char(string="顏色代碼", help="原廠色碼或色票代號，例如：#FF6633 / Pearl White")
     active = fields.Boolean(string="啟用", default=True)
+
+    # ── Kanban 顯示旗標（由 dms.kanban.product.config 驅動）──────────
+    kanban_cfg_model = fields.Boolean(compute='_compute_kanban_cfg', store=False)
+    kanban_cfg_year = fields.Boolean(compute='_compute_kanban_cfg', store=False)
+    kanban_cfg_brake_type = fields.Boolean(compute='_compute_kanban_cfg', store=False)
+    kanban_cfg_energy_type = fields.Boolean(compute='_compute_kanban_cfg', store=False)
+    kanban_cfg_color = fields.Boolean(compute='_compute_kanban_cfg', store=False)
+    kanban_cfg_color_code = fields.Boolean(compute='_compute_kanban_cfg', store=False)
+
+    def _compute_kanban_cfg(self):
+        config = self.env['dms.kanban.product.config'].sudo().search(
+            [], limit=1, order='id asc'
+        )
+        if config:
+            cfg = dict(
+                kanban_cfg_model=config.show_model,
+                kanban_cfg_year=config.show_year,
+                kanban_cfg_brake_type=config.show_brake_type,
+                kanban_cfg_energy_type=config.show_energy_type,
+                kanban_cfg_color=config.show_color,
+                kanban_cfg_color_code=config.show_color_code,
+            )
+        else:
+            cfg = dict(
+                kanban_cfg_model=True,
+                kanban_cfg_year=True,
+                kanban_cfg_brake_type=False,
+                kanban_cfg_energy_type=True,
+                kanban_cfg_color=True,
+                kanban_cfg_color_code=False,
+            )
+        for rec in self:
+            for key, val in cfg.items():
+                setattr(rec, key, val)
 
     # ── 動力規格（油車） ──────────────────────────────────
     engine_displacement = fields.Char(string="總排氣量 (cc)")

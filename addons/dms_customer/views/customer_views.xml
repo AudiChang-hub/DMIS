@@ -81,14 +81,63 @@
     </field>
   </record>
 
+  <!-- ===== 客戶 Kanban View ===== -->
+  <record id="view_dms_customer_kanban" model="ir.ui.view">
+    <field name="name">res.partner.dms.kanban</field>
+    <field name="model">res.partner</field>
+    <field name="arch" type="xml">
+      <kanban class="o_kanban_mobile" sample="1">
+        <field name="id"/>
+        <field name="name"/>
+        <field name="phone"/>
+        <field name="mobile"/>
+        <field name="email"/>
+        <field name="id_number"/>
+        <field name="dms_birthday_roc"/>
+        <templates>
+          <t t-name="kanban-box">
+            <div class="oe_kanban_card oe_kanban_global_click" style="padding:12px;">
+              <strong style="font-size:15px;">
+                <t t-esc="record.name.value"/>
+              </strong>
+              <div class="mt4">
+                <t t-if="record.phone.value">
+                  <div class="text-muted" style="font-size:12px;">
+                    <i class="fa fa-phone"/> <t t-esc="record.phone.value"/>
+                  </div>
+                </t>
+                <t t-if="record.mobile.value">
+                  <div class="text-muted" style="font-size:12px;">
+                    <i class="fa fa-mobile"/> <t t-esc="record.mobile.value"/>
+                  </div>
+                </t>
+                <t t-if="record.email.value">
+                  <div class="text-muted" style="font-size:12px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
+                    <i class="fa fa-envelope-o"/> <t t-esc="record.email.value"/>
+                  </div>
+                </t>
+                <t t-if="record.id_number.value">
+                  <div style="font-size:11px; color:#aaa; margin-top:4px;">
+                    <t t-esc="record.id_number.value"/>
+                  </div>
+                </t>
+              </div>
+            </div>
+          </t>
+        </templates>
+      </kanban>
+    </field>
+  </record>
+
   <!-- ===== Action ===== -->
   <record id="action_dms_customer" model="ir.actions.act_window">
     <field name="name">客戶清單</field>
     <field name="res_model">res.partner</field>
-    <field name="view_mode">tree,form</field>
+    <field name="view_mode">kanban,tree,form</field>
     <field name="domain">[('is_dms_customer', '=', True)]</field>
     <field name="context">{'default_is_dms_customer': True}</field>
     <field name="view_ids" eval="[(5, 0, 0),
+      (0, 0, {'view_mode': 'kanban', 'view_id': ref('view_dms_customer_kanban')}),
       (0, 0, {'view_mode': 'tree', 'view_id': ref('view_dms_customer_tree')}),
       (0, 0, {'view_mode': 'form', 'view_id': ref('base.view_partner_form')}),
     ]"/>

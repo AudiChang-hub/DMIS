@@ -1,6 +1,83 @@
 /* ============================================================
-   DMS 產品 Kanban 卡片樣式（Shopee 風格）+ Gallery + Zoom Dialog
+   DMS 產品 Kanban 文字卡片樣式（無圖片，可設定欄位）
    ============================================================ */
+
+/* ━━━━━━━━━━━━━━━━━━━━ Kanban 卡片 ━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+.dms-product-kanban-card {
+    padding: 0;
+    border-radius: 8px;
+    border: 1px solid #e8e8e8;
+    background: #fff;
+    transition: box-shadow 0.2s ease, transform 0.2s ease;
+    min-height: 100px;
+}
+
+.dms-product-kanban-card:hover {
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+    transform: translateY(-2px);
+}
+
+/* 文字資訊區 */
+.dms-product-kanban-body {
+    padding: 12px 14px 14px;
+}
+
+/* 標題列：品牌（小字）+ 產品名（大字） */
+.dms-product-kanban-header {
+    margin-bottom: 8px;
+}
+
+.dms-product-kanban-brand {
+    display: block;
+    font-size: 11px;
+    color: #888;
+    margin-bottom: 2px;
+}
+
+.dms-product-kanban-name {
+    display: block;
+    font-size: 15px;
+    font-weight: 600;
+    color: #1a1a1a;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* 可設定欄位列 */
+.dms-product-kanban-fields {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    margin-top: 4px;
+}
+
+.dms-field-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+}
+
+.dms-field-label {
+    color: #999;
+    flex-shrink: 0;
+    min-width: 52px;
+    font-size: 11px;
+}
+
+.dms-field-val {
+    color: #333;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.dms-product-kanban-body .badge {
+    font-size: 11px;
+    padding: 2px 6px;
+}
+
 
 /* ━━━━━━━━━━━━━━━━━━━━ Kanban 卡片 ━━━━━━━━━━━━━━━━━━━━━━━━━━ */
 .dms-product-kanban-card {

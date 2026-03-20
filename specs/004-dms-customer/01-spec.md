@@ -42,9 +42,10 @@ return f"{roc_year}/{dms_birthday.month:02d}/{dms_birthday.day:02d}"
 
 > 遵循全域 UI 標準（specs/000-roadmap/03-ui-standards.md）：active 欄位、全 optional、15 欄 JS 限制、歸檔篩選。
 
-### 客戶 List View
+### 客戶 List View / Kanban View
 - `optional="show"`（預設顯示，共 8 欄）：name、phone、mobile、email、id_number、dms_birthday_roc、address_registered、active
 - `optional="hide"`（預設隱藏）：dms_birthday
+- **Kanban View**：新增，顯示 name、phone、mobile、email；action view_mode 改為 `kanban,tree,form`
 
 ### 客戶 Form View
 3 頁籤：

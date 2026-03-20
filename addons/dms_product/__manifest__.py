@@ -9,6 +9,7 @@
     'data': [
         'security/ir.model.access.csv',
         'views/product_views.xml',
+        'views/kanban_config_views.xml',
     ],
     'assets': {
         'web.assets_backend': [

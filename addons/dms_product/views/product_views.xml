@@ -120,6 +120,15 @@
               </group>
             </page>
 
+            <!-- 頁籤5：車輛圖片 -->
+            <page string="車輛圖片">
+              <div class="dms-product-img-page">
+                <field name="image_1920" widget="image"
+                       class="dms-product-img-full"
+                       options="{'zoom': true}"/>
+              </div>
+            </page>
+
           </notebook>
         </sheet>
       </form>

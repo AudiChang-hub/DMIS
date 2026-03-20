@@ -160,6 +160,7 @@
 ## 視圖規範
 
 - **tree**：所有欄位 optional（active=show，One2many 不顯示）
+- **kanban**：新增，顯示 name、state badge、customer_name、product_id、amount_total；action view_mode 改為 `kanban,tree,form`
 - **form**：5 個 notebook tab（客戶與車輛、金流、牌險費、精品、其他）
 - **search**：欄位搜尋 + 店面/車行/狀態篩選 + 月份 groupby
 

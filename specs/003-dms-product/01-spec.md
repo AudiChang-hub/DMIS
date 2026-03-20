@@ -21,7 +21,8 @@
 | `year` | Char | | 年份 |
 | `brake_type` | Char | | 煞車型式 |
 | `energy_type` | Selection(oil/electric) | ✓ | 能源型式，控制動力規格頁籤可見性 |
-| `color` | Char | | 顏色 |
+| `color` | Char | | 顏色（文字，如「橙色」） |
+| `color_code` | Char | | 顏色代碼（如「#FF6633」或原廠代號） |
 | `active` | Boolean(default=True) | | 啟用（False=歸檔） |
 
 ### 動力規格（油車）— 僅 energy_type='oil' 時顯示頁籤
@@ -66,11 +67,30 @@
 - **JS 硬限制**：最多同時顯示 15 欄；超過時阻止切換、顯示 warning、強制 OWL rerender 回復 checkbox
 
 ### Form View
+- 右上角 `image_1920` widget="image"（保留圖片上傳）
 - 4 頁籤（notebook）：
-  1. 基本資料（永遠顯示）
+  1. 基本資料（永遠顯示）：包含 brand_id、name、model、year、brake_type、energy_type、**color、color_code**、active
   2. 動力規格(油車)：`attrs="{'invisible': [('energy_type', '!=', 'oil')]}"`
   3. 動力規格(電車)：`attrs="{'invisible': [('energy_type', '!=', 'electric')]}"`
   4. 車身規格（永遠顯示）
+
+### Kanban View（可設定欄位，如車行卡片）
+- **無圖片**（封面僅用文字資訊）
+- 欄位可見性由 `dms.kanban.product.config` 全域設定控制（最多 10 個）
+- 可選欄位：model（型號）、year（年份）、brake_type（煞車型式）、energy_type（能源型式）、color（顏色）、color_code（顏色代碼）
+- 「停用」badge 固定顯示
+- 設定入口：子選單「卡片欄位設定」
+
+### `dms.kanban.product.config`（Kanban 設定模型）
+| 欄位 | 型別 | 預設 | 說明 |
+|---|---|---|---|
+| show_model | Boolean | True | 顯示型號 |
+| show_year | Boolean | True | 顯示年份 |
+| show_brake_type | Boolean | False | 顯示煞車型式 |
+| show_energy_type | Boolean | True | 顯示能源型式 |
+| show_color | Boolean | True | 顯示顏色 |
+| show_color_code | Boolean | False | 顯示顏色代碼 |
+| selected_count | Integer（compute） | | 已選數量（上限 10） |
 
 ### 選單
 - 頂層：`menu_dms_product_root`（無 parent，與 DMS Core 並列出現在 Odoo 首頁）
@@ -81,6 +101,7 @@
 | id | 模型 | group | R | W | C | D |
 |---|---|---|---|---|---|---|
 | access_dms_product | dms.product | (全員) | 1 | 1 | 1 | 1 |
+| access_dms_kanban_product_config | dms.kanban.product.config | (全員) | 1 | 1 | 1 | 1 |
 
 ## 前端資產
 - `dms_product/static/src/js/dms_product_column_limit.js`

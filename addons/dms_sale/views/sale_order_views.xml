@@ -265,11 +265,61 @@
     </field>
   </record>
 
+  <!-- ===== Kanban 視圖 ===== -->
+  <record id="view_sale_order_kanban" model="ir.ui.view">
+    <field name="name">dms.sale.order.kanban</field>
+    <field name="model">dms.sale.order</field>
+    <field name="arch" type="xml">
+      <kanban class="o_kanban_mobile" sample="1">
+        <field name="id"/>
+        <field name="name"/>
+        <field name="order_date"/>
+        <field name="customer_name"/>
+        <field name="product_id"/>
+        <field name="amount_total"/>
+        <field name="state"/>
+        <field name="sale_type"/>
+        <templates>
+          <t t-name="kanban-box">
+            <div class="oe_kanban_card oe_kanban_global_click" style="padding:12px;">
+              <div style="display:flex; justify-content:space-between; align-items:center;">
+                <strong style="font-size:14px;">
+                  <t t-esc="record.name.value"/>
+                </strong>
+                <span t-att-class="'badge ' + ({'draft':'badge-secondary','confirmed':'badge-success','cancel':'badge-danger'}[record.state.raw_value] || 'badge-secondary')">
+                  <t t-esc="record.state.value"/>
+                </span>
+              </div>
+              <div class="mt6" style="font-size:12px; color:#555;">
+                <t t-if="record.customer_name.value">
+                  <div><i class="fa fa-user-o"/> <t t-esc="record.customer_name.value"/></div>
+                </t>
+                <t t-if="record.product_id.value">
+                  <div><i class="fa fa-motorcycle"/> <t t-esc="record.product_id.value"/></div>
+                </t>
+                <t t-if="record.order_date.value">
+                  <div class="text-muted" style="font-size:11px; margin-top:4px;">
+                    <t t-esc="record.order_date.value"/>
+                  </div>
+                </t>
+              </div>
+              <div class="mt4" style="font-size:13px; font-weight:600; color:#1a1a1a;">
+                <t t-if="record.amount_total.raw_value">
+                  NT$ <t t-esc="record.amount_total.value"/>
+                </t>
+              </div>
+            </div>
+          </t>
+        </templates>
+      </kanban>
+    </field>
+  </record>
+
   <!-- ===== 動作 ===== -->
   <record id="action_sale_order" model="ir.actions.act_window">
     <field name="name">銷售訂單</field>
     <field name="res_model">dms.sale.order</field>
-    <field name="view_mode">tree,form</field>
+    <field name="view_mode">kanban,tree,form</field>
     <field name="context">{'form_view_initial_mode': 'edit'}</field>
   </record>
 

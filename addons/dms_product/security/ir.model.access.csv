@@ -1,3 +1,4 @@
 id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
 access_dms_product,dms.product,model_dms_product,,1,1,1,1
 access_dms_product_color,dms.product.color,model_dms_product_color,,1,1,1,1
+access_dms_kanban_product_config,dms.kanban.product.config,model_dms_kanban_product_config,,1,1,1,1

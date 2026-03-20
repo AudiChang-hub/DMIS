@@ -7,10 +7,6 @@
     <field name="model">dms.kanban.product.config</field>
     <field name="arch" type="xml">
       <form string="產品卡片顯示設定">
-        <header>
-          <button string="儲存設定" type="object" name="action_save_config"
-                  class="btn-primary oe_highlight"/>
-        </header>
         <sheet>
           <div class="alert alert-info o_form_no_cog mb16" role="alert">
             已選 <strong><field name="selected_count" style="display:inline;"/></strong> 個欄位（最多 10 個）
@@ -56,20 +52,29 @@
     </field>
   </record>
 
-  <!-- ===== Action（單一設定記錄）===== -->
-  <record id="action_dms_kanban_product_config" model="ir.actions.act_window">
-    <field name="name">產品卡片顯示設定</field>
-    <field name="res_model">dms.kanban.product.config</field>
-    <field name="view_mode">form</field>
-    <field name="target">current</field>
-    <field name="context">{'form_view_initial_mode': 'edit'}</field>
+  <!-- ===== Server Action：開啟 singleton 設定 ===== -->
+  <record id="action_open_kanban_product_config" model="ir.actions.server">
+    <field name="name">產品卡片設定</field>
+    <field name="model_id" ref="model_dms_kanban_product_config"/>
+    <field name="state">code</field>
+    <field name="code">
+config = env['dms.kanban.product.config'].get_kanban_config()
+action = {
+    'type': 'ir.actions.act_window',
+    'name': '產品卡片顯示設定',
+    'res_model': 'dms.kanban.product.config',
+    'view_mode': 'form',
+    'res_id': config.id,
+    'target': 'new',
+}
+    </field>
   </record>
 
   <!-- ===== 子選單：卡片欄位設定 ===== -->
   <menuitem id="menu_product_kanban_config"
             name="卡片欄位設定"
             parent="menu_dms_product_root"
-            action="action_dms_kanban_product_config"
+            action="action_open_kanban_product_config"
             sequence="20"/>
 
 </odoo>

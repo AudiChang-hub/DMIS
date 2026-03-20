@@ -70,5 +70,10 @@ class DmsKanbanProductConfig(models.Model):
             if rec.selected_count > 10:
                 raise ValidationError('最多只能顯示 10 個欄位。')
 
-    def action_save_config(self):
-        return True
+    @api.model
+    def get_kanban_config(self):
+        """取得或自動建立 singleton 設定記錄"""
+        config = self.search([], limit=1, order='id asc')
+        if not config:
+            config = self.sudo().create({})
+        return config

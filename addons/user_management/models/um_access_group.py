@@ -56,7 +56,7 @@ class UmAccessGroup(models.Model):
         result = super().write(vals)
         if 'menu_ids' in vals:
             self.env['ir.ui.menu'].clear_caches()
-        if 'odoo_group_ids' in vals or 'user_ids' in vals:
+        if 'menu_ids' in vals or 'odoo_group_ids' in vals or 'user_ids' in vals:
             # 同步所有成員使用者的 Odoo 群組
             self.mapped('user_ids')._sync_um_odoo_groups()
         return result

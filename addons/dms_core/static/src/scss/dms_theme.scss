@@ -105,14 +105,13 @@ a:not(.btn):not(.nav-link):not(.o_menu_brand):not(.o_nav_entry) {
     }
 
     // 選欄下拉按鈕（列表右上角欄位切換按鈕）
-    // 深藍表頭使原生灰色圖示不可見，改為白色
-    thead .o_optional_columns_dropdown .o_optional_columns_dropdown_toggle,
-    .o_column_headers .o_optional_columns_dropdown .o_optional_columns_dropdown_toggle {
+    // Odoo 16: toggler 為 <button class="btn p-0">，圖示為 <i class="o_optional_columns_dropdown_toggle oi oi-settings-adjust">
+    // btn 色彩由 --bs-btn-color CSS 變數控制，需同時覆蓋變數與 color
+    thead .o_optional_columns_dropdown button,
+    thead .o_optional_columns_dropdown .o_optional_columns_dropdown_toggle {
+        --bs-btn-color: white;
+        --bs-btn-hover-color: rgba(255, 255, 255, 0.75);
         color: white !important;
-
-        &:hover, &:focus {
-            color: rgba(255, 255, 255, 0.75) !important;
-        }
     }
 
     // 所有資料格：右側分隔線 + 下分隔線

@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+  <!-- ===== 清單視圖 ===== -->
+  <record id="view_um_access_group_tree" model="ir.ui.view">
+    <field name="name">um.access.group.tree</field>
+    <field name="model">um.access.group</field>
+    <field name="arch" type="xml">
+      <tree string="存取群組">
+        <field name="name"/>
+        <field name="menu_count" string="菜單數"/>
+        <field name="user_count" string="使用者數"/>
+        <field name="active"/>
+      </tree>
+    </field>
+  </record>
+
+  <!-- ===== 表單視圖 ===== -->
+  <record id="view_um_access_group_form" model="ir.ui.view">
+    <field name="name">um.access.group.form</field>
+    <field name="model">um.access.group</field>
+    <field name="arch" type="xml">
+      <form string="存取群組">
+        <sheet>
+          <div class="oe_title">
+            <label for="name"/>
+            <h1><field name="name" placeholder="群組名稱"/></h1>
+          </div>
+          <group>
+            <field name="description" placeholder="說明此群組用途…"/>
+            <field name="active"/>
+          </group>
+          <notebook>
+            <page string="可存取菜單" name="page_menus">
+              <p class="text-muted">
+                勾選此群組可見的菜單項目。指派至此群組的使用者，可見菜單為所有所屬群組的聯集。
+                未指派任何群組的使用者不受限制。
+              </p>
+              <field name="menu_ids">
+                <tree>
+                  <field name="complete_name" string="菜單完整路徑"/>
+                </tree>
+              </field>
+            </page>
+            <page string="使用者" name="page_users">
+              <field name="user_ids">
+                <tree>
+                  <field name="name" string="姓名"/>
+                  <field name="login" string="登入帳號"/>
+                </tree>
+              </field>
+            </page>
+          </notebook>
+        </sheet>
+      </form>
+    </field>
+  </record>
+
+  <!-- ===== 搜尋視圖 ===== -->
+  <record id="view_um_access_group_search" model="ir.ui.view">
+    <field name="name">um.access.group.search</field>
+    <field name="model">um.access.group</field>
+    <field name="arch" type="xml">
+      <search string="搜尋存取群組">
+        <field name="name" string="群組名稱"/>
+        <separator/>
+        <filter name="filter_active" string="啟用中" domain="[('active','=',True)]"/>
+        <filter name="filter_archived" string="已停用" domain="[('active','=',False)]"/>
+      </search>
+    </field>
+  </record>
+
+  <!-- ===== 動作 ===== -->
+  <record id="action_um_access_group" model="ir.actions.act_window">
+    <field name="name">存取群組管理</field>
+    <field name="res_model">um.access.group</field>
+    <field name="view_mode">tree,form</field>
+    <field name="context">{'form_view_initial_mode': 'edit'}</field>
+  </record>
+
+</odoo>

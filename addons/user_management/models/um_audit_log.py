@@ -1,4 +1,6 @@
-from odoo import fields, models
+import json
+
+from odoo import api, fields, models
 
 
 class UmAuditLog(models.Model):
@@ -21,4 +23,37 @@ class UmAuditLog(models.Model):
         ('unlink', '刪除'),
     ], string='操作', readonly=True, index=True)
     changed_fields = fields.Text(string='變更欄位（JSON）', readonly=True)
+    changed_fields_html = fields.Html(
+        string='變更內容', compute='_compute_changed_fields_html', readonly=True,
+    )
     create_date = fields.Datetime(string='時間', readonly=True, index=True)
+
+    @api.depends('changed_fields')
+    def _compute_changed_fields_html(self):
+        for rec in self:
+            if not rec.changed_fields:
+                rec.changed_fields_html = ''
+                continue
+            try:
+                data = json.loads(rec.changed_fields)
+            except Exception:
+                rec.changed_fields_html = f'<pre>{rec.changed_fields}</pre>'
+                continue
+            rows = ''.join(
+                f'<tr>'
+                f'<td style="padding:4px 12px 4px 4px;font-weight:500;white-space:nowrap;">{ field }</td>'
+                f'<td style="padding:4px 12px;color:#888;">{ vals.get("舊值", "") }</td>'
+                f'<td style="padding:4px 4px;color:#222;">{ vals.get("新值", "") }</td>'
+                f'</tr>'
+                for field, vals in data.items()
+            )
+            rec.changed_fields_html = (
+                '<table style="border-collapse:collapse;font-size:13px;width:100%">'
+                '<thead><tr>'
+                '<th style="text-align:left;padding:4px 12px 6px 4px;border-bottom:1px solid #ddd;">欄位</th>'
+                '<th style="text-align:left;padding:4px 12px 6px;border-bottom:1px solid #ddd;">舊值</th>'
+                '<th style="text-align:left;padding:4px 4px 6px;border-bottom:1px solid #ddd;">新值</th>'
+                '</tr></thead>'
+                f'<tbody>{rows}</tbody>'
+                '</table>'
+            )

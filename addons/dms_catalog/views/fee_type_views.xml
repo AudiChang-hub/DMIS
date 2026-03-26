@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+  <!-- ===== 清單視圖 ===== -->
+  <record id="view_fee_type_tree" model="ir.ui.view">
+    <field name="name">dms.fee.type.tree</field>
+    <field name="model">dms.fee.type</field>
+    <field name="arch" type="xml">
+      <tree string="費用類型" editable="top">
+        <field name="name"   optional="show"/>
+        <field name="code"   optional="show"/>
+        <field name="active" optional="show"/>
+      </tree>
+    </field>
+  </record>
+
+  <!-- ===== 表單視圖 ===== -->
+  <record id="view_fee_type_form" model="ir.ui.view">
+    <field name="name">dms.fee.type.form</field>
+    <field name="model">dms.fee.type</field>
+    <field name="arch" type="xml">
+      <form string="費用類型">
+        <sheet>
+          <group>
+            <field name="name"/>
+            <field name="code"/>
+            <field name="active"/>
+          </group>
+        </sheet>
+      </form>
+    </field>
+  </record>
+
+  <!-- ===== 動作 ===== -->
+  <record id="action_fee_type" model="ir.actions.act_window">
+    <field name="name">費用類型</field>
+    <field name="res_model">dms.fee.type</field>
+    <field name="view_mode">tree,form</field>
+  </record>
+
+</odoo>

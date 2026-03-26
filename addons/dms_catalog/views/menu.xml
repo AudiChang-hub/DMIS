@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+  <!-- ========================
+       根選單：DMS 產品目錄
+       ======================== -->
+  <menuitem id="menu_dms_catalog_root"
+            name="產品目錄"
+            sequence="30"
+            web_icon="dms_catalog,static/description/icon.png"/>
+
+  <!-- ── 產品管理 ── -->
+  <menuitem id="menu_dms_catalog_products"
+            name="產品管理"
+            parent="menu_dms_catalog_root"
+            sequence="10"/>
+
+  <menuitem id="menu_product_template"
+            name="產品型式"
+            parent="menu_dms_catalog_products"
+            action="action_product_template"
+            sequence="10"/>
+
+  <menuitem id="menu_product_sku"
+            name="SKU 管理"
+            parent="menu_dms_catalog_products"
+            action="action_product_sku"
+            sequence="20"/>
+
+  <!-- ── 定價管理 ── -->
+  <menuitem id="menu_dms_catalog_pricing"
+            name="定價管理"
+            parent="menu_dms_catalog_root"
+            sequence="20"/>
+
+  <menuitem id="menu_price_version"
+            name="定價版本"
+            parent="menu_dms_catalog_pricing"
+            action="action_price_version"
+            sequence="10"/>
+
+  <menuitem id="menu_installment_rule"
+            name="分期規則"
+            parent="menu_dms_catalog_pricing"
+            action="action_installment_rule"
+            sequence="20"/>
+
+  <!-- ── 其他設定 ── -->
+  <menuitem id="menu_dms_catalog_config"
+            name="設定"
+            parent="menu_dms_catalog_root"
+            sequence="90"/>
+
+  <menuitem id="menu_fee_type"
+            name="費用類型"
+            parent="menu_dms_catalog_config"
+            action="action_fee_type"
+            sequence="10"/>
+
+  <menuitem id="menu_accessory"
+            name="精品售價"
+            parent="menu_dms_catalog_config"
+            action="action_accessory"
+            sequence="20"/>
+
+  <menuitem id="menu_ev_fee_schedule"
+            name="電車牌險費率"
+            parent="menu_dms_catalog_config"
+            action="action_ev_fee_schedule"
+            sequence="30"/>
+
+  <menuitem id="menu_commission_rule"
+            name="傭金規則"
+            parent="menu_dms_catalog_config"
+            action="action_commission_rule"
+            sequence="40"/>
+
+  <menuitem id="menu_kanban_config"
+            name="卡片欄位設定"
+            parent="menu_dms_catalog_config"
+            action="action_open_kanban_product_config"
+            sequence="50"/>
+
+</odoo>

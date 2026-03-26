@@ -44,22 +44,14 @@ class IrUiMenu(models.Model):
         if not allowed_menu_ids:
             return []
 
-        visible_set = set(visible)
-        base_allowed = visible_set & allowed_menu_ids
-
-        if not base_allowed:
-            return []
-
-        # 用原生 SQL 查詢父菜單 ID，完全繞開 ORM _search/_filter_visible_menus
-        self.env.cr.execute(
-            "SELECT id, parent_id FROM ir_ui_menu WHERE id = ANY(%s)",
-            (list(visible_set),)
-        )
+        # 用原生 SQL 查詢「所有」菜單的父菜單 ID
+        # （不限於 native visible，避免祖先菜單因原生群組限制而消失）
+        self.env.cr.execute("SELECT id, parent_id FROM ir_ui_menu")
         parent_map = {row[0]: row[1] for row in self.env.cr.fetchall()}
 
         # 補齊祖先菜單（讓使用者可以展開導覽樹）
-        final_allowed = set(base_allowed)
-        for mid in list(base_allowed):
+        final_allowed = set(allowed_menu_ids)
+        for mid in list(allowed_menu_ids):
             pid = parent_map.get(mid)
             while pid is not None:
                 final_allowed.add(pid)

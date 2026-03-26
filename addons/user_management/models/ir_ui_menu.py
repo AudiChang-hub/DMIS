@@ -11,9 +11,15 @@ class IrUiMenu(models.Model):
         過濾規則：
         - SUPERUSER 或 base.group_system 成員：不施加額外限制。
         - 無 um_group_ids：不施加額外限制（原 Odoo 行為）。
-        - 有 um_group_ids：顯示所有群組的菜單聯集，並自動補齊祖先菜單（供導航使用）。
+        - 有 um_group_ids：顯示所有群組的菜單聯集，並自動補齊祖先菜單。
         """
-        visible = super()._visible_menu_ids(debug=debug)
+        # 遞迴防護：若已在計算中（任何間接路徑觸發），直接回傳原生結果
+        if self.env.context.get('_um_computing_visible'):
+            return super()._visible_menu_ids(debug=debug)
+
+        # 設定 flag，確保後續任何 ORM 操作若重入本方法時，走原生路徑
+        env = self.with_context(_um_computing_visible=True)
+        visible = super(IrUiMenu, env)._visible_menu_ids(debug=debug)
 
         # SUPERUSER 不受限
         if self.env.uid == SUPERUSER_ID:
@@ -26,7 +32,7 @@ class IrUiMenu(models.Model):
             return visible
 
         um_groups = user.sudo().um_group_ids
-        # 未指派自訂群組：不施加額外限制
+        # 未指派自訂群組：不施加額外限制（原 Odoo 行為）
         if not um_groups:
             return visible
 
@@ -44,7 +50,7 @@ class IrUiMenu(models.Model):
         if not base_allowed:
             return []
 
-        # 直接用 SQL 查詢父菜單 ID，避免觸發 _filter_visible_menus 造成遞迴
+        # 用原生 SQL 查詢父菜單 ID，完全繞開 ORM _search/_filter_visible_menus
         self.env.cr.execute(
             "SELECT id, parent_id FROM ir_ui_menu WHERE id = ANY(%s)",
             (list(visible_set),)

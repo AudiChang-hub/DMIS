@@ -104,6 +104,17 @@ a:not(.btn):not(.nav-link):not(.o_menu_brand):not(.o_nav_entry) {
         &:last-child { border-right: none !important; }
     }
 
+    // 選欄下拉按鈕（列表右上角欄位切換按鈕）
+    // 深藍表頭使原生灰色圖示不可見，改為白色
+    thead .o_optional_columns_dropdown .o_optional_columns_dropdown_toggle,
+    .o_column_headers .o_optional_columns_dropdown .o_optional_columns_dropdown_toggle {
+        color: white !important;
+
+        &:hover, &:focus {
+            color: rgba(255, 255, 255, 0.75) !important;
+        }
+    }
+
     // 所有資料格：右側分隔線 + 下分隔線
     .o_data_row > td {
         border-right: 1px solid #DDE8D5 !important;

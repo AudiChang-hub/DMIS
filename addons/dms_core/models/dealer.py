@@ -113,7 +113,6 @@ class Dealer(models.Model):
                 if val is not None and val < 0:
                     raise ValidationError('%s 不可為負數' % (self._fields[field_name].string or field_name))
 
-    @api.model
     def name_get(self):
         result = []
         for rec in self:

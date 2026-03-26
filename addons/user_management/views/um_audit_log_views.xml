@@ -43,8 +43,8 @@
             </group>
           </group>
           <group string="變更內容" attrs="{'invisible': [('changed_fields', '=', False)]}">
-            <field name="changed_fields" string="" nolabel="1" widget="ace"
-                   options="{'mode': 'json'}"/>
+            <field name="changed_fields" string="" nolabel="1" widget="text"
+                   style="font-family: monospace; white-space: pre-wrap; background: #f8f8f8; padding: 8px;"/>
           </group>
         </sheet>
       </form>

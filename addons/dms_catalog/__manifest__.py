@@ -1,0 +1,33 @@
+{
+    'name': 'DMS 產品目錄',
+    'version': '16.0.1.0.0',
+    'summary': '整合產品型式、SKU、版本化定價、分期規則、精品、電車牌險、傭金管理',
+    'author': 'DMIS',
+    'license': 'LGPL-3',
+    'category': 'Custom',
+    'depends': ['dms_core', 'web'],
+    'data': [
+        'security/groups.xml',
+        'security/ir.model.access.csv',
+        'data/fee_type_data.xml',
+        'views/product_template_views.xml',
+        'views/product_sku_views.xml',
+        'views/price_version_views.xml',
+        'views/installment_rule_views.xml',
+        'views/fee_type_views.xml',
+        'views/accessory_views.xml',
+        'views/ev_fee_schedule_views.xml',
+        'views/commission_rule_views.xml',
+        'views/kanban_config_views.xml',
+        'views/menu.xml',
+    ],
+    'assets': {
+        'web.assets_backend': [
+            'dms_catalog/static/src/css/product_kanban.css',
+            'dms_catalog/static/src/js/dms_catalog_column_limit.js',
+            'dms_catalog/static/src/js/product_image_lightbox.js',
+        ],
+    },
+    'installable': True,
+    'application': True,
+}

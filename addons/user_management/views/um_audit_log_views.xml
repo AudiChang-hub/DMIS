@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+  <!-- ===== 清單視圖 ===== -->
+  <record id="view_um_audit_log_tree" model="ir.ui.view">
+    <field name="name">um.audit.log.tree</field>
+    <field name="model">um.audit.log</field>
+    <field name="arch" type="xml">
+      <tree string="操作歷程" create="0" edit="0" delete="0"
+            decoration-success="action == 'create'"
+            decoration-warning="action == 'write'"
+            decoration-danger="action == 'unlink'">
+        <field name="create_date" string="時間"/>
+        <field name="user_name" string="使用者"/>
+        <field name="model_desc" string="功能模組"/>
+        <field name="record_name" string="記錄名稱"/>
+        <field name="action" string="操作" widget="badge"
+               decoration-success="action == 'create'"
+               decoration-warning="action == 'write'"
+               decoration-danger="action == 'unlink'"/>
+        <field name="changed_fields" string="變更欄位" optional="hide"/>
+      </tree>
+    </field>
+  </record>
+
+  <!-- ===== 表單視圖（詳情）===== -->
+  <record id="view_um_audit_log_form" model="ir.ui.view">
+    <field name="name">um.audit.log.form</field>
+    <field name="model">um.audit.log</field>
+    <field name="arch" type="xml">
+      <form string="操作詳情" create="0" edit="0" delete="0">
+        <sheet>
+          <group string="基本資訊">
+            <group>
+              <field name="create_date" string="操作時間"/>
+              <field name="user_name" string="使用者"/>
+              <field name="action" string="操作類型"/>
+            </group>
+            <group>
+              <field name="model_desc" string="功能模組"/>
+              <field name="record_name" string="記錄名稱"/>
+              <field name="record_id" string="記錄 ID"/>
+            </group>
+          </group>
+          <group string="變更內容" attrs="{'invisible': [('changed_fields', '=', False)]}">
+            <field name="changed_fields" string="" nolabel="1" widget="ace"
+                   options="{'mode': 'json'}"/>
+          </group>
+        </sheet>
+      </form>
+    </field>
+  </record>
+
+  <!-- ===== 搜尋視圖 ===== -->
+  <record id="view_um_audit_log_search" model="ir.ui.view">
+    <field name="name">um.audit.log.search</field>
+    <field name="model">um.audit.log</field>
+    <field name="arch" type="xml">
+      <search string="搜尋操作歷程">
+        <field name="user_name" string="使用者"/>
+        <field name="record_name" string="記錄名稱"/>
+        <field name="model_desc" string="功能模組"/>
+        <separator/>
+        <filter name="filter_create" string="新增" domain="[('action','=','create')]"/>
+        <filter name="filter_write" string="修改" domain="[('action','=','write')]"/>
+        <filter name="filter_unlink" string="刪除" domain="[('action','=','unlink')]"/>
+        <separator/>
+        <filter name="filter_today" string="今天"
+                domain="[('create_date','&gt;=', (context_today()).strftime('%Y-%m-%d 00:00:00'))]"/>
+        <filter name="filter_week" string="本週"
+                domain="[('create_date','&gt;=',(context_today() - datetime.timedelta(days=7)).strftime('%Y-%m-%d'))]"/>
+        <group expand="0" string="依照分組">
+          <filter name="group_user" string="使用者" context="{'group_by': 'user_name'}"/>
+          <filter name="group_model" string="功能模組" context="{'group_by': 'model_desc'}"/>
+          <filter name="group_action" string="操作類型" context="{'group_by': 'action'}"/>
+          <filter name="group_date" string="日期" context="{'group_by': 'create_date:day'}"/>
+        </group>
+      </search>
+    </field>
+  </record>
+
+  <!-- ===== 動作 ===== -->
+  <record id="action_um_audit_log" model="ir.actions.act_window">
+    <field name="name">操作歷程</field>
+    <field name="res_model">um.audit.log</field>
+    <field name="view_mode">tree,form</field>
+    <field name="context">{}</field>
+  </record>
+
+</odoo>

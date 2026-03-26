@@ -16,6 +16,7 @@
         'security/ir.model.access.csv',
         'views/um_access_group_views.xml',
         'views/res_users_inherit.xml',
+        'views/um_audit_log_views.xml',
         'views/um_menu_views.xml',
     ],
     'installable': True,

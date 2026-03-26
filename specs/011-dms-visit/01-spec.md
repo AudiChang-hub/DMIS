@@ -124,19 +124,37 @@ Tree + Form 視圖，管理員可讀寫。
 
 ### 群組（dms_visit_security.xml）
 - `group_dms_visit_user`：DMS/拜訪使用者
-- `group_dms_visit_admin`：DMS/拜訪管理者
+- `group_dms_visit_admin`：DMS/拜訪管理者（implied_ids → group_dms_visit_user）
+
+### 車行管理群組整合（dms_core 群組）
+來自 `dms_core` 的 `group_dms_dealer_sales`（業務人員）與 `group_dms_dealer_manager`（車行管理者）
+亦需具備拜訪模型存取權限，並受 Record Rule 限制。
+
+| 菜單 | 新增可見群組 |
+|------|-------------|
+| menu_dms_visit_list | +`dms_core.group_dms_dealer_sales` |
+| menu_dms_visit_calendar | +`dms_core.group_dms_dealer_sales` |
+| menu_dms_visit_purpose | +`dms_core.group_dms_dealer_manager` |
+| menu_dms_kanban_dealer_config | +`dms_core.group_dms_dealer_manager` |
+| menu_dms_public_holiday | +`dms_core.group_dms_dealer_manager` |
+| menu_dms_holiday_sync | +`dms_core.group_dms_dealer_manager` |
 
 ### 存取控制（ir.model.access.csv）
 
-| model | user | admin |
-|-------|------|-------|
-| dms.visit.purpose | R | RWCD |
-| dms.visit | RWC（no delete） | RWCD |
-| dms.visit.item | RWC（no delete） | RWCD |
+| model | group_dms_visit_user | group_dms_visit_admin | group_dms_dealer_sales | group_dms_dealer_manager |
+|-------|------|-------|---|---|
+| dms.visit.purpose | R | RWCD | R | RWCD |
+| dms.visit | RWC | RWCD | RWC | RWCD |
+| dms.visit.item | RWC | RWCD | RWC | RWCD |
+| dms.visit.schedule | R | RWCD | R | R |
+| dms.kanban.dealer.config | R | RWCD | R | RWCD |
+| dms.public.holiday | R | RWCD | R | RWCD |
 
 ### Record Rule（record_rules.xml）
 - `group_dms_visit_user`：domain = `[('visitor_id', '=', user.id)]`（read/write/create）
 - `group_dms_visit_admin`：domain = `[(1, '=', 1)]`（all）
+- `group_dms_dealer_sales`：domain = `[('visitor_id', '=', user.id)]`（read/write/create）
+- `group_dms_dealer_manager`：無 Rule（預設可見全部）
 
 ---
 

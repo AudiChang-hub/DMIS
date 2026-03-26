@@ -44,15 +44,12 @@ class IrUiMenu(models.Model):
         if not base_allowed:
             return []
 
-        # 查詢所有可見菜單的 parent_id，以便向上補齊祖先
-        all_visible = self.sudo().search_read(
-            [('id', 'in', list(visible_set))],
-            fields=['parent_id'],
+        # 直接用 SQL 查詢父菜單 ID，避免觸發 _filter_visible_menus 造成遞迴
+        self.env.cr.execute(
+            "SELECT id, parent_id FROM ir_ui_menu WHERE id = ANY(%s)",
+            (list(visible_set),)
         )
-        parent_map = {
-            rec['id']: (rec['parent_id'][0] if rec['parent_id'] else None)
-            for rec in all_visible
-        }
+        parent_map = {row[0]: row[1] for row in self.env.cr.fetchall()}
 
         # 補齊祖先菜單（讓使用者可以展開導覽樹）
         final_allowed = set(base_allowed)

@@ -56,7 +56,21 @@ class UmAccessGroup(models.Model):
         result = super().write(vals)
         if 'menu_ids' in vals:
             self.env['ir.ui.menu'].clear_caches()
-        if 'odoo_group_ids' in vals:
+        if 'odoo_group_ids' in vals or 'user_ids' in vals:
             # 同步所有成員使用者的 Odoo 群組
             self.mapped('user_ids')._sync_um_odoo_groups()
         return result
+
+    def action_sync_odoo_groups(self):
+        """手動觸發：同步所有成員使用者的 Odoo 原生群組。"""
+        self.mapped('user_ids')._sync_um_odoo_groups()
+        return {
+            'type': 'ir.actions.client',
+            'tag': 'display_notification',
+            'params': {
+                'title': '同步完成',
+                'message': f'已同步 {sum(len(g.user_ids) for g in self)} 位使用者的 Odoo 群組。',
+                'type': 'success',
+                'sticky': False,
+            },
+        }

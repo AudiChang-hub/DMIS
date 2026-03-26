@@ -14,4 +14,11 @@
             groups="base.group_system"
             sequence="10"/>
 
+  <menuitem id="menu_um_audit_log"
+            name="操作歷程"
+            parent="menu_um_root"
+            action="action_um_audit_log"
+            groups="base.group_system"
+            sequence="20"/>
+
 </odoo>

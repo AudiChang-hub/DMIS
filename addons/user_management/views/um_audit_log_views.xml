@@ -42,9 +42,9 @@
               <field name="record_id" string="記錄 ID"/>
             </group>
           </group>
+          <field name="changed_fields" invisible="1"/>
           <group string="變更內容" attrs="{'invisible': [('changed_fields', '=', False)]}">
-            <field name="changed_fields" string="" nolabel="1" widget="text"
-                   style="font-family: monospace; white-space: pre-wrap; background: #f8f8f8; padding: 8px;"/>
+            <field name="changed_fields_html" string="" nolabel="1" readonly="1"/>
           </group>
         </sheet>
       </form>

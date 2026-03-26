@@ -1,0 +1,178 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+  <!-- ===== 清單視圖 ===== -->
+  <record id="view_product_template_tree" model="ir.ui.view">
+    <field name="name">dms.product.template.tree</field>
+    <field name="model">dms.product.template</field>
+    <field name="arch" type="xml">
+      <tree string="產品型式">
+        <field name="brand_id"     optional="show"/>
+        <field name="name"         optional="show"/>
+        <field name="model_code"   optional="hide"/>
+        <field name="energy_type"  optional="show"/>
+        <field name="brake_type"   optional="hide"/>
+        <field name="active"       optional="show"/>
+      </tree>
+    </field>
+  </record>
+
+  <!-- ===== 表單視圖 ===== -->
+  <record id="view_product_template_form" model="ir.ui.view">
+    <field name="name">dms.product.template.form</field>
+    <field name="model">dms.product.template</field>
+    <field name="arch" type="xml">
+      <form string="產品型式">
+        <sheet>
+          <field name="image_1920" widget="image" class="oe_avatar"/>
+          <div class="oe_title">
+            <label for="name"/>
+            <h1><field name="name" placeholder="型式名稱"/></h1>
+          </div>
+          <group>
+            <group string="基本資料">
+              <field name="brand_id"/>
+              <field name="model_code"/>
+              <field name="energy_type"/>
+              <field name="brake_type"/>
+              <field name="active"/>
+            </group>
+            <group string="品牌">
+              <field name="brand_logo" widget="image" nolabel="1"/>
+            </group>
+          </group>
+          <notebook>
+            <page string="動力規格（油車）"
+                  attrs="{'invisible': [('energy_type','!=','oil')]}">
+              <group>
+                <group>
+                  <field name="engine_displacement"/>
+                  <field name="fuel_tank"/>
+                  <field name="engine_type"/>
+                  <field name="consumption_grade"/>
+                  <field name="efficiency"/>
+                </group>
+                <group>
+                  <field name="max_hp"/>
+                  <field name="max_torque"/>
+                </group>
+              </group>
+            </page>
+            <page string="動力規格（電車）"
+                  attrs="{'invisible': [('energy_type','!=','electric')]}">
+              <group>
+                <group>
+                  <field name="power_system"/>
+                  <field name="max_output"/>
+                  <field name="ev_max_hp"/>
+                  <field name="ev_max_torque"/>
+                  <field name="ev_efficiency"/>
+                </group>
+                <group>
+                  <field name="transmission"/>
+                  <field name="battery_capacity"/>
+                  <field name="battery_type"/>
+                  <field name="charge_time"/>
+                </group>
+              </group>
+            </page>
+            <page string="車身規格">
+              <group>
+                <group>
+                  <field name="dimensions"/>
+                  <field name="seat_height"/>
+                  <field name="wheel_base"/>
+                  <field name="vehicle_weight"/>
+                </group>
+                <group>
+                  <field name="tire_front"/>
+                  <field name="tire_rear"/>
+                </group>
+              </group>
+            </page>
+            <page string="SKU 清單">
+              <field name="sku_ids">
+                <tree editable="bottom">
+                  <field name="color"/>
+                  <field name="color_code"/>
+                  <field name="manufacture_year"/>
+                  <field name="sku_code"/>
+                  <field name="active"/>
+                </tree>
+              </field>
+            </page>
+          </notebook>
+        </sheet>
+      </form>
+    </field>
+  </record>
+
+  <!-- ===== Kanban 視圖 ===== -->
+  <record id="view_product_template_kanban" model="ir.ui.view">
+    <field name="name">dms.product.template.kanban</field>
+    <field name="model">dms.product.template</field>
+    <field name="arch" type="xml">
+      <kanban class="o_kanban_mobile">
+        <field name="name"/>
+        <field name="brand_id"/>
+        <field name="energy_type"/>
+        <field name="image_1920"/>
+        <field name="kanban_cfg_model"/>
+        <field name="kanban_cfg_year"/>
+        <field name="kanban_cfg_energy_type"/>
+        <field name="kanban_cfg_color"/>
+        <templates>
+          <t t-name="kanban-box">
+            <div class="oe_kanban_card oe_kanban_global_click">
+              <div class="o_kanban_image">
+                <img t-att-src="kanban_image('dms.product.template', 'image_128', record.id.raw_value)"
+                     alt="產品圖片" class="o_image_64_contain"/>
+              </div>
+              <div class="oe_kanban_details">
+                <strong class="o_kanban_record_title">
+                  <field name="name"/>
+                </strong>
+                <div><field name="brand_id"/></div>
+                <div t-if="record.kanban_cfg_energy_type.raw_value">
+                  <field name="energy_type"/>
+                </div>
+              </div>
+            </div>
+          </t>
+        </templates>
+      </kanban>
+    </field>
+  </record>
+
+  <!-- ===== 搜尋視圖 ===== -->
+  <record id="view_product_template_search" model="ir.ui.view">
+    <field name="name">dms.product.template.search</field>
+    <field name="model">dms.product.template</field>
+    <field name="arch" type="xml">
+      <search string="搜尋產品型式">
+        <field name="name" string="型式名稱"/>
+        <field name="brand_id" string="品牌"/>
+        <field name="model_code" string="型號代碼"/>
+        <separator/>
+        <filter name="filter_oil" string="油車" domain="[('energy_type','=','oil')]"/>
+        <filter name="filter_electric" string="電車" domain="[('energy_type','=','electric')]"/>
+        <separator/>
+        <filter name="filter_active" string="啟用中" domain="[('active','=',True)]"/>
+        <filter name="filter_archived" string="已歸檔" domain="[('active','=',False)]"/>
+        <group expand="0" string="分組">
+          <filter name="groupby_brand" string="品牌" context="{'group_by': 'brand_id'}"/>
+          <filter name="groupby_energy" string="能源型式" context="{'group_by': 'energy_type'}"/>
+        </group>
+      </search>
+    </field>
+  </record>
+
+  <!-- ===== 動作 ===== -->
+  <record id="action_product_template" model="ir.actions.act_window">
+    <field name="name">產品型式</field>
+    <field name="res_model">dms.product.template</field>
+    <field name="view_mode">kanban,tree,form</field>
+    <field name="context">{'search_default_filter_active': 1}</field>
+  </record>
+
+</odoo>

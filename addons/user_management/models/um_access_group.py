@@ -17,6 +17,14 @@ class UmAccessGroup(models.Model):
         'menu_id',
         string='可存取菜單',
     )
+    odoo_group_ids = fields.Many2many(
+        'res.groups',
+        'um_access_group_res_groups_rel',
+        'um_group_id',
+        'res_group_id',
+        string='授予的 Odoo 群組',
+        help='指派至此群組的使用者，將自動獲得這些 Odoo 原生群組（用於通過 model 層 ACL 存取）。',
+    )
     user_ids = fields.Many2many(
         'res.users',
         'um_user_group_rel',
@@ -48,4 +56,7 @@ class UmAccessGroup(models.Model):
         result = super().write(vals)
         if 'menu_ids' in vals:
             self.env['ir.ui.menu'].clear_caches()
+        if 'odoo_group_ids' in vals:
+            # 同步所有成員使用者的 Odoo 群組
+            self.mapped('user_ids')._sync_um_odoo_groups()
         return result

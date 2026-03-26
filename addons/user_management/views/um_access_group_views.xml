@@ -42,6 +42,17 @@
                 </tree>
               </field>
             </page>
+            <page string="授予的 Odoo 群組" name="page_odoo_groups">
+              <p class="text-muted">
+                指派至此群組的使用者，將自動獲得以下 Odoo 原生群組，以通過 model 層資料存取控制。
+                例如：需要看到拜訪紀錄，請加入「DMS / 拜訪使用者」。
+              </p>
+              <field name="odoo_group_ids">
+                <tree>
+                  <field name="full_name" string="群組名稱"/>
+                </tree>
+              </field>
+            </page>
             <page string="使用者" name="page_users">
               <field name="user_ids">
                 <tree>

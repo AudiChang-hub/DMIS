@@ -46,7 +46,7 @@
 |---|---|---|---|
 | `template_id` | Many2one → `dms.product.template` | ✓ | 對應產品模板 |
 | `internal_code` | Char | ✓ | 內部唯一代碼 |
-| `production_year` | Integer | ✓ | 出廠年份 |
+| `production_year` | Char | ✓ | 出廠年份 |
 | `color` | Char | ✓ | 車色 |
 | `active` | Boolean |  | 啟用 |
 
@@ -61,6 +61,7 @@
 - `internal_code` 預設採「型號 + 出廠年份」生成，例如 `UC125DA-2026`
 - 若同一型號與出廠年份下有多筆 SKU，系統應自動補尾碼，例如 `UC125DA-2026-02`
 - 同一模板下，不同 `color + production_year` 可同時存在多筆 SKU
+- `production_year` 為年份文字欄位，畫面應直接顯示 `2026`，不得以 `2,026` 之類的位數逗點格式顯示
 - 不得只靠中文名稱識別 SKU
 
 ### 2.3 `dms.price.version`（價目版本）

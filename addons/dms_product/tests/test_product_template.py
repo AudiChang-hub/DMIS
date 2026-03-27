@@ -22,7 +22,7 @@ class TestDmsProductTemplate(TransactionCase):
         self.assertTrue(product.template_id, '建立產品項時應自動建立或綁定模板')
         self.assertEqual(product.template_id.family_name, 'JET')
         self.assertEqual(product.template_id.model_name, 'JETSL')
-        self.assertEqual(product.production_year, 2026)
+        self.assertEqual(product.production_year, '2026')
         self.assertEqual(product.internal_code, 'JETSL-2026', '應依型號與出廠年份生成可讀 SKU 代碼')
 
     def test_02_same_template_reused_for_multiple_skus(self):
@@ -60,7 +60,7 @@ class TestDmsProductTemplate(TransactionCase):
         })
         product = self.env['dms.product'].create({
             'template_id': template.id,
-            'production_year': 2026,
+            'production_year': '2026',
             'color': '白',
             'active': True,
         })
@@ -68,6 +68,7 @@ class TestDmsProductTemplate(TransactionCase):
         self.assertEqual(product.name, '測試車系 C')
         self.assertEqual(product.model, 'TSTTMPC1')
         self.assertEqual(product.energy_type, 'oil')
+        self.assertEqual(product.production_year, '2026')
         self.assertEqual(product.internal_code, 'TSTTMPC1-2026')
 
     def test_04_internal_code_must_be_unique(self):
@@ -112,3 +113,18 @@ class TestDmsProductTemplate(TransactionCase):
 
         self.assertEqual(product_1.internal_code, 'FNX001-2026')
         self.assertEqual(product_2.internal_code, 'FNX001-2026-02')
+
+    def test_06_production_year_normalizes_comma_format(self):
+        product = self.env['dms.product'].create({
+            'brand_id': self.brand.id,
+            'name': 'MMBCU',
+            'model': 'MMB002',
+            'year': '2026',
+            'production_year': '2,026',
+            'color': '白',
+            'energy_type': 'oil',
+        })
+
+        self.assertEqual(product.production_year, '2026')
+        self.assertEqual(product.year, '2026')
+        self.assertEqual(product.internal_code, 'MMB002-2026')

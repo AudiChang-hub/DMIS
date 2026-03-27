@@ -36,9 +36,9 @@
             </group>
           </group>
           <notebook>
-            <page string="產品項 / SKU">
-              <field name="sku_ids" context="{'default_template_id': active_id}">
-                <tree>
+            <page string="產品項">
+              <field name="sku_ids" context="{'default_template_id': id}">
+                <tree editable="bottom">
                   <field name="internal_code"/>
                   <field name="production_year"/>
                   <field name="color"/>

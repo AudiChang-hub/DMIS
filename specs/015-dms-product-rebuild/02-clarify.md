@@ -154,6 +154,7 @@ legacy 相容與交易沿用部分仍由 `dms_sale` / `dms_product` 共同承接
 
 - `dms.product` 將成為「可販售產品項 / SKU」的相容模型
 - 新模組需提供 migration，把舊 `dms.product` 補齊 `template_id`、`internal_code`、`production_year`
+- `internal_code` 的自動生成規則需兼顧可讀性，因此本輪改採「型號 + 出廠年份」為主格式；若同型號同年份有多筆 SKU，再補序號尾碼維持唯一性
 
 ### D3：價格與規則走新模型，`dms_sale` 只做最小必要 lookup 調整
 
@@ -233,7 +234,7 @@ legacy 相容與交易沿用部分仍由 `dms_sale` / `dms_product` 共同承接
 
 - 建立對應 `dms.product.template`
 - 回填 `template_id`
-- 生成 `internal_code`
+- 將系統自動生成的舊式 `SKU-00001` 代碼回填為「型號 + 出廠年份」可讀格式
 - 回填 `production_year`（來源：舊 `year`）
 
 ### 6.2 價格 migration
@@ -270,13 +271,6 @@ legacy 相容與交易沿用部分仍由 `dms_sale` / `dms_product` 共同承接
 1. 本輪既有正式產品資料量仍低，允許以 `post_init_hook` 進行一次性 backfill，而不另外建立獨立 migration framework。
 2. `dms_visit` 的送出物品本輪以文字輸入為主，不要求立即與 canonical SKU 重新耦合。
 3. `dms_sale` 既有 `dms.vehicle.price`、`dms.installment.plan` 等模型先保留作 fallback / 歷史資料來源，不在本輪粗暴刪除。
+4. 自動生成的 SKU 代碼需以可讀性優先，預設採 `型號-出廠年份`，同碼碰撞時補 `-02`、`-03`。
 
 ---
-
-## 8. Assumptions
-
-1. 本輪的新模組名稱採 `dms_product`。
-2. 本輪不動 `dms_core`。
-3. 本輪允許 `dms.product.template.type_name` / `model_name` 在 migration 初期為空或部分空值，以避免舊資料失聯。
-4. 本輪優先建立正確主資料結構與相容層，不直接重寫整套 `dms_sale` / `dms_finance`。
-5. `dms_visit` 本輪允許先與產品主檔脫鉤，待後續 spec 再重新接回。

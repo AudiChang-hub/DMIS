@@ -10,7 +10,7 @@ class DmsProductCompat(models.Model):
     _inherit = 'dms.product'
 
     template_id = fields.Many2one(
-        'dms.product.template', string='產品模板', ondelete='restrict')
+        'dms.product.template', string='產品模板', ondelete='cascade')
     internal_code = fields.Char(string='內部唯一代碼', index=True, copy=False)
     production_year = fields.Char(string='出廠年份')
 

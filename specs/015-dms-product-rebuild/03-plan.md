@@ -92,6 +92,7 @@
 - 主要使用 tree + form + search
 - SKU 僅在產品模板表單的頁籤中以 inline tree 維護，不提供獨立 menu
 - 產品項頁籤以 `active_test=False` 顯示停用資料，並保留 `active` 勾選供重新啟用
+- 產品項頁籤中的刪除動作需真正刪除 SKU，因此 `dms.product.template_id` 需改為 `ondelete='cascade'`，避免 Odoo 只做解除關聯而導致 FK 錯誤
 - `dms.product.template.sku_ids` 關聯本身也需帶 `active_test=False`，避免頁籤與計數不一致
 - `sku_count` 改為僅統計啟用中的產品項，符合使用者對模板主列表數量的直覺
 - 補一個綁定到產品模板的 server action「複製」，避免 form 初始 edit 模式下看不到內建 Duplicate，並於模型 `copy()` 時一併複製產品項

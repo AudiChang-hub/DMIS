@@ -106,7 +106,7 @@
 - 補一個綁定到產品模板的 server action「複製」，避免 form 初始 edit 模式下看不到內建 Duplicate，並於模型 `copy()` 時一併複製產品項
 - 補一個綁定到價目版本的 server action「複製」，避免 form 初始 edit 模式下看不到內建 Duplicate，並於模型 `copy()` 時一併複製價格基準
 - `dms.price.version.copy()` 需自動重生不重複版本名稱，並將複製出的版本狀態重設為 `draft`
-- `dms.product.name_get()` 與 `_name_search()` 需以 `internal_code / 出廠年份 / 模板` 為主，不再把顏色作為產品項識別主鍵
+- `dms.product.name_get()` 需以 `internal_code / 車種` 為主，讓價目版本等下拉不至於過長；`_name_search()` 仍需支援 `內部代碼 / 出廠年份 / 車種 / 型號 / 顏色` 搜尋
 - 價目版本需補一個批次加入產品項精靈，支援多選產品項後一次建立多筆價格基準列
 - 批次加入精靈需提供共用 `cash_price / list_price` 欄位，建立時直接帶入每筆新增價格列
 - 產品表單不以圖片作主視覺

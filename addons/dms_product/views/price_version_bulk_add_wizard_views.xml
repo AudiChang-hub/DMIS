@@ -10,6 +10,14 @@
           <group>
             <field name="version_id"/>
             <field name="existing_product_ids" invisible="1"/>
+          </group>
+          <group>
+            <group>
+              <field name="cash_price"/>
+              <field name="list_price"/>
+            </group>
+          </group>
+          <group>
             <field name="product_ids"
                    widget="many2many_tags"
                    options="{'no_create': True, 'no_create_edit': True}"/>

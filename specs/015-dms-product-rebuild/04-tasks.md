@@ -50,6 +50,7 @@
 
 - [x] 建立產品模板 tree / form / search
 - [x] 將 SKU 維護收斂到產品模板表單的產品項頁籤，不提供獨立入口
+- [x] 讓模板頁籤中的停用產品項仍可見並可重新啟用
 - [x] 建立價目版本 tree / form / search
 - [x] 建立價格基準 tree / form / search
 - [x] 建立分期規則模板 tree / form / search

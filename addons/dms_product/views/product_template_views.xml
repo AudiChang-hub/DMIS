@@ -37,8 +37,8 @@
           </group>
           <notebook>
             <page string="產品項">
-              <field name="sku_ids" context="{'default_template_id': id}">
-                <tree editable="bottom">
+              <field name="sku_ids" context="{'default_template_id': id, 'active_test': False}">
+                <tree editable="bottom" decoration-muted="not active">
                   <field name="internal_code"/>
                   <field name="production_year"/>
                   <field name="color"/>

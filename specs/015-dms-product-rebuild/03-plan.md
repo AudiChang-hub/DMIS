@@ -93,10 +93,10 @@
 - List-first
 - 主要使用 tree + form + search
 - 產品項僅在產品模板表單的頁籤中以 inline tree 維護，不提供獨立 menu
-- 產品顏色在產品模板表單的獨立頁籤中維護，欄位至少包含 `產品項 / 顏色名稱 / 啟用`
 - 產品項頁籤以 `active_test=False` 顯示停用資料，並保留 `active` 勾選供重新啟用
 - 產品項頁籤加入列級「複製」按鈕，直接複製同模板下的年份產品項，讓使用者只需微調年份等差異欄位
 - 產品項頁籤加入列級「維護顏色」按鈕，直接開啟該產品項的表單彈窗，在 `產品顏色` 頁籤逐列新增顏色
+- 維護顏色彈窗只保留 `產品項資料 / 產品顏色` 所需資訊，拿掉 `color_code`、`相容欄位`、`圖片（相容）` 等干擾欄位
 - `dms.product.copy()` 需顯式清空 `internal_code` 預設值，並在複製完成後重新生成唯一代碼，避免 inline tree 複製時沿用舊碼
 - 列級複製完成後回傳 `ir.actions.client` 的 `reload`，避免以 `act_window` 重開同一張模板表單造成 breadcrumb 疊加
 - 產品項頁籤中的刪除動作需真正刪除產品項，因此 `dms.product.template_id` 需改為 `ondelete='cascade'`，避免 Odoo 只做解除關聯而導致 FK 錯誤

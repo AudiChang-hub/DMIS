@@ -81,8 +81,9 @@
 
 ## Phase 5：資料庫收尾
 
-- [x] 新增維運腳本以清理 `dms_catalog` 的 catalog-only 殘留 metadata
+- [x] 新增維運腳本以清理 `dms_catalog` 的 catalog-only 殘留 metadata 與模組登記
 - [x] 執行清理腳本
+- [x] 刪除 `ir_module_module` 中的 `dms_catalog` 模組登記
 - [x] 重新執行 `docker compose exec odoo odoo -d dmis_dev -u dms_sale,dms_visit --db_host=db --db_port=5432 --db_user=odoo --db_password=odoo --stop-after-init`
 - [x] 確認不再出現 `dms.product.template` / `dms.product.sku` / `dms.price.version` / `dms.price.line` / `dms.installment.rule*` / `dms.fee.type` 的 registry warning
 
@@ -101,7 +102,7 @@
 - [x] 更新 `specs/006-dms-sale/04-tasks.md`
 - [x] 更新 `specs/011-dms-visit/00-charter.md`
 - [x] 更新 `specs/011-dms-visit/01-spec.md`
-- [x] 將 `specs/013-dms-catalog/01-spec.md` 標記為已被 `014-module-removal` 取代
+- [x] 刪除 `specs/013-dms-catalog/` 整個目錄
 
 ---
 

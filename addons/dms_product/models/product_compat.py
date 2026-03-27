@@ -1,6 +1,7 @@
 import re
 
 from odoo import api, fields, models
+from odoo.osv import expression
 
 
 LEGACY_GENERATED_CODE_PATTERN = re.compile(r'^SKU-\d{5}$')
@@ -23,6 +24,42 @@ class DmsProductCompat(models.Model):
             return False
         normalized = str(value).strip().replace(',', '')
         return normalized or False
+
+    def name_get(self):
+        result = []
+        for record in self:
+            template_label = record.template_id.display_name if record.template_id else (
+                record.name or record.model or '產品項 / SKU'
+            )
+            year_label = record._normalize_year_value(record.production_year or record.year)
+            parts = [
+                record.internal_code or False,
+                year_label,
+                record.color or False,
+                template_label,
+            ]
+            label = " / ".join(part for part in parts if part)
+            result.append((record.id, label))
+        return result
+
+    @api.model
+    def _name_search(self, name='', args=None, operator='ilike', limit=100, name_get_uid=None):
+        args = list(args or [])
+        if name:
+            args = expression.AND([
+                args,
+                expression.OR([
+                    [('internal_code', operator, name)],
+                    [('production_year', operator, name)],
+                    [('year', operator, name)],
+                    [('color', operator, name)],
+                    [('name', operator, name)],
+                    [('model', operator, name)],
+                    [('template_id.family_name', operator, name)],
+                    [('template_id.model_name', operator, name)],
+                ]),
+            ])
+        return self._search(args, limit=limit, access_rights_uid=name_get_uid)
 
     def action_duplicate_from_template_tab(self):
         self.ensure_one()

@@ -2,6 +2,7 @@ id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
 access_dms_product_template,dms.product.template,model_dms_product_template,,1,1,1,1
 access_dms_price_version,dms.price.version,model_dms_price_version,,1,1,1,1
 access_dms_price_line,dms.price.line,model_dms_price_line,,1,1,1,1
+access_dms_price_version_bulk_add_wizard,dms.price.version.bulk.add.wizard,model_dms_price_version_bulk_add_wizard,,1,1,1,1
 access_dms_installment_rule,dms.installment.rule,model_dms_installment_rule,,1,1,1,1
 access_dms_installment_rule_line,dms.installment.rule.line,model_dms_installment_rule_line,,1,1,1,1
 access_dms_fee_type,dms.fee.type,model_dms_fee_type,,1,1,1,1

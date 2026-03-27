@@ -42,7 +42,7 @@
             <h1><field name="name" placeholder="拜訪名稱"/></h1>
           </div>
           <group>
-            <group string="拜訪資訊" col="1">
+            <group string="拜訪資訊">
               <field name="visit_date"/>
               <field name="dealer_id"/>
               <field name="dealer_address" readonly="1"

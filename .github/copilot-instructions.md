@@ -11,6 +11,8 @@
 - Odoo 自訂模組僅放在 `addons/`，且不得修改 Odoo 核心。任何修改 `addons/**` 或 `docker-compose.yml`、`Makefile`、`scripts/**`，必須同步更新 `specs/**`，CI 會強制檢查。
 - 每次交付必須附上可重現的驗證指令（至少：`make up` / `make smoke` / `docker compose ps`），並在 PR 描述中列出完整驗證步驟。
 - 若需要建立示範資料，請放在模組的 `data/` 下並在 `__manifest__.py` 中註明；示範資料應標註為 demo 或可安全重複載入。
+- 任何變更若需要重啟 Odoo 才會生效，實作者必須在修改完成後**自動**執行 `docker compose restart odoo`，不得等使用者提醒。至少以下情況預設需要重啟：`addons/**` 下的 Python、XML 視圖/選單/權限、`__manifest__.py`、static assets、以及任何會影響 Odoo registry / menu / web client 載入結果的變更；若無法完全判斷，預設重啟並再執行驗證。
+- 自動重啟後，至少需補做 `docker compose ps` 與 `bash scripts/smoke_odoo.sh` / `make smoke` 其中之一，確認服務已回復並可正常存取。
 
 車行管理模組（`addons/dms_core/`）維護規範（強制遵守）：
 
@@ -23,4 +25,3 @@
 Prompt 與 Slash Commands：
 
 - 將 prompt files 放在 `.github/prompts/`，副檔名使用 `.prompt.md`，並在 frontmatter 提供 `name`、`description`、`argument-hint`、`agent`，以便 Copilot Chat 的 slash command 能識別並顯示。
-

@@ -61,6 +61,29 @@
 
 ---
 
+### D9：清理 `dms_catalog` 的殘留 registry metadata
+
+**決策**：若資料庫中 `dms_catalog` 已為 `uninstalled`，但仍保留 catalog-only 模型的 `ir.model` / `ir.model.data` / `ir.model.fields` 註冊資料，需以維運腳本清理。
+
+**原因**：
+- 可消除 Odoo 升級時的 registry warning
+- 避免後續開發者誤判 `dms_catalog` 仍存在
+- 將「模組已刪除」與「資料庫 metadata 已收尾」兩件事真正對齊
+
+**限制**：
+- 只清理 `dms.product.template`、`dms.product.sku`、`dms.price.version`、`dms.price.line`、`dms.installment.rule`、`dms.installment.rule.line`、`dms.fee.type`、`dms.installment.rule.fee`
+- 不得刪到已由 `dms_sale` 接手的共享模型 metadata
+
+---
+
+### D10：文件視 `014-module-removal` 為最新真相來源
+
+**決策**：`README`、`SETUP`、`USER_MANUAL`、`ERD`、roadmap 及受影響 spec 必須改寫為「產品/價目已整併進 `dms_sale`」的描述；`013-dms-catalog` 則改標為已被取代。
+
+**原因**：目前最大的風險不是程式碼不能跑，而是文件仍指向舊架構，會直接誤導後續開發與操作。
+
+---
+
 ## 未決問題
 
 1. **生產環境卸載順序**：若生產環境已安裝三個被移除的模組，需確認卸載順序（catalog → pricelist → product）與資料備份策略，此須由專案負責人確認後才能在生產環境執行。

@@ -3,7 +3,7 @@
 ## 已澄清事項
 
 ### Q1：items_delivered 使用 product.product 還是 dms.product？
-**A**：使用 `dms.product`（本系統自訂產品模型），因為本專案未安裝 Odoo 標準 `product` 模組，且 `dms_product` 已是系統內的車款/物品資料來源。中間關係表命名為 `dms.visit.item`（非多對多 through table，而是標準 One2many），便於儲存數量與備註。
+**A**：使用 `dms.product`（本系統自訂產品模型），因為本專案未安裝 Odoo 標準 `product` 模組；自 `014-module-removal` 起，該模型由 `dms_sale` 提供。中間關係表命名為 `dms.visit.item`（非多對多 through table，而是標準 One2many），便於儲存數量與備註。
 
 ### Q2：application=False 時選單如何掛載？
 **A**：在 `views/visit_views.xml` 及 `views/visit_purpose_views.xml` 的 menuitem 中，以 `parent="dms_core.menu_dms_root"` 掛載至「車行管理」主選單下，不建立新的頂層選單（`<menuitem>` 無 parent 或 parent 為空會建立頂層選單）。
@@ -25,3 +25,6 @@
 
 ### Q8：是否需要 mail.thread（Chatter）？
 **A**：本版本不加入 `mail` 依賴，以保持輕量。若未來需要討論串、追蹤，可在後續版本繼承 `mail.thread` 與 `mail.activity.mixin`。
+
+### Q9：價格表自動拜訪仍用 dealer 上的布林欄位嗎？
+**A**：否。現行實作已改為 `dms.visit.schedule` 排程模型，可在同一車行上維護多筆不同目的/頻率的自動拜訪規則；舊的 `auto_price_list_visit` / `price_list_visitor_id` 設計不再使用。

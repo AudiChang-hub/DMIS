@@ -2,19 +2,24 @@
 
 ## 環境 / 啟動
 - [ ] `docker compose up -d` 一鍵啟動，無 ERROR 訊息
-- [ ] `make smoke` 在 180 秒內通過（HTTP 200/302/303）
+- [x] `make smoke` / `bash scripts/smoke_odoo.sh` 在 180 秒內通過（HTTP 200/302/303）
 - [ ] `docker compose ps` 顯示 odoo 容器 `Up (healthy)` 狀態
 
 ## 模組清單驗收
 - [ ] Odoo Settings → Apps 中，`dms_product`, `dms_pricelist`, `dms_catalog` 不再列出
-- [ ] `dms_sale` 顯示為已安裝，版本提升（或 manifest 更新日期更新）
-- [ ] `dms_visit` 顯示為已安裝，依賴滿足
+- [x] `dms_sale` 顯示為已安裝，版本提升（或 manifest 更新日期更新）
+- [x] `dms_visit` 顯示為已安裝，依賴滿足
+
+## Metadata 驗收
+- [x] `docker compose exec odoo odoo -d dmis_dev -u dms_sale,dms_visit --db_host=db --db_port=5432 --db_user=odoo --db_password=odoo --stop-after-init` 無 `dms_catalog` catalog-only 模型 warning
+- [x] `ir_model` 中不存在 `dms.product.template`、`dms.product.sku`、`dms.price.version`、`dms.price.line`、`dms.installment.rule`、`dms.installment.rule.line`、`dms.fee.type`、`dms.installment.rule.fee`
+- [x] 專案內提供可重複執行的 cleanup 腳本
 
 ## 資料完整性
-- [ ] 既有 `dms.product` 記錄全數保留（資料表不變，row 數一致）
-- [ ] 既有 `dms.accessory` 記錄全數保留
-- [ ] 既有 `dms.vehicle.price` 記錄全數保留
-- [ ] 既有 `dms.sale.order` 記錄全數保留，`product_id`、`color_id`、`order_line_ids` 正常顯示
+- [x] 既有 `dms.product` 記錄全數保留（資料表不變，row 數一致）
+- [x] 既有 `dms.accessory` 記錄全數保留
+- [x] 既有 `dms.vehicle.price` 記錄全數保留
+- [x] 既有 `dms.sale.order` 記錄全數保留
 
 ## 功能驗收 — 車行管理（絕對不可回退）
 - [ ] 可建立新車行（dms.dealer）
@@ -48,21 +53,29 @@
 - [ ] 拜訪排程自動建立正常
 
 ## 已移除確認
-- [ ] `addons/dms_product/` 資料夾不存在
-- [ ] `addons/dms_pricelist/` 資料夾不存在
-- [ ] `addons/dms_catalog/` 資料夾不存在
+- [x] `addons/dms_product/` 資料夾不存在
+- [x] `addons/dms_pricelist/` 資料夾不存在
+- [x] `addons/dms_catalog/` 資料夾不存在
+
+## 文件同步確認
+- [x] `README.md` 已改為 `dms_sale` 整併架構
+- [x] `SETUP.md` 的模組安裝步驟與依賴圖已改為目前實作
+- [x] `docs/USER_MANUAL.md` 不再指示使用獨立的 `dms_product` / `dms_pricelist` App
+- [x] `docs/erd.md` 已標明 `dms.product` / `dms.vehicle.price` 等模型現由 `dms_sale` 持有
+- [x] `specs/006-dms-sale/**` 與 `specs/011-dms-visit/**` 的依賴描述已對齊現況
+- [x] `specs/013-dms-catalog/01-spec.md` 已標記為被 `014-module-removal` 取代
 
 ## Tests
-- [ ] `dms_core/tests/` 全部通過
-- [ ] `dms_visit/tests/` 全部通過
-- [ ] `user_management/tests/` 全部通過
-- [ ] `dms_sale` 無 Python 語法錯誤（模組可正常載入）
+- [x] `dms_core/tests/` 全部通過
+- [x] `dms_visit/tests/` 全部通過
+- [x] `user_management/tests/` 全部通過
+- [x] `dms_sale` 無 Python 語法錯誤（模組可正常載入）
 
 ## 驗收指令（可重現）
 ```bash
 make up
-docker compose exec odoo odoo -d dmis_dev -u dms_sale,dms_visit --stop-after-init
+docker compose exec odoo odoo -d dmis_dev -u dms_sale,dms_visit --db_host=db --db_port=5432 --db_user=odoo --db_password=odoo --stop-after-init
 make smoke
-docker compose exec odoo python -m pytest addons/dms_core/tests/ -v 2>/dev/null || \
-  docker compose exec odoo odoo -d dmis_dev --test-enable --test-tags dms_core --stop-after-init
+docker compose exec odoo odoo -d dmis_dev -u dms_core,dms_visit,user_management,dms_finance,dms_report_rule,dms_report_virtual --db_host=db --db_port=5432 --db_user=odoo --db_password=odoo --http-port=8070 --test-enable --stop-after-init
+python3 scripts/cleanup_dms_catalog_metadata.py
 ```

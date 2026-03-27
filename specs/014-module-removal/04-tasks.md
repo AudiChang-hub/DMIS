@@ -73,14 +73,39 @@
 ## Phase 4：升級驗證
 
 - [ ] `docker compose restart odoo`
-- [ ] `docker compose exec odoo odoo -d dmis_dev -u dms_sale --stop-after-init`
-- [ ] `docker compose exec odoo odoo -d dmis_dev -u dms_visit --stop-after-init`
+- [x] `docker compose exec odoo odoo -d dmis_dev -u dms_sale,dms_visit --db_host=db --db_port=5432 --db_user=odoo --db_password=odoo --stop-after-init`
 - [ ] `docker compose up -d odoo`
-- [ ] `make smoke` 通過
+- [x] `bash scripts/smoke_odoo.sh` / `make smoke` 通過
 
 ---
 
-## Phase 5：功能驗收
+## Phase 5：資料庫收尾
+
+- [x] 新增維運腳本以清理 `dms_catalog` 的 catalog-only 殘留 metadata
+- [x] 執行清理腳本
+- [x] 重新執行 `docker compose exec odoo odoo -d dmis_dev -u dms_sale,dms_visit --db_host=db --db_port=5432 --db_user=odoo --db_password=odoo --stop-after-init`
+- [x] 確認不再出現 `dms.product.template` / `dms.product.sku` / `dms.price.version` / `dms.price.line` / `dms.installment.rule*` / `dms.fee.type` 的 registry warning
+
+---
+
+## Phase 6：文件同步
+
+- [x] 更新 `README.md`
+- [x] 更新 `SETUP.md`
+- [x] 更新 `docs/USER_MANUAL.md`
+- [x] 更新 `docs/erd.md`
+- [x] 更新 `specs/000-roadmap/01-module-map.md`
+- [x] 更新 `specs/000-roadmap/02-master-checklist.md`
+- [x] 更新 `specs/006-dms-sale/00-charter.md`
+- [x] 更新 `specs/006-dms-sale/01-spec.md`
+- [x] 更新 `specs/006-dms-sale/04-tasks.md`
+- [x] 更新 `specs/011-dms-visit/00-charter.md`
+- [x] 更新 `specs/011-dms-visit/01-spec.md`
+- [x] 將 `specs/013-dms-catalog/01-spec.md` 標記為已被 `014-module-removal` 取代
+
+---
+
+## Phase 7：功能驗收
 
 - [ ] 車行管理（dms_core）— 建立、編輯、搜尋車行
 - [ ] 使用者管理（user_management）— 使用者建立與角色指派

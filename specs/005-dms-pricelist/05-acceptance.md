@@ -1,5 +1,7 @@
 # 驗收標準（05-acceptance）— dms_pricelist
 
+> 歷史文件註記（2026-03-27）：此驗收標準對應 `dms_pricelist` 獨立模組時期。現況請改依 [`specs/014-module-removal/05-acceptance.md`](/home/audi/project/DMIS/specs/014-module-removal/05-acceptance.md) 與 `dms_sale` 驗收結果判定。
+
 ## 安裝驗證
 - [ ] `docker compose exec -T odoo bash -lc "PGHOST=db PGUSER=odoo PGPASSWORD=odoo odoo -d dmis_dev -i dms_pricelist --stop-after-init 2>&1 | tail -10"` 無 ERROR
 - [ ] `/web/login` HTTP 200

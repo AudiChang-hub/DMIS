@@ -136,3 +136,48 @@
 | `user_management` | ✅ 不動 | 無 |
 | `dms_sale` | 🔧 修改 | 移除 dms_product/dms_pricelist 依賴，接收模型 |
 | `dms_visit` | 🔧 修改 | 移除 dms_product 依賴，改依賴 dms_sale |
+
+---
+
+## 八、移除後的資料庫收尾
+
+### 8.1 清理 `dms_catalog` 殘留 metadata
+
+當 `dms_catalog` 已從程式碼移除、資料庫中的模組狀態為 `uninstalled` 時，若仍殘留其 `ir.model` / `ir.model.data` / `ir.model.fields` 等註冊資料，Odoo 在 registry 載入時會出現「Model ... cannot be loaded」警告。
+
+本輪需清理下列 **catalog-only** 模型的殘留註冊資料：
+
+- `dms.product.template`
+- `dms.product.sku`
+- `dms.price.version`
+- `dms.price.line`
+- `dms.installment.rule`
+- `dms.installment.rule.line`
+- `dms.fee.type`
+- `dms.installment.rule.fee`
+
+### 8.2 不刪除現行 `dms_sale` 仍使用的模型
+
+下列模型雖曾在 `dms_catalog` 出現過，但目前已由 `dms_sale` 接手，**不得**因清理腳本而刪除：
+
+- `dms.accessory`
+- `dms.commission.rule`
+- `dms.ev.fee.schedule`
+- `dms.kanban.product.config`
+
+---
+
+## 九、文件同步要求
+
+本輪完成後，下列文件必須同步更新為目前架構：
+
+- `README.md`
+- `SETUP.md`
+- `docs/USER_MANUAL.md`
+- `docs/erd.md`
+- `specs/000-roadmap/01-module-map.md`
+- `specs/000-roadmap/02-master-checklist.md`
+- `specs/006-dms-sale/**`
+- `specs/011-dms-visit/**`
+
+原 `013-dms-catalog` 規格需標註為「已被 014 取代，不再作為實作依據」。

@@ -3,6 +3,8 @@
 > 本圖以 [Mermaid](https://mermaid.js.org/) 格式撰寫，可於 GitHub、VS Code Markdown Preview Enhanced 等工具直接渲染。
 >
 > **維護規範**：每次 DB Schema（model）異動，**必須同步更新本檔**。
+>
+> **014 架構備註**：原 `dms_product` / `dms_pricelist` 已整併至 `dms_sale`。下方仍沿用既有技術模型名稱（如 `dms.product`、`dms.vehicle.price`），但其宿主模組已是 `dms_sale`。
 
 ```mermaid
 erDiagram
@@ -88,7 +90,7 @@ dms_old_vehicle {
 }
 
 %% ─────────────────────────────────────────────
-%%  dms_product
+%%  dms_sale 接手的產品模型
 %% ─────────────────────────────────────────────
 
 dms_product {
@@ -110,7 +112,7 @@ dms_product_color {
 }
 
 %% ─────────────────────────────────────────────
-%%  dms_pricelist
+%%  dms_sale 接手的價目模型
 %% ─────────────────────────────────────────────
 
 dms_vehicle_price {
@@ -185,8 +187,9 @@ dms_sale_order {
     int    customer_id     FK
     string customer_name
     string customer_phone
-    string customer_id_number
-    string customer_address
+    string id_number
+    string birthday_roc
+    string address_registered
     int    product_id      FK
     int    color_id        FK
     string engine_number
@@ -194,17 +197,21 @@ dms_sale_order {
     string plate_number
     float  cash_price
     float  amount_total
+    float  deposit_amount
+    float  balance_amount
+    bool   is_settled
+    date   settle_date
     string payment_method
     int    dealer_id       FK
-    float  handling_fee
-    float  license_fee
-    float  insurance_fee
-    float  tax_fee
-    float  plate_fee
-    float  green_fee
-    float  recycle_fee
-    float  registration_fee
-    float  other_fee
+    float  fee_vehicle_registration
+    float  fee_inspection
+    float  fee_plate
+    float  fee_stamp
+    float  fee_insurance
+    float  fee_guild_cert
+    float  fee_document
+    float  fee_other
+    float  fee_plate_selection
     float  fee_total       "computed"
 }
 
@@ -361,12 +368,12 @@ dms_dealer                 }o--o{  dms_brand                 : "brand_ids (M2M)"
 res_partner                ||--o{  dms_old_vehicle           : "old_vehicle_ids"
 dms_old_vehicle            }o--||  res_partner               : "partner_id"
 
-%% dms_product
+%% dms_sale 接手的產品模型
 dms_product                }o--||  dms_brand                 : "brand_id"
 dms_product                ||--o{  dms_product_color         : "color_ids"
 dms_product_color          }o--||  dms_product               : "product_id"
 
-%% dms_pricelist
+%% dms_sale 接手的價目模型
 dms_vehicle_price          }o--||  dms_product               : "product_id"
 dms_vehicle_price          ||--o{  dms_installment_plan      : "installment_ids"
 dms_installment_plan       }o--||  dms_vehicle_price         : "price_id"
@@ -426,12 +433,11 @@ dms_dealer             ||--o{  dms_visit            : "visit_ids"
 |------|---------|---------|
 | `dms_core` | dms.brand, dms.store_type, dms.dealer.tag, dms.dealer.type, dms.dealer, dms.dealer.brand.auth | res.company（favicon） |
 | `dms_customer` | dms.old.vehicle | res.partner |
-| `dms_product` | dms.product, dms.product.color | — |
-| `dms_pricelist` | dms.vehicle.price, dms.installment.plan, dms.accessory, dms.commission.rule, dms.ev.fee.schedule | — |
-| `dms_sale` | dms.sale.order, dms.sale.order.line, dms.vehicle.color ⚠️ | — |
+| `dms_sale` | dms.product, dms.product.color, dms.kanban.product.config, dms.vehicle.price, dms.installment.plan, dms.accessory, dms.commission.rule, dms.ev.fee.schedule, dms.sale.order, dms.sale.order.line, dms.vehicle.color ⚠️ | — |
 | `dms_finance` | dms.finance.category, dms.sale.finance, dms.sale.finance.income, dms.sale.finance.expense | dms.sale.order（+finance_ids） |
 | `dms_report_rule` | dms.report.rule | — |
 | `dms_report_virtual` | dms.report.virtual.field, dms.report.virtual.field.rule | dms.report.rule（+virtual_dimension_ids） |
 | `dms_visit` | dms.visit.purpose, dms.visit, dms.visit.item | dms.dealer（+visit_ids, +visit_count） |
+| `user_management` | um.access.group, um.audit.log | res.users, ir.ui.menu, base |
 
 > ⚠️ `dms.vehicle.color` 與 `dms.product.color` 結構重複，建議後續整合。

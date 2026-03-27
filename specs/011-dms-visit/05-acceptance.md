@@ -39,7 +39,8 @@
 
 ### AC-08：單元測試
 - [ ] `docker exec dmis-odoo-1 odoo --test-enable --stop-after-init -d dmis_dev -i dms_visit` 執行無 ERROR。
-- [ ] 5 個測試案例全部通過（0 FAIL / 0 ERROR）。
+- [ ] 8 個測試案例全部通過（0 FAIL / 0 ERROR）。
+- [ ] 自動排程測試以 `dms.visit.schedule` 為基礎，而非已移除的 dealer 布林欄位。
 
 ## 驗證指令
 

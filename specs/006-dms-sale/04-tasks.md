@@ -15,13 +15,20 @@
 
 ## 視圖
 - [ ] `views/sale_order_views.xml`（tree/form 5tab/search/action/menu）
+- [ ] `views/product_views.xml`（整併自原 `dms_product`）
+- [ ] `views/product_kanban_config_views.xml`（整併自原 `dms_product`）
+- [ ] `views/accessory_views.xml`（整併自原 `dms_pricelist`）
+- [ ] `views/vehicle_price_views.xml`（整併自原 `dms_pricelist`）
+- [ ] `views/fee_schedule_views.xml`（整併自原 `dms_pricelist`）
+- [ ] `views/commission_rule_views.xml`（整併自原 `dms_pricelist`）
+- [ ] `views/product_pricelist_menu.xml`（產品資料 / 價目資料整合選單）
 
 ## 安全性
 - [ ] `security/ir.model.access.csv`（2 個模型全員讀寫）
 
 ## 模組骨架
 - [ ] `__init__.py`
-- [ ] `__manifest__.py`（depends: dms_core, dms_product, dms_pricelist, dms_customer）
+- [ ] `__manifest__.py`（depends: dms_core, dms_customer）
 - [ ] `models/__init__.py`
 
 ## 安裝驗證

@@ -1,5 +1,7 @@
 # 開發任務（04-tasks）— dms_pricelist
 
+> 歷史文件註記（2026-03-27）：本任務清單僅保留原始拆模開發記錄；現行價目相關維護已併入 `dms_sale`，請改看 [`specs/014-module-removal/04-tasks.md`](/home/audi/project/DMIS/specs/014-module-removal/04-tasks.md)。
+
 ## Spec
 - [x] 00-charter.md ✅
 - [x] 01-spec.md ✅

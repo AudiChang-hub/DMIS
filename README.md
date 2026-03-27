@@ -18,6 +18,11 @@ make up
 
 此專案為 Odoo Community 最小專案骨架，包含 docker-compose 一鍵啟動、smoke 測試與規格治理。所有文件皆以繁體中文為主。
 
+> 2026-03-27 架構更新：
+> - 原 `dms_product`、`dms_pricelist` 已整併進 `dms_sale`
+> - `dms_catalog` 方案已終止，改以 `014-module-removal` 為準
+> - 產品資料 / 價目資料 現位於「銷售管理」App 之下
+
 快速開始：
 
 1. 複製 `.env.example` 為 `.env` 並調整必要參數。
@@ -37,6 +42,13 @@ make logs
 
 ```bash
 make smoke
+```
+
+若目前環境沒有安裝 `make`，可直接使用：
+
+```bash
+docker compose up -d
+bash scripts/smoke_odoo.sh
 ```
 
 Windows 使用者備註：
@@ -84,12 +96,27 @@ VS Code 建議設定（讓自動化/Tasks 使用 PowerShell 不載入使用者 p
 | Phase | 模組 | 選單名稱 | 狀態 |
 |-------|------|----------|------|
 | 0 | dms_core | 車行管理 | ✅ 完成 |
-| 0 | dms_product | 產品管理 | ✅ 完成 |
 | 1 | dms_customer | 客戶管理 | ✅ 完成 |
-| 1 | dms_pricelist | 價目管理 | ✅ 完成 |
-| 2 | dms_sale | 銷售管理 | ✅ 完成 |
-| 3 | dms_finance | 財務結算 | 🚧 開發中 |
-| 4 | dms_report | 報表分析 | 🔲 未開始 |
+| 2 | dms_sale | 銷售管理（含產品資料 / 價目資料） | ✅ 已整併 |
+| 2 | dms_visit | 拜訪紀錄 | ✅ 完成 |
+| 3 | dms_finance | 財務結算 | ✅ 已實作 |
+| 4 | dms_report | 報表分析 | ✅ 已實作 |
+| 4 | dms_report_rule | 報表規則 | ✅ 已實作 |
+| 4 | dms_report_virtual | 虛擬欄位 | ✅ 已實作 |
+| Admin | user_management | 使用者管理 | ✅ 完成 |
+
+歷史說明：
+
+- `dms_product`、`dms_pricelist` 已不再作為獨立 addon 發佈，相關模型與畫面已搬入 `dms_sale`
+- `dms_catalog` 保留於歷史規格，不再作為實作方向
+
+## 維運腳本
+
+- 清理已移除 `dms_catalog` 的殘留 metadata：
+
+```bash
+python3 scripts/cleanup_dms_catalog_metadata.py
+```
 
 
 使用 Slash Commands（Copilot Chat）:
@@ -111,4 +138,3 @@ VS Code 建議設定（讓自動化/Tasks 使用 PowerShell 不載入使用者 p
 2. 在 `specs/` 完成並確認後，建立 feature branch、實作最小變更、執行 `make smoke`。
 3. 開 PR，PR 描述必填對應 specs 路徑；CI 會檢查若修改 `addons/**` 或 `docker-compose.yml`、`scripts/**`、`Makefile` 必須同步更新 `specs/**`。
 4. 使用 `/dms-merge` 產出合併檢查清單後再合併。
-

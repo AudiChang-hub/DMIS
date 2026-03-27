@@ -7,10 +7,10 @@
 ## 範圍
 
 - 新增 `dms_visit` 模組於 `addons/dms_visit/`，`application=False`（非獨立 App）。
-- 依賴模組：`dms_core`、`dms_product`。
+- 依賴模組：`dms_core`、`dms_sale`。
 - 功能選單掛載於現有「車行管理」主選單下，不建立頂層 App 選單。
 - 擴充 `dms.dealer`：新增 `visit_ids` One2many 欄位與「拜訪紀錄」Smart Button。
-- 不修改 `dms_core`、`dms_product` 等現有模組的任何檔案，以 `_inherit` 擴充。
+- 不修改 `dms_core`；產品模型 `dms.product` 由 `dms_sale` 提供，`dms_visit` 僅以依賴與 `_inherit` / 關聯欄位方式整合。
 
 ## 目標用戶
 

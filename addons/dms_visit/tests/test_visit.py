@@ -1,7 +1,5 @@
 from odoo.tests.common import TransactionCase
 from odoo import fields
-from odoo.exceptions import AccessError
-from datetime import date
 
 
 class TestDmsVisit(TransactionCase):
@@ -160,51 +158,47 @@ class TestDmsVisit(TransactionCase):
         self.assertIn(visit_a, visible_admin, '管理者應能看到 user_visit1 的拜訪')
         self.assertIn(visit_b, visible_admin, '管理者應能看到 user_visit2 的拜訪')
 
+    def _make_schedule(self, **kwargs):
+        defaults = {
+            'dealer_id': self.dealer.id,
+            'purpose_id': self.purpose_price.id,
+            'visitor_id': self.user_visit1.id,
+            'interval_months': '1',
+            'schedule_type': 'fixed_day',
+            'day_of_month': 1,
+        }
+        defaults.update(kwargs)
+        return self.env['dms.visit.schedule'].create(defaults)
+
     # ── Test 06：cron 為啟用車行建立拜訪 ────────────────────────────
     def test_06_cron_creates_visit_for_enabled_dealer(self):
-        """cron 執行後：auto_price_list_visit=True 的車行應產生一筆當月拜訪"""
-        self.dealer.write({
-            'auto_price_list_visit': True,
-            'price_list_visitor_id': self.user_visit1.id,
-        })
-        today = date.today()
-        # 確保測試前無當月拜訪
-        month_start = fields.Datetime.from_string(
-            '%04d-%02d-01 00:00:00' % (today.year, today.month)
-        )
+        """cron 執行後：啟用中的排程應補齊未來拜訪草稿。"""
+        schedule = self._make_schedule()
+        expected_dates = schedule._generate_all_dates()
+
         self.env['dms.visit'].search([
-            ('dealer_id', '=', self.dealer.id),
-            ('visit_date', '>=', month_start),
-            ('purpose_id', '=', self.purpose_price.id),
+            ('schedule_id', '=', schedule.id),
         ]).unlink()
 
         self.env['dms.dealer'].cron_generate_price_list_visits()
 
         visits = self.env['dms.visit'].sudo().search([
-            ('dealer_id', '=', self.dealer.id),
-            ('visit_date', '>=', month_start),
-            ('purpose_id', '=', self.purpose_price.id),
-        ])
-        self.assertEqual(len(visits), 1, 'cron 應為啟用車行建立 1 筆拜訪')
+            ('schedule_id', '=', schedule.id),
+            ('state', '=', 'draft'),
+        ], order='visit_date asc')
+        self.assertEqual(len(visits), len(expected_dates), 'cron 應補齊排程未來拜訪草稿')
         self.assertEqual(visits[0].visitor_id, self.user_visit1, '拜訪人員應為 price_list_visitor_id')
-        self.assertEqual(visits[0].state, 'done', '自動建立的拜訪狀態應為已完成')
+        self.assertTrue(visits[0].is_auto_generated, '自動補齊的拜訪應標記為排程建立')
+        self.assertEqual(fields.Datetime.to_datetime(visits[0].visit_date).date(), expected_dates[0])
 
     # ── Test 07：cron 不重複建立同月份拜訪 ─────────────────────────
     def test_07_cron_no_duplicate_same_month(self):
-        """cron 執行兩次：同車行同月份僅有一筆拜訪，不重複建立"""
-        self.dealer.write({
-            'auto_price_list_visit': True,
-            'price_list_visitor_id': self.user_visit1.id,
-        })
-        today = date.today()
-        month_start = fields.Datetime.from_string(
-            '%04d-%02d-01 00:00:00' % (today.year, today.month)
-        )
-        # 清除舊資料確保乾淨
+        """cron 執行兩次：同一排程不應重複建立未來拜訪。"""
+        schedule = self._make_schedule()
+        expected_count = len(schedule._generate_all_dates())
+
         self.env['dms.visit'].search([
-            ('dealer_id', '=', self.dealer.id),
-            ('visit_date', '>=', month_start),
-            ('purpose_id', '=', self.purpose_price.id),
+            ('schedule_id', '=', schedule.id),
         ]).unlink()
 
         # 執行兩次
@@ -212,31 +206,22 @@ class TestDmsVisit(TransactionCase):
         self.env['dms.dealer'].cron_generate_price_list_visits()
 
         visits = self.env['dms.visit'].sudo().search([
-            ('dealer_id', '=', self.dealer.id),
-            ('visit_date', '>=', month_start),
-            ('purpose_id', '=', self.purpose_price.id),
+            ('schedule_id', '=', schedule.id),
+            ('state', '!=', 'cancel'),
         ])
-        self.assertEqual(len(visits), 1, 'cron 執行兩次後，同月份仍只應有 1 筆拜訪')
+        self.assertEqual(len(visits), expected_count, 'cron 執行兩次後，不應重複建立拜訪')
 
-    # ── Test 08：auto_price_list_visit=False 的車行不產生拜訪 ────────
+    # ── Test 08：inactive schedule 不產生拜訪 ───────────────────────
     def test_08_cron_skip_disabled_dealer(self):
-        """cron 執行後：auto_price_list_visit=False 的車行不應建立拜訪"""
-        self.dealer.write({'auto_price_list_visit': False})
-        today = date.today()
-        month_start = fields.Datetime.from_string(
-            '%04d-%02d-01 00:00:00' % (today.year, today.month)
-        )
+        """cron 執行後：停用中的排程不應建立拜訪"""
+        schedule = self._make_schedule(active=False)
         before_count = self.env['dms.visit'].sudo().search_count([
-            ('dealer_id', '=', self.dealer.id),
-            ('visit_date', '>=', month_start),
-            ('purpose_id', '=', self.purpose_price.id),
+            ('schedule_id', '=', schedule.id),
         ])
 
         self.env['dms.dealer'].cron_generate_price_list_visits()
 
         after_count = self.env['dms.visit'].sudo().search_count([
-            ('dealer_id', '=', self.dealer.id),
-            ('visit_date', '>=', month_start),
-            ('purpose_id', '=', self.purpose_price.id),
+            ('schedule_id', '=', schedule.id),
         ])
-        self.assertEqual(before_count, after_count, '未啟用的車行不應新增拜訪')
+        self.assertEqual(before_count, after_count, '停用排程不應新增拜訪')

@@ -1,5 +1,7 @@
 # 驗收條件（05-acceptance）— dms_product
 
+> 歷史文件註記（2026-03-27）：此驗收條件對應 `dms_product` 獨立模組時期。現況請改依 [`specs/014-module-removal/05-acceptance.md`](/home/audi/project/DMIS/specs/014-module-removal/05-acceptance.md) 與 `dms_sale` 驗收結果判定。
+
 ## 安裝驗收
 - [ ] `--stop-after-init` 升級 dms_core + dms_product 無錯誤
 - [ ] `/web/login` HTTP 200

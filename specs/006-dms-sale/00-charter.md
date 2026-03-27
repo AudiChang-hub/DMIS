@@ -30,6 +30,6 @@
 | 模組 | 原因 |
 |---|---|
 | `dms_core` | 引用 `dms.dealer` |
-| `dms_product` | 引用 `dms.product` |
-| `dms_pricelist` | 帶入售價、電車牌險費率、傭金規則 |
 | `dms_customer` | 引用客戶資料（res.partner 擴充欄位） |
+
+> 2026-03-27 更新：原 `dms_product` / `dms_pricelist` 已於 `014-module-removal` 整併進 `dms_sale`。因此 `dms_sale` 現在同時承接 `dms.product`、`dms.product.color`、`dms.vehicle.price`、`dms.installment.plan`、`dms.accessory`、`dms.ev.fee.schedule`、`dms.commission.rule`、`dms.kanban.product.config` 等模型。

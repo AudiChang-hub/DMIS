@@ -1,5 +1,7 @@
 # 規格（01-spec）— dms_product 產品管理模組
 
+> 歷史文件註記（2026-03-27）：此規格描述的是 `dms_product` 獨立存在時的設計。現況已整併至 `dms_sale`，請以 [`specs/006-dms-sale/01-spec.md`](/home/audi/project/DMIS/specs/006-dms-sale/01-spec.md) 與 [`specs/014-module-removal/01-spec.md`](/home/audi/project/DMIS/specs/014-module-removal/01-spec.md) 為準。
+
 ## 模組資訊
 | 項目 | 值 |
 |---|---|

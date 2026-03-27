@@ -10,9 +10,10 @@
 
 ### AC-2：產品型式管理
 
-- [ ] 可新增 `dms.product.template` 紀錄（填入品牌、名稱、能源型式）
-- [ ] 型式可上傳主圖
-- [ ] Kanban 視圖正常顯示，配置欄位（`dms.kanban.product.config`）可控制顯示欄位
+- [ ] 可新增 `dms.product.template` 紀錄（儷入車系、品牌、名稱、能源型式）
+- [ ] 型式 Form 視圖**不顯示**圖片 avatar（OQ-4）
+- [ ] 型式 List 視圖顯示 `series_id`（車系欄位）（OQ-1）
+- [ ] Kanban 視圖正常顯示，配置欄位（`dms.kanban.product.config`）可控制顯示欄位（OQ-5）
 
 ### AC-3：SKU 管理
 
@@ -76,3 +77,15 @@ make smoke
 - [ ] 所有視圖無 XML ParseError
 - [ ] Server log 無 AccessError（info/debug 以外等級均無 ERROR）
 - [ ] `make smoke` 全部 assertion 通過
+
+### AC-10：非迄回測試（OQ-2 相否的驗證）
+
+- [ ] 安裝 `dms_catalog` 後，`dms_sale` 功能正常，無 ERROR log
+- [ ] 安裝 `dms_catalog` 後，`dms_visit` 功能正常，無 ERROR log
+- [ ] `make smoke` 包含 `dms_sale` / `dms_visit` 的測試案例通過
+
+### AC-11：Deprecated 模組標記（OQ-7 驗收）
+
+- [ ] `addons/dms_product/__manifest__.py` 的 `description` 包含 `⚠️ DEPRECATED` 文字
+- [ ] `addons/dms_pricelist/__manifest__.py` 的 `description` 包含 `⚠️ DEPRECATED` 文字
+- [ ] 兩模組仍可安裝（頭小模組只有標記，未刺除）

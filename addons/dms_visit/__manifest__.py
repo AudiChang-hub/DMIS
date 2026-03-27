@@ -10,7 +10,7 @@
     'author': 'DMIS',
     'license': 'LGPL-3',
     'category': 'Custom',
-    'depends': ['dms_core', 'dms_product'],
+    'depends': ['dms_core', 'dms_sale'],
     'data': [
         'security/dms_visit_security.xml',
         'security/ir.model.access.csv',

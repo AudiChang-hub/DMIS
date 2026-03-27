@@ -1,6 +1,0 @@
-id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
-access_dms_vehicle_price_all,dms.vehicle.price all,model_dms_vehicle_price,,1,1,1,1
-access_dms_installment_plan_all,dms.installment.plan all,model_dms_installment_plan,,1,1,1,1
-access_dms_accessory_all,dms.accessory all,model_dms_accessory,,1,1,1,1
-access_dms_ev_fee_schedule_all,dms.ev.fee.schedule all,model_dms_ev_fee_schedule,,1,1,1,1
-access_dms_commission_rule_all,dms.commission.rule all,model_dms_commission_rule,,1,1,1,1

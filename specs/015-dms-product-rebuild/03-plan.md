@@ -94,6 +94,7 @@
 - 產品項頁籤以 `active_test=False` 顯示停用資料，並保留 `active` 勾選供重新啟用
 - `dms.product.template.sku_ids` 關聯本身也需帶 `active_test=False`，避免頁籤與計數不一致
 - `sku_count` 改為僅統計啟用中的產品項，符合使用者對模板主列表數量的直覺
+- 補一個綁定到產品模板的 server action「複製」，避免 form 初始 edit 模式下看不到內建 Duplicate，並於模型 `copy()` 時一併複製產品項
 - 產品表單不以圖片作主視覺
 - 必要時保留 legacy 圖片欄位，但放在次要分頁
 

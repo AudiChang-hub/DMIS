@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+  <!-- ===== 產品資料 群組選單 ===== -->
+  <menuitem id="menu_dms_product_group"
+            name="產品資料"
+            parent="menu_dms_sale_root"
+            sequence="20"/>
+
+  <menuitem id="menu_product"
+            name="車款管理"
+            parent="menu_dms_product_group"
+            action="action_product"
+            sequence="10"/>
+
+  <menuitem id="menu_product_kanban_config"
+            name="卡片欄位設定"
+            parent="menu_dms_product_group"
+            action="action_open_kanban_product_config"
+            sequence="20"/>
+
+  <!-- ===== 價目資料 群組選單 ===== -->
+  <menuitem id="menu_dms_pricelist_group"
+            name="價目資料"
+            parent="menu_dms_sale_root"
+            sequence="30"/>
+
+  <menuitem id="menu_vehicle_price"
+            name="車款售價"
+            parent="menu_dms_pricelist_group"
+            action="action_vehicle_price"
+            sequence="10"/>
+
+  <menuitem id="menu_ev_fee_schedule"
+            name="電車牌險費率"
+            parent="menu_dms_pricelist_group"
+            action="action_ev_fee_schedule"
+            sequence="20"/>
+
+  <menuitem id="menu_accessory"
+            name="精品售價"
+            parent="menu_dms_pricelist_group"
+            action="action_accessory"
+            sequence="30"/>
+
+  <menuitem id="menu_commission_rule"
+            name="傭金規則"
+            parent="menu_dms_pricelist_group"
+            action="action_commission_rule"
+            sequence="40"/>
+
+</odoo>

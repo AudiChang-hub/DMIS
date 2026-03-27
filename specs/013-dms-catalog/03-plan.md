@@ -18,6 +18,7 @@ addons/dms_catalog/
 ├── __manifest__.py
 ├── models/
 │   ├── __init__.py
+│   ├── product_series.py            # dms.product.series 【本輪新增】
 │   ├── product_template.py          # dms.product.template
 │   ├── product_sku.py               # dms.product.sku
 │   ├── price_version.py             # dms.price.version
@@ -35,6 +36,7 @@ addons/dms_catalog/
 ├── data/
 │   └── fee_type_data.xml            # 預載費用類型
 ├── views/
+│   ├── product_series_views.xml     # 【本輪新增】
 │   ├── product_template_views.xml
 │   ├── product_sku_views.xml
 │   ├── price_version_views.xml
@@ -59,10 +61,11 @@ addons/dms_catalog/
 ### Phase 1：骨架與核心模型
 
 1. `__manifest__.py`（depends: `dms_core`，包含所有 data/views/security）
-2. 核心模型：`product_template.py`、`product_sku.py`
-3. 定價模型：`price_version.py`、`price_line.py`
-4. 分期模型：`installment_rule.py`、`installment_rule_line.py`、`fee_type.py`、`installment_rule_fee.py`
-5. 搬移模型：`accessory.py`、`ev_fee_schedule.py`、`commission_rule.py`、`kanban_config.py`
+2. 車系模型：`product_series.py` 【本輪新增】
+3. 核心模型：`product_template.py`、`product_sku.py`（加入 series_id）
+4. 定價模型：`price_version.py`、`price_line.py`
+5. 分期模型：`installment_rule.py`、`installment_rule_line.py`、`fee_type.py`、`installment_rule_fee.py`
+6. 搬移模型：`accessory.py`、`ev_fee_schedule.py`、`commission_rule.py`、`kanban_config.py`
 
 ### Phase 2：安全設定
 
@@ -87,6 +90,13 @@ addons/dms_catalog/
 12. `make up` 重啟環境
 13. `make smoke` 基本煙測
 
+### Phase 7：標記 deprecated（OQ-7）
+
+14. 在 `addons/dms_product/__manifest__.py` 的 `description` 欄位加入警告說明
+15. 在 `addons/dms_pricelist/__manifest__.py` 的 `description` 欄位加入警告說明
+
+> 標記格式：`⚠️ DEPRECATED：功能已整併至 dms_catalog，本模組待相依模組完成遷移後移除。`
+
 ## 風險與緩解
 
 | 風險 | 緩解 |
@@ -94,4 +104,4 @@ addons/dms_catalog/
 | `dms_sale` 等舊依賴因 `dms.product` 不存在而報錯 | `dms_catalog` 與 `dms_product`/`dms_pricelist` 同時存在；遷移另排 |
 | Kanban config JS 搬移後路徑錯誤 | 搬移時調整 `__manifest__.py` asset 路徑 |
 | ACL 設定不完整導致 access denied | 對所有新模型補充 CSV 記錄 |
-| 資料遷移腳本損壞既有資料 | 腳本以冪等方式設計，先在測試 DB 驗證 |
+| 資料遷移腳本損壞既有資料 | 腳本以冪等方式設計，先在測試 DB 驗證 || `series_id` 為必填但現有 template 資料未有對應車系 | 陛遷移至 dms_catalog 前，`series_id` 設為 `required=False` 先容譐空就；正式 migrate 後再改為必填 |

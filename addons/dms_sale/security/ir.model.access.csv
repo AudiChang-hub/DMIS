@@ -1,3 +1,12 @@
 id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
 access_dms_sale_order_all,dms.sale.order all,model_dms_sale_order,,1,1,1,1
 access_dms_sale_order_line_all,dms.sale.order.line all,model_dms_sale_order_line,,1,1,1,1
+access_dms_vehicle_color_all,dms.vehicle.color all,model_dms_vehicle_color,,1,1,1,1
+access_dms_product,dms.product,model_dms_product,,1,1,1,1
+access_dms_product_color,dms.product.color,model_dms_product_color,,1,1,1,1
+access_dms_kanban_product_config,dms.kanban.product.config,model_dms_kanban_product_config,,1,1,1,1
+access_dms_vehicle_price_all,dms.vehicle.price all,model_dms_vehicle_price,,1,1,1,1
+access_dms_installment_plan_all,dms.installment.plan all,model_dms_installment_plan,,1,1,1,1
+access_dms_accessory_all,dms.accessory all,model_dms_accessory,,1,1,1,1
+access_dms_ev_fee_schedule_all,dms.ev.fee.schedule all,model_dms_ev_fee_schedule,,1,1,1,1
+access_dms_commission_rule_all,dms.commission.rule all,model_dms_commission_rule,,1,1,1,1

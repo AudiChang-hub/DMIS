@@ -224,8 +224,8 @@ class TestDmsProductTemplate(TransactionCase):
         self.assertEqual(copied_sku.production_year, sku.production_year)
         self.assertEqual(copied_sku.color, sku.color)
         self.assertNotEqual(copied_sku.internal_code, sku.internal_code)
-        self.assertEqual(action['res_model'], 'dms.product.template')
-        self.assertEqual(action['res_id'], template.id)
+        self.assertEqual(action['type'], 'ir.actions.client')
+        self.assertEqual(action['tag'], 'reload')
 
     def test_11_direct_sku_copy_regenerates_internal_code(self):
         template = self.env['dms.product.template'].create({

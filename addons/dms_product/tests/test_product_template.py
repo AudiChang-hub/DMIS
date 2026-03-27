@@ -178,3 +178,22 @@ class TestDmsProductTemplate(TransactionCase):
         self.assertEqual(copied_template.model_name, template.model_name)
         self.assertEqual(len(copied_template.sku_ids), 1)
         self.assertNotEqual(copied_template.sku_ids.internal_code, template.sku_ids.internal_code)
+
+    def test_09_template_can_delete_unreferenced_sku_from_tab(self):
+        template = self.env['dms.product.template'].create({
+            'brand_id': self.brand.id,
+            'family_name': '測試車系 F',
+            'type_name': '雙碟',
+            'model_name': 'TSTDEL1',
+            'energy_type': 'oil',
+        })
+        sku = self.env['dms.product'].create({
+            'template_id': template.id,
+            'production_year': '2026',
+            'color': '藍',
+            'active': True,
+        })
+
+        template.write({'sku_ids': [(2, sku.id, 0)]})
+
+        self.assertFalse(self.env['dms.product'].with_context(active_test=False).browse(sku.id).exists())

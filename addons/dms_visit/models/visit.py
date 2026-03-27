@@ -114,14 +114,3 @@ class Visit(models.Model):
 
     def action_draft(self):
         self.write({'state': 'draft'})
-
-    def action_open_bulk_create_wizard(self):
-        self.ensure_one()
-        action = self.env.ref('dms_visit.action_dms_visit_bulk_create_wizard').read()[0]
-        action['context'] = {
-            'default_visit_date': self.visit_date or fields.Datetime.now(),
-            'default_visitor_id': self.visitor_id.id or self.env.user.id,
-            'default_purpose_id': self.purpose_id.id or False,
-            'default_note': self.note or False,
-        }
-        return action

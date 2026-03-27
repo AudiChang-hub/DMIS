@@ -4,7 +4,7 @@
 
 ### 1.1 `dms.visit.bulk.create.wizard`
 
-用途：由拜訪行事曆或拜訪表單開啟，用於一次建立多筆拜訪紀錄。
+用途：由主選單開啟，用於一次建立多筆拜訪紀錄。
 
 | 欄位 | 類型 | 必填 | 說明 |
 |---|---|---|---|
@@ -32,33 +32,22 @@
 | `visitor_id` | Many2one → `res.users` | 拜訪人員 |
 | `purpose_id` | Many2one → `dms.visit.purpose` | 拜訪目的 |
 
-新增方法：
-
-- `action_open_bulk_create_wizard()`：開啟批次建立精靈，預帶目前表單中的日期/人員/目的
-
 ## 2. UI 規格
 
 ### 2.1 拜訪表單
 
 - 保留原本 `dealer_id` 單選欄位，供建立單筆拜訪使用
-- 在拜訪資訊區新增 `批次選擇車行` 入口
 - 拜訪資訊區採單欄直排，欄位順序為：
   - `visit_date`
   - `dealer_id`
-  - `批次選擇車行`
   - `visitor_id`
   - `purpose_id`
-- 點擊後開啟 `dms.visit.bulk.create.wizard`
-- wizard 預設帶入目前表單上的：
-  - `visit_date`
-  - `visitor_id`
-  - `purpose_id`
-  - `note`
+- 單筆表單不提供批次建立入口，避免影響行事曆雙擊後的編輯體驗
 
 ### 2.2 拜訪行事曆 / 拜訪清單
 
-- 提供可直接開啟批次建立精靈的入口
-- 從行事曆建立時，若 context 已帶入日期，wizard 應沿用該日期
+- 維持既有單筆建立 / 編輯流程
+- 批次建立入口由主選單 `批次建立拜訪` 提供
 
 ### 2.3 批次建立精靈
 
@@ -79,6 +68,7 @@
 - 不修改 `dms.visit.dealer_id` 欄位型態
 - 不改變拜訪清單、行事曆、搜尋、group by 的資料基礎
 - 既有自動排程 `dms.visit.schedule` 不受本次影響
+- 行事曆雙擊開啟的單筆表單版面維持穩定
 
 ## 5. 驗收重點
 

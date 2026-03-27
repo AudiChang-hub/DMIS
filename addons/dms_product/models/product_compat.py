@@ -181,6 +181,24 @@ class DmsProductCompat(models.Model):
             'tag': 'reload',
         }
 
+    def action_open_color_editor(self):
+        self.ensure_one()
+        form_view = self.env.ref('dms_sale.view_product_form')
+        return {
+            'type': 'ir.actions.act_window',
+            'name': '維護產品顏色',
+            'res_model': 'dms.product',
+            'res_id': self.id,
+            'view_mode': 'form',
+            'views': [(form_view.id, 'form')],
+            'target': 'new',
+            'context': {
+                **self.env.context,
+                'active_test': False,
+                'form_view_initial_mode': 'edit',
+            },
+        }
+
     def copy(self, default=None):
         self.ensure_one()
         default = dict(default or {})

@@ -23,7 +23,7 @@ class TestDmsProductTemplate(TransactionCase):
         self.assertEqual(product.template_id.family_name, 'JET')
         self.assertEqual(product.template_id.model_name, 'JETSL')
         self.assertEqual(product.production_year, 2026)
-        self.assertTrue(product.internal_code, '應自動生成內部唯一代碼')
+        self.assertEqual(product.internal_code, 'JETSL-2026', '應依型號與出廠年份生成可讀 SKU 代碼')
 
     def test_02_same_template_reused_for_multiple_skus(self):
         product_1 = self.env['dms.product'].create({
@@ -47,13 +47,15 @@ class TestDmsProductTemplate(TransactionCase):
             product_2.template_id,
             '同品牌 / 機種 / 型號的多筆 SKU 應共用同一模板',
         )
+        self.assertEqual(product_1.internal_code, 'MMB001-2025')
+        self.assertEqual(product_2.internal_code, 'MMB001-2026')
 
     def test_03_create_product_from_template_syncs_legacy_fields(self):
         template = self.env['dms.product.template'].create({
             'brand_id': self.brand.id,
-            'family_name': 'Saluto',
+            'family_name': '測試車系 C',
             'type_name': False,
-            'model_name': 'UC125DA',
+            'model_name': 'TSTTMPC1',
             'energy_type': 'oil',
         })
         product = self.env['dms.product'].create({
@@ -63,9 +65,10 @@ class TestDmsProductTemplate(TransactionCase):
             'active': True,
         })
         self.assertEqual(product.brand_id, self.brand)
-        self.assertEqual(product.name, 'Saluto')
-        self.assertEqual(product.model, 'UC125DA')
+        self.assertEqual(product.name, '測試車系 C')
+        self.assertEqual(product.model, 'TSTTMPC1')
         self.assertEqual(product.energy_type, 'oil')
+        self.assertEqual(product.internal_code, 'TSTTMPC1-2026')
 
     def test_04_internal_code_must_be_unique(self):
         self.env['dms.product'].create({
@@ -88,3 +91,24 @@ class TestDmsProductTemplate(TransactionCase):
                 'energy_type': 'oil',
                 'internal_code': 'SKU-UNIQUE-001',
             })
+
+    def test_05_generated_internal_code_adds_suffix_on_collision(self):
+        product_1 = self.env['dms.product'].create({
+            'brand_id': self.brand.id,
+            'name': 'FNX',
+            'model': 'FNX001',
+            'year': '2026',
+            'color': '黑',
+            'energy_type': 'oil',
+        })
+        product_2 = self.env['dms.product'].create({
+            'brand_id': self.brand.id,
+            'name': 'FNX',
+            'model': 'FNX001',
+            'year': '2026',
+            'color': '白',
+            'energy_type': 'oil',
+        })
+
+        self.assertEqual(product_1.internal_code, 'FNX001-2026')
+        self.assertEqual(product_2.internal_code, 'FNX001-2026-02')

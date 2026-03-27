@@ -50,24 +50,9 @@
               <field name="color_ids" context="{'default_product_id': id, 'active_test': False}">
                 <tree editable="bottom" decoration-muted="not active">
                   <field name="name"/>
-                  <field name="color_code"/>
                   <field name="active"/>
                 </tree>
               </field>
-            </page>
-            <page string="相容欄位">
-              <group>
-                <field name="brake_type"/>
-                <field name="color_code"/>
-                <field name="engine_displacement"/>
-                <field name="fuel_tank"/>
-                <field name="power_system"/>
-                <field name="battery_capacity"/>
-                <field name="dimensions"/>
-              </group>
-            </page>
-            <page string="圖片（相容）">
-              <field name="image_1920" widget="image"/>
             </page>
           </notebook>
         </sheet>

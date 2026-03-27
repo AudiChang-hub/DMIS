@@ -56,16 +56,6 @@
                 </tree>
               </field>
             </page>
-            <page string="產品顏色">
-              <field name="product_color_ids" context="{'default_template_id': id, 'active_test': False}">
-                <tree editable="bottom" decoration-muted="not active">
-                  <field name="product_id" domain="[('template_id', '=', parent.id)]"/>
-                  <field name="name"/>
-                  <field name="color_code"/>
-                  <field name="active"/>
-                </tree>
-              </field>
-            </page>
             <page string="備註">
               <field name="note" nolabel="1"/>
             </page>

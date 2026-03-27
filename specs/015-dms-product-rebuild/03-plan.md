@@ -92,6 +92,7 @@
 - 主要使用 tree + form + search
 - SKU 僅在產品模板表單的頁籤中以 inline tree 維護，不提供獨立 menu
 - 產品項頁籤以 `active_test=False` 顯示停用資料，並保留 `active` 勾選供重新啟用
+- `dms.product.template.sku_ids` 關聯本身也需帶 `active_test=False`，避免頁籤與計數不一致
 - 產品表單不以圖片作主視覺
 - 必要時保留 legacy 圖片欄位，但放在次要分頁
 

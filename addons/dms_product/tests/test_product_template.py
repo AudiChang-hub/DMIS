@@ -128,3 +128,29 @@ class TestDmsProductTemplate(TransactionCase):
         self.assertEqual(product.production_year, '2026')
         self.assertEqual(product.year, '2026')
         self.assertEqual(product.internal_code, 'MMB002-2026')
+
+    def test_07_template_sku_ids_include_inactive_items(self):
+        template = self.env['dms.product.template'].create({
+            'brand_id': self.brand.id,
+            'family_name': '測試車系 D',
+            'type_name': '前碟後鼓',
+            'model_name': 'TSTINACT1',
+            'energy_type': 'oil',
+        })
+        active_product = self.env['dms.product'].create({
+            'template_id': template.id,
+            'production_year': '2026',
+            'color': '黑',
+            'active': True,
+        })
+        inactive_product = self.env['dms.product'].create({
+            'template_id': template.id,
+            'production_year': '2025',
+            'color': '紅',
+            'active': False,
+        })
+
+        template.invalidate_recordset()
+
+        self.assertEqual(template.sku_count, 2)
+        self.assertEqual(set(template.sku_ids.ids), {active_product.id, inactive_product.id})

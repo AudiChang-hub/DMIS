@@ -7,7 +7,7 @@ class DmsInstallmentRuleBinding(models.Model):
     _order = 'product_id, price_version_id desc, id desc'
 
     product_id = fields.Many2one(
-        'dms.product', string='產品項 / SKU', required=True, ondelete='cascade')
+        'dms.product', string='產品項', required=True, ondelete='cascade')
     price_version_id = fields.Many2one(
         'dms.price.version', string='價目版本', required=True, ondelete='cascade')
     rule_id = fields.Many2one(

@@ -28,6 +28,7 @@ class TestDmsProductMigrationCompat(TransactionCase):
         self.assertTrue(legacy_product.template_id)
         self.assertEqual(legacy_product.production_year, '2026')
         self.assertEqual(legacy_product.internal_code, 'TSTMIGA1-2026')
+        self.assertEqual(legacy_product.color_ids.name, '鈦灰')
 
     def test_02_run_product_backfill_rewrites_legacy_generated_code(self):
         legacy_product = self.env['dms.product'].with_context(
@@ -47,8 +48,57 @@ class TestDmsProductMigrationCompat(TransactionCase):
 
         self.assertEqual(legacy_product.production_year, '2026')
         self.assertEqual(legacy_product.internal_code, 'TSTMIGB1-2026')
+        self.assertEqual(legacy_product.color_ids.name, '白')
 
-    def test_03_run_price_and_rule_backfill_for_legacy_models(self):
+    def test_03_run_product_backfill_consolidates_same_year_color_variants(self):
+        product_black = self.env['dms.product'].with_context(
+            skip_product_compat_sync=True,
+            skip_product_year_uniqueness=True,
+        ).create({
+            'brand_id': self.brand.id,
+            'name': 'MMBCU',
+            'model': 'MMB900',
+            'year': '2026',
+            'production_year': '2026',
+            'color': '黑',
+            'energy_type': 'oil',
+            'internal_code': 'MMB900-2026',
+        })
+        product_white = self.env['dms.product'].with_context(
+            skip_product_compat_sync=True,
+            skip_product_year_uniqueness=True,
+        ).create({
+            'brand_id': self.brand.id,
+            'name': 'MMBCU',
+            'model': 'MMB900',
+            'year': '2026',
+            'production_year': '2026',
+            'color': '白',
+            'energy_type': 'oil',
+            'internal_code': 'MMB900-2026-02',
+        })
+        self.env['dms.vehicle.price'].create({
+            'product_id': product_white.id,
+            'cash_price': 88888,
+            'valid_year_month': '2026-09',
+            'active': True,
+        })
+
+        self.env['dms.product']._run_product_backfill()
+
+        black_exists = self.env['dms.product'].with_context(active_test=False).browse(product_black.id).exists()
+        white_exists = self.env['dms.product'].with_context(active_test=False).browse(product_white.id).exists()
+        canonical = black_exists or white_exists
+
+        self.assertTrue(canonical)
+        self.assertEqual(canonical.production_year, '2026')
+        self.assertEqual(set(canonical.color_ids.mapped('name')), {'黑', '白'})
+        self.assertEqual(
+            self.env['dms.vehicle.price'].search_count([('product_id', '=', canonical.id)]),
+            1,
+        )
+
+    def test_04_run_price_and_rule_backfill_for_legacy_models(self):
         product = self.env['dms.product'].create({
             'brand_id': self.brand.id,
             'name': 'Saluto',

@@ -9,7 +9,7 @@ class DmsPriceLine(models.Model):
     version_id = fields.Many2one(
         'dms.price.version', string='價目版本', required=True, ondelete='cascade')
     product_id = fields.Many2one(
-        'dms.product', string='產品項 / SKU', required=True, ondelete='restrict')
+        'dms.product', string='產品項', required=True, ondelete='restrict')
     cash_price = fields.Float(string='現金價', digits=(12, 0), required=True)
     list_price = fields.Float(string='牌價', digits=(12, 0), required=True)
     note = fields.Text(string='備註')

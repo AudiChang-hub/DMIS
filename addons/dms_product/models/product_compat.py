@@ -36,6 +36,16 @@ class DmsProductCompat(models.Model):
             'context': {'form_view_initial_mode': 'edit'},
         }
 
+    def copy(self, default=None):
+        default = dict(default or {})
+        default['internal_code'] = False
+        copied = super().copy(default)
+        if not copied.internal_code:
+            copied.with_context(skip_product_compat_sync=True).write({
+                'internal_code': copied._build_generated_code(),
+            })
+        return copied
+
     def _sanitize_code_part(self, value):
         token = re.sub(r'[^A-Z0-9]+', '-', (value or '').upper()).strip('-')
         return token

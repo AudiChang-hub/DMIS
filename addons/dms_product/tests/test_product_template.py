@@ -226,3 +226,26 @@ class TestDmsProductTemplate(TransactionCase):
         self.assertNotEqual(copied_sku.internal_code, sku.internal_code)
         self.assertEqual(action['res_model'], 'dms.product.template')
         self.assertEqual(action['res_id'], template.id)
+
+    def test_11_direct_sku_copy_regenerates_internal_code(self):
+        template = self.env['dms.product.template'].create({
+            'brand_id': self.brand.id,
+            'family_name': '測試車系 H',
+            'type_name': '雙碟',
+            'model_name': 'TSTCPY2',
+            'energy_type': 'oil',
+        })
+        sku = self.env['dms.product'].create({
+            'template_id': template.id,
+            'production_year': '2026',
+            'color': '消光灰',
+            'active': True,
+        })
+
+        copied_sku = sku.copy({'template_id': template.id})
+
+        self.assertEqual(copied_sku.template_id, template)
+        self.assertEqual(copied_sku.production_year, sku.production_year)
+        self.assertEqual(copied_sku.color, sku.color)
+        self.assertEqual(copied_sku.internal_code, 'TSTCPY2-2026-02')
+        self.assertNotEqual(copied_sku.internal_code, sku.internal_code)

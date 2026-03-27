@@ -93,6 +93,7 @@
 - SKU 僅在產品模板表單的頁籤中以 inline tree 維護，不提供獨立 menu
 - 產品項頁籤以 `active_test=False` 顯示停用資料，並保留 `active` 勾選供重新啟用
 - 產品項頁籤加入列級「複製」按鈕，直接複製同模板下的 SKU，讓使用者只需微調顏色等差異欄位
+- `dms.product.copy()` 需顯式清空 `internal_code` 預設值，並在複製完成後重新生成唯一代碼，避免 inline tree 複製時沿用舊碼
 - 產品項頁籤中的刪除動作需真正刪除 SKU，因此 `dms.product.template_id` 需改為 `ondelete='cascade'`，避免 Odoo 只做解除關聯而導致 FK 錯誤
 - `dms.product.template.sku_ids` 關聯本身也需帶 `active_test=False`，避免頁籤與計數不一致
 - `sku_count` 改為僅統計啟用中的產品項，符合使用者對模板主列表數量的直覺

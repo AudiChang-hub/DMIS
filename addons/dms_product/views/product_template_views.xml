@@ -43,6 +43,11 @@
                   <field name="production_year"/>
                   <field name="color" string="可售顏色" readonly="1"/>
                   <field name="active"/>
+                  <button name="action_open_color_editor"
+                          type="object"
+                          icon="fa-tags"
+                          string="維護顏色"
+                          title="逐列新增或停用顏色"/>
                   <button name="action_duplicate_from_template_tab"
                           type="object"
                           icon="fa-copy"

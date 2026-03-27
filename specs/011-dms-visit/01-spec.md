@@ -48,7 +48,7 @@ cancel → draft (action_draft)
 | 欄位 | 類型 | 說明 |
 |------|------|------|
 | `visit_id` | Many2one → dms.visit | 所屬拜訪，必填，ondelete=cascade |
-| `product_id` | Many2one → dms.product | 產品，必填，ondelete=restrict |
+| `product_id` | Many2one → dms.product | 產品，必填，ondelete=restrict（模型由 `dms_sale` 提供） |
 | `quantity` | Float | 數量，預設 1.0 |
 | `note` | Text | 備註 |
 
@@ -164,7 +164,7 @@ Tree + Form 視圖，管理員可讀寫。
 {
     'name': 'DMS 拜訪紀錄',
     'version': '16.0.1.0.0',
-    'depends': ['dms_core', 'dms_product'],
+    'depends': ['dms_core', 'dms_sale'],
     'application': False,
     'data': [
         'security/dms_visit_security.xml',
@@ -180,41 +180,54 @@ Tree + Form 視圖，管理員可讀寫。
 
 ---
 
-## 6. 月度自動建立拜訪（v1.1 新增）
+## 6. 自動拜訪排程（v1.2 更新）
 
-### 6.1 新增欄位（dms.dealer）
+### 6.1 新增模型 `dms.visit.schedule`
+
+> 自動拜訪已從車行上的兩個布林/負責人欄位，升級為可維護多筆規則的排程模型。
 
 | 欄位 | 類型 | 說明 |
 |------|------|------|
-| `auto_price_list_visit` | Boolean | 是否啟用每月自動建立價格表拜訪，預設 False |
-| `price_list_visitor_id` | Many2one → res.users | 負責業務，自動拜訪的 visitor_id 來源 |
+| `dealer_id` | Many2one → dms.dealer | 車行，必填 |
+| `active` | Boolean | 是否啟用，預設 True |
+| `purpose_id` | Many2one → dms.visit.purpose | 拜訪目的，必填 |
+| `visitor_id` | Many2one → res.users | 拜訪業務人員，留空則 fallback admin |
+| `interval_months` | Selection | 頻率：每月 / 每兩個月 / 每季 / 每半年 / 每年 |
+| `schedule_type` | Selection | 固定日期 / 每月第 N 個星期幾 |
+| `day_of_month` | Integer | 固定日期模式使用（1–28） |
+| `week_number` | Selection | 第幾週 |
+| `weekday` | Selection | 星期幾 |
+| `schedule_summary` | Char | 人性化週期摘要（computed） |
+| `next_date` | Date | 下一筆預計日期（computed） |
 
-### 6.2 方法（dms.dealer）
+### 6.2 `dms.dealer` 擴充
 
-#### `cron_generate_price_list_visits()`
-- 由 `ir.cron` 每月 1 日 00:00 UTC 呼叫（`interval_number=1, interval_type='months'`）
-- 邏輯：
-  1. 搜尋所有 `auto_price_list_visit = True` 且 `active = True` 的車行
-  2. 取得「目的名稱 contains 價格表」的 `dms.visit.purpose`（或 code='PRICE'）
-  3. 對每個車行，以當月 1 日作為 `visit_date`
-  4. 去重：若同月份該車行已有 purpose=PRICE 的拜訪，跳過
-  5. `sudo()` 建立拜訪記錄（state='done'），visitor=`price_list_visitor_id` 或 fallback 到 SUPERUSER
-  6. 記錄 `_logger.info(...)` 彙報建立數量
+新增欄位：
 
-### 6.3 排程（data/visit_cron.xml）
+| 欄位 | 類型 | 說明 |
+|------|------|------|
+| `visit_schedule_ids` | One2many → dms.visit.schedule | 此車行的自動拜訪排程 |
 
-```xml
-<record id="ir_cron_generate_price_list_visits" model="ir.cron">
-  <field name="name">DMS：月度自動建立價格表拜訪</field>
-  <field name="model_id" ref="model_dms_dealer"/>
-  <field name="state">code</field>
-  <field name="code">model.cron_generate_price_list_visits()</field>
-  <field name="interval_number">1</field>
-  <field name="interval_type">months</field>
-  <field name="numbercall">-1</field>
-  <field name="active">True</field>
-</record>
-```
+### 6.3 方法（`dms.visit.schedule` / `dms.dealer`）
+
+#### `dms.visit.schedule._regenerate_future_visits()`
+- 依目前排程設定重新產生未來 horizon 內的草稿拜訪
+- 先刪除同排程未來草稿，再依規則重建
+
+#### `dms.visit.schedule._topup_future_visits()`
+- 用於 cron 補齊漏掉的未來拜訪
+- 同一天若已有未取消的拜訪則不重複建立
+
+#### `dms.dealer.cron_generate_price_list_visits()`
+- 每日執行
+- 搜尋所有啟用中的 `dms.visit.schedule`
+- 對每筆排程呼叫 `_topup_future_visits()`
+- 記錄 `_logger.info(...)` 統計
+
+### 6.4 排程（data/visit_cron.xml）
+
+- 以 `dms.dealer` 為 cron model，執行 `model.cron_generate_price_list_visits()`
+- 任務目的從「單一價格表月拜訪」擴充為「補足所有啟用排程的未來拜訪」
 
 ---
 

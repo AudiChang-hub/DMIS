@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+  <!-- 根菜單：僅系統管理員可見 -->
+  <menuitem id="menu_um_root"
+            name="使用者管理系統"
+            groups="base.group_system"
+            sequence="200"/>
+
+  <menuitem id="menu_um_access_groups"
+            name="存取群組管理"
+            parent="menu_um_root"
+            action="action_um_access_group"
+            groups="base.group_system"
+            sequence="10"/>
+
+  <menuitem id="menu_um_audit_log"
+            name="操作歷程"
+            parent="menu_um_root"
+            action="action_um_audit_log"
+            groups="base.group_system"
+            sequence="20"/>
+
+</odoo>

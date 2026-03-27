@@ -136,7 +136,39 @@ Filters：啟用、年節送禮、LINE群組、三陽油車價格表、三陽電
 ---
 
 ## 安全規則
-所有 DMS 模型（`dms.dealer`、`dms.brand`、`dms.store_type`、`dms.product`）：perm_read/write/create/unlink 全 1（無群組限制，所有登入使用者皆可操作）。
+
+### 群組定義（`security/dms_security.xml`）
+
+| 群組 XML ID | 顯示名稱 | 說明 |
+|---|---|---|
+| `group_dms_dealer_user` | DMS/車行使用者 | 保留舊群組，不刪除 |
+| `group_dms_dealer_sales` | DMS/業務人員 | 新增；可讀取車行/品牌/車行類型，可管理自己的拜訪 |
+| `group_dms_dealer_manager` | DMS/車行管理者 | 已存在；新增 `implied_ids → group_dms_dealer_sales`，具備全面 CRUD 權限 |
+
+`group_dms_dealer_manager.implied_ids = [(4, ref('dms_core.group_dms_dealer_sales'))]`
+
+### 模型存取規則（`security/ir.model.access.csv`）
+
+| 規則 ID | 模型 | 群組 | R | W | C | D |
+|---|---|---|---|---|---|---|
+| `access_dms_dealer`（既有） | dms.dealer | 無 | 1 | 1 | 1 | 1 |
+| `access_dms_dealer_sales` | dms.dealer | group_dms_dealer_sales | 1 | 0 | 0 | 0 |
+| `access_dms_dealer_mgr` | dms.dealer | group_dms_dealer_manager | 1 | 1 | 1 | 1 |
+| `access_dms_brand_sales` | dms.brand | group_dms_dealer_sales | 1 | 0 | 0 | 0 |
+| `access_dms_brand_mgr` | dms.brand | group_dms_dealer_manager | 1 | 1 | 1 | 1 |
+| `access_dms_store_type_sales` | dms.store_type | group_dms_dealer_sales | 1 | 0 | 0 | 0 |
+| `access_dms_store_type_mgr` | dms.store_type | group_dms_dealer_manager | 1 | 1 | 1 | 1 |
+
+> 既有的無群組規則保留（backward compat），新群組規則為額外補充。
+
+### 菜單群組限制
+
+| menuitem ID | 可見群組 |
+|---|---|
+| `menu_dms_root` | 無限制 |
+| `menu_dealer` | `group_dms_dealer_sales`（管理者因 implied 亦可見） |
+| `menu_brands` | `group_dms_dealer_manager` |
+| `menu_store_types` | `group_dms_dealer_manager` |
 
 ---
 

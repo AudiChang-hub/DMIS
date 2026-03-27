@@ -4,14 +4,36 @@ import math as _math
 
 from odoo import models, fields, api, _
 from odoo.exceptions import ValidationError
-from odoo.tools.safe_eval import safe_eval
+from odoo.tools.safe_eval import safe_eval, wrap_module
 
 _logger = logging.getLogger(__name__)
 
 # 白名單：python 規則可使用的全域物件
 _SAFE_GLOBALS = {
-    're': _re,
-    'math': _math,
+    're': wrap_module(_re, {
+        'compile': {},
+        'escape': {},
+        'findall': {},
+        'finditer': {},
+        'fullmatch': {},
+        'match': {},
+        'search': {},
+        'split': {},
+        'sub': {},
+        'subn': {},
+        'IGNORECASE': {},
+        'MULTILINE': {},
+        'DOTALL': {},
+    }),
+    'math': wrap_module(_math, {
+        'ceil': {},
+        'e': {},
+        'fabs': {},
+        'floor': {},
+        'pi': {},
+        'pow': {},
+        'sqrt': {},
+    }),
     '__builtins__': {},
 }
 

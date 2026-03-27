@@ -28,5 +28,12 @@ services:
       - db_data:/var/lib/postgresql/data
     restart: always
 
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    restart: always
+    command: tunnel --no-autoupdate run --token ${CLOUDFLARE_TUNNEL_TOKEN}
+    depends_on:
+      - odoo
+
 volumes:
   db_data:

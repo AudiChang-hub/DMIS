@@ -1,7 +1,7 @@
 # 全域 UI 標準（UI Standards）
 
 > 所有 DMS 模組的列表視圖（list/tree view）必須遵守本規範。  
-> 本規範適用於 dms_core、dms_product、dms_customer 及所有後續模組。
+> 本規範適用於 `dms_core`、`dms_customer`、`dms_sale`（含原 `dms_product` / `dms_pricelist` 整併內容）及所有後續模組。
 
 ---
 
@@ -59,7 +59,7 @@
 | dms_core（dms.dealer） | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | dms_core（dms.brand） | ✅ | ✅ | ✅ | 免 | ✅ | ✅ |
 | dms_core（dms.store_type） | ✅ | ✅ | ✅ | 免 | ✅ | ✅ |
-| dms_product（dms.product） | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| dms_sale（dms.product） | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | dms_customer（res.partner） | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 
 ---

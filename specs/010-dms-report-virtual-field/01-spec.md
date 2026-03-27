@@ -51,7 +51,7 @@
 | `match_type` | `Selection` | ✓ | `contains`（包含字串）/ `regex`（正則）/ `python`（Python 表達式） |
 | `field_name` | `Char` | | 比對欄位路徑（如 dealer_id.name）；contains/regex 必填 |
 | `condition` | `Char` | | 條件值 — contains 包含字串，regex 正則表達式 |
-| `python_expression` | `Text` | | Python match_type 時的表達式（safe_eval，可用 record、re、math） |
+| `python_expression` | `Text` | | Python match_type 時的表達式（safe_eval，可用 record、re、math；其中 `re` / `math` 需以 wrapped module 白名單暴露） |
 | `value` | `Char` | ✓ | 匹配成功的輸出值（translate=True） |
 | `description` | `Text` | | 規則說明 |
 
@@ -59,10 +59,12 @@
 
 - **contains**：`condition in _get_field_value(record)` → True, value
 - **regex**：`re.search(condition, _get_field_value(record))` → True, value
-- **python**：`safe_eval(python_expression, {'record': record, 're': re, 'math': math})`
+- **python**：`safe_eval(python_expression, {'record': record, 're': wrap_module(re, ...), 'math': wrap_module(math, ...)})`
   - 若結果 truthy 且非 `True`：輸出即為結果（str 轉換）
   - 若結果為 `True`：使用 `value` 欄位
   - 若結果 falsy：未匹配
+
+> Odoo 16 新版 `safe_eval` 不接受直接暴露原生 module 物件；若需提供 `re` / `math`，必須使用 `odoo.tools.safe_eval.wrap_module` 包裝白名單屬性。
 
 ### Constraints（api.constrains）
 

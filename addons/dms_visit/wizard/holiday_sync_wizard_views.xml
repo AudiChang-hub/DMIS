@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+  <record id="view_holiday_sync_wizard_form" model="ir.ui.view">
+    <field name="name">dms.holiday.sync.wizard.form</field>
+    <field name="model">dms.holiday.sync.wizard</field>
+    <field name="arch" type="xml">
+      <form string="同步台灣假日資料">
+        <field name="state" invisible="1"/>
+        <group attrs="{'invisible': [('state', '=', 'done')]}">
+          <field name="year"/>
+          <div colspan="2" class="text-muted" style="font-size:12px; margin-top:4px;">
+            資料來源：行政院人事行政總處公告假日（政府資料開放平台）。<br/>
+            同步範圍僅限所選年份；已存在的假日名稱若有差異會自動更新。
+          </div>
+        </group>
+        <group attrs="{'invisible': [('state', '!=', 'done')]}">
+          <field name="result_message" nolabel="1" readonly="1"/>
+        </group>
+        <footer>
+          <button name="action_sync"
+                  string="開始同步"
+                  type="object"
+                  class="btn-primary"
+                  attrs="{'invisible': [('state', '=', 'done')]}"/>
+          <button name="action_close"
+                  string="關閉"
+                  type="object"
+                  class="btn-secondary"
+                  attrs="{'invisible': [('state', '!=', 'done')]}"/>
+          <button string="取消"
+                  class="btn-secondary"
+                  special="cancel"
+                  attrs="{'invisible': [('state', '=', 'done')]}"/>
+        </footer>
+      </form>
+    </field>
+  </record>
+
+  <record id="action_holiday_sync_wizard" model="ir.actions.act_window">
+    <field name="name">同步台灣假日</field>
+    <field name="res_model">dms.holiday.sync.wizard</field>
+    <field name="view_mode">form</field>
+    <field name="target">new</field>
+  </record>
+
+</odoo>

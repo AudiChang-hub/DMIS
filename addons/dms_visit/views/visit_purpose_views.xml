@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+  <!-- ===== 清單視圖 ===== -->
+  <record id="view_dms_visit_purpose_tree" model="ir.ui.view">
+    <field name="name">dms.visit.purpose.tree</field>
+    <field name="model">dms.visit.purpose</field>
+    <field name="arch" type="xml">
+      <tree string="拜訪目的類別" editable="bottom">
+        <field name="sequence" widget="handle"/>
+        <field name="name"/>
+        <field name="code"/>
+        <field name="active"/>
+      </tree>
+    </field>
+  </record>
+
+  <!-- ===== 表單視圖 ===== -->
+  <record id="view_dms_visit_purpose_form" model="ir.ui.view">
+    <field name="name">dms.visit.purpose.form</field>
+    <field name="model">dms.visit.purpose</field>
+    <field name="arch" type="xml">
+      <form string="拜訪目的類別">
+        <sheet>
+          <group>
+            <field name="name"/>
+            <field name="code"/>
+            <field name="sequence"/>
+            <field name="active"/>
+          </group>
+        </sheet>
+      </form>
+    </field>
+  </record>
+
+  <!-- ===== 動作 ===== -->
+  <record id="action_visit_purpose" model="ir.actions.act_window">
+    <field name="name">拜訪目的類別</field>
+    <field name="res_model">dms.visit.purpose</field>
+    <field name="view_mode">tree,form</field>
+  </record>
+
+  <!-- ===== 選單（管理員可見）===== -->
+  <menuitem id="menu_dms_visit_purpose"
+            name="拜訪目的類別"
+            parent="dms_core.menu_dms_root"
+            action="action_visit_purpose"
+            groups="dms_visit.group_dms_visit_admin"
+            sequence="30"/>
+
+</odoo>

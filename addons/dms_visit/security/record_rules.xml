@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+  <!-- 拜訪使用者：只能讀寫自己的拜訪紀錄 -->
+  <record id="rule_dms_visit_user_own" model="ir.rule">
+    <field name="name">拜訪使用者僅見自己的拜訪</field>
+    <field name="model_id" ref="model_dms_visit"/>
+    <field name="groups" eval="[(4, ref('dms_visit.group_dms_visit_user'))]"/>
+    <field name="domain_force">[('visitor_id', '=', user.id)]</field>
+    <field name="perm_read" eval="True"/>
+    <field name="perm_write" eval="True"/>
+    <field name="perm_create" eval="True"/>
+    <field name="perm_unlink" eval="False"/>
+  </record>
+
+  <!-- 拜訪管理者：可讀寫刪除所有拜訪紀錄 -->
+  <record id="rule_dms_visit_admin_all" model="ir.rule">
+    <field name="name">拜訪管理者可見所有拜訪</field>
+    <field name="model_id" ref="model_dms_visit"/>
+    <field name="groups" eval="[(4, ref('dms_visit.group_dms_visit_admin'))]"/>
+    <field name="domain_force">[(1, '=', 1)]</field>
+    <field name="perm_read" eval="True"/>
+    <field name="perm_write" eval="True"/>
+    <field name="perm_create" eval="True"/>
+    <field name="perm_unlink" eval="True"/>
+  </record>
+</odoo>

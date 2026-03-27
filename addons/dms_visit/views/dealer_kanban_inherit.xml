@@ -1,0 +1,180 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+  <!-- ===== 車行 Kanban 視圖（欄位可自訂，最多 10 項）===== -->
+  <record id="view_dealer_kanban" model="ir.ui.view">
+    <field name="name">dms.dealer.kanban</field>
+    <field name="model">dms.dealer</field>
+    <field name="arch" type="xml">
+      <kanban class="o_kanban_mobile" sample="1">
+        <!-- 資料欄位 -->
+        <field name="id"/>
+        <field name="name"/>
+        <field name="color_tag"/>
+        <field name="code"/>
+        <field name="store_type_id"/>
+        <field name="owner_name"/>
+        <field name="store_manager"/>
+        <field name="phone_1"/>
+        <field name="phone_2"/>
+        <field name="mobile"/>
+        <field name="email"/>
+        <field name="address"/>
+        <field name="address_map_url"/>
+        <field name="brand_auth_brand_display"/>
+        <field name="visit_count"/>
+        <field name="line_group"/>
+        <field name="holiday_gift"/>
+        <field name="sym_gas_price_list"/>
+        <field name="sym_ev_price_list"/>
+        <field name="suzuki_gas_price_list"/>
+        <field name="suzuki_ev_price_list"/>
+        <!-- 設定旗標（由 dms.kanban.dealer.config 驅動）-->
+        <field name="kanban_cfg_code"/>
+        <field name="kanban_cfg_store_type"/>
+        <field name="kanban_cfg_owner"/>
+        <field name="kanban_cfg_manager"/>
+        <field name="kanban_cfg_phone1"/>
+        <field name="kanban_cfg_phone2"/>
+        <field name="kanban_cfg_mobile"/>
+        <field name="kanban_cfg_email"/>
+        <field name="kanban_cfg_address"/>
+        <field name="kanban_cfg_brand"/>
+        <field name="kanban_cfg_visits"/>
+        <field name="kanban_cfg_line"/>
+        <field name="kanban_cfg_gift"/>
+        <field name="kanban_cfg_symgas"/>
+        <field name="kanban_cfg_symev"/>
+        <field name="kanban_cfg_suzukigas"/>
+        <field name="kanban_cfg_suzukiev"/>
+        <templates>
+          <t t-name="kanban-box">
+            <div class="oe_kanban_card oe_kanban_global_click"
+                 style="min-height:110px; padding:10px 12px;">
+
+              <!-- ── 標題列（店名必顯示）──────────────────── -->
+              <div class="o_kanban_record_top mb6" style="align-items:flex-start;">
+                <div class="o_kanban_record_headings" style="flex:1; overflow:hidden;">
+                  <div style="display:flex; align-items:center; gap:6px; min-width:0;">
+                    <strong class="o_kanban_record_title"
+                            style="font-size:15px; min-width:0; flex:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+                      <t t-if="record.kanban_cfg_code.raw_value and record.code.value">
+                        <span class="text-muted" style="font-size:12px;"
+                              t-esc="'[' + record.code.value + '] '"/>
+                      </t>
+                      <t t-esc="record.name.value"/>
+                    </strong>
+                    <!-- LINE 群組顏色方塊（t-att-style 須包含全部樣式，否則會覆蓋靜態 style）-->
+                    <span class="dms-line-color-dot"
+                          t-att-style="'flex-shrink:0; display:inline-block; width:14px; height:14px; border-radius:3px; background:' + ({'yellow':'#f5c518','blue':'#4a9de2','pink':'#ff85b3','gray':'#b0b0b0'}[record.color_tag.raw_value] || '#b0b0b0') + ';'"
+                          t-att-title="({'yellow':'黃','blue':'藍','pink':'粉','gray':'灰'}[record.color_tag.raw_value] || '') + ' LINE 群組'">&#8203;</span>
+                  </div>
+                  <t t-if="record.kanban_cfg_store_type.raw_value and record.store_type_id.value">
+                    <span class="text-muted" style="font-size:12px;"
+                          t-esc="record.store_type_id.value"/>
+                  </t>
+                </div>
+                <!-- 拜訪次數 badge -->
+                <t t-if="record.kanban_cfg_visits.raw_value and record.visit_count.raw_value > 0">
+                  <span class="badge badge-pill badge-primary ml4"
+                        style="font-size:11px; white-space:nowrap;"
+                        t-esc="record.visit_count.value + ' 次'"/>
+                </t>
+              </div>
+
+              <!-- ── 可選欄位區塊 ──────────────────────────── -->
+              <div style="font-size:14px; line-height:1.9;">
+                <t t-if="record.kanban_cfg_owner.raw_value and record.owner_name.value">
+                  <div>
+                    <i class="fa fa-user text-muted" style="width:16px;" title="負責人"/>
+                    <t t-esc="record.owner_name.value"/>
+                  </div>
+                </t>
+                <t t-if="record.kanban_cfg_manager.raw_value and record.store_manager.value">
+                  <div>
+                    <i class="fa fa-user-circle text-muted" style="width:16px;" title="店長"/>
+                    <t t-esc="record.store_manager.value"/>
+                  </div>
+                </t>
+                <t t-if="record.kanban_cfg_phone1.raw_value and record.phone_1.value">
+                  <div>
+                    <i class="fa fa-phone text-muted" style="width:16px;" title="電話1"/>
+                    <t t-esc="record.phone_1.value"/>
+                  </div>
+                </t>
+                <t t-if="record.kanban_cfg_phone2.raw_value and record.phone_2.value">
+                  <div>
+                    <i class="fa fa-phone-square text-muted" style="width:16px;" title="電話2"/>
+                    <t t-esc="record.phone_2.value"/>
+                  </div>
+                </t>
+                <t t-if="record.kanban_cfg_mobile.raw_value and record.mobile.value">
+                  <div>
+                    <i class="fa fa-mobile text-muted" style="width:16px;" title="手機"/>
+                    <t t-esc="record.mobile.value"/>
+                  </div>
+                </t>
+                <t t-if="record.kanban_cfg_email.raw_value and record.email.value">
+                  <div>
+                    <i class="fa fa-envelope text-muted" style="width:16px;" title="Email"/>
+                    <t t-esc="record.email.value"/>
+                  </div>
+                </t>
+                <t t-if="record.kanban_cfg_address.raw_value and record.address.value">
+                  <div>
+                    <i class="fa fa-map-marker text-muted" style="width:16px;" title="地址"/>
+                    <t t-if="record.address_map_url.value">
+                      <a t-att-href="record.address_map_url.value" target="_blank"
+                         style="color:inherit;text-decoration:underline dotted;"
+                         onclick="event.stopPropagation();">
+                        <t t-esc="record.address.value"/>
+                      </a>
+                    </t>
+                    <t t-else="">
+                      <t t-esc="record.address.value"/>
+                    </t>
+                  </div>
+                </t>
+                <t t-if="record.kanban_cfg_brand.raw_value and record.brand_auth_brand_display.value">
+                  <div>
+                    <i class="fa fa-tag text-muted" style="width:16px;" title="品牌"/>
+                    <t t-esc="record.brand_auth_brand_display.value"/>
+                  </div>
+                </t>
+              </div>
+
+              <!-- ── Boolean 屬性 tags ─────────────────────── -->
+              <div class="mt4" style="display:flex; flex-wrap:wrap; gap:3px;">
+                <t t-if="record.kanban_cfg_line.raw_value and record.line_group.raw_value">
+                  <span class="badge badge-info" style="font-size:11px;">LINE</span>
+                </t>
+                <t t-if="record.kanban_cfg_gift.raw_value and record.holiday_gift.raw_value">
+                  <span class="badge badge-warning" style="font-size:11px;">年節</span>
+                </t>
+                <t t-if="record.kanban_cfg_symgas.raw_value and record.sym_gas_price_list.raw_value">
+                  <span class="badge badge-secondary" style="font-size:11px;">三陽油</span>
+                </t>
+                <t t-if="record.kanban_cfg_symev.raw_value and record.sym_ev_price_list.raw_value">
+                  <span class="badge badge-secondary" style="font-size:11px;">三陽電</span>
+                </t>
+                <t t-if="record.kanban_cfg_suzukigas.raw_value and record.suzuki_gas_price_list.raw_value">
+                  <span class="badge badge-secondary" style="font-size:11px;">台鈴油</span>
+                </t>
+                <t t-if="record.kanban_cfg_suzukiev.raw_value and record.suzuki_ev_price_list.raw_value">
+                  <span class="badge badge-secondary" style="font-size:11px;">台鈴電</span>
+                </t>
+              </div>
+
+            </div>
+          </t>
+        </templates>
+      </kanban>
+    </field>
+  </record>
+
+  <!-- ===== 更新 act_window 加入 kanban 模式 ===== -->
+  <record id="dms_core.action_dealer" model="ir.actions.act_window">
+    <field name="view_mode">tree,kanban,form</field>
+  </record>
+
+</odoo>

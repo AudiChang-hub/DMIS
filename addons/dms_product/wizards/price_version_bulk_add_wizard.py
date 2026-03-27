@@ -17,6 +17,8 @@ class DmsPriceVersionBulkAddWizard(models.TransientModel):
         string='產品項 / SKU',
         domain="[('active', '=', True), ('id', 'not in', existing_product_ids)]",
     )
+    cash_price = fields.Float(string='統一現金價', digits=(12, 0), required=True, default=0)
+    list_price = fields.Float(string='統一牌價', digits=(12, 0), required=True, default=0)
 
     @api.depends('version_id')
     def _compute_existing_product_ids(self):
@@ -36,8 +38,8 @@ class DmsPriceVersionBulkAddWizard(models.TransientModel):
             line_model.create({
                 'version_id': self.version_id.id,
                 'product_id': product.id,
-                'cash_price': 0,
-                'list_price': 0,
+                'cash_price': self.cash_price,
+                'list_price': self.list_price,
             })
         return {
             'type': 'ir.actions.client',

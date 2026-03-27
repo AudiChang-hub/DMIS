@@ -60,6 +60,8 @@
 - [x] 為產品模板補上可見的「複製」動作
 - [x] 建立價目版本 tree / form / search
 - [x] 建立價格基準 tree / form / search
+- [x] 調整 SKU 顯示名稱，於選取下拉中帶出出廠年份與顏色
+- [x] 建立價目版本批次加入產品項精靈，支援多選一次建立多筆價格列
 - [x] 建立分期規則模板 tree / form / search
 - [x] 建立費用類型 tree / form / search
 - [x] 建立規則掛接 tree / form / search

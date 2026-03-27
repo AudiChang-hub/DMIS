@@ -17,6 +17,7 @@
         'views/product_template_views.xml',
         'views/product_sku_views.xml',
         'views/price_version_views.xml',
+        'views/price_version_bulk_add_wizard_views.xml',
         'views/price_line_views.xml',
         'views/installment_rule_views.xml',
         'views/fee_type_views.xml',

@@ -101,3 +101,39 @@ class TestDmsProductPrice(TransactionCase):
         order._onchange_product_id()
 
         self.assertEqual(order.cash_price, 90500, '新價格不存在時，應 fallback 舊價格結構')
+
+    def test_04_product_name_get_includes_year_and_color(self):
+        label = self.product.display_name
+
+        self.assertIn(self.product.internal_code, label)
+        self.assertIn('2025', label)
+        self.assertIn('銀', label)
+
+    def test_05_bulk_add_wizard_creates_multiple_price_lines(self):
+        product_2 = self.env['dms.product'].create({
+            'brand_id': self.brand.id,
+            'name': 'CLBCU',
+            'model': 'CLB001',
+            'year': '2026',
+            'color': '黑',
+            'energy_type': 'oil',
+        })
+        version = self.env['dms.price.version'].create({
+            'name': '2026-07',
+            'effective_date': date(2026, 7, 1),
+            'state': 'draft',
+        })
+
+        wizard = self.env['dms.price.version.bulk.add.wizard'].create({
+            'version_id': version.id,
+            'product_ids': [(6, 0, [self.product.id, product_2.id])],
+        })
+        action = wizard.action_add_lines()
+        lines = self.env['dms.price.line'].search([('version_id', '=', version.id)])
+
+        self.assertEqual(len(lines), 2)
+        self.assertEqual(set(lines.mapped('product_id').ids), {self.product.id, product_2.id})
+        self.assertEqual(set(lines.mapped('cash_price')), {0})
+        self.assertEqual(set(lines.mapped('list_price')), {0})
+        self.assertEqual(action['type'], 'ir.actions.client')
+        self.assertEqual(action['tag'], 'reload')

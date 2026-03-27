@@ -26,6 +26,20 @@ class DmsPriceVersion(models.Model):
         ('unique_price_version_name', 'unique(name)', '價目版本名稱不可重複。'),
     ]
 
+    def action_open_bulk_add_products_wizard(self):
+        self.ensure_one()
+        wizard = self.env['dms.price.version.bulk.add.wizard'].create({
+            'version_id': self.id,
+        })
+        return {
+            'type': 'ir.actions.act_window',
+            'name': '批次加入產品項',
+            'res_model': 'dms.price.version.bulk.add.wizard',
+            'res_id': wizard.id,
+            'view_mode': 'form',
+            'target': 'new',
+        }
+
     @api.model
     def _parse_legacy_effective_date(self, value):
         if value:

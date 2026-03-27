@@ -31,6 +31,10 @@
           </group>
           <notebook>
             <page string="價格基準">
+              <button name="action_open_bulk_add_products_wizard"
+                      type="object"
+                      string="批次加入產品項"
+                      class="oe_highlight"/>
               <field name="line_ids" context="{'default_version_id': active_id}">
                 <tree editable="bottom">
                   <field name="product_id"/>

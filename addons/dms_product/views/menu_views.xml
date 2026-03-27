@@ -59,29 +59,23 @@
             action="action_price_version"
             sequence="10"/>
 
-  <menuitem id="menu_price_line"
-            name="價格基準"
-            parent="menu_dms_product_pricing_group"
-            action="action_price_line"
-            sequence="20"/>
-
   <menuitem id="menu_installment_rule"
             name="分期規則模板"
             parent="menu_dms_product_pricing_group"
             action="action_installment_rule"
-            sequence="30"/>
+            sequence="20"/>
 
   <menuitem id="menu_fee_type"
             name="費用類型"
             parent="menu_dms_product_pricing_group"
             action="action_fee_type"
-            sequence="40"/>
+            sequence="30"/>
 
   <menuitem id="menu_installment_rule_binding"
             name="規則掛接"
             parent="menu_dms_product_pricing_group"
             action="action_installment_rule_binding"
-            sequence="50"/>
+            sequence="40"/>
 
   <menuitem id="menu_dms_product_legacy_group"
             name="相容資料"

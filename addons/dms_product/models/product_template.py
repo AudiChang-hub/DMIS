@@ -19,7 +19,11 @@ class DmsProductTemplate(models.Model):
     active = fields.Boolean(string='啟用', default=True)
     note = fields.Text(string='備註')
     sku_ids = fields.One2many(
-        'dms.product', 'template_id', string='產品項 / SKU')
+        'dms.product',
+        'template_id',
+        string='產品項 / SKU',
+        context={'active_test': False},
+    )
     sku_count = fields.Integer(
         string='SKU 數量',
         compute='_compute_sku_count',

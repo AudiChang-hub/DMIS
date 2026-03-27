@@ -169,12 +169,14 @@ legacy 相容與交易沿用部分仍由 `dms_sale` / `dms_product` 共同承接
 - 使用者已確認價格不會因顏色不同而改變
 - 目前把顏色拆成多筆產品項，會讓價目版本與規則維護成本不必要放大
 - `dms.sale.order` 已有 `color_id`，技術上適合把顏色改成附屬選項
+- 顏色摘要欄位若依賴人工輸入頓號字串，對一般使用者不友善，需改由逐列新增流程處理
 
 影響：
 
 - `dms.price.line.product_id` 代表年份產品項，不再代表顏色拆分項
 - `dms.installment.rule.binding.product_id` 同樣只綁年份產品項
 - 銷售單先選產品項，再從該產品項的顏色清單中選 `color_id`
+- 產品模板中的產品項列需提供顏色維護入口，讓使用者開啟彈窗或表單逐筆維護顏色
 ### D4：價格與規則走新模型，`dms_sale` 只做最小必要 lookup 調整
 
 決策：建立新的 `dms.price.version`、`dms.price.line`、`dms.installment.rule*`、`dms.fee.type`，並讓 `dms_sale` 在查價時優先讀新結構，若無資料再 fallback 舊 `dms.vehicle.price`。

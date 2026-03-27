@@ -262,3 +262,25 @@ class TestDmsProductTemplate(TransactionCase):
         self.assertFalse(copied_sku.internal_code)
         self.assertEqual(copied_sku.color_ids.name, sku.color_ids.name)
         self.assertEqual(copied_sku.color, sku.color)
+
+    def test_12_open_color_editor_returns_modal_form(self):
+        template = self.env['dms.product.template'].create({
+            'brand_id': self.brand.id,
+            'family_name': '測試車系 I',
+            'type_name': '雙碟',
+            'model_name': 'TSTCLR1',
+            'energy_type': 'oil',
+        })
+        product = self.env['dms.product'].create({
+            'template_id': template.id,
+            'production_year': '2026',
+            'active': True,
+        })
+
+        action = product.action_open_color_editor()
+
+        self.assertEqual(action['type'], 'ir.actions.act_window')
+        self.assertEqual(action['res_model'], 'dms.product')
+        self.assertEqual(action['res_id'], product.id)
+        self.assertEqual(action['target'], 'new')
+        self.assertEqual(action['view_mode'], 'form')

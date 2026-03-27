@@ -61,18 +61,19 @@
 
 ---
 
-### D9：清理 `dms_catalog` 的殘留 registry metadata
+### D9：清理已移除模組的殘留 registry metadata 與舊 UI
 
-**決策**：若資料庫中 `dms_catalog` 已為 `uninstalled`，但仍保留 catalog-only 模型的 `ir.model` / `ir.model.data` / `ir.model.fields` 註冊資料，或仍留有 `ir_module_module` 模組登記，需以維運腳本清理。
+**決策**：若資料庫中 `dms_catalog` / `dms_product` / `dms_pricelist` 已為 `uninstalled`，但仍保留 catalog-only 模型的 `ir.model` / `ir.model.data` / `ir.model.fields` 註冊資料、舊選單 / 舊 action / 舊 view / 舊 ACL，或仍留有 `ir_module_module` 模組登記，需以維運腳本清理。
 
 **原因**：
 - 可消除 Odoo 升級時的 registry warning
 - 避免後續開發者誤判 `dms_catalog` 仍存在
+- 避免畫面繼續出現「產品管理 / 價目管理 / 產品目錄」等舊頂層入口
 - 將「模組已刪除」與「資料庫 metadata 已收尾」兩件事真正對齊
 
 **限制**：
 - 只清理 `dms.product.template`、`dms.product.sku`、`dms.price.version`、`dms.price.line`、`dms.installment.rule`、`dms.installment.rule.line`、`dms.fee.type`、`dms.installment.rule.fee`
-- 不得刪到已由 `dms_sale` 接手的共享模型 metadata
+- `dms_product` / `dms_pricelist` 的共享模型只可移除舊 xmlid，不得刪到已由 `dms_sale` 接手的 `ir.model` / `ir.model.fields`
 
 ---
 

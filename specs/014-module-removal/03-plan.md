@@ -132,14 +132,14 @@ make smoke
 
 ### Phase 6：資料庫 metadata 與文件同步
 
-1. 執行維運腳本，清理 `dms_catalog` 的 catalog-only 殘留 metadata 與 `ir_module_module` 模組登記
+1. 執行維運腳本，清理 `dms_catalog` 的 catalog-only 殘留 metadata，以及 `dms_product` / `dms_pricelist` / `dms_catalog` 的舊 menu / action / view / ACL xmlid 與 `ir_module_module` 模組登記
 2. 再次執行：
 
 ```bash
 docker compose exec odoo odoo -d dmis_dev -u dms_sale,dms_visit --db_host=db --db_port=5432 --db_user=odoo --db_password=odoo --stop-after-init
 ```
 
-確認不再出現 `dms.product.template`、`dms.product.sku`、`dms.price.version`、`dms.price.line`、`dms.installment.rule`、`dms.installment.rule.line`、`dms.fee.type`、`dms.installment.rule.fee` 的 registry warning。
+確認不再出現 `dms.product.template`、`dms.product.sku`、`dms.price.version`、`dms.price.line`、`dms.installment.rule`、`dms.installment.rule.line`、`dms.fee.type`、`dms.installment.rule.fee` 的 registry warning，且資料庫不再殘留「產品管理 / 價目管理 / 產品目錄」舊頂層選單。
 
 3. 同步更新下列文件：
    - `README.md`

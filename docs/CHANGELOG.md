@@ -1,5 +1,7 @@
 ## Changelog
 
+2026-03-27 - feat(015): 重建 dms_product 產品管理模組，加入模板 / SKU / 價格版本 / 分期規則 / 費用規則，並完成 dms_visit 送出物品脫鉤與 dms_sale 查價相容
+
 2026-03-27 - docs(process): 新增「需重啟 Odoo 的變更必須自動重啟並驗證」規則
 
 2026-03-27 - chore(maintenance): 清理 dms_product / dms_pricelist 舊頂層選單與殘留 xmlid

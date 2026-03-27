@@ -108,11 +108,11 @@ VS Code 建議設定（讓自動化/Tasks 使用 PowerShell 不載入使用者 p
 歷史說明：
 
 - `dms_product`、`dms_pricelist` 已不再作為獨立 addon 發佈，相關模型與畫面已搬入 `dms_sale`
-- `dms_catalog` 保留於歷史規格，不再作為實作方向
+- `dms_catalog` 路線已正式撤回，相關歷史脈絡收斂於 `specs/014-module-removal/`
 
 ## 維運腳本
 
-- 清理已移除 `dms_catalog` 的殘留 metadata：
+- 清理已移除 `dms_catalog` 的殘留 metadata 與模組登記：
 
 ```bash
 python3 scripts/cleanup_dms_catalog_metadata.py

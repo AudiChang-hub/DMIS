@@ -141,13 +141,13 @@ class DmsProductCompat(models.Model):
     def name_get(self):
         result = []
         for record in self:
-            template_label = record.template_id.display_name if record.template_id else (
-                record.name or record.model or '產品項'
+            template_label = (
+                record.template_id.family_name
+                if record.template_id and record.template_id.family_name
+                else (record.name or record.model or '產品項')
             )
-            year_label = record._normalize_year_value(record.production_year or record.year)
             parts = [
                 record.internal_code or False,
-                year_label,
                 template_label,
             ]
             label = " / ".join(part for part in parts if part)

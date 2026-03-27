@@ -135,6 +135,6 @@ python3 scripts/cleanup_dms_catalog_metadata.py
 工作流程（簡要）：
 
 1. 使用 `/dms-specify` 或 `/dms-feature` 產出或更新 specs（Spec-first）。
-2. 在 `specs/` 完成並確認後，建立 feature branch、實作最小變更、執行 `make smoke`。
+2. 在 `specs/` 完成並確認後，建立 feature branch、實作最小變更；凡變更需要重啟 Odoo 才生效者，修改後需自動執行 `docker compose restart odoo`，再執行 `make smoke`。
 3. 開 PR，PR 描述必填對應 specs 路徑；CI 會檢查若修改 `addons/**` 或 `docker-compose.yml`、`scripts/**`、`Makefile` 必須同步更新 `specs/**`。
 4. 使用 `/dms-merge` 產出合併檢查清單後再合併。

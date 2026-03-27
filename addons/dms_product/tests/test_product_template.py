@@ -284,3 +284,26 @@ class TestDmsProductTemplate(TransactionCase):
         self.assertEqual(action['res_id'], product.id)
         self.assertEqual(action['target'], 'new')
         self.assertEqual(action['view_mode'], 'form')
+
+    def test_13_color_summary_updates_after_color_unlink(self):
+        template = self.env['dms.product.template'].create({
+            'brand_id': self.brand.id,
+            'family_name': '測試車系 J',
+            'type_name': '雙碟',
+            'model_name': 'TSTCLR2',
+            'energy_type': 'oil',
+        })
+        product = self.env['dms.product'].create({
+            'template_id': template.id,
+            'production_year': '2026',
+            'color': '泰奶紅、鈦灰',
+            'active': True,
+        })
+
+        color_to_remove = product.color_ids.filtered(lambda color: color.name == '鈦灰')
+        self.assertTrue(color_to_remove)
+
+        color_to_remove.unlink()
+        product.invalidate_recordset(['color'])
+
+        self.assertEqual(product.color, '泰奶紅')

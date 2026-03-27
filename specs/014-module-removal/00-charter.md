@@ -1,6 +1,6 @@
 # Charter / 宗旨 — 014-module-removal
 
-> 2026-03-27 收尾註記：本規格已完成文件同步、資料庫 `dms_catalog` 殘留 metadata 清理，以及整併後的升級/測試驗證。維運腳本位於 [`scripts/cleanup_dms_catalog_metadata.py`](/home/audi/project/DMIS/scripts/cleanup_dms_catalog_metadata.py)。
+> 2026-03-27 收尾註記：本規格已完成文件同步、資料庫 `dms_catalog` catalog-only metadata 清理，以及整併後的升級/測試驗證。其後再補齊 `dms_product` / `dms_pricelist` 舊頂層選單、舊 xmlid 與模組登記清理。維運腳本位於 [`scripts/cleanup_dms_catalog_metadata.py`](/home/audi/project/DMIS/scripts/cleanup_dms_catalog_metadata.py)。
 
 ## 目的
 

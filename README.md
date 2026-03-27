@@ -112,7 +112,7 @@ VS Code 建議設定（讓自動化/Tasks 使用 PowerShell 不載入使用者 p
 
 ## 維運腳本
 
-- 清理已移除 `dms_catalog` 的殘留 metadata 與模組登記：
+- 清理已移除 `dms_catalog` / `dms_product` / `dms_pricelist` 的殘留 metadata、舊頂層選單與模組登記：
 
 ```bash
 python3 scripts/cleanup_dms_catalog_metadata.py

@@ -13,7 +13,8 @@
 ## Metadata 驗收
 - [x] `docker compose exec odoo odoo -d dmis_dev -u dms_sale,dms_visit --db_host=db --db_port=5432 --db_user=odoo --db_password=odoo --stop-after-init` 無 `dms_catalog` catalog-only 模型 warning
 - [x] `ir_model` 中不存在 `dms.product.template`、`dms.product.sku`、`dms.price.version`、`dms.price.line`、`dms.installment.rule`、`dms.installment.rule.line`、`dms.fee.type`、`dms.installment.rule.fee`
-- [x] `ir_module_module` 中不存在 `dms_catalog`
+- [x] `ir_module_module` 中不存在 `dms_catalog`、`dms_product`、`dms_pricelist`
+- [x] `ir_model_data` 中不存在 `dms_catalog`、`dms_product`、`dms_pricelist`
 - [x] 專案內提供可重複執行的 cleanup 腳本
 
 ## 資料完整性
@@ -43,6 +44,7 @@
 - [ ] 傭金自動計算（`dms.commission.rule`）
 
 ## 功能驗收 — 產品與價目（現在在 dms_sale 選單下）
+- [x] 不再出現舊頂層「產品管理」/「價目管理」/「產品目錄」選單
 - [ ] 「銷售管理 → 產品資料 → 車款管理」選單可進入 tree/form
 - [ ] 「銷售管理 → 價目資料 → 車款售價」選單可進入
 - [ ] 「銷售管理 → 價目資料 → 精品管理」選單可進入

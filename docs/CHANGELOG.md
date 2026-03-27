@@ -1,5 +1,7 @@
 ## Changelog
 
+2026-03-27 - chore(maintenance): 清理 dms_product / dms_pricelist 舊頂層選單與殘留 xmlid
+
 2026-03-27 - chore(spec): 刪除 013-dms-catalog 舊規格並清理 dms_catalog 模組登記
 
 2026-03-27 - docs(spec): 同步 014 整併後架構，補齊 dms_sale 整併說明、部署文件與使用手冊

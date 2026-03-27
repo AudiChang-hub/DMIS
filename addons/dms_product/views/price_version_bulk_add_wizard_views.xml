@@ -19,6 +19,7 @@
           </group>
           <group>
             <field name="product_ids"
+                   string="產品項"
                    widget="many2many_tags"
                    options="{'no_create': True, 'no_create_edit': True}"/>
           </group>

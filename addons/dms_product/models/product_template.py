@@ -21,11 +21,17 @@ class DmsProductTemplate(models.Model):
     sku_ids = fields.One2many(
         'dms.product',
         'template_id',
-        string='產品項 / SKU',
+        string='產品項',
+        context={'active_test': False},
+    )
+    product_color_ids = fields.One2many(
+        'dms.product.color',
+        'template_id',
+        string='產品顏色',
         context={'active_test': False},
     )
     sku_count = fields.Integer(
-        string='SKU 數量',
+        string='產品項數量',
         compute='_compute_sku_count',
         store=False,
     )

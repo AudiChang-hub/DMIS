@@ -4,7 +4,7 @@
 >
 > **維護規範**：每次 DB Schema（model）異動，**必須同步更新本檔**。
 >
-> **015 架構備註**：新 `dms_product` 已重建為獨立模組，提供 canonical 的模板 / SKU / 價格 / 分期 / 費用結構；`dms_sale` 則保留交易流程與 legacy 相容模型。
+> **015 架構備註**：新 `dms_product` 已重建為獨立模組，提供 canonical 的模板 / 產品項 / 顏色 / 價格 / 分期 / 費用結構；`dms_sale` 則保留交易流程與 legacy 相容模型。
 
 ```mermaid
 erDiagram
@@ -90,7 +90,7 @@ dms_old_vehicle {
 }
 
 %% ─────────────────────────────────────────────
-%%  dms_product / dms_sale 相容 SKU 模型
+%%  dms_product / dms_sale 相容產品項模型
 %% ─────────────────────────────────────────────
 
 dms_product_template {
@@ -109,7 +109,7 @@ dms_product {
     int    brand_id         FK
     string internal_code    "unique"
     string production_year
-    string color
+    string color            "legacy 顏色摘要"
     string name             "legacy 機種快照"
     string model            "legacy 型號快照"
     string year             "legacy 年份快照"
@@ -118,9 +118,11 @@ dms_product {
 }
 
 dms_product_color {
-    int    id          PK
-    int    product_id  FK
+    int    id           PK
+    int    product_id   FK
+    int    template_id  FK
     string name
+    string color_code
     int    sequence
     bool   active
 }
@@ -439,7 +441,7 @@ dms_dealer                 }o--o{  dms_brand                 : "brand_ids (M2M)"
 res_partner                ||--o{  dms_old_vehicle           : "old_vehicle_ids"
 dms_old_vehicle            }o--||  res_partner               : "partner_id"
 
-%% dms_product / dms_sale 相容 SKU 模型
+%% dms_product / dms_sale 相容產品項模型
 dms_product_template       }o--||  dms_brand                 : "brand_id"
 dms_product                }o--||  dms_product_template      : "template_id"
 dms_product                }o--||  dms_brand                 : "brand_id"

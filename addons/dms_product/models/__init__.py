@@ -1,4 +1,5 @@
 from . import product_template
+from . import product_color
 from . import price_version
 from . import price_line
 from . import installment_rule

@@ -1,10 +1,12 @@
 import re
 
 from odoo import api, fields, models
+from odoo.exceptions import ValidationError
 from odoo.osv import expression
 
 
 LEGACY_GENERATED_CODE_PATTERN = re.compile(r'^SKU-\d{5}$')
+COLOR_SPLIT_PATTERN = re.compile(r'[、/,，]+')
 
 
 class DmsProductCompat(models.Model):
@@ -14,10 +16,32 @@ class DmsProductCompat(models.Model):
         'dms.product.template', string='產品模板', ondelete='cascade')
     internal_code = fields.Char(string='內部唯一代碼', index=True, copy=False)
     production_year = fields.Char(string='出廠年份')
+    color_ids = fields.One2many(
+        'dms.product.color',
+        'product_id',
+        string='產品顏色',
+        context={'active_test': False},
+    )
 
     _sql_constraints = [
         ('unique_internal_code', 'unique(internal_code)', '內部唯一代碼不可重複。'),
     ]
+
+    @api.constrains('template_id', 'production_year')
+    def _check_unique_template_year(self):
+        if self.env.context.get('skip_product_year_uniqueness'):
+            return
+        for record in self:
+            year_value = record._normalize_year_value(record.production_year or record.year)
+            if not record.template_id or not year_value:
+                continue
+            duplicate = self.with_context(active_test=False).search([
+                ('id', '!=', record.id),
+                ('template_id', '=', record.template_id.id),
+                ('production_year', '=', year_value),
+            ], limit=1)
+            if duplicate:
+                raise ValidationError('同一產品模板與出廠年份僅能建立一筆產品項；若要新增顏色，請改到顏色清單維護。')
 
     def _normalize_year_value(self, value):
         if value in (False, None, ''):
@@ -25,17 +49,105 @@ class DmsProductCompat(models.Model):
         normalized = str(value).strip().replace(',', '')
         return normalized or False
 
+    def _normalize_color_name(self, value):
+        if value in (False, None, ''):
+            return False
+        normalized = str(value).strip()
+        return normalized or False
+
+    def _split_color_names(self, value):
+        normalized = self._normalize_color_name(value)
+        if not normalized:
+            return []
+        return [token.strip() for token in COLOR_SPLIT_PATTERN.split(normalized) if token.strip()]
+
+    def _sorted_color_records(self):
+        self.ensure_one()
+        return self.with_context(active_test=False).color_ids.sorted(
+            key=lambda color: (color.sequence, color.id)
+        )
+
+    def _build_color_summary(self):
+        self.ensure_one()
+        colors = self._sorted_color_records()
+        display_colors = colors.filtered('active') or colors
+        names = []
+        for color in display_colors:
+            if color.name and color.name not in names:
+                names.append(color.name)
+        return '、'.join(names) or False
+
+    def _ensure_color_record(self, name, color_code=False, image=False, active=True):
+        self.ensure_one()
+        normalized_name = self._normalize_color_name(name)
+        if not normalized_name or not self.id:
+            return self.env['dms.product.color'].browse()
+        color_model = self.env['dms.product.color'].with_context(active_test=False)
+        existing = color_model.search([
+            ('product_id', '=', self.id),
+            ('name', '=', normalized_name),
+        ], limit=1)
+        if existing:
+            update_vals = {}
+            if color_code and hasattr(existing, 'color_code') and not existing.color_code:
+                update_vals['color_code'] = color_code
+            if image and hasattr(existing, 'image_1920') and not existing.image_1920:
+                update_vals['image_1920'] = image
+            if active and not existing.active:
+                update_vals['active'] = True
+            if update_vals:
+                existing.write(update_vals)
+            return existing
+        create_vals = {
+            'product_id': self.id,
+            'name': normalized_name,
+            'active': active,
+        }
+        if hasattr(color_model, 'color_code') and color_code:
+            create_vals['color_code'] = color_code
+        if hasattr(color_model, 'image_1920') and image:
+            create_vals['image_1920'] = image
+        return color_model.create(create_vals)
+
+    def _ensure_color_records_from_legacy(self):
+        for record in self:
+            for color_name in record._split_color_names(record.color):
+                record._ensure_color_record(
+                    color_name,
+                    color_code=record.color_code,
+                    image=getattr(record, 'image_1920', False),
+                    active=record.active,
+                )
+
+    def _sync_legacy_color_summary(self):
+        if self.env.context.get('skip_product_color_sync'):
+            return
+        for record in self:
+            summary = record._build_color_summary()
+            if summary != (record.color or False):
+                super(
+                    DmsProductCompat,
+                    record.with_context(skip_product_color_sync=True),
+                ).write({'color': summary, 'color_code': False})
+
+    def _sync_color_templates(self):
+        for record in self:
+            mismatched_colors = record.with_context(active_test=False).color_ids.filtered(
+                lambda color: color.template_id != record.template_id
+            )
+            if mismatched_colors:
+                mismatched_colors.write({'template_id': record.template_id.id or False})
+
     def name_get(self):
         result = []
         for record in self:
             template_label = record.template_id.display_name if record.template_id else (
-                record.name or record.model or '產品項 / SKU'
+                record.name or record.model or '產品項'
             )
             year_label = record._normalize_year_value(record.production_year or record.year)
             parts = [
                 record.internal_code or False,
                 year_label,
-                record.color or False,
                 template_label,
             ]
             label = " / ".join(part for part in parts if part)
@@ -52,11 +164,11 @@ class DmsProductCompat(models.Model):
                     [('internal_code', operator, name)],
                     [('production_year', operator, name)],
                     [('year', operator, name)],
-                    [('color', operator, name)],
                     [('name', operator, name)],
                     [('model', operator, name)],
                     [('template_id.family_name', operator, name)],
                     [('template_id.model_name', operator, name)],
+                    [('color_ids.name', operator, name)],
                 ]),
             ])
         return self._search(args, limit=limit, access_rights_uid=name_get_uid)
@@ -70,13 +182,33 @@ class DmsProductCompat(models.Model):
         }
 
     def copy(self, default=None):
+        self.ensure_one()
         default = dict(default or {})
+        same_template_copy = (
+            default.get('template_id', self.template_id.id) == self.template_id.id
+        )
+        if same_template_copy and 'production_year' not in default:
+            default['production_year'] = False
+            default.setdefault('year', False)
         default['internal_code'] = False
+        default.setdefault('color', False)
+        default.setdefault('color_code', False)
         copied = super().copy(default)
-        if not copied.internal_code:
-            copied.with_context(skip_product_compat_sync=True).write({
+        if copied.production_year and not copied.internal_code:
+            copied.with_context(
+                skip_product_compat_sync=True,
+                skip_product_year_uniqueness=True,
+            ).write({
                 'internal_code': copied._build_generated_code(),
             })
+        elif not copied.production_year and copied.internal_code:
+            copied.with_context(
+                skip_product_compat_sync=True,
+                skip_product_year_uniqueness=True,
+            ).write({'internal_code': False})
+        for color in self.with_context(active_test=False).color_ids:
+            color.copy({'product_id': copied.id})
+        copied._sync_legacy_color_summary()
         return copied
 
     def _sanitize_code_part(self, value):
@@ -150,6 +282,131 @@ class DmsProductCompat(models.Model):
         template = self.env['dms.product.template']._find_or_create_from_legacy(self)
         return template
 
+    def _pick_canonical_product(self, products):
+        return products.sorted(key=lambda product: (not product.active, product.id))[0]
+
+    def _merge_duplicate_product(self, canonical, duplicate):
+        relation_models = {
+            'dms.vehicle.price': {'unique_fields': []},
+            'dms.ev.fee.schedule': {'unique_fields': []},
+            'dms.commission.rule': {'unique_fields': []},
+            'dms.visit.item': {'unique_fields': []},
+            'dms.product.color': {'unique_fields': ['name']},
+            'dms.vehicle.color': {'unique_fields': []},
+            'dms.price.line': {'unique_fields': ['version_id']},
+            'dms.installment.rule.binding': {'unique_fields': ['price_version_id']},
+            'dms.sale.order': {'unique_fields': []},
+        }
+
+        for field_name in [
+            'brake_type', 'engine_displacement', 'fuel_tank', 'engine_type',
+            'consumption_grade', 'efficiency', 'max_hp', 'max_torque',
+            'power_system', 'max_output', 'ev_max_hp', 'ev_max_torque',
+            'ev_efficiency', 'transmission', 'battery_capacity', 'battery_type',
+            'charge_time', 'dimensions', 'seat_height', 'wheel_base',
+            'vehicle_weight', 'tire_front', 'tire_rear',
+        ]:
+            if not getattr(canonical, field_name) and getattr(duplicate, field_name):
+                canonical.with_context(
+                    skip_product_compat_sync=True,
+                    skip_product_year_uniqueness=True,
+                ).write({field_name: getattr(duplicate, field_name)})
+
+        primary_color = canonical._ensure_color_record(
+            duplicate.color,
+            color_code=duplicate.color_code,
+            image=getattr(duplicate, 'image_1920', False),
+            active=duplicate.active,
+        )
+        color_map = {}
+        for color in duplicate.with_context(active_test=False).color_ids:
+            target_color = canonical._ensure_color_record(
+                color.name,
+                color_code=getattr(color, 'color_code', False),
+                image=getattr(color, 'image_1920', False),
+                active=color.active,
+            )
+            if target_color:
+                color_map[color.id] = target_color.id
+
+        for model_name, config in relation_models.items():
+            if model_name not in self.env.registry.models:
+                continue
+            records = self.env[model_name].with_context(active_test=False).search([
+                ('product_id', '=', duplicate.id),
+            ])
+            for record in records:
+                if model_name == 'dms.sale.order':
+                    vals = {'product_id': canonical.id}
+                    if record.color_id:
+                        mapped_color_id = color_map.get(record.color_id.id)
+                        if mapped_color_id:
+                            vals['color_id'] = mapped_color_id
+                        else:
+                            target_color = canonical._ensure_color_record(
+                                record.color_id.name,
+                                color_code=getattr(record.color_id, 'color_code', False),
+                                image=getattr(record.color_id, 'image_1920', False),
+                                active=record.color_id.active,
+                            )
+                            vals['color_id'] = target_color.id if target_color else False
+                    elif primary_color:
+                        vals['color_id'] = primary_color.id
+                    record.write(vals)
+                    continue
+
+                if model_name == 'dms.product.color':
+                    if record.id in color_map:
+                        record.unlink()
+                    else:
+                        record.write({'product_id': canonical.id})
+                    continue
+
+                unique_fields = config.get('unique_fields') or []
+                domain = [('product_id', '=', canonical.id)]
+                for unique_field in unique_fields:
+                    domain.append((unique_field, '=', record[unique_field].id))
+                existing = self.env[model_name].with_context(active_test=False).search(
+                    domain, limit=1)
+                if existing and existing.id != record.id:
+                    if hasattr(existing, 'note') and not existing.note and getattr(record, 'note', False):
+                        existing.write({'note': record.note})
+                    record.unlink()
+                else:
+                    record.write({'product_id': canonical.id})
+
+        if duplicate.active and not canonical.active:
+            canonical.with_context(
+                skip_product_compat_sync=True,
+                skip_product_year_uniqueness=True,
+            ).write({'active': True})
+
+        duplicate.unlink()
+
+    @api.model
+    def _consolidate_products_by_template_year(self):
+        products = self.with_context(active_test=False).search([
+            ('template_id', '!=', False),
+        ], order='id')
+        grouped_products = {}
+        for product in products:
+            year_value = product._normalize_year_value(product.production_year or product.year)
+            if not year_value:
+                continue
+            grouped_products.setdefault((product.template_id.id, year_value), self.browse())
+            grouped_products[(product.template_id.id, year_value)] |= product
+
+        for grouped in grouped_products.values():
+            if len(grouped) <= 1:
+                grouped._ensure_color_records_from_legacy()
+                grouped._sync_legacy_color_summary()
+                continue
+            canonical = self._pick_canonical_product(grouped)
+            canonical._ensure_color_records_from_legacy()
+            for duplicate in (grouped - canonical).sorted('id'):
+                self._merge_duplicate_product(canonical, duplicate)
+            canonical._sync_compat_fields()
+
     def _sync_compat_fields(self):
         if self.env.context.get('skip_product_compat_sync'):
             return
@@ -172,8 +429,16 @@ class DmsProductCompat(models.Model):
             if vals:
                 super(
                     DmsProductCompat,
-                    record.with_context(skip_product_compat_sync=True),
+                    record.with_context(
+                        skip_product_compat_sync=True,
+                        skip_product_year_uniqueness=self.env.context.get(
+                            'skip_product_year_uniqueness'
+                        ),
+                    ),
                 ).write(vals)
+        self._sync_color_templates()
+        self._ensure_color_records_from_legacy()
+        self._sync_legacy_color_summary()
 
     @api.model_create_multi
     def create(self, vals_list):
@@ -186,7 +451,7 @@ class DmsProductCompat(models.Model):
         result = super().write(vals)
         tracked_fields = {
             'template_id', 'brand_id', 'name', 'model', 'year', 'energy_type',
-            'production_year', 'internal_code',
+            'production_year', 'internal_code', 'color', 'color_code', 'active',
         }
         if tracked_fields.intersection(vals):
             self._sync_compat_fields()
@@ -194,8 +459,12 @@ class DmsProductCompat(models.Model):
 
     @api.model
     def _run_product_backfill(self):
-        products = self.with_context(skip_product_compat_sync=False).search([])
+        products = self.with_context(
+            skip_product_year_uniqueness=True,
+        ).search([])
         products._sync_compat_fields()
+        self.with_context(skip_product_year_uniqueness=True)._consolidate_products_by_template_year()
+        self.search([])._sync_compat_fields()
 
     def _register_hook(self):
         result = super()._register_hook()

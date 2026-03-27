@@ -14,7 +14,7 @@ class DmsPriceVersionBulkAddWizard(models.TransientModel):
         'dms_price_version_bulk_add_wizard_product_rel',
         'wizard_id',
         'product_id',
-        string='產品項 / SKU',
+        string='產品項',
         domain="[('active', '=', True), ('id', 'not in', existing_product_ids)]",
     )
     cash_price = fields.Float(string='統一現金價', digits=(12, 0), required=True, default=0)

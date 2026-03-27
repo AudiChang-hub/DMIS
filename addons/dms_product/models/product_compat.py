@@ -26,14 +26,10 @@ class DmsProductCompat(models.Model):
 
     def action_duplicate_from_template_tab(self):
         self.ensure_one()
-        copied = self.copy({'template_id': self.template_id.id})
+        self.copy({'template_id': self.template_id.id})
         return {
-            'type': 'ir.actions.act_window',
-            'res_model': 'dms.product.template',
-            'res_id': copied.template_id.id,
-            'view_mode': 'form',
-            'target': 'current',
-            'context': {'form_view_initial_mode': 'edit'},
+            'type': 'ir.actions.client',
+            'tag': 'reload',
         }
 
     def copy(self, default=None):

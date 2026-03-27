@@ -67,7 +67,7 @@
             <page string="送出物品" name="page_items">
               <field name="item_ids">
                 <tree string="送出物品" editable="bottom">
-                  <field name="product_id"/>
+                  <field name="item_name"/>
                   <field name="quantity"/>
                   <field name="note"/>
                 </tree>

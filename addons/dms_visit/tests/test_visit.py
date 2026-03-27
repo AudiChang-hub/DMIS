@@ -19,14 +19,6 @@ class TestDmsVisit(TransactionCase):
             'phone_1': '02-12345678',
         })
 
-        cls.product = cls.env['dms.product'].create({
-            'brand_id': cls.brand.id,
-            'name': '測試車款',
-            'model': 'TEST-001',
-            'year': '2024',
-            'energy_type': 'oil',
-        })
-
         cls.purpose = cls.env['dms.visit.purpose'].create({
             'name': '洽談訂單',
             'code': 'TALK',
@@ -102,18 +94,16 @@ class TestDmsVisit(TransactionCase):
             'dealer_id': self.dealer.id,
             'visitor_id': self.env.user.id,
             'item_ids': [(0, 0, {
-                'product_id': self.product.id,
+                'item_name': 'DMIS 產品型錄',
                 'quantity': 3.0,
                 'note': '測試送出物品備註',
             })],
         })
         self.assertEqual(len(visit.item_ids), 1, '應有 1 筆物品明細')
+        self.assertEqual(visit.item_ids[0].item_name, 'DMIS 產品型錄', '物品名稱應正確儲存')
         self.assertEqual(visit.item_ids[0].quantity, 3.0, '數量應為 3.0')
         self.assertEqual(
             visit.item_ids[0].note, '測試送出物品備註', '備註應正確儲存',
-        )
-        self.assertEqual(
-            visit.item_ids[0].product_id.id, self.product.id, '產品應正確關聯',
         )
 
     # ── Test 04：Record Rule — user 只見自己的拜訪 ──────────────────

@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+  <record id="dms_sale.view_product_tree" model="ir.ui.view">
+    <field name="name">dms.product.tree.sku</field>
+    <field name="model">dms.product</field>
+    <field name="arch" type="xml">
+      <tree string="產品項 / SKU">
+        <field name="internal_code" optional="show"/>
+        <field name="template_id" optional="show"/>
+        <field name="production_year" optional="show"/>
+        <field name="color" optional="show"/>
+        <field name="energy_type" optional="show"/>
+        <field name="brand_id" optional="hide"/>
+        <field name="name" optional="hide"/>
+        <field name="model" optional="hide"/>
+        <field name="year" optional="hide"/>
+        <field name="active" optional="show"/>
+      </tree>
+    </field>
+  </record>
+
+  <record id="dms_sale.view_product_form" model="ir.ui.view">
+    <field name="name">dms.product.form.sku</field>
+    <field name="model">dms.product</field>
+    <field name="arch" type="xml">
+      <form string="產品項 / SKU">
+        <sheet>
+          <div class="oe_title">
+            <label for="internal_code"/>
+            <h1><field name="internal_code" placeholder="內部唯一代碼"/></h1>
+          </div>
+          <group>
+            <group string="SKU 資料">
+              <field name="template_id"/>
+              <field name="production_year"/>
+              <field name="color"/>
+              <field name="active"/>
+            </group>
+            <group string="模板快照">
+              <field name="brand_id" readonly="1"/>
+              <field name="name" readonly="1"/>
+              <field name="model" readonly="1"/>
+              <field name="energy_type" readonly="1"/>
+              <field name="year" readonly="1"/>
+            </group>
+          </group>
+          <notebook>
+            <page string="相容欄位">
+              <group>
+                <field name="brake_type"/>
+                <field name="color_code"/>
+                <field name="engine_displacement"/>
+                <field name="fuel_tank"/>
+                <field name="power_system"/>
+                <field name="battery_capacity"/>
+                <field name="dimensions"/>
+              </group>
+            </page>
+            <page string="圖片（相容）">
+              <field name="image_1920" widget="image"/>
+            </page>
+          </notebook>
+        </sheet>
+      </form>
+    </field>
+  </record>
+
+  <record id="dms_sale.view_product_search" model="ir.ui.view">
+    <field name="name">dms.product.search.sku</field>
+    <field name="model">dms.product</field>
+    <field name="arch" type="xml">
+      <search string="搜尋產品項 / SKU">
+        <field name="internal_code"/>
+        <field name="template_id"/>
+        <field name="brand_id"/>
+        <field name="color"/>
+        <field name="production_year"/>
+        <filter name="filter_oil" string="油車" domain="[('energy_type', '=', 'oil')]"/>
+        <filter name="filter_electric" string="電車" domain="[('energy_type', '=', 'electric')]"/>
+        <filter name="filter_active" string="啟用中" domain="[('active', '=', True)]"/>
+        <filter name="filter_archived" string="已歸檔" domain="[('active', '=', False)]"/>
+        <group expand="0" string="分組">
+          <filter name="groupby_template" string="產品模板" context="{'group_by': 'template_id'}"/>
+          <filter name="groupby_brand" string="品牌" context="{'group_by': 'brand_id'}"/>
+          <filter name="groupby_year" string="出廠年份" context="{'group_by': 'production_year'}"/>
+        </group>
+      </search>
+    </field>
+  </record>
+
+  <record id="dms_sale.action_product" model="ir.actions.act_window">
+    <field name="name">產品項 / SKU</field>
+    <field name="view_mode">tree,form</field>
+    <field name="context">{'form_view_initial_mode': 'edit'}</field>
+  </record>
+
+</odoo>

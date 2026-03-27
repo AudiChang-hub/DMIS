@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+  <record id="view_fee_type_tree" model="ir.ui.view">
+    <field name="name">dms.fee.type.tree</field>
+    <field name="model">dms.fee.type</field>
+    <field name="arch" type="xml">
+      <tree string="費用類型">
+        <field name="name" optional="show"/>
+        <field name="code" optional="show"/>
+        <field name="active" optional="show"/>
+        <field name="note" optional="hide"/>
+      </tree>
+    </field>
+  </record>
+
+  <record id="view_fee_type_form" model="ir.ui.view">
+    <field name="name">dms.fee.type.form</field>
+    <field name="model">dms.fee.type</field>
+    <field name="arch" type="xml">
+      <form string="費用類型">
+        <sheet>
+          <group>
+            <group>
+              <field name="name"/>
+              <field name="code"/>
+              <field name="active"/>
+            </group>
+            <group>
+              <field name="note"/>
+            </group>
+          </group>
+        </sheet>
+      </form>
+    </field>
+  </record>
+
+  <record id="view_fee_type_search" model="ir.ui.view">
+    <field name="name">dms.fee.type.search</field>
+    <field name="model">dms.fee.type</field>
+    <field name="arch" type="xml">
+      <search string="搜尋費用類型">
+        <field name="name"/>
+        <field name="code"/>
+        <filter name="filter_active" string="啟用中" domain="[('active', '=', True)]"/>
+        <filter name="filter_archived" string="已停用" domain="[('active', '=', False)]"/>
+      </search>
+    </field>
+  </record>
+
+  <record id="action_fee_type" model="ir.actions.act_window">
+    <field name="name">費用類型</field>
+    <field name="res_model">dms.fee.type</field>
+    <field name="view_mode">tree,form</field>
+    <field name="context">{'form_view_initial_mode': 'edit'}</field>
+  </record>
+
+</odoo>

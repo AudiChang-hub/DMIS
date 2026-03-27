@@ -58,6 +58,8 @@
 規則：
 
 - `internal_code` 必須唯一
+- `internal_code` 預設採「型號 + 出廠年份」生成，例如 `UC125DA-2026`
+- 若同一型號與出廠年份下有多筆 SKU，系統應自動補尾碼，例如 `UC125DA-2026-02`
 - 同一模板下，不同 `color + production_year` 可同時存在多筆 SKU
 - 不得只靠中文名稱識別 SKU
 

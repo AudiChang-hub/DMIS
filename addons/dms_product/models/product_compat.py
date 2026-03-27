@@ -1,4 +1,9 @@
+import re
+
 from odoo import api, fields, models
+
+
+LEGACY_GENERATED_CODE_PATTERN = re.compile(r'^SKU-\d{5}$')
 
 
 class DmsProductCompat(models.Model):
@@ -19,9 +24,38 @@ class DmsProductCompat(models.Model):
         except (TypeError, ValueError):
             return False
 
+    def _sanitize_code_part(self, value):
+        token = re.sub(r'[^A-Z0-9]+', '-', (value or '').upper()).strip('-')
+        return token
+
+    def _build_code_base(self):
+        self.ensure_one()
+        model_token = self._sanitize_code_part(
+            self.model or self.template_id.model_name or self.name or self.template_id.family_name
+        )
+        year_value = self.production_year or self._parse_year_value(self.year)
+        year_token = self._sanitize_code_part(str(year_value)) if year_value else ''
+        parts = [part for part in [model_token, year_token] if part]
+        return "-".join(parts)
+
+    def _has_legacy_generated_code(self):
+        self.ensure_one()
+        return bool(LEGACY_GENERATED_CODE_PATTERN.match(self.internal_code or ''))
+
     def _build_generated_code(self):
         self.ensure_one()
-        return f"SKU-{self.id:05d}"
+        base_code = self._build_code_base()
+        if not base_code:
+            return f"SKU-{self.id:05d}"
+        candidate = base_code
+        suffix = 2
+        while self.with_context(active_test=False).search_count([
+            ('internal_code', '=', candidate),
+            ('id', '!=', self.id),
+        ]):
+            candidate = f"{base_code}-{suffix:02d}"
+            suffix += 1
+        return candidate
 
     def _prepare_template_sync_vals(self):
         self.ensure_one()
@@ -68,7 +102,7 @@ class DmsProductCompat(models.Model):
             template = record.template_id or record._ensure_template_from_legacy()
             if template and record.template_id != template:
                 vals['template_id'] = template.id
-            if not record.internal_code:
+            if not record.internal_code or record._has_legacy_generated_code():
                 vals['internal_code'] = record._build_generated_code()
             if not record.production_year:
                 parsed_year = record._parse_year_value(record.year)
@@ -103,3 +137,8 @@ class DmsProductCompat(models.Model):
     def _run_product_backfill(self):
         products = self.with_context(skip_product_compat_sync=False).search([])
         products._sync_compat_fields()
+
+    def _register_hook(self):
+        result = super()._register_hook()
+        self._run_product_backfill()
+        return result

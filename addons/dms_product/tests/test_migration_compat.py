@@ -13,8 +13,8 @@ class TestDmsProductMigrationCompat(TransactionCase):
             skip_product_compat_sync=True
         ).create({
             'brand_id': self.brand.id,
-            'name': 'SUI',
-            'model': 'UQ125DA',
+            'name': '測試車系 A',
+            'model': 'TSTMIGA1',
             'year': '2026',
             'color': '鈦灰',
             'energy_type': 'oil',
@@ -27,9 +27,27 @@ class TestDmsProductMigrationCompat(TransactionCase):
 
         self.assertTrue(legacy_product.template_id)
         self.assertEqual(legacy_product.production_year, 2026)
-        self.assertTrue(legacy_product.internal_code)
+        self.assertEqual(legacy_product.internal_code, 'TSTMIGA1-2026')
 
-    def test_02_run_price_and_rule_backfill_for_legacy_models(self):
+    def test_02_run_product_backfill_rewrites_legacy_generated_code(self):
+        legacy_product = self.env['dms.product'].with_context(
+            skip_product_compat_sync=True
+        ).create({
+            'brand_id': self.brand.id,
+            'name': '測試車系 B',
+            'model': 'TSTMIGB1',
+            'year': '2026',
+            'color': '白',
+            'energy_type': 'oil',
+            'internal_code': 'SKU-00001',
+        })
+
+        self.env['dms.product']._run_product_backfill()
+        legacy_product.invalidate_recordset()
+
+        self.assertEqual(legacy_product.internal_code, 'TSTMIGB1-2026')
+
+    def test_03_run_price_and_rule_backfill_for_legacy_models(self):
         product = self.env['dms.product'].create({
             'brand_id': self.brand.id,
             'name': 'Saluto',

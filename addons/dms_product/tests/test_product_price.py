@@ -102,11 +102,10 @@ class TestDmsProductPrice(TransactionCase):
 
         self.assertEqual(order.cash_price, 90500, '新價格不存在時，應 fallback 舊價格結構')
 
-    def test_04_product_name_get_includes_year_without_using_color_as_key(self):
+    def test_04_product_name_get_uses_internal_code_and_family_name(self):
         label = self.product.display_name
 
-        self.assertIn(self.product.internal_code, label)
-        self.assertIn('2025', label)
+        self.assertEqual(label, f'{self.product.internal_code} / CLBCU')
         self.assertNotIn('銀', label)
 
     def test_05_bulk_add_wizard_creates_multiple_price_lines(self):

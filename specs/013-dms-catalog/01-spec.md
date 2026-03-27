@@ -1,15 +1,58 @@
 # 013-dms-catalog — 功能規格（01-spec）
+> **版本**：v2（2026-03-26）— 依 OQ-1~7 決策全面更新
+> **狀態**：已確認，待實作
+
+---
+
+## 0. 本輪範圍聲明
+
+### ✅ 本輪（013-dms-catalog）包含
+- 新增 `dms.product.series`（車系/機種主檔）
+- 更新 `dms.product.template`：加入 `series_id`；`brand_id` 改為 related；圖片降級
+- `dms.product.sku`（已實作，維持不變）
+- `dms.price.version` / `dms.price.line`（已實作，維持不變）
+- `dms.installment.rule` / `.line` / `.fee` / `dms.fee.type`（已實作，維持不變）
+- 精品、電車牌險、傭金規則（搬移自 `dms_pricelist`，已實作）
+- 將 `dms_product`、`dms_pricelist` 標記為 deprecated（不移除）
+- UI：List 為主視圖，Kanban 降為次要
+
+### ❌ 本輪不包含（非本輪範圍）
+- `dms_sale` / `dms_visit` / `dms_finance` 的任何程式碼修改
+- `dms.product.color` 的替換（保留相容，不動）
+- `dms_sale` 分期欄位改為吃 `dms.installment.rule`（下一輪）
+- 移除 `dms_product` / `dms_pricelist` 模組底層（只標記 deprecated）
+- 移除圖片資料庫欄位（只降級視圖顯示）
+- 資料遷移腳本執行（定義結構，下一輪執行）
+
+---
 
 ## 1. 模型設計
 
-### 1.1 `dms.product.template`（產品型式）
+### 1.0 `dms.product.series`（車系 / 機種主檔）【本輪新增】
+
+> 產品識別的穩定層，介於「品牌」與「型式」之間。
+> **不是** 速克達/越野車 那種粗分類，而是具有可查找識別意義的車系，例如：FORCE 系列、SMAX 系列、EC-05 系列。
+
+| 欄位 | 型態 | 說明 |
+|---|---|---|
+| `brand_id` | Many2one(`dms.brand`) | 所屬品牌，必填 |
+| `name` | Char | 車系名稱，必填（例：FORCE、SMAX、EC-05）|
+| `code` | Char | 識別代碼（英數，可作查找 key，例：FORCE）|
+| `active` | Boolean | 啟用，預設 True |
+
+**SQL 限制**：`(brand_id, name)` 不得重複。
+
+---
+
+### 1.1 `dms.product.template`（產品型式）【更新：加入 series_id，圖片降級】
 
 > 描述一款機種的基本特性（不含顏色、年份）。
 
 | 欄位 | 型態 | 說明 |
 |---|---|---|
-| `brand_id` | Many2one(`dms.brand`) | 品牌，必填 |
-| `name` | Char | 型式名稱，必填（例：FORCE 2.0）|
+| `series_id` | Many2one(`dms.product.series`) | 車系，必填【本輪新增】|
+| `brand_id` | Many2one(`dms.brand`) | 品牌（`related='series_id.brand_id'`，store=True）【改為 related】|
+| `name` | Char | 型式名稱，必填（例：FORCE 2.0 ABS）|
 | `model_code` | Char | 原廠型號代碼 |
 | `energy_type` | Selection(`oil`/`electric`) | 能源型式，必填 |
 | `brake_type` | Char | 煞車型式 |
@@ -35,7 +78,7 @@
 | `vehicle_weight` | Float | 整備重量（kg）|
 | `tire_front` | Char | 前輪規格 |
 | `tire_rear` | Char | 後輪規格 |
-| `image_1920` | Binary | 產品主圖（image.mixin）|
+| `image_1920` | Binary | 產品圖（image.mixin，**保留欄位；Form/List/Kanban 主要畫面均不顯示**）|
 | `active` | Boolean | 啟用，預設 True |
 | `sku_ids` | One2many(`dms.product.sku`) | SKU 清單 |
 
@@ -156,19 +199,30 @@
 
 ---
 
-## 2. 向下相容橋接（Backward Compatibility）
+## 2. 向下相容策略（Backward Compatibility）
 
-為確保 `dms_sale`、`dms_finance`、`dms_visit` 等依賴模組繼續運作，新模組需透過下列橋接策略處理：
+> OQ-2 決策：本輪**不遷移** `dms_sale` / `dms_visit` / `dms_finance`，保持現狀不動。
 
-### 2.1 `dms.product` 相容層
+### 2.1 既有業務模組：本輪不動
 
-保留 `dms.product` 模型名稱作為**唯讀捷徑視圖**（`_auto = False` + `_sql_constraints` 可選），或透過 computed 欄位橋接到 `dms.product.sku`，讓現有 Many2one('dms.product') 的欄位在遷移前不報錯。
+- `dms_sale`、`dms_visit`、`dms_finance` 程式碼**本輪零修改**。
+- 這三個模組內對 `dms.product` / `dms.vehicle.price` 的引用繼續有效（對應模型仍存在於 `dms_product` / `dms_pricelist`）。
+- 遷移計劃另排下一輪 sprint。
 
-> 實作決策：在切換 `dms_sale` 等模組時再評估是否需要此層。目前 alpha 版先保留兩個模型共存。
+### 2.2 `dms.product.color`（OQ-3）
 
-### 2.2 `dms.vehicle.price` 相容層
+保留 `dms.product.color` 主檔定義（位於 `dms_product`），本輪不強制替換。`dms.product.sku` 的 `color` 欄位維持 Char，等下一輪統一接 Many2one。
 
-保留 `dms.vehicle.price` 模型定義（設為 deprecated），讓已安裝的 `dms_sale` 在升級前不報 missing table 錯誤。
+### 2.3 `dms_product` / `dms_pricelist` 退場策略（OQ-7）
+
+| 動作 | 時機 |
+|---|---|
+| 在 `__manifest__.py` 加入 `# DEPRECATED` 標記與說明 | **本輪執行** |
+| 停用模組預設安裝（移出 `depends`）| 本輪確認 |
+| 移除模組底層程式碼 | 等 dms_sale/dms_visit/dms_finance 遷移完成後 |
+
+> 標記方式：在 `dms_product/__manifest__.py` 與 `dms_pricelist/__manifest__.py` 的 `description` 欄位加入：
+> `⚠️ DEPRECATED：功能已整併至 dms_catalog，本模組待相依模組完成遷移後移除。`
 
 ---
 
@@ -176,22 +230,26 @@
 
 ```
 品牌（dms.brand / dms_core）
-  └── 型式（dms.product.template）
-        └── SKU（dms.product.sku）
-              └── 定價明細（dms.price.line）
-                    ├── 版本（dms.price.version）
-                    └── 分期規則（dms.installment.rule）
-                          └── 規則明細（dms.installment.rule.line）
-                                └── 費用（dms.installment.rule.fee → dms.fee.type）
+  └── 車系（dms.product.series）                 ← 本輪新增
+        └── 型式（dms.product.template）
+              └── SKU（dms.product.sku）
+                    └── 定價明細（dms.price.line）
+                          ├── 版本（dms.price.version）
+                          └── 分期規則（dms.installment.rule）
+                                └── 規則明細（dms.installment.rule.line）
+                                      └── 費用（dms.installment.rule.fee → dms.fee.type）
 ```
 
 ---
 
 ## 4. 視圖需求
 
+> **UI 準則（OQ-5）：List 視圖為主要入口，Kanban 降為次要（可摺疊或頁籤切換）。圖片（image_1920）不顯示於 List / Form / Kanban 主要畫面。**
+
 | 視圖 | 類型 | 說明 |
 |---|---|---|
-| `dms.product.template` | List / Form / Kanban | 型式管理，Kanban 卡片顯示可配置欄位 |
+| `dms.product.series` | List / Form | 車系主檔管理【本輪新增】|
+| `dms.product.template` | **List（主）** / Form / Kanban（次）| 型式管理；List 欄位含 series_id；Form 不顯示圖片 avatar |
 | `dms.product.sku` | List / Form | SKU 管理，含型式展開 |
 | `dms.price.version` | List / Form | 版本管理，含明細 One2many |
 | `dms.price.line` | 嵌入 version Form | 定價明細表 |
@@ -207,6 +265,8 @@
 
 延續 `dms_product` 的 `dms.kanban.product.config` 概念，搬移至 `dms_catalog`，作用於 `dms.product.template` Kanban 視圖。欄位映射維持不變。
 
+> **OQ-5 補充**：Kanban 視圖降為次要，不得包含圖片 avatar；預設選單入口導向 List 視圖。
+
 ---
 
 ## 6. 安全權限
@@ -219,7 +279,7 @@
 
 ---
 
-## 7. 資料遷移策略
+## 7. 資料遷移策略（本輪定義結構，下一輪執行）
 
 遷移腳本放置於 `dms_catalog/data/migration/` 目錄：
 

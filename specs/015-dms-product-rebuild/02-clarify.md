@@ -70,7 +70,8 @@ legacy 相容與交易沿用部分仍由 `dms_sale` / `dms_product` 共同承接
 
 其中：
 
-- `dms.product` 已收斂為 SKU 相容模型，新增 `template_id / internal_code / production_year`
+- `dms.product` 目前仍帶有 `color` 欄位，實務上被當成「年份 + 顏色」產品項使用
+- `dms.product.color` 已存在於 `dms_sale`，且 `dms.sale.order.color_id` 已可做顏色下拉選擇
 - `dms_product` 已提供新的頂層產品管理選單與 canonical 視圖
 - `dms_sale` 沒有自己的測試檔，因此查價回歸需由 `dms_product` 測試覆蓋
 - `dms_visit` 已先改成文字式送出物品輸入，降低對 `dms.product` 的耦合
@@ -102,7 +103,7 @@ legacy 相容與交易沿用部分仍由 `dms_sale` / `dms_product` 共同承接
 `014` 完成的是「先收掉舊模組，維持現有流程不壞」，不是產品領域的最終設計。因此目前風險是：
 
 - `dms_sale` 同時背負交易與產品主資料，bounded context 不清楚
-- 產品結構仍是舊扁平模型，無法支撐你這次要求的模板 / SKU / 價目版本 / 分期規則 / 費用規則
+- 產品結構仍是舊扁平模型，無法支撐你這次要求的模板 / 產品項 / 價目版本 / 分期規則 / 費用規則
 - 現行產品 UI 仍有圖片導向痕跡，不符合本輪以內部查找效率為優先的要求
 
 ### 2.2 舊依賴不能直接切斷
@@ -140,9 +141,9 @@ legacy 相容與交易沿用部分仍由 `dms_sale` / `dms_product` 共同承接
 - 對使用者來說語意清楚，便於成為未來唯一入口
 - 雖然舊版 `dms_product` 已在 `014` 移除，但本輪是新一代重建，不是回滾舊模組
 
-### D2：本輪先讓 `dms.product` 承接 SKU 層
+### D2：本輪先讓 `dms.product` 承接產品項層（模板 + 出廠年份）
 
-決策：不在本輪引入新的 `dms.product.sku` 以切斷既有流程，而是讓既有 `dms.product` 經過欄位擴充後作為 SKU 層。
+決策：不在本輪引入新的 `dms.product.sku` 以切斷既有流程，而是讓既有 `dms.product` 經過欄位擴充後作為「產品項」層；顏色改由既有 `dms.product.color` 承接。
 
 理由：
 
@@ -152,13 +153,29 @@ legacy 相容與交易沿用部分仍由 `dms_sale` / `dms_product` 共同承接
 
 影響：
 
-- `dms.product` 將成為「可販售產品項 / SKU」的相容模型
+- `dms.product` 將成為「可販售產品項（模板 + 出廠年份）」的相容模型
 - 新模組需提供 migration，把舊 `dms.product` 補齊 `template_id`、`internal_code`、`production_year`
-- `internal_code` 的自動生成規則需兼顧可讀性，因此本輪改採「型號 + 出廠年份」為主格式；若同型號同年份有多筆 SKU，再補序號尾碼維持唯一性
+- `internal_code` 的自動生成規則需兼顧可讀性，因此維持採「型號 + 出廠年份」為主格式
 - `production_year` 需改為文字欄位，避免 Odoo 將年份格式化為 `2,026`
-- 使用者介面上不再提供獨立 SKU 頁面，僅保留在產品模板表單中的產品項頁籤維護
+- 顏色不再作為 `dms.product` 拆分條件，而是掛在 `dms.product.color`
+- 使用者介面上不再提供獨立產品項頁面，僅保留在產品模板表單中的產品項頁籤維護
 
-### D3：價格與規則走新模型，`dms_sale` 只做最小必要 lookup 調整
+### D3：顏色是銷售選項，不是價格識別鍵
+
+決策：價格、價目版本、分期規則與規則掛接都只綁 `dms.product`（模板 + 出廠年份），不綁顏色。
+
+理由：
+
+- 使用者已確認價格不會因顏色不同而改變
+- 目前把顏色拆成多筆產品項，會讓價目版本與規則維護成本不必要放大
+- `dms.sale.order` 已有 `color_id`，技術上適合把顏色改成附屬選項
+
+影響：
+
+- `dms.price.line.product_id` 代表年份產品項，不再代表顏色拆分項
+- `dms.installment.rule.binding.product_id` 同樣只綁年份產品項
+- 銷售單先選產品項，再從該產品項的顏色清單中選 `color_id`
+### D4：價格與規則走新模型，`dms_sale` 只做最小必要 lookup 調整
 
 決策：建立新的 `dms.price.version`、`dms.price.line`、`dms.installment.rule*`、`dms.fee.type`，並讓 `dms_sale` 在查價時優先讀新結構，若無資料再 fallback 舊 `dms.vehicle.price`。
 
@@ -168,11 +185,11 @@ legacy 相容與交易沿用部分仍由 `dms_sale` / `dms_product` 共同承接
 - 同時讓新產品模組成為未來唯一正確資料來源
 - 避免本輪重寫整個 `dms_sale`
 
-### D4：圖片欄位保留但退出主畫面核心
+### D5：圖片欄位保留但退出主畫面核心
 
 決策：若 `image_1920` 因既有 `dms.product` 結構仍存在，將保留為相容欄位，但新產品模組主畫面與主流程不以圖片為核心。
 
-### D5：`dms_visit` 送出物品先與產品主檔脫鉤
+### D6：`dms_visit` 送出物品先與產品主檔脫鉤
 
 決策：拜訪清單中的送出物品，本輪先不與 `dms.product` 綁定，待新產品管理模組完成後再接回。
 
@@ -186,7 +203,7 @@ legacy 相容與交易沿用部分仍由 `dms_sale` / `dms_product` 共同承接
 
 - `dms.visit.item` 至少需保留 `item_name`、`quantity`、`note`
 - 若保留 `product_id` 作歷史相容，該欄位應改為非必填，且不作主要輸入
-- 後續待新產品模組穩定後，再以新 spec 把 `dms_visit` 接回 `dms.product`（SKU）
+- 後續待新產品模組穩定後，再以新 spec 把 `dms_visit` 接回 `dms.product`（產品項）
 
 ---
 
@@ -195,6 +212,8 @@ legacy 相容與交易沿用部分仍由 `dms_sale` / `dms_product` 共同承接
 ### 4.1 銷售管理
 
 - `dms.sale.order.product_id` 維持 Many2one → `dms.product`
+- `dms.sale.order.color_id` 延續 Many2one → `dms.product.color`
+- `color_id` 下拉需僅顯示所選產品項底下的顏色
 - 新增價格查詢 helper，優先讀取 `dms.price.line` 的生效版本
 - 若尚無新價格資料，fallback 讀取舊 `dms.vehicle.price`
 
@@ -202,7 +221,7 @@ legacy 相容與交易沿用部分仍由 `dms_sale` / `dms_product` 共同承接
 
 - 本輪 `dms.visit.item` 先與 `dms.product` 脫鉤
 - 送出物品改為可獨立輸入，不讓 `dms_visit` 持續卡住產品 migration
-- 後續再用新 spec 接回 canonical SKU
+- 後續再用新 spec 接回 canonical 產品項
 
 ### 4.3 財務與報表
 
@@ -239,6 +258,9 @@ legacy 相容與交易沿用部分仍由 `dms_sale` / `dms_product` 共同承接
 - 將系統自動生成的舊式 `SKU-00001` 代碼回填為「型號 + 出廠年份」可讀格式
 - 回填 `production_year`（來源：舊 `year`）
 - 若舊值因顯示或匯入帶有逗點，需正規化為純年份文字，例如 `2,026` → `2026`
+- 若同模板同年份因顏色被拆成多筆產品項，需收斂為一筆 canonical `dms.product`
+- 被收斂掉的顏色需轉寫成 `dms.product.color`
+- 既有指向重複產品項的價格、規則與銷售參照需改掛回 canonical 產品項
 
 ### 6.2 價格 migration
 
@@ -268,13 +290,16 @@ legacy 相容與交易沿用部分仍由 `dms_sale` / `dms_product` 共同承接
 3. `型式（type_name）` 在 legacy migration 先留空
 4. legacy `valid_year_month` 轉 `effective_date` 時採該月 1 日
 5. 舊 `dms_sale` 產品 / 價目選單已隱藏，正式入口改由 `dms_product` 接手
+6. 顏色掛在 `dms.product`（年份產品項）底下，而非掛在 `dms.product.template`
+6. 同一模板不同年份的可販售顏色可能不同，因此顏色需掛在 `dms.product`（年份產品項）底下，而非掛在 `dms.product.template`
 
 ## 8. Assumptions
 
 1. 本輪既有正式產品資料量仍低，允許以 `post_init_hook` 進行一次性 backfill，而不另外建立獨立 migration framework。
-2. `dms_visit` 的送出物品本輪以文字輸入為主，不要求立即與 canonical SKU 重新耦合。
+2. `dms_visit` 的送出物品本輪以文字輸入為主，不要求立即與 canonical 產品項重新耦合。
 3. `dms_sale` 既有 `dms.vehicle.price`、`dms.installment.plan` 等模型先保留作 fallback / 歷史資料來源，不在本輪粗暴刪除。
-4. 自動生成的 SKU 代碼需以可讀性優先，預設採 `型號-出廠年份`，同碼碰撞時補 `-02`、`-03`。
+4. 自動生成的產品項代碼需以可讀性優先，預設採 `型號-出廠年份`，同碼碰撞時補 `-02`、`-03`。
 5. 出廠年份雖然表達的是年份，但本輪以文字欄位保存，避免前端或報表將其格式化成千分位。
+6. 價格、規則與規則掛接都以年份產品項為識別，不因顏色不同而拆分。
 
 ---

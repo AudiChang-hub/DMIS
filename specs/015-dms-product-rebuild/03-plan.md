@@ -99,6 +99,8 @@
 - `dms.product.template.sku_ids` 關聯本身也需帶 `active_test=False`，避免頁籤與計數不一致
 - `sku_count` 改為僅統計啟用中的產品項，符合使用者對模板主列表數量的直覺
 - 補一個綁定到產品模板的 server action「複製」，避免 form 初始 edit 模式下看不到內建 Duplicate，並於模型 `copy()` 時一併複製產品項
+- 補一個綁定到價目版本的 server action「複製」，避免 form 初始 edit 模式下看不到內建 Duplicate，並於模型 `copy()` 時一併複製價格基準
+- `dms.price.version.copy()` 需自動重生不重複版本名稱，並將複製出的版本狀態重設為 `draft`
 - `dms.product.name_get()` 與 `_name_search()` 需帶出 `internal_code / 出廠年份 / 顏色`，改善價目版本與規則掛接的選取辨識度
 - 價目版本需補一個批次加入產品項精靈，支援多選 SKU 後一次建立多筆價格基準列
 - 批次加入精靈需提供共用 `cash_price / list_price` 欄位，建立時直接帶入每筆新增價格列

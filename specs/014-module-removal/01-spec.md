@@ -143,7 +143,7 @@
 
 ### 8.1 清理 `dms_catalog` 殘留 metadata
 
-當 `dms_catalog` 已從程式碼移除、資料庫中的模組狀態為 `uninstalled` 時，若仍殘留其 `ir.model` / `ir.model.data` / `ir.model.fields` 等註冊資料，Odoo 在 registry 載入時會出現「Model ... cannot be loaded」警告。
+當 `dms_catalog` 已從程式碼移除、資料庫中的模組狀態為 `uninstalled` 時，若仍殘留其 `ir.model` / `ir.model.data` / `ir.model.fields` 等註冊資料，或仍保留 `ir_module_module` 模組登記，Odoo 在維運與辨識上都會留下錯誤暗示。
 
 本輪需清理下列 **catalog-only** 模型的殘留註冊資料：
 
@@ -155,6 +155,8 @@
 - `dms.installment.rule.line`
 - `dms.fee.type`
 - `dms.installment.rule.fee`
+
+並移除 `ir_module_module` 中名稱為 `dms_catalog` 的未安裝模組登記，避免後續更新模組清單時仍看到這條錯誤路線。
 
 ### 8.2 不刪除現行 `dms_sale` 仍使用的模型
 
@@ -180,4 +182,4 @@
 - `specs/006-dms-sale/**`
 - `specs/011-dms-visit/**`
 
-原 `013-dms-catalog` 規格需標註為「已被 014 取代，不再作為實作依據」。
+原 `013-dms-catalog` 整套規格需自 repo 移除，相關歷史背景統一收斂於 `014-module-removal` 系列文件。

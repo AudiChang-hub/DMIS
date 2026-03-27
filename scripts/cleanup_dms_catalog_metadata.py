@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""清理已移除 dms_catalog 模組留下的資料庫 metadata。"""
+"""清理已移除 dms_catalog 模組留下的資料庫 metadata 與模組登記。"""
 
 from __future__ import annotations
 
@@ -147,6 +147,10 @@ def build_cleanup_sql() -> str:
         DELETE FROM ir_model_data
         WHERE module = 'dms_catalog';
 
+        DELETE FROM ir_module_module
+        WHERE name = 'dms_catalog'
+          AND state = 'uninstalled';
+
         COMMIT;
         """
     ).strip()
@@ -158,7 +162,7 @@ def print_header(title: str) -> None:
 
 def main() -> int:
     parser = argparse.ArgumentParser(
-        description="清理 dms_catalog 已移除後殘留的 metadata。"
+        description="清理 dms_catalog 已移除後殘留的 metadata 與模組登記。"
     )
     parser.add_argument("--database", default="dmis_dev", help="目標資料庫名稱")
     parser.add_argument("--user", default="odoo", help="PostgreSQL 使用者")
@@ -218,7 +222,7 @@ def main() -> int:
         print_header("dry-run 結束，未執行任何刪除。")
         return 0
 
-    print_header("開始執行清理。")
+    print_header("開始執行清理（含 ir_module_module 模組登記）。")
     run_psql(repo_root, build_cleanup_sql(), args.database, args.user)
 
     after_count = query_value(
@@ -228,11 +232,20 @@ def main() -> int:
         args.user,
     )
     after_models = query_rows(repo_root, stale_models_sql, args.database, args.user)
+    module_row_count = query_value(
+        repo_root,
+        "select count(*) from ir_module_module where name = 'dms_catalog';",
+        args.database,
+        args.user,
+    )
     print_header(f"清理後 dms_catalog ir_model_data 數量：{after_count}")
     if after_models:
         print_header("仍殘留以下 catalog-only ir.model：")
         for model in after_models:
             print(f"  - {model}")
+        return 1
+    if module_row_count != "0":
+        print_header("dms_catalog 模組登記仍存在於 ir_module_module，清理未完成。")
         return 1
 
     print_header("清理完成。")

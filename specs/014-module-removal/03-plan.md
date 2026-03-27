@@ -132,7 +132,7 @@ make smoke
 
 ### Phase 6：資料庫 metadata 與文件同步
 
-1. 執行維運腳本，清理 `dms_catalog` 的 catalog-only 殘留 metadata
+1. 執行維運腳本，清理 `dms_catalog` 的 catalog-only 殘留 metadata 與 `ir_module_module` 模組登記
 2. 再次執行：
 
 ```bash
@@ -150,7 +150,7 @@ docker compose exec odoo odoo -d dmis_dev -u dms_sale,dms_visit --db_host=db --d
    - `specs/000-roadmap/02-master-checklist.md`
    - `specs/006-dms-sale/**`
    - `specs/011-dms-visit/**`
-   - `specs/013-dms-catalog/01-spec.md`
+   - 刪除 `specs/013-dms-catalog/` 整個目錄
 
 ---
 

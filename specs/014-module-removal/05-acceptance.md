@@ -13,6 +13,7 @@
 ## Metadata 驗收
 - [x] `docker compose exec odoo odoo -d dmis_dev -u dms_sale,dms_visit --db_host=db --db_port=5432 --db_user=odoo --db_password=odoo --stop-after-init` 無 `dms_catalog` catalog-only 模型 warning
 - [x] `ir_model` 中不存在 `dms.product.template`、`dms.product.sku`、`dms.price.version`、`dms.price.line`、`dms.installment.rule`、`dms.installment.rule.line`、`dms.fee.type`、`dms.installment.rule.fee`
+- [x] `ir_module_module` 中不存在 `dms_catalog`
 - [x] 專案內提供可重複執行的 cleanup 腳本
 
 ## 資料完整性
@@ -63,7 +64,7 @@
 - [x] `docs/USER_MANUAL.md` 不再指示使用獨立的 `dms_product` / `dms_pricelist` App
 - [x] `docs/erd.md` 已標明 `dms.product` / `dms.vehicle.price` 等模型現由 `dms_sale` 持有
 - [x] `specs/006-dms-sale/**` 與 `specs/011-dms-visit/**` 的依賴描述已對齊現況
-- [x] `specs/013-dms-catalog/01-spec.md` 已標記為被 `014-module-removal` 取代
+- [x] `specs/013-dms-catalog/` 已自 repo 移除
 
 ## Tests
 - [x] `dms_core/tests/` 全部通過

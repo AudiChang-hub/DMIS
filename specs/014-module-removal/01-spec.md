@@ -141,9 +141,9 @@
 
 ## 八、移除後的資料庫收尾
 
-### 8.1 清理 `dms_catalog` 殘留 metadata
+### 8.1 清理已移除模組的殘留 metadata 與舊 UI 註冊
 
-當 `dms_catalog` 已從程式碼移除、資料庫中的模組狀態為 `uninstalled` 時，若仍殘留其 `ir.model` / `ir.model.data` / `ir.model.fields` 等註冊資料，或仍保留 `ir_module_module` 模組登記，Odoo 在維運與辨識上都會留下錯誤暗示。
+當 `dms_catalog` / `dms_product` / `dms_pricelist` 已從程式碼移除、資料庫中的模組狀態為 `uninstalled` 時，若仍殘留其 `ir.model_data`、`ir.ui.menu`、`ir.ui.view`、`ir.actions.*`、`ir.model.access` 或 `ir_module_module` 登記，Odoo 在維運與辨識上都會留下錯誤暗示。
 
 本輪需清理下列 **catalog-only** 模型的殘留註冊資料：
 
@@ -156,9 +156,19 @@
 - `dms.fee.type`
 - `dms.installment.rule.fee`
 
-並移除 `ir_module_module` 中名稱為 `dms_catalog` 的未安裝模組登記，避免後續更新模組清單時仍看到這條錯誤路線。
+同時需清理：
 
-### 8.2 不刪除現行 `dms_sale` 仍使用的模型
+- `dms_catalog` 的舊選單、舊 action、舊 view 與未安裝模組登記
+- `dms_product` 的舊頂層「產品管理」選單、對應 action/view/ACL，以及舊模組 xmlid / 模組登記
+- `dms_pricelist` 的舊頂層「價目管理」選單、對應 action/view/ACL，以及舊模組 xmlid / 模組登記
+
+目標是讓使用者在畫面上只看到「銷售管理 → 產品資料 / 價目資料」，不再看到舊獨立 App 或殘留的「產品目錄」。
+
+### 8.2 共享模型只移除舊 xmlid，不刪除實體模型
+
+對於 `dms_product` / `dms_pricelist` 搬入 `dms_sale` 的共享模型，清理腳本只可刪除舊模組 xmlid，且前提是同一 `res_id` 已由 `dms_sale` 接手；不得直接刪除 `ir.model` / `ir.model.fields` 實體紀錄。
+
+### 8.3 不刪除現行 `dms_sale` 仍使用的模型
 
 下列模型雖曾在 `dms_catalog` 出現過，但目前已由 `dms_sale` 接手，**不得**因清理腳本而刪除：
 

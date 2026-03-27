@@ -261,7 +261,7 @@ docker compose exec -T odoo bash -lc \
 | 確認服務狀態 | `make ps` | `docker compose ps` |
 | Smoke 測試 | `make smoke` | `bash scripts/smoke_odoo.sh` |
 | 重啟 Odoo | — | `docker compose restart odoo` |
-| 清理 dms_catalog 殘留 metadata / 模組登記 | — | `python3 scripts/cleanup_dms_catalog_metadata.py` |
+| 清理已移除模組殘留 metadata / 舊頂層選單 / 模組登記 | — | `python3 scripts/cleanup_dms_catalog_metadata.py` |
 
 ### 手動安裝/更新模組
 
@@ -301,7 +301,7 @@ DMIS/
 │   ├── smoke_odoo.sh           # Smoke 測試（bash）
 │   ├── smoke_odoo.ps1          # Smoke 測試（PowerShell）
 │   ├── validate_views_fields.py # 視圖欄位驗證
-│   └── cleanup_dms_catalog_metadata.py # 清理已移除模組 metadata 與模組登記
+│   └── cleanup_dms_catalog_metadata.py # 清理已移除模組 metadata、舊頂層選單與模組登記
 ├── specs/                      # 模組規格文件（spec-first）
 ├── logs/                       # 容器日誌（.gitignore 排除 *.log）
 ├── docker-compose.yml          # Docker Compose 設定

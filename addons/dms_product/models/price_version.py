@@ -41,6 +41,26 @@ class DmsPriceVersion(models.Model):
         }
 
     @api.model
+    def _next_copy_name(self, base_name):
+        suffix = '（複製）'
+        candidate = f'{base_name}{suffix}'
+        counter = 2
+        while self.search_count([('name', '=', candidate)]):
+            candidate = f'{base_name}{suffix}{counter}'
+            counter += 1
+        return candidate
+
+    def copy(self, default=None):
+        self.ensure_one()
+        default = dict(default or {})
+        default.setdefault('name', self._next_copy_name(self.name))
+        default.setdefault('state', 'draft')
+        copied_version = super().copy(default)
+        for line in self.line_ids:
+            line.copy({'version_id': copied_version.id})
+        return copied_version
+
+    @api.model
     def _parse_legacy_effective_date(self, value):
         if value:
             try:

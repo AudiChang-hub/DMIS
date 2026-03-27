@@ -68,6 +68,13 @@ class DmsProductTemplate(models.Model):
                 return template
         return self.browse()
 
+    def copy(self, default=None):
+        default = dict(default or {})
+        copied_template = super().copy(default)
+        for sku in self.with_context(active_test=False).sku_ids:
+            sku.copy({'template_id': copied_template.id})
+        return copied_template
+
     @api.model
     def _find_or_create_from_legacy(self, product):
         template = self._find_matching_template(

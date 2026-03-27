@@ -126,6 +126,8 @@ class TestDmsProductPrice(TransactionCase):
 
         wizard = self.env['dms.price.version.bulk.add.wizard'].create({
             'version_id': version.id,
+            'cash_price': 88888,
+            'list_price': 92888,
             'product_ids': [(6, 0, [self.product.id, product_2.id])],
         })
         action = wizard.action_add_lines()
@@ -133,7 +135,7 @@ class TestDmsProductPrice(TransactionCase):
 
         self.assertEqual(len(lines), 2)
         self.assertEqual(set(lines.mapped('product_id').ids), {self.product.id, product_2.id})
-        self.assertEqual(set(lines.mapped('cash_price')), {0})
-        self.assertEqual(set(lines.mapped('list_price')), {0})
+        self.assertEqual(set(lines.mapped('cash_price')), {88888})
+        self.assertEqual(set(lines.mapped('list_price')), {92888})
         self.assertEqual(action['type'], 'ir.actions.client')
         self.assertEqual(action['tag'], 'reload')

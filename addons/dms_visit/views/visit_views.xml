@@ -45,17 +45,6 @@
             <group string="拜訪資訊" col="1">
               <field name="visit_date"/>
               <field name="dealer_id"/>
-              <button name="%(action_dms_visit_bulk_create_wizard)d"
-                      type="action"
-                      string="批次選擇車行"
-                      class="oe_link"
-                      colspan="2"
-                      context="{
-                        'default_visit_date': visit_date,
-                        'default_visitor_id': visitor_id,
-                        'default_purpose_id': purpose_id,
-                        'default_note': note
-                      }"/>
               <field name="dealer_address" readonly="1"
                      attrs="{'invisible': [('dealer_id', '=', False)]}"/>
               <field name="dealer_address_map_url" widget="url"

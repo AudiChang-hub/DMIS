@@ -5,8 +5,8 @@
 採用「新增 wizard，不改主模型語意」方式：
 
 1. 在 `dms_visit/wizard/` 新增 `visit_bulk_create_wizard.py`
-2. 在 `dms.visit` 加上開啟 wizard 的方法
-3. 在 `visit_views.xml` 提供入口
+2. 以主選單提供批次建立入口
+3. 單筆拜訪表單維持原有欄位順序與版面
 4. 由 wizard 一次建立多筆 `dms.visit`
 
 ## 2. 修改範圍
@@ -30,8 +30,8 @@
 ## 3. 視圖策略
 
 - 單筆表單保留 `dealer_id`
-- 於拜訪資訊區加入 `批次選擇車行` 按鈕
 - 增加一個可從 action/menu 開啟的 `批次建立拜訪` modal
+- 行事曆雙擊開啟的表單不嵌入批次建立按鈕
 
 ## 4. 權限策略
 

@@ -26,7 +26,7 @@ class TestDmsProductMigrationCompat(TransactionCase):
         legacy_product.invalidate_recordset()
 
         self.assertTrue(legacy_product.template_id)
-        self.assertEqual(legacy_product.production_year, 2026)
+        self.assertEqual(legacy_product.production_year, '2026')
         self.assertEqual(legacy_product.internal_code, 'TSTMIGA1-2026')
 
     def test_02_run_product_backfill_rewrites_legacy_generated_code(self):
@@ -45,6 +45,7 @@ class TestDmsProductMigrationCompat(TransactionCase):
         self.env['dms.product']._run_product_backfill()
         legacy_product.invalidate_recordset()
 
+        self.assertEqual(legacy_product.production_year, '2026')
         self.assertEqual(legacy_product.internal_code, 'TSTMIGB1-2026')
 
     def test_03_run_price_and_rule_backfill_for_legacy_models(self):

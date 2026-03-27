@@ -108,7 +108,7 @@ dms_product {
     int    template_id      FK
     int    brand_id         FK
     string internal_code    "unique"
-    int    production_year
+    string production_year
     string color
     string name             "legacy 機種快照"
     string model            "legacy 型號快照"

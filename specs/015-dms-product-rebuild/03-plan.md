@@ -69,6 +69,7 @@
 - `production_year`
 - 相容同步方法 / helper 方法
 - SKU 代碼生成規則改為「型號 + 出廠年份」，若衝突則補序號尾碼
+- `production_year` 改為文字欄位，並在相容同步時自動去除逗點格式
 
 ---
 
@@ -139,6 +140,7 @@
    - 回填 `dms.product.template_id`
    - 將舊式自動生成碼更新為「型號 + 出廠年份」格式
    - 回填 `production_year`
+   - 將 `production_year` 正規化為純年份文字，例如 `2,026` → `2026`
 3. 若 legacy price / installment 有資料，再搬到 `dms.price.version` / `dms.price.line` / `dms.installment.rule*`
 4. 調整 `dms_visit`，讓送出物品先脫鉤為獨立輸入
 5. 升級 `dms_sale`，使查價邏輯支援新 canonical 模型

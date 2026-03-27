@@ -12,17 +12,17 @@ class DmsProductCompat(models.Model):
     template_id = fields.Many2one(
         'dms.product.template', string='產品模板', ondelete='restrict')
     internal_code = fields.Char(string='內部唯一代碼', index=True, copy=False)
-    production_year = fields.Integer(string='出廠年份')
+    production_year = fields.Char(string='出廠年份')
 
     _sql_constraints = [
         ('unique_internal_code', 'unique(internal_code)', '內部唯一代碼不可重複。'),
     ]
 
-    def _parse_year_value(self, value):
-        try:
-            return int(value)
-        except (TypeError, ValueError):
+    def _normalize_year_value(self, value):
+        if value in (False, None, ''):
             return False
+        normalized = str(value).strip().replace(',', '')
+        return normalized or False
 
     def _sanitize_code_part(self, value):
         token = re.sub(r'[^A-Z0-9]+', '-', (value or '').upper()).strip('-')
@@ -33,8 +33,8 @@ class DmsProductCompat(models.Model):
         model_token = self._sanitize_code_part(
             self.model or self.template_id.model_name or self.name or self.template_id.family_name
         )
-        year_value = self.production_year or self._parse_year_value(self.year)
-        year_token = self._sanitize_code_part(str(year_value)) if year_value else ''
+        year_value = self._normalize_year_value(self.production_year or self.year)
+        year_token = self._sanitize_code_part(year_value) if year_value else ''
         parts = [part for part in [model_token, year_token] if part]
         return "-".join(parts)
 
@@ -65,8 +65,9 @@ class DmsProductCompat(models.Model):
             vals['name'] = self.template_id.family_name
             vals['model'] = self.template_id.model_name or False
             vals['energy_type'] = self.template_id.energy_type
-        if self.production_year and str(self.production_year) != (self.year or ''):
-            vals['year'] = str(self.production_year)
+        normalized_year = self._normalize_year_value(self.production_year)
+        if normalized_year and normalized_year != (self.year or ''):
+            vals['year'] = normalized_year
         return vals
 
     @api.model
@@ -82,7 +83,7 @@ class DmsProductCompat(models.Model):
         prepared.setdefault('model', template.model_name or False)
         prepared.setdefault('energy_type', template.energy_type)
         if prepared.get('production_year') and not prepared.get('year'):
-            prepared['year'] = str(prepared['production_year'])
+            prepared['year'] = self._normalize_year_value(prepared['production_year'])
         return prepared
 
     def _ensure_template_from_legacy(self):
@@ -104,10 +105,13 @@ class DmsProductCompat(models.Model):
                 vals['template_id'] = template.id
             if not record.internal_code or record._has_legacy_generated_code():
                 vals['internal_code'] = record._build_generated_code()
-            if not record.production_year:
-                parsed_year = record._parse_year_value(record.year)
-                if parsed_year:
-                    vals['production_year'] = parsed_year
+            normalized_production_year = record._normalize_year_value(record.production_year)
+            if normalized_production_year != (record.production_year or False):
+                vals['production_year'] = normalized_production_year
+            if not normalized_production_year:
+                normalized_year = record._normalize_year_value(record.year)
+                if normalized_year:
+                    vals['production_year'] = normalized_year
             if template:
                 vals.update(record._prepare_template_sync_vals())
             if vals:

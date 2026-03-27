@@ -43,6 +43,11 @@
                   <field name="production_year"/>
                   <field name="color"/>
                   <field name="active"/>
+                  <button name="action_duplicate_from_template_tab"
+                          type="object"
+                          icon="fa-copy"
+                          string="複製"
+                          title="複製產品項"/>
                 </tree>
               </field>
             </page>

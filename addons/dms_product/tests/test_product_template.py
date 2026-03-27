@@ -197,3 +197,32 @@ class TestDmsProductTemplate(TransactionCase):
         template.write({'sku_ids': [(2, sku.id, 0)]})
 
         self.assertFalse(self.env['dms.product'].with_context(active_test=False).browse(sku.id).exists())
+
+    def test_10_template_tab_can_duplicate_sku(self):
+        template = self.env['dms.product.template'].create({
+            'brand_id': self.brand.id,
+            'family_name': '測試車系 G',
+            'type_name': '雙碟',
+            'model_name': 'TSTDUP1',
+            'energy_type': 'oil',
+        })
+        sku = self.env['dms.product'].create({
+            'template_id': template.id,
+            'production_year': '2026',
+            'color': '鈦灰',
+            'active': True,
+        })
+
+        action = sku.action_duplicate_from_template_tab()
+        template.invalidate_recordset()
+        copied_skus = template.sku_ids.sorted('id')
+        copied_sku = copied_skus[-1]
+
+        self.assertEqual(len(copied_skus), 2)
+        self.assertNotEqual(copied_sku.id, sku.id)
+        self.assertEqual(copied_sku.template_id, template)
+        self.assertEqual(copied_sku.production_year, sku.production_year)
+        self.assertEqual(copied_sku.color, sku.color)
+        self.assertNotEqual(copied_sku.internal_code, sku.internal_code)
+        self.assertEqual(action['res_model'], 'dms.product.template')
+        self.assertEqual(action['res_id'], template.id)

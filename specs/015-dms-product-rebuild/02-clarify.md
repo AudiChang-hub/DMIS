@@ -156,6 +156,7 @@ legacy 相容與交易沿用部分仍由 `dms_sale` / `dms_product` 共同承接
 - 新模組需提供 migration，把舊 `dms.product` 補齊 `template_id`、`internal_code`、`production_year`
 - `internal_code` 的自動生成規則需兼顧可讀性，因此本輪改採「型號 + 出廠年份」為主格式；若同型號同年份有多筆 SKU，再補序號尾碼維持唯一性
 - `production_year` 需改為文字欄位，避免 Odoo 將年份格式化為 `2,026`
+- 使用者介面上不再提供獨立 SKU 頁面，僅保留在產品模板表單中的產品項頁籤維護
 
 ### D3：價格與規則走新模型，`dms_sale` 只做最小必要 lookup 調整
 

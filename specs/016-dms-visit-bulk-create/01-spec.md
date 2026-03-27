@@ -37,9 +37,13 @@
 ### 2.1 拜訪表單
 
 - 保留原本 `dealer_id` 單選欄位，供建立單筆拜訪使用
-- 拜訪資訊區採單欄直排，欄位順序為：
+- 拜訪表單版面維持既有 `dms_visit` 歷史版本的群組配置，不重排既有欄位結構
+- 拜訪資訊區保留原本欄位順序：
   - `visit_date`
   - `dealer_id`
+  - `dealer_address`
+  - `dealer_address_map_url`
+  - `dealer_phone`
   - `visitor_id`
   - `purpose_id`
 - 單筆表單不提供批次建立入口，避免影響行事曆雙擊後的編輯體驗
@@ -68,7 +72,7 @@
 - 不修改 `dms.visit.dealer_id` 欄位型態
 - 不改變拜訪清單、行事曆、搜尋、group by 的資料基礎
 - 既有自動排程 `dms.visit.schedule` 不受本次影響
-- 行事曆雙擊開啟的單筆表單版面維持穩定
+- 行事曆雙擊開啟的單筆表單版面維持既有歷史樣式
 
 ## 5. 驗收重點
 

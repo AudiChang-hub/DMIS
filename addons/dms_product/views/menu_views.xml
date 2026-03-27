@@ -1,0 +1,121 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+  <record id="dms_sale.menu_dms_product_group" model="ir.ui.menu">
+    <field name="groups_id" eval="[(6, 0, [ref('base.group_no_one')])]"/>
+  </record>
+
+  <record id="dms_sale.menu_product" model="ir.ui.menu">
+    <field name="groups_id" eval="[(6, 0, [ref('base.group_no_one')])]"/>
+  </record>
+
+  <record id="dms_sale.menu_product_kanban_config" model="ir.ui.menu">
+    <field name="groups_id" eval="[(6, 0, [ref('base.group_no_one')])]"/>
+  </record>
+
+  <record id="dms_sale.menu_dms_pricelist_group" model="ir.ui.menu">
+    <field name="groups_id" eval="[(6, 0, [ref('base.group_no_one')])]"/>
+  </record>
+
+  <record id="dms_sale.menu_vehicle_price" model="ir.ui.menu">
+    <field name="groups_id" eval="[(6, 0, [ref('base.group_no_one')])]"/>
+  </record>
+
+  <record id="dms_sale.menu_ev_fee_schedule" model="ir.ui.menu">
+    <field name="groups_id" eval="[(6, 0, [ref('base.group_no_one')])]"/>
+  </record>
+
+  <record id="dms_sale.menu_accessory" model="ir.ui.menu">
+    <field name="groups_id" eval="[(6, 0, [ref('base.group_no_one')])]"/>
+  </record>
+
+  <record id="dms_sale.menu_commission_rule" model="ir.ui.menu">
+    <field name="groups_id" eval="[(6, 0, [ref('base.group_no_one')])]"/>
+  </record>
+
+  <menuitem id="menu_dms_product_root"
+            name="產品管理"
+            sequence="75"/>
+
+  <menuitem id="menu_dms_product_master_group"
+            name="產品主資料"
+            parent="menu_dms_product_root"
+            sequence="10"/>
+
+  <menuitem id="menu_product_template"
+            name="產品模板"
+            parent="menu_dms_product_master_group"
+            action="action_product_template"
+            sequence="10"/>
+
+  <menuitem id="menu_product_sku"
+            name="產品項 / SKU"
+            parent="menu_dms_product_master_group"
+            action="dms_sale.action_product"
+            sequence="20"/>
+
+  <menuitem id="menu_dms_product_pricing_group"
+            name="價格與規則"
+            parent="menu_dms_product_root"
+            sequence="20"/>
+
+  <menuitem id="menu_price_version"
+            name="價目版本"
+            parent="menu_dms_product_pricing_group"
+            action="action_price_version"
+            sequence="10"/>
+
+  <menuitem id="menu_price_line"
+            name="價格基準"
+            parent="menu_dms_product_pricing_group"
+            action="action_price_line"
+            sequence="20"/>
+
+  <menuitem id="menu_installment_rule"
+            name="分期規則模板"
+            parent="menu_dms_product_pricing_group"
+            action="action_installment_rule"
+            sequence="30"/>
+
+  <menuitem id="menu_fee_type"
+            name="費用類型"
+            parent="menu_dms_product_pricing_group"
+            action="action_fee_type"
+            sequence="40"/>
+
+  <menuitem id="menu_installment_rule_binding"
+            name="規則掛接"
+            parent="menu_dms_product_pricing_group"
+            action="action_installment_rule_binding"
+            sequence="50"/>
+
+  <menuitem id="menu_dms_product_legacy_group"
+            name="相容資料"
+            parent="menu_dms_product_root"
+            sequence="30"/>
+
+  <menuitem id="menu_legacy_vehicle_price"
+            name="舊車款售價"
+            parent="menu_dms_product_legacy_group"
+            action="dms_sale.action_vehicle_price"
+            sequence="10"/>
+
+  <menuitem id="menu_legacy_ev_fee_schedule"
+            name="舊電車牌險費率"
+            parent="menu_dms_product_legacy_group"
+            action="dms_sale.action_ev_fee_schedule"
+            sequence="20"/>
+
+  <menuitem id="menu_legacy_accessory"
+            name="舊精品售價"
+            parent="menu_dms_product_legacy_group"
+            action="dms_sale.action_accessory"
+            sequence="30"/>
+
+  <menuitem id="menu_legacy_commission_rule"
+            name="舊傭金規則"
+            parent="menu_dms_product_legacy_group"
+            action="dms_sale.action_commission_rule"
+            sequence="40"/>
+
+</odoo>

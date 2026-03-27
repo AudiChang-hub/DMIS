@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+  <record id="view_product_template_tree" model="ir.ui.view">
+    <field name="name">dms.product.template.tree</field>
+    <field name="model">dms.product.template</field>
+    <field name="arch" type="xml">
+      <tree string="產品模板">
+        <field name="brand_id" optional="show"/>
+        <field name="family_name" optional="show"/>
+        <field name="type_name" optional="show"/>
+        <field name="model_name" optional="show"/>
+        <field name="energy_type" optional="show"/>
+        <field name="sku_count" optional="show"/>
+        <field name="active" optional="show"/>
+      </tree>
+    </field>
+  </record>
+
+  <record id="view_product_template_form" model="ir.ui.view">
+    <field name="name">dms.product.template.form</field>
+    <field name="model">dms.product.template</field>
+    <field name="arch" type="xml">
+      <form string="產品模板">
+        <sheet>
+          <group>
+            <group>
+              <field name="brand_id"/>
+              <field name="family_name"/>
+              <field name="type_name"/>
+              <field name="model_name"/>
+            </group>
+            <group>
+              <field name="energy_type"/>
+              <field name="active"/>
+            </group>
+          </group>
+          <notebook>
+            <page string="產品項 / SKU">
+              <field name="sku_ids" context="{'default_template_id': active_id}">
+                <tree>
+                  <field name="internal_code"/>
+                  <field name="production_year"/>
+                  <field name="color"/>
+                  <field name="active"/>
+                </tree>
+              </field>
+            </page>
+            <page string="備註">
+              <field name="note" nolabel="1"/>
+            </page>
+          </notebook>
+        </sheet>
+      </form>
+    </field>
+  </record>
+
+  <record id="view_product_template_search" model="ir.ui.view">
+    <field name="name">dms.product.template.search</field>
+    <field name="model">dms.product.template</field>
+    <field name="arch" type="xml">
+      <search string="搜尋產品模板">
+        <field name="brand_id"/>
+        <field name="family_name"/>
+        <field name="type_name"/>
+        <field name="model_name"/>
+        <filter name="filter_active" string="啟用中" domain="[('active', '=', True)]"/>
+        <filter name="filter_archived" string="已歸檔" domain="[('active', '=', False)]"/>
+        <group expand="0" string="分組">
+          <filter name="groupby_brand" string="品牌" context="{'group_by': 'brand_id'}"/>
+          <filter name="groupby_energy" string="能源型式" context="{'group_by': 'energy_type'}"/>
+        </group>
+      </search>
+    </field>
+  </record>
+
+  <record id="action_product_template" model="ir.actions.act_window">
+    <field name="name">產品模板</field>
+    <field name="res_model">dms.product.template</field>
+    <field name="view_mode">tree,form</field>
+    <field name="context">{'form_view_initial_mode': 'edit'}</field>
+  </record>
+
+</odoo>

@@ -1,5 +1,8 @@
 # 規格（01-spec）— 014-module-removal
 
+> 歷史註記（2026-03-27）：
+> 本文件描述的是 014 階段「移除舊模組、維持既有流程不壞」的收尾設計。自 `015-dms-product-rebuild` 起，新的 `dms_product` 已重新建立為正式產品入口；因此本文件僅作歷史脈絡與清理規則說明，不再代表目前產品管理的最終架構。
+
 ## 一、現況依賴分析
 
 ### 被移除模組提供的模型
@@ -143,26 +146,19 @@
 
 ### 8.1 清理已移除模組的殘留 metadata 與舊 UI 註冊
 
-當 `dms_catalog` / `dms_product` / `dms_pricelist` 已從程式碼移除、資料庫中的模組狀態為 `uninstalled` 時，若仍殘留其 `ir.model_data`、`ir.ui.menu`、`ir.ui.view`、`ir.actions.*`、`ir.model.access` 或 `ir_module_module` 登記，Odoo 在維運與辨識上都會留下錯誤暗示。
+當 `dms_catalog` / `dms_pricelist` 已從程式碼移除、資料庫中的模組狀態為 `uninstalled` 時，若仍殘留其 `ir.model_data`、`ir.ui.menu`、`ir.ui.view`、`ir.actions.*`、`ir.model.access` 或 `ir_module_module` 登記，Odoo 在維運與辨識上都會留下錯誤暗示。另因 `015` 重新使用 `dms_product` 這個技術名稱，還需清理重建前遺留的孤兒 `base.module_dms_product` XML ID。
 
 本輪需清理下列 **catalog-only** 模型的殘留註冊資料：
 
-- `dms.product.template`
 - `dms.product.sku`
-- `dms.price.version`
-- `dms.price.line`
-- `dms.installment.rule`
-- `dms.installment.rule.line`
-- `dms.fee.type`
-- `dms.installment.rule.fee`
 
 同時需清理：
 
 - `dms_catalog` 的舊選單、舊 action、舊 view 與未安裝模組登記
-- `dms_product` 的舊頂層「產品管理」選單、對應 action/view/ACL，以及舊模組 xmlid / 模組登記
 - `dms_pricelist` 的舊頂層「價目管理」選單、對應 action/view/ACL，以及舊模組 xmlid / 模組登記
+- 重建 `dms_product` 前殘留的孤兒 `base.module_dms_product` XML ID
 
-目標是讓使用者在畫面上只看到「銷售管理 → 產品資料 / 價目資料」，不再看到舊獨立 App 或殘留的「產品目錄」。
+目標是讓使用者不再看到舊獨立 App 或殘留的「產品目錄 / 價目管理」，並為後續 `015` 新 `dms_product` 的正式產品管理入口騰出乾淨的資料庫狀態。
 
 ### 8.2 共享模型只移除舊 xmlid，不刪除實體模型
 

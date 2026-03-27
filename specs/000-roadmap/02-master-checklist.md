@@ -5,9 +5,10 @@
 > 開發順序：spec 文件 → 模型 → 視圖 → ACL → 測試 → 升級驗證。
 
 > 2026-03-27 現況快照：
-> - `dms_product`、`dms_pricelist` 已依 `014-module-removal` 整併至 `dms_sale`
+> - 舊 `dms_product`、`dms_pricelist` 已依 `014-module-removal` 完成清理與收尾
+> - 新 `dms_product` 已依 `015-dms-product-rebuild` 重建，成為正式產品入口
 > - `dms_visit`、`dms_finance`、`dms_report`、`dms_report_rule`、`dms_report_virtual`、`user_management` 均已有程式碼與已安裝模組
-> - 下列 checklist 保留歷史開發軌跡，但目前架構應以 `dms_sale` 整併後版本為準
+> - 下列 checklist 保留歷史開發軌跡，但目前架構應以 `015-dms-product-rebuild` 後版本為準
 
 ---
 
@@ -26,14 +27,15 @@
 - [x] manifest：application=True，name="DMS 車行管理"
 - [x] 頂層選單：menu_dms_root（name="車行管理"）
 
-### dms_product（產品管理，已整併至 dms_sale）
-- [x] 模型：dms.product（基本資料、油車/電車/車身規格，全 Char）
-- [x] 視圖：product tree（8 show + 22 hide）+ form（4 頁籤，動力依 energy_type 切換）
-- [x] 視圖：search（名稱/型號/品牌）+ 油/電/啟用篩選
-- [x] ACL：dms.product 全員讀寫
-- [x] JS：product 列表 15 欄硬限制
-- [x] manifest：application=True，depends=[dms_core, web]
-- [x] 頂層選單：menu_dms_product_root（獨立 App，不掛 dms_core 下）
+### dms_product（產品管理，015 重建）
+- [x] 模型：`dms.product.template`
+- [x] 模型：`dms.product` 作為 SKU 相容層（`template_id / internal_code / production_year`）
+- [x] 模型：`dms.price.version` / `dms.price.line`
+- [x] 模型：`dms.installment.rule*` / `dms.fee.type`
+- [x] 視圖：產品模板 / 產品項 / SKU / 價目版本 / 價格基準 / 分期規則模板 / 費用類型 / 規則掛接
+- [x] ACL：新 canonical 模型全員讀寫
+- [x] manifest：application=True，depends=[dms_core, dms_sale]
+- [x] 頂層選單：menu_dms_product_root（正式產品管理入口）
 
 ---
 
@@ -75,7 +77,7 @@
 
 ---
 
-### ✅ dms_pricelist（價目管理，已整併至 dms_sale）
+### ✅ dms_pricelist（歷史模組，已移除）
 > Spec 目錄：`specs/005-dms-pricelist/`
 
 - [x] **Spec**
@@ -102,7 +104,7 @@
 
 - [x] **視圖**：各模型有 tree（所有欄位 optional）/ form / search （啟用中/已歸檔）
 - [x] **ACL**：各模型全員讀寫
-- [x] 頂層選單：menu_dms_pricelist_root（獨立 App）
+- [x] 舊頂層選單與模組登記已清理
 
 - [x] **驗證**
   - [x] `--stop-after-init -u dms_pricelist` 無 ERROR（239 queries）2026-03-04
@@ -135,7 +137,8 @@
   - [x] onchange: accessory_id 帶入價格
 
 - [x] **onchange**
-  - [x] product_id → 自動帶入 cash_price；電車 → 自動帶入牌險費
+  - [x] product_id → 優先從 `dms.price.line` 帶入 cash_price；無資料時 fallback `dms.vehicle.price`
+  - [x] 電車 → 自動帶入牌險費
   - [x] dealer_id / product_id / installment_periods → 自動帶入 commission
 
 - [x] **視圖**（5 頁籤 form）
@@ -152,7 +155,8 @@
   - [x] `--stop-after-init -u dms_sale` 無 ERROR（108 queries）2026-03-04
   - [x] `/web/login` HTTP 200
   - [x] DB 資料表：dms_sale_order（43 欄）/ dms_sale_order_line 均存在
-  - [ ] 手動建單：選車款帶售價、電車帶牌險費、選車行帶傭金
+  - [x] Odoo 測試：選車款帶售價（新 canonical 優先 / legacy fallback）
+  - [ ] 手動建單：電車帶牌險費、選車行帶傭金
   - [ ] 精品明細：新增精品行帶入價格、小計計算正確
 
 ---

@@ -48,9 +48,15 @@ cancel → draft (action_draft)
 | 欄位 | 類型 | 說明 |
 |------|------|------|
 | `visit_id` | Many2one → dms.visit | 所屬拜訪，必填，ondelete=cascade |
-| `product_id` | Many2one → dms.product | 產品，必填，ondelete=restrict（模型由 `dms_sale` 提供） |
+| `item_name` | Char | 送出物品名稱，本輪主要輸入欄位 |
+| `product_id` | Many2one → dms.product | 歷史相容欄位，改為非必填，ondelete=set null |
 | `quantity` | Float | 數量，預設 1.0 |
 | `note` | Text | 備註 |
+
+規則：
+
+- `item_name` 與 `product_id` 至少需擇一填寫
+- 本輪以 `item_name` 為主要輸入方式，待後續產品管理穩定後，再以新 spec 規劃是否接回 canonical SKU
 
 ### 1.4 dms.dealer（繼承擴充）
 
@@ -83,7 +89,7 @@ cancel → draft (action_draft)
   - 基本資訊群組：`name`、`visit_date`、`dealer_id`、`dealer_address`（唯讀）、`dealer_phone`（唯讀）、`visitor_id`、`purpose_id`、`company_id`
   - Notebook：
     - 「備註」頁籤：`note`
-    - 「送出物品」頁籤：`item_ids` editable tree（product_id、quantity、note）
+    - 「送出物品」頁籤：`item_ids` editable tree（item_name、quantity、note）
 
 #### Calendar 視圖
 ```xml

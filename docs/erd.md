@@ -4,7 +4,7 @@
 >
 > **維護規範**：每次 DB Schema（model）異動，**必須同步更新本檔**。
 >
-> **014 架構備註**：原 `dms_product` / `dms_pricelist` 已整併至 `dms_sale`。下方仍沿用既有技術模型名稱（如 `dms.product`、`dms.vehicle.price`），但其宿主模組已是 `dms_sale`。
+> **015 架構備註**：新 `dms_product` 已重建為獨立模組，提供 canonical 的模板 / SKU / 價格 / 分期 / 費用結構；`dms_sale` 則保留交易流程與 legacy 相容模型。
 
 ```mermaid
 erDiagram
@@ -90,16 +90,30 @@ dms_old_vehicle {
 }
 
 %% ─────────────────────────────────────────────
-%%  dms_sale 接手的產品模型
+%%  dms_product / dms_sale 相容 SKU 模型
 %% ─────────────────────────────────────────────
 
+dms_product_template {
+    int    id               PK
+    int    brand_id         FK
+    string family_name
+    string type_name
+    string model_name
+    string energy_type      "oil / electric"
+    bool   active
+}
+
 dms_product {
-    int    id          PK
-    int    brand_id    FK
-    string name
-    string model
-    string year
-    string energy_type  "oil / electric"
+    int    id               PK
+    int    template_id      FK
+    int    brand_id         FK
+    string internal_code    "unique"
+    int    production_year
+    string color
+    string name             "legacy 機種快照"
+    string model            "legacy 型號快照"
+    string year             "legacy 年份快照"
+    string energy_type      "oil / electric"
     bool   active
 }
 
@@ -112,11 +126,67 @@ dms_product_color {
 }
 
 %% ─────────────────────────────────────────────
-%%  dms_sale 接手的價目模型
+%%  dms_product canonical 價格 / 規則模型
+%% ─────────────────────────────────────────────
+
+dms_price_version {
+    int    id               PK
+    string name
+    date   effective_date
+    string state            "draft / effective / archive"
+}
+
+dms_price_line {
+    int    id               PK
+    int    version_id       FK
+    int    product_id       FK
+    float  cash_price
+    float  list_price
+}
+
+dms_installment_rule {
+    int    id               PK
+    string name
+    bool   active
+}
+
+dms_installment_rule_line {
+    int    id               PK
+    int    rule_id          FK
+    int    period_from
+    int    period_to
+    string price_basis      "cash / list"
+}
+
+dms_fee_type {
+    int    id               PK
+    string name
+    string code             "unique"
+    bool   active
+}
+
+dms_installment_rule_fee {
+    int    id               PK
+    int    rule_line_id     FK
+    int    fee_type_id      FK
+    float  amount
+    string charge_mode      "extra / included / company_absorb"
+}
+
+dms_installment_rule_binding {
+    int    id               PK
+    int    product_id       FK
+    int    price_version_id FK
+    int    rule_id          FK
+    bool   active
+}
+
+%% ─────────────────────────────────────────────
+%%  dms_sale legacy 相容價目模型
 %% ─────────────────────────────────────────────
 
 dms_vehicle_price {
-    int     id               PK
+    int     id              PK
     int     product_id       FK
     float   cash_price
     string  valid_year_month
@@ -344,11 +414,12 @@ dms_visit {
 }
 
 dms_visit_item {
-    int   id          PK
-    int   visit_id    FK
-    int   product_id  FK
-    float quantity
-    text  note
+    int    id          PK
+    int    visit_id    FK
+    int    product_id  FK "legacy optional"
+    string item_name
+    float  quantity
+    text   note
 }
 
 %% ─────────────────────────────────────────────
@@ -368,12 +439,24 @@ dms_dealer                 }o--o{  dms_brand                 : "brand_ids (M2M)"
 res_partner                ||--o{  dms_old_vehicle           : "old_vehicle_ids"
 dms_old_vehicle            }o--||  res_partner               : "partner_id"
 
-%% dms_sale 接手的產品模型
+%% dms_product / dms_sale 相容 SKU 模型
+dms_product_template       }o--||  dms_brand                 : "brand_id"
+dms_product                }o--||  dms_product_template      : "template_id"
 dms_product                }o--||  dms_brand                 : "brand_id"
 dms_product                ||--o{  dms_product_color         : "color_ids"
 dms_product_color          }o--||  dms_product               : "product_id"
 
-%% dms_sale 接手的價目模型
+%% dms_product canonical 價格 / 規則模型
+dms_price_line             }o--||  dms_price_version         : "version_id"
+dms_price_line             }o--||  dms_product               : "product_id"
+dms_installment_rule_line  }o--||  dms_installment_rule      : "rule_id"
+dms_installment_rule_fee   }o--||  dms_installment_rule_line : "rule_line_id"
+dms_installment_rule_fee   }o--||  dms_fee_type              : "fee_type_id"
+dms_installment_rule_binding }o--|| dms_product              : "product_id"
+dms_installment_rule_binding }o--|| dms_price_version        : "price_version_id"
+dms_installment_rule_binding }o--|| dms_installment_rule     : "rule_id"
+
+%% dms_sale legacy 相容價目模型
 dms_vehicle_price          }o--||  dms_product               : "product_id"
 dms_vehicle_price          ||--o{  dms_installment_plan      : "installment_ids"
 dms_installment_plan       }o--||  dms_vehicle_price         : "price_id"
@@ -419,7 +502,7 @@ dms_visit              }o--||  res_users            : "visitor_id"
 dms_visit              }o--o|  dms_visit_purpose    : "purpose_id"
 dms_visit              ||--o{  dms_visit_item       : "item_ids"
 dms_visit_item         }o--||  dms_visit            : "visit_id"
-dms_visit_item         }o--||  dms_product          : "product_id"
+dms_visit_item         }o--o|  dms_product          : "product_id（歷史相容）"
 
 %% dms.dealer 繼承擴充（+visit_ids）
 dms_dealer             ||--o{  dms_visit            : "visit_ids"

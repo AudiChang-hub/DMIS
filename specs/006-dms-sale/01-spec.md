@@ -13,9 +13,9 @@
 
 ---
 
-## 模組整併說明
+## 模組定位更新（014 / 015）
 
-自 `014-module-removal` 起，`dms_sale` 除了銷售訂單本身，也承接原 `dms_product` / `dms_pricelist` 的核心模型與選單：
+自 `014-module-removal` 起，`dms_sale` 承接了原 `dms_product` / `dms_pricelist` 的核心技術模型，以維持既有交易流程不斷線：
 
 - `dms.product`
 - `dms.product.color`
@@ -26,7 +26,11 @@
 - `dms.ev.fee.schedule`
 - `dms.commission.rule`
 
-因此「產品資料」與「價目資料」現皆掛在 `dms_sale` 選單下。
+自 `015-dms-product-rebuild` 起：
+
+- 正式的產品管理入口已移至新 `dms_product` 模組
+- `dms_sale` 保留交易流程與 legacy 相容模型
+- `dms.sale.order` 查價時，優先讀取 `dms_product` 提供的 `dms.price.line` 生效版本；若查無資料，再 fallback 舊 `dms.vehicle.price`
 
 ---
 
@@ -145,7 +149,7 @@
 
 | 觸發欄位 | 目標欄位 | 來源 | 邏輯 |
 |---|---|---|---|
-| `product_id` | `cash_price` | `dms.vehicle.price` | 取最新 valid_year_month，active=True |
+| `product_id` | `cash_price` | `dms.price.line` / `dms.vehicle.price` | 先取 `effective_date <= 查詢日` 的最新生效版本；若無新價格，fallback 取最新 valid_year_month，active=True |
 | `product_id`（電車） | 牌險費 8 欄 | `dms.ev.fee.schedule` | 取最新 valid_from，active=True |
 | `dealer_id` + `product_id` + `installment_periods` | `commission` | `dms.commission.rule` | 精確匹配 dealer+product+periods；fallback 至 product=留空 |
 | `accessory_id`（在 line） | `unit_price`, `install_fee` | `dms.accessory` | 直接帶出欄位值 |

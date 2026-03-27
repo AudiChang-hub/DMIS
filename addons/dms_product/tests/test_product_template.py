@@ -154,3 +154,27 @@ class TestDmsProductTemplate(TransactionCase):
 
         self.assertEqual(template.sku_count, 1)
         self.assertEqual(set(template.sku_ids.ids), {active_product.id, inactive_product.id})
+
+    def test_08_template_copy_creates_new_template_with_skus(self):
+        template = self.env['dms.product.template'].create({
+            'brand_id': self.brand.id,
+            'family_name': '測試車系 E',
+            'type_name': '前碟後鼓',
+            'model_name': 'TSTCOPY1',
+            'energy_type': 'oil',
+        })
+        self.env['dms.product'].create({
+            'template_id': template.id,
+            'production_year': '2026',
+            'color': '黑',
+            'active': True,
+        })
+
+        copied_template = template.copy()
+
+        self.assertNotEqual(copied_template.id, template.id)
+        self.assertEqual(copied_template.brand_id, template.brand_id)
+        self.assertEqual(copied_template.family_name, template.family_name)
+        self.assertEqual(copied_template.model_name, template.model_name)
+        self.assertEqual(len(copied_template.sku_ids), 1)
+        self.assertNotEqual(copied_template.sku_ids.internal_code, template.sku_ids.internal_code)

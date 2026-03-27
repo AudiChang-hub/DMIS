@@ -152,5 +152,5 @@ class TestDmsProductTemplate(TransactionCase):
 
         template.invalidate_recordset()
 
-        self.assertEqual(template.sku_count, 2)
+        self.assertEqual(template.sku_count, 1)
         self.assertEqual(set(template.sku_ids.ids), {active_product.id, inactive_product.id})

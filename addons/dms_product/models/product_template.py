@@ -33,9 +33,10 @@ class DmsProductTemplate(models.Model):
     @api.depends('sku_ids')
     def _compute_sku_count(self):
         for record in self:
-            record.sku_count = self.env['dms.product'].with_context(
-                active_test=False
-            ).search_count([('template_id', '=', record.id)])
+            record.sku_count = self.env['dms.product'].search_count([
+                ('template_id', '=', record.id),
+                ('active', '=', True),
+            ])
 
     def name_get(self):
         result = []

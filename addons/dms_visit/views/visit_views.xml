@@ -42,13 +42,14 @@
             <h1><field name="name" placeholder="拜訪名稱"/></h1>
           </div>
           <group>
-            <group string="拜訪資訊">
+            <group string="拜訪資訊" col="1">
               <field name="visit_date"/>
               <field name="dealer_id"/>
               <button name="%(action_dms_visit_bulk_create_wizard)d"
                       type="action"
                       string="批次選擇車行"
                       class="oe_link"
+                      colspan="2"
                       context="{
                         'default_visit_date': visit_date,
                         'default_visitor_id': visitor_id,

@@ -42,6 +42,12 @@
 
 - 保留原本 `dealer_id` 單選欄位，供建立單筆拜訪使用
 - 在拜訪資訊區新增 `批次選擇車行` 入口
+- 拜訪資訊區採單欄直排，欄位順序為：
+  - `visit_date`
+  - `dealer_id`
+  - `批次選擇車行`
+  - `visitor_id`
+  - `purpose_id`
 - 點擊後開啟 `dms.visit.bulk.create.wizard`
 - wizard 預設帶入目前表單上的：
   - `visit_date`

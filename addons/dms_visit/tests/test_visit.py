@@ -215,3 +215,33 @@ class TestDmsVisit(TransactionCase):
             ('schedule_id', '=', schedule.id),
         ])
         self.assertEqual(before_count, after_count, '停用排程不應新增拜訪')
+
+    def test_09_bulk_create_wizard_creates_multiple_visits(self):
+        dealer_2 = self.env['dms.dealer'].create({
+            'name': '測試車行二店',
+            'owner_name': '第二負責人',
+            'address': '台北市大安區測試路2號',
+            'phone_1': '02-87654321',
+        })
+        visit_date = fields.Datetime.now()
+        wizard = self.env['dms.visit.bulk.create.wizard'].create({
+            'visit_date': visit_date,
+            'visitor_id': self.user_visit1.id,
+            'purpose_id': self.purpose.id,
+            'dealer_ids': [(6, 0, [self.dealer.id, dealer_2.id])],
+            'note': '同日巡店',
+        })
+
+        action = wizard.action_create_visits()
+        visits = self.env['dms.visit'].search([
+            ('visitor_id', '=', self.user_visit1.id),
+            ('purpose_id', '=', self.purpose.id),
+            ('note', '=', '同日巡店'),
+            ('dealer_id', 'in', [self.dealer.id, dealer_2.id]),
+        ])
+
+        self.assertEqual(len(visits), 2, '批次建立應產生 2 筆拜訪')
+        self.assertEqual(set(visits.mapped('dealer_id').ids), {self.dealer.id, dealer_2.id})
+        self.assertEqual(set(visits.mapped('state')), {'draft'})
+        self.assertEqual(action['type'], 'ir.actions.client')
+        self.assertEqual(action['tag'], 'reload')

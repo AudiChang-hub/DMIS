@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+  <record id="view_dms_visit_bulk_create_wizard_form" model="ir.ui.view">
+    <field name="name">dms.visit.bulk.create.wizard.form</field>
+    <field name="model">dms.visit.bulk.create.wizard</field>
+    <field name="arch" type="xml">
+      <form string="批次建立拜訪">
+        <sheet>
+          <group>
+            <group string="統一拜訪資訊">
+              <field name="visit_date"/>
+              <field name="visitor_id"/>
+              <field name="purpose_id"/>
+            </group>
+            <group string="其他">
+              <field name="note" placeholder="批次建立的拜訪備註…"/>
+            </group>
+          </group>
+          <group string="拜訪車行">
+            <field name="dealer_ids"
+                   widget="many2many_tags"
+                   options="{'no_create': True, 'no_create_edit': True}"/>
+          </group>
+          <footer>
+            <button name="action_create_visits"
+                    type="object"
+                    string="建立拜訪"
+                    class="btn-primary"/>
+            <button string="取消" special="cancel" class="btn-secondary"/>
+          </footer>
+        </sheet>
+      </form>
+    </field>
+  </record>
+
+  <record id="action_dms_visit_bulk_create_wizard" model="ir.actions.act_window">
+    <field name="name">批次建立拜訪</field>
+    <field name="res_model">dms.visit.bulk.create.wizard</field>
+    <field name="view_mode">form</field>
+    <field name="target">new</field>
+    <field name="context">{'default_visitor_id': uid}</field>
+  </record>
+
+</odoo>

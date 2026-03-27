@@ -17,6 +17,7 @@
         'security/record_rules.xml',
         'data/visit_cron.xml',
         'data/tw_holidays_2025_2026.xml',
+        'wizard/visit_bulk_create_wizard_views.xml',
         'views/visit_purpose_views.xml',
         'views/visit_views.xml',
         'views/dealer_visit_inherit.xml',

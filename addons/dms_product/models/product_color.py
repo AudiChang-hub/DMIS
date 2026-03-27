@@ -37,9 +37,12 @@ class DmsProductColorCompat(models.Model):
                 product = self.env['dms.product'].browse(product_id)
                 prepared_vals['template_id'] = product.template_id.id or False
             prepared_vals_list.append(prepared_vals)
-        return super().create(prepared_vals_list)
+        records = super().create(prepared_vals_list)
+        records.mapped('product_id')._sync_legacy_color_summary()
+        return records
 
     def write(self, vals):
+        original_products = self.mapped('product_id')
         result = super().write(vals)
         if 'product_id' in vals:
             for record in self:
@@ -49,4 +52,11 @@ class DmsProductColorCompat(models.Model):
                         DmsProductColorCompat,
                         record,
                     ).write({'template_id': template_id})
+        (original_products | self.mapped('product_id'))._sync_legacy_color_summary()
+        return result
+
+    def unlink(self):
+        products = self.mapped('product_id')
+        result = super().unlink()
+        products._sync_legacy_color_summary()
         return result

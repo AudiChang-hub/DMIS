@@ -155,6 +155,7 @@ legacy 相容與交易沿用部分仍由 `dms_sale` / `dms_product` 共同承接
 - `dms.product` 將成為「可販售產品項 / SKU」的相容模型
 - 新模組需提供 migration，把舊 `dms.product` 補齊 `template_id`、`internal_code`、`production_year`
 - `internal_code` 的自動生成規則需兼顧可讀性，因此本輪改採「型號 + 出廠年份」為主格式；若同型號同年份有多筆 SKU，再補序號尾碼維持唯一性
+- `production_year` 需改為文字欄位，避免 Odoo 將年份格式化為 `2,026`
 
 ### D3：價格與規則走新模型，`dms_sale` 只做最小必要 lookup 調整
 
@@ -236,6 +237,7 @@ legacy 相容與交易沿用部分仍由 `dms_sale` / `dms_product` 共同承接
 - 回填 `template_id`
 - 將系統自動生成的舊式 `SKU-00001` 代碼回填為「型號 + 出廠年份」可讀格式
 - 回填 `production_year`（來源：舊 `year`）
+- 若舊值因顯示或匯入帶有逗點，需正規化為純年份文字，例如 `2,026` → `2026`
 
 ### 6.2 價格 migration
 
@@ -272,5 +274,6 @@ legacy 相容與交易沿用部分仍由 `dms_sale` / `dms_product` 共同承接
 2. `dms_visit` 的送出物品本輪以文字輸入為主，不要求立即與 canonical SKU 重新耦合。
 3. `dms_sale` 既有 `dms.vehicle.price`、`dms.installment.plan` 等模型先保留作 fallback / 歷史資料來源，不在本輪粗暴刪除。
 4. 自動生成的 SKU 代碼需以可讀性優先，預設採 `型號-出廠年份`，同碼碰撞時補 `-02`、`-03`。
+5. 出廠年份雖然表達的是年份，但本輪以文字欄位保存，避免前端或報表將其格式化成千分位。
 
 ---

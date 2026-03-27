@@ -35,6 +35,7 @@
 - [x] 建立 `models/product_compat.py`，以 `_inherit = 'dms.product'` 擴充 SKU 欄位
 - [x] 建立 migration / backfill 邏輯（template、internal_code、production_year）
 - [x] 調整 `internal_code` 自動生成規則為「型號 + 出廠年份」，衝突時自動補尾碼
+- [x] 將 `production_year` 改為文字欄位，避免年份被格式化為千分位顯示
 - [x] 若有 legacy 價格資料，建立 price version / price line backfill
 - [x] 若有 legacy installment plan 資料，建立 rule / rule line backfill
 

@@ -139,3 +139,44 @@ class TestDmsProductPrice(TransactionCase):
         self.assertEqual(set(lines.mapped('list_price')), {92888})
         self.assertEqual(action['type'], 'ir.actions.client')
         self.assertEqual(action['tag'], 'reload')
+
+    def test_06_copy_price_version_copies_price_lines(self):
+        product_2 = self.env['dms.product'].create({
+            'brand_id': self.brand.id,
+            'name': 'CLBCU',
+            'model': 'CLB001',
+            'year': '2026',
+            'color': '黑',
+            'energy_type': 'oil',
+        })
+        version = self.env['dms.price.version'].create({
+            'name': '2026-08 SUZUKI 價格表',
+            'effective_date': date(2026, 8, 1),
+            'state': 'effective',
+            'line_ids': [
+                (0, 0, {
+                    'product_id': self.product.id,
+                    'cash_price': 90000,
+                    'list_price': 93000,
+                }),
+                (0, 0, {
+                    'product_id': product_2.id,
+                    'cash_price': 91000,
+                    'list_price': 94000,
+                }),
+            ],
+        })
+
+        copied_version = version.copy()
+
+        self.assertNotEqual(copied_version.id, version.id)
+        self.assertEqual(copied_version.name, '2026-08 SUZUKI 價格表（複製）')
+        self.assertEqual(copied_version.state, 'draft')
+        self.assertEqual(copied_version.effective_date, version.effective_date)
+        self.assertEqual(len(copied_version.line_ids), 2)
+        self.assertEqual(
+            set(copied_version.line_ids.mapped('product_id').ids),
+            {self.product.id, product_2.id},
+        )
+        self.assertEqual(set(copied_version.line_ids.mapped('cash_price')), {90000, 91000})
+        self.assertEqual(set(copied_version.line_ids.mapped('list_price')), {93000, 94000})

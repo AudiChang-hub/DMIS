@@ -546,7 +546,6 @@ class DmsProductCompat(models.Model):
         if records_snapshot:
             log_model = self.env['dms.product.price.log'].sudo()
             note = vals.get('price_change_note') or ''
-            created_log = False
             for rec in self:
                 snap = records_snapshot.get(rec.id)
                 if not snap:
@@ -563,14 +562,14 @@ class DmsProductCompat(models.Model):
                         'new_list_price': new_list,
                         'note': note,
                     })
-                    created_log = True
-            # 清空異動說明欄位（避免下次開啟仍顯示舊說明）
-            if 'price_change_note' in vals:
-                self.env.cr.execute(
-                    'UPDATE dms_product SET price_change_note = NULL WHERE id = ANY(%s)',
-                    (list(self.ids),)
-                )
-                self.invalidate_recordset(['price_change_note'])
+
+        # 儲存後一律清空異動說明（無論價格是否異動）
+        if vals.get('price_change_note'):
+            self.env.cr.execute(
+                'UPDATE dms_product SET price_change_note = NULL WHERE id = ANY(%s)',
+                (list(self.ids),)
+            )
+            self.invalidate_recordset(['price_change_note'])
 
         tracked_fields = {
             'template_id', 'brand_id', 'name', 'model', 'year', 'energy_type',

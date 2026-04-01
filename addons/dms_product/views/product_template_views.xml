@@ -41,10 +41,10 @@
                 <tree editable="bottom" decoration-muted="not active">
                   <field name="internal_code"/>
                   <field name="production_year"/>
-                  <field name="color" string="顏色（以、或逗號分隔）"
-                         placeholder="如：白色、消光灰、珍珠紅"/>
+                  <field name="color" string="顏色"
+                         placeholder="以空格分隔，例：白色 消光灰 珍珠紅"/>
                   <field name="cash_price" string="現金售價" optional="show"/>
-                  <field name="list_price" string="牌價" optional="hide"/>
+                  <field name="list_price" string="牌價" optional="show"/>
                   <field name="promo_price" string="活動特殊價" optional="show"/>
                   <field name="effective_price" string="有效售價" readonly="1" optional="show"/>
                   <field name="active"/>

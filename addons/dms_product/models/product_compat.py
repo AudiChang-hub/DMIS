@@ -569,13 +569,13 @@ class DmsProductCompat(models.Model):
                         'note': note,
                     })
 
-        # 儲存後一律清空異動說明（無論價格是否異動）
-        if vals.get('price_change_note'):
-            self.env.cr.execute(
-                'UPDATE dms_product SET price_change_note = NULL WHERE id = ANY(%s)',
-                (list(self.ids),)
-            )
-            self.invalidate_recordset(['price_change_note'])
+        # 儲存後一律清空異動說明（無論本次是否有改價）
+        self.env.cr.execute(
+            'UPDATE dms_product SET price_change_note = NULL'
+            ' WHERE id = ANY(%s) AND price_change_note IS NOT NULL',
+            (list(self.ids),)
+        )
+        self.invalidate_recordset(['price_change_note'])
 
         tracked_fields = {
             'template_id', 'brand_id', 'name', 'model', 'year', 'energy_type',

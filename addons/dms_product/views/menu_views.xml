@@ -58,6 +58,7 @@
   <menuitem id="menu_dms_product_pricing_group"
             name="價格與規則"
             parent="menu_dms_product_root"
+            groups="base.group_no_one"
             sequence="20"/>
 
   <menuitem id="menu_price_version"

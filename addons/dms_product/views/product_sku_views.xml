@@ -9,7 +9,7 @@
         <field name="internal_code" optional="show"/>
         <field name="template_id" optional="show"/>
         <field name="production_year" optional="show"/>
-        <field name="color" string="可售顏色" optional="show"/>
+        <field name="color" string="可售顏色" optional="show" readonly="1"/>
         <field name="energy_type" optional="show"/>
         <field name="brand_id" optional="hide"/>
         <field name="name" optional="hide"/>
@@ -34,7 +34,7 @@
             <group string="產品項資料">
               <field name="template_id"/>
               <field name="production_year"/>
-              <field name="color" string="可售顏色" readonly="1"/>
+              <field name="color" string="可售顏色" readonly="1" invisible="1"/>
               <field name="active"/>
             </group>
             <group string="模板快照">

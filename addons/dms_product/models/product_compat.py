@@ -45,6 +45,10 @@ class DmsProductCompat(models.Model):
     price_log_ids = fields.One2many(
         'dms.product.price.log', 'product_id',
         string='價格異動日誌')
+    price_change_note = fields.Char(
+        string='異動說明',
+        store=False,
+        help='本次價格異動的說明，儲存後自動記入異動日誌，下次開啟時清空')
 
     _sql_constraints = [
         ('unique_internal_code', 'unique(internal_code)', '內部唯一代碼不可重複。'),
@@ -542,6 +546,7 @@ class DmsProductCompat(models.Model):
         # 寫入價格異動日誌
         if records_snapshot:
             log_model = self.env['dms.product.price.log'].sudo()
+            note = vals.get('price_change_note') or ''
             for rec in self:
                 snap = records_snapshot.get(rec.id)
                 if not snap:
@@ -556,6 +561,7 @@ class DmsProductCompat(models.Model):
                         'new_cash_price': new_cash,
                         'old_list_price': snap['old_list_price'],
                         'new_list_price': new_list,
+                        'note': note,
                     })
 
         tracked_fields = {

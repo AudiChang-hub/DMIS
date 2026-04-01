@@ -79,9 +79,9 @@
               </group>
               <separator string="分期方案"/><field name="installment_line_ids" nolabel="1">
                 <tree editable="bottom" optional="show">
-                  <field name="rule_id"/>
                   <field name="periods"/>
                   <field name="price_base"/>
+                  <field name="interest_rate" optional="hide"/>
                   <field name="setup_fee"/>
                   <field name="opening_fee"/>
                   <field name="monthly_payment" readonly="1"/>

@@ -39,17 +39,9 @@ class DmsProductCompat(models.Model):
         string='有效售價', digits=(12, 0),
         compute='_compute_effective_price', store=True,
         help='promo_price > 0 時回傳 promo_price，否則回傳 cash_price')
-    installment_setup_fee = fields.Float(
-        string='設定費', digits=(12, 0), default=0.0,
-        help='分期購車收取的設定費用（固定費用，與期數無關）')
-    installment_opening_fee = fields.Float(
-        string='開辦費', digits=(12, 0), default=0.0,
-        help='分期購車收取的開辦費用（固定費用，與期數無關）')
-    installment_rule_ids = fields.Many2many(
-        'dms.installment.rule',
-        'dms_product_installment_rule_rel',
-        'product_id', 'rule_id',
-        string='適用分期規則')
+    installment_line_ids = fields.One2many(
+        'dms.product.installment.line', 'product_id',
+        string='分期方案明細')
     price_log_ids = fields.One2many(
         'dms.product.price.log', 'product_id',
         string='價格異動日誌')

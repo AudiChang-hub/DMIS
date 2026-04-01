@@ -1,6 +1,8 @@
 from odoo import api, fields, models
 from odoo.exceptions import ValidationError
 
+_TRACKED = ('periods', 'price_base', 'interest_rate', 'setup_fee', 'opening_fee')
+
 
 class DmsProductInstallmentLine(models.Model):
     _name = 'dms.product.installment.line'
@@ -21,17 +23,23 @@ class DmsProductInstallmentLine(models.Model):
         string='計算基準', required=True, default='cash',
         help='月付金以哪個價格為基礎試算')
     interest_rate = fields.Float(
-        string='年利率', digits=(5, 4), default=0.0,
-        help='年利率（小數），例：0.05 = 5%；無利率填 0')
+        string='年利率（%）', digits=(5, 2), default=0.0,
+        help='輸入百分比數值，例：1 = 1%，3.5 = 3.5%；無利率填 0')
     setup_fee = fields.Float(
-        string='設定費', digits=(12, 0), default=0.0)
+        string='設定費', digits=(12, 0), default=0.0,
+        help='一次性收取，不計入每期金額')
     opening_fee = fields.Float(
-        string='開辦費', digits=(12, 0), default=0.0)
+        string='開辦費', digits=(12, 0), default=0.0,
+        help='一次性收取，不計入每期金額')
     monthly_payment = fields.Float(
         string='每期金額', digits=(12, 0),
         compute='_compute_monthly_payment', store=True,
-        help='以單利公式：基準價 × (1 + 年利率 × 年數) / 期數，四捨五入至整數')
+        help='單利公式：基準價 × (1 + 年利率 × 年數) / 期數，四捨五入至整數。'
+             '設定費、開辦費為一次性費用，不含在此欄位中。')
     note = fields.Char(string='備註')
+    installment_change_note = fields.Char(
+        string='異動說明', store=True,
+        help='本次分期方案修改的原因，儲存後自動記入異動日誌並清空')
 
     _sql_constraints = [
         ('unique_product_periods',
@@ -59,67 +67,95 @@ class DmsProductInstallmentLine(models.Model):
                 base = rec.product_id.list_price or 0.0
             else:
                 base = rec.product_id.cash_price or 0.0
-            rate = rec.interest_rate or 0.0
+            rate = (rec.interest_rate or 0.0) / 100.0
             years = periods / 12.0
             total = base * (1.0 + rate * years)
             rec.monthly_payment = round(total / periods)
-
-    def _build_description(self, action):
-        """產生異動摘要字串"""
-        if action == 'delete':
-            return f'刪除 {self.periods} 期方案'
-        rate_str = f'{self.interest_rate * 100:.2f}%' if self.interest_rate else '0%'
-        base_label = '現金價' if self.price_base == 'cash' else '牌價'
-        return (
-            f'{"新增" if action == "add" else "修改"} {self.periods} 期 '
-            f'（基準：{base_label}，年利率：{rate_str}，'
-            f'月付金：{int(self.monthly_payment):,}）'
-        )
 
     @api.model_create_multi
     def create(self, vals_list):
         records = super().create(vals_list)
         for rec in records:
+            base_label = '現金價' if rec.price_base == 'cash' else '牌價'
+            rate_str = f'{rec.interest_rate:.2f}%' if rec.interest_rate else '0%'
+            desc = (
+                f'新增 {rec.periods} 期'
+                f'（基準：{base_label}，年利率：{rate_str}，'
+                f'設定費：{int(rec.setup_fee):,}，開辦費：{int(rec.opening_fee):,}，'
+                f'月付金：{int(rec.monthly_payment):,}）'
+            )
             self.env['dms.product.installment.log'].create({
                 'product_id': rec.product_id.id,
                 'action': 'add',
                 'periods': rec.periods,
-                'description': rec._build_description('add'),
+                'description': desc,
+                'note': rec.installment_change_note or '',
             })
         return records
 
     def write(self, vals):
-        # 記錄修改前快照
-        snapshots = {rec.id: {
-            'periods': rec.periods,
-            'price_base': rec.price_base,
-            'interest_rate': rec.interest_rate,
-            'monthly_payment': rec.monthly_payment,
-        } for rec in self}
+        has_tracked = any(k in vals for k in _TRACKED)
+
+        # 取修改前快照（含使用者輸入的異動說明）
+        snapshots = {rec.id: {k: rec[k] for k in _TRACKED} for rec in self}
+        notes = {rec.id: rec.installment_change_note or '' for rec in self}
+
         result = super().write(vals)
-        for rec in self:
-            snap = snapshots[rec.id]
-            changed = any(
-                snap[k] != getattr(rec, k)
-                for k in ('periods', 'price_base', 'interest_rate', 'monthly_payment')
-            )
-            if changed:
-                self.env['dms.product.installment.log'].create({
-                    'product_id': rec.product_id.id,
-                    'action': 'modify',
-                    'periods': rec.periods,
-                    'description': rec._build_description('modify'),
-                })
+
+        if has_tracked:
+            # 強制清除 ORM cache，確保讀取最新的 computed store 值
+            self.invalidate_recordset()
+            for rec in self:
+                snap = snapshots[rec.id]
+                changes = []
+                if snap['periods'] != rec.periods:
+                    changes.append(f'期數 {snap["periods"]}→{rec.periods}')
+                if snap['price_base'] != rec.price_base:
+                    old_lbl = '現金價' if snap['price_base'] == 'cash' else '牌價'
+                    new_lbl = '現金價' if rec.price_base == 'cash' else '牌價'
+                    changes.append(f'計算基準 {old_lbl}→{new_lbl}')
+                if snap['interest_rate'] != rec.interest_rate:
+                    changes.append(
+                        f'年利率 {snap["interest_rate"]:.2f}%→{rec.interest_rate:.2f}%'
+                    )
+                if snap['setup_fee'] != rec.setup_fee:
+                    changes.append(f'設定費 {int(snap["setup_fee"]):,}→{int(rec.setup_fee):,}')
+                if snap['opening_fee'] != rec.opening_fee:
+                    changes.append(f'開辦費 {int(snap["opening_fee"]):,}→{int(rec.opening_fee):,}')
+                if changes:
+                    desc = (
+                        f'修改 {rec.periods} 期'
+                        f'（{"；".join(changes)}，月付金 {int(rec.monthly_payment):,}）'
+                    )
+                    self.env['dms.product.installment.log'].create({
+                        'product_id': rec.product_id.id,
+                        'action': 'modify',
+                        'periods': rec.periods,
+                        'description': desc,
+                        'note': notes.get(rec.id, ''),
+                    })
+
+        # 每次 write 後強制 SQL 清空異動說明
+        self.env.cr.execute(
+            'UPDATE dms_product_installment_line'
+            ' SET installment_change_note = NULL WHERE id = ANY(%s)',
+            [self.ids]
+        )
         return result
 
     def unlink(self):
         log_vals = []
         for rec in self:
+            base_label = '現金價' if rec.price_base == 'cash' else '牌價'
+            rate_str = f'{rec.interest_rate:.2f}%' if rec.interest_rate else '0%'
             log_vals.append({
                 'product_id': rec.product_id.id,
                 'action': 'delete',
                 'periods': rec.periods,
-                'description': rec._build_description('delete'),
+                'description': (
+                    f'刪除 {rec.periods} 期（{base_label}，{rate_str}，'
+                    f'月付金 {int(rec.monthly_payment):,}）'
+                ),
             })
         result = super().unlink()
         self.env['dms.product.installment.log'].create(log_vals)

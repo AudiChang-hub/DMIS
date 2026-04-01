@@ -86,6 +86,8 @@
                   <field name="opening_fee"/>
                   <field name="monthly_payment" readonly="1"/>
                   <field name="note" optional="hide"/>
+                  <field name="installment_change_note" string="異動說明" optional="show"
+                         placeholder="如：銀行調整利率"/>
                 </tree>
               </field>
               <separator string="分期方案異動日誌"/>
@@ -96,6 +98,7 @@
                   <field name="action"/>
                   <field name="periods"/>
                   <field name="description"/>
+                  <field name="note" string="異動說明"/>
                 </tree>
               </field>
               <separator string="價格異動日誌"/>
@@ -179,6 +182,8 @@
                   <field name="opening_fee"/>
                   <field name="monthly_payment" readonly="1"/>
                   <field name="note" optional="hide"/>
+                  <field name="installment_change_note" string="異動說明" optional="show"
+                         placeholder="如：銀行調整利率"/>
                 </tree>
               </field>
               <separator string="分期方案異動日誌"/>
@@ -189,6 +194,7 @@
                   <field name="action"/>
                   <field name="periods"/>
                   <field name="description"/>
+                  <field name="note" string="異動說明"/>
                 </tree>
               </field>
             </page>

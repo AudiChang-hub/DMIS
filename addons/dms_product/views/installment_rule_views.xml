@@ -22,6 +22,7 @@
           <group>
             <group>
               <field name="name"/>
+              <field name="interest_rate" string="年利率（如 0.05 = 5%）"/>
               <field name="active"/>
             </group>
             <group>

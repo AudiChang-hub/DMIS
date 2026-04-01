@@ -8,6 +8,9 @@ class DmsInstallmentRule(models.Model):
 
     name = fields.Char(string='規則名稱', required=True)
     active = fields.Boolean(string='啟用', default=True)
+    interest_rate = fields.Float(
+        string='年利率', digits=(5, 4), default=0.0,
+        help='年利率（小數），例：0.0 表示 0%，0.05 表示 5%。無利率方案填 0 即可。')
     note = fields.Text(string='備註')
     line_ids = fields.One2many(
         'dms.installment.rule.line', 'rule_id', string='規則明細')

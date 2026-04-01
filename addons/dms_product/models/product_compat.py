@@ -47,8 +47,7 @@ class DmsProductCompat(models.Model):
         string='價格異動日誌')
     price_change_note = fields.Char(
         string='異動說明',
-        store=False,
-        help='本次價格異動的說明，儲存後自動記入異動日誌，下次開啟時清空')
+        help='本次價格異動的說明，儲存後自動記入異動日誌並清空')
 
     _sql_constraints = [
         ('unique_internal_code', 'unique(internal_code)', '內部唯一代碼不可重複。'),
@@ -547,6 +546,7 @@ class DmsProductCompat(models.Model):
         if records_snapshot:
             log_model = self.env['dms.product.price.log'].sudo()
             note = vals.get('price_change_note') or ''
+            created_log = False
             for rec in self:
                 snap = records_snapshot.get(rec.id)
                 if not snap:
@@ -563,6 +563,14 @@ class DmsProductCompat(models.Model):
                         'new_list_price': new_list,
                         'note': note,
                     })
+                    created_log = True
+            # 清空異動說明欄位（避免下次開啟仍顯示舊說明）
+            if 'price_change_note' in vals:
+                self.env.cr.execute(
+                    'UPDATE dms_product SET price_change_note = NULL WHERE id = ANY(%s)',
+                    (list(self.ids),)
+                )
+                self.invalidate_recordset(['price_change_note'])
 
         tracked_fields = {
             'template_id', 'brand_id', 'name', 'model', 'year', 'energy_type',

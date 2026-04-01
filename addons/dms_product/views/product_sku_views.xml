@@ -107,6 +107,44 @@
     </field>
   </record>
 
+  <record id="view_product_form_installment_dialog" model="ir.ui.view">
+    <field name="name">dms.product.form.installment.dialog</field>
+    <field name="model">dms.product</field>
+    <field name="arch" type="xml">
+      <form string="分期方案">
+        <sheet>
+          <div class="oe_title">
+            <label for="internal_code"/>
+            <h1><field name="internal_code" readonly="1"/></h1>
+          </div>
+          <group>
+            <group>
+              <field name="template_id" readonly="1"/>
+              <field name="production_year" readonly="1"/>
+            </group>
+            <group>
+              <field name="cash_price" readonly="1"/>
+              <field name="list_price" readonly="1"/>
+              <field name="effective_price" readonly="1"/>
+            </group>
+          </group>
+          <separator string="分期方案"/>
+          <field name="installment_line_ids" nolabel="1">
+            <tree editable="bottom">
+              <field name="periods"/>
+              <field name="price_base"/>
+              <field name="interest_rate" optional="hide"/>
+              <field name="setup_fee"/>
+              <field name="opening_fee"/>
+              <field name="monthly_payment" readonly="1"/>
+              <field name="note" optional="hide"/>
+            </tree>
+          </field>
+        </sheet>
+      </form>
+    </field>
+  </record>
+
   <record id="dms_sale.view_product_search" model="ir.ui.view">
     <field name="name">dms.product.search.sku</field>
     <field name="model">dms.product</field>

@@ -77,6 +77,12 @@
                   </div>
                 </group>
               </group>
+              <group string="分期費用">
+                <group>
+                  <field name="installment_setup_fee"/>
+                  <field name="installment_opening_fee"/>
+                </group>
+              </group>
               <group string="適用分期規則">
                 <field name="installment_rule_ids" widget="many2many_tags" nolabel="1"/>
               </group>

@@ -190,22 +190,22 @@
 
 ---
 
-## 🔲 Phase 4（已實作，待補齊驗證）：P4 — BI 報表
+## ✅ Phase 4（已完成）：P4 — BI 報表
 
 ### dms_report（銷售 BI）
 > Spec 目錄：`specs/008-dms-report/`
 
 - [x] **Spec**（同上格式）
 
-- [ ] **報表**
+- [x] **報表**
   - [x] 銷售與利潤相關 Pivot / Graph 視圖
-  - [x] `dms_report_rule`：動態報表規則
-  - [x] `dms_report_virtual`：虛擬欄位分群
+  - [x] `dms_report_rule`：動態報表規則（10 AC 全 ✅）
+  - [x] `dms_report_virtual`：虛擬欄位分群（11 AC 全 ✅）
 
-- [ ] **驗證**
-  - [ ] Pivot 可依月份/品牌/車款自由切換分組
-  - [ ] Graph 折線/柱狀切換正常
-  - [ ] 資料與 dms_finance 一致
+- [x] **驗證**
+  - [x] Pivot 可依月份/品牌/車款自由切換分組
+  - [x] Graph 折線/柱狀切換正常
+  - [x] 資料與 dms_finance 一致
 
 ---
 

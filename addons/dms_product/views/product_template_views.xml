@@ -61,6 +61,8 @@
                   <field name="list_price" string="牌價" optional="show"/>
                   <field name="promo_price" string="活動特殊價" optional="show"/>
                   <field name="effective_price" string="有效售價" readonly="1" optional="show"/>
+                  <field name="price_change_note" string="異動說明"
+                         placeholder="改價時填寫原因" optional="show"/>
                   <button name="action_open_installment_dialog"
                           type="object"
                           icon="fa-credit-card"

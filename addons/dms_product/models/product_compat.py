@@ -60,6 +60,8 @@ class DmsProductCompat(models.Model):
     @api.constrains('template_id', 'production_year')
     def _check_production_year_required(self):
         """年份必填（中文錯誤提示，取代內建英文 required 訊息）"""
+        if self.env.context.get('skip_product_year_uniqueness'):
+            return
         for record in self:
             if not record.template_id:
                 continue
@@ -255,7 +257,10 @@ class DmsProductCompat(models.Model):
         default['internal_code'] = False
         default.setdefault('color', False)
         default.setdefault('color_code', False)
-        copied = super().copy(default)
+        copied = super(
+            DmsProductCompat,
+            self.with_context(skip_product_year_uniqueness=True),
+        ).copy(default)
         if copied.production_year and not copied.internal_code:
             copied.with_context(
                 skip_product_compat_sync=True,

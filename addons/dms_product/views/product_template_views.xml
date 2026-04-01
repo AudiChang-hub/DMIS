@@ -55,8 +55,6 @@
                   <field name="list_price" string="牌價" optional="show"/>
                   <field name="promo_price" string="活動特殊價" optional="show"/>
                   <field name="effective_price" string="有效售價" readonly="1" optional="show"/>
-                  <field name="installment_setup_fee" string="設定費" optional="show"/>
-                  <field name="installment_opening_fee" string="開辦費" optional="show"/>
                   <field name="active"/>
                   <button name="action_duplicate_from_template_tab"
                           type="object"

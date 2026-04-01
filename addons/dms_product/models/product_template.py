@@ -1,4 +1,5 @@
 from odoo import api, fields, models
+from odoo.exceptions import ValidationError
 
 
 class DmsProductTemplate(models.Model):
@@ -18,6 +19,22 @@ class DmsProductTemplate(models.Model):
     )
     active = fields.Boolean(string='啟用', default=True)
     note = fields.Text(string='備註')
+
+    @api.constrains('brand_id', 'family_name', 'energy_type')
+    def _check_required_fields(self):
+        for rec in self:
+            missing = []
+            if not rec.brand_id:
+                missing.append('品牌')
+            if not rec.family_name or not rec.family_name.strip():
+                missing.append('機種')
+            if not rec.energy_type:
+                missing.append('能源型式')
+            if missing:
+                raise ValidationError(
+                    '【必填欄位未填寫】' + '、'.join(missing) + '\n\n'
+                    '請回到產品模板基本資料，補填以上欄位後再儲存。'
+                )
     sku_ids = fields.One2many(
         'dms.product',
         'template_id',

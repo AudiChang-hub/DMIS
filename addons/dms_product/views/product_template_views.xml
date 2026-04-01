@@ -22,6 +22,10 @@
     <field name="model">dms.product.template</field>
     <field name="arch" type="xml">
       <form string="產品模板">
+        <header>
+          <button string="暫存" special="save" class="btn-primary"
+                  title="儲存目前填寫的資料，儲存後即可使用複製功能"/>
+        </header>
         <sheet>
           <group>
             <group>
@@ -52,7 +56,8 @@
                           type="object"
                           icon="fa-copy"
                           string="複製"
-                          title="複製產品項"/>
+                          title="複製產品項（需先暫存）"
+                          confirm="複製前需先點擊上方「暫存」儲存目前資料。&#10;&#10;若已暫存，請按確定；否則請按取消，先點「暫存」後再複製。"/>
                 </tree>
               </field>
             </page>

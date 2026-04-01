@@ -11,8 +11,8 @@ class DmsProductInstallmentLine(models.Model):
         'dms.product', string='產品項', required=True,
         ondelete='cascade', index=True)
     rule_id = fields.Many2one(
-        'dms.installment.rule', string='分期方案', required=True,
-        ondelete='restrict')
+        'dms.installment.rule', string='分期方案',
+        ondelete='set null')
     periods = fields.Integer(
         string='期數', required=True, default=24,
         help='分期期數，例：12、24、36')
@@ -20,6 +20,9 @@ class DmsProductInstallmentLine(models.Model):
         [('cash', '現金價'), ('list', '牌價')],
         string='計算基準', required=True, default='cash',
         help='月付金以哪個價格為基礎試算')
+    interest_rate = fields.Float(
+        string='年利率', digits=(5, 4), default=0.0,
+        help='年利率（小數），例：0.05 = 5%；無利率填 0')
     setup_fee = fields.Float(
         string='設定費', digits=(12, 0), default=0.0)
     opening_fee = fields.Float(
@@ -31,9 +34,9 @@ class DmsProductInstallmentLine(models.Model):
     note = fields.Char(string='備註')
 
     _sql_constraints = [
-        ('unique_product_rule_periods',
-         'unique(product_id, rule_id, periods)',
-         '同一產品項與分期方案下，相同期數只能設定一筆。'),
+        ('unique_product_periods',
+         'unique(product_id, periods)',
+         '同一產品項下，相同期數只能設定一筆。'),
     ]
 
     @api.constrains('periods')
@@ -44,8 +47,7 @@ class DmsProductInstallmentLine(models.Model):
 
     @api.depends(
         'product_id.cash_price', 'product_id.list_price',
-        'price_base', 'periods',
-        'rule_id', 'rule_id.interest_rate',
+        'price_base', 'periods', 'interest_rate',
     )
     def _compute_monthly_payment(self):
         for rec in self:
@@ -57,7 +59,7 @@ class DmsProductInstallmentLine(models.Model):
                 base = rec.product_id.list_price or 0.0
             else:
                 base = rec.product_id.cash_price or 0.0
-            rate = (rec.rule_id.interest_rate or 0.0) if rec.rule_id else 0.0
+            rate = rec.interest_rate or 0.0
             years = periods / 12.0
             total = base * (1.0 + rate * years)
             rec.monthly_payment = round(total / periods)

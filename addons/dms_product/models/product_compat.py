@@ -531,13 +531,14 @@ class DmsProductCompat(models.Model):
 
     def write(self, vals):
         # 在寫入前快照舊價格，供日誌記錄使用
-        price_fields = {'cash_price', 'list_price'}
+        price_fields = {'cash_price', 'list_price', 'promo_price'}
         records_snapshot = {}
         if price_fields.intersection(vals):
             for rec in self:
                 records_snapshot[rec.id] = {
                     'old_cash_price': rec.cash_price,
                     'old_list_price': rec.list_price,
+                    'old_promo_price': rec.promo_price,
                 }
 
         result = super().write(vals)
@@ -552,7 +553,10 @@ class DmsProductCompat(models.Model):
                     continue
                 new_cash = rec.cash_price
                 new_list = rec.list_price
-                if snap['old_cash_price'] != new_cash or snap['old_list_price'] != new_list:
+                new_promo = rec.promo_price
+                if (snap['old_cash_price'] != new_cash
+                        or snap['old_list_price'] != new_list
+                        or snap['old_promo_price'] != new_promo):
                     log_model.create({
                         'product_id': rec.id,
                         'user_id': self.env.uid,
@@ -560,6 +564,8 @@ class DmsProductCompat(models.Model):
                         'new_cash_price': new_cash,
                         'old_list_price': snap['old_list_price'],
                         'new_list_price': new_list,
+                        'old_promo_price': snap['old_promo_price'],
+                        'new_promo_price': new_promo,
                         'note': note,
                     })
 

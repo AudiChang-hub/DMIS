@@ -24,4 +24,8 @@ class DmsProductPriceLog(models.Model):
         string='舊牌價', digits=(12, 0), readonly=True)
     new_list_price = fields.Float(
         string='新牌價', digits=(12, 0), readonly=True)
+    old_promo_price = fields.Float(
+        string='舊活動特殊價', digits=(12, 0), readonly=True)
+    new_promo_price = fields.Float(
+        string='新活動特殊價', digits=(12, 0), readonly=True)
     note = fields.Char(string='異動說明', readonly=True)

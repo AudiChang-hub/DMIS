@@ -63,3 +63,64 @@ class DmsProductInstallmentLine(models.Model):
             years = periods / 12.0
             total = base * (1.0 + rate * years)
             rec.monthly_payment = round(total / periods)
+
+    def _build_description(self, action):
+        """產生異動摘要字串"""
+        if action == 'delete':
+            return f'刪除 {self.periods} 期方案'
+        rate_str = f'{self.interest_rate * 100:.2f}%' if self.interest_rate else '0%'
+        base_label = '現金價' if self.price_base == 'cash' else '牌價'
+        return (
+            f'{"新增" if action == "add" else "修改"} {self.periods} 期 '
+            f'（基準：{base_label}，年利率：{rate_str}，'
+            f'月付金：{int(self.monthly_payment):,}）'
+        )
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        records = super().create(vals_list)
+        for rec in records:
+            self.env['dms.product.installment.log'].create({
+                'product_id': rec.product_id.id,
+                'action': 'add',
+                'periods': rec.periods,
+                'description': rec._build_description('add'),
+            })
+        return records
+
+    def write(self, vals):
+        # 記錄修改前快照
+        snapshots = {rec.id: {
+            'periods': rec.periods,
+            'price_base': rec.price_base,
+            'interest_rate': rec.interest_rate,
+            'monthly_payment': rec.monthly_payment,
+        } for rec in self}
+        result = super().write(vals)
+        for rec in self:
+            snap = snapshots[rec.id]
+            changed = any(
+                snap[k] != getattr(rec, k)
+                for k in ('periods', 'price_base', 'interest_rate', 'monthly_payment')
+            )
+            if changed:
+                self.env['dms.product.installment.log'].create({
+                    'product_id': rec.product_id.id,
+                    'action': 'modify',
+                    'periods': rec.periods,
+                    'description': rec._build_description('modify'),
+                })
+        return result
+
+    def unlink(self):
+        log_vals = []
+        for rec in self:
+            log_vals.append({
+                'product_id': rec.product_id.id,
+                'action': 'delete',
+                'periods': rec.periods,
+                'description': rec._build_description('delete'),
+            })
+        result = super().unlink()
+        self.env['dms.product.installment.log'].create(log_vals)
+        return result

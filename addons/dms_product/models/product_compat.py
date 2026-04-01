@@ -45,6 +45,9 @@ class DmsProductCompat(models.Model):
     price_log_ids = fields.One2many(
         'dms.product.price.log', 'product_id',
         string='價格異動日誌')
+    installment_log_ids = fields.One2many(
+        'dms.product.installment.log', 'product_id',
+        string='分期方案異動日誌')
     price_change_note = fields.Char(
         string='異動說明',
         help='本次價格異動的說明，儲存後自動記入異動日誌並清空')

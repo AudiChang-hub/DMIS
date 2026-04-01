@@ -45,31 +45,23 @@
           </group>
           <notebook>
             <page string="產品項">
-              <field name="sku_ids" context="{'default_template_id': id, 'active_test': False}">
-                <tree editable="bottom" decoration-muted="not active">
+              <field name="sku_ids"
+                     context="{'default_template_id': id, 'active_test': False, 'form_view_ref': 'dms_product.view_product_form_installment_dialog'}">
+                <tree decoration-muted="not active">
                   <button name="action_duplicate_from_template_tab"
                           type="object"
                           icon="fa-copy"
                           string="複製"
                           class="btn-secondary"
                           title="複製此產品項（年份將清空，填寫新年份後按「儲存」即完成）"/>
-                  <field name="internal_code"/>
-                  <field name="production_year"/>
-                  <field name="color" string="顏色"
-                         placeholder="以空格分隔，例：白色 消光灰 珍珠紅"/>
-                  <field name="cash_price" string="現金售價" optional="show"/>
-                  <field name="list_price" string="牌價" optional="show"/>
-                  <field name="promo_price" string="活動特殊價" optional="show"/>
+                  <field name="internal_code" readonly="1"/>
+                  <field name="production_year" readonly="1"/>
+                  <field name="color" string="顏色" readonly="1"/>
+                  <field name="cash_price" string="現金售價" readonly="1" optional="show"/>
+                  <field name="list_price" string="牌價" readonly="1" optional="show"/>
+                  <field name="promo_price" string="活動特殊價" readonly="1" optional="show"/>
                   <field name="effective_price" string="有效售價" readonly="1" optional="show"/>
-                  <field name="price_change_note" string="異動說明"
-                         placeholder="改價時填寫原因" optional="show"/>
-                  <button name="action_open_installment_dialog"
-                          type="object"
-                          icon="fa-credit-card"
-                          string="分期"
-                          class="btn-primary"
-                          title="開啟分期方案設定（對話框）"/>
-                  <field name="active"/>
+                  <field name="active" readonly="1"/>
                 </tree>
               </field>
             </page>

@@ -6,7 +6,7 @@ from odoo.osv import expression
 
 
 LEGACY_GENERATED_CODE_PATTERN = re.compile(r'^SKU-\d{5}$')
-COLOR_SPLIT_PATTERN = re.compile(r'[、/,，]+')
+COLOR_SPLIT_PATTERN = re.compile(r'[、/,，\s]+')
 
 
 class DmsProductCompat(models.Model):
@@ -56,6 +56,20 @@ class DmsProductCompat(models.Model):
     def _compute_effective_price(self):
         for rec in self:
             rec.effective_price = rec.promo_price if rec.promo_price > 0 else rec.cash_price
+
+    @api.constrains('template_id', 'production_year')
+    def _check_production_year_required(self):
+        """年份必填（中文錯誤提示，取代內建英文 required 訊息）"""
+        for record in self:
+            if not record.template_id:
+                continue
+            year_value = record._normalize_year_value(record.production_year or record.year)
+            if not year_value:
+                raise ValidationError(
+                    '【必填欄位未填寫】出廠年份\n\n'
+                    '已選擇產品模板，但「出廠年份」尚未填寫。\n'
+                    '請在產品項清單的「出廠年份」欄位中輸入年份，例如：2025。'
+                )
 
     @api.constrains('template_id', 'production_year')
     def _check_unique_template_year(self):

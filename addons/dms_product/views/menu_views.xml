@@ -46,6 +46,7 @@
             name="車型產品"
             parent="menu_dms_product_master_group"
             action="dms_sale.action_product"
+            groups="base.group_no_one"
             sequence="5"/>
 
   <menuitem id="menu_product_template"

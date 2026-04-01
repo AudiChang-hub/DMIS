@@ -41,17 +41,13 @@
                 <tree editable="bottom" decoration-muted="not active">
                   <field name="internal_code"/>
                   <field name="production_year"/>
-                  <field name="color" string="可售顏色" readonly="1"/>
+                  <field name="color" string="顏色（以、或逗號分隔）"
+                         placeholder="如：白色、消光灰、珍珠紅"/>
                   <field name="cash_price" string="現金售價" optional="show"/>
                   <field name="list_price" string="牌價" optional="hide"/>
                   <field name="promo_price" string="活動特殊價" optional="show"/>
                   <field name="effective_price" string="有效售價" readonly="1" optional="show"/>
                   <field name="active"/>
-                  <button name="action_open_color_editor"
-                          type="object"
-                          icon="fa-tags"
-                          string="維護顏色"
-                          title="逐列新增或停用顏色"/>
                   <button name="action_duplicate_from_template_tab"
                           type="object"
                           icon="fa-copy"

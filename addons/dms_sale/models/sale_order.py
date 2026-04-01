@@ -137,17 +137,12 @@ class SaleOrder(models.Model):
         self.color_id = False  # 車款變更時清空顏色
         if not self.product_id:
             return
-        query_date = self.order_date or fields.Date.context_today(self)
 
-        # 優先帶入新價格基準（若 dms_product 已安裝）
-        effective_price_line = self.env['dms.price.line'].browse()
-        if 'dms.price.line' in self.env.registry.models:
-            effective_price_line = self.env['dms.price.line'].get_effective_line(
-                self.product_id, query_date=query_date)
-        if effective_price_line:
-            self.cash_price = effective_price_line.cash_price
+        # 優先讀取產品上的有效售價（effective_price = promo_price if promo_price > 0 else cash_price）
+        if self.product_id.effective_price:
+            self.cash_price = self.product_id.effective_price
         else:
-            # Fallback：舊車款售價（取最新有效月份）
+            # Fallback：舊車款售價相容層（待 018 移除）
             price = self.env['dms.vehicle.price'].search(
                 [('product_id', '=', self.product_id.id), ('active', '=', True)],
                 order='valid_year_month desc', limit=1)

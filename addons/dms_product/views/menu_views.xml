@@ -57,6 +57,7 @@
             name="價目版本"
             parent="menu_dms_product_pricing_group"
             action="action_price_version"
+            groups="base.group_no_one"
             sequence="10"/>
 
   <menuitem id="menu_installment_rule"
@@ -75,6 +76,7 @@
             name="規則掛接"
             parent="menu_dms_product_pricing_group"
             action="action_installment_rule_binding"
+            groups="base.group_no_one"
             sequence="40"/>
 
   <menuitem id="menu_dms_product_legacy_group"

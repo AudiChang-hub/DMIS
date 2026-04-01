@@ -8,3 +8,4 @@ access_dms_installment_rule_line,dms.installment.rule.line,model_dms_installment
 access_dms_fee_type,dms.fee.type,model_dms_fee_type,,1,1,1,1
 access_dms_installment_rule_fee,dms.installment.rule.fee,model_dms_installment_rule_fee,,1,1,1,1
 access_dms_installment_rule_binding,dms.installment.rule.binding,model_dms_installment_rule_binding,,1,1,1,1
+access_dms_product_price_log,dms.product.price.log,model_dms_product_price_log,,1,0,1,0

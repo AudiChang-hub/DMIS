@@ -21,3 +21,4 @@ class DmsProductInstallmentLog(models.Model):
         string='動作', required=True, readonly=True)
     periods = fields.Integer(string='期數', readonly=True)
     description = fields.Char(string='異動摘要', readonly=True)
+    note = fields.Char(string='異動說明', readonly=True)

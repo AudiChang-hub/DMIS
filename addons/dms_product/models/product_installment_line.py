@@ -67,10 +67,13 @@ class DmsProductInstallmentLine(models.Model):
                 base = rec.product_id.list_price or 0.0
             else:
                 base = rec.product_id.cash_price or 0.0
-            rate = (rec.interest_rate or 0.0) / 100.0
-            years = periods / 12.0
-            total = base * (1.0 + rate * years)
-            rec.monthly_payment = round(total / periods)
+            # 年金現值公式反解 PMT：PMT = PV × r / (1 - (1+r)^-n)
+            # r = 月利率 = 年利率(%) ÷ 12 ÷ 100；利率為 0 時退化為 PV / n
+            r = (rec.interest_rate or 0.0) / 100.0 / 12.0
+            if r == 0.0:
+                rec.monthly_payment = round(base / periods)
+            else:
+                rec.monthly_payment = round(base * r / (1.0 - (1.0 + r) ** (-periods)))
 
     @api.model_create_multi
     def create(self, vals_list):

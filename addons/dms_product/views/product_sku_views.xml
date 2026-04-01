@@ -88,6 +88,16 @@
                   <field name="note" optional="hide"/>
                 </tree>
               </field>
+              <separator string="分期方案異動日誌"/>
+              <field name="installment_log_ids" nolabel="1" readonly="1">
+                <tree create="0" delete="0" editable="0">
+                  <field name="changed_at"/>
+                  <field name="user_id"/>
+                  <field name="action"/>
+                  <field name="periods"/>
+                  <field name="description"/>
+                </tree>
+              </field>
               <separator string="價格異動日誌"/>
               <field name="price_log_ids" nolabel="1" readonly="1">
                 <tree create="0" delete="0" editable="0">
@@ -97,8 +107,8 @@
                   <field name="new_cash_price"/>
                   <field name="old_list_price"/>
                   <field name="new_list_price"/>
-                  <field name="old_promo_price" optional="hide"/>
-                  <field name="new_promo_price" optional="hide"/>
+                  <field name="old_promo_price" optional="show"/>
+                  <field name="new_promo_price" optional="show"/>
                   <field name="note"/>
                 </tree>
               </field>
@@ -171,6 +181,16 @@
                   <field name="note" optional="hide"/>
                 </tree>
               </field>
+              <separator string="分期方案異動日誌"/>
+              <field name="installment_log_ids" nolabel="1" readonly="1">
+                <tree create="0" delete="0" editable="0">
+                  <field name="changed_at"/>
+                  <field name="user_id"/>
+                  <field name="action"/>
+                  <field name="periods"/>
+                  <field name="description"/>
+                </tree>
+              </field>
             </page>
             <page string="價格日誌">
               <field name="price_log_ids" nolabel="1" readonly="1">
@@ -181,8 +201,8 @@
                   <field name="new_cash_price"/>
                   <field name="old_list_price"/>
                   <field name="new_list_price"/>
-                  <field name="old_promo_price" optional="hide"/>
-                  <field name="new_promo_price" optional="hide"/>
+                  <field name="old_promo_price" optional="show"/>
+                  <field name="new_promo_price" optional="show"/>
                   <field name="note"/>
                 </tree>
               </field>

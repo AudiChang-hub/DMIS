@@ -38,7 +38,7 @@
             sequence="75"/>
 
   <menuitem id="menu_dms_product_master_group"
-            name="產品主資料"
+            name="車型產品"
             parent="menu_dms_product_root"
             sequence="10"/>
 

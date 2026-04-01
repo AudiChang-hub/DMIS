@@ -99,9 +99,10 @@ class DmsProductInstallmentLine(models.Model):
     def write(self, vals):
         has_tracked = any(k in vals for k in _TRACKED)
 
-        # 取修改前快照（含使用者輸入的異動說明）
+        # 從 vals 取使用者輸入的異動說明（vals 是使用者本次輸入的最新值）
+        user_note = vals.get('installment_change_note') or ''
+        # 取修改前快照
         snapshots = {rec.id: {k: rec[k] for k in _TRACKED} for rec in self}
-        notes = {rec.id: rec.installment_change_note or '' for rec in self}
 
         result = super().write(vals)
 
@@ -135,15 +136,17 @@ class DmsProductInstallmentLine(models.Model):
                         'action': 'modify',
                         'periods': rec.periods,
                         'description': desc,
-                        'note': notes.get(rec.id, ''),
+                        'note': user_note,
                     })
 
-        # 每次 write 後強制 SQL 清空異動說明
+        # 每次 write 後強制 SQL 清空異動說明，
+        # 並 invalidate ORM cache 確保下一次 read 能看到 NULL
         self.env.cr.execute(
             'UPDATE dms_product_installment_line'
             ' SET installment_change_note = NULL WHERE id = ANY(%s)',
             [self.ids]
         )
+        self.invalidate_recordset()
         return result
 
     def unlink(self):

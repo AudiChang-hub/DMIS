@@ -226,9 +226,9 @@ class DmsProductCompat(models.Model):
         }
 
     def action_open_installment_dialog(self):
-        """在對話框開啟 SKU form，讓使用者在同一畫面管理分期方案。"""
+        """在對話框開啟分期專用 form，只顯示分期方案，不含產品顏色 Tab。"""
         self.ensure_one()
-        form_view = self.env.ref('dms_sale.view_product_form')
+        form_view = self.env.ref('dms_product.view_product_form_installment_dialog')
         return {
             'type': 'ir.actions.act_window',
             'name': f'分期方案：{self.display_name}',

@@ -23,10 +23,14 @@
     <field name="arch" type="xml">
       <form string="產品模板">
         <header>
-          <button string="暫存" special="save" class="btn-primary"
-                  title="儲存目前填寫的資料，儲存後即可使用複製功能"/>
+          <button string="💾 儲存" special="save" class="btn-success"
+                  title="儲存目前所有填寫的資料"/>
         </header>
         <sheet>
+          <div class="alert alert-info" role="alert"
+               attrs="{'invisible': [('id', '!=', False)]}">
+            <strong>新增產品模板</strong>：請先填寫品牌、機種、能源型式後，點擊上方綠色「儲存」按鈕，即可在下方新增及複製產品項。
+          </div>
           <group>
             <group>
               <field name="brand_id"/>
@@ -56,7 +60,8 @@
                           type="object"
                           icon="fa-copy"
                           string="複製"
-                          title="複製產品項（年份與內部代碼將自動清空，請填寫新年份後暫存）"/>
+                          title="複製此產品項（年份將清空，填寫新年份後按「儲存」即完成）"
+                          attrs="{'invisible': [('id', '=', False)]}"/>
                 </tree>
               </field>
             </page>

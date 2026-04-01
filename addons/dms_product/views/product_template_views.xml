@@ -47,7 +47,6 @@
             <page string="產品項">
               <field name="sku_ids" context="{'default_template_id': id, 'active_test': False}">
                 <tree editable="bottom" decoration-muted="not active">
-                  <field name="id" column_invisible="1"/>
                   <field name="internal_code"/>
                   <field name="production_year"/>
                   <field name="color" string="顏色"
@@ -61,8 +60,7 @@
                           type="object"
                           icon="fa-copy"
                           string="複製"
-                          title="複製此產品項（年份將清空，填寫新年份後按「儲存」即完成）"
-                          attrs="{'invisible': [('id', '=', False)]}"/>
+                          title="複製此產品項（年份將清空，填寫新年份後按「儲存」即完成）"/>
                 </tree>
               </field>
             </page>

@@ -78,7 +78,9 @@ class DmsProductInstallmentLine(models.Model):
     @api.model_create_multi
     def create(self, vals_list):
         records = super().create(vals_list)
-        for rec in records:
+        log_vals_list = []
+        for rec, vals in zip(records, vals_list):
+            note = vals.get('installment_change_note') or ''
             base_label = '現金價' if rec.price_base == 'cash' else '牌價'
             rate_str = f'{rec.interest_rate:.2f}%' if rec.interest_rate else '0%'
             desc = (
@@ -87,13 +89,23 @@ class DmsProductInstallmentLine(models.Model):
                 f'設定費：{int(rec.setup_fee):,}，開辦費：{int(rec.opening_fee):,}，'
                 f'月付金：{int(rec.monthly_payment):,}）'
             )
-            self.env['dms.product.installment.log'].create({
+            log_vals_list.append({
                 'product_id': rec.product_id.id,
                 'action': 'add',
                 'periods': rec.periods,
                 'description': desc,
-                'note': rec.installment_change_note or '',
+                'note': note,
             })
+        if log_vals_list:
+            self.env['dms.product.installment.log'].create(log_vals_list)
+
+        # 清空異動說明並使 ORM cache 失效，確保下次 read 看到 NULL
+        self.env.cr.execute(
+            'UPDATE dms_product_installment_line'
+            ' SET installment_change_note = NULL WHERE id = ANY(%s)',
+            [records.ids]
+        )
+        records.invalidate_recordset()
         return records
 
     def write(self, vals):

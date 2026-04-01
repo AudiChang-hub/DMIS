@@ -23,9 +23,39 @@ class DmsProductCompat(models.Model):
         context={'active_test': False},
     )
 
+    # ── 定價欄位 ──────────────────────────────────────────────────────────
+    cash_price = fields.Float(
+        string='現金售價', digits=(12, 0), default=0.0,
+        help='原廠公告現金售價，直接填入生效')
+    list_price = fields.Float(
+        string='牌價（MSRP）', digits=(12, 0), default=0.0)
+    promo_price = fields.Float(
+        string='活動特殊價', digits=(12, 0), default=0.0,
+        help='原廠活動補助價；大於 0 時優先使用此價，活動結束後清零即可')
+    promo_note = fields.Char(
+        string='活動說明',
+        help='如「2026 Q2 原廠補助」')
+    effective_price = fields.Float(
+        string='有效售價', digits=(12, 0),
+        compute='_compute_effective_price', store=True,
+        help='promo_price > 0 時回傳 promo_price，否則回傳 cash_price')
+    installment_rule_ids = fields.Many2many(
+        'dms.installment.rule',
+        'dms_product_installment_rule_rel',
+        'product_id', 'rule_id',
+        string='適用分期規則')
+    price_log_ids = fields.One2many(
+        'dms.product.price.log', 'product_id',
+        string='價格異動日誌')
+
     _sql_constraints = [
         ('unique_internal_code', 'unique(internal_code)', '內部唯一代碼不可重複。'),
     ]
+
+    @api.depends('cash_price', 'promo_price')
+    def _compute_effective_price(self):
+        for rec in self:
+            rec.effective_price = rec.promo_price if rec.promo_price > 0 else rec.cash_price
 
     @api.constrains('template_id', 'production_year')
     def _check_unique_template_year(self):
@@ -466,7 +496,37 @@ class DmsProductCompat(models.Model):
         return records
 
     def write(self, vals):
+        # 在寫入前快照舊價格，供日誌記錄使用
+        price_fields = {'cash_price', 'list_price'}
+        records_snapshot = {}
+        if price_fields.intersection(vals):
+            for rec in self:
+                records_snapshot[rec.id] = {
+                    'old_cash_price': rec.cash_price,
+                    'old_list_price': rec.list_price,
+                }
+
         result = super().write(vals)
+
+        # 寫入價格異動日誌
+        if records_snapshot:
+            log_model = self.env['dms.product.price.log'].sudo()
+            for rec in self:
+                snap = records_snapshot.get(rec.id)
+                if not snap:
+                    continue
+                new_cash = rec.cash_price
+                new_list = rec.list_price
+                if snap['old_cash_price'] != new_cash or snap['old_list_price'] != new_list:
+                    log_model.create({
+                        'product_id': rec.id,
+                        'user_id': self.env.uid,
+                        'old_cash_price': snap['old_cash_price'],
+                        'new_cash_price': new_cash,
+                        'old_list_price': snap['old_list_price'],
+                        'new_list_price': new_list,
+                    })
+
         tracked_fields = {
             'template_id', 'brand_id', 'name', 'model', 'year', 'energy_type',
             'production_year', 'internal_code', 'color', 'color_code', 'active',

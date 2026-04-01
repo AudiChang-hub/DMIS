@@ -54,6 +54,46 @@
                 </tree>
               </field>
             </page>
+            <page string="定價與分期">
+              <group string="目前售價">
+                <group>
+                  <field name="cash_price"/>
+                  <field name="list_price"/>
+                </group>
+                <group>
+                  <field name="effective_price" readonly="1"/>
+                </group>
+              </group>
+              <group string="活動特殊價">
+                <group>
+                  <field name="promo_price"/>
+                  <field name="promo_note" placeholder="如：2026 Q2 原廠補助"/>
+                </group>
+                <group>
+                  <label for="promo_price" string=""/>
+                  <div class="o_field_widget">
+                    <span attrs="{'invisible': [('promo_price', '>', 0)]}" class="text-muted">目前無活動特殊價</span>
+                    <span attrs="{'invisible': [('promo_price', '=', 0)]}" class="text-warning">活動價啟用中，訂單將優先帶入活動價</span>
+                  </div>
+                </group>
+              </group>
+              <group string="適用分期規則">
+                <field name="installment_rule_ids" widget="many2many_tags" nolabel="1"/>
+              </group>
+              <group string="價格異動日誌">
+                <field name="price_log_ids" nolabel="1" readonly="1">
+                  <tree create="0" delete="0" editable="0">
+                    <field name="changed_at"/>
+                    <field name="user_id"/>
+                    <field name="old_cash_price"/>
+                    <field name="new_cash_price"/>
+                    <field name="old_list_price"/>
+                    <field name="new_list_price"/>
+                    <field name="note"/>
+                  </tree>
+                </field>
+              </group>
+            </page>
           </notebook>
         </sheet>
       </form>

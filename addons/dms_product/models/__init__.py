@@ -7,4 +7,5 @@ from . import installment_rule_line
 from . import fee_type
 from . import installment_rule_fee
 from . import installment_rule_binding
+from . import product_price_log
 from . import product_compat

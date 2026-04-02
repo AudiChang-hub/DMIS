@@ -38,8 +38,14 @@ class DmsProductInstallmentLine(models.Model):
              '設定費、開辦費為一次性費用，不含在此欄位中。')
     note = fields.Char(string='備註')
     installment_change_note = fields.Char(
-        string='異動說明', store=True,
+        string='異動說明',
+        store=False,
+        inverse='_inverse_installment_change_note',
         help='本次分期方案修改的原因，儲存後自動記入異動日誌並清空')
+
+    def _inverse_installment_change_note(self):
+        """不需儲存；Odoo 透過此 inverse 確保欄位值傳入 write() 的 vals。"""
+        pass
 
     _sql_constraints = [
         ('unique_product_periods',
@@ -98,14 +104,7 @@ class DmsProductInstallmentLine(models.Model):
             })
         if log_vals_list:
             self.env['dms.product.installment.log'].create(log_vals_list)
-
-        # 清空異動說明並使 ORM cache 失效，確保下次 read 看到 NULL
-        self.env.cr.execute(
-            'UPDATE dms_product_installment_line'
-            ' SET installment_change_note = NULL WHERE id = ANY(%s)',
-            [records.ids]
-        )
-        records.invalidate_recordset()
+        # store=False 欄位不寫入 DB，web_read 自動回傳空值，不需 SQL clear
         return records
 
     def write(self, vals):
@@ -151,14 +150,7 @@ class DmsProductInstallmentLine(models.Model):
                         'note': user_note,
                     })
 
-        # 每次 write 後強制 SQL 清空異動說明，
-        # 並 invalidate ORM cache 確保下一次 read 能看到 NULL
-        self.env.cr.execute(
-            'UPDATE dms_product_installment_line'
-            ' SET installment_change_note = NULL WHERE id = ANY(%s)',
-            [self.ids]
-        )
-        self.invalidate_recordset()
+        # store=False 欄位不寫入 DB，web_read 自動回傳空值，不需 SQL clear
         return result
 
     def unlink(self):

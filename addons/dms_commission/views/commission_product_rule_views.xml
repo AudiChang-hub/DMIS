@@ -25,9 +25,7 @@
               <field name="base_amount"/>
             </group>
           </group>
-          <group string="備註">
-            <field name="note" nolabel="1"/>
-          </group>
+          <field name="note" placeholder="備註" nolabel="1"/>
         </sheet>
       </form>
     </field>

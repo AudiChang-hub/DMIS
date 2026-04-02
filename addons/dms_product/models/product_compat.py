@@ -246,9 +246,11 @@ class DmsProductCompat(models.Model):
         }
 
     def action_save_and_stay(self):
-        """儲存並重新開啟同一個對話框（不關閉視窗）。"""
+        """儲存後保持視窗開啟。
+        回傳 False → Odoo 客戶端原地 reload 目前表單，不會疊開新對話框。
+        """
         self.ensure_one()
-        return self.action_open_installment_dialog()
+        return False
 
     def action_open_color_editor(self):
         self.ensure_one()

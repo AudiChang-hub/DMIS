@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+  <record id="view_incentive_type_tree" model="ir.ui.view">
+    <field name="name">dms.incentive.type.tree</field>
+    <field name="model">dms.incentive.type</field>
+    <field name="arch" type="xml">
+      <tree string="激勵品項類型">
+        <field name="name"/>
+        <field name="type"/>
+        <field name="active"/>
+      </tree>
+    </field>
+  </record>
+
+  <record id="view_incentive_type_form" model="ir.ui.view">
+    <field name="name">dms.incentive.type.form</field>
+    <field name="model">dms.incentive.type</field>
+    <field name="arch" type="xml">
+      <form string="激勵品項類型">
+        <sheet>
+          <group>
+            <field name="name"/>
+            <field name="type"/>
+            <field name="active"/>
+          </group>
+          <group string="備註">
+            <field name="note" nolabel="1"/>
+          </group>
+        </sheet>
+      </form>
+    </field>
+  </record>
+
+  <record id="action_incentive_type" model="ir.actions.act_window">
+    <field name="name">激勵品項定義</field>
+    <field name="res_model">dms.incentive.type</field>
+    <field name="view_mode">tree,form</field>
+  </record>
+
+</odoo>

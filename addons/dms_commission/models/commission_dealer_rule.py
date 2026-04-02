@@ -1,0 +1,61 @@
+from odoo import models, fields, api
+from odoo.exceptions import ValidationError
+
+
+class DmsCommissionDealerRule(models.Model):
+    """車行覆蓋規則：特定車行在基礎傭金之上套用公式"""
+    _name = 'dms.commission.dealer.rule'
+    _description = '車行覆蓋傭金規則'
+    _rec_name = 'dealer_id'
+    _order = 'dealer_id, product_tmpl_id'
+
+    dealer_id = fields.Many2one(
+        'dms.dealer', string='車行', required=True, ondelete='restrict')
+    product_tmpl_id = fields.Many2one(
+        'dms.product.template', string='車型', required=True,
+        ondelete='restrict')
+    formula_type = fields.Selection(
+        [
+            ('base_plus_fixed', '基礎 + 固定加碼'),
+            ('base_times_percent', '基礎 × 百分比'),
+        ],
+        string='公式類型', required=True, default='base_plus_fixed')
+    addon_amount = fields.Float(
+        string='加碼金額', digits=(12, 0), default=0,
+        help='用於「基礎 + 固定加碼」，例如 500 代表每台多給 500 元')
+    addon_percent = fields.Float(
+        string='加碼倍率', digits=(6, 4), default=1.0,
+        help='用於「基礎 × 百分比」，例如 1.2 代表基礎 × 120%')
+    result_preview = fields.Float(
+        string='試算結果', digits=(12, 0),
+        compute='_compute_result_preview', store=False,
+        help='根據基礎傭金規則試算，僅供參考')
+    note = fields.Text(string='備註')
+
+    _sql_constraints = [
+        ('dealer_tmpl_uniq', 'unique(dealer_id, product_tmpl_id)',
+         '同一車行+車型只能設定一條覆蓋規則'),
+    ]
+
+    @api.depends('formula_type', 'addon_amount', 'addon_percent', 'product_tmpl_id')
+    def _compute_result_preview(self):
+        for rec in self:
+            base_rule = self.env['dms.commission.product.rule'].search(
+                [('product_tmpl_id', '=', rec.product_tmpl_id.id)], limit=1)
+            base = base_rule.base_amount if base_rule else 0.0
+            rec.result_preview = rec.compute_amount(base)
+
+    def compute_amount(self, base_amount):
+        """依 formula_type 計算最終傭金"""
+        self.ensure_one()
+        if self.formula_type == 'base_plus_fixed':
+            return base_amount + self.addon_amount
+        elif self.formula_type == 'base_times_percent':
+            return base_amount * self.addon_percent
+        return base_amount
+
+    @api.constrains('addon_percent')
+    def _check_percent(self):
+        for rec in self:
+            if rec.formula_type == 'base_times_percent' and rec.addon_percent <= 0:
+                raise ValidationError('百分比倍率必須大於 0')

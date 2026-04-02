@@ -42,50 +42,11 @@
             parent="menu_dms_product_root"
             sequence="10"/>
 
-  <menuitem id="menu_product_sku"
-            name="車型產品"
-            parent="menu_dms_product_master_group"
-            action="dms_sale.action_product"
-            groups="base.group_no_one"
-            sequence="5"/>
-
   <menuitem id="menu_product_template"
             name="產品頁面"
             parent="menu_dms_product_master_group"
             action="action_product_template"
             sequence="10"/>
-
-  <menuitem id="menu_dms_product_pricing_group"
-            name="價格與規則"
-            parent="menu_dms_product_root"
-            groups="base.group_no_one"
-            sequence="20"/>
-
-  <menuitem id="menu_price_version"
-            name="價目版本"
-            parent="menu_dms_product_pricing_group"
-            action="action_price_version"
-            groups="base.group_no_one"
-            sequence="10"/>
-
-  <menuitem id="menu_installment_rule"
-            name="分期規則模板"
-            parent="menu_dms_product_pricing_group"
-            action="action_installment_rule"
-            sequence="20"/>
-
-  <menuitem id="menu_fee_type"
-            name="費用類型"
-            parent="menu_dms_product_pricing_group"
-            action="action_fee_type"
-            sequence="30"/>
-
-  <menuitem id="menu_installment_rule_binding"
-            name="規則掛接"
-            parent="menu_dms_product_pricing_group"
-            action="action_installment_rule_binding"
-            groups="base.group_no_one"
-            sequence="40"/>
 
   <menuitem id="menu_dms_product_legacy_group"
             name="相容資料"

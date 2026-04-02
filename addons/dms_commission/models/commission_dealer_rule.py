@@ -27,8 +27,8 @@ class DmsCommissionDealerRule(models.Model):
         string='加碼金額', digits=(12, 0), default=0,
         help='用於「基礎 + 固定加碼」，例如 500 代表每台多給 500 元')
     addon_percent = fields.Float(
-        string='加碼倍率', digits=(6, 4), default=1.0,
-        help='用於「基礎 × 百分比」，例如 1.2 代表基礎 × 120%')
+        string='加碼百分比（%）', digits=(6, 2), default=0.0,
+        help='用於「基礎 × 百分比」，例如輸入 10 代表基礎 × 110%（+10%），輸入 -5 代表 -5%')
     result_preview = fields.Float(
         string='試算結果', digits=(12, 0),
         compute='_compute_result_preview', store=False,
@@ -54,11 +54,11 @@ class DmsCommissionDealerRule(models.Model):
         if self.formula_type == 'base_plus_fixed':
             return base_amount + self.addon_amount
         elif self.formula_type == 'base_times_percent':
-            return base_amount * self.addon_percent
+            return base_amount * (1 + self.addon_percent / 100.0)
         return base_amount
 
     @api.constrains('addon_percent')
     def _check_percent(self):
         for rec in self:
-            if rec.formula_type == 'base_times_percent' and rec.addon_percent <= 0:
-                raise ValidationError('百分比倍率必須大於 0')
+            if rec.formula_type == 'base_times_percent' and rec.addon_percent <= -100:
+                raise ValidationError('加碼百分比不可小於或等於 -100%（結果會是負數）')

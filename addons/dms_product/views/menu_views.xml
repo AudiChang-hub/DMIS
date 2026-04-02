@@ -1,38 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
 
-  <record id="dms_sale.menu_dms_product_group" model="ir.ui.menu">
-    <field name="groups_id" eval="[(6, 0, [ref('base.group_no_one')])]"/>
-  </record>
-
-  <record id="dms_sale.menu_product" model="ir.ui.menu">
-    <field name="groups_id" eval="[(6, 0, [ref('base.group_no_one')])]"/>
-  </record>
-
-  <record id="dms_sale.menu_product_kanban_config" model="ir.ui.menu">
-    <field name="groups_id" eval="[(6, 0, [ref('base.group_no_one')])]"/>
-  </record>
-
-  <record id="dms_sale.menu_dms_pricelist_group" model="ir.ui.menu">
-    <field name="groups_id" eval="[(6, 0, [ref('base.group_no_one')])]"/>
-  </record>
-
-  <record id="dms_sale.menu_vehicle_price" model="ir.ui.menu">
-    <field name="groups_id" eval="[(6, 0, [ref('base.group_no_one')])]"/>
-  </record>
-
-  <record id="dms_sale.menu_ev_fee_schedule" model="ir.ui.menu">
-    <field name="groups_id" eval="[(6, 0, [ref('base.group_no_one')])]"/>
-  </record>
-
-  <record id="dms_sale.menu_accessory" model="ir.ui.menu">
-    <field name="groups_id" eval="[(6, 0, [ref('base.group_no_one')])]"/>
-  </record>
-
-  <record id="dms_sale.menu_commission_rule" model="ir.ui.menu">
-    <field name="groups_id" eval="[(6, 0, [ref('base.group_no_one')])]"/>
-  </record>
-
   <menuitem id="menu_dms_product_root"
             name="產品管理"
             sequence="75"/>
@@ -47,34 +15,5 @@
             parent="menu_dms_product_master_group"
             action="action_product_template"
             sequence="10"/>
-
-  <menuitem id="menu_dms_product_legacy_group"
-            name="相容資料"
-            parent="menu_dms_product_root"
-            sequence="30"/>
-
-  <menuitem id="menu_legacy_vehicle_price"
-            name="舊車款售價"
-            parent="menu_dms_product_legacy_group"
-            action="dms_sale.action_vehicle_price"
-            sequence="10"/>
-
-  <menuitem id="menu_legacy_ev_fee_schedule"
-            name="舊電車牌險費率"
-            parent="menu_dms_product_legacy_group"
-            action="dms_sale.action_ev_fee_schedule"
-            sequence="20"/>
-
-  <menuitem id="menu_legacy_accessory"
-            name="舊精品售價"
-            parent="menu_dms_product_legacy_group"
-            action="dms_sale.action_accessory"
-            sequence="30"/>
-
-  <menuitem id="menu_legacy_commission_rule"
-            name="舊傭金規則"
-            parent="menu_dms_product_legacy_group"
-            action="dms_sale.action_commission_rule"
-            sequence="40"/>
 
 </odoo>

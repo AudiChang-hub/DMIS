@@ -1,5 +1,46 @@
 ## Changelog
 
+<!-- ═══════════════════════════════════════════════════
+     目前版本速查（每次 upgrade 後自動以 git commit 維護）
+     ═══════════════════════════════════════════════════ -->
+
+## 目前模組版本（2026-04-02）
+
+| 模組 | 版本 | 說明 |
+|---|---|---|
+| `dms_core` | `16.0.1.0.0` | 車行/品牌/車行類型 |
+| `dms_customer` | `16.0.1.0.0` | 客戶主檔 |
+| `dms_sale` | `16.0.2.0.0` | 銷售訂單 |
+| `dms_product` | `16.0.2.0.7` | 產品模板/SKU/分期/日誌 |
+| `dms_visit` | `16.0.1.1.0` | 拜訪紀錄 |
+| `dms_finance` | `16.0.1.1.0` | 財務結算 |
+| `dms_report` | `16.0.1.0.0` | 銷售 BI 報表 |
+| `dms_report_rule` | `16.0.1.0.0` | 報表動態規則 |
+| `dms_report_virtual` | `16.0.1.0.0` | 報表虛擬欄位 |
+| `user_management` | `16.0.1.0.0` | 使用者/選單管理 |
+
+---
+
+## 2026-04-02
+
+- fix(dms_sale): 訂單顏色欄位禁止直接新建（no_create: True）— spec 018 收尾
+- feat(dms_product): 產品頁面列表新增備註欄位（optional show）
+- fix(dms_product): 產品頁面 SKU 列表改用「開啟」按鈕，儲存後立即更新金額
+- chore: 清除 dms_sale / dms_product 所有過渡期遺留選單代碼（共 13 個無用選單）
+- fix(dms_product): 異動說明欄位改 store=False+inverse，儲存後自動清空（根本修正）
+- fix(dms_product): 修正對話框儲存後疊加新視窗的問題
+- feat(dms_product): 對話框儲存後停留不關閉視窗（action_save_and_stay）
+- fix(dms_product): 修正 create()/write() 異動說明未清空且 log 未建立
+- fix(dms_product): 月付金改用年金現值公式 PMT = PV × r / (1-(1+r)^-n)
+- fix(dms_product): 年利率改為百分比輸入（1=1%），加 migration 16.0.2.0.5
+- feat(dms_product): 分期方案異動日誌完整追蹤（periods/price_base/interest_rate/setup_fee/opening_fee）
+- feat(dms_product): 活動特殊價變動記入價格日誌（old/new_promo_price）
+- feat(dms_product): 產品項詳細資料改為單一 4-Tab 對話框（定價/分期/顏色/日誌）
+
+---
+
+## 2026-03-27
+
 2026-03-27 - refactor(015): 移除重複的價格基準獨立選單
 
 2026-03-27 - refactor(015): 收斂產品項下拉顯示為代碼與車種

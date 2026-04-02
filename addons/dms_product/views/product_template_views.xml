@@ -46,8 +46,13 @@
           <notebook>
             <page string="產品項">
               <field name="sku_ids"
-                     context="{'default_template_id': id, 'active_test': False, 'form_view_ref': 'dms_product.view_product_form_installment_dialog'}">
-                <tree decoration-muted="not active">
+                     context="{'default_template_id': id, 'active_test': False}">
+                <tree decoration-muted="not active" no_open="True">
+                  <button name="action_open_installment_dialog"
+                          type="object"
+                          icon="fa-external-link"
+                          string="開啟"
+                          title="開啟定價 / 分期 / 日誌"/>
                   <button name="action_duplicate_from_template_tab"
                           type="object"
                           icon="fa-copy"

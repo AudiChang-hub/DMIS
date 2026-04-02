@@ -50,7 +50,13 @@ class DmsProductCompat(models.Model):
         string='分期方案異動日誌')
     price_change_note = fields.Char(
         string='異動說明',
+        store=False,
+        inverse='_inverse_price_change_note',
         help='本次價格異動的說明，儲存後自動記入異動日誌並清空')
+
+    def _inverse_price_change_note(self):
+        """不需儲存；Odoo 透過此 inverse 確保欄位值傳入 write() 的 vals。"""
+        pass
 
     _sql_constraints = [
         ('unique_internal_code', 'unique(internal_code)', '內部唯一代碼不可重複。'),
@@ -246,14 +252,12 @@ class DmsProductCompat(models.Model):
         }
 
     def action_save_and_stay(self):
-        """儲存後保持視窗開啟，並重新整理表單資料（含清空異動說明）。
-        回傳 reload client action → Odoo 重新載入目前 dialog 表單。
+        """儲存後保持視窗開啟。
+        price_change_note 為 store=False，web_save 的 web_read 回傳空值，
+        client 自動清空欄位；回傳 False 讓對話框原地停留。
         """
         self.ensure_one()
-        return {
-            'type': 'ir.actions.client',
-            'tag': 'reload',
-        }
+        return False
 
     def action_open_color_editor(self):
         self.ensure_one()
@@ -582,13 +586,8 @@ class DmsProductCompat(models.Model):
                         'note': note,
                     })
 
-        # 儲存後一律清空異動說明（無論本次是否有改價）
-        self.env.cr.execute(
-            'UPDATE dms_product SET price_change_note = NULL'
-            ' WHERE id = ANY(%s) AND price_change_note IS NOT NULL',
-            (list(self.ids),)
-        )
-        self.invalidate_recordset(['price_change_note'])
+        # 儲存後清空 price_change_note：欄位為 store=False，web_read 自動回傳空值
+        # 不需要 SQL clear
 
         tracked_fields = {
             'template_id', 'brand_id', 'name', 'model', 'year', 'energy_type',

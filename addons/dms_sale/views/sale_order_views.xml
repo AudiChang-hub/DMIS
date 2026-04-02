@@ -89,7 +89,7 @@
                   <field name="product_id"/>
                   <field name="color_id"
                          attrs="{'invisible': [('product_id', '=', False)]}"
-                         options="{'no_create': False}"/>
+                         options="{'no_create': True}"/>
                   <field name="engine_number"/>
                   <field name="frame_number"/>
                 </group>

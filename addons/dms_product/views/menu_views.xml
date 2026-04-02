@@ -55,6 +55,12 @@
             action="action_product_template"
             sequence="10"/>
 
+  <menuitem id="menu_product_sku_grouped"
+            name="SKU 折疊總覽"
+            parent="menu_dms_product_master_group"
+            action="action_product_sku_grouped"
+            sequence="12"/>
+
   <menuitem id="menu_dms_product_pricing_group"
             name="價格與規則"
             parent="menu_dms_product_root"

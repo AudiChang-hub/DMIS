@@ -237,13 +237,18 @@ class DmsProductCompat(models.Model):
         form_view = self.env.ref('dms_product.view_product_form_installment_dialog')
         return {
             'type': 'ir.actions.act_window',
-            'name': f'分期方案：{self.display_name}',
+            'name': f'產品項：{self.display_name}',
             'res_model': 'dms.product',
             'res_id': self.id,
             'view_mode': 'form',
             'views': [(form_view.id, 'form')],
             'target': 'new',
         }
+
+    def action_save_and_stay(self):
+        """儲存並重新開啟同一個對話框（不關閉視窗）。"""
+        self.ensure_one()
+        return self.action_open_installment_dialog()
 
     def action_open_color_editor(self):
         self.ensure_one()

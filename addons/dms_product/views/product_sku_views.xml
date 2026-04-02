@@ -216,7 +216,7 @@
           </notebook>
         </sheet>
         <footer>
-          <button string="儲存" class="btn-primary" special="save"/>
+          <button string="儲存" class="btn-primary" type="object" name="action_save_and_stay"/>
         </footer>
       </form>
     </field>

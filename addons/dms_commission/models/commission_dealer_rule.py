@@ -3,14 +3,17 @@ from odoo.exceptions import ValidationError
 
 
 class DmsCommissionDealerRule(models.Model):
-    """車行覆蓋規則：特定車行在基礎傭金之上套用公式"""
+    """車行覆蓋規則：特定車行（可多選）在基礎傭金之上套用公式"""
     _name = 'dms.commission.dealer.rule'
     _description = '車行覆蓋傭金規則'
-    _rec_name = 'dealer_id'
-    _order = 'dealer_id, product_tmpl_id'
+    _rec_name = 'product_tmpl_id'
+    _order = 'product_tmpl_id'
 
-    dealer_id = fields.Many2one(
-        'dms.dealer', string='車行', required=True, ondelete='restrict')
+    dealer_ids = fields.Many2many(
+        'dms.dealer', 'commission_dealer_rule_dealer_rel',
+        'rule_id', 'dealer_id',
+        string='適用車行', required=True,
+        help='可同時選取多家車行共用相同公式')
     product_tmpl_id = fields.Many2one(
         'dms.product.template', string='車型', required=True,
         ondelete='restrict')
@@ -33,8 +36,8 @@ class DmsCommissionDealerRule(models.Model):
     note = fields.Text(string='備註')
 
     _sql_constraints = [
-        ('dealer_tmpl_uniq', 'unique(dealer_id, product_tmpl_id)',
-         '同一車行+車型只能設定一條覆蓋規則'),
+        ('tmpl_uniq', 'unique(product_tmpl_id)',
+         '同一車型只能設定一條覆蓋規則'),
     ]
 
     @api.depends('formula_type', 'addon_amount', 'addon_percent', 'product_tmpl_id')

@@ -87,7 +87,7 @@ class DmsSaleOrderExt(models.Model):
         # 優先找車行覆蓋規則
         if self.dealer_id:
             override = self.env['dms.commission.dealer.rule'].search([
-                ('dealer_id', '=', self.dealer_id.id),
+                ('dealer_ids', 'in', self.dealer_id.id),
                 ('product_tmpl_id', '=', tmpl.id),
             ], limit=1)
             if override:

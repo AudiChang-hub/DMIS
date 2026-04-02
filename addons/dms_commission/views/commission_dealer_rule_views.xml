@@ -6,7 +6,7 @@
     <field name="model">dms.commission.dealer.rule</field>
     <field name="arch" type="xml">
       <tree string="車行覆蓋規則">
-        <field name="dealer_id"/>
+        <field name="dealer_ids" widget="many2many_tags"/>
         <field name="product_tmpl_id"/>
         <field name="formula_type"/>
         <field name="addon_amount"/>
@@ -22,9 +22,11 @@
     <field name="arch" type="xml">
       <form string="車行覆蓋規則">
         <sheet>
+          <group string="適用車行（可多選）">
+            <field name="dealer_ids" nolabel="1" widget="many2many_tags"/>
+          </group>
           <group>
             <group>
-              <field name="dealer_id"/>
               <field name="product_tmpl_id"/>
               <field name="formula_type"/>
             </group>

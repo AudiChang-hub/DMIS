@@ -13,6 +13,7 @@
 - 若需要建立示範資料，請放在模組的 `data/` 下並在 `__manifest__.py` 中註明；示範資料應標註為 demo 或可安全重複載入。
 - 任何變更若需要重啟 Odoo 才會生效，實作者必須在修改完成後**自動**執行 `docker compose restart odoo`，不得等使用者提醒。至少以下情況預設需要重啟：`addons/**` 下的 Python、XML 視圖/選單/權限、`__manifest__.py`、static assets、以及任何會影響 Odoo registry / menu / web client 載入結果的變更；若無法完全判斷，預設重啟並再執行驗證。
 - 自動重啟後，至少需補做 `docker compose ps` 與 `bash scripts/smoke_odoo.sh` / `make smoke` 其中之一，確認服務已回復並可正常存取。
+- **每次 git commit 後必須立即執行 `git push`（VS Code「Sync Changes」），確保遠端同步；不得只 commit 不 push，不得等使用者提醒。**
 
 車行管理模組（`addons/dms_core/`）維護規範（強制遵守）：
 

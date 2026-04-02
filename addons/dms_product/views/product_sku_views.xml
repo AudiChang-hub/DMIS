@@ -251,4 +251,37 @@
     <field name="context">{'form_view_initial_mode': 'edit'}</field>
   </record>
 
+  <!-- ────────────────────────────────────────────────────────────────
+       SKU 折疊總覽：以產品模板分組，展開可直接看到各 SKU 的售價資訊
+  ──────────────────────────────────────────────────────────────── -->
+  <record id="view_product_sku_grouped_tree" model="ir.ui.view">
+    <field name="name">dms.product.tree.sku.grouped</field>
+    <field name="model">dms.product</field>
+    <field name="arch" type="xml">
+      <tree string="SKU 折疊總覽" create="false" delete="false">
+        <button name="action_open_installment_dialog"
+                type="object"
+                icon="fa-external-link"
+                string="開啟"
+                title="開啟定價 / 分期 / 日誌對話框"/>
+        <field name="internal_code" readonly="1"/>
+        <field name="production_year" readonly="1"/>
+        <field name="color" string="顏色" readonly="1"/>
+        <field name="cash_price" string="現金售價" readonly="1" optional="show"/>
+        <field name="list_price" string="牌價" readonly="1" optional="show"/>
+        <field name="promo_price" string="活動特殊價" readonly="1" optional="show"/>
+        <field name="effective_price" string="有效售價" readonly="1" optional="show"/>
+        <field name="active" readonly="1" optional="show"/>
+      </tree>
+    </field>
+  </record>
+
+  <record id="action_product_sku_grouped" model="ir.actions.act_window">
+    <field name="name">SKU 折疊總覽</field>
+    <field name="res_model">dms.product</field>
+    <field name="view_mode">tree,form</field>
+    <field name="view_id" ref="view_product_sku_grouped_tree"/>
+    <field name="context">{'search_default_groupby_template': 1, 'active_test': False}</field>
+  </record>
+
 </odoo>

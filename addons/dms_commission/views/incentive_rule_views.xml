@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+  <record id="view_incentive_rule_tree" model="ir.ui.view">
+    <field name="name">dms.incentive.rule.tree</field>
+    <field name="model">dms.incentive.rule</field>
+    <field name="arch" type="xml">
+      <tree string="激勵觸發規則">
+        <field name="name"/>
+        <field name="incentive_type_id"/>
+        <field name="trigger"/>
+        <field name="min_qty"
+               attrs="{'invisible': [('trigger', '!=', 'volume')]}"/>
+        <field name="qty_per_trigger"/>
+        <field name="date_from"/>
+        <field name="date_to"/>
+        <field name="active"/>
+      </tree>
+    </field>
+  </record>
+
+  <record id="view_incentive_rule_form" model="ir.ui.view">
+    <field name="name">dms.incentive.rule.form</field>
+    <field name="model">dms.incentive.rule</field>
+    <field name="arch" type="xml">
+      <form string="激勵觸發規則">
+        <sheet>
+          <group>
+            <group>
+              <field name="name"/>
+              <field name="incentive_type_id"/>
+              <field name="trigger"/>
+              <field name="min_qty"
+                     attrs="{'invisible': [('trigger', '!=', 'volume')],
+                             'required': [('trigger', '=', 'volume')]}"/>
+              <field name="qty_per_trigger"/>
+            </group>
+            <group>
+              <field name="date_from"/>
+              <field name="date_to"/>
+              <field name="active"/>
+            </group>
+          </group>
+          <group string="適用車行（留空 = 全部）">
+            <field name="dealer_ids" nolabel="1" widget="many2many_tags"/>
+          </group>
+          <group string="限定車型（留空 = 不限）">
+            <field name="product_tmpl_ids" nolabel="1" widget="many2many_tags"/>
+          </group>
+          <group string="備註">
+            <field name="note" nolabel="1"/>
+          </group>
+        </sheet>
+      </form>
+    </field>
+  </record>
+
+  <record id="action_incentive_rule" model="ir.actions.act_window">
+    <field name="name">激勵觸發規則</field>
+    <field name="res_model">dms.incentive.rule</field>
+    <field name="view_mode">tree,form</field>
+    <field name="context">{'search_default_active': True}</field>
+  </record>
+
+</odoo>

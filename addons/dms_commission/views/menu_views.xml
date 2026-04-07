@@ -23,13 +23,13 @@
             name="車種覆蓋規則"
             parent="menu_commission_settings"
             action="action_commission_vehicle_rule"
-            sequence="20"/>
+            sequence="25"/>
 
   <menuitem id="menu_commission_dealer_rule"
             name="車行覆蓋規則"
             parent="menu_commission_settings"
             action="action_commission_dealer_rule"
-            sequence="25"/>
+            sequence="20"/>
 
   <menuitem id="menu_commission_volume_rule"
             name="台數獎金規則"

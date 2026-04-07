@@ -26,7 +26,8 @@
           </group>
           <separator string="適用車行（留空 = 全部車行）"/>
           <field name="dealer_ids" nolabel="1" widget="many2many_tags" class="w-100"/>
-          <field name="note" string="備註" placeholder="備註" nolabel="1"/>
+          <separator string="備註"/>
+          <field name="note" nolabel="1" placeholder="請輸入備註內容..."/>
         </sheet>
       </form>
     </field>

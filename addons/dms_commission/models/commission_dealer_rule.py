@@ -47,7 +47,20 @@ class DmsCommissionDealerRule(models.Model):
         'dms.commission.dealer.rule.incentive.line', 'rule_id',
         string='實物激勵明細',
         help='每台結案後附帶給出的實物品項（如機油）')
+    incentive_summary = fields.Char(
+        string='實物激勵', compute='_compute_incentive_summary')
     note = fields.Text(string='備註')
+
+    @api.depends('incentive_line_ids', 'incentive_line_ids.incentive_type_id',
+                 'incentive_line_ids.quantity')
+    def _compute_incentive_summary(self):
+        for rec in self:
+            parts = []
+            for line in rec.incentive_line_ids:
+                name = line.incentive_type_id.name or ''
+                qty = int(line.quantity) if line.quantity == int(line.quantity) else line.quantity
+                parts.append(f'{name} ×{qty}')
+            rec.incentive_summary = '、'.join(parts) if parts else '—'
 
     @api.depends('dealer_ids', 'brand_id', 'energy_type')
     def _compute_name(self):

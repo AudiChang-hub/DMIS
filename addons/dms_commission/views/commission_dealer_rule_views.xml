@@ -5,7 +5,9 @@
     <field name="name">dms.commission.dealer.rule.tree</field>
     <field name="model">dms.commission.dealer.rule</field>
     <field name="arch" type="xml">
-      <tree string="車行覆蓋規則">
+      <tree string="車行覆蓋規則"
+            decoration-success="addon_amount > 0"
+            decoration-danger="addon_amount &lt; 0">
         <field name="dealer_ids" widget="many2many_tags"/>
         <field name="addon_amount"/>
         <field name="note"/>

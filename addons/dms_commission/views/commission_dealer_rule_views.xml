@@ -36,7 +36,9 @@
             </group>
           </group>
           <separator string="適用車行（可多選）"/>
-          <field name="dealer_ids" nolabel="1" widget="many2many_tags"/>
+          <group col="1">
+            <field name="dealer_ids" nolabel="1" widget="many2many_tags"/>
+          </group>
           <field name="note" string="備註" placeholder="備註" nolabel="1"/>
         </sheet>
       </form>

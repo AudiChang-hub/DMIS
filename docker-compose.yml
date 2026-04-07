@@ -12,6 +12,7 @@ services:
     depends_on:
       - db
     volumes:
+      - odoo_data:/var/lib/odoo
       - ./addons:/mnt/extra-addons
     restart: always
 
@@ -37,3 +38,4 @@ services:
 
 volumes:
   db_data:
+  odoo_data:

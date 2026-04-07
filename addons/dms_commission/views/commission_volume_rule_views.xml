@@ -10,16 +10,18 @@
                decoration-info="rule_type == 'general'"
                decoration-warning="rule_type == 'specific'"/>
         <field name="name"/>
+        <field name="mode" optional="show"/>
         <field name="brand_id" optional="show"/>
         <field name="min_qty"/>
         <field name="bonus_per_unit"/>
-        <field name="energy_type"/>
-        <field name="date_from"/>
-        <field name="date_to"/>
-        <field name="active"/>
-        <field name="dealer_ids" widget="many2many_tags" optional="show"/>
-        <field name="product_tmpl_ids" widget="many2many_tags" optional="show"/>
-        <field name="note" optional="show"/>
+        <field name="energy_type" optional="show"/>
+        <field name="period_type" optional="show"/>
+        <field name="date_from" optional="show"/>
+        <field name="date_to" optional="show"/>
+        <field name="active" optional="show"/>
+        <field name="dealer_ids" widget="many2many_tags" optional="hide"/>
+        <field name="product_tmpl_ids" widget="many2many_tags" optional="hide"/>
+        <field name="note" optional="hide"/>
       </tree>
     </field>
   </record>
@@ -39,14 +41,18 @@
             <group>
               <field name="name"/>
               <field name="rule_type" readonly="1"/>
+              <field name="mode"/>
               <field name="brand_id" placeholder="留空 = 所有品牌"/>
               <field name="min_qty"/>
               <field name="bonus_per_unit"/>
               <field name="energy_type"/>
             </group>
             <group>
-              <field name="date_from"/>
-              <field name="date_to"/>
+              <field name="period_type"/>
+              <field name="date_from"
+                     attrs="{'required': [('period_type','=','custom')]}"/>
+              <field name="date_to"
+                     attrs="{'required': [('period_type','=','custom')]}"/>
               <field name="active"/>
             </group>
           </group>

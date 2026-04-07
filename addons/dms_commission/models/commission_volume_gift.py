@@ -3,28 +3,23 @@ from odoo.exceptions import ValidationError
 import datetime
 
 
-class DmsCommissionVolumeRule(models.Model):
-    """現金台數獎金規則：達到門檻台數後每台加碼現金"""
-    _name = 'dms.commission.volume.rule'
-    _description = '台數獎金規則'
+class DmsCommissionVolumeGift(models.Model):
+    """台數實物獎勵規則：達到門檻台數後給予實物（零件）"""
+    _name = 'dms.commission.volume.gift'
+    _description = '台數實物獎勵規則'
     _rec_name = 'name'
     _order = 'name'
 
     name = fields.Char(string='規則名稱', required=True)
     dealer_ids = fields.Many2many(
-        'dms.dealer', 'commission_volume_rule_dealer_rel',
+        'dms.dealer', 'commission_volume_gift_dealer_rel',
         'rule_id', 'dealer_id',
         string='適用車行',
         help='留空代表通用規則（適用所有車行）')
     brand_id = fields.Many2one(
         'dms.brand', string='限定品牌',
         ondelete='restrict',
-        help='留空代表所有品牌；設定後只計算該品牌的台數')
-    product_tmpl_ids = fields.Many2many(
-        'dms.product.template', 'commission_volume_rule_tmpl_rel',
-        'rule_id', 'tmpl_id',
-        string='限定車型',
-        help='留空代表不限制車型')
+        help='留空代表所有品牌')
     energy_type = fields.Selection(
         [('oil', '油車'), ('electric', '電車')],
         string='限定能源型式',
@@ -33,16 +28,22 @@ class DmsCommissionVolumeRule(models.Model):
         [
             ('retroactive', '可回溯（達標後補算全部台數）'),
             ('after_threshold', '不可回溯（超門檻後每台才算）'),
+            ('milestone_repeat', '里程碑重複（每達門檻倍數送一次）'),
         ],
-        string='計算模式', required=True, default='retroactive',
-        help='retroactive：達到門檻後 1～N 台全部補給；'
-             'after_threshold：達到門檻後第 N+1 台起才有')
+        string='計算模式', required=True, default='retroactive')
     min_qty = fields.Integer(
         string='達標門檻（台）', required=True, default=3,
         help='當期結案台數達到此數字後才觸發')
-    bonus_per_unit = fields.Float(
-        string='每台加碼金額', digits=(12, 0), required=True,
-        help='達標後每台訂單額外增加的傭金（TWD）')
+    part_id = fields.Many2one(
+        'dms.part', string='送出零件', required=True,
+        ondelete='restrict',
+        help='達標後送出的零件品項')
+    qty_per_unit = fields.Float(
+        string='每台件數', digits=(6, 2), default=1.0,
+        help='retroactive / after_threshold 模式：每台給幾個')
+    fixed_qty = fields.Float(
+        string='每次送出件數', digits=(6, 2), default=1.0,
+        help='milestone_repeat 模式：每次觸發送幾個')
     period_type = fields.Selection(
         [
             ('monthly', '月統計（每月重置）'),
@@ -65,13 +66,15 @@ class DmsCommissionVolumeRule(models.Model):
         for rec in self:
             rec.rule_type = 'specific' if rec.dealer_ids else 'general'
 
-    @api.constrains('min_qty', 'bonus_per_unit')
+    @api.constrains('min_qty', 'qty_per_unit', 'fixed_qty')
     def _check_positive(self):
         for rec in self:
             if rec.min_qty < 1:
                 raise ValidationError('達標門檻至少為 1 台')
-            if rec.bonus_per_unit <= 0:
-                raise ValidationError('每台加碼金額必須大於 0')
+            if rec.mode in ('retroactive', 'after_threshold') and rec.qty_per_unit <= 0:
+                raise ValidationError('每台件數必須大於 0')
+            if rec.mode == 'milestone_repeat' and rec.fixed_qty <= 0:
+                raise ValidationError('每次送出件數必須大於 0')
 
     @api.constrains('period_type', 'date_from', 'date_to')
     def _check_custom_dates(self):
@@ -87,7 +90,6 @@ class DmsCommissionVolumeRule(models.Model):
         self.ensure_one()
         if self.period_type == 'custom':
             return self.date_from, self.date_to
-        # monthly：以 closed_month（YYYY-MM）算出當月首末日
         year, month = int(closed_month[:4]), int(closed_month[5:7])
         first_day = datetime.date(year, month, 1)
         if month == 12:
@@ -97,7 +99,7 @@ class DmsCommissionVolumeRule(models.Model):
         return first_day, last_day
 
     def is_applicable_for(self, dealer_id, ref_date):
-        """判斷此規則是否適用於指定車行與日期（monthly 模式只看 date_from/to 是否覆蓋）"""
+        """判斷此規則是否在此 ref_date 生效（monthly 模式）"""
         self.ensure_one()
         if self.dealer_ids and dealer_id not in self.dealer_ids.ids:
             return False
@@ -107,3 +109,14 @@ class DmsCommissionVolumeRule(models.Model):
             if self.date_to and ref_date > self.date_to:
                 return False
         return True
+
+    def compute_expected_qty(self, count):
+        """依模式計算應給總量"""
+        self.ensure_one()
+        if self.mode == 'retroactive':
+            return count * self.qty_per_unit if count >= self.min_qty else 0.0
+        elif self.mode == 'after_threshold':
+            return max(0.0, count - self.min_qty) * self.qty_per_unit
+        elif self.mode == 'milestone_repeat':
+            return (count // self.min_qty) * self.fixed_qty
+        return 0.0

@@ -64,24 +64,69 @@
 
 ---
 
-### 3. `dms.commission.volume.rule`（台數獎金規則）
+### 3. `dms.commission.volume.rule`（現金台數獎金規則）
 
-當月車行達到門檻台數後，每台結案訂單額外加碼。
+達到門檻台數後每台結案訂單額外加碼現金。
 
 | 欄位 | 型別 | 說明 |
 |---|---|---|
 | `name` | Char | 規則名稱，必填 |
-| `dealer_ids` | Many2many → `dms.dealer` | 適用車行（空 = 全部車行） |
+| `dealer_ids` | Many2many → `dms.dealer` | 適用車行（空 = 通用規則） |
 | `brand_id` | Many2one → `dms.brand` | 限定品牌（空 = 不限）；設定後只計算該品牌台數 |
 | `product_tmpl_ids` | Many2many → `dms.product.template` | 限定車型（空 = 不限） |
 | `energy_type` | Selection | 限定能源型式（空 = 不分）；`oil`/`electric` |
-| `min_qty` | Integer | 月達標門檻台數，必填，≥ 1 |
-| `bonus_per_unit` | Float | 達標後每台加碼金額，必填，> 0 |
-| `date_from` | Date | 規則生效起日（空 = 無限制） |
-| `date_to` | Date | 規則生效迄日（空 = 無限制） |
+| `mode` | Selection | **必填**：`retroactive`（可回溯，達標補算全部台數）/ `after_threshold`（不可回溯，超過門檻後每台才算） |
+| `min_qty` | Integer | 門檻台數，必填，≥ 1 |
+| `bonus_per_unit` | Float | 每台加碼金額，必填，> 0 |
+| `period_type` | Selection | `monthly`（月統計，預設）/ `custom`（自訂起迄） |
+| `date_from` | Date | 規則生效起日（`custom` 時為統計起日，必填） |
+| `date_to` | Date | 規則生效迄日（`custom` 時為統計迄日，必填） |
 | `active` | Boolean | 預設 True |
-| `rule_type` | Selection | 系統自動判斷：有指定車行 = `specific`；否則 = `general`（compute，store） |
+| `rule_type` | Selection | 系統自動判斷：`dealer_ids` 非空 = `specific`；否則 = `general`（compute，store） |
 | `note` | Text | 備註 |
+
+**計算公式（`mode`）**：
+- `retroactive`：`expected = count × bonus_per_unit`（count ≥ min_qty 時）
+- `after_threshold`：`expected = max(0, count - min_qty) × bonus_per_unit`
+
+---
+
+### 3b. `dms.commission.volume.gift`（台數實物獎勵規則）【新增】
+
+達到門檻台數後給予實物（零件）。使用差額法，撤銷訂單時自動 void 多餘的 pending delivery。
+
+| 欄位 | 型別 | 說明 |
+|---|---|---|
+| `name` | Char | 規則名稱，必填 |
+| `dealer_ids` | Many2many → `dms.dealer` | 適用車行（空 = 通用規則） |
+| `brand_id` | Many2one → `dms.brand` | 限定品牌（空 = 不限） |
+| `energy_type` | Selection | 限定能源型式（空 = 不限）；`oil`/`electric` |
+| `mode` | Selection | **必填**：`retroactive` / `after_threshold` / `milestone_repeat`（每達門檻倍數送一次） |
+| `min_qty` | Integer | 門檻台數，必填，≥ 1 |
+| `part_id` | Many2one → `dms.part` | 送的零件，必填 |
+| `qty_per_unit` | Float | 每台幾個（`retroactive`/`after_threshold` 用），預設 1.0 |
+| `fixed_qty` | Float | 每次觸發幾個（`milestone_repeat` 用），預設 1.0 |
+| `period_type` | Selection | `monthly`（預設）/ `custom`（自訂起迄） |
+| `date_from` | Date | 統計起日（`custom` 時必填） |
+| `date_to` | Date | 統計迄日（`custom` 時必填） |
+| `active` | Boolean | 預設 True |
+| `rule_type` | Selection | 系統自動判斷：`dealer_ids` 非空 = `specific`；否則 = `general`（compute，store） |
+| `note` | Text | 備註 |
+
+**計算公式（差額法）**：
+```
+retroactive：     expected = count >= min_qty ? count × qty_per_unit : 0
+after_threshold： expected = max(0, count - min_qty) × qty_per_unit
+milestone_repeat：expected = floor(count / min_qty) × fixed_qty
+
+delta = expected - already_given（此規則本期非 voided delivery 加總）
+delta > 0 → 建一筆 delivery(qty=delta, volume_gift_rule_id=self)
+delta < 0 → void 最新幾筆 pending delivery 直到補足差額
+delta = 0 → 不動
+```
+
+**排除邏輯（跨類型）**：
+在計算 `volume.gift` 規則時，若此車行在此品牌 × 能源型式條件下有特殊規則（`dealer_ids` 含此車行的 `volume.rule` 或 `volume.gift`），則通用規則（`dealer_ids` 為空的 `volume.rule` 及 `volume.gift`）完全跳過。
 
 ---
 
@@ -153,7 +198,8 @@
 | `dealer_id` | Many2one → `dms.dealer` | 車行 |
 | `incentive_rule_id` | Many2one → `dms.incentive.rule` | 觸發規則（激勵規則產生者） |
 | `dealer_rule_line_id` | Many2one → `dms.commission.dealer.rule.incentive.line` | 來源車行覆蓋規則明細（實物折換產生者） |
-| `part_id` | Many2one → `dms.part` | 零件（車行覆蓋規則折換用，如機油）；選填 |
+| `part_id` | Many2one → `dms.part` | 零件（車行覆蓋規則折換 或 台數實物獎勵用）；選填 |
+| `volume_gift_rule_id` | Many2one → `dms.commission.volume.gift` | 產生此記錄的台數實物獎勵規則；選填 |
 | `incentive_type_id` | Many2one → `dms.incentive.type` | 激勵品項（激勵規則觸發用）；**選填**（與 `part_id` 擇一） |
 | `qty` | Integer | 數量，必填，預設 1 |
 | `state` | Selection | `pending`（待給）/ `delivered`（已給）/ `voided`（已作廢） |

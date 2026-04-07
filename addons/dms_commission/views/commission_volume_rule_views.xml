@@ -10,6 +10,7 @@
                decoration-info="rule_type == 'general'"
                decoration-warning="rule_type == 'specific'"/>
         <field name="name"/>
+        <field name="brand_id" optional="show"/>
         <field name="min_qty"/>
         <field name="bonus_per_unit"/>
         <field name="energy_type"/>
@@ -38,6 +39,7 @@
             <group>
               <field name="name"/>
               <field name="rule_type" readonly="1"/>
+              <field name="brand_id" placeholder="留空 = 所有品牌"/>
               <field name="min_qty"/>
               <field name="bonus_per_unit"/>
               <field name="energy_type"/>

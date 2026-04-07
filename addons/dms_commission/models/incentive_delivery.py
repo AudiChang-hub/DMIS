@@ -16,10 +16,10 @@ class DmsIncentiveDelivery(models.Model):
         'dms.dealer', string='車行', ondelete='restrict', index=True)
     incentive_rule_id = fields.Many2one(
         'dms.incentive.rule', string='觸發規則', ondelete='restrict')
-    contract_line_id = fields.Many2one(
-        'dms.commission.dealer.contract.line', string='來源合約明細',
+    dealer_rule_line_id = fields.Many2one(
+        'dms.commission.dealer.rule.incentive.line', string='來源車行規則明細',
         ondelete='restrict',
-        help='由車行傭金合約產生的激勵記錄')
+        help='由車行覆蓋規則實物明細產生的激勵記錄')
     incentive_type_id = fields.Many2one(
         'dms.incentive.type', string='激勵品項', required=True,
         ondelete='restrict')

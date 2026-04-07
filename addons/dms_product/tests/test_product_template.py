@@ -237,8 +237,10 @@ class TestDmsProductTemplate(TransactionCase):
         self.assertFalse(copied_sku.internal_code)
         self.assertEqual(copied_sku.color_ids.name, sku.color_ids.name)
         self.assertEqual(copied_sku.color, sku.color)
-        self.assertEqual(action['type'], 'ir.actions.client')
-        self.assertEqual(action['tag'], 'reload')
+        # 複製後改為開啟 dialog 讓使用者直接編輯
+        self.assertEqual(action['type'], 'ir.actions.act_window')
+        self.assertEqual(action['target'], 'new')
+        self.assertEqual(action['res_id'], copied_sku.id)
 
     def test_11_direct_sku_copy_carries_colors_and_clears_year(self):
         template = self.env['dms.product.template'].create({

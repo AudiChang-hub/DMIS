@@ -20,6 +20,11 @@
         'wizard/report_summary_views.xml',
         'views/menu_views.xml',
     ],
+    'assets': {
+        'web.assets_backend': [
+            'dms_commission/static/src/css/commission_form.css',
+        ],
+    },
     'installable': True,
     'application': False,
 }

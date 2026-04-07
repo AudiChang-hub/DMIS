@@ -42,7 +42,6 @@
               <field name="name" readonly="1"/>
               <field name="model" readonly="1"/>
               <field name="energy_type" readonly="1"/>
-              <field name="year" readonly="1"/>
             </group>
           </group>
           <notebook>

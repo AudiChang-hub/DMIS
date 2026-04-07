@@ -43,6 +43,9 @@ class DmsCommissionDealerRule(models.Model):
     addon_amount = fields.Float(
         string='固定加碼金額', digits=(12, 0), default=0,
         help='每台銷售固定加碼金額（正數加碼，負數扣減）')
+    target_commission = fields.Float(
+        string='結案傭金目標', digits=(12, 0),
+        help='套用本規則後預期的每台現金傭金金額（僅供參考，不影響計算）')
     incentive_line_ids = fields.One2many(
         'dms.commission.dealer.rule.incentive.line', 'rule_id',
         string='實物激勵明細',

@@ -1,2 +1,1 @@
-from . import part_category
-from . import part
+# 零件功能已移入 dms_product/models/

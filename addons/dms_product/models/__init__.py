@@ -1,3 +1,5 @@
+from . import part_category
+from . import part
 from . import product_template
 from . import product_color
 from . import price_version

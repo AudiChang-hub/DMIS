@@ -33,8 +33,8 @@ class VFPreviewLine(models.TransientModel):
     virtual_value = fields.Char(string='虛擬分組值', readonly=True)
     record_count = fields.Integer(string='記錄數', readonly=True)
     measure_total_1 = fields.Float(
-        string='指標 1 合計', readonly=True, digits=(16, 2))
+        string='指標 1 合計', readonly=True, digits=(16, 0))
     measure_total_2 = fields.Float(
-        string='指標 2 合計', readonly=True, digits=(16, 2))
+        string='指標 2 合計', readonly=True, digits=(16, 0))
     measure_total_3 = fields.Float(
-        string='指標 3 合計', readonly=True, digits=(16, 2))
+        string='指標 3 合計', readonly=True, digits=(16, 0))

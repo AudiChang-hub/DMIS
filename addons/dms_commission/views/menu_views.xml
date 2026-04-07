@@ -37,6 +37,12 @@
             action="action_commission_volume_rule"
             sequence="30"/>
 
+  <menuitem id="menu_commission_volume_gift"
+            name="台數實物獎勵規則"
+            parent="menu_commission_settings"
+            action="action_commission_volume_gift"
+            sequence="35"/>
+
   <!-- 激勵設定 -->
   <menuitem id="menu_incentive_settings"
             name="激勵設定"

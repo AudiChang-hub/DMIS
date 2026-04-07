@@ -32,7 +32,7 @@ class DmsSaleOrderExt(models.Model):
     # ── 結案按鈕 ──────────────────────────────────────────
 
     def action_close_order(self):
-        """結案：計算傭金、產生激勵記錄、重算台數獎金"""
+        """結案：計算傭金、產生激勵記錄、重算台數獎金與台數實物獎勵"""
         for order in self:
             if order.is_closed:
                 raise UserError('此訂單已結案，請先撤銷結案再操作')
@@ -43,6 +43,7 @@ class DmsSaleOrderExt(models.Model):
             order._create_or_update_commission_record()
             order._generate_incentive_deliveries()
             order._recompute_volume_bonus()
+            order._recompute_volume_gifts()
 
     def action_reopen_order(self):
         """撤銷結案：作廢傭金記錄與 pending 激勵、重算台數獎金"""
@@ -69,6 +70,7 @@ class DmsSaleOrderExt(models.Model):
             # 重算（此訂單已不再是 active，所以只重算剩餘）
             if dealer_id and closed_month:
                 self._recompute_volume_bonus_for(dealer_id, closed_month)
+                self._recompute_volume_gifts_for(dealer_id, closed_month)
 
     # ── 傭金計算 ──────────────────────────────────────────
 
@@ -214,6 +216,14 @@ class DmsSaleOrderExt(models.Model):
         if dealer_id and closed_month:
             self._recompute_volume_bonus_for(dealer_id, closed_month)
 
+    def _recompute_volume_gifts(self):
+        """重算台數實物獎勵：自身所在車行+月份"""
+        self.ensure_one()
+        dealer_id = self.dealer_id.id if self.dealer_id else False
+        closed_month = self.closed_month
+        if dealer_id and closed_month:
+            self._recompute_volume_gifts_for(dealer_id, closed_month)
+
     @api.model
     def _recompute_volume_bonus_for(self, dealer_id, closed_month):
         """重算指定車行+月份所有 active commission record 的 volume_bonus"""
@@ -222,59 +232,161 @@ class DmsSaleOrderExt(models.Model):
             ('closed_month', '=', closed_month),
             ('state', '=', 'active'),
         ])
-        total_count = len(records)
 
-        # 找所有適用此車行的台數獎金規則（依 closed_month 判斷日期）
-        # closed_month 格式 YYYY-MM，取第一天作為比較日期
         try:
             ref_date = datetime.date(
                 int(closed_month[:4]), int(closed_month[5:7]), 1)
         except (ValueError, TypeError, IndexError):
             return
 
-        volume_rules = self.env['dms.commission.volume.rule'].search([
+        all_volume_rules = self.env['dms.commission.volume.rule'].search([
+            ('active', '=', True),
+        ])
+        all_gift_rules = self.env['dms.commission.volume.gift'].search([
             ('active', '=', True),
         ])
 
-        # 分類：特定規則（dealer_ids 包含此車行）vs 通用規則（dealer_ids 空）
-        specific_rules = volume_rules.filtered(
+        # 特殊規則：dealer_ids 含此車行（volume.rule + volume.gift 跨類型合併判斷）
+        specific_vrules = all_volume_rules.filtered(
             lambda r: dealer_id in r.dealer_ids.ids and r.is_applicable_for(dealer_id, ref_date))
-        general_rules = volume_rules.filtered(
+        specific_gifts = all_gift_rules.filtered(
+            lambda r: dealer_id in r.dealer_ids.ids and r.is_applicable_for(dealer_id, ref_date))
+
+        use_specific = bool(specific_vrules or specific_gifts)
+
+        # 只取 volume.rule 部分的適用規則
+        applicable_vrules = specific_vrules if use_specific else all_volume_rules.filtered(
             lambda r: not r.dealer_ids and r.is_applicable_for(dealer_id, ref_date))
-        # 有特定規則就只用特定，否則用通用
-        applicable_rules = specific_rules if specific_rules else general_rules
 
         for rec in records:
-            bonus = 0.0
             best_bonus = 0.0
-            for vrule in applicable_rules:
-                # 品牌維度篩選：規則有限定品牌時，只計算該品牌的台數
+            for vrule in applicable_vrules:
+                d_from, d_to = vrule.get_period_range(closed_month)
+                # 計算此規則期間內此車行的台數（依 brand/energy 篩選）
+                domain = [
+                    ('dealer_id', '=', dealer_id),
+                    ('state', '=', 'active'),
+                    ('closed_date', '>=', datetime.datetime.combine(d_from, datetime.time.min)),
+                    ('closed_date', '<=', datetime.datetime.combine(d_to, datetime.time.max)),
+                ]
+                period_records = self.env['dms.commission.record'].search(domain)
+
                 if vrule.brand_id:
-                    brand_records = records.filtered(
-                        lambda r: r.product_tmpl_id and
-                        r.product_tmpl_id.brand_id == vrule.brand_id
-                    )
-                    count = len(brand_records)
-                    # 此筆記錄的品牌不符，跳過
+                    period_records = period_records.filtered(
+                        lambda r: r.product_tmpl_id and r.product_tmpl_id.brand_id == vrule.brand_id)
                     if rec.product_tmpl_id and rec.product_tmpl_id.brand_id != vrule.brand_id:
                         continue
                 elif vrule.energy_type:
-                    count = sum(
-                        1 for r in records
-                        if r.product_tmpl_id and
-                        r.product_tmpl_id.energy_type == vrule.energy_type
-                    )
+                    period_records = period_records.filtered(
+                        lambda r: r.product_tmpl_id and r.product_tmpl_id.energy_type == vrule.energy_type)
                     if rec.product_tmpl_id and rec.product_tmpl_id.energy_type != vrule.energy_type:
                         continue
-                else:
-                    count = total_count
-                # 限定車種篩選
+
                 if vrule.product_tmpl_ids and rec.product_tmpl_id:
                     if rec.product_tmpl_id not in vrule.product_tmpl_ids:
                         continue
-                # 達標才考慮，取最高 bonus_per_unit（不疊加）
-                if count >= vrule.min_qty and vrule.bonus_per_unit > best_bonus:
-                    best_bonus = vrule.bonus_per_unit
-            bonus = best_bonus
-            if rec.volume_bonus != bonus:
-                rec.volume_bonus = bonus
+
+                count = len(period_records)
+                # 依 mode 計算每台應得獎金（bonus_per_unit 是每台，所以預覽此筆是否達標即可）
+                if vrule.mode == 'retroactive':
+                    unit_bonus = vrule.bonus_per_unit if count >= vrule.min_qty else 0.0
+                else:  # after_threshold
+                    # 此筆是第幾台？算 rank
+                    sorted_recs = period_records.sorted('closed_date')
+                    ranks = {r.id: idx + 1 for idx, r in enumerate(sorted_recs)}
+                    rank = ranks.get(rec.id, 0)
+                    unit_bonus = vrule.bonus_per_unit if rank > vrule.min_qty else 0.0
+
+                if unit_bonus > best_bonus:
+                    best_bonus = unit_bonus
+
+            if rec.volume_bonus != best_bonus:
+                rec.volume_bonus = best_bonus
+
+    @api.model
+    def _recompute_volume_gifts_for(self, dealer_id, closed_month):
+        """重算指定車行+月份所有台數實物獎勵（差額法）"""
+        try:
+            ref_date = datetime.date(
+                int(closed_month[:4]), int(closed_month[5:7]), 1)
+        except (ValueError, TypeError, IndexError):
+            return
+
+        all_volume_rules = self.env['dms.commission.volume.rule'].search([
+            ('active', '=', True),
+        ])
+        all_gift_rules = self.env['dms.commission.volume.gift'].search([
+            ('active', '=', True),
+        ])
+
+        # 跨類型排除判斷
+        specific_vrules = all_volume_rules.filtered(
+            lambda r: dealer_id in r.dealer_ids.ids and r.is_applicable_for(dealer_id, ref_date))
+        specific_gifts = all_gift_rules.filtered(
+            lambda r: dealer_id in r.dealer_ids.ids and r.is_applicable_for(dealer_id, ref_date))
+
+        use_specific = bool(specific_vrules or specific_gifts)
+        applicable_gifts = specific_gifts if use_specific else all_gift_rules.filtered(
+            lambda r: not r.dealer_ids and r.is_applicable_for(dealer_id, ref_date))
+
+        for gift_rule in applicable_gifts:
+            d_from, d_to = gift_rule.get_period_range(closed_month)
+            domain = [
+                ('dealer_id', '=', dealer_id),
+                ('state', '=', 'active'),
+                ('closed_date', '>=', datetime.datetime.combine(d_from, datetime.time.min)),
+                ('closed_date', '<=', datetime.datetime.combine(d_to, datetime.time.max)),
+            ]
+            period_records = self.env['dms.commission.record'].search(domain)
+
+            # 品牌/能源篩選
+            if gift_rule.brand_id:
+                period_records = period_records.filtered(
+                    lambda r: r.product_tmpl_id and r.product_tmpl_id.brand_id == gift_rule.brand_id)
+            elif gift_rule.energy_type:
+                period_records = period_records.filtered(
+                    lambda r: r.product_tmpl_id and r.product_tmpl_id.energy_type == gift_rule.energy_type)
+
+            count = len(period_records)
+            expected_qty = gift_rule.compute_expected_qty(count)
+
+            # 計算已記錄的非 voided delivery 總量
+            existing_deliveries = self.env['dms.incentive.delivery'].search([
+                ('volume_gift_rule_id', '=', gift_rule.id),
+                ('dealer_id', '=', dealer_id),
+                ('closed_month', '=', closed_month),
+                ('state', '!=', 'voided'),
+            ])
+            already_given = sum(existing_deliveries.mapped('qty'))
+            delta = expected_qty - already_given
+
+            if delta > 0:
+                # 找一筆本期有效訂單作為 delivery 的 sale_order_id（最新一筆）
+                latest_order = self.env['dms.sale.order'].search([
+                    ('dealer_id', '=', dealer_id),
+                    ('is_closed', '=', True),
+                    ('closed_month', '=', closed_month),
+                ], order='closed_date desc', limit=1)
+                if latest_order:
+                    self.env['dms.incentive.delivery'].create({
+                        'sale_order_id': latest_order.id,
+                        'dealer_id': dealer_id,
+                        'volume_gift_rule_id': gift_rule.id,
+                        'part_id': gift_rule.part_id.id,
+                        'qty': delta,
+                        'state': 'pending',
+                    })
+            elif delta < 0:
+                # void 最新幾筆 pending delivery 直到補足差額
+                to_void = existing_deliveries.filtered(
+                    lambda d: d.state == 'pending').sorted('id', reverse=True)
+                remaining = -delta
+                for dv in to_void:
+                    if remaining <= 0:
+                        break
+                    if dv.qty <= remaining:
+                        remaining -= dv.qty
+                        dv.state = 'voided'
+                    else:
+                        dv.qty -= remaining
+                        remaining = 0

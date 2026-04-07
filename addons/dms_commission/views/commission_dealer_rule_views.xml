@@ -33,11 +33,11 @@
           </group>
           <separator string="適用車行"/>
           <field name="dealer_ids" nolabel="1" widget="many2many_tags" class="w-100"/>
-          <separator string="實物激勵明細（每台結案後附帶給出，留空代表純現金加碼）"/>
+          <separator string="折換零件明細（每台結案後附帶給出，留空代表純現金加碼）"/>
           <field name="incentive_line_ids" nolabel="1">
             <tree editable="bottom">
               <field name="sequence" widget="handle"/>
-              <field name="incentive_type_id"/>
+              <field name="part_id"/>
               <field name="quantity"/>
             </tree>
           </field>

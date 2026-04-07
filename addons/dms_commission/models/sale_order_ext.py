@@ -161,7 +161,7 @@ class DmsSaleOrderExt(models.Model):
                         self.env['dms.incentive.delivery'].create({
                             'sale_order_id': self.id,
                             'dealer_id': dealer_id,
-                            'incentive_type_id': line.incentive_type_id.id,
+                            'part_id': line.part_id.id,
                             'dealer_rule_line_id': line.id,
                             'qty': line.quantity,
                             'state': 'pending',

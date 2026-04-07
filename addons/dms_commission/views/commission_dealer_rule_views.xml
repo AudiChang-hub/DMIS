@@ -12,6 +12,7 @@
         <field name="brand_id" optional="show"/>
         <field name="energy_type" optional="show"/>
         <field name="addon_amount"/>
+        <field name="target_commission" optional="show"/>
         <field name="incentive_summary" optional="show"/>
         <field name="note" optional="show"/>
       </tree>
@@ -27,6 +28,8 @@
           <group>
             <group>
               <field name="addon_amount"/>
+              <field name="target_commission"
+                     placeholder="例：1500（套用加碼後的預期傭金）"/>
               <field name="brand_id" placeholder="留空 = 所有品牌"/>
               <field name="energy_type"/>
             </group>

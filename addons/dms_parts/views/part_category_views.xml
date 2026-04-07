@@ -33,4 +33,17 @@
     <field name="view_mode">tree,form</field>
   </record>
 
+  <record id="view_part_category_search" model="ir.ui.view">
+    <field name="name">dms.part.category.search</field>
+    <field name="model">dms.part.category</field>
+    <field name="arch" type="xml">
+      <search string="零件分類搜尋">
+        <field name="name" string="名稱"/>
+        <filter name="filter_active" string="啟用中" domain="[('active','=',True)]"/>
+        <separator/>
+        <filter name="filter_archived" string="已歸檔" domain="[('active','=',False)]"/>
+      </search>
+    </field>
+  </record>
+
 </odoo>

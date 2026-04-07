@@ -6,12 +6,13 @@
     <field name="model">dms.part</field>
     <field name="arch" type="xml">
       <tree string="零件">
-        <field name="name"/>
+        <field name="name" optional="show"/>
         <field name="part_number" optional="show"/>
-        <field name="category_id"/>
-        <field name="uom"/>
-        <field name="cost_price"/>
+        <field name="category_id" optional="show"/>
+        <field name="uom" optional="show"/>
+        <field name="cost_price" optional="show"/>
         <field name="active" optional="show"/>
+        <field name="note" optional="hide"/>
       </tree>
     </field>
   </record>
@@ -45,6 +46,24 @@
     <field name="name">零件</field>
     <field name="res_model">dms.part</field>
     <field name="view_mode">tree,form</field>
+  </record>
+
+  <record id="view_part_search" model="ir.ui.view">
+    <field name="name">dms.part.search</field>
+    <field name="model">dms.part</field>
+    <field name="arch" type="xml">
+      <search string="零件搜尋">
+        <field name="name" string="名稱"/>
+        <field name="part_number" string="料號"/>
+        <field name="category_id" string="分類"/>
+        <filter name="filter_active" string="啟用中" domain="[('active','=',True)]"/>
+        <separator/>
+        <filter name="filter_archived" string="已歸檔" domain="[('active','=',False)]"/>
+        <group expand="0" string="分組依據">
+          <filter name="group_category" string="分類" context="{'group_by': 'category_id'}"/>
+        </group>
+      </search>
+    </field>
   </record>
 
 </odoo>

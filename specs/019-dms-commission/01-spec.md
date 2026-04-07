@@ -1,12 +1,14 @@
 # 019-dms-commission 規格（01-spec）
 
+> 最後更新：2026-04-07（配合實作同步）
+
 ## 模組資訊
 
 | 項目 | 值 |
 |---|---|
 | 技術名稱 | `dms_commission` |
 | 顯示名稱 | DMS 傭金管理 |
-| 依賴 | `dms_core`, `dms_product`, `dms_sale` |
+| 依賴 | `dms_core`, `dms_product`, `dms_sale`, `dms_parts` |
 | 頂層選單 | `menu_dms_commission_root`，name="傭金管理"，sequence=50 |
 
 ---
@@ -30,27 +32,35 @@
 
 ### 2. `dms.commission.dealer.rule`（車行覆蓋規則）
 
-特定車行在基礎傭金之上套用公式，規則可疊加在 `dms.commission.rule` 之上。
+特定車行在基礎傭金之上套用**固定加碼**，可限定品牌與能源型式，並可附帶實物激勵明細。
+一條規則可套用多個車行（Many2many）。
+
+> ⚠️ 架構異動記錄（2026-04-07）：
+> 原設計為 dealer_id（單一）× product_tmpl_id（必填）× formula_type，
+> 已重構為 dealer_ids（M2M）× brand_id + energy_type 篩選 × addon_amount 固定加碼，
+> 並移除 formula_type/addon_percent，加入實物激勵明細子表。
 
 | 欄位 | 型別 | 說明 |
 |---|---|---|
-| `dealer_id` | Many2one → `dms.dealer` | 適用車行，必填 |
-| `product_tmpl_id` | Many2one → `dms.product.template` | 車型，必填 |
-| `formula_type` | Selection | 公式類型，必填（見下方） |
-| `addon_amount` | Monetary | 加碼金額（用於 `base_plus_fixed`） |
-| `addon_percent` | Float | 加碼百分比（用於 `base_times_percent`，例如 1.2 = 120%） |
-| `result_preview` | Float | 唯讀，根據基礎傭金試算結果（compute，store=False） |
+| `name` | Char | 自動計算（車行名稱 ／ 品牌 ／ 能源型式），store=True |
+| `dealer_ids` | Many2many → `dms.dealer` | 適用車行，必填（可多選） |
+| `brand_id` | Many2one → `dms.brand` | 限定品牌（空 = 所有品牌） |
+| `energy_type` | Selection | 限定能源型式（空 = 油車+電車都適用）；`oil`/`electric` |
+| `addon_amount` | Float | 每台固定加碼金額（正數加碼，負數扣減） |
+| `incentive_line_ids` | One2many → `dms.commission.dealer.rule.incentive.line` | 實物激勵明細（每台結案後附帶的零件） |
+| `incentive_summary` | Char | 實物激勵摘要（compute，如 機油 ×1、零件 ×2） |
 | `note` | Text | 備註 |
 
-**`formula_type` 選項**（可擴充 Selection）：
-| 值 | 標籤 | 說明 |
+**子表模型 `dms.commission.dealer.rule.incentive.line`**：
+
+| 欄位 | 型別 | 說明 |
 |---|---|---|
-| `base_plus_fixed` | 基礎 + 固定加碼 | `base_amount + addon_amount` |
-| `base_times_percent` | 基礎 × 百分比 | `base_amount * addon_percent` |
+| `sequence` | Integer | 排序，預設 10 |
+| `rule_id` | Many2one → `dms.commission.dealer.rule` | 所屬規則，必填 |
+| `part_id` | Many2one → `dms.part` | 零件，必填（來自 dms_parts） |
+| `quantity` | Float | 每台給出數量，預設 1.0 |
 
-**計算方法 `compute_amount(base_amount)`**：依 `formula_type` 套用公式，回傳最終傭金金額。
-
-**限制**：`(dealer_id, product_tmpl_id)` 唯一。
+**篩選方法 `is_applicable_for(tmpl)`**：品牌 + 能源型式雙重篩選，回傳 bool。
 
 ---
 
@@ -62,14 +72,15 @@
 |---|---|---|
 | `name` | Char | 規則名稱，必填 |
 | `dealer_ids` | Many2many → `dms.dealer` | 適用車行（空 = 全部車行） |
+| `brand_id` | Many2one → `dms.brand` | 限定品牌（空 = 不限）；設定後只計算該品牌台數 |
 | `product_tmpl_ids` | Many2many → `dms.product.template` | 限定車型（空 = 不限） |
-| `energy_type` | Selection | 限定能源型式（空 = 不分）；選項同 `dms.product.template.energy_type`：`oil`/`electric` |
+| `energy_type` | Selection | 限定能源型式（空 = 不分）；`oil`/`electric` |
 | `min_qty` | Integer | 月達標門檻台數，必填，≥ 1 |
-| `bonus_per_unit` | Monetary | 達標後每台加碼金額，必填，> 0 |
-| `currency_id` | Many2one → `res.currency` | 幣別，預設 TWD |
+| `bonus_per_unit` | Float | 達標後每台加碼金額，必填，> 0 |
 | `date_from` | Date | 規則生效起日（空 = 無限制） |
 | `date_to` | Date | 規則生效迄日（空 = 無限制） |
 | `active` | Boolean | 預設 True |
+| `rule_type` | Selection | 系統自動判斷：有指定車行 = `specific`；否則 = `general`（compute，store） |
 | `note` | Text | 備註 |
 
 ---
@@ -138,16 +149,21 @@
 
 | 欄位 | 型別 | 說明 |
 |---|---|---|
-| `sale_order_id` | Many2one → `sale.order` | 對應銷貨訂單 |
+| `sale_order_id` | Many2one → `dms.sale.order` | 對應銷貨訂單，必填 |
 | `dealer_id` | Many2one → `dms.dealer` | 車行 |
-| `incentive_rule_id` | Many2one → `dms.incentive.rule` | 觸發規則 |
-| `incentive_type_id` | Many2one → `dms.incentive.type` | 激勵品項（從規則複製） |
-| `qty` | Integer | 給予數量 |
+| `incentive_rule_id` | Many2one → `dms.incentive.rule` | 觸發規則（激勵規則產生者） |
+| `dealer_rule_line_id` | Many2one → `dms.commission.dealer.rule.incentive.line` | 來源車行覆蓋規則明細（實物折換產生者） |
+| `part_id` | Many2one → `dms.part` | 零件（車行覆蓋規則折換用，如機油）；選填 |
+| `incentive_type_id` | Many2one → `dms.incentive.type` | 激勵品項（激勵規則觸發用）；**選填**（與 `part_id` 擇一） |
+| `qty` | Integer | 數量，必填，預設 1 |
 | `state` | Selection | `pending`（待給）/ `delivered`（已給）/ `voided`（已作廢） |
 | `delivery_method` | Selection | `self`（自送）/ `manufacturer`（原廠區經理）；`state=delivered` 時必填 |
 | `delivered_date` | Date | 實際給出日期 |
 | `delivered_by` | Char | 給出人員姓名或備註 |
+| `closed_month` | Char | 月份字串（related from sale_order_id，store=True，格式 YYYY-MM） |
 | `remark` | Text | 備註 |
+
+> ⚠️ 架構調整記錄（2026-04-07）：`incentive_type_id` 已由 required 改為選填，增加 `dealer_rule_line_id` 與 `part_id` 兩個欄位，以支援車行覆蓋規則的實物折換場景。
 
 ---
 
@@ -243,17 +259,20 @@ Wizard 輸入：`date_from` / `date_to`（Date range）
 ## 五、資料關係圖
 
 ```
-dms.product.template ──┬── dms.commission.rule (1:1)
-                       └── dms.commission.dealer.rule (many, per dealer)
-                       └── dms.commission.volume.rule (many2many)
+dms.product.template ──── dms.commission.rule (1:1)
 
-dms.dealer ────────────┬── dms.commission.dealer.rule
-                       └── dms.commission.volume.rule (many2many)
+dms.dealer ────────────── dms.commission.dealer.rule (many2many)
+dms.brand  ─────────────┘ （brand_id / energy_type 為篩選條件）
+dms.part   ─────────────── dms.commission.dealer.rule.incentive.line
 
-sale.order (is_closed) ── dms.commission.record (1:1)
-                       └── dms.incentive.delivery (1:many)
+dms.dealer / dms.brand ─── dms.commission.volume.rule (many2many)
 
-dms.incentive.rule ──── dms.incentive.delivery (trigger source)
-dms.incentive.type ──── dms.incentive.rule
-                     └── dms.incentive.delivery
+dms.sale.order (is_closed) ── dms.commission.record (1:1)
+                           └── dms.incentive.delivery (1:many)
+
+dms.incentive.rule ────────── dms.incentive.delivery (激勵規則觸發)
+dms.incentive.type ────────── dms.incentive.rule
+                           └── dms.incentive.delivery (incentive_type_id 選填)
+
+dms.commission.dealer.rule.incentive.line ── dms.incentive.delivery (dealer_rule_line_id + part_id)
 ```

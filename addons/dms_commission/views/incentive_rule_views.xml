@@ -11,7 +11,7 @@
         <field name="trigger" optional="show"/>
         <field name="qty_per_trigger" optional="show"/>
         <field name="dealer_ids" widget="many2many_tags" optional="hide"/>
-        <field name="product_tmpl_ids" widget="many2many_tags" optional="hide"/>
+        <field name="product_tmpl_ids" widget="many2many_tags" optional="hide" class="wrap-tags"/>
         <field name="date_from" optional="show"/>
         <field name="date_to" optional="show"/>
         <field name="active" optional="show"/>

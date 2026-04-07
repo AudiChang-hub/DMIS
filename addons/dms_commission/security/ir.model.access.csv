@@ -1,5 +1,6 @@
 id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
 access_dms_commission_product_rule,dms.commission.product.rule,model_dms_commission_product_rule,base.group_user,1,1,1,1
+access_dms_commission_vehicle_rule,dms.commission.vehicle.rule,model_dms_commission_vehicle_rule,base.group_user,1,1,1,1
 access_dms_commission_dealer_rule,dms.commission.dealer.rule,model_dms_commission_dealer_rule,base.group_user,1,1,1,1
 access_dms_commission_volume_rule,dms.commission.volume.rule,model_dms_commission_volume_rule,base.group_user,1,1,1,1
 access_dms_commission_record,dms.commission.record,model_dms_commission_record,base.group_user,1,1,1,1

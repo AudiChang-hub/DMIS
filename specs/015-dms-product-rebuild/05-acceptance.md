@@ -4,7 +4,7 @@
 
 - [x] 可從新頂層 App「產品管理」進入主畫面
 - [x] 可建立產品模板，至少可輸入品牌、機種、型式、型號、能源型式
-- [x] 可建立產品項，至少可輸入模板、出廠年份、內部唯一代碼、啟用狀態
+- [x] 可建立產品項，至少可輸入出廠年份（內部唯一代碼由系統自動生成，不需手動輸入）
 - [x] 同一模板下可建立不同出廠年份的多筆產品項
 - [x] 產品項僅於產品模板表單中的產品項頁籤維護，不提供獨立選單頁面
 - [x] 停用後的產品項仍可在模板頁籤看見，並可直接重新啟用
@@ -23,6 +23,8 @@
 - [x] 不可建立重複 `internal_code`
 - [x] 未手動輸入 `internal_code` 時，系統會依「型號 + 出廠年份」自動生成可讀代碼
 - [x] 若同型號同年份已有既有代碼，系統會自動補尾碼維持唯一性
+- [x] `internal_code` 欄位在 UI 中為唯讀，不允許使用者手動修改
+- [x] `template_id` 在新增產品項對話框中自動帶入所屬模板且不可修改
 - [x] 主要清單畫面以 list 為主，不依賴圖片作主畫面核心
 
 ## B. 價格生效邏輯驗收
@@ -117,6 +119,25 @@ docker exec dmis-odoo-1 odoo --test-enable --stop-after-init -d dmis_dev -u dms_
 ```
 
 > 若任何測試失敗，不得跳過，必須修正或明確說明阻塞原因。
+
+## K. 新增產品項 UX 流程驗收（2026-04-07 新增）
+
+> 解決「全新模板尚未儲存時，新增產品項對話框無法帶入 template_id」問題。
+
+- [x] 在全新產品模板（尚未儲存）頁面點選「新增產品項」時，系統自動儲存模板後才開啟對話框
+- [x] 若模板必填欄位（品牌、機種、能源型式）尚未填寫，點選「新增產品項」後系統顯示紅框提示，不開啟對話框
+- [x] 對話框開啟後，`template_id` 欄位為唯讀且自動帶入當前模板，無需使用者手動選擇
+- [x] 對話框中唯一需要填寫的必要欄位為「出廠年份」
+- [x] 儲存對話框後，`internal_code` 由系統自動按「型號-年份」規則生成，不需手動輸入
+- [x] 已儲存的模板（有既有產品項）點選「新增產品項」時，直接開啟對話框（不重複觸發 auto-save）
+- [x] `internal_code` 欄位在 SKU form 中完全唯讀，不提供手動輸入入口
+
+### 技術實作規範
+
+- OWL widget `sku_o2m`（`dms_product/static/src/js/sku_o2m_autosave.js`）繼承 `X2ManyField`，在 `onAdd()` 中判斷 `record.isNew` → 觸發 `record.save()` → 確認成功後才呼叫 `super.onAdd()`
+- Python `create()` 在記錄建立後，若 `internal_code` 為空則自動呼叫 `_build_generated_code()` 填入
+- `product_template_views.xml` 的 `sku_ids` 欄位使用 `widget="sku_o2m"`
+- `product_sku_views.xml` 的 `internal_code` 加上 `readonly="1"`；`template_id` 加上 `attrs="{'readonly': [('template_id', '!=', False)]}"`
 
 ### 本輪實際驗證結果（2026-03-27）
 

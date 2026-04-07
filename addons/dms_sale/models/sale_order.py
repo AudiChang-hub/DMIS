@@ -138,8 +138,15 @@ class SaleOrder(models.Model):
         if not self.product_id:
             return
 
-        # 優先讀取產品上的有效售價（effective_price = promo_price if promo_price > 0 else cash_price）
-        if self.product_id.effective_price:
+        # 優先讀取 dms.price.line（新價格結構）
+        price_line = self.env['dms.price.line'].get_effective_line(
+            self.product_id,
+            query_date=self.order_date or fields.Date.context_today(self),
+        )
+        if price_line:
+            self.cash_price = price_line.cash_price
+        elif self.product_id.effective_price:
+            # 次優先：讀取產品上的有效售價（直接欄位：promo_price 或 cash_price）
             self.cash_price = self.product_id.effective_price
         else:
             # Fallback：舊車款售價相容層（待 018 移除）

@@ -27,12 +27,12 @@
       <form string="產品項">
         <sheet>
           <div class="oe_title">
-            <label for="internal_code"/>
-            <h1><field name="internal_code" placeholder="內部唯一代碼"/></h1>
+            <label for="internal_code" string="內部唯一代碼"/>
+            <h1><field name="internal_code" readonly="1" placeholder="系統自動生成"/></h1>
           </div>
           <group>
             <group string="產品項資料">
-              <field name="template_id"/>
+              <field name="template_id" attrs="{'readonly': [('template_id', '!=', False)]}"/>
               <field name="production_year"/>
               <field name="color" string="可售顏色" readonly="1" invisible="1"/>
               <field name="active"/>

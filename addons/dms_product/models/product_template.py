@@ -11,7 +11,7 @@ class DmsProductTemplate(models.Model):
         'dms.brand', string='品牌', required=True, ondelete='restrict')
     family_name = fields.Char(string='機種', required=True)
     type_name = fields.Char(string='型式')
-    model_name = fields.Char(string='型號')
+    model_name = fields.Char(string='型號', required=True)
     energy_type = fields.Selection(
         [('oil', '油車'), ('electric', '電車')],
         string='能源型式',
@@ -20,7 +20,7 @@ class DmsProductTemplate(models.Model):
     active = fields.Boolean(string='啟用', default=True)
     note = fields.Text(string='備註')
 
-    @api.constrains('brand_id', 'family_name', 'energy_type')
+    @api.constrains('brand_id', 'family_name', 'model_name', 'energy_type')
     def _check_required_fields(self):
         for rec in self:
             missing = []
@@ -28,6 +28,8 @@ class DmsProductTemplate(models.Model):
                 missing.append('品牌')
             if not rec.family_name or not rec.family_name.strip():
                 missing.append('機種')
+            if not rec.model_name or not rec.model_name.strip():
+                missing.append('型號')
             if not rec.energy_type:
                 missing.append('能源型式')
             if missing:

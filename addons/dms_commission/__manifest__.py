@@ -12,7 +12,6 @@
         'views/commission_vehicle_rule_views.xml',
         'views/commission_dealer_rule_views.xml',
         'views/commission_volume_rule_views.xml',
-        'views/commission_dealer_contract_views.xml',
         'views/incentive_type_views.xml',
         'views/incentive_rule_views.xml',
         'views/commission_record_views.xml',

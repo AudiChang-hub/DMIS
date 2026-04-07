@@ -9,8 +9,11 @@
             decoration-success="addon_amount > 0"
             decoration-danger="addon_amount &lt; 0">
         <field name="dealer_ids" widget="many2many_tags"/>
+        <field name="brand_id" optional="show"/>
+        <field name="energy_type" optional="show"/>
         <field name="addon_amount"/>
-        <field name="note"/>
+        <field name="incentive_line_ids" widget="many2many_tags" optional="show"/>
+        <field name="note" optional="show"/>
       </tree>
     </field>
   </record>
@@ -22,10 +25,22 @@
       <form string="車行覆蓋規則">
         <sheet>
           <group>
-            <field name="addon_amount"/>
+            <group>
+              <field name="addon_amount"/>
+              <field name="brand_id" placeholder="留空 = 所有品牌"/>
+              <field name="energy_type"/>
+            </group>
           </group>
           <separator string="適用車行"/>
           <field name="dealer_ids" nolabel="1" widget="many2many_tags" class="w-100"/>
+          <separator string="實物激勵明細（每台結案後附帶給出，留空代表純現金加碼）"/>
+          <field name="incentive_line_ids" nolabel="1">
+            <tree editable="bottom">
+              <field name="sequence" widget="handle"/>
+              <field name="incentive_type_id"/>
+              <field name="quantity"/>
+            </tree>
+          </field>
           <separator string="備註"/>
           <field name="note" nolabel="1" placeholder="請輸入備註內容..."/>
         </sheet>

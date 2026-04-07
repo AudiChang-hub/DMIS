@@ -20,6 +20,10 @@ class DmsIncentiveDelivery(models.Model):
         'dms.commission.dealer.rule.incentive.line', string='來源車行規則明細',
         ondelete='restrict',
         help='由車行覆蓋規則實物明細產生的激勵記錄')
+    volume_gift_rule_id = fields.Many2one(
+        'dms.commission.volume.gift', string='台數實物獎勵規則',
+        ondelete='restrict',
+        help='由台數實物獎勵規則產生的記錄')
     part_id = fields.Many2one(
         'dms.part', string='零件',
         ondelete='restrict',

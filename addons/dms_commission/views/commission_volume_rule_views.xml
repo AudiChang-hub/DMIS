@@ -37,9 +37,7 @@
             </group>
           </group>
           <separator string="適用車行（留空 = 全部）"/>
-          <group col="1">
-            <field name="dealer_ids" nolabel="1" widget="many2many_tags"/>
-          </group>
+          <field name="dealer_ids" nolabel="1" widget="many2many_tags" class="w-100"/>
           <group string="限定車型（留空 = 不限）" col="1">
             <field name="product_tmpl_ids" nolabel="1" widget="many2many_tags"/>
           </group>

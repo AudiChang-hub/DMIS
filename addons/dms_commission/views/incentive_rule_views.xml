@@ -41,9 +41,8 @@
               <field name="active"/>
             </group>
           </group>
-          <group string="適用車行（留空 = 全部）" col="1">
-            <field name="dealer_ids" nolabel="1" widget="many2many_tags"/>
-          </group>
+          <separator string="適用車行（留空 = 全部）"/>
+          <field name="dealer_ids" nolabel="1" widget="many2many_tags"/>
           <group string="限定車型（留空 = 不限）" col="1">
             <field name="product_tmpl_ids" nolabel="1" widget="many2many_tags"/>
           </group>

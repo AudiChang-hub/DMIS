@@ -11,8 +11,8 @@ class DmsCommissionDealerRuleIncentiveLine(models.Model):
     rule_id = fields.Many2one(
         'dms.commission.dealer.rule', string='所屬規則',
         required=True, ondelete='cascade')
-    incentive_type_id = fields.Many2one(
-        'dms.incentive.type', string='激勵品項',
+    part_id = fields.Many2one(
+        'dms.part', string='零件',
         required=True, ondelete='restrict')
     quantity = fields.Float(
         string='每台數量', digits=(6, 2), default=1,
@@ -51,13 +51,13 @@ class DmsCommissionDealerRule(models.Model):
         string='實物激勵', compute='_compute_incentive_summary')
     note = fields.Text(string='備註')
 
-    @api.depends('incentive_line_ids', 'incentive_line_ids.incentive_type_id',
+    @api.depends('incentive_line_ids', 'incentive_line_ids.part_id',
                  'incentive_line_ids.quantity')
     def _compute_incentive_summary(self):
         for rec in self:
             parts = []
             for line in rec.incentive_line_ids:
-                name = line.incentive_type_id.name or ''
+                name = line.part_id.name or ''
                 qty = int(line.quantity) if line.quantity == int(line.quantity) else line.quantity
                 parts.append(f'{name} ×{qty}')
             rec.incentive_summary = '、'.join(parts) if parts else '—'

@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+  <record id="view_part_category_tree" model="ir.ui.view">
+    <field name="name">dms.part.category.tree</field>
+    <field name="model">dms.part.category</field>
+    <field name="arch" type="xml">
+      <tree string="零件分類">
+        <field name="name"/>
+        <field name="active" optional="show"/>
+      </tree>
+    </field>
+  </record>
+
+  <record id="view_part_category_form" model="ir.ui.view">
+    <field name="name">dms.part.category.form</field>
+    <field name="model">dms.part.category</field>
+    <field name="arch" type="xml">
+      <form string="零件分類">
+        <sheet>
+          <group>
+            <field name="name"/>
+            <field name="active"/>
+          </group>
+        </sheet>
+      </form>
+    </field>
+  </record>
+
+  <record id="action_part_category" model="ir.actions.act_window">
+    <field name="name">零件分類</field>
+    <field name="res_model">dms.part.category</field>
+    <field name="view_mode">tree,form</field>
+  </record>
+
+</odoo>

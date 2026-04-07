@@ -13,6 +13,8 @@
         <field name="date_from"/>
         <field name="date_to"/>
         <field name="active"/>
+        <field name="dealer_ids" widget="many2many_tags" optional="show"/>
+        <field name="note" optional="show"/>
       </tree>
     </field>
   </record>

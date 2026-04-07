@@ -38,12 +38,10 @@
           </group>
           <separator string="適用車行（留空 = 全部）"/>
           <field name="dealer_ids" nolabel="1" widget="many2many_tags" class="w-100"/>
-          <group string="限定車型（留空 = 不限）" col="1">
-            <field name="product_tmpl_ids" nolabel="1" widget="many2many_tags"/>
-          </group>
-          <group string="備註">
-            <field name="note" nolabel="1"/>
-          </group>
+          <separator string="限定車種（留空 = 不限）"/>
+          <field name="product_tmpl_ids" nolabel="1" widget="many2many_tags" class="w-100"/>
+          <separator string="備註"/>
+          <field name="note" nolabel="1" placeholder="請輸入備註內容..."/>
         </sheet>
       </form>
     </field>

@@ -225,22 +225,36 @@ class TestDmsProductTemplate(TransactionCase):
             'active': True,
         })
 
+        # 複製按鈕現在開啟 wizard，由 wizard 負責填年份後才真正 copy()
         action = sku.action_duplicate_from_template_tab()
-        template.invalidate_recordset()
-        copied_skus = template.sku_ids.sorted('id')
-        copied_sku = copied_skus[-1]
-
-        self.assertEqual(len(copied_skus), 2)
-        self.assertNotEqual(copied_sku.id, sku.id)
-        self.assertEqual(copied_sku.template_id, template)
-        self.assertFalse(copied_sku.production_year)
-        self.assertFalse(copied_sku.internal_code)
-        self.assertEqual(copied_sku.color_ids.name, sku.color_ids.name)
-        self.assertEqual(copied_sku.color, sku.color)
-        # 複製後改為開啟 dialog 讓使用者直接編輯
         self.assertEqual(action['type'], 'ir.actions.act_window')
         self.assertEqual(action['target'], 'new')
-        self.assertEqual(action['res_id'], copied_sku.id)
+        self.assertEqual(action['res_model'], 'dms.product.duplicate.wizard')
+
+        # 驗證 wizard 邏輯：無衝突時直接建立並開啟 product form
+        wizard = self.env['dms.product.duplicate.wizard'].browse(action['res_id'])
+        self.assertEqual(wizard.source_product_id, sku)
+        wizard.write({'production_year': '2027'})
+        result = wizard.action_check_and_create()
+        self.assertEqual(result['type'], 'ir.actions.act_window')
+        self.assertEqual(result['res_model'], 'dms.product')
+        new_sku = self.env['dms.product'].browse(result['res_id'])
+        self.assertEqual(new_sku.template_id, template)
+        self.assertEqual(new_sku.production_year, '2027')
+
+        # 驗證 wizard 邏輯：有衝突時顯示警告，再呼叫 action_confirm_create 才建立
+        wizard2 = self.env['dms.product.duplicate.wizard'].create({
+            'source_product_id': sku.id,
+            'production_year': '2026',  # 與原始 sku 相同年份，應觸發衝突
+        })
+        conflict_result = wizard2.action_check_and_create()
+        self.assertEqual(conflict_result['res_model'], 'dms.product.duplicate.wizard')
+        self.assertTrue(wizard2.has_conflict)
+        self.assertTrue(wizard2.conflict_product_name)
+        confirmed = wizard2.action_confirm_create()
+        self.assertEqual(confirmed['res_model'], 'dms.product')
+        confirmed_sku = self.env['dms.product'].browse(confirmed['res_id'])
+        self.assertEqual(confirmed_sku.production_year, '2026')
 
     def test_11_direct_sku_copy_carries_colors_and_clears_year(self):
         template = self.env['dms.product.template'].create({

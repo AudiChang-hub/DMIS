@@ -7,11 +7,9 @@
     <field name="arch" type="xml">
       <tree string="車種覆蓋規則">
         <field name="product_tmpl_id"/>
-        <field name="dealer_ids" widget="many2many_tags" optional="show"/>
-        <field name="formula_type"/>
         <field name="addon_amount"/>
-        <field name="addon_percent"/>
-        <field name="result_preview"/>
+        <field name="dealer_ids" widget="many2many_tags" optional="show"/>
+        <field name="note" optional="hide"/>
       </tree>
     </field>
   </record>
@@ -23,17 +21,8 @@
       <form string="車種覆蓋規則">
         <sheet>
           <group>
-            <group>
-              <field name="product_tmpl_id"/>
-              <field name="formula_type"/>
-            </group>
-            <group>
-              <field name="addon_amount"
-                     attrs="{'invisible': [('formula_type', '!=', 'base_plus_fixed')]}"/>
-              <field name="addon_percent"
-                     attrs="{'invisible': [('formula_type', '!=', 'base_times_percent')]}"/>
-              <field name="result_preview"/>
-            </group>
+            <field name="product_tmpl_id"/>
+            <field name="addon_amount"/>
           </group>
           <separator string="適用車行（留空 = 全部車行）"/>
           <field name="dealer_ids" nolabel="1" widget="many2many_tags" class="w-100"/>

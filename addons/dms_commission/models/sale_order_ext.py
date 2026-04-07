@@ -213,33 +213,39 @@ class DmsSaleOrderExt(models.Model):
             ('active', '=', True),
         ])
 
+        # 分類：特定規則（dealer_ids 包含此車行）vs 通用規則（dealer_ids 空）
+        specific_rules = volume_rules.filtered(
+            lambda r: dealer_id in r.dealer_ids.ids and r.is_applicable_for(dealer_id, ref_date))
+        general_rules = volume_rules.filtered(
+            lambda r: not r.dealer_ids and r.is_applicable_for(dealer_id, ref_date))
+        # 有特定規則就只用特定，否則用通用
+        applicable_rules = specific_rules if specific_rules else general_rules
+
         for rec in records:
             bonus = 0.0
-            for vrule in volume_rules:
-                if not vrule.is_applicable_for(dealer_id, ref_date):
-                    continue
-                # 能源別篩選
-                if vrule.energy_type and rec.product_tmpl_id:
-                    if rec.product_tmpl_id.energy_type != vrule.energy_type:
-                        # 計算此能源別訂單數
-                        energy_count = sum(
-                            1 for r in records
-                            if r.product_tmpl_id and
-                            r.product_tmpl_id.energy_type == vrule.energy_type
-                        )
-                        if energy_count < vrule.min_qty:
-                            continue
-                    elif rec.product_tmpl_id.energy_type != vrule.energy_type:
-                        continue
-                # 無能源別限制：用全部台數
-                count = total_count
+            best_rule = None
+            best_bonus = 0.0
+            for vrule in applicable_rules:
+                # 計算此規則對應的台數（依能源別或全部）
                 if vrule.energy_type:
                     count = sum(
                         1 for r in records
                         if r.product_tmpl_id and
                         r.product_tmpl_id.energy_type == vrule.energy_type
                     )
-                if count >= vrule.min_qty:
-                    bonus += vrule.bonus_per_unit
+                    # 若此筆記錄的車種能源別不符，跳過
+                    if rec.product_tmpl_id and rec.product_tmpl_id.energy_type != vrule.energy_type:
+                        continue
+                else:
+                    count = total_count
+                # 限定車種篩選
+                if vrule.product_tmpl_ids and rec.product_tmpl_id:
+                    if rec.product_tmpl_id not in vrule.product_tmpl_ids:
+                        continue
+                # 達標才考慮，取最高 bonus_per_unit（不疊加）
+                if count >= vrule.min_qty and vrule.bonus_per_unit > best_bonus:
+                    best_bonus = vrule.bonus_per_unit
+                    best_rule = vrule
+            bonus = best_bonus
             if rec.volume_bonus != bonus:
                 rec.volume_bonus = bonus

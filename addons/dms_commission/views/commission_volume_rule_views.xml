@@ -6,6 +6,9 @@
     <field name="model">dms.commission.volume.rule</field>
     <field name="arch" type="xml">
       <tree string="台數獎金規則">
+        <field name="rule_type" widget="badge"
+               decoration-info="rule_type == 'general'"
+               decoration-warning="rule_type == 'specific'"/>
         <field name="name"/>
         <field name="min_qty"/>
         <field name="bonus_per_unit"/>
@@ -26,9 +29,15 @@
     <field name="arch" type="xml">
       <form string="台數獎金規則">
         <sheet>
+          <div class="alert alert-warning" role="alert" style="margin-bottom:16px;">
+            <strong>❗ 視先後視則：</strong>
+            若某車行有「特殊規則」，計算時將<strong>只走特殊規則中達門檻最高的那一條</strong>，通用規則對該車行將<strong>完全無效</strong>。
+            請確認已為特殊車行設定完整的個別規則。
+          </div>
           <group>
             <group>
               <field name="name"/>
+              <field name="rule_type" readonly="1"/>
               <field name="min_qty"/>
               <field name="bonus_per_unit"/>
               <field name="energy_type"/>

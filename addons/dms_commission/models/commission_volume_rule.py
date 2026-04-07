@@ -34,6 +34,15 @@ class DmsCommissionVolumeRule(models.Model):
     date_to = fields.Date(string='生效迄日', help='留空代表無限制')
     active = fields.Boolean(string='啟用', default=True)
     note = fields.Text(string='備註')
+    rule_type = fields.Selection(
+        [('general', '通用規則'), ('specific', '特殊規則')],
+        string='規則類型', compute='_compute_rule_type', store=True,
+        help='系統自動判斷：適用車行留空為通用規則；有指定車行為特殊規則')
+
+    @api.depends('dealer_ids')
+    def _compute_rule_type(self):
+        for rec in self:
+            rec.rule_type = 'specific' if rec.dealer_ids else 'general'
 
     @api.constrains('min_qty', 'bonus_per_unit')
     def _check_positive(self):

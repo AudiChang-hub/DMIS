@@ -4,9 +4,9 @@ import datetime
 
 
 class DmsCommissionVolumeRule(models.Model):
-    """現金台數獎金規則：達到門檻台數後每台加碼現金"""
+    """台數現金獎勵規則：達到門檻台數後每台加碼現金"""
     _name = 'dms.commission.volume.rule'
-    _description = '台數獎金規則'
+    _description = '台數現金獎勵規則'
     _rec_name = 'name'
     _order = 'name'
 

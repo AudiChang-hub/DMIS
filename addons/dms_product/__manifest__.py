@@ -1,6 +1,6 @@
 {
     'name': 'DMS 產品管理',
-    'version': '16.0.2.0.7',
+    'version': '16.0.2.1.0',
     'summary': '新一代產品模板、SKU、價目版本、分期規則與費用規則管理',
     'description': (
         '提供產品模板、可販售產品項 / SKU、價目版本、價格基準、'
@@ -25,6 +25,11 @@
         'views/menu_views.xml',
     ],
     'post_init_hook': 'post_init_hook',
+    'assets': {
+        'web.assets_backend': [
+            'dms_product/static/src/js/sku_o2m_autosave.js',
+        ],
+    },
     'installable': True,
     'application': True,
 }

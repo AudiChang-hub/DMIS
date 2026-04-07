@@ -30,7 +30,7 @@
         <sheet>
           <div class="alert alert-info" role="alert"
                attrs="{'invisible': [('id', '!=', False)]}">
-            <strong>新增產品</strong>：請先填寫品牌、機種、能源型式後，點擊上方綠色「儲存」按鈕，即可在下方新增及複製產品項。
+            <strong>新增產品</strong>：請先填寫品牌、機種、能源型式等必填欄位。填寫完成後，點選下方「新增產品項」時系統將自動儲存模板並開啟新增對話框。
           </div>
           <group>
             <group>
@@ -47,6 +47,7 @@
           <notebook>
             <page string="產品項">
               <field name="sku_ids"
+                     widget="sku_o2m"
                      context="{'default_template_id': id, 'active_test': False}">
                 <tree decoration-muted="not active" no_open="True">
                   <button name="action_open_installment_dialog"

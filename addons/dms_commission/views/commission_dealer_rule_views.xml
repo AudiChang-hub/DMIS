@@ -12,7 +12,7 @@
         <field name="brand_id" optional="show"/>
         <field name="energy_type" optional="show"/>
         <field name="addon_amount"/>
-        <field name="incentive_line_ids" widget="many2many_tags" optional="show"/>
+        <field name="incentive_summary" optional="show"/>
         <field name="note" optional="show"/>
       </tree>
     </field>

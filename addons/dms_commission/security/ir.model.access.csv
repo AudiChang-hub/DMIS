@@ -9,3 +9,5 @@ access_dms_incentive_rule,dms.incentive.rule,model_dms_incentive_rule,base.group
 access_dms_incentive_delivery,dms.incentive.delivery,model_dms_incentive_delivery,base.group_user,1,1,1,1
 access_dms_commission_monthly_report,dms.commission.monthly.report,model_dms_commission_monthly_report,base.group_user,1,1,1,1
 access_dms_commission_summary_report,dms.commission.summary.report,model_dms_commission_summary_report,base.group_user,1,1,1,1
+access_dms_commission_dealer_contract,dms.commission.dealer.contract,model_dms_commission_dealer_contract,base.group_user,1,1,1,1
+access_dms_commission_dealer_contract_line,dms.commission.dealer.contract.line,model_dms_commission_dealer_contract_line,base.group_user,1,1,1,1

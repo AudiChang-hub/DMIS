@@ -99,6 +99,19 @@ class DmsProductCompat(models.Model):
             if duplicate:
                 raise ValidationError('同一產品模板與出廠年份僅能建立一筆產品項；若要新增顏色，請改到顏色清單維護。')
 
+    @api.onchange('template_id')
+    def _onchange_template_id(self):
+        if self.template_id:
+            self.brand_id = self.template_id.brand_id
+            self.name = self.template_id.family_name
+            self.model = self.template_id.model_name or False
+            self.energy_type = self.template_id.energy_type
+        else:
+            self.brand_id = False
+            self.name = False
+            self.model = False
+            self.energy_type = False
+
     def _normalize_year_value(self, value):
         if value in (False, None, ''):
             return False

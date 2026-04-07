@@ -6,13 +6,15 @@ import { registry } from "@web/core/registry";
 /**
  * 針對「產品模板 → 產品項」O2M 的自訂 Widget。
  *
- * 使用情境：在「尚未儲存的全新產品模板」頁面新增產品項時，
+ * 使用情境 1：在「尚未儲存的全新產品模板」頁面新增產品項時，
  * Odoo 標準行為下 context 的 default_template_id 會是 False，
- * 導致對話框無法帶入模板。
+ * 導致對話框無法帶入模板。本 Widget 在 onAdd() 中先自動儲存父記錄。
  *
- * 本 Widget 在 onAdd() 中判斷父記錄是否尚未儲存（isNew），
- * 若是則先自動儲存父記錄，再開啟新增對話框。
- * 若儲存失敗（必填欄位未填），原生紅框提示已顯示，不開啟對話框。
+ * 使用情境 2：dialog 按下「Save & Close / Save & New」後，
+ * Odoo 只把子記錄加進父表單的記憶體暫存；真正的 server create()
+ * 要等父頁面存檔才觸發，因此 internal_code 不會即時產生。
+ * 本 Widget 在 dialog 關閉後自動幫使用者存父頁面，
+ * 讓 server create() 立即執行並產生 internal_code。
  *
  * 注意：Odoo 16 的 fields registry 登錄的值直接是 class 本身，
  * 不存在 x2ManyField descriptor object，因此不可使用 spread。
@@ -20,14 +22,24 @@ import { registry } from "@web/core/registry";
 export class SkuO2MField extends X2ManyField {
     async onAdd(params) {
         const record = this.props.record;
+
+        // ── 情境 1：全新模板尚未存檔，先存父記錄確保 template_id 有真實 ID ──
         if (record && record.isNew) {
             const saved = await record.save();
             if (!saved) {
-                // 儲存失敗（例如必填欄位未填）：原生驗證提示已顯示，中止開啟對話框
+                // 儲存失敗（必填欄位未填）：原生紅框提示已顯示，中止
                 return;
             }
         }
-        return super.onAdd(params);
+
+        // 開啟 dialog（使用者填完後點 Save & Close 或 Save & New）
+        await super.onAdd(params);
+
+        // ── 情境 2：dialog 關閉後自動存父頁面，觸發 server create() ──
+        // 如此 internal_code 會立即由後端生成並回填到畫面
+        if (record && record.dirty) {
+            await record.save();
+        }
     }
 }
 

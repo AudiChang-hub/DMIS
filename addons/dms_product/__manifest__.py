@@ -22,6 +22,7 @@
         'views/installment_rule_views.xml',
         'views/fee_type_views.xml',
         'views/installment_rule_binding_views.xml',
+        'views/product_duplicate_wizard_views.xml',
         'views/menu_views.xml',
     ],
     'post_init_hook': 'post_init_hook',

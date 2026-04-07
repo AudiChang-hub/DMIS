@@ -11,3 +11,4 @@ from . import product_price_log
 from . import product_installment_log
 from . import product_installment_line
 from . import product_compat
+from . import product_duplicate_wizard

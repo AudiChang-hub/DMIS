@@ -244,13 +244,15 @@ class DmsProductCompat(models.Model):
 
     def action_duplicate_from_template_tab(self):
         self.ensure_one()
-        new_record = self.copy({'template_id': self.template_id.id})
-        form_view = self.env.ref('dms_sale.view_product_form')
+        wizard = self.env['dms.product.duplicate.wizard'].create({
+            'source_product_id': self.id,
+        })
+        form_view = self.env.ref('dms_product.view_product_duplicate_wizard_form')
         return {
             'type': 'ir.actions.act_window',
-            'name': f'產品項（複製自 {self.display_name}）',
-            'res_model': 'dms.product',
-            'res_id': new_record.id,
+            'name': '複製產品項',
+            'res_model': 'dms.product.duplicate.wizard',
+            'res_id': wizard.id,
             'view_mode': 'form',
             'views': [(form_view.id, 'form')],
             'target': 'new',

@@ -139,6 +139,26 @@ docker exec dmis-odoo-1 odoo --test-enable --stop-after-init -d dmis_dev -u dms_
 - `product_template_views.xml` 的 `sku_ids` 欄位使用 `widget="sku_o2m"`
 - `product_sku_views.xml` 的 `internal_code` 加上 `readonly="1"`；`template_id` 加上 `attrs="{'readonly': [('template_id', '!=', False)]}"`
 
+> **⚠️ OWL JS 重要規範（2026-04-07 新增，強制遵守）**
+>
+> **Odoo 16 的 `fields` registry 登錄的值直接是 Class 本身，不是 descriptor object。**
+> 以下寫法是**錯誤的**，會導致 `TypeError: C is not a constructor` OWL 崩潰：
+> ```js
+> // ❌ 錯誤：x2ManyField 不存在，spread 後 component 為 undefined
+> import { X2ManyField, x2ManyField } from "@web/views/fields/x2many/x2many_field";
+> export const myField = { ...x2ManyField, component: MyField };
+> registry.category("fields").add("my_field", myField);
+> ```
+> 正確做法：
+> ```js
+> // ✅ 正確：直接登錄 class
+> import { X2ManyField } from "@web/views/fields/x2many/x2many_field";
+> export class MyField extends X2ManyField { ... }
+> registry.category("fields").add("my_field", MyField);
+> ```
+>
+> **驗收要求**：每次新增自訂 OWL widget 後，必須實際在瀏覽器操作該視圖，確認無 `UncaughtPromiseError > OwlError` 或 `TypeError: C is not a constructor`，方可標記驗收通過。Python 測試通過並不代表前端 JS 正常，兩者必須分開驗證。
+
 ### 本輪實際驗證結果（2026-03-27）
 
 - `make up` / `make smoke`：此環境未安裝 `make`，改以 `docker compose up -d` 與 `bash scripts/smoke_odoo.sh` 執行等效流程

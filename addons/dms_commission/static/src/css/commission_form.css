@@ -5,3 +5,21 @@
 .o_field_many2many_tags.w-100 .o-autocomplete--input {
     width: 100% !important;
 }
+
+/* 限定車種列表欄位：超過三個 tag 時自動換行，無 scrollbar，欄高自動撐開 */
+.o_list_view td .o_field_many2many_tags.wrap-tags {
+    white-space: normal;
+    overflow: visible;
+    height: auto;
+}
+.o_list_view td .o_field_many2many_tags.wrap-tags .o_field_tags {
+    white-space: normal;
+    flex-wrap: wrap;
+    overflow: visible;
+    height: auto;
+    max-height: none;
+}
+.o_list_view td .o_field_many2many_tags.wrap-tags .badge {
+    white-space: normal;
+    word-break: break-word;
+}

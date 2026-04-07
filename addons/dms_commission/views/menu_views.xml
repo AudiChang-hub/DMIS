@@ -37,12 +37,6 @@
             action="action_commission_volume_rule"
             sequence="30"/>
 
-  <menuitem id="menu_commission_dealer_contract"
-            name="車行傭金合約"
-            parent="menu_commission_settings"
-            action="action_dealer_contract"
-            sequence="15"/>
-
   <!-- 激勵設定 -->
   <menuitem id="menu_incentive_settings"
             name="激勵設定"

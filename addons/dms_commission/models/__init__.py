@@ -2,7 +2,6 @@ from . import commission_product_rule
 from . import commission_vehicle_rule
 from . import commission_dealer_rule
 from . import commission_volume_rule
-from . import commission_dealer_contract
 from . import incentive_type
 from . import incentive_rule
 from . import commission_record

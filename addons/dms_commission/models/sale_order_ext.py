@@ -79,40 +79,12 @@ class DmsSaleOrderExt(models.Model):
             return self.env['dms.product.template']
         return self.product_id.template_id
 
-    def _find_dealer_contract(self, tmpl):
-        """查找適用此訂單的車行傭金合約（dealer + brand 優先；無 brand 的合約次之）"""
-        self.ensure_one()
-        if not self.dealer_id:
-            return False
-        brand_id = tmpl.brand_id.id if tmpl and tmpl.brand_id else False
-        close_date = self.closed_date.date() if self.closed_date else fields.Date.today()
-        contracts = self.env['dms.commission.dealer.contract'].search([
-            ('dealer_id', '=', self.dealer_id.id),
-            ('active', '=', True),
-        ])
-        # 優先找 dealer + brand 完全匹配的合約
-        if brand_id:
-            specific = contracts.filtered(
-                lambda c: c.brand_id.id == brand_id and c.is_applicable_for(close_date))
-            if specific:
-                return specific[0]
-        # fallback：dealer 且 brand_id 為空（全品牌合約）
-        general = contracts.filtered(
-            lambda c: not c.brand_id and c.is_applicable_for(close_date))
-        return general[0] if general else False
-
     def _calc_base_commission(self, tmpl):
-        """計算傭金：有合約走合約，否則走三層疊加規則"""
+        """計算三層疊加傭金：基礎 + 車種覆蓋 + 車行覆蓋"""
         self.ensure_one()
         if not tmpl:
             return 0.0
 
-        # 優先：車行傭金合約
-        contract = self._find_dealer_contract(tmpl)
-        if contract:
-            return contract.cash_commission
-
-        # Fallback：三層疊加規則
         # 第一層：基礎傭金規則
         base_rule = self.env['dms.commission.product.rule'].search(
             [('product_tmpl_id', '=', tmpl.id)], limit=1)
@@ -131,11 +103,12 @@ class DmsSaleOrderExt(models.Model):
         if vehicle_override:
             amount = vehicle_override.compute_amount(amount)
 
-        # 第三層：車行覆蓋規則（不限車型，固定加碼）
+        # 第三層：車行覆蓋規則（固定加碼，可限定品牌＋能源型式）
         if self.dealer_id:
             all_dealer_rules = self.env['dms.commission.dealer.rule'].search([])
             applicable_dealer_rules = all_dealer_rules.filtered(
-                lambda r: not r.dealer_ids or self.dealer_id in r.dealer_ids
+                lambda r: (not r.dealer_ids or self.dealer_id in r.dealer_ids)
+                and r.is_applicable_for(tmpl)
             )
             amount += sum(applicable_dealer_rules.mapped('addon_amount'))
 
@@ -163,50 +136,38 @@ class DmsSaleOrderExt(models.Model):
             CommRec.create(vals)
 
     def _generate_incentive_deliveries(self):
-        """依激勵規則或合約明細產生 pending 的 delivery 記錄"""
+        """依激勵規則（及車行規則實物明細）產生 pending 的 delivery 記錄"""
         self.ensure_one()
         tmpl = self._get_product_template()
         tmpl_id = tmpl.id if tmpl else False
         dealer_id = self.dealer_id.id if self.dealer_id else False
         close_date = self.closed_date.date() if self.closed_date else fields.Date.today()
 
-        # 若有合約，只從合約實物明細產生（不走 incentive_rule 的 per_unit）
-        contract = self._find_dealer_contract(tmpl)
-        if contract and contract.incentive_line_ids:
-            for line in contract.incentive_line_ids:
-                existing = self.env['dms.incentive.delivery'].search([
-                    ('sale_order_id', '=', self.id),
-                    ('incentive_type_id', '=', line.incentive_type_id.id),
-                    ('contract_line_id', '=', line.id),
-                ])
-                if not existing:
-                    self.env['dms.incentive.delivery'].create({
-                        'sale_order_id': self.id,
-                        'dealer_id': dealer_id,
-                        'incentive_type_id': line.incentive_type_id.id,
-                        'contract_line_id': line.id,
-                        'qty': line.quantity,
-                        'state': 'pending',
-                    })
-            # 仍執行 volume-trigger 的激勵規則（台數激勵不被合約覆蓋）
-            rules = self.env['dms.incentive.rule'].search([('active', '=', True)])
-            for rule in rules:
-                if rule.trigger != 'volume':
-                    continue
-                if not rule.is_applicable_for(dealer_id, tmpl_id, close_date):
-                    continue
-                month = self.closed_month
-                count = self._count_closed_orders_this_month(dealer_id, month)
-                if count >= rule.min_qty:
+        # 從車行覆蓋規則的實物激勵明細產生（per_unit 性質，每台觸發）
+        if self.dealer_id and tmpl:
+            all_dealer_rules = self.env['dms.commission.dealer.rule'].search([])
+            applicable_dealer_rules = all_dealer_rules.filtered(
+                lambda r: (not r.dealer_ids or self.dealer_id in r.dealer_ids)
+                and r.is_applicable_for(tmpl)
+            )
+            for drule in applicable_dealer_rules:
+                for line in drule.incentive_line_ids:
                     existing = self.env['dms.incentive.delivery'].search([
                         ('sale_order_id', '=', self.id),
-                        ('incentive_rule_id', '=', rule.id),
+                        ('incentive_type_id', '=', line.incentive_type_id.id),
+                        ('dealer_rule_line_id', '=', line.id),
                     ])
                     if not existing:
-                        self._create_incentive_delivery(rule)
-            return
+                        self.env['dms.incentive.delivery'].create({
+                            'sale_order_id': self.id,
+                            'dealer_id': dealer_id,
+                            'incentive_type_id': line.incentive_type_id.id,
+                            'dealer_rule_line_id': line.id,
+                            'qty': line.quantity,
+                            'state': 'pending',
+                        })
 
-        # 無合約：走原本的 incentive_rule 邏輯
+        # 激勵規則（incentive.rule）：per_unit 型跳過（已由 dealer rule 明細覆蓋），volume 照跑
         rules = self.env['dms.incentive.rule'].search([('active', '=', True)])
         for rule in rules:
             if not rule.is_applicable_for(dealer_id, tmpl_id, close_date):

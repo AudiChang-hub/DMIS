@@ -1,10 +1,7 @@
 /* 適用車行（dealer_ids）many2many_tags 全寬修正
- * w-100 只套到外層 o_field_widget，需另行撐開內層 autocomplete */
+ * w-100 只套到外層 o_field_widget，需逐層撐開內層元素 */
+.o_field_many2many_tags.w-100 .o_tags_input,
 .o_field_many2many_tags.w-100 .o-autocomplete,
 .o_field_many2many_tags.w-100 .o-autocomplete--input {
-    width: 100% !important;
-}
-
-.o_field_many2many_tags.w-100 .o-autocomplete.dropdown {
     width: 100% !important;
 }

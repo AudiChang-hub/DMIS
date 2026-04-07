@@ -5,7 +5,7 @@
     'author': 'DMIS',
     'license': 'LGPL-3',
     'category': 'Custom',
-    'depends': ['dms_core', 'dms_product', 'dms_sale', 'dms_parts'],
+    'depends': ['dms_core', 'dms_product', 'dms_sale'],
     'data': [
         'security/ir.model.access.csv',
         'views/commission_product_rule_views.xml',

@@ -2,7 +2,7 @@
 <odoo>
 
   <menuitem id="menu_dms_product_root"
-            name="產品管理"
+            name="產品及零件管理"
             sequence="75"/>
 
   <menuitem id="menu_dms_product_master_group"
@@ -15,5 +15,22 @@
             parent="menu_dms_product_master_group"
             action="action_product_template"
             sequence="10"/>
+
+  <menuitem id="menu_dms_parts_group"
+            name="零件管理"
+            parent="menu_dms_product_root"
+            sequence="20"/>
+
+  <menuitem id="menu_parts_list"
+            name="零件清單"
+            parent="menu_dms_parts_group"
+            action="action_part"
+            sequence="10"/>
+
+  <menuitem id="menu_parts_category"
+            name="零件分類"
+            parent="menu_dms_parts_group"
+            action="action_part_category"
+            sequence="20"/>
 
 </odoo>

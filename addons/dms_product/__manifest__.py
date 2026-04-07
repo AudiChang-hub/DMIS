@@ -1,11 +1,12 @@
 {
-    'name': 'DMS 產品管理',
-    'version': '16.0.2.1.0',
-    'summary': '新一代產品模板、SKU、價目版本、分期規則與費用規則管理',
+    'name': 'DMS 產品及零件管理',
+    'version': '16.0.2.2.0',
+    'summary': '產品模板、SKU、價目版本、分期規則、費用規則與零件清單管理',
     'description': (
         '提供產品模板、可販售產品項 / SKU、價目版本、價格基準、'
         '分期規則模板、費用類型與規則掛接等主資料，'
-        '並作為產品管理的唯一正式入口。'
+        '以及零件分類與零件清單（供傭金折換實物使用），'
+        '並作為產品及零件管理的唯一正式入口。'
     ),
     'author': 'DMIS',
     'license': 'LGPL-3',
@@ -23,6 +24,8 @@
         'views/fee_type_views.xml',
         'views/installment_rule_binding_views.xml',
         'views/product_duplicate_wizard_views.xml',
+        'views/part_category_views.xml',
+        'views/part_views.xml',
         'views/menu_views.xml',
     ],
     'post_init_hook': 'post_init_hook',

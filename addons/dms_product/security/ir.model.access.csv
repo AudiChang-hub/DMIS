@@ -1,4 +1,6 @@
 id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_dms_part_category,dms.part.category,model_dms_part_category,base.group_user,1,1,1,1
+access_dms_part,dms.part,model_dms_part,base.group_user,1,1,1,1
 access_dms_product_template,dms.product.template,model_dms_product_template,,1,1,1,1
 access_dms_price_version,dms.price.version,model_dms_price_version,,1,1,1,1
 access_dms_price_line,dms.price.line,model_dms_price_line,,1,1,1,1

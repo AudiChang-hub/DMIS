@@ -6,15 +6,13 @@
     <field name="model">dms.incentive.rule</field>
     <field name="arch" type="xml">
       <tree string="激勵觸發規則">
-        <field name="name"/>
-        <field name="incentive_type_id"/>
-        <field name="trigger"/>
-        <field name="min_qty"
-               attrs="{'invisible': [('trigger', '!=', 'volume')]}"/>
-        <field name="qty_per_trigger"/>
-        <field name="date_from"/>
-        <field name="date_to"/>
-        <field name="active"/>
+        <field name="name" optional="show"/>
+        <field name="incentive_type_id" optional="show"/>
+        <field name="trigger" optional="show"/>
+        <field name="qty_per_trigger" optional="show"/>
+        <field name="date_from" optional="show"/>
+        <field name="date_to" optional="show"/>
+        <field name="active" optional="show"/>
       </tree>
     </field>
   </record>
@@ -44,7 +42,7 @@
           <separator string="適用車行（留空 = 全部）"/>
           <field name="dealer_ids" nolabel="1" widget="many2many_tags" class="w-100"/>
           <separator string="限定車種（留空 = 不限）"/>
-          <field name="product_tmpl_ids" nolabel="1" widget="many2many_tags" class="w-100"/>
+          <field name="product_tmpl_ids" nolabel="1" class="w-100"/>
           <separator string="備註"/>
           <field name="note" nolabel="1" placeholder="請輸入備註內容..."/>
         </sheet>

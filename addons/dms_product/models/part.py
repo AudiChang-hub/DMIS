@@ -14,7 +14,7 @@ class DmsPart(models.Model):
         'dms.part.category', string='分類', ondelete='restrict')
     uom = fields.Char(string='單位', default='個', help='瓶、個、組⋯')
     cost_price = fields.Float(
-        string='進貨成本', digits=(12, 2),
+        string='進貨成本', digits=(12, 0),
         help='每單位進貨成本（TWD），用於傭金折換時的成本估算')
     active = fields.Boolean(string='啟用', default=True)
     note = fields.Text(string='備註')

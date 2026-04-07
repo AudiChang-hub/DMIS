@@ -5,7 +5,7 @@
     <field name="name">dms.commission.volume.rule.tree</field>
     <field name="model">dms.commission.volume.rule</field>
     <field name="arch" type="xml">
-      <tree string="台數獎金規則">
+      <tree string="台數現金獎勵規則">
         <field name="rule_type" widget="badge"
                decoration-info="rule_type == 'general'"
                decoration-warning="rule_type == 'specific'"/>
@@ -30,11 +30,11 @@
     <field name="name">dms.commission.volume.rule.form</field>
     <field name="model">dms.commission.volume.rule</field>
     <field name="arch" type="xml">
-      <form string="台數獎金規則">
+      <form string="台數現金獎勵規則">
         <sheet>
           <div class="alert alert-warning" role="alert" style="margin-bottom:16px;">
             <strong>❗ 視先後視則：</strong>
-            若某車行有「特殊規則」，計算時將<strong>只走特殊規則中達門檻最高的那一條</strong>，通用規則對該車行將<strong>完全無效</strong>。
+            若某車行有任何「特殊規則」（台數現金獎勵或台數實物獎勵），通用規則對該車行將<strong>完全無效</strong>。
             請確認已為特殊車行設定完整的個別規則。
           </div>
           <group>
@@ -68,7 +68,7 @@
   </record>
 
   <record id="action_commission_volume_rule" model="ir.actions.act_window">
-    <field name="name">台數獎金規則</field>
+    <field name="name">台數現金獎勵規則</field>
     <field name="res_model">dms.commission.volume.rule</field>
     <field name="view_mode">tree,form</field>
     <field name="context">{'search_default_active': True}</field>

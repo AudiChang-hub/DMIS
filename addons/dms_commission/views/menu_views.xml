@@ -32,7 +32,7 @@
             sequence="20"/>
 
   <menuitem id="menu_commission_volume_rule"
-            name="台數獎金規則"
+            name="台數現金獎勵規則"
             parent="menu_commission_settings"
             action="action_commission_volume_rule"
             sequence="30"/>

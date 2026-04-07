@@ -30,7 +30,7 @@
         <sheet>
           <div class="alert alert-info" role="alert"
                attrs="{'invisible': [('id', '!=', False)]}">
-            <strong>新增產品</strong>：請先填寫品牌、機種、能源型式等必填欄位。填寫完成後，點選下方「新增產品項」時系統將自動儲存模板並開啟新增對話框。
+            <strong>新增產品</strong>：請先填寫品牌、機種、型號、能源型式等必填欄位。填寫完成後，點選下方「新增產品項」時系統將自動儲存模板並開啟新增對話框。
           </div>
           <group>
             <group>

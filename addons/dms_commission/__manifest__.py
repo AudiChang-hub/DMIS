@@ -9,6 +9,7 @@
     'data': [
         'security/ir.model.access.csv',
         'views/commission_product_rule_views.xml',
+        'views/commission_vehicle_rule_views.xml',
         'views/commission_dealer_rule_views.xml',
         'views/commission_volume_rule_views.xml',
         'views/incentive_type_views.xml',

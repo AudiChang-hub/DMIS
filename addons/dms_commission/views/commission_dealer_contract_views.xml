@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+  <record id="view_dealer_contract_tree" model="ir.ui.view">
+    <field name="name">dms.commission.dealer.contract.tree</field>
+    <field name="model">dms.commission.dealer.contract</field>
+    <field name="arch" type="xml">
+      <tree string="車行傭金合約">
+        <field name="dealer_id"/>
+        <field name="brand_id"/>
+        <field name="cash_commission"/>
+        <field name="incentive_line_ids" widget="many2many_tags"
+               options="{'color_field': 'sequence'}" optional="show"/>
+        <field name="date_from" optional="show"/>
+        <field name="date_to" optional="show"/>
+        <field name="active" optional="show"/>
+      </tree>
+    </field>
+  </record>
+
+  <record id="view_dealer_contract_form" model="ir.ui.view">
+    <field name="name">dms.commission.dealer.contract.form</field>
+    <field name="model">dms.commission.dealer.contract</field>
+    <field name="arch" type="xml">
+      <form string="車行傭金合約">
+        <sheet>
+          <div class="alert alert-info" role="alert" style="margin-bottom:16px;">
+            <strong>📋 此合約優先於其他規則：</strong>
+            只要此車行（＋品牌）有啟用中的合約，結案傭金將直接使用「每台現金傭金」，
+            忽略基礎傭金、車種覆蓋、車行覆蓋等規則。實物激勵亦從下方明細產生，
+            per_unit 型激勵規則將不再觸發。
+          </div>
+          <group>
+            <group>
+              <field name="dealer_id"/>
+              <field name="brand_id"
+                     placeholder="留空 = 適用此車行所有品牌"/>
+              <field name="cash_commission"/>
+            </group>
+            <group>
+              <field name="date_from"/>
+              <field name="date_to"/>
+              <field name="active"/>
+            </group>
+          </group>
+          <separator string="實物激勵明細（每台結案後自動給出）"/>
+          <field name="incentive_line_ids">
+            <tree editable="bottom">
+              <field name="sequence" widget="handle"/>
+              <field name="incentive_type_id"/>
+              <field name="quantity"/>
+            </tree>
+          </field>
+          <separator string="備註"/>
+          <field name="note" nolabel="1" placeholder="請輸入備註內容..."/>
+        </sheet>
+      </form>
+    </field>
+  </record>
+
+  <record id="action_dealer_contract" model="ir.actions.act_window">
+    <field name="name">車行傭金合約</field>
+    <field name="res_model">dms.commission.dealer.contract</field>
+    <field name="view_mode">tree,form</field>
+  </record>
+
+</odoo>

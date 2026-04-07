@@ -15,6 +15,10 @@ class DmsCommissionVolumeRule(models.Model):
         'rule_id', 'dealer_id',
         string='適用車行',
         help='留空代表適用所有車行')
+    brand_id = fields.Many2one(
+        'dms.brand', string='限定品牌',
+        ondelete='restrict',
+        help='留空代表所有品牌；設定後只計算該品牌的台數')
     product_tmpl_ids = fields.Many2many(
         'dms.product.template', 'commission_volume_rule_tmpl_rel',
         'rule_id', 'tmpl_id',

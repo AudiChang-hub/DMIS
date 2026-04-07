@@ -80,27 +80,39 @@ class DmsSaleOrderExt(models.Model):
         return self.product_id.template_id
 
     def _calc_base_commission(self, tmpl):
-        """計算基礎或車行覆蓋後的傭金"""
+        """計算三層疊加傭金：基礎 + 車種覆蓋 + 車行覆蓋"""
         self.ensure_one()
         if not tmpl:
             return 0.0
-        # 優先找車行覆蓋規則
+
+        # 第一層：基礎傭金規則
+        base_rule = self.env['dms.commission.product.rule'].search(
+            [('product_tmpl_id', '=', tmpl.id)], limit=1)
+        amount = base_rule.base_amount if base_rule else 0.0
+
+        # 第二層：車種覆蓋規則（dealer_ids 包含當前車行，或 dealer_ids 為空）
+        vehicle_domain = [('product_tmpl_id', '=', tmpl.id)]
         if self.dealer_id:
-            override = self.env['dms.commission.dealer.rule'].search([
-                ('dealer_ids', 'in', self.dealer_id.id),
-                ('product_tmpl_id', '=', tmpl.id),
-            ], limit=1)
-            if override:
-                base_rule = self.env['dms.commission.product.rule'].search([
-                    ('product_tmpl_id', '=', tmpl.id)
-                ], limit=1)
-                base = base_rule.base_amount if base_rule else 0.0
-                return override.compute_amount(base)
-        # 查基礎規則
-        base_rule = self.env['dms.commission.product.rule'].search([
-            ('product_tmpl_id', '=', tmpl.id)
-        ], limit=1)
-        return base_rule.base_amount if base_rule else 0.0
+            vehicle_overrides = self.env['dms.commission.vehicle.rule'].search(vehicle_domain)
+            # dealer_ids 空的規則適用所有車行；有值時需包含此車行
+            vehicle_override = vehicle_overrides.filtered(
+                lambda r: not r.dealer_ids or self.dealer_id in r.dealer_ids
+            )[:1]
+        else:
+            vehicle_override = self.env['dms.commission.vehicle.rule'].search(
+                vehicle_domain + [('dealer_ids', '=', False)], limit=1)
+        if vehicle_override:
+            amount = vehicle_override.compute_amount(amount)
+
+        # 第三層：車行覆蓋規則（不限車型，固定加碼）
+        if self.dealer_id:
+            all_dealer_rules = self.env['dms.commission.dealer.rule'].search([])
+            applicable_dealer_rules = all_dealer_rules.filtered(
+                lambda r: not r.dealer_ids or self.dealer_id in r.dealer_ids
+            )
+            amount += sum(applicable_dealer_rules.mapped('addon_amount'))
+
+        return amount
 
     def _create_or_update_commission_record(self):
         """結案時建立或更新傭金記錄"""

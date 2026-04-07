@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+  <menuitem id="menu_dms_parts_root"
+            name="零件管理"
+            sequence="60"
+            web_icon="dms_parts,static/description/icon.png"/>
+
+  <menuitem id="menu_parts_list"
+            name="零件清單"
+            parent="menu_dms_parts_root"
+            action="action_part"
+            sequence="10"/>
+
+  <menuitem id="menu_parts_category"
+            name="零件分類"
+            parent="menu_dms_parts_root"
+            action="action_part_category"
+            sequence="20"/>
+
+</odoo>

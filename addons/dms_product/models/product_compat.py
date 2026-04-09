@@ -55,6 +55,9 @@ class DmsProductCompat(models.Model):
         help='本次價格異動的說明，儲存後自動記入異動日誌並清空')
 
     # ── 測試頁面額外欄位（spec 020）────────────────────────────────────────
+    template_family_name = fields.Char(
+        related='template_id.family_name', string='機種',
+        store=True, readonly=True, index=True)
     cash_discount = fields.Float(
         string='現金直扣', digits=(12, 0), default=0.0,
         help='現金購車可享直扣金額')

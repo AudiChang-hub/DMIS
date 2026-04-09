@@ -122,7 +122,7 @@
     <field name="model">dms.product</field>
     <field name="arch" type="xml">
       <tree string="定價測試（機種收折）" create="1" delete="1" editable="bottom">
-        <field name="template_id" string="機種" readonly="1" optional="hide"/>
+        <field name="template_family_name" string="機種" readonly="1" optional="hide"/>
         <field name="production_year" string="年份"/>
         <field name="color" string="車色"/>
         <field name="list_price" string="牌價" optional="hide"/>
@@ -140,7 +140,7 @@
     <field name="res_model">dms.product</field>
     <field name="view_mode">tree</field>
     <field name="view_id" ref="view_installment_group_test_tree"/>
-    <field name="context">{'group_by': ['template_id']}</field>
+    <field name="context">{'group_by': ['template_family_name']}</field>
     <field name="help" type="html">
       <p class="o_view_nocontent_smiling_face">尚無產品資料</p>
       <p>請先在「車型產品」中建立產品。</p>

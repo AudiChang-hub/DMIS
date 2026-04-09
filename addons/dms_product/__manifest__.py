@@ -26,7 +26,6 @@
         'views/product_duplicate_wizard_views.xml',
         'views/part_category_views.xml',
         'views/part_views.xml',
-        'views/product_pricing_test_views.xml',
         'views/menu_views.xml',
     ],
     'post_init_hook': 'post_init_hook',

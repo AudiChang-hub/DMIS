@@ -2,55 +2,46 @@
 
 ## 1. 模型變更
 
-### 1.1 `dms.product.installment.line` — 新增欄位
+### 1.1 `dms.product.installment.line` — 新增欄位（已完成）
 
 | 欄位 | 類型 | 說明 |
 |---|---|---|
 | `finance_company` | Char | 分期公司名稱（如：和潤、遠信、中信卡），自由輸入 |
 
-- 選填，無唯一限制
-- 搭配 `periods` + `monthly_payment` 一起顯示
+### 1.2 `dms.product` — 新增欄位（v2）
+
+| 欄位 | 類型 | 說明 |
+|---|---|---|
+| `cash_discount` | Float (12,0) | 現金直扣金額，選填 |
+| `installment_36_price` | Float (12,0) | 36期分期月付金，選填，手動填寫 |
+| `installment_18_price` | Float (12,0) | 18期專案月付金，選填，手動填寫 |
+| `gift_note` | Char | 顧客贈品說明，選填 |
 
 ---
 
-## 2. 新增視圖：`views/product_pricing_test_views.xml`
+## 2. 測試頁面視圖設計（v2）
 
-### 2.1 列表視圖（`view_product_pricing_test_tree`）
+### 2.1 測試頁面主視圖（`view_installment_group_test_tree`）
 
-顯示欄位：內部代碼、車種（template_id）、年份、現金價、分期筆數（installment_line_count）
+- **Model**: `dms.product`
+- **群組**: 以 `template_id`（機種）為收折群組標頭
+- **展開後列欄位**（全部可直接在列表內編輯）：
 
-### 2.2 表單視圖（`view_product_pricing_test_form`）
+| 欄位 | 來源 | 備註 |
+|---|---|---|
+| `production_year` | 年份 | Char，可編輯 |
+| `color` | 車色 | Char，可編輯 |
+| `installment_36_price` | 36期分期價 | Float，手動填寫 |
+| `cash_discount` | 現金直扣 | Float，可編輯 |
+| `cash_price` | 現金價 | Float，可編輯 |
+| `installment_18_price` | 18期專案價 | Float，手動填寫 |
+| `gift_note` | 顧客贈品 | Char，可編輯 |
 
-**單頁式佈局，無 notebook tab**：
-
-```
-[標題]  內部代碼
-
-[基本資訊區]
-  左：模板 / 年份 / 啟用
-  右：品牌 / 車種名稱 / 能源
-
-[售價區]
-  牌價 | 現金直扣 | 現金價（computed: 牌價 − 直扣）
-  活動價 | 活動說明
-
-[顏色區]
-  inline editable list（名稱 / 啟用）
-
-[分期方案區]  ← 核心測試區
-  editable list：
-  - 分期公司（新欄位）
-  - 期數
-  - 月付金（computed, readonly）
-  - 設定費
-  - 開辦費
-  - 備註
-```
-
-### 2.3 action（`action_product_pricing_test`）
+### 2.2 action（`action_installment_group_test`）
 
 - model: `dms.product`
-- views: tree + form（使用測試專用視圖）
+- view_mode: `tree`
+- context: `{'group_by': ['template_id']}`
 
 ---
 
@@ -63,8 +54,8 @@
 ├── 零件管理
 │   ├── 零件清單
 │   └── 零件分類
-└── 測試頁面           ← 新增，sequence=30
-    └── 定價測試       ← action_product_pricing_test
+└── 測試頁面           ← sequence=30
+    └── 定價測試       ← action_installment_group_test
 ```
 
 ---
@@ -72,5 +63,5 @@
 ## 4. 注意事項
 
 - 本測試頁面為暫時性 UI 實驗，確認方向後將整合回正式產品頁或另建正式需求
-- `finance_company` 欄位為永久新增（後續正式頁面也需要），不會刪除
+- 新增欄位（`cash_discount`、`installment_36_price`、`installment_18_price`、`gift_note`）視測試結果決定是否整合至正式流程
 - 不修改現有 `product_sku_views.xml` 或任何已有 action

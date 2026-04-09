@@ -54,6 +54,20 @@ class DmsProductCompat(models.Model):
         inverse='_inverse_price_change_note',
         help='本次價格異動的說明，儲存後自動記入異動日誌並清空')
 
+    # ── 測試頁面額外欄位（spec 020）────────────────────────────────────────
+    cash_discount = fields.Float(
+        string='現金直扣', digits=(12, 0), default=0.0,
+        help='現金購車可享直扣金額')
+    installment_36_price = fields.Float(
+        string='36期分期價', digits=(12, 0), default=0.0,
+        help='36期每月分期月付金（手動填寫）')
+    installment_18_price = fields.Float(
+        string='18期專案價', digits=(12, 0), default=0.0,
+        help='18期專案每月分期月付金（手動填寫）')
+    gift_note = fields.Char(
+        string='顧客贈品',
+        help='本車型目前贈品說明，如：安全帽、機油 3 次')
+
     def _inverse_price_change_note(self):
         """不需儲存；Odoo 透過此 inverse 確保欄位值傳入 write() 的 vals。"""
         pass

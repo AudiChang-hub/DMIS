@@ -71,27 +71,27 @@ class DmsProductCompat(models.Model):
         help='現金購車可享直扣金額')
     installment_12_price = fields.Float(
         string='12期', digits=(12, 0),
-        compute='_compute_installment_prices', store=False,
+        compute='_compute_installment_prices', store=True, readonly=False,
         group_operator=False)
     installment_18_price = fields.Float(
         string='18期', digits=(12, 0),
-        compute='_compute_installment_prices', store=False,
+        compute='_compute_installment_prices', store=True, readonly=False,
         group_operator=False)
     installment_24_price = fields.Float(
         string='24期', digits=(12, 0),
-        compute='_compute_installment_prices', store=False,
+        compute='_compute_installment_prices', store=True, readonly=False,
         group_operator=False)
     installment_36_price = fields.Float(
         string='36期', digits=(12, 0),
-        compute='_compute_installment_prices', store=False,
+        compute='_compute_installment_prices', store=True, readonly=False,
         group_operator=False)
     installment_48_price = fields.Float(
         string='48期', digits=(12, 0),
-        compute='_compute_installment_prices', store=False,
+        compute='_compute_installment_prices', store=True, readonly=False,
         group_operator=False)
     installment_60_price = fields.Float(
         string='60期', digits=(12, 0),
-        compute='_compute_installment_prices', store=False,
+        compute='_compute_installment_prices', store=True, readonly=False,
         group_operator=False)
     gift_note = fields.Char(
         string='顧客贈品',

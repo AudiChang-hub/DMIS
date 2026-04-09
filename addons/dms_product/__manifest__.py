@@ -33,6 +33,7 @@
     'assets': {
         'web.assets_backend': [
             'dms_product/static/src/js/sku_o2m_autosave.js',
+            'dms_product/static/src/js/float_blank_zero.js',
         ],
     },
     'installable': True,

@@ -9,17 +9,22 @@ import { registry } from "@web/core/registry";
  * 使用者需明確點選「Add a line」才能新增產品項。
  */
 class SkuListRenderer extends ListRenderer {
-    onCellKeydown({ hotkey }, column, record) {
+    onCellKeydownEditMode(hotkey, cell, group, record) {
         if (hotkey === "enter") {
-            const records = this.props.list.records;
-            const isLastRecord =
-                records.length > 0 && records[records.length - 1] === record;
-            if (isLastRecord) {
-                // 停在最後一列，不觸發 onAdd
-                return;
+            const { list } = this.props;
+            const index = list.records.indexOf(record);
+            const nextRecord = list.records[index + 1];
+            if (!nextRecord) {
+                // 最後一列：循環回第一列，不觸發新增
+                const firstRecord = list.records.at(0);
+                if (firstRecord && firstRecord !== record) {
+                    this.cellToFocus = { forward: true, record: firstRecord };
+                    firstRecord.switchMode("edit", { checkValidity: true });
+                }
+                return true;
             }
         }
-        return super.onCellKeydown(...arguments);
+        return super.onCellKeydownEditMode(...arguments);
     }
 }
 

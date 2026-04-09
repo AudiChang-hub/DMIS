@@ -29,7 +29,7 @@
   <menuitem id="menu_product_pricing_test"
             name="定價測試"
             parent="menu_dms_product_test_group"
-            action="action_product_pricing_test"
+            action="action_installment_group_test"
             sequence="10"/>
 
   <menuitem id="menu_parts_list"

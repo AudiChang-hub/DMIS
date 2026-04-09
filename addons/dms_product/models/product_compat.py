@@ -26,9 +26,11 @@ class DmsProductCompat(models.Model):
     # ── 定價欄位 ──────────────────────────────────────────────────────────
     cash_price = fields.Float(
         string='現金售價', digits=(12, 0), default=0.0,
+        group_operator=False,
         help='原廠公告現金售價，直接填入生效')
     list_price = fields.Float(
-        string='牌價（MSRP）', digits=(12, 0), default=0.0)
+        string='牌價（MSRP）', digits=(12, 0), default=0.0,
+        group_operator=False)
     promo_price = fields.Float(
         string='活動特殊價', digits=(12, 0), default=0.0,
         help='原廠活動補助價；大於 0 時優先使用此價，活動結束後清零即可')
@@ -60,12 +62,15 @@ class DmsProductCompat(models.Model):
         store=True, readonly=True, index=True)
     cash_discount = fields.Float(
         string='現金直扣', digits=(12, 0), default=0.0,
+        group_operator=False,
         help='現金購車可享直扣金額')
     installment_36_price = fields.Float(
         string='36期分期價', digits=(12, 0), default=0.0,
+        group_operator=False,
         help='36期每月分期月付金（手動填寫）')
     installment_18_price = fields.Float(
         string='18期專案', digits=(12, 0), default=0.0,
+        group_operator=False,
         help='18期專案每月分期月付金（手動填寫）')
     gift_note = fields.Char(
         string='顧客贈品',

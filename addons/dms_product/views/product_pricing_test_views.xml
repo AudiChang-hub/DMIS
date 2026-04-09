@@ -125,10 +125,11 @@
         <field name="template_id" string="機種" readonly="1" optional="hide"/>
         <field name="production_year" string="年份"/>
         <field name="color" string="車色"/>
+        <field name="list_price" string="牌價" optional="hide"/>
         <field name="installment_36_price" string="36期分期價"/>
         <field name="cash_discount" string="現金直扣"/>
         <field name="cash_price" string="現金價"/>
-        <field name="installment_18_price" string="18期專案價"/>
+        <field name="installment_18_price" string="18期專案"/>
         <field name="gift_note" string="顧客贈品"/>
       </tree>
     </field>

@@ -62,7 +62,7 @@ class DmsProductCompat(models.Model):
         string='36期分期價', digits=(12, 0), default=0.0,
         help='36期每月分期月付金（手動填寫）')
     installment_18_price = fields.Float(
-        string='18期專案價', digits=(12, 0), default=0.0,
+        string='18期專案', digits=(12, 0), default=0.0,
         help='18期專案每月分期月付金（手動填寫）')
     gift_note = fields.Char(
         string='顧客贈品',

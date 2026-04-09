@@ -12,7 +12,7 @@
         <field name="model_name" optional="show"/>
         <field name="energy_type" optional="show"/>
         <field name="sku_count" optional="show"/>
-        <field name="note" optional="show"/>
+        <field name="note" string="顧客贈品" optional="show"/>
         <field name="active" optional="show"/>
       </tree>
     </field>

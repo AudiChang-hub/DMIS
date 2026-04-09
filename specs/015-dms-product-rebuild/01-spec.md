@@ -194,12 +194,14 @@
 
 計算規則：
 
-- **年利率 = 0（無息）**：`monthly_payment = ceil(base / periods)`
+- **年利率 = 0（無息）**：`monthly_payment = floor(base / periods + 0.6)`
 - **年利率 > 0（有息）**：年金現值逆推 PMT
   - `r = 年利率(%) ÷ 12 ÷ 100`（月利率）
-  - `monthly_payment = ceil(base × r / (1 − (1+r)^−n))`
-- **捨入規則：一律無條件進位（`math.ceil`）**，確保實收金額 ≥ 理論值，不得四捨五入
-  - 範例：72800 ÷ 18 = 4044.44… → `ceil` → **4045**
+  - `monthly_payment = floor(base × r / (1 − (1+r)^−n) + 0.6)`
+- **捨入規則：三捨四入（`math.floor(x + 0.6)`）**
+  - 小數部分 < 0.4 → 捨去；小數部分 ≥ 0.4 → 進位
+  - 範例：72800 ÷ 18 = 4044.44… → floor(4045.04) → **4045**
+  - 範例：4044.39 → floor(4044.99) → **4044**（< 0.4 捨去）
 - `setup_fee`、`opening_fee` 為一次性費用，不含在 `monthly_payment` 中
 - 同一產品項下，相同期數只能有一筆（unique constraint）
 

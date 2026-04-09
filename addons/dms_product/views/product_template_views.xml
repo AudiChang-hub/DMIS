@@ -51,11 +51,6 @@
                  nolabel="1"
                  context="{'default_template_id': id, 'active_test': False}">
             <tree decoration-muted="not active" no_open="True" editable="bottom">
-              <button name="action_open_installment_dialog"
-                      type="object"
-                      icon="fa-external-link"
-                      string=""
-                      title="開啟顏色 / 分期方案"/>
               <button name="action_duplicate_from_template_tab"
                       type="object"
                       icon="fa-copy"
@@ -75,8 +70,6 @@
               <field name="installment_48_price" string="48期" readonly="1" optional="hide"/>
               <field name="installment_60_price" string="60期" readonly="1" optional="hide"/>
               <field name="gift_note" string="顧客贈品"/>
-              <field name="promo_price" string="活動價" optional="hide"/>
-              <field name="promo_note" string="活動說明" optional="hide"/>
               <field name="active" optional="hide"/>
             </tree>
           </field>

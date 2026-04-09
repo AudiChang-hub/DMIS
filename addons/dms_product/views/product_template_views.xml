@@ -61,12 +61,12 @@
               <field name="production_year" string="年份"/>
               <field name="color" string="車色"/>
               <field name="suggested_price" string="建議售價"/>
-              <field name="cash_discount" string="現金直扣"/>
+              <field name="cash_discount" string="現金直扣" optional="show"/>
               <field name="cash_price" string="現金價"/>
-              <field name="installment_12_price" string="12期" widget="float_blank_zero"/>
-              <field name="installment_18_price" string="18期" widget="float_blank_zero"/>
+              <field name="installment_12_price" string="12期" widget="float_blank_zero" optional="show"/>
+              <field name="installment_18_price" string="18期" widget="float_blank_zero" optional="show"/>
               <field name="installment_24_price" string="24期" widget="float_blank_zero" optional="hide"/>
-              <field name="installment_36_price" string="36期" widget="float_blank_zero"/>
+              <field name="installment_36_price" string="36期" widget="float_blank_zero" optional="show"/>
               <field name="installment_48_price" string="48期" widget="float_blank_zero" optional="hide"/>
               <field name="installment_60_price" string="60期" widget="float_blank_zero" optional="hide"/>
               <field name="active" optional="hide"/>

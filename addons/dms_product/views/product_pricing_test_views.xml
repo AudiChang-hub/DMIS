@@ -117,34 +117,67 @@
   </record>
 
   <!-- ===== 新：以機種(template_id)分組的產品定價收折視圖 ===== -->
+  <!-- 機種列表（乾淨，只顯示機種名稱） -->
   <record id="view_installment_group_test_tree" model="ir.ui.view">
-    <field name="name">dms.product.pricing.group.test.tree</field>
-    <field name="model">dms.product</field>
+    <field name="name">dms.product.template.pricing.test.tree</field>
+    <field name="model">dms.product.template</field>
     <field name="arch" type="xml">
-      <tree string="定價測試（機種收折）" create="1" delete="1" editable="bottom">
-        <field name="template_family_name" string="機種" readonly="1" optional="hide"/>
-        <field name="production_year" string="年份"/>
-        <field name="color" string="車色"/>
-        <field name="list_price" string="牌價" optional="hide"/>
-        <field name="installment_36_price" string="36期分期價"/>
-        <field name="cash_discount" string="現金直扣"/>
-        <field name="cash_price" string="現金價"/>
-        <field name="installment_18_price" string="18期專案"/>
-        <field name="gift_note" string="顧客贈品"/>
+      <tree string="機種定價" create="0" delete="0">
+        <field name="family_name" string="機種"/>
+        <field name="sku_count" string="項目數" readonly="1"/>
       </tree>
+    </field>
+  </record>
+
+  <!-- 機種定價表單（inline 直接編輯各年份/車色/定價） -->
+  <record id="view_template_pricing_test_form" model="ir.ui.view">
+    <field name="name">dms.product.template.pricing.test.form</field>
+    <field name="model">dms.product.template</field>
+    <field name="arch" type="xml">
+      <form string="定價測試">
+        <sheet>
+          <div class="oe_title">
+            <h1><field name="family_name" readonly="1"/></h1>
+          </div>
+          <separator string="年份 / 車色 / 定價"/>
+          <field name="sku_ids" nolabel="1" context="{'active_test': False}">
+            <tree editable="bottom" create="0" delete="0">
+              <field name="production_year" string="年份"/>
+              <field name="color" string="車色"/>
+              <field name="installment_36_price" string="36期分期價"/>
+              <field name="cash_discount" string="現金直扣"/>
+              <field name="cash_price" string="現金價"/>
+              <field name="installment_18_price" string="18期專案"/>
+              <field name="gift_note" string="顧客贈品"/>
+            </tree>
+          </field>
+        </sheet>
+      </form>
     </field>
   </record>
 
   <record id="action_installment_group_test" model="ir.actions.act_window">
     <field name="name">定價測試</field>
-    <field name="res_model">dms.product</field>
+    <field name="res_model">dms.product.template</field>
+    <field name="view_mode">tree,form</field>
+    <field name="help" type="html">
+      <p class="o_view_nocontent_smiling_face">尚無機種資料</p>
+      <p>請先在「車型產品」中建立產品模板。</p>
+    </field>
+  </record>
+
+  <record id="action_test_pricing_view_tree" model="ir.actions.act_window.view">
+    <field name="sequence" eval="1"/>
     <field name="view_mode">tree</field>
     <field name="view_id" ref="view_installment_group_test_tree"/>
-    <field name="context">{'group_by': ['template_family_name']}</field>
-    <field name="help" type="html">
-      <p class="o_view_nocontent_smiling_face">尚無產品資料</p>
-      <p>請先在「車型產品」中建立產品。</p>
-    </field>
+    <field name="act_window_id" ref="action_installment_group_test"/>
+  </record>
+
+  <record id="action_test_pricing_view_form" model="ir.actions.act_window.view">
+    <field name="sequence" eval="2"/>
+    <field name="view_mode">form</field>
+    <field name="view_id" ref="view_template_pricing_test_form"/>
+    <field name="act_window_id" ref="action_installment_group_test"/>
   </record>
 
 </odoo>

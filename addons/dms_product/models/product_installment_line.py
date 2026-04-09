@@ -38,6 +38,9 @@ class DmsProductInstallmentLine(models.Model):
         compute='_compute_monthly_payment', store=True,
         help='單利公式：基準價 × (1 + 年利率 × 年數) / 期數，四捨五入至整數。'
              '設定費、開辦費為一次性費用，不含在此欄位中。')
+    finance_company = fields.Char(
+        string='分期公司',
+        help='承辦此分期方案的金融機構，例：和潤、遠信、中信卡')
     note = fields.Char(string='備註')
     installment_change_note = fields.Char(
         string='異動說明',

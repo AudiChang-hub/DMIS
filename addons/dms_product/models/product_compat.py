@@ -1,3 +1,4 @@
+import math
 import re
 
 from odoo import api, fields, models
@@ -56,25 +57,56 @@ class DmsProductCompat(models.Model):
         inverse='_inverse_price_change_note',
         help='本次價格異動的說明，儲存後自動記入異動日誌並清空')
 
-    # ── 測試頁面額外欄位（spec 020）────────────────────────────────────────
+    # ── 定價資訊欄位（spec 020）──────────────────────────────────────────────
     template_family_name = fields.Char(
         related='template_id.family_name', string='機種',
         store=True, readonly=True, index=True)
+    suggested_price = fields.Float(
+        string='建議售價', digits=(12, 0), default=0.0,
+        group_operator=False,
+        help='原廠建議零售價（手動填入）')
     cash_discount = fields.Float(
         string='現金直扣', digits=(12, 0), default=0.0,
         group_operator=False,
         help='現金購車可享直扣金額')
-    installment_36_price = fields.Float(
-        string='36期分期價', digits=(12, 0), default=0.0,
-        group_operator=False,
-        help='36期每月分期月付金（手動填寫）')
+    installment_12_price = fields.Float(
+        string='12期', digits=(12, 0),
+        compute='_compute_installment_prices', store=False,
+        group_operator=False)
     installment_18_price = fields.Float(
-        string='18期專案', digits=(12, 0), default=0.0,
-        group_operator=False,
-        help='18期專案每月分期月付金（手動填寫）')
+        string='18期', digits=(12, 0),
+        compute='_compute_installment_prices', store=False,
+        group_operator=False)
+    installment_24_price = fields.Float(
+        string='24期', digits=(12, 0),
+        compute='_compute_installment_prices', store=False,
+        group_operator=False)
+    installment_36_price = fields.Float(
+        string='36期', digits=(12, 0),
+        compute='_compute_installment_prices', store=False,
+        group_operator=False)
+    installment_48_price = fields.Float(
+        string='48期', digits=(12, 0),
+        compute='_compute_installment_prices', store=False,
+        group_operator=False)
+    installment_60_price = fields.Float(
+        string='60期', digits=(12, 0),
+        compute='_compute_installment_prices', store=False,
+        group_operator=False)
     gift_note = fields.Char(
         string='顧客贈品',
         help='本車型目前贈品說明，如：安全帽、機油 3 次')
+
+    @api.depends('cash_price')
+    def _compute_installment_prices(self):
+        for rec in self:
+            p = rec.cash_price or 0.0
+            rec.installment_12_price = math.floor(p / 12 + 0.6) if p else 0.0
+            rec.installment_18_price = math.floor(p / 18 + 0.6) if p else 0.0
+            rec.installment_24_price = math.floor(p / 24 + 0.6) if p else 0.0
+            rec.installment_36_price = math.floor(p / 36 + 0.6) if p else 0.0
+            rec.installment_48_price = math.floor(p / 48 + 0.6) if p else 0.0
+            rec.installment_60_price = math.floor(p / 60 + 0.6) if p else 0.0
 
     def _inverse_price_change_note(self):
         """不需儲存；Odoo 透過此 inverse 確保欄位值傳入 write() 的 vals。"""

@@ -12,6 +12,7 @@ COLOR_SPLIT_PATTERN = re.compile(r'[、/,，\s]+')
 
 class DmsProductCompat(models.Model):
     _inherit = 'dms.product'
+    _order = 'production_year asc, id asc'
 
     template_id = fields.Many2one(
         'dms.product.template', string='產品模板', ondelete='cascade')

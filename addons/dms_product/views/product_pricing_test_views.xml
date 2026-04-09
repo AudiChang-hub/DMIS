@@ -1,0 +1,119 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+  <!-- 測試列表視圖 -->
+  <record id="view_product_pricing_test_tree" model="ir.ui.view">
+    <field name="name">dms.product.pricing.test.tree</field>
+    <field name="model">dms.product</field>
+    <field name="arch" type="xml">
+      <tree string="產品定價測試">
+        <field name="internal_code"/>
+        <field name="name" string="車種名稱"/>
+        <field name="production_year" string="年份"/>
+        <field name="brand_id" optional="show"/>
+        <field name="cash_price" string="現金價"/>
+        <field name="list_price" string="牌價" optional="hide"/>
+        <field name="effective_price" string="有效售價" optional="show"/>
+      </tree>
+    </field>
+  </record>
+
+  <!-- 測試表單視圖（單頁式，無 notebook） -->
+  <record id="view_product_pricing_test_form" model="ir.ui.view">
+    <field name="name">dms.product.pricing.test.form</field>
+    <field name="model">dms.product</field>
+    <field name="arch" type="xml">
+      <form string="定價測試">
+        <sheet>
+          <div class="oe_title">
+            <label for="internal_code" string="內部代碼"/>
+            <h1><field name="internal_code" readonly="1" placeholder="系統自動生成"/></h1>
+          </div>
+
+          <!-- 基本資訊 -->
+          <group string="基本資訊">
+            <group>
+              <field name="template_id" attrs="{'readonly': [('template_id', '!=', False)]}"/>
+              <field name="production_year" string="出廠年份"/>
+              <field name="active"/>
+            </group>
+            <group>
+              <field name="brand_id" readonly="1"/>
+              <field name="name" string="車種名稱" readonly="1"/>
+              <field name="energy_type" readonly="1"/>
+            </group>
+          </group>
+
+          <!-- 顏色 -->
+          <group string="可售顏色">
+            <field name="color_ids" nolabel="1"
+                   context="{'default_product_id': id, 'active_test': False}">
+              <tree editable="bottom" decoration-muted="not active">
+                <field name="name"/>
+                <field name="active"/>
+              </tree>
+            </field>
+          </group>
+
+          <!-- 售價 -->
+          <group string="售價">
+            <group>
+              <field name="list_price" string="牌價"/>
+              <field name="cash_price" string="現金價"/>
+              <field name="effective_price" string="有效售價" readonly="1"/>
+            </group>
+            <group>
+              <field name="promo_price" string="活動特殊價"/>
+              <field name="promo_note" string="活動說明"
+                     placeholder="如：2026 Q2 原廠補助"/>
+            </group>
+          </group>
+
+          <!-- 分期方案（核心測試區）-->
+          <separator string="分期方案"/>
+          <field name="installment_line_ids" nolabel="1">
+            <tree editable="bottom">
+              <field name="finance_company" string="分期公司"
+                     placeholder="如：和潤、遠信、中信卡"/>
+              <field name="periods" string="期數"/>
+              <field name="monthly_payment" string="月付金" readonly="1"/>
+              <field name="setup_fee" string="設定費"/>
+              <field name="opening_fee" string="開辦費"/>
+              <field name="price_base" string="計算基準" optional="hide"/>
+              <field name="interest_rate" string="年利率" optional="hide"/>
+              <field name="note" string="備註" optional="show"/>
+            </tree>
+          </field>
+
+        </sheet>
+      </form>
+    </field>
+  </record>
+
+  <!-- Action -->
+  <record id="action_product_pricing_test" model="ir.actions.act_window">
+    <field name="name">定價測試</field>
+    <field name="res_model">dms.product</field>
+    <field name="view_mode">tree,form</field>
+    <field name="context">{'active_test': False}</field>
+    <field name="help" type="html">
+      <p class="o_view_nocontent_smiling_face">尚無產品資料</p>
+      <p>此為定價與分期方案 UI 測試頁面，資料與車型產品共用。</p>
+    </field>
+  </record>
+
+  <record id="action_product_pricing_test_view_tree" model="ir.actions.act_window.view">
+    <field name="sequence" eval="1"/>
+    <field name="view_mode">tree</field>
+    <field name="view_id" ref="view_product_pricing_test_tree"/>
+    <field name="act_window_id" ref="action_product_pricing_test"/>
+  </record>
+
+  <record id="action_product_pricing_test_view_form" model="ir.actions.act_window.view">
+    <field name="sequence" eval="2"/>
+    <field name="view_mode">form</field>
+    <field name="view_id" ref="view_product_pricing_test_form"/>
+    <field name="act_window_id" ref="action_product_pricing_test"/>
+  </record>
+
+</odoo>

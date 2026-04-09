@@ -65,11 +65,11 @@
               <field name="cash_price" string="現金價"/>
               <field name="installment_12_price" string="12期" widget="float_blank_zero" optional="show"/>
               <field name="installment_18_price" string="18期" widget="float_blank_zero" optional="show"/>
-              <field name="installment_24_price" string="24期" widget="float_blank_zero" optional="hide"/>
+              <field name="installment_24_price" string="24期" widget="float_blank_zero" optional="show"/>
               <field name="installment_36_price" string="36期" widget="float_blank_zero" optional="show"/>
-              <field name="installment_48_price" string="48期" widget="float_blank_zero" optional="hide"/>
-              <field name="installment_60_price" string="60期" widget="float_blank_zero" optional="hide"/>
-              <field name="active" optional="hide"/>
+              <field name="installment_48_price" string="48期" widget="float_blank_zero" optional="show"/>
+              <field name="installment_60_price" string="60期" widget="float_blank_zero" optional="show"/>
+              <field name="active" optional="show"/>
             </tree>
           </field>
         </sheet>

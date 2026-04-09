@@ -116,34 +116,33 @@
     <field name="act_window_id" ref="action_product_pricing_test"/>
   </record>
 
-  <!-- ===== 新：分期方案分組展開視圖（真正的收折版）===== -->
+  <!-- ===== 新：以機種(template_id)分組的產品定價收折視圖 ===== -->
   <record id="view_installment_group_test_tree" model="ir.ui.view">
-    <field name="name">dms.product.installment.line.group.test.tree</field>
-    <field name="model">dms.product.installment.line</field>
+    <field name="name">dms.product.pricing.group.test.tree</field>
+    <field name="model">dms.product</field>
     <field name="arch" type="xml">
-      <tree string="定價與分期（收折測試）" create="1" delete="1">
-        <field name="product_id" string="車種" readonly="1"/>
-        <field name="product_cash_price" string="現金價" readonly="1" optional="show"/>
-        <field name="product_list_price" string="牌價" readonly="1" optional="hide"/>
-        <field name="finance_company" string="分期公司"/>
-        <field name="periods" string="期數"/>
-        <field name="monthly_payment" string="月付金" readonly="1"/>
-        <field name="setup_fee" string="設定費" optional="show"/>
-        <field name="opening_fee" string="開辦費" optional="show"/>
-        <field name="note" string="備註" optional="show"/>
+      <tree string="定價測試（機種收折）" create="1" delete="1" editable="bottom">
+        <field name="template_id" string="機種" readonly="1" optional="hide"/>
+        <field name="production_year" string="年份"/>
+        <field name="color" string="車色"/>
+        <field name="installment_36_price" string="36期分期價"/>
+        <field name="cash_discount" string="現金直扣"/>
+        <field name="cash_price" string="現金價"/>
+        <field name="installment_18_price" string="18期專案價"/>
+        <field name="gift_note" string="顧客贈品"/>
       </tree>
     </field>
   </record>
 
   <record id="action_installment_group_test" model="ir.actions.act_window">
     <field name="name">定價測試</field>
-    <field name="res_model">dms.product.installment.line</field>
+    <field name="res_model">dms.product</field>
     <field name="view_mode">tree</field>
     <field name="view_id" ref="view_installment_group_test_tree"/>
-    <field name="context">{'group_by': ['product_id']}</field>
+    <field name="context">{'group_by': ['template_id']}</field>
     <field name="help" type="html">
-      <p class="o_view_nocontent_smiling_face">尚無分期方案資料</p>
-      <p>請先在「車型產品」中建立產品並新增分期方案。</p>
+      <p class="o_view_nocontent_smiling_face">尚無產品資料</p>
+      <p>請先在「車型產品」中建立產品。</p>
     </field>
   </record>
 

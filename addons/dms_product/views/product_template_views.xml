@@ -46,6 +46,9 @@
             </group>
           </group>
           <group string="欄位顯示設定（產品項列表）">
+            <div class="alert alert-info mb-0" role="alert" style="grid-column: span 2">
+              勾選後請按上方「💾 儲存」，列表欄位將依設定顯示。
+            </div>
             <group>
               <field name="col_show_discount" string="現金直扣"/>
               <field name="col_show_12period" string="12期"/>

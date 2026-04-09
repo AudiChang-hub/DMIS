@@ -1,33 +1,41 @@
 /** @odoo-module **/
 
-import { Component, xml } from "@odoo/owl";
+import { xml } from "@odoo/owl";
 import { registry } from "@web/core/registry";
+import { CharField } from "@web/views/fields/char/char_field";
 
 /**
  * 車色 Tags Widget
  *
- * 將逗號/頓號分隔的車色字串拆成獨立 chip 並排顯示。
- * 使用於 sku_ids tree 的 color 欄位，超過欄寬時自動換行。
- *
- * Template 直接內嵌（xml tagged literal），避免外部 XML 載入時序問題。
- * Odoo 16 fields registry 直接存 class，不接受 descriptor object。
+ * 唯讀模式：將逗號/頓號分隔的車色字串拆成 chips 並排（自動換行）。
+ * 編輯模式：顯示標準文字輸入框，可直接編輯「頓號分隔向色文字」。
+ * 繼承 CharField 以取得 onChange / onInput / props.update 機制。
  */
-class ColorTagsField extends Component {
+class ColorTagsField extends CharField {
     static template = xml`
-        <div class="o_dms_color_tags">
-            <span
-                t-foreach="tags"
-                t-as="tag"
-                t-key="tag"
-                class="o_dms_color_tag"
-                t-esc="tag"
+        <t t-if="props.readonly">
+            <div class="o_dms_color_tags">
+                <span
+                    t-foreach="tags"
+                    t-as="tag"
+                    t-key="tag"
+                    class="o_dms_color_tag"
+                    t-esc="tag"
+                />
+            </div>
+        </t>
+        <t t-else="">
+            <input
+                class="o_input"
+                t-att-id="props.id"
+                type="text"
+                t-att-value="props.value || ''"
+                t-on-input="onInput"
+                t-on-change="onChange"
             />
-        </div>
+        </t>
     `;
-    static props = {
-        value: { optional: true },
-        "*": { optional: true },
-    };
+    static props = { "*": { optional: true } };
 
     get tags() {
         const value = this.props.value || "";
@@ -38,5 +46,4 @@ class ColorTagsField extends Component {
     }
 }
 
-// Odoo 16：直接傳 class，不要傳 descriptor object
 registry.category("fields").add("color_tags", ColorTagsField);

@@ -35,7 +35,6 @@
             'dms_product/static/src/js/sku_o2m_autosave.js',
             'dms_product/static/src/js/float_blank_zero.js',
             'dms_product/static/src/js/color_tags_widget.js',
-            'dms_product/static/src/xml/color_tags_widget.xml',
             'dms_product/static/src/css/color_tags_widget.css',
         ],
     },

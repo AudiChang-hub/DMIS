@@ -41,6 +41,12 @@ class DmsProductInstallmentLine(models.Model):
     finance_company = fields.Char(
         string='分期公司',
         help='承辦此分期方案的金融機構，例：和潤、遠信、中信卡')
+    product_cash_price = fields.Float(
+        related='product_id.cash_price', string='現金價',
+        digits=(12, 0), store=False, readonly=True)
+    product_list_price = fields.Float(
+        related='product_id.list_price', string='牌價',
+        digits=(12, 0), store=False, readonly=True)
     note = fields.Char(string='備註')
     installment_change_note = fields.Char(
         string='異動說明',

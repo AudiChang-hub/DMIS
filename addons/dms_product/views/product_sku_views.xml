@@ -125,97 +125,49 @@
     <field name="name">dms.product.form.sku.detail.dialog</field>
     <field name="model">dms.product</field>
     <field name="arch" type="xml">
-      <form string="產品項詳細資料">
+      <form string="顏色 / 分期方案">
         <sheet>
           <div class="oe_title">
             <label for="internal_code"/>
-            <h1><field name="internal_code"/></h1>
+            <h1><field name="internal_code" readonly="1"/></h1>
           </div>
-          <notebook>
-            <page string="基本資料">
-              <group>
-                <group string="產品項資料">
-                  <field name="template_id" readonly="1"/>
-                  <field name="production_year"/>
-                  <field name="active"/>
-                </group>
-                <group string="模板快照">
-                  <field name="brand_id" readonly="1"/>
-                  <field name="name" readonly="1"/>
-                  <field name="energy_type" readonly="1"/>
-                </group>
-              </group>
-              <separator string="顏色"/>
-              <field name="color_ids" context="{'default_product_id': id, 'active_test': False}">
-                <tree editable="bottom" decoration-muted="not active">
-                  <field name="name"/>
-                  <field name="active"/>
-                </tree>
-              </field>
-            </page>
-            <page string="定價">
-              <group>
-                <group string="售價">
-                  <field name="cash_price"/>
-                  <field name="list_price"/>
-                  <field name="effective_price" readonly="1"/>
-                </group>
-                <group string="活動特殊價">
-                  <field name="promo_price"/>
-                  <field name="promo_note" placeholder="如：2026 Q2 原廠補助"/>
-                </group>
-              </group>
-              <group>
-                <group>
-                  <field name="price_change_note" placeholder="如：2026 Q2 原廠調漲，調漲 1,000 元"/>
-                </group>
-              </group>
-            </page>
-            <page string="分期方案">
-              <field name="installment_line_ids" nolabel="1">
-                <tree editable="bottom">
-                  <field name="periods"/>
-                  <field name="price_base"/>
-                  <field name="interest_rate" optional="hide"/>
-                  <field name="setup_fee"/>
-                  <field name="opening_fee"/>
-                  <field name="monthly_payment" readonly="1"/>
-                  <field name="note" optional="hide"/>
-                  <field name="installment_change_note" string="異動說明" optional="show"
-                         placeholder="如：銀行調整利率"/>
-                </tree>
-              </field>
-              <separator string="分期方案異動日誌"/>
-              <field name="installment_log_ids" nolabel="1" readonly="1">
-                <tree create="0" delete="0" editable="0">
-                  <field name="changed_at"/>
-                  <field name="user_id"/>
-                  <field name="action"/>
-                  <field name="periods"/>
-                  <field name="description"/>
-                  <field name="note" string="異動說明"/>
-                </tree>
-              </field>
-            </page>
-            <page string="價格日誌">
-              <field name="price_log_ids" nolabel="1" readonly="1">
-                <tree create="0" delete="0" editable="0">
-                  <field name="changed_at"/>
-                  <field name="user_id"/>
-                  <field name="old_cash_price"/>
-                  <field name="new_cash_price"/>
-                  <field name="old_list_price"/>
-                  <field name="new_list_price"/>
-                  <field name="old_promo_price" optional="show"/>
-                  <field name="new_promo_price" optional="show"/>
-                  <field name="note"/>
-                </tree>
-              </field>
-            </page>
-          </notebook>
+          <group>
+            <group>
+              <field name="production_year"/>
+              <field name="active"/>
+            </group>
+            <group>
+              <field name="template_id" readonly="1"/>
+            </group>
+          </group>
+          <separator string="顏色"/>
+          <field name="color_ids" nolabel="1"
+                 context="{'default_product_id': id, 'active_test': False}">
+            <tree editable="bottom" decoration-muted="not active">
+              <field name="name"/>
+              <field name="active"/>
+            </tree>
+          </field>
+          <separator string="分期方案"/>
+          <field name="installment_line_ids" nolabel="1">
+            <tree editable="bottom">
+              <field name="finance_company" string="分期公司"
+                     placeholder="如：和潤、遠信、中信卡"/>
+              <field name="periods" string="期數"/>
+              <field name="price_base" string="計算基準"/>
+              <field name="interest_rate" string="年利率" optional="hide"/>
+              <field name="setup_fee" string="設定費"/>
+              <field name="opening_fee" string="開辦費"/>
+              <field name="monthly_payment" string="月付金" readonly="1"/>
+              <field name="note" string="備註" optional="hide"/>
+              <field name="installment_change_note" string="異動說明" optional="show"
+                     placeholder="如：銀行調整利率"/>
+            </tree>
+          </field>
         </sheet>
         <footer>
           <button string="儲存" class="btn-primary" type="object" name="action_save_and_stay"/>
+          <button string="關閉" class="btn-secondary" special="cancel"/>
         </footer>
       </form>
     </field>

@@ -42,40 +42,40 @@
             <group>
               <field name="energy_type"/>
               <field name="active"/>
+              <field name="note" placeholder="備註（選填）"/>
             </group>
           </group>
-          <notebook>
-            <page string="產品項">
-              <field name="sku_ids"
-                     widget="sku_o2m"
-                     context="{'default_template_id': id, 'active_test': False}">
-                <tree decoration-muted="not active" no_open="True">
-                  <button name="action_open_installment_dialog"
-                          type="object"
-                          icon="fa-external-link"
-                          string="開啟"
-                          title="開啟定價 / 分期 / 日誌"/>
-                  <button name="action_duplicate_from_template_tab"
-                          type="object"
-                          icon="fa-copy"
-                          string="複製"
-                          class="btn-secondary"
-                          title="複製此產品項（年份將清空，填寫新年份後按「儲存」即完成）"/>
-                  <field name="internal_code" readonly="1"/>
-                  <field name="production_year" readonly="1"/>
-                  <field name="color" string="顏色" readonly="1"/>
-                  <field name="cash_price" string="現金售價" readonly="1" optional="show"/>
-                  <field name="list_price" string="牌價" readonly="1" optional="show"/>
-                  <field name="promo_price" string="活動特殊價" readonly="1" optional="show"/>
-                  <field name="effective_price" string="有效售價" readonly="1" optional="show"/>
-                  <field name="active" readonly="1"/>
-                </tree>
-              </field>
-            </page>
-            <page string="備註">
-              <field name="note" nolabel="1"/>
-            </page>
-          </notebook>
+          <separator string="產品項"/>
+          <field name="sku_ids"
+                 widget="sku_o2m"
+                 nolabel="1"
+                 context="{'default_template_id': id, 'active_test': False}">
+            <tree decoration-muted="not active" no_open="True" editable="bottom">
+              <button name="action_open_installment_dialog"
+                      type="object"
+                      icon="fa-external-link"
+                      string=""
+                      title="開啟顏色 / 分期方案"/>
+              <button name="action_duplicate_from_template_tab"
+                      type="object"
+                      icon="fa-copy"
+                      string=""
+                      class="btn-secondary"
+                      title="複製此產品項（年份將清空，填寫新年份後按「儲存」即完成）"/>
+              <field name="internal_code" readonly="1"/>
+              <field name="production_year" string="年份"/>
+              <field name="color" string="車色"/>
+              <field name="installment_36_price" string="36期分期價"/>
+              <field name="cash_discount" string="現金直扣"/>
+              <field name="cash_price" string="現金價"/>
+              <field name="list_price" string="牌價" optional="hide"/>
+              <field name="installment_18_price" string="18期專案"/>
+              <field name="gift_note" string="顧客贈品"/>
+              <field name="promo_price" string="活動價" optional="hide"/>
+              <field name="promo_note" string="活動說明" optional="hide"/>
+              <field name="active" optional="hide"/>
+            </tree>
+          </field>
         </sheet>
       </form>
     </field>

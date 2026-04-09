@@ -45,6 +45,19 @@
               <field name="note" string="顧客贈品" placeholder="顧客贈品（選填）"/>
             </group>
           </group>
+          <group string="欄位顯示設定（產品項列表）">
+            <group>
+              <field name="col_show_discount" string="現金直扣"/>
+              <field name="col_show_12period" string="12期"/>
+              <field name="col_show_18period" string="18期"/>
+              <field name="col_show_24period" string="24期"/>
+            </group>
+            <group>
+              <field name="col_show_36period" string="36期"/>
+              <field name="col_show_48period" string="48期"/>
+              <field name="col_show_60period" string="60期"/>
+            </group>
+          </group>
           <separator string="產品項"/>
           <field name="sku_ids"
                  widget="sku_o2m"
@@ -61,14 +74,21 @@
               <field name="production_year" string="年份"/>
               <field name="color" string="車色"/>
               <field name="suggested_price" string="建議售價"/>
-              <field name="cash_discount" string="現金直扣" optional="show"/>
+              <field name="cash_discount" string="現金直扣"
+                     column_invisible="[('parent.col_show_discount', '=', False)]"/>
               <field name="cash_price" string="現金價"/>
-              <field name="installment_12_price" string="12期" widget="float_blank_zero" optional="show"/>
-              <field name="installment_18_price" string="18期" widget="float_blank_zero" optional="show"/>
-              <field name="installment_24_price" string="24期" widget="float_blank_zero" optional="hide"/>
-              <field name="installment_36_price" string="36期" widget="float_blank_zero" optional="show"/>
-              <field name="installment_48_price" string="48期" widget="float_blank_zero" optional="hide"/>
-              <field name="installment_60_price" string="60期" widget="float_blank_zero" optional="hide"/>
+              <field name="installment_12_price" string="12期" widget="float_blank_zero"
+                     column_invisible="[('parent.col_show_12period', '=', False)]"/>
+              <field name="installment_18_price" string="18期" widget="float_blank_zero"
+                     column_invisible="[('parent.col_show_18period', '=', False)]"/>
+              <field name="installment_24_price" string="24期" widget="float_blank_zero"
+                     column_invisible="[('parent.col_show_24period', '=', False)]"/>
+              <field name="installment_36_price" string="36期" widget="float_blank_zero"
+                     column_invisible="[('parent.col_show_36period', '=', False)]"/>
+              <field name="installment_48_price" string="48期" widget="float_blank_zero"
+                     column_invisible="[('parent.col_show_48period', '=', False)]"/>
+              <field name="installment_60_price" string="60期" widget="float_blank_zero"
+                     column_invisible="[('parent.col_show_60period', '=', False)]"/>
               <field name="active" optional="hide"/>
             </tree>
           </field>

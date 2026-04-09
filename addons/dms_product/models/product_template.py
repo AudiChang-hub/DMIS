@@ -20,6 +20,15 @@ class DmsProductTemplate(models.Model):
     active = fields.Boolean(string='啟用', default=True)
     note = fields.Text(string='備註')
 
+    # ── 產品項列表欄位顯示設定 ────────────────────────────────────────────
+    col_show_discount = fields.Boolean(string='現金直扣', default=True)
+    col_show_12period = fields.Boolean(string='12期', default=True)
+    col_show_18period = fields.Boolean(string='18期', default=True)
+    col_show_24period = fields.Boolean(string='24期', default=False)
+    col_show_36period = fields.Boolean(string='36期', default=True)
+    col_show_48period = fields.Boolean(string='48期', default=False)
+    col_show_60period = fields.Boolean(string='60期', default=False)
+
     @api.constrains('brand_id', 'family_name', 'model_name', 'energy_type')
     def _check_required_fields(self):
         for rec in self:

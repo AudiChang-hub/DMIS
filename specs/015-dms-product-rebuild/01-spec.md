@@ -176,6 +176,33 @@
 - 同一產品項在不同價目版本下，可掛不同規則模板
 - 同一產品項 + 價目版本只能有一筆啟用中的掛接
 
+### 2.11 `dms.product.installment.line`（產品分期試算明細）
+
+用途：記錄某產品項在特定分期規則下的試算結果，包含每期應收金額。
+
+| 欄位 | 類型 | 必填 | 說明 |
+|---|---|---|---|
+| `product_id` | Many2one → `dms.product` | ✓ | 產品項（ondelete=cascade） |
+| `rule_id` | Many2one → `dms.installment.rule` |  | 對應分期方案（ondelete=set null） |
+| `periods` | Integer | ✓ | 分期期數，例：12、24、36 |
+| `price_base` | Selection(cash/list) | ✓ | 計算基準：現金價或牌價 |
+| `interest_rate` | Float(5,2) |  | 年利率（%），0 = 無息 |
+| `setup_fee` | Float(12,0) |  | 設定費（一次性，不計入每期） |
+| `opening_fee` | Float(12,0) |  | 開辦費（一次性，不計入每期） |
+| `monthly_payment` | Float(12,0) | computed | 每期應收金額（computed+store） |
+| `note` | Char |  | 備註 |
+
+計算規則：
+
+- **年利率 = 0（無息）**：`monthly_payment = ceil(base / periods)`
+- **年利率 > 0（有息）**：年金現值逆推 PMT
+  - `r = 年利率(%) ÷ 12 ÷ 100`（月利率）
+  - `monthly_payment = ceil(base × r / (1 − (1+r)^−n))`
+- **捨入規則：一律無條件進位（`math.ceil`）**，確保實收金額 ≥ 理論值，不得四捨五入
+  - 範例：72800 ÷ 18 = 4044.44… → `ceil` → **4045**
+- `setup_fee`、`opening_fee` 為一次性費用，不含在 `monthly_payment` 中
+- 同一產品項下，相同期數只能有一筆（unique constraint）
+
 ---
 
 ## 3. 查價與規則查詢邏輯

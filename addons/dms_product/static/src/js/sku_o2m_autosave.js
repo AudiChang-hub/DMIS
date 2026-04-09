@@ -1,7 +1,27 @@
 /** @odoo-module **/
 
+import { ListRenderer } from "@web/views/list/list_renderer";
 import { X2ManyField } from "@web/views/fields/x2many/x2many_field";
 import { registry } from "@web/core/registry";
+
+/**
+ * 自訂 ListRenderer：攔截 Enter 鍵在最後一列時的「自動新增列」行為。
+ * 使用者需明確點選「Add a line」才能新增產品項。
+ */
+class SkuListRenderer extends ListRenderer {
+    onCellKeydown({ hotkey }, column, record) {
+        if (hotkey === "enter") {
+            const records = this.props.list.records;
+            const isLastRecord =
+                records.length > 0 && records[records.length - 1] === record;
+            if (isLastRecord) {
+                // 停在最後一列，不觸發 onAdd
+                return;
+            }
+        }
+        return super.onCellKeydown(...arguments);
+    }
+}
 
 /**
  * 針對「產品模板 → 產品項」O2M 的自訂 Widget。
@@ -16,10 +36,15 @@ import { registry } from "@web/core/registry";
  * 本 Widget 在 dialog 關閉後自動幫使用者存父頁面，
  * 讓 server create() 立即執行並產生 internal_code。
  *
- * 注意：Odoo 16 的 fields registry 登錄的值直接是 class 本身，
- * 不存在 x2ManyField descriptor object，因此不可使用 spread。
+ * 使用情境 3：Enter 鍵不在最後一列自動新增列，
+ * 使用者須明確點選「Add a line」才能新增。
  */
 export class SkuO2MField extends X2ManyField {
+    static components = {
+        ...X2ManyField.components,
+        ListRenderer: SkuListRenderer,
+    };
+
     async onAdd(params) {
         const record = this.props.record;
 

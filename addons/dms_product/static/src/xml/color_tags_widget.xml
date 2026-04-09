@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<templates xml:space="preserve">
+  <t t-name="dms_product.ColorTagsField">
+    <div class="o_dms_color_tags">
+      <span
+        t-foreach="tags"
+        t-as="tag"
+        t-key="tag"
+        class="o_dms_color_tag"
+        t-esc="tag"
+      />
+    </div>
+  </t>
+</templates>

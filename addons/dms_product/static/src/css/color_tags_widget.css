@@ -1,0 +1,24 @@
+/* ── 車色 Tags Widget ─────────────────────────────────────────── */
+
+.o_dms_color_tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 3px;
+    padding: 2px 0;
+    align-items: center;
+}
+
+.o_dms_color_tag {
+    background-color: #e5e7eb;
+    border-radius: 3px;
+    padding: 1px 7px;
+    font-size: 0.8rem;
+    white-space: nowrap;
+    line-height: 1.6;
+}
+
+/* 讓含有車色 tags 的 td 可以自動撐高，不被固定行高截斷 */
+.o_data_row td:has(.o_dms_color_tags) {
+    height: auto !important;
+    vertical-align: middle;
+}

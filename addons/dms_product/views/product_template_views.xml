@@ -59,7 +59,7 @@
                       title="複製此產品項（年份將清空，填寫新年份後按「儲存」即完成）"/>
               <field name="internal_code" readonly="1" optional="hide"/>
               <field name="production_year" string="年份"/>
-              <field name="color" string="車色"/>
+              <field name="color" string="車色" widget="color_tags"/>
               <field name="suggested_price" string="建議售價"/>
               <field name="cash_discount" string="現金直扣" optional="show"/>
               <field name="cash_price" string="現金價"/>

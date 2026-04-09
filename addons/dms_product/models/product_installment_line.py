@@ -79,9 +79,9 @@ class DmsProductInstallmentLine(models.Model):
             # r = 月利率 = 年利率(%) ÷ 12 ÷ 100；利率為 0 時退化為 PV / n
             r = (rec.interest_rate or 0.0) / 100.0 / 12.0
             if r == 0.0:
-                rec.monthly_payment = math.ceil(base / periods)
+                rec.monthly_payment = math.floor(base / periods + 0.6)
             else:
-                rec.monthly_payment = math.ceil(base * r / (1.0 - (1.0 + r) ** (-periods)))
+                rec.monthly_payment = math.floor(base * r / (1.0 - (1.0 + r) ** (-periods)) + 0.6)
 
     @api.model_create_multi
     def create(self, vals_list):

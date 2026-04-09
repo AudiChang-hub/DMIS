@@ -9,7 +9,7 @@ import { registry } from "@web/core/registry";
  */
 class FloatBlankZero extends FloatField {
     get formattedValue() {
-        if (!this.value) return "";
+        if (!this.props.value) return "";
         return super.formattedValue;
     }
 }

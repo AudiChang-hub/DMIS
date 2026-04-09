@@ -233,6 +233,23 @@ class DmsProductCompat(models.Model):
             create_vals['image_1920'] = image
         return color_model.create(create_vals)
 
+    def _remove_stale_color_records(self):
+        """將不再出現在 color 文字中的 color_ids 記錄設為 inactive。
+
+        使用者透過 UI 直接編輯 color 文字刪除顏色時，
+        若不處理舊的 color_ids 記錄，_sync_legacy_color_summary
+        會從 color_ids 重建 color 欄位，把被刪掉的顏色又寫回來。
+        """
+        for record in self:
+            current_names = set(record._split_color_names(record.color or ''))
+            stale = record.with_context(active_test=False).color_ids.filtered(
+                lambda c: c.active and c.name not in current_names
+            )
+            if stale:
+                # skip_product_color_sync 避免 color_ids.write 觸發重複的
+                # _sync_legacy_color_summary（_sync_compat_fields 末尾已有）
+                stale.with_context(skip_product_color_sync=True).write({'active': False})
+
     def _ensure_color_records_from_legacy(self):
         for record in self:
             for color_name in record._split_color_names(record.color):
@@ -612,6 +629,7 @@ class DmsProductCompat(models.Model):
                     ),
                 ).write(vals)
         self._sync_color_templates()
+        self._remove_stale_color_records()
         self._ensure_color_records_from_legacy()
         self._sync_legacy_color_summary()
 

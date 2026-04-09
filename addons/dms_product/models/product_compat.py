@@ -7,7 +7,7 @@ from odoo.osv import expression
 
 
 LEGACY_GENERATED_CODE_PATTERN = re.compile(r'^SKU-\d{5}$')
-COLOR_SPLIT_PATTERN = re.compile(r'[、/,，\s]+')
+COLOR_SPLIT_PATTERN = re.compile(r'[、/,，]+')
 
 
 class DmsProductCompat(models.Model):

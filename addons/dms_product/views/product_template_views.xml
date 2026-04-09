@@ -63,12 +63,12 @@
               <field name="suggested_price" string="建議售價"/>
               <field name="cash_discount" string="現金直扣"/>
               <field name="cash_price" string="現金價"/>
-              <field name="installment_12_price" string="12期" readonly="1"/>
-              <field name="installment_18_price" string="18期" readonly="1"/>
-              <field name="installment_24_price" string="24期" readonly="1" optional="hide"/>
-              <field name="installment_36_price" string="36期" readonly="1"/>
-              <field name="installment_48_price" string="48期" readonly="1" optional="hide"/>
-              <field name="installment_60_price" string="60期" readonly="1" optional="hide"/>
+              <field name="installment_12_price" string="12期"/>
+              <field name="installment_18_price" string="18期"/>
+              <field name="installment_24_price" string="24期" optional="hide"/>
+              <field name="installment_36_price" string="36期"/>
+              <field name="installment_48_price" string="48期" optional="hide"/>
+              <field name="installment_60_price" string="60期" optional="hide"/>
               <field name="gift_note" string="顧客贈品"/>
               <field name="active" optional="hide"/>
             </tree>

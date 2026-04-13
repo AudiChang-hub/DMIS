@@ -166,4 +166,16 @@ if len(copies) == 1:
     </field>
   </record>
 
+  <record id="action_dms_product_duplicate" model="ir.actions.server">
+    <field name="name">複製</field>
+    <field name="model_id" ref="dms_sale.model_dms_product"/>
+    <field name="binding_model_id" ref="dms_sale.model_dms_product"/>
+    <field name="binding_view_types">list,form</field>
+    <field name="state">code</field>
+    <field name="code">
+for record in records:
+    record.copy()
+    </field>
+  </record>
+
 </odoo>

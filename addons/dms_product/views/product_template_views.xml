@@ -104,8 +104,10 @@
       <tree string="價格表" editable="bottom" multi_edit="1" default_order="name asc, production_year asc">
         <field name="brand_id" optional="show"/>
         <field name="name" string="機種" optional="show"/>
+        <field name="template_type_name" string="型式" optional="show"/>
         <field name="model" string="型號" optional="show"/>
         <field name="production_year" string="年份"/>
+        <field name="energy_type" string="能源型式" optional="show"/>
         <field name="color" string="車色" optional="show"/>
         <field name="suggested_price" string="建議售價" optional="show"/>
         <field name="cash_discount" string="現金直扣" optional="show"/>

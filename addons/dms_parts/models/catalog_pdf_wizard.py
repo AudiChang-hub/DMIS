@@ -221,22 +221,26 @@ class DmsPartCatalogPdfWizard(models.TransientModel):
             name_zh = section_info.get('name_zh', '')
             row_count = len(data_rows)
 
-            # 前 4 筆零件摘要
-            sample_html = ''
-            for r in data_rows[:4]:
+            # 所有零件列表（放入 <details> 可展開）
+            rows_html = ''
+            for r in data_rows:
                 pn = r.get('part_number') or '—'
                 nm = r.get('name_zh') or r.get('name_en') or ''
+                sq = r.get('seq') or ''
                 qty = r.get('qty') or ''
-                qty_str = f' ×{qty}' if qty else ''
-                line = f'{pn}  {nm}{qty_str}'
-                sample_html += (
-                    f'<div style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;'
-                    f'color:#444;margin:1px 0;" title="{pn} | {nm}">{line}</div>'
-                )
-            if row_count > 4:
-                sample_html += (
-                    f'<div style="color:#999;font-style:italic;">'
-                    f'...還有 {row_count - 4} 筆</div>'
+                # 料號顏色：正常 = 深色，空值 = 橘色警示
+                pn_color = '#555' if pn != '—' else '#d08000'
+                rows_html += (
+                    f'<div style="display:flex;gap:3px;padding:1px 0;'
+                    f'border-bottom:1px dotted #eee;font-size:10px;font-family:monospace;">'
+                    f'<span style="min-width:16px;color:#aaa;text-align:right">{sq}</span>'
+                    f'<span style="min-width:8px;"></span>'
+                    f'<span style="width:105px;overflow:hidden;text-overflow:ellipsis;'
+                    f'white-space:nowrap;color:{pn_color};" title="{pn}">{pn}</span>'
+                    f'<span style="flex:1;overflow:hidden;text-overflow:ellipsis;'
+                    f'white-space:nowrap;color:#444;" title="{nm}">{nm}</span>'
+                    f'<span style="min-width:18px;text-align:right;color:#888;">{qty}</span>'
+                    f'</div>'
                 )
 
             img_tag = (
@@ -249,15 +253,30 @@ class DmsPartCatalogPdfWizard(models.TransientModel):
             )
 
             cards.append(
-                f'<div style="display:inline-block;vertical-align:top;width:205px;margin:5px;'
+                f'<div style="display:inline-block;vertical-align:top;width:225px;margin:5px;'
                 f'border:1px solid #ccc;border-radius:6px;overflow:hidden;background:#fff;'
                 f'box-shadow:1px 2px 4px rgba(0,0,0,0.08);">'
                 f'{img_tag}'
-                f'<div style="padding:7px;font-size:11px;font-family:monospace;">'
-                f'<div style="font-weight:bold;color:#1a5c30;margin-bottom:2px;">'
+                f'<div style="padding:7px;font-size:11px;">'
+                f'<div style="font-weight:bold;color:#1a5c30;margin-bottom:1px;">'
                 f'p{page_num + 1} → {seq:02d}. {name_en}</div>'
-                f'<div style="color:#666;margin-bottom:4px;">{name_zh} ({row_count} 筆零件)</div>'
-                f'{sample_html}'
+                f'<details>'
+                f'<summary style="cursor:pointer;outline:none;list-style:none;'
+                f'color:#555;font-size:10px;margin:3px 0;user-select:none;">'
+                f'{name_zh} &nbsp;·&nbsp; {row_count} 筆 ▶ 點擊展開</summary>'
+                f'<div style="max-height:180px;overflow-y:auto;'
+                f'border-top:1px solid #eee;padding-top:3px;margin-top:3px;">'
+                f'<div style="display:flex;gap:3px;padding:1px 0;font-size:9px;color:#aaa;'
+                f'font-family:monospace;border-bottom:1px solid #ddd;margin-bottom:2px;">'
+                f'<span style="min-width:16px;text-align:right">#</span>'
+                f'<span style="min-width:8px;"></span>'
+                f'<span style="width:105px;">料號</span>'
+                f'<span style="flex:1;">零件名稱</span>'
+                f'<span style="min-width:18px;text-align:right">量</span>'
+                f'</div>'
+                f'{rows_html}'
+                f'</div>'
+                f'</details>'
                 f'</div></div>'
             )
 
@@ -368,8 +387,9 @@ class DmsPartCatalogPdfWizard(models.TransientModel):
                 break
         data_y_min = (header_y or 65) + 6
 
-        # 收集資料行的詞彙（Y 在資料區以下）
-        data_words = [w for w in words if w[1] >= data_y_min]
+        # 收集資料行的詞彙（Y 在資料區以下，排除頁底頁碼區如 "- 11 -"）
+        page_height = page.rect.height
+        data_words = [w for w in words if w[1] >= data_y_min and w[1] < page_height - 20]
 
         # 依 Y 分組（容差：將 Y 四捨五入至最近 6 的倍數）
         row_groups = {}
@@ -417,7 +437,21 @@ class DmsPartCatalogPdfWizard(models.TransientModel):
                 'remarks':     ' '.join(cols['rem']),
             })
 
-        return section_info, result
+        # 合併換行列：如果某列沒有 seq 也沒有 part_number，視為上一列的中文名換行
+        merged = []
+        for row in result:
+            seq_val = row['seq'].strip()
+            pn_val = row['part_number'].strip()
+            if merged and not seq_val and not pn_val:
+                # 換行的 name_zh 或 name_en 補回上一列
+                prev = merged[-1]
+                if row['name_zh']:
+                    prev['name_zh'] = (prev['name_zh'] + ' ' + row['name_zh']).strip()
+                if row['name_en'] and not prev['name_en']:
+                    prev['name_en'] = row['name_en']
+            else:
+                merged.append(row)
+        return section_info, merged
 
     # ── helper ───────────────────────────────────────────────────────────
 

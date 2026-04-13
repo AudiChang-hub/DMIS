@@ -1,25 +1,39 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
 
-  <!-- ─── Search Wizard Form（圖一：搜尋入口）─── -->
+  <!-- ─── Search Wizard Form（全頁查詢入口）─── -->
   <record id="view_catalog_search_wizard_form" model="ir.ui.view">
     <field name="name">dms.part.catalog.search.wizard.form</field>
     <field name="model">dms.part.catalog.search.wizard</field>
     <field name="arch" type="xml">
-      <form string="零件目錄查詢">
+      <form string="查詢零件">
         <sheet>
-          <group string="查詢條件">
-            <group>
-              <field name="engine_number" placeholder="輸入引擎號碼（如：DD278296）"/>
-              <field name="template_id" placeholder="或直接選擇車型"/>
+          <div class="o_form_sheet_bg">
+            <div class="oe_title">
+              <h2>零件查詢</h2>
+              <p class="text-muted">
+                輸入引擎號碼（車上銘板）或直接選擇車型，即可查詢對應的爆炸圖與零件清單。
+              </p>
+            </div>
+            <group string="查詢條件">
+              <group>
+                <field name="engine_number"
+                       placeholder="輸入引擎號碼，如：DD278296"
+                       help="系統會自動依號碼前綴比對車型目錄"/>
+                <field name="template_id"
+                       placeholder="或直接選擇車型"
+                       help="若不知道引擎號碼，可直接選車型"/>
+              </group>
+              <group>
+                <field name="section_category" widget="radio"
+                       help="引擎：引擎/化油器相關零件；車架：車身/前後叉相關零件"/>
+              </group>
             </group>
-            <group>
-              <field name="section_category" widget="radio"/>
-            </group>
-          </group>
+          </div>
         </sheet>
         <footer>
-          <button name="action_search" string="查詢" type="object" class="btn-primary"/>
+          <button name="action_search" string="開始查詢" type="object"
+                  class="btn-primary btn-lg"/>
           <button string="取消" class="btn-secondary" special="cancel"/>
         </footer>
       </form>
@@ -27,7 +41,7 @@
   </record>
 
   <record id="action_catalog_search_wizard" model="ir.actions.act_window">
-    <field name="name">零件查詢</field>
+    <field name="name">查詢零件</field>
     <field name="res_model">dms.part.catalog.search.wizard</field>
     <field name="view_mode">form</field>
     <field name="target">new</field>

@@ -8,9 +8,12 @@
       <tree string="零件">
         <field name="name" optional="show"/>
         <field name="part_number" optional="show"/>
+        <field name="part_type" optional="show"/>
         <field name="category_id" optional="show"/>
         <field name="uom" optional="show"/>
         <field name="cost_price" optional="show"/>
+        <field name="list_price" optional="show"/>
+        <field name="qty_available" optional="show" string="庫存"/>
         <field name="active" optional="show"/>
         <field name="note" optional="hide"/>
       </tree>
@@ -24,14 +27,19 @@
       <form string="零件">
         <sheet>
           <group>
-            <group>
+            <group string="基本資料">
               <field name="name"/>
               <field name="part_number" placeholder="原廠料號（選填）"/>
+              <field name="part_type"/>
               <field name="category_id"/>
+              <field name="superseded_by_id" placeholder="已停產請填替代料號"/>
             </group>
-            <group>
+            <group string="價格與庫存">
               <field name="uom"/>
               <field name="cost_price"/>
+              <field name="list_price"/>
+              <field name="product_id" readonly="1" help="由系統自動建立，請勿手動修改"/>
+              <field name="qty_available" readonly="1"/>
               <field name="active"/>
             </group>
           </group>
@@ -56,11 +64,15 @@
         <field name="name" string="名稱"/>
         <field name="part_number" string="料號"/>
         <field name="category_id" string="分類"/>
-        <filter name="filter_active" string="啟用中" domain="[('active','=',True)]"/>
+        <filter name="filter_vehicle" string="車輛結構零件" domain="[('part_type','=','vehicle_part')]"/>
+        <filter name="filter_consumable" string="耗材" domain="[('part_type','=','consumable')]"/>
+        <filter name="filter_accessory" string="精品/副廠" domain="[('part_type','=','accessory')]"/>
         <separator/>
+        <filter name="filter_active" string="啟用中" domain="[('active','=',True)]"/>
         <filter name="filter_archived" string="已歸檔" domain="[('active','=',False)]"/>
         <group expand="0" string="分組依據">
           <filter name="group_category" string="分類" context="{'group_by': 'category_id'}"/>
+          <filter name="group_type" string="零件類型" context="{'group_by': 'part_type'}"/>
         </group>
       </search>
     </field>

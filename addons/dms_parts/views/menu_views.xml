@@ -6,16 +6,34 @@
             sequence="60"
             web_icon="dms_parts,static/description/icon.png"/>
 
+  <menuitem id="menu_parts_catalog_search"
+            name="零件查詢"
+            parent="menu_dms_parts_root"
+            action="dms_parts.action_catalog_search_wizard"
+            sequence="5"/>
+
+  <menuitem id="menu_parts_catalog"
+            name="零件目錄"
+            parent="menu_dms_parts_root"
+            action="dms_parts.action_part_catalog"
+            sequence="8"/>
+
   <menuitem id="menu_parts_list"
             name="零件清單"
             parent="menu_dms_parts_root"
-            action="action_part"
+            action="dms_product.action_part"
             sequence="10"/>
 
   <menuitem id="menu_parts_category"
             name="零件分類"
             parent="menu_dms_parts_root"
-            action="action_part_category"
+            action="dms_product.action_part_category"
             sequence="20"/>
+
+  <menuitem id="menu_parts_catalog_import"
+            name="CSV 批次匯入"
+            parent="menu_dms_parts_root"
+            action="dms_parts.action_catalog_import_wizard"
+            sequence="30"/>
 
 </odoo>

@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+  <!-- ─── Catalog Tree ─── -->
+  <record id="view_part_catalog_tree" model="ir.ui.view">
+    <field name="name">dms.part.catalog.tree</field>
+    <field name="model">dms.part.catalog</field>
+    <field name="arch" type="xml">
+      <tree string="零件目錄">
+        <field name="name"/>
+        <field name="template_id"/>
+        <field name="engine_prefix"/>
+        <field name="frame_prefix" optional="hide"/>
+        <field name="setup_date"/>
+        <field name="section_count" string="分區數"/>
+        <field name="active" optional="hide"/>
+      </tree>
+    </field>
+  </record>
+
+  <!-- ─── Catalog Form ─── -->
+  <record id="view_part_catalog_form" model="ir.ui.view">
+    <field name="name">dms.part.catalog.form</field>
+    <field name="model">dms.part.catalog</field>
+    <field name="arch" type="xml">
+      <form string="零件目錄">
+        <sheet>
+          <group>
+            <group string="基本資料">
+              <field name="name"/>
+              <field name="template_id"/>
+              <field name="setup_date"/>
+              <field name="active"/>
+            </group>
+            <group string="引擎/車架號碼前綴">
+              <field name="engine_prefix" placeholder="如：DD"/>
+              <field name="frame_prefix" placeholder="如：RF1A（選填）"/>
+            </group>
+          </group>
+          <separator string="備註"/>
+          <field name="note" nolabel="1"/>
+          <separator string="分區清單"/>
+          <field name="section_ids">
+            <tree editable="bottom">
+              <field name="sequence" widget="handle"/>
+              <field name="code"/>
+              <field name="name"/>
+              <field name="category"/>
+              <field name="line_count" string="零件數" readonly="1"/>
+            </tree>
+          </field>
+        </sheet>
+      </form>
+    </field>
+  </record>
+
+  <!-- ─── Catalog Search ─── -->
+  <record id="view_part_catalog_search" model="ir.ui.view">
+    <field name="name">dms.part.catalog.search</field>
+    <field name="model">dms.part.catalog</field>
+    <field name="arch" type="xml">
+      <search string="目錄搜尋">
+        <field name="name"/>
+        <field name="template_id"/>
+        <field name="engine_prefix"/>
+        <filter name="filter_active" string="啟用中" domain="[('active','=',True)]"/>
+        <group expand="0" string="分組依據">
+          <filter name="group_template" string="車型" context="{'group_by': 'template_id'}"/>
+        </group>
+      </search>
+    </field>
+  </record>
+
+  <record id="action_part_catalog" model="ir.actions.act_window">
+    <field name="name">零件目錄</field>
+    <field name="res_model">dms.part.catalog</field>
+    <field name="view_mode">tree,form</field>
+    <field name="context">{'search_default_filter_active': 1}</field>
+  </record>
+
+</odoo>

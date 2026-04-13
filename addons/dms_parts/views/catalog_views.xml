@@ -31,13 +31,11 @@
                     class="oe_stat_button" icon="fa-puzzle-piece">
               <field name="section_count" widget="statinfo" string="爆炸圖分區"/>
             </button>
-          </div>
-
-          <!-- PDF 批次匯入按鈕（右上角）-->
-          <div class="o_form_buttons_view" style="float:right; margin-top:-4px;"
-               attrs="{'invisible': [('id','=',False)]}">
             <button name="action_open_pdf_wizard" type="object"
-                    string="📥 從 PDF 批次建立" class="btn btn-secondary"/>
+                    class="oe_stat_button" icon="fa-file-pdf-o"
+                    attrs="{'invisible': [('id','=',False)]}">
+              <span class="o_stat_text">從 PDF 批次建立</span>
+            </button>
           </div>
 
           <div class="oe_title">

@@ -5,12 +5,12 @@
     全部掛在 dms_product.menu_dms_product_root（產品及零件管理）之下。
   -->
 
-  <!-- 查詢零件：排在最前，為一般使用者的主入口 -->
+  <!-- 查詢零件：排在目錄管理後方 -->
   <menuitem id="menu_parts_catalog_search"
             name="查詢零件"
             parent="dms_product.menu_dms_product_root"
             action="dms_parts.action_catalog_search_wizard"
-            sequence="5"/>
+            sequence="50"/>
 
   <!-- 目錄管理：放在車型產品(10)與零件管理(20)之後 -->
   <menuitem id="menu_parts_catalog_group"

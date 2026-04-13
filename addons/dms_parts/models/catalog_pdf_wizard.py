@@ -207,10 +207,7 @@ class DmsPartCatalogPdfWizard(models.TransientModel):
 
             section_info, data_rows = self._parse_parts_page_words(page)
             if not section_info or not section_info.get('seq'):
-                # 嘗試色碼外觀件格式
-                section_info, data_rows = self._parse_color_variant_page(page)
-                if not section_info:
-                    continue
+                continue
 
             # 渲染低解析度縮圖
             try:
@@ -223,7 +220,6 @@ class DmsPartCatalogPdfWizard(models.TransientModel):
             name_en = section_info.get('name_en', '')
             name_zh = section_info.get('name_zh', '')
             row_count = len(data_rows)
-            is_color_variant = section_info.get('color_variant', False)
 
             # 所有零件列表（放入 <details> 可展開）
             rows_html = ''
@@ -250,7 +246,7 @@ class DmsPartCatalogPdfWizard(models.TransientModel):
             img_tag = (
                 f'<img src="data:image/png;base64,{thumb_b64}"'
                 f' style="width:100%;display:block;border-bottom:1px solid #ddd;"'
-                f' title="p{page_num + 1}: {"EXT" if is_color_variant else f"{seq:02d}."}  {name_en}"/>'
+                f' title="p{page_num + 1}: {seq:02d}. {name_en}"/>'
                 if thumb_b64 else
                 f'<div style="height:60px;background:#eee;text-align:center;line-height:60px;'
                 f'color:#aaa;">無法渲染</div>'
@@ -263,7 +259,7 @@ class DmsPartCatalogPdfWizard(models.TransientModel):
                 f'{img_tag}'
                 f'<div style="padding:7px;font-size:11px;">'
                 f'<div style="font-weight:bold;color:#1a5c30;margin-bottom:1px;">'
-                f'p{page_num + 1} → {"EXT" if is_color_variant else f"{seq:02d}."} {name_en}</div>'
+                f'p{page_num + 1} → {seq:02d}. {name_en}</div>'
                 f'<details>'
                 f'<summary style="cursor:pointer;outline:none;list-style:none;'
                 f'color:#555;font-size:10px;margin:3px 0;user-select:none;">'
@@ -692,9 +688,6 @@ class DmsPartCatalogPdfWizard(models.TransientModel):
 
             section_info, data_rows = self._parse_parts_page_words(page)
             if not section_info or not data_rows:
-                # 嘗試色碼外觀件格式
-                section_info, data_rows = self._parse_color_variant_page(page)
-            if not section_info or not data_rows:
                 continue
 
             # 取最大的嵌入圖片作為爆炸圖（原始畫質，不重新渲染整頁）
@@ -712,15 +705,10 @@ class DmsPartCatalogPdfWizard(models.TransientModel):
                 img_b64 = base64.b64encode(pix.tobytes('png'))
 
             seq_num = section_info['seq']
-            if section_info.get('color_variant'):
-                section_code = 'EXT'
-                section_name = section_info['name_zh'] or 'EXTERIOR COLOR PARTS'
-                category = 'frame'
-            else:
-                section_code = f'{prefix}{seq_num:02d}'
-                section_name = section_info['name_zh'] or section_info['name_en'] or f'第{seq_num:02d}部分'
-                # 簡單依序號決定部位分類
-                category = 'engine' if seq_num <= 16 else 'frame'
+            section_code = f'{prefix}{seq_num:02d}'
+            section_name = section_info['name_zh'] or section_info['name_en'] or f'第{seq_num:02d}部分'
+            # 簡單依序號決定部位分類
+            category = 'engine' if seq_num <= 16 else 'frame'
 
             section = self.env['dms.part.catalog.section'].create({
                 'catalog_id': self.catalog_id.id,

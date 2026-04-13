@@ -12,6 +12,12 @@
             action="dms_parts.action_catalog_search_wizard"
             sequence="30"/>
 
+  <!-- 將 dms_product 定義的「零件管理」群組移至新頂層 -->
+  <record model="ir.ui.menu" id="dms_product.menu_dms_parts_group">
+    <field name="parent_id" ref="menu_dms_parts_root"/>
+    <field name="sequence">10</field>
+  </record>
+
   <!-- 零件目錄管理 -->
   <menuitem id="menu_parts_catalog_group"
             name="零件目錄管理"

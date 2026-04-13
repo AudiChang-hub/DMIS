@@ -58,10 +58,16 @@ class DmsProductCompat(models.Model):
         inverse='_inverse_price_change_note',
         help='本次價格異動的說明，儲存後自動記入異動日誌並清空')
 
+    # 能源型式預設值（避免行內新增時必填驗證失敗）
+    energy_type = fields.Selection(default='oil')
+
     # ── 定價資訊欄位（spec 020）──────────────────────────────────────────────
     template_family_name = fields.Char(
         related='template_id.family_name', string='機種',
         store=True, readonly=True, index=True)
+    template_type_name = fields.Char(
+        related='template_id.type_name', string='型式',
+        store=False, readonly=False)
     suggested_price = fields.Float(
         string='建議售價', digits=(12, 0), default=0.0,
         group_operator=False,

@@ -115,6 +115,12 @@ class DmsPartCatalogPdfWizard(models.TransientModel):
         [('draft', '等待匯入'), ('done', '完成')], default='draft'
     )
     import_log = fields.Text(string='匯入結果', readonly=True)
+    preview_html = fields.Html(
+        string='偵測頁面預覽',
+        readonly=True,
+        sanitize=False,
+        help='上傳 PDF 後自動顯示偵測到的分區頁縮圖與解析摘要',
+    )
 
     # ── onchange: 上傳後自動分析格式 ─────────────────────────────────────
 
@@ -122,6 +128,7 @@ class DmsPartCatalogPdfWizard(models.TransientModel):
     def _onchange_pdf_file(self):
         if not self.pdf_file:
             self.col_headers_display = False
+            self.preview_html = False
             return
         try:
             import fitz  # noqa
@@ -140,11 +147,14 @@ class DmsPartCatalogPdfWizard(models.TransientModel):
             # 先嘗試偵測格式
             mode, info = self._detect_pdf_format(doc)
             self.parse_mode = mode
-            doc.close()
 
             if mode == 'words':
                 self.col_headers_display = info
+                self.preview_html = self._build_preview_html(doc)
+                doc.close()
             else:
+                doc.close()
+                self.preview_html = False
                 # 表格格式：找欄位標題
                 doc2 = fitz.open(stream=pdf_bytes, filetype='pdf')
                 headers = None
@@ -175,6 +185,93 @@ class DmsPartCatalogPdfWizard(models.TransientModel):
         except Exception as e:
             _logger.warning('PDF 格式分析失敗: %s', e)
             self.col_headers_display = f'分析錯誤：{e}'
+            self.preview_html = False
+
+    # ── 預覽 HTML 生成 ────────────────────────────────────────────────────
+
+    def _build_preview_html(self, doc):
+        """生成分區頁縮圖預覽 HTML（words 模式用）"""
+        try:
+            import fitz
+        except ImportError:
+            return ''
+
+        thumb_matrix = fitz.Matrix(0.25, 0.25)  # 720pt × 0.25 = 180px 寬
+        cards = []
+
+        for page_num in range(len(doc)):
+            page = doc[page_num]
+            imgs = page.get_images()
+            if not imgs or len(imgs) > 5:
+                continue
+
+            section_info, data_rows = self._parse_parts_page_words(page)
+            if not section_info or not section_info.get('seq'):
+                continue
+
+            # 渲染低解析度縮圖
+            try:
+                pix = page.get_pixmap(matrix=thumb_matrix)
+                thumb_b64 = base64.b64encode(pix.tobytes('png')).decode('ascii')
+            except Exception:
+                thumb_b64 = ''
+
+            seq = section_info.get('seq', 0)
+            name_en = section_info.get('name_en', '')
+            name_zh = section_info.get('name_zh', '')
+            row_count = len(data_rows)
+
+            # 前 4 筆零件摘要
+            sample_html = ''
+            for r in data_rows[:4]:
+                pn = r.get('part_number') or '—'
+                nm = r.get('name_zh') or r.get('name_en') or ''
+                qty = r.get('qty') or ''
+                qty_str = f' ×{qty}' if qty else ''
+                line = f'{pn}  {nm}{qty_str}'
+                sample_html += (
+                    f'<div style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;'
+                    f'color:#444;margin:1px 0;" title="{pn} | {nm}">{line}</div>'
+                )
+            if row_count > 4:
+                sample_html += (
+                    f'<div style="color:#999;font-style:italic;">'
+                    f'...還有 {row_count - 4} 筆</div>'
+                )
+
+            img_tag = (
+                f'<img src="data:image/png;base64,{thumb_b64}"'
+                f' style="width:100%;display:block;border-bottom:1px solid #ddd;"'
+                f' title="p{page_num + 1}: {seq:02d}. {name_en}"/>'
+                if thumb_b64 else
+                f'<div style="height:60px;background:#eee;text-align:center;line-height:60px;'
+                f'color:#aaa;">無法渲染</div>'
+            )
+
+            cards.append(
+                f'<div style="display:inline-block;vertical-align:top;width:205px;margin:5px;'
+                f'border:1px solid #ccc;border-radius:6px;overflow:hidden;background:#fff;'
+                f'box-shadow:1px 2px 4px rgba(0,0,0,0.08);">'
+                f'{img_tag}'
+                f'<div style="padding:7px;font-size:11px;font-family:monospace;">'
+                f'<div style="font-weight:bold;color:#1a5c30;margin-bottom:2px;">'
+                f'p{page_num + 1} → {seq:02d}. {name_en}</div>'
+                f'<div style="color:#666;margin-bottom:4px;">{name_zh} ({row_count} 筆零件)</div>'
+                f'{sample_html}'
+                f'</div></div>'
+            )
+
+        if not cards:
+            return ''
+
+        total = len(cards)
+        return (
+            f'<div style="font-family:sans-serif;font-size:12px;">'
+            f'<div style="margin-bottom:6px;color:#555;">'
+            f'共偵測到 <b>{total}</b> 個分區頁（捲動查看全部）</div>'
+            f'<div style="white-space:normal;">{" ".join(cards)}</div>'
+            f'</div>'
+        )
 
     # ── 格式偵測 ──────────────────────────────────────────────────────────
 
@@ -184,10 +281,12 @@ class DmsPartCatalogPdfWizard(models.TransientModel):
         回傳 (mode, info_string)：mode='words' 或 'table'
         """
         parts_pages = 0
+        min_page = 9999
+        max_page = 0
         for page_num in range(len(doc)):
             page = doc[page_num]
             imgs = page.get_images()
-            # 允許 1-4 張圖（主圖 + 小圖示裝飾），排除目錄索引頁（8+ 張縮圖）
+            # 允許 1-5 張圖（主圖 + 小圖示裝飾），排除目錄索引頁（8+ 張縮圖）
             if not imgs or len(imgs) > 5:
                 continue
             text = page.get_text("text").strip()
@@ -195,11 +294,17 @@ class DmsPartCatalogPdfWizard(models.TransientModel):
             if (re.search(r'^\d{1,2}\.\s', text, re.MULTILINE)
                     and 'PART NO.' in text):
                 parts_pages += 1
+                p1 = page_num + 1  # 1-based
+                if p1 < min_page:
+                    min_page = p1
+                if p1 > max_page:
+                    max_page = p1
 
         if parts_pages >= 3:
             return ('words',
                     f'✅ 偵測到 {parts_pages} 個零件分區頁'
-                    f'（PowerPoint 文字格式，系統將自動解析欄位位置，可直接點「開始匯入」）')
+                    f'（第 {min_page}～{max_page} 頁，PowerPoint 文字格式），'
+                    f'系統將自動解析欄位位置，可直接點「開始匯入」')
 
         # 否則嘗試表格格式
         return ('table', '')
@@ -353,11 +458,16 @@ class DmsPartCatalogPdfWizard(models.TransientModel):
         pdf_bytes = base64.b64decode(self.pdf_file)
         doc = fitz.open(stream=pdf_bytes, filetype='pdf')
 
-        prefix = (
-            self.section_prefix
-            if self.section_prefix != 'custom'
-            else (self.section_prefix_custom or 'E')
-        )
+        # words mode 直接使用 PDF 分區序號作為編號（不加前綴）
+        # table mode 使用使用者選擇的前綴
+        if self.parse_mode == 'words':
+            prefix = ''
+        else:
+            prefix = (
+                self.section_prefix
+                if self.section_prefix != 'custom'
+                else (self.section_prefix_custom or 'A')
+            )
 
         sections_created = 0
         lines_created = 0

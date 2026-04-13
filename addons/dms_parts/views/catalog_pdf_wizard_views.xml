@@ -16,9 +16,9 @@
                attrs="{'invisible': [('state','=','done')]}">
             <h5><i class="fa fa-info-circle"/> 使用說明</h5>
             <ol class="mb-0">
-              <li>上傳整份零件目錄 PDF（系統自動偵測格式與欄位）</li>
-              <li>確認分區代號前綴（引擎類 E / 車架類 F）</li>
-              <li>按「<strong>開始匯入</strong>」，系統自動建立所有分區與零件清單</li>
+              <li>上傳整份零件目錄 PDF（系統自動偵測格式）</li>
+              <li>偵測到「PowerPoint 文字格式」後，直接點「<strong>開始匯入</strong>」即可</li>
+              <li>若偵測到「表格格式」，請確認下方欄位對應後再匯入</li>
             </ol>
           </div>
 
@@ -37,7 +37,7 @@
             </group>
             <group>
               <field name="section_prefix" widget="radio"
-                     attrs="{'invisible': [('state','=','done')]}"/>
+                     attrs="{'invisible': ['|', ('parse_mode','=','words'), ('state','=','done')]}"/>
               <field name="section_prefix_custom"
                      attrs="{'invisible': ['|', ('section_prefix','!=','custom'), ('state','=','done')]}"/>
             </group>
@@ -50,9 +50,21 @@
                    style="font-size: 1.0em; color: #1f6f3b; font-weight: 500;"/>
           </div>
 
+          <!-- PDF 分頁預覽（words 模式上傳後顯示）-->
+          <div attrs="{'invisible': ['|', ('preview_html','=',False), ('state','=','done')]}"
+               style="margin-top: 8px;">
+            <div style="font-weight: 500; color: #1a5c30; margin-bottom: 6px;">
+              <i class="fa fa-search"/> 偵測到的分區頁預覽
+            </div>
+            <div style="max-height: 300px; overflow-y: auto; border: 1px solid #d0e8d0;
+                        border-radius: 4px; padding: 8px; background: #f5faf5;">
+              <field name="preview_html" readonly="1" nolabel="1"/>
+            </div>
+          </div>
+
           <!-- 第二步：欄位對應（僅表格格式才需要，且上傳後顯示）-->
           <group string="第二步：確認欄位對應"
-                 attrs="{'invisible': ['|', ('col_headers_display','=',False), ('parse_mode','=','words'), ('state','=','done')]}">
+                 attrs="{'invisible': ['|', ('parse_mode','=','words'), ('state','=','done')]}">
             <group>
               <field name="col_seq"/>
               <field name="col_part_number"/>

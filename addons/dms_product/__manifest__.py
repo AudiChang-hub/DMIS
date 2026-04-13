@@ -11,7 +11,7 @@
     'author': 'DMIS',
     'license': 'LGPL-3',
     'category': 'Custom',
-    'depends': ['dms_core', 'dms_sale'],
+    'depends': ['dms_core', 'dms_sale', 'stock'],
     'data': [
         'security/ir.model.access.csv',
         'data/fee_type_data.xml',

@@ -13,3 +13,4 @@ node_modules/
 logs/*.log
 logs/*.log.*
 temp_*.py
+*.pdf

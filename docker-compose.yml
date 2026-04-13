@@ -1,6 +1,6 @@
 services:
   odoo:
-    image: odoo:16
+    build: .
     env_file: .env
     environment:
       - DB_HOST=db

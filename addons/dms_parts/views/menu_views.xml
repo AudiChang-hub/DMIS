@@ -1,39 +1,33 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
+  <!--
+    dms_parts 不建立獨立的 app icon，
+    全部掛在 dms_product.menu_dms_product_root（產品及零件管理）之下。
+  -->
 
-  <menuitem id="menu_dms_parts_root"
-            name="零件管理"
-            sequence="60"
-            web_icon="dms_parts,static/description/icon.png"/>
-
+  <!-- 查詢零件：排在最前，為一般使用者的主入口 -->
   <menuitem id="menu_parts_catalog_search"
-            name="零件查詢"
-            parent="menu_dms_parts_root"
+            name="查詢零件"
+            parent="dms_product.menu_dms_product_root"
             action="dms_parts.action_catalog_search_wizard"
             sequence="5"/>
 
+  <!-- 目錄管理：放在車型產品(10)與零件管理(20)之後 -->
+  <menuitem id="menu_parts_catalog_group"
+            name="零件目錄管理"
+            parent="dms_product.menu_dms_product_root"
+            sequence="25"/>
+
   <menuitem id="menu_parts_catalog"
-            name="零件目錄"
-            parent="menu_dms_parts_root"
+            name="目錄清單"
+            parent="menu_parts_catalog_group"
             action="dms_parts.action_part_catalog"
-            sequence="8"/>
-
-  <menuitem id="menu_parts_list"
-            name="零件清單"
-            parent="menu_dms_parts_root"
-            action="dms_product.action_part"
             sequence="10"/>
-
-  <menuitem id="menu_parts_category"
-            name="零件分類"
-            parent="menu_dms_parts_root"
-            action="dms_product.action_part_category"
-            sequence="20"/>
 
   <menuitem id="menu_parts_catalog_import"
             name="CSV 批次匯入"
-            parent="menu_dms_parts_root"
+            parent="menu_parts_catalog_group"
             action="dms_parts.action_catalog_import_wizard"
-            sequence="30"/>
+            sequence="20"/>
 
 </odoo>

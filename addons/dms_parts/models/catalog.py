@@ -42,3 +42,15 @@ class DmsPartCatalog(models.Model):
     def _compute_section_count(self):
         for rec in self:
             rec.section_count = len(rec.section_ids)
+
+    def action_open_sections(self):
+        """從目錄直接跳到爆炸圖 Kanban"""
+        self.ensure_one()
+        return {
+            'name': f'{self.name}－爆炸圖分區',
+            'type': 'ir.actions.act_window',
+            'res_model': 'dms.part.catalog.section',
+            'view_mode': 'kanban,tree,form',
+            'domain': [('catalog_id', '=', self.id)],
+            'context': {'default_catalog_id': self.id},
+        }

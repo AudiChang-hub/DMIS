@@ -2,11 +2,11 @@
 <odoo>
 
   <menuitem id="menu_dms_product_root"
-            name="產品及零件管理"
+            name="車銷管理"
             sequence="75"/>
 
   <menuitem id="menu_dms_product_master_group"
-            name="車型產品"
+            name="價格表"
             parent="menu_dms_product_root"
             sequence="10"/>
 
@@ -32,5 +32,16 @@
             parent="menu_dms_parts_group"
             action="action_part_category"
             sequence="20"/>
+
+  <menuitem id="menu_dms_vehicle_sale"
+            name="車輛銷售"
+            parent="menu_dms_product_root"
+            action="dms_sale.action_sale_order"
+            sequence="30"/>
+
+  <menuitem id="menu_dms_vehicle_stock"
+            name="車輛庫存"
+            parent="menu_dms_product_root"
+            sequence="40"/>
 
 </odoo>

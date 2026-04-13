@@ -441,18 +441,44 @@ class DmsPartCatalogPdfWizard(models.TransientModel):
                 'remarks':     ' '.join(cols['rem']),
             })
 
-        # 合併換行列：如果某列沒有 seq 也沒有 part_number，視為上一列的中文名換行
+        # 合併換行列（三種情況）
+        # Type-A：seq 空且 part_no 空 → 純文字換行（中/英文名補充）
+        # Type-B：seq 空且 part_no 非空，上一列 part_no 空 → 料號在次行
+        # Type-C：seq 空且 part_no 非空，上一列 part_no 非數字開頭（描述文字洩入料號欄）→ 修正欄位錯位
+        def _looks_like_part_no(s):
+            return bool(s and s[0].isdigit())
+
         merged = []
         for row in result:
             seq_val = row['seq'].strip()
             pn_val = row['part_number'].strip()
-            if merged and not seq_val and not pn_val:
-                # 換行的 name_zh 或 name_en 補回上一列
+            if merged and not seq_val:
                 prev = merged[-1]
-                if row['name_zh']:
-                    prev['name_zh'] = (prev['name_zh'] + ' ' + row['name_zh']).strip()
-                if row['name_en'] and not prev['name_en']:
-                    prev['name_en'] = row['name_en']
+                prev_pn = prev['part_number'].strip()
+                if not pn_val:
+                    # Type-A：純文字換行
+                    if row['name_zh']:
+                        prev['name_zh'] = (prev['name_zh'] + ' ' + row['name_zh']).strip()
+                    if row['name_en'] and not prev['name_en']:
+                        prev['name_en'] = row['name_en']
+                elif not prev_pn:
+                    # Type-B：料號在次行，上一列 part_no 欄為空
+                    prev['part_number'] = pn_val
+                    if row['name_zh']:
+                        prev['name_zh'] = (prev['name_zh'] + ' ' + row['name_zh']).strip()
+                    if row['name_en']:
+                        prev['name_en'] = (prev['name_en'] + ' ' + row['name_en']).strip()
+                elif not _looks_like_part_no(prev_pn) and _looks_like_part_no(pn_val):
+                    # Type-C：描述文字因 x 座標洩入 part_no 欄，而真正料號在次行
+                    # 將上一列的偽料號移至 name_en 前段，再填入正確料號
+                    prev['name_en'] = (prev_pn + ' ' + prev['name_en']).strip()
+                    prev['part_number'] = pn_val
+                    if row['name_zh']:
+                        prev['name_zh'] = (prev['name_zh'] + ' ' + row['name_zh']).strip()
+                    if row['name_en']:
+                        prev['name_en'] = (prev['name_en'] + ' ' + row['name_en']).strip()
+                else:
+                    merged.append(row)
             else:
                 merged.append(row)
         return section_info, merged

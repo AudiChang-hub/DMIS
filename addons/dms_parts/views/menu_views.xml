@@ -1,22 +1,22 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
-  <!--
-    dms_parts 不建立獨立的 app icon，
-    全部掛在 dms_product.menu_dms_product_root（產品及零件管理）之下。
-  -->
+  <!-- 零件管理：獨立的頂層大項 -->
+  <menuitem id="menu_dms_parts_root"
+            name="零件管理"
+            sequence="76"/>
 
-  <!-- 查詢零件：排在目錄管理後方 -->
+  <!-- 查詢零件 -->
   <menuitem id="menu_parts_catalog_search"
             name="查詢零件"
-            parent="dms_product.menu_dms_product_root"
+            parent="menu_dms_parts_root"
             action="dms_parts.action_catalog_search_wizard"
-            sequence="50"/>
+            sequence="30"/>
 
-  <!-- 目錄管理：放在車型產品(10)與零件管理(20)之後 -->
+  <!-- 零件目錄管理 -->
   <menuitem id="menu_parts_catalog_group"
             name="零件目錄管理"
-            parent="dms_product.menu_dms_product_root"
-            sequence="25"/>
+            parent="menu_dms_parts_root"
+            sequence="20"/>
 
   <menuitem id="menu_parts_catalog"
             name="目錄清單"

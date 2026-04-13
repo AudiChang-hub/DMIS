@@ -18,8 +18,8 @@
 
   <menuitem id="menu_dms_parts_group"
             name="零件管理"
-            parent="menu_dms_product_root"
-            sequence="20"/>
+            parent="dms_parts.menu_dms_parts_root"
+            sequence="10"/>
 
   <menuitem id="menu_parts_list"
             name="零件清單"

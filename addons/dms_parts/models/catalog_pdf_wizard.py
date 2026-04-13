@@ -373,8 +373,10 @@ class DmsPartCatalogPdfWizard(models.TransientModel):
             wx = w[0]
             # 以 DESCRIPTION 與 Q'TY 的 X 座標更新分界
             if wtext.upper() == 'DESCRIPTION':
-                bounds['x_part_max'] = wx - 2
-                bounds['x_desc_max'] = wx + 90
+                # 描述欄資料實際起始位置比 DESCRIPTION 標頭左偏約 38pt，
+                # 以 -43 確保描述文字不被誤分到 part_no 欄
+                bounds['x_part_max'] = wx - 43
+                bounds['x_desc_max'] = wx + 90   # 後面扫描中文字後會覆蓋
             elif wtext.upper() in ("Q'TY", "Q´TY", "Q`TY", 'QTY'):
                 bounds['x_name_max'] = wx - 2
                 bounds['x_qty_max'] = wx + 22
@@ -390,6 +392,14 @@ class DmsPartCatalogPdfWizard(models.TransientModel):
         # 收集資料行的詞彙（Y 在資料區以下，排除頁底頁碼區如 "- 11 -"）
         page_height = page.rect.height
         data_words = [w for w in words if w[1] >= data_y_min and w[1] < page_height - 20]
+
+        # 以資料區中文字的最小 x 二次校準 x_desc_max（中文名稱欄起始位置比 DESCRIPTION+90 準確）
+        ch_x_min = min(
+            (w[0] for w in data_words if any('\u4e00' <= c <= '\u9fff' for c in w[4])),
+            default=None
+        )
+        if ch_x_min is not None:
+            bounds['x_desc_max'] = ch_x_min - 3
 
         # 依 Y 分組（容差：將 Y 四捨五入至最近 6 的倍數）
         row_groups = {}
@@ -432,31 +442,63 @@ class DmsPartCatalogPdfWizard(models.TransientModel):
                 'seq':         ' '.join(cols['seq']),
                 'part_number': part_number,
                 'name_en':     name_en,
-                'name_zh':     name_zh or name_en,
+                'name_zh':     name_zh,     # 合併期間不套用 fallback，避免干擾 Type-A 合併
                 'qty':         ' '.join(cols['qty']),
                 'remarks':     ' '.join(cols['rem']),
+                '_y':          y_key,   # 保留 Y 座標供鄰近度判斷用
             })
 
-        # 合併換行列（三種情況）
+        # 合併換行列（四種情況 + 前置描述判斷）
         # Type-A：seq 空且 part_no 空 → 純文字換行（中/英文名補充）
+        #   ‣ 若距下一個 anchor 比距上一個 anchor 更近 → 暫存為「前置描述」待下個 anchor 套用
         # Type-B：seq 空且 part_no 非空，上一列 part_no 空 → 料號在次行
         # Type-C：seq 空且 part_no 非空，上一列 part_no 非數字開頭（描述文字洩入料號欄）→ 修正欄位錯位
+        # Type-D：seq 空且 part_no 非空（非數字開頭），上一列 part_no 數字開頭 → 描述換行溢入 part_no 欄
         def _looks_like_part_no(s):
             return bool(s and s[0].isdigit())
 
+        def _next_anchor_y(result, from_idx):
+            """回傳 result[from_idx+1:] 中第一個有 part_number 的列的 _y；找不到回傳 inf。"""
+            for j in range(from_idx + 1, len(result)):
+                if result[j].get('part_number', '').strip():
+                    return result[j].get('_y', float('inf'))
+            return float('inf')
+
         merged = []
-        for row in result:
+        pending_desc = []   # 前置描述：暫存等待下一個 anchor 套用
+        for i, row in enumerate(result):
             seq_val = row['seq'].strip()
             pn_val = row['part_number'].strip()
+
+            # 若有待套用的前置描述，且當前列有 part_number → 套用至當前列的 name_en 前端
+            if pending_desc and pn_val:
+                desc_ne = ' '.join(d['name_en'] for d in pending_desc if d['name_en']).strip()
+                desc_nz = ' '.join(d['name_zh'] for d in pending_desc if d['name_zh']).strip()
+                if desc_ne:
+                    row['name_en'] = (desc_ne + ' ' + row['name_en']).strip()
+                if desc_nz and not row['name_zh']:
+                    row['name_zh'] = desc_nz
+                pending_desc = []
+
             if merged and not seq_val:
                 prev = merged[-1]
                 prev_pn = prev['part_number'].strip()
                 if not pn_val:
-                    # Type-A：純文字換行
-                    if row['name_zh']:
-                        prev['name_zh'] = (prev['name_zh'] + ' ' + row['name_zh']).strip()
-                    if row['name_en']:
-                        prev['name_en'] = (prev['name_en'] + ' ' + row['name_en']).strip()
+                    # Type-A 候選：判斷前置（leading）或後綴（trailing）
+                    curr_y = row.get('_y', 0)
+                    prev_anchor_y = merged[-1].get('_y', 0)
+                    next_anchor_y = _next_anchor_y(result, i)
+                    gap_to_prev = curr_y - prev_anchor_y
+                    gap_to_next = next_anchor_y - curr_y
+                    if next_anchor_y < float('inf') and gap_to_next < gap_to_prev:
+                        # 距下一個 anchor 更近 → 前置描述，暫存等待下個 anchor
+                        pending_desc.append(row)
+                    else:
+                        # Type-A：後綴描述，合併至上一列
+                        if row['name_zh']:
+                            prev['name_zh'] = (prev['name_zh'] + ' ' + row['name_zh']).strip()
+                        if row['name_en']:
+                            prev['name_en'] = (prev['name_en'] + ' ' + row['name_en']).strip()
                 elif not prev_pn:
                     # Type-B：料號在次行，上一列 part_no 欄為空
                     prev['part_number'] = pn_val
@@ -483,6 +525,11 @@ class DmsPartCatalogPdfWizard(models.TransientModel):
                     merged.append(row)
             else:
                 merged.append(row)
+        # 最後套用 name_zh fallback（若無中文名稱則顯示英文名）並清除暫存欄位
+        for r in merged:
+            r.pop('_y', None)
+            if not r['name_zh']:
+                r['name_zh'] = r['name_en']
         return section_info, merged
 
     # ── 色碼外觀件頁解析 ────────────────────────────────────────────────────

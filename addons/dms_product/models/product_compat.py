@@ -441,8 +441,7 @@ class DmsProductCompat(models.Model):
         vals = {}
         if self.template_id:
             vals['brand_id'] = self.template_id.brand_id.id
-            vals['name'] = self.template_id.family_name
-            vals['model'] = self.template_id.model_name or False
+            # name / model 允許個別產品項自行修改，不強制從模板同步
             vals['energy_type'] = self.template_id.energy_type
         normalized_year = self._normalize_year_value(self.production_year)
         if normalized_year and normalized_year != (self.year or ''):

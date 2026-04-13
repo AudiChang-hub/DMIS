@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+  <record id="view_catalog_pdf_wizard_form" model="ir.ui.view">
+    <field name="name">dms.part.catalog.pdf.wizard.form</field>
+    <field name="model">dms.part.catalog.pdf.wizard</field>
+    <field name="arch" type="xml">
+      <form string="從 PDF 批次建立分區與零件清單">
+        <sheet>
+          <!-- 隱藏狀態欄位（供 attrs 判斷使用）-->
+          <field name="state" invisible="1"/>
+
+          <!-- 說明區（未匯入時顯示）-->
+          <div class="alert alert-info" role="alert"
+               attrs="{'invisible': [('state','=','done')]}">
+            <h5><i class="fa fa-info-circle"/> 使用說明</h5>
+            <ol class="mb-0">
+              <li>上傳整份零件目錄 PDF（系統自動分析欄位）</li>
+              <li>確認下方欄索引對應是否正確</li>
+              <li>按「<strong>開始匯入</strong>」，系統自動建立所有分區與零件清單</li>
+            </ol>
+          </div>
+
+          <!-- 第一步：上傳 PDF -->
+          <group string="第一步：設定">
+            <group>
+              <field name="catalog_id" readonly="1"/>
+              <field name="pdf_file" widget="binary" filename="pdf_filename"
+                     attrs="{'readonly': [('state','=','done')]}"/>
+              <field name="pdf_filename" invisible="1"/>
+              <field name="page_mode" widget="radio"
+                     attrs="{'invisible': [('state','=','done')]}"/>
+              <field name="has_header_row"
+                     attrs="{'invisible': [('state','=','done')]}"/>
+            </group>
+            <group>
+              <field name="section_prefix" widget="radio"
+                     attrs="{'invisible': [('state','=','done')]}"/>
+              <field name="section_prefix_custom"
+                     attrs="{'invisible': ['|', ('section_prefix','!=','custom'), ('state','=','done')]}"/>
+            </group>
+          </group>
+
+          <!-- 第二步：欄位對應（上傳後顯示）-->
+          <group string="第二步：確認欄位對應"
+                 attrs="{'invisible': ['|', ('col_headers_display','=',False), ('state','=','done')]}">
+            <div colspan="2" class="mb-2">
+              <strong>偵測到的欄位：</strong>
+              <code><field name="col_headers_display" readonly="1" nolabel="1"/></code>
+            </div>
+            <group>
+              <field name="col_seq"/>
+              <field name="col_part_number"/>
+              <field name="col_name"/>
+            </group>
+            <group>
+              <field name="col_qty"/>
+              <field name="col_price"/>
+            </group>
+          </group>
+
+          <!-- 匯入結果 -->
+          <group string="匯入結果"
+                 attrs="{'invisible': [('state','=','draft')]}">
+            <field name="import_log" nolabel="1" readonly="1"
+                   style="white-space: pre-wrap; font-size: 1.05em;"/>
+          </group>
+
+        </sheet>
+
+        <footer>
+          <button name="action_import" string="開始匯入" type="object"
+                  class="btn-primary"
+                  attrs="{'invisible': [('state','=','done')]}"/>
+          <button string="關閉" class="btn-secondary" special="cancel"/>
+        </footer>
+      </form>
+    </field>
+  </record>
+
+  <record id="action_catalog_pdf_wizard" model="ir.actions.act_window">
+    <field name="name">從 PDF 批次建立分區</field>
+    <field name="res_model">dms.part.catalog.pdf.wizard</field>
+    <field name="view_mode">form</field>
+    <field name="target">new</field>
+  </record>
+
+</odoo>

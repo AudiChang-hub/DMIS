@@ -54,3 +54,15 @@ class DmsPartCatalog(models.Model):
             'domain': [('catalog_id', '=', self.id)],
             'context': {'default_catalog_id': self.id},
         }
+
+    def action_open_pdf_wizard(self):
+        """開啟 PDF 批次建立精靈"""
+        self.ensure_one()
+        return {
+            'name': '從 PDF 批次建立分區與零件清單',
+            'type': 'ir.actions.act_window',
+            'res_model': 'dms.part.catalog.pdf.wizard',
+            'view_mode': 'form',
+            'target': 'new',
+            'context': {'default_catalog_id': self.id},
+        }

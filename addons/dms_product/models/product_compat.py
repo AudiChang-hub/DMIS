@@ -100,7 +100,7 @@ class DmsProductCompat(models.Model):
         string='60期', digits=(12, 0),
         compute='_compute_installment_prices', store=True, readonly=False,
         group_operator=False)
-    gift_note = fields.Char(
+    gift_note = fields.Text(
         string='顧客贈品',
         help='本車型目前贈品說明，如：安全帽、機油 3 次')
 

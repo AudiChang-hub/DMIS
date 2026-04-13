@@ -9,14 +9,15 @@
         <sheet>
           <!-- 隱藏狀態欄位（供 attrs 判斷使用）-->
           <field name="state" invisible="1"/>
+          <field name="parse_mode" invisible="1"/>
 
           <!-- 說明區（未匯入時顯示）-->
           <div class="alert alert-info" role="alert"
                attrs="{'invisible': [('state','=','done')]}">
             <h5><i class="fa fa-info-circle"/> 使用說明</h5>
             <ol class="mb-0">
-              <li>上傳整份零件目錄 PDF（系統自動分析欄位）</li>
-              <li>確認下方欄索引對應是否正確</li>
+              <li>上傳整份零件目錄 PDF（系統自動偵測格式與欄位）</li>
+              <li>確認分區代號前綴（引擎類 E / 車架類 F）</li>
               <li>按「<strong>開始匯入</strong>」，系統自動建立所有分區與零件清單</li>
             </ol>
           </div>
@@ -28,10 +29,11 @@
               <field name="pdf_file" widget="binary" filename="pdf_filename"
                      attrs="{'readonly': [('state','=','done')]}"/>
               <field name="pdf_filename" invisible="1"/>
+              <!-- 文字格式不需要設定頁面模式 -->
               <field name="page_mode" widget="radio"
-                     attrs="{'invisible': [('state','=','done')]}"/>
+                     attrs="{'invisible': ['|', ('parse_mode','=','words'), ('state','=','done')]}"/>
               <field name="has_header_row"
-                     attrs="{'invisible': [('state','=','done')]}"/>
+                     attrs="{'invisible': ['|', ('parse_mode','=','words'), ('state','=','done')]}"/>
             </group>
             <group>
               <field name="section_prefix" widget="radio"
@@ -41,13 +43,16 @@
             </group>
           </group>
 
-          <!-- 第二步：欄位對應（上傳後顯示）-->
+          <!-- 格式偵測結果（上傳後顯示）-->
+          <div attrs="{'invisible': [('col_headers_display','=',False)]}"
+               class="mb-2">
+            <field name="col_headers_display" readonly="1" nolabel="1"
+                   style="font-size: 1.0em; color: #1f6f3b; font-weight: 500;"/>
+          </div>
+
+          <!-- 第二步：欄位對應（僅表格格式才需要，且上傳後顯示）-->
           <group string="第二步：確認欄位對應"
-                 attrs="{'invisible': ['|', ('col_headers_display','=',False), ('state','=','done')]}">
-            <div colspan="2" class="mb-2">
-              <strong>偵測到的欄位：</strong>
-              <code><field name="col_headers_display" readonly="1" nolabel="1"/></code>
-            </div>
+                 attrs="{'invisible': ['|', ('col_headers_display','=',False), ('parse_mode','=','words'), ('state','=','done')]}">
             <group>
               <field name="col_seq"/>
               <field name="col_part_number"/>

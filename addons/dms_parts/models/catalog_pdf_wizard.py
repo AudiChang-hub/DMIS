@@ -7,13 +7,33 @@ from odoo.exceptions import UserError
 
 _logger = logging.getLogger(__name__)
 
-# 欄位自動偵測關鍵字
+# 有框線表格 PDF 的欄位自動偵測關鍵字
 _COL_KEYWORDS = {
-    'seq':         ['序號', '項次', 'seq', 'item', 'no.', '件次'],
+    'seq':         ['序號', '項次', 'seq', 'item', 'no.', '件次', 'ref'],
     'part_number': ['料號', '件號', 'part no', 'part number', '零件號', '零件編號', '品番'],
     'name':        ['名稱', '品名', '零件名稱', 'description', 'part name', '品名稱'],
     'qty':         ['數量', 'qty', 'quantity', '用量', '員數'],
     'price':       ['售價', '定價', '單價', 'price', '原廠售價', '參考售價'],
+}
+
+# PowerPoint 文字格式 PDF 的欄位 X 座標分界（依台鈴原廠目錄格式分析）
+# 頁面寬 720pt，欄位分界：
+#   REF NO  < 354   PART NO  354-454   DESCRIPTION  455-540   PART NAME  541-656
+#   Q'TY    657-676   REMARKS  ≥677
+_WORDS_COL_BOUNDS = {
+    'x_ref_max': 354,
+    'x_part_max': 455,
+    'x_desc_max': 541,
+    'x_name_max': 657,
+    'x_qty_max': 677,
+}
+
+# 跳過標題欄的特徵詞（不建立為零件）
+_HEADER_SKIP_WORDS = {
+    'PART NO.', 'PART NO', 'PARTS NO', '零件號碼', '料號',
+    'REF NO.', 'REF NO', 'REF.', '索引', '索 引',
+    'DESCRIPTION', 'PART NAME', '零件名稱', '名稱',
+    "Q'TY", 'Q\'TY', 'QTY', '數量', 'REMARKS', '附註',
 }
 
 
@@ -39,6 +59,17 @@ class DmsPartCatalogPdfWizard(models.TransientModel):
     pdf_file = fields.Binary(string='目錄 PDF', required=True)
     pdf_filename = fields.Char(string='PDF 檔名')
 
+    parse_mode = fields.Selection(
+        [
+            ('words', '文字座標格式（PowerPoint / 無框線）'),
+            ('table', '表格框線格式'),
+        ],
+        string='解析模式',
+        default='words',
+        readonly=True,
+        help='上傳 PDF 後由系統自動偵測',
+    )
+
     page_mode = fields.Selection(
         [
             ('auto', '每頁含圖 + 表格（最常見）'),
@@ -57,30 +88,15 @@ class DmsPartCatalogPdfWizard(models.TransientModel):
     )
 
     col_headers_display = fields.Char(
-        string='PDF 中偵測到的欄位',
+        string='PDF 中偵測到的欄位 / 格式說明',
         readonly=True,
-        help='上傳 PDF 後自動顯示，依此調整下方欄索引',
+        help='上傳 PDF 後自動顯示',
     )
-    col_seq = fields.Integer(
-        string='序號欄（-1 = 無）', default=0,
-        help='爆炸圖上的數字序號，-1 表示 PDF 無此欄',
-    )
-    col_part_number = fields.Integer(
-        string='料號欄', default=1,
-        help='零件料號所在欄，從 0 開始計',
-    )
-    col_name = fields.Integer(
-        string='名稱欄', default=2,
-        help='零件名稱所在欄',
-    )
-    col_qty = fields.Integer(
-        string='用量欄（-1 = 無）', default=3,
-        help='用量/數量所在欄，-1 表示無此欄（預設用量為 1）',
-    )
-    col_price = fields.Integer(
-        string='售價欄（-1 = 無）', default=-1,
-        help='公告售價所在欄，-1 表示無此欄',
-    )
+    col_seq = fields.Integer(string='序號欄（-1 = 無）', default=0)
+    col_part_number = fields.Integer(string='料號欄', default=1)
+    col_name = fields.Integer(string='名稱欄', default=2)
+    col_qty = fields.Integer(string='用量欄（-1 = 無）', default=3)
+    col_price = fields.Integer(string='售價欄（-1 = 無）', default=-1)
 
     section_prefix = fields.Selection(
         [
@@ -100,7 +116,7 @@ class DmsPartCatalogPdfWizard(models.TransientModel):
     )
     import_log = fields.Text(string='匯入結果', readonly=True)
 
-    # ── onchange: 上傳後自動分析欄位 ──────────────────────────────────────
+    # ── onchange: 上傳後自動分析格式 ─────────────────────────────────────
 
     @api.onchange('pdf_file')
     def _onchange_pdf_file(self):
@@ -118,42 +134,185 @@ class DmsPartCatalogPdfWizard(models.TransientModel):
             }
 
         try:
-            import fitz  # noqa - confirmed import
             pdf_bytes = base64.b64decode(self.pdf_file)
             doc = fitz.open(stream=pdf_bytes, filetype='pdf')
 
-            headers = None
-            for page_num in range(min(len(doc), 10)):
-                page = doc[page_num]
-                tbl_finder = page.find_tables()
-                if tbl_finder.tables:
-                    rows = tbl_finder.tables[0].extract()
-                    if rows and rows[0] and any(c for c in rows[0] if c):
-                        headers = [
-                            str(c).strip() if c else f'欄{i}'
-                            for i, c in enumerate(rows[0])
-                        ]
-                        break
+            # 先嘗試偵測格式
+            mode, info = self._detect_pdf_format(doc)
+            self.parse_mode = mode
             doc.close()
 
-            if not headers:
-                self.col_headers_display = '⚠ 前 10 頁未偵測到表格，請確認 PDF 格式或嘗試手動填入欄索引'
-                return
-
-            self.col_headers_display = '  |  '.join(
-                f'欄{i}: {h}' for i, h in enumerate(headers)
-            )
-
-            # 自動填入欄位對應（僅在 >= 0 時更新）
-            self.col_seq = _best_col_idx(headers, 'seq')
-            self.col_part_number = max(_best_col_idx(headers, 'part_number'), 0)
-            self.col_name = max(_best_col_idx(headers, 'name'), 0)
-            self.col_qty = _best_col_idx(headers, 'qty')
-            self.col_price = _best_col_idx(headers, 'price')
+            if mode == 'words':
+                self.col_headers_display = info
+            else:
+                # 表格格式：找欄位標題
+                doc2 = fitz.open(stream=pdf_bytes, filetype='pdf')
+                headers = None
+                for page_num in range(min(len(doc2), 15)):
+                    page = doc2[page_num]
+                    tbl_finder = page.find_tables()
+                    if tbl_finder.tables:
+                        rows = tbl_finder.tables[0].extract()
+                        if rows and rows[0] and any(c for c in rows[0] if c):
+                            headers = [
+                                str(c).strip() if c else f'欄{i}'
+                                for i, c in enumerate(rows[0])
+                            ]
+                            break
+                doc2.close()
+                if headers:
+                    self.col_headers_display = '  |  '.join(
+                        f'欄{i}: {h}' for i, h in enumerate(headers)
+                    )
+                    self.col_seq = _best_col_idx(headers, 'seq')
+                    self.col_part_number = max(_best_col_idx(headers, 'part_number'), 0)
+                    self.col_name = max(_best_col_idx(headers, 'name'), 0)
+                    self.col_qty = _best_col_idx(headers, 'qty')
+                    self.col_price = _best_col_idx(headers, 'price')
+                else:
+                    self.col_headers_display = '⚠ 未偵測到表格欄位，請手動填入欄索引'
 
         except Exception as e:
-            _logger.warning('PDF 欄位分析失敗: %s', e)
+            _logger.warning('PDF 格式分析失敗: %s', e)
             self.col_headers_display = f'分析錯誤：{e}'
+
+    # ── 格式偵測 ──────────────────────────────────────────────────────────
+
+    def _detect_pdf_format(self, doc):
+        """
+        偵測 PDF 為「文字座標格式（PowerPoint）」還是「表格框線格式」。
+        回傳 (mode, info_string)：mode='words' 或 'table'
+        """
+        parts_pages = 0
+        for page_num in range(len(doc)):
+            page = doc[page_num]
+            imgs = page.get_images()
+            # 允許 1-4 張圖（主圖 + 小圖示裝飾），排除目錄索引頁（8+ 張縮圖）
+            if not imgs or len(imgs) > 5:
+                continue
+            text = page.get_text("text").strip()
+            # 必須同時有 "NN." 格式的分區號碼 + 零件清單欄位標題 PART NO.
+            if (re.search(r'^\d{1,2}\.\s', text, re.MULTILINE)
+                    and 'PART NO.' in text):
+                parts_pages += 1
+
+        if parts_pages >= 3:
+            return ('words',
+                    f'✅ 偵測到 {parts_pages} 個零件分區頁'
+                    f'（PowerPoint 文字格式，系統將自動解析欄位位置，可直接點「開始匯入」）')
+
+        # 否則嘗試表格格式
+        return ('table', '')
+
+    # ── 文字座標格式解析 ──────────────────────────────────────────────────
+
+    def _parse_parts_page_words(self, page):
+        """
+        解析 PowerPoint 匯出的零件頁（沒有框線，文字以座標排列）。
+        回傳 (section_info_dict, [row_dict]) 或 (None, [])。
+        section_info = {'seq': int, 'name_en': str, 'name_zh': str}
+        row_dict = {'seq': str, 'part_number': str, 'name_en': str, 'name_zh': str,
+                    'qty': str, 'remarks': str}
+        """
+        text = page.get_text("text").strip()
+        # 必須同時有 "NN." 格式分區號碼 + PART NO. 欄位標題（排除目錄索引頁）
+        if not (re.search(r'^\d{1,2}\.\s', text, re.MULTILINE) and 'PART NO.' in text):
+            return None, []
+
+        # 解析分區標頭：依 Y 軸排序找第一個符合 "NN. SECTION NAME" 的 block
+        blocks = page.get_text("blocks")
+        section_info = {'seq': 0, 'name_en': '', 'name_zh': ''}
+        # 按 Y 座標排序，取頁面頂部的 block（排除出現在底部的頁碼）
+        top_blocks = sorted(blocks, key=lambda b: b[1])[:5]
+        for blk in top_blocks:
+            hdr = blk[4].replace('\n', ' ').strip()
+            m = re.match(r'^(\d{1,2})\.\s+(.*)', hdr)
+            if m:
+                section_info['seq'] = int(m.group(1))
+                rest = m.group(2).strip()
+                zh_pos = re.search(r'[\u4e00-\u9fff]', rest)
+                if zh_pos:
+                    section_info['name_en'] = rest[:zh_pos.start()].strip()
+                    section_info['name_zh'] = rest[zh_pos.start():].strip()
+                else:
+                    section_info['name_en'] = rest
+
+        # 取得所有詞彙及其座標
+        words = page.get_text("words")
+        if not words:
+            return section_info, []
+
+        # 從標頭行自動校準欄位 X 分界
+        bounds = dict(_WORDS_COL_BOUNDS)
+        for w in words:
+            wtext = w[4].strip()
+            wx = w[0]
+            # 以 DESCRIPTION 與 Q'TY 的 X 座標更新分界
+            if wtext.upper() == 'DESCRIPTION':
+                bounds['x_part_max'] = wx - 2
+                bounds['x_desc_max'] = wx + 90
+            elif wtext.upper() in ("Q'TY", "Q´TY", "Q`TY", 'QTY'):
+                bounds['x_name_max'] = wx - 2
+                bounds['x_qty_max'] = wx + 22
+
+        # 找標頭行 Y（含 DESCRIPTION 或 PART NAME 的那行）
+        header_y = None
+        for w in words:
+            if w[4].upper() in ('DESCRIPTION', "Q'TY", 'QTY', 'REMARKS'):
+                header_y = w[1]
+                break
+        data_y_min = (header_y or 65) + 6
+
+        # 收集資料行的詞彙（Y 在資料區以下）
+        data_words = [w for w in words if w[1] >= data_y_min]
+
+        # 依 Y 分組（容差：將 Y 四捨五入至最近 6 的倍數）
+        row_groups = {}
+        for w in data_words:
+            y_key = round(w[1] / 6) * 6
+            row_groups.setdefault(y_key, []).append(w)
+
+        result = []
+        for y_key in sorted(row_groups):
+            row_words = sorted(row_groups[y_key], key=lambda w: w[0])
+            cols = {k: [] for k in ('seq', 'part_no', 'name_en', 'name_zh', 'qty', 'rem')}
+            for w in row_words:
+                x, wt = w[0], w[4]
+                if x < bounds['x_ref_max']:
+                    cols['seq'].append(wt)
+                elif x < bounds['x_part_max']:
+                    cols['part_no'].append(wt)
+                elif x < bounds['x_desc_max']:
+                    cols['name_en'].append(wt)
+                elif x < bounds['x_name_max']:
+                    cols['name_zh'].append(wt)
+                elif x < bounds['x_qty_max']:
+                    cols['qty'].append(wt)
+                else:
+                    cols['rem'].append(wt)
+
+            part_number = ' '.join(cols['part_no']).strip()
+            name_en = ' '.join(cols['name_en']).strip()
+            name_zh = ' '.join(cols['name_zh']).strip()
+
+            # 跳過空列與標題列
+            if not part_number and not name_zh and not name_en:
+                continue
+            if part_number.upper().rstrip('.') in {w.rstrip('.') for w in _HEADER_SKIP_WORDS}:
+                continue
+            if name_zh in {'零件名稱', '零件名稱(中)', 'PART NAME'}:
+                continue
+
+            result.append({
+                'seq':         ' '.join(cols['seq']),
+                'part_number': part_number,
+                'name_en':     name_en,
+                'name_zh':     name_zh or name_en,
+                'qty':         ' '.join(cols['qty']),
+                'remarks':     ' '.join(cols['rem']),
+            })
+
+        return section_info, result
 
     # ── helper ───────────────────────────────────────────────────────────
 
@@ -164,7 +323,7 @@ class DmsPartCatalogPdfWizard(models.TransientModel):
         return str(v).strip() if v is not None else ''
 
     def _extract_section_name(self, page, table_bbox):
-        """嘗試從表格上方文字找出分區名稱"""
+        """嘗試從表格上方文字找出分區名稱（表格格式用）"""
         try:
             import fitz
             pr = page.rect
@@ -185,8 +344,6 @@ class DmsPartCatalogPdfWizard(models.TransientModel):
 
         if not self.pdf_file:
             raise UserError('請先上傳目錄 PDF 檔案。')
-        if self.col_part_number < 0 and self.col_name < 0:
-            raise UserError('「料號欄」和「名稱欄」至少需設定一個（≥ 0）。')
 
         try:
             import fitz
@@ -195,19 +352,156 @@ class DmsPartCatalogPdfWizard(models.TransientModel):
 
         pdf_bytes = base64.b64decode(self.pdf_file)
         doc = fitz.open(stream=pdf_bytes, filetype='pdf')
-        total = len(doc)
 
         prefix = (
             self.section_prefix
             if self.section_prefix != 'custom'
             else (self.section_prefix_custom or 'E')
         )
-        existing_count = len(self.catalog_id.section_ids)
 
         sections_created = 0
         lines_created = 0
         parts_created = 0
         skipped_rows = 0
+
+        if self.parse_mode == 'words':
+            sections_created, lines_created, parts_created, skipped_rows = \
+                self._import_words_mode(doc, prefix)
+        else:
+            if self.col_part_number < 0 and self.col_name < 0:
+                raise UserError('「料號欄」和「名稱欄」至少需設定一個（≥ 0）。')
+            sections_created, lines_created, parts_created, skipped_rows = \
+                self._import_table_mode(doc, prefix)
+
+        doc.close()
+
+        skip_note = f'・略過空白列：{skipped_rows} 筆\n' if skipped_rows else ''
+        self.import_log = (
+            f'✅  匯入完成\n\n'
+            f'・建立分區（爆炸圖）：{sections_created} 個\n'
+            f'・建立零件明細：{lines_created} 筆\n'
+            f'・新增零件主檔：{parts_created} 筆（已存在料號直接連結）\n'
+            f'{skip_note}\n'
+            f'請至目錄頁面確認，可修改分區名稱與零件資料。'
+        )
+        self.state = 'done'
+
+        return {
+            'type': 'ir.actions.act_window',
+            'res_model': self._name,
+            'res_id': self.id,
+            'view_mode': 'form',
+            'target': 'new',
+        }
+
+    # ── 文字格式匯入 ──────────────────────────────────────────────────────
+
+    def _import_words_mode(self, doc, prefix):
+        """處理 PowerPoint 文字格式 PDF，逐頁解析零件清單"""
+        sections_created = lines_created = parts_created = skipped_rows = 0
+
+        for page_num in range(len(doc)):
+            page = doc[page_num]
+
+            # 允許 1-4 張圖（某些頁含裝飾小圖），排除索引頁（8+ 縮圖）
+            imgs = page.get_images()
+            if not imgs or len(imgs) > 5:
+                continue
+
+            section_info, data_rows = self._parse_parts_page_words(page)
+            if not section_info or not data_rows:
+                continue
+
+            # 取最大的嵌入圖片作為爆炸圖（原始畫質，不重新渲染整頁）
+            try:
+                best_img = max(
+                    imgs,
+                    key=lambda i: doc.extract_image(i[0])['width'] * doc.extract_image(i[0])['height']
+                )
+                xref = best_img[0]
+                img_dict = doc.extract_image(xref)
+                img_b64 = base64.b64encode(img_dict['image'])
+            except Exception:
+                import fitz
+                pix = page.get_pixmap(dpi=120)
+                img_b64 = base64.b64encode(pix.tobytes('png'))
+
+            seq_num = section_info['seq']
+            section_code = f'{prefix}{seq_num:02d}'
+            section_name = section_info['name_zh'] or section_info['name_en'] or f'第{seq_num:02d}部分'
+            # 簡單依序號決定部位分類
+            category = 'engine' if seq_num <= 16 else 'frame'
+
+            section = self.env['dms.part.catalog.section'].create({
+                'catalog_id': self.catalog_id.id,
+                'code': section_code,
+                'name': section_name,
+                'category': category,
+                'diagram_image': img_b64,
+                'sequence': seq_num * 10,
+            })
+            sections_created += 1
+
+            for row in data_rows:
+                part_number = row['part_number']
+                name = row['name_zh'] or row['name_en']
+
+                if not part_number and not name:
+                    skipped_rows += 1
+                    continue
+
+                # qty
+                qty = 1.0
+                if row['qty']:
+                    try:
+                        qty = float(re.sub(r'[^\d.]', '', row['qty'])) or 1.0
+                    except Exception:
+                        qty = 1.0
+
+                # seq_no
+                seq_no = 0
+                if row['seq']:
+                    try:
+                        seq_no = int(re.sub(r'[^\d]', '', row['seq'])) or 0
+                    except Exception:
+                        seq_no = 0
+
+                # 找或建立 dms.part
+                part = False
+                if part_number:
+                    part = self.env['dms.part'].search(
+                        [('part_number', '=', part_number)], limit=1
+                    )
+                if not part:
+                    try:
+                        part = self.env['dms.part'].create({
+                            'part_number': part_number or name[:20],
+                            'name': name or part_number,
+                            'part_type': 'vehicle_part',
+                        })
+                        parts_created += 1
+                    except Exception as e:
+                        _logger.warning('建立 dms.part 失敗（料號=%s）: %s', part_number, e)
+                        skipped_rows += 1
+                        continue
+
+                self.env['dms.part.catalog.line'].create({
+                    'section_id': section.id,
+                    'seq_no': seq_no,
+                    'part_id': part.id,
+                    'qty': qty,
+                })
+                lines_created += 1
+
+        return sections_created, lines_created, parts_created, skipped_rows
+
+    # ── 表格框線格式匯入（原有邏輯） ──────────────────────────────────────
+
+    def _import_table_mode(self, doc, prefix):
+        """處理有框線表格的 PDF"""
+        sections_created = lines_created = parts_created = skipped_rows = 0
+        total = len(doc)
+        existing_count = len(self.catalog_id.section_ids)
 
         if self.page_mode == 'pair':
             page_pairs = [(i, i + 1) for i in range(0, total - 1, 2)]
@@ -229,19 +523,14 @@ class DmsPartCatalogPdfWizard(models.TransientModel):
                 continue
 
             data_rows = rows[1:] if self.has_header_row else rows
-            data_rows = [
-                r for r in data_rows
-                if any(v for v in r if v and str(v).strip())
-            ]
+            data_rows = [r for r in data_rows if any(v for v in r if v and str(v).strip())]
             if not data_rows:
                 continue
 
-            # 爆炸圖：渲染圖片頁
             img_page = doc[img_idx]
             pix = img_page.get_pixmap(dpi=120)
             img_b64 = base64.b64encode(pix.tobytes('png'))
 
-            # 分區名稱：嘗試從頁面取標題
             section_num = existing_count + sections_created + 1
             section_code = f'{prefix}{section_num:02d}'
             section_name = (
@@ -259,16 +548,13 @@ class DmsPartCatalogPdfWizard(models.TransientModel):
             })
             sections_created += 1
 
-            # 建立零件明細
             for row in data_rows:
                 part_number = self._cell(row, self.col_part_number)
                 name = self._cell(row, self.col_name)
-
                 if not part_number and not name:
                     skipped_rows += 1
                     continue
 
-                # qty
                 qty = 1.0
                 raw_qty = self._cell(row, self.col_qty)
                 if raw_qty:
@@ -277,7 +563,6 @@ class DmsPartCatalogPdfWizard(models.TransientModel):
                     except Exception:
                         qty = 1.0
 
-                # price
                 price = 0.0
                 raw_price = self._cell(row, self.col_price)
                 if raw_price:
@@ -286,7 +571,6 @@ class DmsPartCatalogPdfWizard(models.TransientModel):
                     except Exception:
                         price = 0.0
 
-                # seq_no
                 seq_no = 0
                 raw_seq = self._cell(row, self.col_seq)
                 if raw_seq:
@@ -295,7 +579,6 @@ class DmsPartCatalogPdfWizard(models.TransientModel):
                     except Exception:
                         seq_no = 0
 
-                # 找或建立 dms.part
                 part = False
                 if part_number:
                     part = self.env['dms.part'].search(
@@ -324,23 +607,4 @@ class DmsPartCatalogPdfWizard(models.TransientModel):
                 })
                 lines_created += 1
 
-        doc.close()
-
-        skip_note = f'・略過空白列：{skipped_rows} 筆\n' if skipped_rows else ''
-        self.import_log = (
-            f'✅  匯入完成\n\n'
-            f'・建立分區（爆炸圖）：{sections_created} 個\n'
-            f'・建立零件明細：{lines_created} 筆\n'
-            f'・新增零件主檔：{parts_created} 筆（已存在料號直接連結）\n'
-            f'{skip_note}\n'
-            f'請至目錄頁面確認，可修改分區名稱與零件資料。'
-        )
-        self.state = 'done'
-
-        return {
-            'type': 'ir.actions.act_window',
-            'res_model': self._name,
-            'res_id': self.id,
-            'view_mode': 'form',
-            'target': 'new',
-        }
+        return sections_created, lines_created, parts_created, skipped_rows

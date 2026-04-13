@@ -33,6 +33,13 @@
             </button>
           </div>
 
+          <!-- PDF 批次匯入按鈕（右上角）-->
+          <div class="o_form_buttons_view" style="float:right; margin-top:-4px;"
+               attrs="{'invisible': [('id','=',False)]}">
+            <button name="action_open_pdf_wizard" type="object"
+                    string="📥 從 PDF 批次建立" class="btn btn-secondary"/>
+          </div>
+
           <div class="oe_title">
             <label for="name"/>
             <h1><field name="name" placeholder="目錄名稱，如：UQ125DA 2025版"/></h1>

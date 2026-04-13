@@ -12,6 +12,7 @@
         'views/catalog_section_views.xml',
         'views/catalog_search_wizard_views.xml',
         'views/catalog_import_wizard_views.xml',
+        'views/catalog_pdf_wizard_views.xml',
         'views/menu_views.xml',
     ],
     'installable': True,

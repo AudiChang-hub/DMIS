@@ -6,3 +6,4 @@ access_dms_part_catalog_section,dms.part.catalog.section,dms_parts.model_dms_par
 access_dms_part_catalog_line,dms.part.catalog.line,dms_parts.model_dms_part_catalog_line,base.group_user,1,1,1,1
 access_dms_part_catalog_search_wizard,dms.part.catalog.search.wizard,dms_parts.model_dms_part_catalog_search_wizard,base.group_user,1,1,1,0
 access_dms_part_catalog_import_wizard,dms.part.catalog.import.wizard,dms_parts.model_dms_part_catalog_import_wizard,base.group_user,1,1,1,0
+access_dms_part_catalog_pdf_wizard,dms.part.catalog.pdf.wizard,dms_parts.model_dms_part_catalog_pdf_wizard,base.group_user,1,1,1,0

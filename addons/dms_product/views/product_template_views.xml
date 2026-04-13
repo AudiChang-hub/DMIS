@@ -101,7 +101,7 @@
     <field name="model">dms.product</field>
     <field name="priority">20</field>
     <field name="arch" type="xml">
-      <tree string="價格表" editable="bottom" multi_edit="1" default_order="name asc, production_year asc">
+      <tree string="價格表" editable="bottom" multi_edit="1" default_order="name asc, production_year asc" create="0">
         <field name="brand_id" optional="show"/>
         <field name="name" string="機種" optional="show"/>
         <field name="model" string="型號" optional="show"/>

@@ -207,7 +207,10 @@ class DmsPartCatalogPdfWizard(models.TransientModel):
 
             section_info, data_rows = self._parse_parts_page_words(page)
             if not section_info or not section_info.get('seq'):
-                continue
+                # 嘗試色碼外觀件格式
+                section_info, data_rows = self._parse_color_variant_page(page)
+                if not section_info:
+                    continue
 
             # 渲染低解析度縮圖
             try:
@@ -220,6 +223,7 @@ class DmsPartCatalogPdfWizard(models.TransientModel):
             name_en = section_info.get('name_en', '')
             name_zh = section_info.get('name_zh', '')
             row_count = len(data_rows)
+            is_color_variant = section_info.get('color_variant', False)
 
             # 所有零件列表（放入 <details> 可展開）
             rows_html = ''
@@ -246,7 +250,7 @@ class DmsPartCatalogPdfWizard(models.TransientModel):
             img_tag = (
                 f'<img src="data:image/png;base64,{thumb_b64}"'
                 f' style="width:100%;display:block;border-bottom:1px solid #ddd;"'
-                f' title="p{page_num + 1}: {seq:02d}. {name_en}"/>'
+                f' title="p{page_num + 1}: {"EXT" if is_color_variant else f"{seq:02d}."}  {name_en}"/>'
                 if thumb_b64 else
                 f'<div style="height:60px;background:#eee;text-align:center;line-height:60px;'
                 f'color:#aaa;">無法渲染</div>'
@@ -259,7 +263,7 @@ class DmsPartCatalogPdfWizard(models.TransientModel):
                 f'{img_tag}'
                 f'<div style="padding:7px;font-size:11px;">'
                 f'<div style="font-weight:bold;color:#1a5c30;margin-bottom:1px;">'
-                f'p{page_num + 1} → {seq:02d}. {name_en}</div>'
+                f'p{page_num + 1} → {"EXT" if is_color_variant else f"{seq:02d}."} {name_en}</div>'
                 f'<details>'
                 f'<summary style="cursor:pointer;outline:none;list-style:none;'
                 f'color:#555;font-size:10px;margin:3px 0;user-select:none;">'
@@ -453,6 +457,114 @@ class DmsPartCatalogPdfWizard(models.TransientModel):
                 merged.append(row)
         return section_info, merged
 
+    # ── 色碼外觀件頁解析 ────────────────────────────────────────────────────
+
+    def _parse_color_variant_page(self, page):
+        """
+        解析色碼配件頁（NO/DESCRIPTION/零件名稱/PARTS NO/COLOR CODE 格式）。
+        用於外觀色彩件頁，每列包含基底料號 + 各車色後綴（取第一色 G27 欄）。
+        回傳 (section_info, [row_dict]) 或 (None, [])。
+        """
+        text = page.get_text("text").strip()
+        # 偵測條件：有 COLOR CODE 且有 PARTS NO
+        if 'COLOR CODE' not in text and 'COLOR' not in text:
+            return None, []
+        if 'PARTS NO' not in text:
+            return None, []
+        # 若是標準分區頁（有 NN. 格式），交由 _parse_parts_page_words 處理
+        if re.search(r'^\d{1,2}\.\s', text, re.MULTILINE) and 'PART NO.' in text:
+            return None, []
+
+        section_info = {
+            'seq': 0,
+            'name_en': 'EXTERIOR COLOR PARTS',
+            'name_zh': '外觀色彩件',
+            'color_variant': True,
+        }
+
+        words = page.get_text("words")
+        if not words:
+            return section_info, []
+
+        page_height = page.rect.height
+        # 標頭行在 y<65，排除頁底頁碼
+        data_words = [w for w in words
+                      if w[1] >= 65 and w[1] < page_height - 20]
+
+        # 依 Y 分組（容差 10pt，適應中英文基線不同）
+        row_groups = {}
+        for w in data_words:
+            y_key = round(w[1] / 10) * 10
+            row_groups.setdefault(y_key, []).append((w[0], w[4]))
+
+        # 標題行關鍵字（需跳過）
+        _SKIP_DESC = {'NO', 'DESCRIPTION', 'PARTS', 'G27', 'W17', 'YVB', 'Y24',
+                      'COLOR', 'CODE', ''}
+        _SKIP_PN = {'PARTS', 'NO', 'NAME', '零件號碼', '零件名稱', '主要貼紙',
+                    'G27', 'W17', 'YVB', 'Y24'}
+
+        result = []
+        for y_key in sorted(row_groups):
+            row_words = sorted(row_groups[y_key], key=lambda ww: ww[0])
+
+            # ── 左表：主要外觀件（x < 420）──
+            # NO(seq): x<26  DESCRIPTION: 26-164  零件名稱: 165-227
+            # PARTS NO(base): 228-284（止於顏色標籤 x≈287）
+            # G27值: 292-321（跳過中文顏色標籤 x≈286-291）
+            seq_w   = [t for x, t in row_words if x < 26]
+            desc_w  = [t for x, t in row_words if 26 <= x < 165]
+            name_w  = [t for x, t in row_words if 165 <= x < 228]
+            base_w  = [t for x, t in row_words if 228 <= x < 285]
+            g27_w   = [t for x, t in row_words if 292 <= x < 322]
+
+            base_no = ' '.join(base_w).strip()
+            if base_no:
+                desc_en = ' '.join(desc_w).strip()
+                name_zh = ' '.join(name_w).strip()
+                seq_val = ' '.join(seq_w).strip()
+
+                # 跳過欄位標題行
+                if desc_en.upper() not in _SKIP_DESC:
+                    # 取 G27 欄的後綴碼（英數字元，跳過中文顏色標籤）
+                    suffix_list = [t for t in g27_w
+                                   if re.match(r'^[A-Z0-9]+$', t, re.IGNORECASE)]
+                    suffix = suffix_list[0] if suffix_list else '000'
+                    full_pn = (base_no if base_no.endswith('-') else base_no + '-') + suffix
+                    result.append({
+                        'seq':         seq_val,
+                        'part_number': full_pn,
+                        'name_en':     desc_en,
+                        'name_zh':     name_zh or desc_en,
+                        'qty':         '1',
+                        'remarks':     '',
+                    })
+
+            # ── 右表：主要貼紙（x >= 420）──
+            # 貼紙NO(①②③): 420-439  完整料號: 440-509
+            # 貼紙名稱: 510-604（實測名稱 x=511.73 < 512，故邊界取 510）
+            sk_no_w   = [t for x, t in row_words if 420 <= x < 440]
+            sk_pn_w   = [t for x, t in row_words if 440 <= x < 510]
+            sk_name_w = [t for x, t in row_words if 510 <= x < 605]
+
+            sk_pn   = ' '.join(sk_pn_w).strip()
+            sk_name = ' '.join(sk_name_w).strip()
+            sk_no   = ' '.join(sk_no_w).strip()
+
+            # 驗證：料號不是標題關鍵字，且看起來像料號（含5位數字）
+            if (sk_pn and sk_pn.upper() not in _SKIP_PN
+                    and sk_name.upper() not in _SKIP_PN
+                    and re.search(r'\d{5}', sk_pn)):
+                result.append({
+                    'seq':         sk_no,
+                    'part_number': sk_pn,
+                    'name_en':     '',
+                    'name_zh':     sk_name,
+                    'qty':         '1',
+                    'remarks':     '',
+                })
+
+        return section_info, result
+
     # ── helper ───────────────────────────────────────────────────────────
 
     def _cell(self, row, idx):
@@ -554,6 +666,9 @@ class DmsPartCatalogPdfWizard(models.TransientModel):
 
             section_info, data_rows = self._parse_parts_page_words(page)
             if not section_info or not data_rows:
+                # 嘗試色碼外觀件格式
+                section_info, data_rows = self._parse_color_variant_page(page)
+            if not section_info or not data_rows:
                 continue
 
             # 取最大的嵌入圖片作為爆炸圖（原始畫質，不重新渲染整頁）
@@ -571,10 +686,15 @@ class DmsPartCatalogPdfWizard(models.TransientModel):
                 img_b64 = base64.b64encode(pix.tobytes('png'))
 
             seq_num = section_info['seq']
-            section_code = f'{prefix}{seq_num:02d}'
-            section_name = section_info['name_zh'] or section_info['name_en'] or f'第{seq_num:02d}部分'
-            # 簡單依序號決定部位分類
-            category = 'engine' if seq_num <= 16 else 'frame'
+            if section_info.get('color_variant'):
+                section_code = 'EXT'
+                section_name = section_info['name_zh'] or 'EXTERIOR COLOR PARTS'
+                category = 'frame'
+            else:
+                section_code = f'{prefix}{seq_num:02d}'
+                section_name = section_info['name_zh'] or section_info['name_en'] or f'第{seq_num:02d}部分'
+                # 簡單依序號決定部位分類
+                category = 'engine' if seq_num <= 16 else 'frame'
 
             section = self.env['dms.part.catalog.section'].create({
                 'catalog_id': self.catalog_id.id,

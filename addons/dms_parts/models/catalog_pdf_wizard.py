@@ -455,8 +455,8 @@ class DmsPartCatalogPdfWizard(models.TransientModel):
                     # Type-A：純文字換行
                     if row['name_zh']:
                         prev['name_zh'] = (prev['name_zh'] + ' ' + row['name_zh']).strip()
-                    if row['name_en'] and not prev['name_en']:
-                        prev['name_en'] = row['name_en']
+                    if row['name_en']:
+                        prev['name_en'] = (prev['name_en'] + ' ' + row['name_en']).strip()
                 elif not prev_pn:
                     # Type-B：料號在次行，上一列 part_no 欄為空
                     prev['part_number'] = pn_val
@@ -473,6 +473,12 @@ class DmsPartCatalogPdfWizard(models.TransientModel):
                         prev['name_zh'] = (prev['name_zh'] + ' ' + row['name_zh']).strip()
                     if row['name_en']:
                         prev['name_en'] = (prev['name_en'] + ' ' + row['name_en']).strip()
+                elif _looks_like_part_no(prev_pn) and not _looks_like_part_no(pn_val):
+                    # Type-D：上一列已有真實料號，當前列 pn 欄為描述文字換行溢入（非數字開頭）
+                    cont = (pn_val + ' ' + row['name_en']).strip()
+                    prev['name_en'] = (prev['name_en'] + ' ' + cont).strip()
+                    if row['name_zh']:
+                        prev['name_zh'] = (prev['name_zh'] + ' ' + row['name_zh']).strip()
                 else:
                     merged.append(row)
             else:

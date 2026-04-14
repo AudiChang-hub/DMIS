@@ -122,6 +122,14 @@ class SaleOrder(models.Model):
     remittance_bank = fields.Char(string='銀行')
     remittance_account = fields.Char(string='匯款帳戶')
 
+    # ── 電車資訊 ──────────────────────────────────────────
+    ev_control_account = fields.Char(string='車控帳號')
+    ev_control_password = fields.Char(string='車控密碼')
+    ev_battery_plan = fields.Char(string='電池合約方案')
+    ev_battery_start_date = fields.Date(string='電池合約啟用日期')
+    ev_battery_account = fields.Char(string='電池合約帳號')
+    ev_battery_password = fields.Char(string='電池合約密碼')
+
     # ── 收益統計：支出 ───────────────────────────────────
     out_credit_card_fee = fields.Float(string='信用卡手續費支出', digits=(12, 0), default=0)
     out_installment_fee = fields.Float(string='分期手續費支出', digits=(12, 0), default=0)

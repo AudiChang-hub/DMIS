@@ -199,7 +199,31 @@
 
             </page>
 
-            <!-- ===== Tab 2：收益統計 ===== -->
+            <!-- ===== Tab 2：電車資訊 ===== -->
+            <page string="電車資訊"
+                  attrs="{'invisible': [('product_energy_type', '!=', 'electric')]}">
+
+              <group string="車控資訊">
+                <group>
+                  <field name="ev_control_account"/>
+                  <field name="ev_control_password" password="True"/>
+                </group>
+              </group>
+
+              <group string="電池合約">
+                <group>
+                  <field name="ev_battery_plan"/>
+                  <field name="ev_battery_start_date"/>
+                </group>
+                <group>
+                  <field name="ev_battery_account"/>
+                  <field name="ev_battery_password" password="True"/>
+                </group>
+              </group>
+
+            </page>
+
+            <!-- ===== Tab 3：收益統計 ===== -->
             <page string="收益統計">
 
               <group string="支出">

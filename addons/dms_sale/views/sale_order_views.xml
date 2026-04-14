@@ -160,37 +160,69 @@
                 <field name="fee_total" readonly="1"/>
               </group>
 
-            </page>
-
-            <!-- ===== Tab 2：收益統計 ===== -->
-            <page string="收益統計">
-
-              <group string="成交金額">
+              <group string="成交資訊">
                 <group>
                   <field name="cash_price"/>
                   <field name="amount_total" string="總成交價"/>
                   <field name="cost"/>
                 </group>
-              </group>
-
-              <group string="付款狀態">
                 <group>
                   <field name="deposit_amount"/>
                   <field name="balance_amount" readonly="1"/>
-                </group>
-                <group>
                   <field name="is_settled"/>
                   <field name="settle_date"
                          attrs="{'invisible': [('is_settled', '=', False)]}"/>
                 </group>
               </group>
 
-              <group string="車行金流"
-                     attrs="{'invisible': [('sale_type', '!=', 'dealer')]}">
+            </page>
+
+            <!-- ===== Tab 2：收益統計 ===== -->
+            <page string="收益統計">
+
+              <group string="支出">
                 <group>
-                  <field name="dealer_amount"/>
-                  <field name="commission"/>
+                  <field name="out_credit_card_fee"/>
+                  <field name="out_installment_fee"/>
+                  <field name="out_plate_tax"/>
+                  <field name="out_compulsory_ins"/>
+                  <field name="out_plate_select"/>
+                  <field name="out_used_car"/>
                 </group>
+                <group>
+                  <field name="out_gift_shipping"/>
+                  <field name="out_dealer_commission"/>
+                  <field name="out_friendly_dealer_bonus"/>
+                  <field name="out_first_sale_bonus"/>
+                  <field name="out_unit_bonus"/>
+                </group>
+              </group>
+
+              <group string="收入">
+                <group>
+                  <field name="in_plate_tax"/>
+                  <field name="in_compulsory_ins"/>
+                  <field name="in_agency_fee"/>
+                  <field name="in_scrap_agency"/>
+                  <field name="in_plate_select"/>
+                  <field name="in_used_car"/>
+                  <field name="in_scrap_car"/>
+                  <field name="in_card_installment_fee"/>
+                  <field name="in_yamaha_bonus"/>
+                </group>
+                <group>
+                  <field name="in_friendly_dealer_bonus"/>
+                  <field name="in_other"/>
+                  <field name="in_actual_sales_bonus"/>
+                  <field name="in_promo_subsidy"/>
+                  <field name="in_installment_subsidy"/>
+                  <field name="in_compulsory_ins_commission"/>
+                  <field name="in_credit_card_commission"/>
+                </group>
+              </group>
+
+              <group>
+                <field name="net_profit" readonly="1"/>
               </group>
 
             </page>

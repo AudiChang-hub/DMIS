@@ -122,6 +122,16 @@ class SaleOrder(models.Model):
     remittance_bank = fields.Char(string='銀行')
     remittance_account = fields.Char(string='匯款帳戶')
 
+    # ── 其他資訊 ──────────────────────────────────────────
+    extra_helmet = fields.Char(string='安全帽')
+    extra_gift_voucher = fields.Char(string='公司禮卷、匯款')
+    extra_platform_gift = fields.Char(string='平台贈品')
+    extra_company_gift = fields.Char(string='公司贈品')
+    extra_customer_service_phone = fields.Char(string='客服電話')
+    extra_special_plan = fields.Char(string='特殊方案')
+    extra_other = fields.Char(string='其他')
+    extra_note = fields.Text(string='備註')
+
     # ── 舊車資訊 ──────────────────────────────────────────
     used_car_owner = fields.Char(string='舊車車主')
     used_car_owner_id_no = fields.Char(string='舊車車主身分證字號')

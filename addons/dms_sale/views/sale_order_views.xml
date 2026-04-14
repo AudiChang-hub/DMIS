@@ -170,6 +170,31 @@
                 </group>
               </group>
 
+              <group string="發票與申辦">
+                <group string="發票資訊">
+                  <field name="moea_invoice_no"/>
+                  <field name="moea_invoice_date"/>
+                  <field name="balance_invoice_no"/>
+                </group>
+                <group string="款項申辦">
+                  <field name="remittance_bank"/>
+                  <field name="remittance_account"/>
+                  <field name="subsidy_application_date"/>
+                </group>
+              </group>
+
+              <group string="補助資訊">
+                <group>
+                  <field name="subsidy_plan"/>
+                  <field name="subsidy_amount"/>
+                </group>
+                <group string="補助來源">
+                  <field name="subsidy_moea"/>
+                  <field name="subsidy_moenv"/>
+                  <field name="subsidy_local"/>
+                </group>
+              </group>
+
             </page>
 
             <!-- ===== Tab 2：收益統計 ===== -->

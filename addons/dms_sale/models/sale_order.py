@@ -16,8 +16,8 @@ class SaleOrder(models.Model):
         [('store', '店面'), ('dealer', '車行')],
         string='交易類型', required=True, default='store')
     state = fields.Selection(
-        [('draft', '草稿'), ('confirmed', '確認'), ('cancel', '取消')],
-        string='狀態', default='draft', required=True)
+        [('draft', '草稿'), ('confirmed', '已成立'), ('cancel', '已取消')],
+        string='狀態', default='draft', required=True, copy=False)
     active = fields.Boolean(string='啟用', default=True)
 
     # ── 客戶資訊 ──────────────────────────────────────────

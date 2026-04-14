@@ -104,6 +104,40 @@ class SaleOrder(models.Model):
     special_plan = fields.Char(string='特殊方案')
     note = fields.Text(string='備註')
 
+    # ── 收益統計：支出 ───────────────────────────────────
+    out_credit_card_fee = fields.Float(string='信用卡手續費支出', digits=(12, 0), default=0)
+    out_installment_fee = fields.Float(string='分期手續費支出', digits=(12, 0), default=0)
+    out_plate_tax = fields.Float(string='領牌稅金支出', digits=(12, 0), default=0)
+    out_compulsory_ins = fields.Float(string='強制險支出', digits=(12, 0), default=0)
+    out_plate_select = fields.Float(string='選號支出', digits=(12, 0), default=0)
+    out_used_car = fields.Float(string='中古車支出', digits=(12, 0), default=0)
+    out_gift_shipping = fields.Float(string='贈品、運費支出', digits=(12, 0), default=0)
+    out_dealer_commission = fields.Float(string='車行傭金支出', digits=(12, 0), default=0)
+    out_friendly_dealer_bonus = fields.Float(string='友善車行獎金支出', digits=(12, 0), default=0)
+    out_first_sale_bonus = fields.Float(string='首賣獎金支出', digits=(12, 0), default=0)
+    out_unit_bonus = fields.Float(string='台數獎金支出', digits=(12, 0), default=0)
+
+    # ── 收益統計：收入 ───────────────────────────────────
+    in_plate_tax = fields.Float(string='領牌稅金收入', digits=(12, 0), default=0)
+    in_compulsory_ins = fields.Float(string='強制險收入', digits=(12, 0), default=0)
+    in_agency_fee = fields.Float(string='代辦費收入', digits=(12, 0), default=0)
+    in_scrap_agency = fields.Float(string='報廢代辦收入', digits=(12, 0), default=0)
+    in_plate_select = fields.Float(string='選號收入', digits=(12, 0), default=0)
+    in_used_car = fields.Float(string='中古車收入', digits=(12, 0), default=0)
+    in_scrap_car = fields.Float(string='報廢車收入', digits=(12, 0), default=0)
+    in_card_installment_fee = fields.Float(string='刷卡、分期手續費收入', digits=(12, 0), default=0)
+    in_yamaha_bonus = fields.Float(string='山葉獎金收入', digits=(12, 0), default=0)
+    in_friendly_dealer_bonus = fields.Float(string='友善車行獎金收入', digits=(12, 0), default=0)
+    in_other = fields.Float(string='其他收入', digits=(12, 0), default=0)
+    in_actual_sales_bonus = fields.Float(string='實銷獎勵金', digits=(12, 0), default=0)
+    in_promo_subsidy = fields.Float(string='促銷補助金', digits=(12, 0), default=0)
+    in_installment_subsidy = fields.Float(string='分期補貼息', digits=(12, 0), default=0)
+    in_compulsory_ins_commission = fields.Float(string='強制險傭金', digits=(12, 0), default=0)
+    in_credit_card_commission = fields.Float(string='信用卡傭金', digits=(12, 0), default=0)
+    net_profit = fields.Float(
+        string='單筆淨利', digits=(12, 0),
+        compute='_compute_net_profit', store=True)
+
     # ── 計算欄位 ──────────────────────────────────────────
     @api.depends('birthday_ad')
     def _compute_birthday_roc(self):
@@ -135,6 +169,29 @@ class SaleOrder(models.Model):
     def _compute_balance(self):
         for rec in self:
             rec.balance_amount = (rec.amount_total or 0) - (rec.deposit_amount or 0)
+
+    _PROFIT_INCOME_FIELDS = (
+        'amount_total',
+        'in_plate_tax', 'in_compulsory_ins', 'in_agency_fee', 'in_scrap_agency',
+        'in_plate_select', 'in_used_car', 'in_scrap_car', 'in_card_installment_fee',
+        'in_yamaha_bonus', 'in_friendly_dealer_bonus', 'in_other',
+        'in_actual_sales_bonus', 'in_promo_subsidy', 'in_installment_subsidy',
+        'in_compulsory_ins_commission', 'in_credit_card_commission',
+    )
+    _PROFIT_EXPENSE_FIELDS = (
+        'cost',
+        'out_credit_card_fee', 'out_installment_fee', 'out_plate_tax',
+        'out_compulsory_ins', 'out_plate_select', 'out_used_car',
+        'out_gift_shipping', 'out_dealer_commission', 'out_friendly_dealer_bonus',
+        'out_first_sale_bonus', 'out_unit_bonus',
+    )
+
+    @api.depends(*_PROFIT_INCOME_FIELDS, *_PROFIT_EXPENSE_FIELDS)
+    def _compute_net_profit(self):
+        for rec in self:
+            income = sum(getattr(rec, f) or 0 for f in self._PROFIT_INCOME_FIELDS)
+            expense = sum(getattr(rec, f) or 0 for f in self._PROFIT_EXPENSE_FIELDS)
+            rec.net_profit = income - expense
 
     # ── 序號 ──────────────────────────────────────────────
     @api.model_create_multi

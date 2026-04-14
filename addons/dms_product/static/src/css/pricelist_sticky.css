@@ -31,20 +31,25 @@
     position: sticky !important;
     top: 0 !important;
     z-index: 4 !important;
-    background-color: var(--ListRenderer-thead-bg-color, #e9ecef) !important;
+    /* 不覆寫 background-color，由 dms_theme.scss 套用藍色 */
 }
 
 /* 4. 凍結欄 helper class（left 值由 JS 動態注入） */
 .dms_pricelist_tree .o_sticky_col {
     position: sticky !important;
     z-index: 3 !important;
+}
+
+/* tbody 凍結欄補白底（防止捲動時透出後方資料） */
+.dms_pricelist_tree tbody .o_sticky_col,
+.dms_pricelist_tree tfoot .o_sticky_col {
     background-color: #fff !important;
 }
 
 /* 凍結欄在標題列時，z-index 需高於純標題列 (4) */
 .dms_pricelist_tree thead .o_sticky_col {
     z-index: 6 !important;
-    background-color: var(--ListRenderer-thead-bg-color, #e9ecef) !important;
+    /* 不覆寫 background-color，由 dms_theme.scss 套用藍色 */
 }
 
 /* 最後一個凍結欄右側投影，視覺邊界提示 */

@@ -200,6 +200,7 @@
 
               <group string="收入">
                 <group>
+                  <field name="received_amount"/>
                   <field name="in_plate_tax"/>
                   <field name="in_compulsory_ins"/>
                   <field name="in_agency_fee"/>

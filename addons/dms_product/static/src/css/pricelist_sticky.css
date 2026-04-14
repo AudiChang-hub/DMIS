@@ -26,8 +26,13 @@
     border-spacing: 0 !important;
 }
 
-/* 欄位內容截斷：防止 fixed layout 下文字撐破欄位 */
-.dms_pricelist_tree thead th,
+/* 欄位內容截斷：僅套在資料列（tbody/tfoot），標題列允許換行 */
+.dms_pricelist_tree thead th {
+    overflow: visible !important;
+    text-overflow: clip !important;
+    white-space: normal !important;
+    word-break: keep-all;
+}
 .dms_pricelist_tree tbody td,
 .dms_pricelist_tree tfoot td {
     overflow: hidden !important;

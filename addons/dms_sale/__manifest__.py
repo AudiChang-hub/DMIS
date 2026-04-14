@@ -24,6 +24,7 @@
             'dms_sale/static/src/css/product_kanban.css',
             'dms_sale/static/src/js/dms_product_column_limit.js',
             'dms_sale/static/src/js/product_image_lightbox.js',
+            'dms_sale/static/src/js/roc_date_field.js',
         ],
     },
     'installable': True,

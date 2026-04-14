@@ -50,8 +50,10 @@
           <!-- 備註區塊 -->
           <separator string="備註"/>
           <group>
-            <field name="gift_note" nolabel="1" placeholder="顧客贈品（選填，例：現金優惠折 5000 元）" widget="text"/>
-            <field name="fees_note" nolabel="1" placeholder="附加費用說明（選填，例：18期：開辦費2500元）" widget="text"/>
+            <field name="gift_note" placeholder="例：現金優惠折 5000 元" widget="text" colspan="2"/>
+          </group>
+          <group>
+            <field name="fees_note" placeholder="例：18期：開辦費2500元" widget="text" colspan="2"/>
           </group>
         </sheet>
         <footer>

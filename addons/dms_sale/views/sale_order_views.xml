@@ -197,6 +197,24 @@
                 </group>
               </group>
 
+              <!-- 其他 -->
+              <group string="其他">
+                <group>
+                  <field name="extra_helmet"/>
+                  <field name="extra_gift_voucher"/>
+                  <field name="extra_platform_gift"/>
+                  <field name="extra_company_gift"/>
+                </group>
+                <group>
+                  <field name="extra_customer_service_phone"/>
+                  <field name="extra_special_plan"/>
+                  <field name="extra_other"/>
+                </group>
+              </group>
+              <group>
+                <field name="extra_note" colspan="2"/>
+              </group>
+
             </page>
 
             <!-- ===== Tab 2：電車資訊 ===== -->

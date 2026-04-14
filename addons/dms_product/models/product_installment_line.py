@@ -64,6 +64,12 @@ class DmsProductInstallmentLine(models.Model):
          '同一產品項下，相同期數只能設定一筆。'),
     ]
 
+    def name_get(self):
+        return [
+            (r.id, f"{r.periods}期（月付 {int(r.monthly_payment):,} 元）")
+            for r in self
+        ]
+
     @api.constrains('periods')
     def _check_periods(self):
         for rec in self:

@@ -55,7 +55,14 @@ class SaleOrder(models.Model):
     payment_method = fields.Selection(
         [('cash', '現金'), ('credit', '信用卡'), ('installment', '分期')],
         string='付款方式')
-    finance_company = fields.Char(string='分期公司')
+    finance_company = fields.Selection(
+        [('和潤', '和潤'), ('遠信', '遠信'), ('仲信', '仲信'), ('other', '其他')],
+        string='分期公司')
+    finance_company_other = fields.Char(string='其他分期公司')
+    installment_plan_id = fields.Many2one(
+        'dms.product.installment.line',
+        string='分期方案',
+        ondelete='set null')
     installment_periods = fields.Integer(string='分期期數', default=0)
     installment_monthly = fields.Float(string='月付金', digits=(12, 0))
     installment_setup_fee = fields.Float(string='設定費', digits=(12, 0), default=0)
@@ -139,11 +146,22 @@ class SaleOrder(models.Model):
         return super().create(vals_list)
 
     # ── Onchange ──────────────────────────────────────────
+    @api.onchange('installment_plan_id')
+    def _onchange_installment_plan_id(self):
+        plan = self.installment_plan_id
+        if plan:
+            self.installment_periods = plan.periods
+            self.installment_monthly = plan.monthly_payment
+            self.installment_setup_fee = plan.setup_fee
+            self.installment_open_fee = plan.opening_fee
+
     @api.onchange('product_id')
     def _onchange_product_id(self):
         self.color_id = False  # 車款變更時清空顏色
+        self.installment_plan_id = False  # 車款變更時清空分期方案
+        plan_domain = [('product_id', '=', self.product_id.id)] if self.product_id else [('id', '=', False)]
         if not self.product_id:
-            return
+            return {'domain': {'installment_plan_id': plan_domain}}
 
         # 優先讀取 dms.price.line（新價格結構）
         price_line = self.env['dms.price.line'].get_effective_line(
@@ -186,6 +204,7 @@ class SaleOrder(models.Model):
             self.fee_guild_cert = 0
             self.fee_document = 0
             self.fee_other = 0
+        return {'domain': {'installment_plan_id': plan_domain}}
 
     @api.onchange('dealer_id', 'product_id', 'installment_periods')
     def _onchange_commission(self):

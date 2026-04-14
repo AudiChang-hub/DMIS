@@ -39,7 +39,7 @@ function applySticky() {
         headers.forEach((th) => {
             th.style.top = "0";
             th.style.position = "sticky";
-            th.style.backgroundColor = "#f8f9fa";
+            th.style.backgroundColor = "var(--ListRenderer-thead-bg-color, #e9ecef)";
             /* 預設 z-index，水平凍結欄會再往上蓋 */
             if (!th.classList.contains("o_sticky_col")) {
                 th.style.zIndex = "4";

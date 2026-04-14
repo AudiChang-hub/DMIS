@@ -28,8 +28,11 @@
 
 /* 欄位內容：標題列與資料列均允許換行 */
 .dms_pricelist_tree thead th,
+.dms_pricelist_tree thead th span,
 .dms_pricelist_tree tbody td,
-.dms_pricelist_tree tfoot td {
+.dms_pricelist_tree tbody td span,
+.dms_pricelist_tree tfoot td,
+.dms_pricelist_tree tfoot td span {
     overflow: visible !important;
     text-overflow: clip !important;
     white-space: normal !important;

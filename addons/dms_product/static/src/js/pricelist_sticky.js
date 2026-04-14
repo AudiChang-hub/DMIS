@@ -30,7 +30,7 @@ function applySticky() {
         /* table-layout:fixed + width:100% 由 CSS 設定，JS 確保不被覆寫 */
         table.style.borderCollapse = "separate";
         table.style.borderSpacing = "0";
-        table.style.tableLayout = "fixed";
+        table.style.tableLayout = "auto";
         table.style.width = "100%";
 
         const headerRow = table.querySelector("thead tr:first-child");

@@ -21,9 +21,6 @@ class SaleOrder(models.Model):
     active = fields.Boolean(string='啟用', default=True)
 
     # ── 客戶資訊 ──────────────────────────────────────────
-    customer_id = fields.Many2one(
-        'res.partner', string='已建檔客戶', ondelete='restrict',
-        help='可選：選取已建檔客戶時自動帶入下方資料，不常化也可直接填寫')
     customer_name = fields.Char(string='客戶姓名', required=True)
     customer_phone = fields.Char(string='聯絡電話')
     id_number = fields.Char(string='身分證字號')
@@ -140,16 +137,6 @@ class SaleOrder(models.Model):
         return super().create(vals_list)
 
     # ── Onchange ──────────────────────────────────────────
-    @api.onchange('customer_id')
-    def _onchange_customer_id(self):
-        if self.customer_id:
-            p = self.customer_id
-            self.customer_name = p.name
-            self.customer_phone = p.phone or p.mobile or ''
-            self.id_number = getattr(p, 'id_number', '') or ''
-            self.birthday_ad = getattr(p, 'dms_birthday', False) or False
-            self.address_registered = getattr(p, 'address_registered', '') or ''
-
     @api.onchange('product_id')
     def _onchange_product_id(self):
         self.color_id = False  # 車款變更時清空顏色

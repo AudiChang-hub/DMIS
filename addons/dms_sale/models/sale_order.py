@@ -118,6 +118,9 @@ class SaleOrder(models.Model):
     out_unit_bonus = fields.Float(string='台數獎金支出', digits=(12, 0), default=0)
 
     # ── 收益統計：收入 ───────────────────────────────────
+    received_amount = fields.Float(
+        string='收款價', digits=(12, 0), default=0,
+        help='實際收款金額，預設帶入總成交價；分期時可手動調整為首款或實收金額')
     in_plate_tax = fields.Float(string='領牌稅金收入', digits=(12, 0), default=0)
     in_compulsory_ins = fields.Float(string='強制險收入', digits=(12, 0), default=0)
     in_agency_fee = fields.Float(string='代辦費收入', digits=(12, 0), default=0)
@@ -212,6 +215,12 @@ class SaleOrder(models.Model):
         return super().create(vals_list)
 
     # ── Onchange ──────────────────────────────────────────
+    @api.onchange('amount_total')
+    def _onchange_amount_total_to_received(self):
+        """總成交價變動時，若收款價尚未手動設定（等於 0），自動帶入。"""
+        if not self.received_amount:
+            self.received_amount = self.amount_total
+
     @api.onchange('installment_plan_id')
     def _onchange_installment_plan_id(self):
         plan = self.installment_plan_id

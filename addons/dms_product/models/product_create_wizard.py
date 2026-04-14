@@ -11,6 +11,7 @@ class DmsProductCreateWizard(models.TransientModel):
     brand_id = fields.Many2one(
         'dms.brand', string='品牌', required=True, ondelete='restrict')
     name = fields.Char(string='機種名稱', required=True)
+    model = fields.Char(string='型號')
     type_name = fields.Char(string='型式')
     energy_type = fields.Selection(
         [('oil', '油車'), ('electric', '電車')],
@@ -61,6 +62,7 @@ class DmsProductCreateWizard(models.TransientModel):
         vals = {
             'brand_id': self.brand_id.id,
             'name': self.name,
+            'model': self.model,
             'energy_type': self.energy_type,
             'production_year': self.production_year,
             'color': self.color or '',
@@ -78,6 +80,6 @@ class DmsProductCreateWizard(models.TransientModel):
         }
         # template_type_name 透過 type_name 寫入（product_compat 的相容欄位）
         if self.type_name:
-            vals['template_type_name'] = self.type_name
+            vals['type_name'] = self.type_name
         self.env['dms.product'].create(vals)
         return {'type': 'ir.actions.act_window_close'}

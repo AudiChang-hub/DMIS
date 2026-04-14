@@ -58,6 +58,8 @@ class SaleOrder(models.Model):
     finance_company = fields.Char(string='分期公司')
     installment_periods = fields.Integer(string='分期期數', default=0)
     installment_monthly = fields.Float(string='月付金', digits=(12, 0))
+    installment_setup_fee = fields.Float(string='設定費', digits=(12, 0), default=0)
+    installment_open_fee = fields.Float(string='開辦費', digits=(12, 0), default=0)
 
     # ── 車行（B2B） ───────────────────────────────────────
     dealer_id = fields.Many2one('dms.dealer', string='車行', ondelete='restrict')

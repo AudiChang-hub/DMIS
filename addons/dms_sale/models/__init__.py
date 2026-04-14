@@ -1,3 +1,4 @@
+from . import product_installment_line_proxy
 from . import product
 from . import product_color
 from . import kanban_config

@@ -119,6 +119,16 @@
 - [x] 更新 `specs/006-dms-sale/**`
 - [x] 更新 `specs/011-dms-visit/**`
 - [x] 視需要更新 `specs/014-module-removal/**` 歷史註記
+## Phase 9：修復 installment_plan_id _unknown comodel 錯誤
+
+- [x] 診斷根本原因：`dms_sale`（17/43）比 `dms_product`（41/43）早載入，
+  導致 `Many2one.setup_nonrelated()` 在 comodel 不在 pool 時永久設為 `_unknown`
+- [x] 在 `dms_sale/models/product_installment_line_proxy.py` 宣告空殼 `_name = 'dms.product.installment.line'`，
+  確保 `installment_plan_id` field setup 時 comodel 已存在
+- [x] 在 `dms_product/models/product_installment_line.py` 改為 `_inherit`，
+  由後載入的 `dms_product` 補充完整欄位與商業邏輯
+- [x] 驗證 onchange RPC 無 `_unknown` 錯誤
+
 - [ ] 以繁體中文 commit
 - [ ] push 到 remote branch
 - [ ] 整理 PR 標題與描述（繁體中文）

@@ -7,7 +7,7 @@ _TRACKED = ('periods', 'price_base', 'interest_rate', 'setup_fee', 'opening_fee'
 
 
 class DmsProductInstallmentLine(models.Model):
-    _name = 'dms.product.installment.line'
+    _inherit = 'dms.product.installment.line'
     _description = '產品分期方案明細'
     _order = 'product_id, rule_id, periods'
 

@@ -15,6 +15,7 @@
     'data': [
         'security/ir.model.access.csv',
         'data/fee_type_data.xml',
+        'views/product_create_wizard_views.xml',
         'views/product_template_views.xml',
         'views/product_sku_views.xml',
         'views/price_version_views.xml',
@@ -37,6 +38,7 @@
             'dms_product/static/src/css/color_tags_widget.css',
             'dms_product/static/src/css/pricelist_sticky.css',
             'dms_product/static/src/js/pricelist_sticky.js',
+            'dms_product/static/src/js/pricelist_create_button.js',
         ],
     },
     'installable': True,

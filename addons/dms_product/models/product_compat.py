@@ -66,8 +66,11 @@ class DmsProductCompat(models.Model):
         related='template_id.family_name', string='機種',
         store=True, readonly=True, index=True)
     template_type_name = fields.Char(
-        related='template_id.type_name', string='型式',
-        store=False, readonly=False)
+        related='template_id.type_name', string='型式(模板)',
+        store=False, readonly=True)
+    # 獨立型式欄位：直接存在 dms.product，不依賴 template；
+    # 新建紀錄（由 wizard 建立）和有模板的既有紀錄均可寫入
+    type_name = fields.Char(string='型式')
     suggested_price = fields.Float(
         string='建議售價', digits=(12, 0), default=0.0,
         group_operator=False,

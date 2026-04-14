@@ -26,17 +26,24 @@
     border-spacing: 0 !important;
 }
 
-/* 欄位內容：標題列與資料列均允許換行 */
+/* 欄位內容：標題列允許換行（normal） */
 .dms_pricelist_tree thead th,
-.dms_pricelist_tree thead th span,
+.dms_pricelist_tree thead th span {
+    overflow: visible !important;
+    text-overflow: clip !important;
+    white-space: normal !important;
+    word-break: break-all;
+}
+
+/* 資料列：pre-line — 保留使用者輸入的換行符，同時允許自動折行 */
 .dms_pricelist_tree tbody td,
 .dms_pricelist_tree tbody td span,
 .dms_pricelist_tree tfoot td,
 .dms_pricelist_tree tfoot td span {
     overflow: visible !important;
     text-overflow: clip !important;
-    white-space: normal !important;
-    word-break: break-all;
+    white-space: pre-line !important;
+    word-break: break-word;
 }
 
 /* 1. 補回 Odoo/Bootstrap 原有 border 外觀（因 separate 後需明確標示） */

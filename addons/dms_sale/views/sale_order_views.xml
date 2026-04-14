@@ -183,7 +183,7 @@
               </group>
 
               <group string="補助資訊">
-                <group>
+                <group string="補助申請">
                   <field name="subsidy_plan"/>
                   <field name="subsidy_amount"/>
                 </group>

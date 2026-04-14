@@ -13,6 +13,7 @@
             <group>
               <field name="brand_id" options="{'no_create': True, 'no_open': True}"/>
               <field name="name" placeholder="例：GIXXER SF 250 ABS 七期"/>
+              <field name="model" placeholder="例：SF250（選填）"/>
               <field name="type_name" placeholder="例：七期（選填）"/>
             </group>
             <group>
@@ -35,7 +36,7 @@
           <!-- 分期區塊 -->
           <separator string="分期月付金（填入現金價後自動帶值，可手動調整）"/>
           <group>
-            <group string="分期價格">
+            <group>
               <field name="installment_12_price"/>
               <field name="installment_18_price"/>
               <field name="installment_24_price"/>

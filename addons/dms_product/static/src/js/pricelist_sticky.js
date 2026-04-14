@@ -27,8 +27,11 @@ function applySticky() {
         if (!table) return;
 
         /* 修正 border-collapse（CSS spec：collapse 模式下 sticky 對 td/th 無效） */
+        /* table-layout:fixed + width:100% 由 CSS 設定，JS 確保不被覆寫 */
         table.style.borderCollapse = "separate";
         table.style.borderSpacing = "0";
+        table.style.tableLayout = "fixed";
+        table.style.width = "100%";
 
         const headerRow = table.querySelector("thead tr:first-child");
         if (!headerRow) return;
@@ -50,17 +53,24 @@ function applySticky() {
         const nameColIdx = headers.findIndex((th) => th.dataset.name === "name");
         if (nameColIdx === -1) return;
 
-        /* 等待元素實際渲染後取得寬度 */
-        const firstColWidth = headers[0].getBoundingClientRect().width;
+        /* 等待元素實際渲染後取得寬度（fixed layout 用 offsetWidth 更準確） */
+        const firstColWidth = headers[0].offsetWidth;
         if (firstColWidth === 0) {
             setTimeout(scheduleApply, 150);
             return;
         }
 
+        /* 欄位數量改變（切換可選欄位）時，強制清除 key 觸發重算 */
+        const prevColCount = parseInt(container.dataset.stickyColCount || "0", 10);
+        if (prevColCount !== headers.length) {
+            container.dataset.stickyKey = "";
+        }
+        container.dataset.stickyColCount = headers.length;
+
         /* 以各欄寬度生成 key，避免重複計算 */
         const colKey = headers
             .slice(0, nameColIdx + 1)
-            .map((th, i) => `${i}:${Math.round(th.getBoundingClientRect().width)}`)
+            .map((th, i) => `${i}:${Math.round(th.offsetWidth)}`)
             .join(",");
         if (container.dataset.stickyKey === colKey) return;
         container.dataset.stickyKey = colKey;
@@ -77,7 +87,7 @@ function applySticky() {
         for (let i = 0; i <= nameColIdx; i++) {
             const isLast = i === nameColIdx;
             const left = cumLeft;
-            cumLeft += headers[i].getBoundingClientRect().width;
+            cumLeft += headers[i].offsetWidth;
 
             /* 標題欄 */
             const th = headers[i];

@@ -11,13 +11,31 @@
  * border-spacing:0 可維持原本視覺。
  */
 
-/* 1. 修正 border-collapse */
+/* 0. 防止橫向捲軸：強制表格不超出容器
+ *    table-layout:fixed + width:100% 讓所有欄位均分容器寬度，
+ *    無論顯示多少可選欄位，畫面永遠不出現橫向 scrollbar。
+ */
+.dms_pricelist_tree {
+    overflow-x: hidden !important;
+}
+
 .dms_pricelist_tree table {
+    table-layout: fixed !important;
+    width: 100% !important;
     border-collapse: separate !important;
     border-spacing: 0 !important;
 }
 
-/* 2. 補回 Odoo/Bootstrap 原有 border 外觀（因 separate 後需明確標示） */
+/* 欄位內容截斷：防止 fixed layout 下文字撐破欄位 */
+.dms_pricelist_tree thead th,
+.dms_pricelist_tree tbody td,
+.dms_pricelist_tree tfoot td {
+    overflow: hidden !important;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* 1. 補回 Odoo/Bootstrap 原有 border 外觀（因 separate 後需明確標示） */
 .dms_pricelist_tree thead th {
     border-bottom: 2px solid #dee2e6 !important;
 }
@@ -26,7 +44,7 @@
     border-bottom: 1px solid #dee2e6 !important;
 }
 
-/* 3. 凍結標題列 */
+/* 2. 凍結標題列 */
 .dms_pricelist_tree thead th {
     position: sticky !important;
     top: 0 !important;
@@ -34,7 +52,7 @@
     /* 不覆寫 background-color，由 dms_theme.scss 套用藍色 */
 }
 
-/* 4. 凍結欄 helper class（left 值由 JS 動態注入） */
+/* 3. 凍結欄 helper class（left 值由 JS 動態注入） */
 .dms_pricelist_tree .o_sticky_col {
     position: sticky !important;
     z-index: 3 !important;

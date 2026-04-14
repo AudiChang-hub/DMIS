@@ -184,14 +184,16 @@
                     <field name="out_plate_tax" nolabel="1"/>
                     <button name="action_apply_plate_tax" type="object"
                             string="套用領牌費" class="btn btn-sm btn-secondary"
-                            title="點擊將交易資訊領牌費套用至領牌稅金支出與收入"/>
+                            title="點擊將交易資訊領牌費套用至領牌稅金支出與收入"
+                            attrs="{'invisible': [('product_energy_type', '=', 'electric')]}"/>
                   </div>
                   <label for="out_compulsory_ins" string="強制險支出"/>
                   <div class="o_row">
                     <field name="out_compulsory_ins" nolabel="1"/>
                     <button name="action_apply_compulsory_ins" type="object"
                             string="套用強制險" class="btn btn-sm btn-secondary"
-                            title="點擊將交易資訊強制險套用至強制險支出與收入"/>
+                            title="點擊將交易資訊強制險套用至強制險支出與收入"
+                            attrs="{'invisible': [('product_energy_type', '=', 'electric')]}"/>
                   </div>
                   <field name="out_plate_select"/>
                   <field name="out_used_car"/>
@@ -220,14 +222,16 @@
                     <field name="in_plate_tax" nolabel="1"/>
                     <button name="action_apply_plate_tax" type="object"
                             string="套用領牌費" class="btn btn-sm btn-secondary"
-                            title="點擊將交易資訊領牌費套用至領牌稅金支出與收入"/>
+                            title="點擊將交易資訊領牌費套用至領牌稅金支出與收入"
+                            attrs="{'invisible': [('product_energy_type', '=', 'electric')]}"/>
                   </div>
                   <label for="in_compulsory_ins" string="強制險收入"/>
                   <div class="o_row">
                     <field name="in_compulsory_ins" nolabel="1"/>
                     <button name="action_apply_compulsory_ins" type="object"
                             string="套用強制險" class="btn btn-sm btn-secondary"
-                            title="點擊將交易資訊強制險套用至強制險支出與收入"/>
+                            title="點擊將交易資訊強制險套用至強制險支出與收入"
+                            attrs="{'invisible': [('product_energy_type', '=', 'electric')]}"/>
                   </div>
                   <field name="in_agency_fee"/>
                   <field name="in_scrap_agency"/>

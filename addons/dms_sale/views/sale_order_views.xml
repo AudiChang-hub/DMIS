@@ -70,6 +70,7 @@
                 <group>
                   <field name="customer_name"/>
                   <field name="customer_phone"/>
+                  <field name="customer_email"/>
                   <field name="id_number"/>
                   <field name="birthday_ad"/>
                   <field name="birthday_roc" readonly="1"/>

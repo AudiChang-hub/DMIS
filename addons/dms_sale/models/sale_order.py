@@ -173,7 +173,8 @@ class SaleOrder(models.Model):
                 rec.balance_amount = (
                     (rec.installment_setup_fee or 0) +
                     (rec.installment_open_fee or 0) +
-                    (rec.fee_total or 0)
+                    (rec.fee_total or 0) -
+                    (rec.deposit_amount or 0)
                 )
             else:
                 rec.balance_amount = (rec.amount_total or 0) - (rec.deposit_amount or 0)

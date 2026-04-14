@@ -107,6 +107,19 @@ class SaleOrder(models.Model):
     special_plan = fields.Char(string='特殊方案')
     note = fields.Text(string='備註')
 
+    # ── 補助申辦 ──────────────────────────────────────────
+    moea_invoice_no = fields.Char(string='工業局發票號碼')
+    moea_invoice_date = fields.Date(string='發票日期')
+    balance_invoice_no = fields.Char(string='尾款發票號碼')
+    subsidy_plan = fields.Char(string='補助方案')
+    subsidy_amount = fields.Float(string='補助金額', digits=(12, 0))
+    subsidy_moea = fields.Float(string='工業局', digits=(12, 0))
+    subsidy_moenv = fields.Float(string='環境部', digits=(12, 0))
+    subsidy_local = fields.Float(string='縣市政府', digits=(12, 0))
+    remittance_bank = fields.Char(string='銀行')
+    remittance_account = fields.Char(string='匯款帳戶')
+    subsidy_application_date = fields.Date(string='申請日')
+
     # ── 收益統計：支出 ───────────────────────────────────
     out_credit_card_fee = fields.Float(string='信用卡手續費支出', digits=(12, 0), default=0)
     out_installment_fee = fields.Float(string='分期手續費支出', digits=(12, 0), default=0)

@@ -139,6 +139,8 @@
                   <field name="fee_insurance"/>
                   <field name="fee_guild_cert"/>
                   <field name="fee_document"/>
+                  <field name="fee_plate_selection"/>
+                  <field name="fee_scrap_vehicle"/>
                   <field name="fee_other"/>
                 </group>
               </group>
@@ -152,7 +154,9 @@
                 <group>
                   <field name="fee_insurance"            string="強制險"/>
                   <field name="fee_vehicle_registration" string="領牌費"/>
-                  <field name="fee_other"                string="其他"/>
+                  <field name="fee_plate_selection"/>
+                  <field name="fee_scrap_vehicle"/>
+                  <field name="fee_other"/>
                 </group>
               </group>
 

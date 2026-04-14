@@ -23,6 +23,7 @@ class SaleOrder(models.Model):
     # ── 客戶資訊 ──────────────────────────────────────────
     customer_name = fields.Char(string='客戶姓名', required=True)
     customer_phone = fields.Char(string='聯絡電話')
+    customer_email = fields.Char(string='Email')
     id_number = fields.Char(string='身分證字號')
     birthday_ad = fields.Date(string='西元生日')
     birthday_roc = fields.Char(

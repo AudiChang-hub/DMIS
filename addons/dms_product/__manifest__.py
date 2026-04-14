@@ -35,6 +35,8 @@
             'dms_product/static/src/js/float_blank_zero.js',
             'dms_product/static/src/js/color_tags_widget.js',
             'dms_product/static/src/css/color_tags_widget.css',
+            'dms_product/static/src/css/pricelist_sticky.css',
+            'dms_product/static/src/js/pricelist_sticky.js',
         ],
     },
     'installable': True,

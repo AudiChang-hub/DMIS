@@ -203,10 +203,30 @@
             <page string="電車資訊"
                   attrs="{'invisible': [('product_energy_type', '!=', 'electric')]}">
 
+              <!-- 密碼解鎖狀態（隱藏欄位，供 attrs 使用） -->
+              <field name="show_ev_passwords" invisible="1"/>
+
+              <!-- 解鎖 / 隱藏按鈕列 -->
+              <div class="mb8">
+                <button string="🔓 解鎖顯示密碼" type="object"
+                        name="action_reveal_ev_passwords"
+                        class="btn btn-warning btn-sm"
+                        attrs="{'invisible': [('show_ev_passwords', '=', True)]}"/>
+                <button string="🔒 隱藏密碼" type="object"
+                        name="action_hide_ev_passwords"
+                        class="btn btn-secondary btn-sm"
+                        attrs="{'invisible': [('show_ev_passwords', '=', False)]}"/>
+              </div>
+
               <group string="車控資訊">
                 <group>
                   <field name="ev_control_account"/>
-                  <field name="ev_control_password" password="True"/>
+                  <!-- 遮罩版（未解鎖時顯示） -->
+                  <field name="ev_control_password" password="True"
+                         attrs="{'invisible': [('show_ev_passwords', '=', True)]}"/>
+                  <!-- 明文版（解鎖後顯示） -->
+                  <field name="ev_control_password"
+                         attrs="{'invisible': [('show_ev_passwords', '=', False)]}"/>
                 </group>
               </group>
 
@@ -217,7 +237,12 @@
                 </group>
                 <group>
                   <field name="ev_battery_account"/>
-                  <field name="ev_battery_password" password="True"/>
+                  <!-- 遮罩版（未解鎖時顯示） -->
+                  <field name="ev_battery_password" password="True"
+                         attrs="{'invisible': [('show_ev_passwords', '=', True)]}"/>
+                  <!-- 明文版（解鎖後顯示） -->
+                  <field name="ev_battery_password"
+                         attrs="{'invisible': [('show_ev_passwords', '=', False)]}"/>
                 </group>
               </group>
 

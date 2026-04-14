@@ -16,6 +16,7 @@
         'views/fee_schedule_views.xml',
         'views/commission_rule_views.xml',
         'views/sale_order_views.xml',
+        'views/ev_password_wizard_views.xml',
         'views/vehicle_color_views.xml',
         'views/product_pricelist_menu.xml',
     ],

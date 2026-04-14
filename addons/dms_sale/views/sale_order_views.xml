@@ -108,8 +108,12 @@
                   <field name="payment_method"/>
                   <field name="finance_company"
                          attrs="{'invisible': [('payment_method', '!=', 'installment')]}"/>
-                  <field name="installment_periods"
-                         attrs="{'invisible': [('payment_method', '!=', 'installment')]}"/>
+                  <field name="finance_company_other"
+                         attrs="{'invisible': ['|', ('payment_method', '!=', 'installment'), ('finance_company', '!=', 'other')]}"
+                         placeholder="請輸入分期公司名稱"/>
+                  <field name="installment_plan_id"
+                         attrs="{'invisible': [('payment_method', '!=', 'installment')]}"
+                         options="{'no_create': True, 'no_open': True}"/>
                   <field name="installment_monthly"
                          attrs="{'invisible': [('payment_method', '!=', 'installment')]}"/>
                   <field name="installment_setup_fee"

@@ -219,6 +219,18 @@ class SaleOrder(models.Model):
         """按鈕：將當前總成交價 amount_total 套用至收款價。"""
         self.received_amount = self.amount_total
 
+    def action_apply_plate_tax(self):
+        """按鈕：將交易資訊領牌費同時套用至領牌稅金支出與收入。"""
+        val = self.fee_vehicle_registration or 0.0
+        self.out_plate_tax = val
+        self.in_plate_tax = val
+
+    def action_apply_compulsory_ins(self):
+        """按鈕：將交易資訊強制險同時套用至強制險支出與收入。"""
+        val = self.fee_insurance or 0.0
+        self.out_compulsory_ins = val
+        self.in_compulsory_ins = val
+
     @api.onchange('installment_plan_id')
     def _onchange_installment_plan_id(self):
         plan = self.installment_plan_id

@@ -84,6 +84,7 @@ class SaleOrder(models.Model):
     fee_other = fields.Float(string='其他費用（含精品）', digits=(12, 0))
     fee_plate_selection = fields.Float(string='選號費', digits=(12, 0))
     fee_scrap_vehicle = fields.Float(string='舊車回收費', digits=(12, 0))
+    fee_plate_insurance = fields.Float(string='牌險費', digits=(12, 0))
     fee_total = fields.Float(
         string='牌險合計', digits=(12, 0),
         compute='_compute_fee_total', store=True)
@@ -159,10 +160,12 @@ class SaleOrder(models.Model):
     @api.depends(
         'fee_vehicle_registration', 'fee_inspection', 'fee_plate',
         'fee_stamp', 'fee_insurance', 'fee_guild_cert',
-        'fee_document', 'fee_other', 'fee_plate_selection', 'fee_scrap_vehicle')
+        'fee_document', 'fee_other', 'fee_plate_selection', 'fee_scrap_vehicle',
+        'fee_plate_insurance')
     def _compute_fee_total(self):
         for rec in self:
             rec.fee_total = (
+                rec.fee_plate_insurance +
                 rec.fee_vehicle_registration + rec.fee_inspection +
                 rec.fee_plate + rec.fee_stamp + rec.fee_insurance +
                 rec.fee_guild_cert + rec.fee_document +
@@ -276,16 +279,18 @@ class SaleOrder(models.Model):
                 [('product_id', '=', self.product_id.id), ('active', '=', True)],
                 order='valid_from desc', limit=1)
             if fee:
-                self.fee_vehicle_registration = fee.fee_vehicle_registration
+                self.fee_plate_insurance = (fee.fee_vehicle_registration or 0) + (fee.fee_insurance or 0)
+                self.fee_vehicle_registration = 0
+                self.fee_insurance = 0
                 self.fee_inspection = fee.fee_inspection
                 self.fee_plate = fee.fee_plate
                 self.fee_stamp = fee.fee_stamp
-                self.fee_insurance = fee.fee_insurance
                 self.fee_guild_cert = fee.fee_guild_cert
                 self.fee_document = fee.fee_document
                 self.fee_other = fee.fee_other
         else:
             # 油車：清空牌險費供手動填入
+            self.fee_plate_insurance = 0
             self.fee_vehicle_registration = 0
             self.fee_inspection = 0
             self.fee_plate = 0

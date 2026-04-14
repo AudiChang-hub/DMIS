@@ -72,7 +72,8 @@
                   <field name="customer_name"/>
                   <field name="customer_phone"/>
                   <field name="id_number"/>
-                  <field name="birthday_roc"/>
+                  <field name="birthday_roc" widget="roc_date"/>
+                  <field name="birthday_ad" readonly="1"/>
                 </group>
                 <group>
                   <field name="address_registered"/>

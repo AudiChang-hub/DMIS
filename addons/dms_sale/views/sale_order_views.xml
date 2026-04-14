@@ -248,7 +248,39 @@
 
             </page>
 
-            <!-- ===== Tab 3：收益統計 ===== -->
+            <!-- ===== Tab 3：舊車資訊 ===== -->
+            <page string="舊車資訊">
+
+              <!-- 原車主資訊 -->
+              <group string="原車主資訊">
+                <group>
+                  <field name="used_car_owner"/>
+                  <field name="used_car_owner_id_no"/>
+                  <field name="used_car_owner_phone"/>
+                </group>
+                <group>
+                  <field name="used_car_owner_address"/>
+                </group>
+              </group>
+
+              <!-- 舊車車輛資訊 -->
+              <group string="車輛資訊">
+                <group>
+                  <field name="used_car_plate"/>
+                  <field name="used_car_engine_no"/>
+                  <field name="used_car_brand"/>
+                  <field name="used_car_displacement"/>
+                </group>
+                <group>
+                  <field name="used_car_manufacture_date"/>
+                  <field name="used_car_scrap_date"/>
+                  <field name="used_car_recycle_date"/>
+                </group>
+              </group>
+
+            </page>
+
+            <!-- ===== Tab 4：收益統計 ===== -->
             <page string="收益統計">
 
               <group string="支出">

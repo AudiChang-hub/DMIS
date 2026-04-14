@@ -122,6 +122,19 @@ class SaleOrder(models.Model):
     remittance_bank = fields.Char(string='銀行')
     remittance_account = fields.Char(string='匯款帳戶')
 
+    # ── 舊車資訊 ──────────────────────────────────────────
+    used_car_owner = fields.Char(string='舊車車主')
+    used_car_owner_id_no = fields.Char(string='舊車車主身分證')
+    used_car_owner_phone = fields.Char(string='舊車車主電話')
+    used_car_owner_address = fields.Char(string='舊車戶籍')
+    used_car_plate = fields.Char(string='舊車牌照號碼')
+    used_car_engine_no = fields.Char(string='舊車引擎號碼')
+    used_car_brand = fields.Char(string='舊車廠牌')
+    used_car_displacement = fields.Char(string='排氣量')
+    used_car_manufacture_date = fields.Date(string='出廠日期')
+    used_car_scrap_date = fields.Date(string='報廢日期')
+    used_car_recycle_date = fields.Date(string='回收日期')
+
     # ── 電車資訊 ──────────────────────────────────────────
     ev_control_account = fields.Char(string='車控帳號')
     ev_control_password = fields.Char(string='車控密碼')

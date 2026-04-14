@@ -165,10 +165,18 @@ class SaleOrder(models.Model):
                 rec.fee_other + rec.fee_plate_selection
             )
 
-    @api.depends('amount_total', 'deposit_amount')
+    @api.depends('amount_total', 'deposit_amount', 'payment_method',
+                 'installment_setup_fee', 'installment_open_fee', 'fee_total')
     def _compute_balance(self):
         for rec in self:
-            rec.balance_amount = (rec.amount_total or 0) - (rec.deposit_amount or 0)
+            if rec.payment_method == 'installment':
+                rec.balance_amount = (
+                    (rec.installment_setup_fee or 0) +
+                    (rec.installment_open_fee or 0) +
+                    (rec.fee_total or 0)
+                )
+            else:
+                rec.balance_amount = (rec.amount_total or 0) - (rec.deposit_amount or 0)
 
     _PROFIT_INCOME_FIELDS = (
         'amount_total',

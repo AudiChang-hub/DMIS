@@ -114,11 +114,13 @@ class SaleOrder(models.Model):
     subsidy_plan = fields.Char(string='補助方案')
     subsidy_amount = fields.Float(string='補助金額', digits=(12, 0))
     subsidy_moea = fields.Float(string='工業局', digits=(12, 0))
+    subsidy_moea_date = fields.Date(string='工業局申請日')
     subsidy_moenv = fields.Float(string='環境部', digits=(12, 0))
+    subsidy_moenv_date = fields.Date(string='環境部申請日')
     subsidy_local = fields.Float(string='縣市政府', digits=(12, 0))
+    subsidy_local_date = fields.Date(string='縣市政府申請日')
     remittance_bank = fields.Char(string='銀行')
     remittance_account = fields.Char(string='匯款帳戶')
-    subsidy_application_date = fields.Date(string='申請日')
 
     # ── 收益統計：支出 ───────────────────────────────────
     out_credit_card_fee = fields.Float(string='信用卡手續費支出', digits=(12, 0), default=0)

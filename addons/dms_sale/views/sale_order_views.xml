@@ -179,7 +179,6 @@
                 <group string="款項申辦">
                   <field name="remittance_bank"/>
                   <field name="remittance_account"/>
-                  <field name="subsidy_application_date"/>
                 </group>
               </group>
 
@@ -189,9 +188,12 @@
                   <field name="subsidy_amount"/>
                 </group>
                 <group string="補助來源">
-                  <field name="subsidy_moea"/>
-                  <field name="subsidy_moenv"/>
-                  <field name="subsidy_local"/>
+                  <field name="subsidy_moea"    string="工業局"/>
+                  <field name="subsidy_moea_date" string="工業局申請日"/>
+                  <field name="subsidy_moenv"   string="環境部"/>
+                  <field name="subsidy_moenv_date" string="環境部申請日"/>
+                  <field name="subsidy_local"   string="縣市政府"/>
+                  <field name="subsidy_local_date" string="縣市政府申請日"/>
                 </group>
               </group>
 

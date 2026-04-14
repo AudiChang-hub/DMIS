@@ -200,7 +200,14 @@
 
               <group string="收入">
                 <group>
-                  <field name="received_amount"/>
+                  <label for="received_amount" string="收款價"/>
+                  <div class="o_row">
+                    <field name="received_amount" nolabel="1"/>
+                    <button name="action_apply_received_amount" type="object"
+                            string="套用成交價"
+                            class="btn btn-sm btn-secondary"
+                            title="點擊將當前總成交價套用至收款價"/>
+                  </div>
                   <field name="in_plate_tax"/>
                   <field name="in_compulsory_ins"/>
                   <field name="in_agency_fee"/>

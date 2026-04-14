@@ -215,11 +215,9 @@ class SaleOrder(models.Model):
         return super().create(vals_list)
 
     # ── Onchange ──────────────────────────────────────────
-    @api.onchange('amount_total')
-    def _onchange_amount_total_to_received(self):
-        """總成交價變動時，若收款價尚未手動設定（等於 0），自動帶入。"""
-        if not self.received_amount:
-            self.received_amount = self.amount_total
+    def action_apply_received_amount(self):
+        """按鈕：將當前總成交價 amount_total 套用至收款價。"""
+        self.received_amount = self.amount_total
 
     @api.onchange('installment_plan_id')
     def _onchange_installment_plan_id(self):

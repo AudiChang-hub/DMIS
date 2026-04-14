@@ -119,6 +119,7 @@
         <field name="installment_48_price" string="48期" widget="float_blank_zero" optional="show"/>
         <field name="installment_60_price" string="60期" widget="float_blank_zero" optional="show"/>
         <field name="gift_note" string="顧客贈品" optional="show"/>
+        <field name="fees_note" string="附加費用說明" optional="show"/>
         <field name="active" optional="show"/>
       </tree>
     </field>

@@ -7,8 +7,12 @@ class DmsSaleOrderExt(models.Model):
     """繼承 dms.sale.order，加入結案機制與傭金計算"""
     _inherit = 'dms.sale.order'
 
-    is_closed = fields.Boolean(string='已結案', default=False, index=True)
-    closed_date = fields.Datetime(string='結案時間', readonly=True)
+    state = fields.Selection(
+        selection_add=[('closed', '結案')],
+        ondelete={'closed': 'set default'})
+
+    is_closed = fields.Boolean(string='已結案', default=False, index=True, copy=False)
+    closed_date = fields.Datetime(string='結案時間', readonly=True, copy=False)
     closed_month = fields.Char(
         string='結案月份', compute='_compute_closed_month', store=True)
     commission_record_id = fields.Many2one(
@@ -39,6 +43,7 @@ class DmsSaleOrderExt(models.Model):
             order.write({
                 'is_closed': True,
                 'closed_date': fields.Datetime.now(),
+                'state': 'closed',
             })
             order._create_or_update_commission_record()
             order._generate_incentive_deliveries()
@@ -66,6 +71,7 @@ class DmsSaleOrderExt(models.Model):
             order.write({
                 'is_closed': False,
                 'closed_date': False,
+                'state': 'confirmed',
             })
             # 重算（此訂單已不再是 active，所以只重算剩餘）
             if dealer_id and closed_month:

@@ -11,11 +11,11 @@
       <xpath expr="//header" position="inside">
         <button name="action_close_order" type="object"
                 string="結案" class="btn-primary"
-                attrs="{'invisible': [('is_closed', '=', True)]}"/>
+                attrs="{'invisible': [('state', '!=', 'confirmed')]}"/>
         <button name="action_reopen_order" type="object"
                 string="撤銷結案" class="btn-warning"
                 confirm="確定要撤銷結案？此操作將作廢傭金記錄並重算台數獎金。"
-                attrs="{'invisible': [('is_closed', '=', False)]}"/>
+                attrs="{'invisible': [('state', '!=', 'closed')]}"/>
       </xpath>
       <!-- 在 sheet 最後加入傭金資訊區塊 -->
       <xpath expr="//sheet" position="inside">

@@ -103,6 +103,9 @@ class DmsProductCompat(models.Model):
     gift_note = fields.Text(
         string='顧客贈品',
         help='本車型目前贈品說明，如：安全帽、機油 3 次')
+    fees_note = fields.Text(
+        string='附加費用說明',
+        help='分期附加費用，如：18期開辦費2,500元；設定費3,500元')
 
     @api.depends('cash_price')
     def _compute_installment_prices(self):

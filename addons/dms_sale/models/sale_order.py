@@ -129,6 +129,8 @@ class SaleOrder(models.Model):
     ev_battery_start_date = fields.Date(string='電池合約啟用日期')
     ev_battery_account = fields.Char(string='電池合約帳號')
     ev_battery_password = fields.Char(string='電池合約密碼')
+    show_ev_passwords = fields.Boolean(
+        string='電車密碼已解鎖', default=False, copy=False)
 
     # ── 收益統計：支出 ───────────────────────────────────
     out_credit_card_fee = fields.Float(string='信用卡手續費支出', digits=(12, 0), default=0)
@@ -355,3 +357,20 @@ class SaleOrder(models.Model):
 
     def button_cancel(self):
         self.write({'state': 'cancel'})
+
+    def action_reveal_ev_passwords(self):
+        """開啟解鎖 Wizard，驗證密碼後才顯示電車帳密"""
+        self.ensure_one()
+        return {
+            'type': 'ir.actions.act_window',
+            'name': '解鎖電車帳密',
+            'res_model': 'dms.ev.password.wizard',
+            'view_mode': 'form',
+            'target': 'new',
+            'context': {'default_order_id': self.id},
+        }
+
+    def action_hide_ev_passwords(self):
+        """隱藏電車帳密"""
+        self.ensure_one()
+        self.show_ev_passwords = False

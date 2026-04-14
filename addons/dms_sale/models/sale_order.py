@@ -49,7 +49,7 @@ class SaleOrder(models.Model):
 
     # ── 金流 ──────────────────────────────────────────────
     cash_price = fields.Float(
-        string='參考售價', digits=(12, 0), help='從車款售價自動帶入，可手動調整')
+        string='建議售價', digits=(12, 0), help='從車款建議售價自動帶入，可手動調整')
     amount_total = fields.Float(string='實際收款價', digits=(12, 0))
     cost = fields.Float(string='成本', digits=(12, 0))
     payment_method = fields.Selection(
@@ -229,23 +229,27 @@ class SaleOrder(models.Model):
         if not self.product_id:
             return {'domain': {'installment_plan_id': plan_domain}}
 
-        # 優先讀取 dms.price.line（新價格結構）
-        price_line = self.env['dms.price.line'].get_effective_line(
-            self.product_id,
-            query_date=self.order_date or fields.Date.context_today(self),
-        )
-        if price_line:
-            self.cash_price = price_line.cash_price
-        elif self.product_id.effective_price:
-            # 次優先：讀取產品上的有效售價（直接欄位：promo_price 或 cash_price）
-            self.cash_price = self.product_id.effective_price
+        # 優先使用產品建議售價（suggested_price > 0 時直接採用）
+        if self.product_id.suggested_price:
+            self.cash_price = self.product_id.suggested_price
         else:
-            # Fallback：舊車款售價相容層（待 018 移除）
-            price = self.env['dms.vehicle.price'].search(
-                [('product_id', '=', self.product_id.id), ('active', '=', True)],
-                order='valid_year_month desc', limit=1)
-            if price:
-                self.cash_price = price.cash_price
+            # 次優先讀取 dms.price.line 現金價
+            price_line = self.env['dms.price.line'].get_effective_line(
+                self.product_id,
+                query_date=self.order_date or fields.Date.context_today(self),
+            )
+            if price_line and price_line.cash_price:
+                self.cash_price = price_line.cash_price
+            elif self.product_id.effective_price:
+                # 再次優先：產品有效售價（promo_price 或 cash_price）
+                self.cash_price = self.product_id.effective_price
+            else:
+                # Fallback：舊車款售價相容層（待 018 移除）
+                price = self.env['dms.vehicle.price'].search(
+                    [('product_id', '=', self.product_id.id), ('active', '=', True)],
+                    order='valid_year_month desc', limit=1)
+                if price:
+                    self.cash_price = price.cash_price
         # 電車：自動帶入牌險費
         if self.product_id.energy_type == 'electric':
             fee = self.env['dms.ev.fee.schedule'].search(

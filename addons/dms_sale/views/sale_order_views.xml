@@ -119,27 +119,25 @@
               <!-- 牌險費（依車款能源類型顯示） -->
               <div class="alert alert-secondary" role="alert"
                    attrs="{'invisible': [('product_id', '!=', False)]}">
-                請先選擇車款，系統將顯示對應的牌險費欄位。
+                請先選擇車款，系統將顯示對應的其他費用欄位。
               </div>
 
               <div class="alert alert-info" role="alert"
                    attrs="{'invisible': [('product_energy_type', '!=', 'electric')]}">
-                <strong>電車牌險費</strong>：已從費率表自動帶入，如有異動請手動調整。
+                <strong>電車其他費用</strong>：已從費率表自動帶入，如有異動請手動調整。
               </div>
-              <group string="牌險費"
+              <group string="其他費用"
                      attrs="{'invisible': [('product_energy_type', '!=', 'electric')]}">
                 <group>
-                  <field name="fee_vehicle_registration"/>
+                  <field name="fee_plate_insurance"/>
                   <field name="fee_inspection"/>
                   <field name="fee_plate"/>
                   <field name="fee_stamp"/>
                   <field name="fee_plate_selection"/>
                 </group>
                 <group>
-                  <field name="fee_insurance"/>
                   <field name="fee_guild_cert"/>
                   <field name="fee_document"/>
-                  <field name="fee_plate_selection"/>
                   <field name="fee_scrap_vehicle"/>
                   <field name="fee_other"/>
                 </group>
@@ -147,9 +145,9 @@
 
               <div class="alert alert-warning" role="alert"
                    attrs="{'invisible': [('product_energy_type', '!=', 'oil')]}">
-                <strong>油車牌險費</strong>：請依監理站換發單據填入實際金額。
+                <strong>油車其他費用</strong>：請依監理站換發單據填入實際金額。
               </div>
-              <group string="牌險費"
+              <group string="其他費用"
                      attrs="{'invisible': [('product_energy_type', '!=', 'oil')]}">
                 <group>
                   <field name="fee_insurance"            string="強制險"/>

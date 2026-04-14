@@ -1,1 +1,61 @@
-/* pricelist_sticky.css — 凍結功能暫停，保留此檔供未來使用 */
+/*
+ * 價格表凍結：標題列（垂直）＋ 機種欄（水平）
+ *
+ * 注意：class="dms_pricelist_tree" 落在 div.o_list_renderer 上（非 table）。
+ * 因此：
+ *   .dms_pricelist_tree          → 選到 o_list_renderer div
+ *   .dms_pricelist_tree table    → 選到內部的 <table>
+ *
+ * border-collapse:separate 是讓 position:sticky 在 table cell 上生效的必要條件
+ * （CSS spec：collapse 模式下 sticky 對 td/th 無效）。
+ * border-spacing:0 可維持原本視覺。
+ */
+
+/* 1. 修正 border-collapse */
+.dms_pricelist_tree table {
+    border-collapse: separate !important;
+    border-spacing: 0 !important;
+}
+
+/* 2. 補回 Odoo/Bootstrap 原有 border 外觀（因 separate 後需明確標示） */
+.dms_pricelist_tree thead th {
+    border-bottom: 2px solid #dee2e6 !important;
+}
+.dms_pricelist_tree tbody td,
+.dms_pricelist_tree tfoot td {
+    border-bottom: 1px solid #dee2e6 !important;
+}
+
+/* 3. 凍結標題列 */
+.dms_pricelist_tree thead th {
+    position: sticky !important;
+    top: 0 !important;
+    z-index: 4 !important;
+    background-color: #f8f9fa !important;
+}
+
+/* 4. 凍結欄 helper class（left 值由 JS 動態注入） */
+.dms_pricelist_tree .o_sticky_col {
+    position: sticky !important;
+    z-index: 3 !important;
+    background-color: #fff !important;
+}
+
+/* 凍結欄在標題列時，z-index 需高於純標題列 (4) */
+.dms_pricelist_tree thead .o_sticky_col {
+    z-index: 6 !important;
+    background-color: #f8f9fa !important;
+}
+
+/* 最後一個凍結欄右側投影，視覺邊界提示 */
+.dms_pricelist_tree .o_sticky_border {
+    box-shadow: 3px 0 5px -2px rgba(0, 0, 0, 0.15) !important;
+}
+
+/* hover / 選取行時維持背景不透明 */
+.dms_pricelist_tree tbody tr:hover td.o_sticky_col {
+    background-color: #f5f5f5 !important;
+}
+.dms_pricelist_tree tbody tr.o_selected_row td.o_sticky_col {
+    background-color: #e8f0fe !important;
+}

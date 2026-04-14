@@ -82,3 +82,43 @@
 .dms_pricelist_tree tbody tr.o_selected_row td.o_sticky_col {
     background-color: #e8f0fe !important;
 }
+
+/* ── 欄位寬度最佳化 ──────────────────────────────────────────
+ * table-layout:fixed 模式下，th[data-name] 設定寬度即為該欄實際寬度；
+ * 未設定者（機種、品牌、型式、型號、車色、贈品...）均分剩餘空間。
+ * 機種額外給予較大比例，確保品名可讀。
+ * ─────────────────────────────────────────────────────────── */
+
+/* 年份：4 碼數字 */
+.dms_pricelist_tree thead th[data-name="production_year"]       { width: 56px; }
+
+/* 能源型式：電車／油車 */
+.dms_pricelist_tree thead th[data-name="energy_type"]           { width: 72px; }
+
+/* 金額欄：建議售價、現金直扣、現金價 */
+.dms_pricelist_tree thead th[data-name="suggested_price"]       { width: 82px; }
+.dms_pricelist_tree thead th[data-name="cash_discount"]         { width: 76px; }
+.dms_pricelist_tree thead th[data-name="cash_price"]            { width: 76px; }
+
+/* 分期欄：標題只有「12 期」等短文字 */
+.dms_pricelist_tree thead th[data-name="installment_12_price"],
+.dms_pricelist_tree thead th[data-name="installment_18_price"],
+.dms_pricelist_tree thead th[data-name="installment_24_price"],
+.dms_pricelist_tree thead th[data-name="installment_36_price"],
+.dms_pricelist_tree thead th[data-name="installment_48_price"],
+.dms_pricelist_tree thead th[data-name="installment_60_price"] { width: 54px; }
+
+/* 啟用：切換鈕 */
+.dms_pricelist_tree thead th[data-name="active"]                { width: 50px; }
+
+/* 機種欄：明確給予較大比例，其餘不設寬度的文字欄均分剩餘空間 */
+.dms_pricelist_tree thead th[data-name="name"]                  { width: 13%; }
+
+/* 機種與車色：文字超過欄寬時換行，不截斷 */
+.dms_pricelist_tree thead th[data-name="name"],
+.dms_pricelist_tree td[name="name"],
+.dms_pricelist_tree thead th[data-name="color"],
+.dms_pricelist_tree td[name="color"] {
+    white-space: normal !important;
+    text-overflow: clip !important;
+}

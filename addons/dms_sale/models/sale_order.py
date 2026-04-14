@@ -124,7 +124,7 @@ class SaleOrder(models.Model):
 
     # ── 舊車資訊 ──────────────────────────────────────────
     used_car_owner = fields.Char(string='舊車車主')
-    used_car_owner_id_no = fields.Char(string='舊車車主身分證')
+    used_car_owner_id_no = fields.Char(string='舊車車主身分證字號')
     used_car_owner_phone = fields.Char(string='舊車車主電話')
     used_car_owner_address = fields.Char(string='舊車戶籍')
     used_car_plate = fields.Char(string='舊車牌照號碼')

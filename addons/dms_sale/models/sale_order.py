@@ -27,7 +27,12 @@ class SaleOrder(models.Model):
     customer_name = fields.Char(string='客戶姓名', required=True)
     customer_phone = fields.Char(string='聯絡電話')
     id_number = fields.Char(string='身分證字號')
-    birthday_roc = fields.Char(string='民國生日')
+    birthday_roc = fields.Date(string='民國生日')
+    birthday_ad = fields.Char(
+        string='西元生日',
+        compute='_compute_birthday_ad',
+        store=False,
+    )
     address_registered = fields.Text(string='戶籍地址')
 
     # ── 車輛資訊 ──────────────────────────────────────────
@@ -94,6 +99,18 @@ class SaleOrder(models.Model):
     note = fields.Text(string='備註')
 
     # ── 計算欄位 ──────────────────────────────────────────
+    @api.depends('birthday_roc')
+    def _compute_birthday_ad(self):
+        for rec in self:
+            if rec.birthday_roc:
+                rec.birthday_ad = (
+                    f"{rec.birthday_roc.year}年"
+                    f"{rec.birthday_roc.month:02d}月"
+                    f"{rec.birthday_roc.day:02d}日"
+                )
+            else:
+                rec.birthday_ad = False
+
     @api.depends(
         'fee_vehicle_registration', 'fee_inspection', 'fee_plate',
         'fee_stamp', 'fee_insurance', 'fee_guild_cert',
@@ -129,7 +146,7 @@ class SaleOrder(models.Model):
             self.customer_name = p.name
             self.customer_phone = p.phone or p.mobile or ''
             self.id_number = getattr(p, 'id_number', '') or ''
-            self.birthday_roc = getattr(p, 'dms_birthday_roc', '') or ''
+            self.birthday_roc = getattr(p, 'dms_birthday', False) or False
             self.address_registered = getattr(p, 'address_registered', '') or ''
 
     @api.onchange('product_id')

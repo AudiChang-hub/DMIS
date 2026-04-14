@@ -156,7 +156,6 @@ class DmsSaleOrderExt(models.Model):
                 for line in drule.incentive_line_ids:
                     existing = self.env['dms.incentive.delivery'].search([
                         ('sale_order_id', '=', self.id),
-                        ('incentive_type_id', '=', line.incentive_type_id.id),
                         ('dealer_rule_line_id', '=', line.id),
                     ])
                     if not existing:

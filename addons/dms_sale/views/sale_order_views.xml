@@ -112,6 +112,10 @@
                          attrs="{'invisible': [('payment_method', '!=', 'installment')]}"/>
                   <field name="installment_monthly"
                          attrs="{'invisible': [('payment_method', '!=', 'installment')]}"/>
+                  <field name="installment_setup_fee"
+                         attrs="{'invisible': [('payment_method', '!=', 'installment')]}"/>
+                  <field name="installment_open_fee"
+                         attrs="{'invisible': [('payment_method', '!=', 'installment')]}"/>
                 </group>
               </group>
 

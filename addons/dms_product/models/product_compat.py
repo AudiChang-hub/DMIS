@@ -694,6 +694,15 @@ class DmsProductCompat(models.Model):
         # 儲存後清空 price_change_note：欄位為 store=False，web_read 自動回傳空值
         # 不需要 SQL clear
 
+        # 若使用者直接修改品牌，同步更新關聯的模板（避免被 _prepare_template_sync_vals 覆蓋回去）
+        if 'brand_id' in vals:
+            new_brand_id = vals['brand_id']
+            for rec in self:
+                if rec.template_id and rec.template_id.brand_id.id != new_brand_id:
+                    rec.template_id.with_context(skip_product_compat_sync=True).write(
+                        {'brand_id': new_brand_id}
+                    )
+
         tracked_fields = {
             'template_id', 'brand_id', 'name', 'model', 'year', 'energy_type',
             'production_year', 'internal_code', 'color', 'color_code', 'active',

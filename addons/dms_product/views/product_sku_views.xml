@@ -38,7 +38,7 @@
               <field name="active"/>
             </group>
             <group string="模板快照">
-              <field name="brand_id" readonly="1"/>
+              <field name="brand_id"/>
               <field name="name"/>
               <field name="model"/>
               <field name="energy_type" readonly="1"/>

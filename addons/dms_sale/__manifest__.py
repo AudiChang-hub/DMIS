@@ -10,6 +10,7 @@
         'security/ir.model.access.csv',
         'data/sequence.xml',
         'data/system_parameters.xml',
+        'data/scheduled_action.xml',
         'views/product_views.xml',
         'views/product_kanban_config_views.xml',
         'views/accessory_views.xml',
@@ -20,6 +21,7 @@
         'views/ev_password_wizard_views.xml',
         'views/vehicle_color_views.xml',
         'views/product_pricelist_menu.xml',
+        'views/order_sync_log_views.xml',
     ],
     'assets': {
         'web.assets_backend': [

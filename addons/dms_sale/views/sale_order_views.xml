@@ -51,6 +51,12 @@
             <i class="fa fa-exclamation-triangle mr4"/>
             此訂單由 <strong>OrderProcessor</strong> 自動匯入，請核對所有欄位後再確認成立。
           </div>
+          <!-- Excel 匯入警示橫幅 -->
+          <div class="alert alert-info mb8"
+               attrs="{'invisible': [('excel_sync_id', '=', False)]}">
+            <i class="fa fa-file-excel-o mr4"/>
+            此訂單由 <strong>Excel 匯入</strong>，來源序號：<field name="excel_sync_id" readonly="1" class="oe_inline"/>
+          </div>
           <div class="oe_title">
             <h1><field name="name" readonly="1"/></h1>
           </div>
@@ -93,6 +99,8 @@
               <group string="車輛資訊">
                 <group>
                   <field name="product_id" required="1"/>
+                  <field name="source_product_name" readonly="1"
+                         attrs="{'invisible': [('source_product_name', '=', False)]}"/>
                   <field name="color_id"
                          attrs="{'invisible': [('product_id', '=', False)]}"
                          options="{'no_create': True}"/>
@@ -102,6 +110,8 @@
                 <group>
                   <field name="plate_number"/>
                   <field name="registration_date"/>
+                  <field name="source_dealer_name" readonly="1"
+                         attrs="{'invisible': [('source_dealer_name', '=', False)]}"/>
                 </group>
               </group>
 
@@ -200,10 +210,16 @@
                 <group string="補助來源">
                   <field name="subsidy_moea"    string="工業局"/>
                   <field name="subsidy_moea_date" string="工業局申請日"/>
+                  <field name="subsidy_boie_status" string="工業局申請狀態"
+                         attrs="{'invisible': [('subsidy_boie_status', '=', False)]}"/>
                   <field name="subsidy_moenv"   string="環境部"/>
                   <field name="subsidy_moenv_date" string="環境部申請日"/>
+                  <field name="subsidy_moenv_status" string="環境部申請狀態"
+                         attrs="{'invisible': [('subsidy_moenv_status', '=', False)]}"/>
                   <field name="subsidy_local"   string="縣市政府"/>
                   <field name="subsidy_local_date" string="縣市政府申請日"/>
+                  <field name="subsidy_city_status" string="縣市政府申請狀態"
+                         attrs="{'invisible': [('subsidy_city_status', '=', False)]}"/>
                 </group>
               </group>
 

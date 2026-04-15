@@ -222,11 +222,11 @@ class ExcelImportWizard(models.TransientModel):
         vals['birthday_ad'] = _to_date(_cell(row, COL['birthday_ad']))
         vals['address_registered'] = _to_str(_cell(row, COL['address_registered']))
 
-        # ── 車款（SKU 查找）
+        # ── 車款（SKU 查找，以 model 欄位比對）
         sku = _to_str(_cell(row, COL['product_sku']))
         if sku:
             product = self.env['dms.product'].search(
-                [('default_code', '=', sku)], limit=1)
+                [('model', '=', sku)], limit=1)
             if product:
                 vals['product_id'] = product.id
                 # 顏色

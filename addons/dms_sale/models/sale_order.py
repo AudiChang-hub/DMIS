@@ -42,6 +42,10 @@ class SaleOrder(models.Model):
         groups='base.group_no_one')
     source_product_name = fields.Char(
         string='原始車款字串', copy=False)
+    source_dealer_name = fields.Char(
+        string='原始車行名稱', copy=False)
+    excel_sync_id = fields.Char(
+        string='來源序號', copy=False, index=True)
 
     # ── 車輛資訊 ──────────────────────────────────────────
     product_id = fields.Many2one(
@@ -118,6 +122,9 @@ class SaleOrder(models.Model):
     note = fields.Text(string='備註')
 
     # ── 補助申辦 ──────────────────────────────────────────
+    subsidy_boie_status = fields.Char(string='工業局申請狀態')
+    subsidy_moenv_status = fields.Char(string='環境部申請狀態')
+    subsidy_city_status = fields.Char(string='縣市政府申請狀態')
     moea_invoice_no = fields.Char(string='工業局發票號碼')
     moea_invoice_date = fields.Date(string='發票日期')
     balance_invoice_no = fields.Char(string='尾款發票號碼')

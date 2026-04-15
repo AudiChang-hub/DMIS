@@ -86,7 +86,6 @@ env['dms.order.sync'].mark_all_existing_ignored()
 
   <!-- ===== 選單 ===== -->
   <menuitem id="menu_order_sync_log" name="同步紀錄" parent="dms_sale.menu_dms_sale_root"
-            action="action_order_sync_log" sequence="50"
-            groups="base.group_system"/>
+            action="action_order_sync_log" sequence="50"/>
 
 </odoo>

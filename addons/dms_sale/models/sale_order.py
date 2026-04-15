@@ -33,9 +33,19 @@ class SaleOrder(models.Model):
     )
     address_registered = fields.Text(string='戶籍地址')
 
+    # ── 訂單來源 ──────────────────────────────────────────
+    sale_origin = fields.Selection(
+        [('manual', '手動建立'), ('order_processor', 'OrderProcessor 匯入')],
+        string='訂單來源', default='manual', copy=False)
+    source_folder = fields.Char(
+        string='來源資料夾', copy=False,
+        groups='base.group_no_one')
+    source_product_name = fields.Char(
+        string='原始車款字串', copy=False)
+
     # ── 車輛資訊 ──────────────────────────────────────────
     product_id = fields.Many2one(
-        'dms.product', string='車款', required=True, ondelete='restrict')
+        'dms.product', string='車款', ondelete='restrict')
     product_energy_type = fields.Selection(
         related='product_id.energy_type',
         string='能源型式', readonly=True, store=False)
@@ -154,6 +164,9 @@ class SaleOrder(models.Model):
     ev_battery_password = fields.Char(string='電池合約密碼')
     show_ev_passwords = fields.Boolean(
         string='電車密碼已解鎖', default=False, copy=False)
+
+    # ── 汰舊換新 ──────────────────────────────────────────
+    is_trade_in = fields.Boolean(string='有汰舊', default=False)
 
     # ── 收益統計：支出 ───────────────────────────────────
     out_credit_card_fee = fields.Float(string='信用卡手續費支出', digits=(12, 0), default=0)

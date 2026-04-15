@@ -10,3 +10,5 @@ from . import commission_rule
 from . import sale_order
 from . import sale_order_line
 from . import vehicle_color
+from . import order_sync_log
+from . import order_sync

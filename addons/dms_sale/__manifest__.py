@@ -22,6 +22,7 @@
         'views/vehicle_color_views.xml',
         'views/product_pricelist_menu.xml',
         'views/order_sync_log_views.xml',
+        'views/excel_import_wizard_views.xml',
     ],
     'assets': {
         'web.assets_backend': [

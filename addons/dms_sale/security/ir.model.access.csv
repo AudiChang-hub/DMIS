@@ -13,3 +13,4 @@ access_dms_commission_rule_all,dms.commission.rule all,model_dms_commission_rule
 access_dms_ev_password_wizard,dms.ev.password.wizard all,model_dms_ev_password_wizard,,1,1,1,1
 access_dms_sync_log_all,dms.sync.log all,model_dms_sync_log,,1,1,1,1
 access_dms_order_sync_all,dms.order.sync all,model_dms_order_sync,,1,1,1,1
+access_dms_excel_import_wizard,dms.excel.import.wizard all,model_dms_excel_import_wizard,,1,1,1,1

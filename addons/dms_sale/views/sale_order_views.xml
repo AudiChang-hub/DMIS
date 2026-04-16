@@ -455,7 +455,8 @@
                 domain="[('sale_origin','=','excel')]"/>
         <group expand="0" string="分組">
           <filter name="groupby_type"    string="交易類型" context="{'group_by': 'sale_type'}"/>
-          <filter name="groupby_product" string="車款"     context="{'group_by': 'product_id'}"/>
+          <filter name="group_product"   string="車款"     context="{'group_by': 'display_product_name'}"/>
+          <filter name="groupby_brand"   string="品牌"     context="{'group_by': 'product_brand_id'}"/>
           <filter name="groupby_dealer"  string="車行"     context="{'group_by': 'dealer_id'}"/>
           <filter name="groupby_month"   string="月份"     context="{'group_by': 'order_date:month'}"/>
           <filter name="groupby_settled" string="結清狀態" context="{'group_by': 'is_settled'}"/>
@@ -533,7 +534,7 @@
     </field>
   </record>
 
-  <!-- Graph 視圖 -->
+  <!-- Graph 視圖（月份×付款方式） -->
   <record id="view_sale_order_graph" model="ir.ui.view">
     <field name="name">dms.sale.order.graph</field>
     <field name="model">dms.sale.order</field>
@@ -541,6 +542,19 @@
       <graph string="銷售統計" type="bar" stacked="True">
         <field name="order_date" interval="month" type="row"/>
         <field name="payment_method" type="col"/>
+        <field name="received_amount" type="measure"/>
+      </graph>
+    </field>
+  </record>
+
+  <!-- Graph 視圖（車款銷售分析：車款×品牌） -->
+  <record id="view_sale_order_graph_product" model="ir.ui.view">
+    <field name="name">dms.sale.order.graph.product</field>
+    <field name="model">dms.sale.order</field>
+    <field name="arch" type="xml">
+      <graph string="車款銷售分析" type="bar" stacked="False">
+        <field name="display_product_name" type="row"/>
+        <field name="product_brand_id" type="col"/>
         <field name="received_amount" type="measure"/>
       </graph>
     </field>
@@ -554,9 +568,27 @@
     <field name="context">{'form_view_initial_mode': 'edit'}</field>
   </record>
 
+  <!-- 車款銷售分析動作（預設 graph 視圖，僅綁定車款分析版） -->
+  <record id="action_sale_product_analysis" model="ir.actions.act_window">
+    <field name="name">車款銷售分析</field>
+    <field name="res_model">dms.sale.order</field>
+    <field name="view_mode">graph,pivot,tree</field>
+    <field name="context">{
+      'search_default_group_product': 1
+    }</field>
+  </record>
+  <record id="action_sale_product_analysis_graph_view" model="ir.actions.act_window.view">
+    <field name="act_window_id" ref="action_sale_product_analysis"/>
+    <field name="view_mode">graph</field>
+    <field name="view_id" ref="view_sale_order_graph_product"/>
+    <field name="sequence">1</field>
+  </record>
+
   <!-- ===== 選單 ===== -->
   <menuitem id="menu_dms_sale_root" name="銷售管理" active="0"/>
   <menuitem id="menu_sale_order" name="銷售訂單" parent="menu_dms_sale_root"
             action="action_sale_order" sequence="10"/>
+  <menuitem id="menu_sale_product_analysis" name="車款銷售分析" parent="menu_dms_sale_root"
+            action="action_sale_product_analysis" sequence="20"/>
 
 </odoo>

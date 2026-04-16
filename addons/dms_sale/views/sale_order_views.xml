@@ -83,8 +83,6 @@
               <group string="客戶資訊">
                 <group>
                   <field name="customer_name"/>
-                  <field name="source_product_name" readonly="1"
-                         attrs="{'invisible': [('sale_origin', '!=', 'order_processor')]}"/>
                   <field name="customer_phone"/>
                   <field name="customer_email"/>
                   <field name="id_number"/>
@@ -104,6 +102,8 @@
                   <field name="color_id"
                          attrs="{'invisible': [('product_id', '=', False)]}"
                          options="{'no_create': True}"/>
+                  <field name="display_color_name" readonly="1"
+                         attrs="{'invisible': ['|', ('display_color_name', '=', False), ('color_id', '!=', False)]}"/>
                   <field name="engine_number"/>
                   <field name="frame_number"/>
                 </group>
@@ -451,6 +451,8 @@
         <separator/>
         <filter name="filter_op_import" string="OrderProcessor 匯入"
                 domain="[('sale_origin','=','order_processor')]"/>
+        <filter name="filter_excel_import" string="Excel 匯入"
+                domain="[('sale_origin','=','excel')]"/>
         <group expand="0" string="分組">
           <filter name="groupby_type"    string="交易類型" context="{'group_by': 'sale_type'}"/>
           <filter name="groupby_product" string="車款"     context="{'group_by': 'product_id'}"/>

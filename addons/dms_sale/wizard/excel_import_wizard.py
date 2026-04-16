@@ -205,7 +205,7 @@ class ExcelImportWizard(models.TransientModel):
         if not sync_id:
             return None  # 無序號 → 跳過
         vals['excel_sync_id'] = sync_id
-        vals['sale_origin'] = 'manual'  # 以 manual 標示，避免與OrderProcessor混淆
+        vals['sale_origin'] = 'excel'
 
         # ── 訂單日期
         order_date = _to_date(_cell(row, COL['order_date']))
@@ -229,9 +229,10 @@ class ExcelImportWizard(models.TransientModel):
                 [('model', '=', sku)], limit=1)
             if product:
                 vals['product_id'] = product.id
-                # 顏色
+                # 顏色：永遠寫 source_color_name，有找到再連結 color_id
                 color_name = _to_str(_cell(row, COL['color_name']))
                 if color_name:
+                    vals['source_color_name'] = color_name
                     color = self.env['dms.product.color'].search(
                         [('product_id', '=', product.id),
                          ('name', '=', color_name)], limit=1)
@@ -246,6 +247,10 @@ class ExcelImportWizard(models.TransientModel):
                         vals['engine_number'] = vin
             else:
                 vals['source_product_name'] = sku
+                # 車款找不到時，顏色仍備存原始字串
+                color_name = _to_str(_cell(row, COL['color_name']))
+                if color_name:
+                    vals['source_color_name'] = color_name
                 errors.append(f"序號 {sync_id}：SKU「{sku}」找不到對應車款，車款留空")
         else:
             # 無SKU但有引擎/車身號碼

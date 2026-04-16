@@ -281,16 +281,17 @@ class ExcelImportWizard(models.TransientModel):
         periods = int(_to_float(_cell(row, COL['installment_periods'])))
         credit = _to_float(_cell(row, COL['credit_card']))
         cash = _to_float(_cell(row, COL['cash']))
-        if periods > 0:
+        fin_co = _to_str(_cell(row, COL['finance_company']))
+        credit_card_fee = _to_float(_cell(row, COL['out_credit_card_fee']))
+        if periods > 0 or fin_co:
             vals['payment_method'] = 'installment'
-        elif credit > 0:
+        elif credit > 0 or credit_card_fee > 0:
             vals['payment_method'] = 'credit'
-        elif cash > 0:
+        else:
             vals['payment_method'] = 'cash'
         vals['installment_periods'] = periods
 
         # 分期公司
-        fin_co = _to_str(_cell(row, COL['finance_company']))
         if fin_co:
             known = {'和潤', '遠信', '仲信'}
             if fin_co in known:

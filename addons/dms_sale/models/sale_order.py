@@ -53,6 +53,9 @@ class SaleOrder(models.Model):
     # ── 車輛資訊 ──────────────────────────────────────────
     product_id = fields.Many2one(
         'dms.product', string='車款', ondelete='restrict')
+    product_brand_id = fields.Many2one(
+        'dms.brand', string='品牌',
+        related='product_id.brand_id', store=True, readonly=True)
     product_energy_type = fields.Selection(
         related='product_id.energy_type',
         string='能源型式', readonly=True, store=False)

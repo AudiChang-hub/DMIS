@@ -32,3 +32,11 @@ reload: clear-assets
 	@echo "Odoo restarted. Waiting 35s..."
 	sleep 35
 	./scripts/smoke_odoo.sh
+
+# Metabase（銷售分析 BI）
+metabase-up:
+	docker compose --profile metabase up -d metabase
+	@echo "Metabase starting at http://localhost:$${METABASE_PORT:-3000}"
+
+metabase-logs:
+	docker compose --profile metabase logs -f metabase

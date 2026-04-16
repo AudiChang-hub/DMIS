@@ -60,6 +60,12 @@
                 <field name="dealer"/>
                 <field name="model"/>
                 <field name="license_plate"/>
+                <!-- 日期區間 -->
+                <filter name="filter_license_date" string="領牌日期"
+                        date="license_date"/>
+                <filter name="filter_order_date" string="訂單日期"
+                        date="order_date"/>
+                <separator/>
                 <!-- 預設篩選器 -->
                 <filter name="filter_confirmed" string="已成立"
                         domain="[('state', '=', 'confirmed')]"/>

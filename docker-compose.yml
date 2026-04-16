@@ -37,6 +37,21 @@ services:
     depends_on:
       - odoo
 
+  metabase:
+    image: metabase/metabase:latest
+    ports:
+      - "${METABASE_PORT:-3000}:3000"
+    environment:
+      MB_JETTY_PORT: 3000
+    depends_on:
+      - db
+    volumes:
+      - metabase_data:/metabase.db
+    restart: always
+    profiles:
+      - metabase
+
 volumes:
   db_data:
   odoo_data:
+  metabase_data:

@@ -515,10 +515,42 @@
   </record>
 
   <!-- ===== 動作 ===== -->
+
+  <!-- Pivot 視圖 -->
+  <record id="view_sale_order_pivot" model="ir.ui.view">
+    <field name="name">dms.sale.order.pivot</field>
+    <field name="model">dms.sale.order</field>
+    <field name="arch" type="xml">
+      <pivot string="銷售分析" disable_linking="False">
+        <field name="product_brand_id" type="row"/>
+        <field name="product_id" type="row"/>
+        <field name="order_date" interval="month" type="col"/>
+        <field name="received_amount" type="measure"/>
+        <field name="cost" type="measure"/>
+        <field name="net_profit" type="measure"/>
+        <field name="amount_total" type="measure"/>
+      </pivot>
+    </field>
+  </record>
+
+  <!-- Graph 視圖 -->
+  <record id="view_sale_order_graph" model="ir.ui.view">
+    <field name="name">dms.sale.order.graph</field>
+    <field name="model">dms.sale.order</field>
+    <field name="arch" type="xml">
+      <graph string="銷售統計" type="bar" stacked="True">
+        <field name="order_date" interval="month" type="row"/>
+        <field name="payment_method" type="col"/>
+        <field name="received_amount" type="measure"/>
+      </graph>
+    </field>
+  </record>
+
+  <!-- ===== 動作 ===== -->
   <record id="action_sale_order" model="ir.actions.act_window">
     <field name="name">銷售訂單</field>
     <field name="res_model">dms.sale.order</field>
-    <field name="view_mode">kanban,tree,form</field>
+    <field name="view_mode">kanban,tree,form,pivot,graph</field>
     <field name="context">{'form_view_initial_mode': 'edit'}</field>
   </record>
 

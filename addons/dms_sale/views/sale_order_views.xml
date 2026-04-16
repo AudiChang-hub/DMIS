@@ -588,7 +588,7 @@
   <menuitem id="menu_dms_sale_root" name="銷售管理" active="0"/>
   <menuitem id="menu_sale_order" name="銷售訂單" parent="menu_dms_sale_root"
             action="action_sale_order" sequence="10"/>
-  <menuitem id="menu_sale_product_analysis" name="車款銷售分析" parent="menu_dms_sale_root"
-            action="action_sale_product_analysis" sequence="20"/>
+  <menuitem id="menu_sale_product_analysis" name="車款銷售分析" parent="dms_product.menu_dms_product_root"
+            action="action_sale_product_analysis" sequence="40"/>
 
 </odoo>

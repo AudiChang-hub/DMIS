@@ -252,4 +252,31 @@
         <field name="sequence">280</field>
     </record>
 
+    <!-- 舊報表模組選單也移入原始數據查詢 -->
+    <record id="dms_report.menu_report_sales" model="ir.ui.menu">
+        <field name="parent_id" ref="menu_mb_raw_parent"/>
+        <field name="name">銷售報表</field>
+        <field name="sequence">310</field>
+    </record>
+    <record id="dms_report.menu_report_profit" model="ir.ui.menu">
+        <field name="parent_id" ref="menu_mb_raw_parent"/>
+        <field name="name">利潤報表</field>
+        <field name="sequence">320</field>
+    </record>
+    <record id="dms_report.menu_report_commission" model="ir.ui.menu">
+        <field name="parent_id" ref="menu_mb_raw_parent"/>
+        <field name="name">傭金報表</field>
+        <field name="sequence">330</field>
+    </record>
+    <record id="dms_report_rule.menu_report_rule" model="ir.ui.menu">
+        <field name="parent_id" ref="menu_mb_raw_parent"/>
+        <field name="name">報表規則</field>
+        <field name="sequence">340</field>
+    </record>
+    <record id="dms_report_virtual.menu_report_virtual_field" model="ir.ui.menu">
+        <field name="parent_id" ref="menu_mb_raw_parent"/>
+        <field name="name">虛擬欄位</field>
+        <field name="sequence">350</field>
+    </record>
+
 </odoo>

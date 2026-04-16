@@ -51,6 +51,15 @@ services:
     profiles:
       - metabase
 
+  cloudflared-metabase:
+    image: cloudflare/cloudflared:latest
+    command: tunnel --url http://metabase:3000
+    depends_on:
+      - metabase
+    restart: always
+    profiles:
+      - metabase
+
 volumes:
   db_data:
   odoo_data:

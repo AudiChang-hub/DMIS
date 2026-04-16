@@ -14,3 +14,5 @@ logs/*.log
 logs/*.log.*
 temp_*.py
 *.pdf
+output.txt
+*.xlsx

@@ -20,8 +20,16 @@
     ],
     'data': [
         'security/ir.model.access.csv',
+        'data/metabase_config.xml',
         'views/ds_report_views.xml',
+        'views/metabase_actions.xml',
     ],
+    'assets': {
+        'web.assets_backend': [
+            'dms_report_ds/static/src/js/metabase_dashboard.js',
+            'dms_report_ds/static/src/xml/metabase_dashboard.xml',
+        ],
+    },
     'installable': True,
     'application': False,
     'auto_install': False,

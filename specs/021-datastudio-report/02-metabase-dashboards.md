@@ -88,8 +88,70 @@
 
 ---
 
-## 五、後續工作
+## 五、Odoo 嵌入（iframe）
 
-- [ ] 從 Odoo 嵌入 Metabase Dashboard（iframe 或 widget）
+已透過 OWL Component 將 22 個 Metabase Dashboard 嵌入 Odoo 選單中。
+
+### 架構
+
+| 檔案 | 說明 |
+|------|------|
+| `controllers/main.py` | JSON RPC `/dms_report_ds/metabase_config`，回傳 Metabase base URL |
+| `static/src/js/metabase_dashboard.js` | OWL Component，讀取 `dashboard_uuid` 參數載入 iframe |
+| `static/src/xml/metabase_dashboard.xml` | OWL Template，全高 iframe + loading/error 狀態 |
+| `data/metabase_config.xml` | `ir.config_parameter` key=`dms_report_ds.metabase_url`（空值=自動偵測同主機:3000） |
+| `views/metabase_actions.xml` | 22 個 `ir.actions.client` + 選單重新組織 |
+
+### 選單結構（銷售分析）
+
+```
+銷售分析
+├── 總車輛銷售（P1）          ← Metabase iframe
+├── 銷售機種統計（P2）
+├── 電動車
+│   ├── 銷售統計（P3）
+│   ├── 網路平台（P5）
+│   ├── 車行（P6）
+│   ├── 佣金明細（P7）
+│   └── 台數統計（P8）
+├── 油車
+│   ├── 銷售統計（P9）
+│   ├── 網路平台（P10）
+│   ├── 車行（P11）
+│   ├── 佣金明細（P12）
+│   └── 台數統計（P13）
+├── 地區分析
+│   ├── 地區×銷量（P14）
+│   └── 區域×車型（P15）
+├── 客群分析
+│   ├── 性別×年齡（P16）
+│   ├── 車型×性別（P17）
+│   ├── 車型×顏色（P18）
+│   ├── 性別×車型顏色（P19）
+│   └── 客群×車型分析（P22）
+├── 基隆公益青年
+│   ├── 總覽（P4）
+│   └── 統計表（P21）
+├── 通路銷售統計（P20）
+├── 銷售報表（原 Odoo）
+├── 利潤報表（原 Odoo）
+├── 傭金報表（原 Odoo）
+├── 報表規則（原 Odoo）
+├── 虛擬欄位（原 Odoo）
+└── 原始數據查詢
+    ├── 電動車/油車/車行/網路平台
+    ├── 客群/地區/通路/佣金
+    └── （Odoo Pivot/Graph/Tree 視圖）
+```
+
+### 設定方式
+
+Metabase URL 預設為空（自動偵測 `window.location.hostname:3000`）。若部署環境不同，可在「設定 > 技術 > 系統參數」設定 `dms_report_ds.metabase_url`，例如 `http://metabase.example.com:3000`。
+
+---
+
+## 六、後續工作
+
+- [x] 從 Odoo 嵌入 Metabase Dashboard（iframe OWL Component）
 - [ ] motor_type 正規式調整（目前大量資料分類為「其他」）
 - [ ] Dashboard filter 連動（領牌日期範圍、銷售來源下拉）

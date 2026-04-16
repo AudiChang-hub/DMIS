@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo noupdate="1">
+    <!-- Metabase Base URL（空值時 JS 自動使用 同主機:3000） -->
+    <record id="metabase_url_param" model="ir.config_parameter">
+        <field name="key">dms_report_ds.metabase_url</field>
+        <field name="value"></field>
+    </record>
+</odoo>

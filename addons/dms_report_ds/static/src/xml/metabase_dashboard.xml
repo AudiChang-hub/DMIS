@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+
+    <t t-name="dms_report_ds.MetabaseDashboard" owl="1">
+        <div class="o_action o_metabase_dashboard"
+             style="height: calc(100vh - 46px); width: 100%; overflow: hidden;">
+            <t t-if="state.loading">
+                <div class="d-flex justify-content-center align-items-center h-100">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">載入中…</span>
+                    </div>
+                </div>
+            </t>
+            <t t-elif="!state.url">
+                <div class="d-flex justify-content-center align-items-center h-100 text-muted">
+                    <span>Dashboard 設定錯誤：缺少 dashboard_uuid</span>
+                </div>
+            </t>
+            <t t-else="">
+                <iframe t-att-src="state.url"
+                        style="width: 100%; height: 100%; border: none;"
+                        allowfullscreen="true"
+                        frameborder="0"/>
+            </t>
+        </div>
+    </t>
+
+</templates>

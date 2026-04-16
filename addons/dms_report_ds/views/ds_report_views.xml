@@ -1,0 +1,128 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- ── Tree View ── -->
+    <record id="ds_sales_report_tree" model="ir.ui.view">
+        <field name="name">ds.sales.report.tree</field>
+        <field name="model">ds.sales.report</field>
+        <field name="arch" type="xml">
+            <tree string="銷售分析" create="false" edit="false" delete="false">
+                <field name="license_date"/>
+                <field name="dealer"/>
+                <field name="model"/>
+                <field name="car_color"/>
+                <field name="energy_type"/>
+                <field name="motor_type"/>
+                <field name="owner_name"/>
+                <field name="license_plate"/>
+                <field name="receipt_price" sum="收款合計"/>
+                <field name="basic_bonus" sum="獎勵金合計"/>
+                <field name="net_profit" sum="淨利合計"/>
+            </tree>
+        </field>
+    </record>
+
+    <!-- ── Pivot View ── -->
+    <record id="ds_sales_report_pivot" model="ir.ui.view">
+        <field name="name">ds.sales.report.pivot</field>
+        <field name="model">ds.sales.report</field>
+        <field name="arch" type="xml">
+            <pivot string="銷售分析 Pivot">
+                <field name="license_ym" type="row"/>
+                <field name="sales_source" type="col"/>
+            </pivot>
+        </field>
+    </record>
+
+    <!-- ── Graph View ── -->
+    <record id="ds_sales_report_graph" model="ir.ui.view">
+        <field name="name">ds.sales.report.graph</field>
+        <field name="model">ds.sales.report</field>
+        <field name="arch" type="xml">
+            <graph string="銷售分析圖表" type="bar" stacked="True">
+                <field name="license_ym"/>
+                <field name="sales_source" type="col"/>
+            </graph>
+        </field>
+    </record>
+
+    <!-- ── Search View ── -->
+    <record id="ds_sales_report_search" model="ir.ui.view">
+        <field name="name">ds.sales.report.search</field>
+        <field name="model">ds.sales.report</field>
+        <field name="arch" type="xml">
+            <search string="銷售分析">
+                <field name="owner_name"/>
+                <field name="dealer"/>
+                <field name="model"/>
+                <field name="license_plate"/>
+                <!-- 預設篩選器 -->
+                <filter name="filter_confirmed" string="已成立"
+                        domain="[('state', '=', 'confirmed')]"/>
+                <separator/>
+                <filter name="filter_electric" string="電動車"
+                        domain="[('energy_type', '=', '電車')]"/>
+                <filter name="filter_oil" string="油車"
+                        domain="[('energy_type', '=', '油車')]"/>
+                <separator/>
+                <filter name="filter_platform" string="網路平台"
+                        domain="[('sales_source', '=', '網路平台')]"/>
+                <filter name="filter_dealer" string="車行"
+                        domain="[('sales_source', '=', '車行')]"/>
+                <filter name="filter_yusheng" string="馭盛"
+                        domain="[('sales_source', '=', '馭盛')]"/>
+                <separator/>
+                <!-- 分組 -->
+                <group expand="0" string="分組">
+                    <filter name="group_license_ym" string="領牌年月"
+                            context="{'group_by': 'license_ym'}"/>
+                    <filter name="group_energy" string="能源型式"
+                            context="{'group_by': 'energy_type'}"/>
+                    <filter name="group_motor" string="車種類型"
+                            context="{'group_by': 'motor_type'}"/>
+                    <filter name="group_sales_source" string="銷售來源"
+                            context="{'group_by': 'sales_source'}"/>
+                    <filter name="group_sales_type" string="銷售類型"
+                            context="{'group_by': 'sales_type'}"/>
+                    <filter name="group_brand_type" string="品牌分類"
+                            context="{'group_by': 'brand_type'}"/>
+                    <filter name="group_dealer" string="車行"
+                            context="{'group_by': 'dealer'}"/>
+                    <filter name="group_sex" string="性別"
+                            context="{'group_by': 'sex'}"/>
+                    <filter name="group_age_group" string="年齡組"
+                            context="{'group_by': 'age_group'}"/>
+                    <filter name="group_region" string="區域"
+                            context="{'group_by': 'region'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <!-- ── Action ── -->
+    <record id="action_ds_sales_report" model="ir.actions.act_window">
+        <field name="name">銷售分析（DataStudio）</field>
+        <field name="res_model">ds.sales.report</field>
+        <field name="view_mode">pivot,graph,tree</field>
+        <field name="search_view_id" ref="ds_sales_report_search"/>
+        <field name="context">{'search_default_filter_confirmed': 1}</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                復刻 DataStudio 銷售統計報表
+            </p>
+            <p>本報表基於 SQL View，包含 17 個 DataStudio 計算欄位。</p>
+        </field>
+    </record>
+
+    <!-- ── Menu ── -->
+    <menuitem id="menu_ds_report_root"
+              name="銷售分析"
+              web_icon="dms_report_ds,static/description/icon.png"
+              sequence="80"/>
+    <menuitem id="menu_ds_report_main"
+              name="DataStudio 報表"
+              parent="menu_ds_report_root"
+              action="action_ds_sales_report"
+              sequence="10"/>
+
+</odoo>

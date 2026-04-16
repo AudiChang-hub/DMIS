@@ -35,7 +35,8 @@ class SaleOrder(models.Model):
 
     # ── 訂單來源 ──────────────────────────────────────────
     sale_origin = fields.Selection(
-        [('manual', '手動建立'), ('order_processor', 'OrderProcessor 匯入')],
+        [('manual', '手動建立'), ('order_processor', 'OrderProcessor 匯入'),
+         ('excel', 'Excel 匯入')],
         string='訂單來源', default='manual', copy=False)
     source_folder = fields.Char(
         string='來源資料夾', copy=False,
@@ -44,6 +45,8 @@ class SaleOrder(models.Model):
         string='原始車款字串', copy=False)
     source_dealer_name = fields.Char(
         string='原始車行名稱', copy=False)
+    source_color_name = fields.Char(
+        string='原始顏色字串', copy=False)
     excel_sync_id = fields.Char(
         string='來源序號', copy=False, index=True)
 
@@ -58,6 +61,14 @@ class SaleOrder(models.Model):
         domain="[('product_id', '=', product_id)]",
         ondelete='restrict')
     engine_number = fields.Char(string='引擎號碼')
+
+    # ── display 欄位（M2O 有值取其名稱，否則取 source_* 備存字串） ──
+    display_color_name = fields.Char(
+        string='顯示顏色', compute='_compute_display_fields', store=True)
+    display_product_name = fields.Char(
+        string='顯示車款', compute='_compute_display_fields', store=True)
+    display_dealer_name = fields.Char(
+        string='顯示車行', compute='_compute_display_fields', store=True)
     frame_number = fields.Char(string='車身號碼')
     plate_number = fields.Char(string='車牌號碼')
     registration_date = fields.Date(string='領牌日期')
@@ -277,7 +288,26 @@ class SaleOrder(models.Model):
             income = sum(getattr(rec, f) or 0 for f in self._PROFIT_INCOME_FIELDS)
             expense = sum(getattr(rec, f) or 0 for f in self._PROFIT_EXPENSE_FIELDS)
             rec.net_profit = income - expense
+    @api.depends('color_id', 'source_color_name')
+    def _compute_display_fields_color(self):
+        for rec in self:
+            rec.display_color_name = rec.color_id.name if rec.color_id else (rec.source_color_name or False)
 
+    @api.depends('product_id', 'source_product_name',
+                 'color_id', 'source_color_name',
+                 'dealer_id', 'source_dealer_name')
+    def _compute_display_fields(self):
+        for rec in self:
+            rec.display_color_name = rec.color_id.name if rec.color_id else (rec.source_color_name or False)
+            rec.display_product_name = rec.product_id.name if rec.product_id else (rec.source_product_name or False)
+            rec.display_dealer_name = rec.dealer_id.name if rec.dealer_id else (rec.source_dealer_name or False)
+
+    # ── SQL 約束 ──────────────────────────────────────────
+    _sql_constraints = [
+        ('excel_sync_id_uniq',
+         'UNIQUE(excel_sync_id)',
+         'Excel 來源序號已存在，不得重複建立'),
+    ]
     # ── 序號 ──────────────────────────────────────────────
     @api.model_create_multi
     def create(self, vals_list):

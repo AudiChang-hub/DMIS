@@ -129,8 +129,17 @@ const observer = new MutationObserver((mutations) => {
     }
 });
 
-observer.observe(document.body, { childList: true, subtree: true });
+function startObserver() {
+    if (document.body) {
+        observer.observe(document.body, { childList: true, subtree: true });
+        scheduleApply();
+    } else {
+        document.addEventListener("DOMContentLoaded", () => {
+            observer.observe(document.body, { childList: true, subtree: true });
+            scheduleApply();
+        });
+    }
+}
 
-/* 初始執行 */
-scheduleApply();
+startObserver();
 

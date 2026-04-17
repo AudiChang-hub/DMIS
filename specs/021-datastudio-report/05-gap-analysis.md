@@ -213,8 +213,35 @@
 - card#57（P10-1）：4 filters = state=confirmed + energy_type=油車 + sales_source=網路平台 + model NOT NULL ✅
 - card#62（P14）：3 filters = state=confirmed + subsidy_plan contains 基隆公益 + model NOT NULL ✅
 
-## 八、後續待辦（留給下一輪迭代）
+## 八、Phase 2b/2c 執行結果（已完成）
 
-1. **重建 10 張 empty-query 表格 cards**：需依 `specs/021-datastudio-report/04-chart-details.md` 對應頁面的欄位清單逐一建立 MBQL 查詢（建議逐張操作 UI 或另寫 `metabase_rebuild_tables.py`）
-2. **P17/P18/P19 的 Model 分類硬篩（FUN/RUN/70B/76B）** 需在 card 名稱與實際 card 內容確認後再由人工或腳本補入
-3. **P22「客群X車型」6 張 card 的 age_group/sex 組合**（落差 D 細項）亦須在 card name 對齊後再自動注入
+### Phase 2b — P17/P18/P19/P22 per-card 硬篩（`scripts/metabase_apply_percard_filters.py --apply`）
+
+- 22 張 P17/P18/P19 cards 依 card name regex 解析 model token（EV062 / EV060L / EV076 / EV070V / EV076S / JEGO / VIVA / EZ1 / BOBE / SHINE），注入 `starts-with(model, <token>)` 至 MBQL v2 `stages[0].filters`
+- 6 張 P22 cards 的 age_group × sex 組合（20-29/30-39/40-49 × 男性/女性）於 Phase 2 時已一同注入，此步 `OK`
+- 最終：`Total=28 updated=22 ok=6 skipped=0`
+- 落差 A/B/C/D 已補齊
+
+### Phase 2c — 10 張 empty-query 明細表重建（`scripts/metabase_rebuild_tables.py --apply`）
+
+依 `04-chart-details.md` 對應頁面欄位序，重建每張 card 的 MBQL v2：`source-table=229`、`fields=[...]`（card#46 為 breakout+count 彙總）、合併既有 dashboard 硬篩條件、`order-by` 依頁面設定。
+
+| Card | 名稱 | 欄位數 | 查詢列數 |
+|------|------|-------|---------|
+| #44 | P1-5 總車輛銷售明細 | 9 | 1582 |
+| #46 | P2-2 銷售機種明細（彙總） | 3 + count | 375 |
+| #50 | P5-2 電動車-網路平台明細 | 11 | 285 |
+| #52 | P6-2 電動車-車行明細 | 10 | 231 |
+| #53 | P7 電動車-佣金明細 | 8 | 231 |
+| #54 | P8 電動車-台數統計 | 7 | 231 |
+| #59 | P11-2 油車-車行明細 | 10 | 156 |
+| #60 | P12 油車-佣金明細 | 8 | 156 |
+| #61 | P13 油車-台數統計 | 7 | 156 |
+| #68 | P4-2 基隆公益青年明細 | 10 | 227 |
+
+**最終驗證**：再次執行 `scripts/metabase_apply_filters.py`（dry-run）得 `Total=57, updated=0, ok=57, skipped=0` — 全部 57 張 card 已通過 Phase 2 硬篩規則；落差 E 已補齊。
+
+## 九、後續待辦
+
+1. 人工核對 Metabase UI：每張重建表格的欄位顯示順序、日期格式、數值千分位、分頁列數（目前依 DataStudio 原設 10 / 20 / 25 / 100，尚未於 Metabase visualization_settings 設定）。
+2. `ds_sales_report.remark` 欄位已加入 SQL view，但 Metabase `Field` metadata 尚未 sync（腳本 `F['remark']=None`），下次執行「同步資料表 schema」後可補入 P6-2 等欄位。

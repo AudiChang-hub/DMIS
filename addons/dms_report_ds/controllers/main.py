@@ -78,6 +78,29 @@ class MetabaseController(http.Controller):
             out_headers = [(k, v) for k, v in out_headers if k.lower() != 'location']
             out_headers.append(('Location', loc))
 
+        # 若是 HTML，強制 <base href="/metabase/"> 讓相對路徑解析正確
+        ctype = resp.headers.get('content-type', '')
+        if 'text/html' in ctype.lower():
+            body = resp.content
+            try:
+                text = body.decode('utf-8', errors='replace')
+                import re as _re
+                # 移除 Metabase 內建的 <base href="/">，改為我們的 /metabase/
+                text = _re.sub(r'<base\s+href="[^"]*"\s*/?>', '', text, flags=_re.IGNORECASE)
+                if '<head>' in text:
+                    text = text.replace('<head>', '<head><base href="/metabase/">', 1)
+                body = text.encode('utf-8')
+            except Exception:
+                pass
+            out_headers = [
+                (k, v) for k, v in out_headers if k.lower() != 'content-length'
+            ]
+            return werkzeug.wrappers.Response(
+                response=body,
+                status=resp.status_code,
+                headers=out_headers,
+            )
+
         return werkzeug.wrappers.Response(
             response=resp.iter_content(chunk_size=8192),
             status=resp.status_code,

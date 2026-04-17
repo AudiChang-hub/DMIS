@@ -23,8 +23,8 @@ export class MetabaseDashboard extends Component {
                 // ignore – use fallback
             }
             if (!baseUrl) {
-                baseUrl =
-                    window.location.protocol + "//" + window.location.hostname + ":3000";
+                // 預設：使用 Odoo 反向代理，避免暴露 Metabase 公開 URL
+                baseUrl = "/metabase";
             }
             this.state.url =
                 baseUrl + "/public/dashboard/" + uuid + "#bordered=false&titled=false";

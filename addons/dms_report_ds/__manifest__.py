@@ -26,6 +26,7 @@
     ],
     'assets': {
         'web.assets_backend': [
+            'dms_report_ds/static/src/css/metabase_dashboard.css',
             'dms_report_ds/static/src/js/metabase_dashboard.js',
             'dms_report_ds/static/src/xml/metabase_dashboard.xml',
         ],

@@ -89,6 +89,9 @@ class DsSalesReport(models.Model):
     volume_bonus = fields.Float(string='台數獎金', readonly=True, digits=(12, 0))
     total_commission = fields.Float(string='合計傭金', readonly=True, digits=(12, 0))
 
+    # ── 備註 ──────────────────────────────────────────────
+    remark = fields.Char(string='備註', readonly=True)
+
     def init(self):
         tools.drop_view_if_exists(self.env.cr, self._table)
         self.env.cr.execute("""
@@ -119,6 +122,7 @@ class DsSalesReport(models.Model):
                     so.subsidy_plan,
                     so.settle_date,
                     so.subsidy_moenv_date,
+                    so.extra_note,
                     COALESCE(so.display_product_name, '')  AS pname,
                     COALESCE(so.display_dealer_name, '')   AS dname,
                     COALESCE(so.display_color_name, '')    AS cname,
@@ -307,7 +311,10 @@ class DsSalesReport(models.Model):
 
                 -- ── 佣金 ──
                 s.cr_volume_bonus                AS volume_bonus,
-                s.cr_total_commission            AS total_commission
+                s.cr_total_commission            AS total_commission,
+
+                -- ── 備註 ──
+                s.extra_note                     AS remark
 
             FROM src s
             )

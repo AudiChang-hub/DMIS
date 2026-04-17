@@ -78,7 +78,7 @@ class MetabaseController(http.Controller):
             out_headers = [(k, v) for k, v in out_headers if k.lower() != 'location']
             out_headers.append(('Location', loc))
 
-        # 若是 HTML，強制 <base href="/metabase/"> 讓相對路徑解析正確
+        # 若是 HTML，強制 <base href="/metabase/"> 並注入字體路徑修正腳本
         ctype = resp.headers.get('content-type', '')
         if 'text/html' in ctype.lower():
             body = resp.content
@@ -87,8 +87,26 @@ class MetabaseController(http.Controller):
                 import re as _re
                 # 移除 Metabase 內建的 <base href="/">，改為我們的 /metabase/
                 text = _re.sub(r'<base\s+href="[^"]*"\s*/?>', '', text, flags=_re.IGNORECASE)
+                # 注入 <base> + insertRule monkey-patch
+                # Metabase JS 透過 Emotion CSS-in-JS insertRule() 動態注入
+                # @font-face 規則，url 為絕對路徑 /app/fonts/...
+                # 我們 monkey-patch insertRule，在規則插入 CSSOM 前改寫路徑
+                inject = (
+                    '<base href="/metabase/">'
+                    '<script>'
+                    '(function(){'
+                    'var orig=CSSStyleSheet.prototype.insertRule;'
+                    'CSSStyleSheet.prototype.insertRule=function(r,i){'
+                    'if(r&&r.indexOf("/app/fonts/")!==-1){'
+                    'r=r.replace(/\\/app\\/fonts\\//g,"/metabase/app/fonts/");'
+                    '}'
+                    'return orig.call(this,r,i);'
+                    '};'
+                    '})();'
+                    '</script>'
+                )
                 if '<head>' in text:
-                    text = text.replace('<head>', '<head><base href="/metabase/">', 1)
+                    text = text.replace('<head>', '<head>' + inject, 1)
                 body = text.encode('utf-8')
             except Exception:
                 pass

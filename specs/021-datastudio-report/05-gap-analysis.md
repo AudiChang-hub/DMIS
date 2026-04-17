@@ -245,3 +245,50 @@
 
 1. 人工核對 Metabase UI：每張重建表格的欄位顯示順序、日期格式、數值千分位、分頁列數（目前依 DataStudio 原設 10 / 20 / 25 / 100，尚未於 Metabase visualization_settings 設定）。
 2. `ds_sales_report.remark` 欄位已加入 SQL view，但 Metabase `Field` metadata 尚未 sync（腳本 `F['remark']=None`），下次執行「同步資料表 schema」後可補入 P6-2 等欄位。
+
+## 十、DataStudio ↔ Metabase 缺口補齊（已完成）
+
+### 10.1 新增卡片（2026-04-17）
+
+根據 `04-chart-details.md` 逐頁比對，補齊以下 10 張缺失卡片：
+
+| Card ID | 名稱 | Dashboard | 類型 | 說明 |
+|---------|------|-----------|------|------|
+| 100 | P3-3 電動車明細 | D4 (P3) | table | 電動車明細，含領牌日期/車行/類型/車型/引擎號碼/車色/車主姓名/禮券/公司贈品/結算日期 |
+| 101 | P3-4 電動車車型分布（圓餅圖）| D4 (P3) | pie | 電動車車型台數分布 |
+| 102 | P9-3 油車明細 | D9 (P9) | table | 油車明細，欄位同 P3 |
+| 103 | P9-4 油車車型分布（圓餅圖）| D9 (P9) | pie | 油車車型台數分布 |
+| 104 | P10-2 油車-網路平台明細 | D10 (P10) | table | 油車網路平台明細 |
+| 105 | P8-1 電動車-車行台數匯總 | D8 (P8) | table | 車行×台數匯總（左側） |
+| 106 | P13-1 油車-車行台數匯總 | D13 (P13) | table | 車行×台數匯總（左側） |
+| 107 | P14-2 基隆公益青年車型明細 | D14 (P14) | table | 基隆公益青年按車型明細 |
+| 108 | P15-2 區域×車型(色)明細 | D15 (P15) | table | 使用 `model || '/' || car_color` 串接 |
+
+### 10.2 Cross-filter 互動篩選設定
+
+| Dashboard | 匯總卡片 | 明細卡片 | 參數 | 觸發方式 |
+|-----------|---------|---------|------|---------|
+| D7 (P7) | card 98 佣金匯總 | card 53 佣金明細 | ds_dealer, ds_license_ym | 點擊車行/年月 → 右側篩選 |
+| D8 (P8) | card 105 台數匯總 | card 54 台數明細 | ds_dealer | 點擊車行 → 右側篩選 |
+| D12 (P12) | card 99 佣金匯總 | card 60 佣金明細 | ds_dealer, ds_license_ym | 點擊車行/年月 → 右側篩選 |
+| D13 (P13) | card 106 台數匯總 | card 61 台數明細 | ds_dealer | 點擊車行 → 右側篩選 |
+
+### 10.3 技術細節
+
+- 所有新增卡片使用 native SQL，查詢 `ds_sales_report` SQL View
+- Cross-filter 透過 Metabase dashboard parameter + template-tags 實現
+- P8/P13 佈局：匯總表 col=0 width=10、明細表 col=10 width=14（左右並排）
+- P3/P9 佈局：長條圖縮為 14 寬、圓餅圖 col=14 width=10、明細表全寬置底
+- 卡片 54、61 已從 MBQL 轉為 native SQL 以支援 template-tag 參數映射
+
+### 10.4 驗證結果
+
+| Dashboard | 驗證方式 | 結果 |
+|-----------|---------|------|
+| D4 (P3) | 瀏覽器截圖 | ✅ 長條圖+圓餅圖+明細表（934行） |
+| D9 (P9) | 瀏覽器截圖 | ✅ 長條圖+圓餅圖+明細表（648總計） |
+| D8 (P8) | 瀏覽器截圖+cross-filter | ✅ 點擊明輝→右側篩選30筆 |
+| D10 (P10) | API 驗證 | ✅ 2 cards |
+| D13 (P13) | 瀏覽器截圖+cross-filter | ✅ 點擊旭昶→右側篩選36筆 |
+| D14 (P14) | API 驗證 | ✅ 2 cards |
+| D15 (P15) | API 驗證 | ✅ 2 cards |

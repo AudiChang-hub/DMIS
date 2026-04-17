@@ -25,19 +25,19 @@
 |-----------|---------|--------|---------|
 | P1 總車輛銷售 | P1 | 5 | 2 bar (堆疊) + 2 pie + 1 table |
 | P2 銷售機種統計 | P2 | 2 | 1 bar (堆疊) + 1 table |
-| P3 電動車銷售統計 | P3 | 2 | 2 bar (堆疊) |
+| P3 電動車銷售統計 | P3 | 4 | 2 bar (堆疊) + 1 pie + 1 table |
 | P4 基隆公益青年 | P4 | 2 | 1 bar (堆疊, BrandType) + 1 table |
 | P5 電動車-網路平台銷售統計 | P5 | 2 | 1 bar (堆疊) + 1 table |
 | P6 電動車-車行銷售統計 | P6 | 2 | 1 bar (堆疊) + 1 table |
-| P7 電動車-佣金明細表 | P7 | 1 | 1 table |
-| P8 電動車-台數統計 | P8 | 1 | 1 table |
-| P9 油車銷售統計 | P9 | 2 | 2 bar (堆疊) |
-| P10 油車-網路平台銷售統計 | P10 | 1 | 1 bar (堆疊) |
+| P7 電動車-佣金明細表 | P7 | 2 | 1 summary table + 1 detail table (cross-filter) |
+| P8 電動車-台數統計 | P8 | 2 | 1 summary table + 1 detail table (cross-filter) |
+| P9 油車銷售統計 | P9 | 4 | 2 bar (堆疊) + 1 pie + 1 table |
+| P10 油車-網路平台銷售統計 | P10 | 2 | 1 bar (堆疊) + 1 table |
 | P11 油車-車行銷售統計 | P11 | 2 | 1 bar (堆疊) + 1 table |
-| P12 油車-佣金明細表 | P12 | 1 | 1 table |
-| P13 油車-台數統計 | P13 | 1 | 1 table |
-| P14 地區×銷量 | P14 | 1 | 1 bar (堆疊) |
-| P15 區域×車型 | P15 | 1 | 1 bar (堆疊) |
+| P12 油車-佣金明細表 | P12 | 2 | 1 summary table + 1 detail table (cross-filter) |
+| P13 油車-台數統計 | P13 | 2 | 1 summary table + 1 detail table (cross-filter) |
+| P14 地區×銷量 | P14 | 2 | 1 bar (堆疊) + 1 table |
+| P15 區域×車型 | P15 | 2 | 1 bar (堆疊) + 1 table |
 | P16 性別×年齡 | P16 | 2 | 1 pie + 1 bar (堆疊) |
 | P17 車型X性別 | P17 | 10 | 10 pie (各電動車型×性別) |
 | P18 車型X顏色 | P18 | 6 | 6 bar (各車型×顏色) |
@@ -46,7 +46,7 @@
 | P21 基隆公益青年統計（複本） | P21 | 1 | 1 table |
 | P22 基隆公益青年-客群X車型分析 | P22 | 6 | 6 pie (年齡×性別分群) |
 
-**合計**：22 個 Dashboard、52 個 Question（圖表/表格）
+**合計**：22 個 Dashboard、62 個 Question（圖表/表格）
 
 ---
 

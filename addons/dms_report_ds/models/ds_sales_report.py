@@ -167,23 +167,23 @@ class DsSalesReport(models.Model):
                 CASE
                     WHEN s.p_energy = 'electric' THEN '電車'
                     WHEN s.p_energy = 'oil' THEN '油車'
-                    WHEN s.pname ~ '(?i)(^EV|Gogoro|Pulse|S2.?ABS|BOBE|VIVAMIX|VIVABASIC|TSV57|SHINE|JEGO|EZ1|EZZY|VIVAXLSF|Ur2)'
+                    WHEN s.pname ~* '(e-moving|eReady|^EV|Gogoro|Pulse|S2.?ABS|BOBE|VIVAMIX|VIVABASIC|TSV57|SHINE|JEGO|EZ1|EZZY|VIVAXLSF|Ur2)'
                         THEN '電車'
                     ELSE '油車'
                 END                              AS energy_type,
 
                 -- ── 車種分類（fx #8 MotorType）──
                 CASE
-                    WHEN s.pname ~ '^EV0(62|60L|76|70V|76S|76SZV)'
-                      OR s.pname ~ '(Gogoro|Pulse|S2 ABS)'
+                    WHEN s.pname ~* '(e-moving\s+EV0?(62|60L|76|70V|76S|76SZV))'
+                      OR s.pname ~* '(Gogoro|Pulse|S2.?ABS)'
                         THEN '白牌電車'
-                    WHEN s.pname ~ '(JEGO|VIVA|EZ1|EZZY|Ur2)'
+                    WHEN s.pname ~* '(JEGO|VIVA|EZ1|EZZY|Ur2|eReady)'
                         THEN '綠牌電車'
-                    WHEN s.pname ~ '(BOBE|SHINE|TSV57)'
+                    WHEN s.pname ~* '(BOBE|SHINE|TSV57)'
                         THEN '微型電車'
-                    WHEN s.pname ~ '(UQ|UC|UG|UT)'
+                    WHEN s.pname ~* '(SUI|Saluto|NEX|SWISH|UQ|UC|UG|UT|Address)'
                         THEN '速克達'
-                    WHEN s.pname ~ '(DRZ|GSX|DS)'
+                    WHEN s.pname ~* '(DR-?Z|GSX|GIXXER|V-?STROM|Burgman|T-?MAX|DS\d)'
                         THEN '擋車'
                     ELSE '其他'
                 END                              AS motor_type,

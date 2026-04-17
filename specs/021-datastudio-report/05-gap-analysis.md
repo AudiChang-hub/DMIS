@@ -179,13 +179,42 @@
 1. **Phase 2 不能以「頁號直接對應」批次套規則**，必須改以 **dashboard name 或 card name 所屬主題**（電動車/油車/基隆公益/車型×性別/…）判斷。
 2. `metabase_gap_plan.py` 目前以頁號推測規則，部分 P16–P22 對應錯誤。
 
-## 七、Phase 2/3 授權確認點（Phase 1 已完成，等待授權再繼續）
+## 七、Phase 2/3 執行結果（已完成）
 
-1. **Metabase P16「性別×年齡」** 如何處理？
-   - 選項 A：保留（推測為 DataStudio 已刪除的舊頁，仍具有商業價值）
-   - 選項 B：刪除以與 DataStudio 對齊
-2. **Metabase P21「基隆公益青年統計（複本）」**（= DataStudio P20 同名廢頁）是否一併刪除？
-3. **`scripts/metabase_gap_plan.py` 的頁別映射修正**：應改以 dashboard name 而非頁號為 key 重寫，以反映 Metabase 實際對應的 DataStudio 主題後，再執行 Phase 2 寫入。
-4. **批次修改現有 Metabase card `dataset_query`** 授權？（影響 58 張 card；含 11 張 empty query 需重建，落差 E）
+使用者核可路徑 A：保留 Metabase P16、封存 P21 複本、以 dashboard_id 為 key 執行 Phase 2。
 
-回覆以上 4 點後即可完成 Phase 2 腳本修訂並執行。
+### Phase 3 — 封存
+- ✅ `scripts/metabase_archive_dup.py --apply`：Dashboard #22「P21 基隆公益青年統計（複本）」已封存（可於 Metabase『已封存』視圖還原）。
+
+### Phase 2 — 批次套用硬編碼篩選
+- ✅ `scripts/metabase_apply_filters.py --apply`：57 張 card 處理 →
+  - **47 張已注入缺少條件**（落差 F/G/H/I）
+  - **0 張原本已滿足條件**（第 1 張測試單獨更新後 summary 顯示 1，即 card#40）
+  - **10 張因 `source-table` 為空而跳過**（落差 E，須人工重建）
+
+### 落差 E（10 張 empty-query cards，待人工重建）
+
+| Dashboard | Card ID | Card 名稱 | 預期 DataStudio 對應 |
+|-----------|--------|----------|---------------------|
+| P1 總車輛銷售 | 44 | P1-5 總車輛銷售明細 | P1 表格（明細） |
+| P2 銷售機種統計 | 46 | P2-2 銷售機種明細 | P2 表格 |
+| P4 基隆公益青年 | 68 | P4-2 基隆公益青年明細 | P4 表格 |
+| P5 電動車-網路平台 | 50 | P5-2 電動車-網路平台明細 | P5 表格 |
+| P6 電動車-車行 | 52 | P6-2 電動車-車行明細 | P6 表格 |
+| P7 電動車-佣金 | 53 | P7 電動車-佣金明細 | P7 主表 |
+| P8 電動車-台數 | 54 | P8 電動車-台數統計 | P8 主表 |
+| P11 油車-車行 | 59 | P11-2 油車-車行明細 | P11 表格 |
+| P12 油車-佣金 | 60 | P12 油車-佣金明細 | P12 主表 |
+| P13 油車-台數 | 61 | P13 油車-台數統計 | P13 主表 |
+
+### 驗證抽樣（Phase 2 後）
+
+- card#49（P5-1）：4 filters = state=confirmed + energy_type=電車 + sales_source=網路平台 + model NOT NULL ✅
+- card#57（P10-1）：4 filters = state=confirmed + energy_type=油車 + sales_source=網路平台 + model NOT NULL ✅
+- card#62（P14）：3 filters = state=confirmed + subsidy_plan contains 基隆公益 + model NOT NULL ✅
+
+## 八、後續待辦（留給下一輪迭代）
+
+1. **重建 10 張 empty-query 表格 cards**：需依 `specs/021-datastudio-report/04-chart-details.md` 對應頁面的欄位清單逐一建立 MBQL 查詢（建議逐張操作 UI 或另寫 `metabase_rebuild_tables.py`）
+2. **P17/P18/P19 的 Model 分類硬篩（FUN/RUN/70B/76B）** 需在 card 名稱與實際 card 內容確認後再由人工或腳本補入
+3. **P22「客群X車型」6 張 card 的 age_group/sex 組合**（落差 D 細項）亦須在 card name 對齊後再自動注入

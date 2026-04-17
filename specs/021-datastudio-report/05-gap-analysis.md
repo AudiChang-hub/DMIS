@@ -152,12 +152,40 @@
 
 ---
 
-## 五、使用者決策點
+## 五、Phase 1 執行結果（已完成）
 
-補齊動作涉及修改 Metabase 既有 cards（E 類尤其複雜：11 張 empty query 需重建），建議先取得授權：
+- ✅ `addons/dms_report_ds/models/ds_sales_report.py` 已新增 `remark` 欄位（取自 `dms_sale_order.extra_note`），SQL view 已更新並透過 `docker compose restart odoo` 自動重建
+- ✅ 既有欄位（`model_color`、`sort_license_date`、`license_ym`、`volume_bonus`、`basic_bonus`）經 `information_schema.columns` 驗證皆存在
+- ✅ `bash scripts/smoke_odoo.sh` 通過（HTTP 303 on `/web/login`）
+- ✅ 新增 `scripts/metabase_gap_plan.py` dry-run 規劃器
 
-1. **是否允許批次修改現有 Metabase cards 的 dataset_query？**（會影響既有儀表板顯示）
-2. **P20「複本」頁對應卡片是否可安全刪除？**
-3. **Phase 1 的 SQL view 欄位新增是否需先在 `015-dms-product-rebuild` 分支操作，還是另開 feature branch？**
+## 六、Metabase ↔ DataStudio 頁面錯位（新發現重大落差）
 
-取得回覆後即可啟動 Phase 1。
+執行 `python3 scripts/metabase_gap_plan.py` 後發現：
+
+| 項目 | Metabase | DataStudio |
+|-----|---------|----------|
+| 總頁數 | **22** | **21** |
+| P16 | 性別×年齡 | 車型X性別 |
+| P17 | 車型X性別 | 車型X顏色 |
+| P18 | 車型X顏色 | 性別X車型顏色 |
+| P19 | 性別X車型顏色 | 通路銷售統計 |
+| P20 | 通路銷售統計 | 基隆公益青年統計（複本） |
+| P21 | 基隆公益青年統計（複本） | 基隆公益青年 客群X車型分析 |
+| P22 | 基隆公益青年-客群X車型分析 | （不存在） |
+
+⚠ Metabase P16「性別×年齡」在目前 DataStudio 不存在（推測 DataStudio 曾有此頁但被刪除，或 Metabase 多建了一頁）。此錯位導致：
+
+1. **Phase 2 不能以「頁號直接對應」批次套規則**，必須改以 **dashboard name 或 card name 所屬主題**（電動車/油車/基隆公益/車型×性別/…）判斷。
+2. `metabase_gap_plan.py` 目前以頁號推測規則，部分 P16–P22 對應錯誤。
+
+## 七、Phase 2/3 授權確認點（Phase 1 已完成，等待授權再繼續）
+
+1. **Metabase P16「性別×年齡」** 如何處理？
+   - 選項 A：保留（推測為 DataStudio 已刪除的舊頁，仍具有商業價值）
+   - 選項 B：刪除以與 DataStudio 對齊
+2. **Metabase P21「基隆公益青年統計（複本）」**（= DataStudio P20 同名廢頁）是否一併刪除？
+3. **`scripts/metabase_gap_plan.py` 的頁別映射修正**：應改以 dashboard name 而非頁號為 key 重寫，以反映 Metabase 實際對應的 DataStudio 主題後，再執行 Phase 2 寫入。
+4. **批次修改現有 Metabase card `dataset_query`** 授權？（影響 58 張 card；含 11 張 empty query 需重建，落差 E）
+
+回覆以上 4 點後即可完成 Phase 2 腳本修訂並執行。

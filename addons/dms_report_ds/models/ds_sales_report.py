@@ -167,14 +167,14 @@ class DsSalesReport(models.Model):
                 CASE
                     WHEN s.p_energy = 'electric' THEN '電車'
                     WHEN s.p_energy = 'oil' THEN '油車'
-                    WHEN s.pname ~* '(e-moving|eReady|^EV|Gogoro|Pulse|S2.?ABS|BOBE|VIVAMIX|VIVABASIC|TSV57|SHINE|JEGO|EZ1|EZZY|VIVAXLSF|Ur2)'
+                    WHEN s.pname ~* '(eReady|^EV|Gogoro|Pulse|S2.?ABS|BOBE|VIVAMIX|VIVABASIC|TSV57|SHINE|JEGO|EZ1|EZZY|VIVAXLSF|Ur2)'
                         THEN '電車'
                     ELSE '油車'
                 END                              AS energy_type,
 
                 -- ── 車種分類（fx #8 MotorType）──
                 CASE
-                    WHEN s.pname ~* '(e-moving\s+EV0?(62|60L|76|70V|76S|76SZV))'
+                    WHEN s.pname ~* '(eReady\s+EV0?(62|70V|76|76S|76SZV))'
                       OR s.pname ~* '(Gogoro|Pulse|S2.?ABS)'
                         THEN '白牌電車'
                     WHEN s.pname ~* '(JEGO|VIVA|EZ1|EZZY|Ur2|eReady)'

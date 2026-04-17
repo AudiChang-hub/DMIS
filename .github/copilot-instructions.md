@@ -6,6 +6,8 @@
 
 補充規則（強制遵守）：
 
+- **每次執行完畢或被中斷後，必須以 `vscode_askQuestions` 工具顯示 TUI 對話視窗，提供使用者輸入後續動作選項，不得僅輸出文字後靜默結束。**
+
 - 規格優先（Spec-first）：任何需求變更或功能新增須先建立或更新 `specs/`（包含 01/02/03/04/05）；未有相符 specs，請勿直接修改程式碼。
 - 文件/PR/commit 一律繁體中文（charter 文件可夾帶英文說明）。
 - Odoo 自訂模組僅放在 `addons/`，且不得修改 Odoo 核心。任何修改 `addons/**` 或 `docker-compose.yml`、`Makefile`、`scripts/**`，必須同步更新 `specs/**`，CI 會強制檢查。

@@ -2,12 +2,13 @@
 import { registry } from "@web/core/registry";
 import { useService } from "@web/core/utils/hooks";
 
-const { Component, useState, onWillStart } = owl;
+const { Component, useState, onWillStart, useRef } = owl;
 
 export class MetabaseDashboard extends Component {
     setup() {
         this.rpc = useService("rpc");
         this.state = useState({ url: "", loading: true });
+        this.iframeRef = useRef("metabaseIframe");
 
         onWillStart(async () => {
             const uuid = this.props.action.params && this.props.action.params.dashboard_uuid;
@@ -30,6 +31,13 @@ export class MetabaseDashboard extends Component {
                 baseUrl + "/public/dashboard/" + uuid + "#bordered=false&titled=false";
             this.state.loading = false;
         });
+    }
+
+    resetDashboard() {
+        const iframe = this.iframeRef.el;
+        if (iframe) {
+            iframe.src = this.state.url;
+        }
     }
 }
 

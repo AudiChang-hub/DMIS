@@ -17,8 +17,17 @@
                 </div>
             </t>
             <t t-else="">
-                <iframe t-att-src="state.url"
-                        style="width: 100%; height: 100%; border: none;"
+                <div class="d-flex align-items-center px-2 py-1 bg-light border-bottom"
+                     style="height: 36px; flex-shrink: 0;">
+                    <button class="btn btn-sm btn-outline-secondary"
+                            t-on-click="resetDashboard"
+                            title="重設篩選條件至預設值">
+                        <i class="fa fa-refresh me-1"/>重設
+                    </button>
+                </div>
+                <iframe t-ref="metabaseIframe"
+                        t-att-src="state.url"
+                        style="width: 100%; height: calc(100% - 36px); border: none;"
                         allowfullscreen="true"
                         frameborder="0"/>
             </t>

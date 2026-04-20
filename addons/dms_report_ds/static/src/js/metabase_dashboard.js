@@ -28,7 +28,7 @@ export class MetabaseDashboard extends Component {
                 baseUrl = "/metabase";
             }
             this.state.url =
-                baseUrl + "/public/dashboard/" + uuid + "#bordered=false&titled=false";
+                baseUrl + "/public/dashboard/" + uuid + "#bordered=false&titled=true";
             this.state.loading = false;
         });
     }

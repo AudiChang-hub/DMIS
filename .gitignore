@@ -16,3 +16,4 @@ temp_*.py
 *.pdf
 output.txt
 *.xlsx
+output_report/.~lock.*

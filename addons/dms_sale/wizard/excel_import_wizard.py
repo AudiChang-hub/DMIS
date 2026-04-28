@@ -333,7 +333,10 @@ class ExcelImportWizard(models.TransientModel):
                 dealer = _pick(reverse_hits, dealer_name, prefer_longest=True)
 
             if dealer:
-                vals['sale_type'] = 'dealer'
+                if dealer.store_type_id.name == '網路平台':
+                    vals['sale_type'] = 'online'
+                else:
+                    vals['sale_type'] = 'dealer'
                 vals['dealer_id'] = dealer.id
                 # 若原始字串與命中車行 name 不一致（例如帶有附註），保留原始字串供稽核
                 if (dealer.name or '').strip() != dealer_name.strip():

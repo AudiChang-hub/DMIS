@@ -71,7 +71,7 @@
             </group>
             <group>
               <field name="dealer_id"
-                     attrs="{'invisible': [('sale_type', '!=', 'dealer')]}"/>
+                     attrs="{'invisible': [('sale_type', 'not in', ('dealer', 'online'))]}"/>
             </group>
           </group>
 
@@ -437,6 +437,7 @@
         <separator/>
         <filter name="filter_store"  string="店面" domain="[('sale_type','=','store')]"/>
         <filter name="filter_dealer" string="車行" domain="[('sale_type','=','dealer')]"/>
+        <filter name="filter_online" string="網路平台" domain="[('sale_type','=','online')]"/>
         <separator/>
         <filter name="filter_draft"     string="草稿"   domain="[('state','=','draft')]"/>
         <filter name="filter_confirmed" string="已成立" domain="[('state','=','confirmed')]"/>

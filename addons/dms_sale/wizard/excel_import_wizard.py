@@ -161,16 +161,6 @@ def _cell(row, idx):
         return None
 
 
-def _is_ascii_name(s):
-    """判斷字串是否為純 ASCII（視為英文車行名稱）。
-
-    用於 Excel 匯入比對車行：若 Excel 與資料庫端皆為英文，
-    使用者經常輸入大小寫不一致（如 ``abc bike`` vs ``ABC Bike``），
-    需採用大小寫不敏感比對。中文車行名稱不受影響。
-    """
-    return bool(s) and all(ord(c) < 128 for c in s)
-
-
 class ExcelImportWizard(models.TransientModel):
     _name = 'dms.excel.import.wizard'
     _description = 'Excel 銷貨資料匯入'
@@ -277,22 +267,24 @@ class ExcelImportWizard(models.TransientModel):
         if not dealer_name or dealer_name in STORE_DEALER_NAMES:
             vals['sale_type'] = 'store'
         else:
-            # 英文車行名稱採大小寫不敏感比對：
-            # Excel 使用者可能輸入全小寫 / 全大寫 / 混雜大小寫，
-            # 而車行主檔在維護時也可能不一致，因此先以 ilike 取候選，
-            # 再以 upper() 完全比對挑出正確的車行。
+            # 車行名稱採「包含」比對（ilike），不要求完全一致：
+            # 1) Excel 端與主檔可能存在簡稱 / 全名差異（如「ABC」vs「ABC 機車行」）。
+            # 2) 英文名稱大小寫常不一致；ilike 為大小寫不敏感，可一併涵蓋。
+            # 比對策略：以 Excel 名稱當 needle，搜尋主檔 name 包含該字串的候選，
+            # 取最短 name 的候選（最接近 Excel 字串），避免被過長 / 過泛的名稱誤對。
+            candidates = self.env['dms.dealer'].search(
+                [('name', 'ilike', dealer_name)])
             dealer = self.env['dms.dealer'].browse()
-            if _is_ascii_name(dealer_name):
-                target_upper = dealer_name.upper()
-                candidates = self.env['dms.dealer'].search(
-                    [('name', 'ilike', dealer_name)])
-                for cand in candidates:
-                    if (cand.name or '').strip().upper() == target_upper:
-                        dealer = cand
-                        break
-            else:
-                dealer = self.env['dms.dealer'].search(
-                    [('name', '=', dealer_name)], limit=1)
+            if candidates:
+                # 優先挑選 strip().upper() 完全相等者；否則取 name 最短的候選。
+                target_upper = dealer_name.strip().upper()
+                exact = candidates.filtered(
+                    lambda c: (c.name or '').strip().upper() == target_upper)
+                if exact:
+                    dealer = exact[0]
+                else:
+                    dealer = sorted(
+                        candidates, key=lambda c: len((c.name or '').strip()))[0]
             if dealer:
                 vals['sale_type'] = 'dealer'
                 vals['dealer_id'] = dealer.id

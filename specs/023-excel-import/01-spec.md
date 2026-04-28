@@ -1,9 +1,9 @@
 # 023 - Excel 銷貨資料匯入 Wizard
 
 ## 版本
-- 功能版: 16.0.1.2.0
+- 功能版: 16.0.1.3.0
 - 建立日期: 2026-04-15
-- 最後更新: 2026-04-28（英文車行名稱大小寫不敏感比對）
+- 最後更新: 2026-04-28（車行名稱改為「包含」比對，仍含大小寫不敏感）
 
 ## 目的
 將「車輛進銷貨庫存表(客戶資料).xlsx」銷貨頁籤的歷史資料（共約 1582 筆）匯入 DMIS 銷售訂單，並支援後續重複同步（upsert）。
@@ -57,14 +57,18 @@ Excel 欄 BI/BJ/BK 同時被讀取兩次，此為刻意設計：
 1. `source_color_name` ← 永遠寫入原始顏色字串（無論有無找到 M2O record）
 2. `color_id` ← 若有找到對應 `dms.product.color` record 才額外寫入
 
-車行比對邏輯（英文大小寫不敏感）：
-- 中文車行名稱：以 `name = dealer_name` 精確比對（既有行為）。
-- 英文車行名稱（純 ASCII）：因 Excel 端與車行主檔皆可能存在大小寫不一致（全大寫 / 全小寫 / 混雜），改採大小寫不敏感比對：
-  1. 以 `name ilike dealer_name` 取候選清單。
-  2. 對每筆候選比較 `candidate.name.strip().upper() == dealer_name.upper()`，命中即視為對應車行。
-- 仍找不到時：寫入 `source_dealer_name` 暫存原始名稱並記錄警告，行為與既有設計一致。
-- 判斷英文 / 中文之依據：字串中所有字元皆為 ASCII（`ord(c) < 128`）即視為英文車行名稱。
-- 對應實作：`addons/dms_sale/wizard/excel_import_wizard.py` 的 `_is_ascii_name()` helper 與 `_build_vals()` 內車行比對區塊。
+車行比對邏輯（包含 + 大小寫不敏感）：
+- 一律以 Excel 端車行名稱為 needle，使用 `name ilike dealer_name` 從車行主檔搜尋包含該字串的候選清單。
+  - 採「包含」而非完全一致：Excel 與主檔可能存在簡稱 / 全名差異（例：Excel 寫「ABC」、主檔為「ABC 機車行」）。
+  - `ilike` 為大小寫不敏感，可同時涵蓋英文車行大小寫不一致（全大寫 / 全小寫 / 混雜）的情況。
+- 從候選中挑出最終對應車行：
+  1. 若候選中存在 `strip().upper()` 與 Excel 名稱完全相等者，優先採用該筆。
+  2. 否則取 `name` 字串最短的候選（最接近 Excel 字串，避免被過長 / 過泛的名稱誤對）。
+- 仍找不到候選時：寫入 `source_dealer_name` 暫存原始名稱並記錄警告，行為與既有設計一致。
+- 對應實作：`addons/dms_sale/wizard/excel_import_wizard.py` 的 `_build_vals()` 內車行比對區塊。
+
+注意事項：
+- 因採包含比對，車行主檔應避免命名互為前綴 / 子字串又無共同字根的情況；如有此情形，請維持 Excel 端名稱完整化以利精確命中（精確相等候選優先規則）。
 
 ## 驗證指令
 ```bash

@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+  <!-- 隱藏不再使用的根選單：討論 / 財務結算 / 庫存
+       使用 noupdate="0" 確保升級時也會套用 active=False -->
+  <data noupdate="0">
+    <record id="mail.menu_root_discuss" model="ir.ui.menu">
+      <field name="active" eval="False"/>
+    </record>
+    <record id="stock.menu_stock_root" model="ir.ui.menu">
+      <field name="active" eval="False"/>
+    </record>
+    <record id="dms_finance.menu_dms_finance_root" model="ir.ui.menu">
+      <field name="active" eval="False"/>
+    </record>
+  </data>
+</odoo>

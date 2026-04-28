@@ -42,7 +42,7 @@
 |---|---|---|---|
 | `name` | Char | ✓ | 訂單編號（自動序號 `SO{YYYYMM}{四碼}`，default='/'） |
 | `order_date` | Date | ✓ | 訂單日期（default=today） |
-| `sale_type` | Selection | ✓ | 交易類型：`store`=店面、`dealer`=車行（default='store'） |
+| `sale_type` | Selection | ✓ | 交易類型：`store`=店面、`dealer`=車行、`online`=網路平台（default='store'）。當 `dealer_id` 為「車行類型=網路平台」時，create/write/onchange 會自動設為 `online` |
 | `state` | Selection | ✓ | 狀態：`draft`=草稿、`confirmed`=確認、`cancel`=取消（default='draft'） |
 | `active` | Boolean | | 啟用（default=True） |
 
@@ -83,7 +83,7 @@
 | `installment_periods` | Integer | | 分期期數（default=0） |
 | `installment_monthly` | Float(12,0) | | 月付金 |
 
-### 車行金流區塊（sale_type=dealer 時顯示）
+### 車行金流區塊（sale_type 在 dealer / online 時顯示）
 
 | 欄位 | 型別 | 必填 | 說明 |
 |---|---|---|---|

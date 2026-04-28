@@ -18,7 +18,15 @@
           </group>
           <group string="CSV 格式說明" col="1">
             <div class="alert alert-info" role="alert">
-              <p><strong>必要欄位：</strong></p>
+              <p>
+                <strong>下載 CSV 樣板：</strong>
+                <a href="/dms_parts/static/src/csv/catalog_import_template.csv"
+                   download="catalog_import_template.csv"
+                   class="btn btn-sm btn-primary ml-2">
+                  <i class="fa fa-download"/> 下載樣板
+                </a>
+              </p>
+              <p class="mt-2"><strong>必要欄位：</strong></p>
               <code>catalog_name, section_code, section_name, section_category, seq_no, part_number, part_name</code>
               <p class="mt-2"><strong>選填欄位：</strong>uom（預設：個）, qty（預設：1）, list_price（預設：0）</p>
               <p class="mt-2"><strong>section_category 可填：</strong>engine（引擎）或 frame（車架）</p>

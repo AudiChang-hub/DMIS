@@ -11,7 +11,7 @@
     'author': 'DMIS',
     'license': 'LGPL-3',
     'category': 'Custom',
-    'depends': ['base', 'web', 'mail', 'stock', 'dms_finance'],
+    'depends': ['base', 'web', 'mail', 'stock', 'dms_finance', 'dms_report_ds'],
     'data': [
         'security/ir.model.access.csv',
         'views/um_access_group_views.xml',

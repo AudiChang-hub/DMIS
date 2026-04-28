@@ -35,12 +35,37 @@ class DmsPartCatalogImportWizard(models.TransientModel):
         text = raw.decode('utf-8-sig')
         reader = csv.DictReader(io.StringIO(text))
 
+        # 中文欄位 → 內部 key 對應，使用者可使用中文或英文表頭
+        zh_to_key = {
+            '目錄名稱': 'catalog_name',
+            '分區代碼': 'section_code',
+            '分區名稱': 'section_name',
+            '分區類別': 'section_category',
+            '序號': 'seq_no',
+            '零件編號': 'part_number',
+            '零件名稱': 'part_name',
+            '單位': 'uom',
+            '數量': 'qty',
+            '建議售價': 'list_price',
+        }
+
+        def _norm(row):
+            out = {}
+            for k, v in row.items():
+                if k is None:
+                    continue
+                key = zh_to_key.get((k or '').strip(), k)
+                out[key] = v
+            return out
+
         required_cols = {'catalog_name', 'section_code', 'section_name',
                          'section_category', 'seq_no', 'part_number', 'part_name'}
-        if not required_cols.issubset(set(reader.fieldnames or [])):
-            missing = required_cols - set(reader.fieldnames or [])
+        normalized_fields = {zh_to_key.get((f or '').strip(), f) for f in (reader.fieldnames or [])}
+        if not required_cols.issubset(normalized_fields):
+            missing = required_cols - normalized_fields
             raise UserError(f'CSV 缺少必要欄位：{", ".join(missing)}\n'
-                            f'必要欄位：catalog_name, section_code, section_name, '
+                            f'必要欄位（中文）：目錄名稱, 分區代碼, 分區名稱, 分區類別, 序號, 零件編號, 零件名稱\n'
+                            f'必要欄位（英文）：catalog_name, section_code, section_name, '
                             f'section_category, seq_no, part_number, part_name')
 
         catalog_cache = {}
@@ -51,6 +76,7 @@ class DmsPartCatalogImportWizard(models.TransientModel):
         logs = []
 
         for row_num, row in enumerate(reader, start=2):
+            row = _norm(row)
             catalog_name = (row.get('catalog_name') or '').strip()
             section_code = (row.get('section_code') or '').strip().upper()
             section_name = (row.get('section_name') or '').strip()

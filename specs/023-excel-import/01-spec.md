@@ -1,9 +1,9 @@
 # 023 - Excel 銷貨資料匯入 Wizard
 
 ## 版本
-- 功能版: 16.0.1.1.0
+- 功能版: 16.0.1.2.0
 - 建立日期: 2026-04-15
-- 最後更新: 2026-04-16（加入 display_* 欄位、sale_origin 修正、矛盾修正記載）
+- 最後更新: 2026-04-28（英文車行名稱大小寫不敏感比對）
 
 ## 目的
 將「車輛進銷貨庫存表(客戶資料).xlsx」銷貨頁籤的歷史資料（共約 1582 筆）匯入 DMIS 銷售訂單，並支援後續重複同步（upsert）。
@@ -56,6 +56,15 @@ Excel 欄 BI/BJ/BK 同時被讀取兩次，此為刻意設計：
 顏色處理邏輯：
 1. `source_color_name` ← 永遠寫入原始顏色字串（無論有無找到 M2O record）
 2. `color_id` ← 若有找到對應 `dms.product.color` record 才額外寫入
+
+車行比對邏輯（英文大小寫不敏感）：
+- 中文車行名稱：以 `name = dealer_name` 精確比對（既有行為）。
+- 英文車行名稱（純 ASCII）：因 Excel 端與車行主檔皆可能存在大小寫不一致（全大寫 / 全小寫 / 混雜），改採大小寫不敏感比對：
+  1. 以 `name ilike dealer_name` 取候選清單。
+  2. 對每筆候選比較 `candidate.name.strip().upper() == dealer_name.upper()`，命中即視為對應車行。
+- 仍找不到時：寫入 `source_dealer_name` 暫存原始名稱並記錄警告，行為與既有設計一致。
+- 判斷英文 / 中文之依據：字串中所有字元皆為 ASCII（`ord(c) < 128`）即視為英文車行名稱。
+- 對應實作：`addons/dms_sale/wizard/excel_import_wizard.py` 的 `_is_ascii_name()` helper 與 `_build_vals()` 內車行比對區塊。
 
 ## 驗證指令
 ```bash

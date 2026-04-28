@@ -20,8 +20,8 @@
             <div class="alert alert-info" role="alert">
               <p>
                 <strong>下載 CSV 樣板：</strong>
-                <a href="/dms_parts/static/src/csv/catalog_import_template.csv"
-                   download="catalog_import_template.csv"
+                <a href="/dms_parts/static/src/csv/catalog_import_template_v2.csv?v=2"
+                   download="零件目錄匯入樣板.csv"
                    class="btn btn-sm btn-primary ml-2">
                   <i class="fa fa-download"/> 下載樣板
                 </a>

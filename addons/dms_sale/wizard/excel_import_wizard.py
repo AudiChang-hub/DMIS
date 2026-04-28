@@ -1,6 +1,7 @@
 import base64
 import io
 import logging
+import re
 from datetime import date, datetime
 
 from odoo import models, fields, api, _
@@ -161,6 +162,25 @@ def _cell(row, idx):
         return None
 
 
+# 車行名稱常見附註括號（半形 / 全形 / 方括號）
+_DEALER_NOTE_RE = re.compile(r'[\(（\[【][^\)）\]】]*[\)）\]】]')
+
+
+def _strip_dealer_notes(name):
+    """剝除車行名稱中的括號附註，並去除前後空白。
+
+    用於 Excel 匯入車行比對的 fallback：常見格式包含
+    「昌勝(試乘車)」、「東永（展示車）」、「東永[備用]」、「東永【舊】」
+    等使用者標註，需先剝除後再嘗試比對主檔。
+    """
+    if not name:
+        return name
+    cleaned = _DEALER_NOTE_RE.sub('', name).strip()
+    # 連續空白合併為單一空白
+    cleaned = re.sub(r'\s+', ' ', cleaned)
+    return cleaned
+
+
 class ExcelImportWizard(models.TransientModel):
     _name = 'dms.excel.import.wizard'
     _description = 'Excel 銷貨資料匯入'
@@ -267,27 +287,57 @@ class ExcelImportWizard(models.TransientModel):
         if not dealer_name or dealer_name in STORE_DEALER_NAMES:
             vals['sale_type'] = 'store'
         else:
-            # 車行名稱採「包含」比對（ilike），不要求完全一致：
-            # 1) Excel 端與主檔可能存在簡稱 / 全名差異（如「ABC」vs「ABC 機車行」）。
-            # 2) 英文名稱大小寫常不一致；ilike 為大小寫不敏感，可一併涵蓋。
-            # 比對策略：以 Excel 名稱當 needle，搜尋主檔 name 包含該字串的候選，
-            # 取最短 name 的候選（最接近 Excel 字串），避免被過長 / 過泛的名稱誤對。
-            candidates = self.env['dms.dealer'].search(
-                [('name', 'ilike', dealer_name)])
+            # 車行名稱比對策略（依序嘗試，先命中先採用）：
+            # 1) 正向包含：主檔 name 包含 Excel 字串（ilike），可處理簡稱→全名
+            #    （例：Excel 寫「ABC」、主檔為「ABC 機車行」）。ilike 同時為大小寫不敏感。
+            # 2) 去除括號附註後再正向包含：Excel 端常見備註如「昌勝(試乘車)」、「東永（展示車）」、
+            #    「東永[備用]」等，需先剝除括號內容（半形/全形/方括號）後重試。
+            # 3) 反向包含：主檔 name 為 Excel 字串的子字串，
+            #    可處理 Excel 端含主檔名稱但帶有未列舉附註的情況（如「昌勝-試乘」）。
+            #    多筆命中時取主檔 name **最長**者，避免被過短前綴誤對。
+            # 多筆候選的共同決勝規則：優先 strip().upper() 完全相等者。
             dealer = self.env['dms.dealer'].browse()
-            if candidates:
-                # 優先挑選 strip().upper() 完全相等者；否則取 name 最短的候選。
-                target_upper = dealer_name.strip().upper()
-                exact = candidates.filtered(
+
+            def _pick(cands, needle, prefer_longest=False):
+                if not cands:
+                    return self.env['dms.dealer'].browse()
+                target_upper = (needle or '').strip().upper()
+                exact = cands.filtered(
                     lambda c: (c.name or '').strip().upper() == target_upper)
                 if exact:
-                    dealer = exact[0]
-                else:
-                    dealer = sorted(
-                        candidates, key=lambda c: len((c.name or '').strip()))[0]
+                    return exact[0]
+                key = (lambda c: -len((c.name or '').strip())) \
+                    if prefer_longest else (lambda c: len((c.name or '').strip()))
+                return sorted(cands, key=key)[0]
+
+            # 1) 正向：name ilike dealer_name
+            candidates = self.env['dms.dealer'].search(
+                [('name', 'ilike', dealer_name)])
+            dealer = _pick(candidates, dealer_name, prefer_longest=False)
+
+            # 2) 去除括號附註後重試正向比對
+            if not dealer:
+                stripped = _strip_dealer_notes(dealer_name)
+                if stripped and stripped != dealer_name:
+                    candidates = self.env['dms.dealer'].search(
+                        [('name', 'ilike', stripped)])
+                    dealer = _pick(candidates, stripped, prefer_longest=False)
+
+            # 3) 反向：找出主檔 name 為 Excel 字串子字串者，取最長 name
+            if not dealer:
+                lower_excel = dealer_name.lower()
+                all_dealers = self.env['dms.dealer'].search([])
+                reverse_hits = all_dealers.filtered(
+                    lambda c: (c.name or '').strip()
+                    and (c.name or '').strip().lower() in lower_excel)
+                dealer = _pick(reverse_hits, dealer_name, prefer_longest=True)
+
             if dealer:
                 vals['sale_type'] = 'dealer'
                 vals['dealer_id'] = dealer.id
+                # 若原始字串與命中車行 name 不一致（例如帶有附註），保留原始字串供稽核
+                if (dealer.name or '').strip() != dealer_name.strip():
+                    vals['source_dealer_name'] = dealer_name
             else:
                 vals['sale_type'] = 'dealer'
                 vals['source_dealer_name'] = dealer_name

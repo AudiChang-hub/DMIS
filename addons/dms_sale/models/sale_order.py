@@ -13,7 +13,7 @@ class SaleOrder(models.Model):
     order_date = fields.Date(
         string='訂單日期', required=True, default=fields.Date.today)
     sale_type = fields.Selection(
-        [('store', '店面'), ('dealer', '車行')],
+        [('store', '店面'), ('dealer', '車行'), ('online', '網路平台')],
         string='交易類型', required=True, default='store')
     state = fields.Selection(
         [('draft', '草稿'), ('confirmed', '已成立'), ('cancel', '已取消')],
@@ -318,7 +318,45 @@ class SaleOrder(models.Model):
             if vals.get('name', '/') == '/':
                 vals['name'] = (
                     self.env['ir.sequence'].next_by_code('dms.sale.order') or '/')
+            self._sync_sale_type_with_dealer(vals)
         return super().create(vals_list)
+
+    def write(self, vals):
+        # 若調整 dealer_id 或 sale_type，依車行類型校正交易類型
+        if 'dealer_id' in vals or 'sale_type' in vals:
+            for rec in self:
+                merged = {
+                    'dealer_id': vals.get('dealer_id', rec.dealer_id.id),
+                    'sale_type': vals.get('sale_type', rec.sale_type),
+                }
+                self._sync_sale_type_with_dealer(merged)
+                # 將回填後的 sale_type 套到本筆
+                if merged['sale_type'] != vals.get('sale_type', rec.sale_type):
+                    vals = dict(vals, sale_type=merged['sale_type'])
+        return super().write(vals)
+
+    @api.model
+    def _sync_sale_type_with_dealer(self, vals):
+        """當 dealer 的 store_type 為「網路平台」時，sale_type 自動設為 'online'。
+
+        在沒有 dealer 的情況下不變動 sale_type；其他類型亦保留原值，
+        以免覆寫使用者明確設定的『店面』/『車行』。"""
+        dealer_id = vals.get('dealer_id')
+        if not dealer_id:
+            return
+        dealer = self.env['dms.dealer'].browse(dealer_id)
+        if not dealer or not dealer.store_type_id:
+            return
+        if dealer.store_type_id.name == '網路平台':
+            vals['sale_type'] = 'online'
+
+    @api.onchange('dealer_id')
+    def _onchange_dealer_sync_sale_type(self):
+        if self.dealer_id and self.dealer_id.store_type_id.name == '網路平台':
+            self.sale_type = 'online'
+        elif self.dealer_id and self.sale_type == 'store':
+            # 帶入車行時若使用者尚未指定，預設為車行
+            self.sale_type = 'dealer'
 
     # ── Onchange ──────────────────────────────────────────
     def action_apply_received_amount(self):

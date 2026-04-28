@@ -171,7 +171,9 @@ class OrderSyncAction(models.AbstractModel):
                     [('name', 'ilike', dealer_raw)], limit=1)
             if dealer:
                 dealer_id = dealer.id
-                sale_type = 'dealer'
+                sale_type = ('online'
+                             if dealer.store_type_id.name == '網路平台'
+                             else 'dealer')
             else:
                 # 找不到車行 → 嘗試帶入「馭盛」
                 fallback = self.env['dms.dealer'].search(

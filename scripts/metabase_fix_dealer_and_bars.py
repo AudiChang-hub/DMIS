@@ -49,7 +49,7 @@ DATE_ROW_PREFIXES = (
 )
 # license_date 欄位 id（ds_sales_report.license_date）
 LICENSE_DATE_FIELD_ID = 1629
-MAX_CATEGORIES = 12  # 12 + 1（其他）= 13
+MAX_CATEGORIES = 13  # 與 past12months~ (13 個月) 對齊，全部顯示
 TARGET_SIZE_Y = 13   # dashcard 高度
 
 

@@ -58,8 +58,9 @@
     <field name="context">{'form_view_initial_mode': 'edit'}</field>
   </record>
 
-  <!-- ===== 選單 ===== -->
+  <!-- ===== 選單（限管理員可見） ===== -->
   <menuitem id="menu_brands" name="品牌" parent="menu_dms_root"
-            action="action_brand" sequence="20"/>
+            action="action_brand" sequence="20"
+            groups="base.group_system"/>
 
 </odoo>

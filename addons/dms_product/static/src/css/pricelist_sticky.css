@@ -11,39 +11,46 @@
  * border-spacing:0 可維持原本視覺。
  */
 
-/* 0. 防止橫向捲軸
- *    table-layout:auto 讓瀏覽器根據內容智慧分配欄寬；
- *    overflow-x:hidden 確保任何情況下都不產生橫向 scrollbar。
+/* 0. 改為允許橫向捲動：寧可橫捲也不擠壓換行，避免列高參差。
+ *    table-layout:auto + min-width:max-content 讓表格依內容自然延伸；
+ *    .dms_pricelist_tree 容器允許 overflow-x:auto。
  */
 .dms_pricelist_tree {
-    overflow-x: hidden !important;
+    overflow-x: auto !important;
 }
 
 .dms_pricelist_tree table {
     table-layout: auto !important;
-    width: 100% !important;
+    /* 取消 width:100%，讓表格延伸到內容寬度後出現橫向 scrollbar */
+    width: auto !important;
+    min-width: 100% !important;
     border-collapse: separate !important;
     border-spacing: 0 !important;
+    font-size: 13px;
 }
 
-/* 欄位內容：標題列允許換行（normal） */
+/* 標題列：不換行，保持單行整齊 */
 .dms_pricelist_tree thead th,
 .dms_pricelist_tree thead th span {
-    overflow: visible !important;
-    text-overflow: clip !important;
-    white-space: normal !important;
-    word-break: break-all;
+    white-space: nowrap !important;
+    word-break: keep-all !important;
 }
 
-/* 資料列：pre-line — 保留使用者輸入的換行符，同時允許自動折行 */
+/* 資料列：不換行；溢出以省略號顯示，hover 時透過 title 屬性看完整內容 */
 .dms_pricelist_tree tbody td,
 .dms_pricelist_tree tbody td span,
 .dms_pricelist_tree tfoot td,
 .dms_pricelist_tree tfoot td span {
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    word-break: keep-all !important;
+}
+
+/* 編輯中 cell 取消 overflow:hidden，避免下拉/輸入被裁切 */
+.dms_pricelist_tree tbody td.o_selected_cell,
+.dms_pricelist_tree tbody tr.o_selected_row td {
     overflow: visible !important;
-    text-overflow: clip !important;
-    white-space: pre-line !important;
-    word-break: break-word;
 }
 
 /* 1. 補回 Odoo/Bootstrap 原有 border 外觀（因 separate 後需明確標示） */
@@ -141,16 +148,25 @@
     min-width: 46px;
 }
 
-/* 顧客贈品、附加費用說明：限制最大寬度，避免留白過多 */
+/* 顧客贈品、附加費用說明：限制最大寬度（過長以省略號顯示，hover title 可看完整） */
 .dms_pricelist_tree thead th[data-name="gift_note"],
 .dms_pricelist_tree td[name="gift_note"] {
     max-width: 220px;
+    min-width: 160px;
 }
 
 .dms_pricelist_tree thead th[data-name="fees_note"],
 .dms_pricelist_tree td[name="fees_note"] {
-    max-width: 240px;
+    max-width: 260px;
+    min-width: 180px;
 }
+
+/* 機種、型式、型號、車色、品牌：給合理 min-width 避免擠壓 */
+.dms_pricelist_tree thead th[data-name="brand_id"]  { min-width: 110px; }
+.dms_pricelist_tree thead th[data-name="name"]      { min-width: 120px; }
+.dms_pricelist_tree thead th[data-name="type_name"] { min-width: 80px; }
+.dms_pricelist_tree thead th[data-name="model"]     { min-width: 110px; }
+.dms_pricelist_tree thead th[data-name="color"]     { min-width: 130px; max-width: 220px; }
 
 /* ── 修正 m2o 下拉選單被相鄰 sticky 欄遮擋 ──
  * 同一列中各 sticky 欄 z-index 相同，後面的 DOM 會蓋住前面欄位的下拉。

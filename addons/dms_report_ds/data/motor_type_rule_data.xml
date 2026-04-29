@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data noupdate="1">
+        <record id="rule_white_ereadry" model="dms.motor.type.rule">
+            <field name="name">白牌電車-eReady 系列</field>
+            <field name="sequence">10</field>
+            <field name="pattern">eReady</field>
+            <field name="result">白牌電車</field>
+            <field name="note">所有 eReady 系列（含 Fun、EV062/EV070V/EV076 等）一律白牌電車。</field>
+        </record>
+
+        <record id="rule_white_gogoro" model="dms.motor.type.rule">
+            <field name="name">白牌電車-Gogoro/Pulse/S2</field>
+            <field name="sequence">20</field>
+            <field name="pattern">Gogoro|Pulse|S2.?ABS</field>
+            <field name="result">白牌電車</field>
+        </record>
+
+        <record id="rule_green" model="dms.motor.type.rule">
+            <field name="name">綠牌電車</field>
+            <field name="sequence">30</field>
+            <field name="pattern">JEGO|VIVA|EZ1|EZZY|Ur2</field>
+            <field name="result">綠牌電車</field>
+        </record>
+
+        <record id="rule_micro" model="dms.motor.type.rule">
+            <field name="name">微型電車</field>
+            <field name="sequence">40</field>
+            <field name="pattern">BOBE|SHINE|TSV57</field>
+            <field name="result">微型電車</field>
+        </record>
+
+        <record id="rule_scooter" model="dms.motor.type.rule">
+            <field name="name">速克達</field>
+            <field name="sequence">50</field>
+            <field name="pattern">SUI|Saluto|NEX|SWISH|UQ|UC|UG|UT|Address</field>
+            <field name="result">速克達</field>
+        </record>
+
+        <record id="rule_sport" model="dms.motor.type.rule">
+            <field name="name">擋車</field>
+            <field name="sequence">60</field>
+            <field name="pattern">DR-?Z|GSX|GIXXER|V-?STROM|Burgman|T-?MAX|DS\d</field>
+            <field name="result">擋車</field>
+        </record>
+    </data>
+</odoo>

@@ -44,7 +44,7 @@ TARGETS = [
     ("20_template_list", f"{BASE}/web#action=500&view_type=list", 7.0),
     ("20_template_form", f"{BASE}/web#action=500&id=1&view_type=form", 8.0),
     ("21_pricetable_list", f"{BASE}/web#action=142&view_type=list", 7.0),
-    ("21_pricetable_form", f"{BASE}/web#action=142&id=1&view_type=form", 8.0),
+    ("21_pricetable_form", f"{BASE}/web#action=142&id=5&view_type=form", 8.0),
     ("22_sale_list", f"{BASE}/web#action=95&view_type=list", 7.0),
     ("22_sale_form", f"{BASE}/web#action=95&id=7994&view_type=form", 8.0),
     ("23_sale_analysis", f"{BASE}/web#action=463", 7.0),

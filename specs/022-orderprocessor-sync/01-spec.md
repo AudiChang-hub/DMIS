@@ -33,6 +33,9 @@
     * `*.docx` → `text_content` 多行字串，依「key：value」拆解為 text_map
     * `身分證正面.jpg` → `辨識面=front`、`擷取欄位` 視為 front dict
     * `身分證反面.jpg` → `辨識面=back`、`擷取欄位` 視為 back dict
+- 若 result.json 解析後客戶姓名仍為空（含「（未知）」），fallback 讀取資料夾內含「原始資料」工作表的 `*.xlsx`：
+  * 第一列為欄位名稱、第二列為資料；必須含「姓名」欄位才算有效
+  * 欄位映射：機種/型號→車輛型號、顏色→車輛顏色、車行→車行名稱、姓名→front.姓名、生日→front.出生年月日、身分證→front.身分證字號、戶籍→back.住址、手機→車主電話、車主Email、是否有汰舊、是否有分期、備註、配件
 - 車款：從「車輛型號」括號內取 SKU，搜尋 dms.product.model；找不到則留空，原始字串存 source_product_name
 - 顏色：取括號前名稱，ilike 搜尋 dms.product.color；找不到留空
 - 車行：先以原字串比對，再 fallback 去除全形/半形空白後重比（如「昌 億」→「昌億」）；空白則 sale_type='store'

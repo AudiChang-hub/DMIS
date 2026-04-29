@@ -132,3 +132,12 @@
 - [ ] 以繁體中文 commit
 - [ ] push 到 remote branch
 - [ ] 整理 PR 標題與描述（繁體中文）
+
+## Phase 10：價格表 UI 與資料維運（2026-04-29 補強）
+
+- [x] 在價格表 tree 與產品頁面 tree 加入「開啟詳細資料」按鈕（`action_open_form`），保留 inline 編輯同時支援切換到 form 編修
+- [x] 修正價格表品牌欄位下拉被相鄰 sticky 欄遮擋（`pricelist_sticky.css`：`td.o_sticky_col:focus-within{z-index:10}`、`.o-autocomplete--dropdown{z-index:1080}`）
+- [x] 修正 `addons/dms_core/views/brand_views.xml` 中 image tree widget 非法 `width="40px"` 屬性（改為 `options="{'size':[40,40]}"`），消除 OwlError `Invalid props for component 'ImageField'`
+- [x] 將「品牌」選單改為僅 `base.group_system`（系統管理員）可見，並清除 dmis_dev 殘留的 `DMS/車行管理者` 綁定
+- [x] 將型號為 `EV0*` 的 7 筆產品（eReady 系列）品牌統一修正為「台鈴 Suzuki」（其中 6 筆原誤標為「宏佳騰 Aeon」）
+- [x] 價格表整體排版調整：標題列字體縮為 12px、tbody 改 nowrap + 橫向捲動、長欄（顧客贈品/附加費用說明/車色）改 `pre-line` 完整顯示並自動撐高列高

@@ -68,15 +68,37 @@ class OrderSyncAction(models.AbstractModel):
             count += 1
         return count
 
+    def _process_folder_by_name(self, folder_name):
+        """以資料夾名稱重新處理（供 UI 重新同步按鈕使用）。
+
+        會繞過「已處理過則跳過」與 mtime 保護。
+        """
+        if not os.path.isdir(BACKUP_DIR):
+            self._write_log(folder_name, 'fail',
+                            error_msg=f'備份目錄不存在：{BACKUP_DIR}')
+            return
+        folder_path = os.path.join(BACKUP_DIR, folder_name)
+        if not os.path.isdir(folder_path):
+            self._write_log(folder_name, 'fail',
+                            error_msg=f'資料夾不存在：{folder_name}')
+            return
+        try:
+            self._process_folder(folder_path, folder_name, skip_mtime=True)
+        except Exception as e:
+            self._write_log(folder_name, 'fail',
+                            error_msg=f'重新同步失敗：{e}')
+
     # ── 內部：處理單一資料夾 ──────────────────────────
-    def _process_folder(self, folder_path, folder_name):
+    def _process_folder(self, folder_path, folder_name, skip_mtime=False):
         result_path = os.path.join(folder_path, 'result.json')
         if not os.path.isfile(result_path):
             self._write_log(folder_name, 'skip', error_msg='找不到 result.json')
             return
 
         # mtime 保護
-        if (time.time() - os.path.getmtime(result_path)) < MTIME_MIN_SECONDS:
+        if (not skip_mtime
+                and (time.time() - os.path.getmtime(result_path))
+                < MTIME_MIN_SECONDS):
             # 尚未穩定，不寫 log → 下次再試
             return
 

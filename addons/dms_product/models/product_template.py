@@ -63,6 +63,23 @@ class DmsProductTemplate(models.Model):
                 ('active', '=', True),
             ])
 
+    def action_open_form(self):
+        """從產品頁面 tree 開啟單筆模板的詳細表單。"""
+        self.ensure_one()
+        return {
+            'type': 'ir.actions.act_window',
+            'name': '產品頁面',
+            'res_model': 'dms.product.template',
+            'res_id': self.id,
+            'view_mode': 'form',
+            'target': 'current',
+            'context': {
+                **self.env.context,
+                'active_test': False,
+                'form_view_initial_mode': 'edit',
+            },
+        }
+
     def name_get(self):
         result = []
         for record in self:

@@ -47,7 +47,11 @@ TARGETS = [
     ("22_sale_form", f"{BASE}/web#action=95&id=7994&view_type=form", 8.0),
     ("23_sale_analysis", f"{BASE}/web#action=463", 7.0),
     ("24_sync_log", f"{BASE}/web#action=460&view_type=list", 6.0),
+    ("24_sync_log_form", f"{BASE}/web#action=460&id=61&view_type=form", 7.0),
     ("25_excel_import", f"{BASE}/web#action=462", 6.0),
+    ("26_installment_rule", f"{BASE}/web#action=145&view_type=list", 6.0),
+    ("27_fee_type", f"{BASE}/web#action=146&view_type=list", 6.0),
+    ("28_rule_binding", f"{BASE}/web#action=147&view_type=list", 6.0),
 
     # ---- 3. 銷售分析 ----
     ("31_report_sales_pivot", f"{BASE}/web#action=98&view_type=pivot", 8.0),

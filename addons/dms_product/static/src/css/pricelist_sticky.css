@@ -180,16 +180,32 @@
 .dms_pricelist_tree tbody tr {
     height: auto !important;
 }
+
 .dms_pricelist_tree tbody tr td {
     vertical-align: top !important;
 }
 
 /* 機種、型式、型號、車色、品牌：給合理 min-width 避免擠壓 */
-.dms_pricelist_tree thead th[data-name="brand_id"]  { min-width: 110px; }
-.dms_pricelist_tree thead th[data-name="name"]      { min-width: 120px; }
-.dms_pricelist_tree thead th[data-name="type_name"] { min-width: 80px; }
-.dms_pricelist_tree thead th[data-name="model"]     { min-width: 110px; }
-.dms_pricelist_tree thead th[data-name="color"]     { min-width: 130px; max-width: 240px; }
+.dms_pricelist_tree thead th[data-name="brand_id"] {
+    min-width: 110px;
+}
+
+.dms_pricelist_tree thead th[data-name="name"] {
+    min-width: 120px;
+}
+
+.dms_pricelist_tree thead th[data-name="type_name"] {
+    min-width: 80px;
+}
+
+.dms_pricelist_tree thead th[data-name="model"] {
+    min-width: 110px;
+}
+
+.dms_pricelist_tree thead th[data-name="color"] {
+    min-width: 130px;
+    max-width: 240px;
+}
 
 /* ── 修正 m2o 下拉選單被相鄰 sticky 欄遮擋 ──
  * 同一列中各 sticky 欄 z-index 相同，後面的 DOM 會蓋住前面欄位的下拉。

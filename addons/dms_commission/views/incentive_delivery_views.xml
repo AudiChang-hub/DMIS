@@ -55,8 +55,8 @@
               <field name="delivered_by"/>
             </group>
           </group>
-          <group string="備註">
-            <field name="remark" nolabel="1"/>
+          <group>
+            <field name="remark" placeholder="輸入備註..."/>
           </group>
         </sheet>
       </form>

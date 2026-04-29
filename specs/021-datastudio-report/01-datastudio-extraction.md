@@ -76,7 +76,7 @@ CONCAT(Model, "_", CarColor)
 ### 8. MotorType（維度，文字）
 ```sql
 CASE
-  WHEN REGEXP_MATCH(Model, r"^EV0(62|60L|76|70V|76S|76SZV)|eReady\s+Fun|Gogoro|Pulse|S2 ABS") THEN "白牌電車"
+  WHEN REGEXP_MATCH(Model, r"eReady|Gogoro|Pulse|S2 ABS") THEN "白牌電車"
   WHEN REGEXP_MATCH(Model, r"JEGO|VIVA|EZ1|EZZY|Ur2") THEN "綠牌電車"
   WHEN REGEXP_MATCH(Model, r"BOBE|SHINE|TSV57") THEN "微型電車"
   WHEN REGEXP_MATCH(Model, r"UQ|UC|UG|UT|UT125XZ") THEN "速克達"

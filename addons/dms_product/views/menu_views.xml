@@ -6,6 +6,12 @@
             sequence="75"/>
 
   <menuitem id="menu_dms_product_master_group"
+            name="產品頁面"
+            parent="menu_dms_product_root"
+            action="action_product_template_master"
+            sequence="5"/>
+
+  <menuitem id="menu_dms_product_pricelist"
             name="價格表"
             parent="menu_dms_product_root"
             action="action_product_template"

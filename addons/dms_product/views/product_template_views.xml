@@ -6,6 +6,10 @@
     <field name="model">dms.product.template</field>
     <field name="arch" type="xml">
       <tree string="產品頁面">
+        <button name="action_open_form" type="object"
+                icon="fa-external-link" string=""
+                class="btn-link"
+                title="開啟詳細資料畫面"/>
         <field name="brand_id" optional="show"/>
         <field name="family_name" optional="show"/>
         <field name="type_name" optional="show"/>

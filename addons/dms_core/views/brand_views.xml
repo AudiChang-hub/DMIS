@@ -7,7 +7,7 @@
     <field name="model">dms.brand</field>
     <field name="arch" type="xml">
       <tree string="品牌">
-        <field name="image_128" widget="image" string="Logo" optional="show" width="40px"/>
+        <field name="image_128" widget="image" string="Logo" optional="show" options="{'size': [40, 40]}"/>
         <field name="name"   optional="show"/>
         <field name="active" optional="show"/>
       </tree>

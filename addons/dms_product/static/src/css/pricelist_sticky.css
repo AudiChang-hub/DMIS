@@ -29,11 +29,12 @@
     font-size: 13px;
 }
 
-/* 標題列：不換行，保持單行整齊 */
+/* 標題列：不換行 + 縮小字體 */
 .dms_pricelist_tree thead th,
 .dms_pricelist_tree thead th span {
     white-space: nowrap !important;
     word-break: keep-all !important;
+    font-size: 12px !important;
 }
 
 /* 資料列：不換行；溢出以省略號顯示，hover 時透過 title 屬性看完整內容 */
@@ -148,17 +149,37 @@
     min-width: 46px;
 }
 
-/* 顧客贈品、附加費用說明：限制最大寬度（過長以省略號顯示，hover title 可看完整） */
+/* 顧客贈品、附加費用說明：完整顯示（換行、列高自動拉高）；
+ * 覆蓋上方 tbody 的 nowrap/ellipsis */
 .dms_pricelist_tree thead th[data-name="gift_note"],
 .dms_pricelist_tree td[name="gift_note"] {
-    max-width: 220px;
-    min-width: 160px;
+    max-width: 280px;
+    min-width: 180px;
 }
 
 .dms_pricelist_tree thead th[data-name="fees_note"],
 .dms_pricelist_tree td[name="fees_note"] {
-    max-width: 260px;
-    min-width: 180px;
+    max-width: 320px;
+    min-width: 200px;
+}
+
+.dms_pricelist_tree tbody td[name="gift_note"],
+.dms_pricelist_tree tbody td[name="gift_note"] span,
+.dms_pricelist_tree tbody td[name="fees_note"],
+.dms_pricelist_tree tbody td[name="fees_note"] span {
+    white-space: pre-line !important;
+    overflow: visible !important;
+    text-overflow: clip !important;
+    word-break: break-word !important;
+    line-height: 1.4;
+}
+
+/* 列高自動拉高，不被 Odoo 預設高度限制 */
+.dms_pricelist_tree tbody tr {
+    height: auto !important;
+}
+.dms_pricelist_tree tbody tr td {
+    vertical-align: top !important;
 }
 
 /* 機種、型式、型號、車色、品牌：給合理 min-width 避免擠壓 */

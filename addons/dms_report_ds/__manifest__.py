@@ -22,9 +22,11 @@
         'security/ir.model.access.csv',
         'data/metabase_config.xml',
         'data/motor_type_rule_data.xml',
+        'data/dealer_brand_rule_data.xml',
         'views/ds_report_views.xml',
         'views/metabase_actions.xml',
         'views/motor_type_rule_views.xml',
+        'views/dealer_brand_rule_views.xml',
     ],
     'assets': {
         'web.assets_backend': [

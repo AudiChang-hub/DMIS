@@ -147,9 +147,54 @@ class DsSalesReport(models.Model):
                "\n                    ".join(when_clauses) + \
                "\n                    ELSE '其他'\n                END"
 
+    def _get_brand_type_case_sql(self):
+        """從 dms.dealer.brand.rule 讀取規則並組合 brand_type CASE 子句。
+
+        前置條件（優先於規則）：
+          1. dname = ''             → '馭盛網推'
+          2. store_type_name='網路平台' → '網路平台'
+          3. dname ~ '中古車'         → '中古車'
+        後續才套用啟用規則；最終 ELSE 顯示 dname 原值。
+        """
+        cr = self.env.cr
+        rules = []
+        cr.execute("""
+            SELECT 1 FROM information_schema.tables
+            WHERE table_name = 'dms_dealer_brand_rule'
+        """)
+        if cr.fetchone():
+            rule_model = self.env.get('dms.dealer.brand.rule')
+            if rule_model is not None:
+                rule_model.flush_model(
+                    ['pattern', 'result', 'sequence', 'active'])
+            cr.execute("""
+                SELECT pattern, result FROM dms_dealer_brand_rule
+                WHERE active = TRUE
+                ORDER BY sequence, id
+            """)
+            rules = cr.fetchall()
+
+        when_clauses = [
+            "WHEN s.dname = '' THEN '馭盛網推'",
+            "WHEN s.store_type_name = '網路平台' THEN '網路平台'",
+            "WHEN s.dname ~ '中古車' THEN '中古車'",
+        ]
+        for pattern, result in rules:
+            if not pattern or not result:
+                continue
+            esc_pattern = pattern.replace("'", "''")
+            esc_result = result.replace("'", "''")
+            when_clauses.append(
+                "WHEN s.dname ~* '%s' THEN '%s'" % (esc_pattern, esc_result)
+            )
+        return "CASE\n                    " + \
+               "\n                    ".join(when_clauses) + \
+               "\n                    ELSE s.dname\n                END"
+
     def init(self):
         tools.drop_view_if_exists(self.env.cr, self._table)
         motor_type_case = self._get_motor_type_case_sql()
+        brand_type_case = self._get_brand_type_case_sql()
         self.env.cr.execute(("""
             CREATE OR REPLACE VIEW %(table)s AS (
             WITH src AS (
@@ -183,11 +228,16 @@ class DsSalesReport(models.Model):
                     COALESCE(so.display_dealer_name, '')   AS dname,
                     COALESCE(so.display_color_name, '')    AS cname,
                     p.energy_type                          AS p_energy,
+                    COALESCE(st.name, '')                  AS store_type_name,
                     COALESCE(cr.volume_bonus, 0)           AS cr_volume_bonus,
                     COALESCE(cr.total_commission, 0)       AS cr_total_commission
                 FROM dms_sale_order so
                 LEFT JOIN dms_product p
                     ON so.product_id = p.id
+                LEFT JOIN dms_dealer d
+                    ON d.id = so.dealer_id
+                LEFT JOIN dms_store_type st
+                    ON st.id = d.store_type_id
                 LEFT JOIN dms_commission_record cr
                     ON cr.sale_order_id = so.id
                    AND cr.state = 'active'
@@ -219,12 +269,10 @@ class DsSalesReport(models.Model):
                 s.engine_number                  AS vin_or_en,
                 s.plate_number                   AS license_plate,
 
-                -- ── 能源型式（fx #6）──
+                -- ── 能源型式（fx #6，以 dms_product.energy_type 為準）──
                 CASE
                     WHEN s.p_energy = 'electric' THEN '電車'
                     WHEN s.p_energy = 'oil' THEN '油車'
-                    WHEN s.pname ~* '(eReady|^EV|Gogoro|Pulse|S2.?ABS|BOBE|VIVAMIX|VIVABASIC|TSV57|SHINE|JEGO|EZ1|EZZY|VIVAXLSF|Ur2)'
-                        THEN '電車'
                     ELSE '油車'
                 END                              AS energy_type,
 
@@ -287,49 +335,28 @@ class DsSalesReport(models.Model):
                     '((?:台北市|新北市|桃園市|台中市|台南市|高雄市|基隆市|新竹市|嘉義市|新竹縣|苗栗縣|宜蘭縣|彰化縣|南投縣|雲林縣|嘉義縣|屏東縣|花蓮縣|台東縣|澎湖縣|金門縣|連江縣).{1,6}(?:區|鄉|鎮|市))')
                 )[1]                             AS region_district,
 
-                -- ── 銷售來源（fx #14 Sales Source）──
+                -- ── 銷售來源（fx #14 Sales Source，以 store_type 為主）──
                 CASE
                     WHEN s.dname = '' OR s.dname = '中古車'
                         THEN '馭盛'
-                    WHEN s.dname ~* '(yahoo|百利市|momo|PC|Friday|燦坤|小樹購|蝦皮)'
+                    WHEN s.store_type_name = '網路平台'
                         THEN '網路平台'
                     WHEN s.dname ~ '文傑'
                         THEN '店內員工'
                     ELSE '車行'
                 END                              AS sales_source,
 
-                -- ── 銷售類型（fx #15 SalesType）──
+                -- ── 銷售類型（fx #15 SalesType，以 store_type 為主）──
                 CASE
                     WHEN s.dname = '' OR s.dname ~ '文傑'
                         THEN '本店'
-                    WHEN s.dname ~* '(pc|momo|yahoo|燦坤|小樹購|百利市|friday|蝦皮)'
+                    WHEN s.store_type_name = '網路平台'
                         THEN '網路平台'
                     ELSE '車行'
                 END                              AS sales_type,
 
-                -- ── 品牌分類（fx #4 BrandType）──
-                CASE
-                    WHEN s.dname = '' THEN '馭盛網推'
-                    WHEN s.dname ~* '(pc|momo|yahoo|燦坤|小樹購|百利市|friday|蝦皮)'
-                        THEN '網路平台'
-                    WHEN s.dname ~ '(鑫輝|特色|捷盛|祥銘|達能|立野|名豐|弘安)'
-                        THEN '光陽'
-                    WHEN s.dname ~ '(永湛|宏堂|見元|萬全|百福|昌億|風火輪|皇韋|成峰|百呈|明達|東永|嘉順)'
-                        THEN '三陽'
-                    WHEN s.dname ~ '(馳機|天佑|旭昇|宏偉|尚勁|德新|凱弘|鋐亞|群陽|德旺|駿翔|輪友|極昇|奕鈞|良澄|岩谷|昌勝|松祥|金利富|泳辰|源泰|旗成|嘉仁|金泰發|日信|名傑|鈞鴻)'
-                        THEN '山葉'
-                    WHEN s.dname ~ '(明毅|鑨來|阿松|佳峰|信益|鼎勝|上慶|合聰|宏昌|湖州|鉉豐)'
-                        THEN '一般車行'
-                    WHEN s.dname ~ '(明輝|新隆|旭昶|欣益|富順|運豐)'
-                        THEN '台鈴'
-                    WHEN s.dname ~ '(士辰|北野電能|北野)'
-                        THEN '睿能'
-                    WHEN s.dname ~ '中古車'
-                        THEN '中古車'
-                    WHEN s.dname ~ '彗星'
-                        THEN '一般車行'
-                    ELSE s.dname
-                END                              AS brand_type,
+                -- ── 品牌分類（fx #4 BrandType，由 dms.dealer.brand.rule 動態產生）──
+                %(brand_type_case)s              AS brand_type,
 
                 -- ── 金額 ──
                 COALESCE(s.received_amount, 0)           AS receipt_price,
@@ -361,4 +388,8 @@ class DsSalesReport(models.Model):
 
             FROM src s
             )
-        """) % {'table': self._table, 'motor_type_case': motor_type_case})
+        """) % {
+            'table': self._table,
+            'motor_type_case': motor_type_case,
+            'brand_type_case': brand_type_case,
+        })

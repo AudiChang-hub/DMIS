@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data noupdate="1">
+        <record id="brand_kymco" model="dms.dealer.brand.rule">
+            <field name="name">光陽車行</field>
+            <field name="sequence">10</field>
+            <field name="pattern">鑫輝|特色|捷盛|祥銘|達能|立野|名豐|弘安</field>
+            <field name="result">光陽</field>
+        </record>
+
+        <record id="brand_sym" model="dms.dealer.brand.rule">
+            <field name="name">三陽車行</field>
+            <field name="sequence">20</field>
+            <field name="pattern">永湛|宏堂|見元|萬全|百福|昌億|風火輪|皇韋|成峰|百呈|明達|東永|嘉順</field>
+            <field name="result">三陽</field>
+        </record>
+
+        <record id="brand_yamaha" model="dms.dealer.brand.rule">
+            <field name="name">山葉車行</field>
+            <field name="sequence">30</field>
+            <field name="pattern">馳機|天佑|旭昇|宏偉|尚勁|德新|凱弘|鋐亞|群陽|德旺|駿翔|輪友|極昇|奕鈞|良澄|岩谷|昌勝|松祥|金利富|泳辰|源泰|旗成|嘉仁|金泰發|日信|名傑|鈞鴻</field>
+            <field name="result">山葉</field>
+        </record>
+
+        <record id="brand_general_a" model="dms.dealer.brand.rule">
+            <field name="name">一般車行 A</field>
+            <field name="sequence">40</field>
+            <field name="pattern">明毅|鑨來|阿松|佳峰|信益|鼎勝|上慶|合聰|宏昌|湖州|鉉豐</field>
+            <field name="result">一般車行</field>
+        </record>
+
+        <record id="brand_general_b" model="dms.dealer.brand.rule">
+            <field name="name">一般車行 B</field>
+            <field name="sequence">41</field>
+            <field name="pattern">彗星</field>
+            <field name="result">一般車行</field>
+        </record>
+
+        <record id="brand_suzuki" model="dms.dealer.brand.rule">
+            <field name="name">台鈴車行</field>
+            <field name="sequence">50</field>
+            <field name="pattern">明輝|新隆|旭昶|欣益|富順|運豐</field>
+            <field name="result">台鈴</field>
+        </record>
+
+        <record id="brand_gogoro" model="dms.dealer.brand.rule">
+            <field name="name">睿能車行</field>
+            <field name="sequence">60</field>
+            <field name="pattern">士辰|北野電能|北野</field>
+            <field name="result">睿能</field>
+        </record>
+
+        <record id="brand_ecommerce" model="dms.dealer.brand.rule">
+            <field name="name">網路平台-關鍵字</field>
+            <field name="sequence">70</field>
+            <field name="pattern">pc|momo|yahoo|燦坤|小樹購|百利市|friday|蝦皮</field>
+            <field name="result">網路平台</field>
+            <field name="note">備援判斷：實際應由 dealer.store_type 為「網路平台」直接識別。</field>
+        </record>
+    </data>
+</odoo>

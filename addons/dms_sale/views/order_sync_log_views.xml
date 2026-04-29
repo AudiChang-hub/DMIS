@@ -24,6 +24,11 @@
     <field name="model">dms.sync.log</field>
     <field name="arch" type="xml">
       <form string="同步紀錄">
+        <header>
+          <button name="action_resync" type="object"
+                  string="重新同步" class="btn-primary"
+                  confirm="此操作將刪除原訂單並重新從備份資料夾解析建立。確定繼續？"/>
+        </header>
         <sheet>
           <group>
             <group>

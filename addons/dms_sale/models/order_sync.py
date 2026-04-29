@@ -93,6 +93,19 @@ class OrderSyncAction(models.AbstractModel):
             self._write_log(folder_name, 'fail', error_msg=f'欄位解析失敗：{e}')
             return
 
+        # 若 result.json 解析後資料近乎空白，改讀資料夾內 xlsx「原始資料」sheet
+        if vals.get('customer_name') in (None, '', '（未知）') and not vals.get('product_id'):
+            try:
+                xlsx_data = self._read_xlsx_fallback(folder_path)
+                if xlsx_data:
+                    vals2 = self._build_order_vals(xlsx_data, folder_name)
+                    if (vals2.get('customer_name') and
+                            vals2.get('customer_name') != '（未知）'):
+                        vals = vals2
+            except Exception:
+                _logger.exception(
+                    '[OrderSync] xlsx fallback 失敗：%s', folder_name)
+
         try:
             order = self.env['dms.sale.order'].create(vals)
             self._write_log(folder_name, 'success', order_id=order.id)
@@ -153,6 +166,72 @@ class OrderSyncAction(models.AbstractModel):
             elif face == 'back':
                 back = fields_map
         return text_map, front, back
+
+    # ── 內部：xlsx 原始資料 fallback ─────────────────
+    def _read_xlsx_fallback(self, folder_path):
+        """從資料夾內任一 xlsx 的「原始資料」sheet 讀出 row → 統一格式。
+
+        用於 result.json 解析後資料缺漏時的後備來源。
+        回傳：{'text_map': {...}, 'front': {...}, 'back': {...}}；找不到回傳 None。
+        """
+        try:
+            import openpyxl
+        except ImportError:
+            return None
+        if not os.path.isdir(folder_path):
+            return None
+        for fname in sorted(os.listdir(folder_path)):
+            if not fname.lower().endswith('.xlsx'):
+                continue
+            fpath = os.path.join(folder_path, fname)
+            try:
+                wb = openpyxl.load_workbook(
+                    fpath, data_only=True, read_only=True)
+            except Exception:
+                continue
+            if '原始資料' not in wb.sheetnames:
+                wb.close()
+                continue
+            ws = wb['原始資料']
+            rows = list(ws.iter_rows(values_only=True))
+            wb.close()
+            if len(rows) < 2 or not rows[0]:
+                continue
+            headers = [(h or '').strip() if isinstance(h, str) else h
+                       for h in rows[0]]
+            data_row = rows[1]
+            row_dict = {}
+            for h, v in zip(headers, data_row):
+                if not h or v in (None, ''):
+                    continue
+                row_dict[h] = (v.strip() if isinstance(v, str)
+                               else str(v).strip())
+            if not row_dict.get('姓名'):
+                continue
+            text_map = {
+                '車輛型號': row_dict.get('機種') or row_dict.get('型號') or '',
+                '車輛顏色': row_dict.get('顏色') or '',
+                '車行名稱': row_dict.get('車行') or '',
+                '車主電話': row_dict.get('手機') or row_dict.get('車主電話') or '',
+                '車主Email': row_dict.get('車主Email') or row_dict.get('Email') or '',
+                '是否有汰舊': row_dict.get('是否有汰舊') or row_dict.get('汰舊') or '',
+                '是否有分期': row_dict.get('分期公司') or '',
+                '備註': row_dict.get('備註') or '',
+                '配件': row_dict.get('配件') or '',
+            }
+            text_map = {k: v for k, v in text_map.items() if v}
+            front = {}
+            if row_dict.get('姓名'):
+                front['姓名'] = row_dict['姓名']
+            if row_dict.get('生日'):
+                front['出生年月日'] = row_dict['生日']
+            if row_dict.get('身分證'):
+                front['身分證字號'] = row_dict['身分證']
+            back = {}
+            if row_dict.get('戶籍'):
+                back['住址'] = row_dict['戶籍']
+            return {'text_map': text_map, 'front': front, 'back': back}
+        return None
 
     def _build_order_vals(self, data, folder_name):
         text_map, front, back = self._normalize_data(data)

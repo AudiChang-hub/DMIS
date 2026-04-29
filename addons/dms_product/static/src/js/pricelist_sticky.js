@@ -27,11 +27,12 @@ function applySticky() {
         if (!table) return;
 
         /* 修正 border-collapse（CSS spec：collapse 模式下 sticky 對 td/th 無效） */
-        /* table-layout:fixed + width:100% 由 CSS 設定，JS 確保不被覆寫 */
+        /* width:auto + min-width:100% 讓表格依內容延伸並出現橫向 scrollbar，避免欄位被擠壓 */
         table.style.borderCollapse = "separate";
         table.style.borderSpacing = "0";
         table.style.tableLayout = "auto";
-        table.style.width = "100%";
+        table.style.width = "auto";
+        table.style.minWidth = "100%";
 
         const headerRow = table.querySelector("thead tr:first-child");
         if (!headerRow) return;

@@ -1,6 +1,18 @@
 from odoo import fields, models, tools
 
 
+# 內建預設規則：當 dms.motor.type.rule 表尚未建立或無資料時使用，
+# 維持 view 在初次安裝 / fresh DB 情境下仍可正確產出 motor_type。
+_DEFAULT_MOTOR_TYPE_RULES = [
+    ('eReady', '白牌電車'),
+    ('Gogoro|Pulse|S2.?ABS', '白牌電車'),
+    ('JEGO|VIVA|EZ1|EZZY|Ur2', '綠牌電車'),
+    ('BOBE|SHINE|TSV57', '微型電車'),
+    ('SUI|Saluto|NEX|SWISH|UQ|UC|UG|UT|Address', '速克達'),
+    (r'DR-?Z|GSX|GIXXER|V-?STROM|Burgman|T-?MAX|DS\d', '擋車'),
+]
+
+
 class DsSalesReport(models.Model):
     """DataStudio 銷售分析 SQL View — 復刻全部 17 個計算欄位"""
 
@@ -92,10 +104,49 @@ class DsSalesReport(models.Model):
     # ── 備註 ──────────────────────────────────────────────
     remark = fields.Char(string='備註', readonly=True)
 
+    def _get_motor_type_case_sql(self):
+        """從 dms.motor.type.rule 讀取規則並組合 CASE 子句。
+
+        - 規則表不存在或無啟用規則時，使用內建預設清單。
+        - 結果僅來自設定中的 Selection 結果欄位（已限制可選值），
+          pattern / result 透過 SQL 字串轉義內嵌，避免注入。
+        """
+        cr = self.env.cr
+        rules = []
+        cr.execute("""
+            SELECT 1 FROM information_schema.tables
+            WHERE table_name = 'dms_motor_type_rule'
+        """)
+        if cr.fetchone():
+            cr.execute("""
+                SELECT pattern, result FROM dms_motor_type_rule
+                WHERE active = TRUE
+                ORDER BY sequence, id
+            """)
+            rules = cr.fetchall()
+        if not rules:
+            rules = list(_DEFAULT_MOTOR_TYPE_RULES)
+
+        when_clauses = []
+        for pattern, result in rules:
+            if not pattern or not result:
+                continue
+            esc_pattern = pattern.replace("'", "''")
+            esc_result = result.replace("'", "''")
+            when_clauses.append(
+                "WHEN s.pname ~* '%s' THEN '%s'" % (esc_pattern, esc_result)
+            )
+        if not when_clauses:
+            return "'其他'"
+        return "CASE\n                    " + \
+               "\n                    ".join(when_clauses) + \
+               "\n                    ELSE '其他'\n                END"
+
     def init(self):
         tools.drop_view_if_exists(self.env.cr, self._table)
-        self.env.cr.execute("""
-            CREATE OR REPLACE VIEW %s AS (
+        motor_type_case = self._get_motor_type_case_sql()
+        self.env.cr.execute(("""
+            CREATE OR REPLACE VIEW %(table)s AS (
             WITH src AS (
                 SELECT
                     so.id,
@@ -172,21 +223,8 @@ class DsSalesReport(models.Model):
                     ELSE '油車'
                 END                              AS energy_type,
 
-                -- ── 車種分類（fx #8 MotorType）──
-                CASE
-                    WHEN s.pname ~* 'eReady'
-                      OR s.pname ~* '(Gogoro|Pulse|S2.?ABS)'
-                        THEN '白牌電車'
-                    WHEN s.pname ~* '(JEGO|VIVA|EZ1|EZZY|Ur2)'
-                        THEN '綠牌電車'
-                    WHEN s.pname ~* '(BOBE|SHINE|TSV57)'
-                        THEN '微型電車'
-                    WHEN s.pname ~* '(SUI|Saluto|NEX|SWISH|UQ|UC|UG|UT|Address)'
-                        THEN '速克達'
-                    WHEN s.pname ~* '(DR-?Z|GSX|GIXXER|V-?STROM|Burgman|T-?MAX|DS\d)'
-                        THEN '擋車'
-                    ELSE '其他'
-                END                              AS motor_type,
+                -- ── 車種分類（fx #8 MotorType，由 dms.motor.type.rule 動態產生）──
+                %(motor_type_case)s              AS motor_type,
 
                 -- ── 客戶 ──
                 s.customer_name                  AS owner_name,
@@ -318,4 +356,4 @@ class DsSalesReport(models.Model):
 
             FROM src s
             )
-        """ % self._table)
+        """) % {'table': self._table, 'motor_type_case': motor_type_case})

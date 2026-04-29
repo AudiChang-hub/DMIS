@@ -1,2 +1,4 @@
 id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
 access_ds_sales_report_user,ds.sales.report user,model_ds_sales_report,base.group_user,1,0,0,0
+access_motor_type_rule_user,dms.motor.type.rule user,model_dms_motor_type_rule,base.group_user,1,0,0,0
+access_motor_type_rule_admin,dms.motor.type.rule admin,model_dms_motor_type_rule,base.group_system,1,1,1,1

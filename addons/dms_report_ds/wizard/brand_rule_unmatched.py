@@ -94,7 +94,7 @@ class BrandRuleUnmatchedWizard(models.TransientModel):
         rate = (matched / total * 100.0) if total else 0.0
 
         cr.execute("""
-            SELECT pname, COUNT(*) AS cnt
+            SELECT model, COUNT(*) AS cnt
             FROM ds_sales_report
             WHERE motor_type = '其他' OR motor_type IS NULL
             GROUP BY 1
@@ -103,7 +103,7 @@ class BrandRuleUnmatchedWizard(models.TransientModel):
         rows = cr.fetchall()
 
         summary = (
-            f'類型：motor_type（車種類型分類，依商品名 pname 比對）\n'
+            f'類型：motor_type（車種類型分類，依商品名 model 比對）\n'
             f'命中：{matched} / 未命中：{unmatched} / 總計：{total}\n'
             f'命中率：{rate:.1f}%'
         )

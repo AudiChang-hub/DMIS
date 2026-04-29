@@ -27,9 +27,15 @@
 | error_msg | 失敗原因 |
 
 ## 解析邏輯
+- result.json 兩種格式皆支援（透過 `_normalize_data` 統一）：
+  - 舊：`{text_map, front, back}`（或 `{docx:{text_map}, front, back}`）
+  - 新：以檔名為 key
+    * `*.docx` → `text_content` 多行字串，依「key：value」拆解為 text_map
+    * `身分證正面.jpg` → `辨識面=front`、`擷取欄位` 視為 front dict
+    * `身分證反面.jpg` → `辨識面=back`、`擷取欄位` 視為 back dict
 - 車款：從「車輛型號」括號內取 SKU，搜尋 dms.product.model；找不到則留空，原始字串存 source_product_name
 - 顏色：取括號前名稱，ilike 搜尋 dms.product.color；找不到留空
-- 車行：有名稱則搜尋 dms.dealer.name；空白則 sale_type='store'
+- 車行：先以原字串比對，再 fallback 去除全形/半形空白後重比（如「昌 億」→「昌億」）；空白則 sale_type='store'
 - 預設車行：車行名稱空白時帶入店面（sale_type='store'，dealer_id=False）
 - 汰舊：「是否有汰舊」不是「否」→ is_trade_in=True
 - 分期：「是否有分期」不是「無」→ payment_method='installment'，解析分期公司

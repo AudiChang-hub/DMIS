@@ -50,6 +50,7 @@
 .dms_pricelist_tree thead th {
     border-bottom: 2px solid #dee2e6 !important;
 }
+
 .dms_pricelist_tree tbody td,
 .dms_pricelist_tree tfoot td {
     border-bottom: 1px solid #dee2e6 !important;
@@ -90,6 +91,7 @@
 .dms_pricelist_tree tbody tr:hover td.o_sticky_col {
     background-color: #f5f5f5 !important;
 }
+
 .dms_pricelist_tree tbody tr.o_selected_row td.o_sticky_col {
     background-color: #e8f0fe !important;
 }
@@ -102,15 +104,27 @@
  * ─────────────────────────────────────────────────────────── */
 
 /* 年份：4 碼數字，至少容納標題「年份」(2 字) + 排序箭頭 */
-.dms_pricelist_tree thead th[data-name="production_year"]       { min-width: 56px; }
+.dms_pricelist_tree thead th[data-name="production_year"] {
+    min-width: 56px;
+}
 
 /* 能源型式：「電車」/「油車」2 字 */
-.dms_pricelist_tree thead th[data-name="energy_type"]           { min-width: 64px; }
+.dms_pricelist_tree thead th[data-name="energy_type"] {
+    min-width: 64px;
+}
 
 /* 金額欄：3~4 字標題 + 排序箭頭 */
-.dms_pricelist_tree thead th[data-name="suggested_price"]       { min-width: 76px; }
-.dms_pricelist_tree thead th[data-name="cash_discount"]         { min-width: 68px; }
-.dms_pricelist_tree thead th[data-name="cash_price"]            { min-width: 68px; }
+.dms_pricelist_tree thead th[data-name="suggested_price"] {
+    min-width: 76px;
+}
+
+.dms_pricelist_tree thead th[data-name="cash_discount"] {
+    min-width: 68px;
+}
+
+.dms_pricelist_tree thead th[data-name="cash_price"] {
+    min-width: 68px;
+}
 
 /* 分期欄：「18期」2+1 字，min-width 60px 確保標題不換行 */
 .dms_pricelist_tree thead th[data-name="installment_12_price"],
@@ -118,16 +132,25 @@
 .dms_pricelist_tree thead th[data-name="installment_24_price"],
 .dms_pricelist_tree thead th[data-name="installment_36_price"],
 .dms_pricelist_tree thead th[data-name="installment_48_price"],
-.dms_pricelist_tree thead th[data-name="installment_60_price"] { min-width: 60px; }
+.dms_pricelist_tree thead th[data-name="installment_60_price"] {
+    min-width: 60px;
+}
 
 /* 啟用：切換鈕 */
-.dms_pricelist_tree thead th[data-name="active"]                { min-width: 46px; }
+.dms_pricelist_tree thead th[data-name="active"] {
+    min-width: 46px;
+}
 
 /* 顧客贈品、附加費用說明：限制最大寬度，避免留白過多 */
 .dms_pricelist_tree thead th[data-name="gift_note"],
-.dms_pricelist_tree td[name="gift_note"]                       { max-width: 220px; }
+.dms_pricelist_tree td[name="gift_note"] {
+    max-width: 220px;
+}
+
 .dms_pricelist_tree thead th[data-name="fees_note"],
-.dms_pricelist_tree td[name="fees_note"]                       { max-width: 240px; }
+.dms_pricelist_tree td[name="fees_note"] {
+    max-width: 240px;
+}
 
 /* ── 修正 m2o 下拉選單被相鄰 sticky 欄遮擋 ──
  * 同一列中各 sticky 欄 z-index 相同，後面的 DOM 會蓋住前面欄位的下拉。
@@ -137,6 +160,7 @@
 .dms_pricelist_tree tbody tr.o_selected_row td.o_sticky_col:focus-within {
     z-index: 10 !important;
 }
+
 .o-autocomplete--dropdown,
 .o-autocomplete--dropdown-menu,
 .o-autocomplete .dropdown-menu {

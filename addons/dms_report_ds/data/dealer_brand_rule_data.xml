@@ -57,5 +57,29 @@
             <field name="result">網路平台</field>
             <field name="note">備援判斷：實際應由 dealer.store_type 為「網路平台」直接識別。</field>
         </record>
+
+        <record id="brand_general_c_huzhou" model="dms.dealer.brand.rule">
+            <field name="name">一般車行 C</field>
+            <field name="sequence">42</field>
+            <field name="pattern">湖洲</field>
+            <field name="result">一般車行</field>
+            <field name="note">補規則：與 brand_general_a 中的「湖州」並列（資料中兩種寫法皆有）。</field>
+        </record>
+
+        <record id="brand_internal_staff" model="dms.dealer.brand.rule">
+            <field name="name">店內員工-文傑</field>
+            <field name="sequence">80</field>
+            <field name="pattern">文傑</field>
+            <field name="result">馭盛</field>
+            <field name="note">員工兼營訂單，brand_type 歸為馭盛；sales_source 仍維持「店內員工」。</field>
+        </record>
+
+        <record id="brand_subsidy" model="dms.dealer.brand.rule">
+            <field name="name">補助申請</field>
+            <field name="sequence">90</field>
+            <field name="pattern">代申請補助</field>
+            <field name="result">補助</field>
+            <field name="note">非車行銷售，僅為補助方案申請紀錄。</field>
+        </record>
     </data>
 </odoo>

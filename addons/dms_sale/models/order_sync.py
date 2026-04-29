@@ -100,10 +100,62 @@ class OrderSyncAction(models.AbstractModel):
             self._write_log(folder_name, 'fail', error_msg=f'建立訂單失敗：{e}')
 
     # ── 內部：解析 result.json → 訂單欄位 ────────────
-    def _build_order_vals(self, data, folder_name):
-        text_map = data.get('text_map') or data.get('docx', {}).get('text_map', {}) or {}
+    def _normalize_data(self, data):
+        """將 OrderProcessor 多種 result.json 格式統一成 (text_map, front, back)。
+
+        支援：
+          (A) 舊格式：{'text_map':{...}, 'front':{...}, 'back':{...}}
+              或 {'docx':{'text_map':{...}}, 'front':{...}, 'back':{...}}
+          (B) 新格式：{
+                '<檔名>.docx': {'text_content': '車主電話：xxx\n車輛型號：...'},
+                '身分證正面.jpg': {'辨識面':'front', '擷取欄位':{...}},
+                '身分證反面.jpg': {'辨識面':'back',  '擷取欄位':{...}},
+              }
+        回傳統一過後的 (text_map, front, back) 三個 dict。
+        """
+        if not isinstance(data, dict):
+            return {}, {}, {}
+
+        # (A) 舊格式
+        text_map = (
+            data.get('text_map')
+            or (data.get('docx') or {}).get('text_map')
+            or {}
+        )
         front = data.get('front') or {}
         back = data.get('back') or {}
+        if text_map or front or back:
+            return text_map or {}, front, back
+
+        # (B) 新格式：掃描所有 key
+        text_map = {}
+        for key, val in data.items():
+            if not isinstance(val, dict):
+                continue
+            # docx：把 text_content 多行解析成 key:value
+            if key.endswith('.docx') or val.get('type') == 'docx':
+                content = val.get('text_content') or ''
+                for line in content.splitlines():
+                    line = line.strip()
+                    # 同時支援全形冒號「：」與半形「:」
+                    m = re.match(r'^([^：:]{1,30})\s*[：:]\s*(.*)$', line)
+                    if not m:
+                        continue
+                    k = m.group(1).strip()
+                    v = m.group(2).strip()
+                    if v:
+                        text_map.setdefault(k, v)
+            # 身分證正反面
+            face = val.get('辨識面')
+            fields_map = val.get('擷取欄位') or {}
+            if face == 'front':
+                front = fields_map
+            elif face == 'back':
+                back = fields_map
+        return text_map, front, back
+
+    def _build_order_vals(self, data, folder_name):
+        text_map, front, back = self._normalize_data(data)
 
         # ── 客戶身分 ──────────────────────────────────
         customer_name = (front.get('姓名') or '').strip() or '（未知）'
@@ -169,6 +221,15 @@ class OrderSyncAction(models.AbstractModel):
             if not dealer:
                 dealer = self.env['dms.dealer'].search(
                     [('name', 'ilike', dealer_raw)], limit=1)
+            if not dealer:
+                # 去除中間空白再比對（如「昌 億」→「昌億」）
+                stripped = re.sub(r'\s+', '', dealer_raw)
+                if stripped and stripped != dealer_raw:
+                    dealer = self.env['dms.dealer'].search(
+                        [('name', '=', stripped)], limit=1)
+                    if not dealer:
+                        dealer = self.env['dms.dealer'].search(
+                            [('name', 'ilike', stripped)], limit=1)
             if dealer:
                 dealer_id = dealer.id
                 sale_type = ('online'

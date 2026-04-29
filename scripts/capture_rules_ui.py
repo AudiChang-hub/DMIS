@@ -128,6 +128,8 @@ def main():
          f"{BASE}/web#action=496&view_type=list", 6.0),
         ("04_dealer_brand_rule_form",
          f"{BASE}/web#action=496&view_type=form&id=1", 6.0),
+        ("05_diagnose_unmatched",
+         f"{BASE}/web#action=497", 8.0),
     ]
     capture(targets, sid)
 

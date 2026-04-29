@@ -175,9 +175,10 @@ class DsSalesReport(models.Model):
                 -- ── 車種分類（fx #8 MotorType）──
                 CASE
                     WHEN s.pname ~* '(eReady\s+EV0?(62|70V|76|76S|76SZV))'
+                      OR s.pname ~* '(eReady\s+Fun)'
                       OR s.pname ~* '(Gogoro|Pulse|S2.?ABS)'
                         THEN '白牌電車'
-                    WHEN s.pname ~* '(JEGO|VIVA|EZ1|EZZY|Ur2|eReady)'
+                    WHEN s.pname ~* '(JEGO|VIVA|EZ1|EZZY|Ur2)'
                         THEN '綠牌電車'
                     WHEN s.pname ~* '(BOBE|SHINE|TSV57)'
                         THEN '微型電車'

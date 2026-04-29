@@ -118,6 +118,11 @@ class DsSalesReport(models.Model):
             WHERE table_name = 'dms_motor_type_rule'
         """)
         if cr.fetchone():
+            # 確保 ORM cache 已 flush 至 DB（write 後立即重建時會用到）
+            rule_model = self.env.get('dms.motor.type.rule')
+            if rule_model is not None:
+                rule_model.flush_model(
+                    ['pattern', 'result', 'sequence', 'active'])
             cr.execute("""
                 SELECT pattern, result FROM dms_motor_type_rule
                 WHERE active = TRUE

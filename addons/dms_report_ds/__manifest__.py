@@ -27,6 +27,7 @@
         'views/metabase_actions.xml',
         'views/motor_type_rule_views.xml',
         'views/dealer_brand_rule_views.xml',
+        'wizard/brand_rule_unmatched_views.xml',
     ],
     'assets': {
         'web.assets_backend': [

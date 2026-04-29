@@ -128,3 +128,17 @@
 .dms_pricelist_tree td[name="gift_note"]                       { max-width: 220px; }
 .dms_pricelist_tree thead th[data-name="fees_note"],
 .dms_pricelist_tree td[name="fees_note"]                       { max-width: 240px; }
+
+/* ── 修正 m2o 下拉選單被相鄰 sticky 欄遮擋 ──
+ * 同一列中各 sticky 欄 z-index 相同，後面的 DOM 會蓋住前面欄位的下拉。
+ * 用 :focus-within 把當前編輯的 sticky 欄拉到最上層即可，sticky 行為不變。
+ */
+.dms_pricelist_tree tbody td.o_sticky_col:focus-within,
+.dms_pricelist_tree tbody tr.o_selected_row td.o_sticky_col:focus-within {
+    z-index: 10 !important;
+}
+.o-autocomplete--dropdown,
+.o-autocomplete--dropdown-menu,
+.o-autocomplete .dropdown-menu {
+    z-index: 1080 !important;
+}

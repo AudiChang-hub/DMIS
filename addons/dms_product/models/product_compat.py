@@ -364,6 +364,25 @@ class DmsProductCompat(models.Model):
         self.ensure_one()
         return False
 
+    def action_open_form(self):
+        """從價格表 tree 跳到單筆產品的詳細表單（target='current'）。"""
+        self.ensure_one()
+        form_view = self.env.ref('dms_sale.view_product_form')
+        return {
+            'type': 'ir.actions.act_window',
+            'name': '產品詳細資料',
+            'res_model': 'dms.product',
+            'res_id': self.id,
+            'view_mode': 'form',
+            'views': [(form_view.id, 'form')],
+            'target': 'current',
+            'context': {
+                **self.env.context,
+                'active_test': False,
+                'form_view_initial_mode': 'edit',
+            },
+        }
+
     def action_open_color_editor(self):
         self.ensure_one()
         form_view = self.env.ref('dms_sale.view_product_form')

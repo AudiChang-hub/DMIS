@@ -120,6 +120,7 @@ class DmsSystemAbout(models.Model):
             'views': [(view.id, 'form')],
             'res_id': rec.id,
             'target': 'current',
+            'context': {'form_view_initial_mode': 'readonly'},
         }
 
     def _build_version_html(self):

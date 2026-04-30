@@ -1,6 +1,6 @@
 {
     'name': 'DMS 車行管理',
-    'version': '16.0.1.2.3',
+    'version': '16.0.1.2.4',
     'summary': '最小車行管理示範',
     'description': '提供 dealer（車行）模型與基本 view，作為專案骨架示範。',
     'author': 'DMIS',

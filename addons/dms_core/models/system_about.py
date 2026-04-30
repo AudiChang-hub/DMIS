@@ -82,21 +82,44 @@ _CHANGELOG_HTML = '''
 '''
 
 
-class DmsSystemAbout(models.TransientModel):
+class DmsSystemAbout(models.Model):
+    """系統版本資訊（singleton）。
+
+    使用一般 Model 而非 TransientModel，以便用固定 res_id 開啟頁面，
+    避免 breadcrumb 顯示 "NEW"，也避免每次點擊產生新的 transient record。
+    """
     _name = 'dms.system.about'
     _description = '系統版本資訊'
+    _rec_name = 'name'
 
-    version_html = fields.Html(string='模組版本', readonly=True, sanitize=False)
-    changelog_html = fields.Html(string='版本歷程', readonly=True, sanitize=False)
+    name = fields.Char(default='系統版本資訊', readonly=True)
+    version_html = fields.Html(string='模組版本', compute='_compute_html', sanitize=False)
+    changelog_html = fields.Html(string='版本歷程', compute='_compute_html', sanitize=False)
+
+    def _compute_html(self):
+        for rec in self:
+            rec.version_html = rec._build_version_html()
+            rec.changelog_html = _CHANGELOG_HTML
 
     @api.model
-    def default_get(self, fields_list):
-        res = super().default_get(fields_list)
-        if 'version_html' in fields_list:
-            res['version_html'] = self._build_version_html()
-        if 'changelog_html' in fields_list:
-            res['changelog_html'] = _CHANGELOG_HTML
-        return res
+    def _get_singleton(self):
+        rec = self.sudo().search([], limit=1)
+        if not rec:
+            rec = self.sudo().create({'name': '系統版本資訊'})
+        return rec.sudo()
+
+    @api.model
+    def action_open(self):
+        rec = self._get_singleton()
+        return {
+            'type': 'ir.actions.act_window',
+            'name': '系統版本資訊',
+            'res_model': 'dms.system.about',
+            'view_mode': 'form',
+            'res_id': rec.id,
+            'target': 'current',
+            'context': {'form_view_initial_mode': 'readonly'},
+        }
 
     def _build_version_html(self):
         IrModule = self.env['ir.module.module'].sudo()

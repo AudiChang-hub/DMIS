@@ -23,13 +23,16 @@
     </field>
   </record>
 
-  <record id="action_system_about" model="ir.actions.act_window">
+  <!-- 預先建立 singleton 資料列，避免使用者第一次點擊時需要 create 權限 -->
+  <record id="record_system_about_singleton" model="dms.system.about">
     <field name="name">系統版本資訊</field>
-    <field name="res_model">dms.system.about</field>
-    <field name="view_mode">form</field>
-    <field name="view_id" ref="view_system_about_form"/>
-    <field name="target">current</field>
-    <field name="context">{'form_view_initial_mode': 'readonly'}</field>
+  </record>
+
+  <record id="action_system_about" model="ir.actions.server">
+    <field name="name">系統版本資訊</field>
+    <field name="model_id" ref="model_dms_system_about"/>
+    <field name="state">code</field>
+    <field name="code">action = model.action_open()</field>
   </record>
 
   <menuitem id="menu_system_about_root"

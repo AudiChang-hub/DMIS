@@ -19,6 +19,9 @@ class DmsProductTemplate(models.Model):
     )
     active = fields.Boolean(string='啟用', default=True)
     note = fields.Text(string='備註')
+    fees_note = fields.Text(
+        string='附加費用說明',
+        help='分期附加費用，如：18期開辦費2,500元；設定費3,500元')
 
     @api.constrains('brand_id', 'family_name', 'model_name', 'energy_type')
     def _check_required_fields(self):

@@ -82,44 +82,13 @@ _CHANGELOG_HTML = '''
 '''
 
 
-class DmsSystemAbout(models.Model):
-    """系統版本資訊（singleton）。
+class DmsSystemAbout(models.AbstractModel):
+    """系統版本資訊。
 
-    使用一般 Model 而非 TransientModel，以便用固定 res_id 開啟頁面，
-    避免 breadcrumb 顯示 "NEW"，也避免每次點擊產生新的 transient record。
+    僅作為渲染 helper（QWeb 頁面由 controller 負責），不需實體資料表。
     """
     _name = 'dms.system.about'
     _description = '系統版本資訊'
-    _rec_name = 'name'
-
-    name = fields.Char(default='系統版本資訊', readonly=True)
-    version_html = fields.Html(string='模組版本', compute='_compute_html', sanitize=False)
-    changelog_html = fields.Html(string='版本歷程', compute='_compute_html', sanitize=False)
-
-    def _compute_html(self):
-        for rec in self:
-            rec.version_html = rec._build_version_html()
-            rec.changelog_html = _CHANGELOG_HTML
-
-    @api.model
-    def _get_singleton(self):
-        rec = self.sudo().search([], limit=1)
-        if not rec:
-            rec = self.sudo().create({'name': '系統版本資訊'})
-        return rec.sudo()
-
-    @api.model
-    def action_open(self):
-        rec = self._get_singleton()
-        return {
-            'type': 'ir.actions.act_window',
-            'name': '系統版本資訊',
-            'res_model': 'dms.system.about',
-            'view_mode': 'form',
-            'views': [(self.env.ref('dms_core.view_system_about_form').id, 'form')],
-            'res_id': rec.id,
-            'target': 'current',
-        }
 
     def _build_version_html(self):
         IrModule = self.env['ir.module.module'].sudo()

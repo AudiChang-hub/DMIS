@@ -169,7 +169,10 @@ def shoot_all(sid, only=None):
         for name, url, wait in TARGETS:
             if only and name not in only:
                 continue
-            print(f"-> {name}: {url}")
+            print(f"-> {name}: {url}", flush=True)
+            # 先回到 about:blank，避免 hash-only 變更不觸發完整重載
+            send("Page.navigate", {"url": "about:blank"}, sess)
+            time.sleep(0.4)
             send("Page.navigate", {"url": url}, sess)
             t0 = time.time()
             while time.time() - t0 < 25:

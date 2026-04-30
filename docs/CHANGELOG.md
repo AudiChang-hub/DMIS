@@ -4,6 +4,86 @@
      目前版本速查（每次 upgrade 後自動以 git commit 維護）
      ═══════════════════════════════════════════════════ -->
 
+## 目前模組版本（2026-04-30）
+
+| 模組 | 版本 | 說明 |
+|---|---|---|
+| `dms_core` | `16.0.1.2.0` | 車行/品牌/車行類型；系統資訊頁面更新 |
+| `dms_customer` | `16.0.1.1.0` | 客戶主檔 |
+| `dms_sale` | `16.0.2.1.0` | 銷售訂單；OrderProcessor 同步、Excel 匯入、舊車/電車頁籤、結案流程 |
+| `dms_product` | `16.0.2.3.0` | 產品頁面 wizard、價格表優化、產品及零件管理選單合併 |
+| `dms_parts` | `16.0.2.1.0` | EPC 零件目錄、PDF 自動建立分區與零件清單 |
+| `dms_commission` | `16.0.1.1.0` | 車行傭金合約（Plan A）、台數現金/實物獎勵、結案流程 |
+| `dms_visit` | `16.0.1.1.0` | 拜訪紀錄 |
+| `dms_finance` | `16.0.1.1.0` | 財務結算 |
+| `dms_report` | `16.0.1.0.0` | 銷售 BI 報表 |
+| `dms_report_rule` | `16.0.1.0.0` | 報表動態規則 |
+| `dms_report_virtual` | `16.0.1.1.0` | 報表虛擬欄位；金額欄位改整數位 |
+| `dms_report_ds` | `16.0.1.2.0` | Metabase 嵌入、motor_type/sales_*/brand_type 規則動態化、未命中診斷 wizard |
+| `user_management` | `16.0.1.1.0` | 隱藏討論/財務結算/庫存等根選單與原始數據查詢 |
+
+---
+
+## 2026-04-30
+
+### dms_commission（16.0.1.0.0 → 16.0.1.1.0）
+- feat: 合併 `dms_parts` 至產品及零件管理選單
+- feat: 新增車行傭金合約（Plan A），以升級版車行覆蓋規則取代舊合約
+- feat: 台數現金獎勵規則 + 台數實物獎勵規則（volume.gift），支援品牌維度與特定/通用優先邏輯
+- feat: 訂單 state 加入 `closed`（結案）與撤銷結案工作流；複製訂單回到草稿
+- feat: 激勵觸發規則列表新增適用車行/限定車種欄位
+- fix: 修正 `dealer.rule.incentive.line` AttributeError、`dealer.rule.display_name`、備註顯示等版面問題
+
+### dms_sale（16.0.2.0.0 → 16.0.2.1.0）
+- feat: 新增 Excel 銷貨資料匯入 Wizard，支援大小寫不敏感、包含比對、括號附註剝除 fallback
+- feat: OrderProcessor → DMIS 訂單自動匯入；result.json 新格式 + 空檔 fallback 讀 xlsx
+- feat: 列表新增「重新同步」批次動作；`dms.sync.log` UI 重試按鈕
+- feat: 新增舊車資訊頁籤、電車資訊頁籤（密碼遮罩 + 解鎖 wizard）
+- feat: 新增交易類型「網路平台」依車行類型自動帶入
+- feat: 新增「車款銷售分析」選單與 Pivot/Graph 視圖、`product_brand_id` 欄位
+- feat: Search View 新增領牌日期/訂單日期區間篩選器
+
+### dms_product（16.0.2.2.0 → 16.0.2.3.0）
+- feat: 新增「產品頁面」獨立 menu/action；產品頁面/價格表 tree 新增「開啟詳細資料」按鈕
+- feat: 新增改為 Wizard 彈窗、禁止 inline 新增；wizard 新增型號欄位、備註欄位上下排列支援換行
+- style: 價格表標題不截斷、資料列換行、欄寬最佳化；車色/顧客贈品/附加費用說明改完整顯示
+- fix: 價格表品牌下拉被遮擋；EV0 開頭車型品牌改為台鈴；pricelist_sticky MutationObserver 修復
+
+### dms_report_ds（16.0.1.1.0 → 16.0.1.2.0）
+- feat: 銷售分析改用 Metabase iframe 嵌入（Cloudflare tunnel + Odoo 反向代理）
+- feat: motor_type / sales_source / sales_type / brand_type 規則重構為動態資料表（UI 可維護）
+- feat: 新增 motor_type / brand_type 未命中診斷 wizard
+- feat: 報表新增「重設」按鈕重載 iframe；啟用 Dashboard `titled=true`
+- fix: 修正 EV 開頭車型品牌（宏佳騰→台鈴、e-moving→eReady）；Metabase Lato 字體 404 修復
+
+### dms_parts（16.0.2.0.0 → 16.0.2.1.0）
+- feat: 實作 EPC 零件目錄（#021）；PDF 自動建立分區與零件清單
+- feat: wizard 新增分區頁縮圖預覽、CSV 樣板下載按鈕
+- fix: PDF 解析多項缺陷修正（換行幽靈列、頁底頁碼過濾、第 6 頁外觀件停用）
+- fix: CSV 樣板改中文表頭 + UTF-8 BOM 以避免 Excel 亂碼
+
+### dms_core（16.0.1.1.0 → 16.0.1.2.0）
+- feat: 系統版本資訊頁面新增 `dms_commission`、`dms_parts`、`dms_report_ds` 至模組清單
+- feat: 系統版本資訊頁面更新版本歷程，彙整 04-02 之後 9 模組約 240 筆 commit
+- fix: 品牌、車行類型選單限管理員可見
+- fix: brand tree 圖片用 `options size` 取代非法 `width` 屬性
+
+### user_management（16.0.1.0.0 → 16.0.1.1.0）
+- feat: 隱藏討論/財務結算/庫存三個根選單
+- feat: 額外隱藏銷售分析下的「原始數據查詢」選單
+
+### dms_customer（16.0.1.0.0 → 16.0.1.1.0）
+- fix: 改名車銷管理/價格表，新增車輛銷售子項，隱藏銷售管理/客戶管理頂層
+
+### dms_report_virtual（16.0.1.0.0 → 16.0.1.1.0）
+- fix: 金額欄位統一為整數位（台灣貨幣無小數）
+
+### 文件
+- chore: 新增《DMIS 後續優化與擴充規劃 v1》Word 與 specs/000-roadmap/04-future-enhancements.md
+- chore: 重新產出《DMIS 專案進度報告 v5》（59 張新截圖）
+
+---
+
 ## 目前模組版本（2026-04-02）
 
 | 模組 | 版本 | 說明 |

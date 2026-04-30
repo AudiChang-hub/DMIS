@@ -109,10 +109,8 @@ class DmsProductCompat(models.Model):
         readonly=False, store=True,
         help='本車型目前贈品說明（資料儲存於產品模板，編輯後同步至同模板所有 SKU）')
     fees_note = fields.Text(
-        related='template_id.fees_note',
         string='附加費用說明',
-        readonly=False, store=True,
-        help='分期附加費用（資料儲存於產品模板，編輯後同步至同模板所有 SKU）')
+        help='分期附加費用，如：18期開辦費2,500元；設定費3,500元（每筆 SKU 獨立儲存）')
 
     @api.depends('cash_price')
     def _compute_installment_prices(self):

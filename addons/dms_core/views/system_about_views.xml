@@ -23,6 +23,11 @@
     </field>
   </record>
 
+  <!-- 預建 singleton 資料列，避免使用者首次點選時需 create/write 權限 -->
+  <record id="record_system_about_singleton" model="dms.system.about">
+    <field name="name">系統版本資訊</field>
+  </record>
+
   <!-- Server action：每次開啟都回傳指向 singleton record 的 act_window，避免 "New" -->
   <record id="action_system_about" model="ir.actions.server">
     <field name="name">系統版本資訊</field>

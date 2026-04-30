@@ -221,3 +221,15 @@
 .o-autocomplete .dropdown-menu {
     z-index: 1080 !important;
 }
+
+/* ── 產品頁面 form 內的 sku_ids o2m：sheet 改為全寬，o2m 自身可橫捲 ── */
+.dms_template_form .o_form_sheet {
+    max-width: 100% !important;
+}
+.dms_template_form .o_field_one2many.dms_pricelist_tree {
+    max-width: 100%;
+    overflow-x: auto;
+}
+.dms_template_form .o_field_one2many.dms_pricelist_tree .o_list_renderer {
+    overflow-x: auto !important;
+}

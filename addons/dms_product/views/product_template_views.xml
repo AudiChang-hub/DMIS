@@ -26,7 +26,7 @@
     <field name="name">dms.product.template.form</field>
     <field name="model">dms.product.template</field>
     <field name="arch" type="xml">
-      <form string="產品頁面">
+      <form string="產品頁面" class="dms_template_form">
         <header>
           <button string="💾 儲存" special="save" class="btn-success"
                   title="儲存目前所有填寫的資料"/>
@@ -53,8 +53,9 @@
           <field name="sku_ids"
                  widget="sku_o2m"
                  nolabel="1"
+                 class="dms_pricelist_tree"
                  context="{'default_template_id': id, 'active_test': False}">
-            <tree decoration-muted="not active" no_open="True" editable="bottom">
+            <tree decoration-muted="not active" no_open="True" editable="bottom" class="dms_pricelist_tree">
               <button name="action_duplicate_from_template_tab"
                       type="object"
                       icon="fa-copy"

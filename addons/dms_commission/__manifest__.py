@@ -1,6 +1,6 @@
 {
     'name': 'DMS 傭金管理',
-    'version': '16.0.1.0.0',
+    'version': '16.0.1.1.0',
     'summary': '車行傭金規則、台數獎金、實物激勵核銷、月結報表',
     'author': 'DMIS',
     'license': 'LGPL-3',

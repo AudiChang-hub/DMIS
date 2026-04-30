@@ -5,17 +5,46 @@ _MODULE_LIST = [
     ('dms_core',           'DMS 車行管理'),
     ('dms_customer',       '客戶管理'),
     ('dms_sale',           '銷售管理'),
-    ('dms_product',        '產品管理'),
+    ('dms_product',        '產品及零件管理'),
+    ('dms_parts',          '零件管理（EPC）'),
+    ('dms_commission',     '傭金管理'),
     ('dms_visit',          '拜訪紀錄'),
     ('dms_finance',        '財務結算'),
     ('dms_report',         '銷售 BI 報表'),
     ('dms_report_rule',    '報表規則設定'),
     ('dms_report_virtual', '報表虛擬欄位'),
+    ('dms_report_ds',      '銷售分析（Metabase）'),
     ('user_management',    '使用者管理'),
 ]
 
 _CHANGELOG_HTML = '''
-<h5 class="mt-2">2026-04-02</h5>
+<h5 class="mt-2">2026-04-30</h5>
+<ul>
+  <li>feat(dms_commission)：合併 dms_parts 至產品及零件管理選單；新增車行傭金合約（Plan A）、車行覆蓋規則升級、台數現金/實物獎勵規則、結案/撤銷結案工作流</li>
+  <li>feat(dms_commission)：激勵觸發規則列表新增適用車行/限定車種欄位；列表/表單多項版面修正</li>
+  <li>feat(dms_sale)：新增 Excel 銷貨資料匯入 Wizard；車行名稱比對加入大小寫不敏感、包含比對與括號附註剝除 fallback</li>
+  <li>feat(dms_sale)：OrderProcessor 同步整合（result.json 新格式 + 空檔 fallback 讀 xlsx）；列表新增「重新同步」批次動作與 dms.sync.log UI 重試按鈕</li>
+  <li>feat(dms_sale)：新增舊車資訊頁籤、電車資訊頁籤（含密碼遮罩 + 解鎖 wizard）、新增交易類型「網路平台」依車行類型自動帶入</li>
+  <li>feat(dms_sale)：訂單複製重置草稿、Kanban/列表 state 標籤更新、新增結案/撤銷結案按鈕與 closed 狀態</li>
+  <li>feat(dms_sale)：新增「車款銷售分析」選單與 Pivot/Graph 視圖、product_brand_id 欄位</li>
+  <li>feat(dms_product)：新增「產品頁面」獨立 menu/action；產品頁面 / 價格表 tree 新增「開啟詳細資料」按鈕</li>
+  <li>feat(dms_product)：新增改為 Wizard 彈窗、禁止 inline 新增；wizard 新增型號欄位、備註欄位上下排列支援換行</li>
+  <li>style(dms_product)：價格表標題不截斷、資料列換行、欄寬最佳化；車色／顧客贈品／附加費用說明改完整顯示</li>
+  <li>fix(dms_product)：價格表品牌下拉被遮擋；EV0 開頭車型品牌改為台鈴；pricelist_sticky MutationObserver 修復</li>
+  <li>feat(dms_report_ds)：銷售分析改用 Metabase iframe 嵌入（Cloudflare tunnel + Odoo 反向代理）</li>
+  <li>feat(dms_report_ds)：motor_type / sales_source / sales_type / brand_type 規則重構為動態資料表（dms.motor.type.rule 等），新增單元測試</li>
+  <li>feat(dms_report_ds)：新增 motor_type / brand_type 未命中診斷 wizard；報表加「重設」按鈕重載 iframe；啟用 Dashboard titled=true</li>
+  <li>fix(dms_report_ds)：修正 EV 開頭車型品牌（宏佳騰→台鈴、e-moving→eReady）；Metabase Lato 字體 404 修復</li>
+  <li>feat(dms_parts)：實作 EPC 零件目錄；PDF 自動建立分區與零件清單；wizard 新增分區頁縮圖預覽與樣板下載按鈕</li>
+  <li>fix(dms_parts)：PDF 解析多項缺陷修正（換行幽靈列、頁底頁碼過濾、第 6 頁外觀件停用）；CSV 樣板改中文表頭 + UTF-8 BOM</li>
+  <li>feat(dms_core)：新增系統版本資訊頁面，所有登入使用者可查看模組版號與版本歷程；模組清單擴充至 13 個</li>
+  <li>fix(dms_core)：品牌／車行類型選單限管理員可見；brand tree 圖片用 options size 取代非法 width 屬性</li>
+  <li>feat(user_management)：隱藏討論／財務結算／庫存三個根選單；額外隱藏銷售分析下的「原始數據查詢」選單</li>
+  <li>fix(dms_customer)：改名車銷管理／價格表，新增車輛銷售子項，隱藏銷售管理／客戶管理頂層</li>
+  <li>fix(dms_report_virtual)：金額欄位統一為整數位（台灣貨幣無小數）</li>
+  <li>chore：新增「DMIS 後續優化與擴充規劃 v1」交付物與 specs/000-roadmap/04-future-enhancements.md</li>
+</ul>
+<h5 class="mt-3">2026-04-02</h5>
 <ul>
   <li>fix(dms_sale)：訂單顏色欄位禁止直接新建，避免顏色資料被污染（spec 018）</li>
   <li>feat(dms_product)：產品頁面列表新增備註欄位（optional show）</li>

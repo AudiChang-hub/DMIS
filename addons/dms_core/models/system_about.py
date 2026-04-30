@@ -116,9 +116,9 @@ class DmsSystemAbout(models.Model):
             'name': '系統版本資訊',
             'res_model': 'dms.system.about',
             'view_mode': 'form',
+            'views': [(self.env.ref('dms_core.view_system_about_form').id, 'form')],
             'res_id': rec.id,
             'target': 'current',
-            'context': {'form_view_initial_mode': 'readonly'},
         }
 
     def _build_version_html(self):

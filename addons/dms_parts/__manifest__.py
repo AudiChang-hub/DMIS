@@ -1,6 +1,6 @@
 {
     'name': 'DMS 零件管理',
-    'version': '16.0.2.0.0',
+    'version': '16.0.2.1.0',
     'summary': '零件目錄、爆炸圖查詢、CSV 批次匯入，連結 Odoo 庫存',
     'author': 'DMIS',
     'license': 'LGPL-3',

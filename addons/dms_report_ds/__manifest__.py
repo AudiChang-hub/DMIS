@@ -1,6 +1,6 @@
 {
     'name': 'DMS DataStudio 銷售分析',
-    'version': '16.0.1.1.0',
+    'version': '16.0.1.2.0',
     'category': 'Sales/Reporting',
     'summary': '復刻 DataStudio 銷售統計報表（SQL View + Odoo 視圖）',
     'description': """

@@ -1,6 +1,6 @@
 {
     'name': 'DMS 銷售管理',
-    'version': '16.0.2.0.0',
+    'version': '16.0.2.1.0',
     'summary': '銷售訂單、精品明細、產品管理、價目管理',
     'author': 'DMIS',
     'license': 'LGPL-3',

@@ -73,6 +73,8 @@
               <field name="installment_36_price" string="36期" widget="float_blank_zero" optional="show"/>
               <field name="installment_48_price" string="48期" widget="float_blank_zero" optional="show"/>
               <field name="installment_60_price" string="60期" widget="float_blank_zero" optional="show"/>
+              <field name="gift_note" string="顧客贈品" optional="show"/>
+              <field name="fees_note" string="附加費用說明" optional="show"/>
               <field name="active" optional="show"/>
             </tree>
           </field>
@@ -105,30 +107,25 @@
     <field name="model">dms.product</field>
     <field name="priority">20</field>
     <field name="arch" type="xml">
-      <tree string="價格表" editable="bottom" multi_edit="1" default_order="name asc, production_year asc" class="dms_pricelist_tree">
-        <button name="action_open_form" type="object"
-                icon="fa-external-link" string=""
-                class="btn-link"
-                title="開啟詳細資料畫面（適合大量改資料）"/>
-        <field name="brand_id" optional="show"/>
-        <field name="name" string="機種" optional="show"/>
-        <field name="type_name" string="型式" optional="show"/>
-        <field name="model" string="型號" optional="show"/>
+      <tree string="價格表" editable="bottom" multi_edit="1"
+            default_order="brand_id, template_family_name, production_year desc"
+            class="dms_pricelist_tree">
+        <field name="brand_id" string="品牌" readonly="1" force_save="1"/>
+        <field name="template_family_name" string="機種" readonly="1" force_save="1"/>
+        <field name="type_name" string="型式"/>
         <field name="production_year" string="年份"/>
-        <field name="energy_type" string="能源型式" optional="show"/>
-        <field name="color" string="車色" optional="show"/>
-        <field name="suggested_price" string="建議售價" optional="show"/>
-        <field name="cash_discount" string="現金直扣" optional="show"/>
+        <field name="color" string="車色"/>
+        <field name="suggested_price" string="建議售價"/>
         <field name="cash_price" string="現金價"/>
-        <field name="installment_12_price" string="12期" widget="float_blank_zero" optional="show"/>
-        <field name="installment_18_price" string="18期" widget="float_blank_zero" optional="show"/>
-        <field name="installment_24_price" string="24期" widget="float_blank_zero" optional="show"/>
-        <field name="installment_36_price" string="36期" widget="float_blank_zero" optional="show"/>
-        <field name="installment_48_price" string="48期" widget="float_blank_zero" optional="show"/>
-        <field name="installment_60_price" string="60期" widget="float_blank_zero" optional="show"/>
-        <field name="gift_note" string="顧客贈品" optional="show"/>
-        <field name="fees_note" string="附加費用說明" optional="show"/>
-        <field name="active" optional="show"/>
+        <field name="installment_12_price" string="12期" widget="float_blank_zero" readonly="1" force_save="1"/>
+        <field name="installment_18_price" string="18期" widget="float_blank_zero" readonly="1" force_save="1"/>
+        <field name="installment_24_price" string="24期" widget="float_blank_zero" readonly="1" force_save="1"/>
+        <field name="installment_36_price" string="36期" widget="float_blank_zero" readonly="1" force_save="1"/>
+        <field name="installment_48_price" string="48期" widget="float_blank_zero" readonly="1" force_save="1"/>
+        <field name="installment_60_price" string="60期" widget="float_blank_zero" readonly="1" force_save="1"/>
+        <field name="gift_note" string="顧客贈品"/>
+        <field name="fees_note" string="附加費用說明"/>
+        <field name="active" string="啟用" widget="boolean_toggle"/>
       </tree>
     </field>
   </record>
@@ -136,21 +133,15 @@
   <record id="action_product_template" model="ir.actions.act_window">
     <field name="name">價格表</field>
     <field name="res_model">dms.product</field>
-    <field name="view_mode">tree,form</field>
-    <field name="context">{'form_view_initial_mode': 'edit', 'active_test': False}</field>
+    <field name="view_mode">tree</field>
+    <field name="domain">[('active', '=', True)]</field>
+    <field name="context">{}</field>
   </record>
 
   <record id="action_product_template_view_tree" model="ir.actions.act_window.view">
     <field name="sequence" eval="1"/>
     <field name="view_mode">tree</field>
     <field name="view_id" ref="view_product_sku_pricelist_tree"/>
-    <field name="act_window_id" ref="action_product_template"/>
-  </record>
-
-  <record id="action_product_template_view_form" model="ir.actions.act_window.view">
-    <field name="sequence" eval="2"/>
-    <field name="view_mode">form</field>
-    <field name="view_id" ref="dms_sale.view_product_form"/>
     <field name="act_window_id" ref="action_product_template"/>
   </record>
 

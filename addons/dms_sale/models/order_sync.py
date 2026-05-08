@@ -16,6 +16,11 @@ _logger = logging.getLogger(__name__)
 
 BACKUP_DIR = '/mnt/order_backup'
 MTIME_MIN_SECONDS = 60   # result.json 寫入後需靜置 60 秒才視為完整
+_FOLDER_STAMP_RE = re.compile(r'_\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}_\d{4}$')
+
+
+def _folder_signature(folder_name):
+    return _FOLDER_STAMP_RE.sub('', folder_name or '')
 
 
 class OrderSyncAction(models.AbstractModel):
@@ -115,24 +120,91 @@ class OrderSyncAction(models.AbstractModel):
             self._write_log(folder_name, 'fail', error_msg=f'欄位解析失敗：{e}')
             return
 
-        # 若 result.json 解析後資料近乎空白，改讀資料夾內 xlsx「原始資料」sheet
-        if vals.get('customer_name') in (None, '', '（未知）') and not vals.get('product_id'):
-            try:
-                xlsx_data = self._read_xlsx_fallback(folder_path)
-                if xlsx_data:
-                    vals2 = self._build_order_vals(xlsx_data, folder_name)
-                    if (vals2.get('customer_name') and
-                            vals2.get('customer_name') != '（未知）'):
-                        vals = vals2
-            except Exception:
-                _logger.exception(
-                    '[OrderSync] xlsx fallback 失敗：%s', folder_name)
+        # xlsx「原始資料」為穩定後備來源：即使身分證已辨識到姓名，仍需補讀缺漏的交易欄位。
+        try:
+            xlsx_data = self._read_xlsx_fallback(folder_path)
+            if xlsx_data:
+                vals = self._merge_order_vals(
+                    vals,
+                    self._build_order_vals(xlsx_data, folder_name),
+                )
+        except Exception:
+            _logger.exception(
+                '[OrderSync] xlsx fallback 失敗：%s', folder_name)
 
         try:
-            order = self.env['dms.sale.order'].create(vals)
+            order = self._find_existing_order(folder_name, vals)
+            if order:
+                order.write(vals)
+            else:
+                order = self.env['dms.sale.order'].create(vals)
             self._write_log(folder_name, 'success', order_id=order.id)
         except Exception as e:
-            self._write_log(folder_name, 'fail', error_msg=f'建立訂單失敗：{e}')
+            self._write_log(folder_name, 'fail', error_msg=f'同步訂單失敗：{e}')
+
+    def _merge_order_vals(self, base_vals, fallback_vals):
+        merged = dict(base_vals)
+
+        for key, value in fallback_vals.items():
+            if key == 'sale_origin':
+                continue
+            if merged.get(key) in (False, None, '') and value not in (False, None, ''):
+                merged[key] = value
+
+        if not merged.get('product_id') and fallback_vals.get('product_id'):
+            merged['product_id'] = fallback_vals['product_id']
+        if not merged.get('source_product_name') and fallback_vals.get('source_product_name'):
+            merged['source_product_name'] = fallback_vals['source_product_name']
+        if not merged.get('color_id') and fallback_vals.get('color_id'):
+            merged['color_id'] = fallback_vals['color_id']
+        if not merged.get('dealer_id') and fallback_vals.get('dealer_id'):
+            merged['dealer_id'] = fallback_vals['dealer_id']
+            merged['sale_type'] = fallback_vals.get('sale_type') or 'dealer'
+        if merged.get('sale_type') == 'store' and fallback_vals.get('dealer_id'):
+            merged['sale_type'] = fallback_vals.get('sale_type') or 'dealer'
+        if merged.get('payment_method') == 'cash' and fallback_vals.get('payment_method') == 'installment':
+            merged['payment_method'] = 'installment'
+        if not merged.get('installment_periods') and fallback_vals.get('installment_periods'):
+            merged['installment_periods'] = fallback_vals['installment_periods']
+        if not merged.get('finance_company') and fallback_vals.get('finance_company'):
+            merged['finance_company'] = fallback_vals['finance_company']
+        if not merged.get('finance_company_other') and fallback_vals.get('finance_company_other'):
+            merged['finance_company_other'] = fallback_vals['finance_company_other']
+        if not merged.get('is_trade_in') and fallback_vals.get('is_trade_in'):
+            merged['is_trade_in'] = True
+
+        return merged
+
+    def _find_existing_order(self, folder_name, vals):
+        SaleOrder = self.env['dms.sale.order']
+        exact = SaleOrder.search([
+            ('sale_origin', '=', 'order_processor'),
+            ('source_folder', '=', folder_name),
+        ], limit=1)
+        if exact:
+            return exact
+
+        signature = _folder_signature(folder_name)
+        customer_name = (vals.get('customer_name') or '').strip()
+        if not signature or not customer_name:
+            return SaleOrder.browse()
+
+        candidates = SaleOrder.search([
+            ('sale_origin', '=', 'order_processor'),
+            ('customer_name', '=', customer_name),
+            ('source_folder', '!=', False),
+        ], order='create_date desc, id desc')
+        id_number = (vals.get('id_number') or '').strip()
+        if id_number:
+            candidates = candidates.filtered(
+                lambda order: (order.id_number or '').strip() == id_number)
+
+        candidates = candidates.filtered(
+            lambda order: _folder_signature(order.source_folder) == signature
+            and not order.product_id
+            and not (order.source_product_name or '').strip()
+        )
+        return candidates[:1]
 
     # ── 內部：解析 result.json → 訂單欄位 ────────────
     def _normalize_data(self, data):
@@ -346,15 +418,35 @@ class OrderSyncAction(models.AbstractModel):
                 # 否則維持 store
 
         # ── 分期 ──────────────────────────────────────
-        installment_raw = (text_map.get('是否有分期') or '').strip()
         payment_method = 'cash'
         finance_company = False
-        if installment_raw and installment_raw not in ('無', '否', ''):
+        finance_company_other = False
+        installment_periods = 0
+        installment_raw = (text_map.get('是否有分期') or '').strip()
+        finance_raw = (text_map.get('分期公司') or '').strip()
+
+        if any(raw and raw not in ('無', '否', '') for raw in (installment_raw, finance_raw)):
             payment_method = 'installment'
-            # 嘗試從分期公司欄位取得
-            fc_raw = (text_map.get('分期公司') or installment_raw).strip()
-            if fc_raw and fc_raw not in ('有', '是'):
-                finance_company = fc_raw
+
+        for raw in (installment_raw, finance_raw):
+            match = re.search(r'(\d+)\s*期', raw or '')
+            if match:
+                installment_periods = int(match.group(1))
+                break
+
+        finance_text = finance_raw or installment_raw
+        finance_token = re.sub(r'\s+', '', finance_text)
+        if '和潤' in finance_token:
+            finance_company = '和潤'
+        elif '遠信' in finance_token:
+            finance_company = '遠信'
+        elif '仲信' in finance_token:
+            finance_company = '仲信'
+        elif (finance_token
+              and finance_token not in ('有', '是', '無', '否')
+              and not re.fullmatch(r'\d+期', finance_token)):
+            finance_company = 'other'
+            finance_company_other = finance_text
 
         # ── 汰舊 ──────────────────────────────────────
         trade_in_raw = (text_map.get('是否有汰舊') or '').strip()
@@ -379,6 +471,8 @@ class OrderSyncAction(models.AbstractModel):
             'sale_type': sale_type,
             'payment_method': payment_method,
             'finance_company': finance_company,
+            'finance_company_other': finance_company_other,
+            'installment_periods': installment_periods,
             'is_trade_in': is_trade_in,
             'extra_other': extra_other or False,
             'extra_note': extra_note or False,

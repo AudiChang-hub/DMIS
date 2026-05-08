@@ -109,6 +109,7 @@
 | **M** | P21 維度 `ModelColor`（車型+顏色串接）未在 `ds_sales_report`，須新增 computed column | 新增 `model_color = concat(model, '/', car_color)` |
 | **N** | P15 維度 `車型(色)` 同 M | 共用 `model_color` 欄位 |
 | **O** | 多頁表格含 `SortLicenseDate` 隱藏排序欄，`ds_sales_report` 須有對應 `sort_license_date`（YYYYMM 字串） | 補 computed column |
+| **P** | P2 目前僅有 MotorType 長條圖與明細表；Metabase 使用者另需要依 `model` 分類的月趨勢圖，但不得影響原兩張正確圖表 | 新增獨立 card 與 dashboard 版位，不覆寫既有 P2 cards |
 
 ---
 

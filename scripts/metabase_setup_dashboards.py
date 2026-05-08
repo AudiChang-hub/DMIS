@@ -274,6 +274,20 @@ def main():
     questions["p2_table"] = q["id"]
     print(f"  [OK] P2-2 table id={q['id']}")
 
+    q = create_question(token, "P2-3 銷售車型×領牌年月（長條圖）",
+        breakouts=[
+            ["field", F["license_date"], {"temporal-unit": "month"}],
+            field_ref("model"),
+        ],
+        aggregations=[count_agg()],
+        filters=combined_filter(filter_confirmed()),
+        display="bar",
+        order_by=[["asc", ["field", F["license_date"], {"temporal-unit": "month"}]]],
+        collection_id=coll_id,
+        viz_settings={"stackable.stack_type": "stacked", "graph.show_values": True})
+    questions["p2_bar_model"] = q["id"]
+    print(f"  [OK] P2-3 bar id={q['id']}")
+
     dash = create_dashboard(token, "P2 銷售機種統計", coll_id)
     dashboards["p2"] = dash["id"]
     print(f"  [OK] Dashboard id={dash['id']}")
@@ -664,7 +678,8 @@ def main():
         "p1": [("p1_bar_source", 0, 0, 12, 6), ("p1_pie_source", 12, 0, 6, 6),
                ("p1_bar_motor", 0, 6, 12, 6), ("p1_pie_motor", 12, 6, 6, 6),
                ("p1_table", 0, 12, 18, 8)],
-        "p2": [("p2_bar", 0, 0, 18, 8), ("p2_table", 0, 8, 18, 8)],
+         "p2": [("p2_bar", 0, 0, 18, 8), ("p2_table", 0, 8, 18, 8),
+             ("p2_bar_model", 0, 16, 18, 8)],
         "p3": [("p3_bar_source", 0, 0, 18, 8), ("p3_bar_model", 0, 8, 18, 8)],
         "p5": [("p5_bar", 0, 0, 18, 8), ("p5_table", 0, 8, 18, 8)],
         "p6": [("p6_bar", 0, 0, 18, 8), ("p6_table", 0, 8, 18, 8)],

@@ -139,3 +139,47 @@ class TestDmsProductMigrationCompat(TransactionCase):
         self.assertEqual(price_line.cash_price, 73500)
         self.assertTrue(binding, '應建立 legacy 規則掛接')
         self.assertTrue(binding.rule_id.line_ids, '應建立至少一筆規則明細')
+
+    def test_05_fix_eready_fun_names_updates_products_and_orders(self):
+        product_ev062 = self.env['dms.product'].create({
+            'brand_id': self.brand.id,
+            'name': 'eReady EV062',
+            'model': 'EV062',
+            'year': '2026',
+            'color': '白',
+            'energy_type': 'electric',
+        })
+        product_ev062fl = self.env['dms.product'].create({
+            'brand_id': self.brand.id,
+            'name': 'eReady EV062FL',
+            'model': 'EV062FL',
+            'year': '2026',
+            'color': '黑',
+            'energy_type': 'electric',
+        })
+        linked_order = self.env['dms.sale.order'].create({
+            'customer_name': '測試客戶 A',
+            'product_id': product_ev062.id,
+        })
+        source_only_order = self.env['dms.sale.order'].create({
+            'customer_name': '測試客戶 B',
+            'source_product_name': 'eReady EV062FL',
+        })
+
+        result = self.env['dms.product'].fix_eready_fun_names()
+
+        product_ev062.invalidate_recordset()
+        product_ev062fl.invalidate_recordset()
+        linked_order.invalidate_recordset()
+        source_only_order.invalidate_recordset()
+
+        self.assertEqual(product_ev062.template_id.family_name, 'eReady Fun')
+        self.assertEqual(product_ev062.name, 'eReady Fun')
+        self.assertEqual(product_ev062fl.template_id.family_name, 'eReady Fun')
+        self.assertEqual(product_ev062fl.name, 'eReady Fun')
+        self.assertEqual(linked_order.display_product_name, 'eReady Fun')
+        self.assertEqual(source_only_order.source_product_name, 'eReady Fun')
+        self.assertEqual(source_only_order.display_product_name, 'eReady Fun')
+        self.assertGreaterEqual(result['templates_updated'], 2)
+        self.assertGreaterEqual(result['products_updated'], 2)
+        self.assertGreaterEqual(result['source_orders_updated'], 1)

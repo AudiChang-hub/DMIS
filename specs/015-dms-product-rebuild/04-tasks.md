@@ -141,3 +141,12 @@
 - [x] 將「品牌」選單改為僅 `base.group_system`（系統管理員）可見，並清除 dmis_dev 殘留的 `DMS/車行管理者` 綁定
 - [x] 將型號為 `EV0*` 的 7 筆產品（eReady 系列）品牌統一修正為「台鈴 Suzuki」（其中 6 筆原誤標為「宏佳騰 Aeon」）
 - [x] 價格表整體排版調整：標題列字體縮為 12px、tbody 改 nowrap + 橫向捲動、長欄（顧客贈品/附加費用說明/車色）改 `pre-line` 完整顯示並自動撐高列高
+
+## Phase 11：eReady Fun 命名統一（2026-05-08）
+
+- [x] 更新 `specs/015-dms-product-rebuild/01~05`，定義 `EV062` / `EV062FL` 的 canonical 機種名稱為 `eReady Fun`
+- [x] 修正 `dms.sale.order.display_product_name` 的 stored compute 依賴，讓產品名稱異動時既有訂單可自動重算
+- [x] 新增可重跑的資料修正方法 / 腳本，將 `EV062` / `EV062FL` 的模板機種、產品名稱與必要的歷史訂單顯示名稱統一為 `eReady Fun`
+- [x] 更新 `scripts/create_missing_products.py`，避免未來再建立出 `eReady EV062` / `eReady EV062FL`
+- [x] 補最小回歸測試，驗證產品改名後訂單顯示名稱會同步更新
+- [x] 執行 Odoo 升級、重啟、`docker compose ps` 與 smoke 驗證

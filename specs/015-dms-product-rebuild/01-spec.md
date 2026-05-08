@@ -35,6 +35,7 @@
 - UI 文案必須明確區分「機種」不是大分類，而是產品家族 / 車系層級
 - `family_name + type_name + model_name + brand_id` 應可作為模板辨識基礎
 - `type_name` / `model_name` 允許在 legacy migration 初期為空，以避免舊資料失聯
+- 若 `model_name` 為 `EV062` 或 `EV062FL`，canonical `family_name` 一律為 `eReady Fun`，不得保留 `EV062`、`eReady EV062` 或 `eReady EV062FL` 等分裂命名
 
 ### 2.2 `dms.product`（可販售產品項，相容延用既有技術模型）
 

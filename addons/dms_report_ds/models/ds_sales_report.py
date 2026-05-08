@@ -78,6 +78,7 @@ class DsSalesReport(models.Model):
     # ── 地區（fx 計算欄位）─────────────────────────────────
     region = fields.Char(string='區域', readonly=True)
     region_district = fields.Char(string='縣市區域', readonly=True)
+    dealer_region_city = fields.Char(string='車行縣市', readonly=True)
     dealer_region_district = fields.Char(string='車行區域', readonly=True)
 
     # ── 金額 ──────────────────────────────────────────────
@@ -338,6 +339,12 @@ class DsSalesReport(models.Model):
                     COALESCE(s.address_registered, ''),
                     '((?:台北市|新北市|桃園市|台中市|台南市|高雄市|基隆市|新竹市|嘉義市|新竹縣|苗栗縣|宜蘭縣|彰化縣|南投縣|雲林縣|嘉義縣|屏東縣|花蓮縣|台東縣|澎湖縣|金門縣|連江縣).{1,6}(?:區|鄉|鎮|市))')
                 )[1]                             AS region_district,
+
+                -- ── 車行縣市（P20 dealer city，以 dms_dealer.address 為準）──
+                COALESCE((regexp_match(
+                    COALESCE(s.dealer_address, ''),
+                    '((?:台北市|新北市|桃園市|台中市|台南市|高雄市|基隆市|新竹市|嘉義市|新竹縣|苗栗縣|宜蘭縣|彰化縣|南投縣|雲林縣|嘉義縣|屏東縣|花蓮縣|台東縣|澎湖縣|金門縣|連江縣))'
+                ))[1], '未設定')                 AS dealer_region_city,
 
                 -- ── 車行區域（P20 dealer region，以 dms_dealer.address 為準）──
                 COALESCE((regexp_match(

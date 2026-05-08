@@ -198,3 +198,24 @@ DMS 銷售管理（menu_dms_sale_root，頂層）
 |---|---|---|---|---|---|
 | dms.sale.order | 全員 | ✓ | ✓ | ✓ | ✓ |
 | dms.sale.order.line | 全員 | ✓ | ✓ | ✓ | ✓ |
+
+---
+
+## 匯入與同步規則
+
+### OrderProcessor 自動同步
+
+- `result.json` 若缺少 docx 文字欄位或車輛欄位不完整，但資料夾內仍有 xlsx「原始資料」sheet，系統需補讀 xlsx 並只回填缺漏欄位，不得因身分證已辨識到姓名就跳過車型補值。
+- `source_product_name`、`product_id`、`color_id`、`dealer_id`、`payment_method`、`installment_periods`、`finance_company` 等交易欄位，允許由 xlsx fallback 補齊既有缺值。
+- 重新同步同一筆 OrderProcessor 資料時，若已存在 `sale_origin='order_processor'` 且 `source_folder` 相同的訂單，應直接更新原訂單，不得重複新增。
+- 若資料夾名稱僅時間戳不同，但屬同一筆訂單且既有訂單仍缺車型資料，重新同步應可將正確資料回寫到既有缺值訂單。
+
+### 分期欄位正規化
+
+- OrderProcessor 來源中的 `是否有分期` / `分期公司` 若出現 `18期`、`24期` 這類期數字串，需解析為 `installment_periods`，不得直接寫入 `finance_company` selection。
+- `finance_company` 僅接受既有選項：`和潤`、`遠信`、`仲信`、`other`；未知文字需轉入 `finance_company_other`，純期數則保留公司為空。
+
+### Excel 匯入車型匹配
+
+- Excel 匯入的 `車種型號` 先以 `dms.product.model` 精確匹配；若未命中，需依序 fallback 比對 `dms.product.name`、`template_family_name` 與產品模板層的 `model_name`、`family_name`、`model_code`。
+- 若找到對應的 `dms.product`，仍沿用既有顏色匹配邏輯；若所有 fallback 都未命中，才保留 `source_product_name` 原始字串並將 `product_id` 留空。

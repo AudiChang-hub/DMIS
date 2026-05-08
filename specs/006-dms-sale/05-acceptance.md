@@ -25,6 +25,9 @@
 - [x] `result.json` 只有身分證辨識、缺少 docx 文字時，若資料夾內 xlsx 有原始資料，重新同步後可補上缺漏的車型資訊
 - [x] 同一筆 OrderProcessor 訂單若存在僅時間戳不同的近似資料夾，重新同步正確資料夾後會更新既有缺值訂單，而非另開新單
 - [x] Excel 匯入來源 `車種型號=A1` 時，若對應 `dms.product` 建在模板 `family_name/model_name`，仍可正確帶入 `product_id`
+- [x] 同一客戶若先由 OrderProcessor 建立訂單，後續 Excel 匯入同筆交易時，系統會更新原單並補上 `excel_sync_id`，不會新增第二筆訂單
+- [x] 同一客戶若先由 Excel 匯入建立訂單，後續 OrderProcessor 同步同筆交易時，系統會更新原單並補上 `source_folder`，不會新增第二筆訂單
+- [x] 既有 `sale_origin` 在跨來源合併後維持原值，不因補寫另一來源資料而被覆蓋
 
 ### 精品明細
 - [x] 可新增多筆精品明細（O2m tab）

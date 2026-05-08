@@ -44,3 +44,6 @@
 - [x] `是否有分期=18期` 不再誤寫 `finance_company` 導致建立失敗
 - [x] 重新同步相同或近似資料夾時，優先更新既有缺值的 `order_processor` 訂單
 - [x] Excel 匯入遇到 A1 這類模板 family/model 名稱時，仍可命中對應的 `dms.product`
+- [x] `dms.sale.order` 新增跨來源同單比對規則，供 Excel 與 OrderProcessor 共用
+- [x] Excel 匯入若命中既有 `order_processor` 訂單，改寫回原單並補上 `excel_sync_id`
+- [x] OrderProcessor 同步若命中既有 Excel 訂單，改寫回原單並補上 `source_folder`

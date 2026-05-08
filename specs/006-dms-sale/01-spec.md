@@ -209,6 +209,8 @@ DMS 銷售管理（menu_dms_sale_root，頂層）
 - `source_product_name`、`product_id`、`color_id`、`dealer_id`、`payment_method`、`installment_periods`、`finance_company` 等交易欄位，允許由 xlsx fallback 補齊既有缺值。
 - 重新同步同一筆 OrderProcessor 資料時，若已存在 `sale_origin='order_processor'` 且 `source_folder` 相同的訂單，應直接更新原訂單，不得重複新增。
 - 若資料夾名稱僅時間戳不同，但屬同一筆訂單且既有訂單仍缺車型資料，重新同步應可將正確資料回寫到既有缺值訂單。
+- 若同一筆訂單已先由 Excel 匯入建立，後續 OrderProcessor 同步時需以 `customer_name + id_number` 為主鍵，並搭配 `registration_date`、`product_id`、`dealer_id`、`customer_phone` 等自然鍵交叉比對；命中同單時應更新既有訂單，不得另開第二筆。
+- 跨來源合併時，需保留既有訂單的 `sale_origin`，但應補寫另一來源的追蹤欄位（例如 `excel_sync_id` 或 `source_folder`），讓後續重複同步仍能命中同一筆訂單。
 
 ### 分期欄位正規化
 
@@ -219,3 +221,4 @@ DMS 銷售管理（menu_dms_sale_root，頂層）
 
 - Excel 匯入的 `車種型號` 先以 `dms.product.model` 精確匹配；若未命中，需依序 fallback 比對 `dms.product.name`、`template_family_name` 與產品模板層的 `model_name`、`family_name`、`model_code`。
 - 若找到對應的 `dms.product`，仍沿用既有顏色匹配邏輯；若所有 fallback 都未命中，才保留 `source_product_name` 原始字串並將 `product_id` 留空。
+- Excel 匯入若找不到相同 `excel_sync_id`，仍需再比對既有 `order_processor` 訂單是否屬同一客戶同一筆交易；若自然鍵命中同單，應更新既有訂單並寫入 `excel_sync_id`，不得新增第二筆 `dms.sale.order`。

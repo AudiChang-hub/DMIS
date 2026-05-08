@@ -6,13 +6,17 @@
     <field name="name">dms.sync.log.tree</field>
     <field name="model">dms.sync.log</field>
     <field name="arch" type="xml">
-      <tree string="同步紀錄" decoration-danger="state=='fail'"
+      <tree string="OrderProcessor 暫存區" decoration-danger="state=='fail'"
             decoration-success="state=='success'"
             decoration-muted="state in ('skip','ignored')">
         <field name="sync_time"/>
         <field name="folder_name"/>
         <field name="state"/>
-        <field name="order_id"/>
+        <field name="customer_name" optional="show"/>
+        <field name="source_product_name" optional="show"/>
+        <field name="dealer_id" optional="show"/>
+        <field name="fallback_used" optional="show"/>
+        <field name="order_id" optional="hide" string="歷史關聯訂單"/>
         <field name="error_msg" optional="hide"/>
       </tree>
     </field>
@@ -23,11 +27,11 @@
     <field name="name">dms.sync.log.form</field>
     <field name="model">dms.sync.log</field>
     <field name="arch" type="xml">
-      <form string="同步紀錄">
+      <form string="OrderProcessor 暫存紀錄">
         <header>
           <button name="action_resync" type="object"
                   string="重新同步" class="btn-primary"
-                  confirm="此操作將刪除原訂單並重新從備份資料夾解析建立。確定繼續？"/>
+                  confirm="此操作將刪除目前暫存紀錄並重新從備份資料夾解析。確定繼續？"/>
         </header>
         <sheet>
           <group>
@@ -35,14 +39,54 @@
               <field name="sync_time" readonly="1"/>
               <field name="folder_name" readonly="1"/>
               <field name="state" readonly="1"/>
+              <field name="fallback_used" readonly="1"/>
             </group>
             <group>
-              <field name="order_id" readonly="1"/>
+              <field name="customer_name" readonly="1"/>
+              <field name="id_number" readonly="1"/>
+              <field name="customer_phone" readonly="1"/>
+              <field name="customer_email" readonly="1"/>
+              <field name="order_id" readonly="1" string="歷史關聯訂單" attrs="{'invisible': [('order_id', '=', False)]}"/>
             </group>
           </group>
           <group>
+            <field name="birthday_ad" readonly="1"/>
+            <field name="address_registered" readonly="1"/>
+          </group>
+          <group string="解析結果">
+            <group>
+              <field name="source_product_name" readonly="1"/>
+              <field name="product_id" readonly="1"/>
+              <field name="source_color_name" readonly="1"/>
+              <field name="color_id" readonly="1"/>
+              <field name="extra_other" readonly="1"/>
+            </group>
+            <group>
+              <field name="source_dealer_name" readonly="1"/>
+              <field name="dealer_id" readonly="1"/>
+              <field name="sale_type" readonly="1"/>
+              <field name="payment_method" readonly="1"/>
+              <field name="finance_company" readonly="1"/>
+              <field name="finance_company_other" readonly="1"/>
+              <field name="installment_periods" readonly="1"/>
+              <field name="is_trade_in" readonly="1"/>
+            </group>
+          </group>
+          <group>
+            <field name="extra_note" readonly="1"/>
             <field name="error_msg" readonly="1"/>
           </group>
+          <notebook>
+            <page string="標準化快照">
+              <field name="staged_vals_json" nolabel="1" readonly="1"/>
+            </page>
+            <page string="result.json">
+              <field name="raw_result_json" nolabel="1" readonly="1"/>
+            </page>
+            <page string="xlsx fallback">
+              <field name="fallback_payload_json" nolabel="1" readonly="1"/>
+            </page>
+          </notebook>
         </sheet>
       </form>
     </field>
@@ -53,9 +97,12 @@
     <field name="name">dms.sync.log.search</field>
     <field name="model">dms.sync.log</field>
     <field name="arch" type="xml">
-      <search string="搜尋同步紀錄">
+      <search string="搜尋 OrderProcessor 暫存區">
         <field name="folder_name" string="資料夾名稱"/>
-        <field name="order_id"    string="關聯訂單"/>
+        <field name="customer_name" string="客戶姓名"/>
+        <field name="source_product_name" string="原始車款"/>
+        <field name="dealer_id" string="車行"/>
+        <field name="order_id" string="歷史關聯訂單"/>
         <separator/>
         <filter name="filter_success" string="成功" domain="[('state','=','success')]"/>
         <filter name="filter_fail"    string="失敗" domain="[('state','=','fail')]"/>
@@ -71,7 +118,7 @@
 
   <!-- ===== Action ===== -->
   <record id="action_order_sync_log" model="ir.actions.act_window">
-    <field name="name">同步紀錄</field>
+    <field name="name">OrderProcessor 暫存區</field>
     <field name="res_model">dms.sync.log</field>
     <field name="view_mode">tree,form</field>
     <field name="context">{}</field>
@@ -103,7 +150,7 @@ if records:
   </record>
 
   <!-- ===== 選單 ===== -->
-  <menuitem id="menu_order_sync_log" name="同步紀錄" parent="dms_product.menu_dms_product_root"
+  <menuitem id="menu_order_sync_log" name="OrderProcessor 暫存區" parent="dms_product.menu_dms_product_root"
             action="action_order_sync_log" sequence="50"/>
 
 </odoo>

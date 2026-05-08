@@ -550,8 +550,6 @@ class ExcelImportWizard(models.TransientModel):
             sync_id = vals['excel_sync_id']
             if sync_id in existing:
                 update_count += 1
-            elif SaleOrder._find_cross_source_import_order(vals, incoming_origin='excel'):
-                update_count += 1
             else:
                 insert_count += 1
 
@@ -605,31 +603,17 @@ class ExcelImportWizard(models.TransientModel):
 
             if sync_id in existing:
                 try:
-                    write_vals = SaleOrder._prepare_import_update_vals(existing[sync_id], vals)
-                    existing[sync_id].write(write_vals)
+                    existing[sync_id].write(vals)
                     updated += 1
                 except Exception as e:
                     errors.append(f"序號 {sync_id} 更新失敗：{e}")
             else:
-                matched = SaleOrder._find_cross_source_import_order(
-                    vals,
-                    incoming_origin='excel',
-                )
-                if matched:
-                    try:
-                        write_vals = SaleOrder._prepare_import_update_vals(matched, vals)
-                        matched.write(write_vals)
-                        existing[sync_id] = matched
-                        updated += 1
-                    except Exception as e:
-                        errors.append(f"序號 {sync_id} 合併更新失敗：{e}")
-                else:
-                    try:
-                        record = SaleOrder.create(vals)
-                        existing[sync_id] = record
-                        inserted += 1
-                    except Exception as e:
-                        errors.append(f"序號 {sync_id} 新增失敗：{e}")
+                try:
+                    record = SaleOrder.create(vals)
+                    existing[sync_id] = record
+                    inserted += 1
+                except Exception as e:
+                    errors.append(f"序號 {sync_id} 新增失敗：{e}")
 
         summary = f"✅ 匯入完成：新增 {inserted} 筆，更新 {updated} 筆，略過 {skipped} 筆。"
         if errors:

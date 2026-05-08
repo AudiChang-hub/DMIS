@@ -1,9 +1,13 @@
 #!/usr/bin/env python3
-"""Phase 3 輔助：封存 (archive) Metabase Dashboard #22「P21 基隆公益青年統計（複本）」。
+"""Deprecated: 避免再次封存 Odoo 仍在使用的 P21 dashboard。
+
+歷史上曾封存 Dashboard #22「P21 基隆公益青年統計（複本）」，
+但目前 Odoo 選單 `電動車 > 基隆公益青年 > 統計表` 仍直接使用它的 public UUID。
+若再次封存，前台會變成空白頁。
 
 使用方式：
-    python3 scripts/metabase_archive_dup.py            # dry-run：只顯示將要封存的 dashboard
-    python3 scripts/metabase_archive_dup.py --apply    # 實際寫入
+    python3 scripts/metabase_archive_dup.py            # 顯示保護訊息與目前狀態
+    python3 scripts/metabase_archive_dup.py --force    # 真的要封存時才允許執行
 
 封存動作可逆：Metabase 後台 -> 已封存 -> 還原。
 """
@@ -21,7 +25,7 @@ def login():
 
 
 def main():
-    apply_mode = "--apply" in sys.argv
+    force_mode = "--force" in sys.argv
     tok = login()
     h = {"X-Metabase-Session": tok}
 
@@ -35,8 +39,8 @@ def main():
         c = dc.get("card") or {}
         print(f"    - card_id={dc.get('card_id')} name={c.get('name')}")
 
-    if not apply_mode:
-        print("\n[dry-run] 未實際封存。加 --apply 以執行。")
+    if not force_mode:
+        print("\n[guarded] P21 目前仍被 Odoo 選單使用，預設禁止封存。若你非常確定要封存，請改用 --force。")
         return
 
     if d.get("archived"):

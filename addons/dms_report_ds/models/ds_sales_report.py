@@ -260,10 +260,12 @@ class DsSalesReport(models.Model):
                 s.pname                          AS model,
                 s.cname                          AS car_color,
                 s.pname || '_' || s.cname        AS model_color,
-                CASE WHEN s.dname = '' THEN '馭盛'
+                 CASE WHEN s.dname = '' THEN '馭盛'
+                     WHEN btrim(s.dname) IN ('朋友推薦', '代申請補助') THEN '店內'
                      ELSE s.dname
                 END                              AS dealer,
-                CASE WHEN s.dname = '' THEN '馭盛'
+                 CASE WHEN s.dname = '' THEN '馭盛'
+                     WHEN btrim(s.dname) IN ('朋友推薦', '代申請補助') THEN '店內'
                      ELSE UPPER(TRIM(regexp_replace(s.dname, '\s+', '', 'g')))
                 END                              AS dealer_not_null,
                 s.engine_number                  AS vin_or_en,
@@ -342,13 +344,16 @@ class DsSalesReport(models.Model):
                     WHEN s.store_type_name = '網路平台'
                         THEN '網路平台'
                     WHEN s.dname ~ '文傑'
+                      OR btrim(s.dname) IN ('朋友推薦', '代申請補助')
                         THEN '店內員工'
                     ELSE '車行'
                 END                              AS sales_source,
 
                 -- ── 銷售類型（fx #15 SalesType，以 store_type 為主）──
                 CASE
-                    WHEN s.dname = '' OR s.dname ~ '文傑'
+                    WHEN s.dname = ''
+                      OR s.dname ~ '文傑'
+                      OR btrim(s.dname) IN ('朋友推薦', '代申請補助')
                         THEN '本店'
                     WHEN s.store_type_name = '網路平台'
                         THEN '網路平台'

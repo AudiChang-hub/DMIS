@@ -56,6 +56,7 @@ addons/dms_report_ds/
 | TotalBonus | `total_commission` | `dms_commission_record.total_commission` |
 | Region | `region` | Address regex 擷取 |
 | Region_District | `region_district` | Address regex 擷取（含縣市） |
+| Dealer_Region_District | `dealer_region_district` | `dms_dealer.address` regex 擷取（含縣市，代表車行區域） |
 | Sales Source | `sales_source` | Dealer regex 分類 |
 | SalesType | `sales_type` | Dealer regex 分類 |
 | sex | `sex` | `SUBSTRING(id_number, 2, 1)` |

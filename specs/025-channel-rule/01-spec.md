@@ -29,6 +29,8 @@
 - 取 `st.name` 直接作為「網路平台」判斷依據。
 - 「馭盛/本店」維持以 `display_dealer_name = ''` 判斷。
 - 「店內員工」（特定員工兼營）暫保留 `dname ~ '文傑'` 判斷。
+- `display_dealer_name IN ('朋友推薦', '代申請補助')` 視為店內引薦/代辦單，`sales_source` 歸入 `店內員工`、`sales_type` 歸入 `本店`，不得落入 `車行`。
+- `display_dealer_name IN ('朋友推薦', '代申請補助')` 的顯示欄位需同步正規化為 `dealer='店內'`、`dealer_not_null='店內'`，避免報表直接露出原始字樣。
 
 ### 3. `brand_type`
 
@@ -80,3 +82,6 @@
    與重構前一致（容許 ±1% 誤差，主要來自 store_type JOIN 取代 regex）。
 2. UI 新增規則 → 自動重建 view → 對應車行立即改變 brand_type。
 3. 既有 metabase dashboards 不受影響。
+4. `display_dealer_name IN ('朋友推薦', '代申請補助')` 的資料在 `ds_sales_report` 中應顯示 `sales_source='店內員工'`、`sales_type='本店'`。
+5. `display_dealer_name IN ('朋友推薦', '代申請補助')` 的資料在 `ds_sales_report` 中不應再顯示原始 dealer 字樣。
+

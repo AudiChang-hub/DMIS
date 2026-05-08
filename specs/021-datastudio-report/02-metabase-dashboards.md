@@ -148,6 +148,12 @@
 
 Metabase URL 預設為空（自動偵測 `window.location.hostname:3000`）。若部署環境不同，可在「設定 > 技術 > 系統參數」設定 `dms_report_ds.metabase_url`，例如 `http://metabase.example.com:3000`。
 
+### P21 維護注意事項
+
+- Odoo 選單 `電動車 > 基隆公益青年 > 統計表` 直接綁定 P21 的 public dashboard UUID `cfade0d2-6dbe-4db8-adb6-1bedc4e36560`
+- P21 必須保持 `public_uuid` 可用且 dashboard 不得封存，否則 Odoo iframe 會落到空白頁
+- P21 的內容應維持為單張 table-only dashboard，資料來源需與 `P4-2 基隆公益青年明細` 相同，不得改回未套 `基隆公益` 篩選的舊複本查詢
+
 ---
 
 ## 六、後續工作

@@ -182,10 +182,11 @@
 
 ## 七、Phase 2/3 執行結果（已完成）
 
-使用者核可路徑 A：保留 Metabase P16、封存 P21 複本、以 dashboard_id 為 key 執行 Phase 2。
+使用者核可路徑 A：保留 Metabase P16，並保留 Odoo 選單仍在使用的 P21 table-only dashboard；若需修復內容，應改掛正確的 `P4-2 基隆公益青年明細`，不得直接封存。
 
-### Phase 3 — 封存
-- ✅ `scripts/metabase_archive_dup.py --apply`：Dashboard #22「P21 基隆公益青年統計（複本）」已封存（可於 Metabase『已封存』視圖還原）。
+### Phase 3 — 維運修正
+- ⚠️ Dashboard #22「P21 基隆公益青年統計（複本）」若被封存，Odoo `電動車 > 基隆公益青年 > 統計表` 會因 public UUID 失效而顯示空白
+- ✅ 正確做法：保留 P21 為 active 的 table-only dashboard，並讓它重用 `card#68 P4-2 基隆公益青年明細` 這張已驗證有資料且帶 `基隆公益` 篩選的卡片
 
 ### Phase 2 — 批次套用硬編碼篩選
 - ✅ `scripts/metabase_apply_filters.py --apply`：57 張 card 處理 →

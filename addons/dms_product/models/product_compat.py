@@ -8,6 +8,9 @@ from odoo.osv import expression
 
 LEGACY_GENERATED_CODE_PATTERN = re.compile(r'^SKU-\d{5}$')
 COLOR_SPLIT_PATTERN = re.compile(r'[、/,，]+')
+EREADY_FUN_TARGET_MODELS = ('EV062', 'EV062FL')
+EREADY_FUN_LEGACY_NAMES = EREADY_FUN_TARGET_MODELS + ('eReady EV062', 'eReady EV062FL')
+EREADY_FUN_CANONICAL_NAME = 'eReady Fun'
 
 
 class DmsProductCompat(models.Model):
@@ -731,6 +734,39 @@ class DmsProductCompat(models.Model):
         if tracked_fields.intersection(vals):
             self._sync_compat_fields()
         return result
+
+    @api.model
+    def fix_eready_fun_names(self):
+        template_model = self.env['dms.product.template'].with_context(active_test=False)
+        order_model = self.env['dms.sale.order'].with_context(active_test=False)
+
+        templates = template_model.search([
+            ('model_name', 'in', list(EREADY_FUN_TARGET_MODELS)),
+        ])
+        if templates:
+            templates.write({'family_name': EREADY_FUN_CANONICAL_NAME})
+
+        products = self.with_context(active_test=False).search([
+            ('model', 'in', list(EREADY_FUN_TARGET_MODELS)),
+        ])
+        if products:
+            products.write({'name': EREADY_FUN_CANONICAL_NAME})
+
+        source_only_orders = order_model.search([
+            ('product_id', '=', False),
+            ('source_product_name', 'in', list(EREADY_FUN_LEGACY_NAMES)),
+        ])
+        if source_only_orders:
+            source_only_orders.write({'source_product_name': EREADY_FUN_CANONICAL_NAME})
+
+        self.env.flush_all()
+        return {
+            'canonical_name': EREADY_FUN_CANONICAL_NAME,
+            'target_models': list(EREADY_FUN_TARGET_MODELS),
+            'templates_updated': len(templates),
+            'products_updated': len(products),
+            'source_orders_updated': len(source_only_orders),
+        }
 
     @api.model
     def _run_product_backfill(self):

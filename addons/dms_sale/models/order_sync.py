@@ -135,7 +135,8 @@ class OrderSyncAction(models.AbstractModel):
         try:
             order = self._find_existing_order(folder_name, vals)
             if order:
-                order.write(vals)
+                write_vals = self.env['dms.sale.order']._prepare_import_update_vals(order, vals)
+                order.write(write_vals)
             else:
                 order = self.env['dms.sale.order'].create(vals)
             self._write_log(folder_name, 'success', order_id=order.id)
@@ -180,6 +181,8 @@ class OrderSyncAction(models.AbstractModel):
         exact = SaleOrder.search([
             ('sale_origin', '=', 'order_processor'),
             ('source_folder', '=', folder_name),
+            ('active', '=', True),
+            ('state', '!=', 'cancel'),
         ], limit=1)
         if exact:
             return exact
@@ -193,6 +196,8 @@ class OrderSyncAction(models.AbstractModel):
             ('sale_origin', '=', 'order_processor'),
             ('customer_name', '=', customer_name),
             ('source_folder', '!=', False),
+            ('active', '=', True),
+            ('state', '!=', 'cancel'),
         ], order='create_date desc, id desc')
         id_number = (vals.get('id_number') or '').strip()
         if id_number:
@@ -204,7 +209,13 @@ class OrderSyncAction(models.AbstractModel):
             and not order.product_id
             and not (order.source_product_name or '').strip()
         )
-        return candidates[:1]
+        if candidates:
+            return candidates[:1]
+
+        return SaleOrder._find_cross_source_import_order(
+            vals,
+            incoming_origin='order_processor',
+        )
 
     # ── 內部：解析 result.json → 訂單欄位 ────────────
     def _normalize_data(self, data):

@@ -252,7 +252,8 @@ class ExcelImportWizard(models.TransientModel):
 
         # ── 訂單日期
         order_date = _to_date(_cell(row, COL['order_date']))
-        vals['order_date'] = order_date or date.today()
+        if order_date:
+            vals['order_date'] = order_date
 
         # ── 狀態（歷史資料全部已成立）
         vals['state'] = 'confirmed'
@@ -524,18 +525,32 @@ class ExcelImportWizard(models.TransientModel):
         update_count = 0
         skip_count = 0
 
-        existing_ids = set(
-            self.env['dms.sale.order'].search([
-                ('excel_sync_id', '!=', False)
-            ]).mapped('excel_sync_id')
-        )
+        SaleOrder = self.env['dms.sale.order']
 
-        for row in rows:
-            sync_id = _to_str(_cell(row, COL['excel_sync_id']))
-            if not sync_id:
+        existing = {
+            r.excel_sync_id: r
+            for r in SaleOrder.search([
+                ('excel_sync_id', '!=', False),
+                ('active', '=', True),
+                ('state', '!=', 'cancel'),
+            ])
+        }
+
+        for i, row in enumerate(rows, start=4):
+            try:
+                vals = self._build_vals(row, errors)
+            except Exception as e:
+                errors.append(f"第 {i} 列解析失敗：{e}")
+                continue
+
+            if vals is None:
                 skip_count += 1
                 continue
-            if sync_id in existing_ids:
+
+            sync_id = vals['excel_sync_id']
+            if sync_id in existing:
+                update_count += 1
+            elif SaleOrder._find_cross_source_import_order(vals, incoming_origin='excel'):
                 update_count += 1
             else:
                 insert_count += 1
@@ -568,7 +583,11 @@ class ExcelImportWizard(models.TransientModel):
 
         existing = {
             r.excel_sync_id: r
-            for r in SaleOrder.search([('excel_sync_id', '!=', False)])
+            for r in SaleOrder.search([
+                ('excel_sync_id', '!=', False),
+                ('active', '=', True),
+                ('state', '!=', 'cancel'),
+            ])
         }
 
         for i, row in enumerate(rows, start=4):
@@ -586,16 +605,31 @@ class ExcelImportWizard(models.TransientModel):
 
             if sync_id in existing:
                 try:
-                    existing[sync_id].write(vals)
+                    write_vals = SaleOrder._prepare_import_update_vals(existing[sync_id], vals)
+                    existing[sync_id].write(write_vals)
                     updated += 1
                 except Exception as e:
                     errors.append(f"序號 {sync_id} 更新失敗：{e}")
             else:
-                try:
-                    SaleOrder.create(vals)
-                    inserted += 1
-                except Exception as e:
-                    errors.append(f"序號 {sync_id} 新增失敗：{e}")
+                matched = SaleOrder._find_cross_source_import_order(
+                    vals,
+                    incoming_origin='excel',
+                )
+                if matched:
+                    try:
+                        write_vals = SaleOrder._prepare_import_update_vals(matched, vals)
+                        matched.write(write_vals)
+                        existing[sync_id] = matched
+                        updated += 1
+                    except Exception as e:
+                        errors.append(f"序號 {sync_id} 合併更新失敗：{e}")
+                else:
+                    try:
+                        record = SaleOrder.create(vals)
+                        existing[sync_id] = record
+                        inserted += 1
+                    except Exception as e:
+                        errors.append(f"序號 {sync_id} 新增失敗：{e}")
 
         summary = f"✅ 匯入完成：新增 {inserted} 筆，更新 {updated} 筆，略過 {skipped} 筆。"
         if errors:

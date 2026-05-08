@@ -205,12 +205,11 @@ DMS 銷售管理（menu_dms_sale_root，頂層）
 
 ### OrderProcessor 自動同步
 
-- `result.json` 若缺少 docx 文字欄位或車輛欄位不完整，但資料夾內仍有 xlsx「原始資料」sheet，系統需補讀 xlsx 並只回填缺漏欄位，不得因身分證已辨識到姓名就跳過車型補值。
-- `source_product_name`、`product_id`、`color_id`、`dealer_id`、`payment_method`、`installment_periods`、`finance_company` 等交易欄位，允許由 xlsx fallback 補齊既有缺值。
-- 重新同步同一筆 OrderProcessor 資料時，若已存在 `sale_origin='order_processor'` 且 `source_folder` 相同的訂單，應直接更新原訂單，不得重複新增。
-- 若資料夾名稱僅時間戳不同，但屬同一筆訂單且既有訂單仍缺車型資料，重新同步應可將正確資料回寫到既有缺值訂單。
-- 若同一筆訂單已先由 Excel 匯入建立，後續 OrderProcessor 同步時需以 `customer_name + id_number` 為主鍵，並搭配 `registration_date`、`product_id`、`dealer_id`、`customer_phone` 等自然鍵交叉比對；命中同單時應更新既有訂單，不得另開第二筆。
-- 跨來源合併時，需保留既有訂單的 `sale_origin`，但應補寫另一來源的追蹤欄位（例如 `excel_sync_id` 或 `source_folder`），讓後續重複同步仍能命中同一筆訂單。
+- OrderProcessor 在目前過渡階段不得直接建立、更新或覆寫 `dms.sale.order`；其解析結果只允許進入獨立的 debug/staging 區。
+- `result.json` 若缺少 docx 文字欄位或車輛欄位不完整，但資料夾內仍有 xlsx「原始資料」sheet，系統需補讀 xlsx 並把解析後欄位寫入暫存紀錄，供 debug 使用。
+- `source_product_name`、`product_id`、`color_id`、`dealer_id`、`payment_method`、`installment_periods`、`finance_company` 等交易欄位，允許由 xlsx fallback 補齊後寫入暫存區，但不得因此進入正式銷售資料。
+- 重新同步同一筆 OrderProcessor 資料時，若已存在相同 `source_folder` 的暫存紀錄，應以重建暫存資料為準，不得對銷售訂單做任何刪改。
+- 在 Excel 匯入仍存在的期間，正式銷售資料唯一自動寫入路徑仍為 Excel 匯入。
 
 ### 分期欄位正規化
 
@@ -221,4 +220,4 @@ DMS 銷售管理（menu_dms_sale_root，頂層）
 
 - Excel 匯入的 `車種型號` 先以 `dms.product.model` 精確匹配；若未命中，需依序 fallback 比對 `dms.product.name`、`template_family_name` 與產品模板層的 `model_name`、`family_name`、`model_code`。
 - 若找到對應的 `dms.product`，仍沿用既有顏色匹配邏輯；若所有 fallback 都未命中，才保留 `source_product_name` 原始字串並將 `product_id` 留空。
-- Excel 匯入若找不到相同 `excel_sync_id`，仍需再比對既有 `order_processor` 訂單是否屬同一客戶同一筆交易；若自然鍵命中同單，應更新既有訂單並寫入 `excel_sync_id`，不得新增第二筆 `dms.sale.order`。
+- Excel 匯入僅以 `excel_sync_id` 執行 upsert，不得因 OrderProcessor 暫存資料存在而改寫銷售訂單。

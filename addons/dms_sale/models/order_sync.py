@@ -2,7 +2,7 @@
 OrderProcessor 自動匯入 Scheduled Action 邏輯。
 
 掃描 /mnt/order_backup/ 下各資料夾的 result.json，
-建立草稿 dms.sale.order 並紀錄 dms.sync.log。
+建立 debug/staging 紀錄於 dms.sync.log。
 """
 import json
 import logging
@@ -117,10 +117,16 @@ class OrderSyncAction(models.AbstractModel):
         try:
             vals = self._build_order_vals(data, folder_name)
         except Exception as e:
-            self._write_log(folder_name, 'fail', error_msg=f'欄位解析失敗：{e}')
+            self._write_log(
+                folder_name,
+                'fail',
+                error_msg=f'欄位解析失敗：{e}',
+                raw_payload=data,
+            )
             return
 
         # xlsx「原始資料」為穩定後備來源：即使身分證已辨識到姓名，仍需補讀缺漏的交易欄位。
+        xlsx_data = None
         try:
             xlsx_data = self._read_xlsx_fallback(folder_path)
             if xlsx_data:
@@ -133,15 +139,22 @@ class OrderSyncAction(models.AbstractModel):
                 '[OrderSync] xlsx fallback 失敗：%s', folder_name)
 
         try:
-            order = self._find_existing_order(folder_name, vals)
-            if order:
-                write_vals = self.env['dms.sale.order']._prepare_import_update_vals(order, vals)
-                order.write(write_vals)
-            else:
-                order = self.env['dms.sale.order'].create(vals)
-            self._write_log(folder_name, 'success', order_id=order.id)
+            self._write_log(
+                folder_name,
+                'success',
+                raw_payload=data,
+                fallback_payload=xlsx_data,
+                staged_vals=vals,
+            )
         except Exception as e:
-            self._write_log(folder_name, 'fail', error_msg=f'同步訂單失敗：{e}')
+            self._write_log(
+                folder_name,
+                'fail',
+                error_msg=f'寫入暫存資料失敗：{e}',
+                raw_payload=data,
+                fallback_payload=xlsx_data,
+                staged_vals=vals,
+            )
 
     def _merge_order_vals(self, base_vals, fallback_vals):
         merged = dict(base_vals)
@@ -175,47 +188,6 @@ class OrderSyncAction(models.AbstractModel):
             merged['is_trade_in'] = True
 
         return merged
-
-    def _find_existing_order(self, folder_name, vals):
-        SaleOrder = self.env['dms.sale.order']
-        exact = SaleOrder.search([
-            ('sale_origin', '=', 'order_processor'),
-            ('source_folder', '=', folder_name),
-            ('active', '=', True),
-            ('state', '!=', 'cancel'),
-        ], limit=1)
-        if exact:
-            return exact
-
-        signature = _folder_signature(folder_name)
-        customer_name = (vals.get('customer_name') or '').strip()
-        if not signature or not customer_name:
-            return SaleOrder.browse()
-
-        candidates = SaleOrder.search([
-            ('sale_origin', '=', 'order_processor'),
-            ('customer_name', '=', customer_name),
-            ('source_folder', '!=', False),
-            ('active', '=', True),
-            ('state', '!=', 'cancel'),
-        ], order='create_date desc, id desc')
-        id_number = (vals.get('id_number') or '').strip()
-        if id_number:
-            candidates = candidates.filtered(
-                lambda order: (order.id_number or '').strip() == id_number)
-
-        candidates = candidates.filtered(
-            lambda order: _folder_signature(order.source_folder) == signature
-            and not order.product_id
-            and not (order.source_product_name or '').strip()
-        )
-        if candidates:
-            return candidates[:1]
-
-        return SaleOrder._find_cross_source_import_order(
-            vals,
-            incoming_origin='order_processor',
-        )
 
     # ── 內部：解析 result.json → 訂單欄位 ────────────
     def _normalize_data(self, data):
@@ -471,6 +443,8 @@ class OrderSyncAction(models.AbstractModel):
             'sale_origin': 'order_processor',
             'source_folder': folder_name,
             'source_product_name': source_product_name,
+            'source_color_name': color_raw or False,
+            'source_dealer_name': dealer_raw or False,
             'customer_name': customer_name,
             'id_number': id_number,
             'address_registered': address_registered,
@@ -493,8 +467,14 @@ class OrderSyncAction(models.AbstractModel):
 
         return vals
 
+    def _serialize_debug_payload(self, payload):
+        if not payload:
+            return False
+        return json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True, default=str)
+
     # ── 內部：寫 log ──────────────────────────────────
-    def _write_log(self, folder_name, state, order_id=None, error_msg=None):
+    def _write_log(self, folder_name, state, order_id=None, error_msg=None,
+                   raw_payload=None, fallback_payload=None, staged_vals=None):
         vals = {
             'folder_name': folder_name,
             'state': state,
@@ -503,4 +483,33 @@ class OrderSyncAction(models.AbstractModel):
             vals['order_id'] = order_id
         if error_msg:
             vals['error_msg'] = error_msg
+        if raw_payload is not None:
+            vals['raw_result_json'] = self._serialize_debug_payload(raw_payload)
+        if fallback_payload:
+            vals['fallback_used'] = True
+            vals['fallback_payload_json'] = self._serialize_debug_payload(fallback_payload)
+        if staged_vals:
+            vals.update({
+                'customer_name': staged_vals.get('customer_name') or False,
+                'id_number': staged_vals.get('id_number') or False,
+                'customer_phone': staged_vals.get('customer_phone') or False,
+                'customer_email': staged_vals.get('customer_email') or False,
+                'birthday_ad': staged_vals.get('birthday_ad') or False,
+                'address_registered': staged_vals.get('address_registered') or False,
+                'source_product_name': staged_vals.get('source_product_name') or False,
+                'source_color_name': staged_vals.get('source_color_name') or False,
+                'source_dealer_name': staged_vals.get('source_dealer_name') or False,
+                'product_id': staged_vals.get('product_id') or False,
+                'color_id': staged_vals.get('color_id') or False,
+                'dealer_id': staged_vals.get('dealer_id') or False,
+                'sale_type': staged_vals.get('sale_type') or False,
+                'payment_method': staged_vals.get('payment_method') or False,
+                'finance_company': staged_vals.get('finance_company') or False,
+                'finance_company_other': staged_vals.get('finance_company_other') or False,
+                'installment_periods': staged_vals.get('installment_periods') or 0,
+                'is_trade_in': bool(staged_vals.get('is_trade_in')),
+                'extra_other': staged_vals.get('extra_other') or False,
+                'extra_note': staged_vals.get('extra_note') or False,
+                'staged_vals_json': self._serialize_debug_payload(staged_vals),
+            })
         self.env['dms.sync.log'].create(vals)

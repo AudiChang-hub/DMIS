@@ -42,8 +42,7 @@
 ## 2026-05 匯入補正
 - [x] `order_sync` 缺少 docx 時仍可由 xlsx 補讀車型、顏色、車行等欄位
 - [x] `是否有分期=18期` 不再誤寫 `finance_company` 導致建立失敗
-- [x] 重新同步相同或近似資料夾時，優先更新既有缺值的 `order_processor` 訂單
+- [x] 重新同步相同資料夾時，僅重建 OrderProcessor 暫存資料，不得更新 `dms.sale.order`
 - [x] Excel 匯入遇到 A1 這類模板 family/model 名稱時，仍可命中對應的 `dms.product`
-- [x] `dms.sale.order` 新增跨來源同單比對規則，供 Excel 與 OrderProcessor 共用
-- [x] Excel 匯入若命中既有 `order_processor` 訂單，改寫回原單並補上 `excel_sync_id`
-- [x] OrderProcessor 同步若命中既有 Excel 訂單，改寫回原單並補上 `source_folder`
+- [x] `dms.sync.log` 保存 raw JSON、fallback 與標準化欄位快照
+- [x] Excel 匯入不再依賴 `order_processor` 訂單做跨來源合併

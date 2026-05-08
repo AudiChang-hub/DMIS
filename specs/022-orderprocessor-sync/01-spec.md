@@ -1,29 +1,31 @@
-# 022 OrderProcessor → DMIS 訂單自動匯入
+# 022 OrderProcessor → Debug 暫存區
 
 ## 目標
-讓 OrderProcessor 處理完成的訂單資料，自動匯入 DMIS 建立草稿銷售訂單，不需人工介入，且不影響現有功能與 OrderProcessor 正常運作。
+讓 OrderProcessor 處理完成的訂單資料，自動進入 DMIS 的 debug 暫存區，供解析驗證與問題排查使用；在 Excel 匯入仍存在的過渡期間，不得直接寫入 `dms.sale.order`，避免影響正式銷售資料與報表。
 
 ## 架構
 - docker-compose volume mount：`/home/audi/project/OrderProcessor/backup:/mnt/order_backup:ro`（唯讀）
 - Odoo Scheduled Action（ir.cron）每 1 分鐘掃描 `/mnt/order_backup/`
-- 讀取各資料夾內的 `result.json`，用 ORM 直接建立 `dms.sale.order`（state=draft）
-- 每筆處理結果寫入 `dms.sync.log`，失敗只寫 log，不影響其他訂單處理
+- 讀取各資料夾內的 `result.json`，解析後寫入 `dms.sync.log` 作為 staging/debug 記錄
+- `dms.sync.log` 同時保存原始 JSON、xlsx fallback 內容與標準化後欄位快照，供後續 debug 使用
+- OrderProcessor 在本階段不得建立、更新或刪除 `dms.sale.order`
+- 每筆處理結果仍寫入 `dms.sync.log`，失敗只記錄本筆，不影響其他資料夾處理
 
-## 新增欄位（dms.sale.order）
-| 欄位 | 型別 | 說明 |
-|---|---|---|
-| source_product_name | Char | 原始車款字串，如 GIXXER SF 250 (GSX250F) |
-| source_folder | Char | backup 資料夾名稱，去重用，開發者模式才可見 |
-| sale_origin | Selection(manual/order_processor) | 訂單來源，預設 manual |
-| is_trade_in | Boolean | 有汰舊標記 |
-
-## 新增模型（dms.sync.log）
+## 暫存模型（dms.sync.log）
 | 欄位 | 說明 |
 |---|---|
 | sync_time | 處理時間 |
 | folder_name | backup 資料夾名稱 |
 | state | success / fail / skip / ignored |
-| order_id | 關聯的 dms.sale.order（建立成功時） |
+| customer_name / id_number / customer_phone | 解析出的客戶主資訊 |
+| source_product_name / source_color_name / source_dealer_name | 原始辨識字串 |
+| product_id / color_id / dealer_id | 比對到的主檔 |
+| sale_type / payment_method / finance_company / installment_periods / is_trade_in | 標準化後交易欄位快照 |
+| raw_result_json | 原始 `result.json` 內容 |
+| fallback_payload_json | xlsx fallback 讀到的原始內容 |
+| staged_vals_json | 系統標準化後、原本準備寫入訂單的欄位快照 |
+| fallback_used | 是否有使用 xlsx fallback |
+| order_id | 僅保留歷史相容用途；新資料預設為空 |
 | error_msg | 失敗原因 |
 
 ## 解析邏輯
@@ -42,17 +44,19 @@
 - 預設車行：車行名稱空白時帶入店面（sale_type='store'，dealer_id=False）
 - 汰舊：「是否有汰舊」不是「否」→ is_trade_in=True
 - 分期：「是否有分期」不是「無」→ payment_method='installment'，解析分期公司
+- 解析完成後僅寫入 `dms.sync.log` 暫存區；不得直寫 `dms.sale.order`
 
 ## 去重機制
 以 dms.sync.log.folder_name 去重，只要 log 有紀錄（任意狀態）就跳過。
-訂單被刪除後不會重新匯入。
+暫存紀錄被刪除後，才允許重新匯入同一資料夾。
 
 ## 重新同步（手動重試）
 同步紀錄表單提供「重新同步」按鈕，呼叫 `dms.sync.log.action_resync`：
-- 刪除原訂單與該筆 log
-- 由 `dms.order.sync._process_folder_by_name(folder_name)` 重新解析該資料夾
+- 刪除該筆暫存/log 紀錄
+- 由 `dms.order.sync._process_folder_by_name(folder_name)` 重新解析該資料夾並重建 staging
 - 跳過 mtime 保護，使用者觸發時假設檔案已穩定
-- 結束後跳轉顯示新建立的 log
+- 結束後跳轉顯示新建立的暫存紀錄
+- 不得刪除或修改既有 `dms.sale.order`
 適用情境：解析邏輯更新後，要對既有資料夾重跑；或失敗紀錄補資料後重試。
 
 ## 歷史資料處理
@@ -62,16 +66,18 @@
 - volume mount 唯讀（:ro），Odoo 無法修改 OrderProcessor 資料
 - 每筆資料夾獨立 try/except，失敗不影響其他資料夾
 - result.json mtime 需 > 60 秒，避免複製中途被讀取
-- product_id 在 ORM 層移除 required，View 層保留 required="1"，業務操作行為不變
+- 在 Excel 匯入仍為正式寫入路徑期間，OrderProcessor 不得影響正式報表來源 `dms.sale.order`
 
 ## 選單位置
-銷售管理 > 同步紀錄（僅系統管理員可見，可透過群組管理調整）
+銷售管理 > OrderProcessor 暫存區（僅系統管理員可見，可透過群組管理調整）
 
 ## 驗證步驟
 1. docker compose up -d
 2. docker compose exec odoo ls /mnt/order_backup（確認 mount）
 3. 手動觸發 Scheduled Action
-4. 銷售管理 > 同步紀錄 → 確認有成功紀錄
+4. 銷售管理 > OrderProcessor 暫存區 → 確認有成功紀錄
 5. 確認欄位對應正確（以 旭昶_GIXXER SF 250 測資為準）
-6. 重複觸發 → 不重複建立
-7. bash scripts/smoke_odoo.sh → OK: 303
+6. 確認 `dms.sale.order` 不會新增 `sale_origin='order_processor'` 訂單
+7. 重複觸發 → 不重複建立第二筆暫存紀錄
+8. bash scripts/smoke_odoo.sh → OK: 303
+

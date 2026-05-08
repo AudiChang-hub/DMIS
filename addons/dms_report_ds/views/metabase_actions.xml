@@ -71,12 +71,12 @@
         <field name="params">{"dashboard_uuid": "23ce259e-c7a5-4f4c-bea5-0e9269af42c7"}</field>
     </record>
     <record id="action_mb_p14" model="ir.actions.client">
-        <field name="name">地區×銷量</field>
+        <field name="name">地區×銷量（基隆公益）</field>
         <field name="tag">metabase_dashboard</field>
         <field name="params">{"dashboard_uuid": "71de9578-68f8-4391-a2cc-ecb08309774a"}</field>
     </record>
     <record id="action_mb_p15" model="ir.actions.client">
-        <field name="name">區域×車型</field>
+        <field name="name">區域×車型（基隆公益）</field>
         <field name="tag">metabase_dashboard</field>
         <field name="params">{"dashboard_uuid": "51ae6a82-52ef-47c2-bd2a-78ccf1e3cdf2"}</field>
     </record>
@@ -111,7 +111,7 @@
         <field name="params">{"dashboard_uuid": "cfade0d2-6dbe-4db8-adb6-1bedc4e36560"}</field>
     </record>
     <record id="action_mb_p22" model="ir.actions.client">
-        <field name="name">客群×車型分析</field>
+        <field name="name">客群×車型分析（基隆公益）</field>
         <field name="tag">metabase_dashboard</field>
         <field name="params">{"dashboard_uuid": "5b8a2815-9ec3-4ca6-b96e-ff5cd2a83ad5"}</field>
     </record>
@@ -162,18 +162,18 @@
     <!-- ── 地區分析子選單 ── -->
     <menuitem id="menu_mb_region_parent"
               name="地區分析"
-              parent="menu_ds_report_root"
-              sequence="40"/>
-    <menuitem id="menu_mb_p14" name="地區×銷量"
+              parent="menu_mb_electric_parent"
+              sequence="60"/>
+    <menuitem id="menu_mb_p14" name="地區×銷量（基隆公益）"
               parent="menu_mb_region_parent" action="action_mb_p14" sequence="10"/>
-    <menuitem id="menu_mb_p15" name="區域×車型"
+    <menuitem id="menu_mb_p15" name="區域×車型（基隆公益）"
               parent="menu_mb_region_parent" action="action_mb_p15" sequence="20"/>
 
     <!-- ── 客群分析子選單 ── -->
     <menuitem id="menu_mb_demo_parent"
               name="客群分析"
-              parent="menu_ds_report_root"
-              sequence="50"/>
+              parent="menu_mb_electric_parent"
+              sequence="70"/>
     <menuitem id="menu_mb_p16" name="性別×年齡"
               parent="menu_mb_demo_parent" action="action_mb_p16" sequence="10"/>
     <menuitem id="menu_mb_p17" name="車型×性別"
@@ -182,14 +182,14 @@
               parent="menu_mb_demo_parent" action="action_mb_p18" sequence="30"/>
     <menuitem id="menu_mb_p19" name="性別×車型顏色"
               parent="menu_mb_demo_parent" action="action_mb_p19" sequence="40"/>
-    <menuitem id="menu_mb_p22" name="客群×車型分析"
+    <menuitem id="menu_mb_p22" name="客群×車型分析（基隆公益）"
               parent="menu_mb_demo_parent" action="action_mb_p22" sequence="50"/>
 
     <!-- ── 基隆公益青年子選單 ── -->
     <menuitem id="menu_mb_keelung_parent"
               name="基隆公益青年"
-              parent="menu_ds_report_root"
-              sequence="65"/>
+              parent="menu_mb_electric_parent"
+              sequence="80"/>
     <menuitem id="menu_mb_p4" name="總覽"
               parent="menu_mb_keelung_parent" action="action_mb_p4" sequence="10"/>
     <menuitem id="menu_mb_p21" name="統計表"

@@ -559,9 +559,9 @@ def main():
     print(f"  [OK] Dashboard id={dash['id']}")
 
     # ──────────────────────────────────────────────
-    # P14 — 地區×銷量
+    # P14 — 地區×銷量（基隆公益）
     # ──────────────────────────────────────────────
-    print("\n=== P14: 地區×銷量 ===")
+    print("\n=== P14: 地區×銷量（基隆公益） ===")
 
     q = create_question(token, "P14 地區×領牌年月（長條圖）",
         breakouts=[
@@ -577,14 +577,14 @@ def main():
     questions["p14_bar"] = q["id"]
     print(f"  [OK] P14 bar id={q['id']}")
 
-    dash = create_dashboard(token, "P14 地區×銷量", coll_id)
+    dash = create_dashboard(token, "P14 地區×銷量（基隆公益）", coll_id)
     dashboards["p14"] = dash["id"]
     print(f"  [OK] Dashboard id={dash['id']}")
 
     # ──────────────────────────────────────────────
-    # P15 — 區域×車型
+    # P15 — 區域×車型（基隆公益）
     # ──────────────────────────────────────────────
-    print("\n=== P15: 區域×車型 ===")
+    print("\n=== P15: 區域×車型（基隆公益） ===")
 
     q = create_question(token, "P15 區域×車型（長條圖）",
         breakouts=[
@@ -600,7 +600,7 @@ def main():
     questions["p15_bar"] = q["id"]
     print(f"  [OK] P15 bar id={q['id']}")
 
-    dash = create_dashboard(token, "P15 區域×車型", coll_id)
+    dash = create_dashboard(token, "P15 區域×車型（基隆公益）", coll_id)
     dashboards["p15"] = dash["id"]
     print(f"  [OK] Dashboard id={dash['id']}")
 

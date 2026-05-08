@@ -207,6 +207,23 @@ legacy 相容與交易沿用部分仍由 `dms_sale` / `dms_product` 共同承接
 - 若保留 `product_id` 作歷史相容，該欄位應改為非必填，且不作主要輸入
 - 後續待新產品模組穩定後，再以新 spec 把 `dms_visit` 接回 `dms.product`（產品項）
 
+### D7：`EV062` / `EV062FL` 的 canonical 機種名稱統一為 `eReady Fun`
+
+決策：凡產品模板 `model_name` 或產品項 `model` 為 `EV062`、`EV062FL`，其 canonical 機種名稱一律使用 `eReady Fun`。
+
+理由：
+
+- 現有資料已出現 `EV062`、`eReady EV062`、`eReady EV062FL` 等多種命名，造成價格表、訂單顯示與報表語意不一致
+- 使用者已明確指定這兩個型號應視為同一機種 `eReady Fun`
+- 若不先在 canonical 層統一命名，後續報表與查詢仍會持續出現同型號多名稱問題
+
+影響：
+
+- `dms.product.template.family_name`：`EV062` / `EV062FL` → `eReady Fun`
+- `dms.product.name`：`eReady EV062` / `eReady EV062FL` → `eReady Fun`
+- `dms.sale.order.display_product_name` 若引用上述產品，需同步更新
+- 歷史資料修正與未來缺漏產品建立腳本，都必須沿用同一 canonical 名稱
+
 ---
 
 ## 4. 舊依賴如何相容

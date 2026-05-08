@@ -26,6 +26,9 @@
 - [x] `internal_code` 欄位在 UI 中為唯讀，不允許使用者手動修改
 - [x] `template_id` 在新增產品項對話框中自動帶入所屬模板且不可修改
 - [x] 主要清單畫面以 list 為主，不依賴圖片作主畫面核心
+- [x] 型號為 `EV062`、`EV062FL` 的模板機種一律顯示為 `eReady Fun`
+- [x] 型號為 `EV062`、`EV062FL` 的產品項名稱一律顯示為 `eReady Fun`
+- [x] 若既有銷售訂單引用上述型號，`display_product_name` 會同步更新為 `eReady Fun`
 
 ## B. 價格生效邏輯驗收
 

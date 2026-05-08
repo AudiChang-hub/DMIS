@@ -296,9 +296,9 @@ class SaleOrder(models.Model):
         for rec in self:
             rec.display_color_name = rec.color_id.name if rec.color_id else (rec.source_color_name or False)
 
-    @api.depends('product_id', 'source_product_name',
-                 'color_id', 'source_color_name',
-                 'dealer_id', 'source_dealer_name')
+    @api.depends('product_id', 'product_id.name', 'source_product_name',
+                 'color_id', 'color_id.name', 'source_color_name',
+                 'dealer_id', 'dealer_id.name', 'source_dealer_name')
     def _compute_display_fields(self):
         for rec in self:
             rec.display_color_name = rec.color_id.name if rec.color_id else (rec.source_color_name or False)

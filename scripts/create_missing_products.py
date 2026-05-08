@@ -60,8 +60,8 @@ TO_CREATE = [
     ('DRZ-4SM',   'DR-Z4SM',            BRAND_SUZUKI,  'oil'),
     # 宏佳騰 Aeon 電車
     ('EV060L',    'e-moving EV060L',    BRAND_AEON,    'electric'),
-    ('EV062',     'e-moving EV062',     BRAND_AEON,    'electric'),
-    ('EV062FL',   'e-moving EV062FL',   BRAND_AEON,    'electric'),
+    ('EV062',     'eReady Fun',         BRAND_AEON,    'electric'),
+    ('EV062FL',   'eReady Fun',         BRAND_AEON,    'electric'),
     ('EV070V',    'e-moving EV070V',    BRAND_AEON,    'electric'),
     ('EV076',     'e-moving EV076',     BRAND_AEON,    'electric'),
     ('EV076S',    'e-moving EV076S',    BRAND_AEON,    'electric'),

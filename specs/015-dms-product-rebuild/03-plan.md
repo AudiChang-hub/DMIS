@@ -72,6 +72,7 @@
 - 產品項代碼生成規則維持「型號 + 出廠年份」
 - `production_year` 改為文字欄位，並在相容同步時自動去除逗點格式
 - 既有 `color` / `color_code` 欄位轉為 legacy 相容欄位，不再作為產品項拆分主依據
+- 對 `EV062` / `EV062FL` 補 canonical 命名修正，將模板機種與產品名稱統一為 `eReady Fun`
 
 ---
 
@@ -166,6 +167,8 @@
    - 將舊式自動生成碼更新為「型號 + 出廠年份」格式
    - 回填 `production_year`
    - 將 `production_year` 正規化為純年份文字，例如 `2,026` → `2026`
+   - 將 `EV062` / `EV062FL` 的模板機種與產品名稱回填為 `eReady Fun`
+   - 若既有訂單引用上述型號，同步修正 `display_product_name`
    - 將同模板同年份但不同顏色的多筆 `dms.product` 收斂為單一 canonical 產品項
    - 將各顏色轉寫為 `dms.product.color`
    - 將價格、規則、銷售等參照改掛回 canonical 產品項
@@ -173,6 +176,7 @@
 4. 調整 `dms_visit`，讓送出物品先脫鉤為獨立輸入
 5. 升級 `dms_sale`，使查價邏輯支援新 canonical 模型
 6. 驗證既有銷售 / 拜訪 / 財務流程
+7. 驗證 `EV062` / `EV062FL` 在模板、產品與既有訂單顯示名稱皆為 `eReady Fun`
 
 ---
 

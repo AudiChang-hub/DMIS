@@ -189,7 +189,7 @@
     <menuitem id="menu_mb_keelung_parent"
               name="基隆公益青年"
               parent="menu_ds_report_root"
-              sequence="55"/>
+              sequence="65"/>
     <menuitem id="menu_mb_p4" name="總覽"
               parent="menu_mb_keelung_parent" action="action_mb_p4" sequence="10"/>
     <menuitem id="menu_mb_p21" name="統計表"

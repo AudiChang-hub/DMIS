@@ -29,11 +29,13 @@ FIELD_LICENSE_YM = 1630
 FIELD_MODEL = 1632
 FIELD_DEALER = 1635
 FIELD_ENERGY_TYPE = 1639
+FIELD_DEALER_REGION_DISTRICT = 4406
 FIELD_SALES_SOURCE = 1647
 
 PID_LICENSE_YM = "ds_license_ym"
 PID_SALES_SOURCE = "ds_sales_source"
 PID_ENERGY_TYPE = "ds_energy_type"
+PID_DEALER_REGION_DISTRICT = "ds_dealer_region_district"
 PID_DEALER = "ds_dealer"
 DEFAULT_SALES_SOURCE = "車行"
 MONTHLY_DASHCARD_HEIGHT = 12
@@ -187,6 +189,7 @@ WITH monthly AS (
       AND dealer <> ''
       [[AND {{license_ym}}]]
             [[AND {{energy_type}}]]
+            [[AND {{dealer_region_district}}]]
       [[AND {{dealer}}]]
       [[AND {{sales_source}}]]
     GROUP BY 1
@@ -209,6 +212,9 @@ ORDER BY license_month ASC
                 "license_ym": build_dimension_tag("license_ym", "領牌年月", FIELD_LICENSE_YM),
                 "energy_type": build_dimension_tag(
                     "energy_type", "能源類型", FIELD_ENERGY_TYPE
+                ),
+                "dealer_region_district": build_dimension_tag(
+                    "dealer_region_district", "車行區域", FIELD_DEALER_REGION_DISTRICT
                 ),
                 "dealer": build_dimension_tag("dealer", "車行名稱", FIELD_DEALER),
                 "sales_source": build_dimension_tag(
@@ -245,6 +251,7 @@ WITH monthly AS (
       AND dealer <> ''
       [[AND {{license_ym}}]]
             [[AND {{energy_type}}]]
+            [[AND {{dealer_region_district}}]]
       [[AND {{dealer}}]]
       [[AND {{sales_source}}]]
     GROUP BY 1, 2, 3
@@ -289,6 +296,9 @@ ORDER BY license_month DESC, matrix_row ASC
                 "license_ym": build_dimension_tag("license_ym", "領牌年月", FIELD_LICENSE_YM),
                 "energy_type": build_dimension_tag(
                     "energy_type", "能源類型", FIELD_ENERGY_TYPE
+                ),
+                "dealer_region_district": build_dimension_tag(
+                    "dealer_region_district", "車行區域", FIELD_DEALER_REGION_DISTRICT
                 ),
                 "dealer": build_dimension_tag("dealer", "車行名稱", FIELD_DEALER),
                 "sales_source": build_dimension_tag(
@@ -394,6 +404,13 @@ def build_dashboard_payload(
             default=DEFAULT_SALES_SOURCE,
         ),
         build_param("能源類型", "energy_type", "string/=", "string", PID_ENERGY_TYPE),
+        build_param(
+            "車行區域",
+            "dealer_region_district",
+            "string/=",
+            "string",
+            PID_DEALER_REGION_DISTRICT,
+        ),
         build_param("車行名稱", "dealer", "string/=", "string", PID_DEALER),
     ]
 
@@ -422,6 +439,11 @@ def build_dashboard_payload(
                     "parameter_id": PID_ENERGY_TYPE,
                     "card_id": monthly_card_id,
                     "target": ["dimension", ["field", FIELD_ENERGY_TYPE, {"base-type": "type/Text"}]],
+                },
+                {
+                    "parameter_id": PID_DEALER_REGION_DISTRICT,
+                    "card_id": monthly_card_id,
+                    "target": ["dimension", ["field", FIELD_DEALER_REGION_DISTRICT, {"base-type": "type/Text"}]],
                 },
                 {
                     "parameter_id": PID_DEALER,
@@ -462,6 +484,11 @@ def build_dashboard_payload(
                     "target": ["dimension", ["template-tag", "energy_type"]],
                 },
                 {
+                    "parameter_id": PID_DEALER_REGION_DISTRICT,
+                    "card_id": cumulative_card_id,
+                    "target": ["dimension", ["template-tag", "dealer_region_district"]],
+                },
+                {
                     "parameter_id": PID_DEALER,
                     "card_id": cumulative_card_id,
                     "target": ["dimension", ["template-tag", "dealer"]],
@@ -498,6 +525,11 @@ def build_dashboard_payload(
                     "parameter_id": PID_ENERGY_TYPE,
                     "card_id": detail_card_id,
                     "target": ["dimension", ["template-tag", "energy_type"]],
+                },
+                {
+                    "parameter_id": PID_DEALER_REGION_DISTRICT,
+                    "card_id": detail_card_id,
+                    "target": ["dimension", ["template-tag", "dealer_region_district"]],
                 },
                 {
                     "parameter_id": PID_DEALER,
@@ -559,6 +591,11 @@ def build_dashboard_payload(
                         "target": ["dimension", ["template-tag", "energy_type"]],
                     },
                     {
+                        "parameter_id": PID_DEALER_REGION_DISTRICT,
+                        "card_id": cumulative_card_id,
+                        "target": ["dimension", ["template-tag", "dealer_region_district"]],
+                    },
+                    {
                         "parameter_id": PID_DEALER,
                         "card_id": cumulative_card_id,
                         "target": ["dimension", ["template-tag", "dealer"]],
@@ -595,6 +632,11 @@ def build_dashboard_payload(
                         "target": ["dimension", ["template-tag", "energy_type"]],
                     },
                     {
+                        "parameter_id": PID_DEALER_REGION_DISTRICT,
+                        "card_id": detail_card_id,
+                        "target": ["dimension", ["template-tag", "dealer_region_district"]],
+                    },
+                    {
                         "parameter_id": PID_DEALER,
                         "card_id": detail_card_id,
                         "target": ["dimension", ["template-tag", "dealer"]],
@@ -628,7 +670,7 @@ def main():
         f"update card #{monthly_card_id} -> {MONTHLY_CARD_NAME}",
         f"upsert card -> {CUMULATIVE_CARD_NAME}",
         f"upsert card -> {DETAIL_CARD_NAME}",
-        "replace dashboard parameters with 領牌年月 / 銷售來源 / 能源類型 / 車行名稱",
+        "replace dashboard parameters with 領牌年月 / 銷售來源 / 能源類型 / 車行區域 / 車行名稱",
         f"set default license_ym -> {', '.join(default_license_ym_values())}",
         f"set default sales_source -> {DEFAULT_SALES_SOURCE}",
         "map all cards to dashboard filters",

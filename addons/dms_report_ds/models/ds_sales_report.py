@@ -78,6 +78,7 @@ class DsSalesReport(models.Model):
     # ── 地區（fx 計算欄位）─────────────────────────────────
     region = fields.Char(string='區域', readonly=True)
     region_district = fields.Char(string='縣市區域', readonly=True)
+    dealer_region_district = fields.Char(string='車行區域', readonly=True)
 
     # ── 金額 ──────────────────────────────────────────────
     receipt_price = fields.Float(string='收款價', readonly=True, digits=(12, 0))
@@ -227,6 +228,7 @@ class DsSalesReport(models.Model):
                     COALESCE(so.display_product_name, '')  AS pname,
                     COALESCE(so.display_dealer_name, '')   AS dname,
                     COALESCE(so.display_color_name, '')    AS cname,
+                    COALESCE(d.address, '')                AS dealer_address,
                     p.energy_type                          AS p_energy,
                     COALESCE(st.name, '')                  AS store_type_name,
                     COALESCE(cr.volume_bonus, 0)           AS cr_volume_bonus,
@@ -336,6 +338,12 @@ class DsSalesReport(models.Model):
                     COALESCE(s.address_registered, ''),
                     '((?:台北市|新北市|桃園市|台中市|台南市|高雄市|基隆市|新竹市|嘉義市|新竹縣|苗栗縣|宜蘭縣|彰化縣|南投縣|雲林縣|嘉義縣|屏東縣|花蓮縣|台東縣|澎湖縣|金門縣|連江縣).{1,6}(?:區|鄉|鎮|市))')
                 )[1]                             AS region_district,
+
+                -- ── 車行區域（P20 dealer region，以 dms_dealer.address 為準）──
+                COALESCE((regexp_match(
+                    COALESCE(s.dealer_address, ''),
+                    '((?:台北市|新北市|桃園市|台中市|台南市|高雄市|基隆市|新竹市|嘉義市|新竹縣|苗栗縣|宜蘭縣|彰化縣|南投縣|雲林縣|嘉義縣|屏東縣|花蓮縣|台東縣|澎湖縣|金門縣|連江縣)[^區鄉鎮市]{1,6}(?:區|鄉|鎮|市))')
+                )[1], '未設定')                  AS dealer_region_district,
 
                 -- ── 銷售來源（fx #14 Sales Source，以 store_type 為主）──
                 CASE

@@ -197,6 +197,29 @@ class ExcelImportWizard(models.TransientModel):
     # 錯誤摘要
     error_summary = fields.Text(string='警告/錯誤', readonly=True)
 
+    def _find_product_by_sku(self, sku):
+        Product = self.env['dms.product']
+        search_paths = [
+            [('model', '=', sku)],
+            [('name', '=', sku)],
+            [('template_family_name', '=', sku)],
+            [('template_id.model_name', '=', sku)],
+            [('template_id.family_name', '=', sku)],
+            [('template_id.model_code', '=', sku)],
+            [('model', 'ilike', sku)],
+            [('name', 'ilike', sku)],
+            [('template_family_name', 'ilike', sku)],
+            [('template_id.model_name', 'ilike', sku)],
+            [('template_id.family_name', 'ilike', sku)],
+            [('template_id.model_code', 'ilike', sku)],
+        ]
+
+        for domain in search_paths:
+            product = Product.search(domain, limit=1)
+            if product:
+                return product
+        return Product.browse()
+
     def _parse_excel(self):
         """讀取 Excel，回傳 list of row tuple（第4列起）"""
         try:
@@ -245,8 +268,7 @@ class ExcelImportWizard(models.TransientModel):
         # ── 車款（SKU 查找，以 model 欄位比對）
         sku = _to_str(_cell(row, COL['product_sku']))
         if sku:
-            product = self.env['dms.product'].search(
-                [('model', '=', sku)], limit=1)
+            product = self._find_product_by_sku(sku)
             if product:
                 vals['product_id'] = product.id
                 # 顏色：永遠寫 source_color_name，有找到再連結 color_id

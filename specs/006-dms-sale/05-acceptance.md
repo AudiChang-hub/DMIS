@@ -19,6 +19,12 @@
 
 ### 分期付款
 - [x] 付款方式選「分期」後，分期公司/期數/月付金欄位才顯示
+- [x] OrderProcessor 匯入遇到 `是否有分期=18期` 時，可正確寫入 `installment_periods=18`，且不會因 `finance_company` invalid selection 失敗
+
+### 匯入補正
+- [x] `result.json` 只有身分證辨識、缺少 docx 文字時，若資料夾內 xlsx 有原始資料，重新同步後可補上缺漏的車型資訊
+- [x] 同一筆 OrderProcessor 訂單若存在僅時間戳不同的近似資料夾，重新同步正確資料夾後會更新既有缺值訂單，而非另開新單
+- [x] Excel 匯入來源 `車種型號=A1` 時，若對應 `dms.product` 建在模板 `family_name/model_name`，仍可正確帶入 `product_id`
 
 ### 精品明細
 - [x] 可新增多筆精品明細（O2m tab）

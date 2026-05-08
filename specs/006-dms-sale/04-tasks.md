@@ -38,3 +38,9 @@
 - [ ] 新增訂單時序號自動產生（SO2026MMNNNN）
 - [ ] 選電車後牌險費自動帶入
 - [ ] 選分期公司帶出傭金
+
+## 2026-05 匯入補正
+- [x] `order_sync` 缺少 docx 時仍可由 xlsx 補讀車型、顏色、車行等欄位
+- [x] `是否有分期=18期` 不再誤寫 `finance_company` 導致建立失敗
+- [x] 重新同步相同或近似資料夾時，優先更新既有缺值的 `order_processor` 訂單
+- [x] Excel 匯入遇到 A1 這類模板 family/model 名稱時，仍可命中對應的 `dms.product`

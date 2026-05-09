@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""更新 P20 通路銷售統計 dashboard 的車行月銷量與累計銷量圖表。"""
+"""更新現行 P3 通路銷售統計 dashboard 的車行月銷量與累計銷量圖表。"""
 
 from __future__ import annotations
 
@@ -15,11 +15,17 @@ BASE = "http://localhost:3000/api"
 EMAIL = "admin@dmis.local"
 PASSWORD = "Dmis2026!"
 
-DASHBOARD_NAME = "P20 通路銷售統計"
-MONTHLY_CARD_NAME = "P20-1 車行月銷量（長條圖）"
-CUMULATIVE_CARD_NAME = "P20-2 車行累計銷量（折線圖）"
-DETAIL_CARD_NAME = "P20-3 車行月銷量明細（表格）"
-REGION_RANK_CARD_NAME = "P20-4 車行區域銷量排行（長條圖）"
+DASHBOARD_ID = 17
+DASHBOARD_NAME = "P3 通路銷售統計"
+LEGACY_DASHBOARD_NAMES = {DASHBOARD_NAME, "P20 通路銷售統計"}
+MONTHLY_CARD_NAME = "P3-1 車行月銷量（長條圖）"
+CUMULATIVE_CARD_NAME = "P3-2 車行累計銷量（折線圖）"
+DETAIL_CARD_NAME = "P3-3 車行月銷量明細（表格）"
+REGION_RANK_CARD_NAME = "P3-4 車行區域銷量排行（長條圖）"
+LEGACY_MONTHLY_CARD_NAMES = {MONTHLY_CARD_NAME, "P20-1 車行月銷量（長條圖）", "P20 通路×領牌年月（長條圖）"}
+LEGACY_CUMULATIVE_CARD_NAMES = {CUMULATIVE_CARD_NAME, "P20-2 車行累計銷量（折線圖）"}
+LEGACY_DETAIL_CARD_NAMES = {DETAIL_CARD_NAME, "P20-3 車行月銷量明細（表格）"}
+LEGACY_REGION_RANK_CARD_NAMES = {REGION_RANK_CARD_NAME, "P20-4 車行區域銷量排行（長條圖）"}
 
 DB_ID = 2
 TABLE_ID = 229
@@ -40,7 +46,6 @@ PID_ENERGY_TYPE = "ds_energy_type"
 PID_DEALER_REGION_CITY = "ds_dealer_region_city"
 PID_DEALER_REGION_DISTRICT = "ds_dealer_region_district"
 PID_DEALER = "ds_dealer"
-DEFAULT_SALES_SOURCE = "車行"
 MONTHLY_DASHCARD_HEIGHT = 12
 CUMULATIVE_DASHCARD_HEIGHT = 8
 REGION_RANK_DASHCARD_HEIGHT = 10
@@ -100,7 +105,7 @@ def default_license_ym_values(today: date | None = None) -> list[str]:
     year = current.year
     month = current.month
     values = []
-    for offset in range(5, -1, -1):
+    for offset in range(11, -1, -1):
         calc_month = month - offset
         calc_year = year
         while calc_month <= 0:
@@ -132,6 +137,10 @@ def filter_not_null(field_id: int):
 
 def filter_not_null_date(field_id: int):
     return ["not-null", date_field(field_id)]
+
+
+def filter_not_empty(field_id: int):
+    return ["!=", text_field(field_id), ""]
 
 
 def build_monthly_dataset_query():
@@ -245,48 +254,27 @@ def build_cumulative_visualization():
 
 
 def build_region_rank_dataset_query():
-    query = """
-SELECT
-    dealer_region_district AS "車行區域",
-    COUNT(*) AS "銷量"
-FROM ds_sales_report
-WHERE state = 'confirmed'
-  AND license_date IS NOT NULL
-  AND model IS NOT NULL
-  AND dealer IS NOT NULL
-  AND dealer <> ''
-  AND dealer_region_district IS NOT NULL
-  AND dealer_region_district <> ''
-  [[AND {{license_ym}}]]
-  [[AND {{energy_type}}]]
-  [[AND {{dealer_region_city}}]]
-  [[AND {{dealer_region_district}}]]
-  [[AND {{dealer}}]]
-  [[AND {{sales_source}}]]
-GROUP BY dealer_region_district
-ORDER BY "銷量" DESC, "車行區域" ASC
-""".strip()
     return {
-        "type": "native",
+        "type": "query",
         "database": DB_ID,
-        "native": {
-            "query": query,
-            "template-tags": {
-                "license_ym": build_dimension_tag("license_ym", "領牌年月", FIELD_LICENSE_YM),
-                "energy_type": build_dimension_tag(
-                    "energy_type", "能源類型", FIELD_ENERGY_TYPE
-                ),
-                "dealer_region_city": build_dimension_tag(
-                    "dealer_region_city", "車行縣市", FIELD_DEALER_REGION_CITY
-                ),
-                "dealer_region_district": build_dimension_tag(
-                    "dealer_region_district", "車行區域", FIELD_DEALER_REGION_DISTRICT
-                ),
-                "dealer": build_dimension_tag("dealer", "車行名稱", FIELD_DEALER),
-                "sales_source": build_dimension_tag(
-                    "sales_source", "銷售來源", FIELD_SALES_SOURCE
-                ),
-            },
+        "query": {
+            "source-table": TABLE_ID,
+            "aggregation": [["count"]],
+            "breakout": [text_field(FIELD_DEALER_REGION_DISTRICT)],
+            "filter": [
+                "and",
+                filter_confirmed(),
+                filter_not_null_date(FIELD_LICENSE_DATE),
+                filter_not_null(FIELD_MODEL),
+                filter_not_null(FIELD_DEALER),
+                filter_not_empty(FIELD_DEALER),
+                filter_not_null(FIELD_DEALER_REGION_DISTRICT),
+                filter_not_empty(FIELD_DEALER_REGION_DISTRICT),
+            ],
+            "order-by": [
+                ["desc", ["aggregation", 0]],
+                ["asc", text_field(FIELD_DEALER_REGION_DISTRICT)],
+            ],
         },
     }
 
@@ -418,17 +406,28 @@ def build_detail_visualization():
 
 
 def find_dashboard(token: str):
-    dashboards = api(token, "get", "/dashboard")
-    for dashboard in dashboards:
-        if dashboard.get("name") == DASHBOARD_NAME:
-            return api(token, "get", f"/dashboard/{dashboard['id']}")
-    raise RuntimeError(f"找不到 dashboard: {DASHBOARD_NAME}")
+    dashboard = api(token, "get", f"/dashboard/{DASHBOARD_ID}")
+    if dashboard.get("name") in LEGACY_DASHBOARD_NAMES:
+        return dashboard
+    raise RuntimeError(
+        f"dashboard #{DASHBOARD_ID} 名稱不符預期: {dashboard.get('name')}"
+    )
 
 
-def upsert_card(token: str, name: str, dataset_query, display: str, visualization_settings, collection_id=None):
+def upsert_card(
+    token: str,
+    name: str,
+    dataset_query,
+    display: str,
+    visualization_settings,
+    collection_id=None,
+    legacy_names: set[str] | None = None,
+):
+    candidate_names = set(legacy_names or set())
+    candidate_names.add(name)
     cards = api(token, "get", "/card")
     for card in cards:
-        if card.get("name") != name:
+        if card.get("name") not in candidate_names:
             continue
         payload = {
             "name": name,
@@ -475,7 +474,6 @@ def build_dashboard_payload(
             "string/=",
             "string",
             PID_SALES_SOURCE,
-            default=DEFAULT_SALES_SOURCE,
         ),
         build_param("能源類型", "energy_type", "string/=", "string", PID_ENERGY_TYPE),
         build_param("車行縣市", "dealer_region_city", "string/=", "string", PID_DEALER_REGION_CITY),
@@ -499,7 +497,7 @@ def build_dashboard_payload(
         card_id = dashcard.get("card_id")
         card_name = card.get("name")
 
-        if card_id == monthly_card_id or card_name == MONTHLY_CARD_NAME:
+        if card_id == monthly_card_id or card_name in LEGACY_MONTHLY_CARD_NAMES:
             parameter_mappings = [
                 {
                     "parameter_id": PID_LICENSE_YM,
@@ -546,7 +544,7 @@ def build_dashboard_payload(
             dashcards.append(new_dashcard)
             continue
 
-        if card_id == cumulative_card_id or card_name == CUMULATIVE_CARD_NAME:
+        if card_id == cumulative_card_id or card_name in LEGACY_CUMULATIVE_CARD_NAMES:
             cumulative_dashcard_present = True
             parameter_mappings = [
                 {
@@ -594,7 +592,7 @@ def build_dashboard_payload(
             dashcards.append(new_dashcard)
             continue
 
-        if card_id == region_rank_card_id or card_name == REGION_RANK_CARD_NAME:
+        if card_id == region_rank_card_id or card_name in LEGACY_REGION_RANK_CARD_NAMES:
             region_rank_dashcard_present = True
             parameter_mappings = [
                 {
@@ -642,7 +640,7 @@ def build_dashboard_payload(
             dashcards.append(new_dashcard)
             continue
 
-        if card_id == detail_card_id or card_name == DETAIL_CARD_NAME:
+        if card_id == detail_card_id or card_name in LEGACY_DETAIL_CARD_NAMES:
             detail_dashcard_present = True
             parameter_mappings = [
                 {
@@ -854,11 +852,11 @@ def main():
     monthly_card_id = None
     for dashcard in dashboard.get("dashcards") or []:
         card = dashcard.get("card") or {}
-        if card.get("name") in {MONTHLY_CARD_NAME, "P20 通路×領牌年月（長條圖）"}:
+        if card.get("name") in LEGACY_MONTHLY_CARD_NAMES:
             monthly_card_id = dashcard.get("card_id")
             break
     if monthly_card_id is None:
-        raise RuntimeError("找不到 P20 既有月銷量 card")
+        raise RuntimeError("找不到現行通路銷售統計的既有月銷量 card")
 
     actions = [
         f"dashboard #{dashboard['id']} {dashboard['name']}",
@@ -868,7 +866,7 @@ def main():
         f"upsert card -> {DETAIL_CARD_NAME}",
         "replace dashboard parameters with 領牌年月 / 銷售來源 / 能源類型 / 車行縣市 / 車行區域 / 車行名稱",
         f"set default license_ym -> {', '.join(default_license_ym_values())}",
-        f"set default sales_source -> {DEFAULT_SALES_SOURCE}",
+        "clear default sales_source",
         "map all cards to dashboard filters",
     ]
 
@@ -897,6 +895,7 @@ def main():
         "line",
         build_cumulative_visualization(),
         collection_id=collection_id,
+        legacy_names=LEGACY_CUMULATIVE_CARD_NAMES,
     )
 
     region_rank_card_id, region_created = upsert_card(
@@ -906,6 +905,7 @@ def main():
         "row",
         build_region_rank_visualization(),
         collection_id=collection_id,
+        legacy_names=LEGACY_REGION_RANK_CARD_NAMES,
     )
 
     detail_card_id, detail_created = upsert_card(
@@ -915,6 +915,7 @@ def main():
         "table",
         build_detail_visualization(),
         collection_id=collection_id,
+        legacy_names=LEGACY_DETAIL_CARD_NAMES,
     )
 
     payload = build_dashboard_payload(
@@ -927,7 +928,7 @@ def main():
     api(token, "put", f"/dashboard/{dashboard['id']}", payload)
 
     updated_dashboard = api(token, "get", f"/dashboard/{dashboard['id']}")
-    print("[OK] 已更新 P20 dashboard")
+    print("[OK] 已更新 P3 dashboard")
     print(f" - dashboard_id: {updated_dashboard['id']}")
     print(f" - public_uuid: {updated_dashboard.get('public_uuid')}")
     print(f" - monthly_card_id: {monthly_card_id}")

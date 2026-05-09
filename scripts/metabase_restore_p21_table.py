@@ -70,7 +70,7 @@ def main() -> None:
         f"/dashboard/{dashboard['id']}",
         {
             "archived": False,
-            "name": dashboard.get("name") or "P21 基隆公益青年統計（複本）",
+            "name": dashboard.get("name") or "P14 基隆公益青年統計（複本）",
         },
     )
 

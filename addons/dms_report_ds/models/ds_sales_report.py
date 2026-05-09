@@ -231,7 +231,16 @@ class DsSalesReport(models.Model):
                     COALESCE(so.display_product_name, '')  AS pname,
                     COALESCE(so.display_dealer_name, '')   AS dname,
                     COALESCE(so.display_color_name, '')    AS cname,
-                    COALESCE(d.address, '')                AS dealer_address,
+                    COALESCE(
+                        CASE
+                            WHEN COALESCE(so.display_dealer_name, '') = ''
+                              OR btrim(COALESCE(so.display_dealer_name, ''))
+                                 IN ('中古車', '朋友推薦', '代申請補助')
+                                THEN yd.address
+                            ELSE d.address
+                        END,
+                        ''
+                    )                                     AS dealer_address,
                     COALESCE(dbm.dealer_brand_display, '') AS dealer_brand_display,
                     p.energy_type                          AS p_energy,
                     COALESCE(st.name, '')                  AS store_type_name,
@@ -242,6 +251,14 @@ class DsSalesReport(models.Model):
                     ON so.product_id = p.id
                 LEFT JOIN dms_dealer d
                     ON d.id = so.dealer_id
+                LEFT JOIN (
+                    SELECT address
+                    FROM dms_dealer
+                    WHERE name = '馭盛'
+                    ORDER BY id
+                    LIMIT 1
+                ) yd
+                    ON TRUE
                 LEFT JOIN (
                     SELECT
                         auth.dealer_id,
@@ -280,11 +297,11 @@ class DsSalesReport(models.Model):
                 s.cname                          AS car_color,
                 s.pname || '_' || s.cname        AS model_color,
                  CASE WHEN s.dname = '' THEN '馭盛'
-                     WHEN btrim(s.dname) IN ('朋友推薦', '代申請補助') THEN '店內'
+                     WHEN btrim(s.dname) IN ('中古車', '朋友推薦', '代申請補助') THEN '馭盛'
                      ELSE s.dname
                 END                              AS dealer,
                  CASE WHEN s.dname = '' THEN '馭盛'
-                     WHEN btrim(s.dname) IN ('朋友推薦', '代申請補助') THEN '店內'
+                     WHEN btrim(s.dname) IN ('中古車', '朋友推薦', '代申請補助') THEN '馭盛'
                      ELSE UPPER(TRIM(regexp_replace(s.dname, '\\s+', '', 'g')))
                 END                              AS dealer_not_null,
                 s.engine_number                  AS vin_or_en,
@@ -363,10 +380,13 @@ class DsSalesReport(models.Model):
                 ))[1], '未設定')                 AS dealer_region_city,
 
                 -- ── 車行區域（P20 dealer region，以 dms_dealer.address 為準）──
-                COALESCE((regexp_match(
-                    COALESCE(s.dealer_address, ''),
-                    '((?:台北市|新北市|桃園市|台中市|台南市|高雄市|基隆市|新竹市|嘉義市|新竹縣|苗栗縣|宜蘭縣|彰化縣|南投縣|雲林縣|嘉義縣|屏東縣|花蓮縣|台東縣|澎湖縣|金門縣|連江縣)[^區鄉鎮市]{1,6}(?:區|鄉|鎮|市))')
-                )[1], '未設定')                  AS dealer_region_district,
+                CASE
+                    WHEN s.store_type_name = '網路平台' THEN '網路'
+                    ELSE COALESCE((regexp_match(
+                        COALESCE(s.dealer_address, ''),
+                        '((?:台北市|新北市|桃園市|台中市|台南市|高雄市|基隆市|新竹市|嘉義市|新竹縣|苗栗縣|宜蘭縣|彰化縣|南投縣|雲林縣|嘉義縣|屏東縣|花蓮縣|台東縣|澎湖縣|金門縣|連江縣)[^區鄉鎮市]{1,6}(?:區|鄉|鎮|市))')
+                    )[1], '未設定')
+                END                              AS dealer_region_district,
 
                 -- ── 銷售來源（fx #14 Sales Source，以 store_type 為主）──
                 CASE
@@ -383,6 +403,7 @@ class DsSalesReport(models.Model):
                 -- ── 銷售類型（fx #15 SalesType，以 store_type 為主）──
                 CASE
                     WHEN s.dname = ''
+                                            OR s.dname = '中古車'
                       OR s.dname ~ '文傑'
                       OR btrim(s.dname) IN ('朋友推薦', '代申請補助')
                         THEN '本店'

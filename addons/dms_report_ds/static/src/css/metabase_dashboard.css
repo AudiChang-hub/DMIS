@@ -1,12 +1,13 @@
 /* 讓 Metabase iframe 畫面滿版，去掉 Odoo 預設 action 容器 padding/max-width */
-.o_action_manager > .o_metabase_dashboard,
+.o_action_manager>.o_metabase_dashboard,
 .o_metabase_dashboard {
     padding: 0 !important;
     margin: 0 !important;
     max-width: none !important;
     width: 100% !important;
 }
-/* 當 client action 被 o_action_manager 包裹時，確保它本身也是滿版 */
-.o_action_manager:has(> .o_metabase_dashboard) {
+
+/* 由 component mount 時加上的 class 控制父容器 padding，避免使用 :has() */
+.o_action_manager.o_metabase_action_manager {
     padding: 0 !important;
 }

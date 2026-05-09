@@ -29,8 +29,9 @@
 - 取 `st.name` 直接作為「網路平台」判斷依據。
 - 「馭盛/本店」維持以 `display_dealer_name = ''` 判斷。
 - 「店內員工」（特定員工兼營）暫保留 `dname ~ '文傑'` 判斷。
+- `display_dealer_name = '中古車'` 視為 `馭盛` 體系資料列：`dealer` / `dealer_not_null` 應正規化為 `馭盛`，`sales_source` 應為 `馭盛`，`sales_type` 應為 `本店`，且車行縣市/區域應 fallback 使用 `馭盛` 主檔地址。
 - `display_dealer_name IN ('朋友推薦', '代申請補助')` 視為店內引薦/代辦單，`sales_source` 歸入 `店內員工`、`sales_type` 歸入 `本店`，不得落入 `車行`。
-- `display_dealer_name IN ('朋友推薦', '代申請補助')` 的顯示欄位需同步正規化為 `dealer='店內'`、`dealer_not_null='店內'`，避免報表直接露出原始字樣。
+- `display_dealer_name IN ('朋友推薦', '代申請補助')` 的顯示欄位需同步正規化為 `dealer='馭盛'`、`dealer_not_null='馭盛'`，並以 `dms_dealer.name='馭盛'` 的主檔地址解析車行縣市/區域，避免報表在車行維度與區域維度出現不一致。
 
 ### 3. `brand_type`
 
@@ -84,4 +85,6 @@
 3. 既有 metabase dashboards 不受影響。
 4. `display_dealer_name IN ('朋友推薦', '代申請補助')` 的資料在 `ds_sales_report` 中應顯示 `sales_source='店內員工'`、`sales_type='本店'`。
 5. `display_dealer_name IN ('朋友推薦', '代申請補助')` 的資料在 `ds_sales_report` 中不應再顯示原始 dealer 字樣。
+6. `display_dealer_name IN ('朋友推薦', '代申請補助')` 的資料在 `ds_sales_report` 中應顯示 `dealer='馭盛'`，且 `dealer_region_city` / `dealer_region_district` 應取 `馭盛` 主檔地址。
+7. `display_dealer_name = '中古車'` 的資料在 `ds_sales_report` 中應顯示 `dealer='馭盛'`、`sales_source='馭盛'`、`sales_type='本店'`，且 `dealer_region_city` / `dealer_region_district` 應取 `馭盛` 主檔地址。
 

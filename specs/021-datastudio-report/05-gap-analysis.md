@@ -4,7 +4,7 @@
 
 - 稽核日：2026-04-17
 - Report：`cdb5d959-40f4-40c7-b809-98da76ef4498`
-- 實測頁面總數：**21**（非原 spec 所記 22，「銷售機種統計」為保留頁）
+- 實測頁面總數：**21**（非原 spec 所記 22，「銷售機種及車型統計」為保留頁）
 - 原始資料表：`ds_sales_report`（SQL View，已建立於 `dms_report_ds`）
 
 ---
@@ -14,14 +14,14 @@
 ### 1.1 頁數修正
 | 原 spec | 實測 | 備註 |
 |--------|------|------|
-| 22 頁 | **21 頁** | P2「銷售機種統計」在翻頁過程中透過 下一頁 未被導航到；推測為隱藏頁或實際上不存在 |
+| 22 頁 | **21 頁** | P2「銷售機種及車型統計」在翻頁過程中透過 下一頁 未被導航到；推測為隱藏頁或實際上不存在 |
 
 ### 1.2 頁面順序與對應 URL
 
 | 序號 | 頁名 | URL 尾碼 | 圖表數 |
 |-----|-----|---------|--------|
 | P1 | 總車輛銷售 | `p_oe0r8mk2wd` | 7 |
-| P2 | 銷售機種統計 | `p_67eq9sz9wd` | 3 |
+| P2 | 銷售機種及車型統計 | `p_67eq9sz9wd` | 3 |
 | P3 | 電動車銷售統計 | `p_v7fndtm3wd` | 6 |
 | P4 | 基隆公益青年 | `p_wrl9qpo2wd` | 5 |
 | P5 | 電動車 - 網路平台 | `p_oyi9bhn3wd` | 4 |
@@ -182,17 +182,18 @@
 
 ## 七、Phase 2/3 執行結果（已完成）
 
-使用者核可路徑 A：保留 Metabase P16；Odoo `電動車 > 基隆公益青年` 僅保留 `總覽（P4）`，P21 改為不掛入選單的維運輔助 dashboard。若需修復內容，應改掛正確的 `P4-2 基隆公益青年明細`。
+使用者核可路徑 A：保留 Metabase P16；Odoo `電動車專區 > 基隆公益青年` 僅保留 `總覽（P4）`，P21 改為不掛入選單的維運輔助 dashboard。若需修復內容，應改掛正確的 `P4-2 基隆公益青年明細`。
 
 ### Phase 3 — 維運修正
 - ✅ P21 已修復為重用 `card#68 P4-2 基隆公益青年明細` 的 table-only dashboard，供維運直接核對公益青年明細
-- ✅ Odoo `電動車 > 基隆公益青年` 改為只保留 `總覽（P4）`，不再顯示 `統計表` 選單
+- ✅ Odoo `電動車專區 > 基隆公益青年` 改為只保留 `總覽（P4）`，不再顯示 `統計表` 選單
 - ✅ P4-1 `基隆公益青年×品牌×年月` 若殘留 `dealer_not_null = 馭盛` 這類舊硬篩，應於重套 Metabase filters 時一併清除，避免長條圖只剩 `馭盛網推`
 - ✅ P4 `基隆公益青年` 的頂部第二篩選器應為 `品牌`，映射 `brand_type`；不得誤綁為 `銷售來源`
 - ✅ `brand_type` 應優先使用車行主檔品牌授權欄位對應；規則表僅作 fallback，未命中時不得直接落出店名
 - ✅ P4 `品牌` 下拉選單的 values source 應直接取自 `P4-1` 圖表 card，而非 `/field/1649/values` 的全域快取，避免選項和圖表分類不一致
 - ✅ 車行主檔品牌授權匯入 `brand_type` 前應先 canonicalize 為中文主品牌名稱，避免同時出現 `台鈴` / `台鈴 Suzuki` 這類重複標籤
-- ✅ `電動車` 底下凡名稱帶 `（基隆公益）` 的選單項（P14 / P15 / P22）應統一歸入 `基隆公益青年` 子選單，不再分散於 `地區分析` 或 `客群分析`
+- ✅ `電動車專區` 底下凡名稱帶 `（基隆公益）` 的選單項（P14 / P15 / P22）應統一歸入 `基隆公益青年` 子選單，不再分散於 `地區分析` 或 `客群分析`
+- ✅ P3 `dealer` 既有規則會把空白 `display_dealer_name` fallback 顯示為 `馭盛`；`dealer_region_city` / `dealer_region_district` 也需同步套用 `馭盛` 主檔地址，避免名稱與區域不一致造成大量 `未設定`
 
 ### Phase 2 — 批次套用硬編碼篩選
 - ✅ `scripts/metabase_apply_filters.py --apply`：57 張 card 處理 →
@@ -205,7 +206,7 @@
 | Dashboard | Card ID | Card 名稱 | 預期 DataStudio 對應 |
 |-----------|--------|----------|---------------------|
 | P1 總車輛銷售 | 44 | P1-5 總車輛銷售明細 | P1 表格（明細） |
-| P2 銷售機種統計 | 46 | P2-2 銷售機種明細 | P2 表格 |
+| P2 銷售機種及車型統計 | 46 | P2-2 銷售機種明細 | P2 表格 |
 | P4 基隆公益青年 | 68 | P4-2 基隆公益青年明細 | P4 表格 |
 | P5 電動車-網路平台 | 50 | P5-2 電動車-網路平台明細 | P5 表格 |
 | P6 電動車-車行 | 52 | P6-2 電動車-車行明細 | P6 表格 |
@@ -277,9 +278,9 @@
 | Dashboard | 匯總卡片 | 明細卡片 | 參數 | 觸發方式 |
 |-----------|---------|---------|------|---------|
 | D7 (P7) | card 98 佣金匯總 | card 53 佣金明細 | ds_dealer, ds_license_ym | 點擊車行/年月 → 右側篩選 |
-| D8 (P8) | card 105 台數匯總 | card 54 台數明細 | ds_dealer | 點擊車行 → 右側篩選 |
+| D8 (P8) | card 105 台數匯總 | card 54 台數明細 | ds_dealer, ds_license_ym | 點擊車行 + 頂部領牌年月 → 右側篩選 |
 | D12 (P12) | card 99 佣金匯總 | card 60 佣金明細 | ds_dealer, ds_license_ym | 點擊車行/年月 → 右側篩選 |
-| D13 (P13) | card 106 台數匯總 | card 61 台數明細 | ds_dealer | 點擊車行 → 右側篩選 |
+| D13 (P13) | card 106 台數匯總 | card 61 台數明細 | ds_dealer, ds_license_ym | 點擊車行 + 頂部領牌年月 → 右側篩選 |
 
 ### 10.3 技術細節
 
@@ -336,3 +337,103 @@
 | D21 (P19 性別×車型顏色) | 85-90 | 6 張 |
 
 **驗證結果**：修正後 EV062=229、EV076=213、EV070V=8、EV076S=16 等均正常顯示。
+
+### 10.6 P13 領牌年月篩選修正（2026-05-09）
+
+**問題**：D13 (P13) live dashboard 雖已出現 `領牌年月` 參數，但 `card 61` 與 `card 106`
+未宣告對應的 native `template-tag`，dashboard 也未將該參數映射到兩張表，實際上無法依領牌年月篩選。
+
+**修正方式**：
+- `card 61`、`card 106` 補上 `license_ym` native template-tag 與 `[[AND {{license_ym}}]]`
+- D13 dashboard 只保留 `車行名稱`、`領牌年月` 兩個頂部篩選器
+- `ds_license_ym` 同時映射到左側匯總與右側明細，避免出現有控制項但無作用的空參數
+
+**維護方式**：改由 `scripts/metabase_fix_p13_license_filter.py` 專責維護；
+`scripts/metabase_add_dashboard_filters.py` 不再覆寫 D13，以免把 native template-tag mapping 改回錯誤狀態。
+
+### 10.7 P8 領牌年月篩選修正（2026-05-09）
+
+**問題**：D8 (P8) live dashboard 雖已顯示 `領牌年月` 參數，但 `card 54` 與 `card 105`
+未宣告對應的 native `template-tag`，dashboard 也未將該參數映射到兩張表，實際上無法依領牌年月篩選；同時殘留了不必要的 `銷售來源` 頂部參數。
+
+**修正方式**：
+- `card 54`、`card 105` 補上 `license_ym` native template-tag 與 `[[AND {{license_ym}}]]`
+- D8 dashboard 只保留 `車行名稱`、`領牌年月` 兩個頂部篩選器
+- `ds_license_ym` 同時映射到左側匯總與右側明細，避免出現有控制項但無作用的空參數
+
+**維護方式**：改由 `scripts/metabase_fix_p8_license_filter.py` 專責維護；
+`scripts/metabase_add_dashboard_filters.py` 不再覆寫 D8，以免把 native template-tag mapping 改回錯誤狀態。
+
+### 10.8 P7 / P12 領牌年月預設值修正（2026-05-09）
+
+**問題**：D7 (P7) 與 D12 (P12) 的 `ds_license_ym` 雖為字串型 dashboard 參數，
+卻被寫入 `default = past12months`。由於兩頁實際映射到的是 native `ym_filter`（`license_ym = {{ym_filter}}`），
+載入頁面時等同套用不存在的月份字串，導致整頁看起來沒有資料。
+
+**修正方式**：
+- 移除 D7 / D12 `ds_license_ym` 的錯誤預設值
+- 移除未使用的 `ds_sales_source` 頂部參數，只保留 `車行名稱`、`領牌年月`
+- 固定 D7 / D12 匯總與明細卡的 dashboard parameter mapping 為 native `dealer_filter` / `ym_filter`
+
+**維護方式**：改由 `scripts/metabase_fix_commission_dashboard_filters.py` 專責維護；
+`scripts/metabase_add_dashboard_filters.py` 不再覆寫 D7 / D12，以免重新帶回錯誤預設。
+
+### 10.9 Odoo 嵌入載入優化（2026-05-09）
+
+**觀察**：P7 / P8 / P12 / P13 的 Metabase API 查詢時間均落在約 30–45ms，
+dashboard metadata 約 35–42ms，資料層本身並不慢；使用者感受到的延遲較偏向 Odoo client action → iframe 啟動這一段。
+
+**優化方式**：
+- `metabase_dashboard.js` 不再阻塞等待 `/dms_report_ds/metabase_config` 才設定 iframe URL
+- 預設直接以 `/metabase/public/dashboard/<uuid>` 啟動 iframe
+- 設定 RPC 改為非阻塞解析，且將結果快取於前端 session，僅在 base URL 與預設不同時才重設 iframe
+
+**目標**：降低 Odoo 端每次切換報表頁時的額外等待，不改變既有 dashboard UUID、篩選器、或 Metabase proxy 行為。
+
+### 10.10 Metabase Proxy 連線池優化（2026-05-09）
+
+**觀察**：即使前端已改為立即載入 iframe，Odoo `/metabase/*` proxy 仍會在每次轉發時呼叫 `requests.request(...)`，
+對 Metabase HTML、JS chunk、字型與 API 請求各自建立新的後端連線；這在 dashboard 首次載入大量靜態資產時仍有額外成本。
+
+**優化方式**：
+- `controllers/main.py` 改為使用 module-level `requests.Session` 與 `HTTPAdapter` 連線池
+- 保持既有 proxy header 過濾、redirect rewrite、HTML base/font rewrite 行為不變
+
+**目標**：降低 Odoo → Metabase 反向代理在 dashboard 首次載入時的連線建立成本，不改變使用者可見功能。
+
+### 10.12 Operational Dashboard 編號重整（2026-05-09）
+
+**決策**：Odoo / Metabase 的 operational dashboard 名稱改依目前選單順序重編，並納入隱藏維運頁。
+
+**重編映射**：
+- `原 P20 通路銷售統計` → `P3`
+- `原 P3 電動車銷售統計` → `P4`
+- `原 P16 / P17 / P18 / P19` → `P9 / P10 / P11 / P12`
+- `原 P4 / P21 / P14 / P15 / P22` → `P13 / P14 / P15 / P16 / P17`
+- `原 P9 / P10 / P11 / P12 / P13` → `P18 / P19 / P20 / P21 / P22`
+
+**範圍**：此變更針對 live Metabase dashboard/card 名稱、維護腳本與 Odoo/Metabase operational 規格；歷史 DataStudio 抽取頁碼不在此次重編範圍。
+
+**保留項**：Odoo XML external id（例如 `action_mb_p20`、`menu_mb_p20`）維持不變。這些 id 只作為資料主鍵與 XML 關聯使用，並非使用者可見編號；若為了對齊 P 號而改動，會在 Odoo 建出新 record 或增加 migration 風險，收益低於成本。
+
+### 10.13 P3-4 網路平台區域歸類（2026-05-09）
+
+**問題**：P3-4 `車行區域銷量排行` 原本直接使用 `dealer_region_district`。當訂單類型屬於 `網路平台` 時，這些資料多半沒有可解析的車行地址，會落入 `未設定`，不符合使用者以通路角度閱讀圖表的預期。
+
+**修正方式**：
+- `ds_sales_report.dealer_region_district` 新增前置規則：若 `store_type_name = '網路平台'`，直接輸出 `網路`
+- 其餘資料維持既有 `dms_dealer.address` regex 擷取邏輯
+- P3-4 繼續使用 field-backed `dealer_region_district`，保留點擊互動與 drill-through 能力
+
+**影響範圍**：P3 dashboard 的 `車行區域` 分類與篩選值會將網路平台資料歸入 `網路`；不需改動 Metabase card 結構。
+
+### 10.11 Odoo 容器樣式重算優化（2026-05-09）
+
+**觀察**：`metabase_dashboard.css` 使用 `.o_action_manager:has(> .o_metabase_dashboard)`
+來控制滿版 padding。` :has()` 在大型 Odoo DOM 上會增加樣式重算成本，雖不是資料查詢瓶頸，但會影響切頁與畫面穩定感。
+
+**優化方式**：
+- `metabase_dashboard.js` 在 component mount / unmount 時對父層 `o_action_manager` 加上 / 移除 class
+- `metabase_dashboard.css` 改用 class selector 控制滿版樣式，不再依賴 `:has()`
+
+**目標**：降低 Odoo 端切換 dashboard action 時的樣式重算成本，不改變 iframe 功能與版面結果。

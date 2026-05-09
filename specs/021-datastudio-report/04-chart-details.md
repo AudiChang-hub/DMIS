@@ -50,7 +50,7 @@
 - **排序**：LicenseDate (日期) 遞減；次要 Sales Source 遞減
 - **圖表互動**：交叉篩選、變更排序、縮放
 
-### #4 長條圖 `cd-t3ieiq8bxd` — 銷售機種統計 by MotorType
+### #4 長條圖 `cd-t3ieiq8bxd` — 銷售機種及車型統計 by MotorType
 - **維度 (Y軸)**：年、LicenseDate (日期)（下鑽；預設層級：LicenseDate (日期)）
 - **細目維度**：MotorType
 - **指標 (X軸)**：Record Count
@@ -86,7 +86,7 @@
 
 ---
 
-## P2 銷售機種統計（`p_67eq9sz9wd`）
+## P2 銷售機種及車型統計（`p_67eq9sz9wd`）
 
 **Metabase 補強說明**：除保留原始 DataStudio 對應的「銷售機種月趨勢 by MotorType」與明細表外，Metabase 版本額外新增一張「銷售車型月趨勢 by Model」長條圖，供使用者直接按車型查看分布；原兩張圖的查詢與配置不得被覆寫。
 
@@ -315,6 +315,7 @@
 ### #3 下拉式選單 `cd-pkr5sfw3wd` — 領牌年月
 - 控制欄位：領牌年月；指標：Record Count
 - 排序：LicenseDate 遞減；顯示前 5000
+- Metabase 實作若使用 native `ym_filter`，預設值必須留空或為實際 `YYYY-MM`，不得寫入 `past12months` 這類日期語法字串
 
 ### #4 群組 `cd-xf0maers2d`
 - 套用「預設 (PostgreSQL - grafana_US_Sales)」
@@ -344,6 +345,7 @@
 
 ### #3 下拉式選單 `cd-5sqwajw3wd` — 領牌年月
 - 控制欄位：領牌年月；指標：Record Count
+- Metabase 實作需實際連動 #4 `車行台數彙總` 與 #5 `電動車明細`，不得僅顯示控制項而未映射到查詢
 
 ### #4 表格 `cd-6sqwajw3wd` — 車行台數彙總
 - 維度：車行；指標：台數（Record Count）
@@ -459,6 +461,7 @@
 
 ### #3 下拉式選單 `cd-ji4bgan2wd` — 領牌年月
 - 控制欄位：領牌年月；排序 LicenseDate 遞減
+- Metabase 實作若使用 native `ym_filter`，預設值必須留空或為實際 `YYYY-MM`，不得寫入 `past12months` 這類日期語法字串
 
 ### #4 群組 `cd-0pd96ers2d`
 - Apply filter controls to page 啟用
@@ -486,6 +489,7 @@
 
 ### #3 下拉式選單 `cd-hrht80w3wd` — 領牌年月
 - 控制欄位：領牌年月；排序 LicenseDate 遞減
+- Metabase 實作需實際連動 #5 `車行台數彙總` 與 #6 `汽油車明細`，不得僅顯示控制項而未映射到查詢
 
 ### #4 群組 `cd-gf4m9ers2d`
 ### #5 表格 `cd-irht80w3wd` — 車行台數彙總

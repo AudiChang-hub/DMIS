@@ -1,13 +1,12 @@
 #!/usr/bin/env python3
-"""Deprecated: 避免再次封存 Odoo 仍在使用的 P21 dashboard。
+"""封存 P21 歷史 dashboard 的輔助工具。
 
-歷史上曾封存 Dashboard #22「P21 基隆公益青年統計（複本）」，
-但目前 Odoo 選單 `電動車 > 基隆公益青年 > 統計表` 仍直接使用它的 public UUID。
-若再次封存，前台會變成空白頁。
+P21 已不再掛入 Odoo `電動車 > 基隆公益青年` 選單；若要清理
+Metabase 內的歷史 dashboard，可用此腳本手動封存。
 
 使用方式：
-    python3 scripts/metabase_archive_dup.py            # 顯示保護訊息與目前狀態
-    python3 scripts/metabase_archive_dup.py --force    # 真的要封存時才允許執行
+    python3 scripts/metabase_archive_dup.py            # dry-run：顯示目前狀態
+    python3 scripts/metabase_archive_dup.py --force    # 實際封存
 
 封存動作可逆：Metabase 後台 -> 已封存 -> 還原。
 """
@@ -40,7 +39,7 @@ def main():
         print(f"    - card_id={dc.get('card_id')} name={c.get('name')}")
 
     if not force_mode:
-        print("\n[guarded] P21 目前仍被 Odoo 選單使用，預設禁止封存。若你非常確定要封存，請改用 --force。")
+        print("\n[dry-run] P21 已不在 Odoo 選單中。若你要封存這張歷史 dashboard，請改用 --force。")
         return
 
     if d.get("archived"):

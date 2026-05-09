@@ -156,7 +156,8 @@ class DsSalesReport(models.Model):
           1. dname = ''             → '馭盛網推'
           2. store_type_name='網路平台' → '網路平台'
           3. dname ~ '中古車'         → '中古車'
-        後續才套用啟用規則；最終 ELSE 顯示 dname 原值。
+                    4. 車行主檔有品牌授權       → dealer_brand_display
+                後續才套用啟用規則；最終 ELSE 歸為 '一般車行'，避免直接落出店名。
         """
         cr = self.env.cr
         rules = []
@@ -180,6 +181,7 @@ class DsSalesReport(models.Model):
             "WHEN s.dname = '' THEN '馭盛網推'",
             "WHEN s.store_type_name = '網路平台' THEN '網路平台'",
             "WHEN s.dname ~ '中古車' THEN '中古車'",
+            "WHEN s.dealer_brand_display != '' THEN s.dealer_brand_display",
         ]
         for pattern, result in rules:
             if not pattern or not result:
@@ -191,7 +193,7 @@ class DsSalesReport(models.Model):
             )
         return "CASE\n                    " + \
                "\n                    ".join(when_clauses) + \
-               "\n                    ELSE s.dname\n                END"
+             "\n                    ELSE '一般車行'\n                END"
 
     def init(self):
         tools.drop_view_if_exists(self.env.cr, self._table)
@@ -230,6 +232,7 @@ class DsSalesReport(models.Model):
                     COALESCE(so.display_dealer_name, '')   AS dname,
                     COALESCE(so.display_color_name, '')    AS cname,
                     COALESCE(d.address, '')                AS dealer_address,
+                    COALESCE(dbm.dealer_brand_display, '') AS dealer_brand_display,
                     p.energy_type                          AS p_energy,
                     COALESCE(st.name, '')                  AS store_type_name,
                     COALESCE(cr.volume_bonus, 0)           AS cr_volume_bonus,
@@ -239,6 +242,19 @@ class DsSalesReport(models.Model):
                     ON so.product_id = p.id
                 LEFT JOIN dms_dealer d
                     ON d.id = so.dealer_id
+                LEFT JOIN (
+                    SELECT
+                        auth.dealer_id,
+                        string_agg(
+                            DISTINCT split_part(brand.name, ' ', 1),
+                            '、' ORDER BY split_part(brand.name, ' ', 1)
+                        ) AS dealer_brand_display
+                    FROM dms_dealer_brand_auth auth
+                    JOIN dms_brand brand
+                        ON brand.id = auth.brand_id
+                    GROUP BY auth.dealer_id
+                ) dbm
+                    ON dbm.dealer_id = d.id
                 LEFT JOIN dms_store_type st
                     ON st.id = d.store_type_id
                 LEFT JOIN dms_commission_record cr
@@ -269,7 +285,7 @@ class DsSalesReport(models.Model):
                 END                              AS dealer,
                  CASE WHEN s.dname = '' THEN '馭盛'
                      WHEN btrim(s.dname) IN ('朋友推薦', '代申請補助') THEN '店內'
-                     ELSE UPPER(TRIM(regexp_replace(s.dname, '\s+', '', 'g')))
+                     ELSE UPPER(TRIM(regexp_replace(s.dname, '\\s+', '', 'g')))
                 END                              AS dealer_not_null,
                 s.engine_number                  AS vin_or_en,
                 s.plate_number                   AS license_plate,
@@ -330,7 +346,7 @@ class DsSalesReport(models.Model):
                 (regexp_match(
                     regexp_replace(
                         COALESCE(s.address_registered, ''),
-                        '^\d{3}', ''),
+                        '^\\d{3}', ''),
                     '(.{2,5}(?:區|鄉|鎮|市))')
                 )[1]                             AS region,
 

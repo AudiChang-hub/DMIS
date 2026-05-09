@@ -25,7 +25,8 @@ class TestDealerBrandRule(TransactionCase):
         self.assertIn("'馭盛網推'", case_sql)
         self.assertIn("s.store_type_name = '網路平台'", case_sql)
         self.assertIn("s.dname ~ '中古車'", case_sql)
-        self.assertTrue(case_sql.rstrip().endswith("ELSE s.dname\n                END"))
+        self.assertIn("s.dealer_brand_display != ''", case_sql)
+        self.assertTrue(case_sql.rstrip().endswith("ELSE '一般車行'\n                END"))
 
     def test_brand_case_orders_by_sequence(self):
         case_sql = self.Report._get_brand_type_case_sql()

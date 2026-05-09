@@ -23,6 +23,7 @@ BASE = "http://localhost:3000/api"
 
 # ── ds_sales_report 欄位 ID ──────────────────────────
 F_MODEL = 1632
+F_DEALER_NOT_NULL = 1636
 F_ENERGY_TYPE = 1639
 F_SALES_SOURCE = 1647
 F_SUBSIDY_PLAN = 1661
@@ -67,6 +68,15 @@ def filter_signatures(filters_list):
     return {rule_signature(f) for f in (filters_list or []) if isinstance(f, list)}
 
 
+def filter_field_id(cond):
+    if not isinstance(cond, list):
+        return None
+    for item in cond:
+        if isinstance(item, list) and item and item[0] == "field":
+            return item[-1]
+    return None
+
+
 def rules_for_dashboard(dash_id):
     mapping = {
         2:  lambda: [not_null(F_MODEL)],
@@ -94,6 +104,13 @@ def rules_for_dashboard(dash_id):
     return mapping[dash_id]() if dash_id in mapping else []
 
 
+def removable_fields_for_dashboard(dash_id):
+    mapping = {
+        18: {F_DEALER_NOT_NULL},
+    }
+    return mapping.get(dash_id, set())
+
+
 def login():
     r = requests.post(f"{BASE}/session", json={"username": "admin@dmis.local", "password": "Dmis2026!"})
     r.raise_for_status()
@@ -112,7 +129,7 @@ def put(tok, path, body):
     return r.json()
 
 
-def plan_card(card, new_rules):
+def plan_card(card, dash_id, new_rules):
     notes = []
     dq = card.get("dataset_query") or {}
     if dq.get("lib/type") != "mbql/query":
@@ -128,15 +145,29 @@ def plan_card(card, new_rules):
         return None, notes
 
     existing = stage0.get("filters") or []
-    exist_sigs = filter_signatures(existing)
+    removable_fields = removable_fields_for_dashboard(dash_id)
+    kept = []
+    removed = []
+    for cond in existing:
+        if filter_field_id(cond) in removable_fields:
+            removed.append(cond)
+            continue
+        kept.append(cond)
+
+    exist_sigs = filter_signatures(kept)
     missing = [r for r in new_rules if rule_signature(r) not in exist_sigs]
-    if not missing:
+    if not missing and not removed:
         notes.append("OK: 所有條件皆已存在")
         return None, notes
 
     new_dq = copy.deepcopy(dq)
-    new_dq["stages"][0]["filters"] = list(existing) + missing
-    notes.append(f"UPDATE: 注入 {len(missing)} 個新條件")
+    new_dq["stages"][0]["filters"] = list(kept) + missing
+    if removed:
+        notes.append(f"UPDATE: 移除 {len(removed)} 個衝突條件")
+        for cond in removed:
+            notes.append(f"  - {rule_signature(cond)}")
+    if missing:
+        notes.append(f"UPDATE: 注入 {len(missing)} 個新條件")
     for m in missing:
         notes.append(f"  + {rule_signature(m)}")
     return new_dq, notes
@@ -168,7 +199,7 @@ def main():
             summary["total"] += 1
             card = get(tok, f"/card/{cid}")
             name = card.get("name")
-            new_dq, notes = plan_card(card, rules)
+            new_dq, notes = plan_card(card, dash_id, rules)
             log.append(f"  card#{cid} {name}")
             for n in notes:
                 log.append(f"    {n}")

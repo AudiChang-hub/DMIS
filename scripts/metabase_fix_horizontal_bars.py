@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-修正 Metabase Questions，讓 P1/P3/P4/P5/P6/P9/P10/P14/P15 等頁面
-的長條圖從垂直 (bar) 改為水平 (row)，對齊 DataStudio 原設計。
+修正 Metabase Questions，讓目前 operational 編號對應的水平長條圖頁面
+從垂直 (bar) 改為水平 (row)，對齊 DataStudio 原設計。
 也同步更新 visualization_settings 顯示資料標籤。
 """
 import requests
@@ -25,20 +25,24 @@ def api(token, method, path, data=None):
     return r.json() if r.text else {}
 
 
-# 規格中 P1/P3/P4/P5/P6/P9/P10/P14/P15 為「水平堆疊」的 Question 名稱關鍵字
-# 以 name 開頭比對
+# 同時接受舊編號與 2026-05-09 起的新 operational 編號，避免重編前後腳本失效。
 HORIZONTAL_PREFIXES = [
     "P1-1 ", "P1-3 ",          # P1 兩張水平堆疊
-    "P3-1 ", "P3-2 ",          # P3 兩張水平堆疊
-    "P4-1 ",                   # P4 水平堆疊
+    "P3 ",                     # 新 P3 / 舊 P20 通路銷售統計
+    "P3-1 ", "P3-2 ",          # 新 P3 卡片
+    "P4-1 ", "P4-2 ",          # 新 P4 電動車銷售統計
     "P5-1 ",                   # P5 水平堆疊
     "P6-1 ",                   # P6 水平堆疊
     "P9-1 ", "P9-2 ",          # P9 兩張水平堆疊
     "P10-1 ",                  # P10 水平堆疊
     "P11-1 ",                  # P11 水平堆疊
+    "P13 ",                    # 新 P13 基隆公益青年
     "P14 ",                    # P14 水平堆疊（無序號）
     "P15 ",                    # P15 水平堆疊（無序號）
     "P16-2 ",                  # P16 水平堆疊（性別×年齡 另有 pie）
+    "P18-1 ", "P18-2 ",        # 新 P18 油車銷售統計
+    "P19-1 ",                  # 新 P19 油車-網路平台銷售統計
+    "P20-1 ",                  # 新 P20 油車-車行銷售統計
     "P20 ",                    # P20 水平堆疊（無序號）
 ]
 

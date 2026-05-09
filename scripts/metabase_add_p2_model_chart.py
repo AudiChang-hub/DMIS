@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""為 P2 銷售機種統計補上一張依車型分類的月趨勢圖。"""
+"""為 P2 銷售機種及車型統計補上一張依車型分類的月趨勢圖。"""
 
 from __future__ import annotations
 
@@ -11,7 +11,7 @@ BASE = "http://localhost:3000/api"
 EMAIL = "admin@dmis.local"
 PASSWORD = "Dmis2026!"
 
-P2_DASHBOARD_NAME = "P2 銷售機種統計"
+P2_DASHBOARD_NAME = "P2 銷售機種及車型統計"
 SOURCE_CARD_NAME = "P2-1 銷售機種×領牌年月（長條圖）"
 NEW_CARD_NAME = "P2-3 銷售車型×領牌年月（長條圖）"
 MODEL_FIELD_ID = 1632

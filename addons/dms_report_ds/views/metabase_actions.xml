@@ -11,7 +11,7 @@
         <field name="params">{"dashboard_uuid": "905078c7-f139-4b6a-8434-ed2b0f6a98b1"}</field>
     </record>
     <record id="action_mb_p2" model="ir.actions.client">
-        <field name="name">銷售機種統計</field>
+        <field name="name">銷售機種及車型統計</field>
         <field name="tag">metabase_dashboard</field>
         <field name="params">{"dashboard_uuid": "be4022e0-1435-4b8f-8b05-dbf3fa140b18"}</field>
     </record>
@@ -129,7 +129,7 @@
 
     <!-- ── 電動車子選單 ── -->
     <menuitem id="menu_mb_electric_parent"
-              name="電動車"
+              name="電動車專區"
               parent="menu_ds_report_root"
               sequence="20"/>
     <menuitem id="menu_mb_p3" name="銷售統計"
@@ -145,7 +145,7 @@
 
     <!-- ── 油車子選單 ── -->
     <menuitem id="menu_mb_oil_parent"
-              name="油車"
+              name="油車專區"
               parent="menu_ds_report_root"
               sequence="30"/>
     <menuitem id="menu_mb_p9" name="銷售統計"
@@ -203,8 +203,8 @@
 
     <!-- ── 通路 + 機種 ── -->
     <menuitem id="menu_mb_p20" name="通路銷售統計"
-              parent="menu_ds_report_root" action="action_mb_p20" sequence="60"/>
-    <menuitem id="menu_mb_p2" name="銷售機種統計"
+              parent="menu_ds_report_root" action="action_mb_p20" sequence="18"/>
+    <menuitem id="menu_mb_p2" name="銷售機種及車型統計"
               parent="menu_ds_report_root" action="action_mb_p2" sequence="15"/>
 
     <!-- ╔══════════════════════════════════════════════════════╗ -->

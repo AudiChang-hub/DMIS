@@ -122,7 +122,7 @@
         <field name="context">{'search_default_filter_confirmed': 1}</field>
         <field name="help" type="html">
             <p class="o_view_nocontent_smiling_face">
-                銷售總覽 — 對應 DataStudio P1 總車輛銷售 / P2 銷售機種統計
+                銷售總覽 — 對應 DataStudio P1 總車輛銷售 / P2 銷售機種及車型統計
             </p>
         </field>
     </record>

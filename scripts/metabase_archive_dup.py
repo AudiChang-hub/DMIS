@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""封存 P21 歷史 dashboard 的輔助工具。
+"""封存 P14 歷史 dashboard 的輔助工具。
 
-P21 已不再掛入 Odoo `電動車 > 基隆公益青年` 選單；若要清理
+P14 已不再掛入 Odoo `電動車 > 基隆公益青年` 選單；若要清理
 Metabase 內的歷史 dashboard，可用此腳本手動封存。
 
 使用方式：
@@ -14,7 +14,7 @@ import sys
 import requests
 
 BASE = "http://localhost:3000/api"
-DUP_DASHBOARD_ID = 22  # "P21 基隆公益青年統計（複本）"
+DUP_DASHBOARD_ID = 22  # "P14 基隆公益青年統計（複本）"
 
 
 def login():
@@ -39,7 +39,7 @@ def main():
         print(f"    - card_id={dc.get('card_id')} name={c.get('name')}")
 
     if not force_mode:
-        print("\n[dry-run] P21 已不在 Odoo 選單中。若你要封存這張歷史 dashboard，請改用 --force。")
+        print("\n[dry-run] P14 已不在 Odoo 選單中。若你要封存這張歷史 dashboard，請改用 --force。")
         return
 
     if d.get("archived"):

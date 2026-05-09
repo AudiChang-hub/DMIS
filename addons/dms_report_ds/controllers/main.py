@@ -2,6 +2,7 @@ import logging
 
 import requests
 import werkzeug
+from requests.adapters import HTTPAdapter
 
 from odoo import http
 from odoo.http import request, Response
@@ -10,6 +11,10 @@ _logger = logging.getLogger(__name__)
 
 # Metabase 容器內部 URL（docker-compose service name）
 METABASE_INTERNAL_URL = 'http://metabase:3000'
+
+METABASE_SESSION = requests.Session()
+METABASE_SESSION.mount('http://', HTTPAdapter(pool_connections=20, pool_maxsize=20, max_retries=0))
+METABASE_SESSION.mount('https://', HTTPAdapter(pool_connections=20, pool_maxsize=20, max_retries=0))
 
 # 不轉發給 Metabase 的 hop-by-hop / 有問題 headers
 HOP_BY_HOP = {
@@ -49,7 +54,7 @@ class MetabaseController(http.Controller):
         }
 
         try:
-            resp = requests.request(
+            resp = METABASE_SESSION.request(
                 method=request.httprequest.method,
                 url=target_url,
                 headers=fwd_headers,

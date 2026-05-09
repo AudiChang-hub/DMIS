@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""還原 P21 基隆公益青年統計表，並改掛正確的 table card。"""
+"""還原 P21 歷史統計表，並改掛正確的 table card。"""
 
 from __future__ import annotations
 

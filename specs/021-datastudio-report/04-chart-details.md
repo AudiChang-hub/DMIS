@@ -171,8 +171,8 @@
 
 **共同套用篩選器**：基隆公益青年篩選 + 排除空白資料
 
-### #1 下拉式選單 `cd-url9qpo2wd` — 品牌類別
-- 控制欄位：品牌類別（BrandType）；指標：Record Count
+### #1 下拉式選單 `cd-url9qpo2wd` — 品牌
+- 控制欄位：品牌（BrandType，優先取車行清單品牌欄位）；指標：Record Count
 - 篩選器：基隆公益青年篩選
 - 排序：Record Count 遞減；顯示前 5000
 

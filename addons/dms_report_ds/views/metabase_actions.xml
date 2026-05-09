@@ -165,9 +165,12 @@
               parent="menu_mb_electric_parent"
               sequence="60"/>
     <menuitem id="menu_mb_p14" name="地區×銷量（基隆公益）"
-              parent="menu_mb_region_parent" action="action_mb_p14" sequence="10"/>
+              parent="menu_mb_keelung_parent" action="action_mb_p14" sequence="20"/>
     <menuitem id="menu_mb_p15" name="區域×車型（基隆公益）"
-              parent="menu_mb_region_parent" action="action_mb_p15" sequence="20"/>
+              parent="menu_mb_keelung_parent" action="action_mb_p15" sequence="30"/>
+    <record id="menu_mb_region_parent" model="ir.ui.menu">
+        <field name="active" eval="False"/>
+    </record>
 
     <!-- ── 客群分析子選單 ── -->
     <menuitem id="menu_mb_demo_parent"
@@ -183,7 +186,7 @@
     <menuitem id="menu_mb_p19" name="性別×車型顏色"
               parent="menu_mb_demo_parent" action="action_mb_p19" sequence="40"/>
     <menuitem id="menu_mb_p22" name="客群×車型分析（基隆公益）"
-              parent="menu_mb_demo_parent" action="action_mb_p22" sequence="50"/>
+              parent="menu_mb_keelung_parent" action="action_mb_p22" sequence="40"/>
 
     <!-- ── 基隆公益青年子選單 ── -->
     <menuitem id="menu_mb_keelung_parent"
@@ -194,6 +197,9 @@
               parent="menu_mb_keelung_parent" action="action_mb_p4" sequence="10"/>
     <menuitem id="menu_mb_p21" name="統計表"
               parent="menu_mb_keelung_parent" action="action_mb_p21" sequence="20"/>
+    <record id="menu_mb_p21" model="ir.ui.menu">
+        <field name="active" eval="False"/>
+    </record>
 
     <!-- ── 通路 + 機種 ── -->
     <menuitem id="menu_mb_p20" name="通路銷售統計"

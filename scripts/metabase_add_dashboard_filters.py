@@ -25,7 +25,9 @@ FIELD_LICENSE_DATE = 1629
 FIELD_SALES_SOURCE = 1647
 FIELD_BRAND_TYPE = 1649
 
-DASHBOARD_IDS = [2, 3, 4, 18, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 19, 20, 21, 22, 23]
+# P7 / P8 / P12 / P13 使用 native template-tag 篩選，改由專用修復腳本維護，
+# 避免被通用 field-mapping 邏輯覆寫成錯誤的參數組合。
+DASHBOARD_IDS = [2, 3, 4, 18, 5, 6, 9, 10, 11, 14, 15, 16, 17, 19, 20, 21, 22, 23]
 
 
 def login():

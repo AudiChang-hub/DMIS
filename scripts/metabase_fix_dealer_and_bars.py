@@ -41,11 +41,16 @@ CARD_NAME_RENAME = {
     "經銷":   "車行",
 }
 
-# 需要套用「最新顯示+其他壓縮最舊」的 row chart card name 前綴
+# 需要套用「最新顯示+其他壓縮最舊」的 row chart card name 前綴。
+# 同時接受舊編號與 2026-05-09 起的新 operational 編號，避免重編前後腳本失效。
 DATE_ROW_PREFIXES = (
-    "P1-1 ", "P1-3 ", "P2-1 ", "P3-1 ", "P3-2 ", "P4-1 ",
-    "P5-1 ", "P6-1 ", "P9-1 ", "P9-2 ", "P10-1 ", "P11-1 ",
-    "P14 ", "P20 ",
+    "P1-1 ", "P1-3 ", "P2-1 ",
+    "P3 ", "P3-1 ", "P3-2 ",
+    "P4-1 ", "P4-2 ", "P5-1 ", "P6-1 ",
+    "P9-1 ", "P9-2 ", "P10-1 ", "P11-1 ",
+    "P13 ", "P14 ", "P15 ", "P16-2 ",
+    "P18-1 ", "P18-2 ", "P19-1 ", "P20-1 ",
+    "P20 ",
 )
 # license_date 欄位 id（ds_sales_report.license_date）
 LICENSE_DATE_FIELD_ID = 1629

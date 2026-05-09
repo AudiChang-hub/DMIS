@@ -10,8 +10,12 @@
 ## 程式
 
 - [x] `addons/dms_report_ds/models/ds_sales_report.py`
-- [x] `dealer` / `dealer_not_null` 對 `朋友推薦` 顯示為 `店內`
-- [x] `dealer` / `dealer_not_null` 對 `代申請補助` 顯示為 `店內`
+- [x] `dealer` / `dealer_not_null` 對 `朋友推薦` 顯示為 `馭盛`
+- [x] `dealer` / `dealer_not_null` 對 `代申請補助` 顯示為 `馭盛`
+- [x] `dealer_address` 對 `朋友推薦` / `代申請補助` fallback 使用 `馭盛` 主檔地址
+- [x] `dealer` / `dealer_not_null` 對 `中古車` 顯示為 `馭盛`
+- [x] `sales_type` 對 `中古車` 顯示為 `本店`
+- [x] `dealer_address` 對 `中古車` fallback 使用 `馭盛` 主檔地址
 
 ## 驗證
 
@@ -19,6 +23,7 @@
 - [x] `docker compose restart odoo`
 - [x] `docker compose exec -T db psql -U odoo -d dmis_dev -c "select sales_source, sales_type, dealer from ds_sales_report where dealer = '朋友推薦';"`
 - [x] `docker compose exec -T db psql -U odoo -d dmis_dev -c "select dealer, dealer_not_null, sales_source, sales_type from ds_sales_report where sales_source = '店內員工' and sales_type = '本店';"`
-- [x] `docker compose exec -T db psql -U odoo -d dmis_dev -c "select dealer, dealer_not_null, sales_source, sales_type from ds_sales_report where dealer in ('代申請補助', '店內') or dealer_not_null in ('代申請補助', '店內');"`
+- [x] `docker compose exec -T db psql -U odoo -d dmis_dev -c "select dealer, dealer_not_null, sales_source, sales_type, dealer_region_district from ds_sales_report where sales_source = '店內員工' and sales_type = '本店';"`
+- [x] `docker compose exec -T db psql -U odoo -d dmis_dev -c "select dealer, dealer_not_null, sales_source, sales_type, dealer_region_district from ds_sales_report where order_name in ('SO2026047376', 'SO2026047514');"`
 - [x] `docker compose ps`
 - [x] `make smoke`

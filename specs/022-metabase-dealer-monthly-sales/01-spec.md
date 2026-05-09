@@ -2,27 +2,27 @@
 
 ## 目標
 
-- 在現有 Metabase「P20 通路銷售統計」dashboard 新增車行月銷量與累計銷量分析，不另開新 Odoo 選單。
+- 在現有 Metabase「P3 通路銷售統計」dashboard 新增車行月銷量與累計銷量分析，不另開新 Odoo 選單。
 - 使用者可在同一頁透過下拉式篩選器選取 `領牌年月`、`能源類型`、`車行縣市`、`車行區域` 與 `車行名稱`，查看指定條件下各月份的銷售狀況與累計銷量。
 
 ## 版位
 
-- 掛載目標：Metabase dashboard `P20 通路銷售統計`
+- 掛載目標：Metabase dashboard `P3 通路銷售統計`
 - Dashboard public UUID：沿用既有 `7afe6e64-0df8-4dc3-a660-7b1d3c66e266`
 - 不新增 Odoo `ir.actions.client` 或選單。
 
 ## 圖表定義
 
-### P20-1 車行月銷量（長條圖）
+### P3-1 車行月銷量（長條圖）
 
 - 類型：水平堆疊長條圖（Metabase `row`）
 - 維度：`領牌月份（月）`、`車行名稱`
 - 指標：`COUNT(*)`
 - 固定條件：`state = 'confirmed'`、`license_date IS NOT NULL`、`model IS NOT NULL`、`dealer IS NOT NULL`
 - 用途：查看每個月各車行的當月銷量
-- 顯示規則：維持適合 dashboard 首屏閱讀的緊湊版位，不再為了展開全部 dealer 而大幅拉高卡片高度；完整 dealer 清單以 `P20-3` 表格為準
+- 顯示規則：維持適合 dashboard 首屏閱讀的緊湊版位，不再為了展開全部 dealer 而大幅拉高卡片高度；完整 dealer 清單以 `P3-3` 表格為準
 
-### P20-2 車行累計銷量（折線圖）
+### P3-2 車行累計銷量（折線圖）
 
 - 類型：折線圖（Metabase `line`）
 - 資料來源：`ds_sales_report`
@@ -31,18 +31,18 @@
 - 固定條件：`state = 'confirmed'`、`license_date IS NOT NULL`、`model IS NOT NULL`、`dealer IS NOT NULL`、`dealer <> ''`
 - 用途：查看目前篩選條件下所選車行集合的總累計銷量走勢；當只選單一車行時，即為該車行累計銷量
 
-### P20-3 車行月銷量明細（表格）
+### P3-3 車行月銷量明細（表格）
 
 - 類型：表格（Metabase `table`）
 - 維度：以矩陣方式顯示，每列三組 `領牌年月 / 車行名稱 + 月銷量`
 - 指標：`COUNT(*)`
 - 固定條件：`state = 'confirmed'`、`license_date IS NOT NULL`、`model IS NOT NULL`、`dealer IS NOT NULL`
-- 用途：補足 P20-1 在窄版畫面下可能無法一次展開全部車行名稱的限制，提供完整 dealer 明細清單
+- 用途：補足 P3-1 在窄版畫面下可能無法一次展開全部車行名稱的限制，提供完整 dealer 明細清單
 - 顯示規則：需以矩陣方式由左到右填入資料，同一列顯示三組資料；超出者自動落到下一列，並於銷量欄使用非藍色 heatmap 區分高低。
 - 排序規則：需先依 `領牌年月` 遞減分塊，再於同月份內依月銷量遞減排列，不可在同一列中跨月份跳接。
 - 欄頭規則：畫面欄頭只顯示通用名稱 `年月 / 車行` 與 `月銷量`，不得暴露內部用的 `A/B/C` 後綴。
 
-### P20-4 車行區域銷量排行（長條圖）
+### P3-4 車行區域銷量排行（長條圖）
 
 - 類型：水平長條圖（Metabase `row`）
 - 維度：`車行區域`
@@ -50,6 +50,9 @@
 - 固定條件：`state = 'confirmed'`、`license_date IS NOT NULL`、`model IS NOT NULL`、`dealer IS NOT NULL`
 - 用途：直接查看目前篩選條件下哪個車行所在地區銷量最高
 - 顯示規則：需依銷量遞減排序，並顯示數值標籤，讓使用者不必先手動套篩選就能看出熱門地區
+- 分類規則：若訂單類型對應 `sales_source = 網路平台`，則 `車行區域` 應固定歸類為 `網路`，不再落入 `未設定`
+- 分類規則：若訂單的 `display_dealer_name` 為空白、`中古車`，或屬 `朋友推薦` / `代申請補助` 而依既有報表規則正規化顯示為 `馭盛`，則 `車行縣市` 與 `車行區域` 也必須同步以 `dms_dealer.name='馭盛'` 的主檔地址解析，不得名稱顯示為 `馭盛` 但區域仍落為 `未設定`
+- 互動規則：P3-4 必須使用可辨識底層欄位 `ds_sales_report.dealer_region_district` 的 field-backed query，不得把 `車行區域` 包成失去欄位血緣的純文字 native alias；包含字面值 `未設定` 在內的區域值都必須可點擊後與其他圖表、表格互動，並可進一步 drill-through 查看對應訂單
 
 ## 篩選器
 
@@ -57,44 +60,47 @@
 
 - 類型：Metabase dashboard 下拉式篩選器（`string/=`）
 - 對應欄位：`ds_sales_report.license_ym`
-- 套用對象：P20-1、P20-2、P20-3、P20-4
-- 預設值：腳本套用時計算的最近半年（含當前月份）
+- 套用對象：P3-1、P3-2、P3-3、P3-4
+- 預設值：腳本套用時計算的最近一年（12 個月份，含當前月份）
 - 行為：使用者手動指定月份後，以手動選值覆蓋預設值
 
 ### 車行名稱
 
 - 類型：Metabase dashboard 下拉式篩選器（`string/=`）
 - 對應欄位：`ds_sales_report.dealer`
-- 套用對象：P20-1、P20-2、P20-3、P20-4
+- 套用對象：P3-1、P3-2、P3-3、P3-4
 
 ### 車行區域
 
 - 類型：Metabase dashboard 下拉式篩選器（`string/=`）
 - 對應欄位：`ds_sales_report.dealer_region_district`
-- 套用對象：P20-1、P20-2、P20-3、P20-4
+- 套用對象：P3-1、P3-2、P3-3、P3-4
 - 值域：以 `dms_dealer.address` 解析出的 `縣市 + 區/鄉/鎮/市`，例如 `基隆市七堵區`
+- 特殊規則：若資料列屬於 `網路平台`，則值域應改為 `網路`
+- 特殊規則：若資料列因 `display_dealer_name` 空白、`中古車`，或屬 `朋友推薦` / `代申請補助` 而被報表正規化歸為 `馭盛`，則值域應以 `馭盛` 車行主檔地址解析後的行政區為準
 - 行為：用來觀察不同車行所在地區的銷售熱度，不得使用客戶地址欄位 `region` / `region_district` 取代
 
 ### 車行縣市
 
 - 類型：Metabase dashboard 下拉式篩選器（`string/=`）
 - 對應欄位：`ds_sales_report.dealer_region_city`
-- 套用對象：P20-1、P20-2、P20-3、P20-4
+- 套用對象：P3-1、P3-2、P3-3、P3-4
 - 值域：以 `dms_dealer.address` 解析出的 `縣市`，例如 `基隆市`、`新北市`
+- 特殊規則：若資料列因 `display_dealer_name` 空白、`中古車`，或屬 `朋友推薦` / `代申請補助` 而被報表正規化歸為 `馭盛`，則值域應以 `馭盛` 車行主檔地址解析後的縣市為準
 - 行為：供使用者先縮小到特定縣市，再搭配 `車行區域` 查看更細的行政區結果
 
 ### 銷售來源
 
 - 保留既有 dashboard 篩選器 `銷售來源`
 - 對應欄位：`ds_sales_report.sales_source`
-- 套用對象：P20-1、P20-2、P20-3、P20-4
-- 預設值：`車行`
+- 套用對象：P3-1、P3-2、P3-3、P3-4
+- 預設值：不預設任何值，由使用者依需求自行選取
 
 ### 能源類型
 
 - 類型：Metabase dashboard 下拉式篩選器（`string/=`）
 - 對應欄位：`ds_sales_report.energy_type`
-- 套用對象：P20-1、P20-2、P20-3、P20-4
+- 套用對象：P3-1、P3-2、P3-3、P3-4
 - 值域：`電車`、`油車`
 - 行為：使用者可依能源類型切換，只查看電車或油車資料
 

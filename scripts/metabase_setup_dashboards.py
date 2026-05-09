@@ -246,9 +246,9 @@ def main():
     print(f"  [OK] Dashboard id={dash['id']}")
 
     # ──────────────────────────────────────────────
-    # P2 — 銷售機種統計
+    # P2 — 銷售機種及車型統計
     # ──────────────────────────────────────────────
-    print("\n=== P2: 銷售機種統計 ===")
+    print("\n=== P2: 銷售機種及車型統計 ===")
 
     q = create_question(token, "P2-1 銷售機種×領牌年月（長條圖）",
         breakouts=[
@@ -288,16 +288,16 @@ def main():
     questions["p2_bar_model"] = q["id"]
     print(f"  [OK] P2-3 bar id={q['id']}")
 
-    dash = create_dashboard(token, "P2 銷售機種統計", coll_id)
+    dash = create_dashboard(token, "P2 銷售機種及車型統計", coll_id)
     dashboards["p2"] = dash["id"]
     print(f"  [OK] Dashboard id={dash['id']}")
 
     # ──────────────────────────────────────────────
-    # P3 — 電動車銷售統計
+    # P4 — 電動車銷售統計（原 P3）
     # ──────────────────────────────────────────────
-    print("\n=== P3: 電動車銷售統計 ===")
+    print("\n=== P4: 電動車銷售統計 ===")
 
-    q = create_question(token, "P3-1 電動車×銷售來源×年月（長條圖）",
+    q = create_question(token, "P4-1 電動車×銷售來源×年月（長條圖）",
         breakouts=[
             ["field", F["license_date"], {"temporal-unit": "month"}],
             field_ref("sales_source"),
@@ -309,9 +309,9 @@ def main():
         collection_id=coll_id,
         viz_settings={"stackable.stack_type": "stacked", "graph.show_values": True})
     questions["p3_bar_source"] = q["id"]
-    print(f"  [OK] P3-1 bar id={q['id']}")
+    print(f"  [OK] P4-1 bar id={q['id']}")
 
-    q = create_question(token, "P3-2 電動車×車型×年月（長條圖）",
+    q = create_question(token, "P4-2 電動車×車型×年月（長條圖）",
         breakouts=[
             ["field", F["license_date"], {"temporal-unit": "month"}],
             field_ref("model"),
@@ -323,9 +323,9 @@ def main():
         collection_id=coll_id,
         viz_settings={"stackable.stack_type": "stacked", "graph.show_values": True})
     questions["p3_bar_model"] = q["id"]
-    print(f"  [OK] P3-2 bar id={q['id']}")
+    print(f"  [OK] P4-2 bar id={q['id']}")
 
-    dash = create_dashboard(token, "P3 電動車銷售統計", coll_id)
+    dash = create_dashboard(token, "P4 電動車銷售統計", coll_id)
     dashboards["p3"] = dash["id"]
     print(f"  [OK] Dashboard id={dash['id']}")
 
@@ -439,11 +439,11 @@ def main():
     print(f"  [OK] Dashboard id={dash['id']}")
 
     # ──────────────────────────────────────────────
-    # P9 — 油車銷售統計 (對稱 P3)
+    # P18 — 油車銷售統計（原 P9）
     # ──────────────────────────────────────────────
-    print("\n=== P9: 油車銷售統計 ===")
+    print("\n=== P18: 油車銷售統計 ===")
 
-    q = create_question(token, "P9-1 油車×銷售來源×年月（長條圖）",
+    q = create_question(token, "P18-1 油車×銷售來源×年月（長條圖）",
         breakouts=[
             ["field", F["license_date"], {"temporal-unit": "month"}],
             field_ref("sales_source"),
@@ -455,9 +455,9 @@ def main():
         collection_id=coll_id,
         viz_settings={"stackable.stack_type": "stacked", "graph.show_values": True})
     questions["p9_bar_source"] = q["id"]
-    print(f"  [OK] P9-1 bar id={q['id']}")
+    print(f"  [OK] P18-1 bar id={q['id']}")
 
-    q = create_question(token, "P9-2 油車×車型×年月（長條圖）",
+    q = create_question(token, "P18-2 油車×車型×年月（長條圖）",
         breakouts=[
             ["field", F["license_date"], {"temporal-unit": "month"}],
             field_ref("model"),
@@ -469,18 +469,18 @@ def main():
         collection_id=coll_id,
         viz_settings={"stackable.stack_type": "stacked", "graph.show_values": True})
     questions["p9_bar_model"] = q["id"]
-    print(f"  [OK] P9-2 bar id={q['id']}")
+    print(f"  [OK] P18-2 bar id={q['id']}")
 
-    dash = create_dashboard(token, "P9 油車銷售統計", coll_id)
+    dash = create_dashboard(token, "P18 油車銷售統計", coll_id)
     dashboards["p9"] = dash["id"]
     print(f"  [OK] Dashboard id={dash['id']}")
 
     # ──────────────────────────────────────────────
-    # P10 — 油車 - 網路平台 (對稱 P5)
+    # P19 — 油車 - 網路平台（原 P10）
     # ──────────────────────────────────────────────
-    print("\n=== P10: 油車 - 網路平台 ===")
+    print("\n=== P19: 油車 - 網路平台 ===")
 
-    q = create_question(token, "P10-1 油車-網路平台×年月（長條圖）",
+    q = create_question(token, "P19-1 油車-網路平台×年月（長條圖）",
         breakouts=[
             ["field", F["license_date"], {"temporal-unit": "month"}],
             field_ref("dealer"),
@@ -492,18 +492,18 @@ def main():
         collection_id=coll_id,
         viz_settings={"stackable.stack_type": "stacked", "graph.show_values": True})
     questions["p10_bar"] = q["id"]
-    print(f"  [OK] P10-1 bar id={q['id']}")
+    print(f"  [OK] P19-1 bar id={q['id']}")
 
-    dash = create_dashboard(token, "P10 油車-網路平台銷售統計", coll_id)
+    dash = create_dashboard(token, "P19 油車-網路平台銷售統計", coll_id)
     dashboards["p10"] = dash["id"]
     print(f"  [OK] Dashboard id={dash['id']}")
 
     # ──────────────────────────────────────────────
-    # P11 — 油車 - 車行 (對稱 P6)
+    # P20 — 油車 - 車行（原 P11）
     # ──────────────────────────────────────────────
-    print("\n=== P11: 油車 - 車行 ===")
+    print("\n=== P20: 油車 - 車行 ===")
 
-    q = create_question(token, "P11-1 油車-車行×年月（長條圖）",
+    q = create_question(token, "P20-1 油車-車行×年月（長條圖）",
         breakouts=[
             field_ref("dealer"),
             ["field", F["license_date"], {"temporal-unit": "month"}],
@@ -515,9 +515,9 @@ def main():
         collection_id=coll_id,
         viz_settings={"stackable.stack_type": "stacked", "graph.show_values": True})
     questions["p11_bar"] = q["id"]
-    print(f"  [OK] P11-1 bar id={q['id']}")
+    print(f"  [OK] P20-1 bar id={q['id']}")
 
-    q = create_native_question(token, "P11-2 油車-車行明細",
+    q = create_native_question(token, "P20-2 油車-車行明細",
         """SELECT license_date AS "領牌日期", dealer AS "車行", model AS "車型",
                vin_or_en AS "引擎號碼", car_color AS "車色", owner_name AS "車主",
                company_gift AS "公司禮券", settle_date AS "訖", receipt_price AS "收款價"
@@ -526,18 +526,18 @@ def main():
         ORDER BY COALESCE(license_date, '9999-12-31') DESC""",
         display="table", collection_id=coll_id)
     questions["p11_table"] = q["id"]
-    print(f"  [OK] P11-2 table id={q['id']}")
+    print(f"  [OK] P20-2 table id={q['id']}")
 
-    dash = create_dashboard(token, "P11 油車-車行銷售統計", coll_id)
+    dash = create_dashboard(token, "P20 油車-車行銷售統計", coll_id)
     dashboards["p11"] = dash["id"]
     print(f"  [OK] Dashboard id={dash['id']}")
 
     # ──────────────────────────────────────────────
-    # P12 — 油車 - 佣金明細 (對稱 P7)
+    # P21 — 油車 - 佣金明細（原 P12）
     # ──────────────────────────────────────────────
-    print("\n=== P12: 油車 - 佣金明細 ===")
+    print("\n=== P21: 油車 - 佣金明細 ===")
 
-    q = create_native_question(token, "P12 油車-佣金明細",
+    q = create_native_question(token, "P21 油車-佣金明細",
         """SELECT license_date AS "領牌日期", dealer AS "車行", model AS "車型",
                car_color AS "車色", owner_name AS "車主", license_plate AS "車牌",
                settle_date AS "訖", receipt_price AS "收款價"
@@ -546,18 +546,18 @@ def main():
         ORDER BY COALESCE(license_date, '9999-12-31') DESC""",
         display="table", collection_id=coll_id)
     questions["p12_table"] = q["id"]
-    print(f"  [OK] P12 table id={q['id']}")
+    print(f"  [OK] P21 table id={q['id']}")
 
-    dash = create_dashboard(token, "P12 油車-佣金明細表", coll_id)
+    dash = create_dashboard(token, "P21 油車-佣金明細表", coll_id)
     dashboards["p12"] = dash["id"]
     print(f"  [OK] Dashboard id={dash['id']}")
 
     # ──────────────────────────────────────────────
-    # P13 — 油車 - 台數統計 (對稱 P8)
+    # P22 — 油車 - 台數統計（原 P13）
     # ──────────────────────────────────────────────
-    print("\n=== P13: 油車 - 台數統計 ===")
+    print("\n=== P22: 油車 - 台數統計 ===")
 
-    q = create_native_question(token, "P13 油車-台數統計",
+    q = create_native_question(token, "P22 油車-台數統計",
         """SELECT license_date AS "領牌日期", dealer AS "車行", owner_name AS "車主",
                model AS "車型", car_color AS "顏色", license_plate AS "車牌",
                basic_bonus AS "獎勵金"
@@ -566,18 +566,18 @@ def main():
         ORDER BY COALESCE(license_date, '9999-12-31') DESC""",
         display="table", collection_id=coll_id)
     questions["p13_table"] = q["id"]
-    print(f"  [OK] P13 table id={q['id']}")
+    print(f"  [OK] P22 table id={q['id']}")
 
-    dash = create_dashboard(token, "P13 油車-台數統計", coll_id)
+    dash = create_dashboard(token, "P22 油車-台數統計", coll_id)
     dashboards["p13"] = dash["id"]
     print(f"  [OK] Dashboard id={dash['id']}")
 
     # ──────────────────────────────────────────────
-    # P14 — 地區×銷量（基隆公益）
+    # P15 — 地區×銷量（基隆公益，原 P14）
     # ──────────────────────────────────────────────
-    print("\n=== P14: 地區×銷量（基隆公益） ===")
+    print("\n=== P15: 地區×銷量（基隆公益） ===")
 
-    q = create_question(token, "P14 地區×領牌年月（長條圖）",
+    q = create_question(token, "P15 地區×領牌年月（長條圖）",
         breakouts=[
             field_ref("region"),
             ["field", F["license_date"], {"temporal-unit": "month"}],
@@ -589,18 +589,18 @@ def main():
         collection_id=coll_id,
         viz_settings={"stackable.stack_type": "stacked", "graph.show_values": True})
     questions["p14_bar"] = q["id"]
-    print(f"  [OK] P14 bar id={q['id']}")
+    print(f"  [OK] P15 bar id={q['id']}")
 
-    dash = create_dashboard(token, "P14 地區×銷量（基隆公益）", coll_id)
+    dash = create_dashboard(token, "P15 地區×銷量（基隆公益）", coll_id)
     dashboards["p14"] = dash["id"]
     print(f"  [OK] Dashboard id={dash['id']}")
 
     # ──────────────────────────────────────────────
-    # P15 — 區域×車型（基隆公益）
+    # P16 — 區域×車型（基隆公益，原 P15）
     # ──────────────────────────────────────────────
-    print("\n=== P15: 區域×車型（基隆公益） ===")
+    print("\n=== P16: 區域×車型（基隆公益） ===")
 
-    q = create_question(token, "P15 區域×車型（長條圖）",
+    q = create_question(token, "P16 區域×車型（長條圖）",
         breakouts=[
             field_ref("region"),
             field_ref("model"),
@@ -612,27 +612,27 @@ def main():
         collection_id=coll_id,
         viz_settings={"stackable.stack_type": "stacked", "graph.show_values": True})
     questions["p15_bar"] = q["id"]
-    print(f"  [OK] P15 bar id={q['id']}")
+    print(f"  [OK] P16 bar id={q['id']}")
 
-    dash = create_dashboard(token, "P15 區域×車型（基隆公益）", coll_id)
+    dash = create_dashboard(token, "P16 區域×車型（基隆公益）", coll_id)
     dashboards["p15"] = dash["id"]
     print(f"  [OK] Dashboard id={dash['id']}")
 
     # ──────────────────────────────────────────────
-    # P16 — 性別×年齡
+    # P9 — 性別×年齡（原 P16）
     # ──────────────────────────────────────────────
-    print("\n=== P16: 性別×年齡 ===")
+    print("\n=== P9: 性別×年齡 ===")
 
-    q = create_question(token, "P16-1 性別（圓餅圖）",
+    q = create_question(token, "P9-1 性別（圓餅圖）",
         breakouts=[field_ref("sex")],
         aggregations=[count_agg()],
         filters=combined_filter(filter_confirmed()),
         display="pie",
         collection_id=coll_id)
     questions["p16_pie_sex"] = q["id"]
-    print(f"  [OK] P16-1 pie id={q['id']}")
+    print(f"  [OK] P9-1 pie id={q['id']}")
 
-    q = create_question(token, "P16-2 年齡組×性別（長條圖）",
+    q = create_question(token, "P9-2 年齡組×性別（長條圖）",
         breakouts=[field_ref("age_group"), field_ref("sex")],
         aggregations=[count_agg()],
         filters=combined_filter(filter_confirmed(), filter_electric()),
@@ -640,18 +640,18 @@ def main():
         collection_id=coll_id,
         viz_settings={"stackable.stack_type": "stacked", "graph.show_values": True})
     questions["p16_bar_age"] = q["id"]
-    print(f"  [OK] P16-2 bar id={q['id']}")
+    print(f"  [OK] P9-2 bar id={q['id']}")
 
-    dash = create_dashboard(token, "P16 性別×年齡", coll_id)
+    dash = create_dashboard(token, "P9 性別×年齡", coll_id)
     dashboards["p16"] = dash["id"]
     print(f"  [OK] Dashboard id={dash['id']}")
 
     # ──────────────────────────────────────────────
-    # P20 — 通路銷售統計
+    # P3 — 通路銷售統計（原 P20）
     # ──────────────────────────────────────────────
-    print("\n=== P20: 通路銷售統計 ===")
+    print("\n=== P3: 通路銷售統計 ===")
 
-    q = create_question(token, "P20 通路×領牌年月（長條圖）",
+    q = create_question(token, "P3 通路×領牌年月（長條圖）",
         breakouts=[
             ["field", F["license_date"], {"temporal-unit": "month"}],
             field_ref("dealer_not_null"),
@@ -663,9 +663,9 @@ def main():
         collection_id=coll_id,
         viz_settings={"stackable.stack_type": "stacked", "graph.show_values": True})
     questions["p20_bar"] = q["id"]
-    print(f"  [OK] P20 bar id={q['id']}")
+    print(f"  [OK] P3 bar id={q['id']}")
 
-    dash = create_dashboard(token, "P20 通路銷售統計", coll_id)
+    dash = create_dashboard(token, "P3 通路銷售統計", coll_id)
     dashboards["p20"] = dash["id"]
     print(f"  [OK] Dashboard id={dash['id']}")
 

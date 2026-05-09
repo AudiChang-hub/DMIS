@@ -56,8 +56,8 @@ addons/dms_report_ds/
 | TotalBonus | `total_commission` | `dms_commission_record.total_commission` |
 | Region | `region` | Address regex 擷取 |
 | Region_District | `region_district` | Address regex 擷取（含縣市） |
-| Dealer_Region_City | `dealer_region_city` | `dms_dealer.address` regex 擷取（縣市，代表車行縣市） |
-| Dealer_Region_District | `dealer_region_district` | `dms_dealer.address` regex 擷取（含縣市，代表車行區域） |
+| Dealer_Region_City | `dealer_region_city` | 預設取 `dms_dealer.address` regex 擷取（縣市，代表車行縣市）；若 `display_dealer_name` 空白、`中古車`，或屬 `朋友推薦` / `代申請補助` 而報表正規化為 `馭盛`，則改取 `馭盛` 主檔地址解析 |
+| Dealer_Region_District | `dealer_region_district` | 預設取 `dms_dealer.address` regex 擷取（含縣市，代表車行區域）；若 `store_type_name='網路平台'` 則固定歸類為 `網路`；若 `display_dealer_name` 空白、`中古車`，或屬 `朋友推薦` / `代申請補助` 而報表正規化為 `馭盛`，則改取 `馭盛` 主檔地址解析 |
 | Sales Source | `sales_source` | Dealer regex 分類 |
 | SalesType | `sales_type` | Dealer regex 分類 |
 | sex | `sex` | `SUBSTRING(id_number, 2, 1)` |

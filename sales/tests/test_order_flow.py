@@ -134,6 +134,7 @@ class OrderFlowTests(TestCase):
             content.index('id="add-accessory"'),
             content.index('id="accessory-forms"'),
         )
+        self.assertContains(order_response, 'class="accessory-row"')
         self.assertContains(order_response, "或從手機相簿選擇圖片")
         self.assertContains(order_response, "＋ 新增費用")
         self.assertContains(order_response, "現金")

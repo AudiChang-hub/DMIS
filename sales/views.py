@@ -14,6 +14,7 @@ from PIL import Image, UnidentifiedImageError
 from .forms import (
     AccessoryFormSet,
     AllocationForm,
+    OtherFeeFormSet,
     SalesOrderForm,
     SignedContractForm,
     VehicleInventoryForm,
@@ -140,7 +141,8 @@ def order_create(request):
             existing_documents=existing_documents,
         )
         formset = AccessoryFormSet(request.POST)
-        if form.is_valid() and formset.is_valid():
+        fee_formset = OtherFeeFormSet(request.POST, prefix="other_fees")
+        if form.is_valid() and formset.is_valid() and fee_formset.is_valid():
             order = form.save(commit=False)
             if draft:
                 if not form.cleaned_data.get("id_front") and draft.id_front:
@@ -153,6 +155,8 @@ def order_create(request):
             order.save()
             formset.instance = order
             formset.save()
+            fee_formset.instance = order
+            fee_formset.save()
             order.calculated_balance = order.calculate_balance()
             order.actual_balance = order.calculated_balance
             order.save(
@@ -171,11 +175,28 @@ def order_create(request):
     else:
         initial = _draft_form_initial(draft.data) if draft else None
         form = SalesOrderForm(initial=initial)
-        formset = AccessoryFormSet(initial=_draft_accessories(draft.data) if draft else None)
+        formset = AccessoryFormSet(
+            initial=_draft_lines(
+                draft.data, "accessories", ("name", "quantity", "line_type", "amount", "installed_on", "note")
+            )
+            if draft
+            else None
+        )
+        fee_formset = OtherFeeFormSet(
+            initial=_draft_lines(draft.data, "other_fees", ("name", "amount"))
+            if draft
+            else None,
+            prefix="other_fees",
+        )
     return render(
         request,
         "sales/order_form.html",
-        {"form": form, "formset": formset, "draft": draft},
+        {
+            "form": form,
+            "formset": formset,
+            "fee_formset": fee_formset,
+            "draft": draft,
+        },
     )
 
 
@@ -187,18 +208,17 @@ def _draft_form_initial(data):
     }
 
 
-def _draft_accessories(data):
+def _draft_lines(data, prefix, fields):
     try:
-        total = int(data.get("accessories-TOTAL_FORMS", 0))
+        total = int(data.get(f"{prefix}-TOTAL_FORMS", 0))
     except (TypeError, ValueError):
         total = 0
     rows = []
-    fields = ("name", "quantity", "line_type", "amount", "installed_on", "note")
     for index in range(min(total, 50)):
-        if data.get(f"accessories-{index}-DELETE"):
+        if data.get(f"{prefix}-{index}-DELETE"):
             continue
         row = {
-            field: data.get(f"accessories-{index}-{field}", "")
+            field: data.get(f"{prefix}-{index}-{field}", "")
             for field in fields
         }
         if any(str(value).strip() for value in row.values()):
@@ -320,7 +340,7 @@ def order_detail(request, pk):
             "color",
             "allocated_vehicle",
             "allocated_vehicle__location_store",
-        ).prefetch_related("accessories", "events"),
+        ).prefetch_related("accessories", "other_fees", "events"),
         pk=pk,
     )
     return render(
@@ -339,7 +359,7 @@ def contract_print(request, pk):
     order = get_object_or_404(
         SalesOrder.objects.select_related(
             "source", "vehicle_model", "color"
-        ).prefetch_related("accessories"),
+        ).prefetch_related("accessories", "other_fees"),
         pk=pk,
     )
     return render(request, "sales/contract_print.html", {"order": order})

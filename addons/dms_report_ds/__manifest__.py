@@ -32,8 +32,11 @@
     'assets': {
         'web.assets_backend': [
             'dms_report_ds/static/src/css/metabase_dashboard.css',
+            'dms_report_ds/static/src/css/oil_owner_dashboard.css',
             'dms_report_ds/static/src/js/metabase_dashboard.js',
+            'dms_report_ds/static/src/js/oil_owner_dashboard.js',
             'dms_report_ds/static/src/xml/metabase_dashboard.xml',
+            'dms_report_ds/static/src/xml/oil_owner_dashboard.xml',
         ],
     },
     'installable': True,

@@ -1,0 +1,187 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+
+    <t t-name="dms_report_ds.OilOwnerDashboard" owl="1">
+        <div class="o_action o_oil_owner_dashboard">
+            <div class="o_oil_owner_toolbar">
+                <div class="o_oil_owner_filter">
+                    <label>領牌年月</label>
+                    <div class="o_oil_owner_dropdown">
+                        <button type="button"
+                                class="o_oil_owner_dropdown_btn"
+                                data-name="license_yms"
+                                t-on-click="toggleDropdown">
+                            <span t-esc="filterSummary('license_yms', '全部年月')"/>
+                            <i class="fa fa-chevron-down"/>
+                        </button>
+                        <div t-att-class="isDropdownOpen('license_yms') ? 'o_oil_owner_dropdown_menu is-open' : 'o_oil_owner_dropdown_menu'">
+                            <t t-foreach="state.options.license_yms" t-as="option" t-key="option">
+                                <label class="o_oil_owner_check">
+                                    <input type="checkbox"
+                                           data-kind="license_yms"
+                                           t-att-value="option"
+                                           t-att-checked="optionSelected('license_yms', option)"
+                                           t-on-change="onCheckboxChange"/>
+                                    <span t-esc="option"/>
+                                </label>
+                            </t>
+                        </div>
+                    </div>
+                </div>
+                <div class="o_oil_owner_filter">
+                    <label>車型</label>
+                    <div class="o_oil_owner_dropdown">
+                        <button type="button"
+                                class="o_oil_owner_dropdown_btn"
+                                data-name="models"
+                                t-on-click="toggleDropdown">
+                            <span t-esc="filterSummary('models', '全部車型')"/>
+                            <i class="fa fa-chevron-down"/>
+                        </button>
+                        <div t-att-class="isDropdownOpen('models') ? 'o_oil_owner_dropdown_menu is-open' : 'o_oil_owner_dropdown_menu'">
+                            <t t-foreach="state.options.models" t-as="option" t-key="option">
+                                <label class="o_oil_owner_check">
+                                    <input type="checkbox"
+                                           data-kind="models"
+                                           t-att-value="option"
+                                           t-att-checked="optionSelected('models', option)"
+                                           t-on-change="onCheckboxChange"/>
+                                    <span t-esc="option"/>
+                                </label>
+                            </t>
+                        </div>
+                    </div>
+                </div>
+                <div class="o_oil_owner_filter">
+                    <label>區域</label>
+                    <div class="o_oil_owner_dropdown">
+                        <button type="button"
+                                class="o_oil_owner_dropdown_btn"
+                                data-name="regions"
+                                t-on-click="toggleDropdown">
+                            <span t-esc="filterSummary('regions', '全部區域')"/>
+                            <i class="fa fa-chevron-down"/>
+                        </button>
+                        <div t-att-class="isDropdownOpen('regions') ? 'o_oil_owner_dropdown_menu is-open' : 'o_oil_owner_dropdown_menu'">
+                            <t t-foreach="state.options.regions" t-as="option" t-key="option">
+                                <label class="o_oil_owner_check">
+                                    <input type="checkbox"
+                                           data-kind="regions"
+                                           t-att-value="option"
+                                           t-att-checked="optionSelected('regions', option)"
+                                           t-on-change="onCheckboxChange"/>
+                                    <span t-esc="option"/>
+                                </label>
+                            </t>
+                        </div>
+                    </div>
+                </div>
+                <div class="o_oil_owner_filter">
+                    <label>年齡段</label>
+                    <div class="o_oil_owner_dropdown">
+                        <button type="button"
+                                class="o_oil_owner_dropdown_btn"
+                                data-name="age_buckets"
+                                t-on-click="toggleDropdown">
+                            <span t-esc="filterSummary('age_buckets', '全部年齡段')"/>
+                            <i class="fa fa-chevron-down"/>
+                        </button>
+                        <div t-att-class="isDropdownOpen('age_buckets') ? 'o_oil_owner_dropdown_menu is-open' : 'o_oil_owner_dropdown_menu'">
+                            <t t-foreach="state.options.age_buckets" t-as="option" t-key="option">
+                                <label class="o_oil_owner_check">
+                                    <input type="checkbox"
+                                           data-kind="age_buckets"
+                                           t-att-value="option"
+                                           t-att-checked="optionSelected('age_buckets', option)"
+                                           t-on-change="onCheckboxChange"/>
+                                    <span t-esc="option"/>
+                                </label>
+                            </t>
+                        </div>
+                    </div>
+                </div>
+                <button class="btn btn-sm btn-light o_oil_owner_reset"
+                        type="button"
+                        t-on-click="resetFilters">
+                    重設
+                </button>
+            </div>
+
+            <t t-if="state.loading">
+                <div class="o_oil_owner_loading">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">載入中…</span>
+                    </div>
+                </div>
+            </t>
+            <t t-else="">
+                <div class="o_oil_owner_grid">
+                    <section class="o_oil_owner_card o_oil_owner_gender_card">
+                        <div class="o_oil_owner_card_title">
+                            <i class="fa fa-user"/>
+                            <span>性別分佈</span>
+                        </div>
+                        <div class="o_oil_owner_gender_body">
+                            <div class="o_oil_owner_donut"
+                                 t-attf-style="background: #{genderGradient};">
+                                <div class="o_oil_owner_donut_inner">
+                                    <strong t-esc="formatPercent(dominantGender.percent)"/>
+                                    <span t-esc="dominantGender.label"/>
+                                </div>
+                            </div>
+                            <div class="o_oil_owner_gender_legend">
+                                <t t-foreach="genderRows" t-as="row" t-key="row.label">
+                                    <div class="o_oil_owner_gender_row">
+                                        <span class="o_oil_owner_dot"
+                                              t-attf-style="background: #{row.color};"/>
+                                        <span class="o_oil_owner_label" t-esc="row.label"/>
+                                        <strong t-esc="formatPercent(row.percent)"/>
+                                    </div>
+                                </t>
+                            </div>
+                        </div>
+                        <div class="o_oil_owner_note">
+                            <i class="fa fa-info-circle"/>
+                            <span>
+                                <t t-esc="dominantGender.label"/>為主要客群，佔比
+                                <t t-esc="formatPercent(dominantGender.percent)"/>
+                            </span>
+                        </div>
+                    </section>
+
+                    <section class="o_oil_owner_card">
+                        <div class="o_oil_owner_card_title">
+                            <i class="fa fa-bar-chart"/>
+                            <span>年齡分佈</span>
+                        </div>
+                        <div class="o_oil_owner_age_list">
+                            <t t-foreach="ageRows" t-as="row" t-key="row.label">
+                                <div class="o_oil_owner_age_row">
+                                    <span class="o_oil_owner_age_label">
+                                        <t t-esc="row.label"/>
+                                    </span>
+                                    <div class="o_oil_owner_age_track">
+                                        <span class="o_oil_owner_age_bar"
+                                              t-attf-style="width: #{row.width}%; background: #{row.color};"/>
+                                    </div>
+                                    <strong t-att-class="row.top ? 'o_oil_owner_top_percent' : ''">
+                                        <t t-esc="formatPercent(row.percent)"/>
+                                        <span t-if="row.top" class="o_oil_owner_top_badge">最高</span>
+                                    </strong>
+                                </div>
+                            </t>
+                        </div>
+                        <div class="o_oil_owner_note">
+                            <i class="fa fa-info-circle"/>
+                            <span>
+                                <t t-esc="dominantAge.label"/>歲為最大客群，佔比
+                                <t t-esc="formatPercent(dominantAge.percent)"/>
+                            </span>
+                        </div>
+                    </section>
+                </div>
+            </t>
+        </div>
+    </t>
+
+</templates>

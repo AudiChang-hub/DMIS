@@ -70,6 +70,10 @@
         <field name="tag">metabase_dashboard</field>
         <field name="params">{"dashboard_uuid": "23ce259e-c7a5-4f4c-bea5-0e9269af42c7"}</field>
     </record>
+    <record id="action_mb_oil_owner_age" model="ir.actions.client">
+        <field name="name">油車-車主年齡分布</field>
+        <field name="tag">oil_owner_dashboard</field>
+    </record>
     <record id="action_mb_p14" model="ir.actions.client">
         <field name="name">地區×銷量（基隆公益）</field>
         <field name="tag">metabase_dashboard</field>
@@ -158,6 +162,8 @@
               parent="menu_mb_oil_parent" action="action_mb_p12" sequence="40"/>
     <menuitem id="menu_mb_p13" name="台數統計"
               parent="menu_mb_oil_parent" action="action_mb_p13" sequence="50"/>
+    <menuitem id="menu_mb_oil_owner_age" name="車主年齡分布"
+              parent="menu_mb_oil_parent" action="action_mb_oil_owner_age" sequence="60"/>
 
     <!-- ── 地區分析子選單 ── -->
     <menuitem id="menu_mb_region_parent"

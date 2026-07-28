@@ -1,0 +1,11 @@
+<a class="order-row" href="{% url 'order_detail' order.pk %}">
+  <span class="status-dot status-{{ order.status }}"></span>
+  <span class="order-main">
+    <strong>{{ order.owner_name }}</strong>
+    <small>{{ order.number }} · {{ order.vehicle_model.name }}／{{ order.color.name }}</small>
+  </span>
+  <span class="order-source">{{ order.source.name|default:order.get_source_type_display }}</span>
+  <span class="status-pill">{{ order.get_status_display }}</span>
+  <span class="chevron">›</span>
+</a>
+

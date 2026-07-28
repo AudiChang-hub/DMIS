@@ -193,9 +193,10 @@ h2 { margin-bottom: 0; font-size: 1.15rem; }
 .field label:not(.checkbox-label) { display: flex; margin-bottom: 7px; justify-content: space-between; color: #3d4a43; font-size: .82rem; font-weight: 800; }
 .field label em { color: var(--red); font-size: .7rem; font-style: normal; }
 .form-control, .login-card input, .action-card select {
-  width: 100%; min-height: 48px; padding: 10px 12px; color: var(--ink); background: #fbfcfb;
+  width: 100%; min-width: 0; max-width: 100%; min-height: 48px; padding: 10px 12px; color: var(--ink); background: #fbfcfb;
   border: 1px solid #ced8d1; border-radius: 11px; outline: 0;
 }
+input[type="number"].form-control { inline-size: 100%; min-inline-size: 0; }
 textarea.form-control { min-height: 78px; resize: vertical; }
 input[type="date"].form-control {
   display: block;
@@ -259,6 +260,7 @@ body.screen-locked { overflow: hidden; }
 .conditional-panel h3 { margin-bottom: 0; }
 .conditional-panel .form-grid { padding-inline: 0; }
 .accessory-row { display: grid; grid-template-columns: 2fr .6fr 1fr 1fr 1fr 1.5fr; padding: 16px 0; gap: 10px; border-bottom: 1px solid var(--line); }
+.add-row-button { width: 100%; margin-top: 14px; border-style: dashed; }
 .fee-subsection { padding-top: 0; }
 .other-fee-row {
   display: grid; grid-template-columns: 2fr 1fr; padding: 14px 0;
@@ -355,7 +357,7 @@ body.screen-locked { overflow: hidden; }
   .inventory-grid { grid-template-columns: 1fr 1fr; }
   .form-progress { top: 70px; }
   .accessory-row { grid-template-columns: 1fr 1fr; padding: 16px; background: #f7f9f7; border-radius: 12px; }
-  .other-fee-row { grid-template-columns: 1fr 1fr; }
+  .other-fee-row { grid-template-columns: 1fr; padding: 14px; background: #f7f9f7; border-radius: 12px; }
   .accessory-row .field:first-of-type, .accessory-row .field:last-child { grid-column: 1 / -1; }
   .desktop-save { display: none; }
   .login-panel { min-height: auto; grid-template-columns: 1fr; gap: 30px; }

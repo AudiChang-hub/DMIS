@@ -162,6 +162,20 @@ input[type="file"].form-control { padding: 10px; }
 .verify-box { padding: 15px; background: var(--mint); border-radius: 12px; }
 .capture-card { padding: 14px; background: #f7f9f7; border: 1px dashed #b9c8bf; border-radius: 12px; }
 .info-banner { margin: 18px 22px 0; padding: 12px 14px; color: #2a5c48; background: var(--mint); border-radius: 11px; font-size: .84rem; }
+.ocr-status {
+  display: grid; grid-template-columns: auto 1fr auto; margin: 10px 22px 0; padding: 12px 14px;
+  align-items: center; gap: 10px; border: 1px solid var(--line); border-radius: 11px;
+}
+.ocr-status[hidden] { display: none; }
+.ocr-status p { margin: 0; font-size: .82rem; font-weight: 700; }
+.ocr-status.loading { color: var(--blue); background: var(--blue-soft); }
+.ocr-status.success { color: var(--forest-2); background: var(--mint); }
+.ocr-status.warning { color: #825609; background: var(--amber-soft); }
+.ocr-status.error { color: var(--red); background: var(--red-soft); }
+.ocr-spinner { width: 17px; height: 17px; border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; }
+.ocr-status.loading .ocr-spinner { animation: ocr-spin .8s linear infinite; }
+.ocr-status:not(.loading) .ocr-spinner { display: none; }
+@keyframes ocr-spin { to { transform: rotate(360deg); } }
 .conditional-panel, .subsection { margin: 0 22px 22px; padding-top: 18px; border-top: 1px solid var(--line); }
 .conditional-panel h3 { margin-bottom: 0; }
 .conditional-panel .form-grid { padding-inline: 0; }
@@ -281,4 +295,3 @@ input[type="file"].form-control { padding: 10px; }
 @media print {
   .app-header, .mobile-nav { display: none !important; }
 }
-

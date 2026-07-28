@@ -17,3 +17,5 @@ temp_*.py
 output.txt
 *.xlsx
 output_report/.~lock.*
+.auto-deploy/
+backups/auto-deploy/

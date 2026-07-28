@@ -1,0 +1,16 @@
+[Unit]
+Description=DMIS Git 自動部署
+After=network-online.target docker.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=/home/audi/project/DMIS
+Environment=DMIS_PROJECT_DIR=/home/audi/project/DMIS
+Environment=DMIS_DEPLOY_BRANCH=feat/015-dms-product-rebuild
+Environment=DMIS_ODOO_DB=dmis_dev
+ExecStart=/usr/bin/bash /home/audi/project/DMIS/scripts/auto_deploy.sh
+TimeoutStartSec=900
+
+[Install]
+WantedBy=default.target

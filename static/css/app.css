@@ -162,7 +162,18 @@ h2 { margin-bottom: 0; font-size: 1.15rem; }
 .draft-status.saved .draft-status-dot { background: var(--forest-2); }
 .draft-status.error { color: var(--red); background: var(--red-soft); border-color: #eabcb7; }
 .draft-status.error .draft-status-dot { background: var(--red); }
-.saved-photo-link { display: block; margin-top: 9px; color: var(--blue); font-size: .8rem; font-weight: 800; }
+.capture-card.has-saved-photo input[type="file"] { display: none; }
+.saved-photo-state {
+  display: grid; margin-top: 6px; padding: 11px; align-items: center;
+  grid-template-columns: 1fr auto auto; gap: 9px; color: var(--forest);
+  background: var(--mint); border-radius: 10px;
+}
+.saved-photo-state strong, .saved-photo-state small { display: block; }
+.saved-photo-state small { color: var(--muted); font-size: .7rem; font-weight: 600; }
+.saved-photo-state a, .saved-photo-state button {
+  padding: 7px 9px; color: var(--blue); background: #fff; border: 1px solid #cbd9e9;
+  border-radius: 8px; font-size: .76rem; font-weight: 800; cursor: pointer;
+}
 .draft-delete-form { display: flex; margin-top: 24px; justify-content: center; }
 .form-progress a { flex: 1 0 auto; padding: 8px 12px; color: var(--muted); background: #fff; border: 1px solid var(--line); border-radius: 999px; font-size: .78rem; font-weight: 800; text-align: center; }
 .form-section { margin-bottom: 16px; background: #fff; border: 1px solid var(--line); border-radius: var(--radius); box-shadow: 0 5px 20px rgba(26,46,35,.04); scroll-margin-top: 150px; }

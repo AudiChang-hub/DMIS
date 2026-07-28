@@ -62,14 +62,26 @@
       <div class="span-2 capture-instruction" data-conditional="local">
         請先準備證件正反面；點選欄位後可直接拍照，或從手機相簿選擇圖片。
       </div>
-      <div class="capture-card" data-conditional="local">
+      <div class="capture-card {% if draft.id_front %}has-saved-photo{% endif %}" data-conditional="local">
         {% include "sales/_field.html" with field=form.id_front %}
-        {% if draft.id_front %}<a class="saved-photo-link" data-saved-photo="id_front" href="{% url 'protected_media' 'draft' draft.pk 'id_front' %}" target="_blank">查看已暫存的正面照片</a>{% endif %}
+        {% if draft.id_front %}
+        <div class="saved-photo-state" data-saved-photo="id_front">
+          <span><strong>已暫存正面照片</strong><small>照片已安全保存，可繼續填寫</small></span>
+          <a href="{% url 'protected_media' 'draft' draft.pk 'id_front' %}" target="_blank">查看</a>
+          <button type="button" data-select-file="id_id_front">更換</button>
+        </div>
+        {% endif %}
         <button type="button" class="remove-photo" data-clear-file="id_id_front" data-existing-photo="{% if draft.id_front %}1{% else %}0{% endif %}" {% if not draft.id_front %}hidden{% endif %}>移除正面照片</button>
       </div>
-      <div class="capture-card" data-conditional="local">
+      <div class="capture-card {% if draft.id_back %}has-saved-photo{% endif %}" data-conditional="local">
         {% include "sales/_field.html" with field=form.id_back %}
-        {% if draft.id_back %}<a class="saved-photo-link" data-saved-photo="id_back" href="{% url 'protected_media' 'draft' draft.pk 'id_back' %}" target="_blank">查看已暫存的反面照片</a>{% endif %}
+        {% if draft.id_back %}
+        <div class="saved-photo-state" data-saved-photo="id_back">
+          <span><strong>已暫存反面照片</strong><small>照片已安全保存，可繼續填寫</small></span>
+          <a href="{% url 'protected_media' 'draft' draft.pk 'id_back' %}" target="_blank">查看</a>
+          <button type="button" data-select-file="id_id_back">更換</button>
+        </div>
+        {% endif %}
         <button type="button" class="remove-photo" data-clear-file="id_id_back" data-existing-photo="{% if draft.id_back %}1{% else %}0{% endif %}" {% if not draft.id_back %}hidden{% endif %}>移除反面照片</button>
       </div>
       {% include "sales/_field.html" with field=form.owner_name %}
@@ -303,6 +315,8 @@
   function photoChanged(event) {
     photoDirty[event.target.name] = true;
     byId(`remove-${event.target.name.replaceAll("_", "-")}`).value = "0";
+    event.target.closest(".capture-card")?.classList.remove("has-saved-photo");
+    document.querySelector(`[data-saved-photo="${event.target.name}"]`)?.remove();
     if (ocrAbortController) ocrAbortController.abort();
     ocrRequestVersion += 1;
     ocrRunning = false;
@@ -322,6 +336,7 @@
       photoDirty[fieldName] = false;
       byId(`remove-${fieldName.replaceAll("_", "-")}`).value = "1";
       button.dataset.existingPhoto = "0";
+      button.closest(".capture-card")?.classList.remove("has-saved-photo");
       document.querySelector(`[data-saved-photo="${fieldName}"]`)?.remove();
       if (ocrAbortController) ocrAbortController.abort();
       ocrRequestVersion += 1;
@@ -337,6 +352,9 @@
       refreshPhotoButtons();
       scheduleDraft();
     });
+  });
+  document.querySelectorAll("[data-select-file]").forEach(button => {
+    button.addEventListener("click", () => byId(button.dataset.selectFile).click());
   });
   idFront.addEventListener("change", photoChanged);
   idBack.addEventListener("change", photoChanged);

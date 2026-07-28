@@ -140,7 +140,9 @@ class OrderDraftTests(TestCase):
         resume = self.client.get(reverse("order_create"), {"draft": draft.pk})
         self.assertContains(resume, "繼續編輯草稿")
         self.assertContains(resume, "測試車主")
-        self.assertContains(resume, "查看已暫存的正面照片")
+        self.assertContains(resume, "已暫存正面照片")
+        self.assertContains(resume, 'data-select-file="id_id_front"')
+        self.assertContains(resume, "has-saved-photo")
 
         post_data = self.complete_data()
         post_data.update(

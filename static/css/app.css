@@ -379,6 +379,7 @@ body.screen-locked { overflow: hidden; }
   .order-source { display: none; }
   .status-pill { font-size: .68rem; }
   .form-grid { grid-template-columns: 1fr; padding: 16px; }
+  .accessory-row { grid-template-columns: 1fr; }
   .span-2 { grid-column: auto; }
   .form-section summary { padding: 13px 15px; }
   .info-banner { margin: 14px 16px 0; }

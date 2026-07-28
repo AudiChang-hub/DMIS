@@ -129,6 +129,11 @@ class OrderFlowTests(TestCase):
         self.assertContains(order_response, "updateActiveSection")
         self.assertNotContains(order_response, "data-save-draft")
         self.assertNotContains(order_response, ">暫存</button>")
+        content = order_response.content.decode()
+        self.assertGreater(
+            content.index('id="add-accessory"'),
+            content.index('id="accessory-forms"'),
+        )
         self.assertContains(order_response, "或從手機相簿選擇圖片")
         self.assertContains(order_response, "＋ 新增費用")
         self.assertContains(order_response, "現金")
@@ -141,7 +146,6 @@ class OrderFlowTests(TestCase):
         self.assertNotContains(order_response, "分期申請金額")
         self.assertNotContains(order_response, "分期申請日期")
         self.assertNotContains(order_response, "核准／拒絕日期")
-        content = order_response.content.decode()
         self.assertLess(content.index("分期資料"), content.index("其他費用"))
         self.assertNotContains(order_response, "折扣／抵扣")
         self.assertEqual(

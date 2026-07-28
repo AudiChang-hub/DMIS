@@ -121,6 +121,10 @@ class OrderFlowTests(TestCase):
 
         self.assertEqual(order_response.status_code, 200)
         self.assertContains(order_response, "建立新訂單")
+        self.assertContains(order_response, "訂單建檔")
+        self.assertNotContains(order_response, "手機下單")
+        self.assertContains(order_response, "editing-presence")
+        self.assertContains(order_response, "refreshDraftPresence")
         self.assertContains(order_response, "自動辨識姓名")
         self.assertContains(order_response, "移除正面照片")
         self.assertContains(order_response, "移除反面照片")

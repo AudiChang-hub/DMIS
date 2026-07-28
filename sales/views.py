@@ -1,4 +1,5 @@
 import logging
+from datetime import timedelta
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
@@ -31,6 +32,11 @@ from .services.id_ocr import IdOcrError, recognize_id_card
 
 
 logger = logging.getLogger(__name__)
+DRAFT_PRESENCE_TIMEOUT = timedelta(seconds=90)
+
+
+def _editing_name(user):
+    return user.get_full_name() or user.get_username()
 
 
 def app_version(request):
@@ -329,6 +335,68 @@ def draft_delete(request, pk):
     draft.delete_with_files()
     messages.success(request, "草稿與暫存證件照片已刪除。")
     return redirect("dashboard")
+
+
+@login_required
+@transaction.atomic
+def draft_presence(request, pk):
+    if request.method != "POST":
+        return JsonResponse({"ok": False, "error": "僅接受 POST。"}, status=405)
+
+    if not request.session.session_key:
+        request.session.create()
+    session_key = request.session.session_key
+    draft = get_object_or_404(OrderDraft.objects.select_for_update(), pk=pk)
+    now = timezone.now()
+    is_active = bool(
+        draft.editing_session
+        and draft.editing_at
+        and draft.editing_at >= now - DRAFT_PRESENCE_TIMEOUT
+    )
+    is_current_session = draft.editing_session == session_key
+
+    if request.POST.get("action") == "release":
+        if is_current_session:
+            draft.editing_session = ""
+            draft.editing_by = ""
+            draft.editing_at = None
+            draft.save(
+                update_fields=[
+                    "editing_session",
+                    "editing_by",
+                    "editing_at",
+                ]
+            )
+        return JsonResponse({"ok": True, "active": False})
+
+    if is_active and not is_current_session:
+        return JsonResponse(
+            {
+                "ok": True,
+                "active": True,
+                "mine": False,
+                "editing_by": draft.editing_by or "其他人員",
+            }
+        )
+
+    draft.editing_session = session_key
+    draft.editing_by = _editing_name(request.user)
+    draft.editing_at = now
+    draft.save(
+        update_fields=[
+            "editing_session",
+            "editing_by",
+            "editing_at",
+        ]
+    )
+    return JsonResponse(
+        {
+            "ok": True,
+            "active": True,
+            "mine": True,
+            "editing_by": draft.editing_by,
+        }
+    )
 
 
 @login_required

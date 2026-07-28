@@ -125,6 +125,8 @@ class OrderFlowTests(TestCase):
         self.assertContains(order_response, "移除正面照片")
         self.assertContains(order_response, "移除反面照片")
         self.assertContains(order_response, "ocrRequestVersion")
+        self.assertContains(order_response, "requestPhotoVersion")
+        self.assertContains(order_response, "showSavedPhoto")
         self.assertContains(order_response, "正在辨識證件")
         self.assertContains(order_response, 'aria-current="step"')
         self.assertContains(order_response, "updateActiveSection")

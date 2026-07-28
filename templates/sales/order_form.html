@@ -236,6 +236,7 @@
   let draftQueued = false;
   let submittingOrder = false;
   const photoDirty = {id_front: false, id_back: false};
+  const photoVersion = {id_front: 0, id_back: 0};
   let currentActiveSection = "source";
 
   function setActiveSection(sectionId) {
@@ -370,6 +371,7 @@
   }
 
   function photoChanged(event) {
+    photoVersion[event.target.name] += 1;
     photoDirty[event.target.name] = true;
     byId(`remove-${event.target.name.replaceAll("_", "-")}`).value = "0";
     event.target.closest(".capture-card")?.classList.remove("has-saved-photo");
@@ -390,6 +392,7 @@
       const input = byId(button.dataset.clearFile);
       input.value = "";
       const fieldName = input.name;
+      photoVersion[fieldName] += 1;
       photoDirty[fieldName] = false;
       byId(`remove-${fieldName.replaceAll("_", "-")}`).value = "1";
       button.dataset.existingPhoto = "0";
@@ -456,6 +459,39 @@
     draftStatusMessage.textContent = text;
   }
 
+  function showSavedPhoto(fieldName, url) {
+    const input = byId(`id_${fieldName}`);
+    const card = input.closest(".capture-card");
+    const clearButton = card.querySelector("[data-clear-file]");
+    let state = card.querySelector(`[data-saved-photo="${fieldName}"]`);
+    const sideLabel = fieldName === "id_front" ? "正面" : "反面";
+
+    if (!url) {
+      state?.remove();
+      card.classList.remove("has-saved-photo");
+      clearButton.dataset.existingPhoto = "0";
+      refreshPhotoButtons();
+      return;
+    }
+
+    if (!state) {
+      state = document.createElement("div");
+      state.className = "saved-photo-state";
+      state.dataset.savedPhoto = fieldName;
+      state.innerHTML = `
+        <span><strong>已暫存${sideLabel}照片</strong><small>照片已安全保存，可繼續填寫</small></span>
+        <a target="_blank">查看</a>
+        <button type="button">更換</button>
+      `;
+      state.querySelector("button").addEventListener("click", () => input.click());
+      clearButton.before(state);
+    }
+    state.querySelector("a").href = url;
+    card.classList.add("has-saved-photo");
+    clearButton.dataset.existingPhoto = "1";
+    refreshPhotoButtons();
+  }
+
   function scheduleDraft() {
     if (submittingOrder) return;
     clearTimeout(draftTimer);
@@ -471,9 +507,15 @@
     }
     draftSaving = true;
     setDraftStatus("saving", "草稿儲存中…");
+    const requestPhotoVersion = {...photoVersion};
+    const requestPhotoDirty = {...photoDirty};
+    const requestPhotoRemoved = {
+      id_front: byId("remove-id-front").value === "1",
+      id_back: byId("remove-id-back").value === "1",
+    };
     const payload = new FormData(orderForm);
-    if (!photoDirty.id_front) payload.delete("id_front");
-    if (!photoDirty.id_back) payload.delete("id_back");
+    if (!requestPhotoDirty.id_front) payload.delete("id_front");
+    if (!requestPhotoDirty.id_back) payload.delete("id_back");
     try {
       const response = await fetch("{% url 'draft_save' %}", {
         method: "POST",
@@ -484,10 +526,14 @@
       if (!response.ok || !data.ok) throw new Error(data.error || "草稿儲存失敗");
       draftId.value = data.id;
       draftRevision.value = data.revision;
-      photoDirty.id_front = false;
-      photoDirty.id_back = false;
-      byId("remove-id-front").value = "0";
-      byId("remove-id-back").value = "0";
+      ["id_front", "id_back"].forEach(fieldName => {
+        if (photoVersion[fieldName] !== requestPhotoVersion[fieldName]) return;
+        if (requestPhotoDirty[fieldName] || requestPhotoRemoved[fieldName]) {
+          photoDirty[fieldName] = false;
+          byId(`remove-${fieldName.replaceAll("_", "-")}`).value = "0";
+        }
+        showSavedPhoto(fieldName, data.photos[fieldName]);
+      });
       history.replaceState(null, "", data.edit_url);
       setDraftStatus("saved", `草稿已儲存 ${data.updated_at}`);
       document.dispatchEvent(new CustomEvent("draft-saved"));

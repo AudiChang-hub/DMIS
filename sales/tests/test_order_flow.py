@@ -132,6 +132,13 @@ class OrderFlowTests(TestCase):
         self.assertContains(order_response, "現金")
         self.assertContains(order_response, "分期")
         self.assertContains(order_response, "刷卡")
+        self.assertContains(order_response, "分期公司")
+        self.assertContains(order_response, "分期期數")
+        self.assertContains(order_response, "分期開辦費")
+        self.assertContains(order_response, "每期金額")
+        self.assertNotContains(order_response, "分期申請金額")
+        self.assertNotContains(order_response, "分期申請日期")
+        self.assertNotContains(order_response, "核准／拒絕日期")
         self.assertNotContains(order_response, "折扣／抵扣")
         self.assertEqual(
             order_response.context["form"]["deposit_date"].value(),

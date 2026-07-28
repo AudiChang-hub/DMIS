@@ -47,7 +47,9 @@
     </div>
     <div class="form-grid">
       {% include "sales/_field.html" with field=form.owner_type %}
-      <div class="span-2 capture-instruction" data-conditional="local">請先拍攝證件正反面，系統會自動填入下方資料。</div>
+      <div class="span-2 capture-instruction" data-conditional="local">
+        請先準備證件正反面；點選欄位後可直接拍照，或從手機相簿選擇圖片。
+      </div>
       <div class="capture-card" data-conditional="local">
         {% include "sales/_field.html" with field=form.id_front %}
         <button type="button" class="remove-photo" data-clear-file="id_id_front" hidden>移除正面照片</button>

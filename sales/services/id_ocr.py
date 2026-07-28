@@ -103,10 +103,15 @@ def extract_fields(text, side):
     normalized = text.replace("臺", "台")
     lines = [line.strip() for line in normalized.splitlines() if line.strip()]
     if side == "front":
-        name_block = re.search(r"姓名(.*?)(?:出生|性別)", normalized, re.DOTALL)
+        # 姓名為直排，Vision 有時會把最後一字排到「性別」標籤後方。
+        name_block = re.search(r"姓名(.*?)出生", normalized, re.DOTALL)
         if name_block:
             name = re.sub(r"[^\u4e00-\u9fff]", "", name_block.group(1))
-            name = re.sub(r"(中華民國國民身分證|國民身分證)", "", name)
+            name = re.sub(
+                r"(中華民國國民身分證|國民身分證|性別|男|女)",
+                "",
+                name,
+            )
             if 2 <= len(name) <= 6:
                 result["name"] = name
         birth = re.search(

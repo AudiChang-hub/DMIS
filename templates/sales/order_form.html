@@ -4,6 +4,13 @@
 <form method="post" enctype="multipart/form-data" class="mobile-order-form" id="order-form">
   {% csrf_token %}
   {{ formset.management_form }}
+  <div class="ocr-screen-lock" id="ocr-screen-lock" role="alert" aria-live="assertive" hidden>
+    <div class="ocr-screen-lock-card">
+      <span class="ocr-screen-spinner" aria-hidden="true"></span>
+      <strong>正在辨識證件</strong>
+      <p>請稍候，不要關閉或離開這個畫面。</p>
+    </div>
+  </div>
   <section class="hero-row compact-hero form-heading">
     <div><p class="eyebrow">手機下單</p><h1>建立新訂單</h1><p class="muted">依序填寫，送出後先列印合約，不會立即配車。</p></div>
     <button class="button primary desktop-save" type="submit">建立訂單</button>
@@ -40,23 +47,24 @@
     </div>
     <div class="form-grid">
       {% include "sales/_field.html" with field=form.owner_type %}
-      {% include "sales/_field.html" with field=form.owner_name %}
-      <div data-conditional="foreign">{% include "sales/_field.html" with field=form.owner_name_en %}</div>
-      {% include "sales/_field.html" with field=form.owner_phone %}
-      {% include "sales/_field.html" with field=form.owner_email %}
-      {% include "sales/_field.html" with field=form.owner_birth_date %}
-      <div data-conditional="foreign">{% include "sales/_field.html" with field=form.owner_nationality %}</div>
-      {% include "sales/_field.html" with field=form.owner_id_number %}
-      <div data-conditional="foreign">{% include "sales/_field.html" with field=form.residence_expiry %}</div>
-      <div class="span-2">{% include "sales/_field.html" with field=form.owner_address %}</div>
-      <div class="capture-card">
+      <div class="span-2 capture-instruction" data-conditional="local">請先拍攝證件正反面，系統會自動填入下方資料。</div>
+      <div class="capture-card" data-conditional="local">
         {% include "sales/_field.html" with field=form.id_front %}
         <button type="button" class="remove-photo" data-clear-file="id_id_front" hidden>移除正面照片</button>
       </div>
-      <div class="capture-card">
+      <div class="capture-card" data-conditional="local">
         {% include "sales/_field.html" with field=form.id_back %}
         <button type="button" class="remove-photo" data-clear-file="id_id_back" hidden>移除反面照片</button>
       </div>
+      {% include "sales/_field.html" with field=form.owner_name %}
+      <div data-conditional="foreign">{% include "sales/_field.html" with field=form.owner_name_en %}</div>
+      {% include "sales/_field.html" with field=form.owner_birth_date %}
+      {% include "sales/_field.html" with field=form.owner_id_number %}
+      <div class="span-2">{% include "sales/_field.html" with field=form.owner_address %}</div>
+      {% include "sales/_field.html" with field=form.owner_phone %}
+      {% include "sales/_field.html" with field=form.owner_email %}
+      <div data-conditional="foreign">{% include "sales/_field.html" with field=form.owner_nationality %}</div>
+      <div data-conditional="foreign">{% include "sales/_field.html" with field=form.residence_expiry %}</div>
       <div class="span-2 verify-box">{% include "sales/_field.html" with field=form.id_verified %}</div>
     </div>
   </details>
@@ -161,14 +169,17 @@
   const ocrStatus = byId("ocr-status");
   const ocrMessage = byId("ocr-message");
   const ocrButton = byId("run-id-ocr");
+  const ocrScreenLock = byId("ocr-screen-lock");
   let ocrRunning = false;
   let ocrRequestVersion = 0;
+  let ocrAbortController = null;
 
   function showConditional(name, show) {
     document.querySelectorAll(`[data-conditional="${name}"]`).forEach(el => el.hidden = !show);
   }
   function refresh() {
     showConditional("source", sourceType.value !== "store");
+    showConditional("local", ownerType.value === "local");
     showConditional("foreign", ownerType.value === "foreign");
     showConditional("installment", paymentType.value === "installment");
     showConditional("watch", plateChoice.value === "watch");
@@ -200,7 +211,10 @@
     if (ocrRunning || ownerType.value !== "local") return;
     if (!idFront.files.length || !idBack.files.length) return;
     const requestVersion = ++ocrRequestVersion;
+    ocrAbortController = new AbortController();
     ocrRunning = true;
+    ocrScreenLock.hidden = false;
+    document.body.classList.add("screen-locked");
     ocrStatus.hidden = false;
     ocrStatus.className = "ocr-status loading";
     ocrMessage.textContent = "正在辨識證件，請稍候…";
@@ -213,6 +227,7 @@
         method: "POST",
         headers: {"X-CSRFToken": document.querySelector("[name=csrfmiddlewaretoken]").value},
         body: payload,
+        signal: ocrAbortController.signal,
       });
       const data = await response.json();
       if (requestVersion !== ocrRequestVersion) return;
@@ -229,11 +244,15 @@
         : "辨識完成，請逐項對照照片後勾選「已人工核對證件」。";
     } catch (error) {
       if (requestVersion !== ocrRequestVersion) return;
+      if (error.name === "AbortError") return;
       ocrStatus.className = "ocr-status error";
       ocrMessage.textContent = `${error.message} 可重新拍攝或改為人工輸入。`;
     } finally {
       if (requestVersion === ocrRequestVersion) {
         ocrRunning = false;
+        ocrAbortController = null;
+        ocrScreenLock.hidden = true;
+        document.body.classList.remove("screen-locked");
         ocrButton.hidden = false;
       }
     }
@@ -246,6 +265,12 @@
   }
 
   function photoChanged() {
+    if (ocrAbortController) ocrAbortController.abort();
+    ocrRequestVersion += 1;
+    ocrRunning = false;
+    ocrAbortController = null;
+    ocrScreenLock.hidden = true;
+    document.body.classList.remove("screen-locked");
     refreshPhotoButtons();
     byId("id_id_verified").checked = false;
     runIdOcr();
@@ -255,8 +280,12 @@
     button.addEventListener("click", () => {
       const input = byId(button.dataset.clearFile);
       input.value = "";
+      if (ocrAbortController) ocrAbortController.abort();
       ocrRequestVersion += 1;
       ocrRunning = false;
+      ocrAbortController = null;
+      ocrScreenLock.hidden = true;
+      document.body.classList.remove("screen-locked");
       byId("id_id_verified").checked = false;
       ocrStatus.hidden = false;
       ocrStatus.className = "ocr-status warning";

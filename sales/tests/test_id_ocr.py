@@ -16,6 +16,13 @@ ONE_PIXEL_PNG = base64.b64decode(
 
 
 class IdFieldExtractionTests(TestCase):
+    def test_extracts_vertical_name_character_after_gender_label(self):
+        text = "姓名 張鴻\n性別 男\n賢\n出生 民國70年1月2日"
+
+        result = extract_fields(text, "front")
+
+        self.assertEqual(result["name"], "張鴻賢")
+
     def test_extracts_front_fields_and_converts_roc_date(self):
         text = (
             "中華民國國民身分證\n"
@@ -102,4 +109,3 @@ class IdOcrEndpointTests(TestCase):
 
         self.assertEqual(response.status_code, 400)
         self.assertFalse(response.json()["ok"])
-

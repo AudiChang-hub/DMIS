@@ -123,5 +123,8 @@ class OrderFlowTests(TestCase):
         self.assertContains(order_response, "移除正面照片")
         self.assertContains(order_response, "移除反面照片")
         self.assertContains(order_response, "ocrRequestVersion")
+        self.assertContains(order_response, "正在辨識證件")
+        content = order_response.content.decode()
+        self.assertLess(content.index("id_id_front"), content.index("id_owner_name"))
         self.assertEqual(inventory_response.status_code, 200)
         self.assertContains(inventory_response, "新增進車")

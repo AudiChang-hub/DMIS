@@ -314,7 +314,7 @@ class SalesOrder(TimeStampedModel):
     )
     balance_adjustment_reason = models.TextField("尾款調整原因", blank=True)
 
-    installment_company = models.CharField("融資公司", max_length=100, blank=True)
+    installment_company = models.CharField("分期公司", max_length=100, blank=True)
     installment_amount = models.DecimalField(
         "分期申請金額", max_digits=12, decimal_places=0, default=0
     )

@@ -29,6 +29,22 @@
     </div>
   </section>
 {% else %}
+  {% if drafts %}
+  <section class="section-block draft-block">
+    <div class="section-title"><h2><span class="signal amber"></span>未完成草稿</h2><span>{{ drafts|length }} 筆</span></div>
+    <div class="draft-list">
+      {% for draft in drafts %}
+      <a class="draft-row" href="{% url 'order_create' %}?draft={{ draft.pk }}">
+        <span class="draft-icon">✎</span>
+        <span><strong>{{ draft.display_name }}</strong><small>{{ draft.display_vehicle }} · {{ draft.updated_by|default:"未知人員" }}</small></span>
+        <time>{{ draft.updated_at|date:"m/d H:i" }}</time>
+        <span class="chevron">›</span>
+      </a>
+      {% endfor %}
+    </div>
+  </section>
+  {% endif %}
+
   <section class="metric-grid">
     <article class="metric urgent"><span>需要優先處理</span><strong>{{ counts.urgent }}</strong><small>逾期或重大待辦</small></article>
     <article class="metric warning"><span>待簽署合約</span><strong>{{ counts.contract }}</strong><small>上傳後才可配車</small></article>
@@ -68,4 +84,3 @@
   {% endif %}
 {% endif %}
 {% endblock %}
-

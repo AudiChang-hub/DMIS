@@ -88,7 +88,8 @@ class SalesOrderForm(forms.ModelForm):
             ),
         }
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, existing_documents=None, **kwargs):
+        self.existing_documents = existing_documents or {}
         super().__init__(*args, **kwargs)
         self.fields["source"].queryset = SalesSource.objects.filter(active=True)
         self.fields["color"].queryset = VehicleColor.objects.filter(active=True)
@@ -114,7 +115,11 @@ class SalesOrderForm(forms.ModelForm):
 
         if data.get("owner_type") == SalesOrder.OwnerType.LOCAL:
             for field_name in ("id_front", "id_back"):
-                if not data.get(field_name) and not getattr(self.instance, field_name):
+                if (
+                    not data.get(field_name)
+                    and not getattr(self.instance, field_name)
+                    and not self.existing_documents.get(field_name)
+                ):
                     self.add_error(field_name, "本國自然人需上傳身分證正反面。")
         if not data.get("id_verified"):
             self.add_error("id_verified", "請對照證件並確認資料正確。")

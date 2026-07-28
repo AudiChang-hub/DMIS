@@ -3,6 +3,10 @@
 {% block content %}
 <form method="post" enctype="multipart/form-data" class="mobile-order-form" id="order-form">
   {% csrf_token %}
+  <input type="hidden" name="_draft_id" id="draft-id" value="{{ draft.pk|default:'' }}">
+  <input type="hidden" name="_draft_revision" id="draft-revision" value="{{ draft.revision|default:0 }}">
+  <input type="hidden" name="_remove_id_front" id="remove-id-front" value="0">
+  <input type="hidden" name="_remove_id_back" id="remove-id-back" value="0">
   {{ formset.management_form }}
   <div class="ocr-screen-lock" id="ocr-screen-lock" role="alert" aria-live="assertive" hidden>
     <div class="ocr-screen-lock-card">
@@ -12,9 +16,17 @@
     </div>
   </div>
   <section class="hero-row compact-hero form-heading">
-    <div><p class="eyebrow">手機下單</p><h1>建立新訂單</h1><p class="muted">依序填寫，送出後先列印合約，不會立即配車。</p></div>
-    <button class="button primary desktop-save" type="submit">建立訂單</button>
+    <div><p class="eyebrow">手機下單</p><h1>{% if draft %}繼續編輯草稿{% else %}建立新訂單{% endif %}</h1><p class="muted">依序填寫，送出後先列印合約，不會立即配車。</p></div>
+    <div class="desktop-form-actions">
+      <button class="button ghost" type="button" data-save-draft>儲存草稿</button>
+      <button class="button primary" type="submit">建立訂單</button>
+    </div>
   </section>
+
+  <div class="draft-status" id="draft-status" aria-live="polite">
+    <span class="draft-status-dot"></span>
+    <strong id="draft-status-message">{% if draft %}已載入草稿，最後更新 {{ draft.updated_at|date:"m/d H:i" }}{% else %}開始填寫後會自動儲存草稿{% endif %}</strong>
+  </div>
 
   {% if form.non_field_errors or formset.non_form_errors %}
     <div class="message error">{{ form.non_field_errors }}{{ formset.non_form_errors }}</div>
@@ -52,11 +64,13 @@
       </div>
       <div class="capture-card" data-conditional="local">
         {% include "sales/_field.html" with field=form.id_front %}
-        <button type="button" class="remove-photo" data-clear-file="id_id_front" hidden>移除正面照片</button>
+        {% if draft.id_front %}<a class="saved-photo-link" data-saved-photo="id_front" href="{% url 'protected_media' 'draft' draft.pk 'id_front' %}" target="_blank">查看已暫存的正面照片</a>{% endif %}
+        <button type="button" class="remove-photo" data-clear-file="id_id_front" data-existing-photo="{% if draft.id_front %}1{% else %}0{% endif %}" {% if not draft.id_front %}hidden{% endif %}>移除正面照片</button>
       </div>
       <div class="capture-card" data-conditional="local">
         {% include "sales/_field.html" with field=form.id_back %}
-        <button type="button" class="remove-photo" data-clear-file="id_id_back" hidden>移除反面照片</button>
+        {% if draft.id_back %}<a class="saved-photo-link" data-saved-photo="id_back" href="{% url 'protected_media' 'draft' draft.pk 'id_back' %}" target="_blank">查看已暫存的反面照片</a>{% endif %}
+        <button type="button" class="remove-photo" data-clear-file="id_id_back" data-existing-photo="{% if draft.id_back %}1{% else %}0{% endif %}" {% if not draft.id_back %}hidden{% endif %}>移除反面照片</button>
       </div>
       {% include "sales/_field.html" with field=form.owner_name %}
       <div data-conditional="foreign">{% include "sales/_field.html" with field=form.owner_name_en %}</div>
@@ -151,10 +165,16 @@
   </details>
 
   <div class="mobile-submit">
-    <span><strong>送出後：</strong>待列印並上傳簽署合約</span>
+    <button class="button draft-save-mobile" type="button" data-save-draft>暫存</button>
     <button class="button primary" type="submit">建立訂單</button>
   </div>
 </form>
+{% if draft %}
+<form method="post" action="{% url 'draft_delete' draft.pk %}" class="draft-delete-form" onsubmit="return confirm('確定刪除這份草稿及暫存的證件照片嗎？');">
+  {% csrf_token %}
+  <button type="submit" class="button danger">刪除這份草稿</button>
+</form>
+{% endif %}
 {% endblock %}
 {% block scripts %}
 <script>
@@ -172,9 +192,19 @@
   const ocrMessage = byId("ocr-message");
   const ocrButton = byId("run-id-ocr");
   const ocrScreenLock = byId("ocr-screen-lock");
+  const orderForm = byId("order-form");
+  const draftId = byId("draft-id");
+  const draftRevision = byId("draft-revision");
+  const draftStatus = byId("draft-status");
+  const draftStatusMessage = byId("draft-status-message");
   let ocrRunning = false;
   let ocrRequestVersion = 0;
   let ocrAbortController = null;
+  let draftTimer = null;
+  let draftSaving = false;
+  let draftQueued = false;
+  let submittingOrder = false;
+  const photoDirty = {id_front: false, id_back: false};
 
   function showConditional(name, show) {
     document.querySelectorAll(`[data-conditional="${name}"]`).forEach(el => el.hidden = !show);
@@ -244,6 +274,7 @@
       ocrMessage.textContent = data.warnings.length
         ? `辨識完成；${data.warnings.join(" ")}`
         : "辨識完成，請逐項對照照片後勾選「已人工核對證件」。";
+      scheduleDraft();
     } catch (error) {
       if (requestVersion !== ocrRequestVersion) return;
       if (error.name === "AbortError") return;
@@ -262,11 +293,16 @@
 
   function refreshPhotoButtons() {
     document.querySelectorAll("[data-clear-file]").forEach(button => {
-      button.hidden = !byId(button.dataset.clearFile).files.length;
+      button.hidden = (
+        !byId(button.dataset.clearFile).files.length
+        && button.dataset.existingPhoto !== "1"
+      );
     });
   }
 
-  function photoChanged() {
+  function photoChanged(event) {
+    photoDirty[event.target.name] = true;
+    byId(`remove-${event.target.name.replaceAll("_", "-")}`).value = "0";
     if (ocrAbortController) ocrAbortController.abort();
     ocrRequestVersion += 1;
     ocrRunning = false;
@@ -282,6 +318,11 @@
     button.addEventListener("click", () => {
       const input = byId(button.dataset.clearFile);
       input.value = "";
+      const fieldName = input.name;
+      photoDirty[fieldName] = false;
+      byId(`remove-${fieldName.replaceAll("_", "-")}`).value = "1";
+      button.dataset.existingPhoto = "0";
+      document.querySelector(`[data-saved-photo="${fieldName}"]`)?.remove();
       if (ocrAbortController) ocrAbortController.abort();
       ocrRequestVersion += 1;
       ocrRunning = false;
@@ -294,6 +335,7 @@
       ocrMessage.textContent = "照片已移除，請重新拍攝。正反面都備齊後會再次自動辨識。";
       ocrButton.hidden = true;
       refreshPhotoButtons();
+      scheduleDraft();
     });
   });
   idFront.addEventListener("change", photoChanged);
@@ -306,6 +348,68 @@
     const html = byId("empty-accessory").innerHTML.replaceAll("__prefix__", total.value);
     byId("accessory-forms").insertAdjacentHTML("beforeend", html);
     total.value = Number(total.value) + 1;
+    scheduleDraft();
+  });
+
+  function setDraftStatus(state, text) {
+    draftStatus.className = `draft-status ${state}`;
+    draftStatusMessage.textContent = text;
+  }
+
+  function scheduleDraft() {
+    if (submittingOrder) return;
+    clearTimeout(draftTimer);
+    setDraftStatus("pending", "尚有變更，將自動儲存…");
+    draftTimer = window.setTimeout(() => saveDraft(false), 5000);
+  }
+
+  async function saveDraft(manual) {
+    clearTimeout(draftTimer);
+    if (draftSaving) {
+      draftQueued = true;
+      return;
+    }
+    draftSaving = true;
+    setDraftStatus("saving", "草稿儲存中…");
+    const payload = new FormData(orderForm);
+    if (!photoDirty.id_front) payload.delete("id_front");
+    if (!photoDirty.id_back) payload.delete("id_back");
+    try {
+      const response = await fetch("{% url 'draft_save' %}", {
+        method: "POST",
+        headers: {"X-CSRFToken": document.querySelector("[name=csrfmiddlewaretoken]").value},
+        body: payload,
+      });
+      const data = await response.json();
+      if (!response.ok || !data.ok) throw new Error(data.error || "草稿儲存失敗");
+      draftId.value = data.id;
+      draftRevision.value = data.revision;
+      photoDirty.id_front = false;
+      photoDirty.id_back = false;
+      byId("remove-id-front").value = "0";
+      byId("remove-id-back").value = "0";
+      history.replaceState(null, "", data.edit_url);
+      setDraftStatus("saved", `草稿已儲存 ${data.updated_at}`);
+      document.dispatchEvent(new CustomEvent("draft-saved"));
+    } catch (error) {
+      setDraftStatus("error", error.message);
+    } finally {
+      draftSaving = false;
+      if (draftQueued) {
+        draftQueued = false;
+        saveDraft(false);
+      }
+    }
+  }
+
+  orderForm.addEventListener("input", scheduleDraft);
+  orderForm.addEventListener("change", scheduleDraft);
+  orderForm.addEventListener("submit", () => {
+    submittingOrder = true;
+    clearTimeout(draftTimer);
+  });
+  document.querySelectorAll("[data-save-draft]").forEach(button => {
+    button.addEventListener("click", () => saveDraft(true));
   });
 })();
 </script>

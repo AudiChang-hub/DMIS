@@ -19,6 +19,7 @@
     form.addEventListener("change", () => { formDirty = true; });
     form.addEventListener("submit", () => { formDirty = false; });
   });
+  document.addEventListener("draft-saved", () => { formDirty = false; });
 
   function showStatus(text) {
     clearTimeout(statusTimer);

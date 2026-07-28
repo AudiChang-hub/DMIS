@@ -3,4 +3,4 @@ Pillow==11.3.0
 psycopg[binary]==3.2.9
 gunicorn==23.0.0
 whitenoise==6.9.0
-
+google-cloud-vision==3.10.1

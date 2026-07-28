@@ -1,3 +1,5 @@
+import logging
+
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ValidationError
@@ -20,6 +22,10 @@ from .models import (
     VehicleColor,
     VehicleInventory,
 )
+from .services.id_ocr import IdOcrError, recognize_id_card
+
+
+logger = logging.getLogger(__name__)
 
 
 @login_required
@@ -260,6 +266,39 @@ def sales_sources(request):
         source_type=source_type, active=True
     ).values("id", "name")
     return JsonResponse({"results": list(sources)})
+
+
+@login_required
+def id_card_ocr(request):
+    if request.method != "POST":
+        return JsonResponse({"ok": False, "error": "僅接受 POST。"}, status=405)
+    front = request.FILES.get("front")
+    back = request.FILES.get("back")
+    if not front or not back:
+        return JsonResponse(
+            {"ok": False, "error": "請先拍攝身分證正面與反面。"},
+            status=400,
+        )
+    allowed_content_types = {"image/jpeg", "image/png", "image/webp"}
+    if (
+        front.content_type not in allowed_content_types
+        or back.content_type not in allowed_content_types
+    ):
+        return JsonResponse(
+            {"ok": False, "error": "照片僅支援 JPEG、PNG 或 WebP。"},
+            status=400,
+        )
+    try:
+        result = recognize_id_card(front.read(), back.read())
+    except IdOcrError as exc:
+        return JsonResponse({"ok": False, "error": str(exc)}, status=422)
+    except Exception:
+        logger.exception("身分證 OCR 發生未預期錯誤")
+        return JsonResponse(
+            {"ok": False, "error": "辨識服務暫時無法使用，請稍後再試。"},
+            status=503,
+        )
+    return JsonResponse({"ok": True, **result})
 
 
 @login_required

@@ -8,9 +8,8 @@
 - [x] 建立庫存輸入與唯一識別防呆
 - [x] 建立配車流程
 - [x] 建立首頁待辦與全域搜尋
-- [ ] 串接正式 OCR
+- [x] 串接 OrderProcessor 既有 Google Cloud Vision OCR
 - [ ] 套用正式訂購合約範本
 - [ ] 實作完整交車／領牌／退款流程
 - [ ] 實作 LicenseWatcher Ubuntu worker
 - [ ] 進行 T470P 部署
-

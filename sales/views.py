@@ -8,6 +8,7 @@ from django.db.models import Q
 from django.http import FileResponse, Http404, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
+from django.utils import timezone
 from PIL import Image, UnidentifiedImageError
 
 from .forms import (
@@ -293,7 +294,7 @@ def draft_save(request):
             "ok": True,
             "id": str(draft.pk),
             "revision": draft.revision,
-            "updated_at": draft.updated_at.strftime("%H:%M"),
+            "updated_at": timezone.localtime(draft.updated_at).strftime("%H:%M"),
             "edit_url": f"{reverse('order_create')}?draft={draft.pk}",
             "photos": photo_urls,
         }

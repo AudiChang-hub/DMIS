@@ -8,6 +8,8 @@ urlpatterns = [
     path("", views.dashboard, name="dashboard"),
     path("orders/", views.order_list, name="order_list"),
     path("orders/new/", views.order_create, name="order_create"),
+    path("orders/drafts/save/", views.draft_save, name="draft_save"),
+    path("orders/drafts/<uuid:pk>/delete/", views.draft_delete, name="draft_delete"),
     path("orders/<int:pk>/", views.order_detail, name="order_detail"),
     path("orders/<int:pk>/contract/", views.contract_print, name="contract_print"),
     path(
@@ -26,7 +28,7 @@ urlpatterns = [
     path("api/sources/", views.sales_sources, name="sales_sources"),
     path("api/id-card-ocr/", views.id_card_ocr, name="id_card_ocr"),
     path(
-        "files/<str:model_name>/<int:pk>/<str:field_name>/",
+        "files/<str:model_name>/<str:pk>/<str:field_name>/",
         views.protected_media,
         name="protected_media",
     ),

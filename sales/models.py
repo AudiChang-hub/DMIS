@@ -471,6 +471,9 @@ class OrderDraft(TimeStampedModel):
     revision = models.PositiveIntegerField("版本", default=1)
     created_by = models.CharField("建立人員", max_length=150, blank=True)
     updated_by = models.CharField("最後編輯人員", max_length=150, blank=True)
+    editing_session = models.CharField("編輯工作階段", max_length=40, blank=True)
+    editing_by = models.CharField("目前編輯人員", max_length=150, blank=True)
+    editing_at = models.DateTimeField("最後編輯心跳", blank=True, null=True)
 
     class Meta:
         ordering = ["-updated_at"]

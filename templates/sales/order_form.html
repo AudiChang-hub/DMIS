@@ -17,7 +17,7 @@
     </div>
   </div>
   <section class="hero-row compact-hero form-heading">
-    <div><p class="eyebrow">手機下單</p><h1>{% if draft %}繼續編輯草稿{% else %}建立新訂單{% endif %}</h1><p class="muted">依序填寫，送出後先列印合約，不會立即配車。</p></div>
+    <div><p class="eyebrow">訂單建檔</p><h1>{% if draft %}繼續編輯草稿{% else %}建立新訂單{% endif %}</h1><p class="muted">依序填寫，送出後先列印合約，不會立即配車。</p></div>
     <button class="button primary desktop-save" type="submit">建立訂單</button>
   </section>
 
@@ -25,6 +25,7 @@
     <span class="draft-status-dot"></span>
     <strong id="draft-status-message">{% if draft %}已載入草稿，最後更新 {{ draft.updated_at|date:"m/d H:i" }}{% else %}開始填寫後會自動儲存草稿{% endif %}</strong>
   </div>
+  <div class="editing-presence" id="editing-presence" role="status" aria-live="polite" hidden></div>
 
   {% if form.non_field_errors or formset.non_form_errors or fee_formset.non_form_errors %}
     <div class="message error">{{ form.non_field_errors }}{{ formset.non_form_errors }}{{ fee_formset.non_form_errors }}</div>
@@ -226,6 +227,7 @@
   const draftRevision = byId("draft-revision");
   const draftStatus = byId("draft-status");
   const draftStatusMessage = byId("draft-status-message");
+  const editingPresence = byId("editing-presence");
   const progressLinks = [...document.querySelectorAll("#form-progress a")];
   const progressSections = progressLinks.map(link => byId(link.hash.slice(1)));
   let ocrRunning = false;
@@ -459,6 +461,30 @@
     draftStatusMessage.textContent = text;
   }
 
+  async function refreshDraftPresence() {
+    if (!draftId.value) {
+      editingPresence.hidden = true;
+      return;
+    }
+    try {
+      const response = await fetch(`/orders/drafts/${draftId.value}/presence/`, {
+        method: "POST",
+        headers: {"X-CSRFToken": document.querySelector("[name=csrfmiddlewaretoken]").value},
+      });
+      const data = await response.json();
+      if (!response.ok || !data.ok) return;
+      editingPresence.hidden = false;
+      editingPresence.className = data.mine
+        ? "editing-presence mine"
+        : "editing-presence warning";
+      editingPresence.textContent = data.mine
+        ? `目前由你（${data.editing_by}）編輯這筆草稿`
+        : `注意：${data.editing_by} 正在編輯這筆草稿，請避免重複操作`;
+    } catch (error) {
+      // 編輯狀態屬輔助提醒，連線短暫失敗時不阻擋填單。
+    }
+  }
+
   function showSavedPhoto(fieldName, url) {
     const input = byId(`id_${fieldName}`);
     const card = input.closest(".capture-card");
@@ -536,6 +562,7 @@
       });
       history.replaceState(null, "", data.edit_url);
       setDraftStatus("saved", `草稿已儲存 ${data.updated_at}`);
+      refreshDraftPresence();
       document.dispatchEvent(new CustomEvent("draft-saved"));
     } catch (error) {
       setDraftStatus("error", error.message);
@@ -553,6 +580,18 @@
   orderForm.addEventListener("submit", () => {
     submittingOrder = true;
     clearTimeout(draftTimer);
+  });
+  refreshDraftPresence();
+  window.setInterval(refreshDraftPresence, 30000);
+  window.addEventListener("pagehide", () => {
+    if (!draftId.value) return;
+    const payload = new FormData();
+    payload.append("action", "release");
+    payload.append(
+      "csrfmiddlewaretoken",
+      document.querySelector("[name=csrfmiddlewaretoken]").value,
+    );
+    navigator.sendBeacon(`/orders/drafts/${draftId.value}/presence/`, payload);
   });
 })();
 </script>

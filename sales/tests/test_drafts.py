@@ -3,6 +3,7 @@ import tempfile
 from pathlib import Path
 
 from django.contrib.auth import get_user_model
+from django.test import Client
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase, override_settings
 from django.urls import reverse
@@ -186,3 +187,29 @@ class OrderDraftTests(TestCase):
                 self.assertRedirects(response, reverse("dashboard"))
                 self.assertFalse(OrderDraft.objects.filter(pk=draft.pk).exists())
                 self.assertFalse(photo_path.exists())
+
+    def test_presence_warns_another_editor_and_can_be_released(self):
+        draft = OrderDraft.objects.create(
+            data={"owner_name": "多人編輯測試"},
+            created_by=self.user.username,
+        )
+        first = self.client.post(reverse("draft_presence", args=[draft.pk]))
+        self.assertTrue(first.json()["mine"])
+        self.assertEqual(first.json()["editing_by"], self.user.username)
+
+        second_user = get_user_model().objects.create_user(
+            username="other-editor", password="test-pass-123"
+        )
+        second_client = Client()
+        second_client.force_login(second_user)
+        occupied = second_client.post(reverse("draft_presence", args=[draft.pk]))
+        self.assertFalse(occupied.json()["mine"])
+        self.assertEqual(occupied.json()["editing_by"], self.user.username)
+
+        released = self.client.post(
+            reverse("draft_presence", args=[draft.pk]), {"action": "release"}
+        )
+        self.assertFalse(released.json()["active"])
+        claimed = second_client.post(reverse("draft_presence", args=[draft.pk]))
+        self.assertTrue(claimed.json()["mine"])
+        self.assertEqual(claimed.json()["editing_by"], second_user.username)

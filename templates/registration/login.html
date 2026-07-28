@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}登入｜車輛銷售管理{% endblock %}
+{% block content %}
+<section class="login-panel">
+  <div>
+    <p class="eyebrow">內部管理系統</p>
+    <h1>從客人下訂，到實際交車。</h1>
+    <p class="muted">所有門市使用同一套流程，手機也能完成建單、拍照與文件上傳。</p>
+  </div>
+  <form method="post" class="card login-card">
+    {% csrf_token %}
+    <h2>登入系統</h2>
+    {% if form.errors %}<p class="field-error">帳號或密碼不正確。</p>{% endif %}
+    <label for="{{ form.username.id_for_label }}">帳號</label>
+    {{ form.username }}
+    <label for="{{ form.password.id_for_label }}">密碼</label>
+    {{ form.password }}
+    <button class="button primary block" type="submit">登入</button>
+  </form>
+</section>
+{% endblock %}
+

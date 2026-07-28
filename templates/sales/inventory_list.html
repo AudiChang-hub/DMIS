@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}實體庫存｜車輛銷售管理{% endblock %}
+{% block content %}
+<section class="hero-row compact-hero">
+  <div><p class="eyebrow">跨門市庫存</p><h1>實體車輛</h1><p class="muted">每台油車以引擎號碼、電動車以車身號碼唯一識別。</p></div>
+  <a class="button primary" href="{% url 'inventory_create' %}">＋ 新增進車</a>
+</section>
+<div class="inventory-grid">
+  {% for vehicle in vehicles %}
+  <article class="inventory-card">
+    <div class="inventory-top"><span class="status-pill">{{ vehicle.get_status_display }}</span><small>{{ vehicle.received_on }}</small></div>
+    <h2>{{ vehicle.vehicle_model.name }} <span>{{ vehicle.color.name }}</span></h2>
+    <p class="identifier">{{ vehicle.identifier }}</p>
+    <dl>
+      <div><dt>目前位置</dt><dd>{{ vehicle.location_store }}</dd></div>
+      <div><dt>庫存歸屬</dt><dd>{{ vehicle.ownership_store }}</dd></div>
+    </dl>
+    {% if vehicle.condition_note %}<p class="condition-alert">{{ vehicle.condition_note }}</p>{% endif %}
+  </article>
+  {% empty %}
+  <div class="empty-state"><strong>尚無實體車輛</strong><p>先建立第一台進車資料，之後才能為訂單配車。</p></div>
+  {% endfor %}
+</div>
+{% endblock %}
+

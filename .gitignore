@@ -19,3 +19,6 @@ output.txt
 output_report/.~lock.*
 .auto-deploy/
 backups/
+media/
+staticfiles/
+.env.django

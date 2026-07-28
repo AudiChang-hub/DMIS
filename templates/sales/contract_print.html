@@ -1,0 +1,63 @@
+{% load static %}
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <title>{{ order.number }} 訂購合約</title>
+  <link rel="stylesheet" href="{% static 'css/contract.css' %}">
+</head>
+<body>
+<div class="print-actions">
+  <button onclick="window.print()">列印一式兩份</button>
+  <p>目前為第一版暫用合約，正式範本提供後會替換版面。</p>
+</div>
+{% for copy in "12" %}
+<article class="contract-page">
+  <header>
+    <div><p>車輛銷售管理系統</p><h1>機車訂購合約</h1></div>
+    <div class="copy-label">{% if forloop.first %}店家留存{% else %}客戶留存{% endif %}</div>
+  </header>
+  <section class="meta">
+    <span>訂單編號：{{ order.number }}</span><span>訂購日期：{{ order.order_date }}</span>
+  </section>
+  <table>
+    <tr><th>車主姓名</th><td>{{ order.owner_name }}</td><th>聯絡電話</th><td>{{ order.owner_phone }}</td></tr>
+    <tr><th>證件號碼</th><td>{{ order.owner_id_number }}</td><th>車主類型</th><td>{{ order.get_owner_type_display }}</td></tr>
+    <tr><th>戶籍／公司地址</th><td colspan="3">{{ order.owner_address }}</td></tr>
+    <tr><th>訂單來源</th><td>{{ order.source.name|default:order.get_source_type_display }}</td><th>銷售門市</th><td>{{ order.selling_store }}</td></tr>
+  </table>
+  <h2>訂購車輛</h2>
+  <table>
+    <tr><th>廠牌／車型</th><td>{{ order.vehicle_model }}</td><th>車色</th><td>{{ order.color.name }}</td></tr>
+    <tr><th>付款方式</th><td>{{ order.get_payment_type_display }}</td><th>選號</th><td>{{ order.get_plate_choice_display }}</td></tr>
+    <tr><th>選號需求</th><td colspan="3">{{ order.watched_numbers|default:order.plate_preference_note|default:"無" }}</td></tr>
+  </table>
+  <h2>價款明細</h2>
+  <table class="money-table">
+    <tr><th>車價</th><td>{{ order.vehicle_price }}</td><th>牌險</th><td>{{ order.plate_insurance_fee }}</td></tr>
+    <tr><th>分期開辦費</th><td>{{ order.installment_opening_fee }}</td><th>其他費用</th><td>{{ order.other_fee }}</td></tr>
+    <tr><th>折扣／抵扣</th><td>{{ order.discount_amount }}</td><th>舊車估價</th><td>{{ order.old_vehicle_valuation }}</td></tr>
+    <tr><th>訂金</th><td>{{ order.deposit_amount }}</td><th>實際尾款</th><td class="strong">{{ order.actual_balance }}</td></tr>
+  </table>
+  <h2>配件與約定</h2>
+  <table>
+    <tr><th>配件</th><td>
+      {% for line in order.accessories.all %}{{ line.name }} × {{ line.quantity }}（{{ line.get_line_type_display }}，{{ line.line_total }} 元）{% if not forloop.last %}、{% endif %}{% empty %}無{% endfor %}
+    </td></tr>
+    <tr><th>汰舊／補助</th><td>{% if order.is_trade_in_subsidy %}{{ order.subsidy_type|default:"有申請" }}{% else %}無{% endif %}</td></tr>
+    <tr><th>交車方式</th><td>{{ order.delivery_method|default:"待確認" }}</td></tr>
+    <tr><th>備註</th><td>{{ order.note|default:"無" }}</td></tr>
+  </table>
+  <section class="terms">
+    <p>一、本合約所列車型、車色、價款及附加需求，經雙方確認後成立。</p>
+    <p>二、實際配車於簽署後由店方依庫存協調，車輛識別資料於配車後補登。</p>
+    <p>三、正式條款將於店方提供既有合約範本後更新；本頁目前供流程測試使用。</p>
+  </section>
+  <footer>
+    <div>客戶簽名：<span></span></div><div>店方簽章：<span></span></div>
+  </footer>
+</article>
+{% endfor %}
+</body>
+</html>
+

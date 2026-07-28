@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}全部訂單｜車輛銷售管理{% endblock %}
+{% block content %}
+<section class="hero-row compact-hero">
+  <div><p class="eyebrow">訂單管理</p><h1>全部訂單</h1></div>
+  <a class="button primary" href="{% url 'order_create' %}">＋ 建立訂單</a>
+</section>
+<form class="filter-bar" method="get">
+  <label>狀態
+    <select name="status" onchange="this.form.submit()">
+      <option value="">全部狀態</option>
+      {% for value,label in statuses %}
+        <option value="{{ value }}" {% if request.GET.status == value %}selected{% endif %}>{{ label }}</option>
+      {% endfor %}
+    </select>
+  </label>
+</form>
+<div class="section-block">
+  <div class="order-list">
+  {% for order in orders %}
+    {% include "sales/_order_row.html" %}
+  {% empty %}
+    <div class="empty-state"><strong>尚無訂單</strong><p>建立第一張訂單後會顯示在這裡。</p></div>
+  {% endfor %}
+  </div>
+</div>
+{% endblock %}
+

@@ -1,3 +1,51 @@
+# DMIS Next — Django 訂單與庫存 MVP
+
+2026-07-28 起新增 Django 版本，目標是取代 Odoo 作為後續正式系統。既有
+`addons/` 與 Odoo 規格暫時保留作歷史參考，不再作為新功能實作入口。
+
+目前第一個可操作流程：
+
+1. 手機建立訂單並拍攝證件正反面。
+2. 列印一式兩份的暫用訂購合約。
+3. 上傳客戶簽署合約。
+4. 合約上傳後才能從跨門市庫存配車。
+5. 配車後鎖定實體車，避免重複銷售。
+6. 首頁集中顯示全部門市待辦，並支援跨欄位搜尋。
+
+本機快速啟動：
+
+```powershell
+python manage.py migrate
+python manage.py seed_demo --username admin --password 請設定測試密碼
+python manage.py runserver
+```
+
+開啟 `http://127.0.0.1:8000/`。
+
+T470P Ubuntu Docker 啟動：
+
+```bash
+cp .env.django.example .env.django
+# 修改 .env.django 中的 secret、密碼與網域
+docker compose -f docker-compose.django.yml up -d --build
+docker compose -f docker-compose.django.yml exec web \
+  python manage.py seed_demo --username admin --password '請設定強密碼'
+```
+
+驗證：
+
+```powershell
+python manage.py check
+python manage.py test sales
+```
+
+目前尚未完成 OCR、正式合約套表、交車全流程、工作日提醒與 LicenseWatcher
+Ubuntu worker；範圍與驗收依 `specs/026-django-order-mvp/`。
+
+---
+
+## 舊版 Odoo 歷史說明
+
 如何載入示範資料（Seed / Demo）：
 
 1. 安裝 `DMS Core` 模組時，系統會自動載入 `data/seed.xml` 的示範資料（若 manifest 中 `data` 包含 `data/seed.xml`）。

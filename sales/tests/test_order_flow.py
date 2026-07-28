@@ -131,3 +131,19 @@ class OrderFlowTests(TestCase):
         self.assertContains(order_response, 'type="date"')
         self.assertEqual(inventory_response.status_code, 200)
         self.assertContains(inventory_response, "新增進車")
+
+    def test_app_version_endpoint_is_not_cached(self):
+        response = self.client.get(reverse("app_version"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.json()["version"]), 12)
+        self.assertIn("no-store", response["Cache-Control"])
+
+    def test_authenticated_page_contains_update_controls(self):
+        self.client.force_login(self.user)
+
+        response = self.client.get(reverse("dashboard"))
+
+        self.assertContains(response, "檢查系統更新")
+        self.assertContains(response, "app-update-banner")
+        self.assertContains(response, "js/app-update")

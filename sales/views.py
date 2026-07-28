@@ -28,6 +28,15 @@ from .services.id_ocr import IdOcrError, recognize_id_card
 logger = logging.getLogger(__name__)
 
 
+def app_version(request):
+    from config.app_version import get_app_version
+
+    response = JsonResponse({"version": get_app_version()})
+    response["Cache-Control"] = "no-store, no-cache, must-revalidate"
+    response["Pragma"] = "no-cache"
+    return response
+
+
 @login_required
 def dashboard(request):
     query = request.GET.get("q", "").strip()

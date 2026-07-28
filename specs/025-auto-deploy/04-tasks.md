@@ -7,3 +7,5 @@
 - [ ] 安裝並啟用 T470P timer
 - [ ] 推送測試 commit，驗證自動偵測與部署
 - [ ] 驗證 database backup、containers 與 smoke
+- [x] 排除 `backups/`，避免部署備份造成 dirty tree
+- [x] 純文件變更不重啟 Odoo

@@ -53,6 +53,13 @@ h2 { margin-bottom: 0; font-size: 1.15rem; }
 }
 .brand strong, .brand small { display: block; }
 .brand small { color: #cbdad2; font-size: .7rem; }
+.update-check-button {
+  display: grid; width: 42px; height: 42px; margin-left: 10px; place-items: center;
+  flex: 0 0 auto; color: #fff; background: rgba(255,255,255,.1);
+  border: 1px solid rgba(255,255,255,.22); border-radius: 12px;
+  font-size: 1.45rem; font-weight: 900; cursor: pointer;
+}
+.update-check-button:active { background: rgba(255,255,255,.2); }
 .desktop-nav { display: flex; align-self: stretch; }
 .desktop-nav a { display: grid; padding: 0 18px; place-items: center; color: #dbe8e1; font-weight: 700; font-size: .92rem; }
 .desktop-nav a:hover { background: rgba(255,255,255,.08); }
@@ -74,6 +81,16 @@ h2 { margin-bottom: 0; font-size: 1.15rem; }
 .button.small { min-height: 36px; padding: 0 12px; font-size: .85rem; }
 .button.block { width: 100%; }
 .messages { position: fixed; z-index: 60; top: 84px; right: 24px; width: min(390px, calc(100vw - 32px)); }
+.app-update-banner {
+  position: fixed; z-index: 90; top: 84px; right: 24px; display: grid;
+  width: min(520px, calc(100vw - 32px)); padding: 13px; align-items: center;
+  grid-template-columns: auto 1fr auto auto; gap: 10px; color: var(--ink);
+  background: #fff9df; border: 1px solid #e6cd76; border-radius: 14px;
+  box-shadow: 0 14px 36px rgba(18,55,42,.2);
+}
+.app-update-banner[hidden] { display: none; }
+.app-update-banner strong { font-size: .84rem; line-height: 1.35; }
+.app-update-icon { display: grid; width: 32px; height: 32px; place-items: center; color: var(--forest); background: #f0d88a; border-radius: 9px; font-size: 1.3rem; font-weight: 900; }
 .message { margin-bottom: 10px; padding: 14px 16px; background: #fff; border: 1px solid var(--line); border-left: 5px solid var(--blue); border-radius: 12px; box-shadow: var(--shadow); }
 .message.success { border-left-color: var(--forest-2); }
 .message.error { border-left-color: var(--red); }
@@ -279,6 +296,7 @@ body.screen-locked { overflow: hidden; }
   .desktop-nav, .logout-form { display: none; }
   .app-header { min-height: 62px; padding: 0 16px; }
   .brand small { display: none; }
+  .update-check-button { margin-left: auto; }
   .page-shell { width: min(100% - 24px, 700px); padding: 24px 0 104px; }
   .mobile-nav {
     position: fixed; z-index: 50; right: 0; bottom: 0; left: 0; display: grid;
@@ -299,6 +317,12 @@ body.screen-locked { overflow: hidden; }
 }
 
 @media (max-width: 600px) {
+  .app-update-banner {
+    top: 70px; right: 12px; width: calc(100vw - 24px);
+    grid-template-columns: auto 1fr auto;
+  }
+  .app-update-banner #app-update-reload { grid-column: 2; }
+  .app-update-banner #app-update-later { grid-column: 3; }
   .hero-row { align-items: start; }
   .hero-row > .button { min-height: 42px; padding: 0 13px; white-space: nowrap; }
   .hero-row h1 { font-size: 1.7rem; }

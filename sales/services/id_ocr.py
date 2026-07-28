@@ -30,6 +30,8 @@ class OcrImageResult:
     side: str
     angle: int
     text: str
+    annotations: tuple
+    image: Image.Image
 
 
 def _vision_client():
@@ -74,7 +76,7 @@ def _detect_text(client, image):
     if response.error.message:
         raise IdOcrError("OCR 服務暫時無法辨識，請稍後再試。")
     texts = response.text_annotations
-    return texts[0].description if texts else ""
+    return (texts[0].description if texts else ""), tuple(texts[1:])
 
 
 def recognize_side(image_bytes, expected_side, client=None):
@@ -90,12 +92,56 @@ def recognize_side(image_bytes, expected_side, client=None):
     first_text = ""
     for angle in (0, 90, 180, 270):
         rotated = image if angle == 0 else image.rotate(angle, expand=True)
-        text = _detect_text(client, rotated)
+        text, annotations = _detect_text(client, rotated)
         if angle == 0:
-            first_text = text
+            first_text = (text, annotations, rotated)
         if any(keyword in text for keyword in keywords):
-            return OcrImageResult(expected_side, angle, text)
-    return OcrImageResult(expected_side, 0, first_text)
+            return OcrImageResult(
+                expected_side, angle, text, annotations, rotated
+            )
+    text, annotations, rotated = first_text
+    return OcrImageResult(expected_side, 0, text, annotations, rotated)
+
+
+def _clean_name_text(text):
+    normalized = text.replace("臺", "台")
+    if "姓名" in normalized:
+        normalized = normalized.split("姓名", 1)[1]
+    name = re.sub(r"[^\u4e00-\u9fff]", "", normalized)
+    name = re.sub(
+        r"(中華民國國民身分證|國民身分證|身分證統一編號|"
+        r"統一編號|姓名|性別|出生|民國|年月日|男|女)",
+        "",
+        name,
+    )
+    return name if 2 <= len(name) <= 6 else ""
+
+
+def _recognize_name_region(client, front):
+    label = next(
+        (
+            annotation
+            for annotation in front.annotations
+            if "姓名" in annotation.description
+        ),
+        None,
+    )
+    if not label or not label.bounding_poly.vertices:
+        return ""
+    vertices = label.bounding_poly.vertices
+    xs = [vertex.x for vertex in vertices]
+    ys = [vertex.y for vertex in vertices]
+    width, height = front.image.size
+    crop_box = (
+        max(0, min(xs) - int(width * 0.04)),
+        max(0, min(ys) - int(height * 0.10)),
+        min(width, max(xs) + int(width * 0.42)),
+        min(height, max(ys) + int(height * 0.32)),
+    )
+    if crop_box[2] <= crop_box[0] or crop_box[3] <= crop_box[1]:
+        return ""
+    text, _ = _detect_text(client, front.image.crop(crop_box))
+    return _clean_name_text(text)
 
 
 def extract_fields(text, side):
@@ -106,13 +152,8 @@ def extract_fields(text, side):
         # 姓名為直排，Vision 有時會把最後一字排到「性別」標籤後方。
         name_block = re.search(r"姓名(.*?)出生", normalized, re.DOTALL)
         if name_block:
-            name = re.sub(r"[^\u4e00-\u9fff]", "", name_block.group(1))
-            name = re.sub(
-                r"(中華民國國民身分證|國民身分證|性別|男|女)",
-                "",
-                name,
-            )
-            if 2 <= len(name) <= 6:
+            name = _clean_name_text(name_block.group(1))
+            if name:
                 result["name"] = name
         birth = re.search(
             r"民國\s*(\d{1,3})\s*年\s*(\d{1,2})\s*月\s*(\d{1,2})\s*日",
@@ -179,6 +220,9 @@ def recognize_id_card(front_bytes, back_bytes):
     back = recognize_side(back_bytes, "back", client)
     fields = extract_fields(front.text, "front")
     fields.update(extract_fields(back.text, "back"))
+    region_name = _recognize_name_region(client, front)
+    if region_name and len(region_name) > len(fields.get("name", "")):
+        fields["name"] = region_name
     warnings = []
     required = {
         "name": "姓名",

@@ -128,5 +128,6 @@ class OrderFlowTests(TestCase):
         content = order_response.content.decode()
         self.assertLess(content.index("id_id_front"), content.index("id_owner_name"))
         self.assertNotIn('capture="environment"', content)
+        self.assertContains(order_response, 'type="date"')
         self.assertEqual(inventory_response.status_code, 200)
         self.assertContains(inventory_response, "新增進車")

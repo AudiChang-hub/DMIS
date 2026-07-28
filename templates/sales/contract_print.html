@@ -47,7 +47,7 @@
       {% for line in order.accessories.all %}{{ line.name }} × {{ line.quantity }}（{{ line.get_line_type_display }}，{{ line.line_total }} 元）{% if not forloop.last %}、{% endif %}{% empty %}無{% endfor %}
     </td></tr>
     <tr><th>汰舊／補助</th><td>{% if order.is_trade_in_subsidy %}{{ order.subsidy_type|default:"有申請" }}{% else %}無{% endif %}</td></tr>
-    <tr><th>交車方式</th><td>{{ order.delivery_method|default:"待確認" }}</td></tr>
+    <tr><th>交車方式</th><td>{{ order.get_delivery_method_display|default:"待確認" }}{% if order.delivery_destination %}／{{ order.delivery_destination }}{% endif %}</td></tr>
     <tr><th>備註</th><td>{{ order.note|default:"無" }}</td></tr>
   </table>
   <section class="terms">

@@ -127,6 +127,8 @@ class OrderFlowTests(TestCase):
         self.assertContains(order_response, "正在辨識證件")
         self.assertContains(order_response, 'aria-current="step"')
         self.assertContains(order_response, "updateActiveSection")
+        self.assertNotContains(order_response, "儲存草稿")
+        self.assertNotContains(order_response, ">暫存</button>")
         self.assertContains(order_response, "或從手機相簿選擇圖片")
         self.assertContains(order_response, "＋ 新增費用")
         self.assertContains(order_response, "現金")

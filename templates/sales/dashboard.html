@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% block title %}待辦首頁｜車輛銷售管理{% endblock %}
+{% block content %}
+<section class="hero-row">
+  <div>
+    <p class="eyebrow">全部門市</p>
+    <h1>今天先處理這些事</h1>
+    <p class="muted">依緊急程度排列；完成後會自動離開待辦區。</p>
+  </div>
+  <a class="button primary" href="{% url 'order_create' %}">＋ 建立訂單</a>
+</section>
+
+<form class="global-search" method="get" role="search">
+  <span aria-hidden="true">⌕</span>
+  <input name="q" value="{{ query }}" aria-label="全域搜尋"
+         placeholder="搜尋姓名、電話、證件、車牌、車型、車行…">
+  {% if query %}<a href="{% url 'dashboard' %}" aria-label="清除搜尋">×</a>{% endif %}
+</form>
+
+{% if search_results is not None %}
+  <section class="section-block">
+    <div class="section-title"><h2>搜尋結果</h2><span>{{ search_results|length }} 筆</span></div>
+    <div class="order-list">
+      {% for order in search_results %}
+        {% include "sales/_order_row.html" %}
+      {% empty %}
+        <div class="empty-state"><strong>找不到符合的訂單</strong><p>可試著輸入電話末四碼或車牌的一部分。</p></div>
+      {% endfor %}
+    </div>
+  </section>
+{% else %}
+  <section class="metric-grid">
+    <article class="metric urgent"><span>需要優先處理</span><strong>{{ counts.urgent }}</strong><small>逾期或重大待辦</small></article>
+    <article class="metric warning"><span>待簽署合約</span><strong>{{ counts.contract }}</strong><small>上傳後才可配車</small></article>
+    <article class="metric info"><span>待配車</span><strong>{{ counts.allocation }}</strong><small>已完成簽約</small></article>
+    <article class="metric calm"><span>可售庫存</span><strong>{{ counts.inventory }}</strong><small>全部門市</small></article>
+  </section>
+
+  {% if urgent_orders %}
+  <section class="section-block priority-block">
+    <div class="section-title"><h2><span class="signal red"></span>優先處理</h2><span>{{ urgent_orders|length }} 筆</span></div>
+    <div class="order-list">{% for order in urgent_orders %}{% include "sales/_order_row.html" %}{% endfor %}</div>
+  </section>
+  {% endif %}
+
+  <div class="dashboard-columns">
+    <section class="section-block">
+      <div class="section-title"><h2><span class="signal amber"></span>待簽署合約</h2><a href="{% url 'order_list' %}?status=contract_pending">查看全部</a></div>
+      <div class="order-list compact">
+        {% for order in contract_pending %}{% include "sales/_order_row.html" %}
+        {% empty %}<div class="empty-state small">目前沒有待簽署合約</div>{% endfor %}
+      </div>
+    </section>
+    <section class="section-block">
+      <div class="section-title"><h2><span class="signal blue"></span>待配車</h2><a href="{% url 'order_list' %}?status=allocation_pending">查看全部</a></div>
+      <div class="order-list compact">
+        {% for order in allocation_pending %}{% include "sales/_order_row.html" %}
+        {% empty %}<div class="empty-state small">目前沒有待配車訂單</div>{% endfor %}
+      </div>
+    </section>
+  </div>
+
+  {% if in_progress %}
+  <section class="section-block">
+    <div class="section-title"><h2><span class="signal green"></span>進行中</h2><a href="{% url 'order_list' %}">查看全部</a></div>
+    <div class="order-list">{% for order in in_progress %}{% include "sales/_order_row.html" %}{% endfor %}</div>
+  </section>
+  {% endif %}
+{% endif %}
+{% endblock %}
+

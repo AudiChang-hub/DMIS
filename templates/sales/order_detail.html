@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+{% block title %}{{ order.number }}｜車輛銷售管理{% endblock %}
+{% block content %}
+<section class="hero-row detail-hero">
+  <div>
+    <a class="back-link" href="{% url 'order_list' %}">‹ 返回訂單</a>
+    <div class="title-with-status"><h1>{{ order.owner_name }}</h1><span class="status-pill large">{{ order.get_status_display }}</span></div>
+    <p class="muted">{{ order.number }} · {{ order.order_date }} · {{ order.selling_store }}</p>
+  </div>
+  <a class="button secondary" href="{% url 'contract_print' order.pk %}" target="_blank">列印訂購合約</a>
+</section>
+
+<div class="workflow-strip">
+  <div class="done"><span>✓</span><small>訂單建立</small></div>
+  <i></i>
+  <div class="{% if order.has_signed_contract %}done{% else %}current{% endif %}"><span>{% if order.has_signed_contract %}✓{% else %}2{% endif %}</span><small>簽署合約</small></div>
+  <i></i>
+  <div class="{% if order.allocated_vehicle %}done{% elif order.has_signed_contract %}current{% endif %}"><span>{% if order.allocated_vehicle %}✓{% else %}3{% endif %}</span><small>配車</small></div>
+  <i></i>
+  <div><span>4</span><small>領牌與交付</small></div>
+</div>
+
+{% if not order.has_signed_contract %}
+<section class="action-card warning-card">
+  <div><p class="eyebrow">下一步</p><h2>上傳客戶已簽署的合約</h2><p>紙本一式兩份。未上傳前，系統不允許配車。</p></div>
+  <form method="post" enctype="multipart/form-data" action="{% url 'contract_upload' order.pk %}">
+    {% csrf_token %}{{ contract_form.signed_contract }}
+    <button class="button primary block" type="submit">上傳並進入待配車</button>
+  </form>
+</section>
+{% elif not order.allocated_vehicle %}
+<section class="action-card info-card">
+  <div><p class="eyebrow">下一步</p><h2>選擇實體車輛</h2><p>只顯示符合 {{ order.vehicle_model }}／{{ order.color.name }} 的可售庫存。</p></div>
+  <form method="post" action="{% url 'allocate_vehicle' order.pk %}">
+    {% csrf_token %}{{ allocation_form.vehicle }}
+    {% if allocation_form.vehicle.field.queryset %}
+      <button class="button primary block" type="submit">確認配車並鎖定</button>
+    {% else %}
+      <p class="field-error">目前無符合的可售庫存，請先建立進車資料。</p>
+    {% endif %}
+  </form>
+</section>
+{% endif %}
+
+<div class="detail-grid">
+  <section class="card">
+    <div class="section-title"><h2>車主資料</h2><span>已人工核對</span></div>
+    <dl class="data-list">
+      <div><dt>車主類型</dt><dd>{{ order.get_owner_type_display }}</dd></div>
+      <div><dt>姓名／公司</dt><dd>{{ order.owner_name }}</dd></div>
+      <div><dt>電話</dt><dd>{{ order.owner_phone }}</dd></div>
+      <div><dt>證件號碼</dt><dd>{{ order.masked_id_number }}</dd></div>
+      <div class="wide"><dt>地址</dt><dd>{{ order.owner_address }}</dd></div>
+    </dl>
+    <div class="document-links">
+      {% if order.id_front %}<a href="{% url 'protected_media' 'order' order.pk 'id_front' %}" target="_blank">查看證件正面</a>{% endif %}
+      {% if order.id_back %}<a href="{% url 'protected_media' 'order' order.pk 'id_back' %}" target="_blank">查看證件反面</a>{% endif %}
+    </div>
+  </section>
+  <section class="card">
+    <div class="section-title"><h2>車輛與來源</h2><span>{{ order.get_source_type_display }}</span></div>
+    <dl class="data-list">
+      <div><dt>車型</dt><dd>{{ order.vehicle_model }}</dd></div>
+      <div><dt>車色</dt><dd>{{ order.color.name }}</dd></div>
+      <div><dt>來源</dt><dd>{{ order.source.name|default:"本店" }}</dd></div>
+      <div><dt>銷售門市</dt><dd>{{ order.selling_store }}</dd></div>
+      {% if order.allocated_vehicle %}
+      <div class="wide highlight-data"><dt>實體車</dt><dd>{{ order.allocated_vehicle.identifier }} · {{ order.allocated_vehicle.location_store }}</dd></div>
+      {% endif %}
+    </dl>
+  </section>
+  <section class="card">
+    <div class="section-title"><h2>金額</h2><span>{{ order.get_payment_type_display }}</span></div>
+    <dl class="money-list">
+      <div><dt>車價</dt><dd>${{ order.vehicle_price }}</dd></div>
+      <div><dt>牌險</dt><dd>${{ order.plate_insurance_fee }}</dd></div>
+      <div><dt>訂金</dt><dd>− ${{ order.deposit_amount }}</dd></div>
+      <div><dt>舊車估價</dt><dd>− ${{ order.old_vehicle_valuation }}</dd></div>
+      <div class="total"><dt>實際尾款</dt><dd>${{ order.actual_balance }}</dd></div>
+    </dl>
+  </section>
+  <section class="card">
+    <div class="section-title"><h2>配件與其他需求</h2></div>
+    {% for line in order.accessories.all %}
+      <div class="line-item"><span>{{ line.name }} × {{ line.quantity }}<small>{{ line.get_line_type_display }}</small></span><strong>${{ line.line_total }}</strong></div>
+    {% empty %}<p class="muted">無配件</p>{% endfor %}
+    {% if order.plate_choice != "none" %}<div class="note-box"><strong>{{ order.get_plate_choice_display }}</strong><p>{{ order.watched_numbers|default:order.plate_preference_note }}</p></div>{% endif %}
+    {% if order.note %}<div class="note-box"><strong>備註</strong><p>{{ order.note }}</p></div>{% endif %}
+  </section>
+</div>
+
+<section class="section-block">
+  <div class="section-title"><h2>處理紀錄</h2></div>
+  <div class="timeline">
+    {% for event in order.events.all %}
+      <div><span></span><p><strong>{{ event.description }}</strong><small>{{ event.created_at }} · {{ event.actor_name }}</small></p></div>
+    {% endfor %}
+  </div>
+</section>
+{% endblock %}
+

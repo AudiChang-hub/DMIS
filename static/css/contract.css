@@ -1,0 +1,27 @@
+@page { size: A4; margin: 12mm; }
+* { box-sizing: border-box; }
+body { margin: 0; color: #111; font-family: "Microsoft JhengHei", sans-serif; font-size: 10.5pt; }
+.print-actions { position: sticky; z-index: 10; top: 0; display: flex; padding: 12px 20px; align-items: center; justify-content: center; gap: 18px; color: #fff; background: #12372a; }
+.print-actions button { padding: 9px 18px; color: #12372a; background: #f1d888; border: 0; border-radius: 7px; font-weight: 800; cursor: pointer; }
+.print-actions p { margin: 0; font-size: 9pt; }
+.contract-page { width: 186mm; min-height: 270mm; margin: 10mm auto; padding: 8mm; border: 1px solid #bbb; page-break-after: always; }
+.contract-page:last-child { page-break-after: auto; }
+header { display: flex; align-items: end; justify-content: space-between; border-bottom: 3px solid #12372a; }
+header p { margin: 0; color: #555; font-size: 9pt; }
+header h1 { margin: 2mm 0 3mm; font-size: 22pt; letter-spacing: .18em; }
+.copy-label { padding: 2mm 4mm; color: #fff; background: #12372a; font-weight: 800; }
+.meta { display: flex; padding: 3mm 0; justify-content: space-between; }
+h2 { margin: 5mm 0 2mm; padding-left: 2mm; border-left: 4px solid #12372a; font-size: 12pt; }
+table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+th, td { padding: 2.2mm; border: 1px solid #777; vertical-align: top; }
+th { width: 16%; background: #edf2ef; text-align: left; }
+.strong { font-size: 13pt; font-weight: 900; }
+.terms { margin-top: 5mm; padding: 3mm; border: 1px solid #aaa; font-size: 9pt; }
+.terms p { margin: 1.5mm 0; }
+footer { display: grid; grid-template-columns: 1fr 1fr; margin-top: 10mm; gap: 15mm; font-weight: 800; }
+footer span { display: inline-block; width: 45mm; height: 14mm; vertical-align: bottom; border-bottom: 1px solid #333; }
+@media print {
+  .print-actions { display: none; }
+  .contract-page { margin: 0; padding: 0; border: 0; }
+}
+

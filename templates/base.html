@@ -1,0 +1,55 @@
+{% load static %}
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#12372a">
+  <title>{% block title %}車輛銷售管理{% endblock %}</title>
+  <link rel="stylesheet" href="{% static 'css/app.css' %}">
+  {% block head %}{% endblock %}
+</head>
+<body>
+  <header class="app-header">
+    <a class="brand" href="{% url 'dashboard' %}">
+      <span class="brand-mark">行</span>
+      <span><strong>車輛銷售管理</strong><small>訂單、配車、交付都在同一處</small></span>
+    </a>
+    {% if user.is_authenticated %}
+      <nav class="desktop-nav" aria-label="主要選單">
+        <a href="{% url 'dashboard' %}">待辦首頁</a>
+        <a href="{% url 'order_list' %}">全部訂單</a>
+        <a href="{% url 'inventory_list' %}">實體庫存</a>
+        <a href="{% url 'admin:index' %}">主檔維護</a>
+      </nav>
+      <form action="{% url 'logout' %}" method="post" class="logout-form">
+        {% csrf_token %}
+        <button type="submit" class="link-button">登出</button>
+      </form>
+    {% endif %}
+  </header>
+
+  {% if user.is_authenticated %}
+    <nav class="mobile-nav" aria-label="手機主要選單">
+      <a href="{% url 'dashboard' %}"><span>⌂</span>待辦</a>
+      <a href="{% url 'order_list' %}"><span>▤</span>訂單</a>
+      <a class="mobile-new" href="{% url 'order_create' %}"><span>＋</span>新增</a>
+      <a href="{% url 'inventory_list' %}"><span>▦</span>庫存</a>
+      <a href="{% url 'admin:index' %}"><span>⚙</span>主檔</a>
+    </nav>
+  {% endif %}
+
+  <main class="page-shell">
+    {% if messages %}
+      <div class="messages" aria-live="polite">
+        {% for message in messages %}
+          <div class="message {{ message.tags }}">{{ message }}</div>
+        {% endfor %}
+      </div>
+    {% endif %}
+    {% block content %}{% endblock %}
+  </main>
+  {% block scripts %}{% endblock %}
+</body>
+</html>
+

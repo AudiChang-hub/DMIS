@@ -1,0 +1,188 @@
+{% extends "base.html" %}
+{% block title %}建立訂單｜車輛銷售管理{% endblock %}
+{% block content %}
+<form method="post" enctype="multipart/form-data" class="mobile-order-form" id="order-form">
+  {% csrf_token %}
+  {{ formset.management_form }}
+  <section class="hero-row compact-hero form-heading">
+    <div><p class="eyebrow">手機下單</p><h1>建立新訂單</h1><p class="muted">依序填寫，送出後先列印合約，不會立即配車。</p></div>
+    <button class="button primary desktop-save" type="submit">建立訂單</button>
+  </section>
+
+  {% if form.non_field_errors or formset.non_form_errors %}
+    <div class="message error">{{ form.non_field_errors }}{{ formset.non_form_errors }}</div>
+  {% endif %}
+
+  <div class="form-progress" aria-label="填單段落">
+    <a href="#source">1 來源</a><a href="#owner">2 車主</a><a href="#vehicle">3 車輛</a>
+    <a href="#payment">4 金額</a><a href="#extras">5 需求</a>
+  </div>
+
+  <details class="form-section" id="source" open>
+    <summary><span class="step-number">1</span><span><strong>訂單來源</strong><small>哪間店、從哪裡接到訂單</small></span></summary>
+    <div class="form-grid">
+      {% include "sales/_field.html" with field=form.selling_store %}
+      {% include "sales/_field.html" with field=form.source_type %}
+      <div class="field span-2" data-conditional="source">
+        {% include "sales/_field.html" with field=form.source %}
+      </div>
+    </div>
+  </details>
+
+  <details class="form-section" id="owner" open>
+    <summary><span class="step-number">2</span><span><strong>車主與證件</strong><small>拍照後核對資料；OCR 將於下一階段接入</small></span></summary>
+    <div class="info-banner">先拍證件正反面，再依照片填寫並核對。照片只供內部後續領牌使用。</div>
+    <div class="form-grid">
+      {% include "sales/_field.html" with field=form.owner_type %}
+      {% include "sales/_field.html" with field=form.owner_name %}
+      <div data-conditional="foreign">{% include "sales/_field.html" with field=form.owner_name_en %}</div>
+      {% include "sales/_field.html" with field=form.owner_phone %}
+      {% include "sales/_field.html" with field=form.owner_email %}
+      {% include "sales/_field.html" with field=form.owner_birth_date %}
+      <div data-conditional="foreign">{% include "sales/_field.html" with field=form.owner_nationality %}</div>
+      {% include "sales/_field.html" with field=form.owner_id_number %}
+      <div data-conditional="foreign">{% include "sales/_field.html" with field=form.residence_expiry %}</div>
+      <div class="span-2">{% include "sales/_field.html" with field=form.owner_address %}</div>
+      <div class="capture-card">{% include "sales/_field.html" with field=form.id_front %}</div>
+      <div class="capture-card">{% include "sales/_field.html" with field=form.id_back %}</div>
+      <div class="span-2 verify-box">{% include "sales/_field.html" with field=form.id_verified %}</div>
+    </div>
+  </details>
+
+  <details class="form-section" id="vehicle" open>
+    <summary><span class="step-number">3</span><span><strong>訂購車輛</strong><small>只選車型與車色，簽約後再配實體車</small></span></summary>
+    <div class="form-grid">
+      {% include "sales/_field.html" with field=form.vehicle_model %}
+      {% include "sales/_field.html" with field=form.color %}
+    </div>
+  </details>
+
+  <details class="form-section" id="payment" open>
+    <summary><span class="step-number">4</span><span><strong>價格與付款</strong><small>系統先試算，最終公式仍可調整</small></span></summary>
+    <div class="form-grid">
+      {% include "sales/_field.html" with field=form.payment_type %}
+      {% include "sales/_field.html" with field=form.vehicle_price %}
+      {% include "sales/_field.html" with field=form.plate_insurance_fee %}
+      {% include "sales/_field.html" with field=form.installment_opening_fee %}
+      {% include "sales/_field.html" with field=form.other_fee %}
+      {% include "sales/_field.html" with field=form.discount_amount %}
+      {% include "sales/_field.html" with field=form.deposit_amount %}
+      {% include "sales/_field.html" with field=form.deposit_date %}
+      {% include "sales/_field.html" with field=form.deposit_method %}
+    </div>
+    <div class="conditional-panel" data-conditional="installment">
+      <h3>分期資料</h3>
+      <div class="form-grid">
+        {% include "sales/_field.html" with field=form.installment_company %}
+        {% include "sales/_field.html" with field=form.installment_amount %}
+        {% include "sales/_field.html" with field=form.installment_periods %}
+        {% include "sales/_field.html" with field=form.installment_monthly %}
+        {% include "sales/_field.html" with field=form.installment_applied_on %}
+        {% include "sales/_field.html" with field=form.installment_status %}
+        {% include "sales/_field.html" with field=form.installment_decided_on %}
+      </div>
+    </div>
+  </details>
+
+  <details class="form-section" id="extras">
+    <summary><span class="step-number">5</span><span><strong>其他需求</strong><small>配件、汰舊、選號與交車方式</small></span></summary>
+    <div class="form-grid">
+      <div class="span-2 verify-box">{% include "sales/_field.html" with field=form.is_trade_in_subsidy %}</div>
+      {% include "sales/_field.html" with field=form.trade_in_plate %}
+      {% include "sales/_field.html" with field=form.subsidy_type %}
+      {% include "sales/_field.html" with field=form.old_vehicle_valuation %}
+      {% include "sales/_field.html" with field=form.old_vehicle_tax %}
+      {% include "sales/_field.html" with field=form.plate_choice %}
+      <div data-conditional="watch">{% include "sales/_field.html" with field=form.watched_numbers %}</div>
+      <div data-conditional="preference">{% include "sales/_field.html" with field=form.plate_preference_note %}</div>
+      {% include "sales/_field.html" with field=form.delivery_method %}
+      <div class="span-2">{% include "sales/_field.html" with field=form.note %}</div>
+    </div>
+    <div class="subsection">
+      <div class="section-title"><h3>配件</h3><button type="button" class="button ghost small" id="add-accessory">＋ 新增配件</button></div>
+      <div id="accessory-forms">
+      {% for accessory_form in formset %}
+        <div class="accessory-row">
+          {{ accessory_form.id }}
+          {% include "sales/_field.html" with field=accessory_form.name %}
+          {% include "sales/_field.html" with field=accessory_form.quantity %}
+          {% include "sales/_field.html" with field=accessory_form.line_type %}
+          {% include "sales/_field.html" with field=accessory_form.amount %}
+          {% include "sales/_field.html" with field=accessory_form.installed_on %}
+          {% include "sales/_field.html" with field=accessory_form.note %}
+          {% if accessory_form.instance.pk %}{% include "sales/_field.html" with field=accessory_form.DELETE %}{% endif %}
+        </div>
+      {% endfor %}
+      </div>
+      <template id="empty-accessory">
+        <div class="accessory-row">
+          {{ formset.empty_form.id }}
+          {% include "sales/_field.html" with field=formset.empty_form.name %}
+          {% include "sales/_field.html" with field=formset.empty_form.quantity %}
+          {% include "sales/_field.html" with field=formset.empty_form.line_type %}
+          {% include "sales/_field.html" with field=formset.empty_form.amount %}
+          {% include "sales/_field.html" with field=formset.empty_form.installed_on %}
+          {% include "sales/_field.html" with field=formset.empty_form.note %}
+        </div>
+      </template>
+    </div>
+  </details>
+
+  <div class="mobile-submit">
+    <span><strong>送出後：</strong>待列印並上傳簽署合約</span>
+    <button class="button primary" type="submit">建立訂單</button>
+  </div>
+</form>
+{% endblock %}
+{% block scripts %}
+<script>
+(() => {
+  const byId = id => document.getElementById(id);
+  const sourceType = byId("id_source_type");
+  const ownerType = byId("id_owner_type");
+  const paymentType = byId("id_payment_type");
+  const plateChoice = byId("id_plate_choice");
+  const vehicleModel = byId("id_vehicle_model");
+  const color = byId("id_color");
+
+  function showConditional(name, show) {
+    document.querySelectorAll(`[data-conditional="${name}"]`).forEach(el => el.hidden = !show);
+  }
+  function refresh() {
+    showConditional("source", sourceType.value !== "store");
+    showConditional("foreign", ownerType.value === "foreign");
+    showConditional("installment", paymentType.value === "installment");
+    showConditional("watch", plateChoice.value === "watch");
+    showConditional("preference", plateChoice.value === "preference");
+  }
+  [sourceType, ownerType, paymentType, plateChoice].forEach(el => el.addEventListener("change", refresh));
+  refresh();
+
+  sourceType.addEventListener("change", async () => {
+    const source = byId("id_source");
+    if (sourceType.value === "store") {
+      source.innerHTML = '<option value="">本店不需選擇來源名稱</option>';
+      return;
+    }
+    const response = await fetch(`{% url 'sales_sources' %}?type=${sourceType.value}`);
+    const data = await response.json();
+    source.innerHTML = '<option value="">請選擇來源名稱</option>';
+    data.results.forEach(item => source.add(new Option(item.name, item.id)));
+  });
+
+  vehicleModel.addEventListener("change", async () => {
+    const response = await fetch(`{% url 'vehicle_colors' %}?model=${vehicleModel.value}`);
+    const data = await response.json();
+    color.innerHTML = '<option value="">請選擇車色</option>';
+    data.results.forEach(item => color.add(new Option(item.name, item.id)));
+  });
+
+  byId("add-accessory").addEventListener("click", () => {
+    const total = byId("id_accessories-TOTAL_FORMS");
+    const html = byId("empty-accessory").innerHTML.replaceAll("__prefix__", total.value);
+    byId("accessory-forms").insertAdjacentHTML("beforeend", html);
+    total.value = Number(total.value) + 1;
+  });
+})();
+</script>
+{% endblock %}

@@ -134,6 +134,7 @@ def order_list(request):
 
 
 @login_required
+@transaction.atomic
 def order_create(request):
     draft_id = request.POST.get("_draft_id") or request.GET.get("draft")
     draft = get_object_or_404(OrderDraft, pk=draft_id) if draft_id else None

@@ -99,6 +99,7 @@ class OrderDraftTests(TestCase):
             {
                 "owner_name": "測試車主",
                 "id_front": self.image("front.png"),
+                "id_back": self.image("back.png"),
             },
         )
 
@@ -108,6 +109,7 @@ class OrderDraftTests(TestCase):
         draft = OrderDraft.objects.get(pk=payload["id"])
         self.assertEqual(draft.data["owner_name"], "測試車主")
         self.assertTrue(draft.id_front)
+        self.assertTrue(draft.id_back)
         self.assertEqual(
             payload["updated_at"],
             timezone.localtime(draft.updated_at).strftime("%H:%M"),
@@ -134,6 +136,8 @@ class OrderDraftTests(TestCase):
         self.assertEqual(conflict.status_code, 409)
         draft.refresh_from_db()
         self.assertEqual(draft.data["owner_name"], "更新名稱")
+        self.assertTrue(draft.id_front)
+        self.assertTrue(draft.id_back)
 
     def test_draft_can_resume_and_convert_to_formal_order(self):
         draft = OrderDraft.objects.create(

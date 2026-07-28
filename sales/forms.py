@@ -81,10 +81,10 @@ class SalesOrderForm(forms.ModelForm):
                 attrs={"rows": 2, "placeholder": "例如：不要諧音、避開 4、尾數要大"}
             ),
             "id_front": forms.ClearableFileInput(
-                attrs={"accept": "image/*", "capture": "environment"}
+                attrs={"accept": "image/*"}
             ),
             "id_back": forms.ClearableFileInput(
-                attrs={"accept": "image/*", "capture": "environment"}
+                attrs={"accept": "image/*"}
             ),
         }
 

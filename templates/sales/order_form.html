@@ -18,10 +18,7 @@
   </div>
   <section class="hero-row compact-hero form-heading">
     <div><p class="eyebrow">手機下單</p><h1>{% if draft %}繼續編輯草稿{% else %}建立新訂單{% endif %}</h1><p class="muted">依序填寫，送出後先列印合約，不會立即配車。</p></div>
-    <div class="desktop-form-actions">
-      <button class="button ghost" type="button" data-save-draft>儲存草稿</button>
-      <button class="button primary" type="submit">建立訂單</button>
-    </div>
+    <button class="button primary desktop-save" type="submit">建立訂單</button>
   </section>
 
   <div class="draft-status" id="draft-status" aria-live="polite">
@@ -192,7 +189,6 @@
   </details>
 
   <div class="mobile-submit">
-    <button class="button draft-save-mobile" type="button" data-save-draft>暫存</button>
     <button class="button primary" type="submit">建立訂單</button>
   </div>
 </form>
@@ -438,10 +434,10 @@
     if (submittingOrder) return;
     clearTimeout(draftTimer);
     setDraftStatus("pending", "尚有變更，將自動儲存…");
-    draftTimer = window.setTimeout(() => saveDraft(false), 5000);
+    draftTimer = window.setTimeout(saveDraft, 5000);
   }
 
-  async function saveDraft(manual) {
+  async function saveDraft() {
     clearTimeout(draftTimer);
     if (draftSaving) {
       draftQueued = true;
@@ -475,7 +471,7 @@
       draftSaving = false;
       if (draftQueued) {
         draftQueued = false;
-        saveDraft(false);
+        saveDraft();
       }
     }
   }
@@ -485,9 +481,6 @@
   orderForm.addEventListener("submit", () => {
     submittingOrder = true;
     clearTimeout(draftTimer);
-  });
-  document.querySelectorAll("[data-save-draft]").forEach(button => {
-    button.addEventListener("click", () => saveDraft(true));
   });
 })();
 </script>

@@ -161,6 +161,21 @@ h2 { margin-bottom: 0; font-size: 1.15rem; }
 .draft-status.saved .draft-status-dot { background: var(--forest-2); }
 .draft-status.error { color: var(--red); background: var(--red-soft); border-color: #eabcb7; }
 .draft-status.error .draft-status-dot { background: var(--red); }
+.editing-presence {
+  margin: -6px 0 14px;
+  padding: 11px 13px;
+  border: 1px solid #b8d8c8;
+  border-radius: 11px;
+  color: var(--forest);
+  background: var(--mint);
+  font-size: .82rem;
+  font-weight: 800;
+}
+.editing-presence.warning {
+  color: #7b4b00;
+  background: var(--amber-soft);
+  border-color: #e5c783;
+}
 .capture-card.has-saved-photo input[type="file"] { display: none; }
 .saved-photo-state {
   display: grid; margin-top: 6px; padding: 11px; align-items: center;

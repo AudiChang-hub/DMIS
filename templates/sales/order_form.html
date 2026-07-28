@@ -29,8 +29,15 @@
   </details>
 
   <details class="form-section" id="owner" open>
-    <summary><span class="step-number">2</span><span><strong>車主與證件</strong><small>拍照後核對資料；OCR 將於下一階段接入</small></span></summary>
-    <div class="info-banner">先拍證件正反面，再依照片填寫並核對。照片只供內部後續領牌使用。</div>
+    <summary><span class="step-number">2</span><span><strong>車主與證件</strong><small>拍照後自動辨識，再對照證件核對</small></span></summary>
+    <div class="info-banner">
+      拍攝身分證正反面後會自動辨識姓名、生日、身分證字號與戶籍地址。辨識結果仍須對照照片核對。
+    </div>
+    <div class="ocr-status" id="ocr-status" aria-live="polite" hidden>
+      <span class="ocr-spinner" aria-hidden="true"></span>
+      <p id="ocr-message"></p>
+      <button type="button" class="button ghost small" id="run-id-ocr">重新辨識</button>
+    </div>
     <div class="form-grid">
       {% include "sales/_field.html" with field=form.owner_type %}
       {% include "sales/_field.html" with field=form.owner_name %}
@@ -143,6 +150,12 @@
   const plateChoice = byId("id_plate_choice");
   const vehicleModel = byId("id_vehicle_model");
   const color = byId("id_color");
+  const idFront = byId("id_id_front");
+  const idBack = byId("id_id_back");
+  const ocrStatus = byId("ocr-status");
+  const ocrMessage = byId("ocr-message");
+  const ocrButton = byId("run-id-ocr");
+  let ocrRunning = false;
 
   function showConditional(name, show) {
     document.querySelectorAll(`[data-conditional="${name}"]`).forEach(el => el.hidden = !show);
@@ -175,6 +188,47 @@
     color.innerHTML = '<option value="">請選擇車色</option>';
     data.results.forEach(item => color.add(new Option(item.name, item.id)));
   });
+
+  async function runIdOcr() {
+    if (ocrRunning || ownerType.value !== "local") return;
+    if (!idFront.files.length || !idBack.files.length) return;
+    ocrRunning = true;
+    ocrStatus.hidden = false;
+    ocrStatus.className = "ocr-status loading";
+    ocrMessage.textContent = "正在辨識證件，請稍候…";
+    ocrButton.hidden = true;
+    const payload = new FormData();
+    payload.append("front", idFront.files[0]);
+    payload.append("back", idBack.files[0]);
+    try {
+      const response = await fetch("{% url 'id_card_ocr' %}", {
+        method: "POST",
+        headers: {"X-CSRFToken": document.querySelector("[name=csrfmiddlewaretoken]").value},
+        body: payload,
+      });
+      const data = await response.json();
+      if (!response.ok || !data.ok) throw new Error(data.error || "辨識失敗");
+      const fields = data.fields || {};
+      if (fields.name) byId("id_owner_name").value = fields.name;
+      if (fields.birth_date) byId("id_owner_birth_date").value = fields.birth_date;
+      if (fields.id_number) byId("id_owner_id_number").value = fields.id_number;
+      if (fields.address) byId("id_owner_address").value = fields.address;
+      byId("id_id_verified").checked = false;
+      ocrStatus.className = data.warnings.length ? "ocr-status warning" : "ocr-status success";
+      ocrMessage.textContent = data.warnings.length
+        ? `辨識完成；${data.warnings.join(" ")}`
+        : "辨識完成，請逐項對照照片後勾選「已人工核對證件」。";
+    } catch (error) {
+      ocrStatus.className = "ocr-status error";
+      ocrMessage.textContent = `${error.message} 可重新拍攝或改為人工輸入。`;
+    } finally {
+      ocrRunning = false;
+      ocrButton.hidden = false;
+    }
+  }
+  idFront.addEventListener("change", runIdOcr);
+  idBack.addEventListener("change", runIdOcr);
+  ocrButton.addEventListener("click", runIdOcr);
 
   byId("add-accessory").addEventListener("click", () => {
     const total = byId("id_accessories-TOTAL_FORMS");

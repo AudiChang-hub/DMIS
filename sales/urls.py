@@ -23,6 +23,7 @@ urlpatterns = [
     path("inventory/new/", views.inventory_create, name="inventory_create"),
     path("api/colors/", views.vehicle_colors, name="vehicle_colors"),
     path("api/sources/", views.sales_sources, name="sales_sources"),
+    path("api/id-card-ocr/", views.id_card_ocr, name="id_card_ocr"),
     path(
         "files/<str:model_name>/<int:pk>/<str:field_name>/",
         views.protected_media,

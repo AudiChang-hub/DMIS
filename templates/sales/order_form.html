@@ -49,8 +49,14 @@
       {% include "sales/_field.html" with field=form.owner_id_number %}
       <div data-conditional="foreign">{% include "sales/_field.html" with field=form.residence_expiry %}</div>
       <div class="span-2">{% include "sales/_field.html" with field=form.owner_address %}</div>
-      <div class="capture-card">{% include "sales/_field.html" with field=form.id_front %}</div>
-      <div class="capture-card">{% include "sales/_field.html" with field=form.id_back %}</div>
+      <div class="capture-card">
+        {% include "sales/_field.html" with field=form.id_front %}
+        <button type="button" class="remove-photo" data-clear-file="id_id_front" hidden>移除正面照片</button>
+      </div>
+      <div class="capture-card">
+        {% include "sales/_field.html" with field=form.id_back %}
+        <button type="button" class="remove-photo" data-clear-file="id_id_back" hidden>移除反面照片</button>
+      </div>
       <div class="span-2 verify-box">{% include "sales/_field.html" with field=form.id_verified %}</div>
     </div>
   </details>
@@ -156,6 +162,7 @@
   const ocrMessage = byId("ocr-message");
   const ocrButton = byId("run-id-ocr");
   let ocrRunning = false;
+  let ocrRequestVersion = 0;
 
   function showConditional(name, show) {
     document.querySelectorAll(`[data-conditional="${name}"]`).forEach(el => el.hidden = !show);
@@ -192,6 +199,7 @@
   async function runIdOcr() {
     if (ocrRunning || ownerType.value !== "local") return;
     if (!idFront.files.length || !idBack.files.length) return;
+    const requestVersion = ++ocrRequestVersion;
     ocrRunning = true;
     ocrStatus.hidden = false;
     ocrStatus.className = "ocr-status loading";
@@ -207,6 +215,7 @@
         body: payload,
       });
       const data = await response.json();
+      if (requestVersion !== ocrRequestVersion) return;
       if (!response.ok || !data.ok) throw new Error(data.error || "辨識失敗");
       const fields = data.fields || {};
       if (fields.name) byId("id_owner_name").value = fields.name;
@@ -219,16 +228,47 @@
         ? `辨識完成；${data.warnings.join(" ")}`
         : "辨識完成，請逐項對照照片後勾選「已人工核對證件」。";
     } catch (error) {
+      if (requestVersion !== ocrRequestVersion) return;
       ocrStatus.className = "ocr-status error";
       ocrMessage.textContent = `${error.message} 可重新拍攝或改為人工輸入。`;
     } finally {
-      ocrRunning = false;
-      ocrButton.hidden = false;
+      if (requestVersion === ocrRequestVersion) {
+        ocrRunning = false;
+        ocrButton.hidden = false;
+      }
     }
   }
-  idFront.addEventListener("change", runIdOcr);
-  idBack.addEventListener("change", runIdOcr);
+
+  function refreshPhotoButtons() {
+    document.querySelectorAll("[data-clear-file]").forEach(button => {
+      button.hidden = !byId(button.dataset.clearFile).files.length;
+    });
+  }
+
+  function photoChanged() {
+    refreshPhotoButtons();
+    byId("id_id_verified").checked = false;
+    runIdOcr();
+  }
+
+  document.querySelectorAll("[data-clear-file]").forEach(button => {
+    button.addEventListener("click", () => {
+      const input = byId(button.dataset.clearFile);
+      input.value = "";
+      ocrRequestVersion += 1;
+      ocrRunning = false;
+      byId("id_id_verified").checked = false;
+      ocrStatus.hidden = false;
+      ocrStatus.className = "ocr-status warning";
+      ocrMessage.textContent = "照片已移除，請重新拍攝。正反面都備齊後會再次自動辨識。";
+      ocrButton.hidden = true;
+      refreshPhotoButtons();
+    });
+  });
+  idFront.addEventListener("change", photoChanged);
+  idBack.addEventListener("change", photoChanged);
   ocrButton.addEventListener("click", runIdOcr);
+  refreshPhotoButtons();
 
   byId("add-accessory").addEventListener("click", () => {
     const total = byId("id_accessories-TOTAL_FORMS");

@@ -161,6 +161,12 @@ input[type="file"].form-control { padding: 10px; }
 .checkbox-label input { width: 21px; height: 21px; accent-color: var(--forest); }
 .verify-box { padding: 15px; background: var(--mint); border-radius: 12px; }
 .capture-card { padding: 14px; background: #f7f9f7; border: 1px dashed #b9c8bf; border-radius: 12px; }
+.remove-photo {
+  width: 100%; min-height: 42px; margin-top: 10px; color: var(--red); background: #fff;
+  border: 1px solid #e4b8b8; border-radius: 10px; font-weight: 800; cursor: pointer;
+}
+.remove-photo:hover { background: var(--red-soft); }
+.remove-photo[hidden] { display: none; }
 .info-banner { margin: 18px 22px 0; padding: 12px 14px; color: #2a5c48; background: var(--mint); border-radius: 11px; font-size: .84rem; }
 .ocr-status {
   display: grid; grid-template-columns: auto 1fr auto; margin: 10px 22px 0; padding: 12px 14px;

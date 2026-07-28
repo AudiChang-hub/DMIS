@@ -166,7 +166,7 @@
       <div class="section-title"><h3>配件</h3></div>
       <div id="accessory-forms">
       {% for accessory_form in formset %}
-        <div class="accessory-row">
+        <div class="accessory-row" data-accessory-row>
           {{ accessory_form.id }}
           {% include "sales/_field.html" with field=accessory_form.name %}
           {% include "sales/_field.html" with field=accessory_form.quantity %}
@@ -179,7 +179,7 @@
       {% endfor %}
       </div>
       <template id="empty-accessory">
-        <div class="accessory-row">
+        <div class="accessory-row" data-accessory-row>
           {{ formset.empty_form.id }}
           {% include "sales/_field.html" with field=formset.empty_form.name %}
           {% include "sales/_field.html" with field=formset.empty_form.quantity %}
@@ -418,10 +418,27 @@
   ocrButton.addEventListener("click", runIdOcr);
   refreshPhotoButtons();
 
+  function refreshAccessoryRequired(row) {
+    const nameInput = row.querySelector('[name$="-name"]');
+    const hasName = Boolean(nameInput?.value.trim());
+    row.classList.toggle("has-accessory-name", hasName);
+    row.querySelectorAll('[name$="-quantity"], [name$="-line_type"], [name$="-amount"]')
+      .forEach(input => input.required = hasName);
+  }
+
+  function bindAccessoryRow(row) {
+    const nameInput = row.querySelector('[name$="-name"]');
+    nameInput?.addEventListener("input", () => refreshAccessoryRequired(row));
+    refreshAccessoryRequired(row);
+  }
+
+  document.querySelectorAll("[data-accessory-row]").forEach(bindAccessoryRow);
+
   byId("add-accessory").addEventListener("click", () => {
     const total = byId("id_accessories-TOTAL_FORMS");
     const html = byId("empty-accessory").innerHTML.replaceAll("__prefix__", total.value);
     byId("accessory-forms").insertAdjacentHTML("beforeend", html);
+    bindAccessoryRow(byId("accessory-forms").lastElementChild);
     total.value = Number(total.value) + 1;
     scheduleDraft();
   });

@@ -146,6 +146,23 @@ class OrderFlowTests(TestCase):
             order_response.context["form"]["deposit_date"].value(),
             timezone.localdate(),
         )
+        for field_name in (
+            "vehicle_price",
+            "plate_insurance_fee",
+            "deposit_amount",
+            "installment_periods",
+            "installment_opening_fee",
+            "installment_monthly",
+            "old_vehicle_valuation",
+            "old_vehicle_tax",
+        ):
+            self.assertIsNone(order_response.context["form"][field_name].value())
+        self.assertIsNone(
+            order_response.context["formset"].forms[0]["amount"].value()
+        )
+        self.assertEqual(
+            order_response.context["formset"].forms[0]["quantity"].value(), 1
+        )
         self.assertContains(
             order_response,
             f'value="{timezone.localdate():%Y-%m-%d}"',

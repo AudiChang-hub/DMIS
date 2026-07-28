@@ -88,6 +88,20 @@ class SalesOrderForm(forms.ModelForm):
     def __init__(self, *args, existing_documents=None, **kwargs):
         self.existing_documents = existing_documents or {}
         super().__init__(*args, **kwargs)
+        if not self.is_bound:
+            blank_numeric_fields = (
+                "vehicle_price",
+                "plate_insurance_fee",
+                "installment_opening_fee",
+                "deposit_amount",
+                "installment_periods",
+                "installment_monthly",
+                "old_vehicle_valuation",
+                "old_vehicle_tax",
+            )
+            for field_name in blank_numeric_fields:
+                if field_name not in self.initial:
+                    self.fields[field_name].initial = None
         self.fields["source"].queryset = SalesSource.objects.filter(active=True)
         self.fields["color"].queryset = VehicleColor.objects.filter(active=True)
         for field in self.fields.values():
@@ -123,11 +137,22 @@ class SalesOrderForm(forms.ModelForm):
         return data
 
 
+class AccessoryLineForm(forms.ModelForm):
+    class Meta:
+        model = AccessoryLine
+        fields = ["name", "quantity", "line_type", "amount", "installed_on", "note"]
+        widgets = {"installed_on": DateInput()}
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if not self.is_bound and not self.instance.pk and "amount" not in self.initial:
+            self.fields["amount"].initial = None
+
+
 AccessoryFormSet = inlineformset_factory(
     SalesOrder,
     AccessoryLine,
-    fields=["name", "quantity", "line_type", "amount", "installed_on", "note"],
-    widgets={"installed_on": DateInput()},
+    form=AccessoryLineForm,
     extra=1,
     can_delete=True,
 )

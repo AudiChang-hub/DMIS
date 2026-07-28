@@ -1,3 +1,4 @@
+import json
 import logging
 from datetime import timedelta
 
@@ -141,13 +142,14 @@ def order_create(request):
         "id_back": bool(draft and draft.id_back),
     }
     if request.method == "POST":
+        post_data = _reconcile_collaborative_post(draft, request.POST)
         form = SalesOrderForm(
-            request.POST,
+            post_data,
             request.FILES,
             existing_documents=existing_documents,
         )
-        formset = AccessoryFormSet(request.POST)
-        fee_formset = OtherFeeFormSet(request.POST, prefix="other_fees")
+        formset = AccessoryFormSet(post_data)
+        fee_formset = OtherFeeFormSet(post_data, prefix="other_fees")
         if form.is_valid() and formset.is_valid() and fee_formset.is_valid():
             order = form.save(commit=False)
             if draft:
@@ -214,6 +216,36 @@ def _draft_form_initial(data):
     }
 
 
+def _field_versions(post_data):
+    try:
+        versions = json.loads(post_data.get("_field_versions", "{}"))
+    except (TypeError, ValueError, json.JSONDecodeError):
+        return {}
+    if not isinstance(versions, dict):
+        return {}
+    result = {}
+    for key, version in versions.items():
+        try:
+            result[str(key)] = max(0, int(version))
+        except (TypeError, ValueError):
+            continue
+    return result
+
+
+def _reconcile_collaborative_post(draft, post_data):
+    if not draft:
+        return post_data
+    reconciled = post_data.copy()
+    client_versions = _field_versions(post_data)
+    for state in draft.field_states.all():
+        if client_versions.get(state.field_key, 0) < state.version:
+            reconciled.setlist(
+                state.field_key,
+                state.value if isinstance(state.value, list) else [str(state.value)],
+            )
+    return reconciled
+
+
 def _draft_lines(data, prefix, fields):
     try:
         total = int(data.get(f"{prefix}-TOTAL_FORMS", 0))
@@ -276,10 +308,14 @@ def draft_save(request):
         "_draft_revision",
         "_remove_id_front",
         "_remove_id_back",
+        "_field_versions",
     }
+    reconciled_post = _reconcile_collaborative_post(
+        draft if not is_new else None, request.POST
+    )
     draft.data = {
         key: values if len(values) > 1 else values[0]
-        for key, values in request.POST.lists()
+        for key, values in reconciled_post.lists()
         if key not in excluded
     }
     for field_name in ("id_front", "id_back"):

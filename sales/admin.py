@@ -71,7 +71,7 @@ class SalesOrderAdmin(admin.ModelAdmin):
         "source_type",
         "status",
     )
-    list_filter = ("status", "source_type", "selling_store")
+    list_filter = ("status", "source_type")
     search_fields = (
         "number",
         "owner_name",
@@ -80,4 +80,3 @@ class SalesOrderAdmin(admin.ModelAdmin):
         "final_plate_number",
     )
     inlines = [AccessoryLineInline, OrderEventInline]
-

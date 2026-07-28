@@ -137,6 +137,10 @@ class OrderFlowTests(TestCase):
             order_response.context["form"]["deposit_date"].value(),
             timezone.localdate(),
         )
+        self.assertContains(
+            order_response,
+            f'value="{timezone.localdate():%Y-%m-%d}"',
+        )
         content = order_response.content.decode()
         self.assertLess(content.index("id_id_front"), content.index("id_owner_name"))
         self.assertNotIn('capture="environment"', content)

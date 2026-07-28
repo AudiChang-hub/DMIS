@@ -59,6 +59,9 @@
                 <field name="owner_name"/>
                 <field name="dealer"/>
                 <field name="model"/>
+                <field name="license_ym"/>
+                <field name="energy_type"/>
+                <field name="region"/>
                 <field name="license_plate"/>
                 <!-- 日期區間 -->
                 <filter name="filter_license_date" string="領牌日期"
@@ -96,6 +99,8 @@
                             context="{'group_by': 'sales_type'}"/>
                     <filter name="group_brand_type" string="品牌分類"
                             context="{'group_by': 'brand_type'}"/>
+                    <filter name="group_model" string="車型"
+                            context="{'group_by': 'model'}"/>
                     <filter name="group_dealer" string="車行"
                             context="{'group_by': 'dealer'}"/>
                     <filter name="group_sex" string="性別"

@@ -176,6 +176,10 @@ h2 { margin-bottom: 0; font-size: 1.15rem; }
 }
 .draft-delete-form { display: flex; margin-top: 24px; justify-content: center; }
 .form-progress a { flex: 1 0 auto; padding: 8px 12px; color: var(--muted); background: #fff; border: 1px solid var(--line); border-radius: 999px; font-size: .78rem; font-weight: 800; text-align: center; }
+.form-progress a.active {
+  color: #fff; background: var(--forest); border-color: var(--forest);
+  box-shadow: 0 5px 13px rgba(18,55,42,.2);
+}
 .form-section { margin-bottom: 16px; background: #fff; border: 1px solid var(--line); border-radius: var(--radius); box-shadow: 0 5px 20px rgba(26,46,35,.04); scroll-margin-top: 150px; }
 .form-section summary { display: flex; min-height: 76px; padding: 14px 20px; align-items: center; gap: 13px; cursor: pointer; list-style: none; }
 .form-section summary::-webkit-details-marker { display: none; }

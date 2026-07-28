@@ -1,0 +1,32 @@
+{
+    'name': 'DMS 傭金管理',
+    'version': '16.0.1.1.0',
+    'summary': '車行傭金規則、台數獎金、實物激勵核銷、月結報表',
+    'author': 'DMIS',
+    'license': 'LGPL-3',
+    'category': 'Custom',
+    'depends': ['dms_core', 'dms_product', 'dms_sale'],
+    'data': [
+        'security/ir.model.access.csv',
+        'views/commission_product_rule_views.xml',
+        'views/commission_vehicle_rule_views.xml',
+        'views/commission_dealer_rule_views.xml',
+        'views/commission_volume_rule_views.xml',
+        'views/commission_volume_gift_views.xml',
+        'views/incentive_type_views.xml',
+        'views/incentive_rule_views.xml',
+        'views/commission_record_views.xml',
+        'views/incentive_delivery_views.xml',
+        'views/sale_order_ext_views.xml',
+        'wizard/report_monthly_views.xml',
+        'wizard/report_summary_views.xml',
+        'views/menu_views.xml',
+    ],
+    'assets': {
+        'web.assets_backend': [
+            'dms_commission/static/src/css/commission_form.css',
+        ],
+    },
+    'installable': True,
+    'application': False,
+}

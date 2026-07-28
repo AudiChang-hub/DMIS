@@ -1,6 +1,6 @@
 {
     'name': 'DMS 銷售管理',
-    'version': '16.0.2.0.0',
+    'version': '16.0.2.1.0',
     'summary': '銷售訂單、精品明細、產品管理、價目管理',
     'author': 'DMIS',
     'license': 'LGPL-3',
@@ -9,6 +9,8 @@
     'data': [
         'security/ir.model.access.csv',
         'data/sequence.xml',
+        'data/system_parameters.xml',
+        'data/scheduled_action.xml',
         'views/product_views.xml',
         'views/product_kanban_config_views.xml',
         'views/accessory_views.xml',
@@ -16,8 +18,11 @@
         'views/fee_schedule_views.xml',
         'views/commission_rule_views.xml',
         'views/sale_order_views.xml',
+        'views/ev_password_wizard_views.xml',
         'views/vehicle_color_views.xml',
         'views/product_pricelist_menu.xml',
+        'views/order_sync_log_views.xml',
+        'views/excel_import_wizard_views.xml',
     ],
     'assets': {
         'web.assets_backend': [

@@ -67,7 +67,7 @@
             <page string="送出物品" name="page_items">
               <field name="item_ids">
                 <tree string="送出物品" editable="bottom">
-                  <field name="product_id"/>
+                  <field name="item_name"/>
                   <field name="quantity"/>
                   <field name="note"/>
                 </tree>
@@ -159,6 +159,13 @@
             action="action_dms_visit_list"
             groups="dms_visit.group_dms_visit_user,dms_visit.group_dms_visit_admin"
             sequence="20"/>
+
+  <menuitem id="menu_dms_visit_bulk_create"
+            name="批次建立拜訪"
+            parent="dms_core.menu_dms_root"
+            action="action_dms_visit_bulk_create_wizard"
+            groups="dms_visit.group_dms_visit_user,dms_visit.group_dms_visit_admin"
+            sequence="23"/>
 
   <menuitem id="menu_dms_visit_calendar"
             name="拜訪行事曆"

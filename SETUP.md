@@ -2,7 +2,7 @@
 
 > 適用版本：Odoo 16 Community + PostgreSQL 15  
 > 容器化工具：Docker + Docker Compose  
-> 最後更新：2026-03-17
+> 最後更新：2026-03-27
 
 閱讀本文件後，您可在一台全新的 Ubuntu 機器上完整重建 DMIS 系統，包含容器、資料庫、所有自訂模組。
 
@@ -193,7 +193,7 @@ docker compose exec odoo odoo \
 docker compose exec odoo odoo \
   -d dmis_dev \
   --db_host=db --db_port=5432 --db_user=odoo --db_password=odoo \
-  -i dms_core,dms_customer,dms_sale,dms_visit,dms_finance,dms_report,dms_report_rule,dms_report_virtual,user_management \
+  -i dms_core,dms_customer,dms_sale,dms_product,dms_visit,dms_finance,dms_report,dms_report_rule,dms_report_virtual,user_management \
   --stop-after-init
 ```
 
@@ -211,13 +211,14 @@ docker compose exec odoo odoo \
 4. 搜尋並依序安裝（數字順序代表依賴關係）：
    1. `DMS 車行管理`（dms_core）
    2. `DMS 客戶管理`（dms_customer）
-   3. `DMS 銷售管理`（dms_sale，內含產品資料 / 價目資料）
-   4. `DMS 拜訪紀錄`（dms_visit）
-   5. `DMS 財務結算`（dms_finance）
-   6. `DMS 報表分析`（dms_report）
-   7. `報表規則設定`（dms_report_rule）
-   8. `報表虛擬欄位`（dms_report_virtual）
-   9. `使用者管理`（user_management）
+   3. `DMS 銷售管理`（dms_sale）
+   4. `DMS 產品管理`（dms_product）
+   5. `DMS 拜訪紀錄`（dms_visit）
+   6. `DMS 財務結算`（dms_finance）
+   7. `DMS 報表分析`（dms_report）
+   8. `報表規則設定`（dms_report_rule）
+   9. `報表虛擬欄位`（dms_report_virtual）
+   10. `使用者管理`（user_management）
 
 ---
 
@@ -237,8 +238,8 @@ bash scripts/smoke_odoo.sh
 
 1. 開啟瀏覽器前往 `http://<IP>:8069`
 2. 以管理員帳號登入
-3. 確認上方選單包含：**車行管理、客戶管理、銷售管理、財務結算、報表分析、使用者管理**
-4. 進入 **「銷售管理」** 後，確認可看到 **「產品資料」** 與 **「價目資料」** 子選單
+3. 確認上方選單包含：**車行管理、客戶管理、銷售管理、產品管理、財務結算、報表分析、使用者管理**
+4. 進入 **「產品管理」** 後，確認可看到 **「產品模板、產品項 / SKU、價目版本、價格基準、分期規則模板、費用類型、規則掛接」**
 
 ### 模組安裝驗證指令（逐一確認無 ERROR）
 
@@ -286,7 +287,8 @@ DMIS/
 ├── addons/                     # 所有 DMIS 自訂 Odoo 模組
 │   ├── dms_core/               # 車行管理（基礎模組）
 │   ├── dms_customer/           # 客戶管理
-│   ├── dms_sale/               # 銷售管理（含產品資料、價目資料）
+│   ├── dms_sale/               # 銷售管理（交易主流程 + legacy 相容）
+│   ├── dms_product/            # 產品管理（模板 / SKU / 價格 / 分期 / 費用）
 │   ├── dms_visit/              # 拜訪紀錄
 │   ├── dms_finance/            # 財務結算（含動態類別）
 │   ├── dms_report/             # 報表分析（pivot + graph）
@@ -301,7 +303,7 @@ DMIS/
 │   ├── smoke_odoo.sh           # Smoke 測試（bash）
 │   ├── smoke_odoo.ps1          # Smoke 測試（PowerShell）
 │   ├── validate_views_fields.py # 視圖欄位驗證
-│   └── cleanup_dms_catalog_metadata.py # 清理已移除模組 metadata、舊頂層選單與模組登記
+│   └── cleanup_dms_catalog_metadata.py # 清理已移除模組 metadata、舊頂層選單、模組登記與孤兒 module xmlid
 ├── specs/                      # 模組規格文件（spec-first）
 ├── logs/                       # 容器日誌（.gitignore 排除 *.log）
 ├── docker-compose.yml          # Docker Compose 設定
@@ -322,6 +324,9 @@ dms_report_virtual
                     │       └── dms_sale
                     │               ├── dms_customer
                     │               └── dms_core
+                    ├── dms_product
+                    │       ├── dms_sale
+                    │       └── dms_core
                     └── dms_visit
                             ├── dms_sale
                             └── dms_core

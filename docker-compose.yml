@@ -1,6 +1,6 @@
 services:
   odoo:
-    image: odoo:16
+    build: .
     env_file: .env
     environment:
       - DB_HOST=db
@@ -12,7 +12,9 @@ services:
     depends_on:
       - db
     volumes:
+      - odoo_data:/var/lib/odoo
       - ./addons:/mnt/extra-addons
+      - /home/audi/project/OrderProcessor/backup:/mnt/order_backup:ro
     restart: always
 
   db:
@@ -35,5 +37,21 @@ services:
     depends_on:
       - odoo
 
+  metabase:
+    image: metabase/metabase:latest
+    ports:
+      - "${METABASE_PORT:-3000}:3000"
+    environment:
+      MB_JETTY_PORT: 3000
+    depends_on:
+      - db
+    volumes:
+      - metabase_data:/metabase.db
+    restart: always
+    profiles:
+      - metabase
+
 volumes:
   db_data:
+  odoo_data:
+  metabase_data:

@@ -144,7 +144,7 @@
   </record>
 
   <!-- ===== 選單：獨立頂層 App ===== -->
-  <menuitem id="menu_dms_customer_root" name="客戶管理" sequence="25"/>
+  <menuitem id="menu_dms_customer_root" name="客戶管理" active="0" sequence="25"/>
   <menuitem id="menu_dms_customer" name="客戶清單"
             parent="menu_dms_customer_root"
             action="action_dms_customer" sequence="10"/>

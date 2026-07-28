@@ -1,0 +1,365 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- ╔══════════════════════════════════════════════════════╗ -->
+    <!-- ║  共用視圖定義                                        ║ -->
+    <!-- ╚══════════════════════════════════════════════════════╝ -->
+
+    <!-- ── Tree View ── -->
+    <record id="ds_sales_report_tree" model="ir.ui.view">
+        <field name="name">ds.sales.report.tree</field>
+        <field name="model">ds.sales.report</field>
+        <field name="arch" type="xml">
+            <tree string="銷售分析" create="false" edit="false" delete="false">
+                <field name="license_date"/>
+                <field name="dealer"/>
+                <field name="model"/>
+                <field name="car_color"/>
+                <field name="energy_type"/>
+                <field name="motor_type"/>
+                <field name="owner_name"/>
+                <field name="license_plate"/>
+                <field name="receipt_price" sum="收款合計"/>
+                <field name="basic_bonus" sum="獎勵金合計"/>
+                <field name="net_profit" sum="淨利合計"/>
+            </tree>
+        </field>
+    </record>
+
+    <!-- ── Pivot View ── -->
+    <record id="ds_sales_report_pivot" model="ir.ui.view">
+        <field name="name">ds.sales.report.pivot</field>
+        <field name="model">ds.sales.report</field>
+        <field name="arch" type="xml">
+            <pivot string="銷售分析 Pivot">
+                <field name="license_ym" type="row"/>
+                <field name="sales_source" type="col"/>
+            </pivot>
+        </field>
+    </record>
+
+    <!-- ── Graph View ── -->
+    <record id="ds_sales_report_graph" model="ir.ui.view">
+        <field name="name">ds.sales.report.graph</field>
+        <field name="model">ds.sales.report</field>
+        <field name="arch" type="xml">
+            <graph string="銷售分析圖表" type="bar" stacked="True">
+                <field name="license_ym"/>
+                <field name="sales_source" type="col"/>
+            </graph>
+        </field>
+    </record>
+
+    <!-- ── Search View ── -->
+    <record id="ds_sales_report_search" model="ir.ui.view">
+        <field name="name">ds.sales.report.search</field>
+        <field name="model">ds.sales.report</field>
+        <field name="arch" type="xml">
+            <search string="銷售分析">
+                <field name="owner_name"/>
+                <field name="dealer"/>
+                <field name="model"/>
+                <field name="license_ym"/>
+                <field name="energy_type"/>
+                <field name="region"/>
+                <field name="license_plate"/>
+                <!-- 日期區間 -->
+                <filter name="filter_license_date" string="領牌日期"
+                        date="license_date"/>
+                <filter name="filter_order_date" string="訂單日期"
+                        date="order_date"/>
+                <separator/>
+                <!-- 預設篩選器 -->
+                <filter name="filter_confirmed" string="已成立"
+                        domain="[('state', '=', 'confirmed')]"/>
+                <separator/>
+                <filter name="filter_electric" string="電動車"
+                        domain="[('energy_type', '=', '電車')]"/>
+                <filter name="filter_oil" string="油車"
+                        domain="[('energy_type', '=', '油車')]"/>
+                <separator/>
+                <filter name="filter_platform" string="網路平台"
+                        domain="[('sales_source', '=', '網路平台')]"/>
+                <filter name="filter_dealer" string="車行"
+                        domain="[('sales_source', '=', '車行')]"/>
+                <filter name="filter_yusheng" string="馭盛"
+                        domain="[('sales_source', '=', '馭盛')]"/>
+                <separator/>
+                <!-- 分組 -->
+                <group expand="0" string="分組">
+                    <filter name="group_license_ym" string="領牌年月"
+                            context="{'group_by': 'license_ym'}"/>
+                    <filter name="group_energy" string="能源型式"
+                            context="{'group_by': 'energy_type'}"/>
+                    <filter name="group_motor" string="車種類型"
+                            context="{'group_by': 'motor_type'}"/>
+                    <filter name="group_sales_source" string="銷售來源"
+                            context="{'group_by': 'sales_source'}"/>
+                    <filter name="group_sales_type" string="銷售類型"
+                            context="{'group_by': 'sales_type'}"/>
+                    <filter name="group_brand_type" string="品牌分類"
+                            context="{'group_by': 'brand_type'}"/>
+                    <filter name="group_model" string="車型"
+                            context="{'group_by': 'model'}"/>
+                    <filter name="group_dealer" string="車行"
+                            context="{'group_by': 'dealer'}"/>
+                    <filter name="group_sex" string="性別"
+                            context="{'group_by': 'sex'}"/>
+                    <filter name="group_age_group" string="年齡組"
+                            context="{'group_by': 'age_group'}"/>
+                    <filter name="group_region" string="區域"
+                            context="{'group_by': 'region'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <!-- ╔══════════════════════════════════════════════════════╗ -->
+    <!-- ║  Actions — 對應 DataStudio 22 頁分組                 ║ -->
+    <!-- ╚══════════════════════════════════════════════════════╝ -->
+
+    <!-- P1 + P2：銷售總覽（全資料 Pivot/Graph/Tree） -->
+    <record id="action_ds_sales_report" model="ir.actions.act_window">
+        <field name="name">銷售總覽</field>
+        <field name="res_model">ds.sales.report</field>
+        <field name="view_mode">pivot,graph,tree</field>
+        <field name="search_view_id" ref="ds_sales_report_search"/>
+        <field name="context">{'search_default_filter_confirmed': 1}</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                銷售總覽 — 對應 DataStudio P1 總車輛銷售 / P2 銷售機種及車型統計
+            </p>
+        </field>
+    </record>
+
+    <!-- P3 + P5～P8：電動車分析 -->
+    <record id="action_ds_electric" model="ir.actions.act_window">
+        <field name="name">電動車分析</field>
+        <field name="res_model">ds.sales.report</field>
+        <field name="view_mode">pivot,graph,tree</field>
+        <field name="search_view_id" ref="ds_sales_report_search"/>
+        <field name="context">{
+            'search_default_filter_confirmed': 1,
+            'search_default_filter_electric': 1,
+        }</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                電動車分析 — 對應 DataStudio P3/P5/P6/P7/P8
+            </p>
+        </field>
+    </record>
+
+    <!-- P9 + P10～P13：油車分析 -->
+    <record id="action_ds_oil" model="ir.actions.act_window">
+        <field name="name">油車分析</field>
+        <field name="res_model">ds.sales.report</field>
+        <field name="view_mode">pivot,graph,tree</field>
+        <field name="search_view_id" ref="ds_sales_report_search"/>
+        <field name="context">{
+            'search_default_filter_confirmed': 1,
+            'search_default_filter_oil': 1,
+        }</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                油車分析 — 對應 DataStudio P9/P10/P11/P12/P13
+            </p>
+        </field>
+    </record>
+
+    <!-- P6/P11：車行銷售分析 -->
+    <record id="action_ds_dealer" model="ir.actions.act_window">
+        <field name="name">車行銷售分析</field>
+        <field name="res_model">ds.sales.report</field>
+        <field name="view_mode">pivot,graph,tree</field>
+        <field name="search_view_id" ref="ds_sales_report_search"/>
+        <field name="context">{
+            'search_default_filter_confirmed': 1,
+            'search_default_filter_dealer': 1,
+            'search_default_group_dealer': 1,
+        }</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                車行銷售分析 — 對應 DataStudio P6/P11 車行統計
+            </p>
+        </field>
+    </record>
+
+    <!-- P5/P10：網路平台分析 -->
+    <record id="action_ds_platform" model="ir.actions.act_window">
+        <field name="name">網路平台分析</field>
+        <field name="res_model">ds.sales.report</field>
+        <field name="view_mode">pivot,graph,tree</field>
+        <field name="search_view_id" ref="ds_sales_report_search"/>
+        <field name="context">{
+            'search_default_filter_confirmed': 1,
+            'search_default_filter_platform': 1,
+            'search_default_group_dealer': 1,
+        }</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                網路平台分析 — 對應 DataStudio P5/P10 網路平台統計
+            </p>
+        </field>
+    </record>
+
+    <!-- P16～P19：客群分析（性別×年齡×車型） -->
+    <record id="action_ds_demographics" model="ir.actions.act_window">
+        <field name="name">客群分析</field>
+        <field name="res_model">ds.sales.report</field>
+        <field name="view_mode">pivot,graph,tree</field>
+        <field name="search_view_id" ref="ds_sales_report_search"/>
+        <field name="context">{
+            'search_default_filter_confirmed': 1,
+            'search_default_group_sex': 1,
+            'search_default_group_age_group': 1,
+        }</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                客群分析 — 對應 DataStudio P16 性別×年齡 / P17～P19 車型分析
+            </p>
+        </field>
+    </record>
+
+    <!-- P14/P15：地區分析 -->
+    <record id="action_ds_region" model="ir.actions.act_window">
+        <field name="name">地區分析</field>
+        <field name="res_model">ds.sales.report</field>
+        <field name="view_mode">pivot,graph,tree</field>
+        <field name="search_view_id" ref="ds_sales_report_search"/>
+        <field name="context">{
+            'search_default_filter_confirmed': 1,
+            'search_default_group_region': 1,
+        }</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                地區分析 — 對應 DataStudio P14 地區×銷量 / P15 區域×車型
+            </p>
+        </field>
+    </record>
+
+    <!-- P20：通路銷售統計 -->
+    <record id="action_ds_channel" model="ir.actions.act_window">
+        <field name="name">通路銷售統計</field>
+        <field name="res_model">ds.sales.report</field>
+        <field name="view_mode">pivot,graph,tree</field>
+        <field name="search_view_id" ref="ds_sales_report_search"/>
+        <field name="context">{
+            'search_default_filter_confirmed': 1,
+            'search_default_group_sales_source': 1,
+            'search_default_group_license_ym': 1,
+        }</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                通路銷售統計 — 對應 DataStudio P20
+            </p>
+        </field>
+    </record>
+
+    <!-- P7/P8/P12/P13：佣金明細 -->
+    <record id="action_ds_commission" model="ir.actions.act_window">
+        <field name="name">佣金明細</field>
+        <field name="res_model">ds.sales.report</field>
+        <field name="view_mode">tree,pivot</field>
+        <field name="search_view_id" ref="ds_sales_report_search"/>
+        <field name="context">{
+            'search_default_filter_confirmed': 1,
+            'search_default_filter_dealer': 1,
+        }</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                佣金明細 — 對應 DataStudio P7/P12 佣金明細 + P8/P13 台數統計
+            </p>
+        </field>
+    </record>
+
+    <!-- ╔══════════════════════════════════════════════════════╗ -->
+    <!-- ║  選單結構：銷售分析（頂層，取代報表分析）             ║ -->
+    <!-- ╚══════════════════════════════════════════════════════╝ -->
+
+    <!-- 頂層選單 -->
+    <menuitem id="menu_ds_report_root"
+              name="銷售分析"
+              web_icon="dms_report_ds,static/description/icon.png"
+              sequence="40"/>
+
+    <!-- ── DataStudio 分析報表（子選單）── -->
+    <menuitem id="menu_ds_report_main"
+              name="銷售總覽"
+              parent="menu_ds_report_root"
+              action="action_ds_sales_report"
+              sequence="10"/>
+    <menuitem id="menu_ds_electric"
+              name="電動車分析"
+              parent="menu_ds_report_root"
+              action="action_ds_electric"
+              sequence="20"/>
+    <menuitem id="menu_ds_oil"
+              name="油車分析"
+              parent="menu_ds_report_root"
+              action="action_ds_oil"
+              sequence="30"/>
+    <menuitem id="menu_ds_dealer"
+              name="車行銷售分析"
+              parent="menu_ds_report_root"
+              action="action_ds_dealer"
+              sequence="40"/>
+    <menuitem id="menu_ds_platform"
+              name="網路平台分析"
+              parent="menu_ds_report_root"
+              action="action_ds_platform"
+              sequence="50"/>
+    <menuitem id="menu_ds_demographics"
+              name="客群分析"
+              parent="menu_ds_report_root"
+              action="action_ds_demographics"
+              sequence="60"/>
+    <menuitem id="menu_ds_region"
+              name="地區分析"
+              parent="menu_ds_report_root"
+              action="action_ds_region"
+              sequence="70"/>
+    <menuitem id="menu_ds_channel"
+              name="通路銷售統計"
+              parent="menu_ds_report_root"
+              action="action_ds_channel"
+              sequence="80"/>
+    <menuitem id="menu_ds_commission"
+              name="佣金明細"
+              parent="menu_ds_report_root"
+              action="action_ds_commission"
+              sequence="90"/>
+
+    <!-- ── 原報表分析子選單搬入銷售分析 ── -->
+    <record id="dms_report.menu_report_sales" model="ir.ui.menu">
+        <field name="parent_id" ref="menu_ds_report_root"/>
+        <field name="sequence">110</field>
+    </record>
+    <record id="dms_report.menu_report_profit" model="ir.ui.menu">
+        <field name="parent_id" ref="menu_ds_report_root"/>
+        <field name="sequence">120</field>
+    </record>
+    <record id="dms_report.menu_report_commission" model="ir.ui.menu">
+        <field name="parent_id" ref="menu_ds_report_root"/>
+        <field name="sequence">130</field>
+    </record>
+    <record id="dms_report_rule.menu_report_rule" model="ir.ui.menu">
+        <field name="parent_id" ref="menu_ds_report_root"/>
+        <field name="sequence">140</field>
+    </record>
+    <record id="dms_report_virtual.menu_report_virtual_field" model="ir.ui.menu">
+        <field name="parent_id" ref="menu_ds_report_root"/>
+        <field name="sequence">150</field>
+    </record>
+
+    <!-- ── 隱藏舊頂層選單 ── -->
+    <record id="dms_report.menu_dms_report_root" model="ir.ui.menu">
+        <field name="active" eval="False"/>
+    </record>
+    <record id="base.menu_board_root" model="ir.ui.menu">
+        <field name="active" eval="False"/>
+    </record>
+    <record id="spreadsheet_dashboard.spreadsheet_dashboard_menu_root" model="ir.ui.menu">
+        <field name="active" eval="False"/>
+    </record>
+
+</odoo>

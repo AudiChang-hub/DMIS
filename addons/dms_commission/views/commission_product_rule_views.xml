@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+  <record id="view_commission_product_rule_tree" model="ir.ui.view">
+    <field name="name">dms.commission.product.rule.tree</field>
+    <field name="model">dms.commission.product.rule</field>
+    <field name="arch" type="xml">
+      <tree string="基礎傭金規則">
+        <field name="product_tmpl_id"/>
+        <field name="base_amount"/>
+        <field name="note"/>
+      </tree>
+    </field>
+  </record>
+
+  <record id="view_commission_product_rule_form" model="ir.ui.view">
+    <field name="name">dms.commission.product.rule.form</field>
+    <field name="model">dms.commission.product.rule</field>
+    <field name="arch" type="xml">
+      <form string="基礎傭金規則">
+        <sheet>
+          <group>
+            <group>
+              <field name="product_tmpl_id"/>
+              <field name="base_amount"/>
+            </group>
+          </group>
+          <separator string="備註"/>
+          <field name="note" nolabel="1" placeholder="請輸入備註內容..."/>
+        </sheet>
+      </form>
+    </field>
+  </record>
+
+  <record id="action_commission_product_rule" model="ir.actions.act_window">
+    <field name="name">基礎傭金規則</field>
+    <field name="res_model">dms.commission.product.rule</field>
+    <field name="view_mode">tree,form</field>
+  </record>
+
+</odoo>

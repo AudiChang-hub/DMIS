@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+  <record id="view_system_about_form" model="ir.ui.view">
+    <field name="name">dms.system.about.form</field>
+    <field name="model">dms.system.about</field>
+    <field name="arch" type="xml">
+      <form string="系統版本資訊" create="false" edit="false" delete="false" duplicate="false">
+        <sheet>
+          <div class="oe_title">
+            <h1>系統版本資訊</h1>
+          </div>
+          <notebook>
+            <page string="模組版本">
+              <field name="version_html" nolabel="1" readonly="1"/>
+            </page>
+            <page string="版本歷程">
+              <field name="changelog_html" nolabel="1" readonly="1"/>
+            </page>
+          </notebook>
+        </sheet>
+      </form>
+    </field>
+  </record>
+
+  <!-- 預建 singleton 資料列，避免使用者首次點選時需 create/write 權限 -->
+  <record id="record_system_about_singleton" model="dms.system.about">
+    <field name="name">系統版本資訊</field>
+  </record>
+
+  <!-- 用 act_window 直接指向 singleton record，breadcrumb 顯示 name 而非 "New" -->
+  <record id="action_system_about" model="ir.actions.act_window">
+    <field name="name">系統版本資訊</field>
+    <field name="res_model">dms.system.about</field>
+    <field name="view_mode">form</field>
+    <field name="view_id" ref="view_system_about_form"/>
+    <field name="target">current</field>
+    <field name="res_id" ref="record_system_about_singleton"/>
+    <field name="context">{'form_view_initial_mode': 'readonly', 'create': False, 'edit': False, 'delete': False}</field>
+  </record>
+
+  <menuitem id="menu_system_about_root"
+            name="系統資訊"
+            sequence="999"/>
+
+  <menuitem id="menu_system_about"
+            name="版本資訊"
+            parent="menu_system_about_root"
+            action="action_system_about"
+            sequence="10"/>
+
+</odoo>

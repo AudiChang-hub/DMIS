@@ -73,6 +73,19 @@ mapfile -t changed_modules < <(
         done
 )
 
+runtime_changed=0
+if git diff --name-only "$local_sha" "$remote_sha" |
+    grep -Eq '^(addons/|Dockerfile$|docker-compose\.yml$)'; then
+    runtime_changed=1
+fi
+
+if [[ "$runtime_changed" == "0" ]]; then
+    log "本次只有文件或部署工具變更，僅更新 Git，不重啟服務"
+    run git merge --ff-only "origin/$DEPLOY_BRANCH"
+    log "程式同步成功：${local_sha:0:12} -> ${remote_sha:0:12}"
+    exit 0
+fi
+
 mkdir -p "$BACKUP_DIR"
 backup_file="${BACKUP_DIR}/${ODOO_DB}_$(date +%Y%m%d_%H%M%S)_${local_sha:0:12}.sql.gz"
 log "備份資料庫至 $backup_file"

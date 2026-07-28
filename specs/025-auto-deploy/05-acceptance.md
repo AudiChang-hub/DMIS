@@ -8,3 +8,4 @@
 - 有 addon 變更時執行對應 module upgrade。
 - 部署後 `/web/login` 在 180 秒內回傳 200、302 或 303。
 - `journalctl --user` 可追查每次成功或失敗結果。
+- 純文件／規格 commit 可自動 fast-forward，且 Odoo container 不重啟。

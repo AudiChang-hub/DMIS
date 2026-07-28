@@ -267,7 +267,13 @@ body.screen-locked { overflow: hidden; }
 .conditional-panel, .subsection { margin: 0 22px 22px; padding-top: 18px; border-top: 1px solid var(--line); }
 .conditional-panel h3 { margin-bottom: 0; }
 .conditional-panel .form-grid { padding-inline: 0; }
-.accessory-row { display: grid; grid-template-columns: 2fr .6fr 1fr 1fr 1fr 1.5fr; padding: 16px 0; gap: 10px; border-bottom: 1px solid var(--line); }
+.accessory-row {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  padding: 16px 0;
+  gap: 16px 18px;
+  border-bottom: 1px solid var(--line);
+}
 .add-row-button { width: 100%; margin-top: 14px; border-style: dashed; }
 .fee-subsection { padding-top: 0; }
 .other-fee-row {

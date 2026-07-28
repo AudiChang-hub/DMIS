@@ -32,8 +32,8 @@
     <div class="message error">{{ form.non_field_errors }}{{ formset.non_form_errors }}</div>
   {% endif %}
 
-  <div class="form-progress" aria-label="填單段落">
-    <a href="#source">1 來源</a><a href="#owner">2 車主</a><a href="#vehicle">3 車輛</a>
+  <div class="form-progress" id="form-progress" aria-label="填單段落">
+    <a href="#source" class="active" aria-current="step">1 來源</a><a href="#owner">2 車主</a><a href="#vehicle">3 車輛</a>
     <a href="#payment">4 金額</a><a href="#extras">5 需求</a>
   </div>
 
@@ -209,6 +209,8 @@
   const draftRevision = byId("draft-revision");
   const draftStatus = byId("draft-status");
   const draftStatusMessage = byId("draft-status-message");
+  const progressLinks = [...document.querySelectorAll("#form-progress a")];
+  const progressSections = progressLinks.map(link => byId(link.hash.slice(1)));
   let ocrRunning = false;
   let ocrRequestVersion = 0;
   let ocrAbortController = null;
@@ -217,6 +219,41 @@
   let draftQueued = false;
   let submittingOrder = false;
   const photoDirty = {id_front: false, id_back: false};
+  let currentActiveSection = "source";
+
+  function setActiveSection(sectionId) {
+    if (sectionId === currentActiveSection && document.querySelector("#form-progress a.active")) return;
+    currentActiveSection = sectionId;
+    progressLinks.forEach(link => {
+      const active = link.hash === `#${sectionId}`;
+      link.classList.toggle("active", active);
+      if (active) {
+        link.setAttribute("aria-current", "step");
+        link.scrollIntoView({behavior: "smooth", block: "nearest", inline: "center"});
+      } else {
+        link.removeAttribute("aria-current");
+      }
+    });
+  }
+
+  let progressFrame = null;
+  function updateActiveSection() {
+    progressFrame = null;
+    const marker = Math.min(window.innerHeight * 0.32, 230);
+    let activeSection = progressSections[0];
+    for (const section of progressSections) {
+      if (section.getBoundingClientRect().top <= marker) activeSection = section;
+    }
+    setActiveSection(activeSection.id);
+  }
+
+  window.addEventListener("scroll", () => {
+    if (!progressFrame) progressFrame = requestAnimationFrame(updateActiveSection);
+  }, {passive: true});
+  progressLinks.forEach(link => {
+    link.addEventListener("click", () => setActiveSection(link.hash.slice(1)));
+  });
+  updateActiveSection();
 
   function showConditional(name, show) {
     document.querySelectorAll(`[data-conditional="${name}"]`).forEach(el => el.hidden = !show);

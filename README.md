@@ -81,6 +81,32 @@ VS Code 建議設定（讓自動化/Tasks 使用 PowerShell 不載入使用者 p
 
 開發：新增 module 至 `addons/`，並同步更新 `specs/` 下對應規格檔。
 
+## T470P 自動部署
+
+正式環境可使用 systemd user timer，每分鐘檢查指定 Git branch。只有遠端
+出現 fast-forward commit 且工作樹乾淨時才會部署；更新前會備份 PostgreSQL，
+有 addon 變更時會升級對應 Odoo module，最後執行 smoke test。
+
+首次安裝：
+
+```bash
+chmod +x scripts/install_auto_deploy.sh scripts/auto_deploy.sh
+./scripts/install_auto_deploy.sh
+```
+
+查看狀態與日誌：
+
+```bash
+systemctl --user status dmis-auto-deploy.timer
+journalctl --user -u dmis-auto-deploy.service -n 100 --no-pager
+```
+
+手動 dry-run：
+
+```bash
+DMIS_DEPLOY_DRY_RUN=1 ./scripts/auto_deploy.sh
+```
+
 如何安裝 `dms_core` 模組（繁中）：
 
 1. 確保專案已啟動：`make up`。

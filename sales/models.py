@@ -229,9 +229,6 @@ class SalesOrder(TimeStampedModel):
 
     number = models.CharField("訂單編號", max_length=24, unique=True, editable=False)
     order_date = models.DateField("訂單日期", default=timezone.localdate)
-    selling_store = models.ForeignKey(
-        Store, on_delete=models.PROTECT, related_name="orders", verbose_name="銷售門市"
-    )
     source_type = models.CharField(
         "訂單來源", max_length=20, choices=SourceType.choices, default=SourceType.STORE
     )
@@ -455,11 +452,7 @@ class SalesOrder(TimeStampedModel):
         locked.status = VehicleInventory.Status.RESERVED
         locked.save(update_fields=["status", "updated_at"])
         self.allocated_vehicle = locked
-        self.status = (
-            self.Status.TRANSFER_PENDING
-            if locked.location_store_id != self.selling_store_id
-            else self.Status.ALLOCATED
-        )
+        self.status = self.Status.ALLOCATED
         self.save(update_fields=["allocated_vehicle", "status", "updated_at"])
 
     def __str__(self):

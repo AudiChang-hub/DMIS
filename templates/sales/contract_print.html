@@ -35,8 +35,10 @@
   <h2>價款明細</h2>
   <table class="money-table">
     <tr><th>車價</th><td>{{ order.vehicle_price }}</td><th>牌險</th><td>{{ order.plate_insurance_fee }}</td></tr>
-    <tr><th>分期開辦費</th><td>{{ order.installment_opening_fee }}</td><th>其他費用</th><td>{{ order.other_fee }}</td></tr>
-    <tr><th>折扣／抵扣</th><td>{{ order.discount_amount }}</td><th>舊車估價</th><td>{{ order.old_vehicle_valuation }}</td></tr>
+    <tr><th>分期開辦費</th><td>{{ order.installment_opening_fee }}</td><th>舊車估價</th><td>{{ order.old_vehicle_valuation }}</td></tr>
+    {% for fee in order.other_fees.all %}
+    <tr><th>其他費用</th><td colspan="2">{{ fee.name }}</td><td>{{ fee.amount }}</td></tr>
+    {% endfor %}
     <tr><th>訂金</th><td>{{ order.deposit_amount }}</td><th>實際尾款</th><td class="strong">{{ order.actual_balance }}</td></tr>
   </table>
   <h2>配件與約定</h2>

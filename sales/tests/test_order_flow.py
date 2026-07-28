@@ -7,6 +7,7 @@ from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
 
+from sales.forms import SalesOrderForm
 from sales.models import (
     SalesOrder,
     Store,
@@ -148,6 +149,15 @@ class OrderFlowTests(TestCase):
         self.assertContains(order_response, "分期期數")
         self.assertContains(order_response, "分期開辦費")
         self.assertContains(order_response, "每期金額")
+        self.assertContains(order_response, "送達地點／託運目的地")
+        self.assertTrue(order_response.context["form"]["plate_choice"].field.required)
+        self.assertTrue(order_response.context["form"]["delivery_method"].field.required)
+        self.assertFalse(
+            order_response.context["form"]["old_vehicle_valuation"].field.required
+        )
+        self.assertFalse(
+            order_response.context["form"]["old_vehicle_tax"].field.required
+        )
         self.assertNotContains(order_response, "分期申請金額")
         self.assertNotContains(order_response, "分期申請日期")
         self.assertNotContains(order_response, "核准／拒絕日期")
@@ -183,6 +193,28 @@ class OrderFlowTests(TestCase):
         self.assertContains(order_response, 'type="date"')
         self.assertEqual(inventory_response.status_code, 200)
         self.assertContains(inventory_response, "新增進車")
+
+    def test_delivery_destination_is_required_only_for_delivery_or_carrier(self):
+        required_data = {
+            "delivery_method": SalesOrder.DeliveryMethod.DIRECT_DELIVERY,
+        }
+        direct_delivery_form = SalesOrderForm(data=required_data)
+        direct_delivery_form.is_valid()
+        self.assertIn(
+            "delivery_destination", direct_delivery_form.errors
+        )
+
+        carrier_form = SalesOrderForm(
+            data={"delivery_method": SalesOrder.DeliveryMethod.CARRIER}
+        )
+        carrier_form.is_valid()
+        self.assertIn("delivery_destination", carrier_form.errors)
+
+        pickup_form = SalesOrderForm(
+            data={"delivery_method": SalesOrder.DeliveryMethod.STORE_PICKUP}
+        )
+        pickup_form.is_valid()
+        self.assertNotIn("delivery_destination", pickup_form.errors)
 
     def test_app_version_endpoint_is_not_cached(self):
         response = self.client.get(reverse("app_version"))

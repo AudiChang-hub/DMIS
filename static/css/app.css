@@ -190,8 +190,11 @@ h2 { margin-bottom: 0; font-size: 1.15rem; }
 .step-number { display: grid; width: 34px; height: 34px; place-items: center; flex: 0 0 auto; color: #fff; background: var(--forest); border-radius: 11px; font-weight: 900; }
 .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; padding: 22px; }
 .field { min-width: 0; }
-.field label:not(.checkbox-label) { display: flex; margin-bottom: 7px; justify-content: space-between; color: #3d4a43; font-size: .82rem; font-weight: 800; }
+.field label:not(.checkbox-label) { display: flex; margin-bottom: 7px; justify-content: flex-start; align-items: baseline; gap: 6px; color: #3d4a43; font-size: .82rem; font-weight: 800; }
 .field label em { color: var(--red); font-size: .7rem; font-style: normal; }
+.conditional-required:not([hidden]) .field label::after {
+  content: "必填"; color: var(--red); font-size: .7rem; font-weight: 800;
+}
 .form-control, .login-card input, .action-card select {
   width: 100%; min-width: 0; max-width: 100%; min-height: 48px; padding: 10px 12px; color: var(--ink); background: #fbfcfb;
   border: 1px solid #ced8d1; border-radius: 11px; outline: 0;

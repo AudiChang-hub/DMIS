@@ -17,7 +17,7 @@ services:
         condition: service_healthy
     volumes:
       - django_media:/app/media
-      - ${GOOGLE_VISION_CREDENTIALS_PATH:-./secrets/google-vision.json}:/run/secrets/google-vision.json:ro
+      - ./secrets/google-vision.json:/run/secrets/google-vision.json:ro
     restart: unless-stopped
 
   db:

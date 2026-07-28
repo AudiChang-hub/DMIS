@@ -59,6 +59,7 @@ class SalesOrderForm(forms.ModelForm):
             "watched_numbers",
             "plate_preference_note",
             "delivery_method",
+            "delivery_destination",
             "note",
         ]
         widgets = {
@@ -108,6 +109,9 @@ class SalesOrderForm(forms.ModelForm):
             field.widget.attrs.setdefault("class", "form-control")
         self.fields["id_verified"].widget.attrs["class"] = "form-check"
         self.fields["is_trade_in_subsidy"].widget.attrs["class"] = "form-check"
+        self.fields["delivery_method"].required = True
+        self.fields["old_vehicle_valuation"].required = False
+        self.fields["old_vehicle_tax"].required = False
 
     def clean(self):
         data = super().clean()
@@ -123,6 +127,20 @@ class SalesOrderForm(forms.ModelForm):
         color = data.get("color")
         if model and color and color.vehicle_model_id != model.id:
             self.add_error("color", "請選擇此車型可用的車色。")
+
+        for field_name in ("old_vehicle_valuation", "old_vehicle_tax"):
+            if data.get(field_name) is None:
+                data[field_name] = 0
+                self.cleaned_data[field_name] = 0
+
+        if data.get("delivery_method") in {
+            SalesOrder.DeliveryMethod.DIRECT_DELIVERY,
+            SalesOrder.DeliveryMethod.CARRIER,
+        } and not data.get("delivery_destination"):
+            self.add_error(
+                "delivery_destination",
+                "送至指定地點或委託託運時必須填寫目的地。",
+            )
 
         if data.get("owner_type") == SalesOrder.OwnerType.LOCAL:
             for field_name in ("id_front", "id_back"):

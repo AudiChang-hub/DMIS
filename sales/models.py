@@ -349,6 +349,9 @@ class SalesOrder(TimeStampedModel):
     delivery_method = models.CharField(
         "交車方式", max_length=30, choices=DeliveryMethod.choices, blank=True
     )
+    delivery_destination = models.CharField(
+        "送達地點／託運目的地", max_length=250, blank=True
+    )
     note = models.TextField("備註", blank=True)
     signed_contract = models.FileField(
         "已簽署合約", upload_to="orders/contracts/%Y/%m/", blank=True

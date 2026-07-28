@@ -157,6 +157,9 @@
       <div data-conditional="watch">{% include "sales/_field.html" with field=form.watched_numbers %}</div>
       <div data-conditional="preference">{% include "sales/_field.html" with field=form.plate_preference_note %}</div>
       {% include "sales/_field.html" with field=form.delivery_method %}
+      <div class="conditional-required" data-conditional="delivery-destination">
+        {% include "sales/_field.html" with field=form.delivery_destination %}
+      </div>
       <div class="span-2">{% include "sales/_field.html" with field=form.note %}</div>
     </div>
     <div class="subsection">
@@ -209,6 +212,7 @@
   const ownerType = byId("id_owner_type");
   const paymentType = byId("id_payment_type");
   const plateChoice = byId("id_plate_choice");
+  const deliveryMethod = byId("id_delivery_method");
   const vehicleModel = byId("id_vehicle_model");
   const color = byId("id_color");
   const idFront = byId("id_id_front");
@@ -278,8 +282,11 @@
     showConditional("installment", paymentType.value === "installment");
     showConditional("watch", plateChoice.value === "watch");
     showConditional("preference", plateChoice.value === "preference");
+    const needsDestination = ["direct_delivery", "carrier"].includes(deliveryMethod.value);
+    showConditional("delivery-destination", needsDestination);
+    byId("id_delivery_destination").required = needsDestination;
   }
-  [sourceType, ownerType, paymentType, plateChoice].forEach(el => el.addEventListener("change", refresh));
+  [sourceType, ownerType, paymentType, plateChoice, deliveryMethod].forEach(el => el.addEventListener("change", refresh));
   refresh();
 
   sourceType.addEventListener("change", async () => {

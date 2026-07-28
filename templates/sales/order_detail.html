@@ -63,6 +63,7 @@
       <div><dt>車型</dt><dd>{{ order.vehicle_model }}</dd></div>
       <div><dt>車色</dt><dd>{{ order.color.name }}</dd></div>
       <div><dt>來源</dt><dd>{{ order.source.name|default:"本店" }}</dd></div>
+      <div><dt>交車方式</dt><dd>{{ order.get_delivery_method_display }}{% if order.delivery_destination %}／{{ order.delivery_destination }}{% endif %}</dd></div>
       {% if order.allocated_vehicle %}
       <div class="wide highlight-data"><dt>實體車</dt><dd>{{ order.allocated_vehicle.identifier }} · {{ order.allocated_vehicle.location_store }}</dd></div>
       {% endif %}

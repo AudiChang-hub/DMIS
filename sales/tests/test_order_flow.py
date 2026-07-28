@@ -5,6 +5,7 @@ from django.core.exceptions import ValidationError
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase
 from django.urls import reverse
+from django.utils import timezone
 
 from sales.models import (
     SalesOrder,
@@ -127,6 +128,15 @@ class OrderFlowTests(TestCase):
         self.assertContains(order_response, 'aria-current="step"')
         self.assertContains(order_response, "updateActiveSection")
         self.assertContains(order_response, "或從手機相簿選擇圖片")
+        self.assertContains(order_response, "＋ 新增費用")
+        self.assertContains(order_response, "現金")
+        self.assertContains(order_response, "分期")
+        self.assertContains(order_response, "刷卡")
+        self.assertNotContains(order_response, "折扣／抵扣")
+        self.assertEqual(
+            order_response.context["form"]["deposit_date"].value(),
+            timezone.localdate(),
+        )
         content = order_response.content.decode()
         self.assertLess(content.index("id_id_front"), content.index("id_owner_name"))
         self.assertNotIn('capture="environment"', content)

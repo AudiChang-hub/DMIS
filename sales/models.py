@@ -194,8 +194,9 @@ class SalesOrder(TimeStampedModel):
         COMPANY = "company", "法人"
 
     class PaymentType(models.TextChoices):
-        CASH = "cash", "全現金"
-        INSTALLMENT = "installment", "全分期"
+        CASH = "cash", "現金"
+        INSTALLMENT = "installment", "分期"
+        CARD = "card", "刷卡"
 
     class PaymentMethod(models.TextChoices):
         CASH = "cash", "現金"
@@ -293,16 +294,12 @@ class SalesOrder(TimeStampedModel):
     installment_opening_fee = models.DecimalField(
         "分期開辦費", max_digits=12, decimal_places=0, default=0
     )
-    other_fee = models.DecimalField(
-        "其他費用", max_digits=12, decimal_places=0, default=0
-    )
-    discount_amount = models.DecimalField(
-        "折扣／抵扣", max_digits=12, decimal_places=0, default=0
-    )
     deposit_amount = models.DecimalField(
         "訂金", max_digits=12, decimal_places=0, default=0
     )
-    deposit_date = models.DateField("訂金日期", blank=True, null=True)
+    deposit_date = models.DateField(
+        "訂金日期", default=timezone.localdate, blank=True, null=True
+    )
     deposit_method = models.CharField(
         "訂金付款方式",
         max_length=20,
@@ -385,14 +382,14 @@ class SalesOrder(TimeStampedModel):
 
     def calculate_balance(self):
         accessories = sum(line.line_total for line in self.accessories.all()) if self.pk else 0
+        other_fees = sum(line.amount for line in self.other_fees.all()) if self.pk else 0
         return (
             self.vehicle_price
             + self.plate_insurance_fee
             + self.installment_opening_fee
-            + self.other_fee
+            + other_fees
             + self.old_vehicle_tax
             + accessories
-            - self.discount_amount
             - self.deposit_amount
             - self.old_vehicle_valuation
         )
@@ -526,6 +523,22 @@ class AccessoryLine(TimeStampedModel):
         if self.line_type == self.LineType.GIFT:
             return 0
         return self.amount * self.quantity
+
+    def __str__(self):
+        return self.name
+
+
+class OtherFeeLine(TimeStampedModel):
+    order = models.ForeignKey(
+        SalesOrder, on_delete=models.CASCADE, related_name="other_fees"
+    )
+    name = models.CharField("費用項目", max_length=160)
+    amount = models.DecimalField("金額", max_digits=12, decimal_places=0)
+
+    class Meta:
+        ordering = ["id"]
+        verbose_name = "其他費用"
+        verbose_name_plural = "其他費用"
 
     def __str__(self):
         return self.name

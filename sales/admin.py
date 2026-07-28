@@ -3,6 +3,7 @@ from django.contrib import admin
 from .models import (
     AccessoryLine,
     OrderDraft,
+    OtherFeeLine,
     OrderEvent,
     SalesOrder,
     SalesSource,
@@ -68,6 +69,11 @@ class OrderEventInline(admin.TabularInline):
     readonly_fields = ("created_at",)
 
 
+class OtherFeeLineInline(admin.TabularInline):
+    model = OtherFeeLine
+    extra = 0
+
+
 @admin.register(SalesOrder)
 class SalesOrderAdmin(admin.ModelAdmin):
     list_display = (
@@ -86,4 +92,4 @@ class SalesOrderAdmin(admin.ModelAdmin):
         "owner_id_number",
         "final_plate_number",
     )
-    inlines = [AccessoryLineInline, OrderEventInline]
+    inlines = [AccessoryLineInline, OtherFeeLineInline, OrderEventInline]

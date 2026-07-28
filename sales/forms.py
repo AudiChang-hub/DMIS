@@ -3,6 +3,7 @@ from django.forms import inlineformset_factory
 
 from .models import (
     AccessoryLine,
+    OtherFeeLine,
     SalesOrder,
     SalesSource,
     VehicleColor,
@@ -39,8 +40,6 @@ class SalesOrderForm(forms.ModelForm):
             "vehicle_price",
             "plate_insurance_fee",
             "installment_opening_fee",
-            "other_fee",
-            "discount_amount",
             "deposit_amount",
             "deposit_date",
             "deposit_method",
@@ -131,6 +130,14 @@ AccessoryFormSet = inlineformset_factory(
     AccessoryLine,
     fields=["name", "quantity", "line_type", "amount", "installed_on", "note"],
     widgets={"installed_on": DateInput()},
+    extra=1,
+    can_delete=True,
+)
+
+OtherFeeFormSet = inlineformset_factory(
+    SalesOrder,
+    OtherFeeLine,
+    fields=["name", "amount"],
     extra=1,
     can_delete=True,
 )

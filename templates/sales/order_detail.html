@@ -73,6 +73,10 @@
     <dl class="money-list">
       <div><dt>車價</dt><dd>${{ order.vehicle_price }}</dd></div>
       <div><dt>牌險</dt><dd>${{ order.plate_insurance_fee }}</dd></div>
+      <div><dt>分期開辦費</dt><dd>${{ order.installment_opening_fee }}</dd></div>
+      {% for fee in order.other_fees.all %}
+      <div><dt>{{ fee.name }}</dt><dd>${{ fee.amount }}</dd></div>
+      {% endfor %}
       <div><dt>訂金</dt><dd>− ${{ order.deposit_amount }}</dd></div>
       <div><dt>舊車估價</dt><dd>− ${{ order.old_vehicle_valuation }}</dd></div>
       <div class="total"><dt>實際尾款</dt><dd>${{ order.actual_balance }}</dd></div>

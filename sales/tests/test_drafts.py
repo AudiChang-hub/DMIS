@@ -53,8 +53,6 @@ class OrderDraftTests(TestCase):
             "vehicle_price": "79800",
             "plate_insurance_fee": "0",
             "installment_opening_fee": "0",
-            "other_fee": "0",
-            "discount_amount": "0",
             "deposit_amount": "0",
             "deposit_date": "",
             "deposit_method": "",
@@ -84,6 +82,14 @@ class OrderDraftTests(TestCase):
             "accessories-0-amount": "0",
             "accessories-0-installed_on": "",
             "accessories-0-note": "",
+            "other_fees-TOTAL_FORMS": "2",
+            "other_fees-INITIAL_FORMS": "0",
+            "other_fees-MIN_NUM_FORMS": "0",
+            "other_fees-MAX_NUM_FORMS": "1000",
+            "other_fees-0-name": "文件處理",
+            "other_fees-0-amount": "500",
+            "other_fees-1-name": "運送費",
+            "other_fees-1-amount": "200",
         }
 
     def test_autosave_creates_and_updates_draft_with_conflict_protection(self):
@@ -156,6 +162,8 @@ class OrderDraftTests(TestCase):
         self.assertEqual(order.status, SalesOrder.Status.CONTRACT_PENDING)
         self.assertTrue(order.id_front)
         self.assertTrue(order.id_back)
+        self.assertEqual(order.other_fees.count(), 2)
+        self.assertEqual(order.calculate_balance(), 80500)
 
     def test_delete_draft_removes_saved_photos(self):
         with tempfile.TemporaryDirectory() as media_root:

@@ -8,6 +8,7 @@
   <input type="hidden" name="_remove_id_front" id="remove-id-front" value="0">
   <input type="hidden" name="_remove_id_back" id="remove-id-back" value="0">
   {{ formset.management_form }}
+  {{ fee_formset.management_form }}
   <div class="ocr-screen-lock" id="ocr-screen-lock" role="alert" aria-live="assertive" hidden>
     <div class="ocr-screen-lock-card">
       <span class="ocr-screen-spinner" aria-hidden="true"></span>
@@ -28,8 +29,8 @@
     <strong id="draft-status-message">{% if draft %}已載入草稿，最後更新 {{ draft.updated_at|date:"m/d H:i" }}{% else %}開始填寫後會自動儲存草稿{% endif %}</strong>
   </div>
 
-  {% if form.non_field_errors or formset.non_form_errors %}
-    <div class="message error">{{ form.non_field_errors }}{{ formset.non_form_errors }}</div>
+  {% if form.non_field_errors or formset.non_form_errors or fee_formset.non_form_errors %}
+    <div class="message error">{{ form.non_field_errors }}{{ formset.non_form_errors }}{{ fee_formset.non_form_errors }}</div>
   {% endif %}
 
   <div class="form-progress" id="form-progress" aria-label="填單段落">
@@ -112,11 +113,29 @@
       {% include "sales/_field.html" with field=form.vehicle_price %}
       {% include "sales/_field.html" with field=form.plate_insurance_fee %}
       {% include "sales/_field.html" with field=form.installment_opening_fee %}
-      {% include "sales/_field.html" with field=form.other_fee %}
-      {% include "sales/_field.html" with field=form.discount_amount %}
       {% include "sales/_field.html" with field=form.deposit_amount %}
       {% include "sales/_field.html" with field=form.deposit_date %}
       {% include "sales/_field.html" with field=form.deposit_method %}
+    </div>
+    <div class="subsection fee-subsection">
+      <div class="section-title"><h3>其他費用</h3><button type="button" class="button ghost small" id="add-other-fee">＋ 新增費用</button></div>
+      <div id="other-fee-forms">
+      {% for fee_form in fee_formset %}
+        <div class="other-fee-row">
+          {{ fee_form.id }}
+          {% include "sales/_field.html" with field=fee_form.name %}
+          {% include "sales/_field.html" with field=fee_form.amount %}
+          {% if fee_form.instance.pk %}{% include "sales/_field.html" with field=fee_form.DELETE %}{% endif %}
+        </div>
+      {% endfor %}
+      </div>
+      <template id="empty-other-fee">
+        <div class="other-fee-row">
+          {{ fee_formset.empty_form.id }}
+          {% include "sales/_field.html" with field=fee_formset.empty_form.name %}
+          {% include "sales/_field.html" with field=fee_formset.empty_form.amount %}
+        </div>
+      </template>
     </div>
     <div class="conditional-panel" data-conditional="installment">
       <h3>分期資料</h3>
@@ -402,6 +421,14 @@
     const total = byId("id_accessories-TOTAL_FORMS");
     const html = byId("empty-accessory").innerHTML.replaceAll("__prefix__", total.value);
     byId("accessory-forms").insertAdjacentHTML("beforeend", html);
+    total.value = Number(total.value) + 1;
+    scheduleDraft();
+  });
+
+  byId("add-other-fee").addEventListener("click", () => {
+    const total = byId("id_other_fees-TOTAL_FORMS");
+    const html = byId("empty-other-fee").innerHTML.replaceAll("__prefix__", total.value);
+    byId("other-fee-forms").insertAdjacentHTML("beforeend", html);
     total.value = Number(total.value) + 1;
     scheduleDraft();
   });

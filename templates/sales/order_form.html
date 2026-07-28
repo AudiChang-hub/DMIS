@@ -116,6 +116,15 @@
       {% include "sales/_field.html" with field=form.deposit_date %}
       {% include "sales/_field.html" with field=form.deposit_method %}
     </div>
+    <div class="conditional-panel" data-conditional="installment">
+      <h3>分期資料</h3>
+      <div class="form-grid">
+        {% include "sales/_field.html" with field=form.installment_company %}
+        {% include "sales/_field.html" with field=form.installment_periods %}
+        {% include "sales/_field.html" with field=form.installment_opening_fee %}
+        {% include "sales/_field.html" with field=form.installment_monthly %}
+      </div>
+    </div>
     <div class="subsection fee-subsection">
       <div class="section-title"><h3>其他費用</h3><button type="button" class="button ghost small" id="add-other-fee">＋ 新增費用</button></div>
       <div id="other-fee-forms">
@@ -135,15 +144,6 @@
           {% include "sales/_field.html" with field=fee_formset.empty_form.amount %}
         </div>
       </template>
-    </div>
-    <div class="conditional-panel" data-conditional="installment">
-      <h3>分期資料</h3>
-      <div class="form-grid">
-        {% include "sales/_field.html" with field=form.installment_company %}
-        {% include "sales/_field.html" with field=form.installment_periods %}
-        {% include "sales/_field.html" with field=form.installment_opening_fee %}
-        {% include "sales/_field.html" with field=form.installment_monthly %}
-      </div>
     </div>
   </details>
 

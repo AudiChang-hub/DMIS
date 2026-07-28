@@ -1,4 +1,5 @@
 import io
+import json
 import tempfile
 from pathlib import Path
 
@@ -10,7 +11,13 @@ from django.urls import reverse
 from django.utils import timezone
 from PIL import Image
 
-from sales.models import OrderDraft, SalesOrder, VehicleColor, VehicleModel
+from sales.models import (
+    DraftFieldState,
+    OrderDraft,
+    SalesOrder,
+    VehicleColor,
+    VehicleModel,
+)
 
 
 class OrderDraftTests(TestCase):
@@ -170,6 +177,33 @@ class OrderDraftTests(TestCase):
         self.assertTrue(order.id_back)
         self.assertEqual(order.other_fees.count(), 2)
         self.assertEqual(order.calculate_balance(), 80500)
+
+    def test_autosave_does_not_overwrite_newer_collaborative_field(self):
+        draft = OrderDraft.objects.create(
+            data={"owner_name": "伺服器最新姓名"},
+            created_by=self.user.username,
+        )
+        DraftFieldState.objects.create(
+            draft=draft,
+            field_key="owner_name",
+            value="伺服器最新姓名",
+            version=2,
+            updated_by="other-editor",
+        )
+
+        response = self.client.post(
+            reverse("draft_save"),
+            {
+                "_draft_id": str(draft.pk),
+                "_draft_revision": str(draft.revision),
+                "_field_versions": json.dumps({"owner_name": 1}),
+                "owner_name": "較舊頁面姓名",
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        draft.refresh_from_db()
+        self.assertEqual(draft.data["owner_name"], "伺服器最新姓名")
 
     def test_delete_draft_removes_saved_photos(self):
         with tempfile.TemporaryDirectory() as media_root:

@@ -502,6 +502,44 @@ class OrderDraft(TimeStampedModel):
             back.delete(save=False)
 
 
+class DraftFieldState(models.Model):
+    draft = models.ForeignKey(
+        OrderDraft, on_delete=models.CASCADE, related_name="field_states"
+    )
+    field_key = models.CharField("欄位識別碼", max_length=200)
+    value = models.JSONField("欄位值", default=str)
+    version = models.PositiveIntegerField("欄位版本", default=0)
+    updated_by = models.CharField("最後編輯人員", max_length=150, blank=True)
+    updated_at = models.DateTimeField("更新時間", auto_now=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["draft", "field_key"], name="unique_draft_field_state"
+            )
+        ]
+
+
+class DraftFieldPresence(models.Model):
+    draft = models.ForeignKey(
+        OrderDraft, on_delete=models.CASCADE, related_name="field_presences"
+    )
+    session_key = models.CharField("編輯工作階段", max_length=40)
+    client_id = models.CharField("瀏覽器連線", max_length=64)
+    field_key = models.CharField("目前欄位", max_length=200, blank=True)
+    editing_by = models.CharField("編輯人員", max_length=150)
+    color = models.CharField("識別顏色", max_length=20, blank=True)
+    updated_at = models.DateTimeField("最後活動時間", auto_now=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["draft", "session_key", "client_id"],
+                name="unique_draft_editor_client",
+            )
+        ]
+
+
 class AccessoryLine(TimeStampedModel):
     class LineType(models.TextChoices):
         PURCHASE = "purchase", "加購"

@@ -7,6 +7,7 @@
   <input type="hidden" name="_draft_revision" id="draft-revision" value="{{ draft.revision|default:0 }}">
   <input type="hidden" name="_remove_id_front" id="remove-id-front" value="0">
   <input type="hidden" name="_remove_id_back" id="remove-id-back" value="0">
+  <input type="hidden" name="_field_versions" id="field-versions" value="{}">
   {{ formset.management_form }}
   {{ fee_formset.management_form }}
   <div class="ocr-screen-lock" id="ocr-screen-lock" role="alert" aria-live="assertive" hidden>
@@ -26,6 +27,15 @@
     <strong id="draft-status-message">{% if draft %}已載入草稿，最後更新 {{ draft.updated_at|date:"m/d H:i" }}{% else %}開始填寫後會自動儲存草稿{% endif %}</strong>
   </div>
   <div class="editing-presence" id="editing-presence" role="status" aria-live="polite" hidden></div>
+  <div class="collaboration-status" id="collaboration-status" aria-live="polite" hidden></div>
+  <div class="field-conflict" id="field-conflict" role="alertdialog" aria-live="assertive" hidden>
+    <strong id="field-conflict-title">此欄位同時被修改</strong>
+    <p id="field-conflict-message"></p>
+    <div>
+      <button type="button" class="button ghost small" id="accept-server-value">採用最新內容</button>
+      <button type="button" class="button primary small" id="keep-my-value">保留我的內容</button>
+    </div>
+  </div>
 
   {% if form.non_field_errors or formset.non_form_errors or fee_formset.non_form_errors %}
     <div class="message error">{{ form.non_field_errors }}{{ formset.non_form_errors }}{{ fee_formset.non_form_errors }}</div>
@@ -228,6 +238,10 @@
   const draftStatus = byId("draft-status");
   const draftStatusMessage = byId("draft-status-message");
   const editingPresence = byId("editing-presence");
+  const collaborationStatus = byId("collaboration-status");
+  const fieldVersionsInput = byId("field-versions");
+  const conflictPanel = byId("field-conflict");
+  const conflictMessage = byId("field-conflict-message");
   const progressLinks = [...document.querySelectorAll("#form-progress a")];
   const progressSections = progressLinks.map(link => byId(link.hash.slice(1)));
   let ocrRunning = false;
@@ -237,8 +251,22 @@
   let draftSaving = false;
   let draftQueued = false;
   let submittingOrder = false;
+  let collaborationSocket = null;
+  let collaborationReconnectTimer = null;
+  let collaborationReconnectDelay = 1000;
+  let collaborationPingTimer = null;
+  let collaborationConflict = null;
+  let applyingRemoteValue = false;
   const photoDirty = {id_front: false, id_back: false};
   const photoVersion = {id_front: 0, id_back: 0};
+  const collaborativeFields = new Map();
+  const collaborativeTimers = new Map();
+  const remotePresences = new Map();
+  const collaborationClientId = (
+    sessionStorage.getItem("order-collaboration-client-id")
+    || `${crypto.randomUUID?.() || Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`
+  );
+  sessionStorage.setItem("order-collaboration-client-id", collaborationClientId);
   let currentActiveSection = "source";
 
   function setActiveSection(sectionId) {
@@ -439,22 +467,363 @@
 
   document.querySelectorAll("[data-accessory-row]").forEach(bindAccessoryRow);
 
-  byId("add-accessory").addEventListener("click", () => {
+  function appendAccessoryRow(sync = true) {
     const total = byId("id_accessories-TOTAL_FORMS");
     const html = byId("empty-accessory").innerHTML.replaceAll("__prefix__", total.value);
     byId("accessory-forms").insertAdjacentHTML("beforeend", html);
-    bindAccessoryRow(byId("accessory-forms").lastElementChild);
+    const row = byId("accessory-forms").lastElementChild;
+    bindAccessoryRow(row);
+    bindCollaborativeFields(row);
     total.value = Number(total.value) + 1;
-    scheduleDraft();
-  });
+    if (sync) {
+      syncCollaborativeField(total, true);
+      row.querySelectorAll("input, select, textarea").forEach(input => {
+        if (isCollaborativeField(input)) syncCollaborativeField(input, true);
+      });
+      scheduleDraft();
+    }
+  }
+  byId("add-accessory").addEventListener("click", () => appendAccessoryRow());
 
-  byId("add-other-fee").addEventListener("click", () => {
+  function appendOtherFeeRow(sync = true) {
     const total = byId("id_other_fees-TOTAL_FORMS");
     const html = byId("empty-other-fee").innerHTML.replaceAll("__prefix__", total.value);
     byId("other-fee-forms").insertAdjacentHTML("beforeend", html);
+    const row = byId("other-fee-forms").lastElementChild;
+    bindCollaborativeFields(row);
     total.value = Number(total.value) + 1;
-    scheduleDraft();
+    if (sync) {
+      syncCollaborativeField(total, true);
+      row.querySelectorAll("input, select, textarea").forEach(input => {
+        if (isCollaborativeField(input)) syncCollaborativeField(input, true);
+      });
+      scheduleDraft();
+    }
+  }
+  byId("add-other-fee").addEventListener("click", () => appendOtherFeeRow());
+
+  function isCollaborativeField(input) {
+    if (!input?.name || input.disabled) return false;
+    if (input.type === "file" || input.type === "submit" || input.type === "button") return false;
+    return ![
+      "csrfmiddlewaretoken",
+      "_draft_id",
+      "_draft_revision",
+      "_remove_id_front",
+      "_remove_id_back",
+      "_field_versions",
+    ].includes(input.name);
+  }
+
+  function readCollaborativeValue(input) {
+    if (input.type === "checkbox") return input.checked ? (input.value || "on") : "";
+    return input.value;
+  }
+
+  function collaborativeKind(input) {
+    if (input.tagName === "TEXTAREA") return "textarea";
+    if (input.tagName === "SELECT" || input.type === "checkbox") return "choice";
+    if (["text", "email", "tel", "search"].includes(input.type)) return "text";
+    return "scalar";
+  }
+
+  function updateFieldVersionsInput() {
+    const versions = {};
+    collaborativeFields.forEach((state, fieldName) => {
+      versions[fieldName] = state.version;
+    });
+    fieldVersionsInput.value = JSON.stringify(versions);
+  }
+
+  function sendCollaborationMessage(payload) {
+    if (collaborationSocket?.readyState !== WebSocket.OPEN) return false;
+    collaborationSocket.send(JSON.stringify(payload));
+    return true;
+  }
+
+  function syncCollaborativeField(input, immediate = false) {
+    if (!isCollaborativeField(input) || applyingRemoteValue) return;
+    const fieldName = input.name;
+    const send = () => {
+      const state = collaborativeFields.get(fieldName) || {
+        version: 0,
+        value: readCollaborativeValue(input),
+      };
+      const value = readCollaborativeValue(input);
+      state.localValue = value;
+      collaborativeFields.set(fieldName, state);
+      sendCollaborationMessage({
+        type: "field.update",
+        field: fieldName,
+        value,
+        base_value: state.value ?? "",
+        base_version: state.version || 0,
+        kind: collaborativeKind(input),
+      });
+    };
+    clearTimeout(collaborativeTimers.get(fieldName));
+    if (immediate || !["text", "textarea"].includes(collaborativeKind(input))) {
+      send();
+    } else {
+      collaborativeTimers.set(fieldName, window.setTimeout(send, 300));
+    }
+  }
+
+  function bindCollaborativeFields(root = document) {
+    root.querySelectorAll("input, select, textarea").forEach(input => {
+      if (!isCollaborativeField(input) || input.dataset.collaborationBound === "1") return;
+      input.dataset.collaborationBound = "1";
+      if (!collaborativeFields.has(input.name)) {
+        collaborativeFields.set(input.name, {
+          version: 0,
+          value: readCollaborativeValue(input),
+        });
+      }
+      input.addEventListener("focus", () => {
+        sendCollaborationMessage({type: "presence.focus", field: input.name});
+      });
+      input.addEventListener("blur", () => {
+        syncCollaborativeField(input, true);
+        sendCollaborationMessage({type: "presence.blur", field: input.name});
+      });
+      input.addEventListener("input", () => syncCollaborativeField(input));
+      input.addEventListener("change", () => syncCollaborativeField(input, true));
+    });
+    updateFieldVersionsInput();
+  }
+
+  function ensureRemoteFormsetField(fieldName) {
+    if (fieldName === "accessories-TOTAL_FORMS") return;
+    if (fieldName === "other_fees-TOTAL_FORMS") return;
+    const accessoryMatch = fieldName.match(/^accessories-(\d+)-/);
+    if (accessoryMatch) {
+      while (Number(byId("id_accessories-TOTAL_FORMS").value) <= Number(accessoryMatch[1])) {
+        appendAccessoryRow(false);
+      }
+    }
+    const feeMatch = fieldName.match(/^other_fees-(\d+)-/);
+    if (feeMatch) {
+      while (Number(byId("id_other_fees-TOTAL_FORMS").value) <= Number(feeMatch[1])) {
+        appendOtherFeeRow(false);
+      }
+    }
+  }
+
+  function writeCollaborativeValue(fieldName, value) {
+    if (fieldName === "accessories-TOTAL_FORMS") {
+      while (Number(byId("id_accessories-TOTAL_FORMS").value) < Number(value)) {
+        appendAccessoryRow(false);
+      }
+    }
+    if (fieldName === "other_fees-TOTAL_FORMS") {
+      while (Number(byId("id_other_fees-TOTAL_FORMS").value) < Number(value)) {
+        appendOtherFeeRow(false);
+      }
+    }
+    ensureRemoteFormsetField(fieldName);
+    const input = orderForm.elements.namedItem(fieldName);
+    if (!input || input instanceof RadioNodeList) return;
+    applyingRemoteValue = true;
+    if (input.type === "checkbox") {
+      input.checked = Boolean(value);
+    } else {
+      input.value = value ?? "";
+    }
+    input.dispatchEvent(new Event("change", {bubbles: true}));
+    applyingRemoteValue = false;
+  }
+
+  function renderRemotePresences() {
+    document.querySelectorAll(".field.remote-editing").forEach(field => {
+      field.classList.remove("remote-editing");
+      field.style.removeProperty("--editor-color");
+      field.querySelector(".field-editor-badge")?.remove();
+    });
+    const byField = new Map();
+    remotePresences.forEach(presence => {
+      if (!byField.has(presence.field)) byField.set(presence.field, []);
+      byField.get(presence.field).push(presence);
+    });
+    byField.forEach((presences, fieldName) => {
+      ensureRemoteFormsetField(fieldName);
+      const input = orderForm.elements.namedItem(fieldName);
+      const field = input?.closest?.(".field");
+      if (!field) return;
+      field.classList.add("remote-editing");
+      field.style.setProperty("--editor-color", presences[0].color);
+      const badge = document.createElement("small");
+      badge.className = "field-editor-badge";
+      badge.textContent = `${presences.map(item => item.editing_by).join("、")} 正在編輯`;
+      field.appendChild(badge);
+    });
+  }
+
+  function handleCollaborationMessage(message) {
+    if (message.type === "snapshot") {
+      Object.entries(message.fields || {}).forEach(([fieldName, state]) => {
+        const existing = collaborativeFields.get(fieldName);
+        const input = orderForm.elements.namedItem(fieldName);
+        if (
+          existing?.localValue !== undefined
+          && input
+          && readCollaborativeValue(input) !== state.value
+        ) {
+          syncCollaborativeField(input, true);
+          return;
+        }
+        collaborativeFields.set(fieldName, {
+          version: state.version,
+          value: state.value,
+        });
+        if (document.activeElement !== input) writeCollaborativeValue(fieldName, state.value);
+      });
+      collaborativeFields.forEach((state, fieldName) => {
+        if (state.localValue === undefined || message.fields?.[fieldName]) return;
+        const input = orderForm.elements.namedItem(fieldName);
+        if (input) syncCollaborativeField(input, true);
+      });
+      (message.presences || []).forEach(presence => {
+        remotePresences.set(presence.client_id, presence);
+      });
+      updateFieldVersionsInput();
+      renderRemotePresences();
+      return;
+    }
+    if (message.type === "presence.focus" && message.client_id !== collaborationClientId) {
+      remotePresences.set(message.client_id, message);
+      renderRemotePresences();
+      return;
+    }
+    if (["presence.blur", "presence.leave"].includes(message.type)) {
+      remotePresences.delete(message.client_id);
+      renderRemotePresences();
+      return;
+    }
+    if (message.type === "field.updated") {
+      const current = collaborativeFields.get(message.field) || {};
+      const input = orderForm.elements.namedItem(message.field);
+      const inputValue = input ? readCollaborativeValue(input) : null;
+      const isMine = message.client_id === collaborationClientId;
+      const hasUnsavedLocalEdit = (
+        input
+        && document.activeElement === input
+        && inputValue !== current.value
+      );
+
+      if (!isMine && hasUnsavedLocalEdit) {
+        collaborationStatus.hidden = false;
+        collaborationStatus.textContent = `${message.updated_by} 也修改了目前欄位，離開欄位時將進行合併檢查`;
+        return;
+      }
+
+      current.version = message.version;
+      current.value = message.value;
+      delete current.localValue;
+      collaborativeFields.set(message.field, current);
+      if (!isMine || message.merged) {
+        writeCollaborativeValue(message.field, message.value);
+      } else if (input && inputValue !== message.value) {
+        syncCollaborativeField(input, true);
+      }
+      updateFieldVersionsInput();
+      collaborationStatus.hidden = false;
+      collaborationStatus.textContent = message.merged
+        ? `${message.updated_by} 的修改已安全合併`
+        : `${message.updated_by} 已更新欄位`;
+      window.setTimeout(() => collaborationStatus.hidden = true, 2500);
+      return;
+    }
+    if (message.type === "field.conflict") {
+      const input = orderForm.elements.namedItem(message.field);
+      collaborationConflict = {...message, input};
+      const label = input?.closest(".field")?.querySelector("label")?.textContent.trim() || message.field;
+      conflictMessage.textContent = `${label}已由 ${message.updated_by || "其他人員"} 更新。請選擇要採用哪個內容。`;
+      conflictPanel.hidden = false;
+      collaborativeFields.set(message.field, {
+        version: message.server_version,
+        value: message.server_value,
+        localValue: message.my_value,
+      });
+      updateFieldVersionsInput();
+    }
+  }
+
+  function connectCollaboration() {
+    if (!draftId.value || submittingOrder) return;
+    if ([WebSocket.OPEN, WebSocket.CONNECTING].includes(collaborationSocket?.readyState)) return;
+    clearTimeout(collaborationReconnectTimer);
+    const protocol = location.protocol === "https:" ? "wss:" : "ws:";
+    collaborationSocket = new WebSocket(
+      `${protocol}//${location.host}/ws/orders/drafts/${draftId.value}/?${collaborationClientId}`,
+    );
+    collaborationSocket.addEventListener("open", () => {
+      collaborationReconnectDelay = 1000;
+      collaborationStatus.hidden = false;
+      collaborationStatus.textContent = "即時共編已連線";
+      clearInterval(collaborationPingTimer);
+      collaborationPingTimer = window.setInterval(
+        () => sendCollaborationMessage({type: "ping"}),
+        20000,
+      );
+      window.setTimeout(() => collaborationStatus.hidden = true, 1800);
+    });
+    collaborationSocket.addEventListener("message", event => {
+      handleCollaborationMessage(JSON.parse(event.data));
+    });
+    collaborationSocket.addEventListener("close", () => {
+      clearInterval(collaborationPingTimer);
+      remotePresences.clear();
+      renderRemotePresences();
+      if (submittingOrder) return;
+      collaborationStatus.hidden = false;
+      collaborationStatus.textContent = "即時共編連線中斷，正在重新連線…";
+      collaborationReconnectTimer = window.setTimeout(
+        connectCollaboration,
+        collaborationReconnectDelay,
+      );
+      collaborationReconnectDelay = Math.min(collaborationReconnectDelay * 2, 15000);
+    });
+  }
+
+  byId("accept-server-value").addEventListener("click", () => {
+    if (!collaborationConflict) return;
+    writeCollaborativeValue(
+      collaborationConflict.field,
+      collaborationConflict.server_value,
+    );
+    conflictPanel.hidden = true;
+    collaborationConflict = null;
   });
+
+  byId("keep-my-value").addEventListener("click", () => {
+    if (!collaborationConflict) return;
+    const conflict = collaborationConflict;
+    sendCollaborationMessage({
+      type: "field.update",
+      field: conflict.field,
+      value: conflict.my_value,
+      base_value: conflict.server_value,
+      base_version: conflict.server_version,
+      kind: collaborativeKind(conflict.input),
+      force: true,
+    });
+    conflictPanel.hidden = true;
+    collaborationConflict = null;
+  });
+
+  bindCollaborativeFields(orderForm);
+
+  function flushCollaborativeChanges() {
+    collaborativeTimers.forEach((timer, fieldName) => {
+      clearTimeout(timer);
+      const input = orderForm.elements.namedItem(fieldName);
+      if (input && !(input instanceof RadioNodeList)) {
+        syncCollaborativeField(input, true);
+      }
+    });
+    collaborativeTimers.clear();
+    updateFieldVersionsInput();
+  }
 
   function setDraftStatus(state, text) {
     draftStatus.className = `draft-status ${state}`;
@@ -531,6 +900,7 @@
       draftQueued = true;
       return;
     }
+    flushCollaborativeChanges();
     draftSaving = true;
     setDraftStatus("saving", "草稿儲存中…");
     const requestPhotoVersion = {...photoVersion};
@@ -563,6 +933,7 @@
       history.replaceState(null, "", data.edit_url);
       setDraftStatus("saved", `草稿已儲存 ${data.updated_at}`);
       refreshDraftPresence();
+      connectCollaboration();
       document.dispatchEvent(new CustomEvent("draft-saved"));
     } catch (error) {
       setDraftStatus("error", error.message);
@@ -578,10 +949,12 @@
   orderForm.addEventListener("input", scheduleDraft);
   orderForm.addEventListener("change", scheduleDraft);
   orderForm.addEventListener("submit", () => {
+    flushCollaborativeChanges();
     submittingOrder = true;
     clearTimeout(draftTimer);
   });
   refreshDraftPresence();
+  connectCollaboration();
   window.setInterval(refreshDraftPresence, 30000);
   window.addEventListener("pagehide", () => {
     if (!draftId.value) return;

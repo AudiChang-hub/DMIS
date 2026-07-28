@@ -6,6 +6,7 @@ from django.contrib.auth import get_user_model
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase, override_settings
 from django.urls import reverse
+from django.utils import timezone
 from PIL import Image
 
 from sales.models import OrderDraft, SalesOrder, VehicleColor, VehicleModel
@@ -100,6 +101,10 @@ class OrderDraftTests(TestCase):
         draft = OrderDraft.objects.get(pk=payload["id"])
         self.assertEqual(draft.data["owner_name"], "測試車主")
         self.assertTrue(draft.id_front)
+        self.assertEqual(
+            payload["updated_at"],
+            timezone.localtime(draft.updated_at).strftime("%H:%M"),
+        )
 
         updated = self.client.post(
             reverse("draft_save"),

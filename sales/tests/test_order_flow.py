@@ -139,6 +139,8 @@ class OrderFlowTests(TestCase):
         self.assertNotContains(order_response, "分期申請金額")
         self.assertNotContains(order_response, "分期申請日期")
         self.assertNotContains(order_response, "核准／拒絕日期")
+        content = order_response.content.decode()
+        self.assertLess(content.index("分期資料"), content.index("其他費用"))
         self.assertNotContains(order_response, "折扣／抵扣")
         self.assertEqual(
             order_response.context["form"]["deposit_date"].value(),
@@ -148,7 +150,6 @@ class OrderFlowTests(TestCase):
             order_response,
             f'value="{timezone.localdate():%Y-%m-%d}"',
         )
-        content = order_response.content.decode()
         self.assertLess(content.index("id_id_front"), content.index("id_owner_name"))
         self.assertNotIn('capture="environment"', content)
         self.assertContains(order_response, 'type="date"')

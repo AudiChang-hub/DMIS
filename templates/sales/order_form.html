@@ -21,7 +21,6 @@
   <details class="form-section" id="source" open>
     <summary><span class="step-number">1</span><span><strong>訂單來源</strong><small>哪間店、從哪裡接到訂單</small></span></summary>
     <div class="form-grid">
-      {% include "sales/_field.html" with field=form.selling_store %}
       {% include "sales/_field.html" with field=form.source_type %}
       <div class="field span-2" data-conditional="source">
         {% include "sales/_field.html" with field=form.source %}

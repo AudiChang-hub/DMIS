@@ -18,7 +18,6 @@ class SalesOrderForm(forms.ModelForm):
     class Meta:
         model = SalesOrder
         fields = [
-            "selling_store",
             "source_type",
             "source",
             "owner_type",

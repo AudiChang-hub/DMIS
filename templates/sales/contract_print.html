@@ -24,7 +24,7 @@
     <tr><th>車主姓名</th><td>{{ order.owner_name }}</td><th>聯絡電話</th><td>{{ order.owner_phone }}</td></tr>
     <tr><th>證件號碼</th><td>{{ order.owner_id_number }}</td><th>車主類型</th><td>{{ order.get_owner_type_display }}</td></tr>
     <tr><th>戶籍／公司地址</th><td colspan="3">{{ order.owner_address }}</td></tr>
-    <tr><th>訂單來源</th><td>{{ order.source.name|default:order.get_source_type_display }}</td><th>銷售門市</th><td>{{ order.selling_store }}</td></tr>
+    <tr><th>訂單來源</th><td colspan="3">{{ order.source.name|default:order.get_source_type_display }}</td></tr>
   </table>
   <h2>訂購車輛</h2>
   <table>
@@ -60,4 +60,3 @@
 {% endfor %}
 </body>
 </html>
-

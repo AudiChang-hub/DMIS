@@ -26,7 +26,7 @@ from .models import (
 def dashboard(request):
     query = request.GET.get("q", "").strip()
     orders = SalesOrder.objects.select_related(
-        "selling_store", "source", "vehicle_model", "color", "allocated_vehicle"
+        "source", "vehicle_model", "color", "allocated_vehicle"
     )
     if query:
         normalized = query.replace("-", "").replace(" ", "")
@@ -94,9 +94,7 @@ def dashboard(request):
 
 @login_required
 def order_list(request):
-    orders = SalesOrder.objects.select_related(
-        "selling_store", "source", "vehicle_model", "color"
-    )
+    orders = SalesOrder.objects.select_related("source", "vehicle_model", "color")
     status = request.GET.get("status")
     if status:
         orders = orders.filter(status=status)
@@ -145,7 +143,6 @@ def order_create(request):
 def order_detail(request, pk):
     order = get_object_or_404(
         SalesOrder.objects.select_related(
-            "selling_store",
             "source",
             "vehicle_model",
             "color",
@@ -169,7 +166,7 @@ def order_detail(request, pk):
 def contract_print(request, pk):
     order = get_object_or_404(
         SalesOrder.objects.select_related(
-            "selling_store", "source", "vehicle_model", "color"
+            "source", "vehicle_model", "color"
         ).prefetch_related("accessories"),
         pk=pk,
     )

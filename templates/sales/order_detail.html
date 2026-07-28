@@ -5,7 +5,7 @@
   <div>
     <a class="back-link" href="{% url 'order_list' %}">‹ 返回訂單</a>
     <div class="title-with-status"><h1>{{ order.owner_name }}</h1><span class="status-pill large">{{ order.get_status_display }}</span></div>
-    <p class="muted">{{ order.number }} · {{ order.order_date }} · {{ order.selling_store }}</p>
+    <p class="muted">{{ order.number }} · {{ order.order_date }}</p>
   </div>
   <a class="button secondary" href="{% url 'contract_print' order.pk %}" target="_blank">列印訂購合約</a>
 </section>
@@ -63,7 +63,6 @@
       <div><dt>車型</dt><dd>{{ order.vehicle_model }}</dd></div>
       <div><dt>車色</dt><dd>{{ order.color.name }}</dd></div>
       <div><dt>來源</dt><dd>{{ order.source.name|default:"本店" }}</dd></div>
-      <div><dt>銷售門市</dt><dd>{{ order.selling_store }}</dd></div>
       {% if order.allocated_vehicle %}
       <div class="wide highlight-data"><dt>實體車</dt><dd>{{ order.allocated_vehicle.identifier }} · {{ order.allocated_vehicle.location_store }}</dd></div>
       {% endif %}
@@ -98,4 +97,3 @@
   </div>
 </section>
 {% endblock %}
-

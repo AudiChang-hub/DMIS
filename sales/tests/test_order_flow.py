@@ -38,7 +38,6 @@ class OrderFlowTests(TestCase):
 
     def make_order(self, signed=False):
         order = SalesOrder(
-            selling_store=self.store_a,
             owner_name="王小明",
             owner_phone="0912345678",
             owner_address="新北市測試區",
@@ -79,7 +78,7 @@ class OrderFlowTests(TestCase):
         self.vehicle.refresh_from_db()
         self.assertEqual(self.vehicle.status, VehicleInventory.Status.RESERVED)
         self.assertEqual(order.allocated_vehicle, self.vehicle)
-        self.assertEqual(order.status, SalesOrder.Status.TRANSFER_PENDING)
+        self.assertEqual(order.status, SalesOrder.Status.ALLOCATED)
 
     def test_same_vehicle_cannot_allocate_twice(self):
         first = self.make_order(signed=True)

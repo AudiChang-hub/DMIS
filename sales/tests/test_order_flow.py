@@ -7,7 +7,7 @@ from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
 
-from sales.forms import SalesOrderForm
+from sales.forms import AccessoryLineForm, SalesOrderForm
 from sales.models import (
     SalesOrder,
     Store,
@@ -215,6 +215,24 @@ class OrderFlowTests(TestCase):
         )
         pickup_form.is_valid()
         self.assertNotIn("delivery_destination", pickup_form.errors)
+
+    def test_accessory_fields_are_required_only_after_name_is_entered(self):
+        empty_form = AccessoryLineForm(
+            data={"name": "", "quantity": "", "line_type": "", "amount": ""}
+        )
+        self.assertTrue(empty_form.is_valid())
+        self.assertFalse(empty_form.fields["name"].required)
+        self.assertFalse(empty_form.fields["quantity"].required)
+        self.assertFalse(empty_form.fields["line_type"].required)
+        self.assertFalse(empty_form.fields["amount"].required)
+
+        named_form = AccessoryLineForm(
+            data={"name": "後箱", "quantity": "", "line_type": "", "amount": ""}
+        )
+        self.assertFalse(named_form.is_valid())
+        self.assertIn("quantity", named_form.errors)
+        self.assertIn("line_type", named_form.errors)
+        self.assertIn("amount", named_form.errors)
 
     def test_app_version_endpoint_is_not_cached(self):
         response = self.client.get(reverse("app_version"))

@@ -163,8 +163,20 @@ class AccessoryLineForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        for field_name in ("name", "quantity", "line_type", "amount"):
+            self.fields[field_name].required = False
         if not self.is_bound and not self.instance.pk and "amount" not in self.initial:
             self.fields["amount"].initial = None
+
+    def clean(self):
+        data = super().clean()
+        if not data.get("name"):
+            return data
+
+        for field_name in ("quantity", "line_type", "amount"):
+            if data.get(field_name) in (None, ""):
+                self.add_error(field_name, "填寫配件名稱後，此欄位為必填。")
+        return data
 
 
 AccessoryFormSet = inlineformset_factory(

@@ -195,6 +195,11 @@ h2 { margin-bottom: 0; font-size: 1.15rem; }
 .conditional-required:not([hidden]) .field label::after {
   content: "必填"; color: var(--red); font-size: .7rem; font-weight: 800;
 }
+.accessory-row.has-accessory-name .field:nth-of-type(2) label::after,
+.accessory-row.has-accessory-name .field:nth-of-type(3) label::after,
+.accessory-row.has-accessory-name .field:nth-of-type(4) label::after {
+  content: "必填"; color: var(--red); font-size: .7rem; font-weight: 800;
+}
 .form-control, .login-card input, .action-card select {
   width: 100%; min-width: 0; max-width: 100%; min-height: 48px; padding: 10px 12px; color: var(--ink); background: #fbfcfb;
   border: 1px solid #ced8d1; border-radius: 11px; outline: 0;

@@ -6,7 +6,7 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase
 from django.urls import reverse
 
-from sales.services.id_ocr import extract_fields, validate_taiwan_id
+from sales.services.id_ocr import _clean_name_text, extract_fields, validate_taiwan_id
 
 
 ONE_PIXEL_PNG = base64.b64decode(
@@ -16,6 +16,12 @@ ONE_PIXEL_PNG = base64.b64decode(
 
 
 class IdFieldExtractionTests(TestCase):
+    def test_cleans_name_region_with_layout_labels(self):
+        self.assertEqual(
+            _clean_name_text("姓名\n張鴻\n性別 男\n賢\n出生 民國"),
+            "張鴻賢",
+        )
+
     def test_extracts_vertical_name_character_after_gender_label(self):
         text = "姓名 張鴻\n性別 男\n賢\n出生 民國70年1月2日"
 

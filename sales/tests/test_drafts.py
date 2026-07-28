@@ -175,6 +175,7 @@ class OrderDraftTests(TestCase):
         self.assertEqual(order.status, SalesOrder.Status.CONTRACT_PENDING)
         self.assertTrue(order.id_front)
         self.assertTrue(order.id_back)
+        self.assertEqual(order.accessories.count(), 0)
         self.assertEqual(order.other_fees.count(), 2)
         self.assertEqual(order.calculate_balance(), 80500)
 

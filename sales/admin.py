@@ -2,6 +2,7 @@ from django.contrib import admin
 
 from .models import (
     AccessoryLine,
+    OrderDraft,
     OrderEvent,
     SalesOrder,
     SalesSource,
@@ -10,6 +11,12 @@ from .models import (
     VehicleInventory,
     VehicleModel,
 )
+
+
+@admin.register(OrderDraft)
+class OrderDraftAdmin(admin.ModelAdmin):
+    list_display = ("display_name", "updated_by", "revision", "updated_at")
+    readonly_fields = ("created_at", "updated_at", "revision")
 
 
 @admin.register(Store)

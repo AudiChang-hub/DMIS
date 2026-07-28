@@ -3,10 +3,12 @@ import logging
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ValidationError
+from django.db import transaction
 from django.db.models import Q
 from django.http import FileResponse, Http404, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
+from PIL import Image, UnidentifiedImageError
 
 from .forms import (
     AccessoryFormSet,
@@ -17,6 +19,7 @@ from .forms import (
 )
 from .models import (
     OrderEvent,
+    OrderDraft,
     SalesOrder,
     SalesSource,
     VehicleColor,
@@ -103,6 +106,7 @@ def dashboard(request):
                 status=VehicleInventory.Status.AVAILABLE
             ).count(),
         },
+        "drafts": OrderDraft.objects.all()[:12],
     }
     return render(request, "sales/dashboard.html", context)
 
@@ -122,11 +126,28 @@ def order_list(request):
 
 @login_required
 def order_create(request):
+    draft_id = request.POST.get("_draft_id") or request.GET.get("draft")
+    draft = get_object_or_404(OrderDraft, pk=draft_id) if draft_id else None
+    existing_documents = {
+        "id_front": bool(draft and draft.id_front),
+        "id_back": bool(draft and draft.id_back),
+    }
     if request.method == "POST":
-        form = SalesOrderForm(request.POST, request.FILES)
+        form = SalesOrderForm(
+            request.POST,
+            request.FILES,
+            existing_documents=existing_documents,
+        )
         formset = AccessoryFormSet(request.POST)
         if form.is_valid() and formset.is_valid():
             order = form.save(commit=False)
+            if draft:
+                if not form.cleaned_data.get("id_front") and draft.id_front:
+                    order.id_front = draft.id_front.name
+                    draft.id_front = ""
+                if not form.cleaned_data.get("id_back") and draft.id_back:
+                    order.id_back = draft.id_back.name
+                    draft.id_back = ""
             order.status = SalesOrder.Status.CONTRACT_PENDING
             order.save()
             formset.instance = order
@@ -142,16 +163,151 @@ def order_create(request):
                 description="建立訂單，等待列印並上傳已簽署合約。",
                 actor_name=request.user.get_username(),
             )
+            if draft:
+                draft.delete_with_files()
             messages.success(request, "訂單已建立。請列印一式兩份並上傳簽署合約。")
             return redirect("order_detail", pk=order.pk)
     else:
-        form = SalesOrderForm()
-        formset = AccessoryFormSet()
+        initial = _draft_form_initial(draft.data) if draft else None
+        form = SalesOrderForm(initial=initial)
+        formset = AccessoryFormSet(initial=_draft_accessories(draft.data) if draft else None)
     return render(
         request,
         "sales/order_form.html",
-        {"form": form, "formset": formset},
+        {"form": form, "formset": formset, "draft": draft},
     )
+
+
+def _draft_form_initial(data):
+    return {
+        key: (value[-1] if isinstance(value, list) and value else value)
+        for key, value in data.items()
+        if not key.startswith("accessories-")
+    }
+
+
+def _draft_accessories(data):
+    try:
+        total = int(data.get("accessories-TOTAL_FORMS", 0))
+    except (TypeError, ValueError):
+        total = 0
+    rows = []
+    fields = ("name", "quantity", "line_type", "amount", "installed_on", "note")
+    for index in range(min(total, 50)):
+        if data.get(f"accessories-{index}-DELETE"):
+            continue
+        row = {
+            field: data.get(f"accessories-{index}-{field}", "")
+            for field in fields
+        }
+        if any(str(value).strip() for value in row.values()):
+            rows.append(row)
+    return rows
+
+
+def _validate_draft_image(upload):
+    if upload.size > 10 * 1024 * 1024:
+        raise ValidationError("單張證件照片不可超過 10 MB。")
+    if upload.content_type not in {"image/jpeg", "image/png", "image/webp"}:
+        raise ValidationError("證件照片僅支援 JPEG、PNG 或 WebP。")
+    try:
+        Image.open(upload).verify()
+        upload.seek(0)
+    except (UnidentifiedImageError, OSError, ValueError) as exc:
+        raise ValidationError("上傳的檔案不是有效圖片。") from exc
+
+
+@login_required
+@transaction.atomic
+def draft_save(request):
+    if request.method != "POST":
+        return JsonResponse({"ok": False, "error": "僅接受 POST。"}, status=405)
+    draft_id = request.POST.get("_draft_id")
+    is_new = not draft_id
+    if draft_id:
+        draft = get_object_or_404(OrderDraft.objects.select_for_update(), pk=draft_id)
+        try:
+            client_revision = int(request.POST.get("_draft_revision", 0))
+        except (TypeError, ValueError):
+            client_revision = 0
+        if client_revision != draft.revision:
+            return JsonResponse(
+                {
+                    "ok": False,
+                    "conflict": True,
+                    "error": "此草稿已被其他人更新，請重新載入後再編輯。",
+                    "revision": draft.revision,
+                },
+                status=409,
+            )
+    else:
+        draft = OrderDraft(created_by=request.user.get_username())
+
+    excluded = {
+        "csrfmiddlewaretoken",
+        "_draft_id",
+        "_draft_revision",
+        "_remove_id_front",
+        "_remove_id_back",
+    }
+    draft.data = {
+        key: values if len(values) > 1 else values[0]
+        for key, values in request.POST.lists()
+        if key not in excluded
+    }
+    for field_name in ("id_front", "id_back"):
+        if request.POST.get(f"_remove_{field_name}") == "1":
+            current = getattr(draft, field_name)
+            if current:
+                current.delete(save=False)
+            setattr(draft, field_name, "")
+        upload = request.FILES.get(field_name)
+        if upload:
+            try:
+                _validate_draft_image(upload)
+            except ValidationError as exc:
+                return JsonResponse(
+                    {"ok": False, "error": " ".join(exc.messages)}, status=400
+                )
+            current = getattr(draft, field_name)
+            if current:
+                current.delete(save=False)
+            setattr(draft, field_name, upload)
+    if not is_new:
+        draft.revision += 1
+    draft.updated_by = request.user.get_username()
+    draft.save()
+    photo_urls = {
+        field_name: (
+            reverse(
+                "protected_media",
+                args=["draft", str(draft.pk), field_name],
+            )
+            if getattr(draft, field_name)
+            else ""
+        )
+        for field_name in ("id_front", "id_back")
+    }
+    return JsonResponse(
+        {
+            "ok": True,
+            "id": str(draft.pk),
+            "revision": draft.revision,
+            "updated_at": draft.updated_at.strftime("%H:%M"),
+            "edit_url": f"{reverse('order_create')}?draft={draft.pk}",
+            "photos": photo_urls,
+        }
+    )
+
+
+@login_required
+def draft_delete(request, pk):
+    if request.method != "POST":
+        return redirect(f"{reverse('order_create')}?draft={pk}")
+    draft = get_object_or_404(OrderDraft, pk=pk)
+    draft.delete_with_files()
+    messages.success(request, "草稿與暫存證件照片已刪除。")
+    return redirect("dashboard")
 
 
 @login_required
@@ -314,6 +470,7 @@ def id_card_ocr(request):
 def protected_media(request, model_name, pk, field_name):
     allowed = {
         "order": (SalesOrder, {"id_front", "id_back", "signed_contract"}),
+        "draft": (OrderDraft, {"id_front", "id_back"}),
         "vehicle": (VehicleInventory, {"condition_photo"}),
     }
     if model_name not in allowed or field_name not in allowed[model_name][1]:

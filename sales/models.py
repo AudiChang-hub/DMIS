@@ -459,6 +459,46 @@ class SalesOrder(TimeStampedModel):
         return f"{self.number}／{self.owner_name}"
 
 
+class OrderDraft(TimeStampedModel):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    data = models.JSONField("草稿內容", default=dict, blank=True)
+    id_front = models.ImageField(
+        "證件正面", upload_to="drafts/id/%Y/%m/", blank=True
+    )
+    id_back = models.ImageField(
+        "證件反面", upload_to="drafts/id/%Y/%m/", blank=True
+    )
+    revision = models.PositiveIntegerField("版本", default=1)
+    created_by = models.CharField("建立人員", max_length=150, blank=True)
+    updated_by = models.CharField("最後編輯人員", max_length=150, blank=True)
+
+    class Meta:
+        ordering = ["-updated_at"]
+        verbose_name = "訂單草稿"
+        verbose_name_plural = "訂單草稿"
+
+    @property
+    def display_name(self):
+        return self.data.get("owner_name") or "尚未填寫車主"
+
+    @property
+    def display_vehicle(self):
+        model_id = self.data.get("vehicle_model")
+        if not model_id:
+            return "尚未選擇車型"
+        vehicle = VehicleModel.objects.filter(pk=model_id).first()
+        return str(vehicle) if vehicle else "原車型已不存在"
+
+    def delete_with_files(self):
+        front = self.id_front
+        back = self.id_back
+        super().delete()
+        if front:
+            front.delete(save=False)
+        if back:
+            back.delete(save=False)
+
+
 class AccessoryLine(TimeStampedModel):
     class LineType(models.TextChoices):
         PURCHASE = "purchase", "加購"

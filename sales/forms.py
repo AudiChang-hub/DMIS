@@ -171,6 +171,8 @@ class AccessoryLineForm(forms.ModelForm):
     def clean(self):
         data = super().clean()
         if not data.get("name"):
+            data["DELETE"] = True
+            self.cleaned_data["DELETE"] = True
             return data
 
         for field_name in ("quantity", "line_type", "amount"):

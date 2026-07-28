@@ -111,8 +111,20 @@ FILE_UPLOAD_PERMISSIONS = 0o600
 if not DEBUG:
     SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
     SECURE_SSL_REDIRECT = os.environ.get("DJANGO_SECURE_SSL_REDIRECT", "1") == "1"
-    SESSION_COOKIE_SECURE = True
-    CSRF_COOKIE_SECURE = True
+    SESSION_COOKIE_SECURE = (
+        os.environ.get(
+            "DJANGO_SESSION_COOKIE_SECURE",
+            "1" if SECURE_SSL_REDIRECT else "0",
+        )
+        == "1"
+    )
+    CSRF_COOKIE_SECURE = (
+        os.environ.get(
+            "DJANGO_CSRF_COOKIE_SECURE",
+            "1" if SECURE_SSL_REDIRECT else "0",
+        )
+        == "1"
+    )
     SECURE_HSTS_SECONDS = int(os.environ.get("DJANGO_SECURE_HSTS_SECONDS", "31536000"))
     SECURE_HSTS_INCLUDE_SUBDOMAINS = True
     SECURE_HSTS_PRELOAD = False

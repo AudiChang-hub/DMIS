@@ -176,6 +176,64 @@ h2 { margin-bottom: 0; font-size: 1.15rem; }
   background: var(--amber-soft);
   border-color: #e5c783;
 }
+.collaboration-status {
+  position: fixed;
+  z-index: 80;
+  top: 88px;
+  right: 20px;
+  max-width: min(360px, calc(100vw - 40px));
+  padding: 9px 13px;
+  color: #fff;
+  background: rgba(18, 55, 42, .94);
+  border-radius: 10px;
+  box-shadow: var(--shadow);
+  font-size: .78rem;
+  font-weight: 800;
+}
+.field.remote-editing {
+  position: relative;
+}
+.field.remote-editing .form-control {
+  border-color: var(--editor-color);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--editor-color) 20%, transparent);
+}
+.field-editor-badge {
+  display: inline-flex;
+  max-width: 100%;
+  margin-top: 5px;
+  padding: 3px 7px;
+  overflow: hidden;
+  color: #fff;
+  background: var(--editor-color);
+  border-radius: 6px;
+  font-size: .66rem;
+  font-weight: 800;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.field-conflict {
+  position: fixed;
+  z-index: 110;
+  right: 20px;
+  bottom: 24px;
+  width: min(420px, calc(100vw - 40px));
+  padding: 18px;
+  color: #6e2c25;
+  background: #fff;
+  border: 2px solid var(--red);
+  border-radius: 14px;
+  box-shadow: 0 18px 50px rgba(60, 20, 15, .24);
+}
+.field-conflict strong,
+.field-conflict p {
+  display: block;
+  margin-bottom: 10px;
+}
+.field-conflict > div {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
 .capture-card.has-saved-photo input[type="file"] { display: none; }
 .saved-photo-state {
   display: grid; margin-top: 6px; padding: 11px; align-items: center;

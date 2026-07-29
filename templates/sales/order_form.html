@@ -115,6 +115,7 @@
   <details class="form-section" id="vehicle" open>
     <summary><span class="step-number">3</span><span><strong>訂購車輛</strong><small>只選車型與車色，簽約後再配實體車</small></span></summary>
     <div class="form-grid">
+      {% include "sales/_field.html" with field=form.vehicle_energy_type %}
       {% include "sales/_field.html" with field=form.vehicle_model %}
       {% include "sales/_field.html" with field=form.color %}
       {% include "sales/_field.html" with field=form.vehicle_category %}
@@ -126,10 +127,38 @@
     <div class="form-grid">
       {% include "sales/_field.html" with field=form.payment_type %}
       {% include "sales/_field.html" with field=form.vehicle_price %}
-      {% include "sales/_field.html" with field=form.plate_insurance_fee %}
       {% include "sales/_field.html" with field=form.deposit_amount %}
       {% include "sales/_field.html" with field=form.deposit_date %}
       {% include "sales/_field.html" with field=form.deposit_method %}
+    </div>
+    <div class="subsection registration-fee-subsection">
+      <div class="section-title">
+        <div>
+          <h3>領牌規費與強制險</h3>
+          <p id="registration-rate-summary">選擇動力類型與車型後自動試算</p>
+        </div>
+      </div>
+      <div id="gas-registration-calculator">
+        <div class="form-grid">
+          {% include "sales/_field.html" with field=form.registration_date %}
+          {% include "sales/_field.html" with field=form.compulsory_insurance_period %}
+          {% include "sales/_field.html" with field=form.registration_plate_fee %}
+          {% include "sales/_field.html" with field=form.registration_license_fee %}
+          {% include "sales/_field.html" with field=form.registration_inspection_fee %}
+          {% include "sales/_field.html" with field=form.road_maintenance_fee %}
+          {% include "sales/_field.html" with field=form.license_tax_fee %}
+          {% include "sales/_field.html" with field=form.compulsory_insurance_fee %}
+          {% include "sales/_field.html" with field=form.plate_selection_fee %}
+          {% include "sales/_field.html" with field=form.lien_registration_fee %}
+          {% include "sales/_field.html" with field=form.registration_calculated_total %}
+          {% include "sales/_field.html" with field=form.plate_insurance_fee %}
+        </div>
+        <p class="form-hint">系統試算會依領牌日、排氣量與保險期間更新；「實際牌險合計」可由人員調整。</p>
+      </div>
+      <div id="non-gas-registration-message" class="note-box" hidden>
+        電動車與微型電動二輪車的完整領牌試算尚未開放，請先人工填寫實際牌險合計。
+        微型電動二輪車三年期強制險費率將於後續版本套用。
+      </div>
     </div>
     <div class="conditional-panel" data-conditional="installment">
       <h3>分期資料</h3>
@@ -230,6 +259,7 @@
 {% endif %}
 {% endblock %}
 {% block scripts %}
+{{ vehicle_rate_data|json_script:"vehicle-rate-data" }}
 <script>
 (() => {
   const byId = id => document.getElementById(id);
@@ -239,7 +269,18 @@
   const plateChoice = byId("id_plate_choice");
   const deliveryMethod = byId("id_delivery_method");
   const vehicleModel = byId("id_vehicle_model");
+  const vehicleEnergyType = byId("id_vehicle_energy_type");
   const color = byId("id_color");
+  const vehicleRateData = JSON.parse(byId("vehicle-rate-data").textContent);
+  const registrationDate = byId("id_registration_date");
+  const insurancePeriod = byId("id_compulsory_insurance_period");
+  const plateSelectionFee = byId("id_plate_selection_fee");
+  const lienRegistrationFee = byId("id_lien_registration_fee");
+  const calculatedRegistrationTotal = byId("id_registration_calculated_total");
+  const actualPlateInsuranceFee = byId("id_plate_insurance_fee");
+  const gasCalculator = byId("gas-registration-calculator");
+  const nonGasMessage = byId("non-gas-registration-message");
+  const rateSummary = byId("registration-rate-summary");
   const idFront = byId("id_id_front");
   const idBack = byId("id_id_back");
   const ocrStatus = byId("ocr-status");
@@ -273,6 +314,7 @@
   let collaborationPingTimer = null;
   let collaborationConflict = null;
   let applyingRemoteValue = false;
+  let lastRegistrationAutoValue = Number(calculatedRegistrationTotal.value || 0);
   const photoDirty = {id_front: false, id_back: false};
   const photoVersion = {id_front: 0, id_back: 0};
   const collaborativeFields = new Map();
@@ -322,6 +364,108 @@
   function showConditional(name, show) {
     document.querySelectorAll(`[data-conditional="${name}"]`).forEach(el => el.hidden = !show);
   }
+
+  function numericValue(input) {
+    return Number(input?.value || 0);
+  }
+
+  function roundHalfUp(value) {
+    return Math.floor(value + 0.5);
+  }
+
+  function registrationRate(cc) {
+    if (cc >= 51 && cc <= 125) return {code: "M2", road: 450};
+    if (cc >= 126 && cc <= 250) return {code: "M3", road: 600};
+    if (cc >= 251 && cc <= 500) return {code: "M4", road: 900};
+    if (cc >= 501 && cc <= 600) return {code: "M5", road: 1200};
+    return null;
+  }
+
+  function setCalculatedField(id, value) {
+    const input = byId(id);
+    if (input) input.value = value;
+  }
+
+  function filterVehicleModels() {
+    const energyType = vehicleEnergyType.value;
+    [...vehicleModel.options].forEach(option => {
+      if (!option.value) return;
+      const matches = vehicleRateData[option.value]?.energy_type === energyType;
+      option.hidden = !matches;
+      option.disabled = !matches;
+    });
+    if (
+      vehicleModel.value
+      && vehicleRateData[vehicleModel.value]?.energy_type !== energyType
+    ) {
+      vehicleModel.value = "";
+      color.innerHTML = '<option value="">請先選擇車型</option>';
+    }
+  }
+
+  function calculateRegistrationFee() {
+    const modelData = vehicleRateData[vehicleModel.value];
+    const energyType = vehicleEnergyType.value;
+    const isGas = energyType === "gas";
+    gasCalculator.hidden = !isGas;
+    nonGasMessage.hidden = isGas;
+
+    if (!isGas) {
+      rateSummary.textContent = energyType
+        ? "此動力類型暫由人員輸入實際牌險合計"
+        : "選擇動力類型與車型後自動試算";
+      return;
+    }
+    const cc = Number(modelData?.displacement_cc || 0);
+    const rate = registrationRate(cc);
+    const selectedDate = registrationDate.value
+      ? new Date(`${registrationDate.value}T00:00:00`)
+      : null;
+    if (!modelData || !rate || !selectedDate) {
+      rateSummary.textContent = modelData && !cc
+        ? "此油車尚未設定排氣量，請先至主檔維護"
+        : "請選擇已設定排氣量的油車與預計領牌日期";
+      return;
+    }
+
+    const month = selectedDate.getMonth() + 1;
+    const day = Math.min(selectedDate.getDate(), 30);
+    const standardDays = (12 - month) * 30 + (30 - day) + 1;
+    const year = selectedDate.getFullYear();
+    const endOfYear = new Date(`${year}-12-31T00:00:00`);
+    const calendarDays = Math.round((endOfYear - selectedDate) / 86400000) + 1;
+    const daysInYear = (
+      new Date(`${year}-12-31T00:00:00`)
+      - new Date(`${year}-01-01T00:00:00`)
+    ) / 86400000 + 1;
+    const annualTax = cc <= 150 ? 0 : cc <= 250 ? 800 : cc <= 500 ? 1620 : 2160;
+    const roadFee = Math.floor(rate.road * standardDays / 360);
+    const taxFee = roundHalfUp(annualTax * calendarDays / daysInYear);
+    const period = Number(insurancePeriod.value || 1);
+    const insuranceFee = cc <= 250
+      ? (period === 2 ? 1200 : 658)
+      : (period === 2 ? 1306 : 711);
+
+    setCalculatedField("id_registration_plate_fee", cc >= 550 ? 400 : 300);
+    setCalculatedField("id_registration_license_fee", 150);
+    setCalculatedField("id_registration_inspection_fee", 200);
+    setCalculatedField("id_road_maintenance_fee", roadFee);
+    setCalculatedField("id_license_tax_fee", taxFee);
+    setCalculatedField("id_compulsory_insurance_fee", insuranceFee);
+    const total = (cc >= 550 ? 400 : 300)
+      + 150 + 200 + roadFee + taxFee + insuranceFee
+      + numericValue(plateSelectionFee) + numericValue(lienRegistrationFee);
+    calculatedRegistrationTotal.value = total;
+    if (
+      actualPlateInsuranceFee.value === ""
+      || numericValue(actualPlateInsuranceFee) === lastRegistrationAutoValue
+    ) {
+      actualPlateInsuranceFee.value = total;
+    }
+    lastRegistrationAutoValue = total;
+    rateSummary.textContent = `${rate.code}｜${cc} c.c.｜養管費計費 ${standardDays} 天｜牌照稅計費 ${calendarDays} 天`;
+  }
+
   function refresh() {
     showConditional("source", sourceType.value !== "store");
     showConditional("local", ownerType.value === "local");
@@ -334,6 +478,19 @@
     byId("id_delivery_destination").required = needsDestination;
   }
   [sourceType, ownerType, paymentType, plateChoice, deliveryMethod].forEach(el => el.addEventListener("change", refresh));
+  if (!vehicleEnergyType.value && vehicleModel.value) {
+    vehicleEnergyType.value = vehicleRateData[vehicleModel.value]?.energy_type || "";
+  }
+  vehicleEnergyType.addEventListener("change", () => {
+    filterVehicleModels();
+    calculateRegistrationFee();
+  });
+  [vehicleModel, registrationDate, insurancePeriod, plateSelectionFee, lienRegistrationFee]
+    .forEach(el => el.addEventListener("change", calculateRegistrationFee));
+  [plateSelectionFee, lienRegistrationFee]
+    .forEach(el => el.addEventListener("input", calculateRegistrationFee));
+  filterVehicleModels();
+  calculateRegistrationFee();
   refresh();
 
   sourceType.addEventListener("change", async () => {
@@ -349,6 +506,7 @@
   });
 
   vehicleModel.addEventListener("change", async () => {
+    calculateRegistrationFee();
     const response = await fetch(`{% url 'vehicle_colors' %}?model=${vehicleModel.value}`);
     const data = await response.json();
     color.innerHTML = '<option value="">請選擇車色</option>';

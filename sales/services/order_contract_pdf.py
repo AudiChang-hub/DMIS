@@ -273,8 +273,14 @@ def draw_order_page(c, order, copy_label, page_number, printed_at):
         ]
     ]
     if order.plate_insurance_fee:
+        plate_description = "另計"
+        if order.registration_calculated_total:
+            plate_description = (
+                f"領牌 {safe(order.registration_rate_class)}／"
+                f"強制險 {order.get_compulsory_insurance_period_display()}"
+            )
         rows.append(
-            [p("車價"), p("牌險"), p("另計"), p("1", center_style),
+            [p("車價"), p("牌險"), p(plate_description), p("1", center_style),
              p(money(order.plate_insurance_fee), right_style),
              p(money(order.plate_insurance_fee), right_style)]
         )

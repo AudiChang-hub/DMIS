@@ -137,7 +137,7 @@ def build_privacy_consent_pdf(order):
     for clause in clauses:
         y = _draw_paragraph(c, clause, body_style, y, 3.2 * mm)
 
-    y -= 7 * mm
+    y = max(y - 7 * mm, 92 * mm)
     c.setFillColor(black)
     c.setFont("PrivacyFormal", 11)
     c.drawString(MARGIN_X, y, "台鈴工業股份有限公司")

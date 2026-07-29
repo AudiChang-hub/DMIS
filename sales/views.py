@@ -507,9 +507,7 @@ def _snapshot_changes(before, after):
 @transaction.atomic
 def order_edit(request, pk):
     order = get_object_or_404(
-        SalesOrder.objects.select_for_update()
-        .select_related("source", "vehicle_model", "color", "allocated_vehicle")
-        .prefetch_related("accessories", "other_fees"),
+        SalesOrder.objects.select_for_update(),
         pk=pk,
     )
     if not order.is_editable:

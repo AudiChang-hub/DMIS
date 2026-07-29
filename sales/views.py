@@ -450,15 +450,26 @@ def draft_save(request):
 @transaction.atomic
 def draft_delete(request, pk):
     if request.method != "POST":
+        if request.headers.get("Accept") == "application/json":
+            return JsonResponse(
+                {"ok": False, "error": "刪除草稿僅接受 POST。"},
+                status=405,
+            )
         return redirect(f"{reverse('order_create')}?draft={pk}")
     draft = get_object_or_404(OrderDraft.objects.select_for_update(), pk=pk)
     if not _claim_edit_lock(draft, request, DRAFT_PRESENCE_TIMEOUT):
+        error = f"此草稿目前由 {draft.editing_by or '其他人員'} 編輯，無法刪除。"
+        if request.headers.get("Accept") == "application/json":
+            return JsonResponse({"ok": False, "error": error}, status=423)
         messages.error(
             request,
-            f"此草稿目前由 {draft.editing_by or '其他人員'} 編輯，無法刪除。",
+            error,
         )
         return redirect("dashboard")
     draft.delete_with_files()
+    if request.headers.get("Accept") == "application/json":
+        messages.success(request, "草稿與暫存證件照片已刪除。")
+        return JsonResponse({"ok": True, "redirect_url": reverse("dashboard")})
     messages.success(request, "草稿與暫存證件照片已刪除。")
     return redirect("dashboard")
 

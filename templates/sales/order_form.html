@@ -265,13 +265,28 @@
   {% endif %}
   <div class="mobile-submit">
     {% if editing_order %}<a class="button ghost" href="{% url 'order_detail' editing_order.pk %}" data-cancel-edit>取消修改</a>{% endif %}
+    {% if not editing_order %}
+    <button
+      class="button danger-ghost draft-delete-button"
+      id="draft-delete-button"
+      type="submit"
+      form="draft-delete-form"
+      {% if not draft %}hidden{% endif %}
+    >刪除草稿</button>
+    {% endif %}
     <button class="button primary" type="submit">{% if editing_order %}儲存修改{% else %}建立訂單{% endif %}</button>
   </div>
 </form>
-{% if draft %}
-<form method="post" action="{% url 'draft_delete' draft.pk %}" class="draft-delete-form" onsubmit="return confirm('確定刪除這份草稿及暫存的證件照片嗎？');">
+{% if not editing_order %}
+<form
+  method="post"
+  action="{% if draft %}{% url 'draft_delete' draft.pk %}{% else %}{% url 'draft_delete' '00000000-0000-0000-0000-000000000000' %}{% endif %}"
+  class="draft-delete-form"
+  id="draft-delete-form"
+  data-delete-url-template="{% url 'draft_delete' '00000000-0000-0000-0000-000000000000' %}"
+  hidden
+>
   {% csrf_token %}
-  <button type="submit" class="button danger">刪除這份草稿</button>
 </form>
 {% endif %}
 {% endblock %}
@@ -317,6 +332,8 @@
   const draftRevision = byId("draft-revision");
   const draftStatus = byId("draft-status");
   const draftStatusMessage = byId("draft-status-message");
+  const draftDeleteForm = byId("draft-delete-form");
+  const draftDeleteButton = byId("draft-delete-button");
   const editingPresence = byId("editing-presence");
   const validationSummary = byId("form-validation-summary");
   const collaborationStatus = byId("collaboration-status");
@@ -1124,6 +1141,41 @@
     draftStatusMessage.textContent = text;
   }
 
+  function enableDraftDelete(draftPk) {
+    if (!draftDeleteForm || !draftDeleteButton || !draftPk) return;
+    draftDeleteForm.action = draftDeleteForm.dataset.deleteUrlTemplate.replace(
+      "00000000-0000-0000-0000-000000000000",
+      draftPk,
+    );
+    draftDeleteButton.hidden = false;
+  }
+
+  draftDeleteForm?.addEventListener("submit", async event => {
+    event.preventDefault();
+    if (!confirm("確定刪除這份草稿及暫存的證件照片嗎？刪除後無法復原。")) return;
+    draftDeleteButton.disabled = true;
+    draftDeleteButton.textContent = "刪除中…";
+    try {
+      const response = await fetch(draftDeleteForm.action, {
+        method: "POST",
+        headers: {
+          "Accept": "application/json",
+          "X-CSRFToken": draftDeleteForm.querySelector("[name=csrfmiddlewaretoken]").value,
+        },
+      });
+      const data = await response.json();
+      if (!response.ok || !data.ok) {
+        throw new Error(data.error || "目前無法刪除草稿，請稍後再試。");
+      }
+      submittingOrder = true;
+      location.assign(data.redirect_url);
+    } catch (error) {
+      draftDeleteButton.disabled = false;
+      draftDeleteButton.textContent = "刪除草稿";
+      setDraftStatus("error", error.message);
+    }
+  });
+
   function setExclusiveEditingLocked(locked) {
     orderForm.classList.toggle("is-editing-locked", locked);
     orderForm.querySelectorAll("input, select, textarea, button").forEach(control => {
@@ -1263,6 +1315,7 @@
       if (!response.ok || !data.ok) throw new Error(data.error || "草稿儲存失敗");
       draftId.value = data.id;
       draftRevision.value = data.revision;
+      enableDraftDelete(data.id);
       ["id_front", "id_back"].forEach(fieldName => {
         if (photoVersion[fieldName] !== requestPhotoVersion[fieldName]) return;
         if (requestPhotoDirty[fieldName] || requestPhotoRemoved[fieldName]) {

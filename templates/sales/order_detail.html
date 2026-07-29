@@ -122,22 +122,37 @@
     <dl class="money-list">
       <div><dt>車價</dt><dd>${{ order.vehicle_price }}</dd></div>
       <div><dt>牌險</dt><dd>${{ order.plate_insurance_fee }}</dd></div>
-      {% if order.registration_calculated_total %}
-      <div class="wide note-box">
-        <dt>領牌試算明細</dt>
-        <dd>
-          {{ order.registration_date|date:"Y/m/d" }} · {{ order.registration_rate_class }} · 強制險 {{ order.get_compulsory_insurance_period_display }}<br>
-          號牌 ${{ order.registration_plate_fee }}／行照 ${{ order.registration_license_fee }}／檢驗 ${{ order.registration_inspection_fee }}／公路養管 ${{ order.road_maintenance_fee }}／牌照稅 ${{ order.license_tax_fee }}／強制險 ${{ order.compulsory_insurance_fee }}{% if order.plate_selection_fee %}／選號 ${{ order.plate_selection_fee }}{% endif %}{% if order.lien_registration_fee %}／動保設定 ${{ order.lien_registration_fee }}{% endif %}
-          <br><strong>系統試算 ${{ order.registration_calculated_total }}</strong>{% if order.plate_insurance_fee != order.registration_calculated_total %}（已人工調整實收）{% endif %}
-        </dd>
-      </div>
-      {% endif %}
       <div><dt>分期開辦費</dt><dd>${{ order.installment_opening_fee }}</dd></div>
       {% for fee in order.other_fees.all %}
       <div><dt>{{ fee.name }}</dt><dd>${{ fee.amount }}</dd></div>
       {% endfor %}
       <div><dt>訂金</dt><dd>− ${{ order.deposit_amount }}</dd></div>
       <div><dt>舊車估價</dt><dd>− ${{ order.old_vehicle_valuation }}</dd></div>
+      {% if order.registration_calculated_total %}
+      <div class="registration-breakdown">
+        <div class="registration-breakdown__header">
+          <div>
+            <dt>領牌試算</dt>
+            <p>{{ order.registration_date|date:"Y/m/d" }} · {{ order.registration_rate_class }} · 強制險{{ order.get_compulsory_insurance_period_display }}</p>
+          </div>
+          <div class="registration-breakdown__total">
+            <span>試算合計</span>
+            <strong>${{ order.registration_calculated_total }}</strong>
+            {% if order.plate_insurance_fee != order.registration_calculated_total %}<em>已人工調整實收</em>{% endif %}
+          </div>
+        </div>
+        <div class="registration-breakdown__items">
+          <div><span>號牌</span><strong>${{ order.registration_plate_fee }}</strong></div>
+          <div><span>行照</span><strong>${{ order.registration_license_fee }}</strong></div>
+          <div><span>檢驗</span><strong>${{ order.registration_inspection_fee }}</strong></div>
+          <div><span>公路養管</span><strong>${{ order.road_maintenance_fee }}</strong></div>
+          <div><span>牌照稅</span><strong>${{ order.license_tax_fee }}</strong></div>
+          <div><span>強制險</span><strong>${{ order.compulsory_insurance_fee }}</strong></div>
+          {% if order.plate_selection_fee %}<div><span>選號</span><strong>${{ order.plate_selection_fee }}</strong></div>{% endif %}
+          {% if order.lien_registration_fee %}<div><span>動保設定</span><strong>${{ order.lien_registration_fee }}</strong></div>{% endif %}
+        </div>
+      </div>
+      {% endif %}
       <div class="total"><dt>實際尾款</dt><dd>${{ order.actual_balance }}</dd></div>
     </dl>
   </section>

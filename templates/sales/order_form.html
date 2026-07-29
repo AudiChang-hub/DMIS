@@ -266,6 +266,12 @@
   const sourceType = byId("id_source_type");
   const ownerType = byId("id_owner_type");
   const paymentType = byId("id_payment_type");
+  const installmentInputs = [
+    byId("id_installment_company"),
+    byId("id_installment_periods"),
+    byId("id_installment_opening_fee"),
+    byId("id_installment_monthly"),
+  ].filter(Boolean);
   const plateChoice = byId("id_plate_choice");
   const deliveryMethod = byId("id_delivery_method");
   const vehicleModel = byId("id_vehicle_model");
@@ -477,7 +483,29 @@
     showConditional("delivery-destination", needsDestination);
     byId("id_delivery_destination").required = needsDestination;
   }
-  [sourceType, ownerType, paymentType, plateChoice, deliveryMethod].forEach(el => el.addEventListener("change", refresh));
+  let previousPaymentType = paymentType.value;
+  paymentType.addEventListener("change", () => {
+    if (
+      previousPaymentType === "installment"
+      && paymentType.value !== "installment"
+      && installmentInputs.some(input => input.value && Number(input.value) !== 0)
+    ) {
+      const confirmed = window.confirm(
+        "切換為非分期付款後，將清除分期公司、期數、開辦費與每期金額。是否繼續？"
+      );
+      if (!confirmed) {
+        paymentType.value = previousPaymentType;
+        refresh();
+        return;
+      }
+    }
+    if (paymentType.value !== "installment") {
+      installmentInputs.forEach(input => { input.value = ""; });
+    }
+    previousPaymentType = paymentType.value;
+    refresh();
+  });
+  [sourceType, ownerType, plateChoice, deliveryMethod].forEach(el => el.addEventListener("change", refresh));
   if (!vehicleEnergyType.value && vehicleModel.value) {
     vehicleEnergyType.value = vehicleRateData[vehicleModel.value]?.energy_type || "";
   }

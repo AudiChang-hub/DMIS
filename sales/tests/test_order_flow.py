@@ -160,6 +160,51 @@ class OrderFlowTests(TestCase):
         )
         self.assertEqual(fee_form.fields["name"].widget.attrs["lang"], "zh-Hant")
 
+    def test_cash_order_clears_installment_details_and_excludes_opening_fee(self):
+        order = self.make_order()
+        order.payment_type = SalesOrder.PaymentType.CASH
+        order.installment_company = "和潤"
+        order.installment_amount = Decimal("75000")
+        order.installment_periods = 24
+        order.installment_opening_fee = Decimal("2500")
+        order.installment_monthly = Decimal("3125")
+
+        order.save()
+        order.refresh_from_db()
+
+        self.assertEqual(order.installment_company, "")
+        self.assertEqual(order.installment_amount, 0)
+        self.assertEqual(order.installment_periods, 0)
+        self.assertEqual(order.installment_opening_fee, 0)
+        self.assertEqual(order.installment_monthly, 0)
+        self.assertEqual(order.calculated_balance, Decimal("75200"))
+
+    def test_installment_order_includes_opening_fee(self):
+        order = self.make_order()
+        order.payment_type = SalesOrder.PaymentType.INSTALLMENT
+        order.installment_company = "和潤"
+        order.installment_periods = 24
+        order.installment_opening_fee = Decimal("2500")
+        order.installment_monthly = Decimal("3125")
+        order.actual_balance = Decimal("77700")
+
+        order.save()
+        order.refresh_from_db()
+
+        self.assertEqual(order.installment_opening_fee, Decimal("2500"))
+        self.assertEqual(order.calculated_balance, Decimal("77700"))
+
+    def test_payment_type_change_warns_before_clearing_installment_fields(self):
+        template = (
+            __import__("pathlib").Path("templates/sales/order_form.html").read_text(
+                encoding="utf-8"
+            )
+        )
+
+        self.assertIn("將清除分期公司、期數、開辦費與每期金額", template)
+        self.assertIn('paymentType.value !== "installment"', template)
+        self.assertIn('input.value = ""', template)
+
     def test_edit_order_records_reason_and_before_after_values(self):
         order = self.make_order()
         self.client.force_login(self.user)

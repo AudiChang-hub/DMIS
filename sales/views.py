@@ -510,13 +510,16 @@ def order_detail(request, pk):
             "document": subsidy_documents.get(document_type),
         }
         for document_type, label in SubsidyDocument.DocumentType.choices
-        if document_type
-        not in {
-            SubsidyDocument.DocumentType.OWNER_DECLARATION,
-            SubsidyDocument.DocumentType.OLD_OWNER_BANKBOOK,
-        }
-        or document_type in subsidy_required_types
-        or document_type in subsidy_documents
+        if document_type != SubsidyDocument.DocumentType.OTHER
+        and (
+            document_type
+            not in {
+                SubsidyDocument.DocumentType.OWNER_DECLARATION,
+                SubsidyDocument.DocumentType.OLD_OWNER_BANKBOOK,
+            }
+            or document_type in subsidy_required_types
+            or document_type in subsidy_documents
+        )
     ]
     return render(
         request,
@@ -533,6 +536,9 @@ def order_detail(request, pk):
             ),
             "registration_missing": order.missing_registration_requirements(),
             "subsidy_document_rows": subsidy_document_rows,
+            "other_subsidy_documents": order.subsidy_documents.filter(
+                document_type=SubsidyDocument.DocumentType.OTHER
+            ),
             "subsidy_missing": order.missing_subsidy_requirements(),
             "subsidy_form": SubsidyDataForm(instance=order),
             "change_cards": build_order_change_cards(order.changes.all()),
@@ -1037,9 +1043,11 @@ def subsidy_document_upload(request, pk):
     document = form.save(commit=False)
     document.order = order
     document.uploaded_by = _editing_name(request.user)
-    existing = order.subsidy_documents.filter(
-        document_type=document.document_type
-    ).first()
+    existing = None
+    if document.document_type != SubsidyDocument.DocumentType.OTHER:
+        existing = order.subsidy_documents.filter(
+            document_type=document.document_type
+        ).first()
     if existing:
         old_file = existing.file
         existing.file = document.file
@@ -1053,10 +1061,16 @@ def subsidy_document_upload(request, pk):
     OrderEvent.objects.create(
         order=order,
         event_type="subsidy_document_uploaded",
-        description=f"已上傳補助文件：{document.get_document_type_display()}",
+        description=(
+            f"已上傳補助文件："
+            f"{document.name or document.get_document_type_display()}"
+        ),
         actor_name=_editing_name(request.user),
     )
-    messages.success(request, f"{document.get_document_type_display()}已上傳。")
+    messages.success(
+        request,
+        f"{document.name or document.get_document_type_display()}已上傳。",
+    )
     return redirect("order_detail", pk=pk)
 
 
@@ -1074,7 +1088,7 @@ def subsidy_document_delete(request, pk, document_pk):
         pk=document_pk,
         order=order,
     )
-    display_name = document.get_document_type_display()
+    display_name = document.name or document.get_document_type_display()
     document.delete_with_file()
     OrderEvent.objects.create(
         order=order,

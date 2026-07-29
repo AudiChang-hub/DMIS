@@ -429,6 +429,7 @@ class OrderFlowTests(TestCase):
                 "is_trade_in_subsidy": "on",
                 "trade_in_plate": "abc-1234",
                 "old_owner_name": "陳大華",
+                "old_owner_id_number": "b123456789",
                 "subsidy_type": "汰舊換新",
                 "old_vehicle_valuation": "10000",
                 "old_vehicle_tax": "500",
@@ -443,6 +444,7 @@ class OrderFlowTests(TestCase):
         order.refresh_from_db()
         self.assertTrue(order.is_trade_in_subsidy)
         self.assertEqual(order.trade_in_plate, "ABC-1234")
+        self.assertEqual(order.old_owner_id_number, "B123456789")
         self.assertEqual(order.actual_balance, Decimal("65700"))
         self.assertEqual(order.calculated_balance, Decimal("65700"))
         self.assertEqual(order.revision, 2)
@@ -450,6 +452,7 @@ class OrderFlowTests(TestCase):
         self.assertEqual(change.actor_name, "tester")
         self.assertEqual(change.reason, "客戶提供舊車資料")
         self.assertIn("舊車車牌", change.changes)
+        self.assertIn("舊車主身分證字號", change.changes)
         self.assertIn("舊車估價", change.changes)
 
     def test_subsidy_update_preserves_manually_adjusted_balance(self):
@@ -551,14 +554,16 @@ class OrderFlowTests(TestCase):
         missing = order.missing_subsidy_requirements()
 
         self.assertIn("新舊車主不同人聲明書", missing)
+        self.assertIn("舊車主身分證字號", missing)
         self.assertIn("新車主存摺封面", missing)
         self.assertIn("舊車主存摺封面", missing)
-        self.assertEqual(order.subsidy_required_count, 10)
+        self.assertEqual(order.subsidy_required_count, 11)
 
         self.client.force_login(self.user)
         detail = self.client.get(reverse("order_detail", args=[order.pk]))
         self.assertContains(detail, "新車主存摺封面")
         self.assertContains(detail, "舊車主存摺封面")
+        self.assertContains(detail, "舊車主身分證字號")
 
     def test_subsidy_fixed_document_can_be_replaced_and_downloaded(self):
         order = self.make_order()
@@ -595,6 +600,95 @@ class OrderFlowTests(TestCase):
         )
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response["Cache-Control"], "private, no-store")
+
+    def test_multiple_other_subsidy_documents_accept_safe_file_types(self):
+        order = self.make_order()
+        SalesOrder.objects.filter(pk=order.pk).update(
+            is_trade_in_subsidy=True,
+            trade_in_plate="ABC-1234",
+            subsidy_type="汰舊換新",
+        )
+        self.client.force_login(self.user)
+        upload_url = reverse("subsidy_document_upload", args=[order.pk])
+
+        uploads = [
+            (
+                "補助切結書",
+                "客戶補簽",
+                SimpleUploadedFile(
+                    "declaration.pdf", b"pdf", content_type="application/pdf"
+                ),
+            ),
+            (
+                "補助試算表",
+                "",
+                SimpleUploadedFile(
+                    "calculation.xlsx",
+                    b"xlsx",
+                    content_type=(
+                        "application/vnd.openxmlformats-officedocument."
+                        "spreadsheetml.sheet"
+                    ),
+                ),
+            ),
+        ]
+        for name, note, upload in uploads:
+            response = self.client.post(
+                upload_url,
+                {
+                    "document_type": SubsidyDocument.DocumentType.OTHER,
+                    "name": name,
+                    "note": note,
+                    "file": upload,
+                },
+            )
+            self.assertRedirects(
+                response, reverse("order_detail", args=[order.pk])
+            )
+
+        documents = order.subsidy_documents.filter(
+            document_type=SubsidyDocument.DocumentType.OTHER
+        )
+        self.assertEqual(documents.count(), 2)
+        self.assertEqual(
+            set(documents.values_list("name", flat=True)),
+            {"補助切結書", "補助試算表"},
+        )
+        detail = self.client.get(reverse("order_detail", args=[order.pk]))
+        self.assertContains(detail, "其他補助文件")
+        self.assertContains(detail, "補助切結書")
+        self.assertContains(detail, "客戶補簽")
+
+    def test_other_subsidy_document_rejects_missing_name_and_executable(self):
+        order = self.make_order()
+        SalesOrder.objects.filter(pk=order.pk).update(
+            is_trade_in_subsidy=True
+        )
+        self.client.force_login(self.user)
+        upload_url = reverse("subsidy_document_upload", args=[order.pk])
+
+        for name, filename in (("", "missing-name.pdf"), ("惡意檔案", "bad.exe")):
+            response = self.client.post(
+                upload_url,
+                {
+                    "document_type": SubsidyDocument.DocumentType.OTHER,
+                    "name": name,
+                    "file": SimpleUploadedFile(
+                        filename,
+                        b"unsafe",
+                        content_type="application/octet-stream",
+                    ),
+                },
+            )
+            self.assertRedirects(
+                response, reverse("order_detail", args=[order.pk])
+            )
+
+        self.assertFalse(
+            order.subsidy_documents.filter(
+                document_type=SubsidyDocument.DocumentType.OTHER
+            ).exists()
+        )
 
     def test_non_subsidy_order_rejects_subsidy_upload(self):
         order = self.make_order()

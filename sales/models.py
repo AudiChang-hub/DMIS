@@ -546,9 +546,11 @@ class SalesOrder(TimeStampedModel):
             SubsidyDocument.DocumentType.OLD_VEHICLE_REGISTRATION,
             SubsidyDocument.DocumentType.SCRAP_CERTIFICATE,
             SubsidyDocument.DocumentType.RECYCLING_RECEIPT,
+            SubsidyDocument.DocumentType.NEW_OWNER_BANKBOOK,
         }
         if self.old_owner_name and self.old_owner_name.strip() != self.owner_name.strip():
             required.add(SubsidyDocument.DocumentType.OWNER_DECLARATION)
+            required.add(SubsidyDocument.DocumentType.OLD_OWNER_BANKBOOK)
         return required
 
     def missing_subsidy_requirements(self):
@@ -763,6 +765,8 @@ class SubsidyDocument(TimeStampedModel):
         OLD_VEHICLE_REGISTRATION = "old_vehicle_registration", "舊車行照"
         SCRAP_CERTIFICATE = "scrap_certificate", "報廢證明"
         RECYCLING_RECEIPT = "recycling_receipt", "回收管制聯"
+        NEW_OWNER_BANKBOOK = "new_owner_bankbook", "新車主存摺封面"
+        OLD_OWNER_BANKBOOK = "old_owner_bankbook", "舊車主存摺封面"
         OWNER_DECLARATION = "owner_declaration", "新舊車主不同人聲明書"
 
     order = models.ForeignKey(

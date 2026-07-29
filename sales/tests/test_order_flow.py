@@ -724,6 +724,25 @@ class OrderFlowTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response["Cache-Control"], "private, no-store")
 
+    def test_order_edit_is_exclusive_to_first_session(self):
+        order = self.make_order()
+        self.client.force_login(self.user)
+        first = self.client.get(reverse("order_edit", args=[order.pk]))
+        self.assertEqual(first.status_code, 200)
+
+        second_user = get_user_model().objects.create_user(
+            username="second-editor", password="test-pass-123"
+        )
+        second_client = self.client_class()
+        second_client.force_login(second_user)
+        blocked = second_client.get(reverse("order_edit", args=[order.pk]))
+
+        self.assertRedirects(
+            blocked, reverse("order_detail", args=[order.pk])
+        )
+        order.refresh_from_db()
+        self.assertEqual(order.editing_by, self.user.username)
+
     def test_multiple_other_subsidy_documents_accept_safe_file_types(self):
         order = self.make_order()
         SalesOrder.objects.filter(pk=order.pk).update(
@@ -1277,6 +1296,8 @@ class OrderFlowTests(TestCase):
         self.assertContains(order_response, "移除正面照片")
         self.assertContains(order_response, "移除反面照片")
         self.assertContains(order_response, "ocrRequestVersion")
+        self.assertContains(order_response, "identity-compare")
+        self.assertContains(order_response, "form-validation-summary")
         self.assertContains(order_response, "requestPhotoVersion")
         self.assertContains(
             order_response,
@@ -1306,6 +1327,10 @@ class OrderFlowTests(TestCase):
         self.assertNotContains(order_response, "data-save-draft")
         self.assertNotContains(order_response, ">暫存</button>")
         content = order_response.content.decode()
+        self.assertEqual(content.count('id="id_owner_name"'), 1)
+        self.assertEqual(content.count('id="id_owner_id_number"'), 1)
+        self.assertEqual(content.count('id="id_owner_birth_date"'), 1)
+        self.assertEqual(content.count('id="id_owner_address"'), 1)
         self.assertGreater(
             content.index('id="add-accessory"'),
             content.index('id="accessory-forms"'),
@@ -1407,6 +1432,28 @@ class OrderFlowTests(TestCase):
         self.assertIn("quantity", named_form.errors)
         self.assertIn("line_type", named_form.errors)
         self.assertIn("amount", named_form.errors)
+
+    def test_other_fee_is_optional_but_partial_row_requires_both_fields(self):
+        empty_form = OtherFeeLineForm(data={"name": "", "amount": ""})
+        self.assertTrue(empty_form.is_valid())
+
+        missing_name = OtherFeeLineForm(data={"name": "", "amount": "300"})
+        self.assertFalse(missing_name.is_valid())
+        self.assertIn("name", missing_name.errors)
+
+        missing_amount = OtherFeeLineForm(data={"name": "代辦費", "amount": ""})
+        self.assertFalse(missing_amount.is_valid())
+        self.assertIn("amount", missing_amount.errors)
+
+    def test_cash_payment_does_not_require_hidden_installment_fields(self):
+        form = SalesOrderForm()
+        for field_name in (
+            "installment_company",
+            "installment_periods",
+            "installment_opening_fee",
+            "installment_monthly",
+        ):
+            self.assertFalse(form.fields[field_name].required)
 
     def test_app_version_endpoint_is_not_cached(self):
         response = self.client.get(reverse("app_version"))

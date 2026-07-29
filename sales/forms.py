@@ -238,6 +238,13 @@ class SalesOrderForm(forms.ModelForm):
             self.fields[field_name].widget.attrs["readonly"] = True
             self.fields[field_name].widget.attrs["tabindex"] = "-1"
         self.fields["plate_insurance_fee"].required = False
+        for field_name in (
+            "installment_company",
+            "installment_periods",
+            "installment_opening_fee",
+            "installment_monthly",
+        ):
+            self.fields[field_name].required = False
         self.fields["id_verified"].widget.attrs["class"] = "form-check"
         self.fields["is_trade_in_subsidy"].widget.attrs["class"] = "form-check"
         self.fields["old_owner_same_as_owner"].widget.attrs["class"] = "form-check"
@@ -269,10 +276,21 @@ class SalesOrderForm(forms.ModelForm):
         if model and color and color.vehicle_model_id != model.id:
             self.add_error("color", "請選擇此車型可用的車色。")
 
-        for field_name in ("old_vehicle_valuation", "old_vehicle_tax"):
-            if data.get(field_name) is None:
-                data[field_name] = 0
-                self.cleaned_data[field_name] = 0
+        installment_fields = (
+            "installment_company",
+            "installment_periods",
+            "installment_opening_fee",
+            "installment_monthly",
+        )
+        if data.get("payment_type") == SalesOrder.PaymentType.INSTALLMENT:
+            for field_name in installment_fields:
+                if data.get(field_name) in (None, ""):
+                    self.add_error(field_name, "選擇分期付款時，此欄位為必填。")
+        else:
+            for field_name in installment_fields:
+                value = "" if field_name == "installment_company" else 0
+                data[field_name] = value
+                self.cleaned_data[field_name] = value
 
         registration_date = data.get("registration_date")
         insurance_period = (
@@ -440,7 +458,25 @@ class OtherFeeLineForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.fields["name"].required = False
+        self.fields["amount"].required = False
         apply_mobile_keyboard_attrs(self)
+        if not self.is_bound and not self.instance.pk and "amount" not in self.initial:
+            self.fields["amount"].initial = None
+
+    def clean(self):
+        data = super().clean()
+        name = (data.get("name") or "").strip()
+        amount = data.get("amount")
+        if not name and amount in (None, ""):
+            data["DELETE"] = True
+            self.cleaned_data["DELETE"] = True
+            return data
+        if not name:
+            self.add_error("name", "填寫金額後，請輸入費用項目名稱。")
+        if amount in (None, ""):
+            self.add_error("amount", "填寫費用項目後，請輸入金額。")
+        return data
 
 
 OtherFeeFormSet = inlineformset_factory(

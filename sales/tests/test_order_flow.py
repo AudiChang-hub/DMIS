@@ -104,6 +104,23 @@ class OrderFlowTests(TestCase):
             css,
         )
 
+    def test_desktop_and_mobile_use_distinct_page_shells(self):
+        from pathlib import Path
+
+        css = Path("static/css/app.css").read_text(encoding="utf-8")
+        base = Path("templates/base.html").read_text(encoding="utf-8")
+        detail = Path("templates/sales/order_detail.html").read_text(encoding="utf-8")
+        form = Path("templates/sales/order_form.html").read_text(encoding="utf-8")
+
+        self.assertIn("--shell-wide: 1680px", css)
+        self.assertIn(".page-shell--wide { max-width: var(--shell-wide); }", css)
+        self.assertIn("width: min(100% - 24px, 700px)", css)
+        self.assertIn('class="app-header-inner"', base)
+        self.assertIn("app.css' %}?v={{ app_version }}", base)
+        self.assertIn("app-update.js' %}?v={{ app_version }}", base)
+        self.assertIn("page-shell--wide", detail)
+        self.assertIn("page-shell--form", form)
+
     def test_edit_order_records_reason_and_before_after_values(self):
         order = self.make_order()
         self.client.force_login(self.user)

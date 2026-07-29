@@ -394,6 +394,9 @@ class SalesOrder(TimeStampedModel):
     is_trade_in_subsidy = models.BooleanField("申請汰舊／政府補助", default=False)
     trade_in_plate = models.CharField("舊車車牌", max_length=20, blank=True)
     old_owner_name = models.CharField("舊車主姓名", max_length=160, blank=True)
+    old_owner_id_number = models.CharField(
+        "舊車主身分證字號", max_length=40, blank=True
+    )
     subsidy_type = models.CharField("補助類型", max_length=120, blank=True)
     old_vehicle_valuation = models.DecimalField(
         "舊車估價", max_digits=12, decimal_places=0, default=0
@@ -561,6 +564,12 @@ class SalesOrder(TimeStampedModel):
             missing.append("舊車車牌")
         if not self.subsidy_type:
             missing.append("補助類型")
+        if (
+            self.old_owner_name
+            and self.old_owner_name.strip() != self.owner_name.strip()
+            and not self.old_owner_id_number
+        ):
+            missing.append("舊車主身分證字號")
         uploaded = set(
             self.subsidy_documents.values_list("document_type", flat=True)
         )
@@ -574,7 +583,11 @@ class SalesOrder(TimeStampedModel):
     def subsidy_required_count(self):
         if not self.is_trade_in_subsidy:
             return 0
-        return 2 + len(self.required_subsidy_document_types())
+        different_owner = bool(
+            self.old_owner_name
+            and self.old_owner_name.strip() != self.owner_name.strip()
+        )
+        return 2 + int(different_owner) + len(self.required_subsidy_document_types())
 
     @property
     def subsidy_completed_count(self):
@@ -768,6 +781,7 @@ class SubsidyDocument(TimeStampedModel):
         NEW_OWNER_BANKBOOK = "new_owner_bankbook", "新車主存摺封面"
         OLD_OWNER_BANKBOOK = "old_owner_bankbook", "舊車主存摺封面"
         OWNER_DECLARATION = "owner_declaration", "新舊車主不同人聲明書"
+        OTHER = "other", "其他補助文件"
 
     order = models.ForeignKey(
         SalesOrder,
@@ -778,6 +792,8 @@ class SubsidyDocument(TimeStampedModel):
     document_type = models.CharField(
         "文件類型", max_length=40, choices=DocumentType.choices
     )
+    name = models.CharField("文件名稱", max_length=160, blank=True)
+    note = models.CharField("備註", max_length=250, blank=True)
     file = models.FileField(
         "檔案", upload_to="orders/subsidy/%Y/%m/"
     )
@@ -788,6 +804,7 @@ class SubsidyDocument(TimeStampedModel):
         constraints = [
             models.UniqueConstraint(
                 fields=["order", "document_type"],
+                condition=~models.Q(document_type="other"),
                 name="unique_subsidy_document",
             )
         ]
@@ -801,7 +818,7 @@ class SubsidyDocument(TimeStampedModel):
             stored_file.delete(save=False)
 
     def __str__(self):
-        return f"{self.order.number}／{self.get_document_type_display()}"
+        return f"{self.order.number}／{self.name or self.get_document_type_display()}"
 
 
 class OrderDraft(TimeStampedModel):

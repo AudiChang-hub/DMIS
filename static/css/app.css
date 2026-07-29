@@ -561,6 +561,33 @@ body.screen-locked { overflow: hidden; }
   align-items: end; gap: 12px; background: #f7faf8; border-radius: 12px;
 }
 .other-insurance__form > div { display: grid; gap: 7px; }
+.other-subsidy-documents { margin-top: 24px; }
+.other-subsidy-documents__heading { margin-bottom: 12px; }
+.other-subsidy-documents__heading h3 { margin: 0 0 3px; }
+.other-subsidy-documents__heading p,
+.other-subsidy-documents__empty { margin: 0; color: var(--muted); font-size: .82rem; }
+.other-subsidy-documents__item {
+  display: flex; align-items: center; justify-content: space-between; gap: 16px;
+  padding: 13px 15px; border: 1px solid var(--line); border-bottom: 0;
+}
+.other-subsidy-documents__item:first-of-type { border-radius: 14px 14px 0 0; }
+.other-subsidy-documents__item:last-of-type { border-bottom: 1px solid var(--line); border-radius: 0 0 14px 14px; }
+.other-subsidy-documents__item span,
+.other-subsidy-documents__item em,
+.other-subsidy-documents__item small { display: block; min-width: 0; }
+.other-subsidy-documents__item em { margin-top: 3px; color: var(--text); font-style: normal; }
+.other-subsidy-documents__item small { margin-top: 3px; color: var(--muted); }
+.other-subsidy-documents__item > div { display: flex; flex: 0 0 auto; gap: 8px; }
+.other-subsidy-documents__item form { margin: 0; }
+.other-subsidy-documents__empty { padding: 13px 15px; border: 1px dashed var(--line); border-radius: 14px; }
+.other-subsidy-documents__form {
+  display: grid; grid-template-columns: minmax(180px, 1fr) minmax(180px, 1fr) minmax(240px, 1.4fr) auto;
+  align-items: end; gap: 12px; margin-top: 14px; padding: 15px;
+  background: var(--surface-soft); border: 1px solid var(--line); border-radius: 14px;
+}
+.other-subsidy-documents__form > div { display: grid; min-width: 0; gap: 7px; }
+.other-subsidy-documents__form input { width: 100%; min-width: 0; }
+.other-subsidy-documents__form small { color: var(--muted); font-size: .72rem; }
 .registration-completion {
   display: flex; margin-top: 22px; padding: 17px 18px; align-items: center;
   justify-content: space-between; gap: 18px; border-radius: 14px;
@@ -759,7 +786,7 @@ body.screen-locked { overflow: hidden; }
   .action-card { grid-template-columns: 1fr; padding: 18px; gap: 14px; }
   .document-archive-grid { grid-template-columns: 1fr; gap: 14px; }
   .document-archive-card { padding: 18px; }
-  .registration-data-form, .other-insurance__form { grid-template-columns: 1fr; }
+  .registration-data-form, .other-insurance__form, .other-subsidy-documents__form { grid-template-columns: 1fr; }
   .subsidy-summary { grid-template-columns: 1fr 1fr; }
   .subsidy-summary .button { grid-column: 1 / -1; }
   .subsidy-edit-grid { grid-template-columns: 1fr; padding: 15px; }
@@ -768,6 +795,7 @@ body.screen-locked { overflow: hidden; }
   .subsidy-edit-actions .button { width: 100%; }
   .registration-document-row { grid-template-columns: 1fr; gap: 10px; }
   .registration-document-row__actions { flex-wrap: wrap; }
+  .other-subsidy-documents__item { align-items: flex-start; flex-direction: column; }
   .registration-completion { align-items: stretch; flex-direction: column; }
   .registration-completion .button { width: 100%; }
   .order-work-tabs {

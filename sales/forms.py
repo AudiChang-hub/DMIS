@@ -1,5 +1,8 @@
+from pathlib import Path
+
 from django import forms
 from django.forms import inlineformset_factory
+
 from .models import (
     AccessoryLine,
     OtherFeeLine,
@@ -22,6 +25,7 @@ EMAIL_FIELDS = {"owner_email"}
 LATIN_IDENTIFIER_FIELDS = {
     "owner_id_number",
     "trade_in_plate",
+    "old_owner_id_number",
     "watched_numbers",
     "engine_number",
     "frame_number",
@@ -633,26 +637,76 @@ class RegistrationDocumentUploadForm(forms.ModelForm):
 class SubsidyDocumentUploadForm(forms.ModelForm):
     class Meta:
         model = SubsidyDocument
-        fields = ["document_type", "file"]
+        fields = ["document_type", "name", "note", "file"]
         widgets = {
             "document_type": forms.HiddenInput(),
             "file": forms.ClearableFileInput(
                 attrs={
-                    "accept": "image/jpeg,image/png,image/webp,application/pdf",
+                    "accept": (
+                        "image/jpeg,image/png,image/webp,image/heic,image/heif,"
+                        "application/pdf,.doc,.docx,.odt,.xls,.xlsx,.ods,.txt,.csv"
+                    ),
                     "capture": "environment",
                 }
             ),
         }
 
+    def clean(self):
+        data = super().clean()
+        if (
+            data.get("document_type") == SubsidyDocument.DocumentType.OTHER
+            and not data.get("name")
+        ):
+            self.add_error("name", "其他補助文件必須填寫文件名稱。")
+        return data
+
     def clean_file(self):
         upload = self.cleaned_data["file"]
-        if upload.content_type not in {
+        if upload.size > 20 * 1024 * 1024:
+            raise forms.ValidationError("單一檔案不可超過 20 MB。")
+        extension = Path(upload.name).suffix.lower()
+        allowed_extensions = {
+            ".jpg",
+            ".jpeg",
+            ".png",
+            ".webp",
+            ".heic",
+            ".heif",
+            ".pdf",
+            ".doc",
+            ".docx",
+            ".odt",
+            ".xls",
+            ".xlsx",
+            ".ods",
+            ".txt",
+            ".csv",
+        }
+        allowed_content_types = {
             "image/jpeg",
             "image/png",
             "image/webp",
+            "image/heic",
+            "image/heif",
             "application/pdf",
-        }:
-            raise forms.ValidationError("僅支援 JPG、PNG、WebP 或 PDF。")
+            "application/msword",
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            "application/vnd.oasis.opendocument.text",
+            "application/vnd.ms-excel",
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            "application/vnd.oasis.opendocument.spreadsheet",
+            "text/plain",
+            "text/csv",
+            "application/csv",
+            "application/octet-stream",
+        }
+        if (
+            extension not in allowed_extensions
+            or upload.content_type not in allowed_content_types
+        ):
+            raise forms.ValidationError(
+                "僅支援圖片、PDF、Word、Excel、ODT、ODS、TXT 或 CSV。"
+            )
         return upload
 
 
@@ -674,6 +728,7 @@ class SubsidyDataForm(forms.ModelForm):
             "is_trade_in_subsidy",
             "trade_in_plate",
             "old_owner_name",
+            "old_owner_id_number",
             "subsidy_type",
             "old_vehicle_valuation",
             "old_vehicle_tax",
@@ -701,6 +756,9 @@ class SubsidyDataForm(forms.ModelForm):
 
     def clean_trade_in_plate(self):
         return self.cleaned_data["trade_in_plate"].strip().upper()
+
+    def clean_old_owner_id_number(self):
+        return self.cleaned_data["old_owner_id_number"].strip().upper()
 
     def clean(self):
         data = super().clean()

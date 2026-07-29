@@ -476,10 +476,15 @@ class SalesOrder(TimeStampedModel):
     def calculate_balance(self):
         accessories = sum(line.line_total for line in self.accessories.all()) if self.pk else 0
         other_fees = sum(line.amount for line in self.other_fees.all()) if self.pk else 0
+        installment_fee = (
+            self.installment_opening_fee
+            if self.payment_type == self.PaymentType.INSTALLMENT
+            else 0
+        )
         return (
             self.vehicle_price
             + self.plate_insurance_fee
-            + self.installment_opening_fee
+            + installment_fee
             + other_fees
             + self.old_vehicle_tax
             + accessories
@@ -487,7 +492,19 @@ class SalesOrder(TimeStampedModel):
             - self.old_vehicle_valuation
         )
 
+    def clear_installment_details(self):
+        self.installment_company = ""
+        self.installment_amount = 0
+        self.installment_periods = 0
+        self.installment_opening_fee = 0
+        self.installment_monthly = 0
+        self.installment_applied_on = None
+        self.installment_status = ""
+        self.installment_decided_on = None
+
     def clean(self):
+        if self.payment_type != self.PaymentType.INSTALLMENT:
+            self.clear_installment_details()
         errors = {}
         if self.source_type == self.SourceType.STORE and self.source_id:
             errors["source"] = "本店訂單不需選擇來源名稱。"

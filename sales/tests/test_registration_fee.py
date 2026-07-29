@@ -5,7 +5,13 @@ from django.test import TestCase
 from django.test import SimpleTestCase
 from django.urls import reverse
 
-from sales.models import SalesOrder, VehicleColor, VehicleModel
+from sales.models import (
+    AccessoryLine,
+    OtherFeeLine,
+    SalesOrder,
+    VehicleColor,
+    VehicleModel,
+)
 from sales.services.registration_fee import (
     UnsupportedRegistrationFee,
     calculate_registration_fee,
@@ -113,6 +119,16 @@ class RegistrationFeeOrderIntegrationTests(TestCase):
             registration_calculated_total=1498,
             plate_insurance_fee=1498,
         )
+        AccessoryLine.objects.create(
+            order=order,
+            name="手機架",
+            quantity=1,
+            amount=850,
+        )
+        OtherFeeLine.objects.create(order=order, name="代辦費", amount=300)
+        order.calculated_balance = order.calculate_balance()
+        order.actual_balance = order.calculated_balance
+        order.save(update_fields=["calculated_balance", "actual_balance"])
         self.client.force_login(self.user)
 
         response = self.client.get(reverse("order_detail", args=[order.pk]))
@@ -123,3 +139,7 @@ class RegistrationFeeOrderIntegrationTests(TestCase):
         self.assertContains(response, "$190")
         self.assertContains(response, "試算合計")
         self.assertContains(response, "$1498")
+        self.assertContains(response, "尾款計算")
+        self.assertContains(response, "配件與其他費用均已計入")
+        self.assertContains(response, "配件合計 $850")
+        self.assertContains(response, "加購 · 已計入尾款")

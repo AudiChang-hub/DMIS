@@ -24,6 +24,7 @@ from .forms import (
     OtherFeeFormSet,
     OrderEditForm,
     PrivacyConsentForm,
+    ReallocationForm,
     RegistrationDocumentUploadForm,
     RegistrationStageForm,
     SalesOrderForm,
@@ -529,6 +530,7 @@ def order_detail(request, pk):
             "contract_form": SignedContractForm(instance=order),
             "privacy_consent_form": PrivacyConsentForm(instance=order),
             "allocation_form": AllocationForm(order),
+            "reallocation_form": ReallocationForm(order),
             "registration_form": RegistrationStageForm(instance=order),
             "registration_document_rows": registration_document_rows,
             "other_insurance_documents": order.registration_documents.filter(
@@ -862,6 +864,66 @@ def allocate_vehicle(request, pk):
     else:
         messages.error(request, "請選擇可用的實體車輛。")
     return redirect("order_detail", pk=pk)
+
+
+@login_required
+@transaction.atomic
+def reallocate_vehicle(request, pk):
+    order = get_object_or_404(
+        SalesOrder.objects.select_for_update().select_related(
+            "allocated_vehicle"
+        ),
+        pk=pk,
+    )
+    detail_url = f"{reverse('order_detail', args=[pk])}?tab=allocation"
+    if request.method != "POST":
+        return redirect(detail_url)
+    if order.has_registration_started:
+        messages.error(
+            request,
+            "已填寫領牌資料或上傳領牌文件，為避免車輛與文件對錯，無法直接改配。",
+        )
+        return redirect(detail_url)
+
+    form = ReallocationForm(order, request.POST)
+    if not form.is_valid():
+        messages.error(
+            request,
+            "改配未完成：" + " ".join(
+                error
+                for errors in form.errors.values()
+                for error in errors
+            ),
+        )
+        return redirect(detail_url)
+    try:
+        original, replacement = order.reallocate(
+            form.cleaned_data["vehicle"]
+        )
+    except ValidationError as exc:
+        messages.error(request, " ".join(exc.messages))
+        return redirect(detail_url)
+
+    reason = form.cleaned_data["reason"]
+    OrderChange.objects.create(
+        order=order,
+        reason=reason,
+        changes={
+            "已配車輛": {
+                "before": str(original),
+                "after": str(replacement),
+            }
+        },
+        actor_name=_editing_name(request.user),
+    )
+    OrderEvent.objects.create(
+        order=order,
+        event_type="reallocated",
+        description=f"改配車輛：{original} → {replacement}；原因：{reason}",
+        actor_name=_editing_name(request.user),
+    )
+    messages.success(request, f"改配完成，新配車輛為 {replacement}。")
+    return redirect(detail_url)
 
 
 @login_required

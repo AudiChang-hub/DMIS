@@ -521,6 +521,20 @@ class AllocationForm(forms.Form):
         self.fields["vehicle"].widget.attrs["class"] = "form-control"
 
 
+class ReallocationForm(AllocationForm):
+    reason = forms.CharField(
+        label="改配原因",
+        max_length=250,
+        widget=forms.Textarea(
+            attrs={
+                "rows": 2,
+                "class": "form-control",
+                "placeholder": "例如：原車車況異常，改配其他車輛",
+            }
+        ),
+    )
+
+
 class RegistrationStageForm(forms.ModelForm):
     class Meta:
         model = SalesOrder

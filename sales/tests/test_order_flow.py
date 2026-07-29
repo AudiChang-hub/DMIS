@@ -347,6 +347,90 @@ class OrderFlowTests(TestCase):
         self.assertEqual(order.allocated_vehicle, self.vehicle)
         self.assertEqual(order.status, SalesOrder.Status.ALLOCATED)
 
+    def test_reallocation_atomically_releases_original_and_reserves_new_vehicle(self):
+        order = self.make_order()
+        order.allocate(self.vehicle)
+        replacement = VehicleInventory.objects.create(
+            vehicle_model=self.model,
+            color=self.color,
+            engine_number="ENG-002",
+            ownership_store=self.store_a,
+            location_store=self.store_a,
+        )
+        self.client.force_login(self.user)
+
+        detail = self.client.get(reverse("order_detail", args=[order.pk]))
+        self.assertContains(detail, "更換配車")
+        response = self.client.post(
+            reverse("reallocate_vehicle", args=[order.pk]),
+            {
+                "vehicle": replacement.pk,
+                "reason": "原車車況異常",
+            },
+        )
+
+        self.assertRedirects(
+            response,
+            f"{reverse('order_detail', args=[order.pk])}?tab=allocation",
+        )
+        order.refresh_from_db()
+        self.vehicle.refresh_from_db()
+        replacement.refresh_from_db()
+        self.assertEqual(order.allocated_vehicle, replacement)
+        self.assertEqual(
+            self.vehicle.status, VehicleInventory.Status.AVAILABLE
+        )
+        self.assertEqual(
+            replacement.status, VehicleInventory.Status.RESERVED
+        )
+        change = order.changes.latest("created_at")
+        self.assertEqual(change.reason, "原車車況異常")
+        self.assertEqual(
+            change.changes["已配車輛"]["before"], str(self.vehicle)
+        )
+        self.assertEqual(
+            change.changes["已配車輛"]["after"], str(replacement)
+        )
+
+    def test_reallocation_is_blocked_after_registration_has_started(self):
+        order = self.make_order()
+        order.allocate(self.vehicle)
+        order.registration_date = timezone.localdate()
+        order.save(update_fields=["registration_date", "updated_at"])
+        replacement = VehicleInventory.objects.create(
+            vehicle_model=self.model,
+            color=self.color,
+            engine_number="ENG-003",
+            ownership_store=self.store_a,
+            location_store=self.store_a,
+        )
+        self.client.force_login(self.user)
+
+        detail = self.client.get(reverse("order_detail", args=[order.pk]))
+        self.assertContains(detail, "目前無法改配")
+        response = self.client.post(
+            reverse("reallocate_vehicle", args=[order.pk]),
+            {
+                "vehicle": replacement.pk,
+                "reason": "嘗試改配",
+            },
+        )
+
+        self.assertRedirects(
+            response,
+            f"{reverse('order_detail', args=[order.pk])}?tab=allocation",
+        )
+        order.refresh_from_db()
+        self.vehicle.refresh_from_db()
+        replacement.refresh_from_db()
+        self.assertEqual(order.allocated_vehicle, self.vehicle)
+        self.assertEqual(
+            self.vehicle.status, VehicleInventory.Status.RESERVED
+        )
+        self.assertEqual(
+            replacement.status, VehicleInventory.Status.AVAILABLE
+        )
+
     def test_order_detail_uses_flexible_work_tabs(self):
         from pathlib import Path
 

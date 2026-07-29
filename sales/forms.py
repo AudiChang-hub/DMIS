@@ -1,7 +1,5 @@
 from django import forms
 from django.forms import inlineformset_factory
-from django.utils import timezone
-
 from .models import (
     AccessoryLine,
     OtherFeeLine,
@@ -213,7 +211,6 @@ class SalesOrderForm(forms.ModelForm):
                     self.fields[field_name].initial = None
         self.fields["source"].queryset = SalesSource.objects.filter(active=True)
         self.fields["color"].queryset = VehicleColor.objects.filter(active=True)
-        self.fields["registration_date"].initial = timezone.localdate()
         self.fields["registration_date"].required = False
         self.fields["compulsory_insurance_period"].initial = (
             SalesOrder.CompulsoryInsurancePeriod.ONE_YEAR

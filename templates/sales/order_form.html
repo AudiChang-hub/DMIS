@@ -140,7 +140,11 @@
       </div>
       <div id="gas-registration-calculator">
         <div class="form-grid">
-          {% include "sales/_field.html" with field=form.registration_date %}
+          {% if editing_order %}
+            {% include "sales/_field.html" with field=form.registration_date %}
+          {% else %}
+            {{ form.registration_date.as_hidden }}
+          {% endif %}
           {% include "sales/_field.html" with field=form.compulsory_insurance_period %}
           {% include "sales/_field.html" with field=form.registration_plate_fee %}
           {% include "sales/_field.html" with field=form.registration_license_fee %}
@@ -430,7 +434,9 @@
     if (!modelData || !rate || !selectedDate) {
       rateSummary.textContent = modelData && !cc
         ? "此油車尚未設定排氣量，請先至主檔維護"
-        : "請選擇已設定排氣量的油車與預計領牌日期";
+        : editingOrderId
+          ? "請選擇已設定排氣量的油車與預計領牌日期"
+          : "領牌日期於後續編輯時填寫，牌險依單據收款";
       return;
     }
 

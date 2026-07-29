@@ -121,6 +121,14 @@ class OrderFlowTests(TestCase):
         self.assertIn("app-update.js' %}?v={{ app_version }}", base)
         self.assertIn("page-shell--wide", detail)
         self.assertIn("page-shell--form", form)
+        self.assertIn(
+            "grid-template-columns: auto 1fr auto 1fr auto;",
+            css,
+        )
+        self.assertNotIn(
+            "grid-template-columns: auto 1fr auto 1fr auto 1fr auto;",
+            css,
+        )
 
     def test_forms_provide_field_specific_mobile_keyboard_hints(self):
         order_form = SalesOrderForm()

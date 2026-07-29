@@ -404,7 +404,7 @@ body.screen-locked { overflow: hidden; }
 .form-actions { display: flex; padding-top: 20px; justify-content: flex-end; gap: 10px; border-top: 1px solid var(--line); }
 .back-link { display: inline-block; margin-bottom: 12px; color: var(--blue); font-weight: 800; font-size: .85rem; }
 .title-with-status { display: flex; align-items: center; gap: 12px; }
-.workflow-strip { display: grid; grid-template-columns: auto 1fr auto 1fr auto 1fr auto; margin: 0 0 20px; padding: 18px 22px; align-items: start; background: #fff; border: 1px solid var(--line); border-radius: var(--radius); }
+.workflow-strip { display: grid; grid-template-columns: auto 1fr auto 1fr auto; margin: 0 0 20px; padding: 18px 22px; align-items: start; background: #fff; border: 1px solid var(--line); border-radius: var(--radius); }
 .workflow-strip div { display: grid; justify-items: center; gap: 5px; color: #9aa39e; }
 .workflow-strip div span { display: grid; width: 30px; height: 30px; place-items: center; background: #edf0ee; border-radius: 50%; font-weight: 900; }
 .workflow-strip div small { font-weight: 800; white-space: nowrap; }

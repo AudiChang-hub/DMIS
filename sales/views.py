@@ -533,6 +533,11 @@ def order_edit(request, pk):
         )
         if form.is_valid() and formset.is_valid() and fee_formset.is_valid():
             order = form.save(commit=False)
+            if (
+                order.actual_balance != order.calculated_balance
+                and not order.balance_adjustment_reason
+            ):
+                order.balance_adjustment_reason = form.cleaned_data["change_reason"]
             order.revision += 1
             order.editing_session = ""
             order.editing_by = ""

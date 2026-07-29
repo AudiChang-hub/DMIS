@@ -33,6 +33,7 @@
     <strong id="draft-status-message">{% if editing_order %}正式訂單不會自動暫存，請完成後按「儲存修改」{% elif draft %}已載入草稿，最後更新 {{ draft.updated_at|date:"m/d H:i" }}{% else %}開始填寫後會自動儲存草稿{% endif %}</strong>
   </div>
   <div class="editing-presence" id="editing-presence" role="status" aria-live="polite" hidden></div>
+  <div class="message error form-validation-summary" id="form-validation-summary" role="alert" hidden></div>
   <div class="collaboration-status" id="collaboration-status" aria-live="polite" hidden></div>
   <div class="field-conflict" id="field-conflict" role="alertdialog" aria-live="assertive" hidden>
     <strong id="field-conflict-title">此欄位同時被修改</strong>
@@ -72,38 +73,48 @@
       <p id="ocr-message"></p>
       <button type="button" class="button ghost small" id="run-id-ocr">重新辨識</button>
     </div>
-    <div class="form-grid">
+    <div class="form-grid owner-form-grid">
       {% include "sales/_field.html" with field=form.owner_type %}
       <div class="span-2 capture-instruction" data-conditional="local">
         請先準備證件正反面；點選欄位後可直接拍照，或從手機相簿選擇圖片。
       </div>
-      <div class="capture-card {% if document_source.id_front %}has-saved-photo{% endif %}" data-conditional="local">
-        {% include "sales/_field.html" with field=form.id_front %}
-        {% if document_source.id_front %}
-        <div class="saved-photo-state" data-saved-photo="id_front">
-          <span><strong>已暫存正面照片</strong><small>照片已安全保存，可繼續填寫</small></span>
-          <a href="{% url 'protected_media' document_model document_source.pk 'id_front' %}" target="_blank">查看</a>
-          <button type="button" data-select-file="id_id_front">更換</button>
+      <div class="identity-compare span-2">
+        <div class="capture-card {% if document_source.id_front %}has-saved-photo{% endif %}" data-conditional="local">
+          {% include "sales/_field.html" with field=form.id_front %}
+          <img class="identity-preview" data-photo-preview="id_front" {% if document_source.id_front %}src="{% url 'protected_media' document_model document_source.pk 'id_front' %}"{% else %}hidden{% endif %} alt="身分證正面預覽">
+          {% if document_source.id_front %}
+          <div class="saved-photo-state" data-saved-photo="id_front">
+            <span><strong>已暫存正面照片</strong><small>可點擊圖片放大核對</small></span>
+            <a href="{% url 'protected_media' document_model document_source.pk 'id_front' %}" target="_blank">查看</a>
+            <button type="button" data-select-file="id_id_front">更換</button>
+          </div>
+          {% endif %}
+          <button type="button" class="remove-photo" data-clear-file="id_id_front" data-existing-photo="{% if document_source.id_front %}1{% else %}0{% endif %}" {% if not document_source.id_front %}hidden{% endif %}>移除正面照片</button>
         </div>
-        {% endif %}
-        <button type="button" class="remove-photo" data-clear-file="id_id_front" data-existing-photo="{% if document_source.id_front %}1{% else %}0{% endif %}" {% if not document_source.id_front %}hidden{% endif %}>移除正面照片</button>
-      </div>
-      <div class="capture-card {% if document_source.id_back %}has-saved-photo{% endif %}" data-conditional="local">
-        {% include "sales/_field.html" with field=form.id_back %}
-        {% if document_source.id_back %}
-        <div class="saved-photo-state" data-saved-photo="id_back">
-          <span><strong>已暫存反面照片</strong><small>照片已安全保存，可繼續填寫</small></span>
-          <a href="{% url 'protected_media' document_model document_source.pk 'id_back' %}" target="_blank">查看</a>
-          <button type="button" data-select-file="id_id_back">更換</button>
+        <div class="identity-compare__fields">
+          {% include "sales/_field.html" with field=form.owner_name %}
+          {% include "sales/_field.html" with field=form.owner_id_number %}
+          {% include "sales/_field.html" with field=form.owner_birth_date %}
         </div>
-        {% endif %}
-        <button type="button" class="remove-photo" data-clear-file="id_id_back" data-existing-photo="{% if document_source.id_back %}1{% else %}0{% endif %}" {% if not document_source.id_back %}hidden{% endif %}>移除反面照片</button>
       </div>
-      {% include "sales/_field.html" with field=form.owner_name %}
+      <div class="identity-compare span-2">
+        <div class="capture-card {% if document_source.id_back %}has-saved-photo{% endif %}" data-conditional="local">
+          {% include "sales/_field.html" with field=form.id_back %}
+          <img class="identity-preview" data-photo-preview="id_back" {% if document_source.id_back %}src="{% url 'protected_media' document_model document_source.pk 'id_back' %}"{% else %}hidden{% endif %} alt="身分證反面預覽">
+          {% if document_source.id_back %}
+          <div class="saved-photo-state" data-saved-photo="id_back">
+            <span><strong>已暫存反面照片</strong><small>可直接與戶籍地址對照</small></span>
+            <a href="{% url 'protected_media' document_model document_source.pk 'id_back' %}" target="_blank">查看</a>
+            <button type="button" data-select-file="id_id_back">更換</button>
+          </div>
+          {% endif %}
+          <button type="button" class="remove-photo" data-clear-file="id_id_back" data-existing-photo="{% if document_source.id_back %}1{% else %}0{% endif %}" {% if not document_source.id_back %}hidden{% endif %}>移除反面照片</button>
+        </div>
+        <div class="identity-compare__fields">
+          {% include "sales/_field.html" with field=form.owner_address %}
+        </div>
+      </div>
       <div data-conditional="foreign">{% include "sales/_field.html" with field=form.owner_name_en %}</div>
-      {% include "sales/_field.html" with field=form.owner_birth_date %}
-      {% include "sales/_field.html" with field=form.owner_id_number %}
-      <div class="span-2">{% include "sales/_field.html" with field=form.owner_address %}</div>
       {% include "sales/_field.html" with field=form.owner_phone %}
       {% include "sales/_field.html" with field=form.owner_email %}
       <div data-conditional="foreign">{% include "sales/_field.html" with field=form.owner_nationality %}</div>
@@ -301,6 +312,7 @@
   const draftStatus = byId("draft-status");
   const draftStatusMessage = byId("draft-status-message");
   const editingPresence = byId("editing-presence");
+  const validationSummary = byId("form-validation-summary");
   const collaborationStatus = byId("collaboration-status");
   const fieldVersionsInput = byId("field-versions");
   const conflictPanel = byId("field-conflict");
@@ -478,8 +490,13 @@
   function refresh() {
     showConditional("source", sourceType.value !== "store");
     showConditional("local", ownerType.value === "local");
+    document.querySelector(".owner-form-grid")?.classList.toggle(
+      "is-nonlocal", ownerType.value !== "local"
+    );
     showConditional("foreign", ownerType.value === "foreign");
     showConditional("installment", paymentType.value === "installment");
+    const installmentRequired = paymentType.value === "installment";
+    installmentInputs.forEach(input => { input.required = installmentRequired; });
     showConditional("trade-in-owner", isTradeInSubsidy.checked);
     showConditional("watch", plateChoice.value === "watch");
     showConditional("preference", plateChoice.value === "preference");
@@ -613,6 +630,13 @@
     byId(`remove-${event.target.name.replaceAll("_", "-")}`).value = "0";
     event.target.closest(".capture-card")?.classList.remove("has-saved-photo");
     document.querySelector(`[data-saved-photo="${event.target.name}"]`)?.remove();
+    const preview = document.querySelector(
+      `[data-photo-preview="${event.target.name}"]`
+    );
+    if (preview && event.target.files[0]) {
+      preview.src = URL.createObjectURL(event.target.files[0]);
+      preview.hidden = false;
+    }
     if (ocrAbortController) ocrAbortController.abort();
     ocrRequestVersion += 1;
     ocrRunning = false;
@@ -635,6 +659,13 @@
       button.dataset.existingPhoto = "0";
       button.closest(".capture-card")?.classList.remove("has-saved-photo");
       document.querySelector(`[data-saved-photo="${fieldName}"]`)?.remove();
+      const preview = document.querySelector(
+        `[data-photo-preview="${fieldName}"]`
+      );
+      if (preview) {
+        preview.removeAttribute("src");
+        preview.hidden = true;
+      }
       if (ocrAbortController) ocrAbortController.abort();
       ocrRequestVersion += 1;
       ocrRunning = false;
@@ -655,6 +686,11 @@
   });
   idFront.addEventListener("change", photoChanged);
   idBack.addEventListener("change", photoChanged);
+  document.querySelectorAll("[data-photo-preview]").forEach(preview => {
+    preview.addEventListener("click", () => {
+      if (preview.src) window.open(preview.src, "_blank", "noopener");
+    });
+  });
   ocrButton.addEventListener("click", runIdOcr);
   refreshPhotoButtons();
 
@@ -697,6 +733,7 @@
     const html = byId("empty-other-fee").innerHTML.replaceAll("__prefix__", total.value);
     byId("other-fee-forms").insertAdjacentHTML("beforeend", html);
     const row = byId("other-fee-forms").lastElementChild;
+    bindOtherFeeRow(row);
     bindCollaborativeFields(row);
     total.value = Number(total.value) + 1;
     if (sync) {
@@ -708,6 +745,24 @@
     }
   }
   byId("add-other-fee").addEventListener("click", () => appendOtherFeeRow());
+
+  function refreshOtherFeeRequired(row) {
+    const nameInput = row.querySelector('[name$="-name"]');
+    const amountInput = row.querySelector('[name$="-amount"]');
+    const hasName = Boolean(nameInput?.value.trim());
+    const hasAmount = Boolean(amountInput?.value.trim());
+    if (nameInput) nameInput.required = hasAmount;
+    if (amountInput) amountInput.required = hasName;
+  }
+
+  function bindOtherFeeRow(row) {
+    row.querySelectorAll('[name$="-name"], [name$="-amount"]').forEach(input => {
+      input.addEventListener("input", () => refreshOtherFeeRequired(row));
+    });
+    refreshOtherFeeRequired(row);
+  }
+
+  document.querySelectorAll(".other-fee-row").forEach(bindOtherFeeRow);
 
   function isCollaborativeField(input) {
     if (!input?.name || input.disabled) return false;
@@ -1018,8 +1073,6 @@
     collaborationConflict = null;
   });
 
-  bindCollaborativeFields(orderForm);
-
   function flushCollaborativeChanges() {
     collaborativeTimers.forEach((timer, fieldName) => {
       clearTimeout(timer);
@@ -1037,6 +1090,22 @@
     draftStatusMessage.textContent = text;
   }
 
+  function setExclusiveEditingLocked(locked) {
+    orderForm.classList.toggle("is-editing-locked", locked);
+    orderForm.querySelectorAll("input, select, textarea, button").forEach(control => {
+      if (control.type === "hidden") return;
+      if (locked) {
+        if (control.disabled) control.dataset.wasDisabled = "1";
+        control.disabled = true;
+        control.dataset.lockDisabled = "1";
+      } else if (control.dataset.lockDisabled === "1") {
+        if (control.dataset.wasDisabled !== "1") control.disabled = false;
+        delete control.dataset.lockDisabled;
+        delete control.dataset.wasDisabled;
+      }
+    });
+  }
+
   async function refreshDraftPresence() {
     if (editingOrderId) {
       try {
@@ -1052,7 +1121,8 @@
           : "editing-presence warning";
         editingPresence.textContent = data.mine
           ? `目前由你（${data.editing_by}）編輯這筆訂單`
-          : `注意：${data.editing_by} 正在編輯這筆訂單，儲存時系統仍會檢查版本`;
+          : `${data.editing_by} 正在編輯這筆訂單，目前只能查看`;
+        setExclusiveEditingLocked(!data.mine);
       } catch (error) {
         // 編輯狀態屬輔助提醒，版本檢查仍會防止覆蓋。
       }
@@ -1075,7 +1145,8 @@
         : "editing-presence warning";
       editingPresence.textContent = data.mine
         ? `目前由你（${data.editing_by}）編輯這筆草稿`
-        : `注意：${data.editing_by} 正在編輯這筆草稿，請避免重複操作`;
+        : `${data.editing_by} 正在編輯這筆草稿，目前只能查看`;
+      setExclusiveEditingLocked(!data.mine);
     } catch (error) {
       // 編輯狀態屬輔助提醒，連線短暫失敗時不阻擋填單。
     }
@@ -1086,12 +1157,17 @@
     const card = input.closest(".capture-card");
     const clearButton = card.querySelector("[data-clear-file]");
     let state = card.querySelector(`[data-saved-photo="${fieldName}"]`);
+    const preview = card.querySelector(`[data-photo-preview="${fieldName}"]`);
     const sideLabel = fieldName === "id_front" ? "正面" : "反面";
 
     if (!url) {
       state?.remove();
       card.classList.remove("has-saved-photo");
       clearButton.dataset.existingPhoto = "0";
+      if (preview) {
+        preview.removeAttribute("src");
+        preview.hidden = true;
+      }
       refreshPhotoButtons();
       return;
     }
@@ -1109,6 +1185,10 @@
       clearButton.before(state);
     }
     state.querySelector("a").href = url;
+    if (preview) {
+      preview.src = url;
+      preview.hidden = false;
+    }
     card.classList.add("has-saved-photo");
     clearButton.dataset.existingPhoto = "1";
     refreshPhotoButtons();
@@ -1128,7 +1208,6 @@
       draftQueued = true;
       return;
     }
-    flushCollaborativeChanges();
     draftSaving = true;
     setDraftStatus("saving", "草稿儲存中…");
     const requestPhotoVersion = {...photoVersion};
@@ -1192,13 +1271,32 @@
       event.returnValue = "";
     });
   }
+  let invalidFocusPending = false;
+  orderForm.addEventListener("invalid", event => {
+    if (invalidFocusPending) return;
+    invalidFocusPending = true;
+    const input = event.target;
+    const section = input.closest("details.form-section");
+    if (section) section.open = true;
+    const label = input.closest(".field")?.querySelector("label")?.textContent.trim()
+      || input.labels?.[0]?.textContent.trim()
+      || "必填欄位";
+    validationSummary.hidden = false;
+    validationSummary.textContent = `尚有資料未完成：${label}。請確認後再建立訂單。`;
+    window.setTimeout(() => {
+      input.scrollIntoView({behavior: "smooth", block: "center"});
+      input.focus({preventScroll: true});
+      invalidFocusPending = false;
+    }, 80);
+  }, true);
+  orderForm.addEventListener("input", () => {
+    validationSummary.hidden = true;
+  });
   orderForm.addEventListener("submit", () => {
-    flushCollaborativeChanges();
     submittingOrder = true;
     clearTimeout(draftTimer);
   });
   refreshDraftPresence();
-  if (!editingOrderId) connectCollaboration();
   window.setInterval(refreshDraftPresence, 30000);
   window.addEventListener("pagehide", () => {
     if (editingOrderId) {

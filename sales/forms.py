@@ -3,6 +3,7 @@ from django.forms import inlineformset_factory
 from .models import (
     AccessoryLine,
     OtherFeeLine,
+    RegistrationDocument,
     SalesOrder,
     SalesSource,
     VehicleColor,
@@ -520,3 +521,109 @@ class AllocationForm(forms.Form):
             status=VehicleInventory.Status.AVAILABLE,
         ).select_related("location_store", "vehicle_model", "color")
         self.fields["vehicle"].widget.attrs["class"] = "form-control"
+
+
+class RegistrationStageForm(forms.ModelForm):
+    class Meta:
+        model = SalesOrder
+        fields = ["registration_date", "final_plate_number"]
+        widgets = {"registration_date": DateInput()}
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._previous_calculated_total = (
+            self.instance.registration_calculated_total
+        )
+        self._previous_actual_total = self.instance.plate_insurance_fee
+        self._previous_calculated_balance = self.instance.calculated_balance
+        self._previous_actual_balance = self.instance.actual_balance
+        self.fields["registration_date"].required = True
+        self.fields["final_plate_number"].required = True
+        self.fields["final_plate_number"].widget.attrs.update(
+            {
+                "class": "form-control",
+                "autocapitalize": "characters",
+                "autocomplete": "off",
+                "spellcheck": "false",
+                "placeholder": "例如 ABC-1234",
+            }
+        )
+        self.fields["registration_date"].widget.attrs["class"] = "form-control"
+
+    def clean_final_plate_number(self):
+        return self.cleaned_data["final_plate_number"].strip().upper()
+
+    def save(self, commit=True):
+        order = super().save(commit=False)
+        model = order.vehicle_model
+        if (
+            model.energy_type == VehicleModel.EnergyType.GAS
+            and model.displacement_cc
+            and order.registration_date
+        ):
+            result = calculate_registration_fee(
+                model.displacement_cc,
+                order.registration_date,
+                order.compulsory_insurance_period,
+            )
+            order.registration_rate_class = result.rate_class
+            order.registration_plate_fee = result.plate_fee
+            order.registration_license_fee = result.license_fee
+            order.registration_inspection_fee = result.inspection_fee
+            order.road_maintenance_fee = result.road_maintenance_fee
+            order.license_tax_fee = result.license_tax_fee
+            order.compulsory_insurance_fee = result.compulsory_insurance_fee
+            calculated_total = (
+                result.fixed_and_variable_total
+                + order.plate_selection_fee
+                + order.lien_registration_fee
+            )
+            order.registration_calculated_total = calculated_total
+            if (
+                not self._previous_actual_total
+                or self._previous_actual_total
+                == self._previous_calculated_total
+            ):
+                order.plate_insurance_fee = calculated_total
+            recalculated_balance = order.calculate_balance()
+            if (
+                self._previous_actual_balance == self._previous_calculated_balance
+                or not order.balance_adjustment_reason
+            ):
+                order.actual_balance = recalculated_balance
+        if commit:
+            order.save()
+        return order
+
+
+class RegistrationDocumentUploadForm(forms.ModelForm):
+    class Meta:
+        model = RegistrationDocument
+        fields = ["document_type", "name", "file"]
+        widgets = {
+            "document_type": forms.HiddenInput(),
+            "file": forms.ClearableFileInput(
+                attrs={
+                    "accept": "image/jpeg,image/png,image/webp,application/pdf",
+                    "capture": "environment",
+                }
+            ),
+        }
+
+    def clean(self):
+        data = super().clean()
+        if (
+            data.get("document_type")
+            == RegistrationDocument.DocumentType.OTHER_INSURANCE
+            and not data.get("name")
+        ):
+            self.add_error("name", "新增其他保險單時必須填寫保險名稱。")
+        upload = data.get("file")
+        if upload and upload.content_type not in {
+            "image/jpeg",
+            "image/png",
+            "image/webp",
+            "application/pdf",
+        }:
+            self.add_error("file", "僅支援 JPG、PNG、WebP 或 PDF。")
+        return data

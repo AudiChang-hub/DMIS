@@ -2,6 +2,7 @@ import json
 import logging
 from datetime import timedelta
 from io import BytesIO
+from pathlib import Path
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
@@ -23,6 +24,8 @@ from .forms import (
     OtherFeeFormSet,
     OrderEditForm,
     PrivacyConsentForm,
+    RegistrationDocumentUploadForm,
+    RegistrationStageForm,
     SalesOrderForm,
     SignedContractForm,
     VehicleInventoryForm,
@@ -31,6 +34,7 @@ from .models import (
     OrderEvent,
     OrderChange,
     OrderDraft,
+    RegistrationDocument,
     SalesOrder,
     SalesSource,
     VehicleColor,
@@ -463,9 +467,32 @@ def order_detail(request, pk):
             "color",
             "allocated_vehicle",
             "allocated_vehicle__location_store",
-        ).prefetch_related("accessories", "other_fees", "events", "changes"),
+        ).prefetch_related(
+            "accessories",
+            "other_fees",
+            "events",
+            "changes",
+            "registration_documents",
+        ),
         pk=pk,
     )
+    registration_documents = {
+        document.document_type: document
+        for document in order.registration_documents.all()
+        if document.document_type
+        != RegistrationDocument.DocumentType.OTHER_INSURANCE
+    }
+    required_types = order.required_registration_document_types()
+    registration_document_rows = [
+        {
+            "type": document_type,
+            "label": label,
+            "required": document_type in required_types,
+            "document": registration_documents.get(document_type),
+        }
+        for document_type, label in RegistrationDocument.DocumentType.choices
+        if document_type != RegistrationDocument.DocumentType.OTHER_INSURANCE
+    ]
     return render(
         request,
         "sales/order_detail.html",
@@ -474,6 +501,12 @@ def order_detail(request, pk):
             "contract_form": SignedContractForm(instance=order),
             "privacy_consent_form": PrivacyConsentForm(instance=order),
             "allocation_form": AllocationForm(order),
+            "registration_form": RegistrationStageForm(instance=order),
+            "registration_document_rows": registration_document_rows,
+            "other_insurance_documents": order.registration_documents.filter(
+                document_type=RegistrationDocument.DocumentType.OTHER_INSURANCE
+            ),
+            "registration_missing": order.missing_registration_requirements(),
             "change_cards": build_order_change_cards(order.changes.all()),
         },
     )
@@ -793,6 +826,160 @@ def allocate_vehicle(request, pk):
     else:
         messages.error(request, "請選擇可用的實體車輛。")
     return redirect("order_detail", pk=pk)
+
+
+@login_required
+@transaction.atomic
+def registration_save(request, pk):
+    order = get_object_or_404(SalesOrder.objects.select_for_update(), pk=pk)
+    if request.method != "POST":
+        return redirect("order_detail", pk=pk)
+    if order.is_registration_complete:
+        messages.error(request, "此訂單已完成領牌，領牌資料已鎖定。")
+        return redirect("order_detail", pk=pk)
+    if not order.allocated_vehicle_id:
+        messages.error(request, "請先完成配車，再填寫領牌資料。")
+        return redirect("order_detail", pk=pk)
+    form = RegistrationStageForm(request.POST, instance=order)
+    if form.is_valid():
+        order = form.save()
+        OrderEvent.objects.create(
+            order=order,
+            event_type="registration_data_updated",
+            description=(
+                f"已更新領牌資料：{order.registration_date}／"
+                f"{order.final_plate_number}"
+            ),
+            actor_name=_editing_name(request.user),
+        )
+        messages.success(request, "領牌日期與車牌號碼已保存。")
+    else:
+        messages.error(
+            request,
+            "領牌資料未保存：" + " ".join(
+                error
+                for errors in form.errors.values()
+                for error in errors
+            ),
+        )
+    return redirect("order_detail", pk=pk)
+
+
+@login_required
+@transaction.atomic
+def registration_document_upload(request, pk):
+    order = get_object_or_404(SalesOrder.objects.select_for_update(), pk=pk)
+    if request.method != "POST":
+        return redirect("order_detail", pk=pk)
+    if not order.allocated_vehicle_id:
+        messages.error(request, "請先完成配車，再上傳領牌文件。")
+        return redirect("order_detail", pk=pk)
+    if order.is_registration_complete or order.status in {
+        SalesOrder.Status.COMPLETED,
+        SalesOrder.Status.CANCELLED,
+    }:
+        messages.error(request, "此訂單的領牌階段已完成，無法修改文件。")
+        return redirect("order_detail", pk=pk)
+    form = RegistrationDocumentUploadForm(request.POST, request.FILES)
+    if not form.is_valid():
+        messages.error(
+            request,
+            "文件上傳失敗：" + " ".join(
+                error
+                for errors in form.errors.values()
+                for error in errors
+            ),
+        )
+        return redirect("order_detail", pk=pk)
+
+    document = form.save(commit=False)
+    document.order = order
+    document.uploaded_by = _editing_name(request.user)
+    if document.document_type != RegistrationDocument.DocumentType.OTHER_INSURANCE:
+        existing = order.registration_documents.filter(
+            document_type=document.document_type
+        ).first()
+        if existing:
+            existing.delete_with_file()
+    document.save()
+    OrderEvent.objects.create(
+        order=order,
+        event_type="registration_document_uploaded",
+        description=f"已上傳領牌文件：{document.display_name}",
+        actor_name=_editing_name(request.user),
+    )
+    messages.success(request, f"{document.display_name}已上傳。")
+    return redirect("order_detail", pk=pk)
+
+
+@login_required
+@transaction.atomic
+def registration_document_delete(request, pk, document_pk):
+    order = get_object_or_404(SalesOrder.objects.select_for_update(), pk=pk)
+    if request.method != "POST":
+        return redirect("order_detail", pk=pk)
+    if order.is_registration_complete or order.status in {
+        SalesOrder.Status.COMPLETED,
+        SalesOrder.Status.CANCELLED,
+    }:
+        messages.error(request, "此訂單的領牌階段已完成，無法刪除文件。")
+        return redirect("order_detail", pk=pk)
+    document = get_object_or_404(
+        RegistrationDocument,
+        pk=document_pk,
+        order=order,
+    )
+    display_name = document.display_name
+    document.delete_with_file()
+    OrderEvent.objects.create(
+        order=order,
+        event_type="registration_document_deleted",
+        description=f"已刪除領牌文件：{display_name}",
+        actor_name=_editing_name(request.user),
+    )
+    messages.success(request, f"{display_name}已刪除。")
+    return redirect("order_detail", pk=pk)
+
+
+@login_required
+@transaction.atomic
+def registration_complete(request, pk):
+    order = get_object_or_404(SalesOrder.objects.select_for_update(), pk=pk)
+    if request.method != "POST":
+        return redirect("order_detail", pk=pk)
+    if order.is_registration_complete:
+        messages.info(request, "此訂單已完成領牌。")
+        return redirect("order_detail", pk=pk)
+    try:
+        order.complete_registration(_editing_name(request.user))
+    except ValidationError as exc:
+        messages.error(request, " ".join(exc.messages))
+    else:
+        OrderEvent.objects.create(
+            order=order,
+            event_type="registration_completed",
+            description=(
+                f"領牌完成：{order.registration_date}／"
+                f"{order.final_plate_number}"
+            ),
+            actor_name=_editing_name(request.user),
+        )
+        messages.success(request, "領牌階段已完成，訂單進入待交付。")
+    return redirect("order_detail", pk=pk)
+
+
+@login_required
+def registration_document_file(request, document_pk):
+    document = get_object_or_404(RegistrationDocument, pk=document_pk)
+    if not document.file:
+        raise Http404
+    response = FileResponse(
+        document.file.open("rb"),
+        as_attachment=False,
+        filename=Path(document.file.name).name,
+    )
+    response["Cache-Control"] = "private, no-store"
+    return response
 
 
 @login_required

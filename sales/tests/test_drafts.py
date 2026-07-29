@@ -102,6 +102,16 @@ class OrderDraftTests(TestCase):
         }
 
     def test_autosave_creates_and_updates_draft_with_conflict_protection(self):
+        create_page = self.client.get(reverse("order_create"))
+        self.assertContains(create_page, 'id="draft-delete-button"')
+        self.assertContains(create_page, 'id="draft-delete-form"')
+        self.assertContains(create_page, "enableDraftDelete(data.id)")
+        self.assertContains(
+            create_page,
+            'id="draft-delete-button"',
+        )
+        self.assertContains(create_page, "hidden")
+
         response = self.client.post(
             reverse("draft_save"),
             {
@@ -122,6 +132,7 @@ class OrderDraftTests(TestCase):
             payload["updated_at"],
             timezone.localtime(draft.updated_at).strftime("%H:%M"),
         )
+        self.assertIn(str(draft.pk), payload["edit_url"])
 
         updated = self.client.post(
             reverse("draft_save"),
@@ -254,6 +265,24 @@ class OrderDraftTests(TestCase):
                 self.assertRedirects(response, reverse("dashboard"))
                 self.assertFalse(OrderDraft.objects.filter(pk=draft.pk).exists())
                 self.assertFalse(photo_path.exists())
+
+    def test_ajax_delete_draft_returns_redirect_and_removes_draft(self):
+        draft = OrderDraft.objects.create(
+            data={"owner_name": "首次暫存後刪除"},
+            created_by=self.user.username,
+        )
+
+        response = self.client.post(
+            reverse("draft_delete", args=[draft.pk]),
+            HTTP_ACCEPT="application/json",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.json(),
+            {"ok": True, "redirect_url": reverse("dashboard")},
+        )
+        self.assertFalse(OrderDraft.objects.filter(pk=draft.pk).exists())
 
     def test_presence_warns_another_editor_and_can_be_released(self):
         draft = OrderDraft.objects.create(

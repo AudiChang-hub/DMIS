@@ -54,10 +54,17 @@ class VehicleModel(TimeStampedModel):
     class EnergyType(models.TextChoices):
         GAS = "gas", "油車"
         ELECTRIC = "electric", "電動車"
+        MICRO_ELECTRIC = "micro_electric", "微型電動二輪車"
 
     brand = models.CharField("廠牌", max_length=80)
     name = models.CharField("車型", max_length=120)
     energy_type = models.CharField("動力類型", max_length=20, choices=EnergyType.choices)
+    displacement_cc = models.PositiveSmallIntegerField(
+        "排氣量（c.c.）",
+        blank=True,
+        null=True,
+        help_text="油車領牌試算使用；電動車與微型電動二輪車可留空。",
+    )
     active = models.BooleanField("啟用中", default=True)
 
     class Meta:
@@ -72,6 +79,12 @@ class VehicleModel(TimeStampedModel):
 
     def __str__(self):
         return f"{self.brand} {self.name}"
+
+    def clean(self):
+        if self.energy_type == self.EnergyType.GAS and not self.displacement_cc:
+            raise ValidationError(
+                {"displacement_cc": "油車必須設定排氣量，才能自動試算領牌費用。"}
+            )
 
 
 class VehicleColor(TimeStampedModel):
@@ -208,6 +221,10 @@ class SalesOrder(TimeStampedModel):
         CARD = "card", "刷卡"
         OTHER = "other", "其他"
 
+    class CompulsoryInsurancePeriod(models.IntegerChoices):
+        ONE_YEAR = 1, "一年"
+        TWO_YEARS = 2, "兩年"
+
     class PlateChoice(models.TextChoices):
         NONE = "none", "不選號"
         WATCH = "watch", "指定號碼監控"
@@ -287,6 +304,45 @@ class SalesOrder(TimeStampedModel):
         choices=VehicleCategory.choices,
         default=VehicleCategory.NEW,
     )
+    registration_date = models.DateField("預計領牌日期", blank=True, null=True)
+    compulsory_insurance_period = models.PositiveSmallIntegerField(
+        "強制險期間",
+        choices=CompulsoryInsurancePeriod.choices,
+        default=CompulsoryInsurancePeriod.ONE_YEAR,
+    )
+    registration_rate_class = models.CharField(
+        "領牌費率級距", max_length=10, blank=True
+    )
+    registration_plate_fee = models.DecimalField(
+        "號牌費", max_digits=12, decimal_places=0, default=0
+    )
+    registration_license_fee = models.DecimalField(
+        "行照費", max_digits=12, decimal_places=0, default=0
+    )
+    registration_inspection_fee = models.DecimalField(
+        "檢驗費", max_digits=12, decimal_places=0, default=0
+    )
+    road_maintenance_fee = models.DecimalField(
+        "公路養管費", max_digits=12, decimal_places=0, default=0
+    )
+    license_tax_fee = models.DecimalField(
+        "使用牌照稅", max_digits=12, decimal_places=0, default=0
+    )
+    compulsory_insurance_fee = models.DecimalField(
+        "強制險", max_digits=12, decimal_places=0, default=0
+    )
+    plate_selection_fee = models.DecimalField(
+        "選號費", max_digits=12, decimal_places=0, default=0
+    )
+    lien_registration_fee = models.DecimalField(
+        "動保設定費", max_digits=12, decimal_places=0, default=0
+    )
+    registration_calculated_total = models.DecimalField(
+        "系統試算牌險合計",
+        max_digits=12,
+        decimal_places=0,
+        default=0,
+    )
 
     payment_type = models.CharField(
         "主要付款方式",
@@ -298,7 +354,7 @@ class SalesOrder(TimeStampedModel):
         "車價", max_digits=12, decimal_places=0, default=0
     )
     plate_insurance_fee = models.DecimalField(
-        "牌險", max_digits=12, decimal_places=0, default=0
+        "實際牌險合計", max_digits=12, decimal_places=0, default=0
     )
     installment_opening_fee = models.DecimalField(
         "分期開辦費", max_digits=12, decimal_places=0, default=0

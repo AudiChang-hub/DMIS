@@ -382,10 +382,10 @@ def draw_order_page(c, order, copy_label, page_number, printed_at):
             p("<b>補助類型</b>"),
             p(safe(order.subsidy_type if order.is_trade_in_subsidy else "無")),
             p("<b>新舊車主</b>"),
-            p("不同人" if order.old_owner_name else "同一人"),
+            p("同一人" if order.old_owner_same_as_owner else "不同人"),
         ]
     ]
-    if order.old_owner_name:
+    if not order.old_owner_same_as_owner:
         subsidy_data.append(
             [
                 p("<b>舊車主姓名</b>"),

@@ -392,10 +392,19 @@ class SalesOrder(TimeStampedModel):
     installment_decided_on = models.DateField("核准／拒絕日期", blank=True, null=True)
 
     is_trade_in_subsidy = models.BooleanField("申請汰舊／政府補助", default=False)
+    old_owner_same_as_owner = models.BooleanField(
+        "新舊車主為同一人", default=True
+    )
     trade_in_plate = models.CharField("舊車車牌", max_length=20, blank=True)
     old_owner_name = models.CharField("舊車主姓名", max_length=160, blank=True)
     old_owner_id_number = models.CharField(
         "舊車主身分證字號", max_length=40, blank=True
+    )
+    old_owner_ocr_name = models.CharField(
+        "OCR 辨識舊車主姓名", max_length=160, blank=True
+    )
+    old_owner_ocr_id_number = models.CharField(
+        "OCR 辨識舊車主身分證字號", max_length=40, blank=True
     )
     subsidy_type = models.CharField("補助類型", max_length=120, blank=True)
     old_vehicle_valuation = models.DecimalField(
@@ -551,7 +560,7 @@ class SalesOrder(TimeStampedModel):
             SubsidyDocument.DocumentType.RECYCLING_RECEIPT,
             SubsidyDocument.DocumentType.NEW_OWNER_BANKBOOK,
         }
-        if self.old_owner_name and self.old_owner_name.strip() != self.owner_name.strip():
+        if not self.old_owner_same_as_owner:
             required.add(SubsidyDocument.DocumentType.OWNER_DECLARATION)
             required.add(SubsidyDocument.DocumentType.OLD_OWNER_BANKBOOK)
         return required
@@ -564,11 +573,9 @@ class SalesOrder(TimeStampedModel):
             missing.append("舊車車牌")
         if not self.subsidy_type:
             missing.append("補助類型")
-        if (
-            self.old_owner_name
-            and self.old_owner_name.strip() != self.owner_name.strip()
-            and not self.old_owner_id_number
-        ):
+        if not self.old_owner_same_as_owner and not self.old_owner_name:
+            missing.append("舊車主姓名")
+        if not self.old_owner_same_as_owner and not self.old_owner_id_number:
             missing.append("舊車主身分證字號")
         uploaded = set(
             self.subsidy_documents.values_list("document_type", flat=True)
@@ -583,11 +590,12 @@ class SalesOrder(TimeStampedModel):
     def subsidy_required_count(self):
         if not self.is_trade_in_subsidy:
             return 0
-        different_owner = bool(
-            self.old_owner_name
-            and self.old_owner_name.strip() != self.owner_name.strip()
+        different_owner = not self.old_owner_same_as_owner
+        return (
+            2
+            + (2 * int(different_owner))
+            + len(self.required_subsidy_document_types())
         )
-        return 2 + int(different_owner) + len(self.required_subsidy_document_types())
 
     @property
     def subsidy_completed_count(self):

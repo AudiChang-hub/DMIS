@@ -556,6 +556,8 @@ def _order_snapshot(order):
         "editing_by",
         "editing_at",
         "calculated_balance",
+        "old_owner_ocr_name",
+        "old_owner_ocr_id_number",
     }
     snapshot = {}
     for field in order._meta.concrete_fields:
@@ -1016,6 +1018,82 @@ def registration_document_file(request, document_pk):
     return response
 
 
+def _recognize_old_owner_documents(order, actor_name):
+    documents = {
+        document.document_type: document
+        for document in order.subsidy_documents.filter(
+            document_type__in={
+                SubsidyDocument.DocumentType.OLD_OWNER_ID_FRONT,
+                SubsidyDocument.DocumentType.OLD_OWNER_ID_BACK,
+            }
+        )
+    }
+    front = documents.get(SubsidyDocument.DocumentType.OLD_OWNER_ID_FRONT)
+    back = documents.get(SubsidyDocument.DocumentType.OLD_OWNER_ID_BACK)
+    if not front or not back:
+        return None
+    image_extensions = {".jpg", ".jpeg", ".png", ".webp"}
+    if (
+        Path(front.file.name).suffix.lower() not in image_extensions
+        or Path(back.file.name).suffix.lower() not in image_extensions
+    ):
+        return "證件已保存；OCR 僅支援 JPG、PNG 或 WebP，請人工填寫舊車主資料。"
+
+    try:
+        with front.file.open("rb") as front_file, back.file.open("rb") as back_file:
+            result = recognize_id_card(front_file.read(), back_file.read())
+    except IdOcrError as exc:
+        return f"證件已保存；OCR 未完成：{exc}"
+    except Exception:
+        logger.exception("舊車主身分證 OCR 發生未預期錯誤")
+        return "證件已保存；辨識服務暫時無法使用，請稍後重傳或人工填寫。"
+
+    fields = result.get("fields", {})
+    recognized_name = (fields.get("name") or "").strip()
+    recognized_id = (fields.get("id_number") or "").strip().upper()
+    before = _order_snapshot(order)
+    conflicts = []
+    changed_fields = []
+    for field_name, candidate_field, recognized_value in (
+        ("old_owner_name", "old_owner_ocr_name", recognized_name),
+        ("old_owner_id_number", "old_owner_ocr_id_number", recognized_id),
+    ):
+        current_value = getattr(order, field_name)
+        if not recognized_value:
+            continue
+        if not current_value:
+            setattr(order, field_name, recognized_value)
+            setattr(order, candidate_field, "")
+            changed_fields.extend([field_name, candidate_field])
+        elif current_value != recognized_value:
+            setattr(order, candidate_field, recognized_value)
+            changed_fields.append(candidate_field)
+            conflicts.append(field_name)
+        elif getattr(order, candidate_field):
+            setattr(order, candidate_field, "")
+            changed_fields.append(candidate_field)
+
+    if changed_fields:
+        order.revision += 1
+        order.save(
+            update_fields=[*set(changed_fields), "revision", "updated_at"]
+        )
+        changes = _snapshot_changes(before, _order_snapshot(order))
+        if changes:
+            OrderChange.objects.create(
+                order=order,
+                reason="舊車主證件 OCR 自動辨識",
+                changes=changes,
+                actor_name=actor_name,
+            )
+    warning_text = " ".join(result.get("warnings", []))
+    if conflicts:
+        return "辨識完成，但結果與目前資料不同，請選擇要採用的內容。"
+    if recognized_name or recognized_id:
+        return f"已自動帶入舊車主姓名與身分證字號。{warning_text}".strip()
+    return f"未辨識到舊車主姓名或身分證字號，請人工填寫。{warning_text}".strip()
+
+
 @login_required
 @transaction.atomic
 def subsidy_document_upload(request, pk):
@@ -1058,6 +1136,14 @@ def subsidy_document_upload(request, pk):
         document = existing
     else:
         document.save()
+    ocr_message = None
+    if document.document_type in {
+        SubsidyDocument.DocumentType.OLD_OWNER_ID_FRONT,
+        SubsidyDocument.DocumentType.OLD_OWNER_ID_BACK,
+    }:
+        ocr_message = _recognize_old_owner_documents(
+            order, _editing_name(request.user)
+        )
     OrderEvent.objects.create(
         order=order,
         event_type="subsidy_document_uploaded",
@@ -1069,7 +1155,8 @@ def subsidy_document_upload(request, pk):
     )
     messages.success(
         request,
-        f"{document.name or document.get_document_type_display()}已上傳。",
+        ocr_message
+        or f"{document.name or document.get_document_type_display()}已上傳。",
     )
     return redirect("order_detail", pk=pk)
 
@@ -1174,6 +1261,63 @@ def subsidy_data_update(request, pk):
         actor_name=_editing_name(request.user),
     )
     messages.success(request, "補助資料已更新，尾款與變更紀錄已同步。")
+    return redirect(detail_url)
+
+
+@login_required
+@transaction.atomic
+def subsidy_ocr_decision(request, pk):
+    order = get_object_or_404(SalesOrder.objects.select_for_update(), pk=pk)
+    detail_url = f"{reverse('order_detail', args=[pk])}?tab=subsidy"
+    if request.method != "POST" or not order.is_editable:
+        return redirect(detail_url)
+    decision = request.POST.get("decision")
+    if decision not in {"apply", "keep"}:
+        messages.error(request, "無效的 OCR 資料處理方式。")
+        return redirect(detail_url)
+
+    before = _order_snapshot(order)
+    if decision == "apply":
+        if order.old_owner_ocr_name:
+            order.old_owner_name = order.old_owner_ocr_name
+        if order.old_owner_ocr_id_number:
+            order.old_owner_id_number = order.old_owner_ocr_id_number
+    order.old_owner_ocr_name = ""
+    order.old_owner_ocr_id_number = ""
+    order.revision += 1
+    order.save(
+        update_fields=[
+            "old_owner_name",
+            "old_owner_id_number",
+            "old_owner_ocr_name",
+            "old_owner_ocr_id_number",
+            "revision",
+            "updated_at",
+        ]
+    )
+    changes = _snapshot_changes(before, _order_snapshot(order))
+    reason = (
+        "採用舊車主證件 OCR 結果"
+        if decision == "apply"
+        else "保留人工輸入的舊車主資料"
+    )
+    if changes:
+        OrderChange.objects.create(
+            order=order,
+            reason=reason,
+            changes=changes,
+            actor_name=_editing_name(request.user),
+        )
+    OrderEvent.objects.create(
+        order=order,
+        event_type="old_owner_ocr_decided",
+        description=reason,
+        actor_name=_editing_name(request.user),
+    )
+    messages.success(
+        request,
+        "已採用辨識結果。" if decision == "apply" else "已保留目前內容。",
+    )
     return redirect(detail_url)
 
 

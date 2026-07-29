@@ -84,6 +84,11 @@ urlpatterns = [
         name="subsidy_data_update",
     ),
     path(
+        "orders/<int:pk>/subsidy/ocr-decision/",
+        views.subsidy_ocr_decision,
+        name="subsidy_ocr_decision",
+    ),
+    path(
         "orders/<int:pk>/subsidy/documents/<int:document_pk>/delete/",
         views.subsidy_document_delete,
         name="subsidy_document_delete",

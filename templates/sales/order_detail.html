@@ -86,19 +86,39 @@
     {% endif %}
   </div>
 
-  {% if not order.is_trade_in_subsidy %}
-    <div class="stage-empty">
-      <strong>此訂單未申請汰舊／政府補助</strong>
-      <p>若客戶後續提出申請，可先編輯訂單開啟補助需求；不必等待配車即可上傳文件。</p>
+  {% if order.is_editable %}
+  <form class="subsidy-edit-form" method="post" action="{% url 'subsidy_data_update' order.pk %}" data-subsidy-form data-was-enabled="{% if order.is_trade_in_subsidy %}true{% else %}false{% endif %}" data-has-documents="{% if order.subsidy_documents.all|length %}true{% else %}false{% endif %}">
+    {% csrf_token %}
+    <input type="hidden" name="_order_revision" value="{{ order.revision }}">
+    <label class="subsidy-toggle">
+      {{ subsidy_form.is_trade_in_subsidy }}
+      <span><strong>申請汰舊／政府補助</strong><small>可隨時開啟或關閉；關閉不會刪除已上傳文件。</small></span>
+    </label>
+    <div class="subsidy-edit-grid">
+      <div><label for="{{ subsidy_form.trade_in_plate.id_for_label }}">舊車車牌</label>{{ subsidy_form.trade_in_plate }}</div>
+      <div><label for="{{ subsidy_form.old_owner_name.id_for_label }}">舊車主姓名</label>{{ subsidy_form.old_owner_name }}</div>
+      <div><label for="{{ subsidy_form.subsidy_type.id_for_label }}">補助類型</label>{{ subsidy_form.subsidy_type }}</div>
+      <div><label for="{{ subsidy_form.old_vehicle_valuation.id_for_label }}">舊車估價</label>{{ subsidy_form.old_vehicle_valuation }}</div>
+      <div><label for="{{ subsidy_form.old_vehicle_tax.id_for_label }}">舊車未繳稅金</label>{{ subsidy_form.old_vehicle_tax }}</div>
+      <div class="subsidy-change-reason"><label for="{{ subsidy_form.change_reason.id_for_label }}">變更原因 <span class="required-inline">必填</span></label>{{ subsidy_form.change_reason }}</div>
     </div>
+    <div class="subsidy-edit-actions">
+      <p>估價與舊車稅金異動會自動重算尾款，並保存修改人員、時間與前後內容。</p>
+      <button class="button primary" type="submit">儲存補助資料</button>
+    </div>
+  </form>
   {% else %}
-    <div class="subsidy-summary">
-      <div><span>舊車車牌</span><strong>{{ order.trade_in_plate|default:"尚未填寫" }}</strong></div>
-      <div><span>舊車主</span><strong>{{ order.old_owner_name|default:order.owner_name }}</strong></div>
-      <div><span>補助類型</span><strong>{{ order.subsidy_type|default:"尚未填寫" }}</strong></div>
-      {% if order.is_editable %}<a class="button ghost compact" href="{% url 'order_edit' order.pk %}#extras">修改補助基本資料</a>{% endif %}
-    </div>
+  <div class="subsidy-summary">
+    <div><span>舊車車牌</span><strong>{{ order.trade_in_plate|default:"尚未填寫" }}</strong></div>
+    <div><span>舊車主</span><strong>{{ order.old_owner_name|default:order.owner_name }}</strong></div>
+    <div><span>補助類型</span><strong>{{ order.subsidy_type|default:"尚未填寫" }}</strong></div>
+  </div>
+  {% endif %}
 
+  <div class="subsidy-documents-heading">
+    <h3>補助文件</h3>
+    <p>與領牌文件分開保存；可直接拍照或上傳圖片、PDF。</p>
+  </div>
     <div class="registration-document-list subsidy-document-list">
       {% for row in subsidy_document_rows %}
       <article class="registration-document-row {% if row.document %}is-uploaded{% endif %}">
@@ -118,7 +138,7 @@
             </form>
             {% endif %}
           {% endif %}
-          {% if order.status != "cancelled" %}
+          {% if order.is_trade_in_subsidy and order.status != "cancelled" %}
           <form class="document-upload-form" method="post" enctype="multipart/form-data" action="{% url 'subsidy_document_upload' order.pk %}">
             {% csrf_token %}
             <input type="hidden" name="document_type" value="{{ row.type }}">
@@ -133,9 +153,12 @@
       {% endfor %}
     </div>
 
-    <div class="registration-completion {% if subsidy_missing %}has-missing{% else %}is-ready{% endif %}">
+    <div class="registration-completion {% if not order.is_trade_in_subsidy or subsidy_missing %}has-missing{% else %}is-ready{% endif %}">
       <div>
-        {% if subsidy_missing %}
+        {% if not order.is_trade_in_subsidy %}
+          <strong>目前未啟用補助申請</strong>
+          <p>已上傳的文件仍會保留；再次啟用後可繼續補齊資料。</p>
+        {% elif subsidy_missing %}
           <strong>補助資料尚缺 {{ subsidy_missing|length }} 項</strong>
           <p>{{ subsidy_missing|join:"、" }}</p>
         {% else %}
@@ -144,7 +167,6 @@
         {% endif %}
       </div>
     </div>
-  {% endif %}
 </section>
 </div>
 

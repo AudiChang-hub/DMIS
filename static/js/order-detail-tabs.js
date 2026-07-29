@@ -52,5 +52,26 @@
     activate(name, false);
   });
 
+  const subsidyForm = document.querySelector("[data-subsidy-form]");
+  if (subsidyForm) {
+    subsidyForm.addEventListener("submit", (event) => {
+      const checkbox = subsidyForm.querySelector(
+        'input[name="is_trade_in_subsidy"]'
+      );
+      if (
+        subsidyForm.dataset.wasEnabled === "true" &&
+        checkbox &&
+        !checkbox.checked &&
+        !window.confirm(
+          subsidyForm.dataset.hasDocuments === "true"
+            ? "關閉補助申請後，既有文件會保留但不再列入待補項目。確定關閉嗎？"
+            : "確定要關閉這張訂單的補助申請嗎？"
+        )
+      ) {
+        event.preventDefault();
+      }
+    });
+  }
+
   activate(requestedTab || savedTab || "order", Boolean(requestedTab));
 })();

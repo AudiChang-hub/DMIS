@@ -654,3 +654,58 @@ class SubsidyDocumentUploadForm(forms.ModelForm):
         }:
             raise forms.ValidationError("僅支援 JPG、PNG、WebP 或 PDF。")
         return upload
+
+
+class SubsidyDataForm(forms.ModelForm):
+    change_reason = forms.CharField(
+        label="變更原因",
+        max_length=250,
+        widget=forms.Textarea(
+            attrs={
+                "rows": 2,
+                "placeholder": "例如：客戶補充舊車資料",
+            }
+        ),
+    )
+
+    class Meta:
+        model = SalesOrder
+        fields = [
+            "is_trade_in_subsidy",
+            "trade_in_plate",
+            "old_owner_name",
+            "subsidy_type",
+            "old_vehicle_valuation",
+            "old_vehicle_tax",
+        ]
+        widgets = {
+            "is_trade_in_subsidy": forms.CheckboxInput(),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        for field in self.fields.values():
+            field.widget.attrs.setdefault("class", "form-control")
+        self.fields["is_trade_in_subsidy"].widget.attrs["class"] = "form-check"
+        self.fields["trade_in_plate"].widget.attrs.update(
+            {
+                "lang": "en",
+                "autocapitalize": "characters",
+                "spellcheck": "false",
+                "placeholder": "例如 ABC-1234",
+            }
+        )
+        self.fields["old_vehicle_valuation"].required = False
+        self.fields["old_vehicle_tax"].required = False
+        apply_mobile_keyboard_attrs(self)
+
+    def clean_trade_in_plate(self):
+        return self.cleaned_data["trade_in_plate"].strip().upper()
+
+    def clean(self):
+        data = super().clean()
+        for field_name in ("old_vehicle_valuation", "old_vehicle_tax"):
+            if data.get(field_name) is None:
+                data[field_name] = 0
+                self.cleaned_data[field_name] = 0
+        return data

@@ -288,7 +288,11 @@ class OrderFlowTests(TestCase):
         self.assertContains(detail, "修改了")
         self.assertContains(detail, "客戶要求更正公司名稱")
         self.assertContains(detail, "王小明有限公司")
-        self.assertNotContains(detail, "owner_name")
+        self.assertNotContains(
+            detail,
+            '<strong class="change-label">owner_name</strong>',
+            html=True,
+        )
 
     def test_change_history_translates_codes_money_and_line_items(self):
         order = self.make_order()
@@ -406,6 +410,131 @@ class OrderFlowTests(TestCase):
                 document_type=SubsidyDocument.DocumentType.OLD_OWNER_ID_FRONT
             ).exists()
         )
+
+    def test_subsidy_tab_updates_data_balance_and_change_history(self):
+        order = self.make_order()
+        self.client.force_login(self.user)
+
+        detail = self.client.get(reverse("order_detail", args=[order.pk]))
+        self.assertContains(detail, 'data-subsidy-form')
+        self.assertContains(detail, "儲存補助資料")
+        self.assertNotContains(detail, "修改補助基本資料")
+
+        response = self.client.post(
+            reverse("subsidy_data_update", args=[order.pk]),
+            {
+                "_order_revision": order.revision,
+                "is_trade_in_subsidy": "on",
+                "trade_in_plate": "abc-1234",
+                "old_owner_name": "陳大華",
+                "subsidy_type": "汰舊換新",
+                "old_vehicle_valuation": "10000",
+                "old_vehicle_tax": "500",
+                "change_reason": "客戶提供舊車資料",
+            },
+        )
+
+        self.assertRedirects(
+            response,
+            f"{reverse('order_detail', args=[order.pk])}?tab=subsidy",
+        )
+        order.refresh_from_db()
+        self.assertTrue(order.is_trade_in_subsidy)
+        self.assertEqual(order.trade_in_plate, "ABC-1234")
+        self.assertEqual(order.actual_balance, Decimal("65700"))
+        self.assertEqual(order.calculated_balance, Decimal("65700"))
+        self.assertEqual(order.revision, 2)
+        change = order.changes.latest("created_at")
+        self.assertEqual(change.actor_name, "tester")
+        self.assertEqual(change.reason, "客戶提供舊車資料")
+        self.assertIn("舊車車牌", change.changes)
+        self.assertIn("舊車估價", change.changes)
+
+    def test_subsidy_update_preserves_manually_adjusted_balance(self):
+        order = self.make_order()
+        SalesOrder.objects.filter(pk=order.pk).update(
+            actual_balance=Decimal("76000"),
+            balance_adjustment_reason="既有人工調整",
+        )
+        order.refresh_from_db()
+        self.client.force_login(self.user)
+
+        response = self.client.post(
+            reverse("subsidy_data_update", args=[order.pk]),
+            {
+                "_order_revision": order.revision,
+                "is_trade_in_subsidy": "on",
+                "trade_in_plate": "OLD-123",
+                "old_owner_name": "",
+                "subsidy_type": "汰舊換新",
+                "old_vehicle_valuation": "5000",
+                "old_vehicle_tax": "0",
+                "change_reason": "新增舊車估價",
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        order.refresh_from_db()
+        self.assertEqual(order.actual_balance, Decimal("76000"))
+        self.assertEqual(order.calculated_balance, Decimal("70200"))
+        self.assertEqual(order.balance_adjustment_reason, "新增舊車估價")
+
+    def test_disabling_subsidy_preserves_uploaded_documents(self):
+        order = self.make_order()
+        SalesOrder.objects.filter(pk=order.pk).update(
+            is_trade_in_subsidy=True,
+            trade_in_plate="OLD-123",
+            subsidy_type="汰舊換新",
+        )
+        order.refresh_from_db()
+        document = SubsidyDocument.objects.create(
+            order=order,
+            document_type=SubsidyDocument.DocumentType.OLD_VEHICLE_REGISTRATION,
+            file=SimpleUploadedFile(
+                "old-license.pdf", b"license", content_type="application/pdf"
+            ),
+        )
+        self.client.force_login(self.user)
+
+        response = self.client.post(
+            reverse("subsidy_data_update", args=[order.pk]),
+            {
+                "_order_revision": order.revision,
+                "trade_in_plate": "OLD-123",
+                "old_owner_name": "",
+                "subsidy_type": "汰舊換新",
+                "old_vehicle_valuation": "0",
+                "old_vehicle_tax": "0",
+                "change_reason": "客戶暫停補助申請",
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        order.refresh_from_db()
+        self.assertFalse(order.is_trade_in_subsidy)
+        self.assertTrue(SubsidyDocument.objects.filter(pk=document.pk).exists())
+
+    def test_subsidy_update_rejects_stale_revision(self):
+        order = self.make_order()
+        self.client.force_login(self.user)
+
+        response = self.client.post(
+            reverse("subsidy_data_update", args=[order.pk]),
+            {
+                "_order_revision": order.revision - 1,
+                "is_trade_in_subsidy": "on",
+                "trade_in_plate": "OLD-123",
+                "old_owner_name": "",
+                "subsidy_type": "汰舊換新",
+                "old_vehicle_valuation": "0",
+                "old_vehicle_tax": "0",
+                "change_reason": "測試過期版本",
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        order.refresh_from_db()
+        self.assertFalse(order.is_trade_in_subsidy)
 
     def test_subsidy_requirements_add_declaration_for_different_owner(self):
         order = self.make_order()

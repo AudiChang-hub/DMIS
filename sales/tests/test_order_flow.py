@@ -90,10 +90,6 @@ class OrderFlowTests(TestCase):
 
     def test_edit_order_records_reason_and_before_after_values(self):
         order = self.make_order()
-        SalesOrder.objects.filter(pk=order.pk).update(
-            actual_balance=Decimal("70000"),
-            balance_adjustment_reason="",
-        )
         self.client.force_login(self.user)
         data = {
             "_order_revision": str(order.revision),
@@ -114,7 +110,7 @@ class OrderFlowTests(TestCase):
             "color": str(self.color.pk),
             "vehicle_category": "new",
             "payment_type": "cash",
-            "vehicle_price": "79800",
+            "vehicle_price": "80000",
             "plate_insurance_fee": "0",
             "installment_opening_fee": "0",
             "deposit_amount": "4600",
@@ -158,7 +154,7 @@ class OrderFlowTests(TestCase):
         order.refresh_from_db()
         self.assertEqual(order.owner_name, "王小明有限公司")
         self.assertEqual(order.revision, 2)
-        self.assertEqual(order.actual_balance, Decimal("70000"))
+        self.assertEqual(order.actual_balance, Decimal("75400"))
         self.assertEqual(order.balance_adjustment_reason, "客戶要求更正公司名稱")
         change = order.changes.get()
         self.assertEqual(change.reason, "客戶要求更正公司名稱")

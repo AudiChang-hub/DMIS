@@ -1113,3 +1113,23 @@ class OrderFlowTests(TestCase):
         self.assertContains(response, "檢查系統更新")
         self.assertContains(response, "app-update-banner")
         self.assertContains(response, "js/app-update")
+
+    def test_messages_have_timed_dismiss_and_manual_close(self):
+        from pathlib import Path
+
+        order = self.make_order()
+        self.client.force_login(self.user)
+        self.client.post(reverse("allocate_vehicle", args=[order.pk]), {})
+
+        response = self.client.get(reverse("order_detail", args=[order.pk]))
+
+        self.assertContains(response, "data-message-toast")
+        self.assertContains(response, "data-message-close")
+        self.assertContains(response, "js/message-toasts")
+        script = Path("static/js/message-toasts.js").read_text(encoding="utf-8")
+        self.assertIn("success: 4000", script)
+        self.assertIn("info: 5000", script)
+        self.assertIn("warning: 8000", script)
+        self.assertIn('toast.classList.contains("error") ? null', script)
+        self.assertIn('toast.addEventListener("mouseenter", pause)', script)
+        self.assertIn('toast.addEventListener("touchstart", pause', script)

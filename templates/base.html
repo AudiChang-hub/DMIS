@@ -53,13 +53,17 @@
     {% if messages %}
       <div class="messages" aria-live="polite">
         {% for message in messages %}
-          <div class="message {{ message.tags }}">{{ message }}</div>
+          <div class="message {{ message.tags }}" data-message-toast>
+            <span class="message-text">{{ message }}</span>
+            <button class="message-close" type="button" aria-label="關閉提示" data-message-close>×</button>
+          </div>
         {% endfor %}
       </div>
     {% endif %}
     {% block content %}{% endblock %}
   </main>
   {% block scripts %}{% endblock %}
+  <script src="{% static 'js/message-toasts.js' %}?v={{ app_version }}" defer></script>
   <script src="{% static 'js/app-update.js' %}?v={{ app_version }}" defer></script>
 </body>
 </html>

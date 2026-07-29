@@ -92,6 +92,17 @@ class OrderFlowTests(TestCase):
         locked = self.client.get(reverse("order_edit", args=[order.pk]))
         self.assertRedirects(locked, reverse("order_detail", args=[order.pk]))
 
+    def test_order_detail_uses_consistent_section_spacing(self):
+        css = (
+            __import__("pathlib").Path("static/css/app.css").read_text(
+                encoding="utf-8"
+            )
+        )
+        self.assertIn(
+            ".detail-grid { display: grid; grid-template-columns: 1fr 1fr; margin-bottom: 20px; gap: 20px; }",
+            css,
+        )
+
     def test_edit_order_records_reason_and_before_after_values(self):
         order = self.make_order()
         self.client.force_login(self.user)

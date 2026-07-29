@@ -393,6 +393,14 @@ class OrderFlowTests(TestCase):
         self.assertIn("客戶留存聯", extracted)
         self.assertIn("財產登記制", extracted)
         self.assertIn("領牌後無法辦理退換貨", extracted)
+        self.assertIn(
+            "本人（或本公司）了解並確認本訂購單所載車型",
+            extracted,
+        )
+        self.assertIn(
+            "本人（或本公司）了解機車屬於財產登記制",
+            extracted,
+        )
         self.assertIn("應收", extracted)
         self.assertNotIn("現場應收", extracted)
         self.assertNotIn("分期總額", extracted)

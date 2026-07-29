@@ -64,6 +64,35 @@
     <div><dt>目前位置</dt><dd>{{ order.allocated_vehicle.location_store }}</dd></div>
     <div><dt>車型／車色</dt><dd>{{ order.vehicle_model }}／{{ order.color.name }}</dd></div>
   </dl>
+  {% if order.is_editable %}
+    {% if order.has_registration_started %}
+    <div class="allocation-lock-note">
+      <strong>目前無法改配</strong>
+      <p>此訂單已填寫領牌資料或上傳領牌文件，為避免車輛與文件對錯，請先確認並處理領牌資料。</p>
+    </div>
+    {% else %}
+    <details class="reallocation-panel">
+      <summary>更換配車</summary>
+      <form method="post" action="{% url 'reallocate_vehicle' order.pk %}">
+        {% csrf_token %}
+        <div>
+          <label for="{{ reallocation_form.vehicle.id_for_label }}">新的實體車輛 <span class="required-inline">必填</span></label>
+          {{ reallocation_form.vehicle }}
+        </div>
+        <div>
+          <label for="{{ reallocation_form.reason.id_for_label }}">改配原因 <span class="required-inline">必填</span></label>
+          {{ reallocation_form.reason }}
+        </div>
+        {% if reallocation_form.vehicle.field.queryset %}
+          <button class="button primary" type="submit">確認更換配車</button>
+        {% else %}
+          <p class="field-error">目前沒有其他符合車型及車色的可售庫存。</p>
+        {% endif %}
+      </form>
+      <p class="reallocation-panel__hint">確認後，原車會恢復為可售，新車會立即鎖定並留下完整變更紀錄。</p>
+    </details>
+    {% endif %}
+  {% endif %}
 </section>
 {% else %}
 <section class="section-block"><div class="stage-empty"><strong>此訂單目前無法配車</strong><p>訂單已結案或取消，僅供查看。</p></div></section>

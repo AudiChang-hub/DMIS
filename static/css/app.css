@@ -476,6 +476,22 @@ body.screen-locked { overflow: hidden; }
 }
 .archive-status.done { color: var(--forest); background: var(--mint); }
 .registration-stage, .delivery-stage, .subsidy-stage { margin-bottom: 20px; }
+.reallocation-panel {
+  margin-top: 18px; padding: 0 16px 16px;
+  background: var(--surface-soft); border: 1px solid var(--line); border-radius: 14px;
+}
+.reallocation-panel summary { padding: 14px 0; font-weight: 900; cursor: pointer; }
+.reallocation-panel form {
+  display: grid; grid-template-columns: minmax(220px, 1fr) minmax(280px, 1.4fr) auto;
+  align-items: end; gap: 12px;
+}
+.reallocation-panel form > div { display: grid; min-width: 0; gap: 7px; }
+.reallocation-panel__hint { margin: 10px 0 0; color: var(--muted); font-size: .78rem; }
+.allocation-lock-note {
+  margin-top: 18px; padding: 14px 16px; color: #7a3f0b;
+  background: var(--amber-soft); border: 1px solid #e7bd75; border-radius: 14px;
+}
+.allocation-lock-note p { margin: 4px 0 0; }
 .registration-stage__title { align-items: center; }
 .subsidy-stage__title { align-items: center; }
 .subsidy-summary {
@@ -795,7 +811,7 @@ body.screen-locked { overflow: hidden; }
   .action-card { grid-template-columns: 1fr; padding: 18px; gap: 14px; }
   .document-archive-grid { grid-template-columns: 1fr; gap: 14px; }
   .document-archive-card { padding: 18px; }
-  .registration-data-form, .other-insurance__form, .other-subsidy-documents__form { grid-template-columns: 1fr; }
+  .registration-data-form, .other-insurance__form, .other-subsidy-documents__form, .reallocation-panel form { grid-template-columns: 1fr; }
   .subsidy-summary { grid-template-columns: 1fr 1fr; }
   .subsidy-summary .button { grid-column: 1 / -1; }
   .subsidy-edit-grid { grid-template-columns: 1fr; padding: 15px; }

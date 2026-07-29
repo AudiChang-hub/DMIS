@@ -49,6 +49,11 @@ urlpatterns = [
         name="allocate_vehicle",
     ),
     path(
+        "orders/<int:pk>/reallocate/",
+        views.reallocate_vehicle,
+        name="reallocate_vehicle",
+    ),
+    path(
         "orders/<int:pk>/registration/save/",
         views.registration_save,
         name="registration_save",

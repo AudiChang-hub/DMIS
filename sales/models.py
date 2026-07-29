@@ -721,6 +721,52 @@ class SalesOrder(TimeStampedModel):
         self.status = self.Status.ALLOCATED
         self.save(update_fields=["allocated_vehicle", "status", "updated_at"])
 
+    @property
+    def has_registration_started(self):
+        return bool(
+            self.registration_date
+            or self.final_plate_number
+            or self.registration_completed_at
+            or self.registration_documents.exists()
+        )
+
+    @transaction.atomic
+    def reallocate(self, vehicle):
+        if not self.allocated_vehicle_id:
+            raise ValidationError("此訂單尚未配車。")
+        if not self.is_editable:
+            raise ValidationError("此訂單已鎖定，無法改配。")
+        if self.has_registration_started:
+            raise ValidationError("已開始領牌作業，無法直接改配。")
+        if vehicle.pk == self.allocated_vehicle_id:
+            raise ValidationError("新配車輛不可與原車相同。")
+
+        vehicle_ids = sorted([self.allocated_vehicle_id, vehicle.pk])
+        locked_vehicles = {
+            item.pk: item
+            for item in VehicleInventory.objects.select_for_update().filter(
+                pk__in=vehicle_ids
+            )
+        }
+        original = locked_vehicles[self.allocated_vehicle_id]
+        replacement = locked_vehicles.get(vehicle.pk)
+        if not replacement or replacement.status != VehicleInventory.Status.AVAILABLE:
+            raise ValidationError("新車輛目前不可配車。")
+        if (
+            replacement.vehicle_model_id != self.vehicle_model_id
+            or replacement.color_id != self.color_id
+        ):
+            raise ValidationError("新車輛的車型或車色與訂單不一致。")
+
+        original.status = VehicleInventory.Status.AVAILABLE
+        replacement.status = VehicleInventory.Status.RESERVED
+        original.save(update_fields=["status", "updated_at"])
+        replacement.save(update_fields=["status", "updated_at"])
+        self.allocated_vehicle = replacement
+        self.status = self.Status.ALLOCATED
+        self.save(update_fields=["allocated_vehicle", "status", "updated_at"])
+        return original, replacement
+
     def __str__(self):
         return f"{self.number}／{self.owner_name}"
 

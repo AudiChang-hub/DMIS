@@ -189,7 +189,7 @@
           {% if row.document %}
             <a class="button ghost compact" href="{% url 'subsidy_document_file' row.document.pk %}" target="_blank">查看</a>
             {% if order.status != "cancelled" %}
-            <form method="post" action="{% url 'subsidy_document_delete' order.pk row.document.pk %}">
+            <form method="post" action="{% url 'subsidy_document_delete' order.pk row.document.pk %}" data-confirm="確定刪除這份補助文件嗎？刪除後無法復原。">
               {% csrf_token %}<button class="button danger-ghost compact" type="submit">刪除</button>
             </form>
             {% endif %}
@@ -226,7 +226,7 @@
         <div>
           <a class="button ghost compact" href="{% url 'subsidy_document_file' document.pk %}" target="_blank">查看</a>
           {% if order.status != "cancelled" %}
-          <form method="post" action="{% url 'subsidy_document_delete' order.pk document.pk %}">
+          <form method="post" action="{% url 'subsidy_document_delete' order.pk document.pk %}" data-confirm="確定刪除這份其他補助文件嗎？刪除後無法復原。">
             {% csrf_token %}<button class="button danger-ghost compact" type="submit">刪除</button>
           </form>
           {% endif %}
@@ -333,7 +333,7 @@
             {% if row.document %}
               <a class="button ghost compact" href="{% url 'registration_document_file' row.document.pk %}" target="_blank">查看</a>
               {% if not order.is_registration_complete %}
-              <form method="post" action="{% url 'registration_document_delete' order.pk row.document.pk %}">
+              <form method="post" action="{% url 'registration_document_delete' order.pk row.document.pk %}" data-confirm="確定刪除這份領牌文件嗎？刪除後無法復原。">
                 {% csrf_token %}
                 <button class="button danger-ghost compact" type="submit">刪除</button>
               </form>
@@ -367,7 +367,7 @@
           <div>
             <a class="button ghost compact" href="{% url 'registration_document_file' document.pk %}" target="_blank">查看</a>
             {% if not order.is_registration_complete %}
-            <form method="post" action="{% url 'registration_document_delete' order.pk document.pk %}">
+            <form method="post" action="{% url 'registration_document_delete' order.pk document.pk %}" data-confirm="確定刪除這份保險單嗎？刪除後無法復原。">
               {% csrf_token %}<button class="button danger-ghost compact" type="submit">刪除</button>
             </form>
             {% endif %}

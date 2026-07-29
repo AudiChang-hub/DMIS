@@ -82,6 +82,10 @@ class OrderFlowTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "編輯訂單")
         self.assertContains(response, "變更原因")
+        self.assertContains(response, "取消修改")
+        self.assertContains(response, "data-cancel-edit")
+        self.assertContains(response, "beforeunload")
+        self.assertContains(response, "尚有未儲存的修改")
 
         order.status = SalesOrder.Status.DELIVERED_DOCS_PENDING
         order.save(update_fields=["status", "updated_at"])

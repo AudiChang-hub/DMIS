@@ -58,6 +58,32 @@ def _editing_name(user):
     return user.get_full_name() or user.get_username()
 
 
+def _session_key(request):
+    if not request.session.session_key:
+        request.session.create()
+    return request.session.session_key
+
+
+def _claim_edit_lock(instance, request, timeout):
+    session_key = _session_key(request)
+    now = timezone.now()
+    active_elsewhere = bool(
+        instance.editing_session
+        and instance.editing_session != session_key
+        and instance.editing_at
+        and instance.editing_at >= now - timeout
+    )
+    if active_elsewhere:
+        return False
+    instance.editing_session = session_key
+    instance.editing_by = _editing_name(request.user)
+    instance.editing_at = now
+    instance.save(
+        update_fields=["editing_session", "editing_by", "editing_at"]
+    )
+    return True
+
+
 def _vehicle_rate_data():
     return {
         str(model.pk): {
@@ -160,13 +186,23 @@ def order_list(request):
 @transaction.atomic
 def order_create(request):
     draft_id = request.POST.get("_draft_id") or request.GET.get("draft")
-    draft = get_object_or_404(OrderDraft, pk=draft_id) if draft_id else None
+    draft = (
+        get_object_or_404(OrderDraft.objects.select_for_update(), pk=draft_id)
+        if draft_id
+        else None
+    )
+    if draft and not _claim_edit_lock(draft, request, DRAFT_PRESENCE_TIMEOUT):
+        messages.error(
+            request,
+            f"此草稿目前由 {draft.editing_by or '其他人員'} 編輯，暫時無法進入。",
+        )
+        return redirect("dashboard")
     existing_documents = {
         "id_front": bool(draft and draft.id_front),
         "id_back": bool(draft and draft.id_back),
     }
     if request.method == "POST":
-        post_data = _reconcile_collaborative_post(draft, request.POST)
+        post_data = request.POST
         form = SalesOrderForm(
             post_data,
             request.FILES,
@@ -312,6 +348,15 @@ def draft_save(request):
     is_new = not draft_id
     if draft_id:
         draft = get_object_or_404(OrderDraft.objects.select_for_update(), pk=draft_id)
+        if not _claim_edit_lock(draft, request, DRAFT_PRESENCE_TIMEOUT):
+            return JsonResponse(
+                {
+                    "ok": False,
+                    "locked": True,
+                    "error": f"此草稿目前由 {draft.editing_by or '其他人員'} 編輯。",
+                },
+                status=423,
+            )
         try:
             client_revision = int(request.POST.get("_draft_revision", 0))
         except (TypeError, ValueError):
@@ -327,7 +372,12 @@ def draft_save(request):
                 status=409,
             )
     else:
-        draft = OrderDraft(created_by=request.user.get_username())
+        draft = OrderDraft(
+            created_by=request.user.get_username(),
+            editing_session=_session_key(request),
+            editing_by=_editing_name(request.user),
+            editing_at=timezone.now(),
+        )
 
     excluded = {
         "csrfmiddlewaretoken",
@@ -337,12 +387,9 @@ def draft_save(request):
         "_remove_id_back",
         "_field_versions",
     }
-    reconciled_post = _reconcile_collaborative_post(
-        draft if not is_new else None, request.POST
-    )
     draft.data = {
         key: values if len(values) > 1 else values[0]
-        for key, values in reconciled_post.lists()
+        for key, values in request.POST.lists()
         if key not in excluded
     }
     for field_name in ("id_front", "id_back"):
@@ -391,10 +438,17 @@ def draft_save(request):
 
 
 @login_required
+@transaction.atomic
 def draft_delete(request, pk):
     if request.method != "POST":
         return redirect(f"{reverse('order_create')}?draft={pk}")
-    draft = get_object_or_404(OrderDraft, pk=pk)
+    draft = get_object_or_404(OrderDraft.objects.select_for_update(), pk=pk)
+    if not _claim_edit_lock(draft, request, DRAFT_PRESENCE_TIMEOUT):
+        messages.error(
+            request,
+            f"此草稿目前由 {draft.editing_by or '其他人員'} 編輯，無法刪除。",
+        )
+        return redirect("dashboard")
     draft.delete_with_files()
     messages.success(request, "草稿與暫存證件照片已刪除。")
     return redirect("dashboard")
@@ -602,6 +656,12 @@ def order_edit(request, pk):
     )
     if not order.is_editable:
         messages.error(request, "此訂單已交車、完成或取消，內容已鎖定。")
+        return redirect("order_detail", pk=pk)
+    if not _claim_edit_lock(order, request, ORDER_PRESENCE_TIMEOUT):
+        messages.error(
+            request,
+            f"此訂單目前由 {order.editing_by or '其他人員'} 編輯，暫時只能查看。",
+        )
         return redirect("order_detail", pk=pk)
 
     if request.method == "POST":

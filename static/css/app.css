@@ -337,6 +337,18 @@ input[type="file"].form-control { padding: 10px; }
 .checkbox-label input { width: 21px; height: 21px; accent-color: var(--forest); }
 .verify-box { padding: 15px; background: var(--mint); border-radius: 12px; }
 .capture-card { padding: 14px; background: #f7f9f7; border: 1px dashed #b9c8bf; border-radius: 12px; }
+.identity-compare {
+  display: grid; grid-template-columns: minmax(280px, .9fr) minmax(320px, 1.1fr);
+  align-items: start; gap: 18px; padding: 16px;
+  background: #fbfcfb; border: 1px solid var(--line); border-radius: 16px;
+}
+.identity-compare__fields { display: grid; gap: 14px; }
+.owner-form-grid.is-nonlocal .identity-compare { grid-template-columns: 1fr; }
+.identity-preview {
+  display: block; width: 100%; max-height: 310px; margin: 10px 0;
+  object-fit: contain; background: #edf1ee; border-radius: 10px; cursor: zoom-in;
+}
+.identity-preview[hidden] { display: none; }
 .capture-instruction { margin-bottom: -6px; color: var(--forest-2); font-size: .84rem; font-weight: 800; }
 .remove-photo {
   width: 100%; min-height: 42px; margin-top: 10px; color: var(--red); background: #fff;
@@ -815,6 +827,7 @@ body.screen-locked { overflow: hidden; }
   .subsidy-summary { grid-template-columns: 1fr 1fr; }
   .subsidy-summary .button { grid-column: 1 / -1; }
   .subsidy-edit-grid { grid-template-columns: 1fr; padding: 15px; }
+  .identity-compare { grid-template-columns: 1fr; padding: 12px; }
   .subsidy-change-reason { grid-column: auto; }
   .subsidy-edit-actions { align-items: stretch; flex-direction: column; }
   .ocr-conflict-card, .ocr-conflict-card__actions { align-items: stretch; flex-direction: column; }

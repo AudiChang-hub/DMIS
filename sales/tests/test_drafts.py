@@ -179,30 +179,62 @@ class OrderDraftTests(TestCase):
         self.assertEqual(order.other_fees.count(), 2)
         self.assertEqual(order.calculate_balance(), 80500)
 
-    def test_autosave_does_not_overwrite_newer_collaborative_field(self):
+    def test_cash_order_accepts_blank_installment_and_other_fee_rows(self):
+        data = self.complete_data()
+        for field_name in (
+            "installment_company",
+            "installment_periods",
+            "installment_opening_fee",
+            "installment_monthly",
+        ):
+            data[field_name] = ""
+        data.update(
+            {
+                "other_fees-TOTAL_FORMS": "1",
+                "other_fees-0-name": "",
+                "other_fees-0-amount": "",
+            }
+        )
+        draft = OrderDraft.objects.create(
+            data=data,
+            id_front=self.image("front.png"),
+            id_back=self.image("back.png"),
+            created_by=self.user.username,
+        )
+        self.client.get(reverse("order_create"), {"draft": draft.pk})
+        data.update(
+            {"_draft_id": str(draft.pk), "_draft_revision": str(draft.revision)}
+        )
+
+        response = self.client.post(reverse("order_create"), data)
+
+        self.assertEqual(response.status_code, 302)
+        order = SalesOrder.objects.get(owner_name="測試車主")
+        self.assertEqual(order.installment_periods, 0)
+        self.assertEqual(order.other_fees.count(), 0)
+
+    def test_autosave_is_blocked_for_another_editing_session(self):
         draft = OrderDraft.objects.create(
             data={"owner_name": "伺服器最新姓名"},
             created_by=self.user.username,
         )
-        DraftFieldState.objects.create(
-            draft=draft,
-            field_key="owner_name",
-            value="伺服器最新姓名",
-            version=2,
-            updated_by="other-editor",
+        self.client.post(reverse("draft_presence", args=[draft.pk]))
+        second_user = get_user_model().objects.create_user(
+            username="other-editor-lock", password="test-pass-123"
         )
-
-        response = self.client.post(
+        second_client = Client()
+        second_client.force_login(second_user)
+        response = second_client.post(
             reverse("draft_save"),
             {
                 "_draft_id": str(draft.pk),
                 "_draft_revision": str(draft.revision),
-                "_field_versions": json.dumps({"owner_name": 1}),
                 "owner_name": "較舊頁面姓名",
             },
         )
 
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, 423)
+        self.assertTrue(response.json()["locked"])
         draft.refresh_from_db()
         self.assertEqual(draft.data["owner_name"], "伺服器最新姓名")
 

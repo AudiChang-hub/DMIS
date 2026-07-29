@@ -23,8 +23,8 @@ FONT_CANDIDATES = [
         Path(r"C:\Windows\Fonts\mingliu.ttc"),
     ),
     (
-        Path("/usr/share/fonts/opentype/noto/NotoSerifCJK-Regular.ttc"),
-        Path("/usr/share/fonts/opentype/noto/NotoSerifCJK-Bold.ttc"),
+        Path("/usr/share/fonts/truetype/arphic/uming.ttc"),
+        Path("/usr/share/fonts/truetype/arphic/uming.ttc"),
     ),
     (
         Path("/usr/share/fonts/truetype/wqy/wqy-zenhei.ttc"),

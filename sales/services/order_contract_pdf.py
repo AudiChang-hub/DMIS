@@ -369,15 +369,31 @@ def draw_order_page(c, order, copy_label, page_number, printed_at):
     # Payment
     y -= 3 * mm
     y = draw_section_title(c, y, "收款資料")
+    is_installment = order.payment_type == order.PaymentType.INSTALLMENT
+    payment_first_row = [
+        p("<b>主要付款</b>"),
+        p(order.get_payment_type_display()),
+    ]
+    if is_installment:
+        payment_first_row.extend(
+            [
+                p("<b>分期總額</b>"),
+                p(f"${money(order.installment_amount or order.vehicle_price)}"),
+                p("<b>應收</b>"),
+                p(f"${money(order.actual_balance + order.deposit_amount)}"),
+            ]
+        )
+    else:
+        payment_first_row.extend(
+            [
+                p("<b>應收</b>"),
+                p(f"${money(order.actual_balance + order.deposit_amount)}"),
+                "",
+                "",
+            ]
+        )
     payment_data = [
-        [
-            p("<b>主要付款</b>"),
-            p(order.get_payment_type_display()),
-            p("<b>分期總額</b>"),
-            p(f"${money(order.installment_amount or order.vehicle_price)}"),
-            p("<b>現場應收</b>"),
-            p(f"${money(order.actual_balance + order.deposit_amount)}"),
-        ],
+        payment_first_row,
         [
             p("<b>已收訂金</b>"),
             p(f"${money(order.deposit_amount)}"),
@@ -389,26 +405,31 @@ def draw_order_page(c, order, copy_label, page_number, printed_at):
         [
             p("<b>預估尾款</b>"),
             p(f"${money(order.actual_balance)}"),
-            p("<b>收款說明</b>"),
-            p(safe(order.balance_adjustment_reason or "依系統試算金額")),
+            "",
+            "",
             "",
             "",
         ],
     ]
+    payment_styles = [
+        ("BACKGROUND", (0, 0), (0, -1), GREEN_LIGHT),
+        ("BACKGROUND", (2, 0), (2, 1), GREEN_LIGHT),
+        ("BACKGROUND", (4, 1), (4, 1), GREEN_LIGHT),
+        ("SPAN", (1, 2), (5, 2)),
+        ("BACKGROUND", (0, 2), (1, 2), HexColor("#DDEFE6")),
+        ("FONTNAME", (0, 2), (1, 2), "MSJH-Bold"),
+    ]
+    if is_installment:
+        payment_styles.append(("BACKGROUND", (4, 0), (4, 0), GREEN_LIGHT))
+    else:
+        payment_styles.append(("SPAN", (3, 0), (5, 0)))
     y = draw_table(
         c,
         payment_data,
         [20 * mm, 36 * mm, 20 * mm, 36 * mm, 20 * mm, 54 * mm],
         y,
         row_heights=[7 * mm, 7 * mm, 8 * mm],
-        styles=[
-            ("BACKGROUND", (0, 0), (0, -1), GREEN_LIGHT),
-            ("BACKGROUND", (2, 0), (2, -1), GREEN_LIGHT),
-            ("BACKGROUND", (4, 0), (4, 1), GREEN_LIGHT),
-            ("SPAN", (3, 2), (5, 2)),
-            ("BACKGROUND", (0, 2), (1, 2), HexColor("#DDEFE6")),
-            ("FONTNAME", (0, 2), (1, 2), "MSJH-Bold"),
-        ],
+        styles=payment_styles,
     )
 
     # Terms

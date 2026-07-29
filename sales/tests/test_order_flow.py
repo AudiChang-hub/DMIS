@@ -389,6 +389,30 @@ class OrderFlowTests(TestCase):
         self.assertIn("客戶留存聯", extracted)
         self.assertIn("財產登記制", extracted)
         self.assertIn("領牌後無法辦理退換貨", extracted)
+        self.assertIn("應收", extracted)
+        self.assertNotIn("現場應收", extracted)
+        self.assertNotIn("分期總額", extracted)
+        self.assertNotIn("收款說明", extracted)
+
+    def test_installment_contract_keeps_installment_total(self):
+        order = self.make_order()
+        order.payment_type = SalesOrder.PaymentType.INSTALLMENT
+        order.installment_amount = Decimal("75000")
+        order.installment_company = "和潤"
+        order.installment_periods = 24
+        order.installment_monthly = Decimal("3125")
+        order.save()
+        self.client.force_login(self.user)
+
+        response = self.client.get(reverse("contract_print", args=[order.pk]))
+        content = b"".join(response.streaming_content)
+        extracted = "\n".join(
+            page.extract_text() for page in PdfReader(BytesIO(content)).pages
+        )
+
+        self.assertIn("分期總額", extracted)
+        self.assertIn("應收", extracted)
+        self.assertNotIn("收款說明", extracted)
 
     def test_privacy_consent_uses_latest_order_name_date_and_plate(self):
         order = self.make_order()

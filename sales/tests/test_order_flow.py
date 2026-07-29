@@ -10,7 +10,7 @@ from django.urls import reverse
 from django.utils import timezone
 from pypdf import PdfReader
 
-from sales.forms import AccessoryLineForm, SalesOrderForm
+from sales.forms import AccessoryLineForm, OtherFeeLineForm, SalesOrderForm
 from sales.models import (
     OrderChange,
     SalesOrder,
@@ -121,6 +121,36 @@ class OrderFlowTests(TestCase):
         self.assertIn("app-update.js' %}?v={{ app_version }}", base)
         self.assertIn("page-shell--wide", detail)
         self.assertIn("page-shell--form", form)
+
+    def test_forms_provide_field_specific_mobile_keyboard_hints(self):
+        order_form = SalesOrderForm()
+        accessory_form = AccessoryLineForm()
+        fee_form = OtherFeeLineForm()
+
+        self.assertEqual(
+            order_form.fields["owner_name"].widget.attrs["lang"], "zh-Hant"
+        )
+        self.assertEqual(
+            order_form.fields["owner_phone"].widget.attrs["inputmode"], "tel"
+        )
+        self.assertEqual(
+            order_form.fields["owner_email"].widget.attrs["inputmode"], "email"
+        )
+        self.assertEqual(
+            order_form.fields["owner_id_number"].widget.attrs["lang"], "en"
+        )
+        self.assertEqual(
+            order_form.fields["vehicle_price"].widget.attrs["inputmode"],
+            "decimal",
+        )
+        self.assertEqual(
+            accessory_form.fields["quantity"].widget.attrs["inputmode"],
+            "numeric",
+        )
+        self.assertEqual(
+            accessory_form.fields["name"].widget.attrs["lang"], "zh-Hant"
+        )
+        self.assertEqual(fee_form.fields["name"].widget.attrs["lang"], "zh-Hant")
 
     def test_edit_order_records_reason_and_before_after_values(self):
         order = self.make_order()

@@ -272,28 +272,54 @@ def draw_order_page(c, order, copy_label, page_number, printed_at):
             p(money(order.vehicle_price), right_style),
         ]
     ]
-    if order.plate_insurance_fee:
-        plate_description = "另計"
-        if order.registration_calculated_total:
-            plate_description = (
-                f"領牌 {safe(order.registration_rate_class)}／"
-                f"強制險 {order.get_compulsory_insurance_period_display()}"
+    separated_other_fees = order.plate_selection_fee + order.lien_registration_fee
+    plate_amount = max(order.plate_insurance_fee - separated_other_fees, 0)
+    if order.registration_date:
+        plate_description = "領牌＋強制險"
+        if order.registration_rate_class:
+            plate_description += (
+                f"（{safe(order.registration_rate_class)}／"
+                f"{order.get_compulsory_insurance_period_display()}）"
             )
-        rows.append(
-            [p("車價"), p("牌險"), p(plate_description), p("1", center_style),
-             p(money(order.plate_insurance_fee), right_style),
-             p(money(order.plate_insurance_fee), right_style)]
-        )
-    if order.installment_opening_fee:
-        rows.append(
-            [p("分期"), p("分期開辦費"), p(f"{order.installment_periods or '—'} 期"),
-             p("1", center_style), p(money(order.installment_opening_fee), right_style),
-             p(money(order.installment_opening_fee), right_style)]
-        )
+    else:
+        plate_description = "領牌＋強制險，依單據收款"
+    plate_money = money(plate_amount) if plate_amount else "—"
+    rows.append(
+        [
+            p("稅金"),
+            p("牌險"),
+            p(plate_description),
+            p("1", center_style),
+            p(plate_money, right_style),
+            p(plate_money, right_style),
+        ]
+    )
     for fee in order.other_fees.all():
         rows.append(
-            [p("車價"), p(safe(fee.name)), p("其他費用"), p("1", center_style),
+            [p("其他"), p(safe(fee.name)), p("其他費用"), p("1", center_style),
              p(money(fee.amount), right_style), p(money(fee.amount), right_style)]
+        )
+    if order.plate_selection_fee:
+        rows.append(
+            [
+                p("其他"),
+                p("選號費"),
+                p("監理選號費用"),
+                p("1", center_style),
+                p(money(order.plate_selection_fee), right_style),
+                p(money(order.plate_selection_fee), right_style),
+            ]
+        )
+    if order.lien_registration_fee:
+        rows.append(
+            [
+                p("其他"),
+                p("動保設定費"),
+                p("動產擔保設定"),
+                p("1", center_style),
+                p(money(order.lien_registration_fee), right_style),
+                p(money(order.lien_registration_fee), right_style),
+            ]
         )
     for accessory in order.accessories.all():
         rows.append(
@@ -318,6 +344,20 @@ def draw_order_page(c, order, copy_label, page_number, printed_at):
                 p(accessory.quantity, center_style),
                 p(money(accessory.amount), right_style),
                 p(money(accessory.line_total), right_style),
+            ]
+        )
+    if order.installment_opening_fee:
+        rows.append(
+            [
+                p("分期"),
+                p("分期開辦費"),
+                p(
+                    f"{order.installment_periods or '—'} 期；"
+                    "須以現金或匯款支付"
+                ),
+                p("1", center_style),
+                p(money(order.installment_opening_fee), right_style),
+                p(money(order.installment_opening_fee), right_style),
             ]
         )
     y = draw_table(

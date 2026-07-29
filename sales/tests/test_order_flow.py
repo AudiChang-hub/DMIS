@@ -12,7 +12,9 @@ from pypdf import PdfReader
 
 from sales.forms import AccessoryLineForm, OtherFeeLineForm, SalesOrderForm
 from sales.models import (
+    AccessoryLine,
     OrderChange,
+    OtherFeeLine,
     SalesOrder,
     Store,
     VehicleColor,
@@ -88,6 +90,8 @@ class OrderFlowTests(TestCase):
         self.assertContains(response, "data-cancel-edit")
         self.assertContains(response, "beforeunload")
         self.assertContains(response, "尚有未儲存的修改")
+        self.assertContains(response, 'name="registration_date"')
+        self.assertContains(response, 'type="date"')
 
         order.status = SalesOrder.Status.DELIVERED_DOCS_PENDING
         order.save(update_fields=["status", "updated_at"])
@@ -393,6 +397,8 @@ class OrderFlowTests(TestCase):
         self.assertNotIn("現場應收", extracted)
         self.assertNotIn("分期總額", extracted)
         self.assertNotIn("收款說明", extracted)
+        self.assertIn("領牌＋強制險，依單據收款", extracted)
+        self.assertIn("稅金", extracted)
 
     def test_installment_contract_keeps_installment_total(self):
         order = self.make_order()
@@ -400,7 +406,17 @@ class OrderFlowTests(TestCase):
         order.installment_amount = Decimal("75000")
         order.installment_company = "和潤"
         order.installment_periods = 24
+        order.installment_opening_fee = Decimal("2500")
         order.installment_monthly = Decimal("3125")
+        order.plate_selection_fee = Decimal("300")
+        AccessoryLine.objects.create(
+            order=order,
+            name="手機架",
+            quantity=1,
+            amount=Decimal("850"),
+        )
+        OtherFeeLine.objects.create(order=order, name="代辦費", amount=Decimal("500"))
+        order.actual_balance = order.calculate_balance()
         order.save()
         self.client.force_login(self.user)
 
@@ -413,6 +429,11 @@ class OrderFlowTests(TestCase):
         self.assertIn("分期總額", extracted)
         self.assertIn("應收", extracted)
         self.assertNotIn("收款說明", extracted)
+        self.assertIn("領牌＋強制險，依單據收款", extracted)
+        self.assertIn("選號費", extracted)
+        self.assertIn("須以現金或匯款支付", extracted)
+        self.assertLess(extracted.index("手機架"), extracted.index("分期開辦費"))
+        self.assertLess(extracted.index("代辦費"), extracted.index("分期開辦費"))
 
     def test_privacy_consent_uses_latest_order_name_date_and_plate(self):
         order = self.make_order()
@@ -512,6 +533,27 @@ class OrderFlowTests(TestCase):
         self.assertContains(order_response, "移除反面照片")
         self.assertContains(order_response, "ocrRequestVersion")
         self.assertContains(order_response, "requestPhotoVersion")
+        self.assertContains(
+            order_response,
+            "領牌日期於後續編輯時填寫，牌險依單據收款",
+        )
+        self.assertContains(
+            order_response,
+            'name="registration_date"',
+        )
+        self.assertNotContains(
+            order_response,
+            '<input type="date" name="registration_date"',
+        )
+        order_form_template = (
+            __import__("pathlib").Path("templates/sales/order_form.html").read_text(
+                encoding="utf-8"
+            )
+        )
+        self.assertIn(
+            "{{ form.registration_date.as_hidden }}",
+            order_form_template,
+        )
         self.assertContains(order_response, "showSavedPhoto")
         self.assertContains(order_response, "正在辨識證件")
         self.assertContains(order_response, 'aria-current="step"')

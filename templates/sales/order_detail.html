@@ -56,6 +56,82 @@
 </section>
 {% endif %}
 
+<section class="section-block subsidy-stage">
+  <div class="section-title subsidy-stage__title">
+    <div>
+      <p class="eyebrow">可與配車同時進行</p>
+      <h2>汰舊／補助作業</h2>
+    </div>
+    {% if not order.is_trade_in_subsidy %}
+      <span class="archive-status">未申請</span>
+    {% elif order.is_subsidy_ready %}
+      <span class="archive-status done">✓ 資料齊全</span>
+    {% else %}
+      <span class="archive-status">{{ order.subsidy_completed_count }}／{{ order.subsidy_required_count }} 已備妥</span>
+    {% endif %}
+  </div>
+
+  {% if not order.is_trade_in_subsidy %}
+    <div class="stage-empty">
+      <strong>此訂單未申請汰舊／政府補助</strong>
+      <p>若客戶後續提出申請，可先編輯訂單開啟補助需求；不必等待配車即可上傳文件。</p>
+    </div>
+  {% else %}
+    <div class="subsidy-summary">
+      <div><span>舊車車牌</span><strong>{{ order.trade_in_plate|default:"尚未填寫" }}</strong></div>
+      <div><span>舊車主</span><strong>{{ order.old_owner_name|default:order.owner_name }}</strong></div>
+      <div><span>補助類型</span><strong>{{ order.subsidy_type|default:"尚未填寫" }}</strong></div>
+      {% if order.is_editable %}<a class="button ghost compact" href="{% url 'order_edit' order.pk %}#extras">修改補助基本資料</a>{% endif %}
+    </div>
+
+    <div class="registration-document-list subsidy-document-list">
+      {% for row in subsidy_document_rows %}
+      <article class="registration-document-row {% if row.document %}is-uploaded{% endif %}">
+        <div class="registration-document-row__name">
+          <strong>{{ row.label }}</strong>
+          {% if row.required %}<span class="required-badge">必備</span>{% else %}<span class="optional-badge">目前不需要</span>{% endif %}
+          {% if row.document %}
+            <small>由 {{ row.document.uploaded_by|default:"內部人員" }} 於 {{ row.document.created_at|date:"Y/m/d H:i" }} 上傳</small>
+          {% endif %}
+        </div>
+        <div class="registration-document-row__actions">
+          {% if row.document %}
+            <a class="button ghost compact" href="{% url 'subsidy_document_file' row.document.pk %}" target="_blank">查看</a>
+            {% if order.status != "cancelled" %}
+            <form method="post" action="{% url 'subsidy_document_delete' order.pk row.document.pk %}">
+              {% csrf_token %}<button class="button danger-ghost compact" type="submit">刪除</button>
+            </form>
+            {% endif %}
+          {% endif %}
+          {% if order.status != "cancelled" %}
+          <form class="document-upload-form" method="post" enctype="multipart/form-data" action="{% url 'subsidy_document_upload' order.pk %}">
+            {% csrf_token %}
+            <input type="hidden" name="document_type" value="{{ row.type }}">
+            <label class="button secondary compact file-button">
+              {% if row.document %}替換{% else %}拍照／上傳{% endif %}
+              <input type="file" name="file" accept="image/jpeg,image/png,image/webp,application/pdf" capture="environment" required onchange="this.form.submit()">
+            </label>
+          </form>
+          {% endif %}
+        </div>
+      </article>
+      {% endfor %}
+    </div>
+
+    <div class="registration-completion {% if subsidy_missing %}has-missing{% else %}is-ready{% endif %}">
+      <div>
+        {% if subsidy_missing %}
+          <strong>補助資料尚缺 {{ subsidy_missing|length }} 項</strong>
+          <p>{{ subsidy_missing|join:"、" }}</p>
+        {% else %}
+          <strong>補助基本資料與文件已齊全</strong>
+          <p>補助作業與配車相互獨立，可依實際送件進度繼續辦理。</p>
+        {% endif %}
+      </div>
+    </div>
+  {% endif %}
+</section>
+
 <section class="section-block registration-stage">
   <div class="section-title registration-stage__title">
     <div>

@@ -73,6 +73,21 @@ urlpatterns = [
         views.registration_document_file,
         name="registration_document_file",
     ),
+    path(
+        "orders/<int:pk>/subsidy/documents/upload/",
+        views.subsidy_document_upload,
+        name="subsidy_document_upload",
+    ),
+    path(
+        "orders/<int:pk>/subsidy/documents/<int:document_pk>/delete/",
+        views.subsidy_document_delete,
+        name="subsidy_document_delete",
+    ),
+    path(
+        "files/subsidy/<int:document_pk>/",
+        views.subsidy_document_file,
+        name="subsidy_document_file",
+    ),
     path("inventory/", views.inventory_list, name="inventory_list"),
     path("inventory/new/", views.inventory_create, name="inventory_create"),
     path("api/colors/", views.vehicle_colors, name="vehicle_colors"),

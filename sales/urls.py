@@ -48,6 +48,31 @@ urlpatterns = [
         views.allocate_vehicle,
         name="allocate_vehicle",
     ),
+    path(
+        "orders/<int:pk>/registration/save/",
+        views.registration_save,
+        name="registration_save",
+    ),
+    path(
+        "orders/<int:pk>/registration/documents/upload/",
+        views.registration_document_upload,
+        name="registration_document_upload",
+    ),
+    path(
+        "orders/<int:pk>/registration/documents/<int:document_pk>/delete/",
+        views.registration_document_delete,
+        name="registration_document_delete",
+    ),
+    path(
+        "orders/<int:pk>/registration/complete/",
+        views.registration_complete,
+        name="registration_complete",
+    ),
+    path(
+        "files/registration/<int:document_pk>/",
+        views.registration_document_file,
+        name="registration_document_file",
+    ),
     path("inventory/", views.inventory_list, name="inventory_list"),
     path("inventory/new/", views.inventory_create, name="inventory_create"),
     path("api/colors/", views.vehicle_colors, name="vehicle_colors"),

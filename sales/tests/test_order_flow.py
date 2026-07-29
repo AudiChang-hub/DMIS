@@ -15,6 +15,7 @@ from sales.models import (
     AccessoryLine,
     OrderChange,
     OtherFeeLine,
+    RegistrationDocument,
     SalesOrder,
     Store,
     VehicleColor,
@@ -126,10 +127,6 @@ class OrderFlowTests(TestCase):
         self.assertIn("page-shell--wide", detail)
         self.assertIn("page-shell--form", form)
         self.assertIn(
-            "grid-template-columns: auto 1fr auto 1fr auto;",
-            css,
-        )
-        self.assertNotIn(
             "grid-template-columns: auto 1fr auto 1fr auto 1fr auto;",
             css,
         )
@@ -342,6 +339,174 @@ class OrderFlowTests(TestCase):
         self.assertEqual(self.vehicle.status, VehicleInventory.Status.RESERVED)
         self.assertEqual(order.allocated_vehicle, self.vehicle)
         self.assertEqual(order.status, SalesOrder.Status.ALLOCATED)
+
+    def test_order_detail_splits_registration_and_delivery_stages(self):
+        order = self.make_order()
+        self.client.force_login(self.user)
+
+        response = self.client.get(reverse("order_detail", args=[order.pk]))
+
+        self.assertContains(response, "領牌資料與文件")
+        self.assertContains(response, "車輛交付")
+        self.assertContains(response, "配車後開放")
+        self.assertContains(response, "<small>領牌</small>", html=True)
+        self.assertContains(response, "<small>交付</small>", html=True)
+
+    def test_registration_requires_data_and_all_fixed_documents(self):
+        order = self.make_order()
+        order.allocate(self.vehicle)
+        self.client.force_login(self.user)
+
+        response = self.client.post(
+            reverse("registration_complete", args=[order.pk])
+        )
+
+        self.assertRedirects(response, reverse("order_detail", args=[order.pk]))
+        order.refresh_from_db()
+        self.assertFalse(order.is_registration_complete)
+        self.assertEqual(order.status, SalesOrder.Status.ALLOCATED)
+
+    def test_registration_can_be_completed_after_required_uploads(self):
+        order = self.make_order()
+        order.allocate(self.vehicle)
+        self.client.force_login(self.user)
+
+        response = self.client.post(
+            reverse("registration_save", args=[order.pk]),
+            {"registration_date": "2026-07-29", "final_plate_number": "abc-1234"},
+        )
+        self.assertRedirects(response, reverse("order_detail", args=[order.pk]))
+
+        required_types = [
+            RegistrationDocument.DocumentType.NEW_LICENSE,
+            RegistrationDocument.DocumentType.REGISTRATION_APPLICATION,
+            RegistrationDocument.DocumentType.MOTOR_VEHICLE_RECEIPT,
+            RegistrationDocument.DocumentType.INVOICE,
+            RegistrationDocument.DocumentType.COMPULSORY_INSURANCE,
+        ]
+        for index, document_type in enumerate(required_types):
+            response = self.client.post(
+                reverse("registration_document_upload", args=[order.pk]),
+                {
+                    "document_type": document_type,
+                    "name": "",
+                    "file": SimpleUploadedFile(
+                        f"document-{index}.pdf",
+                        b"registration document",
+                        content_type="application/pdf",
+                    ),
+                },
+            )
+            self.assertRedirects(
+                response, reverse("order_detail", args=[order.pk])
+            )
+
+        response = self.client.post(
+            reverse("registration_complete", args=[order.pk])
+        )
+        self.assertRedirects(response, reverse("order_detail", args=[order.pk]))
+        order.refresh_from_db()
+        self.assertTrue(order.is_registration_complete)
+        self.assertEqual(order.registration_date, date(2026, 7, 29))
+        self.assertEqual(order.final_plate_number, "ABC-1234")
+        self.assertEqual(order.registration_completed_by, "tester")
+        self.assertEqual(order.status, SalesOrder.Status.DELIVERY_PENDING)
+
+    def test_plate_selection_document_is_conditionally_required(self):
+        order = self.make_order()
+        order.allocate(self.vehicle)
+        SalesOrder.objects.filter(pk=order.pk).update(
+            registration_date=date(2026, 7, 29),
+            final_plate_number="ABC-1234",
+            plate_choice=SalesOrder.PlateChoice.PREFERENCE,
+        )
+        order.refresh_from_db()
+        for document_type in [
+            RegistrationDocument.DocumentType.NEW_LICENSE,
+            RegistrationDocument.DocumentType.REGISTRATION_APPLICATION,
+            RegistrationDocument.DocumentType.MOTOR_VEHICLE_RECEIPT,
+            RegistrationDocument.DocumentType.INVOICE,
+            RegistrationDocument.DocumentType.COMPULSORY_INSURANCE,
+        ]:
+            RegistrationDocument.objects.create(
+                order=order,
+                document_type=document_type,
+                file=SimpleUploadedFile(
+                    f"{document_type}.pdf", b"document", content_type="application/pdf"
+                ),
+            )
+
+        self.assertIn("選號單", order.missing_registration_requirements())
+
+    def test_other_insurance_accepts_multiple_named_documents(self):
+        order = self.make_order()
+        order.allocate(self.vehicle)
+        self.client.force_login(self.user)
+
+        for name in ("第三人責任險", "車體險"):
+            response = self.client.post(
+                reverse("registration_document_upload", args=[order.pk]),
+                {
+                    "document_type": RegistrationDocument.DocumentType.OTHER_INSURANCE,
+                    "name": name,
+                    "file": SimpleUploadedFile(
+                        f"{name}.pdf", b"policy", content_type="application/pdf"
+                    ),
+                },
+            )
+            self.assertRedirects(
+                response, reverse("order_detail", args=[order.pk])
+            )
+
+        self.assertEqual(
+            order.registration_documents.filter(
+                document_type=RegistrationDocument.DocumentType.OTHER_INSURANCE
+            ).count(),
+            2,
+        )
+
+    def test_fixed_registration_document_can_be_replaced_and_downloaded(self):
+        order = self.make_order()
+        order.allocate(self.vehicle)
+        self.client.force_login(self.user)
+        upload_url = reverse("registration_document_upload", args=[order.pk])
+
+        for filename in ("first.pdf", "replacement.pdf"):
+            response = self.client.post(
+                upload_url,
+                {
+                    "document_type": RegistrationDocument.DocumentType.INVOICE,
+                    "name": "",
+                    "file": SimpleUploadedFile(
+                        filename, filename.encode(), content_type="application/pdf"
+                    ),
+                },
+            )
+            self.assertRedirects(
+                response, reverse("order_detail", args=[order.pk])
+            )
+
+        documents = order.registration_documents.filter(
+            document_type=RegistrationDocument.DocumentType.INVOICE
+        )
+        self.assertEqual(documents.count(), 1)
+        document = documents.get()
+        response = self.client.get(
+            reverse("registration_document_file", args=[document.pk])
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response["Cache-Control"], "private, no-store")
+
+    def test_dealer_order_can_deliver_before_registration(self):
+        order = self.make_order()
+        self.assertFalse(order.can_deliver)
+
+        SalesOrder.objects.filter(pk=order.pk).update(
+            source_type=SalesOrder.SourceType.DEALER
+        )
+        order.refresh_from_db()
+
+        self.assertTrue(order.can_deliver)
 
     def test_same_vehicle_cannot_allocate_twice(self):
         first = self.make_order(signed=True)

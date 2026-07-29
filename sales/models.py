@@ -304,7 +304,7 @@ class SalesOrder(TimeStampedModel):
         choices=VehicleCategory.choices,
         default=VehicleCategory.NEW,
     )
-    registration_date = models.DateField("預計領牌日期", blank=True, null=True)
+    registration_date = models.DateField("實際領牌日期", blank=True, null=True)
     compulsory_insurance_period = models.PositiveSmallIntegerField(
         "強制險期間",
         choices=CompulsoryInsurancePeriod.choices,
@@ -411,6 +411,12 @@ class SalesOrder(TimeStampedModel):
     watched_numbers = models.TextField("指定號碼與志願序", blank=True)
     plate_preference_note = models.TextField("領牌偏好備註", blank=True)
     final_plate_number = models.CharField("最終車牌號碼", max_length=20, blank=True)
+    registration_completed_at = models.DateTimeField(
+        "領牌完成時間", blank=True, null=True
+    )
+    registration_completed_by = models.CharField(
+        "領牌完成人員", max_length=150, blank=True
+    )
 
     delivery_method = models.CharField(
         "交車方式", max_length=30, choices=DeliveryMethod.choices, blank=True
@@ -501,6 +507,72 @@ class SalesOrder(TimeStampedModel):
     def balance_adjustment_amount(self):
         return self.actual_balance - self.calculated_balance
 
+    @property
+    def is_registration_complete(self):
+        return bool(self.registration_completed_at)
+
+    @property
+    def is_delivered(self):
+        return self.status in {
+            self.Status.DELIVERED_DOCS_PENDING,
+            self.Status.COMPLETED,
+        }
+
+    @property
+    def can_deliver(self):
+        return (
+            self.is_registration_complete
+            or self.source_type == self.SourceType.DEALER
+        )
+
+    def required_registration_document_types(self):
+        required = {
+            RegistrationDocument.DocumentType.NEW_LICENSE,
+            RegistrationDocument.DocumentType.REGISTRATION_APPLICATION,
+            RegistrationDocument.DocumentType.MOTOR_VEHICLE_RECEIPT,
+            RegistrationDocument.DocumentType.INVOICE,
+            RegistrationDocument.DocumentType.COMPULSORY_INSURANCE,
+        }
+        if self.plate_choice != self.PlateChoice.NONE:
+            required.add(RegistrationDocument.DocumentType.PLATE_SELECTION)
+        return required
+
+    def missing_registration_requirements(self):
+        missing = []
+        if not self.allocated_vehicle_id:
+            missing.append("完成配車")
+        if not self.registration_date:
+            missing.append("實際領牌日期")
+        if not self.final_plate_number:
+            missing.append("車牌號碼")
+        uploaded = set(
+            self.registration_documents.values_list("document_type", flat=True)
+        )
+        labels = dict(RegistrationDocument.DocumentType.choices)
+        for document_type in self.required_registration_document_types():
+            if document_type not in uploaded:
+                missing.append(labels[document_type])
+        return missing
+
+    def complete_registration(self, actor_name):
+        missing = self.missing_registration_requirements()
+        if missing:
+            raise ValidationError("尚缺：" + "、".join(missing))
+        self.registration_completed_at = timezone.now()
+        self.registration_completed_by = actor_name
+        if self.is_delivered:
+            self.status = self.Status.COMPLETED
+        else:
+            self.status = self.Status.DELIVERY_PENDING
+        self.save(
+            update_fields=[
+                "registration_completed_at",
+                "registration_completed_by",
+                "status",
+                "updated_at",
+            ]
+        )
+
     def calculate_balance(self):
         return (
             self.vehicle_price
@@ -581,6 +653,60 @@ class SalesOrder(TimeStampedModel):
 
     def __str__(self):
         return f"{self.number}／{self.owner_name}"
+
+
+class RegistrationDocument(TimeStampedModel):
+    class DocumentType(models.TextChoices):
+        NEW_LICENSE = "new_license", "新行照照片"
+        REGISTRATION_APPLICATION = (
+            "registration_application",
+            "新車領牌登記書",
+        )
+        MOTOR_VEHICLE_RECEIPT = "motor_vehicle_receipt", "監理站單據"
+        INVOICE = "invoice", "發票"
+        COMPULSORY_INSURANCE = "compulsory_insurance", "強制險單"
+        PLATE_SELECTION = "plate_selection", "選號單"
+        OTHER_INSURANCE = "other_insurance", "其他保險單"
+
+    order = models.ForeignKey(
+        SalesOrder,
+        on_delete=models.CASCADE,
+        related_name="registration_documents",
+        verbose_name="訂單",
+    )
+    document_type = models.CharField(
+        "文件類型", max_length=40, choices=DocumentType.choices
+    )
+    name = models.CharField("文件名稱", max_length=160, blank=True)
+    file = models.FileField(
+        "檔案", upload_to="orders/registration/%Y/%m/"
+    )
+    uploaded_by = models.CharField("上傳人員", max_length=150, blank=True)
+
+    class Meta:
+        ordering = ["document_type", "created_at"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["order", "document_type"],
+                condition=~models.Q(document_type="other_insurance"),
+                name="unique_fixed_registration_document",
+            )
+        ]
+        verbose_name = "領牌文件"
+        verbose_name_plural = "領牌文件"
+
+    @property
+    def display_name(self):
+        return self.name or self.get_document_type_display()
+
+    def delete_with_file(self):
+        stored_file = self.file
+        super().delete()
+        if stored_file:
+            stored_file.delete(save=False)
+
+    def __str__(self):
+        return f"{self.order.number}／{self.display_name}"
 
 
 class OrderDraft(TimeStampedModel):

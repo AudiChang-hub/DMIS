@@ -4,14 +4,21 @@ from io import BytesIO
 from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
+from django.contrib.auth.models import AnonymousUser
 from django.core.exceptions import ValidationError
 from django.core.files.uploadedfile import SimpleUploadedFile
-from django.test import TestCase
+from django.test import RequestFactory, TestCase
 from django.urls import reverse
 from django.utils import timezone
 from pypdf import PdfReader
 
-from sales.forms import AccessoryLineForm, OtherFeeLineForm, SalesOrderForm
+from sales.forms import (
+    AccessoryFormSet,
+    AccessoryLineForm,
+    OtherFeeFormSet,
+    OtherFeeLineForm,
+    SalesOrderForm,
+)
 from sales.models import (
     AccessoryLine,
     OrderChange,
@@ -1130,6 +1137,80 @@ class OrderFlowTests(TestCase):
         self.assertContains(response, order.owner_name)
         self.assertContains(response, order.number)
 
+    def test_dashboard_shows_clickable_in_progress_metric_and_empty_section(self):
+        self.client.force_login(self.user)
+
+        empty_response = self.client.get(reverse("dashboard"))
+        self.assertContains(empty_response, "目前沒有進行中的訂單")
+        self.assertContains(empty_response, "?status=in_progress")
+
+        order = self.make_order()
+        order.status = SalesOrder.Status.ALLOCATED
+        order.save(update_fields=["status"])
+
+        response = self.client.get(reverse("dashboard"))
+        self.assertEqual(response.context["counts"]["in_progress"], 1)
+        self.assertContains(response, order.number)
+
+        filtered = self.client.get(reverse("order_list"), {"status": "in_progress"})
+        self.assertContains(filtered, order.number)
+
+    def test_dynamic_accessory_and_fee_rows_can_be_deleted(self):
+        order = self.make_order()
+        accessory = AccessoryLine.objects.create(
+            order=order,
+            name="手機架",
+            quantity=1,
+            line_type=AccessoryLine.LineType.PURCHASE,
+            amount=Decimal("850"),
+        )
+        fee = OtherFeeLine.objects.create(
+            order=order,
+            name="代辦費",
+            amount=Decimal("300"),
+        )
+
+        accessory_formset = AccessoryFormSet(
+            {
+                "accessories-TOTAL_FORMS": "1",
+                "accessories-INITIAL_FORMS": "1",
+                "accessories-MIN_NUM_FORMS": "0",
+                "accessories-MAX_NUM_FORMS": "1000",
+                "accessories-0-id": str(accessory.pk),
+                "accessories-0-DELETE": "on",
+            },
+            instance=order,
+        )
+        fee_formset = OtherFeeFormSet(
+            {
+                "other_fees-TOTAL_FORMS": "1",
+                "other_fees-INITIAL_FORMS": "1",
+                "other_fees-MIN_NUM_FORMS": "0",
+                "other_fees-MAX_NUM_FORMS": "1000",
+                "other_fees-0-id": str(fee.pk),
+                "other_fees-0-DELETE": "on",
+            },
+            instance=order,
+            prefix="other_fees",
+        )
+
+        self.assertTrue(accessory_formset.is_valid(), accessory_formset.errors)
+        self.assertTrue(fee_formset.is_valid(), fee_formset.errors)
+        accessory_formset.save()
+        fee_formset.save()
+        self.assertFalse(order.accessories.exists())
+        self.assertFalse(order.other_fees.exists())
+
+    def test_server_error_page_explains_what_user_can_do(self):
+        from sales.views import server_error
+
+        request = RequestFactory().get("/")
+        request.user = AnonymousUser()
+        response = server_error(request)
+
+        self.assertEqual(response.status_code, 500)
+        self.assertIn("系統暫時無法完成這個動作", response.content.decode())
+
     def test_contract_print_returns_two_page_dynamic_pdf(self):
         order = self.make_order()
         self.client.force_login(self.user)
@@ -1339,9 +1420,12 @@ class OrderFlowTests(TestCase):
             content.index('id="add-other-fee"'),
             content.index('id="other-fee-forms"'),
         )
-        self.assertContains(order_response, 'class="accessory-row"')
+        self.assertContains(order_response, 'class="accessory-row dynamic-row')
         self.assertContains(order_response, "或從手機相簿選擇圖片")
         self.assertContains(order_response, "＋ 新增費用")
+        self.assertContains(order_response, "data-remove-row")
+        self.assertContains(order_response, "刪除此筆配件")
+        self.assertContains(order_response, "刪除此筆費用")
         self.assertContains(order_response, "現金")
         self.assertContains(order_response, "分期")
         self.assertContains(order_response, "刷卡")

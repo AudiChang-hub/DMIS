@@ -10,6 +10,8 @@
   <label>狀態
     <select name="status" onchange="this.form.submit()">
       <option value="">全部狀態</option>
+      <option value="urgent" {% if request.GET.status == "urgent" %}selected{% endif %}>需要優先處理</option>
+      <option value="in_progress" {% if request.GET.status == "in_progress" %}selected{% endif %}>進行中</option>
       {% for value,label in statuses %}
         <option value="{{ value }}" {% if request.GET.status == value %}selected{% endif %}>{{ label }}</option>
       {% endfor %}

@@ -40,6 +40,7 @@ class SalesOrderForm(forms.ModelForm):
             "id_verified",
             "vehicle_model",
             "color",
+            "vehicle_category",
             "payment_type",
             "vehicle_price",
             "plate_insurance_fee",
@@ -52,6 +53,7 @@ class SalesOrderForm(forms.ModelForm):
             "installment_monthly",
             "is_trade_in_subsidy",
             "trade_in_plate",
+            "old_owner_name",
             "subsidy_type",
             "old_vehicle_valuation",
             "old_vehicle_tax",
@@ -110,11 +112,16 @@ class SalesOrderForm(forms.ModelForm):
         self.fields["id_verified"].widget.attrs["class"] = "form-check"
         self.fields["is_trade_in_subsidy"].widget.attrs["class"] = "form-check"
         self.fields["delivery_method"].required = True
+        self.fields["vehicle_category"].required = False
+        self.fields["vehicle_category"].initial = SalesOrder.VehicleCategory.NEW
         self.fields["old_vehicle_valuation"].required = False
         self.fields["old_vehicle_tax"].required = False
 
     def clean(self):
         data = super().clean()
+        if not data.get("vehicle_category"):
+            data["vehicle_category"] = SalesOrder.VehicleCategory.NEW
+            self.cleaned_data["vehicle_category"] = SalesOrder.VehicleCategory.NEW
         source_type = data.get("source_type")
         source = data.get("source")
         if source_type == SalesOrder.SourceType.STORE:

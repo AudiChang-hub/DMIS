@@ -6,7 +6,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 WORKDIR /app
 
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends libjpeg62-turbo \
+    && apt-get install -y --no-install-recommends libjpeg62-turbo fonts-noto-cjk \
     && rm -rf /var/lib/apt/lists/*
 
 COPY requirements-django.txt .
@@ -17,4 +17,3 @@ RUN chmod +x scripts/start_django.sh
 
 EXPOSE 8000
 CMD ["./scripts/start_django.sh"]
-

@@ -28,6 +28,7 @@ from .forms import (
     RegistrationStageForm,
     SalesOrderForm,
     SignedContractForm,
+    SubsidyDataForm,
     SubsidyDocumentUploadForm,
     VehicleInventoryForm,
 )
@@ -511,6 +512,7 @@ def order_detail(request, pk):
         for document_type, label in SubsidyDocument.DocumentType.choices
         if document_type != SubsidyDocument.DocumentType.OWNER_DECLARATION
         or document_type in subsidy_required_types
+        or document_type in subsidy_documents
     ]
     return render(
         request,
@@ -528,6 +530,7 @@ def order_detail(request, pk):
             "registration_missing": order.missing_registration_requirements(),
             "subsidy_document_rows": subsidy_document_rows,
             "subsidy_missing": order.missing_subsidy_requirements(),
+            "subsidy_form": SubsidyDataForm(instance=order),
             "change_cards": build_order_change_cards(order.changes.all()),
         },
     )
@@ -1091,6 +1094,69 @@ def subsidy_document_file(request, document_pk):
     )
     response["Cache-Control"] = "private, no-store"
     return response
+
+
+@login_required
+@transaction.atomic
+def subsidy_data_update(request, pk):
+    order = get_object_or_404(SalesOrder.objects.select_for_update(), pk=pk)
+    detail_url = f"{reverse('order_detail', args=[pk])}?tab=subsidy"
+    if request.method != "POST":
+        return redirect(detail_url)
+    if not order.is_editable:
+        messages.error(request, "此訂單已交車、完成或取消，補助資料已鎖定。")
+        return redirect(detail_url)
+    try:
+        submitted_revision = int(request.POST.get("_order_revision", 0))
+    except (TypeError, ValueError):
+        submitted_revision = 0
+    if submitted_revision != order.revision:
+        messages.error(request, "此訂單已被其他人更新，請重新確認補助資料。")
+        return redirect(detail_url)
+
+    before = _order_snapshot(order)
+    balance_was_automatic = order.actual_balance == order.calculated_balance
+    previous_actual_balance = order.actual_balance
+    form = SubsidyDataForm(request.POST, instance=order)
+    if not form.is_valid():
+        messages.error(
+            request,
+            "補助資料未保存：" + " ".join(
+                error
+                for errors in form.errors.values()
+                for error in errors
+            ),
+        )
+        return redirect(detail_url)
+
+    order = form.save(commit=False)
+    order.revision += 1
+    order.calculated_balance = order.calculate_balance()
+    if balance_was_automatic:
+        order.actual_balance = order.calculated_balance
+    else:
+        order.actual_balance = previous_actual_balance
+        if order.actual_balance != order.calculated_balance:
+            order.balance_adjustment_reason = form.cleaned_data["change_reason"]
+    order.save()
+
+    after = _order_snapshot(order)
+    changes = _snapshot_changes(before, after)
+    reason = form.cleaned_data["change_reason"]
+    OrderChange.objects.create(
+        order=order,
+        reason=reason,
+        changes=changes,
+        actor_name=_editing_name(request.user),
+    )
+    OrderEvent.objects.create(
+        order=order,
+        event_type="subsidy_data_updated",
+        description=f"修改補助資料：{reason}（{len(changes)} 個項目）",
+        actor_name=_editing_name(request.user),
+    )
+    messages.success(request, "補助資料已更新，尾款與變更紀錄已同步。")
+    return redirect(detail_url)
 
 
 @login_required

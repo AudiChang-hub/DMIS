@@ -79,6 +79,11 @@ urlpatterns = [
         name="subsidy_document_upload",
     ),
     path(
+        "orders/<int:pk>/subsidy/update/",
+        views.subsidy_data_update,
+        name="subsidy_data_update",
+    ),
+    path(
         "orders/<int:pk>/subsidy/documents/<int:document_pk>/delete/",
         views.subsidy_document_delete,
         name="subsidy_document_delete",

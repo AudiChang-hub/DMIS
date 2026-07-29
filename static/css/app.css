@@ -463,6 +463,29 @@ body.screen-locked { overflow: hidden; }
 .subsidy-summary span { color: var(--muted); font-size: .75rem; font-weight: 800; }
 .subsidy-summary strong { overflow-wrap: anywhere; }
 .subsidy-document-list { margin-top: 0; }
+.subsidy-edit-form {
+  overflow: hidden; margin-bottom: 20px; border: 1px solid var(--line); border-radius: 14px;
+}
+.subsidy-toggle {
+  display: flex; padding: 15px 18px; align-items: center; gap: 12px;
+  background: #eef6f1; cursor: pointer;
+}
+.subsidy-toggle input { flex: 0 0 auto; width: 24px; height: 24px; }
+.subsidy-toggle span, .subsidy-toggle small { display: block; }
+.subsidy-toggle small { margin-top: 2px; color: var(--muted); font-weight: 600; }
+.subsidy-edit-grid {
+  display: grid; padding: 18px; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 15px;
+}
+.subsidy-edit-grid > div { display: grid; min-width: 0; align-content: start; gap: 7px; }
+.subsidy-change-reason { grid-column: 1 / -1; }
+.subsidy-edit-actions {
+  display: flex; padding: 14px 18px; align-items: center; justify-content: space-between;
+  gap: 16px; background: #f7faf8; border-top: 1px solid var(--line);
+}
+.subsidy-edit-actions p { margin: 0; color: var(--muted); font-size: .8rem; }
+.subsidy-documents-heading { margin: 4px 0 12px; }
+.subsidy-documents-heading h3 { margin-bottom: 3px; }
+.subsidy-documents-heading p { margin: 0; color: var(--muted); font-size: .82rem; }
 .stage-empty {
   padding: 18px; color: var(--muted); background: #f6f8f7;
   border: 1px dashed var(--line); border-radius: 12px;
@@ -715,6 +738,10 @@ body.screen-locked { overflow: hidden; }
   .registration-data-form, .other-insurance__form { grid-template-columns: 1fr; }
   .subsidy-summary { grid-template-columns: 1fr 1fr; }
   .subsidy-summary .button { grid-column: 1 / -1; }
+  .subsidy-edit-grid { grid-template-columns: 1fr; padding: 15px; }
+  .subsidy-change-reason { grid-column: auto; }
+  .subsidy-edit-actions { align-items: stretch; flex-direction: column; }
+  .subsidy-edit-actions .button { width: 100%; }
   .registration-document-row { grid-template-columns: 1fr; gap: 10px; }
   .registration-document-row__actions { flex-wrap: wrap; }
   .registration-completion { align-items: stretch; flex-direction: column; }

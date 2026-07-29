@@ -275,6 +275,17 @@ class SignedContractForm(forms.ModelForm):
         }
 
 
+class PrivacyConsentForm(forms.ModelForm):
+    class Meta:
+        model = SalesOrder
+        fields = ["privacy_consent"]
+        widgets = {
+            "privacy_consent": forms.ClearableFileInput(
+                attrs={"accept": "image/*,application/pdf", "capture": "environment"}
+            )
+        }
+
+
 class AllocationForm(forms.Form):
     vehicle = forms.ModelChoiceField(
         label="實體車輛", queryset=VehicleInventory.objects.none()

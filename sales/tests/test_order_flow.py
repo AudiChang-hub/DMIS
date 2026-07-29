@@ -390,7 +390,9 @@ class OrderFlowTests(TestCase):
         detail = self.client.get(reverse("order_detail", args=[order.pk]))
         self.assertContains(detail, "可與配車同時進行")
         self.assertContains(detail, "舊車主身分證正面")
-        self.assertContains(detail, "2／7 已備妥")
+        self.assertContains(detail, "2／8 已備妥")
+        self.assertContains(detail, "新車主存摺封面")
+        self.assertNotContains(detail, "舊車主存摺封面")
 
         response = self.client.post(
             reverse("subsidy_document_upload", args=[order.pk]),
@@ -549,7 +551,14 @@ class OrderFlowTests(TestCase):
         missing = order.missing_subsidy_requirements()
 
         self.assertIn("新舊車主不同人聲明書", missing)
-        self.assertEqual(order.subsidy_required_count, 8)
+        self.assertIn("新車主存摺封面", missing)
+        self.assertIn("舊車主存摺封面", missing)
+        self.assertEqual(order.subsidy_required_count, 10)
+
+        self.client.force_login(self.user)
+        detail = self.client.get(reverse("order_detail", args=[order.pk]))
+        self.assertContains(detail, "新車主存摺封面")
+        self.assertContains(detail, "舊車主存摺封面")
 
     def test_subsidy_fixed_document_can_be_replaced_and_downloaded(self):
         order = self.make_order()

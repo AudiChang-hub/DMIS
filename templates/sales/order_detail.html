@@ -94,6 +94,10 @@
       {{ subsidy_form.is_trade_in_subsidy }}
       <span><strong>申請汰舊／政府補助</strong><small>可隨時開啟或關閉；關閉不會刪除已上傳文件。</small></span>
     </label>
+    <label class="subsidy-toggle subsidy-owner-toggle">
+      {{ subsidy_form.old_owner_same_as_owner }}
+      <span><strong>新舊車主為同一人</strong><small>若不是同一人，需補齊舊車主姓名、證號、存摺封面與聲明書。</small></span>
+    </label>
     <div class="subsidy-edit-grid">
       <div><label for="{{ subsidy_form.trade_in_plate.id_for_label }}">舊車車牌</label>{{ subsidy_form.trade_in_plate }}</div>
       <div><label for="{{ subsidy_form.old_owner_name.id_for_label }}">舊車主姓名</label>{{ subsidy_form.old_owner_name }}</div>
@@ -108,6 +112,27 @@
       <button class="button primary" type="submit">儲存補助資料</button>
     </div>
   </form>
+  {% if order.old_owner_ocr_name or order.old_owner_ocr_id_number %}
+  <div class="ocr-conflict-card">
+    <div>
+      <strong>舊車主證件辨識結果與目前資料不同</strong>
+      <p>
+        OCR：{{ order.old_owner_ocr_name|default:"未辨識姓名" }}／{{ order.old_owner_ocr_id_number|default:"未辨識證號" }}<br>
+        目前：{{ order.old_owner_name|default:"尚未填寫" }}／{{ order.old_owner_id_number|default:"尚未填寫" }}
+      </p>
+    </div>
+    <div class="ocr-conflict-card__actions">
+      <form method="post" action="{% url 'subsidy_ocr_decision' order.pk %}">
+        {% csrf_token %}<input type="hidden" name="decision" value="keep">
+        <button class="button ghost" type="submit">保留目前內容</button>
+      </form>
+      <form method="post" action="{% url 'subsidy_ocr_decision' order.pk %}">
+        {% csrf_token %}<input type="hidden" name="decision" value="apply">
+        <button class="button primary" type="submit">採用辨識結果</button>
+      </form>
+    </div>
+  </div>
+  {% endif %}
   {% else %}
   <div class="subsidy-summary">
     <div><span>舊車車牌</span><strong>{{ order.trade_in_plate|default:"尚未填寫" }}</strong></div>

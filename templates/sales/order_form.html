@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% block title %}{% if editing_order %}編輯 {{ editing_order.number }}{% else %}建立訂單{% endif %}｜車輛銷售管理{% endblock %}
+{% block page_class %}page-shell--form{% endblock %}
 {% block content %}
 <form method="post" enctype="multipart/form-data" class="mobile-order-form" id="order-form">
   {% csrf_token %}

@@ -537,6 +537,53 @@ class SalesOrder(TimeStampedModel):
             required.add(RegistrationDocument.DocumentType.PLATE_SELECTION)
         return required
 
+    def required_subsidy_document_types(self):
+        if not self.is_trade_in_subsidy:
+            return set()
+        required = {
+            SubsidyDocument.DocumentType.OLD_OWNER_ID_FRONT,
+            SubsidyDocument.DocumentType.OLD_OWNER_ID_BACK,
+            SubsidyDocument.DocumentType.OLD_VEHICLE_REGISTRATION,
+            SubsidyDocument.DocumentType.SCRAP_CERTIFICATE,
+            SubsidyDocument.DocumentType.RECYCLING_RECEIPT,
+        }
+        if self.old_owner_name and self.old_owner_name.strip() != self.owner_name.strip():
+            required.add(SubsidyDocument.DocumentType.OWNER_DECLARATION)
+        return required
+
+    def missing_subsidy_requirements(self):
+        if not self.is_trade_in_subsidy:
+            return []
+        missing = []
+        if not self.trade_in_plate:
+            missing.append("舊車車牌")
+        if not self.subsidy_type:
+            missing.append("補助類型")
+        uploaded = set(
+            self.subsidy_documents.values_list("document_type", flat=True)
+        )
+        labels = dict(SubsidyDocument.DocumentType.choices)
+        for document_type in self.required_subsidy_document_types():
+            if document_type not in uploaded:
+                missing.append(labels[document_type])
+        return missing
+
+    @property
+    def subsidy_required_count(self):
+        if not self.is_trade_in_subsidy:
+            return 0
+        return 2 + len(self.required_subsidy_document_types())
+
+    @property
+    def subsidy_completed_count(self):
+        if not self.is_trade_in_subsidy:
+            return 0
+        return self.subsidy_required_count - len(self.missing_subsidy_requirements())
+
+    @property
+    def is_subsidy_ready(self):
+        return self.is_trade_in_subsidy and not self.missing_subsidy_requirements()
+
     def missing_registration_requirements(self):
         missing = []
         if not self.allocated_vehicle_id:
@@ -707,6 +754,50 @@ class RegistrationDocument(TimeStampedModel):
 
     def __str__(self):
         return f"{self.order.number}／{self.display_name}"
+
+
+class SubsidyDocument(TimeStampedModel):
+    class DocumentType(models.TextChoices):
+        OLD_OWNER_ID_FRONT = "old_owner_id_front", "舊車主身分證正面"
+        OLD_OWNER_ID_BACK = "old_owner_id_back", "舊車主身分證反面"
+        OLD_VEHICLE_REGISTRATION = "old_vehicle_registration", "舊車行照"
+        SCRAP_CERTIFICATE = "scrap_certificate", "報廢證明"
+        RECYCLING_RECEIPT = "recycling_receipt", "回收管制聯"
+        OWNER_DECLARATION = "owner_declaration", "新舊車主不同人聲明書"
+
+    order = models.ForeignKey(
+        SalesOrder,
+        on_delete=models.CASCADE,
+        related_name="subsidy_documents",
+        verbose_name="訂單",
+    )
+    document_type = models.CharField(
+        "文件類型", max_length=40, choices=DocumentType.choices
+    )
+    file = models.FileField(
+        "檔案", upload_to="orders/subsidy/%Y/%m/"
+    )
+    uploaded_by = models.CharField("上傳人員", max_length=150, blank=True)
+
+    class Meta:
+        ordering = ["document_type", "created_at"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["order", "document_type"],
+                name="unique_subsidy_document",
+            )
+        ]
+        verbose_name = "汰舊補助文件"
+        verbose_name_plural = "汰舊補助文件"
+
+    def delete_with_file(self):
+        stored_file = self.file
+        super().delete()
+        if stored_file:
+            stored_file.delete(save=False)
+
+    def __str__(self):
+        return f"{self.order.number}／{self.get_document_type_display()}"
 
 
 class OrderDraft(TimeStampedModel):

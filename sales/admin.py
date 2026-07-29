@@ -9,6 +9,7 @@ from .models import (
     SalesOrder,
     SalesSource,
     Store,
+    SubsidyDocument,
     VehicleColor,
     VehicleInventory,
     VehicleModel,
@@ -81,6 +82,12 @@ class RegistrationDocumentInline(admin.TabularInline):
     readonly_fields = ("uploaded_by", "created_at", "updated_at")
 
 
+class SubsidyDocumentInline(admin.TabularInline):
+    model = SubsidyDocument
+    extra = 0
+    readonly_fields = ("uploaded_by", "created_at", "updated_at")
+
+
 @admin.register(SalesOrder)
 class SalesOrderAdmin(admin.ModelAdmin):
     list_display = (
@@ -102,6 +109,7 @@ class SalesOrderAdmin(admin.ModelAdmin):
     inlines = [
         AccessoryLineInline,
         OtherFeeLineInline,
+        SubsidyDocumentInline,
         RegistrationDocumentInline,
         OrderEventInline,
     ]

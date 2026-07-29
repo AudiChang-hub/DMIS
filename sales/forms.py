@@ -6,6 +6,7 @@ from .models import (
     RegistrationDocument,
     SalesOrder,
     SalesSource,
+    SubsidyDocument,
     VehicleColor,
     VehicleInventory,
     VehicleModel,
@@ -627,3 +628,29 @@ class RegistrationDocumentUploadForm(forms.ModelForm):
         }:
             self.add_error("file", "僅支援 JPG、PNG、WebP 或 PDF。")
         return data
+
+
+class SubsidyDocumentUploadForm(forms.ModelForm):
+    class Meta:
+        model = SubsidyDocument
+        fields = ["document_type", "file"]
+        widgets = {
+            "document_type": forms.HiddenInput(),
+            "file": forms.ClearableFileInput(
+                attrs={
+                    "accept": "image/jpeg,image/png,image/webp,application/pdf",
+                    "capture": "environment",
+                }
+            ),
+        }
+
+    def clean_file(self):
+        upload = self.cleaned_data["file"]
+        if upload.content_type not in {
+            "image/jpeg",
+            "image/png",
+            "image/webp",
+            "application/pdf",
+        }:
+            raise forms.ValidationError("僅支援 JPG、PNG、WebP 或 PDF。")
+        return upload

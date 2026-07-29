@@ -47,8 +47,7 @@
 
   <section class="metric-grid">
     <article class="metric urgent"><span>需要優先處理</span><strong>{{ counts.urgent }}</strong><small>逾期或重大待辦</small></article>
-    <article class="metric warning"><span>待簽署合約</span><strong>{{ counts.contract }}</strong><small>上傳後才可配車</small></article>
-    <article class="metric info"><span>待配車</span><strong>{{ counts.allocation }}</strong><small>已完成簽約</small></article>
+    <article class="metric info"><span>待配車</span><strong>{{ counts.allocation }}</strong><small>訂單建立後直接進入</small></article>
     <article class="metric calm"><span>可售庫存</span><strong>{{ counts.inventory }}</strong><small>全部門市</small></article>
   </section>
 
@@ -60,13 +59,6 @@
   {% endif %}
 
   <div class="dashboard-columns">
-    <section class="section-block">
-      <div class="section-title"><h2><span class="signal amber"></span>待簽署合約</h2><a href="{% url 'order_list' %}?status=contract_pending">查看全部</a></div>
-      <div class="order-list compact">
-        {% for order in contract_pending %}{% include "sales/_order_row.html" %}
-        {% empty %}<div class="empty-state small">目前沒有待簽署合約</div>{% endfor %}
-      </div>
-    </section>
     <section class="section-block">
       <div class="section-title"><h2><span class="signal blue"></span>待配車</h2><a href="{% url 'order_list' %}?status=allocation_pending">查看全部</a></div>
       <div class="order-list compact">

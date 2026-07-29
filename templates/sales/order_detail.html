@@ -7,7 +7,10 @@
     <div class="title-with-status"><h1>{{ order.owner_name }}</h1><span class="status-pill large">{{ order.get_status_display }}</span></div>
     <p class="muted">{{ order.number }} · {{ order.order_date }}</p>
   </div>
-  <a class="button secondary" href="{% url 'contract_print' order.pk %}" target="_blank">列印訂購合約</a>
+  <div class="hero-actions">
+    {% if order.is_editable %}<a class="button primary" href="{% url 'order_edit' order.pk %}">編輯訂單</a>{% endif %}
+    <a class="button secondary" href="{% url 'contract_print' order.pk %}" target="_blank">列印訂購合約</a>
+  </div>
 </section>
 
 {% if request.GET.created == "1" %}
@@ -29,22 +32,12 @@
 <div class="workflow-strip">
   <div class="done"><span>✓</span><small>訂單建立</small></div>
   <i></i>
-  <div class="{% if order.has_signed_contract %}done{% else %}current{% endif %}"><span>{% if order.has_signed_contract %}✓{% else %}2{% endif %}</span><small>簽署合約</small></div>
+  <div class="{% if order.allocated_vehicle %}done{% else %}current{% endif %}"><span>{% if order.allocated_vehicle %}✓{% else %}2{% endif %}</span><small>配車</small></div>
   <i></i>
-  <div class="{% if order.allocated_vehicle %}done{% elif order.has_signed_contract %}current{% endif %}"><span>{% if order.allocated_vehicle %}✓{% else %}3{% endif %}</span><small>配車</small></div>
-  <i></i>
-  <div><span>4</span><small>領牌與交付</small></div>
+  <div><span>3</span><small>領牌與交付</small></div>
 </div>
 
-{% if not order.has_signed_contract %}
-<section class="action-card warning-card">
-  <div><p class="eyebrow">下一步</p><h2>上傳客戶已簽署的合約</h2><p>紙本一式兩份。未上傳前，系統不允許配車。</p></div>
-  <form method="post" enctype="multipart/form-data" action="{% url 'contract_upload' order.pk %}">
-    {% csrf_token %}{{ contract_form.signed_contract }}
-    <button class="button primary block" type="submit">上傳並進入待配車</button>
-  </form>
-</section>
-{% elif not order.allocated_vehicle %}
+{% if not order.allocated_vehicle and order.is_editable %}
 <section class="action-card info-card">
   <div><p class="eyebrow">下一步</p><h2>選擇實體車輛</h2><p>只顯示符合 {{ order.vehicle_model }}／{{ order.color.name }} 的可售庫存。</p></div>
   <form method="post" action="{% url 'allocate_vehicle' order.pk %}">
@@ -57,6 +50,18 @@
   </form>
 </section>
 {% endif %}
+
+<section class="action-card">
+  <div><p class="eyebrow">選填歸檔</p><h2>訂購合約附件</h2><p>可上傳已簽署或掃描的合約留存；未上傳不影響配車與後續流程。</p>
+  {% if order.has_signed_contract %}<p class="muted">目前已有附件，重新上傳會更新歸檔檔案。</p>{% endif %}</div>
+  <form method="post" enctype="multipart/form-data" action="{% url 'contract_upload' order.pk %}">
+    {% csrf_token %}{{ contract_form.signed_contract }}
+    <button class="button secondary block" type="submit">上傳歸檔</button>
+  </form>
+  {% if order.has_signed_contract %}
+  <a class="button ghost" href="{% url 'protected_media' 'order' order.pk 'signed_contract' %}" target="_blank">查看目前附件</a>
+  {% endif %}
+</section>
 
 <div class="detail-grid">
   <section class="card">
@@ -117,4 +122,19 @@
     {% endfor %}
   </div>
 </section>
+{% if order.changes.all %}
+<section class="section-block">
+  <div class="section-title"><h2>訂單變更紀錄</h2></div>
+  {% for change in order.changes.all %}
+  <details class="change-record">
+    <summary>{{ change.created_at }} · {{ change.actor_name }} · {{ change.reason }}</summary>
+    <dl class="data-list">
+      {% for label, values in change.changes.items %}
+      <div class="wide"><dt>{{ label }}</dt><dd>{{ values.before|default:"（空白）" }} → {{ values.after|default:"（空白）" }}</dd></div>
+      {% endfor %}
+    </dl>
+  </details>
+  {% endfor %}
+</section>
+{% endif %}
 {% endblock %}

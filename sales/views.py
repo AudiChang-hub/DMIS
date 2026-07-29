@@ -20,12 +20,14 @@ from .forms import (
     AccessoryFormSet,
     AllocationForm,
     OtherFeeFormSet,
+    OrderEditForm,
     SalesOrderForm,
     SignedContractForm,
     VehicleInventoryForm,
 )
 from .models import (
     OrderEvent,
+    OrderChange,
     OrderDraft,
     SalesOrder,
     SalesSource,
@@ -37,6 +39,7 @@ from .services.id_ocr import IdOcrError, recognize_id_card
 
 logger = logging.getLogger(__name__)
 DRAFT_PRESENCE_TIMEOUT = timedelta(seconds=90)
+ORDER_PRESENCE_TIMEOUT = timedelta(seconds=90)
 
 
 def _editing_name(user):
@@ -87,15 +90,11 @@ def dashboard(request):
                 SalesOrder.Status.DELIVERED_DOCS_PENDING,
             ]
         )[:12],
-        "contract_pending": active.filter(
-            status=SalesOrder.Status.CONTRACT_PENDING
-        )[:12],
         "allocation_pending": active.filter(
             status=SalesOrder.Status.ALLOCATION_PENDING
         )[:12],
         "in_progress": active.exclude(
             status__in=[
-                SalesOrder.Status.CONTRACT_PENDING,
                 SalesOrder.Status.ALLOCATION_PENDING,
                 SalesOrder.Status.CANCEL_REFUND_PENDING,
                 SalesOrder.Status.DELIVERED_DOCS_PENDING,
@@ -107,9 +106,6 @@ def dashboard(request):
                     SalesOrder.Status.CANCEL_REFUND_PENDING,
                     SalesOrder.Status.DELIVERED_DOCS_PENDING,
                 ]
-            ).count(),
-            "contract": active.filter(
-                status=SalesOrder.Status.CONTRACT_PENDING
             ).count(),
             "allocation": active.filter(
                 status=SalesOrder.Status.ALLOCATION_PENDING
@@ -163,7 +159,7 @@ def order_create(request):
                 if not form.cleaned_data.get("id_back") and draft.id_back:
                     order.id_back = draft.id_back.name
                     draft.id_back = ""
-            order.status = SalesOrder.Status.CONTRACT_PENDING
+            order.status = SalesOrder.Status.ALLOCATION_PENDING
             order.save()
             formset.instance = order
             formset.save()
@@ -177,12 +173,12 @@ def order_create(request):
             OrderEvent.objects.create(
                 order=order,
                 event_type="created",
-                description="建立訂單，等待列印並上傳已簽署合約。",
+                description="建立訂單，進入待配車。",
                 actor_name=request.user.get_username(),
             )
             if draft:
                 draft.delete_with_files()
-            messages.success(request, "訂單已建立。請列印一式兩份並上傳簽署合約。")
+            messages.success(request, "訂單已建立並進入待配車。")
             return redirect(f"{reverse('order_detail', kwargs={'pk': order.pk})}?created=1")
     else:
         initial = _draft_form_initial(draft.data) if draft else None
@@ -208,6 +204,8 @@ def order_create(request):
             "formset": formset,
             "fee_formset": fee_formset,
             "draft": draft,
+            "document_source": draft,
+            "document_model": "draft",
         },
     )
 
@@ -448,7 +446,7 @@ def order_detail(request, pk):
             "color",
             "allocated_vehicle",
             "allocated_vehicle__location_store",
-        ).prefetch_related("accessories", "other_fees", "events"),
+        ).prefetch_related("accessories", "other_fees", "events", "changes"),
         pk=pk,
     )
     return render(
@@ -459,6 +457,185 @@ def order_detail(request, pk):
             "contract_form": SignedContractForm(instance=order),
             "allocation_form": AllocationForm(order),
         },
+    )
+
+
+def _order_snapshot(order):
+    excluded = {
+        "id",
+        "created_at",
+        "updated_at",
+        "revision",
+        "editing_session",
+        "editing_by",
+        "editing_at",
+        "calculated_balance",
+    }
+    snapshot = {}
+    for field in order._meta.concrete_fields:
+        if field.name in excluded:
+            continue
+        value = field.value_from_object(order)
+        snapshot[field.verbose_name] = str(value or "")
+    snapshot["配件"] = [
+        {
+            "名稱": line.name,
+            "數量": line.quantity,
+            "類型": line.get_line_type_display(),
+            "金額": str(line.amount),
+            "安裝日期": str(line.installed_on or ""),
+            "備註": line.note,
+        }
+        for line in order.accessories.all()
+    ]
+    snapshot["其他費用"] = [
+        {"項目": line.name, "金額": str(line.amount)}
+        for line in order.other_fees.all()
+    ]
+    return snapshot
+
+
+def _snapshot_changes(before, after):
+    return {
+        key: {"before": before.get(key), "after": after.get(key)}
+        for key in sorted(set(before) | set(after))
+        if before.get(key) != after.get(key)
+    }
+
+
+@login_required
+@transaction.atomic
+def order_edit(request, pk):
+    order = get_object_or_404(
+        SalesOrder.objects.select_for_update()
+        .select_related("source", "vehicle_model", "color", "allocated_vehicle")
+        .prefetch_related("accessories", "other_fees"),
+        pk=pk,
+    )
+    if not order.is_editable:
+        messages.error(request, "此訂單已交車、完成或取消，內容已鎖定。")
+        return redirect("order_detail", pk=pk)
+
+    if request.method == "POST":
+        try:
+            submitted_revision = int(request.POST.get("_order_revision", 0))
+        except (TypeError, ValueError):
+            submitted_revision = 0
+        if submitted_revision != order.revision:
+            messages.error(request, "此訂單已被其他人更新，請重新載入後再修改。")
+            return redirect("order_edit", pk=pk)
+
+        before = _order_snapshot(order)
+        balance_was_automatic = order.actual_balance == order.calculated_balance
+        previous_actual_balance = order.actual_balance
+        form = OrderEditForm(request.POST, request.FILES, instance=order)
+        formset = AccessoryFormSet(request.POST, instance=order)
+        fee_formset = OtherFeeFormSet(
+            request.POST, instance=order, prefix="other_fees"
+        )
+        if form.is_valid() and formset.is_valid() and fee_formset.is_valid():
+            order = form.save(commit=False)
+            order.revision += 1
+            order.editing_session = ""
+            order.editing_by = ""
+            order.editing_at = None
+            order.save()
+            formset.save()
+            fee_formset.save()
+            order._prefetched_objects_cache = {}
+            order.calculated_balance = order.calculate_balance()
+            order.actual_balance = (
+                order.calculated_balance
+                if balance_was_automatic
+                else previous_actual_balance
+            )
+            order.save(
+                update_fields=[
+                    "calculated_balance",
+                    "actual_balance",
+                    "revision",
+                    "editing_session",
+                    "editing_by",
+                    "editing_at",
+                    "updated_at",
+                ]
+            )
+            after = _order_snapshot(order)
+            changes = _snapshot_changes(before, after)
+            reason = form.cleaned_data["change_reason"]
+            OrderChange.objects.create(
+                order=order,
+                reason=reason,
+                changes=changes,
+                actor_name=_editing_name(request.user),
+            )
+            OrderEvent.objects.create(
+                order=order,
+                event_type="updated",
+                description=f"修改訂單：{reason}（{len(changes)} 個項目）",
+                actor_name=_editing_name(request.user),
+            )
+            messages.success(request, "訂單內容已更新，變更紀錄已保存。")
+            return redirect("order_detail", pk=pk)
+    else:
+        form = OrderEditForm(instance=order)
+        formset = AccessoryFormSet(instance=order)
+        fee_formset = OtherFeeFormSet(instance=order, prefix="other_fees")
+
+    return render(
+        request,
+        "sales/order_form.html",
+        {
+            "form": form,
+            "formset": formset,
+            "fee_formset": fee_formset,
+            "editing_order": order,
+            "document_source": order,
+            "document_model": "order",
+        },
+    )
+
+
+@login_required
+@transaction.atomic
+def order_edit_presence(request, pk):
+    if request.method != "POST":
+        return JsonResponse({"ok": False, "error": "僅接受 POST。"}, status=405)
+    if not request.session.session_key:
+        request.session.create()
+    order = get_object_or_404(SalesOrder.objects.select_for_update(), pk=pk)
+    session_key = request.session.session_key
+    now = timezone.now()
+    mine = order.editing_session == session_key
+    active = bool(
+        order.editing_session
+        and order.editing_at
+        and order.editing_at >= now - ORDER_PRESENCE_TIMEOUT
+    )
+    if request.POST.get("action") == "release":
+        if mine:
+            order.editing_session = ""
+            order.editing_by = ""
+            order.editing_at = None
+            order.save(
+                update_fields=["editing_session", "editing_by", "editing_at"]
+            )
+        return JsonResponse({"ok": True, "active": False})
+    if active and not mine:
+        return JsonResponse(
+            {
+                "ok": True,
+                "active": True,
+                "mine": False,
+                "editing_by": order.editing_by or "其他人員",
+            }
+        )
+    order.editing_session = session_key
+    order.editing_by = _editing_name(request.user)
+    order.editing_at = now
+    order.save(update_fields=["editing_session", "editing_by", "editing_at"])
+    return JsonResponse(
+        {"ok": True, "active": True, "mine": True, "editing_by": order.editing_by}
     )
 
 
@@ -491,15 +668,15 @@ def contract_upload(request, pk):
     form = SignedContractForm(request.POST, request.FILES, instance=order)
     if form.is_valid():
         order = form.save(commit=False)
-        order.status = SalesOrder.Status.ALLOCATION_PENDING
+        order.signed_contract_uploaded_at = timezone.now()
         order.save()
         OrderEvent.objects.create(
             order=order,
             event_type="contract_uploaded",
-            description="已上傳簽署合約，訂單進入待配車。",
+            description="已上傳訂購合約附件歸檔。",
             actor_name=request.user.get_username(),
         )
-        messages.success(request, "已上傳簽署合約，現在可以進行配車。")
+        messages.success(request, "訂購合約附件已歸檔。")
     else:
         messages.error(request, "合約上傳失敗，請確認檔案格式。")
     return redirect("order_detail", pk=pk)

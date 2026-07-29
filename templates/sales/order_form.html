@@ -1,9 +1,11 @@
 {% extends "base.html" %}
-{% block title %}建立訂單｜車輛銷售管理{% endblock %}
+{% block title %}{% if editing_order %}編輯 {{ editing_order.number }}{% else %}建立訂單{% endif %}｜車輛銷售管理{% endblock %}
 {% block content %}
 <form method="post" enctype="multipart/form-data" class="mobile-order-form" id="order-form">
   {% csrf_token %}
   <input type="hidden" name="_draft_id" id="draft-id" value="{{ draft.pk|default:'' }}">
+  <input type="hidden" name="_order_revision" value="{{ editing_order.revision|default:0 }}">
+  <input type="hidden" id="editing-order-id" value="{{ editing_order.pk|default:'' }}">
   <input type="hidden" name="_draft_revision" id="draft-revision" value="{{ draft.revision|default:0 }}">
   <input type="hidden" name="_remove_id_front" id="remove-id-front" value="0">
   <input type="hidden" name="_remove_id_back" id="remove-id-back" value="0">
@@ -18,13 +20,13 @@
     </div>
   </div>
   <section class="hero-row compact-hero form-heading">
-    <div><p class="eyebrow">訂單建檔</p><h1>{% if draft %}繼續編輯草稿{% else %}建立新訂單{% endif %}</h1><p class="muted">依序填寫，送出後先列印合約，不會立即配車。</p></div>
-    <button class="button primary desktop-save" type="submit">建立訂單</button>
+    <div><p class="eyebrow">{% if editing_order %}正式訂單{% else %}訂單建檔{% endif %}</p><h1>{% if editing_order %}編輯訂單{% elif draft %}繼續編輯草稿{% else %}建立新訂單{% endif %}</h1><p class="muted">{% if editing_order %}儲存後會保留修改人、時間、原因及變更前後內容。{% else %}依序填寫，送出後直接進入待配車。{% endif %}</p></div>
+    <button class="button primary desktop-save" type="submit">{% if editing_order %}儲存修改{% else %}建立訂單{% endif %}</button>
   </section>
 
   <div class="draft-status" id="draft-status" aria-live="polite">
     <span class="draft-status-dot"></span>
-    <strong id="draft-status-message">{% if draft %}已載入草稿，最後更新 {{ draft.updated_at|date:"m/d H:i" }}{% else %}開始填寫後會自動儲存草稿{% endif %}</strong>
+    <strong id="draft-status-message">{% if editing_order %}正式訂單不會自動暫存，請完成後按「儲存修改」{% elif draft %}已載入草稿，最後更新 {{ draft.updated_at|date:"m/d H:i" }}{% else %}開始填寫後會自動儲存草稿{% endif %}</strong>
   </div>
   <div class="editing-presence" id="editing-presence" role="status" aria-live="polite" hidden></div>
   <div class="collaboration-status" id="collaboration-status" aria-live="polite" hidden></div>
@@ -71,27 +73,27 @@
       <div class="span-2 capture-instruction" data-conditional="local">
         請先準備證件正反面；點選欄位後可直接拍照，或從手機相簿選擇圖片。
       </div>
-      <div class="capture-card {% if draft.id_front %}has-saved-photo{% endif %}" data-conditional="local">
+      <div class="capture-card {% if document_source.id_front %}has-saved-photo{% endif %}" data-conditional="local">
         {% include "sales/_field.html" with field=form.id_front %}
-        {% if draft.id_front %}
+        {% if document_source.id_front %}
         <div class="saved-photo-state" data-saved-photo="id_front">
           <span><strong>已暫存正面照片</strong><small>照片已安全保存，可繼續填寫</small></span>
-          <a href="{% url 'protected_media' 'draft' draft.pk 'id_front' %}" target="_blank">查看</a>
+          <a href="{% url 'protected_media' document_model document_source.pk 'id_front' %}" target="_blank">查看</a>
           <button type="button" data-select-file="id_id_front">更換</button>
         </div>
         {% endif %}
-        <button type="button" class="remove-photo" data-clear-file="id_id_front" data-existing-photo="{% if draft.id_front %}1{% else %}0{% endif %}" {% if not draft.id_front %}hidden{% endif %}>移除正面照片</button>
+        <button type="button" class="remove-photo" data-clear-file="id_id_front" data-existing-photo="{% if document_source.id_front %}1{% else %}0{% endif %}" {% if not document_source.id_front %}hidden{% endif %}>移除正面照片</button>
       </div>
-      <div class="capture-card {% if draft.id_back %}has-saved-photo{% endif %}" data-conditional="local">
+      <div class="capture-card {% if document_source.id_back %}has-saved-photo{% endif %}" data-conditional="local">
         {% include "sales/_field.html" with field=form.id_back %}
-        {% if draft.id_back %}
+        {% if document_source.id_back %}
         <div class="saved-photo-state" data-saved-photo="id_back">
           <span><strong>已暫存反面照片</strong><small>照片已安全保存，可繼續填寫</small></span>
-          <a href="{% url 'protected_media' 'draft' draft.pk 'id_back' %}" target="_blank">查看</a>
+          <a href="{% url 'protected_media' document_model document_source.pk 'id_back' %}" target="_blank">查看</a>
           <button type="button" data-select-file="id_id_back">更換</button>
         </div>
         {% endif %}
-        <button type="button" class="remove-photo" data-clear-file="id_id_back" data-existing-photo="{% if draft.id_back %}1{% else %}0{% endif %}" {% if not draft.id_back %}hidden{% endif %}>移除反面照片</button>
+        <button type="button" class="remove-photo" data-clear-file="id_id_back" data-existing-photo="{% if document_source.id_back %}1{% else %}0{% endif %}" {% if not document_source.id_back %}hidden{% endif %}>移除反面照片</button>
       </div>
       {% include "sales/_field.html" with field=form.owner_name %}
       <div data-conditional="foreign">{% include "sales/_field.html" with field=form.owner_name_en %}</div>
@@ -206,8 +208,13 @@
     </div>
   </details>
 
+  {% if editing_order %}
+  <div class="form-section edit-reason-section">
+    {% include "sales/_field.html" with field=form.change_reason %}
+  </div>
+  {% endif %}
   <div class="mobile-submit">
-    <button class="button primary" type="submit">建立訂單</button>
+    <button class="button primary" type="submit">{% if editing_order %}儲存修改{% else %}建立訂單{% endif %}</button>
   </div>
 </form>
 {% if draft %}
@@ -236,6 +243,7 @@
   const ocrScreenLock = byId("ocr-screen-lock");
   const orderForm = byId("order-form");
   const draftId = byId("draft-id");
+  const editingOrderId = byId("editing-order-id").value;
   const draftRevision = byId("draft-revision");
   const draftStatus = byId("draft-status");
   const draftStatusMessage = byId("draft-status-message");
@@ -833,6 +841,26 @@
   }
 
   async function refreshDraftPresence() {
+    if (editingOrderId) {
+      try {
+        const response = await fetch(`/orders/${editingOrderId}/edit/presence/`, {
+          method: "POST",
+          headers: {"X-CSRFToken": document.querySelector("[name=csrfmiddlewaretoken]").value},
+        });
+        const data = await response.json();
+        if (!response.ok || !data.ok) return;
+        editingPresence.hidden = false;
+        editingPresence.className = data.mine
+          ? "editing-presence mine"
+          : "editing-presence warning";
+        editingPresence.textContent = data.mine
+          ? `目前由你（${data.editing_by}）編輯這筆訂單`
+          : `注意：${data.editing_by} 正在編輯這筆訂單，儲存時系統仍會檢查版本`;
+      } catch (error) {
+        // 編輯狀態屬輔助提醒，版本檢查仍會防止覆蓋。
+      }
+      return;
+    }
     if (!draftId.value) {
       editingPresence.hidden = true;
       return;
@@ -890,13 +918,14 @@
   }
 
   function scheduleDraft() {
-    if (submittingOrder) return;
+    if (editingOrderId || submittingOrder) return;
     clearTimeout(draftTimer);
     setDraftStatus("pending", "尚有變更，將自動儲存…");
     draftTimer = window.setTimeout(saveDraft, 5000);
   }
 
   async function saveDraft() {
+    if (editingOrderId) return;
     clearTimeout(draftTimer);
     if (draftSaving) {
       draftQueued = true;
@@ -956,9 +985,19 @@
     clearTimeout(draftTimer);
   });
   refreshDraftPresence();
-  connectCollaboration();
+  if (!editingOrderId) connectCollaboration();
   window.setInterval(refreshDraftPresence, 30000);
   window.addEventListener("pagehide", () => {
+    if (editingOrderId) {
+      const payload = new FormData();
+      payload.append("action", "release");
+      payload.append(
+        "csrfmiddlewaretoken",
+        document.querySelector("[name=csrfmiddlewaretoken]").value,
+      );
+      navigator.sendBeacon(`/orders/${editingOrderId}/edit/presence/`, payload);
+      return;
+    }
     if (!draftId.value) return;
     const payload = new FormData();
     payload.append("action", "release");

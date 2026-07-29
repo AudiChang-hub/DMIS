@@ -52,7 +52,7 @@ class OrderFlowTests(TestCase):
             deposit_amount=Decimal("4600"),
             actual_balance=Decimal("75200"),
             id_verified=True,
-            status=SalesOrder.Status.CONTRACT_PENDING,
+            status=SalesOrder.Status.ALLOCATION_PENDING,
         )
         if signed:
             order.signed_contract = SimpleUploadedFile(
@@ -64,14 +64,102 @@ class OrderFlowTests(TestCase):
         order.save(update_fields=["calculated_balance", "updated_at"])
         return order
 
-    def test_unsigned_contract_cannot_allocate(self):
+    def test_unsigned_contract_can_allocate(self):
         order = self.make_order(signed=False)
 
-        with self.assertRaisesMessage(ValidationError, "尚未上傳已簽署合約"):
-            order.allocate(self.vehicle)
+        order.allocate(self.vehicle)
 
         self.vehicle.refresh_from_db()
-        self.assertEqual(self.vehicle.status, VehicleInventory.Status.AVAILABLE)
+        order.refresh_from_db()
+        self.assertEqual(self.vehicle.status, VehicleInventory.Status.RESERVED)
+        self.assertEqual(order.status, SalesOrder.Status.ALLOCATED)
+
+    def test_edit_page_available_until_delivery(self):
+        order = self.make_order()
+        self.client.force_login(self.user)
+
+        response = self.client.get(reverse("order_edit", args=[order.pk]))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "編輯訂單")
+        self.assertContains(response, "變更原因")
+
+        order.status = SalesOrder.Status.DELIVERED_DOCS_PENDING
+        order.save(update_fields=["status", "updated_at"])
+        locked = self.client.get(reverse("order_edit", args=[order.pk]))
+        self.assertRedirects(locked, reverse("order_detail", args=[order.pk]))
+
+    def test_edit_order_records_reason_and_before_after_values(self):
+        order = self.make_order()
+        self.client.force_login(self.user)
+        data = {
+            "_order_revision": str(order.revision),
+            "source_type": "store",
+            "source": "",
+            "owner_type": "company",
+            "owner_name": "王小明有限公司",
+            "owner_name_en": "",
+            "owner_phone": order.owner_phone,
+            "owner_email": "",
+            "owner_birth_date": "",
+            "owner_nationality": "",
+            "owner_address": order.owner_address,
+            "owner_id_number": order.owner_id_number,
+            "residence_expiry": "",
+            "id_verified": "on",
+            "vehicle_model": str(self.model.pk),
+            "color": str(self.color.pk),
+            "vehicle_category": "new",
+            "payment_type": "cash",
+            "vehicle_price": "79800",
+            "plate_insurance_fee": "0",
+            "installment_opening_fee": "0",
+            "deposit_amount": "4600",
+            "deposit_date": str(timezone.localdate()),
+            "deposit_method": "",
+            "installment_company": "",
+            "installment_periods": "0",
+            "installment_monthly": "0",
+            "is_trade_in_subsidy": "",
+            "trade_in_plate": "",
+            "old_owner_name": "",
+            "subsidy_type": "",
+            "old_vehicle_valuation": "0",
+            "old_vehicle_tax": "0",
+            "plate_choice": "none",
+            "watched_numbers": "",
+            "plate_preference_note": "",
+            "delivery_method": "store_pickup",
+            "delivery_destination": "",
+            "note": "",
+            "change_reason": "客戶要求更正公司名稱",
+            "accessories-TOTAL_FORMS": "1",
+            "accessories-INITIAL_FORMS": "0",
+            "accessories-MIN_NUM_FORMS": "0",
+            "accessories-MAX_NUM_FORMS": "1000",
+            "accessories-0-name": "",
+            "accessories-0-quantity": "",
+            "accessories-0-line_type": "",
+            "accessories-0-amount": "",
+            "other_fees-TOTAL_FORMS": "1",
+            "other_fees-INITIAL_FORMS": "0",
+            "other_fees-MIN_NUM_FORMS": "0",
+            "other_fees-MAX_NUM_FORMS": "1000",
+            "other_fees-0-name": "",
+            "other_fees-0-amount": "",
+        }
+
+        response = self.client.post(reverse("order_edit", args=[order.pk]), data)
+
+        self.assertRedirects(response, reverse("order_detail", args=[order.pk]))
+        order.refresh_from_db()
+        self.assertEqual(order.owner_name, "王小明有限公司")
+        self.assertEqual(order.revision, 2)
+        change = order.changes.get()
+        self.assertEqual(change.reason, "客戶要求更正公司名稱")
+        self.assertEqual(
+            change.changes["車主姓名／公司名稱"],
+            {"before": "王小明", "after": "王小明有限公司"},
+        )
 
     def test_signed_contract_can_allocate_and_locks_vehicle(self):
         order = self.make_order(signed=True)

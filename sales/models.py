@@ -221,7 +221,6 @@ class SalesOrder(TimeStampedModel):
 
     class Status(models.TextChoices):
         DRAFT = "draft", "草稿"
-        CONTRACT_PENDING = "contract_pending", "待簽署合約"
         ALLOCATION_PENDING = "allocation_pending", "待配車"
         ALLOCATED = "allocated", "已配車"
         TRANSFER_PENDING = "transfer_pending", "待調車"
@@ -370,6 +369,10 @@ class SalesOrder(TimeStampedModel):
     signed_contract_uploaded_at = models.DateTimeField(
         "合約上傳時間", blank=True, null=True
     )
+    revision = models.PositiveIntegerField("資料版本", default=1)
+    editing_session = models.CharField("編輯工作階段", max_length=40, blank=True)
+    editing_by = models.CharField("目前編輯人員", max_length=150, blank=True)
+    editing_at = models.DateTimeField("最後編輯心跳", blank=True, null=True)
 
     class Meta:
         ordering = ["-order_date", "-id"]
@@ -393,6 +396,14 @@ class SalesOrder(TimeStampedModel):
     @property
     def has_signed_contract(self):
         return bool(self.signed_contract)
+
+    @property
+    def is_editable(self):
+        return self.status not in {
+            self.Status.DELIVERED_DOCS_PENDING,
+            self.Status.COMPLETED,
+            self.Status.CANCELLED,
+        }
 
     def calculate_balance(self):
         accessories = sum(line.line_total for line in self.accessories.all()) if self.pk else 0
@@ -438,19 +449,13 @@ class SalesOrder(TimeStampedModel):
         if self.pk:
             self.calculated_balance = self.calculate_balance()
         if self.status == self.Status.DRAFT:
-            self.status = (
-                self.Status.ALLOCATION_PENDING
-                if self.signed_contract
-                else self.Status.CONTRACT_PENDING
-            )
+            self.status = self.Status.ALLOCATION_PENDING
         self.full_clean()
         return super().save(*args, **kwargs)
 
     @transaction.atomic
     def allocate(self, vehicle):
         locked = VehicleInventory.objects.select_for_update().get(pk=vehicle.pk)
-        if not self.signed_contract:
-            raise ValidationError("尚未上傳已簽署合約，不得配車。")
         if self.allocated_vehicle_id:
             raise ValidationError("此訂單已配車，請先解除原配車。")
         if locked.status != VehicleInventory.Status.AVAILABLE:
@@ -611,3 +616,17 @@ class OrderEvent(TimeStampedModel):
         ordering = ["-created_at"]
         verbose_name = "訂單事件"
         verbose_name_plural = "訂單事件"
+
+
+class OrderChange(TimeStampedModel):
+    order = models.ForeignKey(
+        SalesOrder, on_delete=models.CASCADE, related_name="changes"
+    )
+    reason = models.TextField("變更原因")
+    changes = models.JSONField("欄位變更", default=dict)
+    actor_name = models.CharField("操作人員", max_length=150)
+
+    class Meta:
+        ordering = ["-created_at"]
+        verbose_name = "訂單變更"
+        verbose_name_plural = "訂單變更"

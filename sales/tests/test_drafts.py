@@ -172,7 +172,7 @@ class OrderDraftTests(TestCase):
         self.assertEqual(response.status_code, 302)
         self.assertFalse(OrderDraft.objects.filter(pk=draft.pk).exists())
         order = SalesOrder.objects.get(owner_name="測試車主")
-        self.assertEqual(order.status, SalesOrder.Status.CONTRACT_PENDING)
+        self.assertEqual(order.status, SalesOrder.Status.ALLOCATION_PENDING)
         self.assertTrue(order.id_front)
         self.assertTrue(order.id_back)
         self.assertEqual(order.accessories.count(), 0)

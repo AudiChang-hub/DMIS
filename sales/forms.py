@@ -162,6 +162,28 @@ class SalesOrderForm(forms.ModelForm):
         return data
 
 
+class OrderEditForm(SalesOrderForm):
+    change_reason = forms.CharField(
+        label="變更原因",
+        required=True,
+        widget=forms.Textarea(
+            attrs={"rows": 2, "placeholder": "請說明本次修改原因"}
+        ),
+    )
+
+    def clean(self):
+        data = super().clean()
+        if self.instance.allocated_vehicle_id:
+            if (
+                data.get("vehicle_model")
+                and data["vehicle_model"].pk != self.instance.vehicle_model_id
+            ):
+                self.add_error("vehicle_model", "訂單已配車，需先解除配車才能修改車型。")
+            if data.get("color") and data["color"].pk != self.instance.color_id:
+                self.add_error("color", "訂單已配車，需先解除配車才能修改車色。")
+        return data
+
+
 class AccessoryLineForm(forms.ModelForm):
     class Meta:
         model = AccessoryLine

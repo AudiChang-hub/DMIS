@@ -1,4 +1,5 @@
 from decimal import Decimal
+from io import BytesIO
 
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
@@ -6,6 +7,7 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
+from pypdf import PdfReader
 
 from sales.forms import AccessoryLineForm, SalesOrderForm
 from sales.models import (
@@ -112,6 +114,24 @@ class OrderFlowTests(TestCase):
 
         self.assertContains(response, order.owner_name)
         self.assertContains(response, order.number)
+
+    def test_contract_print_returns_two_page_dynamic_pdf(self):
+        order = self.make_order()
+        self.client.force_login(self.user)
+
+        response = self.client.get(reverse("contract_print", args=[order.pk]))
+        content = b"".join(response.streaming_content)
+        reader = PdfReader(BytesIO(content))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response["Content-Type"], "application/pdf")
+        self.assertIn("inline;", response["Content-Disposition"])
+        self.assertEqual(len(reader.pages), 2)
+        extracted = "\n".join(page.extract_text() for page in reader.pages)
+        self.assertIn(order.number, extracted)
+        self.assertIn(order.owner_name, extracted)
+        self.assertIn("店家留存聯", extracted)
+        self.assertIn("客戶留存聯", extracted)
 
     def test_mobile_order_and_inventory_pages_render(self):
         self.client.force_login(self.user)

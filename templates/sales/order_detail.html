@@ -10,6 +10,22 @@
   <a class="button secondary" href="{% url 'contract_print' order.pk %}" target="_blank">列印訂購合約</a>
 </section>
 
+{% if request.GET.created == "1" %}
+<dialog class="print-dialog" id="print-contract-dialog">
+  <h2>訂單已建立</h2>
+  <p>是否立即開啟正式訂購單？開啟後可使用手機或電腦的列印功能選擇印表機。</p>
+  <div class="dialog-actions">
+    <button class="button ghost" type="button" id="print-later">稍後列印</button>
+    <a class="button primary" href="{% url 'contract_print' order.pk %}" target="_blank">開啟訂購單</a>
+  </div>
+</dialog>
+<script>
+  const printDialog = document.getElementById("print-contract-dialog");
+  printDialog.showModal();
+  document.getElementById("print-later").addEventListener("click", () => printDialog.close());
+</script>
+{% endif %}
+
 <div class="workflow-strip">
   <div class="done"><span>✓</span><small>訂單建立</small></div>
   <i></i>

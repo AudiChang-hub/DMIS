@@ -8,3 +8,5 @@ channels==4.3.2
 channels-redis==4.3.0
 daphne==4.2.3
 redis==6.4.0
+reportlab==4.4.3
+pypdf==6.0.0

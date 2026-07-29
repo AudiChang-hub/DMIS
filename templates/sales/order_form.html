@@ -21,7 +21,10 @@
   </div>
   <section class="hero-row compact-hero form-heading">
     <div><p class="eyebrow">{% if editing_order %}正式訂單{% else %}訂單建檔{% endif %}</p><h1>{% if editing_order %}編輯訂單{% elif draft %}繼續編輯草稿{% else %}建立新訂單{% endif %}</h1><p class="muted">{% if editing_order %}儲存後會保留修改人、時間、原因及變更前後內容。{% else %}依序填寫，送出後直接進入待配車。{% endif %}</p></div>
-    <button class="button primary desktop-save" type="submit">{% if editing_order %}儲存修改{% else %}建立訂單{% endif %}</button>
+    <div class="hero-actions">
+      {% if editing_order %}<a class="button ghost desktop-save" href="{% url 'order_detail' editing_order.pk %}" data-cancel-edit>取消修改</a>{% endif %}
+      <button class="button primary desktop-save" type="submit">{% if editing_order %}儲存修改{% else %}建立訂單{% endif %}</button>
+    </div>
   </section>
 
   <div class="draft-status" id="draft-status" aria-live="polite">
@@ -214,6 +217,7 @@
   </div>
   {% endif %}
   <div class="mobile-submit">
+    {% if editing_order %}<a class="button ghost" href="{% url 'order_detail' editing_order.pk %}" data-cancel-edit>取消修改</a>{% endif %}
     <button class="button primary" type="submit">{% if editing_order %}儲存修改{% else %}建立訂單{% endif %}</button>
   </div>
 </form>
@@ -261,6 +265,7 @@
   let draftSaving = false;
   let draftQueued = false;
   let submittingOrder = false;
+  let editFormDirty = false;
   let collaborationSocket = null;
   let collaborationReconnectTimer = null;
   let collaborationReconnectDelay = 1000;
@@ -979,6 +984,22 @@
 
   orderForm.addEventListener("input", scheduleDraft);
   orderForm.addEventListener("change", scheduleDraft);
+  if (editingOrderId) {
+    orderForm.addEventListener("input", () => { editFormDirty = true; });
+    orderForm.addEventListener("change", () => { editFormDirty = true; });
+    document.querySelectorAll("[data-cancel-edit]").forEach(link => {
+      link.addEventListener("click", event => {
+        if (editFormDirty && !confirm("尚有未儲存的修改，確定要放棄並離開嗎？")) {
+          event.preventDefault();
+        }
+      });
+    });
+    window.addEventListener("beforeunload", event => {
+      if (!editFormDirty || submittingOrder) return;
+      event.preventDefault();
+      event.returnValue = "";
+    });
+  }
   orderForm.addEventListener("submit", () => {
     flushCollaborativeChanges();
     submittingOrder = true;

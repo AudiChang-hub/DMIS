@@ -10,8 +10,7 @@
   </div>
   <div class="hero-actions">
     {% if order.is_editable %}<a class="button primary" href="{% url 'order_edit' order.pk %}">編輯訂單</a>{% endif %}
-    <a class="button secondary" href="{% url 'contract_print' order.pk %}" target="_blank">列印訂購合約</a>
-    <a class="button secondary" href="{% url 'privacy_consent_print' order.pk %}" target="_blank">列印個資同意書</a>
+    <a class="button secondary" href="{% url 'order_documents_print' order.pk %}" target="_blank">一鍵列印全部文件</a>
   </div>
 </section>
 
@@ -63,6 +62,7 @@
       <p>上傳已簽署或掃描的訂購合約；未上傳不影響後續流程。</p>
       {% if order.has_signed_contract %}<span class="archive-status done">✓ 已歸檔</span>{% else %}<span class="archive-status">尚未歸檔</span>{% endif %}
     </div>
+    <a class="button ghost block" href="{% url 'contract_print' order.pk %}" target="_blank">單獨列印訂購合約</a>
     <form method="post" enctype="multipart/form-data" action="{% url 'contract_upload' order.pk %}">
       {% csrf_token %}{{ contract_form.signed_contract }}
       <button class="button secondary block" type="submit">上傳訂購合約</button>
@@ -78,6 +78,7 @@
       <p>上傳已簽署或掃描的個資同意書，與訂購合約分開保存。</p>
       {% if order.has_privacy_consent %}<span class="archive-status done">✓ 已歸檔</span>{% else %}<span class="archive-status">尚未歸檔</span>{% endif %}
     </div>
+    <a class="button ghost block" href="{% url 'privacy_consent_print' order.pk %}" target="_blank">單獨列印個資同意書</a>
     <form method="post" enctype="multipart/form-data" action="{% url 'privacy_consent_upload' order.pk %}">
       {% csrf_token %}{{ privacy_consent_form.privacy_consent }}
       <button class="button secondary block" type="submit">上傳個資同意書</button>

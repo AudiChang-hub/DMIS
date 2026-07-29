@@ -325,6 +325,7 @@ class OrderFlowTests(TestCase):
         self.assertIn("馮華微", extracted)
         self.assertIn("ABC-1234", extracted)
         self.assertIn("中華民國 115 年 07 月 29 日", extracted)
+        self.assertIn("馭盛國際有限公司", extracted)
 
         order.owner_name = "馮華薇"
         order.order_date = date(2026, 8, 1)

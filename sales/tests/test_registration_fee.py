@@ -117,6 +117,9 @@ class RegistrationFeeOrderIntegrationTests(TestCase):
 
         response = self.client.get(reverse("order_detail", args=[order.pk]))
 
-        self.assertContains(response, "領牌試算明細")
-        self.assertContains(response, "公路養管 $190")
-        self.assertContains(response, "系統試算 $1498")
+        self.assertContains(response, 'class="registration-breakdown"')
+        self.assertContains(response, "領牌試算")
+        self.assertContains(response, "公路養管")
+        self.assertContains(response, "$190")
+        self.assertContains(response, "試算合計")
+        self.assertContains(response, "$1498")

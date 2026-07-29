@@ -1,53 +1,78 @@
 from io import BytesIO
+from pathlib import Path
 from xml.sax.saxutils import escape
 
-from reportlab.lib.colors import HexColor
-from reportlab.lib.enums import TA_CENTER
+from reportlab.lib.colors import HexColor, black
+from reportlab.lib.enums import TA_CENTER, TA_JUSTIFY
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import ParagraphStyle
 from reportlab.lib.units import mm
+from reportlab.pdfbase import pdfmetrics
+from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.pdfgen import canvas
 from reportlab.platypus import Paragraph
 
-# 載入訂購合約模組時會一併註冊 MSJH 與 MSJH-Bold 字型。
-from .order_contract_pdf import FONT_BOLD, FONT_REGULAR  # noqa: F401
-
-
 PAGE_W, PAGE_H = A4
-MARGIN_X = 22 * mm
+MARGIN_X = 20 * mm
 CONTENT_W = PAGE_W - 2 * MARGIN_X
-INK = HexColor("#17221D")
-MUTED = HexColor("#5E6B64")
-LINE = HexColor("#CBD5CF")
-GREEN = HexColor("#174A39")
+MUTED = HexColor("#777777")
+
+FONT_CANDIDATES = [
+    (
+        Path(r"C:\Windows\Fonts\mingliu.ttc"),
+        Path(r"C:\Windows\Fonts\mingliu.ttc"),
+    ),
+    (
+        Path("/usr/share/fonts/opentype/noto/NotoSerifCJK-Regular.ttc"),
+        Path("/usr/share/fonts/opentype/noto/NotoSerifCJK-Bold.ttc"),
+    ),
+    (
+        Path("/usr/share/fonts/truetype/wqy/wqy-zenhei.ttc"),
+        Path("/usr/share/fonts/truetype/wqy/wqy-zenhei.ttc"),
+    ),
+]
+FONT_REGULAR, FONT_BOLD = next(
+    (
+        (regular, bold)
+        for regular, bold in FONT_CANDIDATES
+        if regular.exists() and bold.exists()
+    ),
+    (None, None),
+)
+if not FONT_REGULAR:
+    raise RuntimeError("找不到可用的正式中文字型。")
+
+pdfmetrics.registerFont(
+    TTFont("PrivacyFormal", str(FONT_REGULAR), subfontIndex=0)
+)
+pdfmetrics.registerFont(
+    TTFont("PrivacyFormal-Bold", str(FONT_BOLD), subfontIndex=0)
+)
 
 title_style = ParagraphStyle(
     "privacy-title",
-    fontName="MSJH-Bold",
-    fontSize=18,
-    leading=24,
+    fontName="PrivacyFormal-Bold",
+    fontSize=20,
+    leading=27,
     alignment=TA_CENTER,
-    textColor=INK,
+    textColor=black,
+    letterSpacing=2,
 )
 body_style = ParagraphStyle(
     "privacy-body",
-    fontName="MSJH",
-    fontSize=9.2,
-    leading=15,
-    textColor=INK,
+    fontName="PrivacyFormal",
+    fontSize=10.5,
+    leading=18,
+    alignment=TA_JUSTIFY,
+    textColor=black,
 )
 greeting_style = ParagraphStyle(
     "privacy-greeting",
     parent=body_style,
-    fontName="MSJH-Bold",
-    fontSize=10.2,
-)
-small_style = ParagraphStyle(
-    "privacy-small",
-    parent=body_style,
-    fontSize=8,
-    leading=12,
-    textColor=MUTED,
+    fontName="PrivacyFormal",
+    fontSize=11.5,
+    leading=19,
+    alignment=0,
 )
 
 
@@ -68,18 +93,15 @@ def build_privacy_consent_pdf(order):
     c.setTitle(f"{order.number} 個人資料使用同意書")
     c.setAuthor("馭盛國際有限公司")
 
-    y = PAGE_H - 18 * mm
-    y = _draw_paragraph(c, "個人資料使用同意書", title_style, y, 8 * mm)
-    c.setStrokeColor(GREEN)
-    c.setLineWidth(1)
-    c.line(MARGIN_X, y + 3 * mm, PAGE_W - MARGIN_X, y + 3 * mm)
+    y = PAGE_H - 20 * mm
+    y = _draw_paragraph(c, "個 人 資 料 使 用 同 意 書", title_style, y, 18 * mm)
 
     y = _draw_paragraph(
         c,
         f"親愛的車主 {escape(order.owner_name)} 您好：",
         greeting_style,
         y,
-        7 * mm,
+        16 * mm,
     )
     plate_number = (
         escape(order.final_plate_number)
@@ -93,7 +115,7 @@ def build_privacy_consent_pdf(order):
         f"<u>{plate_number}</u> 所屬車主或使用人之個人資料，車主瞭解並同意如下：",
         body_style,
         y,
-        5 * mm,
+        9 * mm,
     )
 
     clauses = [
@@ -113,31 +135,30 @@ def build_privacy_consent_pdf(order):
         "5. 本同意書如有未盡事宜，本公司將依個人資料保護法或其他相關法令之規定辦理。",
     ]
     for clause in clauses:
-        y = _draw_paragraph(c, clause, body_style, y, 3.5 * mm)
+        y = _draw_paragraph(c, clause, body_style, y, 3.2 * mm)
 
-    y -= 2 * mm
-    c.setFillColor(INK)
-    c.setFont("MSJH-Bold", 9.5)
-    c.drawRightString(PAGE_W - MARGIN_X, y, "台鈴工業股份有限公司　敬啟")
     y -= 7 * mm
-    c.setFont("MSJH", 9.5)
-    c.drawRightString(PAGE_W - MARGIN_X, y, "經銷商：馭盛國際有限公司")
+    c.setFillColor(black)
+    c.setFont("PrivacyFormal", 11)
+    c.drawString(MARGIN_X, y, "台鈴工業股份有限公司")
+    c.drawString(MARGIN_X + 80 * mm, y, "敬啟")
+    y -= 8 * mm
+    c.drawString(MARGIN_X, y, "馭盛")
 
-    signature_y = 35 * mm
-    c.setStrokeColor(INK)
-    c.setFillColor(INK)
-    c.setFont("MSJH-Bold", 10)
-    c.drawString(MARGIN_X, signature_y + 16 * mm, "車主簽名：")
-    c.line(MARGIN_X + 24 * mm, signature_y + 15.5 * mm, PAGE_W - MARGIN_X, signature_y + 15.5 * mm)
-    c.setFont("MSJH", 9.5)
-    c.drawCentredString(PAGE_W / 2, signature_y, roc_date(order.order_date))
+    signature_y = 53 * mm
+    signature_x = PAGE_W - MARGIN_X - 90 * mm
+    c.setStrokeColor(black)
+    c.setFillColor(black)
+    c.setFont("PrivacyFormal", 11)
+    c.drawString(signature_x, signature_y, "車主簽名：")
+    c.line(signature_x + 25 * mm, signature_y - .5 * mm, PAGE_W - MARGIN_X, signature_y - .5 * mm)
 
-    c.setStrokeColor(LINE)
-    c.line(MARGIN_X, 16 * mm, PAGE_W - MARGIN_X, 16 * mm)
+    c.setFont("PrivacyFormal", 13)
+    c.drawString(MARGIN_X, 23 * mm, roc_date(order.order_date))
+
     c.setFillColor(MUTED)
-    c.setFont("MSJH", 7)
-    c.drawString(MARGIN_X, 11 * mm, f"訂單編號：{order.number}")
-    c.drawRightString(PAGE_W - MARGIN_X, 11 * mm, "本文件含個人資料，請妥善保管")
+    c.setFont("PrivacyFormal", 6.5)
+    c.drawRightString(PAGE_W - MARGIN_X, 8 * mm, f"訂單編號：{order.number}")
 
     c.showPage()
     c.save()

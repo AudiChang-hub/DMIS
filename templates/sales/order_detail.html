@@ -97,6 +97,7 @@
     <div class="subsidy-edit-grid">
       <div><label for="{{ subsidy_form.trade_in_plate.id_for_label }}">舊車車牌</label>{{ subsidy_form.trade_in_plate }}</div>
       <div><label for="{{ subsidy_form.old_owner_name.id_for_label }}">舊車主姓名</label>{{ subsidy_form.old_owner_name }}</div>
+      <div><label for="{{ subsidy_form.old_owner_id_number.id_for_label }}">舊車主身分證字號</label>{{ subsidy_form.old_owner_id_number }}</div>
       <div><label for="{{ subsidy_form.subsidy_type.id_for_label }}">補助類型</label>{{ subsidy_form.subsidy_type }}</div>
       <div><label for="{{ subsidy_form.old_vehicle_valuation.id_for_label }}">舊車估價</label>{{ subsidy_form.old_vehicle_valuation }}</div>
       <div><label for="{{ subsidy_form.old_vehicle_tax.id_for_label }}">舊車未繳稅金</label>{{ subsidy_form.old_vehicle_tax }}</div>
@@ -111,6 +112,7 @@
   <div class="subsidy-summary">
     <div><span>舊車車牌</span><strong>{{ order.trade_in_plate|default:"尚未填寫" }}</strong></div>
     <div><span>舊車主</span><strong>{{ order.old_owner_name|default:order.owner_name }}</strong></div>
+    <div><span>舊車主身分證字號</span><strong>{{ order.old_owner_id_number|default:"尚未填寫" }}</strong></div>
     <div><span>補助類型</span><strong>{{ order.subsidy_type|default:"尚未填寫" }}</strong></div>
   </div>
   {% endif %}
@@ -144,13 +146,62 @@
             <input type="hidden" name="document_type" value="{{ row.type }}">
             <label class="button secondary compact file-button">
               {% if row.document %}替換{% else %}拍照／上傳{% endif %}
-              <input type="file" name="file" accept="image/jpeg,image/png,image/webp,application/pdf" capture="environment" required onchange="this.form.submit()">
+              <input type="file" name="file" accept="image/jpeg,image/png,image/webp,image/heic,image/heif,application/pdf,.doc,.docx,.odt,.xls,.xlsx,.ods,.txt,.csv" capture="environment" required onchange="this.form.submit()">
             </label>
           </form>
           {% endif %}
         </div>
       </article>
       {% endfor %}
+    </div>
+
+    <div class="other-subsidy-documents">
+      <div class="other-subsidy-documents__heading">
+        <div>
+          <h3>其他補助文件</h3>
+          <p>可依實際需求新增多份圖片、PDF、Word、Excel 或文字檔；不列入補助完成條件。</p>
+        </div>
+      </div>
+      {% for document in other_subsidy_documents %}
+      <article class="other-subsidy-documents__item">
+        <span>
+          <strong>{{ document.name }}</strong>
+          {% if document.note %}<em>{{ document.note }}</em>{% endif %}
+          <small>由 {{ document.uploaded_by|default:"內部人員" }} 於 {{ document.created_at|date:"Y/m/d H:i" }} 上傳</small>
+        </span>
+        <div>
+          <a class="button ghost compact" href="{% url 'subsidy_document_file' document.pk %}" target="_blank">查看</a>
+          {% if order.status != "cancelled" %}
+          <form method="post" action="{% url 'subsidy_document_delete' order.pk document.pk %}">
+            {% csrf_token %}<button class="button danger-ghost compact" type="submit">刪除</button>
+          </form>
+          {% endif %}
+        </div>
+      </article>
+      {% empty %}
+      <p class="other-subsidy-documents__empty">目前沒有其他補助文件。</p>
+      {% endfor %}
+
+      {% if order.is_trade_in_subsidy and order.status != "cancelled" %}
+      <form class="other-subsidy-documents__form" method="post" enctype="multipart/form-data" action="{% url 'subsidy_document_upload' order.pk %}">
+        {% csrf_token %}
+        <input type="hidden" name="document_type" value="other">
+        <div>
+          <label for="other-subsidy-name">文件名稱 <span class="required-inline">必填</span></label>
+          <input id="other-subsidy-name" type="text" name="name" maxlength="160" placeholder="例如：補助申請切結書" required>
+        </div>
+        <div>
+          <label for="other-subsidy-note">備註</label>
+          <input id="other-subsidy-note" type="text" name="note" maxlength="250" placeholder="選填">
+        </div>
+        <div>
+          <label for="other-subsidy-file">選擇文件 <span class="required-inline">必填</span></label>
+          <input id="other-subsidy-file" type="file" name="file" accept="image/jpeg,image/png,image/webp,image/heic,image/heif,application/pdf,.doc,.docx,.odt,.xls,.xlsx,.ods,.txt,.csv" required>
+          <small>單一檔案上限 20 MB，不接受執行檔。</small>
+        </div>
+        <button class="button secondary" type="submit">＋ 新增其他文件</button>
+      </form>
+      {% endif %}
     </div>
 
     <div class="registration-completion {% if not order.is_trade_in_subsidy or subsidy_missing %}has-missing{% else %}is-ready{% endif %}">

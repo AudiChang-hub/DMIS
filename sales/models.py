@@ -369,6 +369,14 @@ class SalesOrder(TimeStampedModel):
     signed_contract_uploaded_at = models.DateTimeField(
         "合約上傳時間", blank=True, null=True
     )
+    privacy_consent = models.FileField(
+        "已簽署個資同意書",
+        upload_to="orders/privacy-consents/%Y/%m/",
+        blank=True,
+    )
+    privacy_consent_uploaded_at = models.DateTimeField(
+        "個資同意書上傳時間", blank=True, null=True
+    )
     revision = models.PositiveIntegerField("資料版本", default=1)
     editing_session = models.CharField("編輯工作階段", max_length=40, blank=True)
     editing_by = models.CharField("目前編輯人員", max_length=150, blank=True)
@@ -396,6 +404,10 @@ class SalesOrder(TimeStampedModel):
     @property
     def has_signed_contract(self):
         return bool(self.signed_contract)
+
+    @property
+    def has_privacy_consent(self):
+        return bool(self.privacy_consent)
 
     @property
     def is_editable(self):
@@ -446,6 +458,8 @@ class SalesOrder(TimeStampedModel):
             self.id_verified_at = timezone.now()
         if self.signed_contract and not self.signed_contract_uploaded_at:
             self.signed_contract_uploaded_at = timezone.now()
+        if self.privacy_consent and not self.privacy_consent_uploaded_at:
+            self.privacy_consent_uploaded_at = timezone.now()
         if self.pk:
             self.calculated_balance = self.calculate_balance()
         if self.status == self.Status.DRAFT:

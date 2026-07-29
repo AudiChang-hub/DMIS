@@ -11,16 +11,19 @@
   <div class="hero-actions">
     {% if order.is_editable %}<a class="button primary" href="{% url 'order_edit' order.pk %}">編輯訂單</a>{% endif %}
     <a class="button secondary" href="{% url 'contract_print' order.pk %}" target="_blank">列印訂購合約</a>
+    <a class="button secondary" href="{% url 'privacy_consent_print' order.pk %}" target="_blank">列印個資同意書</a>
   </div>
 </section>
 
 {% if request.GET.created == "1" %}
 <dialog class="print-dialog" id="print-contract-dialog">
   <h2>訂單已建立</h2>
-  <p>是否立即開啟正式訂購單？開啟後可使用手機或電腦的列印功能選擇印表機。</p>
+  <p>請選擇要列印的簽署文件；開啟後可使用手機或電腦的列印功能選擇印表機。</p>
   <div class="dialog-actions">
     <button class="button ghost" type="button" id="print-later">稍後列印</button>
-    <a class="button primary" href="{% url 'contract_print' order.pk %}" target="_blank">開啟訂購單</a>
+    <a class="button ghost" href="{% url 'contract_print' order.pk %}" target="_blank">只印訂購合約</a>
+    <a class="button ghost" href="{% url 'privacy_consent_print' order.pk %}" target="_blank">只印個資同意書</a>
+    <a class="button primary" href="{% url 'order_documents_print' order.pk %}" target="_blank">全部一起列印</a>
   </div>
 </dialog>
 <script>
@@ -52,17 +55,38 @@
 </section>
 {% endif %}
 
-<section class="action-card">
-  <div><p class="eyebrow">選填歸檔</p><h2>訂購合約附件</h2><p>可上傳已簽署或掃描的合約留存；未上傳不影響配車與後續流程。</p>
-  {% if order.has_signed_contract %}<p class="muted">目前已有附件，重新上傳會更新歸檔檔案。</p>{% endif %}</div>
-  <form method="post" enctype="multipart/form-data" action="{% url 'contract_upload' order.pk %}">
-    {% csrf_token %}{{ contract_form.signed_contract }}
-    <button class="button secondary block" type="submit">上傳歸檔</button>
-  </form>
-  {% if order.has_signed_contract %}
-  <a class="button ghost" href="{% url 'protected_media' 'order' order.pk 'signed_contract' %}" target="_blank">查看目前附件</a>
-  {% endif %}
-</section>
+<div class="document-archive-grid">
+  <section class="document-archive-card">
+    <div>
+      <p class="eyebrow">選填歸檔</p>
+      <h2>訂購合約附件</h2>
+      <p>上傳已簽署或掃描的訂購合約；未上傳不影響後續流程。</p>
+      {% if order.has_signed_contract %}<span class="archive-status done">✓ 已歸檔</span>{% else %}<span class="archive-status">尚未歸檔</span>{% endif %}
+    </div>
+    <form method="post" enctype="multipart/form-data" action="{% url 'contract_upload' order.pk %}">
+      {% csrf_token %}{{ contract_form.signed_contract }}
+      <button class="button secondary block" type="submit">上傳訂購合約</button>
+    </form>
+    {% if order.has_signed_contract %}
+    <a class="button ghost block" href="{% url 'protected_media' 'order' order.pk 'signed_contract' %}" target="_blank">查看目前附件</a>
+    {% endif %}
+  </section>
+  <section class="document-archive-card">
+    <div>
+      <p class="eyebrow">選填歸檔</p>
+      <h2>個資同意書附件</h2>
+      <p>上傳已簽署或掃描的個資同意書，與訂購合約分開保存。</p>
+      {% if order.has_privacy_consent %}<span class="archive-status done">✓ 已歸檔</span>{% else %}<span class="archive-status">尚未歸檔</span>{% endif %}
+    </div>
+    <form method="post" enctype="multipart/form-data" action="{% url 'privacy_consent_upload' order.pk %}">
+      {% csrf_token %}{{ privacy_consent_form.privacy_consent }}
+      <button class="button secondary block" type="submit">上傳個資同意書</button>
+    </form>
+    {% if order.has_privacy_consent %}
+    <a class="button ghost block" href="{% url 'protected_media' 'order' order.pk 'privacy_consent' %}" target="_blank">查看目前附件</a>
+    {% endif %}
+  </section>
+</div>
 
 <div class="detail-grid">
   <section class="card">

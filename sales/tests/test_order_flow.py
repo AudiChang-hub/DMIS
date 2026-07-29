@@ -1,3 +1,4 @@
+from datetime import date
 from decimal import Decimal
 from io import BytesIO
 
@@ -303,6 +304,85 @@ class OrderFlowTests(TestCase):
         self.assertIn(order.owner_name, extracted)
         self.assertIn("店家留存聯", extracted)
         self.assertIn("客戶留存聯", extracted)
+        self.assertIn("財產登記制", extracted)
+        self.assertIn("領牌後無法辦理退換貨", extracted)
+
+    def test_privacy_consent_uses_latest_order_name_date_and_plate(self):
+        order = self.make_order()
+        order.owner_name = "馮華微"
+        order.order_date = date(2026, 7, 29)
+        order.final_plate_number = "ABC-1234"
+        order.save()
+        self.client.force_login(self.user)
+
+        response = self.client.get(reverse("privacy_consent_print", args=[order.pk]))
+        content = b"".join(response.streaming_content)
+        reader = PdfReader(BytesIO(content))
+        extracted = "\n".join(page.extract_text() for page in reader.pages)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(reader.pages), 1)
+        self.assertIn("馮華微", extracted)
+        self.assertIn("ABC-1234", extracted)
+        self.assertIn("中華民國 115 年 07 月 29 日", extracted)
+
+        order.owner_name = "馮華薇"
+        order.order_date = date(2026, 8, 1)
+        order.save()
+        updated_response = self.client.get(
+            reverse("privacy_consent_print", args=[order.pk])
+        )
+        updated_content = b"".join(updated_response.streaming_content)
+        updated_text = "\n".join(
+            page.extract_text()
+            for page in PdfReader(BytesIO(updated_content)).pages
+        )
+        self.assertIn("馮華薇", updated_text)
+        self.assertIn("中華民國 115 年 08 月 01 日", updated_text)
+        self.assertNotIn("馮華微", updated_text)
+
+    def test_combined_signing_documents_have_three_pages(self):
+        order = self.make_order()
+        self.client.force_login(self.user)
+
+        response = self.client.get(reverse("order_documents_print", args=[order.pk]))
+        content = b"".join(response.streaming_content)
+        reader = PdfReader(BytesIO(content))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(reader.pages), 3)
+
+        detail = self.client.get(
+            reverse("order_detail", args=[order.pk]),
+            {"created": "1"},
+        )
+        self.assertContains(detail, "列印個資同意書")
+        self.assertContains(detail, "全部一起列印")
+        self.assertContains(detail, "個資同意書附件")
+        self.assertContains(detail, reverse("privacy_consent_upload", args=[order.pk]))
+
+    def test_privacy_consent_can_be_uploaded_separately(self):
+        order = self.make_order()
+        self.client.force_login(self.user)
+
+        response = self.client.post(
+            reverse("privacy_consent_upload", args=[order.pk]),
+            {
+                "privacy_consent": SimpleUploadedFile(
+                    "privacy.pdf",
+                    b"signed privacy consent",
+                    content_type="application/pdf",
+                )
+            },
+        )
+
+        self.assertRedirects(response, reverse("order_detail", args=[order.pk]))
+        order.refresh_from_db()
+        self.assertTrue(order.has_privacy_consent)
+        self.assertIsNotNone(order.privacy_consent_uploaded_at)
+        self.assertTrue(
+            order.events.filter(description__contains="個資同意書").exists()
+        )
 
     def test_mobile_order_and_inventory_pages_render(self):
         self.client.force_login(self.user)

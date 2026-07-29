@@ -15,12 +15,14 @@ from django.utils import timezone
 from PIL import Image, UnidentifiedImageError
 
 from .services.order_contract_pdf import build_order_contract_pdf
+from .services.privacy_consent_pdf import build_privacy_consent_pdf
 
 from .forms import (
     AccessoryFormSet,
     AllocationForm,
     OtherFeeFormSet,
     OrderEditForm,
+    PrivacyConsentForm,
     SalesOrderForm,
     SignedContractForm,
     VehicleInventoryForm,
@@ -456,6 +458,7 @@ def order_detail(request, pk):
         {
             "order": order,
             "contract_form": SignedContractForm(instance=order),
+            "privacy_consent_form": PrivacyConsentForm(instance=order),
             "allocation_form": AllocationForm(order),
             "change_cards": build_order_change_cards(order.changes.all()),
         },
@@ -666,6 +669,50 @@ def contract_print(request, pk):
 
 
 @login_required
+def privacy_consent_print(request, pk):
+    order = get_object_or_404(SalesOrder, pk=pk)
+    pdf = build_privacy_consent_pdf(order)
+    response = FileResponse(
+        BytesIO(pdf),
+        content_type="application/pdf",
+    )
+    response["Content-Disposition"] = (
+        f'inline; filename="{order.number}-privacy-consent.pdf"; '
+        f"filename*=UTF-8''{order.number}%E5%80%8B%E8%B3%87%E5%90%8C%E6%84%8F%E6%9B%B8.pdf"
+    )
+    return response
+
+
+@login_required
+def order_documents_print(request, pk):
+    from pypdf import PdfReader, PdfWriter
+
+    order = get_object_or_404(
+        SalesOrder.objects.select_related(
+            "source", "vehicle_model", "color"
+        ).prefetch_related("accessories", "other_fees"),
+        pk=pk,
+    )
+    writer = PdfWriter()
+    for content in (
+        build_order_contract_pdf(order),
+        build_privacy_consent_pdf(order),
+    ):
+        reader = PdfReader(BytesIO(content))
+        for page in reader.pages:
+            writer.add_page(page)
+    output = BytesIO()
+    writer.write(output)
+    output.seek(0)
+    response = FileResponse(output, content_type="application/pdf")
+    response["Content-Disposition"] = (
+        f'inline; filename="{order.number}-documents.pdf"; '
+        f"filename*=UTF-8''{order.number}%E7%B0%BD%E7%BD%B2%E6%96%87%E4%BB%B6.pdf"
+    )
+    return response
+
+
+@login_required
 def contract_upload(request, pk):
     order = get_object_or_404(SalesOrder, pk=pk)
     if request.method != "POST":
@@ -684,6 +731,28 @@ def contract_upload(request, pk):
         messages.success(request, "訂購合約附件已歸檔。")
     else:
         messages.error(request, "合約上傳失敗，請確認檔案格式。")
+    return redirect("order_detail", pk=pk)
+
+
+@login_required
+def privacy_consent_upload(request, pk):
+    order = get_object_or_404(SalesOrder, pk=pk)
+    if request.method != "POST":
+        return redirect("order_detail", pk=pk)
+    form = PrivacyConsentForm(request.POST, request.FILES, instance=order)
+    if form.is_valid():
+        order = form.save(commit=False)
+        order.privacy_consent_uploaded_at = timezone.now()
+        order.save()
+        OrderEvent.objects.create(
+            order=order,
+            event_type="privacy_consent_uploaded",
+            description="已上傳個資同意書附件歸檔。",
+            actor_name=request.user.get_username(),
+        )
+        messages.success(request, "個資同意書附件已歸檔。")
+    else:
+        messages.error(request, "個資同意書上傳失敗，請確認檔案格式。")
     return redirect("order_detail", pk=pk)
 
 
@@ -790,7 +859,10 @@ def id_card_ocr(request):
 @login_required
 def protected_media(request, model_name, pk, field_name):
     allowed = {
-        "order": (SalesOrder, {"id_front", "id_back", "signed_contract"}),
+        "order": (
+            SalesOrder,
+            {"id_front", "id_back", "signed_contract", "privacy_consent"},
+        ),
         "draft": (OrderDraft, {"id_front", "id_back"}),
         "vehicle": (VehicleInventory, {"condition_photo"}),
     }

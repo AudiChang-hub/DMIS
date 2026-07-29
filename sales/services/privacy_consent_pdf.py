@@ -19,12 +19,12 @@ MUTED = HexColor("#777777")
 
 FONT_CANDIDATES = [
     (
-        Path(r"C:\Windows\Fonts\mingliu.ttc"),
-        Path(r"C:\Windows\Fonts\mingliu.ttc"),
+        Path(r"C:\Windows\Fonts\kaiu.ttf"),
+        Path(r"C:\Windows\Fonts\kaiu.ttf"),
     ),
     (
-        Path("/usr/share/fonts/truetype/arphic/uming.ttc"),
-        Path("/usr/share/fonts/truetype/arphic/uming.ttc"),
+        Path("/usr/share/fonts/truetype/arphic-bkai00mp/bkai00mp.ttf"),
+        Path("/usr/share/fonts/truetype/arphic-bkai00mp/bkai00mp.ttf"),
     ),
     (
         Path("/usr/share/fonts/truetype/wqy/wqy-zenhei.ttc"),

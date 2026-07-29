@@ -122,19 +122,44 @@
     {% endfor %}
   </div>
 </section>
-{% if order.changes.all %}
+{% if change_cards %}
 <section class="section-block">
   <div class="section-title"><h2>訂單變更紀錄</h2></div>
-  {% for change in order.changes.all %}
-  <details class="change-record">
-    <summary>{{ change.created_at }} · {{ change.actor_name }} · {{ change.reason }}</summary>
-    <dl class="data-list">
-      {% for label, values in change.changes.items %}
-      <div class="wide"><dt>{{ label }}</dt><dd>{{ values.before|default:"（空白）" }} → {{ values.after|default:"（空白）" }}</dd></div>
+  <div class="change-history">
+  {% for change in change_cards %}
+  <details class="change-card">
+    <summary>
+      <span class="change-icon" aria-hidden="true">✎</span>
+      <span class="change-meta">
+        <strong class="change-person">{{ change.actor }}</strong>
+        <span class="change-summary">修改了 {{ change.count }} 個項目</span>
+      </span>
+      <time datetime="{{ change.created_at|date:'c' }}">{{ change.created_at|date:"Y/m/d H:i" }}</time>
+      <span class="change-toggle" aria-hidden="true">⌄</span>
+    </summary>
+    <div class="change-reason"><span>變更原因</span><strong>{{ change.reason }}</strong></div>
+    {% for group in change.groups %}
+    <div class="change-group">
+      <h3>{{ group.name }}</h3>
+      {% for item in group.items %}
+      <div class="change-item">
+        {% if item.action == "新增" %}
+          <span class="change-badge added">新增</span><strong>{{ item.after }}</strong>
+        {% elif item.action == "移除" %}
+          <span class="change-badge removed">移除</span><del>{{ item.before }}</del>
+        {% else %}
+          <strong class="change-label">{{ item.label }}</strong>
+          <span class="change-before">{{ item.before }}</span>
+          <span class="change-arrow" aria-label="改為">→</span>
+          <span class="change-after">{{ item.after }}</span>
+        {% endif %}
+      </div>
       {% endfor %}
-    </dl>
+    </div>
+    {% endfor %}
   </details>
   {% endfor %}
+  </div>
 </section>
 {% endif %}
 {% endblock %}

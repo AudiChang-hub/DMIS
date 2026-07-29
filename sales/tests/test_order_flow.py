@@ -1,6 +1,7 @@
 from datetime import date
 from decimal import Decimal
 from io import BytesIO
+from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
@@ -488,6 +489,7 @@ class OrderFlowTests(TestCase):
         order = self.make_order()
         SalesOrder.objects.filter(pk=order.pk).update(
             is_trade_in_subsidy=True,
+            old_owner_same_as_owner=False,
             trade_in_plate="OLD-123",
             subsidy_type="汰舊換新",
         )
@@ -545,6 +547,7 @@ class OrderFlowTests(TestCase):
         order = self.make_order()
         SalesOrder.objects.filter(pk=order.pk).update(
             is_trade_in_subsidy=True,
+            old_owner_same_as_owner=False,
             trade_in_plate="OLD-123",
             subsidy_type="汰舊換新",
             old_owner_name="陳大華",
@@ -557,7 +560,7 @@ class OrderFlowTests(TestCase):
         self.assertIn("舊車主身分證字號", missing)
         self.assertIn("新車主存摺封面", missing)
         self.assertIn("舊車主存摺封面", missing)
-        self.assertEqual(order.subsidy_required_count, 11)
+        self.assertEqual(order.subsidy_required_count, 12)
 
         self.client.force_login(self.user)
         detail = self.client.get(reverse("order_detail", args=[order.pk]))
@@ -689,6 +692,100 @@ class OrderFlowTests(TestCase):
                 document_type=SubsidyDocument.DocumentType.OTHER
             ).exists()
         )
+
+    @patch("sales.views.recognize_id_card")
+    def test_old_owner_id_upload_automatically_fills_empty_fields(self, recognize):
+        recognize.return_value = {
+            "fields": {
+                "name": "陳大華",
+                "id_number": "B123456789",
+                "id_number_valid": True,
+            },
+            "warnings": [],
+        }
+        order = self.make_order()
+        SalesOrder.objects.filter(pk=order.pk).update(
+            is_trade_in_subsidy=True,
+            old_owner_same_as_owner=False,
+        )
+        self.client.force_login(self.user)
+        upload_url = reverse("subsidy_document_upload", args=[order.pk])
+
+        for document_type, filename in (
+            (SubsidyDocument.DocumentType.OLD_OWNER_ID_FRONT, "front.jpg"),
+            (SubsidyDocument.DocumentType.OLD_OWNER_ID_BACK, "back.jpg"),
+        ):
+            response = self.client.post(
+                upload_url,
+                {
+                    "document_type": document_type,
+                    "file": SimpleUploadedFile(
+                        filename, b"photo", content_type="image/jpeg"
+                    ),
+                },
+            )
+            self.assertRedirects(
+                response, reverse("order_detail", args=[order.pk])
+            )
+
+        order.refresh_from_db()
+        self.assertEqual(order.old_owner_name, "陳大華")
+        self.assertEqual(order.old_owner_id_number, "B123456789")
+        self.assertEqual(order.old_owner_ocr_name, "")
+        self.assertEqual(order.old_owner_ocr_id_number, "")
+        recognize.assert_called_once()
+
+    @patch("sales.views.recognize_id_card")
+    def test_old_owner_ocr_conflict_requires_user_decision(self, recognize):
+        recognize.return_value = {
+            "fields": {
+                "name": "OCR 姓名",
+                "id_number": "B123456789",
+                "id_number_valid": True,
+            },
+            "warnings": [],
+        }
+        order = self.make_order()
+        SalesOrder.objects.filter(pk=order.pk).update(
+            is_trade_in_subsidy=True,
+            old_owner_same_as_owner=False,
+            old_owner_name="人工姓名",
+            old_owner_id_number="A123456789",
+        )
+        self.client.force_login(self.user)
+        upload_url = reverse("subsidy_document_upload", args=[order.pk])
+        for document_type, filename in (
+            (SubsidyDocument.DocumentType.OLD_OWNER_ID_FRONT, "front.jpg"),
+            (SubsidyDocument.DocumentType.OLD_OWNER_ID_BACK, "back.jpg"),
+        ):
+            self.client.post(
+                upload_url,
+                {
+                    "document_type": document_type,
+                    "file": SimpleUploadedFile(
+                        filename, b"photo", content_type="image/jpeg"
+                    ),
+                },
+            )
+
+        order.refresh_from_db()
+        self.assertEqual(order.old_owner_name, "人工姓名")
+        self.assertEqual(order.old_owner_ocr_name, "OCR 姓名")
+        detail = self.client.get(reverse("order_detail", args=[order.pk]))
+        self.assertContains(detail, "採用辨識結果")
+
+        response = self.client.post(
+            reverse("subsidy_ocr_decision", args=[order.pk]),
+            {"decision": "apply"},
+        )
+        self.assertRedirects(
+            response,
+            f"{reverse('order_detail', args=[order.pk])}?tab=subsidy",
+        )
+        order.refresh_from_db()
+        self.assertEqual(order.old_owner_name, "OCR 姓名")
+        self.assertEqual(order.old_owner_id_number, "B123456789")
+        self.assertEqual(order.old_owner_ocr_name, "")
 
     def test_non_subsidy_order_rejects_subsidy_upload(self):
         order = self.make_order()
@@ -1110,12 +1207,13 @@ class OrderFlowTests(TestCase):
         self.assertContains(order_response, "送達地點／託運目的地")
         self.assertTrue(order_response.context["form"]["plate_choice"].field.required)
         self.assertTrue(order_response.context["form"]["delivery_method"].field.required)
-        self.assertFalse(
-            order_response.context["form"]["old_vehicle_valuation"].field.required
+        self.assertNotIn(
+            "old_vehicle_valuation", order_response.context["form"].fields
         )
-        self.assertFalse(
-            order_response.context["form"]["old_vehicle_tax"].field.required
+        self.assertIn(
+            "old_owner_same_as_owner", order_response.context["form"].fields
         )
+        self.assertNotIn("old_vehicle_tax", order_response.context["form"].fields)
         self.assertNotContains(order_response, "分期申請金額")
         self.assertNotContains(order_response, "分期申請日期")
         self.assertNotContains(order_response, "核准／拒絕日期")
@@ -1132,8 +1230,6 @@ class OrderFlowTests(TestCase):
             "installment_periods",
             "installment_opening_fee",
             "installment_monthly",
-            "old_vehicle_valuation",
-            "old_vehicle_tax",
         ):
             self.assertIsNone(order_response.context["form"][field_name].value())
         self.assertIsNone(

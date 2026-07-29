@@ -200,11 +200,7 @@
     <summary><span class="step-number">5</span><span><strong>其他需求</strong><small>配件、汰舊、選號與交車方式</small></span></summary>
     <div class="form-grid">
       <div class="span-2 verify-box">{% include "sales/_field.html" with field=form.is_trade_in_subsidy %}</div>
-      {% include "sales/_field.html" with field=form.trade_in_plate %}
-      {% include "sales/_field.html" with field=form.old_owner_name %}
-      {% include "sales/_field.html" with field=form.subsidy_type %}
-      {% include "sales/_field.html" with field=form.old_vehicle_valuation %}
-      {% include "sales/_field.html" with field=form.old_vehicle_tax %}
+      <div class="span-2 verify-box" data-conditional="trade-in-owner">{% include "sales/_field.html" with field=form.old_owner_same_as_owner %}</div>
       {% include "sales/_field.html" with field=form.plate_choice %}
       <div data-conditional="watch">{% include "sales/_field.html" with field=form.watched_numbers %}</div>
       <div data-conditional="preference">{% include "sales/_field.html" with field=form.plate_preference_note %}</div>
@@ -270,6 +266,7 @@
   const sourceType = byId("id_source_type");
   const ownerType = byId("id_owner_type");
   const paymentType = byId("id_payment_type");
+  const isTradeInSubsidy = byId("id_is_trade_in_subsidy");
   const installmentInputs = [
     byId("id_installment_company"),
     byId("id_installment_periods"),
@@ -483,6 +480,7 @@
     showConditional("local", ownerType.value === "local");
     showConditional("foreign", ownerType.value === "foreign");
     showConditional("installment", paymentType.value === "installment");
+    showConditional("trade-in-owner", isTradeInSubsidy.checked);
     showConditional("watch", plateChoice.value === "watch");
     showConditional("preference", plateChoice.value === "preference");
     const needsDestination = ["direct_delivery", "carrier"].includes(deliveryMethod.value);
@@ -511,7 +509,8 @@
     previousPaymentType = paymentType.value;
     refresh();
   });
-  [sourceType, ownerType, plateChoice, deliveryMethod].forEach(el => el.addEventListener("change", refresh));
+  [sourceType, ownerType, plateChoice, deliveryMethod, isTradeInSubsidy]
+    .forEach(el => el.addEventListener("change", refresh));
   if (!vehicleEnergyType.value && vehicleModel.value) {
     vehicleEnergyType.value = vehicleRateData[vehicleModel.value]?.energy_type || "";
   }

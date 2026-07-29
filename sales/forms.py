@@ -153,11 +153,7 @@ class SalesOrderForm(forms.ModelForm):
             "installment_periods",
             "installment_monthly",
             "is_trade_in_subsidy",
-            "trade_in_plate",
-            "old_owner_name",
-            "subsidy_type",
-            "old_vehicle_valuation",
-            "old_vehicle_tax",
+            "old_owner_same_as_owner",
             "plate_choice",
             "watched_numbers",
             "plate_preference_note",
@@ -207,8 +203,6 @@ class SalesOrderForm(forms.ModelForm):
                 "deposit_amount",
                 "installment_periods",
                 "installment_monthly",
-                "old_vehicle_valuation",
-                "old_vehicle_tax",
                 "plate_selection_fee",
                 "lien_registration_fee",
             )
@@ -246,11 +240,10 @@ class SalesOrderForm(forms.ModelForm):
         self.fields["plate_insurance_fee"].required = False
         self.fields["id_verified"].widget.attrs["class"] = "form-check"
         self.fields["is_trade_in_subsidy"].widget.attrs["class"] = "form-check"
+        self.fields["old_owner_same_as_owner"].widget.attrs["class"] = "form-check"
         self.fields["delivery_method"].required = True
         self.fields["vehicle_category"].required = False
         self.fields["vehicle_category"].initial = SalesOrder.VehicleCategory.NEW
-        self.fields["old_vehicle_valuation"].required = False
-        self.fields["old_vehicle_tax"].required = False
 
     def clean(self):
         data = super().clean()
@@ -726,6 +719,7 @@ class SubsidyDataForm(forms.ModelForm):
         model = SalesOrder
         fields = [
             "is_trade_in_subsidy",
+            "old_owner_same_as_owner",
             "trade_in_plate",
             "old_owner_name",
             "old_owner_id_number",
@@ -735,6 +729,7 @@ class SubsidyDataForm(forms.ModelForm):
         ]
         widgets = {
             "is_trade_in_subsidy": forms.CheckboxInput(),
+            "old_owner_same_as_owner": forms.CheckboxInput(),
         }
 
     def __init__(self, *args, **kwargs):
@@ -742,6 +737,7 @@ class SubsidyDataForm(forms.ModelForm):
         for field in self.fields.values():
             field.widget.attrs.setdefault("class", "form-control")
         self.fields["is_trade_in_subsidy"].widget.attrs["class"] = "form-check"
+        self.fields["old_owner_same_as_owner"].widget.attrs["class"] = "form-check"
         self.fields["trade_in_plate"].widget.attrs.update(
             {
                 "lang": "en",
@@ -750,8 +746,6 @@ class SubsidyDataForm(forms.ModelForm):
                 "placeholder": "例如 ABC-1234",
             }
         )
-        self.fields["old_vehicle_valuation"].required = False
-        self.fields["old_vehicle_tax"].required = False
         apply_mobile_keyboard_attrs(self)
 
     def clean_trade_in_plate(self):

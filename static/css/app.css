@@ -497,6 +497,15 @@ body.screen-locked { overflow: hidden; }
 .subsidy-toggle input { flex: 0 0 auto; width: 24px; height: 24px; }
 .subsidy-toggle span, .subsidy-toggle small { display: block; }
 .subsidy-toggle small { margin-top: 2px; color: var(--muted); font-weight: 600; }
+.subsidy-owner-toggle { margin-top: -8px; background: #fff; }
+.ocr-conflict-card {
+  display: flex; align-items: center; justify-content: space-between; gap: 18px;
+  margin-bottom: 16px; padding: 15px; color: #7a3f0b;
+  background: var(--amber-soft); border: 1px solid #e7bd75; border-radius: 14px;
+}
+.ocr-conflict-card p { margin: 5px 0 0; line-height: 1.55; }
+.ocr-conflict-card__actions { display: flex; flex: 0 0 auto; gap: 8px; }
+.ocr-conflict-card__actions form { margin: 0; }
 .subsidy-edit-grid {
   display: grid; padding: 18px; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 15px;
 }
@@ -792,6 +801,7 @@ body.screen-locked { overflow: hidden; }
   .subsidy-edit-grid { grid-template-columns: 1fr; padding: 15px; }
   .subsidy-change-reason { grid-column: auto; }
   .subsidy-edit-actions { align-items: stretch; flex-direction: column; }
+  .ocr-conflict-card, .ocr-conflict-card__actions { align-items: stretch; flex-direction: column; }
   .subsidy-edit-actions .button { width: 100%; }
   .registration-document-row { grid-template-columns: 1fr; gap: 10px; }
   .registration-document-row__actions { flex-wrap: wrap; }

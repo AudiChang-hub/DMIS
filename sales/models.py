@@ -473,21 +473,42 @@ class SalesOrder(TimeStampedModel):
             self.Status.CANCELLED,
         }
 
-    def calculate_balance(self):
-        accessories = sum(line.line_total for line in self.accessories.all()) if self.pk else 0
-        other_fees = sum(line.amount for line in self.other_fees.all()) if self.pk else 0
-        installment_fee = (
+    @property
+    def accessory_total(self):
+        return (
+            sum(line.line_total for line in self.accessories.all())
+            if self.pk
+            else 0
+        )
+
+    @property
+    def other_fee_total(self):
+        return (
+            sum(line.amount for line in self.other_fees.all())
+            if self.pk
+            else 0
+        )
+
+    @property
+    def effective_installment_fee(self):
+        return (
             self.installment_opening_fee
             if self.payment_type == self.PaymentType.INSTALLMENT
             else 0
         )
+
+    @property
+    def balance_adjustment_amount(self):
+        return self.actual_balance - self.calculated_balance
+
+    def calculate_balance(self):
         return (
             self.vehicle_price
             + self.plate_insurance_fee
-            + installment_fee
-            + other_fees
+            + self.effective_installment_fee
+            + self.other_fee_total
             + self.old_vehicle_tax
-            + accessories
+            + self.accessory_total
             - self.deposit_amount
             - self.old_vehicle_valuation
         )

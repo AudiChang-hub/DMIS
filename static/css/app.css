@@ -447,6 +447,36 @@ body.screen-locked { overflow: hidden; }
 .document-links a { padding: 8px 11px; color: var(--blue); background: var(--blue-soft); border-radius: 9px; font-size: .8rem; font-weight: 800; }
 .money-list .total { grid-column: 1 / -1; display: flex; padding-top: 12px; align-items: end; justify-content: space-between; border-top: 1px solid var(--line); }
 .money-list .total dd { font-size: 1.6rem; color: var(--forest); }
+.money-list .balance-equation {
+  grid-column: 1 / -1; display: block; overflow: hidden; margin-top: 2px;
+  border: 1px solid #cfdcd5; border-radius: 14px;
+}
+.balance-equation__header {
+  display: flex; padding: 12px 15px; align-items: center; justify-content: space-between;
+  gap: 12px; background: #f1f6f3; border-bottom: 1px solid #dbe4df;
+}
+.balance-equation__header dt { color: var(--forest); font-size: .86rem; font-weight: 900; }
+.balance-equation__header span {
+  padding: 4px 8px; color: var(--forest); background: #dcece3;
+  border-radius: 999px; font-size: .68rem; font-weight: 900;
+}
+.balance-equation__terms {
+  display: grid; padding: 12px 15px; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px;
+}
+.money-list .balance-equation__terms div {
+  display: grid; min-width: 0; padding-left: 9px; gap: 2px; border-left: 3px solid #cfd8d3;
+}
+.balance-equation__terms span { color: var(--muted); font-size: .67rem; font-weight: 800; white-space: nowrap; }
+.balance-equation__terms strong { font-size: .85rem; overflow-wrap: anywhere; }
+.money-list .balance-equation__terms .included { border-left-color: #4a8e70; }
+.money-list .balance-equation__terms .deduction { border-left-color: #d39b32; }
+.money-list .balance-equation__terms .adjustment { border-left-color: var(--red); }
+.balance-equation__result {
+  display: flex; padding: 13px 15px; align-items: end; justify-content: space-between;
+  background: #fbfcfb; border-top: 1px solid #dbe4df;
+}
+.balance-equation__result span { color: var(--muted); font-size: .76rem; font-weight: 800; }
+.balance-equation__result strong { color: var(--forest); font-size: 1.55rem; line-height: 1; }
 .money-list .registration-breakdown {
   grid-column: 1 / -1; display: block; margin-top: 2px; padding: 16px 18px;
   background: #f5f8f6; border: 1px solid #e1e8e4; border-radius: 14px;
@@ -603,6 +633,9 @@ body.screen-locked { overflow: hidden; }
     padding: 10px 8px 10px 0; border-right: 0; border-bottom: 1px solid #dbe4df;
   }
   .money-list .registration-breakdown__items div:nth-last-child(-n+2) { border-bottom: 0; }
+  .balance-equation__header { align-items: start; }
+  .balance-equation__header span { max-width: 130px; text-align: center; }
+  .balance-equation__terms { grid-template-columns: 1fr 1fr; gap: 12px 8px; }
   .change-history { padding-inline: 16px; }
   .change-card > summary { grid-template-columns: auto 1fr auto; gap: 9px; }
   .change-card time { grid-column: 2; grid-row: 2; }

@@ -122,12 +122,12 @@
     <dl class="money-list">
       <div><dt>車價</dt><dd>${{ order.vehicle_price }}</dd></div>
       <div><dt>牌險</dt><dd>${{ order.plate_insurance_fee }}</dd></div>
-      <div><dt>分期開辦費</dt><dd>${{ order.installment_opening_fee }}</dd></div>
-      {% for fee in order.other_fees.all %}
-      <div><dt>{{ fee.name }}</dt><dd>${{ fee.amount }}</dd></div>
-      {% endfor %}
-      <div><dt>訂金</dt><dd>− ${{ order.deposit_amount }}</dd></div>
-      <div><dt>舊車估價</dt><dd>− ${{ order.old_vehicle_valuation }}</dd></div>
+      {% if order.effective_installment_fee %}<div><dt>分期開辦費</dt><dd>${{ order.effective_installment_fee }}</dd></div>{% endif %}
+      {% if order.accessory_total %}<div><dt>配件合計</dt><dd>${{ order.accessory_total }}</dd></div>{% endif %}
+      {% if order.other_fee_total %}<div><dt>其他費用合計</dt><dd>${{ order.other_fee_total }}</dd></div>{% endif %}
+      {% if order.old_vehicle_tax %}<div><dt>舊車未繳稅金</dt><dd>${{ order.old_vehicle_tax }}</dd></div>{% endif %}
+      {% if order.deposit_amount %}<div><dt>訂金</dt><dd>− ${{ order.deposit_amount }}</dd></div>{% endif %}
+      {% if order.old_vehicle_valuation %}<div><dt>舊車估價</dt><dd>− ${{ order.old_vehicle_valuation }}</dd></div>{% endif %}
       {% if order.registration_calculated_total %}
       <div class="registration-breakdown">
         <div class="registration-breakdown__header">
@@ -153,13 +153,30 @@
         </div>
       </div>
       {% endif %}
-      <div class="total"><dt>實際尾款</dt><dd>${{ order.actual_balance }}</dd></div>
+      <div class="balance-equation">
+        <div class="balance-equation__header">
+          <dt>尾款計算</dt>
+          <span>配件與其他費用均已計入</span>
+        </div>
+        <div class="balance-equation__terms">
+          <div><span>＋ 車價</span><strong>${{ order.vehicle_price }}</strong></div>
+          <div><span>＋ 牌險</span><strong>${{ order.plate_insurance_fee }}</strong></div>
+          {% if order.effective_installment_fee %}<div><span>＋ 分期開辦費</span><strong>${{ order.effective_installment_fee }}</strong></div>{% endif %}
+          {% if order.accessory_total %}<div class="included"><span>＋ 配件</span><strong>${{ order.accessory_total }}</strong></div>{% endif %}
+          {% if order.other_fee_total %}<div class="included"><span>＋ 其他費用</span><strong>${{ order.other_fee_total }}</strong></div>{% endif %}
+          {% if order.old_vehicle_tax %}<div><span>＋ 舊車稅金</span><strong>${{ order.old_vehicle_tax }}</strong></div>{% endif %}
+          {% if order.deposit_amount %}<div class="deduction"><span>− 訂金</span><strong>${{ order.deposit_amount }}</strong></div>{% endif %}
+          {% if order.old_vehicle_valuation %}<div class="deduction"><span>− 舊車估價</span><strong>${{ order.old_vehicle_valuation }}</strong></div>{% endif %}
+          {% if order.balance_adjustment_amount %}<div class="adjustment"><span>人工調整</span><strong>{{ order.balance_adjustment_amount }}</strong></div>{% endif %}
+        </div>
+        <div class="balance-equation__result"><span>實際尾款</span><strong>${{ order.actual_balance }}</strong></div>
+      </div>
     </dl>
   </section>
   <section class="card">
-    <div class="section-title"><h2>配件與其他需求</h2></div>
+    <div class="section-title"><h2>配件與需求明細</h2>{% if order.accessory_total %}<span>配件合計 ${{ order.accessory_total }}</span>{% endif %}</div>
     {% for line in order.accessories.all %}
-      <div class="line-item"><span>{{ line.name }} × {{ line.quantity }}<small>{{ line.get_line_type_display }}</small></span><strong>${{ line.line_total }}</strong></div>
+      <div class="line-item"><span>{{ line.name }} × {{ line.quantity }}<small>{{ line.get_line_type_display }} · 已計入尾款</small></span><strong>${{ line.line_total }}</strong></div>
     {% empty %}<p class="muted">無配件</p>{% endfor %}
     {% if order.plate_choice != "none" %}<div class="note-box"><strong>{{ order.get_plate_choice_display }}</strong><p>{{ order.watched_numbers|default:order.plate_preference_note }}</p></div>{% endif %}
     {% if order.note %}<div class="note-box"><strong>備註</strong><p>{{ order.note }}</p></div>{% endif %}

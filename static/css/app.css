@@ -815,6 +815,7 @@ body.screen-locked { overflow: hidden; }
   .other-fee-row { grid-template-columns: 1fr; padding: 14px; background: #f7f9f7; border-radius: 12px; }
   .accessory-row .field:first-of-type, .accessory-row .field:last-child { grid-column: 1 / -1; }
   .desktop-save { display: none; }
+  .mobile-submit { bottom: calc(70px + env(safe-area-inset-bottom)); }
   .login-panel { min-height: auto; grid-template-columns: 1fr; gap: 30px; }
 }
 

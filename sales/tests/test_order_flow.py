@@ -11,6 +11,7 @@ from pypdf import PdfReader
 
 from sales.forms import AccessoryLineForm, SalesOrderForm
 from sales.models import (
+    OrderChange,
     SalesOrder,
     Store,
     VehicleColor,
@@ -177,6 +178,54 @@ class OrderFlowTests(TestCase):
             change.changes["車主姓名／公司名稱"],
             {"before": "王小明", "after": "王小明有限公司"},
         )
+
+        detail = self.client.get(reverse("order_detail", args=[order.pk]))
+        self.assertContains(detail, "tester")
+        self.assertContains(detail, "修改了")
+        self.assertContains(detail, "客戶要求更正公司名稱")
+        self.assertContains(detail, "王小明有限公司")
+        self.assertNotContains(detail, "owner_name")
+
+    def test_change_history_translates_codes_money_and_line_items(self):
+        order = self.make_order()
+        OrderChange.objects.create(
+            order=order,
+            actor_name="王行政",
+            reason="依客戶確認內容調整",
+            changes={
+                "主要付款方式": {"before": "installment", "after": "cash"},
+                "訂金": {"before": "5000", "after": "8000"},
+                "選號方式": {"before": "none", "after": "preference"},
+                "配件": {
+                    "before": [],
+                    "after": [
+                        {
+                            "名稱": "手機架",
+                            "數量": 1,
+                            "類型": "加購",
+                            "金額": "850",
+                            "安裝日期": "",
+                            "備註": "",
+                        }
+                    ],
+                },
+            },
+        )
+        self.client.force_login(self.user)
+
+        response = self.client.get(reverse("order_detail", args=[order.pk]))
+
+        self.assertContains(response, "王行政")
+        self.assertContains(response, "依客戶確認內容調整")
+        self.assertContains(response, "分期")
+        self.assertContains(response, "現金")
+        self.assertContains(response, "$5,000")
+        self.assertContains(response, "$8,000")
+        self.assertContains(response, "一般領牌偏好")
+        self.assertContains(response, "手機架 × 1")
+        self.assertNotContains(response, "installment")
+        self.assertNotContains(response, "preference")
+        self.assertNotContains(response, "&#x27;名稱&#x27;")
 
     def test_signed_contract_can_allocate_and_locks_vehicle(self):
         order = self.make_order(signed=True)

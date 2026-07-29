@@ -510,7 +510,11 @@ def order_detail(request, pk):
             "document": subsidy_documents.get(document_type),
         }
         for document_type, label in SubsidyDocument.DocumentType.choices
-        if document_type != SubsidyDocument.DocumentType.OWNER_DECLARATION
+        if document_type
+        not in {
+            SubsidyDocument.DocumentType.OWNER_DECLARATION,
+            SubsidyDocument.DocumentType.OLD_OWNER_BANKBOOK,
+        }
         or document_type in subsidy_required_types
         or document_type in subsidy_documents
     ]

@@ -131,35 +131,27 @@ def dashboard(request):
     active = orders.exclude(
         status__in=[SalesOrder.Status.COMPLETED, SalesOrder.Status.CANCELLED]
     )
+    urgent_statuses = [
+        SalesOrder.Status.CANCEL_REFUND_PENDING,
+        SalesOrder.Status.DELIVERED_DOCS_PENDING,
+    ]
+    in_progress_orders = active.exclude(
+        status__in=[SalesOrder.Status.ALLOCATION_PENDING, *urgent_statuses]
+    )
     context = {
         "query": query,
         "search_results": orders[:50] if query else None,
-        "urgent_orders": active.filter(
-            status__in=[
-                SalesOrder.Status.CANCEL_REFUND_PENDING,
-                SalesOrder.Status.DELIVERED_DOCS_PENDING,
-            ]
-        )[:12],
+        "urgent_orders": active.filter(status__in=urgent_statuses)[:12],
         "allocation_pending": active.filter(
             status=SalesOrder.Status.ALLOCATION_PENDING
         )[:12],
-        "in_progress": active.exclude(
-            status__in=[
-                SalesOrder.Status.ALLOCATION_PENDING,
-                SalesOrder.Status.CANCEL_REFUND_PENDING,
-                SalesOrder.Status.DELIVERED_DOCS_PENDING,
-            ]
-        )[:12],
+        "in_progress": in_progress_orders[:12],
         "counts": {
-            "urgent": active.filter(
-                status__in=[
-                    SalesOrder.Status.CANCEL_REFUND_PENDING,
-                    SalesOrder.Status.DELIVERED_DOCS_PENDING,
-                ]
-            ).count(),
+            "urgent": active.filter(status__in=urgent_statuses).count(),
             "allocation": active.filter(
                 status=SalesOrder.Status.ALLOCATION_PENDING
             ).count(),
+            "in_progress": in_progress_orders.count(),
             "inventory": VehicleInventory.objects.filter(
                 status=VehicleInventory.Status.AVAILABLE
             ).count(),
@@ -173,7 +165,24 @@ def dashboard(request):
 def order_list(request):
     orders = SalesOrder.objects.select_related("source", "vehicle_model", "color")
     status = request.GET.get("status")
-    if status:
+    if status == "in_progress":
+        orders = orders.exclude(
+            status__in=[
+                SalesOrder.Status.ALLOCATION_PENDING,
+                SalesOrder.Status.CANCEL_REFUND_PENDING,
+                SalesOrder.Status.DELIVERED_DOCS_PENDING,
+                SalesOrder.Status.COMPLETED,
+                SalesOrder.Status.CANCELLED,
+            ]
+        )
+    elif status == "urgent":
+        orders = orders.filter(
+            status__in=[
+                SalesOrder.Status.CANCEL_REFUND_PENDING,
+                SalesOrder.Status.DELIVERED_DOCS_PENDING,
+            ]
+        )
+    elif status:
         orders = orders.filter(status=status)
     return render(
         request,
@@ -1446,11 +1455,18 @@ def inventory_list(request):
     vehicles = VehicleInventory.objects.select_related(
         "vehicle_model", "color", "ownership_store", "location_store"
     )
+    status = request.GET.get("status")
+    if status:
+        vehicles = vehicles.filter(status=status)
     return render(
         request,
         "sales/inventory_list.html",
         {"vehicles": vehicles[:300], "statuses": VehicleInventory.Status.choices},
     )
+
+
+def server_error(request):
+    return render(request, "errors/500.html", status=500)
 
 
 @login_required

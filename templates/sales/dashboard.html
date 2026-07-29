@@ -47,9 +47,10 @@
   {% endif %}
 
   <section class="metric-grid">
-    <article class="metric urgent"><span>需要優先處理</span><strong>{{ counts.urgent }}</strong><small>逾期或重大待辦</small></article>
-    <article class="metric info"><span>待配車</span><strong>{{ counts.allocation }}</strong><small>訂單建立後直接進入</small></article>
-    <article class="metric calm"><span>可售庫存</span><strong>{{ counts.inventory }}</strong><small>全部門市</small></article>
+    <a class="metric urgent" href="{% url 'order_list' %}?status=urgent"><span>需要優先處理</span><strong>{{ counts.urgent }}</strong><small>逾期或重大待辦</small></a>
+    <a class="metric info" href="{% url 'order_list' %}?status=allocation_pending"><span>待配車</span><strong>{{ counts.allocation }}</strong><small>訂單建立後直接進入</small></a>
+    <a class="metric progress" href="{% url 'order_list' %}?status=in_progress"><span>進行中</span><strong>{{ counts.in_progress }}</strong><small>配車後至完成交付前</small></a>
+    <a class="metric calm" href="{% url 'inventory_list' %}?status=available"><span>可售庫存</span><strong>{{ counts.inventory }}</strong><small>全部門市</small></a>
   </section>
 
   {% if urgent_orders %}
@@ -69,11 +70,12 @@
     </section>
   </div>
 
-  {% if in_progress %}
   <section class="section-block">
-    <div class="section-title"><h2><span class="signal green"></span>進行中</h2><a href="{% url 'order_list' %}">查看全部</a></div>
-    <div class="order-list">{% for order in in_progress %}{% include "sales/_order_row.html" %}{% endfor %}</div>
+    <div class="section-title"><h2><span class="signal green"></span>進行中</h2><a href="{% url 'order_list' %}?status=in_progress">查看全部</a></div>
+    <div class="order-list">
+      {% for order in in_progress %}{% include "sales/_order_row.html" %}
+      {% empty %}<div class="empty-state small">目前沒有進行中的訂單</div>{% endfor %}
+    </div>
   </section>
-  {% endif %}
 {% endif %}
 {% endblock %}

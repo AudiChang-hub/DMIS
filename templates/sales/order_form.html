@@ -188,17 +188,20 @@
       <div class="section-title"><h3>其他費用</h3></div>
       <div id="other-fee-forms">
       {% for fee_form in fee_formset %}
-        <div class="other-fee-row">
+        <div class="other-fee-row dynamic-row{% if fee_form.DELETE.value %} is-pending-delete{% endif %}" data-dynamic-row data-row-label="費用">
           {{ fee_form.id }}
+          <span hidden>{{ fee_form.DELETE }}</span>
+          <button type="button" class="remove-row-button" data-remove-row aria-label="刪除此筆費用">刪除</button>
           {% include "sales/_field.html" with field=fee_form.name %}
           {% include "sales/_field.html" with field=fee_form.amount %}
-          {% if fee_form.instance.pk %}{% include "sales/_field.html" with field=fee_form.DELETE %}{% endif %}
         </div>
       {% endfor %}
       </div>
       <template id="empty-other-fee">
-        <div class="other-fee-row">
+        <div class="other-fee-row dynamic-row" data-dynamic-row data-row-label="費用">
           {{ fee_formset.empty_form.id }}
+          <span hidden>{{ fee_formset.empty_form.DELETE }}</span>
+          <button type="button" class="remove-row-button" data-remove-row aria-label="刪除此筆費用">刪除</button>
           {% include "sales/_field.html" with field=fee_formset.empty_form.name %}
           {% include "sales/_field.html" with field=fee_formset.empty_form.amount %}
         </div>
@@ -225,21 +228,24 @@
       <div class="section-title"><h3>配件</h3></div>
       <div id="accessory-forms">
       {% for accessory_form in formset %}
-        <div class="accessory-row" data-accessory-row>
+        <div class="accessory-row dynamic-row{% if accessory_form.DELETE.value %} is-pending-delete{% endif %}" data-accessory-row data-dynamic-row data-row-label="配件">
           {{ accessory_form.id }}
+          <span hidden>{{ accessory_form.DELETE }}</span>
+          <button type="button" class="remove-row-button" data-remove-row aria-label="刪除此筆配件">刪除</button>
           {% include "sales/_field.html" with field=accessory_form.name %}
           {% include "sales/_field.html" with field=accessory_form.quantity %}
           {% include "sales/_field.html" with field=accessory_form.line_type %}
           {% include "sales/_field.html" with field=accessory_form.amount %}
           {% include "sales/_field.html" with field=accessory_form.installed_on %}
           {% include "sales/_field.html" with field=accessory_form.note %}
-          {% if accessory_form.instance.pk %}{% include "sales/_field.html" with field=accessory_form.DELETE %}{% endif %}
         </div>
       {% endfor %}
       </div>
       <template id="empty-accessory">
-        <div class="accessory-row" data-accessory-row>
+        <div class="accessory-row dynamic-row" data-accessory-row data-dynamic-row data-row-label="配件">
           {{ formset.empty_form.id }}
+          <span hidden>{{ formset.empty_form.DELETE }}</span>
+          <button type="button" class="remove-row-button" data-remove-row aria-label="刪除此筆配件">刪除</button>
           {% include "sales/_field.html" with field=formset.empty_form.name %}
           {% include "sales/_field.html" with field=formset.empty_form.quantity %}
           {% include "sales/_field.html" with field=formset.empty_form.line_type %}
@@ -695,6 +701,7 @@
   refreshPhotoButtons();
 
   function refreshAccessoryRequired(row) {
+    if (row.classList.contains("is-pending-delete")) return;
     const nameInput = row.querySelector('[name$="-name"]');
     const hasName = Boolean(nameInput?.value.trim());
     row.classList.toggle("has-accessory-name", hasName);
@@ -706,6 +713,7 @@
     const nameInput = row.querySelector('[name$="-name"]');
     nameInput?.addEventListener("input", () => refreshAccessoryRequired(row));
     refreshAccessoryRequired(row);
+    bindRemoveRow(row);
   }
 
   document.querySelectorAll("[data-accessory-row]").forEach(bindAccessoryRow);
@@ -747,6 +755,7 @@
   byId("add-other-fee").addEventListener("click", () => appendOtherFeeRow());
 
   function refreshOtherFeeRequired(row) {
+    if (row.classList.contains("is-pending-delete")) return;
     const nameInput = row.querySelector('[name$="-name"]');
     const amountInput = row.querySelector('[name$="-amount"]');
     const hasName = Boolean(nameInput?.value.trim());
@@ -760,9 +769,34 @@
       input.addEventListener("input", () => refreshOtherFeeRequired(row));
     });
     refreshOtherFeeRequired(row);
+    bindRemoveRow(row);
   }
 
   document.querySelectorAll(".other-fee-row").forEach(bindOtherFeeRow);
+
+  function bindRemoveRow(row) {
+    const button = row.querySelector("[data-remove-row]");
+    if (!button || button.dataset.bound === "1") return;
+    button.dataset.bound = "1";
+    button.addEventListener("click", () => {
+      const deleteInput = row.querySelector('[name$="-DELETE"]');
+      const label = row.dataset.rowLabel || "項目";
+      const hasSavedId = Boolean(row.querySelector('[name$="-id"]')?.value);
+      if (hasSavedId && !confirm(`確定刪除這筆${label}嗎？儲存後將無法復原。`)) return;
+      if (deleteInput) {
+        deleteInput.checked = true;
+        deleteInput.value = "on";
+      }
+      row.querySelectorAll("input, select, textarea").forEach(input => {
+        if (!input.name.endsWith("-DELETE") && !input.name.endsWith("-id")) {
+          input.required = false;
+        }
+      });
+      row.classList.add("is-pending-delete");
+      validationSummary.hidden = true;
+      scheduleDraft();
+    });
+  }
 
   function isCollaborativeField(input) {
     if (!input?.name || input.disabled) return false;
@@ -1271,23 +1305,44 @@
       event.returnValue = "";
     });
   }
+  function showValidationSummary(firstInvalid = null) {
+    const invalidFields = [...orderForm.querySelectorAll(".has-error, :invalid")]
+      .filter(node => !node.closest(".is-pending-delete"));
+    const labels = [];
+    invalidFields.forEach(node => {
+      const field = node.classList.contains("field") ? node : node.closest(".field");
+      const label = field?.querySelector("label")?.textContent
+        ?.replace("必填", "").trim();
+      if (label && !labels.includes(label)) labels.push(label);
+      const section = node.closest("details.form-section");
+      if (section) section.open = true;
+    });
+    if (!labels.length) return;
+    const action = editingOrderId ? "儲存修改" : "建立訂單";
+    validationSummary.hidden = false;
+    validationSummary.innerHTML = `
+      <strong>目前無法${action}</strong>
+      <span>請先處理：${labels.join("、")}。</span>
+    `;
+    const target = firstInvalid || invalidFields[0];
+    window.setTimeout(() => {
+      target?.scrollIntoView({behavior: "smooth", block: "center"});
+      if (target?.matches("input, select, textarea, button")) {
+        target.focus({preventScroll: true});
+      } else {
+        target?.querySelector("input, select, textarea")?.focus({preventScroll: true});
+      }
+    }, 80);
+  }
+
   let invalidFocusPending = false;
   orderForm.addEventListener("invalid", event => {
     if (invalidFocusPending) return;
     invalidFocusPending = true;
-    const input = event.target;
-    const section = input.closest("details.form-section");
-    if (section) section.open = true;
-    const label = input.closest(".field")?.querySelector("label")?.textContent.trim()
-      || input.labels?.[0]?.textContent.trim()
-      || "必填欄位";
-    validationSummary.hidden = false;
-    validationSummary.textContent = `尚有資料未完成：${label}。請確認後再建立訂單。`;
+    showValidationSummary(event.target);
     window.setTimeout(() => {
-      input.scrollIntoView({behavior: "smooth", block: "center"});
-      input.focus({preventScroll: true});
       invalidFocusPending = false;
-    }, 80);
+    }, 120);
   }, true);
   orderForm.addEventListener("input", () => {
     validationSummary.hidden = true;
@@ -1296,6 +1351,7 @@
     submittingOrder = true;
     clearTimeout(draftTimer);
   });
+  if (orderForm.querySelector(".has-error")) showValidationSummary();
   refreshDraftPresence();
   window.setInterval(refreshDraftPresence, 30000);
   window.addEventListener("pagehide", () => {

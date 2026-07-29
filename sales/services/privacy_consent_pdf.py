@@ -143,7 +143,7 @@ def build_privacy_consent_pdf(order):
     c.drawString(MARGIN_X, y, "台鈴工業股份有限公司")
     c.drawString(MARGIN_X + 80 * mm, y, "敬啟")
     y -= 8 * mm
-    c.drawString(MARGIN_X, y, "馭盛")
+    c.drawString(MARGIN_X, y, "馭盛國際有限公司")
 
     signature_y = 53 * mm
     signature_x = PAGE_W - MARGIN_X - 90 * mm

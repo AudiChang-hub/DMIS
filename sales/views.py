@@ -870,9 +870,7 @@ def allocate_vehicle(request, pk):
 @transaction.atomic
 def reallocate_vehicle(request, pk):
     order = get_object_or_404(
-        SalesOrder.objects.select_for_update().select_related(
-            "allocated_vehicle"
-        ),
+        SalesOrder.objects.select_for_update(),
         pk=pk,
     )
     detail_url = f"{reverse('order_detail', args=[pk])}?tab=allocation"

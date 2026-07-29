@@ -17,6 +17,74 @@ from .services.registration_fee import (
 )
 
 
+PHONE_FIELDS = {"owner_phone"}
+EMAIL_FIELDS = {"owner_email"}
+LATIN_IDENTIFIER_FIELDS = {
+    "owner_id_number",
+    "trade_in_plate",
+    "watched_numbers",
+    "engine_number",
+    "frame_number",
+}
+ENGLISH_TEXT_FIELDS = {"owner_name_en"}
+
+
+def apply_mobile_keyboard_attrs(form):
+    """Give mobile browsers the best available keyboard hint per field."""
+    for field_name, field in form.fields.items():
+        widget = field.widget
+        if isinstance(widget, (forms.HiddenInput, forms.FileInput)):
+            continue
+        if field_name in PHONE_FIELDS:
+            widget.attrs.update(
+                {
+                    "inputmode": "tel",
+                    "autocomplete": "tel",
+                    "autocapitalize": "none",
+                }
+            )
+        elif field_name in EMAIL_FIELDS:
+            widget.attrs.update(
+                {
+                    "inputmode": "email",
+                    "autocomplete": "email",
+                    "autocapitalize": "none",
+                    "spellcheck": "false",
+                }
+            )
+        elif field_name in LATIN_IDENTIFIER_FIELDS:
+            widget.attrs.update(
+                {
+                    "inputmode": "text",
+                    "lang": "en",
+                    "autocapitalize": "characters",
+                    "spellcheck": "false",
+                    "autocomplete": "off",
+                }
+            )
+        elif field_name in ENGLISH_TEXT_FIELDS:
+            widget.attrs.update(
+                {
+                    "inputmode": "text",
+                    "lang": "en",
+                    "autocapitalize": "words",
+                    "spellcheck": "false",
+                }
+            )
+        elif isinstance(field, forms.DecimalField):
+            widget.attrs.setdefault("inputmode", "decimal")
+        elif isinstance(field, forms.IntegerField):
+            widget.attrs.setdefault("inputmode", "numeric")
+        elif isinstance(widget, (forms.TextInput, forms.Textarea)):
+            widget.attrs.update(
+                {
+                    "inputmode": "text",
+                    "lang": "zh-Hant",
+                    "autocapitalize": "none",
+                }
+            )
+
+
 class DateInput(forms.DateInput):
     input_type = "date"
 
@@ -159,6 +227,7 @@ class SalesOrderForm(forms.ModelForm):
             )
         for field in self.fields.values():
             field.widget.attrs.setdefault("class", "form-control")
+        apply_mobile_keyboard_attrs(self)
         for field_name in (
             "registration_plate_fee",
             "registration_license_fee",
@@ -342,6 +411,7 @@ class AccessoryLineForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         for field_name in ("name", "quantity", "line_type", "amount"):
             self.fields[field_name].required = False
+        apply_mobile_keyboard_attrs(self)
         if not self.is_bound and not self.instance.pk and "amount" not in self.initial:
             self.fields["amount"].initial = None
 
@@ -366,10 +436,21 @@ AccessoryFormSet = inlineformset_factory(
     can_delete=True,
 )
 
+
+class OtherFeeLineForm(forms.ModelForm):
+    class Meta:
+        model = OtherFeeLine
+        fields = ["name", "amount"]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        apply_mobile_keyboard_attrs(self)
+
+
 OtherFeeFormSet = inlineformset_factory(
     SalesOrder,
     OtherFeeLine,
-    fields=["name", "amount"],
+    form=OtherFeeLineForm,
     extra=1,
     can_delete=True,
 )
@@ -404,6 +485,7 @@ class VehicleInventoryForm(forms.ModelForm):
         self.fields["color"].queryset = VehicleColor.objects.filter(active=True)
         for field in self.fields.values():
             field.widget.attrs.setdefault("class", "form-control")
+        apply_mobile_keyboard_attrs(self)
 
 
 class SignedContractForm(forms.ModelForm):

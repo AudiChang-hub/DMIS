@@ -21,8 +21,8 @@ FONT_CANDIDATES = [
         Path(r"C:\Windows\Fonts\msjhbd.ttc"),
     ),
     (
-        Path("/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc"),
-        Path("/usr/share/fonts/opentype/noto/NotoSansCJK-Bold.ttc"),
+        Path("/usr/share/fonts/truetype/wqy/wqy-zenhei.ttc"),
+        Path("/usr/share/fonts/truetype/wqy/wqy-zenhei.ttc"),
     ),
 ]
 FONT_REGULAR, FONT_BOLD = next(

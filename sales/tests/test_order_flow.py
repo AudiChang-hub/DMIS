@@ -358,6 +358,9 @@ class OrderFlowTests(TestCase):
         )
         self.assertContains(detail, "列印個資同意書")
         self.assertContains(detail, "全部一起列印")
+        self.assertContains(detail, "一鍵列印全部文件")
+        self.assertContains(detail, "單獨列印訂購合約")
+        self.assertContains(detail, "單獨列印個資同意書")
         self.assertContains(detail, "個資同意書附件")
         self.assertContains(detail, reverse("privacy_consent_upload", args=[order.pk]))
 

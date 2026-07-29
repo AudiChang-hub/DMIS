@@ -18,6 +18,7 @@ from sales.models import (
     RegistrationDocument,
     SalesOrder,
     Store,
+    SubsidyDocument,
     VehicleColor,
     VehicleInventory,
     VehicleModel,
@@ -351,6 +352,108 @@ class OrderFlowTests(TestCase):
         self.assertContains(response, "配車後開放")
         self.assertContains(response, "<small>領牌</small>", html=True)
         self.assertContains(response, "<small>交付</small>", html=True)
+
+    def test_subsidy_documents_are_available_before_allocation(self):
+        order = self.make_order()
+        SalesOrder.objects.filter(pk=order.pk).update(
+            is_trade_in_subsidy=True,
+            trade_in_plate="ABC-1234",
+            subsidy_type="汰舊換新",
+        )
+        order.refresh_from_db()
+        self.client.force_login(self.user)
+
+        detail = self.client.get(reverse("order_detail", args=[order.pk]))
+        self.assertContains(detail, "可與配車同時進行")
+        self.assertContains(detail, "舊車主身分證正面")
+        self.assertContains(detail, "2／7 已備妥")
+
+        response = self.client.post(
+            reverse("subsidy_document_upload", args=[order.pk]),
+            {
+                "document_type": SubsidyDocument.DocumentType.OLD_OWNER_ID_FRONT,
+                "file": SimpleUploadedFile(
+                    "old-owner-front.jpg",
+                    b"old owner id",
+                    content_type="image/jpeg",
+                ),
+            },
+        )
+        self.assertRedirects(response, reverse("order_detail", args=[order.pk]))
+        self.assertIsNone(order.allocated_vehicle)
+        self.assertTrue(
+            order.subsidy_documents.filter(
+                document_type=SubsidyDocument.DocumentType.OLD_OWNER_ID_FRONT
+            ).exists()
+        )
+
+    def test_subsidy_requirements_add_declaration_for_different_owner(self):
+        order = self.make_order()
+        SalesOrder.objects.filter(pk=order.pk).update(
+            is_trade_in_subsidy=True,
+            trade_in_plate="OLD-123",
+            subsidy_type="汰舊換新",
+            old_owner_name="陳大華",
+        )
+        order.refresh_from_db()
+
+        missing = order.missing_subsidy_requirements()
+
+        self.assertIn("新舊車主不同人聲明書", missing)
+        self.assertEqual(order.subsidy_required_count, 8)
+
+    def test_subsidy_fixed_document_can_be_replaced_and_downloaded(self):
+        order = self.make_order()
+        SalesOrder.objects.filter(pk=order.pk).update(
+            is_trade_in_subsidy=True,
+            trade_in_plate="ABC-1234",
+            subsidy_type="汰舊換新",
+        )
+        order.refresh_from_db()
+        self.client.force_login(self.user)
+        upload_url = reverse("subsidy_document_upload", args=[order.pk])
+
+        for filename in ("first.pdf", "replacement.pdf"):
+            response = self.client.post(
+                upload_url,
+                {
+                    "document_type": SubsidyDocument.DocumentType.SCRAP_CERTIFICATE,
+                    "file": SimpleUploadedFile(
+                        filename, filename.encode(), content_type="application/pdf"
+                    ),
+                },
+            )
+            self.assertRedirects(
+                response, reverse("order_detail", args=[order.pk])
+            )
+
+        documents = order.subsidy_documents.filter(
+            document_type=SubsidyDocument.DocumentType.SCRAP_CERTIFICATE
+        )
+        self.assertEqual(documents.count(), 1)
+        document = documents.get()
+        response = self.client.get(
+            reverse("subsidy_document_file", args=[document.pk])
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response["Cache-Control"], "private, no-store")
+
+    def test_non_subsidy_order_rejects_subsidy_upload(self):
+        order = self.make_order()
+        self.client.force_login(self.user)
+
+        response = self.client.post(
+            reverse("subsidy_document_upload", args=[order.pk]),
+            {
+                "document_type": SubsidyDocument.DocumentType.RECYCLING_RECEIPT,
+                "file": SimpleUploadedFile(
+                    "receipt.pdf", b"receipt", content_type="application/pdf"
+                ),
+            },
+        )
+
+        self.assertRedirects(response, reverse("order_detail", args=[order.pk]))
+        self.assertFalse(order.subsidy_documents.exists())
 
     def test_registration_requires_data_and_all_fixed_documents(self):
         order = self.make_order()

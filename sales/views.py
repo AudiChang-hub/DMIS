@@ -28,6 +28,7 @@ from .forms import (
     RegistrationStageForm,
     SalesOrderForm,
     SignedContractForm,
+    SubsidyDocumentUploadForm,
     VehicleInventoryForm,
 )
 from .models import (
@@ -37,6 +38,7 @@ from .models import (
     RegistrationDocument,
     SalesOrder,
     SalesSource,
+    SubsidyDocument,
     VehicleColor,
     VehicleInventory,
     VehicleModel,
@@ -473,6 +475,7 @@ def order_detail(request, pk):
             "events",
             "changes",
             "registration_documents",
+            "subsidy_documents",
         ),
         pk=pk,
     )
@@ -493,6 +496,22 @@ def order_detail(request, pk):
         for document_type, label in RegistrationDocument.DocumentType.choices
         if document_type != RegistrationDocument.DocumentType.OTHER_INSURANCE
     ]
+    subsidy_documents = {
+        document.document_type: document
+        for document in order.subsidy_documents.all()
+    }
+    subsidy_required_types = order.required_subsidy_document_types()
+    subsidy_document_rows = [
+        {
+            "type": document_type,
+            "label": label,
+            "required": document_type in subsidy_required_types,
+            "document": subsidy_documents.get(document_type),
+        }
+        for document_type, label in SubsidyDocument.DocumentType.choices
+        if document_type != SubsidyDocument.DocumentType.OWNER_DECLARATION
+        or document_type in subsidy_required_types
+    ]
     return render(
         request,
         "sales/order_detail.html",
@@ -507,6 +526,8 @@ def order_detail(request, pk):
                 document_type=RegistrationDocument.DocumentType.OTHER_INSURANCE
             ),
             "registration_missing": order.missing_registration_requirements(),
+            "subsidy_document_rows": subsidy_document_rows,
+            "subsidy_missing": order.missing_subsidy_requirements(),
             "change_cards": build_order_change_cards(order.changes.all()),
         },
     )
@@ -971,6 +992,96 @@ def registration_complete(request, pk):
 @login_required
 def registration_document_file(request, document_pk):
     document = get_object_or_404(RegistrationDocument, pk=document_pk)
+    if not document.file:
+        raise Http404
+    response = FileResponse(
+        document.file.open("rb"),
+        as_attachment=False,
+        filename=Path(document.file.name).name,
+    )
+    response["Cache-Control"] = "private, no-store"
+    return response
+
+
+@login_required
+@transaction.atomic
+def subsidy_document_upload(request, pk):
+    order = get_object_or_404(SalesOrder.objects.select_for_update(), pk=pk)
+    if request.method != "POST":
+        return redirect("order_detail", pk=pk)
+    if order.status == SalesOrder.Status.CANCELLED:
+        messages.error(request, "已取消訂單無法修改補助文件。")
+        return redirect("order_detail", pk=pk)
+    if not order.is_trade_in_subsidy:
+        messages.error(request, "此訂單未勾選汰舊／政府補助。")
+        return redirect("order_detail", pk=pk)
+    form = SubsidyDocumentUploadForm(request.POST, request.FILES)
+    if not form.is_valid():
+        messages.error(
+            request,
+            "補助文件上傳失敗：" + " ".join(
+                error
+                for errors in form.errors.values()
+                for error in errors
+            ),
+        )
+        return redirect("order_detail", pk=pk)
+
+    document = form.save(commit=False)
+    document.order = order
+    document.uploaded_by = _editing_name(request.user)
+    existing = order.subsidy_documents.filter(
+        document_type=document.document_type
+    ).first()
+    if existing:
+        old_file = existing.file
+        existing.file = document.file
+        existing.uploaded_by = document.uploaded_by
+        existing.save(update_fields=["file", "uploaded_by", "updated_at"])
+        if old_file:
+            old_file.delete(save=False)
+        document = existing
+    else:
+        document.save()
+    OrderEvent.objects.create(
+        order=order,
+        event_type="subsidy_document_uploaded",
+        description=f"已上傳補助文件：{document.get_document_type_display()}",
+        actor_name=_editing_name(request.user),
+    )
+    messages.success(request, f"{document.get_document_type_display()}已上傳。")
+    return redirect("order_detail", pk=pk)
+
+
+@login_required
+@transaction.atomic
+def subsidy_document_delete(request, pk, document_pk):
+    order = get_object_or_404(SalesOrder.objects.select_for_update(), pk=pk)
+    if request.method != "POST":
+        return redirect("order_detail", pk=pk)
+    if order.status == SalesOrder.Status.CANCELLED:
+        messages.error(request, "已取消訂單無法修改補助文件。")
+        return redirect("order_detail", pk=pk)
+    document = get_object_or_404(
+        SubsidyDocument,
+        pk=document_pk,
+        order=order,
+    )
+    display_name = document.get_document_type_display()
+    document.delete_with_file()
+    OrderEvent.objects.create(
+        order=order,
+        event_type="subsidy_document_deleted",
+        description=f"已刪除補助文件：{display_name}",
+        actor_name=_editing_name(request.user),
+    )
+    messages.success(request, f"{display_name}已刪除。")
+    return redirect("order_detail", pk=pk)
+
+
+@login_required
+def subsidy_document_file(request, document_pk):
+    document = get_object_or_404(SubsidyDocument, pk=document_pk)
     if not document.file:
         raise Http404
     response = FileResponse(

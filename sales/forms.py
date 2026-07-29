@@ -173,6 +173,12 @@ class OrderEditForm(SalesOrderForm):
 
     def clean(self):
         data = super().clean()
+        if (
+            self.instance.actual_balance != self.instance.calculated_balance
+            and not self.instance.balance_adjustment_reason
+            and data.get("change_reason")
+        ):
+            self.instance.balance_adjustment_reason = data["change_reason"]
         if self.instance.allocated_vehicle_id:
             if (
                 data.get("vehicle_model")

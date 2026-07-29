@@ -5,6 +5,7 @@ from .models import (
     OrderDraft,
     OtherFeeLine,
     OrderEvent,
+    RegistrationDocument,
     SalesOrder,
     SalesSource,
     Store,
@@ -74,6 +75,12 @@ class OtherFeeLineInline(admin.TabularInline):
     extra = 0
 
 
+class RegistrationDocumentInline(admin.TabularInline):
+    model = RegistrationDocument
+    extra = 0
+    readonly_fields = ("uploaded_by", "created_at", "updated_at")
+
+
 @admin.register(SalesOrder)
 class SalesOrderAdmin(admin.ModelAdmin):
     list_display = (
@@ -92,4 +99,9 @@ class SalesOrderAdmin(admin.ModelAdmin):
         "owner_id_number",
         "final_plate_number",
     )
-    inlines = [AccessoryLineInline, OtherFeeLineInline, OrderEventInline]
+    inlines = [
+        AccessoryLineInline,
+        OtherFeeLineInline,
+        RegistrationDocumentInline,
+        OrderEventInline,
+    ]

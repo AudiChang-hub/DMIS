@@ -128,9 +128,10 @@ class OrderFlowTests(TestCase):
         self.assertIn("page-shell--wide", detail)
         self.assertIn("page-shell--form", form)
         self.assertIn(
-            "grid-template-columns: auto 1fr auto 1fr auto 1fr auto;",
+            "grid-template-columns: repeat(7, minmax(0, 1fr));",
             css,
         )
+        self.assertIn("overflow-x: auto;", css)
 
     def test_forms_provide_field_specific_mobile_keyboard_hints(self):
         order_form = SalesOrderForm()
@@ -341,17 +342,36 @@ class OrderFlowTests(TestCase):
         self.assertEqual(order.allocated_vehicle, self.vehicle)
         self.assertEqual(order.status, SalesOrder.Status.ALLOCATED)
 
-    def test_order_detail_splits_registration_and_delivery_stages(self):
+    def test_order_detail_uses_flexible_work_tabs(self):
+        from pathlib import Path
+
         order = self.make_order()
         self.client.force_login(self.user)
 
         response = self.client.get(reverse("order_detail", args=[order.pk]))
 
+        self.assertContains(response, 'role="tablist"')
+        for tab_name in (
+            "訂單資料",
+            "配車",
+            "補助",
+            "領牌",
+            "交付",
+            "文件歸檔",
+            "處理紀錄",
+        ):
+            self.assertContains(response, f"<span>{tab_name}</span>", html=True)
+        self.assertContains(response, 'data-tab-panel="order"')
+        self.assertContains(response, 'data-tab-panel="registration"')
         self.assertContains(response, "領牌資料與文件")
         self.assertContains(response, "車輛交付")
         self.assertContains(response, "配車後開放")
-        self.assertContains(response, "<small>領牌</small>", html=True)
-        self.assertContains(response, "<small>交付</small>", html=True)
+        self.assertNotContains(response, "workflow-strip")
+
+        script = Path("static/js/order-detail-tabs.js").read_text(encoding="utf-8")
+        self.assertIn('searchParams.get("tab")', script)
+        self.assertIn("window.localStorage", script)
+        self.assertIn('event.key === "ArrowRight"', script)
 
     def test_subsidy_documents_are_available_before_allocation(self):
         order = self.make_order()

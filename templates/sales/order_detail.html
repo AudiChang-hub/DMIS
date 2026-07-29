@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load static %}
 {% block title %}{{ order.number }}｜車輛銷售管理{% endblock %}
 {% block page_class %}page-shell--wide{% endblock %}
 {% block content %}
@@ -32,16 +33,17 @@
 </script>
 {% endif %}
 
-<div class="workflow-strip">
-  <div class="done"><span>✓</span><small>訂單建立</small></div>
-  <i></i>
-  <div class="{% if order.allocated_vehicle %}done{% else %}current{% endif %}"><span>{% if order.allocated_vehicle %}✓{% else %}2{% endif %}</span><small>配車</small></div>
-  <i></i>
-  <div class="{% if order.is_registration_complete %}done{% elif order.allocated_vehicle %}current{% endif %}"><span>{% if order.is_registration_complete %}✓{% else %}3{% endif %}</span><small>領牌</small></div>
-  <i></i>
-  <div class="{% if order.is_delivered %}done{% elif order.can_deliver %}current{% endif %}"><span>{% if order.is_delivered %}✓{% else %}4{% endif %}</span><small>交付</small></div>
-</div>
+<nav class="order-work-tabs" role="tablist" aria-label="訂單工作區" data-order-tabs data-order-id="{{ order.pk }}">
+  <button type="button" role="tab" data-tab="order" aria-controls="panel-order"><span>訂單資料</span><small>完整內容</small></button>
+  <button type="button" role="tab" data-tab="allocation" aria-controls="panel-allocation"><span>配車</span><small>{% if order.allocated_vehicle %}已完成{% else %}待處理{% endif %}</small></button>
+  <button type="button" role="tab" data-tab="subsidy" aria-controls="panel-subsidy"><span>補助</span><small>{% if not order.is_trade_in_subsidy %}未申請{% elif order.is_subsidy_ready %}資料齊全{% else %}{{ order.subsidy_completed_count }}/{{ order.subsidy_required_count }}{% endif %}</small></button>
+  <button type="button" role="tab" data-tab="registration" aria-controls="panel-registration"><span>領牌</span><small>{% if order.is_registration_complete %}已完成{% elif registration_missing %}缺 {{ registration_missing|length }} 項{% else %}可確認{% endif %}</small></button>
+  <button type="button" role="tab" data-tab="delivery" aria-controls="panel-delivery"><span>交付</span><small>{% if order.is_delivered %}已交付{% elif order.can_deliver %}可進行{% else %}待領牌{% endif %}</small></button>
+  <button type="button" role="tab" data-tab="documents" aria-controls="panel-documents"><span>文件歸檔</span><small>{% if order.has_signed_contract and order.has_privacy_consent %}已歸檔{% else %}待補文件{% endif %}</small></button>
+  <button type="button" role="tab" data-tab="history" aria-controls="panel-history"><span>處理紀錄</span><small>{{ order.events.all|length }} 筆</small></button>
+</nav>
 
+<div class="order-tab-panel" id="panel-allocation" role="tabpanel" data-tab-panel="allocation" hidden>
 {% if not order.allocated_vehicle and order.is_editable %}
 <section class="action-card info-card">
   <div><p class="eyebrow">下一步</p><h2>選擇實體車輛</h2><p>只顯示符合 {{ order.vehicle_model }}／{{ order.color.name }} 的可售庫存。</p></div>
@@ -54,8 +56,21 @@
     {% endif %}
   </form>
 </section>
+{% elif order.allocated_vehicle %}
+<section class="section-block allocation-summary">
+  <div class="section-title"><div><p class="eyebrow">配車作業</p><h2>已完成配車</h2></div><span class="archive-status done">✓ 已完成</span></div>
+  <dl class="data-list">
+    <div><dt>實體車輛</dt><dd>{{ order.allocated_vehicle.identifier }}</dd></div>
+    <div><dt>目前位置</dt><dd>{{ order.allocated_vehicle.location_store }}</dd></div>
+    <div><dt>車型／車色</dt><dd>{{ order.vehicle_model }}／{{ order.color.name }}</dd></div>
+  </dl>
+</section>
+{% else %}
+<section class="section-block"><div class="stage-empty"><strong>此訂單目前無法配車</strong><p>訂單已結案或取消，僅供查看。</p></div></section>
 {% endif %}
+</div>
 
+<div class="order-tab-panel" id="panel-subsidy" role="tabpanel" data-tab-panel="subsidy" hidden>
 <section class="section-block subsidy-stage">
   <div class="section-title subsidy-stage__title">
     <div>
@@ -131,11 +146,13 @@
     </div>
   {% endif %}
 </section>
+</div>
 
+<div class="order-tab-panel" id="panel-registration" role="tabpanel" data-tab-panel="registration" hidden>
 <section class="section-block registration-stage">
   <div class="section-title registration-stage__title">
     <div>
-      <p class="eyebrow">第 3 階段</p>
+      <p class="eyebrow">領牌作業</p>
       <h2>領牌資料與文件</h2>
     </div>
     {% if order.is_registration_complete %}
@@ -272,10 +289,12 @@
     </div>
   {% endif %}
 </section>
+</div>
 
+<div class="order-tab-panel" id="panel-delivery" role="tabpanel" data-tab-panel="delivery" hidden>
 <section class="section-block delivery-stage">
   <div class="section-title">
-    <div><p class="eyebrow">第 4 階段</p><h2>車輛交付</h2></div>
+    <div><p class="eyebrow">交付作業</p><h2>車輛交付</h2></div>
     {% if order.is_delivered %}<span class="archive-status done">✓ 已交付</span>{% elif order.can_deliver %}<span class="archive-status">可進行</span>{% else %}<span class="archive-status">尚未開放</span>{% endif %}
   </div>
   {% if order.is_delivered %}
@@ -290,7 +309,9 @@
     <p>一般訂單必須先完成領牌，才可進入交付階段。</p>
   {% endif %}
 </section>
+</div>
 
+<div class="order-tab-panel" id="panel-documents" role="tabpanel" data-tab-panel="documents" hidden>
 <div class="document-archive-grid">
   <section class="document-archive-card">
     <div>
@@ -325,7 +346,9 @@
     {% endif %}
   </section>
 </div>
+</div>
 
+<div class="order-tab-panel" id="panel-order" role="tabpanel" data-tab-panel="order">
 <div class="detail-grid">
   <section class="card">
     <div class="section-title"><h2>車主資料</h2><span>已人工核對</span></div>
@@ -419,7 +442,9 @@
     {% if order.note %}<div class="note-box"><strong>備註</strong><p>{{ order.note }}</p></div>{% endif %}
   </section>
 </div>
+</div>
 
+<div class="order-tab-panel" id="panel-history" role="tabpanel" data-tab-panel="history" hidden>
 <section class="section-block">
   <div class="section-title"><h2>處理紀錄</h2></div>
   <div class="timeline">
@@ -468,4 +493,8 @@
   </div>
 </section>
 {% endif %}
+</div>
+{% endblock %}
+{% block scripts %}
+<script src="{% static 'js/order-detail-tabs.js' %}?v={{ app_version }}" defer></script>
 {% endblock %}

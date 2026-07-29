@@ -35,6 +35,7 @@ from .models import (
     VehicleInventory,
 )
 from .services.id_ocr import IdOcrError, recognize_id_card
+from .services.order_change_display import build_order_change_cards
 
 
 logger = logging.getLogger(__name__)
@@ -456,6 +457,7 @@ def order_detail(request, pk):
             "order": order,
             "contract_form": SignedContractForm(instance=order),
             "allocation_form": AllocationForm(order),
+            "change_cards": build_order_change_cards(order.changes.all()),
         },
     )
 

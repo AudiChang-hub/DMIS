@@ -1,6 +1,7 @@
 import json
 import logging
 from datetime import timedelta
+from io import BytesIO
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
@@ -12,6 +13,8 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
 from PIL import Image, UnidentifiedImageError
+
+from .services.order_contract_pdf import build_order_contract_pdf
 
 from .forms import (
     AccessoryFormSet,
@@ -180,7 +183,7 @@ def order_create(request):
             if draft:
                 draft.delete_with_files()
             messages.success(request, "訂單已建立。請列印一式兩份並上傳簽署合約。")
-            return redirect("order_detail", pk=order.pk)
+            return redirect(f"{reverse('order_detail', kwargs={'pk': order.pk})}?created=1")
     else:
         initial = _draft_form_initial(draft.data) if draft else None
         form = SalesOrderForm(initial=initial)
@@ -467,7 +470,17 @@ def contract_print(request, pk):
         ).prefetch_related("accessories", "other_fees"),
         pk=pk,
     )
-    return render(request, "sales/contract_print.html", {"order": order})
+    pdf = build_order_contract_pdf(order)
+    response = FileResponse(
+        BytesIO(pdf),
+        content_type="application/pdf",
+        filename=f"{order.number}.pdf",
+    )
+    response["Content-Disposition"] = (
+        f'inline; filename="{order.number}.pdf"; '
+        f"filename*=UTF-8''{order.number}%E8%A8%82%E8%B3%BC%E5%96%AE.pdf"
+    )
+    return response
 
 
 @login_required

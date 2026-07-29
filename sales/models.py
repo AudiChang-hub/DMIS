@@ -183,6 +183,10 @@ class VehicleInventory(TimeStampedModel):
 
 
 class SalesOrder(TimeStampedModel):
+    class VehicleCategory(models.TextChoices):
+        NEW = "new", "新車"
+        USED = "used", "中古車"
+
     class SourceType(models.TextChoices):
         STORE = "store", "本店"
         DEALER = "dealer", "合作車行"
@@ -278,6 +282,12 @@ class SalesOrder(TimeStampedModel):
         related_name="active_order",
         verbose_name="已配車輛",
     )
+    vehicle_category = models.CharField(
+        "車輛類別",
+        max_length=10,
+        choices=VehicleCategory.choices,
+        default=VehicleCategory.NEW,
+    )
 
     payment_type = models.CharField(
         "主要付款方式",
@@ -328,6 +338,7 @@ class SalesOrder(TimeStampedModel):
 
     is_trade_in_subsidy = models.BooleanField("申請汰舊／政府補助", default=False)
     trade_in_plate = models.CharField("舊車車牌", max_length=20, blank=True)
+    old_owner_name = models.CharField("舊車主姓名", max_length=160, blank=True)
     subsidy_type = models.CharField("補助類型", max_length=120, blank=True)
     old_vehicle_valuation = models.DecimalField(
         "舊車估價", max_digits=12, decimal_places=0, default=0

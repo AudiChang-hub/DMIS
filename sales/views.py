@@ -879,7 +879,7 @@ def reallocate_vehicle(request, pk):
     if order.has_registration_started:
         messages.error(
             request,
-            "已填寫領牌資料或上傳領牌文件，為避免車輛與文件對錯，無法直接改配。",
+            "已有車牌號碼、領牌完成紀錄或領牌文件，為避免車輛與文件對錯，無法直接改配。",
         )
         return redirect(detail_url)
 

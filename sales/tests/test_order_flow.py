@@ -396,7 +396,14 @@ class OrderFlowTests(TestCase):
         order = self.make_order()
         order.allocate(self.vehicle)
         order.registration_date = timezone.localdate()
-        order.save(update_fields=["registration_date", "updated_at"])
+        order.final_plate_number = "ABC-1234"
+        order.save(
+            update_fields=[
+                "registration_date",
+                "final_plate_number",
+                "updated_at",
+            ]
+        )
         replacement = VehicleInventory.objects.create(
             vehicle_model=self.model,
             color=self.color,
@@ -430,6 +437,35 @@ class OrderFlowTests(TestCase):
         self.assertEqual(
             replacement.status, VehicleInventory.Status.AVAILABLE
         )
+
+    def test_registration_date_alone_does_not_block_reallocation(self):
+        order = self.make_order()
+        order.allocate(self.vehicle)
+        order.registration_date = timezone.localdate()
+        order.save(update_fields=["registration_date", "updated_at"])
+        replacement = VehicleInventory.objects.create(
+            vehicle_model=self.model,
+            color=self.color,
+            engine_number="ENG-004",
+            ownership_store=self.store_a,
+            location_store=self.store_a,
+        )
+        self.client.force_login(self.user)
+
+        response = self.client.post(
+            reverse("reallocate_vehicle", args=[order.pk]),
+            {
+                "vehicle": replacement.pk,
+                "reason": "僅有舊版預計領牌日期",
+            },
+        )
+
+        self.assertRedirects(
+            response,
+            f"{reverse('order_detail', args=[order.pk])}?tab=allocation",
+        )
+        order.refresh_from_db()
+        self.assertEqual(order.allocated_vehicle, replacement)
 
     def test_order_detail_uses_flexible_work_tabs(self):
         from pathlib import Path

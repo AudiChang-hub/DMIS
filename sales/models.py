@@ -724,8 +724,7 @@ class SalesOrder(TimeStampedModel):
     @property
     def has_registration_started(self):
         return bool(
-            self.registration_date
-            or self.final_plate_number
+            self.final_plate_number
             or self.registration_completed_at
             or self.registration_documents.exists()
         )

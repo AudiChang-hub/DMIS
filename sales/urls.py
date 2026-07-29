@@ -24,9 +24,24 @@ urlpatterns = [
     ),
     path("orders/<int:pk>/contract/", views.contract_print, name="contract_print"),
     path(
+        "orders/<int:pk>/privacy-consent/",
+        views.privacy_consent_print,
+        name="privacy_consent_print",
+    ),
+    path(
+        "orders/<int:pk>/documents/",
+        views.order_documents_print,
+        name="order_documents_print",
+    ),
+    path(
         "orders/<int:pk>/contract/upload/",
         views.contract_upload,
         name="contract_upload",
+    ),
+    path(
+        "orders/<int:pk>/privacy-consent/upload/",
+        views.privacy_consent_upload,
+        name="privacy_consent_upload",
     ),
     path(
         "orders/<int:pk>/allocate/",

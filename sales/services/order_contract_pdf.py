@@ -429,13 +429,19 @@ def draw_order_page(c, order, copy_label, page_number, printed_at):
                 small_style,
             )
         ],
+        [
+            p(
+                "□ 機車屬於財產登記制，經領牌不再是新車，領牌後無法辦理退換貨。",
+                small_style,
+            )
+        ],
     ]
     y = draw_table(
         c,
         terms,
         [CONTENT_W],
         y,
-        row_heights=[7 * mm, 7 * mm, 7 * mm],
+        row_heights=[7 * mm, 7 * mm, 7 * mm, 7 * mm],
         styles=[("BACKGROUND", (0, 0), (-1, -1), HexColor("#FBFCFB"))],
     )
 

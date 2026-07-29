@@ -35,6 +35,7 @@ from .models import (
     SalesSource,
     VehicleColor,
     VehicleInventory,
+    VehicleModel,
 )
 from .services.id_ocr import IdOcrError, recognize_id_card
 from .services.order_change_display import build_order_change_cards
@@ -47,6 +48,18 @@ ORDER_PRESENCE_TIMEOUT = timedelta(seconds=90)
 
 def _editing_name(user):
     return user.get_full_name() or user.get_username()
+
+
+def _vehicle_rate_data():
+    return {
+        str(model.pk): {
+            "energy_type": model.energy_type,
+            "displacement_cc": model.displacement_cc,
+        }
+        for model in VehicleModel.objects.filter(active=True).only(
+            "id", "energy_type", "displacement_cc"
+        )
+    }
 
 
 def app_version(request):
@@ -209,6 +222,7 @@ def order_create(request):
             "draft": draft,
             "document_source": draft,
             "document_model": "draft",
+            "vehicle_rate_data": _vehicle_rate_data(),
         },
     )
 
@@ -600,6 +614,7 @@ def order_edit(request, pk):
             "editing_order": order,
             "document_source": order,
             "document_model": "order",
+            "vehicle_rate_data": _vehicle_rate_data(),
         },
     )
 

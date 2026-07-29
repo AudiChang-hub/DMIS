@@ -39,7 +39,7 @@ class VehicleColorInline(admin.TabularInline):
 
 @admin.register(VehicleModel)
 class VehicleModelAdmin(admin.ModelAdmin):
-    list_display = ("brand", "name", "energy_type", "active")
+    list_display = ("brand", "name", "energy_type", "displacement_cc", "active")
     list_filter = ("energy_type", "active")
     search_fields = ("brand", "name")
     inlines = [VehicleColorInline]

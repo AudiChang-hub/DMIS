@@ -363,6 +363,24 @@ body.screen-locked { overflow: hidden; }
 }
 .add-row-button { width: 100%; margin-top: 14px; border-style: dashed; }
 .fee-subsection { padding-top: 0; }
+.registration-fee-subsection {
+  padding: 18px 20px 20px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: #f8faf8;
+}
+.registration-fee-subsection .section-title { margin-bottom: 4px; }
+.registration-fee-subsection .section-title p {
+  margin: 5px 0 0;
+  color: var(--muted);
+  font-size: .9rem;
+}
+.registration-fee-subsection .form-grid { padding: 16px 0 4px; }
+.registration-fee-subsection input[readonly] {
+  color: #33433d;
+  background: #edf2ef;
+}
+.form-hint { margin: 8px 0 0; color: var(--muted); font-size: .88rem; }
 .other-fee-row {
   display: grid; grid-template-columns: 2fr 1fr; padding: 14px 0;
   align-items: end; gap: 12px; border-bottom: 1px solid var(--line);
@@ -540,6 +558,7 @@ body.screen-locked { overflow: hidden; }
   .form-section summary { padding: 13px 15px; }
   .info-banner { margin: 14px 16px 0; }
   .conditional-panel, .subsection { margin: 0 16px 16px; }
+  .registration-fee-subsection { padding: 16px; }
   .conditional-panel .form-grid { padding-inline: 0; }
   .mobile-submit span { display: none; }
   .mobile-submit .button { flex: 1; }

@@ -1,5 +1,6 @@
 from django import forms
 from django.forms import inlineformset_factory
+from django.utils import timezone
 
 from .models import (
     AccessoryLine,
@@ -8,6 +9,11 @@ from .models import (
     SalesSource,
     VehicleColor,
     VehicleInventory,
+    VehicleModel,
+)
+from .services.registration_fee import (
+    UnsupportedRegistrationFee,
+    calculate_registration_fee,
 )
 
 
@@ -20,6 +26,18 @@ class DateInput(forms.DateInput):
 
 
 class SalesOrderForm(forms.ModelForm):
+    vehicle_energy_type = forms.ChoiceField(
+        label="動力類型",
+        choices=VehicleModel.EnergyType.choices,
+        required=False,
+    )
+    registration_calculated_total = forms.DecimalField(
+        label="系統試算牌險合計",
+        max_digits=12,
+        decimal_places=0,
+        required=False,
+    )
+
     class Meta:
         model = SalesOrder
         fields = [
@@ -41,6 +59,17 @@ class SalesOrderForm(forms.ModelForm):
             "vehicle_model",
             "color",
             "vehicle_category",
+            "registration_date",
+            "compulsory_insurance_period",
+            "registration_plate_fee",
+            "registration_license_fee",
+            "registration_inspection_fee",
+            "road_maintenance_fee",
+            "license_tax_fee",
+            "compulsory_insurance_fee",
+            "plate_selection_fee",
+            "lien_registration_fee",
+            "registration_calculated_total",
             "payment_type",
             "vehicle_price",
             "plate_insurance_fee",
@@ -68,6 +97,7 @@ class SalesOrderForm(forms.ModelForm):
             "owner_birth_date": DateInput(),
             "residence_expiry": DateInput(),
             "deposit_date": DateInput(),
+            "registration_date": DateInput(),
             "owner_address": forms.Textarea(attrs={"rows": 2}),
             "note": forms.Textarea(attrs={"rows": 3}),
             "balance_adjustment_reason": forms.Textarea(attrs={"rows": 2}),
@@ -91,6 +121,12 @@ class SalesOrderForm(forms.ModelForm):
     def __init__(self, *args, existing_documents=None, **kwargs):
         self.existing_documents = existing_documents or {}
         super().__init__(*args, **kwargs)
+        self._previous_plate_insurance_fee = self.instance.plate_insurance_fee
+        self._plate_fee_was_automatic = (
+            not self.instance.pk
+            or self.instance.plate_insurance_fee
+            == self.instance.registration_calculated_total
+        )
         if not self.is_bound:
             blank_numeric_fields = (
                 "vehicle_price",
@@ -101,14 +137,41 @@ class SalesOrderForm(forms.ModelForm):
                 "installment_monthly",
                 "old_vehicle_valuation",
                 "old_vehicle_tax",
+                "plate_selection_fee",
+                "lien_registration_fee",
             )
             for field_name in blank_numeric_fields:
                 if field_name not in self.initial:
                     self.fields[field_name].initial = None
         self.fields["source"].queryset = SalesSource.objects.filter(active=True)
         self.fields["color"].queryset = VehicleColor.objects.filter(active=True)
+        self.fields["registration_date"].initial = timezone.localdate()
+        self.fields["registration_date"].required = False
+        self.fields["compulsory_insurance_period"].initial = (
+            SalesOrder.CompulsoryInsurancePeriod.ONE_YEAR
+        )
+        self.fields["compulsory_insurance_period"].required = False
+        self.fields["plate_selection_fee"].required = False
+        self.fields["lien_registration_fee"].required = False
+        if self.instance.pk and self.instance.vehicle_model_id:
+            self.fields["vehicle_energy_type"].initial = (
+                self.instance.vehicle_model.energy_type
+            )
         for field in self.fields.values():
             field.widget.attrs.setdefault("class", "form-control")
+        for field_name in (
+            "registration_plate_fee",
+            "registration_license_fee",
+            "registration_inspection_fee",
+            "road_maintenance_fee",
+            "license_tax_fee",
+            "compulsory_insurance_fee",
+            "registration_calculated_total",
+        ):
+            self.fields[field_name].required = False
+            self.fields[field_name].widget.attrs["readonly"] = True
+            self.fields[field_name].widget.attrs["tabindex"] = "-1"
+        self.fields["plate_insurance_fee"].required = False
         self.fields["id_verified"].widget.attrs["class"] = "form-check"
         self.fields["is_trade_in_subsidy"].widget.attrs["class"] = "form-check"
         self.fields["delivery_method"].required = True
@@ -131,12 +194,91 @@ class SalesOrderForm(forms.ModelForm):
             self.add_error("source", "來源名稱與選擇的訂單來源不一致。")
 
         model = data.get("vehicle_model")
+        selected_energy_type = data.get("vehicle_energy_type")
+        if model and selected_energy_type and model.energy_type != selected_energy_type:
+            self.add_error("vehicle_model", "所選車型與動力類型不一致。")
+        if model and not selected_energy_type:
+            data["vehicle_energy_type"] = model.energy_type
+            self.cleaned_data["vehicle_energy_type"] = model.energy_type
         color = data.get("color")
         if model and color and color.vehicle_model_id != model.id:
             self.add_error("color", "請選擇此車型可用的車色。")
 
         for field_name in ("old_vehicle_valuation", "old_vehicle_tax"):
             if data.get(field_name) is None:
+                data[field_name] = 0
+                self.cleaned_data[field_name] = 0
+
+        registration_date = data.get("registration_date")
+        insurance_period = (
+            data.get("compulsory_insurance_period")
+            or SalesOrder.CompulsoryInsurancePeriod.ONE_YEAR
+        )
+        data["compulsory_insurance_period"] = insurance_period
+        self.cleaned_data["compulsory_insurance_period"] = insurance_period
+        for field_name in ("plate_selection_fee", "lien_registration_fee"):
+            if data.get(field_name) is None:
+                data[field_name] = 0
+                self.cleaned_data[field_name] = 0
+        if model and model.energy_type == VehicleModel.EnergyType.GAS:
+            if registration_date and model.displacement_cc:
+                try:
+                    result = calculate_registration_fee(
+                        model.displacement_cc,
+                        registration_date,
+                        insurance_period,
+                    )
+                except UnsupportedRegistrationFee as exc:
+                    self.add_error("vehicle_model", str(exc))
+                else:
+                    calculated_fields = {
+                        "registration_rate_class": result.rate_class,
+                        "registration_plate_fee": result.plate_fee,
+                        "registration_license_fee": result.license_fee,
+                        "registration_inspection_fee": result.inspection_fee,
+                        "road_maintenance_fee": result.road_maintenance_fee,
+                        "license_tax_fee": result.license_tax_fee,
+                        "compulsory_insurance_fee": result.compulsory_insurance_fee,
+                    }
+                    for field_name, value in calculated_fields.items():
+                        data[field_name] = value
+                        self.cleaned_data[field_name] = value
+                    calculated_total = (
+                        result.fixed_and_variable_total
+                        + data["plate_selection_fee"]
+                        + data["lien_registration_fee"]
+                    )
+                    data["registration_calculated_total"] = calculated_total
+                    self.cleaned_data["registration_calculated_total"] = (
+                        calculated_total
+                    )
+                    self.instance.registration_rate_class = result.rate_class
+                    self.instance.registration_calculated_total = calculated_total
+                    if (
+                        data.get("plate_insurance_fee") is None
+                        or (
+                            self._plate_fee_was_automatic
+                            and data.get("plate_insurance_fee")
+                            == self._previous_plate_insurance_fee
+                        )
+                    ):
+                        data["plate_insurance_fee"] = calculated_total
+                        self.cleaned_data["plate_insurance_fee"] = calculated_total
+            else:
+                self.instance.registration_rate_class = ""
+                self.instance.registration_calculated_total = 0
+        elif model:
+            self.instance.registration_rate_class = ""
+            self.instance.registration_calculated_total = 0
+            for field_name in (
+                "registration_plate_fee",
+                "registration_license_fee",
+                "registration_inspection_fee",
+                "road_maintenance_fee",
+                "license_tax_fee",
+                "compulsory_insurance_fee",
+                "registration_calculated_total",
+            ):
                 data[field_name] = 0
                 self.cleaned_data[field_name] = 0
 

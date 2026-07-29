@@ -26,8 +26,14 @@ class Command(BaseCommand):
         model, _ = VehicleModel.objects.get_or_create(
             brand="SUZUKI",
             name="SUI 125",
-            defaults={"energy_type": VehicleModel.EnergyType.GAS},
+            defaults={
+                "energy_type": VehicleModel.EnergyType.GAS,
+                "displacement_cc": 125,
+            },
         )
+        if not model.displacement_cc:
+            model.displacement_cc = 125
+            model.save(update_fields=["displacement_cc", "updated_at"])
         for color in ("白", "黑", "灰"):
             VehicleColor.objects.get_or_create(vehicle_model=model, name=color)
 

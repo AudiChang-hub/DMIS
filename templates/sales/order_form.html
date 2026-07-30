@@ -20,13 +20,6 @@
   <input type="hidden" name="_field_versions" id="field-versions" value="{}">
   {{ formset.management_form }}
   {{ fee_formset.management_form }}
-  <div class="ocr-screen-lock" id="ocr-screen-lock" role="alert" aria-live="assertive" hidden>
-    <div class="ocr-screen-lock-card">
-      <span class="ocr-screen-spinner" aria-hidden="true"></span>
-      <strong>正在辨識證件</strong>
-      <p>請稍候，不要關閉或離開這個畫面。</p>
-    </div>
-  </div>
   <section class="hero-row compact-hero form-heading">
     <div><p class="eyebrow">{% if editing_order %}正式訂單{% else %}訂單建檔{% endif %}</p><h1>{% if editing_order %}編輯訂單{% elif draft %}繼續編輯草稿{% else %}建立新訂單{% endif %}</h1><p class="muted">{% if editing_order %}儲存後會保留修改人、時間、原因及變更前後內容。{% else %}依序填寫，送出後直接進入待配車。{% endif %}</p></div>
     <div class="hero-actions">
@@ -332,7 +325,6 @@
   const ocrStatus = byId("ocr-status");
   const ocrMessage = byId("ocr-message");
   const ocrButton = byId("run-id-ocr");
-  const ocrScreenLock = byId("ocr-screen-lock");
   const orderForm = byId("order-form");
   const draftId = byId("draft-id");
   const editingOrderId = byId("editing-order-id").value;
@@ -351,7 +343,9 @@
   const progressSections = progressLinks.map(link => byId(link.hash.slice(1)));
   let ocrRunning = false;
   let ocrRequestVersion = 0;
-  let ocrAbortController = null;
+  let currentOcrJobId = null;
+  let ocrPollTimer = null;
+  let pendingOcrResult = null;
   let draftTimer = null;
   let draftSaving = false;
   let draftQueued = false;
@@ -597,52 +591,129 @@
     if (ocrRunning || ownerType.value !== "local") return;
     if (!idFront.files.length || !idBack.files.length) return;
     const requestVersion = ++ocrRequestVersion;
-    ocrAbortController = new AbortController();
+    const photoToken = `${Date.now()}-${photoVersion.id_front}-${photoVersion.id_back}`;
     ocrRunning = true;
-    ocrScreenLock.hidden = false;
-    document.body.classList.add("screen-locked");
     ocrStatus.hidden = false;
     ocrStatus.className = "ocr-status loading";
-    ocrMessage.textContent = "正在辨識證件，請稍候…";
+    ocrMessage.textContent = "證件已送交背景辨識，您可以繼續填寫其他欄位。";
     ocrButton.hidden = true;
     const payload = new FormData();
     payload.append("front", idFront.files[0]);
     payload.append("back", idBack.files[0]);
+    payload.append("photo_token", photoToken);
     try {
       const response = await fetch("{% url 'id_card_ocr' %}", {
         method: "POST",
         headers: {"X-CSRFToken": document.querySelector("[name=csrfmiddlewaretoken]").value},
         body: payload,
-        signal: ocrAbortController.signal,
       });
       const data = await response.json();
       if (requestVersion !== ocrRequestVersion) return;
-      if (!response.ok || !data.ok) throw new Error(data.error || "辨識失敗");
-      const fields = data.fields || {};
-      if (fields.name) byId("id_owner_name").value = fields.name;
-      if (fields.birth_date) byId("id_owner_birth_date").value = fields.birth_date;
-      if (fields.id_number) byId("id_owner_id_number").value = fields.id_number;
-      if (fields.address) byId("id_owner_address").value = fields.address;
-      byId("id_id_verified").checked = false;
-      ocrStatus.className = data.warnings.length ? "ocr-status warning" : "ocr-status success";
-      ocrMessage.textContent = data.warnings.length
-        ? `辨識完成；${data.warnings.join(" ")}`
-        : "辨識完成，請逐項對照照片後勾選「已人工核對證件」。";
-      scheduleDraft();
+      if (!response.ok || !data.ok) throw new Error(data.error || "無法排入辨識工作");
+      currentOcrJobId = data.job_id;
+      pollIdOcr(data.job_id, photoToken, requestVersion);
     } catch (error) {
       if (requestVersion !== ocrRequestVersion) return;
-      if (error.name === "AbortError") return;
+      ocrRunning = false;
       ocrStatus.className = "ocr-status error";
       ocrMessage.textContent = `${error.message} 可重新拍攝或改為人工輸入。`;
-    } finally {
-      if (requestVersion === ocrRequestVersion) {
-        ocrRunning = false;
-        ocrAbortController = null;
-        ocrScreenLock.hidden = true;
-        document.body.classList.remove("screen-locked");
-        ocrButton.hidden = false;
-      }
+      ocrButton.hidden = false;
     }
+  }
+
+  async function pollIdOcr(jobId, photoToken, requestVersion) {
+    if (requestVersion !== ocrRequestVersion || jobId !== currentOcrJobId) return;
+    try {
+      const response = await fetch(`/api/id-card-ocr/${jobId}/`, {
+        headers: {"X-Requested-With": "XMLHttpRequest"},
+      });
+      const data = await response.json();
+      if (!response.ok || !data.ok) throw new Error(data.error || "無法取得辨識進度");
+      if (data.photo_token !== photoToken) return;
+      if (["queued", "running"].includes(data.status)) {
+        ocrPollTimer = window.setTimeout(
+          () => pollIdOcr(jobId, photoToken, requestVersion),
+          2000
+        );
+        return;
+      }
+      ocrRunning = false;
+      ocrButton.hidden = false;
+      if (data.status === "succeeded") {
+        pendingOcrResult = data;
+        ocrStatus.className = data.warnings?.length
+          ? "ocr-status warning" : "ocr-status success";
+        ocrMessage.textContent = "證件辨識完成，請回到車主資料核對後再採用。";
+        ocrButton.textContent = "查看並採用辨識結果";
+        showOcrCompletedNotice();
+      } else if (data.status === "failed") {
+        ocrStatus.className = "ocr-status error";
+        ocrMessage.textContent = `${data.error || "辨識失敗"} 可重新辨識或人工輸入。`;
+        ocrButton.textContent = "重新辨識";
+      }
+    } catch (error) {
+      ocrRunning = false;
+      ocrButton.hidden = false;
+      ocrButton.textContent = "重新辨識";
+      ocrStatus.className = "ocr-status error";
+      ocrMessage.textContent = `${error.message} 請稍後重新辨識。`;
+    }
+  }
+
+  function applyOcrResult() {
+    if (!pendingOcrResult) return;
+    const fields = pendingOcrResult.fields || {};
+    const mapping = {
+      name: "id_owner_name",
+      birth_date: "id_owner_birth_date",
+      id_number: "id_owner_id_number",
+      address: "id_owner_address",
+    };
+    Object.entries(mapping).forEach(([source, target]) => {
+      if (!fields[source]) return;
+      const input = byId(target);
+      if (!input.value || window.confirm(
+        `${input.labels?.[0]?.textContent || "此欄位"}已有內容「${input.value}」，要改用辨識結果「${fields[source]}」嗎？`
+      )) input.value = fields[source];
+    });
+    byId("id_id_verified").checked = false;
+    byId("owner").open = true;
+    byId("owner").scrollIntoView({behavior: "smooth", block: "start"});
+    ocrMessage.textContent = pendingOcrResult.warnings?.length
+      ? `已套用；${pendingOcrResult.warnings.join(" ")}`
+      : "已套用辨識結果，請逐項對照照片後勾選「已人工核對證件」。";
+    pendingOcrResult = null;
+    ocrButton.textContent = "重新辨識";
+    scheduleDraft();
+  }
+
+  function showOcrCompletedNotice() {
+    const notice = document.createElement("div");
+    notice.className = "ocr-completed-notice";
+    notice.innerHTML = "<strong>證件辨識完成</strong><span>請前往車主資料核對</span>";
+    const button = document.createElement("button");
+    button.type = "button";
+    button.textContent = "前往核對";
+    button.addEventListener("click", () => {
+      notice.remove();
+      applyOcrResult();
+    });
+    notice.append(button);
+    document.body.append(notice);
+    window.setTimeout(() => notice.remove(), 12000);
+  }
+
+  async function invalidateCurrentOcr() {
+    window.clearTimeout(ocrPollTimer);
+    if (!currentOcrJobId) return;
+    const jobId = currentOcrJobId;
+    currentOcrJobId = null;
+    try {
+      await fetch(`/api/id-card-ocr/${jobId}/invalidate/`, {
+        method: "POST",
+        headers: {"X-CSRFToken": document.querySelector("[name=csrfmiddlewaretoken]").value},
+      });
+    } catch (_) {}
   }
 
   function refreshPhotoButtons() {
@@ -667,12 +738,10 @@
       preview.src = URL.createObjectURL(event.target.files[0]);
       preview.hidden = false;
     }
-    if (ocrAbortController) ocrAbortController.abort();
+    invalidateCurrentOcr();
     ocrRequestVersion += 1;
     ocrRunning = false;
-    ocrAbortController = null;
-    ocrScreenLock.hidden = true;
-    document.body.classList.remove("screen-locked");
+    pendingOcrResult = null;
     refreshPhotoButtons();
     byId("id_id_verified").checked = false;
     runIdOcr();
@@ -696,12 +765,10 @@
         preview.removeAttribute("src");
         preview.hidden = true;
       }
-      if (ocrAbortController) ocrAbortController.abort();
+      invalidateCurrentOcr();
       ocrRequestVersion += 1;
       ocrRunning = false;
-      ocrAbortController = null;
-      ocrScreenLock.hidden = true;
-      document.body.classList.remove("screen-locked");
+      pendingOcrResult = null;
       byId("id_id_verified").checked = false;
       ocrStatus.hidden = false;
       ocrStatus.className = "ocr-status warning";
@@ -721,7 +788,10 @@
       if (preview.src) window.open(preview.src, "_blank", "noopener");
     });
   });
-  ocrButton.addEventListener("click", runIdOcr);
+  ocrButton.addEventListener("click", () => {
+    if (pendingOcrResult) applyOcrResult();
+    else runIdOcr();
+  });
   refreshPhotoButtons();
 
   function refreshAccessoryRequired(row) {

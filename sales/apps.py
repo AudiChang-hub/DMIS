@@ -6,3 +6,6 @@ class SalesConfig(AppConfig):
     name = "sales"
     verbose_name = "車輛銷售"
 
+    def ready(self):
+        from . import signals  # noqa: F401
+

@@ -67,12 +67,17 @@ h2 { margin-bottom: 0; font-size: 1.15rem; }
 .brand strong, .brand small { display: block; }
 .brand small { color: #cbdad2; font-size: .7rem; }
 .update-check-button {
-  display: grid; width: 42px; height: 42px; margin-left: 10px; place-items: center;
-  flex: 0 0 auto; color: #fff; background: rgba(255,255,255,.1);
-  border: 1px solid rgba(255,255,255,.22); border-radius: 12px;
-  font-size: 1.45rem; font-weight: 900; cursor: pointer;
+  display: inline-flex; min-height: 42px; margin-left: 8px; padding: 0 10px;
+  align-items: center; gap: 7px; flex: 0 0 auto; color: #dbe8e1;
+  background: transparent; border: 0; border-radius: 9px;
+  font-size: .82rem; font-weight: 700; cursor: pointer;
 }
-.update-check-button:active { background: rgba(255,255,255,.2); }
+.update-check-button:hover { color: #fff; background: rgba(255,255,255,.08); }
+.update-check-button:active { background: rgba(255,255,255,.14); }
+.update-check-icon {
+  width: 17px; height: 17px; fill: none; stroke: currentColor;
+  stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round;
+}
 .desktop-nav { display: flex; align-self: stretch; }
 .desktop-nav a { display: grid; padding: 0 18px; place-items: center; color: #dbe8e1; font-weight: 700; font-size: .92rem; }
 .desktop-nav a:hover, .desktop-nav a.active { color: #fff; background: rgba(255,255,255,.12); }
@@ -815,7 +820,12 @@ body.screen-locked { overflow: hidden; }
   .app-header { min-height: 62px; padding: 0 16px; }
   .app-header-inner { min-height: 62px; }
   .brand small { display: none; }
-  .update-check-button { margin-left: auto; }
+  .update-check-button {
+    width: 40px; height: 40px; min-height: 40px; margin-left: auto; padding: 0;
+    justify-content: center; color: #dbe8e1; border-radius: 50%;
+  }
+  .update-check-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  .update-check-icon { width: 19px; height: 19px; }
   .page-shell, .page-shell--wide, .page-shell--form, .page-shell--compact {
     width: min(100% - 24px, 700px); max-width: 700px; padding: 24px 0 104px;
   }

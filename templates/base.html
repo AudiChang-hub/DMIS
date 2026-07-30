@@ -18,13 +18,18 @@
         <span><strong>車輛銷售管理</strong><small>訂單、配車、交付都在同一處</small></span>
       </a>
       {% if user.is_authenticated %}
-        <button type="button" class="update-check-button" data-check-update aria-label="檢查系統更新" title="檢查系統更新">↻</button>
         <nav class="desktop-nav" aria-label="主要選單">
           <a href="{% url 'dashboard' %}" {% if request.resolver_match.url_name == 'dashboard' %}class="active" aria-current="page"{% endif %}>待辦首頁</a>
           <a href="{% url 'order_list' %}" {% if request.resolver_match.url_name == 'order_list' or request.resolver_match.url_name == 'order_detail' or request.resolver_match.url_name == 'order_edit' or request.resolver_match.url_name == 'order_create' %}class="active" aria-current="page"{% endif %}>全部訂單</a>
           <a href="{% url 'inventory_list' %}" {% if request.resolver_match.url_name == 'inventory_list' or request.resolver_match.url_name == 'inventory_create' %}class="active" aria-current="page"{% endif %}>實體庫存</a>
           <a href="{% url 'admin:index' %}">主檔維護</a>
         </nav>
+        <button type="button" class="update-check-button" data-check-update aria-label="檢查系統更新" title="檢查系統更新">
+          <svg class="update-check-icon" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M20 6v5h-5M4 18v-5h5M18.2 9A7 7 0 0 0 6.7 6.7L4 9m16 6-2.7 2.3A7 7 0 0 1 5.8 15"/>
+          </svg>
+          <span class="update-check-label">檢查更新</span>
+        </button>
         <form action="{% url 'logout' %}" method="post" class="logout-form">
           {% csrf_token %}
           <button type="submit" class="link-button">登出</button>

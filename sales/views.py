@@ -1976,6 +1976,10 @@ def _vehicle_model_form_view(request, instance=None):
         instance=instance,
         prefix="colors",
     )
+    # 新增車型時預設提供一個顏色欄位；編輯時只顯示既有顏色，
+    # 需要更多顏色再由使用者按「新增顏色」。
+    if is_editing:
+        color_formset.extra = 0
     if request.method == "POST" and form.is_valid() and color_formset.is_valid():
         with transaction.atomic():
             vehicle_model = form.save()

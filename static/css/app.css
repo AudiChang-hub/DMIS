@@ -1002,7 +1002,60 @@ body.screen-locked { overflow: hidden; }
 .login-card h2 { margin-bottom: 12px; }
 .login-card label { margin-top: 5px; font-size: .8rem; font-weight: 800; }
 
+.operations-summary {
+  display: grid; margin: 0 0 18px; grid-template-columns: repeat(4, minmax(0, 1fr));
+  overflow: hidden; border: 1px solid var(--line); border-radius: 18px; background: #fff;
+  box-shadow: var(--shadow);
+}
+.operations-summary > div { display: grid; min-width: 0; padding: 18px 20px; gap: 5px; border-right: 1px solid var(--line); }
+.operations-summary > div:last-child { border-right: 0; }
+.operations-summary small { color: var(--muted); font-weight: 800; }
+.operations-summary strong { color: var(--ink); font-size: 1.5rem; }
+.operations-summary .profit { background: #edf6f1; }
+.operations-summary .profit strong, .profit-value { color: var(--forest); font-weight: 900; }
+.operations-form { display: grid; padding-bottom: 94px; gap: 14px; }
+.operation-section { overflow: hidden; border: 1px solid var(--line); border-radius: 16px; background: #fff; box-shadow: var(--shadow); }
+.operation-section > summary {
+  display: flex; padding: 18px 20px; align-items: center; justify-content: space-between;
+  gap: 16px; cursor: pointer; list-style-position: inside;
+}
+.operation-section > summary span { color: var(--muted); font-size: .84rem; font-weight: 700; }
+.operation-section[open] > summary { border-bottom: 1px solid var(--line); background: #f8fbf9; }
+.operation-grid { display: grid; padding: 20px; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+.operation-grid > *, .payment-record-row > * { min-width: 0; }
+.payment-records { display: grid; padding: 0 20px; gap: 12px; }
+.payment-record-row {
+  display: grid; padding: 16px; grid-template-columns: repeat(4, minmax(0, 1fr));
+  align-items: end; gap: 12px; border: 1px solid var(--line); border-radius: 14px; background: #fbfcfb;
+}
+.payment-record-row .field-wrap:last-of-type { grid-column: span 2; }
+.add-operation-row { margin: 14px 20px 20px; }
+.operation-change-reason { padding: 18px 20px; border: 1px solid var(--line); border-radius: 16px; background: #fff; }
+.operations-actions {
+  position: static; display: flex; padding: 12px;
+  justify-content: flex-end; gap: 10px; border: 1px solid var(--line);
+  border-radius: 16px; background: rgba(18, 55, 42, .96); box-shadow: var(--shadow-lg);
+}
+.operations-filters { grid-template-columns: minmax(260px, 2fr) repeat(4, minmax(130px, 1fr)) auto; }
+.operations-filters > div { display: grid; min-width: 0; gap: 6px; }
+.operations-filters > div label { color: var(--muted); font-size: .74rem; font-weight: 900; }
+.operations-filters > div input, .operations-filters > div select {
+  width: 100%; min-height: 42px; padding: 0 12px; border: 1px solid var(--line);
+  border-radius: 10px; background: #fff; color: var(--ink);
+}
+.operations-filters > .inventory-filter-actions { display: flex; }
+.operations-table-shell { padding: 0; }
+.operations-table-shell .section-title { padding: 18px 20px; }
+.operations-table td small { display: block; margin-top: 4px; color: var(--muted); }
+.operations-table .number-cell { text-align: right; white-space: nowrap; }
+
 @media (max-width: 860px) {
+  .operations-summary { grid-template-columns: 1fr 1fr; }
+  .operations-summary > div:nth-child(2) { border-right: 0; }
+  .operations-summary > div:nth-child(-n+2) { border-bottom: 1px solid var(--line); }
+  .operation-grid, .payment-record-row { grid-template-columns: 1fr 1fr; }
+  .operations-filters { grid-template-columns: 1fr 1fr; }
+  .operations-filters .master-search, .operations-filters .inventory-filter-actions { grid-column: 1 / -1; }
   .desktop-nav, .logout-form { display: none; }
   .app-header { min-height: 62px; padding: 0 16px; }
   .app-header-inner { min-height: 62px; }
@@ -1040,6 +1093,16 @@ body.screen-locked { overflow: hidden; }
 }
 
 @media (max-width: 600px) {
+  .operations-summary { grid-template-columns: 1fr 1fr; }
+  .operations-summary > div { padding: 14px; }
+  .operations-summary strong { font-size: 1.18rem; }
+  .operation-section > summary { padding: 16px; align-items: flex-start; flex-direction: column; gap: 4px; }
+  .operation-grid, .payment-record-row { grid-template-columns: 1fr; padding: 14px; }
+  .payment-records { padding: 0 14px; }
+  .payment-record-row .field-wrap:last-of-type { grid-column: auto; }
+  .add-operation-row { width: calc(100% - 28px); margin: 14px; }
+  .operations-actions .button { flex: 1; }
+  .operations-filters { grid-template-columns: 1fr 1fr; }
   .app-update-banner {
     top: 70px; right: 12px; width: calc(100vw - 24px);
     grid-template-columns: auto 1fr auto;

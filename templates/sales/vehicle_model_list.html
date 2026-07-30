@@ -48,7 +48,7 @@
         {% for item in vehicle_models %}
         <tr>
           <td data-label="品牌／機種"><strong>{{ item.brand }}</strong><span>{{ item.name }}</span></td>
-          <td data-label="年份／型式"><strong>{{ item.model_year|default:"待補" }}</strong><span>{{ item.model_code|default:"待補" }}</span></td>
+          <td data-label="年份／型式"><strong>{{ item.model_year|default:"待補" }}</strong><span>{% if item.model_code %}{{ item.get_model_code_display }}{% else %}待補{% endif %}</span></td>
           <td data-label="能源別">{{ item.get_energy_type_display }}</td>
           <td data-label="排氣量">{% if item.displacement_cc %}{{ item.displacement_cc }} c.c.{% else %}—{% endif %}</td>
           <td data-label="建議售價">{% if item.suggested_price is not None %}${{ item.suggested_price|floatformat:0 }}{% else %}未填寫{% endif %}</td>

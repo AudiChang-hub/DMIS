@@ -7,6 +7,12 @@ urlpatterns = [
     path("api/app-version/", views.app_version, name="app_version"),
     path("", views.dashboard, name="dashboard"),
     path("orders/", views.order_list, name="order_list"),
+    path("operations/", views.operations_report, name="operations_report"),
+    path(
+        "operations/export/",
+        views.operations_report_export,
+        name="operations_report_export",
+    ),
     path("orders/new/", views.order_create, name="order_create"),
     path("orders/drafts/save/", views.draft_save, name="draft_save"),
     path(
@@ -17,6 +23,16 @@ urlpatterns = [
     path("orders/drafts/<uuid:pk>/delete/", views.draft_delete, name="draft_delete"),
     path("orders/<int:pk>/", views.order_detail, name="order_detail"),
     path("orders/<int:pk>/edit/", views.order_edit, name="order_edit"),
+    path(
+        "orders/<int:pk>/operations/",
+        views.order_operations,
+        name="order_operations",
+    ),
+    path(
+        "orders/<int:pk>/operations/reveal-secret/",
+        views.order_secret_reveal,
+        name="order_secret_reveal",
+    ),
     path(
         "orders/<int:pk>/edit/presence/",
         views.order_edit_presence,

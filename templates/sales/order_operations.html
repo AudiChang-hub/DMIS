@@ -1,0 +1,145 @@
+{% extends "base.html" %}
+{% block title %}營運資料｜{{ order.number }}{% endblock %}
+{% block page_class %}page-shell--wide{% endblock %}
+{% block content %}
+{% url 'order_detail' order.pk as order_url %}
+{% include "sales/_page_back.html" with fallback_url=order_url label="返回訂單" %}
+<section class="hero-row compact-hero">
+  <div><p class="eyebrow">收款、成本與後續作業</p><h1>營運資料</h1><p class="muted">{{ order.number }} · {{ order.owner_name }} · {{ order.vehicle_model }}</p></div>
+  <a class="button ghost" href="{% url 'operations_report' %}">營運總表</a>
+</section>
+<section class="operations-summary">
+  <div><small>總收款金額</small><strong>${{ profile.total_received|floatformat:0 }}</strong></div>
+  <div><small>總收入</small><strong>${{ profile.total_income|floatformat:0 }}</strong></div>
+  <div><small>總支出</small><strong>${{ profile.total_expense|floatformat:0 }}</strong></div>
+  <div class="profit"><small>單筆淨利</small><strong>${{ profile.net_profit|floatformat:0 }}</strong></div>
+</section>
+
+<form method="post" enctype="multipart/form-data" class="operations-form">
+  {% csrf_token %}{{ payment_formset.management_form }}
+  {% if form.non_field_errors or payment_formset.non_form_errors %}<div class="message error">{{ form.non_field_errors }}{{ payment_formset.non_form_errors }}</div>{% endif %}
+  <details class="operation-section" open><summary><strong>收款與分期對帳</strong><span>多筆收款、撥款與發票</span></summary>
+    <div class="operation-grid">
+      {% include "sales/_field.html" with field=form.dealer_name %}
+      {% include "sales/_field.html" with field=form.actual_disbursement %}
+      {% include "sales/_field.html" with field=form.payment_confirmed %}
+      {% include "sales/_field.html" with field=form.installment_transfer_confirmed %}
+      {% include "sales/_field.html" with field=form.invoice_date %}
+      {% include "sales/_field.html" with field=form.balance_invoice_number %}
+      {% include "sales/_field.html" with field=form.installment_info %}
+    </div>
+    <div class="payment-records" id="payment-records">
+      {% for payment in payment_formset %}
+      <div class="payment-record-row" data-payment-row>
+        {{ payment.id }}
+        {% include "sales/_field.html" with field=payment.item_name %}
+        {% include "sales/_field.html" with field=payment.expected_amount %}
+        {% include "sales/_field.html" with field=payment.received_amount %}
+        {% include "sales/_field.html" with field=payment.received_on %}
+        {% include "sales/_field.html" with field=payment.payment_method %}
+        {% include "sales/_field.html" with field=payment.receiving_account %}
+        {% include "sales/_field.html" with field=payment.confirmed %}
+        {% include "sales/_field.html" with field=payment.proof %}
+        {% include "sales/_field.html" with field=payment.note %}
+        <span hidden>{{ payment.DELETE }}</span>
+        <button type="button" class="button danger-outline small" data-delete-payment>刪除此筆收款</button>
+      </div>
+      {% endfor %}
+    </div>
+    <template id="payment-empty-row"><div class="payment-record-row" data-payment-row>
+      {{ payment_formset.empty_form.id }}
+      {% include "sales/_field.html" with field=payment_formset.empty_form.item_name %}
+      {% include "sales/_field.html" with field=payment_formset.empty_form.expected_amount %}
+      {% include "sales/_field.html" with field=payment_formset.empty_form.received_amount %}
+      {% include "sales/_field.html" with field=payment_formset.empty_form.received_on %}
+      {% include "sales/_field.html" with field=payment_formset.empty_form.payment_method %}
+      {% include "sales/_field.html" with field=payment_formset.empty_form.receiving_account %}
+      {% include "sales/_field.html" with field=payment_formset.empty_form.confirmed %}
+      {% include "sales/_field.html" with field=payment_formset.empty_form.proof %}
+      {% include "sales/_field.html" with field=payment_formset.empty_form.note %}
+      <span hidden>{{ payment_formset.empty_form.DELETE }}</span>
+      <button type="button" class="button danger-outline small" data-delete-payment>刪除此筆收款</button>
+    </div></template>
+    <button type="button" class="button ghost add-operation-row" id="add-payment">＋ 新增收款紀錄</button>
+  </details>
+
+  <details class="operation-section"><summary><strong>成本與支出</strong><span>影響單筆淨利</span></summary><div class="operation-grid">
+    {% include "sales/_field.html" with field=form.vehicle_cost %}
+    {% include "sales/_field.html" with field=form.registration_tax_expense %}
+    {% include "sales/_field.html" with field=form.compulsory_insurance_expense %}
+    {% include "sales/_field.html" with field=form.plate_selection_expense %}
+    {% include "sales/_field.html" with field=form.gift_shipping_expense %}
+    {% include "sales/_field.html" with field=form.dealer_commission_expense %}
+    {% include "sales/_field.html" with field=form.installment_interest_subsidy %}
+  </div></details>
+  <details class="operation-section"><summary><strong>收入、獎勵與傭金</strong><span>車款售價會由訂單自動帶入</span></summary><div class="operation-grid">
+    {% include "sales/_field.html" with field=form.registration_tax_income %}
+    {% include "sales/_field.html" with field=form.compulsory_insurance_income %}
+    {% include "sales/_field.html" with field=form.agency_fee_income %}
+    {% include "sales/_field.html" with field=form.plate_selection_income %}
+    {% include "sales/_field.html" with field=form.installment_fee_income %}
+    {% include "sales/_field.html" with field=form.card_fee_income %}
+    {% include "sales/_field.html" with field=form.other_income %}
+    {% include "sales/_field.html" with field=form.sales_bonus %}
+    {% include "sales/_field.html" with field=form.promotion_subsidy %}
+    {% include "sales/_field.html" with field=form.insurance_commission %}
+    {% include "sales/_field.html" with field=form.credit_card_commission %}
+  </div></details>
+  <details class="operation-section"><summary><strong>補助撥款追蹤</strong><span>各政府單位可分別追蹤</span></summary><div class="operation-grid">
+    {% include "sales/_field.html" with field=form.subsidy_amount %}
+    {% include "sales/_field.html" with field=form.bank_name %}
+    {% include "sales/_field.html" with field=form.remittance_account %}
+    {% include "sales/_field.html" with field=form.subsidy_applied_on %}
+    {% include "sales/_field.html" with field=form.industry_bureau_status %}
+    {% include "sales/_field.html" with field=form.environment_ministry_status %}
+    {% include "sales/_field.html" with field=form.local_government_status %}
+  </div></details>
+  <details class="operation-section"><summary><strong>舊車與報廢資料</strong><span>車主姓名、證號與舊車牌沿用補助頁資料</span></summary><div class="operation-grid">
+    {% include "sales/_field.html" with field=form.old_vehicle_engine_number %}
+    {% include "sales/_field.html" with field=form.old_vehicle_brand %}
+    {% include "sales/_field.html" with field=form.old_vehicle_displacement_cc %}
+    {% include "sales/_field.html" with field=form.old_vehicle_manufactured_on %}
+    {% include "sales/_field.html" with field=form.scrapped_on %}
+    {% include "sales/_field.html" with field=form.recycled_on %}
+  </div></details>
+  <details class="operation-section"{% if is_electric %} open{% endif %}><summary><strong>車控與電池合約</strong><span>密碼加密保存，查看會留下紀錄</span></summary><div class="operation-grid">
+    {% include "sales/_field.html" with field=form.vehicle_control_account %}
+    {% include "sales/_field.html" with field=form.vehicle_control_password %}
+    <button type="button" class="button ghost small secret-reveal" data-secret="vehicle_control_password">查看已存車控密碼</button>
+    {% include "sales/_field.html" with field=form.battery_plan %}
+    {% include "sales/_field.html" with field=form.battery_activated_on %}
+    {% include "sales/_field.html" with field=form.battery_account %}
+    {% include "sales/_field.html" with field=form.battery_password %}
+    <button type="button" class="button ghost small secret-reveal" data-secret="battery_password">查看已存電池密碼</button>
+  </div></details>
+  <details class="operation-section"><summary><strong>贈品與履約</strong><span>記錄交付內容</span></summary><div class="operation-grid">
+    {% include "sales/_field.html" with field=form.helmet %}
+    {% include "sales/_field.html" with field=form.company_gift_or_remittance %}
+    {% include "sales/_field.html" with field=form.platform_gift %}
+    {% include "sales/_field.html" with field=form.other_fulfillment %}
+    {% include "sales/_field.html" with field=form.customer_service_phone %}
+  </div></details>
+  <div class="operation-change-reason">{% include "sales/_field.html" with field=form.change_reason %}</div>
+  <div class="operations-actions"><a class="button ghost" href="{% url 'order_detail' order.pk %}">取消</a><button class="button primary" type="submit">儲存營運資料</button></div>
+</form>
+{% endblock %}
+{% block scripts %}
+<script>
+(() => {
+  const rows = document.getElementById("payment-records");
+  const total = document.getElementById("id_payments-TOTAL_FORMS");
+  function bind(row) { row.querySelector("[data-delete-payment]").addEventListener("click", () => { row.querySelector('[name$="-DELETE"]').checked = true; row.hidden = true; }); }
+  rows.querySelectorAll("[data-payment-row]").forEach(bind);
+  document.getElementById("add-payment").addEventListener("click", () => {
+    const i = Number(total.value), box = document.createElement("div");
+    box.innerHTML = document.getElementById("payment-empty-row").innerHTML.replaceAll("__prefix__", i).trim();
+    rows.appendChild(box.firstElementChild); total.value = i + 1; bind(rows.lastElementChild);
+  });
+  document.querySelectorAll(".secret-reveal").forEach(button => button.addEventListener("click", async () => {
+    const body = new URLSearchParams({field: button.dataset.secret});
+    const response = await fetch("{% url 'order_secret_reveal' order.pk %}", {method:"POST", headers:{"X-CSRFToken":"{{ csrf_token }}","Content-Type":"application/x-www-form-urlencoded"}, body});
+    const data = await response.json(); alert(data.ok ? (data.value || "尚未設定") : data.error);
+  }));
+})();
+</script>
+{% endblock %}

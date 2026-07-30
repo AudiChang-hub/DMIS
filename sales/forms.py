@@ -1,3 +1,4 @@
+from decimal import Decimal
 from pathlib import Path
 
 from django import forms
@@ -9,6 +10,8 @@ from django.utils import timezone
 from .models import (
     AccessoryLine,
     OtherFeeLine,
+    OrderOperationsProfile,
+    PaymentRecord,
     RegistrationDocument,
     SalesOrder,
     SalesSource,
@@ -628,7 +631,7 @@ class VehicleModelMasterForm(forms.ModelForm):
             brand__iexact=brand,
             name__iexact=name,
             model_year=model_year,
-            model_code__iexact=model_code,
+            model_code=model_code,
         )
         if self.instance.pk:
             duplicate = duplicate.exclude(pk=self.instance.pk)
@@ -690,6 +693,105 @@ VehicleColorMasterFormSet = inlineformset_factory(
     VehicleColor,
     form=VehicleColorMasterForm,
     formset=BaseVehicleColorFormSet,
+    extra=1,
+    can_delete=True,
+)
+
+
+class OrderOperationsForm(forms.ModelForm):
+    vehicle_control_password = forms.CharField(
+        label="車控密碼",
+        required=False,
+        widget=forms.PasswordInput(render_value=False),
+        help_text="留空表示保留目前密碼。",
+    )
+    battery_password = forms.CharField(
+        label="電池合約密碼",
+        required=False,
+        widget=forms.PasswordInput(render_value=False),
+        help_text="留空表示保留目前密碼。",
+    )
+    change_reason = forms.CharField(
+        label="本次更新說明（選填）",
+        required=False,
+        widget=forms.Textarea(attrs={"rows": 2}),
+    )
+
+    class Meta:
+        model = OrderOperationsProfile
+        exclude = [
+            "order",
+            "vehicle_control_password_encrypted",
+            "battery_password_encrypted",
+            "updated_by",
+        ]
+        widgets = {
+            "invoice_date": DateInput(),
+            "subsidy_applied_on": DateInput(),
+            "old_vehicle_manufactured_on": DateInput(),
+            "scrapped_on": DateInput(),
+            "recycled_on": DateInput(),
+            "battery_activated_on": DateInput(),
+            "other_fulfillment": forms.Textarea(attrs={"rows": 2}),
+            "installment_info": forms.Textarea(attrs={"rows": 2}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        for name, field in self.fields.items():
+            field.widget.attrs.setdefault("class", "form-control")
+            if isinstance(field, forms.DecimalField):
+                field.required = False
+                if not self.is_bound and self.initial.get(name) in (None, 0, Decimal("0")):
+                    self.initial[name] = ""
+        apply_mobile_keyboard_attrs(self)
+
+    def clean(self):
+        cleaned = super().clean()
+        for name, field in self.fields.items():
+            if isinstance(field, forms.DecimalField) and cleaned.get(name) is None:
+                cleaned[name] = Decimal("0")
+        return cleaned
+
+
+class PaymentRecordForm(forms.ModelForm):
+    class Meta:
+        model = PaymentRecord
+        fields = [
+            "item_name",
+            "expected_amount",
+            "received_amount",
+            "received_on",
+            "payment_method",
+            "receiving_account",
+            "confirmed",
+            "proof",
+            "note",
+        ]
+        widgets = {
+            "received_on": DateInput(),
+            "proof": forms.ClearableFileInput(
+                attrs={"accept": "image/*,application/pdf"}
+            ),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        for name, field in self.fields.items():
+            field.widget.attrs.setdefault("class", "form-control")
+            if (
+                isinstance(field, forms.DecimalField)
+                and not self.is_bound
+                and self.initial.get(name) in (None, 0, Decimal("0"))
+            ):
+                self.initial[name] = ""
+        apply_mobile_keyboard_attrs(self)
+
+
+PaymentRecordFormSet = inlineformset_factory(
+    SalesOrder,
+    PaymentRecord,
+    form=PaymentRecordForm,
     extra=1,
     can_delete=True,
 )

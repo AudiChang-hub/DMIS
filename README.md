@@ -39,6 +39,24 @@ python manage.py check
 python manage.py test sales
 ```
 
+### T470P 儲存與備份
+
+正式環境的 PostgreSQL 保留在 SSD；訂單媒體與本機備份位於
+`/srv/dmis-data/dmis-next`。`dmis-next-backup.timer` 每日執行：
+
+- PostgreSQL 每日備份保留 14 天、每週保留 8 週、每月保留約 12 個月。
+- 媒體每日同步目前鏡像，並建立每週、每月封存。
+
+維運檢查：
+
+```bash
+findmnt /srv/dmis-data
+systemctl status dmis-next-backup.timer
+journalctl -u dmis-next-backup.service -n 100 --no-pager
+```
+
+舊的 `dmis-next_django_media` volume 是遷移回復點，確認新儲存穩定前不得刪除。
+
 UI 有異動時，另以桌機、平板及手機 viewport 開啟主要頁面，並在網址加入
 `?ui_audit=1`。頁面根元素的 `data-ui-layout-issues` 必須為 `0`；完整檢查清單
 見 `specs/026-django-order-mvp/04-tasks.md`。

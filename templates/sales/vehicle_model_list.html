@@ -8,7 +8,7 @@
   <div>
     <p class="eyebrow">訂單與庫存共用資料</p>
     <h1>車型主檔</h1>
-    <p class="muted">維護品牌、能源別、機種、年份、型式、顏色、排氣量與建議售價。</p>
+    <p class="muted">維護品牌、能源別、機種、型號、年份、型式、顏色、排氣量與建議售價。</p>
   </div>
   <a class="button primary" href="{% url 'vehicle_model_create' %}">＋ 新增車型</a>
 </section>
@@ -16,7 +16,7 @@
 <form method="get" class="master-filters">
   <div class="inventory-filter master-search">
     <label for="model-q">搜尋</label>
-    <input id="model-q" type="search" name="q" value="{{ selected.q }}" placeholder="品牌、機種、型式或顏色">
+    <input id="model-q" type="search" name="q" value="{{ selected.q }}" placeholder="品牌、機種、型號、型式或顏色">
   </div>
   <div class="inventory-filter">
     <label for="model-energy">能源別</label>
@@ -43,11 +43,12 @@
   <div class="inventory-list-summary"><strong>共 {{ page_obj.paginator.count }} 個車型版本</strong></div>
   <div class="inventory-table-wrap">
     <table class="inventory-table master-model-table">
-      <thead><tr><th>品牌／機種</th><th>年份／型式</th><th>能源別</th><th>排氣量</th><th>建議售價</th><th>顏色</th><th>庫存</th><th>狀態</th><th></th></tr></thead>
+      <thead><tr><th>品牌／機種</th><th>型號</th><th>年份／型式</th><th>能源別</th><th>排氣量</th><th>建議售價</th><th>顏色</th><th>庫存</th><th>狀態</th><th></th></tr></thead>
       <tbody>
         {% for item in vehicle_models %}
         <tr>
           <td data-label="品牌／機種"><strong>{{ item.brand }}</strong><span>{{ item.name }}</span></td>
+          <td data-label="型號">{{ item.model_number|default:"待補" }}</td>
           <td data-label="年份／型式"><strong>{{ item.model_year|default:"待補" }}</strong><span>{% if item.model_code %}{{ item.get_model_code_display }}{% else %}待補{% endif %}</span></td>
           <td data-label="能源別">{{ item.get_energy_type_display }}</td>
           <td data-label="排氣量">{% if item.displacement_cc %}{{ item.displacement_cc }} c.c.{% else %}—{% endif %}</td>
@@ -58,7 +59,7 @@
           <td class="inventory-row-action"><a class="button ghost small" href="{% url 'vehicle_model_edit' item.pk %}">編輯</a></td>
         </tr>
         {% empty %}
-        <tr><td colspan="9"><div class="empty-state"><strong>尚無符合條件的車型</strong></div></td></tr>
+        <tr><td colspan="10"><div class="empty-state"><strong>尚無符合條件的車型</strong></div></td></tr>
         {% endfor %}
       </tbody>
     </table>

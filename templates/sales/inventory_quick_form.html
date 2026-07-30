@@ -1,0 +1,107 @@
+{% extends "base.html" %}
+{% block title %}快速進車｜車輛銷售管理{% endblock %}
+{% block page_class %}page-shell--wide{% endblock %}
+{% block content %}
+{% url 'inventory_list' as inventory_list_url %}
+{% include "sales/_page_back.html" with fallback_url=inventory_list_url label="返回實體庫存" %}
+<section class="hero-row compact-hero">
+  <div>
+    <p class="eyebrow">批次建立庫存</p>
+    <h1>快速進車</h1>
+    <p class="muted">每列代表一台車；進車地點固定為本店，資料全部正確後才會整批建立。</p>
+  </div>
+</section>
+
+<form method="post" class="quick-entry-form">
+  {% csrf_token %}
+  {{ formset.management_form }}
+  {% if formset.non_form_errors %}<div class="message error">{{ formset.non_form_errors }}</div>{% endif %}
+  <div class="quick-entry-panel">
+    <div class="quick-entry-head" aria-hidden="true">
+      <span>車型</span><span>車色</span><span>引擎／車身號碼</span><span>進車日期</span><span>車況說明（選填）</span><span></span>
+    </div>
+    <div id="quick-entry-rows">
+      {% for form in formset %}
+      <div class="quick-entry-row{% if form.errors %} has-error{% endif %}" data-quick-entry-row>
+        <div class="quick-entry-field" data-label="車型">{{ form.vehicle_model }}{% for error in form.vehicle_model.errors %}<small class="field-error">{{ error }}</small>{% endfor %}</div>
+        <div class="quick-entry-field" data-label="車色">{{ form.color }}{% for error in form.color.errors %}<small class="field-error">{{ error }}</small>{% endfor %}</div>
+        <div class="quick-entry-field" data-label="識別號碼"><label class="mobile-only identifier-label">引擎／車身號碼</label>{{ form.identifier }}{% for error in form.identifier.errors %}<small class="field-error">{{ error }}</small>{% endfor %}</div>
+        <div class="quick-entry-field" data-label="進車日期">{{ form.received_on }}{% for error in form.received_on.errors %}<small class="field-error">{{ error }}</small>{% endfor %}</div>
+        <div class="quick-entry-field" data-label="車況說明（選填）">{{ form.condition_note }}{% for error in form.condition_note.errors %}<small class="field-error">{{ error }}</small>{% endfor %}</div>
+        <div class="quick-entry-delete"><span hidden>{{ form.DELETE }}</span><button type="button" class="button danger-outline small" data-delete-row>刪除此列</button></div>
+        {% for error in form.non_field_errors %}<small class="field-error quick-entry-row-error">{{ error }}</small>{% endfor %}
+      </div>
+      {% endfor %}
+    </div>
+    <template id="quick-entry-empty-row">
+      <div class="quick-entry-row" data-quick-entry-row>
+        <div class="quick-entry-field" data-label="車型">{{ formset.empty_form.vehicle_model }}</div>
+        <div class="quick-entry-field" data-label="車色">{{ formset.empty_form.color }}</div>
+        <div class="quick-entry-field" data-label="識別號碼"><label class="mobile-only identifier-label">引擎／車身號碼</label>{{ formset.empty_form.identifier }}</div>
+        <div class="quick-entry-field" data-label="進車日期">{{ formset.empty_form.received_on }}</div>
+        <div class="quick-entry-field" data-label="車況說明（選填）">{{ formset.empty_form.condition_note }}</div>
+        <div class="quick-entry-delete"><span hidden>{{ formset.empty_form.DELETE }}</span><button type="button" class="button danger-outline small" data-delete-row>刪除此列</button></div>
+      </div>
+    </template>
+    <button type="button" class="button ghost quick-entry-add" id="add-quick-entry-row">＋ 新增一列</button>
+  </div>
+  <div class="quick-entry-actions">
+    <a class="button ghost" href="{% url 'inventory_list' %}">取消</a>
+    <button class="button primary" type="submit">建立全部車輛</button>
+  </div>
+</form>
+{{ energy_types|json_script:"vehicle-energy-types" }}
+{% endblock %}
+{% block scripts %}
+<script>
+(() => {
+  const rows = document.getElementById("quick-entry-rows");
+  const total = document.getElementById("id_vehicles-TOTAL_FORMS");
+  const template = document.getElementById("quick-entry-empty-row");
+  const energyTypes = JSON.parse(document.getElementById("vehicle-energy-types").textContent);
+  const colorUrl = "{% url 'vehicle_colors' %}";
+
+  function updateIdentifierLabel(row, modelId) {
+    const label = energyTypes[modelId] === "gas" ? "引擎號碼" : (modelId ? "車身號碼" : "引擎／車身號碼");
+    row.querySelector(".identifier-label").textContent = label;
+    row.querySelector('[name$="-identifier"]').placeholder = `請輸入${label}`;
+  }
+
+  async function loadColors(row, modelId) {
+    const color = row.querySelector('[name$="-color"]');
+    color.innerHTML = '<option value="">請選擇車色</option>';
+    updateIdentifierLabel(row, modelId);
+    if (!modelId) {
+      color.innerHTML = '<option value="">請先選擇車型</option>';
+      return;
+    }
+    const response = await fetch(`${colorUrl}?model=${encodeURIComponent(modelId)}`);
+    const data = await response.json();
+    data.results.forEach(item => color.add(new Option(item.name, item.id)));
+  }
+
+  function bindRow(row) {
+    const model = row.querySelector('[name$="-vehicle_model"]');
+    model.addEventListener("change", () => loadColors(row, model.value));
+    updateIdentifierLabel(row, model.value);
+    row.querySelector("[data-delete-row]").addEventListener("click", () => {
+      const deleteField = row.querySelector('[name$="-DELETE"]');
+      if (deleteField) deleteField.checked = true;
+      row.hidden = true;
+    });
+  }
+
+  rows.querySelectorAll("[data-quick-entry-row]").forEach(bindRow);
+  document.getElementById("add-quick-entry-row").addEventListener("click", () => {
+    const index = Number(total.value);
+    const wrapper = document.createElement("div");
+    wrapper.innerHTML = template.innerHTML.replaceAll("__prefix__", index).trim();
+    const row = wrapper.firstElementChild;
+    rows.appendChild(row);
+    total.value = index + 1;
+    bindRow(row);
+    row.querySelector('[name$="-vehicle_model"]').focus();
+  });
+})();
+</script>
+{% endblock %}

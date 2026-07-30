@@ -258,6 +258,131 @@ class OrderFlowTests(TestCase):
             VehicleInventoryHistory.EventType.CREATED,
         )
 
+    def quick_inventory_payload(self, rows):
+        payload = {
+            "vehicles-TOTAL_FORMS": str(max(5, len(rows))),
+            "vehicles-INITIAL_FORMS": "0",
+            "vehicles-MIN_NUM_FORMS": "0",
+            "vehicles-MAX_NUM_FORMS": "100",
+        }
+        for index in range(max(5, len(rows))):
+            row = rows[index] if index < len(rows) else {}
+            for field in (
+                "vehicle_model",
+                "color",
+                "identifier",
+                "received_on",
+                "condition_note",
+            ):
+                payload[f"vehicles-{index}-{field}"] = row.get(field, "")
+        return payload
+
+    def test_quick_inventory_entry_creates_gas_and_electric_rows_atomically(self):
+        electric_model = VehicleModel.objects.create(
+            brand="測試廠牌",
+            name="電動車",
+            energy_type=VehicleModel.EnergyType.ELECTRIC,
+        )
+        electric_color = VehicleColor.objects.create(
+            vehicle_model=electric_model,
+            name="銀",
+        )
+        self.client.force_login(self.user)
+
+        response = self.client.post(
+            reverse("inventory_quick_create"),
+            self.quick_inventory_payload(
+                [
+                    {
+                        "vehicle_model": self.model.pk,
+                        "color": self.color.pk,
+                        "identifier": " quick-eng-01 ",
+                        "received_on": "2026-07-30",
+                        "condition_note": "外觀正常",
+                    },
+                    {
+                        "vehicle_model": electric_model.pk,
+                        "color": electric_color.pk,
+                        "identifier": "frame-quick-02",
+                        "received_on": "2026-07-30",
+                        "condition_note": "",
+                    },
+                ]
+            ),
+        )
+
+        self.assertRedirects(response, reverse("inventory_list"))
+        gas = VehicleInventory.objects.get(engine_number="QUICK-ENG-01")
+        electric = VehicleInventory.objects.get(frame_number="FRAME-QUICK-02")
+        self.assertEqual(gas.location_store, self.store_a)
+        self.assertEqual(gas.ownership_store, self.store_a)
+        self.assertEqual(gas.condition_note, "外觀正常")
+        self.assertIsNone(electric.engine_number)
+        self.assertEqual(gas.history_entries.count(), 1)
+        self.assertEqual(electric.history_entries.count(), 1)
+
+    def test_quick_inventory_entry_marks_duplicate_row_and_creates_nothing(self):
+        self.client.force_login(self.user)
+        before_count = VehicleInventory.objects.count()
+
+        response = self.client.post(
+            reverse("inventory_quick_create"),
+            self.quick_inventory_payload(
+                [
+                    {
+                        "vehicle_model": self.model.pk,
+                        "color": self.color.pk,
+                        "identifier": "BATCH-DUPLICATE",
+                        "received_on": "2026-07-30",
+                    },
+                    {
+                        "vehicle_model": self.model.pk,
+                        "color": self.color.pk,
+                        "identifier": "batch-duplicate",
+                        "received_on": "2026-07-30",
+                    },
+                ]
+            ),
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "與第 1 列重複")
+        self.assertEqual(VehicleInventory.objects.count(), before_count)
+
+    def test_quick_inventory_entry_rejects_existing_identifier(self):
+        self.client.force_login(self.user)
+
+        response = self.client.post(
+            reverse("inventory_quick_create"),
+            self.quick_inventory_payload(
+                [
+                    {
+                        "vehicle_model": self.model.pk,
+                        "color": self.color.pk,
+                        "identifier": self.vehicle.engine_number,
+                        "received_on": "2026-07-30",
+                    }
+                ]
+            ),
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "此號碼已存在於實體庫存")
+        self.assertEqual(VehicleInventory.objects.count(), 1)
+
+    def test_quick_inventory_page_is_list_based_and_hides_location(self):
+        self.client.force_login(self.user)
+
+        response = self.client.get(reverse("inventory_quick_create"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "快速進車")
+        self.assertContains(response, 'id="quick-entry-rows"')
+        self.assertContains(response, "車況說明（選填）")
+        self.assertContains(response, "刪除此列")
+        self.assertNotContains(response, 'name="location_store"')
+        self.assertNotContains(response, "複製")
+
     def test_reserved_inventory_locks_core_fields_but_allows_condition_updates(self):
         self.vehicle.status = VehicleInventory.Status.RESERVED
         self.vehicle.save(update_fields=["status", "updated_at"])

@@ -9,7 +9,7 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.files.base import ContentFile
 from django.core.exceptions import ValidationError
-from django.db import transaction
+from django.db import IntegrityError, transaction
 from django.db.models import Q
 from django.core.paginator import Paginator
 from django.http import FileResponse, Http404, JsonResponse
@@ -29,6 +29,7 @@ from .forms import (
     OtherFeeFormSet,
     OrderEditForm,
     PrivacyConsentForm,
+    QuickInventoryEntryFormSet,
     ReallocationForm,
     RegistrationDocumentUploadForm,
     RegistrationStageForm,
@@ -1658,6 +1659,69 @@ def inventory_create(request):
         request,
         "sales/inventory_form.html",
         {"form": form, "is_editing": False},
+    )
+
+
+@login_required
+def inventory_quick_create(request):
+    formset = QuickInventoryEntryFormSet(
+        request.POST or None,
+        prefix="vehicles",
+    )
+    if request.method == "POST" and formset.is_valid():
+        store = (
+            Store.objects.filter(active=True, code__iexact="HQ").first()
+            or Store.objects.filter(active=True).order_by("id").first()
+        )
+        if not store:
+            formset._non_form_errors = formset.error_class(
+                ["目前沒有啟用中的存放地點，請先建立本店資料。"]
+            )
+        else:
+            try:
+                with transaction.atomic():
+                    created = []
+                    for form in formset:
+                        if not form.cleaned_data or form.cleaned_data.get("DELETE"):
+                            continue
+                        model = form.cleaned_data["vehicle_model"]
+                        identifier = form.cleaned_data["identifier"]
+                        vehicle = VehicleInventory(
+                            vehicle_model=model,
+                            color=form.cleaned_data["color"],
+                            ownership_store=store,
+                            location_store=store,
+                            received_on=form.cleaned_data["received_on"],
+                            condition_note=form.cleaned_data.get("condition_note", ""),
+                        )
+                        if model.energy_type == VehicleModel.EnergyType.GAS:
+                            vehicle.engine_number = identifier
+                        else:
+                            vehicle.frame_number = identifier
+                        vehicle.save()
+                        _create_inventory_history(
+                            vehicle,
+                            actor_name=_editing_name(request.user),
+                            event_type=VehicleInventoryHistory.EventType.CREATED,
+                        )
+                        created.append(vehicle)
+            except (IntegrityError, ValidationError):
+                formset._non_form_errors = formset.error_class(
+                    ["資料在送出期間發生變動，可能已有相同號碼，請檢查標示內容後再試一次。"]
+                )
+            else:
+                messages.success(request, f"已完成快速進車，共建立 {len(created)} 台車輛。")
+                return redirect("inventory_list")
+    return render(
+        request,
+        "sales/inventory_quick_form.html",
+        {
+            "formset": formset,
+            "energy_types": {
+                str(model.pk): model.energy_type
+                for model in VehicleModel.objects.filter(active=True)
+            },
+        },
     )
 
 

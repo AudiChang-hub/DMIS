@@ -2,7 +2,8 @@ from pathlib import Path
 
 from django import forms
 from django.db.models import Q
-from django.forms import inlineformset_factory
+from django.forms import BaseFormSet, formset_factory, inlineformset_factory
+from django.utils import timezone
 
 from .models import (
     AccessoryLine,
@@ -578,6 +579,115 @@ class VehicleInventoryForm(forms.ModelForm):
             vehicle.save()
             self.save_m2m()
         return vehicle
+
+
+class QuickInventoryEntryForm(forms.Form):
+    vehicle_model = forms.ModelChoiceField(
+        label="車型",
+        queryset=VehicleModel.objects.none(),
+        empty_label="請選擇車型",
+    )
+    color = forms.ModelChoiceField(
+        label="車色",
+        queryset=VehicleColor.objects.none(),
+        empty_label="請先選擇車型",
+    )
+    identifier = forms.CharField(
+        label="引擎／車身號碼",
+        max_length=80,
+        widget=forms.TextInput(attrs={"autocomplete": "off", "autocapitalize": "characters"}),
+    )
+    received_on = forms.DateField(
+        label="進車日期",
+        initial=timezone.localdate,
+        widget=DateInput(),
+    )
+    condition_note = forms.CharField(
+        label="車況說明",
+        required=False,
+        widget=forms.Textarea(attrs={"rows": 2, "placeholder": "選填"}),
+    )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["vehicle_model"].queryset = VehicleModel.objects.filter(
+            active=True
+        ).order_by("brand", "name")
+        model_id = self.data.get(f"{self.prefix}-vehicle_model") if self.is_bound else None
+        if model_id and str(model_id).isdigit():
+            self.fields["color"].queryset = VehicleColor.objects.filter(
+                active=True,
+                vehicle_model_id=model_id,
+            ).order_by("name")
+            self.fields["color"].empty_label = "請選擇車色"
+        for field in self.fields.values():
+            field.widget.attrs.setdefault("class", "form-control")
+        apply_mobile_keyboard_attrs(self)
+
+    def clean_identifier(self):
+        return self.cleaned_data["identifier"].strip().upper()
+
+    def has_changed(self):
+        changed = set(self.changed_data)
+        changed.discard("received_on")
+        return bool(changed)
+
+    def clean(self):
+        cleaned = super().clean()
+        model = cleaned.get("vehicle_model")
+        color = cleaned.get("color")
+        if model and color and color.vehicle_model_id != model.pk:
+            self.add_error("color", "此車色不屬於選定車型。")
+        return cleaned
+
+
+class BaseQuickInventoryEntryFormSet(BaseFormSet):
+    def clean(self):
+        super().clean()
+        identifiers = {}
+        active_forms = []
+        for index, form in enumerate(self.forms, start=1):
+            if not hasattr(form, "cleaned_data") or form.cleaned_data.get("DELETE"):
+                continue
+            if not form.has_changed():
+                continue
+            identifier = form.cleaned_data.get("identifier")
+            if not identifier:
+                continue
+            active_forms.append((form, identifier))
+            if identifier in identifiers:
+                form.add_error(
+                    "identifier",
+                    f"與第 {identifiers[identifier]} 列重複。",
+                )
+            else:
+                identifiers[identifier] = index
+        if not active_forms:
+            raise forms.ValidationError("請至少填寫一台車輛。")
+        existing = set(
+            VehicleInventory.objects.filter(
+                Q(engine_number__in=identifiers) | Q(frame_number__in=identifiers)
+            ).values_list("engine_number", "frame_number")
+        )
+        existing_identifiers = {
+            value
+            for pair in existing
+            for value in pair
+            if value
+        }
+        for form, identifier in active_forms:
+            if identifier in existing_identifiers:
+                form.add_error("identifier", "此號碼已存在於實體庫存。")
+
+
+QuickInventoryEntryFormSet = formset_factory(
+    QuickInventoryEntryForm,
+    formset=BaseQuickInventoryEntryFormSet,
+    extra=5,
+    can_delete=True,
+    max_num=100,
+    validate_max=True,
+)
 
 
 class SignedContractForm(forms.ModelForm):

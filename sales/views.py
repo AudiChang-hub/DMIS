@@ -49,7 +49,7 @@ from .models import (
     VehicleInventory,
     VehicleModel,
 )
-from .jobs import run_id_ocr_job
+from .jobs import delete_id_ocr_job_files, run_id_ocr_job
 from .services.id_ocr import recognize_id_card
 from .services.order_change_display import build_order_change_cards
 from .services.order_search import (
@@ -1619,6 +1619,7 @@ def id_card_ocr_invalidate(request, job_id):
         job.status = IdOcrJob.Status.INVALIDATED
         job.finished_at = timezone.now()
         job.save(update_fields=["status", "finished_at", "updated_at"])
+        delete_id_ocr_job_files(job)
     return JsonResponse({"ok": True, "status": job.status})
 
 

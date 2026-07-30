@@ -199,7 +199,7 @@ class IdFieldExtractionTests(TestCase):
         self.assertEqual(result["name"], "王小美")
         self.assertEqual(result["birth_date"], "2001-02-03")
         self.assertEqual(result["id_number"], "F900000001")
-        self.assertEqual(result["address"], "新北市汐止區測試路83巷3號612房")
+        self.assertEqual(result["address"], "新北市汐止區測試路83巷3號612號")
 
     def test_repairs_resident_id_digit_confusion(self):
         result = extract_resident_certificate_fields(

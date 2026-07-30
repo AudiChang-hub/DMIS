@@ -83,9 +83,12 @@ def _side_scores(text):
     normalized = re.sub(r"\s+", "", text.replace("臺", "台")).upper()
     front_score = 0
     back_score = 0
-    if "中華民國國民身分證" in normalized:
+    if (
+        "中華民國國民身分證" in normalized
+        or "中華民國國民身份證" in normalized
+    ):
         front_score += 6
-    elif "國民身分證" in normalized:
+    elif "國民身分證" in normalized or "國民身份證" in normalized:
         front_score += 4
     if "姓名" in normalized:
         front_score += 2

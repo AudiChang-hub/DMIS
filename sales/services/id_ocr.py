@@ -370,7 +370,7 @@ def extract_resident_certificate_fields(text):
     compact = re.sub(r"\s+", "", normalized).upper()
 
     id_candidates = re.findall(
-        r"(?<![A-Z0-9])[A-Z][0-9ODQILZSGB]{9}(?![A-Z0-9])",
+        r"[A-Z][0-9ODQILZSGB]{9}",
         compact,
     )
     for candidate in id_candidates:

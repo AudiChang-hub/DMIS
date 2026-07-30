@@ -65,8 +65,11 @@
 
   <details class="form-section" id="owner" open>
     <summary><span class="step-number">2</span><span><strong>車主與證件</strong><small>拍照後自動辨識，再對照證件核對</small></span></summary>
-    <div class="info-banner">
+    <div class="info-banner" data-conditional="identity-upload">
       本國自然人上傳身分證、外籍／居留者上傳居留證正反面後，會自動辨識姓名、生日、證號與地址。辨識結果仍須對照照片核對。
+    </div>
+    <div class="info-banner" data-conditional="corporate" hidden>
+      法人不使用證件自動辨識，請自行填寫公司名稱、統一編號、公司地址與聯絡資料。
     </div>
     <div class="ocr-status" id="ocr-status" role="status" aria-live="polite" hidden>
       <span class="ocr-spinner" aria-hidden="true"></span>
@@ -603,6 +606,7 @@
   function refresh() {
     showConditional("source", sourceType.value !== "store");
     showConditional("identity-upload", ["local", "foreign"].includes(ownerType.value));
+    showConditional("corporate", ownerType.value === "corporate");
     document.querySelector(".owner-form-grid")?.classList.toggle(
       "is-nonlocal", ownerType.value === "corporate"
     );

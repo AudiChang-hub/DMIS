@@ -1537,6 +1537,14 @@ class OrderFlowTests(TestCase):
         self.assertContains(order_response, "showSavedPhoto")
         self.assertContains(order_response, "正在辨識證件資料")
         self.assertContains(order_response, "請上傳身分證正反面")
+        self.assertContains(
+            order_response,
+            "法人不使用證件自動辨識，請自行填寫公司名稱、統一編號、公司地址與聯絡資料。",
+        )
+        self.assertContains(
+            order_response,
+            'showConditional("corporate", ownerType.value === "corporate")',
+        )
         self.assertContains(order_response, "資料欄位會在辨識完成後自動顯示")
         self.assertContains(order_response, "data-ocr-confirmation-fields")
         self.assertContains(order_response, "is-floating-processing")

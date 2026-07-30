@@ -10,6 +10,7 @@
   {% block head %}{% endblock %}
 </head>
 <body data-app-version="{{ app_version }}" data-version-endpoint="{% url 'app_version' %}">
+  <a class="skip-link" href="#main-content">跳至主要內容</a>
   <header class="app-header">
     <div class="app-header-inner">
       <a class="brand" href="{% url 'dashboard' %}">
@@ -19,9 +20,9 @@
       {% if user.is_authenticated %}
         <button type="button" class="update-check-button" data-check-update aria-label="檢查系統更新" title="檢查系統更新">↻</button>
         <nav class="desktop-nav" aria-label="主要選單">
-          <a href="{% url 'dashboard' %}">待辦首頁</a>
-          <a href="{% url 'order_list' %}">全部訂單</a>
-          <a href="{% url 'inventory_list' %}">實體庫存</a>
+          <a href="{% url 'dashboard' %}" {% if request.resolver_match.url_name == 'dashboard' %}class="active" aria-current="page"{% endif %}>待辦首頁</a>
+          <a href="{% url 'order_list' %}" {% if request.resolver_match.url_name == 'order_list' or request.resolver_match.url_name == 'order_detail' or request.resolver_match.url_name == 'order_edit' or request.resolver_match.url_name == 'order_create' %}class="active" aria-current="page"{% endif %}>全部訂單</a>
+          <a href="{% url 'inventory_list' %}" {% if request.resolver_match.url_name == 'inventory_list' or request.resolver_match.url_name == 'inventory_create' %}class="active" aria-current="page"{% endif %}>實體庫存</a>
           <a href="{% url 'admin:index' %}">主檔維護</a>
         </nav>
         <form action="{% url 'logout' %}" method="post" class="logout-form">
@@ -34,10 +35,10 @@
 
   {% if user.is_authenticated %}
     <nav class="mobile-nav" aria-label="手機主要選單">
-      <a href="{% url 'dashboard' %}"><span>⌂</span>待辦</a>
-      <a href="{% url 'order_list' %}"><span>▤</span>訂單</a>
-      <a class="mobile-new" href="{% url 'order_create' %}"><span>＋</span>新增</a>
-      <a href="{% url 'inventory_list' %}"><span>▦</span>庫存</a>
+      <a href="{% url 'dashboard' %}" {% if request.resolver_match.url_name == 'dashboard' %}class="active" aria-current="page"{% endif %}><span>⌂</span>待辦</a>
+      <a href="{% url 'order_list' %}" {% if request.resolver_match.url_name == 'order_list' or request.resolver_match.url_name == 'order_detail' or request.resolver_match.url_name == 'order_edit' %}class="active" aria-current="page"{% endif %}><span>▤</span>訂單</a>
+      <a class="mobile-new{% if request.resolver_match.url_name == 'order_create' %} active{% endif %}" href="{% url 'order_create' %}" {% if request.resolver_match.url_name == 'order_create' %}aria-current="page"{% endif %}><span>＋</span>新增</a>
+      <a href="{% url 'inventory_list' %}" {% if request.resolver_match.url_name == 'inventory_list' or request.resolver_match.url_name == 'inventory_create' %}class="active" aria-current="page"{% endif %}><span>▦</span>庫存</a>
       <a href="{% url 'admin:index' %}"><span>⚙</span>主檔</a>
     </nav>
   {% endif %}
@@ -49,7 +50,7 @@
     <button type="button" class="button ghost small" id="app-update-later">稍後</button>
   </aside>
 
-  <main class="page-shell {% block page_class %}page-shell--standard{% endblock %}">
+  <main class="page-shell {% block page_class %}page-shell--standard{% endblock %}" id="main-content" tabindex="-1">
     {% if messages %}
       <div class="messages" aria-live="polite">
         {% for message in messages %}
@@ -65,6 +66,7 @@
   {% block scripts %}{% endblock %}
   <script src="{% static 'js/message-toasts.js' %}?v={{ app_version }}" defer></script>
   <script src="{% static 'js/form-feedback.js' %}?v={{ app_version }}" defer></script>
+  <script src="{% static 'js/ui-navigation.js' %}?v={{ app_version }}" defer></script>
   <script src="{% static 'js/layout-audit.js' %}?v={{ app_version }}" defer></script>
   <script src="{% static 'js/app-update.js' %}?v={{ app_version }}" defer></script>
 </body>

@@ -141,6 +141,40 @@ class OrderFlowTests(TestCase):
         )
         self.assertIn("overflow-x: auto;", css)
 
+    def test_primary_pages_have_consistent_context_navigation(self):
+        self.client.force_login(self.user)
+        order = self.make_order()
+
+        for route in (
+            reverse("order_list"),
+            reverse("inventory_list"),
+            reverse("inventory_create"),
+            reverse("order_create"),
+            reverse("order_detail", args=[order.pk]),
+            reverse("order_edit", args=[order.pk]),
+        ):
+            with self.subTest(route=route):
+                response = self.client.get(route)
+                self.assertEqual(response.status_code, 200)
+                self.assertContains(response, 'class="page-context-nav"')
+                self.assertContains(response, "data-smart-back")
+
+        dashboard = self.client.get(reverse("dashboard"))
+        self.assertNotContains(dashboard, 'class="page-context-nav"')
+
+    def test_navigation_refactor_preserves_critical_order_controls(self):
+        self.client.force_login(self.user)
+        response = self.client.get(reverse("order_create"))
+
+        self.assertContains(response, 'data-photo-preview="id_front"')
+        self.assertContains(response, 'data-photo-preview="id_back"')
+        self.assertContains(response, 'data-clear-file="id_id_front"')
+        self.assertContains(response, 'data-clear-file="id_id_back"')
+        self.assertContains(response, "刪除此筆配件")
+        self.assertContains(response, "刪除此筆費用")
+        self.assertContains(response, 'id="add-accessory"')
+        self.assertContains(response, 'id="add-other-fee"')
+
     def test_forms_provide_field_specific_mobile_keyboard_hints(self):
         order_form = SalesOrderForm()
         accessory_form = AccessoryLineForm()

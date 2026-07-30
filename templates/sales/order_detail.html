@@ -3,9 +3,10 @@
 {% block title %}{{ order.number }}｜車輛銷售管理{% endblock %}
 {% block page_class %}page-shell--wide{% endblock %}
 {% block content %}
+{% url 'order_list' as order_list_url %}
+{% include "sales/_page_back.html" with fallback_url=order_list_url label="返回上一頁" %}
 <section class="hero-row detail-hero">
   <div>
-    <a class="back-link" href="{% url 'order_list' %}">‹ 返回訂單</a>
     <div class="title-with-status"><h1>{{ order.owner_name }}</h1><span class="status-pill large">{{ order.get_status_display }}</span></div>
     <p class="muted">{{ order.number }} · {{ order.order_date }}</p>
   </div>

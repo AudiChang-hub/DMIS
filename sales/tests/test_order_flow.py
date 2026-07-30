@@ -175,6 +175,11 @@ class OrderFlowTests(TestCase):
             "ownership_store": vehicle.ownership_store_id,
             "location_store": vehicle.location_store_id,
             "received_on": vehicle.received_on.isoformat(),
+            "acquisition_cost": (
+                str(vehicle.acquisition_cost)
+                if vehicle.acquisition_cost is not None
+                else ""
+            ),
             "condition_note": vehicle.condition_note,
             "condition_resolution": vehicle.condition_resolution,
         }
@@ -272,6 +277,7 @@ class OrderFlowTests(TestCase):
                 "color",
                 "identifier",
                 "received_on",
+                "acquisition_cost",
                 "condition_note",
             ):
                 payload[f"vehicles-{index}-{field}"] = row.get(field, "")
@@ -298,6 +304,7 @@ class OrderFlowTests(TestCase):
                         "color": self.color.pk,
                         "identifier": " quick-eng-01 ",
                         "received_on": "2026-07-30",
+                        "acquisition_cost": "65000",
                         "condition_note": "外觀正常",
                     },
                     {
@@ -317,6 +324,7 @@ class OrderFlowTests(TestCase):
         self.assertEqual(gas.location_store, self.store_a)
         self.assertEqual(gas.ownership_store, self.store_a)
         self.assertEqual(gas.condition_note, "外觀正常")
+        self.assertEqual(gas.acquisition_cost, Decimal("65000"))
         self.assertIsNone(electric.engine_number)
         self.assertEqual(gas.history_entries.count(), 1)
         self.assertEqual(electric.history_entries.count(), 1)
@@ -382,6 +390,126 @@ class OrderFlowTests(TestCase):
         self.assertContains(response, "刪除此列")
         self.assertNotContains(response, 'name="location_store"')
         self.assertNotContains(response, "複製")
+
+    def vehicle_model_master_payload(self, **overrides):
+        payload = {
+            "brand": "SUZUKI",
+            "energy_type": VehicleModel.EnergyType.GAS,
+            "name": "SUI 125",
+            "model_year": "2026",
+            "model_code": "SUI125X",
+            "displacement_cc": "125",
+            "suggested_price": "79800",
+            "active": "on",
+            "colors-TOTAL_FORMS": "2",
+            "colors-INITIAL_FORMS": "0",
+            "colors-MIN_NUM_FORMS": "0",
+            "colors-MAX_NUM_FORMS": "1000",
+            "colors-0-name": "白",
+            "colors-0-active": "on",
+            "colors-1-name": "灰",
+            "colors-1-active": "on",
+        }
+        payload.update(overrides)
+        return payload
+
+    def test_vehicle_model_master_create_and_list_preserve_shared_records(self):
+        self.client.force_login(self.user)
+
+        response = self.client.post(
+            reverse("vehicle_model_create"),
+            self.vehicle_model_master_payload(),
+        )
+
+        self.assertRedirects(response, reverse("vehicle_model_list"))
+        model = VehicleModel.objects.get(
+            brand="SUZUKI",
+            name="SUI 125",
+            model_year=2026,
+            model_code="SUI125X",
+        )
+        self.assertEqual(model.suggested_price, Decimal("79800"))
+        self.assertEqual(
+            list(model.colors.order_by("name").values_list("name", flat=True)),
+            ["灰", "白"],
+        )
+        self.vehicle.refresh_from_db()
+        self.assertEqual(self.vehicle.vehicle_model, self.model)
+
+        list_response = self.client.get(
+            reverse("vehicle_model_list"),
+            {"q": "SUI125X", "energy_type": VehicleModel.EnergyType.GAS},
+        )
+        self.assertContains(list_response, "SUI 125")
+        self.assertContains(list_response, "2 種")
+
+    def test_vehicle_model_with_inventory_cannot_change_energy_type(self):
+        self.client.force_login(self.user)
+        color = self.model.colors.get()
+        response = self.client.post(
+            reverse("vehicle_model_edit", args=[self.model.pk]),
+            {
+                "brand": self.model.brand,
+                "energy_type": VehicleModel.EnergyType.ELECTRIC,
+                "name": self.model.name,
+                "model_year": "2026",
+                "model_code": "LOCKED",
+                "displacement_cc": "",
+                "suggested_price": "",
+                "active": "on",
+                "colors-TOTAL_FORMS": "1",
+                "colors-INITIAL_FORMS": "1",
+                "colors-MIN_NUM_FORMS": "0",
+                "colors-MAX_NUM_FORMS": "1000",
+                "colors-0-id": color.pk,
+                "colors-0-name": color.name,
+                "colors-0-active": "on",
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "不能變更能源別")
+        self.model.refresh_from_db()
+        self.assertEqual(self.model.energy_type, VehicleModel.EnergyType.GAS)
+
+    def test_used_vehicle_color_cannot_be_deleted_but_can_be_deactivated(self):
+        self.client.force_login(self.user)
+        color = self.color
+        base = {
+            "brand": self.model.brand,
+            "energy_type": self.model.energy_type,
+            "name": self.model.name,
+            "model_year": "2026",
+            "model_code": "USED-COLOR",
+            "displacement_cc": "125",
+            "suggested_price": "",
+            "active": "on",
+            "colors-TOTAL_FORMS": "1",
+            "colors-INITIAL_FORMS": "1",
+            "colors-MIN_NUM_FORMS": "0",
+            "colors-MAX_NUM_FORMS": "1000",
+            "colors-0-id": color.pk,
+            "colors-0-name": color.name,
+            "colors-0-active": "on",
+            "colors-0-DELETE": "on",
+        }
+        response = self.client.post(
+            reverse("vehicle_model_edit", args=[self.model.pk]),
+            base,
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "不能刪除")
+        self.assertTrue(VehicleColor.objects.filter(pk=color.pk).exists())
+
+        base.pop("colors-0-DELETE")
+        base.pop("colors-0-active")
+        response = self.client.post(
+            reverse("vehicle_model_edit", args=[self.model.pk]),
+            base,
+        )
+        self.assertRedirects(response, reverse("vehicle_model_list"))
+        color.refresh_from_db()
+        self.assertFalse(color.active)
 
     def test_reserved_inventory_locks_core_fields_but_allows_condition_updates(self):
         self.vehicle.status = VehicleInventory.Status.RESERVED

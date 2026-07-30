@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+{% block title %}{% if is_editing %}編輯車型{% else %}新增車型{% endif %}｜車輛銷售管理{% endblock %}
+{% block page_class %}page-shell--form{% endblock %}
+{% block content %}
+{% url 'vehicle_model_list' as model_list_url %}
+{% include "sales/_page_back.html" with fallback_url=model_list_url label="返回車型主檔" %}
+<section class="hero-row compact-hero">
+  <div>
+    <p class="eyebrow">車型主檔維護</p>
+    <h1>{% if is_editing %}編輯車型{% else %}新增車型{% endif %}</h1>
+    {% if is_editing %}<p class="muted">{{ vehicle_model }}</p>{% endif %}
+  </div>
+</section>
+
+<form method="post" class="master-model-form">
+  {% csrf_token %}
+  {{ color_formset.management_form }}
+  {% if form.non_field_errors or color_formset.non_form_errors %}
+  <div class="message error">{{ form.non_field_errors }}{{ color_formset.non_form_errors }}</div>
+  {% endif %}
+  <section class="card master-model-section">
+    <div class="section-heading"><div><p class="eyebrow">基本資料</p><h2>車型版本</h2></div></div>
+    <div class="form-grid master-model-grid">
+      {% for field in form %}{% include "sales/_field.html" with field=field %}{% endfor %}
+    </div>
+  </section>
+
+  <section class="card master-model-section">
+    <div class="section-heading">
+      <div><p class="eyebrow">可選顏色</p><h2>顏色設定</h2></div>
+      <span class="muted">已被訂單或庫存使用的顏色請改為停用</span>
+    </div>
+    <div id="master-color-rows" class="master-color-rows">
+      {% for color_form in color_formset %}
+      <div class="master-color-row" data-color-row>
+        {{ color_form.id }}
+        <div>{% include "sales/_field.html" with field=color_form.name %}</div>
+        <div>{% include "sales/_field.html" with field=color_form.active %}</div>
+        <span hidden>{{ color_form.DELETE }}</span>
+        <button type="button" class="button danger-outline small" data-delete-color>{% if color_form.instance.pk %}刪除顏色{% else %}移除此列{% endif %}</button>
+      </div>
+      {% endfor %}
+    </div>
+    <template id="master-color-empty-row">
+      <div class="master-color-row" data-color-row>
+        {{ color_formset.empty_form.id }}
+        <div>{% include "sales/_field.html" with field=color_formset.empty_form.name %}</div>
+        <div>{% include "sales/_field.html" with field=color_formset.empty_form.active %}</div>
+        <span hidden>{{ color_formset.empty_form.DELETE }}</span>
+        <button type="button" class="button danger-outline small" data-delete-color>移除此列</button>
+      </div>
+    </template>
+    <button type="button" class="button ghost master-color-add" id="add-master-color">＋ 新增顏色</button>
+  </section>
+  <div class="form-actions master-model-actions">
+    <a class="button ghost" href="{% url 'vehicle_model_list' %}">取消</a>
+    <button class="button primary" type="submit">儲存車型</button>
+  </div>
+</form>
+{% endblock %}
+{% block scripts %}
+<script>
+(() => {
+  const rows = document.getElementById("master-color-rows");
+  const total = document.getElementById("id_colors-TOTAL_FORMS");
+  const template = document.getElementById("master-color-empty-row");
+  function bind(row) {
+    row.querySelector("[data-delete-color]").addEventListener("click", () => {
+      const deletion = row.querySelector('[name$="-DELETE"]');
+      if (deletion) deletion.checked = true;
+      row.hidden = true;
+    });
+  }
+  rows.querySelectorAll("[data-color-row]").forEach(bind);
+  document.getElementById("add-master-color").addEventListener("click", () => {
+    const index = Number(total.value);
+    const wrapper = document.createElement("div");
+    wrapper.innerHTML = template.innerHTML.replaceAll("__prefix__", index).trim();
+    const row = wrapper.firstElementChild;
+    rows.appendChild(row);
+    total.value = index + 1;
+    bind(row);
+    row.querySelector('input[type="text"]').focus();
+  });
+})();
+</script>
+{% endblock %}

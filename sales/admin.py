@@ -42,7 +42,16 @@ class VehicleColorInline(admin.TabularInline):
 
 @admin.register(VehicleModel)
 class VehicleModelAdmin(admin.ModelAdmin):
-    list_display = ("brand", "name", "energy_type", "displacement_cc", "active")
+    list_display = (
+        "brand",
+        "name",
+        "model_year",
+        "model_code",
+        "energy_type",
+        "displacement_cc",
+        "suggested_price",
+        "active",
+    )
     list_filter = ("energy_type", "active")
     search_fields = ("brand", "name")
     inlines = [VehicleColorInline]
@@ -55,6 +64,7 @@ class VehicleInventoryAdmin(admin.ModelAdmin):
         "vehicle_model",
         "color",
         "location_store",
+        "acquisition_cost",
         "status",
     )
     list_filter = ("status", "location_store", "vehicle_model")

@@ -1125,6 +1125,7 @@ body.screen-locked { overflow: hidden; }
   .history-change-list .change-arrow { display: none; }
   .history-snapshot { grid-template-columns: 1fr; }
   .quick-entry-head { display: none; }
+  .quick-entry-form { padding-bottom: 150px; }
   .quick-entry-row {
     margin: 12px; padding: 14px; grid-template-columns: 1fr 1fr;
     border: 1px solid var(--line); border-radius: 12px;

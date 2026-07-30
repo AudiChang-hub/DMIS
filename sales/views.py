@@ -1537,7 +1537,16 @@ def id_card_ocr(request):
     back = request.FILES.get("back")
     if not front or not back:
         return JsonResponse(
-            {"ok": False, "error": "請先拍攝身分證正面與反面。"},
+            {"ok": False, "error": "請先拍攝證件正面與反面。"},
+            status=400,
+        )
+    document_type = request.POST.get(
+        "document_type", IdOcrJob.DocumentType.NATIONAL_ID
+    )
+    valid_document_types = {value for value, _label in IdOcrJob.DocumentType.choices}
+    if document_type not in valid_document_types:
+        return JsonResponse(
+            {"ok": False, "error": "不支援的證件類型。"},
             status=400,
         )
     allowed_content_types = {"image/jpeg", "image/png", "image/webp"}
@@ -1565,6 +1574,7 @@ def id_card_ocr(request):
         created_by=request.user,
         front=front,
         back=back,
+        document_type=document_type,
         photo_token=photo_token,
     )
     try:
@@ -1588,6 +1598,7 @@ def id_card_ocr(request):
             "ok": True,
             "job_id": str(job.pk),
             "photo_token": photo_token,
+            "document_type": job.document_type,
             "status": job.status,
         },
         status=202,

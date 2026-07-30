@@ -66,7 +66,7 @@
   <details class="form-section" id="owner" open>
     <summary><span class="step-number">2</span><span><strong>車主與證件</strong><small>拍照後自動辨識，再對照證件核對</small></span></summary>
     <div class="info-banner">
-      拍攝身分證正反面後會自動辨識姓名、生日、身分證字號與戶籍地址。辨識結果仍須對照照片核對。
+      本國自然人上傳身分證、外籍／居留者上傳居留證正反面後，會自動辨識姓名、生日、證號與地址。辨識結果仍須對照照片核對。
     </div>
     <div class="ocr-status" id="ocr-status" role="status" aria-live="polite" hidden>
       <span class="ocr-spinner" aria-hidden="true"></span>
@@ -78,13 +78,13 @@
     </div>
     <div class="form-grid owner-form-grid">
       {% include "sales/_field.html" with field=form.owner_type %}
-      <div class="span-2 capture-instruction" data-conditional="local">
+      <div class="span-2 capture-instruction" data-conditional="identity-upload">
         請先準備證件正反面；點選欄位後可直接拍照，或從手機相簿選擇圖片。
       </div>
       <div class="identity-compare span-2">
-        <div class="capture-card {% if document_source.id_front %}has-saved-photo{% endif %}" data-conditional="local">
+        <div class="capture-card {% if document_source.id_front %}has-saved-photo{% endif %}" data-conditional="identity-upload">
           {% include "sales/_field.html" with field=form.id_front %}
-          <img class="identity-preview" data-photo-preview="id_front" {% if document_source.id_front %}src="{% url 'protected_media' document_model document_source.pk 'id_front' %}"{% else %}hidden{% endif %} alt="身分證正面預覽">
+          <img class="identity-preview" data-photo-preview="id_front" {% if document_source.id_front %}src="{% url 'protected_media' document_model document_source.pk 'id_front' %}"{% else %}hidden{% endif %} alt="證件正面預覽">
           {% if document_source.id_front %}
           <div class="saved-photo-state" data-saved-photo="id_front">
             <span><strong>已暫存正面照片</strong><small>可點擊圖片放大核對</small></span>
@@ -94,16 +94,16 @@
           {% endif %}
           <button type="button" class="remove-photo" data-clear-file="id_id_front" data-existing-photo="{% if document_source.id_front %}1{% else %}0{% endif %}" {% if not document_source.id_front %}hidden{% endif %}>移除正面照片</button>
         </div>
-        <div class="identity-compare__fields" data-ocr-confirmation-fields>
+        <div class="identity-compare__fields" data-ocr-confirmation-fields data-front-identity-fields>
           {% include "sales/_field.html" with field=form.owner_name %}
           {% include "sales/_field.html" with field=form.owner_id_number %}
           {% include "sales/_field.html" with field=form.owner_birth_date %}
         </div>
       </div>
       <div class="identity-compare span-2">
-        <div class="capture-card {% if document_source.id_back %}has-saved-photo{% endif %}" data-conditional="local">
+        <div class="capture-card {% if document_source.id_back %}has-saved-photo{% endif %}" data-conditional="identity-upload">
           {% include "sales/_field.html" with field=form.id_back %}
-          <img class="identity-preview" data-photo-preview="id_back" {% if document_source.id_back %}src="{% url 'protected_media' document_model document_source.pk 'id_back' %}"{% else %}hidden{% endif %} alt="身分證反面預覽">
+          <img class="identity-preview" data-photo-preview="id_back" {% if document_source.id_back %}src="{% url 'protected_media' document_model document_source.pk 'id_back' %}"{% else %}hidden{% endif %} alt="證件反面預覽">
           {% if document_source.id_back %}
           <div class="saved-photo-state" data-saved-photo="id_back">
             <span><strong>已暫存反面照片</strong><small>可直接與戶籍地址對照</small></span>
@@ -113,7 +113,7 @@
           {% endif %}
           <button type="button" class="remove-photo" data-clear-file="id_id_back" data-existing-photo="{% if document_source.id_back %}1{% else %}0{% endif %}" {% if not document_source.id_back %}hidden{% endif %}>移除反面照片</button>
         </div>
-        <div class="identity-compare__fields" data-ocr-confirmation-fields>
+        <div class="identity-compare__fields" data-ocr-confirmation-fields data-back-identity-fields>
           {% include "sales/_field.html" with field=form.owner_address %}
         </div>
       </div>
@@ -392,10 +392,10 @@
   }
 
   function setOcrState(state, options = {}) {
-    const isLocal = ownerType.value === "local";
-    const revealFields = !isLocal || ["review", "manual", "existing"].includes(state);
+    const supportsOcr = ["local", "foreign"].includes(ownerType.value);
+    const revealFields = !supportsOcr || ["review", "manual", "existing"].includes(state);
     ocrConfirmationFields.forEach(element => { element.hidden = !revealFields; });
-    if (!isLocal) {
+    if (!supportsOcr) {
       ocrStatus.hidden = true;
       return;
     }
@@ -403,7 +403,7 @@
     const states = {
       upload: {
         className: "ocr-status waiting",
-        title: "請上傳身分證正反面",
+        title: ownerType.value === "foreign" ? "請上傳居留證正反面" : "請上傳身分證正反面",
         message: "資料欄位會在辨識完成後自動顯示，避免重複輸入。",
         button: "",
       },
@@ -450,7 +450,7 @@
   }
 
   function refreshOcrEntryState() {
-    if (ownerType.value !== "local" || ocrRunning || pendingOcrResult) return;
+    if (!["local", "foreign"].includes(ownerType.value) || ocrRunning || pendingOcrResult) return;
     if (hasIdentityValues()) {
       setOcrState("existing");
       return;
@@ -602,11 +602,20 @@
 
   function refresh() {
     showConditional("source", sourceType.value !== "store");
-    showConditional("local", ownerType.value === "local");
+    showConditional("identity-upload", ["local", "foreign"].includes(ownerType.value));
     document.querySelector(".owner-form-grid")?.classList.toggle(
-      "is-nonlocal", ownerType.value !== "local"
+      "is-nonlocal", ownerType.value === "corporate"
     );
     showConditional("foreign", ownerType.value === "foreign");
+    const addressField = byId("id_owner_address")?.closest(".field");
+    const addressTarget = document.querySelector(
+      ownerType.value === "foreign"
+        ? "[data-front-identity-fields]"
+        : "[data-back-identity-fields]"
+    );
+    if (addressField && addressTarget && addressField.parentElement !== addressTarget) {
+      addressTarget.appendChild(addressField);
+    }
     showConditional("installment", paymentType.value === "installment");
     const installmentRequired = paymentType.value === "installment";
     installmentInputs.forEach(input => { input.required = installmentRequired; });
@@ -678,7 +687,7 @@
   });
 
   async function runIdOcr() {
-    if (ocrRunning || ownerType.value !== "local") return;
+    if (ocrRunning || !["local", "foreign"].includes(ownerType.value)) return;
     if (!idFront.files.length || !idBack.files.length) return;
     const requestVersion = ++ocrRequestVersion;
     const photoToken = `${Date.now()}-${photoVersion.id_front}-${photoVersion.id_back}`;
@@ -687,6 +696,10 @@
     const payload = new FormData();
     payload.append("front", idFront.files[0]);
     payload.append("back", idBack.files[0]);
+    payload.append(
+      "document_type",
+      ownerType.value === "foreign" ? "resident_certificate" : "national_id"
+    );
     payload.append("photo_token", photoToken);
     try {
       const response = await fetch("{% url 'id_card_ocr' %}", {

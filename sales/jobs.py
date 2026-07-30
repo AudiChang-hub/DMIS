@@ -27,7 +27,11 @@ def run_id_ocr_job(job_id):
     job.save(update_fields=["status", "attempts", "started_at", "error", "updated_at"])
     try:
         with job.front.open("rb") as front, job.back.open("rb") as back:
-            result = recognize_id_card(front.read(), back.read())
+            result = recognize_id_card(
+                front.read(),
+                back.read(),
+                document_type=job.document_type,
+            )
     except IdOcrError as exc:
         job.status = IdOcrJob.Status.FAILED
         job.error = str(exc)

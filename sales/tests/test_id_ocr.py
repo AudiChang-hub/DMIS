@@ -148,6 +148,15 @@ class IdFieldExtractionTests(TestCase):
 
         self.assertEqual(result["address"], "台北市萬華區忠德里7鄰寶興街115號")
 
+    def test_repairs_one_floor_misread_as_chinese_ten_after_house_number(self):
+        text = "桃園市八德區大安里2鄰\n住址\n和平路649巷13號十樓"
+
+        result = extract_fields(text, "back")
+
+        self.assertEqual(
+            result["address"], "桃園市八德區大安里2鄰和平路649巷13號1樓"
+        )
+
     def test_taiwan_id_checksum(self):
         self.assertTrue(validate_taiwan_id("A123456789"))
         self.assertFalse(validate_taiwan_id("A123456788"))

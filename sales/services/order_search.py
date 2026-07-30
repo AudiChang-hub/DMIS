@@ -128,7 +128,9 @@ def _order_fields():
 
 
 def build_order_search_query(query):
-    return Q(search_index__search_text__icontains=_normalise(query))
+    # search_text 與查詢字串都已 casefold；使用 contains 才能讓 PostgreSQL
+    # 直接採用 search_text 的 gin_trgm_ops index，避免 UPPER() 使索引失效。
+    return Q(search_index__search_text__contains=_normalise(query))
 
 
 def _append_match(matches, label, value, sensitive=False):

@@ -417,6 +417,23 @@ class OrderFlowTests(TestCase):
         payload.update(overrides)
         return payload
 
+    def test_vehicle_model_color_rows_default_to_one_and_edit_has_no_blank_extra(self):
+        self.client.force_login(self.user)
+
+        create_response = self.client.get(reverse("vehicle_model_create"))
+        edit_response = self.client.get(
+            reverse("vehicle_model_edit", args=[self.model.pk])
+        )
+
+        self.assertEqual(
+            create_response.context["color_formset"].total_form_count(),
+            1,
+        )
+        self.assertEqual(
+            edit_response.context["color_formset"].total_form_count(),
+            self.model.colors.count(),
+        )
+
     def test_vehicle_model_master_create_and_list_preserve_shared_records(self):
         self.client.force_login(self.user)
 
@@ -435,6 +452,10 @@ class OrderFlowTests(TestCase):
         )
         self.assertEqual(model.suggested_price, Decimal("79800"))
         self.assertEqual(model.model_number, "SUI125-ABS")
+        self.assertEqual(
+            str(model),
+            "SUZUKI／SUI 125／SUI125-ABS／2026／CBS碟",
+        )
         self.assertEqual(
             list(model.colors.order_by("name").values_list("name", flat=True)),
             ["灰", "白"],

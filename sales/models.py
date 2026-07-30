@@ -128,7 +128,7 @@ class VehicleModel(TimeStampedModel):
         if self.model_year:
             details.append(str(self.model_year))
         if self.model_code:
-            details.append(self.model_code)
+            details.append(self.get_model_code_display())
         return "／".join(details)
 
     def clean(self):

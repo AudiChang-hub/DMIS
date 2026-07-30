@@ -14,6 +14,7 @@ from sales.services.id_ocr import (
     _choose_name_candidate,
     _extract_birth_date,
     _extract_id_number,
+    _extract_resident_name_from_layout,
     _resident_side_scores,
     _side_scores,
     detect_id_side,
@@ -207,6 +208,30 @@ class IdFieldExtractionTests(TestCase):
         )
 
         self.assertEqual(result["id_number"], "F900000001")
+
+    def test_resident_layout_name_wins_over_residence_purpose(self):
+        def annotation(text, left, top, right, bottom):
+            vertices = [
+                SimpleNamespace(x=left, y=top),
+                SimpleNamespace(x=right, y=top),
+                SimpleNamespace(x=right, y=bottom),
+                SimpleNamespace(x=left, y=bottom),
+            ]
+            return SimpleNamespace(
+                description=text,
+                bounding_poly=SimpleNamespace(vertices=vertices),
+            )
+
+        front = SimpleNamespace(
+            image=SimpleNamespace(width=1200, height=800),
+            annotations=(
+                annotation("F900000001", 80, 280, 270, 315),
+                annotation("王小美", 290, 282, 410, 318),
+                annotation("就學", 480, 500, 550, 535),
+            ),
+        )
+
+        self.assertEqual(_extract_resident_name_from_layout(front), "王小美")
 
     @patch("sales.services.id_ocr.recognize_resident_certificate_side")
     @patch("sales.services.id_ocr._vision_client")

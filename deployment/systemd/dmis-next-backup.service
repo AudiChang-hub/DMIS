@@ -1,0 +1,10 @@
+[Unit]
+Description=DMIS Next database and media backup
+After=docker.service
+
+[Service]
+Type=oneshot
+WorkingDirectory=/home/audi/project/DMIS-next
+Environment=DJANGO_MEDIA_PATH=/srv/dmis-data/dmis-next/media
+Environment=DMIS_DATA_ROOT=/srv/dmis-data/dmis-next
+ExecStart=/home/audi/project/DMIS-next/scripts/backup_django_data.sh

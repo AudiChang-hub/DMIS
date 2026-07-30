@@ -19,7 +19,7 @@ services:
       redis:
         condition: service_healthy
     volumes:
-      - django_media:/app/media
+      - "${DJANGO_MEDIA_PATH:-django_media}:/app/media"
       - ./secrets/google-vision.json:/run/secrets/google-vision.json:ro
     restart: unless-stopped
 
@@ -42,7 +42,7 @@ services:
       redis:
         condition: service_healthy
     volumes:
-      - django_media:/app/media
+      - "${DJANGO_MEDIA_PATH:-django_media}:/app/media"
       - ./secrets/google-vision.json:/run/secrets/google-vision.json:ro
     mem_limit: 768m
     cpus: 1.0

@@ -1586,6 +1586,8 @@ class OrderFlowTests(TestCase):
         response = self.client.get(reverse("dashboard"))
 
         self.assertContains(response, "檢查系統更新")
+        self.assertContains(response, "檢查更新")
+        self.assertContains(response, 'class="update-check-icon"')
         self.assertContains(response, "js/layout-audit")
         self.assertContains(response, "app-update-banner")
         self.assertContains(response, "js/app-update")

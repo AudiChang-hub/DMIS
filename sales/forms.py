@@ -1,6 +1,7 @@
 from pathlib import Path
 
 from django import forms
+from django.db.models import Q
 from django.forms import inlineformset_factory
 
 from .models import (
@@ -489,6 +490,27 @@ OtherFeeFormSet = inlineformset_factory(
 
 
 class VehicleInventoryForm(forms.ModelForm):
+    CORE_FIELDS = (
+        "vehicle_model",
+        "color",
+        "engine_number",
+        "frame_number",
+        "ownership_store",
+        "received_on",
+    )
+    CORE_LOCKED_STATUSES = {
+        VehicleInventory.Status.RESERVED,
+        VehicleInventory.Status.TRANSFER_PENDING,
+        VehicleInventory.Status.IN_TRANSFER,
+        VehicleInventory.Status.DELIVERY_PENDING,
+        VehicleInventory.Status.DELIVERED,
+        VehicleInventory.Status.SOLD,
+    }
+    FINAL_STATUSES = {
+        VehicleInventory.Status.DELIVERED,
+        VehicleInventory.Status.SOLD,
+    }
+
     class Meta:
         model = VehicleInventory
         fields = [
@@ -515,6 +537,28 @@ class VehicleInventoryForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields["color"].queryset = VehicleColor.objects.filter(active=True)
+        self.core_fields_locked = bool(
+            self.instance.pk
+            and self.instance.status in self.CORE_LOCKED_STATUSES
+        )
+        self.final_fields_locked = bool(
+            self.instance.pk and self.instance.status in self.FINAL_STATUSES
+        )
+        if self.instance.pk and self.instance.color_id:
+            self.fields["color"].queryset = VehicleColor.objects.filter(
+                Q(active=True) | Q(pk=self.instance.color_id)
+            )
+        if self.core_fields_locked:
+            locked_fields = list(self.CORE_FIELDS)
+            if self.final_fields_locked:
+                locked_fields.append("location_store")
+            for field_name in locked_fields:
+                self.fields[field_name].disabled = True
+                self.fields[field_name].help_text = (
+                    "此車輛已完成交付，僅可補充車況與處理紀錄。"
+                    if self.final_fields_locked
+                    else "此車輛已進入配車或交付流程，為避免訂單資料不一致，目前不可修改。"
+                )
         for field in self.fields.values():
             field.widget.attrs.setdefault("class", "form-control")
         apply_mobile_keyboard_attrs(self)

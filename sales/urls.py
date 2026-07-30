@@ -105,6 +105,7 @@ urlpatterns = [
     ),
     path("inventory/", views.inventory_list, name="inventory_list"),
     path("inventory/new/", views.inventory_create, name="inventory_create"),
+    path("inventory/<int:pk>/edit/", views.inventory_edit, name="inventory_edit"),
     path("api/colors/", views.vehicle_colors, name="vehicle_colors"),
     path("api/sources/", views.sales_sources, name="sales_sources"),
     path("api/id-card-ocr/", views.id_card_ocr, name="id_card_ocr"),

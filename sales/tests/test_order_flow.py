@@ -164,6 +164,159 @@ class OrderFlowTests(TestCase):
         dashboard = self.client.get(reverse("dashboard"))
         self.assertNotContains(dashboard, 'class="page-context-nav"')
 
+    def inventory_payload(self, vehicle=None, **overrides):
+        vehicle = vehicle or self.vehicle
+        payload = {
+            "vehicle_model": vehicle.vehicle_model_id,
+            "color": vehicle.color_id,
+            "engine_number": vehicle.engine_number or "",
+            "frame_number": vehicle.frame_number or "",
+            "ownership_store": vehicle.ownership_store_id,
+            "location_store": vehicle.location_store_id,
+            "received_on": vehicle.received_on.isoformat(),
+            "condition_note": vehicle.condition_note,
+            "condition_resolution": vehicle.condition_resolution,
+        }
+        payload.update(overrides)
+        return payload
+
+    def test_available_inventory_can_be_edited(self):
+        self.client.force_login(self.user)
+
+        response = self.client.post(
+            reverse("inventory_edit", args=[self.vehicle.pk]),
+            self.inventory_payload(
+                engine_number="eng-updated",
+                location_store=self.store_a.pk,
+                condition_note="到店檢查正常",
+            ),
+        )
+
+        self.assertRedirects(response, reverse("inventory_list"))
+        self.vehicle.refresh_from_db()
+        self.assertEqual(self.vehicle.engine_number, "ENG-UPDATED")
+        self.assertEqual(self.vehicle.location_store, self.store_a)
+        self.assertEqual(self.vehicle.condition_note, "到店檢查正常")
+
+    def test_reserved_inventory_locks_core_fields_but_allows_condition_updates(self):
+        self.vehicle.status = VehicleInventory.Status.RESERVED
+        self.vehicle.save(update_fields=["status", "updated_at"])
+        other_model = VehicleModel.objects.create(
+            brand="其他", name="不可換車型", energy_type=VehicleModel.EnergyType.GAS
+        )
+        other_color = VehicleColor.objects.create(
+            vehicle_model=other_model, name="黑"
+        )
+        self.client.force_login(self.user)
+
+        response = self.client.post(
+            reverse("inventory_edit", args=[self.vehicle.pk]),
+            self.inventory_payload(
+                vehicle_model=other_model.pk,
+                color=other_color.pk,
+                engine_number="TAMPERED",
+                ownership_store=self.store_a.pk,
+                location_store=self.store_a.pk,
+                condition_note="調車前發現刮痕",
+                condition_resolution="待確認",
+            ),
+        )
+
+        self.assertRedirects(response, reverse("inventory_list"))
+        self.vehicle.refresh_from_db()
+        self.assertEqual(self.vehicle.vehicle_model, self.model)
+        self.assertEqual(self.vehicle.color, self.color)
+        self.assertEqual(self.vehicle.engine_number, "ENG-001")
+        self.assertEqual(self.vehicle.ownership_store, self.store_b)
+        self.assertEqual(self.vehicle.location_store, self.store_a)
+        self.assertEqual(self.vehicle.condition_note, "調車前發現刮痕")
+
+    def test_inventory_list_is_filterable_sortable_table(self):
+        second = VehicleInventory.objects.create(
+            vehicle_model=self.model,
+            color=self.color,
+            engine_number="ENG-999",
+            ownership_store=self.store_a,
+            location_store=self.store_a,
+            received_on=date(2026, 1, 1),
+            status=VehicleInventory.Status.CONDITION_ISSUE,
+            condition_note="測試異常",
+        )
+        self.client.force_login(self.user)
+
+        response = self.client.get(
+            reverse("inventory_list"),
+            {
+                "q": "ENG-999",
+                "status": VehicleInventory.Status.CONDITION_ISSUE,
+                "ownership_store": self.store_a.pk,
+                "sort": "identifier",
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(list(response.context["vehicles"]), [second])
+        self.assertContains(response, 'class="inventory-table"')
+        self.assertContains(response, "查看／編輯")
+        self.assertNotContains(response, 'class="inventory-card"')
+        self.assertContains(response, 'name="vehicle_model"')
+        self.assertContains(response, 'name="color"')
+        self.assertContains(response, 'name="location_store"')
+        self.assertContains(response, 'name="sort"')
+
+    def test_inventory_edit_page_explains_locked_fields(self):
+        self.vehicle.status = VehicleInventory.Status.DELIVERY_PENDING
+        self.vehicle.save(update_fields=["status", "updated_at"])
+        self.client.force_login(self.user)
+
+        response = self.client.get(
+            reverse("inventory_edit", args=[self.vehicle.pk])
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "編輯庫存")
+        self.assertContains(response, "已進入配車或交付流程")
+        self.assertContains(response, "儲存修改")
+        self.assertContains(response, 'name="engine_number"')
+        self.assertContains(response, "disabled")
+
+    def test_delivered_inventory_locks_location_but_allows_resolution(self):
+        self.vehicle.status = VehicleInventory.Status.DELIVERED
+        self.vehicle.save(update_fields=["status", "updated_at"])
+        self.client.force_login(self.user)
+
+        response = self.client.post(
+            reverse("inventory_edit", args=[self.vehicle.pk]),
+            self.inventory_payload(
+                location_store=self.store_a.pk,
+                condition_resolution="交付後補登檢查結果",
+            ),
+        )
+
+        self.assertRedirects(response, reverse("inventory_list"))
+        self.vehicle.refresh_from_db()
+        self.assertEqual(self.vehicle.location_store, self.store_b)
+        self.assertEqual(
+            self.vehicle.condition_resolution,
+            "交付後補登檢查結果",
+        )
+
+    def test_inventory_list_ignores_malformed_filter_ids(self):
+        self.client.force_login(self.user)
+
+        response = self.client.get(
+            reverse("inventory_list"),
+            {
+                "vehicle_model": "not-a-number",
+                "color": "bad",
+                "ownership_store": "invalid",
+                "location_store": "invalid",
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, self.vehicle.identifier)
+
     def test_navigation_refactor_preserves_critical_order_controls(self):
         self.client.force_login(self.user)
         response = self.client.get(reverse("order_create"))

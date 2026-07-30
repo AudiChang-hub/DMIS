@@ -39,6 +39,10 @@ python manage.py check
 python manage.py test sales
 ```
 
+UI 有異動時，另以桌機、平板及手機 viewport 開啟主要頁面，並在網址加入
+`?ui_audit=1`。頁面根元素的 `data-ui-layout-issues` 必須為 `0`；完整檢查清單
+見 `specs/026-django-order-mvp/04-tasks.md`。
+
 目前尚未完成交車全流程、工作日提醒與 LicenseWatcher
 Ubuntu worker；範圍與驗收依 `specs/026-django-order-mvp/`。
 

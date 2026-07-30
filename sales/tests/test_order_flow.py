@@ -1552,9 +1552,29 @@ class OrderFlowTests(TestCase):
         response = self.client.get(reverse("dashboard"))
 
         self.assertContains(response, "檢查系統更新")
+        self.assertContains(response, "layout-audit.js")
         self.assertContains(response, "app-update-banner")
         self.assertContains(response, "js/app-update")
 
+    def test_allocation_summary_keeps_nested_panel_inside_card_spacing(self):
+        css = (
+            __import__("pathlib").Path("static/css/app.css").read_text(
+                encoding="utf-8"
+            )
+        )
+
+        self.assertIn(
+            ".allocation-summary > .data-list { padding: 18px 20px 0; }",
+            css,
+        )
+        self.assertIn(
+            ".allocation-summary > .reallocation-panel,",
+            css,
+        )
+        self.assertIn(
+            ".allocation-summary > .allocation-lock-note { margin: 18px 20px 20px; }",
+            css,
+        )
     def test_messages_have_timed_dismiss_and_manual_close(self):
         from pathlib import Path
 

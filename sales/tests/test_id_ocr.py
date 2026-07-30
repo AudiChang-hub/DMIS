@@ -115,6 +115,8 @@ class IdOcrEndpointTests(TestCase):
             back=self.image("back.png"),
             photo_token="photo-v1",
         )
+        front_name = job.front.name
+        back_name = job.back.name
         run_id_ocr_job(str(job.pk))
 
         response = self.client.get(reverse("id_card_ocr_status", args=[job.pk]))
@@ -122,6 +124,8 @@ class IdOcrEndpointTests(TestCase):
         self.assertTrue(response.json()["ok"])
         self.assertEqual(response.json()["status"], IdOcrJob.Status.SUCCEEDED)
         self.assertEqual(response.json()["fields"]["name"], "王小明")
+        self.assertFalse(job.front.storage.exists(front_name))
+        self.assertFalse(job.back.storage.exists(back_name))
 
     def test_rejects_non_image_uploads(self):
         self.client.force_login(self.user)

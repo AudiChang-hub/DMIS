@@ -3,6 +3,7 @@ from decimal import Decimal
 
 from django.conf import settings
 from django.core.exceptions import ValidationError
+from django.core.validators import MinValueValidator
 from django.db import models, transaction
 from django.utils import timezone
 
@@ -13,6 +14,31 @@ class TimeStampedModel(models.Model):
 
     class Meta:
         abstract = True
+
+
+class TaiwanCounty(models.TextChoices):
+    TAIPEI = "臺北市", "臺北市"
+    NEW_TAIPEI = "新北市", "新北市"
+    TAOYUAN = "桃園市", "桃園市"
+    TAICHUNG = "臺中市", "臺中市"
+    TAINAN = "臺南市", "臺南市"
+    KAOHSIUNG = "高雄市", "高雄市"
+    KEELUNG = "基隆市", "基隆市"
+    HSINCHU_CITY = "新竹市", "新竹市"
+    CHIAYI_CITY = "嘉義市", "嘉義市"
+    HSINCHU_COUNTY = "新竹縣", "新竹縣"
+    MIAOLI = "苗栗縣", "苗栗縣"
+    CHANGHUA = "彰化縣", "彰化縣"
+    NANTOU = "南投縣", "南投縣"
+    YUNLIN = "雲林縣", "雲林縣"
+    CHIAYI_COUNTY = "嘉義縣", "嘉義縣"
+    PINGTUNG = "屏東縣", "屏東縣"
+    YILAN = "宜蘭縣", "宜蘭縣"
+    HUALIEN = "花蓮縣", "花蓮縣"
+    TAITUNG = "臺東縣", "臺東縣"
+    PENGHU = "澎湖縣", "澎湖縣"
+    KINMEN = "金門縣", "金門縣"
+    LIENCHIANG = "連江縣", "連江縣"
 
 
 class Store(TimeStampedModel):
@@ -138,6 +164,100 @@ class VehicleModel(TimeStampedModel):
             )
 
 
+class VehicleSettlementCostRule(TimeStampedModel):
+    vehicle_model = models.ForeignKey(
+        VehicleModel,
+        on_delete=models.PROTECT,
+        related_name="settlement_cost_rules",
+        verbose_name="車型",
+    )
+    registration_county = models.CharField(
+        "領牌縣市",
+        max_length=10,
+        choices=TaiwanCounty.choices,
+        blank=True,
+        help_text="留空代表全國預設；有指定縣市的規則會優先套用。",
+    )
+    amount = models.DecimalField(
+        "代銷結算成本",
+        max_digits=12,
+        decimal_places=0,
+        validators=[MinValueValidator(0)],
+    )
+    announced_on = models.DateField("公告日期", default=timezone.localdate)
+    effective_from = models.DateField("生效日期")
+    effective_to = models.DateField(
+        "結束日期",
+        blank=True,
+        null=True,
+        help_text="可留空；建立下一版本時，系統會依生效日選用最新規則。",
+    )
+    note = models.TextField("備註", blank=True)
+    active = models.BooleanField("啟用中", default=True)
+
+    class Meta:
+        ordering = [
+            "vehicle_model",
+            "registration_county",
+            "-effective_from",
+            "-id",
+        ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=[
+                    "vehicle_model",
+                    "registration_county",
+                    "effective_from",
+                ],
+                name="unique_settlement_cost_rule_start",
+            )
+        ]
+        indexes = [
+            models.Index(
+                fields=[
+                    "vehicle_model",
+                    "registration_county",
+                    "effective_from",
+                ],
+                name="settlement_cost_lookup",
+            )
+        ]
+        verbose_name = "代銷結算成本規則"
+        verbose_name_plural = "代銷結算成本規則"
+
+    @property
+    def area_label(self):
+        return self.registration_county or "全國預設"
+
+    @property
+    def lifecycle_status(self):
+        today = timezone.localdate()
+        if not self.active:
+            return "inactive", "已停用"
+        if self.effective_from > today:
+            return "scheduled", "預定生效"
+        if self.effective_to and self.effective_to < today:
+            return "expired", "已失效"
+        return "active", "生效中"
+
+    def clean(self):
+        errors = {}
+        if self.effective_to and self.effective_to < self.effective_from:
+            errors["effective_to"] = "結束日期不可早於生效日期。"
+        if errors:
+            raise ValidationError(errors)
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        return super().save(*args, **kwargs)
+
+    def __str__(self):
+        return (
+            f"{self.vehicle_model}／{self.area_label}／"
+            f"{self.effective_from:%Y/%m/%d}／{self.amount:.0f} 元"
+        )
+
+
 class VehicleColor(TimeStampedModel):
     vehicle_model = models.ForeignKey(
         VehicleModel,
@@ -207,14 +327,6 @@ class VehicleInventory(TimeStampedModel):
         "車況照片", upload_to="inventory/condition/%Y/%m/", blank=True
     )
     condition_resolution = models.TextField("處理結果", blank=True)
-    acquisition_cost = models.DecimalField(
-        "進貨成本",
-        max_digits=12,
-        decimal_places=0,
-        blank=True,
-        null=True,
-    )
-
     class Meta:
         ordering = ["-received_on", "-id"]
         verbose_name = "庫存車輛"
@@ -425,6 +537,12 @@ class SalesOrder(TimeStampedModel):
         default=VehicleCategory.NEW,
     )
     registration_date = models.DateField("實際領牌日期", blank=True, null=True)
+    registration_county = models.CharField(
+        "領牌縣市",
+        max_length=10,
+        choices=TaiwanCounty.choices,
+        blank=True,
+    )
     compulsory_insurance_period = models.PositiveSmallIntegerField(
         "強制險期間",
         choices=CompulsoryInsurancePeriod.choices,
@@ -923,6 +1041,35 @@ class OrderOperationsProfile(TimeStampedModel):
     actual_disbursement = models.DecimalField("實際撥款", max_digits=12, decimal_places=0, default=0)
     vehicle_cost = models.DecimalField("車輛成本", max_digits=12, decimal_places=0, default=0)
     vehicle_cost_manual = models.BooleanField("車輛成本已人工調整", default=False)
+    vehicle_cost_rule = models.ForeignKey(
+        VehicleSettlementCostRule,
+        on_delete=models.SET_NULL,
+        related_name="order_snapshots",
+        verbose_name="套用成本規則",
+        blank=True,
+        null=True,
+    )
+    vehicle_cost_registration_date = models.DateField(
+        "成本認列領牌日",
+        blank=True,
+        null=True,
+    )
+    vehicle_cost_county = models.CharField(
+        "成本認列縣市",
+        max_length=10,
+        choices=TaiwanCounty.choices,
+        blank=True,
+    )
+    vehicle_cost_locked_at = models.DateTimeField(
+        "成本鎖定時間",
+        blank=True,
+        null=True,
+    )
+    vehicle_cost_locked_by = models.CharField(
+        "成本鎖定人員",
+        max_length=150,
+        blank=True,
+    )
     registration_tax_expense = models.DecimalField("領牌稅金支出", max_digits=12, decimal_places=0, default=0)
     compulsory_insurance_expense = models.DecimalField("強制險支出", max_digits=12, decimal_places=0, default=0)
     plate_selection_expense = models.DecimalField("選號支出", max_digits=12, decimal_places=0, default=0)

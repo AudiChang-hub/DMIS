@@ -42,6 +42,7 @@ from .forms import (
     VehicleInventoryForm,
     VehicleColorMasterFormSet,
     VehicleModelMasterForm,
+    VehicleSettlementCostRuleForm,
 )
 from .models import (
     OrderEvent,
@@ -55,10 +56,12 @@ from .models import (
     SalesSource,
     Store,
     SubsidyDocument,
+    TaiwanCounty,
     VehicleColor,
     VehicleInventory,
     VehicleInventoryHistory,
     VehicleModel,
+    VehicleSettlementCostRule,
 )
 from .jobs import delete_id_ocr_job_files, run_id_ocr_job
 from .services.id_ocr import recognize_id_card
@@ -68,6 +71,10 @@ from .services.order_search import (
     build_order_search_query,
 )
 from .services.operations_sync import sync_order_operations
+from .services.settlement_cost import (
+    apply_order_settlement_cost,
+    resolve_settlement_cost,
+)
 from .services.dashboard_metrics import build_dashboard_metrics
 from .services.secret_fields import decrypt_secret, encrypt_secret
 
@@ -164,7 +171,6 @@ INVENTORY_HISTORY_FIELDS = {
     "condition_note": "車況說明",
     "condition_photo": "車況照片",
     "condition_resolution": "處理結果",
-    "acquisition_cost": "進貨成本",
 }
 
 
@@ -184,12 +190,6 @@ def _inventory_values(vehicle):
         "condition_resolution": (
             vehicle.condition_resolution,
             vehicle.condition_resolution or "未填寫",
-        ),
-        "acquisition_cost": (
-            vehicle.acquisition_cost,
-            str(vehicle.acquisition_cost)
-            if vehicle.acquisition_cost is not None
-            else "未填寫",
         ),
     }
 
@@ -980,7 +980,6 @@ def order_operations(request, pk):
     )
     sync_order_operations(order.pk)
     profile = OrderOperationsProfile.objects.get(order=order)
-    previous_vehicle_cost = profile.vehicle_cost
     before = _operations_snapshot(profile)
     form = OrderOperationsForm(
         request.POST or None,
@@ -996,8 +995,6 @@ def order_operations(request, pk):
     if request.method == "POST" and form.is_valid() and payment_formset.is_valid():
         with transaction.atomic():
             profile = form.save(commit=False)
-            if profile.vehicle_cost != previous_vehicle_cost:
-                profile.vehicle_cost_manual = True
             vehicle_secret = form.cleaned_data.get("vehicle_control_password")
             battery_secret = form.cleaned_data.get("battery_password")
             if vehicle_secret:
@@ -1474,16 +1471,31 @@ def registration_save(request, pk):
     form = RegistrationStageForm(request.POST, instance=order)
     if form.is_valid():
         order = form.save()
+        cost_profile = apply_order_settlement_cost(
+            order,
+            _editing_name(request.user),
+        )
         OrderEvent.objects.create(
             order=order,
             event_type="registration_data_updated",
             description=(
                 f"已更新領牌資料：{order.registration_date}／"
-                f"{order.final_plate_number}"
+                f"{order.registration_county}／{order.final_plate_number}"
             ),
             actor_name=_editing_name(request.user),
         )
-        messages.success(request, "領牌日期與車牌號碼已保存。")
+        if cost_profile.vehicle_cost_rule_id:
+            messages.success(
+                request,
+                "領牌資料已保存，已依領牌日期與縣市帶入"
+                f"代銷結算成本 ${cost_profile.vehicle_cost:,.0f}。",
+            )
+        else:
+            messages.warning(
+                request,
+                "領牌資料已保存，但目前找不到適用的代銷結算成本規則；"
+                "請先至車型資料的成本規則補建，否則無法完成領牌。",
+            )
     else:
         messages.error(
             request,
@@ -1581,11 +1593,28 @@ def registration_complete(request, pk):
     if order.is_registration_complete:
         messages.info(request, "此訂單已完成領牌。")
         return redirect("order_detail", pk=pk)
+    rule = resolve_settlement_cost(
+        order.vehicle_model_id,
+        order.registration_county,
+        order.registration_date,
+    )
+    if not rule:
+        messages.error(
+            request,
+            "找不到符合車型、領牌縣市及領牌日期的代銷結算成本規則，"
+            "請先至車型資料補建後再完成領牌。",
+        )
+        return redirect("order_detail", pk=pk)
     try:
         order.complete_registration(_editing_name(request.user))
     except ValidationError as exc:
         messages.error(request, " ".join(exc.messages))
     else:
+        apply_order_settlement_cost(
+            order,
+            _editing_name(request.user),
+            lock=True,
+        )
         OrderEvent.objects.create(
             order=order,
             event_type="registration_completed",
@@ -2017,6 +2046,7 @@ def vehicle_model_list(request):
             distinct=True,
         ),
         color_count=Count("colors", distinct=True),
+        settlement_rule_count=Count("settlement_cost_rules", distinct=True),
     )
     if keyword:
         models = models.filter(
@@ -2101,6 +2131,96 @@ def vehicle_model_edit(request, pk):
     )
 
 
+@login_required
+def settlement_cost_rule_list(request):
+    keyword = request.GET.get("q", "").strip()
+    county = request.GET.get("registration_county", "")
+    rules = VehicleSettlementCostRule.objects.select_related("vehicle_model")
+    if keyword:
+        rules = rules.filter(
+            Q(vehicle_model__brand__icontains=keyword)
+            | Q(vehicle_model__name__icontains=keyword)
+            | Q(vehicle_model__model_number__icontains=keyword)
+            | Q(note__icontains=keyword)
+        )
+    if county:
+        rules = rules.filter(registration_county=county)
+    rules = rules.order_by(
+        "vehicle_model__brand",
+        "vehicle_model__name",
+        "registration_county",
+        "-effective_from",
+    )
+    paginator = Paginator(rules, 100)
+    page = paginator.get_page(request.GET.get("page"))
+    return render(
+        request,
+        "sales/settlement_cost_rule_list.html",
+        {
+            "rules": page.object_list,
+            "page_obj": page,
+            "counties": TaiwanCounty.choices,
+            "selected": {"q": keyword, "registration_county": county},
+            "today": timezone.localdate(),
+        },
+    )
+
+
+def _settlement_cost_rule_form_view(request, instance=None):
+    form = VehicleSettlementCostRuleForm(request.POST or None, instance=instance)
+    if request.method == "POST" and form.is_valid():
+        rule = form.save()
+        messages.success(
+            request,
+            f"已{'更新' if instance else '建立'}成本規則：{rule}",
+        )
+        return redirect("settlement_cost_rule_list")
+    return render(
+        request,
+        "sales/settlement_cost_rule_form.html",
+        {
+            "form": form,
+            "rule": instance,
+            "is_editing": instance is not None,
+        },
+    )
+
+
+@login_required
+def settlement_cost_rule_create(request):
+    return _settlement_cost_rule_form_view(request)
+
+
+@login_required
+def settlement_cost_rule_edit(request, pk):
+    return _settlement_cost_rule_form_view(
+        request,
+        get_object_or_404(VehicleSettlementCostRule, pk=pk),
+    )
+
+
+@login_required
+@transaction.atomic
+def settlement_cost_rule_delete(request, pk):
+    if request.method != "POST":
+        return redirect("settlement_cost_rule_list")
+    rule = get_object_or_404(
+        VehicleSettlementCostRule.objects.select_for_update(),
+        pk=pk,
+    )
+    if rule.order_snapshots.exists():
+        messages.error(
+            request,
+            "此成本規則已被領牌訂單採用，為保留財務依據不能刪除；"
+            "請改為停用。",
+        )
+    else:
+        label = str(rule)
+        rule.delete()
+        messages.success(request, f"已刪除未使用的成本規則：{label}")
+    return redirect("settlement_cost_rule_list")
+
+
 def server_error(request):
     return render(request, "errors/500.html", status=500)
 
@@ -2158,9 +2278,6 @@ def inventory_quick_create(request):
                             ownership_store=store,
                             location_store=store,
                             received_on=form.cleaned_data["received_on"],
-                            acquisition_cost=form.cleaned_data.get(
-                                "acquisition_cost"
-                            ),
                             condition_note=form.cleaned_data.get("condition_note", ""),
                         )
                         if model.energy_type == VehicleModel.EnergyType.GAS:
@@ -2272,7 +2389,9 @@ def vehicle_colors(request):
     colors = VehicleColor.objects.filter(
         vehicle_model_id=model_id, active=True
     ).values("id", "name")
-    return JsonResponse({"results": list(colors)})
+    return JsonResponse(
+        {"results": list(colors)}
+    )
 
 
 @login_required

@@ -35,6 +35,7 @@ from sales.models import (
     VehicleInventory,
     VehicleInventoryHistory,
     VehicleModel,
+    VehicleSettlementCostRule,
 )
 from sales.services.secret_fields import decrypt_secret
 
@@ -51,6 +52,11 @@ class OrderFlowTests(TestCase):
         )
         self.color = VehicleColor.objects.create(
             vehicle_model=self.model, name="白"
+        )
+        self.settlement_rule = VehicleSettlementCostRule.objects.create(
+            vehicle_model=self.model,
+            amount=Decimal("60000"),
+            effective_from=date(2026, 1, 1),
         )
         self.vehicle = VehicleInventory.objects.create(
             vehicle_model=self.model,
@@ -178,11 +184,6 @@ class OrderFlowTests(TestCase):
             "ownership_store": vehicle.ownership_store_id,
             "location_store": vehicle.location_store_id,
             "received_on": vehicle.received_on.isoformat(),
-            "acquisition_cost": (
-                str(vehicle.acquisition_cost)
-                if vehicle.acquisition_cost is not None
-                else ""
-            ),
             "condition_note": vehicle.condition_note,
             "condition_resolution": vehicle.condition_resolution,
         }
@@ -280,7 +281,6 @@ class OrderFlowTests(TestCase):
                 "color",
                 "identifier",
                 "received_on",
-                "acquisition_cost",
                 "condition_note",
             ):
                 payload[f"vehicles-{index}-{field}"] = row.get(field, "")
@@ -307,7 +307,6 @@ class OrderFlowTests(TestCase):
                         "color": self.color.pk,
                         "identifier": " quick-eng-01 ",
                         "received_on": "2026-07-30",
-                        "acquisition_cost": "65000",
                         "condition_note": "外觀正常",
                     },
                     {
@@ -327,7 +326,6 @@ class OrderFlowTests(TestCase):
         self.assertEqual(gas.location_store, self.store_a)
         self.assertEqual(gas.ownership_store, self.store_a)
         self.assertEqual(gas.condition_note, "外觀正常")
-        self.assertEqual(gas.acquisition_cost, Decimal("65000"))
         self.assertIsNone(electric.engine_number)
         self.assertEqual(gas.history_entries.count(), 1)
         self.assertEqual(electric.history_entries.count(), 1)
@@ -1615,7 +1613,11 @@ class OrderFlowTests(TestCase):
 
         response = self.client.post(
             reverse("registration_save", args=[order.pk]),
-            {"registration_date": "2026-07-29", "final_plate_number": "abc-1234"},
+            {
+                "registration_date": "2026-07-29",
+                "registration_county": "新北市",
+                "final_plate_number": "abc-1234",
+            },
         )
         self.assertRedirects(response, reverse("order_detail", args=[order.pk]))
 
@@ -1653,12 +1655,55 @@ class OrderFlowTests(TestCase):
         self.assertEqual(order.final_plate_number, "ABC-1234")
         self.assertEqual(order.registration_completed_by, "tester")
         self.assertEqual(order.status, SalesOrder.Status.DELIVERY_PENDING)
+        profile = order.operations
+        self.assertEqual(profile.vehicle_cost, Decimal("60000"))
+        self.assertEqual(profile.vehicle_cost_rule, self.settlement_rule)
+        self.assertEqual(profile.vehicle_cost_county, "新北市")
+        self.assertIsNotNone(profile.vehicle_cost_locked_at)
+
+    def test_registration_completion_requires_matching_settlement_cost(self):
+        order = self.make_order()
+        order.allocate(self.vehicle)
+        self.settlement_rule.delete()
+        SalesOrder.objects.filter(pk=order.pk).update(
+            registration_date=date(2026, 7, 29),
+            registration_county="新北市",
+            final_plate_number="ABC-1234",
+        )
+        for document_type in [
+            RegistrationDocument.DocumentType.NEW_LICENSE,
+            RegistrationDocument.DocumentType.REGISTRATION_APPLICATION,
+            RegistrationDocument.DocumentType.MOTOR_VEHICLE_RECEIPT,
+            RegistrationDocument.DocumentType.INVOICE,
+            RegistrationDocument.DocumentType.COMPULSORY_INSURANCE,
+        ]:
+            RegistrationDocument.objects.create(
+                order=order,
+                document_type=document_type,
+                file=SimpleUploadedFile(
+                    f"{document_type}.pdf",
+                    b"registration document",
+                    content_type="application/pdf",
+                ),
+            )
+        self.client.force_login(self.user)
+
+        response = self.client.post(
+            reverse("registration_complete", args=[order.pk])
+        )
+
+        self.assertRedirects(response, reverse("order_detail", args=[order.pk]))
+        order.refresh_from_db()
+        self.assertFalse(order.is_registration_complete)
+        messages = [str(message) for message in response.wsgi_request._messages]
+        self.assertTrue(any("代銷結算成本規則" in message for message in messages))
 
     def test_plate_selection_document_is_conditionally_required(self):
         order = self.make_order()
         order.allocate(self.vehicle)
         SalesOrder.objects.filter(pk=order.pk).update(
             registration_date=date(2026, 7, 29),
+            registration_county="新北市",
             final_plate_number="ABC-1234",
             plate_choice=SalesOrder.PlateChoice.PREFERENCE,
         )
@@ -2406,6 +2451,101 @@ class OrderOperationsTests(TestCase):
         self.assertEqual(performance["sales_total"], Decimal("80000"))
         self.assertEqual(performance["profit_total"], Decimal("20000"))
         self.assertContains(response, "營運戰情看板")
+
+    def test_settlement_cost_uses_county_then_locks_historical_snapshot(self):
+        VehicleSettlementCostRule.objects.create(
+            vehicle_model=self.model,
+            registration_county="",
+            amount=Decimal("62000"),
+            effective_from=date(2026, 7, 1),
+        )
+        county_rule = VehicleSettlementCostRule.objects.create(
+            vehicle_model=self.model,
+            registration_county="新北市",
+            amount=Decimal("61000"),
+            effective_from=date(2026, 8, 1),
+        )
+        self.order.registration_date = date(2026, 8, 5)
+        self.order.registration_county = "新北市"
+        self.order.save(
+            update_fields=["registration_date", "registration_county", "updated_at"]
+        )
+
+        from sales.services.settlement_cost import apply_order_settlement_cost
+
+        profile = apply_order_settlement_cost(self.order, "tester", lock=True)
+        self.assertEqual(profile.vehicle_cost, Decimal("61000"))
+        self.assertEqual(profile.vehicle_cost_rule, county_rule)
+        self.assertIsNotNone(profile.vehicle_cost_locked_at)
+
+        county_rule.amount = Decimal("63000")
+        county_rule.save()
+        profile = apply_order_settlement_cost(self.order, "tester")
+        self.assertEqual(profile.vehicle_cost, Decimal("61000"))
+
+    def test_future_cost_does_not_apply_before_effective_date(self):
+        current = VehicleSettlementCostRule.objects.create(
+            vehicle_model=self.model,
+            amount=Decimal("60000"),
+            effective_from=date(2026, 7, 1),
+        )
+        VehicleSettlementCostRule.objects.create(
+            vehicle_model=self.model,
+            amount=Decimal("65000"),
+            announced_on=date(2026, 7, 25),
+            effective_from=date(2026, 8, 1),
+        )
+        from sales.services.settlement_cost import resolve_settlement_cost
+
+        self.assertEqual(
+            resolve_settlement_cost(self.model.pk, "臺北市", date(2026, 7, 31)),
+            current,
+        )
+        self.assertEqual(
+            resolve_settlement_cost(
+                self.model.pk,
+                "臺北市",
+                date(2026, 8, 1),
+            ).amount,
+            Decimal("65000"),
+        )
+
+    def test_settlement_cost_maintenance_pages_are_available(self):
+        rule = VehicleSettlementCostRule.objects.create(
+            vehicle_model=self.model,
+            registration_county="新北市",
+            amount=Decimal("61000"),
+            effective_from=date(2026, 8, 1),
+        )
+
+        listing = self.client.get(reverse("settlement_cost_rule_list"))
+        editing = self.client.get(
+            reverse("settlement_cost_rule_edit", args=[rule.pk])
+        )
+
+        self.assertEqual(listing.status_code, 200)
+        self.assertContains(listing, "代銷結算成本")
+        self.assertContains(listing, "新北市")
+        self.assertContains(listing, "61000")
+        self.assertEqual(editing.status_code, 200)
+        self.assertContains(editing, "領牌縣市")
+
+    def test_payment_page_starts_with_one_manual_row_and_collapses_system_items(self):
+        response = self.client.get(
+            reverse("order_operations", args=[self.order.pk])
+        )
+        html = response.content.decode()
+
+        self.assertContains(response, "系統應收摘要")
+        self.assertContains(response, "需要確認收款時再展開")
+        # 一筆預設人工列，加上一筆供動態新增使用的 template。
+        self.assertEqual(
+            html.count(
+                '<button type="button" class="button danger-outline small" '
+                "data-delete-payment>"
+            ),
+            2,
+        )
 
     def test_existing_order_without_profile_can_open_operations_page(self):
         self.order.operations.delete()

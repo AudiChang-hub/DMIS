@@ -19,6 +19,7 @@ from .models import (
     VehicleColor,
     VehicleInventory,
     VehicleModel,
+    VehicleSettlementCostRule,
 )
 from .services.registration_fee import (
     UnsupportedRegistrationFee,
@@ -531,7 +532,6 @@ class VehicleInventoryForm(forms.ModelForm):
             "frame_number",
             "location_store",
             "received_on",
-            "acquisition_cost",
             "condition_note",
             "condition_photo",
             "condition_resolution",
@@ -663,6 +663,42 @@ class VehicleModelMasterForm(forms.ModelForm):
         return cleaned
 
 
+class VehicleSettlementCostRuleForm(forms.ModelForm):
+    class Meta:
+        model = VehicleSettlementCostRule
+        fields = [
+            "vehicle_model",
+            "registration_county",
+            "amount",
+            "announced_on",
+            "effective_from",
+            "effective_to",
+            "note",
+            "active",
+        ]
+        widgets = {
+            "amount": forms.NumberInput(attrs={"inputmode": "numeric"}),
+            "announced_on": DateInput(),
+            "effective_from": DateInput(),
+            "effective_to": DateInput(),
+            "note": forms.Textarea(attrs={"rows": 3}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["registration_county"].required = False
+        county_choices = list(self.fields["registration_county"].choices)
+        self.fields["registration_county"].choices = [
+            ("", "全國預設"),
+            *county_choices[1:],
+        ]
+        self.fields["vehicle_model"].queryset = VehicleModel.objects.filter(
+            active=True
+        ).order_by("brand", "name", "-model_year")
+        for field in self.fields.values():
+            field.widget.attrs.setdefault("class", "form-control")
+        apply_mobile_keyboard_attrs(self)
+
 class VehicleColorMasterForm(forms.ModelForm):
     class Meta:
         model = VehicleColor
@@ -756,6 +792,7 @@ class OrderOperationsForm(forms.ModelForm):
         synced_fields = {
             "dealer_name",
             "actual_disbursement",
+            "vehicle_cost",
             "registration_tax_income",
             "compulsory_insurance_income",
             "plate_selection_income",
@@ -850,14 +887,6 @@ class QuickInventoryEntryForm(forms.Form):
         label="進車日期",
         initial=timezone.localdate,
         widget=DateInput(),
-    )
-    acquisition_cost = forms.DecimalField(
-        label="進貨成本",
-        required=False,
-        min_value=0,
-        decimal_places=0,
-        max_digits=12,
-        widget=forms.NumberInput(attrs={"placeholder": "選填", "inputmode": "numeric"}),
     )
     condition_note = forms.CharField(
         label="車況說明",
@@ -1001,7 +1030,7 @@ class ReallocationForm(AllocationForm):
 class RegistrationStageForm(forms.ModelForm):
     class Meta:
         model = SalesOrder
-        fields = ["registration_date", "final_plate_number"]
+        fields = ["registration_date", "registration_county", "final_plate_number"]
         widgets = {"registration_date": DateInput()}
 
     def __init__(self, *args, **kwargs):
@@ -1013,6 +1042,7 @@ class RegistrationStageForm(forms.ModelForm):
         self._previous_calculated_balance = self.instance.calculated_balance
         self._previous_actual_balance = self.instance.actual_balance
         self.fields["registration_date"].required = True
+        self.fields["registration_county"].required = True
         self.fields["final_plate_number"].required = True
         self.fields["final_plate_number"].widget.attrs.update(
             {
@@ -1024,6 +1054,7 @@ class RegistrationStageForm(forms.ModelForm):
             }
         )
         self.fields["registration_date"].widget.attrs["class"] = "form-control"
+        self.fields["registration_county"].widget.attrs["class"] = "form-control"
 
     def clean_final_plate_number(self):
         return self.cleaned_data["final_plate_number"].strip().upper()

@@ -442,10 +442,6 @@ def extract_resident_certificate_fields(text):
                 break
     address = "".join(address_lines)
     if address:
-        # 居留證細字體的「號」常被 Vision 誤讀成「房」。只在地址前段
-        # 已有門牌號、且末尾為另一組數字加「房」時修正，避免全域替換。
-        if "號" in address[:-1] and re.search(r"\d房$", address):
-            address = f"{address[:-1]}號"
         result["address"] = address
     return result
 

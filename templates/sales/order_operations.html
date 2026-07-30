@@ -28,8 +28,10 @@
       {% include "sales/_field.html" with field=form.balance_invoice_number %}
       {% include "sales/_field.html" with field=form.installment_info %}
     </div>
-    <div class="payment-records" id="payment-records">
+    <details class="system-payment-records">
+      <summary><strong>系統應收摘要</strong><span>訂金、尾款與分期撥款；需要確認收款時再展開</span></summary>
       {% for payment in payment_formset %}
+      {% if payment.instance.system_key %}
       <div class="payment-record-row" data-payment-row>
         {{ payment.id }}
         {% include "sales/_field.html" with field=payment.item_name %}
@@ -42,8 +44,29 @@
         {% include "sales/_field.html" with field=payment.proof %}
         {% include "sales/_field.html" with field=payment.note %}
         <span hidden>{{ payment.DELETE }}</span>
-        {% if not payment.instance.system_key %}<button type="button" class="button danger-outline small" data-delete-payment>刪除此筆收款</button>{% else %}<small class="muted">系統同步項目</small>{% endif %}
+        <small class="muted">系統同步項目</small>
       </div>
+      {% endif %}
+      {% endfor %}
+    </details>
+    <div class="payment-records" id="payment-records">
+      {% for payment in payment_formset %}
+      {% if not payment.instance.system_key %}
+      <div class="payment-record-row" data-payment-row>
+        {{ payment.id }}
+        {% include "sales/_field.html" with field=payment.item_name %}
+        {% include "sales/_field.html" with field=payment.expected_amount %}
+        {% include "sales/_field.html" with field=payment.received_amount %}
+        {% include "sales/_field.html" with field=payment.received_on %}
+        {% include "sales/_field.html" with field=payment.payment_method %}
+        {% include "sales/_field.html" with field=payment.receiving_account %}
+        {% include "sales/_field.html" with field=payment.confirmed %}
+        {% include "sales/_field.html" with field=payment.proof %}
+        {% include "sales/_field.html" with field=payment.note %}
+        <span hidden>{{ payment.DELETE }}</span>
+        <button type="button" class="button danger-outline small" data-delete-payment>刪除此筆收款</button>
+      </div>
+      {% endif %}
       {% endfor %}
     </div>
     <template id="payment-empty-row"><div class="payment-record-row" data-payment-row>
@@ -65,6 +88,17 @@
 
   <details class="operation-section"><summary><strong>成本與支出</strong><span>影響單筆淨利</span></summary><div class="operation-grid">
     {% include "sales/_field.html" with field=form.vehicle_cost %}
+    <div class="field settlement-cost-source">
+      <label>成本認列依據</label>
+      {% if profile.vehicle_cost_rule_id %}
+      <div class="read-only-value">
+        <strong>{{ profile.vehicle_cost_county }} · {{ profile.vehicle_cost_registration_date|date:"Y/m/d" }}</strong>
+        <small>{% if profile.vehicle_cost_locked_at %}已固定，不受後續成本版本異動影響{% else %}領牌完成後固定{% endif %}</small>
+      </div>
+      {% else %}
+      <div class="read-only-value"><strong>尚未認列</strong><small>完成領牌資料並符合成本規則後自動帶入</small></div>
+      {% endif %}
+    </div>
     {% include "sales/_field.html" with field=form.registration_tax_expense %}
     {% include "sales/_field.html" with field=form.compulsory_insurance_expense %}
     {% include "sales/_field.html" with field=form.plate_selection_expense %}

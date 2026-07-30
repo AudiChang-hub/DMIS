@@ -18,7 +18,7 @@
   {% if formset.non_form_errors %}<div class="message error">{{ formset.non_form_errors }}</div>{% endif %}
   <div class="quick-entry-panel">
     <div class="quick-entry-head" aria-hidden="true">
-      <span>車型</span><span>車色</span><span>引擎／車身號碼</span><span>進車日期</span><span>進貨成本（選填）</span><span>車況說明（選填）</span><span></span>
+      <span>車型</span><span>車色</span><span>引擎／車身號碼</span><span>進車日期</span><span>車況說明（選填）</span><span></span>
     </div>
     <div id="quick-entry-rows">
       {% for form in formset %}
@@ -27,7 +27,6 @@
         <div class="quick-entry-field" data-label="車色">{{ form.color }}{% for error in form.color.errors %}<small class="field-error">{{ error }}</small>{% endfor %}</div>
         <div class="quick-entry-field" data-label="識別號碼"><label class="mobile-only identifier-label">引擎／車身號碼</label>{{ form.identifier }}{% for error in form.identifier.errors %}<small class="field-error">{{ error }}</small>{% endfor %}</div>
         <div class="quick-entry-field" data-label="進車日期">{{ form.received_on }}{% for error in form.received_on.errors %}<small class="field-error">{{ error }}</small>{% endfor %}</div>
-        <div class="quick-entry-field" data-label="進貨成本（選填）">{{ form.acquisition_cost }}{% for error in form.acquisition_cost.errors %}<small class="field-error">{{ error }}</small>{% endfor %}</div>
         <div class="quick-entry-field" data-label="車況說明（選填）">{{ form.condition_note }}{% for error in form.condition_note.errors %}<small class="field-error">{{ error }}</small>{% endfor %}</div>
         <div class="quick-entry-delete"><span hidden>{{ form.DELETE }}</span><button type="button" class="button danger-outline small" data-delete-row>刪除此列</button></div>
         {% for error in form.non_field_errors %}<small class="field-error quick-entry-row-error">{{ error }}</small>{% endfor %}
@@ -40,7 +39,6 @@
         <div class="quick-entry-field" data-label="車色">{{ formset.empty_form.color }}</div>
         <div class="quick-entry-field" data-label="識別號碼"><label class="mobile-only identifier-label">引擎／車身號碼</label>{{ formset.empty_form.identifier }}</div>
         <div class="quick-entry-field" data-label="進車日期">{{ formset.empty_form.received_on }}</div>
-        <div class="quick-entry-field" data-label="進貨成本（選填）">{{ formset.empty_form.acquisition_cost }}</div>
         <div class="quick-entry-field" data-label="車況說明（選填）">{{ formset.empty_form.condition_note }}</div>
         <div class="quick-entry-delete"><span hidden>{{ formset.empty_form.DELETE }}</span><button type="button" class="button danger-outline small" data-delete-row>刪除此列</button></div>
       </div>

@@ -103,12 +103,6 @@ def sync_order_operations(order_id):
         if order.payment_type == SalesOrder.PaymentType.INSTALLMENT
         else ""
     )
-    if (
-        not profile.vehicle_cost_manual
-        and order.allocated_vehicle_id
-        and order.allocated_vehicle.acquisition_cost is not None
-    ):
-        profile.vehicle_cost = order.allocated_vehicle.acquisition_cost
     profile.save()
 
     active_keys = {"deposit"}

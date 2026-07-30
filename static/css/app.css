@@ -391,15 +391,18 @@ input[type="file"].form-control { padding: 10px; }
 .remove-photo[hidden] { display: none; }
 .info-banner { margin: 18px 22px 0; padding: 12px 14px; color: #2a5c48; background: var(--mint); border-radius: 11px; font-size: .84rem; }
 .ocr-status {
-  display: grid; grid-template-columns: auto 1fr auto; margin: 10px 22px 0; padding: 12px 14px;
-  align-items: center; gap: 10px; border: 1px solid var(--line); border-radius: 11px;
+  display: grid; grid-template-columns: auto 1fr auto; margin: 14px 22px 0; padding: 16px 18px;
+  align-items: center; gap: 13px; border: 1px solid var(--line); border-radius: 14px;
 }
 .ocr-status[hidden] { display: none; }
-.ocr-status p { margin: 0; font-size: .82rem; font-weight: 700; }
+.ocr-status strong { display: block; margin-bottom: 3px; font-size: .95rem; }
+.ocr-status p { margin: 0; font-size: .82rem; font-weight: 650; line-height: 1.5; }
+.ocr-status.waiting { color: #655019; background: #fffaf0; border-color: #ead9a8; }
 .ocr-status.loading { color: var(--blue); background: var(--blue-soft); }
 .ocr-status.success { color: var(--forest-2); background: var(--mint); }
 .ocr-status.warning { color: #825609; background: var(--amber-soft); }
 .ocr-status.error { color: var(--red); background: var(--red-soft); }
+[data-ocr-confirmation-fields][hidden] { display: none !important; }
 .ocr-completed-notice {
   position: fixed; z-index: 1200; right: 20px; top: 88px;
   display: grid; grid-template-columns: 1fr auto; gap: 4px 18px;
@@ -416,7 +419,7 @@ input[type="file"].form-control { padding: 10px; }
 @media (max-width: 640px) {
   .ocr-completed-notice { top: 76px; right: 16px; left: 16px; min-width: 0; }
 }
-.ocr-spinner { width: 17px; height: 17px; border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; }
+.ocr-spinner { width: 23px; height: 23px; border: 3px solid currentColor; border-right-color: transparent; border-radius: 50%; }
 .ocr-status.loading .ocr-spinner { animation: ocr-spin .8s linear infinite; }
 .ocr-status:not(.loading) .ocr-spinner { display: none; }
 @keyframes ocr-spin { to { transform: rotate(360deg); } }
@@ -924,6 +927,8 @@ body.screen-locked { overflow: hidden; }
   .subsidy-summary .button { grid-column: 1 / -1; }
   .subsidy-edit-grid { grid-template-columns: 1fr; padding: 15px; }
   .identity-compare { grid-template-columns: 1fr; padding: 12px; }
+  .ocr-status { grid-template-columns: auto 1fr; margin-inline: 16px; padding: 15px; }
+  .ocr-status .button { grid-column: 1 / -1; width: 100%; }
   .subsidy-change-reason { grid-column: auto; }
   .subsidy-edit-actions { align-items: stretch; flex-direction: column; }
   .ocr-conflict-card, .ocr-conflict-card__actions { align-items: stretch; flex-direction: column; }

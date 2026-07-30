@@ -68,9 +68,12 @@
     <div class="info-banner">
       拍攝身分證正反面後會自動辨識姓名、生日、身分證字號與戶籍地址。辨識結果仍須對照照片核對。
     </div>
-    <div class="ocr-status" id="ocr-status" aria-live="polite" hidden>
+    <div class="ocr-status" id="ocr-status" role="status" aria-live="polite" hidden>
       <span class="ocr-spinner" aria-hidden="true"></span>
-      <p id="ocr-message"></p>
+      <div>
+        <strong id="ocr-status-title">證件辨識狀態</strong>
+        <p id="ocr-message"></p>
+      </div>
       <button type="button" class="button ghost small" id="run-id-ocr">重新辨識</button>
     </div>
     <div class="form-grid owner-form-grid">
@@ -91,7 +94,7 @@
           {% endif %}
           <button type="button" class="remove-photo" data-clear-file="id_id_front" data-existing-photo="{% if document_source.id_front %}1{% else %}0{% endif %}" {% if not document_source.id_front %}hidden{% endif %}>移除正面照片</button>
         </div>
-        <div class="identity-compare__fields">
+        <div class="identity-compare__fields" data-ocr-confirmation-fields>
           {% include "sales/_field.html" with field=form.owner_name %}
           {% include "sales/_field.html" with field=form.owner_id_number %}
           {% include "sales/_field.html" with field=form.owner_birth_date %}
@@ -110,7 +113,7 @@
           {% endif %}
           <button type="button" class="remove-photo" data-clear-file="id_id_back" data-existing-photo="{% if document_source.id_back %}1{% else %}0{% endif %}" {% if not document_source.id_back %}hidden{% endif %}>移除反面照片</button>
         </div>
-        <div class="identity-compare__fields">
+        <div class="identity-compare__fields" data-ocr-confirmation-fields>
           {% include "sales/_field.html" with field=form.owner_address %}
         </div>
       </div>
@@ -119,7 +122,7 @@
       {% include "sales/_field.html" with field=form.owner_email %}
       <div data-conditional="foreign">{% include "sales/_field.html" with field=form.owner_nationality %}</div>
       <div data-conditional="foreign">{% include "sales/_field.html" with field=form.residence_expiry %}</div>
-      <div class="span-2 verify-box">{% include "sales/_field.html" with field=form.id_verified %}</div>
+      <div class="span-2 verify-box" data-ocr-confirmation-fields>{% include "sales/_field.html" with field=form.id_verified %}</div>
     </div>
   </details>
 
@@ -323,8 +326,12 @@
   const idFront = byId("id_id_front");
   const idBack = byId("id_id_back");
   const ocrStatus = byId("ocr-status");
+  const ocrStatusTitle = byId("ocr-status-title");
   const ocrMessage = byId("ocr-message");
   const ocrButton = byId("run-id-ocr");
+  const ocrConfirmationFields = [
+    ...document.querySelectorAll("[data-ocr-confirmation-fields]")
+  ];
   const orderForm = byId("order-form");
   const draftId = byId("draft-id");
   const editingOrderId = byId("editing-order-id").value;
@@ -369,6 +376,87 @@
   );
   sessionStorage.setItem("order-collaboration-client-id", collaborationClientId);
   let currentActiveSection = "source";
+
+  function hasSelectedPhoto(input) {
+    const clearButton = document.querySelector(`[data-clear-file="${input.id}"]`);
+    return Boolean(input.files.length || clearButton?.dataset.existingPhoto === "1");
+  }
+
+  function hasIdentityValues() {
+    return [
+      byId("id_owner_name"),
+      byId("id_owner_id_number"),
+      byId("id_owner_birth_date"),
+      byId("id_owner_address"),
+    ].some(input => input?.value.trim());
+  }
+
+  function setOcrState(state, options = {}) {
+    const isLocal = ownerType.value === "local";
+    const revealFields = !isLocal || ["review", "manual", "existing"].includes(state);
+    ocrConfirmationFields.forEach(element => { element.hidden = !revealFields; });
+    if (!isLocal) {
+      ocrStatus.hidden = true;
+      return;
+    }
+
+    const states = {
+      upload: {
+        className: "ocr-status waiting",
+        title: "請上傳身分證正反面",
+        message: "資料欄位會在辨識完成後自動顯示，避免重複輸入。",
+        button: "",
+      },
+      incomplete: {
+        className: "ocr-status waiting",
+        title: "還差一張證件照片",
+        message: "正反面備齊後會自動開始辨識。",
+        button: "",
+      },
+      processing: {
+        className: "ocr-status loading",
+        title: "正在辨識證件資料",
+        message: "通常只需幾秒鐘；您可以先填寫其他區塊，完成後會通知您回來核對。",
+        button: "",
+      },
+      review: {
+        className: options.warning ? "ocr-status warning" : "ocr-status success",
+        title: "辨識完成，請核對資料",
+        message: options.message || "請逐項對照證件照片，確認姓名、證號、生日與戶籍地址。",
+        button: "重新辨識",
+      },
+      manual: {
+        className: "ocr-status error",
+        title: "無法完成自動辨識",
+        message: options.message || "您可以重新拍攝，或直接人工填寫下方欄位。",
+        button: "重新辨識",
+      },
+      existing: {
+        className: "ocr-status success",
+        title: "證件資料已載入",
+        message: "請對照已保存的證件照片核對內容。",
+        button: "",
+      },
+    };
+    const config = states[state];
+    ocrStatus.hidden = false;
+    ocrStatus.className = config.className;
+    ocrStatus.dataset.state = state;
+    ocrStatusTitle.textContent = config.title;
+    ocrMessage.textContent = config.message;
+    ocrButton.hidden = !config.button;
+    if (config.button) ocrButton.textContent = config.button;
+  }
+
+  function refreshOcrEntryState() {
+    if (ownerType.value !== "local" || ocrRunning || pendingOcrResult) return;
+    if (hasIdentityValues()) {
+      setOcrState("existing");
+      return;
+    }
+    const photoCount = Number(hasSelectedPhoto(idFront)) + Number(hasSelectedPhoto(idBack));
+    setOcrState(photoCount === 0 ? "upload" : "incomplete");
+  }
 
   function setActiveSection(sectionId) {
     if (sectionId === currentActiveSection && document.querySelector("#form-progress a.active")) return;
@@ -527,6 +615,7 @@
     const needsDestination = ["direct_delivery", "carrier"].includes(deliveryMethod.value);
     showConditional("delivery-destination", needsDestination);
     byId("id_delivery_destination").required = needsDestination;
+    refreshOcrEntryState();
   }
   let previousPaymentType = paymentType.value;
   paymentType.addEventListener("change", () => {
@@ -593,10 +682,7 @@
     const requestVersion = ++ocrRequestVersion;
     const photoToken = `${Date.now()}-${photoVersion.id_front}-${photoVersion.id_back}`;
     ocrRunning = true;
-    ocrStatus.hidden = false;
-    ocrStatus.className = "ocr-status loading";
-    ocrMessage.textContent = "證件已送交背景辨識，您可以繼續填寫其他欄位。";
-    ocrButton.hidden = true;
+    setOcrState("processing");
     const payload = new FormData();
     payload.append("front", idFront.files[0]);
     payload.append("back", idBack.files[0]);
@@ -615,9 +701,9 @@
     } catch (error) {
       if (requestVersion !== ocrRequestVersion) return;
       ocrRunning = false;
-      ocrStatus.className = "ocr-status error";
-      ocrMessage.textContent = `${error.message} 可重新拍攝或改為人工輸入。`;
-      ocrButton.hidden = false;
+      setOcrState("manual", {
+        message: `${error.message} 可重新拍攝，或直接人工填寫下方欄位。`,
+      });
     }
   }
 
@@ -638,31 +724,27 @@
         return;
       }
       ocrRunning = false;
-      ocrButton.hidden = false;
       if (data.status === "succeeded") {
         pendingOcrResult = data;
-        ocrStatus.className = data.warnings?.length
-          ? "ocr-status warning" : "ocr-status success";
-        ocrMessage.textContent = "證件辨識完成，請回到車主資料核對後再採用。";
-        ocrButton.textContent = "查看並採用辨識結果";
+        applyOcrResult();
         showOcrCompletedNotice();
       } else if (data.status === "failed") {
-        ocrStatus.className = "ocr-status error";
-        ocrMessage.textContent = `${data.error || "辨識失敗"} 可重新辨識或人工輸入。`;
-        ocrButton.textContent = "重新辨識";
+        setOcrState("manual", {
+          message: `${data.error || "辨識失敗"} 可重新拍攝，或直接人工填寫下方欄位。`,
+        });
       }
     } catch (error) {
       ocrRunning = false;
-      ocrButton.hidden = false;
-      ocrButton.textContent = "重新辨識";
-      ocrStatus.className = "ocr-status error";
-      ocrMessage.textContent = `${error.message} 請稍後重新辨識。`;
+      setOcrState("manual", {
+        message: `${error.message} 請稍後重新辨識，或直接人工填寫下方欄位。`,
+      });
     }
   }
 
   function applyOcrResult() {
     if (!pendingOcrResult) return;
     const fields = pendingOcrResult.fields || {};
+    let retainedExistingValue = false;
     const mapping = {
       name: "id_owner_name",
       birth_date: "id_owner_birth_date",
@@ -672,31 +754,37 @@
     Object.entries(mapping).forEach(([source, target]) => {
       if (!fields[source]) return;
       const input = byId(target);
-      if (!input.value || window.confirm(
-        `${input.labels?.[0]?.textContent || "此欄位"}已有內容「${input.value}」，要改用辨識結果「${fields[source]}」嗎？`
-      )) input.value = fields[source];
+      if (!input.value) {
+        input.value = fields[source];
+      } else if (input.value !== fields[source]) {
+        retainedExistingValue = true;
+      }
     });
     byId("id_id_verified").checked = false;
-    byId("owner").open = true;
-    byId("owner").scrollIntoView({behavior: "smooth", block: "start"});
-    ocrMessage.textContent = pendingOcrResult.warnings?.length
-      ? `已套用；${pendingOcrResult.warnings.join(" ")}`
-      : "已套用辨識結果，請逐項對照照片後勾選「已人工核對證件」。";
+    const warnings = pendingOcrResult.warnings || [];
+    setOcrState("review", {
+      warning: Boolean(warnings.length || retainedExistingValue),
+      message: retainedExistingValue
+        ? "已保留原有資料，未自動覆蓋；請對照新照片逐項核對。"
+        : warnings.length
+        ? `已帶入辨識結果；${warnings.join(" ")} 請特別核對。`
+        : "已自動帶入資料，請逐項對照照片後勾選「已人工核對證件」。",
+    });
     pendingOcrResult = null;
-    ocrButton.textContent = "重新辨識";
     scheduleDraft();
   }
 
   function showOcrCompletedNotice() {
     const notice = document.createElement("div");
     notice.className = "ocr-completed-notice";
-    notice.innerHTML = "<strong>證件辨識完成</strong><span>請前往車主資料核對</span>";
+    notice.innerHTML = "<strong>證件辨識完成</strong><span>資料已帶入，請前往核對</span>";
     const button = document.createElement("button");
     button.type = "button";
     button.textContent = "前往核對";
     button.addEventListener("click", () => {
       notice.remove();
-      applyOcrResult();
+      byId("owner").open = true;
+      byId("owner").scrollIntoView({behavior: "smooth", block: "start"});
     });
     notice.append(button);
     document.body.append(notice);
@@ -744,6 +832,7 @@
     pendingOcrResult = null;
     refreshPhotoButtons();
     byId("id_id_verified").checked = false;
+    refreshOcrEntryState();
     runIdOcr();
   }
 
@@ -770,11 +859,8 @@
       ocrRunning = false;
       pendingOcrResult = null;
       byId("id_id_verified").checked = false;
-      ocrStatus.hidden = false;
-      ocrStatus.className = "ocr-status warning";
-      ocrMessage.textContent = "照片已移除，請重新拍攝。正反面都備齊後會再次自動辨識。";
-      ocrButton.hidden = true;
       refreshPhotoButtons();
+      refreshOcrEntryState();
       scheduleDraft();
     });
   });
@@ -789,10 +875,10 @@
     });
   });
   ocrButton.addEventListener("click", () => {
-    if (pendingOcrResult) applyOcrResult();
-    else runIdOcr();
+    runIdOcr();
   });
   refreshPhotoButtons();
+  refreshOcrEntryState();
 
   function refreshAccessoryRequired(row) {
     if (row.classList.contains("is-pending-delete")) return;

@@ -1,13 +1,13 @@
 {% extends "base.html" %}
-{% block title %}車型主檔｜車輛銷售管理{% endblock %}
+{% block title %}車型資料｜車輛銷售管理{% endblock %}
 {% block page_class %}page-shell--wide{% endblock %}
 {% block content %}
-{% url 'dashboard' as dashboard_url %}
-{% include "sales/_page_back.html" with fallback_url=dashboard_url label="返回待辦首頁" %}
+{% url 'data_maintenance' as data_url %}
+{% include "sales/_page_back.html" with fallback_url=data_url label="返回資料維護區" %}
 <section class="hero-row compact-hero">
   <div>
     <p class="eyebrow">訂單與庫存共用資料</p>
-    <h1>車型主檔</h1>
+    <h1>車型資料</h1>
     <p class="muted">維護品牌、能源別、機種、型號、年份、型式、顏色、排氣量與建議售價。</p>
   </div>
   <a class="button primary" href="{% url 'vehicle_model_create' %}">＋ 新增車型</a>

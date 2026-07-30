@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block title %}客戶資料｜資料維護區{% endblock %}
+{% block page_class %}page-shell--wide{% endblock %}
+{% block content %}
+{% url 'data_maintenance' as data_url %}
+{% include "sales/_page_back.html" with fallback_url=data_url label="返回資料維護區" %}
+<section class="hero-row compact-hero">
+  <div><p class="eyebrow">資料維護區</p><h1>客戶資料</h1><p class="muted">同一證件號碼只顯示一筆，內容取自最近一張訂單；修改請由訂單進行並留下紀錄。</p></div>
+</section>
+<form class="inventory-filters customer-filters" method="get">
+  <div class="inventory-filter inventory-filter--search">
+    <label for="customer-q">全欄位搜尋</label>
+    <input id="customer-q" name="q" value="{{ keyword }}" placeholder="姓名、電話、Email、證件號碼或地址">
+  </div>
+  <div class="inventory-filter-actions"><a class="button ghost" href="{% url 'customer_list' %}">清除</a><button class="button primary" type="submit">搜尋</button></div>
+</form>
+<section class="inventory-list-panel">
+  <div class="inventory-list-summary"><strong>共 {{ page_obj.paginator.count }} 位客戶</strong></div>
+  <div class="inventory-table-wrap">
+    <table class="inventory-table customer-table">
+      <thead><tr><th>姓名／類型</th><th>證件號碼</th><th>電話</th><th>Email</th><th>地址</th><th>訂單</th><th>最近交易</th><th></th></tr></thead>
+      <tbody>
+      {% for customer in customers %}
+        <tr>
+          <td data-label="姓名／類型"><strong>{{ customer.owner_name }}</strong><span>{{ customer.get_owner_type_display }}</span></td>
+          <td data-label="證件號碼">{{ customer.masked_id_number }}</td>
+          <td data-label="電話">{{ customer.owner_phone }}</td>
+          <td data-label="Email">{{ customer.owner_email|default:"—" }}</td>
+          <td data-label="地址">{{ customer.owner_address }}</td>
+          <td data-label="訂單">{{ customer.order_count }} 張</td>
+          <td data-label="最近交易">{{ customer.order_date|date:"Y/m/d" }}</td>
+          <td class="inventory-row-action"><a class="button ghost small" href="{% url 'order_detail' customer.pk %}">查看最近訂單</a></td>
+        </tr>
+      {% empty %}
+        <tr><td colspan="8"><div class="empty-state"><strong>查無客戶資料</strong></div></td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endblock %}

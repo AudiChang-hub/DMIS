@@ -310,10 +310,6 @@ def extract_fields(text, side):
                     break
         address = "".join(address_lines)
         address = re.sub(r"[A-Za-z\s]", "", address)
-        # 身分證地址的樓層使用阿拉伯數字；Vision 偶爾會把直線字形的
-        # 「1樓」辨識為「十樓」。只在門牌「號」後的樓層位置修正，
-        # 避免影響路名或其他合法中文數字。
-        address = re.sub(r"(?<=號)十(?=樓)", "1", address)
         if address:
             result["address"] = address
     return result

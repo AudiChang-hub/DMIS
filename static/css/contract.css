@@ -2,6 +2,8 @@
 * { box-sizing: border-box; }
 body { margin: 0; color: #111; font-family: "Microsoft JhengHei", sans-serif; font-size: 10.5pt; }
 .print-actions { position: sticky; z-index: 10; top: 0; display: flex; padding: 12px 20px; align-items: center; justify-content: center; gap: 18px; color: #fff; background: #12372a; }
+.print-actions a { padding: 9px 14px; color: #fff; border-radius: 7px; font-weight: 800; text-decoration: none; }
+.print-actions a:hover { background: rgba(255,255,255,.12); }
 .print-actions button { padding: 9px 18px; color: #12372a; background: #f1d888; border: 0; border-radius: 7px; font-weight: 800; cursor: pointer; }
 .print-actions p { margin: 0; font-size: 9pt; }
 .contract-page { width: 186mm; min-height: 270mm; margin: 10mm auto; padding: 8mm; border: 1px solid #bbb; page-break-after: always; }

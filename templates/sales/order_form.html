@@ -2,6 +2,13 @@
 {% block title %}{% if editing_order %}編輯 {{ editing_order.number }}{% else %}建立訂單{% endif %}｜車輛銷售管理{% endblock %}
 {% block page_class %}page-shell--form{% endblock %}
 {% block content %}
+{% if editing_order %}
+  {% url 'order_detail' editing_order.pk as form_back_url %}
+  {% include "sales/_page_back.html" with fallback_url=form_back_url label="取消修改，返回訂單" cancel_edit=True %}
+{% else %}
+  {% url 'order_list' as form_back_url %}
+  {% include "sales/_page_back.html" with fallback_url=form_back_url label="返回上一頁" %}
+{% endif %}
 <form method="post" enctype="multipart/form-data" class="mobile-order-form" id="order-form">
   {% csrf_token %}
   <input type="hidden" name="_draft_id" id="draft-id" value="{{ draft.pk|default:'' }}">

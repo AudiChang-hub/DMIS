@@ -8,6 +8,7 @@
 </head>
 <body>
 <div class="print-actions">
+  <a href="{% url 'order_detail' order.pk %}">← 返回訂單</a>
   <button onclick="window.print()">列印一式兩份</button>
   <p>目前為第一版暫用合約，正式範本提供後會替換版面。</p>
 </div>

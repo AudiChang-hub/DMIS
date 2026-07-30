@@ -347,7 +347,7 @@ def operations_report_export(request):
     sheet = workbook.active
     sheet.title = "營運總表"
     headers = [
-        "訂單編號", "訂單日期", "車種型號", "顏色", "引擎／車身號碼",
+        "訂單編號", "訂單日期", "車種", "型號", "型式", "顏色", "引擎／車身號碼",
         "車主名稱", "車牌號碼", "車款售價", "實際撥款", "成本",
         "總收款金額", "確認收款", "分期公司", "期數", "每期金額",
         "分期公司確認匯款", "身分證字號", "西元生日", "民國生日",
@@ -380,7 +380,11 @@ def operations_report_export(request):
         def op(name, default=""):
             return getattr(profile, name, default) if profile else default
         sheet.append([
-            order.number, order.order_date, str(order.vehicle_model), order.color.name,
+            order.number, order.order_date, order.vehicle_model.name,
+            order.vehicle_model.model_number,
+            order.vehicle_model.get_model_code_display()
+            if order.vehicle_model.model_code else "",
+            order.color.name,
             order.allocated_vehicle.identifier if order.allocated_vehicle else "",
             order.owner_name, order.final_plate_number, order.vehicle_price,
             op("actual_disbursement", 0), op("vehicle_cost", 0),
@@ -1932,6 +1936,7 @@ def vehicle_model_list(request):
         models = models.filter(
             Q(brand__icontains=keyword)
             | Q(name__icontains=keyword)
+            | Q(model_number__icontains=keyword)
             | Q(model_code__icontains=keyword)
             | Q(colors__name__icontains=keyword)
         ).distinct()

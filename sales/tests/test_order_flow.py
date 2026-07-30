@@ -399,6 +399,7 @@ class OrderFlowTests(TestCase):
             "brand": "SUZUKI",
             "energy_type": VehicleModel.EnergyType.GAS,
             "name": "SUI 125",
+            "model_number": "SUI125-ABS",
             "model_year": "2026",
             "model_code": VehicleModel.ModelType.CBS_DISC,
             "displacement_cc": "125",
@@ -429,9 +430,11 @@ class OrderFlowTests(TestCase):
             brand="SUZUKI",
             name="SUI 125",
             model_year=2026,
+            model_number="SUI125-ABS",
             model_code=VehicleModel.ModelType.CBS_DISC,
         )
         self.assertEqual(model.suggested_price, Decimal("79800"))
+        self.assertEqual(model.model_number, "SUI125-ABS")
         self.assertEqual(
             list(model.colors.order_by("name").values_list("name", flat=True)),
             ["灰", "白"],
@@ -441,10 +444,24 @@ class OrderFlowTests(TestCase):
 
         list_response = self.client.get(
             reverse("vehicle_model_list"),
-            {"q": "CBS", "energy_type": VehicleModel.EnergyType.GAS},
+            {"q": "SUI125-ABS", "energy_type": VehicleModel.EnergyType.GAS},
         )
         self.assertContains(list_response, "SUI 125")
+        self.assertContains(list_response, "SUI125-ABS")
         self.assertContains(list_response, "2 種")
+
+    def test_vehicle_model_number_is_required_when_maintaining_master(self):
+        self.client.force_login(self.user)
+        payload = self.vehicle_model_master_payload()
+        payload["model_number"] = ""
+
+        response = self.client.post(reverse("vehicle_model_create"), payload)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("model_number", response.context["form"].errors)
+        self.assertFalse(
+            VehicleModel.objects.filter(brand="SUZUKI", name="SUI 125").exists()
+        )
 
     def test_vehicle_model_with_inventory_cannot_change_energy_type(self):
         self.client.force_login(self.user)
@@ -455,6 +472,7 @@ class OrderFlowTests(TestCase):
                 "brand": self.model.brand,
                 "energy_type": VehicleModel.EnergyType.ELECTRIC,
                 "name": self.model.name,
+                "model_number": "TEST-125",
                 "model_year": "2026",
                 "model_code": VehicleModel.ModelType.ABS_DISC,
                 "displacement_cc": "",
@@ -482,6 +500,7 @@ class OrderFlowTests(TestCase):
             "brand": self.model.brand,
             "energy_type": self.model.energy_type,
             "name": self.model.name,
+            "model_number": "TEST-125",
             "model_year": "2026",
             "model_code": VehicleModel.ModelType.FRONT_DISC_REAR_DRUM,
             "displacement_cc": "125",

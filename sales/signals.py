@@ -12,6 +12,7 @@ from .models import (
     SalesOrder,
     SubsidyDocument,
     VehicleInventory,
+    VehicleModel,
 )
 from .services.order_search import schedule_order_search_rebuild
 
@@ -61,4 +62,13 @@ def rebuild_search_after_vehicle_save(sender, instance, **kwargs):
         .first()
     )
     if order_id:
+        schedule_order_search_rebuild(order_id)
+
+
+@receiver(post_save, sender=VehicleModel)
+def rebuild_search_after_vehicle_model_save(sender, instance, **kwargs):
+    order_ids = SalesOrder.objects.filter(
+        vehicle_model_id=instance.pk
+    ).values_list("pk", flat=True)
+    for order_id in order_ids.iterator(chunk_size=200):
         schedule_order_search_rebuild(order_id)

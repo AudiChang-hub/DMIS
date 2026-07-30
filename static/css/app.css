@@ -1140,7 +1140,7 @@ body.screen-locked { overflow: hidden; }
   .quick-entry-delete .button { width: 100%; }
   .quick-entry-add { width: calc(100% - 24px); margin: 0 12px 12px; }
   .quick-entry-actions {
-    position: fixed; right: 14px; bottom: calc(var(--mobile-nav-height) + 12px);
+    position: fixed; right: 14px; bottom: calc(74px + env(safe-area-inset-bottom));
     left: 14px; width: auto;
   }
   .quick-entry-actions .button { flex: 1; }

@@ -207,6 +207,25 @@ def _extract_birth_date(text):
     return ""
 
 
+def _choose_name_candidate(full_name, region_name):
+    full_name = (full_name or "").strip()
+    region_name = (region_name or "").strip()
+    if not full_name:
+        return region_name
+    if not region_name or region_name == full_name:
+        return full_name
+    # 常見漏字情境是整張 OCR 只取得前兩字，而姓名列局部 OCR 多取得
+    # 同一前綴後的一字。限制只能補一字，避免把底紋或鄰近欄位誤認字
+    # 加到原本已完整的三、四字姓名後方。
+    if (
+        len(full_name) == 2
+        and len(region_name) == 3
+        and region_name.startswith(full_name)
+    ):
+        return region_name
+    return full_name
+
+
 def extract_fields(text, side):
     result = {}
     normalized = text.replace("臺", "台")
@@ -276,8 +295,9 @@ def recognize_id_card(front_bytes, back_bytes):
     fields = extract_fields(front.text, "front")
     fields.update(extract_fields(back.text, "back"))
     region_name = _recognize_name_region(client, front)
-    if region_name and len(region_name) > len(fields.get("name", "")):
-        fields["name"] = region_name
+    chosen_name = _choose_name_candidate(fields.get("name"), region_name)
+    if chosen_name:
+        fields["name"] = chosen_name
     warnings = []
     required = {
         "name": "姓名",

@@ -29,7 +29,7 @@
           <td data-label="地址">{{ customer.owner_address }}</td>
           <td data-label="訂單">{{ customer.order_count }} 張</td>
           <td data-label="最近交易">{{ customer.order_date|date:"Y/m/d" }}</td>
-          <td class="inventory-row-action"><a class="button ghost small" href="{% url 'order_detail' customer.pk %}">查看最近訂單</a></td>
+          <td class="inventory-row-action"><a class="button ghost small" href="{% url 'customer_detail' customer.pk %}">查看全部訂單</a></td>
         </tr>
       {% empty %}
         <tr><td colspan="8"><div class="empty-state"><strong>查無客戶資料</strong></div></td></tr>

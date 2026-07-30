@@ -1785,7 +1785,7 @@ class OrderFlowTests(TestCase):
         self.client.force_login(self.user)
 
         empty_response = self.client.get(reverse("dashboard"))
-        self.assertContains(empty_response, "目前沒有進行中的訂單")
+        self.assertContains(empty_response, "訂單進行中")
         self.assertContains(empty_response, "?status=in_progress")
 
         order = self.make_order()
@@ -1794,6 +1794,7 @@ class OrderFlowTests(TestCase):
 
         response = self.client.get(reverse("dashboard"))
         self.assertEqual(response.context["counts"]["in_progress"], 1)
+        self.assertEqual(response.context["dashboard"]["workload"]["in_progress"], 1)
         self.assertContains(response, order.number)
 
         filtered = self.client.get(reverse("order_list"), {"status": "in_progress"})
@@ -2368,6 +2369,43 @@ class OrderOperationsTests(TestCase):
         self.assertContains(customers, self.order.owner_name)
         self.assertContains(customers, "1 張")
         self.assertNotContains(customers, self.order.owner_id_number)
+
+    def test_customer_detail_shows_every_order_for_same_customer(self):
+        second = SalesOrder.objects.create(
+            owner_name=self.order.owner_name,
+            owner_phone=self.order.owner_phone,
+            owner_address=self.order.owner_address,
+            owner_id_number=self.order.owner_id_number,
+            vehicle_model=self.model,
+            color=self.color,
+            vehicle_price=Decimal("82000"),
+            actual_balance=Decimal("82000"),
+            id_verified=True,
+        )
+
+        response = self.client.get(
+            reverse("customer_detail", args=[second.pk])
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, self.order.number)
+        self.assertContains(response, second.number)
+        self.assertContains(response, "2 張歷史訂單")
+
+    def test_dashboard_uses_delivery_time_for_monthly_performance(self):
+        profile = self.order.operations
+        profile.vehicle_cost = Decimal("60000")
+        profile.save()
+        self.order.status = SalesOrder.Status.COMPLETED
+        self.order.save(update_fields=["status", "updated_at"])
+
+        response = self.client.get(reverse("dashboard"))
+
+        performance = response.context["dashboard"]["performance"]
+        self.assertEqual(performance["count"], 1)
+        self.assertEqual(performance["sales_total"], Decimal("80000"))
+        self.assertEqual(performance["profit_total"], Decimal("20000"))
+        self.assertContains(response, "營運戰情看板")
 
     def test_existing_order_without_profile_can_open_operations_page(self):
         self.order.operations.delete()

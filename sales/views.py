@@ -68,6 +68,7 @@ from .services.order_search import (
     build_order_search_query,
 )
 from .services.operations_sync import sync_order_operations
+from .services.dashboard_metrics import build_dashboard_metrics
 from .services.secret_fields import decrypt_secret, encrypt_secret
 
 
@@ -129,6 +130,26 @@ def customer_list(request):
             "customers": page.object_list,
             "page_obj": page,
             "keyword": keyword,
+        },
+    )
+
+
+@login_required
+def customer_detail(request, pk):
+    customer = get_object_or_404(SalesOrder, pk=pk)
+    orders = (
+        SalesOrder.objects.filter(owner_id_number=customer.owner_id_number)
+        .select_related("vehicle_model", "color", "source")
+        .order_by("-order_date", "-id")
+    )
+    page = Paginator(orders, 100).get_page(request.GET.get("page"))
+    return render(
+        request,
+        "sales/customer_detail.html",
+        {
+            "customer": customer,
+            "orders": page.object_list,
+            "page_obj": page,
         },
     )
 
@@ -286,38 +307,33 @@ def dashboard(request):
         for order in search_results:
             order.search_matches = build_order_match_summary(order, query)
 
-    active = SalesOrder.objects.select_related(
-        "source", "vehicle_model", "color", "allocated_vehicle"
-    ).exclude(
-        status__in=[SalesOrder.Status.COMPLETED, SalesOrder.Status.CANCELLED]
-    )
     urgent_statuses = [
         SalesOrder.Status.CANCEL_REFUND_PENDING,
         SalesOrder.Status.DELIVERED_DOCS_PENDING,
     ]
-    in_progress_orders = active.exclude(
-        status__in=[SalesOrder.Status.ALLOCATION_PENDING, *urgent_statuses]
+    metrics = build_dashboard_metrics() if not query else None
+    urgent_orders = (
+        SalesOrder.objects.select_related(
+            "source", "vehicle_model", "color", "allocated_vehicle"
+        )
+        .filter(status__in=urgent_statuses)
+        .order_by("-updated_at")[:5]
+        if metrics
+        else []
     )
     context = {
         "query": query,
         "search_results": search_results,
         "search_result_count": search_result_count,
-        "urgent_orders": active.filter(status__in=urgent_statuses)[:12],
-        "allocation_pending": active.filter(
-            status=SalesOrder.Status.ALLOCATION_PENDING
-        )[:12],
-        "in_progress": in_progress_orders[:12],
+        "dashboard": metrics,
+        "urgent_orders": urgent_orders,
         "counts": {
-            "urgent": active.filter(status__in=urgent_statuses).count(),
-            "allocation": active.filter(
-                status=SalesOrder.Status.ALLOCATION_PENDING
-            ).count(),
-            "in_progress": in_progress_orders.count(),
-            "inventory": VehicleInventory.objects.filter(
-                status=VehicleInventory.Status.AVAILABLE
-            ).count(),
+            "urgent": metrics["workload"]["urgent"] if metrics else 0,
+            "allocation": metrics["workload"]["allocation"] if metrics else 0,
+            "in_progress": metrics["workload"]["in_progress"] if metrics else 0,
+            "inventory": metrics["inventory"]["available"] if metrics else 0,
         },
-        "drafts": OrderDraft.objects.all()[:12],
+        "drafts": OrderDraft.objects.all()[:5],
     }
     return render(request, "sales/dashboard.html", context)
 
@@ -326,7 +342,15 @@ def dashboard(request):
 def order_list(request):
     orders = SalesOrder.objects.select_related("source", "vehicle_model", "color")
     status = request.GET.get("status")
-    if status == "in_progress":
+    if status == "registration_pending":
+        orders = orders.filter(
+            status__in=[
+                SalesOrder.Status.ALLOCATED,
+                SalesOrder.Status.TRANSFER_PENDING,
+                SalesOrder.Status.IN_TRANSFER,
+            ]
+        )
+    elif status == "in_progress":
         orders = orders.exclude(
             status__in=[
                 SalesOrder.Status.ALLOCATION_PENDING,
@@ -1904,7 +1928,14 @@ def inventory_list(request):
     location_store = request.GET.get("location_store")
     sort = request.GET.get("sort", "received_desc")
     valid_statuses = {value for value, _label in VehicleInventory.Status.choices}
-    if status in valid_statuses:
+    if status == "transfer":
+        vehicles = vehicles.filter(
+            status__in=[
+                VehicleInventory.Status.TRANSFER_PENDING,
+                VehicleInventory.Status.IN_TRANSFER,
+            ]
+        )
+    elif status in valid_statuses:
         vehicles = vehicles.filter(status=status)
     if vehicle_model and vehicle_model.isdigit():
         vehicles = vehicles.filter(vehicle_model_id=vehicle_model)

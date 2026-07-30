@@ -12,6 +12,7 @@ from .models import (
     SubsidyDocument,
     VehicleColor,
     VehicleInventory,
+    VehicleInventoryHistory,
     VehicleModel,
 )
 
@@ -58,6 +59,35 @@ class VehicleInventoryAdmin(admin.ModelAdmin):
     )
     list_filter = ("status", "location_store", "vehicle_model")
     search_fields = ("engine_number", "frame_number")
+
+
+@admin.register(VehicleInventoryHistory)
+class VehicleInventoryHistoryAdmin(admin.ModelAdmin):
+    list_display = ("vehicle", "event_type", "actor_name", "created_at")
+    list_filter = ("event_type", "status_snapshot", "location_store_snapshot")
+    search_fields = ("vehicle__engine_number", "vehicle__frame_number", "actor_name", "reason")
+    readonly_fields = (
+        "vehicle",
+        "event_type",
+        "actor_name",
+        "reason",
+        "changes",
+        "status_snapshot",
+        "location_store_snapshot",
+        "condition_note_snapshot",
+        "condition_resolution_snapshot",
+        "condition_photo_snapshot",
+        "from_location",
+        "to_location",
+        "created_at",
+        "updated_at",
+    )
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
 
 
 class AccessoryLineInline(admin.TabularInline):

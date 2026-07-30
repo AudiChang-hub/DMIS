@@ -196,6 +196,68 @@ class VehicleInventory(TimeStampedModel):
         return f"{self.vehicle_model} {self.color.name}／{self.identifier}"
 
 
+class VehicleInventoryHistory(TimeStampedModel):
+    class EventType(models.TextChoices):
+        CREATED = "created", "建立庫存"
+        UPDATED = "updated", "更新資料"
+        TRANSFERRED = "transferred", "調度車輛"
+
+    vehicle = models.ForeignKey(
+        VehicleInventory,
+        on_delete=models.CASCADE,
+        related_name="history_entries",
+        verbose_name="庫存車輛",
+    )
+    event_type = models.CharField(
+        "異動類型", max_length=20, choices=EventType.choices
+    )
+    actor_name = models.CharField("異動人員", max_length=150, blank=True)
+    reason = models.TextField("異動原因", blank=True)
+    changes = models.JSONField("異動內容", default=dict, blank=True)
+    status_snapshot = models.CharField(
+        "當下狀態", max_length=30, choices=VehicleInventory.Status.choices
+    )
+    location_store_snapshot = models.ForeignKey(
+        Store,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="+",
+        verbose_name="當下位置",
+    )
+    condition_note_snapshot = models.TextField("當下車況", blank=True)
+    condition_resolution_snapshot = models.TextField("當下處理結果", blank=True)
+    condition_photo_snapshot = models.ImageField(
+        "當下車況照片",
+        upload_to="inventory/history/%Y/%m/",
+        blank=True,
+    )
+    from_location = models.ForeignKey(
+        Store,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="+",
+        verbose_name="調出位置",
+    )
+    to_location = models.ForeignKey(
+        Store,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="+",
+        verbose_name="調入位置",
+    )
+
+    class Meta:
+        ordering = ["-created_at", "-id"]
+        verbose_name = "庫存異動紀錄"
+        verbose_name_plural = "庫存異動紀錄"
+
+    def __str__(self):
+        return f"{self.vehicle.identifier}／{self.get_event_type_display()}"
+
+
 class SalesOrder(TimeStampedModel):
     class VehicleCategory(models.TextChoices):
         NEW = "new", "新車"

@@ -490,12 +490,18 @@ OtherFeeFormSet = inlineformset_factory(
 
 
 class VehicleInventoryForm(forms.ModelForm):
+    change_reason = forms.CharField(
+        label="異動原因（選填）",
+        required=False,
+        widget=forms.Textarea(
+            attrs={"rows": 2, "placeholder": "例如：調度至倉庫、車況複檢、資料更正"}
+        ),
+    )
     CORE_FIELDS = (
         "vehicle_model",
         "color",
         "engine_number",
         "frame_number",
-        "ownership_store",
         "received_on",
     )
     CORE_LOCKED_STATUSES = {
@@ -518,7 +524,6 @@ class VehicleInventoryForm(forms.ModelForm):
             "color",
             "engine_number",
             "frame_number",
-            "ownership_store",
             "location_store",
             "received_on",
             "condition_note",
@@ -536,6 +541,8 @@ class VehicleInventoryForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        if not self.instance.pk:
+            self.fields.pop("change_reason", None)
         self.fields["color"].queryset = VehicleColor.objects.filter(active=True)
         self.core_fields_locked = bool(
             self.instance.pk
@@ -562,6 +569,15 @@ class VehicleInventoryForm(forms.ModelForm):
         for field in self.fields.values():
             field.widget.attrs.setdefault("class", "form-control")
         apply_mobile_keyboard_attrs(self)
+
+    def save(self, commit=True):
+        vehicle = super().save(commit=False)
+        if not vehicle.ownership_store_id:
+            vehicle.ownership_store = vehicle.location_store
+        if commit:
+            vehicle.save()
+            self.save_m2m()
+        return vehicle
 
 
 class SignedContractForm(forms.ModelForm):

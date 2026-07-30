@@ -104,6 +104,21 @@ urlpatterns = [
         name="subsidy_document_file",
     ),
     path("inventory/", views.inventory_list, name="inventory_list"),
+    path(
+        "master/vehicle-models/",
+        views.vehicle_model_list,
+        name="vehicle_model_list",
+    ),
+    path(
+        "master/vehicle-models/new/",
+        views.vehicle_model_create,
+        name="vehicle_model_create",
+    ),
+    path(
+        "master/vehicle-models/<int:pk>/edit/",
+        views.vehicle_model_edit,
+        name="vehicle_model_edit",
+    ),
     path("inventory/new/", views.inventory_create, name="inventory_create"),
     path(
         "inventory/quick-entry/",

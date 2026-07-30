@@ -77,6 +77,7 @@
           <th>引擎／車身號碼</th>
           <th>狀態</th>
           <th>實際位置</th>
+          <th>進貨成本</th>
           <th>車況</th>
           <th><span class="visually-hidden">操作</span></th>
         </tr>
@@ -89,11 +90,12 @@
           <td data-label="識別號碼"><span class="inventory-identifier">{{ vehicle.identifier }}</span></td>
           <td data-label="狀態"><span class="status-pill">{{ vehicle.get_status_display }}</span></td>
           <td data-label="實際位置">{{ vehicle.location_store }}</td>
+          <td data-label="進貨成本">{% if vehicle.acquisition_cost is not None %}${{ vehicle.acquisition_cost|floatformat:0 }}{% else %}未填寫{% endif %}</td>
           <td data-label="車況">{% if vehicle.condition_note %}<span class="inventory-condition has-issue">有紀錄</span>{% else %}<span class="inventory-condition">正常</span>{% endif %}</td>
           <td class="inventory-row-action"><a class="button ghost small" href="{% url 'inventory_edit' vehicle.pk %}">查看／編輯</a></td>
         </tr>
         {% empty %}
-        <tr><td colspan="7"><div class="empty-state"><strong>找不到符合條件的實體車輛</strong><p>請調整篩選條件，或建立第一台進車資料。</p></div></td></tr>
+        <tr><td colspan="8"><div class="empty-state"><strong>找不到符合條件的實體車輛</strong><p>請調整篩選條件，或建立第一台進車資料。</p></div></td></tr>
         {% endfor %}
       </tbody>
     </table>

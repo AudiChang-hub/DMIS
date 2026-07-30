@@ -3,6 +3,7 @@ from pathlib import Path
 from django import forms
 from django.db.models import Q
 from django.forms import BaseFormSet, formset_factory, inlineformset_factory
+from django.forms.models import BaseInlineFormSet
 from django.utils import timezone
 
 from .models import (
@@ -527,6 +528,7 @@ class VehicleInventoryForm(forms.ModelForm):
             "frame_number",
             "location_store",
             "received_on",
+            "acquisition_cost",
             "condition_note",
             "condition_photo",
             "condition_resolution",
@@ -581,6 +583,118 @@ class VehicleInventoryForm(forms.ModelForm):
         return vehicle
 
 
+class VehicleModelMasterForm(forms.ModelForm):
+    class Meta:
+        model = VehicleModel
+        fields = [
+            "brand",
+            "energy_type",
+            "name",
+            "model_year",
+            "model_code",
+            "displacement_cc",
+            "suggested_price",
+            "active",
+        ]
+        labels = {
+            "brand": "品牌",
+            "energy_type": "能源別",
+            "name": "機種",
+            "model_code": "型式",
+        }
+        widgets = {
+            "model_year": forms.NumberInput(
+                attrs={"min": "1900", "max": "2200", "inputmode": "numeric"}
+            ),
+            "displacement_cc": forms.NumberInput(attrs={"inputmode": "numeric"}),
+            "suggested_price": forms.NumberInput(attrs={"inputmode": "numeric"}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["model_year"].required = True
+        self.fields["model_code"].required = True
+        for field in self.fields.values():
+            field.widget.attrs.setdefault("class", "form-control")
+        apply_mobile_keyboard_attrs(self)
+
+    def clean(self):
+        cleaned = super().clean()
+        brand = (cleaned.get("brand") or "").strip()
+        name = (cleaned.get("name") or "").strip()
+        model_code = (cleaned.get("model_code") or "").strip()
+        model_year = cleaned.get("model_year")
+        duplicate = VehicleModel.objects.filter(
+            brand__iexact=brand,
+            name__iexact=name,
+            model_year=model_year,
+            model_code__iexact=model_code,
+        )
+        if self.instance.pk:
+            duplicate = duplicate.exclude(pk=self.instance.pk)
+        if brand and name and model_year and model_code and duplicate.exists():
+            raise forms.ValidationError("相同品牌、機種、年份及型式的車型已存在。")
+        if (
+            self.instance.pk
+            and self.instance.vehicleinventory_set.exists()
+            and cleaned.get("energy_type") != self.instance.energy_type
+        ):
+            self.add_error(
+                "energy_type",
+                "此車型已有實體庫存，為避免引擎／車身號碼規則失效，不能變更能源別。",
+            )
+        return cleaned
+
+
+class VehicleColorMasterForm(forms.ModelForm):
+    class Meta:
+        model = VehicleColor
+        fields = ["name", "active"]
+        labels = {"name": "顏色"}
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        for field in self.fields.values():
+            field.widget.attrs.setdefault("class", "form-control")
+
+
+class BaseVehicleColorFormSet(BaseInlineFormSet):
+    def clean(self):
+        super().clean()
+        names = {}
+        for index, form in enumerate(self.forms, start=1):
+            if not hasattr(form, "cleaned_data"):
+                continue
+            if form.cleaned_data.get("DELETE"):
+                color = form.instance
+                if color.pk and (
+                    color.vehicleinventory_set.exists()
+                    or color.salesorder_set.exists()
+                ):
+                    raise forms.ValidationError(
+                        f"顏色「{color.name}」已有訂單或庫存使用，不能刪除；請改為停用。"
+                    )
+                continue
+            name = (form.cleaned_data.get("name") or "").strip()
+            if not name:
+                continue
+            key = name.casefold()
+            if key in names:
+                form.add_error("name", f"與第 {names[key]} 列顏色重複。")
+            else:
+                names[key] = index
+
+
+VehicleColorMasterFormSet = inlineformset_factory(
+    VehicleModel,
+    VehicleColor,
+    form=VehicleColorMasterForm,
+    formset=BaseVehicleColorFormSet,
+    extra=1,
+    can_delete=True,
+)
+
+
 class QuickInventoryEntryForm(forms.Form):
     vehicle_model = forms.ModelChoiceField(
         label="車型",
@@ -601,6 +715,14 @@ class QuickInventoryEntryForm(forms.Form):
         label="進車日期",
         initial=timezone.localdate,
         widget=DateInput(),
+    )
+    acquisition_cost = forms.DecimalField(
+        label="進貨成本",
+        required=False,
+        min_value=0,
+        decimal_places=0,
+        max_digits=12,
+        widget=forms.NumberInput(attrs={"placeholder": "選填", "inputmode": "numeric"}),
     )
     condition_note = forms.CharField(
         label="車況說明",

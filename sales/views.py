@@ -10,7 +10,7 @@ from django.contrib.auth.decorators import login_required
 from django.core.files.base import ContentFile
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
-from django.db.models import Q
+from django.db.models import Count, Q
 from django.core.paginator import Paginator
 from django.http import FileResponse, Http404, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
@@ -38,6 +38,8 @@ from .forms import (
     SubsidyDataForm,
     SubsidyDocumentUploadForm,
     VehicleInventoryForm,
+    VehicleColorMasterFormSet,
+    VehicleModelMasterForm,
 )
 from .models import (
     OrderEvent,
@@ -82,6 +84,7 @@ INVENTORY_HISTORY_FIELDS = {
     "condition_note": "車況說明",
     "condition_photo": "車況照片",
     "condition_resolution": "處理結果",
+    "acquisition_cost": "進貨成本",
 }
 
 
@@ -101,6 +104,12 @@ def _inventory_values(vehicle):
         "condition_resolution": (
             vehicle.condition_resolution,
             vehicle.condition_resolution or "未填寫",
+        ),
+        "acquisition_cost": (
+            vehicle.acquisition_cost,
+            str(vehicle.acquisition_cost)
+            if vehicle.acquisition_cost is not None
+            else "未填寫",
         ),
     }
 
@@ -1635,6 +1644,98 @@ def inventory_list(request):
     )
 
 
+@login_required
+def vehicle_model_list(request):
+    keyword = request.GET.get("q", "").strip()
+    energy_type = request.GET.get("energy_type", "")
+    active = request.GET.get("active", "")
+    models = VehicleModel.objects.annotate(
+        inventory_count=Count("vehicleinventory", distinct=True),
+        available_count=Count(
+            "vehicleinventory",
+            filter=Q(vehicleinventory__status=VehicleInventory.Status.AVAILABLE),
+            distinct=True,
+        ),
+        color_count=Count("colors", distinct=True),
+    )
+    if keyword:
+        models = models.filter(
+            Q(brand__icontains=keyword)
+            | Q(name__icontains=keyword)
+            | Q(model_code__icontains=keyword)
+            | Q(colors__name__icontains=keyword)
+        ).distinct()
+    valid_energy_types = {
+        value for value, _label in VehicleModel.EnergyType.choices
+    }
+    if energy_type in valid_energy_types:
+        models = models.filter(energy_type=energy_type)
+    if active == "yes":
+        models = models.filter(active=True)
+    elif active == "no":
+        models = models.filter(active=False)
+    models = models.order_by("brand", "name", "-model_year", "model_code")
+    paginator = Paginator(models, 100)
+    page = paginator.get_page(request.GET.get("page"))
+    return render(
+        request,
+        "sales/vehicle_model_list.html",
+        {
+            "vehicle_models": page.object_list,
+            "page_obj": page,
+            "energy_types": VehicleModel.EnergyType.choices,
+            "selected": {
+                "q": keyword,
+                "energy_type": energy_type,
+                "active": active,
+            },
+        },
+    )
+
+
+def _vehicle_model_form_view(request, instance=None):
+    is_editing = instance is not None
+    form = VehicleModelMasterForm(request.POST or None, instance=instance)
+    color_formset = VehicleColorMasterFormSet(
+        request.POST or None,
+        instance=instance,
+        prefix="colors",
+    )
+    if request.method == "POST" and form.is_valid() and color_formset.is_valid():
+        with transaction.atomic():
+            vehicle_model = form.save()
+            color_formset.instance = vehicle_model
+            color_formset.save()
+        messages.success(
+            request,
+            f"已{'更新' if is_editing else '建立'}車型：{vehicle_model}",
+        )
+        return redirect("vehicle_model_list")
+    return render(
+        request,
+        "sales/vehicle_model_form.html",
+        {
+            "form": form,
+            "color_formset": color_formset,
+            "vehicle_model": instance,
+            "is_editing": is_editing,
+        },
+    )
+
+
+@login_required
+def vehicle_model_create(request):
+    return _vehicle_model_form_view(request)
+
+
+@login_required
+def vehicle_model_edit(request, pk):
+    return _vehicle_model_form_view(
+        request,
+        get_object_or_404(VehicleModel, pk=pk),
+    )
+
+
 def server_error(request):
     return render(request, "errors/500.html", status=500)
 
@@ -1692,6 +1793,9 @@ def inventory_quick_create(request):
                             ownership_store=store,
                             location_store=store,
                             received_on=form.cleaned_data["received_on"],
+                            acquisition_cost=form.cleaned_data.get(
+                                "acquisition_cost"
+                            ),
                             condition_note=form.cleaned_data.get("condition_note", ""),
                         )
                         if model.energy_type == VehicleModel.EnergyType.GAS:

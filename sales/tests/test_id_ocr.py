@@ -203,7 +203,7 @@ class IdFieldExtractionTests(TestCase):
 
     def test_repairs_resident_id_digit_confusion(self):
         result = extract_resident_certificate_fields(
-            "中華民國居留證\n證號 UI No. F9OOO00001"
+            "中華民國居留證\n證號 UI No. F9OOO00001\nMULTIPLE RE-ENTRY"
         )
 
         self.assertEqual(result["id_number"], "F900000001")

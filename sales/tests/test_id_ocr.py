@@ -10,6 +10,7 @@ from sales.jobs import run_id_ocr_job
 from sales.models import IdOcrJob
 from sales.services.id_ocr import (
     _clean_name_text,
+    _choose_name_candidate,
     _extract_birth_date,
     _extract_id_number,
     extract_fields,
@@ -29,6 +30,11 @@ class IdFieldExtractionTests(TestCase):
             _clean_name_text("姓名\n張鴻\n性別 男\n賢\n出生 民國"),
             "張鴻賢",
         )
+
+    def test_name_region_only_completes_one_missing_character(self):
+        self.assertEqual(_choose_name_candidate("林小", "林小華"), "林小華")
+        self.assertEqual(_choose_name_candidate("林小華", "林小華脂"), "林小華")
+        self.assertEqual(_choose_name_candidate("", "林小華"), "林小華")
 
     def test_extracts_vertical_name_character_after_gender_label(self):
         text = "姓名 張鴻\n性別 男\n賢\n出生 民國70年1月2日"

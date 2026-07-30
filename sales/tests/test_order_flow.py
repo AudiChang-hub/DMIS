@@ -1552,7 +1552,7 @@ class OrderFlowTests(TestCase):
         response = self.client.get(reverse("dashboard"))
 
         self.assertContains(response, "檢查系統更新")
-        self.assertContains(response, "layout-audit.js")
+        self.assertContains(response, "js/layout-audit")
         self.assertContains(response, "app-update-banner")
         self.assertContains(response, "js/app-update")
 

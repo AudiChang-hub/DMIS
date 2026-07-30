@@ -1,4 +1,5 @@
 from django.urls import path
+from django.views.generic import RedirectView
 
 from . import views
 
@@ -6,6 +7,8 @@ from . import views
 urlpatterns = [
     path("api/app-version/", views.app_version, name="app_version"),
     path("", views.dashboard, name="dashboard"),
+    path("data/", views.data_maintenance, name="data_maintenance"),
+    path("data/customers/", views.customer_list, name="customer_list"),
     path("orders/", views.order_list, name="order_list"),
     path("operations/", views.operations_report, name="operations_report"),
     path(
@@ -119,29 +122,61 @@ urlpatterns = [
         views.subsidy_document_file,
         name="subsidy_document_file",
     ),
-    path("inventory/", views.inventory_list, name="inventory_list"),
+    path("data/inventory/", views.inventory_list, name="inventory_list"),
     path(
-        "master/vehicle-models/",
+        "data/vehicle-models/",
         views.vehicle_model_list,
         name="vehicle_model_list",
     ),
     path(
-        "master/vehicle-models/new/",
+        "data/vehicle-models/new/",
         views.vehicle_model_create,
         name="vehicle_model_create",
     ),
     path(
-        "master/vehicle-models/<int:pk>/edit/",
+        "data/vehicle-models/<int:pk>/edit/",
         views.vehicle_model_edit,
         name="vehicle_model_edit",
     ),
-    path("inventory/new/", views.inventory_create, name="inventory_create"),
+    path("data/inventory/new/", views.inventory_create, name="inventory_create"),
     path(
-        "inventory/quick-entry/",
+        "data/inventory/quick-entry/",
         views.inventory_quick_create,
         name="inventory_quick_create",
     ),
-    path("inventory/<int:pk>/edit/", views.inventory_edit, name="inventory_edit"),
+    path(
+        "data/inventory/<int:pk>/edit/",
+        views.inventory_edit,
+        name="inventory_edit",
+    ),
+    path(
+        "inventory/",
+        RedirectView.as_view(pattern_name="inventory_list", permanent=False),
+    ),
+    path(
+        "inventory/new/",
+        RedirectView.as_view(pattern_name="inventory_create", permanent=False),
+    ),
+    path(
+        "inventory/quick-entry/",
+        RedirectView.as_view(pattern_name="inventory_quick_create", permanent=False),
+    ),
+    path(
+        "inventory/<int:pk>/edit/",
+        RedirectView.as_view(pattern_name="inventory_edit", permanent=False),
+    ),
+    path(
+        "master/vehicle-models/",
+        RedirectView.as_view(pattern_name="vehicle_model_list", permanent=False),
+    ),
+    path(
+        "master/vehicle-models/new/",
+        RedirectView.as_view(pattern_name="vehicle_model_create", permanent=False),
+    ),
+    path(
+        "master/vehicle-models/<int:pk>/edit/",
+        RedirectView.as_view(pattern_name="vehicle_model_edit", permanent=False),
+    ),
     path("api/colors/", views.vehicle_colors, name="vehicle_colors"),
     path("api/sources/", views.sales_sources, name="sales_sources"),
     path("api/id-card-ocr/", views.id_card_ocr, name="id_card_ocr"),

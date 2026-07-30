@@ -217,8 +217,8 @@ class VehicleInventory(TimeStampedModel):
 
     class Meta:
         ordering = ["-received_on", "-id"]
-        verbose_name = "實體庫存車輛"
-        verbose_name_plural = "實體庫存車輛"
+        verbose_name = "庫存車輛"
+        verbose_name_plural = "庫存車輛"
 
     @property
     def identifier(self):
@@ -909,6 +909,7 @@ class OrderOperationsProfile(TimeStampedModel):
     dealer_name = models.CharField("車行", max_length=160, blank=True)
     actual_disbursement = models.DecimalField("實際撥款", max_digits=12, decimal_places=0, default=0)
     vehicle_cost = models.DecimalField("車輛成本", max_digits=12, decimal_places=0, default=0)
+    vehicle_cost_manual = models.BooleanField("車輛成本已人工調整", default=False)
     registration_tax_expense = models.DecimalField("領牌稅金支出", max_digits=12, decimal_places=0, default=0)
     compulsory_insurance_expense = models.DecimalField("強制險支出", max_digits=12, decimal_places=0, default=0)
     plate_selection_expense = models.DecimalField("選號支出", max_digits=12, decimal_places=0, default=0)
@@ -1006,6 +1007,12 @@ class PaymentRecord(TimeStampedModel):
         related_name="payment_records",
         verbose_name="訂單",
     )
+    system_key = models.CharField(
+        "系統同步代碼",
+        max_length=40,
+        blank=True,
+        help_text="空白代表人工新增的收款紀錄。",
+    )
     item_name = models.CharField("收款項目", max_length=160)
     expected_amount = models.DecimalField("應收金額", max_digits=12, decimal_places=0, default=0)
     received_amount = models.DecimalField("實收金額", max_digits=12, decimal_places=0, default=0)
@@ -1020,6 +1027,13 @@ class PaymentRecord(TimeStampedModel):
 
     class Meta:
         ordering = ["received_on", "id"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["order", "system_key"],
+                condition=~models.Q(system_key=""),
+                name="unique_order_system_payment",
+            )
+        ]
         verbose_name = "收款紀錄"
         verbose_name_plural = "收款紀錄"
 

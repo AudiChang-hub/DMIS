@@ -10,7 +10,7 @@ from django.contrib.auth.decorators import login_required
 from django.core.files.base import ContentFile
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
-from django.db.models import Count, Q
+from django.db.models import Count, OuterRef, Q, Subquery
 from django.core.paginator import Paginator
 from django.http import FileResponse, Http404, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
@@ -67,6 +67,7 @@ from .services.order_search import (
     build_order_match_summary,
     build_order_search_query,
 )
+from .services.operations_sync import sync_order_operations
 from .services.secret_fields import decrypt_secret, encrypt_secret
 
 
@@ -77,6 +78,59 @@ ORDER_PRESENCE_TIMEOUT = timedelta(seconds=90)
 
 def _editing_name(user):
     return user.get_full_name() or user.get_username()
+
+
+@login_required
+def data_maintenance(request):
+    return render(
+        request,
+        "sales/data_maintenance.html",
+        {
+            "customer_count": SalesOrder.objects.values("owner_id_number")
+            .distinct()
+            .count(),
+            "vehicle_model_count": VehicleModel.objects.count(),
+            "inventory_count": VehicleInventory.objects.count(),
+        },
+    )
+
+
+@login_required
+def customer_list(request):
+    latest_id = (
+        SalesOrder.objects.filter(owner_id_number=OuterRef("owner_id_number"))
+        .order_by("-order_date", "-id")
+        .values("id")[:1]
+    )
+    order_count = (
+        SalesOrder.objects.filter(owner_id_number=OuterRef("owner_id_number"))
+        .values("owner_id_number")
+        .annotate(total=Count("id"))
+        .values("total")[:1]
+    )
+    customers = SalesOrder.objects.filter(id=Subquery(latest_id)).annotate(
+        order_count=Subquery(order_count)
+    )
+    keyword = request.GET.get("q", "").strip()
+    if keyword:
+        customers = customers.filter(
+            Q(owner_name__icontains=keyword)
+            | Q(owner_phone__icontains=keyword)
+            | Q(owner_email__icontains=keyword)
+            | Q(owner_id_number__icontains=keyword)
+            | Q(owner_address__icontains=keyword)
+        )
+    customers = customers.order_by("owner_name", "-order_date")
+    page = Paginator(customers, 100).get_page(request.GET.get("page"))
+    return render(
+        request,
+        "sales/customer_list.html",
+        {
+            "customers": page.object_list,
+            "page_obj": page,
+            "keyword": keyword,
+        },
+    )
 
 
 INVENTORY_HISTORY_FIELDS = {
@@ -900,10 +954,9 @@ def order_operations(request, pk):
         ),
         pk=pk,
     )
-    profile, created = OrderOperationsProfile.objects.get_or_create(order=order)
-    if created and order.allocated_vehicle and order.allocated_vehicle.acquisition_cost:
-        profile.vehicle_cost = order.allocated_vehicle.acquisition_cost
-        profile.save(update_fields=["vehicle_cost", "updated_at"])
+    sync_order_operations(order.pk)
+    profile = OrderOperationsProfile.objects.get(order=order)
+    previous_vehicle_cost = profile.vehicle_cost
     before = _operations_snapshot(profile)
     form = OrderOperationsForm(
         request.POST or None,
@@ -919,6 +972,8 @@ def order_operations(request, pk):
     if request.method == "POST" and form.is_valid() and payment_formset.is_valid():
         with transaction.atomic():
             profile = form.save(commit=False)
+            if profile.vehicle_cost != previous_vehicle_cost:
+                profile.vehicle_cost_manual = True
             vehicle_secret = form.cleaned_data.get("vehicle_control_password")
             battery_secret = form.cleaned_data.get("battery_password")
             if vehicle_secret:

@@ -378,7 +378,7 @@ class OrderFlowTests(TestCase):
         )
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "此號碼已存在於實體庫存")
+        self.assertContains(response, "此號碼已存在於庫存資料")
         self.assertEqual(VehicleInventory.objects.count(), 1)
 
     def test_quick_inventory_page_is_list_based_and_hides_location(self):
@@ -2290,14 +2290,13 @@ class OrderOperationsTests(TestCase):
         self.client.force_login(self.user)
 
     def test_financial_totals_include_all_income_and_expense_fields(self):
-        profile = OrderOperationsProfile.objects.create(
-            order=self.order,
-            vehicle_cost=Decimal("60000"),
-            registration_tax_expense=Decimal("1000"),
-            installment_interest_subsidy=Decimal("2000"),
-            agency_fee_income=Decimal("500"),
-            sales_bonus=Decimal("1500"),
-        )
+        profile = self.order.operations
+        profile.vehicle_cost = Decimal("60000")
+        profile.registration_tax_expense = Decimal("1000")
+        profile.installment_interest_subsidy = Decimal("2000")
+        profile.agency_fee_income = Decimal("500")
+        profile.sales_bonus = Decimal("1500")
+        profile.save()
         PaymentRecord.objects.create(
             order=self.order,
             item_name="訂金",
@@ -2316,7 +2315,62 @@ class OrderOperationsTests(TestCase):
         self.assertEqual(profile.net_profit, Decimal("19000"))
         self.assertEqual(profile.total_received, Decimal("5000"))
 
+    def test_order_creation_automatically_builds_operations_and_receivables(self):
+        profile = self.order.operations
+        payments = {
+            item.system_key: item
+            for item in self.order.payment_records.exclude(system_key="")
+        }
+
+        self.assertEqual(set(payments), {"deposit", "balance"})
+        self.assertEqual(payments["deposit"].expected_amount, Decimal("5000"))
+        self.assertEqual(payments["deposit"].received_amount, Decimal("5000"))
+        self.assertEqual(payments["balance"].expected_amount, Decimal("75000"))
+        self.assertFalse(profile.payment_confirmed)
+
+    def test_installment_change_rebuilds_receivables_without_duplicates(self):
+        self.order.payment_type = SalesOrder.PaymentType.INSTALLMENT
+        self.order.installment_company = "和潤"
+        self.order.installment_amount = Decimal("70000")
+        self.order.installment_periods = 24
+        self.order.installment_monthly = Decimal("3200")
+        self.order.actual_balance = Decimal("75000")
+        self.order.save()
+        self.order.save()
+
+        payments = {
+            item.system_key: item
+            for item in self.order.payment_records.exclude(system_key="")
+        }
+        self.assertEqual(
+            set(payments),
+            {"deposit", "balance", "installment_disbursement"},
+        )
+        self.assertEqual(
+            payments["installment_disbursement"].expected_amount,
+            Decimal("70000"),
+        )
+        self.assertEqual(payments["balance"].expected_amount, Decimal("5000"))
+        self.assertEqual(
+            self.order.operations.installment_info,
+            "和潤／24期／每期 3200 元",
+        )
+
+    def test_data_maintenance_hub_and_customer_list_reuse_existing_data(self):
+        hub = self.client.get(reverse("data_maintenance"))
+        customers = self.client.get(reverse("customer_list"), {"q": "營運測試"})
+
+        self.assertEqual(hub.status_code, 200)
+        self.assertContains(hub, "客戶資料")
+        self.assertContains(hub, "車型資料")
+        self.assertContains(hub, "庫存資料")
+        self.assertEqual(customers.status_code, 200)
+        self.assertContains(customers, self.order.owner_name)
+        self.assertContains(customers, "1 張")
+        self.assertNotContains(customers, self.order.owner_id_number)
+
     def test_existing_order_without_profile_can_open_operations_page(self):
+        self.order.operations.delete()
         response = self.client.get(
             reverse("order_operations", args=[self.order.pk])
         )
@@ -2331,10 +2385,9 @@ class OrderOperationsTests(TestCase):
         from sales.services.secret_fields import encrypt_secret
 
         encrypted = encrypt_secret("safe-password")
-        profile = OrderOperationsProfile.objects.create(
-            order=self.order,
-            vehicle_control_password_encrypted=encrypted,
-        )
+        profile = self.order.operations
+        profile.vehicle_control_password_encrypted = encrypted
+        profile.save()
 
         self.assertNotIn("safe-password", profile.vehicle_control_password_encrypted)
         self.assertEqual(decrypt_secret(encrypted), "safe-password")
@@ -2352,10 +2405,9 @@ class OrderOperationsTests(TestCase):
         )
 
     def test_operations_report_and_excel_export(self):
-        OrderOperationsProfile.objects.create(
-            order=self.order,
-            vehicle_cost=Decimal("60000"),
-        )
+        profile = self.order.operations
+        profile.vehicle_cost = Decimal("60000")
+        profile.save()
         list_response = self.client.get(reverse("operations_report"))
         export_response = self.client.get(reverse("operations_report_export"))
 

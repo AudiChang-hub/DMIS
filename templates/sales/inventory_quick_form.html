@@ -3,7 +3,7 @@
 {% block page_class %}page-shell--wide{% endblock %}
 {% block content %}
 {% url 'inventory_list' as inventory_list_url %}
-{% include "sales/_page_back.html" with fallback_url=inventory_list_url label="返回實體庫存" %}
+{% include "sales/_page_back.html" with fallback_url=inventory_list_url label="返回庫存資料" %}
 <section class="hero-row compact-hero">
   <div>
     <p class="eyebrow">批次建立庫存</p>

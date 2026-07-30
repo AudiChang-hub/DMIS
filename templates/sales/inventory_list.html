@@ -1,11 +1,11 @@
 {% extends "base.html" %}
-{% block title %}實體庫存｜車輛銷售管理{% endblock %}
+{% block title %}庫存資料｜車輛銷售管理{% endblock %}
 {% block page_class %}page-shell--wide{% endblock %}
 {% block content %}
-{% url 'dashboard' as dashboard_url %}
-{% include "sales/_page_back.html" with fallback_url=dashboard_url label="返回待辦首頁" %}
+{% url 'data_maintenance' as data_url %}
+{% include "sales/_page_back.html" with fallback_url=data_url label="返回資料維護區" %}
 <section class="hero-row compact-hero">
-  <div><p class="eyebrow">車輛庫存</p><h1>實體車輛</h1><p class="muted">每台油車以引擎號碼、電動車以車身號碼唯一識別。</p></div>
+  <div><p class="eyebrow">資料維護區</p><h1>庫存資料</h1><p class="muted">每台油車以引擎號碼、電動車以車身號碼唯一識別。</p></div>
   <div class="hero-actions">
     <a class="button ghost" href="{% url 'inventory_create' %}">新增單台</a>
     <a class="button primary" href="{% url 'inventory_quick_create' %}">＋ 快速進車</a>
@@ -63,7 +63,7 @@
   </div>
 </form>
 
-<section class="inventory-list-panel" aria-label="實體庫存列表">
+<section class="inventory-list-panel" aria-label="庫存資料列表">
   <div class="inventory-list-summary">
     <strong>共 {{ page_obj.paginator.count }} 台</strong>
     {% if page_obj.paginator.num_pages > 1 %}<span>第 {{ page_obj.number }}／{{ page_obj.paginator.num_pages }} 頁</span>{% endif %}

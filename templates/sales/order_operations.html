@@ -42,7 +42,7 @@
         {% include "sales/_field.html" with field=payment.proof %}
         {% include "sales/_field.html" with field=payment.note %}
         <span hidden>{{ payment.DELETE }}</span>
-        <button type="button" class="button danger-outline small" data-delete-payment>刪除此筆收款</button>
+        {% if not payment.instance.system_key %}<button type="button" class="button danger-outline small" data-delete-payment>刪除此筆收款</button>{% else %}<small class="muted">系統同步項目</small>{% endif %}
       </div>
       {% endfor %}
     </div>
@@ -128,7 +128,11 @@
 (() => {
   const rows = document.getElementById("payment-records");
   const total = document.getElementById("id_payments-TOTAL_FORMS");
-  function bind(row) { row.querySelector("[data-delete-payment]").addEventListener("click", () => { row.querySelector('[name$="-DELETE"]').checked = true; row.hidden = true; }); }
+  function bind(row) {
+    const button = row.querySelector("[data-delete-payment]");
+    if (!button) return;
+    button.addEventListener("click", () => { row.querySelector('[name$="-DELETE"]').checked = true; row.hidden = true; });
+  }
   rows.querySelectorAll("[data-payment-row]").forEach(bind);
   document.getElementById("add-payment").addEventListener("click", () => {
     const i = Number(total.value), box = document.createElement("div");

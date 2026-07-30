@@ -8,7 +8,13 @@ from django.urls import reverse
 
 from sales.jobs import run_id_ocr_job
 from sales.models import IdOcrJob
-from sales.services.id_ocr import _clean_name_text, extract_fields, validate_taiwan_id
+from sales.services.id_ocr import (
+    _clean_name_text,
+    _extract_birth_date,
+    _extract_id_number,
+    extract_fields,
+    validate_taiwan_id,
+)
 
 
 ONE_PIXEL_PNG = base64.b64decode(
@@ -46,6 +52,31 @@ class IdFieldExtractionTests(TestCase):
         self.assertEqual(result["id_number"], "A123456789")
         self.assertTrue(result["id_number_valid"])
 
+    def test_birth_field_wins_over_later_issue_date(self):
+        text = (
+            "姓名 林小華\n"
+            "出生年月日 民國77年2月23日\n"
+            "發證日期 民國115年4月16日換發"
+        )
+
+        self.assertEqual(_extract_birth_date(text), "1988-02-23")
+
+    def test_id_number_repairs_common_ocr_digit_confusion_with_checksum(self):
+        self.assertEqual(_extract_id_number("統一編號 A1234567B9"), "A123456789")
+
+    def test_extracts_spaced_name_and_id_number(self):
+        text = (
+            "中華民國國民身分證\n姓名 張　小　華\n"
+            "出生年月日 民國 77 年 2 月 23 日\n"
+            "統一編號 A 1 2 3 4 5 6 7 8 9"
+        )
+
+        result = extract_fields(text, "front")
+
+        self.assertEqual(result["name"], "張小華")
+        self.assertEqual(result["birth_date"], "1988-02-23")
+        self.assertEqual(result["id_number"], "A123456789")
+
     def test_extracts_multiline_address(self):
         text = "住址\n台北市中山區中山里1鄰\n中山北路一段1號3樓\n出生地台灣"
 
@@ -54,6 +85,13 @@ class IdFieldExtractionTests(TestCase):
         self.assertEqual(
             result["address"], "台北市中山區中山里1鄰中山北路一段1號3樓"
         )
+
+    def test_extracts_address_when_label_has_spacing(self):
+        text = "父 林大山\n住 址 台北市萬華區忠德里7鄰\n寶興街115號\n"
+
+        result = extract_fields(text, "back")
+
+        self.assertEqual(result["address"], "台北市萬華區忠德里7鄰寶興街115號")
 
     def test_taiwan_id_checksum(self):
         self.assertTrue(validate_taiwan_id("A123456789"))

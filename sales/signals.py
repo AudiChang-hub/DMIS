@@ -14,6 +14,10 @@ from .models import (
     VehicleInventory,
     VehicleModel,
 )
+from .services.operations_sync import (
+    refresh_payment_confirmation,
+    sync_order_operations,
+)
 from .services.order_search import schedule_order_search_rebuild
 
 
@@ -31,6 +35,7 @@ ORDER_CHILD_MODELS = (
 
 @receiver(post_save, sender=SalesOrder)
 def rebuild_search_after_order_save(sender, instance, **kwargs):
+    sync_order_operations(instance.pk)
     schedule_order_search_rebuild(instance.pk)
 
 
@@ -62,6 +67,7 @@ def rebuild_search_after_vehicle_save(sender, instance, **kwargs):
         .first()
     )
     if order_id:
+        sync_order_operations(order_id)
         schedule_order_search_rebuild(order_id)
 
 
@@ -72,3 +78,10 @@ def rebuild_search_after_vehicle_model_save(sender, instance, **kwargs):
     ).values_list("pk", flat=True)
     for order_id in order_ids.iterator(chunk_size=200):
         schedule_order_search_rebuild(order_id)
+
+
+@receiver(post_save, sender=PaymentRecord)
+@receiver(post_delete, sender=PaymentRecord)
+def refresh_confirmation_after_payment_change(sender, instance, **kwargs):
+    if instance.order_id:
+        refresh_payment_confirmation(instance.order_id)

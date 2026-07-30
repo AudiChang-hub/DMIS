@@ -658,7 +658,7 @@ class VehicleModelMasterForm(forms.ModelForm):
         ):
             self.add_error(
                 "energy_type",
-                "此車型已有實體庫存，為避免引擎／車身號碼規則失效，不能變更能源別。",
+                "此車型已有庫存資料，為避免引擎／車身號碼規則失效，不能變更能源別。",
             )
         return cleaned
 
@@ -735,6 +735,7 @@ class OrderOperationsForm(forms.ModelForm):
         model = OrderOperationsProfile
         exclude = [
             "order",
+            "vehicle_cost_manual",
             "vehicle_control_password_encrypted",
             "battery_password_encrypted",
             "updated_by",
@@ -752,8 +753,22 @@ class OrderOperationsForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        synced_fields = {
+            "dealer_name",
+            "actual_disbursement",
+            "registration_tax_income",
+            "compulsory_insurance_income",
+            "plate_selection_income",
+            "installment_fee_income",
+            "installment_info",
+            "payment_confirmed",
+            "installment_transfer_confirmed",
+        }
         for name, field in self.fields.items():
             field.widget.attrs.setdefault("class", "form-control")
+            if name in synced_fields:
+                field.disabled = True
+                field.help_text = "由訂單或收款紀錄自動同步。"
             if isinstance(field, forms.DecimalField):
                 field.required = False
                 if not self.is_bound and self.initial.get(name) in (None, 0, Decimal("0")):
@@ -791,6 +806,10 @@ class PaymentRecordForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        if self.instance and self.instance.system_key:
+            for name in ("item_name", "expected_amount", "payment_method"):
+                self.fields[name].disabled = True
+                self.fields[name].help_text = "由訂單自動同步。"
         for name, field in self.fields.items():
             field.widget.attrs.setdefault("class", "form-control")
             if (
@@ -915,7 +934,7 @@ class BaseQuickInventoryEntryFormSet(BaseFormSet):
         }
         for form, identifier in active_forms:
             if identifier in existing_identifiers:
-                form.add_error("identifier", "此號碼已存在於實體庫存。")
+                form.add_error("identifier", "此號碼已存在於庫存資料。")
 
 
 QuickInventoryEntryFormSet = formset_factory(

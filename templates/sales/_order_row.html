@@ -3,6 +3,14 @@
   <span class="order-main">
     <strong>{{ order.owner_name }}</strong>
     <small>{{ order.number }} · {{ order.vehicle_model.name }}／{{ order.color.name }}</small>
+    {% if order.search_matches %}
+    <span class="search-match-list" aria-label="符合搜尋的欄位">
+      {% for match in order.search_matches|slice:":6" %}
+      <span class="search-match"><b>{{ match.label }}</b><mark>{{ match.value }}</mark></span>
+      {% endfor %}
+      {% if order.search_matches|length > 6 %}<span class="search-match-more">另 {{ order.search_matches|length|add:"-6" }} 個欄位符合</span>{% endif %}
+    </span>
+    {% endif %}
   </span>
   <span class="order-source">{{ order.source.name|default:order.get_source_type_display }}</span>
   <span class="status-pill">{{ order.get_status_display }}</span>

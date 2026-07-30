@@ -8,6 +8,7 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ValidationError
 from django.db import transaction
+from django.core.paginator import Paginator
 from django.http import FileResponse, Http404, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -127,10 +128,12 @@ def dashboard(request):
         "changes",
     )
     search_results = None
+    search_result_count = 0
     if query:
-        search_results = list(
-            orders.filter(build_order_search_query(query)).distinct()[:50]
-        )
+        matched_orders = orders.filter(build_order_search_query(query)).distinct()
+        paginator = Paginator(matched_orders, 50)
+        search_results = paginator.get_page(request.GET.get("page"))
+        search_result_count = paginator.count
         for order in search_results:
             order.search_matches = build_order_match_summary(order, query)
 
@@ -149,6 +152,7 @@ def dashboard(request):
     context = {
         "query": query,
         "search_results": search_results,
+        "search_result_count": search_result_count,
         "urgent_orders": active.filter(status__in=urgent_statuses)[:12],
         "allocation_pending": active.filter(
             status=SalesOrder.Status.ALLOCATION_PENDING

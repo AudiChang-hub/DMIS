@@ -201,6 +201,13 @@ class IdFieldExtractionTests(TestCase):
         self.assertEqual(result["id_number"], "F900000001")
         self.assertEqual(result["address"], "新北市汐止區測試路83巷3號612房")
 
+    def test_repairs_resident_id_digit_confusion(self):
+        result = extract_resident_certificate_fields(
+            "中華民國居留證\n證號 UI No. F9OOO00001"
+        )
+
+        self.assertEqual(result["id_number"], "F900000001")
+
     @patch("sales.services.id_ocr.recognize_resident_certificate_side")
     @patch("sales.services.id_ocr._vision_client")
     def test_rejects_swapped_resident_certificate_sides(

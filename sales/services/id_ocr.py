@@ -79,28 +79,71 @@ def _detect_text(client, image):
     return (texts[0].description if texts else ""), tuple(texts[1:])
 
 
+def _side_scores(text):
+    normalized = re.sub(r"\s+", "", text.replace("臺", "台")).upper()
+    front_score = 0
+    back_score = 0
+    if "中華民國國民身分證" in normalized:
+        front_score += 6
+    elif "國民身分證" in normalized:
+        front_score += 4
+    if "姓名" in normalized:
+        front_score += 2
+    if "出生年月日" in normalized:
+        front_score += 2
+    if re.search(r"[A-Z][12]\d{8}", normalized):
+        front_score += 4
+
+    for marker, score in (
+        ("住址", 3),
+        ("出生地", 2),
+        ("配偶", 1),
+        ("役別", 1),
+    ):
+        if marker in normalized:
+            back_score += score
+    if "父" in normalized:
+        back_score += 1
+    if "母" in normalized:
+        back_score += 1
+    # 反面右下識別圖樣旁有10位數綠色流水號；正面的身分證字號
+    # 則一定以英文字母開頭，因此不會互相混淆。
+    if re.search(r"(?<!\d)\d{10}(?!\d)", normalized):
+        back_score += 5
+    return {"front": front_score, "back": back_score}
+
+
+def detect_id_side(text):
+    scores = _side_scores(text)
+    if scores["front"] >= 4 and scores["front"] >= scores["back"] + 2:
+        return "front"
+    if scores["back"] >= 4 and scores["back"] >= scores["front"] + 2:
+        return "back"
+    return "unknown"
+
+
 def recognize_side(image_bytes, expected_side, client=None):
     if expected_side not in {"front", "back"}:
         raise ValueError("expected_side 必須是 front 或 back")
     image = _load_image(image_bytes)
     client = client or _vision_client()
-    keywords = (
-        ("中華民國", "姓名", "統一編號")
-        if expected_side == "front"
-        else ("住址", "出生地", "父", "母")
-    )
-    first_text = ""
+    best_result = None
+    best_score = -1
     for angle in (0, 90, 180, 270):
         rotated = image if angle == 0 else image.rotate(angle, expand=True)
         text, annotations = _detect_text(client, rotated)
-        if angle == 0:
-            first_text = (text, annotations, rotated)
-        if any(keyword in text for keyword in keywords):
+        score = _side_scores(text)[expected_side]
+        if score > best_score:
+            best_score = score
+            best_result = OcrImageResult(
+                expected_side, angle, text, annotations, rotated
+            )
+        # 強特徵已足以判斷方向，不再做其餘三次外部 OCR。
+        if score >= 4:
             return OcrImageResult(
                 expected_side, angle, text, annotations, rotated
             )
-    text, annotations, rotated = first_text
-    return OcrImageResult(expected_side, 0, text, annotations, rotated)
+    return best_result
 
 
 def _clean_name_text(text):
@@ -292,6 +335,14 @@ def recognize_id_card(front_bytes, back_bytes):
     client = _vision_client()
     front = recognize_side(front_bytes, "front", client)
     back = recognize_side(back_bytes, "back", client)
+    detected_front = detect_id_side(front.text)
+    detected_back = detect_id_side(back.text)
+    if detected_front == "back" and detected_back == "front":
+        raise IdOcrError("證件正反面似乎放反，請交換照片後重新辨識。")
+    if detected_front == detected_back == "front":
+        raise IdOcrError("兩張照片看起來都是證件正面，請重新拍攝反面。")
+    if detected_front == detected_back == "back":
+        raise IdOcrError("兩張照片看起來都是證件反面，請重新拍攝正面。")
     fields = extract_fields(front.text, "front")
     fields.update(extract_fields(back.text, "back"))
     region_name = _recognize_name_region(client, front)

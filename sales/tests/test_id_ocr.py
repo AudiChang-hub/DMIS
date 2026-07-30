@@ -39,6 +39,9 @@ class IdFieldExtractionTests(TestCase):
         self.assertEqual(detect_id_side(text), "front")
         self.assertGreater(_side_scores(text)["front"], _side_scores(text)["back"])
 
+    def test_detects_front_when_vision_reads_shenfen_as_identity_variant(self):
+        self.assertEqual(detect_id_side("中華民國國民身份證"), "front")
+
     def test_detects_back_from_serial_and_address_fields(self):
         text = "父 林大山\n母 陳小美\n出生地 台北市\n住址 台北市中山區\n0040750525"
 

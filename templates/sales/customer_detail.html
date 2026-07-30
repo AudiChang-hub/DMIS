@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}{{ customer.owner_name }}｜客戶資料{% endblock %}
+{% block page_class %}page-shell--wide{% endblock %}
+{% block content %}
+{% url 'customer_list' as customer_list_url %}
+{% include "sales/_page_back.html" with fallback_url=customer_list_url label="返回客戶資料" %}
+<section class="hero-row compact-hero customer-detail-hero">
+  <div>
+    <p class="eyebrow">客戶資料</p>
+    <h1>{{ customer.owner_name }}</h1>
+    <p class="muted">{{ customer.get_owner_type_display }} · {{ customer.masked_id_number }} · {{ customer.owner_phone }}</p>
+  </div>
+  <span class="customer-order-count">{{ page_obj.paginator.count }} 張歷史訂單</span>
+</section>
+<section class="section-block">
+  <div class="section-title"><h2>全部訂單</h2><span>依訂單日期由新到舊</span></div>
+  <div class="order-list">
+    {% for order in orders %}
+      {% include "sales/_order_row.html" %}
+    {% empty %}
+      <div class="empty-state"><strong>目前沒有訂單</strong></div>
+    {% endfor %}
+  </div>
+</section>
+{% endblock %}

@@ -1,20 +1,19 @@
 {% extends "base.html" %}
-{% block title %}待辦首頁｜車輛銷售管理{% endblock %}
+{% block title %}營運戰情看板｜車輛銷售管理{% endblock %}
 {% block page_class %}page-shell--wide{% endblock %}
 {% block content %}
-<section class="hero-row">
+<section class="hero-row dashboard-hero">
   <div>
-    <p class="eyebrow">全部門市</p>
-    <h1>今天先處理這些事</h1>
-    <p class="muted">依緊急程度排列；完成後會自動離開待辦區。</p>
+    <p class="eyebrow">即時營運概況</p>
+    <h1>營運戰情看板</h1>
+    <p class="muted">{{ dashboard.period.label }}成果、目前工作量與最新動態集中在這裡。</p>
   </div>
   <a class="button primary" href="{% url 'order_create' %}">＋ 建立訂單</a>
 </section>
 
 <form class="global-search" method="get" role="search">
   <span aria-hidden="true">⌕</span>
-  <input name="q" value="{{ query }}" aria-label="全域搜尋"
-         placeholder="搜尋所有訂單欄位…">
+  <input name="q" value="{{ query }}" aria-label="全域搜尋" placeholder="搜尋所有訂單欄位…">
   {% if query %}<a href="{% url 'dashboard' %}" aria-label="清除搜尋">×</a>{% endif %}
 </form>
 <p class="global-search-hint">不必選欄位，可直接輸入姓名、日期、金額、配件、備註、文件名稱或任何已登記內容。</p>
@@ -38,52 +37,102 @@
     {% endif %}
   </section>
 {% else %}
-  {% if drafts %}
-  <section class="section-block draft-block">
-    <div class="section-title"><h2><span class="signal amber"></span>未完成草稿</h2><span>{{ drafts|length }} 筆</span></div>
-    <div class="draft-list">
-      {% for draft in drafts %}
-      <a class="draft-row" href="{% url 'order_create' %}?draft={{ draft.pk }}">
-        <span class="draft-icon">✎</span>
-        <span><strong>{{ draft.display_name }}</strong><small>{{ draft.display_vehicle }} · {{ draft.updated_by|default:"未知人員" }}</small></span>
-        <time>{{ draft.updated_at|date:"m/d H:i" }}</time>
-        <span class="chevron">›</span>
-      </a>
-      {% endfor %}
+  <section class="dashboard-section">
+    <div class="dashboard-section__heading">
+      <div><p class="eyebrow">本月成果</p><h2>{{ dashboard.period.label }}營運數字</h2></div>
+      <small>成交以實際交車時間認列</small>
+    </div>
+    <div class="performance-grid">
+      <article class="performance-card performance-card--primary">
+        <span>本月成交台數</span>
+        <strong>{{ dashboard.performance.count }}<small>台</small></strong>
+        {% if dashboard.performance.count_change != None %}<em class="{% if dashboard.performance.count_change < 0 %}down{% endif %}">較上月 {{ dashboard.performance.count_change }}%</em>{% endif %}
+      </article>
+      <article class="performance-card">
+        <span>本月銷售總金額</span>
+        <strong><small>$</small>{{ dashboard.performance.sales_total|floatformat:0 }}</strong>
+        {% if dashboard.performance.sales_change != None %}<em class="{% if dashboard.performance.sales_change < 0 %}down{% endif %}">較上月 {{ dashboard.performance.sales_change }}%</em>{% endif %}
+      </article>
+      <article class="performance-card">
+        <span>本月總利潤</span>
+        <strong><small>$</small>{{ dashboard.performance.profit_total|floatformat:0 }}</strong>
+        <em>{{ dashboard.performance.profit_ready }}／{{ dashboard.performance.count }} 筆成本完整</em>
+      </article>
+      <article class="performance-card">
+        <span>平均單筆利潤</span>
+        <strong><small>$</small>{{ dashboard.performance.average_profit|floatformat:0 }}</strong>
+        <em>依已完整填寫成本的成交單計算</em>
+      </article>
     </div>
   </section>
-  {% endif %}
 
-  <section class="metric-grid">
-    <a class="metric urgent" href="{% url 'order_list' %}?status=urgent"><span>需要優先處理</span><strong>{{ counts.urgent }}</strong><small>逾期或重大待辦</small></a>
-    <a class="metric info" href="{% url 'order_list' %}?status=allocation_pending"><span>待配車</span><strong>{{ counts.allocation }}</strong><small>訂單建立後直接進入</small></a>
-    <a class="metric progress" href="{% url 'order_list' %}?status=in_progress"><span>進行中</span><strong>{{ counts.in_progress }}</strong><small>配車後至完成交付前</small></a>
-    <a class="metric calm" href="{% url 'inventory_list' %}?status=available"><span>可售庫存</span><strong>{{ counts.inventory }}</strong><small>全部門市</small></a>
+  <section class="dashboard-section">
+    <div class="dashboard-section__heading"><div><p class="eyebrow">即時工作量</p><h2>目前需要掌握</h2></div></div>
+    <div class="workload-grid">
+      <a class="workload-card warning" href="{% url 'dashboard' %}#drafts"><span>未完成草稿</span><strong>{{ dashboard.workload.drafts }}</strong><small>繼續完成客戶訂單</small></a>
+      <a class="workload-card info" href="{% url 'order_list' %}?status=allocation_pending"><span>待配車</span><strong>{{ dashboard.workload.allocation }}</strong><small>尚未指定實體車輛</small></a>
+      <a class="workload-card progress" href="{% url 'order_list' %}?status=in_progress"><span>訂單進行中</span><strong>{{ dashboard.workload.in_progress }}</strong><small>配車後至交付前</small></a>
+      <a class="workload-card calm" href="{% url 'order_list' %}?status=registration_pending"><span>待領牌</span><strong>{{ dashboard.workload.registration }}</strong><small>含調車及領牌準備</small></a>
+      <a class="workload-card calm" href="{% url 'order_list' %}?status=delivery_pending"><span>待交付</span><strong>{{ dashboard.workload.delivery }}</strong><small>已可安排交車</small></a>
+      <a class="workload-card urgent" href="{% url 'order_list' %}?status=urgent"><span>優先處理</span><strong>{{ dashboard.workload.urgent }}</strong><small>退款或交車後缺文件</small></a>
+    </div>
   </section>
 
-  {% if urgent_orders %}
-  <section class="section-block priority-block">
-    <div class="section-title"><h2><span class="signal red"></span>優先處理</h2><span>{{ urgent_orders|length }} 筆</span></div>
-    <div class="order-list">{% for order in urgent_orders %}{% include "sales/_order_row.html" %}{% endfor %}</div>
-  </section>
-  {% endif %}
-
-  <div class="dashboard-columns">
-    <section class="section-block">
-      <div class="section-title"><h2><span class="signal blue"></span>待配車</h2><a href="{% url 'order_list' %}?status=allocation_pending">查看全部</a></div>
+  <div class="command-grid">
+    <section class="section-block command-panel">
+      <div class="section-title"><h2>最近五筆訂單</h2><a href="{% url 'order_list' %}">查看全部</a></div>
       <div class="order-list compact">
-        {% for order in allocation_pending %}{% include "sales/_order_row.html" %}
-        {% empty %}<div class="empty-state small">目前沒有待配車訂單</div>{% endfor %}
+        {% for order in dashboard.recent_orders %}
+          {% include "sales/_order_row.html" %}
+        {% empty %}<div class="empty-state small">目前沒有訂單</div>{% endfor %}
+      </div>
+    </section>
+
+    <section class="section-block command-panel">
+      <div class="section-title"><h2>最近處理動態</h2><span>系統即時紀錄</span></div>
+      <div class="activity-list">
+        {% for event in dashboard.recent_events %}
+        <a class="activity-row" href="{% url 'order_detail' event.order_id %}">
+          <span class="activity-dot"></span>
+          <span><strong>{{ event.description }}</strong><small>{{ event.actor_name|default:"系統" }} · {{ event.created_at|date:"m/d H:i" }}</small></span>
+          <span class="chevron">›</span>
+        </a>
+        {% empty %}<div class="empty-state small">目前沒有處理紀錄</div>{% endfor %}
       </div>
     </section>
   </div>
 
-  <section class="section-block">
-    <div class="section-title"><h2><span class="signal green"></span>進行中</h2><a href="{% url 'order_list' %}?status=in_progress">查看全部</a></div>
-    <div class="order-list">
-      {% for order in in_progress %}{% include "sales/_order_row.html" %}
-      {% empty %}<div class="empty-state small">目前沒有進行中的訂單</div>{% endfor %}
-    </div>
+  <div class="command-grid command-grid--lower">
+    <section class="section-block inventory-command">
+      <div class="section-title"><h2>庫存概況</h2><a href="{% url 'inventory_list' %}">查看庫存資料</a></div>
+      <div class="inventory-kpis">
+        <a href="{% url 'inventory_list' %}"><span>庫存總數</span><strong>{{ dashboard.inventory.total }}</strong></a>
+        <a href="{% url 'inventory_list' %}?status=available"><span>可售</span><strong>{{ dashboard.inventory.available }}</strong></a>
+        <a href="{% url 'inventory_list' %}?status=reserved"><span>已預留</span><strong>{{ dashboard.inventory.reserved }}</strong></a>
+        <a href="{% url 'inventory_list' %}?status=transfer"><span>調車中</span><strong>{{ dashboard.inventory.transfer }}</strong></a>
+        <a href="{% url 'inventory_list' %}?status=condition_issue"><span>車況異常</span><strong>{{ dashboard.inventory.issues }}</strong></a>
+      </div>
+    </section>
+
+    <section class="section-block" id="drafts">
+      <div class="section-title"><h2>未完成草稿</h2><span>最近 {{ drafts|length }} 筆</span></div>
+      <div class="draft-list compact">
+        {% for draft in drafts %}
+        <a class="draft-row" href="{% url 'order_create' %}?draft={{ draft.pk }}">
+          <span class="draft-icon">✎</span>
+          <span><strong>{{ draft.display_name }}</strong><small>{{ draft.display_vehicle }} · {{ draft.updated_by|default:"未知人員" }}</small></span>
+          <time>{{ draft.updated_at|date:"m/d H:i" }}</time><span class="chevron">›</span>
+        </a>
+        {% empty %}<div class="empty-state small">目前沒有未完成草稿</div>{% endfor %}
+      </div>
+    </section>
+  </div>
+
+  {% if urgent_orders %}
+  <section class="section-block priority-block">
+    <div class="section-title"><h2><span class="signal red"></span>需要優先處理</h2><a href="{% url 'order_list' %}?status=urgent">查看全部</a></div>
+    <div class="order-list compact">{% for order in urgent_orders %}{% include "sales/_order_row.html" %}{% endfor %}</div>
   </section>
+  {% endif %}
 {% endif %}
 {% endblock %}

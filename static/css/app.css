@@ -485,6 +485,9 @@ body.screen-locked { overflow: hidden; }
 .order-tab-panel { animation: order-tab-in .16s ease-out; }
 .order-tab-panel > :last-child { margin-bottom: 20px; }
 .allocation-summary { margin-bottom: 20px; }
+.allocation-summary > .data-list { padding: 18px 20px 0; }
+.allocation-summary > .reallocation-panel,
+.allocation-summary > .allocation-lock-note { margin: 18px 20px 20px; }
 @keyframes order-tab-in {
   from { opacity: .35; transform: translateY(3px); }
   to { opacity: 1; transform: translateY(0); }
@@ -841,6 +844,9 @@ body.screen-locked { overflow: hidden; }
   .info-banner { margin: 14px 16px 0; }
   .conditional-panel, .subsection { margin: 0 16px 16px; }
   .registration-fee-subsection { padding: 16px; }
+  .allocation-summary > .data-list { padding: 16px 16px 0; }
+  .allocation-summary > .reallocation-panel,
+  .allocation-summary > .allocation-lock-note { margin: 16px; }
   .conditional-panel .form-grid { padding-inline: 0; }
   .mobile-submit span { display: none; }
   .mobile-submit .button { flex: 1; }

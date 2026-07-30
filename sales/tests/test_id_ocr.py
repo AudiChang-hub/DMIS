@@ -1,4 +1,5 @@
 import base64
+from types import SimpleNamespace
 from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
@@ -13,7 +14,11 @@ from sales.services.id_ocr import (
     _choose_name_candidate,
     _extract_birth_date,
     _extract_id_number,
+    _side_scores,
+    detect_id_side,
     extract_fields,
+    IdOcrError,
+    recognize_id_card,
     validate_taiwan_id,
 )
 
@@ -25,6 +30,47 @@ ONE_PIXEL_PNG = base64.b64decode(
 
 
 class IdFieldExtractionTests(TestCase):
+    def test_detects_front_from_title_and_identity_fields(self):
+        text = (
+            "中華民國國民身分證\n姓名 林小華\n"
+            "出生年月日 民國77年2月23日\nA123456789"
+        )
+
+        self.assertEqual(detect_id_side(text), "front")
+        self.assertGreater(_side_scores(text)["front"], _side_scores(text)["back"])
+
+    def test_detects_back_from_serial_and_address_fields(self):
+        text = "父 林大山\n母 陳小美\n出生地 台北市\n住址 台北市中山區\n0040750525"
+
+        self.assertEqual(detect_id_side(text), "back")
+        self.assertGreater(_side_scores(text)["back"], _side_scores(text)["front"])
+
+    def test_weak_or_partial_text_does_not_force_side(self):
+        self.assertEqual(detect_id_side("中華民國"), "unknown")
+        self.assertEqual(detect_id_side("模糊照片 12345"), "unknown")
+
+    @patch("sales.services.id_ocr.recognize_side")
+    @patch("sales.services.id_ocr._vision_client")
+    def test_rejects_swapped_front_and_back(self, _vision_client, recognize_side):
+        recognize_side.side_effect = (
+            SimpleNamespace(text="住址 台北市中山區\n0040750525"),
+            SimpleNamespace(text="中華民國國民身分證\n姓名 林小華\nA123456789"),
+        )
+
+        with self.assertRaisesRegex(IdOcrError, "正反面似乎放反"):
+            recognize_id_card(b"front", b"back")
+
+    @patch("sales.services.id_ocr.recognize_side")
+    @patch("sales.services.id_ocr._vision_client")
+    def test_rejects_two_front_images(self, _vision_client, recognize_side):
+        front_result = SimpleNamespace(
+            text="中華民國國民身分證\n姓名 林小華\nA123456789"
+        )
+        recognize_side.side_effect = (front_result, front_result)
+
+        with self.assertRaisesRegex(IdOcrError, "都是證件正面"):
+            recognize_id_card(b"front", b"back")
+
     def test_cleans_name_region_with_layout_labels(self):
         self.assertEqual(
             _clean_name_text("姓名\n張鴻\n性別 男\n賢\n出生 民國"),

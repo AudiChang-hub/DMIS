@@ -446,6 +446,44 @@ def extract_resident_certificate_fields(text):
     return result
 
 
+def _extract_resident_name_from_layout(front):
+    """依居留證證號右側同列版面取得中文姓名。"""
+    id_annotation = None
+    for annotation in front.annotations:
+        compact = re.sub(r"\s+", "", annotation.description.upper())
+        candidates = re.findall(r"[A-Z][0-9ODQILZSGB]{9}", compact)
+        if candidates:
+            id_annotation = annotation
+            break
+    if not id_annotation or not id_annotation.bounding_poly.vertices:
+        return ""
+
+    id_vertices = id_annotation.bounding_poly.vertices
+    id_right = max(vertex.x for vertex in id_vertices)
+    id_top = min(vertex.y for vertex in id_vertices)
+    id_bottom = max(vertex.y for vertex in id_vertices)
+    id_center_y = (id_top + id_bottom) / 2
+    tolerance_y = max((id_bottom - id_top) * 2.5, front.image.height * 0.025)
+    max_right = id_right + front.image.width * 0.2
+    candidates = []
+    for annotation in front.annotations:
+        if annotation is id_annotation or not annotation.bounding_poly.vertices:
+            continue
+        chinese = re.sub(r"[^\u4e00-\u9fff]", "", annotation.description)
+        if not chinese or len(chinese) > 6:
+            continue
+        vertices = annotation.bounding_poly.vertices
+        left = min(vertex.x for vertex in vertices)
+        center_y = (
+            min(vertex.y for vertex in vertices)
+            + max(vertex.y for vertex in vertices)
+        ) / 2
+        if id_right <= left <= max_right and abs(center_y - id_center_y) <= tolerance_y:
+            candidates.append((left, chinese))
+    name = "".join(value for _left, value in sorted(candidates))
+    return name if 2 <= len(name) <= 6 else ""
+
+
 def validate_taiwan_id(id_number):
     value = (id_number or "").strip().upper()
     if not re.fullmatch(r"[A-Z][12]\d{8}", value):
@@ -478,6 +516,9 @@ def recognize_resident_certificate(front_bytes, back_bytes):
     if detected_front == detected_back == "back":
         raise IdOcrError("兩張照片看起來都是居留證反面，請重新拍攝正面。")
     fields = extract_resident_certificate_fields(front.text)
+    layout_name = _extract_resident_name_from_layout(front)
+    if layout_name:
+        fields["name"] = layout_name
     warnings = []
     required = {
         "name": "姓名",

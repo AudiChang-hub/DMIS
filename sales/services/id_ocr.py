@@ -126,22 +126,85 @@ def _recognize_name_region(client, front):
         ),
         None,
     )
-    if not label or not label.bounding_poly.vertices:
-        return ""
-    vertices = label.bounding_poly.vertices
-    xs = [vertex.x for vertex in vertices]
-    ys = [vertex.y for vertex in vertices]
     width, height = front.image.size
-    crop_box = (
-        max(0, min(xs) - int(width * 0.04)),
-        max(0, min(ys) - int(height * 0.10)),
-        min(width, max(xs) + int(width * 0.42)),
-        min(height, max(ys) + int(height * 0.32)),
+    crop_boxes = []
+    if label and label.bounding_poly.vertices:
+        vertices = label.bounding_poly.vertices
+        xs = [vertex.x for vertex in vertices]
+        ys = [vertex.y for vertex in vertices]
+        # 姓名位於標籤右側同一列。避免舊範圍向下吃到生日、性別等文字，
+        # 也把右界放寬，保留字距較大的第三或第四個姓名字元。
+        crop_boxes.append(
+            (
+                max(0, max(xs) - int(width * 0.01)),
+                max(0, min(ys) - int(height * 0.05)),
+                min(width, max(xs) + int(width * 0.52)),
+                min(height, max(ys) + int(height * 0.12)),
+            )
+        )
+    # 部分照片中 Vision 會把「姓」「名」拆開而找不到完整標籤。
+    # 台灣身分證正面姓名區約位於畫面左中段，作為位置式備援。
+    crop_boxes.append(
+        (
+            int(width * 0.16),
+            int(height * 0.34),
+            int(width * 0.68),
+            int(height * 0.64),
+        )
     )
-    if crop_box[2] <= crop_box[0] or crop_box[3] <= crop_box[1]:
-        return ""
-    text, _ = _detect_text(client, front.image.crop(crop_box))
-    return _clean_name_text(text)
+    candidates = []
+    for index, crop_box in enumerate(crop_boxes):
+        if crop_box[2] <= crop_box[0] or crop_box[3] <= crop_box[1]:
+            continue
+        text, _ = _detect_text(client, front.image.crop(crop_box))
+        candidate = _clean_name_text(text)
+        if candidate:
+            candidates.append(candidate)
+        # 標籤裁切已取得常見的三至六字姓名，不必增加一次外部 OCR 呼叫。
+        if index == 0 and len(candidate) >= 3:
+            break
+    return max(candidates, key=len, default="")
+
+
+_ID_DIGIT_CORRECTIONS = str.maketrans(
+    {"O": "0", "D": "0", "Q": "0", "I": "1", "L": "1", "Z": "2",
+     "S": "5", "G": "6", "B": "8"}
+)
+
+
+def _extract_id_number(text):
+    compact = re.sub(r"[\s\-‐‑–—]", "", text.upper())
+    candidates = re.findall(r"[A-Z][12][0-9A-Z]{8}", compact)
+    first_candidate = ""
+    for candidate in candidates:
+        normalized = candidate[:2] + candidate[2:].translate(_ID_DIGIT_CORRECTIONS)
+        if not re.fullmatch(r"[A-Z][12]\d{8}", normalized):
+            continue
+        first_candidate = first_candidate or normalized
+        if validate_taiwan_id(normalized):
+            return normalized
+    return first_candidate
+
+
+def _extract_birth_date(text):
+    patterns = (
+        # 優先鎖定出生欄，避免抓到同一面的發證日期。
+        r"出生(?:\s*年\s*月\s*日)?[\s:：]*民國\s*(\d{1,3})\s*年"
+        r"\s*(\d{1,2})\s*月\s*(\d{1,2})\s*日",
+        r"民國\s*(\d{1,3})\s*年\s*(\d{1,2})\s*月\s*(\d{1,2})\s*日",
+    )
+    current_roc_year = date.today().year - 1911
+    for pattern_index, pattern in enumerate(patterns):
+        for match in re.finditer(pattern, text):
+            roc_year, month, day = map(int, match.groups())
+            # 非出生欄的備援日期需排除近期發證日期。
+            if pattern_index and not 14 <= current_roc_year - roc_year <= 120:
+                continue
+            try:
+                return date(roc_year + 1911, month, day).isoformat()
+            except ValueError:
+                continue
+    return ""
 
 
 def extract_fields(text, side):
@@ -155,29 +218,21 @@ def extract_fields(text, side):
             name = _clean_name_text(name_block.group(1))
             if name:
                 result["name"] = name
-        birth = re.search(
-            r"民國\s*(\d{1,3})\s*年\s*(\d{1,2})\s*月\s*(\d{1,2})\s*日",
-            normalized,
-        )
-        if birth:
-            roc_year, month, day = map(int, birth.groups())
-            try:
-                result["birth_date"] = date(
-                    roc_year + 1911, month, day
-                ).isoformat()
-            except ValueError:
-                pass
-        id_match = re.search(r"\b[A-Z][12]\d{8}\b", normalized.upper())
-        if id_match:
-            result["id_number"] = id_match.group(0)
+        birth_date = _extract_birth_date(normalized)
+        if birth_date:
+            result["birth_date"] = birth_date
+        id_number = _extract_id_number(normalized)
+        if id_number:
+            result["id_number"] = id_number
             result["id_number_valid"] = validate_taiwan_id(result["id_number"])
     elif side == "back":
         address_lines = []
         collecting = False
         stop_words = ("父", "母", "配偶", "役別", "出生地")
         for line in lines:
-            cleaned = re.sub(r"\s+", "", line).replace("住址", "")
-            if "住址" in line or (
+            compact_line = re.sub(r"\s+", "", line)
+            cleaned = compact_line.replace("住址", "")
+            if "住址" in compact_line or (
                 not collecting
                 and re.search(r"[縣市].*[區鄉鎮市]", cleaned)
             ):

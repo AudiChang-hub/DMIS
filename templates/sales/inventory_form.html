@@ -2,7 +2,9 @@
 {% block title %}新增進車｜車輛銷售管理{% endblock %}
 {% block page_class %}page-shell--compact{% endblock %}
 {% block content %}
-<section class="hero-row compact-hero"><div><a class="back-link" href="{% url 'inventory_list' %}">‹ 返回庫存</a><p class="eyebrow">人工逐台輸入</p><h1>新增進車</h1></div></section>
+{% url 'inventory_list' as inventory_list_url %}
+{% include "sales/_page_back.html" with fallback_url=inventory_list_url label="返回實體庫存" %}
+<section class="hero-row compact-hero"><div><p class="eyebrow">人工逐台輸入</p><h1>新增進車</h1></div></section>
 <form method="post" enctype="multipart/form-data" class="card standalone-form">
   {% csrf_token %}
   {% if form.non_field_errors %}<div class="message error">{{ form.non_field_errors }}</div>{% endif %}

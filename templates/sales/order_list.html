@@ -2,6 +2,8 @@
 {% block title %}全部訂單｜車輛銷售管理{% endblock %}
 {% block page_class %}page-shell--wide{% endblock %}
 {% block content %}
+{% url 'dashboard' as dashboard_url %}
+{% include "sales/_page_back.html" with fallback_url=dashboard_url label="返回待辦首頁" %}
 <section class="hero-row compact-hero">
   <div><p class="eyebrow">訂單管理</p><h1>全部訂單</h1></div>
   <a class="button primary" href="{% url 'order_create' %}">＋ 建立訂單</a>

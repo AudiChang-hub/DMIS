@@ -593,6 +593,7 @@ class VehicleModelMasterForm(forms.ModelForm):
             "brand",
             "energy_type",
             "name",
+            "model_number",
             "model_year",
             "model_code",
             "displacement_cc",
@@ -603,6 +604,7 @@ class VehicleModelMasterForm(forms.ModelForm):
             "brand": "品牌",
             "energy_type": "能源別",
             "name": "機種",
+            "model_number": "型號",
             "model_code": "型式",
         }
         widgets = {
@@ -616,6 +618,7 @@ class VehicleModelMasterForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields["model_year"].required = True
+        self.fields["model_number"].required = True
         self.fields["model_code"].required = True
         for field in self.fields.values():
             field.widget.attrs.setdefault("class", "form-control")
@@ -625,18 +628,29 @@ class VehicleModelMasterForm(forms.ModelForm):
         cleaned = super().clean()
         brand = (cleaned.get("brand") or "").strip()
         name = (cleaned.get("name") or "").strip()
+        model_number = (cleaned.get("model_number") or "").strip()
         model_code = (cleaned.get("model_code") or "").strip()
         model_year = cleaned.get("model_year")
         duplicate = VehicleModel.objects.filter(
             brand__iexact=brand,
             name__iexact=name,
+            model_number__iexact=model_number,
             model_year=model_year,
             model_code=model_code,
         )
         if self.instance.pk:
             duplicate = duplicate.exclude(pk=self.instance.pk)
-        if brand and name and model_year and model_code and duplicate.exists():
-            raise forms.ValidationError("相同品牌、機種、年份及型式的車型已存在。")
+        if (
+            brand
+            and name
+            and model_number
+            and model_year
+            and model_code
+            and duplicate.exists()
+        ):
+            raise forms.ValidationError(
+                "相同品牌、機種、型號、年份及型式的車型已存在。"
+            )
         if (
             self.instance.pk
             and self.instance.vehicleinventory_set.exists()

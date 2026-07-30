@@ -47,6 +47,7 @@ class VehicleModelAdmin(admin.ModelAdmin):
     list_display = (
         "brand",
         "name",
+        "model_number",
         "model_year",
         "model_code",
         "energy_type",
@@ -55,7 +56,7 @@ class VehicleModelAdmin(admin.ModelAdmin):
         "active",
     )
     list_filter = ("energy_type", "active")
-    search_fields = ("brand", "name")
+    search_fields = ("brand", "name", "model_number")
     inlines = [VehicleColorInline]
 
 

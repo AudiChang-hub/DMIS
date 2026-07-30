@@ -70,6 +70,12 @@ class VehicleModel(TimeStampedModel):
 
     brand = models.CharField("廠牌", max_length=80)
     name = models.CharField("車型", max_length=120)
+    model_number = models.CharField(
+        "型號",
+        max_length=120,
+        blank=True,
+        help_text="原廠型號或版本代碼；既有資料可暫時留空。",
+    )
     energy_type = models.CharField("動力類型", max_length=20, choices=EnergyType.choices)
     model_year = models.PositiveSmallIntegerField(
         "年份",
@@ -102,7 +108,13 @@ class VehicleModel(TimeStampedModel):
         ordering = ["brand", "name"]
         constraints = [
             models.UniqueConstraint(
-                fields=["brand", "name", "model_year", "model_code"],
+                fields=[
+                    "brand",
+                    "name",
+                    "model_number",
+                    "model_year",
+                    "model_code",
+                ],
                 name="unique_vehicle_model_variant",
             )
         ]
@@ -111,6 +123,8 @@ class VehicleModel(TimeStampedModel):
 
     def __str__(self):
         details = [self.brand, self.name]
+        if self.model_number:
+            details.append(self.model_number)
         if self.model_year:
             details.append(str(self.model_year))
         if self.model_code:

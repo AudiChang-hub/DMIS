@@ -22,6 +22,7 @@
           <a href="{% url 'dashboard' %}" {% if request.resolver_match.url_name == 'dashboard' %}class="active" aria-current="page"{% endif %}>待辦首頁</a>
           <a href="{% url 'order_list' %}" {% if request.resolver_match.url_name == 'order_list' or request.resolver_match.url_name == 'order_detail' or request.resolver_match.url_name == 'order_edit' or request.resolver_match.url_name == 'order_create' %}class="active" aria-current="page"{% endif %}>全部訂單</a>
           <a href="{% url 'inventory_list' %}" {% if request.resolver_match.url_name == 'inventory_list' or request.resolver_match.url_name == 'inventory_create' or request.resolver_match.url_name == 'inventory_quick_create' or request.resolver_match.url_name == 'inventory_edit' %}class="active" aria-current="page"{% endif %}>實體庫存</a>
+          <a href="{% url 'operations_report' %}" {% if request.resolver_match.url_name == 'operations_report' or request.resolver_match.url_name == 'order_operations' %}class="active" aria-current="page"{% endif %}>營運總表</a>
           <a href="{% url 'vehicle_model_list' %}" {% if request.resolver_match.url_name == 'vehicle_model_list' or request.resolver_match.url_name == 'vehicle_model_create' or request.resolver_match.url_name == 'vehicle_model_edit' %}class="active" aria-current="page"{% endif %}>主檔維護</a>
         </nav>
         <button type="button" class="update-check-button" data-check-update aria-label="檢查系統更新" title="檢查系統更新">

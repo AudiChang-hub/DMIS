@@ -5,6 +5,8 @@ from django.db.models import Q
 
 from sales.models import (
     AccessoryLine,
+    OrderOperationsProfile,
+    PaymentRecord,
     RegistrationDocument,
     SalesOrder,
     SalesOrderSearchIndex,
@@ -77,6 +79,24 @@ RELATED_FIELDS = (
     ("events__actor_name", "處理人員"),
     ("changes__reason", "訂單變更原因"),
     ("changes__actor_name", "訂單修改人員"),
+    ("operations__dealer_name", "車行"),
+    ("operations__balance_invoice_number", "尾款發票號碼"),
+    ("operations__bank_name", "銀行"),
+    ("operations__old_vehicle_engine_number", "舊車引擎號碼"),
+    ("operations__old_vehicle_brand", "舊車廠牌"),
+    ("operations__vehicle_control_account", "車控帳號"),
+    ("operations__battery_plan", "電池合約方案"),
+    ("operations__battery_account", "電池合約帳號"),
+    ("operations__helmet", "安全帽"),
+    ("operations__company_gift_or_remittance", "公司禮券、匯款"),
+    ("operations__platform_gift", "平台贈品"),
+    ("operations__other_fulfillment", "其他履約內容"),
+    ("operations__customer_service_phone", "客服電話"),
+    ("operations__installment_info", "分期資訊"),
+    ("payment_records__item_name", "收款項目"),
+    ("payment_records__payment_method", "收款方式"),
+    ("payment_records__receiving_account", "收款帳戶"),
+    ("payment_records__note", "收款備註"),
 )
 
 
@@ -192,6 +212,19 @@ def build_order_match_summary(order, query):
         if value not in (None, "") and _contains(value, query):
             _append_match(matches, label, value)
 
+    profile = getattr(order, "operations", None)
+    if profile:
+        for field in profile._meta.fields:
+            if field.name in {
+                "id", "order", "created_at", "updated_at",
+                "vehicle_control_password_encrypted",
+                "battery_password_encrypted",
+            }:
+                continue
+            value = _display_value(profile, field)
+            if value not in (None, "") and _contains(value, query):
+                _append_match(matches, field.verbose_name, value)
+
     collections = (
         (
             order.accessories.all(),
@@ -240,6 +273,19 @@ def build_order_match_summary(order, query):
             (
                 ("訂單變更原因", "reason"),
                 ("訂單修改人員", "actor_name"),
+            ),
+        ),
+        (
+            order.payment_records.all(),
+            (
+                ("收款項目", "item_name"),
+                ("應收金額", "expected_amount"),
+                ("實收金額", "received_amount"),
+                ("收款日期", "received_on"),
+                ("收款方式", "payment_method"),
+                ("收款帳戶", "receiving_account"),
+                ("收款確認人員", "confirmed_by"),
+                ("收款備註", "note"),
             ),
         ),
     )
@@ -301,6 +347,17 @@ def build_order_search_payload(order):
     for label, value in related_values:
         _index_item(items, label, value)
 
+    profile = getattr(order, "operations", None)
+    if profile:
+        for field in profile._meta.fields:
+            if field.name in {
+                "id", "order", "created_at", "updated_at",
+                "vehicle_control_password_encrypted",
+                "battery_password_encrypted",
+            }:
+                continue
+            _index_item(items, field.verbose_name, _display_value(profile, field))
+
     collections = (
         (order.accessories.all(), (
             ("配件名稱", "name"), ("配件數量", "quantity"),
@@ -326,6 +383,12 @@ def build_order_search_payload(order):
         (order.changes.all(), (
             ("訂單變更原因", "reason"), ("訂單修改人員", "actor_name"),
         )),
+        (order.payment_records.all(), (
+            ("收款項目", "item_name"), ("應收金額", "expected_amount"),
+            ("實收金額", "received_amount"), ("收款日期", "received_on"),
+            ("收款方式", "payment_method"), ("收款帳戶", "receiving_account"),
+            ("收款確認人員", "confirmed_by"), ("收款備註", "note"),
+        )),
     )
     for objects, fields in collections:
         for obj in objects:
@@ -337,11 +400,11 @@ def build_order_search_payload(order):
 
 def rebuild_order_search_index(order_id):
     order = SalesOrder.objects.select_related(
-        "source", "vehicle_model", "color", "allocated_vehicle",
+        "source", "vehicle_model", "color", "allocated_vehicle", "operations",
         "allocated_vehicle__location_store",
     ).prefetch_related(
         "accessories", "other_fees", "subsidy_documents",
-        "registration_documents", "events", "changes",
+        "registration_documents", "events", "changes", "payment_records",
     ).filter(pk=order_id).first()
     if not order:
         return

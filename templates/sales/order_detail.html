@@ -12,6 +12,7 @@
   </div>
   <div class="hero-actions">
     {% if order.is_editable %}<a class="button primary" href="{% url 'order_edit' order.pk %}">編輯訂單</a>{% endif %}
+    <a class="button ghost" href="{% url 'order_operations' order.pk %}">營運與對帳</a>
     <a class="button secondary" href="{% url 'order_documents_print' order.pk %}" target="_blank">一鍵列印全部文件</a>
   </div>
 </section>

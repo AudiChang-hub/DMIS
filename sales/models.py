@@ -1,4 +1,5 @@
 import uuid
+from decimal import Decimal
 
 from django.conf import settings
 from django.core.exceptions import ValidationError
@@ -57,6 +58,16 @@ class VehicleModel(TimeStampedModel):
         ELECTRIC = "electric", "電動車"
         MICRO_ELECTRIC = "micro_electric", "微型電動二輪車"
 
+    class ModelType(models.TextChoices):
+        FRONT_DISC_REAR_DRUM = "front_disc_rear_drum", "前碟後鼓"
+        CBS_DRUM = "cbs_drum", "CBS鼓"
+        CBS_DISC = "cbs_disc", "CBS碟"
+        ABS_DISC = "abs_disc", "ABS碟"
+        CBS_DUAL_DISC = "cbs_dual_disc", "CBS雙碟"
+        ABS_DUAL_DISC = "abs_dual_disc", "ABS雙碟"
+        DISC = "disc", "碟"
+        ABS_TRIPLE_DISC = "abs_triple_disc", "ABS三碟"
+
     brand = models.CharField("廠牌", max_length=80)
     name = models.CharField("車型", max_length=120)
     energy_type = models.CharField("動力類型", max_length=20, choices=EnergyType.choices)
@@ -66,7 +77,12 @@ class VehicleModel(TimeStampedModel):
         null=True,
         help_text="既有車型可暫時留空；新建車型請填西元年份。",
     )
-    model_code = models.CharField("型式", max_length=120, blank=True)
+    model_code = models.CharField(
+        "型式",
+        max_length=40,
+        choices=ModelType.choices,
+        blank=True,
+    )
     displacement_cc = models.PositiveSmallIntegerField(
         "排氣量（c.c.）",
         blank=True,
@@ -858,6 +874,140 @@ class SalesOrder(TimeStampedModel):
 
     def __str__(self):
         return f"{self.number}／{self.owner_name}"
+
+
+class OrderOperationsProfile(TimeStampedModel):
+    class AgencyStatus(models.TextChoices):
+        NOT_SUBMITTED = "not_submitted", "未送件"
+        SUBMITTED = "submitted", "已送件"
+        SUPPLEMENT = "supplement", "待補件"
+        REVIEWING = "reviewing", "審核中"
+        APPROVED = "approved", "已核准"
+        PAID = "paid", "已撥款"
+        NOT_APPLICABLE = "not_applicable", "不適用"
+
+    order = models.OneToOneField(
+        SalesOrder,
+        on_delete=models.CASCADE,
+        related_name="operations",
+        verbose_name="訂單",
+    )
+    dealer_name = models.CharField("車行", max_length=160, blank=True)
+    actual_disbursement = models.DecimalField("實際撥款", max_digits=12, decimal_places=0, default=0)
+    vehicle_cost = models.DecimalField("車輛成本", max_digits=12, decimal_places=0, default=0)
+    registration_tax_expense = models.DecimalField("領牌稅金支出", max_digits=12, decimal_places=0, default=0)
+    compulsory_insurance_expense = models.DecimalField("強制險支出", max_digits=12, decimal_places=0, default=0)
+    plate_selection_expense = models.DecimalField("選號支出", max_digits=12, decimal_places=0, default=0)
+    gift_shipping_expense = models.DecimalField("贈品、運費支出", max_digits=12, decimal_places=0, default=0)
+    dealer_commission_expense = models.DecimalField("車行傭金支出", max_digits=12, decimal_places=0, default=0)
+    registration_tax_income = models.DecimalField("領牌稅金收入", max_digits=12, decimal_places=0, default=0)
+    compulsory_insurance_income = models.DecimalField("強制險收入", max_digits=12, decimal_places=0, default=0)
+    agency_fee_income = models.DecimalField("代辦費收入", max_digits=12, decimal_places=0, default=0)
+    plate_selection_income = models.DecimalField("選號收入", max_digits=12, decimal_places=0, default=0)
+    installment_fee_income = models.DecimalField("分期手續費收入", max_digits=12, decimal_places=0, default=0)
+    card_fee_income = models.DecimalField("刷卡手續費收入", max_digits=12, decimal_places=0, default=0)
+    other_income = models.DecimalField("其他收入", max_digits=12, decimal_places=0, default=0)
+    sales_bonus = models.DecimalField("實銷獎勵金", max_digits=12, decimal_places=0, default=0)
+    promotion_subsidy = models.DecimalField("促銷補助金", max_digits=12, decimal_places=0, default=0)
+    installment_interest_subsidy = models.DecimalField("分期補貼息", max_digits=12, decimal_places=0, default=0)
+    insurance_commission = models.DecimalField("強制險傭金", max_digits=12, decimal_places=0, default=0)
+    credit_card_commission = models.DecimalField("信用卡傭金", max_digits=12, decimal_places=0, default=0)
+    payment_confirmed = models.BooleanField("確認收款", default=False)
+    installment_transfer_confirmed = models.BooleanField("分期公司確認匯款", default=False)
+    invoice_date = models.DateField("發票日期", blank=True, null=True)
+    balance_invoice_number = models.CharField("尾款發票號碼", max_length=80, blank=True)
+    subsidy_amount = models.DecimalField("補助金額", max_digits=12, decimal_places=0, default=0)
+    bank_name = models.CharField("銀行", max_length=120, blank=True)
+    remittance_account = models.CharField("匯款帳戶", max_length=120, blank=True)
+    subsidy_applied_on = models.DateField("申請日", blank=True, null=True)
+    industry_bureau_status = models.CharField("工業局", max_length=30, choices=AgencyStatus.choices, default=AgencyStatus.NOT_SUBMITTED)
+    environment_ministry_status = models.CharField("環境部", max_length=30, choices=AgencyStatus.choices, default=AgencyStatus.NOT_SUBMITTED)
+    local_government_status = models.CharField("縣市政府", max_length=30, choices=AgencyStatus.choices, default=AgencyStatus.NOT_SUBMITTED)
+    old_vehicle_engine_number = models.CharField("舊車引擎號碼", max_length=80, blank=True)
+    old_vehicle_brand = models.CharField("舊車廠牌", max_length=120, blank=True)
+    old_vehicle_displacement_cc = models.PositiveSmallIntegerField("舊車排氣量", blank=True, null=True)
+    old_vehicle_manufactured_on = models.DateField("舊車出廠日期", blank=True, null=True)
+    scrapped_on = models.DateField("報廢日期", blank=True, null=True)
+    recycled_on = models.DateField("回收日期", blank=True, null=True)
+    vehicle_control_account = models.CharField("車控帳號", max_length=160, blank=True)
+    vehicle_control_password_encrypted = models.TextField("車控密碼（加密）", blank=True)
+    battery_plan = models.CharField("電池合約方案", max_length=160, blank=True)
+    battery_activated_on = models.DateField("電池合約啟用日期", blank=True, null=True)
+    battery_account = models.CharField("電池合約帳號", max_length=160, blank=True)
+    battery_password_encrypted = models.TextField("電池合約密碼（加密）", blank=True)
+    helmet = models.CharField("安全帽", max_length=250, blank=True)
+    company_gift_or_remittance = models.CharField("公司禮券、匯款", max_length=250, blank=True)
+    other_fulfillment = models.TextField("其他", blank=True)
+    platform_gift = models.CharField("平台贈品", max_length=250, blank=True)
+    customer_service_phone = models.CharField("客服電話", max_length=50, blank=True)
+    installment_info = models.TextField("分期資訊", blank=True)
+    updated_by = models.CharField("最後更新人員", max_length=150, blank=True)
+
+    INCOME_FIELDS = (
+        "registration_tax_income", "compulsory_insurance_income",
+        "agency_fee_income", "plate_selection_income", "installment_fee_income",
+        "card_fee_income", "other_income", "sales_bonus", "promotion_subsidy",
+        "insurance_commission", "credit_card_commission",
+    )
+    EXPENSE_FIELDS = (
+        "vehicle_cost", "registration_tax_expense",
+        "compulsory_insurance_expense", "plate_selection_expense",
+        "gift_shipping_expense", "dealer_commission_expense",
+        "installment_interest_subsidy",
+    )
+
+    @property
+    def total_income(self):
+        return self.order.vehicle_price + sum(
+            (getattr(self, field) or Decimal("0") for field in self.INCOME_FIELDS),
+            Decimal("0"),
+        )
+
+    @property
+    def total_expense(self):
+        return sum(
+            (getattr(self, field) or Decimal("0") for field in self.EXPENSE_FIELDS),
+            Decimal("0"),
+        )
+
+    @property
+    def net_profit(self):
+        return self.total_income - self.total_expense
+
+    @property
+    def total_received(self):
+        return self.order.payment_records.filter(confirmed=True).aggregate(
+            total=models.Sum("received_amount")
+        )["total"] or Decimal("0")
+
+    class Meta:
+        verbose_name = "訂單營運資料"
+        verbose_name_plural = "訂單營運資料"
+
+
+class PaymentRecord(TimeStampedModel):
+    order = models.ForeignKey(
+        SalesOrder,
+        on_delete=models.CASCADE,
+        related_name="payment_records",
+        verbose_name="訂單",
+    )
+    item_name = models.CharField("收款項目", max_length=160)
+    expected_amount = models.DecimalField("應收金額", max_digits=12, decimal_places=0, default=0)
+    received_amount = models.DecimalField("實收金額", max_digits=12, decimal_places=0, default=0)
+    received_on = models.DateField("收款日期", blank=True, null=True)
+    payment_method = models.CharField("付款方式", max_length=50, blank=True)
+    receiving_account = models.CharField("收款帳戶", max_length=120, blank=True)
+    confirmed = models.BooleanField("已確認", default=False)
+    confirmed_by = models.CharField("確認人員", max_length=150, blank=True)
+    confirmed_at = models.DateTimeField("確認時間", blank=True, null=True)
+    proof = models.FileField("匯款／收款證明", upload_to="orders/payments/%Y/%m/", blank=True)
+    note = models.CharField("備註", max_length=250, blank=True)
+
+    class Meta:
+        ordering = ["received_on", "id"]
+        verbose_name = "收款紀錄"
+        verbose_name_plural = "收款紀錄"
 
 
 class RegistrationDocument(TimeStampedModel):

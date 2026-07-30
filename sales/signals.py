@@ -5,7 +5,9 @@ from .models import (
     AccessoryLine,
     OrderChange,
     OrderEvent,
+    OrderOperationsProfile,
     OtherFeeLine,
+    PaymentRecord,
     RegistrationDocument,
     SalesOrder,
     SubsidyDocument,
@@ -21,6 +23,8 @@ ORDER_CHILD_MODELS = (
     SubsidyDocument,
     OrderEvent,
     OrderChange,
+    OrderOperationsProfile,
+    PaymentRecord,
 )
 
 

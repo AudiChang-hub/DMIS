@@ -556,6 +556,10 @@ class SalesOrder(TimeStampedModel):
     delivery_destination = models.CharField(
         "送達地點／託運目的地", max_length=250, blank=True
     )
+    delivered_at = models.DateTimeField(
+        "實際交車時間", blank=True, null=True, db_index=True
+    )
+    delivered_by = models.CharField("交車完成人員", max_length=150, blank=True)
     note = models.TextField("備註", blank=True)
     signed_contract = models.FileField(
         "已簽署合約", upload_to="orders/contracts/%Y/%m/", blank=True
@@ -820,6 +824,15 @@ class SalesOrder(TimeStampedModel):
             self.calculated_balance = self.calculate_balance()
         if self.status == self.Status.DRAFT:
             self.status = self.Status.ALLOCATION_PENDING
+        if self.is_delivered and not self.delivered_at:
+            self.delivered_at = timezone.now()
+            if not self.delivered_by:
+                self.delivered_by = "系統狀態同步"
+            if kwargs.get("update_fields") is not None:
+                kwargs["update_fields"] = set(kwargs["update_fields"]) | {
+                    "delivered_at",
+                    "delivered_by",
+                }
         self.full_clean()
         return super().save(*args, **kwargs)
 

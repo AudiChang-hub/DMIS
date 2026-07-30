@@ -19,10 +19,17 @@
       </a>
       {% if user.is_authenticated %}
         <nav class="desktop-nav" aria-label="主要選單">
-          <a href="{% url 'dashboard' %}" {% if request.resolver_match.url_name == 'dashboard' %}class="active" aria-current="page"{% endif %}>待辦首頁</a>
+          <a href="{% url 'dashboard' %}" {% if request.resolver_match.url_name == 'dashboard' %}class="active" aria-current="page"{% endif %}>戰情首頁</a>
           <a href="{% url 'order_list' %}" {% if request.resolver_match.url_name == 'order_list' or request.resolver_match.url_name == 'order_detail' or request.resolver_match.url_name == 'order_edit' or request.resolver_match.url_name == 'order_create' %}class="active" aria-current="page"{% endif %}>全部訂單</a>
           <a href="{% url 'operations_report' %}" {% if request.resolver_match.url_name == 'operations_report' or request.resolver_match.url_name == 'order_operations' %}class="active" aria-current="page"{% endif %}>營運總表</a>
-          <a href="{% url 'data_maintenance' %}" {% if request.resolver_match.url_name == 'data_maintenance' or request.resolver_match.url_name == 'customer_list' or request.resolver_match.url_name == 'inventory_list' or request.resolver_match.url_name == 'inventory_create' or request.resolver_match.url_name == 'inventory_quick_create' or request.resolver_match.url_name == 'inventory_edit' or request.resolver_match.url_name == 'vehicle_model_list' or request.resolver_match.url_name == 'vehicle_model_create' or request.resolver_match.url_name == 'vehicle_model_edit' %}class="active" aria-current="page"{% endif %}>資料維護區</a>
+          <div class="desktop-data-menu{% if request.resolver_match.url_name == 'data_maintenance' or request.resolver_match.url_name == 'customer_list' or request.resolver_match.url_name == 'customer_detail' or request.resolver_match.url_name == 'inventory_list' or request.resolver_match.url_name == 'inventory_create' or request.resolver_match.url_name == 'inventory_quick_create' or request.resolver_match.url_name == 'inventory_edit' or request.resolver_match.url_name == 'vehicle_model_list' or request.resolver_match.url_name == 'vehicle_model_create' or request.resolver_match.url_name == 'vehicle_model_edit' %} active{% endif %}">
+            <a href="{% url 'data_maintenance' %}">資料維護區 <span aria-hidden="true">⌄</span></a>
+            <div class="data-menu-popover" aria-label="資料維護選單">
+              <a href="{% url 'customer_list' %}"><strong>客戶資料</strong><small>聯絡資料與歷史訂單</small></a>
+              <a href="{% url 'vehicle_model_list' %}"><strong>車型資料</strong><small>品牌、型號、顏色與售價</small></a>
+              <a href="{% url 'inventory_list' %}"><strong>庫存資料</strong><small>進車、車況與調車歷程</small></a>
+            </div>
+          </div>
         </nav>
         <button type="button" class="update-check-button" data-check-update aria-label="檢查系統更新" title="檢查系統更新">
           <svg class="update-check-icon" viewBox="0 0 24 24" aria-hidden="true">
@@ -40,11 +47,18 @@
 
   {% if user.is_authenticated %}
     <nav class="mobile-nav" aria-label="手機主要選單">
-      <a href="{% url 'dashboard' %}" {% if request.resolver_match.url_name == 'dashboard' %}class="active" aria-current="page"{% endif %}><span>⌂</span>待辦</a>
+      <a href="{% url 'dashboard' %}" {% if request.resolver_match.url_name == 'dashboard' %}class="active" aria-current="page"{% endif %}><span>⌂</span>首頁</a>
       <a href="{% url 'order_list' %}" {% if request.resolver_match.url_name == 'order_list' or request.resolver_match.url_name == 'order_detail' or request.resolver_match.url_name == 'order_edit' %}class="active" aria-current="page"{% endif %}><span>▤</span>訂單</a>
       <a class="mobile-new{% if request.resolver_match.url_name == 'order_create' %} active{% endif %}" href="{% url 'order_create' %}" {% if request.resolver_match.url_name == 'order_create' %}aria-current="page"{% endif %}><span>＋</span>新增</a>
       <a href="{% url 'operations_report' %}" {% if request.resolver_match.url_name == 'operations_report' or request.resolver_match.url_name == 'order_operations' %}class="active" aria-current="page"{% endif %}><span>＄</span>營運</a>
-      <a href="{% url 'data_maintenance' %}" {% if request.resolver_match.url_name == 'data_maintenance' or request.resolver_match.url_name == 'customer_list' or request.resolver_match.url_name == 'inventory_list' or request.resolver_match.url_name == 'inventory_create' or request.resolver_match.url_name == 'inventory_quick_create' or request.resolver_match.url_name == 'inventory_edit' or request.resolver_match.url_name == 'vehicle_model_list' or request.resolver_match.url_name == 'vehicle_model_create' or request.resolver_match.url_name == 'vehicle_model_edit' %}class="active" aria-current="page"{% endif %}><span>⚙</span>資料</a>
+      <details class="mobile-data-menu{% if request.resolver_match.url_name == 'data_maintenance' or request.resolver_match.url_name == 'customer_list' or request.resolver_match.url_name == 'customer_detail' or request.resolver_match.url_name == 'inventory_list' or request.resolver_match.url_name == 'inventory_create' or request.resolver_match.url_name == 'inventory_quick_create' or request.resolver_match.url_name == 'inventory_edit' or request.resolver_match.url_name == 'vehicle_model_list' or request.resolver_match.url_name == 'vehicle_model_create' or request.resolver_match.url_name == 'vehicle_model_edit' %} active{% endif %}">
+        <summary><span>⚙</span>資料</summary>
+        <div class="mobile-data-popover">
+          <a href="{% url 'customer_list' %}"><span>人</span><strong>客戶資料</strong></a>
+          <a href="{% url 'vehicle_model_list' %}"><span>型</span><strong>車型資料</strong></a>
+          <a href="{% url 'inventory_list' %}"><span>庫</span><strong>庫存資料</strong></a>
+        </div>
+      </details>
     </nav>
   {% endif %}
 

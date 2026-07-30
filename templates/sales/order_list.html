@@ -14,6 +14,7 @@
       <option value="">全部狀態</option>
       <option value="urgent" {% if request.GET.status == "urgent" %}selected{% endif %}>需要優先處理</option>
       <option value="in_progress" {% if request.GET.status == "in_progress" %}selected{% endif %}>進行中</option>
+      <option value="registration_pending" {% if request.GET.status == "registration_pending" %}selected{% endif %}>待領牌（含調車）</option>
       {% for value,label in statuses %}
         <option value="{{ value }}" {% if request.GET.status == value %}selected{% endif %}>{{ label }}</option>
       {% endfor %}

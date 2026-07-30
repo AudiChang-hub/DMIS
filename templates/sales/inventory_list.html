@@ -21,6 +21,7 @@
     <label for="inventory-status">狀態</label>
     <select id="inventory-status" name="status">
       <option value="">全部狀態</option>
+      <option value="transfer" {% if selected.status == "transfer" %}selected{% endif %}>調車中（含待調車）</option>
       {% for value, label in statuses %}<option value="{{ value }}" {% if selected.status == value %}selected{% endif %}>{{ label }}</option>{% endfor %}
     </select>
   </div>

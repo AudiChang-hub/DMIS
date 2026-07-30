@@ -5,7 +5,9 @@ from .models import (
     OrderDraft,
     OtherFeeLine,
     OrderEvent,
+    OrderOperationsProfile,
     RegistrationDocument,
+    PaymentRecord,
     SalesOrder,
     SalesSource,
     Store,
@@ -122,6 +124,12 @@ class RegistrationDocumentInline(admin.TabularInline):
     readonly_fields = ("uploaded_by", "created_at", "updated_at")
 
 
+class PaymentRecordInline(admin.TabularInline):
+    model = PaymentRecord
+    extra = 0
+    readonly_fields = ("confirmed_by", "confirmed_at", "created_at", "updated_at")
+
+
 class SubsidyDocumentInline(admin.TabularInline):
     model = SubsidyDocument
     extra = 0
@@ -151,5 +159,25 @@ class SalesOrderAdmin(admin.ModelAdmin):
         OtherFeeLineInline,
         SubsidyDocumentInline,
         RegistrationDocumentInline,
+        PaymentRecordInline,
         OrderEventInline,
     ]
+
+
+@admin.register(OrderOperationsProfile)
+class OrderOperationsProfileAdmin(admin.ModelAdmin):
+    list_display = (
+        "order",
+        "payment_confirmed",
+        "installment_transfer_confirmed",
+        "updated_by",
+        "updated_at",
+    )
+    list_filter = ("payment_confirmed", "installment_transfer_confirmed")
+    search_fields = ("order__number", "order__owner_name", "dealer_name")
+    readonly_fields = (
+        "vehicle_control_password_encrypted",
+        "battery_password_encrypted",
+        "created_at",
+        "updated_at",
+    )

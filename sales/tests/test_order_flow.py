@@ -24,8 +24,10 @@ from sales.models import (
     AccessoryLine,
     OrderChange,
     OrderEvent,
+    OrderOperationsProfile,
     OtherFeeLine,
     RegistrationDocument,
+    PaymentRecord,
     SalesOrder,
     Store,
     SubsidyDocument,
@@ -34,6 +36,7 @@ from sales.models import (
     VehicleInventoryHistory,
     VehicleModel,
 )
+from sales.services.secret_fields import decrypt_secret
 
 
 class OrderFlowTests(TestCase):
@@ -397,7 +400,7 @@ class OrderFlowTests(TestCase):
             "energy_type": VehicleModel.EnergyType.GAS,
             "name": "SUI 125",
             "model_year": "2026",
-            "model_code": "SUI125X",
+            "model_code": VehicleModel.ModelType.CBS_DISC,
             "displacement_cc": "125",
             "suggested_price": "79800",
             "active": "on",
@@ -426,7 +429,7 @@ class OrderFlowTests(TestCase):
             brand="SUZUKI",
             name="SUI 125",
             model_year=2026,
-            model_code="SUI125X",
+            model_code=VehicleModel.ModelType.CBS_DISC,
         )
         self.assertEqual(model.suggested_price, Decimal("79800"))
         self.assertEqual(
@@ -438,7 +441,7 @@ class OrderFlowTests(TestCase):
 
         list_response = self.client.get(
             reverse("vehicle_model_list"),
-            {"q": "SUI125X", "energy_type": VehicleModel.EnergyType.GAS},
+            {"q": "CBS", "energy_type": VehicleModel.EnergyType.GAS},
         )
         self.assertContains(list_response, "SUI 125")
         self.assertContains(list_response, "2 種")
@@ -453,7 +456,7 @@ class OrderFlowTests(TestCase):
                 "energy_type": VehicleModel.EnergyType.ELECTRIC,
                 "name": self.model.name,
                 "model_year": "2026",
-                "model_code": "LOCKED",
+                "model_code": VehicleModel.ModelType.ABS_DISC,
                 "displacement_cc": "",
                 "suggested_price": "",
                 "active": "on",
@@ -480,7 +483,7 @@ class OrderFlowTests(TestCase):
             "energy_type": self.model.energy_type,
             "name": self.model.name,
             "model_year": "2026",
-            "model_code": "USED-COLOR",
+            "model_code": VehicleModel.ModelType.FRONT_DISC_REAR_DRUM,
             "displacement_cc": "125",
             "suggested_price": "",
             "active": "on",
@@ -2214,3 +2217,120 @@ class OrderFlowTests(TestCase):
         self.assertIn('toast.classList.contains("error") ? null', script)
         self.assertIn('toast.addEventListener("mouseenter", pause)', script)
         self.assertIn('toast.addEventListener("touchstart", pause', script)
+
+
+class OrderOperationsTests(TestCase):
+    def setUp(self):
+        self.user = get_user_model().objects.create_user(
+            username="operations-user", password="test-pass-123"
+        )
+        self.store = Store.objects.create(name="總店", code="HQ")
+        self.model = VehicleModel.objects.create(
+            brand="測試廠牌",
+            name="營運 125",
+            energy_type=VehicleModel.EnergyType.GAS,
+        )
+        self.color = VehicleColor.objects.create(
+            vehicle_model=self.model,
+            name="黑",
+        )
+        self.order = SalesOrder.objects.create(
+            owner_name="營運測試",
+            owner_phone="0911222333",
+            owner_address="新北市測試區",
+            owner_id_number="A123456789",
+            vehicle_model=self.model,
+            color=self.color,
+            vehicle_price=Decimal("80000"),
+            deposit_amount=Decimal("5000"),
+            actual_balance=Decimal("75000"),
+            id_verified=True,
+            status=SalesOrder.Status.ALLOCATION_PENDING,
+        )
+        self.client.force_login(self.user)
+
+    def test_financial_totals_include_all_income_and_expense_fields(self):
+        profile = OrderOperationsProfile.objects.create(
+            order=self.order,
+            vehicle_cost=Decimal("60000"),
+            registration_tax_expense=Decimal("1000"),
+            installment_interest_subsidy=Decimal("2000"),
+            agency_fee_income=Decimal("500"),
+            sales_bonus=Decimal("1500"),
+        )
+        PaymentRecord.objects.create(
+            order=self.order,
+            item_name="訂金",
+            received_amount=Decimal("5000"),
+            confirmed=True,
+        )
+        PaymentRecord.objects.create(
+            order=self.order,
+            item_name="尾款",
+            received_amount=Decimal("75000"),
+            confirmed=False,
+        )
+
+        self.assertEqual(profile.total_income, Decimal("82000"))
+        self.assertEqual(profile.total_expense, Decimal("63000"))
+        self.assertEqual(profile.net_profit, Decimal("19000"))
+        self.assertEqual(profile.total_received, Decimal("5000"))
+
+    def test_existing_order_without_profile_can_open_operations_page(self):
+        response = self.client.get(
+            reverse("order_operations", args=[self.order.pk])
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "收款與分期對帳")
+        self.assertTrue(
+            OrderOperationsProfile.objects.filter(order=self.order).exists()
+        )
+
+    def test_secret_is_encrypted_and_reveal_is_audited(self):
+        from sales.services.secret_fields import encrypt_secret
+
+        encrypted = encrypt_secret("safe-password")
+        profile = OrderOperationsProfile.objects.create(
+            order=self.order,
+            vehicle_control_password_encrypted=encrypted,
+        )
+
+        self.assertNotIn("safe-password", profile.vehicle_control_password_encrypted)
+        self.assertEqual(decrypt_secret(encrypted), "safe-password")
+        response = self.client.post(
+            reverse("order_secret_reveal", args=[self.order.pk]),
+            {"field": "vehicle_control_password"},
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["value"], "safe-password")
+        self.assertTrue(
+            OrderEvent.objects.filter(
+                order=self.order,
+                event_type="secret_viewed",
+            ).exists()
+        )
+
+    def test_operations_report_and_excel_export(self):
+        OrderOperationsProfile.objects.create(
+            order=self.order,
+            vehicle_cost=Decimal("60000"),
+        )
+        list_response = self.client.get(reverse("operations_report"))
+        export_response = self.client.get(reverse("operations_report_export"))
+
+        self.assertEqual(list_response.status_code, 200)
+        self.assertContains(list_response, self.order.number)
+        self.assertEqual(export_response.status_code, 200)
+        self.assertEqual(
+            export_response["Content-Type"],
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        )
+        from openpyxl import load_workbook
+
+        workbook = load_workbook(BytesIO(export_response.content))
+        sheet = workbook["營運總表"]
+        headers = [cell.value for cell in sheet[1]]
+        self.assertIn("單筆淨利", headers)
+        self.assertIn("電池合約方案", headers)
+        self.assertEqual(sheet.cell(row=2, column=1).value, self.order.number)

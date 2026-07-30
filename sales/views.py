@@ -12,7 +12,7 @@ from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
 from django.db.models import Count, Q
 from django.core.paginator import Paginator
-from django.http import FileResponse, Http404, JsonResponse
+from django.http import FileResponse, Http404, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
@@ -27,8 +27,10 @@ from .forms import (
     AccessoryFormSet,
     AllocationForm,
     OtherFeeFormSet,
+    OrderOperationsForm,
     OrderEditForm,
     PrivacyConsentForm,
+    PaymentRecordFormSet,
     QuickInventoryEntryFormSet,
     ReallocationForm,
     RegistrationDocumentUploadForm,
@@ -43,6 +45,8 @@ from .forms import (
 )
 from .models import (
     OrderEvent,
+    OrderOperationsProfile,
+    PaymentRecord,
     OrderChange,
     OrderDraft,
     IdOcrJob,
@@ -63,6 +67,7 @@ from .services.order_search import (
     build_order_match_summary,
     build_order_search_query,
 )
+from .services.secret_fields import decrypt_secret, encrypt_secret
 
 
 logger = logging.getLogger(__name__)
@@ -291,6 +296,150 @@ def order_list(request):
         "sales/order_list.html",
         {"orders": orders[:200], "statuses": SalesOrder.Status.choices},
     )
+
+
+def _operations_report_queryset(request):
+    rows = SalesOrder.objects.select_related(
+        "vehicle_model", "color", "allocated_vehicle", "operations", "source"
+    ).prefetch_related("payment_records")
+    keyword = request.GET.get("q", "").strip()
+    if keyword:
+        rows = rows.filter(build_order_search_query(keyword)).distinct()
+    energy_type = request.GET.get("energy_type", "")
+    if energy_type in {value for value, _ in VehicleModel.EnergyType.choices}:
+        rows = rows.filter(vehicle_model__energy_type=energy_type)
+    payment_status = request.GET.get("payment_status", "")
+    if payment_status == "confirmed":
+        rows = rows.filter(operations__payment_confirmed=True)
+    elif payment_status == "pending":
+        rows = rows.exclude(operations__payment_confirmed=True)
+    if request.GET.get("date_from"):
+        rows = rows.filter(order_date__gte=request.GET["date_from"])
+    if request.GET.get("date_to"):
+        rows = rows.filter(order_date__lte=request.GET["date_to"])
+    return rows.order_by("-order_date", "-id")
+
+
+@login_required
+def operations_report(request):
+    paginator = Paginator(_operations_report_queryset(request), 100)
+    page = paginator.get_page(request.GET.get("page"))
+    for order in page.object_list:
+        order.operation_data = getattr(order, "operations", None)
+    return render(
+        request,
+        "sales/operations_report.html",
+        {
+            "orders": page.object_list,
+            "page_obj": page,
+            "energy_types": VehicleModel.EnergyType.choices,
+            "selected": request.GET,
+        },
+    )
+
+
+@login_required
+def operations_report_export(request):
+    from openpyxl import Workbook
+    from openpyxl.styles import Font, PatternFill
+
+    workbook = Workbook()
+    sheet = workbook.active
+    sheet.title = "營運總表"
+    headers = [
+        "訂單編號", "訂單日期", "車種型號", "顏色", "引擎／車身號碼",
+        "車主名稱", "車牌號碼", "車款售價", "實際撥款", "成本",
+        "總收款金額", "確認收款", "分期公司", "期數", "每期金額",
+        "分期公司確認匯款", "身分證字號", "西元生日", "民國生日",
+        "戶籍地址", "手機", "Email", "自送托運地點", "發票日期",
+        "尾款發票號碼", "補助方案", "補助金額", "銀行", "匯款帳戶",
+        "申請日", "工業局", "環境部", "縣市政府", "舊車車主",
+        "舊車車主身分證", "舊車牌照號碼", "舊車引擎號碼", "舊車廠牌",
+        "排氣量", "出廠日期", "報廢日期", "回收日期",
+        "領牌稅金支出", "強制險支出", "選號支出", "贈品、運費支出",
+        "車行傭金支出", "分期補貼息", "領牌稅金收入", "強制險收入",
+        "代辦費收入", "選號收入", "分期手續費收入", "刷卡手續費收入",
+        "其他收入", "實銷獎勵金", "促銷補助金", "強制險傭金",
+        "信用卡傭金", "車控帳號", "電池合約方案", "電池合約啟用日期",
+        "電池合約帳號", "安全帽", "公司禮券、匯款", "其他",
+        "平台贈品", "客服電話", "分期資訊", "車行",
+        "總收入", "總支出", "單筆淨利",
+    ]
+    sheet.append(headers)
+    for cell in sheet[1]:
+        cell.font = Font(bold=True, color="FFFFFF")
+        cell.fill = PatternFill("solid", fgColor="174C3C")
+    for order in _operations_report_queryset(request):
+        profile = getattr(order, "operations", None)
+        roc_birth = ""
+        if order.owner_birth_date:
+            roc_birth = (
+                f"{order.owner_birth_date.year - 1911}/"
+                f"{order.owner_birth_date.month:02d}/{order.owner_birth_date.day:02d}"
+            )
+        def op(name, default=""):
+            return getattr(profile, name, default) if profile else default
+        sheet.append([
+            order.number, order.order_date, str(order.vehicle_model), order.color.name,
+            order.allocated_vehicle.identifier if order.allocated_vehicle else "",
+            order.owner_name, order.final_plate_number, order.vehicle_price,
+            op("actual_disbursement", 0), op("vehicle_cost", 0),
+            profile.total_received if profile else 0,
+            "是" if op("payment_confirmed", False) else "否",
+            order.installment_company, order.installment_periods,
+            order.installment_monthly,
+            "是" if op("installment_transfer_confirmed", False) else "否",
+            order.owner_id_number, order.owner_birth_date, roc_birth,
+            order.owner_address, order.owner_phone, order.owner_email,
+            order.delivery_destination, op("invoice_date"),
+            op("balance_invoice_number"), order.subsidy_type,
+            op("subsidy_amount", 0), op("bank_name"), op("remittance_account"),
+            op("subsidy_applied_on"),
+            profile.get_industry_bureau_status_display() if profile else "",
+            profile.get_environment_ministry_status_display() if profile else "",
+            profile.get_local_government_status_display() if profile else "",
+            order.old_owner_name, order.old_owner_id_number, order.trade_in_plate,
+            op("old_vehicle_engine_number"), op("old_vehicle_brand"),
+            op("old_vehicle_displacement_cc"), op("old_vehicle_manufactured_on"),
+            op("scrapped_on"), op("recycled_on"),
+            op("registration_tax_expense", 0),
+            op("compulsory_insurance_expense", 0),
+            op("plate_selection_expense", 0),
+            op("gift_shipping_expense", 0),
+            op("dealer_commission_expense", 0),
+            op("installment_interest_subsidy", 0),
+            op("registration_tax_income", 0),
+            op("compulsory_insurance_income", 0),
+            op("agency_fee_income", 0),
+            op("plate_selection_income", 0),
+            op("installment_fee_income", 0),
+            op("card_fee_income", 0),
+            op("other_income", 0), op("sales_bonus", 0),
+            op("promotion_subsidy", 0), op("insurance_commission", 0),
+            op("credit_card_commission", 0), op("vehicle_control_account"),
+            op("battery_plan"), op("battery_activated_on"),
+            op("battery_account"), op("helmet"),
+            op("company_gift_or_remittance"), op("other_fulfillment"),
+            op("platform_gift"), op("customer_service_phone"),
+            op("installment_info"), op("dealer_name"),
+            profile.total_income if profile else order.vehicle_price,
+            profile.total_expense if profile else 0,
+            profile.net_profit if profile else order.vehicle_price,
+        ])
+    sheet.freeze_panes = "A2"
+    sheet.auto_filter.ref = sheet.dimensions
+    for column in sheet.columns:
+        sheet.column_dimensions[column[0].column_letter].width = min(
+            max(len(str(cell.value or "")) for cell in column) + 2, 28
+        )
+    output = BytesIO()
+    workbook.save(output)
+    response = HttpResponse(
+        output.getvalue(),
+        content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    )
+    response["Content-Disposition"] = 'attachment; filename="operations-report.xlsx"'
+    return response
 
 
 @login_required
@@ -698,6 +847,7 @@ def order_detail(request, pk):
             or document_type in subsidy_documents
         )
     ]
+    operations_profile = getattr(order, "operations", None)
     return render(
         request,
         "sales/order_detail.html",
@@ -720,8 +870,128 @@ def order_detail(request, pk):
             "subsidy_missing": order.missing_subsidy_requirements(),
             "subsidy_form": SubsidyDataForm(instance=order),
             "change_cards": build_order_change_cards(order.changes.all()),
+            "operations_profile": operations_profile,
         },
     )
+
+
+def _operations_snapshot(profile):
+    values = {}
+    for field in profile._meta.fields:
+        if field.name in {
+            "id", "order", "created_at", "updated_at", "updated_by",
+            "vehicle_control_password_encrypted", "battery_password_encrypted",
+        }:
+            continue
+        value = getattr(profile, field.name)
+        values[field.name] = "" if value is None else str(value)
+    return values
+
+
+@login_required
+def order_operations(request, pk):
+    order = get_object_or_404(
+        SalesOrder.objects.select_related(
+            "vehicle_model", "color", "allocated_vehicle"
+        ),
+        pk=pk,
+    )
+    profile, created = OrderOperationsProfile.objects.get_or_create(order=order)
+    if created and order.allocated_vehicle and order.allocated_vehicle.acquisition_cost:
+        profile.vehicle_cost = order.allocated_vehicle.acquisition_cost
+        profile.save(update_fields=["vehicle_cost", "updated_at"])
+    before = _operations_snapshot(profile)
+    form = OrderOperationsForm(
+        request.POST or None,
+        instance=profile,
+        prefix="operations",
+    )
+    payment_formset = PaymentRecordFormSet(
+        request.POST or None,
+        request.FILES or None,
+        instance=order,
+        prefix="payments",
+    )
+    if request.method == "POST" and form.is_valid() and payment_formset.is_valid():
+        with transaction.atomic():
+            profile = form.save(commit=False)
+            vehicle_secret = form.cleaned_data.get("vehicle_control_password")
+            battery_secret = form.cleaned_data.get("battery_password")
+            if vehicle_secret:
+                profile.vehicle_control_password_encrypted = encrypt_secret(
+                    vehicle_secret
+                )
+            if battery_secret:
+                profile.battery_password_encrypted = encrypt_secret(battery_secret)
+            profile.updated_by = _editing_name(request.user)
+            profile.save()
+            payments = payment_formset.save()
+            now = timezone.now()
+            for payment in payments:
+                if payment.confirmed and not payment.confirmed_at:
+                    payment.confirmed_at = now
+                    payment.confirmed_by = _editing_name(request.user)
+                    payment.save(
+                        update_fields=[
+                            "confirmed_at", "confirmed_by", "updated_at"
+                        ]
+                    )
+            after = _operations_snapshot(profile)
+            changes = {
+                key: {"before": before.get(key, ""), "after": value}
+                for key, value in after.items()
+                if before.get(key, "") != value
+            }
+            OrderChange.objects.create(
+                order=order,
+                reason=form.cleaned_data.get("change_reason")
+                or "更新營運與對帳資料",
+                changes=changes,
+                actor_name=_editing_name(request.user),
+            )
+            OrderEvent.objects.create(
+                order=order,
+                event_type="operations_updated",
+                description=f"更新營運與對帳資料（{len(changes)} 個欄位）",
+                actor_name=_editing_name(request.user),
+            )
+        messages.success(request, "營運、收款及損益資料已更新。")
+        return redirect("order_operations", pk=order.pk)
+    return render(
+        request,
+        "sales/order_operations.html",
+        {
+            "order": order,
+            "profile": profile,
+            "form": form,
+            "payment_formset": payment_formset,
+            "is_electric": order.vehicle_model.energy_type
+            != VehicleModel.EnergyType.GAS,
+        },
+    )
+
+
+@login_required
+def order_secret_reveal(request, pk):
+    if request.method != "POST":
+        return JsonResponse({"ok": False, "error": "僅接受 POST。"}, status=405)
+    order = get_object_or_404(SalesOrder, pk=pk)
+    profile = get_object_or_404(OrderOperationsProfile, order=order)
+    field = request.POST.get("field")
+    encrypted_fields = {
+        "vehicle_control_password": profile.vehicle_control_password_encrypted,
+        "battery_password": profile.battery_password_encrypted,
+    }
+    if field not in encrypted_fields:
+        return JsonResponse({"ok": False, "error": "不支援的欄位。"}, status=400)
+    value = decrypt_secret(encrypted_fields[field])
+    OrderEvent.objects.create(
+        order=order,
+        event_type="secret_viewed",
+        description=f"查看{'車控' if field == 'vehicle_control_password' else '電池合約'}密碼",
+        actor_name=_editing_name(request.user),
+    )
+    return JsonResponse({"ok": True, "value": value})
 
 
 def _order_snapshot(order):
@@ -2037,6 +2307,7 @@ def protected_media(request, model_name, pk, field_name):
             VehicleInventoryHistory,
             {"condition_photo_snapshot"},
         ),
+        "payment": (PaymentRecord, {"proof"}),
     }
     if model_name not in allowed or field_name not in allowed[model_name][1]:
         raise Http404

@@ -21,7 +21,7 @@
 
 {% if search_results is not None %}
   <section class="section-block">
-    <div class="section-title"><h2>搜尋「{{ query }}」</h2><span>{{ search_results|length }} 筆</span></div>
+    <div class="section-title"><h2>搜尋「{{ query }}」</h2><span>共 {{ search_result_count }} 筆</span></div>
     <div class="order-list">
       {% for order in search_results %}
         {% include "sales/_order_row.html" %}
@@ -29,6 +29,13 @@
         <div class="empty-state"><strong>找不到符合的訂單</strong><p>可試著輸入電話末四碼或車牌的一部分。</p></div>
       {% endfor %}
     </div>
+    {% if search_results.paginator.num_pages > 1 %}
+    <nav class="search-pagination" aria-label="搜尋結果分頁">
+      {% if search_results.has_previous %}<a href="?q={{ query|urlencode }}&page={{ search_results.previous_page_number }}">← 上一頁</a>{% endif %}
+      <span>第 {{ search_results.number }}／{{ search_results.paginator.num_pages }} 頁</span>
+      {% if search_results.has_next %}<a href="?q={{ query|urlencode }}&page={{ search_results.next_page_number }}">下一頁 →</a>{% endif %}
+    </nav>
+    {% endif %}
   </section>
 {% else %}
   {% if drafts %}

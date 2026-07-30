@@ -239,6 +239,38 @@ class OrderFlowTests(TestCase):
         self.assertContains(response, order.masked_id_number)
         self.assertNotContains(response, f"<mark>{order.owner_id_number}</mark>")
 
+    def test_dashboard_search_paginates_without_hiding_total_matches(self):
+        SalesOrder.objects.bulk_create(
+            [
+                SalesOrder(
+                    number=f"SO-SEARCH-{index:03d}",
+                    owner_name=f"批次搜尋車主 {index}",
+                    owner_phone=f"0900{index:06d}",
+                    owner_address="測試地址",
+                    owner_id_number=f"T{index:09d}",
+                    vehicle_model=self.model,
+                    color=self.color,
+                    status=SalesOrder.Status.ALLOCATION_PENDING,
+                )
+                for index in range(51)
+            ]
+        )
+        self.client.force_login(self.user)
+
+        first_page = self.client.get(
+            reverse("dashboard"), {"q": "批次搜尋車主"}
+        )
+        second_page = self.client.get(
+            reverse("dashboard"), {"q": "批次搜尋車主", "page": 2}
+        )
+
+        self.assertEqual(first_page.context["search_result_count"], 51)
+        self.assertEqual(len(first_page.context["search_results"]), 50)
+        self.assertContains(first_page, "共 51 筆")
+        self.assertContains(first_page, "下一頁")
+        self.assertEqual(len(second_page.context["search_results"]), 1)
+        self.assertContains(second_page, "上一頁")
+
     def test_forms_provide_field_specific_mobile_keyboard_hints(self):
         order_form = SalesOrderForm()
         accessory_form = AccessoryLineForm()

@@ -1,6 +1,7 @@
 [Unit]
 Description=DMIS Next database and media backup
 After=docker.service
+RequiresMountsFor=/srv/dmis-data
 
 [Service]
 Type=oneshot

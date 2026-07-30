@@ -1,0 +1,11 @@
+[Unit]
+Description=Daily DMIS Next backup
+
+[Timer]
+OnCalendar=*-*-* 02:30:00
+Persistent=true
+RandomizedDelaySec=10m
+Unit=dmis-next-backup.service
+
+[Install]
+WantedBy=timers.target

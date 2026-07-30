@@ -143,6 +143,26 @@ urlpatterns = [
         views.vehicle_model_edit,
         name="vehicle_model_edit",
     ),
+    path(
+        "data/settlement-costs/",
+        views.settlement_cost_rule_list,
+        name="settlement_cost_rule_list",
+    ),
+    path(
+        "data/settlement-costs/new/",
+        views.settlement_cost_rule_create,
+        name="settlement_cost_rule_create",
+    ),
+    path(
+        "data/settlement-costs/<int:pk>/edit/",
+        views.settlement_cost_rule_edit,
+        name="settlement_cost_rule_edit",
+    ),
+    path(
+        "data/settlement-costs/<int:pk>/delete/",
+        views.settlement_cost_rule_delete,
+        name="settlement_cost_rule_delete",
+    ),
     path("data/inventory/new/", views.inventory_create, name="inventory_create"),
     path(
         "data/inventory/quick-entry/",

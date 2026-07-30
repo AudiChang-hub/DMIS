@@ -16,6 +16,7 @@ from .models import (
     VehicleInventory,
     VehicleInventoryHistory,
     VehicleModel,
+    VehicleSettlementCostRule,
 )
 
 
@@ -67,7 +68,6 @@ class VehicleInventoryAdmin(admin.ModelAdmin):
         "vehicle_model",
         "color",
         "location_store",
-        "acquisition_cost",
         "status",
     )
     list_filter = ("status", "location_store", "vehicle_model")
@@ -101,6 +101,24 @@ class VehicleInventoryHistoryAdmin(admin.ModelAdmin):
 
     def has_change_permission(self, request, obj=None):
         return False
+
+
+@admin.register(VehicleSettlementCostRule)
+class VehicleSettlementCostRuleAdmin(admin.ModelAdmin):
+    list_display = (
+        "vehicle_model",
+        "registration_county",
+        "amount",
+        "effective_from",
+        "effective_to",
+        "active",
+    )
+    list_filter = ("registration_county", "active")
+    search_fields = (
+        "vehicle_model__brand",
+        "vehicle_model__name",
+        "vehicle_model__model_number",
+    )
 
 
 class AccessoryLineInline(admin.TabularInline):

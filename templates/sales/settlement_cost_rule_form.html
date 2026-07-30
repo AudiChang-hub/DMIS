@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block title %}{% if is_editing %}編輯{% else %}新增{% endif %}成本版本｜車輛銷售管理{% endblock %}
+{% block page_class %}page-shell--form{% endblock %}
+{% block content %}
+{% url 'settlement_cost_rule_list' as cost_list_url %}
+{% include "sales/_page_back.html" with fallback_url=cost_list_url label="返回代銷結算成本" %}
+<section class="hero-row compact-hero">
+  <div>
+    <p class="eyebrow">成本版本維護</p>
+    <h1>{% if is_editing %}編輯成本版本{% else %}新增成本版本{% endif %}</h1>
+    <p class="muted">新版本可提前建立；只有領牌日到達生效日後才會套用，不會回寫已完成訂單。</p>
+  </div>
+</section>
+<form method="post" class="master-model-form">
+  {% csrf_token %}
+  {% if form.non_field_errors %}<div class="message error">{{ form.non_field_errors }}</div>{% endif %}
+  <section class="card master-model-section">
+    <div class="section-heading"><div><p class="eyebrow">適用條件</p><h2>代銷結算成本規則</h2></div></div>
+    <div class="form-grid master-model-grid">
+      {% for field in form %}{% include "sales/_field.html" with field=field %}{% endfor %}
+    </div>
+    <div class="note-box">
+      <strong>套用順序</strong>
+      <p>同一領牌日若同時符合縣市規則與全國預設，優先採用指定縣市；同一區域有多個版本時，採用生效日期最新的一筆。</p>
+    </div>
+  </section>
+  <div class="form-actions master-model-actions">
+    {% if is_editing %}
+    <button class="button danger-outline" type="submit" form="delete-cost-rule">刪除此版本</button>
+    {% endif %}
+    <a class="button ghost" href="{% url 'settlement_cost_rule_list' %}">取消</a>
+    <button class="button primary" type="submit">儲存成本版本</button>
+  </div>
+</form>
+{% if is_editing %}
+<form id="delete-cost-rule" method="post" action="{% url 'settlement_cost_rule_delete' rule.pk %}" onsubmit="return confirm('確定刪除此成本版本？已被訂單採用的版本不會允許刪除。');">{% csrf_token %}</form>
+{% endif %}
+{% endblock %}

@@ -56,7 +56,6 @@ RELATED_FIELDS = (
     ("allocated_vehicle__condition_note", "車況說明"),
     ("allocated_vehicle__condition_resolution", "車況處理結果"),
     ("allocated_vehicle__received_on", "進車日期"),
-    ("allocated_vehicle__acquisition_cost", "進貨成本"),
     ("allocated_vehicle__status", "庫存狀態"),
     ("accessories__name", "配件名稱"),
     ("accessories__quantity", "配件數量"),

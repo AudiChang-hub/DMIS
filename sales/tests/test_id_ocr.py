@@ -14,9 +14,12 @@ from sales.services.id_ocr import (
     _choose_name_candidate,
     _extract_birth_date,
     _extract_id_number,
+    _resident_side_scores,
     _side_scores,
     detect_id_side,
+    detect_resident_certificate_side,
     extract_fields,
+    extract_resident_certificate_fields,
     IdOcrError,
     recognize_id_card,
     validate_taiwan_id,
@@ -162,6 +165,61 @@ class IdFieldExtractionTests(TestCase):
         self.assertFalse(validate_taiwan_id("A123456788"))
         self.assertFalse(validate_taiwan_id("NOT-AN-ID"))
 
+    def test_detects_resident_certificate_front_and_back(self):
+        front = (
+            "中華民國居留證\nR.O.C.(Taiwan) Resident Certificate\n"
+            "外僑居留證 Alien Resident Certificate\n出生日期 Date of birth\n"
+            "居留地址 Residence address"
+        )
+        back = (
+            "National Immigration Agency\n持證人可多次入出國\n"
+            "I<TWNX000000000000000000000<<<<<<<<<<<"
+        )
+
+        self.assertEqual(detect_resident_certificate_side(front), "front")
+        self.assertEqual(detect_resident_certificate_side(back), "back")
+        self.assertGreater(
+            _resident_side_scores(front)["front"],
+            _resident_side_scores(front)["back"],
+        )
+
+    def test_extracts_resident_certificate_front_fields(self):
+        text = (
+            "中華民國居留證\n外僑居留證(ARC)\n"
+            "類別 Type\n核發單位 Authority\n新北市服務站\n"
+            "證號 UI No.\n王小美\nF900000001\n姓名 Name\nWANG XIAO MEI\n"
+            "出生日期 Date of birth\n2001/02/03\n"
+            "居留期限 Date of expiry\n2028/09/07\n"
+            "居留地址 Residence address\n2696648330\n"
+            "新北市汐止區測試路83巷3號612房\n"
+        )
+
+        result = extract_resident_certificate_fields(text)
+
+        self.assertEqual(result["name"], "王小美")
+        self.assertEqual(result["birth_date"], "2001-02-03")
+        self.assertEqual(result["id_number"], "F900000001")
+        self.assertEqual(result["address"], "新北市汐止區測試路83巷3號612房")
+
+    @patch("sales.services.id_ocr.recognize_resident_certificate_side")
+    @patch("sales.services.id_ocr._vision_client")
+    def test_rejects_swapped_resident_certificate_sides(
+        self, _vision_client, recognize_side
+    ):
+        recognize_side.side_effect = (
+            SimpleNamespace(
+                text="I<TWNX000000000<<<<<<<<<<", angle=0
+            ),
+            SimpleNamespace(
+                text="中華民國居留證 Resident Certificate", angle=0
+            ),
+        )
+
+        with self.assertRaisesRegex(IdOcrError, "正反面似乎放反"):
+            recognize_id_card(
+                b"front", b"back", document_type="resident_certificate"
+            )
+
 
 class IdOcrEndpointTests(TestCase):
     def setUp(self):
@@ -195,7 +253,33 @@ class IdOcrEndpointTests(TestCase):
         self.assertEqual(response.status_code, 202)
         self.assertTrue(response.json()["ok"])
         self.assertTrue(response.json()["job_id"])
+        self.assertEqual(
+            IdOcrJob.objects.get().document_type,
+            IdOcrJob.DocumentType.NATIONAL_ID,
+        )
         queue.enqueue.assert_called_once()
+
+    @patch("sales.views.django_rq.get_queue")
+    def test_queues_resident_certificate_ocr(self, get_queue):
+        queue = get_queue.return_value
+        queue.count = 0
+        self.client.force_login(self.user)
+
+        response = self.client.post(
+            reverse("id_card_ocr"),
+            {
+                "front": self.image("front.png"),
+                "back": self.image("back.png"),
+                "document_type": "resident_certificate",
+            },
+        )
+
+        self.assertEqual(response.status_code, 202)
+        self.assertEqual(response.json()["document_type"], "resident_certificate")
+        self.assertEqual(
+            IdOcrJob.objects.get().document_type,
+            IdOcrJob.DocumentType.RESIDENT_CERTIFICATE,
+        )
 
     @patch("sales.jobs.recognize_id_card")
     def test_worker_persists_result_and_status_endpoint_returns_it(self, recognize):
@@ -228,6 +312,25 @@ class IdOcrEndpointTests(TestCase):
         self.assertEqual(response.json()["fields"]["name"], "王小明")
         self.assertFalse(job.front.storage.exists(front_name))
         self.assertFalse(job.back.storage.exists(back_name))
+
+    @patch("sales.jobs.recognize_id_card")
+    def test_worker_routes_resident_certificate_job(self, recognize):
+        recognize.return_value = {"fields": {}, "warnings": [], "rotation": {}}
+        job = IdOcrJob.objects.create(
+            created_by=self.user,
+            front=self.image("front.png"),
+            back=self.image("back.png"),
+            document_type=IdOcrJob.DocumentType.RESIDENT_CERTIFICATE,
+            photo_token="resident-v1",
+        )
+
+        run_id_ocr_job(str(job.pk))
+
+        recognize.assert_called_once()
+        self.assertEqual(
+            recognize.call_args.kwargs["document_type"],
+            IdOcrJob.DocumentType.RESIDENT_CERTIFICATE,
+        )
 
     def test_rejects_non_image_uploads(self):
         self.client.force_login(self.user)

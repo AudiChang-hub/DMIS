@@ -1,5 +1,6 @@
 import uuid
 
+from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import models, transaction
 from django.utils import timezone
@@ -1029,3 +1030,51 @@ class OrderChange(TimeStampedModel):
         ordering = ["-created_at"]
         verbose_name = "訂單變更"
         verbose_name_plural = "訂單變更"
+
+
+class SalesOrderSearchIndex(TimeStampedModel):
+    order = models.OneToOneField(
+        SalesOrder,
+        on_delete=models.CASCADE,
+        related_name="search_index",
+        primary_key=True,
+    )
+    search_text = models.TextField("搜尋文字", blank=True)
+    match_payload = models.JSONField("命中欄位資料", default=list, blank=True)
+
+    class Meta:
+        verbose_name = "訂單搜尋索引"
+        verbose_name_plural = "訂單搜尋索引"
+
+
+class IdOcrJob(TimeStampedModel):
+    class Status(models.TextChoices):
+        QUEUED = "queued", "排隊中"
+        RUNNING = "running", "辨識中"
+        SUCCEEDED = "succeeded", "已完成"
+        FAILED = "failed", "失敗"
+        INVALIDATED = "invalidated", "已失效"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="id_ocr_jobs",
+    )
+    front = models.ImageField("證件正面", upload_to="ocr_jobs/%Y/%m/")
+    back = models.ImageField("證件反面", upload_to="ocr_jobs/%Y/%m/")
+    photo_token = models.CharField("照片版本", max_length=80)
+    status = models.CharField(
+        "狀態", max_length=20, choices=Status.choices, default=Status.QUEUED
+    )
+    result = models.JSONField("辨識結果", default=dict, blank=True)
+    error = models.CharField("錯誤訊息", max_length=500, blank=True)
+    attempts = models.PositiveSmallIntegerField("嘗試次數", default=0)
+    started_at = models.DateTimeField("開始時間", blank=True, null=True)
+    finished_at = models.DateTimeField("完成時間", blank=True, null=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["created_by", "status", "-created_at"]),
+        ]

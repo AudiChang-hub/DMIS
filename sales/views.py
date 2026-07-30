@@ -1,5 +1,6 @@
 import json
 import logging
+import uuid
 from datetime import timedelta
 from io import BytesIO
 from pathlib import Path
@@ -14,6 +15,8 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
 from PIL import Image, UnidentifiedImageError
+import django_rq
+from rq import Retry
 
 from .services.order_contract_pdf import build_order_contract_pdf
 from .services.privacy_consent_pdf import build_privacy_consent_pdf
@@ -37,6 +40,7 @@ from .models import (
     OrderEvent,
     OrderChange,
     OrderDraft,
+    IdOcrJob,
     RegistrationDocument,
     SalesOrder,
     SalesSource,
@@ -45,7 +49,8 @@ from .models import (
     VehicleInventory,
     VehicleModel,
 )
-from .services.id_ocr import IdOcrError, recognize_id_card
+from .jobs import run_id_ocr_job
+from .services.id_ocr import recognize_id_card
 from .services.order_change_display import build_order_change_cards
 from .services.order_search import (
     build_order_match_summary,
@@ -119,6 +124,7 @@ def dashboard(request):
         "allocated_vehicle",
         "allocated_vehicle__ownership_store",
         "allocated_vehicle__location_store",
+        "search_index",
     ).prefetch_related(
         "accessories",
         "other_fees",
@@ -1543,17 +1549,77 @@ def id_card_ocr(request):
             {"ok": False, "error": "照片僅支援 JPEG、PNG 或 WebP。"},
             status=400,
         )
-    try:
-        result = recognize_id_card(front.read(), back.read())
-    except IdOcrError as exc:
-        return JsonResponse({"ok": False, "error": str(exc)}, status=422)
-    except Exception:
-        logger.exception("身分證 OCR 發生未預期錯誤")
+    if front.size > 12 * 1024 * 1024 or back.size > 12 * 1024 * 1024:
         return JsonResponse(
-            {"ok": False, "error": "辨識服務暫時無法使用，請稍後再試。"},
-            status=503,
+            {"ok": False, "error": "單張照片不可超過 12MB。"},
+            status=413,
         )
-    return JsonResponse({"ok": True, **result})
+    queue = django_rq.get_queue("ocr")
+    if queue.count >= 10:
+        return JsonResponse(
+            {"ok": False, "error": "目前辨識工作較多，請稍候再試。"},
+            status=429,
+        )
+    photo_token = request.POST.get("photo_token") or uuid.uuid4().hex
+    job = IdOcrJob.objects.create(
+        created_by=request.user,
+        front=front,
+        back=back,
+        photo_token=photo_token,
+    )
+    try:
+        queue.enqueue(
+            run_id_ocr_job,
+            str(job.pk),
+            job_timeout=45,
+            retry=Retry(max=2, interval=[2, 5]),
+            result_ttl=300,
+            failure_ttl=86400,
+        )
+    except Exception:
+        logger.exception("無法加入身分證 OCR 背景佇列")
+        job.status = IdOcrJob.Status.FAILED
+        job.error = "辨識工作無法排入佇列，請稍後再試。"
+        job.finished_at = timezone.now()
+        job.save(update_fields=["status", "error", "finished_at", "updated_at"])
+        return JsonResponse({"ok": False, "error": job.error}, status=503)
+    return JsonResponse(
+        {
+            "ok": True,
+            "job_id": str(job.pk),
+            "photo_token": photo_token,
+            "status": job.status,
+        },
+        status=202,
+    )
+
+
+@login_required
+def id_card_ocr_status(request, job_id):
+    job = get_object_or_404(IdOcrJob, pk=job_id, created_by=request.user)
+    payload = {
+        "ok": True,
+        "job_id": str(job.pk),
+        "photo_token": job.photo_token,
+        "status": job.status,
+    }
+    if job.status == IdOcrJob.Status.SUCCEEDED:
+        payload.update(job.result)
+    elif job.status == IdOcrJob.Status.FAILED:
+        payload["error"] = job.error
+    return JsonResponse(payload)
+
+
+@login_required
+def id_card_ocr_invalidate(request, job_id):
+    if request.method != "POST":
+        return JsonResponse({"ok": False, "error": "僅接受 POST。"}, status=405)
+    job = get_object_or_404(IdOcrJob, pk=job_id, created_by=request.user)
+    if job.status not in (IdOcrJob.Status.SUCCEEDED, IdOcrJob.Status.FAILED):
+        job.status = IdOcrJob.Status.INVALIDATED
+        job.finished_at = timezone.now()
+        job.save(update_fields=["status", "finished_at", "updated_at"])
+    return JsonResponse({"ok": True, "status": job.status})
 
 
 @login_required

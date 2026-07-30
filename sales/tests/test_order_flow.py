@@ -7,6 +7,7 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AnonymousUser
 from django.core.exceptions import ValidationError
 from django.core.files.uploadedfile import SimpleUploadedFile
+from django.core.management import call_command
 from django.test import RequestFactory, TestCase
 from django.urls import reverse
 from django.utils import timezone
@@ -255,6 +256,8 @@ class OrderFlowTests(TestCase):
                 for index in range(51)
             ]
         )
+        # bulk_create 不觸發 Django signals；大量匯入後必須執行正式的索引重建程序。
+        call_command("rebuild_order_search_index", verbosity=0)
         self.client.force_login(self.user)
 
         first_page = self.client.get(
@@ -1532,7 +1535,7 @@ class OrderFlowTests(TestCase):
             order_form_template,
         )
         self.assertContains(order_response, "showSavedPhoto")
-        self.assertContains(order_response, "正在辨識證件")
+        self.assertContains(order_response, "證件已送交背景辨識")
         self.assertContains(order_response, 'aria-current="step"')
         self.assertContains(order_response, "updateActiveSection")
         self.assertNotContains(order_response, "data-save-draft")

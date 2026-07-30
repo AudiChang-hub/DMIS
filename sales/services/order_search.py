@@ -7,6 +7,7 @@ from sales.models import (
     AccessoryLine,
     RegistrationDocument,
     SalesOrder,
+    SalesOrderSearchIndex,
     SubsidyDocument,
     VehicleInventory,
     VehicleModel,
@@ -127,42 +128,7 @@ def _order_fields():
 
 
 def build_order_search_query(query):
-    search = Q()
-    variants = {query, query.replace("/", "-")}
-    for field in _order_fields():
-        if isinstance(field, models.BooleanField):
-            if _contains("是", query):
-                search |= Q(**{field.name: True})
-            if _contains("否", query):
-                search |= Q(**{field.name: False})
-            continue
-        for value in variants:
-            search |= Q(**{f"{field.name}__icontains": value})
-        if field.choices:
-            for stored, label in field.choices:
-                if _contains(label, query):
-                    search |= Q(**{field.name: stored})
-    for lookup, _label in RELATED_FIELDS:
-        for value in variants:
-            search |= Q(**{f"{lookup}__icontains": value})
-    related_choices = (
-        ("vehicle_model__energy_type", VehicleModel.EnergyType.choices),
-        ("allocated_vehicle__status", VehicleInventory.Status.choices),
-        ("accessories__line_type", AccessoryLine.LineType.choices),
-        (
-            "subsidy_documents__document_type",
-            SubsidyDocument.DocumentType.choices,
-        ),
-        (
-            "registration_documents__document_type",
-            RegistrationDocument.DocumentType.choices,
-        ),
-    )
-    for lookup, choices in related_choices:
-        for stored, label in choices:
-            if _contains(label, query):
-                search |= Q(**{lookup: stored})
-    return search
+    return Q(search_index__search_text__icontains=_normalise(query))
 
 
 def _append_match(matches, label, value, sensitive=False):
@@ -173,6 +139,16 @@ def _append_match(matches, label, value, sensitive=False):
 
 
 def build_order_match_summary(order, query):
+    cached = getattr(getattr(order, "search_index", None), "match_payload", None)
+    if cached is not None:
+        return [
+            {
+                "label": item["label"],
+                "value": _mask(item["value"]) if item.get("sensitive") else item["value"],
+            }
+            for item in cached
+            if _contains(item.get("value", ""), query)
+        ]
     matches = []
     for field in _order_fields():
         raw_value = getattr(order, field.name)
@@ -273,3 +249,111 @@ def build_order_match_summary(order, query):
                 if value not in (None, "") and _contains(value, query):
                     _append_match(matches, label, value)
     return matches
+
+
+def _index_item(items, label, value, sensitive=False):
+    if isinstance(value, models.fields.files.FieldFile):
+        value = PurePath(value.name).name if value else ""
+    if value in (None, ""):
+        return
+    text = str(value)
+    item = {"label": str(label), "value": text, "sensitive": bool(sensitive)}
+    if item not in items:
+        items.append(item)
+
+
+def build_order_search_payload(order):
+    items = []
+    for field in _order_fields():
+        raw_value = getattr(order, field.name)
+        _index_item(
+            items,
+            field.verbose_name,
+            _display_value(order, field),
+            field.name in SENSITIVE_FIELDS,
+        )
+        if field.choices:
+            _index_item(items, field.verbose_name, raw_value, field.name in SENSITIVE_FIELDS)
+
+    related_values = (
+        ("來源名稱", getattr(order.source, "name", "")),
+        ("廠牌", order.vehicle_model.brand),
+        ("車型", order.vehicle_model.name),
+        ("動力類型", order.vehicle_model.get_energy_type_display()),
+        ("排氣量", order.vehicle_model.displacement_cc),
+        ("車色", order.color.name),
+    )
+    vehicle = order.allocated_vehicle
+    if vehicle:
+        related_values += (
+            ("引擎號碼", vehicle.engine_number),
+            ("車身號碼", vehicle.frame_number),
+            ("庫存歸屬", vehicle.ownership_store.name),
+            ("目前位置", vehicle.location_store.name),
+            ("車況說明", vehicle.condition_note),
+            ("車況處理結果", vehicle.condition_resolution),
+            ("進車日期", vehicle.received_on),
+            ("庫存狀態", vehicle.get_status_display()),
+        )
+    for label, value in related_values:
+        _index_item(items, label, value)
+
+    collections = (
+        (order.accessories.all(), (
+            ("配件名稱", "name"), ("配件數量", "quantity"),
+            ("配件類型", "get_line_type_display"), ("配件金額", "amount"),
+            ("配件安裝日期", "installed_on"), ("配件備註", "note"),
+        )),
+        (order.other_fees.all(), (
+            ("其他費用項目", "name"), ("其他費用金額", "amount"),
+        )),
+        (order.subsidy_documents.all(), (
+            ("補助文件類型", "get_document_type_display"), ("補助文件名稱", "name"),
+            ("補助文件備註", "note"), ("補助文件檔名", "file"),
+            ("補助文件上傳人員", "uploaded_by"),
+        )),
+        (order.registration_documents.all(), (
+            ("領牌文件類型", "get_document_type_display"), ("領牌文件名稱", "name"),
+            ("領牌文件檔名", "file"), ("領牌文件上傳人員", "uploaded_by"),
+        )),
+        (order.events.all(), (
+            ("處理紀錄類型", "event_type"), ("處理紀錄內容", "description"),
+            ("處理人員", "actor_name"),
+        )),
+        (order.changes.all(), (
+            ("訂單變更原因", "reason"), ("訂單修改人員", "actor_name"),
+        )),
+    )
+    for objects, fields in collections:
+        for obj in objects:
+            for label, attribute in fields:
+                value = getattr(obj, attribute)
+                _index_item(items, label, value() if callable(value) else value)
+    return items
+
+
+def rebuild_order_search_index(order_id):
+    order = SalesOrder.objects.select_related(
+        "source", "vehicle_model", "color", "allocated_vehicle",
+        "allocated_vehicle__ownership_store", "allocated_vehicle__location_store",
+    ).prefetch_related(
+        "accessories", "other_fees", "subsidy_documents",
+        "registration_documents", "events", "changes",
+    ).filter(pk=order_id).first()
+    if not order:
+        return
+    payload = build_order_search_payload(order)
+    search_text = "\n".join(
+        {_normalise(item["value"]) for item in payload if item.get("value")}
+    )
+    SalesOrderSearchIndex.objects.update_or_create(
+        order=order,
+        defaults={"search_text": search_text, "match_payload": payload},
+    )
+
+
+def schedule_order_search_rebuild(order_id):
+    # 索引與業務資料使用同一個 transaction，失敗時會一起回滾。
+    # 同步更新可避免剛儲存後立刻搜尋卻查不到；索引內容只讀單一訂單，
+    # 不會重現舊版跨全表 JOIN 的負載。
+    rebuild_order_search_index(order_id)

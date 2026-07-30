@@ -105,6 +105,11 @@ urlpatterns = [
     ),
     path("inventory/", views.inventory_list, name="inventory_list"),
     path("inventory/new/", views.inventory_create, name="inventory_create"),
+    path(
+        "inventory/quick-entry/",
+        views.inventory_quick_create,
+        name="inventory_quick_create",
+    ),
     path("inventory/<int:pk>/edit/", views.inventory_edit, name="inventory_edit"),
     path("api/colors/", views.vehicle_colors, name="vehicle_colors"),
     path("api/sources/", views.sales_sources, name="sales_sources"),

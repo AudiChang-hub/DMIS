@@ -6,7 +6,10 @@
 {% include "sales/_page_back.html" with fallback_url=dashboard_url label="返回待辦首頁" %}
 <section class="hero-row compact-hero">
   <div><p class="eyebrow">車輛庫存</p><h1>實體車輛</h1><p class="muted">每台油車以引擎號碼、電動車以車身號碼唯一識別。</p></div>
-  <a class="button primary" href="{% url 'inventory_create' %}">＋ 新增進車</a>
+  <div class="hero-actions">
+    <a class="button ghost" href="{% url 'inventory_create' %}">新增單台</a>
+    <a class="button primary" href="{% url 'inventory_quick_create' %}">＋ 快速進車</a>
+  </div>
 </section>
 
 <form method="get" class="inventory-filters" aria-label="庫存篩選與排序">

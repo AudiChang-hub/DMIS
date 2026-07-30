@@ -84,6 +84,10 @@
       <div class="identity-compare span-2">
         <div class="capture-card {% if document_source.id_front %}has-saved-photo{% endif %}" data-conditional="local">
           {% include "sales/_field.html" with field=form.id_front %}
+          <div class="ocr-photo-progress" data-ocr-photo-progress hidden>
+            <span class="ocr-spinner" aria-hidden="true"></span>
+            <span><strong>正在辨識證件</strong><small>完成後會自動顯示資料供您核對</small></span>
+          </div>
           <img class="identity-preview" data-photo-preview="id_front" {% if document_source.id_front %}src="{% url 'protected_media' document_model document_source.pk 'id_front' %}"{% else %}hidden{% endif %} alt="身分證正面預覽">
           {% if document_source.id_front %}
           <div class="saved-photo-state" data-saved-photo="id_front">
@@ -103,6 +107,10 @@
       <div class="identity-compare span-2">
         <div class="capture-card {% if document_source.id_back %}has-saved-photo{% endif %}" data-conditional="local">
           {% include "sales/_field.html" with field=form.id_back %}
+          <div class="ocr-photo-progress" data-ocr-photo-progress hidden>
+            <span class="ocr-spinner" aria-hidden="true"></span>
+            <span><strong>正在辨識證件</strong><small>完成後會自動顯示資料供您核對</small></span>
+          </div>
           <img class="identity-preview" data-photo-preview="id_back" {% if document_source.id_back %}src="{% url 'protected_media' document_model document_source.pk 'id_back' %}"{% else %}hidden{% endif %} alt="身分證反面預覽">
           {% if document_source.id_back %}
           <div class="saved-photo-state" data-saved-photo="id_back">
@@ -332,6 +340,9 @@
   const ocrConfirmationFields = [
     ...document.querySelectorAll("[data-ocr-confirmation-fields]")
   ];
+  const ocrPhotoProgress = [
+    ...document.querySelectorAll("[data-ocr-photo-progress]")
+  ];
   const orderForm = byId("order-form");
   const draftId = byId("draft-id");
   const editingOrderId = byId("editing-order-id").value;
@@ -441,7 +452,9 @@
     const config = states[state];
     ocrStatus.hidden = false;
     ocrStatus.className = config.className;
+    ocrStatus.classList.toggle("is-floating-processing", state === "processing");
     ocrStatus.dataset.state = state;
+    ocrPhotoProgress.forEach(element => { element.hidden = state !== "processing"; });
     ocrStatusTitle.textContent = config.title;
     ocrMessage.textContent = config.message;
     ocrButton.hidden = !config.button;

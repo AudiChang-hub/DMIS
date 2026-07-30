@@ -369,10 +369,16 @@ def extract_resident_certificate_fields(text):
     normalized = text.replace("臺", "台")
     compact = re.sub(r"\s+", "", normalized).upper()
 
-    id_candidates = re.findall(r"(?<![A-Z0-9])[A-Z]\d{9}(?![A-Z0-9])", compact)
-    if id_candidates:
-        result["id_number"] = id_candidates[0]
-        result["id_number_valid"] = True
+    id_candidates = re.findall(
+        r"(?<![A-Z0-9])[A-Z][0-9ODQILZSGB]{9}(?![A-Z0-9])",
+        compact,
+    )
+    for candidate in id_candidates:
+        corrected = candidate[0] + candidate[1:].translate(_ID_DIGIT_CORRECTIONS)
+        if re.fullmatch(r"[A-Z]\d{9}", corrected):
+            result["id_number"] = corrected
+            result["id_number_valid"] = True
+            break
 
     birth = re.search(
         r"(?:出生日期|DATE\s*OF\s*BIRTH).*?"

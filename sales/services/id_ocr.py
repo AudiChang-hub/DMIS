@@ -125,7 +125,44 @@ def detect_id_side(text):
     return "unknown"
 
 
-def recognize_side(image_bytes, expected_side, client=None):
+def _resident_side_scores(text):
+    normalized = re.sub(r"\s+", "", text.replace("臺", "台")).upper()
+    front_score = 0
+    back_score = 0
+    if "中華民國居留證" in normalized:
+        front_score += 6
+    if "RESIDENTCERTIFICATE" in normalized:
+        front_score += 4
+    if "外僑居留證" in normalized or "ALIENRESIDENTCERTIFICATE" in normalized:
+        front_score += 3
+    if "DATEOFBIRTH" in normalized or "出生日期" in normalized:
+        front_score += 2
+    if "RESIDENCEADDRESS" in normalized or "居留地址" in normalized:
+        front_score += 2
+
+    if "I<TWN" in normalized:
+        back_score += 6
+    if normalized.count("<") >= 5:
+        back_score += 4
+    if "NATIONALIMMIGRATIONAGENCY" in normalized:
+        back_score += 3
+    if "持證人可多次入出國" in normalized:
+        back_score += 3
+    return {"front": front_score, "back": back_score}
+
+
+def detect_resident_certificate_side(text):
+    scores = _resident_side_scores(text)
+    if scores["front"] >= 4 and scores["front"] >= scores["back"] + 2:
+        return "front"
+    if scores["back"] >= 4 and scores["back"] >= scores["front"] + 2:
+        return "back"
+    return "unknown"
+
+
+def _recognize_side_with_scorer(
+    image_bytes, expected_side, scorer, client=None
+):
     if expected_side not in {"front", "back"}:
         raise ValueError("expected_side 必須是 front 或 back")
     image = _load_image(image_bytes)
@@ -135,7 +172,7 @@ def recognize_side(image_bytes, expected_side, client=None):
     for angle in (0, 90, 180, 270):
         rotated = image if angle == 0 else image.rotate(angle, expand=True)
         text, annotations = _detect_text(client, rotated)
-        score = _side_scores(text)[expected_side]
+        score = scorer(text)[expected_side]
         if score > best_score:
             best_score = score
             best_result = OcrImageResult(
@@ -147,6 +184,18 @@ def recognize_side(image_bytes, expected_side, client=None):
                 expected_side, angle, text, annotations, rotated
             )
     return best_result
+
+
+def recognize_side(image_bytes, expected_side, client=None):
+    return _recognize_side_with_scorer(
+        image_bytes, expected_side, _side_scores, client
+    )
+
+
+def recognize_resident_certificate_side(image_bytes, expected_side, client=None):
+    return _recognize_side_with_scorer(
+        image_bytes, expected_side, _resident_side_scores, client
+    )
 
 
 def _clean_name_text(text):
@@ -315,6 +364,82 @@ def extract_fields(text, side):
     return result
 
 
+def extract_resident_certificate_fields(text):
+    result = {}
+    normalized = text.replace("臺", "台")
+    compact = re.sub(r"\s+", "", normalized).upper()
+
+    id_candidates = re.findall(r"(?<![A-Z0-9])[A-Z]\d{9}(?![A-Z0-9])", compact)
+    if id_candidates:
+        result["id_number"] = id_candidates[0]
+        result["id_number_valid"] = True
+
+    birth = re.search(
+        r"(?:出生日期|DATE\s*OF\s*BIRTH).*?"
+        r"((?:19|20)\d{2})\s*[/.\-年]\s*(\d{1,2})\s*[/.\-月]\s*(\d{1,2})",
+        normalized,
+        re.IGNORECASE | re.DOTALL,
+    )
+    if birth:
+        year, month, day = map(int, birth.groups())
+        try:
+            result["birth_date"] = date(year, month, day).isoformat()
+        except ValueError:
+            pass
+
+    name_stop_words = {
+        "中華民國", "居留證", "外僑居留證", "證號", "姓名", "出生日期",
+        "核發日期", "核發單位", "居留期限", "國籍", "護照號碼", "居留事由",
+        "居留地址", "類別", "服務站", "新北市服務站", "女性", "男性",
+    }
+    name_regions = []
+    id_match = re.search(r"[A-Z]\d{9}", normalized.upper())
+    if id_match:
+        name_regions.append(
+            normalized[max(0, id_match.start() - 90):id_match.end() + 90]
+        )
+    name_label = re.search(r"姓名\s*NAME", normalized, re.IGNORECASE)
+    if name_label:
+        name_regions.append(normalized[name_label.start():name_label.end() + 100])
+    for region in name_regions:
+        candidates = re.findall(r"[\u4e00-\u9fff]{2,6}", region)
+        candidates = [
+            candidate for candidate in candidates
+            if candidate not in name_stop_words
+            and not any(stop_word in candidate for stop_word in name_stop_words)
+        ]
+        if candidates:
+            result["name"] = candidates[0]
+            break
+
+    lines = [line.strip() for line in normalized.splitlines() if line.strip()]
+    collecting_address = False
+    address_lines = []
+    for line in lines:
+        compact_line = re.sub(r"\s+", "", line)
+        upper_line = compact_line.upper()
+        if "居留地址" in compact_line or "RESIDENCEADDRESS" in upper_line:
+            collecting_address = True
+            compact_line = re.sub(
+                r"居留地址|RESIDENCEADDRESS", "", compact_line, flags=re.IGNORECASE
+            )
+        if not collecting_address:
+            continue
+        compact_line = compact_line.strip("|｜")
+        # 居留證正面在地址區附近可能另有純數字流水號，不屬於地址。
+        if not compact_line or re.fullmatch(r"\d{6,12}", compact_line):
+            continue
+        chinese_only = re.sub(r"[A-Za-z\s]", "", compact_line)
+        if re.search(r"[縣市].*[區鄉鎮市]", chinese_only) or address_lines:
+            address_lines.append(chinese_only)
+            if re.search(r"(號|樓|房)$", chinese_only):
+                break
+    address = "".join(address_lines)
+    if address:
+        result["address"] = address
+    return result
+
+
 def validate_taiwan_id(id_number):
     value = (id_number or "").strip().upper()
     if not re.fullmatch(r"[A-Z][12]\d{8}", value):
@@ -334,7 +459,41 @@ def validate_taiwan_id(id_number):
     return total % 10 == 0
 
 
-def recognize_id_card(front_bytes, back_bytes):
+def recognize_resident_certificate(front_bytes, back_bytes):
+    client = _vision_client()
+    front = recognize_resident_certificate_side(front_bytes, "front", client)
+    back = recognize_resident_certificate_side(back_bytes, "back", client)
+    detected_front = detect_resident_certificate_side(front.text)
+    detected_back = detect_resident_certificate_side(back.text)
+    if detected_front == "back" and detected_back == "front":
+        raise IdOcrError("居留證正反面似乎放反，請交換照片後重新辨識。")
+    if detected_front == detected_back == "front":
+        raise IdOcrError("兩張照片看起來都是居留證正面，請重新拍攝反面。")
+    if detected_front == detected_back == "back":
+        raise IdOcrError("兩張照片看起來都是居留證反面，請重新拍攝正面。")
+    fields = extract_resident_certificate_fields(front.text)
+    warnings = []
+    required = {
+        "name": "姓名",
+        "birth_date": "生日",
+        "id_number": "統一證號",
+        "address": "居留地址",
+    }
+    missing = [label for key, label in required.items() if not fields.get(key)]
+    if missing:
+        warnings.append(f"未辨識：{'、'.join(missing)}，請人工輸入。")
+    return {
+        "fields": fields,
+        "warnings": warnings,
+        "rotation": {"front": front.angle, "back": back.angle},
+    }
+
+
+def recognize_id_card(front_bytes, back_bytes, document_type="national_id"):
+    if document_type == "resident_certificate":
+        return recognize_resident_certificate(front_bytes, back_bytes)
+    if document_type != "national_id":
+        raise IdOcrError("不支援的證件類型。")
     client = _vision_client()
     front = recognize_side(front_bytes, "front", client)
     back = recognize_side(back_bytes, "back", client)

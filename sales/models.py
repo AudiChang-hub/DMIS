@@ -1048,6 +1048,10 @@ class SalesOrderSearchIndex(TimeStampedModel):
 
 
 class IdOcrJob(TimeStampedModel):
+    class DocumentType(models.TextChoices):
+        NATIONAL_ID = "national_id", "國民身分證"
+        RESIDENT_CERTIFICATE = "resident_certificate", "居留證"
+
     class Status(models.TextChoices):
         QUEUED = "queued", "排隊中"
         RUNNING = "running", "辨識中"
@@ -1063,6 +1067,12 @@ class IdOcrJob(TimeStampedModel):
     )
     front = models.ImageField("證件正面", upload_to="ocr_jobs/%Y/%m/")
     back = models.ImageField("證件反面", upload_to="ocr_jobs/%Y/%m/")
+    document_type = models.CharField(
+        "證件類型",
+        max_length=30,
+        choices=DocumentType.choices,
+        default=DocumentType.NATIONAL_ID,
+    )
     photo_token = models.CharField("照片版本", max_length=80)
     status = models.CharField(
         "狀態", max_length=20, choices=Status.choices, default=Status.QUEUED

@@ -31,6 +31,7 @@ from sales.models import (
     SubsidyDocument,
     VehicleColor,
     VehicleInventory,
+    VehicleInventoryHistory,
     VehicleModel,
 )
 
@@ -197,6 +198,65 @@ class OrderFlowTests(TestCase):
         self.assertEqual(self.vehicle.engine_number, "ENG-UPDATED")
         self.assertEqual(self.vehicle.location_store, self.store_a)
         self.assertEqual(self.vehicle.condition_note, "到店檢查正常")
+        history = self.vehicle.history_entries.get()
+        self.assertEqual(
+            history.event_type,
+            VehicleInventoryHistory.EventType.TRANSFERRED,
+        )
+        self.assertEqual(history.from_location, self.store_b)
+        self.assertEqual(history.to_location, self.store_a)
+        self.assertEqual(history.actor_name, "tester")
+        self.assertEqual(history.reason, "")
+        self.assertEqual(
+            history.condition_note_snapshot,
+            "到店檢查正常",
+        )
+
+    def test_inventory_edit_records_optional_reason_and_friendly_changes(self):
+        self.client.force_login(self.user)
+
+        response = self.client.post(
+            reverse("inventory_edit", args=[self.vehicle.pk]),
+            self.inventory_payload(
+                condition_note="右側車殼刮傷",
+                condition_resolution="已安排補漆",
+                change_reason="到店複檢",
+            ),
+        )
+
+        self.assertRedirects(response, reverse("inventory_list"))
+        history = self.vehicle.history_entries.get()
+        self.assertEqual(
+            history.event_type,
+            VehicleInventoryHistory.EventType.UPDATED,
+        )
+        self.assertEqual(history.reason, "到店複檢")
+        self.assertEqual(history.changes["condition_note"]["label"], "車況說明")
+        self.assertEqual(history.changes["condition_note"]["after"], "右側車殼刮傷")
+
+    def test_inventory_create_hides_ownership_and_sets_internal_compatibility_value(self):
+        self.client.force_login(self.user)
+        response = self.client.post(
+            reverse("inventory_create"),
+            {
+                "vehicle_model": self.model.pk,
+                "color": self.color.pk,
+                "engine_number": "ENG-NEW",
+                "frame_number": "",
+                "location_store": self.store_a.pk,
+                "received_on": "2026-07-30",
+                "condition_note": "",
+                "condition_resolution": "",
+            },
+        )
+
+        self.assertRedirects(response, reverse("inventory_list"))
+        vehicle = VehicleInventory.objects.get(engine_number="ENG-NEW")
+        self.assertEqual(vehicle.ownership_store, self.store_a)
+        self.assertEqual(
+            vehicle.history_entries.get().event_type,
+            VehicleInventoryHistory.EventType.CREATED,
+        )
 
     def test_reserved_inventory_locks_core_fields_but_allows_condition_updates(self):
         self.vehicle.status = VehicleInventory.Status.RESERVED
@@ -263,6 +323,8 @@ class OrderFlowTests(TestCase):
         self.assertContains(response, 'name="color"')
         self.assertContains(response, 'name="location_store"')
         self.assertContains(response, 'name="sort"')
+        self.assertNotContains(response, "庫存歸屬")
+        self.assertNotContains(response, 'name="ownership_store"')
 
     def test_inventory_edit_page_explains_locked_fields(self):
         self.vehicle.status = VehicleInventory.Status.DELIVERY_PENDING

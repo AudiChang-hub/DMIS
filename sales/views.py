@@ -7,6 +7,7 @@ from pathlib import Path
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.core.files.base import ContentFile
 from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.db.models import Q
@@ -49,6 +50,7 @@ from .models import (
     SubsidyDocument,
     VehicleColor,
     VehicleInventory,
+    VehicleInventoryHistory,
     VehicleModel,
 )
 from .jobs import delete_id_ocr_job_files, run_id_ocr_job
@@ -67,6 +69,76 @@ ORDER_PRESENCE_TIMEOUT = timedelta(seconds=90)
 
 def _editing_name(user):
     return user.get_full_name() or user.get_username()
+
+
+INVENTORY_HISTORY_FIELDS = {
+    "vehicle_model": "車型",
+    "color": "車色",
+    "engine_number": "引擎號碼",
+    "frame_number": "車身號碼",
+    "location_store": "實際位置",
+    "received_on": "進車日期",
+    "condition_note": "車況說明",
+    "condition_photo": "車況照片",
+    "condition_resolution": "處理結果",
+}
+
+
+def _inventory_values(vehicle):
+    return {
+        "vehicle_model": (vehicle.vehicle_model_id, str(vehicle.vehicle_model)),
+        "color": (vehicle.color_id, vehicle.color.name),
+        "engine_number": (vehicle.engine_number or "", vehicle.engine_number or "未填寫"),
+        "frame_number": (vehicle.frame_number or "", vehicle.frame_number or "未填寫"),
+        "location_store": (vehicle.location_store_id, str(vehicle.location_store)),
+        "received_on": (str(vehicle.received_on), str(vehicle.received_on)),
+        "condition_note": (vehicle.condition_note, vehicle.condition_note or "未填寫"),
+        "condition_photo": (
+            vehicle.condition_photo.name if vehicle.condition_photo else "",
+            "有照片" if vehicle.condition_photo else "無照片",
+        ),
+        "condition_resolution": (
+            vehicle.condition_resolution,
+            vehicle.condition_resolution or "未填寫",
+        ),
+    }
+
+
+def _create_inventory_history(
+    vehicle,
+    *,
+    actor_name,
+    event_type,
+    reason="",
+    changes=None,
+    from_location_id=None,
+    to_location_id=None,
+):
+    history = VehicleInventoryHistory(
+        vehicle=vehicle,
+        event_type=event_type,
+        actor_name=actor_name,
+        reason=reason,
+        changes=changes or {},
+        status_snapshot=vehicle.status,
+        location_store_snapshot_id=vehicle.location_store_id,
+        condition_note_snapshot=vehicle.condition_note,
+        condition_resolution_snapshot=vehicle.condition_resolution,
+        from_location_id=from_location_id,
+        to_location_id=to_location_id,
+    )
+    if vehicle.condition_photo:
+        vehicle.condition_photo.open("rb")
+        try:
+            content = ContentFile(vehicle.condition_photo.read())
+        finally:
+            vehicle.condition_photo.close()
+        suffix = Path(vehicle.condition_photo.name).suffix or ".jpg"
+        history.condition_photo_snapshot.save(
+            f"{uuid.uuid4().hex}{suffix}", content, save=False
+        )
+    history.save()
+    return history
 
 
 def _session_key(request):
@@ -1484,13 +1556,12 @@ def subsidy_ocr_decision(request, pk):
 @login_required
 def inventory_list(request):
     vehicles = VehicleInventory.objects.select_related(
-        "vehicle_model", "color", "ownership_store", "location_store"
+        "vehicle_model", "color", "location_store"
     )
     keyword = request.GET.get("q", "").strip()
     status = request.GET.get("status")
     vehicle_model = request.GET.get("vehicle_model")
     color = request.GET.get("color")
-    ownership_store = request.GET.get("ownership_store")
     location_store = request.GET.get("location_store")
     sort = request.GET.get("sort", "received_desc")
     valid_statuses = {value for value, _label in VehicleInventory.Status.choices}
@@ -1500,8 +1571,6 @@ def inventory_list(request):
         vehicles = vehicles.filter(vehicle_model_id=vehicle_model)
     if color and color.isdigit():
         vehicles = vehicles.filter(color_id=color)
-    if ownership_store and ownership_store.isdigit():
-        vehicles = vehicles.filter(ownership_store_id=ownership_store)
     if location_store and location_store.isdigit():
         vehicles = vehicles.filter(location_store_id=location_store)
     if keyword:
@@ -1516,7 +1585,6 @@ def inventory_list(request):
             | Q(vehicle_model__brand__icontains=keyword)
             | Q(vehicle_model__name__icontains=keyword)
             | Q(color__name__icontains=keyword)
-            | Q(ownership_store__name__icontains=keyword)
             | Q(location_store__name__icontains=keyword)
             | Q(condition_note__icontains=keyword)
         )
@@ -1530,7 +1598,6 @@ def inventory_list(request):
         "color": ("color__name", "vehicle_model__name", "-received_on"),
         "identifier": ("engine_number", "frame_number", "-received_on"),
         "status": ("status", "-received_on"),
-        "ownership": ("ownership_store__name", "vehicle_model__name"),
         "location": ("location_store__name", "vehicle_model__name"),
     }
     if sort not in sort_options:
@@ -1560,7 +1627,6 @@ def inventory_list(request):
                 "status": status or "",
                 "vehicle_model": vehicle_model or "",
                 "color": color or "",
-                "ownership_store": ownership_store or "",
                 "location_store": location_store or "",
                 "sort": sort,
             },
@@ -1577,7 +1643,13 @@ def inventory_create(request):
     if request.method == "POST":
         form = VehicleInventoryForm(request.POST, request.FILES)
         if form.is_valid():
-            vehicle = form.save()
+            with transaction.atomic():
+                vehicle = form.save()
+                _create_inventory_history(
+                    vehicle,
+                    actor_name=_editing_name(request.user),
+                    event_type=VehicleInventoryHistory.EventType.CREATED,
+                )
             messages.success(request, f"已建立庫存車輛：{vehicle.identifier}")
             return redirect("inventory_list")
     else:
@@ -1599,7 +1671,11 @@ def inventory_edit(request, pk):
     )
     if request.method == "POST":
         with transaction.atomic():
-            vehicle = VehicleInventory.objects.select_for_update().get(pk=pk)
+            vehicle = VehicleInventory.objects.select_for_update().select_related(
+                "vehicle_model", "color", "location_store"
+            ).get(pk=pk)
+            before = _inventory_values(vehicle)
+            before_location_id = vehicle.location_store_id
             form = VehicleInventoryForm(
                 request.POST,
                 request.FILES,
@@ -1607,10 +1683,39 @@ def inventory_edit(request, pk):
             )
             if form.is_valid():
                 vehicle = form.save()
+                after = _inventory_values(vehicle)
+                changes = {
+                    field_name: {
+                        "label": INVENTORY_HISTORY_FIELDS[field_name],
+                        "before": before[field_name][1],
+                        "after": after[field_name][1],
+                    }
+                    for field_name in INVENTORY_HISTORY_FIELDS
+                    if before[field_name][0] != after[field_name][0]
+                }
+                reason = form.cleaned_data.get("change_reason", "").strip()
+                if changes or reason:
+                    is_transfer = before_location_id != vehicle.location_store_id
+                    _create_inventory_history(
+                        vehicle,
+                        actor_name=_editing_name(request.user),
+                        event_type=(
+                            VehicleInventoryHistory.EventType.TRANSFERRED
+                            if is_transfer
+                            else VehicleInventoryHistory.EventType.UPDATED
+                        ),
+                        reason=reason,
+                        changes=changes,
+                        from_location_id=before_location_id if is_transfer else None,
+                        to_location_id=vehicle.location_store_id if is_transfer else None,
+                    )
                 messages.success(request, f"已更新庫存車輛：{vehicle.identifier}")
                 return redirect("inventory_list")
     else:
         form = VehicleInventoryForm(instance=vehicle)
+    inventory_history = vehicle.history_entries.select_related(
+        "from_location", "to_location", "location_store_snapshot"
+    )
     return render(
         request,
         "sales/inventory_form.html",
@@ -1620,6 +1725,10 @@ def inventory_edit(request, pk):
             "is_editing": True,
             "core_fields_locked": form.core_fields_locked,
             "final_fields_locked": form.final_fields_locked,
+            "inventory_history": inventory_history,
+            "transfer_history": inventory_history.filter(
+                event_type=VehicleInventoryHistory.EventType.TRANSFERRED
+            ),
         },
     )
 
@@ -1756,6 +1865,10 @@ def protected_media(request, model_name, pk, field_name):
         ),
         "draft": (OrderDraft, {"id_front", "id_back"}),
         "vehicle": (VehicleInventory, {"condition_photo"}),
+        "vehicle_history": (
+            VehicleInventoryHistory,
+            {"condition_photo_snapshot"},
+        ),
     }
     if model_name not in allowed or field_name not in allowed[model_name][1]:
         raise Http404

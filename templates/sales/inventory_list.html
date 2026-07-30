@@ -5,7 +5,7 @@
 {% url 'dashboard' as dashboard_url %}
 {% include "sales/_page_back.html" with fallback_url=dashboard_url label="返回待辦首頁" %}
 <section class="hero-row compact-hero">
-  <div><p class="eyebrow">跨門市庫存</p><h1>實體車輛</h1><p class="muted">每台油車以引擎號碼、電動車以車身號碼唯一識別。</p></div>
+  <div><p class="eyebrow">車輛庫存</p><h1>實體車輛</h1><p class="muted">每台油車以引擎號碼、電動車以車身號碼唯一識別。</p></div>
   <a class="button primary" href="{% url 'inventory_create' %}">＋ 新增進車</a>
 </section>
 
@@ -36,13 +36,6 @@
     </select>
   </div>
   <div class="inventory-filter">
-    <label for="inventory-owner">庫存歸屬</label>
-    <select id="inventory-owner" name="ownership_store">
-      <option value="">全部歸屬</option>
-      {% for store in stores %}<option value="{{ store.pk }}" {% if selected.ownership_store == store.pk|stringformat:"s" %}selected{% endif %}>{{ store.name }}</option>{% endfor %}
-    </select>
-  </div>
-  <div class="inventory-filter">
     <label for="inventory-location">實際位置</label>
     <select id="inventory-location" name="location_store">
       <option value="">全部位置</option>
@@ -58,7 +51,6 @@
       <option value="color" {% if selected.sort == "color" %}selected{% endif %}>車色</option>
       <option value="identifier" {% if selected.sort == "identifier" %}selected{% endif %}>識別號碼</option>
       <option value="status" {% if selected.sort == "status" %}selected{% endif %}>狀態</option>
-      <option value="ownership" {% if selected.sort == "ownership" %}selected{% endif %}>庫存歸屬</option>
       <option value="location" {% if selected.sort == "location" %}selected{% endif %}>實際位置</option>
     </select>
   </div>
@@ -81,7 +73,6 @@
           <th>車型／車色</th>
           <th>引擎／車身號碼</th>
           <th>狀態</th>
-          <th>庫存歸屬</th>
           <th>實際位置</th>
           <th>車況</th>
           <th><span class="visually-hidden">操作</span></th>
@@ -94,13 +85,12 @@
           <td data-label="車型／車色"><strong>{{ vehicle.vehicle_model.name }}</strong><span>{{ vehicle.color.name }}</span></td>
           <td data-label="識別號碼"><span class="inventory-identifier">{{ vehicle.identifier }}</span></td>
           <td data-label="狀態"><span class="status-pill">{{ vehicle.get_status_display }}</span></td>
-          <td data-label="庫存歸屬">{{ vehicle.ownership_store }}</td>
           <td data-label="實際位置">{{ vehicle.location_store }}</td>
           <td data-label="車況">{% if vehicle.condition_note %}<span class="inventory-condition has-issue">有紀錄</span>{% else %}<span class="inventory-condition">正常</span>{% endif %}</td>
           <td class="inventory-row-action"><a class="button ghost small" href="{% url 'inventory_edit' vehicle.pk %}">查看／編輯</a></td>
         </tr>
         {% empty %}
-        <tr><td colspan="8"><div class="empty-state"><strong>找不到符合條件的實體車輛</strong><p>請調整篩選條件，或建立第一台進車資料。</p></div></td></tr>
+        <tr><td colspan="7"><div class="empty-state"><strong>找不到符合條件的實體車輛</strong><p>請調整篩選條件，或建立第一台進車資料。</p></div></td></tr>
         {% endfor %}
       </tbody>
     </table>

@@ -6,6 +6,8 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase
 from django.urls import reverse
 
+from sales.jobs import run_id_ocr_job
+from sales.models import IdOcrJob
 from sales.services.id_ocr import _clean_name_text, extract_fields, validate_taiwan_id
 
 
@@ -77,8 +79,24 @@ class IdOcrEndpointTests(TestCase):
         self.assertEqual(response.status_code, 302)
         self.assertIn("/login/", response.url)
 
-    @patch("sales.views.recognize_id_card")
-    def test_returns_structured_ocr_result(self, recognize):
+    @patch("sales.views.django_rq.get_queue")
+    def test_queues_ocr_without_waiting_for_result(self, get_queue):
+        queue = get_queue.return_value
+        queue.count = 0
+        self.client.force_login(self.user)
+
+        response = self.client.post(
+            reverse("id_card_ocr"),
+            {"front": self.image("front.png"), "back": self.image("back.png")},
+        )
+
+        self.assertEqual(response.status_code, 202)
+        self.assertTrue(response.json()["ok"])
+        self.assertTrue(response.json()["job_id"])
+        queue.enqueue.assert_called_once()
+
+    @patch("sales.jobs.recognize_id_card")
+    def test_worker_persists_result_and_status_endpoint_returns_it(self, recognize):
         recognize.return_value = {
             "fields": {
                 "name": "王小明",
@@ -91,14 +109,18 @@ class IdOcrEndpointTests(TestCase):
             "rotation": {"front": 0, "back": 90},
         }
         self.client.force_login(self.user)
-
-        response = self.client.post(
-            reverse("id_card_ocr"),
-            {"front": self.image("front.png"), "back": self.image("back.png")},
+        job = IdOcrJob.objects.create(
+            created_by=self.user,
+            front=self.image("front.png"),
+            back=self.image("back.png"),
+            photo_token="photo-v1",
         )
+        run_id_ocr_job(str(job.pk))
 
+        response = self.client.get(reverse("id_card_ocr_status", args=[job.pk]))
         self.assertEqual(response.status_code, 200)
         self.assertTrue(response.json()["ok"])
+        self.assertEqual(response.json()["status"], IdOcrJob.Status.SUCCEEDED)
         self.assertEqual(response.json()["fields"]["name"], "王小明")
 
     def test_rejects_non_image_uploads(self):

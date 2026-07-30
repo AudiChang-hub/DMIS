@@ -23,6 +23,32 @@ services:
       - ./secrets/google-vision.json:/run/secrets/google-vision.json:ro
     restart: unless-stopped
 
+  ocr-worker:
+    build:
+      context: .
+      dockerfile: Dockerfile.django
+    command: python manage.py rqworker ocr --worker-class rq.worker.SimpleWorker
+    env_file:
+      - path: .env.django
+        required: false
+    environment:
+      POSTGRES_HOST: db
+      POSTGRES_PORT: 5432
+      REDIS_URL: redis://redis:6379/0
+      GOOGLE_APPLICATION_CREDENTIALS: /run/secrets/google-vision.json
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - django_media:/app/media
+      - ./secrets/google-vision.json:/run/secrets/google-vision.json:ro
+    mem_limit: 768m
+    cpus: 1.0
+    stop_grace_period: 30s
+    restart: unless-stopped
+
   db:
     image: postgres:16
     env_file:

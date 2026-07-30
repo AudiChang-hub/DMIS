@@ -63,6 +63,12 @@ WSGI_APPLICATION = "config.wsgi.application"
 ASGI_APPLICATION = "config.asgi.application"
 
 REDIS_URL = os.environ.get("REDIS_URL")
+RQ_QUEUES = {
+    "ocr": {
+        "URL": REDIS_URL or "redis://localhost:6379/0",
+        "DEFAULT_TIMEOUT": 45,
+    }
+}
 CHANNEL_LAYERS = {
     "default": (
         {

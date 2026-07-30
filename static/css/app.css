@@ -400,6 +400,22 @@ input[type="file"].form-control { padding: 10px; }
 .ocr-status.success { color: var(--forest-2); background: var(--mint); }
 .ocr-status.warning { color: #825609; background: var(--amber-soft); }
 .ocr-status.error { color: var(--red); background: var(--red-soft); }
+.ocr-completed-notice {
+  position: fixed; z-index: 1200; right: 20px; top: 88px;
+  display: grid; grid-template-columns: 1fr auto; gap: 4px 18px;
+  align-items: center; min-width: 300px; max-width: min(420px, calc(100vw - 32px));
+  padding: 16px 18px; border: 1px solid #b8d9cb; border-radius: 14px;
+  background: #fff; color: var(--ink); box-shadow: 0 14px 34px rgba(12, 53, 41, .18);
+}
+.ocr-completed-notice strong { grid-column: 1; }
+.ocr-completed-notice span { grid-column: 1; color: var(--muted); font-size: .82rem; }
+.ocr-completed-notice button {
+  grid-column: 2; grid-row: 1 / 3; border: 0; border-radius: 10px;
+  padding: 10px 13px; background: var(--forest); color: #fff; font-weight: 800;
+}
+@media (max-width: 640px) {
+  .ocr-completed-notice { top: 76px; right: 16px; left: 16px; min-width: 0; }
+}
 .ocr-spinner { width: 17px; height: 17px; border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; }
 .ocr-status.loading .ocr-spinner { animation: ocr-spin .8s linear infinite; }
 .ocr-status:not(.loading) .ocr-spinner { display: none; }

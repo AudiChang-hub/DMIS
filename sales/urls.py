@@ -109,6 +109,16 @@ urlpatterns = [
     path("api/sources/", views.sales_sources, name="sales_sources"),
     path("api/id-card-ocr/", views.id_card_ocr, name="id_card_ocr"),
     path(
+        "api/id-card-ocr/<uuid:job_id>/",
+        views.id_card_ocr_status,
+        name="id_card_ocr_status",
+    ),
+    path(
+        "api/id-card-ocr/<uuid:job_id>/invalidate/",
+        views.id_card_ocr_invalidate,
+        name="id_card_ocr_invalidate",
+    ),
+    path(
         "files/<str:model_name>/<str:pk>/<str:field_name>/",
         views.protected_media,
         name="protected_media",

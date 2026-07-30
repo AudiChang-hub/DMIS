@@ -8,20 +8,109 @@
   <div><p class="eyebrow">跨門市庫存</p><h1>實體車輛</h1><p class="muted">每台油車以引擎號碼、電動車以車身號碼唯一識別。</p></div>
   <a class="button primary" href="{% url 'inventory_create' %}">＋ 新增進車</a>
 </section>
-<div class="inventory-grid">
-  {% for vehicle in vehicles %}
-  <article class="inventory-card">
-    <div class="inventory-top"><span class="status-pill">{{ vehicle.get_status_display }}</span><small>{{ vehicle.received_on }}</small></div>
-    <h2>{{ vehicle.vehicle_model.name }} <span>{{ vehicle.color.name }}</span></h2>
-    <p class="identifier">{{ vehicle.identifier }}</p>
-    <dl>
-      <div><dt>目前位置</dt><dd>{{ vehicle.location_store }}</dd></div>
-      <div><dt>庫存歸屬</dt><dd>{{ vehicle.ownership_store }}</dd></div>
-    </dl>
-    {% if vehicle.condition_note %}<p class="condition-alert">{{ vehicle.condition_note }}</p>{% endif %}
-  </article>
-  {% empty %}
-  <div class="empty-state"><strong>尚無實體車輛</strong><p>先建立第一台進車資料，之後才能為訂單配車。</p></div>
-  {% endfor %}
-</div>
+
+<form method="get" class="inventory-filters" aria-label="庫存篩選與排序">
+  <div class="inventory-filter inventory-filter--search">
+    <label for="inventory-q">搜尋</label>
+    <input id="inventory-q" type="search" name="q" value="{{ selected.q }}" placeholder="識別號碼、車型、車色、門市或車況">
+  </div>
+  <div class="inventory-filter">
+    <label for="inventory-status">狀態</label>
+    <select id="inventory-status" name="status">
+      <option value="">全部狀態</option>
+      {% for value, label in statuses %}<option value="{{ value }}" {% if selected.status == value %}selected{% endif %}>{{ label }}</option>{% endfor %}
+    </select>
+  </div>
+  <div class="inventory-filter">
+    <label for="inventory-model">車型</label>
+    <select id="inventory-model" name="vehicle_model">
+      <option value="">全部車型</option>
+      {% for item in vehicle_models %}<option value="{{ item.pk }}" {% if selected.vehicle_model == item.pk|stringformat:"s" %}selected{% endif %}>{{ item.brand }} {{ item.name }}</option>{% endfor %}
+    </select>
+  </div>
+  <div class="inventory-filter">
+    <label for="inventory-color">車色</label>
+    <select id="inventory-color" name="color">
+      <option value="">全部車色</option>
+      {% for item in colors %}<option value="{{ item.pk }}" {% if selected.color == item.pk|stringformat:"s" %}selected{% endif %}>{{ item.vehicle_model.name }}／{{ item.name }}</option>{% endfor %}
+    </select>
+  </div>
+  <div class="inventory-filter">
+    <label for="inventory-owner">庫存歸屬</label>
+    <select id="inventory-owner" name="ownership_store">
+      <option value="">全部歸屬</option>
+      {% for store in stores %}<option value="{{ store.pk }}" {% if selected.ownership_store == store.pk|stringformat:"s" %}selected{% endif %}>{{ store.name }}</option>{% endfor %}
+    </select>
+  </div>
+  <div class="inventory-filter">
+    <label for="inventory-location">實際位置</label>
+    <select id="inventory-location" name="location_store">
+      <option value="">全部位置</option>
+      {% for store in stores %}<option value="{{ store.pk }}" {% if selected.location_store == store.pk|stringformat:"s" %}selected{% endif %}>{{ store.name }}</option>{% endfor %}
+    </select>
+  </div>
+  <div class="inventory-filter">
+    <label for="inventory-sort">排序</label>
+    <select id="inventory-sort" name="sort">
+      <option value="received_desc" {% if selected.sort == "received_desc" %}selected{% endif %}>進車日期：新到舊</option>
+      <option value="received_asc" {% if selected.sort == "received_asc" %}selected{% endif %}>進車日期：舊到新</option>
+      <option value="model" {% if selected.sort == "model" %}selected{% endif %}>車型</option>
+      <option value="color" {% if selected.sort == "color" %}selected{% endif %}>車色</option>
+      <option value="identifier" {% if selected.sort == "identifier" %}selected{% endif %}>識別號碼</option>
+      <option value="status" {% if selected.sort == "status" %}selected{% endif %}>狀態</option>
+      <option value="ownership" {% if selected.sort == "ownership" %}selected{% endif %}>庫存歸屬</option>
+      <option value="location" {% if selected.sort == "location" %}selected{% endif %}>實際位置</option>
+    </select>
+  </div>
+  <div class="inventory-filter-actions">
+    <a class="button ghost" href="{% url 'inventory_list' %}">清除</a>
+    <button class="button primary" type="submit">套用</button>
+  </div>
+</form>
+
+<section class="inventory-list-panel" aria-label="實體庫存列表">
+  <div class="inventory-list-summary">
+    <strong>共 {{ page_obj.paginator.count }} 台</strong>
+    {% if page_obj.paginator.num_pages > 1 %}<span>第 {{ page_obj.number }}／{{ page_obj.paginator.num_pages }} 頁</span>{% endif %}
+  </div>
+  <div class="inventory-table-wrap">
+    <table class="inventory-table">
+      <thead>
+        <tr>
+          <th>進車日期</th>
+          <th>車型／車色</th>
+          <th>引擎／車身號碼</th>
+          <th>狀態</th>
+          <th>庫存歸屬</th>
+          <th>實際位置</th>
+          <th>車況</th>
+          <th><span class="visually-hidden">操作</span></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for vehicle in vehicles %}
+        <tr>
+          <td data-label="進車日期">{{ vehicle.received_on }}</td>
+          <td data-label="車型／車色"><strong>{{ vehicle.vehicle_model.name }}</strong><span>{{ vehicle.color.name }}</span></td>
+          <td data-label="識別號碼"><span class="inventory-identifier">{{ vehicle.identifier }}</span></td>
+          <td data-label="狀態"><span class="status-pill">{{ vehicle.get_status_display }}</span></td>
+          <td data-label="庫存歸屬">{{ vehicle.ownership_store }}</td>
+          <td data-label="實際位置">{{ vehicle.location_store }}</td>
+          <td data-label="車況">{% if vehicle.condition_note %}<span class="inventory-condition has-issue">有紀錄</span>{% else %}<span class="inventory-condition">正常</span>{% endif %}</td>
+          <td class="inventory-row-action"><a class="button ghost small" href="{% url 'inventory_edit' vehicle.pk %}">查看／編輯</a></td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="8"><div class="empty-state"><strong>找不到符合條件的實體車輛</strong><p>請調整篩選條件，或建立第一台進車資料。</p></div></td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% if page_obj.paginator.num_pages > 1 %}
+  <nav class="inventory-pagination" aria-label="庫存分頁">
+    {% if page_obj.has_previous %}<a class="button ghost small" href="?{% if filter_query %}{{ filter_query }}&{% endif %}page={{ page_obj.previous_page_number }}">上一頁</a>{% endif %}
+    <span>第 {{ page_obj.number }}／{{ page_obj.paginator.num_pages }} 頁</span>
+    {% if page_obj.has_next %}<a class="button ghost small" href="?{% if filter_query %}{{ filter_query }}&{% endif %}page={{ page_obj.next_page_number }}">下一頁</a>{% endif %}
+  </nav>
+  {% endif %}
+</section>
 {% endblock %}

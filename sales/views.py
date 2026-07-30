@@ -9,6 +9,7 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ValidationError
 from django.db import transaction
+from django.db.models import Q
 from django.core.paginator import Paginator
 from django.http import FileResponse, Http404, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
@@ -44,6 +45,7 @@ from .models import (
     RegistrationDocument,
     SalesOrder,
     SalesSource,
+    Store,
     SubsidyDocument,
     VehicleColor,
     VehicleInventory,
@@ -1484,13 +1486,85 @@ def inventory_list(request):
     vehicles = VehicleInventory.objects.select_related(
         "vehicle_model", "color", "ownership_store", "location_store"
     )
+    keyword = request.GET.get("q", "").strip()
     status = request.GET.get("status")
-    if status:
+    vehicle_model = request.GET.get("vehicle_model")
+    color = request.GET.get("color")
+    ownership_store = request.GET.get("ownership_store")
+    location_store = request.GET.get("location_store")
+    sort = request.GET.get("sort", "received_desc")
+    valid_statuses = {value for value, _label in VehicleInventory.Status.choices}
+    if status in valid_statuses:
         vehicles = vehicles.filter(status=status)
+    if vehicle_model and vehicle_model.isdigit():
+        vehicles = vehicles.filter(vehicle_model_id=vehicle_model)
+    if color and color.isdigit():
+        vehicles = vehicles.filter(color_id=color)
+    if ownership_store and ownership_store.isdigit():
+        vehicles = vehicles.filter(ownership_store_id=ownership_store)
+    if location_store and location_store.isdigit():
+        vehicles = vehicles.filter(location_store_id=location_store)
+    if keyword:
+        matching_statuses = [
+            value
+            for value, label in VehicleInventory.Status.choices
+            if keyword.casefold() in label.casefold()
+        ]
+        query = (
+            Q(engine_number__icontains=keyword)
+            | Q(frame_number__icontains=keyword)
+            | Q(vehicle_model__brand__icontains=keyword)
+            | Q(vehicle_model__name__icontains=keyword)
+            | Q(color__name__icontains=keyword)
+            | Q(ownership_store__name__icontains=keyword)
+            | Q(location_store__name__icontains=keyword)
+            | Q(condition_note__icontains=keyword)
+        )
+        if matching_statuses:
+            query |= Q(status__in=matching_statuses)
+        vehicles = vehicles.filter(query)
+    sort_options = {
+        "received_desc": ("-received_on", "-id"),
+        "received_asc": ("received_on", "id"),
+        "model": ("vehicle_model__name", "color__name", "-received_on"),
+        "color": ("color__name", "vehicle_model__name", "-received_on"),
+        "identifier": ("engine_number", "frame_number", "-received_on"),
+        "status": ("status", "-received_on"),
+        "ownership": ("ownership_store__name", "vehicle_model__name"),
+        "location": ("location_store__name", "vehicle_model__name"),
+    }
+    if sort not in sort_options:
+        sort = "received_desc"
+    vehicles = vehicles.order_by(*sort_options[sort])
+    paginator = Paginator(vehicles, 100)
+    page = paginator.get_page(request.GET.get("page"))
+    filter_params = request.GET.copy()
+    filter_params.pop("page", None)
     return render(
         request,
         "sales/inventory_list.html",
-        {"vehicles": vehicles[:300], "statuses": VehicleInventory.Status.choices},
+        {
+            "vehicles": page.object_list,
+            "page_obj": page,
+            "statuses": VehicleInventory.Status.choices,
+            "vehicle_models": VehicleModel.objects.filter(active=True).order_by(
+                "brand", "name"
+            ),
+            "colors": VehicleColor.objects.filter(active=True)
+            .select_related("vehicle_model")
+            .order_by("vehicle_model__name", "name"),
+            "stores": Store.objects.filter(active=True).order_by("name"),
+            "filter_query": filter_params.urlencode(),
+            "selected": {
+                "q": keyword,
+                "status": status or "",
+                "vehicle_model": vehicle_model or "",
+                "color": color or "",
+                "ownership_store": ownership_store or "",
+                "location_store": location_store or "",
+                "sort": sort,
+            },
+        },
     )
 
 
@@ -1508,7 +1582,46 @@ def inventory_create(request):
             return redirect("inventory_list")
     else:
         form = VehicleInventoryForm()
-    return render(request, "sales/inventory_form.html", {"form": form})
+    return render(
+        request,
+        "sales/inventory_form.html",
+        {"form": form, "is_editing": False},
+    )
+
+
+@login_required
+def inventory_edit(request, pk):
+    vehicle = get_object_or_404(
+        VehicleInventory.objects.select_related(
+            "vehicle_model", "color", "ownership_store", "location_store"
+        ),
+        pk=pk,
+    )
+    if request.method == "POST":
+        with transaction.atomic():
+            vehicle = VehicleInventory.objects.select_for_update().get(pk=pk)
+            form = VehicleInventoryForm(
+                request.POST,
+                request.FILES,
+                instance=vehicle,
+            )
+            if form.is_valid():
+                vehicle = form.save()
+                messages.success(request, f"已更新庫存車輛：{vehicle.identifier}")
+                return redirect("inventory_list")
+    else:
+        form = VehicleInventoryForm(instance=vehicle)
+    return render(
+        request,
+        "sales/inventory_form.html",
+        {
+            "form": form,
+            "vehicle": vehicle,
+            "is_editing": True,
+            "core_fields_locked": form.core_fields_locked,
+            "final_fields_locked": form.final_fields_locked,
+        },
+    )
 
 
 @login_required

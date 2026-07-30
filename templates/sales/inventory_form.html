@@ -1,18 +1,35 @@
 {% extends "base.html" %}
-{% block title %}新增進車｜車輛銷售管理{% endblock %}
+{% block title %}{% if is_editing %}編輯庫存{% else %}新增進車{% endif %}｜車輛銷售管理{% endblock %}
 {% block page_class %}page-shell--compact{% endblock %}
 {% block content %}
 {% url 'inventory_list' as inventory_list_url %}
 {% include "sales/_page_back.html" with fallback_url=inventory_list_url label="返回實體庫存" %}
-<section class="hero-row compact-hero"><div><p class="eyebrow">人工逐台輸入</p><h1>新增進車</h1></div></section>
+<section class="hero-row compact-hero">
+  <div>
+    <p class="eyebrow">{% if is_editing %}庫存資料維護{% else %}人工逐台輸入{% endif %}</p>
+    <h1>{% if is_editing %}編輯庫存{% else %}新增進車{% endif %}</h1>
+    {% if is_editing %}<p class="muted">{{ vehicle.vehicle_model.name }}／{{ vehicle.identifier }} · {{ vehicle.get_status_display }}</p>{% endif %}
+  </div>
+</section>
 <form method="post" enctype="multipart/form-data" class="card standalone-form">
   {% csrf_token %}
   {% if form.non_field_errors %}<div class="message error">{{ form.non_field_errors }}</div>{% endif %}
   <div class="info-banner">選擇油車時填引擎號碼；選擇電動車時填車身號碼。重複號碼會被禁止。</div>
+  {% if core_fields_locked %}
+  <div class="message warning">{% if final_fields_locked %}此車輛已完成交付或售出，核心資料與實際位置已鎖定；僅可補充車況照片、說明與處理結果。{% else %}此車輛已進入配車或交付流程。車型、車色、識別號碼、庫存歸屬與進車日期已鎖定；仍可更新實際位置與車況資料。{% endif %}</div>
+  {% endif %}
+  {% if is_editing and vehicle.condition_photo %}
+  <div class="inventory-photo-preview">
+    <div><strong>目前車況照片</strong><small>可在下方選擇新照片取代，或勾選清除。</small></div>
+    <a href="{% url 'protected_media' 'vehicle' vehicle.pk 'condition_photo' %}" target="_blank">
+      <img src="{% url 'protected_media' 'vehicle' vehicle.pk 'condition_photo' %}" alt="車況照片預覽">
+    </a>
+  </div>
+  {% endif %}
   <div class="form-grid">
     {% for field in form %}{% include "sales/_field.html" with field=field %}{% endfor %}
   </div>
-  <div class="form-actions"><a class="button ghost" href="{% url 'inventory_list' %}">取消</a><button class="button primary" type="submit">建立庫存</button></div>
+  <div class="form-actions"><a class="button ghost" href="{% url 'inventory_list' %}">取消</a><button class="button primary" type="submit">{% if is_editing %}儲存修改{% else %}建立庫存{% endif %}</button></div>
 </form>
 {% endblock %}
 {% block scripts %}

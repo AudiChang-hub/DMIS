@@ -60,11 +60,25 @@ class VehicleModel(TimeStampedModel):
     brand = models.CharField("廠牌", max_length=80)
     name = models.CharField("車型", max_length=120)
     energy_type = models.CharField("動力類型", max_length=20, choices=EnergyType.choices)
+    model_year = models.PositiveSmallIntegerField(
+        "年份",
+        blank=True,
+        null=True,
+        help_text="既有車型可暫時留空；新建車型請填西元年份。",
+    )
+    model_code = models.CharField("型式", max_length=120, blank=True)
     displacement_cc = models.PositiveSmallIntegerField(
         "排氣量（c.c.）",
         blank=True,
         null=True,
         help_text="油車領牌試算使用；電動車與微型電動二輪車可留空。",
+    )
+    suggested_price = models.DecimalField(
+        "建議售價",
+        max_digits=12,
+        decimal_places=0,
+        blank=True,
+        null=True,
     )
     active = models.BooleanField("啟用中", default=True)
 
@@ -72,14 +86,20 @@ class VehicleModel(TimeStampedModel):
         ordering = ["brand", "name"]
         constraints = [
             models.UniqueConstraint(
-                fields=["brand", "name"], name="unique_vehicle_model"
+                fields=["brand", "name", "model_year", "model_code"],
+                name="unique_vehicle_model_variant",
             )
         ]
         verbose_name = "車型"
         verbose_name_plural = "車型"
 
     def __str__(self):
-        return f"{self.brand} {self.name}"
+        details = [self.brand, self.name]
+        if self.model_year:
+            details.append(str(self.model_year))
+        if self.model_code:
+            details.append(self.model_code)
+        return "／".join(details)
 
     def clean(self):
         if self.energy_type == self.EnergyType.GAS and not self.displacement_cc:
@@ -157,6 +177,13 @@ class VehicleInventory(TimeStampedModel):
         "車況照片", upload_to="inventory/condition/%Y/%m/", blank=True
     )
     condition_resolution = models.TextField("處理結果", blank=True)
+    acquisition_cost = models.DecimalField(
+        "進貨成本",
+        max_digits=12,
+        decimal_places=0,
+        blank=True,
+        null=True,
+    )
 
     class Meta:
         ordering = ["-received_on", "-id"]

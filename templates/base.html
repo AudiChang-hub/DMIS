@@ -22,7 +22,7 @@
           <a href="{% url 'dashboard' %}" {% if request.resolver_match.url_name == 'dashboard' %}class="active" aria-current="page"{% endif %}>待辦首頁</a>
           <a href="{% url 'order_list' %}" {% if request.resolver_match.url_name == 'order_list' or request.resolver_match.url_name == 'order_detail' or request.resolver_match.url_name == 'order_edit' or request.resolver_match.url_name == 'order_create' %}class="active" aria-current="page"{% endif %}>全部訂單</a>
           <a href="{% url 'inventory_list' %}" {% if request.resolver_match.url_name == 'inventory_list' or request.resolver_match.url_name == 'inventory_create' or request.resolver_match.url_name == 'inventory_quick_create' or request.resolver_match.url_name == 'inventory_edit' %}class="active" aria-current="page"{% endif %}>實體庫存</a>
-          <a href="{% url 'admin:index' %}">主檔維護</a>
+          <a href="{% url 'vehicle_model_list' %}" {% if request.resolver_match.url_name == 'vehicle_model_list' or request.resolver_match.url_name == 'vehicle_model_create' or request.resolver_match.url_name == 'vehicle_model_edit' %}class="active" aria-current="page"{% endif %}>主檔維護</a>
         </nav>
         <button type="button" class="update-check-button" data-check-update aria-label="檢查系統更新" title="檢查系統更新">
           <svg class="update-check-icon" viewBox="0 0 24 24" aria-hidden="true">
@@ -44,7 +44,7 @@
       <a href="{% url 'order_list' %}" {% if request.resolver_match.url_name == 'order_list' or request.resolver_match.url_name == 'order_detail' or request.resolver_match.url_name == 'order_edit' %}class="active" aria-current="page"{% endif %}><span>▤</span>訂單</a>
       <a class="mobile-new{% if request.resolver_match.url_name == 'order_create' %} active{% endif %}" href="{% url 'order_create' %}" {% if request.resolver_match.url_name == 'order_create' %}aria-current="page"{% endif %}><span>＋</span>新增</a>
       <a href="{% url 'inventory_list' %}" {% if request.resolver_match.url_name == 'inventory_list' or request.resolver_match.url_name == 'inventory_create' or request.resolver_match.url_name == 'inventory_quick_create' or request.resolver_match.url_name == 'inventory_edit' %}class="active" aria-current="page"{% endif %}><span>▦</span>庫存</a>
-      <a href="{% url 'admin:index' %}"><span>⚙</span>主檔</a>
+      <a href="{% url 'vehicle_model_list' %}" {% if request.resolver_match.url_name == 'vehicle_model_list' or request.resolver_match.url_name == 'vehicle_model_create' or request.resolver_match.url_name == 'vehicle_model_edit' %}class="active" aria-current="page"{% endif %}><span>⚙</span>主檔</a>
     </nav>
   {% endif %}
 

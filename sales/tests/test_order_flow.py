@@ -22,6 +22,7 @@ from sales.forms import (
 from sales.models import (
     AccessoryLine,
     OrderChange,
+    OrderEvent,
     OtherFeeLine,
     RegistrationDocument,
     SalesOrder,
@@ -174,6 +175,69 @@ class OrderFlowTests(TestCase):
         self.assertContains(response, "刪除此筆費用")
         self.assertContains(response, 'id="add-accessory"')
         self.assertContains(response, 'id="add-other-fee"')
+
+    def test_dashboard_searches_all_business_and_related_fields(self):
+        order = self.make_order()
+        order.owner_email = "owner@example.com"
+        order.delivery_destination = "汐止區康寧街測試倉庫"
+        order.old_vehicle_tax = Decimal("4321")
+        order.actual_balance += Decimal("4321")
+        order.save()
+        AccessoryLine.objects.create(
+            order=order,
+            name="專用後靠背",
+            quantity=1,
+            line_type=AccessoryLine.LineType.PURCHASE,
+            amount=Decimal("876"),
+            note="客戶指定黑色",
+        )
+        OtherFeeLine.objects.create(
+            order=order, name="特殊文件代辦", amount=Decimal("345")
+        )
+        OrderEvent.objects.create(
+            order=order,
+            event_type="manual_note",
+            description="已電話確認週六交車",
+            actor_name="Sylvia",
+        )
+        RegistrationDocument.objects.create(
+            order=order,
+            document_type=RegistrationDocument.DocumentType.OTHER_INSURANCE,
+            name="第三人責任險",
+            file=SimpleUploadedFile("liability.pdf", b"pdf"),
+            uploaded_by="admin",
+        )
+        self.client.force_login(self.user)
+
+        cases = (
+            ("owner@example.com", "Email", "owner@example.com"),
+            ("康寧街測試倉庫", "送達地點／託運目的地", "汐止區康寧街測試倉庫"),
+            ("4321", "舊車未繳稅金", "4321"),
+            ("專用後靠背", "配件名稱", "專用後靠背"),
+            ("特殊文件代辦", "其他費用項目", "特殊文件代辦"),
+            ("週六交車", "處理紀錄內容", "已電話確認週六交車"),
+            ("第三人責任險", "領牌文件名稱", "第三人責任險"),
+            ("待配車", "訂單狀態", "待配車"),
+        )
+        for query, label, value in cases:
+            with self.subTest(query=query):
+                response = self.client.get(reverse("dashboard"), {"q": query})
+                self.assertEqual(response.status_code, 200)
+                self.assertContains(response, order.owner_name)
+                self.assertContains(response, label)
+                self.assertContains(response, value)
+
+    def test_dashboard_search_masks_sensitive_match_values(self):
+        order = self.make_order()
+        self.client.force_login(self.user)
+
+        response = self.client.get(
+            reverse("dashboard"), {"q": order.owner_id_number}
+        )
+
+        self.assertContains(response, "證件號碼／統一編號")
+        self.assertContains(response, order.masked_id_number)
+        self.assertNotContains(response, f"<mark>{order.owner_id_number}</mark>")
 
     def test_forms_provide_field_specific_mobile_keyboard_hints(self):
         order_form = SalesOrderForm()

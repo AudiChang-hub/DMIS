@@ -8,7 +8,6 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ValidationError
 from django.db import transaction
-from django.db.models import Q
 from django.http import FileResponse, Http404, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -47,6 +46,10 @@ from .models import (
 )
 from .services.id_ocr import IdOcrError, recognize_id_card
 from .services.order_change_display import build_order_change_cards
+from .services.order_search import (
+    build_order_match_summary,
+    build_order_search_query,
+)
 
 
 logger = logging.getLogger(__name__)
@@ -109,26 +112,31 @@ def app_version(request):
 def dashboard(request):
     query = request.GET.get("q", "").strip()
     orders = SalesOrder.objects.select_related(
-        "source", "vehicle_model", "color", "allocated_vehicle"
+        "source",
+        "vehicle_model",
+        "color",
+        "allocated_vehicle",
+        "allocated_vehicle__ownership_store",
+        "allocated_vehicle__location_store",
+    ).prefetch_related(
+        "accessories",
+        "other_fees",
+        "subsidy_documents",
+        "registration_documents",
+        "events",
+        "changes",
     )
+    search_results = None
     if query:
-        normalized = query.replace("-", "").replace(" ", "")
-        orders = orders.filter(
-            Q(number__icontains=query)
-            | Q(owner_name__icontains=query)
-            | Q(owner_phone__icontains=query)
-            | Q(owner_id_number__icontains=normalized)
-            | Q(source__name__icontains=query)
-            | Q(vehicle_model__brand__icontains=query)
-            | Q(vehicle_model__name__icontains=query)
-            | Q(color__name__icontains=query)
-            | Q(final_plate_number__icontains=normalized)
-            | Q(allocated_vehicle__engine_number__icontains=normalized)
-            | Q(allocated_vehicle__frame_number__icontains=normalized)
-            | Q(note__icontains=query)
-        ).distinct()
+        search_results = list(
+            orders.filter(build_order_search_query(query)).distinct()[:50]
+        )
+        for order in search_results:
+            order.search_matches = build_order_match_summary(order, query)
 
-    active = orders.exclude(
+    active = SalesOrder.objects.select_related(
+        "source", "vehicle_model", "color", "allocated_vehicle"
+    ).exclude(
         status__in=[SalesOrder.Status.COMPLETED, SalesOrder.Status.CANCELLED]
     )
     urgent_statuses = [
@@ -140,7 +148,7 @@ def dashboard(request):
     )
     context = {
         "query": query,
-        "search_results": orders[:50] if query else None,
+        "search_results": search_results,
         "urgent_orders": active.filter(status__in=urgent_statuses)[:12],
         "allocation_pending": active.filter(
             status=SalesOrder.Status.ALLOCATION_PENDING

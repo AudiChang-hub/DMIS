@@ -14,13 +14,14 @@
 <form class="global-search" method="get" role="search">
   <span aria-hidden="true">⌕</span>
   <input name="q" value="{{ query }}" aria-label="全域搜尋"
-         placeholder="搜尋姓名、電話、證件、車牌、車型、車行…">
+         placeholder="搜尋所有訂單欄位…">
   {% if query %}<a href="{% url 'dashboard' %}" aria-label="清除搜尋">×</a>{% endif %}
 </form>
+<p class="global-search-hint">不必選欄位，可直接輸入姓名、日期、金額、配件、備註、文件名稱或任何已登記內容。</p>
 
 {% if search_results is not None %}
   <section class="section-block">
-    <div class="section-title"><h2>搜尋結果</h2><span>{{ search_results|length }} 筆</span></div>
+    <div class="section-title"><h2>搜尋「{{ query }}」</h2><span>{{ search_results|length }} 筆</span></div>
     <div class="order-list">
       {% for order in search_results %}
         {% include "sales/_order_row.html" %}

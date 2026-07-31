@@ -29,7 +29,7 @@
   </table>
   <h2>訂購車輛</h2>
   <table>
-    <tr><th>廠牌／車型</th><td>{{ order.vehicle_model }}</td><th>車色</th><td>{{ order.color.name }}</td></tr>
+    <tr><th>車型／車色</th><td colspan="3">{{ order.vehicle_model.brand }} {{ order.vehicle_model.name }}／{{ order.color.name }}</td></tr>
     <tr><th>付款方式</th><td>{{ order.get_payment_type_display }}</td><th>選號</th><td>{{ order.get_plate_choice_display }}</td></tr>
     <tr><th>選號需求</th><td colspan="3">{{ order.watched_numbers|default:order.plate_preference_note|default:"無" }}</td></tr>
   </table>

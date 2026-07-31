@@ -1903,6 +1903,10 @@ class OrderFlowTests(TestCase):
 
     def test_contract_print_returns_two_page_dynamic_pdf(self):
         order = self.make_order()
+        self.model.model_number = "INTERNAL-125"
+        self.model.model_year = 2026
+        self.model.vehicle_type = "abs_double_disc"
+        self.model.save()
         self.client.force_login(self.user)
 
         response = self.client.get(reverse("contract_print", args=[order.pk]))
@@ -1934,6 +1938,7 @@ class OrderFlowTests(TestCase):
         self.assertNotIn("收款說明", extracted)
         self.assertIn("領牌＋強制險，依單據收款", extracted)
         self.assertIn("稅金", extracted)
+        self.assertIn("測試廠牌 通勤 125／白", extracted)
 
     def test_installment_contract_keeps_installment_total(self):
         order = self.make_order()
@@ -2360,6 +2365,69 @@ class OrderOperationsTests(TestCase):
         self.assertEqual(profile.total_expense, Decimal("63000"))
         self.assertEqual(profile.net_profit, Decimal("19000"))
         self.assertEqual(profile.total_received, Decimal("5000"))
+
+    def test_registration_financial_pairs_sync_until_manually_adjusted(self):
+        self.order.registration_plate_fee = Decimal("300")
+        self.order.registration_license_fee = Decimal("150")
+        self.order.registration_inspection_fee = Decimal("200")
+        self.order.road_maintenance_fee = Decimal("188")
+        self.order.license_tax_fee = Decimal("0")
+        self.order.compulsory_insurance_fee = Decimal("658")
+        self.order.plate_selection_fee = Decimal("300")
+        self.order.plate_insurance_fee = Decimal("1796")
+        self.order.balance_adjustment_reason = "測試保留既有尾款"
+        self.order.save()
+
+        profile = self.order.operations
+        profile.refresh_from_db()
+        self.assertEqual(profile.registration_tax_expense, Decimal("838"))
+        self.assertEqual(profile.compulsory_insurance_expense, Decimal("658"))
+        self.assertEqual(profile.plate_selection_expense, Decimal("300"))
+        self.assertEqual(profile.registration_tax_income, Decimal("838"))
+        self.assertEqual(profile.compulsory_insurance_income, Decimal("658"))
+        self.assertEqual(profile.plate_selection_income, Decimal("300"))
+
+        profile.registration_tax_expense = Decimal("900")
+        profile.compulsory_insurance_income = Decimal("700")
+        profile.manual_financial_fields = [
+            "registration_tax_expense",
+            "compulsory_insurance_income",
+        ]
+        profile.save()
+
+        self.order.registration_plate_fee = Decimal("400")
+        self.order.compulsory_insurance_fee = Decimal("700")
+        self.order.plate_selection_fee = Decimal("500")
+        self.order.plate_insurance_fee = Decimal("2200")
+        self.order.save()
+
+        profile.refresh_from_db()
+        self.assertEqual(profile.registration_tax_expense, Decimal("900"))
+        self.assertEqual(profile.compulsory_insurance_income, Decimal("700"))
+        self.assertEqual(profile.plate_selection_expense, Decimal("500"))
+        self.assertEqual(profile.registration_tax_income, Decimal("1000"))
+        self.assertEqual(profile.plate_selection_income, Decimal("500"))
+
+    def test_registration_financial_pairs_are_editable_and_grouped(self):
+        response = self.client.get(
+            reverse("order_operations", args=[self.order.pk])
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "領牌相關收支")
+        for field_name in (
+            "registration_tax_expense",
+            "compulsory_insurance_expense",
+            "plate_selection_expense",
+            "registration_tax_income",
+            "compulsory_insurance_income",
+            "plate_selection_income",
+        ):
+            self.assertFalse(response.context["form"].fields[field_name].disabled)
+            self.assertContains(
+                response,
+                f'name="operations-{field_name}"',
+            )
 
     def test_order_creation_automatically_builds_operations_and_receivables(self):
         profile = self.order.operations

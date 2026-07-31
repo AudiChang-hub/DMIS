@@ -195,7 +195,10 @@ def draw_order_page(c, order, copy_label, page_number, printed_at):
         ],
         [
             p("<b>車型／車色</b>"),
-            p(f"{safe(order.vehicle_model)}／{safe(order.color.name)}"),
+            p(
+                f"{safe(order.vehicle_model.brand)} "
+                f"{safe(order.vehicle_model.name)}／{safe(order.color.name)}"
+            ),
             p("<b>交車方式</b>"),
             p(
                 safe(

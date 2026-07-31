@@ -41,6 +41,7 @@ from .forms import (
     SubsidyDocumentUploadForm,
     VehicleInventoryForm,
     VehicleColorMasterFormSet,
+    VehicleIncentiveRuleForm,
     VehicleModelMasterForm,
     VehicleSettlementCostRuleForm,
 )
@@ -60,6 +61,7 @@ from .models import (
     VehicleColor,
     VehicleInventory,
     VehicleInventoryHistory,
+    VehicleIncentiveRule,
     VehicleModel,
     VehicleSettlementCostRule,
 )
@@ -74,6 +76,9 @@ from .services.operations_sync import sync_order_operations
 from .services.settlement_cost import (
     apply_order_settlement_cost,
     resolve_settlement_cost,
+)
+from .services.incentive_rule import (
+    apply_order_incentive_rule,
 )
 from .services.dashboard_metrics import build_dashboard_metrics
 from .services.secret_fields import decrypt_secret, encrypt_secret
@@ -435,9 +440,9 @@ def operations_report_export(request):
         "舊車車主身分證", "舊車牌照號碼", "舊車引擎號碼", "舊車廠牌",
         "排氣量", "出廠日期", "報廢日期", "回收日期",
         "領牌稅金支出", "強制險支出", "選號支出", "贈品、運費支出",
-        "車行傭金支出", "分期補貼息", "領牌稅金收入", "強制險收入",
+        "車行傭金支出", "領牌稅金收入", "強制險收入",
         "代辦費收入", "選號收入", "分期手續費收入", "刷卡手續費收入",
-        "其他收入", "實銷獎勵金", "促銷補助金", "強制險傭金",
+        "其他收入", "實銷獎勵金", "促銷補助金", "分期補貼息", "強制險傭金",
         "信用卡傭金", "車控帳號", "電池合約方案", "電池合約啟用日期",
         "電池合約帳號", "安全帽", "公司禮券、匯款", "其他",
         "平台贈品", "客服電話", "分期資訊", "車行",
@@ -489,7 +494,6 @@ def operations_report_export(request):
             op("plate_selection_expense", 0),
             op("gift_shipping_expense", 0),
             op("dealer_commission_expense", 0),
-            op("installment_interest_subsidy", 0),
             op("registration_tax_income", 0),
             op("compulsory_insurance_income", 0),
             op("agency_fee_income", 0),
@@ -497,16 +501,18 @@ def operations_report_export(request):
             op("installment_fee_income", 0),
             op("card_fee_income", 0),
             op("other_income", 0), op("sales_bonus", 0),
-            op("promotion_subsidy", 0), op("insurance_commission", 0),
+            op("promotion_subsidy", 0),
+            op("installment_interest_subsidy", 0),
+            op("insurance_commission", 0),
             op("credit_card_commission", 0), op("vehicle_control_account"),
             op("battery_plan"), op("battery_activated_on"),
             op("battery_account"), op("helmet"),
             op("company_gift_or_remittance"), op("other_fulfillment"),
             op("platform_gift"), op("customer_service_phone"),
             op("installment_info"), op("dealer_name"),
-            profile.total_income if profile else order.vehicle_price,
+            profile.total_income if profile else 0,
             profile.total_expense if profile else 0,
-            profile.net_profit if profile else order.vehicle_price,
+            profile.net_profit if profile else 0,
         ])
     sheet.freeze_panes = "A2"
     sheet.auto_filter.ref = sheet.dimensions
@@ -1488,6 +1494,10 @@ def registration_save(request, pk):
             order,
             _editing_name(request.user),
         )
+        apply_order_incentive_rule(
+            order,
+            _editing_name(request.user),
+        )
         OrderEvent.objects.create(
             order=order,
             event_type="registration_data_updated",
@@ -1624,6 +1634,11 @@ def registration_complete(request, pk):
         messages.error(request, " ".join(exc.messages))
     else:
         apply_order_settlement_cost(
+            order,
+            _editing_name(request.user),
+            lock=True,
+        )
+        apply_order_incentive_rule(
             order,
             _editing_name(request.user),
             lock=True,
@@ -2060,6 +2075,7 @@ def vehicle_model_list(request):
         ),
         color_count=Count("colors", distinct=True),
         settlement_rule_count=Count("settlement_cost_rules", distinct=True),
+        incentive_rule_count=Count("incentive_rules", distinct=True),
     )
     if keyword:
         models = models.filter(
@@ -2232,6 +2248,85 @@ def settlement_cost_rule_delete(request, pk):
         rule.delete()
         messages.success(request, f"已刪除未使用的成本規則：{label}")
     return redirect("settlement_cost_rule_list")
+
+
+@login_required
+def incentive_rule_list(request):
+    keyword = request.GET.get("q", "").strip()
+    rules = VehicleIncentiveRule.objects.select_related("vehicle_model")
+    if keyword:
+        rules = rules.filter(
+            Q(vehicle_model__brand__icontains=keyword)
+            | Q(vehicle_model__name__icontains=keyword)
+            | Q(vehicle_model__model_number__icontains=keyword)
+            | Q(note__icontains=keyword)
+        )
+    rules = rules.order_by(
+        "vehicle_model__brand",
+        "vehicle_model__name",
+        "-effective_from",
+    )
+    paginator = Paginator(rules, 100)
+    page = paginator.get_page(request.GET.get("page"))
+    return render(
+        request,
+        "sales/incentive_rule_list.html",
+        {
+            "rules": page.object_list,
+            "page_obj": page,
+            "selected": {"q": keyword},
+        },
+    )
+
+
+def _incentive_rule_form_view(request, instance=None):
+    form = VehicleIncentiveRuleForm(request.POST or None, instance=instance)
+    if request.method == "POST" and form.is_valid():
+        rule = form.save()
+        messages.success(
+            request,
+            f"已{'更新' if instance else '建立'}獎勵補助版本：{rule}",
+        )
+        return redirect("incentive_rule_list")
+    return render(
+        request,
+        "sales/incentive_rule_form.html",
+        {
+            "form": form,
+            "rule": instance,
+            "is_editing": instance is not None,
+        },
+    )
+
+
+@login_required
+def incentive_rule_create(request):
+    return _incentive_rule_form_view(request)
+
+
+@login_required
+def incentive_rule_edit(request, pk):
+    return _incentive_rule_form_view(
+        request,
+        get_object_or_404(VehicleIncentiveRule, pk=pk),
+    )
+
+
+@login_required
+@transaction.atomic
+def incentive_rule_delete(request, pk):
+    if request.method != "POST":
+        return redirect("incentive_rule_list")
+    rule = get_object_or_404(
+        VehicleIncentiveRule.objects.select_for_update(),
+        pk=pk,
+    )
+    if rule.order_snapshots.exists():
+        messages.error(request, "此版本已被訂單採用，為保留歷史快照不能刪除；請改為停用。")
+    else:
+        rule.delete()
+        messages.success(request, "獎勵補助版本已刪除。")
+    return redirect("incentive_rule_list")
 
 
 def server_error(request):

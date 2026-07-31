@@ -10,6 +10,12 @@
     <h1>{% if is_editing %}編輯車型{% else %}新增車型{% endif %}</h1>
     {% if is_editing %}<p class="muted">{{ vehicle_model }}</p>{% endif %}
   </div>
+  {% if is_editing %}
+  <div class="hero-actions">
+    <a class="button ghost" href="{% url 'settlement_cost_rule_list' %}?q={{ vehicle_model.model_number|urlencode }}">成本版本</a>
+    <a class="button ghost" href="{% url 'incentive_rule_list' %}?q={{ vehicle_model.model_number|urlencode }}">獎勵與補助</a>
+  </div>
+  {% endif %}
 </section>
 
 <form method="post" class="master-model-form">

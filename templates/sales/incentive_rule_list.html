@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block title %}車型獎勵與補助｜車輛銷售管理{% endblock %}
+{% block page_class %}page-shell--wide{% endblock %}
+{% block content %}
+{% url 'vehicle_model_list' as model_list_url %}
+{% include "sales/_page_back.html" with fallback_url=model_list_url label="返回車型資料" %}
+<section class="hero-row compact-hero">
+  <div>
+    <p class="eyebrow">依實際領牌日套用</p>
+    <h1>車型獎勵與補助</h1>
+    <p class="muted">維護各車型的實銷獎勵金、促銷補助金及分期補貼息；套用後會保存訂單快照。</p>
+  </div>
+  <a class="button primary" href="{% url 'incentive_rule_create' %}">＋ 新增獎勵補助版本</a>
+</section>
+
+<form method="get" class="master-filters">
+  <div class="inventory-filter master-search">
+    <label for="incentive-q">搜尋</label>
+    <input id="incentive-q" type="search" name="q" value="{{ selected.q }}" placeholder="品牌、車型、型號或備註">
+  </div>
+  <div class="inventory-filter-actions">
+    <a class="button ghost" href="{% url 'incentive_rule_list' %}">清除</a>
+    <button class="button primary" type="submit">搜尋</button>
+  </div>
+</form>
+
+<section class="inventory-list-panel">
+  <div class="inventory-list-summary"><strong>共 {{ page_obj.paginator.count }} 筆獎勵補助版本</strong></div>
+  <div class="inventory-table-wrap">
+    <table class="inventory-table settlement-cost-table">
+      <thead><tr><th>車型</th><th>實銷獎勵金</th><th>促銷補助金</th><th>分期補貼息</th><th>分期撥款比例</th><th>公告日期</th><th>生效期間</th><th>狀態</th><th>備註</th><th></th></tr></thead>
+      <tbody>
+        {% for rule in rules %}
+        {% with lifecycle=rule.lifecycle_status %}
+        <tr>
+          <td data-label="車型"><strong>{{ rule.vehicle_model.brand }} {{ rule.vehicle_model.name }}</strong><span>{{ rule.vehicle_model.model_number }}</span></td>
+          <td data-label="實銷獎勵金"><strong>${{ rule.sales_bonus|floatformat:0 }}</strong></td>
+          <td data-label="促銷補助金"><strong>${{ rule.promotion_subsidy|floatformat:0 }}</strong></td>
+          <td data-label="分期補貼息"><strong>${{ rule.installment_interest_subsidy|floatformat:0 }}</strong></td>
+          <td data-label="分期撥款比例">{% if rule.installment_disbursement_rate is not None %}<strong>{{ rule.installment_disbursement_rate|floatformat:2 }}%</strong>{% else %}未設定{% endif %}</td>
+          <td data-label="公告日期">{{ rule.announced_on|date:"Y/m/d" }}</td>
+          <td data-label="生效期間"><strong>{{ rule.effective_from|date:"Y/m/d" }}</strong><span>至 {{ rule.effective_to|date:"Y/m/d"|default:"持續有效" }}</span></td>
+          <td data-label="狀態"><span class="status-pill cost-rule-{{ lifecycle.0 }}">{{ lifecycle.1 }}</span></td>
+          <td data-label="備註">{{ rule.note|default:"—"|truncatechars:32 }}</td>
+          <td class="inventory-row-action"><a class="button ghost small" href="{% url 'incentive_rule_edit' rule.pk %}">編輯</a></td>
+        </tr>
+        {% endwith %}
+        {% empty %}
+        <tr><td colspan="10"><div class="empty-state"><strong>尚未建立獎勵補助版本</strong><p>建立後，訂單會依實際領牌日期自動套用。</p></div></td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endblock %}

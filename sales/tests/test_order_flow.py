@@ -29,11 +29,13 @@ from sales.models import (
     RegistrationDocument,
     PaymentRecord,
     SalesOrder,
+    SalesSource,
     Store,
     SubsidyDocument,
     VehicleColor,
     VehicleInventory,
     VehicleInventoryHistory,
+    VehicleIncentiveRule,
     VehicleModel,
     VehicleSettlementCostRule,
 )
@@ -1609,6 +1611,14 @@ class OrderFlowTests(TestCase):
     def test_registration_can_be_completed_after_required_uploads(self):
         order = self.make_order()
         order.allocate(self.vehicle)
+        incentive_rule = VehicleIncentiveRule.objects.create(
+            vehicle_model=self.model,
+            sales_bonus=Decimal("1500"),
+            promotion_subsidy=Decimal("2000"),
+            installment_interest_subsidy=Decimal("800"),
+            installment_disbursement_rate=Decimal("92.50"),
+            effective_from=date(2026, 7, 1),
+        )
         self.client.force_login(self.user)
 
         response = self.client.post(
@@ -1660,6 +1670,11 @@ class OrderFlowTests(TestCase):
         self.assertEqual(profile.vehicle_cost_rule, self.settlement_rule)
         self.assertEqual(profile.vehicle_cost_county, "新北市")
         self.assertIsNotNone(profile.vehicle_cost_locked_at)
+        self.assertEqual(profile.incentive_rule, incentive_rule)
+        self.assertEqual(profile.sales_bonus, Decimal("1500"))
+        self.assertEqual(profile.promotion_subsidy, Decimal("2000"))
+        self.assertEqual(profile.installment_interest_subsidy, Decimal("800"))
+        self.assertIsNotNone(profile.incentive_locked_at)
 
     def test_registration_completion_requires_matching_settlement_cost(self):
         order = self.make_order()
@@ -2342,6 +2357,7 @@ class OrderOperationsTests(TestCase):
 
     def test_financial_totals_include_all_income_and_expense_fields(self):
         profile = self.order.operations
+        profile.actual_disbursement = Decimal("80000")
         profile.vehicle_cost = Decimal("60000")
         profile.registration_tax_expense = Decimal("1000")
         profile.installment_interest_subsidy = Decimal("2000")
@@ -2361,9 +2377,9 @@ class OrderOperationsTests(TestCase):
             confirmed=False,
         )
 
-        self.assertEqual(profile.total_income, Decimal("82000"))
-        self.assertEqual(profile.total_expense, Decimal("63000"))
-        self.assertEqual(profile.net_profit, Decimal("19000"))
+        self.assertEqual(profile.total_income, Decimal("500"))
+        self.assertEqual(profile.total_expense, Decimal("1000"))
+        self.assertEqual(profile.net_profit, Decimal("23000"))
         self.assertEqual(profile.total_received, Decimal("5000"))
 
     def test_registration_financial_pairs_sync_until_manually_adjusted(self):
@@ -2441,6 +2457,7 @@ class OrderOperationsTests(TestCase):
         self.assertEqual(payments["deposit"].received_amount, Decimal("5000"))
         self.assertEqual(payments["balance"].expected_amount, Decimal("75000"))
         self.assertFalse(profile.payment_confirmed)
+        self.assertEqual(profile.actual_disbursement, Decimal("80000"))
 
     def test_installment_change_rebuilds_receivables_without_duplicates(self):
         self.order.payment_type = SalesOrder.PaymentType.INSTALLMENT
@@ -2507,7 +2524,9 @@ class OrderOperationsTests(TestCase):
 
     def test_dashboard_uses_delivery_time_for_monthly_performance(self):
         profile = self.order.operations
+        profile.actual_disbursement = Decimal("80000")
         profile.vehicle_cost = Decimal("60000")
+        profile.manual_financial_fields = ["actual_disbursement"]
         profile.save()
         self.order.status = SalesOrder.Status.COMPLETED
         self.order.save(update_fields=["status", "updated_at"])
@@ -2577,6 +2596,136 @@ class OrderOperationsTests(TestCase):
             ).amount,
             Decimal("65000"),
         )
+
+    def test_incentive_rule_uses_registration_date_and_locks_snapshot(self):
+        current = VehicleIncentiveRule.objects.create(
+            vehicle_model=self.model,
+            sales_bonus=Decimal("1500"),
+            promotion_subsidy=Decimal("2000"),
+            installment_interest_subsidy=Decimal("800"),
+            installment_disbursement_rate=Decimal("92.50"),
+            effective_from=date(2026, 7, 1),
+        )
+        future = VehicleIncentiveRule.objects.create(
+            vehicle_model=self.model,
+            sales_bonus=Decimal("1800"),
+            promotion_subsidy=Decimal("2500"),
+            installment_interest_subsidy=Decimal("900"),
+            installment_disbursement_rate=Decimal("95.00"),
+            effective_from=date(2026, 8, 1),
+        )
+        self.order.payment_type = SalesOrder.PaymentType.INSTALLMENT
+        self.order.registration_date = date(2026, 7, 31)
+        self.order.save(
+            update_fields=["payment_type", "registration_date", "updated_at"]
+        )
+
+        from sales.services.incentive_rule import apply_order_incentive_rule
+
+        profile = apply_order_incentive_rule(self.order, "tester")
+        self.assertEqual(profile.incentive_rule, current)
+        self.assertEqual(profile.sales_bonus, Decimal("1500"))
+        self.assertEqual(profile.promotion_subsidy, Decimal("2000"))
+        self.assertEqual(profile.installment_interest_subsidy, Decimal("800"))
+        self.assertEqual(profile.actual_disbursement, Decimal("74000"))
+
+        self.order.registration_date = date(2026, 8, 1)
+        self.order.save(update_fields=["registration_date", "updated_at"])
+        profile = apply_order_incentive_rule(self.order, "tester", lock=True)
+        self.assertEqual(profile.incentive_rule, future)
+        self.assertEqual(profile.sales_bonus, Decimal("1800"))
+        self.assertEqual(profile.actual_disbursement, Decimal("76000"))
+        self.assertIsNotNone(profile.incentive_locked_at)
+
+        future.sales_bonus = Decimal("3000")
+        future.save()
+        profile = apply_order_incentive_rule(self.order, "tester")
+        self.assertEqual(profile.sales_bonus, Decimal("1800"))
+
+    def test_manual_incentive_adjustment_is_not_overwritten_by_new_version(self):
+        VehicleIncentiveRule.objects.create(
+            vehicle_model=self.model,
+            sales_bonus=Decimal("1000"),
+            promotion_subsidy=Decimal("2000"),
+            installment_interest_subsidy=Decimal("700"),
+            effective_from=date(2026, 7, 1),
+        )
+        VehicleIncentiveRule.objects.create(
+            vehicle_model=self.model,
+            sales_bonus=Decimal("1500"),
+            promotion_subsidy=Decimal("2500"),
+            installment_interest_subsidy=Decimal("900"),
+            effective_from=date(2026, 8, 1),
+        )
+        self.order.registration_date = date(2026, 7, 20)
+        self.order.save(update_fields=["registration_date", "updated_at"])
+
+        from sales.services.incentive_rule import apply_order_incentive_rule
+
+        profile = apply_order_incentive_rule(self.order)
+        profile.sales_bonus = Decimal("1200")
+        profile.manual_financial_fields = ["sales_bonus"]
+        profile.save()
+
+        self.order.registration_date = date(2026, 8, 5)
+        self.order.save(update_fields=["registration_date", "updated_at"])
+        profile = apply_order_incentive_rule(self.order)
+        self.assertEqual(profile.sales_bonus, Decimal("1200"))
+        self.assertEqual(profile.promotion_subsidy, Decimal("2500"))
+        self.assertEqual(profile.installment_interest_subsidy, Decimal("900"))
+
+    def test_platform_order_keeps_manually_entered_disbursement(self):
+        platform = SalesSource.objects.create(
+            source_type=SalesSource.SourceType.PLATFORM,
+            name="測試平台",
+        )
+        rule = VehicleIncentiveRule.objects.create(
+            vehicle_model=self.model,
+            installment_disbursement_rate=Decimal("95"),
+            effective_from=date(2026, 7, 1),
+        )
+        self.order.source_type = SalesOrder.SourceType.PLATFORM
+        self.order.source = platform
+        self.order.payment_type = SalesOrder.PaymentType.INSTALLMENT
+        self.order.registration_date = date(2026, 7, 20)
+        self.order.save(
+            update_fields=[
+                "source_type",
+                "source",
+                "payment_type",
+                "registration_date",
+                "updated_at",
+            ]
+        )
+        profile = self.order.operations
+        profile.actual_disbursement = Decimal("73000")
+        profile.save(update_fields=["actual_disbursement", "updated_at"])
+
+        from sales.services.incentive_rule import apply_order_incentive_rule
+
+        profile = apply_order_incentive_rule(self.order)
+        self.assertEqual(profile.incentive_rule, rule)
+        self.assertEqual(profile.actual_disbursement, Decimal("73000"))
+
+    def test_incentive_rule_maintenance_pages_are_available(self):
+        rule = VehicleIncentiveRule.objects.create(
+            vehicle_model=self.model,
+            sales_bonus=Decimal("1500"),
+            promotion_subsidy=Decimal("2000"),
+            installment_interest_subsidy=Decimal("800"),
+            effective_from=date(2026, 8, 1),
+        )
+
+        listing = self.client.get(reverse("incentive_rule_list"))
+        editing = self.client.get(reverse("incentive_rule_edit", args=[rule.pk]))
+
+        self.assertEqual(listing.status_code, 200)
+        self.assertContains(listing, "車型獎勵與補助")
+        self.assertContains(listing, "1500")
+        self.assertContains(listing, "持續有效")
+        self.assertEqual(editing.status_code, 200)
+        self.assertContains(editing, "實銷獎勵金")
+        self.assertContains(editing, "結束日期")
 
     def test_settlement_cost_maintenance_pages_are_available(self):
         rule = VehicleSettlementCostRule.objects.create(

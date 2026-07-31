@@ -14,6 +14,7 @@
   <div><small>總支出</small><strong>${{ profile.total_expense|floatformat:0 }}</strong></div>
   <div class="profit"><small>單筆淨利</small><strong>${{ profile.net_profit|floatformat:0 }}</strong></div>
 </section>
+<p class="muted operations-profit-formula">單筆淨利＝實際撥款－成本－總支出＋總收入＋實銷獎勵金＋促銷補助金＋分期補貼息＋強制險傭金＋信用卡傭金</p>
 
 <form method="post" enctype="multipart/form-data" class="operations-form">
   {% csrf_token %}{{ payment_formset.management_form }}
@@ -27,6 +28,10 @@
       {% include "sales/_field.html" with field=form.invoice_date %}
       {% include "sales/_field.html" with field=form.balance_invoice_number %}
       {% include "sales/_field.html" with field=form.installment_info %}
+    </div>
+    <div class="note-box">
+      <strong>實際撥款計算</strong>
+      <p>現金依車款售價自動帶入；分期依領牌日適用版本的撥款比例計算；網路平台與刷卡訂單由人員輸入。人工修改後不再被系統覆蓋。</p>
     </div>
     <details class="system-payment-records">
       <summary><strong>系統應收摘要</strong><span>訂金、尾款與分期撥款；需要確認收款時再展開</span></summary>
@@ -101,7 +106,6 @@
     </div>
     {% include "sales/_field.html" with field=form.gift_shipping_expense %}
     {% include "sales/_field.html" with field=form.dealer_commission_expense %}
-    {% include "sales/_field.html" with field=form.installment_interest_subsidy %}
   </div></details>
   <details class="operation-section" open><summary><strong>領牌相關收支</strong><span>系統先帶入，支出與收入皆可個別人工修改</span></summary>
     <div class="financial-pair-grid">
@@ -122,11 +126,29 @@
     {% include "sales/_field.html" with field=form.installment_fee_income %}
     {% include "sales/_field.html" with field=form.card_fee_income %}
     {% include "sales/_field.html" with field=form.other_income %}
-    {% include "sales/_field.html" with field=form.sales_bonus %}
-    {% include "sales/_field.html" with field=form.promotion_subsidy %}
     {% include "sales/_field.html" with field=form.insurance_commission %}
     {% include "sales/_field.html" with field=form.credit_card_commission %}
   </div></details>
+  <details class="operation-section" open><summary><strong>車型獎勵與補助</strong><span>依實際領牌日期套用車型版本</span></summary>
+    <div class="operation-grid">
+      <div class="field settlement-cost-source">
+        <label>套用依據</label>
+        {% if profile.incentive_rule %}
+        <div class="read-only-value">
+          <strong>{{ profile.incentive_registration_date|date:"Y/m/d" }} · {{ profile.incentive_rule.vehicle_model.brand }} {{ profile.incentive_rule.vehicle_model.name }}</strong>
+          <small>{% if profile.incentive_locked_at %}已固定，不受後續版本異動影響{% else %}領牌完成後固定{% endif %}</small>
+        </div>
+        {% elif order.registration_date %}
+        <div class="read-only-value"><strong>沒有符合領牌日期的版本</strong><small>目前以 0 元帶入；可至車型資料新增版本</small></div>
+        {% else %}
+        <div class="read-only-value"><strong>等待實際領牌日期</strong><small>填寫領牌日期後自動帶入</small></div>
+        {% endif %}
+      </div>
+      {% include "sales/_field.html" with field=form.sales_bonus %}
+      {% include "sales/_field.html" with field=form.promotion_subsidy %}
+      {% include "sales/_field.html" with field=form.installment_interest_subsidy %}
+    </div>
+  </details>
   <details class="operation-section"><summary><strong>補助撥款追蹤</strong><span>各政府單位可分別追蹤</span></summary><div class="operation-grid">
     {% include "sales/_field.html" with field=form.subsidy_amount %}
     {% include "sales/_field.html" with field=form.bank_name %}

@@ -53,12 +53,6 @@ def refresh_payment_confirmation(order_id):
         system_key="installment_disbursement",
         confirmed=True,
     ).exists()
-    installment_received = (
-        records.filter(system_key="installment_disbursement")
-        .values_list("received_amount", flat=True)
-        .first()
-        or Decimal("0")
-    )
     updates = []
     if profile.payment_confirmed != confirmed:
         profile.payment_confirmed = confirmed
@@ -66,9 +60,6 @@ def refresh_payment_confirmation(order_id):
     if profile.installment_transfer_confirmed != installment_confirmed:
         profile.installment_transfer_confirmed = installment_confirmed
         updates.append("installment_transfer_confirmed")
-    if profile.actual_disbursement != installment_received:
-        profile.actual_disbursement = installment_received
-        updates.append("actual_disbursement")
     if updates:
         profile.save(update_fields=[*updates, "updated_at"])
 
@@ -89,6 +80,12 @@ def sync_order_operations(order_id):
         return None
     profile, _created = OrderOperationsProfile.objects.get_or_create(order=order)
     profile.dealer_name = order.source.name if order.source_id else ""
+    if (
+        order.source_type != order.SourceType.PLATFORM
+        and order.payment_type == order.PaymentType.CASH
+        and "actual_disbursement" not in (profile.manual_financial_fields or [])
+    ):
+        profile.actual_disbursement = _money(order.vehicle_price)
     registration_tax_expense = sum(
         (
             _money(order.registration_plate_fee),

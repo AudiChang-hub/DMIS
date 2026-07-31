@@ -34,9 +34,9 @@
           <td data-label="車輛"><strong>{{ order.vehicle_model }}</strong><small>{{ order.color.name }}{% if order.final_plate_number %} · {{ order.final_plate_number }}{% endif %}</small></td>
           <td data-label="付款"><strong>{{ order.get_payment_type_display }}</strong><small>{% if order.payment_type == "installment" %}{{ order.installment_company }}／{{ order.installment_periods }}期{% else %}{{ order.source_display }}{% endif %}</small></td>
           <td data-label="總收款" class="number-cell">${{ order.operation_data.total_received|default:0|floatformat:0 }}</td>
-          <td data-label="總收入" class="number-cell">${% if order.operation_data %}{{ order.operation_data.total_income|floatformat:0 }}{% else %}{{ order.vehicle_price|floatformat:0 }}{% endif %}</td>
+          <td data-label="總收入" class="number-cell">${% if order.operation_data %}{{ order.operation_data.total_income|floatformat:0 }}{% else %}0{% endif %}</td>
           <td data-label="總支出" class="number-cell">${{ order.operation_data.total_expense|default:0|floatformat:0 }}</td>
-          <td data-label="單筆淨利" class="number-cell profit-value">${% if order.operation_data %}{{ order.operation_data.net_profit|floatformat:0 }}{% else %}{{ order.vehicle_price|floatformat:0 }}{% endif %}</td>
+          <td data-label="單筆淨利" class="number-cell profit-value">${% if order.operation_data %}{{ order.operation_data.net_profit|floatformat:0 }}{% else %}0{% endif %}</td>
           <td data-label="狀態"><span class="status-pill">{{ order.get_status_display }}</span><small>{% if order.operation_data.payment_confirmed %}收款已確認{% else %}收款待確認{% endif %}</small></td>
           <td class="inventory-row-action"><a class="button ghost small" href="{% url 'order_operations' order.pk %}">查看／編輯</a></td>
         </tr>

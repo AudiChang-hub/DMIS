@@ -15,6 +15,7 @@ from .models import (
     VehicleColor,
     VehicleInventory,
     VehicleInventoryHistory,
+    VehicleIncentiveRule,
     VehicleModel,
     VehicleSettlementCostRule,
 )
@@ -114,6 +115,26 @@ class VehicleSettlementCostRuleAdmin(admin.ModelAdmin):
         "active",
     )
     list_filter = ("registration_county", "active")
+    search_fields = (
+        "vehicle_model__brand",
+        "vehicle_model__name",
+        "vehicle_model__model_number",
+    )
+
+
+@admin.register(VehicleIncentiveRule)
+class VehicleIncentiveRuleAdmin(admin.ModelAdmin):
+    list_display = (
+        "vehicle_model",
+        "sales_bonus",
+        "promotion_subsidy",
+        "installment_interest_subsidy",
+        "installment_disbursement_rate",
+        "effective_from",
+        "effective_to",
+        "active",
+    )
+    list_filter = ("active",)
     search_fields = (
         "vehicle_model__brand",
         "vehicle_model__name",

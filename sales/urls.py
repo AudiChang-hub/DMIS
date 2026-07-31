@@ -163,6 +163,26 @@ urlpatterns = [
         views.settlement_cost_rule_delete,
         name="settlement_cost_rule_delete",
     ),
+    path(
+        "data/incentive-rules/",
+        views.incentive_rule_list,
+        name="incentive_rule_list",
+    ),
+    path(
+        "data/incentive-rules/new/",
+        views.incentive_rule_create,
+        name="incentive_rule_create",
+    ),
+    path(
+        "data/incentive-rules/<int:pk>/edit/",
+        views.incentive_rule_edit,
+        name="incentive_rule_edit",
+    ),
+    path(
+        "data/incentive-rules/<int:pk>/delete/",
+        views.incentive_rule_delete,
+        name="incentive_rule_delete",
+    ),
     path("data/inventory/new/", views.inventory_create, name="inventory_create"),
     path(
         "data/inventory/quick-entry/",

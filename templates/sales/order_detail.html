@@ -326,6 +326,19 @@
     {% elif order.registration_date and order.registration_county %}
     <div class="message warning">目前找不到符合此車型、領牌縣市與日期的成本規則，補建前無法完成領牌。</div>
     {% endif %}
+    {% if operations_profile.incentive_rule_id %}
+    <div class="note-box">
+      <strong>{% if operations_profile.incentive_locked_at %}已確認{% else %}預估{% endif %}車型獎勵與補助</strong>
+      <p>
+        實銷獎勵 ${{ operations_profile.sales_bonus|floatformat:0 }} ·
+        促銷補助 ${{ operations_profile.promotion_subsidy|floatformat:0 }} ·
+        分期補貼息 ${{ operations_profile.installment_interest_subsidy|floatformat:0 }}
+        {% if operations_profile.incentive_locked_at %} · 已固定{% endif %}
+      </p>
+    </div>
+    {% elif order.registration_date %}
+    <div class="message warning">此車型目前沒有符合領牌日期的獎勵補助版本，三項金額將以 0 元認列。</div>
+    {% endif %}
 
     <div class="registration-documents">
       <div class="registration-documents__heading">

@@ -87,7 +87,13 @@
           <td data-label="實銷獎勵金">${{ rule.sales_bonus|floatformat:0 }}</td>
           <td data-label="促銷補助金">${{ rule.promotion_subsidy|floatformat:0 }}</td>
           <td data-label="分期補貼息">${{ rule.installment_interest_subsidy|floatformat:0 }}</td>
-          <td data-label="分期撥款比例">{% if rule.installment_disbursement_rate != None %}{{ rule.installment_disbursement_rate }}%{% else %}人工輸入{% endif %}</td>
+          <td data-label="分期撥款比例">
+            {% for rate in rule.installment_rates.all %}
+              <span class="rate-summary">{{ rate.periods }} 期：{{ rate.rate }}%</span>
+            {% empty %}
+              <span class="muted">尚未設定</span>
+            {% endfor %}
+          </td>
           <td data-label="狀態">{% if rule.active %}<span class="status-pill success">啟用中</span>{% else %}<span class="status-pill muted">已停用</span>{% endif %}</td>
           <td class="inventory-row-action"><a class="button ghost small" href="?edit_incentive={{ rule.pk }}#incentive-editor">編輯</a></td>
         </tr>
@@ -100,6 +106,7 @@
 
   <form method="post" class="inline-rule-editor" id="incentive-editor">
     {% csrf_token %}
+    {{ incentive_rate_formset.management_form }}
     <input type="hidden" name="action" value="save_incentive">
     {% if editing_incentive_rule %}<input type="hidden" name="rule_id" value="{{ editing_incentive_rule.pk }}">{% endif %}
     <div class="section-heading inline-rule-editor__heading">
@@ -109,9 +116,37 @@
       </div>
       {% if editing_incentive_rule %}<a class="button ghost small" href="{% url 'vehicle_model_edit' vehicle_model.pk %}#incentive-editor">取消編輯</a>{% endif %}
     </div>
-    {% if incentive_form.non_field_errors %}<div class="message error">{{ incentive_form.non_field_errors }}</div>{% endif %}
+    {% if incentive_form.non_field_errors or incentive_rate_formset.non_form_errors %}<div class="message error">{{ incentive_form.non_field_errors }}{{ incentive_rate_formset.non_form_errors }}</div>{% endif %}
     <div class="form-grid master-model-grid">
       {% for field in incentive_form %}{% include "sales/_field.html" with field=field %}{% endfor %}
+    </div>
+    <div class="installment-rate-editor">
+      <div>
+        <p class="eyebrow">依期數計算實際撥款</p>
+        <h3>分期期數與撥款比例</h3>
+        <p class="muted">沒有設定的期數不會猜測比例，訂單會提示人員補設定或人工輸入。</p>
+      </div>
+      <div id="installment-rate-rows" class="installment-rate-rows">
+        {% for rate_form in incentive_rate_formset %}
+        <div class="installment-rate-row" data-rate-row>
+          {{ rate_form.id }}
+          <div>{% include "sales/_field.html" with field=rate_form.periods %}</div>
+          <div>{% include "sales/_field.html" with field=rate_form.rate %}</div>
+          <span hidden>{{ rate_form.DELETE }}</span>
+          <button type="button" class="button danger-outline small" data-delete-rate>{% if rate_form.instance.pk %}刪除此期數{% else %}移除此列{% endif %}</button>
+        </div>
+        {% endfor %}
+      </div>
+      <template id="installment-rate-empty-row">
+        <div class="installment-rate-row" data-rate-row>
+          {{ incentive_rate_formset.empty_form.id }}
+          <div>{% include "sales/_field.html" with field=incentive_rate_formset.empty_form.periods %}</div>
+          <div>{% include "sales/_field.html" with field=incentive_rate_formset.empty_form.rate %}</div>
+          <span hidden>{{ incentive_rate_formset.empty_form.DELETE }}</span>
+          <button type="button" class="button danger-outline small" data-delete-rate>移除此列</button>
+        </div>
+      </template>
+      <button type="button" class="button ghost" id="add-installment-rate">＋ 新增期數比例</button>
     </div>
     <div class="form-actions inline-rule-editor__actions">
       {% if editing_incentive_rule %}
@@ -146,6 +181,30 @@
     total.value = index + 1;
     bind(row);
     row.querySelector('input[type="text"]').focus();
+  });
+})();
+(() => {
+  const rows = document.getElementById("installment-rate-rows");
+  if (!rows) return;
+  const total = document.getElementById("id_rates-TOTAL_FORMS");
+  const template = document.getElementById("installment-rate-empty-row");
+  function bind(row) {
+    row.querySelector("[data-delete-rate]").addEventListener("click", () => {
+      const deletion = row.querySelector('[name$="-DELETE"]');
+      if (deletion) deletion.checked = true;
+      row.hidden = true;
+    });
+  }
+  rows.querySelectorAll("[data-rate-row]").forEach(bind);
+  document.getElementById("add-installment-rate").addEventListener("click", () => {
+    const index = Number(total.value);
+    const wrapper = document.createElement("div");
+    wrapper.innerHTML = template.innerHTML.replaceAll("__prefix__", index).trim();
+    const row = wrapper.firstElementChild;
+    rows.appendChild(row);
+    total.value = index + 1;
+    bind(row);
+    row.querySelector('input[type="number"]').focus();
   });
 })();
 </script>

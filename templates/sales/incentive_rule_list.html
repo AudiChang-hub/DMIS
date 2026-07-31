@@ -37,7 +37,11 @@
           <td data-label="實銷獎勵金"><strong>${{ rule.sales_bonus|floatformat:0 }}</strong></td>
           <td data-label="促銷補助金"><strong>${{ rule.promotion_subsidy|floatformat:0 }}</strong></td>
           <td data-label="分期補貼息"><strong>${{ rule.installment_interest_subsidy|floatformat:0 }}</strong></td>
-          <td data-label="分期撥款比例">{% if rule.installment_disbursement_rate is not None %}<strong>{{ rule.installment_disbursement_rate|floatformat:2 }}%</strong>{% else %}未設定{% endif %}</td>
+          <td data-label="分期撥款比例">
+            {% for rate in rule.installment_rates.all %}
+              <span class="rate-summary">{{ rate.periods }} 期：{{ rate.rate|floatformat:2 }}%</span>
+            {% empty %}未設定{% endfor %}
+          </td>
           <td data-label="公告日期">{{ rule.announced_on|date:"Y/m/d" }}</td>
           <td data-label="生效期間"><strong>{{ rule.effective_from|date:"Y/m/d" }}</strong><span>至 {{ rule.effective_to|date:"Y/m/d"|default:"持續有效" }}</span></td>
           <td data-label="狀態"><span class="status-pill cost-rule-{{ lifecycle.0 }}">{{ lifecycle.1 }}</span></td>

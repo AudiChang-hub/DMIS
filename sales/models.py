@@ -1022,6 +1022,15 @@ class SalesOrder(TimeStampedModel):
 
 
 class OrderOperationsProfile(TimeStampedModel):
+    MANUAL_PROTECTABLE_FINANCIAL_FIELDS = (
+        "registration_tax_expense",
+        "compulsory_insurance_expense",
+        "plate_selection_expense",
+        "registration_tax_income",
+        "compulsory_insurance_income",
+        "plate_selection_income",
+    )
+
     class AgencyStatus(models.TextChoices):
         NOT_SUBMITTED = "not_submitted", "未送件"
         SUBMITTED = "submitted", "已送件"
@@ -1069,6 +1078,12 @@ class OrderOperationsProfile(TimeStampedModel):
         "成本鎖定人員",
         max_length=150,
         blank=True,
+    )
+    manual_financial_fields = models.JSONField(
+        "已人工調整財務欄位",
+        default=list,
+        blank=True,
+        help_text="記錄不應再被訂單同步覆蓋的收支欄位。",
     )
     registration_tax_expense = models.DecimalField("領牌稅金支出", max_digits=12, decimal_places=0, default=0)
     compulsory_insurance_expense = models.DecimalField("強制險支出", max_digits=12, decimal_places=0, default=0)

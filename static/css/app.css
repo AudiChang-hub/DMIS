@@ -1089,6 +1089,25 @@ body.screen-locked { overflow: hidden; }
   gap: 10px;
   padding-top: 4px;
 }
+.rate-summary { display: block; white-space: nowrap; }
+.rate-summary + .rate-summary { margin-top: 3px; }
+.installment-rate-editor {
+  display: grid;
+  gap: 14px;
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: #fff;
+}
+.installment-rate-editor h3 { margin: 2px 0 0; }
+.installment-rate-rows { display: grid; gap: 10px; }
+.installment-rate-row {
+  display: grid;
+  grid-template-columns: minmax(160px, 1fr) minmax(180px, 1fr) 130px;
+  align-items: end;
+  gap: 12px;
+}
+.installment-rate-row .field { padding: 0; }
 .login-panel { display: grid; min-height: calc(100vh - 160px); grid-template-columns: 1.3fr .8fr; align-items: center; gap: 9vw; }
 .login-panel h1 { max-width: 620px; font-size: clamp(2.4rem, 6vw, 5rem); }
 .login-card { display: grid; gap: 9px; }
@@ -1436,6 +1455,13 @@ body.screen-locked { overflow: hidden; }
   .inline-rule-editor { padding: 18px 14px; }
   .inline-rule-editor__actions { align-items: stretch; flex-direction: column-reverse; }
   .inline-rule-editor__actions .button { width: 100%; }
+  .installment-rate-editor { padding: 14px; }
+  .installment-rate-row {
+    grid-template-columns: 1fr;
+    padding-bottom: 14px;
+    border-bottom: 1px solid var(--line);
+  }
+  .installment-rate-row .button { width: 100%; }
   .messages { top: 72px; right: 16px; }
   .login-panel h1 { font-size: 2.5rem; }
 }

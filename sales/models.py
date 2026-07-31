@@ -286,15 +286,6 @@ class VehicleIncentiveRule(TimeStampedModel):
         default=0,
         validators=[MinValueValidator(0)],
     )
-    installment_disbursement_rate = models.DecimalField(
-        "分期撥款比例（%）",
-        max_digits=5,
-        decimal_places=2,
-        blank=True,
-        null=True,
-        validators=[MinValueValidator(0), MaxValueValidator(100)],
-        help_text="分期訂單以車款售價乘上此比例計算實際撥款。",
-    )
     announced_on = models.DateField("公告日期", default=timezone.localdate)
     effective_from = models.DateField("生效日期")
     effective_to = models.DateField(
@@ -344,6 +335,39 @@ class VehicleIncentiveRule(TimeStampedModel):
 
     def __str__(self):
         return f"{self.vehicle_model}／{self.effective_from:%Y/%m/%d}"
+
+
+class VehicleIncentiveInstallmentRate(TimeStampedModel):
+    incentive_rule = models.ForeignKey(
+        VehicleIncentiveRule,
+        on_delete=models.CASCADE,
+        related_name="installment_rates",
+        verbose_name="獎勵補助版本",
+    )
+    periods = models.PositiveSmallIntegerField(
+        "分期期數",
+        validators=[MinValueValidator(1)],
+    )
+    rate = models.DecimalField(
+        "實際撥款比例（%）",
+        max_digits=5,
+        decimal_places=2,
+        validators=[MinValueValidator(0), MaxValueValidator(100)],
+    )
+
+    class Meta:
+        ordering = ["periods", "id"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["incentive_rule", "periods"],
+                name="unique_incentive_installment_periods",
+            )
+        ]
+        verbose_name = "分期期數撥款比例"
+        verbose_name_plural = "分期期數撥款比例"
+
+    def __str__(self):
+        return f"{self.periods} 期／{self.rate}%"
 
 
 class VehicleColor(TimeStampedModel):
@@ -1176,6 +1200,26 @@ class OrderOperationsProfile(TimeStampedModel):
         on_delete=models.SET_NULL,
         related_name="order_snapshots",
         verbose_name="套用獎勵補助版本",
+        blank=True,
+        null=True,
+    )
+    incentive_installment_rate_rule = models.ForeignKey(
+        VehicleIncentiveInstallmentRate,
+        on_delete=models.SET_NULL,
+        related_name="order_snapshots",
+        verbose_name="套用分期期數比例",
+        blank=True,
+        null=True,
+    )
+    incentive_installment_periods = models.PositiveSmallIntegerField(
+        "撥款認列分期期數",
+        blank=True,
+        null=True,
+    )
+    incentive_installment_rate = models.DecimalField(
+        "撥款認列比例（%）",
+        max_digits=5,
+        decimal_places=2,
         blank=True,
         null=True,
     )

@@ -31,7 +31,14 @@
     </div>
     <div class="note-box">
       <strong>實際撥款計算</strong>
-      <p>現金依車款售價自動帶入；分期依領牌日適用版本的撥款比例計算；網路平台與刷卡訂單由人員輸入。人工修改後不再被系統覆蓋。</p>
+      <p>現金依車款售價自動帶入；分期依領牌日適用版本及訂單期數計算；網路平台與刷卡訂單由人員輸入。人工修改後不再被系統覆蓋。</p>
+      {% if order.payment_type == "installment" %}
+        {% if profile.incentive_installment_rate %}
+        <p><strong>本單套用：</strong>{{ profile.incentive_installment_periods }} 期 × {{ profile.incentive_installment_rate }}%</p>
+        {% elif profile.incentive_rule %}
+        <p class="field-error">目前版本尚未維護 {{ order.installment_periods }} 期撥款比例，請先至車型資料補設定，或人工輸入實際撥款。</p>
+        {% endif %}
+      {% endif %}
     </div>
     <details class="system-payment-records">
       <summary><strong>系統應收摘要</strong><span>訂金、尾款與分期撥款；需要確認收款時再展開</span></summary>

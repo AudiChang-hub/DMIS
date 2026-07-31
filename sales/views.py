@@ -41,6 +41,7 @@ from .forms import (
     SubsidyDocumentUploadForm,
     VehicleInventoryForm,
     VehicleColorMasterFormSet,
+    VehicleIncentiveInstallmentRateFormSet,
     VehicleIncentiveRuleForm,
     VehicleModelMasterForm,
     VehicleSettlementCostRuleForm,
@@ -2130,9 +2131,12 @@ def _vehicle_model_form_view(request, instance=None):
 
     incentive_rules = VehicleIncentiveRule.objects.none()
     incentive_form = None
+    incentive_rate_formset = None
     editing_incentive_rule = None
     if is_editing:
-        incentive_rules = instance.incentive_rules.order_by("-effective_from", "-id")
+        incentive_rules = instance.incentive_rules.prefetch_related(
+            "installment_rates"
+        ).order_by("-effective_from", "-id")
         requested_rule_id = (
             request.POST.get("rule_id")
             if request.method == "POST" and action in {"save_incentive", "delete_incentive"}
@@ -2155,21 +2159,44 @@ def _vehicle_model_form_view(request, instance=None):
                 messages.success(request, "獎勵補助版本已刪除。")
             return redirect(f"{reverse('vehicle_model_edit', args=[instance.pk])}#incentive-rules")
 
+        incentive_instance = editing_incentive_rule or VehicleIncentiveRule(
+            vehicle_model=instance
+        )
+        incentive_post = (
+            request.POST
+            if request.method == "POST" and action == "save_incentive"
+            else None
+        )
         incentive_form = VehicleIncentiveRuleForm(
-            request.POST if request.method == "POST" and action == "save_incentive" else None,
-            instance=editing_incentive_rule,
+            incentive_post,
+            instance=incentive_instance,
             prefix="incentive",
         )
         incentive_form.fields.pop("vehicle_model")
-        if request.method == "POST" and action == "save_incentive" and incentive_form.is_valid():
-            rule = incentive_form.save(commit=False)
-            rule.vehicle_model = instance
-            rule.save()
+        incentive_rate_formset = VehicleIncentiveInstallmentRateFormSet(
+            incentive_post,
+            instance=incentive_instance,
+            prefix="rates",
+        )
+        if (
+            request.method == "POST"
+            and action == "save_incentive"
+            and incentive_form.is_valid()
+            and incentive_rate_formset.is_valid()
+        ):
+            with transaction.atomic():
+                rule = incentive_form.save(commit=False)
+                rule.vehicle_model = instance
+                rule.save()
+                incentive_rate_formset.instance = rule
+                incentive_rate_formset.save()
             messages.success(
                 request,
                 f"已{'更新' if editing_incentive_rule else '新增'}獎勵補助版本。",
             )
-            return redirect(f"{reverse('vehicle_model_edit', args=[instance.pk])}#incentive-rules")
+            return redirect(
+                f"{reverse('vehicle_model_edit', args=[instance.pk])}#incentive-rules"
+            )
 
     if (
         request.method == "POST"
@@ -2196,6 +2223,7 @@ def _vehicle_model_form_view(request, instance=None):
             "is_editing": is_editing,
             "incentive_rules": incentive_rules,
             "incentive_form": incentive_form,
+            "incentive_rate_formset": incentive_rate_formset,
             "editing_incentive_rule": editing_incentive_rule,
         },
     )
@@ -2307,7 +2335,9 @@ def settlement_cost_rule_delete(request, pk):
 @login_required
 def incentive_rule_list(request):
     keyword = request.GET.get("q", "").strip()
-    rules = VehicleIncentiveRule.objects.select_related("vehicle_model")
+    rules = VehicleIncentiveRule.objects.select_related(
+        "vehicle_model"
+    ).prefetch_related("installment_rates")
     if keyword:
         rules = rules.filter(
             Q(vehicle_model__brand__icontains=keyword)
@@ -2335,8 +2365,16 @@ def incentive_rule_list(request):
 
 def _incentive_rule_form_view(request, instance=None):
     form = VehicleIncentiveRuleForm(request.POST or None, instance=instance)
-    if request.method == "POST" and form.is_valid():
-        rule = form.save()
+    rate_formset = VehicleIncentiveInstallmentRateFormSet(
+        request.POST or None,
+        instance=instance,
+        prefix="rates",
+    )
+    if request.method == "POST" and form.is_valid() and rate_formset.is_valid():
+        with transaction.atomic():
+            rule = form.save()
+            rate_formset.instance = rule
+            rate_formset.save()
         messages.success(
             request,
             f"已{'更新' if instance else '建立'}獎勵補助版本：{rule}",
@@ -2349,6 +2387,7 @@ def _incentive_rule_form_view(request, instance=None):
             "form": form,
             "rule": instance,
             "is_editing": instance is not None,
+            "rate_formset": rate_formset,
         },
     )
 

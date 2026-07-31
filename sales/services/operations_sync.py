@@ -8,6 +8,11 @@ def _money(value):
     return value or Decimal("0")
 
 
+def _sync_financial_field(profile, field_name, value):
+    if field_name not in (profile.manual_financial_fields or []):
+        setattr(profile, field_name, _money(value))
+
+
 def _upsert_system_payment(order, key, defaults):
     from sales.models import PaymentRecord
 
@@ -84,14 +89,52 @@ def sync_order_operations(order_id):
         return None
     profile, _created = OrderOperationsProfile.objects.get_or_create(order=order)
     profile.dealer_name = order.source.name if order.source_id else ""
-    profile.registration_tax_income = max(
+    registration_tax_expense = sum(
+        (
+            _money(order.registration_plate_fee),
+            _money(order.registration_license_fee),
+            _money(order.registration_inspection_fee),
+            _money(order.road_maintenance_fee),
+            _money(order.license_tax_fee),
+        ),
+        Decimal("0"),
+    )
+    registration_tax_income = max(
         _money(order.plate_insurance_fee)
         - _money(order.compulsory_insurance_fee)
         - _money(order.plate_selection_fee),
         Decimal("0"),
     )
-    profile.compulsory_insurance_income = _money(order.compulsory_insurance_fee)
-    profile.plate_selection_income = _money(order.plate_selection_fee)
+    _sync_financial_field(
+        profile,
+        "registration_tax_expense",
+        registration_tax_expense,
+    )
+    _sync_financial_field(
+        profile,
+        "compulsory_insurance_expense",
+        order.compulsory_insurance_fee,
+    )
+    _sync_financial_field(
+        profile,
+        "plate_selection_expense",
+        order.plate_selection_fee,
+    )
+    _sync_financial_field(
+        profile,
+        "registration_tax_income",
+        registration_tax_income,
+    )
+    _sync_financial_field(
+        profile,
+        "compulsory_insurance_income",
+        order.compulsory_insurance_fee,
+    )
+    _sync_financial_field(
+        profile,
+        "plate_selection_income",
+        order.plate_selection_fee,
+    )
     profile.installment_fee_income = (
         _money(order.installment_opening_fee)
         if order.payment_type == SalesOrder.PaymentType.INSTALLMENT

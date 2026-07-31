@@ -962,6 +962,7 @@ def _operations_snapshot(profile):
     for field in profile._meta.fields:
         if field.name in {
             "id", "order", "created_at", "updated_at", "updated_by",
+            "manual_financial_fields",
             "vehicle_control_password_encrypted", "battery_password_encrypted",
         }:
             continue
@@ -980,6 +981,10 @@ def order_operations(request, pk):
     )
     sync_order_operations(order.pk)
     profile = OrderOperationsProfile.objects.get(order=order)
+    financial_before = {
+        field_name: getattr(profile, field_name)
+        for field_name in profile.MANUAL_PROTECTABLE_FINANCIAL_FIELDS
+    }
     before = _operations_snapshot(profile)
     form = OrderOperationsForm(
         request.POST or None,
@@ -995,6 +1000,13 @@ def order_operations(request, pk):
     if request.method == "POST" and form.is_valid() and payment_formset.is_valid():
         with transaction.atomic():
             profile = form.save(commit=False)
+            protected_fields = set(profile.manual_financial_fields or [])
+            protected_fields.update(
+                field_name
+                for field_name, original_value in financial_before.items()
+                if form.cleaned_data.get(field_name) != original_value
+            )
+            profile.manual_financial_fields = sorted(protected_fields)
             vehicle_secret = form.cleaned_data.get("vehicle_control_password")
             battery_secret = form.cleaned_data.get("battery_password")
             if vehicle_secret:
@@ -1045,6 +1057,7 @@ def order_operations(request, pk):
             "profile": profile,
             "form": form,
             "payment_formset": payment_formset,
+            "manual_financial_fields": profile.manual_financial_fields or [],
             "is_electric": order.vehicle_model.energy_type
             != VehicleModel.EnergyType.GAS,
         },

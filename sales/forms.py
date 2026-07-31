@@ -772,6 +772,12 @@ class OrderOperationsForm(forms.ModelForm):
         exclude = [
             "order",
             "vehicle_cost_manual",
+            "vehicle_cost_rule",
+            "vehicle_cost_registration_date",
+            "vehicle_cost_county",
+            "vehicle_cost_locked_at",
+            "vehicle_cost_locked_by",
+            "manual_financial_fields",
             "vehicle_control_password_encrypted",
             "battery_password_encrypted",
             "updated_by",
@@ -793,9 +799,6 @@ class OrderOperationsForm(forms.ModelForm):
             "dealer_name",
             "actual_disbursement",
             "vehicle_cost",
-            "registration_tax_income",
-            "compulsory_insurance_income",
-            "plate_selection_income",
             "installment_fee_income",
             "installment_info",
             "payment_confirmed",
@@ -808,6 +811,17 @@ class OrderOperationsForm(forms.ModelForm):
                 field.help_text = "由訂單或收款紀錄自動同步。"
             if isinstance(field, forms.DecimalField):
                 field.required = False
+                if name in {
+                    "registration_tax_expense",
+                    "compulsory_insurance_expense",
+                    "plate_selection_expense",
+                    "registration_tax_income",
+                    "compulsory_insurance_income",
+                    "plate_selection_income",
+                }:
+                    field.help_text = (
+                        "系統會先帶入，可人工修改；修改後不再被訂單同步覆蓋。"
+                    )
                 if not self.is_bound and self.initial.get(name) in (None, 0, Decimal("0")):
                     self.initial[name] = ""
         apply_mobile_keyboard_attrs(self)

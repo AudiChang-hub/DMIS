@@ -2115,9 +2115,11 @@ def vehicle_model_list(request):
 
 def _vehicle_model_form_view(request, instance=None):
     is_editing = instance is not None
-    form = VehicleModelMasterForm(request.POST or None, instance=instance)
+    action = request.POST.get("action", "save_model")
+    model_post = request.POST if request.method == "POST" and action == "save_model" else None
+    form = VehicleModelMasterForm(model_post, instance=instance)
     color_formset = VehicleColorMasterFormSet(
-        request.POST or None,
+        model_post,
         instance=instance,
         prefix="colors",
     )
@@ -2125,7 +2127,56 @@ def _vehicle_model_form_view(request, instance=None):
     # 需要更多顏色再由使用者按「新增顏色」。
     if is_editing:
         color_formset.extra = 0
-    if request.method == "POST" and form.is_valid() and color_formset.is_valid():
+
+    incentive_rules = VehicleIncentiveRule.objects.none()
+    incentive_form = None
+    editing_incentive_rule = None
+    if is_editing:
+        incentive_rules = instance.incentive_rules.order_by("-effective_from", "-id")
+        requested_rule_id = (
+            request.POST.get("rule_id")
+            if request.method == "POST" and action in {"save_incentive", "delete_incentive"}
+            else request.GET.get("edit_incentive")
+        )
+        if requested_rule_id:
+            editing_incentive_rule = get_object_or_404(
+                instance.incentive_rules,
+                pk=requested_rule_id,
+            )
+
+        if request.method == "POST" and action == "delete_incentive":
+            if editing_incentive_rule.order_snapshots.exists():
+                messages.error(
+                    request,
+                    "此版本已被領牌訂單採用，為保留財務依據不能刪除；請改為停用。",
+                )
+            else:
+                editing_incentive_rule.delete()
+                messages.success(request, "獎勵補助版本已刪除。")
+            return redirect(f"{reverse('vehicle_model_edit', args=[instance.pk])}#incentive-rules")
+
+        incentive_form = VehicleIncentiveRuleForm(
+            request.POST if request.method == "POST" and action == "save_incentive" else None,
+            instance=editing_incentive_rule,
+            prefix="incentive",
+        )
+        incentive_form.fields.pop("vehicle_model")
+        if request.method == "POST" and action == "save_incentive" and incentive_form.is_valid():
+            rule = incentive_form.save(commit=False)
+            rule.vehicle_model = instance
+            rule.save()
+            messages.success(
+                request,
+                f"已{'更新' if editing_incentive_rule else '新增'}獎勵補助版本。",
+            )
+            return redirect(f"{reverse('vehicle_model_edit', args=[instance.pk])}#incentive-rules")
+
+    if (
+        request.method == "POST"
+        and action == "save_model"
+        and form.is_valid()
+        and color_formset.is_valid()
+    ):
         with transaction.atomic():
             vehicle_model = form.save()
             color_formset.instance = vehicle_model
@@ -2143,6 +2194,9 @@ def _vehicle_model_form_view(request, instance=None):
             "color_formset": color_formset,
             "vehicle_model": instance,
             "is_editing": is_editing,
+            "incentive_rules": incentive_rules,
+            "incentive_form": incentive_form,
+            "editing_incentive_rule": editing_incentive_rule,
         },
     )
 

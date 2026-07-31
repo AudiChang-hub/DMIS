@@ -13,13 +13,14 @@
   {% if is_editing %}
   <div class="hero-actions">
     <a class="button ghost" href="{% url 'settlement_cost_rule_list' %}?q={{ vehicle_model.model_number|urlencode }}">成本版本</a>
-    <a class="button ghost" href="{% url 'incentive_rule_list' %}?q={{ vehicle_model.model_number|urlencode }}">獎勵與補助</a>
+    <a class="button ghost" href="#incentive-rules">獎勵與補助</a>
   </div>
   {% endif %}
 </section>
 
 <form method="post" class="master-model-form">
   {% csrf_token %}
+  <input type="hidden" name="action" value="save_model">
   {{ color_formset.management_form }}
   {% if form.non_field_errors or color_formset.non_form_errors %}
   <div class="message error">{{ form.non_field_errors }}{{ color_formset.non_form_errors }}</div>
@@ -58,11 +59,69 @@
     </template>
     <button type="button" class="button ghost master-color-add" id="add-master-color">＋ 新增顏色</button>
   </section>
-  <div class="form-actions master-model-actions">
+  <div class="form-actions master-model-actions vehicle-model-save-actions">
     <a class="button ghost" href="{% url 'vehicle_model_list' %}">取消</a>
     <button class="button primary" type="submit">儲存車型</button>
   </div>
 </form>
+
+{% if is_editing %}
+<section class="card master-model-section" id="incentive-rules">
+  <div class="section-heading">
+    <div>
+      <p class="eyebrow">依實際領牌日套用</p>
+      <h2>獎勵、補助與分期撥款</h2>
+    </div>
+    <a class="button ghost small" href="{% url 'incentive_rule_list' %}?q={{ vehicle_model.model_number|urlencode }}">查看全部車型版本</a>
+  </div>
+
+  <div class="inventory-table-wrap">
+    <table class="inventory-table settlement-cost-table">
+      <thead>
+        <tr><th>生效期間</th><th>實銷獎勵金</th><th>促銷補助金</th><th>分期補貼息</th><th>分期撥款比例</th><th>狀態</th><th></th></tr>
+      </thead>
+      <tbody>
+        {% for rule in incentive_rules %}
+        <tr>
+          <td data-label="生效期間">{{ rule.effective_from|date:"Y/m/d" }} ～ {% if rule.effective_to %}{{ rule.effective_to|date:"Y/m/d" }}{% else %}持續有效{% endif %}</td>
+          <td data-label="實銷獎勵金">${{ rule.sales_bonus|floatformat:0 }}</td>
+          <td data-label="促銷補助金">${{ rule.promotion_subsidy|floatformat:0 }}</td>
+          <td data-label="分期補貼息">${{ rule.installment_interest_subsidy|floatformat:0 }}</td>
+          <td data-label="分期撥款比例">{% if rule.installment_disbursement_rate != None %}{{ rule.installment_disbursement_rate }}%{% else %}人工輸入{% endif %}</td>
+          <td data-label="狀態">{% if rule.active %}<span class="status-pill success">啟用中</span>{% else %}<span class="status-pill muted">已停用</span>{% endif %}</td>
+          <td class="inventory-row-action"><a class="button ghost small" href="?edit_incentive={{ rule.pk }}#incentive-editor">編輯</a></td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="7"><div class="empty-state"><strong>尚未建立版本</strong><p>可直接在下方建立第一筆，不必離開此頁。</p></div></td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <form method="post" class="inline-rule-editor" id="incentive-editor">
+    {% csrf_token %}
+    <input type="hidden" name="action" value="save_incentive">
+    {% if editing_incentive_rule %}<input type="hidden" name="rule_id" value="{{ editing_incentive_rule.pk }}">{% endif %}
+    <div class="section-heading inline-rule-editor__heading">
+      <div>
+        <p class="eyebrow">{% if editing_incentive_rule %}修改既有版本{% else %}直接新增{% endif %}</p>
+        <h2>{% if editing_incentive_rule %}編輯 {{ editing_incentive_rule.effective_from|date:"Y/m/d" }} 版本{% else %}新增獎勵補助版本{% endif %}</h2>
+      </div>
+      {% if editing_incentive_rule %}<a class="button ghost small" href="{% url 'vehicle_model_edit' vehicle_model.pk %}#incentive-editor">取消編輯</a>{% endif %}
+    </div>
+    {% if incentive_form.non_field_errors %}<div class="message error">{{ incentive_form.non_field_errors }}</div>{% endif %}
+    <div class="form-grid master-model-grid">
+      {% for field in incentive_form %}{% include "sales/_field.html" with field=field %}{% endfor %}
+    </div>
+    <div class="form-actions inline-rule-editor__actions">
+      {% if editing_incentive_rule %}
+      <button class="button danger-outline" type="submit" name="action" value="delete_incentive" onclick="return confirm('確定刪除此版本？已被訂單採用的版本不會允許刪除。');">刪除此版本</button>
+      {% endif %}
+      <button class="button primary" type="submit">{% if editing_incentive_rule %}儲存版本修改{% else %}新增版本{% endif %}</button>
+    </div>
+  </form>
+</section>
+{% endif %}
 {% endblock %}
 {% block scripts %}
 <script>

@@ -3,7 +3,7 @@ from decimal import Decimal
 
 from django.conf import settings
 from django.core.exceptions import ValidationError
-from django.core.validators import MinValueValidator
+from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models, transaction
 from django.utils import timezone
 
@@ -256,6 +256,94 @@ class VehicleSettlementCostRule(TimeStampedModel):
             f"{self.vehicle_model}／{self.area_label}／"
             f"{self.effective_from:%Y/%m/%d}／{self.amount:.0f} 元"
         )
+
+
+class VehicleIncentiveRule(TimeStampedModel):
+    vehicle_model = models.ForeignKey(
+        VehicleModel,
+        on_delete=models.PROTECT,
+        related_name="incentive_rules",
+        verbose_name="車型",
+    )
+    sales_bonus = models.DecimalField(
+        "實銷獎勵金",
+        max_digits=12,
+        decimal_places=0,
+        default=0,
+        validators=[MinValueValidator(0)],
+    )
+    promotion_subsidy = models.DecimalField(
+        "促銷補助金",
+        max_digits=12,
+        decimal_places=0,
+        default=0,
+        validators=[MinValueValidator(0)],
+    )
+    installment_interest_subsidy = models.DecimalField(
+        "分期補貼息",
+        max_digits=12,
+        decimal_places=0,
+        default=0,
+        validators=[MinValueValidator(0)],
+    )
+    installment_disbursement_rate = models.DecimalField(
+        "分期撥款比例（%）",
+        max_digits=5,
+        decimal_places=2,
+        blank=True,
+        null=True,
+        validators=[MinValueValidator(0), MaxValueValidator(100)],
+        help_text="分期訂單以車款售價乘上此比例計算實際撥款。",
+    )
+    announced_on = models.DateField("公告日期", default=timezone.localdate)
+    effective_from = models.DateField("生效日期")
+    effective_to = models.DateField(
+        "結束日期",
+        blank=True,
+        null=True,
+        help_text="可留空，代表持續有效；有較新版本時會優先採用新版本。",
+    )
+    note = models.TextField("備註", blank=True)
+    active = models.BooleanField("啟用中", default=True)
+
+    class Meta:
+        ordering = ["vehicle_model", "-effective_from", "-id"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["vehicle_model", "effective_from"],
+                name="unique_incentive_rule_start",
+            )
+        ]
+        indexes = [
+            models.Index(
+                fields=["vehicle_model", "effective_from"],
+                name="incentive_rule_lookup",
+            )
+        ]
+        verbose_name = "車型獎勵補助規則"
+        verbose_name_plural = "車型獎勵補助規則"
+
+    @property
+    def lifecycle_status(self):
+        today = timezone.localdate()
+        if not self.active:
+            return "inactive", "已停用"
+        if self.effective_from > today:
+            return "scheduled", "預定生效"
+        if self.effective_to and self.effective_to < today:
+            return "expired", "已失效"
+        return "active", "生效中"
+
+    def clean(self):
+        if self.effective_to and self.effective_to < self.effective_from:
+            raise ValidationError({"effective_to": "結束日期不可早於生效日期。"})
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        return super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"{self.vehicle_model}／{self.effective_from:%Y/%m/%d}"
 
 
 class VehicleColor(TimeStampedModel):
@@ -1029,6 +1117,10 @@ class OrderOperationsProfile(TimeStampedModel):
         "registration_tax_income",
         "compulsory_insurance_income",
         "plate_selection_income",
+        "sales_bonus",
+        "promotion_subsidy",
+        "installment_interest_subsidy",
+        "actual_disbursement",
     )
 
     class AgencyStatus(models.TextChoices):
@@ -1076,6 +1168,29 @@ class OrderOperationsProfile(TimeStampedModel):
     )
     vehicle_cost_locked_by = models.CharField(
         "成本鎖定人員",
+        max_length=150,
+        blank=True,
+    )
+    incentive_rule = models.ForeignKey(
+        VehicleIncentiveRule,
+        on_delete=models.SET_NULL,
+        related_name="order_snapshots",
+        verbose_name="套用獎勵補助版本",
+        blank=True,
+        null=True,
+    )
+    incentive_registration_date = models.DateField(
+        "獎勵補助認列領牌日",
+        blank=True,
+        null=True,
+    )
+    incentive_locked_at = models.DateTimeField(
+        "獎勵補助鎖定時間",
+        blank=True,
+        null=True,
+    )
+    incentive_locked_by = models.CharField(
+        "獎勵補助鎖定人員",
         max_length=150,
         blank=True,
     )
@@ -1136,19 +1251,24 @@ class OrderOperationsProfile(TimeStampedModel):
     INCOME_FIELDS = (
         "registration_tax_income", "compulsory_insurance_income",
         "agency_fee_income", "plate_selection_income", "installment_fee_income",
-        "card_fee_income", "other_income", "sales_bonus", "promotion_subsidy",
-        "insurance_commission", "credit_card_commission",
+        "card_fee_income", "other_income",
     )
     EXPENSE_FIELDS = (
-        "vehicle_cost", "registration_tax_expense",
+        "registration_tax_expense",
         "compulsory_insurance_expense", "plate_selection_expense",
         "gift_shipping_expense", "dealer_commission_expense",
+    )
+    INCENTIVE_FIELDS = (
+        "sales_bonus",
+        "promotion_subsidy",
         "installment_interest_subsidy",
+        "insurance_commission",
+        "credit_card_commission",
     )
 
     @property
     def total_income(self):
-        return self.order.vehicle_price + sum(
+        return sum(
             (getattr(self, field) or Decimal("0") for field in self.INCOME_FIELDS),
             Decimal("0"),
         )
@@ -1162,7 +1282,20 @@ class OrderOperationsProfile(TimeStampedModel):
 
     @property
     def net_profit(self):
-        return self.total_income - self.total_expense
+        incentive_total = sum(
+            (
+                getattr(self, field) or Decimal("0")
+                for field in self.INCENTIVE_FIELDS
+            ),
+            Decimal("0"),
+        )
+        return (
+            (self.actual_disbursement or Decimal("0"))
+            - (self.vehicle_cost or Decimal("0"))
+            - self.total_expense
+            + self.total_income
+            + incentive_total
+        )
 
     @property
     def total_received(self):

@@ -8,10 +8,11 @@
   <div>
     <p class="eyebrow">訂單與庫存共用資料</p>
     <h1>車型資料</h1>
-    <p class="muted">維護品牌、能源別、機種、型號、年份、型式、顏色、排氣量與售價；代銷成本於領牌後依版本認列。</p>
+    <p class="muted">維護品牌、能源別、機種、型號、年份、型式、顏色與售價；成本、獎勵及補助依領牌日認列。</p>
   </div>
   <div class="hero-actions">
     <a class="button ghost" href="{% url 'settlement_cost_rule_list' %}">代銷結算成本</a>
+    <a class="button ghost" href="{% url 'incentive_rule_list' %}">獎勵與補助</a>
     <a class="button primary" href="{% url 'vehicle_model_create' %}">＋ 新增車型</a>
   </div>
 </section>
@@ -46,7 +47,7 @@
   <div class="inventory-list-summary"><strong>共 {{ page_obj.paginator.count }} 個車型版本</strong></div>
   <div class="inventory-table-wrap">
     <table class="inventory-table master-model-table">
-      <thead><tr><th>品牌／機種</th><th>型號</th><th>年份／型式</th><th>能源別</th><th>排氣量</th><th>建議售價</th><th>成本版本</th><th>顏色</th><th>庫存</th><th>狀態</th><th></th></tr></thead>
+      <thead><tr><th>品牌／機種</th><th>型號</th><th>年份／型式</th><th>能源別</th><th>排氣量</th><th>建議售價</th><th>成本版本</th><th>獎勵補助</th><th>顏色</th><th>庫存</th><th>狀態</th><th></th></tr></thead>
       <tbody>
         {% for item in vehicle_models %}
         <tr>
@@ -57,13 +58,14 @@
           <td data-label="排氣量">{% if item.displacement_cc %}{{ item.displacement_cc }} c.c.{% else %}—{% endif %}</td>
           <td data-label="建議售價">{% if item.suggested_price is not None %}${{ item.suggested_price|floatformat:0 }}{% else %}未填寫{% endif %}</td>
           <td data-label="成本版本"><a href="{% url 'settlement_cost_rule_list' %}?q={{ item.model_number|urlencode }}">{{ item.settlement_rule_count }} 筆</a></td>
+          <td data-label="獎勵補助"><a href="{% url 'incentive_rule_list' %}?q={{ item.model_number|urlencode }}">{{ item.incentive_rule_count }} 筆</a></td>
           <td data-label="顏色">{{ item.color_count }} 種</td>
           <td data-label="庫存"><strong>{{ item.available_count }} 台可售</strong><span>共 {{ item.inventory_count }} 台</span></td>
           <td data-label="狀態"><span class="status-pill">{{ item.active|yesno:"啟用中,已停用" }}</span></td>
           <td class="inventory-row-action"><a class="button ghost small" href="{% url 'vehicle_model_edit' item.pk %}">編輯</a></td>
         </tr>
         {% empty %}
-        <tr><td colspan="11"><div class="empty-state"><strong>尚無符合條件的車型</strong></div></td></tr>
+        <tr><td colspan="12"><div class="empty-state"><strong>尚無符合條件的車型</strong></div></td></tr>
         {% endfor %}
       </tbody>
     </table>

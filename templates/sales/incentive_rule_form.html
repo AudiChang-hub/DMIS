@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}{% if is_editing %}編輯{% else %}新增{% endif %}獎勵補助版本｜車輛銷售管理{% endblock %}
+{% block page_class %}page-shell--form{% endblock %}
+{% block content %}
+{% url 'incentive_rule_list' as incentive_list_url %}
+{% include "sales/_page_back.html" with fallback_url=incentive_list_url label="返回車型獎勵與補助" %}
+<section class="hero-row compact-hero">
+  <div>
+    <p class="eyebrow">車型版本維護</p>
+    <h1>{% if is_editing %}編輯獎勵補助版本{% else %}新增獎勵補助版本{% endif %}</h1>
+    <p class="muted">版本依實際領牌日期套用；結束日期留空代表持續有效，較新的生效版本會優先。</p>
+  </div>
+</section>
+<form method="post" class="master-model-form">
+  {% csrf_token %}
+  {% if form.non_field_errors %}<div class="message error">{{ form.non_field_errors }}</div>{% endif %}
+  <section class="card master-model-section">
+    <div class="section-heading"><div><p class="eyebrow">適用條件與金額</p><h2>車型獎勵補助規則</h2></div></div>
+    <div class="form-grid master-model-grid">
+      {% for field in form %}{% include "sales/_field.html" with field=field %}{% endfor %}
+    </div>
+    <div class="note-box">
+      <strong>歷史資料保護</strong>
+      <p>領牌完成時會將金額固定於訂單。之後新增或修改車型版本，不會改動已完成訂單的損益資料。</p>
+    </div>
+  </section>
+  <div class="form-actions master-model-actions">
+    {% if is_editing %}<button class="button danger-outline" type="submit" form="delete-incentive-rule">刪除此版本</button>{% endif %}
+    <a class="button ghost" href="{% url 'incentive_rule_list' %}">取消</a>
+    <button class="button primary" type="submit">儲存獎勵補助版本</button>
+  </div>
+</form>
+{% if is_editing %}
+<form id="delete-incentive-rule" method="post" action="{% url 'incentive_rule_delete' rule.pk %}" onsubmit="return confirm('確定刪除此版本？已被訂單採用的版本不會允許刪除。');">{% csrf_token %}</form>
+{% endif %}
+{% endblock %}

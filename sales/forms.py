@@ -18,6 +18,7 @@ from .models import (
     SubsidyDocument,
     VehicleColor,
     VehicleInventory,
+    VehicleIncentiveRule,
     VehicleModel,
     VehicleSettlementCostRule,
 )
@@ -699,6 +700,47 @@ class VehicleSettlementCostRuleForm(forms.ModelForm):
             field.widget.attrs.setdefault("class", "form-control")
         apply_mobile_keyboard_attrs(self)
 
+
+class VehicleIncentiveRuleForm(forms.ModelForm):
+    class Meta:
+        model = VehicleIncentiveRule
+        fields = [
+            "vehicle_model",
+            "sales_bonus",
+            "promotion_subsidy",
+            "installment_interest_subsidy",
+            "installment_disbursement_rate",
+            "announced_on",
+            "effective_from",
+            "effective_to",
+            "note",
+            "active",
+        ]
+        widgets = {
+            "sales_bonus": forms.NumberInput(attrs={"inputmode": "numeric"}),
+            "promotion_subsidy": forms.NumberInput(attrs={"inputmode": "numeric"}),
+            "installment_interest_subsidy": forms.NumberInput(
+                attrs={"inputmode": "numeric"}
+            ),
+            "installment_disbursement_rate": forms.NumberInput(
+                attrs={"inputmode": "decimal", "step": "0.01"}
+            ),
+            "announced_on": DateInput(),
+            "effective_from": DateInput(),
+            "effective_to": DateInput(),
+            "note": forms.Textarea(attrs={"rows": 3}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["vehicle_model"].queryset = VehicleModel.objects.filter(
+            active=True
+        ).order_by("brand", "name", "-model_year")
+        for field in self.fields.values():
+            field.widget.attrs.setdefault("class", "form-control")
+        apply_mobile_keyboard_attrs(self)
+
+
 class VehicleColorMasterForm(forms.ModelForm):
     class Meta:
         model = VehicleColor
@@ -777,6 +819,10 @@ class OrderOperationsForm(forms.ModelForm):
             "vehicle_cost_county",
             "vehicle_cost_locked_at",
             "vehicle_cost_locked_by",
+            "incentive_rule",
+            "incentive_registration_date",
+            "incentive_locked_at",
+            "incentive_locked_by",
             "manual_financial_fields",
             "vehicle_control_password_encrypted",
             "battery_password_encrypted",
@@ -797,7 +843,6 @@ class OrderOperationsForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         synced_fields = {
             "dealer_name",
-            "actual_disbursement",
             "vehicle_cost",
             "installment_fee_income",
             "installment_info",
@@ -818,6 +863,10 @@ class OrderOperationsForm(forms.ModelForm):
                     "registration_tax_income",
                     "compulsory_insurance_income",
                     "plate_selection_income",
+                    "sales_bonus",
+                    "promotion_subsidy",
+                    "installment_interest_subsidy",
+                    "actual_disbursement",
                 }:
                     field.help_text = (
                         "系統會先帶入，可人工修改；修改後不再被訂單同步覆蓋。"

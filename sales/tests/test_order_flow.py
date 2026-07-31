@@ -2727,6 +2727,82 @@ class OrderOperationsTests(TestCase):
         self.assertContains(editing, "實銷獎勵金")
         self.assertContains(editing, "結束日期")
 
+    def test_vehicle_model_edit_embeds_incentive_history_and_editor(self):
+        rule = VehicleIncentiveRule.objects.create(
+            vehicle_model=self.model,
+            sales_bonus=Decimal("1500"),
+            effective_from=date(2026, 8, 1),
+        )
+
+        response = self.client.get(
+            reverse("vehicle_model_edit", args=[self.model.pk])
+        )
+        edit_response = self.client.get(
+            reverse("vehicle_model_edit", args=[self.model.pk]),
+            {"edit_incentive": rule.pk},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "獎勵、補助與分期撥款")
+        self.assertContains(response, "新增獎勵補助版本")
+        self.assertContains(response, "1500")
+        self.assertNotContains(
+            response,
+            reverse("incentive_rule_create"),
+        )
+        self.assertContains(edit_response, "編輯 2026/08/01 版本")
+
+    def test_vehicle_model_edit_can_create_and_update_incentive_inline(self):
+        edit_url = reverse("vehicle_model_edit", args=[self.model.pk])
+        create_response = self.client.post(
+            edit_url,
+            {
+                "action": "save_incentive",
+                "incentive-sales_bonus": "1800",
+                "incentive-promotion_subsidy": "2200",
+                "incentive-installment_interest_subsidy": "900",
+                "incentive-installment_disbursement_rate": "92.5",
+                "incentive-announced_on": "2026-07-20",
+                "incentive-effective_from": "2026-08-01",
+                "incentive-effective_to": "",
+                "incentive-note": "八月版本",
+                "incentive-active": "on",
+            },
+        )
+
+        rule = VehicleIncentiveRule.objects.get(vehicle_model=self.model)
+        self.assertRedirects(
+            create_response,
+            f"{edit_url}#incentive-rules",
+        )
+        self.assertEqual(rule.sales_bonus, Decimal("1800"))
+        self.assertEqual(rule.installment_disbursement_rate, Decimal("92.5"))
+
+        update_response = self.client.post(
+            edit_url,
+            {
+                "action": "save_incentive",
+                "rule_id": rule.pk,
+                "incentive-sales_bonus": "2000",
+                "incentive-promotion_subsidy": "2200",
+                "incentive-installment_interest_subsidy": "900",
+                "incentive-installment_disbursement_rate": "93",
+                "incentive-announced_on": "2026-07-20",
+                "incentive-effective_from": "2026-08-01",
+                "incentive-effective_to": "",
+                "incentive-note": "更新版本",
+                "incentive-active": "on",
+            },
+        )
+
+        self.assertRedirects(
+            update_response,
+            f"{edit_url}#incentive-rules",
+        )
+        rule.refresh_from_db()
+        self.assertEqual(rule.sales_bonus, Decimal("2000"))
+        self.assertEqual(rule.installment_disbursement_rate, Decimal("93"))
+
     def test_settlement_cost_maintenance_pages_are_available(self):
         rule = VehicleSettlementCostRule.objects.create(
             vehicle_model=self.model,

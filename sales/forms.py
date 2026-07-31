@@ -18,6 +18,7 @@ from .models import (
     SubsidyDocument,
     VehicleColor,
     VehicleInventory,
+    VehicleIncentiveInstallmentRate,
     VehicleIncentiveRule,
     VehicleModel,
     VehicleSettlementCostRule,
@@ -709,7 +710,6 @@ class VehicleIncentiveRuleForm(forms.ModelForm):
             "sales_bonus",
             "promotion_subsidy",
             "installment_interest_subsidy",
-            "installment_disbursement_rate",
             "announced_on",
             "effective_from",
             "effective_to",
@@ -721,9 +721,6 @@ class VehicleIncentiveRuleForm(forms.ModelForm):
             "promotion_subsidy": forms.NumberInput(attrs={"inputmode": "numeric"}),
             "installment_interest_subsidy": forms.NumberInput(
                 attrs={"inputmode": "numeric"}
-            ),
-            "installment_disbursement_rate": forms.NumberInput(
-                attrs={"inputmode": "decimal", "step": "0.01"}
             ),
             "announced_on": DateInput(),
             "effective_from": DateInput(),
@@ -739,6 +736,59 @@ class VehicleIncentiveRuleForm(forms.ModelForm):
         for field in self.fields.values():
             field.widget.attrs.setdefault("class", "form-control")
         apply_mobile_keyboard_attrs(self)
+
+
+class VehicleIncentiveInstallmentRateForm(forms.ModelForm):
+    class Meta:
+        model = VehicleIncentiveInstallmentRate
+        fields = ["periods", "rate"]
+        widgets = {
+            "periods": forms.NumberInput(attrs={"min": "1", "inputmode": "numeric"}),
+            "rate": forms.NumberInput(
+                attrs={"min": "0", "max": "100", "step": "0.01", "inputmode": "decimal"}
+            ),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        for field in self.fields.values():
+            field.widget.attrs.setdefault("class", "form-control")
+
+
+class BaseVehicleIncentiveInstallmentRateFormSet(BaseInlineFormSet):
+    def clean(self):
+        super().clean()
+        periods_seen = {}
+        for index, form in enumerate(self.forms, start=1):
+            if not hasattr(form, "cleaned_data") or form.cleaned_data.get("DELETE"):
+                rate = form.instance
+                if (
+                    hasattr(form, "cleaned_data")
+                    and form.cleaned_data.get("DELETE")
+                    and rate.pk
+                    and rate.order_snapshots.exists()
+                ):
+                    raise forms.ValidationError(
+                        f"第 {index} 列已被訂單採用，不能刪除；請新增新版規則。"
+                    )
+                continue
+            periods = form.cleaned_data.get("periods")
+            if not periods:
+                continue
+            if periods in periods_seen:
+                form.add_error("periods", f"與第 {periods_seen[periods]} 列期數重複。")
+            else:
+                periods_seen[periods] = index
+
+
+VehicleIncentiveInstallmentRateFormSet = inlineformset_factory(
+    VehicleIncentiveRule,
+    VehicleIncentiveInstallmentRate,
+    form=VehicleIncentiveInstallmentRateForm,
+    formset=BaseVehicleIncentiveInstallmentRateFormSet,
+    extra=1,
+    can_delete=True,
+)
 
 
 class VehicleColorMasterForm(forms.ModelForm):
@@ -820,6 +870,9 @@ class OrderOperationsForm(forms.ModelForm):
             "vehicle_cost_locked_at",
             "vehicle_cost_locked_by",
             "incentive_rule",
+            "incentive_installment_rate_rule",
+            "incentive_installment_periods",
+            "incentive_installment_rate",
             "incentive_registration_date",
             "incentive_locked_at",
             "incentive_locked_by",

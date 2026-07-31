@@ -333,9 +333,15 @@
         實銷獎勵 ${{ operations_profile.sales_bonus|floatformat:0 }} ·
         促銷補助 ${{ operations_profile.promotion_subsidy|floatformat:0 }} ·
         分期補貼息 ${{ operations_profile.installment_interest_subsidy|floatformat:0 }}
+        {% if operations_profile.incentive_installment_rate %}
+          · {{ operations_profile.incentive_installment_periods }} 期撥款 {{ operations_profile.incentive_installment_rate }}%
+        {% endif %}
         {% if operations_profile.incentive_locked_at %} · 已固定{% endif %}
       </p>
     </div>
+    {% if order.payment_type == "installment" and not operations_profile.incentive_installment_rate %}
+    <div class="message warning">此版本尚未維護 {{ order.installment_periods }} 期撥款比例；系統不會猜測，請補設定或在營運資料人工輸入實際撥款。</div>
+    {% endif %}
     {% elif order.registration_date %}
     <div class="message warning">此車型目前沒有符合領牌日期的獎勵補助版本，三項金額將以 0 元認列。</div>
     {% endif %}

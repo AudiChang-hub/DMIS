@@ -13,11 +13,36 @@
 </section>
 <form method="post" class="master-model-form">
   {% csrf_token %}
-  {% if form.non_field_errors %}<div class="message error">{{ form.non_field_errors }}</div>{% endif %}
+  {{ rate_formset.management_form }}
+  {% if form.non_field_errors or rate_formset.non_form_errors %}<div class="message error">{{ form.non_field_errors }}{{ rate_formset.non_form_errors }}</div>{% endif %}
   <section class="card master-model-section">
     <div class="section-heading"><div><p class="eyebrow">適用條件與金額</p><h2>車型獎勵補助規則</h2></div></div>
     <div class="form-grid master-model-grid">
       {% for field in form %}{% include "sales/_field.html" with field=field %}{% endfor %}
+    </div>
+    <div class="installment-rate-editor">
+      <div><p class="eyebrow">依期數計算實際撥款</p><h3>分期期數與撥款比例</h3></div>
+      <div id="installment-rate-rows" class="installment-rate-rows">
+        {% for rate_form in rate_formset %}
+        <div class="installment-rate-row" data-rate-row>
+          {{ rate_form.id }}
+          <div>{% include "sales/_field.html" with field=rate_form.periods %}</div>
+          <div>{% include "sales/_field.html" with field=rate_form.rate %}</div>
+          <span hidden>{{ rate_form.DELETE }}</span>
+          <button type="button" class="button danger-outline small" data-delete-rate>{% if rate_form.instance.pk %}刪除此期數{% else %}移除此列{% endif %}</button>
+        </div>
+        {% endfor %}
+      </div>
+      <template id="installment-rate-empty-row">
+        <div class="installment-rate-row" data-rate-row>
+          {{ rate_formset.empty_form.id }}
+          <div>{% include "sales/_field.html" with field=rate_formset.empty_form.periods %}</div>
+          <div>{% include "sales/_field.html" with field=rate_formset.empty_form.rate %}</div>
+          <span hidden>{{ rate_formset.empty_form.DELETE }}</span>
+          <button type="button" class="button danger-outline small" data-delete-rate>移除此列</button>
+        </div>
+      </template>
+      <button type="button" class="button ghost" id="add-installment-rate">＋ 新增期數比例</button>
     </div>
     <div class="note-box">
       <strong>歷史資料保護</strong>
@@ -33,4 +58,31 @@
 {% if is_editing %}
 <form id="delete-incentive-rule" method="post" action="{% url 'incentive_rule_delete' rule.pk %}" onsubmit="return confirm('確定刪除此版本？已被訂單採用的版本不會允許刪除。');">{% csrf_token %}</form>
 {% endif %}
+{% endblock %}
+{% block scripts %}
+<script>
+(() => {
+  const rows = document.getElementById("installment-rate-rows");
+  const total = document.getElementById("id_rates-TOTAL_FORMS");
+  const template = document.getElementById("installment-rate-empty-row");
+  function bind(row) {
+    row.querySelector("[data-delete-rate]").addEventListener("click", () => {
+      const deletion = row.querySelector('[name$="-DELETE"]');
+      if (deletion) deletion.checked = true;
+      row.hidden = true;
+    });
+  }
+  rows.querySelectorAll("[data-rate-row]").forEach(bind);
+  document.getElementById("add-installment-rate").addEventListener("click", () => {
+    const index = Number(total.value);
+    const wrapper = document.createElement("div");
+    wrapper.innerHTML = template.innerHTML.replaceAll("__prefix__", index).trim();
+    const row = wrapper.firstElementChild;
+    rows.appendChild(row);
+    total.value = index + 1;
+    bind(row);
+    row.querySelector('input[type="number"]').focus();
+  });
+})();
+</script>
 {% endblock %}

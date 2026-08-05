@@ -16,6 +16,18 @@
 </section>
 <p class="muted operations-profit-formula">單筆淨利＝實際撥款－成本－總支出＋總收入＋實銷獎勵金＋促銷補助金＋分期補貼息＋強制險傭金＋信用卡傭金</p>
 
+<section class="section-block internal-discount-panel">
+  <div class="section-title"><div><h2>內部折扣核准</h2><small>不出現在建立訂單畫面；核准後才會扣減應收，配件主檔售價與工資快照不會被改寫。</small></div><span class="status-pill">{{ order.get_discount_status_display|default:"未申請" }}</span></div>
+  <div class="discount-summary"><span>目前已套用折扣</span><strong>${{ order.approved_discount_amount|floatformat:0 }}</strong>{% if order.discount_requested_at %}<small>最近申請：{{ order.discount_requested_amount|floatformat:0 }} 元 · {{ order.discount_requested_by }} · {{ order.discount_requested_at|date:"Y/m/d H:i" }}</small>{% endif %}</div>
+  {% if order.is_editable %}
+    {% if order.discount_status == "pending" %}
+    <div class="discount-decision-grid"><div><strong>申請原因</strong><p>{{ order.discount_reason }}</p></div><form method="post" action="{% url 'order_discount_decide' order.pk %}">{% csrf_token %}{{ discount_decision_form.as_p }}<button class="button primary" type="submit">確認處理</button></form></div>
+    {% else %}
+    <form class="form-grid compact-grid" method="post" action="{% url 'order_discount_request' order.pk %}">{% csrf_token %}{% for field in discount_request_form %}<div><label for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}{% for error in field.errors %}<small class="field-error">{{ error }}</small>{% endfor %}</div>{% endfor %}<div><button class="button secondary" type="submit">送出折扣申請</button></div></form>
+    {% endif %}
+  {% endif %}
+</section>
+
 <form method="post" enctype="multipart/form-data" class="operations-form">
   {% csrf_token %}{{ payment_formset.management_form }}
   {% if form.non_field_errors or payment_formset.non_form_errors %}<div class="message error">{{ form.non_field_errors }}{{ payment_formset.non_form_errors }}</div>{% endif %}

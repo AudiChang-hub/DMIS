@@ -1875,6 +1875,26 @@ PositionedPrintFieldFormSet = inlineformset_factory(
 )
 
 
+class DiscountRequestForm(forms.Form):
+    amount = forms.DecimalField(label="折扣金額", max_digits=12, decimal_places=0, min_value=1)
+    reason = forms.CharField(label="申請原因", max_length=250, widget=forms.Textarea(attrs={"rows": 2}))
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        for field in self.fields.values():
+            field.widget.attrs.setdefault("class", "form-control")
+        self.fields["amount"].widget.attrs["inputmode"] = "numeric"
+
+
+class DiscountDecisionForm(forms.Form):
+    decision = forms.ChoiceField(
+        label="處理結果",
+        choices=(("approve", "核准並套用"), ("reject", "不採用")),
+        widget=forms.RadioSelect,
+    )
+    note = forms.CharField(label="確認備註", required=False, max_length=250)
+
+
 class RegistrationDocumentUploadForm(forms.ModelForm):
     class Meta:
         model = RegistrationDocument

@@ -238,11 +238,11 @@
           {{ accessory_form.id }}
           <span hidden>{{ accessory_form.DELETE }}</span>
           <button type="button" class="remove-row-button" data-remove-row aria-label="刪除此筆配件">刪除</button>
-          {% include "sales/_field.html" with field=accessory_form.name %}
+          {% include "sales/_field.html" with field=accessory_form.accessory_product %}
           {% include "sales/_field.html" with field=accessory_form.quantity %}
           {% include "sales/_field.html" with field=accessory_form.line_type %}
           {% include "sales/_field.html" with field=accessory_form.amount %}
-          {% include "sales/_field.html" with field=accessory_form.installed_on %}
+          {% include "sales/_field.html" with field=accessory_form.labor_fee %}
           {% include "sales/_field.html" with field=accessory_form.note %}
         </div>
       {% endfor %}
@@ -252,11 +252,11 @@
           {{ formset.empty_form.id }}
           <span hidden>{{ formset.empty_form.DELETE }}</span>
           <button type="button" class="remove-row-button" data-remove-row aria-label="刪除此筆配件">刪除</button>
-          {% include "sales/_field.html" with field=formset.empty_form.name %}
+          {% include "sales/_field.html" with field=formset.empty_form.accessory_product %}
           {% include "sales/_field.html" with field=formset.empty_form.quantity %}
           {% include "sales/_field.html" with field=formset.empty_form.line_type %}
           {% include "sales/_field.html" with field=formset.empty_form.amount %}
-          {% include "sales/_field.html" with field=formset.empty_form.installed_on %}
+          {% include "sales/_field.html" with field=formset.empty_form.labor_fee %}
           {% include "sales/_field.html" with field=formset.empty_form.note %}
         </div>
       </template>
@@ -298,6 +298,7 @@
 {% endblock %}
 {% block scripts %}
 {{ vehicle_rate_data|json_script:"vehicle-rate-data" }}
+{{ accessory_product_data|json_script:"accessory-product-data" }}
 <script>
 (() => {
   const byId = id => document.getElementById(id);
@@ -317,6 +318,7 @@
   const vehicleEnergyType = byId("id_vehicle_energy_type");
   const color = byId("id_color");
   const vehicleRateData = JSON.parse(byId("vehicle-rate-data").textContent);
+  const accessoryProductData = JSON.parse(byId("accessory-product-data").textContent);
   const registrationDate = byId("id_registration_date");
   const insurancePeriod = byId("id_compulsory_insurance_period");
   const plateSelectionFee = byId("id_plate_selection_fee");
@@ -900,16 +902,26 @@
 
   function refreshAccessoryRequired(row) {
     if (row.classList.contains("is-pending-delete")) return;
-    const nameInput = row.querySelector('[name$="-name"]');
-    const hasName = Boolean(nameInput?.value.trim());
-    row.classList.toggle("has-accessory-name", hasName);
-    row.querySelectorAll('[name$="-quantity"], [name$="-line_type"], [name$="-amount"]')
-      .forEach(input => input.required = hasName);
+    const productInput = row.querySelector('[name$="-accessory_product"]');
+    const hasProduct = Boolean(productInput?.value);
+    row.classList.toggle("has-accessory-name", hasProduct);
+    row.querySelectorAll('[name$="-quantity"], [name$="-line_type"]')
+      .forEach(input => input.required = hasProduct);
+    const product = accessoryProductData[productInput?.value];
+    if (product) {
+      const salePrice = row.querySelector('[name$="-amount"]');
+      const laborFee = row.querySelector('[name$="-labor_fee"]');
+      if (salePrice) salePrice.value = product.sale_price;
+      if (laborFee) laborFee.value = product.labor_fee;
+    }
   }
 
   function bindAccessoryRow(row) {
-    const nameInput = row.querySelector('[name$="-name"]');
-    nameInput?.addEventListener("input", () => refreshAccessoryRequired(row));
+    const productInput = row.querySelector('[name$="-accessory_product"]');
+    productInput?.addEventListener("change", () => {
+      refreshAccessoryRequired(row);
+      scheduleDraft();
+    });
     refreshAccessoryRequired(row);
     bindRemoveRow(row);
   }

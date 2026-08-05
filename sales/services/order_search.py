@@ -60,8 +60,8 @@ RELATED_FIELDS = (
     ("accessories__name", "配件名稱"),
     ("accessories__quantity", "配件數量"),
     ("accessories__line_type", "配件類型"),
-    ("accessories__amount", "配件金額"),
-    ("accessories__installed_on", "配件安裝日期"),
+    ("accessories__amount", "配件售價"),
+    ("accessories__labor_fee", "配件工資"),
     ("accessories__note", "配件備註"),
     ("other_fees__name", "其他費用項目"),
     ("other_fees__amount", "其他費用金額"),
@@ -233,8 +233,8 @@ def build_order_match_summary(order, query):
                 ("配件名稱", "name"),
                 ("配件數量", "quantity"),
                 ("配件類型", "get_line_type_display"),
-                ("配件金額", "amount"),
-                ("配件安裝日期", "installed_on"),
+                ("配件售價", "amount"),
+                ("配件工資", "labor_fee"),
                 ("配件備註", "note"),
             ),
         ),
@@ -363,8 +363,8 @@ def build_order_search_payload(order):
     collections = (
         (order.accessories.all(), (
             ("配件名稱", "name"), ("配件數量", "quantity"),
-            ("配件類型", "get_line_type_display"), ("配件金額", "amount"),
-            ("配件安裝日期", "installed_on"), ("配件備註", "note"),
+            ("配件類型", "get_line_type_display"), ("配件售價", "amount"),
+            ("配件工資", "labor_fee"), ("配件備註", "note"),
         )),
         (order.other_fees.all(), (
             ("其他費用項目", "name"), ("其他費用金額", "amount"),

@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block title %}統一撥款對帳｜車輛銷售管理{% endblock %}
+{% block page_class %}page-shell--wide{% endblock %}
+{% block content %}
+{% url 'operations_report' as operations_url %}
+{% include "sales/_page_back.html" with fallback_url=operations_url label="返回營運總表" %}
+<section class="hero-row compact-hero">
+  <div>
+    <p class="eyebrow">集中核對實際入帳</p>
+    <h1>統一撥款對帳</h1>
+    <p class="muted">只核對分期公司、網路平台與合作車行的預計金額、實際金額及差額；不需逐張進入訂單。</p>
+  </div>
+</section>
+<form class="inventory-filters operations-filters" method="get">
+  <div class="master-search"><label for="reconcile-q">搜尋</label><input id="reconcile-q" name="q" value="{{ selected.q }}" placeholder="訂單、車主、車牌、公司、平台或車行"></div>
+  <div><label for="reconcile-channel">對帳對象</label><select id="reconcile-channel" name="channel"><option value="">全部</option><option value="installment"{% if selected.channel == 'installment' %} selected{% endif %}>分期公司</option><option value="platform"{% if selected.channel == 'platform' %} selected{% endif %}>網路平台</option><option value="dealer"{% if selected.channel == 'dealer' %} selected{% endif %}>合作車行</option></select></div>
+  <div><label for="reconcile-status">確認狀態</label><select id="reconcile-status" name="status"><option value="">全部</option><option value="pending"{% if selected.status == 'pending' %} selected{% endif %}>待確認</option><option value="confirmed"{% if selected.status == 'confirmed' %} selected{% endif %}>已確認</option></select></div>
+  <div><label for="reconcile-from">訂單日期起</label><input id="reconcile-from" type="date" name="date_from" value="{{ selected.date_from }}"></div>
+  <div><label for="reconcile-to">訂單日期迄</label><input id="reconcile-to" type="date" name="date_to" value="{{ selected.date_to }}"></div>
+  <div class="inventory-filter-actions"><a class="button ghost" href="{% url 'reconciliation_list' %}">清除</a><button class="button primary" type="submit">套用</button></div>
+</form>
+<section class="section-block operations-table-shell reconciliation-shell">
+  <div class="section-title"><div><p class="eyebrow">待核對與歷史結果</p><h2>{{ page_obj.paginator.count }} 筆</h2></div><span>待確認優先排列</span></div>
+  <div class="table-scroll">
+    <table class="inventory-table reconciliation-table">
+      <thead><tr><th>訂單／車主</th><th>對帳對象</th><th>預計金額</th><th>實際金額</th><th>差額</th><th>入帳日期</th><th>收款帳戶</th><th>確認</th><th></th></tr></thead>
+      <tbody>
+      {% for record in records %}
+        <tr>
+          <td data-label="訂單／車主"><strong>{{ record.order.owner_name }}</strong><span>{{ record.order.number }} · {{ record.order.order_date|date:"Y/m/d" }}</span></td>
+          <td data-label="對帳對象"><strong>{{ record.reconciliation_party }}</strong><span>{{ record.reconciliation_channel_label }}</span></td>
+          <td data-label="預計金額" class="number-cell">${{ record.expected_amount|floatformat:0 }}</td>
+          <td data-label="實際金額"><input class="form-control reconciliation-money" form="reconciliation-{{ record.pk }}" type="number" min="0" step="1" name="received_amount" value="{{ record.received_amount|floatformat:0 }}" aria-label="{{ record.order.number }} 實際金額"></td>
+          <td data-label="差額" class="number-cell {% if record.reconciliation_difference != 0 %}difference-warning{% endif %}">${{ record.reconciliation_difference|floatformat:0 }}</td>
+          <td data-label="入帳日期"><input class="form-control" form="reconciliation-{{ record.pk }}" type="date" name="received_on" value="{{ record.received_on|date:'Y-m-d' }}"></td>
+          <td data-label="收款帳戶"><input class="form-control" form="reconciliation-{{ record.pk }}" type="text" name="receiving_account" value="{{ record.receiving_account }}"></td>
+          <td data-label="確認"><label class="compact-check"><input form="reconciliation-{{ record.pk }}" type="checkbox" name="confirmed"{% if record.confirmed %} checked{% endif %}><span>{% if record.confirmed %}已確認{% else %}待確認{% endif %}</span></label></td>
+          <td class="inventory-row-action">
+            <form id="reconciliation-{{ record.pk }}" method="post" action="{% url 'reconciliation_update' record.pk %}">{% csrf_token %}<input type="hidden" name="next" value="{{ request.get_full_path }}"><input type="hidden" name="note" value="{{ record.note }}"><button class="button primary small" type="submit">儲存</button></form>
+          </td>
+        </tr>
+      {% empty %}<tr><td colspan="9"><div class="empty-state"><strong>目前沒有符合條件的對帳資料</strong></div></td></tr>{% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% if page_obj.has_other_pages %}<nav class="pagination" aria-label="分頁">{% if page_obj.has_previous %}<a href="?{{ request.GET.urlencode }}&page={{ page_obj.previous_page_number }}">上一頁</a>{% endif %}<span>第 {{ page_obj.number }}／{{ page_obj.paginator.num_pages }} 頁</span>{% if page_obj.has_next %}<a href="?{{ request.GET.urlencode }}&page={{ page_obj.next_page_number }}">下一頁</a>{% endif %}</nav>{% endif %}
+{% endblock %}

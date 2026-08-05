@@ -335,9 +335,7 @@ def draw_order_page(c, order, copy_label, page_number, printed_at):
                             item
                             for item in (
                                 accessory.get_line_type_display(),
-                                f"安裝日期 {accessory.installed_on:%Y-%m-%d}"
-                                if accessory.installed_on
-                                else "",
+                                f"工資 {money(accessory.labor_fee)} 元",
                                 accessory.note,
                             )
                             if item
@@ -345,7 +343,7 @@ def draw_order_page(c, order, copy_label, page_number, printed_at):
                     )
                 ),
                 p(accessory.quantity, center_style),
-                p(money(accessory.amount), right_style),
+                p(money(accessory.amount + accessory.labor_fee), right_style),
                 p(money(accessory.line_total), right_style),
             ]
         )

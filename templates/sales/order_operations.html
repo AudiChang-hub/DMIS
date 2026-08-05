@@ -49,6 +49,9 @@
         {% include "sales/_field.html" with field=payment.item_name %}
         {% include "sales/_field.html" with field=payment.expected_amount %}
         {% include "sales/_field.html" with field=payment.received_amount %}
+        {% include "sales/_field.html" with field=payment.card_principal %}
+        {% include "sales/_field.html" with field=payment.card_fee_charged %}
+        {% include "sales/_field.html" with field=payment.bank_card_fee %}
         {% include "sales/_field.html" with field=payment.received_on %}
         {% include "sales/_field.html" with field=payment.payment_method %}
         {% include "sales/_field.html" with field=payment.receiving_account %}
@@ -69,6 +72,9 @@
         {% include "sales/_field.html" with field=payment.item_name %}
         {% include "sales/_field.html" with field=payment.expected_amount %}
         {% include "sales/_field.html" with field=payment.received_amount %}
+        {% include "sales/_field.html" with field=payment.card_principal %}
+        {% include "sales/_field.html" with field=payment.card_fee_charged %}
+        {% include "sales/_field.html" with field=payment.bank_card_fee %}
         {% include "sales/_field.html" with field=payment.received_on %}
         {% include "sales/_field.html" with field=payment.payment_method %}
         {% include "sales/_field.html" with field=payment.receiving_account %}
@@ -86,6 +92,9 @@
       {% include "sales/_field.html" with field=payment_formset.empty_form.item_name %}
       {% include "sales/_field.html" with field=payment_formset.empty_form.expected_amount %}
       {% include "sales/_field.html" with field=payment_formset.empty_form.received_amount %}
+      {% include "sales/_field.html" with field=payment_formset.empty_form.card_principal %}
+      {% include "sales/_field.html" with field=payment_formset.empty_form.card_fee_charged %}
+      {% include "sales/_field.html" with field=payment_formset.empty_form.bank_card_fee %}
       {% include "sales/_field.html" with field=payment_formset.empty_form.received_on %}
       {% include "sales/_field.html" with field=payment_formset.empty_form.payment_method %}
       {% include "sales/_field.html" with field=payment_formset.empty_form.receiving_account %}
@@ -111,8 +120,10 @@
       <div class="read-only-value"><strong>尚未認列</strong><small>完成領牌資料並符合成本規則後自動帶入</small></div>
       {% endif %}
     </div>
-    {% include "sales/_field.html" with field=form.gift_shipping_expense %}
+    {% include "sales/_field.html" with field=form.gift_expense %}
+    {% include "sales/_field.html" with field=form.shipping_expense %}
     {% include "sales/_field.html" with field=form.dealer_commission_expense %}
+    {% include "sales/_field.html" with field=form.card_fee_expense %}
   </div></details>
   <details class="operation-section" open><summary><strong>領牌相關收支</strong><span>系統先帶入，支出與收入皆可個別人工修改</span></summary>
     <div class="financial-pair-grid">
@@ -133,6 +144,8 @@
     {% include "sales/_field.html" with field=form.installment_fee_income %}
     {% include "sales/_field.html" with field=form.card_fee_income %}
     {% include "sales/_field.html" with field=form.other_income %}
+    {% include "sales/_field.html" with field=form.scrap_agency_income %}
+    {% include "sales/_field.html" with field=form.scrap_vehicle_income %}
     {% include "sales/_field.html" with field=form.insurance_commission %}
     {% include "sales/_field.html" with field=form.credit_card_commission %}
   </div></details>

@@ -35,6 +35,8 @@ from .forms import (
     DealerVolumeBonusRuleForm,
     DealerVolumeBonusSettlementForm,
     DealerVolumeBonusTierFormSet,
+    DiscountDecisionForm,
+    DiscountRequestForm,
     DeliveryCompletionForm,
     InstallmentCompanyForm,
     InstallmentPlanOptionFormSet,
@@ -1912,8 +1914,106 @@ def order_operations(request, pk):
             "manual_financial_fields": profile.manual_financial_fields or [],
             "is_electric": order.vehicle_model.energy_type
             != VehicleModel.EnergyType.GAS,
+            "discount_request_form": DiscountRequestForm(
+                initial={"amount": order.discount_requested_amount or None, "reason": order.discount_reason}
+            ),
+            "discount_decision_form": DiscountDecisionForm(initial={"decision": "approve"}),
         },
     )
+
+
+@login_required
+@transaction.atomic
+def order_discount_request(request, pk):
+    order = get_object_or_404(SalesOrder.objects.select_for_update(), pk=pk)
+    if request.method != "POST" or not order.is_editable:
+        messages.error(request, "已交付、完成或取消的訂單不可再申請折扣。")
+        return redirect("order_operations", pk=pk)
+    form = DiscountRequestForm(request.POST)
+    if not form.is_valid():
+        messages.error(request, "折扣申請未送出：" + " ".join(error for errors in form.errors.values() for error in errors))
+        return redirect("order_operations", pk=pk)
+    order.discount_requested_amount = form.cleaned_data["amount"]
+    order.discount_reason = form.cleaned_data["reason"]
+    order.discount_status = SalesOrder.DiscountStatus.PENDING
+    order.discount_requested_at = timezone.now()
+    order.discount_requested_by = _editing_name(request.user)
+    order.discount_decided_at = None
+    order.discount_decided_by = ""
+    order.discount_decision_note = ""
+    order.save(
+        update_fields=[
+            "discount_requested_amount", "discount_reason", "discount_status",
+            "discount_requested_at", "discount_requested_by", "discount_decided_at",
+            "discount_decided_by", "discount_decision_note", "updated_at",
+        ]
+    )
+    OrderEvent.objects.create(
+        order=order,
+        event_type="discount_requested",
+        description=f"申請內部折扣 {order.discount_requested_amount:,.0f} 元：{order.discount_reason}",
+        actor_name=_editing_name(request.user),
+    )
+    messages.success(request, "折扣申請已送出；核准前不會改變應收金額。")
+    return redirect("order_operations", pk=pk)
+
+
+@login_required
+@transaction.atomic
+def order_discount_decide(request, pk):
+    order = get_object_or_404(SalesOrder.objects.select_for_update(), pk=pk)
+    if request.method != "POST" or order.discount_status != SalesOrder.DiscountStatus.PENDING:
+        messages.error(request, "目前沒有待確認的折扣申請。")
+        return redirect("order_operations", pk=pk)
+    form = DiscountDecisionForm(request.POST)
+    if not form.is_valid():
+        messages.error(request, "折扣確認失敗，請重新選擇處理結果。")
+        return redirect("order_operations", pk=pk)
+    old_calculated = order.calculated_balance
+    old_expected = order.calculate_balance()
+    was_automatic = order.actual_balance in {old_calculated, old_expected}
+    approved = form.cleaned_data["decision"] == "approve"
+    before_amount = order.approved_discount_amount
+    order.approved_discount_amount = order.discount_requested_amount if approved else before_amount
+    order.discount_status = SalesOrder.DiscountStatus.APPROVED if approved else SalesOrder.DiscountStatus.REJECTED
+    order.discount_decided_at = timezone.now()
+    order.discount_decided_by = _editing_name(request.user)
+    order.discount_decision_note = form.cleaned_data["note"]
+    order.calculated_balance = order.calculate_balance()
+    if was_automatic:
+        order.actual_balance = order.calculated_balance
+    elif order.actual_balance != order.calculated_balance:
+        order.balance_adjustment_reason = (
+            f"{order.balance_adjustment_reason}；" if order.balance_adjustment_reason else ""
+        ) + "折扣核准後保留原人工尾款"
+    order.save(
+        update_fields=[
+            "approved_discount_amount", "discount_status", "discount_decided_at",
+            "discount_decided_by", "discount_decision_note", "calculated_balance",
+            "actual_balance", "updated_at",
+            "balance_adjustment_reason",
+        ]
+    )
+    sync_order_operations(order.pk)
+    OrderChange.objects.create(
+        order=order,
+        reason=f"折扣申請{'核准' if approved else '不採用'}",
+        changes={
+            "approved_discount_amount": {
+                "before": str(before_amount),
+                "after": str(order.approved_discount_amount),
+            }
+        },
+        actor_name=_editing_name(request.user),
+    )
+    OrderEvent.objects.create(
+        order=order,
+        event_type="discount_decided",
+        description=f"折扣申請{'已核准並套用' if approved else '未採用'}：{order.discount_requested_amount:,.0f} 元",
+        actor_name=_editing_name(request.user),
+    )
+    messages.success(request, "折扣已核准並重算應收。" if approved else "折扣申請已標記為不採用。")
+    return redirect("order_operations", pk=pk)
 
 
 @login_required

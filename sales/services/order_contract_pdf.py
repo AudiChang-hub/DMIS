@@ -347,6 +347,17 @@ def draw_order_page(c, order, copy_label, page_number, printed_at):
                 p(money(accessory.line_total), right_style),
             ]
         )
+    if order.approved_discount_amount:
+        rows.append(
+            [
+                p("其他"),
+                p("已核准優惠"),
+                p("依最終成交內容調整"),
+                p("1", center_style),
+                p(f"-{money(order.approved_discount_amount)}", right_style),
+                p(f"-{money(order.approved_discount_amount)}", right_style),
+            ]
+        )
     if order.installment_opening_fee:
         rows.append(
             [

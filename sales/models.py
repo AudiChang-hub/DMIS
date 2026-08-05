@@ -624,6 +624,101 @@ class DealerVolumeBonusAdjustment(TimeStampedModel):
         verbose_name_plural = "車行台數獎金調整紀錄"
 
 
+class LegacyImportBatch(TimeStampedModel):
+    class ImportType(models.TextChoices):
+        OPERATIONS = "operations", "車輛進銷貨庫存表"
+        CHANNELS = "channels", "車行／網路平台名冊"
+
+    class Status(models.TextChoices):
+        PREVIEW = "preview", "待確認"
+        COMPLETED = "completed", "已匯入"
+        FAILED = "failed", "處理失敗"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    import_type = models.CharField("匯入類型", max_length=30, choices=ImportType.choices)
+    status = models.CharField(
+        "批次狀態", max_length=20, choices=Status.choices, default=Status.PREVIEW
+    )
+    source_file = models.FileField("來源檔案", upload_to="imports/%Y/%m/")
+    original_filename = models.CharField("原始檔名", max_length=255)
+    file_sha256 = models.CharField("SHA-256", max_length=64, db_index=True)
+    file_size = models.PositiveBigIntegerField("檔案大小")
+    source_sheets = models.JSONField("來源工作表", default=list)
+    preview_summary = models.JSONField("預覽摘要", default=dict)
+    result_summary = models.JSONField("匯入結果", default=dict)
+    uploaded_by = models.CharField("上傳人員", max_length=150)
+    confirmed_by = models.CharField("確認人員", max_length=150, blank=True)
+    confirmed_at = models.DateTimeField("確認時間", blank=True, null=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        verbose_name = "歷史資料匯入批次"
+        verbose_name_plural = "歷史資料匯入批次"
+
+
+class LegacyImportRow(TimeStampedModel):
+    class Action(models.TextChoices):
+        CREATE = "create", "新增"
+        UPDATE = "update", "更新"
+        SKIP = "skip", "略過"
+        CONFLICT = "conflict", "衝突"
+        ERROR = "error", "錯誤"
+
+    batch = models.ForeignKey(
+        LegacyImportBatch,
+        on_delete=models.CASCADE,
+        related_name="rows",
+        verbose_name="匯入批次",
+    )
+    sheet_name = models.CharField("工作表", max_length=120)
+    source_row = models.PositiveIntegerField("來源列號")
+    fingerprint = models.CharField("內容指紋", max_length=64, db_index=True)
+    natural_key = models.CharField("比對鍵", max_length=255, blank=True, db_index=True)
+    action = models.CharField("預計動作", max_length=20, choices=Action.choices)
+    raw_data = models.JSONField("來源原始資料", default=dict)
+    mapped_data = models.JSONField("欄位映射結果", default=dict)
+    messages = models.JSONField("檢核訊息", default=list)
+    committed_model = models.CharField("建立資料類型", max_length=80, blank=True)
+    committed_pk = models.CharField("建立資料編號", max_length=80, blank=True)
+
+    class Meta:
+        ordering = ["sheet_name", "source_row"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["batch", "sheet_name", "source_row"],
+                name="unique_legacy_import_source_row",
+            )
+        ]
+        verbose_name = "歷史資料匯入列"
+        verbose_name_plural = "歷史資料匯入列"
+
+
+class LegacySalesSnapshot(TimeStampedModel):
+    order = models.OneToOneField(
+        "SalesOrder",
+        on_delete=models.CASCADE,
+        related_name="legacy_snapshot",
+        verbose_name="歷史訂單",
+    )
+    import_row = models.OneToOneField(
+        LegacyImportRow,
+        on_delete=models.PROTECT,
+        related_name="sales_snapshot",
+        verbose_name="匯入來源列",
+    )
+    historical_received_price = models.DecimalField(
+        "歷史收款價", max_digits=12, decimal_places=0, default=0
+    )
+    cash_received = models.DecimalField("歷史現金收款", max_digits=12, decimal_places=0, default=0)
+    card_received = models.DecimalField("歷史刷卡收款", max_digits=12, decimal_places=0, default=0)
+    sales_category = models.CharField("銷售方案分類", max_length=160, blank=True)
+    raw_financials = models.JSONField("歷史收支原值", default=dict)
+
+    class Meta:
+        verbose_name = "歷史銷貨快照"
+        verbose_name_plural = "歷史銷貨快照"
+
+
 class BusinessHoliday(TimeStampedModel):
     date = models.DateField("日期", unique=True, db_index=True)
     name = models.CharField("假日名稱", max_length=120)

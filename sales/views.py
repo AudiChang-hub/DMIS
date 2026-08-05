@@ -37,6 +37,7 @@ from .forms import (
     InstallmentCompanyForm,
     InstallmentPlanOptionFormSet,
     InstallmentPlanVersionForm,
+    LegacyImportUploadForm,
     OtherFeeFormSet,
     OrderOperationsForm,
     OrderEditForm,
@@ -71,6 +72,8 @@ from .models import (
     DeliveryRecord,
     InstallmentCompany,
     InstallmentPlanVersion,
+    LegacyImportBatch,
+    LegacyImportRow,
     OrderEvent,
     OrderOperationsProfile,
     PaymentRecord,
@@ -122,6 +125,11 @@ from .services.dealer_commission import (
 )
 from .services.dashboard_metrics import build_dashboard_metrics
 from .services.secret_fields import decrypt_secret, encrypt_secret
+from .services.legacy_import import (
+    build_import_preview,
+    confirm_import,
+    file_sha256,
+)
 
 
 logger = logging.getLogger(__name__)
@@ -441,6 +449,68 @@ def dealer_volume_bonus_revise(request, pk):
         "sales/dealer_volume_bonus_revise.html",
         {"settlement": settlement, "form": form},
     )
+
+
+@login_required
+def legacy_import_list(request):
+    form = LegacyImportUploadForm(request.POST or None, request.FILES or None)
+    if request.method == "POST" and form.is_valid():
+        uploaded = form.cleaned_data["source_file"]
+        batch = form.save(commit=False)
+        batch.original_filename = uploaded.name
+        batch.file_size = uploaded.size
+        batch.file_sha256 = file_sha256(uploaded)
+        batch.uploaded_by = _editing_name(request.user)
+        batch.save()
+        try:
+            build_import_preview(batch)
+        except Exception as exc:
+            logger.exception("建立歷史資料匯入預覽失敗")
+            batch.status = LegacyImportBatch.Status.FAILED
+            batch.result_summary = {"error": str(exc)}
+            batch.save(update_fields=["status", "result_summary", "updated_at"])
+            messages.error(request, f"檔案解析失敗：{exc}")
+        else:
+            messages.success(request, "檔案已解析，請先檢查預覽與衝突報告再確認匯入。")
+        return redirect("legacy_import_detail", pk=batch.pk)
+    return render(
+        request,
+        "sales/legacy_import_list.html",
+        {"form": form, "batches": LegacyImportBatch.objects.all()[:50]},
+    )
+
+
+@login_required
+def legacy_import_detail(request, pk):
+    batch = get_object_or_404(LegacyImportBatch, pk=pk)
+    rows = batch.rows.all()
+    action = request.GET.get("action", "")
+    if action in {value for value, _ in LegacyImportRow.Action.choices}:
+        rows = rows.filter(action=action)
+    page = Paginator(rows, 100).get_page(request.GET.get("page"))
+    return render(
+        request,
+        "sales/legacy_import_detail.html",
+        {"batch": batch, "rows": page.object_list, "page_obj": page, "selected_action": action},
+    )
+
+
+@login_required
+@transaction.atomic
+def legacy_import_confirm(request, pk):
+    if request.method != "POST":
+        return redirect("legacy_import_detail", pk=pk)
+    batch = get_object_or_404(LegacyImportBatch.objects.select_for_update(), pk=pk)
+    try:
+        result = confirm_import(batch, _editing_name(request.user))
+    except ValueError as exc:
+        messages.error(request, str(exc))
+    else:
+        messages.success(
+            request,
+            f"匯入完成：新增 {result['created']}、更新 {result['updated']}、略過 {result['skipped']}、衝突 {result['conflicts']}、錯誤 {result['errors']}。",
+        )
+    return redirect("legacy_import_detail", pk=pk)
 
 
 @login_required

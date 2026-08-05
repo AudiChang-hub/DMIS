@@ -349,6 +349,15 @@ def build_order_search_payload(order):
     for label, value in related_values:
         _index_item(items, label, value)
 
+    legacy = getattr(order, "legacy_snapshot", None)
+    if legacy:
+        _index_item(items, "歷史收款價", legacy.historical_received_price)
+        _index_item(items, "歷史現金收款", legacy.cash_received)
+        _index_item(items, "歷史刷卡收款", legacy.card_received)
+        _index_item(items, "銷售方案分類", legacy.sales_category)
+        for label, value in legacy.raw_financials.items():
+            _index_item(items, label, value)
+
     profile = getattr(order, "operations", None)
     if profile:
         for field in profile._meta.fields:
@@ -402,7 +411,7 @@ def build_order_search_payload(order):
 
 def rebuild_order_search_index(order_id):
     order = SalesOrder.objects.select_related(
-        "source", "vehicle_model", "color", "allocated_vehicle", "operations",
+        "source", "vehicle_model", "color", "allocated_vehicle", "operations", "legacy_snapshot",
         "allocated_vehicle__location_store",
     ).prefetch_related(
         "accessories", "other_fees", "subsidy_documents",

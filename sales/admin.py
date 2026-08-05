@@ -4,6 +4,7 @@ from .models import (
     AccessoryProduct,
     AccessoryLine,
     BusinessHoliday,
+    BrandRegistrationFeeRule,
     DealerVolumeBonusAllocation,
     DealerVolumeBonusAdjustment,
     DealerVolumeBonusRule,
@@ -28,6 +29,7 @@ from .models import (
     SalesSourceContact,
     Store,
     SubsidyDocument,
+    SubsidyItem,
     VehicleColor,
     VehicleInventory,
     VehicleInventoryHistory,
@@ -83,6 +85,8 @@ admin.site.register(DealerVolumeBonusAdjustment)
 admin.site.register(LegacyImportBatch)
 admin.site.register(LegacyImportRow)
 admin.site.register(LegacySalesSnapshot)
+admin.site.register(SubsidyItem)
+admin.site.register(BrandRegistrationFeeRule)
 
 
 class VehicleColorInline(admin.TabularInline):

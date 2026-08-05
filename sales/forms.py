@@ -12,6 +12,7 @@ from .models import (
     AccessoryProduct,
     AccessoryLine,
     BusinessHoliday,
+    BrandRegistrationFeeRule,
     DealerVolumeBonusRule,
     DealerVolumeBonusSettlement,
     DealerVolumeBonusTier,
@@ -29,6 +30,7 @@ from .models import (
     SalesSourceBrandPolicy,
     SalesSourceContact,
     SubsidyDocument,
+    SubsidyItem,
     VehicleColor,
     VehicleInventory,
     VehicleIncentiveInstallmentRate,
@@ -41,6 +43,7 @@ from .models import (
 from .services.registration_fee import (
     UnsupportedRegistrationFee,
     calculate_registration_fee,
+    calculate_vehicle_registration_fee,
 )
 from .services.installment_plan import resolve_installment_plan_option
 
@@ -348,8 +351,8 @@ class SalesOrderForm(forms.ModelForm):
         if model and model.energy_type == VehicleModel.EnergyType.GAS:
             if registration_date and model.displacement_cc:
                 try:
-                    result = calculate_registration_fee(
-                        model.displacement_cc,
+                    result = calculate_vehicle_registration_fee(
+                        model,
                         registration_date,
                         insurance_period,
                     )
@@ -1565,8 +1568,8 @@ class RegistrationStageForm(forms.ModelForm):
             and model.displacement_cc
             and order.registration_date
         ):
-            result = calculate_registration_fee(
-                model.displacement_cc,
+            result = calculate_vehicle_registration_fee(
+                model,
                 order.registration_date,
                 order.compulsory_insurance_period,
             )
@@ -1764,6 +1767,43 @@ class BusinessHolidayForm(forms.ModelForm):
             field.widget.attrs.setdefault("class", "form-control")
 
 
+class BrandRegistrationFeeRuleForm(forms.ModelForm):
+    class Meta:
+        model = BrandRegistrationFeeRule
+        fields = [
+            "brand",
+            "calculation_type",
+            "min_cc",
+            "max_cc",
+            "fixed_total",
+            "insurance_period_years",
+            "effective_from",
+            "effective_to",
+            "active",
+            "note",
+        ]
+        widgets = {
+            "effective_from": DateInput(),
+            "effective_to": DateInput(),
+            "note": forms.Textarea(attrs={"rows": 2}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        for field in self.fields.values():
+            field.widget.attrs.setdefault("class", "form-control")
+        for name in ("min_cc", "max_cc", "fixed_total", "insurance_period_years"):
+            self.fields[name].widget.attrs["inputmode"] = "numeric"
+        self.fields["min_cc"].required = False
+        self.fields["max_cc"].required = False
+        self.fields["fixed_total"].required = False
+        self.fields["effective_to"].required = False
+        self.fields["note"].required = False
+
+    def clean_fixed_total(self):
+        return self.cleaned_data.get("fixed_total") or 0
+
+
 class RegistrationDocumentUploadForm(forms.ModelForm):
     class Meta:
         model = RegistrationDocument
@@ -1931,3 +1971,19 @@ class SubsidyDataForm(forms.ModelForm):
                 data[field_name] = 0
                 self.cleaned_data[field_name] = 0
         return data
+
+
+class SubsidyItemForm(forms.ModelForm):
+    class Meta:
+        model = SubsidyItem
+        fields = ["category", "item_name", "expected_amount", "applied_on", "status", "note"]
+        widgets = {"applied_on": DateInput()}
+
+
+SubsidyItemFormSet = inlineformset_factory(
+    SalesOrder,
+    SubsidyItem,
+    form=SubsidyItemForm,
+    extra=1,
+    can_delete=True,
+)

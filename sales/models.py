@@ -719,6 +719,34 @@ class LegacySalesSnapshot(TimeStampedModel):
         verbose_name_plural = "歷史銷貨快照"
 
 
+class SubsidyItem(TimeStampedModel):
+    class Category(models.TextChoices):
+        INDUSTRY = "industry", "工業局"
+        ENVIRONMENT = "environment", "環境部"
+        LOCAL = "local", "地方政府"
+        OTHER = "other", "其他"
+
+    class Status(models.TextChoices):
+        NOT_SUBMITTED = "not_submitted", "未申請"
+        SUBMITTED = "submitted", "已送出申請"
+        COMPLETED = "completed", "已申請完成"
+
+    order = models.ForeignKey(
+        "SalesOrder", on_delete=models.CASCADE, related_name="subsidy_items", verbose_name="訂單"
+    )
+    category = models.CharField("類別", max_length=20, choices=Category.choices)
+    item_name = models.CharField("補助項目", max_length=160)
+    expected_amount = models.DecimalField("預計金額", max_digits=12, decimal_places=0, default=0)
+    applied_on = models.DateField("申請日期", blank=True, null=True)
+    status = models.CharField("狀態", max_length=20, choices=Status.choices, default=Status.NOT_SUBMITTED)
+    note = models.CharField("備註", max_length=250, blank=True)
+
+    class Meta:
+        ordering = ["category", "id"]
+        verbose_name = "補助項目"
+        verbose_name_plural = "補助項目"
+
+
 class BusinessHoliday(TimeStampedModel):
     date = models.DateField("日期", unique=True, db_index=True)
     name = models.CharField("假日名稱", max_length=120)
@@ -731,6 +759,46 @@ class BusinessHoliday(TimeStampedModel):
 
     def __str__(self):
         return f"{self.date}／{self.name}"
+
+
+class BrandRegistrationFeeRule(TimeStampedModel):
+    class CalculationType(models.TextChoices):
+        FORMULA = "formula", "公式計算"
+        FIXED = "fixed", "固定整包金額"
+        MANUAL = "manual", "人工輸入"
+
+    brand = models.CharField("品牌", max_length=80)
+    calculation_type = models.CharField("計算方式", max_length=20, choices=CalculationType.choices)
+    min_cc = models.PositiveSmallIntegerField("最低排氣量", blank=True, null=True)
+    max_cc = models.PositiveSmallIntegerField("最高排氣量", blank=True, null=True)
+    fixed_total = models.DecimalField("固定牌險總額", max_digits=12, decimal_places=0, default=0)
+    insurance_period_years = models.PositiveSmallIntegerField("強制險年期", default=1)
+    effective_from = models.DateField("生效日期")
+    effective_to = models.DateField("結束日期", blank=True, null=True)
+    active = models.BooleanField("啟用中", default=True)
+    note = models.TextField("備註", blank=True)
+
+    class Meta:
+        ordering = ["brand", "min_cc", "-effective_from"]
+        constraints = [models.UniqueConstraint(fields=["brand", "min_cc", "max_cc", "effective_from"], name="unique_brand_registration_fee_version")]
+        indexes = [models.Index(fields=["brand", "effective_from"], name="brand_reg_fee_lookup")]
+        verbose_name = "品牌牌險規則"
+        verbose_name_plural = "品牌牌險規則"
+
+    def clean(self):
+        errors = {}
+        if self.effective_to and self.effective_to < self.effective_from:
+            errors["effective_to"] = "結束日期不可早於生效日期。"
+        if self.min_cc and self.max_cc and self.max_cc < self.min_cc:
+            errors["max_cc"] = "最高排氣量不可低於最低排氣量。"
+        if self.calculation_type == self.CalculationType.FIXED and not self.fixed_total:
+            errors["fixed_total"] = "固定整包金額模式必須填寫總額。"
+        if errors:
+            raise ValidationError(errors)
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        return super().save(*args, **kwargs)
 
 
 class VehicleSettlementCostRule(TimeStampedModel):
@@ -1292,6 +1360,28 @@ class SalesOrder(TimeStampedModel):
         decimal_places=0,
         default=0,
     )
+    registration_fee_variance_confirmed_at = models.DateTimeField(
+        "牌險差額確認時間", blank=True, null=True, editable=False
+    )
+    registration_fee_variance_confirmed_by = models.CharField(
+        "牌險差額確認人員", max_length=150, blank=True, editable=False
+    )
+    registration_fee_variance_confirmed_calculated_total = models.DecimalField(
+        "已確認系統牌險金額",
+        max_digits=12,
+        decimal_places=0,
+        blank=True,
+        null=True,
+        editable=False,
+    )
+    registration_fee_variance_confirmed_actual_total = models.DecimalField(
+        "已確認實際牌險金額",
+        max_digits=12,
+        decimal_places=0,
+        blank=True,
+        null=True,
+        editable=False,
+    )
 
     payment_type = models.CharField(
         "主要付款方式",
@@ -1626,6 +1716,18 @@ class SalesOrder(TimeStampedModel):
     @property
     def is_subsidy_ready(self):
         return self.is_trade_in_subsidy and not self.missing_subsidy_requirements()
+
+    @property
+    def subsidy_total(self):
+        if not self.pk:
+            return Decimal("0")
+        return self.subsidy_items.aggregate(total=models.Sum("expected_amount"))["total"] or Decimal("0")
+
+    @property
+    def subsidy_last_applied_on(self):
+        if not self.pk:
+            return None
+        return self.subsidy_items.exclude(applied_on__isnull=True).aggregate(last=models.Max("applied_on"))["last"]
 
     def missing_registration_requirements(self):
         missing = []

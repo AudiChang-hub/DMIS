@@ -138,6 +138,21 @@
       <div><label for="{{ subsidy_form.old_vehicle_tax.id_for_label }}">舊車未繳稅金</label>{{ subsidy_form.old_vehicle_tax }}</div>
       <div class="subsidy-change-reason"><label for="{{ subsidy_form.change_reason.id_for_label }}">變更原因 <span class="required-inline">必填</span></label>{{ subsidy_form.change_reason }}</div>
     </div>
+    <section class="dynamic-detail-section" data-subsidy-items>
+      <div class="section-title"><div><h3>補助申請項目</h3><small>各單位金額與送件日期分開記錄；合計 ${{ order.subsidy_total|floatformat:0 }}</small></div></div>
+      {{ subsidy_item_formset.management_form }}
+      <div class="dynamic-detail-list" data-form-list>
+        {% for item_form in subsidy_item_formset %}
+        <div class="dynamic-detail-row" data-form-row>
+          {% for hidden in item_form.hidden_fields %}{{ hidden }}{% endfor %}
+          {% for field in item_form.visible_fields %}{% if field.name != 'DELETE' %}<div><label for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}{% for error in field.errors %}<small class="field-error">{{ error }}</small>{% endfor %}</div>{% endif %}{% endfor %}
+          <label class="delete-detail-control">{{ item_form.DELETE }} <span>移除此項</span></label>
+        </div>
+        {% endfor %}
+      </div>
+      <template data-empty-form><div class="dynamic-detail-row" data-form-row>{% with item_form=subsidy_item_formset.empty_form %}{% for hidden in item_form.hidden_fields %}{{ hidden }}{% endfor %}{% for field in item_form.visible_fields %}{% if field.name != 'DELETE' %}<div><label for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}</div>{% endif %}{% endfor %}<label class="delete-detail-control">{{ item_form.DELETE }} <span>移除此項</span></label>{% endwith %}</div></template>
+      <button class="button ghost" type="button" data-add-form>＋ 新增補助項目</button>
+    </section>
     <div class="subsidy-edit-actions">
       <p>估價與舊車稅金異動會自動重算尾款，並保存修改人員、時間與前後內容。</p>
       <button class="button primary" type="submit">儲存補助資料</button>
@@ -721,4 +736,5 @@
 {% endblock %}
 {% block scripts %}
 <script src="{% static 'js/order-detail-tabs.js' %}?v={{ app_version }}" defer></script>
+<script src="{% static 'js/subsidy-items.js' %}?v={{ app_version }}" defer></script>
 {% endblock %}

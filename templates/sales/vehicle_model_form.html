@@ -13,6 +13,7 @@
   {% if is_editing %}
   <div class="hero-actions">
     <a class="button ghost" href="{% url 'settlement_cost_rule_list' %}?q={{ vehicle_model.model_number|urlencode }}">成本版本</a>
+    <a class="button ghost" href="{% url 'vehicle_installment_plan_list' vehicle_model.pk %}">分期方案</a>
     <a class="button ghost" href="#incentive-rules">獎勵與補助</a>
   </div>
   {% endif %}

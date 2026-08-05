@@ -12,13 +12,21 @@ from .models import (
     AccessoryProduct,
     AccessoryLine,
     BusinessHoliday,
+    DealerVolumeBonusRule,
+    DealerVolumeBonusSettlement,
+    DealerVolumeBonusTier,
     DeliveryRecord,
+    InstallmentCompany,
+    InstallmentPlanOption,
+    InstallmentPlanVersion,
     OtherFeeLine,
     OrderOperationsProfile,
     PaymentRecord,
     RegistrationDocument,
     SalesOrder,
     SalesSource,
+    SalesSourceBrandPolicy,
+    SalesSourceContact,
     SubsidyDocument,
     VehicleColor,
     VehicleInventory,
@@ -33,6 +41,7 @@ from .services.registration_fee import (
     UnsupportedRegistrationFee,
     calculate_registration_fee,
 )
+from .services.installment_plan import resolve_installment_plan_option
 
 
 PHONE_FIELDS = {"owner_phone"}
@@ -204,6 +213,8 @@ class SalesOrderForm(forms.ModelForm):
     def __init__(self, *args, existing_documents=None, **kwargs):
         self.existing_documents = existing_documents or {}
         super().__init__(*args, **kwargs)
+
+
         self._previous_plate_insurance_fee = self.instance.plate_insurance_fee
         self._plate_fee_was_automatic = (
             not self.instance.pk
@@ -298,6 +309,21 @@ class SalesOrderForm(forms.ModelForm):
             "installment_monthly",
         )
         if data.get("payment_type") == SalesOrder.PaymentType.INSTALLMENT:
+            option = resolve_installment_plan_option(
+                model.pk if model else None,
+                data.get("order_date") or self.instance.order_date or timezone.localdate(),
+                data.get("installment_periods"),
+            )
+            if option:
+                defaults = {
+                    "installment_company": option.company.name,
+                    "installment_opening_fee": option.opening_fee,
+                    "installment_monthly": option.monthly_amount,
+                }
+                for field_name, value in defaults.items():
+                    if data.get(field_name) in (None, ""):
+                        data[field_name] = value
+                        self.cleaned_data[field_name] = value
             for field_name in installment_fields:
                 if data.get(field_name) in (None, ""):
                     self.add_error(field_name, "選擇分期付款時，此欄位為必填。")
@@ -400,6 +426,178 @@ class SalesOrderForm(forms.ModelForm):
         if not data.get("id_verified"):
             self.add_error("id_verified", "請對照證件並確認資料正確。")
         return data
+
+
+class SalesSourceForm(forms.ModelForm):
+    class Meta:
+        model = SalesSource
+        fields = [
+            "source_type", "name", "code", "phone", "fax", "address",
+            "vehicle_capacity", "relationship_note", "note", "active",
+        ]
+        widgets = {
+            "relationship_note": forms.Textarea(attrs={"rows": 2}),
+            "note": forms.Textarea(attrs={"rows": 2}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        for field in self.fields.values():
+            field.widget.attrs.setdefault("class", "form-control")
+        apply_mobile_keyboard_attrs(self)
+
+
+class SalesSourceContactForm(forms.ModelForm):
+    class Meta:
+        model = SalesSourceContact
+        fields = [
+            "name", "relationship", "phone", "extension", "mobile", "email",
+            "note", "active",
+        ]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        for field in self.fields.values():
+            field.widget.attrs.setdefault("class", "form-control")
+        apply_mobile_keyboard_attrs(self)
+
+
+SalesSourceContactFormSet = inlineformset_factory(
+    SalesSource, SalesSourceContact, form=SalesSourceContactForm, extra=1, can_delete=True
+)
+
+
+class SalesSourceBrandPolicyForm(forms.ModelForm):
+    class Meta:
+        model = SalesSourceBrandPolicy
+        fields = [
+            "brand", "cooperates", "commission_adjustment", "effective_from",
+            "effective_to", "note",
+        ]
+        widgets = {"effective_from": DateInput(), "effective_to": DateInput()}
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        for field in self.fields.values():
+            field.widget.attrs.setdefault("class", "form-control")
+        apply_mobile_keyboard_attrs(self)
+
+
+SalesSourceBrandPolicyFormSet = inlineformset_factory(
+    SalesSource,
+    SalesSourceBrandPolicy,
+    form=SalesSourceBrandPolicyForm,
+    extra=1,
+    can_delete=True,
+)
+
+
+class InstallmentCompanyForm(forms.ModelForm):
+    class Meta:
+        model = InstallmentCompany
+        fields = ["name", "customer_service_phone", "active", "note"]
+        widgets = {"note": forms.Textarea(attrs={"rows": 2})}
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        for field in self.fields.values():
+            field.widget.attrs.setdefault("class", "form-control")
+        apply_mobile_keyboard_attrs(self)
+
+
+class InstallmentPlanVersionForm(forms.ModelForm):
+    class Meta:
+        model = InstallmentPlanVersion
+        fields = ["announced_on", "effective_from", "effective_to", "note", "active"]
+        widgets = {
+            "announced_on": DateInput(), "effective_from": DateInput(),
+            "effective_to": DateInput(), "note": forms.Textarea(attrs={"rows": 2}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        for field in self.fields.values():
+            field.widget.attrs.setdefault("class", "form-control")
+        apply_mobile_keyboard_attrs(self)
+
+
+class InstallmentPlanOptionForm(forms.ModelForm):
+    class Meta:
+        model = InstallmentPlanOption
+        fields = [
+            "periods", "monthly_amount", "company", "opening_fee",
+            "expected_disbursement_rate",
+        ]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["company"].queryset = InstallmentCompany.objects.filter(
+            Q(active=True) | Q(pk=self.instance.company_id)
+        ).order_by("name")
+        for field in self.fields.values():
+            field.widget.attrs.setdefault("class", "form-control")
+        apply_mobile_keyboard_attrs(self)
+
+
+InstallmentPlanOptionFormSet = inlineformset_factory(
+    InstallmentPlanVersion,
+    InstallmentPlanOption,
+    form=InstallmentPlanOptionForm,
+    extra=1,
+    can_delete=True,
+)
+
+
+class DealerVolumeBonusRuleForm(forms.ModelForm):
+    class Meta:
+        model = DealerVolumeBonusRule
+        fields = ["dealer", "brand", "starts_on", "ends_on", "active", "note"]
+        widgets = {
+            "starts_on": DateInput(), "ends_on": DateInput(),
+            "note": forms.Textarea(attrs={"rows": 2}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["dealer"].queryset = SalesSource.objects.filter(
+            source_type=SalesSource.SourceType.DEALER, active=True
+        ).order_by("name")
+        for field in self.fields.values():
+            field.widget.attrs.setdefault("class", "form-control")
+        apply_mobile_keyboard_attrs(self)
+
+
+class DealerVolumeBonusTierForm(forms.ModelForm):
+    class Meta:
+        model = DealerVolumeBonusTier
+        fields = ["minimum_quantity", "bonus_per_vehicle"]
+
+
+DealerVolumeBonusTierFormSet = inlineformset_factory(
+    DealerVolumeBonusRule,
+    DealerVolumeBonusTier,
+    form=DealerVolumeBonusTierForm,
+    extra=1,
+    can_delete=True,
+)
+
+
+class DealerVolumeBonusSettlementForm(forms.ModelForm):
+    class Meta:
+        model = DealerVolumeBonusSettlement
+        fields = ["actual_amount", "adjustment_reason"]
+        widgets = {"adjustment_reason": forms.Textarea(attrs={"rows": 2})}
+
+
+class DealerVolumeBonusAdjustmentForm(forms.Form):
+    actual_amount = forms.DecimalField(
+        label="修正後實際金額", max_digits=12, decimal_places=0, min_value=0
+    )
+    reason = forms.CharField(
+        label="調整原因",
+        widget=forms.Textarea(attrs={"rows": 2}),
+        help_text="必填；此內容會永久保留在調整歷程。",
+    )
 
 
 class OrderEditForm(SalesOrderForm):
@@ -648,6 +846,7 @@ class VehicleModelMasterForm(forms.ModelForm):
             "motor_power_kw",
             "horsepower_hp",
             "suggested_price",
+            "base_dealer_commission",
             "active",
         ]
         labels = {
@@ -669,6 +868,7 @@ class VehicleModelMasterForm(forms.ModelForm):
                 attrs={"min": "0", "step": "0.01", "inputmode": "decimal"}
             ),
             "suggested_price": forms.NumberInput(attrs={"inputmode": "numeric"}),
+            "base_dealer_commission": forms.NumberInput(attrs={"inputmode": "numeric"}),
         }
 
     def __init__(self, *args, **kwargs):
@@ -676,12 +876,17 @@ class VehicleModelMasterForm(forms.ModelForm):
         self.fields["model_year"].required = True
         self.fields["model_number"].required = True
         self.fields["model_code"].required = True
+        self.fields["base_dealer_commission"].required = False
+        if not self.is_bound and not self.instance.pk:
+            self.fields["base_dealer_commission"].initial = None
         for field in self.fields.values():
             field.widget.attrs.setdefault("class", "form-control")
         apply_mobile_keyboard_attrs(self)
 
     def clean(self):
         cleaned = super().clean()
+        if cleaned.get("base_dealer_commission") is None:
+            cleaned["base_dealer_commission"] = Decimal("0")
         brand = (cleaned.get("brand") or "").strip()
         name = (cleaned.get("name") or "").strip()
         model_number = (cleaned.get("model_number") or "").strip()

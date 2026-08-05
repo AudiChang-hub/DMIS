@@ -19,6 +19,50 @@ urlpatterns = [
         name="business_holiday_delete",
     ),
     path("data/customers/", views.customer_list, name="customer_list"),
+    path("data/channels/", views.sales_source_list, name="sales_source_list"),
+    path(
+        "data/channels/new/", views.sales_source_form, name="sales_source_create"
+    ),
+    path(
+        "data/channels/<int:pk>/edit/",
+        views.sales_source_form,
+        name="sales_source_edit",
+    ),
+    path(
+        "data/installment-companies/",
+        views.installment_company_list,
+        name="installment_company_list",
+    ),
+    path(
+        "data/vehicle-models/<int:model_pk>/installment-plans/",
+        views.vehicle_installment_plan_list,
+        name="vehicle_installment_plan_list",
+    ),
+    path(
+        "data/dealer-volume-bonuses/",
+        views.dealer_volume_bonus_list,
+        name="dealer_volume_bonus_list",
+    ),
+    path(
+        "data/dealer-volume-bonuses/new/",
+        views.dealer_volume_bonus_form,
+        name="dealer_volume_bonus_create",
+    ),
+    path(
+        "data/dealer-volume-bonuses/<int:pk>/edit/",
+        views.dealer_volume_bonus_form,
+        name="dealer_volume_bonus_edit",
+    ),
+    path(
+        "data/dealer-volume-bonuses/<int:pk>/settle/",
+        views.dealer_volume_bonus_settle,
+        name="dealer_volume_bonus_settle",
+    ),
+    path(
+        "data/dealer-volume-bonuses/settlements/<int:pk>/revise/",
+        views.dealer_volume_bonus_revise,
+        name="dealer_volume_bonus_revise",
+    ),
     path(
         "data/customers/<int:pk>/",
         views.customer_detail,
@@ -274,6 +318,11 @@ urlpatterns = [
     ),
     path("api/colors/", views.vehicle_colors, name="vehicle_colors"),
     path("api/sources/", views.sales_sources, name="sales_sources"),
+    path(
+        "api/installment-plan-options/",
+        views.installment_plan_options,
+        name="installment_plan_options",
+    ),
     path("api/id-card-ocr/", views.id_card_ocr, name="id_card_ocr"),
     path(
         "api/id-card-ocr/<uuid:job_id>/",

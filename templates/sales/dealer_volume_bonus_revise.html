@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block title %}調整台數獎金｜車輛銷售管理{% endblock %}
+{% block page_class %}page-shell--wide{% endblock %}
+{% block content %}
+{% url 'dealer_volume_bonus_list' as list_url %}
+{% include "sales/_page_back.html" with fallback_url=list_url label="返回台數獎金" %}
+<section class="hero-row compact-hero">
+  <div>
+    <p class="eyebrow">實際入帳修正</p>
+    <h1>{{ settlement.rule.dealer }}／{{ settlement.rule.brand }}</h1>
+    <p class="muted">目前實際金額 ${{ settlement.actual_amount|floatformat:0 }}，調整後會重新平均分攤到 {{ settlement.allocations.count }} 張訂單。</p>
+  </div>
+</section>
+<div class="responsive-split">
+  <section class="form-section static-section">
+    <div class="section-title"><h2>調整金額</h2><strong>預計 ${{ settlement.expected_amount|floatformat:0 }}</strong></div>
+    <form method="post" class="stacked-form">
+      {% csrf_token %}
+      {% for field in form %}{% include "sales/_field.html" with field=field %}{% endfor %}
+      <div class="note-box warning">調整會更新各訂單的車行傭金支出與單筆淨利；原因及調整前後金額會永久保存。</div>
+      <div class="form-actions"><a class="button ghost" href="{% url 'dealer_volume_bonus_list' %}">取消</a><button class="button primary">儲存調整</button></div>
+    </form>
+  </section>
+  <section class="inventory-list-panel">
+    <div class="inventory-list-summary"><strong>歷次調整</strong></div>
+    <div class="inventory-table-wrap">
+      <table class="inventory-table">
+        <thead><tr><th>時間</th><th>人員</th><th>金額</th><th>原因</th></tr></thead>
+        <tbody>
+          {% for adjustment in settlement.adjustments.all %}
+            <tr><td>{{ adjustment.created_at|date:'Y/m/d H:i' }}</td><td>{{ adjustment.adjusted_by }}</td><td>${{ adjustment.previous_amount|floatformat:0 }} → ${{ adjustment.revised_amount|floatformat:0 }}</td><td>{{ adjustment.reason }}</td></tr>
+          {% empty %}<tr><td colspan="4">尚無調整紀錄</td></tr>{% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+</div>
+{% endblock %}

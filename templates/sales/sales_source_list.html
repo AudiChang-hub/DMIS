@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block title %}通路資料｜車輛銷售管理{% endblock %}
+{% block page_class %}page-shell--wide{% endblock %}
+{% block content %}
+{% url 'data_maintenance' as data_url %}{% include "sales/_page_back.html" with fallback_url=data_url label="返回資料維護區" %}
+<section class="hero-row compact-hero"><div><p class="eyebrow">合作車行與網路平台</p><h1>通路資料</h1><p class="muted">同一通路一筆資料，可保存多個聯絡窗口、品牌合作與佣金加減規則。</p></div><div class="hero-actions"><a class="button ghost" href="{% url 'installment_company_list' %}">分期公司</a><a class="button ghost" href="{% url 'dealer_volume_bonus_list' %}">台數獎金</a><a class="button primary" href="{% url 'sales_source_create' %}">＋ 新增通路</a></div></section>
+<form method="get" class="master-filters">
+  <div class="inventory-filter master-search"><label for="source-q">全欄位搜尋</label><input id="source-q" type="search" name="q" value="{{ selected.q }}" placeholder="名稱、地址、電話、窗口或 Email"></div>
+  <div class="inventory-filter"><label for="source-type">類型</label><select id="source-type" name="type"><option value="">全部</option>{% for value,label in source_types %}<option value="{{ value }}" {% if selected.type == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
+  <div class="inventory-filter"><label for="source-brand">合作品牌</label><select id="source-brand" name="brand"><option value="">全部品牌</option>{% for item in brands %}<option value="{{ item }}" {% if selected.brand == item %}selected{% endif %}>{{ item }}</option>{% endfor %}</select></div>
+  <div class="inventory-filter-actions"><a class="button ghost" href="{% url 'sales_source_list' %}">清除</a><button class="button primary">套用</button></div>
+</form>
+<section class="inventory-list-panel"><div class="inventory-list-summary"><strong>共 {{ page_obj.paginator.count }} 個通路</strong></div><div class="inventory-table-wrap"><table class="inventory-table"><thead><tr><th>通路</th><th>地址／電話</th><th>聯絡窗口</th><th>合作品牌</th><th>容量</th><th>狀態</th><th></th></tr></thead><tbody>
+{% for item in sources %}<tr><td data-label="通路"><strong>{{ item.name }}</strong><span>{{ item.get_source_type_display }}{% if item.code %} · {{ item.code }}{% endif %}</span></td><td data-label="地址／電話">{{ item.address|default:"—" }}<span>{{ item.phone|default:"未填電話" }}</span></td><td data-label="聯絡窗口"><strong>{{ item.contact_count }} 位</strong>{% for contact in item.contacts.all|slice:":2" %}<span>{{ contact.name }}{% if contact.mobile %} · {{ contact.mobile }}{% endif %}</span>{% endfor %}</td><td data-label="合作品牌"><strong>{{ item.brand_count }} 個</strong>{% for policy in item.brand_policies.all|slice:":3" %}{% if policy.cooperates %}<span>{{ policy.brand }}{% if policy.commission_adjustment %} · 加減 ${{ policy.commission_adjustment|floatformat:0 }}{% endif %}</span>{% endif %}{% endfor %}</td><td data-label="容量">{% if item.vehicle_capacity is not None %}{{ item.vehicle_capacity }} 台{% else %}—{% endif %}</td><td data-label="狀態"><span class="status-pill">{{ item.active|yesno:"啟用中,已停用" }}</span></td><td><a class="button ghost small" href="{% url 'sales_source_edit' item.pk %}">編輯</a></td></tr>{% empty %}<tr><td colspan="7"><div class="empty-state"><strong>找不到符合條件的通路</strong></div></td></tr>{% endfor %}
+</tbody></table></div></section>
+{% endblock %}

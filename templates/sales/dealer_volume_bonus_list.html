@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}車行台數獎金｜車輛銷售管理{% endblock %}
+{% block page_class %}page-shell--wide{% endblock %}
+{% block content %}
+{% url 'sales_source_list' as source_url %}
+{% include "sales/_page_back.html" with fallback_url=source_url label="返回通路資料" %}
+<section class="hero-row compact-hero">
+  <div>
+    <p class="eyebrow">依實際領牌日期回溯</p>
+    <h1>車行台數獎金</h1>
+    <p class="muted">達門檻時回溯期間內所有符合訂單；每個規則只結算一次並保存逐單明細。</p>
+  </div>
+  <a class="button primary" href="{% url 'dealer_volume_bonus_create' %}">＋ 新增規則</a>
+</section>
+<section class="inventory-list-panel">
+  <div class="inventory-table-wrap">
+    <table class="inventory-table">
+      <thead><tr><th>車行／品牌</th><th>統計期間</th><th>目前台數</th><th>門檻結果</th><th>結算</th><th></th></tr></thead>
+      <tbody>
+        {% for row in rows %}
+          <tr>
+            <td data-label="車行／品牌"><strong>{{ row.rule.dealer }}</strong><span>{{ row.rule.brand }}</span></td>
+            <td data-label="統計期間">{{ row.rule.starts_on|date:'Y/m/d' }}－{{ row.rule.ends_on|date:'Y/m/d' }}</td>
+            <td data-label="目前台數"><strong>{{ row.preview.quantity }} 台</strong></td>
+            <td data-label="門檻結果">{% if row.preview.tier %}每台 ${{ row.preview.bonus_per_vehicle|floatformat:0 }}<span>預計 ${{ row.preview.expected_amount|floatformat:0 }}</span>{% else %}尚未達門檻{% endif %}</td>
+            <td data-label="結算">{% if row.rule.settlement %}<span class="status-pill">已結算 ${{ row.rule.settlement.actual_amount|floatformat:0 }}</span><span>{{ row.rule.settlement.allocations.count }} 張訂單</span>{% else %}<span class="status-pill warning">未結算</span>{% endif %}</td>
+            <td>
+              {% if row.rule.settlement %}
+                <a class="button ghost small" href="{% url 'dealer_volume_bonus_revise' row.rule.settlement.pk %}">調整實際入帳</a>
+              {% else %}
+                <a class="button ghost small" href="{% url 'dealer_volume_bonus_edit' row.rule.pk %}">編輯</a>
+                {% if row.preview.tier %}<a class="button primary small" href="{% url 'dealer_volume_bonus_settle' row.rule.pk %}">結算</a>{% endif %}
+              {% endif %}
+            </td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="6">尚無台數獎金規則</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endblock %}

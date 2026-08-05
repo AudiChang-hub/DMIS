@@ -1,7 +1,7 @@
 import json
 import logging
 import uuid
-from datetime import timedelta
+from datetime import date, timedelta
 from io import BytesIO
 from pathlib import Path
 
@@ -29,7 +29,14 @@ from .forms import (
     AllocationForm,
     BusinessHolidayForm,
     CancellationRequestForm,
+    DealerVolumeBonusAdjustmentForm,
+    DealerVolumeBonusRuleForm,
+    DealerVolumeBonusSettlementForm,
+    DealerVolumeBonusTierFormSet,
     DeliveryCompletionForm,
+    InstallmentCompanyForm,
+    InstallmentPlanOptionFormSet,
+    InstallmentPlanVersionForm,
     OtherFeeFormSet,
     OrderOperationsForm,
     OrderEditForm,
@@ -42,6 +49,9 @@ from .forms import (
     RegistrationDocumentUploadForm,
     RegistrationStageForm,
     SalesOrderForm,
+    SalesSourceBrandPolicyFormSet,
+    SalesSourceContactFormSet,
+    SalesSourceForm,
     SignedContractForm,
     SubsidyDataForm,
     SubsidyDocumentUploadForm,
@@ -56,7 +66,11 @@ from .forms import (
 from .models import (
     AccessoryProduct,
     BusinessHoliday,
+    DealerVolumeBonusRule,
+    DealerVolumeBonusSettlement,
     DeliveryRecord,
+    InstallmentCompany,
+    InstallmentPlanVersion,
     OrderEvent,
     OrderOperationsProfile,
     PaymentRecord,
@@ -66,6 +80,7 @@ from .models import (
     RegistrationDocument,
     SalesOrder,
     SalesSource,
+    SalesSourceContact,
     Store,
     SubsidyDocument,
     TaiwanCounty,
@@ -94,6 +109,17 @@ from .services.settlement_cost import (
 from .services.incentive_rule import (
     apply_order_incentive_rule,
 )
+from .services.installment_plan import (
+    apply_order_installment_snapshot,
+    installment_option_payload,
+    resolve_installment_plan_version,
+)
+from .services.dealer_commission import apply_order_dealer_commission
+from .services.dealer_commission import (
+    create_volume_bonus_settlement,
+    preview_volume_bonus,
+    revise_volume_bonus_settlement,
+)
 from .services.dashboard_metrics import build_dashboard_metrics
 from .services.secret_fields import decrypt_secret, encrypt_secret
 
@@ -118,6 +144,8 @@ def data_maintenance(request):
             .count(),
             "vehicle_model_count": VehicleModel.objects.count(),
             "inventory_count": VehicleInventory.objects.count(),
+            "sales_source_count": SalesSource.objects.count(),
+            "installment_company_count": InstallmentCompany.objects.count(),
             "holiday_count": BusinessHoliday.objects.filter(active=True).count(),
         },
     )
@@ -153,6 +181,266 @@ def business_holiday_delete(request, pk):
         holiday.delete()
         messages.success(request, f"已刪除 {label}。")
     return redirect("business_holiday_list")
+
+
+@login_required
+def sales_source_list(request):
+    keyword = request.GET.get("q", "").strip()
+    source_type = request.GET.get("type", "")
+    brand = request.GET.get("brand", "").strip()
+    sources = SalesSource.objects.annotate(
+        contact_count=Count("contacts", distinct=True),
+        brand_count=Count(
+            "brand_policies",
+            filter=Q(brand_policies__cooperates=True),
+            distinct=True,
+        ),
+    ).order_by("source_type", "name", "id")
+    if keyword:
+        sources = sources.filter(
+            Q(name__icontains=keyword)
+            | Q(code__icontains=keyword)
+            | Q(address__icontains=keyword)
+            | Q(phone__icontains=keyword)
+            | Q(contacts__name__icontains=keyword)
+            | Q(contacts__phone__icontains=keyword)
+            | Q(contacts__mobile__icontains=keyword)
+            | Q(contacts__email__icontains=keyword)
+        ).distinct()
+    if source_type in {value for value, _ in SalesSource.SourceType.choices}:
+        sources = sources.filter(source_type=source_type)
+    if brand:
+        sources = sources.filter(
+            brand_policies__brand__iexact=brand,
+            brand_policies__cooperates=True,
+        ).distinct()
+    page = Paginator(sources.prefetch_related("contacts", "brand_policies"), 100).get_page(
+        request.GET.get("page")
+    )
+    brands = (
+        SalesSource.objects.values_list("brand_policies__brand", flat=True)
+        .exclude(brand_policies__brand__isnull=True)
+        .exclude(brand_policies__brand="")
+        .distinct()
+        .order_by("brand_policies__brand")
+    )
+    return render(
+        request,
+        "sales/sales_source_list.html",
+        {
+            "page_obj": page,
+            "sources": page.object_list,
+            "source_types": SalesSource.SourceType.choices,
+            "brands": brands,
+            "selected": {"q": keyword, "type": source_type, "brand": brand},
+        },
+    )
+
+
+@login_required
+@transaction.atomic
+def sales_source_form(request, pk=None):
+    source = get_object_or_404(SalesSource, pk=pk) if pk else SalesSource()
+    post_data = request.POST or None
+    form = SalesSourceForm(post_data, instance=source)
+    contact_formset = SalesSourceContactFormSet(
+        post_data, instance=source, prefix="contacts"
+    )
+    policy_formset = SalesSourceBrandPolicyFormSet(
+        post_data, instance=source, prefix="policies"
+    )
+    if request.method == "POST" and all(
+        (form.is_valid(), contact_formset.is_valid(), policy_formset.is_valid())
+    ):
+        source = form.save()
+        contact_formset.instance = source
+        contact_formset.save()
+        policy_formset.instance = source
+        policy_formset.save()
+        messages.success(request, f"已儲存{source.get_source_type_display()}：{source.name}。")
+        return redirect("sales_source_list")
+    return render(
+        request,
+        "sales/sales_source_form.html",
+        {
+            "form": form,
+            "contact_formset": contact_formset,
+            "policy_formset": policy_formset,
+            "source": source if source.pk else None,
+        },
+    )
+
+
+@login_required
+def installment_company_list(request):
+    editing = None
+    edit_pk = request.GET.get("edit")
+    if edit_pk:
+        editing = get_object_or_404(InstallmentCompany, pk=edit_pk)
+    form = InstallmentCompanyForm(request.POST or None, instance=editing)
+    if request.method == "POST" and form.is_valid():
+        company = form.save()
+        messages.success(request, f"已儲存分期公司：{company.name}。")
+        return redirect("installment_company_list")
+    return render(
+        request,
+        "sales/installment_company_list.html",
+        {
+            "companies": InstallmentCompany.objects.annotate(
+                option_count=Count("plan_options", distinct=True),
+                order_count=Count("orders", distinct=True),
+            ),
+            "form": form,
+            "editing": editing,
+        },
+    )
+
+
+@login_required
+@transaction.atomic
+def vehicle_installment_plan_list(request, model_pk):
+    vehicle_model = get_object_or_404(VehicleModel, pk=model_pk)
+    editing = None
+    edit_pk = request.POST.get("plan_id") or request.GET.get("edit")
+    if edit_pk:
+        editing = get_object_or_404(
+            InstallmentPlanVersion, pk=edit_pk, vehicle_model=vehicle_model
+        )
+    plan = editing or InstallmentPlanVersion(vehicle_model=vehicle_model)
+    post_data = request.POST or None
+    form = InstallmentPlanVersionForm(post_data, instance=plan, prefix="plan")
+    option_formset = InstallmentPlanOptionFormSet(
+        post_data, instance=plan, prefix="options"
+    )
+    if request.method == "POST" and form.is_valid() and option_formset.is_valid():
+        plan = form.save(commit=False)
+        plan.vehicle_model = vehicle_model
+        plan.save()
+        option_formset.instance = plan
+        option_formset.save()
+        messages.success(request, "分期方案版本已儲存。")
+        return redirect("vehicle_installment_plan_list", model_pk=vehicle_model.pk)
+    return render(
+        request,
+        "sales/installment_plan_list.html",
+        {
+            "vehicle_model": vehicle_model,
+            "plans": vehicle_model.installment_plan_versions.prefetch_related(
+                "options__company"
+            ),
+            "form": form,
+            "option_formset": option_formset,
+            "editing": editing,
+        },
+    )
+
+
+@login_required
+def dealer_volume_bonus_list(request):
+    rules = DealerVolumeBonusRule.objects.select_related("dealer").prefetch_related(
+        "tiers", "settlement__allocations"
+    )
+    rows = []
+    for rule in rules:
+        preview = preview_volume_bonus(rule)
+        rows.append({"rule": rule, "preview": preview})
+    return render(
+        request,
+        "sales/dealer_volume_bonus_list.html",
+        {"rows": rows},
+    )
+
+
+@login_required
+@transaction.atomic
+def dealer_volume_bonus_form(request, pk=None):
+    rule = get_object_or_404(DealerVolumeBonusRule, pk=pk) if pk else DealerVolumeBonusRule()
+    if rule.pk and hasattr(rule, "settlement"):
+        messages.error(request, "此規則已完成結算，為保留明細不可再修改。")
+        return redirect("dealer_volume_bonus_list")
+    post_data = request.POST or None
+    form = DealerVolumeBonusRuleForm(post_data, instance=rule)
+    tier_formset = DealerVolumeBonusTierFormSet(
+        post_data, instance=rule, prefix="tiers"
+    )
+    if request.method == "POST" and form.is_valid() and tier_formset.is_valid():
+        rule = form.save()
+        tier_formset.instance = rule
+        tier_formset.save()
+        messages.success(request, "車行台數獎金規則已儲存。")
+        return redirect("dealer_volume_bonus_list")
+    return render(
+        request,
+        "sales/dealer_volume_bonus_form.html",
+        {"form": form, "tier_formset": tier_formset, "rule": rule if rule.pk else None},
+    )
+
+
+@login_required
+@transaction.atomic
+def dealer_volume_bonus_settle(request, pk):
+    rule = get_object_or_404(DealerVolumeBonusRule.objects.select_related("dealer"), pk=pk)
+    if hasattr(rule, "settlement"):
+        messages.error(request, "此規則已完成結算，不可重複結算。")
+        return redirect("dealer_volume_bonus_list")
+    preview = preview_volume_bonus(rule)
+    settlement = DealerVolumeBonusSettlement(
+        rule=rule,
+        expected_amount=preview["expected_amount"],
+        actual_amount=preview["expected_amount"],
+    )
+    form = DealerVolumeBonusSettlementForm(request.POST or None, instance=settlement)
+    if request.method == "POST" and form.is_valid():
+        try:
+            create_volume_bonus_settlement(
+                rule,
+                _editing_name(request.user),
+                form.cleaned_data["actual_amount"],
+                form.cleaned_data["adjustment_reason"],
+            )
+        except (ValueError, ValidationError) as exc:
+            messages.error(request, str(exc))
+        else:
+            messages.success(request, "台數獎金已結算並保存逐單明細。")
+            return redirect("dealer_volume_bonus_list")
+    return render(
+        request,
+        "sales/dealer_volume_bonus_settle.html",
+        {"rule": rule, "preview": preview, "form": form},
+    )
+
+
+@login_required
+@transaction.atomic
+def dealer_volume_bonus_revise(request, pk):
+    settlement = get_object_or_404(
+        DealerVolumeBonusSettlement.objects.select_related("rule__dealer").prefetch_related(
+            "allocations__order__vehicle_model", "adjustments"
+        ),
+        pk=pk,
+    )
+    form = DealerVolumeBonusAdjustmentForm(
+        request.POST or None,
+        initial={"actual_amount": settlement.actual_amount},
+    )
+    if request.method == "POST" and form.is_valid():
+        try:
+            revise_volume_bonus_settlement(
+                settlement,
+                _editing_name(request.user),
+                form.cleaned_data["actual_amount"],
+                form.cleaned_data["reason"],
+            )
+        except (ValueError, ValidationError) as exc:
+            messages.error(request, str(exc))
+        else:
+            messages.success(request, "實際入帳金額已重新分攤，並保存調整紀錄。")
+            return redirect("dealer_volume_bonus_list")
+    return render(
+        request,
+        "sales/dealer_volume_bonus_revise.html",
+        {"settlement": settlement, "form": form},
+    )
 
 
 @login_required
@@ -814,6 +1102,7 @@ def order_create(request):
             order.status = SalesOrder.Status.ALLOCATION_PENDING
             order.save()
             apply_order_price_snapshot(order)
+            apply_order_installment_snapshot(order)
             formset.instance = order
             formset.save()
             fee_formset.instance = order
@@ -1461,6 +1750,7 @@ def order_edit(request, pk):
                     or not order.price_snapshot
                 ),
             )
+            apply_order_installment_snapshot(order)
             formset.save()
             fee_formset.save()
             order._prefetched_objects_cache = {}
@@ -1776,6 +2066,7 @@ def registration_save(request, pk):
             order,
             _editing_name(request.user),
         )
+        apply_order_dealer_commission(order)
         OrderEvent.objects.create(
             order=order,
             event_type="registration_data_updated",
@@ -1921,6 +2212,7 @@ def registration_complete(request, pk):
             _editing_name(request.user),
             lock=True,
         )
+        apply_order_dealer_commission(order, lock=True)
         OrderEvent.objects.create(
             order=order,
             event_type="registration_completed",
@@ -3127,6 +3419,36 @@ def sales_sources(request):
         source_type=source_type, active=True
     ).values("id", "name")
     return JsonResponse({"results": list(sources)})
+
+
+@login_required
+def installment_plan_options(request):
+    model_id = request.GET.get("vehicle_model")
+    raw_date = request.GET.get("order_date")
+    try:
+        order_date = date.fromisoformat(raw_date) if raw_date else timezone.localdate()
+    except ValueError:
+        return JsonResponse({"error": "訂單日期格式錯誤。"}, status=400)
+    if not model_id or not str(model_id).isdigit():
+        return JsonResponse({"options": []})
+    version = resolve_installment_plan_version(int(model_id), order_date)
+    if not version:
+        return JsonResponse({"options": []})
+    return JsonResponse(
+        {
+            "version": {
+                "id": version.pk,
+                "effective_from": version.effective_from.isoformat(),
+                "effective_to": (
+                    version.effective_to.isoformat() if version.effective_to else None
+                ),
+            },
+            "options": [
+                installment_option_payload(option)
+                for option in version.options.select_related("company").all()
+            ],
+        }
+    )
 
 
 @login_required

@@ -61,8 +61,19 @@ UI 有異動時，另以桌機、平板及手機 viewport 開啟主要頁面，�
 `?ui_audit=1`。頁面根元素的 `data-ui-layout-issues` 必須為 `0`；完整檢查清單
 見 `specs/026-django-order-mvp/04-tasks.md`。
 
-目前尚未完成交車全流程、工作日提醒與 LicenseWatcher
-Ubuntu worker；範圍與驗收依 `specs/026-django-order-mvp/`。
+訂單、配車、補助、領牌、交付、取消退款、工作日提醒、營運財務、
+歷史 Excel 匯入及定位套表均已納入 Django 系統。LicenseWatcher Ubuntu
+worker 依目前決策暫緩，不列入本次正式部署；後續若啟動，仍以
+`specs/026-django-order-mvp/` 的自動監控與回傳候選號碼邊界為準。
+
+### 正式環境安全與容量
+
+- PostgreSQL 保留於 SSD；媒體檔與備份放在 Toshiba 資料碟。
+- 全欄位訂單搜尋使用單筆彙整索引；PostgreSQL 另建立 `pg_trgm` GIN index。
+- 訂單日期、實際領牌日期及收款確認查詢均建立資料庫索引。
+- 上傳請求上限為 30 MB，超過 5 MB 的單一檔案會改用暫存檔處理，避免擠占 Web 記憶體。
+- 正式環境必須設定獨立 `DJANGO_SECRET_KEY` 與 PostgreSQL 強密碼；不得提交 `.env.django` 或 Google Vision 金鑰。
+- 若直接在內網以 `http://T470P:19999` 存取，須將 HTTPS 相關環境變數設為 `0`；若前方有 HTTPS reverse proxy，則維持安全 Cookie、HSTS 與 SSL redirect。
 
 ---
 

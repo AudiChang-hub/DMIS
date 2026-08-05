@@ -1305,6 +1305,12 @@ class SalesOrder(TimeStampedModel):
         INSTALLMENT = "installment", "分期"
         CARD = "card", "刷卡"
 
+    class DiscountStatus(models.TextChoices):
+        NONE = "", "未申請"
+        PENDING = "pending", "待確認"
+        APPROVED = "approved", "已核准"
+        REJECTED = "rejected", "未採用"
+
     class PaymentMethod(models.TextChoices):
         CASH = "cash", "現金"
         TRANSFER = "transfer", "匯款"
@@ -1528,6 +1534,21 @@ class SalesOrder(TimeStampedModel):
         null=True,
         editable=False,
     )
+    approved_discount_amount = models.DecimalField(
+        "內部核准折扣", max_digits=12, decimal_places=0, default=0, editable=False
+    )
+    discount_requested_amount = models.DecimalField(
+        "申請折扣金額", max_digits=12, decimal_places=0, default=0, editable=False
+    )
+    discount_reason = models.CharField("折扣原因", max_length=250, blank=True, editable=False)
+    discount_status = models.CharField(
+        "折扣狀態", max_length=20, choices=DiscountStatus.choices, blank=True, editable=False
+    )
+    discount_requested_at = models.DateTimeField("折扣申請時間", blank=True, null=True, editable=False)
+    discount_requested_by = models.CharField("折扣申請人", max_length=150, blank=True, editable=False)
+    discount_decided_at = models.DateTimeField("折扣確認時間", blank=True, null=True, editable=False)
+    discount_decided_by = models.CharField("折扣確認人", max_length=150, blank=True, editable=False)
+    discount_decision_note = models.CharField("折扣確認備註", max_length=250, blank=True, editable=False)
     installment_plan_option = models.ForeignKey(
         InstallmentPlanOption,
         on_delete=models.SET_NULL,
@@ -1655,6 +1676,10 @@ class SalesOrder(TimeStampedModel):
             models.Index(fields=["owner_phone"]),
             models.Index(fields=["owner_id_number"]),
             models.Index(fields=["status"]),
+            models.Index(fields=["order_date"], name="sales_order_date_idx"),
+            models.Index(
+                fields=["registration_date"], name="sales_registration_date_idx"
+            ),
         ]
 
     @property
@@ -1968,6 +1993,7 @@ class SalesOrder(TimeStampedModel):
             + self.accessory_total
             - self.deposit_amount
             - self.old_vehicle_valuation
+            - self.approved_discount_amount
         )
 
     def clear_installment_details(self):
@@ -2386,6 +2412,18 @@ class OrderOperationsProfile(TimeStampedModel):
 
     @property
     def total_received(self):
+        prefetched = getattr(self.order, "_prefetched_objects_cache", {}).get(
+            "payment_records"
+        )
+        if prefetched is not None:
+            return sum(
+                (
+                    record.received_amount or Decimal("0")
+                    for record in prefetched
+                    if record.confirmed
+                ),
+                Decimal("0"),
+            )
         return self.order.payment_records.filter(confirmed=True).aggregate(
             total=models.Sum("received_amount")
         )["total"] or Decimal("0")
@@ -2449,6 +2487,11 @@ class PaymentRecord(TimeStampedModel):
 
     class Meta:
         ordering = ["received_on", "id"]
+        indexes = [
+            models.Index(
+                fields=["order", "confirmed"], name="payment_order_confirmed_idx"
+            )
+        ]
         constraints = [
             models.UniqueConstraint(
                 fields=["order", "system_key"],

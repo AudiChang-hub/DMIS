@@ -2,6 +2,7 @@ import json
 import logging
 import uuid
 from datetime import date, timedelta
+from decimal import Decimal
 from io import BytesIO
 from pathlib import Path
 
@@ -44,6 +45,8 @@ from .forms import (
     OrderEditForm,
     PrivacyConsentForm,
     PaymentRecordFormSet,
+    PositionedPrintFieldFormSet,
+    PositionedPrintTemplateForm,
     ReconciliationRecordForm,
     RefundCompletionForm,
     QuickInventoryEntryFormSet,
@@ -80,6 +83,7 @@ from .models import (
     OrderEvent,
     OrderOperationsProfile,
     PaymentRecord,
+    PositionedPrintTemplate,
     OrderChange,
     OrderDraft,
     IdOcrJob,
@@ -133,6 +137,7 @@ from .services.legacy_import import (
     confirm_import,
     file_sha256,
 )
+from .services.positioned_template_pdf import build_positioned_template_pdf
 
 
 logger = logging.getLogger(__name__)
@@ -225,6 +230,86 @@ def brand_registration_fee_rule_delete(request, pk):
         rule.delete()
         messages.success(request, f"已刪除 {label}。")
     return redirect("brand_registration_fee_rule_list")
+
+
+@login_required
+def positioned_template_list(request):
+    return render(
+        request,
+        "sales/positioned_template_list.html",
+        {
+            "templates": PositionedPrintTemplate.objects.prefetch_related("fields"),
+        },
+    )
+
+
+@login_required
+@transaction.atomic
+def positioned_template_form(request, pk=None):
+    template = get_object_or_404(PositionedPrintTemplate, pk=pk) if pk else PositionedPrintTemplate()
+    form = PositionedPrintTemplateForm(request.POST or None, request.FILES or None, instance=template)
+    field_formset = PositionedPrintFieldFormSet(
+        request.POST or None,
+        instance=template,
+        prefix="print_fields",
+    )
+    if request.method == "POST" and form.is_valid() and field_formset.is_valid():
+        template = form.save()
+        field_formset.instance = template
+        field_formset.save()
+        messages.success(request, f"已儲存列印範本：{template.name}。")
+        return redirect("positioned_template_edit", pk=template.pk)
+    sample_order = SalesOrder.objects.select_related(
+        "source", "vehicle_model", "color", "allocated_vehicle", "operations"
+    ).order_by("-created_at").first()
+    return render(
+        request,
+        "sales/positioned_template_form.html",
+        {
+            "form": form,
+            "field_formset": field_formset,
+            "template_object": template,
+            "sample_order": sample_order,
+        },
+    )
+
+
+@login_required
+def positioned_template_preview(request, pk, order_pk=None):
+    template = get_object_or_404(PositionedPrintTemplate.objects.prefetch_related("fields"), pk=pk)
+    orders = SalesOrder.objects.select_related(
+        "source", "vehicle_model", "color", "allocated_vehicle", "operations"
+    )
+    order = get_object_or_404(orders, pk=order_pk) if order_pk else orders.order_by("-created_at").first()
+    if not order:
+        messages.error(request, "目前沒有可供預覽的訂單，請先建立一張訂單。")
+        return redirect("positioned_template_edit", pk=pk)
+    try:
+        output = build_positioned_template_pdf(template, order)
+    except (ValueError, OSError) as exc:
+        messages.error(request, f"無法產生套表：{exc}")
+        return redirect("positioned_template_edit", pk=pk)
+    response = FileResponse(
+        output,
+        content_type="application/pdf",
+        filename=f"{template.document_type}-{order.number}.pdf",
+    )
+    response["Cache-Control"] = "private, no-store"
+    return response
+
+
+@login_required
+@transaction.atomic
+def positioned_template_delete(request, pk):
+    template = get_object_or_404(PositionedPrintTemplate, pk=pk)
+    if request.method == "POST":
+        background = template.background_file
+        label = template.name
+        template.delete()
+        if background:
+            background.delete(save=False)
+        messages.success(request, f"已刪除列印範本：{label}。")
+    return redirect("positioned_template_list")
 
 
 @login_required
@@ -889,16 +974,65 @@ def _operations_report_queryset(request):
         rows = rows.filter(operations__payment_confirmed=True)
     elif payment_status == "pending":
         rows = rows.exclude(operations__payment_confirmed=True)
+    date_basis = request.GET.get("date_basis", "registration")
+    date_field = {
+        "order": "order_date",
+        "delivery": "delivered_at__date",
+        "registration": "registration_date",
+    }.get(date_basis, "registration_date")
+    sort_field = "delivered_at" if date_basis == "delivery" else date_field
     if request.GET.get("date_from"):
-        rows = rows.filter(order_date__gte=request.GET["date_from"])
+        rows = rows.filter(**{f"{date_field}__gte": request.GET["date_from"]})
     if request.GET.get("date_to"):
-        rows = rows.filter(order_date__lte=request.GET["date_to"])
-    return rows.order_by("-order_date", "-id")
+        rows = rows.filter(**{f"{date_field}__lte": request.GET["date_to"]})
+    if request.GET.get("include_cancelled") != "1":
+        rows = rows.exclude(status=SalesOrder.Status.CANCELLED)
+    return rows.order_by(f"-{sort_field}", "-id")
+
+
+def _operations_analysis(rows):
+    summary = {
+        "count": 0,
+        "vehicle_sales": Decimal("0"),
+        "actual_received": Decimal("0"),
+        "net_profit": Decimal("0"),
+        "profit_ready": 0,
+    }
+    models = {}
+    for order in rows:
+        profile = getattr(order, "operations", None)
+        received = profile.total_received if profile else Decimal("0")
+        profit = profile.net_profit if profile and profile.vehicle_cost else Decimal("0")
+        summary["count"] += 1
+        summary["vehicle_sales"] += order.vehicle_price
+        summary["actual_received"] += received
+        summary["net_profit"] += profit
+        if profile and profile.vehicle_cost:
+            summary["profit_ready"] += 1
+        key = order.vehicle_model_id
+        bucket = models.setdefault(
+            key,
+            {
+                "label": f"{order.vehicle_model.brand} {order.vehicle_model.name}".strip(),
+                "count": 0,
+                "vehicle_sales": Decimal("0"),
+                "actual_received": Decimal("0"),
+                "net_profit": Decimal("0"),
+            },
+        )
+        bucket["count"] += 1
+        bucket["vehicle_sales"] += order.vehicle_price
+        bucket["actual_received"] += received
+        bucket["net_profit"] += profit
+    summary["average_price"] = summary["vehicle_sales"] / summary["count"] if summary["count"] else Decimal("0")
+    return summary, sorted(models.values(), key=lambda item: (-item["count"], item["label"]))
 
 
 @login_required
 def operations_report(request):
-    paginator = Paginator(_operations_report_queryset(request), 100)
+    rows = _operations_report_queryset(request)
+    analysis_summary, model_breakdown = _operations_analysis(rows)
+    paginator = Paginator(rows, 100)
     page = paginator.get_page(request.GET.get("page"))
     for order in page.object_list:
         order.operation_data = getattr(order, "operations", None)
@@ -910,6 +1044,13 @@ def operations_report(request):
             "page_obj": page,
             "energy_types": VehicleModel.EnergyType.choices,
             "selected": request.GET,
+            "analysis_summary": analysis_summary,
+            "model_breakdown": model_breakdown,
+            "date_basis_label": {
+                "order": "訂單日期",
+                "delivery": "實際交付日期",
+                "registration": "實際領牌日期",
+            }.get(request.GET.get("date_basis", "registration"), "實際領牌日期"),
         },
     )
 
@@ -1652,6 +1793,9 @@ def order_detail(request, pk):
             "delivery_form": DeliveryCompletionForm(order),
             "cancellation_form": CancellationRequestForm(),
             "refund_form": RefundCompletionForm(order),
+            "positioned_templates": PositionedPrintTemplate.objects.filter(active=True).order_by(
+                "document_type", "-version"
+            ),
         },
     )
 

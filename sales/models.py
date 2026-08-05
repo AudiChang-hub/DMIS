@@ -801,6 +801,85 @@ class BrandRegistrationFeeRule(TimeStampedModel):
         return super().save(*args, **kwargs)
 
 
+class PositionedPrintTemplate(TimeStampedModel):
+    class DocumentType(models.TextChoices):
+        ENVELOPE = "envelope", "信封"
+        SUBMISSION = "submission", "報件單"
+        TAX_DECLARATION = "tax_declaration", "減徵貨物稅聲明書"
+        TAX_CONSENT = "tax_consent", "退稅同意書"
+        EREADY_CHECKLIST = "eready_checklist", "eReady 交車點檢表"
+
+    class PaperSize(models.TextChoices):
+        A4 = "a4", "A4"
+        A5 = "a5", "A5"
+        CUSTOM = "custom", "自訂尺寸"
+
+    class Orientation(models.TextChoices):
+        PORTRAIT = "portrait", "直式"
+        LANDSCAPE = "landscape", "橫式"
+
+    name = models.CharField("範本名稱", max_length=160)
+    document_type = models.CharField("文件類型", max_length=30, choices=DocumentType.choices)
+    version = models.PositiveSmallIntegerField("版本", default=1)
+    paper_size = models.CharField("紙張", max_length=20, choices=PaperSize.choices, default=PaperSize.A4)
+    orientation = models.CharField("方向", max_length=20, choices=Orientation.choices, default=Orientation.PORTRAIT)
+    width_mm = models.DecimalField("自訂寬度 mm", max_digits=7, decimal_places=2, blank=True, null=True)
+    height_mm = models.DecimalField("自訂高度 mm", max_digits=7, decimal_places=2, blank=True, null=True)
+    background_file = models.FileField("背景檔案", upload_to="print_templates/%Y/%m/", blank=True)
+    printer_offset_x_mm = models.DecimalField("印表機水平偏移 mm", max_digits=6, decimal_places=2, default=0)
+    printer_offset_y_mm = models.DecimalField("印表機垂直偏移 mm", max_digits=6, decimal_places=2, default=0)
+    active = models.BooleanField("啟用中", default=True)
+    note = models.TextField("備註", blank=True)
+
+    class Meta:
+        ordering = ["document_type", "-version", "name"]
+        constraints = [
+            models.UniqueConstraint(fields=["document_type", "version"], name="unique_positioned_template_version")
+        ]
+        verbose_name = "定位列印範本"
+        verbose_name_plural = "定位列印範本"
+
+    def __str__(self):
+        return f"{self.get_document_type_display()}／{self.name}（v{self.version}）"
+
+    def clean(self):
+        errors = {}
+        if self.paper_size == self.PaperSize.CUSTOM and (not self.width_mm or not self.height_mm):
+            errors["width_mm"] = "自訂紙張必須填寫寬度與高度。"
+        if errors:
+            raise ValidationError(errors)
+
+
+class PositionedPrintField(TimeStampedModel):
+    class Alignment(models.TextChoices):
+        LEFT = "left", "靠左"
+        CENTER = "center", "置中"
+        RIGHT = "right", "靠右"
+
+    template = models.ForeignKey(
+        PositionedPrintTemplate,
+        on_delete=models.CASCADE,
+        related_name="fields",
+        verbose_name="範本",
+    )
+    field_key = models.CharField("資料欄位", max_length=80)
+    label = models.CharField("內部標籤", max_length=120, blank=True)
+    x_mm = models.DecimalField("左側位置 mm", max_digits=7, decimal_places=2, default=10)
+    y_mm = models.DecimalField("頂端位置 mm", max_digits=7, decimal_places=2, default=10)
+    width_mm = models.DecimalField("欄位寬度 mm", max_digits=7, decimal_places=2, default=60)
+    font_size = models.DecimalField("字級", max_digits=5, decimal_places=1, default=10)
+    alignment = models.CharField("對齊", max_length=10, choices=Alignment.choices, default=Alignment.LEFT)
+    prefix = models.CharField("前置文字", max_length=100, blank=True)
+    suffix = models.CharField("後置文字", max_length=100, blank=True)
+    sort_order = models.PositiveSmallIntegerField("排序", default=0)
+    active = models.BooleanField("顯示", default=True)
+
+    class Meta:
+        ordering = ["sort_order", "id"]
+        verbose_name = "定位列印欄位"
+        verbose_name_plural = "定位列印欄位"
+
+
 class VehicleSettlementCostRule(TimeStampedModel):
     vehicle_model = models.ForeignKey(
         VehicleModel,

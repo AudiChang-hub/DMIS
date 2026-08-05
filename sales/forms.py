@@ -24,6 +24,8 @@ from .models import (
     OtherFeeLine,
     OrderOperationsProfile,
     PaymentRecord,
+    PositionedPrintField,
+    PositionedPrintTemplate,
     RegistrationDocument,
     SalesOrder,
     SalesSource,
@@ -46,6 +48,7 @@ from .services.registration_fee import (
     calculate_vehicle_registration_fee,
 )
 from .services.installment_plan import resolve_installment_plan_option
+from .services.positioned_template_pdf import PRINT_FIELD_CHOICES
 
 
 PHONE_FIELDS = {"owner_phone"}
@@ -1802,6 +1805,74 @@ class BrandRegistrationFeeRuleForm(forms.ModelForm):
 
     def clean_fixed_total(self):
         return self.cleaned_data.get("fixed_total") or 0
+
+
+class PositionedPrintTemplateForm(forms.ModelForm):
+    class Meta:
+        model = PositionedPrintTemplate
+        fields = [
+            "name",
+            "document_type",
+            "version",
+            "paper_size",
+            "orientation",
+            "width_mm",
+            "height_mm",
+            "background_file",
+            "printer_offset_x_mm",
+            "printer_offset_y_mm",
+            "active",
+            "note",
+        ]
+        widgets = {"note": forms.Textarea(attrs={"rows": 2})}
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        for field in self.fields.values():
+            field.widget.attrs.setdefault("class", "form-control")
+        self.fields["background_file"].widget.attrs["accept"] = ".xlsx,.xlsm,.pdf,.jpg,.jpeg,.png,.webp"
+
+    def clean_background_file(self):
+        upload = self.cleaned_data.get("background_file")
+        if upload and Path(upload.name).suffix.lower() not in {".xlsx", ".xlsm", ".pdf", ".jpg", ".jpeg", ".png", ".webp"}:
+            raise forms.ValidationError("僅支援 Excel、PDF、JPG、PNG 或 WebP 背景。")
+        return upload
+
+
+class PositionedPrintFieldForm(forms.ModelForm):
+    field_key = forms.ChoiceField(label="資料欄位", choices=PRINT_FIELD_CHOICES)
+
+    class Meta:
+        model = PositionedPrintField
+        fields = [
+            "field_key",
+            "label",
+            "x_mm",
+            "y_mm",
+            "width_mm",
+            "font_size",
+            "alignment",
+            "prefix",
+            "suffix",
+            "sort_order",
+            "active",
+        ]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        for field in self.fields.values():
+            field.widget.attrs.setdefault("class", "form-control")
+        for name in ("x_mm", "y_mm", "width_mm", "font_size", "sort_order"):
+            self.fields[name].widget.attrs["inputmode"] = "decimal"
+
+
+PositionedPrintFieldFormSet = inlineformset_factory(
+    PositionedPrintTemplate,
+    PositionedPrintField,
+    form=PositionedPrintFieldForm,
+    extra=1,
+    can_delete=True,
+)
 
 
 class RegistrationDocumentUploadForm(forms.ModelForm):

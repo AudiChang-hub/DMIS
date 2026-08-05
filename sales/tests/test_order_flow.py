@@ -3151,6 +3151,13 @@ class OrderOperationsTests(TestCase):
 
         self.assertEqual(list_response.status_code, 200)
         self.assertContains(list_response, self.order.number)
+        self.assertContains(list_response, "車款成交額")
+        self.assertContains(list_response, "實際領牌日期")
+        self.assertEqual(list_response.context["analysis_summary"]["count"], 1)
+        self.assertEqual(
+            list_response.context["analysis_summary"]["vehicle_sales"],
+            Decimal("80000"),
+        )
         self.assertEqual(export_response.status_code, 200)
         self.assertEqual(
             export_response["Content-Type"],

@@ -1521,6 +1521,45 @@ body.screen-locked { overflow: hidden; }
   .master-dynamic-row, .installment-option-row { grid-template-columns: 1fr; }
 }
 
+.positioned-field-list {
+  display: grid;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.positioned-field-row {
+  display: grid;
+  grid-template-columns: minmax(180px, 1.5fr) minmax(140px, 1fr) repeat(4, minmax(88px, .65fr)) minmax(110px, .8fr) repeat(3, minmax(95px, .7fr));
+  gap: 10px;
+  align-items: end;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--surface-soft);
+}
+
+.positioned-field-row label {
+  display: block;
+  font-size: .78rem;
+  color: var(--muted);
+  margin-bottom: 5px;
+}
+
+.document-template-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+@media (max-width: 1100px) {
+  .positioned-field-row { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+
+@media (max-width: 700px) {
+  .positioned-field-row { grid-template-columns: 1fr; }
+  .document-template-actions { display: grid; }
+}
+
 @media print {
   .app-header, .mobile-nav { display: none !important; }
 }

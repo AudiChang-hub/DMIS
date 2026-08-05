@@ -17,10 +17,24 @@
   <div class="master-search"><label for="operations-q">全欄位搜尋</label><input id="operations-q" name="q" value="{{ selected.q }}" placeholder="訂單、姓名、車牌、車型、發票、舊車、收款…"></div>
   <div><label for="energy-type">能源別</label><select id="energy-type" name="energy_type"><option value="">全部</option>{% for value, label in energy_types %}<option value="{{ value }}"{% if selected.energy_type == value %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
   <div><label for="payment-status">收款確認</label><select id="payment-status" name="payment_status"><option value="">全部</option><option value="confirmed"{% if selected.payment_status == "confirmed" %} selected{% endif %}>已確認</option><option value="pending"{% if selected.payment_status == "pending" %} selected{% endif %}>待確認</option></select></div>
-  <div><label for="date-from">訂單日期起</label><input id="date-from" type="date" name="date_from" value="{{ selected.date_from }}"></div>
-  <div><label for="date-to">訂單日期迄</label><input id="date-to" type="date" name="date_to" value="{{ selected.date_to }}"></div>
+  <div><label for="date-basis">日期依據</label><select id="date-basis" name="date_basis"><option value="registration"{% if selected.date_basis == "registration" or not selected.date_basis %} selected{% endif %}>實際領牌日期</option><option value="order"{% if selected.date_basis == "order" %} selected{% endif %}>訂單日期</option><option value="delivery"{% if selected.date_basis == "delivery" %} selected{% endif %}>實際交付日期</option></select></div>
+  <div><label for="date-from">日期起</label><input id="date-from" type="date" name="date_from" value="{{ selected.date_from }}"></div>
+  <div><label for="date-to">日期迄</label><input id="date-to" type="date" name="date_to" value="{{ selected.date_to }}"></div>
+  <label class="filter-check"><input type="checkbox" name="include_cancelled" value="1"{% if selected.include_cancelled == "1" %} checked{% endif %}> 包含已取消訂單</label>
   <div class="inventory-filter-actions"><a class="button ghost" href="{% url 'operations_report' %}">清除</a><button class="button primary" type="submit">套用篩選</button></div>
 </form>
+
+<section class="dashboard-section operations-analysis">
+  <div class="dashboard-section__heading"><div><p class="eyebrow">{{ date_basis_label }}統計</p><h2>目前篩選結果</h2></div><small>所有卡片與車型明細使用同一組篩選條件</small></div>
+  <div class="performance-grid">
+    <article class="performance-card performance-card--primary"><span>銷售台數</span><strong>{{ analysis_summary.count }}<small>台</small></strong></article>
+    <article class="performance-card"><span>車款成交額</span><strong><small>$</small>{{ analysis_summary.vehicle_sales|floatformat:0 }}</strong><em>平均 ${{ analysis_summary.average_price|floatformat:0 }}</em></article>
+    <article class="performance-card"><span>實際收款額</span><strong><small>$</small>{{ analysis_summary.actual_received|floatformat:0 }}</strong><em>依收款明細已收金額</em></article>
+    <article class="performance-card"><span>目前單筆淨利合計</span><strong><small>$</small>{{ analysis_summary.net_profit|floatformat:0 }}</strong><em>{{ analysis_summary.profit_ready }}／{{ analysis_summary.count }} 筆成本完整</em></article>
+  </div>
+</section>
+
+{% if model_breakdown %}<details class="section-block analysis-breakdown"><summary><strong>依車型下鑽</strong><span>共 {{ model_breakdown|length }} 個車型</span></summary><div class="responsive-table-wrap"><table class="data-table"><thead><tr><th>車型</th><th>台數</th><th>車款成交額</th><th>實際收款</th><th>目前淨利</th></tr></thead><tbody>{% for row in model_breakdown %}<tr><td>{{ row.label }}</td><td>{{ row.count }}</td><td>${{ row.vehicle_sales|floatformat:0 }}</td><td>${{ row.actual_received|floatformat:0 }}</td><td>${{ row.net_profit|floatformat:0 }}</td></tr>{% endfor %}</tbody></table></div></details>{% endif %}
 
 <section class="section-block operations-table-shell">
   <div class="section-title"><div><p class="eyebrow">查詢結果</p><h2>{{ page_obj.paginator.count }} 筆訂單</h2></div></div>

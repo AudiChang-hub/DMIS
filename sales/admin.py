@@ -23,6 +23,8 @@ from .models import (
     OrderOperationsProfile,
     RegistrationDocument,
     PaymentRecord,
+    PositionedPrintField,
+    PositionedPrintTemplate,
     SalesOrder,
     SalesSource,
     SalesSourceBrandPolicy,
@@ -87,6 +89,8 @@ admin.site.register(LegacyImportRow)
 admin.site.register(LegacySalesSnapshot)
 admin.site.register(SubsidyItem)
 admin.site.register(BrandRegistrationFeeRule)
+admin.site.register(PositionedPrintTemplate)
+admin.site.register(PositionedPrintField)
 
 
 class VehicleColorInline(admin.TabularInline):

@@ -268,6 +268,20 @@ class AccessoryProduct(TimeStampedModel):
         return self.name
 
 
+class BusinessHoliday(TimeStampedModel):
+    date = models.DateField("日期", unique=True, db_index=True)
+    name = models.CharField("假日名稱", max_length=120)
+    active = models.BooleanField("排除工作日計算", default=True)
+
+    class Meta:
+        ordering = ["date"]
+        verbose_name = "國定假日"
+        verbose_name_plural = "國定假日"
+
+    def __str__(self):
+        return f"{self.date}／{self.name}"
+
+
 class VehicleSettlementCostRule(TimeStampedModel):
     vehicle_model = models.ForeignKey(
         VehicleModel,
@@ -945,6 +959,31 @@ class SalesOrder(TimeStampedModel):
         "實際交車時間", blank=True, null=True, db_index=True
     )
     delivered_by = models.CharField("交車完成人員", max_length=150, blank=True)
+    cancellation_requested_at = models.DateTimeField(
+        "取消申請時間", blank=True, null=True
+    )
+    cancellation_requested_by = models.CharField(
+        "取消登記人員", max_length=150, blank=True
+    )
+    cancellation_reason = models.CharField("取消原因", max_length=250, blank=True)
+    cancellation_note = models.TextField("取消說明", blank=True)
+    refund_amount = models.DecimalField(
+        "退款金額", max_digits=12, decimal_places=0, default=0
+    )
+    refund_completed_on = models.DateField("退款完成日期", blank=True, null=True)
+    refund_method = models.CharField(
+        "退款方式", max_length=20, choices=PaymentMethod.choices, blank=True
+    )
+    refund_reference = models.CharField("退款帳號／交易資訊", max_length=250, blank=True)
+    refund_proof = models.FileField(
+        "退款證明", upload_to="orders/refunds/%Y/%m/", blank=True
+    )
+    cancellation_completed_at = models.DateTimeField(
+        "取消完成時間", blank=True, null=True
+    )
+    cancellation_completed_by = models.CharField(
+        "取消完成人員", max_length=150, blank=True
+    )
     note = models.TextField("備註", blank=True)
     signed_contract = models.FileField(
         "已簽署合約", upload_to="orders/contracts/%Y/%m/", blank=True
@@ -1152,6 +1191,120 @@ class SalesOrder(TimeStampedModel):
             ]
         )
 
+    @transaction.atomic
+    def complete_delivery(self, delivered_at, actor_name):
+        if self.is_delivered:
+            raise ValidationError("此訂單已完成交付。")
+        if self.status in {
+            self.Status.CANCEL_REFUND_PENDING,
+            self.Status.CANCELLED,
+        }:
+            raise ValidationError("已進入取消流程，不能交付車輛。")
+        if not self.allocated_vehicle_id:
+            raise ValidationError("尚未配車，不能完成交付。")
+        if not self.can_deliver:
+            raise ValidationError("一般訂單必須先完成領牌才能交付。")
+
+        vehicle = VehicleInventory.objects.select_for_update().get(
+            pk=self.allocated_vehicle_id
+        )
+        vehicle.status = VehicleInventory.Status.DELIVERED
+        vehicle.save(update_fields=["status", "updated_at"])
+        self.delivered_at = delivered_at
+        self.delivered_by = actor_name
+        self.status = (
+            self.Status.COMPLETED
+            if self.is_registration_complete
+            else self.Status.DELIVERED_DOCS_PENDING
+        )
+        self.save(
+            update_fields=["delivered_at", "delivered_by", "status", "updated_at"]
+        )
+
+    @transaction.atomic
+    def request_cancellation(self, actor_name, reason, note=""):
+        if self.is_delivered or self.status == self.Status.COMPLETED:
+            raise ValidationError("車輛已交付，不能取消訂單。")
+        if self.is_registration_complete:
+            raise ValidationError("車輛已領牌，不再是新車，不能取消訂單。")
+        if self.status == self.Status.CANCELLED:
+            raise ValidationError("此訂單已取消。")
+        if self.allocated_vehicle_id:
+            vehicle = VehicleInventory.objects.select_for_update().get(
+                pk=self.allocated_vehicle_id
+            )
+            vehicle.status = VehicleInventory.Status.AVAILABLE
+            vehicle.save(update_fields=["status", "updated_at"])
+            VehicleInventoryHistory.objects.create(
+                vehicle=vehicle,
+                event_type=VehicleInventoryHistory.EventType.UPDATED,
+                actor_name=actor_name,
+                reason=f"訂單 {self.number} 取消，解除配車",
+                changes={"訂單狀態": {"before": "已配車", "after": "取消"}},
+                status_snapshot=vehicle.status,
+                location_store_snapshot=vehicle.location_store,
+                condition_note_snapshot=vehicle.condition_note,
+                condition_resolution_snapshot=vehicle.condition_resolution,
+            )
+            self.allocated_vehicle = None
+        self.cancellation_requested_at = timezone.now()
+        self.cancellation_requested_by = actor_name
+        self.cancellation_reason = reason
+        self.cancellation_note = note
+        if self.deposit_amount:
+            self.status = self.Status.CANCEL_REFUND_PENDING
+        else:
+            self.status = self.Status.CANCELLED
+            self.refund_amount = 0
+            self.cancellation_completed_at = timezone.now()
+            self.cancellation_completed_by = actor_name
+        self.save(
+            update_fields=[
+                "allocated_vehicle",
+                "cancellation_requested_at",
+                "cancellation_requested_by",
+                "cancellation_reason",
+                "cancellation_note",
+                "status",
+                "refund_amount",
+                "cancellation_completed_at",
+                "cancellation_completed_by",
+                "updated_at",
+            ]
+        )
+
+    def complete_refund(
+        self, actor_name, amount, completed_on, method, reference="", proof=None
+    ):
+        if self.status != self.Status.CANCEL_REFUND_PENDING:
+            raise ValidationError("此訂單目前不在取消待退款狀態。")
+        if amount != self.deposit_amount:
+            raise ValidationError(
+                f"訂金必須全數退還，退款金額應為 {self.deposit_amount:,.0f} 元。"
+            )
+        self.refund_amount = amount
+        self.refund_completed_on = completed_on
+        self.refund_method = method
+        self.refund_reference = reference
+        if proof is not None:
+            self.refund_proof = proof
+        self.cancellation_completed_at = timezone.now()
+        self.cancellation_completed_by = actor_name
+        self.status = self.Status.CANCELLED
+        self.save(
+            update_fields=[
+                "refund_amount",
+                "refund_completed_on",
+                "refund_method",
+                "refund_reference",
+                "refund_proof",
+                "cancellation_completed_at",
+                "cancellation_completed_by",
+                "status",
+                "updated_at",
+            ]
+        )
+
     def calculate_balance(self):
         return (
             self.vehicle_price
@@ -1286,6 +1439,61 @@ class SalesOrder(TimeStampedModel):
 
     def __str__(self):
         return f"{self.number}／{self.owner_name}"
+
+
+class DeliveryRecord(TimeStampedModel):
+    order = models.OneToOneField(
+        SalesOrder,
+        on_delete=models.CASCADE,
+        related_name="delivery_record",
+        verbose_name="訂單",
+    )
+    recipient_name = models.CharField("實際收車人", max_length=160)
+    recipient_phone = models.CharField("收車人電話", max_length=30)
+    carrier_name = models.CharField("託運公司", max_length=160, blank=True)
+    handover_location = models.CharField("實際交付地點", max_length=250)
+    vehicle_condition_note = models.TextField("交付車況")
+    condition_checked = models.BooleanField("已核對車況", default=False)
+    documents_checked = models.BooleanField("已核對交付文件", default=False)
+    keys_checked = models.BooleanField("已核對鑰匙", default=False)
+    accessories_checked = models.BooleanField("已核對配件與贈品", default=False)
+    payment_checked = models.BooleanField("已核對收款狀態", default=False)
+    damage_found = models.BooleanField("發現刮傷或損壞", default=False)
+    damage_note = models.TextField("刮傷／損壞說明", blank=True)
+    handover_photo = models.ImageField(
+        "交付照片", upload_to="orders/delivery/%Y/%m/", blank=True
+    )
+    note = models.TextField("交付備註", blank=True)
+    completed_by = models.CharField("交付登記人員", max_length=150)
+
+    class Meta:
+        verbose_name = "交付紀錄"
+        verbose_name_plural = "交付紀錄"
+
+    def clean(self):
+        errors = {}
+        for field_name, label in (
+            ("condition_checked", "車況"),
+            ("documents_checked", "交付文件"),
+            ("keys_checked", "鑰匙"),
+            ("accessories_checked", "配件與贈品"),
+            ("payment_checked", "收款狀態"),
+        ):
+            if not getattr(self, field_name):
+                errors[field_name] = f"必須完成{label}核對。"
+        if self.damage_found and not self.damage_note.strip():
+            errors["damage_note"] = "發現刮傷或損壞時必須填寫說明。"
+        if (
+            self.order_id
+            and self.order.delivery_method == SalesOrder.DeliveryMethod.CARRIER
+            and not self.carrier_name.strip()
+        ):
+            errors["carrier_name"] = "委託託運時必須填寫託運公司。"
+        if errors:
+            raise ValidationError(errors)
+
+    def __str__(self):
+        return f"{self.order.number}／{self.recipient_name}"
 
 
 class OrderOperationsProfile(TimeStampedModel):

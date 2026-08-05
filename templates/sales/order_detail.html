@@ -460,12 +460,42 @@
   </div>
   {% if order.is_delivered %}
     <p>車輛已完成交付。{% if order.status == "delivered_docs_pending" %}領牌文件尚待補齊，完成領牌後才可正式結案。{% endif %}</p>
+    {% with record=order.delivery_record %}
+    <dl class="data-list delivery-summary">
+      <div><dt>交付時間</dt><dd>{{ order.delivered_at|date:"Y/m/d H:i" }}</dd></div>
+      <div><dt>交付方式</dt><dd>{{ order.get_delivery_method_display }}</dd></div>
+      <div><dt>實際收車人</dt><dd>{{ record.recipient_name }}</dd></div>
+      <div><dt>收車人電話</dt><dd>{{ record.recipient_phone }}</dd></div>
+      <div class="wide"><dt>交付地點</dt><dd>{{ record.handover_location }}</dd></div>
+      {% if record.carrier_name %}<div><dt>託運公司</dt><dd>{{ record.carrier_name }}</dd></div>{% endif %}
+      <div class="wide"><dt>交付車況</dt><dd>{{ record.vehicle_condition_note }}</dd></div>
+      {% if record.damage_found %}<div class="wide"><dt>刮傷／損壞</dt><dd>{{ record.damage_note }}</dd></div>{% endif %}
+      <div><dt>登記人員</dt><dd>{{ record.completed_by }}</dd></div>
+    </dl>
+    {% if record.handover_photo %}<a class="button ghost" href="{% url 'protected_media' 'delivery' record.pk 'handover_photo' %}" target="_blank">查看交付照片</a>{% endif %}
+    {% endwith %}
   {% elif order.can_deliver %}
     {% if order.source_type == "dealer" and not order.is_registration_complete %}
       <p>此訂單為合作車行領車，可先交付車輛；領牌資料與文件仍須補齊後才能結案。</p>
     {% else %}
       <p>領牌階段已完成，可進行後續收款與車輛交付作業。</p>
     {% endif %}
+    <form class="stage-form delivery-completion-form" method="post" enctype="multipart/form-data" action="{% url 'delivery_complete' order.pk %}">
+      {% csrf_token %}
+      <div class="form-grid compact-grid">
+        {% for field in delivery_form %}
+        <div class="{% if field.name == 'vehicle_condition_note' or field.name == 'damage_note' or field.name == 'note' %}wide{% endif %}">
+          {% if field.field.widget.input_type == 'checkbox' %}
+          <label class="check-card">{{ field }} <span>{{ field.label }}</span></label>
+          {% else %}
+          <label for="{{ field.id_for_label }}">{{ field.label }}{% if field.field.required %} <span class="required-inline">必填</span>{% endif %}</label>{{ field }}
+          {% endif %}
+        </div>
+        {% endfor %}
+      </div>
+      <p class="form-hint">委託託運時，「實際交付時間」是交給託運公司的時間。若發現刮傷或損壞，必須勾選並填寫說明。</p>
+      <button class="button primary" type="submit" data-confirm="確認完成交付嗎？完成後訂單與實體車輛將鎖定。">確認完成交付</button>
+    </form>
   {% else %}
     <p>一般訂單必須先完成領牌，才可進入交付階段。</p>
   {% endif %}
@@ -507,6 +537,7 @@
     {% endif %}
   </section>
 </div>
+
 </div>
 
 <div class="order-tab-panel" id="panel-order" role="tabpanel" data-tab-panel="order">
@@ -603,6 +634,38 @@
     {% if order.note %}<div class="note-box"><strong>備註</strong><p>{{ order.note }}</p></div>{% endif %}
   </section>
 </div>
+{% if order.status == "cancel_refund_pending" %}
+<section class="section-block cancellation-panel urgent-panel">
+  <div class="section-title"><div><p class="eyebrow">取消處理</p><h2>訂金尚待全額退款</h2></div><span>${{ order.deposit_amount|floatformat:0 }}</span></div>
+  <p>取消原因：{{ order.cancellation_reason }}。退款完成前，訂單仍維持「取消待退款」。</p>
+  <form method="post" enctype="multipart/form-data" action="{% url 'refund_complete' order.pk %}" class="form-grid compact-grid">
+    {% csrf_token %}
+    {% for field in refund_form %}<div><label for="{{ field.id_for_label }}">{{ field.label }}{% if field.field.required %} <span class="required-inline">必填</span>{% endif %}</label>{{ field }}</div>{% endfor %}
+    <div class="wide"><button class="button primary" type="submit" data-confirm="確認訂金已全額退還，並完成取消訂單嗎？">確認退款並完成取消</button></div>
+  </form>
+</section>
+{% elif order.status == "cancelled" %}
+<section class="section-block cancellation-panel">
+  <div class="section-title"><h2>訂單已取消</h2><span>{{ order.cancellation_completed_at|date:"Y/m/d H:i" }}</span></div>
+  <dl class="data-list">
+    <div><dt>取消原因</dt><dd>{{ order.cancellation_reason }}</dd></div>
+    <div><dt>登記人員</dt><dd>{{ order.cancellation_requested_by }}</dd></div>
+    <div><dt>退款金額</dt><dd>${{ order.refund_amount|floatformat:0 }}</dd></div>
+    {% if order.refund_completed_on %}<div><dt>退款日期</dt><dd>{{ order.refund_completed_on|date:"Y/m/d" }}</dd></div>{% endif %}
+    {% if order.refund_method %}<div><dt>退款方式</dt><dd>{{ order.get_refund_method_display }}</dd></div>{% endif %}
+  </dl>
+  {% if order.refund_proof %}<a class="button ghost" href="{% url 'protected_media' 'order' order.pk 'refund_proof' %}" target="_blank">查看退款證明</a>{% endif %}
+</section>
+{% elif not order.is_delivered and not order.is_registration_complete %}
+<details class="section-block cancellation-panel">
+  <summary><strong>取消訂單</strong><span>僅限尚未領牌、尚未交付</span></summary>
+  <form method="post" action="{% url 'cancellation_request' order.pk %}" class="form-grid compact-grid">
+    {% csrf_token %}
+    {% for field in cancellation_form %}<div class="{% if field.name == 'note' %}wide{% endif %}"><label for="{{ field.id_for_label }}">{{ field.label }}{% if field.field.required %} <span class="required-inline">必填</span>{% endif %}</label>{{ field }}</div>{% endfor %}
+    <div class="wide"><p class="form-hint">若已收訂金，必須全額退款後才算取消完成；已配車輛會解除預留。</p><button class="button danger" type="submit" data-confirm="確定登記取消這張訂單嗎？">登記取消訂單</button></div>
+  </form>
+</details>
+{% endif %}
 </div>
 
 <div class="order-tab-panel" id="panel-history" role="tabpanel" data-tab-panel="history" hidden>

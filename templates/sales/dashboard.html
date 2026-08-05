@@ -134,5 +134,18 @@
     <div class="order-list compact">{% for order in urgent_orders %}{% include "sales/_order_row.html" %}{% endfor %}</div>
   </section>
   {% endif %}
+  {% if dealer_reminders %}
+  <section class="section-block reminder-block">
+    <div class="section-title"><h2><span class="signal red"></span>合作車行期限提醒</h2><span>持續顯示至完成</span></div>
+    <div class="reminder-list">
+      {% for reminder in dealer_reminders %}
+      <a class="reminder-row {% if reminder.is_overdue %}overdue{% else %}due{% endif %}" href="{% url 'order_detail' reminder.order.pk %}?tab={% if reminder.kind == 'registration_documents' %}registration{% else %}order{% endif %}">
+        <span><strong>{{ reminder.order.owner_name }} · {{ reminder.label }}</strong><small>{{ reminder.order.number }} · {{ reminder.order.source.name|default:"合作車行" }}</small></span>
+        <span><strong>{% if reminder.is_overdue %}逾期 {{ reminder.days_overdue }} 天{% else %}今日到期{% endif %}</strong><small>期限 {{ reminder.due_date|date:"Y/m/d" }}</small></span>
+      </a>
+      {% endfor %}
+    </div>
+  </section>
+  {% endif %}
 {% endif %}
 {% endblock %}

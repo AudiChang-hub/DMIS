@@ -3,6 +3,8 @@ from django.contrib import admin
 from .models import (
     AccessoryProduct,
     AccessoryLine,
+    BusinessHoliday,
+    DeliveryRecord,
     OrderDraft,
     OtherFeeLine,
     OrderEvent,
@@ -22,6 +24,19 @@ from .models import (
     VehiclePriceVersion,
     VehicleSettlementCostRule,
 )
+
+
+@admin.register(BusinessHoliday)
+class BusinessHolidayAdmin(admin.ModelAdmin):
+    list_display = ("date", "name", "active")
+    list_filter = ("active",)
+    search_fields = ("name",)
+
+
+@admin.register(DeliveryRecord)
+class DeliveryRecordAdmin(admin.ModelAdmin):
+    list_display = ("order", "recipient_name", "handover_location", "completed_by")
+    search_fields = ("order__number", "recipient_name", "recipient_phone")
 
 
 @admin.register(OrderDraft)

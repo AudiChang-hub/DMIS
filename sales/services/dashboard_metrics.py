@@ -11,6 +11,7 @@ from sales.models import (
     SalesOrder,
     VehicleInventory,
 )
+from sales.services.business_days import build_dealer_reminders
 
 
 def _month_bounds(day):
@@ -83,6 +84,8 @@ def build_dashboard_metrics(today=None):
         SalesOrder.Status.CANCEL_REFUND_PENDING,
         SalesOrder.Status.DELIVERED_DOCS_PENDING,
     ]
+    dealer_reminders = build_dealer_reminders(today)
+    due_dealer_reminders = [item for item in dealer_reminders if item["is_due"]]
     in_progress = active.exclude(
         status__in=[SalesOrder.Status.ALLOCATION_PENDING, *urgent_statuses]
     )
@@ -140,6 +143,7 @@ def build_dashboard_metrics(today=None):
             ),
         },
         "urgent_statuses": urgent_statuses,
+        "dealer_reminders": due_dealer_reminders,
         "recent_orders": SalesOrder.objects.select_related(
             "vehicle_model", "color", "source"
         )

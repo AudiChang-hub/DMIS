@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}{% if template_object.pk %}編輯{% else %}新增{% endif %}列印套表｜車輛銷售管理{% endblock %}
+{% block page_class %}page-shell--wide{% endblock %}
+{% block content %}
+{% url 'positioned_template_list' as list_url %}{% include "sales/_page_back.html" with fallback_url=list_url label="返回列印套表" %}
+<section class="hero-row compact-hero"><div><p class="eyebrow">版面與資料定位</p><h1>{% if template_object.pk %}{{ template_object.name }}{% else %}新增列印套表{% endif %}</h1><p class="muted">位置以紙張左上角為基準，單位為 mm；預覽會套用最近一張訂單。</p></div>{% if template_object.pk and sample_order %}<a class="button primary" target="_blank" href="{% url 'positioned_template_preview' template_object.pk %}">預覽 PDF</a>{% endif %}</section>
+<form method="post" enctype="multipart/form-data" data-print-template-form>
+{% csrf_token %}
+<section class="section-block"><div class="section-title"><h2>範本設定</h2></div><div class="form-grid compact-grid">
+{% for field in form %}<div{% if field.name == 'note' %} class="field-span-2"{% endif %}><label for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}{% for error in field.errors %}<small class="field-error">{{ error }}</small>{% endfor %}</div>{% endfor %}
+{% for error in form.non_field_errors %}<p class="field-error field-span-2">{{ error }}</p>{% endfor %}
+</div></section>
+<section class="section-block" data-positioned-fields><div class="section-title"><div><h2>動態欄位位置</h2><small>可新增、刪除；X 是左側距離，Y 是頂端距離。</small></div></div>
+{{ field_formset.management_form }}
+<div class="positioned-field-list" data-form-list>
+{% for field_form in field_formset %}<div class="positioned-field-row" data-form-row>{% for hidden in field_form.hidden_fields %}{{ hidden }}{% endfor %}{% for field in field_form.visible_fields %}{% if field.name != 'DELETE' %}<div><label for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}{% for error in field.errors %}<small class="field-error">{{ error }}</small>{% endfor %}</div>{% endif %}{% endfor %}<label class="delete-detail-control">{{ field_form.DELETE }} <span>移除此欄位</span></label></div>{% endfor %}
+</div>
+<template data-empty-form><div class="positioned-field-row" data-form-row>{% with field_form=field_formset.empty_form %}{% for hidden in field_form.hidden_fields %}{{ hidden }}{% endfor %}{% for field in field_form.visible_fields %}{% if field.name != 'DELETE' %}<div><label for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}</div>{% endif %}{% endfor %}<label class="delete-detail-control">{{ field_form.DELETE }} <span>移除此欄位</span></label>{% endwith %}</div></template>
+<button class="button ghost" type="button" data-add-form>＋ 新增定位欄位</button>
+</section>
+<div class="sticky-form-actions"><a class="button ghost" href="{% url 'positioned_template_list' %}">取消修改</a><button class="button primary" type="submit">儲存範本</button></div>
+</form>
+<script src="{% static 'js/positioned-template-fields.js' %}?v={{ app_version }}" defer></script>
+{% endblock %}

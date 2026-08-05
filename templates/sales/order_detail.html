@@ -552,6 +552,14 @@
     {% endif %}
   </section>
 </div>
+{% if positioned_templates %}
+<section class="section-block positioned-print-panel">
+  <div class="section-title"><div><h2>其他制式套表</h2><small>使用目前啟用的定位範本直接套入本訂單資料。</small></div></div>
+  <div class="document-template-actions">
+    {% for item in positioned_templates %}<a class="button ghost" target="_blank" href="{% url 'positioned_template_order_print' item.pk order.pk %}">{{ item.get_document_type_display }} · {{ item.name }}</a>{% endfor %}
+  </div>
+</section>
+{% endif %}
 
 </div>
 

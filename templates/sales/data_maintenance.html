@@ -27,6 +27,21 @@
     <div><h2>庫存資料</h2><p>管理進車、車況、調車歷程與目前可售狀態。</p><strong>{{ inventory_count }} 台車輛</strong></div>
     <span aria-hidden="true">›</span>
   </a>
+  <a class="maintenance-card" href="{% url 'sales_source_list' %}">
+    <span class="maintenance-card__icon">路</span>
+    <div><h2>通路資料</h2><p>維護合作車行、網路平台、聯絡窗口、品牌合作與佣金。</p><strong>{{ sales_source_count }} 個通路</strong></div>
+    <span aria-hidden="true">›</span>
+  </a>
+  <a class="maintenance-card" href="{% url 'installment_company_list' %}">
+    <span class="maintenance-card__icon">期</span>
+    <div><h2>分期公司</h2><p>維護分期公司與客服電話；各車型方案由車型資料設定。</p><strong>{{ installment_company_count }} 家公司</strong></div>
+    <span aria-hidden="true">›</span>
+  </a>
+  <a class="maintenance-card" href="{% url 'dealer_volume_bonus_list' %}">
+    <span class="maintenance-card__icon">獎</span>
+    <div><h2>車行台數獎金</h2><p>依車行、品牌與領牌期間設定門檻及保存逐單結算。</p><strong>查看規則與結算</strong></div>
+    <span aria-hidden="true">›</span>
+  </a>
   <a class="maintenance-card" href="{% url 'business_holiday_list' %}">
     <span class="maintenance-card__icon">曆</span>
     <div><h2>工作日行事曆</h2><p>維護國定假日，供合作車行三日文件與七日尾款提醒排除。</p><strong>{{ holiday_count }} 個排除日期</strong></div>

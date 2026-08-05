@@ -61,6 +61,21 @@ class Store(TimeStampedModel):
         return self.name
 
 
+class InstallmentCompany(TimeStampedModel):
+    name = models.CharField("分期公司", max_length=120, unique=True)
+    customer_service_phone = models.CharField("客服電話", max_length=50, blank=True)
+    active = models.BooleanField("啟用中", default=True)
+    note = models.TextField("內部備註", blank=True)
+
+    class Meta:
+        ordering = ["name"]
+        verbose_name = "分期公司"
+        verbose_name_plural = "分期公司"
+
+    def __str__(self):
+        return self.name
+
+
 class SalesSource(TimeStampedModel):
     class SourceType(models.TextChoices):
         DEALER = "dealer", "合作車行"
@@ -68,6 +83,15 @@ class SalesSource(TimeStampedModel):
 
     name = models.CharField("來源名稱", max_length=120)
     source_type = models.CharField("來源類型", max_length=20, choices=SourceType.choices)
+    code = models.CharField("來源代碼", max_length=40, blank=True)
+    phone = models.CharField("電話", max_length=50, blank=True)
+    fax = models.CharField("傳真", max_length=50, blank=True)
+    address = models.CharField("地址", max_length=250, blank=True)
+    vehicle_capacity = models.PositiveSmallIntegerField(
+        "可停放車輛數量", blank=True, null=True
+    )
+    relationship_note = models.TextField("年節送禮／關係備註", blank=True)
+    note = models.TextField("內部備註", blank=True)
     active = models.BooleanField("啟用中", default=True)
 
     class Meta:
@@ -149,6 +173,13 @@ class VehicleModel(TimeStampedModel):
         decimal_places=0,
         blank=True,
         null=True,
+    )
+    base_dealer_commission = models.DecimalField(
+        "基礎車行佣金",
+        max_digits=12,
+        decimal_places=0,
+        default=0,
+        validators=[MinValueValidator(0)],
     )
     active = models.BooleanField("啟用中", default=True)
 
@@ -240,6 +271,100 @@ class VehiclePriceVersion(TimeStampedModel):
         return f"{self.vehicle_model}／{self.effective_from:%Y/%m/%d}"
 
 
+class InstallmentPlanVersion(TimeStampedModel):
+    vehicle_model = models.ForeignKey(
+        VehicleModel,
+        on_delete=models.PROTECT,
+        related_name="installment_plan_versions",
+        verbose_name="車型",
+    )
+    announced_on = models.DateField("公告日期", default=timezone.localdate)
+    effective_from = models.DateField("生效日期")
+    effective_to = models.DateField(
+        "結束日期",
+        blank=True,
+        null=True,
+        help_text="可留空，代表持續有效；訂單依訂單日期選用版本。",
+    )
+    note = models.TextField("備註", blank=True)
+    active = models.BooleanField("啟用中", default=True)
+
+    class Meta:
+        ordering = ["vehicle_model", "-effective_from", "-id"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["vehicle_model", "effective_from"],
+                name="unique_installment_plan_version_start",
+            )
+        ]
+        indexes = [
+            models.Index(
+                fields=["vehicle_model", "effective_from"],
+                name="installment_plan_lookup",
+            )
+        ]
+        verbose_name = "分期方案版本"
+        verbose_name_plural = "分期方案版本"
+
+    def clean(self):
+        if self.effective_to and self.effective_to < self.effective_from:
+            raise ValidationError({"effective_to": "結束日期不可早於生效日期。"})
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        return super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"{self.vehicle_model}／{self.effective_from:%Y/%m/%d}"
+
+
+class InstallmentPlanOption(TimeStampedModel):
+    version = models.ForeignKey(
+        InstallmentPlanVersion,
+        on_delete=models.CASCADE,
+        related_name="options",
+        verbose_name="分期方案版本",
+    )
+    periods = models.PositiveSmallIntegerField(
+        "期數", validators=[MinValueValidator(1)]
+    )
+    monthly_amount = models.DecimalField(
+        "每期金額", max_digits=12, decimal_places=0, validators=[MinValueValidator(0)]
+    )
+    company = models.ForeignKey(
+        InstallmentCompany,
+        on_delete=models.PROTECT,
+        related_name="plan_options",
+        verbose_name="分期公司",
+    )
+    opening_fee = models.DecimalField(
+        "開辦費", max_digits=12, decimal_places=0, default=0,
+        validators=[MinValueValidator(0)]
+    )
+    expected_disbursement_rate = models.DecimalField(
+        "預估撥款比例（%）",
+        max_digits=5,
+        decimal_places=2,
+        blank=True,
+        null=True,
+        validators=[MinValueValidator(0), MaxValueValidator(100)],
+    )
+
+    class Meta:
+        ordering = ["periods", "id"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["version", "periods"],
+                name="unique_installment_plan_periods",
+            )
+        ]
+        verbose_name = "分期方案期數"
+        verbose_name_plural = "分期方案期數"
+
+    def __str__(self):
+        return f"{self.version.vehicle_model}／{self.periods} 期／{self.company}"
+
+
 class AccessoryProduct(TimeStampedModel):
     name = models.CharField("配件名稱", max_length=160, unique=True)
     sale_price = models.DecimalField(
@@ -266,6 +391,237 @@ class AccessoryProduct(TimeStampedModel):
 
     def __str__(self):
         return self.name
+
+
+class SalesSourceContact(TimeStampedModel):
+    source = models.ForeignKey(
+        SalesSource,
+        on_delete=models.CASCADE,
+        related_name="contacts",
+        verbose_name="來源",
+    )
+    name = models.CharField("姓名／窗口", max_length=120)
+    relationship = models.CharField("關係／職務", max_length=120, blank=True)
+    phone = models.CharField("電話", max_length=50, blank=True)
+    extension = models.CharField("分機", max_length=20, blank=True)
+    mobile = models.CharField("手機", max_length=50, blank=True)
+    email = models.EmailField("Email", blank=True)
+    note = models.CharField("備註", max_length=250, blank=True)
+    active = models.BooleanField("啟用中", default=True)
+
+    class Meta:
+        ordering = ["source", "id"]
+        verbose_name = "通路聯絡窗口"
+        verbose_name_plural = "通路聯絡窗口"
+
+    def __str__(self):
+        return f"{self.source}／{self.name}"
+
+
+class SalesSourceBrandPolicy(TimeStampedModel):
+    source = models.ForeignKey(
+        SalesSource,
+        on_delete=models.CASCADE,
+        related_name="brand_policies",
+        verbose_name="來源",
+    )
+    brand = models.CharField("品牌", max_length=80)
+    cooperates = models.BooleanField("有配合", default=True)
+    commission_adjustment = models.DecimalField(
+        "佣金加減額",
+        max_digits=12,
+        decimal_places=0,
+        default=0,
+        help_text="加碼請填正數，減少請填負數。",
+    )
+    effective_from = models.DateField("生效日期", default=timezone.localdate)
+    effective_to = models.DateField("結束日期", blank=True, null=True)
+    note = models.CharField("品牌合作備註", max_length=250, blank=True)
+
+    class Meta:
+        ordering = ["source", "brand", "-effective_from"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["source", "brand", "effective_from"],
+                name="unique_source_brand_policy_start",
+            )
+        ]
+        indexes = [
+            models.Index(
+                fields=["source", "brand", "effective_from"],
+                name="source_brand_policy_lookup",
+            )
+        ]
+        verbose_name = "通路品牌合作規則"
+        verbose_name_plural = "通路品牌合作規則"
+
+    def clean(self):
+        if self.effective_to and self.effective_to < self.effective_from:
+            raise ValidationError({"effective_to": "結束日期不可早於生效日期。"})
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        return super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"{self.source}／{self.brand}／{self.effective_from:%Y/%m/%d}"
+
+
+class DealerVolumeBonusRule(TimeStampedModel):
+    dealer = models.ForeignKey(
+        SalesSource,
+        on_delete=models.PROTECT,
+        related_name="volume_bonus_rules",
+        limit_choices_to={"source_type": SalesSource.SourceType.DEALER},
+        verbose_name="合作車行",
+    )
+    brand = models.CharField("品牌", max_length=80)
+    starts_on = models.DateField("統計開始日")
+    ends_on = models.DateField("統計結束日")
+    note = models.TextField("備註", blank=True)
+    active = models.BooleanField("啟用中", default=True)
+
+    class Meta:
+        ordering = ["-starts_on", "dealer", "brand"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["dealer", "brand", "starts_on", "ends_on"],
+                name="unique_dealer_volume_bonus_period",
+            )
+        ]
+        verbose_name = "車行台數獎金規則"
+        verbose_name_plural = "車行台數獎金規則"
+
+    def clean(self):
+        if self.ends_on < self.starts_on:
+            raise ValidationError({"ends_on": "統計結束日不可早於開始日。"})
+        if self.dealer_id and self.dealer.source_type != SalesSource.SourceType.DEALER:
+            raise ValidationError({"dealer": "台數獎金只能設定合作車行。"})
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        return super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"{self.dealer}／{self.brand}／{self.starts_on:%Y/%m/%d}"
+
+
+class DealerVolumeBonusTier(TimeStampedModel):
+    rule = models.ForeignKey(
+        DealerVolumeBonusRule,
+        on_delete=models.CASCADE,
+        related_name="tiers",
+        verbose_name="台數獎金規則",
+    )
+    minimum_quantity = models.PositiveSmallIntegerField(
+        "最低台數", validators=[MinValueValidator(1)]
+    )
+    bonus_per_vehicle = models.DecimalField(
+        "每台獎金",
+        max_digits=12,
+        decimal_places=0,
+        validators=[MinValueValidator(0)],
+    )
+
+    class Meta:
+        ordering = ["minimum_quantity"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["rule", "minimum_quantity"],
+                name="unique_volume_bonus_tier_quantity",
+            )
+        ]
+        verbose_name = "台數獎金門檻"
+        verbose_name_plural = "台數獎金門檻"
+
+    def __str__(self):
+        return f"{self.minimum_quantity} 台／每台 {self.bonus_per_vehicle:.0f} 元"
+
+
+class DealerVolumeBonusSettlement(TimeStampedModel):
+    rule = models.OneToOneField(
+        DealerVolumeBonusRule,
+        on_delete=models.PROTECT,
+        related_name="settlement",
+        verbose_name="台數獎金規則",
+    )
+    qualified_quantity = models.PositiveSmallIntegerField("符合台數", default=0)
+    bonus_per_vehicle = models.DecimalField(
+        "採用每台獎金", max_digits=12, decimal_places=0, default=0
+    )
+    expected_amount = models.DecimalField(
+        "預計金額", max_digits=12, decimal_places=0, default=0
+    )
+    actual_amount = models.DecimalField(
+        "實際金額", max_digits=12, decimal_places=0, default=0
+    )
+    adjustment_reason = models.TextField("金額調整原因", blank=True)
+    settled_on = models.DateField("結算日期", default=timezone.localdate)
+    settled_by = models.CharField("結算人員", max_length=150, blank=True)
+
+    class Meta:
+        ordering = ["-settled_on", "-id"]
+        verbose_name = "車行台數獎金結算"
+        verbose_name_plural = "車行台數獎金結算"
+
+    def clean(self):
+        if self.actual_amount != self.expected_amount and not self.adjustment_reason.strip():
+            raise ValidationError({"adjustment_reason": "實際金額不同時必須填寫原因。"})
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        return super().save(*args, **kwargs)
+
+
+class DealerVolumeBonusAllocation(TimeStampedModel):
+    settlement = models.ForeignKey(
+        DealerVolumeBonusSettlement,
+        on_delete=models.CASCADE,
+        related_name="allocations",
+        verbose_name="台數獎金結算",
+    )
+    order = models.ForeignKey(
+        "SalesOrder",
+        on_delete=models.PROTECT,
+        related_name="dealer_volume_bonus_allocations",
+        verbose_name="訂單",
+    )
+    amount = models.DecimalField(
+        "分配金額", max_digits=12, decimal_places=0, default=0
+    )
+
+    class Meta:
+        ordering = ["order__registration_date", "order_id"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["settlement", "order"],
+                name="unique_volume_bonus_settlement_order",
+            )
+        ]
+        verbose_name = "台數獎金逐單明細"
+        verbose_name_plural = "台數獎金逐單明細"
+
+
+class DealerVolumeBonusAdjustment(TimeStampedModel):
+    settlement = models.ForeignKey(
+        DealerVolumeBonusSettlement,
+        on_delete=models.PROTECT,
+        related_name="adjustments",
+        verbose_name="台數獎金結算",
+    )
+    previous_amount = models.DecimalField(
+        "調整前金額", max_digits=12, decimal_places=0
+    )
+    revised_amount = models.DecimalField(
+        "調整後金額", max_digits=12, decimal_places=0
+    )
+    reason = models.TextField("調整原因")
+    adjusted_by = models.CharField("調整人員", max_length=150)
+
+    class Meta:
+        ordering = ["-created_at", "-id"]
+        verbose_name = "車行台數獎金調整紀錄"
+        verbose_name_plural = "車行台數獎金調整紀錄"
 
 
 class BusinessHoliday(TimeStampedModel):
@@ -899,6 +1255,27 @@ class SalesOrder(TimeStampedModel):
     balance_adjustment_reason = models.TextField("尾款調整原因", blank=True)
 
     installment_company = models.CharField("分期公司", max_length=100, blank=True)
+    installment_company_master = models.ForeignKey(
+        InstallmentCompany,
+        on_delete=models.SET_NULL,
+        related_name="orders",
+        verbose_name="分期公司主檔",
+        blank=True,
+        null=True,
+        editable=False,
+    )
+    installment_plan_option = models.ForeignKey(
+        InstallmentPlanOption,
+        on_delete=models.SET_NULL,
+        related_name="orders",
+        verbose_name="套用分期方案",
+        blank=True,
+        null=True,
+        editable=False,
+    )
+    installment_plan_snapshot = models.JSONField(
+        "分期方案快照", default=dict, blank=True, editable=False
+    )
     installment_amount = models.DecimalField(
         "分期申請金額", max_digits=12, decimal_places=0, default=0
     )
@@ -1508,6 +1885,7 @@ class OrderOperationsProfile(TimeStampedModel):
         "promotion_subsidy",
         "installment_interest_subsidy",
         "actual_disbursement",
+        "dealer_commission_expense",
     )
 
     class AgencyStatus(models.TextChoices):
@@ -1613,6 +1991,26 @@ class OrderOperationsProfile(TimeStampedModel):
     gift_expense = models.DecimalField("贈品支出", max_digits=12, decimal_places=0, default=0)
     shipping_expense = models.DecimalField("運費支出", max_digits=12, decimal_places=0, default=0)
     dealer_commission_expense = models.DecimalField("車行傭金支出", max_digits=12, decimal_places=0, default=0)
+    dealer_commission_base = models.DecimalField(
+        "車行基礎佣金快照", max_digits=12, decimal_places=0, default=0
+    )
+    dealer_commission_adjustment = models.DecimalField(
+        "車行加減佣金快照", max_digits=12, decimal_places=0, default=0
+    )
+    dealer_commission_policy = models.ForeignKey(
+        SalesSourceBrandPolicy,
+        on_delete=models.SET_NULL,
+        related_name="order_snapshots",
+        verbose_name="套用車行品牌規則",
+        blank=True,
+        null=True,
+    )
+    dealer_commission_registration_date = models.DateField(
+        "車行佣金認列領牌日", blank=True, null=True
+    )
+    dealer_commission_locked_at = models.DateTimeField(
+        "車行佣金鎖定時間", blank=True, null=True
+    )
     card_fee_expense = models.DecimalField("銀行刷卡手續費支出", max_digits=12, decimal_places=0, default=0)
     registration_tax_income = models.DecimalField("領牌稅金收入", max_digits=12, decimal_places=0, default=0)
     compulsory_insurance_income = models.DecimalField("強制險收入", max_digits=12, decimal_places=0, default=0)

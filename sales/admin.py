@@ -4,7 +4,15 @@ from .models import (
     AccessoryProduct,
     AccessoryLine,
     BusinessHoliday,
+    DealerVolumeBonusAllocation,
+    DealerVolumeBonusAdjustment,
+    DealerVolumeBonusRule,
+    DealerVolumeBonusSettlement,
+    DealerVolumeBonusTier,
     DeliveryRecord,
+    InstallmentCompany,
+    InstallmentPlanOption,
+    InstallmentPlanVersion,
     OrderDraft,
     OtherFeeLine,
     OrderEvent,
@@ -13,6 +21,8 @@ from .models import (
     PaymentRecord,
     SalesOrder,
     SalesSource,
+    SalesSourceBrandPolicy,
+    SalesSourceContact,
     Store,
     SubsidyDocument,
     VehicleColor,
@@ -53,8 +63,20 @@ class StoreAdmin(admin.ModelAdmin):
 
 @admin.register(SalesSource)
 class SalesSourceAdmin(admin.ModelAdmin):
-    list_display = ("name", "source_type", "active")
+    list_display = ("name", "source_type", "phone", "vehicle_capacity", "active")
     list_filter = ("source_type", "active")
+
+
+admin.site.register(InstallmentCompany)
+admin.site.register(InstallmentPlanVersion)
+admin.site.register(InstallmentPlanOption)
+admin.site.register(SalesSourceContact)
+admin.site.register(SalesSourceBrandPolicy)
+admin.site.register(DealerVolumeBonusRule)
+admin.site.register(DealerVolumeBonusTier)
+admin.site.register(DealerVolumeBonusSettlement)
+admin.site.register(DealerVolumeBonusAllocation)
+admin.site.register(DealerVolumeBonusAdjustment)
 
 
 class VehicleColorInline(admin.TabularInline):

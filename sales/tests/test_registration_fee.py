@@ -7,6 +7,7 @@ from django.urls import reverse
 
 from sales.models import (
     AccessoryLine,
+    BrandRegistrationFeeRule,
     OtherFeeLine,
     SalesOrder,
     VehicleColor,
@@ -15,6 +16,7 @@ from sales.models import (
 from sales.services.registration_fee import (
     UnsupportedRegistrationFee,
     calculate_registration_fee,
+    calculate_vehicle_registration_fee,
 )
 
 
@@ -143,3 +145,59 @@ class RegistrationFeeOrderIntegrationTests(TestCase):
         self.assertContains(response, "配件與其他費用均已計入")
         self.assertContains(response, "配件合計 $850")
         self.assertContains(response, "加購 · 售價 $850 ＋ 工資 $0 · 已計入尾款")
+
+    def test_brand_fixed_fee_rule_uses_registration_date_and_displacement(self):
+        BrandRegistrationFeeRule.objects.create(
+            brand="測試廠牌",
+            calculation_type=BrandRegistrationFeeRule.CalculationType.FIXED,
+            min_cc=51,
+            max_cc=125,
+            fixed_total=1888,
+            insurance_period_years=1,
+            effective_from=date(2026, 8, 1),
+        )
+
+        before = calculate_vehicle_registration_fee(
+            self.model, date(2026, 7, 31), 1
+        )
+        after = calculate_vehicle_registration_fee(
+            self.model, date(2026, 8, 1), 1
+        )
+
+        self.assertEqual(before.pricing_method, "formula")
+        self.assertEqual(after.pricing_method, "fixed")
+        self.assertEqual(after.fixed_and_variable_total, 1888)
+
+    def test_manual_brand_rule_requires_actual_receipt_entry(self):
+        BrandRegistrationFeeRule.objects.create(
+            brand="測試廠牌",
+            calculation_type=BrandRegistrationFeeRule.CalculationType.MANUAL,
+            effective_from=date(2026, 1, 1),
+        )
+
+        with self.assertRaisesMessage(UnsupportedRegistrationFee, "人工牌險"):
+            calculate_vehicle_registration_fee(self.model, date(2026, 8, 1), 1)
+
+    def test_registration_fee_rule_maintenance_page(self):
+        self.client.force_login(self.user)
+
+        response = self.client.post(
+            reverse("brand_registration_fee_rule_list"),
+            {
+                "brand": "三陽",
+                "calculation_type": "fixed",
+                "min_cc": 51,
+                "max_cc": 125,
+                "fixed_total": 1600,
+                "insurance_period_years": 1,
+                "effective_from": "2026-08-01",
+                "effective_to": "",
+                "active": "on",
+                "note": "依原廠總額",
+            },
+        )
+
+        self.assertRedirects(response, reverse("brand_registration_fee_rule_list"))
+        self.assertTrue(
+            BrandRegistrationFeeRule.objects.filter(brand="三陽", fixed_total=1600).exists()
+        )

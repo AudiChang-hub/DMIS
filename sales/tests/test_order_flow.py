@@ -2654,14 +2654,15 @@ class OrderOperationsTests(TestCase):
         self.assertContains(response, second.number)
         self.assertContains(response, "2 張歷史訂單")
 
-    def test_dashboard_uses_delivery_time_for_monthly_performance(self):
+    def test_dashboard_uses_registration_date_for_monthly_performance(self):
         profile = self.order.operations
         profile.actual_disbursement = Decimal("80000")
         profile.vehicle_cost = Decimal("60000")
         profile.manual_financial_fields = ["actual_disbursement"]
         profile.save()
         self.order.status = SalesOrder.Status.COMPLETED
-        self.order.save(update_fields=["status", "updated_at"])
+        self.order.registration_date = timezone.localdate()
+        self.order.save(update_fields=["status", "registration_date", "updated_at"])
 
         response = self.client.get(reverse("dashboard"))
 

@@ -47,6 +47,11 @@
     <div><h2>工作日行事曆</h2><p>維護國定假日，供合作車行三日文件與七日尾款提醒排除。</p><strong>{{ holiday_count }} 個排除日期</strong></div>
     <span aria-hidden="true">›</span>
   </a>
+  <a class="maintenance-card" href="{% url 'brand_registration_fee_rule_list' %}">
+    <span class="maintenance-card__icon">牌</span>
+    <div><h2>品牌牌險規則</h2><p>依品牌、生效日與排氣量維護公式、固定總額或人工輸入。</p><strong>{{ registration_fee_rule_count }} 個啟用規則</strong></div>
+    <span aria-hidden="true">›</span>
+  </a>
   <a class="maintenance-card" href="{% url 'legacy_import_list' %}">
     <span class="maintenance-card__icon">匯</span>
     <div><h2>歷史 Excel 匯入</h2><p>上傳進銷貨庫存表或通路名冊，預覽差異與衝突後再確認寫入。</p><strong>保留來源檔與逐列結果</strong></div>

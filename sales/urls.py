@@ -7,6 +7,11 @@ from . import views
 urlpatterns = [
     path("api/app-version/", views.app_version, name="app_version"),
     path("", views.dashboard, name="dashboard"),
+    path(
+        "orders/<int:pk>/registration-fee-variance/confirm/",
+        views.registration_fee_variance_confirm,
+        name="registration_fee_variance_confirm",
+    ),
     path("data/", views.data_maintenance, name="data_maintenance"),
     path(
         "data/business-holidays/",
@@ -17,6 +22,16 @@ urlpatterns = [
         "data/business-holidays/<int:pk>/delete/",
         views.business_holiday_delete,
         name="business_holiday_delete",
+    ),
+    path(
+        "data/registration-fee-rules/",
+        views.brand_registration_fee_rule_list,
+        name="brand_registration_fee_rule_list",
+    ),
+    path(
+        "data/registration-fee-rules/<int:pk>/delete/",
+        views.brand_registration_fee_rule_delete,
+        name="brand_registration_fee_rule_delete",
     ),
     path("data/customers/", views.customer_list, name="customer_list"),
     path("data/imports/", views.legacy_import_list, name="legacy_import_list"),

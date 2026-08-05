@@ -28,6 +28,7 @@ from .forms import (
     AccessoryFormSet,
     AllocationForm,
     BusinessHolidayForm,
+    BrandRegistrationFeeRuleForm,
     CancellationRequestForm,
     DealerVolumeBonusAdjustmentForm,
     DealerVolumeBonusRuleForm,
@@ -55,6 +56,7 @@ from .forms import (
     SalesSourceForm,
     SignedContractForm,
     SubsidyDataForm,
+    SubsidyItemFormSet,
     SubsidyDocumentUploadForm,
     VehicleInventoryForm,
     VehicleColorMasterFormSet,
@@ -67,6 +69,7 @@ from .forms import (
 from .models import (
     AccessoryProduct,
     BusinessHoliday,
+    BrandRegistrationFeeRule,
     DealerVolumeBonusRule,
     DealerVolumeBonusSettlement,
     DeliveryRecord,
@@ -155,6 +158,7 @@ def data_maintenance(request):
             "sales_source_count": SalesSource.objects.count(),
             "installment_company_count": InstallmentCompany.objects.count(),
             "holiday_count": BusinessHoliday.objects.filter(active=True).count(),
+            "registration_fee_rule_count": BrandRegistrationFeeRule.objects.filter(active=True).count(),
         },
     )
 
@@ -189,6 +193,38 @@ def business_holiday_delete(request, pk):
         holiday.delete()
         messages.success(request, f"已刪除 {label}。")
     return redirect("business_holiday_list")
+
+
+@login_required
+def brand_registration_fee_rule_list(request):
+    editing = None
+    edit_pk = request.GET.get("edit")
+    if edit_pk:
+        editing = get_object_or_404(BrandRegistrationFeeRule, pk=edit_pk)
+    form = BrandRegistrationFeeRuleForm(request.POST or None, instance=editing)
+    if request.method == "POST" and form.is_valid():
+        rule = form.save()
+        messages.success(request, f"已儲存 {rule.brand} 的牌險計算規則。")
+        return redirect("brand_registration_fee_rule_list")
+    return render(
+        request,
+        "sales/brand_registration_fee_rule_list.html",
+        {
+            "rules": BrandRegistrationFeeRule.objects.all(),
+            "form": form,
+            "editing": editing,
+        },
+    )
+
+
+@login_required
+def brand_registration_fee_rule_delete(request, pk):
+    rule = get_object_or_404(BrandRegistrationFeeRule, pk=pk)
+    if request.method == "POST":
+        label = f"{rule.brand}／{rule.get_calculation_type_display()}"
+        rule.delete()
+        messages.success(request, f"已刪除 {label}。")
+    return redirect("brand_registration_fee_rule_list")
 
 
 @login_required
@@ -760,6 +796,44 @@ def dashboard(request):
         "drafts": OrderDraft.objects.all()[:5],
     }
     return render(request, "sales/dashboard.html", context)
+
+
+@login_required
+@transaction.atomic
+def registration_fee_variance_confirm(request, pk):
+    order = get_object_or_404(SalesOrder.objects.select_for_update(), pk=pk)
+    if request.method == "POST":
+        if order.registration_calculated_total == order.plate_insurance_fee:
+            messages.info(request, "系統試算與實際牌險已相同，無須另外確認。")
+        else:
+            order.registration_fee_variance_confirmed_at = timezone.now()
+            order.registration_fee_variance_confirmed_by = _editing_name(request.user)
+            order.registration_fee_variance_confirmed_calculated_total = (
+                order.registration_calculated_total
+            )
+            order.registration_fee_variance_confirmed_actual_total = (
+                order.plate_insurance_fee
+            )
+            order.save(
+                update_fields=[
+                    "registration_fee_variance_confirmed_at",
+                    "registration_fee_variance_confirmed_by",
+                    "registration_fee_variance_confirmed_calculated_total",
+                    "registration_fee_variance_confirmed_actual_total",
+                    "updated_at",
+                ]
+            )
+            OrderEvent.objects.create(
+                order=order,
+                event_type="registration_fee_variance_confirmed",
+                description=(
+                    f"確認牌險差額：系統 {order.registration_calculated_total:,.0f} 元／"
+                    f"實際 {order.plate_insurance_fee:,.0f} 元"
+                ),
+                actor_name=_editing_name(request.user),
+            )
+            messages.success(request, "牌險差額已確認並保存紀錄。")
+    return redirect("dashboard")
 
 
 @login_required
@@ -1572,6 +1646,7 @@ def order_detail(request, pk):
             ),
             "subsidy_missing": order.missing_subsidy_requirements(),
             "subsidy_form": SubsidyDataForm(instance=order),
+            "subsidy_item_formset": SubsidyItemFormSet(instance=order, prefix="subsidy_items"),
             "change_cards": build_order_change_cards(order.changes.all()),
             "operations_profile": operations_profile,
             "delivery_form": DeliveryCompletionForm(order),
@@ -2660,14 +2735,23 @@ def subsidy_data_update(request, pk):
     balance_was_automatic = order.actual_balance == order.calculated_balance
     previous_actual_balance = order.actual_balance
     form = SubsidyDataForm(request.POST, instance=order)
-    if not form.is_valid():
+    items_submitted = "subsidy_items-TOTAL_FORMS" in request.POST
+    item_formset = SubsidyItemFormSet(
+        request.POST if items_submitted else None,
+        instance=order,
+        prefix="subsidy_items",
+    )
+    if not form.is_valid() or (items_submitted and not item_formset.is_valid()):
+        error_messages = [str(error) for errors in form.errors.values() for error in errors]
+        if items_submitted:
+            error_messages.extend(str(error) for error in item_formset.non_form_errors())
+            for row_errors in item_formset.errors:
+                error_messages.extend(
+                    str(error) for errors in row_errors.values() for error in errors
+                )
         messages.error(
             request,
-            "補助資料未保存：" + " ".join(
-                error
-                for errors in form.errors.values()
-                for error in errors
-            ),
+            "補助資料未保存：" + " ".join(error_messages),
         )
         return redirect(detail_url)
 
@@ -2681,6 +2765,16 @@ def subsidy_data_update(request, pk):
         if order.actual_balance != order.calculated_balance:
             order.balance_adjustment_reason = form.cleaned_data["change_reason"]
     order.save()
+    if items_submitted:
+        item_formset.instance = order
+        item_formset.save()
+    profile, _ = OrderOperationsProfile.objects.get_or_create(order=order)
+    profile.subsidy_amount = order.subsidy_total
+    profile.subsidy_applied_on = order.subsidy_last_applied_on
+    profile.updated_by = _editing_name(request.user)
+    profile.save(
+        update_fields=["subsidy_amount", "subsidy_applied_on", "updated_by", "updated_at"]
+    )
 
     after = _order_snapshot(order)
     changes = _snapshot_changes(before, after)

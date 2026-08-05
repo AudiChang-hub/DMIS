@@ -27,5 +27,10 @@
     <div><h2>庫存資料</h2><p>管理進車、車況、調車歷程與目前可售狀態。</p><strong>{{ inventory_count }} 台車輛</strong></div>
     <span aria-hidden="true">›</span>
   </a>
+  <a class="maintenance-card" href="{% url 'business_holiday_list' %}">
+    <span class="maintenance-card__icon">曆</span>
+    <div><h2>工作日行事曆</h2><p>維護國定假日，供合作車行三日文件與七日尾款提醒排除。</p><strong>{{ holiday_count }} 個排除日期</strong></div>
+    <span aria-hidden="true">›</span>
+  </a>
 </section>
 {% endblock %}

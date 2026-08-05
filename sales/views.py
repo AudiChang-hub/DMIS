@@ -27,12 +27,16 @@ from .forms import (
     AccessoryProductForm,
     AccessoryFormSet,
     AllocationForm,
+    BusinessHolidayForm,
+    CancellationRequestForm,
+    DeliveryCompletionForm,
     OtherFeeFormSet,
     OrderOperationsForm,
     OrderEditForm,
     PrivacyConsentForm,
     PaymentRecordFormSet,
     ReconciliationRecordForm,
+    RefundCompletionForm,
     QuickInventoryEntryFormSet,
     ReallocationForm,
     RegistrationDocumentUploadForm,
@@ -51,6 +55,8 @@ from .forms import (
 )
 from .models import (
     AccessoryProduct,
+    BusinessHoliday,
+    DeliveryRecord,
     OrderEvent,
     OrderOperationsProfile,
     PaymentRecord,
@@ -112,8 +118,41 @@ def data_maintenance(request):
             .count(),
             "vehicle_model_count": VehicleModel.objects.count(),
             "inventory_count": VehicleInventory.objects.count(),
+            "holiday_count": BusinessHoliday.objects.filter(active=True).count(),
         },
     )
+
+
+@login_required
+def business_holiday_list(request):
+    editing = None
+    edit_pk = request.GET.get("edit")
+    if edit_pk:
+        editing = get_object_or_404(BusinessHoliday, pk=edit_pk)
+    form = BusinessHolidayForm(request.POST or None, instance=editing)
+    if request.method == "POST" and form.is_valid():
+        holiday = form.save()
+        messages.success(request, f"已儲存工作日排除日期：{holiday.date} {holiday.name}。")
+        return redirect("business_holiday_list")
+    return render(
+        request,
+        "sales/business_holiday_list.html",
+        {
+            "holidays": BusinessHoliday.objects.all(),
+            "form": form,
+            "editing": editing,
+        },
+    )
+
+
+@login_required
+def business_holiday_delete(request, pk):
+    holiday = get_object_or_404(BusinessHoliday, pk=pk)
+    if request.method == "POST":
+        label = str(holiday)
+        holiday.delete()
+        messages.success(request, f"已刪除 {label}。")
+    return redirect("business_holiday_list")
 
 
 @login_required
@@ -353,6 +392,7 @@ def dashboard(request):
         "search_result_count": search_result_count,
         "dashboard": metrics,
         "urgent_orders": urgent_orders,
+        "dealer_reminders": metrics["dealer_reminders"] if metrics else [],
         "counts": {
             "urgent": metrics["workload"]["urgent"] if metrics else 0,
             "allocation": metrics["workload"]["allocation"] if metrics else 0,
@@ -1099,6 +1139,7 @@ def order_detail(request, pk):
             "color",
             "allocated_vehicle",
             "allocated_vehicle__location_store",
+            "delivery_record",
         ).prefetch_related(
             "accessories",
             "other_fees",
@@ -1174,6 +1215,9 @@ def order_detail(request, pk):
             "subsidy_form": SubsidyDataForm(instance=order),
             "change_cards": build_order_change_cards(order.changes.all()),
             "operations_profile": operations_profile,
+            "delivery_form": DeliveryCompletionForm(order),
+            "cancellation_form": CancellationRequestForm(),
+            "refund_form": RefundCompletionForm(order),
         },
     )
 
@@ -1888,6 +1932,151 @@ def registration_complete(request, pk):
         )
         messages.success(request, "領牌階段已完成，訂單進入待交付。")
     return redirect("order_detail", pk=pk)
+
+
+@login_required
+@transaction.atomic
+def delivery_complete(request, pk):
+    order = get_object_or_404(
+        SalesOrder.objects.select_for_update().select_related("allocated_vehicle"),
+        pk=pk,
+    )
+    detail_url = f"{reverse('order_detail', args=[pk])}?tab=delivery"
+    if request.method != "POST":
+        return redirect(detail_url)
+    form = DeliveryCompletionForm(order, request.POST, request.FILES)
+    if not form.is_valid():
+        messages.error(
+            request,
+            "交付未完成：" + " ".join(
+                error
+                for errors in form.errors.values()
+                for error in errors
+            ),
+        )
+        return redirect(detail_url)
+    try:
+        order, record = form.save(_editing_name(request.user))
+    except ValidationError as exc:
+        messages.error(request, "交付未完成：" + " ".join(exc.messages))
+        return redirect(detail_url)
+
+    VehicleInventoryHistory.objects.create(
+        vehicle=order.allocated_vehicle,
+        event_type=VehicleInventoryHistory.EventType.UPDATED,
+        actor_name=_editing_name(request.user),
+        reason=f"訂單 {order.number} 完成交付",
+        changes={"庫存狀態": {"before": "已預留", "after": "已交車"}},
+        status_snapshot=order.allocated_vehicle.status,
+        location_store_snapshot=order.allocated_vehicle.location_store,
+        condition_note_snapshot=record.vehicle_condition_note,
+        condition_resolution_snapshot=record.damage_note,
+        condition_photo_snapshot=record.handover_photo,
+    )
+    OrderEvent.objects.create(
+        order=order,
+        event_type="delivery_completed",
+        description=(
+            f"完成交付：{order.get_delivery_method_display()}／"
+            f"{record.handover_location}／收車人 {record.recipient_name}"
+        ),
+        actor_name=_editing_name(request.user),
+    )
+    if order.status == SalesOrder.Status.DELIVERED_DOCS_PENDING:
+        messages.success(request, "車輛已交付；合作車行領牌文件與尾款將持續提醒。")
+    else:
+        messages.success(request, "車輛交付完成，訂單已結案。")
+    return redirect(detail_url)
+
+
+@login_required
+@transaction.atomic
+def cancellation_request(request, pk):
+    order = get_object_or_404(SalesOrder.objects.select_for_update(), pk=pk)
+    detail_url = f"{reverse('order_detail', args=[pk])}?tab=order"
+    if request.method != "POST":
+        return redirect(detail_url)
+    form = CancellationRequestForm(request.POST)
+    if not form.is_valid():
+        messages.error(
+            request,
+            "取消未登記：" + " ".join(
+                error for errors in form.errors.values() for error in errors
+            ),
+        )
+        return redirect(detail_url)
+    released_identifier = (
+        order.allocated_vehicle.identifier if order.allocated_vehicle_id else ""
+    )
+    try:
+        order.request_cancellation(
+            _editing_name(request.user),
+            form.cleaned_data["reason"],
+            form.cleaned_data["note"],
+        )
+    except ValidationError as exc:
+        messages.error(request, "取消未登記：" + " ".join(exc.messages))
+        return redirect(detail_url)
+    description = f"登記取消：{order.cancellation_reason}"
+    if released_identifier:
+        description += f"；已解除配車 {released_identifier}"
+    if order.status == SalesOrder.Status.CANCELLED:
+        description += "；本單未收訂金，已完成取消"
+    OrderEvent.objects.create(
+        order=order,
+        event_type="cancellation_requested",
+        description=description,
+        actor_name=_editing_name(request.user),
+    )
+    if order.status == SalesOrder.Status.CANCEL_REFUND_PENDING:
+        messages.warning(
+            request,
+            f"已登記取消，必須全額退還訂金 ${order.deposit_amount:,.0f} 後才會完成取消。",
+        )
+    else:
+        messages.success(request, "訂單已取消。")
+    return redirect(detail_url)
+
+
+@login_required
+@transaction.atomic
+def refund_complete(request, pk):
+    order = get_object_or_404(SalesOrder.objects.select_for_update(), pk=pk)
+    detail_url = f"{reverse('order_detail', args=[pk])}?tab=order"
+    if request.method != "POST":
+        return redirect(detail_url)
+    form = RefundCompletionForm(order, request.POST, request.FILES)
+    if not form.is_valid():
+        messages.error(
+            request,
+            "退款未完成：" + " ".join(
+                error for errors in form.errors.values() for error in errors
+            ),
+        )
+        return redirect(detail_url)
+    try:
+        order.complete_refund(
+            _editing_name(request.user),
+            form.cleaned_data["amount"],
+            form.cleaned_data["completed_on"],
+            form.cleaned_data["method"],
+            form.cleaned_data["reference"],
+            form.cleaned_data.get("proof"),
+        )
+    except ValidationError as exc:
+        messages.error(request, "退款未完成：" + " ".join(exc.messages))
+        return redirect(detail_url)
+    OrderEvent.objects.create(
+        order=order,
+        event_type="refund_completed",
+        description=(
+            f"訂金已全額退款 ${order.refund_amount:,.0f}／"
+            f"{order.get_refund_method_display()}／{order.refund_completed_on}；訂單完成取消"
+        ),
+        actor_name=_editing_name(request.user),
+    )
+    messages.success(request, "訂金已全額退款，訂單已取消。")
+    return redirect(detail_url)
 
 
 @login_required
@@ -3050,7 +3239,13 @@ def protected_media(request, model_name, pk, field_name):
     allowed = {
         "order": (
             SalesOrder,
-            {"id_front", "id_back", "signed_contract", "privacy_consent"},
+            {
+                "id_front",
+                "id_back",
+                "signed_contract",
+                "privacy_consent",
+                "refund_proof",
+            },
         ),
         "draft": (OrderDraft, {"id_front", "id_back"}),
         "vehicle": (VehicleInventory, {"condition_photo"}),
@@ -3059,6 +3254,7 @@ def protected_media(request, model_name, pk, field_name):
             {"condition_photo_snapshot"},
         ),
         "payment": (PaymentRecord, {"proof"}),
+        "delivery": (DeliveryRecord, {"handover_photo"}),
     }
     if model_name not in allowed or field_name not in allowed[model_name][1]:
         raise Http404

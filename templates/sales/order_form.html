@@ -189,6 +189,7 @@
         {% include "sales/_field.html" with field=form.installment_opening_fee %}
         {% include "sales/_field.html" with field=form.installment_monthly %}
       </div>
+      <p class="form-hint" id="installment-plan-hint" aria-live="polite">選擇車型與期數後，系統會帶入目前有效的分期公司、每期金額及開辦費；仍可由內部人員修改。</p>
     </div>
     <div class="subsection fee-subsection">
       <div class="section-title"><h3>其他費用</h3></div>
@@ -312,6 +313,9 @@
     byId("id_installment_opening_fee"),
     byId("id_installment_monthly"),
   ].filter(Boolean);
+  const installmentPlanEndpoint = "{% url 'installment_plan_options' %}";
+  const installmentPlanHint = byId("installment-plan-hint");
+  let installmentPlanOptions = [];
   const plateChoice = byId("id_plate_choice");
   const deliveryMethod = byId("id_delivery_method");
   const vehicleModel = byId("id_vehicle_model");
@@ -506,6 +510,50 @@
     return Number(input?.value || 0);
   }
 
+  function applyInstallmentPlanOption({force = false} = {}) {
+    if (paymentType.value !== "installment") return;
+    const periodsInput = byId("id_installment_periods");
+    const option = installmentPlanOptions.find(
+      item => Number(item.periods) === Number(periodsInput?.value || 0)
+    );
+    if (!option) {
+      installmentPlanHint.textContent = installmentPlanOptions.length
+        ? "此期數沒有預設方案，請確認期數或由內部人員填寫。"
+        : "此車型在訂單日沒有有效的分期方案，請由內部人員填寫。";
+      return;
+    }
+    const mappings = [
+      [byId("id_installment_company"), option.company],
+      [byId("id_installment_opening_fee"), option.opening_fee],
+      [byId("id_installment_monthly"), option.monthly_amount],
+    ];
+    mappings.forEach(([input, value]) => {
+      if (input && (force || input.value === "")) {
+        input.value = value ?? "";
+        input.dispatchEvent(new Event("input", {bubbles: true}));
+      }
+    });
+    installmentPlanHint.textContent = `已帶入 ${option.company}／${option.periods} 期；如本案條件不同仍可人工修改。`;
+  }
+
+  async function loadInstallmentPlanOptions({force = false} = {}) {
+    installmentPlanOptions = [];
+    if (!vehicleModel.value) {
+      applyInstallmentPlanOption({force});
+      return;
+    }
+    try {
+      const params = new URLSearchParams({vehicle_model: vehicleModel.value});
+      const response = await fetch(`${installmentPlanEndpoint}?${params}`);
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "無法讀取分期方案");
+      installmentPlanOptions = data.options || [];
+      applyInstallmentPlanOption({force});
+    } catch (error) {
+      installmentPlanHint.textContent = `${error.message}，請由內部人員填寫。`;
+    }
+  }
+
   function roundHalfUp(value) {
     return Math.floor(value + 0.5);
   }
@@ -654,6 +702,7 @@
     }
     previousPaymentType = paymentType.value;
     refresh();
+    if (paymentType.value === "installment") loadInstallmentPlanOptions();
   });
   [sourceType, ownerType, plateChoice, deliveryMethod, isTradeInSubsidy]
     .forEach(el => el.addEventListener("change", refresh));
@@ -686,11 +735,17 @@
 
   vehicleModel.addEventListener("change", async () => {
     calculateRegistrationFee();
+    await loadInstallmentPlanOptions({force: true});
     const response = await fetch(`{% url 'vehicle_colors' %}?model=${vehicleModel.value}`);
     const data = await response.json();
     color.innerHTML = '<option value="">請選擇車色</option>';
     data.results.forEach(item => color.add(new Option(item.name, item.id)));
   });
+  byId("id_installment_periods")?.addEventListener(
+    "change",
+    () => applyInstallmentPlanOption({force: true}),
+  );
+  if (paymentType.value === "installment") loadInstallmentPlanOptions();
 
   async function runIdOcr() {
     if (ocrRunning || !["local", "foreign"].includes(ownerType.value)) return;

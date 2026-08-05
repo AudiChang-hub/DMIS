@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block title %}配件資料｜車輛銷售管理{% endblock %}
+{% block page_class %}page-shell--wide{% endblock %}
+{% block content %}
+{% url 'vehicle_model_list' as model_url %}
+{% include "sales/_page_back.html" with fallback_url=model_url label="返回車型資料" %}
+<section class="hero-row compact-hero">
+  <div>
+    <p class="eyebrow">訂單配件共用資料</p>
+    <h1>配件資料</h1>
+    <p class="muted">訂單只需選擇配件；售價與工資會保存為當時快照，後續修改主檔不影響舊訂單。</p>
+  </div>
+  <a class="button primary" href="{% url 'accessory_product_create' %}">＋ 新增配件</a>
+</section>
+<form method="get" class="master-filters customer-filters">
+  <div class="inventory-filter master-search">
+    <label for="accessory-q">搜尋</label>
+    <input id="accessory-q" type="search" name="q" value="{{ selected.q }}" placeholder="配件名稱或內部備註">
+  </div>
+  <div class="inventory-filter">
+    <label for="accessory-active">狀態</label>
+    <select id="accessory-active" name="active">
+      <option value="">全部狀態</option>
+      <option value="yes" {% if selected.active == 'yes' %}selected{% endif %}>啟用中</option>
+      <option value="no" {% if selected.active == 'no' %}selected{% endif %}>已停用</option>
+    </select>
+  </div>
+  <div class="inventory-filter-actions">
+    <a class="button ghost" href="{% url 'accessory_product_list' %}">清除</a>
+    <button class="button primary" type="submit">套用</button>
+  </div>
+</form>
+<section class="inventory-list-panel">
+  <div class="inventory-list-summary"><strong>共 {{ page_obj.paginator.count }} 項配件</strong></div>
+  <div class="inventory-table-wrap">
+    <table class="inventory-table">
+      <thead><tr><th>配件名稱</th><th>售價</th><th>工資</th><th>參考成本</th><th>歷史使用</th><th>狀態</th><th></th></tr></thead>
+      <tbody>
+        {% for item in products %}
+        <tr>
+          <td data-label="配件名稱"><strong>{{ item.name }}</strong>{% if item.note %}<span>{{ item.note }}</span>{% endif %}</td>
+          <td data-label="售價">${{ item.sale_price|floatformat:0 }}</td>
+          <td data-label="工資">${{ item.labor_fee|floatformat:0 }}</td>
+          <td data-label="參考成本">{% if item.cost is not None %}${{ item.cost|floatformat:0 }}{% else %}未維護{% endif %}</td>
+          <td data-label="歷史使用">{{ item.usage_count }} 筆</td>
+          <td data-label="狀態"><span class="status-pill">{{ item.active|yesno:"啟用中,已停用" }}</span></td>
+          <td class="inventory-row-action"><a class="button ghost small" href="{% url 'accessory_product_edit' item.pk %}">編輯</a></td>
+        </tr>
+        {% empty %}<tr><td colspan="7"><div class="empty-state"><strong>尚未建立配件資料</strong></div></td></tr>{% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endblock %}

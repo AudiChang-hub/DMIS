@@ -8,6 +8,7 @@ from django.forms.models import BaseInlineFormSet
 from django.utils import timezone
 
 from .models import (
+    AccessoryProduct,
     AccessoryLine,
     OtherFeeLine,
     OrderOperationsProfile,
@@ -21,7 +22,9 @@ from .models import (
     VehicleIncentiveInstallmentRate,
     VehicleIncentiveRule,
     VehicleModel,
+    VehiclePriceVersion,
     VehicleSettlementCostRule,
+    normalize_vehicle_identifier,
 )
 from .services.registration_fee import (
     UnsupportedRegistrationFee,
@@ -427,27 +430,62 @@ class OrderEditForm(SalesOrderForm):
 class AccessoryLineForm(forms.ModelForm):
     class Meta:
         model = AccessoryLine
-        fields = ["name", "quantity", "line_type", "amount", "installed_on", "note"]
-        widgets = {"installed_on": DateInput()}
+        fields = [
+            "accessory_product",
+            "quantity",
+            "line_type",
+            "amount",
+            "labor_fee",
+            "note",
+        ]
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        for field_name in ("name", "quantity", "line_type", "amount"):
+        self.original_accessory_product_id = self.instance.accessory_product_id
+        self.fields["accessory_product"].queryset = AccessoryProduct.objects.filter(
+            Q(active=True) | Q(pk=self.instance.accessory_product_id)
+        ).order_by("name")
+        self.fields["accessory_product"].label = "配件名稱"
+        for field_name in (
+            "accessory_product",
+            "quantity",
+            "line_type",
+            "amount",
+            "labor_fee",
+        ):
             self.fields[field_name].required = False
+        for field_name in ("amount", "labor_fee"):
+            self.fields[field_name].widget.attrs["readonly"] = True
+            self.fields[field_name].widget.attrs["tabindex"] = "-1"
         apply_mobile_keyboard_attrs(self)
-        if not self.is_bound and not self.instance.pk and "amount" not in self.initial:
+        if not self.is_bound and not self.instance.pk:
             self.fields["amount"].initial = None
+            self.fields["labor_fee"].initial = None
 
     def clean(self):
         data = super().clean()
-        if not data.get("name"):
+        product = data.get("accessory_product")
+        if not product:
+            if self.instance.pk and self.instance.name:
+                return data
             data["DELETE"] = True
             self.cleaned_data["DELETE"] = True
             return data
 
-        for field_name in ("quantity", "line_type", "amount"):
+        for field_name in ("quantity", "line_type"):
             if data.get(field_name) in (None, ""):
                 self.add_error(field_name, "填寫配件名稱後，此欄位為必填。")
+        if not self.instance.pk or product.pk != self.original_accessory_product_id:
+            data["amount"] = product.sale_price
+            data["labor_fee"] = product.labor_fee
+            self.cleaned_data["amount"] = product.sale_price
+            self.cleaned_data["labor_fee"] = product.labor_fee
+            self.instance.name = product.name
+        else:
+            data["amount"] = self.instance.amount
+            data["labor_fee"] = self.instance.labor_fee
+            self.cleaned_data["amount"] = self.instance.amount
+            self.cleaned_data["labor_fee"] = self.instance.labor_fee
         return data
 
 
@@ -511,6 +549,7 @@ class VehicleInventoryForm(forms.ModelForm):
         "engine_number",
         "frame_number",
         "received_on",
+        "manufactured_year_month",
     )
     CORE_LOCKED_STATUSES = {
         VehicleInventory.Status.RESERVED,
@@ -534,12 +573,16 @@ class VehicleInventoryForm(forms.ModelForm):
             "frame_number",
             "location_store",
             "received_on",
+            "manufactured_year_month",
             "condition_note",
             "condition_photo",
             "condition_resolution",
         ]
         widgets = {
             "received_on": DateInput(),
+            "manufactured_year_month": forms.TextInput(
+                attrs={"placeholder": "YYYY/MM", "inputmode": "numeric"}
+            ),
             "condition_note": forms.Textarea(attrs={"rows": 3}),
             "condition_resolution": forms.Textarea(attrs={"rows": 3}),
             "condition_photo": forms.ClearableFileInput(
@@ -599,6 +642,8 @@ class VehicleModelMasterForm(forms.ModelForm):
             "model_year",
             "model_code",
             "displacement_cc",
+            "motor_power_kw",
+            "horsepower_hp",
             "suggested_price",
             "active",
         ]
@@ -614,6 +659,12 @@ class VehicleModelMasterForm(forms.ModelForm):
                 attrs={"min": "1900", "max": "2200", "inputmode": "numeric"}
             ),
             "displacement_cc": forms.NumberInput(attrs={"inputmode": "numeric"}),
+            "motor_power_kw": forms.NumberInput(
+                attrs={"min": "0", "step": "0.01", "inputmode": "decimal"}
+            ),
+            "horsepower_hp": forms.NumberInput(
+                attrs={"min": "0", "step": "0.01", "inputmode": "decimal"}
+            ),
             "suggested_price": forms.NumberInput(attrs={"inputmode": "numeric"}),
         }
 
@@ -663,6 +714,52 @@ class VehicleModelMasterForm(forms.ModelForm):
                 "此車型已有庫存資料，為避免引擎／車身號碼規則失效，不能變更能源別。",
             )
         return cleaned
+
+
+class VehiclePriceVersionForm(forms.ModelForm):
+    class Meta:
+        model = VehiclePriceVersion
+        fields = [
+            "suggested_retail_price",
+            "cash_price_including_registration",
+            "cash_price_excluding_registration",
+            "cash_purchase_bonus",
+            "announced_on",
+            "effective_from",
+            "effective_to",
+            "source_note",
+            "active",
+        ]
+        widgets = {
+            "suggested_retail_price": forms.NumberInput(attrs={"inputmode": "numeric"}),
+            "cash_price_including_registration": forms.NumberInput(attrs={"inputmode": "numeric"}),
+            "cash_price_excluding_registration": forms.NumberInput(attrs={"inputmode": "numeric"}),
+            "cash_purchase_bonus": forms.NumberInput(attrs={"inputmode": "numeric"}),
+            "announced_on": DateInput(),
+            "effective_from": DateInput(),
+            "effective_to": DateInput(),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        for field in self.fields.values():
+            field.widget.attrs.setdefault("class", "form-control")
+        apply_mobile_keyboard_attrs(self)
+
+
+class AccessoryProductForm(forms.ModelForm):
+    class Meta:
+        model = AccessoryProduct
+        fields = ["name", "sale_price", "labor_fee", "cost", "active", "note"]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        for field in self.fields.values():
+            field.widget.attrs.setdefault("class", "form-control")
+        for field_name in ("sale_price", "labor_fee", "cost"):
+            if not self.is_bound and self.initial.get(field_name) in (None, 0):
+                self.initial[field_name] = ""
+        apply_mobile_keyboard_attrs(self)
 
 
 class VehicleSettlementCostRuleForm(forms.ModelForm):
@@ -901,6 +998,8 @@ class OrderOperationsForm(forms.ModelForm):
             "installment_info",
             "payment_confirmed",
             "installment_transfer_confirmed",
+            "card_fee_income",
+            "card_fee_expense",
         }
         for name, field in self.fields.items():
             field.widget.attrs.setdefault("class", "form-control")
@@ -943,6 +1042,9 @@ class PaymentRecordForm(forms.ModelForm):
             "item_name",
             "expected_amount",
             "received_amount",
+            "card_principal",
+            "card_fee_charged",
+            "bank_card_fee",
             "received_on",
             "payment_method",
             "receiving_account",
@@ -959,6 +1061,16 @@ class PaymentRecordForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.fields["payment_method"].widget = forms.Select(
+            choices=[
+                ("", "請選擇"),
+                ("現金", "現金"),
+                ("匯款", "匯款"),
+                ("刷卡", "刷卡"),
+                ("分期撥款", "分期撥款"),
+                ("其他", "其他"),
+            ]
+        )
         if self.instance and self.instance.system_key:
             for name in ("item_name", "expected_amount", "payment_method"):
                 self.fields[name].disabled = True
@@ -971,6 +1083,37 @@ class PaymentRecordForm(forms.ModelForm):
                 and self.initial.get(name) in (None, 0, Decimal("0"))
             ):
                 self.initial[name] = ""
+        apply_mobile_keyboard_attrs(self)
+
+    def clean(self):
+        cleaned = super().clean()
+        card_values = (
+            cleaned.get("card_principal") or Decimal("0"),
+            cleaned.get("card_fee_charged") or Decimal("0"),
+            cleaned.get("bank_card_fee") or Decimal("0"),
+        )
+        if any(card_values) and cleaned.get("payment_method") != "刷卡":
+            self.add_error("payment_method", "填寫刷卡明細時，付款方式必須選擇「刷卡」。")
+        return cleaned
+
+
+class ReconciliationRecordForm(forms.ModelForm):
+    class Meta:
+        model = PaymentRecord
+        fields = [
+            "received_amount",
+            "received_on",
+            "receiving_account",
+            "confirmed",
+            "note",
+        ]
+        widgets = {"received_on": DateInput()}
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        for field in self.fields.values():
+            field.widget.attrs.setdefault("class", "form-control")
+        self.fields["received_amount"].required = True
         apply_mobile_keyboard_attrs(self)
 
 
@@ -1003,6 +1146,15 @@ class QuickInventoryEntryForm(forms.Form):
         label="進車日期",
         initial=timezone.localdate,
         widget=DateInput(),
+    )
+    manufactured_year_month = forms.RegexField(
+        label="出廠年月",
+        regex=r"^\d{4}/(0[1-9]|1[0-2])$",
+        required=False,
+        error_messages={"invalid": "請使用 YYYY/MM，例如 2026/08。"},
+        widget=forms.TextInput(
+            attrs={"placeholder": "YYYY/MM", "inputmode": "numeric"}
+        ),
     )
     condition_note = forms.CharField(
         label="車況說明",
@@ -1056,20 +1208,22 @@ class BaseQuickInventoryEntryFormSet(BaseFormSet):
             identifier = form.cleaned_data.get("identifier")
             if not identifier:
                 continue
-            active_forms.append((form, identifier))
-            if identifier in identifiers:
+            normalized_identifier = normalize_vehicle_identifier(identifier)
+            active_forms.append((form, normalized_identifier))
+            if normalized_identifier in identifiers:
                 form.add_error(
                     "identifier",
-                    f"與第 {identifiers[identifier]} 列重複。",
+                    f"與第 {identifiers[normalized_identifier]} 列重複（空格與連字號不影響比對）。",
                 )
             else:
-                identifiers[identifier] = index
+                identifiers[normalized_identifier] = index
         if not active_forms:
             raise forms.ValidationError("請至少填寫一台車輛。")
         existing = set(
             VehicleInventory.objects.filter(
-                Q(engine_number__in=identifiers) | Q(frame_number__in=identifiers)
-            ).values_list("engine_number", "frame_number")
+                Q(normalized_engine_number__in=identifiers)
+                | Q(normalized_frame_number__in=identifiers)
+            ).values_list("normalized_engine_number", "normalized_frame_number")
         )
         existing_identifiers = {
             value

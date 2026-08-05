@@ -597,7 +597,7 @@
   <section class="card">
     <div class="section-title"><h2>配件與需求明細</h2>{% if order.accessory_total %}<span>配件合計 ${{ order.accessory_total }}</span>{% endif %}</div>
     {% for line in order.accessories.all %}
-      <div class="line-item"><span>{{ line.name }} × {{ line.quantity }}<small>{{ line.get_line_type_display }} · 已計入尾款</small></span><strong>${{ line.line_total }}</strong></div>
+      <div class="line-item"><span>{{ line.name }} × {{ line.quantity }}<small>{{ line.get_line_type_display }} · 售價 ${{ line.amount }} ＋ 工資 ${{ line.labor_fee }}{% if line.line_type == 'gift' %} · 不計入訂單總價{% else %} · 已計入尾款{% endif %}</small></span><strong>${{ line.display_total }}</strong></div>
     {% empty %}<p class="muted">無配件</p>{% endfor %}
     {% if order.plate_choice != "none" %}<div class="note-box"><strong>{{ order.get_plate_choice_display }}</strong><p>{{ order.watched_numbers|default:order.plate_preference_note }}</p></div>{% endif %}
     {% if order.note %}<div class="note-box"><strong>備註</strong><p>{{ order.note }}</p></div>{% endif %}

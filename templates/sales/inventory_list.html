@@ -74,6 +74,7 @@
       <thead>
         <tr>
           <th>進車日期</th>
+          <th>出廠年月</th>
           <th>車型／車色</th>
           <th>引擎／車身號碼</th>
           <th>狀態</th>
@@ -86,6 +87,7 @@
         {% for vehicle in vehicles %}
         <tr>
           <td data-label="進車日期">{{ vehicle.received_on }}</td>
+          <td data-label="出廠年月">{{ vehicle.manufactured_year_month|default:"未填寫" }}</td>
           <td data-label="車型／車色"><strong>{{ vehicle.vehicle_model.name }}</strong><span>{{ vehicle.color.name }}</span></td>
           <td data-label="識別號碼"><span class="inventory-identifier">{{ vehicle.identifier }}</span></td>
           <td data-label="狀態"><span class="status-pill">{{ vehicle.get_status_display }}</span></td>
@@ -94,7 +96,7 @@
           <td class="inventory-row-action"><a class="button ghost small" href="{% url 'inventory_edit' vehicle.pk %}">查看／編輯</a></td>
         </tr>
         {% empty %}
-        <tr><td colspan="7"><div class="empty-state"><strong>找不到符合條件的實體車輛</strong><p>請調整篩選條件，或建立第一台進車資料。</p></div></td></tr>
+        <tr><td colspan="8"><div class="empty-state"><strong>找不到符合條件的實體車輛</strong><p>請調整篩選條件，或建立第一台進車資料。</p></div></td></tr>
         {% endfor %}
       </tbody>
     </table>

@@ -1,9 +1,10 @@
 import uuid
+import re
 from decimal import Decimal
 
 from django.conf import settings
 from django.core.exceptions import ValidationError
-from django.core.validators import MaxValueValidator, MinValueValidator
+from django.core.validators import MaxValueValidator, MinValueValidator, RegexValidator
 from django.db import models, transaction
 from django.utils import timezone
 
@@ -14,6 +15,11 @@ class TimeStampedModel(models.Model):
 
     class Meta:
         abstract = True
+
+
+def normalize_vehicle_identifier(value):
+    """建立比對鍵；畫面仍保留使用者輸入的原始號碼。"""
+    return re.sub(r"[\s-]+", "", value or "").upper() or None
 
 
 class TaiwanCounty(models.TextChoices):
@@ -121,6 +127,22 @@ class VehicleModel(TimeStampedModel):
         null=True,
         help_text="油車領牌試算使用；電動車與微型電動二輪車可留空。",
     )
+    motor_power_kw = models.DecimalField(
+        "馬達功率（kW）",
+        max_digits=8,
+        decimal_places=2,
+        blank=True,
+        null=True,
+        help_text="電動車或微型電動二輪車選填；不會自動換算馬力。",
+    )
+    horsepower_hp = models.DecimalField(
+        "馬力（HP）",
+        max_digits=8,
+        decimal_places=2,
+        blank=True,
+        null=True,
+        help_text="電動車或微型電動二輪車選填；不會由 kW 自動換算。",
+    )
     suggested_price = models.DecimalField(
         "建議售價",
         max_digits=12,
@@ -162,6 +184,88 @@ class VehicleModel(TimeStampedModel):
             raise ValidationError(
                 {"displacement_cc": "油車必須設定排氣量，才能自動試算領牌費用。"}
             )
+
+
+class VehiclePriceVersion(TimeStampedModel):
+    vehicle_model = models.ForeignKey(
+        VehicleModel,
+        on_delete=models.PROTECT,
+        related_name="price_versions",
+        verbose_name="車型",
+    )
+    suggested_retail_price = models.DecimalField(
+        "公司建議售價", max_digits=12, decimal_places=0, blank=True, null=True
+    )
+    cash_price_including_registration = models.DecimalField(
+        "現金含牌險價", max_digits=12, decimal_places=0, blank=True, null=True
+    )
+    cash_price_excluding_registration = models.DecimalField(
+        "現金未含牌險價", max_digits=12, decimal_places=0, blank=True, null=True
+    )
+    cash_purchase_bonus = models.DecimalField(
+        "現金購車金", max_digits=12, decimal_places=0, blank=True, null=True
+    )
+    announced_on = models.DateField("公告日期", default=timezone.localdate)
+    effective_from = models.DateField("生效日期")
+    effective_to = models.DateField("結束日期", blank=True, null=True)
+    source_note = models.CharField("來源文件／說明", max_length=250, blank=True)
+    active = models.BooleanField("啟用中", default=True)
+
+    class Meta:
+        ordering = ["vehicle_model", "-effective_from", "-id"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["vehicle_model", "effective_from"],
+                name="unique_vehicle_price_version_start",
+            )
+        ]
+        indexes = [
+            models.Index(
+                fields=["vehicle_model", "effective_from"],
+                name="vehicle_price_lookup",
+            )
+        ]
+        verbose_name = "車型價格版本"
+        verbose_name_plural = "車型價格版本"
+
+    def clean(self):
+        if self.effective_to and self.effective_to < self.effective_from:
+            raise ValidationError({"effective_to": "結束日期不可早於生效日期。"})
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        return super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"{self.vehicle_model}／{self.effective_from:%Y/%m/%d}"
+
+
+class AccessoryProduct(TimeStampedModel):
+    name = models.CharField("配件名稱", max_length=160, unique=True)
+    sale_price = models.DecimalField(
+        "配件售價", max_digits=12, decimal_places=0, default=0
+    )
+    labor_fee = models.DecimalField(
+        "安裝工資", max_digits=12, decimal_places=0, default=0
+    )
+    cost = models.DecimalField(
+        "參考成本",
+        max_digits=12,
+        decimal_places=0,
+        blank=True,
+        null=True,
+        help_text="無法固定維護時可留空；此欄位不會顯示在客戶訂單。",
+    )
+    active = models.BooleanField("啟用中", default=True)
+    note = models.CharField("內部備註", max_length=250, blank=True)
+
+    class Meta:
+        ordering = ["name"]
+        verbose_name = "配件主檔"
+        verbose_name_plural = "配件主檔"
+
+    def __str__(self):
+        return self.name
 
 
 class VehicleSettlementCostRule(TimeStampedModel):
@@ -418,6 +522,22 @@ class VehicleInventory(TimeStampedModel):
     frame_number = models.CharField(
         "車身號碼", max_length=80, blank=True, null=True, unique=True
     )
+    normalized_engine_number = models.CharField(
+        "標準化引擎號碼",
+        max_length=80,
+        blank=True,
+        null=True,
+        unique=True,
+        editable=False,
+    )
+    normalized_frame_number = models.CharField(
+        "標準化車身號碼",
+        max_length=80,
+        blank=True,
+        null=True,
+        unique=True,
+        editable=False,
+    )
     ownership_store = models.ForeignKey(
         Store,
         on_delete=models.PROTECT,
@@ -431,6 +551,18 @@ class VehicleInventory(TimeStampedModel):
         verbose_name="實際存放門市",
     )
     received_on = models.DateField("進車日期", default=timezone.localdate)
+    manufactured_year_month = models.CharField(
+        "出廠年月",
+        max_length=7,
+        blank=True,
+        validators=[
+            RegexValidator(
+                regex=r"^\d{4}/(0[1-9]|1[0-2])$",
+                message="請使用 YYYY/MM，例如 2026/08。",
+            )
+        ],
+        help_text="供車輛年份顯示與庫存先進先出判斷。",
+    )
     status = models.CharField(
         "庫存狀態", max_length=30, choices=Status.choices, default=Status.AVAILABLE
     )
@@ -470,6 +602,8 @@ class VehicleInventory(TimeStampedModel):
     def save(self, *args, **kwargs):
         self.engine_number = self.engine_number.strip().upper() if self.engine_number else None
         self.frame_number = self.frame_number.strip().upper() if self.frame_number else None
+        self.normalized_engine_number = normalize_vehicle_identifier(self.engine_number)
+        self.normalized_frame_number = normalize_vehicle_identifier(self.frame_number)
         self.full_clean()
         return super().save(*args, **kwargs)
 
@@ -702,6 +836,27 @@ class SalesOrder(TimeStampedModel):
     )
     vehicle_price = models.DecimalField(
         "車價", max_digits=12, decimal_places=0, default=0
+    )
+    price_version = models.ForeignKey(
+        VehiclePriceVersion,
+        on_delete=models.PROTECT,
+        related_name="orders",
+        verbose_name="訂單售價版本",
+        blank=True,
+        null=True,
+        editable=False,
+    )
+    price_snapshot = models.JSONField(
+        "訂單售價快照",
+        default=dict,
+        blank=True,
+        editable=False,
+    )
+    price_snapshot_locked_at = models.DateTimeField(
+        "售價快照保存時間",
+        blank=True,
+        null=True,
+        editable=False,
     )
     plate_insurance_fee = models.DecimalField(
         "實際牌險合計", max_digits=12, decimal_places=0, default=0
@@ -1247,8 +1402,10 @@ class OrderOperationsProfile(TimeStampedModel):
     registration_tax_expense = models.DecimalField("領牌稅金支出", max_digits=12, decimal_places=0, default=0)
     compulsory_insurance_expense = models.DecimalField("強制險支出", max_digits=12, decimal_places=0, default=0)
     plate_selection_expense = models.DecimalField("選號支出", max_digits=12, decimal_places=0, default=0)
-    gift_shipping_expense = models.DecimalField("贈品、運費支出", max_digits=12, decimal_places=0, default=0)
+    gift_expense = models.DecimalField("贈品支出", max_digits=12, decimal_places=0, default=0)
+    shipping_expense = models.DecimalField("運費支出", max_digits=12, decimal_places=0, default=0)
     dealer_commission_expense = models.DecimalField("車行傭金支出", max_digits=12, decimal_places=0, default=0)
+    card_fee_expense = models.DecimalField("銀行刷卡手續費支出", max_digits=12, decimal_places=0, default=0)
     registration_tax_income = models.DecimalField("領牌稅金收入", max_digits=12, decimal_places=0, default=0)
     compulsory_insurance_income = models.DecimalField("強制險收入", max_digits=12, decimal_places=0, default=0)
     agency_fee_income = models.DecimalField("代辦費收入", max_digits=12, decimal_places=0, default=0)
@@ -1256,6 +1413,8 @@ class OrderOperationsProfile(TimeStampedModel):
     installment_fee_income = models.DecimalField("分期手續費收入", max_digits=12, decimal_places=0, default=0)
     card_fee_income = models.DecimalField("刷卡手續費收入", max_digits=12, decimal_places=0, default=0)
     other_income = models.DecimalField("其他收入", max_digits=12, decimal_places=0, default=0)
+    scrap_agency_income = models.DecimalField("報廢代辦收入", max_digits=12, decimal_places=0, default=0)
+    scrap_vehicle_income = models.DecimalField("報廢車收入", max_digits=12, decimal_places=0, default=0)
     sales_bonus = models.DecimalField("實銷獎勵金", max_digits=12, decimal_places=0, default=0)
     promotion_subsidy = models.DecimalField("促銷補助金", max_digits=12, decimal_places=0, default=0)
     installment_interest_subsidy = models.DecimalField("分期補貼息", max_digits=12, decimal_places=0, default=0)
@@ -1295,12 +1454,14 @@ class OrderOperationsProfile(TimeStampedModel):
     INCOME_FIELDS = (
         "registration_tax_income", "compulsory_insurance_income",
         "agency_fee_income", "plate_selection_income", "installment_fee_income",
-        "card_fee_income", "other_income",
+        "card_fee_income", "other_income", "scrap_agency_income",
+        "scrap_vehicle_income",
     )
     EXPENSE_FIELDS = (
         "registration_tax_expense",
         "compulsory_insurance_expense", "plate_selection_expense",
-        "gift_shipping_expense", "dealer_commission_expense",
+        "gift_expense", "shipping_expense", "dealer_commission_expense",
+        "card_fee_expense",
     )
     INCENTIVE_FIELDS = (
         "sales_bonus",
@@ -1368,6 +1529,27 @@ class PaymentRecord(TimeStampedModel):
     item_name = models.CharField("收款項目", max_length=160)
     expected_amount = models.DecimalField("應收金額", max_digits=12, decimal_places=0, default=0)
     received_amount = models.DecimalField("實收金額", max_digits=12, decimal_places=0, default=0)
+    card_principal = models.DecimalField(
+        "刷卡本金",
+        max_digits=12,
+        decimal_places=0,
+        default=0,
+        validators=[MinValueValidator(0)],
+    )
+    card_fee_charged = models.DecimalField(
+        "向客戶收取手續費",
+        max_digits=12,
+        decimal_places=0,
+        default=0,
+        validators=[MinValueValidator(0)],
+    )
+    bank_card_fee = models.DecimalField(
+        "銀行實扣手續費",
+        max_digits=12,
+        decimal_places=0,
+        default=0,
+        validators=[MinValueValidator(0)],
+    )
     received_on = models.DateField("收款日期", blank=True, null=True)
     payment_method = models.CharField("付款方式", max_length=50, blank=True)
     receiving_account = models.CharField("收款帳戶", max_length=120, blank=True)
@@ -1376,6 +1558,12 @@ class PaymentRecord(TimeStampedModel):
     confirmed_at = models.DateTimeField("確認時間", blank=True, null=True)
     proof = models.FileField("匯款／收款證明", upload_to="orders/payments/%Y/%m/", blank=True)
     note = models.CharField("備註", max_length=250, blank=True)
+
+    @property
+    def card_fee_difference(self):
+        return (self.card_fee_charged or Decimal("0")) - (
+            self.bank_card_fee or Decimal("0")
+        )
 
     class Meta:
         ordering = ["received_on", "id"]
@@ -1583,13 +1771,25 @@ class AccessoryLine(TimeStampedModel):
     order = models.ForeignKey(
         SalesOrder, on_delete=models.CASCADE, related_name="accessories"
     )
+    accessory_product = models.ForeignKey(
+        AccessoryProduct,
+        on_delete=models.PROTECT,
+        related_name="order_lines",
+        verbose_name="配件主檔",
+        blank=True,
+        null=True,
+    )
     name = models.CharField("配件名稱", max_length=160)
     quantity = models.PositiveSmallIntegerField("數量", default=1)
     line_type = models.CharField(
         "類型", max_length=20, choices=LineType.choices, default=LineType.PURCHASE
     )
-    amount = models.DecimalField("金額", max_digits=12, decimal_places=0, default=0)
-    installed_on = models.DateField("安裝日期", blank=True, null=True)
+    amount = models.DecimalField(
+        "配件售價", max_digits=12, decimal_places=0, default=0
+    )
+    labor_fee = models.DecimalField(
+        "安裝工資", max_digits=12, decimal_places=0, default=0
+    )
     note = models.CharField("備註", max_length=250, blank=True)
 
     class Meta:
@@ -1601,7 +1801,11 @@ class AccessoryLine(TimeStampedModel):
     def line_total(self):
         if self.line_type == self.LineType.GIFT:
             return 0
-        return self.amount * self.quantity
+        return (self.amount + self.labor_fee) * self.quantity
+
+    @property
+    def display_total(self):
+        return (self.amount + self.labor_fee) * self.quantity
 
     def __str__(self):
         return self.name

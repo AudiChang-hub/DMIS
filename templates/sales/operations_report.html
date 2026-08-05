@@ -10,7 +10,7 @@
     <h1>營運總表</h1>
     <p class="muted">集中查詢每張訂單的收款、支出及單筆淨利；Excel 會套用相同篩選條件。</p>
   </div>
-  <a class="button primary" href="{% url 'operations_report_export' %}?{{ request.GET.urlencode }}">匯出 Excel</a>
+  <div class="hero-actions"><a class="button ghost" href="{% url 'reconciliation_list' %}">統一撥款對帳</a><a class="button primary" href="{% url 'operations_report_export' %}?{{ request.GET.urlencode }}">匯出 Excel</a></div>
 </section>
 
 <form class="inventory-filters operations-filters" method="get">

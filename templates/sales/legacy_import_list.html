@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block title %}歷史 Excel 匯入｜車輛銷售管理{% endblock %}
+{% block page_class %}page-shell--wide{% endblock %}
+{% block content %}
+{% url 'data_maintenance' as data_url %}{% include "sales/_page_back.html" with fallback_url=data_url label="返回資料維護區" %}
+<section class="hero-row compact-hero"><div><p class="eyebrow">平行試營運資料轉換</p><h1>歷史 Excel 匯入</h1><p class="muted">先產生預覽與衝突報告；只有再次確認後才會寫入訂單、庫存或通路資料。</p></div></section>
+<div class="responsive-split">
+  <section class="form-section static-section">
+    <div class="section-title"><h2>上傳來源檔</h2><span class="status-pill">最大 30 MB</span></div>
+    <form method="post" enctype="multipart/form-data" class="stacked-form">
+      {% csrf_token %}{% for field in form %}{% include "sales/_field.html" with field=field %}{% endfor %}
+      <div class="note-box">進銷貨表：銷貨採第 3 列欄名、進貨採第 1 列欄名。通路名冊：車行與網路平台分開解析。來源列消失不會刪除系統資料。</div>
+      <button class="button primary" type="submit">上傳並建立預覽</button>
+    </form>
+  </section>
+  <section class="inventory-list-panel">
+    <div class="inventory-list-summary"><strong>最近匯入批次</strong></div>
+    <div class="inventory-table-wrap"><table class="inventory-table">
+      <thead><tr><th>上傳時間</th><th>檔案</th><th>類型</th><th>狀態</th><th>操作人</th><th></th></tr></thead>
+      <tbody>{% for batch in batches %}<tr><td>{{ batch.created_at|date:'Y/m/d H:i' }}</td><td>{{ batch.original_filename }}</td><td>{{ batch.get_import_type_display }}</td><td><span class="status-pill">{{ batch.get_status_display }}</span></td><td>{{ batch.uploaded_by }}</td><td><a class="button ghost small" href="{% url 'legacy_import_detail' batch.pk %}">查看</a></td></tr>{% empty %}<tr><td colspan="6">尚無匯入批次</td></tr>{% endfor %}</tbody>
+    </table></div>
+  </section>
+</div>
+{% endblock %}

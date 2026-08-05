@@ -13,6 +13,9 @@ from .models import (
     InstallmentCompany,
     InstallmentPlanOption,
     InstallmentPlanVersion,
+    LegacyImportBatch,
+    LegacyImportRow,
+    LegacySalesSnapshot,
     OrderDraft,
     OtherFeeLine,
     OrderEvent,
@@ -77,6 +80,9 @@ admin.site.register(DealerVolumeBonusTier)
 admin.site.register(DealerVolumeBonusSettlement)
 admin.site.register(DealerVolumeBonusAllocation)
 admin.site.register(DealerVolumeBonusAdjustment)
+admin.site.register(LegacyImportBatch)
+admin.site.register(LegacyImportRow)
+admin.site.register(LegacySalesSnapshot)
 
 
 class VehicleColorInline(admin.TabularInline):

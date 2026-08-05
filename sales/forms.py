@@ -19,6 +19,7 @@ from .models import (
     InstallmentCompany,
     InstallmentPlanOption,
     InstallmentPlanVersion,
+    LegacyImportBatch,
     OtherFeeLine,
     OrderOperationsProfile,
     PaymentRecord,
@@ -598,6 +599,25 @@ class DealerVolumeBonusAdjustmentForm(forms.Form):
         widget=forms.Textarea(attrs={"rows": 2}),
         help_text="必填；此內容會永久保留在調整歷程。",
     )
+
+
+class LegacyImportUploadForm(forms.ModelForm):
+    class Meta:
+        model = LegacyImportBatch
+        fields = ["import_type", "source_file"]
+        widgets = {
+            "source_file": forms.ClearableFileInput(
+                attrs={"accept": ".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"}
+            )
+        }
+
+    def clean_source_file(self):
+        uploaded = self.cleaned_data["source_file"]
+        if not uploaded.name.lower().endswith(".xlsx"):
+            raise forms.ValidationError("目前僅支援 .xlsx 檔案。")
+        if uploaded.size > 30 * 1024 * 1024:
+            raise forms.ValidationError("檔案不可超過 30 MB，避免伺服器處理時間過長。")
+        return uploaded
 
 
 class OrderEditForm(SalesOrderForm):

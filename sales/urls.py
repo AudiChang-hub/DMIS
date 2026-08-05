@@ -17,6 +17,16 @@ urlpatterns = [
     path("orders/", views.order_list, name="order_list"),
     path("operations/", views.operations_report, name="operations_report"),
     path(
+        "operations/reconciliation/",
+        views.reconciliation_list,
+        name="reconciliation_list",
+    ),
+    path(
+        "operations/reconciliation/<int:pk>/update/",
+        views.reconciliation_update,
+        name="reconciliation_update",
+    ),
+    path(
         "operations/export/",
         views.operations_report_export,
         name="operations_report_export",
@@ -142,6 +152,21 @@ urlpatterns = [
         "data/vehicle-models/<int:pk>/edit/",
         views.vehicle_model_edit,
         name="vehicle_model_edit",
+    ),
+    path(
+        "data/accessories/",
+        views.accessory_product_list,
+        name="accessory_product_list",
+    ),
+    path(
+        "data/accessories/new/",
+        views.accessory_product_create,
+        name="accessory_product_create",
+    ),
+    path(
+        "data/accessories/<int:pk>/edit/",
+        views.accessory_product_edit,
+        name="accessory_product_edit",
     ),
     path(
         "data/settlement-costs/",

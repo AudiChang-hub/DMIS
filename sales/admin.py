@@ -1,6 +1,7 @@
 from django.contrib import admin
 
 from .models import (
+    AccessoryProduct,
     AccessoryLine,
     OrderDraft,
     OtherFeeLine,
@@ -18,6 +19,7 @@ from .models import (
     VehicleIncentiveRule,
     VehicleIncentiveInstallmentRate,
     VehicleModel,
+    VehiclePriceVersion,
     VehicleSettlementCostRule,
 )
 
@@ -55,6 +57,8 @@ class VehicleModelAdmin(admin.ModelAdmin):
         "model_code",
         "energy_type",
         "displacement_cc",
+        "motor_power_kw",
+        "horsepower_hp",
         "suggested_price",
         "active",
     )
@@ -74,6 +78,33 @@ class VehicleInventoryAdmin(admin.ModelAdmin):
     )
     list_filter = ("status", "location_store", "vehicle_model")
     search_fields = ("engine_number", "frame_number")
+
+
+@admin.register(VehiclePriceVersion)
+class VehiclePriceVersionAdmin(admin.ModelAdmin):
+    list_display = (
+        "vehicle_model",
+        "suggested_retail_price",
+        "cash_price_including_registration",
+        "cash_price_excluding_registration",
+        "effective_from",
+        "effective_to",
+        "active",
+    )
+    list_filter = ("active",)
+    search_fields = (
+        "vehicle_model__brand",
+        "vehicle_model__name",
+        "vehicle_model__model_number",
+        "source_note",
+    )
+
+
+@admin.register(AccessoryProduct)
+class AccessoryProductAdmin(admin.ModelAdmin):
+    list_display = ("name", "sale_price", "labor_fee", "cost", "active")
+    list_filter = ("active",)
+    search_fields = ("name", "note")
 
 
 @admin.register(VehicleInventoryHistory)

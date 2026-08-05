@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}{% if editing_product %}編輯配件{% else %}新增配件{% endif %}｜車輛銷售管理{% endblock %}
+{% block page_class %}page-shell--form{% endblock %}
+{% block content %}
+{% url 'accessory_product_list' as list_url %}
+{% include "sales/_page_back.html" with fallback_url=list_url label="返回配件資料" %}
+<section class="hero-row compact-hero">
+  <div><p class="eyebrow">配件主檔</p><h1>{% if editing_product %}編輯配件{% else %}新增配件{% endif %}</h1><p class="muted">售價與工資會在加入訂單時保存快照；參考成本不會顯示在客戶訂單。</p></div>
+</section>
+<form method="post" class="master-form-card">
+  {% csrf_token %}
+  {% if form.non_field_errors %}<div class="message error">{{ form.non_field_errors }}</div>{% endif %}
+  <div class="operation-grid">
+    {% include "sales/_field.html" with field=form.name %}
+    {% include "sales/_field.html" with field=form.sale_price %}
+    {% include "sales/_field.html" with field=form.labor_fee %}
+    {% include "sales/_field.html" with field=form.cost %}
+    {% include "sales/_field.html" with field=form.active %}
+    {% include "sales/_field.html" with field=form.note %}
+  </div>
+  <div class="form-actions"><a class="button ghost" href="{% url 'accessory_product_list' %}">取消</a><button class="button primary" type="submit">儲存配件</button></div>
+</form>
+{% endblock %}

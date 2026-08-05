@@ -10,7 +10,7 @@ from django.contrib.auth.decorators import login_required
 from django.core.files.base import ContentFile
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
-from django.db.models import Count, OuterRef, Q, Subquery
+from django.db.models import Count, OuterRef, Q, Subquery, Sum
 from django.core.paginator import Paginator
 from django.http import FileResponse, Http404, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
@@ -24,6 +24,7 @@ from .services.order_contract_pdf import build_order_contract_pdf
 from .services.privacy_consent_pdf import build_privacy_consent_pdf
 
 from .forms import (
+    AccessoryProductForm,
     AccessoryFormSet,
     AllocationForm,
     OtherFeeFormSet,
@@ -31,6 +32,7 @@ from .forms import (
     OrderEditForm,
     PrivacyConsentForm,
     PaymentRecordFormSet,
+    ReconciliationRecordForm,
     QuickInventoryEntryFormSet,
     ReallocationForm,
     RegistrationDocumentUploadForm,
@@ -44,9 +46,11 @@ from .forms import (
     VehicleIncentiveInstallmentRateFormSet,
     VehicleIncentiveRuleForm,
     VehicleModelMasterForm,
+    VehiclePriceVersionForm,
     VehicleSettlementCostRuleForm,
 )
 from .models import (
+    AccessoryProduct,
     OrderEvent,
     OrderOperationsProfile,
     PaymentRecord,
@@ -64,6 +68,7 @@ from .models import (
     VehicleInventoryHistory,
     VehicleIncentiveRule,
     VehicleModel,
+    VehiclePriceVersion,
     VehicleSettlementCostRule,
 )
 from .jobs import delete_id_ocr_job_files, run_id_ocr_job
@@ -74,6 +79,8 @@ from .services.order_search import (
     build_order_search_query,
 )
 from .services.operations_sync import sync_order_operations
+from .services.operations_sync import refresh_payment_confirmation
+from .services.price_version import apply_order_price_snapshot
 from .services.settlement_cost import (
     apply_order_settlement_cost,
     resolve_settlement_cost,
@@ -275,6 +282,19 @@ def _vehicle_rate_data():
     }
 
 
+def _accessory_product_data():
+    return {
+        str(product.pk): {
+            "name": product.name,
+            "sale_price": str(product.sale_price),
+            "labor_fee": str(product.labor_fee),
+        }
+        for product in AccessoryProduct.objects.filter(active=True).only(
+            "id", "name", "sale_price", "labor_fee"
+        )
+    }
+
+
 def app_version(request):
     from config.app_version import get_app_version
 
@@ -422,6 +442,186 @@ def operations_report(request):
     )
 
 
+def _reconciliation_queryset(request):
+    records = PaymentRecord.objects.select_related(
+        "order",
+        "order__source",
+        "order__vehicle_model",
+        "order__color",
+    ).filter(
+        Q(system_key="installment_disbursement")
+        | Q(
+            system_key="balance",
+            order__source_type__in=[
+                SalesOrder.SourceType.PLATFORM,
+                SalesOrder.SourceType.DEALER,
+            ],
+        )
+    )
+    keyword = request.GET.get("q", "").strip()
+    if keyword:
+        records = records.filter(
+            Q(order__number__icontains=keyword)
+            | Q(order__owner_name__icontains=keyword)
+            | Q(order__installment_company__icontains=keyword)
+            | Q(order__source__name__icontains=keyword)
+            | Q(order__final_plate_number__icontains=keyword)
+        )
+    channel = request.GET.get("channel", "")
+    if channel == "installment":
+        records = records.filter(system_key="installment_disbursement")
+    elif channel == "platform":
+        records = records.filter(
+            system_key="balance",
+            order__source_type=SalesOrder.SourceType.PLATFORM,
+        )
+    elif channel == "dealer":
+        records = records.filter(
+            system_key="balance",
+            order__source_type=SalesOrder.SourceType.DEALER,
+        )
+    status = request.GET.get("status", "")
+    if status == "confirmed":
+        records = records.filter(confirmed=True)
+    elif status == "pending":
+        records = records.filter(confirmed=False)
+    if request.GET.get("date_from"):
+        records = records.filter(order__order_date__gte=request.GET["date_from"])
+    if request.GET.get("date_to"):
+        records = records.filter(order__order_date__lte=request.GET["date_to"])
+    return records.order_by("confirmed", "-order__order_date", "-order_id")
+
+
+def _decorate_reconciliation_record(record):
+    if record.system_key == "installment_disbursement":
+        record.reconciliation_channel = "installment"
+        record.reconciliation_channel_label = "分期公司"
+        record.reconciliation_party = record.order.installment_company or "未填分期公司"
+    elif record.order.source_type == SalesOrder.SourceType.PLATFORM:
+        record.reconciliation_channel = "platform"
+        record.reconciliation_channel_label = "網路平台"
+        record.reconciliation_party = (
+            record.order.source.name if record.order.source_id else "未填平台"
+        )
+    else:
+        record.reconciliation_channel = "dealer"
+        record.reconciliation_channel_label = "合作車行"
+        record.reconciliation_party = (
+            record.order.source.name if record.order.source_id else "未填車行"
+        )
+    record.reconciliation_difference = (
+        record.received_amount - record.expected_amount
+    )
+    return record
+
+
+@login_required
+def reconciliation_list(request):
+    page = Paginator(_reconciliation_queryset(request), 100).get_page(
+        request.GET.get("page")
+    )
+    records = [_decorate_reconciliation_record(record) for record in page.object_list]
+    return render(
+        request,
+        "sales/reconciliation_list.html",
+        {
+            "records": records,
+            "page_obj": page,
+            "selected": request.GET,
+        },
+    )
+
+
+@login_required
+@transaction.atomic
+def reconciliation_update(request, pk):
+    record = get_object_or_404(
+        PaymentRecord.objects.select_for_update().select_related("order"),
+        pk=pk,
+    )
+    eligible = record.system_key == "installment_disbursement" or (
+        record.system_key == "balance"
+        and record.order.source_type
+        in {SalesOrder.SourceType.PLATFORM, SalesOrder.SourceType.DEALER}
+    )
+    if request.method != "POST" or not eligible:
+        messages.error(request, "此筆資料不屬於統一對帳範圍。")
+        return redirect("reconciliation_list")
+    before = {
+        "實際金額": str(record.received_amount),
+        "入帳日期": str(record.received_on or ""),
+        "收款帳戶": record.receiving_account,
+        "確認狀態": "已確認" if record.confirmed else "待確認",
+    }
+    form = ReconciliationRecordForm(request.POST, instance=record)
+    if form.is_valid():
+        record = form.save(commit=False)
+        if record.confirmed:
+            record.confirmed_by = _editing_name(request.user)
+            record.confirmed_at = timezone.now()
+        else:
+            record.confirmed_by = ""
+            record.confirmed_at = None
+        record.save()
+        if record.confirmed and (
+            record.system_key == "installment_disbursement"
+            or record.order.source_type == SalesOrder.SourceType.PLATFORM
+        ):
+            profile, _created = OrderOperationsProfile.objects.get_or_create(
+                order=record.order
+            )
+            profile.actual_disbursement = record.received_amount
+            protected = set(profile.manual_financial_fields or [])
+            protected.add("actual_disbursement")
+            profile.manual_financial_fields = sorted(protected)
+            profile.updated_by = _editing_name(request.user)
+            profile.save(
+                update_fields=[
+                    "actual_disbursement",
+                    "manual_financial_fields",
+                    "updated_by",
+                    "updated_at",
+                ]
+            )
+        refresh_payment_confirmation(record.order_id)
+        after = {
+            "實際金額": str(record.received_amount),
+            "入帳日期": str(record.received_on or ""),
+            "收款帳戶": record.receiving_account,
+            "確認狀態": "已確認" if record.confirmed else "待確認",
+        }
+        changes = {
+            key: {"before": before[key], "after": value}
+            for key, value in after.items()
+            if before[key] != value
+        }
+        OrderChange.objects.create(
+            order=record.order,
+            reason=f"統一對帳更新：{record.item_name}",
+            changes=changes,
+            actor_name=_editing_name(request.user),
+        )
+        OrderEvent.objects.create(
+            order=record.order,
+            event_type="reconciliation_updated",
+            description=(
+                f"更新{record.item_name}：預計 {record.expected_amount:.0f} 元、"
+                f"實際 {record.received_amount:.0f} 元。"
+            ),
+            actor_name=_editing_name(request.user),
+        )
+        messages.success(request, f"已更新 {record.order.number} 的對帳資料。")
+    else:
+        messages.error(
+            request,
+            "對帳更新失敗：" + " ".join(
+                error for errors in form.errors.values() for error in errors
+            ),
+        )
+    next_url = request.POST.get("next")
+    return redirect(next_url if next_url and next_url.startswith("/") else "reconciliation_list")
+
+
 @login_required
 def operations_report_export(request):
     from openpyxl import Workbook
@@ -440,10 +640,10 @@ def operations_report_export(request):
         "申請日", "工業局", "環境部", "縣市政府", "舊車車主",
         "舊車車主身分證", "舊車牌照號碼", "舊車引擎號碼", "舊車廠牌",
         "排氣量", "出廠日期", "報廢日期", "回收日期",
-        "領牌稅金支出", "強制險支出", "選號支出", "贈品、運費支出",
-        "車行傭金支出", "領牌稅金收入", "強制險收入",
+        "領牌稅金支出", "強制險支出", "選號支出", "贈品支出", "運費支出",
+        "車行傭金支出", "銀行刷卡手續費支出", "領牌稅金收入", "強制險收入",
         "代辦費收入", "選號收入", "分期手續費收入", "刷卡手續費收入",
-        "其他收入", "實銷獎勵金", "促銷補助金", "分期補貼息", "強制險傭金",
+        "其他收入", "報廢代辦收入", "報廢車收入", "實銷獎勵金", "促銷補助金", "分期補貼息", "強制險傭金",
         "信用卡傭金", "車控帳號", "電池合約方案", "電池合約啟用日期",
         "電池合約帳號", "安全帽", "公司禮券、匯款", "其他",
         "平台贈品", "客服電話", "分期資訊", "車行",
@@ -493,15 +693,18 @@ def operations_report_export(request):
             op("registration_tax_expense", 0),
             op("compulsory_insurance_expense", 0),
             op("plate_selection_expense", 0),
-            op("gift_shipping_expense", 0),
+            op("gift_expense", 0),
+            op("shipping_expense", 0),
             op("dealer_commission_expense", 0),
+            op("card_fee_expense", 0),
             op("registration_tax_income", 0),
             op("compulsory_insurance_income", 0),
             op("agency_fee_income", 0),
             op("plate_selection_income", 0),
             op("installment_fee_income", 0),
             op("card_fee_income", 0),
-            op("other_income", 0), op("sales_bonus", 0),
+            op("other_income", 0), op("scrap_agency_income", 0),
+            op("scrap_vehicle_income", 0), op("sales_bonus", 0),
             op("promotion_subsidy", 0),
             op("installment_interest_subsidy", 0),
             op("insurance_commission", 0),
@@ -570,6 +773,7 @@ def order_create(request):
                     draft.id_back = ""
             order.status = SalesOrder.Status.ALLOCATION_PENDING
             order.save()
+            apply_order_price_snapshot(order)
             formset.instance = order
             formset.save()
             fee_formset.instance = order
@@ -594,7 +798,16 @@ def order_create(request):
         form = SalesOrderForm(initial=initial)
         formset = AccessoryFormSet(
             initial=_draft_lines(
-                draft.data, "accessories", ("name", "quantity", "line_type", "amount", "installed_on", "note")
+                draft.data,
+                "accessories",
+                (
+                    "accessory_product",
+                    "quantity",
+                    "line_type",
+                    "amount",
+                    "labor_fee",
+                    "note",
+                ),
             )
             if draft
             else None
@@ -616,6 +829,7 @@ def order_create(request):
             "document_source": draft,
             "document_model": "draft",
             "vehicle_rate_data": _vehicle_rate_data(),
+            "accessory_product_data": _accessory_product_data(),
         },
     )
 
@@ -1035,6 +1249,15 @@ def order_operations(request, pk):
                             "confirmed_at", "confirmed_by", "updated_at"
                         ]
                     )
+            card_totals = order.payment_records.aggregate(
+                income=Sum("card_fee_charged"),
+                expense=Sum("bank_card_fee"),
+            )
+            profile.card_fee_income = card_totals["income"] or 0
+            profile.card_fee_expense = card_totals["expense"] or 0
+            profile.save(
+                update_fields=["card_fee_income", "card_fee_expense", "updated_at"]
+            )
             after = _operations_snapshot(profile)
             changes = {
                 key: {"before": before.get(key, ""), "after": value}
@@ -1118,8 +1341,9 @@ def _order_snapshot(order):
             "名稱": line.name,
             "數量": line.quantity,
             "類型": line.get_line_type_display(),
-            "金額": str(line.amount),
-            "安裝日期": str(line.installed_on or ""),
+            "售價": str(line.amount),
+            "工資": str(line.labor_fee),
+            "總價": str(line.display_total),
             "備註": line.note,
         }
         for line in order.accessories.all()
@@ -1166,6 +1390,7 @@ def order_edit(request, pk):
             return redirect("order_edit", pk=pk)
 
         before = _order_snapshot(order)
+        previous_vehicle_model_id = order.vehicle_model_id
         balance_was_automatic = order.actual_balance == order.calculated_balance
         previous_actual_balance = order.actual_balance
         form = OrderEditForm(request.POST, request.FILES, instance=order)
@@ -1185,6 +1410,13 @@ def order_edit(request, pk):
             order.editing_by = ""
             order.editing_at = None
             order.save()
+            apply_order_price_snapshot(
+                order,
+                force=(
+                    previous_vehicle_model_id != order.vehicle_model_id
+                    or not order.price_snapshot
+                ),
+            )
             formset.save()
             fee_formset.save()
             order._prefetched_objects_cache = {}
@@ -1238,6 +1470,7 @@ def order_edit(request, pk):
             "document_source": order,
             "document_model": "order",
             "vehicle_rate_data": _vehicle_rate_data(),
+            "accessory_product_data": _accessory_product_data(),
         },
     )
 
@@ -2114,6 +2347,63 @@ def vehicle_model_list(request):
     )
 
 
+@login_required
+def accessory_product_list(request):
+    keyword = request.GET.get("q", "").strip()
+    active = request.GET.get("active", "")
+    products = AccessoryProduct.objects.annotate(
+        usage_count=Count("order_lines", distinct=True)
+    )
+    if keyword:
+        products = products.filter(
+            Q(name__icontains=keyword) | Q(note__icontains=keyword)
+        )
+    if active == "yes":
+        products = products.filter(active=True)
+    elif active == "no":
+        products = products.filter(active=False)
+    products = products.order_by("name")
+    page = Paginator(products, 100).get_page(request.GET.get("page"))
+    return render(
+        request,
+        "sales/accessory_product_list.html",
+        {
+            "products": page.object_list,
+            "page_obj": page,
+            "selected": {"q": keyword, "active": active},
+        },
+    )
+
+
+def _accessory_product_form_view(request, instance=None):
+    form = AccessoryProductForm(request.POST or None, instance=instance)
+    if request.method == "POST" and form.is_valid():
+        product = form.save()
+        messages.success(
+            request,
+            f"已{'更新' if instance else '新增'}配件：{product.name}。",
+        )
+        return redirect("accessory_product_list")
+    return render(
+        request,
+        "sales/accessory_product_form.html",
+        {"form": form, "editing_product": instance},
+    )
+
+
+@login_required
+def accessory_product_create(request):
+    return _accessory_product_form_view(request)
+
+
+@login_required
+def accessory_product_edit(request, pk):
+    return _accessory_product_form_view(
+        request,
+        get_object_or_404(AccessoryProduct, pk=pk),
+    )
+
+
 def _vehicle_model_form_view(request, instance=None):
     is_editing = instance is not None
     action = request.POST.get("action", "save_model")
@@ -2130,10 +2420,50 @@ def _vehicle_model_form_view(request, instance=None):
         color_formset.extra = 0
 
     incentive_rules = VehicleIncentiveRule.objects.none()
+    price_versions = VehiclePriceVersion.objects.none()
+    price_form = None
+    editing_price_version = None
     incentive_form = None
     incentive_rate_formset = None
     editing_incentive_rule = None
     if is_editing:
+        price_versions = instance.price_versions.order_by("-effective_from", "-id")
+        requested_price_id = (
+            request.POST.get("price_version_id")
+            if request.method == "POST" and action in {"save_price", "delete_price"}
+            else request.GET.get("edit_price")
+        )
+        if requested_price_id:
+            editing_price_version = get_object_or_404(
+                instance.price_versions,
+                pk=requested_price_id,
+            )
+        if request.method == "POST" and action == "delete_price":
+            editing_price_version.delete()
+            messages.success(request, "價格版本已刪除。")
+            return redirect(
+                f"{reverse('vehicle_model_edit', args=[instance.pk])}#price-versions"
+            )
+        price_instance = editing_price_version or VehiclePriceVersion(
+            vehicle_model=instance
+        )
+        price_form = VehiclePriceVersionForm(
+            request.POST if request.method == "POST" and action == "save_price" else None,
+            instance=price_instance,
+            prefix="price",
+        )
+        if request.method == "POST" and action == "save_price" and price_form.is_valid():
+            version = price_form.save(commit=False)
+            version.vehicle_model = instance
+            version.save()
+            messages.success(
+                request,
+                f"已{'更新' if editing_price_version else '新增'}價格版本。",
+            )
+            return redirect(
+                f"{reverse('vehicle_model_edit', args=[instance.pk])}#price-versions"
+            )
+
         incentive_rules = instance.incentive_rules.prefetch_related(
             "installment_rates"
         ).order_by("-effective_from", "-id")
@@ -2225,6 +2555,9 @@ def _vehicle_model_form_view(request, instance=None):
             "incentive_form": incentive_form,
             "incentive_rate_formset": incentive_rate_formset,
             "editing_incentive_rule": editing_incentive_rule,
+            "price_versions": price_versions,
+            "price_form": price_form,
+            "editing_price_version": editing_price_version,
         },
     )
 
@@ -2479,6 +2812,9 @@ def inventory_quick_create(request):
                             ownership_store=store,
                             location_store=store,
                             received_on=form.cleaned_data["received_on"],
+                            manufactured_year_month=form.cleaned_data.get(
+                                "manufactured_year_month", ""
+                            ),
                             condition_note=form.cleaned_data.get("condition_note", ""),
                         )
                         if model.energy_type == VehicleModel.EnergyType.GAS:

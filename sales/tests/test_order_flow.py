@@ -18,9 +18,11 @@ from sales.forms import (
     AccessoryLineForm,
     OtherFeeFormSet,
     OtherFeeLineForm,
+    PaymentRecordForm,
     SalesOrderForm,
 )
 from sales.models import (
+    AccessoryProduct,
     AccessoryLine,
     OrderChange,
     OrderEvent,
@@ -245,6 +247,26 @@ class OrderFlowTests(TestCase):
         self.assertEqual(history.reason, "到店複檢")
         self.assertEqual(history.changes["condition_note"]["label"], "車況說明")
         self.assertEqual(history.changes["condition_note"]["after"], "右側車殼刮傷")
+
+    def test_vehicle_model_edit_includes_price_version_and_motor_fields(self):
+        self.client.force_login(self.user)
+
+        response = self.client.get(reverse("vehicle_model_edit", args=[self.model.pk]))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "售價版本")
+        self.assertContains(response, 'name="motor_power_kw"')
+        self.assertContains(response, 'name="horsepower_hp"')
+        self.assertContains(response, 'name="price-suggested_retail_price"')
+
+    def test_quick_inventory_entry_includes_manufactured_year_month(self):
+        self.client.force_login(self.user)
+
+        response = self.client.get(reverse("inventory_quick_create"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "出廠年月")
+        self.assertContains(response, 'name="vehicles-0-manufactured_year_month"')
 
     def test_inventory_create_hides_ownership_and_sets_internal_compatibility_value(self):
         self.client.force_login(self.user)
@@ -812,7 +834,7 @@ class OrderFlowTests(TestCase):
             "numeric",
         )
         self.assertEqual(
-            accessory_form.fields["name"].widget.attrs["lang"], "zh-Hant"
+            accessory_form.fields["amount"].widget.attrs["readonly"], True
         )
         self.assertEqual(fee_form.fields["name"].widget.attrs["lang"], "zh-Hant")
 
@@ -2226,23 +2248,88 @@ class OrderFlowTests(TestCase):
         pickup_form.is_valid()
         self.assertNotIn("delivery_destination", pickup_form.errors)
 
-    def test_accessory_fields_are_required_only_after_name_is_entered(self):
+    def test_accessory_fields_are_required_only_after_product_is_selected(self):
         empty_form = AccessoryLineForm(
-            data={"name": "", "quantity": "", "line_type": "", "amount": ""}
+            data={
+                "accessory_product": "",
+                "quantity": "",
+                "line_type": "",
+                "amount": "",
+                "labor_fee": "",
+            }
         )
         self.assertTrue(empty_form.is_valid())
-        self.assertFalse(empty_form.fields["name"].required)
+        self.assertFalse(empty_form.fields["accessory_product"].required)
         self.assertFalse(empty_form.fields["quantity"].required)
         self.assertFalse(empty_form.fields["line_type"].required)
         self.assertFalse(empty_form.fields["amount"].required)
 
-        named_form = AccessoryLineForm(
-            data={"name": "後箱", "quantity": "", "line_type": "", "amount": ""}
+        product = AccessoryProduct.objects.create(
+            name="後箱",
+            sale_price=Decimal("1200"),
+            labor_fee=Decimal("300"),
         )
-        self.assertFalse(named_form.is_valid())
-        self.assertIn("quantity", named_form.errors)
-        self.assertIn("line_type", named_form.errors)
-        self.assertIn("amount", named_form.errors)
+        selected_form = AccessoryLineForm(
+            data={
+                "accessory_product": product.pk,
+                "quantity": "",
+                "line_type": "",
+                "amount": "99999",
+                "labor_fee": "99999",
+            }
+        )
+        self.assertFalse(selected_form.is_valid())
+        self.assertIn("quantity", selected_form.errors)
+        self.assertIn("line_type", selected_form.errors)
+        self.assertNotIn("amount", selected_form.errors)
+
+    def test_accessory_master_prices_are_snapshotted_and_cannot_be_overridden(self):
+        product = AccessoryProduct.objects.create(
+            name="行車記錄器",
+            sale_price=Decimal("6500"),
+            labor_fee=Decimal("800"),
+        )
+        form = AccessoryLineForm(
+            data={
+                "accessory_product": product.pk,
+                "quantity": "2",
+                "line_type": AccessoryLine.LineType.PURCHASE,
+                "amount": "1",
+                "labor_fee": "2",
+                "note": "測試",
+            }
+        )
+
+        self.assertTrue(form.is_valid(), form.errors)
+        line = form.save(commit=False)
+        self.assertEqual(line.name, "行車記錄器")
+        self.assertEqual(line.amount, Decimal("6500"))
+        self.assertEqual(line.labor_fee, Decimal("800"))
+        self.assertEqual(line.line_total, Decimal("14600"))
+
+        product.sale_price = Decimal("7000")
+        product.labor_fee = Decimal("900")
+        product.save()
+        self.assertEqual(line.amount, Decimal("6500"))
+        self.assertEqual(line.labor_fee, Decimal("800"))
+
+    def test_accessory_maintenance_pages_are_available(self):
+        self.client.force_login(self.user)
+        product = AccessoryProduct.objects.create(
+            name="手機架",
+            sale_price=Decimal("850"),
+            labor_fee=Decimal("200"),
+        )
+
+        listing = self.client.get(reverse("accessory_product_list"))
+        editing = self.client.get(reverse("accessory_product_edit", args=[product.pk]))
+
+        self.assertEqual(listing.status_code, 200)
+        self.assertContains(listing, "手機架")
+        self.assertContains(listing, "售價")
+        self.assertContains(listing, "工資")
+        self.assertEqual(editing.status_code, 200)
+        self.assertContains(editing, "參考成本不會顯示在客戶訂單")
 
     def test_other_fee_is_optional_but_partial_row_requires_both_fields(self):
         empty_form = OtherFeeLineForm(data={"name": "", "amount": ""})
@@ -2381,6 +2468,51 @@ class OrderOperationsTests(TestCase):
         self.assertEqual(profile.total_expense, Decimal("1000"))
         self.assertEqual(profile.net_profit, Decimal("23000"))
         self.assertEqual(profile.total_received, Decimal("5000"))
+
+    def test_financial_totals_include_split_expenses_and_scrap_income(self):
+        profile = self.order.operations
+        profile.actual_disbursement = Decimal("80000")
+        profile.vehicle_cost = Decimal("60000")
+        profile.gift_expense = Decimal("100")
+        profile.shipping_expense = Decimal("200")
+        profile.card_fee_expense = Decimal("50")
+        profile.scrap_agency_income = Decimal("300")
+        profile.scrap_vehicle_income = Decimal("400")
+        profile.sales_bonus = Decimal("1500")
+        profile.installment_interest_subsidy = Decimal("2000")
+        profile.save()
+
+        self.assertEqual(profile.total_expense, Decimal("350"))
+        self.assertEqual(profile.total_income, Decimal("700"))
+        self.assertEqual(profile.net_profit, Decimal("23850"))
+
+    def test_card_payment_details_require_card_payment_method(self):
+        form = PaymentRecordForm(
+            data={
+                "item_name": "刷卡尾款",
+                "expected_amount": "30000",
+                "received_amount": "31500",
+                "card_principal": "30000",
+                "card_fee_charged": "1500",
+                "bank_card_fee": "900",
+                "payment_method": "現金",
+            }
+        )
+
+        self.assertFalse(form.is_valid())
+        self.assertIn("付款方式必須選擇", form.errors["payment_method"][0])
+
+    def test_card_payment_fee_difference_is_explicit(self):
+        payment = PaymentRecord(
+            order=self.order,
+            item_name="刷卡尾款",
+            payment_method="刷卡",
+            card_principal=Decimal("30000"),
+            card_fee_charged=Decimal("1500"),
+            bank_card_fee=Decimal("900"),
+        )
+
+        self.assertEqual(payment.card_fee_difference, Decimal("600"))
 
     def test_registration_financial_pairs_sync_until_manually_adjusted(self):
         self.order.registration_plate_fee = Decimal("300")
@@ -2923,6 +3055,55 @@ class OrderOperationsTests(TestCase):
                 "data-delete-payment>"
             ),
             2,
+        )
+
+    def test_installment_disbursement_can_be_confirmed_from_reconciliation_list(self):
+        self.order.payment_type = SalesOrder.PaymentType.INSTALLMENT
+        self.order.installment_company = "和潤"
+        self.order.installment_amount = Decimal("70000")
+        self.order.installment_periods = 24
+        self.order.installment_monthly = Decimal("3200")
+        self.order.save()
+        record = self.order.payment_records.get(
+            system_key="installment_disbursement"
+        )
+
+        listing = self.client.get(reverse("reconciliation_list"))
+        self.assertEqual(listing.status_code, 200)
+        self.assertContains(listing, "和潤")
+        self.assertContains(listing, "70000")
+
+        response = self.client.post(
+            reverse("reconciliation_update", args=[record.pk]),
+            {
+                "received_amount": "69800",
+                "received_on": "2026-08-05",
+                "receiving_account": "公司帳戶",
+                "confirmed": "on",
+                "note": "人工核對帳本",
+            },
+        )
+
+        self.assertRedirects(response, reverse("reconciliation_list"))
+        record.refresh_from_db()
+        self.order.operations.refresh_from_db()
+        self.assertEqual(record.received_amount, Decimal("69800"))
+        self.assertTrue(record.confirmed)
+        self.assertEqual(record.confirmed_by, "operations-user")
+        self.assertTrue(self.order.operations.installment_transfer_confirmed)
+        self.assertEqual(
+            self.order.operations.actual_disbursement,
+            Decimal("69800"),
+        )
+        self.assertIn(
+            "actual_disbursement",
+            self.order.operations.manual_financial_fields,
+        )
+        self.assertTrue(
+            OrderChange.objects.filter(
+                order=self.order,
+                reason__startswith="統一對帳更新",
+            ).exists()
         )
 
     def test_existing_order_without_profile_can_open_operations_page(self):

@@ -89,7 +89,6 @@ class OrderDraftTests(TestCase):
             "accessories-0-quantity": "1",
             "accessories-0-line_type": "purchase",
             "accessories-0-amount": "0",
-            "accessories-0-installed_on": "",
             "accessories-0-note": "",
             "other_fees-TOTAL_FORMS": "2",
             "other_fees-INITIAL_FORMS": "0",

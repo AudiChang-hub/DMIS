@@ -19,6 +19,9 @@ urlpatterns = [
         name="business_holiday_delete",
     ),
     path("data/customers/", views.customer_list, name="customer_list"),
+    path("data/imports/", views.legacy_import_list, name="legacy_import_list"),
+    path("data/imports/<uuid:pk>/", views.legacy_import_detail, name="legacy_import_detail"),
+    path("data/imports/<uuid:pk>/confirm/", views.legacy_import_confirm, name="legacy_import_confirm"),
     path("data/channels/", views.sales_source_list, name="sales_source_list"),
     path(
         "data/channels/new/", views.sales_source_form, name="sales_source_create"

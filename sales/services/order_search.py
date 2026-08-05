@@ -97,6 +97,10 @@ RELATED_FIELDS = (
     ("payment_records__payment_method", "收款方式"),
     ("payment_records__receiving_account", "收款帳戶"),
     ("payment_records__note", "收款備註"),
+    ("subsidy_items__category", "補助類別"),
+    ("subsidy_items__item_name", "補助項目"),
+    ("subsidy_items__expected_amount", "補助預計金額"),
+    ("subsidy_items__status", "補助狀態"),
 )
 
 
@@ -289,6 +293,10 @@ def build_order_match_summary(order, query):
                 ("收款備註", "note"),
             ),
         ),
+        (
+            order.subsidy_items.all(),
+            (("補助類別", "get_category_display"), ("補助項目", "item_name"), ("補助預計金額", "expected_amount"), ("補助申請日期", "applied_on"), ("補助狀態", "get_status_display"), ("補助備註", "note")),
+        ),
     )
     for objects, fields in collections:
         for obj in objects:
@@ -400,6 +408,11 @@ def build_order_search_payload(order):
             ("收款方式", "payment_method"), ("收款帳戶", "receiving_account"),
             ("收款確認人員", "confirmed_by"), ("收款備註", "note"),
         )),
+        (order.subsidy_items.all(), (
+            ("補助類別", "get_category_display"), ("補助項目", "item_name"),
+            ("補助預計金額", "expected_amount"), ("補助申請日期", "applied_on"),
+            ("補助狀態", "get_status_display"), ("補助備註", "note"),
+        )),
     )
     for objects, fields in collections:
         for obj in objects:
@@ -415,7 +428,7 @@ def rebuild_order_search_index(order_id):
         "allocated_vehicle__location_store",
     ).prefetch_related(
         "accessories", "other_fees", "subsidy_documents",
-        "registration_documents", "events", "changes", "payment_records",
+        "registration_documents", "events", "changes", "payment_records", "subsidy_items",
     ).filter(pk=order_id).first()
     if not order:
         return

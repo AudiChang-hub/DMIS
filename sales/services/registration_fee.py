@@ -3,6 +3,10 @@ from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal, ROUND_DOWN, ROUND_HALF_UP
 
+from django.db.models import Q
+
+from sales.models import BrandRegistrationFeeRule
+
 
 class UnsupportedRegistrationFee(ValueError):
     pass
@@ -19,9 +23,13 @@ class RegistrationFeeResult:
     road_maintenance_fee: int
     license_tax_fee: int
     compulsory_insurance_fee: int
+    pricing_method: str = "formula"
+    fixed_total_override: int = 0
 
     @property
     def fixed_and_variable_total(self):
+        if self.fixed_total_override:
+            return self.fixed_total_override
         return (
             self.plate_fee
             + self.license_fee
@@ -111,4 +119,46 @@ def calculate_registration_fee(displacement_cc, registration_date, period_years)
         compulsory_insurance_fee=compulsory_insurance(
             displacement_cc, period_years
         ),
+    )
+
+
+def resolve_brand_registration_rule(brand, displacement_cc, registration_date):
+    return (
+        BrandRegistrationFeeRule.objects.filter(
+            brand__iexact=brand,
+            active=True,
+            effective_from__lte=registration_date,
+        )
+        .filter(Q(effective_to__isnull=True) | Q(effective_to__gte=registration_date))
+        .filter(Q(min_cc__isnull=True) | Q(min_cc__lte=displacement_cc))
+        .filter(Q(max_cc__isnull=True) | Q(max_cc__gte=displacement_cc))
+        .order_by("-effective_from", "-min_cc", "-id")
+        .first()
+    )
+
+
+def calculate_vehicle_registration_fee(vehicle_model, registration_date, period_years):
+    rule = resolve_brand_registration_rule(
+        vehicle_model.brand, vehicle_model.displacement_cc, registration_date
+    )
+    if rule and rule.calculation_type == BrandRegistrationFeeRule.CalculationType.MANUAL:
+        raise UnsupportedRegistrationFee(
+            f"{vehicle_model.brand} 此期間設定為人工牌險，請依單據輸入實際金額。"
+        )
+    if rule and rule.calculation_type == BrandRegistrationFeeRule.CalculationType.FIXED:
+        return RegistrationFeeResult(
+            rate_class=f"FIXED-{rule.pk}",
+            standard_remaining_days=standard_remaining_days(registration_date),
+            calendar_remaining_days=calendar_remaining_days(registration_date),
+            plate_fee=0,
+            license_fee=0,
+            inspection_fee=0,
+            road_maintenance_fee=0,
+            license_tax_fee=0,
+            compulsory_insurance_fee=0,
+            pricing_method="fixed",
+            fixed_total_override=int(rule.fixed_total),
+        )
+    return calculate_registration_fee(
+        vehicle_model.displacement_cc, registration_date, period_years
     )

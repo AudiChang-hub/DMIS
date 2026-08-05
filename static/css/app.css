@@ -669,6 +669,14 @@ body.screen-locked { overflow: hidden; }
 .subsidy-summary div { display: grid; min-width: 0; gap: 4px; }
 .subsidy-summary span { color: var(--muted); font-size: .75rem; font-weight: 800; }
 .subsidy-summary strong { overflow-wrap: anywhere; }
+.dynamic-detail-section { grid-column: 1 / -1; margin-top: 18px; padding-top: 18px; border-top: 1px solid var(--line); }
+.dynamic-detail-list { display: grid; gap: 12px; margin-bottom: 12px; }
+.dynamic-detail-row { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 10px; padding: 14px; background: #f7faf8; border: 1px solid var(--line); border-radius: 14px; }
+.dynamic-detail-row.is-deleted { opacity: .48; }
+.dynamic-detail-row label { display: block; margin-bottom: 5px; color: var(--muted); font-size: .78rem; font-weight: 800; }
+.dynamic-detail-row input, .dynamic-detail-row select { width: 100%; }
+.delete-detail-control { align-self: end; display: flex !important; align-items: center; min-height: 44px; gap: 8px; color: var(--danger) !important; }
+.delete-detail-control input { width: auto; }
 .subsidy-document-list { margin-top: 0; }
 .subsidy-edit-form {
   overflow: hidden; margin-bottom: 20px; border: 1px solid var(--line); border-radius: 14px;
@@ -1504,6 +1512,7 @@ body.screen-locked { overflow: hidden; }
 .installment-option-row { grid-template-columns: repeat(5, minmax(130px, 1fr)); }
 .single-column { grid-template-columns: 1fr; }
 @media (max-width: 700px) {
+  .dynamic-detail-row { grid-template-columns: 1fr; }
   .reminder-row { flex-direction: column; }
   .reminder-row > span:last-child { text-align: left; }
   .responsive-split { grid-template-columns: 1fr; }

@@ -40,7 +40,7 @@
   <section class="dashboard-section">
     <div class="dashboard-section__heading">
       <div><p class="eyebrow">本月成果</p><h2>{{ dashboard.period.label }}營運數字</h2></div>
-      <small>成交以實際交車時間認列</small>
+      <small>成交、成本與單筆淨利依實際領牌日期認列</small>
     </div>
     <div class="performance-grid">
       <article class="performance-card performance-card--primary">
@@ -143,6 +143,20 @@
         <span><strong>{{ reminder.order.owner_name }} · {{ reminder.label }}</strong><small>{{ reminder.order.number }} · {{ reminder.order.source.name|default:"合作車行" }}</small></span>
         <span><strong>{% if reminder.is_overdue %}逾期 {{ reminder.days_overdue }} 天{% else %}今日到期{% endif %}</strong><small>期限 {{ reminder.due_date|date:"Y/m/d" }}</small></span>
       </a>
+      {% endfor %}
+    </div>
+  </section>
+  {% endif %}
+  {% if dashboard.registration_fee_variances %}
+  <section class="section-block reminder-block">
+    <div class="section-title"><h2><span class="signal red"></span>牌險正式金額差異</h2><span>確認後即移出待辦；金額再異動會重新出現</span></div>
+    <div class="reminder-list">
+      {% for order in dashboard.registration_fee_variances %}
+      <div class="reminder-row due">
+        <a href="{% url 'order_detail' order.pk %}?tab=order"><strong>{{ order.owner_name }} · {{ order.vehicle_model }}</strong><small>{{ order.number }} · 領牌日 {{ order.registration_date|date:"Y/m/d" }}</small></a>
+        <span><strong>差額 ${{ order.plate_insurance_fee|floatformat:0 }} − ${{ order.registration_calculated_total|floatformat:0 }}</strong><small>實際牌險／系統試算</small></span>
+        <form method="post" action="{% url 'registration_fee_variance_confirm' order.pk %}">{% csrf_token %}<button class="button ghost small" type="submit">確認差異</button></form>
+      </div>
       {% endfor %}
     </div>
   </section>

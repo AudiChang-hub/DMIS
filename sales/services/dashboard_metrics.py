@@ -2,7 +2,7 @@ from calendar import monthrange
 from datetime import datetime, time, timedelta
 from decimal import Decimal
 
-from django.db.models import Count
+from django.db.models import Count, F
 from django.utils import timezone
 
 from sales.models import (
@@ -41,8 +41,8 @@ def _percent_change(current, previous):
 def _sales_snapshot(start, end):
     orders = list(
         SalesOrder.objects.filter(
-            delivered_at__gte=_aware_start(start),
-            delivered_at__lt=_aware_end(end),
+            registration_date__gte=start,
+            registration_date__lte=end,
         )
         .exclude(status=SalesOrder.Status.CANCELLED)
         .select_related("operations")
@@ -94,6 +94,22 @@ def build_dashboard_metrics(today=None):
         .annotate(total=Count("id"))
         .values_list("status", "total")
     )
+    registration_fee_variances = list(
+        SalesOrder.objects.filter(
+            registration_date__isnull=False,
+            registration_calculated_total__gt=0,
+        )
+        .exclude(status=SalesOrder.Status.CANCELLED)
+        .exclude(plate_insurance_fee=F("registration_calculated_total"))
+        .exclude(
+            registration_fee_variance_confirmed_calculated_total=F(
+                "registration_calculated_total"
+            ),
+            registration_fee_variance_confirmed_actual_total=F("plate_insurance_fee"),
+        )
+        .select_related("vehicle_model")
+        .order_by("registration_date", "id")[:20]
+    )
     return {
         "period": {
             "label": f"{month_start.year}年{month_start.month}月",
@@ -144,6 +160,7 @@ def build_dashboard_metrics(today=None):
         },
         "urgent_statuses": urgent_statuses,
         "dealer_reminders": due_dealer_reminders,
+        "registration_fee_variances": registration_fee_variances,
         "recent_orders": SalesOrder.objects.select_related(
             "vehicle_model", "color", "source"
         )

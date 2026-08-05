@@ -1473,6 +1473,24 @@ body.screen-locked { overflow: hidden; }
   .login-panel h1 { font-size: 2.5rem; }
 }
 
+.delivery-completion-form { margin-top: 20px; padding-top: 20px; border-top: 1px solid var(--line); }
+.delivery-summary { margin-top: 16px; }
+.cancellation-panel { margin-top: 20px; }
+.cancellation-panel > summary { display: flex; justify-content: space-between; gap: 16px; cursor: pointer; }
+.urgent-panel { border-color: #e7a29a; background: #fff8f6; }
+.reminder-list { display: grid; }
+.reminder-row { display: flex; justify-content: space-between; gap: 20px; padding: 14px 4px; border-top: 1px solid var(--line); color: inherit; text-decoration: none; }
+.reminder-row:first-child { border-top: 0; }
+.reminder-row > span { display: grid; gap: 4px; }
+.reminder-row > span:last-child { text-align: right; }
+.reminder-row.overdue > span:last-child strong { color: #b33a2f; }
+.inline-form { display: inline; }
+.button.small { min-height: 36px; padding: 7px 12px; }
+@media (max-width: 700px) {
+  .reminder-row { flex-direction: column; }
+  .reminder-row > span:last-child { text-align: left; }
+}
+
 @media print {
   .app-header, .mobile-nav { display: none !important; }
 }

@@ -8,6 +8,16 @@ urlpatterns = [
     path("api/app-version/", views.app_version, name="app_version"),
     path("", views.dashboard, name="dashboard"),
     path("data/", views.data_maintenance, name="data_maintenance"),
+    path(
+        "data/business-holidays/",
+        views.business_holiday_list,
+        name="business_holiday_list",
+    ),
+    path(
+        "data/business-holidays/<int:pk>/delete/",
+        views.business_holiday_delete,
+        name="business_holiday_delete",
+    ),
     path("data/customers/", views.customer_list, name="customer_list"),
     path(
         "data/customers/<int:pk>/",
@@ -106,6 +116,21 @@ urlpatterns = [
         "orders/<int:pk>/registration/complete/",
         views.registration_complete,
         name="registration_complete",
+    ),
+    path(
+        "orders/<int:pk>/delivery/complete/",
+        views.delivery_complete,
+        name="delivery_complete",
+    ),
+    path(
+        "orders/<int:pk>/cancel/",
+        views.cancellation_request,
+        name="cancellation_request",
+    ),
+    path(
+        "orders/<int:pk>/refund/complete/",
+        views.refund_complete,
+        name="refund_complete",
     ),
     path(
         "files/registration/<int:document_pk>/",

@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}工作日行事曆｜車輛銷售管理{% endblock %}
+{% block page_class %}page-shell--wide{% endblock %}
+{% block content %}
+{% url 'data_maintenance' as maintenance_url %}
+{% include "sales/_page_back.html" with fallback_url=maintenance_url label="返回資料維護區" %}
+<section class="hero-row compact-hero">
+  <div><p class="eyebrow">期限計算依據</p><h1>工作日行事曆</h1><p class="muted">週六、週日固定不計；此處維護的國定假日也會排除。</p></div>
+</section>
+<section class="section-block holiday-editor">
+  <div class="section-title"><h2>{% if editing %}編輯排除日期{% else %}新增排除日期{% endif %}</h2>{% if editing %}<a href="{% url 'business_holiday_list' %}">取消編輯</a>{% endif %}</div>
+  <form method="post" class="form-grid compact-grid">
+    {% csrf_token %}
+    {% for field in form %}<div><label for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}{% for error in field.errors %}<small class="field-error">{{ error }}</small>{% endfor %}</div>{% endfor %}
+    <div><button class="button primary" type="submit">儲存日期</button></div>
+  </form>
+</section>
+<section class="section-block">
+  <div class="section-title"><h2>已設定日期</h2><span>{{ holidays|length }} 筆</span></div>
+  <div class="responsive-table-wrap"><table class="data-table"><thead><tr><th>日期</th><th>名稱</th><th>狀態</th><th>操作</th></tr></thead><tbody>
+    {% for holiday in holidays %}<tr><td>{{ holiday.date|date:"Y/m/d" }}</td><td>{{ holiday.name }}</td><td>{% if holiday.active %}排除{% else %}停用{% endif %}</td><td><a class="button ghost small" href="?edit={{ holiday.pk }}">編輯</a><form class="inline-form" method="post" action="{% url 'business_holiday_delete' holiday.pk %}">{% csrf_token %}<button class="button danger small" type="submit" data-confirm="確定刪除這個日期嗎？">刪除</button></form></td></tr>
+    {% empty %}<tr><td colspan="4">尚未設定國定假日；目前只會排除週六與週日。</td></tr>{% endfor %}
+  </tbody></table></div>
+</section>
+{% endblock %}

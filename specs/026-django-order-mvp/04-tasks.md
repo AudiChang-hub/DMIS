@@ -10,7 +10,7 @@
 - [x] 建立首頁待辦與全域搜尋
 - [x] 串接 OrderProcessor 既有 Google Cloud Vision OCR
 - [ ] 套用正式訂購合約範本
-- [ ] 實作完整交車／領牌／退款流程
+- [x] 實作完整交車／領牌／取消退款流程
 - [ ] 實作 LicenseWatcher Ubuntu worker
 - [x] 進行 T470P 部署
 

@@ -2,6 +2,7 @@ from decimal import Decimal
 from pathlib import Path
 
 from django import forms
+from django.db import transaction
 from django.db.models import Q
 from django.forms import BaseFormSet, formset_factory, inlineformset_factory
 from django.forms.models import BaseInlineFormSet
@@ -10,6 +11,8 @@ from django.utils import timezone
 from .models import (
     AccessoryProduct,
     AccessoryLine,
+    BusinessHoliday,
+    DeliveryRecord,
     OtherFeeLine,
     OrderOperationsProfile,
     PaymentRecord,
@@ -1370,6 +1373,170 @@ class RegistrationStageForm(forms.ModelForm):
         if commit:
             order.save()
         return order
+
+
+class DeliveryCompletionForm(forms.Form):
+    delivery_method = forms.ChoiceField(
+        label="交付方式", choices=SalesOrder.DeliveryMethod.choices
+    )
+    delivery_destination = forms.CharField(
+        label="送達地點／託運目的地", max_length=250, required=False
+    )
+    delivered_at = forms.DateTimeField(
+        label="實際交付時間",
+        widget=forms.DateTimeInput(attrs={"type": "datetime-local"}),
+    )
+    recipient_name = forms.CharField(label="實際收車人", max_length=160)
+    recipient_phone = forms.CharField(label="收車人電話", max_length=30)
+    carrier_name = forms.CharField(label="託運公司", max_length=160, required=False)
+    handover_location = forms.CharField(label="實際交付地點", max_length=250)
+    vehicle_condition_note = forms.CharField(
+        label="交付車況", widget=forms.Textarea(attrs={"rows": 3})
+    )
+    condition_checked = forms.BooleanField(label="已核對車況")
+    documents_checked = forms.BooleanField(label="已核對交付文件")
+    keys_checked = forms.BooleanField(label="已核對鑰匙")
+    accessories_checked = forms.BooleanField(label="已核對配件與贈品")
+    payment_checked = forms.BooleanField(label="已核對收款狀態")
+    damage_found = forms.BooleanField(label="發現刮傷或損壞", required=False)
+    damage_note = forms.CharField(
+        label="刮傷／損壞說明",
+        required=False,
+        widget=forms.Textarea(attrs={"rows": 3}),
+    )
+    handover_photo = forms.ImageField(label="交付照片", required=False)
+    note = forms.CharField(
+        label="交付備註", required=False, widget=forms.Textarea(attrs={"rows": 3})
+    )
+
+    def __init__(self, order, *args, **kwargs):
+        self.order = order
+        super().__init__(*args, **kwargs)
+        if not self.is_bound:
+            self.initial.update(
+                {
+                    "delivery_method": order.delivery_method,
+                    "delivery_destination": order.delivery_destination,
+                    "delivered_at": timezone.localtime().strftime("%Y-%m-%dT%H:%M"),
+                    "recipient_name": order.owner_name,
+                    "recipient_phone": order.owner_phone,
+                    "handover_location": order.delivery_destination
+                    or "馭盛國際有限公司",
+                }
+            )
+        for field in self.fields.values():
+            field.widget.attrs.setdefault("class", "form-control")
+        for field_name in (
+            "condition_checked",
+            "documents_checked",
+            "keys_checked",
+            "accessories_checked",
+            "payment_checked",
+            "damage_found",
+        ):
+            self.fields[field_name].widget.attrs["class"] = "form-check"
+        self.fields["recipient_phone"].widget.attrs["inputmode"] = "tel"
+
+    def clean(self):
+        data = super().clean()
+        method = data.get("delivery_method")
+        if method in {
+            SalesOrder.DeliveryMethod.DIRECT_DELIVERY,
+            SalesOrder.DeliveryMethod.CARRIER,
+        } and not (data.get("delivery_destination") or "").strip():
+            self.add_error("delivery_destination", "此交付方式必須填寫目的地。")
+        if (
+            method == SalesOrder.DeliveryMethod.CARRIER
+            and not (data.get("carrier_name") or "").strip()
+        ):
+            self.add_error("carrier_name", "委託託運時必須填寫託運公司。")
+        if data.get("damage_found") and not (data.get("damage_note") or "").strip():
+            self.add_error("damage_note", "發現刮傷或損壞時必須填寫說明。")
+        return data
+
+    @transaction.atomic
+    def save(self, actor_name):
+        order = SalesOrder.objects.select_for_update().get(pk=self.order.pk)
+        order.delivery_method = self.cleaned_data["delivery_method"]
+        order.delivery_destination = self.cleaned_data["delivery_destination"]
+        order.save(update_fields=["delivery_method", "delivery_destination", "updated_at"])
+        record = DeliveryRecord(
+            order=order,
+            recipient_name=self.cleaned_data["recipient_name"],
+            recipient_phone=self.cleaned_data["recipient_phone"],
+            carrier_name=self.cleaned_data["carrier_name"],
+            handover_location=self.cleaned_data["handover_location"],
+            vehicle_condition_note=self.cleaned_data["vehicle_condition_note"],
+            condition_checked=self.cleaned_data["condition_checked"],
+            documents_checked=self.cleaned_data["documents_checked"],
+            keys_checked=self.cleaned_data["keys_checked"],
+            accessories_checked=self.cleaned_data["accessories_checked"],
+            payment_checked=self.cleaned_data["payment_checked"],
+            damage_found=self.cleaned_data["damage_found"],
+            damage_note=self.cleaned_data["damage_note"],
+            handover_photo=self.cleaned_data.get("handover_photo"),
+            note=self.cleaned_data["note"],
+            completed_by=actor_name,
+        )
+        record.full_clean()
+        record.save()
+        order.complete_delivery(self.cleaned_data["delivered_at"], actor_name)
+        return order, record
+
+
+class CancellationRequestForm(forms.Form):
+    reason = forms.CharField(label="取消原因", max_length=250)
+    note = forms.CharField(
+        label="取消說明", required=False, widget=forms.Textarea(attrs={"rows": 3})
+    )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        for field in self.fields.values():
+            field.widget.attrs.setdefault("class", "form-control")
+
+
+class RefundCompletionForm(forms.Form):
+    amount = forms.DecimalField(
+        label="退款金額", max_digits=12, decimal_places=0, min_value=0
+    )
+    completed_on = forms.DateField(label="退款完成日期", widget=DateInput())
+    method = forms.ChoiceField(label="退款方式", choices=SalesOrder.PaymentMethod.choices)
+    reference = forms.CharField(
+        label="退款帳號／交易資訊", max_length=250, required=False
+    )
+    proof = forms.FileField(label="退款證明", required=False)
+
+    def __init__(self, order, *args, **kwargs):
+        self.order = order
+        super().__init__(*args, **kwargs)
+        if not self.is_bound:
+            self.initial.update(
+                {"amount": order.deposit_amount, "completed_on": timezone.localdate()}
+            )
+        for field in self.fields.values():
+            field.widget.attrs.setdefault("class", "form-control")
+        self.fields["amount"].widget.attrs["inputmode"] = "numeric"
+
+    def clean_amount(self):
+        amount = self.cleaned_data["amount"]
+        if amount != self.order.deposit_amount:
+            raise forms.ValidationError(
+                f"訂金必須全數退還，請填寫 {self.order.deposit_amount:,.0f} 元。"
+            )
+        return amount
+
+
+class BusinessHolidayForm(forms.ModelForm):
+    class Meta:
+        model = BusinessHoliday
+        fields = ["date", "name", "active"]
+        widgets = {"date": DateInput()}
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        for field in self.fields.values():
+            field.widget.attrs.setdefault("class", "form-control")
 
 
 class RegistrationDocumentUploadForm(forms.ModelForm):

@@ -20,6 +20,7 @@ tmp/
 *.xlsx
 output_report/.~lock.*
 .auto-deploy/
+.codex-tmp/
 backups/
 media/
 staticfiles/

@@ -12,8 +12,11 @@ import xmlrpc.client
 PORT = os.environ.get('ODOO_PORT', '8069')
 DB = os.environ.get('POSTGRES_DB', 'dmis_dev')
 USER = os.environ.get('ODOO_ADMIN_USER', 'admin')
-PASSWORD = os.environ.get('ODOO_ADMIN_PASSWORD', 'admin')
+PASSWORD = os.environ.get('ODOO_ADMIN_PASSWORD')
 HOST = os.environ.get('ODOO_HOST', 'localhost')
+
+if not PASSWORD:
+    raise SystemExit('請先設定 ODOO_ADMIN_PASSWORD 環境變數。')
 
 if len(sys.argv) < 2:
     print("用法：python3 scripts/rpc_excel_import.py <excel_檔案路徑>")

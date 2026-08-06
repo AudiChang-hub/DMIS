@@ -11,7 +11,9 @@ import xmlrpc.client
 ODOO_URL = os.environ.get('ODOO_URL', 'http://localhost:8069')
 DB = os.environ.get('POSTGRES_DB', 'dmis_dev')
 USER = os.environ.get('ODOO_USER', 'admin')
-PASSWORD = os.environ.get('ODOO_PASSWORD', 'admin')
+PASSWORD = os.environ.get('ODOO_PASSWORD')
+if not PASSWORD:
+    raise SystemExit('請先設定 ODOO_PASSWORD 環境變數。')
 
 
 def main() -> None:

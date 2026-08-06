@@ -5,11 +5,9 @@ from __future__ import annotations
 
 import json
 import requests
+from metabase_credentials import load_metabase_credentials
 
-
-BASE = "http://localhost:3000/api"
-EMAIL = "admin@dmis.local"
-PASSWORD = "Dmis2026!"
+BASE, EMAIL, PASSWORD = load_metabase_credentials()
 
 P21_DASHBOARD_ID = 22
 P21_DASHCARD_ID = 88

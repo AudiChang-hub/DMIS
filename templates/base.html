@@ -31,6 +31,14 @@
             </div>
           </div>
         </nav>
+        <a
+          class="header-help-link{% if request.resolver_match.url_name == 'user_guide' %} active{% endif %}"
+          href="{{ context_help_url }}"
+          target="_blank"
+          rel="noopener"
+          aria-label="另開目前頁面的使用說明"
+          title="另開使用說明，不會離開目前資料"
+        ><span aria-hidden="true">?</span><strong>使用說明</strong></a>
         <button type="button" class="update-check-button" data-check-update aria-label="檢查系統更新" title="檢查系統更新">
           <svg class="update-check-icon" viewBox="0 0 24 24" aria-hidden="true">
             <path d="M20 6v5h-5M4 18v-5h5M18.2 9A7 7 0 0 0 6.7 6.7L4 9m16 6-2.7 2.3A7 7 0 0 1 5.8 15"/>
@@ -69,6 +77,14 @@
     <button type="button" class="button ghost small" id="app-update-later">稍後</button>
   </aside>
 
+  <aside class="connectivity-banner" data-connectivity-banner role="status" aria-live="assertive" hidden>
+    <span aria-hidden="true">!</span>
+    <div>
+      <strong>目前沒有網路連線</strong>
+      <small>尚未送出的內容可能還沒同步；請保持頁面開啟，恢復連線後再確認儲存狀態。</small>
+    </div>
+  </aside>
+
   <main class="page-shell {% block page_class %}page-shell--standard{% endblock %}" id="main-content" tabindex="-1">
     {% if messages %}
       <div class="messages" aria-live="polite">
@@ -88,5 +104,6 @@
   <script src="{% static 'js/ui-navigation.js' %}?v={{ app_version }}" defer></script>
   <script src="{% static 'js/layout-audit.js' %}?v={{ app_version }}" defer></script>
   <script src="{% static 'js/app-update.js' %}?v={{ app_version }}" defer></script>
+  <script src="{% static 'js/connectivity-status.js' %}?v={{ app_version }}" defer></script>
 </body>
 </html>

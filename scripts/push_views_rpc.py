@@ -1,10 +1,13 @@
+import os
 import xmlrpc.client
 from lxml import etree
 
-url='http://localhost:8069'
-db='dmis_dev'
-username='hongsian.c@gmail.com'
-password='@Sa095328odoo'
+url = os.environ.get('ODOO_URL', 'http://localhost:8069')
+db = os.environ.get('ODOO_DB', 'dmis_dev')
+username = os.environ.get('ODOO_USERNAME')
+password = os.environ.get('ODOO_PASSWORD')
+if not username or not password:
+    raise SystemExit('請先設定 ODOO_USERNAME 與 ODOO_PASSWORD 環境變數。')
 
 # parse local xml
 fn='addons/dms_core/views/dealer_views.xml'

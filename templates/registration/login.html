@@ -10,7 +10,13 @@
   <form method="post" class="card login-card">
     {% csrf_token %}
     <h2>登入系統</h2>
-    {% if form.errors %}<p class="field-error">帳號或密碼不正確。</p>{% endif %}
+    {% if form.non_field_errors %}
+      <div class="message error" role="alert">
+        {% for error in form.non_field_errors %}<span>{{ error }}</span>{% endfor %}
+      </div>
+    {% elif form.errors %}
+      <p class="field-error" role="alert">帳號或密碼不正確，請重新確認。</p>
+    {% endif %}
     <label for="{{ form.username.id_for_label }}">帳號</label>
     {{ form.username }}
     <label for="{{ form.password.id_for_label }}">密碼</label>

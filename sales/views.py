@@ -10,19 +10,20 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.files.base import ContentFile
 from django.core.exceptions import ValidationError
-from django.db import IntegrityError, transaction
+from django.db import IntegrityError, connection, transaction
 from django.db.models import Count, OuterRef, Q, Subquery, Sum
 from django.core.paginator import Paginator
 from django.http import FileResponse, Http404, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
+from django.utils.http import url_has_allowed_host_and_scheme
 from django.utils import timezone
-from PIL import Image, UnidentifiedImageError
 import django_rq
 from rq import Retry
 
 from .services.order_contract_pdf import build_order_contract_pdf
 from .services.privacy_consent_pdf import build_privacy_consent_pdf
+from .services.excel_export import sanitize_excel_row
 
 from .forms import (
     AccessoryProductForm,
@@ -140,6 +141,40 @@ from .services.legacy_import import (
     file_sha256,
 )
 from .services.positioned_template_pdf import build_positioned_template_pdf
+from .services.identity_document_pdf import (
+    PURPOSE_LABELS as IDENTITY_DOCUMENT_PURPOSES,
+    build_identity_document_pdf,
+)
+from .services.upload_validation import validate_image_upload
+
+
+def _form_error_text(form):
+    """將表單錯誤整理成可直接給一般使用者閱讀的一句話。"""
+    return " ".join(
+        str(error)
+        for errors in form.errors.values()
+        for error in errors
+    )
+
+
+def _protect_private_response(response):
+    """避免含個資的檔案被瀏覽器或中介快取保存。"""
+    response["Cache-Control"] = "private, no-store, max-age=0"
+    response["Pragma"] = "no-cache"
+    response["X-Content-Type-Options"] = "nosniff"
+    return response
+
+
+def system_health(request):
+    """Minimal readiness check for container and deployment smoke tests."""
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT 1")
+            cursor.fetchone()
+    except Exception:
+        logger.exception("health_check_failed request_id=%s", getattr(request, "request_id", ""))
+        return JsonResponse({"ok": False}, status=503)
+    return JsonResponse({"ok": True})
 
 
 logger = logging.getLogger(__name__)
@@ -297,7 +332,7 @@ def positioned_template_preview(request, pk, order_pk=None):
         filename=f"{template.document_type}-{order.number}.pdf",
     )
     response["Cache-Control"] = "private, no-store"
-    return response
+    return _protect_private_response(response)
 
 
 @login_required
@@ -821,7 +856,7 @@ def app_version(request):
     response = JsonResponse({"version": get_app_version()})
     response["Cache-Control"] = "no-store, no-cache, must-revalidate"
     response["Pragma"] = "no-cache"
-    return response
+    return _protect_private_response(response)
 
 
 @login_required
@@ -883,6 +918,12 @@ def dashboard(request):
         "drafts": OrderDraft.objects.all()[:5],
     }
     return render(request, "sales/dashboard.html", context)
+
+
+@login_required
+def user_guide(request):
+    """提供不含技術術語、可搜尋與列印的 End User 使用說明。"""
+    return render(request, "help/user_guide.html")
 
 
 @login_required
@@ -1234,7 +1275,13 @@ def reconciliation_update(request, pk):
             ),
         )
     next_url = request.POST.get("next")
-    return redirect(next_url if next_url and next_url.startswith("/") else "reconciliation_list")
+    if not url_has_allowed_host_and_scheme(
+        url=next_url or "",
+        allowed_hosts={request.get_host()},
+        require_https=request.is_secure(),
+    ):
+        next_url = None
+    return redirect(next_url or "reconciliation_list")
 
 
 @login_required
@@ -1278,7 +1325,7 @@ def operations_report_export(request):
             )
         def op(name, default=""):
             return getattr(profile, name, default) if profile else default
-        sheet.append([
+        sheet.append(sanitize_excel_row([
             order.number, order.order_date, order.vehicle_model.name,
             order.vehicle_model.model_number,
             order.vehicle_model.get_model_code_display()
@@ -1332,7 +1379,7 @@ def operations_report_export(request):
             profile.total_income if profile else 0,
             profile.total_expense if profile else 0,
             profile.net_profit if profile else 0,
-        ])
+        ]))
     sheet.freeze_panes = "A2"
     sheet.auto_filter.ref = sheet.dimensions
     for column in sheet.columns:
@@ -1507,15 +1554,7 @@ def _draft_lines(data, prefix, fields):
 
 
 def _validate_draft_image(upload):
-    if upload.size > 10 * 1024 * 1024:
-        raise ValidationError("單張證件照片不可超過 10 MB。")
-    if upload.content_type not in {"image/jpeg", "image/png", "image/webp"}:
-        raise ValidationError("證件照片僅支援 JPEG、PNG 或 WebP。")
-    try:
-        Image.open(upload).verify()
-        upload.seek(0)
-    except (UnidentifiedImageError, OSError, ValueError) as exc:
-        raise ValidationError("上傳的檔案不是有效圖片。") from exc
+    return validate_image_upload(upload, max_bytes=10 * 1024 * 1024)
 
 
 @login_required
@@ -1842,6 +1881,9 @@ def order_operations(request, pk):
         instance=order,
         prefix="payments",
     )
+    previous_payment_proofs = list(
+        order.payment_records.exclude(proof="").values_list("proof", flat=True)
+    )
     if request.method == "POST" and form.is_valid() and payment_formset.is_valid():
         with transaction.atomic():
             profile = form.save(commit=False)
@@ -1863,6 +1905,12 @@ def order_operations(request, pk):
             profile.updated_by = _editing_name(request.user)
             profile.save()
             payments = payment_formset.save()
+            for previous_proof in previous_payment_proofs:
+                _schedule_model_file_cleanup(
+                    PaymentRecord,
+                    "proof",
+                    previous_proof,
+                )
             now = timezone.now()
             for payment in payments:
                 if payment.confirmed and not payment.confirmed_at:
@@ -2085,6 +2133,45 @@ def _snapshot_changes(before, after):
     }
 
 
+def _schedule_replaced_identity_file_cleanup(order, previous_names):
+    """Delete replaced identity photos only after the order transaction commits."""
+    current_names = {
+        field_name: getattr(getattr(order, field_name), "name", "")
+        for field_name in ("id_front", "id_back")
+    }
+    for field_name, previous_name in previous_names.items():
+        if not previous_name or previous_name == current_names.get(field_name):
+            continue
+        storage = SalesOrder._meta.get_field(field_name).storage
+
+        def delete_if_unreferenced(name=previous_name, file_storage=storage):
+            order_reference = SalesOrder.objects.filter(
+                Q(id_front=name) | Q(id_back=name)
+            ).exists()
+            draft_reference = OrderDraft.objects.filter(
+                Q(id_front=name) | Q(id_back=name)
+            ).exists()
+            if not order_reference and not draft_reference:
+                file_storage.delete(name)
+
+        transaction.on_commit(delete_if_unreferenced)
+
+
+def _schedule_model_file_cleanup(model, field_name, previous_name):
+    """Delete a replaced file after commit when no row still references it."""
+    if not previous_name:
+        return
+    storage = model._meta.get_field(field_name).storage
+
+    def delete_if_unreferenced():
+        if not model._default_manager.filter(
+            **{field_name: previous_name}
+        ).exists():
+            storage.delete(previous_name)
+
+    transaction.on_commit(delete_if_unreferenced)
+
+
 @login_required
 @transaction.atomic
 def order_edit(request, pk):
@@ -2112,6 +2199,10 @@ def order_edit(request, pk):
             return redirect("order_edit", pk=pk)
 
         before = _order_snapshot(order)
+        previous_identity_names = {
+            field_name: getattr(getattr(order, field_name), "name", "")
+            for field_name in ("id_front", "id_back")
+        }
         previous_vehicle_model_id = order.vehicle_model_id
         balance_was_automatic = order.actual_balance == order.calculated_balance
         previous_actual_balance = order.actual_balance
@@ -2132,6 +2223,10 @@ def order_edit(request, pk):
             order.editing_by = ""
             order.editing_at = None
             order.save()
+            _schedule_replaced_identity_file_cleanup(
+                order,
+                previous_identity_names,
+            )
             apply_order_price_snapshot(
                 order,
                 force=(
@@ -2259,7 +2354,7 @@ def contract_print(request, pk):
         f'inline; filename="{order.number}.pdf"; '
         f"filename*=UTF-8''{order.number}%E8%A8%82%E8%B3%BC%E5%96%AE.pdf"
     )
-    return response
+    return _protect_private_response(response)
 
 
 @login_required
@@ -2274,7 +2369,7 @@ def privacy_consent_print(request, pk):
         f'inline; filename="{order.number}-privacy-consent.pdf"; '
         f"filename*=UTF-8''{order.number}%E5%80%8B%E8%B3%87%E5%90%8C%E6%84%8F%E6%9B%B8.pdf"
     )
-    return response
+    return _protect_private_response(response)
 
 
 @login_required
@@ -2303,19 +2398,65 @@ def order_documents_print(request, pk):
         f'inline; filename="{order.number}-documents.pdf"; '
         f"filename*=UTF-8''{order.number}%E7%B0%BD%E7%BD%B2%E6%96%87%E4%BB%B6.pdf"
     )
-    return response
+    return _protect_private_response(response)
 
 
 @login_required
+def identity_documents_print(request, pk):
+    order = get_object_or_404(SalesOrder, pk=pk)
+    if request.method != "POST":
+        return redirect(f"{reverse('order_detail', args=[pk])}?tab=order")
+    purpose = request.POST.get("purpose", "")
+    requested_sides = set(request.POST.getlist("sides"))
+    side_fields = [
+        field_name
+        for field_name in ("id_front", "id_back")
+        if field_name in requested_sides
+    ]
+    try:
+        pdf = build_identity_document_pdf(
+            order,
+            purpose,
+            side_fields,
+            timezone.localdate(),
+        )
+    except (OSError, ValueError) as exc:
+        messages.error(request, f"證件文件未產生：{exc}")
+        return redirect(f"{reverse('order_detail', args=[pk])}?tab=order")
+
+    purpose_label = IDENTITY_DOCUMENT_PURPOSES[purpose]
+    side_labels = ["正面" if value == "id_front" else "反面" for value in side_fields]
+    OrderEvent.objects.create(
+        order=order,
+        event_type="identity_document_printed",
+        description=f"已產生證件浮水印文件：{purpose_label}（{'、'.join(side_labels)}）。",
+        actor_name=_editing_name(request.user),
+    )
+    response = FileResponse(BytesIO(pdf), content_type="application/pdf")
+    response["Content-Disposition"] = (
+        f'inline; filename="{order.number}-identity.pdf"; '
+        f"filename*=UTF-8''{order.number}%E8%AD%89%E4%BB%B6%E5%BD%B1%E6%9C%AC.pdf"
+    )
+    return _protect_private_response(response)
+
+
+@login_required
+@transaction.atomic
 def contract_upload(request, pk):
     order = get_object_or_404(SalesOrder, pk=pk)
     if request.method != "POST":
         return redirect("order_detail", pk=pk)
+    previous_file = getattr(order.signed_contract, "name", "")
     form = SignedContractForm(request.POST, request.FILES, instance=order)
     if form.is_valid():
         order = form.save(commit=False)
         order.signed_contract_uploaded_at = timezone.now()
         order.save()
+        _schedule_model_file_cleanup(
+            SalesOrder,
+            "signed_contract",
+            previous_file,
+        )
         OrderEvent.objects.create(
             order=order,
             event_type="contract_uploaded",
@@ -2324,20 +2465,30 @@ def contract_upload(request, pk):
         )
         messages.success(request, "訂購合約附件已歸檔。")
     else:
-        messages.error(request, "合約上傳失敗，請確認檔案格式。")
+        messages.error(
+            request,
+            "合約上傳失敗：" + (_form_error_text(form) or "請重新選擇檔案。"),
+        )
     return redirect("order_detail", pk=pk)
 
 
 @login_required
+@transaction.atomic
 def privacy_consent_upload(request, pk):
     order = get_object_or_404(SalesOrder, pk=pk)
     if request.method != "POST":
         return redirect("order_detail", pk=pk)
+    previous_file = getattr(order.privacy_consent, "name", "")
     form = PrivacyConsentForm(request.POST, request.FILES, instance=order)
     if form.is_valid():
         order = form.save(commit=False)
         order.privacy_consent_uploaded_at = timezone.now()
         order.save()
+        _schedule_model_file_cleanup(
+            SalesOrder,
+            "privacy_consent",
+            previous_file,
+        )
         OrderEvent.objects.create(
             order=order,
             event_type="privacy_consent_uploaded",
@@ -2346,7 +2497,11 @@ def privacy_consent_upload(request, pk):
         )
         messages.success(request, "個資同意書附件已歸檔。")
     else:
-        messages.error(request, "個資同意書上傳失敗，請確認檔案格式。")
+        messages.error(
+            request,
+            "個資同意書上傳失敗："
+            + (_form_error_text(form) or "請重新選擇檔案。"),
+        )
     return redirect("order_detail", pk=pk)
 
 
@@ -2524,8 +2679,23 @@ def registration_document_upload(request, pk):
             document_type=document.document_type
         ).first()
         if existing:
-            existing.delete_with_file()
-    document.save()
+            previous_file = getattr(existing.file, "name", "")
+            existing.name = document.name
+            existing.file = document.file
+            existing.uploaded_by = document.uploaded_by
+            existing.save(
+                update_fields=["name", "file", "uploaded_by", "updated_at"]
+            )
+            _schedule_model_file_cleanup(
+                RegistrationDocument,
+                "file",
+                previous_file,
+            )
+            document = existing
+        else:
+            document.save()
+    else:
+        document.save()
     OrderEvent.objects.create(
         order=order,
         event_type="registration_document_uploaded",
@@ -2554,7 +2724,13 @@ def registration_document_delete(request, pk, document_pk):
         order=order,
     )
     display_name = document.display_name
-    document.delete_with_file()
+    previous_file = getattr(document.file, "name", "")
+    document.delete()
+    _schedule_model_file_cleanup(
+        RegistrationDocument,
+        "file",
+        previous_file,
+    )
     OrderEvent.objects.create(
         order=order,
         event_type="registration_document_deleted",
@@ -2770,8 +2946,7 @@ def registration_document_file(request, document_pk):
         as_attachment=False,
         filename=Path(document.file.name).name,
     )
-    response["Cache-Control"] = "private, no-store"
-    return response
+    return _protect_private_response(response)
 
 
 def _recognize_old_owner_documents(order, actor_name):
@@ -2883,12 +3058,25 @@ def subsidy_document_upload(request, pk):
             document_type=document.document_type
         ).first()
     if existing:
-        old_file = existing.file
+        previous_file = getattr(existing.file, "name", "")
         existing.file = document.file
+        existing.name = document.name
+        existing.note = document.note
         existing.uploaded_by = document.uploaded_by
-        existing.save(update_fields=["file", "uploaded_by", "updated_at"])
-        if old_file:
-            old_file.delete(save=False)
+        existing.save(
+            update_fields=[
+                "file",
+                "name",
+                "note",
+                "uploaded_by",
+                "updated_at",
+            ]
+        )
+        _schedule_model_file_cleanup(
+            SubsidyDocument,
+            "file",
+            previous_file,
+        )
         document = existing
     else:
         document.save()
@@ -2932,7 +3120,13 @@ def subsidy_document_delete(request, pk, document_pk):
         order=order,
     )
     display_name = document.name or document.get_document_type_display()
-    document.delete_with_file()
+    previous_file = getattr(document.file, "name", "")
+    document.delete()
+    _schedule_model_file_cleanup(
+        SubsidyDocument,
+        "file",
+        previous_file,
+    )
     OrderEvent.objects.create(
         order=order,
         event_type="subsidy_document_deleted",
@@ -2953,8 +3147,7 @@ def subsidy_document_file(request, document_pk):
         as_attachment=False,
         filename=Path(document.file.name).name,
     )
-    response["Cache-Control"] = "private, no-store"
-    return response
+    return _protect_private_response(response)
 
 
 @login_required
@@ -3644,8 +3837,25 @@ def incentive_rule_delete(request, pk):
     return redirect("incentive_rule_list")
 
 
+def bad_request(request, exception=None):
+    return render(request, "errors/400.html", status=400)
+
+
+def permission_denied(request, exception=None):
+    return render(request, "errors/403.html", status=403)
+
+
+def page_not_found(request, exception=None):
+    return render(request, "errors/404.html", status=404)
+
+
 def server_error(request):
-    return render(request, "errors/500.html", status=500)
+    return render(
+        request,
+        "errors/500.html",
+        {"request_id": getattr(request, "request_id", "")},
+        status=500,
+    )
 
 
 @login_required
@@ -3879,19 +4089,13 @@ def id_card_ocr(request):
             {"ok": False, "error": "不支援的證件類型。"},
             status=400,
         )
-    allowed_content_types = {"image/jpeg", "image/png", "image/webp"}
-    if (
-        front.content_type not in allowed_content_types
-        or back.content_type not in allowed_content_types
-    ):
+    try:
+        validate_image_upload(front)
+        validate_image_upload(back)
+    except ValidationError as exc:
         return JsonResponse(
-            {"ok": False, "error": "照片僅支援 JPEG、PNG 或 WebP。"},
+            {"ok": False, "error": " ".join(exc.messages)},
             status=400,
-        )
-    if front.size > 12 * 1024 * 1024 or back.size > 12 * 1024 * 1024:
-        return JsonResponse(
-            {"ok": False, "error": "單張照片不可超過 12MB。"},
-            status=413,
         )
     queue = django_rq.get_queue("ocr")
     if queue.count >= 10:
@@ -3922,6 +4126,7 @@ def id_card_ocr(request):
         job.error = "辨識工作無法排入佇列，請稍後再試。"
         job.finished_at = timezone.now()
         job.save(update_fields=["status", "error", "finished_at", "updated_at"])
+        delete_id_ocr_job_files(job)
         return JsonResponse({"ok": False, "error": job.error}, status=503)
     return JsonResponse(
         {
@@ -3956,10 +4161,20 @@ def id_card_ocr_invalidate(request, job_id):
     if request.method != "POST":
         return JsonResponse({"ok": False, "error": "僅接受 POST。"}, status=405)
     job = get_object_or_404(IdOcrJob, pk=job_id, created_by=request.user)
-    if job.status not in (IdOcrJob.Status.SUCCEEDED, IdOcrJob.Status.FAILED):
+    if job.status != IdOcrJob.Status.INVALIDATED:
         job.status = IdOcrJob.Status.INVALIDATED
+        job.result = {}
+        job.error = ""
         job.finished_at = timezone.now()
-        job.save(update_fields=["status", "finished_at", "updated_at"])
+        job.save(
+            update_fields=[
+                "status",
+                "result",
+                "error",
+                "finished_at",
+                "updated_at",
+            ]
+        )
         delete_id_ocr_job_files(job)
     return JsonResponse({"ok": True, "status": job.status})
 
@@ -3995,5 +4210,4 @@ def protected_media(request, model_name, pk, field_name):
         raise Http404
     response = FileResponse(file_field.open("rb"))
     response["Content-Disposition"] = f'inline; filename="{file_field.name.split("/")[-1]}"'
-    response["Cache-Control"] = "private, no-store"
-    return response
+    return _protect_private_response(response)

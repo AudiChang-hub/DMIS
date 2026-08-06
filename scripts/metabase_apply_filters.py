@@ -18,8 +18,9 @@ import copy
 import sys
 import uuid as _uuid
 import requests
+from metabase_credentials import load_metabase_credentials
 
-BASE = "http://localhost:3000/api"
+BASE, EMAIL, PASSWORD = load_metabase_credentials()
 
 # ── ds_sales_report 欄位 ID ──────────────────────────
 F_MODEL = 1632
@@ -112,7 +113,7 @@ def removable_fields_for_dashboard(dash_id):
 
 
 def login():
-    r = requests.post(f"{BASE}/session", json={"username": "admin@dmis.local", "password": "Dmis2026!"})
+    r = requests.post(f"{BASE}/session", json={"username": EMAIL, "password": PASSWORD})
     r.raise_for_status()
     return r.json()["id"]
 

@@ -1,6 +1,7 @@
 from datetime import date
 from decimal import Decimal
 from io import BytesIO
+from pathlib import Path
 from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
@@ -11,7 +12,9 @@ from django.core.management import call_command
 from django.test import RequestFactory, TestCase
 from django.urls import reverse
 from django.utils import timezone
-from pypdf import PdfReader
+from openpyxl import Workbook
+from PIL import Image
+from pypdf import PdfReader, PdfWriter
 
 from sales.forms import (
     AccessoryFormSet,
@@ -43,6 +46,36 @@ from sales.models import (
     VehicleSettlementCostRule,
 )
 from sales.services.secret_fields import decrypt_secret
+
+
+def uploaded_test_pdf(filename="document.pdf"):
+    stream = BytesIO()
+    writer = PdfWriter()
+    writer.add_blank_page(width=300, height=200)
+    writer.write(stream)
+    return SimpleUploadedFile(
+        filename, stream.getvalue(), content_type="application/pdf"
+    )
+
+
+def uploaded_test_jpeg(filename="photo.jpg"):
+    stream = BytesIO()
+    Image.new("RGB", (32, 24), "white").save(stream, format="JPEG")
+    return SimpleUploadedFile(filename, stream.getvalue(), content_type="image/jpeg")
+
+
+def uploaded_test_xlsx(filename="document.xlsx"):
+    stream = BytesIO()
+    workbook = Workbook()
+    workbook.active["A1"] = "測試"
+    workbook.save(stream)
+    return SimpleUploadedFile(
+        filename,
+        stream.getvalue(),
+        content_type=(
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        ),
+    )
 
 
 class OrderFlowTests(TestCase):
@@ -885,6 +918,11 @@ class OrderFlowTests(TestCase):
 
     def test_edit_order_records_reason_and_before_after_values(self):
         order = self.make_order()
+        order.owner_type = SalesOrder.OwnerType.COMPANY
+        order.id_front = uploaded_test_jpeg("old-front.jpg")
+        order.save(update_fields=["owner_type", "id_front", "updated_at"])
+        old_identity_path = Path(order.id_front.path)
+        self.assertTrue(old_identity_path.exists())
         self.client.force_login(self.user)
         data = {
             "_order_revision": str(order.revision),
@@ -901,6 +939,7 @@ class OrderFlowTests(TestCase):
             "owner_id_number": order.owner_id_number,
             "residence_expiry": "",
             "id_verified": "on",
+            "id_front-clear": "on",
             "vehicle_model": str(self.model.pk),
             "color": str(self.color.pk),
             "vehicle_category": "new",
@@ -943,10 +982,13 @@ class OrderFlowTests(TestCase):
             "other_fees-0-amount": "",
         }
 
-        response = self.client.post(reverse("order_edit", args=[order.pk]), data)
+        with self.captureOnCommitCallbacks(execute=True):
+            response = self.client.post(reverse("order_edit", args=[order.pk]), data)
 
         self.assertRedirects(response, reverse("order_detail", args=[order.pk]))
         order.refresh_from_db()
+        self.assertFalse(order.id_front)
+        self.assertFalse(old_identity_path.exists())
         self.assertEqual(order.owner_name, "王小明有限公司")
         self.assertEqual(order.revision, 2)
         self.assertEqual(order.actual_balance, Decimal("75400"))
@@ -1193,11 +1235,7 @@ class OrderFlowTests(TestCase):
             reverse("subsidy_document_upload", args=[order.pk]),
             {
                 "document_type": SubsidyDocument.DocumentType.OLD_OWNER_ID_FRONT,
-                "file": SimpleUploadedFile(
-                    "old-owner-front.jpg",
-                    b"old owner id",
-                    content_type="image/jpeg",
-                ),
+                "file": uploaded_test_jpeg("old-owner-front.jpg"),
             },
         )
         self.assertRedirects(response, reverse("order_detail", args=[order.pk]))
@@ -1373,19 +1411,30 @@ class OrderFlowTests(TestCase):
         self.client.force_login(self.user)
         upload_url = reverse("subsidy_document_upload", args=[order.pk])
 
-        for filename in ("first.pdf", "replacement.pdf"):
+        response = self.client.post(
+            upload_url,
+            {
+                "document_type": SubsidyDocument.DocumentType.SCRAP_CERTIFICATE,
+                "file": uploaded_test_pdf("first.pdf"),
+            },
+        )
+        self.assertRedirects(response, reverse("order_detail", args=[order.pk]))
+        first_document = order.subsidy_documents.get(
+            document_type=SubsidyDocument.DocumentType.SCRAP_CERTIFICATE
+        )
+        first_path = Path(first_document.file.path)
+        self.assertTrue(first_path.exists())
+
+        with self.captureOnCommitCallbacks(execute=True):
             response = self.client.post(
                 upload_url,
                 {
                     "document_type": SubsidyDocument.DocumentType.SCRAP_CERTIFICATE,
-                    "file": SimpleUploadedFile(
-                        filename, filename.encode(), content_type="application/pdf"
-                    ),
+                    "file": uploaded_test_pdf("replacement.pdf"),
                 },
             )
-            self.assertRedirects(
-                response, reverse("order_detail", args=[order.pk])
-            )
+        self.assertRedirects(response, reverse("order_detail", args=[order.pk]))
+        self.assertFalse(first_path.exists())
 
         documents = order.subsidy_documents.filter(
             document_type=SubsidyDocument.DocumentType.SCRAP_CERTIFICATE
@@ -1396,7 +1445,10 @@ class OrderFlowTests(TestCase):
             reverse("subsidy_document_file", args=[document.pk])
         )
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response["Cache-Control"], "private, no-store")
+        self.assertIn("private", response["Cache-Control"])
+        self.assertIn("no-store", response["Cache-Control"])
+        self.assertEqual(response["Pragma"], "no-cache")
+        self.assertEqual(response["X-Content-Type-Options"], "nosniff")
 
     def test_order_edit_is_exclusive_to_first_session(self):
         order = self.make_order()
@@ -1431,21 +1483,12 @@ class OrderFlowTests(TestCase):
             (
                 "補助切結書",
                 "客戶補簽",
-                SimpleUploadedFile(
-                    "declaration.pdf", b"pdf", content_type="application/pdf"
-                ),
+                uploaded_test_pdf("declaration.pdf"),
             ),
             (
                 "補助試算表",
                 "",
-                SimpleUploadedFile(
-                    "calculation.xlsx",
-                    b"xlsx",
-                    content_type=(
-                        "application/vnd.openxmlformats-officedocument."
-                        "spreadsheetml.sheet"
-                    ),
-                ),
+                uploaded_test_xlsx("calculation.xlsx"),
             ),
         ]
         for name, note, upload in uploads:
@@ -1532,9 +1575,7 @@ class OrderFlowTests(TestCase):
                 upload_url,
                 {
                     "document_type": document_type,
-                    "file": SimpleUploadedFile(
-                        filename, b"photo", content_type="image/jpeg"
-                    ),
+                    "file": uploaded_test_jpeg(filename),
                 },
             )
             self.assertRedirects(
@@ -1575,9 +1616,7 @@ class OrderFlowTests(TestCase):
                 upload_url,
                 {
                     "document_type": document_type,
-                    "file": SimpleUploadedFile(
-                        filename, b"photo", content_type="image/jpeg"
-                    ),
+                    "file": uploaded_test_jpeg(filename),
                 },
             )
 
@@ -1608,9 +1647,7 @@ class OrderFlowTests(TestCase):
             reverse("subsidy_document_upload", args=[order.pk]),
             {
                 "document_type": SubsidyDocument.DocumentType.RECYCLING_RECEIPT,
-                "file": SimpleUploadedFile(
-                    "receipt.pdf", b"receipt", content_type="application/pdf"
-                ),
+                "file": uploaded_test_pdf("receipt.pdf"),
             },
         )
 
@@ -1666,11 +1703,7 @@ class OrderFlowTests(TestCase):
                 {
                     "document_type": document_type,
                     "name": "",
-                    "file": SimpleUploadedFile(
-                        f"document-{index}.pdf",
-                        b"registration document",
-                        content_type="application/pdf",
-                    ),
+                    "file": uploaded_test_pdf(f"document-{index}.pdf"),
                 },
             )
             self.assertRedirects(
@@ -1773,9 +1806,7 @@ class OrderFlowTests(TestCase):
                 {
                     "document_type": RegistrationDocument.DocumentType.OTHER_INSURANCE,
                     "name": name,
-                    "file": SimpleUploadedFile(
-                        f"{name}.pdf", b"policy", content_type="application/pdf"
-                    ),
+                    "file": uploaded_test_pdf(f"{name}.pdf"),
                 },
             )
             self.assertRedirects(
@@ -1795,20 +1826,32 @@ class OrderFlowTests(TestCase):
         self.client.force_login(self.user)
         upload_url = reverse("registration_document_upload", args=[order.pk])
 
-        for filename in ("first.pdf", "replacement.pdf"):
+        response = self.client.post(
+            upload_url,
+            {
+                "document_type": RegistrationDocument.DocumentType.INVOICE,
+                "name": "",
+                "file": uploaded_test_pdf("first.pdf"),
+            },
+        )
+        self.assertRedirects(response, reverse("order_detail", args=[order.pk]))
+        first_document = order.registration_documents.get(
+            document_type=RegistrationDocument.DocumentType.INVOICE
+        )
+        first_path = Path(first_document.file.path)
+        self.assertTrue(first_path.exists())
+
+        with self.captureOnCommitCallbacks(execute=True):
             response = self.client.post(
                 upload_url,
                 {
                     "document_type": RegistrationDocument.DocumentType.INVOICE,
                     "name": "",
-                    "file": SimpleUploadedFile(
-                        filename, filename.encode(), content_type="application/pdf"
-                    ),
+                    "file": uploaded_test_pdf("replacement.pdf"),
                 },
             )
-            self.assertRedirects(
-                response, reverse("order_detail", args=[order.pk])
-            )
+        self.assertRedirects(response, reverse("order_detail", args=[order.pk]))
+        self.assertFalse(first_path.exists())
 
         documents = order.registration_documents.filter(
             document_type=RegistrationDocument.DocumentType.INVOICE
@@ -1819,7 +1862,10 @@ class OrderFlowTests(TestCase):
             reverse("registration_document_file", args=[document.pk])
         )
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response["Cache-Control"], "private, no-store")
+        self.assertIn("private", response["Cache-Control"])
+        self.assertIn("no-store", response["Cache-Control"])
+        self.assertEqual(response["Pragma"], "no-cache")
+        self.assertEqual(response["X-Content-Type-Options"], "nosniff")
 
     def test_dealer_order_can_deliver_before_registration(self):
         order = self.make_order()
@@ -2070,6 +2116,41 @@ class OrderFlowTests(TestCase):
         self.assertContains(detail, "個資同意書附件")
         self.assertContains(detail, reverse("privacy_consent_upload", args=[order.pk]))
 
+    def test_identity_document_print_adds_selected_watermark_and_audit_event(self):
+        order = self.make_order()
+        order.id_front = uploaded_test_jpeg("front.jpg")
+        order.id_back = uploaded_test_jpeg("back.jpg")
+        order.save(update_fields=["id_front", "id_back", "updated_at"])
+        self.client.force_login(self.user)
+
+        response = self.client.post(
+            reverse("identity_documents_print", args=[order.pk]),
+            {
+                "purpose": "registration",
+                "sides": ["id_front", "id_front", "id_back", "id_back"],
+            },
+        )
+        content = b"".join(response.streaming_content)
+        reader = PdfReader(BytesIO(content))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(reader.pages), 2)
+        self.assertIn("private", response["Cache-Control"])
+        self.assertIn("no-store", response["Cache-Control"])
+        self.assertEqual(response["X-Content-Type-Options"], "nosniff")
+        self.assertTrue(
+            OrderEvent.objects.filter(
+                order=order,
+                event_type="identity_document_printed",
+                description__contains="限領牌使用",
+                actor_name=self.user.username,
+            ).exists()
+        )
+
+        detail = self.client.get(reverse("order_detail", args=[order.pk]))
+        self.assertContains(detail, "列印／下載浮水印證件")
+        self.assertContains(detail, "限申請補助使用")
+
     def test_privacy_consent_can_be_uploaded_separately(self):
         order = self.make_order()
         self.client.force_login(self.user)
@@ -2077,11 +2158,7 @@ class OrderFlowTests(TestCase):
         response = self.client.post(
             reverse("privacy_consent_upload", args=[order.pk]),
             {
-                "privacy_consent": SimpleUploadedFile(
-                    "privacy.pdf",
-                    b"signed privacy consent",
-                    content_type="application/pdf",
-                )
+                "privacy_consent": uploaded_test_pdf("privacy.pdf")
             },
         )
 
@@ -2092,6 +2169,16 @@ class OrderFlowTests(TestCase):
         self.assertTrue(
             order.events.filter(description__contains="個資同意書").exists()
         )
+
+        first_path = Path(order.privacy_consent.path)
+        self.assertTrue(first_path.exists())
+        with self.captureOnCommitCallbacks(execute=True):
+            replacement = self.client.post(
+                reverse("privacy_consent_upload", args=[order.pk]),
+                {"privacy_consent": uploaded_test_pdf("privacy-replacement.pdf")},
+            )
+        self.assertRedirects(replacement, reverse("order_detail", args=[order.pk]))
+        self.assertFalse(first_path.exists())
 
     def test_mobile_order_and_inventory_pages_render(self):
         self.client.force_login(self.user)
@@ -3160,6 +3247,50 @@ class OrderOperationsTests(TestCase):
             ).exists()
         )
 
+    def test_reconciliation_update_accepts_same_site_next_url(self):
+        self.order.payment_type = SalesOrder.PaymentType.INSTALLMENT
+        self.order.installment_amount = Decimal("70000")
+        self.order.save()
+        record = self.order.payment_records.get(
+            system_key="installment_disbursement"
+        )
+        target = reverse("reconciliation_list") + "?status=pending"
+
+        response = self.client.post(
+            reverse("reconciliation_update", args=[record.pk]),
+            {
+                "received_amount": "5000",
+                "received_on": "2026-08-05",
+                "receiving_account": "公司帳戶",
+                "note": "同源返回測試",
+                "next": target,
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response["Location"], target)
+
+    def test_reconciliation_update_rejects_protocol_relative_next_url(self):
+        self.order.payment_type = SalesOrder.PaymentType.INSTALLMENT
+        self.order.installment_amount = Decimal("70000")
+        self.order.save()
+        record = self.order.payment_records.get(
+            system_key="installment_disbursement"
+        )
+
+        response = self.client.post(
+            reverse("reconciliation_update", args=[record.pk]),
+            {
+                "received_amount": "5000",
+                "received_on": "2026-08-05",
+                "receiving_account": "公司帳戶",
+                "note": "外部返回測試",
+                "next": "//evil.example/steal-session",
+            },
+        )
+
+        self.assertRedirects(response, reverse("reconciliation_list"))
+
     def test_existing_order_without_profile_can_open_operations_page(self):
         self.order.operations.delete()
         response = self.client.get(
@@ -3224,3 +3355,36 @@ class OrderOperationsTests(TestCase):
         self.assertIn("單筆淨利", headers)
         self.assertIn("電池合約方案", headers)
         self.assertEqual(sheet.cell(row=2, column=1).value, self.order.number)
+
+    def test_operations_excel_export_escapes_formula_like_user_text(self):
+        self.order.owner_name = "=HYPERLINK(\"https://evil.example\",\"點我\")"
+        self.order.owner_address = "+CMD|' /C calc'!A0"
+        self.order.delivery_destination = "-2+3"
+        self.order.old_owner_name = "@SUM(1+1)"
+        self.order.save(
+            update_fields=[
+                "owner_name",
+                "owner_address",
+                "delivery_destination",
+                "old_owner_name",
+                "updated_at",
+            ]
+        )
+
+        response = self.client.get(reverse("operations_report_export"))
+
+        from openpyxl import load_workbook
+
+        workbook = load_workbook(BytesIO(response.content), data_only=False)
+        sheet = workbook["營運總表"]
+        columns = {cell.value: cell.column for cell in sheet[1]}
+        expected = {
+            "車主名稱": "'=HYPERLINK(\"https://evil.example\",\"點我\")",
+            "戶籍地址": "'+CMD|' /C calc'!A0",
+            "自送托運地點": "'-2+3",
+            "舊車車主": "'@SUM(1+1)",
+        }
+        for header, value in expected.items():
+            cell = sheet.cell(row=2, column=columns[header])
+            self.assertEqual(cell.value, value)
+            self.assertEqual(cell.data_type, "s")

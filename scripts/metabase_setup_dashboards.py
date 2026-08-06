@@ -7,10 +7,9 @@ import json
 import requests
 import sys
 import time
+from metabase_credentials import load_metabase_credentials
 
-BASE = "http://localhost:3000/api"
-EMAIL = "admin@dmis.local"
-PASSWORD = "Dmis2026!"
+BASE, EMAIL, PASSWORD = load_metabase_credentials()
 DB_ID = 2
 TABLE_ID = 229  # ds_sales_report
 

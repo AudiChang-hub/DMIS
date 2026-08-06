@@ -1,19 +1,36 @@
 FROM python:3.12-slim
 
+ARG DJANGO_UID=1000
+ARG DJANGO_GID=1000
+
 ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1
+    PYTHONUNBUFFERED=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1
 
 WORKDIR /app
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends libjpeg62-turbo fonts-wqy-zenhei fonts-arphic-uming fonts-arphic-bkai00mp \
-    && rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/lib/apt/lists/* \
+    && groupadd --gid "${DJANGO_GID}" dmis \
+    && useradd --uid "${DJANGO_UID}" --gid dmis --no-create-home --home-dir /app --shell /usr/sbin/nologin dmis
 
 COPY requirements-django.txt .
 RUN pip install --no-cache-dir -r requirements-django.txt
 
-COPY . .
-RUN chmod +x scripts/start_django.sh
+# 第二層防線：即使 build context 日後擴大，也只複製 Django runtime 必要檔案。
+COPY --chown=dmis:dmis manage.py ./manage.py
+COPY --chown=dmis:dmis config/ ./config/
+COPY --chown=dmis:dmis sales/ ./sales/
+COPY --chown=dmis:dmis templates/ ./templates/
+COPY --chown=dmis:dmis static/ ./static/
+COPY --chown=dmis:dmis scripts/start_django.sh ./scripts/start_django.sh
+
+RUN install -d -o dmis -g dmis /app/media /app/staticfiles \
+    && sed -i 's/\r$//' /app/scripts/start_django.sh \
+    && chmod 0755 /app/scripts/start_django.sh
+
+USER dmis
 
 EXPOSE 8000
 CMD ["./scripts/start_django.sh"]

@@ -7,11 +7,9 @@ import json
 import sys
 
 import requests
+from metabase_credentials import load_metabase_credentials
 
-
-BASE = "http://localhost:3000/api"
-EMAIL = "admin@dmis.local"
-PASSWORD = "Dmis2026!"
+BASE, EMAIL, PASSWORD = load_metabase_credentials()
 
 # 使用固定 id 與精確舊名 -> 新名映射，避免重跑時再次錯轉。
 DASHBOARD_RENAMES = {

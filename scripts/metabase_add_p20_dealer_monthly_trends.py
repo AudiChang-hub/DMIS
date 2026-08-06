@@ -10,10 +10,9 @@ import uuid
 from datetime import date
 
 import requests
+from metabase_credentials import load_metabase_credentials
 
-BASE = "http://localhost:3000/api"
-EMAIL = "admin@dmis.local"
-PASSWORD = "Dmis2026!"
+BASE, EMAIL, PASSWORD = load_metabase_credentials()
 
 DASHBOARD_ID = 17
 DASHBOARD_NAME = "P3 通路銷售統計"

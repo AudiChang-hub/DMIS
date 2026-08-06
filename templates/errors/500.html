@@ -6,9 +6,10 @@
   <h1>系統暫時無法完成這個動作</h1>
   <p>這不是你的操作問題。系統已記錄錯誤，請返回上一頁確認資料後再試一次。</p>
   <p class="muted">若你正在建立訂單，已完成的自動草稿仍會保留，不需要重新填寫。</p>
+  {% if request_id %}<p class="support-reference">查修編號：<strong>{{ request_id }}</strong><br><small>若再次發生，請將這組編號與操作時間告知系統管理者。</small></p>{% endif %}
   <div class="form-actions">
-    <button class="button ghost" type="button" onclick="history.back()">返回上一頁</button>
-    <a class="button primary" href="{% url 'dashboard' %}">回到待辦首頁</a>
+    <button class="button ghost" type="button" data-smart-back data-fallback-url="{% url 'dashboard' %}">返回上一頁</button>
+    <a class="button primary" href="{% url 'dashboard' %}">回到戰情首頁</a>
   </div>
 </section>
 {% endblock %}

@@ -1,0 +1,47 @@
+{% if next_actions %}
+<section
+  class="next-actions next-actions--{{ next_actions.primary.tone }}"
+  data-next-actions
+  data-order-id="{{ order.pk }}"
+  data-state-key="{{ next_actions.state_key }}"
+  aria-labelledby="next-actions-title"
+>
+  <div class="next-actions__expanded" data-next-actions-expanded>
+    <div class="next-actions__main">
+      <span class="next-actions__icon" aria-hidden="true">→</span>
+      <div class="next-actions__copy">
+        <p class="next-actions__badge">{{ next_actions.primary.badge }}</p>
+        <h2 id="next-actions-title">{{ next_actions.primary.title }}</h2>
+        <p>{{ next_actions.primary.description }}</p>
+      </div>
+      <div class="next-actions__controls">
+        <a
+          class="button primary"
+          href="{{ next_actions.primary.url }}"
+          data-next-action-primary
+          data-action-key="{{ next_actions.primary.key }}"
+        >{{ next_actions.primary.action_label }} <span aria-hidden="true">→</span></a>
+        <button class="next-actions__later" type="button" data-next-actions-dismiss>稍後處理</button>
+      </div>
+    </div>
+
+    {% if next_actions.secondary %}
+    <div class="next-actions__secondary" aria-label="也可以同步處理">
+      {% for action in next_actions.secondary %}
+      <a href="{{ action.url }}" class="next-actions__secondary-item next-actions__secondary-item--{{ action.tone }}" data-action-key="{{ action.key }}">
+        <span class="next-actions__secondary-badge">{{ action.badge }}</span>
+        <strong>{{ action.title }}</strong>
+        <span>{{ action.description }}</span>
+        <b>{{ action.action_label }} <span aria-hidden="true">→</span></b>
+      </a>
+      {% endfor %}
+    </div>
+    {% endif %}
+  </div>
+
+  <button class="next-actions__compact" type="button" data-next-actions-restore hidden>
+    <span><small>建議下一步</small><strong>{{ next_actions.primary.title }}</strong></span>
+    <b>查看 <span aria-hidden="true">→</span></b>
+  </button>
+</section>
+{% endif %}

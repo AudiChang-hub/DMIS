@@ -108,6 +108,7 @@ from .models import (
 from .jobs import delete_id_ocr_job_files, run_id_ocr_job
 from .services.id_ocr import recognize_id_card
 from .services.order_change_display import build_order_change_cards
+from .services.order_next_actions import build_order_next_actions
 from .services.order_search import (
     build_order_match_summary,
     build_order_search_query,
@@ -1755,6 +1756,7 @@ def order_detail(request, pk):
             "allocated_vehicle",
             "allocated_vehicle__location_store",
             "delivery_record",
+            "operations",
         ).prefetch_related(
             "accessories",
             "other_fees",
@@ -1762,6 +1764,8 @@ def order_detail(request, pk):
             "changes",
             "registration_documents",
             "subsidy_documents",
+            "subsidy_items",
+            "payment_records",
         ),
         pk=pk,
     )
@@ -1807,6 +1811,13 @@ def order_detail(request, pk):
         )
     ]
     operations_profile = getattr(order, "operations", None)
+    registration_missing = order.missing_registration_requirements()
+    subsidy_missing = order.missing_subsidy_requirements()
+    next_actions = build_order_next_actions(
+        order,
+        registration_missing=registration_missing,
+        subsidy_missing=subsidy_missing,
+    )
     return render(
         request,
         "sales/order_detail.html",
@@ -1821,16 +1832,17 @@ def order_detail(request, pk):
             "other_insurance_documents": order.registration_documents.filter(
                 document_type=RegistrationDocument.DocumentType.OTHER_INSURANCE
             ),
-            "registration_missing": order.missing_registration_requirements(),
+            "registration_missing": registration_missing,
             "subsidy_document_rows": subsidy_document_rows,
             "other_subsidy_documents": order.subsidy_documents.filter(
                 document_type=SubsidyDocument.DocumentType.OTHER
             ),
-            "subsidy_missing": order.missing_subsidy_requirements(),
+            "subsidy_missing": subsidy_missing,
             "subsidy_form": SubsidyDataForm(instance=order),
             "subsidy_item_formset": SubsidyItemFormSet(instance=order, prefix="subsidy_items"),
             "change_cards": build_order_change_cards(order.changes.all()),
             "operations_profile": operations_profile,
+            "next_actions": next_actions,
             "delivery_form": DeliveryCompletionForm(order),
             "cancellation_form": CancellationRequestForm(),
             "refund_form": RefundCompletionForm(order),

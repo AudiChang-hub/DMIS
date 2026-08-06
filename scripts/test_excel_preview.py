@@ -5,13 +5,16 @@
 """
 import xmlrpc.client
 import base64
+import os
 import sys
 
-ODOO_URL = 'http://localhost:8069'
-DB = 'dmis_dev'
-USER = 'admin'
-PASSWORD = 'admin'
-EXCEL_PATH = '/home/audi/project/DMIS/車輛進銷貨庫存表(客戶資料).xlsx'
+ODOO_URL = os.environ.get('ODOO_URL', 'http://localhost:8069')
+DB = os.environ.get('ODOO_DB', 'dmis_dev')
+USER = os.environ.get('ODOO_USERNAME', 'admin')
+PASSWORD = os.environ.get('ODOO_PASSWORD')
+EXCEL_PATH = os.environ.get('EXCEL_IMPORT_PATH', '/home/audi/project/DMIS/車輛進銷貨庫存表(客戶資料).xlsx')
+if not PASSWORD:
+    raise SystemExit('請先設定 ODOO_PASSWORD 環境變數。')
 
 # ── 登入
 common = xmlrpc.client.ServerProxy(f'{ODOO_URL}/xmlrpc/2/common')

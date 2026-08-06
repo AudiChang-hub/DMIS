@@ -16,10 +16,9 @@ import json
 import uuid
 import requests
 import sys
+from metabase_credentials import load_metabase_credentials
 
-BASE = "http://localhost:3000/api"
-EMAIL = "admin@dmis.local"
-PASSWORD = "Dmis2026!"
+BASE, EMAIL, PASSWORD = load_metabase_credentials()
 
 FIELD_LICENSE_DATE = 1629
 FIELD_SALES_SOURCE = 1647

@@ -17,10 +17,9 @@ from pathlib import Path
 from urllib import request
 
 import websocket  # type: ignore
+from metabase_credentials import load_metabase_credentials
 
-BASE = "http://localhost:3000"
-EMAIL = "admin@dmis.local"
-PASSWORD = "Dmis2026!"
+BASE, EMAIL, PASSWORD = load_metabase_credentials(api=False)
 OUT = Path("/home/audi/project/DMIS/output_report/screenshots_full")
 OUT.mkdir(parents=True, exist_ok=True)
 

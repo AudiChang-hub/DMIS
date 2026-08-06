@@ -14,10 +14,9 @@ from __future__ import annotations
 import json
 import sys
 import requests
+from metabase_credentials import load_metabase_credentials
 
-BASE = "http://localhost:3000/api"
-EMAIL = "admin@dmis.local"
-PASSWORD = "Dmis2026!"
+BASE, EMAIL, PASSWORD = load_metabase_credentials()
 
 
 # ── 頁別 → 必要 SQL 條件（對應 05-gap-analysis §2）──────────────────

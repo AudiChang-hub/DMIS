@@ -6,8 +6,11 @@ import xmlrpc.client
 PORT = os.environ.get('ODOO_PORT', '8069')
 DB = os.environ.get('POSTGRES_DB', 'postgres')
 USER = os.environ.get('ODOO_ADMIN_USER', 'admin')
-PASSWORD = os.environ.get('ODOO_ADMIN_PASSWORD', 'admin')
+PASSWORD = os.environ.get('ODOO_ADMIN_PASSWORD')
 HOST = os.environ.get('ODOO_HOST', 'localhost')
+
+if not PASSWORD:
+    raise SystemExit('請先設定 ODOO_ADMIN_PASSWORD 環境變數。')
 
 common_url = f'http://{HOST}:{PORT}/xmlrpc/2/common'
 object_url = f'http://{HOST}:{PORT}/xmlrpc/2/object'

@@ -249,18 +249,21 @@ class OtherFeeLineInline(admin.TabularInline):
 class RegistrationDocumentInline(admin.TabularInline):
     model = RegistrationDocument
     extra = 0
+    can_delete = False
     readonly_fields = ("uploaded_by", "created_at", "updated_at")
 
 
 class PaymentRecordInline(admin.TabularInline):
     model = PaymentRecord
     extra = 0
+    can_delete = False
     readonly_fields = ("confirmed_by", "confirmed_at", "created_at", "updated_at")
 
 
 class SubsidyDocumentInline(admin.TabularInline):
     model = SubsidyDocument
     extra = 0
+    can_delete = False
     readonly_fields = ("uploaded_by", "created_at", "updated_at")
 
 
@@ -290,6 +293,16 @@ class SalesOrderAdmin(admin.ModelAdmin):
         PaymentRecordInline,
         OrderEventInline,
     ]
+    readonly_fields = (
+        "id_front",
+        "id_back",
+        "refund_proof",
+        "signed_contract",
+        "privacy_consent",
+    )
+
+    def has_delete_permission(self, request, obj=None):
+        return False
 
 
 @admin.register(OrderOperationsProfile)

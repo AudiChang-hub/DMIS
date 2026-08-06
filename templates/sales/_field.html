@@ -1,11 +1,11 @@
-<div class="field {% if field.errors %}has-error{% endif %}">
+<div class="field {% if field.errors %}has-error{% endif %}" data-field-container>
   {% if field.field.widget.input_type == "checkbox" %}
     <label class="checkbox-label">{{ field }}<span>{{ field.label }}</span></label>
   {% else %}
     <label for="{{ field.id_for_label }}">{{ field.label }}{% if field.field.required %}<em>必填</em>{% endif %}</label>
     {{ field }}
   {% endif %}
-  {% if field.help_text %}<small class="help-text">{{ field.help_text }}</small>{% endif %}
-  {% for error in field.errors %}<small class="field-error">{{ error }}</small>{% endfor %}
+  {% if field.help_text %}<small class="help-text" id="{{ field.id_for_label }}_help">{{ field.help_text }}</small>{% endif %}
+  {% if field.errors %}<span id="{{ field.id_for_label }}_errors">{% for error in field.errors %}<small class="field-error">{{ error }}</small>{% endfor %}</span>{% endif %}
 </div>
 

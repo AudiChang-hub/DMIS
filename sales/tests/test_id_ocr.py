@@ -1,4 +1,4 @@
-import base64
+from io import BytesIO
 from types import SimpleNamespace
 from unittest.mock import patch
 
@@ -6,6 +6,7 @@ from django.contrib.auth import get_user_model
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase
 from django.urls import reverse
+from PIL import Image
 
 from sales.jobs import run_id_ocr_job
 from sales.models import IdOcrJob
@@ -24,12 +25,6 @@ from sales.services.id_ocr import (
     IdOcrError,
     recognize_id_card,
     validate_taiwan_id,
-)
-
-
-ONE_PIXEL_PNG = base64.b64decode(
-    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8"
-    "/x8AAusB9Y9Zl1sAAAAASUVORK5CYII="
 )
 
 
@@ -260,7 +255,9 @@ class IdOcrEndpointTests(TestCase):
         )
 
     def image(self, name):
-        return SimpleUploadedFile(name, ONE_PIXEL_PNG, content_type="image/png")
+        stream = BytesIO()
+        Image.new("RGB", (8, 8), "white").save(stream, format="PNG")
+        return SimpleUploadedFile(name, stream.getvalue(), content_type="image/png")
 
     def test_requires_login(self):
         response = self.client.post(
@@ -312,6 +309,46 @@ class IdOcrEndpointTests(TestCase):
             IdOcrJob.objects.get().document_type,
             IdOcrJob.DocumentType.RESIDENT_CERTIFICATE,
         )
+
+    @patch("sales.views.django_rq.get_queue")
+    def test_enqueue_failure_removes_temporary_identity_photos(self, get_queue):
+        queue = get_queue.return_value
+        queue.count = 0
+        queue.enqueue.side_effect = RuntimeError("redis unavailable")
+        self.client.force_login(self.user)
+
+        response = self.client.post(
+            reverse("id_card_ocr"),
+            {"front": self.image("front.png"), "back": self.image("back.png")},
+        )
+
+        self.assertEqual(response.status_code, 503)
+        job = IdOcrJob.objects.get()
+        self.assertEqual(job.status, IdOcrJob.Status.FAILED)
+        self.assertFalse(job.front.storage.exists(job.front.name))
+        self.assertFalse(job.back.storage.exists(job.back.name))
+
+    def test_invalidate_clears_completed_ocr_result_and_temporary_photos(self):
+        job = IdOcrJob.objects.create(
+            created_by=self.user,
+            front=self.image("front.png"),
+            back=self.image("back.png"),
+            photo_token="completed-photo",
+            status=IdOcrJob.Status.SUCCEEDED,
+            result={"fields": {"id_number": "A123456789"}},
+        )
+        front_name = job.front.name
+        back_name = job.back.name
+        self.client.force_login(self.user)
+
+        response = self.client.post(reverse("id_card_ocr_invalidate", args=[job.pk]))
+
+        self.assertEqual(response.status_code, 200)
+        job.refresh_from_db()
+        self.assertEqual(job.status, IdOcrJob.Status.INVALIDATED)
+        self.assertEqual(job.result, {})
+        self.assertFalse(job.front.storage.exists(front_name))
+        self.assertFalse(job.back.storage.exists(back_name))
 
     @patch("sales.jobs.recognize_id_card")
     def test_worker_persists_result_and_status_endpoint_returns_it(self, recognize):
@@ -378,3 +415,20 @@ class IdOcrEndpointTests(TestCase):
 
         self.assertEqual(response.status_code, 400)
         self.assertFalse(response.json()["ok"])
+
+    def test_rejects_html_disguised_as_identity_photo(self):
+        self.client.force_login(self.user)
+        response = self.client.post(
+            reverse("id_card_ocr"),
+            {
+                "front": SimpleUploadedFile(
+                    "front.png", b"<html>fake</html>", content_type="image/png"
+                ),
+                "back": self.image("back.png"),
+            },
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertFalse(response.json()["ok"])
+        self.assertIn("圖片已損壞", response.json()["error"])
+        self.assertFalse(IdOcrJob.objects.exists())

@@ -12,13 +12,14 @@ Metabase 內的歷史 dashboard，可用此腳本手動封存。
 """
 import sys
 import requests
+from metabase_credentials import load_metabase_credentials
 
-BASE = "http://localhost:3000/api"
+BASE, EMAIL, PASSWORD = load_metabase_credentials()
 DUP_DASHBOARD_ID = 22  # "P14 基隆公益青年統計（複本）"
 
 
 def login():
-    r = requests.post(f"{BASE}/session", json={"username": "admin@dmis.local", "password": "Dmis2026!"})
+    r = requests.post(f"{BASE}/session", json={"username": EMAIL, "password": PASSWORD})
     r.raise_for_status()
     return r.json()["id"]
 

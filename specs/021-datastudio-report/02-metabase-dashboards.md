@@ -11,8 +11,8 @@
 
 | 項目 | 值 |
 |------|-----|
-| 管理帳號 | `admin@dmis.local` |
-| 管理密碼 | `Dmis2026!` |
+| 管理帳號 | 由 `METABASE_EMAIL` 環境變數提供 |
+| 管理密碼 | 由 `METABASE_PASSWORD` 環境變數提供，不得寫入 Git |
 | 啟動指令 | `docker compose --profile metabase up -d metabase` |
 | 停止指令 | `docker compose --profile metabase stop metabase` |
 | Health check | `curl http://localhost:3000/api/health` |

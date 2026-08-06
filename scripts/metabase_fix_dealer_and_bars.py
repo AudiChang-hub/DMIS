@@ -13,10 +13,9 @@ import argparse
 import json
 
 import requests
+from metabase_credentials import load_metabase_credentials
 
-BASE = "http://localhost:3000/api"
-EMAIL = "admin@dmis.local"
-PASSWORD = "Dmis2026!"
+BASE, EMAIL, PASSWORD = load_metabase_credentials()
 
 # 需要從「經銷商」改為「車行」的欄位顯示名稱
 FIELD_RENAME = {

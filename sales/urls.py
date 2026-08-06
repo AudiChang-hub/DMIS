@@ -5,8 +5,10 @@ from . import views
 
 
 urlpatterns = [
+    path("health/", views.system_health, name="system_health"),
     path("api/app-version/", views.app_version, name="app_version"),
     path("", views.dashboard, name="dashboard"),
+    path("help/", views.user_guide, name="user_guide"),
     path(
         "orders/<int:pk>/registration-fee-variance/confirm/",
         views.registration_fee_variance_confirm,
@@ -364,5 +366,10 @@ urlpatterns = [
         "files/<str:model_name>/<str:pk>/<str:field_name>/",
         views.protected_media,
         name="protected_media",
+    ),
+    path(
+        "orders/<int:pk>/identity-documents/print/",
+        views.identity_documents_print,
+        name="identity_documents_print",
     ),
 ]

@@ -1,0 +1,26 @@
+# Django image 採 allowlist：未明確列出的檔案一律不送入 Docker build context。
+# 這可避免 .env、secrets、資料庫、媒體、日誌、備份與 Git 歷程意外進入映像。
+**
+
+!Dockerfile.django
+!requirements-django.txt
+!manage.py
+
+!config/
+!config/**
+
+!sales/
+!sales/**
+sales/tests/
+**/__pycache__/
+**/*.py[cod]
+
+!templates/
+!templates/**
+
+!static/
+!static/**
+
+!scripts/
+!scripts/start_django.sh
+!scripts/smoke_django.sh

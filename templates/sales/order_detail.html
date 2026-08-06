@@ -578,6 +578,27 @@
       {% if order.id_front %}<a href="{% url 'protected_media' 'order' order.pk 'id_front' %}" target="_blank">查看證件正面</a>{% endif %}
       {% if order.id_back %}<a href="{% url 'protected_media' 'order' order.pk 'id_back' %}" target="_blank">查看證件反面</a>{% endif %}
     </div>
+    {% if order.id_front or order.id_back %}
+    <details class="identity-print-panel">
+      <summary>列印／下載浮水印證件</summary>
+      <form method="post" action="{% url 'identity_documents_print' order.pk %}" target="_blank">
+        {% csrf_token %}
+        <label>這次提供給誰使用
+          <select name="purpose" required>
+            <option value="registration">限領牌使用</option>
+            <option value="subsidy">限申請補助使用</option>
+          </select>
+        </label>
+        <fieldset>
+          <legend>要產生哪些頁面</legend>
+          {% if order.id_front %}<label><input type="checkbox" name="sides" value="id_front" checked> 證件正面</label>{% endif %}
+          {% if order.id_back %}<label><input type="checkbox" name="sides" value="id_back" checked> 證件反面</label>{% endif %}
+        </fieldset>
+        <p class="muted">系統只建立本次 PDF，不會改動原始照片；浮水印會帶用途與今天日期。</p>
+        <button class="button ghost block" type="submit">產生浮水印 PDF</button>
+      </form>
+    </details>
+    {% endif %}
   </section>
   <section class="card">
     <div class="section-title"><h2>車輛與來源</h2><span>{{ order.get_source_type_display }}</span></div>

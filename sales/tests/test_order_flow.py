@@ -3337,6 +3337,9 @@ class OrderOperationsTests(TestCase):
         self.assertContains(list_response, self.order.number)
         self.assertContains(list_response, "車款成交額")
         self.assertContains(list_response, "實際領牌日期")
+        self.assertContains(list_response, "依車型查看營運表現")
+        self.assertContains(list_response, 'class="analysis-table"')
+        self.assertContains(list_response, "$ 80,000")
         self.assertEqual(list_response.context["analysis_summary"]["count"], 1)
         self.assertEqual(
             list_response.context["analysis_summary"]["vehicle_sales"],

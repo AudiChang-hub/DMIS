@@ -32,6 +32,18 @@ docker compose -f docker-compose.django.yml exec web \
   python manage.py seed_demo --username admin --password '請設定強密碼'
 ```
 
+部署完成後固定執行：
+
+```bash
+docker compose -f docker-compose.django.yml ps
+bash scripts/smoke_django.sh http://127.0.0.1:19999
+docker compose -f docker-compose.django.yml exec web python manage.py check --deploy
+```
+
+`/health/` 僅回報 Web 與資料庫是否可用，不顯示版本、密碼或環境內容。正式媒體目錄
+必須讓 UID/GID `1000:1000` 可寫；完整容器安全檢查見
+`docs/DJANGO_CONTAINER_SECURITY.md`。
+
 驗證：
 
 ```powershell

@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block title %}找不到這個頁面｜車輛銷售管理{% endblock %}
+{% block content %}
+<section class="card error-page" role="alert">
+  <p class="eyebrow">頁面不存在</p>
+  <h1>找不到你要開啟的頁面</h1>
+  <p>連結可能已過期、資料已被移除，或網址不完整。</p>
+  <p class="muted">請從戰情首頁或全部訂單重新搜尋，不要重複建立同一張訂單。</p>
+  <div class="form-actions">
+    <button class="button ghost" type="button" data-smart-back data-fallback-url="{% url 'dashboard' %}">返回上一頁</button>
+    <a class="button primary" href="{% url 'dashboard' %}">回到戰情首頁</a>
+  </div>
+</section>
+{% endblock %}

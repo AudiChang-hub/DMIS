@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block title %}送出的資料無法讀取｜車輛銷售管理{% endblock %}
+{% block content %}
+<section class="card error-page" role="alert">
+  <p class="eyebrow">資料未送出</p>
+  <h1>這次送出的資料無法讀取</h1>
+  <p>請返回上一頁，確認欄位內容與上傳檔案後再試一次。</p>
+  <p class="muted">若畫面已開啟很久，請先確認草稿或修改已保存，再重新整理。</p>
+  <div class="form-actions">
+    <button class="button ghost" type="button" data-smart-back data-fallback-url="{% url 'dashboard' %}">返回上一頁</button>
+    <a class="button primary" href="{% url 'dashboard' %}">回到戰情首頁</a>
+  </div>
+</section>
+{% endblock %}

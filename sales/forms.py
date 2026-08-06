@@ -1,6 +1,4 @@
 from decimal import Decimal
-from pathlib import Path
-
 from django import forms
 from django.db import transaction
 from django.db.models import Q
@@ -49,6 +47,13 @@ from .services.registration_fee import (
 )
 from .services.installment_plan import resolve_installment_plan_option
 from .services.positioned_template_pdf import PRINT_FIELD_CHOICES
+from .services.upload_validation import (
+    validate_document_upload,
+    validate_excel_upload,
+    validate_image_upload,
+    validate_subsidy_upload,
+    validate_template_background,
+)
 
 
 PHONE_FIELDS = {"owner_phone"}
@@ -284,6 +289,12 @@ class SalesOrderForm(forms.ModelForm):
         self.fields["delivery_method"].required = True
         self.fields["vehicle_category"].required = False
         self.fields["vehicle_category"].initial = SalesOrder.VehicleCategory.NEW
+
+    def clean_id_front(self):
+        return validate_image_upload(self.cleaned_data.get("id_front"))
+
+    def clean_id_back(self):
+        return validate_image_upload(self.cleaned_data.get("id_back"))
 
     def clean(self):
         data = super().clean()
@@ -618,12 +629,7 @@ class LegacyImportUploadForm(forms.ModelForm):
         }
 
     def clean_source_file(self):
-        uploaded = self.cleaned_data["source_file"]
-        if not uploaded.name.lower().endswith(".xlsx"):
-            raise forms.ValidationError("目前僅支援 .xlsx 檔案。")
-        if uploaded.size > 30 * 1024 * 1024:
-            raise forms.ValidationError("檔案不可超過 30 MB，避免伺服器處理時間過長。")
-        return uploaded
+        return validate_excel_upload(self.cleaned_data.get("source_file"))
 
 
 class OrderEditForm(SalesOrderForm):
@@ -856,6 +862,9 @@ class VehicleInventoryForm(forms.ModelForm):
             vehicle.save()
             self.save_m2m()
         return vehicle
+
+    def clean_condition_photo(self):
+        return validate_image_upload(self.cleaned_data.get("condition_photo"))
 
 
 class VehicleModelMasterForm(forms.ModelForm):
@@ -1330,6 +1339,9 @@ class PaymentRecordForm(forms.ModelForm):
             self.add_error("payment_method", "填寫刷卡明細時，付款方式必須選擇「刷卡」。")
         return cleaned
 
+    def clean_proof(self):
+        return validate_document_upload(self.cleaned_data.get("proof"))
+
 
 class ReconciliationRecordForm(forms.ModelForm):
     class Meta:
@@ -1490,6 +1502,9 @@ class SignedContractForm(forms.ModelForm):
             )
         }
 
+    def clean_signed_contract(self):
+        return validate_document_upload(self.cleaned_data.get("signed_contract"))
+
 
 class PrivacyConsentForm(forms.ModelForm):
     class Meta:
@@ -1500,6 +1515,9 @@ class PrivacyConsentForm(forms.ModelForm):
                 attrs={"accept": "image/*,application/pdf", "capture": "environment"}
             )
         }
+
+    def clean_privacy_consent(self):
+        return validate_document_upload(self.cleaned_data.get("privacy_consent"))
 
 
 class AllocationForm(forms.Form):
@@ -1685,6 +1703,9 @@ class DeliveryCompletionForm(forms.Form):
             self.add_error("damage_note", "發現刮傷或損壞時必須填寫說明。")
         return data
 
+    def clean_handover_photo(self):
+        return validate_image_upload(self.cleaned_data.get("handover_photo"))
+
     @transaction.atomic
     def save(self, actor_name):
         order = SalesOrder.objects.select_for_update().get(pk=self.order.pk)
@@ -1756,6 +1777,9 @@ class RefundCompletionForm(forms.Form):
                 f"訂金必須全數退還，請填寫 {self.order.deposit_amount:,.0f} 元。"
             )
         return amount
+
+    def clean_proof(self):
+        return validate_document_upload(self.cleaned_data.get("proof"))
 
 
 class BusinessHolidayForm(forms.ModelForm):
@@ -1833,10 +1857,7 @@ class PositionedPrintTemplateForm(forms.ModelForm):
         self.fields["background_file"].widget.attrs["accept"] = ".xlsx,.xlsm,.pdf,.jpg,.jpeg,.png,.webp"
 
     def clean_background_file(self):
-        upload = self.cleaned_data.get("background_file")
-        if upload and Path(upload.name).suffix.lower() not in {".xlsx", ".xlsm", ".pdf", ".jpg", ".jpeg", ".png", ".webp"}:
-            raise forms.ValidationError("僅支援 Excel、PDF、JPG、PNG 或 WebP 背景。")
-        return upload
+        return validate_template_background(self.cleaned_data.get("background_file"))
 
 
 class PositionedPrintFieldForm(forms.ModelForm):
@@ -1917,15 +1938,10 @@ class RegistrationDocumentUploadForm(forms.ModelForm):
             and not data.get("name")
         ):
             self.add_error("name", "新增其他保險單時必須填寫保險名稱。")
-        upload = data.get("file")
-        if upload and upload.content_type not in {
-            "image/jpeg",
-            "image/png",
-            "image/webp",
-            "application/pdf",
-        }:
-            self.add_error("file", "僅支援 JPG、PNG、WebP 或 PDF。")
         return data
+
+    def clean_file(self):
+        return validate_document_upload(self.cleaned_data.get("file"))
 
 
 class SubsidyDocumentUploadForm(forms.ModelForm):
@@ -1955,53 +1971,7 @@ class SubsidyDocumentUploadForm(forms.ModelForm):
         return data
 
     def clean_file(self):
-        upload = self.cleaned_data["file"]
-        if upload.size > 20 * 1024 * 1024:
-            raise forms.ValidationError("單一檔案不可超過 20 MB。")
-        extension = Path(upload.name).suffix.lower()
-        allowed_extensions = {
-            ".jpg",
-            ".jpeg",
-            ".png",
-            ".webp",
-            ".heic",
-            ".heif",
-            ".pdf",
-            ".doc",
-            ".docx",
-            ".odt",
-            ".xls",
-            ".xlsx",
-            ".ods",
-            ".txt",
-            ".csv",
-        }
-        allowed_content_types = {
-            "image/jpeg",
-            "image/png",
-            "image/webp",
-            "image/heic",
-            "image/heif",
-            "application/pdf",
-            "application/msword",
-            "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-            "application/vnd.oasis.opendocument.text",
-            "application/vnd.ms-excel",
-            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            "application/vnd.oasis.opendocument.spreadsheet",
-            "text/plain",
-            "text/csv",
-            "application/csv",
-            "application/octet-stream",
-        }
-        if (
-            extension not in allowed_extensions
-            or upload.content_type not in allowed_content_types
-        ):
-            raise forms.ValidationError(
-                "僅支援圖片、PDF、Word、Excel、ODT、ODS、TXT 或 CSV。"
-            )
-        return upload
+        return validate_subsidy_upload(self.cleaned_data.get("file"))
 
 
 class SubsidyDataForm(forms.ModelForm):

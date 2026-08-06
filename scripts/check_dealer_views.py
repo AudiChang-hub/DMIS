@@ -1,8 +1,12 @@
+import os
 import xmlrpc.client
-url='http://localhost:8069'
-db='dmis_dev'
-username='hongsian.c@gmail.com'
-password='@Sa095328odoo'
+
+url = os.environ.get('ODOO_URL', 'http://localhost:8069')
+db = os.environ.get('ODOO_DB', 'dmis_dev')
+username = os.environ.get('ODOO_USERNAME')
+password = os.environ.get('ODOO_PASSWORD')
+if not username or not password:
+    raise SystemExit('請先設定 ODOO_USERNAME 與 ODOO_PASSWORD 環境變數。')
 common=xmlrpc.client.ServerProxy('{}/xmlrpc/2/common'.format(url))
 uid=common.login(db, username, password)
 print('uid', uid)

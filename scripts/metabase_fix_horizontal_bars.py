@@ -5,10 +5,9 @@
 也同步更新 visualization_settings 顯示資料標籤。
 """
 import requests
+from metabase_credentials import load_metabase_credentials
 
-BASE = "http://localhost:3000/api"
-EMAIL = "admin@dmis.local"
-PASSWORD = "Dmis2026!"
+BASE, EMAIL, PASSWORD = load_metabase_credentials()
 
 
 def login():

@@ -11,13 +11,14 @@
   - 其他單欄/雙欄: size_x → 24
 """
 import argparse, json, requests, sys
+from metabase_credentials import load_metabase_credentials
 
-BASE = "http://localhost:3000/api"
+BASE, EMAIL, PASSWORD = load_metabase_credentials()
 SKIP = {1}  # E-commerce
 
 def get_session():
     r = requests.post(f"{BASE}/session",
-                      json={"username": "admin@dmis.local", "password": "Dmis2026!"})
+                      json={"username": EMAIL, "password": PASSWORD})
     r.raise_for_status()
     return {"X-Metabase-Session": r.json()["id"]}
 

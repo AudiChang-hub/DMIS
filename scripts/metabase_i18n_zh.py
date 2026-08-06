@@ -5,8 +5,9 @@
 Y 軸 / X 軸標籤。
 """
 import argparse, requests, json, sys
+from metabase_credentials import load_metabase_credentials
 
-BASE = "http://localhost:3000/api"
+BASE, EMAIL, PASSWORD = load_metabase_credentials()
 
 # ── 欄位名稱 → 中文 display_name ──────────────────────────
 FIELD_DISPLAY_NAME = {
@@ -80,7 +81,7 @@ AXIS_LABELS = {
 
 def get_session():
     r = requests.post(f"{BASE}/session",
-                      json={"username": "admin@dmis.local", "password": "Dmis2026!"})
+                      json={"username": EMAIL, "password": PASSWORD})
     r.raise_for_status()
     return {"X-Metabase-Session": r.json()["id"]}
 

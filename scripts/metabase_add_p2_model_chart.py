@@ -6,10 +6,9 @@ from __future__ import annotations
 import copy
 import json
 import requests
+from metabase_credentials import load_metabase_credentials
 
-BASE = "http://localhost:3000/api"
-EMAIL = "admin@dmis.local"
-PASSWORD = "Dmis2026!"
+BASE, EMAIL, PASSWORD = load_metabase_credentials()
 
 P2_DASHBOARD_NAME = "P2 銷售機種及車型統計"
 SOURCE_CARD_NAME = "P2-1 銷售機種×領牌年月（長條圖）"

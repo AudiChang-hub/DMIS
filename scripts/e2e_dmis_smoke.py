@@ -9,13 +9,19 @@ Browser tool 不可用，改以 HTTP/RPC 模擬使用者流程：
   5. 抽樣各 dashboard 代表 card，驗證篩選條件確實生效
 """
 import json
+import os
 import sys
 import requests
 from collections import Counter
+from metabase_credentials import load_metabase_credentials
 
-ODOO = "http://localhost:8069"
-MB = "http://localhost:3000"
-DB = "dmis_dev"
+ODOO = os.environ.get("ODOO_URL", "http://localhost:8069")
+DB = os.environ.get("ODOO_DB", "dmis_dev")
+ODOO_USERNAME = os.environ.get("ODOO_USERNAME")
+ODOO_PASSWORD = os.environ.get("ODOO_PASSWORD")
+if not ODOO_USERNAME or not ODOO_PASSWORD:
+    raise SystemExit("請先設定 ODOO_USERNAME 與 ODOO_PASSWORD 環境變數。")
+MB, MB_EMAIL, MB_PASSWORD = load_metabase_credentials(api=False)
 
 OK = "\033[32mOK \033[0m"
 FAIL = "\033[31mFAIL\033[0m"
@@ -32,7 +38,7 @@ def step(name, ok, detail=""):
 s = requests.Session()
 r = s.post(f"{ODOO}/web/session/authenticate", json={
     "jsonrpc": "2.0",
-    "params": {"db": DB, "login": "admin", "password": "admin"}
+    "params": {"db": DB, "login": ODOO_USERNAME, "password": ODOO_PASSWORD}
 }, timeout=15)
 j = r.json()
 uid = (j.get("result") or {}).get("uid")
@@ -74,7 +80,7 @@ step("Odoo web client", r.status_code in (200, 303), f"HTTP {r.status_code}")
 
 # ── Metabase session ──────────────────────────────
 mb = requests.Session()
-r = mb.post(f"{MB}/api/session", json={"username": "admin@dmis.local", "password": "Dmis2026!"}, timeout=15)
+r = mb.post(f"{MB}/api/session", json={"username": MB_EMAIL, "password": MB_PASSWORD}, timeout=15)
 tok = r.json().get("id")
 step("Metabase /api/session", bool(tok), f"session={tok[:8] + '...' if tok else ''}")
 if not tok:

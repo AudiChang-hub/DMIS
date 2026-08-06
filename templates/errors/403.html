@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block title %}目前不能執行此操作｜車輛銷售管理{% endblock %}
+{% block content %}
+<section class="card error-page" role="alert">
+  <p class="eyebrow">操作受到保護</p>
+  <h1>你目前不能執行這個操作</h1>
+  <p>可能是訂單已完成、資料已鎖定，或目前帳號不適用此操作。</p>
+  <p class="muted">請先查看畫面上的狀態與缺少項目；仍有疑問時，將操作時間告知系統管理者。</p>
+  <div class="form-actions">
+    <button class="button ghost" type="button" data-smart-back data-fallback-url="{% url 'dashboard' %}">返回上一頁</button>
+    <a class="button primary" href="{% url 'user_guide' %}#troubleshooting">查看問題排除</a>
+  </div>
+</section>
+{% endblock %}

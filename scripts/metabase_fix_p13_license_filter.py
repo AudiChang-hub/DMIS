@@ -8,11 +8,9 @@ import json
 import uuid
 
 import requests
+from metabase_credentials import load_metabase_credentials
 
-
-BASE = "http://localhost:3000/api"
-EMAIL = "admin@dmis.local"
-PASSWORD = "Dmis2026!"
+BASE, EMAIL, PASSWORD = load_metabase_credentials()
 
 P13_DASHBOARD_ID = 13
 P13_DETAIL_CARD_ID = 61

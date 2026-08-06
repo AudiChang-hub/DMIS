@@ -45,6 +45,8 @@
   <button type="button" role="tab" data-tab="history" aria-controls="panel-history"><span>處理紀錄</span><small>{{ order.events.all|length }} 筆</small></button>
 </nav>
 
+{% include "sales/_next_actions.html" %}
+
 <div class="order-tab-panel" id="panel-allocation" role="tabpanel" data-tab-panel="allocation" hidden>
 {% if not order.allocated_vehicle and order.is_editable %}
 <section class="action-card info-card">
@@ -765,5 +767,6 @@
 {% endblock %}
 {% block scripts %}
 <script src="{% static 'js/order-detail-tabs.js' %}?v={{ app_version }}" defer></script>
+<script src="{% static 'js/next-actions.js' %}?v={{ app_version }}" defer></script>
 <script src="{% static 'js/subsidy-items.js' %}?v={{ app_version }}" defer></script>
 {% endblock %}

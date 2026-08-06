@@ -424,6 +424,17 @@ class SalesOrderForm(forms.ModelForm):
                 data[field_name] = 0
                 self.cleaned_data[field_name] = 0
 
+        # 新增訂單時尚未領牌是正常情境。前端會把唯讀試算欄位送成空字串，
+        # DecimalField 會清理為 None，但模型欄位不接受 null；統一以 0 表示
+        # 「尚未產生牌險金額」，後續填入領牌日期時仍會重新試算。
+        for field_name in (
+            "registration_calculated_total",
+            "plate_insurance_fee",
+        ):
+            if data.get(field_name) is None:
+                data[field_name] = Decimal("0")
+                self.cleaned_data[field_name] = Decimal("0")
+
         if data.get("delivery_method") in {
             SalesOrder.DeliveryMethod.DIRECT_DELIVERY,
             SalesOrder.DeliveryMethod.CARRIER,

@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load sales_format %}
 {% block title %}營運總表｜車輛銷售管理{% endblock %}
 {% block page_class %}page-shell--wide{% endblock %}
 {% block content %}
@@ -34,7 +35,47 @@
   </div>
 </section>
 
-{% if model_breakdown %}<details class="section-block analysis-breakdown"><summary><strong>依車型下鑽</strong><span>共 {{ model_breakdown|length }} 個車型</span></summary><div class="responsive-table-wrap"><table class="data-table"><thead><tr><th>車型</th><th>台數</th><th>車款成交額</th><th>實際收款</th><th>目前淨利</th></tr></thead><tbody>{% for row in model_breakdown %}<tr><td>{{ row.label }}</td><td>{{ row.count }}</td><td>${{ row.vehicle_sales|floatformat:0 }}</td><td>${{ row.actual_received|floatformat:0 }}</td><td>${{ row.net_profit|floatformat:0 }}</td></tr>{% endfor %}</tbody></table></div></details>{% endif %}
+{% if model_breakdown %}
+<details class="section-block analysis-breakdown" open>
+  <summary class="analysis-breakdown__summary">
+    <span class="analysis-breakdown__title">
+      <span class="analysis-breakdown__icon" aria-hidden="true">車</span>
+      <span>
+        <strong>依車型查看營運表現</strong>
+        <small>快速比較成交台數、收款進度與目前淨利</small>
+      </span>
+    </span>
+    <span class="analysis-breakdown__count">{{ model_breakdown|length }} 個車型</span>
+  </summary>
+  <div class="responsive-table-wrap analysis-table-wrap">
+    <table class="analysis-table">
+      <thead>
+        <tr>
+          <th scope="col">車型</th>
+          <th scope="col" class="number-cell">成交台數</th>
+          <th scope="col" class="number-cell">車款成交額</th>
+          <th scope="col" class="number-cell">實際收款</th>
+          <th scope="col" class="number-cell">目前淨利</th>
+        </tr>
+      </thead>
+      <tbody>
+      {% for row in model_breakdown %}
+        <tr>
+          <th scope="row" data-label="車型"><strong>{{ row.label }}</strong></th>
+          <td data-label="成交台數" class="number-cell"><strong>{{ row.count }}</strong><small>台</small></td>
+          <td data-label="車款成交額" class="number-cell"><span class="money-value">$ {{ row.vehicle_sales|number_with_commas }}</span></td>
+          <td data-label="實際收款" class="number-cell"><span class="money-value">$ {{ row.actual_received|number_with_commas }}</span></td>
+          <td data-label="目前淨利" class="number-cell profit-cell{% if row.net_profit < 0 %} is-negative{% endif %}">
+            <span class="money-value">$ {{ row.net_profit|number_with_commas }}</span>
+            {% if row.net_profit < 0 %}<small>負值，請確認收款與成本資料</small>{% endif %}
+          </td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</details>
+{% endif %}
 
 <section class="section-block operations-table-shell">
   <div class="section-title"><div><p class="eyebrow">查詢結果</p><h2>{{ page_obj.paginator.count }} 筆訂單</h2></div></div>

@@ -24,6 +24,12 @@ jobs:
           cache: pip
           cache-dependency-path: requirements-django.txt
 
+      - name: Install PDF font dependency
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends fonts-wqy-zenhei
+          test -r /usr/share/fonts/truetype/wqy/wqy-zenhei.ttc
+
       - name: Install Django dependencies
         run: |
           python -m pip install --disable-pip-version-check -r requirements-django.txt

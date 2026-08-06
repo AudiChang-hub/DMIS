@@ -223,6 +223,35 @@ class OrderDraftTests(TestCase):
         self.assertEqual(order.installment_periods, 0)
         self.assertEqual(order.other_fees.count(), 0)
 
+    def test_order_creation_normalizes_blank_registration_totals_before_registration(self):
+        data = self.complete_data()
+        data.update(
+            {
+                "registration_date": "",
+                "registration_calculated_total": "",
+                "plate_insurance_fee": "",
+                "lien_registration_fee": "",
+            }
+        )
+        draft = OrderDraft.objects.create(
+            data=data,
+            id_front=self.image("front.png"),
+            id_back=self.image("back.png"),
+            created_by=self.user.username,
+        )
+        self.client.get(reverse("order_create"), {"draft": draft.pk})
+        data.update(
+            {"_draft_id": str(draft.pk), "_draft_revision": str(draft.revision)}
+        )
+
+        response = self.client.post(reverse("order_create"), data)
+
+        self.assertEqual(response.status_code, 302)
+        order = SalesOrder.objects.get(owner_name="測試車主")
+        self.assertEqual(order.registration_calculated_total, 0)
+        self.assertEqual(order.plate_insurance_fee, 0)
+        self.assertFalse(OrderDraft.objects.filter(pk=draft.pk).exists())
+
     def test_autosave_is_blocked_for_another_editing_session(self):
         draft = OrderDraft.objects.create(
             data={"owner_name": "伺服器最新姓名"},

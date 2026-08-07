@@ -1838,11 +1838,17 @@ def order_detail(request, pk):
         for document in order.subsidy_documents.all()
     }
     subsidy_required_types = order.required_subsidy_document_types()
+    subsidy_required_types_when_enabled = (
+        order.subsidy_document_types_when_enabled()
+    )
     subsidy_document_rows = [
         {
             "type": document_type,
             "label": label,
             "required": document_type in subsidy_required_types,
+            "required_when_enabled": (
+                document_type in subsidy_required_types_when_enabled
+            ),
             "document": subsidy_documents.get(document_type),
         }
         for document_type, label in SubsidyDocument.DocumentType.choices
@@ -1854,6 +1860,7 @@ def order_detail(request, pk):
                 SubsidyDocument.DocumentType.OLD_OWNER_BANKBOOK,
             }
             or document_type in subsidy_required_types
+            or document_type in subsidy_required_types_when_enabled
             or document_type in subsidy_documents
         )
     ]
@@ -3274,6 +3281,81 @@ def _recognize_old_owner_documents(order, actor_name):
     if recognized_name or recognized_id:
         return f"已自動帶入舊車主姓名與身分證字號。{warning_text}".strip()
     return f"未辨識到舊車主姓名或身分證字號，請人工填寫。{warning_text}".strip()
+
+
+@login_required
+@transaction.atomic
+def subsidy_toggle(request, pk):
+    order = get_object_or_404(SalesOrder.objects.select_for_update(), pk=pk)
+    if request.method != "POST":
+        return JsonResponse({"ok": False, "error": "僅接受 POST。"}, status=405)
+    if not order.can_manage_subsidy:
+        return JsonResponse(
+            {"ok": False, "error": "已取消訂單無法修改補助資料。"},
+            status=409,
+        )
+    enabled_value = request.POST.get("enabled")
+    if enabled_value not in {"0", "1"}:
+        return JsonResponse(
+            {"ok": False, "error": "補助狀態格式不正確。"}, status=400
+        )
+    try:
+        submitted_revision = int(request.POST.get("_order_revision", 0))
+    except (TypeError, ValueError):
+        submitted_revision = 0
+    if submitted_revision != order.revision:
+        return JsonResponse(
+            {
+                "ok": False,
+                "conflict": True,
+                "revision": order.revision,
+                "error": "此訂單已被其他人更新，請重新載入後再操作補助。",
+            },
+            status=409,
+        )
+
+    enabled = enabled_value == "1"
+    message = (
+        "補助申請已啟用，可以直接上傳文件。"
+        if enabled
+        else "補助申請已關閉，既有文件仍會保留。"
+    )
+    if order.is_trade_in_subsidy == enabled:
+        return JsonResponse(
+            {
+                "ok": True,
+                "enabled": enabled,
+                "revision": order.revision,
+                "message": message,
+            }
+        )
+
+    before = _order_snapshot(order)
+    order.is_trade_in_subsidy = enabled
+    order.revision += 1
+    order.save(update_fields=["is_trade_in_subsidy", "revision", "updated_at"])
+    reason = "啟用補助申請" if enabled else "關閉補助申請"
+    changes = _snapshot_changes(before, _order_snapshot(order))
+    OrderChange.objects.create(
+        order=order,
+        reason=reason,
+        changes=changes,
+        actor_name=_editing_name(request.user),
+    )
+    OrderEvent.objects.create(
+        order=order,
+        event_type="subsidy_enabled" if enabled else "subsidy_disabled",
+        description=reason,
+        actor_name=_editing_name(request.user),
+    )
+    return JsonResponse(
+        {
+            "ok": True,
+            "enabled": enabled,
+            "revision": order.revision,
+            "message": message,
+        }
+    )
 
 
 @login_required

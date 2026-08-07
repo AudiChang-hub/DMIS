@@ -1207,8 +1207,9 @@ class OrderFlowTests(TestCase):
         self.assertContains(response, 'data-tab-panel="registration"')
         self.assertContains(response, 'id="signed-documents"')
         self.assertContains(response, "簽署文件留存")
-        self.assertContains(response, "data-document-upload", count=2)
-        self.assertContains(response, "data-auto-upload", count=2)
+        self.assertContains(response, "data-document-upload")
+        self.assertContains(response, "data-auto-upload")
+        self.assertContains(response, "data-subsidy-upload-control hidden")
         self.assertContains(response, reverse("contract_upload", args=[order.pk]))
         self.assertContains(
             response, reverse("privacy_consent_upload", args=[order.pk])
@@ -1373,6 +1374,84 @@ class OrderFlowTests(TestCase):
                 document_type=SubsidyDocument.DocumentType.RECYCLING_RECEIPT
             ).exists()
         )
+
+    def test_subsidy_toggle_persists_immediately_and_updates_revision(self):
+        order = self.make_order()
+        SalesOrder.objects.filter(pk=order.pk).update(
+            status=SalesOrder.Status.COMPLETED,
+            delivered_at=timezone.now(),
+            delivered_by="tester",
+        )
+        order.refresh_from_db()
+        self.client.force_login(self.user)
+
+        inactive_detail = self.client.get(reverse("order_detail", args=[order.pk]))
+        self.assertContains(inactive_detail, "data-subsidy-toggle-url")
+        self.assertContains(inactive_detail, "data-subsidy-upload-control hidden")
+
+        response = self.client.post(
+            reverse("subsidy_toggle", args=[order.pk]),
+            {"enabled": "1", "_order_revision": order.revision},
+            HTTP_ACCEPT="application/json",
+            HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertTrue(payload["ok"])
+        self.assertTrue(payload["enabled"])
+        order.refresh_from_db()
+        self.assertTrue(order.is_trade_in_subsidy)
+        self.assertEqual(payload["revision"], order.revision)
+        self.assertEqual(order.status, SalesOrder.Status.COMPLETED)
+        self.assertEqual(order.changes.latest("created_at").reason, "啟用補助申請")
+        self.assertEqual(
+            order.events.latest("created_at").event_type,
+            "subsidy_enabled",
+        )
+
+        active_detail = self.client.get(reverse("order_detail", args=[order.pk]))
+        self.assertContains(active_detail, "data-subsidy-upload-control")
+        self.assertNotContains(active_detail, "data-subsidy-upload-control hidden")
+
+    def test_subsidy_toggle_rejects_stale_revision_and_cancelled_order(self):
+        order = self.make_order()
+        self.client.force_login(self.user)
+
+        stale = self.client.post(
+            reverse("subsidy_toggle", args=[order.pk]),
+            {"enabled": "1", "_order_revision": order.revision - 1},
+            HTTP_ACCEPT="application/json",
+            HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+        )
+        self.assertEqual(stale.status_code, 409)
+        self.assertTrue(stale.json()["conflict"])
+        order.refresh_from_db()
+        self.assertFalse(order.is_trade_in_subsidy)
+
+        SalesOrder.objects.filter(pk=order.pk).update(
+            status=SalesOrder.Status.CANCELLED,
+        )
+        order.refresh_from_db()
+        cancelled = self.client.post(
+            reverse("subsidy_toggle", args=[order.pk]),
+            {"enabled": "1", "_order_revision": order.revision},
+            HTTP_ACCEPT="application/json",
+            HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+        )
+        self.assertEqual(cancelled.status_code, 409)
+        self.assertIn("已取消訂單", cancelled.json()["error"])
+        order.refresh_from_db()
+        self.assertFalse(order.is_trade_in_subsidy)
+
+    def test_subsidy_toggle_script_unlocks_uploads_without_reload(self):
+        script = Path("static/js/subsidy-items.js").read_text(encoding="utf-8")
+
+        self.assertIn("data-subsidy-upload-control", script)
+        self.assertIn("subsidyForm.dataset.subsidyToggleUrl", script)
+        self.assertIn("revisionInput.value = String(payload.revision)", script)
+        self.assertIn("setUploadControls(payload.enabled)", script)
+        self.assertNotIn("window.location.reload", script)
 
     def test_cancelled_order_keeps_subsidy_locked(self):
         order = self.make_order()

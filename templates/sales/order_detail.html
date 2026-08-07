@@ -110,21 +110,21 @@
       <h2>汰舊／補助作業</h2>
     </div>
     {% if not order.is_trade_in_subsidy %}
-      <span class="archive-status">未申請</span>
+      <span class="archive-status" data-subsidy-stage-status>未申請</span>
     {% elif order.is_subsidy_ready %}
-      <span class="archive-status done">✓ 資料齊全</span>
+      <span class="archive-status done" data-subsidy-stage-status>✓ 資料齊全</span>
     {% else %}
-      <span class="archive-status">{{ order.subsidy_completed_count }}／{{ order.subsidy_required_count }} 已備妥</span>
+      <span class="archive-status" data-subsidy-stage-status>{{ order.subsidy_completed_count }}／{{ order.subsidy_required_count }} 已備妥</span>
     {% endif %}
   </div>
 
   {% if order.can_manage_subsidy %}
-  <form class="subsidy-edit-form" method="post" action="{% url 'subsidy_data_update' order.pk %}" data-subsidy-form data-was-enabled="{% if order.is_trade_in_subsidy %}true{% else %}false{% endif %}" data-has-documents="{% if order.subsidy_documents.all|length %}true{% else %}false{% endif %}">
+  <form class="subsidy-edit-form" method="post" action="{% url 'subsidy_data_update' order.pk %}" data-subsidy-form data-subsidy-toggle-url="{% url 'subsidy_toggle' order.pk %}" data-was-enabled="{% if order.is_trade_in_subsidy %}true{% else %}false{% endif %}" data-has-documents="{% if order.subsidy_documents.all|length %}true{% else %}false{% endif %}">
     {% csrf_token %}
     <input type="hidden" name="_order_revision" value="{{ order.revision }}">
     <label class="subsidy-toggle">
       {{ subsidy_form.is_trade_in_subsidy }}
-      <span><strong>申請汰舊／政府補助</strong><small>可隨時開啟或關閉；關閉不會刪除已上傳文件。</small></span>
+      <span><strong>申請汰舊／政府補助</strong><small data-subsidy-toggle-message>勾選後會立即啟用並開放文件上傳；關閉不會刪除已上傳文件。</small></span>
     </label>
     <label class="subsidy-toggle subsidy-owner-toggle">
       {{ subsidy_form.old_owner_same_as_owner }}
@@ -195,10 +195,11 @@
   </div>
     <div class="registration-document-list subsidy-document-list">
       {% for row in subsidy_document_rows %}
-      <article class="registration-document-row {% if row.document %}is-uploaded{% endif %}">
+      <article class="registration-document-row {% if row.document %}is-uploaded{% endif %}" data-subsidy-document-row data-required-when-enabled="{% if row.required_when_enabled %}true{% else %}false{% endif %}">
         <div class="registration-document-row__name">
           <strong>{{ row.label }}</strong>
-          {% if row.required %}<span class="required-badge">必備</span>{% else %}<span class="optional-badge">目前不需要</span>{% endif %}
+          <span class="required-badge" data-subsidy-required-badge {% if not row.required %}hidden{% endif %}>必備</span>
+          <span class="optional-badge" data-subsidy-optional-badge {% if row.required %}hidden{% endif %}>目前不需要</span>
           {% if row.document %}
             <small>由 {{ row.document.uploaded_by|default:"內部人員" }} 於 {{ row.document.created_at|date:"Y/m/d H:i" }} 上傳</small>
           {% endif %}
@@ -212,8 +213,8 @@
             </form>
             {% endif %}
           {% endif %}
-          {% if order.is_trade_in_subsidy and order.can_manage_subsidy %}
-          <form class="document-upload-form" data-document-upload data-auto-upload method="post" enctype="multipart/form-data" action="{% url 'subsidy_document_upload' order.pk %}">
+          {% if order.can_manage_subsidy %}
+          <form class="document-upload-form" data-document-upload data-auto-upload data-subsidy-upload-control {% if not order.is_trade_in_subsidy %}hidden{% endif %} method="post" enctype="multipart/form-data" action="{% url 'subsidy_document_upload' order.pk %}">
             {% csrf_token %}
             <input type="hidden" name="document_type" value="{{ row.type }}">
             <label class="button secondary compact file-button">
@@ -254,8 +255,8 @@
       <p class="other-subsidy-documents__empty">目前沒有其他補助文件。</p>
       {% endfor %}
 
-      {% if order.is_trade_in_subsidy and order.can_manage_subsidy %}
-      <form class="other-subsidy-documents__form" method="post" enctype="multipart/form-data" action="{% url 'subsidy_document_upload' order.pk %}">
+      {% if order.can_manage_subsidy %}
+      <form class="other-subsidy-documents__form" data-subsidy-upload-control {% if not order.is_trade_in_subsidy %}hidden{% endif %} method="post" enctype="multipart/form-data" action="{% url 'subsidy_document_upload' order.pk %}">
         {% csrf_token %}
         <input type="hidden" name="document_type" value="other">
         <div>
@@ -276,7 +277,7 @@
       {% endif %}
     </div>
 
-    <div class="registration-completion {% if not order.is_trade_in_subsidy or subsidy_missing %}has-missing{% else %}is-ready{% endif %}">
+    <div class="registration-completion {% if not order.is_trade_in_subsidy or subsidy_missing %}has-missing{% else %}is-ready{% endif %}" data-subsidy-completion>
       <div>
         {% if not order.is_trade_in_subsidy %}
           <strong>目前未啟用補助申請</strong>

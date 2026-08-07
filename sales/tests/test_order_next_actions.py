@@ -248,7 +248,7 @@ class OrderNextActionTests(TestCase):
         ).update(confirmed=True)
         self.assertIsNone(self.build(dealer_cash))
 
-    def test_order_detail_renders_accessible_non_modal_suggestion(self):
+    def test_order_detail_renders_accessible_compact_workbar(self):
         order = self.make_order()
         self.make_vehicle()
         self.client.force_login(self.user)
@@ -258,8 +258,13 @@ class OrderNextActionTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertIsNotNone(response.context["next_actions"])
         self.assertContains(response, "data-next-actions")
+        self.assertContains(response, "data-next-actions-workbar")
         self.assertContains(response, 'aria-labelledby="next-actions-title"')
+        self.assertContains(response, 'aria-labelledby="next-actions-secondary-title"')
         self.assertContains(response, 'data-action-key="allocation"')
+        self.assertContains(response, "另外可處理")
+        self.assertContains(response, "收合")
+        self.assertNotContains(response, ">稍後處理</button>")
         self.assertContains(response, "next-actions.js")
         self.assertNotContains(response, 'class="next-actions-dialog"')
 
@@ -270,3 +275,11 @@ class OrderNextActionTests(TestCase):
         self.assertIn("key.startsWith(prefix) && key !== storageKey", script)
         self.assertIn("data-next-actions-restore", script)
         self.assertNotIn("window.location =", script)
+
+    def test_workbar_styles_do_not_split_secondary_actions_into_cards(self):
+        styles = Path("static/css/app.css").read_text(encoding="utf-8")
+        secondary_rule = styles.split(".next-actions__secondary {", 1)[1].split("}", 1)[0]
+
+        self.assertIn("grid-template-columns: 116px minmax(0, 1fr)", secondary_rule)
+        self.assertNotIn("repeat(2", secondary_rule)
+        self.assertIn(".next-actions__secondary-list", styles)

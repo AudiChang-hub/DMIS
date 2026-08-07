@@ -6,11 +6,19 @@
   data-state-key="{{ next_actions.state_key }}"
   aria-labelledby="next-actions-title"
 >
-  <div class="next-actions__expanded" data-next-actions-expanded>
+  <div class="next-actions__expanded" data-next-actions-expanded data-next-actions-workbar>
     <div class="next-actions__main">
       <span class="next-actions__icon" aria-hidden="true">→</span>
       <div class="next-actions__copy">
-        <p class="next-actions__badge">{{ next_actions.primary.badge }}</p>
+        <div class="next-actions__copy-header">
+          <p class="next-actions__badge">{{ next_actions.primary.badge }}</p>
+          <button
+            class="next-actions__later"
+            type="button"
+            data-next-actions-dismiss
+            aria-label="收合下一步建議"
+          >收合 <span aria-hidden="true">⌃</span></button>
+        </div>
         <h2 id="next-actions-title">{{ next_actions.primary.title }}</h2>
         <p>{{ next_actions.primary.description }}</p>
       </div>
@@ -21,21 +29,25 @@
           data-next-action-primary
           data-action-key="{{ next_actions.primary.key }}"
         >{{ next_actions.primary.action_label }} <span aria-hidden="true">→</span></a>
-        <button class="next-actions__later" type="button" data-next-actions-dismiss>稍後處理</button>
       </div>
     </div>
 
     {% if next_actions.secondary %}
-    <div class="next-actions__secondary" aria-label="也可以同步處理">
-      {% for action in next_actions.secondary %}
-      <a href="{{ action.url }}" class="next-actions__secondary-item next-actions__secondary-item--{{ action.tone }}" data-action-key="{{ action.key }}">
-        <span class="next-actions__secondary-badge">{{ action.badge }}</span>
-        <strong>{{ action.title }}</strong>
-        <span>{{ action.description }}</span>
-        <b>{{ action.action_label }} <span aria-hidden="true">→</span></b>
-      </a>
-      {% endfor %}
-    </div>
+    <section class="next-actions__secondary" aria-labelledby="next-actions-secondary-title">
+      <h3 class="next-actions__secondary-heading" id="next-actions-secondary-title">另外可處理</h3>
+      <div class="next-actions__secondary-list">
+        {% for action in next_actions.secondary %}
+        <a href="{{ action.url }}" class="next-actions__secondary-item next-actions__secondary-item--{{ action.tone }}" data-action-key="{{ action.key }}">
+          <span class="next-actions__secondary-copy">
+            <span class="next-actions__secondary-badge">{{ action.badge }}</span>
+            <strong>{{ action.title }}</strong>
+            <span class="next-actions__secondary-description">{{ action.description }}</span>
+          </span>
+          <b>{{ action.action_label }} <span aria-hidden="true">→</span></b>
+        </a>
+        {% endfor %}
+      </div>
+    </section>
     {% endif %}
   </div>
 

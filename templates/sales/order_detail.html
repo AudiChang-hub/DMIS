@@ -501,17 +501,31 @@
       {% csrf_token %}
       <div class="form-grid compact-grid">
         {% for field in delivery_form %}
-        <div class="{% if field.name == 'vehicle_condition_note' or field.name == 'damage_note' or field.name == 'note' %}wide{% endif %}">
+        {% if field.name == 'vehicle_condition_note' %}
+        <fieldset class="wide delivery-condition-field">
+          <legend>{{ field.label }} <span class="required-inline">必填</span></legend>
+          {{ field }}
+          <p class="form-hint">請點選最接近的狀況；特殊情形可寫在下方交付備註。</p>
+        </fieldset>
+        {% else %}
+        <div class="{% if field.name == 'damage_note' or field.name == 'note' %}wide{% endif %}"{% if field.name == 'damage_note' %} data-delivery-damage-details{% endif %}>
           {% if field.field.widget.input_type == 'checkbox' %}
           <label class="check-card">{{ field }} <span>{{ field.label }}</span></label>
           {% else %}
           <label for="{{ field.id_for_label }}">{{ field.label }}{% if field.field.required %} <span class="required-inline">必填</span>{% endif %}</label>{{ field }}
+          {% if field.name == 'damage_note' %}<p class="form-hint">選擇「發現刮傷或損壞」時必填。</p>{% endif %}
           {% endif %}
         </div>
+        {% endif %}
         {% endfor %}
       </div>
-      <p class="form-hint">委託託運時，「實際交付時間」是交給託運公司的時間。若發現刮傷或損壞，必須勾選並填寫說明。</p>
-      <button class="button primary" type="submit" data-confirm="確認完成交付嗎？完成後訂單與實體車輛將鎖定。">確認完成交付</button>
+      <div class="delivery-completion-actions">
+        <div class="delivery-completion-actions__copy">
+          <strong>完成前請再次確認交付資料</strong>
+          <p>委託託運時，實際交付時間是交給託運公司的時間。完成後訂單與實體車輛將鎖定。</p>
+        </div>
+        <button class="button primary" type="submit" data-confirm="確認完成交付嗎？完成後訂單與實體車輛將鎖定。">確認完成交付</button>
+      </div>
     </form>
   {% else %}
     <p>一般訂單必須先完成領牌，才可進入交付階段。</p>
@@ -770,4 +784,5 @@
 <script src="{% static 'js/next-actions.js' %}?v={{ app_version }}" defer></script>
 <script src="{% static 'js/subsidy-items.js' %}?v={{ app_version }}" defer></script>
 <script src="{% static 'js/document-upload-progress.js' %}?v={{ app_version }}" defer></script>
+<script src="{% static 'js/delivery-form.js' %}?v={{ app_version }}" defer></script>
 {% endblock %}

@@ -1636,6 +1636,15 @@ class RegistrationStageForm(forms.ModelForm):
 
 
 class DeliveryCompletionForm(forms.Form):
+    VEHICLE_CONDITION_NORMAL = "正常"
+    VEHICLE_CONDITION_DAMAGED = "發現刮傷或損壞"
+    VEHICLE_CONDITION_OTHER = "其他狀況"
+    VEHICLE_CONDITION_CHOICES = (
+        (VEHICLE_CONDITION_NORMAL, "正常"),
+        (VEHICLE_CONDITION_DAMAGED, "發現刮傷或損壞"),
+        (VEHICLE_CONDITION_OTHER, "其他狀況"),
+    )
+
     delivery_method = forms.ChoiceField(
         label="交付方式", choices=SalesOrder.DeliveryMethod.choices
     )
@@ -1650,24 +1659,32 @@ class DeliveryCompletionForm(forms.Form):
     recipient_phone = forms.CharField(label="收車人電話", max_length=30)
     carrier_name = forms.CharField(label="託運公司", max_length=160, required=False)
     handover_location = forms.CharField(label="實際交付地點", max_length=250)
+    # 使用 CharField 搭配 RadioSelect，而不是嚴格 ChoiceField：新版畫面只會
+    # 顯示快選值，但尚未重新載入的舊版 PWA 仍可送出原本的自由文字。
     vehicle_condition_note = forms.CharField(
-        label="交付車況", widget=forms.Textarea(attrs={"rows": 3})
+        label="交付車況",
+        widget=forms.RadioSelect(choices=VEHICLE_CONDITION_CHOICES),
+    )
+    damage_note = forms.CharField(
+        label="刮傷／損壞說明",
+        required=False,
+        widget=forms.Textarea(
+            attrs={"rows": 2, "placeholder": "例如：右側車殼刮痕約 3 公分"}
+        ),
+    )
+    note = forms.CharField(
+        label="交付備註／其他狀況說明",
+        required=False,
+        widget=forms.Textarea(
+            attrs={"rows": 2, "placeholder": "可記錄既有痕跡、客戶交代或其他特殊情況"}
+        ),
     )
     condition_checked = forms.BooleanField(label="已核對車況")
     documents_checked = forms.BooleanField(label="已核對交付文件")
     keys_checked = forms.BooleanField(label="已核對鑰匙")
     accessories_checked = forms.BooleanField(label="已核對配件與贈品")
     payment_checked = forms.BooleanField(label="已核對收款狀態")
-    damage_found = forms.BooleanField(label="發現刮傷或損壞", required=False)
-    damage_note = forms.CharField(
-        label="刮傷／損壞說明",
-        required=False,
-        widget=forms.Textarea(attrs={"rows": 3}),
-    )
     handover_photo = forms.ImageField(label="交付照片", required=False)
-    note = forms.CharField(
-        label="交付備註", required=False, widget=forms.Textarea(attrs={"rows": 3})
-    )
 
     def __init__(self, order, *args, **kwargs):
         self.order = order
@@ -1684,7 +1701,9 @@ class DeliveryCompletionForm(forms.Form):
                     or "馭盛國際有限公司",
                 }
             )
-        for field in self.fields.values():
+        for field_name, field in self.fields.items():
+            if field_name == "vehicle_condition_note":
+                continue
             field.widget.attrs.setdefault("class", "form-control")
         for field_name in (
             "condition_checked",
@@ -1692,9 +1711,11 @@ class DeliveryCompletionForm(forms.Form):
             "keys_checked",
             "accessories_checked",
             "payment_checked",
-            "damage_found",
         ):
             self.fields[field_name].widget.attrs["class"] = "form-check"
+        self.fields["vehicle_condition_note"].widget.attrs[
+            "class"
+        ] = "delivery-condition-options"
         self.fields["recipient_phone"].widget.attrs["inputmode"] = "tel"
 
     def clean(self):
@@ -1710,8 +1731,21 @@ class DeliveryCompletionForm(forms.Form):
             and not (data.get("carrier_name") or "").strip()
         ):
             self.add_error("carrier_name", "委託託運時必須填寫託運公司。")
-        if data.get("damage_found") and not (data.get("damage_note") or "").strip():
+        vehicle_condition = data.get("vehicle_condition_note")
+        known_conditions = {value for value, _label in self.VEHICLE_CONDITION_CHOICES}
+        # 舊版畫面會送出自由文字與 damage_found checkbox；新版則直接由
+        # 「發現刮傷或損壞」快選推導，避免使用者重複判斷同一件事。
+        damage_found = vehicle_condition == self.VEHICLE_CONDITION_DAMAGED or (
+            vehicle_condition not in known_conditions
+            and bool(self.data.get("damage_found"))
+        )
+        data["damage_found"] = damage_found
+        if damage_found and not (data.get("damage_note") or "").strip():
             self.add_error("damage_note", "發現刮傷或損壞時必須填寫說明。")
+        if vehicle_condition == self.VEHICLE_CONDITION_OTHER and not (
+            data.get("note") or ""
+        ).strip():
+            self.add_error("note", "選擇其他狀況時，請在交付備註補充說明。")
         return data
 
     def clean_handover_photo(self):

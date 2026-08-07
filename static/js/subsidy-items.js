@@ -8,6 +8,37 @@ document.addEventListener("DOMContentLoaded", () => {
   const stageStatus = document.querySelector("[data-subsidy-stage-status]");
   const completion = document.querySelector("[data-subsidy-completion]");
   const uploadControls = [...document.querySelectorAll("[data-subsidy-upload-control]")];
+  const saveDock = subsidyForm?.querySelector("[data-subsidy-save-dock]");
+  const saveButton = subsidyForm?.querySelector("[data-subsidy-save-button]");
+  let initialFormState = "";
+  let formIsDirty = false;
+  let formIsSubmitting = false;
+
+  function currentFormState() {
+    if (!subsidyForm) return "";
+    return JSON.stringify(
+      [...subsidyForm.elements]
+        .filter(field => {
+          if (!field.name || field.disabled) return false;
+          if (["submit", "button", "file"].includes(field.type)) return false;
+          return ![
+            "csrfmiddlewaretoken",
+            "_order_revision",
+            "is_trade_in_subsidy",
+          ].includes(field.name);
+        })
+        .map(field => [
+          field.name,
+          ["checkbox", "radio"].includes(field.type) ? field.checked : field.value,
+        ])
+    );
+  }
+
+  function refreshDirtyState() {
+    if (!subsidyForm || !saveDock) return;
+    formIsDirty = currentFormState() !== initialFormState;
+    saveDock.hidden = !formIsDirty;
+  }
 
   function setUploadControls(enabled) {
     uploadControls.forEach(control => {
@@ -97,6 +128,24 @@ document.addEventListener("DOMContentLoaded", () => {
     subsidyToggle.addEventListener("change", persistSubsidyToggle);
   }
 
+  if (subsidyForm && saveDock) {
+    initialFormState = currentFormState();
+    subsidyForm.addEventListener("input", refreshDirtyState);
+    subsidyForm.addEventListener("change", refreshDirtyState);
+    subsidyForm.addEventListener("submit", () => {
+      formIsSubmitting = true;
+      if (saveButton) {
+        saveButton.disabled = true;
+        saveButton.textContent = "正在儲存…";
+      }
+    });
+    window.addEventListener("beforeunload", event => {
+      if (!formIsDirty || formIsSubmitting) return;
+      event.preventDefault();
+      event.returnValue = "";
+    });
+  }
+
   const list = section.querySelector("[data-form-list]");
   const template = section.querySelector("[data-empty-form]");
   const total = section.querySelector("input[name$='-TOTAL_FORMS']");
@@ -112,9 +161,11 @@ document.addEventListener("DOMContentLoaded", () => {
     });
     list.append(fragment);
     total.value = index + 1;
+    refreshDirtyState();
   });
   list.addEventListener("change", event => {
     if (!event.target.matches("input[name$='-DELETE']")) return;
     event.target.closest("[data-form-row]")?.classList.toggle("is-deleted", event.target.checked);
+    refreshDirtyState();
   });
 });

@@ -53,7 +53,9 @@
     function syncCurrentTab(tabName) {
       root.dataset.currentTab = tabName;
       const primaryIsCurrent = Boolean(
-        primary?.dataset.targetTab && primary.dataset.targetTab === tabName
+        primary?.dataset.targetTab &&
+          primary.dataset.targetTab === tabName &&
+          !primary.dataset.targetAnchor
       );
       root.classList.toggle("is-current-context", primaryIsCurrent);
       if (controls) controls.hidden = primaryIsCurrent;
@@ -69,7 +71,9 @@
 
       secondaryActions.forEach((action) => {
         const isCurrent = Boolean(
-          action.dataset.targetTab && action.dataset.targetTab === tabName
+          action.dataset.targetTab &&
+            action.dataset.targetTab === tabName &&
+            !action.dataset.targetAnchor
         );
         const label = action.querySelector("[data-next-action-label]");
         action.classList.toggle("is-current-context", isCurrent);

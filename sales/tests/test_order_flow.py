@@ -186,7 +186,7 @@ class OrderFlowTests(TestCase):
         self.assertIn("page-shell--wide", detail)
         self.assertIn("page-shell--form", form)
         self.assertIn(
-            "grid-template-columns: repeat(7, minmax(0, 1fr));",
+            "grid-template-columns: repeat(6, minmax(0, 1fr));",
             css,
         )
         self.assertIn("overflow-x: auto;", css)
@@ -1198,12 +1198,21 @@ class OrderFlowTests(TestCase):
             "補助",
             "領牌",
             "交付",
-            "文件歸檔",
             "處理紀錄",
         ):
             self.assertContains(response, f"<span>{tab_name}</span>", html=True)
+        self.assertNotContains(response, 'data-tab="documents"')
+        self.assertNotContains(response, 'data-tab-panel="documents"')
         self.assertContains(response, 'data-tab-panel="order"')
         self.assertContains(response, 'data-tab-panel="registration"')
+        self.assertContains(response, 'id="signed-documents"')
+        self.assertContains(response, "簽署文件留存")
+        self.assertContains(response, "data-document-upload", count=2)
+        self.assertContains(response, "data-auto-upload", count=2)
+        self.assertContains(response, reverse("contract_upload", args=[order.pk]))
+        self.assertContains(
+            response, reverse("privacy_consent_upload", args=[order.pk])
+        )
         self.assertContains(response, "領牌資料與文件")
         self.assertContains(response, "車輛交付")
         self.assertContains(response, "配車後開放")
@@ -1213,6 +1222,29 @@ class OrderFlowTests(TestCase):
         self.assertIn('searchParams.get("tab")', script)
         self.assertIn("window.localStorage", script)
         self.assertIn('event.key === "ArrowRight"', script)
+
+    def test_legacy_documents_tab_redirects_to_order_signed_documents(self):
+        order = self.make_order()
+        self.client.force_login(self.user)
+
+        response = self.client.get(
+            f"{reverse('order_detail', args=[order.pk])}?tab=documents"
+        )
+
+        self.assertRedirects(
+            response,
+            f"{reverse('order_detail', args=[order.pk])}?tab=order#signed-documents",
+        )
+
+        response_with_created_dialog = self.client.get(
+            f"{reverse('order_detail', args=[order.pk])}"
+            "?tab=documents&created=1"
+        )
+        self.assertRedirects(
+            response_with_created_dialog,
+            f"{reverse('order_detail', args=[order.pk])}"
+            "?tab=order&created=1#signed-documents",
+        )
 
     def test_subsidy_documents_are_available_before_allocation(self):
         order = self.make_order()
@@ -2197,11 +2229,12 @@ class OrderFlowTests(TestCase):
             reverse("order_detail", args=[order.pk]),
             {"created": "1"},
         )
-        self.assertContains(detail, "列印個資同意書")
+        self.assertContains(detail, "只印個資同意書")
         self.assertContains(detail, "全部一起列印")
         self.assertContains(detail, "一鍵列印全部文件")
-        self.assertContains(detail, "單獨列印訂購合約")
-        self.assertContains(detail, "單獨列印個資同意書")
+        self.assertContains(detail, "列印空白合約")
+        self.assertContains(detail, "列印空白同意書")
+        self.assertContains(detail, "簽署文件留存")
         self.assertContains(detail, "個資同意書附件")
         self.assertContains(detail, reverse("privacy_consent_upload", args=[order.pk]))
 
@@ -2251,7 +2284,10 @@ class OrderFlowTests(TestCase):
             },
         )
 
-        self.assertRedirects(response, reverse("order_detail", args=[order.pk]))
+        signed_documents_url = (
+            f"{reverse('order_detail', args=[order.pk])}?tab=order#signed-documents"
+        )
+        self.assertRedirects(response, signed_documents_url)
         order.refresh_from_db()
         self.assertTrue(order.has_privacy_consent)
         self.assertIsNotNone(order.privacy_consent_uploaded_at)
@@ -2266,8 +2302,82 @@ class OrderFlowTests(TestCase):
                 reverse("privacy_consent_upload", args=[order.pk]),
                 {"privacy_consent": uploaded_test_pdf("privacy-replacement.pdf")},
             )
-        self.assertRedirects(replacement, reverse("order_detail", args=[order.pk]))
+        self.assertRedirects(replacement, signed_documents_url)
         self.assertFalse(first_path.exists())
+
+    def test_signed_contract_upload_returns_to_order_attachment_section(self):
+        order = self.make_order()
+        self.client.force_login(self.user)
+
+        response = self.client.post(
+            reverse("contract_upload", args=[order.pk]),
+            {"signed_contract": uploaded_test_pdf("signed-contract.pdf")},
+        )
+
+        signed_documents_url = (
+            f"{reverse('order_detail', args=[order.pk])}?tab=order#signed-documents"
+        )
+        self.assertRedirects(response, signed_documents_url)
+        order.refresh_from_db()
+        self.assertTrue(order.has_signed_contract)
+        self.assertIsNotNone(order.signed_contract_uploaded_at)
+        self.assertTrue(
+            order.events.filter(description__contains="訂購合約附件").exists()
+        )
+
+    def test_signed_document_uploads_support_progress_json_response(self):
+        order = self.make_order()
+        self.client.force_login(self.user)
+        signed_documents_url = (
+            f"{reverse('order_detail', args=[order.pk])}?tab=order#signed-documents"
+        )
+
+        response = self.client.post(
+            reverse("contract_upload", args=[order.pk]),
+            {"signed_contract": uploaded_test_pdf("signed-contract.pdf")},
+            HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+            HTTP_ACCEPT="application/json",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.json(),
+            {
+                "ok": True,
+                "message": "訂購合約附件已上傳。",
+                "redirect_url": signed_documents_url,
+            },
+        )
+
+        invalid = self.client.post(
+            reverse("privacy_consent_upload", args=[order.pk]),
+            {},
+            HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+            HTTP_ACCEPT="application/json",
+        )
+        self.assertEqual(invalid.status_code, 400)
+        self.assertFalse(invalid.json()["ok"])
+        self.assertEqual(invalid.json()["redirect_url"], signed_documents_url)
+
+    def test_completed_order_can_still_upload_signed_documents(self):
+        order = self.make_order()
+        SalesOrder.objects.filter(pk=order.pk).update(
+            status=SalesOrder.Status.COMPLETED,
+        )
+        self.client.force_login(self.user)
+
+        response = self.client.post(
+            reverse("privacy_consent_upload", args=[order.pk]),
+            {"privacy_consent": uploaded_test_pdf("completed-privacy.pdf")},
+        )
+
+        self.assertRedirects(
+            response,
+            f"{reverse('order_detail', args=[order.pk])}"
+            "?tab=order#signed-documents",
+        )
+        order.refresh_from_db()
+        self.assertTrue(order.has_privacy_consent)
 
     def test_mobile_order_and_inventory_pages_render(self):
         self.client.force_login(self.user)

@@ -777,6 +777,8 @@ body.screen-locked { overflow: hidden; }
 .subsidy-toggle input { flex: 0 0 auto; width: 24px; height: 24px; }
 .subsidy-toggle span, .subsidy-toggle small { display: block; }
 .subsidy-toggle small { margin-top: 2px; color: var(--muted); font-weight: 600; }
+.subsidy-edit-form.has-toggle-error [data-subsidy-toggle-message] { color: var(--danger); }
+.subsidy-toggle[aria-busy="true"] { cursor: wait; }
 .subsidy-owner-toggle { margin-top: -8px; background: #fff; }
 .ocr-conflict-card {
   display: flex; align-items: center; justify-content: space-between; gap: 18px;

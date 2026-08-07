@@ -215,6 +215,11 @@ urlpatterns = [
         name="registration_document_file",
     ),
     path(
+        "orders/<int:pk>/subsidy/toggle/",
+        views.subsidy_toggle,
+        name="subsidy_toggle",
+    ),
+    path(
         "orders/<int:pk>/subsidy/documents/upload/",
         views.subsidy_document_upload,
         name="subsidy_document_upload",

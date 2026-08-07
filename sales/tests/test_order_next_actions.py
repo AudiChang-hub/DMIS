@@ -1,3 +1,4 @@
+import hashlib
 import re
 from datetime import date, datetime
 from decimal import Decimal
@@ -17,7 +18,11 @@ from sales.models import (
     VehicleInventory,
     VehicleModel,
 )
-from sales.services.order_next_actions import build_order_next_actions
+from sales.services.order_next_actions import (
+    NextAction,
+    _state_key,
+    build_order_next_actions,
+)
 
 
 class OrderNextActionTests(TestCase):
@@ -119,6 +124,29 @@ class OrderNextActionTests(TestCase):
             available.primary.url,
             f"{reverse('order_detail', args=[order.pk])}?tab=allocation",
         )
+
+    def test_state_key_without_anchor_keeps_legacy_hash(self):
+        action = NextAction(
+            key="allocation",
+            title="選擇實體車輛",
+            description="測試說明",
+            action_label="前往配車",
+            url="/orders/1/?tab=allocation",
+            target_tab="allocation",
+        )
+        legacy_values = [
+            action.key,
+            action.title,
+            action.description,
+            action.url,
+            action.tone,
+            action.target_tab,
+        ]
+        legacy_hash = hashlib.sha256(
+            "\x1f".join(legacy_values).encode("utf-8")
+        ).hexdigest()[:16]
+
+        self.assertEqual(_state_key(action, ()), legacy_hash)
 
     def test_subsidy_is_parallel_and_actions_are_limited(self):
         order = self.make_order(subsidy=True)
@@ -257,6 +285,28 @@ class OrderNextActionTests(TestCase):
         self.assertIn('aria-current="location"', action_markup)
         self.assertIn('tabindex="-1"', action_markup)
 
+    def test_signed_document_anchor_remains_clickable_on_order_tab(self):
+        order = self.make_order()
+        self.make_vehicle()
+
+        actions = self.build(order)
+        archive = next(action for action in actions.secondary if action.key == "documents")
+        self.assertEqual(archive.target_tab, "order")
+        self.assertEqual(archive.target_anchor, "signed-documents")
+        self.assertTrue(archive.url.endswith("?tab=order#signed-documents"))
+
+        self.client.force_login(self.user)
+        response = self.client.get(
+            f"{reverse('order_detail', args=[order.pk])}?tab=order"
+        )
+        action_markup = re.search(
+            r'<a(?=[^>]*data-action-key="documents")[^>]*>',
+            response.content.decode("utf-8"),
+        ).group(0)
+        self.assertIn(" href=", action_markup)
+        self.assertIn('data-target-anchor="signed-documents"', action_markup)
+        self.assertNotIn('aria-current="location"', action_markup)
+
     def test_invalid_tab_falls_back_without_hiding_delivery_navigation(self):
         order = self.make_order()
         order.allocate(self.make_vehicle())
@@ -358,6 +408,8 @@ class OrderNextActionTests(TestCase):
         self.assertIn("key.startsWith(prefix) && key !== storageKey", script)
         self.assertIn("data-next-actions-restore", script)
         self.assertIn('primary.dataset.targetTab === tabName', script)
+        self.assertIn("!primary.dataset.targetAnchor", script)
+        self.assertIn("!action.dataset.targetAnchor", script)
         self.assertIn('controls.hidden = primaryIsCurrent', script)
         self.assertIn('action.removeAttribute("href")', script)
         self.assertIn('window.addEventListener("order-tab-change"', script)

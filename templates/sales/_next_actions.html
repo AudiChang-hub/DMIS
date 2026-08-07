@@ -1,6 +1,6 @@
 {% if next_actions %}
 <section
-  class="next-actions next-actions--{{ next_actions.primary.tone }}{% if next_actions.primary.target_tab == active_tab %} is-current-context{% endif %}"
+  class="next-actions next-actions--{{ next_actions.primary.tone }}{% if next_actions.primary.target_tab == active_tab and not next_actions.primary.target_anchor %} is-current-context{% endif %}"
   data-next-actions
   data-order-id="{{ order.pk }}"
   data-state-key="{{ next_actions.state_key }}"
@@ -9,10 +9,10 @@
 >
   <div class="next-actions__expanded" data-next-actions-expanded data-next-actions-workbar>
     <div class="next-actions__main">
-      <span class="next-actions__icon" aria-hidden="true" data-next-actions-icon>{% if next_actions.primary.target_tab == active_tab %}↓{% else %}→{% endif %}</span>
+      <span class="next-actions__icon" aria-hidden="true" data-next-actions-icon>{% if next_actions.primary.target_tab == active_tab and not next_actions.primary.target_anchor %}↓{% else %}→{% endif %}</span>
       <div class="next-actions__copy">
         <div class="next-actions__copy-header">
-          <p class="next-actions__badge" data-next-actions-badge data-default-label="{{ next_actions.primary.badge }}">{% if next_actions.primary.target_tab == active_tab %}目前作業{% else %}{{ next_actions.primary.badge }}{% endif %}</p>
+          <p class="next-actions__badge" data-next-actions-badge data-default-label="{{ next_actions.primary.badge }}">{% if next_actions.primary.target_tab == active_tab and not next_actions.primary.target_anchor %}目前作業{% else %}{{ next_actions.primary.badge }}{% endif %}</p>
           <button
             class="next-actions__later"
             type="button"
@@ -23,13 +23,14 @@
         <h2 id="next-actions-title">{{ next_actions.primary.title }}</h2>
         <p>{{ next_actions.primary.description }}</p>
       </div>
-      <div class="next-actions__controls" data-next-actions-controls{% if next_actions.primary.target_tab == active_tab %} hidden{% endif %}>
+      <div class="next-actions__controls" data-next-actions-controls{% if next_actions.primary.target_tab == active_tab and not next_actions.primary.target_anchor %} hidden{% endif %}>
         <a
           class="button primary"
           href="{{ next_actions.primary.url }}"
           data-next-action-primary
           data-action-key="{{ next_actions.primary.key }}"
           data-target-tab="{{ next_actions.primary.target_tab }}"
+          data-target-anchor="{{ next_actions.primary.target_anchor }}"
         >{{ next_actions.primary.action_label }} <span aria-hidden="true">→</span></a>
       </div>
     </div>
@@ -39,13 +40,13 @@
       <h3 class="next-actions__secondary-heading" id="next-actions-secondary-title">另外可處理</h3>
       <div class="next-actions__secondary-list">
         {% for action in next_actions.secondary %}
-        <a{% if action.target_tab != active_tab %} href="{{ action.url }}"{% endif %} class="next-actions__secondary-item next-actions__secondary-item--{{ action.tone }}{% if action.target_tab == active_tab %} is-current-context{% endif %}" data-action-key="{{ action.key }}" data-target-tab="{{ action.target_tab }}" data-default-href="{{ action.url }}"{% if action.target_tab == active_tab %} aria-current="location" tabindex="-1"{% endif %}>
+        <a{% if action.target_tab != active_tab or action.target_anchor %} href="{{ action.url }}"{% endif %} class="next-actions__secondary-item next-actions__secondary-item--{{ action.tone }}{% if action.target_tab == active_tab and not action.target_anchor %} is-current-context{% endif %}" data-action-key="{{ action.key }}" data-target-tab="{{ action.target_tab }}" data-target-anchor="{{ action.target_anchor }}" data-default-href="{{ action.url }}"{% if action.target_tab == active_tab and not action.target_anchor %} aria-current="location" tabindex="-1"{% endif %}>
           <span class="next-actions__secondary-copy">
             <span class="next-actions__secondary-badge">{{ action.badge }}</span>
             <strong>{{ action.title }}</strong>
             <span class="next-actions__secondary-description">{{ action.description }}</span>
           </span>
-          <b data-next-action-label data-default-label="{{ action.action_label }}">{% if action.target_tab == active_tab %}目前頁面{% else %}{{ action.action_label }} <span aria-hidden="true">→</span>{% endif %}</b>
+          <b data-next-action-label data-default-label="{{ action.action_label }}">{% if action.target_tab == active_tab and not action.target_anchor %}目前頁面{% else %}{{ action.action_label }} <span aria-hidden="true">→</span>{% endif %}</b>
         </a>
         {% endfor %}
       </div>
@@ -54,7 +55,7 @@
   </div>
 
   <button class="next-actions__compact" type="button" data-next-actions-restore hidden>
-    <span><small data-next-actions-compact-label>{% if next_actions.primary.target_tab == active_tab %}目前作業{% else %}建議下一步{% endif %}</small><strong>{{ next_actions.primary.title }}</strong></span>
+    <span><small data-next-actions-compact-label>{% if next_actions.primary.target_tab == active_tab and not next_actions.primary.target_anchor %}目前作業{% else %}建議下一步{% endif %}</small><strong>{{ next_actions.primary.title }}</strong></span>
     <b>查看 <span aria-hidden="true">→</span></b>
   </button>
 </section>

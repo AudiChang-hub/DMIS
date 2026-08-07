@@ -347,3 +347,81 @@ class OrderLifecycleTests(TestCase):
         self.assertContains(response, 'name="vehicle_condition_note"', count=3)
         self.assertContains(response, 'class="delivery-completion-actions"')
         self.assertContains(response, "確認完成交付", count=2)
+
+    def test_completed_delivery_renders_structured_summary_and_note(self):
+        order, _vehicle = self.make_order(dealer=True)
+        self.client.force_login(self.user)
+        payload = self.delivery_payload(SalesOrder.DeliveryMethod.CARRIER)
+        payload.update(
+            {
+                "carrier_name": "安心託運",
+                "vehicle_condition_note": DeliveryCompletionForm.VEHICLE_CONDITION_DAMAGED,
+                "damage_note": "右側車殼有刮痕",
+                "note": "送達前請先聯絡收車人",
+            }
+        )
+
+        self.client.post(reverse("delivery_complete", args=[order.pk]), payload)
+        response = self.client.get(
+            f"{reverse('order_detail', args=[order.pk])}?tab=delivery"
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'class="delivery-complete__grid"')
+        self.assertContains(response, "安心託運")
+        self.assertContains(response, "右側車殼有刮痕")
+        self.assertContains(response, "送達前請先聯絡收車人")
+        self.assertContains(response, "交付備註")
+        self.assertNotContains(response, 'class="data-list delivery-summary"')
+
+    def test_completed_delivery_does_not_present_other_condition_as_normal(self):
+        order, _vehicle = self.make_order(dealer=True)
+        self.client.force_login(self.user)
+        payload = self.delivery_payload()
+        payload.update(
+            {
+                "vehicle_condition_note": DeliveryCompletionForm.VEHICLE_CONDITION_OTHER,
+                "note": "車主要求交車後自行調整後照鏡",
+            }
+        )
+
+        self.client.post(reverse("delivery_complete", args=[order.pk]), payload)
+        response = self.client.get(
+            f"{reverse('order_detail', args=[order.pk])}?tab=delivery"
+        )
+
+        self.assertContains(response, "其他狀況")
+        self.assertContains(response, "詳見下方交付備註")
+        self.assertContains(response, "車主要求交車後自行調整後照鏡")
+        self.assertNotContains(response, "交付核對已完成")
+
+    def test_delivered_legacy_order_without_record_has_safe_summary(self):
+        order, _vehicle = self.make_order(dealer=True)
+        SalesOrder.objects.filter(pk=order.pk).update(
+            status=SalesOrder.Status.DELIVERED_DOCS_PENDING,
+            delivered_at=timezone.make_aware(datetime(2026, 8, 5, 15, 30)),
+        )
+        self.client.force_login(self.user)
+
+        response = self.client.get(
+            f"{reverse('order_detail', args=[order.pk])}?tab=delivery"
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "詳細交付資料未建立")
+        self.assertContains(response, "既有完成狀態不受影響")
+
+    def test_delivered_legacy_order_without_timestamp_has_clear_fallback(self):
+        order, _vehicle = self.make_order(dealer=True)
+        SalesOrder.objects.filter(pk=order.pk).update(
+            status=SalesOrder.Status.DELIVERED_DOCS_PENDING,
+            delivered_at=None,
+        )
+        self.client.force_login(self.user)
+
+        response = self.client.get(
+            f"{reverse('order_detail', args=[order.pk])}?tab=delivery"
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "已完成交付（時間未記錄）")

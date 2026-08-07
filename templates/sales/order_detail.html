@@ -41,7 +41,6 @@
   <button type="button" role="tab" data-tab="subsidy" aria-controls="panel-subsidy"><span>補助</span><small>{% if not order.is_trade_in_subsidy %}未申請{% elif order.is_subsidy_ready %}資料齊全{% else %}{{ order.subsidy_completed_count }}/{{ order.subsidy_required_count }}{% endif %}</small></button>
   <button type="button" role="tab" data-tab="registration" aria-controls="panel-registration"><span>領牌</span><small>{% if order.is_registration_complete %}已完成{% elif registration_missing %}缺 {{ registration_missing|length }} 項{% else %}可確認{% endif %}</small></button>
   <button type="button" role="tab" data-tab="delivery" aria-controls="panel-delivery"><span>交付</span><small>{% if order.is_delivered %}已交付{% elif order.can_deliver %}可進行{% else %}待領牌{% endif %}</small></button>
-  <button type="button" role="tab" data-tab="documents" aria-controls="panel-documents"><span>文件歸檔</span><small>{% if order.has_signed_contract and order.has_privacy_consent %}已歸檔{% else %}待補文件{% endif %}</small></button>
   <button type="button" role="tab" data-tab="history" aria-controls="panel-history"><span>處理紀錄</span><small>{{ order.events.all|length }} 筆</small></button>
 </nav>
 
@@ -476,21 +475,55 @@
     {% if order.is_delivered %}<span class="archive-status done">✓ 已交付</span>{% elif order.can_deliver %}<span class="archive-status">可進行</span>{% else %}<span class="archive-status">尚未開放</span>{% endif %}
   </div>
   {% if order.is_delivered %}
-    <p>車輛已完成交付。{% if order.status == "delivered_docs_pending" %}領牌文件尚待補齊，完成領牌後才可正式結案。{% endif %}</p>
-    {% with record=order.delivery_record %}
-    <dl class="data-list delivery-summary">
-      <div><dt>交付時間</dt><dd>{{ order.delivered_at|date:"Y/m/d H:i" }}</dd></div>
-      <div><dt>交付方式</dt><dd>{{ order.get_delivery_method_display }}</dd></div>
-      <div><dt>實際收車人</dt><dd>{{ record.recipient_name }}</dd></div>
-      <div><dt>收車人電話</dt><dd>{{ record.recipient_phone }}</dd></div>
-      <div class="wide"><dt>交付地點</dt><dd>{{ record.handover_location }}</dd></div>
-      {% if record.carrier_name %}<div><dt>託運公司</dt><dd>{{ record.carrier_name }}</dd></div>{% endif %}
-      <div class="wide"><dt>交付車況</dt><dd>{{ record.vehicle_condition_note }}</dd></div>
-      {% if record.damage_found %}<div class="wide"><dt>刮傷／損壞</dt><dd>{{ record.damage_note }}</dd></div>{% endif %}
-      <div><dt>登記人員</dt><dd>{{ record.completed_by }}</dd></div>
-    </dl>
-    {% if record.handover_photo %}<a class="button ghost" href="{% url 'protected_media' 'delivery' record.pk 'handover_photo' %}" target="_blank">查看交付照片</a>{% endif %}
-    {% endwith %}
+    <div class="delivery-complete">
+      <div class="delivery-complete__hero">
+        <span class="delivery-complete__icon" aria-hidden="true">✓</span>
+        <div class="delivery-complete__heading">
+          {% if order.delivered_at %}<h3>{{ order.delivered_at|date:"Y/m/d H:i" }} 完成交付</h3>{% else %}<h3>已完成交付（時間未記錄）</h3>{% endif %}
+          {% if delivery_record %}<p>{% if delivery_record.completed_by %}由 {{ delivery_record.completed_by }} 登記{% else %}登記人員未記錄{% endif %}，訂單與實體車輛已鎖定。</p>{% else %}<p>基本交付狀態已保存。</p>{% endif %}
+        </div>
+        {% if delivery_record.handover_photo %}<a class="button ghost small" href="{% url 'protected_media' 'delivery' delivery_record.pk 'handover_photo' %}" target="_blank">查看交付照片</a>{% endif %}
+      </div>
+
+      {% if order.status == "delivered_docs_pending" %}
+      <div class="delivery-complete__notice">
+        <strong>領牌資料仍待補齊</strong>
+        <span>此訂單已先交付合作車行，完成領牌資料後才會正式結案。</span>
+      </div>
+      {% endif %}
+
+      {% if delivery_record %}
+      <div class="delivery-complete__grid">
+        <article class="delivery-complete__item">
+          <span>交付方式與地點</span>
+          <strong>{{ order.get_delivery_method_display }}</strong>
+          <p>{{ delivery_record.handover_location }}</p>
+          {% if delivery_record.carrier_name %}<small>託運公司：{{ delivery_record.carrier_name }}</small>{% endif %}
+        </article>
+        <article class="delivery-complete__item">
+          <span>實際收車人</span>
+          <strong>{{ delivery_record.recipient_name }}</strong>
+          <p>{{ delivery_record.recipient_phone }}</p>
+        </article>
+        <article class="delivery-complete__item{% if delivery_record.damage_found %} has-warning{% endif %}">
+          <span>交付車況</span>
+          <strong>{{ delivery_record.vehicle_condition_note }}</strong>
+          {% if delivery_record.damage_found %}<p>{{ delivery_record.damage_note }}</p>{% elif delivery_record.vehicle_condition_note == "正常" %}<p>交付核對已完成</p>{% else %}<p>詳見下方交付備註</p>{% endif %}
+        </article>
+      </div>
+      {% if delivery_record.note %}
+      <div class="delivery-complete__note">
+        <strong>交付備註</strong>
+        <p>{{ delivery_record.note }}</p>
+      </div>
+      {% endif %}
+      {% else %}
+      <div class="delivery-complete__notice is-neutral">
+        <strong>詳細交付資料未建立</strong>
+        <span>這可能是歷史匯入資料；既有完成狀態不受影響。</span>
+      </div>
+      {% endif %}
+    </div>
   {% elif order.can_deliver %}
     {% if order.source_type == "dealer" and not order.is_registration_complete %}
       <p>此訂單為合作車行領車，可先交付車輛；領牌資料與文件仍須補齊後才能結案。</p>
@@ -531,52 +564,6 @@
     <p>一般訂單必須先完成領牌，才可進入交付階段。</p>
   {% endif %}
 </section>
-</div>
-
-<div class="order-tab-panel" id="panel-documents" role="tabpanel" data-tab-panel="documents" hidden>
-<div class="document-archive-grid">
-  <section class="document-archive-card">
-    <div>
-      <p class="eyebrow">選填歸檔</p>
-      <h2>訂購合約附件</h2>
-      <p>上傳已簽署或掃描的訂購合約；未上傳不影響後續流程。</p>
-      {% if order.has_signed_contract %}<span class="archive-status done">✓ 已歸檔</span>{% else %}<span class="archive-status">尚未歸檔</span>{% endif %}
-    </div>
-    <a class="button ghost block" href="{% url 'contract_print' order.pk %}" target="_blank">單獨列印訂購合約</a>
-    <form method="post" enctype="multipart/form-data" action="{% url 'contract_upload' order.pk %}">
-      {% csrf_token %}{{ contract_form.signed_contract }}
-      <button class="button secondary block" type="submit">上傳訂購合約</button>
-    </form>
-    {% if order.has_signed_contract %}
-    <a class="button ghost block" href="{% url 'protected_media' 'order' order.pk 'signed_contract' %}" target="_blank">查看目前附件</a>
-    {% endif %}
-  </section>
-  <section class="document-archive-card">
-    <div>
-      <p class="eyebrow">選填歸檔</p>
-      <h2>個資同意書附件</h2>
-      <p>上傳已簽署或掃描的個資同意書，與訂購合約分開保存。</p>
-      {% if order.has_privacy_consent %}<span class="archive-status done">✓ 已歸檔</span>{% else %}<span class="archive-status">尚未歸檔</span>{% endif %}
-    </div>
-    <a class="button ghost block" href="{% url 'privacy_consent_print' order.pk %}" target="_blank">單獨列印個資同意書</a>
-    <form method="post" enctype="multipart/form-data" action="{% url 'privacy_consent_upload' order.pk %}">
-      {% csrf_token %}{{ privacy_consent_form.privacy_consent }}
-      <button class="button secondary block" type="submit">上傳個資同意書</button>
-    </form>
-    {% if order.has_privacy_consent %}
-    <a class="button ghost block" href="{% url 'protected_media' 'order' order.pk 'privacy_consent' %}" target="_blank">查看目前附件</a>
-    {% endif %}
-  </section>
-</div>
-{% if positioned_templates %}
-<section class="section-block positioned-print-panel">
-  <div class="section-title"><div><h2>其他制式套表</h2><small>使用目前啟用的定位範本直接套入本訂單資料。</small></div></div>
-  <div class="document-template-actions">
-    {% for item in positioned_templates %}<a class="button ghost" target="_blank" href="{% url 'positioned_template_order_print' item.pk order.pk %}">{{ item.get_document_type_display }} · {{ item.name }}</a>{% endfor %}
-  </div>
-</section>
-{% endif %}
-
 </div>
 
 <div class="order-tab-panel" id="panel-order" role="tabpanel" data-tab-panel="order">
@@ -694,6 +681,56 @@
     {% if order.note %}<div class="note-box"><strong>備註</strong><p>{{ order.note }}</p></div>{% endif %}
   </section>
 </div>
+<section class="section-block signed-documents-panel" id="signed-documents">
+  <div class="section-title signed-documents-panel__title">
+    <div>
+      <p class="eyebrow">訂單附件</p>
+      <h2>簽署文件留存</h2>
+      <small>不列入作業階段；取得紙本簽名後可隨時補上。</small>
+    </div>
+    <span>{% if order.has_signed_contract and order.has_privacy_consent %}2／2 已上傳{% elif order.has_signed_contract or order.has_privacy_consent %}1／2 已上傳{% else %}尚未上傳{% endif %}</span>
+  </div>
+  <div class="document-archive-grid">
+    <article class="document-archive-card">
+      <div class="document-archive-card__heading">
+        <div><p class="eyebrow">訂購合約</p><h3>客戶與店家留存聯</h3></div>
+        {% if order.has_signed_contract %}<span class="archive-status done">✓ 已上傳</span>{% else %}<span class="archive-status">尚未上傳</span>{% endif %}
+      </div>
+      <p>上傳已簽署或掃描的訂購合約；未上傳不影響配車與交付。</p>
+      <div class="document-archive-card__actions">
+        <a class="button ghost" href="{% url 'contract_print' order.pk %}" target="_blank">列印空白合約</a>
+        {% if order.has_signed_contract %}<a class="button ghost" href="{% url 'protected_media' 'order' order.pk 'signed_contract' %}" target="_blank">查看目前附件</a>{% endif %}
+      </div>
+      <form class="document-upload-form" data-document-upload data-auto-upload method="post" enctype="multipart/form-data" action="{% url 'contract_upload' order.pk %}">
+        {% csrf_token %}{{ contract_form.signed_contract }}
+        <button class="button secondary block" type="submit">{% if order.has_signed_contract %}更換訂購合約附件{% else %}上傳訂購合約附件{% endif %}</button>
+      </form>
+    </article>
+    <article class="document-archive-card">
+      <div class="document-archive-card__heading">
+        <div><p class="eyebrow">個資同意書</p><h3>車主簽署文件</h3></div>
+        {% if order.has_privacy_consent %}<span class="archive-status done">✓ 已上傳</span>{% else %}<span class="archive-status">尚未上傳</span>{% endif %}
+      </div>
+      <p>個資同意書與訂購合約分開保存，方便日後單獨查閱。</p>
+      <div class="document-archive-card__actions">
+        <a class="button ghost" href="{% url 'privacy_consent_print' order.pk %}" target="_blank">列印空白同意書</a>
+        {% if order.has_privacy_consent %}<a class="button ghost" href="{% url 'protected_media' 'order' order.pk 'privacy_consent' %}" target="_blank">查看目前附件</a>{% endif %}
+      </div>
+      <form class="document-upload-form" data-document-upload data-auto-upload method="post" enctype="multipart/form-data" action="{% url 'privacy_consent_upload' order.pk %}">
+        {% csrf_token %}{{ privacy_consent_form.privacy_consent }}
+        <button class="button secondary block" type="submit">{% if order.has_privacy_consent %}更換個資同意書附件{% else %}上傳個資同意書附件{% endif %}</button>
+      </form>
+    </article>
+  </div>
+</section>
+{% if positioned_templates %}
+<section class="section-block positioned-print-panel">
+  <div class="section-title"><div><h2>其他制式套表</h2><small>使用目前啟用的定位範本直接套入本訂單資料。</small></div></div>
+  <div class="document-template-actions">
+    {% for item in positioned_templates %}<a class="button ghost" target="_blank" href="{% url 'positioned_template_order_print' item.pk order.pk %}">{{ item.get_document_type_display }} · {{ item.name }}</a>{% endfor %}
+  </div>
+</section>
+{% endif %}
 {% if order.status == "cancel_refund_pending" %}
 <section class="section-block cancellation-panel urgent-panel">
   <div class="section-title"><div><p class="eyebrow">取消處理</p><h2>訂金尚待全額退款</h2></div><span>${{ order.deposit_amount|floatformat:0 }}</span></div>

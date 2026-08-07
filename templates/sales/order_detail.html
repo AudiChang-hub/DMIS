@@ -154,12 +154,12 @@
       <template data-empty-form><div class="dynamic-detail-row" data-form-row>{% with item_form=subsidy_item_formset.empty_form %}{% for hidden in item_form.hidden_fields %}{{ hidden }}{% endfor %}{% for field in item_form.visible_fields %}{% if field.name != 'DELETE' %}<div><label for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}</div>{% endif %}{% endfor %}<label class="delete-detail-control">{{ item_form.DELETE }} <span>移除此項</span></label>{% endwith %}</div></template>
       <button class="button ghost" type="button" data-add-form>＋ 新增補助項目</button>
     </section>
-    <div class="subsidy-save-dock" data-subsidy-save-dock hidden role="status" aria-live="polite">
+    <div class="subsidy-save-dock is-saved" data-subsidy-save-dock role="status" aria-live="polite">
       <div class="subsidy-save-dock__copy">
-        <strong>補助資料尚未儲存</strong>
-        <small>儲存後會同步更新尾款，並留下修改人員與異動紀錄。</small>
+        <strong data-subsidy-save-title>補助資料已儲存</strong>
+        <small data-subsidy-save-description>修改舊車資料或補助項目後，即可在這裡儲存。</small>
       </div>
-      <button class="button primary" type="submit" data-subsidy-save-button>儲存補助變更</button>
+      <button class="button primary" type="submit" data-subsidy-save-button disabled>資料已儲存</button>
     </div>
   </form>
   {% if order.old_owner_ocr_name or order.old_owner_ocr_id_number %}

@@ -187,6 +187,37 @@ def _editing_name(user):
     return user.get_full_name() or user.get_username()
 
 
+def _document_upload_response(
+    request,
+    *,
+    order_pk,
+    tab,
+    ok,
+    message,
+    status=200,
+):
+    """同時支援一般表單與可顯示上傳進度的非同步表單。"""
+    detail_url = reverse("order_detail", args=[order_pk])
+    accepts_json = (
+        request.headers.get("X-Requested-With") == "XMLHttpRequest"
+        or "application/json" in request.headers.get("Accept", "")
+    )
+    if accepts_json:
+        return JsonResponse(
+            {
+                "ok": ok,
+                "message": message,
+                "redirect_url": f"{detail_url}?tab={tab}",
+            },
+            status=status,
+        )
+    if ok:
+        messages.success(request, message)
+    else:
+        messages.error(request, message)
+    return redirect(detail_url)
+
+
 @login_required
 def data_maintenance(request):
     return render(
@@ -1784,7 +1815,7 @@ def order_detail(request, pk):
             "document": registration_documents.get(document_type),
         }
         for document_type, label in RegistrationDocument.DocumentType.choices
-        if document_type != RegistrationDocument.DocumentType.OTHER_INSURANCE
+        if document_type in RegistrationDocument.active_fixed_document_types()
     ]
     subsidy_documents = {
         document.document_type: document
@@ -2663,25 +2694,40 @@ def registration_document_upload(request, pk):
     if request.method != "POST":
         return redirect("order_detail", pk=pk)
     if not order.allocated_vehicle_id:
-        messages.error(request, "請先完成配車，再上傳領牌文件。")
-        return redirect("order_detail", pk=pk)
+        return _document_upload_response(
+            request,
+            order_pk=pk,
+            tab="registration",
+            ok=False,
+            message="請先完成配車，再上傳領牌文件。",
+            status=400,
+        )
     if order.is_registration_complete or order.status in {
         SalesOrder.Status.COMPLETED,
         SalesOrder.Status.CANCELLED,
     }:
-        messages.error(request, "此訂單的領牌階段已完成，無法修改文件。")
-        return redirect("order_detail", pk=pk)
+        return _document_upload_response(
+            request,
+            order_pk=pk,
+            tab="registration",
+            ok=False,
+            message="此訂單的領牌階段已完成，無法修改文件。",
+            status=409,
+        )
     form = RegistrationDocumentUploadForm(request.POST, request.FILES)
     if not form.is_valid():
-        messages.error(
+        return _document_upload_response(
             request,
-            "文件上傳失敗：" + " ".join(
+            order_pk=pk,
+            tab="registration",
+            ok=False,
+            message="文件上傳失敗：" + " ".join(
                 error
                 for errors in form.errors.values()
                 for error in errors
             ),
+            status=400,
         )
-        return redirect("order_detail", pk=pk)
 
     document = form.save(commit=False)
     document.order = order
@@ -2714,8 +2760,13 @@ def registration_document_upload(request, pk):
         description=f"已上傳領牌文件：{document.display_name}",
         actor_name=_editing_name(request.user),
     )
-    messages.success(request, f"{document.display_name}已上傳。")
-    return redirect("order_detail", pk=pk)
+    return _document_upload_response(
+        request,
+        order_pk=pk,
+        tab="registration",
+        ok=True,
+        message=f"{document.display_name}已上傳。",
+    )
 
 
 @login_required
@@ -2806,10 +2857,9 @@ def registration_complete(request, pk):
 @login_required
 @transaction.atomic
 def delivery_complete(request, pk):
-    order = get_object_or_404(
-        SalesOrder.objects.select_for_update().select_related("allocated_vehicle"),
-        pk=pk,
-    )
+    # PostgreSQL 不允許 FOR UPDATE 套在 nullable OUTER JOIN；只鎖訂單本身，
+    # 實體車輛會在 SalesOrder.complete_delivery() 內另行鎖定。
+    order = get_object_or_404(SalesOrder.objects.select_for_update(), pk=pk)
     detail_url = f"{reverse('order_detail', args=[pk])}?tab=delivery"
     if request.method != "POST":
         return redirect(detail_url)
@@ -3044,22 +3094,37 @@ def subsidy_document_upload(request, pk):
     if request.method != "POST":
         return redirect("order_detail", pk=pk)
     if order.status == SalesOrder.Status.CANCELLED:
-        messages.error(request, "已取消訂單無法修改補助文件。")
-        return redirect("order_detail", pk=pk)
+        return _document_upload_response(
+            request,
+            order_pk=pk,
+            tab="subsidy",
+            ok=False,
+            message="已取消訂單無法修改補助文件。",
+            status=409,
+        )
     if not order.is_trade_in_subsidy:
-        messages.error(request, "此訂單未勾選汰舊／政府補助。")
-        return redirect("order_detail", pk=pk)
+        return _document_upload_response(
+            request,
+            order_pk=pk,
+            tab="subsidy",
+            ok=False,
+            message="此訂單未勾選汰舊／政府補助。",
+            status=400,
+        )
     form = SubsidyDocumentUploadForm(request.POST, request.FILES)
     if not form.is_valid():
-        messages.error(
+        return _document_upload_response(
             request,
-            "補助文件上傳失敗：" + " ".join(
+            order_pk=pk,
+            tab="subsidy",
+            ok=False,
+            message="補助文件上傳失敗：" + " ".join(
                 error
                 for errors in form.errors.values()
                 for error in errors
             ),
+            status=400,
         )
-        return redirect("order_detail", pk=pk)
 
     document = form.save(commit=False)
     document.order = order
@@ -3109,12 +3174,16 @@ def subsidy_document_upload(request, pk):
         ),
         actor_name=_editing_name(request.user),
     )
-    messages.success(
+    return _document_upload_response(
         request,
-        ocr_message
-        or f"{document.name or document.get_document_type_display()}已上傳。",
+        order_pk=pk,
+        tab="subsidy",
+        ok=True,
+        message=(
+            ocr_message
+            or f"{document.name or document.get_document_type_display()}已上傳。"
+        ),
     )
-    return redirect("order_detail", pk=pk)
 
 
 @login_required

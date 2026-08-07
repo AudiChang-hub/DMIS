@@ -1752,13 +1752,8 @@ class SalesOrder(TimeStampedModel):
         )
 
     def required_registration_document_types(self):
-        required = {
-            RegistrationDocument.DocumentType.NEW_LICENSE,
-            RegistrationDocument.DocumentType.REGISTRATION_APPLICATION,
-            RegistrationDocument.DocumentType.MOTOR_VEHICLE_RECEIPT,
-            RegistrationDocument.DocumentType.INVOICE,
-            RegistrationDocument.DocumentType.COMPULSORY_INSURANCE,
-        }
+        required = set(RegistrationDocument.active_fixed_document_types())
+        required.discard(RegistrationDocument.DocumentType.PLATE_SELECTION)
         if self.plate_choice != self.PlateChoice.NONE:
             required.add(RegistrationDocument.DocumentType.PLATE_SELECTION)
         return required
@@ -2073,10 +2068,13 @@ class SalesOrder(TimeStampedModel):
 
     @property
     def has_registration_started(self):
+        active_documents_exist = self.registration_documents.exclude(
+            document_type__in=RegistrationDocument.retired_document_types()
+        ).exists()
         return bool(
             self.final_plate_number
             or self.registration_completed_at
-            or self.registration_documents.exists()
+            or active_documents_exist
         )
 
     @transaction.atomic
@@ -2515,6 +2513,25 @@ class RegistrationDocument(TimeStampedModel):
         COMPULSORY_INSURANCE = "compulsory_insurance", "強制險單"
         PLATE_SELECTION = "plate_selection", "選號單"
         OTHER_INSURANCE = "other_insurance", "其他保險單"
+
+    @classmethod
+    def retired_document_types(cls):
+        """保留歷史檔案與顯示名稱，但不再接受新上傳或列入流程。"""
+        return frozenset(
+            {
+                cls.DocumentType.MOTOR_VEHICLE_RECEIPT,
+                cls.DocumentType.COMPULSORY_INSURANCE,
+            }
+        )
+
+    @classmethod
+    def active_fixed_document_types(cls):
+        return (
+            cls.DocumentType.NEW_LICENSE,
+            cls.DocumentType.REGISTRATION_APPLICATION,
+            cls.DocumentType.INVOICE,
+            cls.DocumentType.PLATE_SELECTION,
+        )
 
     order = models.ForeignKey(
         SalesOrder,

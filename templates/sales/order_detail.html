@@ -214,12 +214,12 @@
             {% endif %}
           {% endif %}
           {% if order.is_trade_in_subsidy and order.status != "cancelled" %}
-          <form class="document-upload-form" method="post" enctype="multipart/form-data" action="{% url 'subsidy_document_upload' order.pk %}">
+          <form class="document-upload-form" data-document-upload data-auto-upload method="post" enctype="multipart/form-data" action="{% url 'subsidy_document_upload' order.pk %}">
             {% csrf_token %}
             <input type="hidden" name="document_type" value="{{ row.type }}">
             <label class="button secondary compact file-button">
               {% if row.document %}替換{% else %}拍照／上傳{% endif %}
-              <input type="file" name="file" accept="image/jpeg,image/png,image/webp,image/heic,image/heif,application/pdf,.doc,.docx,.odt,.xls,.xlsx,.ods,.txt,.csv" capture="environment" required onchange="this.form.submit()">
+              <input type="file" name="file" accept="image/jpeg,image/png,image/webp,image/heic,image/heif,application/pdf,.doc,.docx,.odt,.xls,.xlsx,.ods,.txt,.csv" capture="environment" required>
             </label>
           </form>
           {% endif %}
@@ -318,21 +318,21 @@
   {% else %}
     <form class="registration-data-form" method="post" action="{% url 'registration_save' order.pk %}">
       {% csrf_token %}
-      <div>
+      <div class="registration-data-form__date">
         <label for="{{ registration_form.registration_date.id_for_label }}">實際領牌日期 <span class="required-inline">必填</span></label>
         {{ registration_form.registration_date }}
       </div>
-      <div>
+      <div class="registration-data-form__county">
         <label for="{{ registration_form.registration_county.id_for_label }}">領牌縣市 <span class="required-inline">必填</span></label>
         {{ registration_form.registration_county }}
-        <small class="field-help">代銷結算成本會依這個縣市與實際領牌日期判斷。</small>
       </div>
-      <div>
+      <small class="field-help registration-data-form__help">代銷結算成本會依這個縣市與實際領牌日期判斷。</small>
+      <div class="registration-data-form__plate">
         <label for="{{ registration_form.final_plate_number.id_for_label }}">車牌號碼 <span class="required-inline">必填</span></label>
         {{ registration_form.final_plate_number }}
       </div>
       {% if not order.is_registration_complete %}
-        <button class="button secondary" type="submit">儲存領牌資料</button>
+        <button class="button secondary registration-data-form__submit" type="submit">儲存領牌資料</button>
       {% endif %}
     </form>
     {% if operations_profile.vehicle_cost_rule_id %}
@@ -391,12 +391,12 @@
               {% endif %}
             {% endif %}
             {% if not order.is_registration_complete %}
-            <form class="document-upload-form" method="post" enctype="multipart/form-data" action="{% url 'registration_document_upload' order.pk %}">
+            <form class="document-upload-form" data-document-upload data-auto-upload method="post" enctype="multipart/form-data" action="{% url 'registration_document_upload' order.pk %}">
               {% csrf_token %}
               <input type="hidden" name="document_type" value="{{ row.type }}">
               <label class="button secondary compact file-button">
                 {% if row.document %}替換{% else %}拍照／上傳{% endif %}
-                <input type="file" name="file" accept="image/jpeg,image/png,image/webp,application/pdf" capture="environment" required onchange="this.form.submit()">
+                <input type="file" name="file" accept="image/jpeg,image/png,image/webp,application/pdf" capture="environment" required>
               </label>
             </form>
             {% endif %}
@@ -769,4 +769,5 @@
 <script src="{% static 'js/order-detail-tabs.js' %}?v={{ app_version }}" defer></script>
 <script src="{% static 'js/next-actions.js' %}?v={{ app_version }}" defer></script>
 <script src="{% static 'js/subsidy-items.js' %}?v={{ app_version }}" defer></script>
+<script src="{% static 'js/document-upload-progress.js' %}?v={{ app_version }}" defer></script>
 {% endblock %}

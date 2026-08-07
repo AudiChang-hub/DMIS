@@ -1945,6 +1945,11 @@ class RegistrationDocumentUploadForm(forms.ModelForm):
         data = super().clean()
         if (
             data.get("document_type")
+            in RegistrationDocument.retired_document_types()
+        ):
+            self.add_error("document_type", "此文件項目已取消，不需再上傳。")
+        if (
+            data.get("document_type")
             == RegistrationDocument.DocumentType.OTHER_INSURANCE
             and not data.get("name")
         ):

@@ -39,6 +39,7 @@ from .forms import (
     DiscountDecisionForm,
     DiscountRequestForm,
     DeliveryCompletionForm,
+    DeliveryPaymentForm,
     InstallmentCompanyForm,
     InstallmentPlanOptionFormSet,
     InstallmentPlanVersionForm,
@@ -1857,6 +1858,24 @@ def order_detail(request, pk):
         )
     ]
     operations_profile = getattr(order, "operations", None)
+    balance_payment = next(
+        (
+            payment
+            for payment in order.payment_records.all()
+            if payment.system_key == "balance"
+        ),
+        None,
+    )
+    if balance_payment is None:
+        sync_order_operations(order.pk)
+        balance_payment = PaymentRecord.objects.filter(
+            order=order,
+            system_key="balance",
+        ).first()
+    balance_ready_for_delivery = bool(
+        order.source_type == SalesOrder.SourceType.DEALER
+        or (balance_payment is not None and balance_payment.is_settled)
+    )
     registration_missing = order.missing_registration_requirements()
     subsidy_missing = order.missing_subsidy_requirements()
     next_actions = build_order_next_actions(
@@ -1902,6 +1921,13 @@ def order_detail(request, pk):
             "active_tab": active_tab,
             "delivery_record": getattr(order, "delivery_record", None),
             "delivery_form": DeliveryCompletionForm(order),
+            "balance_payment": balance_payment,
+            "balance_payment_form": (
+                DeliveryPaymentForm(instance=balance_payment)
+                if balance_payment is not None
+                else None
+            ),
+            "balance_ready_for_delivery": balance_ready_for_delivery,
             "cancellation_form": CancellationRequestForm(),
             "refund_form": RefundCompletionForm(order),
             "positioned_templates": PositionedPrintTemplate.objects.filter(active=True).order_by(
@@ -2966,6 +2992,108 @@ def delivery_complete(request, pk):
         messages.success(request, "車輛已交付；合作車行領牌文件與尾款將持續提醒。")
     else:
         messages.success(request, "車輛交付完成，訂單已結案。")
+    return redirect(detail_url)
+
+
+@login_required
+@transaction.atomic
+def delivery_payment_update(request, pk):
+    order = get_object_or_404(SalesOrder.objects.select_for_update(), pk=pk)
+    detail_url = f"{reverse('order_detail', args=[pk])}?tab=delivery#delivery-payment"
+    if request.method != "POST":
+        return redirect(detail_url)
+    if order.status in {
+        SalesOrder.Status.CANCEL_REFUND_PENDING,
+        SalesOrder.Status.CANCELLED,
+    }:
+        messages.error(request, "此訂單已進入取消流程，不能登記尾款。")
+        return redirect(detail_url)
+    if order.is_delivered and order.source_type != SalesOrder.SourceType.DEALER:
+        messages.error(request, "一般訂單交付後，請至營運與對帳進行收款更正。")
+        return redirect(detail_url)
+
+    sync_order_operations(order.pk)
+    payment = get_object_or_404(
+        PaymentRecord.objects.select_for_update(),
+        order=order,
+        system_key="balance",
+    )
+    previous_proof = getattr(payment.proof, "name", "")
+    before = {
+        "received_amount": payment.received_amount,
+        "received_on": payment.received_on,
+        "payment_method": payment.payment_method,
+        "receiving_account": payment.receiving_account,
+        "confirmed": payment.confirmed,
+        "note": payment.note,
+        "proof": previous_proof,
+    }
+    form = DeliveryPaymentForm(request.POST, request.FILES, instance=payment)
+    if not form.is_valid():
+        messages.error(
+            request,
+            "尾款資料未保存："
+            + " ".join(
+                error for errors in form.errors.values() for error in errors
+            ),
+        )
+        return redirect(detail_url)
+
+    payment = form.save(_editing_name(request.user))
+    current_proof = getattr(payment.proof, "name", "")
+    if previous_proof and previous_proof != current_proof:
+        _schedule_model_file_cleanup(PaymentRecord, "proof", previous_proof)
+    after = {
+        "received_amount": payment.received_amount,
+        "received_on": payment.received_on,
+        "payment_method": payment.payment_method,
+        "receiving_account": payment.receiving_account,
+        "confirmed": payment.confirmed,
+        "note": payment.note,
+        "proof": current_proof,
+    }
+    changed_labels = {
+        "received_amount": "實收金額",
+        "received_on": "收款日期",
+        "payment_method": "收款方式",
+        "receiving_account": "收款帳戶",
+        "confirmed": "收款確認",
+        "note": "收款備註",
+        "proof": "收款證明",
+    }
+    changes = {
+        changed_labels[key]: {
+            "before": str(before[key] or ""),
+            "after": str(value or ""),
+        }
+        for key, value in after.items()
+        if before[key] != value
+    }
+    if changes:
+        OrderChange.objects.create(
+            order=order,
+            reason="更新交付尾款",
+            changes=changes,
+            actor_name=_editing_name(request.user),
+        )
+    OrderEvent.objects.create(
+        order=order,
+        event_type="delivery_payment_updated",
+        description=(
+            f"更新{payment.item_name}：實收 ${payment.received_amount:,.0f}／"
+            f"{'已確認收清' if payment.is_settled else '尚未收清'}"
+        ),
+        actor_name=_editing_name(request.user),
+    )
+    if payment.is_settled:
+        messages.success(request, f"{payment.item_name}已確認收清，可以繼續交付。")
+    elif payment.received_amount:
+        messages.warning(
+            request,
+            f"已保存部分收款，尚差 {payment.outstanding_amount:,.0f} 元。",
+        )
+    else:
+        messages.success(request, "尾款資料已保存。")
     return redirect(detail_url)
 
 

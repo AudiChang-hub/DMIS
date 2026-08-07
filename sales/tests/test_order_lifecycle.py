@@ -7,11 +7,13 @@ from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
 
-from sales.forms import DeliveryCompletionForm
+from sales.forms import DeliveryCompletionForm, DeliveryPaymentForm
 from sales.models import (
     BusinessHoliday,
     DeliveryRecord,
     OrderOperationsProfile,
+    OrderEvent,
+    PaymentRecord,
     SalesOrder,
     SalesSource,
     Store,
@@ -347,6 +349,171 @@ class OrderLifecycleTests(TestCase):
         self.assertContains(response, 'name="vehicle_condition_note"', count=3)
         self.assertContains(response, 'class="delivery-completion-actions"')
         self.assertContains(response, "確認完成交付", count=2)
+        self.assertContains(response, "交車前收尾")
+        self.assertContains(response, "儲存收款資料")
+        self.assertNotContains(response, 'name="payment_checked"')
+
+    def test_store_order_must_confirm_balance_before_delivery(self):
+        order, vehicle = self.make_order()
+        order.registration_completed_at = timezone.now()
+        order.status = SalesOrder.Status.DELIVERY_PENDING
+        order.save(update_fields=["registration_completed_at", "status", "updated_at"])
+        self.client.force_login(self.user)
+
+        response = self.client.post(
+            reverse("delivery_complete", args=[order.pk]),
+            self.delivery_payload(),
+            follow=True,
+        )
+
+        self.assertContains(response, "尾款尚未收清")
+        self.assertContains(response, "請先在交付頁保存並確認收款")
+        self.assertFalse(DeliveryRecord.objects.filter(order=order).exists())
+        order.refresh_from_db()
+        vehicle.refresh_from_db()
+        self.assertEqual(order.status, SalesOrder.Status.DELIVERY_PENDING)
+        self.assertEqual(vehicle.status, VehicleInventory.Status.RESERVED)
+
+    def test_delivery_payment_can_be_saved_and_then_allows_delivery(self):
+        order, vehicle = self.make_order()
+        order.registration_completed_at = timezone.now()
+        order.status = SalesOrder.Status.DELIVERY_PENDING
+        order.save(update_fields=["registration_completed_at", "status", "updated_at"])
+        payment = PaymentRecord.objects.get(order=order, system_key="balance")
+        self.client.force_login(self.user)
+
+        payment_response = self.client.post(
+            reverse("delivery_payment_update", args=[order.pk]),
+            {
+                "received_amount": str(payment.expected_amount),
+                "received_on": "2026-08-07",
+                "payment_method": "現金",
+                "receiving_account": "",
+                "note": "交車現場收款",
+                "confirmed": "on",
+            },
+        )
+
+        self.assertRedirects(
+            payment_response,
+            f"{reverse('order_detail', args=[order.pk])}?tab=delivery#delivery-payment",
+            fetch_redirect_response=False,
+        )
+        payment.refresh_from_db()
+        self.assertTrue(payment.confirmed)
+        self.assertEqual(payment.received_amount, payment.expected_amount)
+        self.assertEqual(payment.received_on, date(2026, 8, 7))
+        self.assertEqual(payment.confirmed_by, "lifecycle")
+        self.assertTrue(
+            OrderEvent.objects.filter(
+                order=order,
+                event_type="delivery_payment_updated",
+            ).exists()
+        )
+
+        delivery_response = self.client.post(
+            reverse("delivery_complete", args=[order.pk]),
+            self.delivery_payload(),
+        )
+        self.assertRedirects(
+            delivery_response,
+            f"{reverse('order_detail', args=[order.pk])}?tab=delivery",
+            fetch_redirect_response=False,
+        )
+        order.refresh_from_db()
+        vehicle.refresh_from_db()
+        self.assertEqual(order.status, SalesOrder.Status.COMPLETED)
+        self.assertEqual(vehicle.status, VehicleInventory.Status.DELIVERED)
+
+    def test_partial_balance_cannot_be_confirmed(self):
+        order, _vehicle = self.make_order()
+        payment = PaymentRecord.objects.get(order=order, system_key="balance")
+        self.client.force_login(self.user)
+
+        response = self.client.post(
+            reverse("delivery_payment_update", args=[order.pk]),
+            {
+                "received_amount": "1000",
+                "received_on": "2026-08-07",
+                "payment_method": "現金",
+                "receiving_account": "",
+                "note": "部分收款",
+                "confirmed": "on",
+            },
+            follow=True,
+        )
+
+        self.assertContains(response, "不可標記為已收清")
+        payment.refresh_from_db()
+        self.assertFalse(payment.confirmed)
+        self.assertEqual(payment.received_amount, Decimal("0"))
+
+    def test_negative_delivery_payment_is_rejected(self):
+        order, _vehicle = self.make_order()
+        self.client.force_login(self.user)
+
+        response = self.client.post(
+            reverse("delivery_payment_update", args=[order.pk]),
+            {
+                "received_amount": "-1",
+                "received_on": "2026-08-07",
+                "payment_method": "現金",
+                "receiving_account": "",
+                "note": "",
+            },
+            follow=True,
+        )
+
+        self.assertContains(response, "尾款資料未保存")
+        payment = PaymentRecord.objects.get(order=order, system_key="balance")
+        self.assertEqual(payment.received_amount, Decimal("0"))
+
+    def test_delivery_payment_form_defaults_to_taipei_today(self):
+        order, _vehicle = self.make_order()
+        payment = PaymentRecord.objects.get(order=order, system_key="balance")
+
+        with timezone.override("Asia/Taipei"):
+            form = DeliveryPaymentForm(instance=payment)
+
+        self.assertEqual(form.initial["received_on"], timezone.localdate())
+        self.assertEqual(form.initial["received_amount"], payment.expected_amount)
+
+    def test_installment_delivery_only_requires_non_financed_balance(self):
+        order, _vehicle = self.make_order()
+        order.payment_type = SalesOrder.PaymentType.INSTALLMENT
+        order.installment_amount = Decimal("65000")
+        order.actual_balance = Decimal("70000")
+        order.registration_completed_at = timezone.now()
+        order.status = SalesOrder.Status.DELIVERY_PENDING
+        order.save(
+            update_fields=[
+                "payment_type",
+                "installment_amount",
+                "actual_balance",
+                "registration_completed_at",
+                "status",
+                "updated_at",
+            ]
+        )
+        balance = PaymentRecord.objects.get(order=order, system_key="balance")
+        installment = PaymentRecord.objects.get(
+            order=order,
+            system_key="installment_disbursement",
+        )
+        balance.received_amount = balance.expected_amount
+        balance.received_on = date(2026, 8, 7)
+        balance.payment_method = "現金"
+        balance.confirmed = True
+        balance.save()
+
+        form = DeliveryCompletionForm(order, self.delivery_payload())
+        self.assertTrue(form.is_valid(), form.errors)
+        delivered, _record = form.save("測試人員")
+
+        delivered.refresh_from_db()
+        installment.refresh_from_db()
+        self.assertEqual(delivered.status, SalesOrder.Status.COMPLETED)
+        self.assertFalse(installment.confirmed)
 
     def test_completed_delivery_renders_structured_summary_and_note(self):
         order, _vehicle = self.make_order(dealer=True)

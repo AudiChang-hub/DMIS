@@ -1877,6 +1877,36 @@ class SalesOrder(TimeStampedModel):
             raise ValidationError("尚未配車，不能完成交付。")
         if not self.can_deliver:
             raise ValidationError("一般訂單必須先完成領牌才能交付。")
+        if self.source_type != self.SourceType.DEALER:
+            required_balance = (
+                max(
+                    (self.actual_balance or Decimal("0"))
+                    - (self.installment_amount or Decimal("0")),
+                    Decimal("0"),
+                )
+                if self.payment_type == self.PaymentType.INSTALLMENT
+                else (self.actual_balance or Decimal("0"))
+            )
+            balance_payment = self.payment_records.filter(system_key="balance").first()
+            received = (
+                balance_payment.received_amount
+                if balance_payment is not None
+                else Decimal("0")
+            ) or Decimal("0")
+            settled = bool(
+                required_balance <= 0
+                or (
+                    balance_payment is not None
+                    and balance_payment.confirmed
+                    and received >= required_balance
+                )
+            )
+            if not settled:
+                shortage = max(required_balance - received, Decimal("0"))
+                raise ValidationError(
+                    f"尾款尚未收清，仍差 {shortage:,.0f} 元；"
+                    "請先在交付頁保存並確認收款。"
+                )
 
         vehicle = VehicleInventory.objects.select_for_update().get(
             pk=self.allocated_vehicle_id
@@ -2481,6 +2511,21 @@ class PaymentRecord(TimeStampedModel):
     def card_fee_difference(self):
         return (self.card_fee_charged or Decimal("0")) - (
             self.bank_card_fee or Decimal("0")
+        )
+
+    @property
+    def outstanding_amount(self):
+        return max(
+            (self.expected_amount or Decimal("0"))
+            - (self.received_amount or Decimal("0")),
+            Decimal("0"),
+        )
+
+    @property
+    def is_settled(self):
+        return bool(
+            (self.expected_amount or Decimal("0")) <= 0
+            or (self.confirmed and self.outstanding_amount <= 0)
         )
 
     class Meta:

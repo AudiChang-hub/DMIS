@@ -1354,6 +1354,110 @@ class PaymentRecordForm(forms.ModelForm):
         return validate_document_upload(self.cleaned_data.get("proof"))
 
 
+class DeliveryPaymentForm(forms.ModelForm):
+    PAYMENT_METHOD_CHOICES = (
+        ("", "請選擇"),
+        ("現金", "現金"),
+        ("匯款", "匯款"),
+        ("刷卡", "刷卡"),
+        ("其他", "其他"),
+    )
+
+    received_amount = forms.DecimalField(
+        label="實收金額",
+        max_digits=12,
+        decimal_places=0,
+        min_value=Decimal("0"),
+    )
+    received_on = forms.DateField(
+        label="收款日期",
+        required=False,
+        widget=DateInput(),
+    )
+    payment_method = forms.ChoiceField(
+        label="收款方式",
+        choices=PAYMENT_METHOD_CHOICES,
+        required=False,
+    )
+    confirmed = forms.BooleanField(
+        label="確認此筆尾款已收妥",
+        required=False,
+    )
+
+    class Meta:
+        model = PaymentRecord
+        fields = [
+            "received_amount",
+            "received_on",
+            "payment_method",
+            "receiving_account",
+            "proof",
+            "note",
+            "confirmed",
+        ]
+        widgets = {
+            "proof": forms.ClearableFileInput(
+                attrs={"accept": "image/*,application/pdf"}
+            ),
+        }
+        labels = {
+            "receiving_account": "收款帳戶／末五碼",
+            "proof": "收款證明",
+            "note": "收款備註",
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        expected = self.instance.expected_amount or Decimal("0")
+        if not self.is_bound:
+            if not self.instance.received_amount and expected > 0:
+                self.initial["received_amount"] = expected
+            if not self.instance.received_on:
+                self.initial["received_on"] = timezone.localdate()
+            allowed_methods = {value for value, _label in self.PAYMENT_METHOD_CHOICES}
+            if self.instance.payment_method not in allowed_methods:
+                self.initial["payment_method"] = ""
+        for field in self.fields.values():
+            field.widget.attrs.setdefault("class", "form-control")
+        self.fields["confirmed"].widget.attrs["class"] = "form-check"
+        self.fields["received_amount"].widget.attrs.update(
+            {"inputmode": "numeric", "min": "0"}
+        )
+        apply_mobile_keyboard_attrs(self)
+
+    def clean(self):
+        cleaned = super().clean()
+        received = cleaned.get("received_amount") or Decimal("0")
+        expected = self.instance.expected_amount or Decimal("0")
+        if received > 0:
+            if not cleaned.get("received_on"):
+                self.add_error("received_on", "已有實收金額時，請填寫收款日期。")
+            if not cleaned.get("payment_method"):
+                self.add_error("payment_method", "已有實收金額時，請選擇收款方式。")
+        if cleaned.get("confirmed") and received < expected:
+            shortage = expected - received
+            self.add_error(
+                "confirmed",
+                f"尚差 {shortage:,.0f} 元，不可標記為已收清。",
+            )
+        return cleaned
+
+    def clean_proof(self):
+        return validate_document_upload(self.cleaned_data.get("proof"))
+
+    def save(self, actor_name, commit=True):
+        payment = super().save(commit=False)
+        if payment.confirmed:
+            payment.confirmed_by = actor_name
+            payment.confirmed_at = timezone.now()
+        else:
+            payment.confirmed_by = ""
+            payment.confirmed_at = None
+        if commit:
+            payment.save()
+        return payment
+
+
 class ReconciliationRecordForm(forms.ModelForm):
     class Meta:
         model = PaymentRecord
@@ -1683,7 +1787,6 @@ class DeliveryCompletionForm(forms.Form):
     documents_checked = forms.BooleanField(label="已核對交付文件")
     keys_checked = forms.BooleanField(label="已核對鑰匙")
     accessories_checked = forms.BooleanField(label="已核對配件與贈品")
-    payment_checked = forms.BooleanField(label="已核對收款狀態")
     handover_photo = forms.ImageField(label="交付照片", required=False)
 
     def __init__(self, order, *args, **kwargs):
@@ -1710,7 +1813,6 @@ class DeliveryCompletionForm(forms.Form):
             "documents_checked",
             "keys_checked",
             "accessories_checked",
-            "payment_checked",
         ):
             self.fields[field_name].widget.attrs["class"] = "form-check"
         self.fields["vehicle_condition_note"].widget.attrs[
@@ -1768,7 +1870,9 @@ class DeliveryCompletionForm(forms.Form):
             documents_checked=self.cleaned_data["documents_checked"],
             keys_checked=self.cleaned_data["keys_checked"],
             accessories_checked=self.cleaned_data["accessories_checked"],
-            payment_checked=self.cleaned_data["payment_checked"],
+            # 尾款由交付頁的獨立收款區塊確認；合作車行可先交車，
+            # 因此這裡記錄的是「已核對收款狀態」而非「已全數收清」。
+            payment_checked=True,
             damage_found=self.cleaned_data["damage_found"],
             damage_note=self.cleaned_data["damage_note"],
             handover_photo=self.cleaned_data.get("handover_photo"),

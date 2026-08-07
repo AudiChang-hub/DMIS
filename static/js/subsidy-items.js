@@ -10,6 +10,8 @@ document.addEventListener("DOMContentLoaded", () => {
   const uploadControls = [...document.querySelectorAll("[data-subsidy-upload-control]")];
   const saveDock = subsidyForm?.querySelector("[data-subsidy-save-dock]");
   const saveButton = subsidyForm?.querySelector("[data-subsidy-save-button]");
+  const saveTitle = subsidyForm?.querySelector("[data-subsidy-save-title]");
+  const saveDescription = subsidyForm?.querySelector("[data-subsidy-save-description]");
   let initialFormState = "";
   let formIsDirty = false;
   let formIsSubmitting = false;
@@ -37,7 +39,20 @@ document.addEventListener("DOMContentLoaded", () => {
   function refreshDirtyState() {
     if (!subsidyForm || !saveDock) return;
     formIsDirty = currentFormState() !== initialFormState;
-    saveDock.hidden = !formIsDirty;
+    saveDock.classList.toggle("is-saved", !formIsDirty);
+    saveDock.classList.toggle("is-dirty", formIsDirty);
+    if (saveTitle) {
+      saveTitle.textContent = formIsDirty ? "補助資料尚未儲存" : "補助資料已儲存";
+    }
+    if (saveDescription) {
+      saveDescription.textContent = formIsDirty
+        ? "儲存後會同步更新尾款，並留下修改人員與異動紀錄。"
+        : "修改舊車資料或補助項目後，即可在這裡儲存。";
+    }
+    if (saveButton) {
+      saveButton.disabled = !formIsDirty;
+      saveButton.textContent = formIsDirty ? "儲存補助變更" : "資料已儲存";
+    }
   }
 
   function setUploadControls(enabled) {
@@ -130,6 +145,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   if (subsidyForm && saveDock) {
     initialFormState = currentFormState();
+    refreshDirtyState();
     subsidyForm.addEventListener("input", refreshDirtyState);
     subsidyForm.addEventListener("change", refreshDirtyState);
     subsidyForm.addEventListener("submit", () => {

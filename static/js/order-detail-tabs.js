@@ -30,6 +30,10 @@
       url.searchParams.set("tab", activeName);
       window.history.replaceState({tab: activeName}, "", url);
     }
+    tabList.dataset.activeTab = activeName;
+    window.dispatchEvent(
+      new CustomEvent("order-tab-change", {detail: {tab: activeName}})
+    );
   }
 
   tabs.forEach((tab, index) => {

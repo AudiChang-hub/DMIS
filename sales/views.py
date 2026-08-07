@@ -1849,6 +1849,17 @@ def order_detail(request, pk):
         registration_missing=registration_missing,
         subsidy_missing=subsidy_missing,
     )
+    valid_tabs = {
+        "order",
+        "allocation",
+        "subsidy",
+        "registration",
+        "delivery",
+        "documents",
+        "history",
+    }
+    requested_tab = request.GET.get("tab", "")
+    active_tab = requested_tab if requested_tab in valid_tabs else "order"
     return render(
         request,
         "sales/order_detail.html",
@@ -1874,6 +1885,7 @@ def order_detail(request, pk):
             "change_cards": build_order_change_cards(order.changes.all()),
             "operations_profile": operations_profile,
             "next_actions": next_actions,
+            "active_tab": active_tab,
             "delivery_form": DeliveryCompletionForm(order),
             "cancellation_form": CancellationRequestForm(),
             "refund_form": RefundCompletionForm(order),

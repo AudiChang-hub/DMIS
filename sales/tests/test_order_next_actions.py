@@ -1,3 +1,4 @@
+import re
 from datetime import date, datetime
 from decimal import Decimal
 from pathlib import Path
@@ -190,6 +191,88 @@ class OrderNextActionTests(TestCase):
 
         self.assertEqual(actions.primary.key, "delivery")
         self.assertIn("?tab=delivery", actions.primary.url)
+        self.assertEqual(actions.primary.target_tab, "delivery")
+
+    def test_delivery_tab_marks_delivery_recommendation_as_current_work(self):
+        order = self.make_order()
+        order.allocate(self.make_vehicle())
+        SalesOrder.objects.filter(pk=order.pk).update(
+            registration_completed_at=timezone.now(),
+            status=SalesOrder.Status.DELIVERY_PENDING,
+        )
+        self.client.force_login(self.user)
+
+        response = self.client.get(
+            f"{reverse('order_detail', args=[order.pk])}?tab=delivery"
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["active_tab"], "delivery")
+        self.assertContains(response, "next-actions--primary is-current-context")
+        self.assertContains(response, 'data-current-tab="delivery"')
+        self.assertContains(response, 'data-target-tab="delivery"')
+        self.assertContains(response, "data-next-actions-controls hidden")
+        self.assertContains(response, ">目前作業<")
+
+    def test_other_tab_keeps_delivery_navigation_available(self):
+        order = self.make_order()
+        order.allocate(self.make_vehicle())
+        SalesOrder.objects.filter(pk=order.pk).update(
+            registration_completed_at=timezone.now(),
+            status=SalesOrder.Status.DELIVERY_PENDING,
+        )
+        self.client.force_login(self.user)
+
+        response = self.client.get(
+            f"{reverse('order_detail', args=[order.pk])}?tab=order"
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["active_tab"], "order")
+        self.assertContains(response, 'data-current-tab="order"')
+        self.assertNotContains(response, "next-actions--primary is-current-context")
+        self.assertNotContains(response, "data-next-actions-controls hidden")
+        self.assertContains(response, "前往交付")
+
+    def test_current_secondary_tab_is_presented_as_non_navigation(self):
+        order = self.make_order(source_type=SalesOrder.SourceType.DEALER)
+        order.allocate(self.make_vehicle())
+        self.client.force_login(self.user)
+
+        response = self.client.get(
+            f"{reverse('order_detail', args=[order.pk])}?tab=delivery"
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(
+            response,
+            'data-action-key="dealer-early-delivery" data-target-tab="delivery"',
+        )
+        self.assertContains(response, ">目前頁面<")
+        action_markup = re.search(
+            r'<a(?=[^>]*data-action-key="dealer-early-delivery")[^>]*>',
+            response.content.decode("utf-8"),
+        ).group(0)
+        self.assertNotIn(" href=", action_markup)
+        self.assertIn('aria-current="location"', action_markup)
+        self.assertIn('tabindex="-1"', action_markup)
+
+    def test_invalid_tab_falls_back_without_hiding_delivery_navigation(self):
+        order = self.make_order()
+        order.allocate(self.make_vehicle())
+        SalesOrder.objects.filter(pk=order.pk).update(
+            registration_completed_at=timezone.now(),
+            status=SalesOrder.Status.DELIVERY_PENDING,
+        )
+        self.client.force_login(self.user)
+
+        response = self.client.get(
+            f"{reverse('order_detail', args=[order.pk])}?tab=not-a-real-tab"
+        )
+
+        self.assertEqual(response.context["active_tab"], "order")
+        self.assertNotContains(response, "data-next-actions-controls hidden")
+        self.assertContains(response, "前往交付")
 
     def test_dealer_delivered_before_registration_has_both_deadlines(self):
         order = self.make_order(source_type=SalesOrder.SourceType.DEALER)
@@ -274,7 +357,15 @@ class OrderNextActionTests(TestCase):
         self.assertIn("const storageKey = `${prefix}${stateKey}`", script)
         self.assertIn("key.startsWith(prefix) && key !== storageKey", script)
         self.assertIn("data-next-actions-restore", script)
+        self.assertIn('primary.dataset.targetTab === tabName', script)
+        self.assertIn('controls.hidden = primaryIsCurrent', script)
+        self.assertIn('action.removeAttribute("href")', script)
+        self.assertIn('window.addEventListener("order-tab-change"', script)
         self.assertNotIn("window.location =", script)
+
+        tab_script = Path("static/js/order-detail-tabs.js").read_text(encoding="utf-8")
+        self.assertIn("tabList.dataset.activeTab = activeName", tab_script)
+        self.assertIn('new CustomEvent("order-tab-change"', tab_script)
 
     def test_workbar_styles_do_not_split_secondary_actions_into_cards(self):
         styles = Path("static/css/app.css").read_text(encoding="utf-8")

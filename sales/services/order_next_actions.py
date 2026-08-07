@@ -20,6 +20,7 @@ class NextAction:
     url: str
     badge: str = "建議下一步"
     tone: str = "primary"
+    target_tab: str = ""
 
 
 @dataclass(frozen=True, slots=True)
@@ -101,6 +102,7 @@ def _subsidy_action(order, subsidy_missing):
             url=_tab_url(order, "subsidy"),
             badge="可同步處理",
             tone="parallel",
+            target_tab="subsidy",
         )
 
     items = list(order.subsidy_items.all())
@@ -123,6 +125,7 @@ def _subsidy_action(order, subsidy_missing):
         url=_tab_url(order, "subsidy"),
         badge="可同步處理",
         tone="parallel",
+        target_tab="subsidy",
     )
 
 
@@ -142,6 +145,7 @@ def _document_archive_action(order):
         url=_tab_url(order, "documents"),
         badge="可稍後處理",
         tone="optional",
+        target_tab="documents",
     )
 
 
@@ -156,6 +160,7 @@ def _registration_action(order, registration_missing):
             description=f"目前待補：{preview}。",
             action_label="前往領牌",
             url=_tab_url(order, "registration"),
+            target_tab="registration",
         )
 
     rule = resolve_settlement_cost(
@@ -185,6 +190,7 @@ def _registration_action(order, registration_missing):
         description="領牌資料與必備文件已齊，請核對後完成此階段。",
         action_label="前往領牌確認",
         url=_tab_url(order, "registration"),
+        target_tab="registration",
     )
 
 
@@ -198,6 +204,7 @@ def _state_key(primary, secondary):
                 action.description,
                 action.url,
                 action.tone,
+                action.target_tab,
             ]
         )
     return hashlib.sha256("\x1f".join(values).encode("utf-8")).hexdigest()[:16]
@@ -234,6 +241,7 @@ def build_order_next_actions(
             url=_tab_url(order, "order"),
             badge="優先處理",
             tone="urgent",
+            target_tab="order",
         )
         return OrderNextActions(primary, (), _state_key(primary, ()))
 
@@ -265,6 +273,7 @@ def build_order_next_actions(
                 description="已有符合車型與車色的可售庫存，可由人員確認後配車。",
                 action_label="前往配車",
                 url=_tab_url(order, "allocation"),
+                target_tab="allocation",
             )
         else:
             primary = NextAction(
@@ -312,6 +321,7 @@ def build_order_next_actions(
             url=_tab_url(order, "registration"),
             badge="交付後期限",
             tone="urgent" if today >= due_date else "primary",
+            target_tab="registration",
         )
     elif not order.is_registration_complete:
         primary = _registration_action(order, registration_missing)
@@ -325,6 +335,7 @@ def build_order_next_actions(
                     url=_tab_url(order, "delivery"),
                     badge="可同步處理",
                     tone="parallel",
+                    target_tab="delivery",
                 )
             )
     elif not order.is_delivered:
@@ -334,6 +345,7 @@ def build_order_next_actions(
             description="領牌已完成，請核對車況、文件、鑰匙、配件與收款。",
             action_label="前往交付",
             url=_tab_url(order, "delivery"),
+            target_tab="delivery",
         )
 
     reconciliation = _pending_reconciliation_action(order, today) if order.is_delivered else None

@@ -227,7 +227,7 @@ class UploadFormIntegrationTests(SimpleTestCase):
                 "recipient_phone": "0912345678",
                 "carrier_name": "",
                 "handover_location": "馭盛國際有限公司",
-                "vehicle_condition_note": "車況正常",
+                "vehicle_condition_note": DeliveryCompletionForm.VEHICLE_CONDITION_NORMAL,
                 "condition_checked": "on",
                 "documents_checked": "on",
                 "keys_checked": "on",

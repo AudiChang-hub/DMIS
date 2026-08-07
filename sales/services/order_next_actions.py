@@ -21,6 +21,7 @@ class NextAction:
     badge: str = "建議下一步"
     tone: str = "primary"
     target_tab: str = ""
+    target_anchor: str = ""
 
 
 @dataclass(frozen=True, slots=True)
@@ -139,13 +140,14 @@ def _document_archive_action(order):
         return None
     return NextAction(
         key="documents",
-        title="歸檔簽署文件",
-        description=f"尚未歸檔：{'、'.join(missing)}；可在取得紙本照片後補上。",
-        action_label="前往文件歸檔",
-        url=_tab_url(order, "documents"),
+        title="補上簽署文件",
+        description=f"尚未上傳：{'、'.join(missing)}；取得紙本照片後可隨時補上。",
+        action_label="查看簽署文件",
+        url=f"{_tab_url(order, 'order')}#signed-documents",
         badge="可稍後處理",
         tone="optional",
-        target_tab="documents",
+        target_tab="order",
+        target_anchor="signed-documents",
     )
 
 
@@ -207,6 +209,8 @@ def _state_key(primary, secondary):
                 action.target_tab,
             ]
         )
+        if action.target_anchor:
+            values.append(action.target_anchor)
     return hashlib.sha256("\x1f".join(values).encode("utf-8")).hexdigest()[:16]
 
 

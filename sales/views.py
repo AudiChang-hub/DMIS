@@ -195,9 +195,13 @@ def _document_upload_response(
     ok,
     message,
     status=200,
+    section="",
 ):
     """同時支援一般表單與可顯示上傳進度的非同步表單。"""
     detail_url = reverse("order_detail", args=[order_pk])
+    target_url = f"{detail_url}?tab={tab}"
+    if section:
+        target_url = f"{target_url}#{section}"
     accepts_json = (
         request.headers.get("X-Requested-With") == "XMLHttpRequest"
         or "application/json" in request.headers.get("Accept", "")
@@ -207,7 +211,7 @@ def _document_upload_response(
             {
                 "ok": ok,
                 "message": message,
-                "redirect_url": f"{detail_url}?tab={tab}",
+                "redirect_url": target_url,
             },
             status=status,
         )
@@ -215,7 +219,11 @@ def _document_upload_response(
         messages.success(request, message)
     else:
         messages.error(request, message)
-    return redirect(detail_url)
+    return redirect(target_url if section else detail_url)
+
+
+def _order_detail_section_url(order_pk, section):
+    return f"{reverse('order_detail', args=[order_pk])}?tab=order#{section}"
 
 
 @login_required
@@ -1800,6 +1808,13 @@ def order_detail(request, pk):
         ),
         pk=pk,
     )
+    if request.GET.get("tab") == "documents":
+        legacy_query = request.GET.copy()
+        legacy_query["tab"] = "order"
+        return redirect(
+            f"{reverse('order_detail', args=[pk])}?{legacy_query.urlencode()}"
+            "#signed-documents"
+        )
     registration_documents = {
         document.document_type: document
         for document in order.registration_documents.all()
@@ -1855,7 +1870,6 @@ def order_detail(request, pk):
         "subsidy",
         "registration",
         "delivery",
-        "documents",
         "history",
     }
     requested_tab = request.GET.get("tab", "")
@@ -1886,6 +1900,7 @@ def order_detail(request, pk):
             "operations_profile": operations_profile,
             "next_actions": next_actions,
             "active_tab": active_tab,
+            "delivery_record": getattr(order, "delivery_record", None),
             "delivery_form": DeliveryCompletionForm(order),
             "cancellation_form": CancellationRequestForm(),
             "refund_form": RefundCompletionForm(order),
@@ -2499,11 +2514,16 @@ def identity_documents_print(request, pk):
 @transaction.atomic
 def contract_upload(request, pk):
     order = get_object_or_404(SalesOrder, pk=pk)
+    signed_documents_url = _order_detail_section_url(pk, "signed-documents")
     if request.method != "POST":
-        return redirect("order_detail", pk=pk)
+        return redirect(signed_documents_url)
     previous_file = getattr(order.signed_contract, "name", "")
     form = SignedContractForm(request.POST, request.FILES, instance=order)
-    if form.is_valid():
+    form_is_valid = form.is_valid()
+    if "signed_contract" not in request.FILES:
+        form.add_error("signed_contract", "請先選擇要上傳的合約檔案。")
+        form_is_valid = False
+    if form_is_valid:
         order = form.save(commit=False)
         order.signed_contract_uploaded_at = timezone.now()
         order.save()
@@ -2515,27 +2535,43 @@ def contract_upload(request, pk):
         OrderEvent.objects.create(
             order=order,
             event_type="contract_uploaded",
-            description="已上傳訂購合約附件歸檔。",
+            description="已上傳訂購合約附件。",
             actor_name=request.user.get_username(),
         )
-        messages.success(request, "訂購合約附件已歸檔。")
-    else:
-        messages.error(
+        return _document_upload_response(
             request,
-            "合約上傳失敗：" + (_form_error_text(form) or "請重新選擇檔案。"),
+            order_pk=pk,
+            tab="order",
+            section="signed-documents",
+            ok=True,
+            message="訂購合約附件已上傳。",
         )
-    return redirect("order_detail", pk=pk)
+    return _document_upload_response(
+        request,
+        order_pk=pk,
+        tab="order",
+        section="signed-documents",
+        ok=False,
+        message="合約上傳失敗："
+        + (_form_error_text(form) or "請重新選擇檔案。"),
+        status=400,
+    )
 
 
 @login_required
 @transaction.atomic
 def privacy_consent_upload(request, pk):
     order = get_object_or_404(SalesOrder, pk=pk)
+    signed_documents_url = _order_detail_section_url(pk, "signed-documents")
     if request.method != "POST":
-        return redirect("order_detail", pk=pk)
+        return redirect(signed_documents_url)
     previous_file = getattr(order.privacy_consent, "name", "")
     form = PrivacyConsentForm(request.POST, request.FILES, instance=order)
-    if form.is_valid():
+    form_is_valid = form.is_valid()
+    if "privacy_consent" not in request.FILES:
+        form.add_error("privacy_consent", "請先選擇要上傳的同意書檔案。")
+        form_is_valid = False
+    if form_is_valid:
         order = form.save(commit=False)
         order.privacy_consent_uploaded_at = timezone.now()
         order.save()
@@ -2547,17 +2583,27 @@ def privacy_consent_upload(request, pk):
         OrderEvent.objects.create(
             order=order,
             event_type="privacy_consent_uploaded",
-            description="已上傳個資同意書附件歸檔。",
+            description="已上傳個資同意書附件。",
             actor_name=request.user.get_username(),
         )
-        messages.success(request, "個資同意書附件已歸檔。")
-    else:
-        messages.error(
+        return _document_upload_response(
             request,
-            "個資同意書上傳失敗："
-            + (_form_error_text(form) or "請重新選擇檔案。"),
+            order_pk=pk,
+            tab="order",
+            section="signed-documents",
+            ok=True,
+            message="個資同意書附件已上傳。",
         )
-    return redirect("order_detail", pk=pk)
+    return _document_upload_response(
+        request,
+        order_pk=pk,
+        tab="order",
+        section="signed-documents",
+        ok=False,
+        message="個資同意書上傳失敗："
+        + (_form_error_text(form) or "請重新選擇檔案。"),
+        status=400,
+    )
 
 
 @login_required

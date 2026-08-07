@@ -1285,7 +1285,9 @@ class OrderFlowTests(TestCase):
 
         detail = self.client.get(reverse("order_detail", args=[order.pk]))
         self.assertContains(detail, 'data-subsidy-form')
-        self.assertContains(detail, "儲存補助資料")
+        self.assertContains(detail, 'data-subsidy-save-dock hidden')
+        self.assertContains(detail, "補助資料尚未儲存")
+        self.assertContains(detail, "儲存補助變更")
         self.assertNotContains(detail, "修改補助基本資料")
 
         response = self.client.post(
@@ -1452,6 +1454,14 @@ class OrderFlowTests(TestCase):
         self.assertIn("revisionInput.value = String(payload.revision)", script)
         self.assertIn("setUploadControls(payload.enabled)", script)
         self.assertNotIn("window.location.reload", script)
+
+    def test_subsidy_edit_script_only_shows_save_dock_after_changes(self):
+        script = Path("static/js/subsidy-items.js").read_text(encoding="utf-8")
+        self.assertIn('querySelector("[data-subsidy-save-dock]")', script)
+        self.assertIn("currentFormState() !== initialFormState", script)
+        self.assertIn("saveDock.hidden = !formIsDirty", script)
+        self.assertIn('window.addEventListener("beforeunload"', script)
+        self.assertIn('saveButton.textContent = "正在儲存…"', script)
 
     def test_cancelled_order_keeps_subsidy_locked(self):
         order = self.make_order()

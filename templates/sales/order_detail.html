@@ -154,9 +154,12 @@
       <template data-empty-form><div class="dynamic-detail-row" data-form-row>{% with item_form=subsidy_item_formset.empty_form %}{% for hidden in item_form.hidden_fields %}{{ hidden }}{% endfor %}{% for field in item_form.visible_fields %}{% if field.name != 'DELETE' %}<div><label for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}</div>{% endif %}{% endfor %}<label class="delete-detail-control">{{ item_form.DELETE }} <span>移除此項</span></label>{% endwith %}</div></template>
       <button class="button ghost" type="button" data-add-form>＋ 新增補助項目</button>
     </section>
-    <div class="subsidy-edit-actions">
-      <p>估價與舊車稅金異動會自動重算尾款，並保存修改人員、時間與前後內容。</p>
-      <button class="button primary" type="submit">儲存補助資料</button>
+    <div class="subsidy-save-dock" data-subsidy-save-dock hidden role="status" aria-live="polite">
+      <div class="subsidy-save-dock__copy">
+        <strong>補助資料尚未儲存</strong>
+        <small>儲存後會同步更新尾款，並留下修改人員與異動紀錄。</small>
+      </div>
+      <button class="button primary" type="submit" data-subsidy-save-button>儲存補助變更</button>
     </div>
   </form>
   {% if order.old_owner_ocr_name or order.old_owner_ocr_id_number %}

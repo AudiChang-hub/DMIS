@@ -1706,6 +1706,11 @@ class SalesOrder(TimeStampedModel):
         }
 
     @property
+    def can_manage_subsidy(self):
+        """補助可能在交付後才申請或補件，僅正式取消後鎖定。"""
+        return self.status != self.Status.CANCELLED
+
+    @property
     def accessory_total(self):
         return (
             sum(line.line_total for line in self.accessories.all())

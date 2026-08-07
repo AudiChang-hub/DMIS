@@ -1320,6 +1320,98 @@ class OrderFlowTests(TestCase):
         self.assertIn("舊車主身分證字號", change.changes)
         self.assertIn("舊車估價", change.changes)
 
+    def test_completed_order_can_enable_subsidy_and_upload_documents(self):
+        order = self.make_order()
+        SalesOrder.objects.filter(pk=order.pk).update(
+            status=SalesOrder.Status.COMPLETED,
+            delivered_at=timezone.now(),
+            delivered_by="tester",
+        )
+        order.refresh_from_db()
+        self.assertFalse(order.is_editable)
+        self.assertTrue(order.can_manage_subsidy)
+        self.client.force_login(self.user)
+
+        detail = self.client.get(reverse("order_detail", args=[order.pk]))
+        self.assertContains(detail, 'data-subsidy-form')
+        self.assertContains(detail, "申請汰舊／政府補助")
+
+        response = self.client.post(
+            reverse("subsidy_data_update", args=[order.pk]),
+            {
+                "_order_revision": order.revision,
+                "is_trade_in_subsidy": "on",
+                "old_owner_same_as_owner": "on",
+                "trade_in_plate": "old-1234",
+                "old_owner_name": "",
+                "old_owner_id_number": "",
+                "subsidy_type": "汰舊換新",
+                "old_vehicle_valuation": "0",
+                "old_vehicle_tax": "0",
+                "change_reason": "交付後開始辦理補助",
+            },
+        )
+        self.assertRedirects(
+            response,
+            f"{reverse('order_detail', args=[order.pk])}?tab=subsidy",
+        )
+        order.refresh_from_db()
+        self.assertTrue(order.is_trade_in_subsidy)
+        self.assertEqual(order.trade_in_plate, "OLD-1234")
+        self.assertEqual(order.status, SalesOrder.Status.COMPLETED)
+
+        response = self.client.post(
+            reverse("subsidy_document_upload", args=[order.pk]),
+            {
+                "document_type": SubsidyDocument.DocumentType.RECYCLING_RECEIPT,
+                "file": uploaded_test_pdf("recycling-receipt.pdf"),
+            },
+        )
+        self.assertRedirects(response, reverse("order_detail", args=[order.pk]))
+        self.assertTrue(
+            order.subsidy_documents.filter(
+                document_type=SubsidyDocument.DocumentType.RECYCLING_RECEIPT
+            ).exists()
+        )
+
+    def test_cancelled_order_keeps_subsidy_locked(self):
+        order = self.make_order()
+        SalesOrder.objects.filter(pk=order.pk).update(
+            status=SalesOrder.Status.CANCELLED,
+        )
+        order.refresh_from_db()
+        self.assertFalse(order.can_manage_subsidy)
+        self.client.force_login(self.user)
+
+        detail = self.client.get(reverse("order_detail", args=[order.pk]))
+        self.assertNotContains(detail, 'data-subsidy-form')
+
+        response = self.client.post(
+            reverse("subsidy_data_update", args=[order.pk]),
+            {
+                "_order_revision": order.revision,
+                "is_trade_in_subsidy": "on",
+                "trade_in_plate": "OLD-1234",
+                "subsidy_type": "汰舊換新",
+                "old_vehicle_valuation": "0",
+                "old_vehicle_tax": "0",
+                "change_reason": "已取消訂單不應修改",
+            },
+        )
+        self.assertEqual(response.status_code, 302)
+        order.refresh_from_db()
+        self.assertFalse(order.is_trade_in_subsidy)
+
+        response = self.client.post(
+            reverse("subsidy_document_upload", args=[order.pk]),
+            {
+                "document_type": SubsidyDocument.DocumentType.RECYCLING_RECEIPT,
+                "file": uploaded_test_pdf("blocked.pdf"),
+            },
+        )
+        self.assertEqual(response.status_code, 302)
+        self.assertFalse(order.subsidy_documents.exists())
+
     def test_subsidy_update_preserves_manually_adjusted_balance(self):
         order = self.make_order()
         SalesOrder.objects.filter(pk=order.pk).update(

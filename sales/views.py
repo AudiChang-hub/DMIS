@@ -3282,7 +3282,7 @@ def subsidy_document_upload(request, pk):
     order = get_object_or_404(SalesOrder.objects.select_for_update(), pk=pk)
     if request.method != "POST":
         return redirect("order_detail", pk=pk)
-    if order.status == SalesOrder.Status.CANCELLED:
+    if not order.can_manage_subsidy:
         return _document_upload_response(
             request,
             order_pk=pk,
@@ -3381,7 +3381,7 @@ def subsidy_document_delete(request, pk, document_pk):
     order = get_object_or_404(SalesOrder.objects.select_for_update(), pk=pk)
     if request.method != "POST":
         return redirect("order_detail", pk=pk)
-    if order.status == SalesOrder.Status.CANCELLED:
+    if not order.can_manage_subsidy:
         messages.error(request, "已取消訂單無法修改補助文件。")
         return redirect("order_detail", pk=pk)
     document = get_object_or_404(
@@ -3427,8 +3427,8 @@ def subsidy_data_update(request, pk):
     detail_url = f"{reverse('order_detail', args=[pk])}?tab=subsidy"
     if request.method != "POST":
         return redirect(detail_url)
-    if not order.is_editable:
-        messages.error(request, "此訂單已交車、完成或取消，補助資料已鎖定。")
+    if not order.can_manage_subsidy:
+        messages.error(request, "已取消訂單無法修改補助資料。")
         return redirect(detail_url)
     try:
         submitted_revision = int(request.POST.get("_order_revision", 0))
@@ -3507,7 +3507,7 @@ def subsidy_data_update(request, pk):
 def subsidy_ocr_decision(request, pk):
     order = get_object_or_404(SalesOrder.objects.select_for_update(), pk=pk)
     detail_url = f"{reverse('order_detail', args=[pk])}?tab=subsidy"
-    if request.method != "POST" or not order.is_editable:
+    if request.method != "POST" or not order.can_manage_subsidy:
         return redirect(detail_url)
     decision = request.POST.get("decision")
     if decision not in {"apply", "keep"}:

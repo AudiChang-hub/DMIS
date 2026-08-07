@@ -2875,6 +2875,9 @@ def delivery_complete(request, pk):
     detail_url = f"{reverse('order_detail', args=[pk])}?tab=delivery"
     if request.method != "POST":
         return redirect(detail_url)
+    if order.is_delivered or DeliveryRecord.objects.filter(order=order).exists():
+        messages.info(request, "此訂單已完成交付，不需要重複送出。")
+        return redirect(detail_url)
     form = DeliveryCompletionForm(order, request.POST, request.FILES)
     if not form.is_valid():
         messages.error(

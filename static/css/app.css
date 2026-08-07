@@ -1702,6 +1702,40 @@ body.screen-locked { overflow: hidden; }
 }
 
 .delivery-completion-form { margin-top: 20px; padding-top: 20px; border-top: 1px solid var(--line); }
+.delivery-completion-form .form-grid > .wide { grid-column: 1 / -1; }
+.delivery-condition-field {
+  min-width: 0; margin: 0; padding: 18px; background: #f6f9f7; border: 1px solid var(--line); border-radius: 14px;
+}
+.delivery-condition-field legend { padding: 0; color: #3d4a43; font-size: .82rem; font-weight: 800; }
+.delivery-condition-options {
+  display: grid; margin-top: 9px; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px;
+}
+.delivery-condition-options > div { min-width: 0; }
+.delivery-condition-options label {
+  display: flex; min-height: 50px; padding: 12px 14px; align-items: center; gap: 10px;
+  color: #34443d; background: #fff; border: 1px solid #cfdad4; border-radius: 11px;
+  font-weight: 800; cursor: pointer; transition: border-color .14s ease, background .14s ease, box-shadow .14s ease;
+}
+.delivery-condition-options label:hover { border-color: #8eaa9c; background: #fbfdfc; }
+.delivery-condition-options label:has(input:checked) {
+  color: var(--forest); background: var(--mint); border-color: var(--forest);
+  box-shadow: 0 0 0 1px var(--forest);
+}
+.delivery-condition-options input { width: 18px; height: 18px; margin: 0; accent-color: var(--forest); }
+.delivery-completion-actions {
+  display: flex; min-height: 92px; padding: 20px 22px; align-items: center; justify-content: space-between;
+  gap: 24px; background: #f8faf9; border-top: 1px solid var(--line); border-radius: 0 0 16px 16px;
+}
+.delivery-completion-actions__copy { display: grid; max-width: 760px; gap: 4px; }
+.delivery-completion-actions__copy strong { color: var(--forest); font-size: .94rem; }
+.delivery-completion-actions__copy p { margin: 0; color: var(--muted); font-size: .84rem; line-height: 1.5; }
+.delivery-completion-actions .button { min-width: 180px; flex: 0 0 auto; }
+@media (max-width: 600px) {
+  .delivery-condition-field { padding: 14px; }
+  .delivery-condition-options { grid-template-columns: 1fr; }
+  .delivery-completion-actions { padding: 16px; align-items: stretch; flex-direction: column; gap: 14px; }
+  .delivery-completion-actions .button { width: 100%; }
+}
 .delivery-summary { margin-top: 16px; }
 .cancellation-panel { margin-top: 20px; }
 .cancellation-panel > summary { display: flex; justify-content: space-between; gap: 16px; cursor: pointer; }

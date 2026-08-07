@@ -118,7 +118,7 @@
     {% endif %}
   </div>
 
-  {% if order.is_editable %}
+  {% if order.can_manage_subsidy %}
   <form class="subsidy-edit-form" method="post" action="{% url 'subsidy_data_update' order.pk %}" data-subsidy-form data-was-enabled="{% if order.is_trade_in_subsidy %}true{% else %}false{% endif %}" data-has-documents="{% if order.subsidy_documents.all|length %}true{% else %}false{% endif %}">
     {% csrf_token %}
     <input type="hidden" name="_order_revision" value="{{ order.revision }}">
@@ -206,13 +206,13 @@
         <div class="registration-document-row__actions">
           {% if row.document %}
             <a class="button ghost compact" href="{% url 'subsidy_document_file' row.document.pk %}" target="_blank">查看</a>
-            {% if order.status != "cancelled" %}
+            {% if order.can_manage_subsidy %}
             <form method="post" action="{% url 'subsidy_document_delete' order.pk row.document.pk %}" data-confirm="確定刪除這份補助文件嗎？刪除後無法復原。">
               {% csrf_token %}<button class="button danger-ghost compact" type="submit">刪除</button>
             </form>
             {% endif %}
           {% endif %}
-          {% if order.is_trade_in_subsidy and order.status != "cancelled" %}
+          {% if order.is_trade_in_subsidy and order.can_manage_subsidy %}
           <form class="document-upload-form" data-document-upload data-auto-upload method="post" enctype="multipart/form-data" action="{% url 'subsidy_document_upload' order.pk %}">
             {% csrf_token %}
             <input type="hidden" name="document_type" value="{{ row.type }}">
@@ -243,7 +243,7 @@
         </span>
         <div>
           <a class="button ghost compact" href="{% url 'subsidy_document_file' document.pk %}" target="_blank">查看</a>
-          {% if order.status != "cancelled" %}
+          {% if order.can_manage_subsidy %}
           <form method="post" action="{% url 'subsidy_document_delete' order.pk document.pk %}" data-confirm="確定刪除這份其他補助文件嗎？刪除後無法復原。">
             {% csrf_token %}<button class="button danger-ghost compact" type="submit">刪除</button>
           </form>
@@ -254,7 +254,7 @@
       <p class="other-subsidy-documents__empty">目前沒有其他補助文件。</p>
       {% endfor %}
 
-      {% if order.is_trade_in_subsidy and order.status != "cancelled" %}
+      {% if order.is_trade_in_subsidy and order.can_manage_subsidy %}
       <form class="other-subsidy-documents__form" method="post" enctype="multipart/form-data" action="{% url 'subsidy_document_upload' order.pk %}">
         {% csrf_token %}
         <input type="hidden" name="document_type" value="other">

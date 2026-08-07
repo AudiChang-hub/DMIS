@@ -1763,9 +1763,7 @@ class SalesOrder(TimeStampedModel):
             required.add(RegistrationDocument.DocumentType.PLATE_SELECTION)
         return required
 
-    def required_subsidy_document_types(self):
-        if not self.is_trade_in_subsidy:
-            return set()
+    def subsidy_document_types_when_enabled(self):
         required = {
             SubsidyDocument.DocumentType.OLD_OWNER_ID_FRONT,
             SubsidyDocument.DocumentType.OLD_OWNER_ID_BACK,
@@ -1778,6 +1776,11 @@ class SalesOrder(TimeStampedModel):
             required.add(SubsidyDocument.DocumentType.OWNER_DECLARATION)
             required.add(SubsidyDocument.DocumentType.OLD_OWNER_BANKBOOK)
         return required
+
+    def required_subsidy_document_types(self):
+        if not self.is_trade_in_subsidy:
+            return set()
+        return self.subsidy_document_types_when_enabled()
 
     def missing_subsidy_requirements(self):
         if not self.is_trade_in_subsidy:

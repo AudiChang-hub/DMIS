@@ -1659,6 +1659,13 @@ class OrderFlowTests(TestCase):
         order.allocate(self.vehicle)
         self.client.force_login(self.user)
 
+        missing = order.missing_registration_requirements()
+        self.assertIn("新行照照片", missing)
+        self.assertIn("新車領牌登記書", missing)
+        self.assertIn("發票", missing)
+        self.assertNotIn("監理站單據", missing)
+        self.assertNotIn("強制險單", missing)
+
         response = self.client.post(
             reverse("registration_complete", args=[order.pk])
         )
@@ -1667,6 +1674,94 @@ class OrderFlowTests(TestCase):
         order.refresh_from_db()
         self.assertFalse(order.is_registration_complete)
         self.assertEqual(order.status, SalesOrder.Status.ALLOCATED)
+
+    def test_retired_registration_documents_are_hidden_and_rejected(self):
+        order = self.make_order()
+        order.allocate(self.vehicle)
+        self.client.force_login(self.user)
+
+        detail = self.client.get(reverse("order_detail", args=[order.pk]))
+        self.assertNotContains(detail, "監理站單據")
+        self.assertNotContains(detail, "強制險單")
+        self.assertContains(detail, "data-document-upload")
+        self.assertContains(detail, "data-auto-upload")
+        self.assertContains(detail, "document-upload-progress.js")
+        self.assertNotContains(detail, "this.form.submit()")
+        progress_script = Path("static/js/document-upload-progress.js").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn('request.upload.addEventListener("progress"', progress_script)
+        self.assertIn('request.upload.addEventListener("load"', progress_script)
+        self.assertIn("new FormData(form)", progress_script)
+        self.assertIn('fileInput.value = ""', progress_script)
+
+        response = self.client.post(
+            reverse("registration_document_upload", args=[order.pk]),
+            {
+                "document_type": (
+                    RegistrationDocument.DocumentType.MOTOR_VEHICLE_RECEIPT
+                ),
+                "name": "",
+                "file": uploaded_test_pdf("retired.pdf"),
+            },
+            HTTP_ACCEPT="application/json",
+            HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertFalse(response.json()["ok"])
+        self.assertIn("已取消", response.json()["message"])
+        self.assertFalse(order.registration_documents.exists())
+
+    def test_legacy_retired_document_does_not_lock_reallocation(self):
+        order = self.make_order()
+        order.allocate(self.vehicle)
+        RegistrationDocument.objects.create(
+            order=order,
+            document_type=RegistrationDocument.DocumentType.COMPULSORY_INSURANCE,
+            file=SimpleUploadedFile(
+                "legacy.pdf", b"legacy", content_type="application/pdf"
+            ),
+        )
+
+        self.assertFalse(order.has_registration_started)
+
+        RegistrationDocument.objects.create(
+            order=order,
+            document_type=RegistrationDocument.DocumentType.INVOICE,
+            file=SimpleUploadedFile(
+                "invoice.pdf", b"invoice", content_type="application/pdf"
+            ),
+        )
+        self.assertTrue(order.has_registration_started)
+
+    def test_registration_document_async_upload_returns_progress_destination(self):
+        order = self.make_order()
+        order.allocate(self.vehicle)
+        self.client.force_login(self.user)
+
+        response = self.client.post(
+            reverse("registration_document_upload", args=[order.pk]),
+            {
+                "document_type": RegistrationDocument.DocumentType.INVOICE,
+                "name": "",
+                "file": uploaded_test_pdf("invoice.pdf"),
+            },
+            HTTP_ACCEPT="application/json",
+            HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.json()["ok"])
+        self.assertEqual(
+            response.json()["redirect_url"],
+            f"{reverse('order_detail', args=[order.pk])}?tab=registration",
+        )
+        self.assertTrue(
+            order.registration_documents.filter(
+                document_type=RegistrationDocument.DocumentType.INVOICE
+            ).exists()
+        )
 
     def test_registration_can_be_completed_after_required_uploads(self):
         order = self.make_order()
@@ -1693,9 +1788,7 @@ class OrderFlowTests(TestCase):
         required_types = [
             RegistrationDocument.DocumentType.NEW_LICENSE,
             RegistrationDocument.DocumentType.REGISTRATION_APPLICATION,
-            RegistrationDocument.DocumentType.MOTOR_VEHICLE_RECEIPT,
             RegistrationDocument.DocumentType.INVOICE,
-            RegistrationDocument.DocumentType.COMPULSORY_INSURANCE,
         ]
         for index, document_type in enumerate(required_types):
             response = self.client.post(
@@ -1743,9 +1836,7 @@ class OrderFlowTests(TestCase):
         for document_type in [
             RegistrationDocument.DocumentType.NEW_LICENSE,
             RegistrationDocument.DocumentType.REGISTRATION_APPLICATION,
-            RegistrationDocument.DocumentType.MOTOR_VEHICLE_RECEIPT,
             RegistrationDocument.DocumentType.INVOICE,
-            RegistrationDocument.DocumentType.COMPULSORY_INSURANCE,
         ]:
             RegistrationDocument.objects.create(
                 order=order,
@@ -1781,9 +1872,7 @@ class OrderFlowTests(TestCase):
         for document_type in [
             RegistrationDocument.DocumentType.NEW_LICENSE,
             RegistrationDocument.DocumentType.REGISTRATION_APPLICATION,
-            RegistrationDocument.DocumentType.MOTOR_VEHICLE_RECEIPT,
             RegistrationDocument.DocumentType.INVOICE,
-            RegistrationDocument.DocumentType.COMPULSORY_INSURANCE,
         ]:
             RegistrationDocument.objects.create(
                 order=order,

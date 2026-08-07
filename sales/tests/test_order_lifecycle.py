@@ -224,3 +224,23 @@ class OrderLifecycleTests(TestCase):
         )
         self.assertContains(cancel, "必須全額退還訂金")
         self.assertContains(cancel, "確認退款並完成取消")
+
+    def test_delivery_endpoint_does_not_lock_nullable_outer_join(self):
+        order, vehicle = self.make_order(dealer=True)
+        self.client.force_login(self.user)
+
+        # 這個請求在 PostgreSQL 會直接驗證 select_for_update 沒有套到
+        # nullable outer join；SQLite 仍驗證完整交付流程不受修改影響。
+        response = self.client.post(
+            reverse("delivery_complete", args=[order.pk]),
+            self.delivery_payload(),
+        )
+
+        self.assertRedirects(
+            response,
+            f"{reverse('order_detail', args=[order.pk])}?tab=delivery",
+        )
+        order.refresh_from_db()
+        vehicle.refresh_from_db()
+        self.assertEqual(order.status, SalesOrder.Status.DELIVERED_DOCS_PENDING)
+        self.assertEqual(vehicle.status, VehicleInventory.Status.DELIVERED)

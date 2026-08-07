@@ -474,6 +474,53 @@
     <div><p class="eyebrow">交付作業</p><h2>車輛交付</h2></div>
     {% if order.is_delivered %}<span class="archive-status done">✓ 已交付</span>{% elif order.can_deliver %}<span class="archive-status">可進行</span>{% else %}<span class="archive-status">尚未開放</span>{% endif %}
   </div>
+  {% if balance_payment %}
+  <div class="delivery-payment" id="delivery-payment">
+    <div class="delivery-payment__header">
+      <div>
+        <p class="eyebrow">交車前收尾</p>
+        <h3>{{ balance_payment.item_name }}</h3>
+        {% if order.source_type == "dealer" %}
+        <p>合作車行可先領車；尚未收清時，首頁會持續提醒。</p>
+        {% else %}
+        <p>一般訂單須先確認尾款收清，才能完成交付。</p>
+        {% endif %}
+      </div>
+      {% if balance_payment.is_settled %}
+      <span class="payment-state is-paid">✓ 已收清</span>
+      {% elif balance_payment.received_amount %}
+      <span class="payment-state is-partial">部分收款</span>
+      {% else %}
+      <span class="payment-state">待收款</span>
+      {% endif %}
+    </div>
+    <div class="delivery-payment__summary">
+      <div><span>應收</span><strong>${{ balance_payment.expected_amount|floatformat:0 }}</strong></div>
+      <div><span>已收</span><strong>${{ balance_payment.received_amount|floatformat:0 }}</strong></div>
+      <div class="{% if balance_payment.outstanding_amount %}has-balance{% endif %}"><span>尚差</span><strong>${{ balance_payment.outstanding_amount|floatformat:0 }}</strong></div>
+    </div>
+    {% if balance_payment.expected_amount <= 0 %}
+    <div class="delivery-payment__settled-note">本單沒有待收尾款，可直接進行交付核對。</div>
+    {% elif not order.is_delivered or order.source_type == "dealer" %}
+    <form class="delivery-payment__form" method="post" enctype="multipart/form-data" action="{% url 'delivery_payment_update' order.pk %}">
+      {% csrf_token %}
+      <div class="form-grid compact-grid">
+        <div><label for="{{ balance_payment_form.received_amount.id_for_label }}">{{ balance_payment_form.received_amount.label }} <span class="required-inline">必填</span></label>{{ balance_payment_form.received_amount }}</div>
+        <div><label for="{{ balance_payment_form.received_on.id_for_label }}">{{ balance_payment_form.received_on.label }}</label>{{ balance_payment_form.received_on }}</div>
+        <div><label for="{{ balance_payment_form.payment_method.id_for_label }}">{{ balance_payment_form.payment_method.label }}</label>{{ balance_payment_form.payment_method }}</div>
+        <div><label for="{{ balance_payment_form.receiving_account.id_for_label }}">{{ balance_payment_form.receiving_account.label }}</label>{{ balance_payment_form.receiving_account }}</div>
+        <div><label for="{{ balance_payment_form.proof.id_for_label }}">{{ balance_payment_form.proof.label }}</label>{{ balance_payment_form.proof }}{% if balance_payment.proof %}<a class="field-file-link" href="{% url 'protected_media' 'payment' balance_payment.pk 'proof' %}" target="_blank">查看目前證明</a>{% endif %}</div>
+        <div><label for="{{ balance_payment_form.note.id_for_label }}">{{ balance_payment_form.note.label }}</label>{{ balance_payment_form.note }}</div>
+        <div class="wide"><label class="check-card">{{ balance_payment_form.confirmed }} <span>{{ balance_payment_form.confirmed.label }}</span></label><p class="form-hint">部分收款可先保存；全數收清後再勾選確認。</p></div>
+      </div>
+      <div class="delivery-payment__actions">
+        <span>收款資料會同步至營運與對帳，不需重複登記。</span>
+        <button class="button primary" type="submit">儲存收款資料</button>
+      </div>
+    </form>
+    {% endif %}
+  </div>
+  {% endif %}
   {% if order.is_delivered %}
     <div class="delivery-complete">
       <div class="delivery-complete__hero">
@@ -557,7 +604,7 @@
           <strong>完成前請再次確認交付資料</strong>
           <p>委託託運時，實際交付時間是交給託運公司的時間。完成後訂單與實體車輛將鎖定。</p>
         </div>
-        <button class="button primary" type="submit" data-confirm="確認完成交付嗎？完成後訂單與實體車輛將鎖定。">確認完成交付</button>
+        <button class="button primary" type="submit"{% if not balance_ready_for_delivery %} disabled aria-disabled="true" title="請先保存並確認尾款收清"{% else %} data-confirm="確認完成交付嗎？完成後訂單與實體車輛將鎖定。"{% endif %}>{% if balance_ready_for_delivery %}確認完成交付{% else %}請先確認尾款收清{% endif %}</button>
       </div>
     </form>
   {% else %}

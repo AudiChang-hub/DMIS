@@ -195,6 +195,11 @@ urlpatterns = [
         name="delivery_complete",
     ),
     path(
+        "orders/<int:pk>/delivery/payment/",
+        views.delivery_payment_update,
+        name="delivery_payment_update",
+    ),
+    path(
         "orders/<int:pk>/cancel/",
         views.cancellation_request,
         name="cancellation_request",

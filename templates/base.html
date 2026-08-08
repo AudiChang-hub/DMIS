@@ -60,11 +60,16 @@
       <a class="mobile-new{% if request.resolver_match.url_name == 'order_create' %} active{% endif %}" href="{% url 'order_create' %}" {% if request.resolver_match.url_name == 'order_create' %}aria-current="page"{% endif %}><span>＋</span>新增</a>
       <a href="{% url 'operations_report' %}" {% if request.resolver_match.url_name == 'operations_report' or request.resolver_match.url_name == 'order_operations' or request.resolver_match.url_name == 'reconciliation_list' %}class="active" aria-current="page"{% endif %}><span>＄</span>營運</a>
       <details class="mobile-data-menu{% if request.resolver_match.url_name == 'data_maintenance' or request.resolver_match.url_name == 'customer_list' or request.resolver_match.url_name == 'customer_detail' or request.resolver_match.url_name == 'inventory_list' or request.resolver_match.url_name == 'inventory_create' or request.resolver_match.url_name == 'inventory_quick_create' or request.resolver_match.url_name == 'inventory_edit' or request.resolver_match.url_name == 'vehicle_model_list' or request.resolver_match.url_name == 'vehicle_model_create' or request.resolver_match.url_name == 'vehicle_model_edit' or request.resolver_match.url_name == 'accessory_product_list' or request.resolver_match.url_name == 'accessory_product_create' or request.resolver_match.url_name == 'accessory_product_edit' or request.resolver_match.url_name == 'settlement_cost_rule_list' or request.resolver_match.url_name == 'settlement_cost_rule_create' or request.resolver_match.url_name == 'settlement_cost_rule_edit' or request.resolver_match.url_name == 'incentive_rule_list' or request.resolver_match.url_name == 'incentive_rule_create' or request.resolver_match.url_name == 'incentive_rule_edit' %} active{% endif %}">
-        <summary><span>⚙</span>資料</summary>
+        <summary><span aria-hidden="true">⚙</span>更多</summary>
         <div class="mobile-data-popover">
           <a href="{% url 'customer_list' %}"><span>人</span><strong>客戶資料</strong></a>
           <a href="{% url 'vehicle_model_list' %}"><span>型</span><strong>車型資料</strong></a>
           <a href="{% url 'inventory_list' %}"><span>庫</span><strong>庫存資料</strong></a>
+          <a href="{{ context_help_url }}" target="_blank" rel="noopener"><span aria-hidden="true">?</span><strong>使用說明</strong></a>
+          <form action="{% url 'logout' %}" method="post" class="mobile-logout-form">
+            {% csrf_token %}
+            <button type="submit"><span aria-hidden="true">↪</span><strong>登出</strong></button>
+          </form>
         </div>
       </details>
     </nav>

@@ -1008,6 +1008,9 @@ def registration_fee_variance_confirm(request, pk):
 @login_required
 def order_list(request):
     orders = SalesOrder.objects.select_related("source", "vehicle_model", "color")
+    query = request.GET.get("q", "").strip()
+    if query:
+        orders = orders.filter(search_index__search_text__icontains=query)
     status = request.GET.get("status")
     if status == "registration_pending":
         orders = orders.filter(
@@ -1036,10 +1039,20 @@ def order_list(request):
         )
     elif status:
         orders = orders.filter(status=status)
+    orders = orders.order_by("-order_date", "-created_at", "-pk")
+    page = Paginator(orders, 50).get_page(request.GET.get("page"))
+    query_params = request.GET.copy()
+    query_params.pop("page", None)
     return render(
         request,
         "sales/order_list.html",
-        {"orders": orders[:200], "statuses": SalesOrder.Status.choices},
+        {
+            "orders": page.object_list,
+            "page_obj": page,
+            "query": query,
+            "query_params": query_params.urlencode(),
+            "statuses": SalesOrder.Status.choices,
+        },
     )
 
 
@@ -2417,8 +2430,8 @@ def order_edit_presence(request, pk):
             order.editing_session = ""
             order.editing_by = ""
             order.editing_at = None
-            order.save(
-                update_fields=["editing_session", "editing_by", "editing_at"]
+            SalesOrder.objects.filter(pk=order.pk).update(
+                editing_session="", editing_by="", editing_at=None
             )
         return JsonResponse({"ok": True, "active": False})
     if active and not mine:
@@ -2430,12 +2443,12 @@ def order_edit_presence(request, pk):
                 "editing_by": order.editing_by or "其他人員",
             }
         )
-    order.editing_session = session_key
-    order.editing_by = _editing_name(request.user)
-    order.editing_at = now
-    order.save(update_fields=["editing_session", "editing_by", "editing_at"])
+    editing_by = _editing_name(request.user)
+    SalesOrder.objects.filter(pk=order.pk).update(
+        editing_session=session_key, editing_by=editing_by, editing_at=now
+    )
     return JsonResponse(
-        {"ok": True, "active": True, "mine": True, "editing_by": order.editing_by}
+        {"ok": True, "active": True, "mine": True, "editing_by": editing_by}
     )
 
 
@@ -2640,8 +2653,9 @@ def privacy_consent_upload(request, pk):
 
 
 @login_required
+@transaction.atomic
 def allocate_vehicle(request, pk):
-    order = get_object_or_404(SalesOrder, pk=pk)
+    order = get_object_or_404(SalesOrder.objects.select_for_update(), pk=pk)
     if request.method != "POST":
         return redirect("order_detail", pk=pk)
     form = AllocationForm(order, request.POST)

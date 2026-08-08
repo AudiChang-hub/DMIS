@@ -1,0 +1,40 @@
+services:
+  web:
+    env_file:
+      - path: .env.django
+        required: true
+    mem_limit: 768m
+    cpus: 0.75
+    pids_limit: 256
+    logging: &production_logging
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
+
+  ocr-worker:
+    env_file:
+      - path: .env.django
+        required: true
+    logging: *production_logging
+
+  search-worker:
+    env_file:
+      - path: .env.django
+        required: true
+    logging: *production_logging
+
+  db:
+    env_file:
+      - path: .env.django
+        required: true
+    mem_limit: 1g
+    cpus: 0.75
+    pids_limit: 256
+    logging: *production_logging
+
+  redis:
+    mem_limit: 256m
+    cpus: 0.25
+    pids_limit: 128
+    logging: *production_logging

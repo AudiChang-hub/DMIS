@@ -9,7 +9,7 @@
   {% url 'order_list' as form_back_url %}
   {% include "sales/_page_back.html" with fallback_url=form_back_url label="返回上一頁" %}
 {% endif %}
-<form method="post" enctype="multipart/form-data" class="mobile-order-form" id="order-form">
+<form method="post" enctype="multipart/form-data" class="mobile-order-form" id="order-form" data-custom-validation="true">
   {% csrf_token %}
   <input type="hidden" name="_draft_id" id="draft-id" value="{{ draft.pk|default:'' }}">
   <input type="hidden" name="_order_revision" value="{{ editing_order.revision|default:0 }}">
@@ -721,25 +721,56 @@
   calculateRegistrationFee();
   refresh();
 
+  let sourceRequestController = null;
+  let colorRequestController = null;
   sourceType.addEventListener("change", async () => {
     const source = byId("id_source");
+    sourceRequestController?.abort();
     if (sourceType.value === "store") {
       source.innerHTML = '<option value="">本店不需選擇來源名稱</option>';
+      source.disabled = true;
       return;
     }
-    const response = await fetch(`{% url 'sales_sources' %}?type=${sourceType.value}`);
-    const data = await response.json();
-    source.innerHTML = '<option value="">請選擇來源名稱</option>';
-    data.results.forEach(item => source.add(new Option(item.name, item.id)));
+    const requestedType = sourceType.value;
+    source.innerHTML = '<option value="">來源載入中…</option>';
+    source.disabled = true;
+    sourceRequestController = new AbortController();
+    try {
+      const response = await fetch(`{% url 'sales_sources' %}?type=${requestedType}`, {signal: sourceRequestController.signal});
+      if (!response.ok) throw new Error("來源載入失敗");
+      const data = await response.json();
+      if (sourceType.value !== requestedType) return;
+      source.innerHTML = '<option value="">請選擇來源名稱</option>';
+      data.results.forEach(item => source.add(new Option(item.name, item.id)));
+      source.disabled = false;
+    } catch (error) {
+      if (error.name === "AbortError") return;
+      source.innerHTML = '<option value="">載入失敗，請重新選擇來源類型</option>';
+      source.disabled = false;
+    }
   });
 
   vehicleModel.addEventListener("change", async () => {
     calculateRegistrationFee();
     await loadInstallmentPlanOptions({force: true});
-    const response = await fetch(`{% url 'vehicle_colors' %}?model=${vehicleModel.value}`);
-    const data = await response.json();
-    color.innerHTML = '<option value="">請選擇車色</option>';
-    data.results.forEach(item => color.add(new Option(item.name, item.id)));
+    colorRequestController?.abort();
+    const requestedModel = vehicleModel.value;
+    color.innerHTML = '<option value="">車色載入中…</option>';
+    color.disabled = true;
+    colorRequestController = new AbortController();
+    try {
+      const response = await fetch(`{% url 'vehicle_colors' %}?model=${requestedModel}`, {signal: colorRequestController.signal});
+      if (!response.ok) throw new Error("車色載入失敗");
+      const data = await response.json();
+      if (vehicleModel.value !== requestedModel) return;
+      color.innerHTML = '<option value="">請選擇車色</option>';
+      data.results.forEach(item => color.add(new Option(item.name, item.id)));
+      color.disabled = false;
+    } catch (error) {
+      if (error.name === "AbortError") return;
+      color.innerHTML = '<option value="">載入失敗，請重新選擇車型</option>';
+      color.disabled = false;
+    }
   });
   byId("id_installment_periods")?.addEventListener(
     "change",

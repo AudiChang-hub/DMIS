@@ -49,6 +49,66 @@ class ProductExperienceTests(TestCase):
         inventory = self.client.get(reverse("inventory_list"))
         self.assertContains(inventory, f'{reverse("user_guide")}#inventory')
 
+    def test_data_navigation_exposes_common_maintenance_without_extra_detour(self):
+        self.client.force_login(self.user)
+
+        source_page = self.client.get(reverse("sales_source_list"))
+
+        self.assertEqual(source_page.status_code, 200)
+        self.assertContains(source_page, 'class="desktop-data-menu active"')
+        self.assertContains(source_page, "車行、平台與傭金")
+        self.assertContains(source_page, reverse("accessory_product_list"))
+        self.assertContains(source_page, reverse("settlement_cost_rule_list"))
+        self.assertContains(source_page, reverse("incentive_rule_list"))
+        self.assertContains(source_page, reverse("dealer_volume_bonus_list"))
+        self.assertContains(source_page, reverse("business_holiday_list"))
+        self.assertContains(source_page, 'class="mobile-data-popover__grid"')
+        self.assertContains(source_page, "全部功能 →")
+
+        css = Path("static/css/app.css").read_text(encoding="utf-8")
+        navigation = Path("static/js/ui-navigation.js").read_text(encoding="utf-8")
+        self.assertIn("max-height: min(72vh, 650px)", css)
+        self.assertIn('event.key === "Escape"', navigation)
+
+    def test_maintenance_help_stays_on_master_data_topic(self):
+        self.client.force_login(self.user)
+
+        for route in (
+            reverse("sales_source_list"),
+            reverse("dealer_volume_bonus_list"),
+            reverse("business_holiday_list"),
+            reverse("brand_registration_fee_rule_list"),
+        ):
+            with self.subTest(route=route):
+                response = self.client.get(route)
+                self.assertEqual(response.status_code, 200)
+                self.assertContains(response, f'{reverse("user_guide")}#master-data')
+
+    def test_every_maintenance_landing_page_has_a_clear_return_path(self):
+        self.client.force_login(self.user)
+
+        for route_name in (
+            "data_maintenance",
+            "customer_list",
+            "inventory_list",
+            "vehicle_model_list",
+            "accessory_product_list",
+            "sales_source_list",
+            "installment_company_list",
+            "dealer_volume_bonus_list",
+            "business_holiday_list",
+            "brand_registration_fee_rule_list",
+            "settlement_cost_rule_list",
+            "incentive_rule_list",
+            "legacy_import_list",
+            "positioned_template_list",
+        ):
+            with self.subTest(route_name=route_name):
+                response = self.client.get(reverse(route_name))
+                self.assertEqual(response.status_code, 200)
+                self.assertContains(response, 'class="page-context-nav"')
+                self.assertContains(response, "data-smart-back")
+
     def test_every_response_has_non_sensitive_request_id(self):
         self.client.force_login(self.user)
         response = self.client.get(reverse("dashboard"))

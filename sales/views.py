@@ -237,9 +237,13 @@ def data_maintenance(request):
             .distinct()
             .count(),
             "vehicle_model_count": VehicleModel.objects.count(),
+            "accessory_product_count": AccessoryProduct.objects.count(),
             "inventory_count": VehicleInventory.objects.count(),
             "sales_source_count": SalesSource.objects.count(),
             "installment_company_count": InstallmentCompany.objects.count(),
+            "settlement_cost_rule_count": VehicleSettlementCostRule.objects.count(),
+            "incentive_rule_count": VehicleIncentiveRule.objects.count(),
+            "dealer_bonus_rule_count": DealerVolumeBonusRule.objects.count(),
             "holiday_count": BusinessHoliday.objects.filter(active=True).count(),
             "registration_fee_rule_count": BrandRegistrationFeeRule.objects.filter(active=True).count(),
         },

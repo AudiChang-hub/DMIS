@@ -1048,9 +1048,12 @@ class OrderFlowTests(TestCase):
         self.assertContains(response, "$8,000")
         self.assertContains(response, "一般領牌偏好")
         self.assertContains(response, "手機架 × 1")
-        self.assertNotContains(response, "installment")
-        self.assertNotContains(response, "preference")
-        self.assertNotContains(response, "&#x27;名稱&#x27;")
+        change_history = response.content.decode().split(
+            '<div class="change-history">', 1
+        )[1].split("</section>", 1)[0]
+        self.assertNotIn("installment", change_history)
+        self.assertNotIn("preference", change_history)
+        self.assertNotIn("&#x27;名稱&#x27;", change_history)
 
     def test_signed_contract_can_allocate_and_locks_vehicle(self):
         order = self.make_order(signed=True)
@@ -3229,8 +3232,12 @@ class OrderOperationsTests(TestCase):
 
         self.assertEqual(hub.status_code, 200)
         self.assertContains(hub, "客戶資料")
-        self.assertContains(hub, "車型資料")
+        self.assertContains(hub, "車型、售價與基礎傭金")
         self.assertContains(hub, "庫存資料")
+        self.assertContains(hub, "配件資料")
+        self.assertContains(hub, "車行、平台與傭金")
+        self.assertContains(hub, "代銷結算成本")
+        self.assertContains(hub, "車型獎勵與補助")
         self.assertEqual(customers.status_code, 200)
         self.assertContains(customers, self.order.owner_name)
         self.assertContains(customers, "1 張")

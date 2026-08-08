@@ -2240,6 +2240,43 @@ class OrderFlowTests(TestCase):
         self.assertContains(response, order.owner_name)
         self.assertContains(response, order.number)
 
+    def test_order_list_is_searchable_and_paginated_without_silent_limit(self):
+        self.client.force_login(self.user)
+        searchable = self.make_order()
+        orders = []
+        for index in range(55):
+            orders.append(
+                SalesOrder(
+                    number=f"SO-PAGE-{index:03d}",
+                    owner_name=f"分頁客戶 {index:03d}",
+                    owner_phone=f"0912{index:06d}",
+                    owner_address="新北市測試區",
+                    owner_id_number=f"A{index:09d}",
+                    vehicle_model=self.model,
+                    color=self.color,
+                    vehicle_price=Decimal("79800"),
+                    status=SalesOrder.Status.ALLOCATION_PENDING,
+                )
+            )
+        SalesOrder.objects.bulk_create(orders)
+
+        first_page = self.client.get(reverse("order_list"))
+        second_page = self.client.get(reverse("order_list"), {"page": 2})
+        search = self.client.get(reverse("order_list"), {"q": "5678"})
+
+        self.assertEqual(first_page.context["page_obj"].paginator.count, 56)
+        self.assertEqual(len(first_page.context["orders"]), 50)
+        self.assertEqual(len(second_page.context["orders"]), 6)
+        self.assertContains(search, searchable.number)
+
+    def test_mobile_more_menu_contains_help_and_logout(self):
+        self.client.force_login(self.user)
+
+        response = self.client.get(reverse("dashboard"))
+
+        self.assertContains(response, "mobile-logout-form")
+        self.assertContains(response, "使用說明")
+
     def test_dashboard_shows_clickable_in_progress_metric_and_empty_section(self):
         self.client.force_login(self.user)
 

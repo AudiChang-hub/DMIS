@@ -40,6 +40,38 @@ bash scripts/smoke_django.sh http://127.0.0.1:19999
 docker compose -f docker-compose.django.yml exec web python manage.py check --deploy
 ```
 
+正式環境使用資源限制與 log 輪替 override：
+
+```bash
+docker compose -f docker-compose.django.yml \
+  -f docker-compose.django.prod.yml up -d
+```
+
+正式網域 `https://dmis.moto-core.com/` 沿用 T470P 現有的 Cloudflare Tunnel
+connector；Tunnel 的已發佈應用程式來源設為 `http://web:8000`，connector
+需同時加入 Django Compose network。切換前必須先確認 `/health/`，並保留可將
+來源改回 `http://odoo:8069` 的回復路徑。Tunnel token 與 credentials 不得寫入
+repo 或 `.env.django`。
+
+### 舊 Odoo 主檔遷移
+
+舊 Odoo 的車行、品牌合作、車型、顏色、價格版本、國定假日及可安全映射的
+傭金規則，可用下列流程先乾跑再套用：
+
+```bash
+# 在舊 Odoo container 內匯出（唯讀）
+python /tmp/export_odoo_master_data.py \
+  --database dmis_dev --output /tmp/odoo-master.json
+
+# 在 Django container 內預覽；確認後才加 --apply
+python manage.py import_odoo_master_data /tmp/odoo-master.json
+python manage.py import_odoo_master_data /tmp/odoo-master.json --apply
+```
+
+匯入指令可重跑，會以車行代碼、車型組合鍵及有效日期更新既有資料。舊 Odoo
+銷貨不會直接轉成正式訂單，避免和正式 Excel 重複；實物贈品規則與缺少分期
+公司的舊分期列也只列入報告，待人工確認語意後再處理。
+
 `/health/` 僅回報 Web 與資料庫是否可用，不顯示版本、密碼或環境內容。正式媒體目錄
 必須讓 UID/GID `1000:1000` 可寫；完整容器安全檢查見
 `docs/DJANGO_CONTAINER_SECURITY.md`。

@@ -8,8 +8,11 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY", "dev-only-change-me")
 DEBUG = os.environ.get("DJANGO_DEBUG", "1") == "1"
-if not DEBUG and SECRET_KEY == "dev-only-change-me":
+IS_PRODUCTION = os.environ.get("DJANGO_ENV", "development") == "production"
+if (not DEBUG or IS_PRODUCTION) and SECRET_KEY == "dev-only-change-me":
     raise ImproperlyConfigured("正式環境必須設定 DJANGO_SECRET_KEY。")
+if IS_PRODUCTION and DEBUG:
+    raise ImproperlyConfigured("正式環境不可啟用 DJANGO_DEBUG。")
 ALLOWED_HOSTS = [
     host.strip()
     for host in os.environ.get("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1").split(",")
@@ -104,7 +107,11 @@ RQ_QUEUES = {
     "ocr": {
         "URL": REDIS_URL or "redis://localhost:6379/0",
         "DEFAULT_TIMEOUT": 45,
-    }
+    },
+    "search": {
+        "URL": REDIS_URL or "redis://localhost:6379/0",
+        "DEFAULT_TIMEOUT": 90,
+    },
 }
 CHANNEL_LAYERS = {
     "default": (
@@ -135,6 +142,14 @@ else:
             "NAME": BASE_DIR / "db.sqlite3",
         }
     }
+
+if IS_PRODUCTION:
+    if not os.environ.get("POSTGRES_HOST"):
+        raise ImproperlyConfigured("正式環境必須使用 PostgreSQL。")
+    if os.environ.get("POSTGRES_PASSWORD") in {None, "", "dmis", "請替換為強密碼"}:
+        raise ImproperlyConfigured("正式環境必須設定非預設 POSTGRES_PASSWORD。")
+    if not ALLOWED_HOSTS or ALLOWED_HOSTS == ["*"]:
+        raise ImproperlyConfigured("正式環境必須明確設定 DJANGO_ALLOWED_HOSTS。")
 
 AUTH_PASSWORD_VALIDATORS = [
     {
@@ -184,7 +199,7 @@ DATA_UPLOAD_MAX_MEMORY_SIZE = 30 * 1024 * 1024
 SESSION_COOKIE_HTTPONLY = True
 SESSION_COOKIE_SAMESITE = "Lax"
 SESSION_COOKIE_AGE = int(os.environ.get("DJANGO_SESSION_COOKIE_AGE", "43200"))
-SESSION_SAVE_EVERY_REQUEST = True
+SESSION_SAVE_EVERY_REQUEST = False
 CSRF_COOKIE_SAMESITE = "Lax"
 SECURE_CONTENT_TYPE_NOSNIFF = True
 SECURE_REFERRER_POLICY = "same-origin"

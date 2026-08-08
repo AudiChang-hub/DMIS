@@ -2088,21 +2088,25 @@ class SalesOrder(TimeStampedModel):
 
     @transaction.atomic
     def allocate(self, vehicle):
+        locked_order = type(self).objects.select_for_update().get(pk=self.pk)
         locked = VehicleInventory.objects.select_for_update().get(pk=vehicle.pk)
-        if self.allocated_vehicle_id:
+        if locked_order.allocated_vehicle_id:
             raise ValidationError("此訂單已配車，請先解除原配車。")
         if locked.status != VehicleInventory.Status.AVAILABLE:
             raise ValidationError("此車輛目前不可配車。")
         if (
-            locked.vehicle_model_id != self.vehicle_model_id
-            or locked.color_id != self.color_id
+            locked.vehicle_model_id != locked_order.vehicle_model_id
+            or locked.color_id != locked_order.color_id
         ):
             raise ValidationError("實體車輛的車型或車色與訂單不一致。")
         locked.status = VehicleInventory.Status.RESERVED
         locked.save(update_fields=["status", "updated_at"])
+        locked_order.allocated_vehicle = locked
+        locked_order.status = self.Status.ALLOCATED
+        locked_order.save(update_fields=["allocated_vehicle", "status", "updated_at"])
         self.allocated_vehicle = locked
+        self.allocated_vehicle_id = locked.pk
         self.status = self.Status.ALLOCATED
-        self.save(update_fields=["allocated_vehicle", "status", "updated_at"])
 
     @property
     def has_registration_started(self):

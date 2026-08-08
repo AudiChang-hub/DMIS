@@ -9,6 +9,9 @@
   <a class="button primary" href="{% url 'order_create' %}">＋ 建立訂單</a>
 </section>
 <form class="filter-bar" method="get">
+  <label>全欄位搜尋
+    <input type="search" name="q" value="{{ query }}" placeholder="姓名、電話、證件、車牌、車型…">
+  </label>
   <label>狀態
     <select name="status" onchange="this.form.submit()">
       <option value="">全部狀態</option>
@@ -20,8 +23,13 @@
       {% endfor %}
     </select>
   </label>
+  <button class="button primary small" type="submit">搜尋</button>
 </form>
 <div class="section-block">
+  <div class="inventory-list-summary">
+    <strong>共 {{ page_obj.paginator.count }} 張訂單</strong>
+    {% if page_obj.paginator.num_pages > 1 %}<span>第 {{ page_obj.number }}／{{ page_obj.paginator.num_pages }} 頁</span>{% endif %}
+  </div>
   <div class="order-list">
   {% for order in orders %}
     {% include "sales/_order_row.html" %}
@@ -30,4 +38,11 @@
   {% endfor %}
   </div>
 </div>
+{% if page_obj.has_other_pages %}
+<nav class="inventory-pagination" aria-label="訂單分頁">
+  {% if page_obj.has_previous %}<a class="button ghost small" href="?{% if query_params %}{{ query_params }}&{% endif %}page={{ page_obj.previous_page_number }}">上一頁</a>{% endif %}
+  <span>第 {{ page_obj.number }}／{{ page_obj.paginator.num_pages }} 頁</span>
+  {% if page_obj.has_next %}<a class="button ghost small" href="?{% if query_params %}{{ query_params }}&{% endif %}page={{ page_obj.next_page_number }}">下一頁</a>{% endif %}
+</nav>
+{% endif %}
 {% endblock %}

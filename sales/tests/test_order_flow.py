@@ -2860,6 +2860,24 @@ class OrderFlowTests(TestCase):
             ".allocation-summary > .allocation-lock-note { margin: 18px 20px 20px; }",
             css,
         )
+
+    def test_document_sections_use_consistent_nested_headings(self):
+        template = Path("templates/sales/order_detail.html").read_text(
+            encoding="utf-8"
+        )
+        css = Path("static/css/app.css").read_text(encoding="utf-8")
+
+        self.assertEqual(template.count("content-section-heading"), 4)
+        self.assertIn(".content-section-heading {", css)
+        self.assertIn(
+            ".content-section-heading + .registration-document-list {",
+            css,
+        )
+        self.assertIn(
+            ".content-section-heading + .other-subsidy-documents__empty {",
+            css,
+        )
+
     def test_messages_have_timed_dismiss_and_manual_close(self):
         from pathlib import Path
 

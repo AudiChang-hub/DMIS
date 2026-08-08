@@ -1108,6 +1108,33 @@ class OrderFlowTests(TestCase):
             change.changes["已配車輛"]["after"], str(replacement)
         )
 
+    def test_allocation_summary_shows_readable_vehicle_overview(self):
+        self.model.model_number = "UQ125DA"
+        self.model.model_year = 2026
+        self.model.model_code = VehicleModel.ModelType.FRONT_DISC_REAR_DRUM
+        self.model.save(
+            update_fields=["model_number", "model_year", "model_code", "updated_at"]
+        )
+        self.vehicle.manufactured_year_month = "2026/08"
+        self.vehicle.save(update_fields=["manufactured_year_month", "updated_at"])
+        order = self.make_order()
+        order.allocate(self.vehicle)
+        self.client.force_login(self.user)
+
+        detail = self.client.get(reverse("order_detail", args=[order.pk]))
+
+        self.assertContains(detail, "allocation-overview")
+        self.assertContains(detail, "車輛配對完成")
+        self.assertContains(detail, "引擎號碼")
+        self.assertContains(detail, "ENG-001")
+        self.assertContains(detail, "測試廠牌 通勤 125")
+        self.assertContains(detail, "2026 年式")
+        self.assertContains(detail, "型號 UQ125DA")
+        self.assertContains(detail, "前碟後鼓")
+        self.assertContains(detail, "車色 白")
+        self.assertContains(detail, "出廠 2026/08")
+        self.assertContains(detail, "二店")
+
     def test_reallocation_is_blocked_after_registration_has_started(self):
         order = self.make_order()
         order.allocate(self.vehicle)
@@ -2841,7 +2868,7 @@ class OrderFlowTests(TestCase):
         self.assertContains(response, "app-update-banner")
         self.assertContains(response, "js/app-update")
 
-    def test_allocation_summary_keeps_nested_panel_inside_card_spacing(self):
+    def test_allocation_summary_uses_responsive_overview_spacing(self):
         css = (
             __import__("pathlib").Path("static/css/app.css").read_text(
                 encoding="utf-8"
@@ -2849,15 +2876,15 @@ class OrderFlowTests(TestCase):
         )
 
         self.assertIn(
-            ".allocation-summary > .data-list { padding: 18px 20px 0; }",
+            ".allocation-overview {",
             css,
         )
         self.assertIn(
-            ".allocation-summary > .reallocation-panel,",
+            "grid-template-columns: minmax(250px, .9fr) minmax(360px, 1.5fr) minmax(190px, .65fr);",
             css,
         )
         self.assertIn(
-            ".allocation-summary > .allocation-lock-note { margin: 18px 20px 20px; }",
+            ".allocation-overview__vehicle {",
             css,
         )
 

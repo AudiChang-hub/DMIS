@@ -61,12 +61,39 @@
 </section>
 {% elif order.allocated_vehicle %}
 <section class="section-block allocation-summary">
-  <div class="section-title"><div><p class="eyebrow">配車作業</p><h2>已完成配車</h2></div><span class="archive-status done">✓ 已完成</span></div>
-  <dl class="data-list">
-    <div><dt>實體車輛</dt><dd>{{ order.allocated_vehicle.identifier }}</dd></div>
-    <div><dt>目前位置</dt><dd>{{ order.allocated_vehicle.location_store }}</dd></div>
-    <div><dt>車型／車色</dt><dd>{{ order.vehicle_model }}／{{ order.color.name }}</dd></div>
-  </dl>
+  <div class="section-title allocation-summary__title">
+    <div class="allocation-summary__heading">
+      <span class="allocation-summary__check" aria-hidden="true">✓</span>
+      <div><p class="eyebrow">配車作業</p><h2>車輛配對完成</h2></div>
+    </div>
+    <span class="archive-status done">已配車</span>
+  </div>
+  <div class="allocation-overview">
+    <div class="allocation-overview__identity">
+      <span class="allocation-overview__label">{% if order.vehicle_model.energy_type == "gas" %}引擎號碼{% else %}車身號碼{% endif %}</span>
+      <strong>{{ order.allocated_vehicle.identifier }}</strong>
+      <small>此車已保留給本訂單</small>
+    </div>
+    <div class="allocation-overview__vehicle">
+      <span class="allocation-overview__label">車款規格</span>
+      <strong>{{ order.vehicle_model.brand }} {{ order.vehicle_model.name }}</strong>
+      <div class="allocation-overview__specs">
+        {% if order.vehicle_model.model_year %}<span>{{ order.vehicle_model.model_year }} 年式</span>{% endif %}
+        {% if order.vehicle_model.model_number %}<span>型號 {{ order.vehicle_model.model_number }}</span>{% endif %}
+        {% if order.vehicle_model.model_code %}<span>{{ order.vehicle_model.get_model_code_display }}</span>{% endif %}
+        <span>車色 {{ order.color.name }}</span>
+        {% if order.allocated_vehicle.manufactured_year_month %}<span>出廠 {{ order.allocated_vehicle.manufactured_year_month }}</span>{% endif %}
+      </div>
+    </div>
+    <div class="allocation-overview__location">
+      <span class="allocation-overview__location-mark" aria-hidden="true"></span>
+      <div>
+        <span class="allocation-overview__label">目前位置</span>
+        <strong>{{ order.allocated_vehicle.location_store }}</strong>
+        <small>實體存放位置</small>
+      </div>
+    </div>
+  </div>
   {% if order.is_editable %}
     {% if order.has_registration_started %}
     <div class="allocation-lock-note">

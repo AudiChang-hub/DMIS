@@ -6,7 +6,7 @@ DATA_ROOT=${DMIS_DATA_ROOT:-/srv/dmis-data/dmis-next}
 COMPOSE_FILE=${DMIS_COMPOSE_FILE:-${PROJECT_DIR}/docker-compose.django.yml}
 MEDIA_DIR=${DJANGO_MEDIA_PATH:-${DATA_ROOT}/media}
 BACKUP_ROOT=${DMIS_BACKUP_ROOT:-${DATA_ROOT}/backups}
-LOCK_FILE=${DMIS_BACKUP_LOCK_FILE:-/tmp/dmis-next-backup.lock}
+LOCK_FILE=${DMIS_BACKUP_LOCK_FILE:-${DATA_ROOT}/.backup.lock}
 
 log() {
     printf '%s %s\n' "$(date --iso-8601=seconds)" "$*"

@@ -164,6 +164,7 @@
     if (!(input instanceof HTMLInputElement) && !(input instanceof HTMLSelectElement) && !(input instanceof HTMLTextAreaElement)) return;
     event.preventDefault();
     const form = input.form;
+    if (form?.dataset.customValidation === "true") return;
     if (!form || pendingInvalidForms.has(form)) return;
     pendingInvalidForms.add(form);
     window.setTimeout(() => {

@@ -1,5 +1,8 @@
 from pathlib import PurePath
 
+import django_rq
+from django.conf import settings
+from django.db import transaction
 from django.db import models
 from django.db.models import Q
 
@@ -443,7 +446,16 @@ def rebuild_order_search_index(order_id):
 
 
 def schedule_order_search_rebuild(order_id):
-    # 索引與業務資料使用同一個 transaction，失敗時會一起回滾。
-    # 同步更新可避免剛儲存後立刻搜尋卻查不到；索引內容只讀單一訂單，
-    # 不會重現舊版跨全表 JOIN 的負載。
-    rebuild_order_search_index(order_id)
+    if not settings.REDIS_URL:
+        rebuild_order_search_index(order_id)
+        return
+
+    transaction.on_commit(
+        lambda: django_rq.get_queue("search").enqueue(
+            rebuild_order_search_index,
+            order_id,
+            job_timeout=90,
+            result_ttl=300,
+            failure_ttl=86400,
+        )
+    )

@@ -503,6 +503,7 @@ class SalesSourceBrandPolicyForm(forms.ModelForm):
             "brand", "cooperates", "commission_adjustment", "effective_from",
             "effective_to", "note",
         ]
+        labels = {"commission_adjustment": "傭金加減額"}
         widgets = {"effective_from": DateInput(), "effective_to": DateInput()}
 
     def __init__(self, *args, **kwargs):
@@ -901,6 +902,7 @@ class VehicleModelMasterForm(forms.ModelForm):
             "name": "機種",
             "model_number": "型號",
             "model_code": "型式",
+            "base_dealer_commission": "車行基礎傭金",
         }
         widgets = {
             "model_year": forms.NumberInput(

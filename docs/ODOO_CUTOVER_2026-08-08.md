@@ -5,8 +5,8 @@
 - 正式網域：`https://dmis.moto-core.com/`
 - 新系統：`/home/audi/project/DMIS-next`
 - 舊系統：`/home/audi/project/DMIS`
-- 正式網域沿用既有 Cloudflare Tunnel，來源由 `http://odoo:8069` 改為
-  `http://web:8000`。
+- 正式網域沿用既有 Cloudflare Tunnel 與 `http://odoo:8069` 來源名稱；切換後
+  由新系統 `tunnel-proxy` 接手該名稱並轉送至 `http://web:8000`。
 
 ## 已搬遷主檔
 
@@ -45,9 +45,9 @@
 
 `/srv/dmis-data/dmis-next/backups/postgres/daily/dmis_20260808_165639.sql.gz`
 
-若正式網域驗證失敗，先將 Cloudflare Tunnel 來源改回
-`http://odoo:8069`，再啟動舊 Odoo container。舊資料庫與 filestore 在觀察期內
-不得刪除。
+若正式網域驗證失敗，停止 `tunnel-proxy`，將舊 Odoo container 重新接回
+`dmis_default` network 的 `odoo` alias，再啟動舊 Odoo。舊資料庫與 filestore
+在觀察期內不得刪除。
 
 ## 驗證清單
 

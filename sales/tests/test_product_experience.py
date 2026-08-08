@@ -68,6 +68,10 @@ class ProductExperienceTests(TestCase):
         css = Path("static/css/app.css").read_text(encoding="utf-8")
         navigation = Path("static/js/ui-navigation.js").read_text(encoding="utf-8")
         self.assertIn("max-height: min(72vh, 650px)", css)
+        self.assertIn(
+            ".hero-row { align-items: stretch; flex-direction: column; gap: 14px; }",
+            css,
+        )
         self.assertIn('event.key === "Escape"', navigation)
 
     def test_maintenance_help_stays_on_master_data_topic(self):

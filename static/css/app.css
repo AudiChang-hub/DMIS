@@ -1615,7 +1615,7 @@ body.screen-locked { overflow: hidden; }
   }
   .app-update-banner #app-update-reload { grid-column: 2; }
   .app-update-banner #app-update-later { grid-column: 3; }
-  .hero-row { align-items: start; }
+  .hero-row { align-items: stretch; flex-direction: column; gap: 14px; }
   .hero-actions { width: 100%; flex-wrap: wrap; justify-content: stretch; }
   .hero-actions .button { flex: 1 1 auto; }
   .page-context-nav { margin-top: -8px; margin-bottom: 6px; }

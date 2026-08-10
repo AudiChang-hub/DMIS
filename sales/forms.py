@@ -702,6 +702,8 @@ class AccessoryLineForm(forms.ModelForm):
         for field_name in ("amount", "labor_fee"):
             self.fields[field_name].widget.attrs["readonly"] = True
             self.fields[field_name].widget.attrs["tabindex"] = "-1"
+        for field in self.fields.values():
+            field.widget.attrs.setdefault("class", "form-control")
         apply_mobile_keyboard_attrs(self)
         if not self.is_bound and not self.instance.pk:
             self.fields["amount"].initial = None
@@ -752,6 +754,8 @@ class OtherFeeLineForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         self.fields["name"].required = False
         self.fields["amount"].required = False
+        for field in self.fields.values():
+            field.widget.attrs.setdefault("class", "form-control")
         apply_mobile_keyboard_attrs(self)
         if not self.is_bound and not self.instance.pk and "amount" not in self.initial:
             self.fields["amount"].initial = None

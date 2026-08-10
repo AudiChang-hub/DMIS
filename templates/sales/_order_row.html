@@ -13,7 +13,7 @@
     {% endif %}
   </span>
   <span class="order-source">{{ order.source.name|default:order.get_source_type_display }}</span>
-  <span class="status-pill">{{ order.get_status_display }}</span>
+  <span class="status-pill status-{{ order.status }}">{{ order.get_status_display }}</span>
   <span class="chevron">›</span>
 </a>
 

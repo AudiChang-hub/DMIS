@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load sales_format %}
 {% block title %}營運戰情看板｜車輛銷售管理{% endblock %}
 {% block page_class %}page-shell--wide{% endblock %}
 {% block content %}
@@ -50,17 +51,17 @@
       </article>
       <article class="performance-card">
         <span>本月銷售總金額</span>
-        <strong><small>$</small>{{ dashboard.performance.sales_total|floatformat:0 }}</strong>
+        <strong><small>$</small>{{ dashboard.performance.sales_total|number_with_commas }}</strong>
         {% if dashboard.performance.sales_change != None %}<em class="{% if dashboard.performance.sales_change < 0 %}down{% endif %}">較上月 {{ dashboard.performance.sales_change }}%</em>{% endif %}
       </article>
       <article class="performance-card">
         <span>本月總利潤</span>
-        <strong><small>$</small>{{ dashboard.performance.profit_total|floatformat:0 }}</strong>
+        <strong><small>$</small>{{ dashboard.performance.profit_total|number_with_commas }}</strong>
         <em>{{ dashboard.performance.profit_ready }}／{{ dashboard.performance.count }} 筆成本完整</em>
       </article>
       <article class="performance-card">
         <span>平均單筆利潤</span>
-        <strong><small>$</small>{{ dashboard.performance.average_profit|floatformat:0 }}</strong>
+        <strong><small>$</small>{{ dashboard.performance.average_profit|number_with_commas }}</strong>
         <em>依已完整填寫成本的成交單計算</em>
       </article>
     </div>
@@ -154,7 +155,7 @@
       {% for order in dashboard.registration_fee_variances %}
       <div class="reminder-row due">
         <a href="{% url 'order_detail' order.pk %}?tab=order"><strong>{{ order.owner_name }} · {{ order.vehicle_model }}</strong><small>{{ order.number }} · 領牌日 {{ order.registration_date|date:"Y/m/d" }}</small></a>
-        <span><strong>差額 ${{ order.plate_insurance_fee|floatformat:0 }} − ${{ order.registration_calculated_total|floatformat:0 }}</strong><small>實際牌險／系統試算</small></span>
+        <span><strong>差額 ${{ order.plate_insurance_fee|number_with_commas }} − ${{ order.registration_calculated_total|number_with_commas }}</strong><small>實際牌險／系統試算</small></span>
         <form method="post" action="{% url 'registration_fee_variance_confirm' order.pk %}">{% csrf_token %}<button class="button ghost small" type="submit">確認差異</button></form>
       </div>
       {% endfor %}

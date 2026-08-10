@@ -8,11 +8,11 @@
   <div><p class="eyebrow">訂單管理</p><h1>全部訂單</h1></div>
   <a class="button primary" href="{% url 'order_create' %}">＋ 建立訂單</a>
 </section>
-<form class="filter-bar" method="get">
-  <label>全欄位搜尋
-    <input type="search" name="q" value="{{ query }}" placeholder="姓名、電話、證件、車牌、車型…">
+<form class="filter-bar order-filter-bar" method="get">
+  <label class="order-filter-search">全欄位搜尋
+    <input type="search" name="q" value="{{ query }}" placeholder="姓名、電話、證件、車牌、車型…" enterkeyhint="search">
   </label>
-  <label>狀態
+  <label class="order-filter-status">狀態
     <select name="status" onchange="this.form.submit()">
       <option value="">全部狀態</option>
       <option value="urgent" {% if request.GET.status == "urgent" %}selected{% endif %}>需要優先處理</option>
@@ -23,7 +23,7 @@
       {% endfor %}
     </select>
   </label>
-  <button class="button primary small" type="submit">搜尋</button>
+  <button class="button primary order-filter-submit" type="submit">搜尋</button>
 </form>
 <div class="section-block">
   <div class="inventory-list-summary">

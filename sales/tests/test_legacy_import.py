@@ -11,6 +11,7 @@ from openpyxl import Workbook, load_workbook
 from sales.models import (
     LegacyImportBatch,
     LegacyImportCorrection,
+    LegacyImportRow,
     LegacySalesSnapshot,
     SalesOrder,
     Store,
@@ -98,6 +99,8 @@ def used_vehicle_resale_workbook_bytes(mark_as_used=True):
     sales["AW5"] = "B223456789"
     sales["AX5"] = "新北市中古路2號"
     sales["AY5"] = "0987654321"
+    # 舊 Excel 尾端常因公式留下只有 0 的空白列，不能產生假訂單。
+    sales["AT6"] = 0
     stream = BytesIO()
     workbook.save(stream)
     return stream.getvalue()
@@ -206,6 +209,7 @@ class LegacyImportTests(TestCase):
         self.assertEqual(summary["counts"]["conflict"], 0)
         self.assertEqual(summary["validation"]["used_vehicle_sales"], 1)
         sales_rows = list(batch.rows.filter(sheet_name="銷貨").order_by("source_row"))
+        self.assertEqual(len(sales_rows), 2)
         self.assertEqual(sales_rows[0].mapped_data["vehicle_category"], "new")
         self.assertEqual(sales_rows[1].mapped_data["vehicle_category"], "used")
         self.assertNotEqual(sales_rows[0].natural_key, sales_rows[1].natural_key)
@@ -233,14 +237,34 @@ class LegacyImportTests(TestCase):
             mapped_data.pop("vehicle_category_reason", None)
             row.mapped_data = mapped_data
             row.save(update_fields=["mapped_data", "updated_at"])
+        placeholder = LegacyImportRow.objects.create(
+            batch=batch,
+            sheet_name="銷貨",
+            source_row=99,
+            fingerprint="0" * 64,
+            natural_key="legacy-placeholder",
+            action=LegacyImportRow.Action.CREATE,
+            raw_data={"車主名稱": 0},
+            mapped_data={
+                "owner_name": "0",
+                "model_number": "",
+                "identifier": "",
+                "plate_number": "",
+            },
+            messages=[],
+        )
 
         summary = revalidate_import_batch(batch)
 
         rows = list(batch.rows.filter(sheet_name="銷貨").order_by("source_row"))
         self.assertEqual(summary["counts"]["conflict"], 0)
+        self.assertEqual(summary["counts"]["skip"], 1)
         self.assertEqual(summary["validation"]["used_vehicle_sales"], 1)
         self.assertEqual(rows[0].mapped_data["vehicle_category"], "new")
         self.assertEqual(rows[1].mapped_data["vehicle_category"], "used")
+        placeholder.refresh_from_db()
+        self.assertEqual(placeholder.action, LegacyImportRow.Action.SKIP)
+        self.assertIn("Excel 空白公式列，系統自動略過", placeholder.messages)
 
     def test_ambiguous_second_new_sale_stays_conflict_until_marked_used(self):
         batch = self.make_used_vehicle_batch(mark_as_used=False)

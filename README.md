@@ -207,9 +207,25 @@ VS Code 建議設定（讓自動化/Tasks 使用 PowerShell 不載入使用者 p
 
 開發：新增 module 至 `addons/`，並同步更新 `specs/` 下對應規格檔。
 
-## T470P 自動部署
+## T470P Django 安全部署
 
-正式環境可使用 systemd user timer，每分鐘檢查指定 Git branch。只有遠端
+正式環境位於 `/home/audi/project/DMIS-next`。部署腳本會依序檢查 branch 與
+工作樹、建立 PostgreSQL 與媒體備份、僅重建 Django web／OCR／搜尋服務，
+再重新載入 tunnel proxy 並驗證正式網域。資料庫、Redis 與同機其他服務不會
+因應用程式更新而重啟。
+
+```bash
+chmod +x scripts/deploy_django.sh scripts/backup_django_data.sh
+./scripts/deploy_django.sh
+```
+
+若工作樹有已追蹤的未提交修改、遠端不是 fast-forward、備份失敗、容器未恢復
+健康或正式網域回傳錯誤，腳本會停止並留下明確訊息。請勿跳過檢查直接執行
+`docker compose down`。
+
+## 舊 Odoo 自動部署（切換後已停用）
+
+以下為舊系統保留紀錄。舊環境可使用 systemd user timer，每分鐘檢查指定 Git branch。只有遠端
 出現 fast-forward commit 且工作樹乾淨時才會部署；更新前會備份 PostgreSQL，
 有 addon 變更時會升級對應 Odoo module，最後執行 smoke test。
 

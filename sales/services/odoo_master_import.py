@@ -117,8 +117,6 @@ def _source_for_legacy(dealer, summary, apply):
     flags = []
     if dealer.get("line_group"):
         flags.append("已加入 LINE 群組")
-    if dealer.get("holiday_gift"):
-        flags.append("需安排年節送禮")
     relationship_note = "、".join(flags)
     defaults = {
         "source_type": source_type,
@@ -128,6 +126,7 @@ def _source_for_legacy(dealer, summary, apply):
         "fax": (dealer.get("mobile_fax") or "").strip(),
         "address": (dealer.get("address") or "").strip(),
         "vehicle_capacity": capacity,
+        "holiday_gift": bool(dealer.get("holiday_gift")),
         "relationship_note": relationship_note,
         "note": _note_with_marker(dealer.get("note"), dealer["id"]),
         "active": bool(dealer.get("active", True)),

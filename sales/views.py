@@ -500,6 +500,7 @@ def sales_source_list(request):
     keyword = request.GET.get("q", "").strip()
     source_type = request.GET.get("type", "")
     brand = request.GET.get("brand", "").strip()
+    holiday_gift = request.GET.get("holiday_gift", "")
     sources = SalesSource.objects.annotate(
         contact_count=Count("contacts", distinct=True),
         brand_count=Count(
@@ -509,16 +510,21 @@ def sales_source_list(request):
         ),
     ).order_by("source_type", "name", "id")
     if keyword:
-        sources = sources.filter(
+        keyword_filter = (
             Q(name__icontains=keyword)
             | Q(code__icontains=keyword)
             | Q(address__icontains=keyword)
             | Q(phone__icontains=keyword)
+            | Q(relationship_note__icontains=keyword)
+            | Q(note__icontains=keyword)
             | Q(contacts__name__icontains=keyword)
             | Q(contacts__phone__icontains=keyword)
             | Q(contacts__mobile__icontains=keyword)
             | Q(contacts__email__icontains=keyword)
-        ).distinct()
+        )
+        if any(keyword in label for label in ("年節送禮", "送禮", "月餅")):
+            keyword_filter |= Q(holiday_gift=True)
+        sources = sources.filter(keyword_filter).distinct()
     if source_type in {value for value, _ in SalesSource.SourceType.choices}:
         sources = sources.filter(source_type=source_type)
     if brand:
@@ -526,6 +532,11 @@ def sales_source_list(request):
             brand_policies__brand__iexact=brand,
             brand_policies__cooperates=True,
         ).distinct()
+    if holiday_gift in {"yes", "no"}:
+        sources = sources.filter(
+            source_type=SalesSource.SourceType.DEALER,
+            holiday_gift=holiday_gift == "yes",
+        )
     page = Paginator(sources.prefetch_related("contacts", "brand_policies"), 100).get_page(
         request.GET.get("page")
     )
@@ -544,7 +555,17 @@ def sales_source_list(request):
             "sources": page.object_list,
             "source_types": SalesSource.SourceType.choices,
             "brands": brands,
-            "selected": {"q": keyword, "type": source_type, "brand": brand},
+            "holiday_gift_count": SalesSource.objects.filter(
+                source_type=SalesSource.SourceType.DEALER,
+                holiday_gift=True,
+                active=True,
+            ).count(),
+            "selected": {
+                "q": keyword,
+                "type": source_type,
+                "brand": brand,
+                "holiday_gift": holiday_gift,
+            },
         },
     )
 

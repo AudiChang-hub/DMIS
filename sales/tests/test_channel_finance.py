@@ -232,3 +232,42 @@ class ChannelFinanceTests(TestCase):
             "dealer_volume_bonus_list",
         ):
             self.assertEqual(self.client.get(reverse(name)).status_code, 200)
+
+    def test_sales_source_list_filters_and_labels_holiday_gift_dealers(self):
+        self.dealer.holiday_gift = True
+        self.dealer.save(update_fields=["holiday_gift"])
+        SalesSource.objects.create(
+            name="一般車行",
+            source_type=SalesSource.SourceType.DEALER,
+            holiday_gift=False,
+        )
+        SalesSource.objects.create(
+            name="測試平台",
+            source_type=SalesSource.SourceType.PLATFORM,
+            holiday_gift=True,
+        )
+        self.client.force_login(self.user)
+
+        response = self.client.get(
+            reverse("sales_source_list"),
+            {"type": "dealer", "holiday_gift": "yes"},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "冠廷")
+        self.assertNotContains(response, "一般車行")
+        self.assertNotContains(response, "測試平台")
+        self.assertContains(response, "年節送禮名單 · 1 家")
+        self.assertContains(response, "需送禮")
+
+    def test_sales_source_full_search_understands_legacy_gift_terms(self):
+        self.dealer.holiday_gift = True
+        self.dealer.save(update_fields=["holiday_gift"])
+        self.client.force_login(self.user)
+
+        for keyword in ("年節送禮", "送禮", "月餅"):
+            with self.subTest(keyword=keyword):
+                response = self.client.get(
+                    reverse("sales_source_list"), {"q": keyword}
+                )
+                self.assertContains(response, "冠廷")

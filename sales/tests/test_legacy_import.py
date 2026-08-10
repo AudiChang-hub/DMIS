@@ -11,20 +11,26 @@ from openpyxl import Workbook, load_workbook
 from sales.models import (
     LegacyImportBatch,
     LegacyImportCorrection,
+    LegacyImportMasterMapping,
     LegacyImportRow,
     LegacySalesSnapshot,
     SalesOrder,
+    SalesSource,
     Store,
+    VehicleColor,
     VehicleInventory,
+    VehicleModel,
 )
 from sales.forms import LegacyImportRowCorrectionForm, LegacyImportUploadForm
 from sales.services.legacy_import import (
     _infer_sales_vehicle_category,
     apply_import_row_decision,
+    build_import_master_workspace,
     build_import_preview,
     confirm_import,
     file_sha256,
     revalidate_import_batch,
+    save_import_master_mapping,
 )
 
 
@@ -371,6 +377,138 @@ class LegacyImportTests(TestCase):
         self.assertEqual(post_response.status_code, 302)
         batch.refresh_from_db()
         self.assertEqual(batch.preview_summary["counts"]["conflict"], 0)
+
+    def test_unmapped_vehicle_can_link_existing_master_without_changing_excel(self):
+        batch = self.make_batch(LegacyImportBatch.ImportType.OPERATIONS)
+        build_import_preview(batch)
+        original_raw = dict(batch.rows.get(sheet_name="進貨").raw_data)
+        target = VehicleModel.objects.create(
+            brand="SUZUKI",
+            name="SUI 125",
+            model_number="UQ125DA",
+            energy_type=VehicleModel.EnergyType.GAS,
+            model_year=2026,
+            model_code=VehicleModel.ModelType.FRONT_DISC_REAR_DRUM,
+            displacement_cc=125,
+        )
+        response = self.client.post(
+            reverse(
+                "legacy_import_master_resolve",
+                args=[batch.pk, LegacyImportMasterMapping.MappingType.VEHICLE_MODEL],
+            ),
+            {
+                "source_value": "TEST125",
+                "resolution_action": "link",
+                "model-link-vehicle_model": target.pk,
+            },
+        )
+        self.assertEqual(response.status_code, 302)
+        batch.refresh_from_db()
+        self.assertEqual(batch.preview_summary["validation"]["unmapped_models"], [])
+        mapping = LegacyImportMasterMapping.objects.get()
+        self.assertEqual(mapping.vehicle_model, target)
+        self.assertEqual(batch.rows.get(sheet_name="進貨").raw_data, original_raw)
+
+        confirm_import(batch, "tester")
+        self.assertEqual(VehicleInventory.objects.get().vehicle_model, target)
+        self.assertEqual(SalesOrder.objects.get().vehicle_model, target)
+
+    def test_quick_create_source_and_mapping_are_reused_by_next_batch(self):
+        content = workbook_bytes()
+        workbook = load_workbook(BytesIO(content))
+        workbook["銷貨"]["AN4"] = "新合作車行"
+        stream = BytesIO()
+        workbook.save(stream)
+        payload = stream.getvalue()
+        batch = LegacyImportBatch.objects.create(
+            import_type=LegacyImportBatch.ImportType.OPERATIONS,
+            source_file=SimpleUploadedFile("source.xlsx", payload),
+            original_filename="source.xlsx",
+            file_sha256="1" * 64,
+            file_size=len(payload),
+            uploaded_by="tester",
+        )
+        build_import_preview(batch)
+        self.assertEqual(
+            batch.preview_summary["validation"]["unmapped_sources"],
+            ["新合作車行"],
+        )
+        response = self.client.post(
+            reverse(
+                "legacy_import_master_resolve",
+                args=[batch.pk, LegacyImportMasterMapping.MappingType.SALES_SOURCE],
+            ),
+            {
+                "source_value": "新合作車行",
+                "resolution_action": "create",
+                "source-create-source_type": SalesSource.SourceType.DEALER,
+                "source-create-name": "新合作車行",
+                "source-create-address": "新北市測試路",
+            },
+        )
+        self.assertEqual(response.status_code, 302)
+        source = SalesSource.objects.get(name="新合作車行")
+        batch.refresh_from_db()
+        self.assertEqual(batch.preview_summary["validation"]["unmapped_sources"], [])
+
+        second = LegacyImportBatch.objects.create(
+            import_type=LegacyImportBatch.ImportType.OPERATIONS,
+            source_file=SimpleUploadedFile("source-2.xlsx", payload),
+            original_filename="source-2.xlsx",
+            file_sha256="2" * 64,
+            file_size=len(payload),
+            uploaded_by="tester",
+        )
+        summary = build_import_preview(second)
+        self.assertEqual(summary["validation"]["unmapped_sources"], [])
+        confirm_import(second, "tester")
+        self.assertEqual(SalesOrder.objects.get().source, source)
+
+    def test_keep_historical_source_text_removes_warning_without_polluting_master(self):
+        content = workbook_bytes()
+        workbook = load_workbook(BytesIO(content))
+        workbook["銷貨"]["AN4"] = "朋友推薦"
+        stream = BytesIO()
+        workbook.save(stream)
+        payload = stream.getvalue()
+        batch = LegacyImportBatch.objects.create(
+            import_type=LegacyImportBatch.ImportType.OPERATIONS,
+            source_file=SimpleUploadedFile("referral.xlsx", payload),
+            original_filename="referral.xlsx",
+            file_sha256="3" * 64,
+            file_size=len(payload),
+            uploaded_by="tester",
+        )
+        build_import_preview(batch)
+        response = self.client.post(
+            reverse(
+                "legacy_import_master_resolve",
+                args=[batch.pk, LegacyImportMasterMapping.MappingType.SALES_SOURCE],
+            ),
+            {
+                "source_value": "朋友推薦",
+                "resolution_action": "ignore",
+                "note": "歷史分類文字，不是通路",
+            },
+        )
+        self.assertEqual(response.status_code, 302)
+        batch.refresh_from_db()
+        self.assertEqual(batch.preview_summary["validation"]["unmapped_sources"], [])
+        self.assertFalse(SalesSource.objects.filter(name="朋友推薦").exists())
+        mapping = LegacyImportMasterMapping.objects.get()
+        self.assertTrue(mapping.ignored)
+
+    def test_master_workspace_shows_occurrence_count_and_observed_colors(self):
+        batch = self.make_batch(LegacyImportBatch.ImportType.OPERATIONS)
+        build_import_preview(batch)
+        workspace = build_import_master_workspace(batch)
+        self.assertEqual(workspace["total"], 1)
+        self.assertEqual(workspace["models"][0]["source_value"], "TEST125")
+        self.assertEqual(workspace["models"][0]["row_count"], 2)
+        self.assertEqual(workspace["models"][0]["colors"], ["白"])
+        response = self.client.get(reverse("legacy_import_detail", args=[batch.pk]))
+        self.assertContains(response, "待補主檔工作台")
+        self.assertContains(response, "Excel 出現 2 筆")
 
     def test_preview_batch_can_be_deleted_with_uploaded_file(self):
         batch = self.make_batch(LegacyImportBatch.ImportType.CHANNELS)

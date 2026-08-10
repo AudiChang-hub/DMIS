@@ -1,5 +1,6 @@
 import uuid
 import re
+import unicodedata
 from decimal import Decimal
 
 from django.conf import settings
@@ -20,6 +21,12 @@ class TimeStampedModel(models.Model):
 def normalize_vehicle_identifier(value):
     """建立比對鍵；畫面仍保留使用者輸入的原始號碼。"""
     return re.sub(r"[\s-]+", "", value or "").upper() or None
+
+
+def normalize_legacy_master_value(value):
+    """歷史 Excel 主檔文字的穩定比對鍵；原始文字仍完整保留。"""
+    normalized = unicodedata.normalize("NFKC", str(value or "")).casefold()
+    return re.sub(r"\s+", "", normalized)
 
 
 class TaiwanCounty(models.TextChoices):
@@ -730,6 +737,93 @@ class LegacyImportCorrection(TimeStampedModel):
         ordering = ["-created_at", "-id"]
         verbose_name = "歷史匯入人工修正紀錄"
         verbose_name_plural = "歷史匯入人工修正紀錄"
+
+
+class LegacyImportMasterMapping(TimeStampedModel):
+    class MappingType(models.TextChoices):
+        VEHICLE_MODEL = "vehicle_model", "車型"
+        SALES_SOURCE = "sales_source", "通路"
+
+    source_value = models.CharField("Excel 原始名稱", max_length=200)
+    normalized_source_value = models.CharField(
+        "標準化名稱", max_length=200, editable=False
+    )
+    mapping_type = models.CharField(
+        "主檔類型", max_length=30, choices=MappingType.choices
+    )
+    vehicle_model = models.ForeignKey(
+        VehicleModel,
+        on_delete=models.PROTECT,
+        related_name="legacy_import_mappings",
+        verbose_name="對應車型",
+        blank=True,
+        null=True,
+    )
+    sales_source = models.ForeignKey(
+        SalesSource,
+        on_delete=models.PROTECT,
+        related_name="legacy_import_mappings",
+        verbose_name="對應通路",
+        blank=True,
+        null=True,
+    )
+    ignored = models.BooleanField(
+        "保留歷史文字",
+        default=False,
+        help_text="不建立或對應主檔；匯入時仍保留 Excel 原始文字。",
+    )
+    note = models.CharField("處理說明", max_length=250, blank=True)
+    updated_by = models.CharField("最後處理人員", max_length=150)
+
+    class Meta:
+        ordering = ["mapping_type", "source_value"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["mapping_type", "normalized_source_value"],
+                name="unique_legacy_master_mapping",
+            )
+        ]
+        indexes = [
+            models.Index(
+                fields=["mapping_type", "normalized_source_value"],
+                name="legacy_master_mapping_lookup",
+            )
+        ]
+        verbose_name = "歷史匯入主檔對應"
+        verbose_name_plural = "歷史匯入主檔對應"
+
+    def clean(self):
+        errors = {}
+        if self.ignored:
+            if self.vehicle_model_id or self.sales_source_id:
+                errors["ignored"] = "保留歷史文字時不可同時指定主檔。"
+        elif self.mapping_type == self.MappingType.VEHICLE_MODEL:
+            if not self.vehicle_model_id:
+                errors["vehicle_model"] = "請選擇要對應的車型。"
+            if self.sales_source_id:
+                errors["sales_source"] = "車型對應不可指定通路。"
+        elif self.mapping_type == self.MappingType.SALES_SOURCE:
+            if not self.sales_source_id:
+                errors["sales_source"] = "請選擇要對應的通路。"
+            if self.vehicle_model_id:
+                errors["vehicle_model"] = "通路對應不可指定車型。"
+        if errors:
+            raise ValidationError(errors)
+
+    def save(self, *args, **kwargs):
+        self.source_value = self.source_value.strip()
+        self.normalized_source_value = normalize_legacy_master_value(
+            self.source_value
+        )
+        self.full_clean()
+        return super().save(*args, **kwargs)
+
+    def __str__(self):
+        if self.ignored:
+            target = "保留歷史文字"
+        else:
+            target = self.vehicle_model or self.sales_source
+        return f"{self.get_mapping_type_display()}：{self.source_value} → {target}"
 
 
 class LegacySalesSnapshot(TimeStampedModel):

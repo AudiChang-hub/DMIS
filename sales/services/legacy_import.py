@@ -11,6 +11,7 @@ from openpyxl.utils import column_index_from_string, get_column_letter
 from sales.models import (
     LegacyImportBatch,
     LegacyImportCorrection,
+    LegacyImportMasterMapping,
     LegacyImportRow,
     LegacySalesSnapshot,
     OrderOperationsProfile,
@@ -22,6 +23,7 @@ from sales.models import (
     VehicleColor,
     VehicleInventory,
     VehicleModel,
+    normalize_legacy_master_value,
     normalize_vehicle_identifier,
 )
 
@@ -38,6 +40,107 @@ SYSTEM_VALIDATION_MESSAGES = {
     MISSING_IDENTIFIER_MESSAGE,
     EMPTY_SALES_PLACEHOLDER_MESSAGE,
 }
+
+
+def _legacy_master_mapping(mapping_type, source_value):
+    normalized = normalize_legacy_master_value(source_value)
+    if not normalized:
+        return None
+    return (
+        LegacyImportMasterMapping.objects.select_related(
+            "vehicle_model", "sales_source"
+        )
+        .filter(
+            mapping_type=mapping_type,
+            normalized_source_value=normalized,
+        )
+        .first()
+    )
+
+
+@transaction.atomic
+def save_import_master_mapping(
+    *,
+    mapping_type,
+    source_value,
+    actor_name,
+    vehicle_model=None,
+    sales_source=None,
+    ignored=False,
+    note="",
+):
+    normalized = normalize_legacy_master_value(source_value)
+    if not normalized:
+        raise ValueError("缺少要處理的 Excel 原始名稱。")
+    mapping = (
+        LegacyImportMasterMapping.objects.select_for_update()
+        .filter(
+            mapping_type=mapping_type,
+            normalized_source_value=normalized,
+        )
+        .first()
+        or LegacyImportMasterMapping(
+            mapping_type=mapping_type,
+            normalized_source_value=normalized,
+        )
+    )
+    mapping.source_value = str(source_value).strip()
+    mapping.vehicle_model = vehicle_model
+    mapping.sales_source = sales_source
+    mapping.ignored = ignored
+    mapping.note = note.strip()
+    mapping.updated_by = actor_name
+    mapping.save()
+    return mapping
+
+
+def build_import_master_workspace(batch):
+    """建立同頁補主檔清單，不改寫 Excel 原始列。"""
+    validation = (batch.preview_summary or {}).get("validation", {})
+    unmapped_models = validation.get("unmapped_models", [])
+    unmapped_sources = validation.get("unmapped_sources", [])
+    wanted_model_keys = {
+        normalize_legacy_master_value(value): value for value in unmapped_models
+    }
+    wanted_source_keys = {
+        normalize_legacy_master_value(value): value for value in unmapped_sources
+    }
+    model_stats = {
+        key: {"source_value": value, "row_count": 0, "colors": set()}
+        for key, value in wanted_model_keys.items()
+    }
+    source_stats = {
+        key: {"source_value": value, "row_count": 0}
+        for key, value in wanted_source_keys.items()
+    }
+    rows = batch.rows.filter(excluded=False).values_list("sheet_name", "mapped_data")
+    for sheet_name, data in rows.iterator(chunk_size=500):
+        model_key = normalize_legacy_master_value(data.get("model_number"))
+        if model_key in model_stats:
+            model_stats[model_key]["row_count"] += 1
+            color = str(data.get("color") or "").strip()
+            if color:
+                model_stats[model_key]["colors"].add(color)
+        if sheet_name == "銷貨":
+            source_key = normalize_legacy_master_value(data.get("dealer_name"))
+            if source_key in source_stats:
+                source_stats[source_key]["row_count"] += 1
+    model_items = []
+    for value in model_stats.values():
+        value["colors"] = sorted(value["colors"])
+        value["colors_text"] = "、".join(value["colors"])
+        model_items.append(value)
+    model_items = sorted(
+        model_items, key=lambda item: item["source_value"].casefold()
+    )
+    source_items = sorted(
+        source_stats.values(), key=lambda item: item["source_value"].casefold()
+    )
+    return {
+        "models": model_items,
+        "sources": source_items,
+        "total": len(model_items) + len(source_items),
+    }
 
 
 def file_sha256(uploaded_file):
@@ -546,14 +649,25 @@ def revalidate_import_batch(batch):
         sales_rows = [row for row in active_rows if row.sheet_name == "銷貨"]
         inventory_rows = [row for row in active_rows if row.sheet_name == "進貨"]
         known_models = {
-            value.casefold()
+            normalize_legacy_master_value(value)
             for pair in VehicleModel.objects.values_list("model_number", "name")
             for value in pair
             if value
         }
+        known_models.update(
+            LegacyImportMasterMapping.objects.filter(
+                mapping_type=LegacyImportMasterMapping.MappingType.VEHICLE_MODEL
+            ).values_list("normalized_source_value", flat=True)
+        )
         known_sources = {
-            value.casefold() for value in SalesSource.objects.values_list("name", flat=True)
+            normalize_legacy_master_value(value)
+            for value in SalesSource.objects.values_list("name", flat=True)
         }
+        known_sources.update(
+            LegacyImportMasterMapping.objects.filter(
+                mapping_type=LegacyImportMasterMapping.MappingType.SALES_SOURCE
+            ).values_list("normalized_source_value", flat=True)
+        )
         source_available = {
             row.mapped_data.get("identifier", "")
             for row in inventory_rows
@@ -577,14 +691,16 @@ def revalidate_import_batch(batch):
                 row.mapped_data.get("model_number", "")
                 for row in active_rows
                 if row.mapped_data.get("model_number")
-                and row.mapped_data["model_number"].casefold() not in known_models
+                and normalize_legacy_master_value(row.mapped_data["model_number"])
+                not in known_models
             }),
             "unmapped_sources": sorted({
                 row.mapped_data.get("dealer_name", "")
                 for row in sales_rows
                 if row.mapped_data.get("dealer_name")
                 and row.mapped_data.get("dealer_name", "").replace(" ", "") != "中古車"
-                and row.mapped_data["dealer_name"].casefold() not in known_sources
+                and normalize_legacy_master_value(row.mapped_data["dealer_name"])
+                not in known_sources
             }),
             "used_vehicle_sales": sum(
                 row.mapped_data.get("vehicle_category") == SalesOrder.VehicleCategory.USED
@@ -691,7 +807,23 @@ def _placeholder_model(model_number):
 
 
 def _model_for_number(model_number):
+    mapping = _legacy_master_mapping(
+        LegacyImportMasterMapping.MappingType.VEHICLE_MODEL,
+        model_number,
+    )
+    if mapping and mapping.vehicle_model_id:
+        return mapping.vehicle_model
     return VehicleModel.objects.filter(model_number__iexact=model_number).first() or VehicleModel.objects.filter(name__iexact=model_number).first() or _placeholder_model(model_number)
+
+
+def _source_for_name(source_name):
+    mapping = _legacy_master_mapping(
+        LegacyImportMasterMapping.MappingType.SALES_SOURCE,
+        source_name,
+    )
+    if mapping:
+        return mapping.sales_source if not mapping.ignored else None
+    return SalesSource.objects.filter(name__iexact=source_name).first()
 
 
 def _color_for_model(model, name):
@@ -753,7 +885,7 @@ def _commit_sales_row(row, actor_name):
         vehicle = VehicleInventory.objects.filter(normalized_engine_number=data["identifier"]).first() or VehicleInventory.objects.filter(normalized_frame_number=data["identifier"]).first()
     order_date = _date(data["order_date"]) or _date(data["registration_date"]) or timezone.localdate()
     owner_id = data["owner_id_number"] or f"HIST-{str(row.batch_id)[:8]}-{row.source_row}"
-    source = SalesSource.objects.filter(name__iexact=data.get("dealer_name", "")).first()
+    source = _source_for_name(data.get("dealer_name", ""))
     source_type = SalesOrder.SourceType.STORE
     if source:
         source_type = source.source_type

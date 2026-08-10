@@ -54,6 +54,11 @@ urlpatterns = [
         views.legacy_import_row_decide,
         name="legacy_import_row_decide",
     ),
+    path(
+        "data/imports/<uuid:pk>/master-data/<str:mapping_type>/resolve/",
+        views.legacy_import_master_resolve,
+        name="legacy_import_master_resolve",
+    ),
     path("data/channels/", views.sales_source_list, name="sales_source_list"),
     path(
         "data/channels/holiday-gifts/",

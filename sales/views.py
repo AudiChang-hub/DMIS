@@ -1,5 +1,6 @@
 import json
 import logging
+import shutil
 import uuid
 from datetime import date, timedelta
 from decimal import Decimal
@@ -8,6 +9,7 @@ from pathlib import Path
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.conf import settings
 from django.core.files.base import ContentFile
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError, connection, transaction
@@ -19,7 +21,7 @@ from django.urls import reverse
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.utils import timezone
 import django_rq
-from rq import Retry
+from rq import Retry, Worker
 
 from .services.order_contract_pdf import build_order_contract_pdf
 from .services.privacy_consent_pdf import build_privacy_consent_pdf
@@ -93,6 +95,7 @@ from .models import (
     IdOcrJob,
     RegistrationDocument,
     SalesOrder,
+    SalesOrderSearchIndex,
     SalesSource,
     SalesSourceContact,
     Store,
@@ -177,6 +180,104 @@ def system_health(request):
         logger.exception("health_check_failed request_id=%s", getattr(request, "request_id", ""))
         return JsonResponse({"ok": False}, status=503)
     return JsonResponse({"ok": True})
+
+
+@login_required
+def system_diagnostics(request):
+    """提供內部人員可理解、且不洩漏連線資訊的服務狀態。"""
+    checks = []
+
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT 1")
+            cursor.fetchone()
+        checks.append(
+            {"key": "database", "label": "訂單資料庫", "tone": "success", "summary": "連線正常"}
+        )
+    except Exception:
+        logger.exception("diagnostics_database_failed request_id=%s", getattr(request, "request_id", ""))
+        checks.append(
+            {"key": "database", "label": "訂單資料庫", "tone": "danger", "summary": "目前無法連線"}
+        )
+
+    queue_details = []
+    if settings.REDIS_URL:
+        try:
+            for queue_name, label in (("ocr", "證件辨識"), ("search", "搜尋索引")):
+                queue = django_rq.get_queue(queue_name)
+                queue.connection.ping()
+                queue_details.append(
+                    {
+                        "label": label,
+                        "waiting": queue.count,
+                        "workers": Worker.count(connection=queue.connection, queue=queue),
+                    }
+                )
+            waiting_total = sum(item["waiting"] for item in queue_details)
+            worker_total = sum(item["workers"] for item in queue_details)
+            tone = "success" if worker_total >= 2 else "warning"
+            summary = f"{worker_total} 個背景工作執行中，{waiting_total} 件等待處理"
+            checks.append(
+                {"key": "workers", "label": "背景工作", "tone": tone, "summary": summary}
+            )
+        except Exception:
+            logger.exception("diagnostics_redis_failed request_id=%s", getattr(request, "request_id", ""))
+            checks.append(
+                {"key": "workers", "label": "背景工作", "tone": "danger", "summary": "Redis 或背景工作無法連線"}
+            )
+    else:
+        checks.append(
+            {"key": "workers", "label": "背景工作", "tone": "neutral", "summary": "本機模式：工作會立即執行"}
+        )
+
+    total_orders = SalesOrder.objects.count()
+    indexed_orders = SalesOrderSearchIndex.objects.count()
+    missing_indexes = max(total_orders - indexed_orders, 0)
+    checks.append(
+        {
+            "key": "search",
+            "label": "全欄位搜尋",
+            "tone": "success" if missing_indexes == 0 else "warning",
+            "summary": (
+                f"{indexed_orders:,} 張訂單已建立索引"
+                if missing_indexes == 0
+                else f"尚有 {missing_indexes:,} 張訂單等待建立搜尋索引"
+            ),
+        }
+    )
+
+    media_path = Path(settings.MEDIA_ROOT)
+    usage_path = media_path if media_path.exists() else Path(settings.BASE_DIR)
+    disk = shutil.disk_usage(usage_path)
+    free_percent = (disk.free / disk.total * 100) if disk.total else 0
+    free_gb = disk.free / (1024 ** 3)
+    disk_tone = "success" if free_percent >= 20 else "warning" if free_percent >= 10 else "danger"
+    checks.append(
+        {
+            "key": "storage",
+            "label": "照片與文件空間",
+            "tone": disk_tone,
+            "summary": f"剩餘 {free_gb:,.1f} GB（{free_percent:.0f}%）",
+        }
+    )
+
+    if any(item["tone"] == "danger" for item in checks):
+        overall_tone = "danger"
+    elif any(item["tone"] == "warning" for item in checks):
+        overall_tone = "warning"
+    else:
+        overall_tone = "success"
+
+    return render(
+        request,
+        "sales/system_diagnostics.html",
+        {
+            "checks": checks,
+            "queue_details": queue_details,
+            "checked_at": timezone.localtime(),
+            "overall_tone": overall_tone,
+        },
+    )
 
 
 logger = logging.getLogger(__name__)

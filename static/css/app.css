@@ -1535,6 +1535,8 @@ body.screen-locked { overflow: hidden; }
 .system-status-summary small { margin-top: 3px; color: var(--muted); font-size: .8125rem; }
 .system-status-summary--danger { border-left-color: var(--red); }
 .system-status-summary--danger > span { background: var(--red); }
+.system-status-summary--warning { border-left-color: var(--amber); }
+.system-status-summary--warning > span { color: #6c4304; background: var(--amber-soft); }
 .system-status-grid { display: grid; margin-bottom: 20px; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
 .system-status-card {
   display: flex; min-width: 0; min-height: 120px; padding: 20px; align-items: center; gap: 14px;

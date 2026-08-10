@@ -3734,7 +3734,7 @@ class OrderOperationsTests(TestCase):
         listing = self.client.get(reverse("reconciliation_list"))
         self.assertEqual(listing.status_code, 200)
         self.assertContains(listing, "和潤")
-        self.assertContains(listing, "70000")
+        self.assertContains(listing, "70,000")
 
         response = self.client.post(
             reverse("reconciliation_update", args=[record.pk]),

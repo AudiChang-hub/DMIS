@@ -9,7 +9,7 @@
   <div>
     <p class="eyebrow">End User 使用說明</p>
     <h1>現在想做什麼？從任務開始找</h1>
-    <p>這裡只說明實際操作，不需要懂系統或資料庫。最後更新：2026/08/07・系統版本 {{ app_version }}</p>
+    <p>這裡只說明實際操作，不需要懂系統或資料庫。最後更新：2026/08/10・系統版本 {{ app_version }}</p>
   </div>
   <div class="hero-actions guide-print-actions">
     <button class="button ghost" type="button" data-print-guide>列印／存成 PDF</button>
@@ -145,6 +145,11 @@
 
     <article class="guide-topic" id="inventory" data-guide-topic>
       <div class="guide-topic-heading"><span>12</span><div><p class="eyebrow">實體庫存</p><h2>快速進車、調車與車況</h2></div></div>
+      <div class="guide-screen-map" role="img" aria-label="手機快速進車畫面辨識圖解">
+        <div class="guide-screen-bar"><b>快速進車</b><span>① 每列一台車</span><span>② 可刪除錯誤列</span></div>
+        <div class="guide-screen-body"><b>③ 車型與車色可搜尋</b><span>④ 識別號碼不可重複</span><span>⑤ 出廠年月用於先進先出</span></div>
+        <div class="guide-screen-footer"><span>取消</span><b>確認整批進車</b></div>
+      </div>
       <div class="guide-two-column"><section><h3>快速進車</h3><ol><li>每一列填一台車。</li><li>車型、年份與車色用下拉選擇。</li><li>填引擎／車身號碼、出廠年月與進車日。</li><li>車況說明選填。</li><li>整批確認後建立。</li></ol></section><section><h3>清單操作</h3><ul><li>搜尋識別號碼、車型、車色、位置或車況。</li><li>依狀態、車型、車色與位置篩選。</li><li>依日期、車型、號碼、狀態排序。</li><li>變更位置會自動產生調車歷程。</li></ul></section></div>
       <div class="guide-exception"><strong>整批進車失敗</strong><p>任一列重複、缺少資料或車色不屬於該車型時，整批都不建立。依畫面指出的列修正後再送出，避免只進一半。</p></div>
       <div class="guide-tip"><strong>先進先出</strong><span>機車以出廠年月判斷新舊；先確認月份，不要只看車型主檔的年份。</span></div>
@@ -169,6 +174,11 @@
 
     <article class="guide-topic" id="reconciliation" data-guide-topic>
       <div class="guide-topic-heading"><span>15</span><div><p class="eyebrow">統一處理</p><h2>分期、平台與車行撥款對帳</h2></div></div>
+      <div class="guide-screen-map" role="img" aria-label="手機對帳卡片辨識圖解">
+        <div class="guide-screen-bar"><b>訂單／車主</b><span>① 對帳公司或車行</span></div>
+        <div class="guide-screen-body"><b>② 預計金額</b><span>③ 填實際金額</span><span>④ 差額會立即辨識</span></div>
+        <div class="guide-screen-footer"><span>⑤ 入帳日與帳戶</span><b>確認後儲存</b></div>
+      </div>
       <ol class="guide-steps"><li><strong>選對帳對象與「待確認」。</strong></li><li><strong>依對方帳本填實際金額與入帳日。</strong><span>可補收款帳戶。</span></li><li><strong>看預計、實際與差額。</strong></li><li><strong>差額正確才勾確認並儲存。</strong></li></ol>
       <div class="guide-exception"><strong>差額不是 0</strong><p>先不要確認。回訂單核對付款方式、分期期數、平台／車行與預計金額；本頁只核對實際有沒有撥款與金額是否正確，不需處理批次總額。</p></div>
     </article>

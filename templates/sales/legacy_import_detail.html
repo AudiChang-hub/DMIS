@@ -70,6 +70,7 @@
   <div class="import-validation-grid">
     <article><span>建議確認</span><strong>車主姓名雙欄差異 {{ validation.owner_name_differences }} 筆</strong><p>系統目前採車主資料區姓名。</p></article>
     <article><span>建議確認</span><strong>刷卡／分期合併收入 {{ validation.combined_fee_income_rows }} 筆</strong><p>歷史資料無法可靠拆分，保留原始值供追查。</p></article>
+    <article><span>交易辨識</span><strong>中古車交易 {{ validation.used_vehicle_sales }} 筆</strong><p>中古車可沿用原車識別號碼，不會重複占用新車庫存。</p></article>
     <article><span>庫存核對</span><strong>Excel 可售 {{ validation.source_available_count }} 台／系統可售 {{ validation.system_available_count }} 台</strong><p>確認平行使用期間的庫存落差。</p></article>
     <article class="{% if validation.unmapped_models %}attention{% endif %}"><span>待補主檔</span><strong>未對應車型 {{ validation.unmapped_models|length }} 個</strong><details><summary>查看清單</summary><p>{{ validation.unmapped_models|join:'、'|default:'無' }}</p></details></article>
     <article class="{% if validation.unmapped_sources %}attention{% endif %}"><span>待補主檔</span><strong>未對應通路 {{ validation.unmapped_sources|length }} 個</strong><details><summary>查看清單</summary><p>{{ validation.unmapped_sources|join:'、'|default:'無' }}</p></details></article>
@@ -91,7 +92,7 @@
   </div>
   {% for group in conflict_groups %}
   <article class="import-conflict-group">
-    <header><div><span>{{ group.sheet_name }}</span><h3>{{ group.natural_key }}</h3></div><strong>{{ group.rows|length }} 筆使用相同識別號碼</strong></header>
+    <header><div><span>{{ group.sheet_name }}</span><h3>{{ group.comparison_key }}</h3></div><strong>{{ group.rows|length }} 筆需要確認</strong></header>
     <div class="import-conflict-rows">
       {% for row in group.rows %}
       <div class="import-conflict-row">
@@ -99,7 +100,7 @@
         <dl>
           <div><dt>車種型號</dt><dd>{{ row.mapped_data.model_number|default:'未填' }}</dd></div>
           <div><dt>識別號碼</dt><dd>{{ row.mapped_data.identifier_raw|default:'未填' }}</dd></div>
-          {% if row.sheet_name == '銷貨' %}<div><dt>車主</dt><dd>{{ row.mapped_data.owner_name|default:'未填' }}</dd></div><div><dt>領牌日期</dt><dd>{{ row.mapped_data.registration_date|default:'未填' }}</dd></div>{% else %}<div><dt>顏色</dt><dd>{{ row.mapped_data.color|default:'未填' }}</dd></div><div><dt>進貨日期</dt><dd>{{ row.mapped_data.received_on|default:'未填' }}</dd></div>{% endif %}
+          {% if row.sheet_name == '銷貨' %}<div><dt>車輛類別</dt><dd>{% if row.mapped_data.vehicle_category == 'used' %}中古車{% else %}新車{% endif %}</dd></div><div><dt>車主</dt><dd>{{ row.mapped_data.owner_name|default:'未填' }}</dd></div><div><dt>領牌日期</dt><dd>{{ row.mapped_data.registration_date|default:'未填' }}</dd></div>{% else %}<div><dt>顏色</dt><dd>{{ row.mapped_data.color|default:'未填' }}</dd></div><div><dt>進貨日期</dt><dd>{{ row.mapped_data.received_on|default:'未填' }}</dd></div>{% endif %}
         </dl>
         {% if batch.status == 'preview' %}<a class="button ghost" href="?action=conflict&edit={{ row.pk }}#row-editor">檢查並處理這一列</a>{% endif %}
       </div>

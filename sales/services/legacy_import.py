@@ -30,11 +30,13 @@ DUPLICATE_IDENTIFIER_MESSAGE = "同一工作表存在重複的標準化車輛識
 MULTIPLE_NEW_SALES_MESSAGE = "同一識別號碼存在多筆新車銷售；請確認後續交易是否為中古車"
 DUPLICATE_SALES_TRANSACTION_MESSAGE = "同一筆銷售交易在工作表重複出現"
 MISSING_IDENTIFIER_MESSAGE = "缺少引擎／車身號碼"
+EMPTY_SALES_PLACEHOLDER_MESSAGE = "Excel 空白公式列，系統自動略過"
 SYSTEM_VALIDATION_MESSAGES = {
     DUPLICATE_IDENTIFIER_MESSAGE,
     MULTIPLE_NEW_SALES_MESSAGE,
     DUPLICATE_SALES_TRANSACTION_MESSAGE,
     MISSING_IDENTIFIER_MESSAGE,
+    EMPTY_SALES_PLACEHOLDER_MESSAGE,
 }
 
 
@@ -155,6 +157,24 @@ def _sales_transaction_key(data):
     return f"sales:{vehicle_key}:{category}:{transaction_date}:{owner_digest}"
 
 
+def _is_empty_sales_placeholder(data):
+    """辨識 Excel 尾端只有公式 0、沒有交易內容的空白列。"""
+    owner = _text(data.get("owner_name"))
+    return owner in {"", "0"} and not any(
+        _text(data.get(key))
+        for key in (
+            "model_number",
+            "identifier",
+            "plate_number",
+            "registration_date",
+            "invoice_date",
+            "order_date",
+            "owner_id_number",
+            "owner_phone",
+        )
+    )
+
+
 def _year_month(value):
     parsed = _date(value)
     if parsed:
@@ -180,7 +200,9 @@ def _operations_sales_rows(batch, workbook):
         model_number = _text(_value(row_values, "C"))
         identifier_raw = _text(_value(row_values, "D"))
         owner = _text(_value(row_values, "AT")) or _text(_value(row_values, "E"))
-        if not any((model_number, identifier_raw, owner)):
+        if not any((model_number, identifier_raw, owner)) or (
+            not model_number and not identifier_raw and owner == "0"
+        ):
             continue
         identifier = normalize_vehicle_identifier(identifier_raw) or ""
         raw = _row_dict_values(headers, row_values)
@@ -415,6 +437,8 @@ def revalidate_import_batch(batch):
                 inventory_identifier_counts.get(identifier, 0) + 1
             )
         elif row.sheet_name == "銷貨":
+            if _is_empty_sales_placeholder(row.mapped_data):
+                continue
             transaction_key = _sales_transaction_key(row.mapped_data)
             sales_transaction_counts[transaction_key] = (
                 sales_transaction_counts.get(transaction_key, 0) + 1
@@ -475,21 +499,27 @@ def revalidate_import_batch(batch):
                 "vehicle_category",
                 SalesOrder.VehicleCategory.NEW,
             )
-            row.natural_key = _sales_transaction_key(row.mapped_data)
-            if sales_transaction_counts.get(row.natural_key, 0) > 1:
-                row.action = LegacyImportRow.Action.CONFLICT
-                messages.append(DUPLICATE_SALES_TRANSACTION_MESSAGE)
-            elif (
-                category == SalesOrder.VehicleCategory.NEW
-                and identifier
-                and sales_new_identifier_counts.get(identifier, 0) > 1
-            ):
-                row.action = LegacyImportRow.Action.CONFLICT
-                messages.append(MULTIPLE_NEW_SALES_MESSAGE)
-            elif row.natural_key in completed_sales_keys:
+            is_placeholder = _is_empty_sales_placeholder(row.mapped_data)
+            if is_placeholder:
+                row.natural_key = f"sales-placeholder:{row.source_row}"
                 row.action = LegacyImportRow.Action.SKIP
+                messages.append(EMPTY_SALES_PLACEHOLDER_MESSAGE)
             else:
-                row.action = LegacyImportRow.Action.CREATE
+                row.natural_key = _sales_transaction_key(row.mapped_data)
+                if sales_transaction_counts.get(row.natural_key, 0) > 1:
+                    row.action = LegacyImportRow.Action.CONFLICT
+                    messages.append(DUPLICATE_SALES_TRANSACTION_MESSAGE)
+                elif (
+                    category == SalesOrder.VehicleCategory.NEW
+                    and identifier
+                    and sales_new_identifier_counts.get(identifier, 0) > 1
+                ):
+                    row.action = LegacyImportRow.Action.CONFLICT
+                    messages.append(MULTIPLE_NEW_SALES_MESSAGE)
+                elif row.natural_key in completed_sales_keys:
+                    row.action = LegacyImportRow.Action.SKIP
+                else:
+                    row.action = LegacyImportRow.Action.CREATE
         else:
             source_type = row.mapped_data.get("source_type", "")
             name = row.mapped_data.get("name", "")

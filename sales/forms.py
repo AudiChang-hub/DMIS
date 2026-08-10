@@ -262,6 +262,18 @@ class SalesOrderForm(forms.ModelForm):
             )
         for field in self.fields.values():
             field.widget.attrs.setdefault("class", "form-control")
+        searchable_selects = {
+            "source": "輸入車行或平台名稱",
+            "vehicle_model": "輸入品牌、車型、型號或年份",
+            "color": "輸入車色名稱",
+        }
+        for field_name, placeholder in searchable_selects.items():
+            self.fields[field_name].widget.attrs.update(
+                {
+                    "data-searchable-select": "1",
+                    "data-search-placeholder": placeholder,
+                }
+            )
         apply_mobile_keyboard_attrs(self)
         for field_name in (
             "registration_plate_fee",

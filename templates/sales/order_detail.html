@@ -170,7 +170,7 @@
       <div class="subsidy-change-reason"><label for="{{ subsidy_form.change_reason.id_for_label }}">變更原因 <span class="required-inline">必填</span></label>{{ subsidy_form.change_reason }}</div>
     </div>
     <section class="dynamic-detail-section" data-subsidy-items>
-      <div class="section-title"><div><h3>補助申請項目</h3><small>各單位金額與送件日期分開記錄；合計 ${{ order.subsidy_total|floatformat:0 }}</small></div></div>
+      <div class="section-title"><div><h3>補助申請項目</h3><small>各單位金額與送件日期分開記錄；合計 ${{ order.subsidy_total|number_with_commas }}</small></div></div>
       {{ subsidy_item_formset.management_form }}
       <div class="dynamic-detail-list" data-form-list>
         {% for item_form in subsidy_item_formset %}
@@ -372,7 +372,7 @@
     </form>
     {% if operations_profile.vehicle_cost_rule_id %}
     <div class="note-box">
-      <strong>{% if operations_profile.vehicle_cost_locked_at %}已確認{% else %}預估{% endif %}代銷結算成本：${{ operations_profile.vehicle_cost|floatformat:0 }}</strong>
+      <strong>{% if operations_profile.vehicle_cost_locked_at %}已確認{% else %}預估{% endif %}代銷結算成本：${{ operations_profile.vehicle_cost|number_with_commas }}</strong>
       <p>{{ operations_profile.vehicle_cost_county }} · {{ operations_profile.vehicle_cost_registration_date|date:"Y/m/d" }}{% if operations_profile.vehicle_cost_locked_at %} · 已於 {{ operations_profile.vehicle_cost_locked_at|date:"Y/m/d H:i" }} 固定{% endif %}</p>
     </div>
     {% elif order.registration_date and order.registration_county %}
@@ -382,9 +382,9 @@
     <div class="note-box">
       <strong>{% if operations_profile.incentive_locked_at %}已確認{% else %}預估{% endif %}車型獎勵與補助</strong>
       <p>
-        實銷獎勵 ${{ operations_profile.sales_bonus|floatformat:0 }} ·
-        促銷補助 ${{ operations_profile.promotion_subsidy|floatformat:0 }} ·
-        分期補貼息 ${{ operations_profile.installment_interest_subsidy|floatformat:0 }}
+        實銷獎勵 ${{ operations_profile.sales_bonus|number_with_commas }} ·
+        促銷補助 ${{ operations_profile.promotion_subsidy|number_with_commas }} ·
+        分期補貼息 ${{ operations_profile.installment_interest_subsidy|number_with_commas }}
         {% if operations_profile.incentive_installment_rate %}
           · {{ operations_profile.incentive_installment_periods }} 期撥款 {{ operations_profile.incentive_installment_rate }}%
         {% endif %}
@@ -531,9 +531,9 @@
       {% endif %}
     </div>
     <div class="delivery-payment__summary">
-      <div><span>應收</span><strong>${{ balance_payment.expected_amount|floatformat:0 }}</strong></div>
-      <div><span>已收</span><strong>${{ balance_payment.received_amount|floatformat:0 }}</strong></div>
-      <div class="{% if balance_payment.outstanding_amount %}has-balance{% endif %}"><span>尚差</span><strong>${{ balance_payment.outstanding_amount|floatformat:0 }}</strong></div>
+      <div><span>應收</span><strong>${{ balance_payment.expected_amount|number_with_commas }}</strong></div>
+      <div><span>已收</span><strong>${{ balance_payment.received_amount|number_with_commas }}</strong></div>
+      <div class="{% if balance_payment.outstanding_amount %}has-balance{% endif %}"><span>尚差</span><strong>${{ balance_payment.outstanding_amount|number_with_commas }}</strong></div>
     </div>
     {% if balance_payment.expected_amount <= 0 %}
     <div class="delivery-payment__settled-note">本單沒有待收尾款，可直接進行交付核對。</div>
@@ -702,14 +702,14 @@
   <section class="card">
     <div class="section-title"><h2>金額</h2><span>{{ order.get_payment_type_display }}</span></div>
     <dl class="money-list">
-      <div><dt>車價</dt><dd>${{ order.vehicle_price }}</dd></div>
-      <div><dt>牌險</dt><dd>${{ order.plate_insurance_fee }}</dd></div>
-      {% if order.effective_installment_fee %}<div><dt>分期開辦費</dt><dd>${{ order.effective_installment_fee }}</dd></div>{% endif %}
-      {% if order.accessory_total %}<div><dt>配件合計</dt><dd>${{ order.accessory_total }}</dd></div>{% endif %}
-      {% if order.other_fee_total %}<div><dt>其他費用合計</dt><dd>${{ order.other_fee_total }}</dd></div>{% endif %}
-      {% if order.old_vehicle_tax %}<div><dt>舊車未繳稅金</dt><dd>${{ order.old_vehicle_tax }}</dd></div>{% endif %}
-      {% if order.deposit_amount %}<div><dt>訂金</dt><dd>− ${{ order.deposit_amount }}</dd></div>{% endif %}
-      {% if order.old_vehicle_valuation %}<div><dt>舊車估價</dt><dd>− ${{ order.old_vehicle_valuation }}</dd></div>{% endif %}
+      <div><dt>車價</dt><dd>${{ order.vehicle_price|number_with_commas }}</dd></div>
+      <div><dt>牌險</dt><dd>${{ order.plate_insurance_fee|number_with_commas }}</dd></div>
+      {% if order.effective_installment_fee %}<div><dt>分期開辦費</dt><dd>${{ order.effective_installment_fee|number_with_commas }}</dd></div>{% endif %}
+      {% if order.accessory_total %}<div><dt>配件合計</dt><dd>${{ order.accessory_total|number_with_commas }}</dd></div>{% endif %}
+      {% if order.other_fee_total %}<div><dt>其他費用合計</dt><dd>${{ order.other_fee_total|number_with_commas }}</dd></div>{% endif %}
+      {% if order.old_vehicle_tax %}<div><dt>舊車未繳稅金</dt><dd>${{ order.old_vehicle_tax|number_with_commas }}</dd></div>{% endif %}
+      {% if order.deposit_amount %}<div><dt>訂金</dt><dd>− ${{ order.deposit_amount|number_with_commas }}</dd></div>{% endif %}
+      {% if order.old_vehicle_valuation %}<div><dt>舊車估價</dt><dd>− ${{ order.old_vehicle_valuation|number_with_commas }}</dd></div>{% endif %}
       {% if order.registration_calculated_total %}
       <div class="registration-breakdown">
         <div class="registration-breakdown__header">
@@ -719,19 +719,19 @@
           </div>
           <div class="registration-breakdown__total">
             <span>試算合計</span>
-            <strong>${{ order.registration_calculated_total }}</strong>
+            <strong>${{ order.registration_calculated_total|number_with_commas }}</strong>
             {% if order.plate_insurance_fee != order.registration_calculated_total %}<em>已人工調整實收</em>{% endif %}
           </div>
         </div>
         <div class="registration-breakdown__items">
-          <div><span>號牌</span><strong>${{ order.registration_plate_fee }}</strong></div>
-          <div><span>行照</span><strong>${{ order.registration_license_fee }}</strong></div>
-          <div><span>檢驗</span><strong>${{ order.registration_inspection_fee }}</strong></div>
-          <div><span>公路養管</span><strong>${{ order.road_maintenance_fee }}</strong></div>
-          <div><span>牌照稅</span><strong>${{ order.license_tax_fee }}</strong></div>
-          <div><span>強制險</span><strong>${{ order.compulsory_insurance_fee }}</strong></div>
-          {% if order.plate_selection_fee %}<div><span>選號</span><strong>${{ order.plate_selection_fee }}</strong></div>{% endif %}
-          {% if order.lien_registration_fee %}<div><span>動保設定</span><strong>${{ order.lien_registration_fee }}</strong></div>{% endif %}
+          <div><span>號牌</span><strong>${{ order.registration_plate_fee|number_with_commas }}</strong></div>
+          <div><span>行照</span><strong>${{ order.registration_license_fee|number_with_commas }}</strong></div>
+          <div><span>檢驗</span><strong>${{ order.registration_inspection_fee|number_with_commas }}</strong></div>
+          <div><span>公路養管</span><strong>${{ order.road_maintenance_fee|number_with_commas }}</strong></div>
+          <div><span>牌照稅</span><strong>${{ order.license_tax_fee|number_with_commas }}</strong></div>
+          <div><span>強制險</span><strong>${{ order.compulsory_insurance_fee|number_with_commas }}</strong></div>
+          {% if order.plate_selection_fee %}<div><span>選號</span><strong>${{ order.plate_selection_fee|number_with_commas }}</strong></div>{% endif %}
+          {% if order.lien_registration_fee %}<div><span>動保設定</span><strong>${{ order.lien_registration_fee|number_with_commas }}</strong></div>{% endif %}
         </div>
       </div>
       {% endif %}
@@ -741,24 +741,24 @@
           <span>配件與其他費用均已計入</span>
         </div>
         <div class="balance-equation__terms">
-          <div><span>＋ 車價</span><strong>${{ order.vehicle_price }}</strong></div>
-          <div><span>＋ 牌險</span><strong>${{ order.plate_insurance_fee }}</strong></div>
-          {% if order.effective_installment_fee %}<div><span>＋ 分期開辦費</span><strong>${{ order.effective_installment_fee }}</strong></div>{% endif %}
-          {% if order.accessory_total %}<div class="included"><span>＋ 配件</span><strong>${{ order.accessory_total }}</strong></div>{% endif %}
-          {% if order.other_fee_total %}<div class="included"><span>＋ 其他費用</span><strong>${{ order.other_fee_total }}</strong></div>{% endif %}
-          {% if order.old_vehicle_tax %}<div><span>＋ 舊車稅金</span><strong>${{ order.old_vehicle_tax }}</strong></div>{% endif %}
-          {% if order.deposit_amount %}<div class="deduction"><span>− 訂金</span><strong>${{ order.deposit_amount }}</strong></div>{% endif %}
-          {% if order.old_vehicle_valuation %}<div class="deduction"><span>− 舊車估價</span><strong>${{ order.old_vehicle_valuation }}</strong></div>{% endif %}
+          <div><span>＋ 車價</span><strong>${{ order.vehicle_price|number_with_commas }}</strong></div>
+          <div><span>＋ 牌險</span><strong>${{ order.plate_insurance_fee|number_with_commas }}</strong></div>
+          {% if order.effective_installment_fee %}<div><span>＋ 分期開辦費</span><strong>${{ order.effective_installment_fee|number_with_commas }}</strong></div>{% endif %}
+          {% if order.accessory_total %}<div class="included"><span>＋ 配件</span><strong>${{ order.accessory_total|number_with_commas }}</strong></div>{% endif %}
+          {% if order.other_fee_total %}<div class="included"><span>＋ 其他費用</span><strong>${{ order.other_fee_total|number_with_commas }}</strong></div>{% endif %}
+          {% if order.old_vehicle_tax %}<div><span>＋ 舊車稅金</span><strong>${{ order.old_vehicle_tax|number_with_commas }}</strong></div>{% endif %}
+          {% if order.deposit_amount %}<div class="deduction"><span>− 訂金</span><strong>${{ order.deposit_amount|number_with_commas }}</strong></div>{% endif %}
+          {% if order.old_vehicle_valuation %}<div class="deduction"><span>− 舊車估價</span><strong>${{ order.old_vehicle_valuation|number_with_commas }}</strong></div>{% endif %}
           {% if order.balance_adjustment_amount %}<div class="adjustment"><span>人工調整</span><strong>{{ order.balance_adjustment_amount }}</strong></div>{% endif %}
         </div>
-        <div class="balance-equation__result"><span>實際尾款</span><strong>${{ order.actual_balance }}</strong></div>
+        <div class="balance-equation__result"><span>實際尾款</span><strong>${{ order.actual_balance|number_with_commas }}</strong></div>
       </div>
     </dl>
   </section>
   <section class="card">
-    <div class="section-title"><h2>配件與需求明細</h2>{% if order.accessory_total %}<span>配件合計 ${{ order.accessory_total }}</span>{% endif %}</div>
+    <div class="section-title"><h2>配件與需求明細</h2>{% if order.accessory_total %}<span>配件合計 ${{ order.accessory_total|number_with_commas }}</span>{% endif %}</div>
     {% for line in order.accessories.all %}
-      <div class="line-item"><span>{{ line.name }} × {{ line.quantity }}<small>{{ line.get_line_type_display }} · 售價 ${{ line.amount }} ＋ 工資 ${{ line.labor_fee }}{% if line.line_type == 'gift' %} · 不計入訂單總價{% else %} · 已計入尾款{% endif %}</small></span><strong>${{ line.display_total }}</strong></div>
+      <div class="line-item"><span>{{ line.name }} × {{ line.quantity }}<small>{{ line.get_line_type_display }} · 售價 ${{ line.amount|number_with_commas }} ＋ 工資 ${{ line.labor_fee|number_with_commas }}{% if line.line_type == 'gift' %} · 不計入訂單總價{% else %} · 已計入尾款{% endif %}</small></span><strong>${{ line.display_total|number_with_commas }}</strong></div>
     {% empty %}<p class="muted">無配件</p>{% endfor %}
     {% if order.plate_choice != "none" %}<div class="note-box"><strong>{{ order.get_plate_choice_display }}</strong><p>{{ order.watched_numbers|default:order.plate_preference_note }}</p></div>{% endif %}
     {% if order.note %}<div class="note-box"><strong>備註</strong><p>{{ order.note }}</p></div>{% endif %}
@@ -816,7 +816,7 @@
 {% endif %}
 {% if order.status == "cancel_refund_pending" %}
 <section class="section-block cancellation-panel urgent-panel">
-  <div class="section-title"><div><p class="eyebrow">取消處理</p><h2>訂金尚待全額退款</h2></div><span>${{ order.deposit_amount|floatformat:0 }}</span></div>
+  <div class="section-title"><div><p class="eyebrow">取消處理</p><h2>訂金尚待全額退款</h2></div><span>${{ order.deposit_amount|number_with_commas }}</span></div>
   <p>取消原因：{{ order.cancellation_reason }}。退款完成前，訂單仍維持「取消待退款」。</p>
   <form method="post" enctype="multipart/form-data" action="{% url 'refund_complete' order.pk %}" class="form-grid compact-grid">
     {% csrf_token %}
@@ -830,7 +830,7 @@
   <dl class="data-list">
     <div><dt>取消原因</dt><dd>{{ order.cancellation_reason }}</dd></div>
     <div><dt>登記人員</dt><dd>{{ order.cancellation_requested_by }}</dd></div>
-    <div><dt>退款金額</dt><dd>${{ order.refund_amount|floatformat:0 }}</dd></div>
+    <div><dt>退款金額</dt><dd>${{ order.refund_amount|number_with_commas }}</dd></div>
     {% if order.refund_completed_on %}<div><dt>退款日期</dt><dd>{{ order.refund_completed_on|date:"Y/m/d" }}</dd></div>{% endif %}
     {% if order.refund_method %}<div><dt>退款方式</dt><dd>{{ order.get_refund_method_display }}</dd></div>{% endif %}
   </dl>

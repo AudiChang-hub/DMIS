@@ -2272,6 +2272,33 @@ class OrderFlowTests(TestCase):
         self.assertEqual(len(second_page.context["orders"]), 6)
         self.assertContains(search, searchable.number)
 
+    def test_order_list_search_normalises_case_spaces_and_hyphens(self):
+        self.client.force_login(self.user)
+        order = self.make_order()
+        order.note = "客戶指定編號 ABC-1234"
+        order.save(update_fields=["note", "updated_at"])
+
+        variants = ("ABC-1234", "abc1234", "ABC 1234")
+        for query in variants:
+            with self.subTest(query=query):
+                response = self.client.get(reverse("order_list"), {"q": query})
+                self.assertContains(response, order.number)
+                self.assertContains(response, "備註")
+
+    def test_mobile_core_lists_have_explicit_non_overflow_layout_rules(self):
+        from pathlib import Path
+
+        css = Path("static/css/app.css").read_text(encoding="utf-8")
+        order_list = Path("templates/sales/order_list.html").read_text(encoding="utf-8")
+        reconciliation = Path("templates/sales/reconciliation_list.html").read_text(
+            encoding="utf-8"
+        )
+
+        self.assertIn("order-filter-bar", order_list)
+        self.assertIn("grid-template-columns: minmax(0, 1fr) minmax(118px, .62fr)", css)
+        self.assertIn(".reconciliation-table input.form-control { width: 100%; min-width: 0", css)
+        self.assertIn("mobile-field-label", reconciliation)
+
     def test_mobile_more_menu_contains_help_and_logout(self):
         self.client.force_login(self.user)
 

@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% load static %}
+{% load static sales_format %}
 {% block title %}{{ order.number }}｜車輛銷售管理{% endblock %}
 {% block page_class %}page-shell--wide{% endblock %}
 {% block content %}
@@ -7,7 +7,7 @@
 {% include "sales/_page_back.html" with fallback_url=order_list_url label="返回上一頁" %}
 <section class="hero-row detail-hero">
   <div>
-    <div class="title-with-status"><h1>{{ order.owner_name }}</h1><span class="status-pill large">{{ order.get_status_display }}</span></div>
+    <div class="title-with-status"><h1>{{ order.owner_name }}</h1><span class="status-pill large status-{{ order.status }}">{{ order.get_status_display }}</span></div>
     <p class="muted">{{ order.number }} · {{ order.order_date }}</p>
   </div>
   <div class="hero-actions">
@@ -35,6 +35,7 @@
 </script>
 {% endif %}
 
+<div class="order-work-tabs-shell">
 <nav class="order-work-tabs" role="tablist" aria-label="訂單工作區" data-order-tabs data-order-id="{{ order.pk }}">
   <button type="button" role="tab" data-tab="order" aria-controls="panel-order"><span>訂單資料</span><small>完整內容</small></button>
   <button type="button" role="tab" data-tab="allocation" aria-controls="panel-allocation"><span>配車</span><small>{% if order.allocated_vehicle %}已完成{% else %}待處理{% endif %}</small></button>
@@ -43,6 +44,8 @@
   <button type="button" role="tab" data-tab="delivery" aria-controls="panel-delivery"><span>交付</span><small>{% if order.is_delivered %}已交付{% elif order.can_deliver %}可進行{% else %}待領牌{% endif %}</small></button>
   <button type="button" role="tab" data-tab="history" aria-controls="panel-history"><span>處理紀錄</span><small>{{ order.events.all|length }} 筆</small></button>
 </nav>
+<p class="order-work-tabs-hint" aria-hidden="true">左右滑動可查看領牌、交付與處理紀錄 <span>→</span></p>
+</div>
 
 {% include "sales/_next_actions.html" %}
 

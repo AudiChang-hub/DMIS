@@ -750,11 +750,15 @@
     }
   });
 
-  vehicleModel.addEventListener("change", async () => {
-    calculateRegistrationFee();
-    await loadInstallmentPlanOptions({force: true});
+  async function loadVehicleColors({preserveCurrent = false} = {}) {
     colorRequestController?.abort();
     const requestedModel = vehicleModel.value;
+    const previousColor = preserveCurrent ? color.value : "";
+    if (!requestedModel) {
+      color.innerHTML = '<option value="">請先選擇車型</option>';
+      color.disabled = true;
+      return;
+    }
     color.innerHTML = '<option value="">車色載入中…</option>';
     color.disabled = true;
     colorRequestController = new AbortController();
@@ -765,13 +769,26 @@
       if (vehicleModel.value !== requestedModel) return;
       color.innerHTML = '<option value="">請選擇車色</option>';
       data.results.forEach(item => color.add(new Option(item.name, item.id)));
-      color.disabled = false;
+      if (previousColor && data.results.some(item => String(item.id) === String(previousColor))) {
+        color.value = previousColor;
+      }
+      color.disabled = data.results.length === 0;
+      if (!data.results.length) {
+        color.innerHTML = '<option value="">此車型尚未設定可用車色</option>';
+      }
     } catch (error) {
       if (error.name === "AbortError") return;
       color.innerHTML = '<option value="">載入失敗，請重新選擇車型</option>';
-      color.disabled = false;
+      color.disabled = true;
     }
+  }
+
+  vehicleModel.addEventListener("change", async () => {
+    calculateRegistrationFee();
+    await loadInstallmentPlanOptions({force: true});
+    await loadVehicleColors();
   });
+  loadVehicleColors({preserveCurrent: true});
   byId("id_installment_periods")?.addEventListener(
     "change",
     () => applyInstallmentPlanOption({force: true}),

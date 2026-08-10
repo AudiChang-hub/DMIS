@@ -3,22 +3,70 @@
 {% block page_class %}page-shell--wide{% endblock %}
 {% block content %}
 {% url 'data_maintenance' as data_url %}{% include "sales/_page_back.html" with fallback_url=data_url label="返回資料維護區" %}
-<section class="hero-row compact-hero"><div><p class="eyebrow">平行試營運資料轉換</p><h1>歷史 Excel 匯入</h1><p class="muted">先產生預覽與衝突報告；只有再次確認後才會寫入訂單、庫存或通路資料。</p></div></section>
-<div class="responsive-split">
-  <section class="form-section static-section">
-    <div class="section-title"><h2>上傳來源檔</h2><span class="status-pill">最大 30 MB</span></div>
-    <form method="post" enctype="multipart/form-data" class="stacked-form">
-      {% csrf_token %}{% for field in form %}{% include "sales/_field.html" with field=field %}{% endfor %}
-      <div class="note-box">進銷貨表：銷貨採第 3 列欄名、進貨採第 1 列欄名。通路名冊：車行與網路平台分開解析。來源列消失不會刪除系統資料。</div>
-      <button class="button primary" type="submit">上傳並建立預覽</button>
-    </form>
-  </section>
-  <section class="inventory-list-panel">
-    <div class="inventory-list-summary"><strong>最近匯入批次</strong></div>
-    <div class="inventory-table-wrap"><table class="inventory-table">
-      <thead><tr><th>上傳時間</th><th>檔案</th><th>類型</th><th>狀態</th><th>操作人</th><th></th></tr></thead>
-      <tbody>{% for batch in batches %}<tr><td>{{ batch.created_at|date:'Y/m/d H:i' }}</td><td>{{ batch.original_filename }}</td><td>{{ batch.get_import_type_display }}</td><td><span class="status-pill">{{ batch.get_status_display }}</span></td><td>{{ batch.uploaded_by }}</td><td><a class="button ghost small" href="{% url 'legacy_import_detail' batch.pk %}">查看</a></td></tr>{% empty %}<tr><td colspan="6">尚無匯入批次</td></tr>{% endfor %}</tbody>
-    </table></div>
-  </section>
-</div>
+
+<section class="hero-row compact-hero import-page-hero">
+  <div>
+    <p class="eyebrow">平行試營運資料轉換</p>
+    <h1>歷史 Excel 匯入</h1>
+    <p class="muted">上傳後先檢查、修正與排除問題列；完成確認前不會寫入正式訂單或庫存。</p>
+  </div>
+</section>
+
+<ol class="import-steps" aria-label="匯入流程">
+  <li class="active"><span>1</span><strong>上傳檔案</strong><small>保留原始檔</small></li>
+  <li><span>2</span><strong>檢查與修正</strong><small>逐筆處理問題</small></li>
+  <li><span>3</span><strong>確認匯入</strong><small>才寫入正式資料</small></li>
+</ol>
+
+<section class="form-section import-upload-panel">
+  <div class="section-title">
+    <div><p class="eyebrow">建立新批次</p><h2>上傳來源檔</h2></div>
+    <span class="status-pill">Excel · 最大 30 MB</span>
+  </div>
+  <form method="post" enctype="multipart/form-data" class="import-upload-form">
+    {% csrf_token %}
+    <div class="import-upload-fields">{% for field in form %}{% include "sales/_field.html" with field=field %}{% endfor %}</div>
+    <div class="import-upload-guidance">
+      <strong>系統會先建立預覽，不會立即匯入</strong>
+      <span>進銷貨表採既定欄名解析；來源列消失不會刪除系統既有資料。</span>
+    </div>
+    <button class="button primary" type="submit">上傳並開始檢查</button>
+  </form>
+</section>
+
+<section class="inventory-list-panel import-batch-panel">
+  <div class="inventory-list-summary import-list-heading">
+    <div><p class="eyebrow">工作紀錄</p><strong>{% if show_archived %}已封存的匯入批次{% else %}最近匯入批次{% endif %}</strong></div>
+    {% if show_archived %}<a class="button ghost small" href="{% url 'legacy_import_list' %}">返回進行中與歷史紀錄</a>{% else %}<a class="button ghost small" href="?archived=1">查看已封存紀錄</a>{% endif %}
+  </div>
+  <div class="inventory-table-wrap">
+    <table class="inventory-table import-batch-table">
+      <thead><tr><th>檔案與上傳時間</th><th>類型</th><th>狀態</th><th>操作人</th><th class="table-actions-heading">操作</th></tr></thead>
+      <tbody>
+      {% for batch in batches %}
+        <tr>
+          <td data-label="檔案"><strong>{{ batch.original_filename }}</strong><small>{{ batch.created_at|date:'Y/m/d H:i' }}</small></td>
+          <td data-label="類型">{{ batch.get_import_type_display }}</td>
+          <td data-label="狀態"><span class="status-pill {% if batch.status == 'failed' %}warning{% endif %}">{{ batch.get_status_display }}</span>{% if batch.archived_at %}<small>已封存</small>{% endif %}</td>
+          <td data-label="操作人">{{ batch.uploaded_by }}</td>
+          <td data-label="操作" class="table-actions-cell">
+            <div class="inline-actions import-row-actions">
+              <a class="button ghost small" href="{% url 'legacy_import_detail' batch.pk %}">{% if batch.status == 'preview' %}繼續檢查{% else %}查看紀錄{% endif %}</a>
+              {% if batch.status == 'preview' or batch.status == 'failed' %}
+                <form method="post" action="{% url 'legacy_import_delete' batch.pk %}" onsubmit="return confirm('確定刪除「{{ batch.original_filename|escapejs }}」這個匯入批次？上傳檔與預覽會一併刪除，但正式資料不受影響。');">{% csrf_token %}<button class="button danger-outline small" type="submit">刪除此批次</button></form>
+              {% elif batch.archived_at %}
+                <form method="post" action="{% url 'legacy_import_restore' batch.pk %}">{% csrf_token %}<button class="button ghost small" type="submit">恢復顯示</button></form>
+              {% else %}
+                <form method="post" action="{% url 'legacy_import_archive' batch.pk %}">{% csrf_token %}<button class="button ghost small" type="submit">封存紀錄</button></form>
+              {% endif %}
+            </div>
+          </td>
+        </tr>
+      {% empty %}
+        <tr><td colspan="5" class="empty-table-message">{% if show_archived %}目前沒有已封存的匯入紀錄{% else %}尚無匯入批次，請先上傳 Excel{% endif %}</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
 {% endblock %}

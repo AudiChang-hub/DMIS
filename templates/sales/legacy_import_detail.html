@@ -1,41 +1,177 @@
 {% extends "base.html" %}
-{% block title %}匯入預覽｜車輛銷售管理{% endblock %}
+{% block title %}匯入檢查｜車輛銷售管理{% endblock %}
 {% block page_class %}page-shell--wide{% endblock %}
 {% block content %}
 {% url 'legacy_import_list' as list_url %}{% include "sales/_page_back.html" with fallback_url=list_url label="返回歷史匯入" %}
-<section class="hero-row compact-hero">
-  <div><p class="eyebrow">{{ batch.get_status_display }}</p><h1>{{ batch.original_filename }}</h1><p class="muted">SHA-256：{{ batch.file_sha256 }}<br>上傳：{{ batch.created_at|date:'Y/m/d H:i' }}／{{ batch.uploaded_by }}</p></div>
-  {% if batch.status == 'preview' %}<form method="post" action="{% url 'legacy_import_confirm' batch.pk %}" onsubmit="return confirm('確認依照目前預覽寫入系統？衝突與錯誤列不會匯入。');">{% csrf_token %}<button class="button primary">確認匯入可用資料</button></form>{% endif %}
+
+<section class="hero-row compact-hero import-detail-hero">
+  <div>
+    <p class="eyebrow">{{ batch.get_status_display }}</p>
+    <h1>{{ batch.original_filename }}</h1>
+    <p class="muted">{{ batch.get_import_type_display }} · 上傳於 {{ batch.created_at|date:'Y/m/d H:i' }} · {{ batch.uploaded_by }}</p>
+  </div>
+  <div class="inline-actions import-hero-actions">
+    {% if batch.status == 'preview' %}
+      {% if unresolved_count %}
+        <a class="button primary" href="?action={% if counts.conflict %}conflict{% else %}error{% endif %}#issue-review">處理 {{ unresolved_count }} 筆問題</a>
+      {% elif can_confirm %}
+        <form method="post" action="{% url 'legacy_import_confirm' batch.pk %}" onsubmit="return confirm('確認將目前已檢查的資料寫入正式系統？');">{% csrf_token %}<button class="button primary">確認匯入 {{ counts.create|add:counts.update }} 筆資料</button></form>
+      {% endif %}
+      <form method="post" action="{% url 'legacy_import_delete' batch.pk %}" onsubmit="return confirm('確定刪除此匯入批次？上傳檔與所有暫存修正會一併刪除。');">{% csrf_token %}<button class="button danger-outline" type="submit">刪除此批次</button></form>
+    {% elif batch.status == 'completed' %}
+      {% if batch.archived_at %}<form method="post" action="{% url 'legacy_import_restore' batch.pk %}">{% csrf_token %}<button class="button ghost" type="submit">恢復顯示</button></form>{% else %}<form method="post" action="{% url 'legacy_import_archive' batch.pk %}">{% csrf_token %}<button class="button ghost" type="submit">封存此紀錄</button></form>{% endif %}
+    {% else %}
+      <form method="post" action="{% url 'legacy_import_delete' batch.pk %}" onsubmit="return confirm('確定刪除這個處理失敗的匯入批次？');">{% csrf_token %}<button class="button danger-outline" type="submit">刪除此批次</button></form>
+    {% endif %}
+  </div>
 </section>
-{% if batch.status == 'failed' %}<section class="note-box warning"><strong>解析失敗</strong><br>{{ batch.result_summary.error }}</section>{% else %}
-<section class="metric-grid compact-metrics">
-  <a class="metric" href="?action=create"><span>新增</span><strong>{{ batch.preview_summary.counts.create|default:0 }}</strong></a>
-  <a class="metric" href="?action=update"><span>更新</span><strong>{{ batch.preview_summary.counts.update|default:0 }}</strong></a>
-  <a class="metric" href="?action=skip"><span>略過</span><strong>{{ batch.preview_summary.counts.skip|default:0 }}</strong></a>
-  <a class="metric" href="?action=conflict"><span>衝突</span><strong>{{ batch.preview_summary.counts.conflict|default:0 }}</strong></a>
-  <a class="metric" href="?action=error"><span>錯誤</span><strong>{{ batch.preview_summary.counts.error|default:0 }}</strong></a>
+
+<ol class="import-steps import-detail-steps" aria-label="匯入流程">
+  <li class="complete"><span>✓</span><strong>檔案已上傳</strong><small>原始檔完整保留</small></li>
+  <li class="{% if batch.status == 'preview' %}active{% else %}complete{% endif %}"><span>2</span><strong>檢查與修正</strong><small>{% if unresolved_count %}尚有 {{ unresolved_count }} 筆待處理{% else %}問題已處理完成{% endif %}</small></li>
+  <li class="{% if batch.status == 'completed' %}complete{% endif %}"><span>{% if batch.status == 'completed' %}✓{% else %}3{% endif %}</span><strong>確認匯入</strong><small>{% if batch.status == 'completed' %}{{ batch.confirmed_at|date:'Y/m/d H:i' }}{% else %}尚未寫入正式資料{% endif %}</small></li>
+</ol>
+
+{% if batch.status == 'failed' %}
+  <section class="note-box warning"><strong>檔案解析失敗</strong><p>{{ batch.result_summary.error }}</p><p>請修正 Excel 後重新上傳，或刪除此批次。</p></section>
+{% else %}
+<section class="import-overview" aria-label="資料處理摘要">
+  <div class="import-overview__heading">
+    <div><p class="eyebrow">處理摘要</p><h2>共 {{ batch.preview_summary.source_rows|default:0 }} 筆來源資料</h2></div>
+    {% if unresolved_count %}<p class="import-overview__warning">{{ unresolved_count }} 筆必須修正或排除後才能匯入</p>{% else %}<p class="import-overview__ready">資料已可進行匯入</p>{% endif %}
+  </div>
+  <nav class="import-status-tabs" aria-label="依處理狀態篩選">
+    <a href="{% url 'legacy_import_detail' batch.pk %}#row-preview" class="{% if not selected_action %}active{% endif %}"><span>全部</span><strong>{{ batch.preview_summary.source_rows|default:0 }}</strong></a>
+    <a href="?action=create#row-preview" class="{% if selected_action == 'create' %}active{% endif %}"><span>可新增</span><strong>{{ counts.create|default:0 }}</strong></a>
+    <a href="?action=update#row-preview" class="{% if selected_action == 'update' %}active{% endif %}"><span>可更新</span><strong>{{ counts.update|default:0 }}</strong></a>
+    <a href="?action=skip#row-preview" class="{% if selected_action == 'skip' %}active{% endif %}"><span>已存在</span><strong>{{ counts.skip|default:0 }}</strong></a>
+    <a href="?action=exclude#row-preview" class="{% if selected_action == 'exclude' %}active{% endif %}"><span>人工排除</span><strong>{{ counts.exclude|default:0 }}</strong></a>
+    <a href="?action=conflict#issue-review" class="issue {% if selected_action == 'conflict' %}active{% endif %}"><span>待處理衝突</span><strong>{{ counts.conflict|default:0 }}</strong></a>
+    <a href="?action=error#row-preview" class="issue {% if selected_action == 'error' %}active{% endif %}"><span>資料錯誤</span><strong>{{ counts.error|default:0 }}</strong></a>
+  </nav>
 </section>
-{% if batch.preview_summary.errors %}<section class="note-box warning">{% for sheet, error in batch.preview_summary.errors.items %}<strong>{{ sheet }}</strong>：{{ error }}<br>{% endfor %}</section>{% endif %}
+
+{% if batch.preview_summary.errors %}
+<section class="note-box warning import-file-errors">
+  <strong>檔案結構需要修正</strong>
+  {% for sheet, error in batch.preview_summary.errors.items %}<p>{{ sheet }}：{{ error }}</p>{% endfor %}
+  <small>這類問題無法在逐列編輯中修復，請修正 Excel 後重新上傳。</small>
+</section>
+{% endif %}
+
 {% with validation=batch.preview_summary.validation %}
-{% if validation %}<section class="form-section static-section"><div class="section-title"><h2>驗證報告</h2><span>確認後仍保留此預覽</span></div>
-  {% if batch.import_type == 'operations' %}<div class="data-list dashboard-data-list">
-    <div><span>車主雙欄差異</span><strong>{{ validation.owner_name_differences }} 筆</strong></div>
-    <div><span>無法拆分的刷卡／分期收入</span><strong>{{ validation.combined_fee_income_rows }} 筆</strong></div>
-    <div><span>Excel 可售／系統可售</span><strong>{{ validation.source_available_count }}／{{ validation.system_available_count }}</strong></div>
-    <div><span>未對應車型</span><strong>{{ validation.unmapped_models|length }} 個</strong><small>{{ validation.unmapped_models|join:'、'|default:'無' }}</small></div>
-    <div><span>未對應通路</span><strong>{{ validation.unmapped_sources|length }} 個</strong><small>{{ validation.unmapped_sources|join:'、'|default:'無' }}</small></div>
-    <div><span>Excel 有、系統無的可售車</span><strong>{{ validation.source_only_inventory|length }} 台</strong></div>
-    <div><span>系統有、Excel 無的可售車</span><strong>{{ validation.system_only_inventory|length }} 台</strong></div>
-  </div>{% else %}<div class="note-box {% if validation.removed_source_keys %}warning{% endif %}"><strong>來源已移除但系統仍保留</strong><br>{{ validation.removed_source_keys|join:'、'|default:'無' }}</div>{% endif %}
-</section>{% endif %}
+{% if validation %}
+<section class="form-section static-section import-validation-panel">
+  <div class="section-title">
+    <div><p class="eyebrow">匯入前檢核</p><h2>驗證報告</h2></div>
+    <span>用於發現來源資料與現況差異，不會自行刪除資料</span>
+  </div>
+  {% if batch.import_type == 'operations' %}
+  <div class="import-validation-grid">
+    <article><span>建議確認</span><strong>車主姓名雙欄差異 {{ validation.owner_name_differences }} 筆</strong><p>系統目前採車主資料區姓名。</p></article>
+    <article><span>建議確認</span><strong>刷卡／分期合併收入 {{ validation.combined_fee_income_rows }} 筆</strong><p>歷史資料無法可靠拆分，保留原始值供追查。</p></article>
+    <article><span>庫存核對</span><strong>Excel 可售 {{ validation.source_available_count }} 台／系統可售 {{ validation.system_available_count }} 台</strong><p>確認平行使用期間的庫存落差。</p></article>
+    <article class="{% if validation.unmapped_models %}attention{% endif %}"><span>待補主檔</span><strong>未對應車型 {{ validation.unmapped_models|length }} 個</strong><details><summary>查看清單</summary><p>{{ validation.unmapped_models|join:'、'|default:'無' }}</p></details></article>
+    <article class="{% if validation.unmapped_sources %}attention{% endif %}"><span>待補主檔</span><strong>未對應通路 {{ validation.unmapped_sources|length }} 個</strong><details><summary>查看清單</summary><p>{{ validation.unmapped_sources|join:'、'|default:'無' }}</p></details></article>
+    <article><span>庫存差異</span><strong>Excel 有、系統無 {{ validation.source_only_inventory|length }} 台</strong><details><summary>查看識別號碼</summary><p>{{ validation.source_only_inventory|join:'、'|default:'無' }}</p></details></article>
+    <article><span>庫存差異</span><strong>系統有、Excel 無 {{ validation.system_only_inventory|length }} 台</strong><details><summary>查看識別號碼</summary><p>{{ validation.system_only_inventory|join:'、'|default:'無' }}</p></details></article>
+  </div>
+  {% else %}
+    <article class="import-validation-single {% if validation.removed_source_keys %}attention{% endif %}"><span>來源已移除、系統仍保留</span><strong>{{ validation.removed_source_keys|length }} 筆</strong><details><summary>查看清單</summary><p>{{ validation.removed_source_keys|join:'、'|default:'無' }}</p></details></article>
+  {% endif %}
+</section>
+{% endif %}
 {% endwith %}
-<section class="inventory-list-panel">
-  <div class="inventory-list-summary"><strong>逐列預覽{% if selected_action %}／{{ selected_action }}{% endif %}</strong><a href="{% url 'legacy_import_detail' batch.pk %}">顯示全部</a></div>
-  <div class="inventory-table-wrap"><table class="inventory-table">
-    <thead><tr><th>工作表／列</th><th>比對鍵</th><th>動作</th><th>主要內容</th><th>檢核訊息</th></tr></thead>
-    <tbody>{% for row in rows %}<tr><td>{{ row.sheet_name }}／{{ row.source_row }}</td><td>{{ row.natural_key|default:'—' }}</td><td><span class="status-pill {% if row.action == 'conflict' or row.action == 'error' %}warning{% endif %}">{{ row.get_action_display }}</span></td><td>{% if row.sheet_name == '銷貨' %}{{ row.mapped_data.owner_name }}／{{ row.mapped_data.model_number }}{% elif row.sheet_name == '進貨' %}{{ row.mapped_data.model_number }}／{{ row.mapped_data.identifier_raw }}{% else %}{{ row.mapped_data.name }}／{{ row.mapped_data.contact_name }}{% endif %}</td><td>{% for message in row.messages %}{{ message }}{% if not forloop.last %}<br>{% endif %}{% empty %}—{% endfor %}</td></tr>{% empty %}<tr><td colspan="5">沒有符合條件的資料列</td></tr>{% endfor %}</tbody>
-  </table></div>
-  {% if page_obj.paginator.num_pages > 1 %}<nav class="pagination">{% if page_obj.has_previous %}<a href="?page={{ page_obj.previous_page_number }}{% if selected_action %}&action={{ selected_action }}{% endif %}">上一頁</a>{% endif %}<span>第 {{ page_obj.number }}／{{ page_obj.paginator.num_pages }} 頁</span>{% if page_obj.has_next %}<a href="?page={{ page_obj.next_page_number }}{% if selected_action %}&action={{ selected_action }}{% endif %}">下一頁</a>{% endif %}</nav>{% endif %}
+
+{% if selected_action == 'conflict' %}
+<section class="import-issue-workspace" id="issue-review" tabindex="-1">
+  <div class="section-title">
+    <div><p class="eyebrow">必須處理</p><h2>重複資料比較</h2></div>
+    <span>共 {{ conflict_groups|length }} 組；請修正識別號碼或排除不應匯入的列</span>
+  </div>
+  {% for group in conflict_groups %}
+  <article class="import-conflict-group">
+    <header><div><span>{{ group.sheet_name }}</span><h3>{{ group.natural_key }}</h3></div><strong>{{ group.rows|length }} 筆使用相同識別號碼</strong></header>
+    <div class="import-conflict-rows">
+      {% for row in group.rows %}
+      <div class="import-conflict-row">
+        <div class="import-conflict-row__title"><strong>Excel 第 {{ row.source_row }} 列</strong>{% if row.manually_corrected %}<span class="status-pill">已人工處理</span>{% endif %}</div>
+        <dl>
+          <div><dt>車種型號</dt><dd>{{ row.mapped_data.model_number|default:'未填' }}</dd></div>
+          <div><dt>識別號碼</dt><dd>{{ row.mapped_data.identifier_raw|default:'未填' }}</dd></div>
+          {% if row.sheet_name == '銷貨' %}<div><dt>車主</dt><dd>{{ row.mapped_data.owner_name|default:'未填' }}</dd></div><div><dt>領牌日期</dt><dd>{{ row.mapped_data.registration_date|default:'未填' }}</dd></div>{% else %}<div><dt>顏色</dt><dd>{{ row.mapped_data.color|default:'未填' }}</dd></div><div><dt>進貨日期</dt><dd>{{ row.mapped_data.received_on|default:'未填' }}</dd></div>{% endif %}
+        </dl>
+        {% if batch.status == 'preview' %}<a class="button ghost" href="?action=conflict&edit={{ row.pk }}#row-editor">檢查並處理這一列</a>{% endif %}
+      </div>
+      {% endfor %}
+    </div>
+  </article>
+  {% empty %}<div class="empty-state"><strong>衝突已全部處理完成</strong><a href="{% url 'legacy_import_detail' batch.pk %}">返回完整預覽</a></div>{% endfor %}
+</section>
+{% endif %}
+
+{% if editing_row and correction_form %}
+<section class="form-section import-row-editor" id="row-editor" tabindex="-1">
+  <div class="section-title">
+    <div><p class="eyebrow">{{ editing_row.sheet_name }}第 {{ editing_row.source_row }} 列</p><h2>修正或排除此列</h2></div>
+    <a href="?action={{ selected_action }}#issue-review">取消修改</a>
+  </div>
+  <div class="import-original-data">
+    <strong>Excel 原始內容</strong>
+    <p>原始檔不會被修改；下方只調整本次匯入要使用的暫存值。</p>
+    <details><summary>查看此列完整原始資料</summary><dl>{% for key, value in editing_row.raw_data.items %}<div><dt>{{ key }}</dt><dd>{{ value|default:'—' }}</dd></div>{% endfor %}</dl></details>
+  </div>
+  <form method="post" action="{% url 'legacy_import_row_decide' batch.pk editing_row.pk %}" class="import-correction-form">
+    {% csrf_token %}
+    <fieldset class="import-decision-field"><legend>{{ correction_form.decision.label }}</legend>{{ correction_form.decision }}{% for error in correction_form.decision.errors %}<p class="field-error">{{ error }}</p>{% endfor %}</fieldset>
+    <div class="import-correction-fields">
+      {% for field in correction_form %}{% if field.name != 'decision' and field.name != 'reason' %}{% include "sales/_field.html" with field=field %}{% endif %}{% endfor %}
+    </div>
+    {% include "sales/_field.html" with field=correction_form.reason %}
+    <div class="form-actions"><button class="button primary" type="submit">儲存並重新驗證</button><a class="button ghost" href="?action={{ selected_action }}#issue-review">取消</a></div>
+  </form>
+  {% if editing_row.corrections.exists %}<details class="import-correction-history"><summary>查看人工處理紀錄（{{ editing_row.corrections.count }} 筆）</summary>{% for correction in editing_row.corrections.all %}<p><strong>{{ correction.get_decision_display }}</strong> · {{ correction.corrected_by }} · {{ correction.created_at|date:'Y/m/d H:i' }}<br>{{ correction.reason }}</p>{% endfor %}</details>{% endif %}
+</section>
+{% endif %}
+
+{% if selected_action != 'conflict' %}
+<section class="inventory-list-panel import-preview-panel" id="row-preview">
+  <div class="inventory-list-summary import-list-heading">
+    <div><p class="eyebrow">逐列預覽</p><strong>{{ selected_action_label|default:'全部資料' }} · {{ page_obj.paginator.count }} 筆</strong></div>
+    {% if selected_action %}<a href="{% url 'legacy_import_detail' batch.pk %}#row-preview">清除篩選</a>{% endif %}
+  </div>
+  <div class="inventory-table-wrap">
+    <table class="inventory-table import-preview-table">
+      <thead><tr><th>來源位置</th><th>比對鍵</th><th>處理方式</th><th>主要內容</th><th>檢核結果</th><th></th></tr></thead>
+      <tbody>
+      {% for row in rows %}
+      <tr>
+        <td data-label="來源"><strong>{{ row.sheet_name }}第 {{ row.source_row }} 列</strong>{% if row.manually_corrected %}<small>{{ row.corrected_by }} 已修正</small>{% endif %}</td>
+        <td data-label="比對鍵"><code>{{ row.natural_key|default:'—' }}</code></td>
+        <td data-label="處理方式"><span class="status-pill {% if row.action == 'error' %}warning{% endif %}">{{ row.get_action_display }}</span></td>
+        <td data-label="主要內容">{% if row.sheet_name == '銷貨' %}<strong>{{ row.mapped_data.owner_name|default:'未填車主' }}</strong><small>{{ row.mapped_data.model_number }}</small>{% elif row.sheet_name == '進貨' %}<strong>{{ row.mapped_data.model_number|default:'未填車型' }}</strong><small>{{ row.mapped_data.identifier_raw }}</small>{% else %}<strong>{{ row.mapped_data.name }}</strong><small>{{ row.mapped_data.contact_name }}</small>{% endif %}</td>
+        <td data-label="檢核結果">{% for message in row.messages %}<span class="import-row-message">{{ message }}</span>{% empty %}<span class="muted">檢核通過</span>{% endfor %}</td>
+        <td data-label="操作">{% if batch.status == 'preview' %}<a class="button ghost small" href="?action={{ selected_action }}&page={{ page_obj.number }}&edit={{ row.pk }}#row-editor">修正／排除</a>{% endif %}</td>
+      </tr>
+      {% empty %}<tr><td colspan="6" class="empty-table-message">沒有符合此篩選條件的資料</td></tr>{% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% if page_obj.paginator.num_pages > 1 %}
+  <nav class="inventory-pagination import-pagination" aria-label="預覽資料分頁">
+    <span>顯示第 {{ page_obj.start_index }}–{{ page_obj.end_index }} 筆，共 {{ page_obj.paginator.count }} 筆</span>
+    <div class="inline-actions">
+      {% if page_obj.has_previous %}<a class="button ghost small" href="?page={{ page_obj.previous_page_number }}{% if selected_action %}&action={{ selected_action }}{% endif %}#row-preview">← 上一頁</a>{% else %}<span class="button ghost small disabled">← 上一頁</span>{% endif %}
+      <strong>第 {{ page_obj.number }}／{{ page_obj.paginator.num_pages }} 頁</strong>
+      {% if page_obj.has_next %}<a class="button ghost small" href="?page={{ page_obj.next_page_number }}{% if selected_action %}&action={{ selected_action }}{% endif %}#row-preview">下一頁 →</a>{% else %}<span class="button ghost small disabled">下一頁 →</span>{% endif %}
+    </div>
+  </nav>
+  {% endif %}
+</section>
+{% endif %}
+
+<section class="import-source-note">
+  <details><summary>來源檔與稽核資訊</summary><p>SHA-256：<code>{{ batch.file_sha256 }}</code></p><p>來源工作表：{{ batch.source_sheets|join:'、' }}</p><p>人工修正只影響這次匯入暫存值，不會覆蓋原始 Excel。</p></details>
 </section>
 {% endif %}
 {% endblock %}

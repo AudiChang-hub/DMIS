@@ -672,6 +672,7 @@ class LegacyImportRowCorrectionForm(forms.Form):
         ("manufactured_year_month", "出廠年月", "year_month", False),
     )
     SALES_FIELDS = (
+        ("vehicle_category", "車輛類別", "vehicle_category", True),
         ("model_number", "車種型號", "text", True),
         ("identifier_raw", "引擎／車身號碼", "text", False),
         ("owner_name", "車主姓名", "text", True),
@@ -762,6 +763,12 @@ class LegacyImportRowCorrectionForm(forms.Form):
                 field = forms.DecimalField(label=display_label, required=False, max_digits=14, decimal_places=0)
             elif kind == "boolean":
                 field = forms.BooleanField(label=display_label, required=False)
+            elif kind == "vehicle_category":
+                field = forms.ChoiceField(
+                    label=display_label,
+                    required=False,
+                    choices=SalesOrder.VehicleCategory.choices,
+                )
             elif kind == "year_month":
                 field = forms.RegexField(
                     label=display_label,

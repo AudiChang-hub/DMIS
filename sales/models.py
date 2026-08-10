@@ -750,6 +750,12 @@ class LegacySalesSnapshot(TimeStampedModel):
     )
     cash_received = models.DecimalField("歷史現金收款", max_digits=12, decimal_places=0, default=0)
     card_received = models.DecimalField("歷史刷卡收款", max_digits=12, decimal_places=0, default=0)
+    vehicle_identifier = models.CharField(
+        "歷史引擎／車身號碼",
+        max_length=80,
+        blank=True,
+        db_index=True,
+    )
     sales_category = models.CharField("銷售方案分類", max_length=160, blank=True)
     raw_financials = models.JSONField("歷史收支原值", default=dict)
 

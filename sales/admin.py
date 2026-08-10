@@ -70,8 +70,10 @@ class StoreAdmin(admin.ModelAdmin):
 
 @admin.register(SalesSource)
 class SalesSourceAdmin(admin.ModelAdmin):
-    list_display = ("name", "source_type", "phone", "vehicle_capacity", "active")
-    list_filter = ("source_type", "active")
+    list_display = (
+        "name", "source_type", "phone", "vehicle_capacity", "holiday_gift", "active"
+    )
+    list_filter = ("source_type", "holiday_gift", "active")
 
 
 admin.site.register(InstallmentCompany)

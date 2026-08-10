@@ -90,7 +90,12 @@ class SalesSource(TimeStampedModel):
     vehicle_capacity = models.PositiveSmallIntegerField(
         "可停放車輛數量", blank=True, null=True
     )
-    relationship_note = models.TextField("年節送禮／關係備註", blank=True)
+    holiday_gift = models.BooleanField(
+        "列入年節送禮名單",
+        default=False,
+        help_text="勾選後可在車行列表一鍵篩選。",
+    )
+    relationship_note = models.TextField("關係備註", blank=True)
     note = models.TextField("內部備註", blank=True)
     active = models.BooleanField("啟用中", default=True)
 

@@ -362,6 +362,7 @@ def build_order_search_payload(order):
 
     legacy = getattr(order, "legacy_snapshot", None)
     if legacy:
+        _index_item(items, "歷史引擎／車身號碼", legacy.vehicle_identifier)
         _index_item(items, "歷史收款價", legacy.historical_received_price)
         _index_item(items, "歷史現金收款", legacy.cash_received)
         _index_item(items, "歷史刷卡收款", legacy.card_received)

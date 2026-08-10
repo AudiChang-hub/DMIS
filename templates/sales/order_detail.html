@@ -38,7 +38,7 @@
 <div class="order-work-tabs-shell">
 <nav class="order-work-tabs" role="tablist" aria-label="訂單工作區" data-order-tabs data-order-id="{{ order.pk }}">
   <button type="button" role="tab" data-tab="order" aria-controls="panel-order"><span>訂單資料</span><small>完整內容</small></button>
-  <button type="button" role="tab" data-tab="allocation" aria-controls="panel-allocation"><span>配車</span><small>{% if order.allocated_vehicle %}已完成{% else %}待處理{% endif %}</small></button>
+  <button type="button" role="tab" data-tab="allocation" aria-controls="panel-allocation"><span>配車</span><small>{% if order.vehicle_category == 'used' %}中古車免配車{% elif order.allocated_vehicle %}已完成{% else %}待處理{% endif %}</small></button>
   <button type="button" role="tab" data-tab="subsidy" aria-controls="panel-subsidy"><span>補助</span><small>{% if not order.is_trade_in_subsidy %}未申請{% elif order.is_subsidy_ready %}資料齊全{% else %}{{ order.subsidy_completed_count }}/{{ order.subsidy_required_count }}{% endif %}</small></button>
   <button type="button" role="tab" data-tab="registration" aria-controls="panel-registration"><span>領牌</span><small>{% if order.is_registration_complete %}已完成{% elif registration_missing %}缺 {{ registration_missing|length }} 項{% else %}可確認{% endif %}</small></button>
   <button type="button" role="tab" data-tab="delivery" aria-controls="panel-delivery"><span>交付</span><small>{% if order.is_delivered %}已交付{% elif order.can_deliver %}可進行{% else %}待領牌{% endif %}</small></button>
@@ -50,7 +50,29 @@
 {% include "sales/_next_actions.html" %}
 
 <div class="order-tab-panel" id="panel-allocation" role="tabpanel" data-tab-panel="allocation" hidden>
-{% if not order.allocated_vehicle and order.is_editable %}
+{% if order.vehicle_category == 'used' and order.legacy_snapshot %}
+<section class="section-block allocation-summary">
+  <div class="section-title allocation-summary__title">
+    <div class="allocation-summary__heading">
+      <span class="allocation-summary__check" aria-hidden="true">✓</span>
+      <div><p class="eyebrow">歷史中古車交易</p><h2>不需占用新車庫存</h2></div>
+    </div>
+    <span class="archive-status done">中古車</span>
+  </div>
+  <div class="allocation-overview">
+    <div class="allocation-overview__identity">
+      <span class="allocation-overview__label">引擎／車身號碼</span>
+      <strong>{{ order.legacy_snapshot.vehicle_identifier|default:'歷史資料未填' }}</strong>
+      <small>保留原車識別號碼供查詢，不重複綁定實體庫存</small>
+    </div>
+    <div class="allocation-overview__vehicle">
+      <span class="allocation-overview__label">車款規格</span>
+      <strong>{{ order.vehicle_model.brand }} {{ order.vehicle_model.name }}</strong>
+      <div class="allocation-overview__specs"><span>中古車交易</span><span>車色 {{ order.color.name }}</span>{% if order.final_plate_number %}<span>車牌 {{ order.final_plate_number }}</span>{% endif %}</div>
+    </div>
+  </div>
+</section>
+{% elif not order.allocated_vehicle and order.is_editable %}
 <section class="action-card info-card">
   <div><p class="eyebrow">下一步</p><h2>選擇實體車輛</h2><p>只顯示符合 {{ order.vehicle_model }}／{{ order.color.name }} 的可售庫存。</p></div>
   <form method="post" action="{% url 'allocate_vehicle' order.pk %}">
@@ -689,6 +711,7 @@
   <section class="card">
     <div class="section-title"><h2>車輛與來源</h2><span>{{ order.get_source_type_display }}</span></div>
     <dl class="data-list">
+      <div><dt>車輛類別</dt><dd>{{ order.get_vehicle_category_display }}</dd></div>
       <div><dt>車型</dt><dd>{{ order.vehicle_model }}</dd></div>
       <div><dt>車色</dt><dd>{{ order.color.name }}</dd></div>
       <div><dt>動力／排氣量</dt><dd>{{ order.vehicle_model.get_energy_type_display }}{% if order.vehicle_model.displacement_cc %}／{{ order.vehicle_model.displacement_cc }} c.c.{% endif %}</dd></div>
@@ -696,6 +719,8 @@
       <div><dt>交車方式</dt><dd>{{ order.get_delivery_method_display }}{% if order.delivery_destination %}／{{ order.delivery_destination }}{% endif %}</dd></div>
       {% if order.allocated_vehicle %}
       <div class="wide highlight-data"><dt>實體車</dt><dd>{{ order.allocated_vehicle.identifier }} · {{ order.allocated_vehicle.location_store }}</dd></div>
+      {% elif order.legacy_snapshot.vehicle_identifier %}
+      <div class="wide highlight-data"><dt>歷史車輛識別</dt><dd>{{ order.legacy_snapshot.vehicle_identifier }}</dd></div>
       {% endif %}
     </dl>
   </section>

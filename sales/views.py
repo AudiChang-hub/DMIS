@@ -885,10 +885,15 @@ def legacy_import_detail(request, pk):
     if action == LegacyImportRow.Action.CONFLICT:
         grouped = {}
         for conflict_row in batch.rows.filter(action=LegacyImportRow.Action.CONFLICT):
-            key = (conflict_row.sheet_name, conflict_row.natural_key)
+            comparison_key = (
+                conflict_row.mapped_data.get("identifier")
+                if conflict_row.sheet_name == "銷貨"
+                else conflict_row.natural_key
+            )
+            key = (conflict_row.sheet_name, comparison_key)
             grouped.setdefault(key, []).append(conflict_row)
         conflict_groups = [
-            {"sheet_name": key[0], "natural_key": key[1], "rows": group_rows}
+            {"sheet_name": key[0], "comparison_key": key[1], "rows": group_rows}
             for key, group_rows in grouped.items()
         ]
     counts = (batch.preview_summary or {}).get("counts", {})

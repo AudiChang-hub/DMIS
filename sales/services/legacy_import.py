@@ -27,8 +27,15 @@ from sales.models import (
 
 
 DUPLICATE_IDENTIFIER_MESSAGE = "同一工作表存在重複的標準化車輛識別號碼"
+MULTIPLE_NEW_SALES_MESSAGE = "同一識別號碼存在多筆新車銷售；請確認後續交易是否為中古車"
+DUPLICATE_SALES_TRANSACTION_MESSAGE = "同一筆銷售交易在工作表重複出現"
 MISSING_IDENTIFIER_MESSAGE = "缺少引擎／車身號碼"
-SYSTEM_VALIDATION_MESSAGES = {DUPLICATE_IDENTIFIER_MESSAGE, MISSING_IDENTIFIER_MESSAGE}
+SYSTEM_VALIDATION_MESSAGES = {
+    DUPLICATE_IDENTIFIER_MESSAGE,
+    MULTIPLE_NEW_SALES_MESSAGE,
+    DUPLICATE_SALES_TRANSACTION_MESSAGE,
+    MISSING_IDENTIFIER_MESSAGE,
+}
 
 
 def file_sha256(uploaded_file):
@@ -115,6 +122,39 @@ def _date(value):
     return None
 
 
+def _infer_sales_vehicle_category(raw, dealer_name):
+    """只使用明確的中古車交易文字，避免把新車的舊車估價誤判為中古車。"""
+    dealer = _text(dealer_name).replace(" ", "")
+    note = _text(raw.get("備註"))
+    subsidy = _text(raw.get("補助方案"))
+    if dealer == "中古車":
+        return SalesOrder.VehicleCategory.USED, "車行欄位為中古車"
+    if "中古車買賣" in note or note.strip() == "中古車":
+        return SalesOrder.VehicleCategory.USED, "備註標示中古車交易"
+    if "中古車過戶" in subsidy:
+        return SalesOrder.VehicleCategory.USED, "補助方案標示中古車過戶"
+    return SalesOrder.VehicleCategory.NEW, "未發現中古車交易標記"
+
+
+def _sales_transaction_key(data):
+    """建立可重跑的銷售交易鍵；同車後續中古車轉售應是另一筆交易。"""
+    identifier = data.get("identifier") or ""
+    vehicle_fallback = ":".join(
+        filter(None, (data.get("model_number", ""), data.get("plate_number", "")))
+    )
+    vehicle_key = identifier or vehicle_fallback or "unknown-vehicle"
+    category = data.get("vehicle_category") or SalesOrder.VehicleCategory.NEW
+    transaction_date = (
+        data.get("registration_date")
+        or data.get("invoice_date")
+        or data.get("order_date")
+        or "no-date"
+    )
+    owner_identity = data.get("owner_id_number") or data.get("owner_name") or "unknown-owner"
+    owner_digest = hashlib.sha256(str(owner_identity).strip().upper().encode("utf-8")).hexdigest()[:12]
+    return f"sales:{vehicle_key}:{category}:{transaction_date}:{owner_digest}"
+
+
 def _year_month(value):
     parsed = _date(value)
     if parsed:
@@ -136,8 +176,6 @@ def _operations_sales_rows(batch, workbook):
     sheet = workbook["銷貨"]
     headers = next(sheet.iter_rows(min_row=3, max_row=3, values_only=True))
     rows = []
-    duplicate_keys = set()
-    seen_keys = set()
     for row_number, row_values in enumerate(sheet.iter_rows(min_row=4, values_only=True), 4):
         model_number = _text(_value(row_values, "C"))
         identifier_raw = _text(_value(row_values, "D"))
@@ -145,12 +183,15 @@ def _operations_sales_rows(batch, workbook):
         if not any((model_number, identifier_raw, owner)):
             continue
         identifier = normalize_vehicle_identifier(identifier_raw) or ""
-        natural_key = identifier or f"sales:{row_number}:{owner}:{model_number}"
-        if identifier and identifier in seen_keys:
-            duplicate_keys.add(identifier)
-        seen_keys.add(identifier)
         raw = _row_dict_values(headers, row_values)
+        dealer_name = _text(_value(row_values, "AN"))
+        vehicle_category, vehicle_category_reason = _infer_sales_vehicle_category(
+            raw,
+            dealer_name,
+        )
         mapped = {
+            "vehicle_category": vehicle_category,
+            "vehicle_category_reason": vehicle_category_reason,
             "model_number": model_number,
             "identifier_raw": identifier_raw,
             "identifier": identifier,
@@ -165,7 +206,7 @@ def _operations_sales_rows(batch, workbook):
             "cash_received": str(_decimal(_value(row_values, "J"))),
             "card_received": str(_decimal(_value(row_values, "K"))),
             "payment_confirmed": _text(_value(row_values, "AO")).upper() == "V",
-            "dealer_name": _text(_value(row_values, "AN")),
+            "dealer_name": dealer_name,
             "installment_company": _text(_value(row_values, "AP")),
             "installment_periods": int(_decimal(_value(row_values, "AQ"))),
             "owner_birth_date": _json_value(_date(_value(row_values, "AU"))),
@@ -192,18 +233,9 @@ def _operations_sales_rows(batch, workbook):
             "company_gift": _text(_value(row_values, "CI")),
             "sales_category": _text(_value(row_values, "CL")),
         }
+        natural_key = _sales_transaction_key(mapped)
         name_mismatch = bool(mapped["owner_name_primary"] and mapped["owner_name_detail"] and mapped["owner_name_primary"] != mapped["owner_name_detail"])
         messages = ["銷貨與車主資料區姓名不同，採車主資料區"] if name_mismatch else []
-        existing = LegacyImportRow.objects.filter(
-            sheet_name="銷貨",
-            natural_key=natural_key,
-            batch__status=LegacyImportBatch.Status.COMPLETED,
-            action__in=[
-                LegacyImportRow.Action.CREATE,
-                LegacyImportRow.Action.UPDATE,
-                LegacyImportRow.Action.SKIP,
-            ],
-        ).exists()
         rows.append(
             LegacyImportRow(
                 batch=batch,
@@ -211,16 +243,12 @@ def _operations_sales_rows(batch, workbook):
                 source_row=row_number,
                 fingerprint=_fingerprint(raw),
                 natural_key=natural_key,
-                action=LegacyImportRow.Action.SKIP if existing else LegacyImportRow.Action.CREATE,
+                action=LegacyImportRow.Action.CREATE,
                 raw_data=raw,
                 mapped_data=mapped,
                 messages=messages,
             )
         )
-    for row in rows:
-        if row.mapped_data["identifier"] in duplicate_keys:
-            row.action = LegacyImportRow.Action.CONFLICT
-            row.messages.append(DUPLICATE_IDENTIFIER_MESSAGE)
     return rows, {}
 
 
@@ -364,14 +392,41 @@ def revalidate_import_batch(batch):
         raise ValueError("只有待確認批次可以重新驗證。")
     rows = list(batch.rows.order_by("sheet_name", "source_row"))
     active_rows = [row for row in rows if not row.excluded]
-    identifier_counts = {}
+    # 舊版預覽批次沒有車輛類別；重新驗證時補上推論結果，讓既有批次也能
+    # 區分新車首次銷售與後續中古車交易。已經人工指定的類別一律保留。
     for row in active_rows:
-        if row.sheet_name not in {"進貨", "銷貨"}:
+        if row.sheet_name != "銷貨" or row.mapped_data.get("vehicle_category"):
             continue
+        mapped_data = dict(row.mapped_data)
+        category, reason = _infer_sales_vehicle_category(
+            row.raw_data,
+            mapped_data.get("dealer_name", ""),
+        )
+        mapped_data["vehicle_category"] = category
+        mapped_data["vehicle_category_reason"] = reason
+        row.mapped_data = mapped_data
+    inventory_identifier_counts = {}
+    sales_new_identifier_counts = {}
+    sales_transaction_counts = {}
+    for row in active_rows:
         identifier = row.mapped_data.get("identifier", "")
-        if identifier:
-            key = (row.sheet_name, identifier)
-            identifier_counts[key] = identifier_counts.get(key, 0) + 1
+        if row.sheet_name == "進貨" and identifier:
+            inventory_identifier_counts[identifier] = (
+                inventory_identifier_counts.get(identifier, 0) + 1
+            )
+        elif row.sheet_name == "銷貨":
+            transaction_key = _sales_transaction_key(row.mapped_data)
+            sales_transaction_counts[transaction_key] = (
+                sales_transaction_counts.get(transaction_key, 0) + 1
+            )
+            if (
+                identifier
+                and row.mapped_data.get("vehicle_category", SalesOrder.VehicleCategory.NEW)
+                == SalesOrder.VehicleCategory.NEW
+            ):
+                sales_new_identifier_counts[identifier] = (
+                    sales_new_identifier_counts.get(identifier, 0) + 1
+                )
 
     inventory_identifiers = set(
         VehicleInventory.objects.exclude(normalized_engine_number__isnull=True)
@@ -381,8 +436,9 @@ def revalidate_import_batch(batch):
         .values_list("normalized_frame_number", flat=True)
     )
     inventory_identifiers.discard("")
-    completed_sales_keys = set(
-        LegacyImportRow.objects.filter(
+    completed_sales_keys = {
+        _sales_transaction_key(mapped_data)
+        for mapped_data in LegacyImportRow.objects.filter(
             sheet_name="銷貨",
             batch__status=LegacyImportBatch.Status.COMPLETED,
             action__in=[
@@ -390,8 +446,8 @@ def revalidate_import_batch(batch):
                 LegacyImportRow.Action.UPDATE,
                 LegacyImportRow.Action.SKIP,
             ],
-        ).values_list("natural_key", flat=True)
-    )
+        ).values_list("mapped_data", flat=True)
+    }
     existing_sources = set(
         SalesSource.objects.values_list("source_type", "name")
     )
@@ -403,7 +459,7 @@ def revalidate_import_batch(batch):
         elif row.sheet_name == "進貨":
             identifier = row.mapped_data.get("identifier", "")
             row.natural_key = identifier or f"inventory:{row.source_row}"
-            if identifier and identifier_counts.get((row.sheet_name, identifier), 0) > 1:
+            if identifier and inventory_identifier_counts.get(identifier, 0) > 1:
                 row.action = LegacyImportRow.Action.CONFLICT
                 messages.append(DUPLICATE_IDENTIFIER_MESSAGE)
             elif not identifier:
@@ -415,12 +471,21 @@ def revalidate_import_batch(batch):
                 row.action = LegacyImportRow.Action.CREATE
         elif row.sheet_name == "銷貨":
             identifier = row.mapped_data.get("identifier", "")
-            owner = row.mapped_data.get("owner_name", "")
-            model_number = row.mapped_data.get("model_number", "")
-            row.natural_key = identifier or f"sales:{row.source_row}:{owner}:{model_number}"
-            if identifier and identifier_counts.get((row.sheet_name, identifier), 0) > 1:
+            category = row.mapped_data.get(
+                "vehicle_category",
+                SalesOrder.VehicleCategory.NEW,
+            )
+            row.natural_key = _sales_transaction_key(row.mapped_data)
+            if sales_transaction_counts.get(row.natural_key, 0) > 1:
                 row.action = LegacyImportRow.Action.CONFLICT
-                messages.append(DUPLICATE_IDENTIFIER_MESSAGE)
+                messages.append(DUPLICATE_SALES_TRANSACTION_MESSAGE)
+            elif (
+                category == SalesOrder.VehicleCategory.NEW
+                and identifier
+                and sales_new_identifier_counts.get(identifier, 0) > 1
+            ):
+                row.action = LegacyImportRow.Action.CONFLICT
+                messages.append(MULTIPLE_NEW_SALES_MESSAGE)
             elif row.natural_key in completed_sales_keys:
                 row.action = LegacyImportRow.Action.SKIP
             else:
@@ -439,7 +504,7 @@ def revalidate_import_batch(batch):
     if rows:
         LegacyImportRow.objects.bulk_update(
             rows,
-            ["action", "messages", "natural_key", "updated_at"],
+            ["mapped_data", "action", "messages", "natural_key", "updated_at"],
             batch_size=500,
         )
 
@@ -488,8 +553,13 @@ def revalidate_import_batch(batch):
                 row.mapped_data.get("dealer_name", "")
                 for row in sales_rows
                 if row.mapped_data.get("dealer_name")
+                and row.mapped_data.get("dealer_name", "").replace(" ", "") != "中古車"
                 and row.mapped_data["dealer_name"].casefold() not in known_sources
             }),
+            "used_vehicle_sales": sum(
+                row.mapped_data.get("vehicle_category") == SalesOrder.VehicleCategory.USED
+                for row in sales_rows
+            ),
             "combined_fee_income_rows": sum(
                 bool(_decimal(row.raw_data.get("刷卡、分期手續費收入")))
                 for row in sales_rows
@@ -544,6 +614,12 @@ def apply_import_row_decision(row, mapping, decision, reason, actor_name):
         updated.update({key: _json_clean_value(value) for key, value in mapping.items()})
         if "identifier_raw" in mapping:
             updated["identifier"] = normalize_vehicle_identifier(mapping.get("identifier_raw")) or ""
+        if (
+            row.sheet_name == "銷貨"
+            and mapping.get("vehicle_category")
+            and mapping.get("vehicle_category") != before.get("vehicle_category")
+        ):
+            updated["vehicle_category_reason"] = "人工調整"
         row.mapped_data = updated
         row.excluded = False
         correction_decision = (
@@ -641,8 +717,9 @@ def _commit_sales_row(row, actor_name):
     data = row.mapped_data
     model = _model_for_number(data["model_number"])
     color = _color_for_model(model, data["color"])
+    vehicle_category = data.get("vehicle_category") or SalesOrder.VehicleCategory.NEW
     vehicle = None
-    if data["identifier"]:
+    if vehicle_category == SalesOrder.VehicleCategory.NEW and data["identifier"]:
         vehicle = VehicleInventory.objects.filter(normalized_engine_number=data["identifier"]).first() or VehicleInventory.objects.filter(normalized_frame_number=data["identifier"]).first()
     order_date = _date(data["order_date"]) or _date(data["registration_date"]) or timezone.localdate()
     owner_id = data["owner_id_number"] or f"HIST-{str(row.batch_id)[:8]}-{row.source_row}"
@@ -656,12 +733,16 @@ def _commit_sales_row(row, actor_name):
         owner_name=data["owner_name"] or "歷史資料未填", owner_phone=data["owner_phone"] or "未提供",
         owner_email=data["owner_email"], owner_birth_date=_date(data["owner_birth_date"]),
         owner_address=data["owner_address"] or "未提供", owner_id_number=owner_id,
-        vehicle_model=model, color=color, vehicle_price=0,
+        vehicle_model=model, color=color, vehicle_price=0, vehicle_category=vehicle_category,
         registration_date=_date(data["registration_date"]), final_plate_number=data["plate_number"],
         payment_type=SalesOrder.PaymentType.INSTALLMENT if data["installment_periods"] else (SalesOrder.PaymentType.CARD if _decimal(data["card_received"]) else SalesOrder.PaymentType.CASH),
         installment_company=data["installment_company"], installment_periods=data["installment_periods"],
         trade_in_plate=data["trade_in_plate"], old_owner_name=data["old_owner_name"], old_owner_id_number=data["old_owner_id_number"],
-        subsidy_type=data["subsidy_type"], is_trade_in_subsidy=bool(data["subsidy_type"] or data["trade_in_plate"]),
+        subsidy_type=data["subsidy_type"],
+        is_trade_in_subsidy=(
+            vehicle_category == SalesOrder.VehicleCategory.NEW
+            and bool(data["subsidy_type"] or data["trade_in_plate"])
+        ),
         allocated_vehicle=vehicle,
     )
     delivered_at = timezone.make_aware(datetime.combine(_date(data["registration_date"]) or order_date, time(hour=12)))
@@ -710,6 +791,7 @@ def _commit_sales_row(row, actor_name):
         order=order, import_row=row,
         historical_received_price=_decimal(data["historical_received_price"]),
         cash_received=_decimal(data["cash_received"]), card_received=_decimal(data["card_received"]),
+        vehicle_identifier=data.get("identifier_raw") or data.get("identifier", ""),
         sales_category=data["sales_category"], raw_financials=row.raw_data,
     )
     from sales.services.order_search import rebuild_order_search_index

@@ -18,10 +18,12 @@ from sales.models import (
 )
 from sales.forms import LegacyImportRowCorrectionForm, LegacyImportUploadForm
 from sales.services.legacy_import import (
+    _infer_sales_vehicle_category,
     apply_import_row_decision,
     build_import_preview,
     confirm_import,
     file_sha256,
+    revalidate_import_batch,
 )
 
 
@@ -77,6 +79,30 @@ def conflict_workbook_bytes():
     return stream.getvalue()
 
 
+def used_vehicle_resale_workbook_bytes(mark_as_used=True):
+    workbook = load_workbook(BytesIO(workbook_bytes()))
+    sales = workbook["銷貨"]
+    sales["AN3"] = "車行"
+    sales["AT3"] = "車主名稱2"
+    sales["AW3"] = "身分證字號"
+    sales["B5"] = "2026/08/05"
+    sales["C5"] = "TEST125"
+    sales["D5"] = "AB-123"
+    sales["E5"] = "中古車主"
+    sales["AT5"] = "中古車主"
+    sales["F5"] = "白"
+    sales["G5"] = 30000
+    sales["J5"] = 30000
+    sales["AN5"] = "中古車" if mark_as_used else ""
+    sales["AS5"] = "ABC-1234"
+    sales["AW5"] = "B223456789"
+    sales["AX5"] = "新北市中古路2號"
+    sales["AY5"] = "0987654321"
+    stream = BytesIO()
+    workbook.save(stream)
+    return stream.getvalue()
+
+
 class LegacyImportTests(TestCase):
     def setUp(self):
         Store.objects.create(name="總店", code="MAIN")
@@ -116,6 +142,19 @@ class LegacyImportTests(TestCase):
             uploaded_by="tester",
         )
 
+    def make_used_vehicle_batch(self, mark_as_used=True):
+        content = used_vehicle_resale_workbook_bytes(mark_as_used=mark_as_used)
+        upload = SimpleUploadedFile("used-vehicle.xlsx", content)
+        digest = file_sha256(upload)
+        return LegacyImportBatch.objects.create(
+            import_type=LegacyImportBatch.ImportType.OPERATIONS,
+            source_file=upload,
+            original_filename="used-vehicle.xlsx",
+            file_sha256=digest,
+            file_size=len(content),
+            uploaded_by="tester",
+        )
+
     def test_upload_form_only_contains_type_and_file(self):
         self.assertEqual(list(LegacyImportUploadForm().fields), ["import_type", "source_file"])
 
@@ -142,6 +181,84 @@ class LegacyImportTests(TestCase):
         self.assertEqual(order.legacy_snapshot.historical_received_price, 70000)
         self.assertEqual(LegacySalesSnapshot.objects.count(), 1)
         self.assertEqual(VehicleInventory.objects.get().status, VehicleInventory.Status.SOLD)
+
+    def test_explicit_used_vehicle_signals_do_not_match_trade_in_wording(self):
+        self.assertEqual(
+            _infer_sales_vehicle_category({}, "中古車")[0],
+            SalesOrder.VehicleCategory.USED,
+        )
+        self.assertEqual(
+            _infer_sales_vehicle_category({"備註": "中古車買賣"}, "")[0],
+            SalesOrder.VehicleCategory.USED,
+        )
+        self.assertEqual(
+            _infer_sales_vehicle_category({"補助方案": "FUN 中古車過戶"}, "")[0],
+            SalesOrder.VehicleCategory.USED,
+        )
+        self.assertEqual(
+            _infer_sales_vehicle_category({"備註": "新車成交，另有中古車估價"}, "")[0],
+            SalesOrder.VehicleCategory.NEW,
+        )
+
+    def test_used_vehicle_resale_can_share_identifier_without_reusing_inventory(self):
+        batch = self.make_used_vehicle_batch()
+        summary = build_import_preview(batch)
+        self.assertEqual(summary["counts"]["conflict"], 0)
+        self.assertEqual(summary["validation"]["used_vehicle_sales"], 1)
+        sales_rows = list(batch.rows.filter(sheet_name="銷貨").order_by("source_row"))
+        self.assertEqual(sales_rows[0].mapped_data["vehicle_category"], "new")
+        self.assertEqual(sales_rows[1].mapped_data["vehicle_category"], "used")
+        self.assertNotEqual(sales_rows[0].natural_key, sales_rows[1].natural_key)
+
+        confirm_import(batch, "tester")
+
+        new_order = SalesOrder.objects.get(owner_name="正式車主")
+        used_order = SalesOrder.objects.get(owner_name="中古車主")
+        self.assertEqual(new_order.vehicle_category, SalesOrder.VehicleCategory.NEW)
+        self.assertIsNotNone(new_order.allocated_vehicle)
+        self.assertEqual(used_order.vehicle_category, SalesOrder.VehicleCategory.USED)
+        self.assertIsNone(used_order.allocated_vehicle)
+        self.assertEqual(used_order.legacy_snapshot.vehicle_identifier, "AB-123")
+        self.assertIn("ab123", used_order.search_index.search_text)
+        detail = self.client.get(reverse("order_detail", args=[used_order.pk]))
+        self.assertContains(detail, "歷史中古車交易")
+        self.assertContains(detail, "不需占用新車庫存")
+
+    def test_revalidate_backfills_vehicle_category_for_existing_preview(self):
+        batch = self.make_used_vehicle_batch()
+        build_import_preview(batch)
+        for row in batch.rows.filter(sheet_name="銷貨"):
+            mapped_data = dict(row.mapped_data)
+            mapped_data.pop("vehicle_category", None)
+            mapped_data.pop("vehicle_category_reason", None)
+            row.mapped_data = mapped_data
+            row.save(update_fields=["mapped_data", "updated_at"])
+
+        summary = revalidate_import_batch(batch)
+
+        rows = list(batch.rows.filter(sheet_name="銷貨").order_by("source_row"))
+        self.assertEqual(summary["counts"]["conflict"], 0)
+        self.assertEqual(summary["validation"]["used_vehicle_sales"], 1)
+        self.assertEqual(rows[0].mapped_data["vehicle_category"], "new")
+        self.assertEqual(rows[1].mapped_data["vehicle_category"], "used")
+
+    def test_ambiguous_second_new_sale_stays_conflict_until_marked_used(self):
+        batch = self.make_used_vehicle_batch(mark_as_used=False)
+        summary = build_import_preview(batch)
+        self.assertEqual(summary["counts"]["conflict"], 2)
+        later_row = batch.rows.filter(sheet_name="銷貨").order_by("source_row").last()
+        mapping = dict(later_row.mapped_data)
+        mapping["vehicle_category"] = SalesOrder.VehicleCategory.USED
+        summary = apply_import_row_decision(
+            later_row,
+            mapping,
+            LegacyImportCorrection.Decision.CORRECT,
+            "確認為中古車交易",
+            "tester",
+        )
+        later_row.refresh_from_db()
+        self.assertEqual(summary["counts"]["conflict"], 0)
+        self.assertEqual(later_row.mapped_data["vehicle_category_reason"], "人工調整")
 
     def test_channel_preview_groups_source_and_contact(self):
         batch = self.make_batch(LegacyImportBatch.ImportType.CHANNELS)
@@ -209,7 +326,7 @@ class LegacyImportTests(TestCase):
         response = self.client.get(conflict_url)
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "重複資料比較")
-        self.assertContains(response, "2 筆使用相同識別號碼")
+        self.assertContains(response, "2 筆需要確認")
         row = batch.rows.filter(sheet_name="進貨").order_by("source_row").last()
         edit_response = self.client.get(conflict_url + f"&edit={row.pk}")
         self.assertEqual(edit_response.status_code, 200)

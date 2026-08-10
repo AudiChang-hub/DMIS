@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block title %}系統狀態｜車輛銷售管理{% endblock %}
+{% block page_class %}page-shell--standard{% endblock %}
+{% block content %}
+{% url 'data_maintenance' as maintenance_url %}
+{% include "sales/_page_back.html" with fallback_url=maintenance_url label="返回資料維護區" %}
+<section class="hero-row compact-hero system-status-hero">
+  <div>
+    <p class="eyebrow">內部診斷</p>
+    <h1>系統狀態</h1>
+    <p class="muted">若上傳、辨識或搜尋一直沒有完成，可先看這裡；本頁不顯示密碼或連線資訊。</p>
+  </div>
+  <a class="button ghost" href="{% url 'system_diagnostics' %}">重新檢查</a>
+</section>
+
+<section class="system-status-summary system-status-summary--{{ overall_tone }}" aria-live="polite">
+  <span aria-hidden="true">{% if overall_tone == 'success' %}✓{% elif overall_tone == 'warning' %}△{% else %}!{% endif %}</span>
+  <div>
+    <strong>{% if overall_tone == 'success' %}主要服務可以正常使用{% elif overall_tone == 'warning' %}系統可使用，但有項目需要留意{% else %}有服務需要管理者處理{% endif %}</strong>
+    <small>檢查時間 {{ checked_at|date:"Y/m/d H:i:s" }}</small>
+  </div>
+</section>
+
+<div class="system-status-grid">
+  {% for check in checks %}
+  <section class="system-status-card system-status-card--{{ check.tone }}">
+    <span class="system-status-card__mark" aria-hidden="true">{% if check.tone == 'success' %}✓{% elif check.tone == 'danger' %}!{% elif check.tone == 'warning' %}△{% else %}i{% endif %}</span>
+    <div><h2>{{ check.label }}</h2><p>{{ check.summary }}</p></div>
+  </section>
+  {% endfor %}
+</div>
+
+{% if queue_details %}
+<section class="section-block system-queue-details">
+  <div class="section-title"><h2>背景工作明細</h2><span>等待數量會隨工作完成而下降</span></div>
+  <div class="system-queue-list">
+    {% for queue in queue_details %}<div><strong>{{ queue.label }}</strong><span>{{ queue.workers }} 個執行中</span><span>{{ queue.waiting }} 件等待</span></div>{% endfor %}
+  </div>
+</section>
+{% endif %}
+
+<aside class="guide-tip system-status-help">
+  <strong>什麼時候要通知管理者？</strong>
+  <span>出現紅色狀態、照片空間低於 10%，或等待數量長時間不下降時，請提供本頁截圖與發生時間；不必傳送客戶證件或訂單內容。</span>
+</aside>
+{% endblock %}

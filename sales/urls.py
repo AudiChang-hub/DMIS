@@ -48,6 +48,11 @@ urlpatterns = [
     path("data/imports/<uuid:pk>/confirm/", views.legacy_import_confirm, name="legacy_import_confirm"),
     path("data/channels/", views.sales_source_list, name="sales_source_list"),
     path(
+        "data/channels/holiday-gifts/",
+        views.sales_source_holiday_gift_manage,
+        name="sales_source_holiday_gift_manage",
+    ),
+    path(
         "data/channels/new/", views.sales_source_form, name="sales_source_create"
     ),
     path(

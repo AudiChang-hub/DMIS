@@ -20,6 +20,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.utils import timezone
+from django.views.decorators.http import require_http_methods
 import django_rq
 from rq import Retry, Worker
 
@@ -558,7 +559,6 @@ def sales_source_list(request):
             "holiday_gift_count": SalesSource.objects.filter(
                 source_type=SalesSource.SourceType.DEALER,
                 holiday_gift=True,
-                active=True,
             ).count(),
             "selected": {
                 "q": keyword,
@@ -566,6 +566,63 @@ def sales_source_list(request):
                 "brand": brand,
                 "holiday_gift": holiday_gift,
             },
+        },
+    )
+
+
+@login_required
+@require_http_methods(["GET", "POST"])
+@transaction.atomic
+def sales_source_holiday_gift_manage(request):
+    dealers = SalesSource.objects.filter(
+        source_type=SalesSource.SourceType.DEALER
+    ).order_by("-holiday_gift", "name", "id")
+
+    if request.method == "POST":
+        raw_ids = request.POST.getlist("source_ids")
+        try:
+            selected_ids = {int(raw_id) for raw_id in raw_ids}
+        except (TypeError, ValueError):
+            messages.error(request, "名單未更新：送出的車行資料格式不正確，請重新操作。")
+            return redirect("sales_source_holiday_gift_manage")
+
+        valid_ids = set(
+            SalesSource.objects.filter(
+                source_type=SalesSource.SourceType.DEALER,
+                pk__in=selected_ids,
+            ).values_list("pk", flat=True)
+        )
+        if valid_ids != selected_ids:
+            messages.error(request, "名單未更新：其中包含不存在或不適用的車行。")
+            return redirect("sales_source_holiday_gift_manage")
+
+        changed_at = timezone.now()
+        SalesSource.objects.filter(
+            source_type=SalesSource.SourceType.DEALER,
+            holiday_gift=True,
+        ).exclude(pk__in=selected_ids).update(
+            holiday_gift=False,
+            updated_at=changed_at,
+        )
+        SalesSource.objects.filter(
+            source_type=SalesSource.SourceType.DEALER,
+            holiday_gift=False,
+            pk__in=selected_ids,
+        ).update(
+            holiday_gift=True,
+            updated_at=changed_at,
+        )
+        messages.success(request, f"年節送禮名單已更新，目前共 {len(selected_ids)} 家。")
+        return redirect(f"{reverse('sales_source_list')}?holiday_gift=yes")
+
+    dealer_rows = list(dealers)
+    return render(
+        request,
+        "sales/sales_source_holiday_gift_manage.html",
+        {
+            "dealers": dealer_rows,
+            "dealer_count": len(dealer_rows),
+            "holiday_gift_count": sum(dealer.holiday_gift for dealer in dealer_rows),
         },
     )
 

@@ -124,6 +124,22 @@ class ProductExperienceTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json(), {"ok": True})
 
+    def test_diagnostics_requires_login_and_uses_plain_language(self):
+        url = reverse("system_diagnostics")
+        anonymous = self.client.get(url)
+        self.assertRedirects(anonymous, f"{reverse('login')}?next={url}")
+
+        self.client.force_login(self.user)
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "系統狀態")
+        self.assertContains(response, "訂單資料庫")
+        self.assertContains(response, "全欄位搜尋")
+        self.assertContains(response, "照片與文件空間")
+        self.assertNotContains(response, "DJANGO_SECRET_KEY")
+        self.assertNotContains(response, "REDIS_URL")
+
     def test_error_pages_use_plain_language_and_support_reference(self):
         request = RequestFactory().get("/missing/")
         request.user = AnonymousUser()

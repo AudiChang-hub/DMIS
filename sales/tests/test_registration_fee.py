@@ -140,7 +140,7 @@ class RegistrationFeeOrderIntegrationTests(TestCase):
         self.assertContains(response, "公路養管")
         self.assertContains(response, "$190")
         self.assertContains(response, "試算合計")
-        self.assertContains(response, "$1498")
+        self.assertContains(response, "$1,498")
         self.assertContains(response, "尾款計算")
         self.assertContains(response, "配件與其他費用均已計入")
         self.assertContains(response, "配件合計 $850")

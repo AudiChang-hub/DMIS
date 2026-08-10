@@ -169,6 +169,15 @@ class OrderFlowTests(TestCase):
             css,
         )
 
+    def test_order_detail_formats_money_for_quick_recognition(self):
+        order = self.make_order()
+        self.client.force_login(self.user)
+
+        response = self.client.get(reverse("order_detail", args=[order.pk]))
+
+        self.assertContains(response, "$79,800")
+        self.assertContains(response, "$75,200")
+
     def test_desktop_and_mobile_use_distinct_page_shells(self):
         from pathlib import Path
 
@@ -870,6 +879,21 @@ class OrderFlowTests(TestCase):
             accessory_form.fields["amount"].widget.attrs["readonly"], True
         )
         self.assertEqual(fee_form.fields["name"].widget.attrs["lang"], "zh-Hant")
+        for field_name in ("source", "vehicle_model", "color"):
+            self.assertEqual(
+                order_form.fields[field_name].widget.attrs["data-searchable-select"],
+                "1",
+            )
+        self.assertIn("form-control", accessory_form.fields["quantity"].widget.attrs["class"])
+        self.assertIn("form-control", fee_form.fields["amount"].widget.attrs["class"])
+
+    def test_base_loads_searchable_select_enhancement(self):
+        self.client.force_login(self.user)
+
+        response = self.client.get(reverse("order_create"))
+
+        self.assertContains(response, "searchable-select.js")
+        self.assertContains(response, 'data-searchable-select="1"', count=3)
 
     def test_cash_order_clears_installment_details_and_excludes_opening_fee(self):
         order = self.make_order()

@@ -1,0 +1,83 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+PROJECT_DIR=${DMIS_NEXT_PROJECT_DIR:-/home/audi/project/DMIS-next}
+DEPLOY_BRANCH=${DMIS_NEXT_DEPLOY_BRANCH:-main}
+PUBLIC_HEALTH_URL=${DMIS_PUBLIC_HEALTH_URL:-https://dmis.moto-core.com/health/}
+LOCK_FILE=${DMIS_NEXT_DEPLOY_LOCK_FILE:-/tmp/dmis-next-deploy.lock}
+
+log() {
+    printf '%s %s\n' "$(date --iso-8601=seconds)" "$*"
+}
+
+fail() {
+    log "ERROR: $*"
+    exit 1
+}
+
+command -v git >/dev/null || fail "找不到 git"
+command -v docker >/dev/null || fail "找不到 docker"
+command -v curl >/dev/null || fail "找不到 curl"
+command -v flock >/dev/null || fail "找不到 flock"
+[[ -d "$PROJECT_DIR/.git" ]] || fail "找不到 Django 專案：$PROJECT_DIR"
+
+exec 9>"$LOCK_FILE"
+flock -n 9 || fail "已有 DMIS Next 部署程序執行中"
+
+cd "$PROJECT_DIR"
+compose=(docker compose -f docker-compose.django.yml -f docker-compose.django.prod.yml)
+
+[[ "$(git branch --show-current)" == "$DEPLOY_BRANCH" ]] ||
+    fail "目前 branch 不是 $DEPLOY_BRANCH"
+[[ -z "$(git status --porcelain --untracked-files=no)" ]] ||
+    fail "工作樹有已追蹤但未提交的變更，停止部署"
+
+log "取得 origin/$DEPLOY_BRANCH"
+git fetch --quiet origin "$DEPLOY_BRANCH"
+local_sha=$(git rev-parse HEAD)
+remote_sha=$(git rev-parse "origin/$DEPLOY_BRANCH")
+
+if [[ "$local_sha" == "$remote_sha" ]]; then
+    log "已是最新版本：${local_sha:0:12}"
+    exit 0
+fi
+
+git merge-base --is-ancestor "$local_sha" "$remote_sha" ||
+    fail "遠端更新不是 fast-forward，需人工確認"
+
+log "先備份 PostgreSQL 與媒體檔"
+./scripts/backup_django_data.sh
+
+log "更新程式：${local_sha:0:12} -> ${remote_sha:0:12}"
+git merge --ff-only "origin/$DEPLOY_BRANCH"
+
+log "重建 Django web 與背景工作 image"
+"${compose[@]}" build web ocr-worker search-worker
+
+log "只重啟 DMIS 應用服務；資料庫與 Redis 保持運作"
+"${compose[@]}" up -d --no-deps web ocr-worker search-worker
+
+web_id=$("${compose[@]}" ps -q web)
+[[ -n "$web_id" ]] || fail "找不到 web container"
+for attempt in $(seq 1 36); do
+    health=$(docker inspect --format '{{if .State.Health}}{{.State.Health.Status}}{{end}}' "$web_id")
+    [[ "$health" == "healthy" ]] && break
+    sleep 5
+done
+[[ "$(docker inspect --format '{{if .State.Health}}{{.State.Health.Status}}{{end}}' "$web_id")" == "healthy" ]] ||
+    fail "web 未在期限內恢復健康"
+
+# nginx 會解析並記住 web container IP；web 重建後必須重新載入，否則會短暫 502。
+log "重新載入 DMIS tunnel proxy"
+"${compose[@]}" restart tunnel-proxy
+
+for attempt in $(seq 1 30); do
+    if curl --fail --silent --show-error --max-time 10 "$PUBLIC_HEALTH_URL" >/dev/null; then
+        log "正式網域健康檢查通過"
+        "${compose[@]}" ps
+        exit 0
+    fi
+    sleep 2
+done
+
+fail "正式網域健康檢查未通過"

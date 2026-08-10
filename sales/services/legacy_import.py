@@ -10,6 +10,7 @@ from openpyxl.utils import column_index_from_string, get_column_letter
 
 from sales.models import (
     LegacyImportBatch,
+    LegacyImportCorrection,
     LegacyImportRow,
     LegacySalesSnapshot,
     OrderOperationsProfile,
@@ -23,6 +24,11 @@ from sales.models import (
     VehicleModel,
     normalize_vehicle_identifier,
 )
+
+
+DUPLICATE_IDENTIFIER_MESSAGE = "同一工作表存在重複的標準化車輛識別號碼"
+MISSING_IDENTIFIER_MESSAGE = "缺少引擎／車身號碼"
+SYSTEM_VALIDATION_MESSAGES = {DUPLICATE_IDENTIFIER_MESSAGE, MISSING_IDENTIFIER_MESSAGE}
 
 
 def file_sha256(uploaded_file):
@@ -189,7 +195,14 @@ def _operations_sales_rows(batch, workbook):
         name_mismatch = bool(mapped["owner_name_primary"] and mapped["owner_name_detail"] and mapped["owner_name_primary"] != mapped["owner_name_detail"])
         messages = ["銷貨與車主資料區姓名不同，採車主資料區"] if name_mismatch else []
         existing = LegacyImportRow.objects.filter(
-            sheet_name="銷貨", natural_key=natural_key, batch__status=LegacyImportBatch.Status.COMPLETED
+            sheet_name="銷貨",
+            natural_key=natural_key,
+            batch__status=LegacyImportBatch.Status.COMPLETED,
+            action__in=[
+                LegacyImportRow.Action.CREATE,
+                LegacyImportRow.Action.UPDATE,
+                LegacyImportRow.Action.SKIP,
+            ],
         ).exists()
         rows.append(
             LegacyImportRow(
@@ -207,7 +220,7 @@ def _operations_sales_rows(batch, workbook):
     for row in rows:
         if row.mapped_data["identifier"] in duplicate_keys:
             row.action = LegacyImportRow.Action.CONFLICT
-            row.messages.append("同一工作表存在重複的標準化車輛識別號碼")
+            row.messages.append(DUPLICATE_IDENTIFIER_MESSAGE)
     return rows, {}
 
 
@@ -252,10 +265,10 @@ def _operations_inventory_rows(batch, workbook):
     for row in rows:
         if row.mapped_data["identifier"] in duplicates:
             row.action = LegacyImportRow.Action.CONFLICT
-            row.messages.append("同一工作表存在重複的標準化車輛識別號碼")
+            row.messages.append(DUPLICATE_IDENTIFIER_MESSAGE)
         elif not row.mapped_data["identifier"]:
             row.action = LegacyImportRow.Action.ERROR
-            row.messages.append("缺少引擎／車身號碼")
+            row.messages.append(MISSING_IDENTIFIER_MESSAGE)
     return rows, {}
 
 
@@ -322,67 +335,244 @@ def build_import_preview(batch):
             rows = inventory_rows + sales_rows
             errors = {**inventory_errors, **sales_errors}
         LegacyImportRow.objects.bulk_create(rows, batch_size=500)
-        counts = {choice: 0 for choice, _ in LegacyImportRow.Action.choices}
-        for row in rows:
-            counts[row.action] += 1
-        validation = {}
-        if batch.import_type == LegacyImportBatch.ImportType.OPERATIONS:
-            sales_rows = [row for row in rows if row.sheet_name == "銷貨"]
-            inventory_rows = [row for row in rows if row.sheet_name == "進貨"]
-            known_models = {
-                value.casefold()
-                for pair in VehicleModel.objects.values_list("model_number", "name")
-                for value in pair
-                if value
-            }
-            known_sources = {
-                value.casefold() for value in SalesSource.objects.values_list("name", flat=True)
-            }
-            source_available = {
-                row.mapped_data["identifier"]
-                for row in inventory_rows
-                if row.mapped_data["quantity"] == 1 and row.mapped_data["identifier"]
-            }
-            system_available = set(
-                VehicleInventory.objects.filter(status=VehicleInventory.Status.AVAILABLE)
-                .values_list("normalized_engine_number", flat=True)
-            ) | set(
-                VehicleInventory.objects.filter(status=VehicleInventory.Status.AVAILABLE)
-                .values_list("normalized_frame_number", flat=True)
-            )
-            system_available.discard(None)
-            validation = {
-                "owner_name_differences": sum(bool(row.messages) for row in sales_rows),
-                "unmapped_models": sorted({row.mapped_data["model_number"] for row in rows if row.mapped_data.get("model_number") and row.mapped_data["model_number"].casefold() not in known_models}),
-                "unmapped_sources": sorted({row.mapped_data.get("dealer_name", "") for row in sales_rows if row.mapped_data.get("dealer_name") and row.mapped_data["dealer_name"].casefold() not in known_sources}),
-                "combined_fee_income_rows": sum(bool(_decimal(row.raw_data.get("刷卡、分期手續費收入"))) for row in sales_rows),
-                "source_available_count": len(source_available),
-                "system_available_count": len(system_available),
-                "source_only_inventory": sorted(source_available - system_available)[:100],
-                "system_only_inventory": sorted(system_available - source_available)[:100],
-            }
-        else:
-            current_keys = {f"{row.mapped_data['source_type']}:{row.mapped_data['name']}" for row in rows}
-            prior_keys = set(
-                LegacyImportRow.objects.filter(
-                    batch__import_type=LegacyImportBatch.ImportType.CHANNELS,
-                    batch__status=LegacyImportBatch.Status.COMPLETED,
-                    sheet_name__in=["車行", "網路平台"],
-                ).values_list("natural_key", flat=True)
-            )
-            validation = {"removed_source_keys": sorted(prior_keys - current_keys)}
-        summary = {
-            "source_rows": len(rows), "counts": counts, "errors": errors,
-            "sheets": list(workbook.sheetnames), "validation": validation,
-        }
         batch.source_sheets = list(workbook.sheetnames)
-        batch.preview_summary = summary
+        batch.preview_summary = {"errors": errors, "sheets": list(workbook.sheetnames)}
         batch.status = LegacyImportBatch.Status.PREVIEW
         batch.save(update_fields=["source_sheets", "preview_summary", "status", "updated_at"])
-        return summary
+        return revalidate_import_batch(batch)
     finally:
         workbook.close()
         batch.source_file.close()
+
+
+def _base_messages(row):
+    return [message for message in row.messages if message not in SYSTEM_VALIDATION_MESSAGES]
+
+
+def _json_clean_value(value):
+    if isinstance(value, (datetime, date)):
+        return value.isoformat()
+    if isinstance(value, Decimal):
+        return str(value)
+    return value
+
+
+@transaction.atomic
+def revalidate_import_batch(batch):
+    """依目前暫存修正重新判斷動作與摘要，不變更原始 Excel 資料。"""
+    if batch.status != LegacyImportBatch.Status.PREVIEW:
+        raise ValueError("只有待確認批次可以重新驗證。")
+    rows = list(batch.rows.order_by("sheet_name", "source_row"))
+    active_rows = [row for row in rows if not row.excluded]
+    identifier_counts = {}
+    for row in active_rows:
+        if row.sheet_name not in {"進貨", "銷貨"}:
+            continue
+        identifier = row.mapped_data.get("identifier", "")
+        if identifier:
+            key = (row.sheet_name, identifier)
+            identifier_counts[key] = identifier_counts.get(key, 0) + 1
+
+    inventory_identifiers = set(
+        VehicleInventory.objects.exclude(normalized_engine_number__isnull=True)
+        .values_list("normalized_engine_number", flat=True)
+    ) | set(
+        VehicleInventory.objects.exclude(normalized_frame_number__isnull=True)
+        .values_list("normalized_frame_number", flat=True)
+    )
+    inventory_identifiers.discard("")
+    completed_sales_keys = set(
+        LegacyImportRow.objects.filter(
+            sheet_name="銷貨",
+            batch__status=LegacyImportBatch.Status.COMPLETED,
+            action__in=[
+                LegacyImportRow.Action.CREATE,
+                LegacyImportRow.Action.UPDATE,
+                LegacyImportRow.Action.SKIP,
+            ],
+        ).values_list("natural_key", flat=True)
+    )
+    existing_sources = set(
+        SalesSource.objects.values_list("source_type", "name")
+    )
+    now = timezone.now()
+    for row in rows:
+        messages = _base_messages(row)
+        if row.excluded:
+            row.action = LegacyImportRow.Action.EXCLUDE
+        elif row.sheet_name == "進貨":
+            identifier = row.mapped_data.get("identifier", "")
+            row.natural_key = identifier or f"inventory:{row.source_row}"
+            if identifier and identifier_counts.get((row.sheet_name, identifier), 0) > 1:
+                row.action = LegacyImportRow.Action.CONFLICT
+                messages.append(DUPLICATE_IDENTIFIER_MESSAGE)
+            elif not identifier:
+                row.action = LegacyImportRow.Action.ERROR
+                messages.append(MISSING_IDENTIFIER_MESSAGE)
+            elif identifier in inventory_identifiers:
+                row.action = LegacyImportRow.Action.SKIP
+            else:
+                row.action = LegacyImportRow.Action.CREATE
+        elif row.sheet_name == "銷貨":
+            identifier = row.mapped_data.get("identifier", "")
+            owner = row.mapped_data.get("owner_name", "")
+            model_number = row.mapped_data.get("model_number", "")
+            row.natural_key = identifier or f"sales:{row.source_row}:{owner}:{model_number}"
+            if identifier and identifier_counts.get((row.sheet_name, identifier), 0) > 1:
+                row.action = LegacyImportRow.Action.CONFLICT
+                messages.append(DUPLICATE_IDENTIFIER_MESSAGE)
+            elif row.natural_key in completed_sales_keys:
+                row.action = LegacyImportRow.Action.SKIP
+            else:
+                row.action = LegacyImportRow.Action.CREATE
+        else:
+            source_type = row.mapped_data.get("source_type", "")
+            name = row.mapped_data.get("name", "")
+            row.natural_key = f"{source_type}:{name}"
+            row.action = (
+                LegacyImportRow.Action.UPDATE
+                if (source_type, name) in existing_sources
+                else LegacyImportRow.Action.CREATE
+            )
+        row.messages = messages
+        row.updated_at = now
+    if rows:
+        LegacyImportRow.objects.bulk_update(
+            rows,
+            ["action", "messages", "natural_key", "updated_at"],
+            batch_size=500,
+        )
+
+    counts = {choice: 0 for choice, _ in LegacyImportRow.Action.choices}
+    for row in rows:
+        counts[row.action] += 1
+    validation = {}
+    if batch.import_type == LegacyImportBatch.ImportType.OPERATIONS:
+        sales_rows = [row for row in active_rows if row.sheet_name == "銷貨"]
+        inventory_rows = [row for row in active_rows if row.sheet_name == "進貨"]
+        known_models = {
+            value.casefold()
+            for pair in VehicleModel.objects.values_list("model_number", "name")
+            for value in pair
+            if value
+        }
+        known_sources = {
+            value.casefold() for value in SalesSource.objects.values_list("name", flat=True)
+        }
+        source_available = {
+            row.mapped_data.get("identifier", "")
+            for row in inventory_rows
+            if row.mapped_data.get("quantity") == 1 and row.mapped_data.get("identifier")
+        }
+        system_available = set(
+            VehicleInventory.objects.filter(status=VehicleInventory.Status.AVAILABLE)
+            .values_list("normalized_engine_number", flat=True)
+        ) | set(
+            VehicleInventory.objects.filter(status=VehicleInventory.Status.AVAILABLE)
+            .values_list("normalized_frame_number", flat=True)
+        )
+        system_available.discard(None)
+        system_available.discard("")
+        validation = {
+            "owner_name_differences": sum(
+                bool(row.mapped_data.get("owner_name_primary") and row.mapped_data.get("owner_name_detail") and row.mapped_data.get("owner_name_primary") != row.mapped_data.get("owner_name_detail"))
+                for row in sales_rows
+            ),
+            "unmapped_models": sorted({
+                row.mapped_data.get("model_number", "")
+                for row in active_rows
+                if row.mapped_data.get("model_number")
+                and row.mapped_data["model_number"].casefold() not in known_models
+            }),
+            "unmapped_sources": sorted({
+                row.mapped_data.get("dealer_name", "")
+                for row in sales_rows
+                if row.mapped_data.get("dealer_name")
+                and row.mapped_data["dealer_name"].casefold() not in known_sources
+            }),
+            "combined_fee_income_rows": sum(
+                bool(_decimal(row.raw_data.get("刷卡、分期手續費收入")))
+                for row in sales_rows
+            ),
+            "source_available_count": len(source_available),
+            "system_available_count": len(system_available),
+            "source_only_inventory": sorted(source_available - system_available)[:100],
+            "system_only_inventory": sorted(system_available - source_available)[:100],
+        }
+    else:
+        current_keys = {
+            f"{row.mapped_data.get('source_type', '')}:{row.mapped_data.get('name', '')}"
+            for row in active_rows
+        }
+        prior_keys = set(
+            LegacyImportRow.objects.filter(
+                batch__import_type=LegacyImportBatch.ImportType.CHANNELS,
+                batch__status=LegacyImportBatch.Status.COMPLETED,
+                sheet_name__in=["車行", "網路平台"],
+                action__in=[
+                    LegacyImportRow.Action.CREATE,
+                    LegacyImportRow.Action.UPDATE,
+                    LegacyImportRow.Action.SKIP,
+                ],
+            ).values_list("natural_key", flat=True)
+        )
+        validation = {"removed_source_keys": sorted(prior_keys - current_keys)}
+    previous = batch.preview_summary or {}
+    summary = {
+        "source_rows": len(rows),
+        "counts": counts,
+        "errors": previous.get("errors", {}),
+        "sheets": batch.source_sheets,
+        "validation": validation,
+    }
+    batch.preview_summary = summary
+    batch.save(update_fields=["preview_summary", "updated_at"])
+    return summary
+
+
+@transaction.atomic
+def apply_import_row_decision(row, mapping, decision, reason, actor_name):
+    if row.batch.status != LegacyImportBatch.Status.PREVIEW:
+        raise ValueError("只有待確認批次可以修正。")
+    before = dict(row.mapped_data)
+    was_excluded = row.excluded
+    if decision == LegacyImportCorrection.Decision.EXCLUDE:
+        row.excluded = True
+        correction_decision = LegacyImportCorrection.Decision.EXCLUDE
+    else:
+        updated = dict(row.mapped_data)
+        updated.update({key: _json_clean_value(value) for key, value in mapping.items()})
+        if "identifier_raw" in mapping:
+            updated["identifier"] = normalize_vehicle_identifier(mapping.get("identifier_raw")) or ""
+        row.mapped_data = updated
+        row.excluded = False
+        correction_decision = (
+            LegacyImportCorrection.Decision.RESTORE
+            if was_excluded
+            else LegacyImportCorrection.Decision.CORRECT
+        )
+    row.manually_corrected = True
+    row.corrected_by = actor_name
+    row.corrected_at = timezone.now()
+    row.save(
+        update_fields=[
+            "mapped_data",
+            "excluded",
+            "manually_corrected",
+            "corrected_by",
+            "corrected_at",
+            "updated_at",
+        ]
+    )
+    LegacyImportCorrection.objects.create(
+        row=row,
+        decision=correction_decision,
+        before_data=before,
+        after_data=dict(row.mapped_data),
+        reason=reason,
+        corrected_by=actor_name,
+    )
+    return revalidate_import_batch(row.batch)
 
 
 def _placeholder_model(model_number):
@@ -531,7 +721,19 @@ def _commit_sales_row(row, actor_name):
 def confirm_import(batch, actor_name):
     if batch.status != LegacyImportBatch.Status.PREVIEW:
         raise ValueError("此批次已確認或已失敗，不能重複匯入。")
-    result = {"created": 0, "updated": 0, "skipped": 0, "conflicts": 0, "errors": 0}
+    unresolved = batch.rows.filter(
+        action__in=[LegacyImportRow.Action.CONFLICT, LegacyImportRow.Action.ERROR]
+    ).count()
+    if unresolved:
+        raise ValueError(f"尚有 {unresolved} 筆衝突或錯誤資料，請先修正或排除後再匯入。")
+    result = {
+        "created": 0,
+        "updated": 0,
+        "skipped": 0,
+        "excluded": 0,
+        "conflicts": 0,
+        "errors": 0,
+    }
     rows = list(batch.rows.order_by("sheet_name", "source_row"))
     # 進貨必須先建立，銷貨才能連結實體車輛。
     rows.sort(key=lambda row: {"進貨": 0, "車行": 1, "網路平台": 1, "銷貨": 2}.get(row.sheet_name, 9))
@@ -544,6 +746,9 @@ def confirm_import(batch, actor_name):
             continue
         if row.action == LegacyImportRow.Action.SKIP:
             result["skipped"] += 1
+            continue
+        if row.action == LegacyImportRow.Action.EXCLUDE:
+            result["excluded"] += 1
             continue
         try:
             with transaction.atomic():

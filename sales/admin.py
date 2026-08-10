@@ -15,6 +15,7 @@ from .models import (
     InstallmentPlanOption,
     InstallmentPlanVersion,
     LegacyImportBatch,
+    LegacyImportCorrection,
     LegacyImportRow,
     LegacySalesSnapshot,
     OrderDraft,
@@ -87,6 +88,7 @@ admin.site.register(DealerVolumeBonusSettlement)
 admin.site.register(DealerVolumeBonusAllocation)
 admin.site.register(DealerVolumeBonusAdjustment)
 admin.site.register(LegacyImportBatch)
+admin.site.register(LegacyImportCorrection)
 admin.site.register(LegacyImportRow)
 admin.site.register(LegacySalesSnapshot)
 admin.site.register(SubsidyItem)

@@ -654,6 +654,8 @@ class LegacyImportBatch(TimeStampedModel):
     uploaded_by = models.CharField("上傳人員", max_length=150)
     confirmed_by = models.CharField("確認人員", max_length=150, blank=True)
     confirmed_at = models.DateTimeField("確認時間", blank=True, null=True)
+    archived_by = models.CharField("封存人員", max_length=150, blank=True)
+    archived_at = models.DateTimeField("封存時間", blank=True, null=True)
 
     class Meta:
         ordering = ["-created_at"]
@@ -666,6 +668,7 @@ class LegacyImportRow(TimeStampedModel):
         CREATE = "create", "新增"
         UPDATE = "update", "更新"
         SKIP = "skip", "略過"
+        EXCLUDE = "exclude", "不匯入"
         CONFLICT = "conflict", "衝突"
         ERROR = "error", "錯誤"
 
@@ -683,11 +686,18 @@ class LegacyImportRow(TimeStampedModel):
     raw_data = models.JSONField("來源原始資料", default=dict)
     mapped_data = models.JSONField("欄位映射結果", default=dict)
     messages = models.JSONField("檢核訊息", default=list)
+    excluded = models.BooleanField("人工排除", default=False)
+    manually_corrected = models.BooleanField("已人工修正", default=False)
+    corrected_by = models.CharField("最後修正人員", max_length=150, blank=True)
+    corrected_at = models.DateTimeField("最後修正時間", blank=True, null=True)
     committed_model = models.CharField("建立資料類型", max_length=80, blank=True)
     committed_pk = models.CharField("建立資料編號", max_length=80, blank=True)
 
     class Meta:
         ordering = ["sheet_name", "source_row"]
+        indexes = [
+            models.Index(fields=["batch", "action"], name="legacy_row_batch_action_idx"),
+        ]
         constraints = [
             models.UniqueConstraint(
                 fields=["batch", "sheet_name", "source_row"],
@@ -696,6 +706,30 @@ class LegacyImportRow(TimeStampedModel):
         ]
         verbose_name = "歷史資料匯入列"
         verbose_name_plural = "歷史資料匯入列"
+
+
+class LegacyImportCorrection(TimeStampedModel):
+    class Decision(models.TextChoices):
+        CORRECT = "correct", "修正後匯入"
+        EXCLUDE = "exclude", "排除此列"
+        RESTORE = "restore", "恢復匯入"
+
+    row = models.ForeignKey(
+        LegacyImportRow,
+        on_delete=models.CASCADE,
+        related_name="corrections",
+        verbose_name="匯入資料列",
+    )
+    decision = models.CharField("處理方式", max_length=20, choices=Decision.choices)
+    before_data = models.JSONField("處理前資料", default=dict)
+    after_data = models.JSONField("處理後資料", default=dict)
+    reason = models.TextField("處理原因")
+    corrected_by = models.CharField("處理人員", max_length=150)
+
+    class Meta:
+        ordering = ["-created_at", "-id"]
+        verbose_name = "歷史匯入人工修正紀錄"
+        verbose_name_plural = "歷史匯入人工修正紀錄"
 
 
 class LegacySalesSnapshot(TimeStampedModel):

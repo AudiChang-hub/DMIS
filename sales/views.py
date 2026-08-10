@@ -47,6 +47,7 @@ from .forms import (
     InstallmentPlanOptionFormSet,
     InstallmentPlanVersionForm,
     LegacyImportUploadForm,
+    LegacyImportRowCorrectionForm,
     OtherFeeFormSet,
     OrderOperationsForm,
     OrderEditForm,
@@ -142,6 +143,7 @@ from .services.dealer_commission import (
 from .services.dashboard_metrics import build_dashboard_metrics
 from .services.secret_fields import decrypt_secret, encrypt_secret
 from .services.legacy_import import (
+    apply_import_row_decision,
     build_import_preview,
     confirm_import,
     file_sha256,
@@ -855,10 +857,13 @@ def legacy_import_list(request):
         else:
             messages.success(request, "檔案已解析，請先檢查預覽與衝突報告再確認匯入。")
         return redirect("legacy_import_detail", pk=batch.pk)
+    show_archived = request.GET.get("archived") == "1"
+    batches = LegacyImportBatch.objects.all()
+    batches = batches.filter(archived_at__isnull=not show_archived)
     return render(
         request,
         "sales/legacy_import_list.html",
-        {"form": form, "batches": LegacyImportBatch.objects.all()[:50]},
+        {"form": form, "batches": batches[:50], "show_archived": show_archived},
     )
 
 
@@ -870,11 +875,135 @@ def legacy_import_detail(request, pk):
     if action in {value for value, _ in LegacyImportRow.Action.choices}:
         rows = rows.filter(action=action)
     page = Paginator(rows, 100).get_page(request.GET.get("page"))
+    editing_row = None
+    correction_form = None
+    editing_id = request.GET.get("edit", "")
+    if editing_id and batch.status == LegacyImportBatch.Status.PREVIEW:
+        editing_row = get_object_or_404(batch.rows.prefetch_related("corrections"), pk=editing_id)
+        correction_form = LegacyImportRowCorrectionForm(row=editing_row)
+    conflict_groups = []
+    if action == LegacyImportRow.Action.CONFLICT:
+        grouped = {}
+        for conflict_row in batch.rows.filter(action=LegacyImportRow.Action.CONFLICT):
+            key = (conflict_row.sheet_name, conflict_row.natural_key)
+            grouped.setdefault(key, []).append(conflict_row)
+        conflict_groups = [
+            {"sheet_name": key[0], "natural_key": key[1], "rows": group_rows}
+            for key, group_rows in grouped.items()
+        ]
+    counts = (batch.preview_summary or {}).get("counts", {})
+    unresolved_count = counts.get("conflict", 0) + counts.get("error", 0)
+    action_labels = dict(LegacyImportRow.Action.choices)
     return render(
         request,
         "sales/legacy_import_detail.html",
-        {"batch": batch, "rows": page.object_list, "page_obj": page, "selected_action": action},
+        {
+            "batch": batch,
+            "rows": page.object_list,
+            "page_obj": page,
+            "selected_action": action,
+            "selected_action_label": action_labels.get(action, "全部資料"),
+            "counts": counts,
+            "unresolved_count": unresolved_count,
+            "can_confirm": batch.status == LegacyImportBatch.Status.PREVIEW and unresolved_count == 0,
+            "conflict_groups": conflict_groups,
+            "editing_row": editing_row,
+            "correction_form": correction_form,
+        },
     )
+
+
+@login_required
+@require_http_methods(["POST"])
+@transaction.atomic
+def legacy_import_row_decide(request, pk, row_pk):
+    batch = get_object_or_404(LegacyImportBatch.objects.select_for_update(), pk=pk)
+    row = get_object_or_404(batch.rows.select_for_update(), pk=row_pk)
+    form = LegacyImportRowCorrectionForm(request.POST, row=row)
+    if not form.is_valid():
+        rows = batch.rows.filter(action=row.action)
+        page = Paginator(rows, 100).get_page(1)
+        counts = (batch.preview_summary or {}).get("counts", {})
+        return render(
+            request,
+            "sales/legacy_import_detail.html",
+            {
+                "batch": batch,
+                "rows": page.object_list,
+                "page_obj": page,
+                "selected_action": row.action,
+                "counts": counts,
+                "unresolved_count": counts.get("conflict", 0) + counts.get("error", 0),
+                "can_confirm": False,
+                "conflict_groups": [],
+                "editing_row": row,
+                "correction_form": form,
+            },
+            status=400,
+        )
+    try:
+        summary = apply_import_row_decision(
+            row,
+            form.cleaned_mapping(),
+            form.cleaned_data["decision"],
+            form.cleaned_data["reason"],
+            _editing_name(request.user),
+        )
+    except ValueError as exc:
+        messages.error(request, str(exc))
+    else:
+        remaining = summary["counts"].get("conflict", 0) + summary["counts"].get("error", 0)
+        if form.cleaned_data["decision"] == "exclude":
+            messages.success(request, f"已排除 {row.sheet_name}第 {row.source_row} 列；尚有 {remaining} 筆問題待處理。")
+        else:
+            messages.success(request, f"已儲存修正並重新驗證；尚有 {remaining} 筆問題待處理。")
+    remaining_action = "conflict" if batch.rows.filter(action="conflict").exists() else "error"
+    if not batch.rows.filter(action__in=["conflict", "error"]).exists():
+        return redirect("legacy_import_detail", pk=batch.pk)
+    return redirect(f"{reverse('legacy_import_detail', args=[batch.pk])}?action={remaining_action}#issue-review")
+
+
+@login_required
+@require_http_methods(["POST"])
+@transaction.atomic
+def legacy_import_delete(request, pk):
+    batch = get_object_or_404(LegacyImportBatch.objects.select_for_update(), pk=pk)
+    if batch.status == LegacyImportBatch.Status.COMPLETED:
+        messages.error(request, "已完成匯入的批次不能直接刪除，避免破壞正式訂單與庫存。")
+        return redirect("legacy_import_detail", pk=batch.pk)
+    filename = batch.original_filename
+    stored_name = batch.source_file.name
+    storage = batch.source_file.storage
+    batch.delete()
+    if stored_name:
+        transaction.on_commit(lambda: storage.delete(stored_name))
+    messages.success(request, f"已刪除匯入批次：{filename}。正式資料未受影響。")
+    return redirect("legacy_import_list")
+
+
+@login_required
+@require_http_methods(["POST"])
+def legacy_import_archive(request, pk):
+    batch = get_object_or_404(LegacyImportBatch, pk=pk)
+    if batch.status != LegacyImportBatch.Status.COMPLETED:
+        messages.error(request, "只有已完成匯入的批次需要封存。")
+        return redirect("legacy_import_detail", pk=batch.pk)
+    batch.archived_at = timezone.now()
+    batch.archived_by = _editing_name(request.user)
+    batch.save(update_fields=["archived_at", "archived_by", "updated_at"])
+    messages.success(request, "匯入紀錄已封存；正式資料與稽核紀錄仍完整保留。")
+    return redirect("legacy_import_list")
+
+
+@login_required
+@require_http_methods(["POST"])
+def legacy_import_restore(request, pk):
+    batch = get_object_or_404(LegacyImportBatch, pk=pk)
+    batch.archived_at = None
+    batch.archived_by = ""
+    batch.save(update_fields=["archived_at", "archived_by", "updated_at"])
+    messages.success(request, "匯入紀錄已恢復顯示。")
+    return redirect("legacy_import_detail", pk=batch.pk)
 
 
 @login_required
@@ -890,7 +1019,7 @@ def legacy_import_confirm(request, pk):
     else:
         messages.success(
             request,
-            f"匯入完成：新增 {result['created']}、更新 {result['updated']}、略過 {result['skipped']}、衝突 {result['conflicts']}、錯誤 {result['errors']}。",
+            f"匯入完成：新增 {result['created']}、更新 {result['updated']}、略過 {result['skipped']}、人工排除 {result['excluded']}。",
         )
     return redirect("legacy_import_detail", pk=pk)
 

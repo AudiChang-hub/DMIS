@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}管理年節送禮名單｜車輛銷售管理{% endblock %}
+{% block page_class %}page-shell--wide{% endblock %}
+{% block content %}
+{% url 'sales_source_list' as source_list_url %}{% include "sales/_page_back.html" with fallback_url=source_list_url label="返回車行、平台與傭金" %}
+<section class="hero-row compact-hero holiday-gift-hero">
+  <div>
+    <p class="eyebrow">合作關係維護</p>
+    <h1>管理年節送禮名單</h1>
+    <p class="muted">直接勾選需要安排年節送禮的合作車行，完成後一次儲存，不必逐家進入編輯。</p>
+  </div>
+  <div class="holiday-gift-summary" aria-live="polite">
+    <span>目前名單</span>
+    <strong data-gift-selected-count>{{ holiday_gift_count }} 家</strong>
+    <small>全部合作車行 {{ dealer_count }} 家</small>
+  </div>
+</section>
+
+<section class="holiday-gift-maintenance" data-gift-maintenance>
+  <div class="holiday-gift-toolbar">
+    <div class="inventory-filter holiday-gift-search">
+      <label for="holiday-gift-search">快速尋找車行</label>
+      <input id="holiday-gift-search" type="search" placeholder="輸入車行名稱、代碼、地址或電話" autocomplete="off" data-gift-search>
+    </div>
+    <div class="holiday-gift-toolbar-actions" aria-label="批次勾選操作">
+      <button class="button ghost small" type="button" data-gift-select-visible>勾選目前顯示</button>
+      <button class="button ghost small" type="button" data-gift-clear-visible>取消勾選目前顯示</button>
+    </div>
+  </div>
+  <p class="holiday-gift-filter-status" role="status" data-gift-filter-status>目前顯示全部 {{ dealer_count }} 家合作車行。</p>
+
+  <form method="post" class="holiday-gift-form" data-gift-form data-confirm="將依目前勾選更新完整年節送禮名單，確定儲存嗎？">
+    {% csrf_token %}
+    <div class="inventory-table-wrap">
+      <table class="inventory-table holiday-gift-table">
+        <thead><tr><th>列入名單</th><th>合作車行</th><th>地址／電話</th><th>狀態</th></tr></thead>
+        <tbody>
+          {% for dealer in dealers %}
+            <tr data-gift-row data-search="{{ dealer.name }} {{ dealer.code }} {{ dealer.address }} {{ dealer.phone }}">
+              <td data-label="列入名單">
+                <input class="holiday-gift-checkbox" id="gift-source-{{ dealer.pk }}" type="checkbox" name="source_ids" value="{{ dealer.pk }}" {% if dealer.holiday_gift %}checked{% endif %} data-gift-checkbox>
+              </td>
+              <td data-label="合作車行"><label for="gift-source-{{ dealer.pk }}"><strong>{{ dealer.name }}</strong><span>{{ dealer.code|default:"未設定代碼" }}</span></label></td>
+              <td data-label="地址／電話">{{ dealer.address|default:"未填地址" }}<span>{{ dealer.phone|default:"未填電話" }}</span></td>
+              <td data-label="狀態"><span class="status-pill">{{ dealer.active|yesno:"啟用中,已停用" }}</span></td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="4"><div class="empty-state compact"><strong>目前沒有合作車行資料</strong></div></td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <div class="holiday-gift-no-result" data-gift-no-result hidden><strong>找不到符合關鍵字的合作車行</strong><span>請清除搜尋文字後再試一次。</span></div>
+    <div class="holiday-gift-save-actions">
+      <div><strong>將儲存完整名單</strong><span>未勾選的車行會從年節送禮名單移除。</span></div>
+      <a class="button ghost" href="{% url 'sales_source_list' %}">取消</a>
+      <button class="button primary" type="submit">儲存年節送禮名單</button>
+    </div>
+  </form>
+</section>
+{% endblock %}
+{% block scripts %}<script src="{% static 'js/holiday-gift-maintenance.js' %}?v={{ app_version }}" defer></script>{% endblock %}

@@ -1,4 +1,5 @@
 from decimal import Decimal
+import re
 from django import forms
 from django.db import transaction
 from django.db.models import Q
@@ -1129,6 +1130,140 @@ class VehicleModelMasterForm(forms.ModelForm):
                 "此車型已有庫存資料，為避免引擎／車身號碼規則失效，不能變更能源別。",
             )
         return cleaned
+
+
+class LegacyVehicleModelLinkForm(forms.Form):
+    vehicle_model = forms.ModelChoiceField(
+        label="對應至既有車型",
+        queryset=VehicleModel.objects.none(),
+        empty_label="請選擇車型",
+    )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["vehicle_model"].queryset = VehicleModel.objects.order_by(
+            "brand", "name", "model_year", "model_number"
+        )
+        self.fields["vehicle_model"].widget.attrs.update(
+            {
+                "class": "form-control",
+                "data-searchable-select": "1",
+                "data-search-placeholder": "輸入品牌、車型、型號或年份",
+            }
+        )
+
+
+class LegacySalesSourceLinkForm(forms.Form):
+    sales_source = forms.ModelChoiceField(
+        label="對應至既有通路",
+        queryset=SalesSource.objects.none(),
+        empty_label="請選擇車行或平台",
+    )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["sales_source"].queryset = SalesSource.objects.order_by(
+            "source_type", "name"
+        )
+        self.fields["sales_source"].widget.attrs.update(
+            {
+                "class": "form-control",
+                "data-searchable-select": "1",
+                "data-search-placeholder": "輸入車行或平台名稱",
+            }
+        )
+
+
+class LegacyVehicleModelQuickCreateForm(forms.ModelForm):
+    colors = forms.CharField(
+        label="已知顏色",
+        required=False,
+        help_text="可用逗號、頓號或換行分隔；系統會自動去除重複顏色。",
+        widget=forms.Textarea(attrs={"rows": 2, "placeholder": "例如：白、灰、黑"}),
+    )
+
+    class Meta:
+        model = VehicleModel
+        fields = [
+            "brand",
+            "energy_type",
+            "name",
+            "model_number",
+            "model_year",
+            "model_code",
+            "displacement_cc",
+            "motor_power_kw",
+            "horsepower_hp",
+        ]
+        labels = {
+            "brand": "品牌",
+            "energy_type": "能源別",
+            "name": "機種",
+            "model_number": "型號",
+            "model_year": "年份",
+            "model_code": "型式",
+        }
+        widgets = {
+            "model_year": forms.NumberInput(
+                attrs={"min": "1900", "max": "2200", "inputmode": "numeric"}
+            ),
+            "displacement_cc": forms.NumberInput(attrs={"inputmode": "numeric"}),
+            "motor_power_kw": forms.NumberInput(
+                attrs={"min": "0", "step": "0.01", "inputmode": "decimal"}
+            ),
+            "horsepower_hp": forms.NumberInput(
+                attrs={"min": "0", "step": "0.01", "inputmode": "decimal"}
+            ),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        for field_name in ("brand", "energy_type", "name", "model_number", "model_year", "model_code"):
+            self.fields[field_name].required = True
+        for field in self.fields.values():
+            field.widget.attrs.setdefault("class", "form-control")
+        apply_mobile_keyboard_attrs(self)
+
+    def cleaned_colors(self):
+        raw = self.cleaned_data.get("colors", "")
+        values = re.split(r"[、,，\n\r]+", raw)
+        unique = []
+        seen = set()
+        for value in values:
+            name = value.strip()
+            key = name.casefold()
+            if name and key not in seen:
+                seen.add(key)
+                unique.append(name)
+        return unique
+
+    def save(self, commit=True):
+        vehicle_model = super().save(commit=commit)
+        if commit:
+            for color_name in self.cleaned_colors():
+                VehicleColor.objects.get_or_create(
+                    vehicle_model=vehicle_model,
+                    name=color_name,
+                    defaults={"active": True},
+                )
+        return vehicle_model
+
+
+class LegacySalesSourceQuickCreateForm(forms.ModelForm):
+    class Meta:
+        model = SalesSource
+        fields = ["source_type", "name", "address"]
+        labels = {
+            "source_type": "通路類型",
+            "name": "車行／平台名稱",
+            "address": "地址（選填）",
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        for field in self.fields.values():
+            field.widget.attrs.setdefault("class", "form-control")
+        apply_mobile_keyboard_attrs(self)
 
 
 class VehiclePriceVersionForm(forms.ModelForm):

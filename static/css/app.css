@@ -2648,3 +2648,224 @@ form[aria-busy="true"] { cursor: progress; }
   .guide-topic[hidden] { display: block !important; }
   .guide-topic-heading { break-after: avoid; }
 }
+/* 歷史匯入：同頁補齊車型與通路主檔 */
+.import-validation-action {
+  align-self: flex-start;
+  color: var(--color-primary, #0d4938);
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.import-master-workspace {
+  margin-top: 24px;
+  padding: clamp(20px, 2.4vw, 32px);
+  border: 1px solid #d8e2dc;
+  border-radius: 24px;
+  background: #fff;
+  box-shadow: 0 12px 30px rgba(21, 53, 42, 0.07);
+  scroll-margin-top: 92px;
+}
+
+.import-master-workspace__header,
+.import-master-group__heading,
+.import-master-item,
+.import-master-dialog header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.import-master-workspace__header h2,
+.import-master-group__heading h3,
+.import-master-dialog h3 {
+  margin: 2px 0 0;
+}
+
+.import-master-workspace__header p:last-child {
+  max-width: 760px;
+  margin: 8px 0 0;
+  color: #63736d;
+}
+
+.import-master-group {
+  margin-top: 24px;
+  overflow: hidden;
+  border: 1px solid #dfe7e2;
+  border-radius: 18px;
+  background: #fbfcfb;
+}
+
+.import-master-group__heading {
+  padding: 18px 20px;
+  border-bottom: 1px solid #dfe7e2;
+  background: #f3f7f4;
+}
+
+.import-master-group__heading span,
+.import-master-dialog header span {
+  color: #557068;
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+}
+
+.import-master-items {
+  display: grid;
+}
+
+.import-master-item {
+  min-width: 0;
+  padding: 16px 20px;
+  border-bottom: 1px solid #e4eae6;
+}
+
+.import-master-item:last-child {
+  border-bottom: 0;
+}
+
+.import-master-item__content {
+  display: grid;
+  min-width: 0;
+  gap: 4px;
+}
+
+.import-master-item__content strong {
+  overflow-wrap: anywhere;
+  font-size: 1.02rem;
+}
+
+.import-master-item__content span {
+  color: #687771;
+  font-size: 0.86rem;
+}
+
+.import-master-item__actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.import-master-item__actions form {
+  margin: 0;
+}
+
+.import-master-dialog {
+  width: min(560px, calc(100vw - 32px));
+  max-height: min(84vh, 800px);
+  margin: auto;
+  padding: 0;
+  overflow: auto;
+  border: 0;
+  border-radius: 22px;
+  background: #fff;
+  box-shadow: 0 28px 80px rgba(8, 36, 27, 0.28);
+}
+
+.import-master-dialog--wide {
+  width: min(860px, calc(100vw - 32px));
+}
+
+.import-master-dialog::backdrop {
+  background: rgba(12, 31, 25, 0.52);
+  backdrop-filter: blur(3px);
+}
+
+.import-master-dialog > form {
+  display: grid;
+  gap: 18px;
+  padding: clamp(20px, 3vw, 30px);
+}
+
+.import-master-dialog header {
+  padding-bottom: 14px;
+  border-bottom: 1px solid #e1e8e3;
+}
+
+.import-master-dialog header button {
+  width: 40px;
+  height: 40px;
+  border: 0;
+  border-radius: 50%;
+  background: #edf3ef;
+  color: #234b3e;
+  font-size: 1.5rem;
+  cursor: pointer;
+}
+
+.import-master-dialog > form > p {
+  margin: 0;
+  color: #60716b;
+}
+
+.import-master-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.import-master-dialog .form-actions {
+  justify-content: flex-end;
+  margin-top: 2px;
+  padding-top: 18px;
+  border-top: 1px solid #e1e8e3;
+}
+
+@media (max-width: 720px) {
+  .import-master-workspace {
+    margin-top: 16px;
+    padding: 18px 14px;
+    border-radius: 18px;
+  }
+
+  .import-master-workspace__header,
+  .import-master-item {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .import-master-workspace__header .status-pill {
+    align-self: flex-start;
+  }
+
+  .import-master-group__heading,
+  .import-master-item {
+    padding: 15px;
+  }
+
+  .import-master-item__actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .import-master-item__actions .button,
+  .import-master-item__actions form,
+  .import-master-item__actions form .button {
+    width: 100%;
+  }
+
+  .import-master-item__actions form {
+    grid-column: 1 / -1;
+  }
+
+  .import-master-form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .import-master-dialog {
+    width: calc(100vw - 20px);
+    max-height: calc(100dvh - 20px);
+    border-radius: 18px;
+  }
+
+  .import-master-dialog > form {
+    padding: 20px 16px;
+  }
+
+  .import-master-dialog .form-actions {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+}

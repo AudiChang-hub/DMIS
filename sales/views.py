@@ -48,6 +48,10 @@ from .forms import (
     InstallmentPlanVersionForm,
     LegacyImportUploadForm,
     LegacyImportRowCorrectionForm,
+    LegacySalesSourceLinkForm,
+    LegacySalesSourceQuickCreateForm,
+    LegacyVehicleModelLinkForm,
+    LegacyVehicleModelQuickCreateForm,
     OtherFeeFormSet,
     OrderOperationsForm,
     OrderEditForm,
@@ -87,6 +91,7 @@ from .models import (
     InstallmentCompany,
     InstallmentPlanVersion,
     LegacyImportBatch,
+    LegacyImportMasterMapping,
     LegacyImportRow,
     OrderEvent,
     OrderOperationsProfile,
@@ -110,6 +115,7 @@ from .models import (
     VehicleModel,
     VehiclePriceVersion,
     VehicleSettlementCostRule,
+    normalize_legacy_master_value,
 )
 from .jobs import delete_id_ocr_job_files, run_id_ocr_job
 from .services.id_ocr import recognize_id_card
@@ -144,9 +150,12 @@ from .services.dashboard_metrics import build_dashboard_metrics
 from .services.secret_fields import decrypt_secret, encrypt_secret
 from .services.legacy_import import (
     apply_import_row_decision,
+    build_import_master_workspace,
     build_import_preview,
     confirm_import,
     file_sha256,
+    revalidate_import_batch,
+    save_import_master_mapping,
 )
 from .services.positioned_template_pdf import build_positioned_template_pdf
 from .services.identity_document_pdf import (
@@ -899,6 +908,12 @@ def legacy_import_detail(request, pk):
     counts = (batch.preview_summary or {}).get("counts", {})
     unresolved_count = counts.get("conflict", 0) + counts.get("error", 0)
     action_labels = dict(LegacyImportRow.Action.choices)
+    master_workspace = {"models": [], "sources": [], "total": 0}
+    if (
+        batch.status == LegacyImportBatch.Status.PREVIEW
+        and batch.import_type == LegacyImportBatch.ImportType.OPERATIONS
+    ):
+        master_workspace = build_import_master_workspace(batch)
     return render(
         request,
         "sales/legacy_import_detail.html",
@@ -914,7 +929,123 @@ def legacy_import_detail(request, pk):
             "conflict_groups": conflict_groups,
             "editing_row": editing_row,
             "correction_form": correction_form,
+            "master_workspace": master_workspace,
+            "vehicle_model_link_form": LegacyVehicleModelLinkForm(prefix="model-link"),
+            "sales_source_link_form": LegacySalesSourceLinkForm(prefix="source-link"),
+            "vehicle_model_quick_form": LegacyVehicleModelQuickCreateForm(prefix="model-create"),
+            "sales_source_quick_form": LegacySalesSourceQuickCreateForm(prefix="source-create"),
         },
+    )
+
+
+@login_required
+@require_http_methods(["POST"])
+@transaction.atomic
+def legacy_import_master_resolve(request, pk, mapping_type):
+    batch = get_object_or_404(
+        LegacyImportBatch.objects.select_for_update(),
+        pk=pk,
+        status=LegacyImportBatch.Status.PREVIEW,
+        import_type=LegacyImportBatch.ImportType.OPERATIONS,
+    )
+    type_config = {
+        LegacyImportMasterMapping.MappingType.VEHICLE_MODEL: (
+            "unmapped_models",
+            "車型",
+        ),
+        LegacyImportMasterMapping.MappingType.SALES_SOURCE: (
+            "unmapped_sources",
+            "通路",
+        ),
+    }
+    if mapping_type not in type_config:
+        raise Http404("不支援的主檔類型")
+    validation_key, type_label = type_config[mapping_type]
+    source_value = request.POST.get("source_value", "").strip()
+    unresolved_values = (
+        (batch.preview_summary or {}).get("validation", {}).get(validation_key, [])
+    )
+    unresolved_keys = {
+        normalize_legacy_master_value(value) for value in unresolved_values
+    }
+    if normalize_legacy_master_value(source_value) not in unresolved_keys:
+        messages.info(request, f"「{source_value or type_label}」已由其他操作處理，清單已更新。")
+        return redirect(
+            f"{reverse('legacy_import_detail', args=[batch.pk])}#master-data-workspace"
+        )
+
+    action = request.POST.get("resolution_action", "")
+    actor_name = _editing_name(request.user)
+    try:
+        if action == "link":
+            if mapping_type == LegacyImportMasterMapping.MappingType.VEHICLE_MODEL:
+                form = LegacyVehicleModelLinkForm(request.POST, prefix="model-link")
+                if not form.is_valid():
+                    raise ValueError(_form_error_text(form))
+                target = form.cleaned_data["vehicle_model"]
+                save_import_master_mapping(
+                    mapping_type=mapping_type,
+                    source_value=source_value,
+                    actor_name=actor_name,
+                    vehicle_model=target,
+                )
+            else:
+                form = LegacySalesSourceLinkForm(request.POST, prefix="source-link")
+                if not form.is_valid():
+                    raise ValueError(_form_error_text(form))
+                target = form.cleaned_data["sales_source"]
+                save_import_master_mapping(
+                    mapping_type=mapping_type,
+                    source_value=source_value,
+                    actor_name=actor_name,
+                    sales_source=target,
+                )
+            success_text = f"已將「{source_value}」對應至「{target}」。"
+        elif action == "create":
+            if mapping_type == LegacyImportMasterMapping.MappingType.VEHICLE_MODEL:
+                form = LegacyVehicleModelQuickCreateForm(request.POST, prefix="model-create")
+                if not form.is_valid():
+                    raise ValueError(_form_error_text(form))
+                target = form.save()
+                save_import_master_mapping(
+                    mapping_type=mapping_type,
+                    source_value=source_value,
+                    actor_name=actor_name,
+                    vehicle_model=target,
+                    note="由歷史匯入補齊工作台快速建立",
+                )
+            else:
+                form = LegacySalesSourceQuickCreateForm(request.POST, prefix="source-create")
+                if not form.is_valid():
+                    raise ValueError(_form_error_text(form))
+                target = form.save()
+                save_import_master_mapping(
+                    mapping_type=mapping_type,
+                    source_value=source_value,
+                    actor_name=actor_name,
+                    sales_source=target,
+                    note="由歷史匯入補齊工作台快速建立",
+                )
+            success_text = f"已建立「{target}」，並完成「{source_value}」的對應。"
+        elif action == "ignore":
+            save_import_master_mapping(
+                mapping_type=mapping_type,
+                source_value=source_value,
+                actor_name=actor_name,
+                ignored=True,
+                note=request.POST.get("note", ""),
+            )
+            success_text = f"已將「{source_value}」標記為保留歷史文字，不建立{type_label}主檔。"
+        else:
+            raise ValueError("請選擇對應、快速新增或保留歷史文字。")
+        summary = revalidate_import_batch(batch)
+    except (ValueError, ValidationError, IntegrityError) as exc:
+        messages.error(request, f"無法處理「{source_value}」：{exc}")
+    else:
+        remaining = len(summary["validation"].get(validation_key, []))
+        messages.success(request, f"{success_text} 尚有 {remaining} 個未對應{type_label}。")
+    return redirect(
+        f"{reverse('legacy_import_detail', args=[batch.pk])}#master-data-workspace"
     )
 
 

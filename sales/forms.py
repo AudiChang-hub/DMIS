@@ -19,6 +19,7 @@ from .models import (
     InstallmentPlanOption,
     InstallmentPlanVersion,
     LegacyImportBatch,
+    LegacyImportRow,
     OtherFeeLine,
     OrderOperationsProfile,
     PaymentRecord,
@@ -654,6 +655,141 @@ class LegacyImportUploadForm(forms.ModelForm):
 
     def clean_source_file(self):
         return validate_excel_upload(self.cleaned_data.get("source_file"))
+
+
+class LegacyImportRowCorrectionForm(forms.Form):
+    DECISION_CHOICES = (
+        ("correct", "修正後匯入"),
+        ("exclude", "不匯入此列"),
+    )
+
+    INVENTORY_FIELDS = (
+        ("received_on", "進貨日期", "date", False),
+        ("model_number", "車種型號", "text", True),
+        ("identifier_raw", "引擎／車身號碼", "text", True),
+        ("color", "顏色", "text", False),
+        ("quantity", "數量（1 為可售、0 為歷史已售）", "integer", True),
+        ("manufactured_year_month", "出廠年月", "year_month", False),
+    )
+    SALES_FIELDS = (
+        ("model_number", "車種型號", "text", True),
+        ("identifier_raw", "引擎／車身號碼", "text", False),
+        ("owner_name", "車主姓名", "text", True),
+        ("color", "顏色", "text", False),
+        ("registration_date", "實際領牌日期", "date", False),
+        ("order_date", "訂單日期", "date", False),
+        ("plate_number", "車牌號碼", "text", False),
+        ("historical_received_price", "歷史收款價", "decimal", False),
+        ("cash_received", "現金收款", "decimal", False),
+        ("card_received", "刷卡收款", "decimal", False),
+        ("payment_confirmed", "已確認收款", "boolean", False),
+        ("dealer_name", "車行／平台", "text", False),
+        ("installment_company", "分期公司", "text", False),
+        ("installment_periods", "分期期數", "integer", False),
+        ("owner_birth_date", "西元生日", "date", False),
+        ("owner_id_number", "身分證字號", "text", False),
+        ("owner_address", "戶籍地址", "textarea", False),
+        ("owner_phone", "手機", "text", False),
+        ("owner_email", "Email", "text", False),
+        ("invoice_date", "發票日期", "date", False),
+        ("balance_invoice_number", "尾款發票號碼", "text", False),
+        ("subsidy_type", "補助方案", "text", False),
+        ("subsidy_amount", "補助金額", "decimal", False),
+        ("bank_name", "銀行名稱／分行", "text", False),
+        ("remittance_account", "匯款帳戶", "text", False),
+        ("trade_in_plate", "舊車牌照號碼", "text", False),
+        ("old_owner_name", "舊車車主", "text", False),
+        ("old_owner_id_number", "舊車主身分證", "text", False),
+        ("old_vehicle_engine_number", "舊車引擎號碼", "text", False),
+        ("old_vehicle_brand", "舊車廠牌", "text", False),
+        ("old_vehicle_manufactured_year_month", "舊車出廠年月", "year_month", False),
+        ("vehicle_control_account", "車控帳號", "text", False),
+        ("battery_plan", "電池合約方案", "text", False),
+        ("battery_account", "電池合約帳號", "text", False),
+        ("standard_gift", "標配贈品", "textarea", False),
+        ("company_gift", "公司實體贈品", "textarea", False),
+        ("sales_category", "銷售方案分類", "text", False),
+    )
+    CHANNEL_FIELDS = (
+        ("name", "車行／平台名稱", "text", True),
+        ("contact_name", "聯絡窗口", "text", False),
+        ("phone", "電話", "text", False),
+        ("phone_2", "電話二", "text", False),
+        ("extension", "分機", "text", False),
+        ("mobile", "手機", "text", False),
+        ("email", "Email", "text", False),
+        ("fax", "傳真", "text", False),
+        ("address", "地址", "textarea", False),
+        ("vehicle_capacity", "停放容量", "integer", False),
+        ("note", "備註", "textarea", False),
+    )
+
+    decision = forms.ChoiceField(
+        label="這一列要怎麼處理？",
+        choices=DECISION_CHOICES,
+        widget=forms.RadioSelect,
+    )
+    reason = forms.CharField(
+        label="修正／排除原因",
+        widget=forms.Textarea(attrs={"rows": 2, "placeholder": "例如：Excel 重複列，保留較完整的一筆"}),
+        help_text="此內容會連同處理人員與時間保留在稽核紀錄。",
+    )
+
+    def __init__(self, *args, row: LegacyImportRow, **kwargs):
+        self.row = row
+        super().__init__(*args, **kwargs)
+        if row.sheet_name == "進貨":
+            schema = self.INVENTORY_FIELDS
+        elif row.sheet_name == "銷貨":
+            schema = self.SALES_FIELDS
+        else:
+            schema = self.CHANNEL_FIELDS
+        self.editable_keys = [key for key, *_ in schema]
+        self.required_when_correcting = [key for key, _, _, required in schema if required]
+        for key, label, kind, required in schema:
+            display_label = f"{label}（修正時必填）" if required else label
+            initial = row.mapped_data.get(key)
+            if kind == "date":
+                field = forms.DateField(
+                    label=display_label,
+                    required=False,
+                    input_formats=["%Y-%m-%d"],
+                    widget=forms.DateInput(attrs={"type": "date"}),
+                )
+            elif kind == "integer":
+                field = forms.IntegerField(label=display_label, required=False, min_value=0)
+            elif kind == "decimal":
+                field = forms.DecimalField(label=display_label, required=False, max_digits=14, decimal_places=0)
+            elif kind == "boolean":
+                field = forms.BooleanField(label=display_label, required=False)
+            elif kind == "year_month":
+                field = forms.RegexField(
+                    label=display_label,
+                    required=False,
+                    regex=r"^\d{4}/(0[1-9]|1[0-2])$",
+                    error_messages={"invalid": "請使用 YYYY/MM，例如 2026/08。"},
+                )
+            elif kind == "textarea":
+                field = forms.CharField(label=display_label, required=False, widget=forms.Textarea(attrs={"rows": 2}))
+            else:
+                field = forms.CharField(label=display_label, required=False)
+            if required:
+                field.widget.attrs["data-required-when-correcting"] = "true"
+            field.initial = initial
+            self.fields[key] = field
+        self.fields["decision"].initial = "exclude" if row.excluded else "correct"
+        self.order_fields(["decision", *self.editable_keys, "reason"])
+
+    def clean(self):
+        cleaned = super().clean()
+        if cleaned.get("decision") == "correct":
+            for key in self.required_when_correcting:
+                if cleaned.get(key) in (None, ""):
+                    self.add_error(key, "選擇修正後匯入時，此欄位必須填寫。")
+        return cleaned
+
+    def cleaned_mapping(self):
+        return {key: self.cleaned_data.get(key) for key in self.editable_keys}
 
 
 class OrderEditForm(SalesOrderForm):

@@ -894,6 +894,8 @@ class OrderFlowTests(TestCase):
 
         self.assertContains(response, "searchable-select.js")
         self.assertContains(response, 'data-searchable-select="1"', count=3)
+        self.assertContains(response, "loadVehicleColors")
+        self.assertContains(response, "請先選擇車型")
 
     def test_cash_order_clears_installment_details_and_excludes_opening_fee(self):
         order = self.make_order()

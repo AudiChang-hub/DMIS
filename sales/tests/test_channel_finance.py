@@ -257,8 +257,86 @@ class ChannelFinanceTests(TestCase):
         self.assertContains(response, "冠廷")
         self.assertNotContains(response, "一般車行")
         self.assertNotContains(response, "測試平台")
-        self.assertContains(response, "年節送禮名單 · 1 家")
+        self.assertContains(response, "目前共 1 家")
         self.assertContains(response, "需送禮")
+        self.assertContains(response, "返回全部車行／平台")
+        self.assertNotContains(response, "type=dealer&amp;holiday_gift=yes")
+
+    def test_sales_source_gift_filter_can_return_to_all_source_types(self):
+        self.client.force_login(self.user)
+
+        response = self.client.get(reverse("sales_source_list"), {"holiday_gift": "yes"})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'href="/data/channels/"')
+        self.assertContains(response, "← 返回全部車行／平台")
+        self.assertContains(response, "不限送禮狀態")
+
+    def test_holiday_gift_manage_updates_complete_dealer_list(self):
+        keep = SalesSource.objects.create(
+            name="保留送禮車行",
+            source_type=SalesSource.SourceType.DEALER,
+            holiday_gift=True,
+        )
+        remove = SalesSource.objects.create(
+            name="移出送禮車行",
+            source_type=SalesSource.SourceType.DEALER,
+            holiday_gift=True,
+        )
+        add = SalesSource.objects.create(
+            name="新增送禮車行",
+            source_type=SalesSource.SourceType.DEALER,
+            holiday_gift=False,
+        )
+        self.client.force_login(self.user)
+
+        response = self.client.post(
+            reverse("sales_source_holiday_gift_manage"),
+            {"source_ids": [str(keep.pk), str(add.pk)]},
+        )
+
+        self.assertRedirects(response, f"{reverse('sales_source_list')}?holiday_gift=yes")
+        keep.refresh_from_db()
+        remove.refresh_from_db()
+        add.refresh_from_db()
+        self.assertTrue(keep.holiday_gift)
+        self.assertFalse(remove.holiday_gift)
+        self.assertTrue(add.holiday_gift)
+
+    def test_holiday_gift_manage_rejects_platform_ids_without_changes(self):
+        self.dealer.holiday_gift = True
+        self.dealer.save(update_fields=["holiday_gift"])
+        platform = SalesSource.objects.create(
+            name="不適用平台",
+            source_type=SalesSource.SourceType.PLATFORM,
+        )
+        self.client.force_login(self.user)
+
+        response = self.client.post(
+            reverse("sales_source_holiday_gift_manage"),
+            {"source_ids": [str(platform.pk)]},
+            follow=True,
+        )
+
+        self.assertContains(response, "名單未更新")
+        self.dealer.refresh_from_db()
+        self.assertTrue(self.dealer.holiday_gift)
+
+    def test_holiday_gift_manage_only_lists_dealers(self):
+        self.dealer.holiday_gift = True
+        self.dealer.save(update_fields=["holiday_gift"])
+        SalesSource.objects.create(
+            name="不顯示的平台",
+            source_type=SalesSource.SourceType.PLATFORM,
+        )
+        self.client.force_login(self.user)
+
+        response = self.client.get(reverse("sales_source_holiday_gift_manage"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "冠廷")
+        self.assertNotContains(response, "不顯示的平台")
+        self.assertContains(response, "目前名單")
 
     def test_sales_source_full_search_understands_legacy_gift_terms(self):
         self.dealer.holiday_gift = True

@@ -1011,10 +1011,12 @@ def registration_fee_variance_confirm(request, pk):
 
 @login_required
 def order_list(request):
-    orders = SalesOrder.objects.select_related("source", "vehicle_model", "color")
+    orders = SalesOrder.objects.select_related(
+        "source", "vehicle_model", "color", "search_index"
+    )
     query = request.GET.get("q", "").strip()
     if query:
-        orders = orders.filter(search_index__search_text__icontains=query)
+        orders = orders.filter(build_order_search_query(query)).distinct()
     status = request.GET.get("status")
     if status == "registration_pending":
         orders = orders.filter(
@@ -1045,6 +1047,9 @@ def order_list(request):
         orders = orders.filter(status=status)
     orders = orders.order_by("-order_date", "-created_at", "-pk")
     page = Paginator(orders, 50).get_page(request.GET.get("page"))
+    if query:
+        for order in page.object_list:
+            order.search_matches = build_order_match_summary(order, query)
     query_params = request.GET.copy()
     query_params.pop("page", None)
     return render(

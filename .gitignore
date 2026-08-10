@@ -25,5 +25,6 @@ backups/
 media/
 staticfiles/
 .env.django
+.env.django.*
 secrets/*
 !secrets/.gitkeep

@@ -474,7 +474,7 @@ class SalesSourceForm(forms.ModelForm):
         model = SalesSource
         fields = [
             "source_type", "name", "code", "phone", "fax", "address",
-            "vehicle_capacity", "relationship_note", "note", "active",
+            "vehicle_capacity", "holiday_gift", "relationship_note", "note", "active",
         ]
         widgets = {
             "relationship_note": forms.Textarea(attrs={"rows": 2}),

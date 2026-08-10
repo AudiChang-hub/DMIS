@@ -28,6 +28,8 @@ class OdooMasterImportTests(TestCase):
                     "phone_1": "02-12345678",
                     "mobile": "0912345678",
                     "address": "新北市測試路 1 號",
+                    "line_group": True,
+                    "holiday_gift": True,
                     "active": True,
                 }
             ],
@@ -118,6 +120,8 @@ class OdooMasterImportTests(TestCase):
             source=source, brand="SUZUKI", effective_from=date(2026, 1, 1)
         )
         self.assertEqual(source.contacts.count(), 2)
+        self.assertTrue(source.holiday_gift)
+        self.assertEqual(source.relationship_note, "已加入 LINE 群組")
         self.assertEqual(policy.commission_adjustment, 500)
         self.assertEqual(model.displacement_cc, 124)
         self.assertEqual(model.base_dealer_commission, 2000)

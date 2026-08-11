@@ -89,6 +89,31 @@ services:
     stop_grace_period: 30s
     restart: unless-stopped
 
+  import-worker:
+    build:
+      context: .
+      dockerfile: Dockerfile.django
+      args:
+        DJANGO_UID: "${DJANGO_UID:-1000}"
+        DJANGO_GID: "${DJANGO_GID:-1000}"
+    command: python manage.py rqworker imports --worker-class rq.worker.SimpleWorker
+    env_file:
+      - path: .env.django
+        required: false
+    environment:
+      POSTGRES_HOST: db
+      POSTGRES_PORT: 5432
+      REDIS_URL: redis://redis:6379/0
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    mem_limit: 384m
+    cpus: 0.50
+    stop_grace_period: 60s
+    restart: unless-stopped
+
   db:
     image: postgres:16
     env_file:

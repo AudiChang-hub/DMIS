@@ -45,6 +45,7 @@ urlpatterns = [
     path("data/customers/", views.customer_list, name="customer_list"),
     path("data/imports/", views.legacy_import_list, name="legacy_import_list"),
     path("data/imports/<uuid:pk>/", views.legacy_import_detail, name="legacy_import_detail"),
+    path("data/imports/<uuid:pk>/status/", views.legacy_import_status, name="legacy_import_status"),
     path("data/imports/<uuid:pk>/confirm/", views.legacy_import_confirm, name="legacy_import_confirm"),
     path("data/imports/<uuid:pk>/delete/", views.legacy_import_delete, name="legacy_import_delete"),
     path("data/imports/<uuid:pk>/archive/", views.legacy_import_archive, name="legacy_import_archive"),

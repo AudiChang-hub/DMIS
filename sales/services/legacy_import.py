@@ -4,6 +4,8 @@ import re
 from datetime import date, datetime, time
 from decimal import Decimal, InvalidOperation
 
+from django.core.exceptions import ValidationError
+from django.core.validators import validate_email
 from django.db import transaction
 from django.utils import timezone
 from openpyxl import load_workbook
@@ -36,7 +38,8 @@ DUPLICATE_SALES_TRANSACTION_MESSAGE = "同一筆銷售交易在工作表重複�
 MISSING_IDENTIFIER_MESSAGE = "缺少引擎／車身號碼"
 EMPTY_SALES_PLACEHOLDER_MESSAGE = "Excel 空白公式列，系統自動略過"
 NON_VEHICLE_SALES_NOISE_MESSAGE = "缺少有效車輛序號且無交易資料，系統自動略過"
-PREVIEW_SCHEMA_VERSION = 3
+INVALID_EMAIL_MESSAGE = "Email 格式不正確，請修正或清空後再匯入"
+PREVIEW_SCHEMA_VERSION = 4
 SYSTEM_VALIDATION_MESSAGES = {
     DUPLICATE_IDENTIFIER_MESSAGE,
     MULTIPLE_NEW_SALES_MESSAGE,
@@ -44,7 +47,18 @@ SYSTEM_VALIDATION_MESSAGES = {
     MISSING_IDENTIFIER_MESSAGE,
     EMPTY_SALES_PLACEHOLDER_MESSAGE,
     NON_VEHICLE_SALES_NOISE_MESSAGE,
+    INVALID_EMAIL_MESSAGE,
 }
+
+
+def _has_invalid_email(value):
+    if not value:
+        return False
+    try:
+        validate_email(value)
+    except ValidationError:
+        return True
+    return False
 
 
 def _legacy_master_mapping(mapping_type, source_value):
@@ -808,6 +822,9 @@ def revalidate_import_batch(batch):
                     messages.append(MULTIPLE_NEW_SALES_MESSAGE)
                 elif row.natural_key in completed_sales_keys:
                     row.action = LegacyImportRow.Action.SKIP
+                elif _has_invalid_email(row.mapped_data.get("owner_email", "")):
+                    row.action = LegacyImportRow.Action.ERROR
+                    messages.append(INVALID_EMAIL_MESSAGE)
                 else:
                     row.action = LegacyImportRow.Action.CREATE
         else:
@@ -1170,15 +1187,32 @@ def _commit_sales_row(row, actor_name):
     row.committed_model, row.committed_pk = "SalesOrder", str(order.pk)
 
 
-@transaction.atomic
+def _save_import_progress(batch, completed, total, result):
+    LegacyImportBatch.objects.filter(pk=batch.pk).update(
+        processing_completed=completed,
+        processing_total=total,
+        processing_heartbeat_at=timezone.now(),
+        result_summary=result,
+        updated_at=timezone.now(),
+    )
+
+
 def confirm_import(batch, actor_name):
-    if batch.status != LegacyImportBatch.Status.PREVIEW:
+    if batch.status not in {
+        LegacyImportBatch.Status.PREVIEW,
+        LegacyImportBatch.Status.PROCESSING,
+        LegacyImportBatch.Status.FAILED,
+    }:
         raise ValueError("此批次已確認或已失敗，不能重複匯入。")
     unresolved = batch.rows.filter(
         action__in=[LegacyImportRow.Action.CONFLICT, LegacyImportRow.Action.ERROR]
     ).count()
     if unresolved:
         raise ValueError(f"尚有 {unresolved} 筆衝突或錯誤資料，請先修正或排除後再匯入。")
+    rows = list(batch.rows.order_by("sheet_name", "source_row"))
+    # 進貨必須先建立，銷貨才能連結實體車輛。
+    rows.sort(key=lambda row: {"進貨": 0, "車行": 1, "網路平台": 1, "銷貨": 2}.get(row.sheet_name, 9))
+    total = len(rows)
     result = {
         "created": 0,
         "updated": 0,
@@ -1187,22 +1221,111 @@ def confirm_import(batch, actor_name):
         "conflicts": 0,
         "errors": 0,
     }
-    rows = list(batch.rows.order_by("sheet_name", "source_row"))
-    # 進貨必須先建立，銷貨才能連結實體車輛。
-    rows.sort(key=lambda row: {"進貨": 0, "車行": 1, "網路平台": 1, "銷貨": 2}.get(row.sheet_name, 9))
-    for row in rows:
+    now = timezone.now()
+    if batch.status != LegacyImportBatch.Status.PROCESSING:
+        batch.status = LegacyImportBatch.Status.PROCESSING
+        batch.processing_started_at = batch.processing_started_at or now
+        batch.processing_finished_at = None
+        batch.processing_error = ""
+        batch.processing_total = total
+        batch.processing_completed = 0
+        batch.save(
+            update_fields=[
+                "status",
+                "processing_started_at",
+                "processing_finished_at",
+                "processing_error",
+                "processing_total",
+                "processing_completed",
+                "updated_at",
+            ]
+        )
+    for completed, row in enumerate(rows, 1):
+        if row.committed_model and row.committed_pk:
+            result["updated" if row.action == LegacyImportRow.Action.UPDATE else "created"] += 1
+            if completed % 25 == 0 or completed == total:
+                _save_import_progress(batch, completed, total, result)
+            continue
         if row.action == LegacyImportRow.Action.CONFLICT:
             result["conflicts"] += 1
-            continue
-        if row.action == LegacyImportRow.Action.ERROR:
+        elif row.action == LegacyImportRow.Action.ERROR:
             result["errors"] += 1
-            continue
-        if row.action == LegacyImportRow.Action.SKIP:
+        elif row.action == LegacyImportRow.Action.SKIP:
             result["skipped"] += 1
-            continue
-        if row.action == LegacyImportRow.Action.EXCLUDE:
+        elif row.action == LegacyImportRow.Action.EXCLUDE:
             result["excluded"] += 1
-            continue
+        else:
+            try:
+                with transaction.atomic():
+                    if row.sheet_name in {"車行", "網路平台"}:
+                        _commit_channel_row(row)
+                    elif row.sheet_name == "進貨":
+                        _commit_inventory_row(row)
+                    elif row.sheet_name == "銷貨":
+                        _commit_sales_row(row, actor_name)
+                    row.save(update_fields=["action", "committed_model", "committed_pk", "updated_at"])
+                result["updated" if row.action == LegacyImportRow.Action.UPDATE else "created"] += 1
+            except Exception as exc:
+                row.action = LegacyImportRow.Action.ERROR
+                row.messages = [*row.messages, str(exc)]
+                row.save(update_fields=["action", "messages", "updated_at"])
+                result["errors"] += 1
+        if completed % 25 == 0 or completed == total:
+            _save_import_progress(batch, completed, total, result)
+    batch.status = LegacyImportBatch.Status.COMPLETED
+    batch.result_summary = result
+    batch.confirmed_by = actor_name
+    batch.confirmed_at = timezone.now()
+    batch.processing_completed = total
+    batch.processing_total = total
+    batch.processing_finished_at = timezone.now()
+    batch.processing_heartbeat_at = timezone.now()
+    batch.processing_error = ""
+    batch.save(
+        update_fields=[
+            "status",
+            "result_summary",
+            "confirmed_by",
+            "confirmed_at",
+            "processing_completed",
+            "processing_total",
+            "processing_finished_at",
+            "processing_heartbeat_at",
+            "processing_error",
+            "updated_at",
+        ]
+    )
+    return result
+
+
+@transaction.atomic
+def retry_completed_import_row(row, mapping, decision, reason, actor_name):
+    row = LegacyImportRow.objects.select_for_update().select_related("batch").get(pk=row.pk)
+    batch = LegacyImportBatch.objects.select_for_update().get(pk=row.batch_id)
+    if batch.status != LegacyImportBatch.Status.COMPLETED:
+        raise ValueError("只有已完成批次中的失敗資料可以補匯。")
+    if row.action != LegacyImportRow.Action.ERROR or row.committed_model:
+        raise ValueError("這筆資料已經處理完成，不需要再次補匯。")
+
+    before = dict(row.mapped_data)
+    updated = dict(row.mapped_data)
+    updated.update({key: _json_clean_value(value) for key, value in mapping.items()})
+    if "identifier_raw" in mapping:
+        updated["identifier"] = normalize_vehicle_identifier(mapping.get("identifier_raw")) or ""
+    row.mapped_data = updated
+    row.excluded = decision == LegacyImportCorrection.Decision.EXCLUDE
+    row.manually_corrected = True
+    row.corrected_by = actor_name
+    row.corrected_at = timezone.now()
+
+    succeeded = False
+    error_text = ""
+    if row.excluded:
+        row.action = LegacyImportRow.Action.EXCLUDE
+        row.messages = []
+        succeeded = True
+    else:
+        row.messages = []
         try:
             with transaction.atomic():
                 if row.sheet_name in {"車行", "網路平台"}:
@@ -1211,16 +1334,48 @@ def confirm_import(batch, actor_name):
                     _commit_inventory_row(row)
                 elif row.sheet_name == "銷貨":
                     _commit_sales_row(row, actor_name)
-                row.save(update_fields=["action", "committed_model", "committed_pk", "updated_at"])
-            result["updated" if row.action == LegacyImportRow.Action.UPDATE else "created"] += 1
+                else:
+                    raise ValueError("不支援的匯入工作表。")
         except Exception as exc:
+            error_text = str(exc)
             row.action = LegacyImportRow.Action.ERROR
-            row.messages = [*row.messages, str(exc)]
-            row.save(update_fields=["action", "messages", "updated_at"])
-            result["errors"] += 1
-    batch.status = LegacyImportBatch.Status.COMPLETED
-    batch.result_summary = result
-    batch.confirmed_by = actor_name
-    batch.confirmed_at = timezone.now()
-    batch.save(update_fields=["status", "result_summary", "confirmed_by", "confirmed_at", "updated_at"])
-    return result
+            row.messages = [error_text]
+        else:
+            row.action = LegacyImportRow.Action.CREATE
+            succeeded = True
+
+    row.save(
+        update_fields=[
+            "mapped_data",
+            "excluded",
+            "manually_corrected",
+            "corrected_by",
+            "corrected_at",
+            "action",
+            "messages",
+            "committed_model",
+            "committed_pk",
+            "updated_at",
+        ]
+    )
+    LegacyImportCorrection.objects.create(
+        row=row,
+        decision=(
+            LegacyImportCorrection.Decision.EXCLUDE
+            if row.excluded
+            else LegacyImportCorrection.Decision.CORRECT
+        ),
+        before_data=before,
+        after_data=row.mapped_data,
+        reason=reason,
+        corrected_by=actor_name,
+    )
+    if succeeded:
+        result = dict(batch.result_summary or {})
+        result["errors"] = max(int(result.get("errors", 0)) - 1, 0)
+        result["excluded" if row.excluded else "created"] = int(
+            result.get("excluded" if row.excluded else "created", 0)
+        ) + 1
+        batch.result_summary = result
+        batch.save(update_fields=["result_summary", "updated_at"])
+    return {"ok": succeeded, "error": error_text, "excluded": row.excluded}

@@ -2,11 +2,31 @@ import logging
 
 from django.utils import timezone
 
-from .models import IdOcrJob
+from .models import IdOcrJob, LegacyImportBatch
 from .services.id_ocr import IdOcrError, recognize_id_card
 
 
 logger = logging.getLogger(__name__)
+
+
+def run_legacy_import_job(batch_id, actor_name):
+    from .services.legacy_import import confirm_import
+
+    batch = LegacyImportBatch.objects.get(pk=batch_id)
+    if batch.status != LegacyImportBatch.Status.PROCESSING:
+        return
+    try:
+        confirm_import(batch, actor_name)
+    except Exception:
+        logger.exception("背景歷史資料匯入失敗", extra={"batch_id": str(batch_id)})
+        LegacyImportBatch.objects.filter(pk=batch_id).update(
+            status=LegacyImportBatch.Status.FAILED,
+            processing_error="背景匯入意外中止，已完成的資料不會重複建立；請按下繼續匯入。",
+            processing_finished_at=timezone.now(),
+            processing_heartbeat_at=timezone.now(),
+            updated_at=timezone.now(),
+        )
+        raise
 
 
 def delete_id_ocr_job_files(job):

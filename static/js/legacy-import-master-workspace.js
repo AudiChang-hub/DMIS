@@ -9,6 +9,14 @@
     dialog.querySelectorAll("[data-master-source-label]").forEach((label) => {
       label.textContent = sourceValue;
     });
+    const previewTarget = dialog.querySelector("[data-master-preview-target]");
+    if (previewTarget) {
+      const previewTemplate = document.getElementById(button.dataset.masterPreviewId || "");
+      previewTarget.replaceChildren();
+      if (previewTemplate?.content) {
+        previewTarget.append(previewTemplate.content.cloneNode(true));
+      }
+    }
 
     if (dialog.id === "vehicle-model-create-dialog") {
       const modelNumber = dialog.querySelector("#id_model-create-model_number");

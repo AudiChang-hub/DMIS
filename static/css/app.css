@@ -2730,6 +2730,12 @@ form[aria-busy="true"] { cursor: progress; }
   gap: 4px;
 }
 
+.import-master-item__body {
+  display: grid;
+  min-width: 0;
+  gap: 10px;
+}
+
 .import-master-item__content strong {
   overflow-wrap: anywhere;
   font-size: 1.02rem;
@@ -2737,6 +2743,65 @@ form[aria-busy="true"] { cursor: progress; }
 
 .import-master-item__content span {
   color: #687771;
+  font-size: 0.86rem;
+}
+
+.import-master-examples summary {
+  width: fit-content;
+  color: var(--color-primary, #0d4938);
+  font-size: 0.86rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.import-master-example-list {
+  display: grid;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.import-master-example {
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid #dfe7e2;
+  border-radius: 12px;
+  background: #f7faf8;
+}
+
+.import-master-example__heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.import-master-example__heading span {
+  color: #687771;
+  font-size: 0.78rem;
+}
+
+.import-master-example dl {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px 14px;
+  margin: 0;
+}
+
+.import-master-example dl div { min-width: 0; }
+.import-master-example dt { color: #687771; font-size: 0.75rem; }
+.import-master-example dd { margin: 2px 0 0; overflow-wrap: anywhere; font-weight: 750; }
+
+.import-master-dialog-preview {
+  padding: 14px;
+  border: 1px solid #d8e4dc;
+  border-radius: 14px;
+  background: #f4f8f5;
+}
+
+.import-master-dialog-preview > p {
+  margin: 4px 0 0;
+  color: #60716b;
   font-size: 0.86rem;
 }
 
@@ -2848,6 +2913,10 @@ form[aria-busy="true"] { cursor: progress; }
 
   .import-master-item__actions form {
     grid-column: 1 / -1;
+  }
+
+  .import-master-example dl {
+    grid-template-columns: 1fr;
   }
 
   .import-master-form-grid {

@@ -1,6 +1,7 @@
 from io import BytesIO
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
 from django.core.files.uploadedfile import SimpleUploadedFile
@@ -23,7 +24,9 @@ from sales.models import (
     VehicleModel,
 )
 from sales.forms import LegacyImportRowCorrectionForm, LegacyImportUploadForm
+from sales.jobs import run_legacy_import_job
 from sales.services.legacy_import import (
+    INVALID_EMAIL_MESSAGE,
     PREVIEW_SCHEMA_VERSION,
     _clean_sales_source_name,
     _infer_sales_transaction_type,
@@ -34,6 +37,7 @@ from sales.services.legacy_import import (
     confirm_import,
     file_sha256,
     revalidate_import_batch,
+    retry_completed_import_row,
     save_import_master_mapping,
 )
 
@@ -194,6 +198,142 @@ class LegacyImportTests(TestCase):
         self.assertEqual(order.legacy_snapshot.historical_received_price, 70000)
         self.assertEqual(LegacySalesSnapshot.objects.count(), 1)
         self.assertEqual(VehicleInventory.objects.get().status, VehicleInventory.Status.SOLD)
+
+    def test_invalid_email_is_reported_during_preview(self):
+        workbook = load_workbook(BytesIO(workbook_bytes()))
+        workbook["銷貨"]["AZ4"] = "新北市測試路1號"
+        stream = BytesIO()
+        workbook.save(stream)
+        upload = SimpleUploadedFile("invalid-email.xlsx", stream.getvalue())
+        batch = LegacyImportBatch.objects.create(
+            import_type=LegacyImportBatch.ImportType.OPERATIONS,
+            source_file=upload,
+            original_filename="invalid-email.xlsx",
+            file_sha256=file_sha256(upload),
+            file_size=len(stream.getvalue()),
+            uploaded_by="tester",
+        )
+
+        summary = build_import_preview(batch)
+
+        sales_row = batch.rows.get(sheet_name="銷貨")
+        self.assertEqual(sales_row.action, LegacyImportRow.Action.ERROR)
+        self.assertIn(INVALID_EMAIL_MESSAGE, sales_row.messages)
+        self.assertEqual(summary["counts"]["error"], 1)
+
+    @patch("sales.views.django_rq.get_queue")
+    def test_confirm_starts_background_import_and_status_endpoint_reports_progress(self, get_queue):
+        batch = self.make_batch(LegacyImportBatch.ImportType.OPERATIONS)
+        build_import_preview(batch)
+        get_queue.return_value.enqueue.return_value.id = "job-123"
+
+        response = self.client.post(reverse("legacy_import_confirm", args=[batch.pk]))
+
+        self.assertRedirects(response, reverse("legacy_import_detail", args=[batch.pk]))
+        batch.refresh_from_db()
+        self.assertEqual(batch.status, LegacyImportBatch.Status.PROCESSING)
+        self.assertEqual(batch.processing_total, 2)
+        self.assertEqual(batch.processing_job_id, "job-123")
+        self.assertFalse(SalesOrder.objects.exists())
+        get_queue.return_value.enqueue.assert_called_once()
+
+        status_response = self.client.get(reverse("legacy_import_status", args=[batch.pk]))
+        self.assertEqual(status_response.status_code, 200)
+        self.assertEqual(status_response.json()["status"], "processing")
+        self.assertEqual(status_response.json()["percent"], 0)
+
+        run_legacy_import_job(str(batch.pk), "tester")
+        batch.refresh_from_db()
+        self.assertEqual(batch.status, LegacyImportBatch.Status.COMPLETED)
+        self.assertEqual(batch.processing_completed, 2)
+        self.assertEqual(SalesOrder.objects.count(), 1)
+
+    @patch("sales.views.django_rq.get_queue")
+    def test_duplicate_confirm_does_not_enqueue_second_job(self, get_queue):
+        batch = self.make_batch(LegacyImportBatch.ImportType.OPERATIONS)
+        build_import_preview(batch)
+        get_queue.return_value.enqueue.return_value.id = "job-123"
+
+        self.client.post(reverse("legacy_import_confirm", args=[batch.pk]))
+        self.client.post(reverse("legacy_import_confirm", args=[batch.pk]))
+
+        get_queue.return_value.enqueue.assert_called_once()
+
+    @patch("sales.views.django_rq.get_queue")
+    def test_enqueue_failure_returns_batch_to_preview(self, get_queue):
+        batch = self.make_batch(LegacyImportBatch.ImportType.OPERATIONS)
+        build_import_preview(batch)
+        get_queue.return_value.enqueue.side_effect = RuntimeError("redis unavailable")
+
+        self.client.post(reverse("legacy_import_confirm", args=[batch.pk]))
+
+        batch.refresh_from_db()
+        self.assertEqual(batch.status, LegacyImportBatch.Status.PREVIEW)
+        self.assertIn("無法啟動", batch.processing_error)
+        self.assertFalse(SalesOrder.objects.exists())
+
+    def test_failed_background_import_can_resume_without_duplicate_records(self):
+        batch = self.make_batch(LegacyImportBatch.ImportType.OPERATIONS)
+        build_import_preview(batch)
+        confirm_import(batch, "tester")
+        batch.refresh_from_db()
+        batch.status = LegacyImportBatch.Status.FAILED
+        batch.processing_error = "模擬 worker 中斷"
+        batch.save(update_fields=["status", "processing_error", "updated_at"])
+
+        result = confirm_import(batch, "tester")
+
+        self.assertEqual(result["created"], 2)
+        self.assertEqual(SalesOrder.objects.count(), 1)
+        self.assertEqual(VehicleInventory.objects.count(), 1)
+
+    def test_completed_error_row_can_be_repaired_and_imported_alone(self):
+        workbook = load_workbook(BytesIO(workbook_bytes()))
+        workbook["銷貨"]["AZ4"] = "0912345678"
+        stream = BytesIO()
+        workbook.save(stream)
+        upload = SimpleUploadedFile("repair-email.xlsx", stream.getvalue())
+        batch = LegacyImportBatch.objects.create(
+            import_type=LegacyImportBatch.ImportType.OPERATIONS,
+            source_file=upload,
+            original_filename="repair-email.xlsx",
+            file_sha256=file_sha256(upload),
+            file_size=len(stream.getvalue()),
+            uploaded_by="tester",
+        )
+        build_import_preview(batch)
+        sales_row = batch.rows.get(sheet_name="銷貨")
+        apply_import_row_decision(
+            sales_row,
+            {},
+            LegacyImportCorrection.Decision.EXCLUDE,
+            "先完成其他資料",
+            "tester",
+        )
+        confirm_import(batch, "tester")
+        sales_row.refresh_from_db()
+        sales_row.action = LegacyImportRow.Action.ERROR
+        sales_row.excluded = False
+        sales_row.messages = [INVALID_EMAIL_MESSAGE]
+        sales_row.save(update_fields=["action", "excluded", "messages", "updated_at"])
+        batch.refresh_from_db()
+        batch.result_summary = {**batch.result_summary, "excluded": 0, "errors": 1}
+        batch.save(update_fields=["result_summary", "updated_at"])
+
+        result = retry_completed_import_row(
+            sales_row,
+            {"owner_email": ""},
+            LegacyImportCorrection.Decision.CORRECT,
+            "Email 欄誤放電話，清空後補匯",
+            "tester",
+        )
+
+        self.assertTrue(result["ok"])
+        sales_row.refresh_from_db()
+        batch.refresh_from_db()
+        self.assertEqual(sales_row.committed_model, "SalesOrder")
+        self.assertEqual(SalesOrder.objects.count(), 1)
+        self.assertEqual(batch.result_summary["errors"], 0)
 
     def test_explicit_used_vehicle_signals_do_not_match_trade_in_wording(self):
         self.assertEqual(

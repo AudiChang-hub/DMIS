@@ -112,6 +112,10 @@ RQ_QUEUES = {
         "URL": REDIS_URL or "redis://localhost:6379/0",
         "DEFAULT_TIMEOUT": 90,
     },
+    "imports": {
+        "URL": REDIS_URL or "redis://localhost:6379/0",
+        "DEFAULT_TIMEOUT": 3600,
+    },
 }
 CHANNEL_LAYERS = {
     "default": (

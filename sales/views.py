@@ -120,7 +120,7 @@ from .models import (
     normalize_legacy_master_value,
     normalize_vehicle_identifier,
 )
-from .jobs import delete_id_ocr_job_files, run_id_ocr_job
+from .jobs import delete_id_ocr_job_files, run_id_ocr_job, run_legacy_import_job
 from .services.id_ocr import recognize_id_card
 from .services.order_change_display import build_order_change_cards
 from .services.order_next_actions import build_order_next_actions
@@ -156,9 +156,9 @@ from .services.legacy_import import (
     apply_import_row_decision,
     build_import_master_workspace,
     build_import_preview,
-    confirm_import,
     file_sha256,
     revalidate_import_batch,
+    retry_completed_import_row,
     save_import_master_mapping,
 )
 from .services.positioned_template_pdf import build_positioned_template_pdf
@@ -219,7 +219,11 @@ def system_diagnostics(request):
     queue_details = []
     if settings.REDIS_URL:
         try:
-            for queue_name, label in (("ocr", "證件辨識"), ("search", "搜尋索引")):
+            for queue_name, label in (
+                ("ocr", "證件辨識"),
+                ("search", "搜尋索引"),
+                ("imports", "歷史資料匯入"),
+            ):
                 queue = django_rq.get_queue(queue_name)
                 queue.connection.ping()
                 queue_details.append(
@@ -231,7 +235,7 @@ def system_diagnostics(request):
                 )
             waiting_total = sum(item["waiting"] for item in queue_details)
             worker_total = sum(item["workers"] for item in queue_details)
-            tone = "success" if worker_total >= 2 else "warning"
+            tone = "success" if worker_total >= 3 else "warning"
             summary = f"{worker_total} 個背景工作執行中，{waiting_total} 件等待處理"
             checks.append(
                 {"key": "workers", "label": "背景工作", "tone": tone, "summary": summary}
@@ -1004,9 +1008,16 @@ def legacy_import_detail(request, pk):
     editing_row = None
     correction_form = None
     editing_id = request.GET.get("edit", "")
-    if editing_id and batch.status == LegacyImportBatch.Status.PREVIEW:
-        editing_row = get_object_or_404(batch.rows.prefetch_related("corrections"), pk=editing_id)
-        correction_form = LegacyImportRowCorrectionForm(row=editing_row)
+    if editing_id:
+        candidate = get_object_or_404(batch.rows.prefetch_related("corrections"), pk=editing_id)
+        can_edit_candidate = batch.status == LegacyImportBatch.Status.PREVIEW or (
+            batch.status == LegacyImportBatch.Status.COMPLETED
+            and candidate.action == LegacyImportRow.Action.ERROR
+            and not candidate.committed_model
+        )
+        if can_edit_candidate:
+            editing_row = candidate
+            correction_form = LegacyImportRowCorrectionForm(row=editing_row)
     conflict_groups = []
     if action == LegacyImportRow.Action.CONFLICT:
         grouped = {}
@@ -1022,7 +1033,9 @@ def legacy_import_detail(request, pk):
             {"sheet_name": key[0], "comparison_key": key[1], "rows": group_rows}
             for key, group_rows in grouped.items()
         ]
-    counts = (batch.preview_summary or {}).get("counts", {})
+    counts = {value: 0 for value, _label in LegacyImportRow.Action.choices}
+    for item in batch.rows.values("action").annotate(total=Count("id")):
+        counts[item["action"]] = item["total"]
     unresolved_count = counts.get("conflict", 0) + counts.get("error", 0)
     action_labels = dict(LegacyImportRow.Action.choices)
     master_workspace = {"models": [], "sources": [], "total": 0}
@@ -1044,6 +1057,16 @@ def legacy_import_detail(request, pk):
             "counts": counts,
             "unresolved_count": unresolved_count,
             "can_confirm": batch.status == LegacyImportBatch.Status.PREVIEW and unresolved_count == 0,
+            "can_resume": (
+                batch.status == LegacyImportBatch.Status.FAILED
+                and batch.processing_started_at is not None
+                and unresolved_count == 0
+            ),
+            "processing_percent": (
+                min(100, int(batch.processing_completed * 100 / batch.processing_total))
+                if batch.processing_total
+                else 0
+            ),
             "conflict_groups": conflict_groups,
             "editing_row": editing_row,
             "correction_form": correction_form,
@@ -1177,7 +1200,9 @@ def legacy_import_row_decide(request, pk, row_pk):
     if not form.is_valid():
         rows = batch.rows.filter(action=row.action)
         page = Paginator(rows, 100).get_page(1)
-        counts = (batch.preview_summary or {}).get("counts", {})
+        counts = {value: 0 for value, _label in LegacyImportRow.Action.choices}
+        for item in batch.rows.values("action").annotate(total=Count("id")):
+            counts[item["action"]] = item["total"]
         return render(
             request,
             "sales/legacy_import_detail.html",
@@ -1186,16 +1211,43 @@ def legacy_import_row_decide(request, pk, row_pk):
                 "rows": page.object_list,
                 "page_obj": page,
                 "selected_action": row.action,
+                "selected_action_label": row.get_action_display(),
+                "search_query": "",
                 "counts": counts,
                 "unresolved_count": counts.get("conflict", 0) + counts.get("error", 0),
                 "can_confirm": False,
                 "conflict_groups": [],
                 "editing_row": row,
                 "correction_form": form,
+                "master_workspace": {"models": [], "sources": [], "total": 0},
+                "vehicle_model_link_form": LegacyVehicleModelLinkForm(prefix="model-link"),
+                "sales_source_link_form": LegacySalesSourceLinkForm(prefix="source-link"),
+                "vehicle_model_quick_form": LegacyVehicleModelQuickCreateForm(prefix="model-create"),
+                "sales_source_quick_form": LegacySalesSourceQuickCreateForm(prefix="source-create"),
             },
             status=400,
         )
     try:
+        if batch.status == LegacyImportBatch.Status.COMPLETED:
+            retry_result = retry_completed_import_row(
+                row,
+                form.cleaned_mapping(),
+                form.cleaned_data["decision"],
+                form.cleaned_data["reason"],
+                _editing_name(request.user),
+            )
+            if not retry_result["ok"]:
+                messages.error(request, f"仍無法匯入 Excel 第 {row.source_row} 列：{retry_result['error']}")
+                return redirect(
+                    f"{reverse('legacy_import_detail', args=[batch.pk])}?action=error&edit={row.pk}#row-editor"
+                )
+            if retry_result["excluded"]:
+                messages.success(request, f"已排除 Excel 第 {row.source_row} 列，不影響其他已匯入資料。")
+            else:
+                messages.success(request, f"已修正並補匯 Excel 第 {row.source_row} 列。")
+            if batch.rows.filter(action=LegacyImportRow.Action.ERROR).exists():
+                return redirect(f"{reverse('legacy_import_detail', args=[batch.pk])}?action=error#row-preview")
+            return redirect("legacy_import_detail", pk=batch.pk)
         summary = apply_import_row_decision(
             row,
             form.cleaned_mapping(),
@@ -1222,7 +1274,10 @@ def legacy_import_row_decide(request, pk, row_pk):
 @transaction.atomic
 def legacy_import_delete(request, pk):
     batch = get_object_or_404(LegacyImportBatch.objects.select_for_update(), pk=pk)
-    if batch.status == LegacyImportBatch.Status.COMPLETED:
+    if batch.status in {LegacyImportBatch.Status.PROCESSING, LegacyImportBatch.Status.COMPLETED}:
+        if batch.status == LegacyImportBatch.Status.PROCESSING:
+            messages.error(request, "背景匯入正在執行，為避免資料不完整，目前不能刪除此批次。")
+            return redirect("legacy_import_detail", pk=batch.pk)
         messages.error(request, "已完成匯入的批次不能直接刪除，避免破壞正式訂單與庫存。")
         return redirect("legacy_import_detail", pk=batch.pk)
     filename = batch.original_filename
@@ -1261,21 +1316,100 @@ def legacy_import_restore(request, pk):
 
 
 @login_required
-@transaction.atomic
+@require_http_methods(["POST"])
 def legacy_import_confirm(request, pk):
-    if request.method != "POST":
-        return redirect("legacy_import_detail", pk=pk)
-    batch = get_object_or_404(LegacyImportBatch.objects.select_for_update(), pk=pk)
-    try:
-        result = confirm_import(batch, _editing_name(request.user))
-    except ValueError as exc:
-        messages.error(request, str(exc))
-    else:
-        messages.success(
-            request,
-            f"匯入完成：新增 {result['created']}、更新 {result['updated']}、略過 {result['skipped']}、人工排除 {result['excluded']}。",
+    actor_name = _editing_name(request.user)
+    previous_status = None
+    with transaction.atomic():
+        batch = get_object_or_404(LegacyImportBatch.objects.select_for_update(), pk=pk)
+        if batch.status == LegacyImportBatch.Status.PROCESSING:
+            messages.info(request, "這個批次已在背景匯入，不需要重複送出。")
+            return redirect("legacy_import_detail", pk=pk)
+        if batch.status not in {LegacyImportBatch.Status.PREVIEW, LegacyImportBatch.Status.FAILED}:
+            messages.error(request, "這個批次已完成，不能重複匯入。")
+            return redirect("legacy_import_detail", pk=pk)
+        if batch.status == LegacyImportBatch.Status.FAILED and not batch.processing_started_at:
+            messages.error(request, "這是檔案解析錯誤，請修正 Excel 後重新上傳。")
+            return redirect("legacy_import_detail", pk=pk)
+        unresolved = batch.rows.filter(
+            action__in=[LegacyImportRow.Action.CONFLICT, LegacyImportRow.Action.ERROR]
+        ).count()
+        if unresolved:
+            messages.error(request, f"尚有 {unresolved} 筆衝突或錯誤資料，請先修正或排除。")
+            return redirect("legacy_import_detail", pk=pk)
+        previous_status = batch.status
+        total = batch.rows.count()
+        batch.status = LegacyImportBatch.Status.PROCESSING
+        batch.processing_started_at = timezone.now()
+        batch.processing_finished_at = None
+        batch.processing_heartbeat_at = timezone.now()
+        batch.processing_error = ""
+        batch.processing_total = total
+        batch.processing_completed = 0
+        batch.processing_job_id = ""
+        batch.save(
+            update_fields=[
+                "status",
+                "processing_started_at",
+                "processing_finished_at",
+                "processing_heartbeat_at",
+                "processing_error",
+                "processing_total",
+                "processing_completed",
+                "processing_job_id",
+                "updated_at",
+            ]
         )
+    job_id = f"legacy-import-{batch.pk}-{uuid.uuid4().hex[:12]}"
+    try:
+        queue = django_rq.get_queue("imports")
+        job = queue.enqueue(
+            run_legacy_import_job,
+            str(batch.pk),
+            actor_name,
+            job_timeout=3600,
+            job_id=job_id,
+        )
+    except Exception:
+        logger.exception("無法排入歷史資料背景匯入", extra={"batch_id": str(batch.pk)})
+        LegacyImportBatch.objects.filter(
+            pk=batch.pk,
+            status=LegacyImportBatch.Status.PROCESSING,
+            processing_job_id="",
+        ).update(
+            status=previous_status,
+            processing_error="無法啟動背景匯入，請稍後再試。",
+            processing_finished_at=timezone.now(),
+            updated_at=timezone.now(),
+        )
+        messages.error(request, "無法啟動背景匯入，資料尚未寫入，請稍後再試。")
+    else:
+        LegacyImportBatch.objects.filter(pk=batch.pk).update(
+            processing_job_id=getattr(job, "id", job_id) or job_id,
+            updated_at=timezone.now(),
+        )
+        messages.success(request, "已開始背景匯入。你可以留在此頁查看進度，也可以先處理其他工作。")
     return redirect("legacy_import_detail", pk=pk)
+
+
+@login_required
+def legacy_import_status(request, pk):
+    batch = get_object_or_404(LegacyImportBatch, pk=pk)
+    total = batch.processing_total
+    completed = min(batch.processing_completed, total) if total else batch.processing_completed
+    percent = min(100, int(completed * 100 / total)) if total else 0
+    return JsonResponse(
+        {
+            "status": batch.status,
+            "status_label": batch.get_status_display(),
+            "total": total,
+            "completed": completed,
+            "percent": percent,
+            "result": batch.result_summary or {},
+            "error": batch.processing_error,
+            "finished": batch.status in {LegacyImportBatch.Status.COMPLETED, LegacyImportBatch.Status.FAILED},
+        }
+    )
 
 
 @login_required

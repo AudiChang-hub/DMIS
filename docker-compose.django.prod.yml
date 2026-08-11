@@ -24,6 +24,14 @@ services:
         required: true
     logging: *production_logging
 
+  import-worker:
+    env_file:
+      - path: .env.django
+        required: true
+    mem_limit: 384m
+    cpus: 0.50
+    logging: *production_logging
+
   db:
     env_file:
       - path: .env.django

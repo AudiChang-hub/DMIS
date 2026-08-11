@@ -52,10 +52,10 @@ log "更新程式：${local_sha:0:12} -> ${remote_sha:0:12}"
 git merge --ff-only "origin/$DEPLOY_BRANCH"
 
 log "重建 Django web 與背景工作 image"
-"${compose[@]}" build web ocr-worker search-worker
+"${compose[@]}" build web ocr-worker search-worker import-worker
 
 log "只重啟 DMIS 應用服務；資料庫與 Redis 保持運作"
-"${compose[@]}" up -d --no-deps web ocr-worker search-worker
+"${compose[@]}" up -d --no-deps web ocr-worker search-worker import-worker
 
 web_id=$("${compose[@]}" ps -q web)
 [[ -n "$web_id" ]] || fail "找不到 web container"

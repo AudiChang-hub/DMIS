@@ -1,6 +1,8 @@
 from decimal import Decimal
 import re
 from django import forms
+from django.core.exceptions import ValidationError
+from django.core.validators import validate_email
 from django.db import transaction
 from django.db.models import Q
 from django.forms import BaseFormSet, formset_factory, inlineformset_factory
@@ -752,7 +754,7 @@ class LegacyImportRowCorrectionForm(forms.Form):
         ("owner_id_number", "身分證字號", "text", False),
         ("owner_address", "戶籍地址", "textarea", False),
         ("owner_phone", "手機", "text", False),
-        ("owner_email", "Email", "text", False),
+        ("owner_email", "Email", "email", False),
         ("invoice_date", "發票日期", "date", False),
         ("balance_invoice_number", "尾款發票號碼", "text", False),
         ("subsidy_type", "補助方案", "text", False),
@@ -845,6 +847,11 @@ class LegacyImportRowCorrectionForm(forms.Form):
                 )
             elif kind == "textarea":
                 field = forms.CharField(label=display_label, required=False, widget=forms.Textarea(attrs={"rows": 2}))
+            elif kind == "email":
+                field = forms.CharField(
+                    label=display_label,
+                    required=False,
+                )
             else:
                 field = forms.CharField(label=display_label, required=False)
             if required:
@@ -860,6 +867,12 @@ class LegacyImportRowCorrectionForm(forms.Form):
             for key in self.required_when_correcting:
                 if cleaned.get(key) in (None, ""):
                     self.add_error(key, "選擇修正後匯入時，此欄位必須填寫。")
+            owner_email = cleaned.get("owner_email")
+            if owner_email:
+                try:
+                    validate_email(owner_email)
+                except ValidationError:
+                    self.add_error("owner_email", "請輸入有效的 Email，或將錯放的電話／地址清空。")
         return cleaned
 
     def cleaned_mapping(self):

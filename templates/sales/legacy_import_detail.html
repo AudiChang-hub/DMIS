@@ -20,8 +20,12 @@
       {% endif %}
       <form method="post" action="{% url 'legacy_import_delete' batch.pk %}" onsubmit="return confirm('確定刪除此匯入批次？上傳檔與所有暫存修正會一併刪除。');">{% csrf_token %}<button class="button danger-outline" type="submit">刪除此批次</button></form>
     {% elif batch.status == 'completed' %}
+      {% if counts.error %}<a class="button primary" href="?action=error#row-preview">修正 {{ counts.error }} 筆失敗資料</a>{% endif %}
       {% if batch.archived_at %}<form method="post" action="{% url 'legacy_import_restore' batch.pk %}">{% csrf_token %}<button class="button ghost" type="submit">恢復顯示</button></form>{% else %}<form method="post" action="{% url 'legacy_import_archive' batch.pk %}">{% csrf_token %}<button class="button ghost" type="submit">封存此紀錄</button></form>{% endif %}
+    {% elif batch.status == 'processing' %}
+      <span class="status-pill">背景匯入中，可先離開此頁</span>
     {% else %}
+      {% if can_resume %}<form method="post" action="{% url 'legacy_import_confirm' batch.pk %}">{% csrf_token %}<button class="button primary" type="submit">繼續背景匯入</button></form>{% endif %}
       <form method="post" action="{% url 'legacy_import_delete' batch.pk %}" onsubmit="return confirm('確定刪除這個處理失敗的匯入批次？');">{% csrf_token %}<button class="button danger-outline" type="submit">刪除此批次</button></form>
     {% endif %}
   </div>
@@ -29,12 +33,23 @@
 
 <ol class="import-steps import-detail-steps" aria-label="匯入流程">
   <li class="complete"><span>✓</span><strong>檔案已上傳</strong><small>原始檔完整保留</small></li>
-  <li class="{% if batch.status == 'preview' %}active{% else %}complete{% endif %}"><span>2</span><strong>檢查與修正</strong><small>{% if unresolved_count %}尚有 {{ unresolved_count }} 筆待處理{% else %}問題已處理完成{% endif %}</small></li>
-  <li class="{% if batch.status == 'completed' %}complete{% endif %}"><span>{% if batch.status == 'completed' %}✓{% else %}3{% endif %}</span><strong>確認匯入</strong><small>{% if batch.status == 'completed' %}{{ batch.confirmed_at|date:'Y/m/d H:i' }}{% else %}尚未寫入正式資料{% endif %}</small></li>
+  <li class="{% if batch.status == 'preview' %}active{% else %}complete{% endif %}"><span>{% if batch.status == 'preview' %}2{% else %}✓{% endif %}</span><strong>檢查與修正</strong><small>{% if unresolved_count %}尚有 {{ unresolved_count }} 筆待處理{% else %}問題已處理完成{% endif %}</small></li>
+  <li class="{% if batch.status == 'processing' %}active{% elif batch.status == 'completed' %}complete{% endif %}"><span>{% if batch.status == 'completed' %}✓{% else %}3{% endif %}</span><strong>確認匯入</strong><small>{% if batch.status == 'processing' %}背景處理中{% elif batch.status == 'completed' %}{{ batch.confirmed_at|date:'Y/m/d H:i' }}{% else %}尚未寫入正式資料{% endif %}</small></li>
 </ol>
 
-{% if batch.status == 'failed' %}
-  <section class="note-box warning"><strong>檔案解析失敗</strong><p>{{ batch.result_summary.error }}</p><p>請修正 Excel 後重新上傳，或刪除此批次。</p></section>
+{% if batch.status == 'processing' %}
+  <section class="import-progress-card" data-import-progress-url="{% url 'legacy_import_status' batch.pk %}">
+    <div class="import-progress-card__heading">
+      <div><p class="eyebrow">背景處理中</p><h2>正在把資料寫入正式系統</h2><p>你可以離開這個畫面，匯入不會中斷；回來後仍可查看最新進度。</p></div>
+      <strong data-import-progress-percent>{{ processing_percent }}%</strong>
+    </div>
+    <div class="import-progress-track" role="progressbar" aria-label="歷史資料匯入進度" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ processing_percent }}">
+      <span data-import-progress-bar style="width: {{ processing_percent }}%"></span>
+    </div>
+    <p class="muted" data-import-progress-text>已處理 {{ batch.processing_completed }}／{{ batch.processing_total }} 筆，完成後畫面會自動更新。</p>
+  </section>
+{% elif batch.status == 'failed' %}
+  <section class="note-box warning"><strong>{% if can_resume %}背景匯入暫時中止{% else %}檔案解析失敗{% endif %}</strong><p>{{ batch.processing_error|default:batch.result_summary.error }}</p><p>{% if can_resume %}已成功寫入的資料會保留；按「繼續背景匯入」只會接續尚未完成的資料。{% else %}請修正 Excel 後重新上傳，或刪除此批次。{% endif %}</p></section>
 {% else %}
 <section class="import-overview" aria-label="資料處理摘要">
   <div class="import-overview__heading">
@@ -239,7 +254,7 @@
       {% for field in correction_form %}{% if field.name != 'decision' and field.name != 'reason' %}{% include "sales/_field.html" with field=field %}{% endif %}{% endfor %}
     </div>
     {% include "sales/_field.html" with field=correction_form.reason %}
-    <div class="form-actions"><button class="button primary" type="submit">儲存並重新驗證</button><a class="button ghost" href="?action={{ selected_action }}#issue-review">取消</a></div>
+    <div class="form-actions"><button class="button primary" type="submit">{% if batch.status == 'completed' %}修正並補匯此列{% else %}儲存並重新驗證{% endif %}</button><a class="button ghost" href="?action={{ selected_action }}#issue-review">取消</a></div>
   </form>
   {% if editing_row.corrections.exists %}<details class="import-correction-history"><summary>查看人工處理紀錄（{{ editing_row.corrections.count }} 筆）</summary>{% for correction in editing_row.corrections.all %}<p><strong>{{ correction.get_decision_display }}</strong> · {{ correction.corrected_by }} · {{ correction.created_at|date:'Y/m/d H:i' }}<br>{{ correction.reason }}</p>{% endfor %}</details>{% endif %}
 </section>
@@ -266,7 +281,7 @@
         <td data-label="處理方式"><span class="status-pill {% if row.action == 'error' %}warning{% endif %}">{{ row.get_action_display }}</span></td>
         <td data-label="主要內容">{% if row.sheet_name == '銷貨' %}<strong>{{ row.mapped_data.owner_name|default:'未填車主' }}</strong><small>{{ row.mapped_data.model_number }} · {% if row.mapped_data.transaction_type == 'test_ride' %}試乘車{% elif row.mapped_data.transaction_type == 'prize' %}中獎車{% elif row.mapped_data.transaction_type == 'registered' %}領牌車{% elif row.mapped_data.transaction_type == 'used' %}中古車交易{% elif row.mapped_data.transaction_type == 'other' %}其他{% else %}一般新車{% endif %}{% if row.mapped_data.dealer_name %} · {{ row.mapped_data.dealer_name }}{% endif %}</small>{% elif row.sheet_name == '進貨' %}<strong>{{ row.mapped_data.model_number|default:'未填車型' }}</strong><small>{{ row.mapped_data.identifier_raw }}</small>{% else %}<strong>{{ row.mapped_data.name }}</strong><small>{{ row.mapped_data.contact_name }}</small>{% endif %}</td>
         <td data-label="檢核結果">{% for message in row.messages %}<span class="import-row-message">{{ message }}</span>{% empty %}<span class="muted">檢核通過</span>{% endfor %}</td>
-        <td data-label="操作">{% if batch.status == 'preview' %}<a class="button ghost small" href="?action={{ selected_action }}&q={{ search_query|urlencode }}&page={{ page_obj.number }}&edit={{ row.pk }}#row-editor">修正／排除</a>{% endif %}</td>
+        <td data-label="操作">{% if batch.status == 'preview' or batch.status == 'completed' and row.action == 'error' %}<a class="button ghost small" href="?action={{ selected_action }}&q={{ search_query|urlencode }}&page={{ page_obj.number }}&edit={{ row.pk }}#row-editor">{% if batch.status == 'completed' %}修正並補匯{% else %}修正／排除{% endif %}</a>{% endif %}</td>
       </tr>
       {% empty %}<tr><td colspan="6" class="empty-table-message">沒有符合此篩選條件的資料</td></tr>{% endfor %}
       </tbody>

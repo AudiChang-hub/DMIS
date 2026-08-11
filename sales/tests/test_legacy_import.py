@@ -305,9 +305,9 @@ class LegacyImportTests(TestCase):
         row = batch.rows.get(sheet_name="銷貨")
         mapped_data = dict(row.mapped_data)
         mapped_data["dealer_name"] = "試乘車"
-        mapped_data.pop("dealer_name_raw", None)
-        mapped_data.pop("transaction_type", None)
-        mapped_data.pop("transaction_type_reason", None)
+        mapped_data["dealer_name_raw"] = "試乘車"
+        mapped_data["transaction_type"] = SalesOrder.TransactionType.REGULAR_NEW
+        mapped_data["transaction_type_reason"] = "舊版預設值"
         row.mapped_data = mapped_data
         row.save(update_fields=["mapped_data", "updated_at"])
         batch.preview_summary = {

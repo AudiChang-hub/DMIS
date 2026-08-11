@@ -98,12 +98,16 @@
     <div class="import-master-items">
       {% for item in master_workspace.models %}
       <article class="import-master-item">
-        <div class="import-master-item__content"><strong>{{ item.source_value }}</strong><span>Excel 出現 {{ item.row_count }} 筆{% if item.colors %} · 顏色：{{ item.colors_text }}{% endif %}</span></div>
+        <div class="import-master-item__body">
+          <div class="import-master-item__content"><strong>{{ item.source_value }}</strong><span>Excel 出現 {{ item.row_count }} 筆{% if item.colors %} · 顏色：{{ item.colors_text }}{% endif %}</span></div>
+          {% if item.examples %}<details class="import-master-examples"><summary>查看車牌、車色與識別號碼</summary>{% include "sales/_legacy_model_examples.html" with examples=item.examples %}</details>{% endif %}
+        </div>
         <div class="import-master-item__actions">
-          <button class="button ghost small" type="button" data-master-dialog="vehicle-model-link-dialog" data-source-value="{{ item.source_value }}">對應既有</button>
-          <button class="button secondary small" type="button" data-master-dialog="vehicle-model-create-dialog" data-source-value="{{ item.source_value }}" data-colors="{{ item.colors_text }}">快速新增</button>
+          <button class="button ghost small" type="button" data-master-dialog="vehicle-model-link-dialog" data-source-value="{{ item.source_value }}" data-master-preview-id="vehicle-model-preview-{{ forloop.counter }}">對應既有</button>
+          <button class="button secondary small" type="button" data-master-dialog="vehicle-model-create-dialog" data-source-value="{{ item.source_value }}" data-colors="{{ item.colors_text }}" data-master-preview-id="vehicle-model-preview-{{ forloop.counter }}">快速新增</button>
           <form method="post" action="{% url 'legacy_import_master_resolve' batch.pk 'vehicle_model' %}" onsubmit="return confirm('確定保留「{{ item.source_value|escapejs }}」為歷史文字，不建立正式車型主檔？');">{% csrf_token %}<input type="hidden" name="source_value" value="{{ item.source_value }}"><input type="hidden" name="resolution_action" value="ignore"><button class="button text small" type="submit">保留文字</button></form>
         </div>
+        <template id="vehicle-model-preview-{{ forloop.counter }}"><section class="import-master-dialog-preview"><strong>Excel 相關資料</strong><p>請先用車牌、車色與引擎／車身號碼確認，再選擇正式車型。</p>{% include "sales/_legacy_model_examples.html" with examples=item.examples %}</section></template>
       </article>
       {% endfor %}
     </div>
@@ -132,6 +136,7 @@
     <form method="post" action="{% url 'legacy_import_master_resolve' batch.pk 'vehicle_model' %}">{% csrf_token %}<input type="hidden" name="source_value" data-master-source-input><input type="hidden" name="resolution_action" value="link">
       <header><div><span>對應既有車型</span><h3 data-master-source-label></h3></div><button type="button" aria-label="關閉" data-close-dialog>×</button></header>
       <p>選擇正確車型後，這個 Excel 名稱往後都會自動套用相同對應。</p>
+      <div data-master-preview-target></div>
       {% include "sales/_field.html" with field=vehicle_model_link_form.vehicle_model %}
       <div class="form-actions"><button class="button primary" type="submit">儲存對應</button><button class="button ghost" type="button" data-close-dialog>取消</button></div>
     </form>
@@ -141,6 +146,7 @@
     <form method="post" action="{% url 'legacy_import_master_resolve' batch.pk 'vehicle_model' %}">{% csrf_token %}<input type="hidden" name="source_value" data-master-source-input><input type="hidden" name="resolution_action" value="create">
       <header><div><span>快速建立車型</span><h3 data-master-source-label></h3></div><button type="button" aria-label="關閉" data-close-dialog>×</button></header>
       <p>先建立匯入必要資訊；售價、成本與獎勵規則可稍後到車型資料補充。</p>
+      <div data-master-preview-target></div>
       <div class="import-master-form-grid">
         {% include "sales/_field.html" with field=vehicle_model_quick_form.brand %}
         {% include "sales/_field.html" with field=vehicle_model_quick_form.energy_type %}

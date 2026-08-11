@@ -1,0 +1,16 @@
+<div class="import-master-example-list">
+  {% for example in examples %}
+  <div class="import-master-example">
+    <div class="import-master-example__heading"><strong>{{ example.context_label }}</strong><span>{{ example.sheet_name }}第 {{ example.source_row }} 列</span></div>
+    <dl>
+      <div><dt>車色</dt><dd>{{ example.color|default:"未記錄" }}</dd></div>
+      <div><dt>引擎／車身號碼</dt><dd>{{ example.identifier|default:"未填" }}</dd></div>
+      {% if example.plate_number %}<div><dt>車牌</dt><dd>{{ example.plate_number }}</dd></div>{% endif %}
+      {% if example.owner_name %}<div><dt>車主</dt><dd>{{ example.owner_name }}</dd></div>{% endif %}
+      {% if example.registration_date %}<div><dt>領牌日期</dt><dd>{{ example.registration_date }}</dd></div>{% endif %}
+      {% if example.received_on %}<div><dt>進貨日期</dt><dd>{{ example.received_on }}</dd></div>{% endif %}
+      {% if example.manufactured_year_month %}<div><dt>出廠年月</dt><dd>{{ example.manufactured_year_month }}</dd></div>{% endif %}
+    </dl>
+  </div>
+  {% endfor %}
+</div>

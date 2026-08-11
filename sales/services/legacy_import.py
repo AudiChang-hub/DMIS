@@ -106,21 +106,62 @@ def build_import_master_workspace(batch):
         normalize_legacy_master_value(value): value for value in unmapped_sources
     }
     model_stats = {
-        key: {"source_value": value, "row_count": 0, "colors": set()}
+        key: {
+            "source_value": value,
+            "row_count": 0,
+            "colors": set(),
+            "sales_examples": [],
+            "inventory_examples": [],
+        }
         for key, value in wanted_model_keys.items()
     }
     source_stats = {
         key: {"source_value": value, "row_count": 0}
         for key, value in wanted_source_keys.items()
     }
-    rows = batch.rows.filter(excluded=False).values_list("sheet_name", "mapped_data")
-    for sheet_name, data in rows.iterator(chunk_size=500):
+    rows = batch.rows.filter(excluded=False).values_list(
+        "sheet_name", "source_row", "mapped_data"
+    )
+    for sheet_name, source_row, data in rows.iterator(chunk_size=500):
         model_key = normalize_legacy_master_value(data.get("model_number"))
         if model_key in model_stats:
-            model_stats[model_key]["row_count"] += 1
+            model_stat = model_stats[model_key]
+            model_stat["row_count"] += 1
             color = str(data.get("color") or "").strip()
             if color:
-                model_stats[model_key]["colors"].add(color)
+                model_stat["colors"].add(color)
+            example_bucket = (
+                model_stat["sales_examples"]
+                if sheet_name == "銷貨"
+                else model_stat["inventory_examples"]
+            )
+            if len(example_bucket) < 5:
+                example_bucket.append(
+                    {
+                        "sheet_name": sheet_name,
+                        "source_row": source_row,
+                        "context_label": (
+                            "中古車銷售"
+                            if data.get("vehicle_category")
+                            == SalesOrder.VehicleCategory.USED
+                            else "新車銷售"
+                            if sheet_name == "銷貨"
+                            else "庫存進貨"
+                        ),
+                        "color": color or "未記錄",
+                        "identifier": str(
+                            data.get("identifier_raw")
+                            or data.get("identifier")
+                            or ""
+                        ).strip(),
+                        "plate_number": str(data.get("plate_number") or "").strip(),
+                        "owner_name": str(data.get("owner_name") or "").strip(),
+                        "registration_date": data.get("registration_date") or "",
+                        "received_on": data.get("received_on") or "",
+                        "manufactured_year_month": data.get("manufactured_year_month")
+                        or "",
+                    }
+                )
         if sheet_name == "銷貨":
             source_key = normalize_legacy_master_value(data.get("dealer_name"))
             if source_key in source_stats:
@@ -129,6 +170,9 @@ def build_import_master_workspace(batch):
     for value in model_stats.values():
         value["colors"] = sorted(value["colors"])
         value["colors_text"] = "、".join(value["colors"])
+        value["examples"] = (
+            value.pop("sales_examples") + value.pop("inventory_examples")
+        )[:5]
         model_items.append(value)
     model_items = sorted(
         model_items, key=lambda item: item["source_value"].casefold()

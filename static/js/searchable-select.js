@@ -68,13 +68,25 @@
       return [...select.options].find(option => option.value === select.value);
     }
 
+    function selectedLabel() {
+      const option = selectedOption();
+      return option?.value ? option.textContent.trim() : "";
+    }
+
+    function normalizeSearch(value) {
+      return String(value || "")
+        .normalize("NFKC")
+        .toLocaleLowerCase("zh-Hant")
+        .replace(/[\s/／_\-–—]+/g, "");
+    }
+
     function closeList({restore = false} = {}) {
       list.hidden = true;
       wrapper.classList.remove("is-open");
       input.setAttribute("aria-expanded", "false");
       input.removeAttribute("aria-activedescendant");
       activeIndex = -1;
-      if (restore) input.value = selectedOption()?.textContent.trim() || "";
+      if (restore) input.value = selectedLabel();
     }
 
     function choose(option) {
@@ -88,10 +100,10 @@
     }
 
     function renderOptions(query = "") {
-      const needle = query.trim().toLocaleLowerCase("zh-Hant");
+      const needle = normalizeSearch(query);
       const recents = recentValues();
       const options = availableOptions()
-        .filter(option => !needle || option.textContent.toLocaleLowerCase("zh-Hant").includes(needle))
+        .filter(option => !needle || normalizeSearch(option.textContent).includes(needle))
         .sort((left, right) => {
           const leftIndex = recents.indexOf(left.value);
           const rightIndex = recents.indexOf(right.value);
@@ -126,9 +138,9 @@
       });
     }
 
-    function openList() {
+    function openList(query = "") {
       if (select.disabled) return;
-      renderOptions(input.matches(":focus") ? input.value : "");
+      renderOptions(query);
       list.hidden = false;
       wrapper.classList.add("is-open");
       input.setAttribute("aria-expanded", "true");
@@ -138,7 +150,7 @@
       input.disabled = select.disabled;
       wrapper.classList.toggle("is-disabled", select.disabled);
       if (!wrapper.classList.contains("is-open")) {
-        input.value = selectedOption()?.textContent.trim() || "";
+        input.value = selectedLabel();
       }
     }
 
@@ -152,11 +164,15 @@
       active.scrollIntoView({block: "nearest"});
     }
 
-    input.addEventListener("focus", openList);
-    input.addEventListener("click", openList);
-    input.addEventListener("input", () => {
+    input.addEventListener("focus", () => {
       openList();
-      renderOptions(input.value);
+      if (selectedOption()?.value) input.select();
+    });
+    input.addEventListener("click", () => {
+      if (list.hidden) openList(input.value);
+    });
+    input.addEventListener("input", () => {
+      openList(input.value);
     });
     input.addEventListener("keydown", event => {
       if (event.key === "ArrowDown" || event.key === "ArrowUp") {

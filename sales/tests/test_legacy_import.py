@@ -506,9 +506,18 @@ class LegacyImportTests(TestCase):
         self.assertEqual(workspace["models"][0]["source_value"], "TEST125")
         self.assertEqual(workspace["models"][0]["row_count"], 2)
         self.assertEqual(workspace["models"][0]["colors"], ["白"])
+        self.assertEqual(len(workspace["models"][0]["examples"]), 2)
+        sales_example = workspace["models"][0]["examples"][0]
+        self.assertEqual(sales_example["context_label"], "新車銷售")
+        self.assertEqual(sales_example["identifier"], "ab-123")
+        self.assertEqual(sales_example["plate_number"], "ABC-1234")
+        self.assertEqual(sales_example["owner_name"], "正式車主")
         response = self.client.get(reverse("legacy_import_detail", args=[batch.pk]))
         self.assertContains(response, "待補主檔工作台")
         self.assertContains(response, "Excel 出現 2 筆")
+        self.assertContains(response, "查看車牌、車色與識別號碼")
+        self.assertContains(response, "引擎／車身號碼")
+        self.assertContains(response, "ABC-1234")
 
     def test_preview_batch_can_be_deleted_with_uploaded_file(self):
         batch = self.make_batch(LegacyImportBatch.ImportType.CHANNELS)

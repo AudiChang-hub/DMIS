@@ -157,6 +157,7 @@ from .services.legacy_import import (
     build_import_master_workspace,
     build_import_preview,
     file_sha256,
+    friendly_import_message,
     revalidate_import_batch,
     retry_completed_import_row,
     save_import_master_mapping,
@@ -1005,6 +1006,10 @@ def legacy_import_detail(request, pk):
         rows = rows.filter(search_filter)
     filtered_rows = rows
     page = Paginator(rows, 100).get_page(request.GET.get("page"))
+    for preview_row in page.object_list:
+        preview_row.display_messages = [
+            friendly_import_message(message) for message in preview_row.messages
+        ]
     editing_row = None
     correction_form = None
     editing_id = request.GET.get("edit", "")
@@ -1200,6 +1205,10 @@ def legacy_import_row_decide(request, pk, row_pk):
     if not form.is_valid():
         rows = batch.rows.filter(action=row.action)
         page = Paginator(rows, 100).get_page(1)
+        for preview_row in page.object_list:
+            preview_row.display_messages = [
+                friendly_import_message(message) for message in preview_row.messages
+            ]
         counts = {value: 0 for value, _label in LegacyImportRow.Action.choices}
         for item in batch.rows.values("action").annotate(total=Count("id")):
             counts[item["action"]] = item["total"]

@@ -24,6 +24,7 @@ from sales.models import (
 )
 from sales.forms import LegacyImportRowCorrectionForm, LegacyImportUploadForm
 from sales.services.legacy_import import (
+    PREVIEW_SCHEMA_VERSION,
     _clean_sales_source_name,
     _infer_sales_transaction_type,
     _infer_sales_vehicle_category,
@@ -297,6 +298,43 @@ class LegacyImportTests(TestCase):
         placeholder.refresh_from_db()
         self.assertEqual(placeholder.action, LegacyImportRow.Action.SKIP)
         self.assertIn("Excel 空白公式列，系統自動略過", placeholder.messages)
+
+    def test_opening_old_preview_automatically_applies_current_parser_rules(self):
+        batch = self.make_batch(LegacyImportBatch.ImportType.OPERATIONS)
+        build_import_preview(batch)
+        row = batch.rows.get(sheet_name="銷貨")
+        mapped_data = dict(row.mapped_data)
+        mapped_data["dealer_name"] = "試乘車"
+        mapped_data.pop("dealer_name_raw", None)
+        mapped_data.pop("transaction_type", None)
+        mapped_data.pop("transaction_type_reason", None)
+        row.mapped_data = mapped_data
+        row.save(update_fields=["mapped_data", "updated_at"])
+        batch.preview_summary = {
+            **batch.preview_summary,
+            "validation": {"unmapped_sources": ["試乘車"]},
+        }
+        batch.preview_summary.pop("parser_schema_version", None)
+        batch.save(update_fields=["preview_summary", "updated_at"])
+
+        response = self.client.get(reverse("legacy_import_detail", args=[batch.pk]))
+
+        self.assertEqual(response.status_code, 200)
+        row.refresh_from_db()
+        batch.refresh_from_db()
+        self.assertEqual(row.mapped_data["dealer_name_raw"], "試乘車")
+        self.assertEqual(row.mapped_data["dealer_name"], "")
+        self.assertEqual(
+            row.mapped_data["transaction_type"],
+            SalesOrder.TransactionType.TEST_RIDE,
+        )
+        self.assertEqual(
+            batch.preview_summary["parser_schema_version"],
+            PREVIEW_SCHEMA_VERSION,
+        )
+        self.assertNotIn(
+            "試乘車", batch.preview_summary["validation"]["unmapped_sources"]
+        )
 
     def test_ambiguous_second_new_sale_stays_conflict_until_marked_used(self):
         batch = self.make_used_vehicle_batch(mark_as_used=False)

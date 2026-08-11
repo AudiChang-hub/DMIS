@@ -36,6 +36,7 @@ DUPLICATE_SALES_TRANSACTION_MESSAGE = "同一筆銷售交易在工作表重複�
 MISSING_IDENTIFIER_MESSAGE = "缺少引擎／車身號碼"
 EMPTY_SALES_PLACEHOLDER_MESSAGE = "Excel 空白公式列，系統自動略過"
 NON_VEHICLE_SALES_NOISE_MESSAGE = "缺少有效車輛序號且無交易資料，系統自動略過"
+PREVIEW_SCHEMA_VERSION = 2
 SYSTEM_VALIDATION_MESSAGES = {
     DUPLICATE_IDENTIFIER_MESSAGE,
     MULTIPLE_NEW_SALES_MESSAGE,
@@ -911,6 +912,7 @@ def revalidate_import_batch(batch):
         validation = {"removed_source_keys": sorted(prior_keys - current_keys)}
     previous = batch.preview_summary or {}
     summary = {
+        "parser_schema_version": PREVIEW_SCHEMA_VERSION,
         "source_rows": len(rows),
         "counts": counts,
         "errors": previous.get("errors", {}),

@@ -152,6 +152,7 @@ from .services.dealer_commission import (
 from .services.dashboard_metrics import build_dashboard_metrics
 from .services.secret_fields import decrypt_secret, encrypt_secret
 from .services.legacy_import import (
+    PREVIEW_SCHEMA_VERSION,
     apply_import_row_decision,
     build_import_master_workspace,
     build_import_preview,
@@ -925,6 +926,13 @@ def sales_source_category_list(request):
 @login_required
 def legacy_import_detail(request, pk):
     batch = get_object_or_404(LegacyImportBatch, pk=pk)
+    if (
+        batch.status == LegacyImportBatch.Status.PREVIEW
+        and (batch.preview_summary or {}).get("parser_schema_version", 0)
+        < PREVIEW_SCHEMA_VERSION
+    ):
+        revalidate_import_batch(batch)
+        batch.refresh_from_db()
     rows = batch.rows.all()
     action = request.GET.get("action", "")
     if action in {value for value, _ in LegacyImportRow.Action.choices}:

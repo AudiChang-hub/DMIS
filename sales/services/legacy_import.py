@@ -61,6 +61,26 @@ def _has_invalid_email(value):
     return False
 
 
+def friendly_import_message(message):
+    text = str(message)
+    if "owner_email" in text and ("電子郵件" in text or "email" in text.lower()):
+        return INVALID_EMAIL_MESSAGE
+    return text
+
+
+def _friendly_import_exception(exc):
+    if isinstance(exc, ValidationError):
+        if hasattr(exc, "message_dict"):
+            parts = []
+            field_labels = {"owner_email": "Email"}
+            for field, field_messages in exc.message_dict.items():
+                label = field_labels.get(field, field)
+                parts.extend(f"{label}：{message}" for message in field_messages)
+            return friendly_import_message("；".join(parts))
+        return "；".join(exc.messages)
+    return friendly_import_message(exc)
+
+
 def _legacy_master_mapping(mapping_type, source_value):
     normalized = normalize_legacy_master_value(source_value)
     if not normalized:
@@ -1267,7 +1287,7 @@ def confirm_import(batch, actor_name):
                 result["updated" if row.action == LegacyImportRow.Action.UPDATE else "created"] += 1
             except Exception as exc:
                 row.action = LegacyImportRow.Action.ERROR
-                row.messages = [*row.messages, str(exc)]
+                row.messages = [*row.messages, _friendly_import_exception(exc)]
                 row.save(update_fields=["action", "messages", "updated_at"])
                 result["errors"] += 1
         if completed % 25 == 0 or completed == total:
@@ -1337,7 +1357,7 @@ def retry_completed_import_row(row, mapping, decision, reason, actor_name):
                 else:
                     raise ValueError("不支援的匯入工作表。")
         except Exception as exc:
-            error_text = str(exc)
+            error_text = _friendly_import_exception(exc)
             row.action = LegacyImportRow.Action.ERROR
             row.messages = [error_text]
         else:

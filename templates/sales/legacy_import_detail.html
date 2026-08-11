@@ -54,16 +54,16 @@
 <section class="import-overview" aria-label="資料處理摘要">
   <div class="import-overview__heading">
     <div><p class="eyebrow">處理摘要</p><h2>共 {{ batch.preview_summary.source_rows|default:0 }} 筆來源資料</h2></div>
-    {% if unresolved_count %}<p class="import-overview__warning">{{ unresolved_count }} 筆必須修正或排除後才能匯入</p>{% else %}<p class="import-overview__ready">資料已可進行匯入</p>{% endif %}
+    {% if batch.status == 'completed' and unresolved_count %}<p class="import-overview__warning">其餘資料已完成；尚有 {{ unresolved_count }} 筆可修正後補匯</p>{% elif unresolved_count %}<p class="import-overview__warning">{{ unresolved_count }} 筆必須修正或排除後才能匯入</p>{% elif batch.status == 'completed' %}<p class="import-overview__ready">正式資料已完成匯入</p>{% else %}<p class="import-overview__ready">資料已可進行匯入</p>{% endif %}
   </div>
   <nav class="import-status-tabs" aria-label="依處理狀態篩選">
     <a href="?q={{ search_query|urlencode }}#row-preview" class="{% if not selected_action %}active{% endif %}"><span>全部</span><strong>{{ batch.preview_summary.source_rows|default:0 }}</strong></a>
-    <a href="?action=create&q={{ search_query|urlencode }}#row-preview" class="{% if selected_action == 'create' %}active{% endif %}"><span>可新增</span><strong>{{ counts.create|default:0 }}</strong></a>
-    <a href="?action=update&q={{ search_query|urlencode }}#row-preview" class="{% if selected_action == 'update' %}active{% endif %}"><span>可更新</span><strong>{{ counts.update|default:0 }}</strong></a>
+    <a href="?action=create&q={{ search_query|urlencode }}#row-preview" class="{% if selected_action == 'create' %}active{% endif %}"><span>{% if batch.status == 'completed' %}已新增{% else %}可新增{% endif %}</span><strong>{{ counts.create|default:0 }}</strong></a>
+    <a href="?action=update&q={{ search_query|urlencode }}#row-preview" class="{% if selected_action == 'update' %}active{% endif %}"><span>{% if batch.status == 'completed' %}已更新{% else %}可更新{% endif %}</span><strong>{{ counts.update|default:0 }}</strong></a>
     <a href="?action=skip&q={{ search_query|urlencode }}#row-preview" class="{% if selected_action == 'skip' %}active{% endif %}"><span>已存在</span><strong>{{ counts.skip|default:0 }}</strong></a>
     <a href="?action=exclude&q={{ search_query|urlencode }}#row-preview" class="{% if selected_action == 'exclude' %}active{% endif %}"><span>人工排除</span><strong>{{ counts.exclude|default:0 }}</strong></a>
     <a href="?action=conflict&q={{ search_query|urlencode }}#issue-review" class="issue {% if selected_action == 'conflict' %}active{% endif %}"><span>待處理衝突</span><strong>{{ counts.conflict|default:0 }}</strong></a>
-    <a href="?action=error&q={{ search_query|urlencode }}#row-preview" class="issue {% if selected_action == 'error' %}active{% endif %}"><span>資料錯誤</span><strong>{{ counts.error|default:0 }}</strong></a>
+    <a href="?action=error&q={{ search_query|urlencode }}#row-preview" class="issue {% if selected_action == 'error' %}active{% endif %}"><span>{% if batch.status == 'completed' %}待補匯{% else %}資料錯誤{% endif %}</span><strong>{{ counts.error|default:0 }}</strong></a>
   </nav>
 </section>
 
@@ -280,7 +280,7 @@
         <td data-label="比對鍵"><code>{{ row.natural_key|default:'—' }}</code></td>
         <td data-label="處理方式"><span class="status-pill {% if row.action == 'error' %}warning{% endif %}">{{ row.get_action_display }}</span></td>
         <td data-label="主要內容">{% if row.sheet_name == '銷貨' %}<strong>{{ row.mapped_data.owner_name|default:'未填車主' }}</strong><small>{{ row.mapped_data.model_number }} · {% if row.mapped_data.transaction_type == 'test_ride' %}試乘車{% elif row.mapped_data.transaction_type == 'prize' %}中獎車{% elif row.mapped_data.transaction_type == 'registered' %}領牌車{% elif row.mapped_data.transaction_type == 'used' %}中古車交易{% elif row.mapped_data.transaction_type == 'other' %}其他{% else %}一般新車{% endif %}{% if row.mapped_data.dealer_name %} · {{ row.mapped_data.dealer_name }}{% endif %}</small>{% elif row.sheet_name == '進貨' %}<strong>{{ row.mapped_data.model_number|default:'未填車型' }}</strong><small>{{ row.mapped_data.identifier_raw }}</small>{% else %}<strong>{{ row.mapped_data.name }}</strong><small>{{ row.mapped_data.contact_name }}</small>{% endif %}</td>
-        <td data-label="檢核結果">{% for message in row.messages %}<span class="import-row-message">{{ message }}</span>{% empty %}<span class="muted">檢核通過</span>{% endfor %}</td>
+        <td data-label="檢核結果">{% for message in row.display_messages %}<span class="import-row-message">{{ message }}</span>{% empty %}<span class="muted">檢核通過</span>{% endfor %}</td>
         <td data-label="操作">{% if batch.status == 'preview' or batch.status == 'completed' and row.action == 'error' %}<a class="button ghost small" href="?action={{ selected_action }}&q={{ search_query|urlencode }}&page={{ page_obj.number }}&edit={{ row.pk }}#row-editor">{% if batch.status == 'completed' %}修正並補匯{% else %}修正／排除{% endif %}</a>{% endif %}</td>
       </tr>
       {% empty %}<tr><td colspan="6" class="empty-table-message">沒有符合此篩選條件的資料</td></tr>{% endfor %}

@@ -712,10 +712,11 @@
     <div class="section-title"><h2>車輛與來源</h2><span>{{ order.get_source_type_display }}</span></div>
     <dl class="data-list">
       <div><dt>車輛類別</dt><dd>{{ order.get_vehicle_category_display }}</dd></div>
+      <div><dt>交易類型</dt><dd>{{ order.get_transaction_type_display }}</dd></div>
       <div><dt>車型</dt><dd>{{ order.vehicle_model }}</dd></div>
       <div><dt>車色</dt><dd>{{ order.color.name }}</dd></div>
       <div><dt>動力／排氣量</dt><dd>{{ order.vehicle_model.get_energy_type_display }}{% if order.vehicle_model.displacement_cc %}／{{ order.vehicle_model.displacement_cc }} c.c.{% endif %}</dd></div>
-      <div><dt>來源</dt><dd>{{ order.source.name|default:"本店" }}</dd></div>
+      <div><dt>來源</dt><dd>{{ order.source.name|default:"本店" }}{% if order.source.category %}／{{ order.source.category.name }}{% endif %}</dd></div>
       <div><dt>交車方式</dt><dd>{{ order.get_delivery_method_display }}{% if order.delivery_destination %}／{{ order.delivery_destination }}{% endif %}</dd></div>
       {% if order.allocated_vehicle %}
       <div class="wide highlight-data"><dt>實體車</dt><dd>{{ order.allocated_vehicle.identifier }} · {{ order.allocated_vehicle.location_store }}</dd></div>

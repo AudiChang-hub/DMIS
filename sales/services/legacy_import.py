@@ -19,6 +19,7 @@ from sales.models import (
     PaymentRecord,
     SalesOrder,
     SalesSource,
+    SalesSourceCategory,
     SalesSourceContact,
     Store,
     VehicleColor,
@@ -288,6 +289,60 @@ def _infer_sales_vehicle_category(raw, dealer_name):
     return SalesOrder.VehicleCategory.NEW, "未發現中古車交易標記"
 
 
+TRANSACTION_TYPE_MARKERS = (
+    ("試乘", SalesOrder.TransactionType.TEST_RIDE),
+    ("中獎", SalesOrder.TransactionType.PRIZE),
+    ("領牌車", SalesOrder.TransactionType.REGISTERED),
+    ("一般新車", SalesOrder.TransactionType.REGULAR_NEW),
+)
+
+
+def _infer_sales_transaction_type(raw, dealer_name, vehicle_category, sales_category=""):
+    """交易類型與來源分開判斷，避免把「試乘車」建立成通路。"""
+    if vehicle_category == SalesOrder.VehicleCategory.USED:
+        return SalesOrder.TransactionType.USED, "車輛類別為中古車"
+    text = " ".join(
+        filter(
+            None,
+            (
+                _text(dealer_name),
+                _text(sales_category),
+                _text(raw.get("備註")),
+                _text(raw.get("銷售方案分類")),
+            ),
+        )
+    ).replace(" ", "")
+    for marker, transaction_type in TRANSACTION_TYPE_MARKERS:
+        if marker in text:
+            return transaction_type, f"來源資料含有「{marker}」"
+    return SalesOrder.TransactionType.REGULAR_NEW, "未發現特殊交易類型標記"
+
+
+def _clean_sales_source_name(value):
+    """移除車行欄位內的交易類型附註；純類型文字不視為通路。"""
+    text = _text(value).strip()
+    if not text:
+        return ""
+    compact = text.replace(" ", "")
+    pure_markers = {"試乘車", "試乘", "中獎車", "中獎", "領牌車", "一般新車", "中古車"}
+    if compact in pure_markers:
+        return ""
+    marker_pattern = r"(?:試乘車?|中獎車?|領牌車|一般新車)"
+    cleaned = re.sub(
+        rf"[\(（\[【]\s*{marker_pattern}\s*[\)）\]】]",
+        "",
+        text,
+        flags=re.IGNORECASE,
+    )
+    cleaned = re.sub(
+        rf"\s*[-－—／/]\s*{marker_pattern}\s*$",
+        "",
+        cleaned,
+        flags=re.IGNORECASE,
+    )
+    return cleaned.strip(" -－—／/")
+
+
 def _sales_transaction_key(data):
     """建立可重跑的銷售交易鍵；同車後續中古車轉售應是另一筆交易。"""
     identifier = data.get("identifier") or ""
@@ -396,14 +451,24 @@ def _operations_sales_rows(batch, workbook):
             continue
         identifier = normalize_vehicle_identifier(identifier_raw) or ""
         raw = _row_dict_values(headers, row_values)
-        dealer_name = _text(_value(row_values, "AN"))
+        dealer_name_raw = _text(_value(row_values, "AN"))
         vehicle_category, vehicle_category_reason = _infer_sales_vehicle_category(
             raw,
-            dealer_name,
+            dealer_name_raw,
         )
+        sales_category = _text(_value(row_values, "CL"))
+        transaction_type, transaction_type_reason = _infer_sales_transaction_type(
+            raw,
+            dealer_name_raw,
+            vehicle_category,
+            sales_category,
+        )
+        dealer_name = _clean_sales_source_name(dealer_name_raw)
         mapped = {
             "vehicle_category": vehicle_category,
             "vehicle_category_reason": vehicle_category_reason,
+            "transaction_type": transaction_type,
+            "transaction_type_reason": transaction_type_reason,
             "model_number": model_number,
             "identifier_raw": identifier_raw,
             "identifier": identifier,
@@ -419,6 +484,7 @@ def _operations_sales_rows(batch, workbook):
             "card_received": str(_decimal(_value(row_values, "K"))),
             "payment_confirmed": _text(_value(row_values, "AO")).upper() == "V",
             "dealer_name": dealer_name,
+            "dealer_name_raw": dealer_name_raw,
             "installment_company": _text(_value(row_values, "AP")),
             "installment_periods": int(_decimal(_value(row_values, "AQ"))),
             "owner_birth_date": _json_value(_date(_value(row_values, "AU"))),
@@ -443,7 +509,7 @@ def _operations_sales_rows(batch, workbook):
             "battery_account": _text(_value(row_values, "BY")),
             "standard_gift": _text(_value(row_values, "CC")),
             "company_gift": _text(_value(row_values, "CI")),
-            "sales_category": _text(_value(row_values, "CL")),
+            "sales_category": sales_category,
         }
         natural_key = _sales_transaction_key(mapped)
         name_mismatch = bool(mapped["owner_name_primary"] and mapped["owner_name_detail"] and mapped["owner_name_primary"] != mapped["owner_name_detail"])
@@ -604,18 +670,33 @@ def revalidate_import_batch(batch):
         raise ValueError("只有待確認批次可以重新驗證。")
     rows = list(batch.rows.order_by("sheet_name", "source_row"))
     active_rows = [row for row in rows if not row.excluded]
-    # 舊版預覽批次沒有車輛類別；重新驗證時補上推論結果，讓既有批次也能
-    # 區分新車首次銷售與後續中古車交易。已經人工指定的類別一律保留。
+    # 舊版預覽批次沒有車輛類別與交易類型；重新驗證時補上推論結果。
+    # 已經人工指定的內容一律保留。
     for row in active_rows:
-        if row.sheet_name != "銷貨" or row.mapped_data.get("vehicle_category"):
+        if row.sheet_name != "銷貨":
             continue
         mapped_data = dict(row.mapped_data)
-        category, reason = _infer_sales_vehicle_category(
-            row.raw_data,
-            mapped_data.get("dealer_name", ""),
-        )
-        mapped_data["vehicle_category"] = category
-        mapped_data["vehicle_category_reason"] = reason
+        if not mapped_data.get("vehicle_category"):
+            category, reason = _infer_sales_vehicle_category(
+                row.raw_data,
+                mapped_data.get("dealer_name_raw") or mapped_data.get("dealer_name", ""),
+            )
+            mapped_data["vehicle_category"] = category
+            mapped_data["vehicle_category_reason"] = reason
+        if "dealer_name_raw" not in mapped_data:
+            mapped_data["dealer_name_raw"] = mapped_data.get("dealer_name", "")
+            mapped_data["dealer_name"] = _clean_sales_source_name(
+                mapped_data["dealer_name_raw"]
+            )
+        if not mapped_data.get("transaction_type"):
+            transaction_type, reason = _infer_sales_transaction_type(
+                row.raw_data,
+                mapped_data.get("dealer_name_raw", ""),
+                mapped_data["vehicle_category"],
+                mapped_data.get("sales_category", ""),
+            )
+            mapped_data["transaction_type"] = transaction_type
+            mapped_data["transaction_type_reason"] = reason
         row.mapped_data = mapped_data
     inventory_identifier_counts = {}
     sales_new_identifier_counts = {}
@@ -794,7 +875,6 @@ def revalidate_import_batch(batch):
                 row.mapped_data.get("dealer_name", "")
                 for row in sales_rows
                 if row.mapped_data.get("dealer_name")
-                and row.mapped_data.get("dealer_name", "").replace(" ", "") != "中古車"
                 and normalize_legacy_master_value(row.mapped_data["dealer_name"])
                 not in known_sources
             }),
@@ -862,6 +942,12 @@ def apply_import_row_decision(row, mapping, decision, reason, actor_name):
             and mapping.get("vehicle_category") != before.get("vehicle_category")
         ):
             updated["vehicle_category_reason"] = "人工調整"
+        if (
+            row.sheet_name == "銷貨"
+            and mapping.get("transaction_type")
+            and mapping.get("transaction_type") != before.get("transaction_type")
+        ):
+            updated["transaction_type_reason"] = "人工調整"
         row.mapped_data = updated
         row.excluded = False
         correction_decision = (
@@ -931,11 +1017,24 @@ def _default_store():
     return Store.objects.order_by("id").first() or Store.objects.create(name="總店", code="MAIN")
 
 
+def _default_source_category(source_type):
+    default_names = {
+        SalesSource.SourceType.STORE: "其他來源",
+        SalesSource.SourceType.DEALER: "合作車行",
+        SalesSource.SourceType.PLATFORM: "網路平台",
+    }
+    category, _ = SalesSourceCategory.objects.get_or_create(
+        name=default_names[source_type],
+        defaults={"system_behavior": source_type, "active": True},
+    )
+    return category
+
+
 def _commit_channel_row(row):
     data = row.mapped_data
     source, _ = SalesSource.objects.update_or_create(
         source_type=data["source_type"], name=data["name"],
-        defaults={"phone": data.get("phone", ""), "fax": data.get("fax", ""), "address": data.get("address", ""), "vehicle_capacity": data.get("vehicle_capacity"), "note": data.get("note", "")},
+        defaults={"category": _default_source_category(data["source_type"]), "phone": data.get("phone", ""), "fax": data.get("fax", ""), "address": data.get("address", ""), "vehicle_capacity": data.get("vehicle_capacity"), "note": data.get("note", "")},
     )
     if data.get("contact_name"):
         SalesSourceContact.objects.update_or_create(
@@ -992,6 +1091,7 @@ def _commit_sales_row(row, actor_name):
         owner_email=data["owner_email"], owner_birth_date=_date(data["owner_birth_date"]),
         owner_address=data["owner_address"] or "未提供", owner_id_number=owner_id,
         vehicle_model=model, color=color, vehicle_price=0, vehicle_category=vehicle_category,
+        transaction_type=data.get("transaction_type") or SalesOrder.TransactionType.REGULAR_NEW,
         registration_date=_date(data["registration_date"]), final_plate_number=data["plate_number"],
         payment_type=SalesOrder.PaymentType.INSTALLMENT if data["installment_periods"] else (SalesOrder.PaymentType.CARD if _decimal(data["card_received"]) else SalesOrder.PaymentType.CASH),
         installment_company=data["installment_company"], installment_periods=data["installment_periods"],

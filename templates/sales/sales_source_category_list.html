@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block title %}通路分類｜車輛銷售管理{% endblock %}
+{% block page_class %}page-shell--wide{% endblock %}
+{% block content %}
+{% url 'sales_source_list' as list_url %}{% include "sales/_page_back.html" with fallback_url=list_url label="返回通路與傭金" %}
+<section class="hero-row compact-hero">
+  <div>
+    <p class="eyebrow">通路主檔</p>
+    <h1>通路分類</h1>
+    <p class="muted">分類名稱提供人員辨識；系統處理方式決定是否套用車行傭金、平台對帳或視為本店來源。</p>
+  </div>
+</section>
+<div class="master-layout source-category-layout">
+  <section class="form-section static-section">
+    <div class="section-title"><div><h2>{% if editing %}編輯 {{ editing.name }}{% else %}新增分類{% endif %}</h2><p>分類使用後仍可改名或停用，但不能改變系統處理方式。</p></div></div>
+    <form method="post" class="stacked-form">{% csrf_token %}
+      {% for field in form %}{% include "sales/_field.html" with field=field %}{% endfor %}
+      <div class="form-actions">
+        {% if editing %}<a class="button ghost" href="{% url 'sales_source_category_list' %}">取消修改</a>{% endif %}
+        <button class="button primary" type="submit">{% if editing %}儲存修改{% else %}新增分類{% endif %}</button>
+      </div>
+    </form>
+  </section>
+  <section class="inventory-list-panel">
+    <div class="inventory-list-summary"><div><strong>既有分類</strong><span>共 {{ categories|length }} 個</span></div></div>
+    <div class="inventory-table-wrap">
+      <table class="inventory-table">
+        <thead><tr><th>分類名稱</th><th>系統處理方式</th><th>使用數</th><th>狀態</th><th></th></tr></thead>
+        <tbody>
+          {% for item in categories %}
+          <tr>
+            <td data-label="分類名稱"><strong>{{ item.name }}</strong>{% if item.note %}<span>{{ item.note }}</span>{% endif %}</td>
+            <td data-label="系統處理方式">{{ item.get_system_behavior_display }}</td>
+            <td data-label="使用數">{{ item.source_count }} 個通路</td>
+            <td data-label="狀態"><span class="status-pill">{{ item.active|yesno:"啟用中,已停用" }}</span></td>
+            <td data-label="操作" class="inventory-row-action">
+              <span class="row-action-buttons">
+                <a class="button ghost small" href="?edit={{ item.pk }}">編輯</a>
+                {% if not item.source_count %}<form method="post" onsubmit="return confirm('確定刪除未使用的分類「{{ item.name|escapejs }}」嗎？');">{% csrf_token %}<input type="hidden" name="action" value="delete"><input type="hidden" name="category_id" value="{{ item.pk }}"><button class="button danger small" type="submit">刪除</button></form>{% endif %}
+              </span>
+            </td>
+          </tr>
+          {% empty %}<tr><td colspan="5"><div class="empty-state"><strong>尚未建立通路分類</strong></div></td></tr>{% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+</div>
+{% endblock %}

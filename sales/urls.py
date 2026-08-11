@@ -61,6 +61,11 @@ urlpatterns = [
     ),
     path("data/channels/", views.sales_source_list, name="sales_source_list"),
     path(
+        "data/channels/categories/",
+        views.sales_source_category_list,
+        name="sales_source_category_list",
+    ),
+    path(
         "data/channels/holiday-gifts/",
         views.sales_source_holiday_gift_manage,
         name="sales_source_holiday_gift_manage",

@@ -2507,6 +2507,13 @@ form[aria-busy="true"] { cursor: progress; }
 .import-row-actions { justify-content: flex-end; }
 .empty-table-message { padding: 34px !important; color: var(--muted); text-align: center !important; }
 .import-overview { margin-bottom: 22px; padding: 20px; background: #fff; border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow-soft); }
+.import-progress-card { margin-bottom: 22px; padding: 28px; background: #fff; border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow-soft); }
+.import-progress-card__heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 24px; }
+.import-progress-card__heading h2 { margin: 4px 0 8px; }
+.import-progress-card__heading p { margin: 0; }
+.import-progress-card__heading > strong { color: var(--brand); font-size: clamp(1.8rem, 4vw, 2.8rem); font-variant-numeric: tabular-nums; }
+.import-progress-track { height: 12px; margin: 24px 0 12px; overflow: hidden; background: #e6ece8; border-radius: 999px; }
+.import-progress-track span { display: block; width: 0; height: 100%; background: linear-gradient(90deg, var(--brand), #d1a93c); border-radius: inherit; transition: width .3s ease; }
 .import-overview__heading { display: flex; margin-bottom: 16px; align-items: center; justify-content: space-between; gap: 16px; }
 .import-overview__heading h2, .import-overview__heading p { margin: 0; }
 .import-overview__warning, .import-overview__ready { padding: 8px 12px; border-radius: 999px; font-weight: 850; }
@@ -2905,6 +2912,8 @@ form[aria-busy="true"] { cursor: progress; }
 }
 
 @media (max-width: 720px) {
+  .import-progress-card { padding: 20px; }
+  .import-progress-card__heading { gap: 12px; }
   .import-master-workspace {
     margin-top: 16px;
     padding: 18px 14px;

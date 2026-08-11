@@ -690,6 +690,7 @@ class LegacyImportBatch(TimeStampedModel):
 
     class Status(models.TextChoices):
         PREVIEW = "preview", "待確認"
+        PROCESSING = "processing", "匯入中"
         COMPLETED = "completed", "已匯入"
         FAILED = "failed", "處理失敗"
 
@@ -708,6 +709,13 @@ class LegacyImportBatch(TimeStampedModel):
     uploaded_by = models.CharField("上傳人員", max_length=150)
     confirmed_by = models.CharField("確認人員", max_length=150, blank=True)
     confirmed_at = models.DateTimeField("確認時間", blank=True, null=True)
+    processing_job_id = models.CharField("背景工作編號", max_length=80, blank=True)
+    processing_total = models.PositiveIntegerField("預計處理筆數", default=0)
+    processing_completed = models.PositiveIntegerField("已處理筆數", default=0)
+    processing_started_at = models.DateTimeField("開始匯入時間", blank=True, null=True)
+    processing_finished_at = models.DateTimeField("結束匯入時間", blank=True, null=True)
+    processing_heartbeat_at = models.DateTimeField("最後進度時間", blank=True, null=True)
+    processing_error = models.TextField("背景匯入錯誤", blank=True)
     archived_by = models.CharField("封存人員", max_length=150, blank=True)
     archived_at = models.DateTimeField("封存時間", blank=True, null=True)
 

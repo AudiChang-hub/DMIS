@@ -1,4 +1,39 @@
 (() => {
+  const progressCard = document.querySelector("[data-import-progress-url]");
+  if (progressCard) {
+    const progressBar = progressCard.querySelector("[data-import-progress-bar]");
+    const progressPercent = progressCard.querySelector("[data-import-progress-percent]");
+    const progressText = progressCard.querySelector("[data-import-progress-text]");
+    const progressTrack = progressCard.querySelector("[role='progressbar']");
+    let pollTimer;
+    const poll = async () => {
+      try {
+        const response = await fetch(progressCard.dataset.importProgressUrl, {
+          headers: { Accept: "application/json" },
+          cache: "no-store",
+        });
+        if (!response.ok) throw new Error("無法讀取匯入進度");
+        const data = await response.json();
+        const percent = Math.max(0, Math.min(100, Number(data.percent) || 0));
+        if (progressBar) progressBar.style.width = `${percent}%`;
+        if (progressPercent) progressPercent.textContent = `${percent}%`;
+        if (progressTrack) progressTrack.setAttribute("aria-valuenow", String(percent));
+        if (progressText) {
+          progressText.textContent = `已處理 ${data.completed}／${data.total} 筆，完成後畫面會自動更新。`;
+        }
+        if (data.finished) {
+          window.location.reload();
+          return;
+        }
+      } catch (_error) {
+        if (progressText) progressText.textContent = "暫時無法更新進度，背景匯入仍會繼續；系統稍後會再試。";
+      }
+      pollTimer = window.setTimeout(poll, 2000);
+    };
+    pollTimer = window.setTimeout(poll, 1000);
+    window.addEventListener("pagehide", () => window.clearTimeout(pollTimer), { once: true });
+  }
+
   const openDialog = (button) => {
     const dialog = document.getElementById(button.dataset.masterDialog || "");
     if (!dialog) return;

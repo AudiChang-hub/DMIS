@@ -42,13 +42,13 @@
     {% if unresolved_count %}<p class="import-overview__warning">{{ unresolved_count }} 筆必須修正或排除後才能匯入</p>{% else %}<p class="import-overview__ready">資料已可進行匯入</p>{% endif %}
   </div>
   <nav class="import-status-tabs" aria-label="依處理狀態篩選">
-    <a href="{% url 'legacy_import_detail' batch.pk %}#row-preview" class="{% if not selected_action %}active{% endif %}"><span>全部</span><strong>{{ batch.preview_summary.source_rows|default:0 }}</strong></a>
-    <a href="?action=create#row-preview" class="{% if selected_action == 'create' %}active{% endif %}"><span>可新增</span><strong>{{ counts.create|default:0 }}</strong></a>
-    <a href="?action=update#row-preview" class="{% if selected_action == 'update' %}active{% endif %}"><span>可更新</span><strong>{{ counts.update|default:0 }}</strong></a>
-    <a href="?action=skip#row-preview" class="{% if selected_action == 'skip' %}active{% endif %}"><span>已存在</span><strong>{{ counts.skip|default:0 }}</strong></a>
-    <a href="?action=exclude#row-preview" class="{% if selected_action == 'exclude' %}active{% endif %}"><span>人工排除</span><strong>{{ counts.exclude|default:0 }}</strong></a>
-    <a href="?action=conflict#issue-review" class="issue {% if selected_action == 'conflict' %}active{% endif %}"><span>待處理衝突</span><strong>{{ counts.conflict|default:0 }}</strong></a>
-    <a href="?action=error#row-preview" class="issue {% if selected_action == 'error' %}active{% endif %}"><span>資料錯誤</span><strong>{{ counts.error|default:0 }}</strong></a>
+    <a href="?q={{ search_query|urlencode }}#row-preview" class="{% if not selected_action %}active{% endif %}"><span>全部</span><strong>{{ batch.preview_summary.source_rows|default:0 }}</strong></a>
+    <a href="?action=create&q={{ search_query|urlencode }}#row-preview" class="{% if selected_action == 'create' %}active{% endif %}"><span>可新增</span><strong>{{ counts.create|default:0 }}</strong></a>
+    <a href="?action=update&q={{ search_query|urlencode }}#row-preview" class="{% if selected_action == 'update' %}active{% endif %}"><span>可更新</span><strong>{{ counts.update|default:0 }}</strong></a>
+    <a href="?action=skip&q={{ search_query|urlencode }}#row-preview" class="{% if selected_action == 'skip' %}active{% endif %}"><span>已存在</span><strong>{{ counts.skip|default:0 }}</strong></a>
+    <a href="?action=exclude&q={{ search_query|urlencode }}#row-preview" class="{% if selected_action == 'exclude' %}active{% endif %}"><span>人工排除</span><strong>{{ counts.exclude|default:0 }}</strong></a>
+    <a href="?action=conflict&q={{ search_query|urlencode }}#issue-review" class="issue {% if selected_action == 'conflict' %}active{% endif %}"><span>待處理衝突</span><strong>{{ counts.conflict|default:0 }}</strong></a>
+    <a href="?action=error&q={{ search_query|urlencode }}#row-preview" class="issue {% if selected_action == 'error' %}active{% endif %}"><span>資料錯誤</span><strong>{{ counts.error|default:0 }}</strong></a>
   </nav>
 </section>
 
@@ -240,9 +240,13 @@
 
 {% if selected_action != 'conflict' %}
 <section class="inventory-list-panel import-preview-panel" id="row-preview">
-  <div class="inventory-list-summary import-list-heading">
+  <div class="inventory-list-summary import-list-heading import-preview-heading">
     <div><p class="eyebrow">逐列預覽</p><strong>{{ selected_action_label|default:'全部資料' }} · {{ page_obj.paginator.count }} 筆</strong></div>
-    {% if selected_action %}<a href="{% url 'legacy_import_detail' batch.pk %}#row-preview">清除篩選</a>{% endif %}
+    <form method="get" class="import-preview-search" role="search">
+      {% if selected_action %}<input type="hidden" name="action" value="{{ selected_action }}">{% endif %}
+      <label for="import-row-search">搜尋本批資料</label>
+      <div><input id="import-row-search" type="search" name="q" value="{{ search_query }}" placeholder="型號、機種、序號、車牌、車主、車色或通路"><button class="button primary small" type="submit">搜尋</button>{% if search_query %}<a class="button ghost small" href="?{% if selected_action %}action={{ selected_action }}&{% endif %}#row-preview">清除</a>{% endif %}</div>
+    </form>
   </div>
   <div class="inventory-table-wrap">
     <table class="inventory-table import-preview-table">
@@ -255,7 +259,7 @@
         <td data-label="處理方式"><span class="status-pill {% if row.action == 'error' %}warning{% endif %}">{{ row.get_action_display }}</span></td>
         <td data-label="主要內容">{% if row.sheet_name == '銷貨' %}<strong>{{ row.mapped_data.owner_name|default:'未填車主' }}</strong><small>{{ row.mapped_data.model_number }}</small>{% elif row.sheet_name == '進貨' %}<strong>{{ row.mapped_data.model_number|default:'未填車型' }}</strong><small>{{ row.mapped_data.identifier_raw }}</small>{% else %}<strong>{{ row.mapped_data.name }}</strong><small>{{ row.mapped_data.contact_name }}</small>{% endif %}</td>
         <td data-label="檢核結果">{% for message in row.messages %}<span class="import-row-message">{{ message }}</span>{% empty %}<span class="muted">檢核通過</span>{% endfor %}</td>
-        <td data-label="操作">{% if batch.status == 'preview' %}<a class="button ghost small" href="?action={{ selected_action }}&page={{ page_obj.number }}&edit={{ row.pk }}#row-editor">修正／排除</a>{% endif %}</td>
+        <td data-label="操作">{% if batch.status == 'preview' %}<a class="button ghost small" href="?action={{ selected_action }}&q={{ search_query|urlencode }}&page={{ page_obj.number }}&edit={{ row.pk }}#row-editor">修正／排除</a>{% endif %}</td>
       </tr>
       {% empty %}<tr><td colspan="6" class="empty-table-message">沒有符合此篩選條件的資料</td></tr>{% endfor %}
       </tbody>
@@ -265,9 +269,9 @@
   <nav class="inventory-pagination import-pagination" aria-label="預覽資料分頁">
     <span>顯示第 {{ page_obj.start_index }}–{{ page_obj.end_index }} 筆，共 {{ page_obj.paginator.count }} 筆</span>
     <div class="inline-actions">
-      {% if page_obj.has_previous %}<a class="button ghost small" href="?page={{ page_obj.previous_page_number }}{% if selected_action %}&action={{ selected_action }}{% endif %}#row-preview">← 上一頁</a>{% else %}<span class="button ghost small disabled">← 上一頁</span>{% endif %}
+      {% if page_obj.has_previous %}<a class="button ghost small" href="?page={{ page_obj.previous_page_number }}{% if selected_action %}&action={{ selected_action }}{% endif %}&q={{ search_query|urlencode }}#row-preview">← 上一頁</a>{% else %}<span class="button ghost small disabled">← 上一頁</span>{% endif %}
       <strong>第 {{ page_obj.number }}／{{ page_obj.paginator.num_pages }} 頁</strong>
-      {% if page_obj.has_next %}<a class="button ghost small" href="?page={{ page_obj.next_page_number }}{% if selected_action %}&action={{ selected_action }}{% endif %}#row-preview">下一頁 →</a>{% else %}<span class="button ghost small disabled">下一頁 →</span>{% endif %}
+      {% if page_obj.has_next %}<a class="button ghost small" href="?page={{ page_obj.next_page_number }}{% if selected_action %}&action={{ selected_action }}{% endif %}&q={{ search_query|urlencode }}#row-preview">下一頁 →</a>{% else %}<span class="button ghost small disabled">下一頁 →</span>{% endif %}
     </div>
   </nav>
   {% endif %}

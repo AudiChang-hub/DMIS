@@ -1,5 +1,6 @@
 import hashlib
 import json
+import re
 from datetime import date, datetime, time
 from decimal import Decimal, InvalidOperation
 
@@ -33,12 +34,14 @@ MULTIPLE_NEW_SALES_MESSAGE = "同一識別號碼存在多筆新車銷售；請�
 DUPLICATE_SALES_TRANSACTION_MESSAGE = "同一筆銷售交易在工作表重複出現"
 MISSING_IDENTIFIER_MESSAGE = "缺少引擎／車身號碼"
 EMPTY_SALES_PLACEHOLDER_MESSAGE = "Excel 空白公式列，系統自動略過"
+NON_VEHICLE_SALES_NOISE_MESSAGE = "缺少有效車輛序號且無交易資料，系統自動略過"
 SYSTEM_VALIDATION_MESSAGES = {
     DUPLICATE_IDENTIFIER_MESSAGE,
     MULTIPLE_NEW_SALES_MESSAGE,
     DUPLICATE_SALES_TRANSACTION_MESSAGE,
     MISSING_IDENTIFIER_MESSAGE,
     EMPTY_SALES_PLACEHOLDER_MESSAGE,
+    NON_VEHICLE_SALES_NOISE_MESSAGE,
 }
 
 
@@ -322,6 +325,46 @@ def _is_empty_sales_placeholder(data):
     )
 
 
+def _is_plausible_vehicle_identifier(value):
+    """排除電話、Email 等 Excel 欄位錯位值，只接受合理的引擎／車身序號。"""
+    normalized = normalize_vehicle_identifier(_text(value)) or ""
+    return bool(
+        6 <= len(normalized) <= 30
+        and re.fullmatch(r"[A-Z0-9]+", normalized)
+        and re.search(r"[A-Z]", normalized)
+        and re.search(r"[0-9]", normalized)
+    )
+
+
+def _is_non_vehicle_sales_noise(data):
+    """辨識誤落在銷貨欄位中的聯絡資料，不把它建立成車輛或歷史訂單。"""
+    if _is_plausible_vehicle_identifier(
+        data.get("identifier_raw") or data.get("identifier")
+    ):
+        return False
+    return not any(
+        _text(data.get(key))
+        for key in (
+            "owner_name",
+            "plate_number",
+            "registration_date",
+            "invoice_date",
+            "order_date",
+            "owner_id_number",
+            "owner_phone",
+            "owner_email",
+            "dealer_name",
+        )
+    ) and not any(
+        _decimal(data.get(key))
+        for key in (
+            "historical_received_price",
+            "cash_received",
+            "card_received",
+        )
+    )
+
+
 def _year_month(value):
     parsed = _date(value)
     if parsed:
@@ -584,7 +627,9 @@ def revalidate_import_batch(batch):
                 inventory_identifier_counts.get(identifier, 0) + 1
             )
         elif row.sheet_name == "銷貨":
-            if _is_empty_sales_placeholder(row.mapped_data):
+            if _is_empty_sales_placeholder(
+                row.mapped_data
+            ) or _is_non_vehicle_sales_noise(row.mapped_data):
                 continue
             transaction_key = _sales_transaction_key(row.mapped_data)
             sales_transaction_counts[transaction_key] = (
@@ -647,10 +692,15 @@ def revalidate_import_batch(batch):
                 SalesOrder.VehicleCategory.NEW,
             )
             is_placeholder = _is_empty_sales_placeholder(row.mapped_data)
-            if is_placeholder:
+            is_non_vehicle_noise = _is_non_vehicle_sales_noise(row.mapped_data)
+            if is_placeholder or is_non_vehicle_noise:
                 row.natural_key = f"sales-placeholder:{row.source_row}"
                 row.action = LegacyImportRow.Action.SKIP
-                messages.append(EMPTY_SALES_PLACEHOLDER_MESSAGE)
+                messages.append(
+                    EMPTY_SALES_PLACEHOLDER_MESSAGE
+                    if is_placeholder
+                    else NON_VEHICLE_SALES_NOISE_MESSAGE
+                )
             else:
                 row.natural_key = _sales_transaction_key(row.mapped_data)
                 if sales_transaction_counts.get(row.natural_key, 0) > 1:
@@ -735,6 +785,8 @@ def revalidate_import_batch(batch):
                 row.mapped_data.get("model_number", "")
                 for row in active_rows
                 if row.mapped_data.get("model_number")
+                and not _is_empty_sales_placeholder(row.mapped_data)
+                and not _is_non_vehicle_sales_noise(row.mapped_data)
                 and normalize_legacy_master_value(row.mapped_data["model_number"])
                 not in known_models
             }),

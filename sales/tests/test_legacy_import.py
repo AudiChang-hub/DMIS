@@ -519,6 +519,46 @@ class LegacyImportTests(TestCase):
         self.assertContains(response, "引擎／車身號碼")
         self.assertContains(response, "ABC-1234")
 
+    def test_shifted_contact_values_are_not_treated_as_vehicle_models(self):
+        content = workbook_bytes()
+        workbook = load_workbook(BytesIO(content))
+        sales = workbook["銷貨"]
+        sales["C5"] = "02"
+        sales["D5"] = "26951112"
+        sales["C6"] = "7000021"
+        sales["D6"] = "usmartmotor@gmail.com"
+        sales["C7"] = "RARE125"
+        sales["D7"] = "CGA2-750464"
+        stream = BytesIO()
+        workbook.save(stream)
+        payload = stream.getvalue()
+        batch = LegacyImportBatch.objects.create(
+            import_type=LegacyImportBatch.ImportType.OPERATIONS,
+            source_file=SimpleUploadedFile("shifted-contact.xlsx", payload),
+            original_filename="shifted-contact.xlsx",
+            file_sha256="4" * 64,
+            file_size=len(payload),
+            uploaded_by="tester",
+        )
+
+        summary = build_import_preview(batch)
+
+        self.assertEqual(summary["counts"]["skip"], 2)
+        self.assertEqual(summary["validation"]["unmapped_models"], ["RARE125", "TEST125"])
+        ignored_rows = batch.rows.filter(sheet_name="銷貨", source_row__in=[5, 6])
+        self.assertEqual(ignored_rows.filter(action="skip").count(), 2)
+        self.assertTrue(
+            all(
+                "缺少有效車輛序號且無交易資料，系統自動略過" in row.messages
+                for row in ignored_rows
+            )
+        )
+        workspace = build_import_master_workspace(batch)
+        self.assertEqual(
+            [item["source_value"] for item in workspace["models"]],
+            ["RARE125", "TEST125"],
+        )
+
     def test_preview_batch_can_be_deleted_with_uploaded_file(self):
         batch = self.make_batch(LegacyImportBatch.ImportType.CHANNELS)
         build_import_preview(batch)

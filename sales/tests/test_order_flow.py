@@ -2311,6 +2311,18 @@ class OrderFlowTests(TestCase):
                 self.assertContains(response, order.number)
                 self.assertContains(response, "備註")
 
+    def test_order_list_searches_vehicle_machine_and_model_number(self):
+        self.client.force_login(self.user)
+        self.model.model_number = "UQ125DA"
+        self.model.save(update_fields=["model_number", "updated_at"])
+        order = self.make_order()
+
+        for query, label in (("通勤 125", "車型"), ("UQ125DA", "型號")):
+            with self.subTest(query=query):
+                response = self.client.get(reverse("order_list"), {"q": query})
+                self.assertContains(response, order.number)
+                self.assertContains(response, label)
+
     def test_mobile_core_lists_have_explicit_non_overflow_layout_rules(self):
         from pathlib import Path
 

@@ -519,6 +519,40 @@ class LegacyImportTests(TestCase):
         self.assertContains(response, "引擎／車身號碼")
         self.assertContains(response, "ABC-1234")
 
+    def test_preview_rows_search_by_linked_machine_model_number_and_identifier(self):
+        batch = self.make_batch(LegacyImportBatch.ImportType.OPERATIONS)
+        build_import_preview(batch)
+        target = VehicleModel.objects.create(
+            brand="SUZUKI",
+            name="SUI 125",
+            model_number="UQ125DA",
+            energy_type=VehicleModel.EnergyType.GAS,
+            model_year=2026,
+            model_code=VehicleModel.ModelType.FRONT_DISC_REAR_DRUM,
+        )
+        save_import_master_mapping(
+            mapping_type=LegacyImportMasterMapping.MappingType.VEHICLE_MODEL,
+            source_value="TEST125",
+            vehicle_model=target,
+            actor_name="tester",
+        )
+
+        for query in ("SUI 125", "UQ125DA", "ab123"):
+            with self.subTest(query=query):
+                response = self.client.get(
+                    reverse("legacy_import_detail", args=[batch.pk]),
+                    {"q": query},
+                )
+                self.assertEqual(response.status_code, 200)
+                self.assertEqual(response.context["page_obj"].paginator.count, 2)
+                self.assertContains(response, "TEST125")
+
+        empty = self.client.get(
+            reverse("legacy_import_detail", args=[batch.pk]),
+            {"q": "完全不存在"},
+        )
+        self.assertEqual(empty.context["page_obj"].paginator.count, 0)
+
     def test_shifted_contact_values_are_not_treated_as_vehicle_models(self):
         content = workbook_bytes()
         workbook = load_workbook(BytesIO(content))

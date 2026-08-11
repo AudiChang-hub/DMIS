@@ -116,6 +116,7 @@ from .models import (
     VehiclePriceVersion,
     VehicleSettlementCostRule,
     normalize_legacy_master_value,
+    normalize_vehicle_identifier,
 )
 from .jobs import delete_id_ocr_job_files, run_id_ocr_job
 from .services.id_ocr import recognize_id_card
@@ -883,6 +884,58 @@ def legacy_import_detail(request, pk):
     action = request.GET.get("action", "")
     if action in {value for value, _ in LegacyImportRow.Action.choices}:
         rows = rows.filter(action=action)
+    search_query = request.GET.get("q", "").strip()
+    if search_query:
+        normalized_query = normalize_legacy_master_value(search_query)
+        normalized_identifier = normalize_vehicle_identifier(search_query) or ""
+        matching_models = VehicleModel.objects.filter(
+            Q(brand__icontains=search_query)
+            | Q(name__icontains=search_query)
+            | Q(model_number__icontains=search_query)
+        ).values_list("pk", "name", "model_number")
+        matching_model_ids = []
+        matching_model_aliases = set()
+        for model_id, name, model_number in matching_models:
+            matching_model_ids.append(model_id)
+            matching_model_aliases.update(
+                normalize_legacy_master_value(value)
+                for value in (name, model_number)
+                if value
+            )
+        mapped_source_values = set(
+            LegacyImportMasterMapping.objects.filter(
+                mapping_type=LegacyImportMasterMapping.MappingType.VEHICLE_MODEL,
+                vehicle_model_id__in=matching_model_ids,
+            ).values_list("source_value", flat=True)
+        )
+        source_model_values = set(
+            batch.rows.exclude(mapped_data__model_number="").values_list(
+                "mapped_data__model_number", flat=True
+            )
+        )
+        matching_source_models = {
+            value
+            for value in source_model_values
+            if value
+            and (
+                normalized_query in normalize_legacy_master_value(value)
+                or normalize_legacy_master_value(value) in matching_model_aliases
+            )
+        }
+        matching_source_models.update(mapped_source_values)
+        search_filter = (
+            Q(mapped_data__model_number__in=matching_source_models)
+            | Q(mapped_data__owner_name__icontains=search_query)
+            | Q(mapped_data__plate_number__icontains=search_query)
+            | Q(mapped_data__color__icontains=search_query)
+            | Q(mapped_data__dealer_name__icontains=search_query)
+            | Q(mapped_data__name__icontains=search_query)
+            | Q(mapped_data__contact_name__icontains=search_query)
+        )
+        if normalized_identifier:
+            search_filter |= Q(mapped_data__identifier__icontains=normalized_identifier)
+        rows = rows.filter(search_filter)
+    filtered_rows = rows
     page = Paginator(rows, 100).get_page(request.GET.get("page"))
     editing_row = None
     correction_form = None
@@ -893,7 +946,7 @@ def legacy_import_detail(request, pk):
     conflict_groups = []
     if action == LegacyImportRow.Action.CONFLICT:
         grouped = {}
-        for conflict_row in batch.rows.filter(action=LegacyImportRow.Action.CONFLICT):
+        for conflict_row in filtered_rows:
             comparison_key = (
                 conflict_row.mapped_data.get("identifier")
                 if conflict_row.sheet_name == "銷貨"
@@ -923,6 +976,7 @@ def legacy_import_detail(request, pk):
             "page_obj": page,
             "selected_action": action,
             "selected_action_label": action_labels.get(action, "全部資料"),
+            "search_query": search_query,
             "counts": counts,
             "unresolved_count": unresolved_count,
             "can_confirm": batch.status == LegacyImportBatch.Status.PREVIEW and unresolved_count == 0,

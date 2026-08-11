@@ -29,6 +29,7 @@ from .models import (
     RegistrationDocument,
     SalesOrder,
     SalesSource,
+    SalesSourceCategory,
     SalesSourceBrandPolicy,
     SalesSourceContact,
     SubsidyDocument,
@@ -169,6 +170,7 @@ class SalesOrderForm(forms.ModelForm):
             "vehicle_model",
             "color",
             "vehicle_category",
+            "transaction_type",
             "registration_date",
             "compulsory_insurance_period",
             "registration_plate_fee",
@@ -249,7 +251,19 @@ class SalesOrderForm(forms.ModelForm):
             for field_name in blank_numeric_fields:
                 if field_name not in self.initial:
                     self.fields[field_name].initial = None
-        self.fields["source"].queryset = SalesSource.objects.filter(active=True)
+        selected_source_type = (
+            self.data.get("source_type")
+            if self.is_bound
+            else self.instance.source_type or SalesOrder.SourceType.STORE
+        )
+        self.fields["source"].queryset = SalesSource.objects.filter(
+            active=True,
+            source_type=selected_source_type,
+        )
+        self.fields["source"].required = False
+        self.fields["source"].help_text = (
+            "本店訂單可選擇承辦員工；合作車行與網路平台則必須選擇來源名稱。"
+        )
         self.fields["color"].queryset = VehicleColor.objects.filter(active=True)
         self.fields["registration_date"].required = False
         self.fields["compulsory_insurance_period"].initial = (
@@ -303,6 +317,9 @@ class SalesOrderForm(forms.ModelForm):
         self.fields["delivery_method"].required = True
         self.fields["vehicle_category"].required = False
         self.fields["vehicle_category"].initial = SalesOrder.VehicleCategory.NEW
+        # 相容功能上線前建立的草稿與舊版表單送出；新畫面仍會顯示選項。
+        self.fields["transaction_type"].required = False
+        self.fields["transaction_type"].initial = SalesOrder.TransactionType.REGULAR_NEW
 
     def clean_id_front(self):
         return validate_image_upload(self.cleaned_data.get("id_front"))
@@ -315,13 +332,19 @@ class SalesOrderForm(forms.ModelForm):
         if not data.get("vehicle_category"):
             data["vehicle_category"] = SalesOrder.VehicleCategory.NEW
             self.cleaned_data["vehicle_category"] = SalesOrder.VehicleCategory.NEW
+        if not data.get("transaction_type"):
+            data["transaction_type"] = SalesOrder.TransactionType.REGULAR_NEW
+            self.cleaned_data["transaction_type"] = SalesOrder.TransactionType.REGULAR_NEW
         source_type = data.get("source_type")
         source = data.get("source")
-        if source_type == SalesOrder.SourceType.STORE:
-            data["source"] = None
-            self.cleaned_data["source"] = None
-        elif source and source.source_type != source_type:
+        if source and source.source_type != source_type:
             self.add_error("source", "來源名稱與選擇的訂單來源不一致。")
+
+        if data.get("vehicle_category") == SalesOrder.VehicleCategory.USED:
+            data["transaction_type"] = SalesOrder.TransactionType.USED
+            self.cleaned_data["transaction_type"] = SalesOrder.TransactionType.USED
+        elif data.get("transaction_type") == SalesOrder.TransactionType.USED:
+            self.add_error("transaction_type", "中古車交易的車輛類別也必須選擇中古車。")
 
         model = data.get("vehicle_model")
         selected_energy_type = data.get("vehicle_energy_type")
@@ -475,7 +498,7 @@ class SalesSourceForm(forms.ModelForm):
     class Meta:
         model = SalesSource
         fields = [
-            "source_type", "name", "code", "phone", "fax", "address",
+            "category", "name", "code", "phone", "fax", "address",
             "vehicle_capacity", "holiday_gift", "relationship_note", "note", "active",
         ]
         widgets = {
@@ -485,9 +508,45 @@ class SalesSourceForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.fields["category"].queryset = SalesSourceCategory.objects.filter(
+            Q(active=True) | Q(pk=self.instance.category_id)
+        ).order_by("system_behavior", "name")
+        self.fields["category"].required = True
         for field in self.fields.values():
             field.widget.attrs.setdefault("class", "form-control")
         apply_mobile_keyboard_attrs(self)
+
+    def save(self, commit=True):
+        source = super().save(commit=False)
+        source.source_type = source.category.system_behavior
+        if commit:
+            source.save()
+            self.save_m2m()
+        return source
+
+
+class SalesSourceCategoryForm(forms.ModelForm):
+    class Meta:
+        model = SalesSourceCategory
+        fields = ["name", "system_behavior", "active", "note"]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        for field in self.fields.values():
+            field.widget.attrs.setdefault("class", "form-control")
+        apply_mobile_keyboard_attrs(self)
+
+    def clean_system_behavior(self):
+        behavior = self.cleaned_data["system_behavior"]
+        if (
+            self.instance.pk
+            and self.instance.system_behavior != behavior
+            and self.instance.sources.exists()
+        ):
+            raise forms.ValidationError(
+                "此分類已有通路使用，不能改變系統處理方式；請另建新分類後再調整通路。"
+            )
+        return behavior
 
 
 class SalesSourceContactForm(forms.ModelForm):
@@ -674,6 +733,7 @@ class LegacyImportRowCorrectionForm(forms.Form):
     )
     SALES_FIELDS = (
         ("vehicle_category", "車輛類別", "vehicle_category", True),
+        ("transaction_type", "交易類型", "transaction_type", True),
         ("model_number", "車種型號", "text", True),
         ("identifier_raw", "引擎／車身號碼", "text", False),
         ("owner_name", "車主姓名", "text", True),
@@ -685,7 +745,7 @@ class LegacyImportRowCorrectionForm(forms.Form):
         ("cash_received", "現金收款", "decimal", False),
         ("card_received", "刷卡收款", "decimal", False),
         ("payment_confirmed", "已確認收款", "boolean", False),
-        ("dealer_name", "車行／平台", "text", False),
+        ("dealer_name", "來源名稱", "text", False),
         ("installment_company", "分期公司", "text", False),
         ("installment_periods", "分期期數", "integer", False),
         ("owner_birth_date", "西元生日", "date", False),
@@ -769,6 +829,12 @@ class LegacyImportRowCorrectionForm(forms.Form):
                     label=display_label,
                     required=False,
                     choices=SalesOrder.VehicleCategory.choices,
+                )
+            elif kind == "transaction_type":
+                field = forms.ChoiceField(
+                    label=display_label,
+                    required=False,
+                    choices=SalesOrder.TransactionType.choices,
                 )
             elif kind == "year_month":
                 field = forms.RegexField(
@@ -1250,20 +1316,78 @@ class LegacyVehicleModelQuickCreateForm(forms.ModelForm):
 
 
 class LegacySalesSourceQuickCreateForm(forms.ModelForm):
+    source_category = forms.ModelChoiceField(
+        label="通路分類",
+        queryset=SalesSourceCategory.objects.none(),
+        required=False,
+        help_text="例如：合作車行、網路平台、本店員工。",
+    )
+    new_category_name = forms.CharField(
+        label="新分類名稱",
+        required=False,
+        max_length=80,
+        help_text="現有分類不適用時才填寫，例如：本店員工。",
+    )
+    new_category_behavior = forms.ChoiceField(
+        label="新分類的系統處理方式",
+        required=False,
+        choices=SalesSourceCategory.SystemBehavior.choices,
+        help_text="本店來源不套車行傭金；合作車行與網路平台會進入各自對帳流程。",
+    )
+
     class Meta:
         model = SalesSource
-        fields = ["source_type", "name", "address"]
+        fields = ["name", "address"]
         labels = {
-            "source_type": "通路類型",
-            "name": "車行／平台名稱",
+            "name": "來源名稱",
             "address": "地址（選填）",
         }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.fields["source_category"].queryset = SalesSourceCategory.objects.filter(
+            active=True
+        ).order_by("system_behavior", "name")
         for field in self.fields.values():
             field.widget.attrs.setdefault("class", "form-control")
         apply_mobile_keyboard_attrs(self)
+
+    def clean(self):
+        cleaned = super().clean()
+        selected = cleaned.get("source_category")
+        new_name = (cleaned.get("new_category_name") or "").strip()
+        behavior = cleaned.get("new_category_behavior")
+        if not selected and not new_name:
+            self.add_error("source_category", "請選擇既有分類，或建立一個新分類。")
+        if new_name and not behavior:
+            self.add_error("new_category_behavior", "建立新分類時請選擇系統處理方式。")
+        existing = SalesSourceCategory.objects.filter(name__iexact=new_name).first()
+        if existing and behavior and existing.system_behavior != behavior:
+            self.add_error(
+                "new_category_name",
+                f"「{existing.name}」已存在，且系統處理方式為{existing.get_system_behavior_display()}。",
+            )
+        return cleaned
+
+    @transaction.atomic
+    def save(self, commit=True):
+        source = super().save(commit=False)
+        new_name = (self.cleaned_data.get("new_category_name") or "").strip()
+        if new_name:
+            category, _ = SalesSourceCategory.objects.get_or_create(
+                name=new_name,
+                defaults={
+                    "system_behavior": self.cleaned_data["new_category_behavior"],
+                    "active": True,
+                },
+            )
+        else:
+            category = self.cleaned_data["source_category"]
+        source.category = category
+        source.source_type = category.system_behavior
+        if commit:
+            source.save()
+        return source
 
 
 class VehiclePriceVersionForm(forms.ModelForm):

@@ -16,6 +16,7 @@ from sales.models import (
     LegacySalesSnapshot,
     SalesOrder,
     SalesSource,
+    SalesSourceCategory,
     Store,
     VehicleColor,
     VehicleInventory,
@@ -23,6 +24,8 @@ from sales.models import (
 )
 from sales.forms import LegacyImportRowCorrectionForm, LegacyImportUploadForm
 from sales.services.legacy_import import (
+    _clean_sales_source_name,
+    _infer_sales_transaction_type,
     _infer_sales_vehicle_category,
     apply_import_row_decision,
     build_import_master_workspace,
@@ -207,6 +210,29 @@ class LegacyImportTests(TestCase):
         self.assertEqual(
             _infer_sales_vehicle_category({"備註": "新車成交，另有中古車估價"}, "")[0],
             SalesOrder.VehicleCategory.NEW,
+        )
+
+    def test_transaction_type_is_separated_from_sales_source_name(self):
+        self.assertEqual(_clean_sales_source_name("昌勝(試乘車)"), "昌勝")
+        self.assertEqual(_clean_sales_source_name("東永-試乘車"), "東永")
+        self.assertEqual(_clean_sales_source_name("中獎車"), "")
+        self.assertEqual(
+            _infer_sales_transaction_type(
+                {}, "昌勝(試乘車)", SalesOrder.VehicleCategory.NEW
+            )[0],
+            SalesOrder.TransactionType.TEST_RIDE,
+        )
+        self.assertEqual(
+            _infer_sales_transaction_type(
+                {}, "中獎車", SalesOrder.VehicleCategory.NEW
+            )[0],
+            SalesOrder.TransactionType.PRIZE,
+        )
+        self.assertEqual(
+            _infer_sales_transaction_type(
+                {}, "中古車", SalesOrder.VehicleCategory.USED
+            )[0],
+            SalesOrder.TransactionType.USED,
         )
 
     def test_used_vehicle_resale_can_share_identifier_without_reusing_inventory(self):
@@ -441,13 +467,17 @@ class LegacyImportTests(TestCase):
             {
                 "source_value": "新合作車行",
                 "resolution_action": "create",
-                "source-create-source_type": SalesSource.SourceType.DEALER,
+                "source-create-source_category": SalesSourceCategory.objects.get(
+                    name="合作車行"
+                ).pk,
                 "source-create-name": "新合作車行",
                 "source-create-address": "新北市測試路",
             },
         )
         self.assertEqual(response.status_code, 302)
         source = SalesSource.objects.get(name="新合作車行")
+        self.assertEqual(source.category.name, "合作車行")
+        self.assertEqual(source.source_type, SalesSource.SourceType.DEALER)
         batch.refresh_from_db()
         self.assertEqual(batch.preview_summary["validation"]["unmapped_sources"], [])
 
@@ -462,7 +492,47 @@ class LegacyImportTests(TestCase):
         summary = build_import_preview(second)
         self.assertEqual(summary["validation"]["unmapped_sources"], [])
         confirm_import(second, "tester")
-        self.assertEqual(SalesOrder.objects.get().source, source)
+        order = SalesOrder.objects.get()
+        self.assertEqual(order.source, source)
+        self.assertEqual(order.transaction_type, SalesOrder.TransactionType.REGULAR_NEW)
+
+    def test_quick_create_can_add_staff_category_inline(self):
+        content = workbook_bytes()
+        workbook = load_workbook(BytesIO(content))
+        workbook["銷貨"]["AN4"] = "文傑"
+        stream = BytesIO()
+        workbook.save(stream)
+        payload = stream.getvalue()
+        batch = LegacyImportBatch.objects.create(
+            import_type=LegacyImportBatch.ImportType.OPERATIONS,
+            source_file=SimpleUploadedFile("staff.xlsx", payload),
+            original_filename="staff.xlsx",
+            file_sha256="4" * 64,
+            file_size=len(payload),
+            uploaded_by="tester",
+        )
+        build_import_preview(batch)
+
+        response = self.client.post(
+            reverse(
+                "legacy_import_master_resolve",
+                args=[batch.pk, LegacyImportMasterMapping.MappingType.SALES_SOURCE],
+            ),
+            {
+                "source_value": "文傑",
+                "resolution_action": "create",
+                "source-create-source_category": "",
+                "source-create-new_category_name": "本店員工",
+                "source-create-new_category_behavior": SalesSourceCategory.SystemBehavior.STORE,
+                "source-create-name": "文傑",
+                "source-create-address": "",
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        source = SalesSource.objects.get(name="文傑")
+        self.assertEqual(source.category.name, "本店員工")
+        self.assertEqual(source.source_type, SalesSource.SourceType.STORE)
 
     def test_keep_historical_source_text_removes_warning_without_polluting_master(self):
         content = workbook_bytes()

@@ -116,7 +116,7 @@
 
   {% if master_workspace.sources %}
   <div class="import-master-group">
-    <div class="import-master-group__heading"><div><span>通路主檔</span><h3>未對應車行／平台</h3></div><strong>{{ master_workspace.sources|length }} 個</strong></div>
+    <div class="import-master-group__heading"><div><span>通路主檔</span><h3>未對應來源</h3></div><strong>{{ master_workspace.sources|length }} 個</strong></div>
     <div class="import-master-items">
       {% for item in master_workspace.sources %}
       <article class="import-master-item">
@@ -175,12 +175,19 @@
   <dialog class="import-master-dialog" id="sales-source-create-dialog">
     <form method="post" action="{% url 'legacy_import_master_resolve' batch.pk 'sales_source' %}">{% csrf_token %}<input type="hidden" name="source_value" data-master-source-input><input type="hidden" name="resolution_action" value="create">
       <header><div><span>快速建立通路</span><h3 data-master-source-label></h3></div><button type="button" aria-label="關閉" data-close-dialog>×</button></header>
-      <p>先建立基本資料；聯絡人、品牌合作與傭金規則可稍後補充。</p>
+      <p>先建立基本資料；若現有分類不適用，可在這裡直接新增。聯絡人、品牌合作與傭金規則可稍後補充。</p>
       <div class="import-master-form-grid">
-        {% include "sales/_field.html" with field=sales_source_quick_form.source_type %}
+        {% include "sales/_field.html" with field=sales_source_quick_form.source_category %}
         {% include "sales/_field.html" with field=sales_source_quick_form.name %}
         {% include "sales/_field.html" with field=sales_source_quick_form.address %}
       </div>
+      <details class="import-inline-category-create">
+        <summary>＋ 現有分類不適用，建立新分類</summary>
+        <div class="import-master-form-grid">
+          {% include "sales/_field.html" with field=sales_source_quick_form.new_category_name %}
+          {% include "sales/_field.html" with field=sales_source_quick_form.new_category_behavior %}
+        </div>
+      </details>
       <div class="form-actions"><button class="button primary" type="submit">建立並完成對應</button><button class="button ghost" type="button" data-close-dialog>取消</button></div>
     </form>
   </dialog>
@@ -203,7 +210,7 @@
         <dl>
           <div><dt>車種型號</dt><dd>{{ row.mapped_data.model_number|default:'未填' }}</dd></div>
           <div><dt>識別號碼</dt><dd>{{ row.mapped_data.identifier_raw|default:'未填' }}</dd></div>
-          {% if row.sheet_name == '銷貨' %}<div><dt>車輛類別</dt><dd>{% if row.mapped_data.vehicle_category == 'used' %}中古車{% else %}新車{% endif %}</dd></div><div><dt>車主</dt><dd>{{ row.mapped_data.owner_name|default:'未填' }}</dd></div><div><dt>領牌日期</dt><dd>{{ row.mapped_data.registration_date|default:'未填' }}</dd></div>{% else %}<div><dt>顏色</dt><dd>{{ row.mapped_data.color|default:'未填' }}</dd></div><div><dt>進貨日期</dt><dd>{{ row.mapped_data.received_on|default:'未填' }}</dd></div>{% endif %}
+          {% if row.sheet_name == '銷貨' %}<div><dt>車輛類別</dt><dd>{% if row.mapped_data.vehicle_category == 'used' %}中古車{% else %}新車{% endif %}</dd></div><div><dt>交易類型</dt><dd>{% if row.mapped_data.transaction_type == 'test_ride' %}試乘車{% elif row.mapped_data.transaction_type == 'prize' %}中獎車{% elif row.mapped_data.transaction_type == 'registered' %}領牌車{% elif row.mapped_data.transaction_type == 'used' %}中古車交易{% elif row.mapped_data.transaction_type == 'other' %}其他{% else %}一般新車{% endif %}</dd></div><div><dt>車主</dt><dd>{{ row.mapped_data.owner_name|default:'未填' }}</dd></div><div><dt>領牌日期</dt><dd>{{ row.mapped_data.registration_date|default:'未填' }}</dd></div>{% else %}<div><dt>顏色</dt><dd>{{ row.mapped_data.color|default:'未填' }}</dd></div><div><dt>進貨日期</dt><dd>{{ row.mapped_data.received_on|default:'未填' }}</dd></div>{% endif %}
         </dl>
         {% if batch.status == 'preview' %}<a class="button ghost" href="?action=conflict&edit={{ row.pk }}#row-editor">檢查並處理這一列</a>{% endif %}
       </div>
@@ -257,7 +264,7 @@
         <td data-label="來源"><strong>{{ row.sheet_name }}第 {{ row.source_row }} 列</strong>{% if row.manually_corrected %}<small>{{ row.corrected_by }} 已修正</small>{% endif %}</td>
         <td data-label="比對鍵"><code>{{ row.natural_key|default:'—' }}</code></td>
         <td data-label="處理方式"><span class="status-pill {% if row.action == 'error' %}warning{% endif %}">{{ row.get_action_display }}</span></td>
-        <td data-label="主要內容">{% if row.sheet_name == '銷貨' %}<strong>{{ row.mapped_data.owner_name|default:'未填車主' }}</strong><small>{{ row.mapped_data.model_number }}</small>{% elif row.sheet_name == '進貨' %}<strong>{{ row.mapped_data.model_number|default:'未填車型' }}</strong><small>{{ row.mapped_data.identifier_raw }}</small>{% else %}<strong>{{ row.mapped_data.name }}</strong><small>{{ row.mapped_data.contact_name }}</small>{% endif %}</td>
+        <td data-label="主要內容">{% if row.sheet_name == '銷貨' %}<strong>{{ row.mapped_data.owner_name|default:'未填車主' }}</strong><small>{{ row.mapped_data.model_number }} · {% if row.mapped_data.transaction_type == 'test_ride' %}試乘車{% elif row.mapped_data.transaction_type == 'prize' %}中獎車{% elif row.mapped_data.transaction_type == 'registered' %}領牌車{% elif row.mapped_data.transaction_type == 'used' %}中古車交易{% elif row.mapped_data.transaction_type == 'other' %}其他{% else %}一般新車{% endif %}{% if row.mapped_data.dealer_name %} · {{ row.mapped_data.dealer_name }}{% endif %}</small>{% elif row.sheet_name == '進貨' %}<strong>{{ row.mapped_data.model_number|default:'未填車型' }}</strong><small>{{ row.mapped_data.identifier_raw }}</small>{% else %}<strong>{{ row.mapped_data.name }}</strong><small>{{ row.mapped_data.contact_name }}</small>{% endif %}</td>
         <td data-label="檢核結果">{% for message in row.messages %}<span class="import-row-message">{{ message }}</span>{% empty %}<span class="muted">檢核通過</span>{% endfor %}</td>
         <td data-label="操作">{% if batch.status == 'preview' %}<a class="button ghost small" href="?action={{ selected_action }}&q={{ search_query|urlencode }}&page={{ page_obj.number }}&edit={{ row.pk }}#row-editor">修正／排除</a>{% endif %}</td>
       </tr>

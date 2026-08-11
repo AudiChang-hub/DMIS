@@ -83,13 +83,50 @@ class InstallmentCompany(TimeStampedModel):
         return self.name
 
 
+class SalesSourceCategory(TimeStampedModel):
+    class SystemBehavior(models.TextChoices):
+        STORE = "store", "本店來源"
+        DEALER = "dealer", "合作車行"
+        PLATFORM = "platform", "網路平台"
+
+    name = models.CharField("分類名稱", max_length=80, unique=True)
+    system_behavior = models.CharField(
+        "系統處理方式",
+        max_length=20,
+        choices=SystemBehavior.choices,
+        default=SystemBehavior.STORE,
+        help_text="決定是否套用車行傭金、平台對帳或視為本店來源。",
+    )
+    active = models.BooleanField("啟用中", default=True)
+    note = models.CharField("內部備註", max_length=250, blank=True)
+
+    class Meta:
+        ordering = ["system_behavior", "name", "id"]
+        verbose_name = "通路分類"
+        verbose_name_plural = "通路分類"
+
+    def __str__(self):
+        return self.name
+
+
 class SalesSource(TimeStampedModel):
     class SourceType(models.TextChoices):
+        STORE = "store", "本店來源"
         DEALER = "dealer", "合作車行"
         PLATFORM = "platform", "網路平台"
 
     name = models.CharField("來源名稱", max_length=120)
-    source_type = models.CharField("來源類型", max_length=20, choices=SourceType.choices)
+    source_type = models.CharField(
+        "系統處理方式", max_length=20, choices=SourceType.choices
+    )
+    category = models.ForeignKey(
+        SalesSourceCategory,
+        on_delete=models.PROTECT,
+        related_name="sources",
+        verbose_name="通路分類",
+        blank=True,
+        null=True,
+    )
     code = models.CharField("來源代碼", max_length=40, blank=True)
     phone = models.CharField("電話", max_length=50, blank=True)
     fax = models.CharField("傳真", max_length=50, blank=True)
@@ -118,6 +155,16 @@ class SalesSource(TimeStampedModel):
 
     def __str__(self):
         return self.name
+
+    def clean(self):
+        super().clean()
+        if self.category_id and self.source_type != self.category.system_behavior:
+            self.source_type = self.category.system_behavior
+
+    def save(self, *args, **kwargs):
+        if self.category_id:
+            self.source_type = self.category.system_behavior
+        return super().save(*args, **kwargs)
 
 
 class VehicleModel(TimeStampedModel):
@@ -1429,6 +1476,14 @@ class SalesOrder(TimeStampedModel):
         NEW = "new", "新車"
         USED = "used", "中古車"
 
+    class TransactionType(models.TextChoices):
+        REGULAR_NEW = "regular_new", "一般新車"
+        REGISTERED = "registered", "領牌車"
+        TEST_RIDE = "test_ride", "試乘車"
+        PRIZE = "prize", "中獎車"
+        USED = "used", "中古車交易"
+        OTHER = "other", "其他"
+
     class SourceType(models.TextChoices):
         STORE = "store", "本店"
         DEALER = "dealer", "合作車行"
@@ -1538,6 +1593,14 @@ class SalesOrder(TimeStampedModel):
         max_length=10,
         choices=VehicleCategory.choices,
         default=VehicleCategory.NEW,
+    )
+    transaction_type = models.CharField(
+        "交易類型",
+        max_length=20,
+        choices=TransactionType.choices,
+        default=TransactionType.REGULAR_NEW,
+        db_index=True,
+        help_text="用來區分一般新車、領牌車、試乘車、中獎車或中古車交易。",
     )
     registration_date = models.DateField("實際領牌日期", blank=True, null=True)
     registration_county = models.CharField(
@@ -2182,12 +2245,14 @@ class SalesOrder(TimeStampedModel):
         if self.payment_type != self.PaymentType.INSTALLMENT:
             self.clear_installment_details()
         errors = {}
-        if self.source_type == self.SourceType.STORE and self.source_id:
-            errors["source"] = "本店訂單不需選擇來源名稱。"
         if self.source_type != self.SourceType.STORE and not self.source_id:
             errors["source"] = "合作車行或網路平台訂單必須選擇來源名稱。"
         if self.source_id and self.source.source_type != self.source_type:
             errors["source"] = "來源名稱與訂單來源類型不一致。"
+        if self.vehicle_category == self.VehicleCategory.USED:
+            self.transaction_type = self.TransactionType.USED
+        elif self.transaction_type == self.TransactionType.USED:
+            errors["transaction_type"] = "中古車交易的車輛類別也必須選擇中古車。"
         if self.color_id and self.vehicle_model_id:
             if self.color.vehicle_model_id != self.vehicle_model_id:
                 errors["color"] = "此車色不屬於選定車型。"

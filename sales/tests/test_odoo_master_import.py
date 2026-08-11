@@ -6,6 +6,7 @@ from sales.models import (
     BusinessHoliday,
     DealerVolumeBonusRule,
     SalesSource,
+    SalesSourceCategory,
     SalesSourceBrandPolicy,
     VehicleModel,
     VehiclePriceVersion,
@@ -136,3 +137,28 @@ class OdooMasterImportTests(TestCase):
         self.assertEqual(second["sources_update"], 1)
         self.assertEqual(SalesSource.objects.count(), 1)
         self.assertEqual(VehicleModel.objects.count(), 1)
+
+    def test_staff_source_is_imported_as_store_category(self):
+        payload = self.payload()
+        payload["dealers"] = [
+            {
+                "id": 99,
+                "name": "文傑",
+                "code": "STAFF-01",
+                "store_type_name": "店內員工",
+                "active": True,
+            }
+        ]
+        payload["dealer_brand_auth"] = []
+        payload["dealer_commission_rules"] = []
+        payload["volume_rules"] = []
+
+        import_odoo_master_data(payload, apply=True)
+
+        source = SalesSource.objects.get(code="STAFF-01")
+        self.assertEqual(source.source_type, SalesSource.SourceType.STORE)
+        self.assertEqual(source.category.name, "店內員工")
+        self.assertEqual(
+            source.category.system_behavior,
+            SalesSourceCategory.SystemBehavior.STORE,
+        )

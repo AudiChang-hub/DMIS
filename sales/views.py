@@ -67,6 +67,7 @@ from .forms import (
     RegistrationStageForm,
     SalesOrderForm,
     SalesSourceBrandPolicyFormSet,
+    SalesSourceCategoryForm,
     SalesSourceContactFormSet,
     SalesSourceForm,
     SignedContractForm,
@@ -104,6 +105,7 @@ from .models import (
     SalesOrder,
     SalesOrderSearchIndex,
     SalesSource,
+    SalesSourceCategory,
     SalesSourceContact,
     Store,
     SubsidyDocument,
@@ -512,6 +514,7 @@ def positioned_template_delete(request, pk):
 def sales_source_list(request):
     keyword = request.GET.get("q", "").strip()
     source_type = request.GET.get("type", "")
+    category_id = request.GET.get("category", "")
     brand = request.GET.get("brand", "").strip()
     holiday_gift = request.GET.get("holiday_gift", "")
     sources = SalesSource.objects.annotate(
@@ -521,7 +524,7 @@ def sales_source_list(request):
             filter=Q(brand_policies__cooperates=True),
             distinct=True,
         ),
-    ).order_by("source_type", "name", "id")
+    ).select_related("category").order_by("source_type", "category__name", "name", "id")
     if keyword:
         keyword_filter = (
             Q(name__icontains=keyword)
@@ -530,6 +533,7 @@ def sales_source_list(request):
             | Q(phone__icontains=keyword)
             | Q(relationship_note__icontains=keyword)
             | Q(note__icontains=keyword)
+            | Q(category__name__icontains=keyword)
             | Q(contacts__name__icontains=keyword)
             | Q(contacts__phone__icontains=keyword)
             | Q(contacts__mobile__icontains=keyword)
@@ -540,6 +544,8 @@ def sales_source_list(request):
         sources = sources.filter(keyword_filter).distinct()
     if source_type in {value for value, _ in SalesSource.SourceType.choices}:
         sources = sources.filter(source_type=source_type)
+    if category_id.isdigit():
+        sources = sources.filter(category_id=category_id)
     if brand:
         sources = sources.filter(
             brand_policies__brand__iexact=brand,
@@ -567,6 +573,9 @@ def sales_source_list(request):
             "page_obj": page,
             "sources": page.object_list,
             "source_types": SalesSource.SourceType.choices,
+            "source_categories": SalesSourceCategory.objects.filter(active=True).order_by(
+                "system_behavior", "name"
+            ),
             "brands": brands,
             "holiday_gift_count": SalesSource.objects.filter(
                 source_type=SalesSource.SourceType.DEALER,
@@ -575,6 +584,7 @@ def sales_source_list(request):
             "selected": {
                 "q": keyword,
                 "type": source_type,
+                "category": category_id,
                 "brand": brand,
                 "holiday_gift": holiday_gift,
             },
@@ -659,7 +669,10 @@ def sales_source_form(request, pk=None):
         contact_formset.save()
         policy_formset.instance = source
         policy_formset.save()
-        messages.success(request, f"已儲存{source.get_source_type_display()}：{source.name}。")
+        messages.success(
+            request,
+            f"已儲存{source.category.name if source.category_id else source.get_source_type_display()}：{source.name}。",
+        )
         return redirect("sales_source_list")
     return render(
         request,
@@ -878,6 +891,38 @@ def legacy_import_list(request):
 
 
 @login_required
+@require_http_methods(["GET", "POST"])
+@transaction.atomic
+def sales_source_category_list(request):
+    editing = None
+    edit_pk = request.GET.get("edit")
+    if edit_pk:
+        editing = get_object_or_404(SalesSourceCategory, pk=edit_pk)
+    if request.method == "POST" and request.POST.get("action") == "delete":
+        category = get_object_or_404(SalesSourceCategory, pk=request.POST.get("category_id"))
+        if category.sources.exists():
+            messages.error(request, f"無法刪除「{category.name}」：仍有通路正在使用。可改為停用。")
+        else:
+            label = category.name
+            category.delete()
+            messages.success(request, f"已刪除未使用的通路分類：{label}。")
+        return redirect("sales_source_category_list")
+    form = SalesSourceCategoryForm(request.POST or None, instance=editing)
+    if request.method == "POST" and form.is_valid():
+        category = form.save()
+        messages.success(request, f"已儲存通路分類：{category.name}。")
+        return redirect("sales_source_category_list")
+    categories = SalesSourceCategory.objects.annotate(
+        source_count=Count("sources")
+    ).order_by("system_behavior", "name", "id")
+    return render(
+        request,
+        "sales/sales_source_category_list.html",
+        {"form": form, "categories": categories, "editing": editing},
+    )
+
+
+@login_required
 def legacy_import_detail(request, pk):
     batch = get_object_or_404(LegacyImportBatch, pk=pk)
     rows = batch.rows.all()
@@ -929,9 +974,20 @@ def legacy_import_detail(request, pk):
             | Q(mapped_data__plate_number__icontains=search_query)
             | Q(mapped_data__color__icontains=search_query)
             | Q(mapped_data__dealer_name__icontains=search_query)
+            | Q(mapped_data__dealer_name_raw__icontains=search_query)
             | Q(mapped_data__name__icontains=search_query)
             | Q(mapped_data__contact_name__icontains=search_query)
         )
+        transaction_aliases = {
+            "一般新車": SalesOrder.TransactionType.REGULAR_NEW,
+            "領牌車": SalesOrder.TransactionType.REGISTERED,
+            "試乘車": SalesOrder.TransactionType.TEST_RIDE,
+            "中獎車": SalesOrder.TransactionType.PRIZE,
+            "中古車交易": SalesOrder.TransactionType.USED,
+        }
+        for label, value in transaction_aliases.items():
+            if search_query in label:
+                search_filter |= Q(mapped_data__transaction_type=value)
         if normalized_identifier:
             search_filter |= Q(mapped_data__identifier__icontains=normalized_identifier)
         rows = rows.filter(search_filter)

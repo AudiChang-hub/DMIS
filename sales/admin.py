@@ -29,6 +29,7 @@ from .models import (
     PositionedPrintTemplate,
     SalesOrder,
     SalesSource,
+    SalesSourceCategory,
     SalesSourceBrandPolicy,
     SalesSourceContact,
     Store,
@@ -73,9 +74,16 @@ class StoreAdmin(admin.ModelAdmin):
 @admin.register(SalesSource)
 class SalesSourceAdmin(admin.ModelAdmin):
     list_display = (
-        "name", "source_type", "phone", "vehicle_capacity", "holiday_gift", "active"
+        "name", "category", "source_type", "phone", "vehicle_capacity", "holiday_gift", "active"
     )
-    list_filter = ("source_type", "holiday_gift", "active")
+    list_filter = ("category", "source_type", "holiday_gift", "active")
+
+
+@admin.register(SalesSourceCategory)
+class SalesSourceCategoryAdmin(admin.ModelAdmin):
+    list_display = ("name", "system_behavior", "active")
+    list_filter = ("system_behavior", "active")
+    search_fields = ("name", "note")
 
 
 admin.site.register(InstallmentCompany)

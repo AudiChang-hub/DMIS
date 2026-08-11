@@ -17,6 +17,7 @@ from sales.models import (
     OrderOperationsProfile,
     SalesOrder,
     SalesSource,
+    SalesSourceCategory,
     SalesSourceBrandPolicy,
     VehicleColor,
     VehicleModel,
@@ -228,10 +229,37 @@ class ChannelFinanceTests(TestCase):
         self.client.force_login(self.user)
         for name in (
             "sales_source_list",
+            "sales_source_category_list",
             "installment_company_list",
             "dealer_volume_bonus_list",
         ):
             self.assertEqual(self.client.get(reverse(name)).status_code, 200)
+
+    def test_source_form_derives_system_behavior_from_category(self):
+        category = SalesSourceCategory.objects.get(name="本店員工")
+        self.client.force_login(self.user)
+
+        response = self.client.post(
+            reverse("sales_source_create"),
+            {
+                "category": category.pk,
+                "name": "文傑",
+                "active": "on",
+                "contacts-TOTAL_FORMS": "0",
+                "contacts-INITIAL_FORMS": "0",
+                "contacts-MIN_NUM_FORMS": "0",
+                "contacts-MAX_NUM_FORMS": "1000",
+                "policies-TOTAL_FORMS": "0",
+                "policies-INITIAL_FORMS": "0",
+                "policies-MIN_NUM_FORMS": "0",
+                "policies-MAX_NUM_FORMS": "1000",
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        source = SalesSource.objects.get(name="文傑")
+        self.assertEqual(source.source_type, SalesSource.SourceType.STORE)
+        self.assertEqual(source.category, category)
 
     def test_sales_source_list_filters_and_labels_holiday_gift_dealers(self):
         self.dealer.holiday_gift = True
@@ -259,7 +287,7 @@ class ChannelFinanceTests(TestCase):
         self.assertNotContains(response, "測試平台")
         self.assertContains(response, "目前共 1 家")
         self.assertContains(response, "需送禮")
-        self.assertContains(response, "返回全部車行／平台")
+        self.assertContains(response, "返回全部通路")
         self.assertNotContains(response, "type=dealer&amp;holiday_gift=yes")
 
     def test_sales_source_gift_filter_can_return_to_all_source_types(self):
@@ -269,7 +297,7 @@ class ChannelFinanceTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'href="/data/channels/"')
-        self.assertContains(response, "← 返回全部車行／平台")
+        self.assertContains(response, "← 返回全部通路")
         self.assertContains(response, "不限送禮狀態")
 
     def test_holiday_gift_manage_updates_complete_dealer_list(self):

@@ -136,6 +136,7 @@
       {% include "sales/_field.html" with field=form.vehicle_model %}
       {% include "sales/_field.html" with field=form.color %}
       {% include "sales/_field.html" with field=form.vehicle_category %}
+      {% include "sales/_field.html" with field=form.transaction_type %}
     </div>
   </details>
 
@@ -654,7 +655,7 @@
   }
 
   function refresh() {
-    showConditional("source", sourceType.value !== "store");
+    showConditional("source", true);
     showConditional("identity-upload", ["local", "foreign"].includes(ownerType.value));
     showConditional("corporate", ownerType.value === "corporate");
     document.querySelector(".owner-form-grid")?.classList.toggle(
@@ -726,11 +727,6 @@
   sourceType.addEventListener("change", async () => {
     const source = byId("id_source");
     sourceRequestController?.abort();
-    if (sourceType.value === "store") {
-      source.innerHTML = '<option value="">本店不需選擇來源名稱</option>';
-      source.disabled = true;
-      return;
-    }
     const requestedType = sourceType.value;
     source.innerHTML = '<option value="">來源載入中…</option>';
     source.disabled = true;
@@ -740,7 +736,9 @@
       if (!response.ok) throw new Error("來源載入失敗");
       const data = await response.json();
       if (sourceType.value !== requestedType) return;
-      source.innerHTML = '<option value="">請選擇來源名稱</option>';
+      source.innerHTML = requestedType === "store"
+        ? '<option value="">未指定本店承辦人員</option>'
+        : '<option value="">請選擇來源名稱</option>';
       data.results.forEach(item => source.add(new Option(item.name, item.id)));
       source.disabled = false;
     } catch (error) {

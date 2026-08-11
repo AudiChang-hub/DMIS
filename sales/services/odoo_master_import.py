@@ -12,6 +12,7 @@ from sales.models import (
     DealerVolumeBonusRule,
     DealerVolumeBonusTier,
     SalesSource,
+    SalesSourceCategory,
     SalesSourceBrandPolicy,
     SalesSourceContact,
     VehicleColor,
@@ -86,12 +87,11 @@ def _short_note_with_marker(note, legacy_id, kind="Odoo"):
 
 def _source_for_legacy(dealer, summary, apply):
     store_type = (dealer.get("store_type_name") or "").strip()
-    if store_type == "店內員工":
-        summary["skipped_staff_sources"] += 1
-        return None
     source_type = (
         SalesSource.SourceType.PLATFORM
         if store_type == "網路平台"
+        else SalesSource.SourceType.STORE
+        if store_type == "店內員工"
         else SalesSource.SourceType.DEALER
     )
     code = (dealer.get("code") or "").strip()
@@ -118,8 +118,18 @@ def _source_for_legacy(dealer, summary, apply):
     if dealer.get("line_group"):
         flags.append("已加入 LINE 群組")
     relationship_note = "、".join(flags)
+    category_name = store_type or (
+        "網路平台"
+        if source_type == SalesSource.SourceType.PLATFORM
+        else "合作車行"
+    )
+    category, _ = SalesSourceCategory.objects.get_or_create(
+        name=category_name,
+        defaults={"system_behavior": source_type, "active": True},
+    )
     defaults = {
         "source_type": source_type,
+        "category": category,
         "name": name,
         "code": code,
         "phone": (dealer.get("phone_1") or dealer.get("phone") or "").strip(),

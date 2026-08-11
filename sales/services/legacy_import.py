@@ -36,7 +36,7 @@ DUPLICATE_SALES_TRANSACTION_MESSAGE = "同一筆銷售交易在工作表重複�
 MISSING_IDENTIFIER_MESSAGE = "缺少引擎／車身號碼"
 EMPTY_SALES_PLACEHOLDER_MESSAGE = "Excel 空白公式列，系統自動略過"
 NON_VEHICLE_SALES_NOISE_MESSAGE = "缺少有效車輛序號且無交易資料，系統自動略過"
-PREVIEW_SCHEMA_VERSION = 2
+PREVIEW_SCHEMA_VERSION = 3
 SYSTEM_VALIDATION_MESSAGES = {
     DUPLICATE_IDENTIFIER_MESSAGE,
     MULTIPLE_NEW_SALES_MESSAGE,
@@ -684,12 +684,23 @@ def revalidate_import_batch(batch):
             )
             mapped_data["vehicle_category"] = category
             mapped_data["vehicle_category_reason"] = reason
-        if "dealer_name_raw" not in mapped_data:
-            mapped_data["dealer_name_raw"] = mapped_data.get("dealer_name", "")
+        if not row.manually_corrected:
+            mapped_data["dealer_name_raw"] = (
+                mapped_data.get("dealer_name_raw")
+                or mapped_data.get("dealer_name", "")
+            )
             mapped_data["dealer_name"] = _clean_sales_source_name(
                 mapped_data["dealer_name_raw"]
             )
-        if not mapped_data.get("transaction_type"):
+            transaction_type, reason = _infer_sales_transaction_type(
+                row.raw_data,
+                mapped_data.get("dealer_name_raw", ""),
+                mapped_data["vehicle_category"],
+                mapped_data.get("sales_category", ""),
+            )
+            mapped_data["transaction_type"] = transaction_type
+            mapped_data["transaction_type_reason"] = reason
+        elif not mapped_data.get("transaction_type"):
             transaction_type, reason = _infer_sales_transaction_type(
                 row.raw_data,
                 mapped_data.get("dealer_name_raw", ""),

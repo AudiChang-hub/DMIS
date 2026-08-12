@@ -1,0 +1,9 @@
+<div class="field {% if field.errors %}has-error{% endif %}" data-field-container>
+  <label for="{{ field.id_for_label }}">{{ field.label }}{% if field.field.required %}<em>必填</em>{% endif %}</label>
+  <div class="field-control-with-action">
+    {{ field }}
+    <button class="button ghost inline-create-button" type="button" data-open-company-dialog>＋ 新增公司</button>
+  </div>
+  {% if field.help_text %}<small class="help-text" id="{{ field.id_for_label }}_help">{{ field.help_text }}</small>{% endif %}
+  {% if field.errors %}<span id="{{ field.id_for_label }}_errors">{% for error in field.errors %}<small class="field-error">{{ error }}</small>{% endfor %}</span>{% endif %}
+</div>

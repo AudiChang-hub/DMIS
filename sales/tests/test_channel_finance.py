@@ -235,6 +235,72 @@ class ChannelFinanceTests(TestCase):
         ):
             self.assertEqual(self.client.get(reverse(name)).status_code, 200)
 
+    def test_installment_plan_page_supports_inline_company_creation(self):
+        self.client.force_login(self.user)
+
+        response = self.client.get(
+            reverse("vehicle_installment_plan_list", args=[self.model.pk])
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "＋ 新增公司")
+        self.assertContains(response, 'id="installment-company-dialog"')
+        self.assertContains(response, reverse("installment_company_quick_create"))
+
+    def test_quick_create_installment_company_creates_active_master(self):
+        self.client.force_login(self.user)
+
+        response = self.client.post(
+            reverse("installment_company_quick_create"),
+            {"name": "遠信", "customer_service_phone": "0800-000-000"},
+            HTTP_ACCEPT="application/json",
+        )
+
+        self.assertEqual(response.status_code, 201)
+        payload = response.json()
+        self.assertTrue(payload["ok"])
+        self.assertTrue(payload["created"])
+        company = InstallmentCompany.objects.get(name="遠信")
+        self.assertTrue(company.active)
+        self.assertEqual(company.customer_service_phone, "0800-000-000")
+        self.assertEqual(payload["company"]["id"], company.pk)
+
+    def test_quick_create_installment_company_reuses_active_duplicate(self):
+        self.client.force_login(self.user)
+
+        response = self.client.post(
+            reverse("installment_company_quick_create"), {"name": " 和潤 "}
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(response.json()["created"])
+        self.assertEqual(response.json()["company"]["id"], self.company.pk)
+        self.assertEqual(
+            InstallmentCompany.objects.filter(name__iexact="和潤").count(), 1
+        )
+
+    def test_quick_create_installment_company_rejects_inactive_duplicate(self):
+        self.company.active = False
+        self.company.save(update_fields=["active"])
+        self.client.force_login(self.user)
+
+        response = self.client.post(
+            reverse("installment_company_quick_create"), {"name": "和潤"}
+        )
+
+        self.assertEqual(response.status_code, 409)
+        self.assertIn("目前停用", response.json()["errors"]["name"][0])
+
+    def test_quick_create_installment_company_requires_login_and_name(self):
+        url = reverse("installment_company_quick_create")
+        self.assertEqual(self.client.post(url, {"name": "遠信"}).status_code, 302)
+        self.client.force_login(self.user)
+
+        response = self.client.post(url, {"name": ""})
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("name", response.json()["errors"])
+
     def test_source_form_derives_system_behavior_from_category(self):
         category = SalesSourceCategory.objects.get(name="本店員工")
         self.client.force_login(self.user)

@@ -85,6 +85,11 @@ urlpatterns = [
         name="installment_company_list",
     ),
     path(
+        "data/installment-companies/quick-create/",
+        views.installment_company_quick_create,
+        name="installment_company_quick_create",
+    ),
+    path(
         "data/vehicle-models/<int:model_pk>/installment-plans/",
         views.vehicle_installment_plan_list,
         name="vehicle_installment_plan_list",

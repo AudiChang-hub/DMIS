@@ -174,6 +174,7 @@ class VehicleModel(TimeStampedModel):
         MICRO_ELECTRIC = "micro_electric", "微型電動二輪車"
 
     class ModelType(models.TextChoices):
+        DRUM = "drum", "鼓"
         FRONT_DISC_REAR_DRUM = "front_disc_rear_drum", "前碟後鼓"
         CBS_DRUM = "cbs_drum", "CBS鼓"
         CBS_DISC = "cbs_disc", "CBS碟"

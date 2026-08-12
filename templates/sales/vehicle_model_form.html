@@ -96,10 +96,42 @@
     </article>
 
     <article class="vehicle-business-card">
-      <div class="vehicle-business-card__top"><span class="vehicle-business-card__icon">期</span><span class="status-pill">{{ installment_plan_count }} 筆版本</span></div>
+      <div class="vehicle-business-card__top"><span class="vehicle-business-card__icon">期</span><span class="status-pill">{{ installment_plan_version_count }} 個版本</span></div>
       <h3>分期方案</h3>
-      <strong class="vehicle-business-card__value">{{ installment_plan_count }} 筆</strong>
-      <p>維護各期數、每期金額與對應分期公司。</p>
+      {% if current_installment_plan %}
+      <div class="installment-card-status">
+        <strong>{{ current_installment_options|length }} 種期數</strong>
+        <span>目前有效 · {{ current_installment_plan.effective_from|date:'Y/m/d' }} 起{% if current_installment_plan.effective_to %}至 {{ current_installment_plan.effective_to|date:'Y/m/d' }}{% endif %}</span>
+      </div>
+      <div class="installment-card-options">
+        {% for option in current_installment_options %}
+        <div class="installment-card-option">
+          <div><strong>{{ option.periods }} 期</strong><span>{{ option.company.name }}</span></div>
+          <div><span>每期 ${{ option.monthly_amount|floatformat:0 }}</span><small>開辦費 ${{ option.opening_fee|floatformat:0 }}</small></div>
+        </div>
+        {% empty %}
+        <div class="installment-card-empty">此版本尚未設定期數與金額</div>
+        {% endfor %}
+      </div>
+      {% elif upcoming_installment_plan %}
+      <div class="installment-card-status installment-card-status--future">
+        <strong>尚未生效</strong>
+        <span>下一版本將於 {{ upcoming_installment_plan.effective_from|date:'Y/m/d' }} 生效</span>
+      </div>
+      <div class="installment-card-options">
+        {% for option in upcoming_installment_options %}
+        <div class="installment-card-option installment-card-option--future">
+          <div><strong>{{ option.periods }} 期</strong><span>{{ option.company.name }}</span></div>
+          <div><span>每期 ${{ option.monthly_amount|floatformat:0 }}</span><small>開辦費 ${{ option.opening_fee|floatformat:0 }}</small></div>
+        </div>
+        {% empty %}
+        <div class="installment-card-empty">預計版本尚未設定期數與金額</div>
+        {% endfor %}
+      </div>
+      {% else %}
+      <strong class="vehicle-business-card__value vehicle-business-card__value--missing">尚未設定</strong>
+      <p>{% if installment_plan_version_count %}目前沒有有效的分期方案，共 {{ installment_option_count }} 筆歷史期數。{% else %}尚未建立分期方案版本。{% endif %}</p>
+      {% endif %}
       <a class="button ghost" href="{% url 'vehicle_installment_plan_list' vehicle_model.pk %}">維護分期方案</a>
     </article>
 

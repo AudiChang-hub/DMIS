@@ -587,6 +587,8 @@ class OrderFlowTests(TestCase):
         self.assertContains(response, "馬達功率（kW）")
         self.assertContains(response, "125 c.c.")
         self.assertContains(response, "7.50 kW")
+        self.assertNotContains(response, '<th>成本版本</th>', html=True)
+        self.assertNotContains(response, '<th>獎勵補助</th>', html=True)
         self.assertContains(response, f'href="{reverse("vehicle_model_edit", args=[electric_model.pk])}"')
 
     def test_vehicle_model_number_is_required_when_maintaining_master(self):

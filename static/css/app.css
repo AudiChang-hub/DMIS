@@ -1568,6 +1568,38 @@ body.screen-locked { overflow: hidden; }
 .vehicle-business-card__value--missing { color: var(--amber); font-size: 1.2rem; }
 .vehicle-business-card p { min-height: 48px; margin: 8px 0 16px; color: var(--muted); font-size: .88rem; }
 .vehicle-business-card .button { width: 100%; margin-top: auto; }
+.installment-card-status {
+  display: grid;
+  gap: 3px;
+  margin: 7px 0 10px;
+}
+.installment-card-status strong { font-size: 1.35rem; }
+.installment-card-status span { color: var(--forest-2); font-size: .78rem; font-weight: 800; }
+.installment-card-status--future span { color: #8a6518; }
+.installment-card-options {
+  display: grid;
+  max-height: 190px;
+  margin: 0 0 16px;
+  overflow-y: auto;
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  background: var(--surface-soft);
+}
+.installment-card-option {
+  display: grid;
+  padding: 10px 11px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  border-bottom: 1px solid var(--line);
+}
+.installment-card-option:last-child { border-bottom: 0; }
+.installment-card-option > div { display: grid; gap: 2px; min-width: 0; }
+.installment-card-option > div:last-child { text-align: right; }
+.installment-card-option strong { font-size: .9rem; }
+.installment-card-option span { overflow-wrap: anywhere; color: #334b42; font-size: .8rem; }
+.installment-card-option small { color: var(--muted); font-size: .72rem; }
+.installment-card-option--future { background: #fffaf0; }
+.installment-card-empty { padding: 12px; color: var(--muted); font-size: .82rem; }
 .vehicle-business-note {
   display: flex;
   margin: 0 22px 22px;

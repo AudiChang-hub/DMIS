@@ -4649,6 +4649,43 @@ def accessory_product_edit(request, pk):
 
 def _vehicle_model_form_view(request, instance=None):
     is_editing = instance is not None
+    today = timezone.localdate()
+    installment_plan_versions = []
+    current_installment_plan = None
+    upcoming_installment_plan = None
+    installment_option_count = 0
+    if is_editing:
+        installment_plan_versions = list(
+            instance.installment_plan_versions.prefetch_related(
+                "options__company"
+            ).all()
+        )
+        installment_option_count = sum(
+            len(version.options.all()) for version in installment_plan_versions
+        )
+        current_installment_plan = next(
+            (
+                version
+                for version in installment_plan_versions
+                if version.active
+                and version.effective_from <= today
+                and (version.effective_to is None or version.effective_to >= today)
+            ),
+            None,
+        )
+        upcoming_installment_plan = next(
+            iter(
+                sorted(
+                    (
+                        version
+                        for version in installment_plan_versions
+                        if version.active and version.effective_from > today
+                    ),
+                    key=lambda version: (version.effective_from, version.pk),
+                )
+            ),
+            None,
+        )
     action = request.POST.get("action", "save_model")
     model_post = request.POST if request.method == "POST" and action == "save_model" else None
     form = VehicleModelMasterForm(model_post, instance=instance)
@@ -4691,11 +4728,11 @@ def _vehicle_model_form_view(request, instance=None):
             "current_price_version": (
                 instance.price_versions.filter(
                     active=True,
-                    effective_from__lte=timezone.localdate(),
+                    effective_from__lte=today,
                 )
                 .filter(
                     Q(effective_to__isnull=True)
-                    | Q(effective_to__gte=timezone.localdate())
+                    | Q(effective_to__gte=today)
                 )
                 .order_by("-effective_from", "-id")
                 .first()
@@ -4708,8 +4745,19 @@ def _vehicle_model_form_view(request, instance=None):
             "incentive_rule_count": (
                 instance.incentive_rules.count() if is_editing else 0
             ),
-            "installment_plan_count": (
-                instance.installment_plan_versions.count() if is_editing else 0
+            "installment_plan_version_count": len(installment_plan_versions),
+            "installment_option_count": installment_option_count,
+            "current_installment_plan": current_installment_plan,
+            "current_installment_options": (
+                list(current_installment_plan.options.all())
+                if current_installment_plan
+                else []
+            ),
+            "upcoming_installment_plan": upcoming_installment_plan,
+            "upcoming_installment_options": (
+                list(upcoming_installment_plan.options.all())
+                if upcoming_installment_plan
+                else []
             ),
         },
     )

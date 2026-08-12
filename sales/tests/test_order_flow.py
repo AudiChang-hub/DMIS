@@ -31,6 +31,9 @@ from sales.models import (
     OrderEvent,
     OrderOperationsProfile,
     OtherFeeLine,
+    InstallmentCompany,
+    InstallmentPlanOption,
+    InstallmentPlanVersion,
     RegistrationDocument,
     PaymentRecord,
     SalesOrder,
@@ -307,6 +310,56 @@ class OrderFlowTests(TestCase):
         self.assertContains(
             response,
             reverse("vehicle_model_price_versions", args=[self.model.pk]),
+        )
+
+    def test_vehicle_model_edit_shows_current_installment_summary(self):
+        company = InstallmentCompany.objects.create(name="和潤")
+        current = InstallmentPlanVersion.objects.create(
+            vehicle_model=self.model,
+            effective_from=timezone.localdate(),
+        )
+        InstallmentPlanOption.objects.create(
+            version=current,
+            periods=24,
+            monthly_amount=Decimal("1537"),
+            company=company,
+            opening_fee=Decimal("2000"),
+        )
+        future = InstallmentPlanVersion.objects.create(
+            vehicle_model=self.model,
+            effective_from=timezone.localdate() + timezone.timedelta(days=30),
+        )
+        InstallmentPlanOption.objects.create(
+            version=future,
+            periods=36,
+            monthly_amount=Decimal("1200"),
+            company=company,
+        )
+        self.client.force_login(self.user)
+
+        response = self.client.get(reverse("vehicle_model_edit", args=[self.model.pk]))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "2 個版本")
+        self.assertContains(response, "1 種期數")
+        self.assertContains(response, "24 期")
+        self.assertContains(response, "每期 $1537")
+        self.assertContains(response, "開辦費 $2000")
+        self.assertContains(response, "和潤")
+        self.assertNotContains(response, "36 期")
+
+    def test_installment_plan_return_link_forces_fresh_model_page(self):
+        self.client.force_login(self.user)
+
+        response = self.client.get(
+            reverse("vehicle_installment_plan_list", args=[self.model.pk])
+        )
+
+        model_url = reverse("vehicle_model_edit", args=[self.model.pk])
+        self.assertContains(response, f'href="{model_url}"')
+        self.assertNotContains(
+            response,
+            f'href="{model_url}" data-smart-back',
         )
 
     def test_vehicle_model_type_supports_drum(self):

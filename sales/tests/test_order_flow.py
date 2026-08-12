@@ -43,6 +43,7 @@ from sales.models import (
     VehicleIncentiveInstallmentRate,
     VehicleIncentiveRule,
     VehicleModel,
+    VehiclePriceVersion,
     VehicleSettlementCostRule,
 )
 from sales.services.secret_fields import decrypt_secret
@@ -290,16 +291,23 @@ class OrderFlowTests(TestCase):
         self.assertEqual(history.changes["condition_note"]["label"], "車況說明")
         self.assertEqual(history.changes["condition_note"]["after"], "右側車殼刮傷")
 
-    def test_vehicle_model_edit_includes_price_version_and_motor_fields(self):
+    def test_vehicle_model_edit_separates_specs_from_business_settings(self):
         self.client.force_login(self.user)
 
         response = self.client.get(reverse("vehicle_model_edit", args=[self.model.pk]))
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "售價版本")
+        self.assertContains(response, "車行基礎傭金")
+        self.assertContains(response, "原廠獎勵與補助")
         self.assertContains(response, 'name="motor_power_kw"')
         self.assertContains(response, 'name="horsepower_hp"')
-        self.assertContains(response, 'name="price-suggested_retail_price"')
+        self.assertNotContains(response, 'name="suggested_price"')
+        self.assertNotContains(response, 'name="price-suggested_retail_price"')
+        self.assertContains(
+            response,
+            reverse("vehicle_model_price_versions", args=[self.model.pk]),
+        )
 
     def test_vehicle_model_type_supports_drum(self):
         self.client.force_login(self.user)
@@ -498,7 +506,6 @@ class OrderFlowTests(TestCase):
             "model_year": "2026",
             "model_code": VehicleModel.ModelType.CBS_DISC,
             "displacement_cc": "125",
-            "suggested_price": "79800",
             "active": "on",
             "colors-TOTAL_FORMS": "2",
             "colors-INITIAL_FORMS": "0",
@@ -545,8 +552,8 @@ class OrderFlowTests(TestCase):
             model_number="SUI125-ABS",
             model_code=VehicleModel.ModelType.CBS_DISC,
         )
-        self.assertEqual(model.suggested_price, Decimal("79800"))
         self.assertEqual(model.model_number, "SUI125-ABS")
+        self.assertFalse(model.price_versions.exists())
         self.assertEqual(
             str(model),
             "SUZUKI／SUI 125／SUI125-ABS／2026／CBS碟",
@@ -617,7 +624,6 @@ class OrderFlowTests(TestCase):
                 "model_year": "2026",
                 "model_code": VehicleModel.ModelType.ABS_DISC,
                 "displacement_cc": "",
-                "suggested_price": "",
                 "active": "on",
                 "colors-TOTAL_FORMS": "1",
                 "colors-INITIAL_FORMS": "1",
@@ -645,7 +651,6 @@ class OrderFlowTests(TestCase):
             "model_year": "2026",
             "model_code": VehicleModel.ModelType.FRONT_DISC_REAR_DRUM,
             "displacement_cc": "125",
-            "suggested_price": "",
             "active": "on",
             "colors-TOTAL_FORMS": "1",
             "colors-INITIAL_FORMS": "1",
@@ -3357,7 +3362,7 @@ class OrderOperationsTests(TestCase):
         self.assertContains(hub, "配件資料")
         self.assertContains(hub, "車行、平台與傭金")
         self.assertContains(hub, "代銷結算成本")
-        self.assertContains(hub, "車型獎勵與補助")
+        self.assertContains(hub, "原廠獎勵與補助")
         self.assertEqual(customers.status_code, 200)
         self.assertContains(customers, self.order.owner_name)
         self.assertContains(customers, "1 張")
@@ -3647,14 +3652,14 @@ class OrderOperationsTests(TestCase):
         editing = self.client.get(reverse("incentive_rule_edit", args=[rule.pk]))
 
         self.assertEqual(listing.status_code, 200)
-        self.assertContains(listing, "車型獎勵與補助")
+        self.assertContains(listing, "原廠獎勵與補助")
         self.assertContains(listing, "1500")
         self.assertContains(listing, "持續有效")
         self.assertEqual(editing.status_code, 200)
         self.assertContains(editing, "實銷獎勵金")
         self.assertContains(editing, "結束日期")
 
-    def test_vehicle_model_edit_embeds_incentive_history_and_editor(self):
+    def test_vehicle_model_edit_links_to_incentive_maintenance_without_inline_editor(self):
         rule = VehicleIncentiveRule.objects.create(
             vehicle_model=self.model,
             sales_bonus=Decimal("1500"),
@@ -3664,93 +3669,65 @@ class OrderOperationsTests(TestCase):
         response = self.client.get(
             reverse("vehicle_model_edit", args=[self.model.pk])
         )
-        edit_response = self.client.get(
-            reverse("vehicle_model_edit", args=[self.model.pk]),
-            {"edit_incentive": rule.pk},
-        )
-
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "獎勵、補助與分期撥款")
-        self.assertContains(response, "新增獎勵補助版本")
-        self.assertContains(response, "1500")
-        self.assertNotContains(
-            response,
-            reverse("incentive_rule_create"),
-        )
-        self.assertContains(edit_response, "編輯 2026/08/01 版本")
+        self.assertContains(response, "原廠獎勵與補助")
+        self.assertContains(response, "1 筆")
+        self.assertContains(response, reverse("incentive_rule_list"))
+        self.assertNotContains(response, 'name="incentive-sales_bonus"')
 
-    def test_vehicle_model_edit_can_create_and_update_incentive_inline(self):
-        edit_url = reverse("vehicle_model_edit", args=[self.model.pk])
+    def test_vehicle_model_price_version_page_can_create_and_update_version(self):
+        self.client.force_login(self.user)
+        price_url = reverse("vehicle_model_price_versions", args=[self.model.pk])
         create_response = self.client.post(
-            edit_url,
+            price_url,
             {
-                "action": "save_incentive",
-                "incentive-sales_bonus": "1800",
-                "incentive-promotion_subsidy": "2200",
-                "incentive-installment_interest_subsidy": "900",
-                "incentive-announced_on": "2026-07-20",
-                "incentive-effective_from": "2026-08-01",
-                "incentive-effective_to": "",
-                "incentive-note": "八月版本",
-                "incentive-active": "on",
-                "rates-TOTAL_FORMS": "2",
-                "rates-INITIAL_FORMS": "0",
-                "rates-MIN_NUM_FORMS": "0",
-                "rates-MAX_NUM_FORMS": "1000",
-                "rates-0-periods": "12",
-                "rates-0-rate": "96",
-                "rates-1-periods": "24",
-                "rates-1-rate": "92.5",
+                "action": "save",
+                "suggested_retail_price": "79800",
+                "cash_price_including_registration": "74800",
+                "cash_price_excluding_registration": "72800",
+                "cash_purchase_bonus": "5000",
+                "announced_on": "2026-07-20",
+                "effective_from": "2026-08-01",
+                "effective_to": "",
+                "source_note": "八月營業通報",
+                "active": "on",
             },
         )
 
-        rule = VehicleIncentiveRule.objects.get(vehicle_model=self.model)
-        self.assertRedirects(
-            create_response,
-            f"{edit_url}#incentive-rules",
-        )
-        self.assertEqual(rule.sales_bonus, Decimal("1800"))
-        self.assertEqual(
-            list(rule.installment_rates.values_list("periods", "rate")),
-            [(12, Decimal("96")), (24, Decimal("92.5"))],
-        )
-
-        rate_12 = rule.installment_rates.get(periods=12)
-        rate_24 = rule.installment_rates.get(periods=24)
+        self.assertRedirects(create_response, price_url)
+        version = VehiclePriceVersion.objects.get(vehicle_model=self.model)
+        self.assertEqual(version.suggested_retail_price, Decimal("79800"))
         update_response = self.client.post(
-            edit_url,
+            price_url,
             {
-                "action": "save_incentive",
-                "rule_id": rule.pk,
-                "incentive-sales_bonus": "2000",
-                "incentive-promotion_subsidy": "2200",
-                "incentive-installment_interest_subsidy": "900",
-                "incentive-announced_on": "2026-07-20",
-                "incentive-effective_from": "2026-08-01",
-                "incentive-effective_to": "",
-                "incentive-note": "更新版本",
-                "incentive-active": "on",
-                "rates-TOTAL_FORMS": "2",
-                "rates-INITIAL_FORMS": "2",
-                "rates-MIN_NUM_FORMS": "0",
-                "rates-MAX_NUM_FORMS": "1000",
-                "rates-0-id": rate_12.pk,
-                "rates-0-periods": "12",
-                "rates-0-rate": "97",
-                "rates-1-id": rate_24.pk,
-                "rates-1-periods": "24",
-                "rates-1-rate": "93",
+                "action": "save",
+                "version_id": version.pk,
+                "suggested_retail_price": "80800",
+                "cash_price_including_registration": "75800",
+                "cash_price_excluding_registration": "73800",
+                "cash_purchase_bonus": "5000",
+                "announced_on": "2026-07-20",
+                "effective_from": "2026-08-01",
+                "effective_to": "",
+                "source_note": "人工修正",
+                "active": "on",
             },
         )
 
-        self.assertRedirects(
-            update_response,
-            f"{edit_url}#incentive-rules",
-        )
-        rule.refresh_from_db()
-        self.assertEqual(rule.sales_bonus, Decimal("2000"))
-        self.assertEqual(rule.installment_rates.get(periods=12).rate, Decimal("97"))
-        self.assertEqual(rule.installment_rates.get(periods=24).rate, Decimal("93"))
+        self.assertRedirects(update_response, price_url)
+        version.refresh_from_db()
+        self.assertEqual(version.suggested_retail_price, Decimal("80800"))
+        self.assertEqual(version.source_note, "人工修正")
+
+    def test_vehicle_model_commission_is_maintained_separately(self):
+        self.client.force_login(self.user)
+        url = reverse("vehicle_model_commission", args=[self.model.pk])
+
+        response = self.client.post(url, {"base_dealer_commission": "1500"})
+
+        self.assertRedirects(response, reverse("vehicle_model_edit", args=[self.model.pk]))
+        self.model.refresh_from_db()
+        self.assertEqual(self.model.base_dealer_commission, Decimal("1500"))
 
     def test_settlement_cost_maintenance_pages_are_available(self):
         rule = VehicleSettlementCostRule.objects.create(

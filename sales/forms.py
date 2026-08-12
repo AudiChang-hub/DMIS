@@ -1131,8 +1131,6 @@ class VehicleModelMasterForm(forms.ModelForm):
             "displacement_cc",
             "motor_power_kw",
             "horsepower_hp",
-            "suggested_price",
-            "base_dealer_commission",
             "active",
         ]
         labels = {
@@ -1141,7 +1139,6 @@ class VehicleModelMasterForm(forms.ModelForm):
             "name": "機種",
             "model_number": "型號",
             "model_code": "型式",
-            "base_dealer_commission": "車行基礎傭金",
         }
         widgets = {
             "model_year": forms.NumberInput(
@@ -1154,8 +1151,6 @@ class VehicleModelMasterForm(forms.ModelForm):
             "horsepower_hp": forms.NumberInput(
                 attrs={"min": "0", "step": "0.01", "inputmode": "decimal"}
             ),
-            "suggested_price": forms.NumberInput(attrs={"inputmode": "numeric"}),
-            "base_dealer_commission": forms.NumberInput(attrs={"inputmode": "numeric"}),
         }
 
     def __init__(self, *args, **kwargs):
@@ -1163,17 +1158,12 @@ class VehicleModelMasterForm(forms.ModelForm):
         self.fields["model_year"].required = True
         self.fields["model_number"].required = True
         self.fields["model_code"].required = True
-        self.fields["base_dealer_commission"].required = False
-        if not self.is_bound and not self.instance.pk:
-            self.fields["base_dealer_commission"].initial = None
         for field in self.fields.values():
             field.widget.attrs.setdefault("class", "form-control")
         apply_mobile_keyboard_attrs(self)
 
     def clean(self):
         cleaned = super().clean()
-        if cleaned.get("base_dealer_commission") is None:
-            cleaned["base_dealer_commission"] = Decimal("0")
         brand = (cleaned.get("brand") or "").strip()
         name = (cleaned.get("name") or "").strip()
         model_number = (cleaned.get("model_number") or "").strip()
@@ -1417,6 +1407,25 @@ class VehiclePriceVersionForm(forms.ModelForm):
             "source_note",
             "active",
         ]
+        labels = {
+            "suggested_retail_price": "公司建議售價",
+            "cash_price_including_registration": "現金含牌險價",
+            "cash_price_excluding_registration": "現金未含牌險價",
+            "cash_purchase_bonus": "現金購車金",
+            "announced_on": "原廠／公司通知日期",
+            "effective_from": "訂單生效日期",
+            "effective_to": "結束日期（選填）",
+            "source_note": "來源文件／調整原因",
+        }
+        help_texts = {
+            "suggested_retail_price": "原廠或公司公布的正式售價；不等同分期基準價。",
+            "cash_price_including_registration": "內部維護的現金成交價，已包含牌險。",
+            "cash_price_excluding_registration": "現金車價本體；牌險依實際單據另外收取。",
+            "cash_purchase_bonus": "原廠現金購車活動金額，僅供留存，不會反推其他價格。",
+            "effective_from": "建立訂單時，系統依訂單日期套用當日有效版本。",
+            "effective_to": "不填表示持續有效；價格調整時請新增版本，不要覆蓋舊版本。",
+            "source_note": "例如營業通報月份、文件名稱或人工調整原因。",
+        }
         widgets = {
             "suggested_retail_price": forms.NumberInput(attrs={"inputmode": "numeric"}),
             "cash_price_including_registration": forms.NumberInput(attrs={"inputmode": "numeric"}),
@@ -1431,6 +1440,14 @@ class VehiclePriceVersionForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         for field in self.fields.values():
             field.widget.attrs.setdefault("class", "form-control")
+        for field_name in (
+            "suggested_retail_price",
+            "cash_price_including_registration",
+            "cash_price_excluding_registration",
+            "cash_purchase_bonus",
+        ):
+            if not self.is_bound and self.initial.get(field_name) in (None, 0):
+                self.initial[field_name] = ""
         apply_mobile_keyboard_attrs(self)
 
 
@@ -1858,6 +1875,7 @@ class DeliveryPaymentForm(forms.ModelForm):
         )
         apply_mobile_keyboard_attrs(self)
 
+
     def clean(self):
         cleaned = super().clean()
         received = cleaned.get("received_amount") or Decimal("0")
@@ -1889,6 +1907,24 @@ class DeliveryPaymentForm(forms.ModelForm):
         if commit:
             payment.save()
         return payment
+
+
+class VehicleModelCommissionForm(forms.Form):
+    base_dealer_commission = forms.DecimalField(
+        label="車行基礎傭金",
+        max_digits=12,
+        decimal_places=0,
+        min_value=Decimal("0"),
+        help_text="合作車行銷售此車型時的預設傭金；特定車行的加減金額仍在通路資料維護。",
+        widget=forms.NumberInput(attrs={"min": "0", "inputmode": "numeric"}),
+    )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["base_dealer_commission"].widget.attrs.setdefault(
+            "class", "form-control"
+        )
+        apply_mobile_keyboard_attrs(self)
 
 
 class ReconciliationRecordForm(forms.ModelForm):

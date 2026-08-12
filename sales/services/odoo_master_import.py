@@ -268,9 +268,6 @@ def import_odoo_master_data(payload, *, apply=False):
                 or product.get("engine_displacement")
             ),
             "horsepower_hp": _decimal(product.get("ev_max_hp") or product.get("max_hp")),
-            "suggested_price": _decimal(
-                product.get("suggested_price") or product.get("list_price")
-            ),
             "base_dealer_commission": product_commissions.get(
                 product["id"], Decimal("0")
             ),

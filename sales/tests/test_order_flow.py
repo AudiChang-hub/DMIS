@@ -301,6 +301,36 @@ class OrderFlowTests(TestCase):
         self.assertContains(response, 'name="horsepower_hp"')
         self.assertContains(response, 'name="price-suggested_retail_price"')
 
+    def test_vehicle_model_type_supports_drum(self):
+        self.client.force_login(self.user)
+
+        create_response = self.client.get(reverse("vehicle_model_create"))
+
+        self.assertEqual(create_response.status_code, 200)
+        self.assertContains(
+            create_response,
+            '<option value="drum">鼓</option>',
+            html=True,
+        )
+
+        response = self.client.post(
+            reverse("vehicle_model_create"),
+            self.vehicle_model_master_payload(
+                model_code=VehicleModel.ModelType.DRUM,
+                **{
+                    "colors-TOTAL_FORMS": "1",
+                    "colors-0-name": "黑",
+                    "colors-1-name": "",
+                    "colors-1-active": "",
+                },
+            ),
+        )
+
+        self.assertRedirects(response, reverse("vehicle_model_list"))
+        model = VehicleModel.objects.get(model_number="SUI125-ABS")
+        self.assertEqual(model.model_code, VehicleModel.ModelType.DRUM)
+        self.assertEqual(model.get_model_code_display(), "鼓")
+
     def test_quick_inventory_entry_includes_manufactured_year_month(self):
         self.client.force_login(self.user)
 

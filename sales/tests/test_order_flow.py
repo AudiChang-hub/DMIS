@@ -762,6 +762,102 @@ class OrderFlowTests(TestCase):
         color.refresh_from_db()
         self.assertFalse(color.active)
 
+    def test_renaming_used_color_to_existing_inactive_color_reuses_existing_record(self):
+        old_gold = VehicleColor.objects.create(
+            vehicle_model=self.model,
+            name="金",
+            active=False,
+        )
+        red = VehicleColor.objects.create(
+            vehicle_model=self.model,
+            name="紅",
+            active=False,
+        )
+        order = self.make_order()
+        order.color = red
+        order.save(update_fields=["color", "updated_at"])
+        self.client.force_login(self.user)
+        payload = self.vehicle_model_master_payload(
+            **{
+                "brand": self.model.brand,
+                "name": self.model.name,
+                "model_number": "TEST-125",
+                "model_code": VehicleModel.ModelType.FRONT_DISC_REAR_DRUM,
+                "colors-TOTAL_FORMS": "3",
+                "colors-INITIAL_FORMS": "3",
+                "colors-0-id": self.color.pk,
+                "colors-0-name": self.color.name,
+                "colors-0-active": "on",
+                "colors-1-id": red.pk,
+                "colors-1-name": "金",
+                "colors-1-active": "on",
+                "colors-2-id": old_gold.pk,
+                "colors-2-name": "金",
+                "colors-2-active": "",
+            }
+        )
+
+        response = self.client.post(
+            reverse("vehicle_model_edit", args=[self.model.pk]),
+            payload,
+            follow=True,
+        )
+
+        self.assertRedirects(response, reverse("vehicle_model_list"))
+        old_gold.refresh_from_db()
+        red.refresh_from_db()
+        order.refresh_from_db()
+        self.assertTrue(old_gold.active)
+        self.assertEqual(red.name, "紅")
+        self.assertFalse(red.active)
+        self.assertEqual(order.color, red)
+        self.assertEqual(
+            VehicleColor.objects.filter(vehicle_model=self.model, name="金").count(),
+            1,
+        )
+        self.assertContains(response, "已沿用並重新啟用既有的「金」")
+        self.assertContains(response, "原顏色「紅」已保留為停用歷史資料")
+
+    def test_new_duplicate_color_reactivates_existing_inactive_color(self):
+        old_gold = VehicleColor.objects.create(
+            vehicle_model=self.model,
+            name="金",
+            active=False,
+        )
+        self.client.force_login(self.user)
+        payload = self.vehicle_model_master_payload(
+            **{
+                "brand": self.model.brand,
+                "name": self.model.name,
+                "model_number": "TEST-125",
+                "model_code": VehicleModel.ModelType.FRONT_DISC_REAR_DRUM,
+                "colors-TOTAL_FORMS": "3",
+                "colors-INITIAL_FORMS": "2",
+                "colors-0-id": self.color.pk,
+                "colors-0-name": self.color.name,
+                "colors-0-active": "on",
+                "colors-1-id": old_gold.pk,
+                "colors-1-name": "金",
+                "colors-1-active": "",
+                "colors-2-id": "",
+                "colors-2-name": "金",
+                "colors-2-active": "on",
+            }
+        )
+
+        response = self.client.post(
+            reverse("vehicle_model_edit", args=[self.model.pk]),
+            payload,
+        )
+
+        self.assertRedirects(response, reverse("vehicle_model_list"))
+        old_gold.refresh_from_db()
+        self.assertTrue(old_gold.active)
+        self.assertEqual(
+            VehicleColor.objects.filter(vehicle_model=self.model, name="金").count(),
+            1,
+        )
+
     def test_reserved_inventory_locks_core_fields_but_allows_condition_updates(self):
         self.vehicle.status = VehicleInventory.Status.RESERVED
         self.vehicle.save(update_fields=["status", "updated_at"])

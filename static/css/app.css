@@ -2327,6 +2327,27 @@ body.screen-locked { overflow: hidden; }
 }
 .master-dynamic-row .remove-row-button { top: 10px; right: 12px; }
 .installment-option-row { grid-template-columns: repeat(5, minmax(130px, 1fr)); }
+.field-control-with-action {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: stretch;
+}
+.field-control-with-action .inline-create-button {
+  min-height: 48px;
+  padding-inline: 12px;
+  white-space: nowrap;
+}
+.installment-company-dialog .form-grid { padding: 0; }
+.dialog-submit-error {
+  margin: 0;
+  padding: 11px 13px;
+  color: var(--red);
+  border: 1px solid #e4b8b8;
+  border-radius: 10px;
+  background: var(--red-soft);
+  font-weight: 750;
+}
 .single-column { grid-template-columns: 1fr; }
 @media (max-width: 700px) {
   .dynamic-detail-row { grid-template-columns: 1fr; }
@@ -2336,6 +2357,8 @@ body.screen-locked { overflow: hidden; }
   .master-editor-layout > .form-section { position: static; }
   .form-section.static-section { padding: 16px; border-radius: 14px; }
   .master-dynamic-row, .installment-option-row { grid-template-columns: 1fr; }
+  .field-control-with-action { grid-template-columns: 1fr; }
+  .field-control-with-action .inline-create-button { width: 100%; }
 }
 
 .positioned-field-list {

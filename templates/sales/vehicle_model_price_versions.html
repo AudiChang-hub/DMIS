@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% block title %}售價版本｜車輛銷售管理{% endblock %}
+{% block page_class %}page-shell--wide{% endblock %}
+{% block content %}
+{% url 'vehicle_model_edit' vehicle_model.pk as model_edit_url %}
+{% include "sales/_page_back.html" with fallback_url=model_edit_url label="返回車型設定" %}
+<section class="hero-row compact-hero">
+  <div>
+    <p class="eyebrow">{{ vehicle_model.brand }} {{ vehicle_model.name }}／{{ vehicle_model.model_number }}</p>
+    <h1>售價版本</h1>
+    <p class="muted">價格異動時建立新版本；系統依訂單日期帶入，既有訂單仍保留當時快照。</p>
+  </div>
+</section>
+
+<section class="price-version-guidance">
+  <div><strong>什麼時候要新增版本？</strong><span>原廠公告新價格、現金價調整或活動條件變更時。</span></div>
+  <div><strong>不要直接覆蓋舊價格</strong><span>舊版本是過去訂單的價格依據；請設定新生效日期。</span></div>
+</section>
+
+<div class="price-version-layout">
+  <section class="card master-model-section price-version-editor">
+    <div class="section-heading">
+      <div><p class="eyebrow">{% if editing %}修改既有版本{% else %}新增版本{% endif %}</p><h2>{% if editing %}編輯 {{ editing.effective_from|date:"Y/m/d" }} 版本{% else %}建立售價版本{% endif %}</h2></div>
+      {% if editing %}<a class="button ghost small" href="{% url 'vehicle_model_price_versions' vehicle_model.pk %}">取消編輯</a>{% endif %}
+    </div>
+    <form method="post" class="price-version-form">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="save">
+      {% if editing %}<input type="hidden" name="version_id" value="{{ editing.pk }}">{% endif %}
+      {% if form.non_field_errors %}<div class="message error">{{ form.non_field_errors }}</div>{% endif %}
+      <div class="form-grid price-version-form__grid">
+        {% for field in form %}{% include "sales/_field.html" with field=field %}{% endfor %}
+      </div>
+      <div class="form-actions price-version-form__actions">
+        {% if editing %}<button class="button danger-outline" type="submit" name="action" value="delete" onclick="return confirm('確定刪除此售價版本？已被訂單使用的版本不會允許刪除。');">刪除此版本</button>{% endif %}
+        <button class="button primary" type="submit">{% if editing %}儲存版本修改{% else %}新增售價版本{% endif %}</button>
+      </div>
+    </form>
+  </section>
+
+  <section class="card master-model-section price-version-history">
+    <div class="section-heading">
+      <div><p class="eyebrow">歷史與目前價格</p><h2>全部版本</h2></div>
+      <span class="muted">共 {{ versions|length }} 筆</span>
+    </div>
+    <div class="price-version-list">
+      {% for version in versions %}
+      <article class="price-version-item{% if editing.pk == version.pk %} is-editing{% endif %}">
+        <div class="price-version-item__head">
+          <div><strong>{{ version.effective_from|date:"Y/m/d" }} 起</strong><span>{% if version.effective_to %}至 {{ version.effective_to|date:"Y/m/d" }}{% else %}未設定結束日{% endif %}</span></div>
+          {% if version.active %}<span class="status-pill success">啟用中</span>{% else %}<span class="status-pill muted">已停用</span>{% endif %}
+        </div>
+        <dl class="price-version-values">
+          <div><dt>公司建議售價</dt><dd>{% if version.suggested_retail_price %}${{ version.suggested_retail_price|floatformat:0 }}{% else %}未填寫{% endif %}</dd></div>
+          <div><dt>現金含牌險</dt><dd>{% if version.cash_price_including_registration %}${{ version.cash_price_including_registration|floatformat:0 }}{% else %}未填寫{% endif %}</dd></div>
+          <div><dt>現金未含牌險</dt><dd>{% if version.cash_price_excluding_registration %}${{ version.cash_price_excluding_registration|floatformat:0 }}{% else %}未填寫{% endif %}</dd></div>
+          <div><dt>現金購車金</dt><dd>{% if version.cash_purchase_bonus %}${{ version.cash_purchase_bonus|floatformat:0 }}{% else %}未填寫{% endif %}</dd></div>
+        </dl>
+        {% if version.source_note %}<p class="price-version-item__note">{{ version.source_note }}</p>{% endif %}
+        <a class="button ghost small" href="?edit={{ version.pk }}">編輯此版本</a>
+      </article>
+      {% empty %}
+      <div class="empty-state"><strong>尚未建立售價版本</strong><p>請在左側建立第一筆，之後訂單才能自動帶入價格。</p></div>
+      {% endfor %}
+    </div>
+  </section>
+</div>
+{% endblock %}

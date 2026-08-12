@@ -227,13 +227,6 @@ class VehicleModel(TimeStampedModel):
         null=True,
         help_text="電動車或微型電動二輪車選填；不會由 kW 自動換算。",
     )
-    suggested_price = models.DecimalField(
-        "建議售價",
-        max_digits=12,
-        decimal_places=0,
-        blank=True,
-        null=True,
-    )
     base_dealer_commission = models.DecimalField(
         "基礎車行佣金",
         max_digits=12,

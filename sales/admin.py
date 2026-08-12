@@ -124,7 +124,6 @@ class VehicleModelAdmin(admin.ModelAdmin):
         "displacement_cc",
         "motor_power_kw",
         "horsepower_hp",
-        "suggested_price",
         "active",
     )
     list_filter = ("energy_type", "active")

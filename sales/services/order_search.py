@@ -51,7 +51,7 @@ RELATED_FIELDS = (
     ("vehicle_model__model_code", "型式"),
     ("vehicle_model__energy_type", "動力類型"),
     ("vehicle_model__displacement_cc", "排氣量"),
-    ("vehicle_model__suggested_price", "建議售價"),
+    ("price_version__suggested_retail_price", "公司建議售價"),
     ("color__name", "車色"),
     ("allocated_vehicle__engine_number", "引擎號碼"),
     ("allocated_vehicle__frame_number", "車身號碼"),

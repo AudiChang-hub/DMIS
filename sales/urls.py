@@ -286,6 +286,16 @@ urlpatterns = [
         name="vehicle_model_edit",
     ),
     path(
+        "data/vehicle-models/<int:model_pk>/prices/",
+        views.vehicle_model_price_versions,
+        name="vehicle_model_price_versions",
+    ),
+    path(
+        "data/vehicle-models/<int:model_pk>/commission/",
+        views.vehicle_model_commission,
+        name="vehicle_model_commission",
+    ),
+    path(
         "data/accessories/",
         views.accessory_product_list,
         name="accessory_product_list",

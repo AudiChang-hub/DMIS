@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}車型獎勵與補助｜車輛銷售管理{% endblock %}
+{% block title %}原廠獎勵與補助｜車輛銷售管理{% endblock %}
 {% block page_class %}page-shell--wide{% endblock %}
 {% block content %}
 {% url 'vehicle_model_list' as model_list_url %}
@@ -7,7 +7,7 @@
 <section class="hero-row compact-hero">
   <div>
     <p class="eyebrow">依實際領牌日套用</p>
-    <h1>車型獎勵與補助</h1>
+    <h1>原廠獎勵與補助</h1>
     <p class="muted">維護各車型的實銷獎勵金、促銷補助金及分期補貼息；套用後會保存訂單快照。</p>
   </div>
   <a class="button primary" href="{% url 'incentive_rule_create' %}">＋ 新增獎勵補助版本</a>

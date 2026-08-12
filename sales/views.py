@@ -719,6 +719,76 @@ def installment_company_list(request):
 
 
 @login_required
+@require_http_methods(["POST"])
+def installment_company_quick_create(request):
+    name = request.POST.get("name", "").strip()
+    existing = (
+        InstallmentCompany.objects.filter(name__iexact=name).first()
+        if name
+        else None
+    )
+    if existing:
+        if not existing.active:
+            return JsonResponse(
+                {
+                    "ok": False,
+                    "errors": {
+                        "name": [
+                            "這家公司已存在但目前停用，請到「分期公司」維護頁重新啟用。"
+                        ]
+                    },
+                },
+                status=409,
+            )
+        return JsonResponse(
+            {
+                "ok": True,
+                "created": False,
+                "company": {"id": existing.pk, "name": existing.name},
+            }
+        )
+
+    form = InstallmentCompanyForm(
+        {
+            "name": name,
+            "customer_service_phone": request.POST.get(
+                "customer_service_phone", ""
+            ).strip(),
+            "active": True,
+            "note": "",
+        }
+    )
+    if not form.is_valid():
+        return JsonResponse(
+            {"ok": False, "errors": form.errors.get_json_data()}, status=400
+        )
+    try:
+        company = form.save()
+    except IntegrityError:
+        company = InstallmentCompany.objects.filter(name__iexact=name).first()
+        if company and company.active:
+            return JsonResponse(
+                {
+                    "ok": True,
+                    "created": False,
+                    "company": {"id": company.pk, "name": company.name},
+                }
+            )
+        return JsonResponse(
+            {"ok": False, "errors": {"name": [{"message": "公司名稱已被使用。"}]}},
+            status=409,
+        )
+    return JsonResponse(
+        {
+            "ok": True,
+            "created": True,
+            "company": {"id": company.pk, "name": company.name},
+        },
+        status=201,
+    )
+
+
+@login_required
 @transaction.atomic
 def vehicle_installment_plan_list(request, model_pk):
     vehicle_model = get_object_or_404(VehicleModel, pk=model_pk)

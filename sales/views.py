@@ -4546,7 +4546,11 @@ def vehicle_model_list(request):
             filter=Q(vehicleinventory__status=VehicleInventory.Status.AVAILABLE),
             distinct=True,
         ),
-        color_count=Count("colors", distinct=True),
+        active_color_count=Count(
+            "colors",
+            filter=Q(colors__active=True),
+            distinct=True,
+        ),
         current_suggested_price=Subquery(
             current_prices.order_by("-effective_from", "-id").values(
                 "suggested_retail_price"

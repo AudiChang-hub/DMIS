@@ -7,16 +7,9 @@
 <section class="hero-row compact-hero">
   <div>
     <p class="eyebrow">資料維護區</p>
-    <h1>{% if is_editing %}編輯車型{% else %}新增車型{% endif %}</h1>
-    {% if is_editing %}<p class="muted">{{ vehicle_model }}</p>{% endif %}
+    <h1>{% if is_editing %}編輯車型規格{% else %}新增車型{% endif %}</h1>
+    {% if is_editing %}<p class="muted">{{ vehicle_model }}；本頁只維護不隨日期變動的規格與顏色。</p>{% endif %}
   </div>
-  {% if is_editing %}
-  <div class="hero-actions">
-    <a class="button ghost" href="{% url 'settlement_cost_rule_list' %}?q={{ vehicle_model.model_number|urlencode }}">成本版本</a>
-    <a class="button ghost" href="{% url 'vehicle_installment_plan_list' vehicle_model.pk %}">分期方案</a>
-    <a class="button ghost" href="#incentive-rules">獎勵與補助</a>
-  </div>
-  {% endif %}
 </section>
 
 <form method="post" class="master-model-form">
@@ -27,7 +20,10 @@
   <div class="message error">{{ form.non_field_errors }}{{ color_formset.non_form_errors }}</div>
   {% endif %}
   <section class="card master-model-section">
-    <div class="section-heading"><div><p class="eyebrow">基本資料</p><h2>車型版本</h2></div></div>
+    <div class="section-heading">
+      <div><p class="eyebrow">基本資料</p><h2>車型規格</h2></div>
+      <span class="muted">品牌、型號、年份及動力規格</span>
+    </div>
     <div class="form-grid master-model-grid">
       {% for field in form %}{% include "sales/_field.html" with field=field %}{% endfor %}
     </div>
@@ -35,8 +31,8 @@
 
   <section class="card master-model-section">
     <div class="section-heading">
-      <div><p class="eyebrow">可選顏色</p><h2>顏色設定</h2></div>
-      <span class="muted">已被訂單或庫存使用的顏色請改為停用</span>
+      <div><p class="eyebrow">訂單與庫存共用</p><h2>顏色設定</h2></div>
+      <span class="muted">預設一色；需要時再新增。已使用的顏色建議改為停用。</span>
     </div>
     <div id="master-color-rows" class="master-color-rows">
       {% for color_form in color_formset %}
@@ -62,139 +58,72 @@
   </section>
   <div class="form-actions master-model-actions vehicle-model-save-actions">
     <a class="button ghost" href="{% url 'vehicle_model_list' %}">取消</a>
-    <button class="button primary" type="submit">儲存車型</button>
+    <button class="button primary" type="submit">儲存車型規格</button>
   </div>
 </form>
 
 {% if is_editing %}
-<section class="card master-model-section" id="price-versions">
-  <div class="section-heading">
-    <div><p class="eyebrow">依訂單日期帶入並保存快照</p><h2>售價版本</h2></div>
-    <span class="muted">價格均由內部維護，不以固定公式反推</span>
-  </div>
-  <div class="inventory-table-wrap">
-    <table class="inventory-table settlement-cost-table">
-      <thead><tr><th>生效期間</th><th>建議售價</th><th>現金含牌險</th><th>現金未含牌險</th><th>現金購車金</th><th>狀態</th><th></th></tr></thead>
-      <tbody>
-        {% for version in price_versions %}
-        <tr>
-          <td data-label="生效期間">{{ version.effective_from|date:"Y/m/d" }} ～ {% if version.effective_to %}{{ version.effective_to|date:"Y/m/d" }}{% else %}持續有效{% endif %}</td>
-          <td data-label="建議售價">${{ version.suggested_retail_price|default_if_none:0|floatformat:0 }}</td>
-          <td data-label="現金含牌險">${{ version.cash_price_including_registration|default_if_none:0|floatformat:0 }}</td>
-          <td data-label="現金未含牌險">${{ version.cash_price_excluding_registration|default_if_none:0|floatformat:0 }}</td>
-          <td data-label="現金購車金">${{ version.cash_purchase_bonus|default_if_none:0|floatformat:0 }}</td>
-          <td data-label="狀態">{% if version.active %}<span class="status-pill success">啟用中</span>{% else %}<span class="status-pill muted">已停用</span>{% endif %}</td>
-          <td class="inventory-row-action"><a class="button ghost small" href="?edit_price={{ version.pk }}#price-editor">編輯</a></td>
-        </tr>
-        {% empty %}<tr><td colspan="7"><div class="empty-state"><strong>尚未建立售價版本</strong><p>可直接在下方建立第一筆。</p></div></td></tr>{% endfor %}
-      </tbody>
-    </table>
-  </div>
-  <form method="post" class="inline-rule-editor" id="price-editor">
-    {% csrf_token %}<input type="hidden" name="action" value="save_price">
-    {% if editing_price_version %}<input type="hidden" name="price_version_id" value="{{ editing_price_version.pk }}">{% endif %}
-    <div class="section-heading inline-rule-editor__heading">
-      <div><p class="eyebrow">{% if editing_price_version %}修改既有版本{% else %}直接新增{% endif %}</p><h2>{% if editing_price_version %}編輯售價版本{% else %}新增售價版本{% endif %}</h2></div>
-      {% if editing_price_version %}<a class="button ghost small" href="{% url 'vehicle_model_edit' vehicle_model.pk %}#price-editor">取消編輯</a>{% endif %}
-    </div>
-    {% if price_form.non_field_errors %}<div class="message error">{{ price_form.non_field_errors }}</div>{% endif %}
-    <div class="form-grid master-model-grid">{% for field in price_form %}{% include "sales/_field.html" with field=field %}{% endfor %}</div>
-    <div class="form-actions inline-rule-editor__actions">
-      {% if editing_price_version %}<button class="button danger-outline" type="submit" name="action" value="delete_price" onclick="return confirm('確定刪除此價格版本？');">刪除此版本</button>{% endif %}
-      <button class="button primary" type="submit">{% if editing_price_version %}儲存版本修改{% else %}新增價格版本{% endif %}</button>
-    </div>
-  </form>
-</section>
-
-<section class="card master-model-section" id="incentive-rules">
-  <div class="section-heading">
+<section class="card vehicle-business-settings">
+  <div class="vehicle-business-settings__heading">
     <div>
-      <p class="eyebrow">依實際領牌日套用</p>
-      <h2>獎勵、補助與分期撥款</h2>
+      <p class="eyebrow">商務設定</p>
+      <h2>售價、傭金與結算規則</h2>
+      <p class="muted">這些資料會依日期或交易方式改變，因此與車型規格分開維護。</p>
     </div>
-    <a class="button ghost small" href="{% url 'incentive_rule_list' %}?q={{ vehicle_model.model_number|urlencode }}">查看全部車型版本</a>
+    <span class="status-pill">車型：{{ vehicle_model.brand }} {{ vehicle_model.name }} {{ vehicle_model.model_number }}</span>
   </div>
 
-  <div class="inventory-table-wrap">
-    <table class="inventory-table settlement-cost-table">
-      <thead>
-        <tr><th>生效期間</th><th>實銷獎勵金</th><th>促銷補助金</th><th>分期補貼息</th><th>分期撥款比例</th><th>狀態</th><th></th></tr>
-      </thead>
-      <tbody>
-        {% for rule in incentive_rules %}
-        <tr>
-          <td data-label="生效期間">{{ rule.effective_from|date:"Y/m/d" }} ～ {% if rule.effective_to %}{{ rule.effective_to|date:"Y/m/d" }}{% else %}持續有效{% endif %}</td>
-          <td data-label="實銷獎勵金">${{ rule.sales_bonus|floatformat:0 }}</td>
-          <td data-label="促銷補助金">${{ rule.promotion_subsidy|floatformat:0 }}</td>
-          <td data-label="分期補貼息">${{ rule.installment_interest_subsidy|floatformat:0 }}</td>
-          <td data-label="分期撥款比例">
-            {% for rate in rule.installment_rates.all %}
-              <span class="rate-summary">{{ rate.periods }} 期：{{ rate.rate }}%</span>
-            {% empty %}
-              <span class="muted">尚未設定</span>
-            {% endfor %}
-          </td>
-          <td data-label="狀態">{% if rule.active %}<span class="status-pill success">啟用中</span>{% else %}<span class="status-pill muted">已停用</span>{% endif %}</td>
-          <td class="inventory-row-action"><a class="button ghost small" href="?edit_incentive={{ rule.pk }}#incentive-editor">編輯</a></td>
-        </tr>
-        {% empty %}
-        <tr><td colspan="7"><div class="empty-state"><strong>尚未建立版本</strong><p>可直接在下方建立第一筆，不必離開此頁。</p></div></td></tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
-
-  <form method="post" class="inline-rule-editor" id="incentive-editor">
-    {% csrf_token %}
-    {{ incentive_rate_formset.management_form }}
-    <input type="hidden" name="action" value="save_incentive">
-    {% if editing_incentive_rule %}<input type="hidden" name="rule_id" value="{{ editing_incentive_rule.pk }}">{% endif %}
-    <div class="section-heading inline-rule-editor__heading">
-      <div>
-        <p class="eyebrow">{% if editing_incentive_rule %}修改既有版本{% else %}直接新增{% endif %}</p>
-        <h2>{% if editing_incentive_rule %}編輯 {{ editing_incentive_rule.effective_from|date:"Y/m/d" }} 版本{% else %}新增獎勵補助版本{% endif %}</h2>
-      </div>
-      {% if editing_incentive_rule %}<a class="button ghost small" href="{% url 'vehicle_model_edit' vehicle_model.pk %}#incentive-editor">取消編輯</a>{% endif %}
-    </div>
-    {% if incentive_form.non_field_errors or incentive_rate_formset.non_form_errors %}<div class="message error">{{ incentive_form.non_field_errors }}{{ incentive_rate_formset.non_form_errors }}</div>{% endif %}
-    <div class="form-grid master-model-grid">
-      {% for field in incentive_form %}{% include "sales/_field.html" with field=field %}{% endfor %}
-    </div>
-    <div class="installment-rate-editor">
-      <div>
-        <p class="eyebrow">依期數計算實際撥款</p>
-        <h3>分期期數與撥款比例</h3>
-        <p class="muted">沒有設定的期數不會猜測比例，訂單會提示人員補設定或人工輸入。</p>
-      </div>
-      <div id="installment-rate-rows" class="installment-rate-rows">
-        {% for rate_form in incentive_rate_formset %}
-        <div class="installment-rate-row" data-rate-row>
-          {{ rate_form.id }}
-          <div>{% include "sales/_field.html" with field=rate_form.periods %}</div>
-          <div>{% include "sales/_field.html" with field=rate_form.rate %}</div>
-          <span hidden>{{ rate_form.DELETE }}</span>
-          <button type="button" class="button danger-outline small" data-delete-rate>{% if rate_form.instance.pk %}刪除此期數{% else %}移除此列{% endif %}</button>
-        </div>
-        {% endfor %}
-      </div>
-      <template id="installment-rate-empty-row">
-        <div class="installment-rate-row" data-rate-row>
-          {{ incentive_rate_formset.empty_form.id }}
-          <div>{% include "sales/_field.html" with field=incentive_rate_formset.empty_form.periods %}</div>
-          <div>{% include "sales/_field.html" with field=incentive_rate_formset.empty_form.rate %}</div>
-          <span hidden>{{ incentive_rate_formset.empty_form.DELETE }}</span>
-          <button type="button" class="button danger-outline small" data-delete-rate>移除此列</button>
-        </div>
-      </template>
-      <button type="button" class="button ghost" id="add-installment-rate">＋ 新增期數比例</button>
-    </div>
-    <div class="form-actions inline-rule-editor__actions">
-      {% if editing_incentive_rule %}
-      <button class="button danger-outline" type="submit" name="action" value="delete_incentive" onclick="return confirm('確定刪除此版本？已被訂單採用的版本不會允許刪除。');">刪除此版本</button>
+  <div class="vehicle-business-grid">
+    <article class="vehicle-business-card vehicle-business-card--primary">
+      <div class="vehicle-business-card__top"><span class="vehicle-business-card__icon">價</span><span class="status-pill">{{ price_version_count }} 筆版本</span></div>
+      <h3>售價版本</h3>
+      {% if current_price_version and current_price_version.suggested_retail_price %}
+      <strong class="vehicle-business-card__value">${{ current_price_version.suggested_retail_price|floatformat:0 }}</strong>
+      <p>目前有效的公司建議售價</p>
+      {% else %}
+      <strong class="vehicle-business-card__value vehicle-business-card__value--missing">尚未設定</strong>
+      <p>接單前請建立至少一筆有效售價。</p>
       {% endif %}
-      <button class="button primary" type="submit">{% if editing_incentive_rule %}儲存版本修改{% else %}新增版本{% endif %}</button>
-    </div>
-  </form>
+      <a class="button primary" href="{% url 'vehicle_model_price_versions' vehicle_model.pk %}">維護售價版本</a>
+    </article>
+
+    <article class="vehicle-business-card">
+      <div class="vehicle-business-card__top"><span class="vehicle-business-card__icon">佣</span><span class="status-pill">預設值</span></div>
+      <h3>車行基礎傭金</h3>
+      <strong class="vehicle-business-card__value">${{ vehicle_model.base_dealer_commission|floatformat:0 }}</strong>
+      <p>合作車行銷售此車型時的預設傭金；特定車行加減另行設定。</p>
+      <a class="button ghost" href="{% url 'vehicle_model_commission' vehicle_model.pk %}">維護基礎傭金</a>
+    </article>
+
+    <article class="vehicle-business-card">
+      <div class="vehicle-business-card__top"><span class="vehicle-business-card__icon">期</span><span class="status-pill">{{ installment_plan_count }} 筆版本</span></div>
+      <h3>分期方案</h3>
+      <strong class="vehicle-business-card__value">{{ installment_plan_count }} 筆</strong>
+      <p>維護各期數、每期金額與對應分期公司。</p>
+      <a class="button ghost" href="{% url 'vehicle_installment_plan_list' vehicle_model.pk %}">維護分期方案</a>
+    </article>
+
+    <article class="vehicle-business-card">
+      <div class="vehicle-business-card__top"><span class="vehicle-business-card__icon">本</span><span class="status-pill">{{ settlement_rule_count }} 筆版本</span></div>
+      <h3>代銷結算成本</h3>
+      <strong class="vehicle-business-card__value">{{ settlement_rule_count }} 筆</strong>
+      <p>依實際領牌日與適用地區認列，不回寫已結算訂單。</p>
+      <a class="button ghost" href="{% url 'settlement_cost_rule_list' %}?q={{ vehicle_model.model_number|urlencode }}">維護結算成本</a>
+    </article>
+
+    <article class="vehicle-business-card">
+      <div class="vehicle-business-card__top"><span class="vehicle-business-card__icon">獎</span><span class="status-pill">{{ incentive_rule_count }} 筆版本</span></div>
+      <h3>原廠獎勵與補助</h3>
+      <strong class="vehicle-business-card__value">{{ incentive_rule_count }} 筆</strong>
+      <p>實銷獎勵、促銷補助、分期補貼息及撥款比例。</p>
+      <a class="button ghost" href="{% url 'incentive_rule_list' %}?q={{ vehicle_model.model_number|urlencode }}">維護原廠獎勵</a>
+    </article>
+  </div>
+
+  <div class="vehicle-business-note">
+    <strong>使用原則</strong>
+    <span>調價時請新增有效版本，不要覆蓋舊資料；訂單會依日期帶入並保存快照。</span>
+  </div>
 </section>
 {% endif %}
 {% endblock %}
@@ -221,30 +150,6 @@
     total.value = index + 1;
     bind(row);
     row.querySelector('input[type="text"]').focus();
-  });
-})();
-(() => {
-  const rows = document.getElementById("installment-rate-rows");
-  if (!rows) return;
-  const total = document.getElementById("id_rates-TOTAL_FORMS");
-  const template = document.getElementById("installment-rate-empty-row");
-  function bind(row) {
-    row.querySelector("[data-delete-rate]").addEventListener("click", () => {
-      const deletion = row.querySelector('[name$="-DELETE"]');
-      if (deletion) deletion.checked = true;
-      row.hidden = true;
-    });
-  }
-  rows.querySelectorAll("[data-rate-row]").forEach(bind);
-  document.getElementById("add-installment-rate").addEventListener("click", () => {
-    const index = Number(total.value);
-    const wrapper = document.createElement("div");
-    wrapper.innerHTML = template.innerHTML.replaceAll("__prefix__", index).trim();
-    const row = wrapper.firstElementChild;
-    rows.appendChild(row);
-    total.value = index + 1;
-    bind(row);
-    row.querySelector('input[type="number"]').focus();
   });
 })();
 </script>

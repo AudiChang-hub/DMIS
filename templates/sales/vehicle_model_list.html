@@ -13,7 +13,7 @@
   <div class="hero-actions">
     <a class="button ghost" href="{% url 'accessory_product_list' %}">配件資料</a>
     <a class="button ghost" href="{% url 'settlement_cost_rule_list' %}">代銷結算成本</a>
-    <a class="button ghost" href="{% url 'incentive_rule_list' %}">獎勵與補助</a>
+    <a class="button ghost" href="{% url 'incentive_rule_list' %}">原廠獎勵與補助</a>
     <a class="button primary" href="{% url 'vehicle_model_create' %}">＋ 新增車型</a>
   </div>
 </section>
@@ -48,7 +48,7 @@
   <div class="inventory-list-summary"><strong>共 {{ page_obj.paginator.count }} 個車型版本</strong></div>
   <div class="inventory-table-wrap">
     <table class="inventory-table master-model-table">
-      <thead><tr><th>品牌／機種</th><th>型號</th><th>年份／型式</th><th>能源別</th><th>排氣量</th><th>馬達功率（kW）</th><th>建議售價</th><th>車行基礎傭金</th><th>顏色</th><th>庫存</th><th>狀態</th><th></th></tr></thead>
+      <thead><tr><th>品牌／機種</th><th>型號</th><th>年份／型式</th><th>能源別</th><th>排氣量</th><th>馬達功率（kW）</th><th>目前建議售價</th><th>車行基礎傭金</th><th>顏色</th><th>庫存</th><th>狀態</th><th></th></tr></thead>
       <tbody>
         {% for item in vehicle_models %}
         <tr>
@@ -58,7 +58,7 @@
           <td data-label="能源別">{{ item.get_energy_type_display }}</td>
           <td data-label="排氣量">{% if item.displacement_cc %}{{ item.displacement_cc }} c.c.{% else %}—{% endif %}</td>
           <td data-label="馬達功率（kW）">{% if item.motor_power_kw is not None %}{{ item.motor_power_kw|floatformat:2 }} kW{% else %}—{% endif %}</td>
-          <td data-label="建議售價">{% if item.suggested_price is not None %}${{ item.suggested_price|floatformat:0 }}{% else %}未填寫{% endif %}</td>
+          <td data-label="目前建議售價">{% if item.current_suggested_price %}${{ item.current_suggested_price|floatformat:0 }}{% else %}尚未設定{% endif %}</td>
           <td data-label="車行基礎傭金"><strong>${{ item.base_dealer_commission|floatformat:0 }}</strong><span>特定車行加減另於車行資料設定</span></td>
           <td data-label="顏色">{{ item.color_count }} 種</td>
           <td data-label="庫存"><strong>{{ item.available_count }} 台可售</strong><span>共 {{ item.inventory_count }} 台</span></td>

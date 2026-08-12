@@ -13,7 +13,7 @@ from django.conf import settings
 from django.core.files.base import ContentFile
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError, connection, transaction
-from django.db.models import Count, OuterRef, Q, Subquery, Sum
+from django.db.models import Count, DecimalField, OuterRef, Q, Subquery, Sum
 from django.core.paginator import Paginator
 from django.http import FileResponse, Http404, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
@@ -78,6 +78,7 @@ from .forms import (
     VehicleColorMasterFormSet,
     VehicleIncentiveInstallmentRateFormSet,
     VehicleIncentiveRuleForm,
+    VehicleModelCommissionForm,
     VehicleModelMasterForm,
     VehiclePriceVersionForm,
     VehicleSettlementCostRuleForm,
@@ -4462,6 +4463,12 @@ def vehicle_model_list(request):
     keyword = request.GET.get("q", "").strip()
     energy_type = request.GET.get("energy_type", "")
     active = request.GET.get("active", "")
+    today = timezone.localdate()
+    current_prices = VehiclePriceVersion.objects.filter(
+        vehicle_model_id=OuterRef("pk"),
+        active=True,
+        effective_from__lte=today,
+    ).filter(Q(effective_to__isnull=True) | Q(effective_to__gte=today))
     models = VehicleModel.objects.annotate(
         inventory_count=Count("vehicleinventory", distinct=True),
         available_count=Count(
@@ -4470,8 +4477,12 @@ def vehicle_model_list(request):
             distinct=True,
         ),
         color_count=Count("colors", distinct=True),
-        settlement_rule_count=Count("settlement_cost_rules", distinct=True),
-        incentive_rule_count=Count("incentive_rules", distinct=True),
+        current_suggested_price=Subquery(
+            current_prices.order_by("-effective_from", "-id").values(
+                "suggested_retail_price"
+            )[:1],
+            output_field=DecimalField(max_digits=12, decimal_places=0),
+        ),
     )
     if keyword:
         models = models.filter(
@@ -4581,115 +4592,6 @@ def _vehicle_model_form_view(request, instance=None):
     if is_editing:
         color_formset.extra = 0
 
-    incentive_rules = VehicleIncentiveRule.objects.none()
-    price_versions = VehiclePriceVersion.objects.none()
-    price_form = None
-    editing_price_version = None
-    incentive_form = None
-    incentive_rate_formset = None
-    editing_incentive_rule = None
-    if is_editing:
-        price_versions = instance.price_versions.order_by("-effective_from", "-id")
-        requested_price_id = (
-            request.POST.get("price_version_id")
-            if request.method == "POST" and action in {"save_price", "delete_price"}
-            else request.GET.get("edit_price")
-        )
-        if requested_price_id:
-            editing_price_version = get_object_or_404(
-                instance.price_versions,
-                pk=requested_price_id,
-            )
-        if request.method == "POST" and action == "delete_price":
-            editing_price_version.delete()
-            messages.success(request, "價格版本已刪除。")
-            return redirect(
-                f"{reverse('vehicle_model_edit', args=[instance.pk])}#price-versions"
-            )
-        price_instance = editing_price_version or VehiclePriceVersion(
-            vehicle_model=instance
-        )
-        price_form = VehiclePriceVersionForm(
-            request.POST if request.method == "POST" and action == "save_price" else None,
-            instance=price_instance,
-            prefix="price",
-        )
-        if request.method == "POST" and action == "save_price" and price_form.is_valid():
-            version = price_form.save(commit=False)
-            version.vehicle_model = instance
-            version.save()
-            messages.success(
-                request,
-                f"已{'更新' if editing_price_version else '新增'}價格版本。",
-            )
-            return redirect(
-                f"{reverse('vehicle_model_edit', args=[instance.pk])}#price-versions"
-            )
-
-        incentive_rules = instance.incentive_rules.prefetch_related(
-            "installment_rates"
-        ).order_by("-effective_from", "-id")
-        requested_rule_id = (
-            request.POST.get("rule_id")
-            if request.method == "POST" and action in {"save_incentive", "delete_incentive"}
-            else request.GET.get("edit_incentive")
-        )
-        if requested_rule_id:
-            editing_incentive_rule = get_object_or_404(
-                instance.incentive_rules,
-                pk=requested_rule_id,
-            )
-
-        if request.method == "POST" and action == "delete_incentive":
-            if editing_incentive_rule.order_snapshots.exists():
-                messages.error(
-                    request,
-                    "此版本已被領牌訂單採用，為保留財務依據不能刪除；請改為停用。",
-                )
-            else:
-                editing_incentive_rule.delete()
-                messages.success(request, "獎勵補助版本已刪除。")
-            return redirect(f"{reverse('vehicle_model_edit', args=[instance.pk])}#incentive-rules")
-
-        incentive_instance = editing_incentive_rule or VehicleIncentiveRule(
-            vehicle_model=instance
-        )
-        incentive_post = (
-            request.POST
-            if request.method == "POST" and action == "save_incentive"
-            else None
-        )
-        incentive_form = VehicleIncentiveRuleForm(
-            incentive_post,
-            instance=incentive_instance,
-            prefix="incentive",
-        )
-        incentive_form.fields.pop("vehicle_model")
-        incentive_rate_formset = VehicleIncentiveInstallmentRateFormSet(
-            incentive_post,
-            instance=incentive_instance,
-            prefix="rates",
-        )
-        if (
-            request.method == "POST"
-            and action == "save_incentive"
-            and incentive_form.is_valid()
-            and incentive_rate_formset.is_valid()
-        ):
-            with transaction.atomic():
-                rule = incentive_form.save(commit=False)
-                rule.vehicle_model = instance
-                rule.save()
-                incentive_rate_formset.instance = rule
-                incentive_rate_formset.save()
-            messages.success(
-                request,
-                f"已{'更新' if editing_incentive_rule else '新增'}獎勵補助版本。",
-            )
-            return redirect(
-                f"{reverse('vehicle_model_edit', args=[instance.pk])}#incentive-rules"
-            )
-
     if (
         request.method == "POST"
         and action == "save_model"
@@ -4713,13 +4615,32 @@ def _vehicle_model_form_view(request, instance=None):
             "color_formset": color_formset,
             "vehicle_model": instance,
             "is_editing": is_editing,
-            "incentive_rules": incentive_rules,
-            "incentive_form": incentive_form,
-            "incentive_rate_formset": incentive_rate_formset,
-            "editing_incentive_rule": editing_incentive_rule,
-            "price_versions": price_versions,
-            "price_form": price_form,
-            "editing_price_version": editing_price_version,
+            "price_version_count": (
+                instance.price_versions.count() if is_editing else 0
+            ),
+            "current_price_version": (
+                instance.price_versions.filter(
+                    active=True,
+                    effective_from__lte=timezone.localdate(),
+                )
+                .filter(
+                    Q(effective_to__isnull=True)
+                    | Q(effective_to__gte=timezone.localdate())
+                )
+                .order_by("-effective_from", "-id")
+                .first()
+                if is_editing
+                else None
+            ),
+            "settlement_rule_count": (
+                instance.settlement_cost_rules.count() if is_editing else 0
+            ),
+            "incentive_rule_count": (
+                instance.incentive_rules.count() if is_editing else 0
+            ),
+            "installment_plan_count": (
+                instance.installment_plan_versions.count() if is_editing else 0
+            ),
         },
     )
 
@@ -4935,6 +4856,67 @@ def server_error(request):
         "errors/500.html",
         {"request_id": getattr(request, "request_id", "")},
         status=500,
+    )
+
+
+@login_required
+def vehicle_model_price_versions(request, model_pk):
+    vehicle_model = get_object_or_404(VehicleModel, pk=model_pk)
+    versions = vehicle_model.price_versions.order_by("-effective_from", "-id")
+    requested_id = request.POST.get("version_id") or request.GET.get("edit")
+    editing = (
+        get_object_or_404(versions, pk=requested_id) if requested_id else None
+    )
+    if request.method == "POST" and request.POST.get("action") == "delete":
+        if editing.orders.exists():
+            messages.error(
+                request,
+                "此售價版本已被訂單採用，為保留歷史價格不能刪除；請改為停用。",
+            )
+        else:
+            editing.delete()
+            messages.success(request, "售價版本已刪除。")
+        return redirect("vehicle_model_price_versions", model_pk=vehicle_model.pk)
+    form = VehiclePriceVersionForm(
+        request.POST or None,
+        instance=editing or VehiclePriceVersion(vehicle_model=vehicle_model),
+    )
+    if request.method == "POST" and request.POST.get("action") != "delete" and form.is_valid():
+        version = form.save(commit=False)
+        version.vehicle_model = vehicle_model
+        version.save()
+        messages.success(request, f"已{'更新' if editing else '新增'}售價版本。")
+        return redirect("vehicle_model_price_versions", model_pk=vehicle_model.pk)
+    return render(
+        request,
+        "sales/vehicle_model_price_versions.html",
+        {
+            "vehicle_model": vehicle_model,
+            "versions": versions,
+            "form": form,
+            "editing": editing,
+        },
+    )
+
+
+@login_required
+def vehicle_model_commission(request, model_pk):
+    vehicle_model = get_object_or_404(VehicleModel, pk=model_pk)
+    form = VehicleModelCommissionForm(
+        request.POST or None,
+        initial={"base_dealer_commission": vehicle_model.base_dealer_commission},
+    )
+    if request.method == "POST" and form.is_valid():
+        vehicle_model.base_dealer_commission = form.cleaned_data[
+            "base_dealer_commission"
+        ]
+        vehicle_model.save(update_fields=["base_dealer_commission", "updated_at"])
+        messages.success(request, "車行基礎傭金已更新。")
+        return redirect("vehicle_model_edit", pk=vehicle_model.pk)
+    return render(
+        request,
+        "sales/vehicle_model_commission.html",
+        {"vehicle_model": vehicle_model, "form": form},
     )
 
 

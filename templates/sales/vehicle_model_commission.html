@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block title %}車行基礎傭金｜車輛銷售管理{% endblock %}
+{% block page_class %}page-shell--form{% endblock %}
+{% block content %}
+{% url 'vehicle_model_edit' vehicle_model.pk as model_edit_url %}
+{% include "sales/_page_back.html" with fallback_url=model_edit_url label="返回車型設定" %}
+<section class="hero-row compact-hero">
+  <div>
+    <p class="eyebrow">{{ vehicle_model.brand }} {{ vehicle_model.name }}／{{ vehicle_model.model_number }}</p>
+    <h1>車行基礎傭金</h1>
+    <p class="muted">只用於合作車行銷售；不是原廠給公司的實銷獎勵或促銷補助。</p>
+  </div>
+</section>
+
+<section class="card commission-editor-card">
+  <div class="commission-editor-card__intro">
+    <span class="vehicle-business-card__icon">佣</span>
+    <div><h2>預設傭金</h2><p>每個車型設定一個基礎金額；特定車行若要多給或少給，請到該車行資料設定加減金額。</p></div>
+  </div>
+  <form method="post">
+    {% csrf_token %}
+    {% if form.non_field_errors %}<div class="message error">{{ form.non_field_errors }}</div>{% endif %}
+    <div class="commission-editor-card__field">{% for field in form %}{% include "sales/_field.html" with field=field %}{% endfor %}</div>
+    <div class="form-actions">
+      <a class="button ghost" href="{% url 'vehicle_model_edit' vehicle_model.pk %}">取消</a>
+      <button class="button primary" type="submit">儲存基礎傭金</button>
+    </div>
+  </form>
+</section>
+{% endblock %}

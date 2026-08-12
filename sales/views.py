@@ -4651,6 +4651,74 @@ def accessory_product_edit(request, pk):
     )
 
 
+def _coalesce_vehicle_color_post(post_data, instance):
+    if not post_data or not instance:
+        return post_data, (), ()
+    data = post_data.copy()
+    try:
+        total_forms = int(data.get("colors-TOTAL_FORMS", 0))
+    except (TypeError, ValueError):
+        return data, (), ()
+    original_names = dict(instance.colors.values_list("pk", "name"))
+    grouped = {}
+    for index in range(total_forms):
+        name = (data.get(f"colors-{index}-name") or "").strip()
+        if not name:
+            continue
+        try:
+            color_id = int(data.get(f"colors-{index}-id") or 0) or None
+        except (TypeError, ValueError):
+            color_id = None
+        grouped.setdefault(name.casefold(), []).append(
+            {"index": index, "id": color_id, "name": name}
+        )
+
+    merged_names = []
+    preserved_names = []
+    for entries in grouped.values():
+        if len(entries) < 2:
+            continue
+        canonical = next(
+            (
+                entry
+                for entry in entries
+                if entry["id"]
+                and original_names.get(entry["id"], "").strip().casefold()
+                == entry["name"].casefold()
+            ),
+            entries[0],
+        )
+        wants_active = any(
+            f"colors-{entry['index']}-active" in data
+            and f"colors-{entry['index']}-DELETE" not in data
+            for entry in entries
+        )
+        canonical_index = canonical["index"]
+        data.pop(f"colors-{canonical_index}-DELETE", None)
+        if wants_active:
+            data[f"colors-{canonical_index}-active"] = "on"
+
+        for duplicate in entries:
+            if duplicate is canonical:
+                continue
+            duplicate_index = duplicate["index"]
+            if duplicate["id"]:
+                original_name = original_names.get(duplicate["id"], "").strip()
+                data[f"colors-{duplicate_index}-name"] = original_name
+                data.pop(f"colors-{duplicate_index}-active", None)
+                data.pop(f"colors-{duplicate_index}-DELETE", None)
+                if original_name:
+                    preserved_names.append(original_name)
+            else:
+                data[f"colors-{duplicate_index}-DELETE"] = "on"
+        merged_names.append(canonical["name"])
+    return (
+        data,
+        tuple(dict.fromkeys(merged_names)),
+        tuple(dict.fromkeys(preserved_names)),
+    )
+
+
 def _vehicle_model_form_view(request, instance=None):
     is_editing = instance is not None
     today = timezone.localdate()
@@ -4692,6 +4760,9 @@ def _vehicle_model_form_view(request, instance=None):
         )
     action = request.POST.get("action", "save_model")
     model_post = request.POST if request.method == "POST" and action == "save_model" else None
+    model_post, merged_color_names, preserved_history_color_names = (
+        _coalesce_vehicle_color_post(model_post, instance)
+    )
     form = VehicleModelMasterForm(model_post, instance=instance)
     color_formset = VehicleColorMasterFormSet(
         model_post,
@@ -4713,6 +4784,14 @@ def _vehicle_model_form_view(request, instance=None):
             vehicle_model = form.save()
             color_formset.instance = vehicle_model
             color_formset.save()
+        if merged_color_names:
+            merged = "、".join(merged_color_names)
+            preserved = "、".join(preserved_history_color_names)
+            detail = f"；原顏色「{preserved}」已保留為停用歷史資料" if preserved else ""
+            messages.info(
+                request,
+                f"偵測到同名顏色，已沿用並重新啟用既有的「{merged}」{detail}。",
+            )
         messages.success(
             request,
             f"已{'更新' if is_editing else '建立'}車型：{vehicle_model}",

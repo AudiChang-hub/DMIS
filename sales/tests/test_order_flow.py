@@ -566,6 +566,29 @@ class OrderFlowTests(TestCase):
         self.assertContains(list_response, "SUI125-ABS")
         self.assertContains(list_response, "2 種")
 
+    def test_vehicle_model_list_displays_displacement_and_motor_power_separately(self):
+        self.model.displacement_cc = 125
+        self.model.save(update_fields=["displacement_cc", "updated_at"])
+        electric_model = VehicleModel.objects.create(
+            brand="eMOVING",
+            name="BOBE",
+            model_number="EM6D9",
+            model_year=2026,
+            model_code=VehicleModel.ModelType.DRUM,
+            energy_type=VehicleModel.EnergyType.ELECTRIC,
+            motor_power_kw=Decimal("7.50"),
+        )
+        self.client.force_login(self.user)
+
+        response = self.client.get(reverse("vehicle_model_list"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "排氣量")
+        self.assertContains(response, "馬達功率（kW）")
+        self.assertContains(response, "125 c.c.")
+        self.assertContains(response, "7.50 kW")
+        self.assertContains(response, f'href="{reverse("vehicle_model_edit", args=[electric_model.pk])}"')
+
     def test_vehicle_model_number_is_required_when_maintaining_master(self):
         self.client.force_login(self.user)
         payload = self.vehicle_model_master_payload()

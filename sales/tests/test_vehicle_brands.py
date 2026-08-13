@@ -9,7 +9,10 @@ from sales.forms import (
     VehicleModelMasterForm,
 )
 from sales.models import SalesSourceBrandPolicy, VehicleBrand, VehicleModel
-from sales.services.vehicle_brands import canonical_vehicle_brand_name
+from sales.services.vehicle_brands import (
+    canonical_vehicle_brand_name,
+    vehicle_brand_search_names,
+)
 
 
 class VehicleBrandMasterTests(TestCase):
@@ -35,12 +38,50 @@ class VehicleBrandMasterTests(TestCase):
                 self.assertIn(
                     ("SUZUKI", "SUZUKI"), list(form.fields["brand"].choices)
                 )
+                self.assertIn(
+                    ("eMOVING", "SUZUKI｜eMOVING"),
+                    list(form.fields["brand"].choices),
+                )
+
+    def test_emoving_is_grouped_under_suzuki_without_changing_its_name(self):
+        emoving = VehicleBrand.objects.select_related("parent").get(name="eMOVING")
+
+        self.assertEqual(emoving.parent.name, "SUZUKI")
+        self.assertEqual(emoving.hierarchy_label, "SUZUKI｜eMOVING")
+        self.assertEqual(
+            vehicle_brand_search_names("SUZUKI"), ["SUZUKI", "eMOVING"]
+        )
+        self.assertEqual(vehicle_brand_search_names("eMOVING"), ["eMOVING"])
+
+    def test_parent_brand_search_includes_child_vehicle_models(self):
+        child_model = VehicleModel.objects.create(
+            brand="eMOVING",
+            name="品牌階層測試車",
+            model_number="HIERARCHY-01",
+            model_year=2026,
+            model_code=VehicleModel.ModelType.DRUM,
+            energy_type=VehicleModel.EnergyType.ELECTRIC,
+        )
+
+        response = self.client.get(reverse("vehicle_model_list"), {"q": "SUZUKI"})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, child_model.name)
+
+    def test_brand_page_shows_parent_brand_and_keeps_child_record(self):
+        response = self.client.get(reverse("vehicle_brand_list"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "品牌關係")
+        self.assertContains(response, "↳ eMOVING")
+        self.assertContains(response, "所屬 SUZUKI")
 
     def test_brand_page_creates_brand_and_rejects_ambiguous_alias(self):
         response = self.client.post(
             reverse("vehicle_brand_list"),
             {
                 "name": "New Brand",
+                "parent": "",
                 "aliases": "新品牌、NEWBRAND",
                 "display_order": 300,
                 "active": "on",
@@ -54,6 +95,7 @@ class VehicleBrandMasterTests(TestCase):
             reverse("vehicle_brand_list"),
             {
                 "name": "Another Brand",
+                "parent": "",
                 "aliases": "新品牌",
                 "display_order": 301,
                 "active": "on",
@@ -78,6 +120,7 @@ class VehicleBrandMasterTests(TestCase):
             f"{reverse('vehicle_brand_list')}?edit={brand.pk}",
             {
                 "name": "測試新品牌",
+                "parent": "",
                 "aliases": "測試舊品牌",
                 "display_order": 800,
                 "active": "on",
@@ -97,6 +140,7 @@ class VehicleBrandMasterTests(TestCase):
             f"{reverse('vehicle_brand_list')}?edit={brand.pk}",
             {
                 "name": "新的品牌名稱",
+                "parent": "",
                 "aliases": "尚未使用品牌",
                 "display_order": 801,
                 "active": "on",
@@ -106,6 +150,24 @@ class VehicleBrandMasterTests(TestCase):
         self.assertRedirects(response, reverse("vehicle_brand_list"))
         brand.refresh_from_db()
         self.assertEqual(brand.name, "新的品牌名稱")
+
+    def test_child_brand_cannot_become_a_third_level_parent(self):
+        emoving = VehicleBrand.objects.get(name="eMOVING")
+        response = self.client.post(
+            reverse("vehicle_brand_list"),
+            {
+                "name": "第三層品牌",
+                "parent": emoving.pk,
+                "aliases": "",
+                "display_order": 802,
+                "active": "on",
+                "note": "",
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.context["form"].errors.get("parent"))
+        self.assertFalse(VehicleBrand.objects.filter(name="第三層品牌").exists())
 
     def test_alias_is_normalized_for_imports(self):
         self.assertEqual(

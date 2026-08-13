@@ -5,24 +5,51 @@
 {% url 'data_maintenance' as maintenance_url %}
 {% include "sales/_page_back.html" with fallback_url=maintenance_url label="返回資料維護區" %}
 <section class="hero-row compact-hero">
-  <div><p class="eyebrow">品牌與領牌日生效版本</p><h1>品牌牌險規則</h1><p class="muted">台鈴可沿用公式；其他品牌可依排氣量設定固定整包金額，或改由行政依單據輸入。</p></div>
+  <div><p class="eyebrow">品牌、能源別與領牌日生效版本</p><h1>品牌牌險規則</h1><p class="muted">油車可依排氣量使用公式或固定總額；電動車依輕型／重型分別維護固定領牌規費及強制險。</p></div>
 </section>
 <section class="section-block">
   <div class="section-title"><h2>{% if editing %}編輯規則{% else %}新增規則{% endif %}</h2>{% if editing %}<a href="{% url 'brand_registration_fee_rule_list' %}">取消編輯</a>{% endif %}</div>
-  <form method="post" class="form-grid compact-grid">
+  <form method="post" class="form-grid compact-grid" id="registration-fee-rule-form">
     {% csrf_token %}
-    {% for field in form %}<div{% if field.name == 'note' %} class="field-span-2"{% endif %}><label for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}{% if field.help_text %}<small>{{ field.help_text }}</small>{% endif %}{% for error in field.errors %}<small class="field-error">{{ error }}</small>{% endfor %}</div>{% endfor %}
+    {% for field in form %}<div class="rule-field rule-field--{{ field.name }}{% if field.name == 'note' %} field-span-2{% endif %}"><label for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}{% if field.help_text %}<small>{{ field.help_text }}</small>{% endif %}{% for error in field.errors %}<small class="field-error">{{ error }}</small>{% endfor %}</div>{% endfor %}
     {% for error in form.non_field_errors %}<p class="field-error field-span-2">{{ error }}</p>{% endfor %}
     <div><button class="button primary" type="submit">儲存規則</button></div>
   </form>
 </section>
 <section class="section-block">
   <div class="section-title"><h2>已設定規則</h2><span>{{ rules|length }} 筆</span></div>
-  <div class="responsive-table-wrap"><table class="data-table"><thead><tr><th>品牌</th><th>排氣量</th><th>計算方式</th><th>固定總額</th><th>強制險年期</th><th>生效期間</th><th>狀態</th><th>操作</th></tr></thead><tbody>
+  <div class="responsive-table-wrap"><table class="data-table"><thead><tr><th>品牌／能源</th><th>適用級別</th><th>計算方式</th><th>領牌規費</th><th>強制險</th><th>合計</th><th>生效期間</th><th>狀態</th><th>操作</th></tr></thead><tbody>
     {% for rule in rules %}<tr>
-      <td>{{ rule.brand }}</td><td>{{ rule.min_cc|default:"不限" }}～{{ rule.max_cc|default:"不限" }}</td><td>{{ rule.get_calculation_type_display }}</td><td>${{ rule.fixed_total|floatformat:0 }}</td><td>{{ rule.insurance_period_years }} 年</td><td>{{ rule.effective_from|date:"Y/m/d" }}～{% if rule.effective_to %}{{ rule.effective_to|date:"Y/m/d" }}{% else %}持續有效{% endif %}</td><td>{% if rule.active %}啟用{% else %}停用{% endif %}</td>
+      <td><strong>{{ rule.brand }}</strong><small>{{ rule.get_energy_type_display }}</small></td><td>{% if rule.energy_type == 'electric' %}{{ rule.get_electric_registration_class_display }}{% else %}{{ rule.min_cc|default:"不限" }}～{{ rule.max_cc|default:"不限" }} c.c.{% endif %}</td><td>{{ rule.get_calculation_type_display }}{% if rule.calculation_type == 'fixed' %}<small>強制險 {{ rule.insurance_period_years }} 年</small>{% endif %}</td><td>{% if rule.energy_type == 'electric' %}${{ rule.fixed_registration_fee|floatformat:0 }}{% else %}依公式／整包{% endif %}</td><td>{% if rule.energy_type == 'electric' %}${{ rule.fixed_compulsory_insurance_fee|floatformat:0 }}{% else %}依公式／整包{% endif %}</td><td>${{ rule.fixed_total|floatformat:0 }}</td><td>{{ rule.effective_from|date:"Y/m/d" }}～{% if rule.effective_to %}{{ rule.effective_to|date:"Y/m/d" }}{% else %}持續有效{% endif %}</td><td>{% if rule.active %}啟用{% else %}停用{% endif %}</td>
       <td><a class="button ghost small" href="?edit={{ rule.pk }}">編輯</a><form class="inline-form" method="post" action="{% url 'brand_registration_fee_rule_delete' rule.pk %}">{% csrf_token %}<button class="button danger small" type="submit" data-confirm="確定刪除這筆牌險規則嗎？">刪除</button></form></td>
-    </tr>{% empty %}<tr><td colspan="8">尚未建立品牌特殊規則；油車會沿用既有 M2～M5 公式。</td></tr>{% endfor %}
+    </tr>{% empty %}<tr><td colspan="9">尚未建立品牌特殊規則；油車會沿用既有 M2～M5 公式。</td></tr>{% endfor %}
   </tbody></table></div>
 </section>
+<script>
+(() => {
+  const form = document.getElementById("registration-fee-rule-form");
+  if (!form) return;
+  const energy = document.getElementById("id_energy_type");
+  const calculation = document.getElementById("id_calculation_type");
+  const toggle = (name, show) => {
+    const field = form.querySelector(`.rule-field--${name}`);
+    if (field) field.hidden = !show;
+  };
+  function refreshRuleFields() {
+    const isGas = energy.value === "gas";
+    const isElectric = energy.value === "electric";
+    const isFixed = calculation.value === "fixed";
+    toggle("electric_registration_class", isElectric);
+    toggle("min_cc", isGas);
+    toggle("max_cc", isGas);
+    toggle("fixed_total", isGas && isFixed);
+    toggle("fixed_registration_fee", isElectric && isFixed);
+    toggle("fixed_compulsory_insurance_fee", isElectric && isFixed);
+    toggle("insurance_period_years", isFixed);
+  }
+  energy.addEventListener("change", refreshRuleFields);
+  calculation.addEventListener("change", refreshRuleFields);
+  refreshRuleFields();
+})();
+</script>
 {% endblock %}

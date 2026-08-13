@@ -3896,10 +3896,8 @@ class OrderOperationsTests(TestCase):
             price_url,
             {
                 "action": "save",
-                "suggested_retail_price": "79800",
-                "cash_price_including_registration": "74800",
-                "cash_price_excluding_registration": "72800",
-                "cash_purchase_bonus": "5000",
+                "suggested_price_including_registration": "79800",
+                "cash_price": "72800",
                 "announced_on": "2026-07-20",
                 "effective_from": "2026-08-01",
                 "effective_to": "",
@@ -3910,16 +3908,16 @@ class OrderOperationsTests(TestCase):
 
         self.assertRedirects(create_response, price_url)
         version = VehiclePriceVersion.objects.get(vehicle_model=self.model)
-        self.assertEqual(version.suggested_retail_price, Decimal("79800"))
+        self.assertEqual(
+            version.suggested_price_including_registration, Decimal("79800")
+        )
         update_response = self.client.post(
             price_url,
             {
                 "action": "save",
                 "version_id": version.pk,
-                "suggested_retail_price": "80800",
-                "cash_price_including_registration": "75800",
-                "cash_price_excluding_registration": "73800",
-                "cash_purchase_bonus": "5000",
+                "suggested_price_including_registration": "80800",
+                "cash_price": "73800",
                 "announced_on": "2026-07-20",
                 "effective_from": "2026-08-01",
                 "effective_to": "",
@@ -3930,7 +3928,9 @@ class OrderOperationsTests(TestCase):
 
         self.assertRedirects(update_response, price_url)
         version.refresh_from_db()
-        self.assertEqual(version.suggested_retail_price, Decimal("80800"))
+        self.assertEqual(
+            version.suggested_price_including_registration, Decimal("80800")
+        )
         self.assertEqual(version.source_note, "人工修正")
 
     def test_vehicle_model_commission_is_maintained_separately(self):

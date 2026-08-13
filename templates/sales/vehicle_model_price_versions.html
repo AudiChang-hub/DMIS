@@ -51,10 +51,8 @@
           {% if version.active %}<span class="status-pill success">啟用中</span>{% else %}<span class="status-pill muted">已停用</span>{% endif %}
         </div>
         <dl class="price-version-values">
-          <div><dt>公司建議售價</dt><dd>{% if version.suggested_retail_price %}${{ version.suggested_retail_price|floatformat:0 }}{% else %}未填寫{% endif %}</dd></div>
-          <div><dt>現金含牌險</dt><dd>{% if version.cash_price_including_registration %}${{ version.cash_price_including_registration|floatformat:0 }}{% else %}未填寫{% endif %}</dd></div>
-          <div><dt>現金未含牌險</dt><dd>{% if version.cash_price_excluding_registration %}${{ version.cash_price_excluding_registration|floatformat:0 }}{% else %}未填寫{% endif %}</dd></div>
-          <div><dt>現金購車金</dt><dd>{% if version.cash_purchase_bonus %}${{ version.cash_purchase_bonus|floatformat:0 }}{% else %}未填寫{% endif %}</dd></div>
+          <div><dt>建議售價（含牌險）</dt><dd>{% if version.suggested_price_including_registration %}${{ version.suggested_price_including_registration|floatformat:0 }}{% else %}未填寫{% endif %}</dd></div>
+          <div><dt>現金價</dt><dd>{% if version.cash_price %}${{ version.cash_price|floatformat:0 }}{% else %}未填寫{% endif %}</dd></div>
         </dl>
         {% if version.source_note %}<p class="price-version-item__note">{{ version.source_note }}</p>{% endif %}
         <a class="button ghost small" href="?edit={{ version.pk }}">編輯此版本</a>

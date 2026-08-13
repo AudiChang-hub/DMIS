@@ -5,7 +5,7 @@ from decimal import Decimal, ROUND_DOWN, ROUND_HALF_UP
 
 from django.db.models import Q
 
-from sales.models import BrandRegistrationFeeRule
+from sales.models import BrandRegistrationFeeRule, VehicleModel
 
 
 class UnsupportedRegistrationFee(ValueError):
@@ -122,30 +122,52 @@ def calculate_registration_fee(displacement_cc, registration_date, period_years)
     )
 
 
-def resolve_brand_registration_rule(brand, displacement_cc, registration_date):
-    return (
+def resolve_brand_registration_rule(vehicle_model, registration_date, period_years):
+    rules = (
         BrandRegistrationFeeRule.objects.filter(
-            brand__iexact=brand,
+            brand__iexact=vehicle_model.brand,
+            energy_type=vehicle_model.energy_type,
             active=True,
             effective_from__lte=registration_date,
+            insurance_period_years=period_years,
         )
         .filter(Q(effective_to__isnull=True) | Q(effective_to__gte=registration_date))
-        .filter(Q(min_cc__isnull=True) | Q(min_cc__lte=displacement_cc))
-        .filter(Q(max_cc__isnull=True) | Q(max_cc__gte=displacement_cc))
-        .order_by("-effective_from", "-min_cc", "-id")
-        .first()
     )
+    if vehicle_model.energy_type == VehicleModel.EnergyType.GAS:
+        rules = rules.filter(
+            Q(min_cc__isnull=True) | Q(min_cc__lte=vehicle_model.displacement_cc)
+        ).filter(
+            Q(max_cc__isnull=True) | Q(max_cc__gte=vehicle_model.displacement_cc)
+        )
+    elif vehicle_model.energy_type == VehicleModel.EnergyType.ELECTRIC:
+        rules = rules.filter(
+            electric_registration_class=vehicle_model.electric_registration_class
+        )
+    return rules.order_by("-effective_from", "-min_cc", "-id").first()
 
 
 def calculate_vehicle_registration_fee(vehicle_model, registration_date, period_years):
     rule = resolve_brand_registration_rule(
-        vehicle_model.brand, vehicle_model.displacement_cc, registration_date
+        vehicle_model, registration_date, period_years
     )
     if rule and rule.calculation_type == BrandRegistrationFeeRule.CalculationType.MANUAL:
         raise UnsupportedRegistrationFee(
             f"{vehicle_model.brand} 此期間設定為人工牌險，請依單據輸入實際金額。"
         )
     if rule and rule.calculation_type == BrandRegistrationFeeRule.CalculationType.FIXED:
+        if vehicle_model.energy_type == VehicleModel.EnergyType.ELECTRIC:
+            return RegistrationFeeResult(
+                rate_class=f"EV-{vehicle_model.electric_registration_class.upper()}",
+                standard_remaining_days=standard_remaining_days(registration_date),
+                calendar_remaining_days=calendar_remaining_days(registration_date),
+                plate_fee=int(rule.fixed_registration_fee),
+                license_fee=0,
+                inspection_fee=0,
+                road_maintenance_fee=0,
+                license_tax_fee=0,
+                compulsory_insurance_fee=int(rule.fixed_compulsory_insurance_fee),
+                pricing_method="fixed",
+            )
         return RegistrationFeeResult(
             rate_class=f"FIXED-{rule.pk}",
             standard_remaining_days=standard_remaining_days(registration_date),
@@ -158,6 +180,10 @@ def calculate_vehicle_registration_fee(vehicle_model, registration_date, period_
             compulsory_insurance_fee=0,
             pricing_method="fixed",
             fixed_total_override=int(rule.fixed_total),
+        )
+    if vehicle_model.energy_type != VehicleModel.EnergyType.GAS:
+        raise UnsupportedRegistrationFee(
+            f"{vehicle_model.brand} 此電動車級別尚未建立有效牌險規則，請先至資料維護區設定。"
         )
     return calculate_registration_fee(
         vehicle_model.displacement_cc, registration_date, period_years

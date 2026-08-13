@@ -40,6 +40,7 @@ from .models import (
     VehicleInventory,
     VehicleIncentiveInstallmentRate,
     VehicleIncentiveRule,
+    VehicleBrand,
     VehicleModel,
     VehiclePriceVersion,
     VehicleSettlementCostRule,
@@ -579,7 +580,98 @@ SalesSourceContactFormSet = inlineformset_factory(
 )
 
 
+def _brand_choices(current_value=""):
+    brands = list(
+        VehicleBrand.objects.filter(active=True).values_list("name", flat=True)
+    )
+    current = (current_value or "").strip()
+    if current and current.casefold() not in {name.casefold() for name in brands}:
+        brands.append(current)
+    return [("", "請選擇品牌"), *((name, name) for name in brands)]
+
+
+def _apply_brand_choice(form):
+    current = getattr(form.instance, "brand", "")
+    form.fields["brand"].choices = _brand_choices(current)
+    form.fields["brand"].widget.attrs.update(
+        {
+            "class": "form-control",
+            "data-searchable-select": "1",
+            "data-search-placeholder": "輸入品牌名稱",
+        }
+    )
+
+
+class VehicleBrandForm(forms.ModelForm):
+    class Meta:
+        model = VehicleBrand
+        fields = ["name", "aliases", "display_order", "active", "note"]
+        widgets = {
+            "aliases": forms.Textarea(attrs={"rows": 3}),
+            "note": forms.Textarea(attrs={"rows": 2}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if self.instance.pk:
+            from .services.vehicle_brands import vehicle_brand_is_used
+
+            if vehicle_brand_is_used(self.instance.name):
+                self.fields["name"].disabled = True
+                self.fields["name"].help_text = (
+                    "此品牌已有車型或規則使用，名稱已鎖定；其他寫法請新增為別名。"
+                )
+        for field in self.fields.values():
+            field.widget.attrs.setdefault("class", "form-control")
+
+    def clean_name(self):
+        name = (self.cleaned_data.get("name") or "").strip()
+        duplicate = VehicleBrand.objects.filter(name__iexact=name)
+        if self.instance.pk:
+            duplicate = duplicate.exclude(pk=self.instance.pk)
+        if duplicate.exists():
+            raise forms.ValidationError("已有相同品牌；請編輯既有資料或新增別名。")
+        return name
+
+    def clean(self):
+        cleaned = super().clean()
+        aliases = re.split(r"[、,，\n\r]+", cleaned.get("aliases") or "")
+        normalized = []
+        seen = {(cleaned.get("name") or "").strip().casefold()}
+        for alias in aliases:
+            alias = alias.strip()
+            key = alias.casefold()
+            if alias and key not in seen:
+                seen.add(key)
+                normalized.append(alias)
+        cleaned["aliases"] = "、".join(normalized)
+        candidate_keys = {
+            item.casefold()
+            for item in [cleaned.get("name") or "", *normalized]
+            if item
+        }
+        others = VehicleBrand.objects.all()
+        if self.instance.pk:
+            others = others.exclude(pk=self.instance.pk)
+        for other in others:
+            other_keys = {other.name.casefold()}
+            other_keys.update(
+                item.strip().casefold()
+                for item in re.split(r"[、,，\n\r]+", other.aliases or "")
+                if item.strip()
+            )
+            if candidate_keys & other_keys:
+                self.add_error(
+                    "aliases",
+                    f"名稱或別名已由「{other.name}」使用，請避免重複。",
+                )
+                break
+        return cleaned
+
+
 class SalesSourceBrandPolicyForm(forms.ModelForm):
+    brand = forms.ChoiceField(label="品牌")
+
     class Meta:
         model = SalesSourceBrandPolicy
         fields = [
@@ -591,6 +683,7 @@ class SalesSourceBrandPolicyForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        _apply_brand_choice(self)
         for field in self.fields.values():
             field.widget.attrs.setdefault("class", "form-control")
         apply_mobile_keyboard_attrs(self)
@@ -662,6 +755,8 @@ InstallmentPlanOptionFormSet = inlineformset_factory(
 
 
 class DealerVolumeBonusRuleForm(forms.ModelForm):
+    brand = forms.ChoiceField(label="品牌")
+
     class Meta:
         model = DealerVolumeBonusRule
         fields = ["dealer", "brand", "starts_on", "ends_on", "active", "note"]
@@ -672,6 +767,7 @@ class DealerVolumeBonusRuleForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        _apply_brand_choice(self)
         self.fields["dealer"].queryset = SalesSource.objects.filter(
             source_type=SalesSource.SourceType.DEALER, active=True
         ).order_by("name")
@@ -1127,6 +1223,8 @@ class VehicleInventoryForm(forms.ModelForm):
 
 
 class VehicleModelMasterForm(forms.ModelForm):
+    brand = forms.ChoiceField(label="品牌")
+
     class Meta:
         model = VehicleModel
         fields = [
@@ -1164,6 +1262,7 @@ class VehicleModelMasterForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        _apply_brand_choice(self)
         self.fields["model_year"].required = True
         self.fields["model_number"].required = True
         self.fields["model_code"].required = True
@@ -1261,6 +1360,7 @@ class LegacySalesSourceLinkForm(forms.Form):
 
 
 class LegacyVehicleModelQuickCreateForm(forms.ModelForm):
+    brand = forms.ChoiceField(label="品牌")
     colors = forms.CharField(
         label="已知顏色",
         required=False,
@@ -1305,6 +1405,7 @@ class LegacyVehicleModelQuickCreateForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        _apply_brand_choice(self)
         for field_name in ("brand", "energy_type", "name", "model_number", "model_year", "model_code"):
             self.fields[field_name].required = True
         for field in self.fields.values():
@@ -2450,6 +2551,8 @@ class BusinessHolidayForm(forms.ModelForm):
 
 
 class BrandRegistrationFeeRuleForm(forms.ModelForm):
+    brand = forms.ChoiceField(label="品牌")
+
     class Meta:
         model = BrandRegistrationFeeRule
         fields = [
@@ -2476,6 +2579,7 @@ class BrandRegistrationFeeRuleForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        _apply_brand_choice(self)
         for field in self.fields.values():
             field.widget.attrs.setdefault("class", "form-control")
         for name in (

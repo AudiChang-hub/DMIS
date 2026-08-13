@@ -1820,8 +1820,7 @@ body.screen-locked { overflow: hidden; }
   .inventory-filters { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .inventory-filter--search, .inventory-filter-actions { grid-column: 1 / -1; }
   .inventory-filter-actions { justify-content: flex-end; }
-  .inventory-list-panel { width: min(700px, calc(100vw - 24px)); }
-  .inventory-table-wrap { width: min(698px, calc(100vw - 26px)); }
+  .inventory-list-panel, .inventory-table-wrap { width: 100%; max-width: 100%; }
   .form-progress { top: 70px; }
   .accessory-row { grid-template-columns: 1fr 1fr; padding: 16px; background: #f7f9f7; border-radius: 12px; }
   .other-fee-row { grid-template-columns: 1fr; padding: 14px; background: #f7f9f7; border-radius: 12px; }

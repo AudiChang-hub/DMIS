@@ -36,6 +36,7 @@ from .models import (
     SubsidyDocument,
     SubsidyItem,
     VehicleColor,
+    VehicleBrand,
     VehicleInventory,
     VehicleInventoryHistory,
     VehicleIncentiveRule,
@@ -87,6 +88,7 @@ class SalesSourceCategoryAdmin(admin.ModelAdmin):
 
 
 admin.site.register(InstallmentCompany)
+admin.site.register(VehicleBrand)
 admin.site.register(InstallmentPlanVersion)
 admin.site.register(InstallmentPlanOption)
 admin.site.register(SalesSourceContact)

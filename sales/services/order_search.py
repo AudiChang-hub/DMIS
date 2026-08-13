@@ -17,6 +17,7 @@ from sales.models import (
     VehicleInventory,
     VehicleModel,
 )
+from sales.services.vehicle_brands import vehicle_brand_search_names
 
 
 INTERNAL_FIELDS = {
@@ -161,7 +162,13 @@ def _order_fields():
 def build_order_search_query(query):
     # search_text 與查詢字串都已 casefold；使用 contains 才能讓 PostgreSQL
     # 直接採用 search_text 的 gin_trgm_ops index，避免 UPPER() 使索引失效。
-    return Q(search_index__search_text__contains=_normalise(query))
+    terms = {_normalise(query)}
+    terms.update(_normalise(name) for name in vehicle_brand_search_names(query))
+    result = Q()
+    for term in terms:
+        if term:
+            result |= Q(search_index__search_text__contains=term)
+    return result
 
 
 def _append_match(matches, label, value, sensitive=False):
@@ -172,6 +179,7 @@ def _append_match(matches, label, value, sensitive=False):
 
 
 def build_order_match_summary(order, query):
+    search_terms = [query, *vehicle_brand_search_names(query)]
     cached = getattr(getattr(order, "search_index", None), "match_payload", None)
     if cached is not None:
         return [
@@ -180,7 +188,7 @@ def build_order_match_summary(order, query):
                 "value": _mask(item["value"]) if item.get("sensitive") else item["value"],
             }
             for item in cached
-            if _contains(item.get("value", ""), query)
+            if any(_contains(item.get("value", ""), term) for term in search_terms)
         ]
     matches = []
     for field in _order_fields():
@@ -189,7 +197,7 @@ def build_order_match_summary(order, query):
         values = [display_value]
         if field.choices:
             values.append(raw_value)
-        if any(_contains(value, query) for value in values):
+        if any(_contains(value, term) for value in values for term in search_terms):
             _append_match(
                 matches,
                 field.verbose_name,
@@ -218,7 +226,9 @@ def build_order_match_summary(order, query):
             ("庫存狀態", vehicle.get_status_display()),
         )
     for label, value in related_values:
-        if value not in (None, "") and _contains(value, query):
+        if value not in (None, "") and any(
+            _contains(value, term) for term in search_terms
+        ):
             _append_match(matches, label, value)
 
     profile = getattr(order, "operations", None)

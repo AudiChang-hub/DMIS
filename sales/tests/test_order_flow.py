@@ -1082,6 +1082,19 @@ class OrderFlowTests(TestCase):
                 self.assertContains(response, label)
                 self.assertContains(response, value)
 
+    def test_dashboard_parent_brand_search_finds_child_brand_order(self):
+        self.model.brand = "eMOVING"
+        self.model.save(update_fields=["brand", "updated_at"])
+        order = self.make_order()
+        self.client.force_login(self.user)
+
+        response = self.client.get(reverse("dashboard"), {"q": "SUZUKI"})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, order.owner_name)
+        self.assertContains(response, "廠牌")
+        self.assertContains(response, "eMOVING")
+
     def test_dashboard_search_masks_sensitive_match_values(self):
         order = self.make_order()
         self.client.force_login(self.user)

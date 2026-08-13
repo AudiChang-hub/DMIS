@@ -1,5 +1,7 @@
 import re
 
+from django.db.models import Q
+
 from sales.models import VehicleBrand
 
 
@@ -34,6 +36,30 @@ def canonical_vehicle_brand_name(value, *, create_missing=False):
         },
     )
     return brand.name
+
+
+def vehicle_brand_search_names(value):
+    """主品牌搜尋會涵蓋子品牌；子品牌搜尋仍只找該子品牌。"""
+    raw = (value or "").strip()
+    if not raw:
+        return []
+    canonical = canonical_vehicle_brand_name(raw)
+    brand = VehicleBrand.objects.filter(name__iexact=canonical).first()
+    if not brand:
+        return []
+    names = [brand.name]
+    if not brand.parent_id:
+        names.extend(brand.sub_brands.values_list("name", flat=True))
+    return names
+
+
+def vehicle_brand_search_q(value, field_name="brand"):
+    """建立一般資料查詢條件；不應用於傭金或費率規則解析。"""
+    query = Q(**{f"{field_name}__icontains": value})
+    names = vehicle_brand_search_names(value)
+    if names:
+        query |= Q(**{f"{field_name}__in": names})
+    return query
 
 
 def vehicle_brand_is_used(name):

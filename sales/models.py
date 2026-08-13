@@ -111,6 +111,15 @@ class SalesSourceCategory(TimeStampedModel):
 
 
 class VehicleBrand(TimeStampedModel):
+    parent = models.ForeignKey(
+        "self",
+        on_delete=models.PROTECT,
+        related_name="sub_brands",
+        verbose_name="所屬主品牌",
+        blank=True,
+        null=True,
+        help_text="例如 eMOVING 所屬主品牌為 SUZUKI；交易仍保留 eMOVING 品牌名稱。",
+    )
     name = models.CharField("品牌名稱", max_length=80)
     aliases = models.TextField(
         "別名／原廠寫法",
@@ -132,6 +141,29 @@ class VehicleBrand(TimeStampedModel):
         verbose_name_plural = "車輛品牌"
 
     def __str__(self):
+        return self.name
+
+    def clean(self):
+        errors = {}
+        if self.parent_id == self.pk and self.pk:
+            errors["parent"] = "品牌不能隸屬於自己。"
+        elif self.parent_id:
+            parent = VehicleBrand.objects.filter(pk=self.parent_id).first()
+            if parent and parent.parent_id:
+                errors["parent"] = "所屬品牌必須是主品牌，不能建立三層品牌。"
+        if self.pk and self.parent_id and self.sub_brands.exists():
+            errors["parent"] = "此品牌已有子品牌，不能再改為其他品牌的子品牌。"
+        if errors:
+            raise ValidationError(errors)
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        return super().save(*args, **kwargs)
+
+    @property
+    def hierarchy_label(self):
+        if self.parent_id:
+            return f"{self.parent.name}｜{self.name}"
         return self.name
 
 

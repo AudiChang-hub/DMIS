@@ -18,6 +18,7 @@ from sales.services.registration_fee import (
     calculate_registration_fee,
     calculate_vehicle_registration_fee,
 )
+from sales.forms import RegistrationStageForm
 
 
 class RegistrationFeeCalculatorTests(SimpleTestCase):
@@ -178,6 +179,101 @@ class RegistrationFeeOrderIntegrationTests(TestCase):
         with self.assertRaisesMessage(UnsupportedRegistrationFee, "人工牌險"):
             calculate_vehicle_registration_fee(self.model, date(2026, 8, 1), 1)
 
+    def test_electric_fixed_rule_uses_registration_class_and_splits_fees(self):
+        electric_model = VehicleModel.objects.create(
+            brand="Gogoro",
+            name="VIVA",
+            energy_type=VehicleModel.EnergyType.ELECTRIC,
+            electric_registration_class=VehicleModel.ElectricRegistrationClass.LIGHT,
+        )
+        rule = BrandRegistrationFeeRule.objects.create(
+            brand="Gogoro",
+            energy_type=VehicleModel.EnergyType.ELECTRIC,
+            electric_registration_class=VehicleModel.ElectricRegistrationClass.LIGHT,
+            calculation_type=BrandRegistrationFeeRule.CalculationType.FIXED,
+            fixed_registration_fee=550,
+            fixed_compulsory_insurance_fee=658,
+            insurance_period_years=1,
+            effective_from=date(2026, 1, 1),
+        )
+
+        result = calculate_vehicle_registration_fee(
+            electric_model, date(2026, 8, 13), 1
+        )
+
+        rule.refresh_from_db()
+        self.assertEqual(result.rate_class, "EV-LIGHT")
+        self.assertEqual(result.plate_fee, 550)
+        self.assertEqual(result.compulsory_insurance_fee, 658)
+        self.assertEqual(result.fixed_and_variable_total, 1208)
+        self.assertEqual(rule.fixed_total, 1208)
+
+    def test_electric_rule_does_not_cross_light_and_heavy_classes(self):
+        electric_model = VehicleModel.objects.create(
+            brand="Gogoro",
+            name="SuperSport",
+            energy_type=VehicleModel.EnergyType.ELECTRIC,
+            electric_registration_class=VehicleModel.ElectricRegistrationClass.HEAVY,
+        )
+        BrandRegistrationFeeRule.objects.create(
+            brand="Gogoro",
+            energy_type=VehicleModel.EnergyType.ELECTRIC,
+            electric_registration_class=VehicleModel.ElectricRegistrationClass.LIGHT,
+            calculation_type=BrandRegistrationFeeRule.CalculationType.FIXED,
+            fixed_registration_fee=550,
+            fixed_compulsory_insurance_fee=658,
+            effective_from=date(2026, 1, 1),
+        )
+
+        with self.assertRaisesMessage(UnsupportedRegistrationFee, "尚未建立有效牌險規則"):
+            calculate_vehicle_registration_fee(
+                electric_model, date(2026, 8, 13), 1
+            )
+
+    def test_electric_registration_stage_saves_split_fee_snapshot(self):
+        electric_model = VehicleModel.objects.create(
+            brand="Gogoro",
+            name="VIVA MIX",
+            energy_type=VehicleModel.EnergyType.ELECTRIC,
+            electric_registration_class=VehicleModel.ElectricRegistrationClass.LIGHT,
+        )
+        color = VehicleColor.objects.create(vehicle_model=electric_model, name="白")
+        BrandRegistrationFeeRule.objects.create(
+            brand="Gogoro",
+            energy_type=VehicleModel.EnergyType.ELECTRIC,
+            electric_registration_class=VehicleModel.ElectricRegistrationClass.LIGHT,
+            calculation_type=BrandRegistrationFeeRule.CalculationType.FIXED,
+            fixed_registration_fee=550,
+            fixed_compulsory_insurance_fee=658,
+            effective_from=date(2026, 1, 1),
+        )
+        order = SalesOrder.objects.create(
+            owner_name="電動車領牌測試",
+            owner_phone="0911222333",
+            owner_address="新北市",
+            owner_id_number="A123456789",
+            vehicle_model=electric_model,
+            color=color,
+            vehicle_price=50000,
+        )
+        form = RegistrationStageForm(
+            {
+                "registration_date": "2026-08-13",
+                "registration_county": "新北市",
+                "final_plate_number": "abc-1234",
+            },
+            instance=order,
+        )
+
+        self.assertTrue(form.is_valid(), form.errors)
+        saved = form.save()
+
+        self.assertEqual(saved.registration_rate_class, "EV-LIGHT")
+        self.assertEqual(saved.registration_plate_fee, 550)
+        self.assertEqual(saved.compulsory_insurance_fee, 658)
+        self.assertEqual(saved.registration_calculated_total, 1208)
+        self.assertEqual(saved.plate_insurance_fee, 1208)
+
     def test_registration_fee_rule_maintenance_page(self):
         self.client.force_login(self.user)
 
@@ -185,10 +281,14 @@ class RegistrationFeeOrderIntegrationTests(TestCase):
             reverse("brand_registration_fee_rule_list"),
             {
                 "brand": "三陽",
+                "energy_type": "gas",
+                "electric_registration_class": "",
                 "calculation_type": "fixed",
                 "min_cc": 51,
                 "max_cc": 125,
                 "fixed_total": 1600,
+                "fixed_registration_fee": 0,
+                "fixed_compulsory_insurance_fee": 0,
                 "insurance_period_years": 1,
                 "effective_from": "2026-08-01",
                 "effective_to": "",

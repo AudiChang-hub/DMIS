@@ -1651,6 +1651,7 @@ def _vehicle_rate_data():
         str(model.pk): {
             "energy_type": model.energy_type,
             "displacement_cc": model.displacement_cc,
+            "electric_registration_class": model.electric_registration_class,
         }
         for model in VehicleModel.objects.filter(active=True).only(
             "id", "energy_type", "displacement_cc"
@@ -4553,7 +4554,7 @@ def vehicle_model_list(request):
         ),
         current_suggested_price=Subquery(
             current_prices.order_by("-effective_from", "-id").values(
-                "suggested_retail_price"
+                "suggested_price_including_registration"
             )[:1],
             output_field=DecimalField(max_digits=12, decimal_places=0),
         ),

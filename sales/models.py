@@ -184,6 +184,10 @@ class VehicleModel(TimeStampedModel):
         DISC = "disc", "碟"
         ABS_TRIPLE_DISC = "abs_triple_disc", "ABS三碟"
 
+    class ElectricRegistrationClass(models.TextChoices):
+        LIGHT = "light", "輕型電動機車"
+        HEAVY = "heavy", "重型電動機車"
+
     brand = models.CharField("廠牌", max_length=80)
     name = models.CharField("車型", max_length=120)
     model_number = models.CharField(
@@ -227,6 +231,13 @@ class VehicleModel(TimeStampedModel):
         null=True,
         help_text="電動車或微型電動二輪車選填；不會由 kW 自動換算。",
     )
+    electric_registration_class = models.CharField(
+        "電動車領牌級別",
+        max_length=20,
+        choices=ElectricRegistrationClass.choices,
+        blank=True,
+        help_text="僅電動車使用；請依原廠認證選擇，不會由馬達功率自動推算。",
+    )
     base_dealer_commission = models.DecimalField(
         "基礎車行佣金",
         max_digits=12,
@@ -268,6 +279,8 @@ class VehicleModel(TimeStampedModel):
             raise ValidationError(
                 {"displacement_cc": "油車必須設定排氣量，才能自動試算領牌費用。"}
             )
+        if self.energy_type != self.EnergyType.ELECTRIC:
+            self.electric_registration_class = ""
 
 
 class VehiclePriceVersion(TimeStampedModel):
@@ -277,17 +290,11 @@ class VehiclePriceVersion(TimeStampedModel):
         related_name="price_versions",
         verbose_name="車型",
     )
-    suggested_retail_price = models.DecimalField(
-        "公司建議售價", max_digits=12, decimal_places=0, blank=True, null=True
+    suggested_price_including_registration = models.DecimalField(
+        "建議售價（含牌險）", max_digits=12, decimal_places=0, blank=True, null=True
     )
-    cash_price_including_registration = models.DecimalField(
-        "現金含牌險價", max_digits=12, decimal_places=0, blank=True, null=True
-    )
-    cash_price_excluding_registration = models.DecimalField(
-        "現金未含牌險價", max_digits=12, decimal_places=0, blank=True, null=True
-    )
-    cash_purchase_bonus = models.DecimalField(
-        "現金購車金", max_digits=12, decimal_places=0, blank=True, null=True
+    cash_price = models.DecimalField(
+        "現金價", max_digits=12, decimal_places=0, blank=True, null=True
     )
     announced_on = models.DateField("公告日期", default=timezone.localdate)
     effective_from = models.DateField("生效日期")
@@ -956,10 +963,28 @@ class BrandRegistrationFeeRule(TimeStampedModel):
         MANUAL = "manual", "人工輸入"
 
     brand = models.CharField("品牌", max_length=80)
+    energy_type = models.CharField(
+        "能源別",
+        max_length=20,
+        choices=VehicleModel.EnergyType.choices,
+        default=VehicleModel.EnergyType.GAS,
+    )
+    electric_registration_class = models.CharField(
+        "電動車領牌級別",
+        max_length=20,
+        choices=VehicleModel.ElectricRegistrationClass.choices,
+        blank=True,
+    )
     calculation_type = models.CharField("計算方式", max_length=20, choices=CalculationType.choices)
     min_cc = models.PositiveSmallIntegerField("最低排氣量", blank=True, null=True)
     max_cc = models.PositiveSmallIntegerField("最高排氣量", blank=True, null=True)
     fixed_total = models.DecimalField("固定牌險總額", max_digits=12, decimal_places=0, default=0)
+    fixed_registration_fee = models.DecimalField(
+        "固定領牌規費", max_digits=12, decimal_places=0, default=0
+    )
+    fixed_compulsory_insurance_fee = models.DecimalField(
+        "固定強制險", max_digits=12, decimal_places=0, default=0
+    )
     insurance_period_years = models.PositiveSmallIntegerField("強制險年期", default=1)
     effective_from = models.DateField("生效日期")
     effective_to = models.DateField("結束日期", blank=True, null=True)
@@ -968,8 +993,8 @@ class BrandRegistrationFeeRule(TimeStampedModel):
 
     class Meta:
         ordering = ["brand", "min_cc", "-effective_from"]
-        constraints = [models.UniqueConstraint(fields=["brand", "min_cc", "max_cc", "effective_from"], name="unique_brand_registration_fee_version")]
-        indexes = [models.Index(fields=["brand", "effective_from"], name="brand_reg_fee_lookup")]
+        constraints = [models.UniqueConstraint(fields=["brand", "energy_type", "electric_registration_class", "min_cc", "max_cc", "effective_from"], name="unique_brand_registration_fee_version")]
+        indexes = [models.Index(fields=["brand", "energy_type", "effective_from"], name="brand_reg_fee_lookup")]
         verbose_name = "品牌牌險規則"
         verbose_name_plural = "品牌牌險規則"
 
@@ -979,12 +1004,32 @@ class BrandRegistrationFeeRule(TimeStampedModel):
             errors["effective_to"] = "結束日期不可早於生效日期。"
         if self.min_cc and self.max_cc and self.max_cc < self.min_cc:
             errors["max_cc"] = "最高排氣量不可低於最低排氣量。"
-        if self.calculation_type == self.CalculationType.FIXED and not self.fixed_total:
-            errors["fixed_total"] = "固定整包金額模式必須填寫總額。"
+        if self.energy_type == VehicleModel.EnergyType.ELECTRIC:
+            if not self.electric_registration_class:
+                errors["electric_registration_class"] = "電動車規則必須選擇輕型或重型。"
+            if self.calculation_type == self.CalculationType.FORMULA:
+                errors["calculation_type"] = "電動車目前請使用固定金額或人工輸入。"
+            if self.calculation_type == self.CalculationType.FIXED and not (
+                self.fixed_registration_fee or self.fixed_compulsory_insurance_fee
+            ):
+                errors["fixed_registration_fee"] = "固定模式至少要填寫一項領牌規費或強制險。"
+        elif self.energy_type == VehicleModel.EnergyType.GAS:
+            self.electric_registration_class = ""
+            if self.calculation_type == self.CalculationType.FIXED and not self.fixed_total:
+                errors["fixed_total"] = "油車固定整包模式必須填寫總額。"
+        else:
+            self.electric_registration_class = ""
+            if self.calculation_type != self.CalculationType.MANUAL:
+                errors["calculation_type"] = "微型電動二輪車目前請使用人工輸入。"
         if errors:
             raise ValidationError(errors)
 
     def save(self, *args, **kwargs):
+        if self.energy_type == VehicleModel.EnergyType.ELECTRIC:
+            self.fixed_total = (
+                self.fixed_registration_fee
+                + self.fixed_compulsory_insurance_fee
+            )
         self.full_clean()
         return super().save(*args, **kwargs)
 

@@ -230,6 +230,28 @@ class RegistrationFeeOrderIntegrationTests(TestCase):
                 electric_model, date(2026, 8, 13), 1
             )
 
+    def test_parent_brand_fee_rule_does_not_cross_into_child_brand(self):
+        electric_model = VehicleModel.objects.create(
+            brand="eMOVING",
+            name="EZ1",
+            energy_type=VehicleModel.EnergyType.ELECTRIC,
+            electric_registration_class=VehicleModel.ElectricRegistrationClass.LIGHT,
+        )
+        BrandRegistrationFeeRule.objects.create(
+            brand="SUZUKI",
+            energy_type=VehicleModel.EnergyType.ELECTRIC,
+            electric_registration_class=VehicleModel.ElectricRegistrationClass.LIGHT,
+            calculation_type=BrandRegistrationFeeRule.CalculationType.FIXED,
+            fixed_registration_fee=550,
+            fixed_compulsory_insurance_fee=658,
+            effective_from=date(2026, 1, 1),
+        )
+
+        with self.assertRaisesMessage(UnsupportedRegistrationFee, "尚未建立有效牌險規則"):
+            calculate_vehicle_registration_fee(
+                electric_model, date(2026, 8, 13), 1
+            )
+
     def test_electric_registration_stage_saves_split_fee_snapshot(self):
         electric_model = VehicleModel.objects.create(
             brand="Gogoro",

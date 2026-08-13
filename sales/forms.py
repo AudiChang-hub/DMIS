@@ -581,13 +581,22 @@ SalesSourceContactFormSet = inlineformset_factory(
 
 
 def _brand_choices(current_value=""):
-    brands = list(
-        VehicleBrand.objects.filter(active=True).values_list("name", flat=True)
+    brand_rows = list(
+        VehicleBrand.objects.filter(active=True).select_related("parent")
     )
+    brand_rows.sort(
+        key=lambda brand: (
+            brand.parent.display_order if brand.parent_id else brand.display_order,
+            1 if brand.parent_id else 0,
+            brand.display_order,
+            brand.name.casefold(),
+        )
+    )
+    brands = [(brand.name, brand.hierarchy_label) for brand in brand_rows]
     current = (current_value or "").strip()
-    if current and current.casefold() not in {name.casefold() for name in brands}:
-        brands.append(current)
-    return [("", "請選擇品牌"), *((name, name) for name in brands)]
+    if current and current.casefold() not in {name.casefold() for name, _ in brands}:
+        brands.append((current, current))
+    return [("", "請選擇品牌"), *brands]
 
 
 def _apply_brand_choice(form):
@@ -605,7 +614,7 @@ def _apply_brand_choice(form):
 class VehicleBrandForm(forms.ModelForm):
     class Meta:
         model = VehicleBrand
-        fields = ["name", "aliases", "display_order", "active", "note"]
+        fields = ["name", "parent", "aliases", "display_order", "active", "note"]
         widgets = {
             "aliases": forms.Textarea(attrs={"rows": 3}),
             "note": forms.Textarea(attrs={"rows": 2}),
@@ -613,6 +622,17 @@ class VehicleBrandForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        parent_queryset = VehicleBrand.objects.filter(parent__isnull=True)
+        if self.instance.pk:
+            parent_queryset = parent_queryset.exclude(pk=self.instance.pk)
+            if self.instance.parent_id:
+                parent_queryset = parent_queryset | VehicleBrand.objects.filter(
+                    pk=self.instance.parent_id
+                )
+        self.fields["parent"].queryset = parent_queryset.distinct().order_by(
+            "display_order", "name"
+        )
+        self.fields["parent"].empty_label = "獨立主品牌"
         if self.instance.pk:
             from .services.vehicle_brands import vehicle_brand_is_used
 
@@ -635,6 +655,11 @@ class VehicleBrandForm(forms.ModelForm):
 
     def clean(self):
         cleaned = super().clean()
+        parent = cleaned.get("parent")
+        if parent and parent.parent_id:
+            self.add_error("parent", "所屬品牌必須是主品牌，不能建立三層品牌。")
+        if parent and self.instance.pk and self.instance.sub_brands.exists():
+            self.add_error("parent", "此品牌已有子品牌，不能再改為其他品牌的子品牌。")
         aliases = re.split(r"[、,，\n\r]+", cleaned.get("aliases") or "")
         normalized = []
         seen = {(cleaned.get("name") or "").strip().casefold()}

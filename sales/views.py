@@ -125,6 +125,7 @@ from .models import (
 )
 from .services.vehicle_brands import (
     rename_vehicle_brand_references,
+    vehicle_brand_search_q,
     vehicle_brand_is_used,
 )
 from .jobs import delete_id_ocr_job_files, run_id_ocr_job, run_legacy_import_job
@@ -630,7 +631,15 @@ def vehicle_brand_list(request):
         else:
             messages.success(request, f"已儲存品牌：{brand.name}。")
             return redirect("vehicle_brand_list")
-    brands = list(VehicleBrand.objects.all())
+    brands = list(VehicleBrand.objects.select_related("parent").all())
+    brands.sort(
+        key=lambda brand: (
+            brand.parent.display_order if brand.parent_id else brand.display_order,
+            1 if brand.parent_id else 0,
+            brand.display_order,
+            brand.name.casefold(),
+        )
+    )
     for brand in brands:
         brand.is_used = vehicle_brand_is_used(brand.name)
     return render(
@@ -4518,7 +4527,7 @@ def inventory_list(request):
         query = (
             Q(engine_number__icontains=keyword)
             | Q(frame_number__icontains=keyword)
-            | Q(vehicle_model__brand__icontains=keyword)
+            | vehicle_brand_search_q(keyword, "vehicle_model__brand")
             | Q(vehicle_model__name__icontains=keyword)
             | Q(color__name__icontains=keyword)
             | Q(location_store__name__icontains=keyword)
@@ -4602,7 +4611,7 @@ def vehicle_model_list(request):
     )
     if keyword:
         models = models.filter(
-            Q(brand__icontains=keyword)
+            vehicle_brand_search_q(keyword)
             | Q(name__icontains=keyword)
             | Q(model_number__icontains=keyword)
             | Q(model_code__icontains=keyword)
@@ -4922,7 +4931,7 @@ def settlement_cost_rule_list(request):
     rules = VehicleSettlementCostRule.objects.select_related("vehicle_model")
     if keyword:
         rules = rules.filter(
-            Q(vehicle_model__brand__icontains=keyword)
+            vehicle_brand_search_q(keyword, "vehicle_model__brand")
             | Q(vehicle_model__name__icontains=keyword)
             | Q(vehicle_model__model_number__icontains=keyword)
             | Q(note__icontains=keyword)
@@ -5013,7 +5022,7 @@ def incentive_rule_list(request):
     ).prefetch_related("installment_rates")
     if keyword:
         rules = rules.filter(
-            Q(vehicle_model__brand__icontains=keyword)
+            vehicle_brand_search_q(keyword, "vehicle_model__brand")
             | Q(vehicle_model__name__icontains=keyword)
             | Q(vehicle_model__model_number__icontains=keyword)
             | Q(note__icontains=keyword)

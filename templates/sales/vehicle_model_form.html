@@ -32,7 +32,7 @@
   <section class="card master-model-section">
     <div class="section-heading">
       <div><p class="eyebrow">訂單與庫存共用</p><h2>顏色設定</h2></div>
-      <span class="muted">預設一色；需要時再新增。已使用的顏色建議改為停用。</span>
+      <span class="muted">預設一色；需要時再新增。已有訂單或庫存的顏色只能取消勾選「啟用中」來停用。</span>
     </div>
     <div id="master-color-rows" class="master-color-rows">
       {% for color_form in color_formset %}
@@ -41,7 +41,11 @@
         <div>{% include "sales/_field.html" with field=color_form.name %}</div>
         <div>{% include "sales/_field.html" with field=color_form.active %}</div>
         <span hidden>{{ color_form.DELETE }}</span>
-        <button type="button" class="button danger-outline small" data-delete-color>{% if color_form.instance.pk %}刪除顏色{% else %}移除此列{% endif %}</button>
+        {% if color_form.is_used %}
+        <div class="master-color-history-note" data-used-color="true"><strong>保留歷史資料</strong><span>不再使用時，取消勾選「啟用中」即可</span></div>
+        {% else %}
+        <button type="button" class="button danger-outline small" data-delete-color>{% if color_form.instance.pk %}永久刪除{% else %}移除此列{% endif %}</button>
+        {% endif %}
       </div>
       {% endfor %}
     </div>
@@ -166,7 +170,9 @@
   const total = document.getElementById("id_colors-TOTAL_FORMS");
   const template = document.getElementById("master-color-empty-row");
   function bind(row) {
-    row.querySelector("[data-delete-color]").addEventListener("click", () => {
+    const deleteButton = row.querySelector("[data-delete-color]");
+    if (!deleteButton) return;
+    deleteButton.addEventListener("click", () => {
       const deletion = row.querySelector('[name$="-DELETE"]');
       if (deletion) deletion.checked = true;
       row.hidden = true;

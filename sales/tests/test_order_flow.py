@@ -723,7 +723,7 @@ class OrderFlowTests(TestCase):
         self.model.refresh_from_db()
         self.assertEqual(self.model.energy_type, VehicleModel.EnergyType.GAS)
 
-    def test_used_vehicle_color_cannot_be_deleted_but_can_be_deactivated(self):
+    def test_used_vehicle_color_stale_delete_is_safely_converted_to_deactivation(self):
         self.client.force_login(self.user)
         color = self.color
         base = {
@@ -748,19 +748,54 @@ class OrderFlowTests(TestCase):
             reverse("vehicle_model_edit", args=[self.model.pk]),
             base,
         )
-        self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "不能刪除")
-        self.assertTrue(VehicleColor.objects.filter(pk=color.pk).exists())
-
-        base.pop("colors-0-DELETE")
-        base.pop("colors-0-active")
-        response = self.client.post(
-            reverse("vehicle_model_edit", args=[self.model.pk]),
-            base,
-        )
         self.assertRedirects(response, reverse("vehicle_model_list"))
         color.refresh_from_db()
         self.assertFalse(color.active)
+
+    def test_used_vehicle_color_shows_deactivation_guidance_instead_of_delete(self):
+        self.client.force_login(self.user)
+
+        response = self.client.get(
+            reverse("vehicle_model_edit", args=[self.model.pk])
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'data-used-color="true"')
+        self.assertContains(response, "保留歷史資料")
+        self.assertContains(response, "取消勾選「啟用中」即可")
+
+    def test_unused_vehicle_color_can_still_be_permanently_deleted(self):
+        unused_color = VehicleColor.objects.create(
+            vehicle_model=self.model,
+            name="灰",
+            active=True,
+        )
+        self.client.force_login(self.user)
+        payload = self.vehicle_model_master_payload(
+            **{
+                "brand": self.model.brand,
+                "name": self.model.name,
+                "model_number": "TEST-125",
+                "model_code": VehicleModel.ModelType.FRONT_DISC_REAR_DRUM,
+                "colors-TOTAL_FORMS": "2",
+                "colors-INITIAL_FORMS": "2",
+                "colors-0-id": self.color.pk,
+                "colors-0-name": self.color.name,
+                "colors-0-active": "on",
+                "colors-1-id": unused_color.pk,
+                "colors-1-name": unused_color.name,
+                "colors-1-active": "on",
+                "colors-1-DELETE": "on",
+            }
+        )
+
+        response = self.client.post(
+            reverse("vehicle_model_edit", args=[self.model.pk]),
+            payload,
+        )
+
+        self.assertRedirects(response, reverse("vehicle_model_list"))
+        self.assertFalse(VehicleColor.objects.filter(pk=unused_color.pk).exists())
 
     def test_renaming_used_color_to_existing_inactive_color_reuses_existing_record(self):
         old_gold = VehicleColor.objects.create(

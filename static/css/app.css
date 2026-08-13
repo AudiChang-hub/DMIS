@@ -1382,10 +1382,17 @@ body.screen-locked { overflow: hidden; }
 .master-model-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 .master-color-rows { display: grid; }
 .master-color-row {
-  display: grid; padding: 14px 20px; grid-template-columns: minmax(220px, 1fr) 180px 120px;
+  display: grid; padding: 14px 20px; grid-template-columns: minmax(220px, 1fr) 180px 220px;
   align-items: end; gap: 14px; border-bottom: 1px solid var(--line);
 }
 .master-color-row .field { padding: 0; }
+.master-color-history-note {
+  display: grid; min-height: 48px; padding: 8px 10px; align-content: center;
+  gap: 2px; color: var(--forest-2); background: #edf6f1;
+  border: 1px solid #cfe2d8; border-radius: 10px;
+}
+.master-color-history-note strong { font-size: .78rem; }
+.master-color-history-note span { color: var(--muted); font-size: .7rem; line-height: 1.35; }
 .master-color-add { margin: 14px 20px; border-style: dashed; }
 .master-model-actions {
   position: sticky; z-index: 8; bottom: 14px; width: fit-content;

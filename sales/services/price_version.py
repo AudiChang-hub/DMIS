@@ -5,10 +5,8 @@ from sales.models import VehiclePriceVersion
 
 
 PRICE_FIELDS = (
-    "suggested_retail_price",
-    "cash_price_including_registration",
-    "cash_price_excluding_registration",
-    "cash_purchase_bonus",
+    "suggested_price_including_registration",
+    "cash_price",
 )
 
 

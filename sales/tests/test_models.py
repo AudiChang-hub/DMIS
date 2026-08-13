@@ -102,17 +102,15 @@ class VehiclePriceVersionTests(TestCase):
             displacement_cc=125,
         )
 
-    def test_price_fields_are_independent_and_not_derived(self):
+    def test_price_version_keeps_only_suggested_including_registration_and_cash(self):
         version = VehiclePriceVersion.objects.create(
             vehicle_model=self.model,
-            suggested_retail_price=Decimal("77000"),
-            cash_price_including_registration=Decimal("72000"),
-            cash_price_excluding_registration=Decimal("70000"),
-            cash_purchase_bonus=Decimal("5000"),
+            suggested_price_including_registration=Decimal("77000"),
+            cash_price=Decimal("70000"),
             effective_from=date(2026, 8, 1),
         )
 
-        self.assertEqual(version.cash_price_excluding_registration, Decimal("70000"))
+        self.assertEqual(version.cash_price, Decimal("70000"))
 
     def test_end_date_cannot_precede_start_date(self):
         version = VehiclePriceVersion(
@@ -127,13 +125,13 @@ class VehiclePriceVersionTests(TestCase):
     def test_resolver_uses_order_date_and_snapshot_does_not_change_sale_price(self):
         old_version = VehiclePriceVersion.objects.create(
             vehicle_model=self.model,
-            cash_price_excluding_registration=Decimal("70000"),
+            cash_price=Decimal("70000"),
             effective_from=date(2026, 8, 1),
             effective_to=date(2026, 8, 31),
         )
         VehiclePriceVersion.objects.create(
             vehicle_model=self.model,
-            cash_price_excluding_registration=Decimal("71000"),
+            cash_price=Decimal("71000"),
             effective_from=date(2026, 9, 1),
         )
         color = VehicleColor.objects.create(vehicle_model=self.model, name="灰")
@@ -157,15 +155,15 @@ class VehiclePriceVersionTests(TestCase):
         self.assertEqual(order.vehicle_price, Decimal("69500"))
         self.assertEqual(order.price_version, old_version)
         self.assertEqual(
-            order.price_snapshot["cash_price_excluding_registration"],
+            order.price_snapshot["cash_price"],
             "70000",
         )
 
-        old_version.cash_price_excluding_registration = Decimal("68000")
+        old_version.cash_price = Decimal("68000")
         old_version.save()
         order.refresh_from_db()
         self.assertEqual(
-            order.price_snapshot["cash_price_excluding_registration"],
+            order.price_snapshot["cash_price"],
             "70000",
         )
 

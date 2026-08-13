@@ -175,11 +175,10 @@
           {% include "sales/_field.html" with field=form.registration_calculated_total %}
           {% include "sales/_field.html" with field=form.plate_insurance_fee %}
         </div>
-        <p class="form-hint">系統試算會依領牌日、排氣量與保險期間更新；「實際牌險合計」可由人員調整。</p>
+        <p class="form-hint">油車依領牌日、排氣量與保險期間試算；電動車依品牌及輕型／重型規則帶入。「實際牌險合計」仍可由人員調整。</p>
       </div>
       <div id="non-gas-registration-message" class="note-box" hidden>
-        電動車與微型電動二輪車的完整領牌試算尚未開放，請先人工填寫實際牌險合計。
-        微型電動二輪車三年期強制險費率將於後續版本套用。
+        微型電動二輪車目前請依正式單據人工填寫實際牌險合計。
       </div>
     </div>
     <div class="conditional-panel" data-conditional="installment">
@@ -593,12 +592,20 @@
     const modelData = vehicleRateData[vehicleModel.value];
     const energyType = vehicleEnergyType.value;
     const isGas = energyType === "gas";
-    gasCalculator.hidden = !isGas;
-    nonGasMessage.hidden = isGas;
+    const isElectric = energyType === "electric";
+    const isSupported = isGas || isElectric;
+    gasCalculator.hidden = !isSupported;
+    nonGasMessage.hidden = isSupported;
 
+    if (isElectric) {
+      rateSummary.textContent = modelData?.electric_registration_class
+        ? "電動車牌險將依品牌、領牌級別及領牌日期套用；儲存後顯示正式試算"
+        : "此電動車尚未設定輕型／重型領牌級別，請先至車型資料補齊";
+      return;
+    }
     if (!isGas) {
       rateSummary.textContent = energyType
-        ? "此動力類型暫由人員輸入實際牌險合計"
+        ? "此動力類型目前由人員輸入實際牌險合計"
         : "選擇動力類型與車型後自動試算";
       return;
     }

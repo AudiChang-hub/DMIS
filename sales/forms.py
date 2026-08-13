@@ -401,8 +401,16 @@ class SalesOrderForm(forms.ModelForm):
             if data.get(field_name) is None:
                 data[field_name] = 0
                 self.cleaned_data[field_name] = 0
-        if model and model.energy_type == VehicleModel.EnergyType.GAS:
-            if registration_date and model.displacement_cc:
+        if model and model.energy_type in {
+            VehicleModel.EnergyType.GAS,
+            VehicleModel.EnergyType.ELECTRIC,
+        }:
+            has_rate_basis = bool(
+                model.displacement_cc
+                if model.energy_type == VehicleModel.EnergyType.GAS
+                else model.electric_registration_class
+            )
+            if registration_date and has_rate_basis:
                 try:
                     result = calculate_vehicle_registration_fee(
                         model,
@@ -1131,6 +1139,7 @@ class VehicleModelMasterForm(forms.ModelForm):
             "displacement_cc",
             "motor_power_kw",
             "horsepower_hp",
+            "electric_registration_class",
             "active",
         ]
         labels = {
@@ -1198,6 +1207,14 @@ class VehicleModelMasterForm(forms.ModelForm):
                 "energy_type",
                 "此車型已有庫存資料，為避免引擎／車身號碼規則失效，不能變更能源別。",
             )
+        if (
+            cleaned.get("energy_type") == VehicleModel.EnergyType.ELECTRIC
+            and not cleaned.get("electric_registration_class")
+        ):
+            self.add_error(
+                "electric_registration_class",
+                "電動車請依原廠認證選擇輕型或重型領牌級別。",
+            )
         return cleaned
 
 
@@ -1263,6 +1280,7 @@ class LegacyVehicleModelQuickCreateForm(forms.ModelForm):
             "displacement_cc",
             "motor_power_kw",
             "horsepower_hp",
+            "electric_registration_class",
         ]
         labels = {
             "brand": "品牌",
@@ -1397,10 +1415,8 @@ class VehiclePriceVersionForm(forms.ModelForm):
     class Meta:
         model = VehiclePriceVersion
         fields = [
-            "suggested_retail_price",
-            "cash_price_including_registration",
-            "cash_price_excluding_registration",
-            "cash_purchase_bonus",
+            "suggested_price_including_registration",
+            "cash_price",
             "announced_on",
             "effective_from",
             "effective_to",
@@ -1408,29 +1424,23 @@ class VehiclePriceVersionForm(forms.ModelForm):
             "active",
         ]
         labels = {
-            "suggested_retail_price": "公司建議售價",
-            "cash_price_including_registration": "現金含牌險價",
-            "cash_price_excluding_registration": "現金未含牌險價",
-            "cash_purchase_bonus": "現金購車金",
+            "suggested_price_including_registration": "建議售價（含牌險）",
+            "cash_price": "現金價",
             "announced_on": "原廠／公司通知日期",
             "effective_from": "訂單生效日期",
             "effective_to": "結束日期（選填）",
             "source_note": "來源文件／調整原因",
         }
         help_texts = {
-            "suggested_retail_price": "原廠或公司公布的正式售價；不等同分期基準價。",
-            "cash_price_including_registration": "內部維護的現金成交價，已包含牌險。",
-            "cash_price_excluding_registration": "現金車價本體；牌險依實際單據另外收取。",
-            "cash_purchase_bonus": "原廠現金購車活動金額，僅供留存，不會反推其他價格。",
+            "suggested_price_including_registration": "原廠或公司公布、已包含牌險的正式售價。",
+            "cash_price": "內部實際採用的現金車價；牌險依車型規則或正式單據另計。",
             "effective_from": "建立訂單時，系統依訂單日期套用當日有效版本。",
             "effective_to": "不填表示持續有效；價格調整時請新增版本，不要覆蓋舊版本。",
             "source_note": "例如營業通報月份、文件名稱或人工調整原因。",
         }
         widgets = {
-            "suggested_retail_price": forms.NumberInput(attrs={"inputmode": "numeric"}),
-            "cash_price_including_registration": forms.NumberInput(attrs={"inputmode": "numeric"}),
-            "cash_price_excluding_registration": forms.NumberInput(attrs={"inputmode": "numeric"}),
-            "cash_purchase_bonus": forms.NumberInput(attrs={"inputmode": "numeric"}),
+            "suggested_price_including_registration": forms.NumberInput(attrs={"inputmode": "numeric"}),
+            "cash_price": forms.NumberInput(attrs={"inputmode": "numeric"}),
             "announced_on": DateInput(),
             "effective_from": DateInput(),
             "effective_to": DateInput(),
@@ -1441,10 +1451,8 @@ class VehiclePriceVersionForm(forms.ModelForm):
         for field in self.fields.values():
             field.widget.attrs.setdefault("class", "form-control")
         for field_name in (
-            "suggested_retail_price",
-            "cash_price_including_registration",
-            "cash_price_excluding_registration",
-            "cash_purchase_bonus",
+            "suggested_price_including_registration",
+            "cash_price",
         ):
             if not self.is_bound and self.initial.get(field_name) in (None, 0):
                 self.initial[field_name] = ""
@@ -2180,19 +2188,33 @@ class RegistrationStageForm(forms.ModelForm):
     def clean_final_plate_number(self):
         return self.cleaned_data["final_plate_number"].strip().upper()
 
+    def clean(self):
+        cleaned = super().clean()
+        registration_date = cleaned.get("registration_date")
+        model = self.instance.vehicle_model
+        has_rate_basis = bool(
+            model.displacement_cc
+            if model.energy_type == VehicleModel.EnergyType.GAS
+            else model.electric_registration_class
+            if model.energy_type == VehicleModel.EnergyType.ELECTRIC
+            else False
+        )
+        if registration_date and has_rate_basis:
+            try:
+                self._registration_result = calculate_vehicle_registration_fee(
+                    model,
+                    registration_date,
+                    self.instance.compulsory_insurance_period,
+                )
+            except UnsupportedRegistrationFee as exc:
+                self.add_error("registration_date", str(exc))
+        return cleaned
+
     def save(self, commit=True):
         order = super().save(commit=False)
         model = order.vehicle_model
-        if (
-            model.energy_type == VehicleModel.EnergyType.GAS
-            and model.displacement_cc
-            and order.registration_date
-        ):
-            result = calculate_vehicle_registration_fee(
-                model,
-                order.registration_date,
-                order.compulsory_insurance_period,
-            )
+        if order.registration_date and hasattr(self, "_registration_result"):
+            result = self._registration_result
             order.registration_rate_class = result.rate_class
             order.registration_plate_fee = result.plate_fee
             order.registration_license_fee = result.license_fee
@@ -2432,10 +2454,14 @@ class BrandRegistrationFeeRuleForm(forms.ModelForm):
         model = BrandRegistrationFeeRule
         fields = [
             "brand",
+            "energy_type",
+            "electric_registration_class",
             "calculation_type",
             "min_cc",
             "max_cc",
             "fixed_total",
+            "fixed_registration_fee",
+            "fixed_compulsory_insurance_fee",
             "insurance_period_years",
             "effective_from",
             "effective_to",
@@ -2452,16 +2478,32 @@ class BrandRegistrationFeeRuleForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         for field in self.fields.values():
             field.widget.attrs.setdefault("class", "form-control")
-        for name in ("min_cc", "max_cc", "fixed_total", "insurance_period_years"):
+        for name in (
+            "min_cc",
+            "max_cc",
+            "fixed_total",
+            "fixed_registration_fee",
+            "fixed_compulsory_insurance_fee",
+            "insurance_period_years",
+        ):
             self.fields[name].widget.attrs["inputmode"] = "numeric"
         self.fields["min_cc"].required = False
         self.fields["max_cc"].required = False
         self.fields["fixed_total"].required = False
+        self.fields["electric_registration_class"].required = False
+        self.fields["fixed_registration_fee"].required = False
+        self.fields["fixed_compulsory_insurance_fee"].required = False
         self.fields["effective_to"].required = False
         self.fields["note"].required = False
 
     def clean_fixed_total(self):
         return self.cleaned_data.get("fixed_total") or 0
+
+    def clean_fixed_registration_fee(self):
+        return self.cleaned_data.get("fixed_registration_fee") or 0
+
+    def clean_fixed_compulsory_insurance_fee(self):
+        return self.cleaned_data.get("fixed_compulsory_insurance_fee") or 0
 
 
 class PositionedPrintTemplateForm(forms.ModelForm):

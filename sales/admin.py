@@ -148,9 +148,8 @@ class VehicleInventoryAdmin(admin.ModelAdmin):
 class VehiclePriceVersionAdmin(admin.ModelAdmin):
     list_display = (
         "vehicle_model",
-        "suggested_retail_price",
-        "cash_price_including_registration",
-        "cash_price_excluding_registration",
+        "suggested_price_including_registration",
+        "cash_price",
         "effective_from",
         "effective_to",
         "active",

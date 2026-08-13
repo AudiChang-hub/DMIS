@@ -750,7 +750,7 @@
           </div>
         </div>
         <div class="registration-breakdown__items">
-          <div><span>號牌</span><strong>${{ order.registration_plate_fee|number_with_commas }}</strong></div>
+          <div><span>{% if order.registration_rate_class|slice:":3" == "EV-" %}領牌規費{% else %}號牌{% endif %}</span><strong>${{ order.registration_plate_fee|number_with_commas }}</strong></div>
           <div><span>行照</span><strong>${{ order.registration_license_fee|number_with_commas }}</strong></div>
           <div><span>檢驗</span><strong>${{ order.registration_inspection_fee|number_with_commas }}</strong></div>
           <div><span>公路養管</span><strong>${{ order.road_maintenance_fee|number_with_commas }}</strong></div>

@@ -4773,6 +4773,20 @@ def _vehicle_model_form_view(request, instance=None):
     # 需要更多顏色再由使用者按「新增顏色」。
     if is_editing:
         color_formset.extra = 0
+    used_color_ids = set()
+    if is_editing:
+        used_color_ids = set(
+            instance.colors.filter(
+                Q(vehicleinventory__isnull=False) | Q(salesorder__isnull=False)
+            )
+            .values_list("pk", flat=True)
+            .distinct()
+        )
+    for color_row_form in color_formset.forms:
+        color_row_form.is_used = bool(
+            color_row_form.instance.pk
+            and color_row_form.instance.pk in used_color_ids
+        )
 
     if (
         request.method == "POST"

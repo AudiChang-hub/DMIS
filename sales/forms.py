@@ -1605,6 +1605,21 @@ class VehicleColorMasterForm(forms.ModelForm):
 
 
 class BaseVehicleColorFormSet(BaseInlineFormSet):
+    @staticmethod
+    def _is_used_color(color):
+        return bool(
+            color.pk
+            and (
+                color.vehicleinventory_set.exists()
+                or color.salesorder_set.exists()
+            )
+        )
+
+    def _should_delete_form(self, form):
+        return super()._should_delete_form(form) and not self._is_used_color(
+            form.instance
+        )
+
     def clean(self):
         super().clean()
         names = {}
@@ -1613,13 +1628,13 @@ class BaseVehicleColorFormSet(BaseInlineFormSet):
                 continue
             if form.cleaned_data.get("DELETE"):
                 color = form.instance
-                if color.pk and (
-                    color.vehicleinventory_set.exists()
-                    or color.salesorder_set.exists()
-                ):
-                    raise forms.ValidationError(
-                        f"顏色「{color.name}」已有訂單或庫存使用，不能刪除；請改為停用。"
-                    )
+                if self._is_used_color(color):
+                    # 舊頁面或驗證失敗後可能殘留隱藏的 DELETE。已被歷史資料
+                    # 使用的顏色一律安全轉為停用，避免把「取消啟用」誤判成刪除。
+                    form.cleaned_data["DELETE"] = False
+                    form.cleaned_data["active"] = False
+                    form.instance.active = False
+                    continue
                 continue
             name = (form.cleaned_data.get("name") or "").strip()
             if not name:

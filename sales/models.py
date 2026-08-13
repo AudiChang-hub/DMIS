@@ -7,6 +7,7 @@ from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.core.validators import MaxValueValidator, MinValueValidator, RegexValidator
 from django.db import models, transaction
+from django.db.models.functions import Lower
 from django.utils import timezone
 
 
@@ -104,6 +105,31 @@ class SalesSourceCategory(TimeStampedModel):
         ordering = ["system_behavior", "name", "id"]
         verbose_name = "通路分類"
         verbose_name_plural = "通路分類"
+
+    def __str__(self):
+        return self.name
+
+
+class VehicleBrand(TimeStampedModel):
+    name = models.CharField("品牌名稱", max_length=80)
+    aliases = models.TextField(
+        "別名／原廠寫法",
+        blank=True,
+        help_text="可用逗號、頓號或換行分隔，例如：台鈴、台鈴 Suzuki。",
+    )
+    display_order = models.PositiveSmallIntegerField("顯示順序", default=100)
+    active = models.BooleanField("啟用中", default=True)
+    note = models.CharField("內部備註", max_length=250, blank=True)
+
+    class Meta:
+        ordering = ["display_order", "name", "id"]
+        constraints = [
+            models.UniqueConstraint(
+                Lower("name"), name="unique_vehicle_brand_name_ci"
+            )
+        ]
+        verbose_name = "車輛品牌"
+        verbose_name_plural = "車輛品牌"
 
     def __str__(self):
         return self.name

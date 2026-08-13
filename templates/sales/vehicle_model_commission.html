@@ -3,7 +3,7 @@
 {% block page_class %}page-shell--form{% endblock %}
 {% block content %}
 {% url 'vehicle_model_edit' vehicle_model.pk as model_edit_url %}
-{% include "sales/_page_back.html" with fallback_url=model_edit_url label="返回車型設定" %}
+{% include "sales/_page_back.html" with fallback_url=model_edit_url label="返回車型設定" force_fresh=True %}
 <section class="hero-row compact-hero">
   <div>
     <p class="eyebrow">{{ vehicle_model.brand }} {{ vehicle_model.name }}／{{ vehicle_model.model_number }}</p>

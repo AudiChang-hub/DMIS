@@ -348,19 +348,23 @@ class OrderFlowTests(TestCase):
         self.assertContains(response, "和潤")
         self.assertNotContains(response, "36 期")
 
-    def test_installment_plan_return_link_forces_fresh_model_page(self):
+    def test_vehicle_model_business_pages_return_directly_to_model_page(self):
         self.client.force_login(self.user)
-
-        response = self.client.get(
-            reverse("vehicle_installment_plan_list", args=[self.model.pk])
-        )
-
         model_url = reverse("vehicle_model_edit", args=[self.model.pk])
-        self.assertContains(response, f'href="{model_url}"')
-        self.assertNotContains(
-            response,
-            f'href="{model_url}" data-smart-back',
-        )
+        for route_name in (
+            "vehicle_model_price_versions",
+            "vehicle_model_commission",
+            "vehicle_installment_plan_list",
+        ):
+            with self.subTest(route_name=route_name):
+                response = self.client.get(reverse(route_name, args=[self.model.pk]))
+
+                self.assertEqual(response.status_code, 200)
+                self.assertContains(response, f'href="{model_url}"')
+                self.assertNotContains(
+                    response,
+                    f'href="{model_url}" data-smart-back',
+                )
 
     def test_vehicle_model_type_supports_drum(self):
         self.client.force_login(self.user)

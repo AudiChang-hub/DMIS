@@ -75,6 +75,7 @@ from .forms import (
     SubsidyItemFormSet,
     SubsidyDocumentUploadForm,
     VehicleInventoryForm,
+    VehicleBrandForm,
     VehicleColorMasterFormSet,
     VehicleIncentiveInstallmentRateFormSet,
     VehicleIncentiveRuleForm,
@@ -112,6 +113,7 @@ from .models import (
     SubsidyDocument,
     TaiwanCounty,
     VehicleColor,
+    VehicleBrand,
     VehicleInventory,
     VehicleInventoryHistory,
     VehicleIncentiveRule,
@@ -120,6 +122,10 @@ from .models import (
     VehicleSettlementCostRule,
     normalize_legacy_master_value,
     normalize_vehicle_identifier,
+)
+from .services.vehicle_brands import (
+    rename_vehicle_brand_references,
+    vehicle_brand_is_used,
 )
 from .jobs import delete_id_ocr_job_files, run_id_ocr_job, run_legacy_import_job
 from .services.id_ocr import recognize_id_card
@@ -360,6 +366,7 @@ def data_maintenance(request):
             .distinct()
             .count(),
             "vehicle_model_count": VehicleModel.objects.count(),
+            "vehicle_brand_count": VehicleBrand.objects.count(),
             "accessory_product_count": AccessoryProduct.objects.count(),
             "inventory_count": VehicleInventory.objects.count(),
             "sales_source_count": SalesSource.objects.count(),
@@ -596,6 +603,40 @@ def sales_source_list(request):
                 "holiday_gift": holiday_gift,
             },
         },
+    )
+
+
+@login_required
+@transaction.atomic
+def vehicle_brand_list(request):
+    editing = None
+    edit_pk = request.GET.get("edit")
+    if edit_pk:
+        editing = get_object_or_404(VehicleBrand, pk=edit_pk)
+    original_name = editing.name if editing else ""
+    form = VehicleBrandForm(request.POST or None, instance=editing)
+    if request.method == "POST" and form.is_valid():
+        brand = form.save(commit=False)
+        try:
+            with transaction.atomic():
+                if editing and original_name != brand.name:
+                    rename_vehicle_brand_references(original_name, brand.name)
+                brand.save()
+        except IntegrityError:
+            form.add_error(
+                "name",
+                "無法改名：既有車型或規則會與另一筆資料重複，請先檢查相關資料。",
+            )
+        else:
+            messages.success(request, f"已儲存品牌：{brand.name}。")
+            return redirect("vehicle_brand_list")
+    brands = list(VehicleBrand.objects.all())
+    for brand in brands:
+        brand.is_used = vehicle_brand_is_used(brand.name)
+    return render(
+        request,
+        "sales/vehicle_brand_list.html",
+        {"brands": brands, "form": form, "editing": editing},
     )
 
 

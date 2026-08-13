@@ -16,6 +16,7 @@ urlpatterns = [
         name="registration_fee_variance_confirm",
     ),
     path("data/", views.data_maintenance, name="data_maintenance"),
+    path("data/vehicle-brands/", views.vehicle_brand_list, name="vehicle_brand_list"),
     path(
         "data/business-holidays/",
         views.business_holiday_list,

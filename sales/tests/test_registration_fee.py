@@ -280,7 +280,7 @@ class RegistrationFeeOrderIntegrationTests(TestCase):
         response = self.client.post(
             reverse("brand_registration_fee_rule_list"),
             {
-                "brand": "三陽",
+                "brand": "SYM",
                 "energy_type": "gas",
                 "electric_registration_class": "",
                 "calculation_type": "fixed",
@@ -299,5 +299,5 @@ class RegistrationFeeOrderIntegrationTests(TestCase):
 
         self.assertRedirects(response, reverse("brand_registration_fee_rule_list"))
         self.assertTrue(
-            BrandRegistrationFeeRule.objects.filter(brand="三陽", fixed_total=1600).exists()
+            BrandRegistrationFeeRule.objects.filter(brand="SYM", fixed_total=1600).exists()
         )

@@ -5,7 +5,7 @@
 {% url 'data_maintenance' as maintenance_url %}
 {% include "sales/_page_back.html" with fallback_url=maintenance_url label="返回資料維護區" %}
 <section class="hero-row compact-hero">
-  <div><p class="eyebrow">品牌、能源別與領牌日生效版本</p><h1>品牌牌險規則</h1><p class="muted">油車可依排氣量使用公式或固定總額；電動車依輕型／重型分別維護固定領牌規費及強制險。</p></div>
+  <div><p class="eyebrow">品牌、能源別與領牌日生效版本</p><h1>品牌牌險規則</h1><p class="muted">油車可依排氣量使用公式或固定總額；電動車依輕型／重型分別維護固定領牌規費及強制險。</p></div><div class="hero-actions"><a class="button ghost" href="{% url 'vehicle_brand_list' %}">維護品牌</a></div>
 </section>
 <section class="section-block">
   <div class="section-title"><h2>{% if editing %}編輯規則{% else %}新增規則{% endif %}</h2>{% if editing %}<a href="{% url 'brand_registration_fee_rule_list' %}">取消編輯</a>{% endif %}</div>

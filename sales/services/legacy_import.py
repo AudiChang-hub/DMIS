@@ -1030,8 +1030,11 @@ def apply_import_row_decision(row, mapping, decision, reason, actor_name):
 
 
 def _placeholder_model(model_number):
+    from sales.services.vehicle_brands import canonical_vehicle_brand_name
+
+    brand = canonical_vehicle_brand_name("歷史資料", create_missing=True)
     model, _ = VehicleModel.objects.get_or_create(
-        brand="歷史資料", name=model_number or "未辨識車型", model_number=model_number or "UNKNOWN",
+        brand=brand, name=model_number or "未辨識車型", model_number=model_number or "UNKNOWN",
         model_year=None, model_code="",
         defaults={"energy_type": VehicleModel.EnergyType.GAS, "displacement_cc": 125, "active": False},
     )

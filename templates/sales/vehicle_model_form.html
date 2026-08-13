@@ -10,6 +10,7 @@
     <h1>{% if is_editing %}編輯車型規格{% else %}新增車型{% endif %}</h1>
     {% if is_editing %}<p class="muted">{{ vehicle_model }}；本頁只維護不隨日期變動的規格與顏色。</p>{% endif %}
   </div>
+  <div class="hero-actions"><a class="button ghost" href="{% url 'vehicle_brand_list' %}">維護品牌</a></div>
 </section>
 
 <form method="post" class="master-model-form">

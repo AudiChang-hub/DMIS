@@ -28,6 +28,7 @@
               <section class="data-menu-group" aria-labelledby="data-menu-daily">
                 <h2 id="data-menu-daily">日常資料</h2>
                 <a href="{% url 'customer_list' %}"><strong>客戶資料</strong><small>聯絡資料與歷史訂單</small></a>
+                <a href="{% url 'vehicle_brand_list' %}"><strong>品牌資料</strong><small>共用品牌名稱與別名</small></a>
                 <a href="{% url 'vehicle_model_list' %}"><strong>車型、售價與基礎傭金</strong><small>品牌、年份、價格與車行基礎傭金</small></a>
                 <a href="{% url 'inventory_list' %}"><strong>庫存資料</strong><small>進車、車況與調車歷程</small></a>
                 <a href="{% url 'accessory_product_list' %}"><strong>配件資料</strong><small>售價、工資與參考成本</small></a>
@@ -84,6 +85,7 @@
           <div class="mobile-data-popover__header"><strong>快速前往</strong><a href="{% url 'data_maintenance' %}">全部功能 →</a></div>
           <div class="mobile-data-popover__grid">
             <a href="{% url 'customer_list' %}"><span>人</span><strong>客戶</strong></a>
+            <a href="{% url 'vehicle_brand_list' %}"><span>牌</span><strong>品牌</strong></a>
             <a href="{% url 'vehicle_model_list' %}"><span>型</span><strong>車型／傭金</strong></a>
             <a href="{% url 'inventory_list' %}"><span>庫</span><strong>庫存</strong></a>
             <a href="{% url 'accessory_product_list' %}"><span>配</span><strong>配件</strong></a>

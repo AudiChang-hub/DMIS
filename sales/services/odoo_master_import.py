@@ -19,6 +19,7 @@ from sales.models import (
     VehicleModel,
     VehiclePriceVersion,
 )
+from sales.services.vehicle_brands import canonical_vehicle_brand_name
 
 
 BRAND_NAMES = {
@@ -67,7 +68,9 @@ def _integer(value):
 
 def _brand(value):
     value = (value or "").strip()
-    return BRAND_NAMES.get(value, value)
+    return canonical_vehicle_brand_name(
+        BRAND_NAMES.get(value, value), create_missing=True
+    )
 
 
 def _model_name(value):

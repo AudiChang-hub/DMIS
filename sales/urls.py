@@ -8,6 +8,21 @@ urlpatterns = [
     path("health/", views.system_health, name="system_health"),
     path("system-status/", views.system_diagnostics, name="system_diagnostics"),
     path("api/app-version/", views.app_version, name="app_version"),
+    # 舊 Odoo 書籤與主畫面捷徑保留相容入口，避免使用者落入 404。
+    path(
+        "web",
+        RedirectView.as_view(pattern_name="dashboard", permanent=False),
+        name="legacy_odoo_web",
+    ),
+    path(
+        "web/",
+        RedirectView.as_view(pattern_name="dashboard", permanent=False),
+    ),
+    path(
+        "zh_TW/data/vehicle-models/",
+        RedirectView.as_view(pattern_name="vehicle_model_list", permanent=False),
+        name="legacy_odoo_vehicle_models",
+    ),
     path("", views.dashboard, name="dashboard"),
     path("help/", views.user_guide, name="user_guide"),
     path(

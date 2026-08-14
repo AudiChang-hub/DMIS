@@ -4626,16 +4626,74 @@ def vehicle_model_list(request):
         models = models.filter(active=True)
     elif active == "no":
         models = models.filter(active=False)
-    models = models.order_by("brand", "name", "-model_year", "model_code")
-    paginator = Paginator(models, 100)
-    page = paginator.get_page(request.GET.get("page"))
+    models = list(models.order_by("brand", "name", "-model_year", "model_code"))
+
+    brand_records = {
+        brand.name.casefold(): brand
+        for brand in VehicleBrand.objects.select_related("parent").all()
+    }
+    grouped_models = {}
+    for model in models:
+        brand_record = brand_records.get(model.brand.casefold())
+        root_brand = (
+            brand_record.parent
+            if brand_record and brand_record.parent_id
+            else brand_record
+        )
+        root_name = root_brand.name if root_brand else model.brand
+        root_key = root_name.casefold()
+        group = grouped_models.setdefault(
+            root_key,
+            {
+                "name": root_name,
+                "display_order": root_brand.display_order if root_brand else 999,
+                "models": [],
+                "child_brands": set(),
+                "active_count": 0,
+            },
+        )
+        model.child_brand_label = (
+            model.brand if model.brand.casefold() != root_key else ""
+        )
+        model.brand_display_order = (
+            brand_record.display_order if brand_record else 999
+        )
+        group["models"].append(model)
+        if model.child_brand_label:
+            group["child_brands"].add(model.child_brand_label)
+        if model.active:
+            group["active_count"] += 1
+
+    vehicle_model_groups = sorted(
+        grouped_models.values(),
+        key=lambda group: (group["display_order"], group["name"].casefold()),
+    )
+    filters_applied = bool(keyword or energy_type or active)
+    for index, group in enumerate(vehicle_model_groups):
+        group["models"].sort(
+            key=lambda model: (
+                bool(model.child_brand_label),
+                model.brand_display_order,
+                model.brand.casefold(),
+                model.name.casefold(),
+                -(model.model_year or 0),
+                model.model_code,
+            )
+        )
+        group["child_brands"] = sorted(
+            group["child_brands"], key=str.casefold
+        )
+        group["total_count"] = len(group["models"])
+        group["initially_open"] = filters_applied or index == 0
+
     return render(
         request,
         "sales/vehicle_model_list.html",
         {
-            "vehicle_models": page.object_list,
-            "page_obj": page,
+            "vehicle_model_groups": vehicle_model_groups,
+            "vehicle_model_count": len(models),
             "energy_types": VehicleModel.EnergyType.choices,
+            "filters_applied": filters_applied,
             "selected": {
                 "q": keyword,
                 "energy_type": energy_type,

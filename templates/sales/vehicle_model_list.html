@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load static %}
 {% block title %}車型資料｜車輛銷售管理{% endblock %}
 {% block page_class %}page-shell--wide{% endblock %}
 {% block content %}
@@ -44,32 +45,66 @@
   </div>
 </form>
 
-<section class="inventory-list-panel">
-  <div class="inventory-list-summary"><strong>共 {{ page_obj.paginator.count }} 個車型版本</strong></div>
-  <div class="inventory-table-wrap">
-    <table class="inventory-table master-model-table">
-      <thead><tr><th>品牌／機種</th><th>型號</th><th>年份／型式</th><th>能源別</th><th>排氣量</th><th>馬達功率（kW）</th><th>目前建議售價</th><th>車行基礎傭金</th><th>啟用顏色</th><th>庫存</th><th>狀態</th><th></th></tr></thead>
-      <tbody>
-        {% for item in vehicle_models %}
-        <tr>
-          <td data-label="品牌／機種"><strong>{{ item.brand }}</strong><span>{{ item.name }}</span></td>
-          <td data-label="型號">{{ item.model_number|default:"待補" }}</td>
-          <td data-label="年份／型式"><strong>{{ item.model_year|default:"待補" }}</strong><span>{% if item.model_code %}{{ item.get_model_code_display }}{% else %}待補{% endif %}</span></td>
-          <td data-label="能源別">{{ item.get_energy_type_display }}</td>
-          <td data-label="排氣量">{% if item.displacement_cc %}{{ item.displacement_cc }} c.c.{% else %}—{% endif %}</td>
-          <td data-label="馬達功率（kW）">{% if item.motor_power_kw is not None %}{{ item.motor_power_kw|floatformat:2 }} kW{% else %}—{% endif %}</td>
-          <td data-label="目前建議售價">{% if item.current_suggested_price %}${{ item.current_suggested_price|floatformat:0 }}{% else %}尚未設定{% endif %}</td>
-          <td data-label="車行基礎傭金"><strong>${{ item.base_dealer_commission|floatformat:0 }}</strong><span>特定車行加減另於車行資料設定</span></td>
-          <td data-label="啟用顏色">{{ item.active_color_count }} 種</td>
-          <td data-label="庫存"><strong>{{ item.available_count }} 台可售</strong><span>共 {{ item.inventory_count }} 台</span></td>
-          <td data-label="狀態"><span class="status-pill">{{ item.active|yesno:"啟用中,已停用" }}</span></td>
-          <td class="inventory-row-action"><a class="button ghost small" href="{% url 'vehicle_model_edit' item.pk %}">編輯</a></td>
-        </tr>
-        {% empty %}
-        <tr><td colspan="12"><div class="empty-state"><strong>尚無符合條件的車型</strong></div></td></tr>
-        {% endfor %}
-      </tbody>
-    </table>
+<section class="vehicle-model-catalog" data-vehicle-model-catalog data-filtered="{{ filters_applied|yesno:'true,false' }}">
+  <div class="vehicle-model-catalog__toolbar">
+    <div>
+      <strong>共 {{ vehicle_model_count }} 個車型版本</strong>
+      <span>依品牌整理；子品牌以標籤顯示，不會增加操作層級。</span>
+    </div>
+    {% if vehicle_model_groups %}
+    <div class="vehicle-model-catalog__actions" aria-label="品牌區塊顯示方式">
+      <button class="button ghost small" type="button" data-brand-groups-expand>全部展開</button>
+      <button class="button ghost small" type="button" data-brand-groups-collapse>全部收合</button>
+    </div>
+    {% endif %}
   </div>
+
+  {% for group in vehicle_model_groups %}
+  <details class="vehicle-brand-group" data-brand-group="{{ group.name }}"{% if group.initially_open %} open{% endif %}>
+    <summary>
+      <span class="vehicle-brand-group__mark" aria-hidden="true">{{ group.name|slice:":1" }}</span>
+      <span class="vehicle-brand-group__identity">
+        <strong>{{ group.name }}</strong>
+        <small>{% if group.child_brands %}包含 {{ group.child_brands|join:"、" }}{% else %}品牌車型{% endif %}</small>
+      </span>
+      <span class="vehicle-brand-group__metrics">
+        <strong>{{ group.total_count }} 個車型</strong>
+        <small>{{ group.active_count }} 個啟用中</small>
+      </span>
+      <span class="vehicle-brand-group__chevron" aria-hidden="true"></span>
+    </summary>
+    <div class="inventory-table-wrap">
+      <table class="inventory-table master-model-table">
+        <thead><tr><th>機種</th><th>型號</th><th>年份／型式</th><th>能源別</th><th>排氣量</th><th>馬達功率（kW）</th><th>目前建議售價</th><th>車行基礎傭金</th><th>啟用顏色</th><th>庫存</th><th>狀態</th><th></th></tr></thead>
+        <tbody>
+          {% for item in group.models %}
+          <tr>
+            <td data-label="機種">
+              <strong>{{ item.name }}</strong>
+              {% if item.child_brand_label %}<span class="vehicle-model-brand-badge">{{ item.child_brand_label }}</span>{% endif %}
+            </td>
+            <td data-label="型號">{{ item.model_number|default:"待補" }}</td>
+            <td data-label="年份／型式"><strong>{{ item.model_year|default:"待補" }}</strong><span>{% if item.model_code %}{{ item.get_model_code_display }}{% else %}待補{% endif %}</span></td>
+            <td data-label="能源別">{{ item.get_energy_type_display }}</td>
+            <td data-label="排氣量">{% if item.displacement_cc %}{{ item.displacement_cc }} c.c.{% else %}—{% endif %}</td>
+            <td data-label="馬達功率（kW）">{% if item.motor_power_kw is not None %}{{ item.motor_power_kw|floatformat:2 }} kW{% else %}—{% endif %}</td>
+            <td data-label="目前建議售價">{% if item.current_suggested_price %}${{ item.current_suggested_price|floatformat:0 }}{% else %}尚未設定{% endif %}</td>
+            <td data-label="車行基礎傭金"><strong>${{ item.base_dealer_commission|floatformat:0 }}</strong><span>特定車行加減另於車行資料設定</span></td>
+            <td data-label="啟用顏色">{{ item.active_color_count }} 種</td>
+            <td data-label="庫存"><strong>{{ item.available_count }} 台可售</strong><span>共 {{ item.inventory_count }} 台</span></td>
+            <td data-label="狀態"><span class="status-pill">{{ item.active|yesno:"啟用中,已停用" }}</span></td>
+            <td class="inventory-row-action"><a class="button ghost small" href="{% url 'vehicle_model_edit' item.pk %}">編輯</a></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </details>
+  {% empty %}
+  <div class="empty-state"><strong>尚無符合條件的車型</strong><span>請調整搜尋或篩選條件後再試一次。</span></div>
+  {% endfor %}
 </section>
+{% endblock %}
+{% block scripts %}
+<script src="{% static 'js/vehicle-model-groups.js' %}?v={{ app_version }}" defer></script>
 {% endblock %}

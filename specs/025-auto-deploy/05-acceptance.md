@@ -20,3 +20,5 @@
 - 舊 `/web` 與 `/zh_TW/data/vehicle-models/` 捷徑會導回目前 Django 畫面。
 - 只有通過健康檢查與正式入口驗證後才寫入 `deployed-sha`；若 Git 已更新但
   上次部署中斷，下一次必須續跑服務重建，不可誤判為完成。
+- web container 重建後必須強制重建 `tunnel-proxy`，不可沿用 nginx 已解析的
+  舊 web IP；正式健康檢查不得持續出現 502。

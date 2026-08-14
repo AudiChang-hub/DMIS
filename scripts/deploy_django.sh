@@ -67,13 +67,15 @@ done
 [[ "$(docker inspect --format '{{if .State.Health}}{{.State.Health.Status}}{{end}}' "$web_id")" == "healthy" ]] ||
     fail "web 未在期限內恢復健康"
 
-# nginx 會解析並記住 web container IP；web 重建後必須重新載入，否則會短暫 502。
-log "重新載入 DMIS tunnel proxy"
-"${compose[@]}" restart tunnel-proxy
+# nginx 會解析並記住 web container IP；web 重建後必須重新建立代理。
+# 使用 up 而不是 restart，確保 network alias 等 Compose 設定異動也會生效。
+log "重新建立 DMIS tunnel proxy"
+"${compose[@]}" up -d --no-deps tunnel-proxy
 
 for attempt in $(seq 1 30); do
     if curl --fail --silent --show-error --max-time 10 "$PUBLIC_HEALTH_URL" >/dev/null; then
         log "正式網域健康檢查通過"
+        ./scripts/verify_django_public_route.sh
         "${compose[@]}" ps
         exit 0
     fi

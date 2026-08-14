@@ -9,3 +9,12 @@
 - 部署後 `/web/login` 在 180 秒內回傳 200、302 或 303。
 - `journalctl --user` 可追查每次成功或失敗結果。
 - 純文件／規格 commit 可自動 fast-forward，且 Odoo container 不重啟。
+
+## DMIS Next 正式入口
+
+- Django `tunnel-proxy` 在 `dmis-next_default` 使用唯一的 `odoo` alias。
+- Cloudflare connector 不得同時連接舊 `dmis_default`，避免 Docker DNS 輪流
+  導向 Odoo 與 Django。
+- 部署後 `scripts/verify_django_public_route.sh` 連續檢查至少 12 次，首頁不得
+  導向 `/web` 或出現 Odoo 頁面內容。
+- 舊 `/web` 與 `/zh_TW/data/vehicle-models/` 捷徑會導回目前 Django 畫面。

@@ -155,6 +155,21 @@ class ProductExperienceTests(TestCase):
         self.assertIn("ABCDEF123456", body)
         self.assertIn("這不是你的操作問題", body)
 
+    def test_legacy_odoo_urls_redirect_to_current_django_pages(self):
+        response = self.client.get("/web")
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response["Location"], reverse("dashboard"))
+
+        response = self.client.get("/web/")
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response["Location"], reverse("dashboard"))
+
+        response = self.client.get(
+            "/zh_TW/data/vehicle-models/", {"_appv": "legacy"}
+        )
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response["Location"], reverse("vehicle_model_list"))
+
     def test_request_id_middleware_marks_failures(self):
         middleware = RequestIdMiddleware(lambda request: HttpResponse(status=500))
         response = middleware(RequestFactory().get("/broken/"))

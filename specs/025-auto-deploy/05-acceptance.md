@@ -18,3 +18,5 @@
 - 部署後 `scripts/verify_django_public_route.sh` 連續檢查至少 12 次，首頁不得
   導向 `/web` 或出現 Odoo 頁面內容。
 - 舊 `/web` 與 `/zh_TW/data/vehicle-models/` 捷徑會導回目前 Django 畫面。
+- 只有通過健康檢查與正式入口驗證後才寫入 `deployed-sha`；若 Git 已更新但
+  上次部署中斷，下一次必須續跑服務重建，不可誤判為完成。

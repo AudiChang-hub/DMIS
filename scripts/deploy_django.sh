@@ -5,6 +5,7 @@ PROJECT_DIR=${DMIS_NEXT_PROJECT_DIR:-/home/audi/project/DMIS-next}
 DEPLOY_BRANCH=${DMIS_NEXT_DEPLOY_BRANCH:-main}
 PUBLIC_HEALTH_URL=${DMIS_PUBLIC_HEALTH_URL:-https://dmis.moto-core.com/health/}
 LOCK_FILE=${DMIS_NEXT_DEPLOY_LOCK_FILE:-/tmp/dmis-next-deploy.lock}
+DEPLOY_STATE_FILE=${DMIS_NEXT_DEPLOY_STATE_FILE:-/srv/dmis-data/dmis-next/deployed-sha}
 
 log() {
     printf '%s %s\n' "$(date --iso-8601=seconds)" "$*"
@@ -37,19 +38,25 @@ git fetch --quiet origin "$DEPLOY_BRANCH"
 local_sha=$(git rev-parse HEAD)
 remote_sha=$(git rev-parse "origin/$DEPLOY_BRANCH")
 
-if [[ "$local_sha" == "$remote_sha" ]]; then
-    log "已是最新版本：${local_sha:0:12}"
-    exit 0
+deployed_sha=$(cat "$DEPLOY_STATE_FILE" 2>/dev/null || true)
+if [[ "$local_sha" == "$remote_sha" && "$deployed_sha" == "$remote_sha" ]]; then
+    if ./scripts/verify_django_public_route.sh; then
+        log "已是完整部署版本：${local_sha:0:12}"
+        exit 0
+    fi
+    log "版本相同但正式入口驗證失敗，重新套用部署"
+elif [[ "$local_sha" == "$remote_sha" ]]; then
+    log "Git 已更新但缺少成功部署標記，續跑部署：${local_sha:0:12}"
+else
+    git merge-base --is-ancestor "$local_sha" "$remote_sha" ||
+        fail "遠端更新不是 fast-forward，需人工確認"
+
+    log "先備份 PostgreSQL 與媒體檔"
+    ./scripts/backup_django_data.sh
+
+    log "更新程式：${local_sha:0:12} -> ${remote_sha:0:12}"
+    git merge --ff-only "origin/$DEPLOY_BRANCH"
 fi
-
-git merge-base --is-ancestor "$local_sha" "$remote_sha" ||
-    fail "遠端更新不是 fast-forward，需人工確認"
-
-log "先備份 PostgreSQL 與媒體檔"
-./scripts/backup_django_data.sh
-
-log "更新程式：${local_sha:0:12} -> ${remote_sha:0:12}"
-git merge --ff-only "origin/$DEPLOY_BRANCH"
 
 log "重建 Django web 與背景工作 image"
 "${compose[@]}" build web ocr-worker search-worker import-worker
@@ -76,6 +83,10 @@ for attempt in $(seq 1 30); do
     if curl --fail --silent --show-error --max-time 10 "$PUBLIC_HEALTH_URL" >/dev/null; then
         log "正式網域健康檢查通過"
         ./scripts/verify_django_public_route.sh
+        install -d "$(dirname "$DEPLOY_STATE_FILE")"
+        state_tmp="${DEPLOY_STATE_FILE}.tmp.$$"
+        printf '%s\n' "$remote_sha" >"$state_tmp"
+        mv "$state_tmp" "$DEPLOY_STATE_FILE"
         "${compose[@]}" ps
         exit 0
     fi

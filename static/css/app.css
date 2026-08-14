@@ -1371,7 +1371,50 @@ body.screen-locked { overflow: hidden; }
 }
 .holiday-gift-save-actions > div { display: grid; padding: 0 8px; gap: 2px; }
 .holiday-gift-save-actions > div span { color: rgba(255, 255, 255, .78); font-size: .75rem; }
+.vehicle-model-catalog { display: grid; gap: 14px; }
+.vehicle-model-catalog__toolbar {
+  display: flex; min-height: 70px; padding: 14px 18px; align-items: center;
+  justify-content: space-between; gap: 16px; background: #fff;
+  border: 1px solid var(--line); border-radius: var(--radius);
+}
+.vehicle-model-catalog__toolbar > div:first-child { display: grid; gap: 3px; }
+.vehicle-model-catalog__toolbar span { color: var(--muted); font-size: .8rem; }
+.vehicle-model-catalog__actions { display: flex; gap: 8px; }
+.vehicle-brand-group {
+  overflow: hidden; background: #fff; border: 1px solid var(--line);
+  border-radius: var(--radius); box-shadow: 0 8px 22px rgba(18, 55, 42, .04);
+}
+.vehicle-brand-group > summary {
+  display: grid; min-height: 78px; padding: 14px 18px;
+  grid-template-columns: 46px minmax(0, 1fr) auto 36px;
+  align-items: center; gap: 14px; cursor: pointer; list-style: none;
+}
+.vehicle-brand-group > summary::-webkit-details-marker { display: none; }
+.vehicle-brand-group[open] > summary { background: #f8fbf9; border-bottom: 1px solid var(--line); }
+.vehicle-brand-group__mark {
+  display: grid; width: 46px; height: 46px; place-items: center;
+  color: #fff; background: var(--forest); border-radius: 13px;
+  font-size: 1rem; font-weight: 900;
+}
+.vehicle-brand-group__identity, .vehicle-brand-group__metrics { display: grid; min-width: 0; gap: 3px; }
+.vehicle-brand-group__identity strong { overflow: hidden; font-size: 1.08rem; text-overflow: ellipsis; white-space: nowrap; }
+.vehicle-brand-group__identity small, .vehicle-brand-group__metrics small { color: var(--muted); font-size: .75rem; }
+.vehicle-brand-group__metrics { min-width: 116px; text-align: right; }
+.vehicle-brand-group__metrics strong { font-size: .88rem; }
+.vehicle-brand-group__chevron {
+  display: grid; width: 34px; height: 34px; place-items: center;
+  background: #eef3f0; border-radius: 10px;
+}
+.vehicle-brand-group__chevron::after { content: "⌄"; color: var(--forest); font-size: 1.2rem; font-weight: 900; }
+.vehicle-brand-group[open] .vehicle-brand-group__chevron::after { transform: rotate(180deg); }
+.vehicle-brand-group .inventory-table-wrap { border-top: 0; }
 .master-model-table { min-width: 1180px; }
+.vehicle-model-brand-badge {
+  display: inline-flex !important; width: fit-content; margin-top: 5px !important;
+  padding: 3px 7px; color: var(--forest) !important; background: #e9f4ee;
+  border: 1px solid #cfe2d8; border-radius: 999px; font-size: .68rem !important;
+  font-style: normal; font-weight: 900;
+}
 .master-model-form { display: grid; gap: 18px; }
 .master-model-section { overflow: hidden; padding: 0; }
 .master-model-section .section-heading {
@@ -2138,6 +2181,24 @@ body.screen-locked { overflow: hidden; }
   .quick-entry-actions .button { flex: 1; }
   .master-filters, .master-filters.sales-source-filters { grid-template-columns: 1fr 1fr; padding: 14px; }
   .master-search, .master-filters .inventory-filter-actions { grid-column: 1 / -1; }
+  .vehicle-model-catalog { gap: 10px; }
+  .vehicle-model-catalog__toolbar { padding: 14px; align-items: stretch; flex-direction: column; }
+  .vehicle-model-catalog__actions { display: grid; grid-template-columns: 1fr 1fr; }
+  .vehicle-model-catalog__actions .button { width: 100%; }
+  .vehicle-brand-group > summary {
+    min-height: 72px; padding: 12px 13px;
+    grid-template-columns: 42px minmax(0, 1fr) 30px; gap: 10px;
+  }
+  .vehicle-brand-group__mark { width: 42px; height: 42px; border-radius: 11px; }
+  .vehicle-brand-group__identity strong { font-size: 1rem; }
+  .vehicle-brand-group__metrics {
+    grid-column: 2; grid-row: 2; min-width: 0; grid-auto-flow: column;
+    justify-content: start; gap: 8px; text-align: left;
+  }
+  .vehicle-brand-group__metrics strong, .vehicle-brand-group__metrics small { font-size: .7rem; }
+  .vehicle-brand-group__chevron { grid-column: 3; grid-row: 1 / span 2; width: 30px; height: 30px; }
+  .vehicle-brand-group .inventory-table tr { grid-template-columns: 1fr; }
+  .vehicle-brand-group .inventory-table td { grid-column: 1 / -1; }
   .source-list-summary { padding-block: 12px; align-items: stretch; flex-direction: column; }
   .source-list-actions { align-items: stretch; flex-direction: column; }
   .source-list-summary .button { width: 100%; }

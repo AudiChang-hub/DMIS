@@ -68,6 +68,90 @@ class VehicleBrandMasterTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, child_model.name)
 
+    def test_vehicle_model_list_keeps_two_visual_levels_for_child_brand(self):
+        root_model = VehicleModel.objects.create(
+            brand="SUZUKI",
+            name="主品牌車型",
+            model_number="ROOT-01",
+            model_year=2026,
+            model_code=VehicleModel.ModelType.DRUM,
+            energy_type=VehicleModel.EnergyType.GAS,
+        )
+        child_model = VehicleModel.objects.create(
+            brand="eMOVING",
+            name="子品牌車型",
+            model_number="CHILD-01",
+            model_year=2026,
+            model_code=VehicleModel.ModelType.DRUM,
+            energy_type=VehicleModel.EnergyType.ELECTRIC,
+        )
+
+        response = self.client.get(reverse("vehicle_model_list"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'data-brand-group="SUZUKI"')
+        self.assertNotContains(response, 'data-brand-group="eMOVING"')
+        self.assertContains(response, "包含 eMOVING")
+        self.assertContains(
+            response,
+            '<span class="vehicle-model-brand-badge">eMOVING</span>',
+            html=True,
+        )
+        suzuki_group = next(
+            group
+            for group in response.context["vehicle_model_groups"]
+            if group["name"] == "SUZUKI"
+        )
+        self.assertEqual(
+            [model.pk for model in suzuki_group["models"]],
+            [root_model.pk, child_model.pk],
+        )
+
+    def test_new_parent_child_brand_is_grouped_without_ui_special_case(self):
+        parent = VehicleBrand.objects.get(name="SYM")
+        child = VehicleBrand.objects.create(
+            name="未來子品牌",
+            parent=parent,
+            display_order=901,
+        )
+        child_model = VehicleModel.objects.create(
+            brand=child.name,
+            name="自動歸類車型",
+            model_number="AUTO-GROUP-01",
+            model_year=2026,
+            model_code=VehicleModel.ModelType.DRUM,
+            energy_type=VehicleModel.EnergyType.ELECTRIC,
+        )
+
+        response = self.client.get(reverse("vehicle_model_list"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'data-brand-group="SYM"')
+        self.assertNotContains(response, 'data-brand-group="未來子品牌"')
+        sym_group = next(
+            group
+            for group in response.context["vehicle_model_groups"]
+            if group["name"] == "SYM"
+        )
+        self.assertEqual([model.pk for model in sym_group["models"]], [child_model.pk])
+
+    def test_filtered_vehicle_model_groups_are_opened_to_show_matches(self):
+        VehicleModel.objects.create(
+            brand="eMOVING",
+            name="搜尋後展開車型",
+            model_number="SEARCH-OPEN-01",
+            model_year=2026,
+            model_code=VehicleModel.ModelType.DRUM,
+            energy_type=VehicleModel.EnergyType.ELECTRIC,
+        )
+
+        response = self.client.get(reverse("vehicle_model_list"), {"q": "eMOVING"})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.context["filters_applied"])
+        self.assertTrue(response.context["vehicle_model_groups"][0]["initially_open"])
+        self.assertContains(response, 'data-filtered="true"')
+
     def test_brand_page_shows_parent_brand_and_keeps_child_record(self):
         response = self.client.get(reverse("vehicle_brand_list"))
 

@@ -1,0 +1,111 @@
+{% load sales_format %}
+<article class="dealer-sheet{% if editable %} dealer-sheet--editable{% endif %}" data-dealer-sheet>
+  {% if price_list.status == 'draft' %}<div class="dealer-sheet__watermark">草稿</div>{% endif %}
+  <header class="dealer-sheet__header">
+    <div class="dealer-sheet__brand">
+      {% if price_list.print_logo %}
+      <img src="{{ price_list.print_logo.url }}" alt="{{ price_list.brand.name }} LOGO" data-logo-preview>
+      {% else %}
+      <strong data-logo-fallback>{{ price_list.brand.name }}</strong>
+      {% endif %}
+      {% if editable %}
+      <label class="dealer-sheet__logo-action" for="id_logo_override">更換 LOGO</label>
+      <input id="id_logo_override" class="dealer-sheet__file-input" type="file" name="logo_override" accept="image/*" data-logo-input>
+      {% endif %}
+    </div>
+    <div class="dealer-sheet__title">
+      {% if editable %}
+      <input name="title" value="{{ form.title.value|default_if_none:price_list.title }}" aria-label="價目表標題" data-sheet-field>
+      {% else %}
+      <h1>{{ price_list.title }}</h1>
+      {% endif %}
+    </div>
+    <div class="dealer-sheet__notice">
+      {% if editable %}
+      <textarea name="header_note" rows="2" aria-label="頁首提醒" data-sheet-field>{{ form.header_note.value|default_if_none:'' }}</textarea>
+      {% elif price_list.header_note %}
+      <strong>（{{ price_list.header_note }}）</strong>
+      {% endif %}
+    </div>
+  </header>
+
+  {% for section_value, section_label, section_rows in grouped_rows %}
+  <section class="dealer-sheet__section" data-sheet-section="{{ section_value }}">
+    {% if section_value != 'domestic' %}<h2>【{{ section_label }}】</h2>{% endif %}
+    <table>
+      <thead>
+        <tr>
+          <th class="dealer-sheet__model-col">機種</th>
+          <th class="dealer-sheet__year-col">年份</th>
+          <th class="dealer-sheet__color-col">車色</th>
+          <th>建議售價</th>
+          <th class="dealer-sheet__discount-col">現金優惠</th>
+          <th>現金價</th>
+          {% for period in price_list.installment_periods %}<th class="dealer-sheet__term-col">{{ period }} 期<br><span>月付</span></th>{% endfor %}
+          <th class="dealer-sheet__gift-col">顧客贈品</th>
+          <th class="dealer-sheet__channel-col">通路</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for item in section_rows %}
+        <tr data-sheet-item="{{ item.pk }}"{% if editable and not item.visible %} hidden{% endif %}>
+          <td class="dealer-sheet__model-cell">
+            {% if editable %}
+            <input type="hidden" name="item-{{ item.pk }}-rendered" value="1">
+            <input name="item-{{ item.pk }}-model-label" value="{{ item.model_label }}" aria-label="{{ item.vehicle_model }}機種顯示名稱" data-sheet-field>
+            <textarea name="item-{{ item.pk }}-note" rows="1" aria-label="{{ item.model_label }}列印備註" placeholder="列印備註" data-sheet-field data-auto-grow>{{ item.note }}</textarea>
+            {% else %}
+            <strong>{{ item.model_label }}</strong>{% if item.note %}<small>{{ item.note|linebreaksbr }}</small>{% endif %}
+            {% endif %}
+          </td>
+          <td>
+            {% if editable %}<input name="item-{{ item.pk }}-year-label" value="{{ item.year_label }}" aria-label="{{ item.model_label }}年份" data-sheet-field>{% else %}{{ item.year_label }}{% endif %}
+          </td>
+          <td>
+            {% if editable %}<textarea name="item-{{ item.pk }}-colors-label" rows="2" aria-label="{{ item.model_label }}車色" data-sheet-field data-auto-grow>{{ item.colors_label }}</textarea>{% else %}{{ item.colors_label }}{% endif %}
+          </td>
+          <td class="dealer-sheet__money-cell">
+            {% if editable %}<input name="item-{{ item.pk }}-suggested-price" value="{% if item.suggested_price is not None %}{{ item.suggested_price|number_with_commas }}{% endif %}" inputmode="numeric" aria-label="{{ item.model_label }}建議售價" data-sheet-field data-money-input>{% elif item.suggested_price is not None %}{{ item.suggested_price|number_with_commas }}{% endif %}
+          </td>
+          <td class="dealer-sheet__money-cell dealer-sheet__discount-cell">
+            {% if editable %}<input name="item-{{ item.pk }}-cash-discount" value="{% if item.cash_discount is not None %}{{ item.cash_discount|number_with_commas }}{% endif %}" inputmode="numeric" aria-label="{{ item.model_label }}現金優惠" data-sheet-field data-money-input>{% elif item.cash_discount is not None %}{{ item.cash_discount|number_with_commas }}{% endif %}
+          </td>
+          <td class="dealer-sheet__money-cell dealer-sheet__cash-cell">
+            {% if editable %}<input name="item-{{ item.pk }}-cash-price" value="{% if item.cash_price is not None %}{{ item.cash_price|number_with_commas }}{% endif %}" inputmode="numeric" aria-label="{{ item.model_label }}現金價" data-sheet-field data-money-input>{% elif item.cash_price is not None %}{{ item.cash_price|number_with_commas }}{% endif %}
+          </td>
+          {% for term in item.editor_installments %}
+          <td class="dealer-sheet__money-cell dealer-sheet__installment-cell">
+            {% if editable %}
+            <input name="item-{{ item.pk }}-installment-{{ term.periods }}-amount" value="{% if term.monthly_amount %}{{ term.monthly_amount|number_with_commas }}{% endif %}" inputmode="numeric" aria-label="{{ item.model_label }} {{ term.periods }}期每期金額" data-sheet-field data-money-input>
+            <details class="dealer-sheet__term-settings">
+              <summary aria-label="設定{{ item.model_label }}{{ term.periods }}期分期公司與開辦費">設定</summary>
+              <div>
+                <label>分期公司<select name="item-{{ item.pk }}-installment-{{ term.periods }}-company" aria-label="{{ term.periods }}期分期公司" data-sheet-field><option value="">請選擇</option>{% for company in term.company_choices %}<option value="{{ company.id }}" {% if company.id == term.company_id %}selected{% endif %}>{{ company.name }}{% if not company.active %}（已停用）{% endif %}</option>{% endfor %}</select></label>
+                <label>開辦費<input name="item-{{ item.pk }}-installment-{{ term.periods }}-opening-fee" value="{% if term.opening_fee %}{{ term.opening_fee|number_with_commas }}{% endif %}" inputmode="numeric" aria-label="{{ term.periods }}期開辦費" data-sheet-field data-money-input></label>
+              </div>
+            </details>
+            {% elif term.monthly_amount %}{{ term.monthly_amount|number_with_commas }}{% endif %}
+          </td>
+          {% endfor %}
+          <td class="dealer-sheet__gift-cell">
+            {% if editable %}<textarea name="item-{{ item.pk }}-customer-gift" rows="2" aria-label="{{ item.model_label }}顧客贈品" data-sheet-field data-auto-grow>{{ item.customer_gift }}</textarea>{% else %}{{ item.customer_gift|linebreaksbr }}{% endif %}
+          </td>
+          <td>
+            {% if editable %}<input name="item-{{ item.pk }}-channel" value="{{ item.channel_label }}" aria-label="{{ item.model_label }}通路" data-sheet-field>{% else %}{{ item.channel_label }}{% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
+  {% empty %}
+  <div class="dealer-sheet__empty"><strong>目前沒有可顯示的車型</strong><span>請先在車型設定啟用車型，再補入本期價目表。</span></div>
+  {% endfor %}
+
+  <footer class="dealer-sheet__footer">
+    {% if editable %}
+    <textarea name="footer_note" rows="2" aria-label="價目表頁尾說明" placeholder="輸入列印於價目表下方的說明" data-sheet-field data-auto-grow>{{ form.footer_note.value|default_if_none:'' }}</textarea>
+    {% elif price_list.footer_note %}{{ price_list.footer_note|linebreaksbr }}{% endif %}
+  </footer>
+  <div class="dealer-sheet__version">{{ price_list.period_month|date:"Y/m" }} · v{{ price_list.revision }}{% if price_list.published_at %} · {{ price_list.published_at|date:"Y/m/d H:i" }} 發布{% endif %}</div>
+</article>

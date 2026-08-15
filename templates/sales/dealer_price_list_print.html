@@ -5,32 +5,11 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{{ price_list.title }}｜列印</title>
+  <link rel="stylesheet" href="{% static 'css/dealer-price-sheet.css' %}?v={{ app_version }}">
   <link rel="stylesheet" href="{% static 'css/dealer-price-list-print.css' %}?v={{ app_version }}">
 </head>
 <body>
   <div class="print-toolbar"><button type="button" onclick="window.print()">列印／另存 PDF</button><button type="button" onclick="window.close()">關閉預覽</button></div>
-  <main class="price-sheet">
-    {% if price_list.status == 'draft' %}<div class="draft-watermark">草稿預覽</div>{% endif %}
-    <header class="price-sheet-header">
-      <div class="price-sheet-brand">{% if price_list.print_logo %}<img src="{{ price_list.print_logo.url }}" alt="{{ price_list.brand.name }} LOGO">{% else %}<strong>{{ price_list.brand.name }}</strong>{% endif %}</div>
-      <h1>{{ price_list.title }}</h1>
-      <strong class="price-sheet-alert">{% if price_list.header_note %}（{{ price_list.header_note }}）{% endif %}</strong>
-    </header>
-
-    {% for section_label, rows in grouped_rows %}
-    <section class="price-sheet-section">
-      <h2>{{ section_label }}</h2>
-      <table>
-        <thead><tr><th>機種</th><th>年份</th><th>車色</th><th>建議售價</th><th>現金優惠</th><th>現金價</th>{% for period in price_list.installment_periods %}<th>{{ period }} 期<br>月付</th>{% endfor %}<th>顧客贈品</th><th>通路</th></tr></thead>
-        <tbody>
-          {% for item in rows %}<tr><td><strong>{{ item.model_label }}</strong>{% if item.note %}<small>{{ item.note|linebreaksbr }}</small>{% endif %}</td><td>{{ item.year_label }}</td><td>{{ item.colors_label }}</td><td>{% if item.suggested_price is not None %}{{ item.suggested_price|number_with_commas }}{% endif %}</td><td>{% if item.cash_discount is not None %}{{ item.cash_discount|number_with_commas }}{% endif %}</td><td>{% if item.cash_price is not None %}{{ item.cash_price|number_with_commas }}{% endif %}</td>{% for term in item.editor_installments %}<td class="installment-value">{% if term.monthly_amount %}{{ term.monthly_amount|number_with_commas }}{% endif %}</td>{% endfor %}<td class="gift-cell">{{ item.customer_gift|linebreaksbr }}</td><td>{{ item.channel_label }}</td></tr>{% endfor %}
-        </tbody>
-      </table>
-    </section>
-    {% endfor %}
-
-    {% if price_list.footer_note %}<footer>{{ price_list.footer_note|linebreaksbr }}</footer>{% endif %}
-    <div class="price-sheet-version">{{ price_list.period_month|date:"Y/m" }} · v{{ price_list.revision }}{% if price_list.published_at %} · {{ price_list.published_at|date:"Y/m/d H:i" }} 發布{% endif %}</div>
-  </main>
+  <main class="dealer-sheet-print">{% include "sales/_dealer_price_sheet.html" with editable=False %}</main>
 </body>
 </html>

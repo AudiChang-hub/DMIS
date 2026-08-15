@@ -705,17 +705,6 @@ def dealer_price_list_workspace(request, pk):
     price_list = get_object_or_404(
         DealerPriceList.objects.select_related("brand"), pk=pk
     )
-    if request.method == "POST" and request.POST.get("action") == "refresh_models":
-        if price_list.status != DealerPriceList.Status.DRAFT:
-            messages.error(request, "已發布價目表不能補入車型，請先建立修訂版。")
-        else:
-            count = populate_price_list(price_list)
-            messages.success(
-                request,
-                f"已補入 {count} 個新車型。" if count else "車型已是最新狀態，沒有需要補入的資料。",
-            )
-        return redirect("dealer_price_list_workspace", pk=price_list.pk)
-
     row_objects = None
     form = DealerPriceListSettingsForm(
         request.POST or None,
@@ -741,7 +730,17 @@ def dealer_price_list_workspace(request, pk):
                     messages.error(request, f"另有 {len(row_errors) - 12} 個欄位需要確認。")
             else:
                 form.save()
-                if request.POST.get("action") == "save_and_publish":
+                action = request.POST.get("action")
+                if action == "refresh_models":
+                    count = populate_price_list(price_list)
+                    messages.success(
+                        request,
+                        f"已儲存目前內容並補入 {count} 個新車型。"
+                        if count
+                        else "目前內容已儲存，車型也已是最新狀態。",
+                    )
+                    return redirect("dealer_price_list_workspace", pk=price_list.pk)
+                if action == "save_and_publish":
                     try:
                         publish_price_list(price_list, request.user)
                     except ValidationError as exc:
@@ -753,11 +752,20 @@ def dealer_price_list_workspace(request, pk):
                             "價目表已儲存並發布，售價與分期版本已依生效日同步。",
                         )
                         return redirect("dealer_price_list_workspace", pk=price_list.pk)
+                elif action == "save_and_print":
+                    return redirect("dealer_price_list_print", pk=price_list.pk)
                 else:
                     messages.success(request, "價目表草稿已儲存。")
                     return redirect("dealer_price_list_workspace", pk=price_list.pk)
 
     rows = editor_rows(price_list, row_objects)
+    if price_list.status != DealerPriceList.Status.DRAFT:
+        rows = [row for row in rows if row.visible]
+    grouped_rows = []
+    for section_value, section_label in DealerPriceListItem.Section.choices:
+        section_rows = [row for row in rows if row.section == section_value]
+        if section_rows:
+            grouped_rows.append((section_value, section_label, section_rows))
     return render(
         request,
         "sales/dealer_price_list_workspace.html",
@@ -765,6 +773,7 @@ def dealer_price_list_workspace(request, pk):
             "price_list": price_list,
             "form": form,
             "rows": rows,
+            "grouped_rows": grouped_rows,
             "sections": DealerPriceListItem.Section.choices,
             "is_locked": price_list.status != DealerPriceList.Status.DRAFT,
         },
@@ -825,7 +834,7 @@ def dealer_price_list_print(request, pk):
     for section_value, section_label in DealerPriceListItem.Section.choices:
         section_rows = [row for row in rows if row.section == section_value]
         if section_rows:
-            grouped_rows.append((section_label, section_rows))
+            grouped_rows.append((section_value, section_label, section_rows))
     return render(
         request,
         "sales/dealer_price_list_print.html",

@@ -1,0 +1,35 @@
+@page { size: A4 landscape; margin: 8mm; }
+* { box-sizing: border-box; }
+html, body { margin: 0; color: #151a18; background: #fff; font-family: "Noto Sans TC", "Microsoft JhengHei", sans-serif; }
+body { font-size: 10px; }
+.print-toolbar { position: sticky; z-index: 5; top: 0; display: flex; padding: 12px 18px; justify-content: flex-end; gap: 10px; background: #12372a; }
+.print-toolbar button { padding: 9px 15px; border: 0; border-radius: 8px; color: #12372a; background: #f0cf68; font-weight: 800; cursor: pointer; }
+.print-toolbar button:last-child { background: #fff; }
+.price-sheet { position: relative; width: 100%; padding: 2mm; }
+.draft-watermark { position: fixed; z-index: 0; top: 44%; left: 30%; color: rgba(174,57,45,.09); font-size: 86px; font-weight: 900; transform: rotate(-18deg); pointer-events: none; }
+.price-sheet-header { position: relative; z-index: 1; display: grid; min-height: 22mm; align-items: center; grid-template-columns: 1fr 1.4fr 1fr; gap: 8mm; }
+.price-sheet-brand img { width: 46mm; max-height: 18mm; object-fit: contain; object-position: left center; }
+.price-sheet-brand strong { font-size: 24px; }
+.price-sheet-header h1 { margin: 0; text-align: center; font-size: 23px; text-decoration: underline; text-underline-offset: 4px; letter-spacing: .12em; }
+.price-sheet-alert { color: #d92525; text-align: right; font-size: 15px; }
+.price-sheet-section { position: relative; z-index: 1; margin-top: 7mm; break-inside: avoid; }
+.price-sheet-section:first-of-type { margin-top: 2mm; }
+.price-sheet-section h2 { margin: 0 0 2mm; font-size: 14px; }
+table { width: 100%; table-layout: fixed; border-collapse: collapse; }
+th, td { padding: 4px 5px; border: 1px solid #222; text-align: center; vertical-align: middle; line-height: 1.35; overflow-wrap: anywhere; }
+th { background: #f3f4f3; font-weight: 800; }
+th:first-child { width: 14%; }
+th:nth-child(2) { width: 5%; }
+th:nth-child(3) { width: 15%; }
+th:nth-last-child(2) { width: 21%; }
+th:last-child { width: 5%; }
+td:first-child { font-size: 11px; }
+td:first-child small { display: block; margin-top: 3px; color: #555; font-size: 8px; font-weight: 400; }
+.installment-value { color: #174ea6; font-weight: 800; }
+.gift-cell { text-align: left; }
+footer { margin-top: 3mm; white-space: normal; font-size: 10px; line-height: 1.5; }
+.price-sheet-version { margin-top: 2mm; color: #777; text-align: right; font-size: 8px; }
+@media print {
+  .print-toolbar { display: none !important; }
+  .price-sheet { padding: 0; }
+}

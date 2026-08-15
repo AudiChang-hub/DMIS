@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+{% block title %}{{ price_list.title }}｜車行價目表{% endblock %}
+{% block page_class %}page-shell--wide{% endblock %}
+{% block content %}
+{% url 'dealer_price_list_list' as list_url %}
+{% include "sales/_page_back.html" with fallback_url=list_url label="返回價目表清單" force_fresh=True %}
+<section class="hero-row compact-hero price-list-hero">
+  <div>
+    <p class="eyebrow">{{ price_list.brand.name }} · {{ price_list.period_month|date:"Y 年 m 月" }} · 第 {{ price_list.revision }} 版</p>
+    <h1>{{ price_list.title }}</h1>
+    <p class="muted">{% if is_locked %}此版本已鎖定，保留發布當時內容；需要調整請建立修訂版。{% else %}修改本月售價、分期、贈品與通路，儲存後再發布。{% endif %}</p>
+  </div>
+  <div class="hero-actions">
+    <a class="button ghost" href="{% url 'dealer_price_list_print' price_list.pk %}" target="_blank" rel="noopener">列印預覽</a>
+    {% if is_locked %}
+    <form method="post" action="{% url 'dealer_price_list_revise' price_list.pk %}">{% csrf_token %}<button class="button primary" type="submit">建立修訂版</button></form>
+    {% endif %}
+  </div>
+</section>
+
+{% if form.non_field_errors or form.errors %}
+<div class="form-error-summary"><strong>有些設定尚未完成</strong><p>請確認標示欄位後再儲存。</p>{{ form.non_field_errors }}</div>
+{% endif %}
+
+{% if is_locked %}
+<section class="price-list-published-banner">
+  <div><span>✓</span><div><strong>{{ price_list.get_status_display }}</strong><small>{% if price_list.published_at %}{{ price_list.published_at|date:"Y/m/d H:i" }} 發布{% endif %}</small></div></div>
+  <p>售價與分期版本已依 {{ price_list.effective_from|date:"Y/m/d" }} 生效，既有訂單仍使用原快照。</p>
+</section>
+{% endif %}
+
+<form method="post" enctype="multipart/form-data" class="dealer-price-workbench">
+  {% csrf_token %}
+  <input type="hidden" name="action" value="save">
+  <section class="card price-list-settings">
+    <div class="section-heading">
+      <div><p class="eyebrow">本期共用設定</p><h2>頁首與分期欄位</h2></div>
+      {% if not is_locked %}<span class="muted">期數以逗號分隔；儲存後表格會依新欄位重排</span>{% endif %}
+    </div>
+    <div class="price-list-settings__body">
+      <div class="price-list-logo-panel">
+        <div class="price-list-logo-preview">
+          {% if price_list.print_logo %}<img src="{{ price_list.print_logo.url }}" alt="目前價目表 LOGO">{% else %}<strong>{{ price_list.brand.name }}</strong><span>尚未設定 LOGO</span>{% endif %}
+        </div>
+        {% if not is_locked %}<div>{% include "sales/_field.html" with field=form.logo_override %}<a href="{% url 'vehicle_brand_list' %}?edit={{ price_list.brand_id }}">修改品牌預設 LOGO</a></div>{% endif %}
+      </div>
+      <div class="form-grid price-list-settings__grid">
+        {% include "sales/_field.html" with field=form.title %}
+        {% include "sales/_field.html" with field=form.effective_from %}
+        {% include "sales/_field.html" with field=form.header_note %}
+        {% include "sales/_field.html" with field=form.installment_periods_text %}
+        {% include "sales/_field.html" with field=form.footer_note %}
+      </div>
+    </div>
+  </section>
+
+  <section class="card price-list-editor-card">
+    <div class="section-heading">
+      <div><p class="eyebrow">車型明細</p><h2>同頁批次編輯</h2></div>
+      {% if not is_locked %}<button class="button ghost small" type="submit" name="action" value="refresh_models" formnovalidate>補入新車型</button>{% endif %}
+    </div>
+    <div class="price-list-editor-help"><strong>顧客贈品只是對外說明</strong><span>不會自動當成訂單已贈送配件；實際成交內容仍以訂單為準。</span></div>
+    <div class="price-list-table-wrap">
+      <table class="price-list-table">
+        <thead><tr><th class="price-list-col-visible">顯示</th><th>區段／排序</th><th>機種／年份／車色</th><th>建議售價</th><th>現金優惠</th><th>現金價</th>{% for period in price_list.installment_periods %}<th>{{ period }} 期月付<small>公司／開辦費</small></th>{% endfor %}<th>顧客贈品</th><th>通路</th><th>備註</th></tr></thead>
+        <tbody>
+          {% for item in rows %}
+          <tr class="{% if not item.visible %}is-muted{% endif %}">
+            <td data-label="列印顯示" class="price-list-col-visible"><label class="price-list-visible-toggle"><input type="checkbox" name="item-{{ item.pk }}-visible" {% if item.visible %}checked{% endif %} {% if is_locked %}disabled{% endif %}><span>顯示</span></label></td>
+            <td data-label="區段／排序"><select name="item-{{ item.pk }}-section" {% if is_locked %}disabled{% endif %}>{% for value,label in sections %}<option value="{{ value }}" {% if item.section == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select><input type="number" min="0" name="item-{{ item.pk }}-order" value="{{ item.display_order }}" aria-label="顯示排序" {% if is_locked %}disabled{% endif %}></td>
+            <td data-label="機種／年份／車色" class="price-list-model-cell"><input name="item-{{ item.pk }}-model-label" value="{{ item.model_label }}" aria-label="機種顯示名稱" {% if is_locked %}readonly{% endif %}><input name="item-{{ item.pk }}-year-label" value="{{ item.year_label }}" aria-label="年份顯示" {% if is_locked %}readonly{% endif %}><textarea name="item-{{ item.pk }}-colors-label" rows="2" aria-label="車色顯示" {% if is_locked %}readonly{% endif %}>{{ item.colors_label }}</textarea><small>來源：{{ item.vehicle_model }}</small></td>
+            <td data-label="建議售價"><input type="number" min="0" inputmode="numeric" name="item-{{ item.pk }}-suggested-price" value="{{ item.suggested_price|default_if_none:''|floatformat:0 }}" aria-label="{{ item.model_label }}建議售價" {% if is_locked %}readonly{% endif %}></td>
+            <td data-label="現金優惠"><input type="number" min="0" inputmode="numeric" name="item-{{ item.pk }}-cash-discount" value="{{ item.cash_discount|default_if_none:''|floatformat:0 }}" aria-label="{{ item.model_label }}現金優惠" {% if is_locked %}readonly{% endif %}></td>
+            <td data-label="現金價"><input type="number" min="0" inputmode="numeric" name="item-{{ item.pk }}-cash-price" value="{{ item.cash_price|default_if_none:''|floatformat:0 }}" aria-label="{{ item.model_label }}現金價" {% if is_locked %}readonly{% endif %}></td>
+            {% for term in item.editor_installments %}
+            <td data-label="{{ term.periods }} 期月付" class="price-list-installment-cell"><input type="number" min="0" inputmode="numeric" name="item-{{ item.pk }}-installment-{{ term.periods }}-amount" value="{{ term.monthly_amount }}" placeholder="月付" aria-label="{{ term.periods }}期每期金額" {% if is_locked %}readonly{% endif %}><select name="item-{{ item.pk }}-installment-{{ term.periods }}-company" aria-label="{{ term.periods }}期分期公司" {% if is_locked %}disabled{% endif %}><option value="">分期公司</option>{% for company in term.company_choices %}<option value="{{ company.id }}" {% if company.id == term.company_id %}selected{% endif %}>{{ company.name }}{% if not company.active %}（已停用）{% endif %}</option>{% endfor %}</select><input type="number" min="0" inputmode="numeric" name="item-{{ item.pk }}-installment-{{ term.periods }}-opening-fee" value="{{ term.opening_fee }}" placeholder="開辦費" aria-label="{{ term.periods }}期開辦費" {% if is_locked %}readonly{% endif %}></td>
+            {% endfor %}
+            <td data-label="顧客贈品"><textarea name="item-{{ item.pk }}-customer-gift" rows="4" aria-label="{{ item.model_label }}顧客贈品" {% if is_locked %}readonly{% endif %}>{{ item.customer_gift }}</textarea></td>
+            <td data-label="通路"><input name="item-{{ item.pk }}-channel" value="{{ item.channel_label }}" aria-label="{{ item.model_label }}通路" {% if is_locked %}readonly{% endif %}></td>
+            <td data-label="備註"><textarea name="item-{{ item.pk }}-note" rows="3" aria-label="{{ item.model_label }}備註" {% if is_locked %}readonly{% endif %}>{{ item.note }}</textarea></td>
+          </tr>
+          {% empty %}<tr><td colspan="15"><div class="empty-state"><strong>這個品牌尚無啟用中的車型</strong><p>請先到車型資料建立車型，再回來按「補入新車型」。</p></div></td></tr>{% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  {% if not is_locked %}
+  <div class="price-list-action-bar">
+    <div><strong>先儲存，再發布</strong><span>發布後會建立 {{ price_list.effective_from|date:"Y/m/d" }} 起生效的售價與分期版本。</span></div>
+    <div><button class="button ghost" type="submit">儲存草稿</button><button class="button primary" type="submit" name="action" value="save_and_publish" onclick="return confirm('系統會先儲存目前畫面，再同步售價與分期版本並鎖定本稿。確定發布？');">儲存並發布</button></div>
+  </div>
+  {% endif %}
+</form>
+
+{% if not is_locked %}
+<form method="post" action="{% url 'dealer_price_list_delete' price_list.pk %}" class="price-list-delete-form">{% csrf_token %}<button class="button danger-outline small" type="submit" onclick="return confirm('確定刪除這份尚未發布的價目表草稿？');">刪除這份草稿</button></form>
+{% endif %}
+{% endblock %}

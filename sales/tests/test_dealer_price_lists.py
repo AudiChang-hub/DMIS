@@ -121,7 +121,9 @@ class DealerPriceListTests(TestCase):
         response = self.client.get(
             reverse("dealer_price_list_workspace", args=[price_list.pk])
         )
-        self.assertContains(response, "同頁批次編輯")
+        self.assertContains(response, "所見即所得編輯")
+        self.assertContains(response, 'data-dealer-sheet')
+        self.assertContains(response, f'name="item-{item.pk}-cash-price"')
         self.assertContains(response, "現金優惠折抵 5,000 元", count=0)
         self.assertContains(response, self.company.name)
 
@@ -192,6 +194,29 @@ class DealerPriceListTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertNotContains(response, item.model_label)
+
+    def test_save_and_print_persists_inline_sheet_and_uses_shared_print_layout(self):
+        price_list = self.create_draft()
+        payload = self.workspace_payload(price_list, action="save_and_print")
+        payload["title"] = "直接編輯後的九月價目表"
+
+        response = self.client.post(
+            reverse("dealer_price_list_workspace", args=[price_list.pk]), payload
+        )
+
+        self.assertRedirects(
+            response,
+            reverse("dealer_price_list_print", args=[price_list.pk]),
+            fetch_redirect_response=False,
+        )
+        price_list.refresh_from_db()
+        self.assertEqual(price_list.title, "直接編輯後的九月價目表")
+        print_response = self.client.get(
+            reverse("dealer_price_list_print", args=[price_list.pk])
+        )
+        self.assertContains(print_response, "直接編輯後的九月價目表")
+        self.assertContains(print_response, "data-dealer-sheet")
+        self.assertNotContains(print_response, 'name="title"')
 
     def test_brand_logo_upload_is_available_to_price_list(self):
         with TemporaryDirectory() as media_root:

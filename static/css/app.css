@@ -2520,6 +2520,125 @@ body.screen-locked { overflow: hidden; }
   .app-header, .mobile-nav { display: none !important; }
 }
 
+/* 034：月度車行價目表工作台 */
+.brand-logo-preview {
+  display: flex; min-height: 96px; padding: 14px; align-items: center; gap: 16px;
+  background: var(--surface-soft); border: 1px solid var(--line); border-radius: 12px;
+}
+.brand-logo-preview img { width: 150px; max-height: 72px; object-fit: contain; object-position: left center; }
+.brand-logo-preview span { color: var(--muted); font-size: .85rem; }
+.brand-logo-thumb { width: 100px; height: 42px; object-fit: contain; object-position: left center; }
+.price-list-home { grid-template-columns: minmax(330px, .72fr) minmax(0, 1.48fr); }
+.price-list-history { display: grid; }
+.price-list-history__item {
+  display: grid; min-height: 92px; padding: 16px 18px; align-items: center;
+  grid-template-columns: minmax(260px, 1fr) auto auto; gap: 18px;
+  border-bottom: 1px solid var(--line);
+}
+.price-list-history__item:last-child { border-bottom: 0; }
+.price-list-history__identity { display: flex; min-width: 0; align-items: center; gap: 14px; }
+.price-list-history__identity img { width: 92px; height: 42px; flex: 0 0 auto; object-fit: contain; object-position: left center; }
+.price-list-history__identity div { display: grid; min-width: 0; gap: 3px; }
+.price-list-history__identity strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.price-list-history__identity span, .price-list-history__meta small { color: var(--muted); font-size: .82rem; }
+.price-list-history__mark {
+  display: grid; width: 44px; height: 44px; place-items: center; flex: 0 0 auto;
+  color: #fff; background: var(--forest); border-radius: 11px; font-weight: 900;
+}
+.price-list-history__meta { display: grid; justify-items: end; gap: 6px; }
+.price-list-history__actions { display: flex; gap: 8px; }
+.price-list-hero .hero-actions form { margin: 0; }
+.price-list-published-banner {
+  display: flex; margin-bottom: 18px; padding: 15px 18px; align-items: center;
+  justify-content: space-between; gap: 24px; color: var(--forest);
+  background: #eef7f2; border: 1px solid #b9d4c7; border-radius: 14px;
+}
+.price-list-published-banner > div { display: flex; align-items: center; gap: 10px; }
+.price-list-published-banner > div > span { display: grid; width: 34px; height: 34px; place-items: center; color: #fff; background: var(--forest); border-radius: 50%; }
+.price-list-published-banner strong, .price-list-published-banner small { display: block; }
+.price-list-published-banner small { margin-top: 2px; color: var(--muted); }
+.price-list-published-banner p { margin: 0; }
+.dealer-price-workbench { display: grid; min-width: 0; gap: 18px; }
+.dealer-price-workbench > *,
+.price-list-editor-card { min-width: 0; }
+.price-list-editor-card { overflow: hidden; }
+.price-list-settings__body { padding: 20px 22px 24px; }
+.price-list-logo-panel {
+  display: grid; margin-bottom: 20px; padding-bottom: 20px;
+  grid-template-columns: minmax(220px, .45fr) minmax(300px, 1fr); gap: 22px;
+  border-bottom: 1px solid var(--line);
+}
+.price-list-logo-preview {
+  display: grid; min-height: 108px; padding: 16px; place-items: center;
+  background: #fff; border: 1px dashed #b7c8bf; border-radius: 13px;
+}
+.price-list-logo-preview img { width: min(230px, 100%); max-height: 78px; object-fit: contain; }
+.price-list-logo-preview span { color: var(--muted); font-size: .8rem; }
+.price-list-logo-panel > div:last-child { display: grid; align-content: start; gap: 7px; }
+.price-list-logo-panel > div:last-child > a { color: #1259a7; font-weight: 700; font-size: .84rem; }
+.price-list-settings__grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.price-list-settings__grid .field:last-child { grid-column: 1 / -1; }
+.price-list-editor-help { display: flex; margin: 0 22px 14px; padding: 11px 13px; gap: 10px; background: var(--surface-soft); border-radius: 10px; }
+.price-list-editor-help span { color: var(--muted); }
+.price-list-table-wrap { width: 100%; max-width: 100%; overflow-x: auto; border-top: 1px solid var(--line); overscroll-behavior-inline: contain; }
+.price-list-table { width: max-content; min-width: 100%; border-collapse: separate; border-spacing: 0; }
+.price-list-table th {
+  position: sticky; z-index: 2; top: 0; min-width: 118px; padding: 11px 9px;
+  color: #36534a; background: #edf3ef; border-right: 1px solid #dce7e0;
+  border-bottom: 1px solid var(--line); text-align: left; font-size: .78rem;
+}
+.price-list-table th small { display: block; margin-top: 2px; color: var(--muted); font-weight: 500; }
+.price-list-table td { min-width: 118px; padding: 10px 8px; vertical-align: top; border-right: 1px solid #e1e8e4; border-bottom: 1px solid var(--line); }
+.price-list-table tr:last-child td { border-bottom: 0; }
+.price-list-table tr.is-muted { background: #f6f7f6; opacity: .66; }
+.price-list-table input, .price-list-table select, .price-list-table textarea {
+  width: 100%; min-height: 40px; padding: 8px 9px; color: var(--ink); background: #fff;
+  border: 1px solid #c9d7d0; border-radius: 8px; font: inherit;
+}
+.price-list-table textarea { min-width: 180px; resize: vertical; }
+.price-list-table input + input, .price-list-table input + select,
+.price-list-table select + input, .price-list-table textarea + small { margin-top: 6px; }
+.price-list-table td > small { display: block; max-width: 240px; color: var(--muted); font-size: .72rem; }
+.price-list-col-visible { min-width: 72px !important; width: 72px; }
+.price-list-visible-toggle { display: grid; justify-items: center; gap: 5px; font-size: .74rem; font-weight: 700; }
+.price-list-visible-toggle input { width: 22px; min-height: 22px; }
+.price-list-model-cell { min-width: 225px !important; }
+.price-list-installment-cell { min-width: 145px !important; }
+.price-list-action-bar {
+  position: sticky; z-index: 20; bottom: 14px; display: flex; margin: 0 10px;
+  padding: 14px 16px; align-items: center; justify-content: space-between; gap: 18px;
+  color: #fff; background: var(--forest); border-radius: 15px;
+  box-shadow: 0 14px 36px rgba(18,55,42,.26);
+}
+.price-list-action-bar > div:first-child { display: grid; gap: 2px; }
+.price-list-action-bar span { color: #dbe8e1; font-size: .82rem; }
+.price-list-action-bar > div:last-child { display: flex; gap: 10px; }
+.price-list-action-bar .button.ghost { color: var(--forest); background: #fff; }
+.price-list-action-bar .button.primary { color: var(--forest); background: var(--gold); }
+.price-list-delete-form { margin-top: 14px; text-align: right; }
+
+@media (max-width: 1000px) {
+  .price-list-home { grid-template-columns: 1fr; }
+  .price-list-settings__grid { grid-template-columns: 1fr; }
+  .price-list-settings__grid .field:last-child { grid-column: auto; }
+  .price-list-history__item { grid-template-columns: 1fr auto; }
+  .price-list-history__actions { grid-column: 1 / -1; }
+}
+
+@media (max-width: 700px) {
+  .price-list-published-banner, .price-list-action-bar { align-items: stretch; flex-direction: column; }
+  .price-list-logo-panel { grid-template-columns: 1fr; }
+  .price-list-settings__body { padding: 16px; }
+  .price-list-editor-help { margin: 0 14px 12px; align-items: flex-start; flex-direction: column; }
+  .price-list-history__item { grid-template-columns: 1fr; }
+  .price-list-history__meta { justify-items: start; }
+  .price-list-history__actions { display: grid; grid-template-columns: 1fr 1fr; }
+  .price-list-history__actions .button { width: 100%; }
+  .price-list-action-bar { bottom: calc(88px + env(safe-area-inset-bottom)); margin: 0; }
+  .price-list-action-bar > div:last-child { display: grid; width: 100%; grid-template-columns: 1fr; }
+  .price-list-action-bar .button { width: 100%; }
+}
+
 /* 032：全站情境說明、連線狀態與 End User 幫助中心 */
 .header-help-link {
   display: inline-flex; min-height: 42px; margin-left: 8px; padding: 0 10px;

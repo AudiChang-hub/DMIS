@@ -29,6 +29,11 @@
     <div><h2>庫存資料</h2><p>管理進車、車況、調車歷程與目前可售狀態。</p><strong>{{ inventory_count }} 台車輛</strong></div>
     <span aria-hidden="true">›</span>
   </a>
+  <a class="maintenance-card" href="{% url 'dealer_price_list_list' %}">
+    <span class="maintenance-card__icon">表</span>
+    <div><h2>每月車行價目表</h2><p>集中維護售價、分期、贈品、通路並產生車行列印稿。</p><strong>草稿與發布版本分開保存</strong></div>
+    <span aria-hidden="true">›</span>
+  </a>
   <a class="maintenance-card" href="{% url 'vehicle_brand_list' %}">
     <span class="maintenance-card__icon">牌</span>
     <div><h2>品牌資料</h2><p>統一車型、牌險、車行傭金及台數獎金使用的品牌名稱與別名。</p><strong>{{ vehicle_brand_count }} 個品牌</strong></div>

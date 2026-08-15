@@ -297,6 +297,36 @@ urlpatterns = [
         name="vehicle_model_list",
     ),
     path(
+        "data/dealer-price-lists/",
+        views.dealer_price_list_list,
+        name="dealer_price_list_list",
+    ),
+    path(
+        "data/dealer-price-lists/<int:pk>/",
+        views.dealer_price_list_workspace,
+        name="dealer_price_list_workspace",
+    ),
+    path(
+        "data/dealer-price-lists/<int:pk>/publish/",
+        views.dealer_price_list_publish,
+        name="dealer_price_list_publish",
+    ),
+    path(
+        "data/dealer-price-lists/<int:pk>/revise/",
+        views.dealer_price_list_revise,
+        name="dealer_price_list_revise",
+    ),
+    path(
+        "data/dealer-price-lists/<int:pk>/delete/",
+        views.dealer_price_list_delete,
+        name="dealer_price_list_delete",
+    ),
+    path(
+        "data/dealer-price-lists/<int:pk>/print/",
+        views.dealer_price_list_print,
+        name="dealer_price_list_print",
+    ),
+    path(
         "data/vehicle-models/new/",
         views.vehicle_model_create,
         name="vehicle_model_create",

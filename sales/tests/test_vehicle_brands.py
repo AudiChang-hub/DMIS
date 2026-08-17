@@ -159,8 +159,10 @@ class VehicleBrandMasterTests(TestCase):
         self.assertContains(response, "品牌關係")
         self.assertIn("logo", response.context["form"].fields)
         self.assertContains(response, "品牌 LOGO")
-        self.assertContains(response, "↳ eMOVING")
-        self.assertContains(response, "所屬 SUZUKI")
+        self.assertContains(response, "主品牌")
+        self.assertContains(response, "子品牌")
+        self.assertContains(response, "隸屬 SUZUKI")
+        self.assertContains(response, "brand-hierarchy__branch")
 
     def test_dealer_price_list_entry_points_are_removed(self):
         for route_name in ("data_maintenance", "vehicle_model_list"):

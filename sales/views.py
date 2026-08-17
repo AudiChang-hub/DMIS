@@ -39,8 +39,6 @@ from .forms import (
     DealerVolumeBonusRuleForm,
     DealerVolumeBonusSettlementForm,
     DealerVolumeBonusTierFormSet,
-    DealerPriceListCreateForm,
-    DealerPriceListSettingsForm,
     DiscountDecisionForm,
     DiscountRequestForm,
     DeliveryCompletionForm,
@@ -93,8 +91,6 @@ from .models import (
     DealerVolumeBonusRule,
     DealerVolumeBonusSettlement,
     DeliveryRecord,
-    DealerPriceList,
-    DealerPriceListItem,
     InstallmentCompany,
     InstallmentPlanVersion,
     LegacyImportBatch,
@@ -131,16 +127,6 @@ from .services.vehicle_brands import (
     rename_vehicle_brand_references,
     vehicle_brand_search_q,
     vehicle_brand_is_used,
-)
-from .services.dealer_price_lists import (
-    DEFAULT_INSTALLMENT_PERIODS,
-    clone_price_list,
-    editor_rows,
-    next_revision,
-    populate_price_list,
-    previous_price_list,
-    publish_price_list,
-    update_items_from_post,
 )
 from .jobs import delete_id_ocr_job_files, run_id_ocr_job, run_legacy_import_job
 from .services.id_ocr import recognize_id_card
@@ -660,185 +646,6 @@ def vehicle_brand_list(request):
         request,
         "sales/vehicle_brand_list.html",
         {"brands": brands, "form": form, "editing": editing},
-    )
-
-
-@login_required
-@transaction.atomic
-def dealer_price_list_list(request):
-    form = DealerPriceListCreateForm(request.POST or None)
-    if request.method == "POST" and form.is_valid():
-        price_list = form.save(commit=False)
-        price_list.revision = next_revision(
-            price_list.brand, price_list.period_month
-        )
-        price_list.created_by = request.user
-        source = None
-        if form.cleaned_data.get("copy_previous"):
-            source = previous_price_list(price_list.brand, price_list.period_month)
-        if source:
-            price_list.header_note = source.header_note
-            price_list.footer_note = source.footer_note
-            price_list.installment_periods = source.installment_periods
-        else:
-            price_list.installment_periods = DEFAULT_INSTALLMENT_PERIODS
-        price_list.save()
-        populate_price_list(price_list, source=source)
-        messages.success(
-            request,
-            "已建立價目表草稿；請在同一頁確認價格、分期、贈品與通路。",
-        )
-        return redirect("dealer_price_list_workspace", pk=price_list.pk)
-    price_lists = DealerPriceList.objects.select_related(
-        "brand", "created_by", "published_by"
-    ).annotate(item_count=Count("items", distinct=True))
-    return render(
-        request,
-        "sales/dealer_price_list_list.html",
-        {"form": form, "price_lists": price_lists},
-    )
-
-
-@login_required
-@transaction.atomic
-def dealer_price_list_workspace(request, pk):
-    price_list = get_object_or_404(
-        DealerPriceList.objects.select_related("brand"), pk=pk
-    )
-    row_objects = None
-    form = DealerPriceListSettingsForm(
-        request.POST or None,
-        request.FILES or None,
-        instance=price_list,
-    )
-    if price_list.status != DealerPriceList.Status.DRAFT:
-        for field in form.fields.values():
-            field.disabled = True
-    if request.method == "POST":
-        if price_list.status != DealerPriceList.Status.DRAFT:
-            messages.error(request, "已發布價目表不能直接修改，請建立修訂版。")
-            return redirect("dealer_price_list_workspace", pk=price_list.pk)
-        if form.is_valid():
-            price_list.installment_periods = form.cleaned_data[
-                "installment_periods_text"
-            ]
-            row_objects, row_errors = update_items_from_post(price_list, request.POST)
-            if row_errors:
-                for error in row_errors[:12]:
-                    messages.error(request, error)
-                if len(row_errors) > 12:
-                    messages.error(request, f"另有 {len(row_errors) - 12} 個欄位需要確認。")
-            else:
-                form.save()
-                action = request.POST.get("action")
-                if action == "refresh_models":
-                    count = populate_price_list(price_list)
-                    messages.success(
-                        request,
-                        f"已儲存目前內容並補入 {count} 個新車型。"
-                        if count
-                        else "目前內容已儲存，車型也已是最新狀態。",
-                    )
-                    return redirect("dealer_price_list_workspace", pk=price_list.pk)
-                if action == "save_and_publish":
-                    try:
-                        publish_price_list(price_list, request.user)
-                    except ValidationError as exc:
-                        for error in exc.messages:
-                            messages.error(request, error)
-                    else:
-                        messages.success(
-                            request,
-                            "價目表已儲存並發布，售價與分期版本已依生效日同步。",
-                        )
-                        return redirect("dealer_price_list_workspace", pk=price_list.pk)
-                elif action == "save_and_print":
-                    return redirect("dealer_price_list_print", pk=price_list.pk)
-                else:
-                    messages.success(request, "價目表草稿已儲存。")
-                    return redirect("dealer_price_list_workspace", pk=price_list.pk)
-
-    rows = editor_rows(price_list, row_objects)
-    if price_list.status != DealerPriceList.Status.DRAFT:
-        rows = [row for row in rows if row.visible]
-    grouped_rows = []
-    for section_value, section_label in DealerPriceListItem.Section.choices:
-        section_rows = [row for row in rows if row.section == section_value]
-        if section_rows:
-            grouped_rows.append((section_value, section_label, section_rows))
-    return render(
-        request,
-        "sales/dealer_price_list_workspace.html",
-        {
-            "price_list": price_list,
-            "form": form,
-            "rows": rows,
-            "grouped_rows": grouped_rows,
-            "sections": DealerPriceListItem.Section.choices,
-            "is_locked": price_list.status != DealerPriceList.Status.DRAFT,
-        },
-    )
-
-
-@login_required
-@require_http_methods(["POST"])
-@transaction.atomic
-def dealer_price_list_publish(request, pk):
-    price_list = get_object_or_404(DealerPriceList, pk=pk)
-    try:
-        publish_price_list(price_list, request.user)
-    except ValidationError as exc:
-        for error in exc.messages:
-            messages.error(request, error)
-    else:
-        messages.success(request, "價目表已發布，售價與分期版本已依生效日同步。")
-    return redirect("dealer_price_list_workspace", pk=price_list.pk)
-
-
-@login_required
-@require_http_methods(["POST"])
-@transaction.atomic
-def dealer_price_list_revise(request, pk):
-    source = get_object_or_404(
-        DealerPriceList.objects.prefetch_related("items"), pk=pk
-    )
-    revised = clone_price_list(source, user=request.user)
-    messages.success(request, f"已建立 v{revised.revision} 修訂草稿。")
-    return redirect("dealer_price_list_workspace", pk=revised.pk)
-
-
-@login_required
-@require_http_methods(["POST"])
-@transaction.atomic
-def dealer_price_list_delete(request, pk):
-    price_list = get_object_or_404(DealerPriceList, pk=pk)
-    if price_list.status != DealerPriceList.Status.DRAFT:
-        messages.error(request, "只有尚未發布的草稿可以刪除。")
-        return redirect("dealer_price_list_workspace", pk=price_list.pk)
-    label = str(price_list)
-    price_list.delete()
-    messages.success(request, f"已刪除草稿：{label}。")
-    return redirect("dealer_price_list_list")
-
-
-@login_required
-def dealer_price_list_print(request, pk):
-    price_list = get_object_or_404(
-        DealerPriceList.objects.select_related("brand"), pk=pk
-    )
-    rows = editor_rows(
-        price_list,
-        price_list.items.filter(visible=True).select_related("vehicle_model"),
-    )
-    grouped_rows = []
-    for section_value, section_label in DealerPriceListItem.Section.choices:
-        section_rows = [row for row in rows if row.section == section_value]
-        if section_rows:
-            grouped_rows.append((section_value, section_label, section_rows))
-    return render(
-        request,
-        "sales/dealer_price_list_print.html",
-        {"price_list": price_list, "grouped_rows": grouped_rows},
     )
 
 

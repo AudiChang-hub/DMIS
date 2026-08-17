@@ -157,8 +157,17 @@ class VehicleBrandMasterTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "品牌關係")
+        self.assertIn("logo", response.context["form"].fields)
+        self.assertContains(response, "品牌 LOGO")
         self.assertContains(response, "↳ eMOVING")
         self.assertContains(response, "所屬 SUZUKI")
+
+    def test_dealer_price_list_entry_points_are_removed(self):
+        for route_name in ("data_maintenance", "vehicle_model_list"):
+            with self.subTest(route=route_name):
+                response = self.client.get(reverse(route_name))
+                self.assertEqual(response.status_code, 200)
+                self.assertNotContains(response, "每月車行價目表")
 
     def test_brand_page_creates_brand_and_rejects_ambiguous_alias(self):
         response = self.client.post(

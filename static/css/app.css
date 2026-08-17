@@ -47,6 +47,41 @@
   object-fit: contain;
   object-position: left center;
 }
+.brand-hierarchy { display: flex; min-width: 190px; align-items: center; gap: 12px; }
+.brand-hierarchy__identity { display: grid; min-width: 0; gap: 5px; }
+.brand-hierarchy__title { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.brand-hierarchy__title strong { font-size: 1rem; line-height: 1.35; }
+.brand-hierarchy__identity small { color: var(--muted); font-size: .78rem; font-weight: 600; }
+.brand-level-badge {
+  display: inline-flex;
+  min-height: 24px;
+  padding: 2px 9px;
+  align-items: center;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  font-size: .72rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+.brand-level-badge--root { color: var(--forest); background: var(--mint); }
+.brand-level-badge--child { color: #234f86; background: var(--blue-soft); border-color: #c9daf2; }
+.brand-row--child .brand-hierarchy-cell { padding-left: 42px; background: linear-gradient(90deg, #f6f9ff 0, rgba(246, 249, 255, 0) 85%); }
+.brand-hierarchy__branch {
+  width: 24px;
+  height: 30px;
+  flex: 0 0 24px;
+  margin-top: -13px;
+  border-left: 3px solid #8da9cc;
+  border-bottom: 3px solid #8da9cc;
+  border-radius: 0 0 0 8px;
+}
+
+@media (max-width: 720px) {
+  .brand-row--child .brand-hierarchy-cell { padding-left: 28px; }
+  .brand-hierarchy { min-width: 0; gap: 10px; }
+  .brand-hierarchy__branch { width: 20px; flex-basis: 20px; }
+  .brand-hierarchy__title strong { font-size: 1.05rem; }
+}
 
 * { box-sizing: border-box; }
 [hidden] { display: none !important; }

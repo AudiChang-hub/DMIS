@@ -11,8 +11,6 @@ from .models import (
     DealerVolumeBonusSettlement,
     DealerVolumeBonusTier,
     DeliveryRecord,
-    DealerPriceList,
-    DealerPriceListItem,
     InstallmentCompany,
     InstallmentPlanOption,
     InstallmentPlanVersion,
@@ -109,8 +107,6 @@ admin.site.register(SubsidyItem)
 admin.site.register(BrandRegistrationFeeRule)
 admin.site.register(PositionedPrintTemplate)
 admin.site.register(PositionedPrintField)
-admin.site.register(DealerPriceList)
-admin.site.register(DealerPriceListItem)
 
 
 class VehicleColorInline(admin.TabularInline):

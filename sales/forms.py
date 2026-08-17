@@ -17,7 +17,6 @@ from .models import (
     DealerVolumeBonusRule,
     DealerVolumeBonusSettlement,
     DealerVolumeBonusTier,
-    DealerPriceList,
     DeliveryRecord,
     InstallmentCompany,
     InstallmentPlanOption,
@@ -699,111 +698,6 @@ class VehicleBrandForm(forms.ModelForm):
                 )
                 break
         return cleaned
-
-
-class DealerPriceListCreateForm(forms.ModelForm):
-    period_month = forms.CharField(
-        label="價目表月份",
-        widget=forms.TextInput(attrs={"type": "month"}),
-        help_text="建立後可在工作台調整實際生效日。",
-    )
-    copy_previous = forms.BooleanField(
-        label="複製上一期內容",
-        required=False,
-        initial=True,
-        help_text="沿用上一期贈品、通路、排序與價格，再依本月需要修改。",
-    )
-
-    class Meta:
-        model = DealerPriceList
-        fields = ["brand", "period_month", "title", "effective_from"]
-        widgets = {"effective_from": DateInput()}
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.fields["brand"].queryset = VehicleBrand.objects.filter(active=True).order_by(
-            "display_order", "name"
-        )
-        self.fields["title"].required = False
-        self.fields["effective_from"].required = False
-        for field in self.fields.values():
-            field.widget.attrs.setdefault("class", "form-control")
-        apply_mobile_keyboard_attrs(self)
-
-    def clean_period_month(self):
-        raw_value = (self.cleaned_data.get("period_month") or "").strip()
-        try:
-            year_text, month_text = raw_value.split("-", 1)
-            year, month = int(year_text), int(month_text)
-            return timezone.datetime(year, month, 1).date()
-        except (TypeError, ValueError):
-            raise forms.ValidationError("請選擇正確的價目表月份。")
-
-    def clean(self):
-        cleaned = super().clean()
-        month = cleaned.get("period_month")
-        if month:
-            cleaned["effective_from"] = cleaned.get("effective_from") or month
-            cleaned["title"] = cleaned.get("title") or f"{month.year} 年 {month.month} 月價格表"
-        return cleaned
-
-
-class DealerPriceListSettingsForm(forms.ModelForm):
-    installment_periods_text = forms.CharField(
-        label="顯示分期期數",
-        help_text="用逗號分隔，例如 18,24,36,48,60；順序就是表格與列印順序。",
-    )
-
-    class Meta:
-        model = DealerPriceList
-        fields = [
-            "title", "effective_from", "header_note", "footer_note", "logo_override"
-        ]
-        widgets = {
-            "effective_from": DateInput(),
-            "footer_note": forms.Textarea(attrs={"rows": 2}),
-        }
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        if not self.is_bound:
-            self.initial["installment_periods_text"] = ",".join(
-                str(value) for value in (self.instance.installment_periods or [])
-            )
-        for field in self.fields.values():
-            field.widget.attrs.setdefault("class", "form-control")
-        apply_mobile_keyboard_attrs(self)
-
-    def clean_installment_periods_text(self):
-        raw_value = self.cleaned_data.get("installment_periods_text") or ""
-        values = []
-        for part in re.split(r"[,，、\s]+", raw_value.strip()):
-            if not part:
-                continue
-            try:
-                value = int(part)
-            except ValueError:
-                raise forms.ValidationError("期數只能輸入整數，並用逗號分隔。")
-            if value < 1 or value > 120:
-                raise forms.ValidationError("期數必須介於 1～120 期。")
-            if value not in values:
-                values.append(value)
-        if not values:
-            raise forms.ValidationError("請至少保留一個分期期數。")
-        return values
-
-    def clean_logo_override(self):
-        logo = self.cleaned_data.get("logo_override")
-        if logo:
-            validate_image_upload(logo)
-        return logo
-
-    def save(self, commit=True):
-        instance = super().save(commit=False)
-        instance.installment_periods = self.cleaned_data["installment_periods_text"]
-        if commit:
-            instance.save()
-        return instance
 
 
 class SalesSourceBrandPolicyForm(forms.ModelForm):

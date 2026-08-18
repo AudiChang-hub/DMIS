@@ -9,6 +9,9 @@
   由新系統 `tunnel-proxy` 在 `dmis-next_default` 專用網路接手該名稱並轉送至
   `http://web:8000`。Cloudflare connector 不再加入舊 `dmis_default` 網路，避免
   Docker DNS 同時解析到舊 Odoo 與新代理。
+- 2026-08-18 起 connector 改由 `DMIS-next` 正式環境 Compose 管理，沿用原
+  Tunnel 與 token，並固定使用 HTTP/2；舊 `dmis-cloudflared-1` container 僅保留
+  作緊急回復，不再承接日常流量。
 
 ## 已搬遷主檔
 
@@ -50,6 +53,10 @@
 若正式網域驗證失敗，停止 `tunnel-proxy`，將舊 Odoo container 重新接回
 `dmis_default` network 的 `odoo` alias，再啟動舊 Odoo。舊資料庫與 filestore
 在觀察期內不得刪除。
+
+若僅是新 Tunnel connector 無法連線，先啟動保留的
+`dmis-cloudflared-1`，確認公開 `/health/` 恢復後，再停止
+`dmis-next-cloudflared-1`；不需重啟 Django、PostgreSQL、Redis 或背景工作服務。
 
 ## 驗證清單
 

@@ -188,7 +188,10 @@
       button.dataset.companyBound = "1";
       button.addEventListener("click", () => openCompanyDialog(button));
     });
-    root.querySelectorAll("[data-dynamic-row]").forEach(row => {
+    const dynamicRows = root.matches?.("[data-dynamic-row]")
+      ? [root]
+      : root.querySelectorAll("[data-dynamic-row]");
+    dynamicRows.forEach(row => {
       if (row.dataset.disbursementBound) return;
       row.dataset.disbursementBound = "1";
       row.querySelector('select[name$="-expected_disbursement_method"]')?.addEventListener("change", () => updateDisbursementFields(row));

@@ -280,6 +280,7 @@ class ChannelFinanceTests(TestCase):
 
         self.assertContains(response, "hydrateCompanySelects(emptyTemplate.content)")
         self.assertContains(response, "markRowDeleted")
+        self.assertContains(response, 'root.matches?.("[data-dynamic-row]")')
 
     def test_dealer_commission_uses_model_base_and_brand_adjustment(self):
         order = self.make_order()

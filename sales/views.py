@@ -2104,6 +2104,8 @@ def reconciliation_update(request, pk):
         messages.error(request, "此筆資料不屬於統一對帳範圍。")
         return redirect("reconciliation_list")
     before = {
+        "預計金額": str(record.expected_amount),
+        "預計金額調整原因": record.expected_amount_override_reason,
         "實際金額": str(record.received_amount),
         "入帳日期": str(record.received_on or ""),
         "收款帳戶": record.receiving_account,
@@ -2141,6 +2143,8 @@ def reconciliation_update(request, pk):
             )
         refresh_payment_confirmation(record.order_id)
         after = {
+            "預計金額": str(record.expected_amount),
+            "預計金額調整原因": record.expected_amount_override_reason,
             "實際金額": str(record.received_amount),
             "入帳日期": str(record.received_on or ""),
             "收款帳戶": record.receiving_account,

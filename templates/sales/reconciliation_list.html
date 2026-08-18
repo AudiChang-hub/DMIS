@@ -30,7 +30,16 @@
         <tr>
           <td data-label="訂單／車主"><strong>{{ record.order.owner_name }}</strong><span>{{ record.order.number }} · {{ record.order.order_date|date:"Y/m/d" }}</span></td>
           <td data-label="對帳對象"><strong>{{ record.reconciliation_party }}</strong><span>{{ record.reconciliation_channel_label }}</span></td>
-          <td data-label="預計金額" class="number-cell reconciliation-expected"><span class="mobile-field-label">預計金額</span><strong>${{ record.expected_amount|number_with_commas }}</strong></td>
+          <td data-label="預計金額" class="number-cell reconciliation-expected">
+            <span class="mobile-field-label">預計金額</span>
+            <strong>${{ record.expected_amount|number_with_commas }}</strong>
+            {% if record.expected_amount_overridden %}<small class="manual-value-badge">人工調整</small>{% endif %}
+            <details class="reconciliation-expected-adjustment"{% if record.expected_amount_overridden %} open{% endif %}>
+              <summary>{% if record.expected_amount_overridden %}修改特殊金額{% else %}本單特殊撥款{% endif %}</summary>
+              <label>調整後預計金額<input class="form-control reconciliation-money" form="reconciliation-{{ record.pk }}" type="number" min="0" step="1" name="expected_amount" value="{{ record.expected_amount|floatformat:0 }}"></label>
+              <label>調整原因<input class="form-control" form="reconciliation-{{ record.pk }}" type="text" name="expected_amount_override_reason" value="{{ record.expected_amount_override_reason }}" placeholder="例如：本案特殊撥款"></label>
+            </details>
+          </td>
           <td data-label="實際金額"><input class="form-control reconciliation-money" form="reconciliation-{{ record.pk }}" type="number" min="0" step="1" name="received_amount" value="{{ record.received_amount|floatformat:0 }}" aria-label="{{ record.order.number }} 實際金額"></td>
           <td data-label="差額" class="number-cell reconciliation-difference {% if record.reconciliation_difference != 0 %}difference-warning{% endif %}"><span class="mobile-field-label">差額</span><strong>${{ record.reconciliation_difference|number_with_commas }}</strong></td>
           <td data-label="入帳日期"><input class="form-control" form="reconciliation-{{ record.pk }}" type="date" name="received_on" value="{{ record.received_on|date:'Y-m-d' }}"></td>

@@ -82,9 +82,9 @@
     <article class="vehicle-business-card vehicle-business-card--primary">
       <div class="vehicle-business-card__top"><span class="vehicle-business-card__icon">價</span><span class="status-pill">{{ price_version_count }} 筆版本</span></div>
       <h3>售價版本</h3>
-      {% if current_price_version and current_price_version.suggested_price_including_registration %}
-      <strong class="vehicle-business-card__value">${{ current_price_version.suggested_price_including_registration|floatformat:0 }}</strong>
-      <p>目前有效的建議售價（含牌險）</p>
+      {% if current_price_version and current_price_version.suggested_price %}
+      <strong class="vehicle-business-card__value">${{ current_price_version.suggested_price|floatformat:0 }}</strong>
+      <p>目前有效的建議售價・{% if current_price_version.suggested_price_includes_registration %}含牌險{% else %}不含牌險{% endif %}</p>
       {% else %}
       <strong class="vehicle-business-card__value vehicle-business-card__value--missing">尚未設定</strong>
       <p>接單前請建立至少一筆有效售價。</p>

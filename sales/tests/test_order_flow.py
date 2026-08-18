@@ -4011,7 +4011,8 @@ class OrderOperationsTests(TestCase):
             price_url,
             {
                 "action": "save",
-                "suggested_price_including_registration": "79800",
+                "suggested_price": "79800",
+                "suggested_price_includes_registration": "on",
                 "cash_price": "72800",
                 "announced_on": "2026-07-20",
                 "effective_from": "2026-08-01",
@@ -4024,14 +4025,15 @@ class OrderOperationsTests(TestCase):
         self.assertRedirects(create_response, price_url)
         version = VehiclePriceVersion.objects.get(vehicle_model=self.model)
         self.assertEqual(
-            version.suggested_price_including_registration, Decimal("79800")
+            version.suggested_price, Decimal("79800")
         )
+        self.assertTrue(version.suggested_price_includes_registration)
         update_response = self.client.post(
             price_url,
             {
                 "action": "save",
                 "version_id": version.pk,
-                "suggested_price_including_registration": "80800",
+                "suggested_price": "80800",
                 "cash_price": "73800",
                 "announced_on": "2026-07-20",
                 "effective_from": "2026-08-01",
@@ -4044,8 +4046,9 @@ class OrderOperationsTests(TestCase):
         self.assertRedirects(update_response, price_url)
         version.refresh_from_db()
         self.assertEqual(
-            version.suggested_price_including_registration, Decimal("80800")
+            version.suggested_price, Decimal("80800")
         )
+        self.assertFalse(version.suggested_price_includes_registration)
         self.assertEqual(version.source_note, "人工修正")
 
     def test_vehicle_model_commission_is_maintained_separately(self):

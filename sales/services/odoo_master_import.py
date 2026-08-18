@@ -348,7 +348,8 @@ def import_odoo_master_data(payload, *, apply=False):
                     vehicle_model=model,
                     effective_from=effective_from,
                     defaults={
-                        "suggested_price_including_registration": list_price,
+                        "suggested_price": list_price,
+                        "suggested_price_includes_registration": True,
                         "cash_price": cash_price,
                         "announced_on": effective_from,
                         "effective_to": next_date - timedelta(days=1) if next_date else None,

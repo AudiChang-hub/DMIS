@@ -766,8 +766,17 @@ class InstallmentPlanOptionForm(forms.ModelForm):
         model = InstallmentPlanOption
         fields = [
             "periods", "monthly_amount", "company", "opening_fee",
-            "expected_disbursement_rate",
+            "expected_disbursement_method", "expected_disbursement_rate",
+            "expected_disbursement_fixed_amount",
         ]
+        widgets = {
+            "expected_disbursement_rate": forms.NumberInput(
+                attrs={"min": "0", "max": "100", "step": "0.01"}
+            ),
+            "expected_disbursement_fixed_amount": forms.NumberInput(
+                attrs={"min": "0", "step": "1", "inputmode": "numeric"}
+            ),
+        }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -776,7 +785,37 @@ class InstallmentPlanOptionForm(forms.ModelForm):
         ).order_by("name")
         for field in self.fields.values():
             field.widget.attrs.setdefault("class", "form-control")
+        self.fields["expected_disbursement_rate"].help_text = (
+            "以本單車款售價乘上此比例試算。"
+        )
+        self.fields["expected_disbursement_fixed_amount"].help_text = (
+            "每張套用此方案的訂單都先帶入這個預估金額。"
+        )
         apply_mobile_keyboard_attrs(self)
+
+    def clean(self):
+        cleaned = super().clean()
+        method = cleaned.get("expected_disbursement_method")
+        rate = cleaned.get("expected_disbursement_rate")
+        fixed_amount = cleaned.get("expected_disbursement_fixed_amount")
+        if method == InstallmentPlanOption.ExpectedDisbursementMethod.RATE:
+            if rate is None:
+                self.add_error(
+                    "expected_disbursement_rate",
+                    "按比例試算時，請填寫預估撥款比例。",
+                )
+            cleaned["expected_disbursement_fixed_amount"] = None
+        elif method == InstallmentPlanOption.ExpectedDisbursementMethod.FIXED:
+            if fixed_amount is None:
+                self.add_error(
+                    "expected_disbursement_fixed_amount",
+                    "固定金額時，請填寫預估撥款金額。",
+                )
+            cleaned["expected_disbursement_rate"] = None
+        elif method == InstallmentPlanOption.ExpectedDisbursementMethod.MANUAL:
+            cleaned["expected_disbursement_rate"] = None
+            cleaned["expected_disbursement_fixed_amount"] = None
+        return cleaned
 
 
 InstallmentPlanOptionFormSet = inlineformset_factory(
@@ -2173,6 +2212,8 @@ class ReconciliationRecordForm(forms.ModelForm):
     class Meta:
         model = PaymentRecord
         fields = [
+            "expected_amount",
+            "expected_amount_override_reason",
             "received_amount",
             "received_on",
             "receiving_account",
@@ -2183,10 +2224,46 @@ class ReconciliationRecordForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.original_expected_amount = self.instance.expected_amount or Decimal("0")
         for field in self.fields.values():
             field.widget.attrs.setdefault("class", "form-control")
         self.fields["received_amount"].required = True
+        # 保留舊版對帳表單／既有自動化只提交實收欄位的相容性；
+        # 新版畫面仍會送出此值，未送出時沿用目前預計金額。
+        self.fields["expected_amount"].required = False
+        self.fields["expected_amount"].widget.attrs.update(
+            {"min": "0", "step": "1", "inputmode": "numeric"}
+        )
+        self.fields["expected_amount_override_reason"].required = False
+        self.fields["expected_amount_override_reason"].widget.attrs.update(
+            {"placeholder": "例如：本案特殊撥款、公司通知調整"}
+        )
         apply_mobile_keyboard_attrs(self)
+
+    def clean(self):
+        cleaned = super().clean()
+        expected = cleaned.get("expected_amount")
+        if expected is None:
+            expected = self.original_expected_amount
+            cleaned["expected_amount"] = expected
+        reason = (cleaned.get("expected_amount_override_reason") or "").strip()
+        expected_changed = (
+            expected is not None and expected != self.original_expected_amount
+        )
+        if (expected_changed or self.instance.expected_amount_overridden) and not reason:
+            self.add_error(
+                "expected_amount_override_reason",
+                "人工調整預計金額時，請填寫原因。",
+            )
+        return cleaned
+
+    def save(self, commit=True):
+        payment = super().save(commit=False)
+        if payment.expected_amount != self.original_expected_amount:
+            payment.expected_amount_overridden = True
+        if commit:
+            payment.save()
+        return payment
 
 
 PaymentRecordFormSet = inlineformset_factory(

@@ -557,6 +557,11 @@ class InstallmentPlanVersion(TimeStampedModel):
 
 
 class InstallmentPlanOption(TimeStampedModel):
+    class ExpectedDisbursementMethod(models.TextChoices):
+        RATE = "rate", "按比例試算"
+        FIXED = "fixed", "固定金額"
+        MANUAL = "manual", "本單另填"
+
     version = models.ForeignKey(
         InstallmentPlanVersion,
         on_delete=models.CASCADE,
@@ -586,6 +591,21 @@ class InstallmentPlanOption(TimeStampedModel):
         blank=True,
         null=True,
         validators=[MinValueValidator(0), MaxValueValidator(100)],
+    )
+    expected_disbursement_method = models.CharField(
+        "預估撥款方式",
+        max_length=20,
+        choices=ExpectedDisbursementMethod.choices,
+        default=ExpectedDisbursementMethod.RATE,
+        help_text="按比例以車款售價試算；固定金額直接帶入；特殊案件可選本單另填。",
+    )
+    expected_disbursement_fixed_amount = models.DecimalField(
+        "固定預估撥款金額",
+        max_digits=12,
+        decimal_places=0,
+        blank=True,
+        null=True,
+        validators=[MinValueValidator(0)],
     )
 
     class Meta:
@@ -2917,6 +2937,16 @@ class PaymentRecord(TimeStampedModel):
     )
     item_name = models.CharField("收款項目", max_length=160)
     expected_amount = models.DecimalField("應收金額", max_digits=12, decimal_places=0, default=0)
+    expected_amount_overridden = models.BooleanField(
+        "預計金額已人工調整",
+        default=False,
+        editable=False,
+    )
+    expected_amount_override_reason = models.CharField(
+        "預計金額調整原因",
+        max_length=250,
+        blank=True,
+    )
     received_amount = models.DecimalField("實收金額", max_digits=12, decimal_places=0, default=0)
     card_principal = models.DecimalField(
         "刷卡本金",

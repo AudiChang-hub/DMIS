@@ -1816,6 +1816,13 @@ body.screen-locked { overflow: hidden; }
 .reconciliation-table input.form-control { min-width: 130px; }
 .reconciliation-table .reconciliation-money { min-width: 110px; text-align: right; }
 .reconciliation-table .difference-warning { color: #a33c2f; font-weight: 900; }
+.reconciliation-expected-adjustment { margin-top: 8px; text-align: left; }
+.reconciliation-expected-adjustment summary {
+  width: max-content; max-width: 100%; color: var(--blue); font-size: .8125rem;
+  font-weight: 800; cursor: pointer;
+}
+.reconciliation-expected-adjustment label { display: grid; gap: 4px; margin-top: 8px; color: var(--muted); font-size: .75rem; }
+.manual-value-badge { display: inline-flex; margin-left: 6px; padding: 3px 7px; color: #7a4c08; border-radius: 999px; background: var(--amber-soft); font-size: .6875rem; font-weight: 800; }
 .mobile-field-label { display: none; }
 .compact-check { display: inline-flex; align-items: center; gap: 7px; white-space: nowrap; }
 .system-status-summary {
@@ -2506,7 +2513,16 @@ body.screen-locked { overflow: hidden; }
   border: 1px solid var(--line); border-radius: 14px; background: #f9fbfa;
 }
 .master-dynamic-row .remove-row-button { top: 10px; right: 12px; }
-.installment-option-row { grid-template-columns: repeat(5, minmax(130px, 1fr)); }
+.installment-option-row { grid-template-columns: repeat(4, minmax(180px, 1fr)); }
+.installment-disbursement-summary {
+  grid-column: 1 / -1;
+  display: block;
+  padding: 10px 12px;
+  color: var(--green);
+  font-weight: 800;
+  border-radius: 10px;
+  background: var(--mint);
+}
 .field-control-with-action {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;

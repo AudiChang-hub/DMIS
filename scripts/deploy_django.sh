@@ -6,6 +6,7 @@ DEPLOY_BRANCH=${DMIS_NEXT_DEPLOY_BRANCH:-main}
 PUBLIC_HEALTH_URL=${DMIS_PUBLIC_HEALTH_URL:-https://dmis.moto-core.com/health/}
 LOCK_FILE=${DMIS_NEXT_DEPLOY_LOCK_FILE:-/tmp/dmis-next-deploy.lock}
 DEPLOY_STATE_FILE=${DMIS_NEXT_DEPLOY_STATE_FILE:-/srv/dmis-data/dmis-next/deployed-sha}
+TUNNEL_TOKEN_FILE=${DMIS_NEXT_TUNNEL_TOKEN_FILE:-$PROJECT_DIR/secrets/cloudflare-tunnel.token}
 
 log() {
     printf '%s %s\n' "$(date --iso-8601=seconds)" "$*"
@@ -21,6 +22,8 @@ command -v docker >/dev/null || fail "找不到 docker"
 command -v curl >/dev/null || fail "找不到 curl"
 command -v flock >/dev/null || fail "找不到 flock"
 [[ -d "$PROJECT_DIR/.git" ]] || fail "找不到 Django 專案：$PROJECT_DIR"
+[[ -f "$TUNNEL_TOKEN_FILE" && -s "$TUNNEL_TOKEN_FILE" ]] ||
+    fail "找不到 Cloudflare Tunnel token 檔案：$TUNNEL_TOKEN_FILE"
 
 exec 9>"$LOCK_FILE"
 flock -n 9 || fail "已有 DMIS Next 部署程序執行中"
@@ -78,6 +81,19 @@ done
 # 使用 up 而不是 restart，確保 network alias 等 Compose 設定異動也會生效。
 log "重新建立 DMIS tunnel proxy"
 "${compose[@]}" up -d --no-deps --force-recreate tunnel-proxy
+
+log "啟動由 DMIS Next 管理的 Cloudflare Tunnel connector（HTTP/2）"
+"${compose[@]}" up -d --no-deps cloudflared
+cloudflared_id=$("${compose[@]}" ps -q cloudflared)
+[[ -n "$cloudflared_id" ]] || fail "找不到 cloudflared container"
+for attempt in $(seq 1 30); do
+    if docker logs "$cloudflared_id" 2>&1 | grep -q 'protocol=http2'; then
+        break
+    fi
+    sleep 2
+done
+docker logs "$cloudflared_id" 2>&1 | grep -q 'protocol=http2' ||
+    fail "Cloudflare Tunnel 未以 HTTP/2 完成連線"
 
 for attempt in $(seq 1 30); do
     if curl --fail --silent --show-error --max-time 10 "$PUBLIC_HEALTH_URL" >/dev/null; then

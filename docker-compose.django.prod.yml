@@ -69,3 +69,25 @@ services:
     pids_limit: 64
     logging: *production_logging
     restart: unless-stopped
+
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    user: "${DJANGO_UID:-1000}:${DJANGO_GID:-1000}"
+    command:
+      - tunnel
+      - --no-autoupdate
+      - --protocol
+      - http2
+      - run
+      - --token-file
+      - /run/secrets/cloudflare-tunnel.token
+    depends_on:
+      tunnel-proxy:
+        condition: service_healthy
+    volumes:
+      - ./secrets/cloudflare-tunnel.token:/run/secrets/cloudflare-tunnel.token:ro
+    mem_limit: 128m
+    cpus: 0.15
+    pids_limit: 64
+    logging: *production_logging
+    restart: unless-stopped

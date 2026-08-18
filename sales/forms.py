@@ -41,9 +41,12 @@ from .models import (
     VehicleIncentiveInstallmentRate,
     VehicleIncentiveRule,
     VehicleBrand,
+    VehicleFactoryModelCode,
     VehicleModel,
+    VehicleModelFamily,
     VehiclePriceVersion,
     VehicleSettlementCostRule,
+    normalize_legacy_master_value,
     normalize_vehicle_identifier,
 )
 from .services.registration_fee import (
@@ -1255,6 +1258,18 @@ class VehicleInventoryForm(forms.ModelForm):
 
 class VehicleModelMasterForm(forms.ModelForm):
     brand = forms.ChoiceField(label="品牌")
+    existing_family = forms.ModelChoiceField(
+        label="套用既有機種",
+        queryset=VehicleModelFamily.objects.none(),
+        required=False,
+        empty_label="建立新機種",
+        help_text="新增年式／規格時可直接選既有機種；選取後以既有品牌與機種名稱為準。",
+    )
+    model_number = forms.CharField(
+        label="原廠型號",
+        help_text="同一年式／規格可填多個原廠型號，請用頓號、逗號或換行分隔。",
+        widget=forms.Textarea(attrs={"rows": 2, "placeholder": "例如：EV060L、EV062、EV062FL"}),
+    )
 
     class Meta:
         model = VehicleModel
@@ -1294,24 +1309,68 @@ class VehicleModelMasterForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         _apply_brand_choice(self)
+        self.fields["existing_family"].queryset = VehicleModelFamily.objects.filter(
+            active=True
+        ).order_by("brand", "name")
+        if self.instance.pk and self.instance.family_id:
+            self.initial["existing_family"] = self.instance.family_id
+            codes = list(
+                self.instance.factory_model_codes.filter(active=True)
+                .order_by("code")
+                .values_list("code", flat=True)
+            )
+            if codes:
+                self.initial["model_number"] = "、".join(codes)
+        self.fields["brand"].required = False
+        self.fields["name"].required = False
         self.fields["model_year"].required = True
         self.fields["model_number"].required = True
         self.fields["model_code"].required = True
+        self.order_fields(
+            [
+                "existing_family",
+                "brand",
+                "energy_type",
+                "name",
+                "model_number",
+                "model_year",
+                "model_code",
+                "displacement_cc",
+                "motor_power_kw",
+                "horsepower_hp",
+                "electric_registration_class",
+                "active",
+            ]
+        )
         for field in self.fields.values():
             field.widget.attrs.setdefault("class", "form-control")
         apply_mobile_keyboard_attrs(self)
 
     def clean(self):
         cleaned = super().clean()
+        existing_family = cleaned.get("existing_family")
+        if existing_family:
+            cleaned["brand"] = existing_family.brand
+            cleaned["name"] = existing_family.name
         brand = (cleaned.get("brand") or "").strip()
         name = (cleaned.get("name") or "").strip()
-        model_number = (cleaned.get("model_number") or "").strip()
+        if not existing_family and not brand:
+            self.add_error("brand", "建立新機種時請選擇品牌。")
+        if not existing_family and not name:
+            self.add_error("name", "建立新機種時請填寫機種名稱。")
+        model_numbers = tuple(
+            dict.fromkeys(
+                value.strip()
+                for value in re.split(r"[、,，\n\r]+", cleaned.get("model_number") or "")
+                if value.strip()
+            )
+        )
+        cleaned["factory_model_numbers"] = model_numbers
         model_code = (cleaned.get("model_code") or "").strip()
         model_year = cleaned.get("model_year")
         duplicate = VehicleModel.objects.filter(
             brand__iexact=brand,
             name__iexact=name,
-            model_number__iexact=model_number,
             model_year=model_year,
             model_code=model_code,
         )
@@ -1320,13 +1379,13 @@ class VehicleModelMasterForm(forms.ModelForm):
         if (
             brand
             and name
-            and model_number
+            and model_numbers
             and model_year
             and model_code
             and duplicate.exists()
         ):
             raise forms.ValidationError(
-                "相同品牌、機種、型號、年份及型式的車型已存在。"
+                "此機種已有相同年份與型式的設定；請編輯既有設定並加入原廠型號。"
             )
         if (
             self.instance.pk
@@ -1346,6 +1405,31 @@ class VehicleModelMasterForm(forms.ModelForm):
                 "電動車請依原廠認證選擇輕型或重型領牌級別。",
             )
         return cleaned
+
+    def save(self, commit=True):
+        vehicle_model = super().save(commit=False)
+        model_numbers = self.cleaned_data.get("factory_model_numbers") or ()
+        if model_numbers:
+            vehicle_model.model_number = model_numbers[0]
+        if not commit:
+            return vehicle_model
+
+        vehicle_model.save()
+        self.save_m2m()
+        factory_codes = []
+        for code in model_numbers:
+            normalized_code = normalize_legacy_master_value(code)
+            factory_code, created = VehicleFactoryModelCode.objects.get_or_create(
+                family=vehicle_model.family,
+                normalized_code=normalized_code,
+                defaults={"code": code, "active": True},
+            )
+            if not created and not factory_code.active:
+                factory_code.active = True
+                factory_code.save(update_fields=["active", "updated_at"])
+            factory_codes.append(factory_code)
+        vehicle_model.factory_model_codes.set(factory_codes)
+        return vehicle_model
 
 
 class LegacyVehicleModelLinkForm(forms.Form):

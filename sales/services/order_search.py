@@ -46,8 +46,10 @@ SEARCHABLE_TYPES = (
 RELATED_FIELDS = (
     ("source__name", "來源名稱"),
     ("vehicle_model__brand", "廠牌"),
+    ("vehicle_model__family__name", "機種"),
     ("vehicle_model__name", "車型"),
     ("vehicle_model__model_number", "型號"),
+    ("vehicle_model__factory_model_codes__code", "原廠型號"),
     ("vehicle_model__model_year", "年份"),
     ("vehicle_model__model_code", "型式"),
     ("vehicle_model__energy_type", "動力類型"),
@@ -134,6 +136,15 @@ def _mask(value):
     return f"{text[:2]}{'＊' * (len(text) - 4)}{text[-2:]}"
 
 
+def _factory_model_code_text(vehicle_model):
+    codes = list(
+        vehicle_model.factory_model_codes.filter(active=True)
+        .order_by("code")
+        .values_list("code", flat=True)
+    )
+    return "、".join(codes)
+
+
 def _display_value(instance, field):
     value = getattr(instance, field.name)
     if isinstance(field, models.FileField):
@@ -210,6 +221,7 @@ def build_order_match_summary(order, query):
         ("廠牌", order.vehicle_model.brand),
         ("車型", order.vehicle_model.name),
         ("型號", order.vehicle_model.model_number),
+        ("原廠型號", _factory_model_code_text(order.vehicle_model)),
         ("動力類型", order.vehicle_model.get_energy_type_display()),
         ("排氣量", order.vehicle_model.displacement_cc),
         ("車色", order.color.name),
@@ -353,6 +365,7 @@ def build_order_search_payload(order):
         ("廠牌", order.vehicle_model.brand),
         ("車型", order.vehicle_model.name),
         ("型號", order.vehicle_model.model_number),
+        ("原廠型號", _factory_model_code_text(order.vehicle_model)),
         ("動力類型", order.vehicle_model.get_energy_type_display()),
         ("排氣量", order.vehicle_model.displacement_cc),
         ("車色", order.color.name),
@@ -442,7 +455,7 @@ def rebuild_order_search_index(order_id):
         "source", "vehicle_model", "color", "allocated_vehicle", "operations", "legacy_snapshot",
         "allocated_vehicle__location_store",
     ).prefetch_related(
-        "accessories", "other_fees", "subsidy_documents",
+        "vehicle_model__factory_model_codes", "accessories", "other_fees", "subsidy_documents",
         "registration_documents", "events", "changes", "payment_records", "subsidy_items",
     ).filter(pk=order_id).first()
     if not order:

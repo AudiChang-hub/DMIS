@@ -30,6 +30,15 @@ def normalize_legacy_master_value(value):
     return re.sub(r"\s+", "", normalized)
 
 
+def canonical_vehicle_model_name(value):
+    """將已確認為同一機種的歷史名稱收斂成日常使用名稱。"""
+    name = str(value or "").strip()
+    key = normalize_legacy_master_value(name).replace("（", "(").replace("）", ")")
+    if key == "dr-z4sm(滑胎版)":
+        return "DR-Z4SM"
+    return name
+
+
 class TaiwanCounty(models.TextChoices):
     TAIPEI = "臺北市", "臺北市"
     NEW_TAIPEI = "新北市", "新北市"
@@ -231,6 +240,29 @@ class SalesSource(TimeStampedModel):
         return super().save(*args, **kwargs)
 
 
+class VehicleModelFamily(TimeStampedModel):
+    """市場上辨識的一個機種；年份、規格與原廠型號另行維護。"""
+
+    brand = models.CharField("品牌", max_length=80)
+    name = models.CharField("機種", max_length=120)
+    active = models.BooleanField("啟用中", default=True)
+
+    class Meta:
+        ordering = ["brand", "name", "id"]
+        constraints = [
+            models.UniqueConstraint(
+                Lower("brand"),
+                Lower("name"),
+                name="unique_vehicle_model_family_ci",
+            )
+        ]
+        verbose_name = "機種主檔"
+        verbose_name_plural = "機種主檔"
+
+    def __str__(self):
+        return f"{self.brand}／{self.name}"
+
+
 class VehicleModel(TimeStampedModel):
     class EnergyType(models.TextChoices):
         GAS = "gas", "油車"
@@ -254,6 +286,15 @@ class VehicleModel(TimeStampedModel):
 
     brand = models.CharField("廠牌", max_length=80)
     name = models.CharField("車型", max_length=120)
+    family = models.ForeignKey(
+        VehicleModelFamily,
+        on_delete=models.PROTECT,
+        related_name="versions",
+        verbose_name="所屬機種",
+        blank=True,
+        null=True,
+        editable=False,
+    )
     model_number = models.CharField(
         "型號",
         max_length=120,
@@ -310,6 +351,12 @@ class VehicleModel(TimeStampedModel):
         validators=[MinValueValidator(0)],
     )
     active = models.BooleanField("啟用中", default=True)
+    factory_model_codes = models.ManyToManyField(
+        "VehicleFactoryModelCode",
+        related_name="versions",
+        verbose_name="適用原廠型號",
+        blank=True,
+    )
 
     class Meta:
         ordering = ["brand", "name"]
@@ -345,6 +392,68 @@ class VehicleModel(TimeStampedModel):
             )
         if self.energy_type != self.EnergyType.ELECTRIC:
             self.electric_registration_class = ""
+
+    def save(self, *args, **kwargs):
+        if self.brand and self.name:
+            self.name = canonical_vehicle_model_name(self.name)
+            family = VehicleModelFamily.objects.filter(
+                brand__iexact=self.brand.strip(),
+                name__iexact=self.name.strip(),
+            ).first()
+            if family is None:
+                family = VehicleModelFamily.objects.create(
+                    brand=self.brand.strip(),
+                    name=self.name.strip(),
+                    active=self.active,
+                )
+            self.family = family
+        super().save(*args, **kwargs)
+        if self.family_id and self.model_number:
+            normalized_code = normalize_legacy_master_value(self.model_number)
+            factory_code, created = VehicleFactoryModelCode.objects.get_or_create(
+                family_id=self.family_id,
+                normalized_code=normalized_code,
+                defaults={"code": self.model_number.strip(), "active": True},
+            )
+            if not created and not factory_code.active:
+                factory_code.active = True
+                factory_code.save(update_fields=["active", "updated_at"])
+            self.factory_model_codes.add(factory_code)
+
+
+class VehicleFactoryModelCode(TimeStampedModel):
+    family = models.ForeignKey(
+        VehicleModelFamily,
+        on_delete=models.PROTECT,
+        related_name="factory_model_codes",
+        verbose_name="機種",
+    )
+    code = models.CharField("原廠型號", max_length=120)
+    normalized_code = models.CharField(
+        "標準化原廠型號",
+        max_length=160,
+        editable=False,
+    )
+    active = models.BooleanField("啟用中", default=True)
+
+    class Meta:
+        ordering = ["family", "code", "id"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["family", "normalized_code"],
+                name="unique_factory_model_code_in_family",
+            )
+        ]
+        verbose_name = "原廠型號"
+        verbose_name_plural = "原廠型號"
+
+    def save(self, *args, **kwargs):
+        self.code = self.code.strip()
+        self.normalized_code = normalize_legacy_master_value(self.code)
+        return super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"{self.family}／{self.code}"
 
 
 class VehiclePriceVersion(TimeStampedModel):

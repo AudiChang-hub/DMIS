@@ -1,4 +1,4 @@
-from django.db.models.signals import post_delete, post_save
+from django.db.models.signals import m2m_changed, post_delete, post_save
 from django.dispatch import receiver
 
 from .models import (
@@ -12,6 +12,7 @@ from .models import (
     SalesOrder,
     SubsidyDocument,
     VehicleInventory,
+    VehicleFactoryModelCode,
     VehicleModel,
 )
 from .services.operations_sync import (
@@ -71,13 +72,35 @@ def rebuild_search_after_vehicle_save(sender, instance, **kwargs):
         schedule_order_search_rebuild(order_id)
 
 
-@receiver(post_save, sender=VehicleModel)
-def rebuild_search_after_vehicle_model_save(sender, instance, **kwargs):
+def _rebuild_vehicle_model_orders(vehicle_model_ids):
     order_ids = SalesOrder.objects.filter(
-        vehicle_model_id=instance.pk
+        vehicle_model_id__in=vehicle_model_ids
     ).values_list("pk", flat=True)
     for order_id in order_ids.iterator(chunk_size=200):
         schedule_order_search_rebuild(order_id)
+
+
+@receiver(post_save, sender=VehicleModel)
+def rebuild_search_after_vehicle_model_save(sender, instance, **kwargs):
+    _rebuild_vehicle_model_orders([instance.pk])
+
+
+@receiver(post_save, sender=VehicleFactoryModelCode)
+def rebuild_search_after_factory_model_code_save(sender, instance, **kwargs):
+    _rebuild_vehicle_model_orders(
+        instance.versions.values_list("pk", flat=True)
+    )
+
+
+@receiver(m2m_changed, sender=VehicleModel.factory_model_codes.through)
+def rebuild_search_after_factory_model_code_link(sender, instance, action, reverse, **kwargs):
+    if action not in {"post_add", "post_remove", "post_clear"}:
+        return
+    if reverse:
+        model_ids = instance.versions.values_list("pk", flat=True)
+    else:
+        model_ids = [instance.pk]
+    _rebuild_vehicle_model_orders(model_ids)
 
 
 @receiver(post_save, sender=PaymentRecord)

@@ -26,7 +26,7 @@
 
 ## 價格、成本與獎勵
 
-- VehiclePriceVersion：建議售價、現金含牌險價、現金未含牌險價、購車金、有效期間與來源文件。
+- VehiclePriceVersion：建議售價、建議售價是否含牌險、現金價、有效期間與來源文件；訂單依訂單日保存金額與含牌險語意快照。
 - ConsignmentCostVersion：標準成本及可選特殊成本方案，依實際領牌日取值。
 - VehicleIncentiveVersion：實銷獎勵、促銷補助、分期補貼息，依實際領牌日取值。
 - InstallmentPlanVersion：訂單日期、期數、每期金額、分期公司、開辦費與預計撥款比例。

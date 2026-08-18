@@ -5,7 +5,7 @@ from sales.models import VehiclePriceVersion
 
 
 PRICE_FIELDS = (
-    "suggested_price_including_registration",
+    "suggested_price",
     "cash_price",
 )
 
@@ -46,6 +46,9 @@ def apply_order_price_snapshot(order, *, force=False):
                 version.effective_to.isoformat() if version.effective_to else ""
             ),
             "source_note": version.source_note,
+            "suggested_price_includes_registration": (
+                version.suggested_price_includes_registration
+            ),
             **{
                 field: str(getattr(version, field))
                 if getattr(version, field) is not None

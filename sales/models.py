@@ -463,8 +463,13 @@ class VehiclePriceVersion(TimeStampedModel):
         related_name="price_versions",
         verbose_name="車型",
     )
-    suggested_price_including_registration = models.DecimalField(
-        "建議售價（含牌險）", max_digits=12, decimal_places=0, blank=True, null=True
+    suggested_price = models.DecimalField(
+        "建議售價", max_digits=12, decimal_places=0, blank=True, null=True
+    )
+    suggested_price_includes_registration = models.BooleanField(
+        "建議售價包含牌險",
+        default=True,
+        help_text="勾選表示此版本的建議售價已包含牌險；未勾選則依正式單據另收。",
     )
     cash_price = models.DecimalField(
         "現金價", max_digits=12, decimal_places=0, blank=True, null=True

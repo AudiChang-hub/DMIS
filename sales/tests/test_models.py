@@ -102,14 +102,17 @@ class VehiclePriceVersionTests(TestCase):
             displacement_cc=125,
         )
 
-    def test_price_version_keeps_only_suggested_including_registration_and_cash(self):
+    def test_price_version_keeps_suggested_price_registration_meaning_and_cash(self):
         version = VehiclePriceVersion.objects.create(
             vehicle_model=self.model,
-            suggested_price_including_registration=Decimal("77000"),
+            suggested_price=Decimal("77000"),
+            suggested_price_includes_registration=False,
             cash_price=Decimal("70000"),
             effective_from=date(2026, 8, 1),
         )
 
+        self.assertEqual(version.suggested_price, Decimal("77000"))
+        self.assertFalse(version.suggested_price_includes_registration)
         self.assertEqual(version.cash_price, Decimal("70000"))
 
     def test_end_date_cannot_precede_start_date(self):
@@ -157,6 +160,9 @@ class VehiclePriceVersionTests(TestCase):
         self.assertEqual(
             order.price_snapshot["cash_price"],
             "70000",
+        )
+        self.assertTrue(
+            order.price_snapshot["suggested_price_includes_registration"]
         )
 
         old_version.cash_price = Decimal("68000")

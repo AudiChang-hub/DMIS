@@ -15,6 +15,7 @@ from sales.models import (
     InstallmentPlanOption,
     InstallmentPlanVersion,
     OrderOperationsProfile,
+    PaymentRecord,
     SalesOrder,
     SalesSource,
     SalesSourceCategory,
@@ -30,8 +31,10 @@ from sales.services.dealer_commission import (
 )
 from sales.services.installment_plan import (
     apply_order_installment_snapshot,
+    calculate_expected_disbursement,
     resolve_installment_plan_option,
 )
+from sales.services.operations_sync import sync_order_operations
 
 
 class ChannelFinanceTests(TestCase):
@@ -139,12 +142,144 @@ class ChannelFinanceTests(TestCase):
         profile = OrderOperationsProfile.objects.get(order=order)
         self.assertEqual(order.installment_plan_option, self.option)
         self.assertFalse(order.installment_plan_snapshot["manual_override"])
+        self.assertEqual(
+            order.installment_plan_snapshot["expected_disbursement_amount"],
+            65450,
+        )
         self.assertEqual(profile.customer_service_phone, "0800-123-456")
 
         self.company.customer_service_phone = "新電話"
         self.company.save()
         profile.refresh_from_db()
         self.assertEqual(profile.customer_service_phone, "0800-123-456")
+
+    def test_expected_disbursement_supports_rate_fixed_and_manual_modes(self):
+        self.assertEqual(
+            calculate_expected_disbursement(self.option, Decimal("70000")),
+            Decimal("65450"),
+        )
+
+        self.option.expected_disbursement_method = (
+            InstallmentPlanOption.ExpectedDisbursementMethod.FIXED
+        )
+        self.option.expected_disbursement_rate = None
+        self.option.expected_disbursement_fixed_amount = Decimal("66000")
+        self.option.save()
+        self.assertEqual(
+            calculate_expected_disbursement(self.option, Decimal("70000")),
+            Decimal("66000"),
+        )
+
+        self.option.expected_disbursement_method = (
+            InstallmentPlanOption.ExpectedDisbursementMethod.MANUAL
+        )
+        self.option.expected_disbursement_fixed_amount = None
+        self.option.save()
+        self.assertIsNone(
+            calculate_expected_disbursement(self.option, Decimal("70000"))
+        )
+
+    def test_expected_disbursement_snapshot_drives_reconciliation_amount(self):
+        order = self.make_order()
+        apply_order_installment_snapshot(order)
+        sync_order_operations(order.pk)
+
+        payment = PaymentRecord.objects.get(
+            order=order,
+            system_key="installment_disbursement",
+        )
+        self.assertEqual(payment.expected_amount, Decimal("65450"))
+
+    def test_manual_expected_amount_override_requires_reason_and_is_preserved(self):
+        order = self.make_order()
+        apply_order_installment_snapshot(order)
+        sync_order_operations(order.pk)
+        payment = PaymentRecord.objects.get(
+            order=order,
+            system_key="installment_disbursement",
+        )
+        self.client.force_login(self.user)
+        url = reverse("reconciliation_update", args=[payment.pk])
+
+        rejected = self.client.post(
+            url,
+            {
+                "expected_amount": "65000",
+                "expected_amount_override_reason": "",
+                "received_amount": "0",
+                "received_on": "",
+                "receiving_account": "",
+                "note": "",
+            },
+        )
+        payment.refresh_from_db()
+        self.assertEqual(rejected.status_code, 302)
+        self.assertEqual(payment.expected_amount, Decimal("65450"))
+
+        accepted = self.client.post(
+            url,
+            {
+                "expected_amount": "65000",
+                "expected_amount_override_reason": "本案特殊撥款",
+                "received_amount": "0",
+                "received_on": "",
+                "receiving_account": "",
+                "note": "",
+            },
+        )
+        payment.refresh_from_db()
+        self.assertEqual(accepted.status_code, 302)
+        self.assertEqual(payment.expected_amount, Decimal("65000"))
+        self.assertTrue(payment.expected_amount_overridden)
+
+        sync_order_operations(order.pk)
+        payment.refresh_from_db()
+        self.assertEqual(payment.expected_amount, Decimal("65000"))
+
+    def test_deleted_blank_installment_row_does_not_block_plan_save(self):
+        self.client.force_login(self.user)
+        response = self.client.post(
+            reverse("vehicle_installment_plan_list", args=[self.model.pk]),
+            {
+                "plan-announced_on": "2026-08-10",
+                "plan-effective_from": "2026-09-01",
+                "plan-effective_to": "",
+                "plan-note": "",
+                "plan-active": "on",
+                "options-TOTAL_FORMS": "2",
+                "options-INITIAL_FORMS": "0",
+                "options-MIN_NUM_FORMS": "0",
+                "options-MAX_NUM_FORMS": "1000",
+                "options-0-periods": "36",
+                "options-0-monthly_amount": "2200",
+                "options-0-company": str(self.company.pk),
+                "options-0-opening_fee": "2500",
+                "options-0-expected_disbursement_method": "fixed",
+                "options-0-expected_disbursement_rate": "",
+                "options-0-expected_disbursement_fixed_amount": "68000",
+                "options-1-DELETE": "on",
+            },
+        )
+
+        self.assertRedirects(
+            response,
+            reverse("vehicle_installment_plan_list", args=[self.model.pk]),
+        )
+        saved = InstallmentPlanVersion.objects.get(
+            vehicle_model=self.model,
+            effective_from=date(2026, 9, 1),
+        ).options.get()
+        self.assertEqual(saved.periods, 36)
+        self.assertEqual(saved.expected_disbursement_fixed_amount, Decimal("68000"))
+
+    def test_installment_page_keeps_quick_created_companies_for_future_rows(self):
+        self.client.force_login(self.user)
+        response = self.client.get(
+            reverse("vehicle_installment_plan_list", args=[self.model.pk])
+        )
+
+        self.assertContains(response, "hydrateCompanySelects(emptyTemplate.content)")
+        self.assertContains(response, "markRowDeleted")
 
     def test_dealer_commission_uses_model_base_and_brand_adjustment(self):
         order = self.make_order()

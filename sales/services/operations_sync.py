@@ -13,6 +13,14 @@ def _sync_financial_field(profile, field_name, value):
         setattr(profile, field_name, _money(value))
 
 
+def _expected_installment_disbursement(order):
+    snapshot = order.installment_plan_snapshot or {}
+    if "expected_disbursement_method" not in snapshot:
+        return _money(order.installment_amount)
+    amount = snapshot.get("expected_disbursement_amount")
+    return Decimal(str(amount)) if amount is not None else Decimal("0")
+
+
 def _upsert_system_payment(order, key, defaults):
     from sales.models import PaymentRecord
 
@@ -24,8 +32,9 @@ def _upsert_system_payment(order, key, defaults):
     if created:
         return payment
     protected = payment.confirmed or payment.received_amount or payment.proof
-    for field in ("item_name", "expected_amount"):
-        setattr(payment, field, defaults[field])
+    payment.item_name = defaults["item_name"]
+    if not protected and not payment.expected_amount_overridden:
+        payment.expected_amount = defaults["expected_amount"]
     if key == "deposit" and not protected:
         for field in (
             "received_amount",
@@ -162,6 +171,7 @@ def sync_order_operations(order_id):
 
     if order.payment_type == SalesOrder.PaymentType.INSTALLMENT:
         financed = _money(order.installment_amount)
+        expected_disbursement = _expected_installment_disbursement(order)
         cash_due = max(_money(order.actual_balance) - financed, Decimal("0"))
         active_keys.update({"installment_disbursement", "balance"})
         _upsert_system_payment(
@@ -169,7 +179,7 @@ def sync_order_operations(order_id):
             "installment_disbursement",
             {
                 "item_name": "分期公司撥款",
-                "expected_amount": financed,
+                "expected_amount": expected_disbursement,
                 "received_amount": Decimal("0"),
                 "received_on": None,
                 "payment_method": "分期撥款",

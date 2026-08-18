@@ -1,4 +1,4 @@
-from decimal import Decimal
+from decimal import Decimal, ROUND_HALF_UP
 
 from django.db.models import Q
 from django.utils import timezone
@@ -33,7 +33,24 @@ def resolve_installment_plan_option(vehicle_model_id, order_date, periods):
     return version.options.select_related("company").filter(periods=periods).first()
 
 
-def installment_option_payload(option):
+def calculate_expected_disbursement(option, vehicle_price):
+    if not option:
+        return None
+    method = option.expected_disbursement_method
+    if method == InstallmentPlanOption.ExpectedDisbursementMethod.RATE:
+        if option.expected_disbursement_rate is None or vehicle_price is None:
+            return None
+        return (
+            Decimal(vehicle_price)
+            * option.expected_disbursement_rate
+            / Decimal("100")
+        ).quantize(Decimal("1"), rounding=ROUND_HALF_UP)
+    if method == InstallmentPlanOption.ExpectedDisbursementMethod.FIXED:
+        return option.expected_disbursement_fixed_amount
+    return None
+
+
+def installment_option_payload(option, vehicle_price=None):
     if not option:
         return None
     return {
@@ -45,9 +62,27 @@ def installment_option_payload(option):
         "company": option.company.name,
         "customer_service_phone": option.company.customer_service_phone,
         "opening_fee": int(option.opening_fee),
+        "expected_disbursement_method": option.expected_disbursement_method,
+        "expected_disbursement_method_label": (
+            option.get_expected_disbursement_method_display()
+        ),
         "expected_disbursement_rate": (
             str(option.expected_disbursement_rate)
             if option.expected_disbursement_rate is not None
+            else None
+        ),
+        "expected_disbursement_fixed_amount": (
+            int(option.expected_disbursement_fixed_amount)
+            if option.expected_disbursement_fixed_amount is not None
+            else None
+        ),
+        "expected_disbursement_amount": (
+            int(calculated)
+            if (
+                calculated := calculate_expected_disbursement(
+                    option, vehicle_price
+                )
+            ) is not None
             else None
         ),
         "effective_from": option.version.effective_from.isoformat(),
@@ -86,6 +121,9 @@ def apply_order_installment_snapshot(order):
             "periods": order.installment_periods,
             "monthly_amount": int(order.installment_monthly or Decimal("0")),
             "opening_fee": int(order.installment_opening_fee or Decimal("0")),
+            "expected_disbursement_method": "manual",
+            "expected_disbursement_method_label": "本單另填",
+            "expected_disbursement_amount": None,
             "captured_at": timezone.now().isoformat(),
         }
         SalesOrder.objects.filter(pk=order.pk).update(
@@ -96,7 +134,7 @@ def apply_order_installment_snapshot(order):
         )
         return None
 
-    payload = installment_option_payload(option)
+    payload = installment_option_payload(option, order.vehicle_price)
     payload["manual_override"] = any(
         (
             order.installment_company != option.company.name,

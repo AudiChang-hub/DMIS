@@ -41,6 +41,7 @@ from sales.models import (
     Store,
     SubsidyDocument,
     VehicleColor,
+    VehicleFactoryModelCode,
     VehicleInventory,
     VehicleInventoryHistory,
     VehicleIncentiveInstallmentRate,
@@ -655,6 +656,48 @@ class OrderFlowTests(TestCase):
         self.assertNotContains(response, '<th>獎勵補助</th>', html=True)
         self.assertContains(response, f'href="{reverse("vehicle_model_edit", args=[electric_model.pk])}"')
 
+    def test_vehicle_model_list_groups_factory_codes_under_one_machine(self):
+        first = VehicleModel.objects.create(
+            brand="eMOVING",
+            name="eReady Fun",
+            model_number="EV060L",
+            model_year=2025,
+            model_code=VehicleModel.ModelType.DRUM,
+            energy_type=VehicleModel.EnergyType.ELECTRIC,
+        )
+        second = VehicleModel.objects.create(
+            brand="eMOVING",
+            name="eReady Fun",
+            model_number="EV062",
+            model_year=2026,
+            model_code=VehicleModel.ModelType.DRUM,
+            energy_type=VehicleModel.EnergyType.ELECTRIC,
+        )
+        self.client.force_login(self.user)
+
+        response = self.client.get(reverse("vehicle_model_list"), {"q": "EV062"})
+
+        self.assertEqual(first.family_id, second.family_id)
+        self.assertEqual(response.context["vehicle_model_count"], 1)
+        self.assertEqual(response.context["vehicle_model_version_count"], 2)
+        self.assertContains(response, 'rowspan="2"', html=False)
+        self.assertContains(response, "2 個原廠型號")
+        self.assertContains(response, "EV060L、EV062")
+
+    def test_legacy_dr_z4sm_label_is_normalized_to_machine_name(self):
+        model = VehicleModel.objects.create(
+            brand="SUZUKI",
+            name="DR-Z4SM (滑胎版)",
+            model_number="DRZ4SM",
+            model_year=2026,
+            model_code=VehicleModel.ModelType.ABS_DUAL_DISC,
+            energy_type=VehicleModel.EnergyType.GAS,
+            displacement_cc=398,
+        )
+
+        self.assertEqual(model.name, "DR-Z4SM")
+        self.assertEqual(model.family.name, "DR-Z4SM")
+
     def test_vehicle_model_list_counts_only_active_colors(self):
         VehicleColor.objects.create(
             vehicle_model=self.model,
@@ -697,6 +740,52 @@ class OrderFlowTests(TestCase):
         self.assertFalse(
             VehicleModel.objects.filter(brand="SUZUKI", name="SUI 125").exists()
         )
+
+    def test_one_machine_version_accepts_multiple_factory_model_codes(self):
+        self.client.force_login(self.user)
+
+        response = self.client.post(
+            reverse("vehicle_model_create"),
+            self.vehicle_model_master_payload(
+                brand="eMOVING",
+                name="eReady Fun",
+                model_number="EV060L、EV062\nEV062FL",
+                energy_type=VehicleModel.EnergyType.ELECTRIC,
+                displacement_cc="",
+                electric_registration_class=(
+                    VehicleModel.ElectricRegistrationClass.LIGHT
+                ),
+            ),
+        )
+
+        self.assertRedirects(response, reverse("vehicle_model_list"))
+        model = VehicleModel.objects.get(brand="eMOVING", name="eReady Fun")
+        self.assertEqual(model.model_number, "EV060L")
+        self.assertEqual(model.family.versions.count(), 1)
+        self.assertEqual(
+            set(model.factory_model_codes.values_list("code", flat=True)),
+            {"EV060L", "EV062", "EV062FL"},
+        )
+        self.assertEqual(model.family.factory_model_codes.count(), 3)
+
+    def test_new_year_can_reuse_existing_machine_without_retyping_name(self):
+        self.client.force_login(self.user)
+        response = self.client.post(
+            reverse("vehicle_model_create"),
+            self.vehicle_model_master_payload(
+                existing_family=str(self.model.family_id),
+                brand="",
+                name="",
+                model_number="COMMUTE-2027",
+                model_year="2027",
+            ),
+        )
+
+        self.assertRedirects(response, reverse("vehicle_model_list"))
+        reused = VehicleModel.objects.get(model_number="COMMUTE-2027")
+        self.assertEqual(reused.family_id, self.model.family_id)
+        self.assertEqual(reused.brand, self.model.brand)
+        self.assertEqual(reused.name, self.model.name)
 
     def test_vehicle_model_with_inventory_cannot_change_energy_type(self):
         self.client.force_login(self.user)
@@ -2606,9 +2695,18 @@ class OrderFlowTests(TestCase):
         self.client.force_login(self.user)
         self.model.model_number = "UQ125DA"
         self.model.save(update_fields=["model_number", "updated_at"])
+        secondary_code = VehicleFactoryModelCode.objects.create(
+            family=self.model.family,
+            code="UQ125DB",
+        )
+        self.model.factory_model_codes.add(secondary_code)
         order = self.make_order()
 
-        for query, label in (("通勤 125", "車型"), ("UQ125DA", "型號")):
+        for query, label in (
+            ("通勤 125", "車型"),
+            ("UQ125DA", "型號"),
+            ("UQ125DB", "原廠型號"),
+        ):
             with self.subTest(query=query):
                 response = self.client.get(reverse("order_list"), {"q": query})
                 self.assertContains(response, order.number)

@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% load static %}
-{% block title %}車型資料｜車輛銷售管理{% endblock %}
+{% block title %}機種與年式資料｜車輛銷售管理{% endblock %}
 {% block page_class %}page-shell--wide{% endblock %}
 {% block content %}
 {% url 'data_maintenance' as data_url %}
@@ -8,14 +8,14 @@
 <section class="hero-row compact-hero">
   <div>
     <p class="eyebrow">訂單與庫存共用資料</p>
-    <h1>車型資料</h1>
-    <p class="muted">維護品牌、能源別、機種、型號、年份、型式、顏色與售價；成本、獎勵及補助依領牌日認列。</p>
+    <h1>機種與年式資料</h1>
+    <p class="muted">一個機種可包含多個原廠型號與年式規格；售價、成本、分期及獎勵仍依年式／規格分開維護。</p>
   </div>
   <div class="hero-actions">
     <a class="button ghost" href="{% url 'accessory_product_list' %}">配件資料</a>
     <a class="button ghost" href="{% url 'settlement_cost_rule_list' %}">代銷結算成本</a>
     <a class="button ghost" href="{% url 'incentive_rule_list' %}">原廠獎勵與補助</a>
-    <a class="button primary" href="{% url 'vehicle_model_create' %}">＋ 新增車型</a>
+    <a class="button primary" href="{% url 'vehicle_model_create' %}">＋ 新增機種／年式</a>
   </div>
 </section>
 
@@ -48,8 +48,8 @@
 <section class="vehicle-model-catalog" data-vehicle-model-catalog data-filtered="{{ filters_applied|yesno:'true,false' }}">
   <div class="vehicle-model-catalog__toolbar">
     <div>
-      <strong>共 {{ vehicle_model_count }} 個車型版本</strong>
-      <span>依品牌整理；子品牌以標籤顯示，不會增加操作層級。</span>
+      <strong>共 {{ vehicle_model_count }} 個機種</strong>
+      <span>{{ vehicle_model_version_count }} 筆年式／規格設定；同一機種的不同原廠型號集中顯示。</span>
     </div>
     {% if vehicle_model_groups %}
     <div class="vehicle-model-catalog__actions" aria-label="品牌區塊顯示方式">
@@ -68,8 +68,8 @@
         <small>{% if group.child_brands %}包含 {{ group.child_brands|join:"、" }}{% else %}品牌車型{% endif %}</small>
       </span>
       <span class="vehicle-brand-group__metrics">
-        <strong>{{ group.total_count }} 個車型</strong>
-        <small>{{ group.active_count }} 個啟用中</small>
+        <strong>{{ group.total_count }} 個機種</strong>
+        <small>{{ group.version_count }} 筆設定 · {{ group.active_count }} 個啟用中</small>
       </span>
       <span class="vehicle-brand-group__chevron" aria-hidden="true"></span>
     </summary>
@@ -78,13 +78,17 @@
         <thead><tr><th>機種</th><th>型號</th><th>年份／型式</th><th>能源別</th><th>排氣量</th><th>馬達功率（kW）</th><th>目前建議售價</th><th>車行基礎傭金</th><th>啟用顏色</th><th>庫存</th><th>狀態</th><th></th></tr></thead>
         <tbody>
           {% for item in group.models %}
-          <tr>
-            <td data-label="機種">
-              <strong>{{ item.name }}</strong>
+          <tr class="{% if item.show_family_cell %}vehicle-model-family-start{% endif %}">
+            {% if item.show_family_cell %}
+            <td class="vehicle-model-family-cell" data-label="機種" rowspan="{{ item.family_rowspan }}">
+              <strong>{{ item.family_display_name }}</strong>
               {% if item.child_brand_label %}<span class="vehicle-model-brand-badge">{{ item.child_brand_label }}</span>{% endif %}
+              <span class="vehicle-model-family-summary">{{ item.family_code_count }} 個原廠型號 · {{ item.family_version_count }} 筆年式／規格</span>
+              {% if item.family_factory_codes %}<span class="vehicle-model-family-codes">{{ item.family_factory_codes|join:"、" }}</span>{% endif %}
             </td>
+            {% endif %}
             <td data-label="型號">{{ item.model_number|default:"待補" }}</td>
-            <td data-label="年份／型式"><strong>{{ item.model_year|default:"待補" }}</strong><span>{% if item.model_code %}{{ item.get_model_code_display }}{% else %}待補{% endif %}</span></td>
+            <td data-label="年份／型式"><span class="vehicle-model-family-mobile">{{ item.family_display_name }}</span><strong>{{ item.model_year|default:"待補" }}</strong><span>{% if item.model_code %}{{ item.get_model_code_display }}{% else %}待補{% endif %}</span></td>
             <td data-label="能源別">{{ item.get_energy_type_display }}</td>
             <td data-label="排氣量">{% if item.displacement_cc %}{{ item.displacement_cc }} c.c.{% else %}—{% endif %}</td>
             <td data-label="馬達功率（kW）">{% if item.motor_power_kw is not None %}{{ item.motor_power_kw|floatformat:2 }} kW{% else %}—{% endif %}</td>

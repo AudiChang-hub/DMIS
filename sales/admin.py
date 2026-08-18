@@ -39,9 +39,11 @@ from .models import (
     VehicleBrand,
     VehicleInventory,
     VehicleInventoryHistory,
+    VehicleFactoryModelCode,
     VehicleIncentiveRule,
     VehicleIncentiveInstallmentRate,
     VehicleModel,
+    VehicleModelFamily,
     VehiclePriceVersion,
     VehicleSettlementCostRule,
 )
@@ -89,6 +91,8 @@ class SalesSourceCategoryAdmin(admin.ModelAdmin):
 
 admin.site.register(InstallmentCompany)
 admin.site.register(VehicleBrand)
+admin.site.register(VehicleModelFamily)
+admin.site.register(VehicleFactoryModelCode)
 admin.site.register(InstallmentPlanVersion)
 admin.site.register(InstallmentPlanOption)
 admin.site.register(SalesSourceContact)

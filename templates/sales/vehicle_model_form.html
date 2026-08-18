@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}{% if is_editing %}編輯車型{% else %}新增車型{% endif %}｜車輛銷售管理{% endblock %}
+{% block title %}{% if is_editing %}編輯年式／規格{% else %}新增機種／年式{% endif %}｜車輛銷售管理{% endblock %}
 {% block page_class %}page-shell--form{% endblock %}
 {% block content %}
 {% url 'vehicle_model_list' as model_list_url %}
@@ -7,8 +7,8 @@
 <section class="hero-row compact-hero">
   <div>
     <p class="eyebrow">資料維護區</p>
-    <h1>{% if is_editing %}編輯車型規格{% else %}新增車型{% endif %}</h1>
-    {% if is_editing %}<p class="muted">{{ vehicle_model }}；本頁只維護不隨日期變動的規格與顏色。</p>{% endif %}
+    <h1>{% if is_editing %}編輯年式／規格{% else %}新增機種／年式{% endif %}</h1>
+    {% if is_editing %}<p class="muted">{{ vehicle_model.family|default:vehicle_model }}；原廠型號可有多筆，本頁維護這個年式的規格與顏色。</p>{% endif %}
   </div>
   <div class="hero-actions"><a class="button ghost" href="{% url 'vehicle_brand_list' %}">維護品牌</a></div>
 </section>
@@ -22,8 +22,8 @@
   {% endif %}
   <section class="card master-model-section">
     <div class="section-heading">
-      <div><p class="eyebrow">基本資料</p><h2>車型規格</h2></div>
-      <span class="muted">品牌、型號、年份及動力規格</span>
+      <div><p class="eyebrow">基本資料</p><h2>機種與年式規格</h2></div>
+      <span class="muted">可套用既有機種；同一規格允許多個原廠型號</span>
     </div>
     <div class="form-grid master-model-grid">
       {% for field in form %}{% include "sales/_field.html" with field=field %}{% endfor %}
@@ -63,7 +63,7 @@
   </section>
   <div class="form-actions master-model-actions vehicle-model-save-actions">
     <a class="button ghost" href="{% url 'vehicle_model_list' %}">取消</a>
-    <button class="button primary" type="submit">儲存車型規格</button>
+    <button class="button primary" type="submit">儲存年式／規格</button>
   </div>
 </form>
 

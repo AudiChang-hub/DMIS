@@ -2,12 +2,18 @@
 
 ## 車型與車輛
 
-### VehicleModel
+### VehicleModelFamily／VehicleFactoryModelCode／VehicleModel
 
-- 品牌、能源別、機種、型號、年份、型式
+- VehicleModelFamily 代表使用者辨識的「機種」，同品牌與機種名稱只保留一筆。
+- 一個機種可有多個 VehicleFactoryModelCode（原廠型號），不建立額外別名欄位。
+- VehicleModel 代表該機種的一筆年份／規格設定；同一筆設定可套用多個原廠型號。
+- 品牌、能源別、機種、原廠型號、年份、型式
 - 排氣量（油車）
 - 馬達功率 kW、馬力 HP（電動車與微型電動車，皆選填且不互相換算）
 - 顏色一對多；預設一列，使用後只能停用
+
+車型列表以機種為第一層，原廠型號與年份／規格收在機種下方。訂單、庫存、
+歷史匯入及全欄位搜尋須可用機種名稱或任一原廠型號找到相同資料。
 
 ### VehicleInventory
 

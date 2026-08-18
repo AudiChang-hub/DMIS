@@ -1048,7 +1048,16 @@ def _model_for_number(model_number):
     )
     if mapping and mapping.vehicle_model_id:
         return mapping.vehicle_model
-    return VehicleModel.objects.filter(model_number__iexact=model_number).first() or VehicleModel.objects.filter(name__iexact=model_number).first() or _placeholder_model(model_number)
+    return (
+        VehicleModel.objects.filter(model_number__iexact=model_number).first()
+        or VehicleModel.objects.filter(
+            factory_model_codes__normalized_code=normalize_legacy_master_value(
+                model_number
+            )
+        ).first()
+        or VehicleModel.objects.filter(name__iexact=model_number).first()
+        or _placeholder_model(model_number)
+    )
 
 
 def _source_for_name(source_name):

@@ -118,6 +118,7 @@ from .models import (
     VehicleInventoryHistory,
     VehicleIncentiveRule,
     VehicleModel,
+    VehicleModelFamily,
     VehiclePriceVersion,
     VehicleSettlementCostRule,
     normalize_legacy_master_value,
@@ -366,7 +367,8 @@ def data_maintenance(request):
             "customer_count": SalesOrder.objects.values("owner_id_number")
             .distinct()
             .count(),
-            "vehicle_model_count": VehicleModel.objects.count(),
+            "vehicle_model_count": VehicleModelFamily.objects.count(),
+            "vehicle_model_version_count": VehicleModel.objects.count(),
             "vehicle_brand_count": VehicleBrand.objects.count(),
             "accessory_product_count": AccessoryProduct.objects.count(),
             "inventory_count": VehicleInventory.objects.count(),
@@ -1071,7 +1073,8 @@ def legacy_import_detail(request, pk):
             Q(brand__icontains=search_query)
             | Q(name__icontains=search_query)
             | Q(model_number__icontains=search_query)
-        ).values_list("pk", "name", "model_number")
+            | Q(factory_model_codes__code__icontains=search_query)
+        ).distinct().values_list("pk", "name", "model_number")
         matching_model_ids = []
         matching_model_aliases = set()
         for model_id, name, model_number in matching_models:
@@ -1081,6 +1084,13 @@ def legacy_import_detail(request, pk):
                 for value in (name, model_number)
                 if value
             )
+        matching_model_aliases.update(
+            normalize_legacy_master_value(value)
+            for value in VehicleModel.objects.filter(pk__in=matching_model_ids)
+            .values_list("factory_model_codes__code", flat=True)
+            .distinct()
+            if value
+        )
         mapped_source_values = set(
             LegacyImportMasterMapping.objects.filter(
                 mapping_type=LegacyImportMasterMapping.MappingType.VEHICLE_MODEL,
@@ -4529,13 +4539,15 @@ def inventory_list(request):
             | Q(frame_number__icontains=keyword)
             | vehicle_brand_search_q(keyword, "vehicle_model__brand")
             | Q(vehicle_model__name__icontains=keyword)
+            | Q(vehicle_model__model_number__icontains=keyword)
+            | Q(vehicle_model__factory_model_codes__code__icontains=keyword)
             | Q(color__name__icontains=keyword)
             | Q(location_store__name__icontains=keyword)
             | Q(condition_note__icontains=keyword)
         )
         if matching_statuses:
             query |= Q(status__in=matching_statuses)
-        vehicles = vehicles.filter(query)
+        vehicles = vehicles.filter(query).distinct()
     sort_options = {
         "received_desc": ("-received_on", "-id"),
         "received_asc": ("received_on", "id"),
@@ -4610,12 +4622,27 @@ def vehicle_model_list(request):
         ),
     )
     if keyword:
-        models = models.filter(
+        match_query = (
             vehicle_brand_search_q(keyword)
+            | Q(family__name__icontains=keyword)
             | Q(name__icontains=keyword)
             | Q(model_number__icontains=keyword)
+            | Q(factory_model_codes__code__icontains=keyword)
             | Q(model_code__icontains=keyword)
             | Q(colors__name__icontains=keyword)
+        )
+        matched = models.filter(match_query).distinct()
+        matched_family_ids = list(
+            matched.exclude(family_id__isnull=True)
+            .values_list("family_id", flat=True)
+            .distinct()
+        )
+        unmatched_family_model_ids = list(
+            matched.filter(family_id__isnull=True).values_list("pk", flat=True)
+        )
+        models = models.filter(
+            Q(family_id__in=matched_family_ids)
+            | Q(pk__in=unmatched_family_model_ids)
         ).distinct()
     valid_energy_types = {
         value for value, _label in VehicleModel.EnergyType.choices
@@ -4626,7 +4653,11 @@ def vehicle_model_list(request):
         models = models.filter(active=True)
     elif active == "no":
         models = models.filter(active=False)
-    models = list(models.order_by("brand", "name", "-model_year", "model_code"))
+    models = list(
+        models.select_related("family")
+        .prefetch_related("factory_model_codes")
+        .order_by("brand", "family__name", "name", "-model_year", "model_code")
+    )
 
     brand_records = {
         brand.name.casefold(): brand
@@ -4648,6 +4679,7 @@ def vehicle_model_list(request):
                 "name": root_name,
                 "display_order": root_brand.display_order if root_brand else 999,
                 "models": [],
+                "families": {},
                 "child_brands": set(),
                 "active_count": 0,
             },
@@ -4658,11 +4690,20 @@ def vehicle_model_list(request):
         model.brand_display_order = (
             brand_record.display_order if brand_record else 999
         )
-        group["models"].append(model)
+        family_name = model.family.name if model.family_id else model.name
+        family_key = model.family_id or f"legacy:{model.brand.casefold()}:{family_name.casefold()}"
+        family = group["families"].setdefault(
+            family_key,
+            {
+                "name": family_name,
+                "models": [],
+                "child_brand_label": model.child_brand_label,
+                "brand_display_order": model.brand_display_order,
+            },
+        )
+        family["models"].append(model)
         if model.child_brand_label:
             group["child_brands"].add(model.child_brand_label)
-        if model.active:
-            group["active_count"] += 1
 
     vehicle_model_groups = sorted(
         grouped_models.values(),
@@ -4670,28 +4711,65 @@ def vehicle_model_list(request):
     )
     filters_applied = bool(keyword or energy_type or active)
     for index, group in enumerate(vehicle_model_groups):
-        group["models"].sort(
-            key=lambda model: (
-                bool(model.child_brand_label),
-                model.brand_display_order,
-                model.brand.casefold(),
-                model.name.casefold(),
-                -(model.model_year or 0),
-                model.model_code,
-            )
+        families = sorted(
+            group["families"].values(),
+            key=lambda family: (
+                bool(family["child_brand_label"]),
+                family["brand_display_order"],
+                family["name"].casefold(),
+            ),
         )
+        group["models"] = []
+        for family in families:
+            family["models"].sort(
+                key=lambda model: (
+                    -(model.model_year or 0),
+                    model.model_code,
+                    model.model_number.casefold(),
+                    model.pk,
+                )
+            )
+            factory_codes = {
+                code.code
+                for model in family["models"]
+                for code in model.factory_model_codes.all()
+                if code.active
+            }
+            if not factory_codes:
+                factory_codes = {
+                    model.model_number
+                    for model in family["models"]
+                    if model.model_number
+                }
+            family["factory_codes"] = sorted(factory_codes, key=str.casefold)
+            family["version_count"] = len(family["models"])
+            family["active_count"] = sum(model.active for model in family["models"])
+            family["code_count"] = len(family["factory_codes"])
+            group["active_count"] += int(bool(family["active_count"]))
+            for family_index, model in enumerate(family["models"]):
+                model.show_family_cell = family_index == 0
+                model.family_rowspan = family["version_count"]
+                model.family_display_name = family["name"]
+                model.family_version_count = family["version_count"]
+                model.family_code_count = family["code_count"]
+                model.family_factory_codes = family["factory_codes"]
+                group["models"].append(model)
         group["child_brands"] = sorted(
             group["child_brands"], key=str.casefold
         )
-        group["total_count"] = len(group["models"])
+        group["total_count"] = len(families)
+        group["version_count"] = len(group["models"])
         group["initially_open"] = filters_applied or index == 0
+
+    vehicle_model_count = sum(group["total_count"] for group in vehicle_model_groups)
 
     return render(
         request,
         "sales/vehicle_model_list.html",
         {
             "vehicle_model_groups": vehicle_model_groups,
-            "vehicle_model_count": len(models),
+            "vehicle_model_count": vehicle_model_count,
+            "vehicle_model_version_count": len(models),
             "energy_types": VehicleModel.EnergyType.choices,
             "filters_applied": filters_applied,
             "selected": {
@@ -4990,10 +5068,12 @@ def settlement_cost_rule_list(request):
     if keyword:
         rules = rules.filter(
             vehicle_brand_search_q(keyword, "vehicle_model__brand")
+            | Q(vehicle_model__family__name__icontains=keyword)
             | Q(vehicle_model__name__icontains=keyword)
             | Q(vehicle_model__model_number__icontains=keyword)
+            | Q(vehicle_model__factory_model_codes__code__icontains=keyword)
             | Q(note__icontains=keyword)
-        )
+        ).distinct()
     if county:
         rules = rules.filter(registration_county=county)
     rules = rules.order_by(
@@ -5081,10 +5161,12 @@ def incentive_rule_list(request):
     if keyword:
         rules = rules.filter(
             vehicle_brand_search_q(keyword, "vehicle_model__brand")
+            | Q(vehicle_model__family__name__icontains=keyword)
             | Q(vehicle_model__name__icontains=keyword)
             | Q(vehicle_model__model_number__icontains=keyword)
+            | Q(vehicle_model__factory_model_codes__code__icontains=keyword)
             | Q(note__icontains=keyword)
-        )
+        ).distinct()
     rules = rules.order_by(
         "vehicle_model__brand",
         "vehicle_model__name",

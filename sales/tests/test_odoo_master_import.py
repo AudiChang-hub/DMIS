@@ -128,7 +128,7 @@ class OdooMasterImportTests(TestCase):
         self.assertEqual(model.base_dealer_commission, 2000)
         self.assertEqual(model.colors.get().name, "灰")
         self.assertEqual(
-            VehiclePriceVersion.objects.get().suggested_price_including_registration,
+            VehiclePriceVersion.objects.get().suggested_price,
             77000,
         )
         self.assertEqual(DealerVolumeBonusRule.objects.count(), 1)

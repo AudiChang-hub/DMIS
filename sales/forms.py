@@ -1631,7 +1631,8 @@ class VehiclePriceVersionForm(forms.ModelForm):
     class Meta:
         model = VehiclePriceVersion
         fields = [
-            "suggested_price_including_registration",
+            "suggested_price",
+            "suggested_price_includes_registration",
             "cash_price",
             "announced_on",
             "effective_from",
@@ -1640,7 +1641,8 @@ class VehiclePriceVersionForm(forms.ModelForm):
             "active",
         ]
         labels = {
-            "suggested_price_including_registration": "建議售價（含牌險）",
+            "suggested_price": "建議售價",
+            "suggested_price_includes_registration": "此建議售價包含牌險",
             "cash_price": "現金價",
             "announced_on": "原廠／公司通知日期",
             "effective_from": "訂單生效日期",
@@ -1648,14 +1650,15 @@ class VehiclePriceVersionForm(forms.ModelForm):
             "source_note": "來源文件／調整原因",
         }
         help_texts = {
-            "suggested_price_including_registration": "原廠或公司公布、已包含牌險的正式售價。",
+            "suggested_price": "原廠或公司公布的正式售價；是否包含牌險請依下方勾選。",
+            "suggested_price_includes_registration": "若公告價格不含牌險，請取消勾選；系統不會自行加減價格。",
             "cash_price": "內部實際採用的現金車價；牌險依車型規則或正式單據另計。",
             "effective_from": "建立訂單時，系統依訂單日期套用當日有效版本。",
             "effective_to": "不填表示持續有效；價格調整時請新增版本，不要覆蓋舊版本。",
             "source_note": "例如營業通報月份、文件名稱或人工調整原因。",
         }
         widgets = {
-            "suggested_price_including_registration": forms.NumberInput(attrs={"inputmode": "numeric"}),
+            "suggested_price": forms.NumberInput(attrs={"inputmode": "numeric"}),
             "cash_price": forms.NumberInput(attrs={"inputmode": "numeric"}),
             "announced_on": DateInput(),
             "effective_from": DateInput(),
@@ -1667,7 +1670,7 @@ class VehiclePriceVersionForm(forms.ModelForm):
         for field in self.fields.values():
             field.widget.attrs.setdefault("class", "form-control")
         for field_name in (
-            "suggested_price_including_registration",
+            "suggested_price",
             "cash_price",
         ):
             if not self.is_bound and self.initial.get(field_name) in (None, 0):

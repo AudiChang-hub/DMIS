@@ -4616,7 +4616,7 @@ def vehicle_model_list(request):
         ),
         current_suggested_price=Subquery(
             current_prices.order_by("-effective_from", "-id").values(
-                "suggested_price_including_registration"
+                "suggested_price"
             )[:1],
             output_field=DecimalField(max_digits=12, decimal_places=0),
         ),

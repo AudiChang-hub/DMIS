@@ -15,6 +15,10 @@
 - Django `tunnel-proxy` 在 `dmis-next_default` 使用唯一的 `odoo` alias。
 - Cloudflare connector 不得同時連接舊 `dmis_default`，避免 Docker DNS 輪流
   導向 Odoo 與 Django。
+- Cloudflare connector 必須由 `DMIS-next` 正式 Compose 管理並固定使用
+  HTTP/2；部署程序需確認 log 已出現 `protocol=http2` 才能繼續。
+- Tunnel token 只可存放於被 Git 忽略的
+  `secrets/cloudflare-tunnel.token`，不得寫入 Compose、`.env.django` 或 Git。
 - 部署後 `scripts/verify_django_public_route.sh` 連續檢查至少 12 次，首頁不得
   導向 `/web` 或出現 Odoo 頁面內容。
 - 舊 `/web` 與 `/zh_TW/data/vehicle-models/` 捷徑會導回目前 Django 畫面。

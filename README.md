@@ -47,12 +47,17 @@ docker compose -f docker-compose.django.yml \
   -f docker-compose.django.prod.yml up -d
 ```
 
-正式網域 `https://dmis.moto-core.com/` 沿用 T470P 現有的 Cloudflare Tunnel
-connector 與既有 `http://odoo:8069` 來源名稱。正式切換後，該名稱由新系統的
-`tunnel-proxy` 服務接手並轉送至 `http://web:8000`，因此不需要新建 Tunnel、
-DNS 或 credentials。切換前必須先確認 `/health/`；回復時停止 proxy、將舊 Odoo
-重新接回 `dmis_default` network 即可。Tunnel token 與 credentials 不得寫入
-repo 或 `.env.django`。
+正式網域 `https://dmis.moto-core.com/` 沿用 T470P 既有的 Cloudflare Tunnel
+與 `http://odoo:8069` 來源名稱。該名稱由新系統的 `tunnel-proxy` 服務接手並轉送
+至 `http://web:8000`，Tunnel connector 也由 `docker-compose.django.prod.yml`
+管理並固定使用 HTTP/2，避免 T470P 網路上的 QUIC 連線反覆逾時；不需新建
+Tunnel、DNS 或 credentials。
+
+正式機必須將既有 Tunnel token 單獨存放於
+`secrets/cloudflare-tunnel.token`，內容只包含 token，權限設為 `600`。該目錄已被
+Git 忽略；token 與 credentials 不得寫入 repo 或 `.env.django`。切換前必須確認
+`/health/`；若新 connector 無法連線，可先重新啟動保留的舊
+`dmis-cloudflared-1` connector，再停止 `dmis-next-cloudflared-1` 回復服務。
 
 ### 舊 Odoo 主檔遷移
 

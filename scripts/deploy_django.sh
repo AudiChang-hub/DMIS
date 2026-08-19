@@ -87,12 +87,14 @@ log "啟動由 DMIS Next 管理的 Cloudflare Tunnel connector（HTTP/2）"
 cloudflared_id=$("${compose[@]}" ps -q cloudflared)
 [[ -n "$cloudflared_id" ]] || fail "找不到 cloudflared container"
 for attempt in $(seq 1 30); do
-    if docker logs "$cloudflared_id" 2>&1 | grep -q 'protocol=http2'; then
+    # 在 pipefail 下不可用 grep -q 提早關閉管線，否則 docker logs 可能因
+    # SIGPIPE 回傳非零，造成已連線的 tunnel 被誤判為失敗。
+    if docker logs "$cloudflared_id" 2>&1 | grep 'protocol=http2' >/dev/null; then
         break
     fi
     sleep 2
 done
-docker logs "$cloudflared_id" 2>&1 | grep -q 'protocol=http2' ||
+docker logs "$cloudflared_id" 2>&1 | grep 'protocol=http2' >/dev/null ||
     fail "Cloudflare Tunnel 未以 HTTP/2 完成連線"
 
 for attempt in $(seq 1 30); do

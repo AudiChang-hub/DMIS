@@ -46,7 +46,10 @@ from .models import (
     VehicleModelFamily,
     VehiclePriceVersion,
     VehicleSettlementCostRule,
+    canonical_vehicle_model_name,
+    canonical_vehicle_model_number,
     normalize_legacy_master_value,
+    normalize_vehicle_model_master_value,
     normalize_vehicle_identifier,
 )
 from .services.registration_fee import (
@@ -1392,14 +1395,15 @@ class VehicleModelMasterForm(forms.ModelForm):
             cleaned["brand"] = existing_family.brand
             cleaned["name"] = existing_family.name
         brand = (cleaned.get("brand") or "").strip()
-        name = (cleaned.get("name") or "").strip()
+        name = canonical_vehicle_model_name(cleaned.get("name"))
+        cleaned["name"] = name
         if not existing_family and not brand:
             self.add_error("brand", "建立新機種時請選擇品牌。")
         if not existing_family and not name:
             self.add_error("name", "建立新機種時請填寫機種名稱。")
         model_numbers = tuple(
             dict.fromkeys(
-                value.strip()
+                canonical_vehicle_model_number(value)
                 for value in re.split(r"[、,，\n\r]+", cleaned.get("model_number") or "")
                 if value.strip()
             )
@@ -1457,7 +1461,7 @@ class VehicleModelMasterForm(forms.ModelForm):
         self.save_m2m()
         factory_codes = []
         for code in model_numbers:
-            normalized_code = normalize_legacy_master_value(code)
+            normalized_code = normalize_vehicle_model_master_value(code)
             factory_code, created = VehicleFactoryModelCode.objects.get_or_create(
                 family=vehicle_model.family,
                 normalized_code=normalized_code,

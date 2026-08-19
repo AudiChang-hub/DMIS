@@ -30,13 +30,34 @@ def normalize_legacy_master_value(value):
     return re.sub(r"\s+", "", normalized)
 
 
+def _is_dr_z4sm_value(value):
+    """辨識已確認為同一機種／型號的 DR-Z4SM 歷史寫法。"""
+    key = normalize_legacy_master_value(value).replace("（", "(").replace("）", ")")
+    compact = re.sub(r"[-_]", "", key)
+    return compact in {"drz4sm", "drz4sm(滑胎版)"}
+
+
 def canonical_vehicle_model_name(value):
     """將已確認為同一機種的歷史名稱收斂成日常使用名稱。"""
     name = str(value or "").strip()
-    key = normalize_legacy_master_value(name).replace("（", "(").replace("）", ")")
-    if key == "dr-z4sm(滑胎版)":
-        return "DR-Z4SM"
+    if _is_dr_z4sm_value(name):
+        return "DR-Z4SM (滑胎版)"
     return name
+
+
+def canonical_vehicle_model_number(value):
+    """統一已確認為同一原廠型號的連字號寫法。"""
+    number = str(value or "").strip()
+    if _is_dr_z4sm_value(number):
+        return "DR-Z4SM"
+    return number
+
+
+def normalize_vehicle_model_master_value(value):
+    """車型主檔與歷史匯入共用比對鍵。"""
+    if _is_dr_z4sm_value(value):
+        return normalize_legacy_master_value("DR-Z4SM")
+    return normalize_legacy_master_value(value)
 
 
 class TaiwanCounty(models.TextChoices):
@@ -262,6 +283,11 @@ class VehicleModelFamily(TimeStampedModel):
     def __str__(self):
         return f"{self.brand}／{self.name}"
 
+    def save(self, *args, **kwargs):
+        self.brand = self.brand.strip()
+        self.name = canonical_vehicle_model_name(self.name)
+        return super().save(*args, **kwargs)
+
 
 class VehicleModel(TimeStampedModel):
     class EnergyType(models.TextChoices):
@@ -395,14 +421,16 @@ class VehicleModel(TimeStampedModel):
 
     def save(self, *args, **kwargs):
         if self.brand and self.name:
+            self.brand = self.brand.strip()
             self.name = canonical_vehicle_model_name(self.name)
+            self.model_number = canonical_vehicle_model_number(self.model_number)
             family = VehicleModelFamily.objects.filter(
-                brand__iexact=self.brand.strip(),
+                brand__iexact=self.brand,
                 name__iexact=self.name.strip(),
             ).first()
             if family is None:
                 family = VehicleModelFamily.objects.create(
-                    brand=self.brand.strip(),
+                    brand=self.brand,
                     name=self.name.strip(),
                     active=self.active,
                 )
@@ -448,8 +476,8 @@ class VehicleFactoryModelCode(TimeStampedModel):
         verbose_name_plural = "原廠型號"
 
     def save(self, *args, **kwargs):
-        self.code = self.code.strip()
-        self.normalized_code = normalize_legacy_master_value(self.code)
+        self.code = canonical_vehicle_model_number(self.code)
+        self.normalized_code = normalize_vehicle_model_master_value(self.code)
         return super().save(*args, **kwargs)
 
     def __str__(self):
@@ -1066,9 +1094,14 @@ class LegacyImportMasterMapping(TimeStampedModel):
 
     def save(self, *args, **kwargs):
         self.source_value = self.source_value.strip()
-        self.normalized_source_value = normalize_legacy_master_value(
-            self.source_value
-        )
+        if self.mapping_type == self.MappingType.VEHICLE_MODEL:
+            self.normalized_source_value = normalize_vehicle_model_master_value(
+                self.source_value
+            )
+        else:
+            self.normalized_source_value = normalize_legacy_master_value(
+                self.source_value
+            )
         self.full_clean()
         return super().save(*args, **kwargs)
 

@@ -122,6 +122,7 @@ from .models import (
     VehiclePriceVersion,
     VehicleSettlementCostRule,
     normalize_legacy_master_value,
+    normalize_vehicle_model_master_value,
     normalize_vehicle_identifier,
 )
 from .services.vehicle_brands import (
@@ -1113,7 +1114,7 @@ def legacy_import_detail(request, pk):
         rows = rows.filter(action=action)
     search_query = request.GET.get("q", "").strip()
     if search_query:
-        normalized_query = normalize_legacy_master_value(search_query)
+        normalized_query = normalize_vehicle_model_master_value(search_query)
         normalized_identifier = normalize_vehicle_identifier(search_query) or ""
         matching_models = VehicleModel.objects.filter(
             Q(brand__icontains=search_query)
@@ -1126,12 +1127,12 @@ def legacy_import_detail(request, pk):
         for model_id, name, model_number in matching_models:
             matching_model_ids.append(model_id)
             matching_model_aliases.update(
-                normalize_legacy_master_value(value)
+                normalize_vehicle_model_master_value(value)
                 for value in (name, model_number)
                 if value
             )
         matching_model_aliases.update(
-            normalize_legacy_master_value(value)
+            normalize_vehicle_model_master_value(value)
             for value in VehicleModel.objects.filter(pk__in=matching_model_ids)
             .values_list("factory_model_codes__code", flat=True)
             .distinct()
@@ -1153,8 +1154,9 @@ def legacy_import_detail(request, pk):
             for value in source_model_values
             if value
             and (
-                normalized_query in normalize_legacy_master_value(value)
-                or normalize_legacy_master_value(value) in matching_model_aliases
+                normalized_query in normalize_vehicle_model_master_value(value)
+                or normalize_vehicle_model_master_value(value)
+                in matching_model_aliases
             )
         }
         matching_source_models.update(mapped_source_values)
@@ -1288,10 +1290,13 @@ def legacy_import_master_resolve(request, pk, mapping_type):
     unresolved_values = (
         (batch.preview_summary or {}).get("validation", {}).get(validation_key, [])
     )
-    unresolved_keys = {
-        normalize_legacy_master_value(value) for value in unresolved_values
-    }
-    if normalize_legacy_master_value(source_value) not in unresolved_keys:
+    normalize_unresolved = (
+        normalize_vehicle_model_master_value
+        if mapping_type == LegacyImportMasterMapping.MappingType.VEHICLE_MODEL
+        else normalize_legacy_master_value
+    )
+    unresolved_keys = {normalize_unresolved(value) for value in unresolved_values}
+    if normalize_unresolved(source_value) not in unresolved_keys:
         messages.info(request, f"「{source_value or type_label}」已由其他操作處理，清單已更新。")
         return redirect(
             f"{reverse('legacy_import_detail', args=[batch.pk])}#master-data-workspace"

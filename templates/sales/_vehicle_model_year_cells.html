@@ -1,5 +1,19 @@
 <td data-label="型號">{{ item.model_number|default:"待補" }}</td>
-<td data-label="年份／型式"><strong>{{ item.model_year|default:"待補" }}</strong><span>{% if item.model_code %}{{ item.get_model_code_display }}{% else %}待補{% endif %}</span></td>
+<td data-label="年份／型式">
+  <strong>{{ item.model_year|default:"待補" }}</strong>
+  <span>{% if item.model_code %}{{ item.get_model_code_display }}{% else %}待補{% endif %}</span>
+  {% if show_year_action and family.version_count > 1 %}
+  <button
+    class="vehicle-model-year-trigger{% if family.display_is_search_match %} is-search-match{% endif %}"
+    type="button"
+    data-open-year-panel="vehicle-year-panel-{{ group_index }}-{{ family_index }}"
+    aria-haspopup="dialog"
+  >
+    <span>{{ family.version_count }} 個年式</span><span aria-hidden="true">›</span>
+  </button>
+  {% if family.display_is_search_match %}<small class="vehicle-model-search-match">符合搜尋</small>{% endif %}
+  {% endif %}
+</td>
 <td data-label="能源別">{{ item.get_energy_type_display }}</td>
 <td data-label="排氣量">{% if item.displacement_cc %}{{ item.displacement_cc }} c.c.{% else %}—{% endif %}</td>
 <td data-label="馬達功率（kW）">{% if item.motor_power_kw is not None %}{{ item.motor_power_kw|floatformat:2 }} kW{% else %}—{% endif %}</td>

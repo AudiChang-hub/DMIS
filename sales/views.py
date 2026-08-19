@@ -4785,7 +4785,14 @@ def vehicle_model_list(request):
             ),
         )
         group["models"] = []
+        inactive_section_started = False
         for family in families:
+            family["is_active"] = any(model.active for model in family["models"])
+            family["is_first_inactive"] = (
+                not family["is_active"] and not inactive_section_started
+            )
+            if not family["is_active"]:
+                inactive_section_started = True
             family["models"].sort(
                 key=lambda model: (
                     not model.active,

@@ -71,8 +71,13 @@
         <thead><tr><th>機種</th><th>型號</th><th>年份／型式</th><th>能源別</th><th>動力規格</th><th>目前建議售價</th><th>車行基礎傭金</th><th>啟用顏色</th><th>庫存</th><th>狀態</th><th></th></tr></thead>
         <tbody>
           {% for family in group.families %}
+          {% if family.is_first_inactive %}
+          <tr class="vehicle-model-inactive-divider">
+            <td colspan="11"><span aria-hidden="true">Ⅱ</span><strong>以下為已停用機種</strong><small>保留歷史資料，不會提供新增訂單選用</small></td>
+          </tr>
+          {% endif %}
           {% with item=family.display_model %}
-          <tr class="vehicle-model-family-group" data-family-group="{{ group.name }}::{{ family.key }}">
+          <tr class="vehicle-model-family-group{% if not family.is_active %} is-inactive{% endif %}" data-family-group="{{ group.name }}::{{ family.key }}">
             <td data-label="機種" class="vehicle-model-machine-cell">
               <strong>{{ family.name }}</strong>
               {% if family.child_brand_label %}<span class="vehicle-model-brand-badge">{{ family.child_brand_label }}</span>{% endif %}

@@ -18,7 +18,7 @@
 
     <div class="vehicle-year-drawer__list">
       {% for year_item in family.models %}
-      <article class="vehicle-year-card{% if year_item.pk == family.display_model.pk %} is-displayed{% endif %}">
+      <article class="vehicle-year-card{% if year_item.pk == family.display_model.pk %} is-displayed{% endif %}{% if not year_item.active %} is-inactive{% endif %}">
         <header>
           <div>
             <span>年式</span>
@@ -42,7 +42,11 @@
           <div><dt>庫存</dt><dd>{{ year_item.available_count }} 台可售／共 {{ year_item.inventory_count }} 台</dd></div>
         </dl>
         <footer>
-          <span class="status-pill">{{ year_item.active|yesno:"啟用中,已停用" }}</span>
+          {% if year_item.active %}
+          <span class="status-pill vehicle-model-status vehicle-model-status--active"><span aria-hidden="true">✓</span>啟用中</span>
+          {% else %}
+          <span class="status-pill vehicle-model-status vehicle-model-status--inactive"><span aria-hidden="true">Ⅱ</span>已停用</span>
+          {% endif %}
           <a class="button ghost small" href="{% url 'vehicle_model_edit' year_item.pk %}">編輯此年式</a>
         </footer>
       </article>

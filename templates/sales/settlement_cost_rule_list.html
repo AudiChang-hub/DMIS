@@ -2,8 +2,8 @@
 {% block title %}代銷結算成本｜車輛銷售管理{% endblock %}
 {% block page_class %}page-shell--wide{% endblock %}
 {% block content %}
-{% url 'vehicle_model_list' as model_list_url %}
-{% include "sales/_page_back.html" with fallback_url=model_list_url label="返回車型資料" %}
+{% url 'data_maintenance' as data_url %}
+{% include "sales/_page_back.html" with fallback_url=data_url label="返回資料維護區" %}
 <section class="hero-row compact-hero">
   <div>
     <p class="eyebrow">依領牌日認列成本</p>

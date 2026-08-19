@@ -91,6 +91,11 @@ class VehicleBrandMasterTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'data-brand-group="SUZUKI"')
         self.assertNotContains(response, 'data-brand-group="eMOVING"')
+        self.assertNotContains(
+            response,
+            '<details class="vehicle-brand-group"',
+            html=False,
+        )
         self.assertContains(response, "包含 eMOVING")
         self.assertContains(
             response,
@@ -135,7 +140,7 @@ class VehicleBrandMasterTests(TestCase):
         )
         self.assertEqual([model.pk for model in sym_group["models"]], [child_model.pk])
 
-    def test_filtered_vehicle_model_groups_are_opened_to_show_matches(self):
+    def test_filtered_vehicle_model_groups_remain_visible_without_brand_folding(self):
         VehicleModel.objects.create(
             brand="eMOVING",
             name="搜尋後展開車型",
@@ -149,8 +154,13 @@ class VehicleBrandMasterTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertTrue(response.context["filters_applied"])
-        self.assertTrue(response.context["vehicle_model_groups"][0]["initially_open"])
         self.assertContains(response, 'data-filtered="true"')
+        self.assertContains(response, 'data-brand-group="SUZUKI"')
+        self.assertNotContains(
+            response,
+            '<details class="vehicle-brand-group"',
+            html=False,
+        )
 
     def test_brand_page_shows_parent_brand_and_keeps_child_record(self):
         response = self.client.get(reverse("vehicle_brand_list"))

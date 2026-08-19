@@ -49,19 +49,13 @@
   <div class="vehicle-model-catalog__toolbar">
     <div>
       <strong>共 {{ vehicle_model_count }} 個機種</strong>
-      <span>{{ vehicle_model_version_count }} 筆年式／規格設定；同一機種的不同原廠型號集中顯示。</span>
+      <span>{{ vehicle_model_version_count }} 筆年式／規格設定；機種直接顯示，只有其他年式需要展開。</span>
     </div>
-    {% if vehicle_model_groups %}
-    <div class="vehicle-model-catalog__actions" aria-label="品牌區塊顯示方式">
-      <button class="button ghost small" type="button" data-brand-groups-expand>展開所有品牌</button>
-      <button class="button ghost small" type="button" data-brand-groups-collapse>收合所有品牌</button>
-    </div>
-    {% endif %}
   </div>
 
   {% for group in vehicle_model_groups %}
-  <details class="vehicle-brand-group" data-brand-group="{{ group.name }}"{% if group.initially_open %} open{% endif %}>
-    <summary>
+  <section class="vehicle-brand-group" data-brand-group="{{ group.name }}">
+    <header class="vehicle-brand-group__header">
       <span class="vehicle-brand-group__mark" aria-hidden="true">{{ group.name|slice:":1" }}</span>
       <span class="vehicle-brand-group__identity">
         <strong>{{ group.name }}</strong>
@@ -71,70 +65,54 @@
         <strong>{{ group.total_count }} 個機種</strong>
         <small>{{ group.version_count }} 筆設定 · {{ group.active_count }} 個啟用中</small>
       </span>
-      <span class="vehicle-brand-group__chevron" aria-hidden="true"></span>
-    </summary>
-    <div class="vehicle-model-family-list">
-      {% for family in group.families %}
-      <details class="vehicle-model-family-group" data-family-group="{{ group.name }}::{{ family.key }}"{% if family.initially_open %} open{% endif %}>
-        <summary>
-          <span class="vehicle-model-family-identity">
-            <strong>{{ family.name }}</strong>
-            {% if family.child_brand_label %}<span class="vehicle-model-brand-badge">{{ family.child_brand_label }}</span>{% endif %}
-            <small>{{ family.code_count }} 個原廠型號 · {{ family.version_count }} 筆年式／規格</small>
-            {% if family.factory_codes %}<span class="vehicle-model-family-codes">{{ family.factory_codes|join:"、" }}</span>{% endif %}
-          </span>
-          <span class="vehicle-model-family-metrics">
-            <span><small>年式／規格</small><strong>{{ family.year_summary }}</strong></span>
-            <span><small>能源別</small><strong>{{ family.energy_labels|join:"／" }}</strong></span>
-            <span><small>目前建議售價</small><strong>
-              {% if family.current_price_low is None %}尚未設定
-              {% elif family.current_price_low == family.current_price_high %}${{ family.current_price_low|floatformat:0 }}
-              {% else %}${{ family.current_price_low|floatformat:0 }}～${{ family.current_price_high|floatformat:0 }}{% endif %}
-            </strong></span>
-            <span><small>庫存</small><strong>{{ family.available_count }} 台可售</strong><em>共 {{ family.inventory_count }} 台</em></span>
-          </span>
-          <span class="status-pill">{% if family.active_count %}啟用中{% else %}已停用{% endif %}</span>
-          <span class="vehicle-model-family-chevron" aria-hidden="true"></span>
-        </summary>
-        <div class="vehicle-model-family-detail">
-          <div class="vehicle-model-family-detail__heading">
-            <div><strong>年式與規格</strong><span>售價、傭金、顏色及庫存依版本分開顯示</span></div>
-            <span>{{ family.version_count }} 筆設定</span>
-          </div>
-          <div class="inventory-table-wrap">
-            <table class="inventory-table master-model-table">
-              <thead><tr><th>型號</th><th>年份／型式</th><th>能源別</th><th>排氣量</th><th>馬達功率（kW）</th><th>目前建議售價</th><th>車行基礎傭金</th><th>啟用顏色</th><th>庫存</th><th>狀態</th><th></th></tr></thead>
-              <tbody>
-                {% for item in family.models %}
-                <tr>
-                  <td data-label="型號">{{ item.model_number|default:"待補" }}</td>
-                  <td data-label="年份／型式"><strong>{{ item.model_year|default:"待補" }}</strong><span>{% if item.model_code %}{{ item.get_model_code_display }}{% else %}待補{% endif %}</span></td>
-                  <td data-label="能源別">{{ item.get_energy_type_display }}</td>
-                  <td data-label="排氣量">{% if item.displacement_cc %}{{ item.displacement_cc }} c.c.{% else %}—{% endif %}</td>
-                  <td data-label="馬達功率（kW）">{% if item.motor_power_kw is not None %}{{ item.motor_power_kw|floatformat:2 }} kW{% else %}—{% endif %}</td>
-                  <td data-label="目前建議售價">{% if item.current_suggested_price %}${{ item.current_suggested_price|floatformat:0 }}{% else %}尚未設定{% endif %}</td>
-                  <td data-label="車行基礎傭金"><strong>${{ item.base_dealer_commission|floatformat:0 }}</strong><span>特定車行加減另於車行資料設定</span></td>
-                  <td data-label="啟用顏色">{{ item.active_color_count }} 種</td>
-                  <td data-label="庫存"><strong>{{ item.available_count }} 台可售</strong><span>共 {{ item.inventory_count }} 台</span></td>
-                  <td data-label="狀態"><span class="status-pill">{{ item.active|yesno:"啟用中,已停用" }}</span></td>
-                  <td class="inventory-row-action"><a class="button ghost small" href="{% url 'vehicle_model_edit' item.pk %}">編輯</a></td>
-                </tr>
-                {% endfor %}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </details>
-      {% empty %}
-      <div class="empty-state"><strong>此品牌尚無符合條件的機種</strong></div>
-      {% endfor %}
+    </header>
+    <div class="inventory-table-wrap vehicle-model-overview-table">
+      <table class="inventory-table master-model-table">
+        <thead><tr><th>機種</th><th>型號</th><th>年份／型式</th><th>能源別</th><th>排氣量</th><th>馬達功率（kW）</th><th>目前建議售價</th><th>車行基礎傭金</th><th>啟用顏色</th><th>庫存</th><th>狀態</th><th></th></tr></thead>
+        <tbody>
+          {% for family in group.families %}
+          {% with item=family.current_models.0 %}
+          <tr class="vehicle-model-family-group" data-family-group="{{ group.name }}::{{ family.key }}">
+            <td data-label="機種" class="vehicle-model-machine-cell">
+              <strong>{{ family.name }}</strong>
+              {% if family.child_brand_label %}<span class="vehicle-model-brand-badge">{{ family.child_brand_label }}</span>{% endif %}
+              <span>{{ family.code_count }} 個原廠型號 · {{ family.version_count }} 筆年式／規格</span>
+              {% if family.factory_codes %}<span class="vehicle-model-family-codes">{{ family.factory_codes|join:"、" }}</span>{% endif %}
+            </td>
+            {% include "sales/_vehicle_model_year_cells.html" with item=item %}
+          </tr>
+          {% endwith %}
+          {% if family.history_count %}
+          <tr class="vehicle-model-year-history-row">
+            <td colspan="12">
+              <details class="vehicle-model-year-history"{% if family.history_initially_open %} open{% endif %}>
+                <summary>
+                  <span><strong>查看 {{ family.name }} 的其他 {{ family.history_count }} 個年式</strong><small>過往年式、售價與庫存資料</small></span>
+                  <span class="vehicle-model-year-history__chevron" aria-hidden="true"></span>
+                </summary>
+                <div class="inventory-table-wrap vehicle-model-history-table">
+                  <table class="inventory-table master-model-table">
+                    <thead><tr><th>型號</th><th>年份／型式</th><th>能源別</th><th>排氣量</th><th>馬達功率（kW）</th><th>目前建議售價</th><th>車行基礎傭金</th><th>啟用顏色</th><th>庫存</th><th>狀態</th><th></th></tr></thead>
+                    <tbody>
+                      {% for item in family.history_models %}
+                      <tr>{% include "sales/_vehicle_model_year_cells.html" with item=item %}</tr>
+                      {% endfor %}
+                    </tbody>
+                  </table>
+                </div>
+              </details>
+            </td>
+          </tr>
+          {% endif %}
+          {% empty %}
+          <tr><td colspan="12"><div class="empty-state"><strong>此品牌尚無符合條件的機種</strong></div></td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
     </div>
-  </details>
+  </section>
   {% empty %}
   <div class="empty-state"><strong>尚無符合條件的車型</strong><span>請調整搜尋或篩選條件後再試一次。</span></div>
   {% endfor %}
 </section>
-{% endblock %}
-{% block scripts %}
-<script src="{% static 'js/vehicle-model-groups.js' %}?v={{ app_version }}" defer></script>
 {% endblock %}

@@ -825,7 +825,7 @@ InstallmentPlanOptionFormSet = inlineformset_factory(
     InstallmentPlanVersion,
     InstallmentPlanOption,
     form=InstallmentPlanOptionForm,
-    extra=1,
+    extra=0,
     can_delete=True,
 )
 

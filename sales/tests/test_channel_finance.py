@@ -288,6 +288,29 @@ class ChannelFinanceTests(TestCase):
         self.assertContains(response, "新增下一版本")
         self.assertContains(response, "儲存變更")
 
+    def test_existing_installment_plan_does_not_append_blank_option_row(self):
+        self.client.force_login(self.user)
+
+        response = self.client.get(
+            f"{reverse('vehicle_installment_plan_list', args=[self.model.pk])}"
+            f"?edit={self.plan.pk}"
+        )
+
+        formset = response.context["option_formset"]
+        self.assertEqual(formset.initial_form_count(), 1)
+        self.assertEqual(formset.total_form_count(), 1)
+
+    def test_new_installment_plan_starts_with_one_blank_option_row(self):
+        self.client.force_login(self.user)
+
+        response = self.client.get(
+            reverse("vehicle_installment_plan_list", args=[self.model.pk])
+        )
+
+        formset = response.context["option_formset"]
+        self.assertEqual(formset.initial_form_count(), 0)
+        self.assertEqual(formset.total_form_count(), 1)
+
     def test_installment_page_keeps_quick_created_companies_for_future_rows(self):
         self.client.force_login(self.user)
         response = self.client.get(

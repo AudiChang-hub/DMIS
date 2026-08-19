@@ -37,6 +37,13 @@ def _is_dr_z4sm_value(value):
     return compact in {"drz4sm", "drz4sm(滑胎版)"}
 
 
+def _is_dr_z4s_model_number(value):
+    """辨識 DR-Z4S 越野版原廠型號的歷史連字號寫法。"""
+    key = normalize_legacy_master_value(value)
+    compact = re.sub(r"[-_]", "", key)
+    return compact == "drz4s"
+
+
 def canonical_vehicle_model_name(value):
     """將已確認為同一機種的歷史名稱收斂成日常使用名稱。"""
     name = str(value or "").strip()
@@ -50,6 +57,8 @@ def canonical_vehicle_model_number(value):
     number = str(value or "").strip()
     if _is_dr_z4sm_value(number):
         return "DR-Z4SM"
+    if _is_dr_z4s_model_number(number):
+        return "DR-Z4S"
     return number
 
 
@@ -57,6 +66,8 @@ def normalize_vehicle_model_master_value(value):
     """車型主檔與歷史匯入共用比對鍵。"""
     if _is_dr_z4sm_value(value):
         return normalize_legacy_master_value("DR-Z4SM")
+    if _is_dr_z4s_model_number(value):
+        return normalize_legacy_master_value("DR-Z4S")
     return normalize_legacy_master_value(value)
 
 

@@ -716,6 +716,25 @@ class OrderFlowTests(TestCase):
         self.assertEqual(second.family_id, model.family_id)
         self.assertEqual(VehicleFactoryModelCode.objects.count(), 1)
 
+    def test_dr_z4s_model_number_is_normalized_without_changing_machine_name(self):
+        model = VehicleModel.objects.create(
+            brand="SUZUKI",
+            name="DR-Z4S (越野版)",
+            model_number="DRZ-4S",
+            model_year=2026,
+            model_code=VehicleModel.ModelType.ABS_DUAL_DISC,
+            energy_type=VehicleModel.EnergyType.GAS,
+            displacement_cc=398,
+        )
+
+        self.assertEqual(model.name, "DR-Z4S (越野版)")
+        self.assertEqual(model.model_number, "DR-Z4S")
+        self.assertEqual(model.family.name, "DR-Z4S (越野版)")
+        self.assertEqual(
+            list(model.factory_model_codes.values_list("code", flat=True)),
+            ["DR-Z4S"],
+        )
+
     def test_vehicle_model_list_counts_only_active_colors(self):
         VehicleColor.objects.create(
             vehicle_model=self.model,

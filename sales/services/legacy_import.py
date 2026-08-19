@@ -28,6 +28,7 @@ from sales.models import (
     VehicleInventory,
     VehicleModel,
     normalize_legacy_master_value,
+    normalize_vehicle_model_master_value,
     normalize_vehicle_identifier,
 )
 
@@ -81,8 +82,14 @@ def _friendly_import_exception(exc):
     return friendly_import_message(exc)
 
 
+def _normalize_master_mapping_value(mapping_type, source_value):
+    if mapping_type == LegacyImportMasterMapping.MappingType.VEHICLE_MODEL:
+        return normalize_vehicle_model_master_value(source_value)
+    return normalize_legacy_master_value(source_value)
+
+
 def _legacy_master_mapping(mapping_type, source_value):
-    normalized = normalize_legacy_master_value(source_value)
+    normalized = _normalize_master_mapping_value(mapping_type, source_value)
     if not normalized:
         return None
     return (
@@ -108,7 +115,7 @@ def save_import_master_mapping(
     ignored=False,
     note="",
 ):
-    normalized = normalize_legacy_master_value(source_value)
+    normalized = _normalize_master_mapping_value(mapping_type, source_value)
     if not normalized:
         raise ValueError("缺少要處理的 Excel 原始名稱。")
     mapping = (
@@ -139,7 +146,7 @@ def build_import_master_workspace(batch):
     unmapped_models = validation.get("unmapped_models", [])
     unmapped_sources = validation.get("unmapped_sources", [])
     wanted_model_keys = {
-        normalize_legacy_master_value(value): value for value in unmapped_models
+        normalize_vehicle_model_master_value(value): value for value in unmapped_models
     }
     wanted_source_keys = {
         normalize_legacy_master_value(value): value for value in unmapped_sources
@@ -162,7 +169,7 @@ def build_import_master_workspace(batch):
         "sheet_name", "source_row", "mapped_data"
     )
     for sheet_name, source_row, data in rows.iterator(chunk_size=500):
-        model_key = normalize_legacy_master_value(data.get("model_number"))
+        model_key = normalize_vehicle_model_master_value(data.get("model_number"))
         if model_key in model_stats:
             model_stat = model_stats[model_key]
             model_stat["row_count"] += 1
@@ -873,7 +880,7 @@ def revalidate_import_batch(batch):
         sales_rows = [row for row in active_rows if row.sheet_name == "銷貨"]
         inventory_rows = [row for row in active_rows if row.sheet_name == "進貨"]
         known_models = {
-            normalize_legacy_master_value(value)
+            normalize_vehicle_model_master_value(value)
             for pair in VehicleModel.objects.values_list("model_number", "name")
             for value in pair
             if value
@@ -917,7 +924,9 @@ def revalidate_import_batch(batch):
                 if row.mapped_data.get("model_number")
                 and not _is_empty_sales_placeholder(row.mapped_data)
                 and not _is_non_vehicle_sales_noise(row.mapped_data)
-                and normalize_legacy_master_value(row.mapped_data["model_number"])
+                and normalize_vehicle_model_master_value(
+                    row.mapped_data["model_number"]
+                )
                 not in known_models
             }),
             "unmapped_sources": sorted({
@@ -1051,7 +1060,7 @@ def _model_for_number(model_number):
     return (
         VehicleModel.objects.filter(model_number__iexact=model_number).first()
         or VehicleModel.objects.filter(
-            factory_model_codes__normalized_code=normalize_legacy_master_value(
+            factory_model_codes__normalized_code=normalize_vehicle_model_master_value(
                 model_number
             )
         ).first()

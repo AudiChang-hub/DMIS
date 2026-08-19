@@ -767,6 +767,34 @@ class LegacyImportTests(TestCase):
         self.assertContains(response, "引擎／車身號碼")
         self.assertContains(response, "ABC-1234")
 
+    def test_dr_z4sm_import_aliases_share_one_master_mapping(self):
+        target = VehicleModel.objects.create(
+            brand="SUZUKI",
+            name="DR-Z4SM (滑胎版)",
+            model_number="DR-Z4SM",
+            energy_type=VehicleModel.EnergyType.GAS,
+            model_year=2026,
+            model_code=VehicleModel.ModelType.ABS_DUAL_DISC,
+            displacement_cc=398,
+        )
+
+        save_import_master_mapping(
+            mapping_type=LegacyImportMasterMapping.MappingType.VEHICLE_MODEL,
+            source_value="DRZ-4SM",
+            vehicle_model=target,
+            actor_name="tester",
+        )
+        save_import_master_mapping(
+            mapping_type=LegacyImportMasterMapping.MappingType.VEHICLE_MODEL,
+            source_value="DR-Z4SM (滑胎版)",
+            vehicle_model=target,
+            actor_name="tester",
+        )
+
+        mapping = LegacyImportMasterMapping.objects.get()
+        self.assertEqual(mapping.normalized_source_value, "dr-z4sm")
+        self.assertEqual(mapping.vehicle_model_id, target.pk)
+
     def test_preview_rows_search_by_linked_machine_model_number_and_identifier(self):
         batch = self.make_batch(LegacyImportBatch.ImportType.OPERATIONS)
         build_import_preview(batch)

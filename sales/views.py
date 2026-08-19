@@ -4774,7 +4774,7 @@ def vehicle_model_list(request):
         key=lambda group: (group["display_order"], group["name"].casefold()),
     )
     filters_applied = bool(keyword or energy_type or active)
-    for index, group in enumerate(vehicle_model_groups):
+    for group in vehicle_model_groups:
         families = sorted(
             group["families"].values(),
             key=lambda family: (
@@ -4842,9 +4842,15 @@ def vehicle_model_list(request):
             )
             family["current_price_low"] = current_prices[0] if current_prices else None
             family["current_price_high"] = current_prices[-1] if current_prices else None
-            family["initially_open"] = bool(
+            family["current_models"] = family["models"][:1]
+            family["history_models"] = family["models"][1:]
+            family["history_count"] = len(family["history_models"])
+            family["history_initially_open"] = bool(
                 keyword
-                and any(model.pk in matched_model_ids for model in family["models"])
+                and any(
+                    model.pk in matched_model_ids
+                    for model in family["history_models"]
+                )
             )
             group["active_count"] += int(bool(family["active_count"]))
             for family_index, model in enumerate(family["models"]):
@@ -4861,7 +4867,6 @@ def vehicle_model_list(request):
         )
         group["total_count"] = len(families)
         group["version_count"] = len(group["models"])
-        group["initially_open"] = filters_applied or index == 0
 
     vehicle_model_count = sum(group["total_count"] for group in vehicle_model_groups)
 

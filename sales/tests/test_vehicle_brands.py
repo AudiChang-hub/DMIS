@@ -71,6 +71,55 @@ class VehicleBrandMasterTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, child_model.name)
 
+    def test_vehicle_model_list_uses_root_brand_logo_with_initial_fallback(self):
+        with tempfile.TemporaryDirectory() as media_root, override_settings(
+            MEDIA_ROOT=media_root
+        ):
+            suzuki = VehicleBrand.objects.get(name="SUZUKI")
+            suzuki.logo = SimpleUploadedFile(
+                "suzuki-logo.png",
+                b"test-suzuki-logo",
+                content_type="image/png",
+            )
+            suzuki.save(update_fields=["logo", "updated_at"])
+            VehicleModel.objects.create(
+                brand="SUZUKI",
+                name="LOGO 顯示測試車",
+                model_number="LOGO-01",
+                model_year=2026,
+                model_code=VehicleModel.ModelType.DRUM,
+                energy_type=VehicleModel.EnergyType.GAS,
+            )
+            VehicleModel.objects.create(
+                brand="SYM",
+                name="首字備援測試車",
+                model_number="FALLBACK-01",
+                model_year=2026,
+                model_code=VehicleModel.ModelType.DRUM,
+                energy_type=VehicleModel.EnergyType.GAS,
+            )
+
+            response = self.client.get(reverse("vehicle_model_list"))
+
+            logo_url = reverse("vehicle_brand_logo", args=[suzuki.pk])
+            suzuki_group = next(
+                group
+                for group in response.context["vehicle_model_groups"]
+                if group["name"] == "SUZUKI"
+            )
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(suzuki_group["logo_brand"], suzuki)
+            self.assertContains(response, logo_url)
+            self.assertContains(response, "vehicle-brand-group__mark has-logo")
+            self.assertNotContains(response, f'src="{suzuki.logo.url}')
+
+            sym_group = next(
+                group
+                for group in response.context["vehicle_model_groups"]
+                if group["name"] == "SYM"
+            )
+            self.assertIsNone(sym_group["logo_brand"])
+
     def test_vehicle_model_list_keeps_two_visual_levels_for_child_brand(self):
         root_model = VehicleModel.objects.create(
             brand="SUZUKI",

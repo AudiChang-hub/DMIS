@@ -858,6 +858,10 @@ def vehicle_installment_plan_list(request, model_pk):
     option_formset = InstallmentPlanOptionFormSet(
         post_data, instance=plan, prefix="options"
     )
+    if request.method == "GET" and not (plan.pk and plan.options.exists()):
+        # 新版本或尚未設定期數的版本，提供第一列方便開始填寫；
+        # 已有期數時只呈現實際資料，避免讓使用者誤以為尚有一筆未完成。
+        option_formset.extra = 1
     if request.method == "POST" and form.is_valid() and option_formset.is_valid():
         plan = form.save(commit=False)
         plan.vehicle_model = vehicle_model
@@ -4676,6 +4680,7 @@ def vehicle_model_list(request):
             output_field=DecimalField(max_digits=12, decimal_places=0),
         ),
     )
+    matched_model_ids = set()
     if keyword:
         match_query = (
             vehicle_brand_search_q(keyword)
@@ -4686,7 +4691,10 @@ def vehicle_model_list(request):
             | Q(model_code__icontains=keyword)
             | Q(colors__name__icontains=keyword)
         )
+        if keyword.isdigit() and len(keyword) == 4:
+            match_query |= Q(model_year=int(keyword))
         matched = models.filter(match_query).distinct()
+        matched_model_ids = set(matched.values_list("pk", flat=True))
         matched_family_ids = list(
             matched.exclude(family_id__isnull=True)
             .values_list("family_id", flat=True)
@@ -4750,6 +4758,7 @@ def vehicle_model_list(request):
         family = group["families"].setdefault(
             family_key,
             {
+                "key": str(family_key),
                 "name": family_name,
                 "models": [],
                 "child_brand_label": model.child_brand_label,
@@ -4800,6 +4809,43 @@ def vehicle_model_list(request):
             family["version_count"] = len(family["models"])
             family["active_count"] = sum(model.active for model in family["models"])
             family["code_count"] = len(family["factory_codes"])
+            family["available_count"] = sum(
+                model.available_count for model in family["models"]
+            )
+            family["inventory_count"] = sum(
+                model.inventory_count for model in family["models"]
+            )
+            family["active_color_count"] = sum(
+                model.active_color_count for model in family["models"]
+            )
+            family["year_labels"] = list(
+                dict.fromkeys(
+                    str(model.model_year) if model.model_year else "待補"
+                    for model in family["models"]
+                )
+            )
+            family["year_summary"] = family["year_labels"][0]
+            if family["version_count"] > 1:
+                family["year_summary"] = (
+                    f"{family['year_labels'][0]} 等 {family['version_count']} 筆設定"
+                )
+            family["energy_labels"] = sorted(
+                {model.get_energy_type_display() for model in family["models"]},
+                key=str.casefold,
+            )
+            current_prices = sorted(
+                {
+                    model.current_suggested_price
+                    for model in family["models"]
+                    if model.current_suggested_price is not None
+                }
+            )
+            family["current_price_low"] = current_prices[0] if current_prices else None
+            family["current_price_high"] = current_prices[-1] if current_prices else None
+            family["initially_open"] = bool(
+                keyword
+                and any(model.pk in matched_model_ids for model in family["models"])
+            )
             group["active_count"] += int(bool(family["active_count"]))
             for family_index, model in enumerate(family["models"]):
                 model.show_family_cell = family_index == 0
@@ -4809,6 +4855,7 @@ def vehicle_model_list(request):
                 model.family_code_count = family["code_count"]
                 model.family_factory_codes = family["factory_codes"]
                 group["models"].append(model)
+        group["families"] = families
         group["child_brands"] = sorted(
             group["child_brands"], key=str.casefold
         )

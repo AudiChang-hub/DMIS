@@ -367,6 +367,19 @@ class OrderFlowTests(TestCase):
                     f'href="{model_url}" data-smart-back',
                 )
 
+    def test_vehicle_model_edit_returns_directly_to_model_list(self):
+        self.client.force_login(self.user)
+        list_url = reverse("vehicle_model_list")
+
+        response = self.client.get(reverse("vehicle_model_edit", args=[self.model.pk]))
+
+        self.assertContains(response, f'href="{list_url}"')
+        self.assertContains(response, "返回車型資料")
+        self.assertNotContains(
+            response,
+            f'href="{list_url}" data-smart-back',
+        )
+
     def test_vehicle_model_type_supports_drum(self):
         self.client.force_login(self.user)
 
@@ -680,9 +693,29 @@ class OrderFlowTests(TestCase):
         self.assertEqual(first.family_id, second.family_id)
         self.assertEqual(response.context["vehicle_model_count"], 1)
         self.assertEqual(response.context["vehicle_model_version_count"], 2)
-        self.assertContains(response, 'rowspan="2"', html=False)
+        family = next(
+            family
+            for group in response.context["vehicle_model_groups"]
+            for family in group["families"]
+            if family["name"] == "eReady Fun"
+        )
+        self.assertEqual(family["version_count"], 2)
+        self.assertEqual(family["year_summary"], "2026 等 2 筆設定")
+        self.assertTrue(family["initially_open"])
+        self.assertNotContains(response, 'rowspan="2"', html=False)
+        self.assertContains(response, 'class="vehicle-model-family-group"', html=False)
         self.assertContains(response, "2 個原廠型號")
         self.assertContains(response, "EV060L、EV062")
+
+        year_response = self.client.get(reverse("vehicle_model_list"), {"q": "2025"})
+        year_family = next(
+            family
+            for group in year_response.context["vehicle_model_groups"]
+            for family in group["families"]
+            if family["name"] == "eReady Fun"
+        )
+        self.assertTrue(year_family["initially_open"])
+        self.assertEqual(year_response.context["vehicle_model_count"], 1)
 
     def test_legacy_dr_z4sm_label_is_normalized_to_machine_name(self):
         model = VehicleModel.objects.create(

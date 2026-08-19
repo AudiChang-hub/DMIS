@@ -49,7 +49,7 @@
   <div class="vehicle-model-catalog__toolbar">
     <div>
       <strong>共 {{ vehicle_model_count }} 個機種</strong>
-      <span>{{ vehicle_model_version_count }} 筆年式／規格設定；機種直接顯示，只有其他年式需要展開。</span>
+      <span>{{ vehicle_model_version_count }} 筆年式／規格設定；主表每個機種固定一列，其他年式由右側面板查看。</span>
     </div>
   </div>
 
@@ -71,7 +71,7 @@
         <thead><tr><th>機種</th><th>型號</th><th>年份／型式</th><th>能源別</th><th>排氣量</th><th>馬達功率（kW）</th><th>目前建議售價</th><th>車行基礎傭金</th><th>啟用顏色</th><th>庫存</th><th>狀態</th><th></th></tr></thead>
         <tbody>
           {% for family in group.families %}
-          {% with item=family.current_models.0 %}
+          {% with item=family.display_model %}
           <tr class="vehicle-model-family-group" data-family-group="{{ group.name }}::{{ family.key }}">
             <td data-label="機種" class="vehicle-model-machine-cell">
               <strong>{{ family.name }}</strong>
@@ -79,40 +79,26 @@
               <span>{{ family.code_count }} 個原廠型號 · {{ family.version_count }} 筆年式／規格</span>
               {% if family.factory_codes %}<span class="vehicle-model-family-codes">{{ family.factory_codes|join:"、" }}</span>{% endif %}
             </td>
-            {% include "sales/_vehicle_model_year_cells.html" with item=item %}
+            {% include "sales/_vehicle_model_year_cells.html" with item=item family=family show_year_action=True group_index=forloop.parentloop.counter family_index=forloop.counter %}
           </tr>
           {% endwith %}
-          {% if family.history_count %}
-          <tr class="vehicle-model-year-history-row">
-            <td colspan="12">
-              <details class="vehicle-model-year-history"{% if family.history_initially_open %} open{% endif %}>
-                <summary>
-                  <span><strong>查看 {{ family.name }} 的其他 {{ family.history_count }} 個年式</strong><small>過往年式、售價與庫存資料</small></span>
-                  <span class="vehicle-model-year-history__chevron" aria-hidden="true"></span>
-                </summary>
-                <div class="inventory-table-wrap vehicle-model-history-table">
-                  <table class="inventory-table master-model-table">
-                    <thead><tr><th>型號</th><th>年份／型式</th><th>能源別</th><th>排氣量</th><th>馬達功率（kW）</th><th>目前建議售價</th><th>車行基礎傭金</th><th>啟用顏色</th><th>庫存</th><th>狀態</th><th></th></tr></thead>
-                    <tbody>
-                      {% for item in family.history_models %}
-                      <tr>{% include "sales/_vehicle_model_year_cells.html" with item=item %}</tr>
-                      {% endfor %}
-                    </tbody>
-                  </table>
-                </div>
-              </details>
-            </td>
-          </tr>
-          {% endif %}
           {% empty %}
           <tr><td colspan="12"><div class="empty-state"><strong>此品牌尚無符合條件的機種</strong></div></td></tr>
           {% endfor %}
         </tbody>
       </table>
     </div>
+    {% for family in group.families %}
+      {% if family.version_count > 1 %}
+        {% include "sales/_vehicle_model_year_panel.html" with family=family group_index=forloop.parentloop.counter family_index=forloop.counter %}
+      {% endif %}
+    {% endfor %}
   </section>
   {% empty %}
   <div class="empty-state"><strong>尚無符合條件的車型</strong><span>請調整搜尋或篩選條件後再試一次。</span></div>
   {% endfor %}
 </section>
+{% endblock %}
+{% block scripts %}
+<script src="{% static 'js/vehicle-model-year-panels.js' %}?v={{ app_version }}" defer></script>
 {% endblock %}

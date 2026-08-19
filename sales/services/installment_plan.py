@@ -33,7 +33,7 @@ def resolve_installment_plan_option(vehicle_model_id, order_date, periods):
     return version.options.select_related("company").filter(periods=periods).first()
 
 
-def calculate_expected_disbursement(option, vehicle_price):
+def calculate_base_expected_disbursement(option, vehicle_price):
     if not option:
         return None
     method = option.expected_disbursement_method
@@ -50,9 +50,18 @@ def calculate_expected_disbursement(option, vehicle_price):
     return None
 
 
+def calculate_expected_disbursement(option, vehicle_price):
+    base_amount = calculate_base_expected_disbursement(option, vehicle_price)
+    if base_amount is None:
+        return None
+    return base_amount + (option.extra_disbursement_bonus or Decimal("0"))
+
+
 def installment_option_payload(option, vehicle_price=None):
     if not option:
         return None
+    base_disbursement = calculate_base_expected_disbursement(option, vehicle_price)
+    expected_disbursement = calculate_expected_disbursement(option, vehicle_price)
     return {
         "option_id": option.pk,
         "version_id": option.version_id,
@@ -76,14 +85,15 @@ def installment_option_payload(option, vehicle_price=None):
             if option.expected_disbursement_fixed_amount is not None
             else None
         ),
+        "base_expected_disbursement_amount": (
+            int(base_disbursement) if base_disbursement is not None else None
+        ),
+        "extra_disbursement_bonus": int(
+            option.extra_disbursement_bonus or Decimal("0")
+        ),
         "expected_disbursement_amount": (
-            int(calculated)
-            if (
-                calculated := calculate_expected_disbursement(
-                    option, vehicle_price
-                )
-            ) is not None
-            else None
+            int(expected_disbursement)
+            if expected_disbursement is not None else None
         ),
         "effective_from": option.version.effective_from.isoformat(),
         "effective_to": (
@@ -123,6 +133,8 @@ def apply_order_installment_snapshot(order):
             "opening_fee": int(order.installment_opening_fee or Decimal("0")),
             "expected_disbursement_method": "manual",
             "expected_disbursement_method_label": "本單另填",
+            "base_expected_disbursement_amount": None,
+            "extra_disbursement_bonus": 0,
             "expected_disbursement_amount": None,
             "captured_at": timezone.now().isoformat(),
         }
@@ -135,6 +147,15 @@ def apply_order_installment_snapshot(order):
         return None
 
     payload = installment_option_payload(option, order.vehicle_price)
+    company_matches = order.installment_company == option.company.name
+    if not company_matches and payload["extra_disbursement_bonus"]:
+        payload["configured_extra_disbursement_bonus"] = payload[
+            "extra_disbursement_bonus"
+        ]
+        payload["extra_disbursement_bonus"] = 0
+        payload["expected_disbursement_amount"] = payload[
+            "base_expected_disbursement_amount"
+        ]
     payload["manual_override"] = any(
         (
             order.installment_company != option.company.name,

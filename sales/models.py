@@ -646,6 +646,14 @@ class InstallmentPlanOption(TimeStampedModel):
         null=True,
         validators=[MinValueValidator(0)],
     )
+    extra_disbursement_bonus = models.DecimalField(
+        "額外撥款獎金",
+        max_digits=12,
+        decimal_places=0,
+        default=0,
+        validators=[MinValueValidator(0)],
+        help_text="分期公司在基礎撥款外另給的獎金；會加進預估撥款總額。",
+    )
 
     class Meta:
         ordering = ["periods", "id"]

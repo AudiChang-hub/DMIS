@@ -112,7 +112,7 @@
         {% for option in current_installment_options %}
         <div class="installment-card-option">
           <div><strong>{{ option.periods }} 期</strong><span>{{ option.company.name }}</span></div>
-          <div><span>每期 ${{ option.monthly_amount|floatformat:0 }}</span><small>開辦費 ${{ option.opening_fee|floatformat:0 }}</small></div>
+          <div><span>每期 ${{ option.monthly_amount|floatformat:0 }}</span><small>開辦費 ${{ option.opening_fee|floatformat:0 }}{% if option.extra_disbursement_bonus %} · 額外撥款獎金 ${{ option.extra_disbursement_bonus|floatformat:0 }}{% endif %}</small></div>
         </div>
         {% empty %}
         <div class="installment-card-empty">此版本尚未設定期數與金額</div>
@@ -127,7 +127,7 @@
         {% for option in upcoming_installment_options %}
         <div class="installment-card-option installment-card-option--future">
           <div><strong>{{ option.periods }} 期</strong><span>{{ option.company.name }}</span></div>
-          <div><span>每期 ${{ option.monthly_amount|floatformat:0 }}</span><small>開辦費 ${{ option.opening_fee|floatformat:0 }}</small></div>
+          <div><span>每期 ${{ option.monthly_amount|floatformat:0 }}</span><small>開辦費 ${{ option.opening_fee|floatformat:0 }}{% if option.extra_disbursement_bonus %} · 額外撥款獎金 ${{ option.extra_disbursement_bonus|floatformat:0 }}{% endif %}</small></div>
         </div>
         {% empty %}
         <div class="installment-card-empty">預計版本尚未設定期數與金額</div>

@@ -687,16 +687,34 @@ class OrderFlowTests(TestCase):
     def test_legacy_dr_z4sm_label_is_normalized_to_machine_name(self):
         model = VehicleModel.objects.create(
             brand="SUZUKI",
-            name="DR-Z4SM (滑胎版)",
-            model_number="DRZ4SM",
+            name="DRZ-4SM",
+            model_number="DRZ-4SM",
             model_year=2026,
             model_code=VehicleModel.ModelType.ABS_DUAL_DISC,
             energy_type=VehicleModel.EnergyType.GAS,
             displacement_cc=398,
         )
 
-        self.assertEqual(model.name, "DR-Z4SM")
-        self.assertEqual(model.family.name, "DR-Z4SM")
+        self.assertEqual(model.name, "DR-Z4SM (滑胎版)")
+        self.assertEqual(model.model_number, "DR-Z4SM")
+        self.assertEqual(model.family.name, "DR-Z4SM (滑胎版)")
+        self.assertEqual(
+            list(model.factory_model_codes.values_list("code", flat=True)),
+            ["DR-Z4SM"],
+        )
+
+        second = VehicleModel.objects.create(
+            brand="SUZUKI",
+            name="DR-Z4SM (滑胎版)",
+            model_number="DR-Z4SM",
+            model_year=2025,
+            model_code=VehicleModel.ModelType.ABS_DUAL_DISC,
+            energy_type=VehicleModel.EnergyType.GAS,
+            displacement_cc=398,
+        )
+
+        self.assertEqual(second.family_id, model.family_id)
+        self.assertEqual(VehicleFactoryModelCode.objects.count(), 1)
 
     def test_vehicle_model_list_counts_only_active_colors(self):
         VehicleColor.objects.create(

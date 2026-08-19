@@ -15,8 +15,13 @@
   {% endif %}
 </td>
 <td data-label="能源別">{{ item.get_energy_type_display }}</td>
-<td data-label="排氣量">{% if item.displacement_cc %}{{ item.displacement_cc }} c.c.{% else %}—{% endif %}</td>
-<td data-label="馬達功率（kW）">{% if item.motor_power_kw is not None %}{{ item.motor_power_kw|floatformat:2 }} kW{% else %}—{% endif %}</td>
+<td data-label="動力規格">
+  {% if item.energy_type == "gas" %}
+    <strong>{% if item.displacement_cc %}{{ item.displacement_cc }} c.c.{% else %}待補{% endif %}</strong><span>排氣量</span>
+  {% else %}
+    <strong>{% if item.motor_power_kw is not None %}{{ item.motor_power_kw|floatformat:2 }} kW{% else %}待補{% endif %}</strong><span>馬達功率</span>
+  {% endif %}
+</td>
 <td data-label="目前建議售價">{% if item.current_suggested_price %}${{ item.current_suggested_price|floatformat:0 }}{% else %}尚未設定{% endif %}</td>
 <td data-label="車行基礎傭金"><strong>${{ item.base_dealer_commission|floatformat:0 }}</strong><span>特定車行加減另於車行資料設定</span></td>
 <td data-label="啟用顏色">{{ item.active_color_count }} 種</td>

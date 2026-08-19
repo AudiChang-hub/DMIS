@@ -88,6 +88,14 @@ def _short_note_with_marker(note, legacy_id, kind="Odoo"):
     return _note_with_marker(note, legacy_id, kind)[:250]
 
 
+def _legacy_price_source_note(note):
+    """Keep useful pricing context without exposing obsolete system metadata."""
+    note = (note or "").strip()
+    if not note or note == "Odoo 現行價格":
+        return "歷史價格資料匯入"
+    return note[:250]
+
+
 def _source_for_legacy(dealer, summary, apply):
     store_type = (dealer.get("store_type_name") or "").strip()
     source_type = (
@@ -353,10 +361,8 @@ def import_odoo_master_data(payload, *, apply=False):
                         "cash_price": cash_price,
                         "announced_on": effective_from,
                         "effective_to": next_date - timedelta(days=1) if next_date else None,
-                        "source_note": _short_note_with_marker(
-                            row.get("line_note") or row.get("version_name"),
-                            row.get("version_id"),
-                            "Odoo 價格",
+                        "source_note": _legacy_price_source_note(
+                            row.get("line_note") or row.get("version_name")
                         ),
                         "active": True,
                     },

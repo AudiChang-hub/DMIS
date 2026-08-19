@@ -4778,6 +4778,7 @@ def vehicle_model_list(request):
         families = sorted(
             group["families"].values(),
             key=lambda family: (
+                not any(model.active for model in family["models"]),
                 bool(family["child_brand_label"]),
                 family["brand_display_order"],
                 family["name"].casefold(),
@@ -4787,6 +4788,7 @@ def vehicle_model_list(request):
         for family in families:
             family["models"].sort(
                 key=lambda model: (
+                    not model.active,
                     -(model.model_year or 0),
                     model.model_code,
                     model.model_number.casefold(),

@@ -261,16 +261,32 @@ class ChannelFinanceTests(TestCase):
             },
         )
 
-        self.assertRedirects(
-            response,
-            reverse("vehicle_installment_plan_list", args=[self.model.pk]),
-        )
         saved = InstallmentPlanVersion.objects.get(
             vehicle_model=self.model,
             effective_from=date(2026, 9, 1),
         ).options.get()
+        self.assertRedirects(
+            response,
+            f"{reverse('vehicle_installment_plan_list', args=[self.model.pk])}"
+            f"?edit={saved.version_id}&saved=1",
+        )
         self.assertEqual(saved.periods, 36)
         self.assertEqual(saved.expected_disbursement_fixed_amount, Decimal("68000"))
+
+    def test_saved_installment_plan_shows_persistent_confirmation_and_summary(self):
+        self.client.force_login(self.user)
+        response = self.client.get(
+            f"{reverse('vehicle_installment_plan_list', args=[self.model.pk])}"
+            f"?edit={self.plan.pk}&saved=1"
+        )
+
+        self.assertContains(response, "分期方案已儲存")
+        self.assertContains(response, "目前生效中")
+        self.assertContains(response, "1 種")
+        self.assertContains(response, "24 期")
+        self.assertContains(response, "目前編輯")
+        self.assertContains(response, "新增下一版本")
+        self.assertContains(response, "儲存變更")
 
     def test_installment_page_keeps_quick_created_companies_for_future_rows(self):
         self.client.force_login(self.user)

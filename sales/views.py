@@ -844,6 +844,7 @@ def installment_company_quick_create(request):
 @transaction.atomic
 def vehicle_installment_plan_list(request, model_pk):
     vehicle_model = get_object_or_404(VehicleModel, pk=model_pk)
+    today = timezone.localdate()
     editing = None
     edit_pk = request.POST.get("plan_id") or request.GET.get("edit")
     if edit_pk:
@@ -863,18 +864,63 @@ def vehicle_installment_plan_list(request, model_pk):
         option_formset.instance = plan
         option_formset.save()
         messages.success(request, "分期方案版本已儲存。")
-        return redirect("vehicle_installment_plan_list", model_pk=vehicle_model.pk)
+        return redirect(
+            f"{reverse('vehicle_installment_plan_list', args=[vehicle_model.pk])}"
+            f"?edit={plan.pk}&saved=1"
+        )
+    plans = list(
+        vehicle_model.installment_plan_versions.prefetch_related(
+            "options__company"
+        )
+    )
+    current_plan = resolve_installment_plan_version(vehicle_model.pk, today)
+    editing_options = list(editing.options.select_related("company")) if editing else []
+    editing_lifecycle = None
+    if editing:
+        if not editing.active:
+            editing_lifecycle = {
+                "key": "inactive",
+                "label": "已儲存，目前停用",
+                "detail": "這個版本不會自動套用到新訂單。",
+            }
+        elif current_plan and current_plan.pk == editing.pk:
+            editing_lifecycle = {
+                "key": "current",
+                "label": "已儲存，目前生效中",
+                "detail": "符合有效日期的新訂單會自動套用這個版本。",
+            }
+        elif editing.effective_from > today:
+            editing_lifecycle = {
+                "key": "scheduled",
+                "label": "已儲存，等待生效",
+                "detail": f"將於 {editing.effective_from:%Y/%m/%d} 起套用到符合日期的新訂單。",
+            }
+        elif editing.effective_to and editing.effective_to < today:
+            editing_lifecycle = {
+                "key": "expired",
+                "label": "已儲存，效期已結束",
+                "detail": "這個版本保留供歷史訂單查閱，不會再套用到新訂單。",
+            }
+        else:
+            editing_lifecycle = {
+                "key": "superseded",
+                "label": "已儲存，已有較新版本生效",
+                "detail": "這個版本仍會依原有效日期保留，不會覆蓋目前版本。",
+            }
     return render(
         request,
         "sales/installment_plan_list.html",
         {
             "vehicle_model": vehicle_model,
-            "plans": vehicle_model.installment_plan_versions.prefetch_related(
-                "options__company"
-            ),
+            "plans": plans,
             "form": form,
             "option_formset": option_formset,
             "editing": editing,
+            "editing_options": editing_options,
+            "editing_lifecycle": editing_lifecycle,
+            "saved_confirmation": bool(editing and request.GET.get("saved") == "1"),
+            "current_plan": current_plan,
+            "today": today,
         },
     )
 

@@ -1,5 +1,6 @@
 import json
 import logging
+import mimetypes
 import shutil
 import uuid
 from datetime import date, timedelta
@@ -650,6 +651,28 @@ def vehicle_brand_list(request):
         "sales/vehicle_brand_list.html",
         {"brands": brands, "form": form, "editing": editing},
     )
+
+
+@login_required
+def vehicle_brand_logo(request, pk):
+    brand = get_object_or_404(VehicleBrand, pk=pk)
+    if not brand.logo:
+        raise Http404("此品牌尚未設定 LOGO。")
+    try:
+        logo_file = brand.logo.open("rb")
+    except (FileNotFoundError, OSError, ValueError):
+        raise Http404("找不到品牌 LOGO 檔案。")
+    content_type = (
+        mimetypes.guess_type(brand.logo.name)[0] or "application/octet-stream"
+    )
+    response = FileResponse(
+        logo_file,
+        content_type=content_type,
+        as_attachment=False,
+        filename=Path(brand.logo.name).name,
+    )
+    response["Cache-Control"] = "private, max-age=3600"
+    return response
 
 
 @login_required

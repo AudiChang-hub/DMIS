@@ -1,5 +1,8 @@
+import tempfile
+
 from django.contrib.auth import get_user_model
-from django.test import TestCase
+from django.core.files.uploadedfile import SimpleUploadedFile
+from django.test import TestCase, override_settings
 from django.urls import reverse
 
 from sales.forms import (
@@ -173,6 +176,42 @@ class VehicleBrandMasterTests(TestCase):
         self.assertContains(response, "子品牌")
         self.assertContains(response, "隸屬 SUZUKI")
         self.assertContains(response, "brand-hierarchy__branch")
+
+    def test_brand_logo_uses_authenticated_media_route(self):
+        with tempfile.TemporaryDirectory() as media_root, override_settings(
+            MEDIA_ROOT=media_root
+        ):
+            brand = VehicleBrand.objects.create(
+                name="LOGO 測試品牌",
+                display_order=910,
+                logo=SimpleUploadedFile(
+                    "brand-logo.png",
+                    b"test-logo-bytes",
+                    content_type="image/png",
+                ),
+            )
+            logo_url = reverse("vehicle_brand_logo", args=[brand.pk])
+
+            page = self.client.get(reverse("vehicle_brand_list"))
+            self.assertContains(page, logo_url)
+            self.assertNotContains(page, brand.logo.url)
+
+            response = self.client.get(logo_url)
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response["Content-Type"], "image/png")
+            self.assertEqual(response["Cache-Control"], "private, max-age=3600")
+            self.assertEqual(b"".join(response.streaming_content), b"test-logo-bytes")
+
+            self.client.logout()
+            anonymous = self.client.get(logo_url)
+            self.assertRedirects(anonymous, f"{reverse('login')}?next={logo_url}")
+
+    def test_brand_logo_returns_not_found_when_no_file_is_configured(self):
+        brand = VehicleBrand.objects.create(name="無 LOGO 品牌", display_order=911)
+
+        response = self.client.get(reverse("vehicle_brand_logo", args=[brand.pk]))
+
+        self.assertEqual(response.status_code, 404)
 
     def test_dealer_price_list_entry_points_are_removed(self):
         for route_name in ("data_maintenance", "vehicle_model_list"):

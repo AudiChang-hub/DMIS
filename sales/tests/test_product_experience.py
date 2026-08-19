@@ -91,27 +91,29 @@ class ProductExperienceTests(TestCase):
     def test_every_maintenance_landing_page_has_a_clear_return_path(self):
         self.client.force_login(self.user)
 
-        for route_name in (
-            "data_maintenance",
-            "customer_list",
-            "inventory_list",
-            "vehicle_model_list",
-            "accessory_product_list",
-            "sales_source_list",
-            "installment_company_list",
-            "dealer_volume_bonus_list",
-            "business_holiday_list",
-            "brand_registration_fee_rule_list",
-            "settlement_cost_rule_list",
-            "incentive_rule_list",
-            "legacy_import_list",
-            "positioned_template_list",
-        ):
+        expected_parents = {
+            "data_maintenance": "dashboard",
+            "customer_list": "data_maintenance",
+            "inventory_list": "data_maintenance",
+            "vehicle_model_list": "data_maintenance",
+            "accessory_product_list": "data_maintenance",
+            "sales_source_list": "data_maintenance",
+            "installment_company_list": "data_maintenance",
+            "dealer_volume_bonus_list": "sales_source_list",
+            "business_holiday_list": "data_maintenance",
+            "brand_registration_fee_rule_list": "data_maintenance",
+            "settlement_cost_rule_list": "data_maintenance",
+            "incentive_rule_list": "data_maintenance",
+            "legacy_import_list": "data_maintenance",
+            "positioned_template_list": "data_maintenance",
+        }
+        for route_name, parent_name in expected_parents.items():
             with self.subTest(route_name=route_name):
                 response = self.client.get(reverse(route_name))
                 self.assertEqual(response.status_code, 200)
                 self.assertContains(response, 'class="page-context-nav"')
-                self.assertContains(response, "data-smart-back")
+                self.assertContains(response, f'href="{reverse(parent_name)}"')
+                self.assertNotContains(response, "data-smart-back")
 
     def test_every_response_has_non_sensitive_request_id(self):
         self.client.force_login(self.user)

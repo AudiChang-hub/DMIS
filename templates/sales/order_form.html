@@ -7,7 +7,7 @@
   {% include "sales/_page_back.html" with fallback_url=form_back_url label="取消修改，返回訂單" cancel_edit=True %}
 {% else %}
   {% url 'order_list' as form_back_url %}
-  {% include "sales/_page_back.html" with fallback_url=form_back_url label="返回上一頁" %}
+  {% include "sales/_page_back.html" with fallback_url=form_back_url label="返回上一頁" smart_back=True %}
 {% endif %}
 <form method="post" enctype="multipart/form-data" class="mobile-order-form" id="order-form" data-custom-validation="true">
   {% csrf_token %}

@@ -4,7 +4,7 @@
 {% block page_class %}page-shell--wide{% endblock %}
 {% block content %}
 {% url 'dashboard' as dashboard_url %}
-{% include "sales/_page_back.html" with fallback_url=dashboard_url label="返回上一頁" %}
+{% include "sales/_page_back.html" with fallback_url=dashboard_url label="返回上一頁" smart_back=True %}
 <section class="hero-row">
   <div>
     <p class="eyebrow">收款、成本、補助與履約</p>

@@ -1464,6 +1464,27 @@ body.screen-locked { overflow: hidden; }
 .vehicle-model-overview-table { border: 0; border-radius: 0; box-shadow: none; }
 .vehicle-model-overview-table > .master-model-table { min-width: 1260px; }
 .vehicle-model-family-group > td { background: #fff; }
+.vehicle-model-family-group.is-inactive > td { color: #59635e; background: #f3f5f4; }
+.vehicle-model-family-group.is-inactive .vehicle-model-machine-cell > strong { color: #3f4944; }
+.vehicle-model-inactive-divider > td {
+  padding: 10px 18px !important; color: #5c6560; background: #e8ecea !important;
+  border-top: 2px solid #bec8c3; border-bottom: 1px solid #cfd7d3;
+}
+.vehicle-model-inactive-divider td > span {
+  display: inline-grid; width: 24px; height: 24px; margin-right: 8px; place-items: center;
+  color: #fff; background: #68736d; border-radius: 7px; font-size: .7rem; font-weight: 950;
+}
+.vehicle-model-inactive-divider td > strong { margin-right: 9px; color: #34403a; font-size: .82rem; }
+.vehicle-model-inactive-divider td > small { color: #68736d; font-size: .72rem; }
+.vehicle-model-status { gap: 6px; }
+.vehicle-model-status > span {
+  display: inline-grid; width: 18px; height: 18px; place-items: center;
+  border-radius: 50%; font-size: .67rem; line-height: 1; font-weight: 950;
+}
+.vehicle-model-status--active { color: #0c5639; background: #e0f2e8; border-color: #9fcdb7; }
+.vehicle-model-status--active > span { color: #fff; background: #14704c; }
+.vehicle-model-status--inactive { color: #4e5752; background: #e5e8e6; border-color: #aeb7b2; }
+.vehicle-model-status--inactive > span { color: #fff; background: #626d67; }
 .vehicle-model-machine-cell { min-width: 210px; }
 .vehicle-model-machine-cell > strong { font-size: .94rem; }
 .vehicle-model-machine-cell > span:not(.vehicle-model-brand-badge) {
@@ -1509,6 +1530,8 @@ body.screen-locked { overflow: hidden; }
 .vehicle-year-drawer__list { display: grid; min-height: 0; padding: 18px 20px 28px; overflow-y: auto; align-content: start; gap: 12px; }
 .vehicle-year-card { padding: 16px; background: #fff; border: 1px solid var(--line); border-radius: 16px; }
 .vehicle-year-card.is-displayed { border-color: #9ec8b4; box-shadow: 0 8px 20px rgba(18, 83, 59, .08); }
+.vehicle-year-card.is-inactive { color: #59635e; background: #eef1ef; border-color: #cbd2ce; }
+.vehicle-year-card.is-inactive.is-displayed { border-color: #8e9993; box-shadow: 0 8px 20px rgba(50, 63, 56, .08); }
 .vehicle-year-card > header, .vehicle-year-card > footer { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .vehicle-year-card > header > div { display: grid; gap: 2px; }
 .vehicle-year-card > header > div span { color: var(--muted); font-size: .68rem; font-weight: 800; }

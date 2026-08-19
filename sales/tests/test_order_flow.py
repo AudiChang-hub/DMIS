@@ -40,6 +40,7 @@ from sales.models import (
     SalesSource,
     Store,
     SubsidyDocument,
+    VehicleBrand,
     VehicleColor,
     VehicleFactoryModelCode,
     VehicleInventory,
@@ -221,7 +222,6 @@ class OrderFlowTests(TestCase):
                 response = self.client.get(route)
                 self.assertEqual(response.status_code, 200)
                 self.assertContains(response, 'class="page-context-nav"')
-                self.assertContains(response, "data-smart-back")
 
         dashboard = self.client.get(reverse("dashboard"))
         self.assertNotContains(dashboard, 'class="page-context-nav"')
@@ -379,6 +379,44 @@ class OrderFlowTests(TestCase):
             response,
             f'href="{list_url}" data-smart-back',
         )
+
+    def test_maintenance_parent_links_do_not_follow_browser_history(self):
+        self.client.force_login(self.user)
+        maintenance_url = reverse("data_maintenance")
+
+        for route_name in (
+            "customer_list",
+            "inventory_list",
+            "vehicle_brand_list",
+            "vehicle_model_list",
+            "accessory_product_list",
+            "sales_source_list",
+            "installment_company_list",
+            "business_holiday_list",
+            "brand_registration_fee_rule_list",
+            "settlement_cost_rule_list",
+            "incentive_rule_list",
+            "legacy_import_list",
+            "positioned_template_list",
+            "system_diagnostics",
+        ):
+            with self.subTest(route_name=route_name):
+                response = self.client.get(reverse(route_name))
+
+                self.assertEqual(response.status_code, 200)
+                self.assertContains(response, f'href="{maintenance_url}"')
+                self.assertContains(response, "返回資料維護區")
+                self.assertNotContains(
+                    response,
+                    f'href="{maintenance_url}" data-smart-back',
+                )
+
+        brand, _created = VehicleBrand.objects.get_or_create(name="測試品牌")
+        editing_brand = self.client.get(
+            f'{reverse("vehicle_brand_list")}?edit={brand.pk}'
+        )
+        self.assertContains(editing_brand, f'href="{maintenance_url}"')
+        self.assertNotContains(editing_brand, "data-smart-back")
 
     def test_vehicle_model_type_supports_drum(self):
         self.client.force_login(self.user)
@@ -707,6 +745,16 @@ class OrderFlowTests(TestCase):
             family_ids.index(active_model.pk),
             family_ids.index(inactive_model.pk),
         )
+        self.assertContains(response, "以下為已停用機種")
+        self.assertContains(
+            response,
+            'class="vehicle-model-family-group is-inactive"',
+            html=False,
+        )
+        self.assertContains(response, "vehicle-model-status--active")
+        self.assertContains(response, "vehicle-model-status--inactive")
+        self.assertContains(response, "✓")
+        self.assertContains(response, "Ⅱ")
 
     def test_vehicle_model_list_displays_latest_active_year_before_inactive_year(self):
         active_model = VehicleModel.objects.create(

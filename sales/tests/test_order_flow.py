@@ -644,7 +644,7 @@ class OrderFlowTests(TestCase):
         self.assertContains(list_response, "SUI125-ABS")
         self.assertContains(list_response, "2 種")
 
-    def test_vehicle_model_list_displays_displacement_and_motor_power_separately(self):
+    def test_vehicle_model_list_displays_energy_specific_power_specification(self):
         self.model.displacement_cc = 125
         self.model.save(update_fields=["displacement_cc", "updated_at"])
         electric_model = VehicleModel.objects.create(
@@ -661,13 +661,90 @@ class OrderFlowTests(TestCase):
         response = self.client.get(reverse("vehicle_model_list"))
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "排氣量")
-        self.assertContains(response, "馬達功率（kW）")
+        self.assertContains(response, "動力規格")
+        self.assertNotContains(response, "<th>排氣量</th>", html=True)
+        self.assertNotContains(response, "<th>馬達功率（kW）</th>", html=True)
         self.assertContains(response, "125 c.c.")
         self.assertContains(response, "7.50 kW")
+        self.assertContains(response, 'data-label="動力規格"', count=2, html=False)
         self.assertNotContains(response, '<th>成本版本</th>', html=True)
         self.assertNotContains(response, '<th>獎勵補助</th>', html=True)
         self.assertContains(response, f'href="{reverse("vehicle_model_edit", args=[electric_model.pk])}"')
+
+    def test_vehicle_model_list_places_fully_inactive_machines_last(self):
+        inactive_model = VehicleModel.objects.create(
+            brand="SUZUKI",
+            name="AAA 停用機種",
+            model_number="AAA-OFF",
+            model_year=2027,
+            model_code=VehicleModel.ModelType.DRUM,
+            energy_type=VehicleModel.EnergyType.GAS,
+            active=False,
+        )
+        active_model = VehicleModel.objects.create(
+            brand="SUZUKI",
+            name="ZZZ 啟用機種",
+            model_number="ZZZ-ON",
+            model_year=2026,
+            model_code=VehicleModel.ModelType.DRUM,
+            energy_type=VehicleModel.EnergyType.GAS,
+            active=True,
+        )
+        self.client.force_login(self.user)
+
+        response = self.client.get(reverse("vehicle_model_list"), {"q": "機種"})
+
+        self.assertEqual(response.status_code, 200)
+        suzuki_group = next(
+            group
+            for group in response.context["vehicle_model_groups"]
+            if group["name"] == "SUZUKI"
+        )
+        family_ids = [
+            family["display_model"].pk for family in suzuki_group["families"]
+        ]
+        self.assertLess(
+            family_ids.index(active_model.pk),
+            family_ids.index(inactive_model.pk),
+        )
+
+    def test_vehicle_model_list_displays_latest_active_year_before_inactive_year(self):
+        active_model = VehicleModel.objects.create(
+            brand="SUZUKI",
+            name="排序測試車",
+            model_number="SORT-2025",
+            model_year=2025,
+            model_code=VehicleModel.ModelType.DRUM,
+            energy_type=VehicleModel.EnergyType.GAS,
+            active=True,
+        )
+        inactive_model = VehicleModel.objects.create(
+            brand="SUZUKI",
+            name="排序測試車",
+            model_number="SORT-2026",
+            model_year=2026,
+            model_code=VehicleModel.ModelType.DRUM,
+            energy_type=VehicleModel.EnergyType.GAS,
+            active=False,
+        )
+        self.client.force_login(self.user)
+
+        response = self.client.get(
+            reverse("vehicle_model_list"),
+            {"q": "排序測試車"},
+        )
+
+        family = next(
+            family
+            for group in response.context["vehicle_model_groups"]
+            for family in group["families"]
+            if family["name"] == "排序測試車"
+        )
+        self.assertEqual(family["display_model"].pk, active_model.pk)
+        self.assertEqual(
+            [model.pk for model in family["models"]],
+            [active_model.pk, inactive_model.pk],
+        )
 
     def test_vehicle_model_list_groups_factory_codes_under_one_machine(self):
         first = VehicleModel.objects.create(

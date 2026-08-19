@@ -1462,7 +1462,7 @@ body.screen-locked { overflow: hidden; }
 .vehicle-brand-group__metrics { min-width: 116px; text-align: right; }
 .vehicle-brand-group__metrics strong { font-size: .88rem; }
 .vehicle-model-overview-table { border: 0; border-radius: 0; box-shadow: none; }
-.vehicle-model-overview-table > .master-model-table { min-width: 1380px; }
+.vehicle-model-overview-table > .master-model-table { min-width: 1260px; }
 .vehicle-model-family-group > td { background: #fff; }
 .vehicle-model-machine-cell { min-width: 210px; }
 .vehicle-model-machine-cell > strong { font-size: .94rem; }

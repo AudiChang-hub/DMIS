@@ -131,6 +131,10 @@ class OdooMasterImportTests(TestCase):
             VehiclePriceVersion.objects.get().suggested_price,
             77000,
         )
+        self.assertEqual(
+            VehiclePriceVersion.objects.get().source_note,
+            "歷史價格資料匯入",
+        )
         self.assertEqual(DealerVolumeBonusRule.objects.count(), 1)
         self.assertEqual(
             BusinessHoliday.objects.get(date=date(2026, 2, 16)).name,
@@ -140,6 +144,27 @@ class OdooMasterImportTests(TestCase):
         self.assertEqual(second["sources_update"], 1)
         self.assertEqual(SalesSource.objects.count(), 1)
         self.assertEqual(VehicleModel.objects.count(), 1)
+
+    def test_price_import_preserves_human_source_note_without_system_marker(self):
+        payload = self.payload()
+        payload["price_versions"] = [
+            {
+                "product_id": 30,
+                "version_id": 88,
+                "version_name": "2026 年八月",
+                "effective_date": "2026-08-01",
+                "cash_price": "70000",
+                "list_price": "77000",
+                "line_note": "八月營業通報",
+            }
+        ]
+
+        import_odoo_master_data(payload, apply=True)
+
+        self.assertEqual(
+            VehiclePriceVersion.objects.get().source_note,
+            "八月營業通報",
+        )
 
     def test_staff_source_is_imported_as_store_category(self):
         payload = self.payload()

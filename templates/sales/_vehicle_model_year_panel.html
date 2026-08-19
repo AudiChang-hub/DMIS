@@ -1,0 +1,49 @@
+<dialog class="vehicle-year-drawer" id="vehicle-year-panel-{{ group_index }}-{{ family_index }}" data-year-panel>
+  <section class="vehicle-year-drawer__surface">
+    <header class="vehicle-year-drawer__header">
+      <div>
+        <span>年式／規格資料</span>
+        <h2>{{ family.name }}</h2>
+        <p>{{ family.code_count }} 個原廠型號 · {{ family.version_count }} 筆設定</p>
+      </div>
+      <button class="vehicle-year-drawer__close" type="button" aria-label="關閉年式資料" data-close-year-panel>×</button>
+    </header>
+
+    {% if family.factory_codes %}
+    <div class="vehicle-year-drawer__codes">
+      <span>原廠型號</span>
+      <strong>{{ family.factory_codes|join:"、" }}</strong>
+    </div>
+    {% endif %}
+
+    <div class="vehicle-year-drawer__list">
+      {% for year_item in family.models %}
+      <article class="vehicle-year-card{% if year_item.pk == family.display_model.pk %} is-displayed{% endif %}">
+        <header>
+          <div>
+            <span>年式</span>
+            <strong>{{ year_item.model_year|default:"待補" }}</strong>
+          </div>
+          {% if year_item.pk == family.display_model.pk %}
+          <span class="vehicle-year-card__badge">{% if family.display_is_search_match %}符合搜尋{% else %}目前顯示{% endif %}</span>
+          {% endif %}
+        </header>
+        <dl>
+          <div><dt>型號</dt><dd>{{ year_item.model_number|default:"待補" }}</dd></div>
+          <div><dt>型式</dt><dd>{% if year_item.model_code %}{{ year_item.get_model_code_display }}{% else %}待補{% endif %}</dd></div>
+          <div><dt>能源別</dt><dd>{{ year_item.get_energy_type_display }}</dd></div>
+          <div><dt>排氣量</dt><dd>{% if year_item.displacement_cc %}{{ year_item.displacement_cc }} c.c.{% else %}—{% endif %}</dd></div>
+          <div><dt>馬達功率</dt><dd>{% if year_item.motor_power_kw is not None %}{{ year_item.motor_power_kw|floatformat:2 }} kW{% else %}—{% endif %}</dd></div>
+          <div><dt>建議售價</dt><dd>{% if year_item.current_suggested_price %}${{ year_item.current_suggested_price|floatformat:0 }}{% else %}尚未設定{% endif %}</dd></div>
+          <div><dt>車行基礎傭金</dt><dd>${{ year_item.base_dealer_commission|floatformat:0 }}</dd></div>
+          <div><dt>庫存</dt><dd>{{ year_item.available_count }} 台可售／共 {{ year_item.inventory_count }} 台</dd></div>
+        </dl>
+        <footer>
+          <span class="status-pill">{{ year_item.active|yesno:"啟用中,已停用" }}</span>
+          <a class="button ghost small" href="{% url 'vehicle_model_edit' year_item.pk %}">編輯此年式</a>
+        </footer>
+      </article>
+      {% endfor %}
+    </div>
+  </section>
+</dialog>

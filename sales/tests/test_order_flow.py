@@ -701,16 +701,17 @@ class OrderFlowTests(TestCase):
         )
         self.assertEqual(family["version_count"], 2)
         self.assertEqual(family["year_summary"], "2026 等 2 筆設定")
-        self.assertEqual([model.pk for model in family["current_models"]], [second.pk])
-        self.assertEqual([model.pk for model in family["history_models"]], [first.pk])
-        self.assertEqual(family["history_count"], 1)
-        self.assertFalse(family["history_initially_open"])
+        self.assertEqual(family["display_model"].pk, second.pk)
+        self.assertFalse(family["display_is_search_match"])
         self.assertNotContains(response, 'rowspan="2"', html=False)
         self.assertContains(response, 'class="vehicle-model-family-group"', html=False)
         self.assertNotContains(response, '<details class="vehicle-model-family-group"', html=False)
+        self.assertNotContains(response, 'class="vehicle-model-year-history-row"', html=False)
         self.assertContains(response, "2 個原廠型號")
         self.assertContains(response, "EV060L、EV062")
-        self.assertContains(response, "查看 eReady Fun 的其他 1 個年式")
+        self.assertContains(response, "2 個年式")
+        self.assertContains(response, 'data-open-year-panel="vehicle-year-panel-', html=False)
+        self.assertContains(response, 'class="vehicle-year-drawer"', html=False)
 
         year_response = self.client.get(reverse("vehicle_model_list"), {"q": "2025"})
         year_family = next(
@@ -719,12 +720,10 @@ class OrderFlowTests(TestCase):
             for family in group["families"]
             if family["name"] == "eReady Fun"
         )
-        self.assertTrue(year_family["history_initially_open"])
-        self.assertContains(
-            year_response,
-            '<details class="vehicle-model-year-history" open>',
-            html=False,
-        )
+        self.assertEqual(year_family["display_model"].pk, first.pk)
+        self.assertTrue(year_family["display_is_search_match"])
+        self.assertContains(year_response, "符合搜尋")
+        self.assertNotContains(year_response, "vehicle-model-year-history")
         self.assertEqual(year_response.context["vehicle_model_count"], 1)
 
     def test_legacy_dr_z4sm_label_is_normalized_to_machine_name(self):

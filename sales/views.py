@@ -4842,15 +4842,19 @@ def vehicle_model_list(request):
             )
             family["current_price_low"] = current_prices[0] if current_prices else None
             family["current_price_high"] = current_prices[-1] if current_prices else None
-            family["current_models"] = family["models"][:1]
-            family["history_models"] = family["models"][1:]
-            family["history_count"] = len(family["history_models"])
-            family["history_initially_open"] = bool(
-                keyword
-                and any(
-                    model.pk in matched_model_ids
-                    for model in family["history_models"]
-                )
+            latest_model = family["models"][0]
+            matched_family_models = [
+                model
+                for model in family["models"]
+                if model.pk in matched_model_ids
+            ]
+            family["display_model"] = (
+                matched_family_models[0]
+                if keyword and matched_family_models
+                else latest_model
+            )
+            family["display_is_search_match"] = bool(
+                keyword and family["display_model"].pk != latest_model.pk
             )
             group["active_count"] += int(bool(family["active_count"]))
             for family_index, model in enumerate(family["models"]):

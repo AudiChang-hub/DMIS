@@ -770,13 +770,16 @@ class InstallmentPlanOptionForm(forms.ModelForm):
         fields = [
             "periods", "monthly_amount", "company", "opening_fee",
             "expected_disbursement_method", "expected_disbursement_rate",
-            "expected_disbursement_fixed_amount",
+            "expected_disbursement_fixed_amount", "extra_disbursement_bonus",
         ]
         widgets = {
             "expected_disbursement_rate": forms.NumberInput(
                 attrs={"min": "0", "max": "100", "step": "0.01"}
             ),
             "expected_disbursement_fixed_amount": forms.NumberInput(
+                attrs={"min": "0", "step": "1", "inputmode": "numeric"}
+            ),
+            "extra_disbursement_bonus": forms.NumberInput(
                 attrs={"min": "0", "step": "1", "inputmode": "numeric"}
             ),
         }
@@ -794,10 +797,17 @@ class InstallmentPlanOptionForm(forms.ModelForm):
         self.fields["expected_disbursement_fixed_amount"].help_text = (
             "每張套用此方案的訂單都先帶入這個預估金額。"
         )
+        self.fields["extra_disbursement_bonus"].help_text = (
+            "例如和潤另給 300 元；系統會加進預估撥款與對帳金額，不會再重複列入淨利獎勵。"
+        )
+        self.fields["extra_disbursement_bonus"].required = False
         apply_mobile_keyboard_attrs(self)
 
     def clean(self):
         cleaned = super().clean()
+        cleaned["extra_disbursement_bonus"] = (
+            cleaned.get("extra_disbursement_bonus") or Decimal("0")
+        )
         method = cleaned.get("expected_disbursement_method")
         rate = cleaned.get("expected_disbursement_rate")
         fixed_amount = cleaned.get("expected_disbursement_fixed_amount")

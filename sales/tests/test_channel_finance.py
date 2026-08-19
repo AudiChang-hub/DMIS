@@ -21,6 +21,8 @@ from sales.models import (
     SalesSourceCategory,
     SalesSourceBrandPolicy,
     VehicleColor,
+    VehicleIncentiveInstallmentRate,
+    VehicleIncentiveRule,
     VehicleModel,
 )
 from sales.services.dealer_commission import (
@@ -34,6 +36,7 @@ from sales.services.installment_plan import (
     calculate_expected_disbursement,
     resolve_installment_plan_option,
 )
+from sales.services.incentive_rule import apply_order_incentive_rule
 from sales.services.operations_sync import sync_order_operations
 
 
@@ -65,6 +68,7 @@ class ChannelFinanceTests(TestCase):
             company=self.company,
             opening_fee=Decimal("2500"),
             expected_disbursement_rate=Decimal("93.50"),
+            extra_disbursement_bonus=Decimal("300"),
         )
         self.dealer = SalesSource.objects.create(
             name="冠廷",
@@ -144,7 +148,14 @@ class ChannelFinanceTests(TestCase):
         self.assertFalse(order.installment_plan_snapshot["manual_override"])
         self.assertEqual(
             order.installment_plan_snapshot["expected_disbursement_amount"],
+            65750,
+        )
+        self.assertEqual(
+            order.installment_plan_snapshot["base_expected_disbursement_amount"],
             65450,
+        )
+        self.assertEqual(
+            order.installment_plan_snapshot["extra_disbursement_bonus"], 300
         )
         self.assertEqual(profile.customer_service_phone, "0800-123-456")
 
@@ -156,7 +167,7 @@ class ChannelFinanceTests(TestCase):
     def test_expected_disbursement_supports_rate_fixed_and_manual_modes(self):
         self.assertEqual(
             calculate_expected_disbursement(self.option, Decimal("70000")),
-            Decimal("65450"),
+            Decimal("65750"),
         )
 
         self.option.expected_disbursement_method = (
@@ -167,7 +178,7 @@ class ChannelFinanceTests(TestCase):
         self.option.save()
         self.assertEqual(
             calculate_expected_disbursement(self.option, Decimal("70000")),
-            Decimal("66000"),
+            Decimal("66300"),
         )
 
         self.option.expected_disbursement_method = (
@@ -188,7 +199,10 @@ class ChannelFinanceTests(TestCase):
             order=order,
             system_key="installment_disbursement",
         )
-        self.assertEqual(payment.expected_amount, Decimal("65450"))
+        self.assertEqual(payment.expected_amount, Decimal("65750"))
+        self.assertEqual(
+            payment.item_name, "分期公司撥款（含額外獎金 300 元）"
+        )
 
     def test_manual_expected_amount_override_requires_reason_and_is_preserved(self):
         order = self.make_order()
@@ -214,7 +228,7 @@ class ChannelFinanceTests(TestCase):
         )
         payment.refresh_from_db()
         self.assertEqual(rejected.status_code, 302)
-        self.assertEqual(payment.expected_amount, Decimal("65450"))
+        self.assertEqual(payment.expected_amount, Decimal("65750"))
 
         accepted = self.client.post(
             url,
@@ -235,6 +249,48 @@ class ChannelFinanceTests(TestCase):
         sync_order_operations(order.pk)
         payment.refresh_from_db()
         self.assertEqual(payment.expected_amount, Decimal("65000"))
+
+    def test_extra_disbursement_bonus_is_not_applied_to_another_company(self):
+        order = self.make_order()
+        SalesOrder.objects.filter(pk=order.pk).update(installment_company="遠信")
+        order.refresh_from_db()
+
+        apply_order_installment_snapshot(order)
+        order.refresh_from_db()
+
+        self.assertTrue(order.installment_plan_snapshot["manual_override"])
+        self.assertEqual(
+            order.installment_plan_snapshot["configured_extra_disbursement_bonus"],
+            300,
+        )
+        self.assertEqual(
+            order.installment_plan_snapshot["extra_disbursement_bonus"], 0
+        )
+        self.assertEqual(
+            order.installment_plan_snapshot["expected_disbursement_amount"],
+            65450,
+        )
+
+    def test_extra_disbursement_bonus_is_included_once_in_actual_disbursement(self):
+        rule = VehicleIncentiveRule.objects.create(
+            vehicle_model=self.model,
+            effective_from=date(2026, 8, 1),
+        )
+        VehicleIncentiveInstallmentRate.objects.create(
+            incentive_rule=rule,
+            periods=24,
+            rate=Decimal("93.50"),
+        )
+        order = self.make_order()
+        apply_order_installment_snapshot(order)
+        order.refresh_from_db()
+
+        profile = apply_order_incentive_rule(order)
+
+        self.assertEqual(profile.actual_disbursement, Decimal("65750"))
+        self.assertEqual(profile.installment_interest_subsidy, Decimal("0"))
+        self.assertEqual(profile.installment_fee_income, Decimal("2500"))
+        self.assertEqual(profile.net_profit, Decimal("68250"))
 
     def test_deleted_blank_installment_row_does_not_block_plan_save(self):
         self.client.force_login(self.user)
@@ -257,6 +313,7 @@ class ChannelFinanceTests(TestCase):
                 "options-0-expected_disbursement_method": "fixed",
                 "options-0-expected_disbursement_rate": "",
                 "options-0-expected_disbursement_fixed_amount": "68000",
+                "options-0-extra_disbursement_bonus": "300",
                 "options-1-DELETE": "on",
             },
         )
@@ -272,6 +329,7 @@ class ChannelFinanceTests(TestCase):
         )
         self.assertEqual(saved.periods, 36)
         self.assertEqual(saved.expected_disbursement_fixed_amount, Decimal("68000"))
+        self.assertEqual(saved.extra_disbursement_bonus, Decimal("300"))
 
     def test_saved_installment_plan_shows_persistent_confirmation_and_summary(self):
         self.client.force_login(self.user)
@@ -284,6 +342,7 @@ class ChannelFinanceTests(TestCase):
         self.assertContains(response, "目前生效中")
         self.assertContains(response, "1 種")
         self.assertContains(response, "24 期")
+        self.assertContains(response, "額外撥款獎金 $300")
         self.assertContains(response, "目前編輯")
         self.assertContains(response, "新增下一版本")
         self.assertContains(response, "儲存變更")

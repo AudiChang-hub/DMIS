@@ -533,7 +533,10 @@
         input.dispatchEvent(new Event("input", {bubbles: true}));
       }
     });
-    installmentPlanHint.textContent = `已帶入 ${option.company}／${option.periods} 期；如本案條件不同仍可人工修改。`;
+    const bonusHint = Number(option.extra_disbursement_bonus || 0) > 0
+      ? `，預估撥款另含獎金 $${Number(option.extra_disbursement_bonus).toLocaleString("zh-TW")}`
+      : "";
+    installmentPlanHint.textContent = `已帶入 ${option.company}／${option.periods} 期${bonusHint}；如本案條件不同仍可人工修改。`;
   }
 
   async function loadInstallmentPlanOptions({force = false} = {}) {

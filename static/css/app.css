@@ -1447,7 +1447,7 @@ body.screen-locked { overflow: hidden; }
 }
 .vehicle-brand-group__header {
   display: grid; min-height: 78px; padding: 14px 18px;
-  grid-template-columns: 46px minmax(0, 1fr) auto;
+  grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center; gap: 14px; background: #f8fbf9;
   border-bottom: 1px solid var(--line);
 }
@@ -1455,6 +1455,13 @@ body.screen-locked { overflow: hidden; }
   display: grid; width: 46px; height: 46px; place-items: center;
   color: #fff; background: var(--forest); border-radius: 13px;
   font-size: 1rem; font-weight: 900;
+}
+.vehicle-brand-group__mark.has-logo {
+  width: 92px; padding: 5px 7px; background: #fff;
+  border: 1px solid var(--line); box-shadow: 0 3px 9px rgba(18, 55, 42, .06);
+}
+.vehicle-brand-group__mark img {
+  display: block; width: 100%; height: 100%; object-fit: contain;
 }
 .vehicle-brand-group__identity, .vehicle-brand-group__metrics { display: grid; min-width: 0; gap: 3px; }
 .vehicle-brand-group__identity strong { overflow: hidden; font-size: 1.08rem; text-overflow: ellipsis; white-space: nowrap; }
@@ -2332,9 +2339,10 @@ body.screen-locked { overflow: hidden; }
   .vehicle-model-catalog__actions .button { width: 100%; }
   .vehicle-brand-group__header {
     min-height: 72px; padding: 12px 13px;
-    grid-template-columns: 42px minmax(0, 1fr); gap: 10px;
+    grid-template-columns: auto minmax(0, 1fr); gap: 10px;
   }
   .vehicle-brand-group__mark { width: 42px; height: 42px; border-radius: 11px; }
+  .vehicle-brand-group__mark.has-logo { width: 76px; padding: 4px 6px; }
   .vehicle-brand-group__identity strong { font-size: 1rem; }
   .vehicle-brand-group__metrics {
     grid-column: 2; grid-row: 2; min-width: 0; grid-auto-flow: column;

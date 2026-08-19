@@ -4764,6 +4764,9 @@ def vehicle_model_list(request):
             {
                 "name": root_name,
                 "display_order": root_brand.display_order if root_brand else 999,
+                "logo_brand": (
+                    root_brand if root_brand and root_brand.logo else None
+                ),
                 "models": [],
                 "families": {},
                 "child_brands": set(),

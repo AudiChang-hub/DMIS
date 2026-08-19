@@ -10,11 +10,42 @@
     <h1>分期方案</h1>
     <p class="muted">訂單依訂單日期選版本，再由期數帶入公司、每期金額、開辦費與預估撥款方式。</p>
   </div>
-  <a class="button ghost" href="{% url 'installment_company_list' %}">維護分期公司</a>
+  <div class="hero-actions">
+    {% if editing %}<a class="button ghost" href="{% url 'vehicle_installment_plan_list' vehicle_model.pk %}">＋ 新增下一版本</a>{% endif %}
+    <a class="button ghost" href="{% url 'installment_company_list' %}">維護分期公司</a>
+  </div>
 </section>
 
+{% if saved_confirmation %}
+<section class="installment-save-confirmation installment-save-confirmation--{{ editing_lifecycle.key }}" id="saved-plan" role="status" aria-live="polite">
+  <div class="installment-save-confirmation__lead">
+    <span class="installment-save-confirmation__icon" aria-hidden="true">✓</span>
+    <div>
+      <p class="eyebrow">分期方案已儲存</p>
+      <h2>{{ editing_lifecycle.label }}</h2>
+      <p>{{ editing_lifecycle.detail }}</p>
+    </div>
+  </div>
+  <div class="installment-save-confirmation__summary" aria-label="已儲存方案摘要">
+    <div><span>有效期間</span><strong>{{ editing.effective_from|date:'Y/m/d' }} 起</strong><small>{% if editing.effective_to %}至 {{ editing.effective_to|date:'Y/m/d' }}{% else %}未設定結束日{% endif %}</small></div>
+    <div><span>已設定期數</span><strong>{{ editing_options|length }} 種</strong><small>{% for option in editing_options %}{{ option.periods }} 期{% if not forloop.last %}、{% endif %}{% empty %}尚未設定期數{% endfor %}</small></div>
+    <div><span>版本狀態</span><strong>{{ editing.active|yesno:'啟用中,已停用' }}</strong><small>訂單依訂單日期選用版本</small></div>
+  </div>
+  <div class="installment-save-confirmation__actions">
+    <a class="button primary" href="#plan-form">繼續修改此版本</a>
+    <a class="button ghost" href="{% url 'vehicle_installment_plan_list' vehicle_model.pk %}">新增下一版本</a>
+  </div>
+</section>
+{% endif %}
+
 <section class="form-section static-section">
-  <div class="section-title"><h2>{% if editing %}編輯 {{ editing.effective_from|date:'Y/m/d' }} 版本{% else %}新增方案版本{% endif %}</h2></div>
+  <div class="section-title installment-editor-title">
+    <div>
+      {% if editing %}<p class="eyebrow">目前正在編輯</p>{% endif %}
+      <h2>{% if editing %}{{ editing.effective_from|date:'Y/m/d' }} 起的方案版本{% else %}新增方案版本{% endif %}</h2>
+    </div>
+    {% if editing_lifecycle %}<span class="status-pill installment-lifecycle installment-lifecycle--{{ editing_lifecycle.key }}">{{ editing_lifecycle.label }}</span>{% endif %}
+  </div>
   <form method="post" class="stacked-form" id="plan-form">
     {% csrf_token %}
     <input type="hidden" name="plan_id" value="{{ editing.pk|default:'' }}">
@@ -54,7 +85,7 @@
     </div>
     <div class="form-actions">
       {% if editing %}<a class="button ghost" href="{% url 'vehicle_installment_plan_list' vehicle_model.pk %}">取消</a>{% endif %}
-      <button class="button primary">儲存方案</button>
+      <button class="button primary">{% if editing %}儲存變更{% else %}儲存方案{% endif %}</button>
     </div>
   </form>
 </section>
@@ -74,18 +105,24 @@
 </dialog>
 
 <section class="inventory-list-panel">
-  <div class="inventory-list-summary"><strong>歷史版本</strong></div>
+  <div class="inventory-list-summary"><strong>歷史版本</strong><span>共 {{ plans|length }} 個版本</span></div>
   <div class="inventory-table-wrap">
     <table class="inventory-table">
       <thead><tr><th>有效期間</th><th>期數方案</th><th>狀態</th><th></th></tr></thead>
       <tbody>
       {% for plan in plans %}
-        <tr>
-          <td data-label="有效期間"><strong>{{ plan.effective_from|date:'Y/m/d' }}</strong><span>至 {{ plan.effective_to|date:'Y/m/d'|default:'無限期' }}</span></td>
+        <tr{% if editing and plan.pk == editing.pk %} class="installment-history-row--selected"{% endif %}>
+          <td data-label="有效期間"><strong>{{ plan.effective_from|date:'Y/m/d' }}</strong><span>至 {{ plan.effective_to|date:'Y/m/d'|default:'無限期' }}</span>{% if editing and plan.pk == editing.pk %}<span class="installment-history-current">目前編輯</span>{% endif %}</td>
           <td data-label="期數方案">
             {% for option in plan.options.all %}<span>{{ option.periods }} 期 · {{ option.company }} · 每期 ${{ option.monthly_amount|floatformat:0 }} · {{ option.get_expected_disbursement_method_display }}{% if option.expected_disbursement_method == 'rate' %} {{ option.expected_disbursement_rate|floatformat:-2 }}%{% elif option.expected_disbursement_method == 'fixed' %} ${{ option.expected_disbursement_fixed_amount|floatformat:0 }}{% endif %}</span>{% empty %}尚無期數{% endfor %}
           </td>
-          <td data-label="狀態">{{ plan.active|yesno:'啟用中,已停用' }}</td>
+          <td data-label="狀態">
+            {% if not plan.active %}<span class="status-pill installment-lifecycle--inactive">已停用</span>
+            {% elif current_plan and plan.pk == current_plan.pk %}<span class="status-pill installment-lifecycle--current">目前有效</span>
+            {% elif plan.effective_from > today %}<span class="status-pill installment-lifecycle--scheduled">等待生效</span>
+            {% elif plan.effective_to and plan.effective_to < today %}<span class="status-pill installment-lifecycle--expired">效期結束</span>
+            {% else %}<span class="status-pill installment-lifecycle--superseded">已被新版取代</span>{% endif %}
+          </td>
           <td><a class="button ghost small" href="?edit={{ plan.pk }}">編輯</a></td>
         </tr>
       {% empty %}<tr><td colspan="4">尚無分期方案版本</td></tr>{% endfor %}

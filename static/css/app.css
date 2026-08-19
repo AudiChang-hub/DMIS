@@ -7,6 +7,7 @@
   --line: #dde4df;
   --forest: #12372a;
   --forest-2: #1d5742;
+  --green: #1d6b4b;
   --mint: #e7f3ed;
   --blue: #245da8;
   --blue-soft: #eaf2ff;
@@ -2535,6 +2536,51 @@ body.screen-locked { overflow: hidden; }
   white-space: nowrap;
 }
 .installment-company-dialog .form-grid { padding: 0; }
+.installment-save-confirmation {
+  display: grid; margin-bottom: 20px; padding: 22px;
+  grid-template-columns: minmax(240px, 1.1fr) minmax(0, 1.5fr) auto;
+  align-items: center; gap: 22px; background: #f3faf6;
+  border: 1px solid #bcdccb; border-left: 5px solid var(--green); border-radius: 18px;
+  box-shadow: var(--shadow-soft);
+}
+.installment-save-confirmation__lead { display: grid; grid-template-columns: 46px minmax(0, 1fr); align-items: center; gap: 14px; }
+.installment-save-confirmation__icon {
+  display: grid; width: 46px; height: 46px; place-items: center;
+  color: #fff; background: var(--green); border-radius: 50%; font-size: 1.35rem; font-weight: 900;
+}
+.installment-save-confirmation h2 { margin: 2px 0 4px; font-size: 1.25rem; }
+.installment-save-confirmation p { margin: 0; color: var(--muted); line-height: 1.5; }
+.installment-save-confirmation__summary {
+  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr));
+  overflow: hidden; background: #fff; border: 1px solid var(--line); border-radius: 14px;
+}
+.installment-save-confirmation__summary > div { min-width: 0; padding: 13px 15px; border-left: 1px solid var(--line); }
+.installment-save-confirmation__summary > div:first-child { border-left: 0; }
+.installment-save-confirmation__summary span,
+.installment-save-confirmation__summary strong,
+.installment-save-confirmation__summary small { display: block; overflow-wrap: anywhere; }
+.installment-save-confirmation__summary span { color: var(--muted); font-size: .74rem; font-weight: 800; }
+.installment-save-confirmation__summary strong { margin-top: 3px; font-size: .95rem; }
+.installment-save-confirmation__summary small { margin-top: 2px; color: var(--muted); font-size: .75rem; }
+.installment-save-confirmation__actions { display: grid; gap: 8px; }
+.installment-save-confirmation--scheduled { background: #fffbf1; border-color: #ecd69f; border-left-color: var(--amber); }
+.installment-save-confirmation--scheduled .installment-save-confirmation__icon { color: #704b00; background: var(--amber-soft); }
+.installment-save-confirmation--inactive,
+.installment-save-confirmation--expired,
+.installment-save-confirmation--superseded { background: #f7f8f7; border-color: var(--line); border-left-color: #849087; }
+.installment-save-confirmation--inactive .installment-save-confirmation__icon,
+.installment-save-confirmation--expired .installment-save-confirmation__icon,
+.installment-save-confirmation--superseded .installment-save-confirmation__icon { background: #748078; }
+.installment-editor-title { align-items: center; }
+.installment-editor-title .eyebrow { margin: 0 0 4px; }
+.installment-lifecycle--current { color: #125138; background: #e3f4eb; border-color: #bfddce; }
+.installment-lifecycle--scheduled { color: #704b00; background: #fff4d4; border-color: #e9cf83; }
+.installment-lifecycle--inactive,
+.installment-lifecycle--expired,
+.installment-lifecycle--superseded { color: #536059; background: #eef1ef; border-color: #d5dbd7; }
+.installment-history-row--selected { background: #f3faf6; }
+.installment-history-row--selected td:first-child { box-shadow: inset 4px 0 0 var(--green); }
+.installment-history-current { width: fit-content; margin-top: 6px !important; padding: 3px 7px; color: var(--green) !important; background: var(--mint); border-radius: 999px; font-weight: 850; }
 .dialog-submit-error {
   margin: 0;
   padding: 11px 13px;
@@ -2555,6 +2601,13 @@ body.screen-locked { overflow: hidden; }
   .master-dynamic-row, .installment-option-row { grid-template-columns: 1fr; }
   .field-control-with-action { grid-template-columns: 1fr; }
   .field-control-with-action .inline-create-button { width: 100%; }
+  .installment-save-confirmation { padding: 16px; grid-template-columns: 1fr; gap: 16px; }
+  .installment-save-confirmation__summary { grid-template-columns: 1fr; }
+  .installment-save-confirmation__summary > div { border-top: 1px solid var(--line); border-left: 0; }
+  .installment-save-confirmation__summary > div:first-child { border-top: 0; }
+  .installment-save-confirmation__actions { grid-template-columns: 1fr; }
+  .installment-save-confirmation__actions .button { width: 100%; }
+  .installment-editor-title { align-items: flex-start; flex-direction: column; }
 }
 
 .positioned-field-list {

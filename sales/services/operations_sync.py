@@ -172,13 +172,25 @@ def sync_order_operations(order_id):
     if order.payment_type == SalesOrder.PaymentType.INSTALLMENT:
         financed = _money(order.installment_amount)
         expected_disbursement = _expected_installment_disbursement(order)
+        extra_bonus = Decimal(
+            str(
+                (order.installment_plan_snapshot or {}).get(
+                    "extra_disbursement_bonus"
+                )
+                or 0
+            )
+        )
         cash_due = max(_money(order.actual_balance) - financed, Decimal("0"))
         active_keys.update({"installment_disbursement", "balance"})
         _upsert_system_payment(
             order,
             "installment_disbursement",
             {
-                "item_name": "分期公司撥款",
+                "item_name": (
+                    f"分期公司撥款（含額外獎金 {extra_bonus:.0f} 元）"
+                    if extra_bonus > 0
+                    else "分期公司撥款"
+                ),
                 "expected_amount": expected_disbursement,
                 "received_amount": Decimal("0"),
                 "received_on": None,

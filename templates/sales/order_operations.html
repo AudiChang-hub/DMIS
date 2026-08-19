@@ -45,6 +45,9 @@
       <strong>實際撥款計算</strong>
       <p>現金依車款售價自動帶入；分期依領牌日適用版本及訂單期數計算；網路平台與刷卡訂單由人員輸入。人工修改後不再被系統覆蓋。</p>
       {% if order.payment_type == "installment" %}
+        {% if order.installment_plan_snapshot.extra_disbursement_bonus %}
+        <p><strong>額外撥款獎金：</strong>${{ order.installment_plan_snapshot.extra_disbursement_bonus|floatformat:0 }}（已包含在預估撥款與實際撥款試算，不會另外重複計入單筆淨利）</p>
+        {% endif %}
         {% if profile.incentive_installment_rate %}
         <p><strong>本單套用：</strong>{{ profile.incentive_installment_periods }} 期 × {{ profile.incentive_installment_rate }}%</p>
         {% elif profile.incentive_rule %}

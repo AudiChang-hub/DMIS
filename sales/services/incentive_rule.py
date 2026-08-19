@@ -29,6 +29,8 @@ def _calculated_disbursement(order, rule):
             * rate_rule.rate
             / Decimal("100")
         ).quantize(Decimal("1"), rounding=ROUND_HALF_UP)
+        snapshot = order.installment_plan_snapshot or {}
+        amount += Decimal(str(snapshot.get("extra_disbursement_bonus") or 0))
         return amount, rate_rule
     return None, None
 

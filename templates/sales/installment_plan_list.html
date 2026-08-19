@@ -114,7 +114,7 @@
         <tr{% if editing and plan.pk == editing.pk %} class="installment-history-row--selected"{% endif %}>
           <td data-label="有效期間"><strong>{{ plan.effective_from|date:'Y/m/d' }}</strong><span>至 {{ plan.effective_to|date:'Y/m/d'|default:'無限期' }}</span>{% if editing and plan.pk == editing.pk %}<span class="installment-history-current">目前編輯</span>{% endif %}</td>
           <td data-label="期數方案">
-            {% for option in plan.options.all %}<span>{{ option.periods }} 期 · {{ option.company }} · 每期 ${{ option.monthly_amount|floatformat:0 }} · {{ option.get_expected_disbursement_method_display }}{% if option.expected_disbursement_method == 'rate' %} {{ option.expected_disbursement_rate|floatformat:-2 }}%{% elif option.expected_disbursement_method == 'fixed' %} ${{ option.expected_disbursement_fixed_amount|floatformat:0 }}{% endif %}</span>{% empty %}尚無期數{% endfor %}
+            {% for option in plan.options.all %}<span>{{ option.periods }} 期 · {{ option.company }} · 每期 ${{ option.monthly_amount|floatformat:0 }} · {{ option.get_expected_disbursement_method_display }}{% if option.expected_disbursement_method == 'rate' %} {{ option.expected_disbursement_rate|floatformat:-2 }}%{% elif option.expected_disbursement_method == 'fixed' %} ${{ option.expected_disbursement_fixed_amount|floatformat:0 }}{% endif %}{% if option.extra_disbursement_bonus %} · 額外撥款獎金 ${{ option.extra_disbursement_bonus|floatformat:0 }}{% endif %}</span>{% empty %}尚無期數{% endfor %}
           </td>
           <td data-label="狀態">
             {% if not plan.active %}<span class="status-pill installment-lifecycle--inactive">已停用</span>
@@ -193,8 +193,9 @@
     const method = row.querySelector('select[name$="-expected_disbursement_method"]');
     const rate = row.querySelector('input[name$="-expected_disbursement_rate"]');
     const fixed = row.querySelector('input[name$="-expected_disbursement_fixed_amount"]');
+    const bonus = row.querySelector('input[name$="-extra_disbursement_bonus"]');
     const summary = row.querySelector("[data-disbursement-summary]");
-    if (!method || !rate || !fixed) return;
+    if (!method || !rate || !fixed || !bonus) return;
     const isRate = method.value === "rate";
     const isFixed = method.value === "fixed";
     rate.closest("[data-field-container]").hidden = !isRate;
@@ -202,9 +203,24 @@
     rate.required = isRate;
     fixed.required = isFixed;
     if (!summary) return;
-    if (isRate) summary.textContent = rate.value ? `將以本單車款售價 × ${rate.value}% 試算` : "請填寫撥款比例";
-    else if (isFixed) summary.textContent = fixed.value ? `預估撥款 $${Number(fixed.value).toLocaleString("zh-TW")}` : "請填寫固定預估撥款金額";
-    else summary.textContent = "建立訂單後，於統一撥款對帳填寫本單預計金額";
+    const bonusAmount = Number(bonus.value || 0);
+    const bonusText = bonusAmount > 0
+      ? `，另加撥款獎金 $${bonusAmount.toLocaleString("zh-TW")}`
+      : "";
+    if (isRate) summary.textContent = rate.value
+      ? `將以本單車款售價 × ${rate.value}% 試算${bonusText}`
+      : "請填寫撥款比例";
+    else if (isFixed) {
+      if (!fixed.value) summary.textContent = "請填寫固定預估撥款金額";
+      else {
+        const baseAmount = Number(fixed.value);
+        const totalAmount = baseAmount + bonusAmount;
+        summary.textContent = bonusAmount > 0
+          ? `基礎撥款 $${baseAmount.toLocaleString("zh-TW")} ＋ 獎金 $${bonusAmount.toLocaleString("zh-TW")} ＝ 預估 $${totalAmount.toLocaleString("zh-TW")}`
+          : `預估撥款 $${baseAmount.toLocaleString("zh-TW")}`;
+      }
+    }
+    else summary.textContent = `建立訂單後，於統一撥款對帳填寫本單預計金額${bonusText}`;
   }
 
   function markRowDeleted(row) {
@@ -234,6 +250,7 @@
       row.querySelector('select[name$="-expected_disbursement_method"]')?.addEventListener("change", () => updateDisbursementFields(row));
       row.querySelector('input[name$="-expected_disbursement_rate"]')?.addEventListener("input", () => updateDisbursementFields(row));
       row.querySelector('input[name$="-expected_disbursement_fixed_amount"]')?.addEventListener("input", () => updateDisbursementFields(row));
+      row.querySelector('input[name$="-extra_disbursement_bonus"]')?.addEventListener("input", () => updateDisbursementFields(row));
       updateDisbursementFields(row);
     });
   }

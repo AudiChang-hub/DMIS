@@ -56,7 +56,13 @@
   {% for group in vehicle_model_groups %}
   <section class="vehicle-brand-group" data-brand-group="{{ group.name }}">
     <header class="vehicle-brand-group__header">
-      <span class="vehicle-brand-group__mark" aria-hidden="true">{{ group.name|slice:":1" }}</span>
+      <span class="vehicle-brand-group__mark{% if group.logo_brand %} has-logo{% endif %}" aria-hidden="true">
+        {% if group.logo_brand %}
+          <img src="{% url 'vehicle_brand_logo' group.logo_brand.pk %}?v={{ group.logo_brand.updated_at|date:'U' }}" alt="">
+        {% else %}
+          {{ group.name|slice:":1" }}
+        {% endif %}
+      </span>
       <span class="vehicle-brand-group__identity">
         <strong>{{ group.name }}</strong>
         <small>{% if group.child_brands %}包含 {{ group.child_brands|join:"、" }}{% else %}品牌車型{% endif %}</small>

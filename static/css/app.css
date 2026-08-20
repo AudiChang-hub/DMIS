@@ -1734,6 +1734,7 @@ body.screen-locked { overflow: hidden; }
   margin-top: 24px;
   overflow: hidden;
   padding: 0;
+  scroll-margin-top: 96px;
 }
 .vehicle-business-settings__heading {
   display: flex;

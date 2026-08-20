@@ -1,9 +1,11 @@
 import tempfile
+from io import BytesIO
 
 from django.contrib.auth import get_user_model
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase, override_settings
 from django.urls import reverse
+from PIL import Image
 
 from sales.forms import (
     BrandRegistrationFeeRuleForm,
@@ -161,7 +163,51 @@ class VehicleBrandMasterTests(TestCase):
         )
         self.assertEqual(
             [model.pk for model in suzuki_group["models"]],
-            [root_model.pk, child_model.pk],
+            [child_model.pk, root_model.pk],
+        )
+
+    def test_vehicle_models_sort_electric_by_power_then_gas_by_displacement(self):
+        brand = VehicleBrand.objects.create(name="動力排序測試", display_order=950)
+        specifications = [
+            ("油車 125", VehicleModel.EnergyType.GAS, 125, None, True),
+            ("電車 3KW", VehicleModel.EnergyType.ELECTRIC, None, 3, True),
+            ("油車 50", VehicleModel.EnergyType.GAS, 50, None, True),
+            ("電車 1KW", VehicleModel.EnergyType.ELECTRIC, None, 1, True),
+            ("微電車 2KW", VehicleModel.EnergyType.MICRO_ELECTRIC, None, 2, True),
+            ("電車待補功率", VehicleModel.EnergyType.ELECTRIC, None, None, True),
+            ("停用電車", VehicleModel.EnergyType.ELECTRIC, None, 0.5, False),
+        ]
+        for index, (name, energy, displacement, motor_power, active) in enumerate(specifications):
+            VehicleModel.objects.create(
+                brand=brand.name,
+                name=name,
+                model_number=f"SORT-{index}",
+                model_year=2026,
+                model_code=VehicleModel.ModelType.DRUM,
+                energy_type=energy,
+                displacement_cc=displacement,
+                motor_power_kw=motor_power,
+                active=active,
+            )
+
+        response = self.client.get(reverse("vehicle_model_list"))
+
+        group = next(
+            item
+            for item in response.context["vehicle_model_groups"]
+            if item["name"] == brand.name
+        )
+        self.assertEqual(
+            [family["name"] for family in group["families"]],
+            [
+                "電車 1KW",
+                "微電車 2KW",
+                "電車 3KW",
+                "電車待補功率",
+                "油車 50",
+                "油車 125",
+                "停用電車",
+            ],
         )
 
     def test_new_parent_child_brand_is_grouped_without_ui_special_case(self):
@@ -261,6 +307,63 @@ class VehicleBrandMasterTests(TestCase):
         response = self.client.get(reverse("vehicle_brand_logo", args=[brand.pk]))
 
         self.assertEqual(response.status_code, 404)
+
+    def test_brand_logo_upload_keeps_original_and_generates_cropped_preview(self):
+        with tempfile.TemporaryDirectory() as media_root, override_settings(
+            MEDIA_ROOT=media_root
+        ):
+            brand = VehicleBrand.objects.create(name="裁切測試品牌", display_order=912)
+            buffer = BytesIO()
+            Image.new("RGB", (400, 400), "red").save(buffer, format="PNG")
+            upload = SimpleUploadedFile(
+                "square-logo.png", buffer.getvalue(), content_type="image/png"
+            )
+
+            response = self.client.post(
+                f"{reverse('vehicle_brand_list')}?edit={brand.pk}",
+                {
+                    "name": brand.name,
+                    "parent": "",
+                    "aliases": "",
+                    "display_order": 912,
+                    "active": "on",
+                    "note": "",
+                    "logo_crop_x": 0,
+                    "logo_crop_y": 0.25,
+                    "logo_crop_width": 1,
+                    "logo_crop_height": 0.5,
+                    "logo_crop_changed": "1",
+                    "logo": upload,
+                },
+            )
+
+            self.assertRedirects(response, reverse("vehicle_brand_list"))
+            brand.refresh_from_db()
+            self.assertTrue(brand.logo)
+            self.assertTrue(brand.logo_original)
+            self.assertEqual(brand.logo_crop_data["y"], 0.25)
+            with brand.logo.open("rb") as rendered:
+                with Image.open(rendered) as image:
+                    self.assertEqual(image.size, (800, 400))
+                    self.assertEqual(image.format, "PNG")
+            with brand.logo_original.open("rb") as original:
+                with Image.open(original) as image:
+                    self.assertEqual(image.size, (400, 400))
+            source_response = self.client.get(
+                reverse("vehicle_brand_logo_source", args=[brand.pk])
+            )
+            self.assertEqual(source_response.status_code, 200)
+            self.assertTrue(b"".join(source_response.streaming_content))
+            source_response.close()
+
+    def test_brand_page_exposes_logo_crop_editor_and_global_previews(self):
+        response = self.client.get(reverse("vehicle_brand_list"))
+
+        self.assertContains(response, "data-brand-logo-editor")
+        self.assertContains(response, "電腦版品牌標頭")
+        self.assertContains(response, "手機版品牌標頭")
+        self.assertContains(response, "品牌維護列表")
+        self.assertContains(response, "brand-logo-editor.js")
 
     def test_dealer_price_list_entry_points_are_removed(self):
         for route_name in ("data_maintenance", "vehicle_model_list"):

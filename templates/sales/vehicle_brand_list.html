@@ -1,14 +1,63 @@
 {% extends "base.html" %}
+{% load static %}
 {% block title %}品牌資料｜車輛銷售管理{% endblock %}
 {% block page_class %}page-shell--wide{% endblock %}
 {% block content %}
 {% url 'data_maintenance' as data_url %}
 {% include "sales/_page_back.html" with fallback_url=data_url label="返回資料維護區" %}
-<section class="hero-row compact-hero"><div><p class="eyebrow">車型與商業規則共用主檔</p><h1>品牌資料</h1><p class="muted">可用所屬主品牌整理品牌關係；車型與交易仍保留子品牌名稱，售價、牌險與傭金規則也各自維護。</p></div></section>
+<section class="hero-row compact-hero">
+  <div>
+    <p class="eyebrow">車型與商業規則共用主檔</p>
+    <h1>品牌資料</h1>
+    <p class="muted">可用所屬主品牌整理品牌關係；車型與交易仍保留子品牌名稱，售價、牌險與傭金規則也各自維護。</p>
+  </div>
+</section>
 <div class="responsive-split master-editor-layout">
   <section class="form-section static-section">
     <div class="section-title"><div><p class="eyebrow">{% if editing %}編輯品牌{% else %}新增品牌{% endif %}</p><h2>{% if editing %}{{ editing.name }}{% else %}建立品牌{% endif %}</h2></div></div>
-    <form method="post" enctype="multipart/form-data" class="stacked-form">{% csrf_token %}{% if editing.logo %}<div class="brand-logo-preview"><img src="{% url 'vehicle_brand_logo' editing.pk %}?v={{ editing.updated_at|date:'U' }}" alt="{{ editing.name }} 目前的品牌 LOGO"><span>目前品牌 LOGO</span></div>{% endif %}<div class="form-grid single-column">{% for field in form %}{% include "sales/_field.html" with field=field %}{% endfor %}</div><div class="form-actions">{% if editing %}<a class="button ghost" href="{% url 'vehicle_brand_list' %}">取消</a>{% endif %}<button class="button primary" type="submit">儲存品牌</button></div></form>
+    <form method="post" enctype="multipart/form-data" class="stacked-form" data-brand-logo-form>
+      {% csrf_token %}
+      {{ form.logo_crop_x }}{{ form.logo_crop_y }}{{ form.logo_crop_width }}{{ form.logo_crop_height }}{{ form.logo_crop_changed }}{{ form.remove_logo }}
+      {% if form.non_field_errors %}<div class="form-errors">{{ form.non_field_errors }}</div>{% endif %}
+      <section class="brand-logo-editor" data-brand-logo-editor {% if editing.logo %}data-source-url="{% url 'vehicle_brand_logo_source' editing.pk %}?v={{ editing.updated_at|date:'U' }}"{% endif %} data-has-crop="{% if editing.logo_crop_data %}true{% else %}false{% endif %}">
+        <div class="brand-logo-editor__heading">
+          <div><strong>品牌 LOGO</strong><span>固定以 2:1 顯示；拖曳圖片位置並調整縮放，即時查看全站效果。</span></div>
+          <span class="status-pill" data-logo-status>{% if editing.logo %}目前已設定{% else %}尚未設定{% endif %}</span>
+        </div>
+        <div class="brand-logo-editor__upload">
+          <label for="{{ form.logo.id_for_label }}">選擇 LOGO 圖片</label>{{ form.logo }}
+          {% if form.logo.errors %}<div class="field-errors">{{ form.logo.errors }}</div>{% endif %}
+          <small>{{ form.logo.help_text }}</small>
+        </div>
+        <div class="brand-logo-editor__workspace{% if not editing.logo %} is-empty{% endif %}" data-logo-workspace>
+          <div class="brand-logo-editor__crop-column">
+            <span class="brand-logo-editor__label">裁切範圍</span>
+            <canvas class="brand-logo-crop-canvas" width="800" height="400" data-logo-canvas aria-label="LOGO 裁切畫面"></canvas>
+            <div class="brand-logo-editor__controls"><label>縮放 <input type="range" min="1" max="4" step="0.01" value="1" data-logo-zoom></label><button type="button" class="button ghost small" data-logo-reset>置中重設</button></div>
+            <p class="muted">可直接用滑鼠或手指拖曳圖片；透明區域會完整保留。</p>
+          </div>
+          <div class="brand-logo-editor__preview-column">
+            <span class="brand-logo-editor__label">實際顯示預覽</span>
+            <div class="brand-logo-preview-list">
+              <figure><canvas width="184" height="92" data-logo-preview></canvas><figcaption>電腦版品牌標頭</figcaption></figure>
+              <figure><canvas width="152" height="84" data-logo-preview></canvas><figcaption>手機版品牌標頭</figcaption></figure>
+              <figure><canvas width="200" height="84" data-logo-preview></canvas><figcaption>品牌維護列表</figcaption></figure>
+            </div>
+            {% if editing.logo %}<button type="button" class="button danger ghost small" data-logo-remove>移除 LOGO</button>{% endif %}
+          </div>
+        </div>
+        <div class="brand-logo-editor__empty" data-logo-empty{% if editing.logo %} hidden{% endif %}>選擇圖片後，這裡會立即出現裁切畫面與三種實際尺寸預覽。</div>
+      </section>
+      <div class="form-grid single-column">
+        {% include "sales/_field.html" with field=form.name %}
+        {% include "sales/_field.html" with field=form.parent %}
+        {% include "sales/_field.html" with field=form.aliases %}
+        {% include "sales/_field.html" with field=form.display_order %}
+        {% include "sales/_field.html" with field=form.active %}
+        {% include "sales/_field.html" with field=form.note %}
+      </div>
+      <div class="form-actions">{% if editing %}<a class="button ghost" href="{% url 'vehicle_brand_list' %}">取消</a>{% endif %}<button class="button primary" type="submit">儲存品牌</button></div>
+    </form>
   </section>
   <section class="inventory-list-panel">
     <div class="inventory-list-summary"><strong>共 {{ brands|length }} 個品牌</strong><span class="muted">停用後不再出現在新增資料的下拉選單</span></div>
@@ -18,3 +67,4 @@
   </section>
 </div>
 {% endblock %}
+{% block scripts %}<script src="{% static 'js/brand-logo-editor.js' %}?v={{ app_version }}" defer></script>{% endblock %}

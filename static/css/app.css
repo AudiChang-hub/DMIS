@@ -24,24 +24,41 @@
   --desktop-gutter: 40px;
 }
 
-/* 品牌主檔 LOGO 預覽 */
-.brand-logo-preview {
-  display: flex;
-  min-height: 96px;
-  padding: 14px;
-  align-items: center;
-  gap: 16px;
-  background: var(--surface-soft);
-  border: 1px solid var(--line);
-  border-radius: 12px;
+/* 品牌主檔 LOGO 裁切與全站尺寸預覽 */
+.brand-logo-editor {
+  display: grid; overflow: hidden; gap: 0; margin-bottom: 18px;
+  background: #fbfcfb; border: 1px solid var(--line); border-radius: 14px;
 }
-.brand-logo-preview img {
-  width: 150px;
-  max-height: 72px;
-  object-fit: contain;
-  object-position: left center;
+.brand-logo-editor__heading {
+  display: flex; padding: 16px 18px; align-items: flex-start; justify-content: space-between; gap: 14px;
+  background: #f2f7f4; border-bottom: 1px solid var(--line);
 }
-.brand-logo-preview span { color: var(--muted); font-size: .85rem; }
+.brand-logo-editor__heading > div { display: grid; gap: 3px; }
+.brand-logo-editor__heading strong { font-size: 1rem; }
+.brand-logo-editor__heading span:not(.status-pill) { color: var(--muted); font-size: .8rem; line-height: 1.5; }
+.brand-logo-editor__upload { display: grid; gap: 7px; padding: 16px 18px; border-bottom: 1px solid var(--line); }
+.brand-logo-editor__upload label, .brand-logo-editor__label { color: var(--forest); font-size: .82rem; font-weight: 850; }
+.brand-logo-editor__upload input[type="file"] { width: 100%; }
+.brand-logo-editor__upload small { color: var(--muted); font-size: .76rem; }
+.brand-logo-editor__workspace { display: grid; padding: 18px; grid-template-columns: minmax(0, 1.4fr) minmax(210px, .8fr); gap: 20px; }
+.brand-logo-editor__workspace.is-empty { display: none; }
+.brand-logo-editor__crop-column, .brand-logo-editor__preview-column { display: grid; align-content: start; gap: 10px; }
+.brand-logo-crop-canvas {
+  display: block; width: 100%; aspect-ratio: 2 / 1; touch-action: none; cursor: grab;
+  background: repeating-conic-gradient(#eef2ef 0 25%, #fff 0 50%) 50% / 18px 18px;
+  border: 2px solid var(--forest); border-radius: 12px; box-shadow: inset 0 0 0 1px rgba(255,255,255,.5);
+}
+.brand-logo-crop-canvas:active { cursor: grabbing; }
+.brand-logo-editor__controls { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.brand-logo-editor__controls label { display: flex; flex: 1; align-items: center; gap: 10px; font-size: .78rem; font-weight: 800; }
+.brand-logo-editor__controls input { min-width: 0; flex: 1; }
+.brand-logo-editor__crop-column > p { margin: 0; font-size: .72rem; }
+.brand-logo-preview-list { display: grid; gap: 10px; }
+.brand-logo-preview-list figure { display: grid; margin: 0; padding: 10px; justify-items: start; gap: 6px; background: #fff; border: 1px solid var(--line); border-radius: 10px; }
+.brand-logo-preview-list canvas { display: block; max-width: 100%; height: auto; background: #fff; border: 1px solid #e6ebe8; border-radius: 8px; }
+.brand-logo-preview-list figcaption { color: var(--muted); font-size: .7rem; font-weight: 700; }
+.brand-logo-editor__empty { padding: 22px 18px; color: var(--muted); text-align: center; font-size: .82rem; }
+.brand-logo-editor__empty[hidden] { display: none; }
 .brand-logo-thumb {
   width: 100px;
   height: 42px;
@@ -1452,12 +1469,12 @@ body.screen-locked { overflow: hidden; }
   border-bottom: 1px solid var(--line);
 }
 .vehicle-brand-group__mark {
-  display: grid; width: 46px; height: 46px; place-items: center;
+  display: grid; overflow: hidden; width: 46px; height: 46px; place-items: center;
   color: #fff; background: var(--forest); border-radius: 13px;
   font-size: 1rem; font-weight: 900;
 }
 .vehicle-brand-group__mark.has-logo {
-  width: 92px; padding: 5px 7px; background: #fff;
+  width: 92px; aspect-ratio: 2 / 1; padding: 5px 7px; background: #fff;
   border: 1px solid var(--line); box-shadow: 0 3px 9px rgba(18, 55, 42, .06);
 }
 .vehicle-brand-group__mark img {
@@ -3363,6 +3380,10 @@ form[aria-busy="true"] { cursor: progress; }
 }
 
 @media (max-width: 720px) {
+  .brand-logo-editor__workspace { grid-template-columns: 1fr; padding: 14px; }
+  .brand-logo-editor__heading { align-items: stretch; flex-direction: column; }
+  .brand-logo-editor__heading .status-pill { align-self: flex-start; }
+  .brand-logo-editor__controls { align-items: stretch; flex-direction: column; }
   .import-progress-card { padding: 20px; }
   .import-progress-card__heading { gap: 12px; }
   .import-master-workspace {

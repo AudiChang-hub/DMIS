@@ -68,6 +68,62 @@
 </form>
 
 {% if is_editing %}
+<section id="data-correction" class="card vehicle-model-correction">
+  <details{% if move_form.errors %} open{% endif %}>
+    <summary>
+      <span><strong>誤建成不同機種？</strong><small>移動這個年式，或刪除完全未使用的錯誤資料</small></span>
+      <span class="vehicle-model-correction__summary-action">資料修正</span>
+    </summary>
+    <div class="vehicle-model-correction__body">
+      <div class="vehicle-model-correction__current">
+        <p class="eyebrow">目前這筆年式</p>
+        <h3>{{ vehicle_model.family.name }} · {{ vehicle_model.model_year }} 年</h3>
+        <p>{{ vehicle_model.model_number }} · {{ vehicle_model.get_model_code_display }}</p>
+      </div>
+      <div class="vehicle-model-relation-summary" aria-label="移動時保留的資料">
+        <span>顏色 <strong>{{ relation_summary.colors }}</strong></span>
+        <span>庫存 <strong>{{ relation_summary.inventory }}</strong></span>
+        <span>訂單 <strong>{{ relation_summary.orders }}</strong></span>
+        <span>售價 <strong>{{ relation_summary.prices }}</strong></span>
+        <span>分期 <strong>{{ relation_summary.installments }}</strong></span>
+      </div>
+      <div class="vehicle-model-correction__notice">
+        <strong>移動不會刪除這個年份</strong>
+        <span>顏色、庫存、訂單、售價、分期與成本規則都會跟著這筆年式保留。</span>
+      </div>
+      {% if has_move_targets %}
+      <form method="post" class="vehicle-model-move-form" data-confirm-form="確定要將這個年式移至選擇的機種嗎？">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="move_family">
+        {% if move_form.non_field_errors %}<div class="message error">{{ move_form.non_field_errors }}</div>{% endif %}
+        {% include "sales/_field.html" with field=move_form.target_family %}
+        <button class="button primary" type="submit">確認移動年式</button>
+      </form>
+      {% else %}
+      <div class="empty-state compact"><strong>目前沒有其他同品牌機種可供移動</strong><span>請先建立正確機種，再回到此處執行移動。</span></div>
+      {% endif %}
+
+      <div class="vehicle-model-delete-zone">
+        <div>
+          <strong>永久刪除這筆年式／規格</strong>
+          {% if delete_blockers %}
+          <p>目前不能刪除，因為仍有：{% for blocker in delete_blockers %}{{ blocker.label }} {{ blocker.count }} 筆{% if not forloop.last %}、{% endif %}{% endfor %}。</p>
+          {% else %}
+          <p>這筆資料沒有訂單、庫存或商務版本；刪除後無法復原。</p>
+          {% endif %}
+        </div>
+        {% if not delete_blockers %}
+        <form method="post" data-confirm-form="確定永久刪除這筆未使用的年式／規格嗎？此操作無法復原。">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="delete_model">
+          <button class="button danger-outline" type="submit">永久刪除</button>
+        </form>
+        {% endif %}
+      </div>
+    </div>
+  </details>
+</section>
+
 <section class="card vehicle-business-settings">
   <div class="vehicle-business-settings__heading">
     <div>
@@ -198,6 +254,11 @@
     total.value = index + 1;
     bind(row);
     row.querySelector('input[type="text"]').focus();
+  });
+  document.querySelectorAll("[data-confirm-form]").forEach((form) => {
+    form.addEventListener("submit", (event) => {
+      if (!window.confirm(form.dataset.confirmForm)) event.preventDefault();
+    });
   });
 })();
 </script>

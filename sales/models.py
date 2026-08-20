@@ -44,6 +44,13 @@ def _is_dr_z4s_model_number(value):
     return compact == "drz4s"
 
 
+def _is_gsx250f_model_number(value):
+    """辨識 GIXXER SF 250 已確認為同一型號的歷史冗長寫法。"""
+    key = normalize_legacy_master_value(value)
+    compact = re.sub(r"[-_]", "", key)
+    return compact in {"gsx250f", "gsx250fgixxersf250"}
+
+
 def canonical_vehicle_model_name(value):
     """將已確認為同一機種的歷史名稱收斂成日常使用名稱。"""
     name = str(value or "").strip()
@@ -59,6 +66,8 @@ def canonical_vehicle_model_number(value):
         return "DR-Z4SM"
     if _is_dr_z4s_model_number(number):
         return "DR-Z4S"
+    if _is_gsx250f_model_number(number):
+        return "GSX250F"
     return number
 
 
@@ -68,6 +77,8 @@ def normalize_vehicle_model_master_value(value):
         return normalize_legacy_master_value("DR-Z4SM")
     if _is_dr_z4s_model_number(value):
         return normalize_legacy_master_value("DR-Z4S")
+    if _is_gsx250f_model_number(value):
+        return normalize_legacy_master_value("GSX250F")
     return normalize_legacy_master_value(value)
 
 

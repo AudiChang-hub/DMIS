@@ -69,9 +69,9 @@
 
 {% if is_editing %}
 <section id="data-correction" class="card vehicle-model-correction">
-  <details{% if year_correction_form.errors or move_form.errors %} open{% endif %}>
+  <details{% if year_correction_form.errors or merge_form.errors or move_form.errors %} open{% endif %}>
     <summary>
-      <span><strong>年式資料修正</strong><small>修正年份、移至其他機種，或刪除未使用的年式</small></span>
+      <span><strong>年式資料修正</strong><small>修正年份、合併重複資料、移至其他機種，或刪除未使用的年式</small></span>
       <span class="vehicle-model-correction__summary-action">資料修正</span>
     </summary>
     <div class="vehicle-model-correction__body">
@@ -107,9 +107,29 @@
         </form>
       </div>
 
+      {% if has_merge_targets %}
       <div class="vehicle-model-correction-action">
         <div class="vehicle-model-correction-action__heading">
           <span class="vehicle-model-correction-action__number">2</span>
+          <div><h3>合併重複年式</h3><p>同一機種、同一年份因原始型號寫法不同而重複時使用。</p></div>
+        </div>
+        <div class="vehicle-model-correction__notice">
+          <strong>先檢查，再合併</strong>
+          <span>若兩筆有相同生效日的售價、分期或成本規則，系統會停止並指出衝突，不會覆蓋資料。</span>
+        </div>
+        <form method="post" class="vehicle-model-move-form" data-confirm-form="確定將目前這筆年式併入所選資料嗎？合併後目前這筆會被移除。">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="merge_version">
+          {% if merge_form.non_field_errors %}<div class="message error">{{ merge_form.non_field_errors }}</div>{% endif %}
+          {% include "sales/_field.html" with field=merge_form.target_model %}
+          <button class="button primary" type="submit">確認合併重複年式</button>
+        </form>
+      </div>
+      {% endif %}
+
+      <div class="vehicle-model-correction-action">
+        <div class="vehicle-model-correction-action__heading">
+          <span class="vehicle-model-correction-action__number">{% if has_merge_targets %}3{% else %}2{% endif %}</span>
           <div><h3>移至其他機種</h3><p>只有目前年式確實建立在錯誤機種下時才使用。</p></div>
         </div>
       {% if has_move_targets %}
@@ -129,7 +149,7 @@
         <div class="vehicle-model-delete-zone">
           <div>
           <div class="vehicle-model-correction-action__heading">
-            <span class="vehicle-model-correction-action__number">3</span>
+            <span class="vehicle-model-correction-action__number">{% if has_merge_targets %}4{% else %}3{% endif %}</span>
             <div><h3>刪除未使用的年式</h3></div>
           </div>
           <strong>永久刪除這筆年式／規格</strong>

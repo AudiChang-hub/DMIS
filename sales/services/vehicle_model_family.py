@@ -20,6 +20,17 @@ DELETE_BLOCKING_RELATIONS = (
     ("legacy_import_mappings", "歷史匯入對應"),
 )
 
+MERGE_VERSIONED_RELATIONS = (
+    ("price_versions", ("effective_from",), "售價版本"),
+    ("installment_plan_versions", ("effective_from",), "分期方案"),
+    (
+        "settlement_cost_rules",
+        ("registration_county", "effective_from"),
+        "代銷結算成本",
+    ),
+    ("incentive_rules", ("effective_from",), "原廠獎勵與補助"),
+)
+
 
 def vehicle_model_relation_summary(vehicle_model):
     return {
@@ -40,6 +51,98 @@ def vehicle_model_delete_blockers(vehicle_model):
         if count:
             blockers.append({"label": label, "count": count})
     return blockers
+
+
+def _versioned_relation_conflicts(source, target):
+    conflicts = []
+    for accessor, key_fields, label in MERGE_VERSIONED_RELATIONS:
+        source_keys = set(getattr(source, accessor).values_list(*key_fields))
+        target_keys = set(getattr(target, accessor).values_list(*key_fields))
+        overlap = source_keys & target_keys
+        if overlap:
+            conflicts.append(f"{label} {len(overlap)} 筆")
+    return conflicts
+
+
+@transaction.atomic
+def merge_vehicle_model_versions(*, source_model_id, target_model_id):
+    if source_model_id == target_model_id:
+        raise ValidationError("不能將年式資料合併到自己。")
+    locked = {
+        item.pk: item
+        for item in VehicleModel.objects.select_for_update()
+        .select_related("family")
+        .filter(pk__in=[source_model_id, target_model_id])
+    }
+    source = locked.get(source_model_id)
+    target = locked.get(target_model_id)
+    if source is None or target is None:
+        raise ValidationError("找不到要合併的年式資料，請重新整理後再試。")
+    if source.family_id != target.family_id:
+        raise ValidationError("只能合併同一機種下的年式資料。")
+    if source.model_year != target.model_year:
+        raise ValidationError("只能合併相同年份的重複資料。")
+    if source.energy_type != target.energy_type:
+        raise ValidationError("兩筆資料的能源別不同，請先人工確認，不能直接合併。")
+
+    conflicts = _versioned_relation_conflicts(source, target)
+    if conflicts:
+        raise ValidationError(
+            "兩筆資料有相同生效日的商務設定，請先確認後再合併："
+            + "、".join(conflicts)
+            + "。"
+        )
+
+    scalar_updates = {}
+    for field_name in (
+        "model_code",
+        "displacement_cc",
+        "motor_power_kw",
+        "horsepower_hp",
+        "electric_registration_class",
+    ):
+        if not getattr(target, field_name) and getattr(source, field_name):
+            scalar_updates[field_name] = getattr(source, field_name)
+    if not target.base_dealer_commission and source.base_dealer_commission:
+        scalar_updates["base_dealer_commission"] = source.base_dealer_commission
+    if source.active and not target.active:
+        scalar_updates["active"] = True
+    if scalar_updates:
+        scalar_updates["updated_at"] = timezone.now()
+        VehicleModel.objects.filter(pk=target.pk).update(**scalar_updates)
+
+    target_colors = {
+        color.name.strip().casefold(): color
+        for color in target.colors.select_for_update().all()
+    }
+    for source_color in source.colors.select_for_update().all():
+        color_key = source_color.name.strip().casefold()
+        target_color = target_colors.get(color_key)
+        if target_color:
+            source_color.vehicleinventory_set.update(color=target_color)
+            source_color.salesorder_set.update(color=target_color)
+            if source_color.active and not target_color.active:
+                type(target_color).objects.filter(pk=target_color.pk).update(
+                    active=True,
+                    updated_at=timezone.now(),
+                )
+            source_color.delete()
+        else:
+            type(source_color).objects.filter(pk=source_color.pk).update(
+                vehicle_model=target,
+                updated_at=timezone.now(),
+            )
+            target_colors[color_key] = source_color
+
+    for accessor, _key_fields, _label in MERGE_VERSIONED_RELATIONS:
+        getattr(source, accessor).update(vehicle_model=target)
+    source.legacy_import_mappings.update(vehicle_model=target)
+    source.vehicleinventory_set.update(vehicle_model=target)
+    source.salesorder_set.update(vehicle_model=target)
+    target.factory_model_codes.add(*source.factory_model_codes.all())
+    source.delete()
+    target.refresh_from_db()
+    return target
 
 
 def _remove_empty_family(family):

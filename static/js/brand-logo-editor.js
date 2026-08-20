@@ -22,18 +22,28 @@
   let dragging = false;
   let pointer = null;
   const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
-  const centeredCrop = () => {
-    const ratio = image.naturalWidth / image.naturalHeight;
-    if (ratio >= 2) { const width = 2 / ratio; return { x: (1 - width) / 2, y: 0, width, height: 1 }; }
-    const height = ratio / 2;
-    return { x: 0, y: (1 - height) / 2, width: 1, height };
-  };
+  const fullImageCrop = () => ({ x: 0, y: 0, width: 1, height: 1 });
   const readStoredCrop = () => ({ x: Number(fields.x.value), y: Number(fields.y.value), width: Number(fields.width.value), height: Number(fields.height.value) });
   const writeCrop = () => Object.entries(crop).forEach(([key, value]) => { fields[key].value = value.toFixed(6); });
   const drawInto = (target) => {
     const context = target.getContext("2d");
     context.clearRect(0, 0, target.width, target.height);
-    context.drawImage(image, crop.x * image.naturalWidth, crop.y * image.naturalHeight, crop.width * image.naturalWidth, crop.height * image.naturalHeight, 0, 0, target.width, target.height);
+    const sourceWidth = crop.width * image.naturalWidth;
+    const sourceHeight = crop.height * image.naturalHeight;
+    const scale = Math.min(target.width / sourceWidth, target.height / sourceHeight);
+    const renderedWidth = sourceWidth * scale;
+    const renderedHeight = sourceHeight * scale;
+    context.drawImage(
+      image,
+      crop.x * image.naturalWidth,
+      crop.y * image.naturalHeight,
+      sourceWidth,
+      sourceHeight,
+      (target.width - renderedWidth) / 2,
+      (target.height - renderedHeight) / 2,
+      renderedWidth,
+      renderedHeight,
+    );
   };
   const render = () => { if (!crop || !image.naturalWidth) return; writeCrop(); drawInto(canvas); previews.forEach(drawInto); };
   const setReady = (ready) => { workspace.classList.toggle("is-empty", !ready); emptyState.hidden = ready; };
@@ -46,9 +56,9 @@
   };
   const loadSource = (source, useStoredCrop) => {
     image.onload = () => {
-      baseCrop = centeredCrop(); crop = useStoredCrop ? readStoredCrop() : { ...baseCrop };
+      baseCrop = fullImageCrop(); crop = useStoredCrop ? readStoredCrop() : { ...baseCrop };
       if (!crop.width || !crop.height) crop = { ...baseCrop };
-      zoom.value = Math.min(4, Math.max(1, baseCrop.width / crop.width)); fields.remove.value = "";
+      zoom.value = Math.min(4, Math.max(1, baseCrop.width / crop.width, baseCrop.height / crop.height)); fields.remove.value = "";
       setReady(true); status.textContent = input.files.length ? "新圖片待儲存" : "目前已設定"; render();
     };
     image.onerror = () => {

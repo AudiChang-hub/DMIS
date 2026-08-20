@@ -622,7 +622,7 @@ class VehicleBrandForm(forms.ModelForm):
         label="品牌 LOGO 原圖",
         required=False,
         widget=forms.FileInput(attrs={"accept": "image/png,image/jpeg,image/webp"}),
-        help_text="上傳後可直接裁切並預覽實際顯示效果；系統會保留原圖。",
+        help_text="上傳後會先等比例縮放並完整顯示；仍可放大或拖曳微調，系統會保留原圖。",
     )
     logo_crop_x = forms.FloatField(required=False, widget=forms.HiddenInput())
     logo_crop_y = forms.FloatField(required=False, widget=forms.HiddenInput())

@@ -1585,6 +1585,34 @@ class VehicleModelFamilyMoveForm(forms.Form):
         return target
 
 
+class VehicleModelVersionMergeForm(forms.Form):
+    target_model = forms.ModelChoiceField(
+        label="保留哪一筆年式資料",
+        queryset=VehicleModel.objects.none(),
+        empty_label="請選擇要保留的年式／規格",
+        help_text="目前這筆會併入所選資料；訂單、庫存、顏色與商務設定都會保留。",
+    )
+
+    def __init__(self, *args, vehicle_model, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.vehicle_model = vehicle_model
+        if vehicle_model.family_id and vehicle_model.model_year:
+            self.fields["target_model"].queryset = (
+                vehicle_model.family.versions.exclude(pk=vehicle_model.pk)
+                .filter(model_year=vehicle_model.model_year)
+                .order_by("model_code", "model_number", "id")
+            )
+        self.fields["target_model"].widget.attrs.setdefault("class", "form-control")
+
+    def clean_target_model(self):
+        target = self.cleaned_data["target_model"]
+        if target.family_id != self.vehicle_model.family_id:
+            raise ValidationError("只能合併同一機種下的年式資料。")
+        if target.model_year != self.vehicle_model.model_year:
+            raise ValidationError("只能合併相同年份的重複資料。")
+        return target
+
+
 class VehicleModelYearCorrectionForm(forms.Form):
     model_year = forms.IntegerField(
         label="正確年份",

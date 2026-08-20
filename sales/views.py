@@ -84,6 +84,7 @@ from .forms import (
     VehicleModelCommissionForm,
     VehicleModelFamilyMoveForm,
     VehicleModelMasterForm,
+    VehicleModelVersionMergeForm,
     VehicleModelYearCorrectionForm,
     VehiclePriceVersionForm,
     VehicleSettlementCostRuleForm,
@@ -137,6 +138,7 @@ from .services.vehicle_brands import (
 from .services.vehicle_model_family import (
     correct_vehicle_model_year,
     delete_unused_vehicle_model,
+    merge_vehicle_model_versions,
     move_vehicle_model_to_family,
     vehicle_model_delete_blockers,
     vehicle_model_relation_summary,
@@ -5191,6 +5193,18 @@ def _vehicle_model_form_view(request, instance=None):
         if is_editing
         else None
     )
+    merge_form = (
+        VehicleModelVersionMergeForm(
+            (
+                request.POST
+                if request.method == "POST" and action == "merge_version"
+                else None
+            ),
+            vehicle_model=instance,
+        )
+        if is_editing
+        else None
+    )
     year_correction_form = (
         VehicleModelYearCorrectionForm(
             request.POST
@@ -5218,6 +5232,24 @@ def _vehicle_model_form_view(request, instance=None):
                 )
                 return redirect(
                     f"{reverse('vehicle_model_edit', args=[corrected_model.pk])}#data-correction"
+                )
+    if request.method == "POST" and action == "merge_version" and is_editing:
+        if merge_form.is_valid():
+            target_model = merge_form.cleaned_data["target_model"]
+            try:
+                merged_model = merge_vehicle_model_versions(
+                    source_model_id=instance.pk,
+                    target_model_id=target_model.pk,
+                )
+            except ValidationError as exc:
+                merge_form.add_error(None, exc)
+            else:
+                messages.success(
+                    request,
+                    f"已合併 {merged_model.model_year} 年的重複年式；訂單、庫存、顏色與商務設定均已保留。",
+                )
+                return redirect(
+                    f"{reverse('vehicle_model_edit', args=[merged_model.pk])}#data-correction"
                 )
     if request.method == "POST" and action == "move_family" and is_editing:
         if move_form.is_valid():
@@ -5345,7 +5377,13 @@ def _vehicle_model_form_view(request, instance=None):
                 else []
             ),
             "move_form": move_form,
+            "merge_form": merge_form,
             "year_correction_form": year_correction_form,
+            "has_merge_targets": (
+                merge_form.fields["target_model"].queryset.exists()
+                if merge_form
+                else False
+            ),
             "has_move_targets": (
                 move_form.fields["target_family"].queryset.exists()
                 if move_form

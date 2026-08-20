@@ -53,6 +53,7 @@ from .models import (
     normalize_vehicle_identifier,
 )
 from .services.registration_fee import (
+    ManualRegistrationFeeRequired,
     UnsupportedRegistrationFee,
     calculate_registration_fee,
     calculate_vehicle_registration_fee,
@@ -424,6 +425,20 @@ class SalesOrderForm(forms.ModelForm):
                         registration_date,
                         insurance_period,
                     )
+                except ManualRegistrationFeeRequired:
+                    self.instance.registration_rate_class = "MANUAL"
+                    self.instance.registration_calculated_total = 0
+                    for field_name in (
+                        "registration_plate_fee",
+                        "registration_license_fee",
+                        "registration_inspection_fee",
+                        "road_maintenance_fee",
+                        "license_tax_fee",
+                        "compulsory_insurance_fee",
+                        "registration_calculated_total",
+                    ):
+                        data[field_name] = 0
+                        self.cleaned_data[field_name] = 0
                 except UnsupportedRegistrationFee as exc:
                     self.add_error("vehicle_model", str(exc))
                 else:
@@ -2601,6 +2616,8 @@ class RegistrationStageForm(forms.ModelForm):
                     registration_date,
                     self.instance.compulsory_insurance_period,
                 )
+            except ManualRegistrationFeeRequired:
+                self._manual_registration_fee = True
             except UnsupportedRegistrationFee as exc:
                 self.add_error("registration_date", str(exc))
         return cleaned
@@ -2635,6 +2652,17 @@ class RegistrationStageForm(forms.ModelForm):
                 or not order.balance_adjustment_reason
             ):
                 order.actual_balance = recalculated_balance
+        elif order.registration_date and getattr(
+            self, "_manual_registration_fee", False
+        ):
+            order.registration_rate_class = "MANUAL"
+            order.registration_plate_fee = 0
+            order.registration_license_fee = 0
+            order.registration_inspection_fee = 0
+            order.road_maintenance_fee = 0
+            order.license_tax_fee = 0
+            order.compulsory_insurance_fee = 0
+            order.registration_calculated_total = 0
         if commit:
             order.save()
         return order
@@ -2893,6 +2921,15 @@ class BrandRegistrationFeeRuleForm(forms.ModelForm):
         self.fields["fixed_compulsory_insurance_fee"].required = False
         self.fields["effective_to"].required = False
         self.fields["note"].required = False
+        self.fields["calculation_type"].help_text = (
+            "公式計算依領牌日與排氣量試算；固定整包直接採用總額；"
+            "固定分項分別保存領牌規費與強制險；人工輸入不預帶金額。"
+        )
+        self.fields["fixed_total"].help_text = "不拆分明細，系統直接採用此牌險總額。"
+        self.fields["fixed_registration_fee"].help_text = "固定分項時的領牌規費。"
+        self.fields["fixed_compulsory_insurance_fee"].help_text = (
+            "固定分項時的強制險金額。"
+        )
 
     def clean_fixed_total(self):
         return self.cleaned_data.get("fixed_total") or 0
@@ -2902,7 +2939,6 @@ class BrandRegistrationFeeRuleForm(forms.ModelForm):
 
     def clean_fixed_compulsory_insurance_fee(self):
         return self.cleaned_data.get("fixed_compulsory_insurance_fee") or 0
-
 
 class PositionedPrintTemplateForm(forms.ModelForm):
     class Meta:

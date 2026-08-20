@@ -5,7 +5,7 @@
 {% url 'data_maintenance' as maintenance_url %}
 {% include "sales/_page_back.html" with fallback_url=maintenance_url label="返回資料維護區" %}
 <section class="hero-row compact-hero">
-  <div><p class="eyebrow">品牌、能源別與領牌日生效版本</p><h1>品牌牌險規則</h1><p class="muted">油車可依排氣量使用公式或固定總額；電動車依輕型／重型分別維護固定領牌規費及強制險。</p></div><div class="hero-actions"><a class="button ghost" href="{% url 'vehicle_brand_list' %}">維護品牌</a></div>
+  <div><p class="eyebrow">品牌、能源別與領牌日生效版本</p><h1>品牌牌險規則</h1><p class="muted">公式依日期與排氣量試算；固定整包直接採用總額；固定分項分別保存領牌規費及強制險；人工輸入則於訂單依單據填寫。</p></div><div class="hero-actions"><a class="button ghost" href="{% url 'vehicle_brand_list' %}">維護品牌</a></div>
 </section>
 <section class="section-block">
   <div class="section-title"><h2>{% if editing %}編輯規則{% else %}新增規則{% endif %}</h2>{% if editing %}<a href="{% url 'brand_registration_fee_rule_list' %}">取消編輯</a>{% endif %}</div>
@@ -20,7 +20,7 @@
   <div class="section-title"><h2>已設定規則</h2><span>{{ rules|length }} 筆</span></div>
   <div class="responsive-table-wrap"><table class="data-table"><thead><tr><th>品牌／能源</th><th>適用級別</th><th>計算方式</th><th>領牌規費</th><th>強制險</th><th>合計</th><th>生效期間</th><th>狀態</th><th>操作</th></tr></thead><tbody>
     {% for rule in rules %}<tr>
-      <td><strong>{{ rule.brand }}</strong><small>{{ rule.get_energy_type_display }}</small></td><td>{% if rule.energy_type == 'electric' %}{{ rule.get_electric_registration_class_display }}{% else %}{{ rule.min_cc|default:"不限" }}～{{ rule.max_cc|default:"不限" }} c.c.{% endif %}</td><td>{{ rule.get_calculation_type_display }}{% if rule.calculation_type == 'fixed' %}<small>強制險 {{ rule.insurance_period_years }} 年</small>{% endif %}</td><td>{% if rule.energy_type == 'electric' %}${{ rule.fixed_registration_fee|floatformat:0 }}{% else %}依公式／整包{% endif %}</td><td>{% if rule.energy_type == 'electric' %}${{ rule.fixed_compulsory_insurance_fee|floatformat:0 }}{% else %}依公式／整包{% endif %}</td><td>${{ rule.fixed_total|floatformat:0 }}</td><td>{{ rule.effective_from|date:"Y/m/d" }}～{% if rule.effective_to %}{{ rule.effective_to|date:"Y/m/d" }}{% else %}持續有效{% endif %}</td><td>{% if rule.active %}啟用{% else %}停用{% endif %}</td>
+      <td><strong>{{ rule.brand }}</strong><small>{{ rule.get_energy_type_display }}</small></td><td>{% if rule.energy_type == 'electric' %}{{ rule.get_electric_registration_class_display }}{% elif rule.energy_type == 'gas' %}{{ rule.min_cc|default:"不限" }}～{{ rule.max_cc|default:"不限" }} c.c.{% else %}不分級{% endif %}</td><td>{{ rule.get_calculation_type_display }}{% if rule.calculation_type != 'manual' %}<small>強制險 {{ rule.insurance_period_years }} 年</small>{% endif %}</td><td>{% if rule.calculation_type == 'fixed_components' %}${{ rule.fixed_registration_fee|floatformat:0 }}{% elif rule.calculation_type == 'formula' %}依公式{% else %}—{% endif %}</td><td>{% if rule.calculation_type == 'fixed_components' %}${{ rule.fixed_compulsory_insurance_fee|floatformat:0 }}{% elif rule.calculation_type == 'formula' %}依公式{% else %}—{% endif %}</td><td>{% if rule.calculation_type == 'fixed_bundle' or rule.calculation_type == 'fixed_components' %}${{ rule.fixed_total|floatformat:0 }}{% else %}—{% endif %}</td><td>{{ rule.effective_from|date:"Y/m/d" }}～{% if rule.effective_to %}{{ rule.effective_to|date:"Y/m/d" }}{% else %}持續有效{% endif %}</td><td>{% if rule.active %}啟用{% else %}停用{% endif %}</td>
       <td><a class="button ghost small" href="?edit={{ rule.pk }}">編輯</a><form class="inline-form" method="post" action="{% url 'brand_registration_fee_rule_delete' rule.pk %}">{% csrf_token %}<button class="button danger small" type="submit" data-confirm="確定刪除這筆牌險規則嗎？">刪除</button></form></td>
     </tr>{% empty %}<tr><td colspan="9">尚未建立品牌特殊規則；油車會沿用既有 M2～M5 公式。</td></tr>{% endfor %}
   </tbody></table></div>
@@ -38,14 +38,22 @@
   function refreshRuleFields() {
     const isGas = energy.value === "gas";
     const isElectric = energy.value === "electric";
-    const isFixed = calculation.value === "fixed";
+    const isBundle = calculation.value === "fixed_bundle";
+    const isComponents = calculation.value === "fixed_components";
+    const isManual = calculation.value === "manual";
     toggle("electric_registration_class", isElectric);
     toggle("min_cc", isGas);
     toggle("max_cc", isGas);
-    toggle("fixed_total", isGas && isFixed);
-    toggle("fixed_registration_fee", isElectric && isFixed);
-    toggle("fixed_compulsory_insurance_fee", isElectric && isFixed);
-    toggle("insurance_period_years", isFixed);
+    toggle("fixed_total", isBundle);
+    toggle("fixed_registration_fee", isComponents);
+    toggle("fixed_compulsory_insurance_fee", isComponents);
+    toggle("insurance_period_years", !isManual);
+    const fixedTotal = document.getElementById("id_fixed_total");
+    const registrationFee = document.getElementById("id_fixed_registration_fee");
+    const insuranceFee = document.getElementById("id_fixed_compulsory_insurance_fee");
+    if (fixedTotal) fixedTotal.required = isBundle;
+    if (registrationFee) registrationFee.required = isComponents;
+    if (insuranceFee) insuranceFee.required = isComponents;
   }
   energy.addEventListener("change", refreshRuleFields);
   calculation.addEventListener("change", refreshRuleFields);

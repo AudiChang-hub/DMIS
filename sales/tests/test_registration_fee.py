@@ -18,7 +18,7 @@ from sales.services.registration_fee import (
     calculate_registration_fee,
     calculate_vehicle_registration_fee,
 )
-from sales.forms import RegistrationStageForm
+from sales.forms import BrandRegistrationFeeRuleForm, RegistrationStageForm
 
 
 class RegistrationFeeCalculatorTests(SimpleTestCase):
@@ -150,7 +150,7 @@ class RegistrationFeeOrderIntegrationTests(TestCase):
     def test_brand_fixed_fee_rule_uses_registration_date_and_displacement(self):
         BrandRegistrationFeeRule.objects.create(
             brand="測試廠牌",
-            calculation_type=BrandRegistrationFeeRule.CalculationType.FIXED,
+            calculation_type=BrandRegistrationFeeRule.CalculationType.FIXED_BUNDLE,
             min_cc=51,
             max_cc=125,
             fixed_total=1888,
@@ -166,7 +166,7 @@ class RegistrationFeeOrderIntegrationTests(TestCase):
         )
 
         self.assertEqual(before.pricing_method, "formula")
-        self.assertEqual(after.pricing_method, "fixed")
+        self.assertEqual(after.pricing_method, "fixed_bundle")
         self.assertEqual(after.fixed_and_variable_total, 1888)
 
     def test_manual_brand_rule_requires_actual_receipt_entry(self):
@@ -176,8 +176,43 @@ class RegistrationFeeOrderIntegrationTests(TestCase):
             effective_from=date(2026, 1, 1),
         )
 
-        with self.assertRaisesMessage(UnsupportedRegistrationFee, "人工牌險"):
-            calculate_vehicle_registration_fee(self.model, date(2026, 8, 1), 1)
+        for insurance_period in (1, 2):
+            with self.subTest(insurance_period=insurance_period):
+                with self.assertRaisesMessage(UnsupportedRegistrationFee, "人工牌險"):
+                    calculate_vehicle_registration_fee(
+                        self.model, date(2026, 8, 1), insurance_period
+                    )
+
+    def test_manual_brand_rule_allows_registration_and_preserves_actual_amount(self):
+        BrandRegistrationFeeRule.objects.create(
+            brand="測試廠牌",
+            calculation_type=BrandRegistrationFeeRule.CalculationType.MANUAL,
+            effective_from=date(2026, 1, 1),
+        )
+        order = SalesOrder.objects.create(
+            owner_name="人工牌險測試",
+            owner_phone="0911222333",
+            owner_address="新北市",
+            owner_id_number="A123456789",
+            vehicle_model=self.model,
+            color=self.color,
+            plate_insurance_fee=1358,
+            balance_adjustment_reason="人工牌險依單據輸入",
+        )
+        form = RegistrationStageForm(
+            {
+                "registration_date": "2026-08-13",
+                "registration_county": "新北市",
+                "final_plate_number": "abc-1234",
+            },
+            instance=order,
+        )
+
+        self.assertTrue(form.is_valid(), form.errors)
+        saved = form.save()
+        self.assertEqual(saved.registration_rate_class, "MANUAL")
+        self.assertEqual(saved.registration_calculated_total, 0)
+        self.assertEqual(saved.plate_insurance_fee, 1358)
 
     def test_electric_fixed_rule_uses_registration_class_and_splits_fees(self):
         electric_model = VehicleModel.objects.create(
@@ -190,7 +225,7 @@ class RegistrationFeeOrderIntegrationTests(TestCase):
             brand="Gogoro",
             energy_type=VehicleModel.EnergyType.ELECTRIC,
             electric_registration_class=VehicleModel.ElectricRegistrationClass.LIGHT,
-            calculation_type=BrandRegistrationFeeRule.CalculationType.FIXED,
+            calculation_type=BrandRegistrationFeeRule.CalculationType.FIXED_COMPONENTS,
             fixed_registration_fee=550,
             fixed_compulsory_insurance_fee=658,
             insurance_period_years=1,
@@ -219,7 +254,7 @@ class RegistrationFeeOrderIntegrationTests(TestCase):
             brand="Gogoro",
             energy_type=VehicleModel.EnergyType.ELECTRIC,
             electric_registration_class=VehicleModel.ElectricRegistrationClass.LIGHT,
-            calculation_type=BrandRegistrationFeeRule.CalculationType.FIXED,
+            calculation_type=BrandRegistrationFeeRule.CalculationType.FIXED_COMPONENTS,
             fixed_registration_fee=550,
             fixed_compulsory_insurance_fee=658,
             effective_from=date(2026, 1, 1),
@@ -241,7 +276,7 @@ class RegistrationFeeOrderIntegrationTests(TestCase):
             brand="SUZUKI",
             energy_type=VehicleModel.EnergyType.ELECTRIC,
             electric_registration_class=VehicleModel.ElectricRegistrationClass.LIGHT,
-            calculation_type=BrandRegistrationFeeRule.CalculationType.FIXED,
+            calculation_type=BrandRegistrationFeeRule.CalculationType.FIXED_COMPONENTS,
             fixed_registration_fee=550,
             fixed_compulsory_insurance_fee=658,
             effective_from=date(2026, 1, 1),
@@ -264,7 +299,7 @@ class RegistrationFeeOrderIntegrationTests(TestCase):
             brand="Gogoro",
             energy_type=VehicleModel.EnergyType.ELECTRIC,
             electric_registration_class=VehicleModel.ElectricRegistrationClass.LIGHT,
-            calculation_type=BrandRegistrationFeeRule.CalculationType.FIXED,
+            calculation_type=BrandRegistrationFeeRule.CalculationType.FIXED_COMPONENTS,
             fixed_registration_fee=550,
             fixed_compulsory_insurance_fee=658,
             effective_from=date(2026, 1, 1),
@@ -299,13 +334,19 @@ class RegistrationFeeOrderIntegrationTests(TestCase):
     def test_registration_fee_rule_maintenance_page(self):
         self.client.force_login(self.user)
 
+        page = self.client.get(reverse("brand_registration_fee_rule_list"))
+        self.assertContains(page, "公式計算")
+        self.assertContains(page, "固定整包金額")
+        self.assertContains(page, "固定分項金額")
+        self.assertContains(page, "人工輸入")
+
         response = self.client.post(
             reverse("brand_registration_fee_rule_list"),
             {
                 "brand": "SYM",
                 "energy_type": "gas",
                 "electric_registration_class": "",
-                "calculation_type": "fixed",
+                "calculation_type": "fixed_bundle",
                 "min_cc": 51,
                 "max_cc": 125,
                 "fixed_total": 1600,
@@ -323,3 +364,89 @@ class RegistrationFeeOrderIntegrationTests(TestCase):
         self.assertTrue(
             BrandRegistrationFeeRule.objects.filter(brand="SYM", fixed_total=1600).exists()
         )
+
+    def test_fixed_bundle_requires_total_and_clears_component_amounts(self):
+        form = BrandRegistrationFeeRuleForm(
+            {
+                "brand": "SYM",
+                "energy_type": "gas",
+                "electric_registration_class": "",
+                "calculation_type": "fixed_bundle",
+                "min_cc": 51,
+                "max_cc": 125,
+                "fixed_total": 1600,
+                "fixed_registration_fee": 550,
+                "fixed_compulsory_insurance_fee": 658,
+                "insurance_period_years": 1,
+                "effective_from": "2026-08-01",
+                "effective_to": "",
+                "active": "on",
+                "note": "",
+            }
+        )
+
+        self.assertTrue(form.is_valid(), form.errors)
+        rule = form.save()
+        self.assertEqual(rule.fixed_total, 1600)
+        self.assertEqual(rule.fixed_registration_fee, 0)
+        self.assertEqual(rule.fixed_compulsory_insurance_fee, 0)
+
+    def test_fixed_components_requires_both_amounts_and_calculates_total(self):
+        base_payload = {
+            "brand": "Gogoro",
+            "energy_type": "electric",
+            "electric_registration_class": "light",
+            "calculation_type": "fixed_components",
+            "min_cc": "",
+            "max_cc": "",
+            "fixed_total": "",
+            "fixed_registration_fee": "",
+            "fixed_compulsory_insurance_fee": "",
+            "insurance_period_years": 1,
+            "effective_from": "2026-08-01",
+            "effective_to": "",
+            "active": "on",
+            "note": "",
+        }
+        invalid_form = BrandRegistrationFeeRuleForm(base_payload)
+
+        self.assertFalse(invalid_form.is_valid())
+        self.assertIn("fixed_registration_fee", invalid_form.errors)
+        self.assertIn("fixed_compulsory_insurance_fee", invalid_form.errors)
+
+        valid_form = BrandRegistrationFeeRuleForm(
+            {
+                **base_payload,
+                "fixed_registration_fee": 550,
+                "fixed_compulsory_insurance_fee": 658,
+            }
+        )
+        self.assertTrue(valid_form.is_valid(), valid_form.errors)
+        rule = valid_form.save()
+        self.assertEqual(rule.fixed_total, 1208)
+
+    def test_manual_mode_saves_without_default_amounts(self):
+        form = BrandRegistrationFeeRuleForm(
+            {
+                "brand": "Gogoro",
+                "energy_type": "electric",
+                "electric_registration_class": "heavy",
+                "calculation_type": "manual",
+                "min_cc": "",
+                "max_cc": "",
+                "fixed_total": 9999,
+                "fixed_registration_fee": 550,
+                "fixed_compulsory_insurance_fee": 658,
+                "insurance_period_years": 1,
+                "effective_from": "2026-08-01",
+                "effective_to": "",
+                "active": "on",
+                "note": "",
+            }
+        )
+
+        self.assertTrue(form.is_valid(), form.errors)
+        rule = form.save()
+        self.assertEqual(rule.fixed_total, 0)
+        self.assertEqual(rule.fixed_registration_fee, 0)
+        self.assertEqual(rule.fixed_compulsory_insurance_fee, 0)

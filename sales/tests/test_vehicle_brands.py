@@ -14,6 +14,7 @@ from sales.forms import (
     VehicleModelMasterForm,
 )
 from sales.models import SalesSourceBrandPolicy, VehicleBrand, VehicleModel
+from sales.services.brand_logo import build_brand_logo
 from sales.services.vehicle_brands import (
     canonical_vehicle_brand_name,
     vehicle_brand_search_names,
@@ -356,6 +357,20 @@ class VehicleBrandMasterTests(TestCase):
             self.assertTrue(b"".join(source_response.streaming_content))
             source_response.close()
 
+    def test_brand_logo_default_fit_keeps_complete_square_image(self):
+        source = BytesIO()
+        Image.new("RGBA", (400, 400), (255, 0, 0, 255)).save(source, format="PNG")
+
+        rendered, crop = build_brand_logo(source.getvalue())
+
+        self.assertEqual(crop, {"x": 0.0, "y": 0.0, "width": 1.0, "height": 1.0})
+        with Image.open(BytesIO(rendered)) as image:
+            self.assertEqual(image.size, (800, 400))
+            self.assertEqual(image.getpixel((0, 200))[3], 0)
+            self.assertEqual(image.getpixel((200, 200)), (255, 0, 0, 255))
+            self.assertEqual(image.getpixel((599, 200)), (255, 0, 0, 255))
+            self.assertEqual(image.getpixel((799, 200))[3], 0)
+
     def test_brand_page_exposes_logo_crop_editor_and_global_previews(self):
         response = self.client.get(reverse("vehicle_brand_list"))
 
@@ -363,6 +378,8 @@ class VehicleBrandMasterTests(TestCase):
         self.assertContains(response, "電腦版品牌標頭")
         self.assertContains(response, "手機版品牌標頭")
         self.assertContains(response, "品牌維護列表")
+        self.assertContains(response, "恢復完整顯示")
+        self.assertContains(response, "上傳後會等比例縮放並完整顯示")
         self.assertContains(response, "brand-logo-editor.js")
 
     def test_dealer_price_list_entry_points_are_removed(self):

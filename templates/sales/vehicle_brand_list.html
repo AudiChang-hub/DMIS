@@ -21,7 +21,7 @@
       {% if form.non_field_errors %}<div class="form-errors">{{ form.non_field_errors }}</div>{% endif %}
       <section class="brand-logo-editor" data-brand-logo-editor {% if editing.logo %}data-source-url="{% url 'vehicle_brand_logo_source' editing.pk %}?v={{ editing.updated_at|date:'U' }}"{% endif %} data-has-crop="{% if editing.logo_crop_data %}true{% else %}false{% endif %}">
         <div class="brand-logo-editor__heading">
-          <div><strong>品牌 LOGO</strong><span>固定以 2:1 顯示；拖曳圖片位置並調整縮放，即時查看全站效果。</span></div>
+          <div><strong>品牌 LOGO</strong><span>上傳後會等比例縮放並完整顯示；如有需要，可再放大或拖曳調整位置。</span></div>
           <span class="status-pill" data-logo-status>{% if editing.logo %}目前已設定{% else %}尚未設定{% endif %}</span>
         </div>
         <div class="brand-logo-editor__upload">
@@ -31,10 +31,10 @@
         </div>
         <div class="brand-logo-editor__workspace{% if not editing.logo %} is-empty{% endif %}" data-logo-workspace>
           <div class="brand-logo-editor__crop-column">
-            <span class="brand-logo-editor__label">裁切範圍</span>
-            <canvas class="brand-logo-crop-canvas" width="800" height="400" data-logo-canvas aria-label="LOGO 裁切畫面"></canvas>
-            <div class="brand-logo-editor__controls"><label>縮放 <input type="range" min="1" max="4" step="0.01" value="1" data-logo-zoom></label><button type="button" class="button ghost small" data-logo-reset>置中重設</button></div>
-            <p class="muted">可直接用滑鼠或手指拖曳圖片；透明區域會完整保留。</p>
+            <span class="brand-logo-editor__label">顯示範圍</span>
+            <canvas class="brand-logo-crop-canvas" width="800" height="400" data-logo-canvas aria-label="LOGO 顯示範圍"></canvas>
+            <div class="brand-logo-editor__controls"><label>縮放 <input type="range" min="1" max="4" step="0.01" value="1" data-logo-zoom></label><button type="button" class="button ghost small" data-logo-reset>恢復完整顯示</button></div>
+            <p class="muted">預設保留完整圖片與透明區域；放大後可用滑鼠或手指拖曳調整位置。</p>
           </div>
           <div class="brand-logo-editor__preview-column">
             <span class="brand-logo-editor__label">實際顯示預覽</span>
@@ -46,7 +46,7 @@
             {% if editing.logo %}<button type="button" class="button danger ghost small" data-logo-remove>移除 LOGO</button>{% endif %}
           </div>
         </div>
-        <div class="brand-logo-editor__empty" data-logo-empty{% if editing.logo %} hidden{% endif %}>選擇圖片後，這裡會立即出現裁切畫面與三種實際尺寸預覽。</div>
+        <div class="brand-logo-editor__empty" data-logo-empty{% if editing.logo %} hidden{% endif %}>選擇圖片後，這裡會立即完整顯示圖片與三種實際尺寸預覽。</div>
       </section>
       <div class="form-grid single-column">
         {% include "sales/_field.html" with field=form.name %}

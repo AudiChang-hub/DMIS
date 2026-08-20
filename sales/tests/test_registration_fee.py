@@ -365,6 +365,60 @@ class RegistrationFeeOrderIntegrationTests(TestCase):
             BrandRegistrationFeeRule.objects.filter(brand="SYM", fixed_total=1600).exists()
         )
 
+    def test_registration_fee_rule_list_uses_readable_summary_cards(self):
+        BrandRegistrationFeeRule.objects.create(
+            brand="eMOVING",
+            energy_type=VehicleModel.EnergyType.MICRO_ELECTRIC,
+            calculation_type=BrandRegistrationFeeRule.CalculationType.FIXED_BUNDLE,
+            fixed_total=2300,
+            insurance_period_years=3,
+            effective_from=date(2026, 1, 1),
+            note="微型電動二輪車固定牌險",
+        )
+        BrandRegistrationFeeRule.objects.create(
+            brand="Gogoro",
+            energy_type=VehicleModel.EnergyType.ELECTRIC,
+            electric_registration_class=VehicleModel.ElectricRegistrationClass.LIGHT,
+            calculation_type=BrandRegistrationFeeRule.CalculationType.FIXED_COMPONENTS,
+            fixed_registration_fee=550,
+            fixed_compulsory_insurance_fee=658,
+            insurance_period_years=1,
+            effective_from=date(2026, 1, 1),
+        )
+        BrandRegistrationFeeRule.objects.create(
+            brand="SYM",
+            energy_type=VehicleModel.EnergyType.GAS,
+            calculation_type=BrandRegistrationFeeRule.CalculationType.FORMULA,
+            min_cc=51,
+            max_cc=125,
+            insurance_period_years=1,
+            effective_from=date(2026, 1, 1),
+        )
+        BrandRegistrationFeeRule.objects.create(
+            brand="人工測試",
+            energy_type=VehicleModel.EnergyType.MICRO_ELECTRIC,
+            calculation_type=BrandRegistrationFeeRule.CalculationType.MANUAL,
+            effective_from=date(2026, 1, 1),
+            active=False,
+        )
+        self.client.force_login(self.user)
+
+        page = self.client.get(reverse("brand_registration_fee_rule_list"))
+
+        self.assertEqual(page.status_code, 200)
+        self.assertContains(page, 'class="registration-rule-card')
+        self.assertContains(page, "牌險總額")
+        self.assertContains(page, "$2,300")
+        self.assertContains(page, "強制險 3 年")
+        self.assertContains(page, "領牌規費 <b>$550</b>", html=True)
+        self.assertContains(page, "強制險 <b>$658</b>", html=True)
+        self.assertContains(page, "合計 $1,208")
+        self.assertContains(page, "依公式試算")
+        self.assertContains(page, "訂單依正式單據輸入")
+        self.assertContains(page, "已停用")
+        self.assertContains(page, "持續有效，未設定結束日")
+        self.assertContains(page, "刪除這筆規則")
+
     def test_fixed_bundle_requires_total_and_clears_component_amounts(self):
         form = BrandRegistrationFeeRuleForm(
             {

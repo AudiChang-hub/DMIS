@@ -335,6 +335,73 @@ h2 { margin-bottom: 0; font-size: 1.15rem; }
 .section-title h2, .section-title h3 { display: flex; align-items: center; gap: 9px; margin: 0; }
 .section-title > span, .section-title > a { color: var(--muted); font-size: .82rem; font-weight: 700; }
 .section-title > a { color: var(--blue); }
+.registration-rule-panel { overflow: visible; }
+.registration-rule-panel__heading { min-height: 72px; }
+.registration-rule-panel__heading > div { display: grid; gap: 3px; }
+.registration-rule-panel__heading p { margin: 0; color: var(--muted); font-size: .78rem; }
+.registration-rule-list { display: grid; padding: 18px; gap: 14px; }
+.registration-rule-card {
+  position: relative; min-width: 0; overflow: visible; background: #fff;
+  border: 1px solid var(--line); border-radius: 16px;
+  box-shadow: 0 5px 18px rgba(26,46,35,.045);
+}
+.registration-rule-card.is-inactive { background: #f7f8f7; opacity: .78; }
+.registration-rule-card__header {
+  display: flex; min-height: 82px; padding: 16px 18px; align-items: center;
+  justify-content: space-between; gap: 16px; border-bottom: 1px solid var(--line);
+  background: linear-gradient(135deg, #fbfdfc 0%, #f3f8f5 100%); border-radius: 16px 16px 0 0;
+}
+.registration-rule-card__identity { display: flex; min-width: 0; align-items: center; gap: 13px; }
+.registration-rule-card__mark {
+  display: grid; width: 42px; height: 42px; flex: 0 0 42px; place-items: center;
+  color: #fff; background: var(--forest); border-radius: 12px; font-weight: 900;
+}
+.registration-rule-card__brand-line { display: flex; min-width: 0; flex-wrap: wrap; align-items: center; gap: 8px; }
+.registration-rule-card__brand-line h3 { margin: 0; font-size: 1.05rem; }
+.registration-rule-card__energy {
+  display: inline-flex; min-height: 24px; padding: 2px 8px; align-items: center;
+  color: var(--forest); background: var(--mint); border: 1px solid #cde2d7;
+  border-radius: 999px; font-size: .72rem; font-weight: 850;
+}
+.registration-rule-card__identity p { margin: 3px 0 0; color: var(--muted); font-size: .78rem; }
+.registration-rule-card__body {
+  display: grid; padding: 18px; grid-template-columns: minmax(180px,.8fr) minmax(260px,1.2fr) minmax(210px,.9fr);
+  align-items: stretch; gap: 12px;
+}
+.registration-rule-card__method,
+.registration-rule-card__amount,
+.registration-rule-card__period {
+  display: grid; min-width: 0; min-height: 112px; padding: 14px 15px; align-content: center;
+  gap: 4px; background: var(--surface-soft); border: 1px solid #e8ede9; border-radius: 12px;
+}
+.registration-rule-card__amount { color: var(--forest); background: #eff7f3; border-color: #d4e5dc; }
+.registration-rule-card__body span,
+.registration-rule-card__note > span { color: var(--muted); font-size: .72rem; font-weight: 850; letter-spacing: .04em; }
+.registration-rule-card__body strong { font-size: 1rem; }
+.registration-rule-card__amount > strong { font-size: 1.28rem; line-height: 1.3; font-variant-numeric: tabular-nums; }
+.registration-rule-card__body small { color: var(--muted); font-size: .75rem; }
+.registration-rule-card__amount-parts { display: flex; flex-wrap: wrap; gap: 4px 14px; }
+.registration-rule-card__amount-parts b { color: var(--ink); font-size: .82rem; }
+.registration-rule-card__footer {
+  display: flex; min-height: 68px; padding: 12px 18px; align-items: center;
+  justify-content: space-between; gap: 18px; border-top: 1px solid var(--line);
+}
+.registration-rule-card__note { min-width: 0; }
+.registration-rule-card__note p { margin: 2px 0 0; color: var(--muted); font-size: .78rem; overflow-wrap: anywhere; }
+.registration-rule-card__actions { display: flex; position: relative; flex: 0 0 auto; align-items: center; gap: 8px; }
+.registration-rule-more { position: relative; }
+.registration-rule-more > summary { list-style: none; user-select: none; }
+.registration-rule-more > summary::-webkit-details-marker { display: none; }
+.registration-rule-more[open] > summary { color: var(--forest); background: var(--mint); }
+.registration-rule-more__menu {
+  position: absolute; z-index: 12; right: 0; top: calc(100% + 7px); width: 170px; padding: 7px;
+  background: #fff; border: 1px solid var(--line); border-radius: 11px; box-shadow: var(--shadow);
+}
+.registration-rule-more__menu button {
+  width: 100%; min-height: 42px; padding: 8px 11px; color: var(--red); background: transparent;
+  border: 0; border-radius: 8px; text-align: left; font-weight: 850; cursor: pointer;
+}
+.registration-rule-more__menu button:hover { background: var(--red-soft); }
 .signal { width: 9px; height: 9px; border-radius: 50%; box-shadow: 0 0 0 5px rgba(0,0,0,.03); }
 .signal.red { background: var(--red); }
 .signal.amber { background: var(--amber); }
@@ -1977,6 +2044,8 @@ body.screen-locked { overflow: hidden; }
 .customer-table td:nth-child(5) { max-width: 360px; white-space: normal; }
 
 @media (max-width: 860px) {
+  .registration-rule-card__body { grid-template-columns: 1fr 1fr; }
+  .registration-rule-card__amount { grid-row: span 2; }
   .maintenance-grid { grid-template-columns: 1fr; }
   .vehicle-business-settings__heading { align-items: flex-start; flex-direction: column; }
   .vehicle-business-grid { grid-template-columns: 1fr 1fr; }
@@ -2044,6 +2113,19 @@ body.screen-locked { overflow: hidden; }
 }
 
 @media (max-width: 600px) {
+  .registration-rule-list { padding: 12px; gap: 12px; }
+  .registration-rule-panel__heading { min-height: 64px; padding: 10px 14px; }
+  .registration-rule-card__header { min-height: 76px; padding: 14px; align-items: flex-start; }
+  .registration-rule-card__mark { width: 38px; height: 38px; flex-basis: 38px; border-radius: 10px; }
+  .registration-rule-card__body { padding: 12px; grid-template-columns: 1fr; gap: 9px; }
+  .registration-rule-card__method,
+  .registration-rule-card__amount,
+  .registration-rule-card__period { min-height: 92px; }
+  .registration-rule-card__amount { grid-row: auto; }
+  .registration-rule-card__footer { padding: 12px; align-items: stretch; flex-direction: column; }
+  .registration-rule-card__actions { display: grid; grid-template-columns: 1fr auto; }
+  .registration-rule-card__actions > .button { width: 100%; }
+  .registration-rule-more__menu { right: 0; bottom: calc(100% + 7px); top: auto; }
   .order-filter-bar {
     display: grid; padding: 13px; grid-template-columns: minmax(0, 1fr) minmax(118px, .62fr);
     align-items: end; gap: 11px;

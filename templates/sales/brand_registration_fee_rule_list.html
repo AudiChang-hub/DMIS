@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load sales_format %}
 {% block title %}品牌牌險規則｜車輛銷售管理{% endblock %}
 {% block page_class %}page-shell--wide{% endblock %}
 {% block content %}
@@ -16,14 +17,85 @@
     <div><button class="button primary" type="submit">儲存規則</button></div>
   </form>
 </section>
-<section class="section-block">
-  <div class="section-title"><h2>已設定規則</h2><span>{{ rules|length }} 筆</span></div>
-  <div class="responsive-table-wrap"><table class="data-table"><thead><tr><th>品牌／能源</th><th>適用級別</th><th>計算方式</th><th>領牌規費</th><th>強制險</th><th>合計</th><th>生效期間</th><th>狀態</th><th>操作</th></tr></thead><tbody>
-    {% for rule in rules %}<tr>
-      <td><strong>{{ rule.brand }}</strong><small>{{ rule.get_energy_type_display }}</small></td><td>{% if rule.energy_type == 'electric' %}{{ rule.get_electric_registration_class_display }}{% elif rule.energy_type == 'gas' %}{{ rule.min_cc|default:"不限" }}～{{ rule.max_cc|default:"不限" }} c.c.{% else %}不分級{% endif %}</td><td>{{ rule.get_calculation_type_display }}{% if rule.calculation_type != 'manual' %}<small>強制險 {{ rule.insurance_period_years }} 年</small>{% endif %}</td><td>{% if rule.calculation_type == 'fixed_components' %}${{ rule.fixed_registration_fee|floatformat:0 }}{% elif rule.calculation_type == 'formula' %}依公式{% else %}—{% endif %}</td><td>{% if rule.calculation_type == 'fixed_components' %}${{ rule.fixed_compulsory_insurance_fee|floatformat:0 }}{% elif rule.calculation_type == 'formula' %}依公式{% else %}—{% endif %}</td><td>{% if rule.calculation_type == 'fixed_bundle' or rule.calculation_type == 'fixed_components' %}${{ rule.fixed_total|floatformat:0 }}{% else %}—{% endif %}</td><td>{{ rule.effective_from|date:"Y/m/d" }}～{% if rule.effective_to %}{{ rule.effective_to|date:"Y/m/d" }}{% else %}持續有效{% endif %}</td><td>{% if rule.active %}啟用{% else %}停用{% endif %}</td>
-      <td><a class="button ghost small" href="?edit={{ rule.pk }}">編輯</a><form class="inline-form" method="post" action="{% url 'brand_registration_fee_rule_delete' rule.pk %}">{% csrf_token %}<button class="button danger small" type="submit" data-confirm="確定刪除這筆牌險規則嗎？">刪除</button></form></td>
-    </tr>{% empty %}<tr><td colspan="9">尚未建立品牌特殊規則；油車會沿用既有 M2～M5 公式。</td></tr>{% endfor %}
-  </tbody></table></div>
+<section class="section-block registration-rule-panel">
+  <div class="section-title registration-rule-panel__heading">
+    <div><h2>已設定規則</h2><p>依品牌、適用車輛與生效日期快速核對。</p></div>
+    <span>{{ rules|length }} 筆</span>
+  </div>
+  <div class="registration-rule-list">
+    {% for rule in rules %}
+      <article class="registration-rule-card{% if not rule.active %} is-inactive{% endif %}">
+        <header class="registration-rule-card__header">
+          <div class="registration-rule-card__identity">
+            <span class="registration-rule-card__mark" aria-hidden="true">牌</span>
+            <div>
+              <div class="registration-rule-card__brand-line">
+                <h3>{{ rule.brand }}</h3>
+                <span class="registration-rule-card__energy">{{ rule.get_energy_type_display }}</span>
+              </div>
+              <p>
+                {% if rule.energy_type == 'electric' %}{{ rule.get_electric_registration_class_display }}
+                {% elif rule.energy_type == 'gas' %}{{ rule.min_cc|default:"不限" }}～{{ rule.max_cc|default:"不限" }} c.c.
+                {% else %}不分級{% endif %}
+              </p>
+            </div>
+          </div>
+          <span class="status-pill {% if rule.active %}status-completed{% else %}status-cancelled{% endif %}">{% if rule.active %}啟用中{% else %}已停用{% endif %}</span>
+        </header>
+
+        <div class="registration-rule-card__body">
+          <div class="registration-rule-card__method">
+            <span>計算方式</span>
+            <strong>{{ rule.get_calculation_type_display }}</strong>
+            {% if rule.calculation_type != 'manual' %}<small>強制險 {{ rule.insurance_period_years }} 年</small>{% else %}<small>訂單依正式單據輸入</small>{% endif %}
+          </div>
+
+          <div class="registration-rule-card__amount">
+            {% if rule.calculation_type == 'fixed_bundle' %}
+              <span>牌險總額</span><strong>${{ rule.fixed_total|number_with_commas }}</strong><small>直接採用，不另行拆算</small>
+            {% elif rule.calculation_type == 'fixed_components' %}
+              <span>固定分項</span>
+              <div class="registration-rule-card__amount-parts">
+                <small>領牌規費 <b>${{ rule.fixed_registration_fee|number_with_commas }}</b></small>
+                <small>強制險 <b>${{ rule.fixed_compulsory_insurance_fee|number_with_commas }}</b></small>
+              </div>
+              <strong>合計 ${{ rule.fixed_total|number_with_commas }}</strong>
+            {% elif rule.calculation_type == 'formula' %}
+              <span>計算結果</span><strong>依公式試算</strong><small>依領牌日期與排氣量計算</small>
+            {% else %}
+              <span>金額來源</span><strong>人工輸入</strong><small>不預設系統金額</small>
+            {% endif %}
+          </div>
+
+          <div class="registration-rule-card__period">
+            <span>生效期間</span>
+            <strong>{{ rule.effective_from|date:"Y/m/d" }} 起</strong>
+            <small>{% if rule.effective_to %}至 {{ rule.effective_to|date:"Y/m/d" }}{% else %}持續有效，未設定結束日{% endif %}</small>
+          </div>
+        </div>
+
+        <footer class="registration-rule-card__footer">
+          <div class="registration-rule-card__note">
+            {% if rule.note %}<span>備註</span><p>{{ rule.note }}</p>{% else %}<p>目前沒有備註</p>{% endif %}
+          </div>
+          <div class="registration-rule-card__actions">
+            <a class="button ghost small" href="?edit={{ rule.pk }}">編輯規則</a>
+            <details class="registration-rule-more">
+              <summary class="button ghost small">更多</summary>
+              <div class="registration-rule-more__menu">
+                <form method="post" action="{% url 'brand_registration_fee_rule_delete' rule.pk %}">
+                  {% csrf_token %}
+                  <button type="submit" data-confirm="確定刪除這筆牌險規則嗎？">刪除這筆規則</button>
+                </form>
+              </div>
+            </details>
+          </div>
+        </footer>
+      </article>
+    {% empty %}
+      <div class="empty-state"><strong>尚未建立品牌特殊規則</strong><p>油車仍會沿用既有 M2～M5 公式。</p></div>
+    {% endfor %}
+  </div>
 </section>
 <script>
 (() => {

@@ -135,6 +135,17 @@ class OrderFlowTests(TestCase):
         order.save(update_fields=["calculated_balance", "updated_at"])
         return order
 
+    def assert_vehicle_model_business_redirect(self, response, vehicle_model):
+        expected = (
+            f'{reverse("vehicle_model_edit", args=[vehicle_model.pk])}'
+            "#business-settings"
+        )
+        if getattr(response, "redirect_chain", None):
+            self.assertEqual(response.redirect_chain[-1][0], expected)
+            return
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response["Location"], expected)
+
     def test_unsigned_contract_can_allocate(self):
         order = self.make_order(signed=False)
 
@@ -559,8 +570,8 @@ class OrderFlowTests(TestCase):
             ),
         )
 
-        self.assertRedirects(response, reverse("vehicle_model_list"))
         model = VehicleModel.objects.get(model_number="SUI125-ABS")
+        self.assert_vehicle_model_business_redirect(response, model)
         self.assertEqual(model.model_code, VehicleModel.ModelType.DRUM)
         self.assertEqual(model.get_model_code_display(), "鼓")
 
@@ -769,7 +780,6 @@ class OrderFlowTests(TestCase):
             self.vehicle_model_master_payload(),
         )
 
-        self.assertRedirects(response, reverse("vehicle_model_list"))
         model = VehicleModel.objects.get(
             brand="SUZUKI",
             name="SUI 125",
@@ -777,6 +787,14 @@ class OrderFlowTests(TestCase):
             model_number="SUI125-ABS",
             model_code=VehicleModel.ModelType.CBS_DISC,
         )
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(
+            response["Location"],
+            f'{reverse("vehicle_model_edit", args=[model.pk])}#business-settings',
+        )
+        edit_response = self.client.get(reverse("vehicle_model_edit", args=[model.pk]))
+        self.assertContains(edit_response, 'id="business-settings"')
+        self.assertContains(edit_response, "年式／規格已儲存")
         self.assertEqual(model.model_number, "SUI125-ABS")
         self.assertFalse(model.price_versions.exists())
         self.assertEqual(
@@ -797,6 +815,50 @@ class OrderFlowTests(TestCase):
         self.assertContains(list_response, "SUI 125")
         self.assertContains(list_response, "SUI125-ABS")
         self.assertContains(list_response, "2 種")
+
+    def test_vehicle_model_edit_save_stays_on_model_and_targets_business_settings(self):
+        model = VehicleModel.objects.create(
+            brand="SUZUKI",
+            name="測試通勤車",
+            model_number="TEST-125",
+            model_year=2026,
+            model_code=VehicleModel.ModelType.CBS_DISC,
+            energy_type=VehicleModel.EnergyType.GAS,
+            displacement_cc=125,
+        )
+        color = VehicleColor.objects.create(vehicle_model=model, name="白")
+        self.client.force_login(self.user)
+
+        response = self.client.post(
+            reverse("vehicle_model_edit", args=[model.pk]),
+            {
+                "action": "save_model",
+                "brand": model.brand,
+                "energy_type": model.energy_type,
+                "name": model.name,
+                "model_number": model.model_number,
+                "model_year": model.model_year,
+                "model_code": model.model_code,
+                "displacement_cc": model.displacement_cc,
+                "active": "on",
+                "colors-TOTAL_FORMS": "1",
+                "colors-INITIAL_FORMS": "1",
+                "colors-MIN_NUM_FORMS": "0",
+                "colors-MAX_NUM_FORMS": "1000",
+                "colors-0-id": color.pk,
+                "colors-0-name": color.name,
+                "colors-0-active": "on",
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(
+            response["Location"],
+            f'{reverse("vehicle_model_edit", args=[model.pk])}#business-settings',
+        )
+        follow_response = self.client.get(reverse("vehicle_model_edit", args=[model.pk]))
+        self.assertContains(follow_response, "年式／規格已儲存")
+        self.assertContains(follow_response, 'id="business-settings"')
 
     def test_vehicle_model_list_displays_energy_specific_power_specification(self):
         self.model.displacement_cc = 125
@@ -1078,8 +1140,8 @@ class OrderFlowTests(TestCase):
             ),
         )
 
-        self.assertRedirects(response, reverse("vehicle_model_list"))
         model = VehicleModel.objects.get(brand="eMOVING", name="eReady Fun")
+        self.assert_vehicle_model_business_redirect(response, model)
         self.assertEqual(model.model_number, "EV060L")
         self.assertEqual(model.family.versions.count(), 1)
         self.assertEqual(
@@ -1101,8 +1163,8 @@ class OrderFlowTests(TestCase):
             ),
         )
 
-        self.assertRedirects(response, reverse("vehicle_model_list"))
         reused = VehicleModel.objects.get(model_number="COMMUTE-2027")
+        self.assert_vehicle_model_business_redirect(response, reused)
         self.assertEqual(reused.family_id, self.model.family_id)
         self.assertEqual(reused.brand, self.model.brand)
         self.assertEqual(reused.name, self.model.name)
@@ -1161,7 +1223,7 @@ class OrderFlowTests(TestCase):
             reverse("vehicle_model_edit", args=[self.model.pk]),
             base,
         )
-        self.assertRedirects(response, reverse("vehicle_model_list"))
+        self.assert_vehicle_model_business_redirect(response, self.model)
         color.refresh_from_db()
         self.assertFalse(color.active)
 
@@ -1207,7 +1269,7 @@ class OrderFlowTests(TestCase):
             payload,
         )
 
-        self.assertRedirects(response, reverse("vehicle_model_list"))
+        self.assert_vehicle_model_business_redirect(response, self.model)
         self.assertFalse(VehicleColor.objects.filter(pk=unused_color.pk).exists())
 
     def test_renaming_used_color_to_existing_inactive_color_reuses_existing_record(self):
@@ -1251,7 +1313,7 @@ class OrderFlowTests(TestCase):
             follow=True,
         )
 
-        self.assertRedirects(response, reverse("vehicle_model_list"))
+        self.assert_vehicle_model_business_redirect(response, self.model)
         old_gold.refresh_from_db()
         red.refresh_from_db()
         order.refresh_from_db()
@@ -1298,7 +1360,7 @@ class OrderFlowTests(TestCase):
             payload,
         )
 
-        self.assertRedirects(response, reverse("vehicle_model_list"))
+        self.assert_vehicle_model_business_redirect(response, self.model)
         old_gold.refresh_from_db()
         self.assertTrue(old_gold.active)
         self.assertEqual(

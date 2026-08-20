@@ -5264,9 +5264,11 @@ def _vehicle_model_form_view(request, instance=None):
             )
         messages.success(
             request,
-            f"已{'更新' if is_editing else '建立'}車型：{vehicle_model}",
+            "年式／規格已儲存，可以繼續維護售價、傭金或分期方案。",
         )
-        return redirect("vehicle_model_list")
+        return redirect(
+            f"{reverse('vehicle_model_edit', args=[vehicle_model.pk])}#business-settings"
+        )
     return render(
         request,
         "sales/vehicle_model_form.html",

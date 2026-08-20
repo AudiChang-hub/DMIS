@@ -1403,7 +1403,15 @@ class VehicleModelMasterForm(forms.ModelForm):
             active=True
         ).order_by("brand", "name")
         if self.instance.pk and self.instance.family_id:
+            self.fields["existing_family"].queryset = VehicleModelFamily.objects.filter(
+                Q(active=True) | Q(pk=self.instance.family_id)
+            ).order_by("brand", "name")
             self.initial["existing_family"] = self.instance.family_id
+            self.fields["existing_family"].label = "所屬機種"
+            self.fields["existing_family"].disabled = True
+            self.fields["existing_family"].help_text = (
+                "若這個年式誤建成另一個機種，請使用頁面下方的「移動年式／合併機種」。"
+            )
             codes = list(
                 self.instance.factory_model_codes.filter(active=True)
                 .order_by("code")
@@ -1521,6 +1529,45 @@ class VehicleModelMasterForm(forms.ModelForm):
             factory_codes.append(factory_code)
         vehicle_model.factory_model_codes.set(factory_codes)
         return vehicle_model
+
+
+class VehicleModelFamilyMoveForm(forms.Form):
+    target_family = forms.ModelChoiceField(
+        label="移至正確機種",
+        queryset=VehicleModelFamily.objects.none(),
+        empty_label="請選擇正確機種",
+        help_text="只列出相同品牌的其他機種；移動後仍保留這筆年式的所有關聯資料。",
+    )
+
+    def __init__(self, *args, vehicle_model, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.vehicle_model = vehicle_model
+        current_family_id = vehicle_model.family_id
+        self.fields["target_family"].queryset = (
+            VehicleModelFamily.objects.filter(
+                brand__iexact=vehicle_model.brand,
+                active=True,
+            )
+            .exclude(pk=current_family_id)
+            .order_by("name", "id")
+        )
+        self.fields["target_family"].widget.attrs.setdefault("class", "form-control")
+
+    def clean_target_family(self):
+        target = self.cleaned_data["target_family"]
+        if target.pk == self.vehicle_model.family_id:
+            raise ValidationError("目前已屬於這個機種，不需要移動。")
+        if target.brand.casefold() != self.vehicle_model.brand.casefold():
+            raise ValidationError("只能移動到相同品牌的機種。")
+        duplicate = target.versions.exclude(pk=self.vehicle_model.pk).filter(
+            model_year=self.vehicle_model.model_year,
+            model_code=self.vehicle_model.model_code,
+        )
+        if duplicate.exists():
+            raise ValidationError(
+                "目標機種已有相同年份與型式；請先確認兩筆資料是否需要進一步合併。"
+            )
+        return target
 
 
 class LegacyVehicleModelLinkForm(forms.Form):

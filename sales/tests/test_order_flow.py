@@ -435,6 +435,92 @@ class OrderFlowTests(TestCase):
         self.model.refresh_from_db()
         self.assertEqual(self.model.model_year, 2022)
 
+    def test_duplicate_vehicle_model_year_can_be_merged_with_relations(self):
+        self.model.model_number = "GSX250F"
+        self.model.model_year = 2022
+        self.model.model_code = VehicleModel.ModelType.ABS_DUAL_DISC
+        self.model.displacement_cc = 249
+        self.model.save()
+        duplicate = VehicleModel.objects.create(
+            brand=self.model.brand,
+            name=self.model.name,
+            model_number="LEGACY-GSX250F",
+            model_year=2022,
+            model_code="",
+            energy_type=VehicleModel.EnergyType.GAS,
+            displacement_cc=None,
+            base_dealer_commission=5000,
+        )
+        VehiclePriceVersion.objects.create(
+            vehicle_model=duplicate,
+            cash_price=Decimal("148000"),
+            effective_from=date(2026, 4, 9),
+        )
+        duplicate_color = VehicleColor.objects.create(
+            vehicle_model=duplicate,
+            name="賽車藍",
+        )
+        self.client.force_login(self.user)
+
+        response = self.client.post(
+            reverse("vehicle_model_edit", args=[duplicate.pk]),
+            {"action": "merge_version", "target_model": self.model.pk},
+        )
+
+        self.assertEqual(
+            response["Location"],
+            f'{reverse("vehicle_model_edit", args=[self.model.pk])}#data-correction',
+        )
+        self.model.refresh_from_db()
+        self.vehicle.refresh_from_db()
+        self.assertFalse(VehicleModel.objects.filter(pk=duplicate.pk).exists())
+        self.assertEqual(self.model.base_dealer_commission, Decimal("5000"))
+        self.assertEqual(self.vehicle.vehicle_model, self.model)
+        self.assertTrue(
+            self.model.price_versions.filter(cash_price=Decimal("148000")).exists()
+        )
+        self.assertTrue(
+            self.model.colors.filter(pk=duplicate_color.pk, name="賽車藍").exists()
+        )
+
+    def test_duplicate_vehicle_model_merge_stops_on_business_rule_conflict(self):
+        self.model.model_number = "GSX250F"
+        self.model.model_year = 2022
+        self.model.model_code = VehicleModel.ModelType.ABS_DUAL_DISC
+        self.model.displacement_cc = 249
+        self.model.save()
+        duplicate = VehicleModel.objects.create(
+            brand=self.model.brand,
+            name=self.model.name,
+            model_number="LEGACY-GSX250F",
+            model_year=2022,
+            model_code="",
+            energy_type=VehicleModel.EnergyType.GAS,
+            displacement_cc=None,
+        )
+        effective_from = date(2026, 4, 9)
+        VehiclePriceVersion.objects.create(
+            vehicle_model=self.model,
+            cash_price=Decimal("148000"),
+            effective_from=effective_from,
+        )
+        VehiclePriceVersion.objects.create(
+            vehicle_model=duplicate,
+            cash_price=Decimal("150000"),
+            effective_from=effective_from,
+        )
+        self.client.force_login(self.user)
+
+        response = self.client.post(
+            reverse("vehicle_model_edit", args=[duplicate.pk]),
+            {"action": "merge_version", "target_model": self.model.pk},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "相同生效日的商務設定")
+        self.assertContains(response, "售價版本 1 筆")
+        self.assertTrue(VehicleModel.objects.filter(pk=duplicate.pk).exists())
+
     def test_vehicle_model_year_can_move_to_existing_family_with_relations(self):
         source_family = self.model.family
         self.model.model_number = "TEST-2026"
@@ -1137,6 +1223,23 @@ class OrderFlowTests(TestCase):
         self.assertEqual(
             list(model.factory_model_codes.values_list("code", flat=True)),
             ["DR-Z4S"],
+        )
+
+    def test_gsx250f_legacy_long_model_number_is_normalized(self):
+        model = VehicleModel.objects.create(
+            brand="SUZUKI",
+            name="GIXXER SF 250 ABS",
+            model_number="GSX250F GIXXER SF 250",
+            model_year=2024,
+            model_code=VehicleModel.ModelType.ABS_DUAL_DISC,
+            energy_type=VehicleModel.EnergyType.GAS,
+            displacement_cc=249,
+        )
+
+        self.assertEqual(model.model_number, "GSX250F")
+        self.assertEqual(
+            list(model.factory_model_codes.values_list("code", flat=True)),
+            ["GSX250F"],
         )
 
     def test_vehicle_model_list_counts_only_active_colors(self):

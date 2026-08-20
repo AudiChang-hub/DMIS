@@ -82,6 +82,7 @@ from .forms import (
     VehicleIncentiveInstallmentRateFormSet,
     VehicleIncentiveRuleForm,
     VehicleModelCommissionForm,
+    VehicleModelFamilyMoveForm,
     VehicleModelMasterForm,
     VehiclePriceVersionForm,
     VehicleSettlementCostRuleForm,
@@ -131,6 +132,12 @@ from .services.vehicle_brands import (
     rename_vehicle_brand_references,
     vehicle_brand_search_q,
     vehicle_brand_is_used,
+)
+from .services.vehicle_model_family import (
+    delete_unused_vehicle_model,
+    move_vehicle_model_to_family,
+    vehicle_model_delete_blockers,
+    vehicle_model_relation_summary,
 )
 from .jobs import delete_id_ocr_job_files, run_id_ocr_job, run_legacy_import_job
 from .services.id_ocr import recognize_id_card
@@ -5174,6 +5181,40 @@ def _vehicle_model_form_view(request, instance=None):
             None,
         )
     action = request.POST.get("action", "save_model")
+    move_form = (
+        VehicleModelFamilyMoveForm(
+            request.POST if request.method == "POST" and action == "move_family" else None,
+            vehicle_model=instance,
+        )
+        if is_editing
+        else None
+    )
+    if request.method == "POST" and action == "move_family" and is_editing:
+        if move_form.is_valid():
+            try:
+                moved_model, source_removed = move_vehicle_model_to_family(
+                    vehicle_model_id=instance.pk,
+                    target_family_id=move_form.cleaned_data["target_family"].pk,
+                )
+            except ValidationError as exc:
+                move_form.add_error(None, exc)
+            else:
+                cleanup_note = "，原本空白的錯誤機種也已清除" if source_removed else ""
+                messages.success(
+                    request,
+                    f"已將 {moved_model.model_year} 年式移至「{moved_model.family.name}」{cleanup_note}。",
+                )
+                return redirect(
+                    f"{reverse('vehicle_model_edit', args=[moved_model.pk])}#data-correction"
+                )
+    if request.method == "POST" and action == "delete_model" and is_editing:
+        try:
+            delete_unused_vehicle_model(vehicle_model_id=instance.pk)
+        except ValidationError as exc:
+            messages.error(request, "; ".join(exc.messages))
+        else:
+            messages.success(request, "未使用的年式／規格已永久刪除。")
+            return redirect("vehicle_model_list")
     model_post = request.POST if request.method == "POST" and action == "save_model" else None
     model_post, merged_color_names, preserved_history_color_names = (
         _coalesce_vehicle_color_post(model_post, instance)
@@ -5270,6 +5311,18 @@ def _vehicle_model_form_view(request, instance=None):
                 list(upcoming_installment_plan.options.all())
                 if upcoming_installment_plan
                 else []
+            ),
+            "move_form": move_form,
+            "has_move_targets": (
+                move_form.fields["target_family"].queryset.exists()
+                if move_form
+                else False
+            ),
+            "relation_summary": (
+                vehicle_model_relation_summary(instance) if is_editing else {}
+            ),
+            "delete_blockers": (
+                vehicle_model_delete_blockers(instance) if is_editing else []
             ),
         },
     )

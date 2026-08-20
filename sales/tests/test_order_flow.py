@@ -48,6 +48,7 @@ from sales.models import (
     VehicleIncentiveInstallmentRate,
     VehicleIncentiveRule,
     VehicleModel,
+    VehicleModelFamily,
     VehiclePriceVersion,
     VehicleSettlementCostRule,
 )
@@ -348,6 +349,121 @@ class OrderFlowTests(TestCase):
         self.assertContains(response, "開辦費 $2000")
         self.assertContains(response, "和潤")
         self.assertNotContains(response, "36 期")
+
+    def test_vehicle_model_edit_exposes_safe_family_correction(self):
+        target = VehicleModelFamily.objects.create(
+            brand=self.model.brand,
+            name="正確通勤車",
+        )
+        self.client.force_login(self.user)
+
+        response = self.client.get(reverse("vehicle_model_edit", args=[self.model.pk]))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "移動年式／合併機種")
+        self.assertContains(response, "移動不會刪除這個年份")
+        self.assertContains(response, f'value="{target.pk}"')
+        self.assertTrue(response.context["form"].fields["existing_family"].disabled)
+
+    def test_vehicle_model_year_can_move_to_existing_family_with_relations(self):
+        source_family = self.model.family
+        self.model.model_number = "TEST-2026"
+        self.model.model_year = 2026
+        self.model.model_code = VehicleModel.ModelType.FRONT_DISC_REAR_DRUM
+        self.model.save()
+        target = VehicleModelFamily.objects.create(
+            brand=self.model.brand,
+            name="正確通勤車",
+        )
+        self.client.force_login(self.user)
+
+        response = self.client.post(
+            reverse("vehicle_model_edit", args=[self.model.pk]),
+            {"action": "move_family", "target_family": target.pk},
+        )
+
+        self.assertEqual(
+            response["Location"],
+            f'{reverse("vehicle_model_edit", args=[self.model.pk])}#data-correction',
+        )
+        self.model.refresh_from_db()
+        self.vehicle.refresh_from_db()
+        self.settlement_rule.refresh_from_db()
+        self.assertEqual(self.model.family, target)
+        self.assertEqual(self.model.name, target.name)
+        self.assertEqual(self.vehicle.vehicle_model, self.model)
+        self.assertEqual(self.settlement_rule.vehicle_model, self.model)
+        self.assertTrue(
+            self.model.factory_model_codes.filter(code="TEST-2026").exists()
+        )
+        self.assertFalse(VehicleModelFamily.objects.filter(pk=source_family.pk).exists())
+
+    def test_vehicle_model_move_rejects_duplicate_year_and_type(self):
+        self.model.model_year = 2026
+        self.model.model_code = VehicleModel.ModelType.FRONT_DISC_REAR_DRUM
+        self.model.save()
+        target = VehicleModelFamily.objects.create(
+            brand=self.model.brand,
+            name="正確通勤車",
+        )
+        VehicleModel.objects.create(
+            brand=target.brand,
+            name=target.name,
+            model_number="TARGET-2026",
+            model_year=2026,
+            model_code=VehicleModel.ModelType.FRONT_DISC_REAR_DRUM,
+            energy_type=VehicleModel.EnergyType.GAS,
+            displacement_cc=125,
+        )
+        self.client.force_login(self.user)
+
+        response = self.client.post(
+            reverse("vehicle_model_edit", args=[self.model.pk]),
+            {"action": "move_family", "target_family": target.pk},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "目標機種已有相同年份與型式")
+        self.model.refresh_from_db()
+        self.assertNotEqual(self.model.family, target)
+
+    def test_unused_vehicle_model_year_can_be_permanently_deleted(self):
+        unused = VehicleModel.objects.create(
+            brand="測試廠牌",
+            name="誤建機種",
+            model_number="WRONG-2026",
+            model_year=2026,
+            model_code=VehicleModel.ModelType.DRUM,
+            energy_type=VehicleModel.EnergyType.GAS,
+            displacement_cc=50,
+        )
+        source_family_id = unused.family_id
+        VehicleColor.objects.create(vehicle_model=unused, name="白")
+        self.client.force_login(self.user)
+
+        response = self.client.post(
+            reverse("vehicle_model_edit", args=[unused.pk]),
+            {"action": "delete_model"},
+        )
+
+        self.assertRedirects(response, reverse("vehicle_model_list"))
+        self.assertFalse(VehicleModel.objects.filter(pk=unused.pk).exists())
+        self.assertFalse(
+            VehicleModelFamily.objects.filter(pk=source_family_id).exists()
+        )
+
+    def test_vehicle_model_year_with_relations_cannot_be_deleted(self):
+        self.client.force_login(self.user)
+
+        response = self.client.post(
+            reverse("vehicle_model_edit", args=[self.model.pk]),
+            {"action": "delete_model"},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "不能永久刪除")
+        self.assertContains(response, "庫存 1 筆")
+        self.assertTrue(VehicleModel.objects.filter(pk=self.model.pk).exists())
 
     def test_vehicle_model_business_pages_return_directly_to_model_page(self):
         self.client.force_login(self.user)

@@ -618,6 +618,19 @@ def _apply_brand_choice(form):
 
 
 class VehicleBrandForm(forms.ModelForm):
+    logo = forms.ImageField(
+        label="品牌 LOGO 原圖",
+        required=False,
+        widget=forms.FileInput(attrs={"accept": "image/png,image/jpeg,image/webp"}),
+        help_text="上傳後可直接裁切並預覽實際顯示效果；系統會保留原圖。",
+    )
+    logo_crop_x = forms.FloatField(required=False, widget=forms.HiddenInput())
+    logo_crop_y = forms.FloatField(required=False, widget=forms.HiddenInput())
+    logo_crop_width = forms.FloatField(required=False, widget=forms.HiddenInput())
+    logo_crop_height = forms.FloatField(required=False, widget=forms.HiddenInput())
+    logo_crop_changed = forms.BooleanField(required=False, widget=forms.HiddenInput())
+    remove_logo = forms.BooleanField(required=False, widget=forms.HiddenInput())
+
     class Meta:
         model = VehicleBrand
         fields = ["name", "parent", "logo", "aliases", "display_order", "active", "note"]
@@ -628,6 +641,9 @@ class VehicleBrandForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        crop = self.instance.logo_crop_data or {}
+        for key, default in (("x", 0), ("y", 0), ("width", 1), ("height", 1)):
+            self.fields[f"logo_crop_{key}"].initial = crop.get(key, default)
         parent_queryset = VehicleBrand.objects.filter(parent__isnull=True)
         if self.instance.pk:
             parent_queryset = parent_queryset.exclude(pk=self.instance.pk)
@@ -667,6 +683,28 @@ class VehicleBrandForm(forms.ModelForm):
 
     def clean(self):
         cleaned = super().clean()
+        if cleaned.get("logo") and cleaned.get("remove_logo"):
+            self.add_error("logo", "請選擇更換 LOGO 或移除 LOGO，不要同時操作。")
+        crop_values = [
+            cleaned.get("logo_crop_x"),
+            cleaned.get("logo_crop_y"),
+            cleaned.get("logo_crop_width"),
+            cleaned.get("logo_crop_height"),
+        ]
+        if cleaned.get("logo") or cleaned.get("logo_crop_changed"):
+            if any(value is None for value in crop_values):
+                self.add_error("logo", "裁切資料不完整，請重新調整 LOGO。")
+            else:
+                x, y, width, height = crop_values
+                if (
+                    width <= 0
+                    or height <= 0
+                    or x < 0
+                    or y < 0
+                    or x + width > 1.001
+                    or y + height > 1.001
+                ):
+                    self.add_error("logo", "裁切範圍無效，請重新調整 LOGO。")
         parent = cleaned.get("parent")
         if parent and parent.parent_id:
             self.add_error("parent", "所屬品牌必須是主品牌，不能建立三層品牌。")

@@ -176,6 +176,18 @@ class VehicleBrand(TimeStampedModel):
         blank=True,
         help_text="品牌識別與列印文件使用；建議透明背景 PNG 或清晰橫式圖片。",
     )
+    logo_original = models.ImageField(
+        "品牌 LOGO 原圖",
+        upload_to="brands/logo-originals/%Y/%m/",
+        blank=True,
+        editable=False,
+    )
+    logo_crop_data = models.JSONField(
+        "品牌 LOGO 裁切設定",
+        default=dict,
+        blank=True,
+        editable=False,
+    )
 
     class Meta:
         ordering = ["display_order", "name", "id"]

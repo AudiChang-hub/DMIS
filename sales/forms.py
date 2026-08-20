@@ -1425,7 +1425,7 @@ class VehicleModelMasterForm(forms.ModelForm):
             self.fields["existing_family"].label = "所屬機種"
             self.fields["existing_family"].disabled = True
             self.fields["existing_family"].help_text = (
-                "若這個年式誤建成另一個機種，請使用頁面下方的「移動年式／合併機種」。"
+                "若年份或所屬機種需要修正，請使用頁面下方的「年式資料修正」。"
             )
             codes = list(
                 self.instance.factory_model_codes.filter(active=True)
@@ -1583,6 +1583,34 @@ class VehicleModelFamilyMoveForm(forms.Form):
                 "目標機種已有相同年份與型式；請先確認兩筆資料是否需要進一步合併。"
             )
         return target
+
+
+class VehicleModelYearCorrectionForm(forms.Form):
+    model_year = forms.IntegerField(
+        label="正確年份",
+        min_value=1900,
+        max_value=2200,
+        widget=forms.NumberInput(
+            attrs={
+                "class": "form-control",
+                "inputmode": "numeric",
+                "placeholder": "例如：2023",
+            }
+        ),
+        help_text="只修正年份；顏色、售價、分期、庫存及訂單等資料都會保留。",
+    )
+
+    def __init__(self, *args, vehicle_model, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.vehicle_model = vehicle_model
+        if not self.is_bound:
+            self.initial["model_year"] = vehicle_model.model_year
+
+    def clean_model_year(self):
+        model_year = self.cleaned_data["model_year"]
+        if model_year == self.vehicle_model.model_year:
+            raise ValidationError("目前已是這個年份，不需要修正。")
+        return model_year
 
 
 class LegacyVehicleModelLinkForm(forms.Form):

@@ -371,10 +371,69 @@ class OrderFlowTests(TestCase):
         response = self.client.get(reverse("vehicle_model_edit", args=[self.model.pk]))
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "移動年式／合併機種")
-        self.assertContains(response, "移動不會刪除這個年份")
+        self.assertContains(response, "年式資料修正")
+        self.assertContains(response, "修正年份")
+        self.assertContains(response, "移至其他機種")
+        self.assertContains(response, "刪除未使用的年式")
+        self.assertContains(response, "所有關聯資料都會保留")
+        self.assertContains(response, "目前年份")
+        self.assertContains(response, 'name="action" value="correct_year"')
         self.assertContains(response, f'value="{target.pk}"')
         self.assertTrue(response.context["form"].fields["existing_family"].disabled)
+
+    def test_vehicle_model_year_can_be_corrected_in_place_with_relations(self):
+        self.model.model_year = 2022
+        self.model.model_code = VehicleModel.ModelType.FRONT_DISC_REAR_DRUM
+        self.model.save()
+        original_pk = self.model.pk
+        original_count = VehicleModel.objects.count()
+        self.client.force_login(self.user)
+
+        response = self.client.post(
+            reverse("vehicle_model_edit", args=[self.model.pk]),
+            {"action": "correct_year", "model_year": 2023},
+            follow=True,
+        )
+
+        self.assertEqual(
+            response.redirect_chain[-1][0],
+            f'{reverse("vehicle_model_edit", args=[self.model.pk])}#data-correction',
+        )
+        self.assertContains(response, "年份已由 2022 修正為 2023")
+        self.model.refresh_from_db()
+        self.vehicle.refresh_from_db()
+        self.settlement_rule.refresh_from_db()
+        self.assertEqual(self.model.pk, original_pk)
+        self.assertEqual(self.model.model_year, 2023)
+        self.assertEqual(VehicleModel.objects.count(), original_count)
+        self.assertEqual(self.vehicle.vehicle_model_id, original_pk)
+        self.assertEqual(self.settlement_rule.vehicle_model_id, original_pk)
+
+    def test_vehicle_model_year_correction_rejects_duplicate_year_and_type(self):
+        self.model.model_year = 2022
+        self.model.model_code = VehicleModel.ModelType.FRONT_DISC_REAR_DRUM
+        self.model.save()
+        VehicleModel.objects.create(
+            brand=self.model.brand,
+            name=self.model.name,
+            model_number="TARGET-2023",
+            model_year=2023,
+            model_code=VehicleModel.ModelType.FRONT_DISC_REAR_DRUM,
+            energy_type=VehicleModel.EnergyType.GAS,
+            displacement_cc=125,
+        )
+        self.client.force_login(self.user)
+
+        response = self.client.post(
+            reverse("vehicle_model_edit", args=[self.model.pk]),
+            {"action": "correct_year", "model_year": 2023},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "此機種已存在 2023 年")
+        self.assertContains(response, "不能直接覆蓋")
+        self.model.refresh_from_db()
+        self.assertEqual(self.model.model_year, 2022)
 
     def test_vehicle_model_year_can_move_to_existing_family_with_relations(self):
         source_family = self.model.family

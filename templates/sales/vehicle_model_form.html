@@ -69,9 +69,9 @@
 
 {% if is_editing %}
 <section id="data-correction" class="card vehicle-model-correction">
-  <details{% if move_form.errors %} open{% endif %}>
+  <details{% if year_correction_form.errors or move_form.errors %} open{% endif %}>
     <summary>
-      <span><strong>誤建成不同機種？</strong><small>移動這個年式，或刪除完全未使用的錯誤資料</small></span>
+      <span><strong>年式資料修正</strong><small>修正年份、移至其他機種，或刪除未使用的年式</small></span>
       <span class="vehicle-model-correction__summary-action">資料修正</span>
     </summary>
     <div class="vehicle-model-correction__body">
@@ -87,10 +87,31 @@
         <span>售價 <strong>{{ relation_summary.prices }}</strong></span>
         <span>分期 <strong>{{ relation_summary.installments }}</strong></span>
       </div>
-      <div class="vehicle-model-correction__notice">
-        <strong>移動不會刪除這個年份</strong>
-        <span>顏色、庫存、訂單、售價、分期與成本規則都會跟著這筆年式保留。</span>
+
+      <div class="vehicle-model-correction-action">
+        <div class="vehicle-model-correction-action__heading">
+          <span class="vehicle-model-correction-action__number">1</span>
+          <div><h3>修正年份</h3><p>年份輸入錯誤時使用；這筆資料會原地修改，不會建立新資料。</p></div>
+        </div>
+        <div class="vehicle-model-correction__notice">
+          <strong>所有關聯資料都會保留</strong>
+          <span>顏色、售價、分期、庫存、訂單與成本規則都會繼續連結這筆年式。</span>
+        </div>
+        <form method="post" class="vehicle-model-year-form">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="correct_year">
+          {% if year_correction_form.non_field_errors %}<div class="message error vehicle-model-correction-form-error">{{ year_correction_form.non_field_errors }}</div>{% endif %}
+          <div class="vehicle-model-current-year"><span>目前年份</span><strong>{{ vehicle_model.model_year|default:'尚未設定' }}</strong></div>
+          {% include "sales/_field.html" with field=year_correction_form.model_year %}
+          <button class="button primary" type="submit">確認修正年份</button>
+        </form>
       </div>
+
+      <div class="vehicle-model-correction-action">
+        <div class="vehicle-model-correction-action__heading">
+          <span class="vehicle-model-correction-action__number">2</span>
+          <div><h3>移至其他機種</h3><p>只有目前年式確實建立在錯誤機種下時才使用。</p></div>
+        </div>
       {% if has_move_targets %}
       <form method="post" class="vehicle-model-move-form" data-confirm-form="確定要將這個年式移至選擇的機種嗎？">
         {% csrf_token %}
@@ -102,9 +123,15 @@
       {% else %}
       <div class="empty-state compact"><strong>目前沒有其他同品牌機種可供移動</strong><span>請先建立正確機種，再回到此處執行移動。</span></div>
       {% endif %}
+      </div>
 
-      <div class="vehicle-model-delete-zone">
-        <div>
+      <div class="vehicle-model-correction-action vehicle-model-correction-action--danger">
+        <div class="vehicle-model-delete-zone">
+          <div>
+          <div class="vehicle-model-correction-action__heading">
+            <span class="vehicle-model-correction-action__number">3</span>
+            <div><h3>刪除未使用的年式</h3></div>
+          </div>
           <strong>永久刪除這筆年式／規格</strong>
           {% if delete_blockers %}
           <p>目前不能刪除，因為仍有：{% for blocker in delete_blockers %}{{ blocker.label }} {{ blocker.count }} 筆{% if not forloop.last %}、{% endif %}{% endfor %}。</p>
@@ -119,6 +146,7 @@
           <button class="button danger-outline" type="submit">永久刪除</button>
         </form>
         {% endif %}
+        </div>
       </div>
     </div>
   </details>

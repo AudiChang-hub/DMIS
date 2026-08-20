@@ -12,6 +12,10 @@ class UnsupportedRegistrationFee(ValueError):
     pass
 
 
+class ManualRegistrationFeeRequired(UnsupportedRegistrationFee):
+    """此車型刻意不套用預設金額，應保留人員輸入的實際牌險。"""
+
+
 @dataclass(frozen=True)
 class RegistrationFeeResult:
     rate_class: str
@@ -129,9 +133,17 @@ def resolve_brand_registration_rule(vehicle_model, registration_date, period_yea
             energy_type=vehicle_model.energy_type,
             active=True,
             effective_from__lte=registration_date,
-            insurance_period_years=period_years,
         )
         .filter(Q(effective_to__isnull=True) | Q(effective_to__gte=registration_date))
+        .filter(
+            Q(
+                calculation_type__in=(
+                    BrandRegistrationFeeRule.CalculationType.FORMULA,
+                    BrandRegistrationFeeRule.CalculationType.MANUAL,
+                )
+            )
+            | Q(insurance_period_years=period_years)
+        )
     )
     if vehicle_model.energy_type == VehicleModel.EnergyType.GAS:
         rules = rules.filter(
@@ -151,25 +163,36 @@ def calculate_vehicle_registration_fee(vehicle_model, registration_date, period_
         vehicle_model, registration_date, period_years
     )
     if rule and rule.calculation_type == BrandRegistrationFeeRule.CalculationType.MANUAL:
-        raise UnsupportedRegistrationFee(
+        raise ManualRegistrationFeeRequired(
             f"{vehicle_model.brand} 此期間設定為人工牌險，請依單據輸入實際金額。"
         )
-    if rule and rule.calculation_type == BrandRegistrationFeeRule.CalculationType.FIXED:
+    if (
+        rule
+        and rule.calculation_type
+        == BrandRegistrationFeeRule.CalculationType.FIXED_COMPONENTS
+    ):
+        rate_class = f"FIXED-COMPONENTS-{rule.pk}"
         if vehicle_model.energy_type == VehicleModel.EnergyType.ELECTRIC:
-            return RegistrationFeeResult(
-                rate_class=f"EV-{vehicle_model.electric_registration_class.upper()}",
-                standard_remaining_days=standard_remaining_days(registration_date),
-                calendar_remaining_days=calendar_remaining_days(registration_date),
-                plate_fee=int(rule.fixed_registration_fee),
-                license_fee=0,
-                inspection_fee=0,
-                road_maintenance_fee=0,
-                license_tax_fee=0,
-                compulsory_insurance_fee=int(rule.fixed_compulsory_insurance_fee),
-                pricing_method="fixed",
-            )
+            rate_class = f"EV-{vehicle_model.electric_registration_class.upper()}"
         return RegistrationFeeResult(
-            rate_class=f"FIXED-{rule.pk}",
+            rate_class=rate_class,
+            standard_remaining_days=standard_remaining_days(registration_date),
+            calendar_remaining_days=calendar_remaining_days(registration_date),
+            plate_fee=int(rule.fixed_registration_fee),
+            license_fee=0,
+            inspection_fee=0,
+            road_maintenance_fee=0,
+            license_tax_fee=0,
+            compulsory_insurance_fee=int(rule.fixed_compulsory_insurance_fee),
+            pricing_method="fixed_components",
+        )
+    if (
+        rule
+        and rule.calculation_type
+        == BrandRegistrationFeeRule.CalculationType.FIXED_BUNDLE
+    ):
+        return RegistrationFeeResult(
+            rate_class=f"FIXED-BUNDLE-{rule.pk}",
             standard_remaining_days=standard_remaining_days(registration_date),
             calendar_remaining_days=calendar_remaining_days(registration_date),
             plate_fee=0,
@@ -178,7 +201,7 @@ def calculate_vehicle_registration_fee(vehicle_model, registration_date, period_
             road_maintenance_fee=0,
             license_tax_fee=0,
             compulsory_insurance_fee=0,
-            pricing_method="fixed",
+            pricing_method="fixed_bundle",
             fixed_total_override=int(rule.fixed_total),
         )
     if vehicle_model.energy_type != VehicleModel.EnergyType.GAS:

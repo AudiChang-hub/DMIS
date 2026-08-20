@@ -1221,7 +1221,8 @@ class BusinessHoliday(TimeStampedModel):
 class BrandRegistrationFeeRule(TimeStampedModel):
     class CalculationType(models.TextChoices):
         FORMULA = "formula", "公式計算"
-        FIXED = "fixed", "固定整包金額"
+        FIXED_BUNDLE = "fixed_bundle", "固定整包金額"
+        FIXED_COMPONENTS = "fixed_components", "固定分項金額"
         MANUAL = "manual", "人工輸入"
 
     brand = models.CharField("品牌", max_length=80)
@@ -1270,28 +1271,39 @@ class BrandRegistrationFeeRule(TimeStampedModel):
             if not self.electric_registration_class:
                 errors["electric_registration_class"] = "電動車規則必須選擇輕型或重型。"
             if self.calculation_type == self.CalculationType.FORMULA:
-                errors["calculation_type"] = "電動車目前請使用固定金額或人工輸入。"
-            if self.calculation_type == self.CalculationType.FIXED and not (
-                self.fixed_registration_fee or self.fixed_compulsory_insurance_fee
-            ):
-                errors["fixed_registration_fee"] = "固定模式至少要填寫一項領牌規費或強制險。"
+                errors["calculation_type"] = "公式計算僅適用油車；電動車請使用固定金額或人工輸入。"
         elif self.energy_type == VehicleModel.EnergyType.GAS:
             self.electric_registration_class = ""
-            if self.calculation_type == self.CalculationType.FIXED and not self.fixed_total:
-                errors["fixed_total"] = "油車固定整包模式必須填寫總額。"
         else:
             self.electric_registration_class = ""
-            if self.calculation_type != self.CalculationType.MANUAL:
-                errors["calculation_type"] = "微型電動二輪車目前請使用人工輸入。"
+            if self.calculation_type == self.CalculationType.FORMULA:
+                errors["calculation_type"] = "公式計算僅適用油車；微型電動二輪車請使用固定金額或人工輸入。"
+        if (
+            self.calculation_type == self.CalculationType.FIXED_BUNDLE
+            and not self.fixed_total
+        ):
+            errors["fixed_total"] = "固定整包金額必須填寫固定牌險總額。"
+        if self.calculation_type == self.CalculationType.FIXED_COMPONENTS:
+            if not self.fixed_registration_fee:
+                errors["fixed_registration_fee"] = "固定分項金額必須填寫領牌規費。"
+            if not self.fixed_compulsory_insurance_fee:
+                errors["fixed_compulsory_insurance_fee"] = "固定分項金額必須填寫強制險。"
         if errors:
             raise ValidationError(errors)
 
     def save(self, *args, **kwargs):
-        if self.energy_type == VehicleModel.EnergyType.ELECTRIC:
+        if self.calculation_type == self.CalculationType.FIXED_COMPONENTS:
             self.fixed_total = (
                 self.fixed_registration_fee
                 + self.fixed_compulsory_insurance_fee
             )
+        elif self.calculation_type == self.CalculationType.FIXED_BUNDLE:
+            self.fixed_registration_fee = 0
+            self.fixed_compulsory_insurance_fee = 0
+        else:
+            self.fixed_total = 0
+            self.fixed_registration_fee = 0
+            self.fixed_compulsory_insurance_fee = 0
         self.full_clean()
         return super().save(*args, **kwargs)
 

@@ -6,7 +6,6 @@ from django.core.files.base import ContentFile
 from PIL import Image, ImageOps
 
 
-LOGO_ASPECT_RATIO = 2
 LOGO_OUTPUT_SIZE = (800, 400)
 
 
@@ -30,28 +29,14 @@ def _normalized_crop(crop_data):
     return {key: round(value, 6) for key, value in values.items()}
 
 
-def _centered_crop(image):
-    width, height = image.size
-    if width / height >= LOGO_ASPECT_RATIO:
-        crop_height = height
-        crop_width = height * LOGO_ASPECT_RATIO
-    else:
-        crop_width = width
-        crop_height = width / LOGO_ASPECT_RATIO
-    return _normalized_crop(
-        {
-            "x": (width - crop_width) / 2 / width,
-            "y": (height - crop_height) / 2 / height,
-            "width": crop_width / width,
-            "height": crop_height / height,
-        }
-    )
+def _full_image_crop():
+    return _normalized_crop({"x": 0, "y": 0, "width": 1, "height": 1})
 
 
 def build_brand_logo(source_bytes, crop_data=None):
     with Image.open(BytesIO(source_bytes)) as source:
         image = ImageOps.exif_transpose(source).convert("RGBA")
-        normalized = _normalized_crop(crop_data) if crop_data else _centered_crop(image)
+        normalized = _normalized_crop(crop_data) if crop_data else _full_image_crop()
         width, height = image.size
         left = round(normalized["x"] * width)
         top = round(normalized["y"] * height)

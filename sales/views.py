@@ -84,6 +84,7 @@ from .forms import (
     VehicleModelCommissionForm,
     VehicleModelFamilyMoveForm,
     VehicleModelMasterForm,
+    VehicleModelYearCorrectionForm,
     VehiclePriceVersionForm,
     VehicleSettlementCostRuleForm,
 )
@@ -134,6 +135,7 @@ from .services.vehicle_brands import (
     vehicle_brand_is_used,
 )
 from .services.vehicle_model_family import (
+    correct_vehicle_model_year,
     delete_unused_vehicle_model,
     move_vehicle_model_to_family,
     vehicle_model_delete_blockers,
@@ -5189,6 +5191,34 @@ def _vehicle_model_form_view(request, instance=None):
         if is_editing
         else None
     )
+    year_correction_form = (
+        VehicleModelYearCorrectionForm(
+            request.POST
+            if request.method == "POST" and action == "correct_year"
+            else None,
+            vehicle_model=instance,
+        )
+        if is_editing
+        else None
+    )
+    if request.method == "POST" and action == "correct_year" and is_editing:
+        if year_correction_form.is_valid():
+            try:
+                corrected_model, original_year = correct_vehicle_model_year(
+                    vehicle_model_id=instance.pk,
+                    model_year=year_correction_form.cleaned_data["model_year"],
+                )
+            except ValidationError as exc:
+                year_correction_form.add_error(None, exc)
+            else:
+                original_year_label = original_year or "未設定"
+                messages.success(
+                    request,
+                    f"年份已由 {original_year_label} 修正為 {corrected_model.model_year}。",
+                )
+                return redirect(
+                    f"{reverse('vehicle_model_edit', args=[corrected_model.pk])}#data-correction"
+                )
     if request.method == "POST" and action == "move_family" and is_editing:
         if move_form.is_valid():
             try:
@@ -5315,6 +5345,7 @@ def _vehicle_model_form_view(request, instance=None):
                 else []
             ),
             "move_form": move_form,
+            "year_correction_form": year_correction_form,
             "has_move_targets": (
                 move_form.fields["target_family"].queryset.exists()
                 if move_form

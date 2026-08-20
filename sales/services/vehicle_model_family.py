@@ -53,6 +53,42 @@ def _remove_empty_family(family):
 
 
 @transaction.atomic
+def correct_vehicle_model_year(*, vehicle_model_id, model_year):
+    vehicle_model = (
+        VehicleModel.objects.select_for_update()
+        .select_related("family")
+        .get(pk=vehicle_model_id)
+    )
+    original_year = vehicle_model.model_year
+    if model_year == original_year:
+        raise ValidationError("目前已是這個年份，不需要修正。")
+
+    if vehicle_model.family_id:
+        duplicate = vehicle_model.family.versions.exclude(pk=vehicle_model.pk).filter(
+            model_year=model_year,
+            model_code=vehicle_model.model_code,
+        )
+    else:
+        duplicate = VehicleModel.objects.exclude(pk=vehicle_model.pk).filter(
+            brand__iexact=vehicle_model.brand,
+            name__iexact=vehicle_model.name,
+            model_year=model_year,
+            model_code=vehicle_model.model_code,
+        )
+    if duplicate.select_for_update().exists():
+        raise ValidationError(
+            f"此機種已存在 {model_year} 年、{vehicle_model.get_model_code_display()} 的年式／規格，不能直接覆蓋。"
+        )
+
+    VehicleModel.objects.filter(pk=vehicle_model.pk).update(
+        model_year=model_year,
+        updated_at=timezone.now(),
+    )
+    vehicle_model.refresh_from_db()
+    return vehicle_model, original_year
+
+
+@transaction.atomic
 def move_vehicle_model_to_family(*, vehicle_model_id, target_family_id):
     vehicle_model = (
         VehicleModel.objects.select_for_update()

@@ -4947,17 +4947,13 @@ def vehicle_model_list(request):
             family["active_color_count"] = sum(
                 model.active_color_count for model in family["models"]
             )
-            family["year_labels"] = list(
-                dict.fromkeys(
-                    str(model.model_year) if model.model_year else "待補"
+            family["active_year_count"] = len(
+                {
+                    model.model_year
                     for model in family["models"]
-                )
+                    if model.active and model.model_year
+                }
             )
-            family["year_summary"] = family["year_labels"][0]
-            if family["version_count"] > 1:
-                family["year_summary"] = (
-                    f"{family['year_labels'][0]} 等 {family['version_count']} 筆設定"
-                )
             family["energy_labels"] = sorted(
                 {model.get_energy_type_display() for model in family["models"]},
                 key=str.casefold,

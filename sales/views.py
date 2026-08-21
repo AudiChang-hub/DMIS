@@ -4887,6 +4887,7 @@ def vehicle_model_list(request):
             current_model = family["models"][0]
             is_electric = current_model.energy_type in {
                 VehicleModel.EnergyType.ELECTRIC,
+                VehicleModel.EnergyType.LIGHT_ELECTRIC,
                 VehicleModel.EnergyType.MICRO_ELECTRIC,
             }
             if is_electric:

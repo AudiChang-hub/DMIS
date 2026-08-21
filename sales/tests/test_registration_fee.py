@@ -243,6 +243,60 @@ class RegistrationFeeOrderIntegrationTests(TestCase):
         self.assertEqual(result.fixed_and_variable_total, 1208)
         self.assertEqual(rule.fixed_total, 1208)
 
+    def test_light_electric_vehicle_can_reuse_existing_light_electric_rule(self):
+        light_electric_model = VehicleModel(
+            brand="Gogoro",
+            name="輕型電動測試",
+            energy_type=VehicleModel.EnergyType.LIGHT_ELECTRIC,
+        )
+        light_electric_model.full_clean()
+        light_electric_model.save()
+        BrandRegistrationFeeRule.objects.create(
+            brand="Gogoro",
+            energy_type=VehicleModel.EnergyType.ELECTRIC,
+            electric_registration_class=VehicleModel.ElectricRegistrationClass.LIGHT,
+            calculation_type=BrandRegistrationFeeRule.CalculationType.FIXED_COMPONENTS,
+            fixed_registration_fee=550,
+            fixed_compulsory_insurance_fee=658,
+            effective_from=date(2026, 1, 1),
+        )
+
+        result = calculate_vehicle_registration_fee(
+            light_electric_model, date(2026, 8, 13), 1
+        )
+
+        self.assertEqual(result.rate_class, "EV-LIGHT")
+        self.assertEqual(result.fixed_and_variable_total, 1208)
+
+    def test_light_electric_specific_rule_takes_priority_over_generic_electric_rule(self):
+        light_electric_model = VehicleModel(
+            brand="Gogoro",
+            name="輕型電動專屬規則測試",
+            energy_type=VehicleModel.EnergyType.LIGHT_ELECTRIC,
+        )
+        light_electric_model.full_clean()
+        light_electric_model.save()
+        for energy_type, registration_fee in (
+            (VehicleModel.EnergyType.ELECTRIC, 550),
+            (VehicleModel.EnergyType.LIGHT_ELECTRIC, 600),
+        ):
+            BrandRegistrationFeeRule.objects.create(
+                brand="Gogoro",
+                energy_type=energy_type,
+                electric_registration_class=VehicleModel.ElectricRegistrationClass.LIGHT,
+                calculation_type=BrandRegistrationFeeRule.CalculationType.FIXED_COMPONENTS,
+                fixed_registration_fee=registration_fee,
+                fixed_compulsory_insurance_fee=658,
+                effective_from=date(2026, 1, 1),
+            )
+
+        result = calculate_vehicle_registration_fee(
+            light_electric_model, date(2026, 8, 13), 1
+        )
+
+        self.assertEqual(result.plate_fee, 600)
+        self.assertEqual(result.fixed_and_variable_total, 1258)
+
     def test_electric_rule_does_not_cross_light_and_heavy_classes(self):
         electric_model = VehicleModel.objects.create(
             brand="Gogoro",

@@ -157,10 +157,10 @@ def _remove_empty_family(family):
 
 @transaction.atomic
 def correct_vehicle_model_year(*, vehicle_model_id, model_year):
-    vehicle_model = (
-        VehicleModel.objects.select_for_update()
-        .select_related("family")
-        .get(pk=vehicle_model_id)
+    # family 可為空；PostgreSQL 不允許對 LEFT OUTER JOIN 的 nullable side
+    # 套用 FOR UPDATE。先只鎖定年式本身，後續需要 family 時再個別查詢。
+    vehicle_model = VehicleModel.objects.select_for_update().get(
+        pk=vehicle_model_id
     )
     original_year = vehicle_model.model_year
     if model_year == original_year:
@@ -193,10 +193,10 @@ def correct_vehicle_model_year(*, vehicle_model_id, model_year):
 
 @transaction.atomic
 def move_vehicle_model_to_family(*, vehicle_model_id, target_family_id):
-    vehicle_model = (
-        VehicleModel.objects.select_for_update()
-        .select_related("family")
-        .get(pk=vehicle_model_id)
+    # 與年份修正相同，只鎖定年式本身，避免 PostgreSQL 拒絕 nullable
+    # family 外連接上的 FOR UPDATE。
+    vehicle_model = VehicleModel.objects.select_for_update().get(
+        pk=vehicle_model_id
     )
     target_family = VehicleModelFamily.objects.select_for_update().get(
         pk=target_family_id

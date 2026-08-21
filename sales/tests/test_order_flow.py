@@ -9,7 +9,9 @@ from django.contrib.auth.models import AnonymousUser
 from django.core.exceptions import ValidationError
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.core.management import call_command
+from django.db import connection
 from django.test import RequestFactory, TestCase
+from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 from django.utils import timezone
 from openpyxl import Workbook
@@ -53,6 +55,7 @@ from sales.models import (
     VehicleSettlementCostRule,
 )
 from sales.services.secret_fields import decrypt_secret
+from sales.services.vehicle_model_family import correct_vehicle_model_year
 
 
 def uploaded_test_pdf(filename="document.pdf"):
@@ -408,6 +411,26 @@ class OrderFlowTests(TestCase):
         self.assertEqual(VehicleModel.objects.count(), original_count)
         self.assertEqual(self.vehicle.vehicle_model_id, original_pk)
         self.assertEqual(self.settlement_rule.vehicle_model_id, original_pk)
+
+    def test_vehicle_model_year_correction_does_not_lock_nullable_family_join(self):
+        self.model.model_year = None
+        self.model.save(update_fields=["model_year", "updated_at"])
+
+        with CaptureQueriesContext(connection) as queries:
+            corrected_model, original_year = correct_vehicle_model_year(
+                vehicle_model_id=self.model.pk,
+                model_year=2025,
+            )
+
+        model_selects = [
+            query["sql"]
+            for query in queries.captured_queries
+            if "FROM \"sales_vehiclemodel\"" in query["sql"]
+        ]
+        self.assertTrue(model_selects)
+        self.assertNotIn("LEFT OUTER JOIN", model_selects[0])
+        self.assertIsNone(original_year)
+        self.assertEqual(corrected_model.model_year, 2025)
 
     def test_vehicle_model_year_correction_rejects_duplicate_year_and_type(self):
         self.model.model_year = 2022

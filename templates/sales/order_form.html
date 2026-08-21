@@ -562,10 +562,10 @@
   }
 
   function registrationRate(cc) {
-    if (cc >= 51 && cc <= 125) return {code: "M2", road: 450};
-    if (cc >= 126 && cc <= 250) return {code: "M3", road: 600};
-    if (cc >= 251 && cc <= 500) return {code: "M4", road: 900};
-    if (cc >= 501 && cc <= 600) return {code: "M5", road: 1200};
+    if (cc >= 51 && cc <= 125) return {code: "M2", label: "51～125 c.c.", road: 450};
+    if (cc >= 126 && cc <= 250) return {code: "M3", label: "126～250 c.c.", road: 600};
+    if (cc >= 251 && cc <= 500) return {code: "M4", label: "251～500 c.c.", road: 900};
+    if (cc >= 501 && cc <= 600) return {code: "M5", label: "501～600 c.c.", road: 1200};
     return null;
   }
 
@@ -661,7 +661,7 @@
       actualPlateInsuranceFee.value = total;
     }
     lastRegistrationAutoValue = total;
-    rateSummary.textContent = `${rate.code}｜${cc} c.c.｜養管費計費 ${standardDays} 天｜牌照稅計費 ${calendarDays} 天`;
+    rateSummary.textContent = `${rate.label}｜實際排氣量 ${cc} c.c.｜養管費計費 ${standardDays} 天｜牌照稅計費 ${calendarDays} 天`;
   }
 
   function refresh() {

@@ -145,6 +145,13 @@
     <div class="form-grid">
       {% include "sales/_field.html" with field=form.payment_type %}
       {% include "sales/_field.html" with field=form.vehicle_price %}
+      <div class="span-2 vehicle-price-guidance" id="vehicle-price-guidance" aria-live="polite">
+        <strong id="vehicle-price-guidance-title">選擇車型與付款方式後，系統會帶入適用售價</strong>
+        <span id="vehicle-price-guidance-detail">若本案成交價不同，仍可修改並記錄原因。</span>
+      </div>
+      <div class="span-2 vehicle-price-adjustment" id="vehicle-price-adjustment" hidden>
+        {% include "sales/_field.html" with field=form.vehicle_price_adjustment_reason %}
+      </div>
       {% include "sales/_field.html" with field=form.deposit_amount %}
       {% include "sales/_field.html" with field=form.deposit_date %}
       {% include "sales/_field.html" with field=form.deposit_method %}
@@ -314,11 +321,16 @@
     byId("id_installment_monthly"),
   ].filter(Boolean);
   const installmentPlanEndpoint = "{% url 'installment_plan_options' %}";
+  const vehiclePriceEndpoint = "{% url 'vehicle_price_options' %}";
   const installmentPlanHint = byId("installment-plan-hint");
   let installmentPlanOptions = [];
   const plateChoice = byId("id_plate_choice");
   const deliveryMethod = byId("id_delivery_method");
   const vehicleModel = byId("id_vehicle_model");
+  const vehiclePrice = byId("id_vehicle_price");
+  const vehiclePriceAdjustment = byId("vehicle-price-adjustment");
+  const vehiclePriceGuidanceTitle = byId("vehicle-price-guidance-title");
+  const vehiclePriceGuidanceDetail = byId("vehicle-price-guidance-detail");
   const vehicleEnergyType = byId("id_vehicle_energy_type");
   const color = byId("id_color");
   const vehicleRateData = JSON.parse(byId("vehicle-rate-data").textContent);
@@ -365,6 +377,8 @@
   let draftTimer = null;
   let draftSaving = false;
   let draftQueued = false;
+  let currentPriceRecommendation = null;
+  let vehiclePriceRequestController = null;
   let submittingOrder = false;
   let editFormDirty = false;
   let collaborationSocket = null;
@@ -557,6 +571,78 @@
     }
   }
 
+  function formatMoney(value) {
+    return `$${Number(value).toLocaleString("zh-TW", {maximumFractionDigits: 0})}`;
+  }
+
+  function updateVehiclePriceAdjustmentState() {
+    if (!vehiclePriceAdjustment) return;
+    const entered = vehiclePrice.value === "" ? null : Number(vehiclePrice.value);
+    const differs = currentPriceRecommendation !== null
+      && entered !== null
+      && entered !== Number(currentPriceRecommendation.price);
+    vehiclePriceAdjustment.hidden = !differs;
+    if (differs) {
+      const difference = Math.abs(entered - Number(currentPriceRecommendation.price));
+      vehiclePriceGuidanceDetail.textContent = `目前輸入 ${formatMoney(entered)}，與系統建議相差 ${formatMoney(difference)}；請留下調整原因。`;
+    } else if (currentPriceRecommendation) {
+      vehiclePriceGuidanceDetail.textContent = "已套用售價版本；如人工修改成交價，系統會要求記錄原因。";
+    }
+  }
+
+  async function loadVehiclePrice({force = false} = {}) {
+    vehiclePriceRequestController?.abort();
+    currentPriceRecommendation = null;
+    if (!vehicleModel.value) {
+      vehiclePriceGuidanceTitle.textContent = "請先選擇車型";
+      vehiclePriceGuidanceDetail.textContent = "選擇後會依付款方式帶入訂單日適用售價。";
+      updateVehiclePriceAdjustmentState();
+      return;
+    }
+    vehiclePriceGuidanceTitle.textContent = "正在確認適用售價…";
+    vehiclePriceGuidanceDetail.textContent = "系統會依訂單日與付款方式選擇最新有效版本。";
+    vehiclePriceRequestController = new AbortController();
+    try {
+      const params = new URLSearchParams({
+        vehicle_model: vehicleModel.value,
+        payment_type: paymentType.value,
+      });
+      if (editingOrderId) params.set("order_id", editingOrderId);
+      const response = await fetch(`${vehiclePriceEndpoint}?${params}`, {
+        signal: vehiclePriceRequestController.signal,
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "無法讀取售價版本");
+      if (!data.version || data.recommended_price === null) {
+        vehiclePriceGuidanceTitle.textContent = "此車型目前沒有可帶入的售價";
+        vehiclePriceGuidanceDetail.textContent = "請先至車型資料建立售價版本，或由人員直接輸入成交車價。";
+        updateVehiclePriceAdjustmentState();
+        return;
+      }
+      currentPriceRecommendation = {
+        price: Number(data.recommended_price),
+        label: data.recommended_label,
+        version: data.version,
+      };
+      if (force || vehiclePrice.value === "") {
+        vehiclePrice.value = data.recommended_price;
+        vehiclePrice.dispatchEvent(new Event("input", {bubbles: true}));
+      }
+      const registrationText = data.recommended_label === "建議售價"
+        ? (data.version.suggested_price_includes_registration ? "，含牌險" : "，不含牌險")
+        : "";
+      const versionSource = data.version.is_snapshot
+        ? `${data.version.effective_from} 訂單原始版本`
+        : `${data.version.effective_from} 版本`;
+      vehiclePriceGuidanceTitle.textContent = `已依 ${versionSource}帶入${data.recommended_label} ${formatMoney(data.recommended_price)}${registrationText}`;
+      updateVehiclePriceAdjustmentState();
+    } catch (error) {
+      if (error.name === "AbortError") return;
+      vehiclePriceGuidanceTitle.textContent = "暫時無法讀取售價版本";
+      vehiclePriceGuidanceDetail.textContent = `${error.message}；可先輸入車價，儲存前請再次確認。`;
+    }
+  }
+
   function roundHalfUp(value) {
     return Math.floor(value + 0.5);
   }
@@ -713,6 +799,7 @@
     }
     previousPaymentType = paymentType.value;
     refresh();
+    loadVehiclePrice({force: true});
     if (paymentType.value === "installment") loadInstallmentPlanOptions();
   });
   [sourceType, ownerType, plateChoice, deliveryMethod, isTradeInSubsidy]
@@ -723,6 +810,7 @@
   vehicleEnergyType.addEventListener("change", () => {
     filterVehicleModels();
     calculateRegistrationFee();
+    loadVehiclePrice({force: true});
   });
   [vehicleModel, registrationDate, insurancePeriod, plateSelectionFee, lienRegistrationFee]
     .forEach(el => el.addEventListener("change", calculateRegistrationFee));
@@ -793,6 +881,7 @@
 
   vehicleModel.addEventListener("change", async () => {
     calculateRegistrationFee();
+    await loadVehiclePrice({force: true});
     await loadInstallmentPlanOptions({force: true});
     await loadVehicleColors();
   });
@@ -802,6 +891,8 @@
     () => applyInstallmentPlanOption({force: true}),
   );
   if (paymentType.value === "installment") loadInstallmentPlanOptions();
+  vehiclePrice?.addEventListener("input", updateVehiclePriceAdjustmentState);
+  loadVehiclePrice();
 
   async function runIdOcr() {
     if (ocrRunning || !["local", "foreign"].includes(ownerType.value)) return;

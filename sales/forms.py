@@ -59,6 +59,11 @@ from .services.registration_fee import (
     calculate_vehicle_registration_fee,
 )
 from .services.installment_plan import resolve_installment_plan_option
+from .services.price_version import (
+    recommended_price_from_snapshot,
+    recommended_vehicle_price,
+    resolve_vehicle_price_version,
+)
 from .services.positioned_template_pdf import PRINT_FIELD_CHOICES
 from .services.upload_validation import (
     validate_document_upload,
@@ -194,6 +199,7 @@ class SalesOrderForm(forms.ModelForm):
             "registration_calculated_total",
             "payment_type",
             "vehicle_price",
+            "vehicle_price_adjustment_reason",
             "plate_insurance_fee",
             "installment_opening_fee",
             "deposit_amount",
@@ -218,6 +224,12 @@ class SalesOrderForm(forms.ModelForm):
             "registration_date": DateInput(),
             "owner_address": forms.Textarea(attrs={"rows": 2}),
             "note": forms.Textarea(attrs={"rows": 3}),
+            "vehicle_price_adjustment_reason": forms.Textarea(
+                attrs={
+                    "rows": 2,
+                    "placeholder": "例如：客戶議價、跨月補差額或特殊活動價",
+                }
+            ),
             "balance_adjustment_reason": forms.Textarea(attrs={"rows": 2}),
             "watched_numbers": forms.Textarea(
                 attrs={
@@ -239,8 +251,9 @@ class SalesOrderForm(forms.ModelForm):
     def __init__(self, *args, existing_documents=None, **kwargs):
         self.existing_documents = existing_documents or {}
         super().__init__(*args, **kwargs)
-
-
+        self._initial_vehicle_price = self.instance.vehicle_price
+        self._initial_payment_type = self.instance.payment_type
+        self._initial_vehicle_model_id = self.instance.vehicle_model_id
         self._previous_plate_insurance_fee = self.instance.plate_insurance_fee
         self._plate_fee_was_automatic = (
             not self.instance.pk
@@ -314,6 +327,10 @@ class SalesOrderForm(forms.ModelForm):
             self.fields[field_name].widget.attrs["readonly"] = True
             self.fields[field_name].widget.attrs["tabindex"] = "-1"
         self.fields["plate_insurance_fee"].required = False
+        # 前端會立即帶入售價；後端仍以同一版本解析補齊，避免網路或 JS
+        # 暫時失敗時讓使用者建立出缺少車價的訂單。
+        self.fields["vehicle_price"].required = False
+        self.fields["vehicle_price_adjustment_reason"].required = False
         for field_name in (
             "installment_company",
             "installment_periods",
@@ -397,6 +414,55 @@ class SalesOrderForm(forms.ModelForm):
                 value = "" if field_name == "installment_company" else 0
                 data[field_name] = value
                 self.cleaned_data[field_name] = value
+
+        same_existing_model = bool(
+            self.instance.pk
+            and model
+            and model.pk == self._initial_vehicle_model_id
+            and self.instance.price_snapshot
+        )
+        if same_existing_model:
+            recommended_price, _recommended_label = recommended_price_from_snapshot(
+                self.instance.price_snapshot,
+                data.get("payment_type"),
+            )
+        else:
+            price_version = resolve_vehicle_price_version(
+                model.pk if model else None,
+                self.instance.order_date or timezone.localdate(),
+            )
+            recommended_price, _recommended_label = recommended_vehicle_price(
+                price_version,
+                data.get("payment_type"),
+            )
+        submitted_price = data.get("vehicle_price")
+        if submitted_price is None:
+            if recommended_price is not None:
+                submitted_price = recommended_price
+                data["vehicle_price"] = recommended_price
+                self.cleaned_data["vehicle_price"] = recommended_price
+            else:
+                self.add_error(
+                    "vehicle_price",
+                    "此車型沒有可帶入的售價版本，請輸入本次成交車價。",
+                )
+        price_context_changed = (
+            not self.instance.pk
+            or submitted_price != self._initial_vehicle_price
+            or data.get("payment_type") != self._initial_payment_type
+            or (model.pk if model else None) != self._initial_vehicle_model_id
+        )
+        if (
+            recommended_price is not None
+            and submitted_price is not None
+            and submitted_price != recommended_price
+            and price_context_changed
+            and not (data.get("vehicle_price_adjustment_reason") or "").strip()
+        ):
+            self.add_error(
+                "vehicle_price_adjustment_reason",
+                "成交車價與系統售價版本不同，請填寫調整原因。",
+            )
 
         registration_date = data.get("registration_date")
         insurance_period = (

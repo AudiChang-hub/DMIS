@@ -153,7 +153,12 @@ from .services.order_search import (
 )
 from .services.operations_sync import sync_order_operations
 from .services.operations_sync import refresh_payment_confirmation
-from .services.price_version import apply_order_price_snapshot
+from .services.price_version import (
+    apply_order_price_snapshot,
+    recommended_price_from_snapshot,
+    recommended_vehicle_price,
+    resolve_vehicle_price_version,
+)
 from .services.settlement_cost import (
     apply_order_settlement_cost,
     resolve_settlement_cost,
@@ -5642,14 +5647,47 @@ def vehicle_model_price_versions(request, model_pk):
         version.save()
         messages.success(request, f"已{'更新' if editing else '新增'}售價版本。")
         return redirect("vehicle_model_price_versions", model_pk=vehicle_model.pk)
+    today = timezone.localdate()
+    current_version = resolve_vehicle_price_version(vehicle_model.pk, today)
+    version_rows = list(versions)
+    for version in version_rows:
+        if not version.active:
+            version.display_state = "disabled"
+            version.display_state_label = "已停用"
+        elif version.effective_from > today:
+            version.display_state = "future"
+            version.display_state_label = "尚未生效"
+        elif version.effective_to and version.effective_to < today:
+            version.display_state = "expired"
+            version.display_state_label = "已到期"
+        elif current_version and version.pk == current_version.pk:
+            version.display_state = "current"
+            version.display_state_label = "目前採用"
+        else:
+            version.display_state = "superseded"
+            version.display_state_label = "已被新版取代"
+    fallback_version = None
+    editing_is_current = bool(
+        editing and current_version and editing.pk == current_version.pk
+    )
+    if editing_is_current:
+        fallback_version = resolve_vehicle_price_version(
+            vehicle_model.pk,
+            today,
+            exclude_version_id=editing.pk,
+        )
     return render(
         request,
         "sales/vehicle_model_price_versions.html",
         {
             "vehicle_model": vehicle_model,
-            "versions": versions,
+            "versions": version_rows,
             "form": form,
             "editing": editing,
+            "current_version": current_version,
+            "editing_is_current": editing_is_current,
+            "fallback_version": fallback_version,
+            "today": today,
         },
     )
 
@@ -5882,6 +5920,92 @@ def installment_plan_options(request):
                 installment_option_payload(option)
                 for option in version.options.select_related("company").all()
             ],
+        }
+    )
+
+
+@login_required
+def vehicle_price_options(request):
+    model_id = request.GET.get("vehicle_model")
+    order_id = request.GET.get("order_id")
+    payment_type = request.GET.get("payment_type") or SalesOrder.PaymentType.CASH
+    raw_date = request.GET.get("order_date")
+    try:
+        order_date = date.fromisoformat(raw_date) if raw_date else timezone.localdate()
+    except ValueError:
+        return JsonResponse({"error": "訂單日期格式錯誤。"}, status=400)
+    if not model_id or not str(model_id).isdigit():
+        return JsonResponse({"version": None, "recommended_price": None})
+    valid_payment_types = {value for value, _label in SalesOrder.PaymentType.choices}
+    if payment_type not in valid_payment_types:
+        return JsonResponse({"error": "付款方式無效。"}, status=400)
+    existing_order = None
+    if order_id and str(order_id).isdigit():
+        existing_order = SalesOrder.objects.filter(pk=order_id).first()
+        if existing_order and not raw_date:
+            order_date = existing_order.order_date
+    if (
+        existing_order
+        and existing_order.vehicle_model_id == int(model_id)
+        and existing_order.price_snapshot
+    ):
+        snapshot = existing_order.price_snapshot
+        recommended_price, recommended_label = recommended_price_from_snapshot(
+            snapshot,
+            payment_type,
+        )
+        return JsonResponse(
+            {
+                "version": {
+                    "id": snapshot.get("version_id"),
+                    "effective_from": snapshot.get("effective_from"),
+                    "effective_to": snapshot.get("effective_to") or None,
+                    "suggested_price": snapshot.get("suggested_price") or None,
+                    "suggested_price_includes_registration": snapshot.get(
+                        "suggested_price_includes_registration", True
+                    ),
+                    "cash_price": snapshot.get("cash_price") or None,
+                    "is_snapshot": True,
+                },
+                "recommended_price": (
+                    str(recommended_price) if recommended_price is not None else None
+                ),
+                "recommended_label": recommended_label,
+            }
+        )
+    version = resolve_vehicle_price_version(int(model_id), order_date)
+    recommended_price, recommended_label = recommended_vehicle_price(
+        version,
+        payment_type,
+    )
+    if not version:
+        return JsonResponse({"version": None, "recommended_price": None})
+    return JsonResponse(
+        {
+            "version": {
+                "id": version.pk,
+                "effective_from": version.effective_from.isoformat(),
+                "effective_to": (
+                    version.effective_to.isoformat() if version.effective_to else None
+                ),
+                "suggested_price": (
+                    str(version.suggested_price)
+                    if version.suggested_price is not None
+                    else None
+                ),
+                "suggested_price_includes_registration": (
+                    version.suggested_price_includes_registration
+                ),
+                "cash_price": (
+                    str(version.cash_price)
+                    if version.cash_price is not None
+                    else None
+                ),
+            },
+            "recommended_price": (
+                str(recommended_price) if recommended_price is not None else None
+            ),
+            "recommended_label": recommended_label,
         }
     )
 

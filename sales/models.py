@@ -2024,6 +2024,11 @@ class SalesOrder(TimeStampedModel):
     vehicle_price = models.DecimalField(
         "車價", max_digits=12, decimal_places=0, default=0
     )
+    vehicle_price_adjustment_reason = models.TextField(
+        "車價調整原因",
+        blank=True,
+        help_text="成交車價與售價版本不同時，記錄本次人工調整原因。",
+    )
     price_version = models.ForeignKey(
         VehiclePriceVersion,
         on_delete=models.PROTECT,

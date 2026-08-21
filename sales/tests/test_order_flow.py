@@ -4657,6 +4657,183 @@ class OrderOperationsTests(TestCase):
         self.assertFalse(version.suggested_price_includes_registration)
         self.assertEqual(version.source_note, "人工修正")
 
+    def test_price_version_page_distinguishes_current_and_superseded_versions(self):
+        self.client.force_login(self.user)
+        older = VehiclePriceVersion.objects.create(
+            vehicle_model=self.model,
+            cash_price=Decimal("59980"),
+            effective_from=date(2026, 4, 14),
+        )
+        current = VehiclePriceVersion.objects.create(
+            vehicle_model=self.model,
+            cash_price=Decimal("64980"),
+            effective_from=date(2026, 8, 1),
+        )
+
+        with patch("sales.views.timezone.localdate", return_value=date(2026, 8, 21)):
+            response = self.client.get(
+                reverse("vehicle_model_price_versions", args=[self.model.pk]),
+                {"edit": current.pk},
+            )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "目前採用")
+        self.assertContains(response, "已被新版取代")
+        self.assertContains(response, "若停用此版本")
+        self.assertContains(response, older.effective_from.strftime("%Y/%m/%d"))
+
+    def test_vehicle_price_options_uses_payment_type_and_latest_version(self):
+        self.client.force_login(self.user)
+        VehiclePriceVersion.objects.create(
+            vehicle_model=self.model,
+            suggested_price=Decimal("69980"),
+            cash_price=Decimal("59980"),
+            effective_from=date(2026, 4, 14),
+        )
+        current = VehiclePriceVersion.objects.create(
+            vehicle_model=self.model,
+            suggested_price=Decimal("74980"),
+            suggested_price_includes_registration=False,
+            cash_price=Decimal("64980"),
+            effective_from=date(2026, 8, 1),
+        )
+        url = reverse("vehicle_price_options")
+
+        cash = self.client.get(
+            url,
+            {
+                "vehicle_model": self.model.pk,
+                "payment_type": SalesOrder.PaymentType.CASH,
+                "order_date": "2026-08-21",
+            },
+        ).json()
+        installment = self.client.get(
+            url,
+            {
+                "vehicle_model": self.model.pk,
+                "payment_type": SalesOrder.PaymentType.INSTALLMENT,
+                "order_date": "2026-08-21",
+            },
+        ).json()
+
+        self.assertEqual(cash["version"]["id"], current.pk)
+        self.assertEqual(cash["recommended_price"], "64980")
+        self.assertEqual(cash["recommended_label"], "現金價")
+        self.assertEqual(installment["recommended_price"], "74980")
+        self.assertEqual(installment["recommended_label"], "建議售價")
+
+    def test_manual_vehicle_price_requires_specific_adjustment_reason(self):
+        VehiclePriceVersion.objects.create(
+            vehicle_model=self.model,
+            cash_price=Decimal("70000"),
+            effective_from=date(2026, 1, 1),
+        )
+        data = {
+            "source_type": SalesOrder.SourceType.STORE,
+            "owner_type": SalesOrder.OwnerType.COMPANY,
+            "owner_name": "測試公司",
+            "owner_phone": "0226951112",
+            "owner_address": "新北市",
+            "owner_id_number": "83739807",
+            "id_verified": True,
+            "vehicle_energy_type": VehicleModel.EnergyType.GAS,
+            "vehicle_model": self.model.pk,
+            "color": self.color.pk,
+            "vehicle_category": SalesOrder.VehicleCategory.NEW,
+            "payment_type": SalesOrder.PaymentType.CASH,
+            "vehicle_price": "69000",
+            "deposit_amount": "0",
+            "plate_choice": SalesOrder.PlateChoice.NONE,
+            "delivery_method": SalesOrder.DeliveryMethod.STORE_PICKUP,
+        }
+
+        form = SalesOrderForm(data=data)
+
+        self.assertFalse(form.is_valid())
+        self.assertIn("vehicle_price_adjustment_reason", form.errors)
+        data["vehicle_price_adjustment_reason"] = "客戶議價"
+        accepted = SalesOrderForm(data=data)
+        self.assertTrue(accepted.is_valid(), accepted.errors)
+
+    def test_blank_vehicle_price_is_filled_from_current_price_version(self):
+        VehiclePriceVersion.objects.create(
+            vehicle_model=self.model,
+            suggested_price=Decimal("76000"),
+            cash_price=Decimal("70000"),
+            effective_from=date(2026, 1, 1),
+        )
+        data = {
+            "source_type": SalesOrder.SourceType.STORE,
+            "owner_type": SalesOrder.OwnerType.COMPANY,
+            "owner_name": "測試公司",
+            "owner_phone": "0226951112",
+            "owner_address": "新北市",
+            "owner_id_number": "83739807",
+            "id_verified": True,
+            "vehicle_energy_type": VehicleModel.EnergyType.GAS,
+            "vehicle_model": self.model.pk,
+            "color": self.color.pk,
+            "vehicle_category": SalesOrder.VehicleCategory.NEW,
+            "payment_type": SalesOrder.PaymentType.CASH,
+            "vehicle_price": "",
+            "deposit_amount": "0",
+            "plate_choice": SalesOrder.PlateChoice.NONE,
+            "delivery_method": SalesOrder.DeliveryMethod.STORE_PICKUP,
+        }
+
+        form = SalesOrderForm(data=data)
+
+        self.assertTrue(form.is_valid(), form.errors)
+        self.assertEqual(form.cleaned_data["vehicle_price"], Decimal("70000"))
+
+    def test_vehicle_price_options_keeps_existing_order_snapshot(self):
+        self.client.force_login(self.user)
+        old_version = VehiclePriceVersion.objects.create(
+            vehicle_model=self.model,
+            suggested_price=Decimal("70000"),
+            cash_price=Decimal("60000"),
+            effective_from=date(2026, 1, 1),
+        )
+        self.order.payment_type = SalesOrder.PaymentType.CASH
+        self.order.order_date = date(2026, 1, 15)
+        self.order.price_version = old_version
+        self.order.price_snapshot = {
+            "version_id": old_version.pk,
+            "effective_from": "2026-01-01",
+            "effective_to": "",
+            "suggested_price": "70000",
+            "suggested_price_includes_registration": True,
+            "cash_price": "60000",
+        }
+        self.order.save(
+            update_fields=[
+                "payment_type",
+                "order_date",
+                "price_version",
+                "price_snapshot",
+                "updated_at",
+            ]
+        )
+        VehiclePriceVersion.objects.create(
+            vehicle_model=self.model,
+            suggested_price=Decimal("80000"),
+            cash_price=Decimal("72000"),
+            effective_from=date(2026, 8, 1),
+        )
+
+        payload = self.client.get(
+            reverse("vehicle_price_options"),
+            {
+                "vehicle_model": self.model.pk,
+                "payment_type": SalesOrder.PaymentType.CASH,
+                "order_id": self.order.pk,
+            },
+        ).json()
+
+        self.assertTrue(payload["version"]["is_snapshot"])
+        self.assertEqual(payload["version"]["id"], old_version.pk)
+        self.assertEqual(payload["recommended_price"], "60000")
+
     def test_vehicle_model_commission_is_maintained_separately(self):
         self.client.force_login(self.user)
         url = reverse("vehicle_model_commission", args=[self.model.pk])

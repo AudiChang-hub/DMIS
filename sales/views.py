@@ -140,6 +140,7 @@ from .services.vehicle_model_family import (
     delete_unused_vehicle_model,
     merge_vehicle_model_versions,
     move_vehicle_model_to_family,
+    rename_vehicle_model_family,
     vehicle_model_delete_blockers,
     vehicle_model_relation_summary,
 )
@@ -5314,25 +5315,44 @@ def _vehicle_model_form_view(request, instance=None):
         and form.is_valid()
         and color_formset.is_valid()
     ):
-        with transaction.atomic():
-            vehicle_model = form.save()
-            color_formset.instance = vehicle_model
-            color_formset.save()
-        if merged_color_names:
-            merged = "、".join(merged_color_names)
-            preserved = "、".join(preserved_history_color_names)
-            detail = f"；原顏色「{preserved}」已保留為停用歷史資料" if preserved else ""
-            messages.info(
-                request,
-                f"偵測到同名顏色，已沿用並重新啟用既有的「{merged}」{detail}。",
+        renamed_family = None
+        try:
+            with transaction.atomic():
+                if is_editing and instance.family_id:
+                    desired_name = form.cleaned_data["name"]
+                    if desired_name != instance.family.name:
+                        renamed_family = rename_vehicle_model_family(
+                            family_id=instance.family_id,
+                            new_name=desired_name,
+                        )
+                vehicle_model = form.save()
+                color_formset.instance = vehicle_model
+                color_formset.save()
+        except ValidationError as exc:
+            form.add_error("name", exc)
+        else:
+            if merged_color_names:
+                merged = "、".join(merged_color_names)
+                preserved = "、".join(preserved_history_color_names)
+                detail = f"；原顏色「{preserved}」已保留為停用歷史資料" if preserved else ""
+                messages.info(
+                    request,
+                    f"偵測到同名顏色，已沿用並重新啟用既有的「{merged}」{detail}。",
+                )
+            if renamed_family:
+                family, original_name, version_count = renamed_family
+                messages.success(
+                    request,
+                    f"機種已由「{original_name}」改為「{family.name}」，共更新 {version_count} 個年式；訂單、庫存及商務設定均已保留。",
+                )
+            else:
+                messages.success(
+                    request,
+                    "年式／規格已儲存，可以繼續維護售價、傭金或分期方案。",
+                )
+            return redirect(
+                f"{reverse('vehicle_model_edit', args=[vehicle_model.pk])}#business-settings"
             )
-        messages.success(
-            request,
-            "年式／規格已儲存，可以繼續維護售價、傭金或分期方案。",
-        )
-        return redirect(
-            f"{reverse('vehicle_model_edit', args=[vehicle_model.pk])}#business-settings"
-        )
     return render(
         request,
         "sales/vehicle_model_form.html",
@@ -5341,6 +5361,11 @@ def _vehicle_model_form_view(request, instance=None):
             "color_formset": color_formset,
             "vehicle_model": instance,
             "is_editing": is_editing,
+            "family_version_count": (
+                instance.family.versions.count()
+                if is_editing and instance.family_id
+                else 0
+            ),
             "price_version_count": (
                 instance.price_versions.count() if is_editing else 0
             ),

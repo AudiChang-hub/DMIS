@@ -1677,6 +1677,18 @@ body.screen-locked { overflow: hidden; }
   justify-content: space-between; border-bottom: 1px solid var(--line);
 }
 .master-model-section .section-heading h2 { margin: 2px 0 0; font-size: 1.15rem; }
+.master-family-rename-note {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 16px 22px 0;
+  padding: 12px 14px;
+  border: 1px solid #c8ddd3;
+  border-radius: 12px;
+  background: #f0f7f3;
+  color: var(--forest);
+}
+.master-family-rename-note span { color: var(--muted); font-size: .86rem; line-height: 1.5; }
 .master-model-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 .master-color-rows { display: grid; }
 .master-color-row {
@@ -2530,6 +2542,7 @@ body.screen-locked { overflow: hidden; }
   .holiday-gift-save-actions .button { flex: 1; }
   .holiday-gift-form { padding-bottom: 140px; }
   .master-model-grid { grid-template-columns: 1fr; }
+  .master-family-rename-note { align-items: flex-start; flex-direction: column; gap: 4px; margin: 14px 16px 0; }
   .master-model-section .section-heading { align-items: flex-start; flex-direction: column; gap: 6px; }
   .vehicle-business-grid { padding: 14px; grid-template-columns: 1fr; }
   .vehicle-business-card { min-height: 0; }

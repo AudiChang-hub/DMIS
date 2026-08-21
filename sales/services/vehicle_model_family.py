@@ -6,6 +6,7 @@ from sales.models import (
     VehicleFactoryModelCode,
     VehicleModel,
     VehicleModelFamily,
+    canonical_vehicle_model_name,
     normalize_vehicle_model_master_value,
 )
 
@@ -51,6 +52,48 @@ def vehicle_model_delete_blockers(vehicle_model):
         if count:
             blockers.append({"label": label, "count": count})
     return blockers
+
+
+@transaction.atomic
+def rename_vehicle_model_family(*, family_id, new_name):
+    """Rename one machine family and keep every linked year/version in sync."""
+    family = VehicleModelFamily.objects.select_for_update().get(pk=family_id)
+    original_name = family.name
+    normalized_name = canonical_vehicle_model_name(new_name)
+    if not normalized_name:
+        raise ValidationError("請填寫機種名稱。")
+    version_count = family.versions.count()
+    if normalized_name == original_name:
+        return family, original_name, version_count
+
+    if (
+        VehicleModelFamily.objects.select_for_update()
+        .filter(brand__iexact=family.brand, name__iexact=normalized_name)
+        .exclude(pk=family.pk)
+        .exists()
+    ):
+        raise ValidationError(
+            f"{family.brand} 已有「{normalized_name}」機種；請使用年式資料修正的合併或移動功能，避免產生重複機種。"
+        )
+
+    if (
+        VehicleModel.objects.select_for_update()
+        .filter(brand__iexact=family.brand, name__iexact=normalized_name)
+        .exclude(family_id=family.pk)
+        .exists()
+    ):
+        raise ValidationError(
+            f"{family.brand} 已有其他資料使用「{normalized_name}」；請先整理重複機種後再改名。"
+        )
+
+    family.name = normalized_name
+    family.save(update_fields=["name", "updated_at"])
+    family.versions.update(
+        brand=family.brand,
+        name=normalized_name,
+        updated_at=timezone.now(),
+    )
+    return family, original_name, version_count
 
 
 def _versioned_relation_conflicts(source, target):

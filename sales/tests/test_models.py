@@ -190,6 +190,8 @@ class VehiclePriceVersionTests(TestCase):
             order.price_snapshot["cash_price"],
             "70000",
         )
+        self.assertEqual(order.price_snapshot["recommended_price"], "70000")
+        self.assertEqual(order.price_snapshot["recommended_price_label"], "現金價")
         self.assertTrue(
             order.price_snapshot["suggested_price_includes_registration"]
         )
@@ -201,4 +203,21 @@ class VehiclePriceVersionTests(TestCase):
             order.price_snapshot["cash_price"],
             "70000",
         )
+
+    def test_resolver_uses_latest_start_when_active_versions_overlap(self):
+        older = VehiclePriceVersion.objects.create(
+            vehicle_model=self.model,
+            cash_price=Decimal("59980"),
+            effective_from=date(2026, 4, 14),
+        )
+        newer = VehiclePriceVersion.objects.create(
+            vehicle_model=self.model,
+            cash_price=Decimal("64980"),
+            effective_from=date(2026, 8, 1),
+        )
+
+        selected = resolve_vehicle_price_version(self.model.pk, date(2026, 8, 21))
+
+        self.assertEqual(selected, newer)
+        self.assertNotEqual(selected, older)
 

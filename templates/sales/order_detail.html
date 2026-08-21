@@ -730,6 +730,24 @@
     <dl class="money-list">
       <div><dt>車價</dt><dd>${{ order.vehicle_price|number_with_commas }}</dd></div>
       <div><dt>牌險</dt><dd>${{ order.plate_insurance_fee|number_with_commas }}</dd></div>
+      {% if order.price_snapshot %}
+      <div class="price-snapshot-summary">
+        <dt>車價依據</dt>
+        <dd>
+          {{ order.price_snapshot.effective_from }} 售價版本
+          {% if order.price_snapshot.recommended_price_label and order.price_snapshot.recommended_price %}
+          · {{ order.price_snapshot.recommended_price_label }} ${{ order.price_snapshot.recommended_price|number_with_commas }}
+          {% endif %}
+          {% if order.vehicle_price_adjustment_reason %}
+          <small>人工調整原因：{{ order.vehicle_price_adjustment_reason }}</small>
+          {% else %}
+          <small>訂單建立時已保存價格快照，不受後續版本調整影響。</small>
+          {% endif %}
+        </dd>
+      </div>
+      {% elif order.vehicle_price_adjustment_reason %}
+      <div class="price-snapshot-summary"><dt>車價調整原因</dt><dd>{{ order.vehicle_price_adjustment_reason }}</dd></div>
+      {% endif %}
       {% if order.effective_installment_fee %}<div><dt>分期開辦費</dt><dd>${{ order.effective_installment_fee|number_with_commas }}</dd></div>{% endif %}
       {% if order.accessory_total %}<div><dt>配件合計</dt><dd>${{ order.accessory_total|number_with_commas }}</dd></div>{% endif %}
       {% if order.other_fee_total %}<div><dt>其他費用合計</dt><dd>${{ order.other_fee_total|number_with_commas }}</dd></div>{% endif %}

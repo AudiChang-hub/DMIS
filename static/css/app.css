@@ -761,6 +761,23 @@ body.screen-locked { overflow: hidden; }
   background: #edf2ef;
 }
 .form-hint { margin: 8px 0 0; color: var(--muted); font-size: .88rem; }
+.vehicle-price-guidance {
+  display: grid;
+  padding: 12px 14px;
+  gap: 3px;
+  color: var(--forest);
+  background: #edf7f2;
+  border: 1px solid #cfe4da;
+  border-radius: 12px;
+}
+.vehicle-price-guidance span { color: var(--muted); font-size: .84rem; line-height: 1.45; }
+.vehicle-price-adjustment {
+  padding: 14px;
+  background: #fff8e7;
+  border: 1px solid #ead296;
+  border-radius: 12px;
+}
+.vehicle-price-adjustment .field { margin: 0; }
 .other-fee-row {
   position: relative;
   display: grid; grid-template-columns: 2fr 1fr; padding: 14px 0;
@@ -1223,6 +1240,15 @@ body.screen-locked { overflow: hidden; }
 .document-links a { padding: 8px 11px; color: var(--blue); background: var(--blue-soft); border-radius: 9px; font-size: .8rem; font-weight: 800; }
 .money-list .total { grid-column: 1 / -1; display: flex; padding-top: 12px; align-items: end; justify-content: space-between; border-top: 1px solid var(--line); }
 .money-list .total dd { font-size: 1.6rem; color: var(--forest); }
+.money-list .price-snapshot-summary {
+  grid-column: 1 / -1;
+  padding: 12px 14px;
+  background: var(--surface-soft);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+.money-list .price-snapshot-summary dd { font-size: .92rem; }
+.money-list .price-snapshot-summary small { display: block; margin-top: 4px; color: var(--muted); font-weight: 500; }
 .money-list .balance-equation {
   grid-column: 1 / -1; display: block; overflow: hidden; margin-top: 2px;
   border: 1px solid #cfdcd5; border-radius: 14px;
@@ -1918,6 +1944,23 @@ body.screen-locked { overflow: hidden; }
 .price-version-values dt { color: var(--muted); font-size: .75rem; }
 .price-version-values dd { margin: 2px 0 0; font-weight: 800; }
 .price-version-item__note { margin: 0 0 12px; color: var(--muted); font-size: .85rem; }
+.price-version-item__explanation { margin: -2px 0 12px; color: #75520b; font-size: .82rem; line-height: 1.5; }
+.price-version-fallback-warning {
+  display: grid;
+  margin: 0 22px 18px;
+  padding: 13px 15px;
+  gap: 4px;
+  color: #704b00;
+  background: #fff8e7;
+  border: 1px solid #ead296;
+  border-radius: 12px;
+}
+.price-version-fallback-warning span { font-size: .86rem; line-height: 1.5; }
+.price-version-status--current { color: #125138; background: #e3f4eb; border-color: #bfddce; }
+.price-version-status--future { color: #174f91; background: var(--blue-soft); border-color: #c9daf2; }
+.price-version-status--superseded { color: #75520b; background: #fff4d4; border-color: #e9cf83; }
+.price-version-status--expired,
+.price-version-status--disabled { color: #5d6761; background: #eef1ef; border-color: #d5dbd7; }
 .commission-editor-card { max-width: 760px; margin-inline: auto; padding: 24px; }
 .commission-editor-card__intro { display: flex; margin-bottom: 20px; padding-bottom: 18px; align-items: flex-start; gap: 14px; border-bottom: 1px solid var(--line); }
 .commission-editor-card__intro h2 { margin: 1px 0 6px; }

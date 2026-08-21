@@ -427,6 +427,11 @@ urlpatterns = [
         views.installment_plan_options,
         name="installment_plan_options",
     ),
+    path(
+        "api/vehicle-price-options/",
+        views.vehicle_price_options,
+        name="vehicle_price_options",
+    ),
     path("api/id-card-ocr/", views.id_card_ocr, name="id_card_ocr"),
     path(
         "api/id-card-ocr/<uuid:job_id>/",

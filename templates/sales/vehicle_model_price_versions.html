@@ -31,6 +31,16 @@
       <div class="form-grid price-version-form__grid">
         {% for field in form %}{% include "sales/_field.html" with field=field %}{% endfor %}
       </div>
+      {% if editing_is_current %}
+      <div class="price-version-fallback-warning">
+        <strong>這是今天訂單目前採用的版本</strong>
+        {% if fallback_version %}
+        <span>若停用此版本，系統會改採 {{ fallback_version.effective_from|date:"Y/m/d" }} 起的舊版本；請先確認舊價格仍可使用。</span>
+        {% else %}
+        <span>若停用此版本，今天建立的新訂單將沒有可自動帶入的售價。</span>
+        {% endif %}
+      </div>
+      {% endif %}
       <div class="form-actions price-version-form__actions">
         {% if editing %}<button class="button danger-outline" type="submit" name="action" value="delete" onclick="return confirm('確定刪除此售價版本？已被訂單使用的版本不會允許刪除。');">刪除此版本</button>{% endif %}
         <button class="button primary" type="submit">{% if editing %}儲存版本修改{% else %}新增售價版本{% endif %}</button>
@@ -48,12 +58,13 @@
       <article class="price-version-item{% if editing.pk == version.pk %} is-editing{% endif %}">
         <div class="price-version-item__head">
           <div><strong>{{ version.effective_from|date:"Y/m/d" }} 起</strong><span>{% if version.effective_to %}至 {{ version.effective_to|date:"Y/m/d" }}{% else %}未設定結束日{% endif %}</span></div>
-          {% if version.active %}<span class="status-pill success">啟用中</span>{% else %}<span class="status-pill muted">已停用</span>{% endif %}
+          <span class="status-pill price-version-status price-version-status--{{ version.display_state }}">{{ version.display_state_label }}</span>
         </div>
         <dl class="price-version-values">
           <div><dt>建議售價</dt><dd>{% if version.suggested_price %}${{ version.suggested_price|floatformat:0 }}・{% if version.suggested_price_includes_registration %}含牌險{% else %}不含牌險{% endif %}{% else %}未填寫{% endif %}</dd></div>
           <div><dt>現金價</dt><dd>{% if version.cash_price %}${{ version.cash_price|floatformat:0 }}{% else %}未填寫{% endif %}</dd></div>
         </dl>
+        {% if version.display_state == "superseded" %}<p class="price-version-item__explanation">此版本仍保留給歷史訂單使用；今天的新訂單會採用較新的版本。</p>{% endif %}
         {% if version.source_note %}<p class="price-version-item__note">{{ version.source_note }}</p>{% endif %}
         <a class="button ghost small" href="?edit={{ version.pk }}">編輯此版本</a>
       </article>

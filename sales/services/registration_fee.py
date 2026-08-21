@@ -52,11 +52,30 @@ RATE_CLASSES = (
 )
 
 
+def registration_rate_label(rate_class, displacement_cc=None):
+    """將內部費率代碼轉為使用者可理解的排氣量級距。"""
+    rate = None
+    if displacement_cc not in (None, ""):
+        try:
+            rate = rate_class_for(int(displacement_cc))
+        except (TypeError, ValueError, UnsupportedRegistrationFee):
+            rate = None
+    if rate is None:
+        normalized_code = str(rate_class or "").strip().upper()
+        rate = next(
+            (item for item in RATE_CLASSES if item["code"] == normalized_code),
+            None,
+        )
+    if not rate:
+        return ""
+    return f'{rate["min_cc"]}～{rate["max_cc"]} c.c.'
+
+
 def rate_class_for(displacement_cc):
     for rate in RATE_CLASSES:
         if rate["min_cc"] <= displacement_cc <= rate["max_cc"]:
             return rate
-    raise UnsupportedRegistrationFee("第一階段僅支援 51～600 c.c. 的 M2～M5 油車。")
+    raise UnsupportedRegistrationFee("第一階段僅支援 51～600 c.c. 的油車。")
 
 
 def annual_license_tax(displacement_cc):
@@ -68,7 +87,7 @@ def annual_license_tax(displacement_cc):
         return 1620
     if displacement_cc <= 600:
         return 2160
-    raise UnsupportedRegistrationFee("第一階段僅支援 51～600 c.c. 的 M2～M5 油車。")
+    raise UnsupportedRegistrationFee("第一階段僅支援 51～600 c.c. 的油車。")
 
 
 def compulsory_insurance(displacement_cc, period_years):

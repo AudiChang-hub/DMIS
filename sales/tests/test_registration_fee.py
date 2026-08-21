@@ -17,11 +17,21 @@ from sales.services.registration_fee import (
     UnsupportedRegistrationFee,
     calculate_registration_fee,
     calculate_vehicle_registration_fee,
+    registration_rate_label,
 )
 from sales.forms import BrandRegistrationFeeRuleForm, RegistrationStageForm
 
 
 class RegistrationFeeCalculatorTests(SimpleTestCase):
+    def test_internal_rate_code_is_displayed_as_displacement_range(self):
+        self.assertEqual(registration_rate_label("M2"), "51～125 c.c.")
+        self.assertEqual(registration_rate_label("M5"), "501～600 c.c.")
+        self.assertEqual(
+            registration_rate_label("FIXED-BUNDLE-1", 249),
+            "126～250 c.c.",
+        )
+        self.assertEqual(registration_rate_label("EV-LIGHT"), "")
+
     def test_m2_matches_july_29_monitoring_receipt(self):
         result = calculate_registration_fee(125, date(2026, 7, 29), 1)
 
@@ -138,6 +148,8 @@ class RegistrationFeeOrderIntegrationTests(TestCase):
 
         self.assertContains(response, 'class="registration-breakdown"')
         self.assertContains(response, "領牌試算")
+        self.assertContains(response, "51～125 c.c.")
+        self.assertNotContains(response, " · M2 · ")
         self.assertContains(response, "公路養管")
         self.assertContains(response, "$190")
         self.assertContains(response, "試算合計")
@@ -472,6 +484,13 @@ class RegistrationFeeOrderIntegrationTests(TestCase):
         self.assertContains(page, "已停用")
         self.assertContains(page, "持續有效，未設定結束日")
         self.assertContains(page, "刪除這筆規則")
+        self.assertContains(page, "51～125 c.c.")
+        self.assertNotContains(page, "不分級")
+        html = page.content.decode()
+        gogoro_header = html.split("<h3>Gogoro</h3>", 1)[1].split("</header>", 1)[0]
+        emoving_header = html.split("<h3>eMOVING</h3>", 1)[1].split("</header>", 1)[0]
+        self.assertNotIn("輕型電動機車", gogoro_header)
+        self.assertNotIn("不分級", emoving_header)
 
     def test_fixed_bundle_requires_total_and_clears_component_amounts(self):
         form = BrandRegistrationFeeRuleForm(

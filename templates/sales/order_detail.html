@@ -741,7 +741,9 @@
         <div class="registration-breakdown__header">
           <div>
             <dt>領牌試算</dt>
-            <p>{{ order.registration_date|date:"Y/m/d" }} · {{ order.registration_rate_class }} · 強制險{{ order.get_compulsory_insurance_period_display }}</p>
+            {% with rate_label=order.registration_rate_class|registration_rate_label:order.vehicle_model.displacement_cc %}
+            <p>{{ order.registration_date|date:"Y/m/d" }}{% if rate_label %} · {{ rate_label }}{% endif %} · 強制險{{ order.get_compulsory_insurance_period_display }}</p>
+            {% endwith %}
           </div>
           <div class="registration-breakdown__total">
             <span>試算合計</span>

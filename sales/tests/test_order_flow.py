@@ -1057,6 +1057,119 @@ class OrderFlowTests(TestCase):
         self.assertContains(follow_response, "年式／規格已儲存")
         self.assertContains(follow_response, 'id="business-settings"')
 
+    def test_vehicle_model_edit_renames_family_and_all_linked_years(self):
+        self.model.model_number = "COMMUTE-2025"
+        self.model.model_year = 2025
+        self.model.model_code = VehicleModel.ModelType.FRONT_DISC_REAR_DRUM
+        self.model.displacement_cc = 125
+        self.model.save()
+        family = self.model.family
+        other_year = VehicleModel.objects.create(
+            brand=self.model.brand,
+            name=self.model.name,
+            model_number="COMMUTE-2026",
+            model_year=2026,
+            model_code=VehicleModel.ModelType.CBS_DISC,
+            energy_type=VehicleModel.EnergyType.GAS,
+            displacement_cc=125,
+        )
+        order = self.make_order()
+        self.client.force_login(self.user)
+
+        response = self.client.post(
+            reverse("vehicle_model_edit", args=[self.model.pk]),
+            {
+                "action": "save_model",
+                "brand": self.model.brand,
+                "energy_type": self.model.energy_type,
+                "name": "全新通勤機種",
+                "model_number": self.model.model_number,
+                "model_year": self.model.model_year,
+                "model_code": self.model.model_code,
+                "displacement_cc": self.model.displacement_cc,
+                "active": "on",
+                "colors-TOTAL_FORMS": "1",
+                "colors-INITIAL_FORMS": "1",
+                "colors-MIN_NUM_FORMS": "0",
+                "colors-MAX_NUM_FORMS": "1000",
+                "colors-0-id": self.color.pk,
+                "colors-0-name": self.color.name,
+                "colors-0-active": "on",
+            },
+            follow=True,
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(
+            response,
+            "機種已由「通勤 125」改為「全新通勤機種」，共更新 2 個年式",
+        )
+        family.refresh_from_db()
+        self.model.refresh_from_db()
+        other_year.refresh_from_db()
+        self.vehicle.refresh_from_db()
+        order.refresh_from_db()
+        self.assertEqual(family.name, "全新通勤機種")
+        self.assertEqual(self.model.family, family)
+        self.assertEqual(other_year.family, family)
+        self.assertEqual(self.model.name, "全新通勤機種")
+        self.assertEqual(other_year.name, "全新通勤機種")
+        self.assertEqual(self.vehicle.vehicle_model, self.model)
+        self.assertEqual(order.vehicle_model, self.model)
+
+    def test_vehicle_model_edit_rejects_existing_family_name_without_splitting(self):
+        self.model.model_number = "COMMUTE-2026"
+        self.model.model_year = 2026
+        self.model.model_code = VehicleModel.ModelType.FRONT_DISC_REAR_DRUM
+        self.model.displacement_cc = 125
+        self.model.save()
+        original_family = self.model.family
+        VehicleModelFamily.objects.create(
+            brand=self.model.brand,
+            name="既有運動車",
+        )
+        self.client.force_login(self.user)
+
+        response = self.client.post(
+            reverse("vehicle_model_edit", args=[self.model.pk]),
+            {
+                "action": "save_model",
+                "brand": self.model.brand,
+                "energy_type": self.model.energy_type,
+                "name": "既有運動車",
+                "model_number": self.model.model_number,
+                "model_year": self.model.model_year,
+                "model_code": self.model.model_code,
+                "displacement_cc": self.model.displacement_cc,
+                "active": "on",
+                "colors-TOTAL_FORMS": "1",
+                "colors-INITIAL_FORMS": "1",
+                "colors-MIN_NUM_FORMS": "0",
+                "colors-MAX_NUM_FORMS": "1000",
+                "colors-0-id": self.color.pk,
+                "colors-0-name": self.color.name,
+                "colors-0-active": "on",
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "已有「既有運動車」機種")
+        self.assertContains(response, "合併或移動功能")
+        original_family.refresh_from_db()
+        self.model.refresh_from_db()
+        self.assertEqual(original_family.name, "通勤 125")
+        self.assertEqual(self.model.family, original_family)
+        self.assertEqual(self.model.name, "通勤 125")
+
+    def test_vehicle_model_edit_explains_family_name_scope(self):
+        self.client.force_login(self.user)
+
+        response = self.client.get(reverse("vehicle_model_edit", args=[self.model.pk]))
+
+        self.assertContains(response, "機種名稱（套用所有年式）")
+        self.assertContains(response, "機種名稱是共用資料")
+        self.assertContains(response, "同步更新同機種的 1 個年式")
+
     def test_vehicle_model_list_displays_energy_specific_power_specification(self):
         self.model.displacement_cc = 125
         self.model.save(update_fields=["displacement_cc", "updated_at"])

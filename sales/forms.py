@@ -1494,6 +1494,10 @@ class VehicleModelMasterForm(forms.ModelForm):
             self.fields["existing_family"].help_text = (
                 "若年份或所屬機種需要修正，請使用頁面下方的「年式資料修正」。"
             )
+            self.fields["name"].label = "機種名稱（套用所有年式）"
+            self.fields["name"].help_text = (
+                "修改後會同步套用到這個機種的所有年式；訂單、庫存及商務設定仍會保留。"
+            )
             codes = list(
                 self.instance.factory_model_codes.filter(active=True)
                 .order_by("code")
@@ -1531,7 +1535,8 @@ class VehicleModelMasterForm(forms.ModelForm):
         existing_family = cleaned.get("existing_family")
         if existing_family:
             cleaned["brand"] = existing_family.brand
-            cleaned["name"] = existing_family.name
+            if not self.instance.pk:
+                cleaned["name"] = existing_family.name
         brand = (cleaned.get("brand") or "").strip()
         name = canonical_vehicle_model_name(cleaned.get("name"))
         cleaned["name"] = name
@@ -1539,6 +1544,22 @@ class VehicleModelMasterForm(forms.ModelForm):
             self.add_error("brand", "建立新機種時請選擇品牌。")
         if not existing_family and not name:
             self.add_error("name", "建立新機種時請填寫機種名稱。")
+        if (
+            self.instance.pk
+            and existing_family
+            and name
+            and name.casefold() != existing_family.name.casefold()
+            and VehicleModelFamily.objects.filter(
+                brand__iexact=existing_family.brand,
+                name__iexact=name,
+            )
+            .exclude(pk=existing_family.pk)
+            .exists()
+        ):
+            self.add_error(
+                "name",
+                f"{existing_family.brand} 已有「{name}」機種；請使用年式資料修正的合併或移動功能，避免產生重複機種。",
+            )
         model_numbers = tuple(
             dict.fromkeys(
                 canonical_vehicle_model_number(value)

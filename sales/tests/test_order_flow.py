@@ -969,6 +969,42 @@ class OrderFlowTests(TestCase):
             self.model.colors.count(),
         )
 
+    def test_vehicle_model_color_rows_show_active_colors_before_inactive_colors(self):
+        inactive_color = VehicleColor.objects.create(
+            vehicle_model=self.model,
+            name="停用色",
+            active=False,
+        )
+        active_color = VehicleColor.objects.create(
+            vehicle_model=self.model,
+            name="啟用色",
+            active=True,
+        )
+        self.client.force_login(self.user)
+
+        response = self.client.get(
+            reverse("vehicle_model_edit", args=[self.model.pk])
+        )
+
+        color_instances = [
+            form.instance for form in response.context["color_formset"].forms
+        ]
+        self.assertLess(
+            color_instances.index(active_color),
+            color_instances.index(inactive_color),
+        )
+        first_inactive_index = next(
+            index
+            for index, color in enumerate(color_instances)
+            if not color.active
+        )
+        self.assertTrue(
+            all(color.active for color in color_instances[:first_inactive_index])
+        )
+        self.assertTrue(
+            all(not color.active for color in color_instances[first_inactive_index:])
+        )
+
     def test_vehicle_model_master_create_and_list_preserve_shared_records(self):
         self.client.force_login(self.user)
 

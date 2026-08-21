@@ -14,6 +14,8 @@ from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.pdfgen import canvas
 from reportlab.platypus import Paragraph, Table, TableStyle
 
+from sales.services.registration_fee import registration_rate_label
+
 
 FONT_CANDIDATES = [
     (
@@ -279,11 +281,17 @@ def draw_order_page(c, order, copy_label, page_number, printed_at):
     plate_amount = max(order.plate_insurance_fee - separated_other_fees, 0)
     if order.registration_date:
         plate_description = "領牌＋強制險"
-        if order.registration_rate_class:
+        rate_label = registration_rate_label(
+            order.registration_rate_class,
+            order.vehicle_model.displacement_cc,
+        )
+        if rate_label:
             plate_description += (
-                f"（{safe(order.registration_rate_class)}／"
+                f"（{safe(rate_label)}／"
                 f"{order.get_compulsory_insurance_period_display()}）"
             )
+        else:
+            plate_description += f"（{order.get_compulsory_insurance_period_display()}）"
     else:
         plate_description = "領牌＋強制險，依單據收款"
     plate_money = money(plate_amount) if plate_amount else "—"

@@ -41,6 +41,35 @@ class InventoryValidationTests(TestCase):
         self.assertEqual(vehicle.normalized_frame_number, "EVFRAME001")
         self.assertIsNone(vehicle.engine_number)
 
+    def test_light_electric_vehicle_uses_frame_number_and_light_registration_class(self):
+        light_electric = VehicleModel(
+            brand="測試",
+            name="輕型電動一號",
+            energy_type=VehicleModel.EnergyType.LIGHT_ELECTRIC,
+            motor_power_kw=Decimal("1.00"),
+        )
+        light_electric.full_clean()
+        light_electric.save()
+        color = VehicleColor.objects.create(
+            vehicle_model=light_electric,
+            name="白",
+        )
+
+        vehicle = VehicleInventory.objects.create(
+            vehicle_model=light_electric,
+            color=color,
+            frame_number="LIGHT-EV-001",
+            ownership_store=self.store,
+            location_store=self.store,
+        )
+
+        self.assertEqual(
+            light_electric.electric_registration_class,
+            VehicleModel.ElectricRegistrationClass.LIGHT,
+        )
+        self.assertEqual(vehicle.frame_number, "LIGHT-EV-001")
+        self.assertIsNone(vehicle.engine_number)
+
     def test_duplicate_identifier_is_rejected(self):
         VehicleInventory.objects.create(
             vehicle_model=self.electric,

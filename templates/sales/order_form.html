@@ -175,7 +175,7 @@
           {% include "sales/_field.html" with field=form.registration_calculated_total %}
           {% include "sales/_field.html" with field=form.plate_insurance_fee %}
         </div>
-        <p class="form-hint">油車依領牌日、排氣量與保險期間試算；電動車依品牌及輕型／重型規則帶入。「實際牌險合計」仍可由人員調整。</p>
+        <p class="form-hint">油車依領牌日、排氣量與保險期間試算；電動車與輕型電動車依品牌及領牌級別規則帶入。「實際牌險合計」仍可由人員調整。</p>
       </div>
       <div id="non-gas-registration-message" class="note-box" hidden>
         微型電動二輪車目前請依正式單據人工填寫實際牌險合計。
@@ -595,7 +595,7 @@
     const modelData = vehicleRateData[vehicleModel.value];
     const energyType = vehicleEnergyType.value;
     const isGas = energyType === "gas";
-    const isElectric = energyType === "electric";
+    const isElectric = ["electric", "light_electric"].includes(energyType);
     const isSupported = isGas || isElectric;
     gasCalculator.hidden = !isSupported;
     nonGasMessage.hidden = isSupported;

@@ -174,6 +174,7 @@ class VehicleBrandMasterTests(TestCase):
             ("電車 3KW", VehicleModel.EnergyType.ELECTRIC, None, 3, True),
             ("油車 50", VehicleModel.EnergyType.GAS, 50, None, True),
             ("電車 1KW", VehicleModel.EnergyType.ELECTRIC, None, 1, True),
+            ("輕型電車 1.5KW", VehicleModel.EnergyType.LIGHT_ELECTRIC, None, 1.5, True),
             ("微電車 2KW", VehicleModel.EnergyType.MICRO_ELECTRIC, None, 2, True),
             ("電車待補功率", VehicleModel.EnergyType.ELECTRIC, None, None, True),
             ("停用電車", VehicleModel.EnergyType.ELECTRIC, None, 0.5, False),
@@ -202,6 +203,7 @@ class VehicleBrandMasterTests(TestCase):
             [family["name"] for family in group["families"]],
             [
                 "電車 1KW",
+                "輕型電車 1.5KW",
                 "微電車 2KW",
                 "電車 3KW",
                 "電車待補功率",

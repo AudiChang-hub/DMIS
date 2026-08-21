@@ -2133,6 +2133,9 @@ class VehicleColorMasterForm(forms.ModelForm):
 
 
 class BaseVehicleColorFormSet(BaseInlineFormSet):
+    def get_queryset(self):
+        return super().get_queryset().order_by("-active", "name", "id")
+
     @staticmethod
     def _is_used_color(color):
         return bool(

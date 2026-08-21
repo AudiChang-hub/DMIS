@@ -412,6 +412,7 @@ class SalesOrderForm(forms.ModelForm):
         if model and model.energy_type in {
             VehicleModel.EnergyType.GAS,
             VehicleModel.EnergyType.ELECTRIC,
+            VehicleModel.EnergyType.LIGHT_ELECTRIC,
         }:
             has_rate_basis = bool(
                 model.displacement_cc
@@ -1510,7 +1511,11 @@ class VehicleModelMasterForm(forms.ModelForm):
                 "energy_type",
                 "此車型已有庫存資料，為避免引擎／車身號碼規則失效，不能變更能源別。",
             )
-        if (
+        if cleaned.get("energy_type") == VehicleModel.EnergyType.LIGHT_ELECTRIC:
+            cleaned["electric_registration_class"] = (
+                VehicleModel.ElectricRegistrationClass.LIGHT
+            )
+        elif (
             cleaned.get("energy_type") == VehicleModel.EnergyType.ELECTRIC
             and not cleaned.get("electric_registration_class")
         ):
@@ -2662,7 +2667,11 @@ class RegistrationStageForm(forms.ModelForm):
             model.displacement_cc
             if model.energy_type == VehicleModel.EnergyType.GAS
             else model.electric_registration_class
-            if model.energy_type == VehicleModel.EnergyType.ELECTRIC
+            if model.energy_type
+            in {
+                VehicleModel.EnergyType.ELECTRIC,
+                VehicleModel.EnergyType.LIGHT_ELECTRIC,
+            }
             else False
         )
         if registration_date and has_rate_basis:

@@ -38,6 +38,7 @@ ENERGY_TYPES = {
     "oil": VehicleModel.EnergyType.GAS,
     "gas": VehicleModel.EnergyType.GAS,
     "electric": VehicleModel.EnergyType.ELECTRIC,
+    "light_electric": VehicleModel.EnergyType.LIGHT_ELECTRIC,
     "micro_electric": VehicleModel.EnergyType.MICRO_ELECTRIC,
 }
 

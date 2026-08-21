@@ -900,6 +900,35 @@ class OrderFlowTests(TestCase):
         payload.update(overrides)
         return payload
 
+    def test_vehicle_model_form_offers_and_saves_light_electric_energy_type(self):
+        self.client.force_login(self.user)
+
+        page = self.client.get(reverse("vehicle_model_create"))
+        self.assertContains(
+            page,
+            '<option value="light_electric">輕型電動車</option>',
+            html=True,
+        )
+
+        response = self.client.post(
+            reverse("vehicle_model_create"),
+            self.vehicle_model_master_payload(
+                name="輕型電動測試車",
+                model_number="LIGHT-EV-TEST",
+                energy_type=VehicleModel.EnergyType.LIGHT_ELECTRIC,
+                displacement_cc="",
+                motor_power_kw="1.50",
+                electric_registration_class="",
+            ),
+        )
+
+        model = VehicleModel.objects.get(model_number="LIGHT-EV-TEST")
+        self.assert_vehicle_model_business_redirect(response, model)
+        self.assertEqual(
+            model.electric_registration_class,
+            VehicleModel.ElectricRegistrationClass.LIGHT,
+        )
+
     def test_vehicle_model_color_rows_default_to_one_and_edit_has_no_blank_extra(self):
         self.client.force_login(self.user)
 

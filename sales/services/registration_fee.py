@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal, ROUND_DOWN, ROUND_HALF_UP
 
-from django.db.models import Q
+from django.db.models import Case, IntegerField, Q, Value, When
 
 from sales.models import BrandRegistrationFeeRule, VehicleModel
 
@@ -127,10 +127,15 @@ def calculate_registration_fee(displacement_cc, registration_date, period_years)
 
 
 def resolve_brand_registration_rule(vehicle_model, registration_date, period_years):
+    energy_types = [vehicle_model.energy_type]
+    if vehicle_model.energy_type == VehicleModel.EnergyType.LIGHT_ELECTRIC:
+        # 相容既有以「電動車＋輕型級別」建立的規則；若另有輕型電動車
+        # 專屬規則，仍優先採用專屬版本。
+        energy_types.append(VehicleModel.EnergyType.ELECTRIC)
     rules = (
         BrandRegistrationFeeRule.objects.filter(
             brand__iexact=vehicle_model.brand,
-            energy_type=vehicle_model.energy_type,
+            energy_type__in=energy_types,
             active=True,
             effective_from__lte=registration_date,
         )
@@ -151,10 +156,27 @@ def resolve_brand_registration_rule(vehicle_model, registration_date, period_yea
         ).filter(
             Q(max_cc__isnull=True) | Q(max_cc__gte=vehicle_model.displacement_cc)
         )
-    elif vehicle_model.energy_type == VehicleModel.EnergyType.ELECTRIC:
+    elif vehicle_model.energy_type in {
+        VehicleModel.EnergyType.ELECTRIC,
+        VehicleModel.EnergyType.LIGHT_ELECTRIC,
+    }:
         rules = rules.filter(
             electric_registration_class=vehicle_model.electric_registration_class
         )
+    if vehicle_model.energy_type == VehicleModel.EnergyType.LIGHT_ELECTRIC:
+        rules = rules.annotate(
+            energy_priority=Case(
+                When(
+                    energy_type=VehicleModel.EnergyType.LIGHT_ELECTRIC,
+                    then=Value(0),
+                ),
+                default=Value(1),
+                output_field=IntegerField(),
+            )
+        )
+        return rules.order_by(
+            "energy_priority", "-effective_from", "-min_cc", "-id"
+        ).first()
     return rules.order_by("-effective_from", "-min_cc", "-id").first()
 
 
@@ -172,7 +194,10 @@ def calculate_vehicle_registration_fee(vehicle_model, registration_date, period_
         == BrandRegistrationFeeRule.CalculationType.FIXED_COMPONENTS
     ):
         rate_class = f"FIXED-COMPONENTS-{rule.pk}"
-        if vehicle_model.energy_type == VehicleModel.EnergyType.ELECTRIC:
+        if vehicle_model.energy_type in {
+            VehicleModel.EnergyType.ELECTRIC,
+            VehicleModel.EnergyType.LIGHT_ELECTRIC,
+        }:
             rate_class = f"EV-{vehicle_model.electric_registration_class.upper()}"
         return RegistrationFeeResult(
             rate_class=rate_class,

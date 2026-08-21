@@ -327,6 +327,7 @@ class VehicleModel(TimeStampedModel):
     class EnergyType(models.TextChoices):
         GAS = "gas", "油車"
         ELECTRIC = "electric", "電動車"
+        LIGHT_ELECTRIC = "light_electric", "輕型電動車"
         MICRO_ELECTRIC = "micro_electric", "微型電動二輪車"
 
     class ModelType(models.TextChoices):
@@ -378,7 +379,7 @@ class VehicleModel(TimeStampedModel):
         "排氣量（c.c.）",
         blank=True,
         null=True,
-        help_text="油車領牌試算使用；電動車與微型電動二輪車可留空。",
+        help_text="油車領牌試算使用；電動車、輕型電動車與微型電動二輪車可留空。",
     )
     motor_power_kw = models.DecimalField(
         "馬達功率（kW）",
@@ -386,7 +387,7 @@ class VehicleModel(TimeStampedModel):
         decimal_places=2,
         blank=True,
         null=True,
-        help_text="電動車或微型電動二輪車選填；不會自動換算馬力。",
+        help_text="電動車、輕型電動車或微型電動二輪車選填；不會自動換算馬力。",
     )
     horsepower_hp = models.DecimalField(
         "馬力（HP）",
@@ -394,14 +395,14 @@ class VehicleModel(TimeStampedModel):
         decimal_places=2,
         blank=True,
         null=True,
-        help_text="電動車或微型電動二輪車選填；不會由 kW 自動換算。",
+        help_text="電動車、輕型電動車或微型電動二輪車選填；不會由 kW 自動換算。",
     )
     electric_registration_class = models.CharField(
         "電動車領牌級別",
         max_length=20,
         choices=ElectricRegistrationClass.choices,
         blank=True,
-        help_text="僅電動車使用；請依原廠認證選擇，不會由馬達功率自動推算。",
+        help_text="電動車使用；輕型電動車會自動套用輕型級別，不會由馬達功率推算。",
     )
     base_dealer_commission = models.DecimalField(
         "基礎車行佣金",
@@ -450,10 +451,16 @@ class VehicleModel(TimeStampedModel):
             raise ValidationError(
                 {"displacement_cc": "油車必須設定排氣量，才能自動試算領牌費用。"}
             )
-        if self.energy_type != self.EnergyType.ELECTRIC:
+        if self.energy_type == self.EnergyType.LIGHT_ELECTRIC:
+            self.electric_registration_class = self.ElectricRegistrationClass.LIGHT
+        elif self.energy_type != self.EnergyType.ELECTRIC:
             self.electric_registration_class = ""
 
     def save(self, *args, **kwargs):
+        if self.energy_type == self.EnergyType.LIGHT_ELECTRIC:
+            self.electric_registration_class = self.ElectricRegistrationClass.LIGHT
+        elif self.energy_type != self.EnergyType.ELECTRIC:
+            self.electric_registration_class = ""
         if self.brand and self.name:
             self.brand = self.brand.strip()
             self.name = canonical_vehicle_model_name(self.name)
@@ -1283,6 +1290,12 @@ class BrandRegistrationFeeRule(TimeStampedModel):
                 errors["electric_registration_class"] = "電動車規則必須選擇輕型或重型。"
             if self.calculation_type == self.CalculationType.FORMULA:
                 errors["calculation_type"] = "公式計算僅適用油車；電動車請使用固定金額或人工輸入。"
+        elif self.energy_type == VehicleModel.EnergyType.LIGHT_ELECTRIC:
+            self.electric_registration_class = (
+                VehicleModel.ElectricRegistrationClass.LIGHT
+            )
+            if self.calculation_type == self.CalculationType.FORMULA:
+                errors["calculation_type"] = "公式計算僅適用油車；輕型電動車請使用固定金額或人工輸入。"
         elif self.energy_type == VehicleModel.EnergyType.GAS:
             self.electric_registration_class = ""
         else:

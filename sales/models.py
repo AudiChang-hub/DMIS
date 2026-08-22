@@ -3498,3 +3498,68 @@ class UserAppearancePreference(TimeStampedModel):
 
     def __str__(self):
         return f"{self.user.get_username()}－{self.get_theme_display()}"
+
+
+class UserSecurityProfile(TimeStampedModel):
+    """保存登入安全狀態；不保存任何明碼密碼。"""
+
+    user = models.OneToOneField(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="security_profile",
+        verbose_name="使用者",
+    )
+    must_change_password = models.BooleanField("下次登入須變更密碼", default=False)
+    password_changed_at = models.DateTimeField("密碼變更時間", blank=True, null=True)
+
+    class Meta:
+        verbose_name = "使用者安全設定"
+        verbose_name_plural = "使用者安全設定"
+
+    def __str__(self):
+        return self.user.get_username()
+
+
+class UserAccountAuditLog(TimeStampedModel):
+    class Action(models.TextChoices):
+        CREATE = "create", "建立帳號"
+        UPDATE = "update", "修改帳號"
+        ACTIVATE = "activate", "啟用帳號"
+        DEACTIVATE = "deactivate", "停用帳號"
+        RESET_PASSWORD = "reset_password", "重設密碼"
+        CHANGE_PASSWORD = "change_password", "使用者變更密碼"
+        GRANT_ADMIN = "grant_admin", "授予管理者"
+        REVOKE_ADMIN = "revoke_admin", "移除管理者"
+
+    actor = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        blank=True,
+        null=True,
+        related_name="account_actions_performed",
+        verbose_name="操作人",
+    )
+    target = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        blank=True,
+        null=True,
+        related_name="account_actions_received",
+        verbose_name="對象",
+    )
+    target_username = models.CharField("帳號快照", max_length=150)
+    action = models.CharField("動作", max_length=30, choices=Action.choices)
+    description = models.CharField("說明", max_length=500)
+    metadata = models.JSONField("變更摘要", default=dict, blank=True)
+
+    class Meta:
+        ordering = ["-created_at", "-pk"]
+        verbose_name = "帳號異動紀錄"
+        verbose_name_plural = "帳號異動紀錄"
+        indexes = [
+            models.Index(fields=["target", "-created_at"]),
+            models.Index(fields=["actor", "-created_at"]),
+        ]
+
+    def __str__(self):
+        return f"{self.get_action_display()}－{self.target_username}"

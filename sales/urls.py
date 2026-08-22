@@ -36,6 +36,12 @@ urlpatterns = [
         name="registration_fee_variance_confirm",
     ),
     path("data/", views.data_maintenance, name="data_maintenance"),
+    path("system/users/", views.user_management, name="user_management"),
+    path("system/users/new/", views.user_account_create, name="user_account_create"),
+    path("system/users/<int:pk>/edit/", views.user_account_edit, name="user_account_edit"),
+    path("system/users/<int:pk>/status/", views.user_account_status, name="user_account_status"),
+    path("system/users/<int:pk>/reset-password/", views.user_account_reset_password, name="user_account_reset_password"),
+    path("account/password/", views.password_change_required, name="password_change_required"),
     path("data/vehicle-brands/", views.vehicle_brand_list, name="vehicle_brand_list"),
     path(
         "data/vehicle-brands/<int:pk>/logo/",

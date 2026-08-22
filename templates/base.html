@@ -46,6 +46,7 @@
               <div class="data-menu-tools">
                 <a href="{% url 'legacy_import_list' %}"><strong>歷史 Excel 匯入</strong></a>
                 <a href="{% url 'positioned_template_list' %}"><strong>列印套表</strong></a>
+                {% if user.is_superuser %}<a href="{% url 'user_management' %}"><strong>帳號與權限</strong></a>{% endif %}
                 <a class="data-menu-all" href="{% url 'data_maintenance' %}"><strong>查看全部維護功能 →</strong></a>
               </div>
             </div>
@@ -73,6 +74,7 @@
           </svg>
           <span class="update-check-label">檢查更新</span>
         </button>
+        <a class="header-account-link" href="{% url 'password_change_required' %}" title="變更我的密碼">我的密碼</a>
         <form action="{% url 'logout' %}" method="post" class="logout-form">
           {% csrf_token %}
           <button type="submit" class="link-button">登出</button>
@@ -105,9 +107,11 @@
             <a href="{% url 'brand_registration_fee_rule_list' %}"><span>牌</span><strong>牌險規則</strong></a>
             <a href="{% url 'business_holiday_list' %}"><span>曆</span><strong>工作日</strong></a>
             <a href="{% url 'positioned_template_list' %}"><span>印</span><strong>列印套表</strong></a>
+            {% if user.is_superuser %}<a href="{% url 'user_management' %}"><span>員</span><strong>帳號管理</strong></a>{% endif %}
           </div>
           <div class="mobile-data-popover__footer">
             <button type="button" data-theme-open><span aria-hidden="true">◐</span><strong>外觀配色</strong></button>
+            <a href="{% url 'password_change_required' %}"><span aria-hidden="true">鎖</span><strong>變更密碼</strong></a>
             <a href="{{ context_help_url }}" target="_blank" rel="noopener"><span aria-hidden="true">?</span><strong>使用說明</strong></a>
           <form action="{% url 'logout' %}" method="post" class="mobile-logout-form">
             {% csrf_token %}

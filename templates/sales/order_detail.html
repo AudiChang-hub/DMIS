@@ -4,7 +4,8 @@
 {% block page_class %}page-shell--wide{% endblock %}
 {% block content %}
 {% url 'order_list' as order_list_url %}
-{% include "sales/_page_back.html" with fallback_url=order_list_url label="返回上一頁" smart_back=True %}
+{% url 'dashboard' as dashboard_url %}
+{% include "sales/_page_back.html" with fallback_url=order_list_url label="全部訂單" root_url=dashboard_url root_label="戰情首頁" %}
 <section class="hero-row detail-hero">
   <div>
     <div class="title-with-status"><h1>{{ order.owner_name }}</h1><span class="status-pill large status-{{ order.status }}">{{ order.get_status_display }}</span></div>

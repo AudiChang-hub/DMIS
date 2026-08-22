@@ -3,7 +3,8 @@
 {% block page_class %}page-shell--wide{% endblock %}
 {% block content %}
 {% url 'order_detail' order.pk as order_url %}
-{% include "sales/_page_back.html" with fallback_url=order_url label="返回訂單" %}
+{% url 'order_list' as order_list_url %}
+{% include "sales/_page_back.html" with fallback_url=order_url label="訂單資料" root_url=order_list_url root_label="全部訂單" %}
 <section class="hero-row compact-hero">
   <div><p class="eyebrow">收款、成本與後續作業</p><h1>營運資料</h1><p class="muted">{{ order.number }} · {{ order.owner_name }} · {{ order.vehicle_model }}</p></div>
   <a class="button ghost" href="{% url 'operations_report' %}">營運總表</a>

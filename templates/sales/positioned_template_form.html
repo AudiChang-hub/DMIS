@@ -3,7 +3,7 @@
 {% block title %}{% if template_object.pk %}編輯{% else %}新增{% endif %}列印套表｜車輛銷售管理{% endblock %}
 {% block page_class %}page-shell--wide{% endblock %}
 {% block content %}
-{% url 'positioned_template_list' as list_url %}{% include "sales/_page_back.html" with fallback_url=list_url label="返回列印套表" %}
+{% url 'positioned_template_list' as list_url %}{% url 'data_maintenance' as data_url %}{% include "sales/_page_back.html" with fallback_url=list_url label="列印套表" root_url=data_url root_label="資料維護區" %}
 <section class="hero-row compact-hero"><div><p class="eyebrow">版面與資料定位</p><h1>{% if template_object.pk %}{{ template_object.name }}{% else %}新增列印套表{% endif %}</h1><p class="muted">位置以紙張左上角為基準，單位為 mm；預覽會套用最近一張訂單。</p></div>{% if template_object.pk and sample_order %}<a class="button primary" target="_blank" href="{% url 'positioned_template_preview' template_object.pk %}">預覽 PDF</a>{% endif %}</section>
 <form method="post" enctype="multipart/form-data" data-print-template-form>
 {% csrf_token %}

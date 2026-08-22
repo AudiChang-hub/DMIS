@@ -3,7 +3,8 @@
 {% block page_class %}page-shell--wide{% endblock %}
 {% block content %}
 {% url 'dealer_volume_bonus_list' as list_url %}
-{% include "sales/_page_back.html" with fallback_url=list_url label="返回台數獎金" %}
+{% url 'sales_source_list' as source_url %}
+{% include "sales/_page_back.html" with fallback_url=list_url label="台數獎金" root_url=source_url root_label="車行、平台與傭金" %}
 <section class="hero-row compact-hero">
   <div>
     <p class="eyebrow">實際入帳修正</p>

@@ -3,7 +3,8 @@
 {% block page_class %}page-shell--wide{% endblock %}
 {% block content %}
 {% url 'vehicle_model_edit' vehicle_model.pk as model_edit_url %}
-{% include "sales/_page_back.html" with fallback_url=model_edit_url label="返回車型設定" force_fresh=True %}
+{% url 'vehicle_model_list' as model_list_url %}
+{% include "sales/_page_back.html" with fallback_url=model_edit_url label="車型設定" root_url=model_list_url root_label="車型資料" %}
 <section class="hero-row compact-hero">
   <div>
     <p class="eyebrow">{{ vehicle_model.brand }} {{ vehicle_model.name }}／{{ vehicle_model.model_number }}</p>

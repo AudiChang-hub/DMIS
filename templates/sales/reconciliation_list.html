@@ -4,7 +4,8 @@
 {% block page_class %}page-shell--wide{% endblock %}
 {% block content %}
 {% url 'operations_report' as operations_url %}
-{% include "sales/_page_back.html" with fallback_url=operations_url label="返回營運總表" %}
+{% url 'dashboard' as dashboard_url %}
+{% include "sales/_page_back.html" with fallback_url=operations_url label="營運總表" root_url=dashboard_url root_label="戰情首頁" %}
 <section class="hero-row compact-hero">
   <div>
     <p class="eyebrow">集中核對實際入帳</p>

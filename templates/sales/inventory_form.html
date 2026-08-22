@@ -3,7 +3,8 @@
 {% block page_class %}{% if is_editing %}page-shell--wide{% else %}page-shell--compact{% endif %}{% endblock %}
 {% block content %}
 {% url 'inventory_list' as inventory_list_url %}
-{% include "sales/_page_back.html" with fallback_url=inventory_list_url label="返回庫存資料" %}
+{% url 'data_maintenance' as data_url %}
+{% include "sales/_page_back.html" with fallback_url=inventory_list_url label="庫存資料" root_url=data_url root_label="資料維護區" %}
 <section class="hero-row compact-hero">
   <div>
     <p class="eyebrow">{% if is_editing %}庫存資料維護{% else %}人工逐台輸入{% endif %}</p>

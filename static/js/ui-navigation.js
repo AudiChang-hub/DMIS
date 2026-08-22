@@ -1,11 +1,22 @@
 (() => {
+  if ("scrollRestoration" in window.history) {
+    window.history.scrollRestoration = "auto";
+  }
+
+  const parseSameOriginUrl = value => {
+    if (!value) return null;
+    try {
+      const url = new URL(value, window.location.href);
+      return url.origin === window.location.origin ? url : null;
+    } catch {
+      return null;
+    }
+  };
+
   const sameOriginReferrer = () => {
     if (!document.referrer) return false;
-    try {
-      return new URL(document.referrer).origin === window.location.origin;
-    } catch {
-      return false;
-    }
+    const referrer = parseSameOriginUrl(document.referrer);
+    return Boolean(referrer && referrer.href !== window.location.href);
   };
 
   document.querySelectorAll("[data-smart-back]").forEach(control => {
@@ -17,11 +28,23 @@
         return;
       }
       const fallback = control.getAttribute("href") || control.dataset.fallbackUrl;
-      if (fallback) {
+      const fallbackUrl = parseSameOriginUrl(fallback);
+      if (fallbackUrl) {
         event.preventDefault();
-        window.location.assign(fallback);
+        window.location.assign(fallbackUrl.href);
       }
     });
+  });
+
+  document.querySelectorAll("[data-current-page-label]").forEach(label => {
+    if (label.textContent.trim()) {
+      label.hidden = false;
+      return;
+    }
+    const heading = document.querySelector("main h1");
+    if (!heading) return;
+    label.textContent = heading.textContent.trim();
+    label.hidden = !label.textContent;
   });
 
   const mobileMenu = document.querySelector(".mobile-data-menu");

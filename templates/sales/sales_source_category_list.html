@@ -2,7 +2,7 @@
 {% block title %}通路分類｜車輛銷售管理{% endblock %}
 {% block page_class %}page-shell--wide{% endblock %}
 {% block content %}
-{% url 'sales_source_list' as list_url %}{% include "sales/_page_back.html" with fallback_url=list_url label="返回通路與傭金" %}
+{% url 'sales_source_list' as list_url %}{% url 'data_maintenance' as data_url %}{% include "sales/_page_back.html" with fallback_url=list_url label="車行、平台與傭金" root_url=data_url root_label="資料維護區" %}
 <section class="hero-row compact-hero">
   <div>
     <p class="eyebrow">通路主檔</p>

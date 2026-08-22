@@ -644,7 +644,7 @@ class OrderFlowTests(TestCase):
         self.assertContains(response, "庫存 1 筆")
         self.assertTrue(VehicleModel.objects.filter(pk=self.model.pk).exists())
 
-    def test_vehicle_model_business_pages_return_directly_to_model_page(self):
+    def test_vehicle_model_business_pages_offer_previous_screen_and_fixed_hierarchy(self):
         self.client.force_login(self.user)
         model_url = reverse("vehicle_model_edit", args=[self.model.pk])
         for route_name in (
@@ -657,25 +657,24 @@ class OrderFlowTests(TestCase):
 
                 self.assertEqual(response.status_code, 200)
                 self.assertContains(response, f'href="{model_url}"')
-                self.assertNotContains(
-                    response,
-                    f'href="{model_url}" data-smart-back',
-                )
+                self.assertContains(response, "data-smart-back")
+                self.assertContains(response, f'data-fallback-url="{model_url}"')
+                self.assertContains(response, "車型資料")
+                self.assertContains(response, "車型設定")
 
-    def test_vehicle_model_edit_returns_directly_to_model_list(self):
+    def test_vehicle_model_edit_has_fixed_model_parent_and_smart_previous_screen(self):
         self.client.force_login(self.user)
         list_url = reverse("vehicle_model_list")
 
         response = self.client.get(reverse("vehicle_model_edit", args=[self.model.pk]))
 
         self.assertContains(response, f'href="{list_url}"')
-        self.assertContains(response, "返回車型資料")
-        self.assertNotContains(
-            response,
-            f'href="{list_url}" data-smart-back',
-        )
+        self.assertContains(response, "回到上一畫面")
+        self.assertContains(response, "車型資料")
+        self.assertContains(response, "data-smart-back")
+        self.assertContains(response, f'data-fallback-url="{list_url}"')
 
-    def test_maintenance_parent_links_do_not_follow_browser_history(self):
+    def test_maintenance_pages_separate_previous_screen_from_fixed_parent(self):
         self.client.force_login(self.user)
         maintenance_url = reverse("data_maintenance")
 
@@ -700,10 +699,12 @@ class OrderFlowTests(TestCase):
 
                 self.assertEqual(response.status_code, 200)
                 self.assertContains(response, f'href="{maintenance_url}"')
-                self.assertContains(response, "返回資料維護區")
-                self.assertNotContains(
+                self.assertContains(response, "資料維護區")
+                self.assertContains(response, "回到上一畫面")
+                self.assertContains(response, "data-smart-back")
+                self.assertContains(
                     response,
-                    f'href="{maintenance_url}" data-smart-back',
+                    f'data-fallback-url="{maintenance_url}"',
                 )
 
         brand, _created = VehicleBrand.objects.get_or_create(name="測試品牌")
@@ -711,7 +712,7 @@ class OrderFlowTests(TestCase):
             f'{reverse("vehicle_brand_list")}?edit={brand.pk}'
         )
         self.assertContains(editing_brand, f'href="{maintenance_url}"')
-        self.assertNotContains(editing_brand, "data-smart-back")
+        self.assertContains(editing_brand, "data-smart-back")
 
     def test_vehicle_model_type_supports_drum(self):
         self.client.force_login(self.user)

@@ -806,14 +806,28 @@ body.screen-locked { overflow: hidden; }
 .form-actions { display: flex; padding-top: 20px; justify-content: flex-end; gap: 10px; border-top: 1px solid var(--line); }
 .error-page { max-width: 720px; margin: 48px auto; }
 .error-page h1 { margin-bottom: 12px; }
-.page-context-nav { display: flex; min-height: 44px; margin: -4px 0 10px; align-items: center; }
+.page-context-nav {
+  display: flex; min-height: 44px; margin: -4px 0 10px; align-items: center; gap: 12px;
+}
 .back-link {
   display: inline-flex; width: fit-content; min-height: 44px; margin-left: -10px; padding: 0 10px;
   align-items: center; gap: 7px; color: var(--blue); border-radius: 10px;
   font-size: .88rem; font-weight: 800;
 }
 .back-link:hover { background: var(--blue-soft); }
-.back-link:focus-visible, .button:focus-visible, .desktop-nav a:focus-visible,
+.page-breadcrumbs {
+  display: flex; min-width: 0; margin: 0; padding: 0; align-items: center; gap: 7px;
+  color: var(--muted); font-size: .78rem; list-style: none;
+}
+.page-breadcrumbs li { display: inline-flex; min-width: 0; align-items: center; gap: 7px; }
+.page-breadcrumbs li + li::before { content: "/"; color: #9aa8a1; }
+.page-breadcrumbs a { color: var(--muted); font-weight: 700; }
+.page-breadcrumbs a:hover { color: var(--forest); text-decoration: underline; }
+.page-breadcrumb-current {
+  overflow: hidden; max-width: min(32vw, 360px); color: var(--ink); font-weight: 800;
+  text-overflow: ellipsis; white-space: nowrap;
+}
+.back-link:focus-visible, .page-breadcrumbs a:focus-visible, .button:focus-visible, .desktop-nav a:focus-visible,
 .mobile-nav a:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible {
   outline: 3px solid #e4b940; outline-offset: 2px;
 }
@@ -2265,7 +2279,14 @@ body.screen-locked { overflow: hidden; }
   .hero-row { align-items: stretch; flex-direction: column; gap: 14px; }
   .hero-actions { width: 100%; flex-wrap: wrap; justify-content: stretch; }
   .hero-actions .button { flex: 1 1 auto; }
-  .page-context-nav { margin-top: -8px; margin-bottom: 6px; }
+  .page-context-nav {
+    margin-top: -8px; margin-bottom: 6px; align-items: flex-start; flex-direction: column; gap: 0;
+  }
+  .page-breadcrumbs {
+    width: 100%; padding: 0 0 4px; overflow-x: auto; scrollbar-width: none; white-space: nowrap;
+  }
+  .page-breadcrumbs::-webkit-scrollbar { display: none; }
+  .page-breadcrumb-current { max-width: 52vw; }
   .hero-row > .button { min-height: 42px; padding: 0 13px; white-space: nowrap; }
   .hero-row h1 { font-size: 1.7rem; }
   .metric { min-height: 120px; padding: 16px; }

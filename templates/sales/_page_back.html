@@ -1,6 +1,25 @@
-<nav class="page-context-nav" aria-label="返回導覽">
-  <a class="back-link" href="{{ fallback_url }}"{% if smart_back %} data-smart-back{% endif %}{% if cancel_edit %} data-cancel-edit{% endif %}>
-    <span aria-hidden="true">←</span>
-    <span>{{ label }}</span>
-  </a>
+<nav class="page-context-nav" aria-label="頁面導覽">
+  {% if cancel_edit %}
+    <a class="back-link" href="{{ fallback_url }}" data-cancel-edit>
+      <span aria-hidden="true">←</span>
+      <span>{{ label }}</span>
+    </a>
+  {% else %}
+    <a
+      class="back-link"
+      href="{{ fallback_url }}"
+      data-smart-back
+      data-fallback-url="{{ fallback_url }}"
+    >
+      <span aria-hidden="true">←</span>
+      <span>回到上一畫面</span>
+    </a>
+    <ol class="page-breadcrumbs" aria-label="目前位置">
+      {% if root_url and root_label %}
+        <li><a href="{{ root_url }}">{{ root_label }}</a></li>
+      {% endif %}
+      <li><a href="{{ fallback_url }}">{{ parent_label|default:label|cut:"返回" }}</a></li>
+      <li class="page-breadcrumb-current" aria-current="page" data-current-page-label{% if not current_label %} hidden{% endif %}>{{ current_label }}</li>
+    </ol>
+  {% endif %}
 </nav>

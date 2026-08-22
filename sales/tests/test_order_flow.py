@@ -1367,8 +1367,8 @@ class OrderFlowTests(TestCase):
         self.assertNotContains(response, 'class="vehicle-model-year-history-row"', html=False)
         self.assertNotContains(response, "3 個原廠型號")
         self.assertContains(response, "EV060L、EV062、EV062-OLD", count=1)
-        self.assertContains(response, "2 個年式")
-        self.assertNotContains(response, "3 個年式")
+        self.assertContains(response, "<span>2 個年式</span>", count=1, html=True)
+        self.assertNotContains(response, "<span>3 個年式</span>", html=True)
         self.assertContains(response, 'data-open-year-panel="vehicle-year-panel-', html=False)
         self.assertContains(response, 'class="vehicle-year-drawer"', html=False)
 
@@ -1384,6 +1384,85 @@ class OrderFlowTests(TestCase):
         self.assertContains(year_response, "符合搜尋")
         self.assertNotContains(year_response, "vehicle-model-year-history")
         self.assertEqual(year_response.context["vehicle_model_count"], 1)
+
+    def test_vehicle_model_list_hides_single_year_count_without_history(self):
+        VehicleModel.objects.create(
+            brand="SUZUKI",
+            name="單一年式顯示測試",
+            model_number="ONLY-2026",
+            model_year=2026,
+            model_code=VehicleModel.ModelType.DRUM,
+            energy_type=VehicleModel.EnergyType.GAS,
+            active=True,
+        )
+        self.client.force_login(self.user)
+
+        response = self.client.get(
+            reverse("vehicle_model_list"),
+            {"q": "單一年式顯示測試"},
+        )
+
+        self.assertNotContains(response, "1 個年式")
+        self.assertNotContains(response, "查看歷史資料")
+        self.assertNotContains(response, "查看年式資料")
+
+    def test_vehicle_model_list_labels_inactive_versions_as_history(self):
+        VehicleModel.objects.create(
+            brand="SUZUKI",
+            name="歷史年式顯示測試",
+            model_number="HISTORY-2026",
+            model_year=2026,
+            model_code=VehicleModel.ModelType.DRUM,
+            energy_type=VehicleModel.EnergyType.GAS,
+            active=True,
+        )
+        VehicleModel.objects.create(
+            brand="SUZUKI",
+            name="歷史年式顯示測試",
+            model_number="HISTORY-2025",
+            model_year=2025,
+            model_code=VehicleModel.ModelType.DRUM,
+            energy_type=VehicleModel.EnergyType.GAS,
+            active=False,
+        )
+        self.client.force_login(self.user)
+
+        response = self.client.get(
+            reverse("vehicle_model_list"),
+            {"q": "歷史年式顯示測試"},
+        )
+
+        self.assertContains(response, "查看歷史資料", count=1)
+        self.assertNotContains(response, "<span>1 個年式</span>", html=True)
+
+    def test_vehicle_model_list_labels_same_year_active_versions_as_year_data(self):
+        VehicleModel.objects.create(
+            brand="SUZUKI",
+            name="同年式資料顯示測試",
+            model_number="SAME-YEAR-A",
+            model_year=2026,
+            model_code=VehicleModel.ModelType.DRUM,
+            energy_type=VehicleModel.EnergyType.GAS,
+            active=True,
+        )
+        VehicleModel.objects.create(
+            brand="SUZUKI",
+            name="同年式資料顯示測試",
+            model_number="SAME-YEAR-B",
+            model_year=2026,
+            model_code=VehicleModel.ModelType.DISC,
+            energy_type=VehicleModel.EnergyType.GAS,
+            active=True,
+        )
+        self.client.force_login(self.user)
+
+        response = self.client.get(
+            reverse("vehicle_model_list"),
+            {"q": "同年式資料顯示測試"},
+        )
+
+        self.assertContains(response, "查看年式資料", count=1)
+        self.assertNotContains(response, "<span>1 個年式</span>", html=True)
 
     def test_legacy_dr_z4sm_label_is_normalized_to_machine_name(self):
         model = VehicleModel.objects.create(

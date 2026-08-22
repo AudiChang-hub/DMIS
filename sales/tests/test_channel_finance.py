@@ -588,7 +588,12 @@ class ChannelFinanceTests(TestCase):
         self.assertContains(response, "目前共 1 家")
         self.assertContains(response, "需送禮")
         self.assertContains(response, "返回全部通路")
-        self.assertNotContains(response, "type=dealer&amp;holiday_gift=yes")
+        # 已在送禮名單時，不應再顯示同一個快速篩選連結；其他全站表單
+        # （例如外觀設定）仍可安全保留目前查詢條件作為返回位置。
+        self.assertNotContains(
+            response,
+            'href="/data/channels/?type=dealer&amp;holiday_gift=yes"',
+        )
 
     def test_sales_source_gift_filter_can_return_to_all_source_types(self):
         self.client.force_login(self.user)

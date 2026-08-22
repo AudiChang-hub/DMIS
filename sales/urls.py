@@ -8,6 +8,11 @@ urlpatterns = [
     path("health/", views.system_health, name="system_health"),
     path("system-status/", views.system_diagnostics, name="system_diagnostics"),
     path("api/app-version/", views.app_version, name="app_version"),
+    path(
+        "appearance/theme/",
+        views.appearance_theme_update,
+        name="appearance_theme_update",
+    ),
     # 舊 Odoo 書籤與主畫面捷徑保留相容入口，避免使用者落入 404。
     path(
         "web",

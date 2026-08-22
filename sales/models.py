@@ -10,6 +10,8 @@ from django.db import models, transaction
 from django.db.models.functions import Lower
 from django.utils import timezone
 
+from .themes import DEFAULT_THEME, THEME_CHOICES
+
 
 class TimeStampedModel(models.Model):
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="建立時間")
@@ -3474,3 +3476,25 @@ class IdOcrJob(TimeStampedModel):
         indexes = [
             models.Index(fields=["created_by", "status", "-created_at"]),
         ]
+
+
+class UserAppearancePreference(TimeStampedModel):
+    user = models.OneToOneField(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="appearance_preference",
+        verbose_name="使用者",
+    )
+    theme = models.CharField(
+        "介面主題",
+        max_length=30,
+        choices=THEME_CHOICES,
+        default=DEFAULT_THEME,
+    )
+
+    class Meta:
+        verbose_name = "使用者外觀偏好"
+        verbose_name_plural = "使用者外觀偏好"
+
+    def __str__(self):
+        return f"{self.user.get_username()}－{self.get_theme_display()}"

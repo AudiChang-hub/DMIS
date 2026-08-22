@@ -101,6 +101,13 @@
     <div><h2>系統狀態</h2><p>檢查資料庫、證件辨識、搜尋背景工作與照片文件空間。</p><strong>遇到處理卡住時先查看</strong></div>
     <span aria-hidden="true">›</span>
   </a>
+  {% if user.is_superuser %}
+  <a class="maintenance-card" href="{% url 'user_management' %}">
+    <span class="maintenance-card__icon">員</span>
+    <div><h2>帳號與權限</h2><p>建立內部帳號、停用離職人員、重設臨時密碼並查看帳號異動紀錄。</p><strong>{{ system_user_count }} 個系統帳號</strong></div>
+    <span aria-hidden="true">›</span>
+  </a>
+  {% endif %}
   </div>
 </section>
 {% endblock %}

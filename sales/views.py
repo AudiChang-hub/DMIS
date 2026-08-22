@@ -3,16 +3,19 @@ import logging
 import mimetypes
 import shutil
 import uuid
+from functools import wraps
 from datetime import date, timedelta
 from decimal import Decimal
 from io import BytesIO
 from pathlib import Path
 
 from django.contrib import messages
+from django.contrib.auth import get_user_model, update_session_auth_hash
 from django.contrib.auth.decorators import login_required
+from django.contrib.sessions.models import Session
 from django.conf import settings
 from django.core.files.base import ContentFile
-from django.core.exceptions import ValidationError
+from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import IntegrityError, connection, transaction
 from django.db.models import Count, DecimalField, OuterRef, Q, Subquery, Sum
 from django.core.paginator import Paginator
@@ -32,6 +35,9 @@ from .services.brand_logo import apply_brand_logo, clear_brand_logo
 
 from .forms import (
     AccessoryProductForm,
+    AdminPasswordResetForm,
+    AdminUserCreateForm,
+    AdminUserEditForm,
     AccessoryFormSet,
     AllocationForm,
     BusinessHolidayForm,
@@ -67,6 +73,7 @@ from .forms import (
     ReallocationForm,
     RegistrationDocumentUploadForm,
     RegistrationStageForm,
+    RequiredPasswordChangeForm,
     SalesOrderForm,
     SalesSourceBrandPolicyFormSet,
     SalesSourceCategoryForm,
@@ -126,7 +133,9 @@ from .models import (
     VehicleModelFamily,
     VehiclePriceVersion,
     VehicleSettlementCostRule,
+    UserAccountAuditLog,
     UserAppearancePreference,
+    UserSecurityProfile,
     normalize_legacy_master_value,
     normalize_vehicle_model_master_value,
     normalize_vehicle_identifier,
@@ -255,6 +264,48 @@ def appearance_theme_update(request):
     else:
         messages.success(request, "外觀配色已儲存，其他裝置登入後也會自動套用。")
     return redirect(return_to)
+
+
+def superuser_required(view_func):
+    """只允許目前仍啟用的系統管理者進入帳號管理功能。"""
+
+    @wraps(view_func)
+    @login_required
+    def wrapped(request, *args, **kwargs):
+        if not request.user.is_active or not request.user.is_superuser:
+            raise PermissionDenied("只有系統管理者可以管理帳號。")
+        return view_func(request, *args, **kwargs)
+
+    return wrapped
+
+
+def _account_audit(*, actor, target, action, description, metadata=None):
+    return UserAccountAuditLog.objects.create(
+        actor=actor,
+        target=target,
+        target_username=target.get_username(),
+        action=action,
+        description=description,
+        metadata=metadata or {},
+    )
+
+
+def _invalidate_user_sessions(user):
+    """重設密碼後立即登出該帳號在其他裝置上的既有登入。"""
+
+    session_keys = []
+    for session in Session.objects.filter(expire_date__gte=timezone.now()):
+        try:
+            if str(session.get_decoded().get("_auth_user_id")) == str(user.pk):
+                session_keys.append(session.session_key)
+        except Exception:
+            continue
+    if session_keys:
+        Session.objects.filter(session_key__in=session_keys).delete()
+
+
+def _active_superuser_count():
+    return get_user_model().objects.filter(is_active=True, is_superuser=True).count()
 
 
 @login_required
@@ -409,26 +460,254 @@ def _order_detail_section_url(order_pk, section):
 
 @login_required
 def data_maintenance(request):
+    context = {
+        "customer_count": SalesOrder.objects.values("owner_id_number").distinct().count(),
+        "vehicle_model_count": VehicleModelFamily.objects.count(),
+        "vehicle_model_version_count": VehicleModel.objects.count(),
+        "vehicle_brand_count": VehicleBrand.objects.count(),
+        "accessory_product_count": AccessoryProduct.objects.count(),
+        "inventory_count": VehicleInventory.objects.count(),
+        "sales_source_count": SalesSource.objects.count(),
+        "installment_company_count": InstallmentCompany.objects.count(),
+        "settlement_cost_rule_count": VehicleSettlementCostRule.objects.count(),
+        "incentive_rule_count": VehicleIncentiveRule.objects.count(),
+        "dealer_bonus_rule_count": DealerVolumeBonusRule.objects.count(),
+        "holiday_count": BusinessHoliday.objects.filter(active=True).count(),
+        "registration_fee_rule_count": BrandRegistrationFeeRule.objects.filter(active=True).count(),
+    }
+    if request.user.is_superuser:
+        context["system_user_count"] = get_user_model().objects.count()
     return render(
         request,
         "sales/data_maintenance.html",
+        context,
+    )
+
+
+@superuser_required
+def user_management(request):
+    query = request.GET.get("q", "").strip()
+    status = request.GET.get("status", "all")
+    users = get_user_model().objects.select_related("security_profile")
+    if query:
+        users = users.filter(
+            Q(username__icontains=query)
+            | Q(first_name__icontains=query)
+            | Q(last_name__icontains=query)
+        )
+    if status == "active":
+        users = users.filter(is_active=True)
+    elif status == "inactive":
+        users = users.filter(is_active=False)
+    elif status == "admins":
+        users = users.filter(is_superuser=True)
+    elif status == "never_login":
+        users = users.filter(last_login__isnull=True)
+    else:
+        status = "all"
+
+    users = list(users.order_by("-is_active", "-is_superuser", "username"))
+    for account in users:
+        profile = getattr(account, "security_profile", None)
+        account.must_change_password = bool(profile and profile.must_change_password)
+
+    all_users = get_user_model().objects.all()
+    return render(
+        request,
+        "sales/user_management.html",
         {
-            "customer_count": SalesOrder.objects.values("owner_id_number")
-            .distinct()
-            .count(),
-            "vehicle_model_count": VehicleModelFamily.objects.count(),
-            "vehicle_model_version_count": VehicleModel.objects.count(),
-            "vehicle_brand_count": VehicleBrand.objects.count(),
-            "accessory_product_count": AccessoryProduct.objects.count(),
-            "inventory_count": VehicleInventory.objects.count(),
-            "sales_source_count": SalesSource.objects.count(),
-            "installment_company_count": InstallmentCompany.objects.count(),
-            "settlement_cost_rule_count": VehicleSettlementCostRule.objects.count(),
-            "incentive_rule_count": VehicleIncentiveRule.objects.count(),
-            "dealer_bonus_rule_count": DealerVolumeBonusRule.objects.count(),
-            "holiday_count": BusinessHoliday.objects.filter(active=True).count(),
-            "registration_fee_rule_count": BrandRegistrationFeeRule.objects.filter(active=True).count(),
+            "accounts": users,
+            "query": query,
+            "status": status,
+            "counts": {
+                "all": all_users.count(),
+                "active": all_users.filter(is_active=True).count(),
+                "inactive": all_users.filter(is_active=False).count(),
+                "admins": all_users.filter(is_superuser=True).count(),
+            },
+            "audit_logs": UserAccountAuditLog.objects.select_related("actor", "target")[:20],
         },
+    )
+
+
+@superuser_required
+@require_http_methods(["GET", "POST"])
+def user_account_create(request):
+    form = AdminUserCreateForm(request.POST or None)
+    if request.method == "POST" and form.is_valid():
+        with transaction.atomic():
+            user = get_user_model().objects.create_user(
+                username=form.cleaned_data["username"],
+                password=form.cleaned_data["password1"],
+                first_name=form.cleaned_data["display_name"].strip(),
+                is_active=form.cleaned_data["is_active"],
+                is_staff=form.cleaned_data["is_superuser"],
+                is_superuser=form.cleaned_data["is_superuser"],
+            )
+            UserSecurityProfile.objects.create(
+                user=user,
+                must_change_password=form.cleaned_data["must_change_password"],
+            )
+            _account_audit(
+                actor=request.user,
+                target=user,
+                action=UserAccountAuditLog.Action.CREATE,
+                description=f"建立帳號 {user.get_username()}。",
+                metadata={
+                    "is_active": user.is_active,
+                    "is_superuser": user.is_superuser,
+                    "must_change_password": form.cleaned_data["must_change_password"],
+                },
+            )
+        messages.success(request, f"已建立 {user.get_username()}；臨時密碼不會再次顯示，請立即交付本人。")
+        return redirect("user_management")
+    return render(
+        request,
+        "sales/user_account_form.html",
+        {"form": form, "mode": "create", "account": None},
+    )
+
+
+@superuser_required
+@require_http_methods(["GET", "POST"])
+def user_account_edit(request, pk):
+    account = get_object_or_404(get_user_model(), pk=pk)
+    form = AdminUserEditForm(request.POST or None, instance=account)
+    if request.method == "POST" and form.is_valid():
+        new_active = form.cleaned_data["is_active"]
+        new_superuser = form.cleaned_data["is_superuser"]
+        if account.pk == request.user.pk and not new_active:
+            form.add_error("is_active", "不能停用自己目前正在使用的帳號。")
+        if account.pk == request.user.pk and not new_superuser:
+            form.add_error("is_superuser", "不能移除自己目前的管理者權限。")
+        if (
+            account.is_active
+            and account.is_superuser
+            and (not new_active or not new_superuser)
+            and _active_superuser_count() <= 1
+        ):
+            form.add_error(None, "系統至少要保留一個啟用中的管理者帳號。")
+
+        if not form.errors:
+            before = {
+                "username": account.username,
+                "display_name": account.get_full_name(),
+                "is_active": account.is_active,
+                "is_superuser": account.is_superuser,
+            }
+            with transaction.atomic():
+                account.username = form.cleaned_data["username"]
+                account.first_name = form.cleaned_data["display_name"].strip()
+                account.last_name = ""
+                account.is_active = new_active
+                account.is_superuser = new_superuser
+                account.is_staff = new_superuser
+                account.save(update_fields=["username", "first_name", "last_name", "is_active", "is_superuser", "is_staff"])
+                after = {
+                    "username": account.username,
+                    "display_name": account.get_full_name(),
+                    "is_active": account.is_active,
+                    "is_superuser": account.is_superuser,
+                }
+                _account_audit(
+                    actor=request.user,
+                    target=account,
+                    action=UserAccountAuditLog.Action.UPDATE,
+                    description=f"修改帳號 {account.get_username()} 的基本資料或權限。",
+                    metadata={"before": before, "after": after},
+                )
+            messages.success(request, f"已儲存 {account.get_username()} 的帳號設定。")
+            return redirect("user_management")
+    return render(
+        request,
+        "sales/user_account_form.html",
+        {"form": form, "mode": "edit", "account": account},
+    )
+
+
+@superuser_required
+@require_http_methods(["POST"])
+def user_account_status(request, pk):
+    account = get_object_or_404(get_user_model(), pk=pk)
+    requested_action = request.POST.get("action")
+    if requested_action not in {"activate", "deactivate"}:
+        messages.error(request, "無法辨識帳號狀態操作，請重新操作。")
+        return redirect("user_management")
+    activate = requested_action == "activate"
+    if account.pk == request.user.pk and not activate:
+        messages.error(request, "不能停用自己目前正在使用的帳號。")
+        return redirect("user_management")
+    if account.is_active and account.is_superuser and not activate and _active_superuser_count() <= 1:
+        messages.error(request, "系統至少要保留一個啟用中的管理者帳號。")
+        return redirect("user_management")
+    account.is_active = activate
+    account.save(update_fields=["is_active"])
+    action = UserAccountAuditLog.Action.ACTIVATE if activate else UserAccountAuditLog.Action.DEACTIVATE
+    _account_audit(
+        actor=request.user,
+        target=account,
+        action=action,
+        description=f"{'啟用' if activate else '停用'}帳號 {account.get_username()}。",
+    )
+    messages.success(request, f"已{'啟用' if activate else '停用'} {account.get_username()}。")
+    return redirect("user_management")
+
+
+@superuser_required
+@require_http_methods(["GET", "POST"])
+def user_account_reset_password(request, pk):
+    account = get_object_or_404(get_user_model(), pk=pk)
+    if account.pk == request.user.pk:
+        messages.info(request, "自己的密碼請使用『變更我的密碼』，避免中斷目前登入。")
+        return redirect("password_change_required")
+    form = AdminPasswordResetForm(request.POST or None, user=account)
+    if request.method == "POST" and form.is_valid():
+        with transaction.atomic():
+            account.set_password(form.cleaned_data["password1"])
+            account.save(update_fields=["password"])
+            profile, _ = UserSecurityProfile.objects.get_or_create(user=account)
+            profile.must_change_password = form.cleaned_data["must_change_password"]
+            profile.password_changed_at = (
+                None if profile.must_change_password else timezone.now()
+            )
+            profile.save(update_fields=["must_change_password", "password_changed_at", "updated_at"])
+            _invalidate_user_sessions(account)
+            _account_audit(
+                actor=request.user,
+                target=account,
+                action=UserAccountAuditLog.Action.RESET_PASSWORD,
+                description=f"重設帳號 {account.get_username()} 的密碼並登出既有裝置。",
+                metadata={"must_change_password": profile.must_change_password},
+            )
+        messages.success(request, f"已重設 {account.get_username()} 的密碼，既有裝置已登出。")
+        return redirect("user_management")
+    return render(request, "sales/user_password_reset.html", {"form": form, "account": account})
+
+
+@login_required
+@require_http_methods(["GET", "POST"])
+def password_change_required(request):
+    form = RequiredPasswordChangeForm(request.user, request.POST or None)
+    if request.method == "POST" and form.is_valid():
+        user = form.save()
+        update_session_auth_hash(request, user)
+        profile, _ = UserSecurityProfile.objects.get_or_create(user=user)
+        profile.must_change_password = False
+        profile.password_changed_at = timezone.now()
+        profile.save(update_fields=["must_change_password", "password_changed_at", "updated_at"])
+        _account_audit(
+            actor=user,
+            target=user,
+            action=UserAccountAuditLog.Action.CHANGE_PASSWORD,
+            description=f"帳號 {user.get_username()} 已自行變更密碼。",
+        )
+        messages.success(request, "密碼已更新，可以繼續使用系統。")
+        return redirect("dashboard")
+    profile = getattr(request.user, "security_profile", None)
+    return render(
+        request,
+        "registration/password_change_required.html",
+        {"form": form, "is_required": bool(profile and profile.must_change_password)},
     )
 
 

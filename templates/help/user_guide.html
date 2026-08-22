@@ -9,7 +9,7 @@
   <div>
     <p class="eyebrow">End User 使用說明</p>
     <h1>現在想做什麼？從任務開始找</h1>
-    <p>這裡只說明實際操作，不需要懂系統或資料庫。最後更新：2026/08/17・系統版本 {{ app_version }}</p>
+    <p>這裡只說明實際操作，不需要懂系統或資料庫。最後更新：2026/08/22・系統版本 {{ app_version }}</p>
   </div>
   <div class="hero-actions guide-print-actions">
     <button class="button ghost" type="button" data-print-guide>列印／存成 PDF</button>
@@ -23,7 +23,7 @@
     <span aria-hidden="true">⌕</span>
     <input id="guide-search" type="search" data-guide-search placeholder="例如：身分證、配車、退款、找不到車、Excel 匯入…" autocomplete="off">
   </div>
-  <small data-guide-count>共 20 個操作主題</small>
+  <small data-guide-count>共 21 個操作主題</small>
 </section>
 
 <div class="guide-layout">
@@ -37,6 +37,7 @@
     <a href="#inventory">庫存與進車</a>
     <a href="#operations">營運與淨利</a>
     <a href="#master-data">資料維護</a>
+    <a href="#account-management">帳號與密碼</a>
     <a href="#troubleshooting">看到錯誤怎麼辦</a>
     <a href="#security">個資與安全</a>
   </nav>
@@ -162,6 +163,14 @@
       <div class="guide-example"><strong>正確例子</strong><p>8/15 起同車型成本從 65,000 調為 66,000：新增 8/15 生效版本，不修改 7/1 舊版本。8/14 已領牌訂單仍保留 65,000。</p></div>
     </article>
 
+    <article class="guide-topic" id="account-management" data-guide-topic>
+      <div class="guide-topic-heading"><span>帳</span><div><p class="eyebrow">管理者專用</p><h2>建立帳號、停用人員與重設密碼</h2></div></div>
+      <div class="guide-two-column"><section><h3>建立新同仁帳號</h3><ol><li>從「資料維護區 → 帳號與權限」進入。</li><li>填顯示名稱與登入帳號。</li><li>產生或輸入臨時密碼，保留「首次登入必須變更密碼」。</li><li>建立後立即把臨時密碼交給本人；系統不會再次顯示。</li></ol></section><section><h3>人員異動</h3><ul><li>離職或暫停使用時按「停用」，不要刪除帳號。</li><li>忘記密碼時由管理者重設；完成後舊裝置會被登出。</li><li>管理者權限只給需要管理帳號與系統設定的人員。</li><li>系統會保留誰在何時建立、修改、停用或重設。</li></ul></section></div>
+      <div class="guide-example"><strong>例子</strong><p>新進同仁王小明：建立帳號 <code>wangming</code>，產生臨時密碼並勾選首次登入變更。王小明登入後，系統會先要求設定自己的新密碼，完成才可進入首頁。</p></div>
+      <div class="guide-exception"><strong>管理者離職</strong><p>先確認至少還有另一個「啟用中」的系統管理者，再停用原帳號。系統會禁止停用自己或最後一位管理者，避免全公司都無法管理帳號。</p></div>
+      <div class="guide-tip"><strong>每個人都能自行換密碼</strong><span>電腦版點上方「我的密碼」；手機版點「更多 → 變更密碼」。管理者看不到任何人的既有密碼。</span></div>
+    </article>
+
     <article class="guide-topic" id="operations" data-guide-topic>
       <div class="guide-topic-heading"><span>14</span><div><p class="eyebrow">行政／財務</p><h2>營運資料與單筆淨利</h2></div></div>
       <p><strong>訂單</strong>記錄客人買了什麼；<strong>營運資料</strong>記錄公司最後實際收到、支出及賺了多少。</p>
@@ -217,7 +226,7 @@
     <article class="guide-topic" id="security" data-guide-topic>
       <div class="guide-topic-heading"><span>安全</span><div><p class="eyebrow">每個人都要遵守</p><h2>個資、帳號與敏感資料</h2></div></div>
       <ul class="guide-checklist"><li>每人使用自己的帳號，不共用；變更紀錄才知道是誰操作。</li><li>密碼連續錯誤 5 次會暫停嘗試 15 分鐘；不要一直重按登入。</li><li>公用電腦或手機使用完畢要登出；裝置遺失立即通知管理者。</li><li>OCR 完成仍要人工核對，不把證件照片貼到 LINE 群組當作系統歸檔。</li><li>下載到手機的證件與存摺，送件完成後刪除本機副本。</li><li>車控與電池密碼只填專用欄位，不抄到備註；每次查看都應有正當作業目的。</li><li>發現不認識的操作人、異常變更或不該看到的資料，立即停止操作並回報。</li></ul>
-      <div class="guide-tip"><strong>系統目前的權限</strong><span>僅限內部成員且多數功能權限相同；這不代表可查看或修改與工作無關的個資。</span></div>
+      <div class="guide-tip"><strong>系統目前的權限</strong><span>僅限內部成員且日常營運功能多數相同；帳號與權限管理只開放系統管理者。這不代表可查看或修改與工作無關的個資。</span></div>
     </article>
 
     <article class="guide-topic" id="glossary" data-guide-topic>

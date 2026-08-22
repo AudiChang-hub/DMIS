@@ -87,7 +87,6 @@
             <td data-label="機種" class="vehicle-model-machine-cell">
               <strong>{{ family.name }}</strong>
               {% if family.child_brand_label %}<span class="vehicle-model-brand-badge">{{ family.child_brand_label }}</span>{% endif %}
-              <span>{{ family.active_year_count }} 個年式</span>
             </td>
             {% include "sales/_vehicle_model_year_cells.html" with item=item family=family show_year_action=True group_index=forloop.parentloop.counter family_index=forloop.counter %}
           </tr>

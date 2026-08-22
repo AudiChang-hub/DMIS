@@ -9,7 +9,14 @@
     data-open-year-panel="vehicle-year-panel-{{ group_index }}-{{ family_index }}"
     aria-haspopup="dialog"
   >
-    <span>{{ family.active_year_count }} 個年式</span><span aria-hidden="true">›</span>
+    {% if family.active_year_count > 1 %}
+      <span>{{ family.active_year_count }} 個年式</span>
+    {% elif family.active_count < family.version_count %}
+      <span>查看歷史資料</span>
+    {% else %}
+      <span>查看年式資料</span>
+    {% endif %}
+    <span aria-hidden="true">›</span>
   </button>
   {% if family.display_is_search_match %}<small class="vehicle-model-search-match">符合搜尋</small>{% endif %}
   {% endif %}

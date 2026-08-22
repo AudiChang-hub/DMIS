@@ -1607,6 +1607,22 @@ body.screen-locked { overflow: hidden; }
 .vehicle-model-machine-cell > span:not(.vehicle-model-brand-badge) {
   margin-top: 3px; color: var(--muted); font-size: .72rem;
 }
+.vehicle-model-inventory-link {
+  display: inline-grid; width: fit-content; gap: 2px; color: var(--forest);
+  text-decoration: none;
+}
+.vehicle-model-inventory-link strong { color: var(--ink); }
+.vehicle-model-inventory-link span {
+  color: var(--forest); font-size: .7rem; font-weight: 800;
+}
+.vehicle-model-inventory-link:hover strong,
+.vehicle-model-inventory-link:hover span { text-decoration: underline; }
+.vehicle-model-inventory-link:focus-visible {
+  outline: 3px solid rgba(16, 72, 53, .2); outline-offset: 3px; border-radius: 4px;
+}
+.vehicle-model-inventory-link--compact {
+  display: inline; color: var(--forest); font-weight: 850;
+}
 .vehicle-model-year-trigger {
   display: inline-flex; min-height: 28px; margin-top: 6px; padding: 4px 8px;
   align-items: center; gap: 5px; color: var(--forest); background: #eef6f2;

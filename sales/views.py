@@ -4762,7 +4762,6 @@ def vehicle_model_list(request):
         effective_from__lte=today,
     ).filter(Q(effective_to__isnull=True) | Q(effective_to__gte=today))
     models = VehicleModel.objects.annotate(
-        inventory_count=Count("vehicleinventory", distinct=True),
         available_count=Count(
             "vehicleinventory",
             filter=Q(vehicleinventory__status=VehicleInventory.Status.AVAILABLE),
@@ -4946,9 +4945,6 @@ def vehicle_model_list(request):
             family["code_count"] = len(family["factory_codes"])
             family["available_count"] = sum(
                 model.available_count for model in family["models"]
-            )
-            family["inventory_count"] = sum(
-                model.inventory_count for model in family["models"]
             )
             family["active_color_count"] = sum(
                 model.active_color_count for model in family["models"]

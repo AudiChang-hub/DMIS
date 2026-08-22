@@ -39,7 +39,15 @@
           {% endif %}
           <div><dt>建議售價</dt><dd>{% if year_item.current_suggested_price %}${{ year_item.current_suggested_price|floatformat:0 }}{% else %}尚未設定{% endif %}</dd></div>
           <div><dt>車行基礎傭金</dt><dd>${{ year_item.base_dealer_commission|floatformat:0 }}</dd></div>
-          <div><dt>庫存</dt><dd>{{ year_item.available_count }} 台可售／共 {{ year_item.inventory_count }} 台</dd></div>
+          <div>
+            <dt>庫存</dt>
+            <dd>
+              <a
+                class="vehicle-model-inventory-link vehicle-model-inventory-link--compact"
+                href="{% url 'inventory_list' %}?status=available&amp;vehicle_model={{ year_item.pk }}"
+              >{{ year_item.available_count }} 台可售 · 查看庫存</a>
+            </dd>
+          </div>
         </dl>
         <footer>
           {% if year_item.active %}

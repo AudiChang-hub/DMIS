@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+{% block title %}帳號與權限｜車輛銷售管理{% endblock %}
+{% block page_class %}page-shell--wide{% endblock %}
+{% block content %}
+{% url 'data_maintenance' as data_url %}
+{% include "sales/_page_back.html" with fallback_url=data_url label="返回資料維護區" %}
+
+<section class="hero-row compact-hero account-hero">
+  <div>
+    <p class="eyebrow">僅限系統管理者</p>
+    <h1>帳號與權限</h1>
+    <p class="muted">建立每位內部人員自己的帳號；密碼只可建立或重設，系統不會顯示既有密碼。</p>
+  </div>
+  <a class="button primary" href="{% url 'user_account_create' %}">＋ 建立帳號</a>
+</section>
+
+<section class="account-summary" aria-label="帳號統計">
+  <a href="?status=all"><span>全部帳號</span><strong>{{ counts.all }}</strong></a>
+  <a href="?status=active"><span>使用中</span><strong>{{ counts.active }}</strong></a>
+  <a href="?status=inactive"><span>已停用</span><strong>{{ counts.inactive }}</strong></a>
+  <a href="?status=admins"><span>管理者</span><strong>{{ counts.admins }}</strong></a>
+</section>
+
+<form class="account-filter card" method="get">
+  <div>
+    <label for="account-search">搜尋姓名或帳號</label>
+    <input class="form-control" id="account-search" name="q" value="{{ query }}" placeholder="例如 Sylvia、sylvia">
+  </div>
+  <div>
+    <label for="account-status">帳號狀態</label>
+    <select class="form-control" id="account-status" name="status">
+      <option value="all"{% if status == 'all' %} selected{% endif %}>全部帳號</option>
+      <option value="active"{% if status == 'active' %} selected{% endif %}>使用中</option>
+      <option value="inactive"{% if status == 'inactive' %} selected{% endif %}>已停用</option>
+      <option value="admins"{% if status == 'admins' %} selected{% endif %}>系統管理者</option>
+      <option value="never_login"{% if status == 'never_login' %} selected{% endif %}>尚未登入</option>
+    </select>
+  </div>
+  <div class="account-filter__actions">
+    <a class="button ghost" href="{% url 'user_management' %}">清除</a>
+    <button class="button primary" type="submit">套用</button>
+  </div>
+</form>
+
+<section class="account-panel">
+  <header class="account-panel__header">
+    <div><p class="eyebrow">內部使用者</p><h2>帳號清單</h2></div>
+    <span>{{ accounts|length }} 筆結果</span>
+  </header>
+  <div class="account-list">
+    {% for account in accounts %}
+      <article class="account-row{% if not account.is_active %} is-inactive{% endif %}">
+        <div class="account-avatar" aria-hidden="true">{{ account.first_name|default:account.username|slice:":1"|upper }}</div>
+        <div class="account-identity">
+          <div><h3>{{ account.get_full_name|default:account.username }}</h3>{% if account.pk == user.pk %}<span class="status-pill neutral">目前帳號</span>{% endif %}</div>
+          <p>@{{ account.username }}</p>
+        </div>
+        <div class="account-state">
+          {% if account.is_active %}<span class="status-pill success">使用中</span>{% else %}<span class="status-pill neutral">已停用</span>{% endif %}
+          {% if account.is_superuser %}<span class="status-pill warning">系統管理者</span>{% else %}<span class="status-pill neutral">一般人員</span>{% endif %}
+          {% if account.must_change_password %}<span class="status-pill info">待變更密碼</span>{% endif %}
+        </div>
+        <div class="account-login">
+          <span>最近登入</span>
+          <strong>{% if account.last_login %}{{ account.last_login|date:"Y/m/d H:i" }}{% else %}尚未登入{% endif %}</strong>
+        </div>
+        <div class="account-actions">
+          <a class="button ghost small" href="{% url 'user_account_edit' account.pk %}">編輯</a>
+          {% if account.pk != user.pk %}<a class="button ghost small" href="{% url 'user_account_reset_password' account.pk %}">重設密碼</a>{% endif %}
+          {% if account.pk != user.pk %}
+          <form method="post" action="{% url 'user_account_status' account.pk %}">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="{% if account.is_active %}deactivate{% else %}activate{% endif %}">
+            <button class="button small {% if account.is_active %}danger-outline{% else %}secondary{% endif %}" type="submit">{% if account.is_active %}停用{% else %}重新啟用{% endif %}</button>
+          </form>
+          {% endif %}
+        </div>
+      </article>
+    {% empty %}
+      <div class="empty-state"><strong>找不到符合的帳號</strong><p>請清除篩選或改用其他姓名、帳號搜尋。</p></div>
+    {% endfor %}
+  </div>
+</section>
+
+<details class="account-audit card">
+  <summary><span><small>最近 20 筆</small><strong>帳號異動紀錄</strong></span><span aria-hidden="true">⌄</span></summary>
+  <div class="account-audit__list">
+    {% for log in audit_logs %}
+      <div><span class="account-audit__dot" aria-hidden="true"></span><p><strong>{{ log.description }}</strong><small>{{ log.created_at|date:"Y/m/d H:i" }} · {% if log.actor %}{{ log.actor.get_full_name|default:log.actor.username }}{% else %}系統{% endif %}</small></p></div>
+    {% empty %}<p class="muted">目前尚無帳號異動紀錄。</p>{% endfor %}
+  </div>
+</details>
+{% endblock %}

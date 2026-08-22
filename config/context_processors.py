@@ -53,6 +53,11 @@ HELP_TOPIC_BY_ROUTE = {
     "incentive_rule_list": "master-data",
     "incentive_rule_create": "master-data",
     "incentive_rule_edit": "master-data",
+    "user_management": "account-management",
+    "user_account_create": "account-management",
+    "user_account_edit": "account-management",
+    "user_account_reset_password": "account-management",
+    "password_change_required": "account-management",
 }
 
 
@@ -96,6 +101,10 @@ DATA_MAINTENANCE_ROUTES = {
     "positioned_template_edit",
     "positioned_template_preview",
     "positioned_template_order_print",
+    "user_management",
+    "user_account_create",
+    "user_account_edit",
+    "user_account_reset_password",
 }
 
 

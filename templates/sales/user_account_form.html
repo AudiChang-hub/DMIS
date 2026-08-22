@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}{% if mode == 'create' %}建立帳號{% else %}編輯帳號{% endif %}｜車輛銷售管理{% endblock %}
+{% block page_class %}page-shell--form{% endblock %}
+{% block content %}
+{% url 'user_management' as account_url %}
+{% include "sales/_page_back.html" with fallback_url=account_url label="返回帳號與權限" %}
+<section class="hero-row compact-hero">
+  <div><p class="eyebrow">系統管理</p><h1>{% if mode == 'create' %}建立內部帳號{% else %}編輯 {{ account.get_full_name|default:account.username }}{% endif %}</h1><p class="muted">每位人員使用自己的帳號，才能正確保留訂單與資料的操作人紀錄。</p></div>
+</section>
+<form method="post" class="account-form card" data-password-generator>
+  {% csrf_token %}
+  {% if form.non_field_errors %}<div class="message error" role="alert">{{ form.non_field_errors }}</div>{% endif %}
+  <div class="account-form__section">
+    <div><p class="eyebrow">基本資料</p><h2>登入識別</h2></div>
+    <div class="form-grid account-form__grid">
+      <div class="{% if form.display_name.errors %}has-error{% endif %}"><label for="{{ form.display_name.id_for_label }}">{{ form.display_name.label }}</label>{{ form.display_name }}{% for error in form.display_name.errors %}<p class="field-error">{{ error }}</p>{% endfor %}<small>畫面會顯示這個名稱，方便辨識是誰修改資料。</small></div>
+      <div class="{% if form.username.errors %}has-error{% endif %}"><label for="{{ form.username.id_for_label }}">{{ form.username.label }}</label>{{ form.username }}{% for error in form.username.errors %}<p class="field-error">{{ error }}</p>{% endfor %}<small>建議使用容易辨識的英文帳號，不分大小寫檢查重複。</small></div>
+    </div>
+  </div>
+  {% if mode == 'create' %}
+  <div class="account-form__section">
+    <div class="account-form__heading"><div><p class="eyebrow">只顯示這一次</p><h2>設定臨時密碼</h2></div><button class="button secondary small" type="button" data-generate-password>產生安全密碼</button></div>
+    <div class="form-grid account-form__grid">
+      <div class="{% if form.password1.errors %}has-error{% endif %}"><label for="{{ form.password1.id_for_label }}">{{ form.password1.label }}</label>{{ form.password1 }}{% for error in form.password1.errors %}<p class="field-error">{{ error }}</p>{% endfor %}</div>
+      <div class="{% if form.password2.errors %}has-error{% endif %}"><label for="{{ form.password2.id_for_label }}">{{ form.password2.label }}</label>{{ form.password2 }}{% for error in form.password2.errors %}<p class="field-error">{{ error }}</p>{% endfor %}</div>
+    </div>
+    <div class="password-tools" hidden data-password-tools><code data-generated-password></code><button class="button ghost small" type="button" data-copy-password>複製密碼</button></div>
+    <p class="form-guidance">密碼至少 10 個字元，不能太常見或只由數字組成。儲存後系統不會再顯示這組密碼。</p>
+  </div>
+  {% endif %}
+  <div class="account-form__section">
+    <div><p class="eyebrow">權限與狀態</p><h2>使用範圍</h2></div>
+    <div class="account-choice-grid">
+      <label>{{ form.is_active }}<span><strong>{{ form.is_active.label }}</strong><small>停用後無法登入，但歷史操作紀錄仍會保留。</small></span></label>
+      <label>{{ form.is_superuser }}<span><strong>{{ form.is_superuser.label }}</strong><small>可建立帳號、重設密碼及管理全部系統設定。</small></span></label>
+      {% if mode == 'create' %}<label>{{ form.must_change_password }}<span><strong>{{ form.must_change_password.label }}</strong><small>第一次登入時，必須先設定只有本人知道的新密碼。</small></span></label>{% endif %}
+    </div>
+    {% if form.is_active.errors %}{% for error in form.is_active.errors %}<p class="field-error">{{ error }}</p>{% endfor %}{% endif %}
+    {% if form.is_superuser.errors %}{% for error in form.is_superuser.errors %}<p class="field-error">{{ error }}</p>{% endfor %}{% endif %}
+  </div>
+  <footer class="account-form__footer"><a class="button ghost" href="{% url 'user_management' %}">取消</a><button class="button primary" type="submit">{% if mode == 'create' %}建立帳號{% else %}儲存帳號設定{% endif %}</button></footer>
+</form>
+{% endblock %}
+{% block scripts %}{% if mode == 'create' %}<script src="{% static 'js/user-management.js' %}?v={{ app_version }}" defer></script>{% endif %}{% endblock %}

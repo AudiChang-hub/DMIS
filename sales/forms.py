@@ -1,6 +1,9 @@
 from decimal import Decimal
 import re
 from django import forms
+from django.contrib.auth import get_user_model, password_validation
+from django.contrib.auth.forms import PasswordChangeForm
+from django.contrib.auth.validators import UnicodeUsernameValidator
 from django.core.exceptions import ValidationError
 from django.core.validators import validate_email
 from django.db import transaction
@@ -3317,3 +3320,144 @@ SubsidyItemFormSet = inlineformset_factory(
     extra=1,
     can_delete=True,
 )
+
+
+class _UsernameValidationMixin:
+    def clean_username(self):
+        username = self.cleaned_data["username"].strip()
+        queryset = get_user_model().objects.filter(username__iexact=username)
+        instance = getattr(self, "instance", None)
+        if instance and instance.pk:
+            queryset = queryset.exclude(pk=instance.pk)
+        if queryset.exists():
+            raise ValidationError("這個登入帳號已有人使用，請換一個帳號。")
+        return username
+
+
+class AdminUserCreateForm(_UsernameValidationMixin, forms.Form):
+    display_name = forms.CharField(label="顯示名稱", max_length=150)
+    username = forms.CharField(
+        label="登入帳號",
+        max_length=150,
+        validators=[UnicodeUsernameValidator()],
+        error_messages={"invalid": "登入帳號只能使用英文字母、數字及 @、.、+、-、_。"},
+    )
+    password1 = forms.CharField(
+        label="臨時密碼",
+        strip=False,
+        widget=forms.PasswordInput(attrs={"autocomplete": "new-password"}),
+    )
+    password2 = forms.CharField(
+        label="再次輸入臨時密碼",
+        strip=False,
+        widget=forms.PasswordInput(attrs={"autocomplete": "new-password"}),
+    )
+    is_superuser = forms.BooleanField(label="系統管理者", required=False)
+    is_active = forms.BooleanField(label="建立後立即啟用", required=False, initial=True)
+    must_change_password = forms.BooleanField(
+        label="首次登入必須變更密碼",
+        required=False,
+        initial=True,
+    )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        for field in self.fields.values():
+            field.widget.attrs.setdefault("class", "form-control")
+        for field_name in ("is_superuser", "is_active", "must_change_password"):
+            self.fields[field_name].widget.attrs["class"] = "form-check"
+
+    def clean(self):
+        cleaned = super().clean()
+        password1 = cleaned.get("password1")
+        password2 = cleaned.get("password2")
+        if password1 and password2 and password1 != password2:
+            self.add_error("password2", "兩次輸入的密碼不一致。")
+        if password1:
+            candidate = get_user_model()(
+                username=cleaned.get("username", ""),
+                first_name=cleaned.get("display_name", ""),
+            )
+            try:
+                password_validation.validate_password(password1, candidate)
+            except ValidationError as exc:
+                self.add_error("password1", exc)
+        return cleaned
+
+
+class AdminUserEditForm(_UsernameValidationMixin, forms.Form):
+    display_name = forms.CharField(label="顯示名稱", max_length=150)
+    username = forms.CharField(
+        label="登入帳號",
+        max_length=150,
+        validators=[UnicodeUsernameValidator()],
+        error_messages={"invalid": "登入帳號只能使用英文字母、數字及 @、.、+、-、_。"},
+    )
+    is_superuser = forms.BooleanField(label="系統管理者", required=False)
+    is_active = forms.BooleanField(label="帳號啟用中", required=False)
+
+    def __init__(self, *args, instance, **kwargs):
+        self.instance = instance
+        initial = kwargs.setdefault("initial", {})
+        initial.update(
+            {
+                "display_name": instance.get_full_name() or instance.first_name,
+                "username": instance.get_username(),
+                "is_superuser": instance.is_superuser,
+                "is_active": instance.is_active,
+            }
+        )
+        super().__init__(*args, **kwargs)
+        for field in self.fields.values():
+            field.widget.attrs.setdefault("class", "form-control")
+        for field_name in ("is_superuser", "is_active"):
+            self.fields[field_name].widget.attrs["class"] = "form-check"
+
+
+class AdminPasswordResetForm(forms.Form):
+    password1 = forms.CharField(
+        label="新臨時密碼",
+        strip=False,
+        widget=forms.PasswordInput(attrs={"class": "form-control", "autocomplete": "new-password"}),
+    )
+    password2 = forms.CharField(
+        label="再次輸入新臨時密碼",
+        strip=False,
+        widget=forms.PasswordInput(attrs={"class": "form-control", "autocomplete": "new-password"}),
+    )
+    must_change_password = forms.BooleanField(
+        label="下次登入必須變更密碼",
+        required=False,
+        initial=True,
+        widget=forms.CheckboxInput(attrs={"class": "form-check"}),
+    )
+
+    def __init__(self, *args, user, **kwargs):
+        self.user = user
+        super().__init__(*args, **kwargs)
+
+    def clean(self):
+        cleaned = super().clean()
+        password1 = cleaned.get("password1")
+        password2 = cleaned.get("password2")
+        if password1 and password2 and password1 != password2:
+            self.add_error("password2", "兩次輸入的密碼不一致。")
+        if password1:
+            try:
+                password_validation.validate_password(password1, self.user)
+            except ValidationError as exc:
+                self.add_error("password1", exc)
+        return cleaned
+
+
+class RequiredPasswordChangeForm(PasswordChangeForm):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["old_password"].label = "目前密碼"
+        self.fields["new_password1"].label = "新密碼"
+        self.fields["new_password2"].label = "再次輸入新密碼"
+        for field in self.fields.values():
+            field.widget.attrs.update(
+                {"class": "form-control", "autocomplete": "new-password"}
+            )
+        self.fields["old_password"].widget.attrs["autocomplete"] = "current-password"

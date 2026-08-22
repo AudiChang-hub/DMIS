@@ -54,6 +54,21 @@ class UserManagementTests(TestCase):
         self.assertContains(guide, 'id="account-management"')
         self.assertContains(guide, "管理者看不到任何人的既有密碼")
 
+    def test_password_reset_uses_padded_sections_for_long_account_name(self):
+        self.user.first_name = "這是一個需要在窄螢幕完整顯示的很長使用者名稱"
+        self.user.save(update_fields=["first_name"])
+        self.client.force_login(self.admin)
+
+        response = self.client.get(
+            reverse("user_account_reset_password", args=[self.user.pk])
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, self.user.first_name)
+        self.assertContains(response, 'class="account-form__section"', count=2)
+        self.assertContains(response, "登入保護")
+        self.assertContains(response, "確認重設密碼")
+
     def test_admin_can_create_account_with_hashed_temporary_password(self):
         self.client.force_login(self.admin)
         password = "TempPass!67890"

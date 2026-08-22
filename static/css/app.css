@@ -2388,8 +2388,11 @@ body.screen-locked { overflow: hidden; }
 .account-form__section { padding: 23px 25px; border-bottom: 1px solid var(--line-soft); }
 .account-form__section h2, .account-form__heading h2 { margin: 1px 0 0; font-size: 1.2rem; }
 .account-form__grid { padding: 17px 0 0; }
+.account-form__grid > div { min-width: 0; }
+.account-form__grid input, .account-form__grid select, .account-form__grid textarea { width: 100%; max-width: 100%; }
 .account-form__grid small { display: block; margin-top: 6px; color: var(--muted); line-height: 1.45; }
 .account-form__heading { display: flex; align-items: center; justify-content: space-between; gap: 14px; }
+.account-form__heading > div { min-width: 0; }
 .account-choice-grid { display: grid; margin-top: 17px; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
 .account-choice-grid label, .account-checkbox {
   display: flex; min-height: 94px; margin: 0; padding: 16px; align-items: flex-start; gap: 12px;
@@ -2407,6 +2410,9 @@ body.screen-locked { overflow: hidden; }
 .password-tools code { overflow-wrap: anywhere; color: var(--forest); font-size: 1rem; font-weight: 900; }
 .form-guidance { margin: 0 25px 22px; color: var(--muted); font-size: .84rem; }
 .account-checkbox { margin: 20px 25px; }
+.account-form__section > .password-tools { margin: 17px 0 0; }
+.account-form__section > .form-guidance { margin: 14px 0 0; }
+.account-form__section > .account-checkbox { margin: 17px 0 0; }
 .password-change-shell { max-width: 610px; margin: 3vh auto 0; }
 .password-change-shell > header { margin-bottom: 20px; text-align: center; }
 .password-change-shell > header h1 { margin: 7px 0; }
@@ -2415,6 +2421,19 @@ body.screen-locked { overflow: hidden; }
 .password-change-shell .account-form { display: grid; padding: 24px; gap: 17px; }
 .password-help { margin-top: 6px; color: var(--muted); font-size: .78rem; line-height: 1.45; }
 .password-help ul { margin: 6px 0 0; padding-left: 20px; }
+
+@media (max-width: 640px) {
+  .account-form__section { padding: 19px 17px; }
+  .account-form__heading { align-items: stretch; flex-direction: column; }
+  .account-form__heading .button { width: 100%; }
+  .form-grid.account-form__grid { padding: 15px 0 0; gap: 15px; }
+  .password-tools { align-items: stretch; flex-direction: column; }
+  .password-tools .button { width: 100%; }
+  .account-form__footer { padding: 15px 17px; align-items: stretch; flex-direction: column-reverse; }
+  .account-form__footer .button { width: 100%; }
+  .password-change-shell { margin-top: 0; }
+  .password-change-shell .account-form { padding: 19px 17px; }
+}
 
 @media (max-width: 860px) {
   .registration-rule-card__body { grid-template-columns: 1fr 1fr; }

@@ -1233,6 +1233,41 @@ class OrderFlowTests(TestCase):
         self.assertNotContains(response, '<th>獎勵補助</th>', html=True)
         self.assertContains(response, f'href="{reverse("vehicle_model_edit", args=[electric_model.pk])}"')
 
+    def test_vehicle_model_list_links_only_to_available_inventory(self):
+        VehicleInventory.objects.create(
+            vehicle_model=self.model,
+            color=self.color,
+            engine_number="ENG-SOLD-001",
+            ownership_store=self.store_a,
+            location_store=self.store_a,
+            status=VehicleInventory.Status.SOLD,
+        )
+        self.client.force_login(self.user)
+
+        response = self.client.get(reverse("vehicle_model_list"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "1 台可售")
+        self.assertContains(response, "查看庫存")
+        self.assertContains(
+            response,
+            (
+                f'href="{reverse("inventory_list")}?status=available&amp;'
+                f'vehicle_model={self.model.pk}"'
+            ),
+            html=False,
+        )
+        self.assertNotContains(response, "共 2 台")
+
+        inventory_response = self.client.get(
+            reverse("inventory_list"),
+            {
+                "status": VehicleInventory.Status.AVAILABLE,
+                "vehicle_model": self.model.pk,
+            },
+        )
+        self.assertEqual(list(inventory_response.context["vehicles"]), [self.vehicle])
+
     def test_vehicle_model_list_places_fully_inactive_machines_last(self):
         inactive_model = VehicleModel.objects.create(
             brand="SUZUKI",

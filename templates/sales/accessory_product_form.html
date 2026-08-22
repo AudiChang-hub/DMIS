@@ -3,7 +3,8 @@
 {% block page_class %}page-shell--form{% endblock %}
 {% block content %}
 {% url 'accessory_product_list' as list_url %}
-{% include "sales/_page_back.html" with fallback_url=list_url label="返回配件資料" %}
+{% url 'data_maintenance' as data_url %}
+{% include "sales/_page_back.html" with fallback_url=list_url label="配件資料" root_url=data_url root_label="資料維護區" %}
 <section class="hero-row compact-hero">
   <div><p class="eyebrow">配件主檔</p><h1>{% if editing_product %}編輯配件{% else %}新增配件{% endif %}</h1><p class="muted">售價與工資會在加入訂單時保存快照；參考成本不會顯示在客戶訂單。</p></div>
 </section>

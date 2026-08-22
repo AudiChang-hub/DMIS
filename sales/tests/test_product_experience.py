@@ -73,6 +73,9 @@ class ProductExperienceTests(TestCase):
             css,
         )
         self.assertIn('event.key === "Escape"', navigation)
+        self.assertIn('window.history.scrollRestoration = "auto"', navigation)
+        self.assertIn("parseSameOriginUrl", navigation)
+        self.assertIn("data-current-page-label", navigation)
 
     def test_maintenance_help_stays_on_master_data_topic(self):
         self.client.force_login(self.user)
@@ -113,7 +116,9 @@ class ProductExperienceTests(TestCase):
                 self.assertEqual(response.status_code, 200)
                 self.assertContains(response, 'class="page-context-nav"')
                 self.assertContains(response, f'href="{reverse(parent_name)}"')
-                self.assertNotContains(response, "data-smart-back")
+                self.assertContains(response, "data-smart-back")
+                self.assertContains(response, "回到上一畫面")
+                self.assertContains(response, 'class="page-breadcrumbs"')
 
     def test_every_response_has_non_sensitive_request_id(self):
         self.client.force_login(self.user)

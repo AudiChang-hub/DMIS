@@ -35,6 +35,111 @@
   --desktop-gutter: 40px;
 }
 
+/* 帳號外觀主題：只覆寫語意色彩，功能頁與列印版型不必各自維護。 */
+html[data-theme="deep-blue"] {
+  --ink: #18283b;
+  --muted: #52657b;
+  --paper: #f2f5f9;
+  --surface-soft: #f4f7fa;
+  --surface-subtle: #fafbfd;
+  --surface-tint: #eaf1f7;
+  --line: #c6d1dc;
+  --line-soft: #e0e7ee;
+  --navy: #162c4a;
+  --navy-2: #0e2038;
+  --forest: #245b86;
+  --forest-2: #194568;
+  --green: #287053;
+  --mint: #e2edf6;
+  --blue: #245b86;
+  --blue-soft: #e3edf7;
+  --gold: #c58f2e;
+  --gold-soft: #f5e5bd;
+  --header-text: #edf3f8;
+  --header-muted: #bdcad7;
+  --focus-ring: #d9a43a;
+  --shadow: 0 12px 34px rgba(22, 44, 74, .1);
+}
+
+html[data-theme="graphite-gold"] {
+  --ink: #27292d;
+  --muted: #5c6067;
+  --paper: #f4f3ef;
+  --surface-soft: #f6f5f1;
+  --surface-subtle: #fbfaf7;
+  --surface-tint: #f1ece0;
+  --line: #d1cdc2;
+  --line-soft: #e7e3da;
+  --navy: #2b2e33;
+  --navy-2: #1e2024;
+  --forest: #72520a;
+  --forest-2: #543c07;
+  --green: #35674d;
+  --mint: #f1e8d2;
+  --blue: #405f86;
+  --blue-soft: #e8edf3;
+  --gold: #a87612;
+  --gold-soft: #f1dfb3;
+  --header-text: #f5f3ed;
+  --header-muted: #cbc8be;
+  --focus-ring: #c28b1c;
+  --shadow: 0 12px 34px rgba(43, 46, 51, .1);
+}
+
+html[data-theme="bright-indigo"] {
+  --ink: #20243a;
+  --muted: #565e78;
+  --paper: #f4f5fb;
+  --surface-soft: #f6f7fc;
+  --surface-subtle: #fbfbfe;
+  --surface-tint: #edeffa;
+  --line: #cbd0df;
+  --line-soft: #e3e6ef;
+  --navy: #252a57;
+  --navy-2: #191d43;
+  --forest: #3b4e9a;
+  --forest-2: #2c3c7b;
+  --green: #287154;
+  --mint: #e7eafb;
+  --blue: #3b4e9a;
+  --blue-soft: #e6eafb;
+  --gold: #bc8426;
+  --gold-soft: #f3e2bc;
+  --header-text: #f1f2fb;
+  --header-muted: #c5c9e0;
+  --focus-ring: #d09a35;
+  --shadow: 0 12px 34px rgba(37, 42, 87, .11);
+}
+
+html[data-theme="high-contrast"] {
+  --ink: #101820;
+  --muted: #38474d;
+  --paper: #ffffff;
+  --surface-soft: #f1f4f5;
+  --surface-subtle: #ffffff;
+  --surface-tint: #e4f2ee;
+  --line: #7b8a91;
+  --line-soft: #bbc4c8;
+  --navy: #0b1f2a;
+  --navy-2: #06151d;
+  --forest: #005544;
+  --forest-2: #003f33;
+  --green: #12613f;
+  --mint: #d8f3ea;
+  --blue: #004a96;
+  --blue-soft: #dceafb;
+  --amber: #744800;
+  --amber-soft: #ffedc7;
+  --red: #971f1f;
+  --red-soft: #f9dfdf;
+  --gold: #f0bd35;
+  --gold-soft: #ffe8a3;
+  --header-text: #ffffff;
+  --header-muted: #d6e0e4;
+  --focus-ring: #ffb300;
+  --shadow: 0 8px 22px rgba(11, 31, 42, .16);
+}
+
 /* 品牌主檔 LOGO 裁切與全站尺寸預覽 */
 .brand-logo-editor {
   display: grid; overflow: hidden; gap: 0; margin-bottom: 18px;
@@ -142,7 +247,7 @@ h2 { margin-bottom: 0; font-size: 1.15rem; }
   min-height: 72px;
   padding: 0 var(--desktop-gutter);
   color: #fff;
-  background: rgba(24, 50, 59, .98);
+  background: var(--navy);
   backdrop-filter: blur(16px);
 }
 .app-header-inner {
@@ -202,6 +307,84 @@ h2 { margin-bottom: 0; font-size: 1.15rem; }
 .data-menu-tools .data-menu-all:hover, .data-menu-tools .data-menu-all:focus-visible { background: var(--forest-2); }
 .logout-form { margin-left: 8px; }
 .link-button { padding: 10px; color: var(--header-text); background: none; border: 0; cursor: pointer; }
+.theme-toggle-button {
+  display: inline-flex; min-height: 42px; margin-left: 8px; padding: 0 10px;
+  align-items: center; gap: 7px; flex: 0 0 auto; color: var(--header-text);
+  background: transparent; border: 0; border-radius: 9px; font-size: .82rem;
+  font-weight: 700; cursor: pointer;
+}
+.theme-toggle-button:hover { color: #fff; background: rgba(255,255,255,.08); }
+.theme-toggle-icon {
+  display: grid; width: 22px; height: 22px; place-items: center;
+  border: 1px solid currentColor; border-radius: 50%; font-size: .9rem;
+}
+.theme-dialog {
+  width: min(760px, calc(100vw - 32px)); max-height: min(88dvh, 820px); padding: 0;
+  color: var(--ink); background: var(--surface); border: 1px solid var(--line);
+  border-radius: 20px; box-shadow: 0 24px 70px rgba(11, 31, 42, .28);
+}
+.theme-dialog::backdrop { background: rgba(11, 31, 42, .58); backdrop-filter: blur(3px); }
+.theme-dialog > form { display: grid; max-height: inherit; grid-template-rows: auto minmax(0, 1fr) auto; }
+.theme-dialog__header {
+  display: flex; padding: 24px 26px 20px; align-items: flex-start;
+  justify-content: space-between; gap: 20px; border-bottom: 1px solid var(--line-soft);
+}
+.theme-dialog__header h2 { margin-bottom: 7px; font-size: 1.35rem; }
+.theme-dialog__header p { margin: 0; color: var(--muted); font-size: .9rem; }
+.theme-dialog__close {
+  display: grid; width: 42px; height: 42px; padding: 0; place-items: center; flex: 0 0 auto;
+  color: var(--muted); background: var(--surface-soft); border: 1px solid var(--line);
+  border-radius: 12px; font-size: 1.45rem; cursor: pointer;
+}
+.theme-option-grid { display: grid; padding: 22px 26px; overflow-y: auto; grid-template-columns: 1fr 1fr; gap: 12px; }
+.theme-option {
+  position: relative; display: grid; min-width: 0; padding: 15px;
+  grid-template-columns: 74px minmax(0, 1fr) 25px; align-items: center; gap: 13px;
+  background: var(--surface-subtle); border: 2px solid var(--line-soft);
+  border-radius: 15px; cursor: pointer;
+}
+.theme-option:hover { border-color: var(--line); background: var(--surface-soft); }
+.theme-option.is-selected { border-color: var(--forest); background: var(--surface-tint); }
+.theme-option > input { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+.theme-option:focus-within { outline: 3px solid var(--focus-ring); outline-offset: 2px; }
+.theme-option__preview {
+  display: grid; overflow: hidden; height: 54px; grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: 18px 1fr; border: 1px solid rgba(16, 24, 32, .2); border-radius: 10px;
+}
+.theme-option__preview i { display: block; }
+.theme-option__preview i:first-child { grid-column: 1 / -1; }
+.theme-option__preview--professional i:nth-child(1) { background: #18323b; }
+.theme-option__preview--professional i:nth-child(2) { background: #0e5d57; }
+.theme-option__preview--professional i:nth-child(3) { background: #e1f0ec; }
+.theme-option__preview--professional i:nth-child(4) { background: #c99735; }
+.theme-option__preview--deep-blue i:nth-child(1) { background: #162c4a; }
+.theme-option__preview--deep-blue i:nth-child(2) { background: #245b86; }
+.theme-option__preview--deep-blue i:nth-child(3) { background: #e2edf6; }
+.theme-option__preview--deep-blue i:nth-child(4) { background: #c58f2e; }
+.theme-option__preview--graphite-gold i:nth-child(1) { background: #2b2e33; }
+.theme-option__preview--graphite-gold i:nth-child(2) { background: #72520a; }
+.theme-option__preview--graphite-gold i:nth-child(3) { background: #f1e8d2; }
+.theme-option__preview--graphite-gold i:nth-child(4) { background: #a87612; }
+.theme-option__preview--bright-indigo i:nth-child(1) { background: #252a57; }
+.theme-option__preview--bright-indigo i:nth-child(2) { background: #3b4e9a; }
+.theme-option__preview--bright-indigo i:nth-child(3) { background: #e7eafb; }
+.theme-option__preview--bright-indigo i:nth-child(4) { background: #bc8426; }
+.theme-option__preview--high-contrast i:nth-child(1) { background: #0b1f2a; }
+.theme-option__preview--high-contrast i:nth-child(2) { background: #005544; }
+.theme-option__preview--high-contrast i:nth-child(3) { background: #d8f3ea; }
+.theme-option__preview--high-contrast i:nth-child(4) { background: #f0bd35; }
+.theme-option__copy strong, .theme-option__copy small { display: block; }
+.theme-option__copy small { margin-top: 4px; color: var(--muted); font-size: .76rem; line-height: 1.35; }
+.theme-option__check {
+  display: grid; width: 24px; height: 24px; place-items: center; color: transparent;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 50%; font-weight: 900;
+}
+.theme-option.is-selected .theme-option__check { color: #fff; background: var(--forest); border-color: var(--forest); }
+.theme-dialog__footer {
+  display: flex; padding: 18px 26px; align-items: center; justify-content: space-between;
+  gap: 12px; background: var(--surface-soft); border-top: 1px solid var(--line-soft);
+}
+.theme-dialog__footer > div { display: flex; gap: 9px; }
 .mobile-nav { display: none; }
 .page-shell {
   width: calc(100% - (var(--desktop-gutter) * 2)); max-width: var(--shell-standard);
@@ -2156,8 +2339,13 @@ body.screen-locked { overflow: hidden; }
   .app-header { min-height: 62px; padding: 0 16px; }
   .app-header-inner { min-height: 62px; }
   .brand small { display: none; }
-  .update-check-button {
+  .theme-toggle-button {
     width: 40px; height: 40px; min-height: 40px; margin-left: auto; padding: 0;
+    justify-content: center; border-radius: 50%;
+  }
+  .theme-toggle-button > strong { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  .update-check-button {
+    width: 40px; height: 40px; min-height: 40px; margin-left: 4px; padding: 0;
     justify-content: center; color: var(--header-text); border-radius: 50%;
   }
   .update-check-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
@@ -2187,7 +2375,7 @@ body.screen-locked { overflow: hidden; }
   .mobile-data-popover__header > a { color: var(--blue); font-size: .78rem; font-weight: 800; }
   .mobile-data-popover__grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
   .mobile-data-popover__grid a, .mobile-data-popover__footer a, .mobile-data-popover__footer button { display: grid; width: 100%; min-height: 76px; padding: 9px; place-items: center; align-content: center; gap: 4px; color: var(--forest); background: #f6f9f7; border: 0; border-radius: 12px; font: inherit; font-size: .73rem; cursor: pointer; }
-  .mobile-data-popover__footer { display: grid; margin-top: 10px; padding-top: 10px; grid-template-columns: 1fr 1fr; gap: 8px; border-top: 1px solid var(--line); }
+  .mobile-data-popover__footer { display: grid; margin-top: 10px; padding-top: 10px; grid-template-columns: repeat(3, 1fr); gap: 8px; border-top: 1px solid var(--line); }
   .mobile-data-popover form { margin: 0; }
   .mobile-data-popover__grid a span, .mobile-data-popover__footer a span, .mobile-data-popover__footer button span { display: grid; width: 32px; height: 32px; place-items: center; color: #fff; background: var(--forest); border-radius: 10px; }
   .metric-grid { grid-template-columns: 1fr 1fr; }
@@ -2209,6 +2397,17 @@ body.screen-locked { overflow: hidden; }
 }
 
 @media (max-width: 600px) {
+  .theme-dialog { width: calc(100vw - 20px); max-height: calc(100dvh - 20px); border-radius: 17px; }
+  .theme-dialog__header { padding: 19px 17px 16px; }
+  .theme-dialog__header h2 { font-size: 1.18rem; }
+  .theme-dialog__header p { font-size: .82rem; }
+  .theme-dialog__close { width: 38px; height: 38px; }
+  .theme-option-grid { padding: 15px 16px; grid-template-columns: 1fr; gap: 9px; }
+  .theme-option { min-height: 82px; padding: 12px; grid-template-columns: 68px minmax(0, 1fr) 24px; }
+  .theme-dialog__footer { padding: 13px 16px; align-items: stretch; flex-direction: column-reverse; }
+  .theme-dialog__footer > .button, .theme-dialog__footer > div { width: 100%; }
+  .theme-dialog__footer > div { display: grid; grid-template-columns: .8fr 1.2fr; }
+  .theme-dialog__footer .button { width: 100%; min-height: 44px; }
   .registration-rule-list { padding: 12px; gap: 12px; }
   .registration-rule-panel__heading { min-height: 64px; padding: 10px 14px; }
   .registration-rule-card__header { min-height: 76px; padding: 14px; align-items: flex-start; }
@@ -2945,7 +3144,24 @@ body.screen-locked { overflow: hidden; }
 }
 
 @media print {
-  .app-header, .mobile-nav { display: none !important; }
+  html[data-theme] {
+    --ink: #17252b;
+    --muted: #526168;
+    --paper: #f3f5f6;
+    --surface: #ffffff;
+    --surface-soft: #f5f7f8;
+    --surface-subtle: #fafbfb;
+    --surface-tint: #edf4f3;
+    --line: #c9d2d5;
+    --line-soft: #e2e7e9;
+    --navy: #18323b;
+    --forest: #0e5d57;
+    --forest-2: #0a4945;
+    --mint: #e1f0ec;
+    --gold: #c99735;
+    --gold-soft: #f4e3b9;
+  }
+  .app-header, .mobile-nav, .theme-dialog { display: none !important; }
 }
 
 /* 032：全站情境說明、連線狀態與 End User 幫助中心 */

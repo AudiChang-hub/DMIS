@@ -9,6 +9,7 @@ from django.urls import reverse
 
 from config.middleware import RequestIdMiddleware
 from sales import views
+from sales.models import UserAppearancePreference
 
 
 class ProductExperienceTests(TestCase):
@@ -119,6 +120,115 @@ class ProductExperienceTests(TestCase):
         ):
             with self.subTest(foreground=foreground, background=background):
                 self.assertGreaterEqual(contrast_ratio(foreground, background), 4.5)
+
+        theme_contrast_pairs = {
+            "professional": (
+                ("#17252b", "#f3f5f6"),
+                ("#526168", "#ffffff"),
+                ("#ffffff", "#0e5d57"),
+                ("#ffffff", "#18323b"),
+            ),
+            "deep-blue": (
+                ("#18283b", "#f2f5f9"),
+                ("#52657b", "#ffffff"),
+                ("#ffffff", "#245b86"),
+                ("#ffffff", "#162c4a"),
+            ),
+            "graphite-gold": (
+                ("#27292d", "#f4f3ef"),
+                ("#5c6067", "#ffffff"),
+                ("#ffffff", "#72520a"),
+                ("#ffffff", "#2b2e33"),
+            ),
+            "bright-indigo": (
+                ("#20243a", "#f4f5fb"),
+                ("#565e78", "#ffffff"),
+                ("#ffffff", "#3b4e9a"),
+                ("#ffffff", "#252a57"),
+            ),
+            "high-contrast": (
+                ("#101820", "#ffffff"),
+                ("#38474d", "#ffffff"),
+                ("#ffffff", "#005544"),
+                ("#ffffff", "#0b1f2a"),
+            ),
+        }
+        for theme, pairs in theme_contrast_pairs.items():
+            for foreground, background in pairs:
+                with self.subTest(
+                    theme=theme,
+                    foreground=foreground,
+                    background=background,
+                ):
+                    self.assertGreaterEqual(
+                        contrast_ratio(foreground, background),
+                        4.5,
+                    )
+
+    def test_authenticated_user_can_preview_and_sync_theme_across_pages(self):
+        self.client.force_login(self.user)
+        target = reverse("vehicle_model_list")
+
+        response = self.client.post(
+            reverse("appearance_theme_update"),
+            {"theme": "deep-blue", "next": target},
+        )
+
+        self.assertRedirects(response, target)
+        preference = UserAppearancePreference.objects.get(user=self.user)
+        self.assertEqual(preference.theme, "deep-blue")
+
+        response = self.client.get(reverse("dashboard"))
+        self.assertContains(response, 'data-theme="deep-blue"')
+        self.assertContains(response, '<meta name="theme-color" content="#162c4a">')
+        self.assertContains(response, 'data-theme-dialog')
+        self.assertContains(response, "專業藍綠")
+        self.assertContains(response, "沉穩深藍")
+        self.assertContains(response, "石墨灰金")
+        self.assertContains(response, "明亮靛藍")
+        self.assertContains(response, "高對比")
+        self.assertContains(response, "theme-selector.js")
+
+    def test_theme_update_rejects_unknown_theme_and_external_return_url(self):
+        UserAppearancePreference.objects.create(
+            user=self.user,
+            theme="graphite-gold",
+        )
+        self.client.force_login(self.user)
+
+        response = self.client.post(
+            reverse("appearance_theme_update"),
+            {"theme": "not-a-theme", "next": "https://example.org/steal"},
+        )
+
+        self.assertRedirects(response, reverse("dashboard"))
+        self.assertEqual(
+            UserAppearancePreference.objects.get(user=self.user).theme,
+            "graphite-gold",
+        )
+
+    def test_theme_update_requires_login_and_post(self):
+        endpoint = reverse("appearance_theme_update")
+        response = self.client.post(endpoint, {"theme": "high-contrast"})
+        self.assertRedirects(response, f'{reverse("login")}?next={endpoint}')
+
+        self.client.force_login(self.user)
+        response = self.client.get(endpoint)
+        self.assertEqual(response.status_code, 405)
+
+    def test_theme_preview_is_immediate_but_print_colors_stay_fixed(self):
+        css = Path("static/css/app.css").read_text(encoding="utf-8")
+        script = Path("static/js/theme-selector.js").read_text(encoding="utf-8")
+
+        self.assertIn('html[data-theme="deep-blue"]', css)
+        self.assertIn('html[data-theme="graphite-gold"]', css)
+        self.assertIn('html[data-theme="bright-indigo"]', css)
+        self.assertIn('html[data-theme="high-contrast"]', css)
+        self.assertIn("@media print", css)
+        self.assertIn("html[data-theme]", css)
+        self.assertIn("root.dataset.theme = theme", script)
+        self.assertIn('updateSelection("professional")', script)
+        self.assertNotIn("localStorage", script)
 
     def test_maintenance_help_stays_on_master_data_topic(self):
         self.client.force_login(self.user)

@@ -1,10 +1,10 @@
 {% load static %}
 <!doctype html>
-<html lang="zh-Hant">
+<html lang="zh-Hant" data-theme="{{ ui_theme|default:'professional' }}">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#12372a">
+  <meta name="theme-color" content="{{ ui_theme_meta_color|default:'#18323b' }}">
   <title>{% block title %}車輛銷售管理{% endblock %}</title>
   <link rel="stylesheet" href="{% static 'css/app.css' %}?v={{ app_version }}">
   {% block head %}{% endblock %}
@@ -51,6 +51,14 @@
             </div>
           </div>
         </nav>
+        <button
+          type="button"
+          class="theme-toggle-button"
+          data-theme-open
+          aria-haspopup="dialog"
+          aria-controls="theme-dialog"
+          title="調整介面配色"
+        ><span class="theme-toggle-icon" aria-hidden="true">◐</span><strong>外觀</strong></button>
         <a
           class="header-help-link{% if request.resolver_match.url_name == 'user_guide' %} active{% endif %}"
           href="{{ context_help_url }}"
@@ -99,6 +107,7 @@
             <a href="{% url 'positioned_template_list' %}"><span>印</span><strong>列印套表</strong></a>
           </div>
           <div class="mobile-data-popover__footer">
+            <button type="button" data-theme-open><span aria-hidden="true">◐</span><strong>外觀配色</strong></button>
             <a href="{{ context_help_url }}" target="_blank" rel="noopener"><span aria-hidden="true">?</span><strong>使用說明</strong></a>
           <form action="{% url 'logout' %}" method="post" class="mobile-logout-form">
             {% csrf_token %}
@@ -108,6 +117,45 @@
         </div>
       </details>
     </nav>
+  {% endif %}
+
+  {% if user.is_authenticated %}
+    <dialog class="theme-dialog" id="theme-dialog" data-theme-dialog aria-labelledby="theme-dialog-title">
+      <form method="post" action="{% url 'appearance_theme_update' %}" data-theme-form>
+        {% csrf_token %}
+        <input type="hidden" name="next" value="{{ request.get_full_path }}">
+        <header class="theme-dialog__header">
+          <div>
+            <span class="eyebrow">個人外觀</span>
+            <h2 id="theme-dialog-title">選擇適合你的介面配色</h2>
+            <p>只改變操作畫面，不會影響訂購合約與其他列印文件。</p>
+          </div>
+          <button type="button" class="theme-dialog__close" data-theme-close aria-label="關閉外觀設定">×</button>
+        </header>
+        <div class="theme-option-grid" role="radiogroup" aria-label="介面配色">
+          {% for option in ui_theme_options %}
+            <label class="theme-option{% if option.value == ui_theme %} is-selected{% endif %}" data-theme-option>
+              <input type="radio" name="theme" value="{{ option.value }}" {% if option.value == ui_theme %}checked{% endif %}>
+              <span class="theme-option__preview theme-option__preview--{{ option.value }}" aria-hidden="true">
+                <i></i><i></i><i></i><i></i>
+              </span>
+              <span class="theme-option__copy">
+                <strong>{{ option.label }}</strong>
+                <small>{{ option.description }}</small>
+              </span>
+              <span class="theme-option__check" aria-hidden="true">✓</span>
+            </label>
+          {% endfor %}
+        </div>
+        <footer class="theme-dialog__footer">
+          <button type="button" class="button ghost" data-theme-reset>恢復系統預設</button>
+          <div>
+            <button type="button" class="button ghost" data-theme-close>取消</button>
+            <button type="submit" class="button primary">套用此配色</button>
+          </div>
+        </footer>
+      </form>
+    </dialog>
   {% endif %}
 
   <aside class="app-update-banner" id="app-update-banner" aria-live="polite" hidden>
@@ -145,6 +193,7 @@
   <script src="{% static 'js/layout-audit.js' %}?v={{ app_version }}" defer></script>
   <script src="{% static 'js/app-update.js' %}?v={{ app_version }}" defer></script>
   <script src="{% static 'js/connectivity-status.js' %}?v={{ app_version }}" defer></script>
+  <script src="{% static 'js/theme-selector.js' %}?v={{ app_version }}" defer></script>
   <script src="{% static 'js/searchable-select.js' %}?v={{ app_version }}" defer></script>
 </body>
 </html>

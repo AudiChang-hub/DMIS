@@ -126,10 +126,12 @@ from .models import (
     VehicleModelFamily,
     VehiclePriceVersion,
     VehicleSettlementCostRule,
+    UserAppearancePreference,
     normalize_legacy_master_value,
     normalize_vehicle_model_master_value,
     normalize_vehicle_identifier,
 )
+from .themes import DEFAULT_THEME, THEME_VALUES
 from .services.vehicle_brands import (
     rename_vehicle_brand_references,
     vehicle_brand_search_q,
@@ -226,6 +228,33 @@ def system_health(request):
         logger.exception("health_check_failed request_id=%s", getattr(request, "request_id", ""))
         return JsonResponse({"ok": False}, status=503)
     return JsonResponse({"ok": True})
+
+
+@login_required
+@require_http_methods(["POST"])
+def appearance_theme_update(request):
+    theme = request.POST.get("theme", "")
+    return_to = request.POST.get("next", "")
+    if not url_has_allowed_host_and_scheme(
+        return_to,
+        allowed_hosts={request.get_host()},
+        require_https=request.is_secure(),
+    ):
+        return_to = reverse("dashboard")
+
+    if theme not in THEME_VALUES:
+        messages.error(request, "無法套用這個配色，請重新選擇。")
+        return redirect(return_to)
+
+    UserAppearancePreference.objects.update_or_create(
+        user=request.user,
+        defaults={"theme": theme},
+    )
+    if theme == DEFAULT_THEME:
+        messages.success(request, "已恢復系統預設配色。")
+    else:
+        messages.success(request, "外觀配色已儲存，其他裝置登入後也會自動套用。")
+    return redirect(return_to)
 
 
 @login_required

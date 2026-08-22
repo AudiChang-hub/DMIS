@@ -32,7 +32,16 @@
 <td data-label="目前建議售價">{% if item.current_suggested_price %}${{ item.current_suggested_price|floatformat:0 }}{% else %}尚未設定{% endif %}</td>
 <td data-label="車行基礎傭金"><strong>${{ item.base_dealer_commission|floatformat:0 }}</strong><span>特定車行加減另於車行資料設定</span></td>
 <td data-label="啟用顏色">{{ item.active_color_count }} 種</td>
-<td data-label="庫存"><strong>{{ item.available_count }} 台可售</strong><span>共 {{ item.inventory_count }} 台</span></td>
+<td data-label="庫存">
+  <a
+    class="vehicle-model-inventory-link"
+    href="{% url 'inventory_list' %}?status=available&amp;vehicle_model={{ item.pk }}"
+    aria-label="查看 {{ family.name }} {{ item.model_year|default:'未填年份' }} 年式的可售庫存"
+  >
+    <strong>{{ item.available_count }} 台可售</strong>
+    <span>查看庫存</span>
+  </a>
+</td>
 <td data-label="狀態">
   {% if item.active %}
   <span class="status-pill vehicle-model-status vehicle-model-status--active"><span aria-hidden="true">✓</span>啟用中</span>

@@ -77,6 +77,49 @@ class ProductExperienceTests(TestCase):
         self.assertIn("parseSameOriginUrl", navigation)
         self.assertIn("data-current-page-label", navigation)
 
+    def test_professional_theme_uses_semantic_tokens_and_accessible_contrast(self):
+        css = Path("static/css/app.css").read_text(encoding="utf-8")
+
+        for token in (
+            "--navy: #18323b",
+            "--forest: #0e5d57",
+            "--gold: #c99735",
+            "--ink: #17252b",
+            "--muted: #526168",
+            "--line: #c9d2d5",
+            "--focus-ring: #d6a63c",
+        ):
+            with self.subTest(token=token):
+                self.assertIn(token, css)
+
+        def relative_luminance(hex_color):
+            channels = [
+                int(hex_color[index : index + 2], 16) / 255
+                for index in (1, 3, 5)
+            ]
+            linear = [
+                channel / 12.92
+                if channel <= 0.04045
+                else ((channel + 0.055) / 1.055) ** 2.4
+                for channel in channels
+            ]
+            return 0.2126 * linear[0] + 0.7152 * linear[1] + 0.0722 * linear[2]
+
+        def contrast_ratio(foreground, background):
+            values = sorted(
+                (relative_luminance(foreground), relative_luminance(background))
+            )
+            return (values[1] + 0.05) / (values[0] + 0.05)
+
+        for foreground, background in (
+            ("#17252b", "#f3f5f6"),
+            ("#526168", "#ffffff"),
+            ("#ffffff", "#0e5d57"),
+            ("#ffffff", "#18323b"),
+        ):
+            with self.subTest(foreground=foreground, background=background):
+                self.assertGreaterEqual(contrast_ratio(foreground, background), 4.5)
+
     def test_maintenance_help_stays_on_master_data_topic(self):
         self.client.force_login(self.user)
 

@@ -137,15 +137,15 @@
       <div class="vehicle-model-correction-action">
         <div class="vehicle-model-correction-action__heading">
           <span class="vehicle-model-correction-action__number">{% if has_merge_targets %}3{% else %}2{% endif %}</span>
-          <div><h3>移至其他機種</h3><p>只有目前年式確實建立在錯誤機種下時才使用。</p></div>
+          <div><h3>移至或合併其他機種</h3><p>目前年式建立在錯誤機種時使用；若目標已有相同年式，系統會安全合併。</p></div>
         </div>
       {% if has_move_targets %}
-      <form method="post" class="vehicle-model-move-form" data-confirm-form="確定要將這個年式移至選擇的機種嗎？">
+      <form method="post" class="vehicle-model-move-form" data-confirm-form="確定要將這個年式移至所選機種嗎？若目標已有相同年式，系統會合併並保留兩邊資料。">
         {% csrf_token %}
         <input type="hidden" name="action" value="move_family">
         {% if move_form.non_field_errors %}<div class="message error">{{ move_form.non_field_errors }}</div>{% endif %}
         {% include "sales/_field.html" with field=move_form.target_family %}
-        <button class="button primary" type="submit">確認移動年式</button>
+        <button class="button primary" type="submit">確認移動／合併</button>
       </form>
       {% else %}
       <div class="empty-state compact"><strong>目前沒有其他同品牌機種可供移動</strong><span>請先建立正確機種，再回到此處執行移動。</span></div>

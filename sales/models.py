@@ -334,6 +334,7 @@ class VehicleModel(TimeStampedModel):
 
     class ModelType(models.TextChoices):
         DRUM = "drum", "鼓"
+        HUB_FRONT_DISC = "hub_front_disc", "輪轂前碟"
         FRONT_DISC_REAR_DRUM = "front_disc_rear_drum", "前碟後鼓"
         CBS_DRUM = "cbs_drum", "CBS鼓"
         CBS_DISC = "cbs_disc", "CBS碟"

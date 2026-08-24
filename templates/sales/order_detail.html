@@ -917,7 +917,7 @@
         <span class="change-summary">修改了 {{ change.count }} 個項目</span>
       </span>
       <time datetime="{{ change.created_at|date:'c' }}">{{ change.created_at|date:"Y/m/d H:i" }}</time>
-      <span class="change-toggle" aria-hidden="true">⌄</span>
+      <span class="change-toggle ui-chevron" aria-hidden="true"></span>
     </summary>
     <div class="change-reason"><span>變更原因</span><strong>{{ change.reason }}</strong></div>
     {% for group in change.groups %}

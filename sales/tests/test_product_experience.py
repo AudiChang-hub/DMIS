@@ -78,6 +78,39 @@ class ProductExperienceTests(TestCase):
         self.assertIn("parseSameOriginUrl", navigation)
         self.assertIn("data-current-page-label", navigation)
 
+    def test_disclosure_controls_use_consistent_font_independent_chevrons(self):
+        self.client.force_login(self.user)
+
+        response = self.client.get(reverse("dashboard"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(
+            response,
+            'class="ui-chevron desktop-data-menu__chevron"',
+            html=False,
+        )
+        css = Path("static/css/app.css").read_text(encoding="utf-8")
+        searchable_select = Path("static/js/searchable-select.js").read_text(
+            encoding="utf-8"
+        )
+        disclosure_templates = "".join(
+            Path(path).read_text(encoding="utf-8")
+            for path in (
+                "templates/base.html",
+                "templates/sales/vehicle_model_list.html",
+                "templates/sales/order_detail.html",
+                "templates/sales/user_management.html",
+                "templates/sales/operations_report.html",
+            )
+        )
+        self.assertIn(".ui-chevron {", css)
+        self.assertIn("border-right: 2px solid currentColor", css)
+        self.assertIn("searchable-select.is-open", css)
+        self.assertIn('class="ui-chevron"', searchable_select)
+        self.assertNotIn("⌄", css)
+        self.assertNotIn("⌄", searchable_select)
+        self.assertNotIn("⌄", disclosure_templates)
+
     def test_professional_theme_uses_semantic_tokens_and_accessible_contrast(self):
         css = Path("static/css/app.css").read_text(encoding="utf-8")
 

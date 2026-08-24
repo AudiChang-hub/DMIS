@@ -279,6 +279,14 @@ h2 { margin-bottom: 0; font-size: 1.15rem; }
 .desktop-nav > a.active, .desktop-data-menu.active > a { box-shadow: inset 0 -3px 0 var(--gold); }
 .desktop-data-menu { position: relative; display: flex; align-self: stretch; }
 .desktop-data-menu > a { display: flex; gap: 7px; }
+.ui-chevron {
+  display: inline-block; width: 9px; height: 9px; flex: 0 0 auto;
+  border-right: 2px solid currentColor; border-bottom: 2px solid currentColor;
+  transform: rotate(45deg); transform-origin: center; transition: transform .18s ease;
+}
+.desktop-data-menu__chevron { margin-top: -4px; }
+.desktop-data-menu:hover .desktop-data-menu__chevron,
+.desktop-data-menu:focus-within .desktop-data-menu__chevron { transform: rotate(225deg); }
 .data-menu-popover {
   position: absolute; z-index: 80; top: calc(100% - 2px); right: 0; display: none;
   width: min(720px, calc(100vw - 48px)); padding: 18px; color: var(--ink); background: #fff;
@@ -773,9 +781,13 @@ h2 { margin-bottom: 0; font-size: 1.15rem; }
 .form-section { margin-bottom: 16px; background: #fff; border: 1px solid var(--line); border-radius: var(--radius); box-shadow: 0 5px 20px rgba(26,46,35,.04); scroll-margin-top: 150px; }
 .form-section summary { display: flex; min-height: 76px; padding: 14px 20px; align-items: center; gap: 13px; cursor: pointer; list-style: none; }
 .form-section summary::-webkit-details-marker { display: none; }
-.form-section summary::after { margin-left: auto; content: "⌄"; color: var(--muted); font-size: 1.3rem; }
+.form-section summary::after {
+  width: 9px; height: 9px; margin: -4px 3px 0 auto; content: ""; flex: 0 0 auto;
+  color: var(--muted); border-right: 2px solid currentColor; border-bottom: 2px solid currentColor;
+  transform: rotate(45deg); transform-origin: center; transition: transform .18s ease;
+}
 .form-section[open] summary { border-bottom: 1px solid var(--line); }
-.form-section[open] summary::after { transform: rotate(180deg); }
+.form-section[open] summary::after { margin-top: 4px; transform: rotate(225deg); }
 .form-section summary strong, .form-section summary small { display: block; }
 .form-section summary small { color: var(--muted); font-size: .76rem; }
 .step-number { display: grid; width: 34px; height: 34px; place-items: center; flex: 0 0 auto; color: #fff; background: var(--forest); border-radius: 11px; font-weight: 900; }
@@ -820,9 +832,11 @@ input[type="file"].form-control { padding: 10px; }
 }
 .searchable-select__input:focus { background: #fff; border-color: var(--forest); box-shadow: 0 0 0 3px rgba(14,93,87,.16); }
 .searchable-select__toggle {
-  position: absolute; z-index: 2; top: 0; right: 0; width: 44px; height: 48px; padding: 0;
-  color: var(--forest); background: transparent; border: 0; cursor: pointer; font-size: 1.1rem;
+  position: absolute; z-index: 2; top: 0; right: 0; display: grid; width: 44px; height: 48px; padding: 0;
+  color: var(--forest); background: transparent; border: 0; cursor: pointer; place-items: center;
 }
+.searchable-select__toggle .ui-chevron { margin-top: -4px; }
+.searchable-select.is-open .searchable-select__toggle .ui-chevron { margin-top: 4px; transform: rotate(225deg); }
 .searchable-select__list {
   position: absolute; z-index: 120; top: calc(100% + 5px); right: 0; left: 0;
   max-height: min(330px, 52vh); padding: 6px; overflow-y: auto; background: #fff;
@@ -1540,8 +1554,8 @@ body.screen-locked { overflow: hidden; }
 .change-person { font-weight: 900; }
 .change-summary { color: var(--muted); font-size: .82rem; }
 .change-card time { color: var(--muted); font-size: .8rem; white-space: nowrap; }
-.change-toggle { color: var(--muted); font-size: 1.2rem; transition: transform .15s ease; }
-.change-card[open] .change-toggle { transform: rotate(180deg); }
+.change-toggle { margin-top: -4px; color: var(--muted); }
+.change-card[open] .change-toggle { margin-top: 4px; transform: rotate(225deg); }
 .change-reason { display: flex; margin: 0 4px 14px 46px; padding: 11px 14px; gap: 12px; background: #f7f9f7; border-radius: 10px; }
 .change-reason span { color: var(--muted); font-size: .78rem; font-weight: 800; }
 .change-group { margin: 0 4px 16px 46px; }
@@ -1638,9 +1652,13 @@ body.screen-locked { overflow: hidden; }
   align-items: center; gap: 16px; cursor: pointer; list-style: none;
 }
 .inventory-history-entry summary::-webkit-details-marker { display: none; }
-.inventory-history-entry summary::before { content: "›"; color: var(--muted); font-size: 1.3rem; }
+.inventory-history-entry summary::before {
+  width: 8px; height: 8px; content: ""; color: var(--muted);
+  border-right: 2px solid currentColor; border-bottom: 2px solid currentColor;
+  transform: rotate(-45deg); transform-origin: center; transition: transform .18s ease;
+}
 .inventory-history-entry summary { grid-template-columns: 20px 120px 1fr auto; }
-.inventory-history-entry[open] summary::before { transform: rotate(90deg); }
+.inventory-history-entry[open] summary::before { transform: rotate(45deg); }
 .inventory-history-entry summary strong, .inventory-history-entry summary small { display: block; }
 .inventory-history-entry summary small { margin-top: 2px; color: var(--muted); }
 .history-event { color: var(--forest); font-weight: 900; }
@@ -1799,8 +1817,8 @@ body.screen-locked { overflow: hidden; }
 .vehicle-brand-group__toggle-close { display: none; }
 .vehicle-brand-group[open] .vehicle-brand-group__toggle-open { display: none; }
 .vehicle-brand-group[open] .vehicle-brand-group__toggle-close { display: inline; }
-.vehicle-brand-group__chevron { font-size: 1rem; line-height: 1; transition: transform .18s ease; }
-.vehicle-brand-group[open] .vehicle-brand-group__chevron { transform: rotate(180deg); }
+.vehicle-brand-group__chevron { margin-top: -4px; }
+.vehicle-brand-group[open] .vehicle-brand-group__chevron { margin-top: 4px; transform: rotate(225deg); }
 .vehicle-model-overview-table { border: 0; border-radius: 0; box-shadow: none; }
 .vehicle-model-overview-table > .master-model-table { min-width: 1260px; }
 .vehicle-model-family-group > td { background: #fff; }
@@ -2218,12 +2236,14 @@ body.screen-locked { overflow: hidden; }
 .commission-editor-card__intro p { margin: 0; color: var(--muted); }
 .commission-editor-card__field { max-width: 480px; margin-bottom: 22px; }
 .analysis-breakdown__summary::-webkit-details-marker { display: none; }
-.analysis-breakdown__summary::after {
+.analysis-breakdown__chevron {
   display: grid; width: 34px; height: 34px; margin-left: 2px; flex: 0 0 auto;
-  place-items: center; content: "⌄"; color: var(--forest); background: var(--mint);
-  border-radius: 50%; font-size: 1.15rem; font-weight: 900; transition: transform .18s ease;
+  place-items: center; color: var(--forest); background: var(--mint); border-radius: 50%;
 }
-.analysis-breakdown[open] > .analysis-breakdown__summary::after { transform: rotate(180deg); }
+.analysis-breakdown__chevron .ui-chevron { margin-top: -4px; }
+.analysis-breakdown[open] > .analysis-breakdown__summary .analysis-breakdown__chevron .ui-chevron {
+  margin-top: 4px; transform: rotate(225deg);
+}
 .analysis-breakdown__title { display: flex; min-width: 0; align-items: center; gap: 13px; }
 .analysis-breakdown__title > span:last-child { display: grid; min-width: 0; gap: 3px; }
 .analysis-breakdown__title strong { color: var(--ink); font-size: 1.05rem; }
@@ -2391,6 +2411,8 @@ body.screen-locked { overflow: hidden; }
   cursor: pointer; list-style: none;
 }
 .account-audit summary::-webkit-details-marker { display: none; }
+.account-audit__chevron { margin: -4px 4px 0 12px; color: var(--muted); }
+.account-audit[open] .account-audit__chevron { margin-top: 4px; transform: rotate(225deg); }
 .account-audit summary span:first-child small, .account-audit summary span:first-child strong { display: block; }
 .account-audit summary small { color: var(--muted); }
 .account-audit__list { display: grid; padding: 0 20px 20px; gap: 0; border-top: 1px solid var(--line-soft); }
@@ -2594,7 +2616,7 @@ body.screen-locked { overflow: hidden; }
   .analysis-breakdown__title strong { font-size: .94rem; }
   .analysis-breakdown__title small { font-size: .68rem; }
   .analysis-breakdown__count { padding: 6px 9px; font-size: .68rem; }
-  .analysis-breakdown__summary::after { width: 30px; height: 30px; }
+  .analysis-breakdown__chevron { width: 30px; height: 30px; }
   .analysis-table-wrap { padding: 12px; overflow: visible; background: #f4f7f5; }
   .analysis-table, .analysis-table tbody, .analysis-table tr,
   .analysis-table th, .analysis-table td { display: block; width: 100%; }

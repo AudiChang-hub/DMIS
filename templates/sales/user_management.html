@@ -83,7 +83,7 @@
 </section>
 
 <details class="account-audit card">
-  <summary><span><small>最近 20 筆</small><strong>帳號異動紀錄</strong></span><span aria-hidden="true">⌄</span></summary>
+  <summary><span><small>最近 20 筆</small><strong>帳號異動紀錄</strong></span><span class="account-audit__chevron ui-chevron" aria-hidden="true"></span></summary>
   <div class="account-audit__list">
     {% for log in audit_logs %}
       <div><span class="account-audit__dot" aria-hidden="true"></span><p><strong>{{ log.description }}</strong><small>{{ log.created_at|date:"Y/m/d H:i" }} · {% if log.actor %}{{ log.actor.get_full_name|default:log.actor.username }}{% else %}系統{% endif %}</small></p></div>

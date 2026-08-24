@@ -1,11 +1,6 @@
-import tempfile
-from io import BytesIO
-
 from django.contrib.auth import get_user_model
-from django.core.files.uploadedfile import SimpleUploadedFile
-from django.test import TestCase, override_settings
+from django.test import TestCase
 from django.urls import reverse
-from PIL import Image
 
 from sales.forms import (
     BrandRegistrationFeeRuleForm,
@@ -14,7 +9,6 @@ from sales.forms import (
     VehicleModelMasterForm,
 )
 from sales.models import SalesSourceBrandPolicy, VehicleBrand, VehicleModel
-from sales.services.brand_logo import build_brand_logo
 from sales.services.vehicle_brands import (
     canonical_vehicle_brand_name,
     vehicle_brand_search_names,
@@ -74,54 +68,31 @@ class VehicleBrandMasterTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, child_model.name)
 
-    def test_vehicle_model_list_uses_root_brand_logo_with_initial_fallback(self):
-        with tempfile.TemporaryDirectory() as media_root, override_settings(
-            MEDIA_ROOT=media_root
-        ):
-            suzuki = VehicleBrand.objects.get(name="SUZUKI")
-            suzuki.logo = SimpleUploadedFile(
-                "suzuki-logo.png",
-                b"test-suzuki-logo",
-                content_type="image/png",
-            )
-            suzuki.save(update_fields=["logo", "updated_at"])
-            VehicleModel.objects.create(
-                brand="SUZUKI",
-                name="LOGO 顯示測試車",
-                model_number="LOGO-01",
-                model_year=2026,
-                model_code=VehicleModel.ModelType.DRUM,
-                energy_type=VehicleModel.EnergyType.GAS,
-            )
-            VehicleModel.objects.create(
-                brand="SYM",
-                name="首字備援測試車",
-                model_number="FALLBACK-01",
-                model_year=2026,
-                model_code=VehicleModel.ModelType.DRUM,
-                energy_type=VehicleModel.EnergyType.GAS,
-            )
+    def test_vehicle_model_list_uses_plain_text_brand_headers(self):
+        suzuki = VehicleBrand.objects.get(name="SUZUKI")
+        suzuki.logo = "brands/logos/legacy-suzuki.png"
+        suzuki.save(update_fields=["logo", "updated_at"])
+        VehicleModel.objects.create(
+            brand="SUZUKI",
+            name="純文字品牌測試車",
+            model_number="TEXT-01",
+            model_year=2026,
+            model_code=VehicleModel.ModelType.DRUM,
+            energy_type=VehicleModel.EnergyType.GAS,
+        )
 
-            response = self.client.get(reverse("vehicle_model_list"))
+        response = self.client.get(reverse("vehicle_model_list"))
+        suzuki_group = next(
+            group
+            for group in response.context["vehicle_model_groups"]
+            if group["name"] == "SUZUKI"
+        )
 
-            logo_url = reverse("vehicle_brand_logo", args=[suzuki.pk])
-            suzuki_group = next(
-                group
-                for group in response.context["vehicle_model_groups"]
-                if group["name"] == "SUZUKI"
-            )
-            self.assertEqual(response.status_code, 200)
-            self.assertEqual(suzuki_group["logo_brand"], suzuki)
-            self.assertContains(response, logo_url)
-            self.assertContains(response, "vehicle-brand-group__mark has-logo")
-            self.assertNotContains(response, f'src="{suzuki.logo.url}')
-
-            sym_group = next(
-                group
-                for group in response.context["vehicle_model_groups"]
-                if group["name"] == "SYM"
-            )
-            self.assertIsNone(sym_group["logo_brand"])
+        self.assertEqual(response.status_code, 200)
+        self.assertNotIn("logo_brand", suzuki_group)
+        self.assertContains(response, "SUZUKI")
+        self.assertNotContains(response, "vehicle-brand-group__mark")
+        self.assertNotContains(response, "legacy-suzuki.png")
 
     def test_vehicle_model_list_keeps_two_visual_levels_for_child_brand(self):
         root_model = VehicleModel.objects.create(
@@ -268,121 +239,45 @@ class VehicleBrandMasterTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "品牌關係")
-        self.assertIn("logo", response.context["form"].fields)
-        self.assertContains(response, "品牌 LOGO")
+        self.assertNotIn("logo", response.context["form"].fields)
+        self.assertNotContains(response, "品牌 LOGO")
         self.assertContains(response, "主品牌")
         self.assertContains(response, "子品牌")
         self.assertContains(response, "隸屬 SUZUKI")
         self.assertContains(response, "brand-hierarchy__branch")
 
-    def test_brand_logo_uses_authenticated_media_route(self):
-        with tempfile.TemporaryDirectory() as media_root, override_settings(
-            MEDIA_ROOT=media_root
-        ):
-            brand = VehicleBrand.objects.create(
-                name="LOGO 測試品牌",
-                display_order=910,
-                logo=SimpleUploadedFile(
-                    "brand-logo.png",
-                    b"test-logo-bytes",
-                    content_type="image/png",
-                ),
-            )
-            logo_url = reverse("vehicle_brand_logo", args=[brand.pk])
+    def test_brand_edit_preserves_legacy_logo_data_without_exposing_logo_ui(self):
+        brand = VehicleBrand.objects.create(
+            name="保留舊圖品牌",
+            display_order=912,
+            logo="brands/logos/legacy-brand.png",
+            logo_original="brands/logo-originals/legacy-brand.png",
+            logo_crop_data={"x": 0, "y": 0, "width": 1, "height": 1},
+        )
 
-            page = self.client.get(reverse("vehicle_brand_list"))
-            self.assertContains(page, logo_url)
-            self.assertNotContains(page, brand.logo.url)
+        response = self.client.post(
+            f"{reverse('vehicle_brand_list')}?edit={brand.pk}",
+            {
+                "name": brand.name,
+                "parent": "",
+                "aliases": "舊圖品牌",
+                "display_order": 912,
+                "active": "on",
+                "note": "純文字顯示",
+            },
+        )
 
-            response = self.client.get(logo_url)
-            self.assertEqual(response.status_code, 200)
-            self.assertEqual(response["Content-Type"], "image/png")
-            self.assertEqual(response["Cache-Control"], "private, max-age=3600")
-            self.assertEqual(b"".join(response.streaming_content), b"test-logo-bytes")
-
-            self.client.logout()
-            anonymous = self.client.get(logo_url)
-            self.assertRedirects(anonymous, f"{reverse('login')}?next={logo_url}")
-
-    def test_brand_logo_returns_not_found_when_no_file_is_configured(self):
-        brand = VehicleBrand.objects.create(name="無 LOGO 品牌", display_order=911)
-
-        response = self.client.get(reverse("vehicle_brand_logo", args=[brand.pk]))
-
-        self.assertEqual(response.status_code, 404)
-
-    def test_brand_logo_upload_keeps_original_and_generates_cropped_preview(self):
-        with tempfile.TemporaryDirectory() as media_root, override_settings(
-            MEDIA_ROOT=media_root
-        ):
-            brand = VehicleBrand.objects.create(name="裁切測試品牌", display_order=912)
-            buffer = BytesIO()
-            Image.new("RGB", (400, 400), "red").save(buffer, format="PNG")
-            upload = SimpleUploadedFile(
-                "square-logo.png", buffer.getvalue(), content_type="image/png"
-            )
-
-            response = self.client.post(
-                f"{reverse('vehicle_brand_list')}?edit={brand.pk}",
-                {
-                    "name": brand.name,
-                    "parent": "",
-                    "aliases": "",
-                    "display_order": 912,
-                    "active": "on",
-                    "note": "",
-                    "logo_crop_x": 0,
-                    "logo_crop_y": 0.25,
-                    "logo_crop_width": 1,
-                    "logo_crop_height": 0.5,
-                    "logo_crop_changed": "1",
-                    "logo": upload,
-                },
-            )
-
-            self.assertRedirects(response, reverse("vehicle_brand_list"))
-            brand.refresh_from_db()
-            self.assertTrue(brand.logo)
-            self.assertTrue(brand.logo_original)
-            self.assertEqual(brand.logo_crop_data["y"], 0.25)
-            with brand.logo.open("rb") as rendered:
-                with Image.open(rendered) as image:
-                    self.assertEqual(image.size, (800, 400))
-                    self.assertEqual(image.format, "PNG")
-            with brand.logo_original.open("rb") as original:
-                with Image.open(original) as image:
-                    self.assertEqual(image.size, (400, 400))
-            source_response = self.client.get(
-                reverse("vehicle_brand_logo_source", args=[brand.pk])
-            )
-            self.assertEqual(source_response.status_code, 200)
-            self.assertTrue(b"".join(source_response.streaming_content))
-            source_response.close()
-
-    def test_brand_logo_default_fit_keeps_complete_square_image(self):
-        source = BytesIO()
-        Image.new("RGBA", (400, 400), (255, 0, 0, 255)).save(source, format="PNG")
-
-        rendered, crop = build_brand_logo(source.getvalue())
-
-        self.assertEqual(crop, {"x": 0.0, "y": 0.0, "width": 1.0, "height": 1.0})
-        with Image.open(BytesIO(rendered)) as image:
-            self.assertEqual(image.size, (800, 400))
-            self.assertEqual(image.getpixel((0, 200))[3], 0)
-            self.assertEqual(image.getpixel((200, 200)), (255, 0, 0, 255))
-            self.assertEqual(image.getpixel((599, 200)), (255, 0, 0, 255))
-            self.assertEqual(image.getpixel((799, 200))[3], 0)
-
-    def test_brand_page_exposes_logo_crop_editor_and_global_previews(self):
-        response = self.client.get(reverse("vehicle_brand_list"))
-
-        self.assertContains(response, "data-brand-logo-editor")
-        self.assertContains(response, "電腦版品牌標頭")
-        self.assertContains(response, "手機版品牌標頭")
-        self.assertContains(response, "品牌維護列表")
-        self.assertContains(response, "恢復完整顯示")
-        self.assertContains(response, "上傳後會等比例縮放並完整顯示")
-        self.assertContains(response, "brand-logo-editor.js")
+        self.assertRedirects(response, reverse("vehicle_brand_list"))
+        brand.refresh_from_db()
+        self.assertEqual(brand.logo.name, "brands/logos/legacy-brand.png")
+        self.assertEqual(
+            brand.logo_original.name,
+            "brands/logo-originals/legacy-brand.png",
+        )
+        page = self.client.get(reverse("vehicle_brand_list"))
+        self.assertNotContains(page, "brand-logo-editor")
+        self.assertNotContains(page, "brand-logo-editor.js")
+        self.assertNotContains(page, "legacy-brand.png")
 
     def test_dealer_price_list_entry_points_are_removed(self):
         for route_name in ("data_maintenance", "vehicle_model_list"):

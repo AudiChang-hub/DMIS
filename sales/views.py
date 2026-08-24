@@ -4885,25 +4885,44 @@ def subsidy_ocr_decision(request, pk):
 
 @login_required
 def inventory_list(request):
+    current_statuses = (
+        VehicleInventory.Status.AVAILABLE,
+        VehicleInventory.Status.RESERVED,
+        VehicleInventory.Status.TRANSFER_PENDING,
+        VehicleInventory.Status.IN_TRANSFER,
+        VehicleInventory.Status.DELIVERY_PENDING,
+        VehicleInventory.Status.CONDITION_ISSUE,
+    )
+    historical_statuses = (
+        VehicleInventory.Status.DELIVERED,
+        VehicleInventory.Status.SOLD,
+        VehicleInventory.Status.INACTIVE,
+    )
+    status = request.GET.get("status", "")
+    scope = request.GET.get("scope", "")
+    if scope not in {"current", "history"}:
+        scope = "history" if status in historical_statuses else "current"
+    scope_statuses = historical_statuses if scope == "history" else current_statuses
+
     vehicles = VehicleInventory.objects.select_related(
         "vehicle_model", "color", "location_store"
-    )
+    ).filter(status__in=scope_statuses)
     keyword = request.GET.get("q", "").strip()
-    status = request.GET.get("status")
     vehicle_model = request.GET.get("vehicle_model")
     color = request.GET.get("color")
     location_store = request.GET.get("location_store")
     sort = request.GET.get("sort", "received_desc")
-    valid_statuses = {value for value, _label in VehicleInventory.Status.choices}
-    if status == "transfer":
+    if status == "transfer" and scope == "current":
         vehicles = vehicles.filter(
             status__in=[
                 VehicleInventory.Status.TRANSFER_PENDING,
                 VehicleInventory.Status.IN_TRANSFER,
             ]
         )
-    elif status in valid_statuses:
+    elif status in scope_statuses:
         vehicles = vehicles.filter(status=status)
+    else:
+        status = ""
     if vehicle_model and vehicle_model.isdigit():
         vehicles = vehicles.filter(vehicle_model_id=vehicle_model)
     if color and color.isdigit():
@@ -4946,13 +4965,22 @@ def inventory_list(request):
     page = paginator.get_page(request.GET.get("page"))
     filter_params = request.GET.copy()
     filter_params.pop("page", None)
+    inventory_counts = VehicleInventory.objects.aggregate(
+        current=Count("id", filter=Q(status__in=current_statuses)),
+        history=Count("id", filter=Q(status__in=historical_statuses)),
+    )
     return render(
         request,
         "sales/inventory_list.html",
         {
             "vehicles": page.object_list,
             "page_obj": page,
-            "statuses": VehicleInventory.Status.choices,
+            "statuses": [
+                (value, label)
+                for value, label in VehicleInventory.Status.choices
+                if value in scope_statuses
+            ],
+            "inventory_counts": inventory_counts,
             "vehicle_models": VehicleModel.objects.filter(active=True).order_by(
                 "brand", "name"
             ),
@@ -4968,6 +4996,7 @@ def inventory_list(request):
                 "color": color or "",
                 "location_store": location_store or "",
                 "sort": sort,
+                "scope": scope,
             },
         },
     )

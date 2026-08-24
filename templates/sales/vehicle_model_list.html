@@ -54,8 +54,8 @@
   </div>
 
   {% for group in vehicle_model_groups %}
-  <section class="vehicle-brand-group" data-brand-group="{{ group.name }}">
-    <header class="vehicle-brand-group__header">
+  <details class="vehicle-brand-group" data-brand-group="{{ group.name }}"{% if filters_applied %} open{% endif %}>
+    <summary class="vehicle-brand-group__header">
       <span class="vehicle-brand-group__mark{% if group.logo_brand %} has-logo{% endif %}" aria-hidden="true">
         {% if group.logo_brand %}
           <img src="{% url 'vehicle_brand_logo' group.logo_brand.pk %}?v={{ group.logo_brand.updated_at|date:'U' }}" alt="">
@@ -71,7 +71,12 @@
         <strong>{{ group.total_count }} 個機種</strong>
         <small>{{ group.version_count }} 筆設定 · {{ group.active_count }} 個啟用中</small>
       </span>
-    </header>
+      <span class="vehicle-brand-group__toggle" aria-hidden="true">
+        <span class="vehicle-brand-group__toggle-open">展開</span>
+        <span class="vehicle-brand-group__toggle-close">收合</span>
+        <span class="vehicle-brand-group__chevron">⌄</span>
+      </span>
+    </summary>
     <div class="inventory-table-wrap vehicle-model-overview-table">
       <table class="inventory-table master-model-table">
         <thead><tr><th>機種</th><th>型號</th><th>年份／型式</th><th>能源別</th><th>動力規格</th><th>目前建議售價</th><th>車行基礎傭金</th><th>啟用顏色</th><th>庫存</th><th>狀態</th><th></th></tr></thead>
@@ -102,7 +107,7 @@
         {% include "sales/_vehicle_model_year_panel.html" with family=family group_index=forloop.parentloop.counter family_index=forloop.counter %}
       {% endif %}
     {% endfor %}
-  </section>
+  </details>
   {% empty %}
   <div class="empty-state"><strong>尚無符合條件的車型</strong><span>請調整搜尋或篩選條件後再試一次。</span></div>
   {% endfor %}
@@ -110,4 +115,5 @@
 {% endblock %}
 {% block scripts %}
 <script src="{% static 'js/vehicle-model-year-panels.js' %}?v={{ app_version }}" defer></script>
+<script src="{% static 'js/vehicle-brand-groups.js' %}?v={{ app_version }}" defer></script>
 {% endblock %}

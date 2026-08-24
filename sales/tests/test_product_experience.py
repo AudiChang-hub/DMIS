@@ -122,6 +122,8 @@ class ProductExperienceTests(TestCase):
             "--muted: #526168",
             "--line: #c9d2d5",
             "--focus-ring: #d6a63c",
+            "--surface-raised: #ffffff",
+            "--header-surface: var(--navy)",
         ):
             with self.subTest(token=token):
                 self.assertIn(token, css)
@@ -186,10 +188,10 @@ class ProductExperienceTests(TestCase):
                 ("#ffffff", "#0b1f2a"),
             ),
             "night-blue": (
-                ("#e8eef0", "#0d151a"),
-                ("#a9b6bc", "#141f25"),
+                ("#e8eef0", "#081117"),
+                ("#a9b6bc", "#132129"),
                 ("#ffffff", "#1f746d"),
-                ("#ffffff", "#0a151b"),
+                ("#eff5f6", "#172f3a"),
             ),
         }
         for theme, pairs in theme_contrast_pairs.items():
@@ -281,6 +283,11 @@ class ProductExperienceTests(TestCase):
         self.assertIn('html[data-theme="system"]', css)
         self.assertIn("prefers-color-scheme: dark", css)
         self.assertIn("color-scheme: dark", css)
+        self.assertEqual(css.count("--header-surface: #172f3a"), 2)
+        self.assertEqual(css.count("--surface-raised: #1c3039"), 2)
+        self.assertIn("background: var(--header-surface)", css)
+        self.assertIn("background: var(--header-interactive)", css)
+        self.assertIn("background: var(--surface-raised)", css)
         self.assertIn("@media print", css)
         self.assertIn("html[data-theme]", css)
         self.assertIn("root.dataset.theme = theme", script)

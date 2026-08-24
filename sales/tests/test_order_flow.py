@@ -843,6 +843,36 @@ class OrderFlowTests(TestCase):
         self.assertEqual(model.model_code, VehicleModel.ModelType.HUB_FRONT_DISC)
         self.assertEqual(model.get_model_code_display(), "輪轂前碟")
 
+    def test_vehicle_model_type_supports_hub_front_drum(self):
+        self.client.force_login(self.user)
+
+        create_response = self.client.get(reverse("vehicle_model_create"))
+
+        self.assertEqual(create_response.status_code, 200)
+        self.assertContains(
+            create_response,
+            '<option value="hub_front_drum">輪轂前鼓</option>',
+            html=True,
+        )
+
+        response = self.client.post(
+            reverse("vehicle_model_create"),
+            self.vehicle_model_master_payload(
+                model_code=VehicleModel.ModelType.HUB_FRONT_DRUM,
+                **{
+                    "colors-TOTAL_FORMS": "1",
+                    "colors-0-name": "藍",
+                    "colors-1-name": "",
+                    "colors-1-active": "",
+                },
+            ),
+        )
+
+        model = VehicleModel.objects.get(model_number="SUI125-ABS")
+        self.assert_vehicle_model_business_redirect(response, model)
+        self.assertEqual(model.model_code, VehicleModel.ModelType.HUB_FRONT_DRUM)
+        self.assertEqual(model.get_model_code_display(), "輪轂前鼓")
+
     def test_quick_inventory_entry_includes_manufactured_year_month(self):
         self.client.force_login(self.user)
 

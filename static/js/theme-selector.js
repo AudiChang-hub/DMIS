@@ -7,6 +7,8 @@
   const themeMeta = document.querySelector('meta[name="theme-color"]');
   const themeColors = {
     professional: "#18323b",
+    "night-blue": "#0a151b",
+    system: "#18323b",
     "deep-blue": "#162c4a",
     "graphite-gold": "#2b2e33",
     "bright-indigo": "#252a57",
@@ -14,10 +16,23 @@
   };
   let themeBeforePreview = root.dataset.theme || "professional";
   let submitting = false;
+  const systemDarkQuery = window.matchMedia?.("(prefers-color-scheme: dark)");
+
+  const effectiveTheme = theme => {
+    if (theme !== "system") return theme;
+    return systemDarkQuery?.matches ? "night-blue" : "professional";
+  };
+
+  const updateThemeMeta = theme => {
+    const resolvedTheme = effectiveTheme(theme);
+    if (themeMeta && themeColors[resolvedTheme]) {
+      themeMeta.content = themeColors[resolvedTheme];
+    }
+  };
 
   const updateSelection = theme => {
     root.dataset.theme = theme;
-    if (themeMeta && themeColors[theme]) themeMeta.content = themeColors[theme];
+    updateThemeMeta(theme);
     dialog.querySelectorAll("[data-theme-option]").forEach(option => {
       const input = option.querySelector('input[name="theme"]');
       const selected = input?.value === theme;
@@ -25,6 +40,17 @@
       if (input) input.checked = selected;
     });
   };
+
+  const handleSystemThemeChange = () => {
+    if (root.dataset.theme === "system") updateThemeMeta("system");
+  };
+
+  if (systemDarkQuery?.addEventListener) {
+    systemDarkQuery.addEventListener("change", handleSystemThemeChange);
+  } else if (systemDarkQuery?.addListener) {
+    systemDarkQuery.addListener(handleSystemThemeChange);
+  }
+  updateThemeMeta(root.dataset.theme || "professional");
 
   const restoreTheme = () => updateSelection(themeBeforePreview);
   const closeDialog = () => {

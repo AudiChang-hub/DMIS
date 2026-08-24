@@ -6,6 +6,18 @@ THEME_DEFINITIONS = (
         "meta_color": "#18323b",
     },
     {
+        "value": "night-blue",
+        "label": "夜間深藍",
+        "description": "降低夜間亮度，保留清楚的文字、表格與操作層級。",
+        "meta_color": "#0a151b",
+    },
+    {
+        "value": "system",
+        "label": "跟隨裝置",
+        "description": "依手機或電腦的亮色／深色設定即時切換。",
+        "meta_color": "#18323b",
+    },
+    {
         "value": "deep-blue",
         "label": "沉穩深藍",
         "description": "企業管理系統風格，資訊層級明確。",

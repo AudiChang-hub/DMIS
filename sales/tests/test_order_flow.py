@@ -1363,6 +1363,31 @@ class OrderFlowTests(TestCase):
         self.assertNotContains(response, '<th>獎勵補助</th>', html=True)
         self.assertContains(response, f'href="{reverse("vehicle_model_edit", args=[electric_model.pk])}"')
 
+    def test_vehicle_model_list_brand_groups_are_collapsible_and_filters_expand_them(self):
+        self.client.force_login(self.user)
+
+        response = self.client.get(reverse("vehicle_model_list"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(
+            response,
+            '<details class="vehicle-brand-group" data-brand-group="測試廠牌">',
+            html=False,
+        )
+        self.assertContains(response, '<summary class="vehicle-brand-group__header">', html=False)
+        self.assertContains(response, "展開")
+        self.assertContains(response, "收合")
+        self.assertContains(response, "vehicle-brand-groups.js")
+
+        filtered_response = self.client.get(reverse("vehicle_model_list"), {"q": "通勤"})
+
+        self.assertEqual(filtered_response.status_code, 200)
+        self.assertContains(
+            filtered_response,
+            '<details class="vehicle-brand-group" data-brand-group="測試廠牌" open>',
+            html=False,
+        )
+
     def test_vehicle_model_list_links_only_to_available_inventory(self):
         VehicleInventory.objects.create(
             vehicle_model=self.model,

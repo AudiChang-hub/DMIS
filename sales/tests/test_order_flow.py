@@ -211,6 +211,8 @@ class OrderFlowTests(TestCase):
         self.assertIn(".page-shell--wide { max-width: var(--shell-wide); }", css)
         self.assertIn("width: min(100% - 24px, 700px)", css)
         self.assertIn('class="app-header-inner"', base)
+        self.assertIn('class="brand-copy"', base)
+        self.assertNotIn('class="brand-mark"', base)
         self.assertIn("app.css' %}?v={{ app_version }}", base)
         self.assertIn("app-update.js' %}?v={{ app_version }}", base)
         self.assertIn("page-shell--wide", detail)

@@ -1,5 +1,4 @@
 {% extends "base.html" %}
-{% load static %}
 {% block title %}品牌資料｜車輛銷售管理{% endblock %}
 {% block page_class %}page-shell--wide{% endblock %}
 {% block content %}
@@ -15,39 +14,9 @@
 <div class="responsive-split master-editor-layout">
   <section class="form-section static-section">
     <div class="section-title"><div><p class="eyebrow">{% if editing %}編輯品牌{% else %}新增品牌{% endif %}</p><h2>{% if editing %}{{ editing.name }}{% else %}建立品牌{% endif %}</h2></div></div>
-    <form method="post" enctype="multipart/form-data" class="stacked-form" data-brand-logo-form>
+    <form method="post" class="stacked-form">
       {% csrf_token %}
-      {{ form.logo_crop_x }}{{ form.logo_crop_y }}{{ form.logo_crop_width }}{{ form.logo_crop_height }}{{ form.logo_crop_changed }}{{ form.remove_logo }}
       {% if form.non_field_errors %}<div class="form-errors">{{ form.non_field_errors }}</div>{% endif %}
-      <section class="brand-logo-editor" data-brand-logo-editor {% if editing.logo %}data-source-url="{% url 'vehicle_brand_logo_source' editing.pk %}?v={{ editing.updated_at|date:'U' }}"{% endif %} data-has-crop="{% if editing.logo_crop_data %}true{% else %}false{% endif %}">
-        <div class="brand-logo-editor__heading">
-          <div><strong>品牌 LOGO</strong><span>上傳後會等比例縮放並完整顯示；如有需要，可再放大或拖曳調整位置。</span></div>
-          <span class="status-pill" data-logo-status>{% if editing.logo %}目前已設定{% else %}尚未設定{% endif %}</span>
-        </div>
-        <div class="brand-logo-editor__upload">
-          <label for="{{ form.logo.id_for_label }}">選擇 LOGO 圖片</label>{{ form.logo }}
-          {% if form.logo.errors %}<div class="field-errors">{{ form.logo.errors }}</div>{% endif %}
-          <small>{{ form.logo.help_text }}</small>
-        </div>
-        <div class="brand-logo-editor__workspace{% if not editing.logo %} is-empty{% endif %}" data-logo-workspace>
-          <div class="brand-logo-editor__crop-column">
-            <span class="brand-logo-editor__label">顯示範圍</span>
-            <canvas class="brand-logo-crop-canvas" width="800" height="400" data-logo-canvas aria-label="LOGO 顯示範圍"></canvas>
-            <div class="brand-logo-editor__controls"><label>縮放 <input type="range" min="1" max="4" step="0.01" value="1" data-logo-zoom></label><button type="button" class="button ghost small" data-logo-reset>恢復完整顯示</button></div>
-            <p class="muted">預設保留完整圖片與透明區域；放大後可用滑鼠或手指拖曳調整位置。</p>
-          </div>
-          <div class="brand-logo-editor__preview-column">
-            <span class="brand-logo-editor__label">實際顯示預覽</span>
-            <div class="brand-logo-preview-list">
-              <figure><canvas width="184" height="92" data-logo-preview></canvas><figcaption>電腦版品牌標頭</figcaption></figure>
-              <figure><canvas width="152" height="84" data-logo-preview></canvas><figcaption>手機版品牌標頭</figcaption></figure>
-              <figure><canvas width="200" height="84" data-logo-preview></canvas><figcaption>品牌維護列表</figcaption></figure>
-            </div>
-            {% if editing.logo %}<button type="button" class="button danger ghost small" data-logo-remove>移除 LOGO</button>{% endif %}
-          </div>
-        </div>
-        <div class="brand-logo-editor__empty" data-logo-empty{% if editing.logo %} hidden{% endif %}>選擇圖片後，這裡會立即完整顯示圖片與三種實際尺寸預覽。</div>
-      </section>
       <div class="form-grid single-column">
         {% include "sales/_field.html" with field=form.name %}
         {% include "sales/_field.html" with field=form.parent %}
@@ -61,10 +30,9 @@
   </section>
   <section class="inventory-list-panel">
     <div class="inventory-list-summary"><strong>共 {{ brands|length }} 個品牌</strong><span class="muted">停用後不再出現在新增資料的下拉選單</span></div>
-    <div class="inventory-table-wrap"><table class="inventory-table"><thead><tr><th>品牌關係</th><th>品牌 LOGO</th><th>別名／原廠寫法</th><th>使用狀態</th><th>排序</th><th></th></tr></thead><tbody>
-      {% for item in brands %}<tr class="{% if item.parent_id %}brand-row brand-row--child{% else %}brand-row brand-row--root{% endif %}"><td class="brand-hierarchy-cell" data-label="品牌關係"><div class="brand-hierarchy">{% if item.parent_id %}<span class="brand-hierarchy__branch" aria-hidden="true"></span>{% endif %}<div class="brand-hierarchy__identity"><div class="brand-hierarchy__title"><strong>{{ item.name }}</strong><span class="brand-level-badge {% if item.parent_id %}brand-level-badge--child{% else %}brand-level-badge--root{% endif %}">{% if item.parent_id %}子品牌{% else %}主品牌{% endif %}</span></div><small>{% if item.parent_id %}隸屬 {{ item.parent.name }} · {% endif %}{{ item.active|yesno:"啟用中,已停用" }}</small></div></div></td><td data-label="品牌 LOGO">{% if item.logo %}<img class="brand-logo-thumb" src="{% url 'vehicle_brand_logo' item.pk %}?v={{ item.updated_at|date:'U' }}" alt="{{ item.name }} LOGO">{% else %}<span class="muted">尚未設定</span>{% endif %}</td><td data-label="別名">{{ item.aliases|default:"—" }}</td><td data-label="使用狀態">{% if item.is_used %}<span class="status-pill">已有資料使用</span>{% else %}<span class="muted">尚未使用</span>{% endif %}</td><td data-label="排序">{{ item.display_order }}</td><td><a class="button ghost small" href="?edit={{ item.pk }}">編輯</a></td></tr>{% empty %}<tr><td colspan="6">尚未建立品牌</td></tr>{% endfor %}
+    <div class="inventory-table-wrap"><table class="inventory-table"><thead><tr><th>品牌關係</th><th>別名／原廠寫法</th><th>使用狀態</th><th>排序</th><th></th></tr></thead><tbody>
+      {% for item in brands %}<tr class="{% if item.parent_id %}brand-row brand-row--child{% else %}brand-row brand-row--root{% endif %}"><td class="brand-hierarchy-cell" data-label="品牌關係"><div class="brand-hierarchy">{% if item.parent_id %}<span class="brand-hierarchy__branch" aria-hidden="true"></span>{% endif %}<div class="brand-hierarchy__identity"><div class="brand-hierarchy__title"><strong>{{ item.name }}</strong><span class="brand-level-badge {% if item.parent_id %}brand-level-badge--child{% else %}brand-level-badge--root{% endif %}">{% if item.parent_id %}子品牌{% else %}主品牌{% endif %}</span></div><small>{% if item.parent_id %}隸屬 {{ item.parent.name }} · {% endif %}{{ item.active|yesno:"啟用中,已停用" }}</small></div></div></td><td data-label="別名">{{ item.aliases|default:"—" }}</td><td data-label="使用狀態">{% if item.is_used %}<span class="status-pill">已有資料使用</span>{% else %}<span class="muted">尚未使用</span>{% endif %}</td><td data-label="排序">{{ item.display_order }}</td><td><a class="button ghost small" href="?edit={{ item.pk }}">編輯</a></td></tr>{% empty %}<tr><td colspan="5">尚未建立品牌</td></tr>{% endfor %}
     </tbody></table></div>
   </section>
 </div>
 {% endblock %}
-{% block scripts %}<script src="{% static 'js/brand-logo-editor.js' %}?v={{ app_version }}" defer></script>{% endblock %}

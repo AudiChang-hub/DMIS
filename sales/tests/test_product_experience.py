@@ -185,6 +185,12 @@ class ProductExperienceTests(TestCase):
                 ("#ffffff", "#005544"),
                 ("#ffffff", "#0b1f2a"),
             ),
+            "night-blue": (
+                ("#e8eef0", "#0d151a"),
+                ("#a9b6bc", "#141f25"),
+                ("#ffffff", "#1f746d"),
+                ("#ffffff", "#0a151b"),
+            ),
         }
         for theme, pairs in theme_contrast_pairs.items():
             for foreground, background in pairs:
@@ -216,11 +222,25 @@ class ProductExperienceTests(TestCase):
         self.assertContains(response, '<meta name="theme-color" content="#162c4a">')
         self.assertContains(response, 'data-theme-dialog')
         self.assertContains(response, "專業藍綠")
+        self.assertContains(response, "夜間深藍")
+        self.assertContains(response, "跟隨裝置")
         self.assertContains(response, "沉穩深藍")
         self.assertContains(response, "石墨灰金")
         self.assertContains(response, "明亮靛藍")
         self.assertContains(response, "高對比")
         self.assertContains(response, "theme-selector.js")
+
+        response = self.client.post(
+            reverse("appearance_theme_update"),
+            {"theme": "system", "next": target},
+        )
+        self.assertRedirects(response, target)
+        self.assertEqual(
+            UserAppearancePreference.objects.get(user=self.user).theme,
+            "system",
+        )
+        response = self.client.get(reverse("dashboard"))
+        self.assertContains(response, 'data-theme="system"')
 
     def test_theme_update_rejects_unknown_theme_and_external_return_url(self):
         UserAppearancePreference.objects.create(
@@ -257,10 +277,16 @@ class ProductExperienceTests(TestCase):
         self.assertIn('html[data-theme="graphite-gold"]', css)
         self.assertIn('html[data-theme="bright-indigo"]', css)
         self.assertIn('html[data-theme="high-contrast"]', css)
+        self.assertIn('html[data-theme="night-blue"]', css)
+        self.assertIn('html[data-theme="system"]', css)
+        self.assertIn("prefers-color-scheme: dark", css)
+        self.assertIn("color-scheme: dark", css)
         self.assertIn("@media print", css)
         self.assertIn("html[data-theme]", css)
         self.assertIn("root.dataset.theme = theme", script)
         self.assertIn('updateSelection("professional")', script)
+        self.assertIn('matchMedia?.("(prefers-color-scheme: dark)")', script)
+        self.assertIn('updateThemeMeta(root.dataset.theme || "professional")', script)
         self.assertNotIn("localStorage", script)
 
     def test_maintenance_help_stays_on_master_data_topic(self):

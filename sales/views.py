@@ -5561,7 +5561,7 @@ def _vehicle_model_form_view(request, instance=None):
     if request.method == "POST" and action == "move_family" and is_editing:
         if move_form.is_valid():
             try:
-                moved_model, source_removed = move_vehicle_model_to_family(
+                moved_model, source_removed, merged = move_vehicle_model_to_family(
                     vehicle_model_id=instance.pk,
                     target_family_id=move_form.cleaned_data["target_family"].pk,
                 )
@@ -5569,9 +5569,11 @@ def _vehicle_model_form_view(request, instance=None):
                 move_form.add_error(None, exc)
             else:
                 cleanup_note = "，原本空白的錯誤機種也已清除" if source_removed else ""
+                action_label = "合併至" if merged else "移至"
                 messages.success(
                     request,
-                    f"已將 {moved_model.model_year} 年式移至「{moved_model.family.name}」{cleanup_note}。",
+                    f"已將 {moved_model.model_year or '待補'} 年式{action_label}「{moved_model.family.name}」；"
+                    f"訂單、庫存、顏色與商務設定均已保留{cleanup_note}。",
                 )
                 return redirect(
                     f"{reverse('vehicle_model_edit', args=[moved_model.pk])}#data-correction"

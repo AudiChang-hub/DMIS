@@ -376,7 +376,9 @@ class OrderFlowTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "年式資料修正")
         self.assertContains(response, "修正年份")
-        self.assertContains(response, "移至其他機種")
+        self.assertContains(response, "移至或合併其他機種")
+        self.assertContains(response, "若目標已有相同年份與型式")
+        self.assertContains(response, "確認移動／合併")
         self.assertContains(response, "刪除未使用的年式")
         self.assertContains(response, "所有關聯資料都會保留")
         self.assertContains(response, "目前年份")
@@ -577,7 +579,8 @@ class OrderFlowTests(TestCase):
         )
         self.assertFalse(VehicleModelFamily.objects.filter(pk=source_family.pk).exists())
 
-    def test_vehicle_model_move_rejects_duplicate_year_and_type(self):
+    def test_vehicle_model_move_merges_duplicate_year_and_type(self):
+        source_family = self.model.family
         self.model.model_year = 2026
         self.model.model_code = VehicleModel.ModelType.FRONT_DISC_REAR_DRUM
         self.model.save()
@@ -585,7 +588,7 @@ class OrderFlowTests(TestCase):
             brand=self.model.brand,
             name="正確通勤車",
         )
-        VehicleModel.objects.create(
+        duplicate = VehicleModel.objects.create(
             brand=target.brand,
             name=target.name,
             model_number="TARGET-2026",
@@ -593,6 +596,71 @@ class OrderFlowTests(TestCase):
             model_code=VehicleModel.ModelType.FRONT_DISC_REAR_DRUM,
             energy_type=VehicleModel.EnergyType.GAS,
             displacement_cc=125,
+        )
+        source_price = VehiclePriceVersion.objects.create(
+            vehicle_model=self.model,
+            suggested_price=Decimal("79800"),
+            cash_price=Decimal("74800"),
+            effective_from=date(2026, 1, 1),
+            source_note="歷史價格資料匯入",
+        )
+        target_price = VehiclePriceVersion.objects.create(
+            vehicle_model=duplicate,
+            suggested_price=Decimal("79800"),
+            cash_price=Decimal("74800"),
+            effective_from=date(2026, 1, 1),
+            source_note="歷史價格資料匯入",
+        )
+        order = self.make_order()
+        order.price_version = source_price
+        order.save(update_fields=["price_version", "updated_at"])
+        self.client.force_login(self.user)
+
+        response = self.client.post(
+            reverse("vehicle_model_edit", args=[self.model.pk]),
+            {"action": "move_family", "target_family": target.pk},
+        )
+
+        self.assertEqual(
+            response["Location"],
+            f'{reverse("vehicle_model_edit", args=[duplicate.pk])}#data-correction',
+        )
+        self.vehicle.refresh_from_db()
+        order.refresh_from_db()
+        self.assertFalse(VehicleModel.objects.filter(pk=self.model.pk).exists())
+        self.assertFalse(VehicleModelFamily.objects.filter(pk=source_family.pk).exists())
+        self.assertEqual(self.vehicle.vehicle_model, duplicate)
+        self.assertEqual(order.vehicle_model, duplicate)
+        self.assertEqual(order.price_version, target_price)
+        self.assertEqual(duplicate.price_versions.count(), 1)
+
+    def test_vehicle_model_cross_family_merge_stops_on_different_price_versions(self):
+        self.model.model_year = 2026
+        self.model.model_code = VehicleModel.ModelType.FRONT_DISC_REAR_DRUM
+        self.model.save()
+        target = VehicleModelFamily.objects.create(
+            brand=self.model.brand,
+            name="正確通勤車",
+        )
+        duplicate = VehicleModel.objects.create(
+            brand=target.brand,
+            name=target.name,
+            model_number="TARGET-2026",
+            model_year=2026,
+            model_code=VehicleModel.ModelType.FRONT_DISC_REAR_DRUM,
+            energy_type=VehicleModel.EnergyType.GAS,
+            displacement_cc=125,
+        )
+        effective_from = date(2026, 1, 1)
+        VehiclePriceVersion.objects.create(
+            vehicle_model=self.model,
+            cash_price=Decimal("74800"),
+            effective_from=effective_from,
+        )
+        VehiclePriceVersion.objects.create(
+            vehicle_model=duplicate,
+            cash_price=Decimal("75800"),
+            effective_from=effective_from,
         )
         self.client.force_login(self.user)
 
@@ -602,9 +670,10 @@ class OrderFlowTests(TestCase):
         )
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "目標機種已有相同年份與型式")
-        self.model.refresh_from_db()
-        self.assertNotEqual(self.model.family, target)
+        self.assertContains(response, "相同生效日的商務設定")
+        self.assertContains(response, "售價版本 1 筆")
+        self.assertTrue(VehicleModel.objects.filter(pk=self.model.pk).exists())
+        self.assertEqual(duplicate.price_versions.count(), 1)
 
     def test_unused_vehicle_model_year_can_be_permanently_deleted(self):
         unused = VehicleModel.objects.create(

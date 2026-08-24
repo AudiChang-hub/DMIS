@@ -1,6 +1,7 @@
 (() => {
   const body = document.body;
   const banner = document.getElementById("app-update-banner");
+  const icon = document.getElementById("app-update-icon");
   const message = document.getElementById("app-update-message");
   const reloadButton = document.getElementById("app-update-reload");
   const laterButton = document.getElementById("app-update-later");
@@ -21,8 +22,15 @@
   });
   document.addEventListener("draft-saved", () => { formDirty = false; });
 
-  function showStatus(text) {
+  function setBannerState(state) {
+    const icons = {success: "✓", update: "↻", error: "!"};
+    banner.dataset.state = state;
+    if (icon) icon.textContent = icons[state] || icons.update;
+  }
+
+  function showStatus(text, state = "success") {
     clearTimeout(statusTimer);
+    setBannerState(state);
     message.textContent = text;
     reloadButton.hidden = true;
     laterButton.textContent = "關閉";
@@ -32,6 +40,7 @@
 
   function showUpdate(version) {
     clearTimeout(statusTimer);
+    setBannerState("update");
     availableVersion = version;
     message.textContent = formDirty
       ? "系統已有新版。你正在填寫資料，請先完成或確認後再更新。"
@@ -55,10 +64,10 @@
       if (data.version && data.version !== loadedVersion) {
         showUpdate(data.version);
       } else if (manual) {
-        showStatus("目前已是最新版本。");
+        showStatus("目前已是最新版本。", "success");
       }
     } catch (error) {
-      if (manual) showStatus("暫時無法檢查更新，請稍後再試。");
+      if (manual) showStatus("暫時無法檢查更新，請稍後再試。", "error");
     } finally {
       checking = false;
     }

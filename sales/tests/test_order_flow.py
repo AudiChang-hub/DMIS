@@ -4384,7 +4384,20 @@ class OrderFlowTests(TestCase):
         self.assertContains(response, 'class="update-check-icon"')
         self.assertContains(response, "js/layout-audit")
         self.assertContains(response, "app-update-banner")
+        self.assertContains(response, 'data-state="update"')
+        self.assertContains(response, 'id="app-update-icon"')
         self.assertContains(response, "js/app-update")
+
+    def test_update_banner_has_distinct_success_update_and_error_states(self):
+        css = Path("static/css/app.css").read_text(encoding="utf-8")
+        script = Path("static/js/app-update.js").read_text(encoding="utf-8")
+
+        self.assertIn('.app-update-banner[data-state="success"]', css)
+        self.assertIn('.app-update-banner[data-state="error"]', css)
+        self.assertIn('const icons = {success: "✓", update: "↻", error: "!"}', script)
+        self.assertIn('setBannerState("update")', script)
+        self.assertIn('"目前已是最新版本。", "success"', script)
+        self.assertIn('"暫時無法檢查更新，請稍後再試。", "error"', script)
 
     def test_allocation_summary_uses_responsive_overview_spacing(self):
         css = (

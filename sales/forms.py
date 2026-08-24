@@ -1646,7 +1646,10 @@ class VehicleModelFamilyMoveForm(forms.Form):
         label="移至正確機種",
         queryset=VehicleModelFamily.objects.none(),
         empty_label="請選擇正確機種",
-        help_text="只列出相同品牌的其他機種；移動後仍保留這筆年式的所有關聯資料。",
+        help_text=(
+            "只列出相同品牌的其他機種；若目標已有相同年份與型式，"
+            "系統會安全合併並保留兩邊的關聯資料。"
+        ),
     )
 
     def __init__(self, *args, vehicle_model, **kwargs):
@@ -1669,14 +1672,6 @@ class VehicleModelFamilyMoveForm(forms.Form):
             raise ValidationError("目前已屬於這個機種，不需要移動。")
         if target.brand.casefold() != self.vehicle_model.brand.casefold():
             raise ValidationError("只能移動到相同品牌的機種。")
-        duplicate = target.versions.exclude(pk=self.vehicle_model.pk).filter(
-            model_year=self.vehicle_model.model_year,
-            model_code=self.vehicle_model.model_code,
-        )
-        if duplicate.exists():
-            raise ValidationError(
-                "目標機種已有相同年份與型式；請先確認兩筆資料是否需要進一步合併。"
-            )
         return target
 
 

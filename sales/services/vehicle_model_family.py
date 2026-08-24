@@ -107,27 +107,69 @@ def _versioned_relation_conflicts(source, target):
     return conflicts
 
 
-@transaction.atomic
-def merge_vehicle_model_versions(*, source_model_id, target_model_id):
-    if source_model_id == target_model_id:
-        raise ValidationError("不能將年式資料合併到自己。")
-    locked = {
-        item.pk: item
-        for item in VehicleModel.objects.select_for_update()
-        .select_related("family")
-        .filter(pk__in=[source_model_id, target_model_id])
+def _price_version_business_values(price_version):
+    ignored_fields = {"id", "vehicle_model", "created_at", "updated_at"}
+    return {
+        field.name: getattr(price_version, field.attname)
+        for field in price_version._meta.concrete_fields
+        if field.name not in ignored_fields
     }
-    source = locked.get(source_model_id)
-    target = locked.get(target_model_id)
-    if source is None or target is None:
-        raise ValidationError("找不到要合併的年式資料，請重新整理後再試。")
+
+
+def _deduplicate_identical_price_versions(source, target):
+    """Remove exact duplicate price rows so a safe model merge can continue."""
+    target_by_date = {
+        item.effective_from: item
+        for item in target.price_versions.select_for_update().all()
+    }
+    for source_price in source.price_versions.select_for_update().all():
+        target_price = target_by_date.get(source_price.effective_from)
+        if target_price is None:
+            continue
+        if _price_version_business_values(source_price) != _price_version_business_values(
+            target_price
+        ):
+            continue
+        source_price.orders.update(price_version=target_price)
+        source_price.delete()
+
+
+def _copy_factory_codes_to_target_family(source, target):
+    code_values = list(source.factory_model_codes.values_list("code", flat=True))
+    if not code_values and source.model_number:
+        code_values = [source.model_number]
+    target_codes = []
+    for code_value in code_values:
+        normalized_code = normalize_vehicle_model_master_value(code_value)
+        target_code, created = VehicleFactoryModelCode.objects.get_or_create(
+            family=target.family,
+            normalized_code=normalized_code,
+            defaults={"code": code_value, "active": True},
+        )
+        if not created and not target_code.active:
+            target_code.active = True
+            target_code.save(update_fields=["active", "updated_at"])
+        target_codes.append(target_code)
+    return target_codes
+
+
+def _merge_locked_vehicle_model_versions(*, source, target, allow_cross_family=False):
+    source_family = source.family
     if source.family_id != target.family_id:
-        raise ValidationError("只能合併同一機種下的年式資料。")
+        if not allow_cross_family:
+            raise ValidationError("只能合併同一機種下的年式資料。")
+        if source.brand.casefold() != target.brand.casefold():
+            raise ValidationError("只能合併相同品牌的年式資料。")
+        if source.model_code != target.model_code:
+            raise ValidationError("只能合併相同型式的重複資料。")
     if source.model_year != target.model_year:
         raise ValidationError("只能合併相同年份的重複資料。")
     if source.energy_type != target.energy_type:
         raise ValidationError("兩筆資料的能源別不同，請先人工確認，不能直接合併。")
 
+    # 歷史匯入常建立兩筆內容完全相同的售價版本。這類資料可安全去重；
+    # 同日但金額或條件不同的版本仍由下方衝突檢查攔截。
+    _deduplicate_identical_price_versions(source, target)
     conflicts = _versioned_relation_conflicts(source, target)
     if conflicts:
         raise ValidationError(
@@ -182,9 +224,31 @@ def merge_vehicle_model_versions(*, source_model_id, target_model_id):
     source.legacy_import_mappings.update(vehicle_model=target)
     source.vehicleinventory_set.update(vehicle_model=target)
     source.salesorder_set.update(vehicle_model=target)
-    target.factory_model_codes.add(*source.factory_model_codes.all())
+    target.factory_model_codes.add(*_copy_factory_codes_to_target_family(source, target))
     source.delete()
+    source_removed = _remove_empty_family(source_family)
     target.refresh_from_db()
+    return target, source_removed
+
+
+@transaction.atomic
+def merge_vehicle_model_versions(*, source_model_id, target_model_id):
+    if source_model_id == target_model_id:
+        raise ValidationError("不能將年式資料合併到自己。")
+    locked = {
+        item.pk: item
+        for item in VehicleModel.objects.select_for_update()
+        .select_related("family")
+        .filter(pk__in=[source_model_id, target_model_id])
+    }
+    source = locked.get(source_model_id)
+    target = locked.get(target_model_id)
+    if source is None or target is None:
+        raise ValidationError("找不到要合併的年式資料，請重新整理後再試。")
+    target, _source_removed = _merge_locked_vehicle_model_versions(
+        source=source,
+        target=target,
+    )
     return target
 
 
@@ -249,13 +313,17 @@ def move_vehicle_model_to_family(*, vehicle_model_id, target_family_id):
         raise ValidationError("目前已屬於這個機種，不需要移動。")
     if target_family.brand.casefold() != vehicle_model.brand.casefold():
         raise ValidationError("只能移動到相同品牌的機種。")
-    if target_family.versions.exclude(pk=vehicle_model.pk).filter(
+    duplicate = target_family.versions.exclude(pk=vehicle_model.pk).filter(
         model_year=vehicle_model.model_year,
         model_code=vehicle_model.model_code,
-    ).exists():
-        raise ValidationError(
-            "目標機種已有相同年份與型式；請先確認兩筆資料是否需要進一步合併。"
+    ).select_for_update().order_by("id").first()
+    if duplicate:
+        merged_model, source_removed = _merge_locked_vehicle_model_versions(
+            source=vehicle_model,
+            target=duplicate,
+            allow_cross_family=True,
         )
+        return merged_model, source_removed, True
 
     source_codes = list(vehicle_model.factory_model_codes.all())
     if not source_codes and vehicle_model.model_number:
@@ -289,7 +357,7 @@ def move_vehicle_model_to_family(*, vehicle_model_id, target_family_id):
     vehicle_model.refresh_from_db()
     vehicle_model.factory_model_codes.set(target_codes)
     source_removed = _remove_empty_family(source_family)
-    return vehicle_model, source_removed
+    return vehicle_model, source_removed, False
 
 
 @transaction.atomic

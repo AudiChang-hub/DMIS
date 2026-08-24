@@ -162,8 +162,8 @@
     </dialog>
   {% endif %}
 
-  <aside class="app-update-banner" id="app-update-banner" aria-live="polite" hidden>
-    <span class="app-update-icon" aria-hidden="true">↻</span>
+  <aside class="app-update-banner" id="app-update-banner" data-state="update" role="status" aria-live="polite" hidden>
+    <span class="app-update-icon" id="app-update-icon" aria-hidden="true">↻</span>
     <strong id="app-update-message">系統已有新版，可以立即重新載入。</strong>
     <button type="button" class="button primary small" id="app-update-reload">重新載入</button>
     <button type="button" class="button ghost small" id="app-update-later">稍後</button>

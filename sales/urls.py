@@ -44,16 +44,6 @@ urlpatterns = [
     path("account/password/", views.password_change_required, name="password_change_required"),
     path("data/vehicle-brands/", views.vehicle_brand_list, name="vehicle_brand_list"),
     path(
-        "data/vehicle-brands/<int:pk>/logo/",
-        views.vehicle_brand_logo,
-        name="vehicle_brand_logo",
-    ),
-    path(
-        "data/vehicle-brands/<int:pk>/logo/source/",
-        views.vehicle_brand_logo_source,
-        name="vehicle_brand_logo_source",
-    ),
-    path(
         "data/business-holidays/",
         views.business_holiday_list,
         name="business_holiday_list",

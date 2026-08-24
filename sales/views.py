@@ -1,6 +1,5 @@
 import json
 import logging
-import mimetypes
 import shutil
 import uuid
 from functools import wraps
@@ -31,8 +30,6 @@ from rq import Retry, Worker
 from .services.order_contract_pdf import build_order_contract_pdf
 from .services.privacy_consent_pdf import build_privacy_consent_pdf
 from .services.excel_export import sanitize_excel_row
-from .services.brand_logo import apply_brand_logo, clear_brand_logo
-
 from .forms import (
     AccessoryProductForm,
     AdminPasswordResetForm,
@@ -945,52 +942,14 @@ def vehicle_brand_list(request):
     if edit_pk:
         editing = get_object_or_404(VehicleBrand, pk=edit_pk)
     original_name = editing.name if editing else ""
-    old_logo_files = []
-    if editing:
-        for field_name in ("logo", "logo_original"):
-            field_file = getattr(editing, field_name)
-            if field_file and field_file.name:
-                old_logo_files.append((field_file.storage, field_file.name))
-    form = VehicleBrandForm(request.POST or None, request.FILES or None, instance=editing)
+    form = VehicleBrandForm(request.POST or None, instance=editing)
     if request.method == "POST" and form.is_valid():
         brand = form.save(commit=False)
         try:
             with transaction.atomic():
                 if editing and original_name != brand.name:
                     rename_vehicle_brand_references(original_name, brand.name)
-                if form.cleaned_data.get("remove_logo"):
-                    clear_brand_logo(brand)
-                elif form.cleaned_data.get("logo") or form.cleaned_data.get(
-                    "logo_crop_changed"
-                ):
-                    apply_brand_logo(
-                        brand,
-                        uploaded_file=form.cleaned_data.get("logo"),
-                        crop_data={
-                            "x": form.cleaned_data["logo_crop_x"],
-                            "y": form.cleaned_data["logo_crop_y"],
-                            "width": form.cleaned_data["logo_crop_width"],
-                            "height": form.cleaned_data["logo_crop_height"],
-                        },
-                    )
                 brand.save()
-                retained_names = {
-                    name
-                    for name in (brand.logo.name, brand.logo_original.name)
-                    if name
-                }
-                obsolete_files = [
-                    (storage, name)
-                    for storage, name in old_logo_files
-                    if name not in retained_names
-                ]
-                transaction.on_commit(
-                    lambda: [
-                        storage.delete(name)
-                        for storage, name in obsolete_files
-                        if storage.exists(name)
-                    ]
-                )
         except IntegrityError:
             form.add_error(
                 "name",
@@ -1015,50 +974,6 @@ def vehicle_brand_list(request):
         "sales/vehicle_brand_list.html",
         {"brands": brands, "form": form, "editing": editing},
     )
-
-
-@login_required
-def vehicle_brand_logo(request, pk):
-    brand = get_object_or_404(VehicleBrand, pk=pk)
-    if not brand.logo:
-        raise Http404("此品牌尚未設定 LOGO。")
-    try:
-        logo_file = brand.logo.open("rb")
-    except (FileNotFoundError, OSError, ValueError):
-        raise Http404("找不到品牌 LOGO 檔案。")
-    content_type = (
-        mimetypes.guess_type(brand.logo.name)[0] or "application/octet-stream"
-    )
-    response = FileResponse(
-        logo_file,
-        content_type=content_type,
-        as_attachment=False,
-        filename=Path(brand.logo.name).name,
-    )
-    response["Cache-Control"] = "private, max-age=3600"
-    return response
-
-
-@login_required
-def vehicle_brand_logo_source(request, pk):
-    brand = get_object_or_404(VehicleBrand, pk=pk)
-    source = brand.logo_original or brand.logo
-    if not source:
-        raise Http404("此品牌尚未設定 LOGO 原圖。")
-    try:
-        logo_file = source.open("rb")
-    except (FileNotFoundError, OSError, ValueError):
-        raise Http404("找不到品牌 LOGO 原圖檔案。")
-    content_type = mimetypes.guess_type(source.name)[0] or "application/octet-stream"
-    response = FileResponse(
-        logo_file,
-        content_type=content_type,
-        as_attachment=False,
-        filename=Path(source.name).name,
-    )
-    response["Cache-Control"] = "private, max-age=3600"
-    return response
-
 
 @login_required
 @require_http_methods(["GET", "POST"])
@@ -5148,9 +5063,6 @@ def vehicle_model_list(request):
             {
                 "name": root_name,
                 "display_order": root_brand.display_order if root_brand else 999,
-                "logo_brand": (
-                    root_brand if root_brand and root_brand.logo else None
-                ),
                 "models": [],
                 "families": {},
                 "child_brands": set(),

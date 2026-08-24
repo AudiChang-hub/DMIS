@@ -33,7 +33,7 @@
     toggle.type = "button";
     toggle.className = "searchable-select__toggle";
     toggle.setAttribute("aria-label", "展開選項");
-    toggle.textContent = "⌄";
+    toggle.innerHTML = '<span class="ui-chevron" aria-hidden="true"></span>';
 
     wrapper.append(input, toggle, list);
     select.insertAdjacentElement("afterend", wrapper);
@@ -84,6 +84,7 @@
       list.hidden = true;
       wrapper.classList.remove("is-open");
       input.setAttribute("aria-expanded", "false");
+      toggle.setAttribute("aria-label", "展開選項");
       input.removeAttribute("aria-activedescendant");
       activeIndex = -1;
       if (restore) input.value = selectedLabel();
@@ -144,6 +145,7 @@
       list.hidden = false;
       wrapper.classList.add("is-open");
       input.setAttribute("aria-expanded", "true");
+      toggle.setAttribute("aria-label", "收合選項");
     }
 
     function syncFromSelect() {

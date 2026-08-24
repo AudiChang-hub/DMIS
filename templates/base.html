@@ -23,7 +23,7 @@
           <a href="{% url 'order_list' %}" {% if request.resolver_match.url_name == 'order_list' or request.resolver_match.url_name == 'order_detail' or request.resolver_match.url_name == 'order_edit' or request.resolver_match.url_name == 'order_create' %}class="active" aria-current="page"{% endif %}>全部訂單</a>
           <a href="{% url 'operations_report' %}" {% if request.resolver_match.url_name == 'operations_report' or request.resolver_match.url_name == 'order_operations' or request.resolver_match.url_name == 'reconciliation_list' %}class="active" aria-current="page"{% endif %}>營運總表</a>
           <div class="desktop-data-menu{% if is_data_maintenance_section %} active{% endif %}">
-            <a href="{% url 'data_maintenance' %}">資料維護區 <span aria-hidden="true">⌄</span></a>
+            <a href="{% url 'data_maintenance' %}">資料維護區 <span class="ui-chevron desktop-data-menu__chevron" aria-hidden="true"></span></a>
             <div class="data-menu-popover" aria-label="資料維護選單">
               <section class="data-menu-group" aria-labelledby="data-menu-daily">
                 <h2 id="data-menu-daily">日常資料</h2>

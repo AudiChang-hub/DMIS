@@ -898,6 +898,17 @@ input[type="file"].form-control { padding: 10px; }
   width: 100%; min-width: 0; min-height: 48px; padding: 10px 44px 10px 12px;
   color: var(--ink); background: var(--surface-subtle); border: 1px solid var(--line); border-radius: 11px; outline: 0;
 }
+.searchable-select.has-search-icon .searchable-select__input { padding-left: 42px; }
+.searchable-select__search-icon {
+  position: absolute; z-index: 2; top: 50%; left: 15px; width: 14px; height: 14px;
+  border: 2px solid var(--muted); border-radius: 50%; pointer-events: none; transform: translateY(-58%);
+}
+.searchable-select__search-icon::after {
+  position: absolute; right: -5px; bottom: -3px; width: 6px; height: 2px;
+  background: var(--muted); border-radius: 2px; content: ""; transform: rotate(45deg); transform-origin: left center;
+}
+.searchable-select:focus-within .searchable-select__search-icon { border-color: var(--forest); }
+.searchable-select:focus-within .searchable-select__search-icon::after { background: var(--forest); }
 .searchable-select__input:focus { background: var(--surface); border-color: var(--forest); box-shadow: 0 0 0 3px rgba(14,93,87,.16); }
 .searchable-select__toggle {
   position: absolute; z-index: 2; top: 0; right: 0; display: grid; width: 44px; height: 48px; padding: 0;
@@ -1675,6 +1686,11 @@ body.screen-locked { overflow: hidden; }
 }
 .inventory-filter { display: grid; min-width: 0; gap: 6px; }
 .inventory-filter label { color: var(--muted); font-size: .8125rem; font-weight: 900; }
+.inventory-filter__search-badge {
+  display: inline-flex; margin-left: 5px; padding: 2px 7px; align-items: center;
+  color: var(--forest); background: var(--mint); border: 1px solid var(--line); border-radius: 999px;
+  font-size: .6875rem; font-weight: 900; vertical-align: middle;
+}
 .inventory-filter input, .inventory-filter select {
   width: 100%; min-height: 42px; padding: 0 12px; border: 1px solid var(--line);
   border-radius: 10px; background: var(--surface); color: var(--ink);

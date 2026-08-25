@@ -2251,7 +2251,10 @@ class OrderFlowTests(TestCase):
             response,
             'id="inventory-location" name="location" data-searchable-select="1" data-searchable-include-empty="1"',
         )
-        self.assertContains(response, 'data-search-placeholder="輸入本店或車行名稱"')
+        self.assertContains(response, 'data-searchable-empty-placeholder="1"')
+        self.assertContains(response, 'data-searchable-search-icon="1"')
+        self.assertContains(response, 'data-search-placeholder="搜尋本店或車行名稱"')
+        self.assertContains(response, "可輸入搜尋")
 
     def test_delivered_inventory_locks_location_but_allows_resolution(self):
         self.vehicle.status = VehicleInventory.Status.DELIVERED

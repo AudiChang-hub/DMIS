@@ -2215,6 +2215,44 @@ class OrderFlowTests(TestCase):
         self.assertContains(response, 'name="engine_number"')
         self.assertContains(response, "disabled")
 
+    def test_inventory_form_uses_compact_choices_and_searchable_location(self):
+        self.model.model_number = "MODEL-125"
+        self.model.model_year = 2026
+        self.model.save(update_fields=["model_number", "model_year", "updated_at"])
+        other_model = VehicleModel.objects.create(
+            brand="其他廠牌",
+            name="其他車型",
+            model_number="OTHER-001",
+            model_year=2025,
+            energy_type=VehicleModel.EnergyType.GAS,
+        )
+        VehicleColor.objects.create(vehicle_model=other_model, name="黑")
+        self.client.force_login(self.user)
+
+        response = self.client.get(reverse("inventory_edit", args=[self.vehicle.pk]))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, ">MODEL-125／2026</option>")
+        self.assertContains(response, ">白</option>")
+        self.assertNotContains(response, ">黑</option>")
+        self.assertContains(response, 'data-search-placeholder="輸入型號或年份"')
+        self.assertContains(
+            response,
+            'data-search-placeholder="輸入本店或車行名稱"',
+        )
+
+    def test_inventory_location_filter_is_searchable(self):
+        self.client.force_login(self.user)
+
+        response = self.client.get(reverse("inventory_list"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(
+            response,
+            'id="inventory-location" name="location" data-searchable-select="1"',
+        )
+        self.assertContains(response, 'data-search-placeholder="輸入本店或車行名稱"')
+
     def test_delivered_inventory_locks_location_but_allows_resolution(self):
         self.vehicle.status = VehicleInventory.Status.DELIVERED
         self.vehicle.save(update_fields=["status", "updated_at"])

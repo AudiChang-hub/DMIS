@@ -2241,17 +2241,17 @@ class OrderFlowTests(TestCase):
             'data-search-placeholder="輸入本店或車行名稱"',
         )
 
-    def test_inventory_dropdown_filters_are_searchable(self):
+    def test_inventory_dropdown_filters_are_searchable_and_multiple(self):
         self.client.force_login(self.user)
 
         response = self.client.get(reverse("inventory_list"))
 
         self.assertEqual(response.status_code, 200)
         searchable_filters = {
-            "inventory-status": "搜尋狀態",
-            "inventory-model": "搜尋品牌或機種",
-            "inventory-color": "搜尋車色",
-            "inventory-location": "搜尋本店或車行名稱",
+            "inventory-status": "搜尋並複選狀態",
+            "inventory-model": "搜尋並複選品牌或機種",
+            "inventory-color": "搜尋並複選車色",
+            "inventory-location": "搜尋並複選本店或車行",
             "inventory-sort": "搜尋排序方式",
         }
         for element_id, placeholder in searchable_filters.items():
@@ -2265,9 +2265,10 @@ class OrderFlowTests(TestCase):
                     f'data-search-placeholder="{placeholder}"',
                 )
         self.assertContains(response, 'data-searchable-select="1"', count=5)
+        self.assertContains(response, 'data-searchable-multiple="1"', count=4)
+        self.assertContains(response, ' multiple data-searchable-select="1"', count=4)
         self.assertContains(response, 'data-searchable-search-icon="1"', count=5)
-        self.assertContains(response, "下拉欄位皆可直接輸入搜尋")
-        self.assertNotContains(response, "可輸入搜尋")
+        self.assertContains(response, "狀態、機種、車色與位置可搜尋複選")
 
     def test_inventory_color_filter_deduplicates_names_and_filters_all_models(self):
         other_model = VehicleModel.objects.create(
@@ -2296,6 +2297,7 @@ class OrderFlowTests(TestCase):
             [{"value": "白", "label": "白", "ids": [self.color.pk, same_color.pk]}],
         )
         self.assertEqual(response.context["selected"]["color"], "白")
+        self.assertEqual(response.context["selected"]["colors"], ["白"])
         self.assertEqual(
             set(response.context["vehicles"]),
             {self.vehicle, other_vehicle},
@@ -2314,6 +2316,97 @@ class OrderFlowTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.context["selected"]["color"], "白")
         self.assertEqual(list(response.context["vehicles"]), [self.vehicle])
+
+    def test_inventory_multi_filters_use_or_within_field_and_and_across_fields(self):
+        black = VehicleColor.objects.create(vehicle_model=self.model, name="黑")
+        same_family_reserved = VehicleInventory.objects.create(
+            vehicle_model=self.model,
+            color=black,
+            engine_number="ENG-SAME-FAMILY",
+            ownership_store=self.store_a,
+            location_store=self.store_a,
+            status=VehicleInventory.Status.RESERVED,
+        )
+        other_model = VehicleModel.objects.create(
+            brand="其他廠牌",
+            name="其他機種",
+            energy_type=VehicleModel.EnergyType.GAS,
+        )
+        other_color = VehicleColor.objects.create(vehicle_model=other_model, name="白")
+        VehicleInventory.objects.create(
+            vehicle_model=other_model,
+            color=other_color,
+            engine_number="ENG-OTHER-FAMILY",
+            ownership_store=self.store_a,
+            location_store=self.store_a,
+        )
+        self.client.force_login(self.user)
+
+        response = self.client.get(
+            reverse("inventory_list"),
+            {
+                "status": [
+                    VehicleInventory.Status.AVAILABLE,
+                    VehicleInventory.Status.RESERVED,
+                ],
+                "vehicle_family": [str(self.model.family_id)],
+                "color": ["白", "黑"],
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            set(response.context["vehicles"]),
+            {self.vehicle, same_family_reserved},
+        )
+        self.assertEqual(
+            response.context["selected"]["statuses"],
+            [VehicleInventory.Status.AVAILABLE, VehicleInventory.Status.RESERVED],
+        )
+        self.assertEqual(response.context["selected"]["colors"], ["白", "黑"])
+        self.assertEqual(
+            response.context["selected"]["vehicle_family_ids"],
+            [self.model.family_id],
+        )
+
+    def test_inventory_location_filter_combines_store_and_selected_dealers(self):
+        other_dealer = SalesSource.objects.create(
+            name="另一間合作車行",
+            source_type=SalesSource.SourceType.DEALER,
+        )
+        dealer_vehicle = VehicleInventory.objects.create(
+            vehicle_model=self.model,
+            color=self.color,
+            engine_number="ENG-DEALER-ONE",
+            ownership_store=self.store_a,
+            location_store=self.store_a,
+            current_dealer=self.dealer,
+        )
+        VehicleInventory.objects.create(
+            vehicle_model=self.model,
+            color=self.color,
+            engine_number="ENG-DEALER-TWO",
+            ownership_store=self.store_a,
+            location_store=self.store_a,
+            current_dealer=other_dealer,
+        )
+        self.client.force_login(self.user)
+
+        response = self.client.get(
+            reverse("inventory_list"),
+            {"location": ["store", f"dealer-{self.dealer.pk}"]},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            set(response.context["vehicles"]),
+            {self.vehicle, dealer_vehicle},
+        )
+        self.assertTrue(response.context["selected"]["store_selected"])
+        self.assertEqual(
+            response.context["selected"]["dealer_ids"],
+            [self.dealer.pk],
+        )
 
     def test_delivered_inventory_locks_location_but_allows_resolution(self):
         self.vehicle.status = VehicleInventory.Status.DELIVERED

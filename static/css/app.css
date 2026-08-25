@@ -928,6 +928,40 @@ input[type="file"].form-control { padding: 10px; }
 .searchable-select__list button:hover,
 .searchable-select__list button.is-active,
 .searchable-select__list button[aria-selected="true"] { color: var(--forest); background: var(--mint); }
+.searchable-select__chips {
+  display: flex; min-height: 0; margin-top: 6px; align-items: center; gap: 5px; overflow-x: auto;
+  scrollbar-width: thin;
+}
+.searchable-select__chips[hidden] { display: none; }
+.searchable-select__chip {
+  flex: 0 0 auto; min-height: 30px; padding: 4px 9px; color: var(--forest-2);
+  background: var(--mint); border: 1px solid color-mix(in srgb, var(--forest) 24%, var(--line));
+  border-radius: 999px; cursor: pointer; font-size: .74rem; font-weight: 850;
+}
+.searchable-select__chip:hover { border-color: var(--forest); }
+.searchable-select__chip-summary {
+  flex: 0 0 auto; padding: 4px 7px; color: var(--muted); font-size: .74rem; font-weight: 850;
+}
+.searchable-select__bulk {
+  position: sticky; z-index: 1; top: -6px; display: flex; margin: -6px -6px 5px; padding: 7px;
+  gap: 6px; background: var(--surface); border-bottom: 1px solid var(--line);
+}
+.searchable-select__list .searchable-select__bulk-action {
+  width: auto; min-height: 34px; padding: 5px 9px; color: var(--forest-2); background: var(--surface-soft);
+  border: 1px solid var(--line); border-radius: 8px; font-size: .75rem; font-weight: 850;
+}
+.searchable-select__list .searchable-select__bulk-action:disabled { opacity: .45; cursor: default; }
+.searchable-select.is-multiple .searchable-select__list button[role="option"] {
+  display: flex; align-items: center; gap: 9px;
+}
+.searchable-select.is-multiple .searchable-select__list button[role="option"]::before {
+  display: grid; flex: 0 0 18px; width: 18px; height: 18px; place-items: center;
+  color: #fff; border: 1px solid var(--line); border-radius: 5px; content: "";
+  font-size: .7rem; font-weight: 950;
+}
+.searchable-select.is-multiple .searchable-select__list button[role="option"][aria-selected="true"]::before {
+  background: var(--forest); border-color: var(--forest); content: "✓";
+}
 .searchable-select__empty { margin: 0; padding: 14px 10px; color: var(--muted); font-size: .875rem; text-align: center; }
 .searchable-select.is-disabled .searchable-select__input { color: var(--muted); background: var(--surface-soft); }
 .searchable-select.has-error .searchable-select__input { border-color: var(--red); box-shadow: 0 0 0 3px rgba(189,61,50,.1); }

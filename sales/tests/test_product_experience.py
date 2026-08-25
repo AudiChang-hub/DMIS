@@ -228,6 +228,11 @@ class ProductExperienceTests(TestCase):
         self.assertIn('event.key === "Escape"', script)
         self.assertIn('empty.textContent = "找不到符合的選項"', script)
         self.assertIn('select.dataset.searchableIncludeEmpty === "1"', script)
+        self.assertIn('select.dataset.searchableMultiple === "1"', script)
+        self.assertIn('chips.className = "searchable-select__chips"', script)
+        self.assertIn('selectMatches.textContent = "全選符合項目"', script)
+        self.assertIn('clear.textContent = "清除此欄"', script)
+        self.assertIn(".searchable-select__chip {", css)
 
     def test_authenticated_user_can_preview_and_sync_theme_across_pages(self):
         self.client.force_login(self.user)

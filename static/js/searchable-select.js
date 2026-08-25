@@ -11,7 +11,9 @@
     const includeEmptyOption = select.dataset.searchableIncludeEmpty === "1";
     const emptyAsPlaceholder = select.dataset.searchableEmptyPlaceholder === "1";
     const showSearchIcon = select.dataset.searchableSearchIcon === "1";
+    const isMultiple = select.multiple || select.dataset.searchableMultiple === "1";
     if (showSearchIcon) wrapper.classList.add("has-search-icon");
+    if (isMultiple) wrapper.classList.add("is-multiple");
     const input = document.createElement("input");
     input.type = "search";
     input.className = "searchable-select__input";
@@ -31,7 +33,12 @@
     list.id = listId;
     list.className = "searchable-select__list";
     list.setAttribute("role", "listbox");
+    if (isMultiple) list.setAttribute("aria-multiselectable", "true");
     list.hidden = true;
+
+    const chips = document.createElement("div");
+    chips.className = "searchable-select__chips";
+    chips.setAttribute("aria-live", "polite");
 
     const toggle = document.createElement("span");
     toggle.className = "searchable-select__toggle";
@@ -44,7 +51,7 @@
       searchIcon.setAttribute("aria-hidden", "true");
       wrapper.append(searchIcon);
     }
-    wrapper.append(input, toggle, list);
+    wrapper.append(input, toggle, chips, list);
     select.insertAdjacentElement("afterend", wrapper);
 
     const storageKey = `dmis-recent-select:${select.name}`;
@@ -78,6 +85,10 @@
       return [...select.options].find(option => option.value === select.value);
     }
 
+    function selectedOptions() {
+      return [...select.options].filter(option => option.selected && option.value);
+    }
+
     function optionDisplayLabel(option) {
       if (!option || (!option.value && !includeEmptyOption)) return "";
       if (!option.value && emptyAsPlaceholder) return "";
@@ -85,6 +96,7 @@
     }
 
     function selectedLabel() {
+      if (isMultiple) return "";
       return optionDisplayLabel(selectedOption());
     }
 
@@ -105,6 +117,28 @@
     }
 
     function choose(option) {
+      if (isMultiple) {
+        if (!option.value) {
+          [...select.options].forEach(item => { item.selected = !item.value; });
+        } else {
+          option.selected = !option.selected;
+          [...select.options].forEach(item => {
+            if (!item.value) item.selected = false;
+          });
+          if (!selectedOptions().length) {
+            const emptyOption = [...select.options].find(item => !item.value);
+            if (emptyOption) emptyOption.selected = true;
+          }
+          if (option.selected) remember(option);
+        }
+        input.value = "";
+        wrapper.classList.remove("has-error");
+        select.dispatchEvent(new Event("change", {bubbles: true}));
+        syncFromSelect();
+        renderOptions();
+        input.focus();
+        return;
+      }
       select.value = option.value;
       input.value = optionDisplayLabel(option);
       wrapper.classList.remove("has-error");
@@ -133,6 +167,46 @@
 
       list.replaceChildren();
       activeIndex = -1;
+      if (isMultiple) {
+        const bulk = document.createElement("div");
+        bulk.className = "searchable-select__bulk";
+        const selectMatches = document.createElement("button");
+        selectMatches.type = "button";
+        selectMatches.className = "searchable-select__bulk-action";
+        selectMatches.textContent = "全選符合項目";
+        selectMatches.disabled = !options.some(option => option.value);
+        selectMatches.addEventListener("mousedown", event => event.preventDefault());
+        selectMatches.addEventListener("click", () => {
+          options.filter(option => option.value).forEach(option => {
+            option.selected = true;
+            remember(option);
+          });
+          [...select.options].forEach(option => {
+            if (!option.value) option.selected = false;
+          });
+          input.value = "";
+          select.dispatchEvent(new Event("change", {bubbles: true}));
+          syncFromSelect();
+          renderOptions();
+          input.focus();
+        });
+        const clear = document.createElement("button");
+        clear.type = "button";
+        clear.className = "searchable-select__bulk-action";
+        clear.textContent = "清除此欄";
+        clear.disabled = !selectedOptions().length;
+        clear.addEventListener("mousedown", event => event.preventDefault());
+        clear.addEventListener("click", () => {
+          [...select.options].forEach(option => { option.selected = !option.value; });
+          input.value = "";
+          select.dispatchEvent(new Event("change", {bubbles: true}));
+          syncFromSelect();
+          renderOptions();
+          input.focus();
+        });
+        bulk.append(selectMatches, clear);
+        list.append(bulk);
+      }
       if (!options.length) {
         const empty = document.createElement("p");
         empty.className = "searchable-select__empty";
@@ -146,7 +220,10 @@
         button.id = `${listId}-${index}`;
         button.dataset.value = option.value;
         button.setAttribute("role", "option");
-        button.setAttribute("aria-selected", option.value === select.value ? "true" : "false");
+        button.setAttribute(
+          "aria-selected",
+          (isMultiple ? option.selected : option.value === select.value) ? "true" : "false"
+        );
         button.textContent = option.textContent.trim();
         button.addEventListener("mousedown", event => event.preventDefault());
         button.addEventListener("click", () => choose(option));
@@ -165,8 +242,43 @@
     function syncFromSelect() {
       input.disabled = select.disabled;
       wrapper.classList.toggle("is-disabled", select.disabled);
+      renderChips();
       if (!wrapper.classList.contains("is-open")) {
         input.value = selectedLabel();
+      }
+    }
+
+    function renderChips() {
+      chips.replaceChildren();
+      if (!isMultiple) {
+        chips.hidden = true;
+        return;
+      }
+      const selected = selectedOptions();
+      chips.hidden = !selected.length;
+      selected.slice(0, 3).forEach(option => {
+        const chip = document.createElement("button");
+        chip.type = "button";
+        chip.className = "searchable-select__chip";
+        chip.textContent = `${option.textContent.trim()} ×`;
+        chip.setAttribute("aria-label", `移除 ${option.textContent.trim()}`);
+        chip.addEventListener("click", () => {
+          option.selected = false;
+          if (!selectedOptions().length) {
+            const emptyOption = [...select.options].find(item => !item.value);
+            if (emptyOption) emptyOption.selected = true;
+          }
+          select.dispatchEvent(new Event("change", {bubbles: true}));
+          syncFromSelect();
+          if (!list.hidden) renderOptions(input.value);
+        });
+        chips.append(chip);
+      });
+      if (selected.length > 3) {
+        const summary = document.createElement("span");
+        summary.className = "searchable-select__chip-summary";
+        summary.textContent = `另 ${selected.length - 3} 項`;
+        chips.append(summary);
       }
     }
 
@@ -182,7 +294,7 @@
 
     input.addEventListener("focus", () => {
       openList();
-      if (selectedLabel()) input.select();
+      if (!isMultiple && selectedLabel()) input.select();
     });
     input.addEventListener("click", () => {
       if (list.hidden) openList(input.value);

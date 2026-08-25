@@ -1348,7 +1348,36 @@ class VehicleInventoryForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         if not self.instance.pk:
             self.fields.pop("change_reason", None)
-        self.fields["color"].queryset = VehicleColor.objects.filter(active=True)
+        core_fields_locked = bool(
+            self.instance.pk
+            and self.instance.status in self.CORE_LOCKED_STATUSES
+        )
+        model_id = (
+            self.instance.vehicle_model_id
+            if core_fields_locked
+            else (
+                self.data.get("vehicle_model")
+                if self.is_bound
+                else self.instance.vehicle_model_id
+            )
+        )
+        if str(model_id or "").isdigit():
+            self.fields["color"].queryset = VehicleColor.objects.filter(
+                vehicle_model_id=model_id,
+                active=True,
+            ).order_by("name")
+        else:
+            self.fields["color"].queryset = VehicleColor.objects.none()
+        self.fields["vehicle_model"].label_from_instance = lambda model: (
+            f"{model.model_number or model.name}／{model.model_year or '年份待補'}"
+        )
+        self.fields["color"].label_from_instance = lambda color: color.name
+        self.fields["vehicle_model"].widget.attrs.update(
+            {
+                "data-searchable-select": "1",
+                "data-search-placeholder": "輸入型號或年份",
+            }
+        )
         dealer_queryset = SalesSource.objects.filter(
             active=True,
             source_type=SalesSource.SourceType.DEALER,
@@ -1363,17 +1392,20 @@ class VehicleInventoryForm(forms.ModelForm):
             ).order_by("name")
         self.fields["current_dealer"].queryset = dealer_queryset
         self.fields["current_dealer"].empty_label = "本店"
-        self.core_fields_locked = bool(
-            self.instance.pk
-            and self.instance.status in self.CORE_LOCKED_STATUSES
+        self.fields["current_dealer"].widget.attrs.update(
+            {
+                "data-searchable-select": "1",
+                "data-search-placeholder": "輸入本店或車行名稱",
+            }
         )
+        self.core_fields_locked = core_fields_locked
         self.final_fields_locked = bool(
             self.instance.pk and self.instance.status in self.FINAL_STATUSES
         )
         if self.instance.pk and self.instance.color_id:
             self.fields["color"].queryset = VehicleColor.objects.filter(
-                Q(active=True) | Q(pk=self.instance.color_id)
-            )
+                vehicle_model_id=model_id or self.instance.vehicle_model_id,
+            ).filter(Q(active=True) | Q(pk=self.instance.color_id)).order_by("name")
         if self.core_fields_locked:
             locked_fields = list(self.CORE_FIELDS)
             if self.final_fields_locked:

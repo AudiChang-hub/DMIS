@@ -16,6 +16,8 @@
   --forest: #0e5d57;
   --forest-2: #0a4945;
   --green: #1f7655;
+  --field-label: var(--ink);
+  --field-hint: var(--muted);
   --mint: #e1f0ec;
   --blue: #245f9e;
   --blue-soft: #e7eff8;
@@ -60,7 +62,7 @@ html[data-theme="night-blue"] {
   --navy-2: #0c1b22;
   --forest: #1f746d;
   --forest-2: #319d91;
-  --green: #3aa879;
+  --green: #42b883;
   --mint: #17382f;
   --blue: #79b5f2;
   --blue-soft: #172c42;
@@ -100,7 +102,7 @@ html[data-theme="night-blue"] {
     --navy-2: #0c1b22;
     --forest: #1f746d;
     --forest-2: #319d91;
-    --green: #3aa879;
+    --green: #42b883;
     --mint: #17382f;
     --blue: #79b5f2;
     --blue-soft: #172c42;
@@ -859,7 +861,7 @@ h2 { margin-bottom: 0; font-size: 1.15rem; }
 .step-number { display: grid; width: 34px; height: 34px; place-items: center; flex: 0 0 auto; color: #fff; background: var(--forest); border-radius: 11px; font-weight: 900; }
 .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; padding: 22px; }
 .field { min-width: 0; }
-.field label:not(.checkbox-label) { display: flex; margin-bottom: 7px; justify-content: flex-start; align-items: baseline; gap: 6px; color: #35454c; font-size: .82rem; font-weight: 800; }
+.field label:not(.checkbox-label) { display: flex; margin-bottom: 7px; justify-content: flex-start; align-items: baseline; gap: 6px; color: var(--field-label); font-size: .82rem; font-weight: 800; }
 .field label em { color: var(--red); font-size: .7rem; font-style: normal; }
 .conditional-required:not([hidden]) .field label::after {
   content: "必填"; color: var(--red); font-size: .7rem; font-weight: 800;
@@ -921,7 +923,7 @@ input[type="file"].form-control { padding: 10px; }
 .span-2 { grid-column: 1 / -1; }
 .has-error .form-control { border-color: var(--red); }
 .field-error { display: block; margin-top: 5px; color: var(--red); font-size: .8125rem; font-weight: 750; }
-.help-text { display: block; margin-top: 5px; color: var(--muted); font-size: .8125rem; }
+.help-text { display: block; margin-top: 5px; color: var(--field-hint); font-size: .8125rem; }
 .checkbox-label { display: flex; align-items: center; gap: 10px; font-weight: 800; }
 .checkbox-label input { width: 21px; height: 21px; accent-color: var(--forest); }
 .verify-box { padding: 15px; background: var(--mint); border-radius: 12px; }
@@ -1688,7 +1690,7 @@ body.screen-locked { overflow: hidden; }
 .inventory-table-wrap { width: 100%; min-width: 0; max-width: 100%; overflow-x: auto; }
 .inventory-table { width: 100%; min-width: 1080px; border-collapse: collapse; }
 .inventory-table th {
-  padding: 11px 14px; color: #43535a; background: var(--surface-soft);
+  padding: 11px 14px; color: var(--field-label); background: var(--surface-soft);
   border-bottom: 1px solid var(--line); font-size: .8125rem; text-align: left; white-space: nowrap;
 }
 .inventory-table td { padding: 13px 14px; border-bottom: 1px solid var(--line); vertical-align: middle; font-size: .88rem; }

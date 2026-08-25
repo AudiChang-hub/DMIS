@@ -120,6 +120,8 @@ class ProductExperienceTests(TestCase):
             "--gold: #c99735",
             "--ink: #17252b",
             "--muted: #526168",
+            "--field-label: var(--ink)",
+            "--field-hint: var(--muted)",
             "--line: #c9d2d5",
             "--focus-ring: #d6a63c",
             "--surface-raised: #ffffff",
@@ -190,6 +192,7 @@ class ProductExperienceTests(TestCase):
             "night-blue": (
                 ("#e8eef0", "#081117"),
                 ("#a9b6bc", "#132129"),
+                ("#42b883", "#17382f"),
                 ("#ffffff", "#1f746d"),
                 ("#eff5f6", "#172f3a"),
             ),

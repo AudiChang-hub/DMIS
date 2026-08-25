@@ -8,6 +8,10 @@
 
     const wrapper = document.createElement("div");
     wrapper.className = "searchable-select";
+    const includeEmptyOption = select.dataset.searchableIncludeEmpty === "1";
+    const emptyAsPlaceholder = select.dataset.searchableEmptyPlaceholder === "1";
+    const showSearchIcon = select.dataset.searchableSearchIcon === "1";
+    if (showSearchIcon) wrapper.classList.add("has-search-icon");
     const input = document.createElement("input");
     input.type = "search";
     input.className = "searchable-select__input";
@@ -34,11 +38,16 @@
     toggle.setAttribute("aria-hidden", "true");
     toggle.innerHTML = '<span class="ui-chevron" aria-hidden="true"></span>';
 
+    if (showSearchIcon) {
+      const searchIcon = document.createElement("span");
+      searchIcon.className = "searchable-select__search-icon";
+      searchIcon.setAttribute("aria-hidden", "true");
+      wrapper.append(searchIcon);
+    }
     wrapper.append(input, toggle, list);
     select.insertAdjacentElement("afterend", wrapper);
 
     const storageKey = `dmis-recent-select:${select.name}`;
-    const includeEmptyOption = select.dataset.searchableIncludeEmpty === "1";
     let activeIndex = -1;
 
     function availableOptions() {
@@ -69,9 +78,14 @@
       return [...select.options].find(option => option.value === select.value);
     }
 
+    function optionDisplayLabel(option) {
+      if (!option || (!option.value && !includeEmptyOption)) return "";
+      if (!option.value && emptyAsPlaceholder) return "";
+      return option.textContent.trim();
+    }
+
     function selectedLabel() {
-      const option = selectedOption();
-      return option && (option.value || includeEmptyOption) ? option.textContent.trim() : "";
+      return optionDisplayLabel(selectedOption());
     }
 
     function normalizeSearch(value) {
@@ -92,7 +106,7 @@
 
     function choose(option) {
       select.value = option.value;
-      input.value = option.textContent.trim();
+      input.value = optionDisplayLabel(option);
       wrapper.classList.remove("has-error");
       remember(option);
       closeList();

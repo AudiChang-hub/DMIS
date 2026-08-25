@@ -4916,7 +4916,7 @@ def inventory_list(request):
     ).filter(status__in=scope_statuses)
     keyword = request.GET.get("q", "").strip()
     vehicle_family = request.GET.get("vehicle_family")
-    color = request.GET.get("color")
+    color = request.GET.get("color", "").strip()
     location = request.GET.get("location", "")
     sort = request.GET.get("sort", "received_desc")
     if status == "transfer" and scope == "current":
@@ -4943,8 +4943,41 @@ def inventory_list(request):
             )
         else:
             vehicle_family = ""
-    if color and color.isdigit():
-        vehicles = vehicles.filter(color_id=color)
+    color_rows = list(
+        VehicleColor.objects.filter(active=True)
+        .values("id", "name")
+        .order_by("name", "id")
+    )
+    color_groups = {}
+    color_choices = []
+    for color_row in color_rows:
+        color_name = color_row["name"].strip()
+        color_key = color_name.casefold()
+        if not color_key:
+            continue
+        if color_key not in color_groups:
+            color_groups[color_key] = {
+                "value": color_name,
+                "label": color_name,
+                "ids": [],
+            }
+            color_choices.append(color_groups[color_key])
+        color_groups[color_key]["ids"].append(color_row["id"])
+    if color:
+        if color.isdigit():
+            legacy_color = next(
+                (row for row in color_rows if row["id"] == int(color)),
+                None,
+            )
+            color_key = legacy_color["name"].strip().casefold() if legacy_color else ""
+        else:
+            color_key = color.casefold()
+        selected_color_group = color_groups.get(color_key)
+        if selected_color_group:
+            vehicles = vehicles.filter(color_id__in=selected_color_group["ids"])
+            color = selected_color_group["value"]
+        else:
+            color = ""
     if location == "store":
         vehicles = vehicles.filter(current_dealer__isnull=True)
     elif location.startswith("dealer-") and location.removeprefix("dealer-").isdigit():
@@ -5024,9 +5057,7 @@ def inventory_list(request):
             ],
             "inventory_counts": inventory_counts,
             "vehicle_families": vehicle_family_choices,
-            "colors": VehicleColor.objects.filter(active=True)
-            .select_related("vehicle_model")
-            .order_by("vehicle_model__name", "name"),
+            "colors": color_choices,
             "dealers": SalesSource.objects.filter(
                 active=True,
                 source_type=SalesSource.SourceType.DEALER,

@@ -53,7 +53,7 @@
   </div>
   <div class="inventory-filter">
     <label for="inventory-location">實際位置</label>
-    <select id="inventory-location" name="location" data-searchable-select="1" data-search-placeholder="輸入本店或車行名稱">
+    <select id="inventory-location" name="location" data-searchable-select="1" data-searchable-include-empty="1" data-search-placeholder="輸入本店或車行名稱">
       <option value="">全部位置</option>
       <option value="store" {% if selected.location == "store" %}selected{% endif %}>本店</option>
       {% for dealer in dealers %}<option value="dealer-{{ dealer.pk }}" {% if selected.current_dealer == dealer.pk|stringformat:"s" %}selected{% endif %}>{{ dealer.name }}</option>{% endfor %}

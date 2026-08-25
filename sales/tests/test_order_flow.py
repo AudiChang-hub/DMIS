@@ -2084,8 +2084,27 @@ class OrderFlowTests(TestCase):
         self.assertContains(response, 'class="inventory-row--condition-issue"')
         self.assertContains(response, "車況異常")
         self.assertContains(response, "測試合作車行")
+        self.assertContains(
+            response,
+            '<td data-label="實際位置"><strong>測試合作車行</strong></td>',
+            html=True,
+        )
+        self.assertNotContains(response, "<span>合作車行</span>", html=True)
         self.assertNotContains(response, "庫存歸屬")
         self.assertNotContains(response, 'name="ownership_store"')
+
+    def test_inventory_list_displays_store_location_only_once_per_vehicle(self):
+        self.client.force_login(self.user)
+
+        response = self.client.get(reverse("inventory_list"), {"q": "ENG-001"})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(
+            response,
+            '<td data-label="實際位置"><strong>本店</strong></td>',
+            html=True,
+        )
+        self.assertNotContains(response, "<span>本店</span>", html=True)
 
     def test_inventory_model_filter_lists_each_family_once_and_filters_all_years(self):
         newer_model = VehicleModel.objects.create(

@@ -25,39 +25,39 @@
 
 <form method="get" class="inventory-filters" aria-label="庫存篩選與排序">
   <input type="hidden" name="scope" value="{{ selected.scope }}">
-  <p class="inventory-filters__search-hint">下拉欄位皆可直接輸入搜尋，亦可使用方向鍵與 Enter 選擇。</p>
+  <p class="inventory-filters__search-hint">狀態、機種、車色與位置可搜尋複選；同欄位任一符合、跨欄位需同時符合。</p>
   <div class="inventory-filter inventory-filter--search">
     <label for="inventory-q">搜尋</label>
     <input id="inventory-q" type="search" name="q" value="{{ selected.q }}" placeholder="識別號碼、機種、車色、車行或車況">
   </div>
   <div class="inventory-filter">
     <label for="inventory-status">狀態</label>
-    <select id="inventory-status" name="status" data-searchable-select="1" data-searchable-include-empty="1" data-searchable-empty-placeholder="1" data-searchable-search-icon="1" data-search-placeholder="搜尋狀態">
+    <select id="inventory-status" name="status" multiple data-searchable-select="1" data-searchable-multiple="1" data-searchable-include-empty="1" data-searchable-empty-placeholder="1" data-searchable-search-icon="1" data-search-placeholder="搜尋並複選狀態">
       <option value="">{% if selected.scope == 'history' %}全部歷史狀態{% else %}全部現有狀態{% endif %}</option>
-      {% if selected.scope == 'current' %}<option value="transfer" {% if selected.status == "transfer" %}selected{% endif %}>調車中（含待調車）</option>{% endif %}
-      {% for value, label in statuses %}<option value="{{ value }}" {% if selected.status == value %}selected{% endif %}>{{ label }}</option>{% endfor %}
+      {% if selected.scope == 'current' %}<option value="transfer" {% if "transfer" in selected.statuses %}selected{% endif %}>調車中（含待調車）</option>{% endif %}
+      {% for value, label in statuses %}<option value="{{ value }}" {% if value in selected.statuses %}selected{% endif %}>{{ label }}</option>{% endfor %}
     </select>
   </div>
   <div class="inventory-filter">
     <label for="inventory-model">機種</label>
-    <select id="inventory-model" name="vehicle_family" data-searchable-select="1" data-searchable-include-empty="1" data-searchable-empty-placeholder="1" data-searchable-search-icon="1" data-search-placeholder="搜尋品牌或機種">
+    <select id="inventory-model" name="vehicle_family" multiple data-searchable-select="1" data-searchable-multiple="1" data-searchable-include-empty="1" data-searchable-empty-placeholder="1" data-searchable-search-icon="1" data-search-placeholder="搜尋並複選品牌或機種">
       <option value="">全部機種</option>
-      {% for item in vehicle_families %}<option value="{{ item.pk }}" {% if selected.vehicle_family == item.pk|stringformat:"s" %}selected{% endif %}>{{ item.brand }} {{ item.name }}</option>{% endfor %}
+      {% for item in vehicle_families %}<option value="{{ item.pk }}" {% if item.pk in selected.vehicle_family_ids %}selected{% endif %}>{{ item.brand }} {{ item.name }}</option>{% endfor %}
     </select>
   </div>
   <div class="inventory-filter">
     <label for="inventory-color">車色</label>
-    <select id="inventory-color" name="color" data-searchable-select="1" data-searchable-include-empty="1" data-searchable-empty-placeholder="1" data-searchable-search-icon="1" data-search-placeholder="搜尋車色">
+    <select id="inventory-color" name="color" multiple data-searchable-select="1" data-searchable-multiple="1" data-searchable-include-empty="1" data-searchable-empty-placeholder="1" data-searchable-search-icon="1" data-search-placeholder="搜尋並複選車色">
       <option value="">全部車色</option>
-      {% for item in colors %}<option value="{{ item.value }}" {% if selected.color == item.value %}selected{% endif %}>{{ item.label }}</option>{% endfor %}
+      {% for item in colors %}<option value="{{ item.value }}" {% if item.value in selected.colors %}selected{% endif %}>{{ item.label }}</option>{% endfor %}
     </select>
   </div>
   <div class="inventory-filter">
     <label for="inventory-location">實際位置／合作車行</label>
-    <select id="inventory-location" name="location" data-searchable-select="1" data-searchable-include-empty="1" data-searchable-empty-placeholder="1" data-searchable-search-icon="1" data-search-placeholder="搜尋本店或車行名稱">
+    <select id="inventory-location" name="location" multiple data-searchable-select="1" data-searchable-multiple="1" data-searchable-include-empty="1" data-searchable-empty-placeholder="1" data-searchable-search-icon="1" data-search-placeholder="搜尋並複選本店或車行">
       <option value="">全部位置</option>
-      <option value="store" {% if selected.location == "store" %}selected{% endif %}>本店</option>
-      {% for dealer in dealers %}<option value="dealer-{{ dealer.pk }}" {% if selected.current_dealer == dealer.pk|stringformat:"s" %}selected{% endif %}>{{ dealer.name }}</option>{% endfor %}
+      <option value="store" {% if selected.store_selected %}selected{% endif %}>本店</option>
+      {% for dealer in dealers %}<option value="dealer-{{ dealer.pk }}" {% if dealer.pk in selected.dealer_ids %}selected{% endif %}>{{ dealer.name }}</option>{% endfor %}
     </select>
   </div>
   <div class="inventory-filter">

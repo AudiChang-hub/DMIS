@@ -4905,44 +4905,76 @@ def inventory_list(request):
         VehicleInventory.Status.SOLD,
         VehicleInventory.Status.INACTIVE,
     )
-    status = request.GET.get("status", "")
+    requested_statuses = list(
+        dict.fromkeys(value for value in request.GET.getlist("status") if value)
+    )
     scope = request.GET.get("scope", "")
     if scope not in {"current", "history"}:
-        scope = "history" if status in historical_statuses else "current"
+        scope = (
+            "history"
+            if requested_statuses
+            and all(value in historical_statuses for value in requested_statuses)
+            else "current"
+        )
     scope_statuses = historical_statuses if scope == "history" else current_statuses
 
     vehicles = VehicleInventory.objects.select_related(
         "vehicle_model", "vehicle_model__family", "color", "current_dealer"
     ).filter(status__in=scope_statuses)
     keyword = request.GET.get("q", "").strip()
-    vehicle_family = request.GET.get("vehicle_family")
-    color = request.GET.get("color", "").strip()
-    location = request.GET.get("location", "")
-    sort = request.GET.get("sort", "received_desc")
-    if status == "transfer" and scope == "current":
-        vehicles = vehicles.filter(
-            status__in=[
-                VehicleInventory.Status.TRANSFER_PENDING,
-                VehicleInventory.Status.IN_TRANSFER,
-            ]
+    requested_family_ids = list(
+        dict.fromkeys(
+            int(value)
+            for value in request.GET.getlist("vehicle_family")
+            if value.isdigit()
         )
-    elif status in scope_statuses:
-        vehicles = vehicles.filter(status=status)
-    else:
-        status = ""
-    selected_family = None
-    if vehicle_family and vehicle_family.isdigit():
-        selected_family = VehicleModelFamily.objects.filter(
-            pk=vehicle_family,
-            active=True,
-        ).first()
-        if selected_family:
-            vehicles = vehicles.filter(
-                vehicle_model__family__brand__iexact=selected_family.brand,
-                vehicle_model__family__name__iexact=selected_family.name,
+    )
+    requested_colors = list(
+        dict.fromkeys(
+            value.strip()
+            for value in request.GET.getlist("color")
+            if value.strip()
+        )
+    )
+    requested_locations = list(
+        dict.fromkeys(value for value in request.GET.getlist("location") if value)
+    )
+    sort = request.GET.get("sort", "received_desc")
+    selected_statuses = []
+    status_values = set()
+    for requested_status in requested_statuses:
+        if requested_status == "transfer" and scope == "current":
+            selected_statuses.append(requested_status)
+            status_values.update(
+                {
+                    VehicleInventory.Status.TRANSFER_PENDING,
+                    VehicleInventory.Status.IN_TRANSFER,
+                }
             )
-        else:
-            vehicle_family = ""
+        elif requested_status in scope_statuses:
+            selected_statuses.append(requested_status)
+            status_values.add(requested_status)
+    if status_values:
+        vehicles = vehicles.filter(status__in=status_values)
+
+    selected_families = list(
+        VehicleModelFamily.objects.filter(
+            pk__in=requested_family_ids,
+            active=True,
+        )
+    )
+    selected_family_keys = {
+        (family.brand.strip().casefold(), family.name.strip().casefold())
+        for family in selected_families
+    }
+    if selected_family_keys:
+        family_query = Q()
+        for brand_key, family_name_key in selected_family_keys:
+            family_query |= Q(
+                vehicle_model__family__brand__iexact=brand_key,
+                vehicle_model__family__name__iexact=family_name_key,
+            )
+        vehicles = vehicles.filter(family_query)
     color_rows = list(
         VehicleColor.objects.filter(active=True)
         .values("id", "name")
@@ -4963,27 +4995,43 @@ def inventory_list(request):
             }
             color_choices.append(color_groups[color_key])
         color_groups[color_key]["ids"].append(color_row["id"])
-    if color:
-        if color.isdigit():
+    selected_colors = []
+    selected_color_ids = set()
+    for requested_color in requested_colors:
+        if requested_color.isdigit():
             legacy_color = next(
-                (row for row in color_rows if row["id"] == int(color)),
+                (row for row in color_rows if row["id"] == int(requested_color)),
                 None,
             )
             color_key = legacy_color["name"].strip().casefold() if legacy_color else ""
         else:
-            color_key = color.casefold()
+            color_key = requested_color.casefold()
         selected_color_group = color_groups.get(color_key)
         if selected_color_group:
-            vehicles = vehicles.filter(color_id__in=selected_color_group["ids"])
-            color = selected_color_group["value"]
-        else:
-            color = ""
-    if location == "store":
-        vehicles = vehicles.filter(current_dealer__isnull=True)
-    elif location.startswith("dealer-") and location.removeprefix("dealer-").isdigit():
-        vehicles = vehicles.filter(current_dealer_id=location.removeprefix("dealer-"))
+            selected_colors.append(selected_color_group["value"])
+            selected_color_ids.update(selected_color_group["ids"])
+    selected_colors = list(dict.fromkeys(selected_colors))
+    if selected_color_ids:
+        vehicles = vehicles.filter(color_id__in=selected_color_ids)
+
+    selected_locations = []
+    selected_dealer_ids = []
+    store_selected = "store" in requested_locations
+    if store_selected:
+        selected_locations.append("store")
+    for requested_location in requested_locations:
+        dealer_id = requested_location.removeprefix("dealer-")
+        if requested_location.startswith("dealer-") and dealer_id.isdigit():
+            selected_locations.append(requested_location)
+            selected_dealer_ids.append(int(dealer_id))
+    selected_dealer_ids = list(dict.fromkeys(selected_dealer_ids))
+    if store_selected or selected_dealer_ids:
+        location_query = Q(current_dealer__isnull=True) if store_selected else Q()
+        if selected_dealer_ids:
+            location_query |= Q(current_dealer_id__in=selected_dealer_ids)
+        vehicles = vehicles.filter(location_query)
     selected_dealer_id = (
-        location.removeprefix("dealer-") if location.startswith("dealer-") else ""
+        str(selected_dealer_ids[0]) if selected_dealer_ids else ""
     )
     if keyword:
         matching_statuses = [
@@ -5033,17 +5081,14 @@ def inventory_list(request):
     ).distinct().order_by("brand", "name", "id")
     vehicle_family_choices = []
     family_choice_keys = set()
-    selected_family_choice = ""
+    selected_family_choice_ids = []
     for family in family_rows:
         choice_key = (family.brand.strip().casefold(), family.name.strip().casefold())
         if choice_key not in family_choice_keys:
             family_choice_keys.add(choice_key)
             vehicle_family_choices.append(family)
-        if selected_family and choice_key == (
-            selected_family.brand.strip().casefold(),
-            selected_family.name.strip().casefold(),
-        ):
-            selected_family_choice = str(family.pk)
+            if choice_key in selected_family_keys:
+                selected_family_choice_ids.append(family.pk)
     return render(
         request,
         "sales/inventory_list.html",
@@ -5065,10 +5110,20 @@ def inventory_list(request):
             "filter_query": filter_params.urlencode(),
             "selected": {
                 "q": keyword,
-                "status": status or "",
-                "vehicle_family": selected_family_choice,
-                "color": color or "",
-                "location": location,
+                "status": selected_statuses[0] if selected_statuses else "",
+                "statuses": selected_statuses,
+                "vehicle_family": (
+                    str(selected_family_choice_ids[0])
+                    if selected_family_choice_ids
+                    else ""
+                ),
+                "vehicle_family_ids": selected_family_choice_ids,
+                "color": selected_colors[0] if selected_colors else "",
+                "colors": selected_colors,
+                "location": selected_locations[0] if selected_locations else "",
+                "locations": selected_locations,
+                "store_selected": store_selected,
+                "dealer_ids": selected_dealer_ids,
                 "current_dealer": selected_dealer_id,
                 "sort": sort,
                 "scope": scope,

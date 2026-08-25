@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, timedelta
 from decimal import Decimal
 
 from django.contrib.auth import get_user_model
@@ -560,6 +560,46 @@ class ChannelFinanceTests(TestCase):
         source = SalesSource.objects.get(name="文傑")
         self.assertEqual(source.source_type, SalesSource.SourceType.STORE)
         self.assertEqual(source.category, category)
+
+    def test_source_edit_shows_effective_brand_cooperation_overview(self):
+        self.client.force_login(self.user)
+
+        response = self.client.get(reverse("sales_source_edit", args=[self.dealer.pk]))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "品牌合作一覽")
+        self.assertContains(response, "台鈴 SUZUKI")
+        self.assertContains(response, "三陽 SYM")
+        self.assertContains(response, "1 個配合品牌")
+        self.assertContains(response, 'data-brand-summary="SUZUKI"')
+        self.assertContains(response, 'data-status="cooperates"')
+        self.assertEqual(response.context["policy_formset"].total_form_count(), 1)
+
+    def test_source_brand_overview_uses_latest_current_rule(self):
+        today = timezone.localdate()
+        SalesSourceBrandPolicy.objects.create(
+            source=self.dealer,
+            brand="SYM",
+            cooperates=True,
+            effective_from=today - timedelta(days=2),
+        )
+        SalesSourceBrandPolicy.objects.create(
+            source=self.dealer,
+            brand="SYM",
+            cooperates=False,
+            effective_from=today - timedelta(days=1),
+        )
+        self.client.force_login(self.user)
+
+        response = self.client.get(reverse("sales_source_edit", args=[self.dealer.pk]))
+
+        summary = next(
+            item
+            for item in response.context["brand_overview"]["priority"]
+            if item["brand"] == "SYM"
+        )
+        self.assertEqual(summary["status"], "not_cooperating")
+        self.assertNotIn("SYM", response.context["brand_overview"]["cooperating"])
 
     def test_sales_source_list_filters_and_labels_holiday_gift_dealers(self):
         self.dealer.holiday_gift = True

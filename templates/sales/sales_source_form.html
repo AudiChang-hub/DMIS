@@ -2,12 +2,242 @@
 {% block title %}{% if source %}編輯通路{% else %}新增通路{% endif %}｜車輛銷售管理{% endblock %}
 {% block page_class %}page-shell--wide{% endblock %}
 {% block content %}
-{% url 'sales_source_list' as list_url %}{% url 'data_maintenance' as data_url %}{% include "sales/_page_back.html" with fallback_url=list_url label="車行、平台與傭金" root_url=data_url root_label="資料維護區" %}
-<section class="hero-row compact-hero"><div><p class="eyebrow">通路資料</p><h1>{% if source %}編輯 {{ source.name }}{% else %}新增通路{% endif %}</h1><p class="muted">通路可包含本店員工、合作車行與網路平台；只有合作車行會套用品牌傭金規則。</p></div></section>
-<form method="post" class="stacked-form" id="source-form">{% csrf_token %}
-<section class="form-section static-section"><div class="section-title"><h2>基本資料</h2></div><div class="form-grid">{% for field in form %}{% include "sales/_field.html" with field=field %}{% endfor %}</div></section>
-<section class="form-section static-section"><div class="section-title"><div><h2>聯絡窗口</h2><p class="muted">不同窗口可建立多列；關係或職務與聯絡資訊放在同一列。</p></div></div>{{ contact_formset.management_form }}<div id="contact-rows">{% for row in contact_formset %}<div class="dynamic-row master-dynamic-row" data-dynamic-row>{{ row.id }}<span hidden>{{ row.DELETE }}</span><button type="button" class="remove-row-button" data-remove-row>刪除</button>{% for field in row.visible_fields %}{% if field.name != 'DELETE' %}{% include "sales/_field.html" with field=field %}{% endif %}{% endfor %}</div>{% endfor %}</div><template id="contact-empty"><div class="dynamic-row master-dynamic-row" data-dynamic-row>{{ contact_formset.empty_form.id }}<span hidden>{{ contact_formset.empty_form.DELETE }}</span><button type="button" class="remove-row-button" data-remove-row>刪除</button>{% for field in contact_formset.empty_form.visible_fields %}{% if field.name != 'DELETE' %}{% include "sales/_field.html" with field=field %}{% endif %}{% endfor %}</div></template><button type="button" class="button ghost add-row-button" data-add-form="contacts" data-target="contact-rows" data-template="contact-empty">＋ 新增窗口</button></section>
-<section class="form-section static-section" id="brand-policies"><div class="section-title"><div><h2>品牌合作與傭金</h2><p class="muted">基礎傭金由車型維護；這裡只填特定車行對該品牌的加減額與有效期間。</p></div></div>{{ policy_formset.management_form }}<div id="policy-rows">{% for row in policy_formset %}<div class="dynamic-row master-dynamic-row" data-dynamic-row>{{ row.id }}<span hidden>{{ row.DELETE }}</span><button type="button" class="remove-row-button" data-remove-row>刪除</button>{% for field in row.visible_fields %}{% if field.name != 'DELETE' %}{% include "sales/_field.html" with field=field %}{% endif %}{% endfor %}</div>{% endfor %}</div><template id="policy-empty"><div class="dynamic-row master-dynamic-row" data-dynamic-row>{{ policy_formset.empty_form.id }}<span hidden>{{ policy_formset.empty_form.DELETE }}</span><button type="button" class="remove-row-button" data-remove-row>刪除</button>{% for field in policy_formset.empty_form.visible_fields %}{% if field.name != 'DELETE' %}{% include "sales/_field.html" with field=field %}{% endif %}{% endfor %}</div></template><button type="button" class="button ghost add-row-button" data-add-form="policies" data-target="policy-rows" data-template="policy-empty">＋ 新增品牌規則</button></section>
-<div class="form-actions"><a class="button ghost" href="{% url 'sales_source_list' %}">取消</a><button class="button primary">儲存通路資料</button></div></form>
+{% url 'sales_source_list' as list_url %}
+{% url 'data_maintenance' as data_url %}
+{% include "sales/_page_back.html" with fallback_url=list_url label="車行、平台與傭金" root_url=data_url root_label="資料維護區" %}
+
+<section class="hero-row compact-hero">
+  <div>
+    <p class="eyebrow">通路資料</p>
+    <h1>{% if source %}編輯 {{ source.name }}{% else %}新增通路{% endif %}</h1>
+    <p class="muted">通路可包含本店員工、合作車行與網路平台；只有合作車行會套用品牌傭金規則。</p>
+  </div>
+</section>
+
+<form method="post" class="stacked-form" id="source-form">
+  {% csrf_token %}
+  <section class="form-section static-section">
+    <div class="section-title"><h2>基本資料</h2></div>
+    <div class="form-grid">
+      {% for field in form %}{% include "sales/_field.html" with field=field %}{% endfor %}
+    </div>
+  </section>
+
+  <section class="form-section static-section">
+    <div class="section-title">
+      <div>
+        <h2>聯絡窗口</h2>
+        <p class="muted">不同窗口可建立多列；關係或職務與聯絡資訊放在同一列。</p>
+      </div>
+    </div>
+    {{ contact_formset.management_form }}
+    <div id="contact-rows">
+      {% for row in contact_formset %}
+        <div class="dynamic-row master-dynamic-row" data-dynamic-row>
+          {{ row.id }}<span hidden>{{ row.DELETE }}</span>
+          <button type="button" class="remove-row-button" data-remove-row>刪除</button>
+          {% for field in row.visible_fields %}
+            {% if field.name != 'DELETE' %}{% include "sales/_field.html" with field=field %}{% endif %}
+          {% endfor %}
+        </div>
+      {% endfor %}
+    </div>
+    <template id="contact-empty">
+      <div class="dynamic-row master-dynamic-row" data-dynamic-row>
+        {{ contact_formset.empty_form.id }}<span hidden>{{ contact_formset.empty_form.DELETE }}</span>
+        <button type="button" class="remove-row-button" data-remove-row>刪除</button>
+        {% for field in contact_formset.empty_form.visible_fields %}
+          {% if field.name != 'DELETE' %}{% include "sales/_field.html" with field=field %}{% endif %}
+        {% endfor %}
+      </div>
+    </template>
+    <button type="button" class="button ghost add-row-button" data-add-form="contacts" data-target="contact-rows" data-template="contact-empty">＋ 新增窗口</button>
+  </section>
+
+  <section class="form-section static-section dealer-brand-section" id="brand-policies">
+    <div class="section-title">
+      <div>
+        <p class="eyebrow">目前有效</p>
+        <h2>品牌合作一覽</h2>
+        <p class="muted">先確認是否配合台鈴或三陽；需要時再展開下方設定傭金、期間與備註。</p>
+      </div>
+      <span class="dealer-brand-count" data-cooperating-count>{{ brand_overview.cooperating_count }} 個配合品牌</span>
+    </div>
+
+    <div class="dealer-brand-priority" data-brand-overview>
+      {% for item in brand_overview.priority %}
+        <article class="dealer-brand-status is-{{ item.status }}" data-brand-summary="{{ item.brand }}" data-status="{{ item.status }}">
+          <div>
+            <small>重點品牌</small>
+            <strong>{{ item.label }}</strong>
+          </div>
+          <span data-brand-status>{{ item.status_label }}</span>
+        </article>
+      {% endfor %}
+    </div>
+
+    <div class="dealer-brand-active-summary">
+      <strong>全部目前配合品牌</strong>
+      <div class="dealer-brand-active-list" data-active-brand-list>
+        {% for brand in brand_overview.cooperating %}<span>{{ brand }}</span>{% empty %}<small>目前沒有已設定為配合的品牌</small>{% endfor %}
+      </div>
+    </div>
+
+    <details class="dealer-brand-details" {% if policy_formset.is_bound %}open{% endif %}>
+      <summary>
+        <span>
+          <strong>調整合作品牌、傭金與期間</strong>
+          <small>基礎傭金由車型維護；此處只設定特定車行的品牌合作狀態與加減額。</small>
+        </span>
+        <span class="dealer-brand-details__action">展開設定</span>
+      </summary>
+
+      <div class="dealer-brand-details__body">
+        {{ policy_formset.management_form }}
+        {% if policy_formset.non_form_errors %}<div class="formset-errors">{{ policy_formset.non_form_errors }}</div>{% endif %}
+        <div id="policy-rows">
+          {% for row in policy_formset %}
+            <div class="dynamic-row master-dynamic-row dealer-brand-policy-row" data-dynamic-row>
+              {{ row.id }}<span hidden>{{ row.DELETE }}</span>
+              <button type="button" class="remove-row-button" data-remove-row>刪除</button>
+              {% for field in row.visible_fields %}
+                {% if field.name != 'DELETE' %}{% include "sales/_field.html" with field=field %}{% endif %}
+              {% endfor %}
+            </div>
+          {% endfor %}
+        </div>
+        <template id="policy-empty">
+          <div class="dynamic-row master-dynamic-row dealer-brand-policy-row" data-dynamic-row>
+            {{ policy_formset.empty_form.id }}<span hidden>{{ policy_formset.empty_form.DELETE }}</span>
+            <button type="button" class="remove-row-button" data-remove-row>刪除</button>
+            {% for field in policy_formset.empty_form.visible_fields %}
+              {% if field.name != 'DELETE' %}{% include "sales/_field.html" with field=field %}{% endif %}
+            {% endfor %}
+          </div>
+        </template>
+        <button type="button" class="button ghost add-row-button" data-add-form="policies" data-target="policy-rows" data-template="policy-empty">＋ 新增品牌規則</button>
+      </div>
+    </details>
+  </section>
+
+  <div class="form-actions">
+    <a class="button ghost" href="{% url 'sales_source_list' %}">取消</a>
+    <button class="button primary">儲存通路資料</button>
+  </div>
+</form>
 {% endblock %}
-{% block scripts %}<script>(()=>{function bindRemove(root=document){root.querySelectorAll('[data-remove-row]').forEach(button=>{if(button.dataset.bound)return;button.dataset.bound='1';button.addEventListener('click',()=>{const row=button.closest('[data-dynamic-row]');const del=row.querySelector('input[name$="-DELETE"]');if(del&&row.querySelector('input[name$="-id"]')?.value){del.checked=true;row.hidden=true;}else row.remove();});});}document.querySelectorAll('[data-add-form]').forEach(button=>button.addEventListener('click',()=>{const prefix=button.dataset.addForm;const total=document.querySelector(`#id_${prefix}-TOTAL_FORMS`);const index=Number(total.value);const template=document.getElementById(button.dataset.template);const wrapper=document.createElement('div');wrapper.innerHTML=template.innerHTML.replaceAll('__prefix__',index);const row=wrapper.firstElementChild;document.getElementById(button.dataset.target).appendChild(row);total.value=index+1;bindRemove(row);}));bindRemove();})();</script>{% endblock %}
+
+{% block scripts %}
+<script>
+(() => {
+  const policyRows = document.getElementById("policy-rows");
+  const policyDetails = document.querySelector(".dealer-brand-details");
+
+  function localToday() {
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, "0");
+    const day = String(today.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  }
+
+  function currentBrandStates() {
+    const today = localToday();
+    const candidates = new Map();
+    policyRows?.querySelectorAll("[data-dynamic-row]").forEach(row => {
+      const deleted = row.querySelector('input[name$="-DELETE"]')?.checked;
+      const brand = row.querySelector('select[name$="-brand"]')?.value.trim();
+      const cooperates = row.querySelector('input[name$="-cooperates"]')?.checked;
+      const effectiveFrom = row.querySelector('input[name$="-effective_from"]')?.value || "";
+      const effectiveTo = row.querySelector('input[name$="-effective_to"]')?.value || "";
+      if (deleted || !brand || (effectiveFrom && effectiveFrom > today) || (effectiveTo && effectiveTo < today)) return;
+      const key = brand.toLocaleUpperCase("en-US");
+      const previous = candidates.get(key);
+      if (!previous || effectiveFrom >= previous.effectiveFrom) {
+        candidates.set(key, {brand, cooperates, effectiveFrom});
+      }
+    });
+    return candidates;
+  }
+
+  function updateBrandOverview() {
+    const states = currentBrandStates();
+    const cooperating = [...states.values()]
+      .filter(item => item.cooperates)
+      .map(item => item.brand)
+      .sort((left, right) => left.localeCompare(right, "zh-Hant"));
+
+    document.querySelectorAll("[data-brand-summary]").forEach(card => {
+      const state = states.get(card.dataset.brand.toLocaleUpperCase("en-US"));
+      const status = !state ? "unset" : state.cooperates ? "cooperates" : "not_cooperating";
+      const label = status === "cooperates" ? "有配合" : status === "not_cooperating" ? "未配合" : "尚未設定";
+      card.dataset.status = status;
+      card.classList.remove("is-cooperates", "is-not_cooperating", "is-unset");
+      card.classList.add(`is-${status}`);
+      card.querySelector("[data-brand-status]").textContent = label;
+    });
+
+    const count = document.querySelector("[data-cooperating-count]");
+    if (count) count.textContent = `${cooperating.length} 個配合品牌`;
+    const list = document.querySelector("[data-active-brand-list]");
+    if (list) {
+      list.replaceChildren();
+      if (cooperating.length) {
+        cooperating.forEach(brand => {
+          const chip = document.createElement("span");
+          chip.textContent = brand;
+          list.append(chip);
+        });
+      } else {
+        const empty = document.createElement("small");
+        empty.textContent = "目前沒有已設定為配合的品牌";
+        list.append(empty);
+      }
+    }
+  }
+
+  function bindRemove(root = document) {
+    root.querySelectorAll("[data-remove-row]").forEach(button => {
+      if (button.dataset.bound) return;
+      button.dataset.bound = "1";
+      button.addEventListener("click", () => {
+        const row = button.closest("[data-dynamic-row]");
+        const deletion = row.querySelector('input[name$="-DELETE"]');
+        if (deletion) {
+          deletion.checked = true;
+          row.hidden = true;
+        } else {
+          row.remove();
+        }
+        updateBrandOverview();
+      });
+    });
+  }
+
+  document.querySelectorAll("[data-add-form]").forEach(button => {
+    button.addEventListener("click", () => {
+      const prefix = button.dataset.addForm;
+      const total = document.querySelector(`#id_${prefix}-TOTAL_FORMS`);
+      const index = Number(total.value);
+      const template = document.getElementById(button.dataset.template);
+      const wrapper = document.createElement("div");
+      wrapper.innerHTML = template.innerHTML.replaceAll("__prefix__", index);
+      const row = wrapper.firstElementChild;
+      document.getElementById(button.dataset.target).appendChild(row);
+      total.value = index + 1;
+      bindRemove(row);
+      if (prefix === "policies") {
+        policyDetails.open = true;
+        updateBrandOverview();
+        window.setTimeout(() => row.querySelector('input[type="search"], select[name$="-brand"]')?.focus(), 0);
+      }
+    });
+  });
+
+  policyRows?.addEventListener("change", updateBrandOverview);
+  policyRows?.addEventListener("input", updateBrandOverview);
+  bindRemove();
+  updateBrandOverview();
+})();
+</script>
+{% endblock %}

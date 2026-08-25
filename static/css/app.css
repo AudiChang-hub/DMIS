@@ -921,6 +921,9 @@ input[type="file"].form-control { padding: 10px; }
   max-height: min(330px, 52vh); padding: 6px; overflow-y: auto; background: var(--surface);
   border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 14px 32px rgba(24,50,59,.16);
 }
+.searchable-select__list.is-portaled {
+  position: fixed; z-index: 1300; right: auto; margin: 0;
+}
 .searchable-select__list button {
   display: block; width: 100%; min-height: 44px; padding: 9px 11px; color: var(--ink);
   background: transparent; border: 0; border-radius: 8px; cursor: pointer; text-align: left;
@@ -3303,6 +3306,63 @@ body.screen-locked { overflow: hidden; }
   border-radius: 18px; background: var(--surface); box-shadow: var(--shadow-soft);
 }
 .form-section.static-section > .form-grid { padding: 0; }
+.dealer-brand-section { overflow: visible; }
+.dealer-brand-section .section-title { align-items: center; }
+.dealer-brand-count {
+  flex: 0 0 auto; padding: 7px 11px; color: var(--forest-2); background: var(--mint);
+  border: 1px solid color-mix(in srgb, var(--forest) 20%, var(--line)); border-radius: 999px;
+  font-size: .78rem; font-weight: 850;
+}
+.dealer-brand-priority {
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px;
+}
+.dealer-brand-status {
+  display: flex; min-width: 0; padding: 16px 18px; align-items: center; justify-content: space-between; gap: 14px;
+  background: var(--surface-soft); border: 1px solid var(--line); border-radius: 14px;
+}
+.dealer-brand-status > div { display: grid; min-width: 0; gap: 3px; }
+.dealer-brand-status small { color: var(--muted); font-size: .72rem; font-weight: 800; }
+.dealer-brand-status strong { font-size: 1rem; }
+.dealer-brand-status > span {
+  flex: 0 0 auto; padding: 6px 10px; border: 1px solid var(--line); border-radius: 999px;
+  font-size: .78rem; font-weight: 900;
+}
+.dealer-brand-status.is-cooperates { background: var(--mint); border-color: color-mix(in srgb, var(--forest) 28%, var(--line)); }
+.dealer-brand-status.is-cooperates > span { color: var(--green); background: var(--surface); border-color: color-mix(in srgb, var(--green) 32%, var(--line)); }
+.dealer-brand-status.is-not_cooperating > span { color: var(--red); background: var(--red-soft); border-color: color-mix(in srgb, var(--red) 30%, var(--line)); }
+.dealer-brand-status.is-unset { border-style: dashed; }
+.dealer-brand-status.is-unset > span { color: var(--muted); background: var(--surface); }
+.dealer-brand-active-summary {
+  display: grid; margin-top: 14px; padding: 14px 16px; grid-template-columns: auto minmax(0, 1fr);
+  align-items: center; gap: 12px; background: var(--surface-subtle); border: 1px solid var(--line); border-radius: 12px;
+}
+.dealer-brand-active-summary > strong { font-size: .82rem; }
+.dealer-brand-active-list { display: flex; min-width: 0; flex-wrap: wrap; gap: 7px; }
+.dealer-brand-active-list > span {
+  padding: 4px 8px; color: var(--forest-2); background: var(--mint); border-radius: 999px;
+  font-size: .75rem; font-weight: 850;
+}
+.dealer-brand-active-list > small { color: var(--muted); }
+.dealer-brand-details { margin-top: 16px; overflow: hidden; border: 1px solid var(--line); border-radius: 14px; }
+.dealer-brand-details > summary {
+  display: flex; padding: 16px 18px; align-items: center; justify-content: space-between; gap: 16px;
+  cursor: pointer; list-style: none; background: var(--surface-soft);
+}
+.dealer-brand-details > summary::-webkit-details-marker { display: none; }
+.dealer-brand-details > summary > span:first-child { display: grid; min-width: 0; gap: 3px; }
+.dealer-brand-details > summary small { color: var(--muted); font-weight: 600; }
+.dealer-brand-details__action { flex: 0 0 auto; color: var(--forest); font-size: .8rem; font-weight: 900; }
+.dealer-brand-details__action::after {
+  display: inline-block; width: 8px; height: 8px; margin: -3px 0 0 9px;
+  border-right: 2px solid currentColor; border-bottom: 2px solid currentColor;
+  content: ""; transform: rotate(45deg); vertical-align: middle;
+}
+.dealer-brand-details[open] .dealer-brand-details__action { font-size: 0; }
+.dealer-brand-details[open] .dealer-brand-details__action::before { font-size: .8rem; content: "收合設定"; }
+.dealer-brand-details[open] .dealer-brand-details__action::after { transform: rotate(225deg); }
+.dealer-brand-details__body { padding: 4px 16px 16px; border-top: 1px solid var(--line); }
+.dealer-brand-policy-row { overflow: visible; }
+.formset-errors { margin-top: 14px; padding: 11px 13px; color: var(--red); background: var(--red-soft); border-radius: 10px; }
 .responsive-split { display: grid; grid-template-columns: minmax(320px, .72fr) minmax(0, 1.28fr); gap: 20px; align-items: start; }
 .master-editor-layout > .form-section { position: sticky; top: 96px; }
 .master-dynamic-row {
@@ -3396,6 +3456,11 @@ body.screen-locked { overflow: hidden; }
   .responsive-split { grid-template-columns: 1fr; }
   .master-editor-layout > .form-section { position: static; }
   .form-section.static-section { padding: 16px; border-radius: 14px; }
+  .dealer-brand-section .section-title { align-items: flex-start; }
+  .dealer-brand-priority { grid-template-columns: 1fr; }
+  .dealer-brand-active-summary { grid-template-columns: 1fr; }
+  .dealer-brand-details > summary { align-items: flex-start; }
+  .dealer-brand-details__body { padding: 2px 10px 12px; }
   .master-dynamic-row, .installment-option-row { grid-template-columns: 1fr; }
   .field-control-with-action { grid-template-columns: 1fr; }
   .field-control-with-action .inline-create-button { width: 100%; }

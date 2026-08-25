@@ -56,6 +56,49 @@
 
     const storageKey = `dmis-recent-select:${select.name}`;
     let activeIndex = -1;
+    let dropdownPortaled = false;
+
+    function positionDropdown() {
+      if (!dropdownPortaled || list.hidden) return;
+      const rect = input.getBoundingClientRect();
+      const viewportGap = 12;
+      const listGap = 5;
+      const availableBelow = window.innerHeight - rect.bottom - viewportGap;
+      const availableAbove = rect.top - viewportGap;
+      const openAbove = availableBelow < 220 && availableAbove > availableBelow;
+      const availableSpace = Math.max(150, openAbove ? availableAbove : availableBelow);
+      const maxHeight = Math.min(330, Math.max(150, availableSpace - listGap));
+
+      const listWidth = Math.max(220, Math.min(rect.width, window.innerWidth - viewportGap * 2));
+      const listLeft = Math.min(
+        Math.max(viewportGap, rect.left),
+        window.innerWidth - listWidth - viewportGap
+      );
+      list.style.left = `${listLeft}px`;
+      list.style.width = `${listWidth}px`;
+      list.style.maxHeight = `${maxHeight}px`;
+      list.style.top = openAbove ? "auto" : `${rect.bottom + listGap}px`;
+      list.style.bottom = openAbove ? `${window.innerHeight - rect.top + listGap}px` : "auto";
+    }
+
+    function portalDropdown() {
+      if (dropdownPortaled) return;
+      document.body.append(list);
+      dropdownPortaled = true;
+      list.classList.add("is-portaled");
+      window.addEventListener("resize", positionDropdown);
+      window.addEventListener("scroll", positionDropdown, true);
+    }
+
+    function restoreDropdown() {
+      if (!dropdownPortaled) return;
+      window.removeEventListener("resize", positionDropdown);
+      window.removeEventListener("scroll", positionDropdown, true);
+      wrapper.append(list);
+      dropdownPortaled = false;
+      list.classList.remove("is-portaled");
+      list.removeAttribute("style");
+    }
 
     function availableOptions() {
       return [...select.options].filter(option => (
@@ -109,6 +152,7 @@
 
     function closeList({restore = false} = {}) {
       list.hidden = true;
+      restoreDropdown();
       wrapper.classList.remove("is-open");
       input.setAttribute("aria-expanded", "false");
       input.removeAttribute("aria-activedescendant");
@@ -234,9 +278,11 @@
     function openList(query = "") {
       if (select.disabled) return;
       renderOptions(query);
+      portalDropdown();
       list.hidden = false;
       wrapper.classList.add("is-open");
       input.setAttribute("aria-expanded", "true");
+      positionDropdown();
     }
 
     function syncFromSelect() {
@@ -339,9 +385,24 @@
     document.querySelectorAll(SELECTOR).forEach(enhanceSelect);
   }
 
+  function observeDynamicSelects() {
+    if (!document.body) return;
+    new MutationObserver(records => {
+      records.forEach(record => record.addedNodes.forEach(node => {
+        if (!(node instanceof Element)) return;
+        if (node.matches(SELECTOR)) enhanceSelect(node);
+        node.querySelectorAll(SELECTOR).forEach(enhanceSelect);
+      }));
+    }).observe(document.body, {childList: true, subtree: true});
+  }
+
   if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", init, {once: true});
+    document.addEventListener("DOMContentLoaded", () => {
+      init();
+      observeDynamicSelects();
+    }, {once: true});
   } else {
     init();
+    observeDynamicSelects();
   }
 })();

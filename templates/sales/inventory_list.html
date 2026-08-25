@@ -105,7 +105,7 @@
           <td data-label="車型／車色"><strong>{{ vehicle.vehicle_model.name }}</strong><span>{{ vehicle.color.name }}</span></td>
           <td data-label="識別號碼"><span class="inventory-identifier">{{ vehicle.identifier }}</span></td>
           <td data-label="狀態"><span class="status-pill status-{{ vehicle.status }}">{{ vehicle.get_status_display }}</span></td>
-          <td data-label="實際位置"><strong>{{ vehicle.actual_location_label }}</strong>{% if vehicle.current_dealer_id %}<span>合作車行</span>{% else %}<span>本店</span>{% endif %}</td>
+          <td data-label="實際位置"><strong>{{ vehicle.actual_location_label }}</strong></td>
           <td data-label="車況">
             {% if vehicle.status == 'condition_issue' %}
               <span class="inventory-condition has-issue">車況異常</span>{% if vehicle.condition_note %}<small class="inventory-condition-note">{{ vehicle.condition_note|truncatechars:32 }}</small>{% endif %}

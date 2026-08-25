@@ -1701,11 +1701,11 @@ class VehicleInventory(TimeStampedModel):
         SalesSource,
         on_delete=models.PROTECT,
         related_name="located_vehicles",
-        verbose_name="實際位置／合作車行",
+        verbose_name="實際位置",
         blank=True,
         null=True,
         limit_choices_to={"source_type": SalesSource.SourceType.DEALER},
-        help_text="未選擇代表車輛位於本店；調往合作車行時才需選擇車行名稱。",
+        help_text="未選擇代表車輛位於本店；放在車行時請選擇車行名稱。",
     )
     received_on = models.DateField("進車日期", default=timezone.localdate)
     manufactured_year_month = models.CharField(
@@ -1761,7 +1761,7 @@ class VehicleInventory(TimeStampedModel):
             self.current_dealer_id
             and self.current_dealer.source_type != SalesSource.SourceType.DEALER
         ):
-            errors["current_dealer"] = "實際位置只能選擇合作車行。"
+            errors["current_dealer"] = "實際位置只能選擇車行。"
         if errors:
             raise ValidationError(errors)
 

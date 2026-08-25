@@ -29,10 +29,9 @@
     list.setAttribute("role", "listbox");
     list.hidden = true;
 
-    const toggle = document.createElement("button");
-    toggle.type = "button";
+    const toggle = document.createElement("span");
     toggle.className = "searchable-select__toggle";
-    toggle.setAttribute("aria-label", "展開選項");
+    toggle.setAttribute("aria-hidden", "true");
     toggle.innerHTML = '<span class="ui-chevron" aria-hidden="true"></span>';
 
     wrapper.append(input, toggle, list);
@@ -86,7 +85,6 @@
       list.hidden = true;
       wrapper.classList.remove("is-open");
       input.setAttribute("aria-expanded", "false");
-      toggle.setAttribute("aria-label", "展開選項");
       input.removeAttribute("aria-activedescendant");
       activeIndex = -1;
       if (restore) input.value = selectedLabel();
@@ -148,7 +146,6 @@
       list.hidden = false;
       wrapper.classList.add("is-open");
       input.setAttribute("aria-expanded", "true");
-      toggle.setAttribute("aria-label", "收合選項");
     }
 
     function syncFromSelect() {
@@ -197,14 +194,6 @@
       }
     });
     input.addEventListener("blur", () => setTimeout(() => closeList({restore: true}), 120));
-    toggle.addEventListener("click", () => {
-      if (list.hidden) {
-        input.focus();
-        openList();
-      } else {
-        closeList({restore: true});
-      }
-    });
     select.addEventListener("change", syncFromSelect);
     select.addEventListener("invalid", event => {
       event.preventDefault();

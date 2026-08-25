@@ -211,8 +211,13 @@ class ProductExperienceTests(TestCase):
 
     def test_searchable_select_supports_recent_keyboard_and_empty_options(self):
         script = Path("static/js/searchable-select.js").read_text(encoding="utf-8")
+        css = Path("static/css/app.css").read_text(encoding="utf-8")
 
         self.assertIn('input.type = "search"', script)
+        self.assertIn('const toggle = document.createElement("span")', script)
+        self.assertIn('toggle.setAttribute("aria-hidden", "true")', script)
+        self.assertNotIn('toggle.addEventListener("click"', script)
+        self.assertIn("pointer-events: none", css)
         self.assertIn("localStorage.setItem(storageKey", script)
         self.assertIn('event.key === "ArrowDown"', script)
         self.assertIn('event.key === "Enter"', script)

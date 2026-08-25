@@ -59,7 +59,7 @@ RELATED_FIELDS = (
     ("color__name", "車色"),
     ("allocated_vehicle__engine_number", "引擎號碼"),
     ("allocated_vehicle__frame_number", "車身號碼"),
-    ("allocated_vehicle__location_store__name", "目前位置"),
+    ("allocated_vehicle__current_dealer__name", "目前位置"),
     ("allocated_vehicle__condition_note", "車況說明"),
     ("allocated_vehicle__condition_resolution", "車況處理結果"),
     ("allocated_vehicle__received_on", "進車日期"),
@@ -231,7 +231,7 @@ def build_order_match_summary(order, query):
         related_values += (
             ("引擎號碼", vehicle.engine_number),
             ("車身號碼", vehicle.frame_number),
-            ("目前位置", vehicle.location_store.name),
+            ("目前位置", vehicle.actual_location_label),
             ("車況說明", vehicle.condition_note),
             ("車況處理結果", vehicle.condition_resolution),
             ("進車日期", vehicle.received_on),
@@ -375,7 +375,7 @@ def build_order_search_payload(order):
         related_values += (
             ("引擎號碼", vehicle.engine_number),
             ("車身號碼", vehicle.frame_number),
-            ("目前位置", vehicle.location_store.name),
+            ("目前位置", vehicle.actual_location_label),
             ("車況說明", vehicle.condition_note),
             ("車況處理結果", vehicle.condition_resolution),
             ("進車日期", vehicle.received_on),
@@ -453,7 +453,7 @@ def build_order_search_payload(order):
 def rebuild_order_search_index(order_id):
     order = SalesOrder.objects.select_related(
         "source", "vehicle_model", "color", "allocated_vehicle", "operations", "legacy_snapshot",
-        "allocated_vehicle__location_store",
+        "allocated_vehicle__current_dealer",
     ).prefetch_related(
         "vehicle_model__factory_model_codes", "accessories", "other_fees", "subsidy_documents",
         "registration_documents", "events", "changes", "payment_records", "subsidy_items",

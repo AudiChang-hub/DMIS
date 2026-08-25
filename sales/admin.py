@@ -143,10 +143,10 @@ class VehicleInventoryAdmin(admin.ModelAdmin):
         "identifier",
         "vehicle_model",
         "color",
-        "location_store",
+        "current_dealer",
         "status",
     )
-    list_filter = ("status", "location_store", "vehicle_model")
+    list_filter = ("status", "current_dealer", "vehicle_model")
     search_fields = ("engine_number", "frame_number")
 
 

@@ -1697,6 +1697,16 @@ class VehicleInventory(TimeStampedModel):
         related_name="located_vehicles",
         verbose_name="實際存放門市",
     )
+    current_dealer = models.ForeignKey(
+        SalesSource,
+        on_delete=models.PROTECT,
+        related_name="located_vehicles",
+        verbose_name="實際位置／合作車行",
+        blank=True,
+        null=True,
+        limit_choices_to={"source_type": SalesSource.SourceType.DEALER},
+        help_text="未選擇代表車輛位於本店；調往合作車行時才需選擇車行名稱。",
+    )
     received_on = models.DateField("進車日期", default=timezone.localdate)
     manufactured_year_month = models.CharField(
         "出廠年月",
@@ -1727,6 +1737,10 @@ class VehicleInventory(TimeStampedModel):
     def identifier(self):
         return self.engine_number or self.frame_number or "尚未填寫"
 
+    @property
+    def actual_location_label(self):
+        return self.current_dealer.name if self.current_dealer_id else "本店"
+
     def clean(self):
         errors = {}
         if self.color_id and self.vehicle_model_id:
@@ -1743,6 +1757,11 @@ class VehicleInventory(TimeStampedModel):
                     errors["frame_number"] = "電動車必須填寫車身號碼。"
                 if self.engine_number:
                     errors["engine_number"] = "電動車第一階段不使用引擎號碼。"
+        if (
+            self.current_dealer_id
+            and self.current_dealer.source_type != SalesSource.SourceType.DEALER
+        ):
+            errors["current_dealer"] = "實際位置只能選擇合作車行。"
         if errors:
             raise ValidationError(errors)
 
@@ -1787,6 +1806,7 @@ class VehicleInventoryHistory(TimeStampedModel):
         related_name="+",
         verbose_name="當下位置",
     )
+    location_label_snapshot = models.CharField("當下實際位置", max_length=120, blank=True)
     condition_note_snapshot = models.TextField("當下車況", blank=True)
     condition_resolution_snapshot = models.TextField("當下處理結果", blank=True)
     condition_photo_snapshot = models.ImageField(
@@ -1802,6 +1822,7 @@ class VehicleInventoryHistory(TimeStampedModel):
         related_name="+",
         verbose_name="調出位置",
     )
+    from_location_label = models.CharField("調出實際位置", max_length=120, blank=True)
     to_location = models.ForeignKey(
         Store,
         on_delete=models.SET_NULL,
@@ -1810,6 +1831,7 @@ class VehicleInventoryHistory(TimeStampedModel):
         related_name="+",
         verbose_name="調入位置",
     )
+    to_location_label = models.CharField("調入實際位置", max_length=120, blank=True)
 
     class Meta:
         ordering = ["-created_at", "-id"]
@@ -2510,6 +2532,7 @@ class SalesOrder(TimeStampedModel):
                 changes={"訂單狀態": {"before": "已配車", "after": "取消"}},
                 status_snapshot=vehicle.status,
                 location_store_snapshot=vehicle.location_store,
+                location_label_snapshot=vehicle.actual_location_label,
                 condition_note_snapshot=vehicle.condition_note,
                 condition_resolution_snapshot=vehicle.condition_resolution,
             )

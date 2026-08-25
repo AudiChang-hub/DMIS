@@ -115,7 +115,7 @@
       <span class="allocation-overview__location-mark" aria-hidden="true"></span>
       <div>
         <span class="allocation-overview__label">目前位置</span>
-        <strong>{{ order.allocated_vehicle.location_store }}</strong>
+        <strong>{{ order.allocated_vehicle.actual_location_label }}</strong>
         <small>實體存放位置</small>
       </div>
     </div>
@@ -720,7 +720,7 @@
       <div><dt>來源</dt><dd>{{ order.source.name|default:"本店" }}{% if order.source.category %}／{{ order.source.category.name }}{% endif %}</dd></div>
       <div><dt>交車方式</dt><dd>{{ order.get_delivery_method_display }}{% if order.delivery_destination %}／{{ order.delivery_destination }}{% endif %}</dd></div>
       {% if order.allocated_vehicle %}
-      <div class="wide highlight-data"><dt>實體車</dt><dd>{{ order.allocated_vehicle.identifier }} · {{ order.allocated_vehicle.location_store }}</dd></div>
+      <div class="wide highlight-data"><dt>實體車</dt><dd>{{ order.allocated_vehicle.identifier }} · {{ order.allocated_vehicle.actual_location_label }}</dd></div>
       {% elif order.legacy_snapshot.vehicle_identifier %}
       <div class="wide highlight-data"><dt>歷史車輛識別</dt><dd>{{ order.legacy_snapshot.vehicle_identifier }}</dd></div>
       {% endif %}

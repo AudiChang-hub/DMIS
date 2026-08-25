@@ -2241,20 +2241,79 @@ class OrderFlowTests(TestCase):
             'data-search-placeholder="輸入本店或車行名稱"',
         )
 
-    def test_inventory_location_filter_is_searchable(self):
+    def test_inventory_dropdown_filters_are_searchable(self):
         self.client.force_login(self.user)
 
         response = self.client.get(reverse("inventory_list"))
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(
-            response,
-            'id="inventory-location" name="location" data-searchable-select="1" data-searchable-include-empty="1"',
+        searchable_filters = {
+            "inventory-status": "搜尋狀態",
+            "inventory-model": "搜尋品牌或機種",
+            "inventory-color": "搜尋車色",
+            "inventory-location": "搜尋本店或車行名稱",
+            "inventory-sort": "搜尋排序方式",
+        }
+        for element_id, placeholder in searchable_filters.items():
+            with self.subTest(element_id=element_id):
+                self.assertContains(
+                    response,
+                    f'id="{element_id}"',
+                )
+                self.assertContains(
+                    response,
+                    f'data-search-placeholder="{placeholder}"',
+                )
+        self.assertContains(response, 'data-searchable-select="1"', count=5)
+        self.assertContains(response, 'data-searchable-search-icon="1"', count=5)
+        self.assertContains(response, "下拉欄位皆可直接輸入搜尋")
+        self.assertNotContains(response, "可輸入搜尋")
+
+    def test_inventory_color_filter_deduplicates_names_and_filters_all_models(self):
+        other_model = VehicleModel.objects.create(
+            brand="其他廠牌",
+            name="其他車型",
+            energy_type=VehicleModel.EnergyType.GAS,
         )
-        self.assertContains(response, 'data-searchable-empty-placeholder="1"')
-        self.assertContains(response, 'data-searchable-search-icon="1"')
-        self.assertContains(response, 'data-search-placeholder="搜尋本店或車行名稱"')
-        self.assertContains(response, "可輸入搜尋")
+        same_color = VehicleColor.objects.create(
+            vehicle_model=other_model,
+            name="白",
+        )
+        other_vehicle = VehicleInventory.objects.create(
+            vehicle_model=other_model,
+            color=same_color,
+            engine_number="ENG-WHITE-002",
+            ownership_store=self.store_a,
+            location_store=self.store_a,
+        )
+        self.client.force_login(self.user)
+
+        response = self.client.get(reverse("inventory_list"), {"color": "白"})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.context["colors"],
+            [{"value": "白", "label": "白", "ids": [self.color.pk, same_color.pk]}],
+        )
+        self.assertEqual(response.context["selected"]["color"], "白")
+        self.assertEqual(
+            set(response.context["vehicles"]),
+            {self.vehicle, other_vehicle},
+        )
+        self.assertContains(response, '<option value="白" selected>白</option>', count=1)
+        self.assertNotContains(response, "通勤 125／白")
+
+    def test_inventory_color_filter_accepts_legacy_numeric_links(self):
+        self.client.force_login(self.user)
+
+        response = self.client.get(
+            reverse("inventory_list"),
+            {"color": str(self.color.pk)},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["selected"]["color"], "白")
+        self.assertEqual(list(response.context["vehicles"]), [self.vehicle])
 
     def test_delivered_inventory_locks_location_but_allows_resolution(self):
         self.vehicle.status = VehicleInventory.Status.DELIVERED

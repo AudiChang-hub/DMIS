@@ -44,8 +44,8 @@
     {% for history in transfer_history %}
     <div class="inventory-transfer-row">
       <span data-label="調度時間">{{ history.created_at|date:"Y/m/d H:i" }}</span>
-      <span data-label="調出位置">{{ history.from_location|default:"未記錄" }}</span>
-      <span data-label="調入位置">{{ history.to_location|default:"未記錄" }}</span>
+      <span data-label="調出位置">{{ history.from_location_label|default:history.from_location|default:"未記錄" }}</span>
+      <span data-label="調入位置">{{ history.to_location_label|default:history.to_location|default:"未記錄" }}</span>
       <span data-label="經手人／原因"><strong>{{ history.actor_name|default:"系統" }}</strong>{% if history.reason %}<small>{{ history.reason }}</small>{% endif %}</span>
     </div>
     {% endfor %}
@@ -66,7 +66,7 @@
       <summary>
         <span class="history-event">{{ history.get_event_type_display }}</span>
         <span><strong>{{ history.actor_name|default:"系統" }}</strong><small>{{ history.created_at|date:"Y/m/d H:i" }}</small></span>
-        <span class="history-location">{{ history.location_store_snapshot|default:"未記錄位置" }}</span>
+        <span class="history-location">{{ history.location_label_snapshot|default:history.location_store_snapshot|default:"未記錄位置" }}</span>
       </summary>
       <div class="history-entry-body">
         {% if history.reason %}<p class="history-reason"><strong>異動原因</strong>{{ history.reason }}</p>{% endif %}

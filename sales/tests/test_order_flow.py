@@ -95,6 +95,10 @@ class OrderFlowTests(TestCase):
         )
         self.store_a = Store.objects.create(name="總店", code="HQ")
         self.store_b = Store.objects.create(name="二店", code="B02")
+        self.dealer = SalesSource.objects.create(
+            name="測試合作車行",
+            source_type=SalesSource.SourceType.DEALER,
+        )
         self.model = VehicleModel.objects.create(
             brand="測試廠牌", name="通勤 125", energy_type=VehicleModel.EnergyType.GAS
         )
@@ -250,8 +254,7 @@ class OrderFlowTests(TestCase):
             "color": vehicle.color_id,
             "engine_number": vehicle.engine_number or "",
             "frame_number": vehicle.frame_number or "",
-            "ownership_store": vehicle.ownership_store_id,
-            "location_store": vehicle.location_store_id,
+            "current_dealer": vehicle.current_dealer_id or "",
             "received_on": vehicle.received_on.isoformat(),
             "condition_note": vehicle.condition_note,
             "condition_resolution": vehicle.condition_resolution,
@@ -266,7 +269,7 @@ class OrderFlowTests(TestCase):
             reverse("inventory_edit", args=[self.vehicle.pk]),
             self.inventory_payload(
                 engine_number="eng-updated",
-                location_store=self.store_a.pk,
+                current_dealer=self.dealer.pk,
                 condition_note="到店檢查正常",
             ),
         )
@@ -274,15 +277,16 @@ class OrderFlowTests(TestCase):
         self.assertRedirects(response, reverse("inventory_list"))
         self.vehicle.refresh_from_db()
         self.assertEqual(self.vehicle.engine_number, "ENG-UPDATED")
-        self.assertEqual(self.vehicle.location_store, self.store_a)
+        self.assertEqual(self.vehicle.current_dealer, self.dealer)
+        self.assertEqual(self.vehicle.actual_location_label, "測試合作車行")
         self.assertEqual(self.vehicle.condition_note, "到店檢查正常")
         history = self.vehicle.history_entries.get()
         self.assertEqual(
             history.event_type,
             VehicleInventoryHistory.EventType.TRANSFERRED,
         )
-        self.assertEqual(history.from_location, self.store_b)
-        self.assertEqual(history.to_location, self.store_a)
+        self.assertEqual(history.from_location_label, "本店")
+        self.assertEqual(history.to_location_label, "測試合作車行")
         self.assertEqual(history.actor_name, "tester")
         self.assertEqual(history.reason, "")
         self.assertEqual(
@@ -2029,8 +2033,7 @@ class OrderFlowTests(TestCase):
                 vehicle_model=other_model.pk,
                 color=other_color.pk,
                 engine_number="TAMPERED",
-                ownership_store=self.store_a.pk,
-                location_store=self.store_a.pk,
+                current_dealer=self.dealer.pk,
                 condition_note="調車前發現刮痕",
                 condition_resolution="待確認",
             ),
@@ -2042,7 +2045,7 @@ class OrderFlowTests(TestCase):
         self.assertEqual(self.vehicle.color, self.color)
         self.assertEqual(self.vehicle.engine_number, "ENG-001")
         self.assertEqual(self.vehicle.ownership_store, self.store_b)
-        self.assertEqual(self.vehicle.location_store, self.store_a)
+        self.assertEqual(self.vehicle.current_dealer, self.dealer)
         self.assertEqual(self.vehicle.condition_note, "調車前發現刮痕")
 
     def test_inventory_list_is_filterable_sortable_table(self):
@@ -2055,6 +2058,7 @@ class OrderFlowTests(TestCase):
             received_on=date(2026, 1, 1),
             status=VehicleInventory.Status.CONDITION_ISSUE,
             condition_note="測試異常",
+            current_dealer=self.dealer,
         )
         self.client.force_login(self.user)
 
@@ -2073,12 +2077,52 @@ class OrderFlowTests(TestCase):
         self.assertContains(response, 'class="inventory-table"')
         self.assertContains(response, "查看／編輯")
         self.assertNotContains(response, 'class="inventory-card"')
-        self.assertContains(response, 'name="vehicle_model"')
+        self.assertContains(response, 'name="vehicle_family"')
         self.assertContains(response, 'name="color"')
-        self.assertContains(response, 'name="location_store"')
+        self.assertContains(response, 'name="location"')
         self.assertContains(response, 'name="sort"')
+        self.assertContains(response, 'class="inventory-row--condition-issue"')
+        self.assertContains(response, "車況異常")
+        self.assertContains(response, "測試合作車行")
         self.assertNotContains(response, "庫存歸屬")
         self.assertNotContains(response, 'name="ownership_store"')
+
+    def test_inventory_model_filter_lists_each_family_once_and_filters_all_years(self):
+        newer_model = VehicleModel.objects.create(
+            brand=self.model.brand,
+            name=self.model.name,
+            energy_type=VehicleModel.EnergyType.GAS,
+            model_year=2027,
+            model_code=VehicleModel.ModelType.CBS_DISC,
+        )
+        newer_color = VehicleColor.objects.create(
+            vehicle_model=newer_model,
+            name="黑",
+        )
+        newer_vehicle = VehicleInventory.objects.create(
+            vehicle_model=newer_model,
+            color=newer_color,
+            engine_number="ENG-2027",
+            ownership_store=self.store_a,
+            location_store=self.store_a,
+        )
+        self.client.force_login(self.user)
+
+        response = self.client.get(
+            reverse("inventory_list"),
+            {"vehicle_family": self.model.family_id},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            list(response.context["vehicle_families"]),
+            [self.model.family],
+        )
+        self.assertEqual(
+            set(response.context["vehicles"]),
+            {self.vehicle, newer_vehicle},
+        )
+        self.assertContains(response, "全部機種")
 
     def test_inventory_list_defaults_to_current_inventory(self):
         delivered = VehicleInventory.objects.create(
@@ -2179,14 +2223,14 @@ class OrderFlowTests(TestCase):
         response = self.client.post(
             reverse("inventory_edit", args=[self.vehicle.pk]),
             self.inventory_payload(
-                location_store=self.store_a.pk,
+                current_dealer=self.dealer.pk,
                 condition_resolution="交付後補登檢查結果",
             ),
         )
 
         self.assertRedirects(response, reverse("inventory_list"))
         self.vehicle.refresh_from_db()
-        self.assertEqual(self.vehicle.location_store, self.store_b)
+        self.assertIsNone(self.vehicle.current_dealer)
         self.assertEqual(
             self.vehicle.condition_resolution,
             "交付後補登檢查結果",
@@ -2198,10 +2242,10 @@ class OrderFlowTests(TestCase):
         response = self.client.get(
             reverse("inventory_list"),
             {
-                "vehicle_model": "not-a-number",
+                "vehicle_family": "not-a-number",
                 "color": "bad",
                 "ownership_store": "invalid",
-                "location_store": "invalid",
+                "location": "invalid",
             },
         )
 
@@ -2643,7 +2687,7 @@ class OrderFlowTests(TestCase):
         self.assertContains(detail, "前碟後鼓")
         self.assertContains(detail, "車色 白")
         self.assertContains(detail, "出廠 2026/08")
-        self.assertContains(detail, "二店")
+        self.assertContains(detail, "本店")
 
     def test_reallocation_is_blocked_after_registration_has_started(self):
         order = self.make_order()

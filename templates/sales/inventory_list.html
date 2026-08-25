@@ -27,7 +27,7 @@
   <input type="hidden" name="scope" value="{{ selected.scope }}">
   <div class="inventory-filter inventory-filter--search">
     <label for="inventory-q">搜尋</label>
-    <input id="inventory-q" type="search" name="q" value="{{ selected.q }}" placeholder="識別號碼、車型、車色、門市或車況">
+    <input id="inventory-q" type="search" name="q" value="{{ selected.q }}" placeholder="識別號碼、機種、車色、車行或車況">
   </div>
   <div class="inventory-filter">
     <label for="inventory-status">狀態</label>
@@ -38,10 +38,10 @@
     </select>
   </div>
   <div class="inventory-filter">
-    <label for="inventory-model">車型</label>
-    <select id="inventory-model" name="vehicle_model">
-      <option value="">全部車型</option>
-      {% for item in vehicle_models %}<option value="{{ item.pk }}" {% if selected.vehicle_model == item.pk|stringformat:"s" %}selected{% endif %}>{{ item.brand }} {{ item.name }}</option>{% endfor %}
+    <label for="inventory-model">機種</label>
+    <select id="inventory-model" name="vehicle_family">
+      <option value="">全部機種</option>
+      {% for item in vehicle_families %}<option value="{{ item.pk }}" {% if selected.vehicle_family == item.pk|stringformat:"s" %}selected{% endif %}>{{ item.brand }} {{ item.name }}</option>{% endfor %}
     </select>
   </div>
   <div class="inventory-filter">
@@ -53,9 +53,10 @@
   </div>
   <div class="inventory-filter">
     <label for="inventory-location">實際位置</label>
-    <select id="inventory-location" name="location_store">
+    <select id="inventory-location" name="location">
       <option value="">全部位置</option>
-      {% for store in stores %}<option value="{{ store.pk }}" {% if selected.location_store == store.pk|stringformat:"s" %}selected{% endif %}>{{ store.name }}</option>{% endfor %}
+      <option value="store" {% if selected.location == "store" %}selected{% endif %}>本店</option>
+      {% for dealer in dealers %}<option value="dealer-{{ dealer.pk }}" {% if selected.current_dealer == dealer.pk|stringformat:"s" %}selected{% endif %}>{{ dealer.name }}</option>{% endfor %}
     </select>
   </div>
   <div class="inventory-filter">
@@ -97,14 +98,20 @@
       </thead>
       <tbody>
         {% for vehicle in vehicles %}
-        <tr>
+        <tr{% if vehicle.status == 'condition_issue' %} class="inventory-row--condition-issue"{% endif %}>
           <td data-label="進車日期">{{ vehicle.received_on }}</td>
           <td data-label="出廠年月">{{ vehicle.manufactured_year_month|default:"未填寫" }}</td>
           <td data-label="車型／車色"><strong>{{ vehicle.vehicle_model.name }}</strong><span>{{ vehicle.color.name }}</span></td>
           <td data-label="識別號碼"><span class="inventory-identifier">{{ vehicle.identifier }}</span></td>
           <td data-label="狀態"><span class="status-pill status-{{ vehicle.status }}">{{ vehicle.get_status_display }}</span></td>
-          <td data-label="實際位置">{{ vehicle.location_store }}</td>
-          <td data-label="車況">{% if vehicle.condition_note %}<span class="inventory-condition has-issue">有紀錄</span>{% else %}<span class="inventory-condition">正常</span>{% endif %}</td>
+          <td data-label="實際位置"><strong>{{ vehicle.actual_location_label }}</strong>{% if vehicle.current_dealer_id %}<span>合作車行</span>{% else %}<span>本店</span>{% endif %}</td>
+          <td data-label="車況">
+            {% if vehicle.status == 'condition_issue' %}
+              <span class="inventory-condition has-issue">車況異常</span>{% if vehicle.condition_note %}<small class="inventory-condition-note">{{ vehicle.condition_note|truncatechars:32 }}</small>{% endif %}
+            {% elif vehicle.condition_note %}
+              <span class="inventory-condition has-note">有備註</span><small class="inventory-condition-note">{{ vehicle.condition_note|truncatechars:32 }}</small>
+            {% else %}<span class="inventory-condition is-normal">正常</span>{% endif %}
+          </td>
           <td class="inventory-row-action"><a class="button ghost small" href="{% url 'inventory_edit' vehicle.pk %}">查看／編輯</a></td>
         </tr>
         {% empty %}

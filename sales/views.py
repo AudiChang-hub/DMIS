@@ -1993,7 +1993,7 @@ INVENTORY_HISTORY_FIELDS = {
     "color": "車色",
     "engine_number": "引擎號碼",
     "frame_number": "車身號碼",
-    "location_store": "實際位置",
+    "current_dealer": "實際位置",
     "received_on": "進車日期",
     "condition_note": "車況說明",
     "condition_photo": "車況照片",
@@ -2007,7 +2007,10 @@ def _inventory_values(vehicle):
         "color": (vehicle.color_id, vehicle.color.name),
         "engine_number": (vehicle.engine_number or "", vehicle.engine_number or "未填寫"),
         "frame_number": (vehicle.frame_number or "", vehicle.frame_number or "未填寫"),
-        "location_store": (vehicle.location_store_id, str(vehicle.location_store)),
+        "current_dealer": (
+            vehicle.current_dealer_id or "store",
+            vehicle.actual_location_label,
+        ),
         "received_on": (str(vehicle.received_on), str(vehicle.received_on)),
         "condition_note": (vehicle.condition_note, vehicle.condition_note or "未填寫"),
         "condition_photo": (
@@ -2028,8 +2031,8 @@ def _create_inventory_history(
     event_type,
     reason="",
     changes=None,
-    from_location_id=None,
-    to_location_id=None,
+    from_location_label="",
+    to_location_label="",
 ):
     history = VehicleInventoryHistory(
         vehicle=vehicle,
@@ -2039,10 +2042,11 @@ def _create_inventory_history(
         changes=changes or {},
         status_snapshot=vehicle.status,
         location_store_snapshot_id=vehicle.location_store_id,
+        location_label_snapshot=vehicle.actual_location_label,
         condition_note_snapshot=vehicle.condition_note,
         condition_resolution_snapshot=vehicle.condition_resolution,
-        from_location_id=from_location_id,
-        to_location_id=to_location_id,
+        from_location_label=from_location_label,
+        to_location_label=to_location_label,
     )
     if vehicle.condition_photo:
         vehicle.condition_photo.open("rb")
@@ -2129,6 +2133,7 @@ def dashboard(request):
         "allocated_vehicle",
         "allocated_vehicle__ownership_store",
         "allocated_vehicle__location_store",
+        "allocated_vehicle__current_dealer",
         "search_index",
     ).prefetch_related(
         "accessories",
@@ -3036,6 +3041,7 @@ def order_detail(request, pk):
             "color",
             "allocated_vehicle",
             "allocated_vehicle__location_store",
+            "allocated_vehicle__current_dealer",
             "delivery_record",
             "operations",
         ).prefetch_related(
@@ -4224,6 +4230,7 @@ def delivery_complete(request, pk):
         changes={"庫存狀態": {"before": "已預留", "after": "已交車"}},
         status_snapshot=order.allocated_vehicle.status,
         location_store_snapshot=order.allocated_vehicle.location_store,
+        location_label_snapshot=order.allocated_vehicle.actual_location_label,
         condition_note_snapshot=record.vehicle_condition_note,
         condition_resolution_snapshot=record.damage_note,
         condition_photo_snapshot=record.handover_photo,
@@ -4905,12 +4912,12 @@ def inventory_list(request):
     scope_statuses = historical_statuses if scope == "history" else current_statuses
 
     vehicles = VehicleInventory.objects.select_related(
-        "vehicle_model", "color", "location_store"
+        "vehicle_model", "vehicle_model__family", "color", "current_dealer"
     ).filter(status__in=scope_statuses)
     keyword = request.GET.get("q", "").strip()
-    vehicle_model = request.GET.get("vehicle_model")
+    vehicle_family = request.GET.get("vehicle_family")
     color = request.GET.get("color")
-    location_store = request.GET.get("location_store")
+    location = request.GET.get("location", "")
     sort = request.GET.get("sort", "received_desc")
     if status == "transfer" and scope == "current":
         vehicles = vehicles.filter(
@@ -4923,12 +4930,28 @@ def inventory_list(request):
         vehicles = vehicles.filter(status=status)
     else:
         status = ""
-    if vehicle_model and vehicle_model.isdigit():
-        vehicles = vehicles.filter(vehicle_model_id=vehicle_model)
+    selected_family = None
+    if vehicle_family and vehicle_family.isdigit():
+        selected_family = VehicleModelFamily.objects.filter(
+            pk=vehicle_family,
+            active=True,
+        ).first()
+        if selected_family:
+            vehicles = vehicles.filter(
+                vehicle_model__family__brand__iexact=selected_family.brand,
+                vehicle_model__family__name__iexact=selected_family.name,
+            )
+        else:
+            vehicle_family = ""
     if color and color.isdigit():
         vehicles = vehicles.filter(color_id=color)
-    if location_store and location_store.isdigit():
-        vehicles = vehicles.filter(location_store_id=location_store)
+    if location == "store":
+        vehicles = vehicles.filter(current_dealer__isnull=True)
+    elif location.startswith("dealer-") and location.removeprefix("dealer-").isdigit():
+        vehicles = vehicles.filter(current_dealer_id=location.removeprefix("dealer-"))
+    selected_dealer_id = (
+        location.removeprefix("dealer-") if location.startswith("dealer-") else ""
+    )
     if keyword:
         matching_statuses = [
             value
@@ -4943,11 +4966,13 @@ def inventory_list(request):
             | Q(vehicle_model__model_number__icontains=keyword)
             | Q(vehicle_model__factory_model_codes__code__icontains=keyword)
             | Q(color__name__icontains=keyword)
-            | Q(location_store__name__icontains=keyword)
+            | Q(current_dealer__name__icontains=keyword)
             | Q(condition_note__icontains=keyword)
         )
         if matching_statuses:
             query |= Q(status__in=matching_statuses)
+        if "本店" in keyword:
+            query |= Q(current_dealer__isnull=True)
         vehicles = vehicles.filter(query).distinct()
     sort_options = {
         "received_desc": ("-received_on", "-id"),
@@ -4956,7 +4981,7 @@ def inventory_list(request):
         "color": ("color__name", "vehicle_model__name", "-received_on"),
         "identifier": ("engine_number", "frame_number", "-received_on"),
         "status": ("status", "-received_on"),
-        "location": ("location_store__name", "vehicle_model__name"),
+        "location": ("current_dealer__name", "vehicle_model__name"),
     }
     if sort not in sort_options:
         sort = "received_desc"
@@ -4969,6 +4994,23 @@ def inventory_list(request):
         current=Count("id", filter=Q(status__in=current_statuses)),
         history=Count("id", filter=Q(status__in=historical_statuses)),
     )
+    family_rows = VehicleModelFamily.objects.filter(
+        active=True,
+        versions__active=True,
+    ).distinct().order_by("brand", "name", "id")
+    vehicle_family_choices = []
+    family_choice_keys = set()
+    selected_family_choice = ""
+    for family in family_rows:
+        choice_key = (family.brand.strip().casefold(), family.name.strip().casefold())
+        if choice_key not in family_choice_keys:
+            family_choice_keys.add(choice_key)
+            vehicle_family_choices.append(family)
+        if selected_family and choice_key == (
+            selected_family.brand.strip().casefold(),
+            selected_family.name.strip().casefold(),
+        ):
+            selected_family_choice = str(family.pk)
     return render(
         request,
         "sales/inventory_list.html",
@@ -4981,20 +5023,22 @@ def inventory_list(request):
                 if value in scope_statuses
             ],
             "inventory_counts": inventory_counts,
-            "vehicle_models": VehicleModel.objects.filter(active=True).order_by(
-                "brand", "name"
-            ),
+            "vehicle_families": vehicle_family_choices,
             "colors": VehicleColor.objects.filter(active=True)
             .select_related("vehicle_model")
             .order_by("vehicle_model__name", "name"),
-            "stores": Store.objects.filter(active=True).order_by("name"),
+            "dealers": SalesSource.objects.filter(
+                active=True,
+                source_type=SalesSource.SourceType.DEALER,
+            ).order_by("name"),
             "filter_query": filter_params.urlencode(),
             "selected": {
                 "q": keyword,
                 "status": status or "",
-                "vehicle_model": vehicle_model or "",
+                "vehicle_family": selected_family_choice,
                 "color": color or "",
-                "location_store": location_store or "",
+                "location": location,
+                "current_dealer": selected_dealer_id,
                 "sort": sort,
                 "scope": scope,
             },
@@ -6078,17 +6122,18 @@ def inventory_quick_create(request):
 def inventory_edit(request, pk):
     vehicle = get_object_or_404(
         VehicleInventory.objects.select_related(
-            "vehicle_model", "color", "ownership_store", "location_store"
+            "vehicle_model", "color", "ownership_store", "location_store", "current_dealer"
         ),
         pk=pk,
     )
     if request.method == "POST":
         with transaction.atomic():
             vehicle = VehicleInventory.objects.select_for_update().select_related(
-                "vehicle_model", "color", "location_store"
+                "vehicle_model", "color", "location_store", "current_dealer"
             ).get(pk=pk)
             before = _inventory_values(vehicle)
-            before_location_id = vehicle.location_store_id
+            before_location_id = vehicle.current_dealer_id
+            before_location_label = vehicle.actual_location_label
             form = VehicleInventoryForm(
                 request.POST,
                 request.FILES,
@@ -6108,7 +6153,7 @@ def inventory_edit(request, pk):
                 }
                 reason = form.cleaned_data.get("change_reason", "").strip()
                 if changes or reason:
-                    is_transfer = before_location_id != vehicle.location_store_id
+                    is_transfer = before_location_id != vehicle.current_dealer_id
                     _create_inventory_history(
                         vehicle,
                         actor_name=_editing_name(request.user),
@@ -6119,8 +6164,8 @@ def inventory_edit(request, pk):
                         ),
                         reason=reason,
                         changes=changes,
-                        from_location_id=before_location_id if is_transfer else None,
-                        to_location_id=vehicle.location_store_id if is_transfer else None,
+                        from_location_label=(before_location_label if is_transfer else ""),
+                        to_location_label=(vehicle.actual_location_label if is_transfer else ""),
                     )
                 messages.success(request, f"已更新庫存車輛：{vehicle.identifier}")
                 return redirect("inventory_list")

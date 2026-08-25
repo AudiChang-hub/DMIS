@@ -37,6 +37,7 @@ from .models import (
     SalesSourceCategory,
     SalesSourceBrandPolicy,
     SalesSourceContact,
+    Store,
     SubsidyDocument,
     SubsidyItem,
     VehicleColor,
@@ -1324,7 +1325,7 @@ class VehicleInventoryForm(forms.ModelForm):
             "color",
             "engine_number",
             "frame_number",
-            "location_store",
+            "current_dealer",
             "received_on",
             "manufactured_year_month",
             "condition_note",
@@ -1348,6 +1349,20 @@ class VehicleInventoryForm(forms.ModelForm):
         if not self.instance.pk:
             self.fields.pop("change_reason", None)
         self.fields["color"].queryset = VehicleColor.objects.filter(active=True)
+        dealer_queryset = SalesSource.objects.filter(
+            active=True,
+            source_type=SalesSource.SourceType.DEALER,
+        ).order_by("name")
+        if self.instance.pk and self.instance.current_dealer_id:
+            dealer_queryset = SalesSource.objects.filter(
+                Q(
+                    active=True,
+                    source_type=SalesSource.SourceType.DEALER,
+                )
+                | Q(pk=self.instance.current_dealer_id)
+            ).order_by("name")
+        self.fields["current_dealer"].queryset = dealer_queryset
+        self.fields["current_dealer"].empty_label = "本店"
         self.core_fields_locked = bool(
             self.instance.pk
             and self.instance.status in self.CORE_LOCKED_STATUSES
@@ -1362,7 +1377,7 @@ class VehicleInventoryForm(forms.ModelForm):
         if self.core_fields_locked:
             locked_fields = list(self.CORE_FIELDS)
             if self.final_fields_locked:
-                locked_fields.append("location_store")
+                locked_fields.append("current_dealer")
             for field_name in locked_fields:
                 self.fields[field_name].disabled = True
                 self.fields[field_name].help_text = (
@@ -1376,6 +1391,13 @@ class VehicleInventoryForm(forms.ModelForm):
 
     def save(self, commit=True):
         vehicle = super().save(commit=False)
+        if not vehicle.location_store_id:
+            vehicle.location_store = (
+                Store.objects.filter(active=True, code__iexact="HQ").first()
+                or Store.objects.filter(active=True).order_by("id").first()
+            )
+            if vehicle.location_store is None:
+                raise ValidationError("目前沒有本店資料，請先聯絡系統管理員建立本店。")
         if not vehicle.ownership_store_id:
             vehicle.ownership_store = vehicle.location_store
         if commit:
@@ -2653,7 +2675,9 @@ class AllocationForm(forms.Form):
             vehicle_model=order.vehicle_model,
             color=order.color,
             status=VehicleInventory.Status.AVAILABLE,
-        ).select_related("location_store", "vehicle_model", "color")
+        ).select_related(
+            "location_store", "current_dealer", "vehicle_model", "color"
+        )
         self.fields["vehicle"].widget.attrs["class"] = "form-control"
 
 

@@ -2249,7 +2249,7 @@ class OrderFlowTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(
             response,
-            'id="inventory-location" name="location" data-searchable-select="1"',
+            'id="inventory-location" name="location" data-searchable-select="1" data-searchable-include-empty="1"',
         )
         self.assertContains(response, 'data-search-placeholder="輸入本店或車行名稱"')
 

@@ -209,6 +209,17 @@ class ProductExperienceTests(TestCase):
                         4.5,
                     )
 
+    def test_searchable_select_supports_recent_keyboard_and_empty_options(self):
+        script = Path("static/js/searchable-select.js").read_text(encoding="utf-8")
+
+        self.assertIn('input.type = "search"', script)
+        self.assertIn("localStorage.setItem(storageKey", script)
+        self.assertIn('event.key === "ArrowDown"', script)
+        self.assertIn('event.key === "Enter"', script)
+        self.assertIn('event.key === "Escape"', script)
+        self.assertIn('empty.textContent = "找不到符合的選項"', script)
+        self.assertIn('select.dataset.searchableIncludeEmpty === "1"', script)
+
     def test_authenticated_user_can_preview_and_sync_theme_across_pages(self):
         self.client.force_login(self.user)
         target = reverse("vehicle_model_list")

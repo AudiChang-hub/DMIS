@@ -39,11 +39,12 @@
     select.insertAdjacentElement("afterend", wrapper);
 
     const storageKey = `dmis-recent-select:${select.name}`;
+    const includeEmptyOption = select.dataset.searchableIncludeEmpty === "1";
     let activeIndex = -1;
 
     function availableOptions() {
       return [...select.options].filter(option => (
-        option.value && !option.disabled && !option.hidden
+        (option.value || includeEmptyOption) && !option.disabled && !option.hidden
       ));
     }
 
@@ -56,6 +57,7 @@
     }
 
     function remember(option) {
+      if (!option.value) return;
       const values = [option.value, ...recentValues().filter(value => value !== option.value)].slice(0, 5);
       try {
         localStorage.setItem(storageKey, JSON.stringify(values));
@@ -70,7 +72,7 @@
 
     function selectedLabel() {
       const option = selectedOption();
-      return option?.value ? option.textContent.trim() : "";
+      return option && (option.value || includeEmptyOption) ? option.textContent.trim() : "";
     }
 
     function normalizeSearch(value) {
@@ -113,6 +115,7 @@
             if (rightIndex < 0) return -1;
             return leftIndex - rightIndex;
           }
+          if (!left.value || !right.value) return left.value ? 1 : -1;
           return left.textContent.localeCompare(right.textContent, "zh-Hant");
         });
 
@@ -168,7 +171,7 @@
 
     input.addEventListener("focus", () => {
       openList();
-      if (selectedOption()?.value) input.select();
+      if (selectedLabel()) input.select();
     });
     input.addEventListener("click", () => {
       if (list.hidden) openList(input.value);

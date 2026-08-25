@@ -2267,10 +2267,10 @@ class OrderFlowTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         searchable_filters = {
-            "inventory-status": "搜尋並複選狀態",
-            "inventory-model": "搜尋並複選品牌或機種",
-            "inventory-color": "搜尋並複選車色",
-            "inventory-location": "搜尋並複選本店或車行",
+            "inventory-status": "搜尋狀態",
+            "inventory-model": "搜尋品牌或機種",
+            "inventory-color": "搜尋車色",
+            "inventory-location": "搜尋本店或車行",
             "inventory-sort": "搜尋排序方式",
         }
         for element_id, placeholder in searchable_filters.items():
@@ -2287,7 +2287,8 @@ class OrderFlowTests(TestCase):
         self.assertContains(response, 'data-searchable-multiple="1"', count=4)
         self.assertContains(response, ' multiple data-searchable-select="1"', count=4)
         self.assertContains(response, 'data-searchable-search-icon="1"', count=5)
-        self.assertContains(response, "狀態、機種、車色與位置可搜尋複選")
+        self.assertNotContains(response, "並複選")
+        self.assertNotContains(response, "可搜尋複選")
 
     def test_inventory_color_filter_deduplicates_names_and_filters_all_models(self):
         other_model = VehicleModel.objects.create(

@@ -1065,8 +1065,59 @@ def sales_source_form(request, pk=None):
             "contact_formset": contact_formset,
             "policy_formset": policy_formset,
             "source": source if source.pk else None,
+            "brand_overview": _sales_source_brand_overview(source),
         },
     )
+
+
+def _sales_source_brand_overview(source):
+    """Return the currently effective cooperation state for the editor summary."""
+    today = timezone.localdate()
+    current_by_brand = {}
+    if source.pk:
+        policies = source.brand_policies.filter(
+            effective_from__lte=today,
+        ).filter(
+            Q(effective_to__isnull=True) | Q(effective_to__gte=today)
+        ).order_by("brand", "-effective_from", "-pk")
+        for policy in policies:
+            current_by_brand.setdefault(policy.brand.casefold(), policy)
+
+    priority_brands = (
+        ("SUZUKI", "台鈴 SUZUKI"),
+        ("SYM", "三陽 SYM"),
+    )
+    priority = []
+    for brand, label in priority_brands:
+        policy = current_by_brand.get(brand.casefold())
+        if policy is None:
+            status = "unset"
+            status_label = "尚未設定"
+        elif policy.cooperates:
+            status = "cooperates"
+            status_label = "有配合"
+        else:
+            status = "not_cooperating"
+            status_label = "未配合"
+        priority.append(
+            {
+                "brand": brand,
+                "label": label,
+                "status": status,
+                "status_label": status_label,
+            }
+        )
+
+    cooperating = sorted(
+        policy.brand
+        for policy in current_by_brand.values()
+        if policy.cooperates
+    )
+    return {
+        "priority": priority,
+        "cooperating": cooperating,
+        "cooperating_count": len(cooperating),
+    }
 
 
 @login_required

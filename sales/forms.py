@@ -810,7 +810,7 @@ SalesSourceBrandPolicyFormSet = inlineformset_factory(
     SalesSource,
     SalesSourceBrandPolicy,
     form=SalesSourceBrandPolicyForm,
-    extra=1,
+    extra=0,
     can_delete=True,
 )
 

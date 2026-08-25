@@ -2259,6 +2259,8 @@ class OrderFlowTests(TestCase):
             response,
             'data-search-placeholder="輸入本店或車行名稱"',
         )
+        self.assertContains(response, "實際位置")
+        self.assertNotContains(response, "實際位置／合作車行")
 
     def test_inventory_dropdown_filters_are_searchable_and_multiple(self):
         self.client.force_login(self.user)
@@ -2289,6 +2291,7 @@ class OrderFlowTests(TestCase):
         self.assertContains(response, 'data-searchable-search-icon="1"', count=5)
         self.assertNotContains(response, "並複選")
         self.assertNotContains(response, "可搜尋複選")
+        self.assertNotContains(response, "實際位置／合作車行")
 
     def test_inventory_color_filter_deduplicates_names_and_filters_all_models(self):
         other_model = VehicleModel.objects.create(

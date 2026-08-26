@@ -6,7 +6,7 @@ from django.test import TransactionTestCase
 class SalesSourceLineGroupMigrationTests(TransactionTestCase):
     migrate_from = ("sales", "0085_clean_legacy_odoo_note_markers")
     migrate_to = ("sales", "0086_sales_source_line_group")
-    restore_to = ("sales", "0087_consolidate_sales_source_notes")
+    restore_to = ("sales", "0088_sales_source_contact_and_cooperation_profiles")
 
     def setUp(self):
         super().setUp()

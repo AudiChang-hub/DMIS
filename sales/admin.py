@@ -31,6 +31,7 @@ from .models import (
     SalesSource,
     SalesSourceCategory,
     SalesSourceBrandPolicy,
+    SalesSourceCooperationProfile,
     Store,
     SubsidyDocument,
     SubsidyItem,
@@ -76,7 +77,7 @@ class StoreAdmin(admin.ModelAdmin):
 @admin.register(SalesSource)
 class SalesSourceAdmin(admin.ModelAdmin):
     list_display = (
-        "name", "category", "source_type", "phone", "vehicle_capacity",
+        "name", "category", "source_type", "responsible_person", "phone", "mobile",
         "holiday_gift", "has_line_group", "line_group_scope", "active"
     )
     list_filter = (
@@ -99,6 +100,7 @@ admin.site.register(VehicleFactoryModelCode)
 admin.site.register(InstallmentPlanVersion)
 admin.site.register(InstallmentPlanOption)
 admin.site.register(SalesSourceBrandPolicy)
+admin.site.register(SalesSourceCooperationProfile)
 admin.site.register(DealerVolumeBonusRule)
 admin.site.register(DealerVolumeBonusTier)
 admin.site.register(DealerVolumeBonusSettlement)

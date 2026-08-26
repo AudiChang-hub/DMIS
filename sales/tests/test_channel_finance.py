@@ -759,8 +759,20 @@ class ChannelFinanceTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, self.dealer.name)
-        self.assertContains(response, "需提供價格表")
+        self.assertContains(response, "價格表提供對象")
         self.assertContains(response, "台鈴油車")
+
+    def test_source_list_uses_compact_cooperation_and_holiday_summaries(self):
+        self.client.force_login(self.user)
+
+        response = self.client.get(reverse("sales_source_list"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "年節送禮名單")
+        self.assertContains(response, "管理名單")
+        self.assertContains(response, "價格表提供對象")
+        self.assertContains(response, "cooperation-summary__item")
+        self.assertNotContains(response, "<b>需提供價格表</b>", html=False)
 
     def test_source_list_scope_filter_uses_latest_effective_state(self):
         SalesSourceBrandPolicy.objects.create(
@@ -921,7 +933,7 @@ class ChannelFinanceTests(TestCase):
         self.assertContains(response, "冠廷")
         self.assertNotContains(response, "一般車行")
         self.assertNotContains(response, "測試平台")
-        self.assertContains(response, "目前共 1 家")
+        self.assertContains(response, "年節送禮 1 家")
         self.assertContains(response, "需送禮")
         self.assertContains(response, "返回全部通路")
         # 已在送禮名單時，不應再顯示同一個快速篩選連結；其他全站表單
@@ -938,7 +950,7 @@ class ChannelFinanceTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'href="/data/channels/"')
-        self.assertContains(response, "← 返回全部通路")
+        self.assertContains(response, "返回全部通路")
         self.assertContains(response, "不限送禮狀態")
 
     def test_holiday_gift_manage_updates_complete_dealer_list(self):

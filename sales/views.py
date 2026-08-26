@@ -893,9 +893,6 @@ def sales_source_list(request):
             keyword_filter |= Q(holiday_gift=True)
         if "line" in keyword.casefold() or "群組" in keyword:
             keyword_filter |= Q(has_line_group=True)
-        for scope, label in SalesSource.LineGroupScope.choices:
-            if keyword.casefold() in label.casefold():
-                keyword_filter |= Q(line_group_scope=scope)
         sources = sources.filter(keyword_filter).distinct()
     if source_type in {value for value, _ in SalesSource.SourceType.choices}:
         sources = sources.filter(source_type=source_type)
@@ -945,9 +942,6 @@ def sales_source_list(request):
             source_type=SalesSource.SourceType.DEALER,
             holiday_gift=holiday_gift == "yes",
         )
-    valid_line_group_scopes = {
-        value for value, _label in SalesSource.LineGroupScope.choices
-    }
     if line_group == "yes":
         sources = sources.filter(
             source_type=SalesSource.SourceType.DEALER,
@@ -957,18 +951,6 @@ def sales_source_list(request):
         sources = sources.filter(
             source_type=SalesSource.SourceType.DEALER,
             has_line_group=False,
-        )
-    elif line_group == "pending":
-        sources = sources.filter(
-            source_type=SalesSource.SourceType.DEALER,
-            has_line_group=True,
-            line_group_scope="",
-        )
-    elif line_group in valid_line_group_scopes:
-        sources = sources.filter(
-            source_type=SalesSource.SourceType.DEALER,
-            has_line_group=True,
-            line_group_scope=line_group,
         )
     today = timezone.localdate()
     current_policy_queryset = SalesSourceBrandPolicy.objects.filter(
@@ -1011,7 +993,6 @@ def sales_source_list(request):
             ),
             "cooperation_scopes": SalesSourceBrandPolicy.CooperationScope.choices,
             "relationship_types": SalesSourceCooperationProfile.RelationshipType.choices,
-            "line_group_scopes": SalesSource.LineGroupScope.choices,
             "holiday_gift_count": SalesSource.objects.filter(
                 source_type=SalesSource.SourceType.DEALER,
                 holiday_gift=True,

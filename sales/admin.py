@@ -78,11 +78,10 @@ class StoreAdmin(admin.ModelAdmin):
 class SalesSourceAdmin(admin.ModelAdmin):
     list_display = (
         "name", "category", "source_type", "responsible_person", "phone", "mobile",
-        "holiday_gift", "has_line_group", "line_group_scope", "active"
+        "holiday_gift", "has_line_group", "active"
     )
     list_filter = (
-        "category", "source_type", "holiday_gift", "has_line_group",
-        "line_group_scope", "active",
+        "category", "source_type", "holiday_gift", "has_line_group", "active",
     )
 
 

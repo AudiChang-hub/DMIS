@@ -610,10 +610,9 @@ class SalesSourceForm(forms.ModelForm):
         fields = [
             "category", "name", "responsible_person", "phone",
             "phone_secondary", "mobile", "other_contact", "address",
-            "holiday_gift", "line_group_scope", "note", "active",
+            "holiday_gift", "note", "active",
         ]
         widgets = {
-            "line_group_scope": forms.RadioSelect,
             "other_contact": forms.TextInput(
                 attrs={"placeholder": "例如：傳真、Email 或其他聯繫方式"}
             ),
@@ -658,11 +657,6 @@ class SalesSourceForm(forms.ModelForm):
         has_line_group = (
             is_dealer and cleaned_data.get("line_group_presence") == "yes"
         )
-        if has_line_group and not cleaned_data.get("line_group_scope"):
-            self.add_error("line_group_scope", "請選擇 LINE 群組特性。")
-        if not has_line_group:
-            cleaned_data["line_group_scope"] = ""
-            self.instance.line_group_scope = ""
         self.instance.has_line_group = has_line_group
         return cleaned_data
 
@@ -673,8 +667,6 @@ class SalesSourceForm(forms.ModelForm):
             source.source_type == SalesSource.SourceType.DEALER
             and self.cleaned_data.get("line_group_presence") == "yes"
         )
-        if not source.has_line_group:
-            source.line_group_scope = ""
         if commit:
             source.save()
             self.save_m2m()

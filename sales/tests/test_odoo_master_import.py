@@ -122,7 +122,6 @@ class OdooMasterImportTests(TestCase):
         )
         self.assertTrue(source.holiday_gift)
         self.assertTrue(source.has_line_group)
-        self.assertEqual(source.line_group_scope, "")
         self.assertIn("歷史聯絡資料：王老闆（負責人）", source.note)
         self.assertIn("歷史聯絡資料：李窗口（聯絡人）", source.note)
         self.assertEqual(source.note.count("歷史聯絡資料：王老闆"), 1)

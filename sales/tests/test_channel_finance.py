@@ -566,7 +566,7 @@ class ChannelFinanceTests(TestCase):
         self.assertEqual(source.category, category)
         self.assertEqual(source.note, "熟客介紹，聯繫前先傳訊息")
 
-    def test_dealer_source_form_saves_line_group_scope_and_keeps_code_readonly(self):
+    def test_dealer_source_form_saves_line_group_presence_and_keeps_code_readonly(self):
         category, _ = SalesSourceCategory.objects.get_or_create(
             name="合作車行",
             defaults={"system_behavior": SalesSource.SourceType.DEALER},
@@ -579,7 +579,6 @@ class ChannelFinanceTests(TestCase):
                 "category": category.pk,
                 "name": "LINE 測試車行",
                 "line_group_presence": "yes",
-                "line_group_scope": SalesSource.LineGroupScope.SUZUKI_ALL,
                 "active": "on",
                 "contacts-TOTAL_FORMS": "0",
                 "contacts-INITIAL_FORMS": "0",
@@ -595,10 +594,7 @@ class ChannelFinanceTests(TestCase):
         self.assertEqual(response.status_code, 302)
         source = SalesSource.objects.get(name="LINE 測試車行")
         self.assertTrue(source.has_line_group)
-        self.assertEqual(
-            source.line_group_scope,
-            SalesSource.LineGroupScope.SUZUKI_ALL,
-        )
+        self.assertFalse(source.cooperation_profiles.filter(cooperates=True).exists())
 
         source.code = "D-LINE-01"
         source.save(update_fields=["code", "updated_at"])
@@ -612,8 +608,9 @@ class ChannelFinanceTests(TestCase):
         self.assertContains(edit_response, "系統資訊")
         self.assertContains(edit_response, "D-LINE-01")
         self.assertNotContains(edit_response, 'name="code"')
+        self.assertNotContains(edit_response, "群組特性")
 
-    def test_dealer_source_form_requires_scope_when_line_group_is_enabled(self):
+    def test_dealer_source_form_accepts_line_group_without_scope(self):
         category, _ = SalesSourceCategory.objects.get_or_create(
             name="合作車行",
             defaults={"system_behavior": SalesSource.SourceType.DEALER},
@@ -624,7 +621,7 @@ class ChannelFinanceTests(TestCase):
             reverse("sales_source_create"),
             {
                 "category": category.pk,
-                "name": "缺少群組特性車行",
+                "name": "只有 LINE 群組車行",
                 "line_group_presence": "yes",
                 "active": "on",
                 "contacts-TOTAL_FORMS": "0",
@@ -638,43 +635,37 @@ class ChannelFinanceTests(TestCase):
             },
         )
 
-        self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "請選擇 LINE 群組特性")
-        self.assertFalse(
-            SalesSource.objects.filter(name="缺少群組特性車行").exists()
-        )
+        self.assertEqual(response.status_code, 302)
+        source = SalesSource.objects.get(name="只有 LINE 群組車行")
+        self.assertTrue(source.has_line_group)
+        self.assertFalse(source.cooperation_profiles.filter(cooperates=True).exists())
 
-    def test_source_list_filters_line_group_scope_and_pending_records(self):
-        scoped = SalesSource.objects.create(
-            name="純台鈴群組車行",
-            source_type=SalesSource.SourceType.DEALER,
-            has_line_group=True,
-            line_group_scope=SalesSource.LineGroupScope.SUZUKI_ALL,
-        )
-        SalesSource.objects.create(
-            name="待補群組車行",
+    def test_source_list_filters_line_group_presence(self):
+        grouped = SalesSource.objects.create(
+            name="有群組車行",
             source_type=SalesSource.SourceType.DEALER,
             has_line_group=True,
         )
-        SalesSource.objects.create(
+        no_group = SalesSource.objects.create(
             name="無群組車行",
             source_type=SalesSource.SourceType.DEALER,
         )
         self.client.force_login(self.user)
 
-        scoped_response = self.client.get(
-            reverse("sales_source_list"),
-            {"line_group": SalesSource.LineGroupScope.SUZUKI_ALL},
+        grouped_response = self.client.get(
+            reverse("sales_source_list"), {"line_group": "yes"}
         )
-        self.assertContains(scoped_response, scoped.name)
-        self.assertContains(scoped_response, "LINE · 純 SUZUKI 油電")
-        self.assertNotContains(scoped_response, "待補群組車行")
+        self.assertContains(grouped_response, grouped.name)
+        self.assertContains(grouped_response, "有 LINE 群組")
+        self.assertNotContains(grouped_response, no_group.name)
+        self.assertNotContains(grouped_response, "待補群組特性")
 
-        pending_response = self.client.get(
-            reverse("sales_source_list"), {"line_group": "pending"}
+        no_group_response = self.client.get(
+            reverse("sales_source_list"), {"line_group": "no"}
         )
-        self.assertContains(pending_response, "待補群組車行")
-        self.assertNotContains(pending_response, scoped.name)
+        self.assertContains(no_group_response, no_group.name)
+        self.assertContains(no_group_response, "無 LINE 群組")
+        self.assertNotContains(no_group_response, grouped.name)
 
     def test_source_edit_shows_effective_brand_cooperation_overview(self):
         self.client.force_login(self.user)
@@ -809,7 +800,6 @@ class ChannelFinanceTests(TestCase):
                 "other_contact": "LINE：冠廷車行",
                 "address": "新北市汐止區測試路 1 號",
                 "holiday_gift": "on",
-                "line_group_scope": "",
                 "note": "主要合作車行",
                 "active": "on",
                 "cooperation-sym-cooperates": "on",

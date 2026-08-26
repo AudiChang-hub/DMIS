@@ -63,6 +63,10 @@ def reverse_cooperation_scopes(apps, schema_editor):
 
 
 class Migration(migrations.Migration):
+    # PostgreSQL 不允許在同一個 transaction 內更新資料後，立即替同一張表
+    # 建立條件式唯一索引。逐項提交可讓資料轉換完成後再安全建立約束。
+    atomic = False
+
     dependencies = [("sales", "0083_alter_vehicleinventory_current_dealer")]
 
     operations = [

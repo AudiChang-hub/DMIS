@@ -123,7 +123,10 @@ class OdooMasterImportTests(TestCase):
         self.assertEqual(source.contacts.count(), 2)
         self.assertTrue(source.holiday_gift)
         self.assertEqual(source.relationship_note, "已加入 LINE 群組")
+        self.assertEqual(source.note, "")
+        self.assertFalse(source.contacts.exclude(note="").exists())
         self.assertEqual(policy.commission_adjustment, 500)
+        self.assertEqual(policy.note, "特別加碼")
         self.assertEqual(model.displacement_cc, 124)
         self.assertEqual(model.base_dealer_commission, 2000)
         self.assertEqual(model.colors.get().name, "灰")
@@ -136,6 +139,10 @@ class OdooMasterImportTests(TestCase):
             "歷史價格資料匯入",
         )
         self.assertEqual(DealerVolumeBonusRule.objects.count(), 1)
+        self.assertNotIn(
+            "遷移 ID:",
+            DealerVolumeBonusRule.objects.get().note,
+        )
         self.assertEqual(
             BusinessHoliday.objects.get(date=date(2026, 2, 16)).name,
             "春節（除夕）",
@@ -144,6 +151,16 @@ class OdooMasterImportTests(TestCase):
         self.assertEqual(second["sources_update"], 1)
         self.assertEqual(SalesSource.objects.count(), 1)
         self.assertEqual(VehicleModel.objects.count(), 1)
+
+    def test_import_preserves_real_note_and_removes_legacy_marker(self):
+        payload = self.payload()
+        payload["dealers"][0]["note"] = "[Odoo 遷移 ID:10]\n請先電話聯絡"
+
+        import_odoo_master_data(payload, apply=True)
+
+        source = SalesSource.objects.get(code="D010")
+        self.assertEqual(source.note, "請先電話聯絡")
+        self.assertNotIn("遷移 ID:", source.note)
 
     def test_price_import_preserves_human_source_note_without_system_marker(self):
         payload = self.payload()

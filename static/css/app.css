@@ -3352,7 +3352,7 @@ body.screen-locked { overflow: hidden; }
 }
 .form-section.static-section > .form-grid { padding: 0; }
 .source-editor-section > .section-title {
-  min-height: 0; margin-bottom: 22px; padding: 0 0 16px;
+  min-height: 0; margin-bottom: 20px; padding: 0 0 20px;
   align-items: flex-end; border-bottom: 1px solid var(--line);
 }
 .source-editor-section > .section-title h2 { margin-top: 5px; }
@@ -3369,7 +3369,7 @@ body.screen-locked { overflow: hidden; }
   .line-group-scope-grid, .source-system-info dl { grid-template-columns: 1fr; }
   .source-address-field { grid-column: auto; }
   .line-group-presence-option, .line-group-scope-option { min-height: 52px; }
-  .source-editor-section > .section-title { margin-bottom: 16px; padding-bottom: 14px; }
+  .source-editor-section > .section-title { margin-bottom: 16px; padding-bottom: 16px; }
 }
 .dealer-brand-priority {
   display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px;

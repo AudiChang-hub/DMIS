@@ -36,7 +36,6 @@ from .models import (
     SalesSource,
     SalesSourceCategory,
     SalesSourceBrandPolicy,
-    SalesSourceContact,
     Store,
     SubsidyDocument,
     SubsidyItem,
@@ -610,12 +609,16 @@ class SalesSourceForm(forms.ModelForm):
         fields = [
             "category", "name", "phone", "fax", "address",
             "vehicle_capacity", "holiday_gift", "line_group_scope",
-            "relationship_note", "note", "active",
+            "note", "active",
         ]
         widgets = {
             "line_group_scope": forms.RadioSelect,
-            "relationship_note": forms.Textarea(attrs={"rows": 2}),
-            "note": forms.Textarea(attrs={"rows": 2}),
+            "note": forms.Textarea(
+                attrs={
+                    "rows": 3,
+                    "placeholder": "例如：聯繫習慣、合作注意事項或其他需要記錄的資料",
+                }
+            ),
         }
 
     def __init__(self, *args, **kwargs):
@@ -696,26 +699,6 @@ class SalesSourceCategoryForm(forms.ModelForm):
                 "此分類已有通路使用，不能改變系統處理方式；請另建新分類後再調整通路。"
             )
         return behavior
-
-
-class SalesSourceContactForm(forms.ModelForm):
-    class Meta:
-        model = SalesSourceContact
-        fields = [
-            "name", "relationship", "phone", "extension", "mobile", "email",
-            "note", "active",
-        ]
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        for field in self.fields.values():
-            field.widget.attrs.setdefault("class", "form-control")
-        apply_mobile_keyboard_attrs(self)
-
-
-SalesSourceContactFormSet = inlineformset_factory(
-    SalesSource, SalesSourceContact, form=SalesSourceContactForm, extra=1, can_delete=True
-)
 
 
 class SalesSourceCooperationForm(forms.Form):
@@ -1117,7 +1100,7 @@ class LegacyImportRowCorrectionForm(forms.Form):
     )
     CHANNEL_FIELDS = (
         ("name", "車行／平台名稱", "text", True),
-        ("contact_name", "聯絡窗口", "text", False),
+        ("contact_name", "其他聯絡姓名（併入備註）", "text", False),
         ("phone", "電話", "text", False),
         ("phone_2", "電話二", "text", False),
         ("extension", "分機", "text", False),

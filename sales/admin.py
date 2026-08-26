@@ -31,7 +31,6 @@ from .models import (
     SalesSource,
     SalesSourceCategory,
     SalesSourceBrandPolicy,
-    SalesSourceContact,
     Store,
     SubsidyDocument,
     SubsidyItem,
@@ -99,7 +98,6 @@ admin.site.register(VehicleModelFamily)
 admin.site.register(VehicleFactoryModelCode)
 admin.site.register(InstallmentPlanVersion)
 admin.site.register(InstallmentPlanOption)
-admin.site.register(SalesSourceContact)
 admin.site.register(SalesSourceBrandPolicy)
 admin.site.register(DealerVolumeBonusRule)
 admin.site.register(DealerVolumeBonusTier)

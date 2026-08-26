@@ -288,8 +288,7 @@ class SalesSource(TimeStampedModel):
         blank=True,
         help_text="記錄群組內涵蓋的品牌範圍，與商務合作類別分開管理。",
     )
-    relationship_note = models.TextField("關係備註", blank=True)
-    note = models.TextField("內部備註", blank=True)
+    note = models.TextField("備註", blank=True)
     active = models.BooleanField("啟用中", default=True)
 
     class Meta:
@@ -759,31 +758,6 @@ class AccessoryProduct(TimeStampedModel):
 
     def __str__(self):
         return self.name
-
-
-class SalesSourceContact(TimeStampedModel):
-    source = models.ForeignKey(
-        SalesSource,
-        on_delete=models.CASCADE,
-        related_name="contacts",
-        verbose_name="來源",
-    )
-    name = models.CharField("姓名／窗口", max_length=120)
-    relationship = models.CharField("關係／職務", max_length=120, blank=True)
-    phone = models.CharField("電話", max_length=50, blank=True)
-    extension = models.CharField("分機", max_length=20, blank=True)
-    mobile = models.CharField("手機", max_length=50, blank=True)
-    email = models.EmailField("Email", blank=True)
-    note = models.CharField("備註", max_length=250, blank=True)
-    active = models.BooleanField("啟用中", default=True)
-
-    class Meta:
-        ordering = ["source", "id"]
-        verbose_name = "通路聯絡窗口"
-        verbose_name_plural = "通路聯絡窗口"
-
-    def __str__(self):
-        return f"{self.source}／{self.name}"
 
 
 class SalesSourceBrandPolicy(TimeStampedModel):

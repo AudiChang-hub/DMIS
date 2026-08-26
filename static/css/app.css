@@ -1896,7 +1896,7 @@ body.screen-locked { overflow: hidden; }
 }
 .source-basic-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 .source-address-field { grid-column: span 2; }
-.source-note-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.source-note-field { grid-column: 1 / -1; }
 .dealer-only-section[hidden], .line-group-scope-panel[hidden] { display: none !important; }
 .line-group-presence, .line-group-scope-grid {
   display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px;
@@ -3096,7 +3096,7 @@ body.screen-locked { overflow: hidden; }
   .quick-entry-actions .button { flex: 1; }
   .master-filters, .master-filters.sales-source-filters { grid-template-columns: 1fr 1fr; padding: 14px; }
   .master-search, .master-filters .inventory-filter-actions { grid-column: 1 / -1; }
-  .source-basic-grid, .source-note-grid { grid-template-columns: 1fr 1fr; }
+  .source-basic-grid { grid-template-columns: 1fr 1fr; }
   .source-address-field { grid-column: 1 / -1; }
   .line-group-scope-grid { grid-template-columns: 1fr 1fr; }
   .source-system-info { grid-template-columns: 1fr; padding: 16px; gap: 14px; }
@@ -3360,7 +3360,7 @@ body.screen-locked { overflow: hidden; }
 }
 
 @media (max-width: 640px) {
-  .source-basic-grid, .source-note-grid, .line-group-presence,
+  .source-basic-grid, .line-group-presence,
   .line-group-scope-grid, .source-system-info dl { grid-template-columns: 1fr; }
   .source-address-field { grid-column: auto; }
   .line-group-presence-option, .line-group-scope-option { min-height: 52px; }

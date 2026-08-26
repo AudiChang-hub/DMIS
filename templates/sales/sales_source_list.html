@@ -36,13 +36,12 @@
   </div>
   <div class="inventory-table-wrap">
     <table class="inventory-table sales-source-table">
-      <thead><tr><th>車行／平台／人員</th><th>地址／電話</th><th>聯絡窗口</th><th>合作與 LINE 群組</th><th>容量</th><th>年節送禮</th><th>狀態</th><th></th></tr></thead>
+      <thead><tr><th>車行／平台／人員</th><th>地址／電話</th><th>合作與 LINE 群組</th><th>容量</th><th>年節送禮</th><th>狀態</th><th></th></tr></thead>
       <tbody>
       {% for item in sources %}
         <tr>
           <td data-label="車行／平台／人員"><strong>{{ item.name }}</strong><span>{{ item.category.name|default:item.get_source_type_display }} · {{ item.get_source_type_display }}</span>{% if item.code %}<span>系統代碼 {{ item.code }}</span>{% endif %}</td>
           <td data-label="地址／電話">{{ item.address|default:"—" }}<span>{{ item.phone|default:"未填電話" }}</span></td>
-          <td data-label="聯絡窗口"><strong>{{ item.contact_count }} 位</strong>{% for contact in item.contacts.all|slice:":2" %}<span>{{ contact.name }}{% if contact.mobile %} · {{ contact.mobile }}{% endif %}</span>{% endfor %}</td>
           <td data-label="合作與 LINE 群組">
             {% if item.source_type == 'dealer' %}
               {% if item.cooperation_overview.cooperating_count %}
@@ -61,7 +60,7 @@
           <td data-label="狀態"><span class="status-pill">{{ item.active|yesno:"啟用中,已停用" }}</span></td>
           <td class="inventory-row-action"><span class="row-action-buttons"><a class="button ghost small" href="{% url 'sales_source_edit' item.pk %}">編輯資料</a>{% if item.source_type == 'dealer' %}<a class="button secondary small" href="{% url 'sales_source_edit' item.pk %}#brand-policies">合作與傭金</a>{% endif %}</span></td>
         </tr>
-      {% empty %}<tr><td colspan="8"><div class="empty-state"><strong>找不到符合條件的通路</strong></div></td></tr>{% endfor %}
+      {% empty %}<tr><td colspan="7"><div class="empty-state"><strong>找不到符合條件的通路</strong></div></td></tr>{% endfor %}
       </tbody>
     </table>
   </div>

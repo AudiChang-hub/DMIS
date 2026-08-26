@@ -863,6 +863,7 @@ def sales_source_list(request):
         "cooperation_scope", request.GET.get("brand", "")
     ).strip()
     holiday_gift = request.GET.get("holiday_gift", "")
+    line_group = request.GET.get("line_group", "").strip()
     sources = SalesSource.objects.annotate(
         contact_count=Count("contacts", distinct=True),
     ).select_related("category").order_by("source_type", "category__name", "name", "id")
@@ -882,6 +883,11 @@ def sales_source_list(request):
         )
         if any(keyword in label for label in ("年節送禮", "送禮", "月餅")):
             keyword_filter |= Q(holiday_gift=True)
+        if "line" in keyword.casefold() or "群組" in keyword:
+            keyword_filter |= Q(has_line_group=True)
+        for scope, label in SalesSource.LineGroupScope.choices:
+            if keyword.casefold() in label.casefold():
+                keyword_filter |= Q(line_group_scope=scope)
         sources = sources.filter(keyword_filter).distinct()
     if source_type in {value for value, _ in SalesSource.SourceType.choices}:
         sources = sources.filter(source_type=source_type)
@@ -909,6 +915,31 @@ def sales_source_list(request):
         sources = sources.filter(
             source_type=SalesSource.SourceType.DEALER,
             holiday_gift=holiday_gift == "yes",
+        )
+    valid_line_group_scopes = {
+        value for value, _label in SalesSource.LineGroupScope.choices
+    }
+    if line_group == "yes":
+        sources = sources.filter(
+            source_type=SalesSource.SourceType.DEALER,
+            has_line_group=True,
+        )
+    elif line_group == "no":
+        sources = sources.filter(
+            source_type=SalesSource.SourceType.DEALER,
+            has_line_group=False,
+        )
+    elif line_group == "pending":
+        sources = sources.filter(
+            source_type=SalesSource.SourceType.DEALER,
+            has_line_group=True,
+            line_group_scope="",
+        )
+    elif line_group in valid_line_group_scopes:
+        sources = sources.filter(
+            source_type=SalesSource.SourceType.DEALER,
+            has_line_group=True,
+            line_group_scope=line_group,
         )
     today = timezone.localdate()
     current_policy_queryset = SalesSourceBrandPolicy.objects.filter(
@@ -942,6 +973,7 @@ def sales_source_list(request):
                 "system_behavior", "name"
             ),
             "cooperation_scopes": SalesSourceBrandPolicy.CooperationScope.choices,
+            "line_group_scopes": SalesSource.LineGroupScope.choices,
             "holiday_gift_count": SalesSource.objects.filter(
                 source_type=SalesSource.SourceType.DEALER,
                 holiday_gift=True,
@@ -952,6 +984,7 @@ def sales_source_list(request):
                 "category": category_id,
                 "cooperation_scope": cooperation_scope,
                 "holiday_gift": holiday_gift,
+                "line_group": line_group,
             },
         },
     )
@@ -1114,6 +1147,10 @@ def sales_source_form(request, pk=None):
             "policy_formset": policy_formset,
             "source": source if source.pk else None,
             "brand_overview": brand_overview,
+            "category_behaviors": {
+                str(category.pk): category.system_behavior
+                for category in form.fields["category"].queryset
+            },
         },
     )
 

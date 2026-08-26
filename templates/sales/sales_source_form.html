@@ -17,9 +17,21 @@
 <form method="post" class="stacked-form" id="source-form">
   {% csrf_token %}
   <section class="form-section static-section">
-    <div class="section-title"><h2>基本資料</h2></div>
-    <div class="form-grid">
-      {% for field in form %}{% include "sales/_field.html" with field=field %}{% endfor %}
+    <div class="section-title">
+      <div>
+        <p class="eyebrow">通路識別與聯絡方式</p>
+        <h2>基本資料</h2>
+      </div>
+    </div>
+    <div class="form-grid source-basic-grid">
+      {% include "sales/_field.html" with field=form.category %}
+      <div data-source-name-field>{% include "sales/_field.html" with field=form.name %}</div>
+      {% include "sales/_field.html" with field=form.phone %}
+      {% include "sales/_field.html" with field=form.fax %}
+      <div class="source-address-field">{% include "sales/_field.html" with field=form.address %}</div>
+      {% include "sales/_field.html" with field=form.vehicle_capacity %}
+      {% include "sales/_field.html" with field=form.holiday_gift %}
+      {% include "sales/_field.html" with field=form.active %}
     </div>
   </section>
 
@@ -54,7 +66,42 @@
     <button type="button" class="button ghost add-row-button" data-add-form="contacts" data-target="contact-rows" data-template="contact-empty">＋ 新增窗口</button>
   </section>
 
-  <section class="form-section static-section dealer-brand-section" id="brand-policies">
+  <section class="form-section static-section dealer-only-section" id="line-group" data-dealer-only>
+    <div class="section-title">
+      <div>
+        <p class="eyebrow">車行聯絡設定</p>
+        <h2>LINE 群組</h2>
+        <p class="muted">記錄車行是否有 LINE 群組以及群組涵蓋範圍；這不會改變價格表提供對象或傭金。</p>
+      </div>
+      {% if source.has_line_group and not source.line_group_scope %}<span class="line-group-pending">待補群組特性</span>{% endif %}
+    </div>
+
+    <div class="line-group-presence" data-line-group-presence>
+      {% for choice in form.line_group_presence %}
+        <label class="line-group-presence-option">
+          {{ choice.tag }}
+          <span>{{ choice.choice_label }}</span>
+        </label>
+      {% endfor %}
+    </div>
+    {% if form.line_group_presence.errors %}<div class="formset-errors">{{ form.line_group_presence.errors }}</div>{% endif %}
+
+    <div class="line-group-scope-panel" data-line-group-scope-panel>
+      <strong>群組特性</strong>
+      <p class="muted">「都有」代表群組同時包含 SYM、SUZUKI 油車及 SUZUKI 電車。</p>
+      <div class="line-group-scope-grid">
+        {% for choice in form.line_group_scope %}
+          <label class="line-group-scope-option">
+            {{ choice.tag }}
+            <span>{{ choice.choice_label }}</span>
+          </label>
+        {% endfor %}
+      </div>
+      {% if form.line_group_scope.errors %}<div class="formset-errors">{{ form.line_group_scope.errors }}</div>{% endif %}
+    </div>
+  </section>
+
+  <section class="form-section static-section dealer-brand-section dealer-only-section" id="brand-policies" data-dealer-only>
     <div class="section-title">
       <div>
         <p class="eyebrow">合作車行設定</p>
@@ -126,6 +173,36 @@
     </details>
   </section>
 
+  <section class="form-section static-section">
+    <div class="section-title">
+      <div>
+        <p class="eyebrow">內部資訊</p>
+        <h2>關係與備註</h2>
+      </div>
+    </div>
+    <div class="form-grid source-note-grid">
+      {% include "sales/_field.html" with field=form.relationship_note %}
+      {% include "sales/_field.html" with field=form.note %}
+    </div>
+  </section>
+
+  <section class="source-system-info" aria-label="系統資訊">
+    <div>
+      <span>系統資訊</span>
+      <strong>唯讀識別資料</strong>
+      <small>這些資料由系統或歷史匯入建立，不在基本資料中修改。</small>
+    </div>
+    {% if source %}
+      <dl>
+        <div><dt>資料編號</dt><dd>#{{ source.pk }}</dd></div>
+        <div><dt>來源代碼</dt><dd>{{ source.code|default:"尚未設定" }}</dd></div>
+        <div><dt>最後更新</dt><dd>{{ source.updated_at|date:"Y/m/d H:i" }}</dd></div>
+      </dl>
+    {% else %}
+      <p>建立後才會顯示資料編號；來源代碼僅供既有匯入資料識別。</p>
+    {% endif %}
+  </section>
+
   <div class="form-actions">
     <a class="button ghost" href="{% url 'sales_source_list' %}">取消</a>
     <button class="button primary">儲存通路資料</button>
@@ -134,10 +211,16 @@
 {% endblock %}
 
 {% block scripts %}
+{{ category_behaviors|json_script:"source-category-behaviors" }}
 <script>
 (() => {
   const policyRows = document.getElementById("policy-rows");
   const policyDetails = document.querySelector(".dealer-brand-details");
+  const categoryBehaviors = JSON.parse(document.getElementById("source-category-behaviors").textContent);
+  const categorySelect = document.getElementById("id_category");
+  const nameLabel = document.querySelector("[data-source-name-field] label");
+  const presence = document.querySelector("[data-line-group-presence]");
+  const scopePanel = document.querySelector("[data-line-group-scope-panel]");
 
   const cooperationLabels = {
     sym: "三陽 SYM 價格表",
@@ -171,6 +254,32 @@
         list.append(empty);
       }
     }
+  }
+
+  function updateChoiceCards(root, selector) {
+    root?.querySelectorAll(selector).forEach(card => {
+      card.classList.toggle("is-selected", Boolean(card.querySelector("input")?.checked));
+    });
+  }
+
+  function updateLineGroup() {
+    updateChoiceCards(presence, ".line-group-presence-option");
+    updateChoiceCards(scopePanel, ".line-group-scope-option");
+    const enabled = presence?.querySelector('input[value="yes"]')?.checked;
+    if (scopePanel) scopePanel.hidden = !enabled;
+  }
+
+  function updateSourceContext() {
+    const behavior = categoryBehaviors[String(categorySelect?.value || "")] || "";
+    const labels = {dealer: "車行名稱", platform: "平台名稱", store: "人員名稱"};
+    if (nameLabel) {
+      const required = nameLabel.querySelector("em");
+      nameLabel.firstChild.textContent = labels[behavior] || "名稱";
+      if (required && required.parentNode !== nameLabel) nameLabel.appendChild(required);
+    }
+    document.querySelectorAll("[data-dealer-only]").forEach(section => {
+      section.hidden = behavior !== "dealer";
+    });
   }
 
   function bindRemove(root = document) {
@@ -212,8 +321,13 @@
   });
 
   document.querySelector("[data-cooperation-overview]")?.addEventListener("change", updateBrandOverview);
+  categorySelect?.addEventListener("change", updateSourceContext);
+  presence?.addEventListener("change", updateLineGroup);
+  scopePanel?.addEventListener("change", updateLineGroup);
   bindRemove();
   updateBrandOverview();
+  updateSourceContext();
+  updateLineGroup();
 })();
 </script>
 {% endblock %}

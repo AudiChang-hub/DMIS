@@ -246,6 +246,12 @@ class SalesSource(TimeStampedModel):
         DEALER = "dealer", "合作車行"
         PLATFORM = "platform", "網路平台"
 
+    class LineGroupScope(models.TextChoices):
+        SYM_ONLY = "sym_only", "純 SYM"
+        SUZUKI_ALL = "suzuki_all", "純 SUZUKI 油電"
+        SUZUKI_ELECTRIC = "suzuki_electric", "純 SUZUKI 電"
+        ALL = "all", "都有"
+
     name = models.CharField("來源名稱", max_length=120)
     source_type = models.CharField(
         "系統處理方式", max_length=20, choices=SourceType.choices
@@ -270,6 +276,18 @@ class SalesSource(TimeStampedModel):
         default=False,
         help_text="勾選後可在車行列表一鍵篩選。",
     )
+    has_line_group = models.BooleanField(
+        "有 LINE 群組",
+        default=False,
+        help_text="只記錄是否有車行 LINE 群組；不會影響價格表提供對象。",
+    )
+    line_group_scope = models.CharField(
+        "LINE 群組特性",
+        max_length=30,
+        choices=LineGroupScope.choices,
+        blank=True,
+        help_text="記錄群組內涵蓋的品牌範圍，與商務合作類別分開管理。",
+    )
     relationship_note = models.TextField("關係備註", blank=True)
     note = models.TextField("內部備註", blank=True)
     active = models.BooleanField("啟用中", default=True)
@@ -291,10 +309,20 @@ class SalesSource(TimeStampedModel):
         super().clean()
         if self.category_id and self.source_type != self.category.system_behavior:
             self.source_type = self.category.system_behavior
+        if self.source_type != self.SourceType.DEALER or not self.has_line_group:
+            self.has_line_group = False
+            self.line_group_scope = ""
+        elif not self.line_group_scope:
+            raise ValidationError(
+                {"line_group_scope": "請選擇 LINE 群組特性。"}
+            )
 
     def save(self, *args, **kwargs):
         if self.category_id:
             self.source_type = self.category.system_behavior
+        if self.source_type != self.SourceType.DEALER or not self.has_line_group:
+            self.has_line_group = False
+            self.line_group_scope = ""
         return super().save(*args, **kwargs)
 
 

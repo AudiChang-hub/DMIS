@@ -128,10 +128,7 @@ def _source_for_legacy(dealer, summary, apply):
         dealer.get("sym_dispatch_capacity") or 0,
         dealer.get("suzuki_dispatch_capacity") or 0,
     ) or None
-    flags = []
-    if dealer.get("line_group"):
-        flags.append("已加入 LINE 群組")
-    relationship_note = "、".join(flags)
+    has_line_group = bool(dealer.get("line_group"))
     category_name = store_type or (
         "網路平台"
         if source_type == SalesSource.SourceType.PLATFORM
@@ -151,7 +148,8 @@ def _source_for_legacy(dealer, summary, apply):
         "address": (dealer.get("address") or "").strip(),
         "vehicle_capacity": capacity,
         "holiday_gift": bool(dealer.get("holiday_gift")),
-        "relationship_note": relationship_note,
+        "has_line_group": has_line_group,
+        "relationship_note": "",
         "note": _legacy_note(dealer.get("note")),
         "active": bool(dealer.get("active", True)),
     }
@@ -161,6 +159,9 @@ def _source_for_legacy(dealer, summary, apply):
             if field == "note":
                 cleaned_current = _legacy_note(current)
                 setattr(existing, field, cleaned_current or value)
+            elif field == "has_line_group":
+                if value:
+                    setattr(existing, field, True)
             elif current in (None, ""):
                 setattr(existing, field, value)
         existing.save()

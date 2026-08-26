@@ -79,14 +79,16 @@ def _model_name(value):
     return re.sub(r"\s+[一二三四五六七八九十]+期$", "", value).strip()
 
 
-def _note_with_marker(note, legacy_id, kind="Odoo"):
-    marker = f"[{kind} 遷移 ID:{legacy_id}]"
-    note = (note or "").strip()
-    return f"{marker}\n{note}".strip()
+LEGACY_ODOO_NOTE_MARKER = re.compile(
+    r"\[Odoo(?: [^\]\r\n]+)? 遷移 ID:[^\]\r\n]+\](?:\r?\n)?",
+    flags=re.IGNORECASE,
+)
 
 
-def _short_note_with_marker(note, legacy_id, kind="Odoo"):
-    return _note_with_marker(note, legacy_id, kind)[:250]
+def _legacy_note(note, max_length=None):
+    """Keep useful imported notes without exposing obsolete Odoo identifiers."""
+    cleaned = LEGACY_ODOO_NOTE_MARKER.sub("", note or "").strip()
+    return cleaned[:max_length] if max_length else cleaned
 
 
 def _legacy_price_source_note(note):
@@ -150,13 +152,16 @@ def _source_for_legacy(dealer, summary, apply):
         "vehicle_capacity": capacity,
         "holiday_gift": bool(dealer.get("holiday_gift")),
         "relationship_note": relationship_note,
-        "note": _note_with_marker(dealer.get("note"), dealer["id"]),
+        "note": _legacy_note(dealer.get("note")),
         "active": bool(dealer.get("active", True)),
     }
     if existing:
         for field, value in defaults.items():
             current = getattr(existing, field)
-            if "[Odoo 遷移 ID:" in (existing.note or "") or current in (None, ""):
+            if field == "note":
+                cleaned_current = _legacy_note(current)
+                setattr(existing, field, cleaned_current or value)
+            elif current in (None, ""):
                 setattr(existing, field, value)
         existing.save()
         source = existing
@@ -185,7 +190,7 @@ def _source_for_legacy(dealer, summary, apply):
                 ),
                 "mobile": dealer.get("mobile") or "",
                 "email": dealer.get("email") or "",
-                "note": _short_note_with_marker("", dealer["id"], "Odoo 車行窗口"),
+                "note": "",
                 "active": bool(dealer.get("active", True)),
             },
         )
@@ -244,10 +249,9 @@ def import_odoo_master_data(payload, *, apply=False):
                 defaults={
                     "cooperates": auth.get("auth_type") != "none",
                     "commission_adjustment": 0,
-                    "note": _short_note_with_marker(
+                    "note": _legacy_note(
                         f"原品牌授權：{auth.get('auth_type') or '未記錄'}",
-                        auth["id"],
-                        "Odoo 品牌授權",
+                        max_length=250,
                     ),
                 },
             )
@@ -393,10 +397,9 @@ def import_odoo_master_data(payload, *, apply=False):
                         "commission_adjustment": _decimal(
                             rule.get("addon_amount"), Decimal("0")
                         ),
-                        "note": _short_note_with_marker(
+                        "note": _legacy_note(
                             rule.get("note") or rule.get("name"),
-                            rule["id"],
-                            "Odoo 車行佣金",
+                            max_length=250,
                         ),
                     },
                 )
@@ -431,11 +434,7 @@ def import_odoo_master_data(payload, *, apply=False):
                     ends_on=ends_on,
                     defaults={
                         "active": bool(rule.get("active", True)),
-                        "note": _note_with_marker(
-                            rule.get("note") or rule.get("name"),
-                            rule["id"],
-                            "Odoo 台數獎金",
-                        ),
+                        "note": _legacy_note(rule.get("note") or rule.get("name")),
                     },
                 )
                 DealerVolumeBonusTier.objects.update_or_create(

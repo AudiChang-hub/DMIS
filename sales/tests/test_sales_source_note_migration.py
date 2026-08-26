@@ -6,6 +6,7 @@ from django.test import TransactionTestCase
 class SalesSourceNoteMigrationTests(TransactionTestCase):
     migrate_from = ("sales", "0086_sales_source_line_group")
     migrate_to = ("sales", "0087_consolidate_sales_source_notes")
+    restore_to = ("sales", "0088_sales_source_contact_and_cooperation_profiles")
 
     def setUp(self):
         super().setUp()
@@ -16,7 +17,7 @@ class SalesSourceNoteMigrationTests(TransactionTestCase):
 
     def _restore_latest_schema(self):
         executor = MigrationExecutor(connection)
-        executor.migrate([self.migrate_to])
+        executor.migrate([self.restore_to])
 
     def test_notes_and_contact_details_are_preserved_in_one_note(self):
         SalesSource = self.old_apps.get_model("sales", "SalesSource")

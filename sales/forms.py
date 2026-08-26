@@ -36,6 +36,7 @@ from .models import (
     SalesSource,
     SalesSourceCategory,
     SalesSourceBrandPolicy,
+    SalesSourceCooperationProfile,
     Store,
     SubsidyDocument,
     SubsidyItem,
@@ -607,12 +608,15 @@ class SalesSourceForm(forms.ModelForm):
     class Meta:
         model = SalesSource
         fields = [
-            "category", "name", "phone", "fax", "address",
-            "vehicle_capacity", "holiday_gift", "line_group_scope",
-            "note", "active",
+            "category", "name", "responsible_person", "phone",
+            "phone_secondary", "mobile", "other_contact", "address",
+            "holiday_gift", "line_group_scope", "note", "active",
         ]
         widgets = {
             "line_group_scope": forms.RadioSelect,
+            "other_contact": forms.TextInput(
+                attrs={"placeholder": "例如：傳真、Email 或其他聯繫方式"}
+            ),
             "note": forms.Textarea(
                 attrs={
                     "rows": 3,
@@ -724,6 +728,38 @@ class SalesSourceCooperationForm(forms.Form):
             scope: bool(self.cleaned_data[field_name])
             for scope, field_name in self.FIELD_BY_SCOPE.items()
         }
+
+
+class SalesSourceCooperationProfileForm(forms.ModelForm):
+    class Meta:
+        model = SalesSourceCooperationProfile
+        fields = [
+            "cooperates", "relationship_type", "vehicle_capacity", "note"
+        ]
+        widgets = {
+            "note": forms.Textarea(
+                attrs={
+                    "rows": 2,
+                    "placeholder": "例如：合作習慣、價格表提供方式或停放注意事項",
+                }
+            )
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # 舊版畫面與既有自動化送出時可能沒有帶關係類型；視為「一般」，
+        # 避免僅新增聯絡資料或 LINE 群組時被新的合作欄位阻擋。
+        self.fields["relationship_type"].required = False
+        for field in self.fields.values():
+            if not isinstance(field.widget, forms.CheckboxInput):
+                field.widget.attrs.setdefault("class", "form-control")
+        apply_mobile_keyboard_attrs(self)
+
+    def clean_relationship_type(self):
+        return (
+            self.cleaned_data.get("relationship_type")
+            or SalesSourceCooperationProfile.RelationshipType.GENERAL
+        )
 
 
 def _brand_choices(current_value=""):

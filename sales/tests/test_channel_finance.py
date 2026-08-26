@@ -21,6 +21,7 @@ from sales.models import (
     SalesSource,
     SalesSourceCategory,
     SalesSourceBrandPolicy,
+    SalesSourceCooperationProfile,
     VehicleBrand,
     VehicleColor,
     VehicleIncentiveInstallmentRate,
@@ -801,10 +802,27 @@ class ChannelFinanceTests(TestCase):
             {
                 "category": category.pk,
                 "name": self.dealer.name,
-                "vehicle_capacity": self.dealer.vehicle_capacity,
+                "responsible_person": "王老闆",
+                "phone": "02-23456789",
+                "phone_secondary": "02-23456780",
+                "mobile": "0912345678",
+                "other_contact": "LINE：冠廷車行",
+                "address": "新北市汐止區測試路 1 號",
+                "holiday_gift": "on",
+                "line_group_scope": "",
+                "note": "主要合作車行",
                 "active": "on",
-                "cooperation-sym": "on",
-                "cooperation-suzuki_electric": "on",
+                "cooperation-sym-cooperates": "on",
+                "cooperation-sym-relationship_type": "exclusive",
+                "cooperation-sym-vehicle_capacity": "3",
+                "cooperation-sym-note": "SYM 專銷合作",
+                "cooperation-suzuki_gas-relationship_type": "general",
+                "cooperation-suzuki_gas-vehicle_capacity": "",
+                "cooperation-suzuki_gas-note": "",
+                "cooperation-suzuki_electric-cooperates": "on",
+                "cooperation-suzuki_electric-relationship_type": "shareholder",
+                "cooperation-suzuki_electric-vehicle_capacity": "2",
+                "cooperation-suzuki_electric-note": "股東合作",
                 "contacts-TOTAL_FORMS": "0",
                 "contacts-INITIAL_FORMS": "0",
                 "contacts-MIN_NUM_FORMS": "0",
@@ -848,6 +866,46 @@ class ChannelFinanceTests(TestCase):
                 SalesSourceBrandPolicy.CooperationScope.SUZUKI_ELECTRIC: True,
             },
         )
+        self.dealer.refresh_from_db()
+        self.assertEqual(self.dealer.responsible_person, "王老闆")
+        self.assertEqual(self.dealer.mobile, "0912345678")
+        profiles = {
+            item.cooperation_scope: item
+            for item in self.dealer.cooperation_profiles.all()
+        }
+        self.assertEqual(profiles["sym"].relationship_type, "exclusive")
+        self.assertEqual(profiles["sym"].vehicle_capacity, 3)
+        self.assertFalse(profiles["suzuki_gas"].cooperates)
+        self.assertEqual(
+            profiles["suzuki_electric"].relationship_type, "shareholder"
+        )
+
+    def test_sales_source_list_searches_contact_and_relationship_profile(self):
+        self.dealer.responsible_person = "王老闆"
+        self.dealer.mobile = "0912345678"
+        self.dealer.save(update_fields=["responsible_person", "mobile", "updated_at"])
+        SalesSourceCooperationProfile.objects.create(
+            source=self.dealer,
+            cooperation_scope=SalesSourceBrandPolicy.CooperationScope.SUZUKI_GAS,
+            cooperates=True,
+            relationship_type=SalesSourceCooperationProfile.RelationshipType.EXCLUSIVE,
+            vehicle_capacity=6,
+            note="每月提供新版價格表",
+        )
+        self.client.force_login(self.user)
+
+        for keyword in ("王老闆", "0912345678", "專銷", "新版價格表"):
+            with self.subTest(keyword=keyword):
+                response = self.client.get(reverse("sales_source_list"), {"q": keyword})
+                self.assertEqual(response.status_code, 200)
+                self.assertContains(response, self.dealer.name)
+
+        response = self.client.get(
+            reverse("sales_source_list"),
+            {"relationship_type": SalesSourceCooperationProfile.RelationshipType.EXCLUSIVE},
+        )
+        self.assertContains(response, "專銷")
+        self.assertContains(response, "可停 6 台")
 
     def test_sales_source_list_filters_and_labels_holiday_gift_dealers(self):
         self.dealer.holiday_gift = True

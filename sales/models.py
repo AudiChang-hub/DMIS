@@ -265,7 +265,11 @@ class SalesSource(TimeStampedModel):
         null=True,
     )
     code = models.CharField("來源代碼", max_length=40, blank=True)
-    phone = models.CharField("電話", max_length=50, blank=True)
+    responsible_person = models.CharField("負責人", max_length=80, blank=True)
+    phone = models.CharField("電話一", max_length=50, blank=True)
+    phone_secondary = models.CharField("電話二", max_length=50, blank=True)
+    mobile = models.CharField("手機", max_length=50, blank=True)
+    other_contact = models.CharField("其他聯絡方式", max_length=250, blank=True)
     fax = models.CharField("傳真", max_length=50, blank=True)
     address = models.CharField("地址", max_length=250, blank=True)
     vehicle_capacity = models.PositiveSmallIntegerField(
@@ -848,6 +852,52 @@ class SalesSourceBrandPolicy(TimeStampedModel):
         if not self.cooperation_scope:
             return ""
         return f"{self.get_cooperation_scope_display()}價格表"
+
+
+class SalesSourceCooperationProfile(TimeStampedModel):
+    """車行目前的合作關係；與按日期生效的傭金版本分開保存。"""
+
+    class RelationshipType(models.TextChoices):
+        GENERAL = "general", "一般"
+        EXCLUSIVE = "exclusive", "專銷"
+        SHAREHOLDER = "shareholder", "股東"
+
+    source = models.ForeignKey(
+        SalesSource,
+        on_delete=models.CASCADE,
+        related_name="cooperation_profiles",
+        verbose_name="合作車行",
+    )
+    cooperation_scope = models.CharField(
+        "合作類別",
+        max_length=30,
+        choices=SalesSourceBrandPolicy.CooperationScope.choices,
+    )
+    cooperates = models.BooleanField("提供價格表／有合作", default=False)
+    relationship_type = models.CharField(
+        "關係類型",
+        max_length=20,
+        choices=RelationshipType.choices,
+        default=RelationshipType.GENERAL,
+    )
+    vehicle_capacity = models.PositiveSmallIntegerField(
+        "可停放數量", blank=True, null=True
+    )
+    note = models.TextField("合作備註", blank=True)
+
+    class Meta:
+        ordering = ["source", "cooperation_scope"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["source", "cooperation_scope"],
+                name="unique_source_cooperation_profile",
+            )
+        ]
+        verbose_name = "車行合作資料"
+        verbose_name_plural = "車行合作資料"
+
+    def __str__(self):
+        return f"{self.source}／{self.get_cooperation_scope_display()}"
 
 
 class DealerVolumeBonusRule(TimeStampedModel):

@@ -14,7 +14,7 @@ class HolidayGiftFieldMigrationTests(TransactionTestCase):
         "0049_paymentrecord_payment_order_confirmed_idx_and_more",
     )
     migrate_to = ("sales", "0050_salessource_holiday_gift")
-    restore_to = ("sales", "0087_consolidate_sales_source_notes")
+    restore_to = ("sales", "0088_sales_source_contact_and_cooperation_profiles")
 
     def setUp(self):
         super().setUp()

@@ -17,6 +17,8 @@ from sales.models import (
     LegacySalesSnapshot,
     SalesOrder,
     SalesSource,
+    SalesSourceBrandPolicy,
+    SalesSourceCooperationProfile,
     SalesSourceCategory,
     Store,
     VehicleColor,
@@ -503,11 +505,33 @@ class LegacyImportTests(TestCase):
         self.assertEqual(batch.rows.filter(committed_model="SalesSource").count(), 2)
         dealer = SalesSource.objects.get(name="測試車行")
         platform = SalesSource.objects.get(name="測試平台")
+        self.assertEqual(dealer.responsible_person, "王先生")
+        self.assertEqual(dealer.phone, "02-1234")
+        self.assertEqual(dealer.mobile, "0912")
+        self.assertEqual(dealer.address, "新北市")
         self.assertIn("合作中", dealer.note)
         self.assertIn("歷史聯絡資料：王先生", dealer.note)
         self.assertIn("歷史聯絡資料：李小姐", platform.note)
         self.assertIn("分機：123", platform.note)
         self.assertIn("Email：test@example.com", platform.note)
+        profiles = {
+            profile.cooperation_scope: profile
+            for profile in dealer.cooperation_profiles.all()
+        }
+        self.assertEqual(len(profiles), 3)
+        self.assertTrue(
+            profiles[SalesSourceBrandPolicy.CooperationScope.SUZUKI_GAS].cooperates
+        )
+        self.assertTrue(
+            profiles[SalesSourceBrandPolicy.CooperationScope.SUZUKI_ELECTRIC].cooperates
+        )
+        self.assertFalse(
+            profiles[SalesSourceBrandPolicy.CooperationScope.SYM].cooperates
+        )
+        self.assertEqual(
+            profiles[SalesSourceBrandPolicy.CooperationScope.SUZUKI_GAS].vehicle_capacity,
+            5,
+        )
 
     def test_same_batch_cannot_be_confirmed_twice(self):
         batch = self.make_batch(LegacyImportBatch.ImportType.CHANNELS)

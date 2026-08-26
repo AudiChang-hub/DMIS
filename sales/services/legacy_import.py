@@ -21,7 +21,9 @@ from sales.models import (
     PaymentRecord,
     SalesOrder,
     SalesSource,
+    SalesSourceBrandPolicy,
     SalesSourceCategory,
+    SalesSourceCooperationProfile,
     Store,
     VehicleColor,
     VehicleInventory,
@@ -1134,8 +1136,19 @@ def _commit_channel_row(row):
         name=data["name"],
     )
     source.category = _default_source_category(data["source_type"])
+    source.responsible_person = data.get("contact_name", "")
     source.phone = data.get("phone", "")
+    source.phone_secondary = data.get("phone_2", "")
+    source.mobile = data.get("mobile", "")
     source.fax = data.get("fax", "")
+    other_contacts = []
+    if data.get("fax"):
+        other_contacts.append(f"傳真：{data['fax']}")
+    if data.get("extension"):
+        other_contacts.append(f"分機：{data['extension']}")
+    if data.get("email"):
+        other_contacts.append(f"Email：{data['email']}")
+    source.other_contact = "／".join(other_contacts)
     source.address = data.get("address", "")
     source.vehicle_capacity = data.get("vehicle_capacity")
     source.note = _merge_note_lines(
@@ -1143,6 +1156,40 @@ def _commit_channel_row(row):
         [data.get("note", ""), _channel_contact_note(data)],
     )
     source.save()
+    if source.source_type == SalesSource.SourceType.DEALER:
+        imported_scopes = set()
+        if "SYM" in data.get("brands", []):
+            imported_scopes.add(SalesSourceBrandPolicy.CooperationScope.SYM)
+        if "SUZUKI" in data.get("brands", []):
+            imported_scopes.update(
+                {
+                    SalesSourceBrandPolicy.CooperationScope.SUZUKI_GAS,
+                    SalesSourceBrandPolicy.CooperationScope.SUZUKI_ELECTRIC,
+                }
+            )
+        today = timezone.localdate()
+        for scope, _label in SalesSourceBrandPolicy.CooperationScope.choices:
+            cooperates = scope in imported_scopes
+            SalesSourceCooperationProfile.objects.update_or_create(
+                source=source,
+                cooperation_scope=scope,
+                defaults={
+                    "cooperates": cooperates,
+                    "relationship_type": SalesSourceCooperationProfile.RelationshipType.GENERAL,
+                    "vehicle_capacity": data.get("vehicle_capacity") if cooperates else None,
+                },
+            )
+            SalesSourceBrandPolicy.objects.update_or_create(
+                source=source,
+                cooperation_scope=scope,
+                effective_from=today,
+                defaults={
+                    "cooperates": cooperates,
+                    "commission_adjustment": 0,
+                    "effective_to": None,
+                    "note": "",
+                },
+            )
     row.committed_model = "SalesSource"
     row.committed_pk = str(source.pk)
 

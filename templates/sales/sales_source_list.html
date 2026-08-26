@@ -20,10 +20,11 @@
 </section>
 
 <form method="get" class="master-filters sales-source-filters">
-  <div class="inventory-filter master-search"><label for="source-q">全欄位搜尋</label><input id="source-q" type="search" name="q" value="{{ selected.q }}" placeholder="名稱、地址、電話、窗口、Email、備註或年節送禮"></div>
+  <div class="inventory-filter master-search"><label for="source-q">全欄位搜尋</label><input id="source-q" type="search" name="q" value="{{ selected.q }}" placeholder="車行、平台、人員、地址、電話、LINE 群組或備註"></div>
   <div class="inventory-filter"><label for="source-type">類型</label><select id="source-type" name="type"><option value="">全部</option>{% for value,label in source_types %}<option value="{{ value }}" {% if selected.type == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
   <div class="inventory-filter"><label for="source-category">通路分類</label><select id="source-category" name="category"><option value="">全部分類</option>{% for item in source_categories %}<option value="{{ item.pk }}" {% if selected.category == item.pk|stringformat:'s' %}selected{% endif %}>{{ item.name }}</option>{% endfor %}</select></div>
   <div class="inventory-filter"><label for="source-cooperation-scope">價格表提供對象</label><select id="source-cooperation-scope" name="cooperation_scope"><option value="">全部合作類別</option>{% for value,label in cooperation_scopes %}<option value="{{ value }}" {% if selected.cooperation_scope == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
+  <div class="inventory-filter"><label for="source-line-group">LINE 群組</label><select id="source-line-group" name="line_group"><option value="">不限群組狀態</option><option value="yes" {% if selected.line_group == 'yes' %}selected{% endif %}>有 LINE 群組</option><option value="no" {% if selected.line_group == 'no' %}selected{% endif %}>無 LINE 群組</option><option value="pending" {% if selected.line_group == 'pending' %}selected{% endif %}>待補群組特性</option>{% for value,label in line_group_scopes %}<option value="{{ value }}" {% if selected.line_group == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
   <div class="inventory-filter"><label for="source-holiday-gift">年節送禮</label><select id="source-holiday-gift" name="holiday_gift"><option value="">不限送禮狀態</option><option value="yes" {% if selected.holiday_gift == 'yes' %}selected{% endif %}>需安排送禮</option><option value="no" {% if selected.holiday_gift == 'no' %}selected{% endif %}>不需安排</option></select></div>
   <div class="inventory-filter-actions"><a class="button ghost" href="{% url 'sales_source_list' %}">清除所有條件</a><button class="button primary">套用</button></div>
 </form>
@@ -35,19 +36,24 @@
   </div>
   <div class="inventory-table-wrap">
     <table class="inventory-table sales-source-table">
-      <thead><tr><th>來源／分類</th><th>地址／電話</th><th>聯絡窗口</th><th>合作／價格表</th><th>容量</th><th>年節送禮</th><th>狀態</th><th></th></tr></thead>
+      <thead><tr><th>車行／平台／人員</th><th>地址／電話</th><th>聯絡窗口</th><th>合作與 LINE 群組</th><th>容量</th><th>年節送禮</th><th>狀態</th><th></th></tr></thead>
       <tbody>
       {% for item in sources %}
         <tr>
-          <td data-label="來源／分類"><strong>{{ item.name }}</strong><span>{{ item.category.name|default:item.get_source_type_display }} · {{ item.get_source_type_display }}{% if item.code %} · {{ item.code }}{% endif %}</span></td>
+          <td data-label="車行／平台／人員"><strong>{{ item.name }}</strong><span>{{ item.category.name|default:item.get_source_type_display }} · {{ item.get_source_type_display }}</span>{% if item.code %}<span>系統代碼 {{ item.code }}</span>{% endif %}</td>
           <td data-label="地址／電話">{{ item.address|default:"—" }}<span>{{ item.phone|default:"未填電話" }}</span></td>
           <td data-label="聯絡窗口"><strong>{{ item.contact_count }} 位</strong>{% for contact in item.contacts.all|slice:":2" %}<span>{{ contact.name }}{% if contact.mobile %} · {{ contact.mobile }}{% endif %}</span>{% endfor %}</td>
-          <td data-label="合作／價格表">
+          <td data-label="合作與 LINE 群組">
             {% if item.source_type == 'dealer' %}
               {% if item.cooperation_overview.cooperating_count %}
                 <strong>{{ item.cooperation_overview.cooperating_count }} 個提供對象</strong>
                 {% for policy in item.cooperation_overview.cooperating %}<span class="price-list-recipient"><b>需提供價格表</b>{{ policy.label }}{% if policy.commission_adjustment > 0 %} · 傭金加 ${{ policy.commission_adjustment|floatformat:0 }}{% elif policy.commission_adjustment < 0 %} · 傭金減 ${{ policy.commission_adjustment|floatformat:0|slice:"1:" }}{% endif %}</span>{% endfor %}
               {% else %}<span class="gift-not-required">尚未設定合作類別</span>{% endif %}
+              <span class="line-group-list-status">
+                {% if item.has_line_group %}
+                  {% if item.line_group_scope %}<b class="status-pill line-group-active">LINE · {{ item.get_line_group_scope_display }}</b>{% else %}<b class="status-pill line-group-pending">LINE · 待補特性</b>{% endif %}
+                {% else %}<small>無 LINE 群組</small>{% endif %}
+              </span>
             {% else %}<span class="gift-not-required">不適用</span>{% endif %}
           </td>
           <td data-label="容量">{% if item.vehicle_capacity is not None %}{{ item.vehicle_capacity }} 台{% else %}—{% endif %}</td>

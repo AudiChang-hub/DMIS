@@ -598,13 +598,22 @@ class SalesOrderForm(forms.ModelForm):
 
 
 class SalesSourceForm(forms.ModelForm):
+    line_group_presence = forms.ChoiceField(
+        label="是否有 LINE 群組",
+        choices=(("no", "沒有群組"), ("yes", "有 LINE 群組")),
+        widget=forms.RadioSelect,
+        required=False,
+    )
+
     class Meta:
         model = SalesSource
         fields = [
-            "category", "name", "code", "phone", "fax", "address",
-            "vehicle_capacity", "holiday_gift", "relationship_note", "note", "active",
+            "category", "name", "phone", "fax", "address",
+            "vehicle_capacity", "holiday_gift", "line_group_scope",
+            "relationship_note", "note", "active",
         ]
         widgets = {
+            "line_group_scope": forms.RadioSelect,
             "relationship_note": forms.Textarea(attrs={"rows": 2}),
             "note": forms.Textarea(attrs={"rows": 2}),
         }
@@ -615,13 +624,50 @@ class SalesSourceForm(forms.ModelForm):
             Q(active=True) | Q(pk=self.instance.category_id)
         ).order_by("system_behavior", "name")
         self.fields["category"].required = True
+        behavior = (
+            self.instance.category.system_behavior
+            if self.instance.category_id
+            else self.instance.source_type
+        )
+        self.fields["name"].label = {
+            SalesSource.SourceType.DEALER: "車行名稱",
+            SalesSource.SourceType.PLATFORM: "平台名稱",
+            SalesSource.SourceType.STORE: "人員名稱",
+        }.get(behavior, "名稱")
+        self.fields["line_group_presence"].initial = (
+            "yes" if self.instance.has_line_group else "no"
+        )
         for field in self.fields.values():
             field.widget.attrs.setdefault("class", "form-control")
         apply_mobile_keyboard_attrs(self)
 
+    def clean(self):
+        cleaned_data = super().clean()
+        category = cleaned_data.get("category")
+        is_dealer = bool(
+            category
+            and category.system_behavior == SalesSource.SourceType.DEALER
+        )
+        has_line_group = (
+            is_dealer and cleaned_data.get("line_group_presence") == "yes"
+        )
+        if has_line_group and not cleaned_data.get("line_group_scope"):
+            self.add_error("line_group_scope", "請選擇 LINE 群組特性。")
+        if not has_line_group:
+            cleaned_data["line_group_scope"] = ""
+            self.instance.line_group_scope = ""
+        self.instance.has_line_group = has_line_group
+        return cleaned_data
+
     def save(self, commit=True):
         source = super().save(commit=False)
         source.source_type = source.category.system_behavior
+        source.has_line_group = (
+            source.source_type == SalesSource.SourceType.DEALER
+            and self.cleaned_data.get("line_group_presence") == "yes"
+        )
+        if not source.has_line_group:
+            source.line_group_scope = ""
         if commit:
             source.save()
             self.save_m2m()

@@ -1892,8 +1892,48 @@ body.screen-locked { overflow: hidden; }
   border: 1px solid var(--line); border-radius: var(--radius);
 }
 .master-filters.sales-source-filters {
-  grid-template-columns: minmax(240px, 1fr) repeat(4, minmax(135px, 170px)) auto;
+  grid-template-columns: minmax(260px, 1.4fr) repeat(5, minmax(130px, 1fr)) auto;
 }
+.source-basic-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.source-address-field { grid-column: span 2; }
+.source-note-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.dealer-only-section[hidden], .line-group-scope-panel[hidden] { display: none !important; }
+.line-group-presence, .line-group-scope-grid {
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px;
+}
+.line-group-scope-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.line-group-presence-option, .line-group-scope-option {
+  display: flex; min-height: 58px; padding: 13px 15px; align-items: center; gap: 10px;
+  color: var(--muted); background: var(--surface-soft); border: 1px solid var(--line);
+  border-radius: 12px; cursor: pointer; transition: border-color .18s ease, background .18s ease, color .18s ease;
+}
+.line-group-presence-option:hover, .line-group-scope-option:hover { border-color: var(--forest); }
+.line-group-presence-option.is-selected, .line-group-scope-option.is-selected {
+  color: var(--forest); background: var(--mint); border-color: var(--forest);
+}
+.line-group-presence-option input, .line-group-scope-option input {
+  width: 20px; height: 20px; margin: 0; accent-color: var(--forest);
+}
+.line-group-scope-panel {
+  display: grid; margin-top: 18px; padding: 16px; gap: 6px;
+  background: var(--surface-soft); border: 1px solid var(--line); border-radius: 14px;
+}
+.line-group-scope-panel .line-group-scope-grid { margin-top: 6px; }
+.line-group-active { color: var(--forest); background: var(--mint); }
+.line-group-pending { color: var(--amber); background: var(--amber-soft); }
+.line-group-list-status { display: block; margin-top: 8px; }
+.source-system-info {
+  display: grid; padding: 18px 20px; grid-template-columns: minmax(240px, 1fr) minmax(420px, 1.5fr);
+  align-items: center; gap: 22px; color: var(--muted); background: var(--surface-soft);
+  border: 1px solid var(--line); border-radius: var(--radius);
+}
+.source-system-info > div:first-child { display: grid; gap: 3px; }
+.source-system-info > div:first-child > span { color: var(--forest); font-size: .72rem; font-weight: 900; letter-spacing: .08em; }
+.source-system-info > div:first-child > strong { color: var(--ink); }
+.source-system-info dl { display: grid; margin: 0; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.source-system-info dl > div { min-width: 0; padding: 10px 12px; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; }
+.source-system-info dt { color: var(--muted); font-size: .72rem; }
+.source-system-info dd { overflow: hidden; margin: 3px 0 0; color: var(--ink); font-weight: 800; text-overflow: ellipsis; white-space: nowrap; }
 .source-category-layout {
   display: grid; grid-template-columns: minmax(300px, .75fr) minmax(560px, 1.6fr);
   align-items: start; gap: 18px;
@@ -3056,6 +3096,11 @@ body.screen-locked { overflow: hidden; }
   .quick-entry-actions .button { flex: 1; }
   .master-filters, .master-filters.sales-source-filters { grid-template-columns: 1fr 1fr; padding: 14px; }
   .master-search, .master-filters .inventory-filter-actions { grid-column: 1 / -1; }
+  .source-basic-grid, .source-note-grid { grid-template-columns: 1fr 1fr; }
+  .source-address-field { grid-column: 1 / -1; }
+  .line-group-scope-grid { grid-template-columns: 1fr 1fr; }
+  .source-system-info { grid-template-columns: 1fr; padding: 16px; gap: 14px; }
+  .source-system-info dl { grid-template-columns: 1fr 1fr; }
   .vehicle-model-catalog { gap: 10px; }
   .vehicle-model-catalog__toolbar { padding: 14px; align-items: stretch; flex-direction: column; }
   .vehicle-model-catalog__actions { display: grid; grid-template-columns: 1fr 1fr; }
@@ -3312,6 +3357,13 @@ body.screen-locked { overflow: hidden; }
   flex: 0 0 auto; padding: 7px 11px; color: var(--forest-2); background: var(--mint);
   border: 1px solid color-mix(in srgb, var(--forest) 20%, var(--line)); border-radius: 999px;
   font-size: .78rem; font-weight: 850;
+}
+
+@media (max-width: 640px) {
+  .source-basic-grid, .source-note-grid, .line-group-presence,
+  .line-group-scope-grid, .source-system-info dl { grid-template-columns: 1fr; }
+  .source-address-field { grid-column: auto; }
+  .line-group-presence-option, .line-group-scope-option { min-height: 52px; }
 }
 .dealer-brand-priority {
   display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px;

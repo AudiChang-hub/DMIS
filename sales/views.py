@@ -16,7 +16,7 @@ from django.conf import settings
 from django.core.files.base import ContentFile
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import IntegrityError, connection, transaction
-from django.db.models import Count, DecimalField, OuterRef, Q, Subquery, Sum
+from django.db.models import Count, DecimalField, OuterRef, Prefetch, Q, Subquery, Sum
 from django.core.paginator import Paginator
 from django.http import FileResponse, Http404, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
@@ -74,6 +74,7 @@ from .forms import (
     SalesOrderForm,
     SalesSourceBrandPolicyFormSet,
     SalesSourceCategoryForm,
+    SalesSourceCooperationForm,
     SalesSourceContactFormSet,
     SalesSourceForm,
     SignedContractForm,
@@ -116,6 +117,7 @@ from .models import (
     SalesOrder,
     SalesOrderSearchIndex,
     SalesSource,
+    SalesSourceBrandPolicy,
     SalesSourceCategory,
     SalesSourceContact,
     Store,
@@ -857,15 +859,12 @@ def sales_source_list(request):
     keyword = request.GET.get("q", "").strip()
     source_type = request.GET.get("type", "")
     category_id = request.GET.get("category", "")
-    brand = request.GET.get("brand", "").strip()
+    cooperation_scope = request.GET.get(
+        "cooperation_scope", request.GET.get("brand", "")
+    ).strip()
     holiday_gift = request.GET.get("holiday_gift", "")
     sources = SalesSource.objects.annotate(
         contact_count=Count("contacts", distinct=True),
-        brand_count=Count(
-            "brand_policies",
-            filter=Q(brand_policies__cooperates=True),
-            distinct=True,
-        ),
     ).select_related("category").order_by("source_type", "category__name", "name", "id")
     if keyword:
         keyword_filter = (
@@ -888,26 +887,50 @@ def sales_source_list(request):
         sources = sources.filter(source_type=source_type)
     if category_id.isdigit():
         sources = sources.filter(category_id=category_id)
-    if brand:
-        sources = sources.filter(
-            brand_policies__brand__iexact=brand,
-            brand_policies__cooperates=True,
-        ).distinct()
+    valid_scopes = {
+        value for value, _ in SalesSourceBrandPolicy.CooperationScope.choices
+    }
+    if cooperation_scope in valid_scopes:
+        today = timezone.localdate()
+        latest_scope_state = (
+            SalesSourceBrandPolicy.objects.filter(
+                source_id=OuterRef("pk"),
+                cooperation_scope=cooperation_scope,
+                effective_from__lte=today,
+            )
+            .filter(Q(effective_to__isnull=True) | Q(effective_to__gte=today))
+            .order_by("-effective_from", "-pk")
+            .values("cooperates")[:1]
+        )
+        sources = sources.annotate(
+            selected_scope_cooperates=Subquery(latest_scope_state)
+        ).filter(selected_scope_cooperates=True)
     if holiday_gift in {"yes", "no"}:
         sources = sources.filter(
             source_type=SalesSource.SourceType.DEALER,
             holiday_gift=holiday_gift == "yes",
         )
-    page = Paginator(sources.prefetch_related("contacts", "brand_policies"), 100).get_page(
+    today = timezone.localdate()
+    current_policy_queryset = SalesSourceBrandPolicy.objects.filter(
+        cooperation_scope__in=valid_scopes,
+        effective_from__lte=today,
+    ).filter(
+        Q(effective_to__isnull=True) | Q(effective_to__gte=today)
+    ).order_by("cooperation_scope", "-effective_from", "-pk")
+    page = Paginator(sources.prefetch_related(
+        "contacts",
+        Prefetch(
+            "brand_policies",
+            queryset=current_policy_queryset,
+            to_attr="current_cooperation_policies",
+        ),
+    ), 100).get_page(
         request.GET.get("page")
     )
-    brands = (
-        SalesSource.objects.values_list("brand_policies__brand", flat=True)
-        .exclude(brand_policies__brand__isnull=True)
-        .exclude(brand_policies__brand="")
-        .distinct()
-        .order_by("brand_policies__brand")
-    )
+    for item in page.object_list:
+        item.cooperation_overview = _sales_source_brand_overview(
+            item, policies=item.current_cooperation_policies
+        )
     return render(
         request,
         "sales/sales_source_list.html",
@@ -918,7 +941,7 @@ def sales_source_list(request):
             "source_categories": SalesSourceCategory.objects.filter(active=True).order_by(
                 "system_behavior", "name"
             ),
-            "brands": brands,
+            "cooperation_scopes": SalesSourceBrandPolicy.CooperationScope.choices,
             "holiday_gift_count": SalesSource.objects.filter(
                 source_type=SalesSource.SourceType.DEALER,
                 holiday_gift=True,
@@ -927,7 +950,7 @@ def sales_source_list(request):
                 "q": keyword,
                 "type": source_type,
                 "category": category_id,
-                "brand": brand,
+                "cooperation_scope": cooperation_scope,
                 "holiday_gift": holiday_gift,
             },
         },
@@ -1037,21 +1060,45 @@ def sales_source_holiday_gift_manage(request):
 def sales_source_form(request, pk=None):
     source = get_object_or_404(SalesSource, pk=pk) if pk else SalesSource()
     post_data = request.POST or None
+    brand_overview = _sales_source_brand_overview(source)
     form = SalesSourceForm(post_data, instance=source)
+    cooperation_form = SalesSourceCooperationForm(
+        post_data,
+        prefix="cooperation",
+        cooperation_states=brand_overview["states"],
+    )
     contact_formset = SalesSourceContactFormSet(
         post_data, instance=source, prefix="contacts"
     )
+    scoped_policies = (
+        source.brand_policies.filter(
+            cooperation_scope__in=SalesSourceCooperationForm.FIELD_BY_SCOPE
+        )
+        if source.pk
+        else SalesSourceBrandPolicy.objects.none()
+    )
     policy_formset = SalesSourceBrandPolicyFormSet(
-        post_data, instance=source, prefix="policies"
+        post_data,
+        instance=source,
+        prefix="policies",
+        queryset=scoped_policies,
     )
     if request.method == "POST" and all(
-        (form.is_valid(), contact_formset.is_valid(), policy_formset.is_valid())
+        (
+            form.is_valid(),
+            cooperation_form.is_valid(),
+            contact_formset.is_valid(),
+            policy_formset.is_valid(),
+        )
     ):
         source = form.save()
         contact_formset.instance = source
         contact_formset.save()
         policy_formset.instance = source
         policy_formset.save()
+        _sync_sales_source_cooperation_scopes(
+            source, cooperation_form.selected_scopes()
+        )
         messages.success(
             request,
             f"已儲存{source.category.name if source.category_id else source.get_source_type_display()}：{source.name}。",
@@ -1062,34 +1109,70 @@ def sales_source_form(request, pk=None):
         "sales/sales_source_form.html",
         {
             "form": form,
+            "cooperation_form": cooperation_form,
             "contact_formset": contact_formset,
             "policy_formset": policy_formset,
             "source": source if source.pk else None,
-            "brand_overview": _sales_source_brand_overview(source),
+            "brand_overview": brand_overview,
         },
     )
 
 
-def _sales_source_brand_overview(source):
+def _sync_sales_source_cooperation_scopes(source, desired_states):
+    """Persist the three user-facing cooperation switches as effective rules."""
+    if source.source_type != SalesSource.SourceType.DEALER:
+        return
+
+    today = timezone.localdate()
+    for scope, cooperates in desired_states.items():
+        current = (
+            source.brand_policies.filter(
+                cooperation_scope=scope,
+                effective_from__lte=today,
+            )
+            .filter(Q(effective_to__isnull=True) | Q(effective_to__gte=today))
+            .order_by("-effective_from", "-pk")
+            .first()
+        )
+        if current and current.cooperates == cooperates:
+            continue
+        defaults = {
+            "cooperates": cooperates,
+            "commission_adjustment": (
+                current.commission_adjustment if current else 0
+            ),
+            "effective_to": None,
+            "note": current.note if current else "",
+        }
+        policy, _ = SalesSourceBrandPolicy.objects.update_or_create(
+            source=source,
+            cooperation_scope=scope,
+            effective_from=today,
+            defaults=defaults,
+        )
+        policy.save()
+
+
+def _sales_source_brand_overview(source, policies=None):
     """Return the currently effective cooperation state for the editor summary."""
     today = timezone.localdate()
-    current_by_brand = {}
-    if source.pk:
+    current_by_scope = {}
+    if policies is None and source.pk:
         policies = source.brand_policies.filter(
+            cooperation_scope__in=SalesSourceCooperationForm.FIELD_BY_SCOPE,
             effective_from__lte=today,
         ).filter(
             Q(effective_to__isnull=True) | Q(effective_to__gte=today)
-        ).order_by("brand", "-effective_from", "-pk")
-        for policy in policies:
-            current_by_brand.setdefault(policy.brand.casefold(), policy)
+        ).order_by("cooperation_scope", "-effective_from", "-pk")
+    for policy in policies or []:
+        if policy.cooperation_scope:
+            current_by_scope.setdefault(policy.cooperation_scope, policy)
 
-    priority_brands = (
-        ("SUZUKI", "台鈴 SUZUKI"),
-        ("SYM", "三陽 SYM"),
-    )
     priority = []
-    for brand, label in priority_brands:
-        policy = current_by_brand.get(brand.casefold())
+    states = {}
+    cooperating = []
+    for cooperation_scope, label in SalesSourceBrandPolicy.CooperationScope.choices:
+        policy = current_by_scope.get(cooperation_scope)
         if policy is None:
             status = "unset"
             status_label = "尚未設定"
@@ -1099,24 +1182,30 @@ def _sales_source_brand_overview(source):
         else:
             status = "not_cooperating"
             status_label = "未配合"
+        states[cooperation_scope] = bool(policy and policy.cooperates)
+        if policy and policy.cooperates:
+            cooperating.append(
+                {
+                    "scope": cooperation_scope,
+                    "label": label,
+                    "price_list_label": policy.price_list_label,
+                    "commission_adjustment": policy.commission_adjustment,
+                }
+            )
         priority.append(
             {
-                "brand": brand,
+                "cooperation_scope": cooperation_scope,
                 "label": label,
                 "status": status,
                 "status_label": status_label,
+                "price_list_label": f"{label}價格表",
             }
         )
-
-    cooperating = sorted(
-        policy.brand
-        for policy in current_by_brand.values()
-        if policy.cooperates
-    )
     return {
         "priority": priority,
         "cooperating": cooperating,
         "cooperating_count": len(cooperating),
+        "states": states,
     }
 
 

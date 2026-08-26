@@ -2,6 +2,7 @@ from datetime import date, timedelta
 from decimal import Decimal
 
 from django.contrib.auth import get_user_model
+from django.db.models import Q
 from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
@@ -20,6 +21,7 @@ from sales.models import (
     SalesSource,
     SalesSourceCategory,
     SalesSourceBrandPolicy,
+    VehicleBrand,
     VehicleColor,
     VehicleIncentiveInstallmentRate,
     VehicleIncentiveRule,
@@ -77,7 +79,7 @@ class ChannelFinanceTests(TestCase):
         )
         self.policy = SalesSourceBrandPolicy.objects.create(
             source=self.dealer,
-            brand="SUZUKI",
+            cooperation_scope=SalesSourceBrandPolicy.CooperationScope.SUZUKI_GAS,
             commission_adjustment=Decimal("500"),
             effective_from=date(2026, 8, 1),
         )
@@ -567,25 +569,26 @@ class ChannelFinanceTests(TestCase):
         response = self.client.get(reverse("sales_source_edit", args=[self.dealer.pk]))
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "品牌合作一覽")
-        self.assertContains(response, "台鈴 SUZUKI")
+        self.assertContains(response, "價格表提供對象")
+        self.assertContains(response, "台鈴油車")
+        self.assertContains(response, "台鈴電車")
         self.assertContains(response, "三陽 SYM")
-        self.assertContains(response, "1 個配合品牌")
-        self.assertContains(response, 'data-brand-summary="SUZUKI"')
-        self.assertContains(response, 'data-status="cooperates"')
+        self.assertContains(response, "1 個提供對象")
+        self.assertContains(response, 'data-cooperation-card="suzuki_gas"')
+        self.assertContains(response, "台鈴油車價格表")
         self.assertEqual(response.context["policy_formset"].total_form_count(), 1)
 
     def test_source_brand_overview_uses_latest_current_rule(self):
         today = timezone.localdate()
         SalesSourceBrandPolicy.objects.create(
             source=self.dealer,
-            brand="SYM",
+            cooperation_scope=SalesSourceBrandPolicy.CooperationScope.SYM,
             cooperates=True,
             effective_from=today - timedelta(days=2),
         )
         SalesSourceBrandPolicy.objects.create(
             source=self.dealer,
-            brand="SYM",
+            cooperation_scope=SalesSourceBrandPolicy.CooperationScope.SYM,
             cooperates=False,
             effective_from=today - timedelta(days=1),
         )
@@ -596,10 +599,143 @@ class ChannelFinanceTests(TestCase):
         summary = next(
             item
             for item in response.context["brand_overview"]["priority"]
-            if item["brand"] == "SYM"
+            if item["cooperation_scope"] == SalesSourceBrandPolicy.CooperationScope.SYM
         )
         self.assertEqual(summary["status"], "not_cooperating")
-        self.assertNotIn("SYM", response.context["brand_overview"]["cooperating"])
+        self.assertNotIn(
+            "三陽 SYM",
+            [item["label"] for item in response.context["brand_overview"]["cooperating"]],
+        )
+
+    def test_suzuki_parent_cooperation_applies_to_emoving_electric_model(self):
+        suzuki = VehicleBrand.objects.get(name="SUZUKI")
+        emoving = VehicleBrand.objects.get(name="eMOVING")
+        self.assertEqual(emoving.parent, suzuki)
+        electric_model = VehicleModel.objects.create(
+            brand="eMOVING",
+            name="合作範圍測試電車",
+            model_number="COOP-EV-01",
+            model_year=2026,
+            model_code=VehicleModel.ModelType.DRUM,
+            energy_type=VehicleModel.EnergyType.ELECTRIC,
+            base_dealer_commission=Decimal("1800"),
+        )
+        electric_policy = SalesSourceBrandPolicy.objects.create(
+            source=self.dealer,
+            cooperation_scope=SalesSourceBrandPolicy.CooperationScope.SUZUKI_ELECTRIC,
+            commission_adjustment=Decimal("300"),
+            effective_from=date(2026, 8, 1),
+        )
+        order = self.make_order()
+        order.vehicle_model = electric_model
+        order.color = VehicleColor.objects.create(vehicle_model=electric_model, name="白")
+        order.balance_adjustment_reason = "測試切換車型後重新試算"
+        order.save(
+            update_fields=[
+                "vehicle_model",
+                "color",
+                "balance_adjustment_reason",
+                "updated_at",
+            ]
+        )
+
+        profile = apply_order_dealer_commission(order)
+
+        self.assertEqual(profile.dealer_commission_base, Decimal("1800"))
+        self.assertEqual(profile.dealer_commission_adjustment, Decimal("300"))
+        self.assertEqual(profile.dealer_commission_policy, electric_policy)
+
+    def test_source_list_filters_price_list_recipients_by_cooperation_scope(self):
+        self.client.force_login(self.user)
+
+        response = self.client.get(
+            reverse("sales_source_list"),
+            {"cooperation_scope": SalesSourceBrandPolicy.CooperationScope.SUZUKI_GAS},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, self.dealer.name)
+        self.assertContains(response, "需提供價格表")
+        self.assertContains(response, "台鈴油車")
+
+    def test_source_list_scope_filter_uses_latest_effective_state(self):
+        SalesSourceBrandPolicy.objects.create(
+            source=self.dealer,
+            cooperation_scope=SalesSourceBrandPolicy.CooperationScope.SUZUKI_GAS,
+            cooperates=False,
+            effective_from=timezone.localdate(),
+        )
+        self.client.force_login(self.user)
+
+        response = self.client.get(
+            reverse("sales_source_list"),
+            {"cooperation_scope": SalesSourceBrandPolicy.CooperationScope.SUZUKI_GAS},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, self.dealer.name)
+
+    def test_source_edit_saves_price_list_recipient_scopes(self):
+        category, _ = SalesSourceCategory.objects.get_or_create(
+            name="合作車行",
+            defaults={"system_behavior": SalesSource.SourceType.DEALER},
+        )
+        self.dealer.category = category
+        self.dealer.save(update_fields=["category", "updated_at"])
+        self.client.force_login(self.user)
+
+        response = self.client.post(
+            reverse("sales_source_edit", args=[self.dealer.pk]),
+            {
+                "category": category.pk,
+                "name": self.dealer.name,
+                "vehicle_capacity": self.dealer.vehicle_capacity,
+                "active": "on",
+                "cooperation-sym": "on",
+                "cooperation-suzuki_electric": "on",
+                "contacts-TOTAL_FORMS": "0",
+                "contacts-INITIAL_FORMS": "0",
+                "contacts-MIN_NUM_FORMS": "0",
+                "contacts-MAX_NUM_FORMS": "1000",
+                "policies-TOTAL_FORMS": "1",
+                "policies-INITIAL_FORMS": "1",
+                "policies-MIN_NUM_FORMS": "0",
+                "policies-MAX_NUM_FORMS": "1000",
+                "policies-0-id": self.policy.pk,
+                "policies-0-cooperation_scope": (
+                    SalesSourceBrandPolicy.CooperationScope.SUZUKI_GAS
+                ),
+                "policies-0-commission_adjustment": "500",
+                "policies-0-effective_from": "2026-08-01",
+                "policies-0-effective_to": "",
+                "policies-0-note": "",
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        today = timezone.localdate()
+        current_states = {}
+        for scope, _label in SalesSourceBrandPolicy.CooperationScope.choices:
+            current = (
+                self.dealer.brand_policies.filter(
+                    cooperation_scope=scope,
+                    effective_from__lte=today,
+                )
+                .filter(
+                    Q(effective_to__isnull=True) | Q(effective_to__gte=today)
+                )
+                .order_by("-effective_from", "-pk")
+                .first()
+            )
+            current_states[scope] = bool(current and current.cooperates)
+        self.assertEqual(
+            current_states,
+            {
+                SalesSourceBrandPolicy.CooperationScope.SYM: True,
+                SalesSourceBrandPolicy.CooperationScope.SUZUKI_GAS: False,
+                SalesSourceBrandPolicy.CooperationScope.SUZUKI_ELECTRIC: True,
+            },
+        )
 
     def test_sales_source_list_filters_and_labels_holiday_gift_dealers(self):
         self.dealer.holiday_gift = True

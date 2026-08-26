@@ -1913,8 +1913,6 @@ body.screen-locked { overflow: hidden; }
 .line-group-presence-option input {
   width: 20px; height: 20px; margin: 0; accent-color: var(--forest);
 }
-.line-group-active { color: var(--forest); background: var(--mint); }
-.line-group-list-status { display: block; margin-top: 8px; }
 .source-system-info {
   display: grid; padding: 18px 20px; grid-template-columns: minmax(240px, 1fr) minmax(420px, 1.5fr);
   align-items: center; gap: 22px; color: var(--muted); background: var(--surface-soft);
@@ -1934,10 +1932,20 @@ body.screen-locked { overflow: hidden; }
 @media (max-width: 1000px) {
   .source-category-layout { grid-template-columns: 1fr; }
 }
-.source-list-summary { gap: 16px; }
-.source-list-summary > div { display: grid; gap: 3px; }
+.source-list-summary { min-height: 72px; padding-block: 10px; gap: 20px; }
+.source-list-summary__copy { display: grid; min-width: 0; gap: 3px; }
 .source-list-summary .button { flex: 0 0 auto; }
-.source-list-actions { display: flex; align-items: center; justify-content: flex-end; gap: 8px; }
+.source-list-actions { display: flex; flex: 0 0 auto; align-items: center; justify-content: flex-end; gap: 10px; }
+.source-holiday-summary {
+  display: inline-flex; min-height: 42px; padding: 7px 12px; align-items: center; gap: 8px;
+  color: var(--ink); text-decoration: none; background: var(--surface-soft);
+  border: 1px solid var(--line); border-radius: 11px; transition: border-color .16s ease, background .16s ease;
+}
+.source-holiday-summary:hover { background: var(--mint); border-color: color-mix(in srgb, var(--forest) 32%, var(--line)); }
+.source-holiday-summary span { color: var(--muted); font-size: .74rem; font-weight: 700; }
+.source-holiday-summary strong { color: var(--ink); font-size: .9rem; white-space: nowrap; }
+.source-holiday-summary small { color: var(--forest-2); font-size: .72rem; font-weight: 800; }
+.source-holiday-summary.is-active { background: var(--mint); border-color: color-mix(in srgb, var(--forest) 28%, var(--line)); }
 .status-pill.gift-required { color: var(--amber); background: var(--amber-soft); border-color: #e9cf83; }
 .gift-not-required { color: var(--muted); font-size: .8rem; }
 .holiday-gift-hero { align-items: center; }
@@ -3127,7 +3135,9 @@ body.screen-locked { overflow: hidden; }
   .vehicle-year-card dl { grid-template-columns: 1fr 1fr; gap: 9px 12px; }
   .source-list-summary { padding-block: 12px; align-items: stretch; flex-direction: column; }
   .source-list-actions { align-items: stretch; flex-direction: column; }
-  .source-list-summary .button { width: 100%; }
+  .source-list-summary .button, .source-holiday-summary { width: 100%; justify-content: center; }
+  .cooperation-summary { min-width: 0; max-width: none; }
+  .cooperation-summary__item { grid-template-columns: minmax(110px, .8fr) minmax(0, 1.2fr); }
   .holiday-gift-hero { align-items: stretch; }
   .holiday-gift-summary { width: 100%; }
   .holiday-gift-toolbar { align-items: stretch; flex-direction: column; }
@@ -3481,12 +3491,23 @@ body.screen-locked { overflow: hidden; }
 .dealer-brand-details[open] .dealer-brand-details__action::after { transform: rotate(225deg); }
 .dealer-brand-details__body { padding: 4px 16px 16px; border-top: 1px solid var(--line); }
 .dealer-brand-policy-row { overflow: visible; }
-.price-list-recipient { display: flex !important; min-width: 0; flex-wrap: wrap; align-items: center; gap: 6px; overflow-wrap: anywhere; }
-.price-list-recipient > b {
-  flex: 0 0 auto; padding: 3px 7px; color: var(--forest-2); background: var(--mint);
-  border: 1px solid color-mix(in srgb, var(--forest) 20%, var(--line)); border-radius: 999px;
-  font-size: .7rem;
+.cooperation-summary { display: grid; min-width: 230px; max-width: 380px; gap: 7px; }
+.cooperation-summary__header { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.cooperation-summary__header strong { color: var(--ink); font-size: .82rem; }
+.cooperation-summary__header span { color: var(--muted); font-size: .72rem; white-space: nowrap; }
+.cooperation-summary__list { display: grid; gap: 1px; }
+.cooperation-summary__item {
+  display: grid; min-width: 0; padding: 4px 0; grid-template-columns: minmax(90px, auto) minmax(0, 1fr);
+  align-items: baseline; gap: 8px; border-bottom: 1px solid color-mix(in srgb, var(--line) 72%, transparent);
 }
+.cooperation-summary__item:last-child { border-bottom: 0; }
+.cooperation-summary__item strong { color: var(--ink); font-size: .78rem; }
+.cooperation-summary__item span { min-width: 0; color: var(--muted); font-size: .76rem; overflow-wrap: anywhere; }
+.cooperation-line-status { display: flex; padding-top: 6px; align-items: center; gap: 7px; color: var(--muted); border-top: 1px solid var(--line); font-size: .76rem; font-weight: 700; }
+.cooperation-line-status i { width: 7px; height: 7px; flex: 0 0 auto; background: var(--muted); border-radius: 50%; opacity: .55; }
+.cooperation-line-status.has-group { color: var(--forest-2); }
+.cooperation-line-status.has-group i { background: var(--green); opacity: 1; }
+.cooperation-summary.is-empty > span { color: var(--muted); font-size: .78rem; }
 .formset-errors { margin-top: 14px; padding: 11px 13px; color: var(--red); background: var(--red-soft); border-radius: 10px; }
 .responsive-split { display: grid; grid-template-columns: minmax(320px, .72fr) minmax(0, 1.28fr); gap: 20px; align-items: start; }
 .master-editor-layout > .form-section { position: sticky; top: 96px; }

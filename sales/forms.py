@@ -672,6 +672,31 @@ SalesSourceContactFormSet = inlineformset_factory(
 )
 
 
+class SalesSourceCooperationForm(forms.Form):
+    sym = forms.BooleanField(label="三陽 SYM", required=False)
+    suzuki_gas = forms.BooleanField(label="台鈴油車", required=False)
+    suzuki_electric = forms.BooleanField(label="台鈴電車", required=False)
+
+    FIELD_BY_SCOPE = {
+        SalesSourceBrandPolicy.CooperationScope.SYM: "sym",
+        SalesSourceBrandPolicy.CooperationScope.SUZUKI_GAS: "suzuki_gas",
+        SalesSourceBrandPolicy.CooperationScope.SUZUKI_ELECTRIC: "suzuki_electric",
+    }
+
+    def __init__(self, *args, cooperation_states=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        cooperation_states = cooperation_states or {}
+        if not self.is_bound:
+            for scope, field_name in self.FIELD_BY_SCOPE.items():
+                self.fields[field_name].initial = bool(cooperation_states.get(scope))
+
+    def selected_scopes(self):
+        return {
+            scope: bool(self.cleaned_data[field_name])
+            for scope, field_name in self.FIELD_BY_SCOPE.items()
+        }
+
+
 def _brand_choices(current_value=""):
     brand_rows = list(
         VehicleBrand.objects.filter(active=True).select_related("parent")
@@ -787,20 +812,20 @@ class VehicleBrandForm(forms.ModelForm):
 
 
 class SalesSourceBrandPolicyForm(forms.ModelForm):
-    brand = forms.ChoiceField(label="品牌")
-
     class Meta:
         model = SalesSourceBrandPolicy
         fields = [
-            "brand", "cooperates", "commission_adjustment", "effective_from",
+            "cooperation_scope", "commission_adjustment", "effective_from",
             "effective_to", "note",
         ]
-        labels = {"commission_adjustment": "傭金加減額"}
+        labels = {
+            "cooperation_scope": "合作類別",
+            "commission_adjustment": "傭金加減額",
+        }
         widgets = {"effective_from": DateInput(), "effective_to": DateInput()}
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        _apply_brand_choice(self)
         for field in self.fields.values():
             field.widget.attrs.setdefault("class", "form-control")
         apply_mobile_keyboard_attrs(self)

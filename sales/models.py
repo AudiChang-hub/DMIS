@@ -7,6 +7,7 @@ from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.core.validators import MaxValueValidator, MinValueValidator, RegexValidator
 from django.db import models, transaction
+from django.db.models import Q
 from django.db.models.functions import Lower
 from django.utils import timezone
 
@@ -758,13 +759,36 @@ class SalesSourceContact(TimeStampedModel):
 
 
 class SalesSourceBrandPolicy(TimeStampedModel):
+    class CooperationScope(models.TextChoices):
+        SYM = "sym", "三陽 SYM"
+        SUZUKI_GAS = "suzuki_gas", "台鈴油車"
+        SUZUKI_ELECTRIC = "suzuki_electric", "台鈴電車"
+
+    SCOPE_LEGACY_BRANDS = {
+        CooperationScope.SYM: "SYM",
+        CooperationScope.SUZUKI_GAS: "SUZUKI／油車",
+        CooperationScope.SUZUKI_ELECTRIC: "SUZUKI／電車",
+    }
+
     source = models.ForeignKey(
         SalesSource,
         on_delete=models.CASCADE,
         related_name="brand_policies",
         verbose_name="來源",
     )
-    brand = models.CharField("品牌", max_length=80)
+    brand = models.CharField(
+        "歷史品牌值",
+        max_length=80,
+        help_text="保留舊資料相容；新設定請使用合作類別。",
+    )
+    cooperation_scope = models.CharField(
+        "合作類別",
+        max_length=30,
+        choices=CooperationScope.choices,
+        blank=True,
+        null=True,
+        help_text="目前只區分三陽、台鈴油車與台鈴電車。",
+    )
     cooperates = models.BooleanField("有配合", default=True)
     commission_adjustment = models.DecimalField(
         "佣金加減額",
@@ -783,13 +807,22 @@ class SalesSourceBrandPolicy(TimeStampedModel):
             models.UniqueConstraint(
                 fields=["source", "brand", "effective_from"],
                 name="unique_source_brand_policy_start",
-            )
+            ),
+            models.UniqueConstraint(
+                fields=["source", "cooperation_scope", "effective_from"],
+                condition=Q(cooperation_scope__isnull=False),
+                name="unique_source_scope_policy_start",
+            ),
         ]
         indexes = [
             models.Index(
                 fields=["source", "brand", "effective_from"],
                 name="source_brand_policy_lookup",
-            )
+            ),
+            models.Index(
+                fields=["source", "cooperation_scope", "effective_from"],
+                name="source_scope_policy_lookup",
+            ),
         ]
         verbose_name = "通路品牌合作規則"
         verbose_name_plural = "通路品牌合作規則"
@@ -799,11 +832,20 @@ class SalesSourceBrandPolicy(TimeStampedModel):
             raise ValidationError({"effective_to": "結束日期不可早於生效日期。"})
 
     def save(self, *args, **kwargs):
+        if self.cooperation_scope:
+            self.brand = self.SCOPE_LEGACY_BRANDS[self.cooperation_scope]
         self.full_clean()
         return super().save(*args, **kwargs)
 
     def __str__(self):
-        return f"{self.source}／{self.brand}／{self.effective_from:%Y/%m/%d}"
+        label = self.get_cooperation_scope_display() if self.cooperation_scope else self.brand
+        return f"{self.source}／{label}／{self.effective_from:%Y/%m/%d}"
+
+    @property
+    def price_list_label(self):
+        if not self.cooperation_scope:
+            return ""
+        return f"{self.get_cooperation_scope_display()}價格表"
 
 
 class DealerVolumeBonusRule(TimeStampedModel):

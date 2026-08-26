@@ -28,7 +28,6 @@ class VehicleBrandMasterTests(TestCase):
 
         for form_class in (
             VehicleModelMasterForm,
-            SalesSourceBrandPolicyForm,
             DealerVolumeBonusRuleForm,
             BrandRegistrationFeeRuleForm,
         ):
@@ -42,6 +41,21 @@ class VehicleBrandMasterTests(TestCase):
                     ("eMOVING", "SUZUKI｜eMOVING"),
                     list(form.fields["brand"].choices),
                 )
+
+        cooperation_form = SalesSourceBrandPolicyForm()
+        self.assertNotIn("brand", cooperation_form.fields)
+        self.assertEqual(
+            list(cooperation_form.fields["cooperation_scope"].choices),
+            [
+                ("", "---------"),
+                (SalesSourceBrandPolicy.CooperationScope.SYM, "三陽 SYM"),
+                (SalesSourceBrandPolicy.CooperationScope.SUZUKI_GAS, "台鈴油車"),
+                (
+                    SalesSourceBrandPolicy.CooperationScope.SUZUKI_ELECTRIC,
+                    "台鈴電車",
+                ),
+            ],
+        )
 
     def test_emoving_is_grouped_under_suzuki_without_changing_its_name(self):
         emoving = VehicleBrand.objects.select_related("parent").get(name="eMOVING")

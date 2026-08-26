@@ -57,37 +57,43 @@
   <section class="form-section static-section dealer-brand-section" id="brand-policies">
     <div class="section-title">
       <div>
-        <p class="eyebrow">目前有效</p>
-        <h2>品牌合作一覽</h2>
-        <p class="muted">先確認是否配合台鈴或三陽；需要時再展開下方設定傭金、期間與備註。</p>
+        <p class="eyebrow">合作車行設定</p>
+        <h2>價格表提供對象</h2>
+        <p class="muted">勾選代表此車行有配合，並需提供該類別的價格表；這裡只辨認名單，不會連結價格表檔案。</p>
       </div>
-      <span class="dealer-brand-count" data-cooperating-count>{{ brand_overview.cooperating_count }} 個配合品牌</span>
+      <span class="dealer-brand-count" data-cooperating-count>{{ brand_overview.cooperating_count }} 個提供對象</span>
     </div>
 
-    <div class="dealer-brand-priority" data-brand-overview>
-      {% for item in brand_overview.priority %}
-        <article class="dealer-brand-status is-{{ item.status }}" data-brand-summary="{{ item.brand }}" data-status="{{ item.status }}">
-          <div>
-            <small>重點品牌</small>
-            <strong>{{ item.label }}</strong>
-          </div>
-          <span data-brand-status>{{ item.status_label }}</span>
-        </article>
-      {% endfor %}
+    <div class="dealer-cooperation-toggle-grid" data-cooperation-overview>
+      <label class="dealer-cooperation-toggle" for="{{ cooperation_form.sym.id_for_label }}" data-cooperation-card="sym">
+        {{ cooperation_form.sym }}
+        <span><strong>三陽 SYM</strong><small>列入 SYM 價格表提供名單</small></span>
+        <b data-cooperation-status>未配合</b>
+      </label>
+      <label class="dealer-cooperation-toggle" for="{{ cooperation_form.suzuki_gas.id_for_label }}" data-cooperation-card="suzuki_gas">
+        {{ cooperation_form.suzuki_gas }}
+        <span><strong>台鈴油車</strong><small>列入台鈴油車價格表提供名單</small></span>
+        <b data-cooperation-status>未配合</b>
+      </label>
+      <label class="dealer-cooperation-toggle" for="{{ cooperation_form.suzuki_electric.id_for_label }}" data-cooperation-card="suzuki_electric">
+        {{ cooperation_form.suzuki_electric }}
+        <span><strong>台鈴電車</strong><small>包含 SUZUKI 旗下 eMOVING 等電動車</small></span>
+        <b data-cooperation-status>未配合</b>
+      </label>
     </div>
 
     <div class="dealer-brand-active-summary">
-      <strong>全部目前配合品牌</strong>
+      <strong>目前需提供的價格表</strong>
       <div class="dealer-brand-active-list" data-active-brand-list>
-        {% for brand in brand_overview.cooperating %}<span>{{ brand }}</span>{% empty %}<small>目前沒有已設定為配合的品牌</small>{% endfor %}
+        {% for item in brand_overview.cooperating %}<span>{{ item.price_list_label }}</span>{% empty %}<small>目前沒有要提供價格表的類別</small>{% endfor %}
       </div>
     </div>
 
     <details class="dealer-brand-details" {% if policy_formset.is_bound %}open{% endif %}>
       <summary>
         <span>
-          <strong>調整合作品牌、傭金與期間</strong>
-          <small>基礎傭金由車型維護；此處只設定特定車行的品牌合作狀態與加減額。</small>
+          <strong>調整傭金、期間與備註</strong>
+          <small>上方勾選決定合作與價格表名單；此處只設定特定車行的傭金加減額、生效期間及備註。</small>
         </span>
         <span class="dealer-brand-details__action">展開設定</span>
       </summary>
@@ -115,7 +121,7 @@
             {% endfor %}
           </div>
         </template>
-        <button type="button" class="button ghost add-row-button" data-add-form="policies" data-target="policy-rows" data-template="policy-empty">＋ 新增品牌規則</button>
+        <button type="button" class="button ghost add-row-button" data-add-form="policies" data-target="policy-rows" data-template="policy-empty">＋ 新增傭金版本</button>
       </div>
     </details>
   </section>
@@ -133,64 +139,35 @@
   const policyRows = document.getElementById("policy-rows");
   const policyDetails = document.querySelector(".dealer-brand-details");
 
-  function localToday() {
-    const today = new Date();
-    const year = today.getFullYear();
-    const month = String(today.getMonth() + 1).padStart(2, "0");
-    const day = String(today.getDate()).padStart(2, "0");
-    return `${year}-${month}-${day}`;
-  }
-
-  function currentBrandStates() {
-    const today = localToday();
-    const candidates = new Map();
-    policyRows?.querySelectorAll("[data-dynamic-row]").forEach(row => {
-      const deleted = row.querySelector('input[name$="-DELETE"]')?.checked;
-      const brand = row.querySelector('select[name$="-brand"]')?.value.trim();
-      const cooperates = row.querySelector('input[name$="-cooperates"]')?.checked;
-      const effectiveFrom = row.querySelector('input[name$="-effective_from"]')?.value || "";
-      const effectiveTo = row.querySelector('input[name$="-effective_to"]')?.value || "";
-      if (deleted || !brand || (effectiveFrom && effectiveFrom > today) || (effectiveTo && effectiveTo < today)) return;
-      const key = brand.toLocaleUpperCase("en-US");
-      const previous = candidates.get(key);
-      if (!previous || effectiveFrom >= previous.effectiveFrom) {
-        candidates.set(key, {brand, cooperates, effectiveFrom});
-      }
-    });
-    return candidates;
-  }
+  const cooperationLabels = {
+    sym: "三陽 SYM 價格表",
+    suzuki_gas: "台鈴油車價格表",
+    suzuki_electric: "台鈴電車價格表",
+  };
 
   function updateBrandOverview() {
-    const states = currentBrandStates();
-    const cooperating = [...states.values()]
-      .filter(item => item.cooperates)
-      .map(item => item.brand)
-      .sort((left, right) => left.localeCompare(right, "zh-Hant"));
-
-    document.querySelectorAll("[data-brand-summary]").forEach(card => {
-      const state = states.get(card.dataset.brand.toLocaleUpperCase("en-US"));
-      const status = !state ? "unset" : state.cooperates ? "cooperates" : "not_cooperating";
-      const label = status === "cooperates" ? "有配合" : status === "not_cooperating" ? "未配合" : "尚未設定";
-      card.dataset.status = status;
-      card.classList.remove("is-cooperates", "is-not_cooperating", "is-unset");
-      card.classList.add(`is-${status}`);
-      card.querySelector("[data-brand-status]").textContent = label;
+    const cooperating = [];
+    document.querySelectorAll("[data-cooperation-card]").forEach(card => {
+      const checkbox = card.querySelector('input[type="checkbox"]');
+      const enabled = Boolean(checkbox?.checked);
+      card.classList.toggle("is-selected", enabled);
+      card.querySelector("[data-cooperation-status]").textContent = enabled ? "有配合" : "未配合";
+      if (enabled) cooperating.push(cooperationLabels[card.dataset.cooperationCard]);
     });
-
     const count = document.querySelector("[data-cooperating-count]");
-    if (count) count.textContent = `${cooperating.length} 個配合品牌`;
+    if (count) count.textContent = `${cooperating.length} 個提供對象`;
     const list = document.querySelector("[data-active-brand-list]");
     if (list) {
       list.replaceChildren();
       if (cooperating.length) {
-        cooperating.forEach(brand => {
+        cooperating.forEach(label => {
           const chip = document.createElement("span");
-          chip.textContent = brand;
+          chip.textContent = label;
           list.append(chip);
         });
       } else {
         const empty = document.createElement("small");
-        empty.textContent = "目前沒有已設定為配合的品牌";
+        empty.textContent = "目前沒有要提供價格表的類別";
         list.append(empty);
       }
     }
@@ -229,13 +206,12 @@
       if (prefix === "policies") {
         policyDetails.open = true;
         updateBrandOverview();
-        window.setTimeout(() => row.querySelector('input[type="search"], select[name$="-brand"]')?.focus(), 0);
+        window.setTimeout(() => row.querySelector('select[name$="-cooperation_scope"]')?.focus(), 0);
       }
     });
   });
 
-  policyRows?.addEventListener("change", updateBrandOverview);
-  policyRows?.addEventListener("input", updateBrandOverview);
+  document.querySelector("[data-cooperation-overview]")?.addEventListener("change", updateBrandOverview);
   bindRemove();
   updateBrandOverview();
 })();

@@ -12,17 +12,38 @@ from sales.models import (
     SalesOrder,
     SalesSource,
     SalesSourceBrandPolicy,
+    VehicleBrand,
+    VehicleModel,
 )
 
 
-def resolve_dealer_brand_policy(source_id, brand, effective_date):
-    if not source_id or not brand or not effective_date:
+def cooperation_scope_for_vehicle_model(vehicle_model):
+    """Map a vehicle model to the dealer cooperation category used by sales."""
+    if not vehicle_model:
+        return None
+    brand = VehicleBrand.objects.filter(name__iexact=vehicle_model.brand).select_related(
+        "parent"
+    ).first()
+    root_name = (brand.parent.name if brand and brand.parent_id else vehicle_model.brand)
+    normalized_root = root_name.strip().casefold()
+    if normalized_root == "sym":
+        return SalesSourceBrandPolicy.CooperationScope.SYM
+    if normalized_root == "suzuki":
+        if vehicle_model.energy_type == VehicleModel.EnergyType.GAS:
+            return SalesSourceBrandPolicy.CooperationScope.SUZUKI_GAS
+        return SalesSourceBrandPolicy.CooperationScope.SUZUKI_ELECTRIC
+    return None
+
+
+def resolve_dealer_brand_policy(source_id, vehicle_model, effective_date):
+    scope = cooperation_scope_for_vehicle_model(vehicle_model)
+    if not source_id or not scope or not effective_date:
         return None
     return (
         SalesSourceBrandPolicy.objects.filter(
             source_id=source_id,
             source__source_type=SalesSource.SourceType.DEALER,
-            brand__iexact=brand,
+            cooperation_scope=scope,
             cooperates=True,
             effective_from__lte=effective_date,
         )
@@ -52,7 +73,7 @@ def apply_order_dealer_commission(order, *, lock=False):
 
     effective_date = order.registration_date or order.order_date
     policy = resolve_dealer_brand_policy(
-        order.source_id, order.vehicle_model.brand, effective_date
+        order.source_id, order.vehicle_model, effective_date
     )
     base = order.vehicle_model.base_dealer_commission or Decimal("0")
     adjustment = policy.commission_adjustment if policy else Decimal("0")

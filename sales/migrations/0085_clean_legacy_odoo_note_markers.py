@@ -17,7 +17,11 @@ def clean_legacy_odoo_note_markers(apps, schema_editor):
         ("DealerVolumeBonusRule", "note", None),
     )
     for model_name, field_name, max_length in targets:
-        model = apps.get_model("sales", model_name)
+        try:
+            model = apps.get_model("sales", model_name)
+        except LookupError:
+            # 後續 migration 可能已移除舊模型；重跑清理工具時安全略過。
+            continue
         queryset = model.objects.filter(
             **{f"{field_name}__icontains": "遷移 ID:"}
         )

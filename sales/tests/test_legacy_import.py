@@ -501,6 +501,13 @@ class LegacyImportTests(TestCase):
         result = confirm_import(batch, "tester")
         self.assertEqual(result["created"], 2)
         self.assertEqual(batch.rows.filter(committed_model="SalesSource").count(), 2)
+        dealer = SalesSource.objects.get(name="測試車行")
+        platform = SalesSource.objects.get(name="測試平台")
+        self.assertIn("合作中", dealer.note)
+        self.assertIn("歷史聯絡資料：王先生", dealer.note)
+        self.assertIn("歷史聯絡資料：李小姐", platform.note)
+        self.assertIn("分機：123", platform.note)
+        self.assertIn("Email：test@example.com", platform.note)
 
     def test_same_batch_cannot_be_confirmed_twice(self):
         batch = self.make_batch(LegacyImportBatch.ImportType.CHANNELS)

@@ -22,7 +22,6 @@ from sales.models import (
     SalesOrder,
     SalesSource,
     SalesSourceCategory,
-    SalesSourceContact,
     Store,
     VehicleColor,
     VehicleInventory,
@@ -1101,17 +1100,49 @@ def _default_source_category(source_type):
     return category
 
 
+def _merge_note_lines(base_note, lines):
+    """Keep imported contact details readable without restoring a contact sub-table."""
+    paragraphs = [part.strip() for part in (base_note or "").split("\n") if part.strip()]
+    for line in lines:
+        cleaned = (line or "").strip()
+        if cleaned and cleaned not in paragraphs:
+            paragraphs.append(cleaned)
+    return "\n".join(paragraphs)
+
+
+def _channel_contact_note(data):
+    details = []
+    if data.get("phone_2"):
+        details.append(f"電話二：{data['phone_2']}")
+    if data.get("extension"):
+        details.append(f"分機：{data['extension']}")
+    if data.get("mobile"):
+        details.append(f"手機：{data['mobile']}")
+    if data.get("email"):
+        details.append(f"Email：{data['email']}")
+    contact_name = (data.get("contact_name") or "").strip()
+    if not contact_name and not details:
+        return ""
+    label = f"歷史聯絡資料：{contact_name}" if contact_name else "歷史其他聯絡資料"
+    return f"{label}｜{'／'.join(details)}" if details else label
+
+
 def _commit_channel_row(row):
     data = row.mapped_data
-    source, _ = SalesSource.objects.update_or_create(
-        source_type=data["source_type"], name=data["name"],
-        defaults={"category": _default_source_category(data["source_type"]), "phone": data.get("phone", ""), "fax": data.get("fax", ""), "address": data.get("address", ""), "vehicle_capacity": data.get("vehicle_capacity"), "note": data.get("note", "")},
+    source, _ = SalesSource.objects.get_or_create(
+        source_type=data["source_type"],
+        name=data["name"],
     )
-    if data.get("contact_name"):
-        SalesSourceContact.objects.update_or_create(
-            source=source, name=data["contact_name"], mobile=data.get("mobile", ""),
-            defaults={"phone": data.get("phone_2") or data.get("phone", ""), "extension": data.get("extension", ""), "email": data.get("email", "")},
-        )
+    source.category = _default_source_category(data["source_type"])
+    source.phone = data.get("phone", "")
+    source.fax = data.get("fax", "")
+    source.address = data.get("address", "")
+    source.vehicle_capacity = data.get("vehicle_capacity")
+    source.note = _merge_note_lines(
+        source.note,
+        [data.get("note", ""), _channel_contact_note(data)],
+    )
+    source.save()
     row.committed_model = "SalesSource"
     row.committed_pk = str(source.pk)
 

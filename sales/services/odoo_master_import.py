@@ -14,7 +14,6 @@ from sales.models import (
     SalesSource,
     SalesSourceCategory,
     SalesSourceBrandPolicy,
-    SalesSourceContact,
     VehicleColor,
     VehicleModel,
     VehiclePriceVersion,
@@ -91,6 +90,38 @@ def _legacy_note(note, max_length=None):
     return cleaned[:max_length] if max_length else cleaned
 
 
+def _merge_note_lines(base_note, lines):
+    """Merge useful legacy details into the single source note, idempotently."""
+    paragraphs = [part.strip() for part in (base_note or "").split("\n") if part.strip()]
+    for line in lines:
+        cleaned = (line or "").strip()
+        if cleaned and cleaned not in paragraphs:
+            paragraphs.append(cleaned)
+    return "\n".join(paragraphs)
+
+
+def _legacy_contact_note_lines(dealer):
+    people = []
+    owner = (dealer.get("owner_name") or "").strip()
+    manager = (dealer.get("store_manager") or "").strip()
+    if owner and owner != "未知":
+        people.append((owner, "負責人", dealer.get("phone_1") or ""))
+    if manager and manager != "未知" and manager != owner:
+        people.append((manager, "聯絡人", dealer.get("phone_2") or ""))
+    lines = []
+    for person, relationship, phone in people:
+        details = [f"電話：{phone.strip()}"] if phone and phone.strip() else []
+        mobile = (dealer.get("mobile") or "").strip()
+        email = (dealer.get("email") or "").strip()
+        if mobile:
+            details.append(f"手機：{mobile}")
+        if email:
+            details.append(f"Email：{email}")
+        line = f"歷史聯絡資料：{person}（{relationship}）"
+        lines.append(f"{line}｜{'／'.join(details)}" if details else line)
+    return lines
+
+
 def _legacy_price_source_note(note):
     """Keep useful pricing context without exposing obsolete system metadata."""
     note = (note or "").strip()
@@ -138,6 +169,9 @@ def _source_for_legacy(dealer, summary, apply):
         name=category_name,
         defaults={"system_behavior": source_type, "active": True},
     )
+    imported_note = _merge_note_lines(
+        _legacy_note(dealer.get("note")), _legacy_contact_note_lines(dealer)
+    )
     defaults = {
         "source_type": source_type,
         "category": category,
@@ -149,8 +183,7 @@ def _source_for_legacy(dealer, summary, apply):
         "vehicle_capacity": capacity,
         "holiday_gift": bool(dealer.get("holiday_gift")),
         "has_line_group": has_line_group,
-        "relationship_note": "",
-        "note": _legacy_note(dealer.get("note")),
+        "note": imported_note,
         "active": bool(dealer.get("active", True)),
     }
     if existing:
@@ -158,7 +191,7 @@ def _source_for_legacy(dealer, summary, apply):
             current = getattr(existing, field)
             if field == "note":
                 cleaned_current = _legacy_note(current)
-                setattr(existing, field, cleaned_current or value)
+                setattr(existing, field, _merge_note_lines(cleaned_current, value.split("\n")))
             elif field == "has_line_group":
                 if value:
                     setattr(existing, field, True)
@@ -171,31 +204,7 @@ def _source_for_legacy(dealer, summary, apply):
         source = SalesSource.objects.create(**defaults)
         summary["sources_create"] += 1
 
-    people = []
-    owner = (dealer.get("owner_name") or "").strip()
-    manager = (dealer.get("store_manager") or "").strip()
-    if owner and owner != "未知":
-        people.append((owner, "負責人"))
-    if manager and manager != "未知" and manager != owner:
-        people.append((manager, "聯絡窗口"))
-    for index, (person, relationship) in enumerate(people):
-        SalesSourceContact.objects.update_or_create(
-            source=source,
-            name=person,
-            relationship=relationship,
-            defaults={
-                "phone": (
-                    dealer.get("phone_2")
-                    if index and dealer.get("phone_2")
-                    else dealer.get("phone_1") or ""
-                ),
-                "mobile": dealer.get("mobile") or "",
-                "email": dealer.get("email") or "",
-                "note": "",
-                "active": bool(dealer.get("active", True)),
-            },
-        )
-        summary["contacts_upsert"] += 1
+    summary["source_notes_merged"] += len(_legacy_contact_note_lines(dealer))
     return source
 
 

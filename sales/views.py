@@ -75,7 +75,6 @@ from .forms import (
     SalesSourceBrandPolicyFormSet,
     SalesSourceCategoryForm,
     SalesSourceCooperationForm,
-    SalesSourceContactFormSet,
     SalesSourceForm,
     SignedContractForm,
     SubsidyDataForm,
@@ -119,7 +118,6 @@ from .models import (
     SalesSource,
     SalesSourceBrandPolicy,
     SalesSourceCategory,
-    SalesSourceContact,
     Store,
     SubsidyDocument,
     TaiwanCounty,
@@ -864,22 +862,17 @@ def sales_source_list(request):
     ).strip()
     holiday_gift = request.GET.get("holiday_gift", "")
     line_group = request.GET.get("line_group", "").strip()
-    sources = SalesSource.objects.annotate(
-        contact_count=Count("contacts", distinct=True),
-    ).select_related("category").order_by("source_type", "category__name", "name", "id")
+    sources = SalesSource.objects.select_related("category").order_by(
+        "source_type", "category__name", "name", "id"
+    )
     if keyword:
         keyword_filter = (
             Q(name__icontains=keyword)
             | Q(code__icontains=keyword)
             | Q(address__icontains=keyword)
             | Q(phone__icontains=keyword)
-            | Q(relationship_note__icontains=keyword)
             | Q(note__icontains=keyword)
             | Q(category__name__icontains=keyword)
-            | Q(contacts__name__icontains=keyword)
-            | Q(contacts__phone__icontains=keyword)
-            | Q(contacts__mobile__icontains=keyword)
-            | Q(contacts__email__icontains=keyword)
         )
         if any(keyword in label for label in ("年節送禮", "送禮", "月餅")):
             keyword_filter |= Q(holiday_gift=True)
@@ -949,7 +942,6 @@ def sales_source_list(request):
         Q(effective_to__isnull=True) | Q(effective_to__gte=today)
     ).order_by("cooperation_scope", "-effective_from", "-pk")
     page = Paginator(sources.prefetch_related(
-        "contacts",
         Prefetch(
             "brand_policies",
             queryset=current_policy_queryset,
@@ -1100,9 +1092,6 @@ def sales_source_form(request, pk=None):
         prefix="cooperation",
         cooperation_states=brand_overview["states"],
     )
-    contact_formset = SalesSourceContactFormSet(
-        post_data, instance=source, prefix="contacts"
-    )
     scoped_policies = (
         source.brand_policies.filter(
             cooperation_scope__in=SalesSourceCooperationForm.FIELD_BY_SCOPE
@@ -1120,13 +1109,10 @@ def sales_source_form(request, pk=None):
         (
             form.is_valid(),
             cooperation_form.is_valid(),
-            contact_formset.is_valid(),
             policy_formset.is_valid(),
         )
     ):
         source = form.save()
-        contact_formset.instance = source
-        contact_formset.save()
         policy_formset.instance = source
         policy_formset.save()
         _sync_sales_source_cooperation_scopes(
@@ -1143,7 +1129,6 @@ def sales_source_form(request, pk=None):
         {
             "form": form,
             "cooperation_form": cooperation_form,
-            "contact_formset": contact_formset,
             "policy_formset": policy_formset,
             "source": source if source.pk else None,
             "brand_overview": brand_overview,

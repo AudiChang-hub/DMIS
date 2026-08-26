@@ -7,7 +7,6 @@ from sales.models import (
     DealerVolumeBonusRule,
     SalesSource,
     SalesSourceBrandPolicy,
-    SalesSourceContact,
 )
 
 
@@ -17,11 +16,6 @@ class CleanLegacyOdooNoteMarkersTests(TestCase):
             name="測試車行",
             source_type=SalesSource.SourceType.DEALER,
             note="[Odoo 遷移 ID:183]\n真正的人工作業備註",
-        )
-        contact = SalesSourceContact.objects.create(
-            source=source,
-            name="王先生",
-            note="[Odoo 車行窗口 遷移 ID:183]",
         )
         policy = SalesSourceBrandPolicy.objects.create(
             source=source,
@@ -42,10 +36,8 @@ class CleanLegacyOdooNoteMarkersTests(TestCase):
         migration.clean_legacy_odoo_note_markers(django_apps, None)
 
         source.refresh_from_db()
-        contact.refresh_from_db()
         policy.refresh_from_db()
         bonus.refresh_from_db()
         self.assertEqual(source.note, "真正的人工作業備註")
-        self.assertEqual(contact.note, "")
         self.assertEqual(policy.note, "原品牌授權：authorized")
         self.assertEqual(bonus.note, "說明前段\n說明後段")

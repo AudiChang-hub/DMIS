@@ -546,6 +546,7 @@ class ChannelFinanceTests(TestCase):
             {
                 "category": category.pk,
                 "name": "文傑",
+                "note": "熟客介紹，聯繫前先傳訊息",
                 "active": "on",
                 "contacts-TOTAL_FORMS": "0",
                 "contacts-INITIAL_FORMS": "0",
@@ -562,6 +563,7 @@ class ChannelFinanceTests(TestCase):
         source = SalesSource.objects.get(name="文傑")
         self.assertEqual(source.source_type, SalesSource.SourceType.STORE)
         self.assertEqual(source.category, category)
+        self.assertEqual(source.note, "熟客介紹，聯繫前先傳訊息")
 
     def test_dealer_source_form_saves_line_group_scope_and_keeps_code_readonly(self):
         category, _ = SalesSourceCategory.objects.get_or_create(
@@ -603,6 +605,9 @@ class ChannelFinanceTests(TestCase):
             reverse("sales_source_edit", args=[source.pk])
         )
         self.assertContains(edit_response, "車行名稱")
+        self.assertContains(edit_response, "備註")
+        self.assertNotContains(edit_response, "聯絡窗口")
+        self.assertNotContains(edit_response, "contacts-TOTAL_FORMS")
         self.assertContains(edit_response, "系統資訊")
         self.assertContains(edit_response, "D-LINE-01")
         self.assertNotContains(edit_response, 'name="code"')

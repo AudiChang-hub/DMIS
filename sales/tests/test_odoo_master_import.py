@@ -120,13 +120,13 @@ class OdooMasterImportTests(TestCase):
         policy = SalesSourceBrandPolicy.objects.get(
             source=source, brand="SUZUKI", effective_from=date(2026, 1, 1)
         )
-        self.assertEqual(source.contacts.count(), 2)
         self.assertTrue(source.holiday_gift)
         self.assertTrue(source.has_line_group)
         self.assertEqual(source.line_group_scope, "")
-        self.assertEqual(source.relationship_note, "")
-        self.assertEqual(source.note, "")
-        self.assertFalse(source.contacts.exclude(note="").exists())
+        self.assertIn("歷史聯絡資料：王老闆（負責人）", source.note)
+        self.assertIn("歷史聯絡資料：李窗口（聯絡人）", source.note)
+        self.assertEqual(source.note.count("歷史聯絡資料：王老闆"), 1)
+        self.assertEqual(source.note.count("歷史聯絡資料：李窗口"), 1)
         self.assertEqual(policy.commission_adjustment, 500)
         self.assertEqual(policy.note, "特別加碼")
         self.assertEqual(model.displacement_cc, 124)
@@ -161,7 +161,8 @@ class OdooMasterImportTests(TestCase):
         import_odoo_master_data(payload, apply=True)
 
         source = SalesSource.objects.get(code="D010")
-        self.assertEqual(source.note, "請先電話聯絡")
+        self.assertTrue(source.note.startswith("請先電話聯絡\n"))
+        self.assertIn("歷史聯絡資料：王老闆（負責人）", source.note)
         self.assertNotIn("遷移 ID:", source.note)
 
     def test_price_import_preserves_human_source_note_without_system_marker(self):

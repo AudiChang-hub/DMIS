@@ -43,9 +43,8 @@
       <div>
         <p class="eyebrow">車行聯絡設定</p>
         <h2>LINE 群組</h2>
-        <p class="muted">記錄車行是否有 LINE 群組以及群組涵蓋範圍；這不會改變價格表提供對象或傭金。</p>
+        <p class="muted">只記錄車行是否有 LINE 群組；群組涵蓋內容以價格表提供對象為準。</p>
       </div>
-      {% if source.has_line_group and not source.line_group_scope %}<span class="line-group-pending">待補群組特性</span>{% endif %}
     </div>
 
     <div class="line-group-presence" data-line-group-presence>
@@ -57,20 +56,6 @@
       {% endfor %}
     </div>
     {% if form.line_group_presence.errors %}<div class="formset-errors">{{ form.line_group_presence.errors }}</div>{% endif %}
-
-    <div class="line-group-scope-panel" data-line-group-scope-panel>
-      <strong>群組特性</strong>
-      <p class="muted">「都有」代表群組同時包含 SYM、SUZUKI 油車及 SUZUKI 電車。</p>
-      <div class="line-group-scope-grid">
-        {% for choice in form.line_group_scope %}
-          <label class="line-group-scope-option">
-            {{ choice.tag }}
-            <span>{{ choice.choice_label }}</span>
-          </label>
-        {% endfor %}
-      </div>
-      {% if form.line_group_scope.errors %}<div class="formset-errors">{{ form.line_group_scope.errors }}</div>{% endif %}
-    </div>
   </section>
 
   <section class="form-section static-section source-editor-section dealer-brand-section dealer-only-section" id="brand-policies" data-dealer-only>
@@ -186,7 +171,6 @@
   const categorySelect = document.getElementById("id_category");
   const nameLabel = document.querySelector("[data-source-name-field] label");
   const presence = document.querySelector("[data-line-group-presence]");
-  const scopePanel = document.querySelector("[data-line-group-scope-panel]");
 
   const cooperationLabels = {
     sym: "三陽 SYM 價格表",
@@ -230,9 +214,6 @@
 
   function updateLineGroup() {
     updateChoiceCards(presence, ".line-group-presence-option");
-    updateChoiceCards(scopePanel, ".line-group-scope-option");
-    const enabled = presence?.querySelector('input[value="yes"]')?.checked;
-    if (scopePanel) scopePanel.hidden = !enabled;
   }
 
   function updateSourceContext() {
@@ -289,7 +270,6 @@
   document.querySelector("[data-cooperation-overview]")?.addEventListener("change", updateBrandOverview);
   categorySelect?.addEventListener("change", updateSourceContext);
   presence?.addEventListener("change", updateLineGroup);
-  scopePanel?.addEventListener("change", updateLineGroup);
   bindRemove();
   updateBrandOverview();
   updateSourceContext();

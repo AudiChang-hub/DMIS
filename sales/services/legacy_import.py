@@ -41,7 +41,7 @@ MISSING_IDENTIFIER_MESSAGE = "缺少引擎／車身號碼"
 EMPTY_SALES_PLACEHOLDER_MESSAGE = "Excel 空白公式列，系統自動略過"
 NON_VEHICLE_SALES_NOISE_MESSAGE = "缺少有效車輛序號且無交易資料，系統自動略過"
 INVALID_EMAIL_MESSAGE = "Email 格式不正確，請修正或清空後再匯入"
-PREVIEW_SCHEMA_VERSION = 4
+PREVIEW_SCHEMA_VERSION = 5
 SYSTEM_VALIDATION_MESSAGES = {
     DUPLICATE_IDENTIFIER_MESSAGE,
     MULTIPLE_NEW_SALES_MESSAGE,
@@ -386,6 +386,28 @@ def _clean_sales_source_name(value):
     return cleaned.strip(" -－—／/")
 
 
+def _join_unique_note_lines(*values):
+    """合併歷史備註，避免匯入或重新驗證時重複加入相同標記。"""
+    lines = []
+    for value in values:
+        for line in _text(value).splitlines():
+            normalized = line.strip()
+            if normalized and normalized not in lines:
+                lines.append(normalized)
+    return "\n".join(lines)
+
+
+def _sales_order_note(raw, dealer_name, transaction_type, current_note=""):
+    """把車行名稱中的交易註記移到訂單備註，不污染通路主檔名稱。"""
+    note = _join_unique_note_lines(current_note, raw.get("備註"))
+    if (
+        transaction_type == SalesOrder.TransactionType.TEST_RIDE
+        and "試乘" in _text(dealer_name).replace(" ", "")
+    ):
+        note = _join_unique_note_lines(note, "試乘車")
+    return note
+
+
 def _sales_transaction_key(data):
     """建立可重跑的銷售交易鍵；同車後續中古車轉售應是另一筆交易。"""
     identifier = data.get("identifier") or ""
@@ -507,6 +529,7 @@ def _operations_sales_rows(batch, workbook):
             sales_category,
         )
         dealer_name = _clean_sales_source_name(dealer_name_raw)
+        order_note = _sales_order_note(raw, dealer_name_raw, transaction_type)
         mapped = {
             "vehicle_category": vehicle_category,
             "vehicle_category_reason": vehicle_category_reason,
@@ -553,6 +576,7 @@ def _operations_sales_rows(batch, workbook):
             "standard_gift": _text(_value(row_values, "CC")),
             "company_gift": _text(_value(row_values, "CI")),
             "sales_category": sales_category,
+            "note": order_note,
         }
         natural_key = _sales_transaction_key(mapped)
         name_mismatch = bool(mapped["owner_name_primary"] and mapped["owner_name_detail"] and mapped["owner_name_primary"] != mapped["owner_name_detail"])
@@ -751,6 +775,12 @@ def revalidate_import_batch(batch):
             )
             mapped_data["transaction_type"] = transaction_type
             mapped_data["transaction_type_reason"] = reason
+        mapped_data["note"] = _sales_order_note(
+            row.raw_data,
+            mapped_data.get("dealer_name_raw", ""),
+            mapped_data.get("transaction_type"),
+            mapped_data.get("note", ""),
+        )
         row.mapped_data = mapped_data
     inventory_identifier_counts = {}
     sales_new_identifier_counts = {}
@@ -1246,6 +1276,7 @@ def _commit_sales_row(row, actor_name):
         installment_company=data["installment_company"], installment_periods=data["installment_periods"],
         trade_in_plate=data["trade_in_plate"], old_owner_name=data["old_owner_name"], old_owner_id_number=data["old_owner_id_number"],
         subsidy_type=data["subsidy_type"],
+        note=data.get("note", ""),
         is_trade_in_subsidy=(
             vehicle_category == SalesOrder.VehicleCategory.NEW
             and bool(data["subsidy_type"] or data["trade_in_plate"])

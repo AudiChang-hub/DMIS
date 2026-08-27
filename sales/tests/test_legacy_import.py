@@ -33,6 +33,7 @@ from sales.services.legacy_import import (
     _clean_sales_source_name,
     _infer_sales_transaction_type,
     _infer_sales_vehicle_category,
+    _sales_order_note,
     apply_import_row_decision,
     build_import_master_workspace,
     build_import_preview,
@@ -200,6 +201,40 @@ class LegacyImportTests(TestCase):
         self.assertEqual(order.legacy_snapshot.historical_received_price, 70000)
         self.assertEqual(LegacySalesSnapshot.objects.count(), 1)
         self.assertEqual(VehicleInventory.objects.get().status, VehicleInventory.Status.SOLD)
+
+    def test_trial_vehicle_source_suffix_becomes_order_note(self):
+        SalesSource.objects.create(
+            name="昌勝",
+            source_type=SalesSource.SourceType.DEALER,
+            active=True,
+        )
+        workbook = load_workbook(BytesIO(workbook_bytes()))
+        workbook["銷貨"]["AN3"] = "車行"
+        workbook["銷貨"]["AN4"] = "昌勝(試乘車)"
+        stream = BytesIO()
+        workbook.save(stream)
+        upload = SimpleUploadedFile("trial-vehicle.xlsx", stream.getvalue())
+        batch = LegacyImportBatch.objects.create(
+            import_type=LegacyImportBatch.ImportType.OPERATIONS,
+            source_file=upload,
+            original_filename="trial-vehicle.xlsx",
+            file_sha256=file_sha256(upload),
+            file_size=len(stream.getvalue()),
+            uploaded_by="tester",
+        )
+
+        build_import_preview(batch)
+        sales_row = batch.rows.get(sheet_name="銷貨")
+        self.assertEqual(sales_row.mapped_data["dealer_name"], "昌勝")
+        self.assertEqual(sales_row.mapped_data["transaction_type"], "test_ride")
+        self.assertEqual(sales_row.mapped_data["note"], "試乘車")
+
+        confirm_import(batch, "tester")
+
+        order = SalesOrder.objects.get(owner_name="正式車主")
+        self.assertEqual(order.source.name, "昌勝")
+        self.assertEqual(order.transaction_type, SalesOrder.TransactionType.TEST_RIDE)
+        self.assertEqual(order.note, "試乘車")
 
     def test_invalid_email_is_reported_during_preview(self):
         workbook = load_workbook(BytesIO(workbook_bytes()))
@@ -376,6 +411,21 @@ class LegacyImportTests(TestCase):
                 {}, "中古車", SalesOrder.VehicleCategory.USED
             )[0],
             SalesOrder.TransactionType.USED,
+        )
+        self.assertEqual(
+            _sales_order_note(
+                {}, "昌勝(試乘車)", SalesOrder.TransactionType.TEST_RIDE
+            ),
+            "試乘車",
+        )
+        self.assertEqual(
+            _sales_order_note(
+                {"備註": "客戶指定"},
+                "昌勝（試乘車）",
+                SalesOrder.TransactionType.TEST_RIDE,
+                "試乘車",
+            ),
+            "試乘車\n客戶指定",
         )
 
     def test_used_vehicle_resale_can_share_identifier_without_reusing_inventory(self):

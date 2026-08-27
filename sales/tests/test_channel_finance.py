@@ -976,8 +976,11 @@ class ChannelFinanceTests(TestCase):
         self.assertEqual(response.status_code, 200)
         for name, tone, _profiles in scenarios:
             cell_start = html.index(name)
-            row = html[cell_start : html.index("</tr>", cell_start)]
-            self.assertIn(f"line-group-scope-marker--{tone}", row)
+            row_start = html.rfind("<tr", 0, cell_start)
+            row = html[row_start : html.index("</tr>", cell_start)]
+            self.assertIn(f"source-identity__label--{tone}", row)
+        self.assertNotContains(response, "line-group-scope-marker")
+        self.assertNotContains(response, "cooperation-line-status")
         self.assertContains(response, "有 LINE 群組：三陽專銷，並與台鈴合作")
         self.assertContains(response, "有 LINE 群組：三陽與台鈴一般合作")
         self.assertContains(response, "有 LINE 群組：僅台鈴合作")

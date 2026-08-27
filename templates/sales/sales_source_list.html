@@ -49,8 +49,10 @@
       {% for item in sources %}
         <tr>
           <td data-label="車行／平台／人員" class="source-identity">
-            {% if item.code %}<span class="source-identity__code">{{ item.code }}</span>{% endif %}
-            <strong>{{ item.name }}</strong>
+            <div class="source-identity__label{% if item.has_line_group %} has-line-group source-identity__label--{{ item.line_group_marker.tone }}{% endif %}"{% if item.has_line_group %} aria-label="{{ item.name }}；{{ item.line_group_marker.description }}" title="{{ item.line_group_marker.description }}"{% endif %}>
+              {% if item.code %}<span class="source-identity__code">{{ item.code }}</span>{% endif %}
+              <strong>{{ item.name }}</strong>
+            </div>
             <span>{{ item.list_type_label }}</span>
           </td>
           <td data-label="聯絡資料">
@@ -61,7 +63,7 @@
             {% if item.mobile %}<span>手機 {{ item.mobile }}</span>{% endif %}
             {% if not item.phone and not item.phone_secondary and not item.mobile %}<span>未填電話</span>{% endif %}
           </td>
-          <td data-label="合作資料與 LINE 群組" class="cooperation-cell{% if item.has_line_group %} cooperation-cell--{{ item.line_group_marker.tone }}{% endif %}">
+          <td data-label="合作資料與 LINE 群組" class="cooperation-cell">
             {% if item.source_type == 'dealer' %}
               {% if item.cooperation_overview.cooperating_count %}
                 <div class="cooperation-summary">
@@ -73,10 +75,9 @@
                       </div>
                     {% endfor %}
                   </div>
-                  {% if item.has_line_group %}<div class="cooperation-line-status has-group"><span class="line-group-scope-marker line-group-scope-marker--{{ item.line_group_marker.tone }}" role="img" aria-label="{{ item.line_group_marker.description }}" title="{{ item.line_group_marker.description }}"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M5.4 4.5h9.2a4.4 4.4 0 0 1 0 8.8H10l-3.7 3v-3.2a4.4 4.4 0 0 1-.9-8.6Zm7.7 10.3h3.7a3.6 3.6 0 0 0 2.6-1.1v4.8l-2.9-2.3h-3.4v-1.4Z"/></svg><span class="visually-hidden">{{ item.line_group_marker.description }}</span></span></div>{% else %}<div class="cooperation-line-status"><i aria-hidden="true"></i><span>無 LINE 群組</span></div>{% endif %}
                 </div>
               {% else %}
-                <div class="cooperation-summary is-empty"><span>尚未設定合作類別</span>{% if item.has_line_group %}<div class="cooperation-line-status has-group"><span class="line-group-scope-marker line-group-scope-marker--{{ item.line_group_marker.tone }}" role="img" aria-label="{{ item.line_group_marker.description }}" title="{{ item.line_group_marker.description }}"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M5.4 4.5h9.2a4.4 4.4 0 0 1 0 8.8H10l-3.7 3v-3.2a4.4 4.4 0 0 1-.9-8.6Zm7.7 10.3h3.7a3.6 3.6 0 0 0 2.6-1.1v4.8l-2.9-2.3h-3.4v-1.4Z"/></svg><span class="visually-hidden">{{ item.line_group_marker.description }}</span></span></div>{% else %}<div class="cooperation-line-status"><i aria-hidden="true"></i><span>無 LINE 群組</span></div>{% endif %}</div>
+                <div class="cooperation-summary is-empty"><span>尚未設定合作類別</span></div>
               {% endif %}
             {% else %}<span class="gift-not-required">不適用</span>{% endif %}
           </td>

@@ -985,6 +985,10 @@ def sales_source_list(request):
             item,
             item.cooperation_overview,
         )
+        item.line_group_marker = _sales_source_line_group_marker(
+            item,
+            item.cooperation_overview,
+        )
     return render(
         request,
         "sales/sales_source_list.html",
@@ -1306,6 +1310,11 @@ def _sales_source_brand_overview(source, policies=None, profiles=None):
                     "relationship_type": (
                         profile.get_relationship_type_display() if profile else "一般"
                     ),
+                    "relationship_type_code": (
+                        profile.relationship_type
+                        if profile
+                        else SalesSourceCooperationProfile.RelationshipType.GENERAL
+                    ),
                     "vehicle_capacity": profile.vehicle_capacity if profile else None,
                     "note": profile.note if profile else "",
                 }
@@ -1349,6 +1358,61 @@ def _sales_source_list_type_label(source, cooperation_overview):
     if "專銷" in relationship_types:
         return "專銷車行"
     return "一般車行"
+
+
+def _sales_source_line_group_marker(source, cooperation_overview):
+    """Return the familiar LINE-group colour used for each cooperation scope."""
+    if not source.has_line_group:
+        return {
+            "tone": "none",
+            "description": "無 LINE 群組",
+        }
+
+    cooperation_by_scope = {
+        item["scope"]: item
+        for item in cooperation_overview.get("cooperating", [])
+    }
+    has_sym = SalesSourceBrandPolicy.CooperationScope.SYM in cooperation_by_scope
+    has_suzuki = any(
+        scope in cooperation_by_scope
+        for scope in (
+            SalesSourceBrandPolicy.CooperationScope.SUZUKI_GAS,
+            SalesSourceBrandPolicy.CooperationScope.SUZUKI_ELECTRIC,
+        )
+    )
+    sym_profile = cooperation_by_scope.get(
+        SalesSourceBrandPolicy.CooperationScope.SYM
+    )
+    sym_is_exclusive = bool(
+        sym_profile
+        and sym_profile["relationship_type_code"]
+        == SalesSourceCooperationProfile.RelationshipType.EXCLUSIVE
+    )
+
+    if has_sym and has_suzuki and sym_is_exclusive:
+        return {
+            "tone": "sym-exclusive",
+            "description": "有 LINE 群組：三陽專銷，並與台鈴合作",
+        }
+    if has_sym and has_suzuki:
+        return {
+            "tone": "mixed",
+            "description": "有 LINE 群組：三陽與台鈴一般合作",
+        }
+    if has_suzuki:
+        return {
+            "tone": "suzuki",
+            "description": "有 LINE 群組：僅台鈴合作",
+        }
+    if has_sym:
+        return {
+            "tone": "sym",
+            "description": "有 LINE 群組：僅三陽合作",
+        }
+    return {
+        "tone": "unclassified",
+        "description": "有 LINE 群組：合作範圍尚未設定",
+    }
 
 
 @login_required

@@ -1649,39 +1649,6 @@ class VehicleIncentiveRule(TimeStampedModel):
         return f"{self.vehicle_model}／{self.effective_from:%Y/%m/%d}"
 
 
-class VehicleIncentiveInstallmentRate(TimeStampedModel):
-    incentive_rule = models.ForeignKey(
-        VehicleIncentiveRule,
-        on_delete=models.CASCADE,
-        related_name="installment_rates",
-        verbose_name="獎勵補助版本",
-    )
-    periods = models.PositiveSmallIntegerField(
-        "分期期數",
-        validators=[MinValueValidator(1)],
-    )
-    rate = models.DecimalField(
-        "實際撥款比例（%）",
-        max_digits=5,
-        decimal_places=2,
-        validators=[MinValueValidator(0), MaxValueValidator(100)],
-    )
-
-    class Meta:
-        ordering = ["periods", "id"]
-        constraints = [
-            models.UniqueConstraint(
-                fields=["incentive_rule", "periods"],
-                name="unique_incentive_installment_periods",
-            )
-        ]
-        verbose_name = "分期期數撥款比例"
-        verbose_name_plural = "分期期數撥款比例"
-
-    def __str__(self):
-        return f"{self.periods} 期／{self.rate}%"
-
-
 class VehicleColor(TimeStampedModel):
     vehicle_model = models.ForeignKey(
         VehicleModel,
@@ -2919,26 +2886,6 @@ class OrderOperationsProfile(TimeStampedModel):
         on_delete=models.SET_NULL,
         related_name="order_snapshots",
         verbose_name="套用獎勵補助版本",
-        blank=True,
-        null=True,
-    )
-    incentive_installment_rate_rule = models.ForeignKey(
-        VehicleIncentiveInstallmentRate,
-        on_delete=models.SET_NULL,
-        related_name="order_snapshots",
-        verbose_name="套用分期期數比例",
-        blank=True,
-        null=True,
-    )
-    incentive_installment_periods = models.PositiveSmallIntegerField(
-        "撥款認列分期期數",
-        blank=True,
-        null=True,
-    )
-    incentive_installment_rate = models.DecimalField(
-        "撥款認列比例（%）",
-        max_digits=5,
-        decimal_places=2,
         blank=True,
         null=True,
     )

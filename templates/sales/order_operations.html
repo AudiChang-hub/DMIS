@@ -44,15 +44,15 @@
     </div>
     <div class="note-box">
       <strong>實際撥款計算</strong>
-      <p>現金依車款售價自動帶入；分期依領牌日適用版本及訂單期數計算；網路平台與刷卡訂單由人員輸入。人工修改後不再被系統覆蓋。</p>
+      <p>現金依車款售價自動帶入；分期依訂單日套用的分期方案快照帶入；網路平台與刷卡訂單由人員輸入。人工修改後不再被系統覆蓋。</p>
       {% if order.payment_type == "installment" %}
         {% if order.installment_plan_snapshot.extra_disbursement_bonus %}
         <p><strong>額外撥款獎金：</strong>${{ order.installment_plan_snapshot.extra_disbursement_bonus|floatformat:0 }}（已包含在預估撥款與實際撥款試算，不會另外重複計入單筆淨利）</p>
         {% endif %}
-        {% if profile.incentive_installment_rate %}
-        <p><strong>本單套用：</strong>{{ profile.incentive_installment_periods }} 期 × {{ profile.incentive_installment_rate }}%</p>
-        {% elif profile.incentive_rule %}
-        <p class="field-error">目前版本尚未維護 {{ order.installment_periods }} 期撥款比例，請先至車型資料補設定，或人工輸入實際撥款。</p>
+        {% if order.installment_plan_snapshot.expected_disbursement_amount != None %}
+        <p><strong>本單預估撥款：</strong>${{ order.installment_plan_snapshot.expected_disbursement_amount|floatformat:0 }} · {{ order.installment_periods }} 期 · {{ order.installment_plan_snapshot.expected_disbursement_method_label }}</p>
+        {% else %}
+        <p class="field-error">本單套用的分期方案未設定預估撥款，請至車型的分期方案補設定，或人工輸入實際撥款。</p>
         {% endif %}
       {% endif %}
     </div>

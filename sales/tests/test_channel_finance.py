@@ -673,7 +673,7 @@ class ChannelFinanceTests(TestCase):
         response = self.client.get(reverse("sales_source_edit", args=[self.dealer.pk]))
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "價格表提供對象")
+        self.assertContains(response, "合作類別")
         self.assertContains(response, "台鈴油車")
         self.assertContains(response, "台鈴電車")
         self.assertContains(response, "三陽 SYM")
@@ -759,7 +759,7 @@ class ChannelFinanceTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, self.dealer.name)
-        self.assertContains(response, "價格表提供對象")
+        self.assertContains(response, "合作類別")
         self.assertContains(response, "台鈴油車")
 
     def test_source_list_uses_compact_cooperation_and_holiday_summaries(self):
@@ -770,9 +770,46 @@ class ChannelFinanceTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "年節送禮名單")
         self.assertContains(response, "管理名單")
-        self.assertContains(response, "價格表提供對象")
+        self.assertNotContains(response, "價格表提供對象")
         self.assertContains(response, "cooperation-summary__item")
         self.assertNotContains(response, "<b>需提供價格表</b>", html=False)
+
+    def test_source_list_uses_clear_identity_holiday_and_capacity_display(self):
+        category, _ = SalesSourceCategory.objects.get_or_create(
+            name="一般車行",
+            defaults={"system_behavior": SalesSource.SourceType.DEALER},
+        )
+        self.dealer.code = "N26032615"
+        self.dealer.category = category
+        self.dealer.holiday_gift = True
+        self.dealer.save(
+            update_fields=["code", "category", "holiday_gift", "updated_at"]
+        )
+        SalesSourceCooperationProfile.objects.create(
+            source=self.dealer,
+            cooperation_scope=SalesSourceBrandPolicy.CooperationScope.SUZUKI_GAS,
+            cooperates=True,
+            relationship_type=SalesSourceCooperationProfile.RelationshipType.GENERAL,
+            vehicle_capacity=0,
+        )
+        self.client.force_login(self.user)
+
+        response = self.client.get(reverse("sales_source_list"))
+        html = response.content.decode()
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "N26032615")
+        self.assertContains(response, "一般車行")
+        self.assertContains(response, "名單內")
+        self.assertNotContains(response, "可停 0 台")
+        cell_start = html.index("N26032615")
+        identity_cell = html[cell_start : html.index("</td>", cell_start)]
+        self.assertLess(
+            identity_cell.index("N26032615"), identity_cell.index(self.dealer.name)
+        )
+        self.assertLess(
+            identity_cell.index(self.dealer.name), identity_cell.index("一般車行")
+        )
 
     def test_source_list_scope_filter_uses_latest_effective_state(self):
         SalesSourceBrandPolicy.objects.create(
@@ -934,7 +971,7 @@ class ChannelFinanceTests(TestCase):
         self.assertNotContains(response, "一般車行")
         self.assertNotContains(response, "測試平台")
         self.assertContains(response, "年節送禮 1 家")
-        self.assertContains(response, "需送禮")
+        self.assertContains(response, "名單內")
         self.assertContains(response, "返回全部通路")
         # 已在送禮名單時，不應再顯示同一個快速篩選連結；其他全站表單
         # （例如外觀設定）仍可安全保留目前查詢條件作為返回位置。

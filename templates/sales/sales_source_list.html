@@ -23,16 +23,16 @@
   <div class="inventory-filter master-search"><label for="source-q">全欄位搜尋</label><input id="source-q" type="search" name="q" value="{{ selected.q }}" placeholder="車行、負責人、電話、地址、合作或備註"></div>
   <div class="inventory-filter"><label for="source-type">類型</label><select id="source-type" name="type"><option value="">全部</option>{% for value,label in source_types %}<option value="{{ value }}" {% if selected.type == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
   <div class="inventory-filter"><label for="source-category">通路分類</label><select id="source-category" name="category"><option value="">全部分類</option>{% for item in source_categories %}<option value="{{ item.pk }}" {% if selected.category == item.pk|stringformat:'s' %}selected{% endif %}>{{ item.name }}</option>{% endfor %}</select></div>
-  <div class="inventory-filter"><label for="source-cooperation-scope">價格表提供對象</label><select id="source-cooperation-scope" name="cooperation_scope"><option value="">全部合作類別</option>{% for value,label in cooperation_scopes %}<option value="{{ value }}" {% if selected.cooperation_scope == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
+  <div class="inventory-filter"><label for="source-cooperation-scope">合作類別</label><select id="source-cooperation-scope" name="cooperation_scope"><option value="">全部合作類別</option>{% for value,label in cooperation_scopes %}<option value="{{ value }}" {% if selected.cooperation_scope == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
   <div class="inventory-filter"><label for="source-relationship-type">關係類型</label><select id="source-relationship-type" name="relationship_type"><option value="">全部關係</option>{% for value,label in relationship_types %}<option value="{{ value }}" {% if selected.relationship_type == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
   <div class="inventory-filter"><label for="source-line-group">LINE 群組</label><select id="source-line-group" name="line_group"><option value="">不限群組狀態</option><option value="yes" {% if selected.line_group == 'yes' %}selected{% endif %}>有 LINE 群組</option><option value="no" {% if selected.line_group == 'no' %}selected{% endif %}>無 LINE 群組</option></select></div>
-  <div class="inventory-filter"><label for="source-holiday-gift">年節送禮</label><select id="source-holiday-gift" name="holiday_gift"><option value="">不限送禮狀態</option><option value="yes" {% if selected.holiday_gift == 'yes' %}selected{% endif %}>需安排送禮</option><option value="no" {% if selected.holiday_gift == 'no' %}selected{% endif %}>不需安排</option></select></div>
+  <div class="inventory-filter"><label for="source-holiday-gift">年節名單</label><select id="source-holiday-gift" name="holiday_gift"><option value="">不限名單狀態</option><option value="yes" {% if selected.holiday_gift == 'yes' %}selected{% endif %}>已列入名單</option><option value="no" {% if selected.holiday_gift == 'no' %}selected{% endif %}>未列入名單</option></select></div>
   <div class="inventory-filter-actions"><a class="button ghost" href="{% url 'sales_source_list' %}">清除所有條件</a><button class="button primary">套用</button></div>
 </form>
 
 <section class="inventory-list-panel">
   <div class="inventory-list-summary source-list-summary">
-    <div class="source-list-summary__copy"><strong>{% if selected.holiday_gift == 'yes' %}正在查看年節送禮名單{% else %}共 {{ page_obj.paginator.count }} 個通路{% endif %}</strong><span>{% if selected.holiday_gift == 'yes' %}目前只顯示需要安排年節送禮的車行。{% else %}合作資料可直接辨認三陽、台鈴油車及台鈴電車的價格表提供對象。{% endif %}</span></div>
+    <div class="source-list-summary__copy"><strong>{% if selected.holiday_gift == 'yes' %}正在查看年節送禮名單{% else %}共 {{ page_obj.paginator.count }} 個通路{% endif %}</strong><span>{% if selected.holiday_gift == 'yes' %}目前只顯示已列入年節送禮名單的車行。{% else %}合作資料可直接辨認三陽、台鈴油車及台鈴電車的合作狀態。{% endif %}</span></div>
     <nav class="source-list-actions" aria-label="年節送禮名單操作">
       {% if selected.holiday_gift == 'yes' %}
         <a class="source-holiday-summary is-active" href="{% url 'sales_source_list' %}"><span>正在查看</span><strong>年節送禮 {{ holiday_gift_count }} 家</strong><small>返回全部通路</small></a>
@@ -44,11 +44,15 @@
   </div>
   <div class="inventory-table-wrap">
     <table class="inventory-table sales-source-table">
-      <thead><tr><th>車行／平台／人員</th><th>聯絡資料</th><th>合作資料與 LINE 群組</th><th>年節送禮</th><th>狀態</th><th></th></tr></thead>
+      <thead><tr><th>車行／平台／人員</th><th>聯絡資料</th><th>合作資料與 LINE 群組</th><th>年節名單</th><th>狀態</th><th></th></tr></thead>
       <tbody>
       {% for item in sources %}
         <tr>
-          <td data-label="車行／平台／人員"><strong>{{ item.name }}</strong><span>{{ item.category.name|default:item.get_source_type_display }} · {{ item.get_source_type_display }}</span>{% if item.code %}<span>系統代碼 {{ item.code }}</span>{% endif %}</td>
+          <td data-label="車行／平台／人員" class="source-identity">
+            {% if item.code %}<span class="source-identity__code">{{ item.code }}</span>{% endif %}
+            <strong>{{ item.name }}</strong>
+            <span>{{ item.category.name|default:item.get_source_type_display }}</span>
+          </td>
           <td data-label="聯絡資料">
             <strong>{{ item.responsible_person|default:"未填負責人" }}</strong>
             <span>{{ item.address|default:"未填地址" }}</span>
@@ -61,23 +65,22 @@
             {% if item.source_type == 'dealer' %}
               {% if item.cooperation_overview.cooperating_count %}
                 <div class="cooperation-summary">
-                  <div class="cooperation-summary__header"><strong>價格表提供對象</strong><span>{{ item.cooperation_overview.cooperating_count }} 項</span></div>
                   <div class="cooperation-summary__list">
                     {% for policy in item.cooperation_overview.cooperating %}
                       <div class="cooperation-summary__item">
                         <strong>{{ policy.label }}</strong>
-                        <span>{{ policy.relationship_type }}{% if policy.vehicle_capacity is not None %} · 可停 {{ policy.vehicle_capacity }} 台{% endif %}{% if policy.commission_adjustment > 0 %} · 傭金加 ${{ policy.commission_adjustment|floatformat:0 }}{% elif policy.commission_adjustment < 0 %} · 傭金減 ${{ policy.commission_adjustment|floatformat:0|slice:"1:" }}{% endif %}</span>
+                        <span>{{ policy.relationship_type }}{% if policy.vehicle_capacity %} · 可停 {{ policy.vehicle_capacity }} 台{% endif %}{% if policy.commission_adjustment > 0 %} · 傭金加 ${{ policy.commission_adjustment|floatformat:0 }}{% elif policy.commission_adjustment < 0 %} · 傭金減 ${{ policy.commission_adjustment|floatformat:0|slice:"1:" }}{% endif %}</span>
                       </div>
                     {% endfor %}
                   </div>
                   <div class="cooperation-line-status{% if item.has_line_group %} has-group{% endif %}"><i aria-hidden="true"></i><span>{% if item.has_line_group %}有 LINE 群組{% else %}無 LINE 群組{% endif %}</span></div>
                 </div>
               {% else %}
-                <div class="cooperation-summary is-empty"><span>尚未設定價格表提供對象</span><div class="cooperation-line-status{% if item.has_line_group %} has-group{% endif %}"><i aria-hidden="true"></i><span>{% if item.has_line_group %}有 LINE 群組{% else %}無 LINE 群組{% endif %}</span></div></div>
+                <div class="cooperation-summary is-empty"><span>尚未設定合作類別</span><div class="cooperation-line-status{% if item.has_line_group %} has-group{% endif %}"><i aria-hidden="true"></i><span>{% if item.has_line_group %}有 LINE 群組{% else %}無 LINE 群組{% endif %}</span></div></div>
               {% endif %}
             {% else %}<span class="gift-not-required">不適用</span>{% endif %}
           </td>
-          <td data-label="年節送禮">{% if item.source_type == 'dealer' %}{% if item.holiday_gift %}<span class="status-pill gift-required">需送禮</span>{% else %}<span class="gift-not-required">不需要</span>{% endif %}{% else %}<span class="gift-not-required">不適用</span>{% endif %}</td>
+          <td data-label="年節名單">{% if item.source_type == 'dealer' and item.holiday_gift %}<span class="holiday-list-marker" aria-label="已列入年節送禮名單"><svg viewBox="0 0 20 20" aria-hidden="true" focusable="false"><path d="M3.5 8.5h13v8h-13zM2.5 6h15v3h-15zM10 6v10.5M10 6H7.6a2.1 2.1 0 1 1 0-4.2C9.2 1.8 10 3.3 10 6Zm0 0h2.4a2.1 2.1 0 1 0 0-4.2C10.8 1.8 10 3.3 10 6Z"/></svg><span>名單內</span></span>{% else %}<span class="gift-not-required" aria-label="未列入年節送禮名單">—</span>{% endif %}</td>
           <td data-label="狀態"><span class="status-pill">{{ item.active|yesno:"啟用中,已停用" }}</span></td>
           <td class="inventory-row-action"><span class="row-action-buttons"><a class="button ghost small" href="{% url 'sales_source_edit' item.pk %}">編輯資料</a>{% if item.source_type == 'dealer' %}<a class="button secondary small" href="{% url 'sales_source_edit' item.pk %}#brand-policies">合作與傭金</a>{% endif %}</span></td>
         </tr>

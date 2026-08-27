@@ -1034,9 +1034,9 @@ class ChannelFinanceTests(TestCase):
                 "cooperation-suzuki_gas-vehicle_capacity": "",
                 "cooperation-suzuki_gas-note": "",
                 "cooperation-suzuki_electric-cooperates": "on",
-                "cooperation-suzuki_electric-relationship_type": "shareholder",
+                "cooperation-suzuki_electric-relationship_type": "general",
                 "cooperation-suzuki_electric-vehicle_capacity": "2",
-                "cooperation-suzuki_electric-note": "股東合作",
+                "cooperation-suzuki_electric-note": "一般合作",
                 "contacts-TOTAL_FORMS": "0",
                 "contacts-INITIAL_FORMS": "0",
                 "contacts-MIN_NUM_FORMS": "0",
@@ -1090,9 +1090,11 @@ class ChannelFinanceTests(TestCase):
         self.assertEqual(profiles["sym"].relationship_type, "exclusive")
         self.assertEqual(profiles["sym"].vehicle_capacity, 3)
         self.assertFalse(profiles["suzuki_gas"].cooperates)
-        self.assertEqual(
-            profiles["suzuki_electric"].relationship_type, "shareholder"
+        self.assertEqual(profiles["suzuki_electric"].relationship_type, "general")
+        relationship_choices = dict(
+            SalesSourceCooperationProfile.RelationshipType.choices
         )
+        self.assertEqual(relationship_choices, {"general": "一般", "exclusive": "專銷"})
 
     def test_sales_source_list_searches_contact_and_relationship_profile(self):
         self.dealer.responsible_person = "王老闆"

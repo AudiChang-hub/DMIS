@@ -415,6 +415,61 @@ class ChannelFinanceTests(TestCase):
         with self.assertRaises(ValueError):
             create_volume_bonus_settlement(rule, "finance")
 
+    def test_volume_bonus_list_defaults_to_dealers_with_sales(self):
+        rule = DealerVolumeBonusRule.objects.create(
+            dealer=self.dealer,
+            brand="SUZUKI",
+            starts_on=date(2026, 8, 1),
+            ends_on=date(2026, 8, 31),
+        )
+        DealerVolumeBonusTier.objects.create(
+            rule=rule, minimum_quantity=2, bonus_per_vehicle=Decimal("500")
+        )
+        self.client.force_login(self.user)
+
+        response = self.client.get(reverse("dealer_volume_bonus_list"))
+
+        self.assertNotContains(response, self.dealer.name)
+        self.assertContains(response, "目前沒有統計期間內已完成領牌")
+        self.assertContains(response, "全部規則（另 1 筆）")
+
+        all_rules_response = self.client.get(
+            reverse("dealer_volume_bonus_list") + "?show=all"
+        )
+        self.assertContains(all_rules_response, self.dealer.name)
+        self.assertContains(all_rules_response, "0 台")
+
+        self.make_order()
+        sales_response = self.client.get(reverse("dealer_volume_bonus_list"))
+        self.assertContains(sales_response, self.dealer.name)
+        self.assertContains(sales_response, "1 台")
+
+    def test_volume_bonus_never_counts_in_house_sources(self):
+        in_house = SalesSource.objects.create(
+            name="永湛",
+            source_type=SalesSource.SourceType.DEALER,
+        )
+        rule = DealerVolumeBonusRule.objects.create(
+            dealer=in_house,
+            brand="SUZUKI",
+            starts_on=date(2026, 8, 1),
+            ends_on=date(2026, 8, 31),
+        )
+        DealerVolumeBonusTier.objects.create(
+            rule=rule, minimum_quantity=1, bonus_per_vehicle=Decimal("500")
+        )
+        SalesSource.objects.filter(pk=in_house.pk).update(
+            source_type=SalesSource.SourceType.STORE
+        )
+        rule.refresh_from_db()
+        self.client.force_login(self.user)
+
+        self.assertEqual(preview_volume_bonus(rule)["quantity"], 0)
+        response = self.client.get(
+            reverse("dealer_volume_bonus_list") + "?show=all"
+        )
+        self.assertNotContains(response, "永湛")
+
     def test_adjusted_settlement_requires_reason(self):
         settlement = DealerVolumeBonusSettlement(
             rule=DealerVolumeBonusRule(

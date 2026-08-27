@@ -51,7 +51,7 @@
           <td data-label="車行／平台／人員" class="source-identity">
             {% if item.code %}<span class="source-identity__code">{{ item.code }}</span>{% endif %}
             <strong>{{ item.name }}</strong>
-            <span>{{ item.category.name|default:item.get_source_type_display }}</span>
+            <span>{{ item.list_type_label }}</span>
           </td>
           <td data-label="聯絡資料">
             <strong>{{ item.responsible_person|default:"未填負責人" }}</strong>

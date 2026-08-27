@@ -236,6 +236,39 @@ class LegacyImportTests(TestCase):
         self.assertEqual(order.transaction_type, SalesOrder.TransactionType.TEST_RIDE)
         self.assertEqual(order.note, "試乘車")
 
+    def test_subsidy_application_pseudo_source_becomes_order_note(self):
+        workbook = load_workbook(BytesIO(workbook_bytes()))
+        workbook["銷貨"]["AN3"] = "車行"
+        workbook["銷貨"]["AN4"] = "代申請補助"
+        stream = BytesIO()
+        workbook.save(stream)
+        upload = SimpleUploadedFile("subsidy-application.xlsx", stream.getvalue())
+        batch = LegacyImportBatch.objects.create(
+            import_type=LegacyImportBatch.ImportType.OPERATIONS,
+            source_file=upload,
+            original_filename="subsidy-application.xlsx",
+            file_sha256=file_sha256(upload),
+            file_size=len(stream.getvalue()),
+            uploaded_by="tester",
+        )
+
+        build_import_preview(batch)
+        sales_row = batch.rows.get(sheet_name="銷貨")
+        self.assertEqual(sales_row.mapped_data["dealer_name"], "")
+        self.assertEqual(sales_row.mapped_data["transaction_type"], "regular_new")
+        self.assertEqual(sales_row.mapped_data["note"], "代申請補助")
+
+        confirm_import(batch, "tester")
+
+        order = SalesOrder.objects.get(owner_name="正式車主")
+        self.assertIsNone(order.source)
+        self.assertEqual(order.source_type, SalesOrder.SourceType.STORE)
+        self.assertEqual(
+            order.transaction_type, SalesOrder.TransactionType.REGULAR_NEW
+        )
+        self.assertEqual(order.note, "代申請補助")
+        self.assertEqual(order.operations.dealer_name, "")
+
     def test_invalid_email_is_reported_during_preview(self):
         workbook = load_workbook(BytesIO(workbook_bytes()))
         workbook["銷貨"]["AZ4"] = "新北市測試路1號"
@@ -394,6 +427,10 @@ class LegacyImportTests(TestCase):
         self.assertEqual(_clean_sales_source_name("昌勝(試乘車)"), "昌勝")
         self.assertEqual(_clean_sales_source_name("東永-試乘車"), "東永")
         self.assertEqual(_clean_sales_source_name("中獎車"), "")
+        self.assertEqual(_clean_sales_source_name("代申請補助"), "")
+        self.assertEqual(
+            _clean_sales_source_name("昌勝(代申請補助)"), "昌勝"
+        )
         self.assertEqual(
             _infer_sales_transaction_type(
                 {}, "昌勝(試乘車)", SalesOrder.VehicleCategory.NEW
@@ -426,6 +463,14 @@ class LegacyImportTests(TestCase):
                 "試乘車",
             ),
             "試乘車\n客戶指定",
+        )
+        self.assertEqual(
+            _sales_order_note(
+                {},
+                "代申請補助",
+                SalesOrder.TransactionType.REGULAR_NEW,
+            ),
+            "代申請補助",
         )
 
     def test_used_vehicle_resale_can_share_identifier_without_reusing_inventory(self):

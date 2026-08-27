@@ -107,6 +107,29 @@ journalctl -u dmis-next-backup.service -n 100 --no-pager
 
 舊的 `dmis-next_django_media` volume 是遷移回復點，確認新儲存穩定前不得刪除。
 
+### 工作日行事曆自動同步
+
+`dmis-next-calendar-sync.timer` 每月 1 日在背景執行一次，從政府資料開放平臺的
+「中華民國政府行政機關辦公日曆表」同步當年與次年的平日放假資料。次年尚未
+公布時只更新當年；下載或驗證失敗時不會改動既有資料。人工補登的例外日期會
+保留，週六與週日仍由系統固定排除。
+
+正式機安裝與檢查：
+
+```bash
+sudo bash scripts/install_django_calendar_sync_timer.sh
+systemctl list-timers dmis-next-calendar-sync.timer --all
+sudo systemctl start dmis-next-calendar-sync.service
+journalctl -u dmis-next-calendar-sync.service -n 50 --no-pager
+```
+
+需要指定年度人工同步時，可在 web container 執行：
+
+```bash
+docker compose -f docker-compose.django.yml -f docker-compose.django.prod.yml \
+  exec -T web python manage.py sync_business_calendar --year 2026 --year 2027
+```
+
 UI 有異動時，另以桌機、平板及手機 viewport 開啟主要頁面，並在網址加入
 `?ui_audit=1`。頁面根元素的 `data-ui-layout-issues` 必須為 `0`；完整檢查清單
 見 `specs/026-django-order-mvp/04-tasks.md`。

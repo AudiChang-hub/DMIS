@@ -5,7 +5,24 @@
 {% url 'data_maintenance' as maintenance_url %}
 {% include "sales/_page_back.html" with fallback_url=maintenance_url label="返回資料維護區" %}
 <section class="hero-row compact-hero">
-  <div><p class="eyebrow">期限計算依據</p><h1>工作日行事曆</h1><p class="muted">週六、週日固定不計；此處維護的國定假日也會排除。</p></div>
+  <div><p class="eyebrow">期限計算依據</p><h1>工作日行事曆</h1><p class="muted">週六、週日固定不計；國定假日每月由人事行政總處同步，也可人工補登例外日期。</p></div>
+</section>
+<section class="holiday-sync-status" aria-label="官方行事曆同步狀態">
+  <div>
+    <span class="eyebrow">官方自動同步</span>
+    <strong>每月同步當年與次年行事曆</strong>
+    <small>同步失敗時會保留現有資料，不會影響工作日期限計算。</small>
+  </div>
+  <div class="holiday-sync-status__result">
+    {% if latest_official_sync %}
+      <span>最近同步</span>
+      <strong>{{ latest_official_sync|date:"Y/m/d H:i" }}</strong>
+      <small>{% for year in official_years %}{% if not forloop.first %}、{% endif %}{{ year }}{% endfor %} 年</small>
+    {% else %}
+      <span>尚待首次排程同步</span>
+      <strong>既有日期仍正常使用</strong>
+    {% endif %}
+  </div>
 </section>
 <section class="section-block holiday-editor">
   <div class="section-title"><h2>{% if editing %}編輯排除日期{% else %}新增排除日期{% endif %}</h2>{% if editing %}<a href="{% url 'business_holiday_list' %}">取消編輯</a>{% endif %}</div>
@@ -17,9 +34,9 @@
 </section>
 <section class="section-block">
   <div class="section-title"><h2>已設定日期</h2><span>{{ holidays|length }} 筆</span></div>
-  <div class="responsive-table-wrap"><table class="data-table"><thead><tr><th>日期</th><th>名稱</th><th>狀態</th><th>操作</th></tr></thead><tbody>
-    {% for holiday in holidays %}<tr><td>{{ holiday.date|date:"Y/m/d" }}</td><td>{{ holiday.name }}</td><td>{% if holiday.active %}排除{% else %}停用{% endif %}</td><td><a class="button ghost small" href="?edit={{ holiday.pk }}">編輯</a><form class="inline-form" method="post" action="{% url 'business_holiday_delete' holiday.pk %}">{% csrf_token %}<button class="button danger small" type="submit" data-confirm="確定刪除這個日期嗎？">刪除</button></form></td></tr>
-    {% empty %}<tr><td colspan="4">尚未設定國定假日；目前只會排除週六與週日。</td></tr>{% endfor %}
+  <div class="responsive-table-wrap"><table class="data-table"><thead><tr><th>日期</th><th>名稱</th><th>來源</th><th>狀態</th><th>操作</th></tr></thead><tbody>
+    {% for holiday in holidays %}<tr><td>{{ holiday.date|date:"Y/m/d" }}</td><td>{{ holiday.name }}</td><td><span class="status-pill{% if holiday.source == 'dgpa' %} success{% endif %}">{{ holiday.get_source_display }}</span></td><td>{% if holiday.active %}排除{% else %}停用{% endif %}</td><td><a class="button ghost small" href="?edit={{ holiday.pk }}">編輯</a><form class="inline-form" method="post" action="{% url 'business_holiday_delete' holiday.pk %}">{% csrf_token %}<button class="button danger small" type="submit" data-confirm="確定刪除這個日期嗎？{% if holiday.source == 'dgpa' %}官方日期會在下次同步時重新建立。{% endif %}">刪除</button></form></td></tr>
+    {% empty %}<tr><td colspan="5">尚未設定國定假日；目前只會排除週六與週日。</td></tr>{% endfor %}
   </tbody></table></div>
 </section>
 {% endblock %}

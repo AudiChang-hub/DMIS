@@ -885,7 +885,6 @@ class SalesSourceBrandPolicyForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         for field in self.fields.values():
             field.widget.attrs.setdefault("class", "form-control")
-        self.fields["name"].widget.attrs.setdefault("autofocus", True)
         apply_mobile_keyboard_attrs(self)
 
 
@@ -908,6 +907,7 @@ class InstallmentCompanyForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         for field in self.fields.values():
             field.widget.attrs.setdefault("class", "form-control")
+        self.fields["name"].widget.attrs.setdefault("autofocus", True)
         apply_mobile_keyboard_attrs(self)
 
 

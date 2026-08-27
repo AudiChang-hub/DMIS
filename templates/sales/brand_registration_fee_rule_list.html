@@ -32,6 +32,11 @@
               <div class="registration-rule-card__brand-line">
                 <h3>{{ rule.brand }}</h3>
                 <span class="registration-rule-card__energy">{{ rule.get_energy_type_display }}</span>
+                {% if rule.calculation_type != 'manual' %}
+                  <span class="registration-rule-card__insurance-badge">強制險 {{ rule.insurance_period_years }} 年</span>
+                {% else %}
+                  <span class="registration-rule-card__insurance-badge is-manual">強制險年期依單據</span>
+                {% endif %}
               </div>
               {% if rule.energy_type == 'gas' %}<p>{{ rule.min_cc|default:"不限" }}～{{ rule.max_cc|default:"不限" }} c.c.</p>{% endif %}
             </div>
@@ -41,9 +46,14 @@
 
         <div class="registration-rule-card__body">
           <div class="registration-rule-card__method">
-            <span>計算方式</span>
-            <strong>{{ rule.get_calculation_type_display }}</strong>
-            {% if rule.calculation_type != 'manual' %}<small>強制險 {{ rule.insurance_period_years }} 年</small>{% else %}<small>訂單依正式單據輸入</small>{% endif %}
+            <span>強制險年期</span>
+            {% if rule.calculation_type != 'manual' %}
+              <strong class="registration-rule-card__insurance-years">{{ rule.insurance_period_years }} <b>年</b></strong>
+              <small>計算方式：{{ rule.get_calculation_type_display }}</small>
+            {% else %}
+              <strong class="registration-rule-card__insurance-years is-manual">依單據</strong>
+              <small>訂單依正式單據輸入</small>
+            {% endif %}
           </div>
 
           <div class="registration-rule-card__amount">

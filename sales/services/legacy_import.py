@@ -41,7 +41,7 @@ MISSING_IDENTIFIER_MESSAGE = "缺少引擎／車身號碼"
 EMPTY_SALES_PLACEHOLDER_MESSAGE = "Excel 空白公式列，系統自動略過"
 NON_VEHICLE_SALES_NOISE_MESSAGE = "缺少有效車輛序號且無交易資料，系統自動略過"
 INVALID_EMAIL_MESSAGE = "Email 格式不正確，請修正或清空後再匯入"
-PREVIEW_SCHEMA_VERSION = 5
+PREVIEW_SCHEMA_VERSION = 6
 SYSTEM_VALIDATION_MESSAGES = {
     DUPLICATE_IDENTIFIER_MESSAGE,
     MULTIPLE_NEW_SALES_MESSAGE,
@@ -362,15 +362,24 @@ def _infer_sales_transaction_type(raw, dealer_name, vehicle_category, sales_cate
 
 
 def _clean_sales_source_name(value):
-    """移除車行欄位內的交易類型附註；純類型文字不視為通路。"""
+    """移除車行欄位內的訂單註記；純註記文字不視為通路。"""
     text = _text(value).strip()
     if not text:
         return ""
     compact = text.replace(" ", "")
-    pure_markers = {"試乘車", "試乘", "中獎車", "中獎", "領牌車", "一般新車", "中古車"}
+    pure_markers = {
+        "試乘車",
+        "試乘",
+        "中獎車",
+        "中獎",
+        "領牌車",
+        "一般新車",
+        "中古車",
+        "代申請補助",
+    }
     if compact in pure_markers:
         return ""
-    marker_pattern = r"(?:試乘車?|中獎車?|領牌車|一般新車)"
+    marker_pattern = r"(?:試乘車?|中獎車?|領牌車|一般新車|代申請補助)"
     cleaned = re.sub(
         rf"[\(（\[【]\s*{marker_pattern}\s*[\)）\]】]",
         "",
@@ -405,6 +414,8 @@ def _sales_order_note(raw, dealer_name, transaction_type, current_note=""):
         and "試乘" in _text(dealer_name).replace(" ", "")
     ):
         note = _join_unique_note_lines(note, "試乘車")
+    if "代申請補助" in _text(dealer_name).replace(" ", ""):
+        note = _join_unique_note_lines(note, "代申請補助")
     return note
 
 

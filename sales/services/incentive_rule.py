@@ -1,4 +1,4 @@
-from decimal import Decimal, ROUND_HALF_UP
+from decimal import Decimal
 
 from django.db.models import Q
 from django.utils import timezone
@@ -13,26 +13,16 @@ INCENTIVE_FIELDS = (
 )
 
 
-def _calculated_disbursement(order, rule):
+def _calculated_disbursement(order):
     if order.source_type == order.SourceType.PLATFORM:
-        return None, None
+        return None
     if order.payment_type == order.PaymentType.CASH:
-        return order.vehicle_price or Decimal("0"), None
-    if order.payment_type == order.PaymentType.INSTALLMENT and rule:
-        rate_rule = rule.installment_rates.filter(
-            periods=order.installment_periods
-        ).first()
-        if not rate_rule:
-            return None, None
-        amount = (
-            (order.vehicle_price or Decimal("0"))
-            * rate_rule.rate
-            / Decimal("100")
-        ).quantize(Decimal("1"), rounding=ROUND_HALF_UP)
+        return order.vehicle_price or Decimal("0")
+    if order.payment_type == order.PaymentType.INSTALLMENT:
         snapshot = order.installment_plan_snapshot or {}
-        amount += Decimal(str(snapshot.get("extra_disbursement_bonus") or 0))
-        return amount, rate_rule
-    return None, None
+        amount = snapshot.get("expected_disbursement_amount")
+        return Decimal(str(amount)) if amount is not None else None
+    return None
 
 
 def resolve_incentive_rule(vehicle_model_id, registration_date):
@@ -66,10 +56,7 @@ def apply_order_incentive_rule(order, actor_name="", *, lock=False):
     for field_name in INCENTIVE_FIELDS:
         if field_name not in protected_fields:
             setattr(profile, field_name, getattr(rule, field_name) if rule else 0)
-    calculated_disbursement, installment_rate_rule = _calculated_disbursement(
-        order,
-        rule,
-    )
+    calculated_disbursement = _calculated_disbursement(order)
     if (
         calculated_disbursement is not None
         and "actual_disbursement" not in protected_fields
@@ -83,15 +70,6 @@ def apply_order_incentive_rule(order, actor_name="", *, lock=False):
         profile.actual_disbursement = 0
 
     profile.incentive_rule = rule
-    profile.incentive_installment_rate_rule = installment_rate_rule
-    profile.incentive_installment_periods = (
-        order.installment_periods
-        if order.payment_type == order.PaymentType.INSTALLMENT
-        else None
-    )
-    profile.incentive_installment_rate = (
-        installment_rate_rule.rate if installment_rate_rule else None
-    )
     profile.incentive_registration_date = (
         order.registration_date if rule else None
     )
@@ -99,9 +77,6 @@ def apply_order_incentive_rule(order, actor_name="", *, lock=False):
         *INCENTIVE_FIELDS,
         "actual_disbursement",
         "incentive_rule",
-        "incentive_installment_rate_rule",
-        "incentive_installment_periods",
-        "incentive_installment_rate",
         "incentive_registration_date",
         "updated_at",
     ]

@@ -47,7 +47,6 @@ from sales.models import (
     VehicleFactoryModelCode,
     VehicleInventory,
     VehicleInventoryHistory,
-    VehicleIncentiveInstallmentRate,
     VehicleIncentiveRule,
     VehicleModel,
     VehicleModelFamily,
@@ -5180,23 +5179,19 @@ class OrderOperationsTests(TestCase):
             installment_interest_subsidy=Decimal("900"),
             effective_from=date(2026, 8, 1),
         )
-        current_rate = VehicleIncentiveInstallmentRate.objects.create(
-            incentive_rule=current,
-            periods=24,
-            rate=Decimal("92.50"),
-        )
-        future_rate = VehicleIncentiveInstallmentRate.objects.create(
-            incentive_rule=future,
-            periods=24,
-            rate=Decimal("95.00"),
-        )
         self.order.payment_type = SalesOrder.PaymentType.INSTALLMENT
         self.order.installment_periods = 24
+        self.order.installment_plan_snapshot = {
+            "periods": 24,
+            "expected_disbursement_method": "rate",
+            "expected_disbursement_amount": 74000,
+        }
         self.order.registration_date = date(2026, 7, 31)
         self.order.save(
             update_fields=[
                 "payment_type",
                 "installment_periods",
+                "installment_plan_snapshot",
                 "registration_date",
                 "updated_at",
             ]
@@ -5210,17 +5205,17 @@ class OrderOperationsTests(TestCase):
         self.assertEqual(profile.promotion_subsidy, Decimal("2000"))
         self.assertEqual(profile.installment_interest_subsidy, Decimal("800"))
         self.assertEqual(profile.actual_disbursement, Decimal("74000"))
-        self.assertEqual(profile.incentive_installment_rate_rule, current_rate)
-        self.assertEqual(profile.incentive_installment_periods, 24)
-        self.assertEqual(profile.incentive_installment_rate, Decimal("92.50"))
 
         self.order.registration_date = date(2026, 8, 1)
+        self.order.installment_plan_snapshot["expected_disbursement_amount"] = 76000
         self.order.save(update_fields=["registration_date", "updated_at"])
+        SalesOrder.objects.filter(pk=self.order.pk).update(
+            installment_plan_snapshot=self.order.installment_plan_snapshot
+        )
         profile = apply_order_incentive_rule(self.order, "tester", lock=True)
         self.assertEqual(profile.incentive_rule, future)
         self.assertEqual(profile.sales_bonus, Decimal("1800"))
         self.assertEqual(profile.actual_disbursement, Decimal("76000"))
-        self.assertEqual(profile.incentive_installment_rate_rule, future_rate)
         self.assertIsNotNone(profile.incentive_locked_at)
 
         future.sales_bonus = Decimal("3000")
@@ -5260,28 +5255,24 @@ class OrderOperationsTests(TestCase):
         self.assertEqual(profile.promotion_subsidy, Decimal("2500"))
         self.assertEqual(profile.installment_interest_subsidy, Decimal("900"))
 
-    def test_installment_disbursement_uses_matching_period_and_missing_period_is_not_guessed(self):
-        rule = VehicleIncentiveRule.objects.create(
+    def test_installment_disbursement_uses_order_installment_plan_snapshot(self):
+        VehicleIncentiveRule.objects.create(
             vehicle_model=self.model,
             effective_from=date(2026, 7, 1),
         )
-        VehicleIncentiveInstallmentRate.objects.create(
-            incentive_rule=rule,
-            periods=12,
-            rate=Decimal("96"),
-        )
-        VehicleIncentiveInstallmentRate.objects.create(
-            incentive_rule=rule,
-            periods=24,
-            rate=Decimal("92.5"),
-        )
         self.order.payment_type = SalesOrder.PaymentType.INSTALLMENT
         self.order.installment_periods = 12
+        self.order.installment_plan_snapshot = {
+            "periods": 12,
+            "expected_disbursement_method": "rate",
+            "expected_disbursement_amount": 76800,
+        }
         self.order.registration_date = date(2026, 7, 20)
         self.order.save(
             update_fields=[
                 "payment_type",
                 "installment_periods",
+                "installment_plan_snapshot",
                 "registration_date",
                 "updated_at",
             ]
@@ -5291,20 +5282,38 @@ class OrderOperationsTests(TestCase):
 
         profile = apply_order_incentive_rule(self.order)
         self.assertEqual(profile.actual_disbursement, Decimal("76800"))
-        self.assertEqual(profile.incentive_installment_rate, Decimal("96"))
 
         self.order.installment_periods = 24
-        self.order.save(update_fields=["installment_periods", "updated_at"])
+        self.order.installment_plan_snapshot = {
+            "periods": 24,
+            "expected_disbursement_method": "fixed",
+            "expected_disbursement_amount": 74000,
+        }
+        self.order.save(
+            update_fields=[
+                "installment_periods",
+                "installment_plan_snapshot",
+                "updated_at",
+            ]
+        )
         profile = apply_order_incentive_rule(self.order)
         self.assertEqual(profile.actual_disbursement, Decimal("74000"))
-        self.assertEqual(profile.incentive_installment_rate, Decimal("92.5"))
 
         self.order.installment_periods = 36
-        self.order.save(update_fields=["installment_periods", "updated_at"])
+        self.order.installment_plan_snapshot = {
+            "periods": 36,
+            "expected_disbursement_method": "manual",
+            "expected_disbursement_amount": None,
+        }
+        self.order.save(
+            update_fields=[
+                "installment_periods",
+                "installment_plan_snapshot",
+                "updated_at",
+            ]
+        )
         profile = apply_order_incentive_rule(self.order)
         self.assertEqual(profile.actual_disbursement, Decimal("0"))
-        self.assertEqual(profile.incentive_installment_periods, 36)
-        self.assertIsNone(profile.incentive_installment_rate)
 
     def test_platform_order_keeps_manually_entered_disbursement(self):
         platform = SalesSource.objects.create(
@@ -5354,9 +5363,16 @@ class OrderOperationsTests(TestCase):
         self.assertContains(listing, "原廠獎勵與補助")
         self.assertContains(listing, "1500")
         self.assertContains(listing, "持續有效")
+        self.assertNotContains(listing, "分期撥款比例")
         self.assertEqual(editing.status_code, 200)
         self.assertContains(editing, "實銷獎勵金")
         self.assertContains(editing, "結束日期")
+        self.assertContains(editing, "分期資料請至車型的「分期方案」維護")
+        self.assertContains(
+            editing,
+            reverse("vehicle_installment_plan_list", args=[self.model.pk]),
+        )
+        self.assertNotContains(editing, 'name="rates-TOTAL_FORMS"')
 
     def test_vehicle_model_edit_links_to_incentive_maintenance_without_inline_editor(self):
         rule = VehicleIncentiveRule.objects.create(

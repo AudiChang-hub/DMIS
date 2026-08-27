@@ -3531,6 +3531,20 @@ body.screen-locked { overflow: hidden; }
 .formset-errors { margin-top: 14px; padding: 11px 13px; color: var(--red); background: var(--red-soft); border-radius: 10px; }
 .responsive-split { display: grid; grid-template-columns: minmax(320px, .72fr) minmax(0, 1.28fr); gap: 20px; align-items: start; }
 .master-editor-layout > .form-section { position: sticky; top: 96px; }
+.installment-company-editor { margin-bottom: 20px; }
+.installment-company-editor__title {
+  min-height: 0; margin: 0 0 20px; padding: 0 0 18px;
+  align-items: flex-end;
+}
+.installment-company-editor__title > div { display: grid; gap: 4px; }
+.installment-company-editor__title .eyebrow,
+.installment-company-editor__title p { margin: 0; }
+.installment-company-editor__title p:last-child { color: var(--muted); font-size: .82rem; }
+.installment-company-form-grid { padding: 0; }
+.installment-company-form-grid > .field:last-child { grid-column: 1 / -1; }
+.installment-company-list .inventory-list-summary > div { display: grid; gap: 3px; }
+.installment-company-list .inventory-list-summary span { display: block; }
+.installment-company-table { min-width: 760px; }
 .master-dynamic-row {
   position: relative; display: grid;
   grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
@@ -3622,6 +3636,11 @@ body.screen-locked { overflow: hidden; }
   .responsive-split { grid-template-columns: 1fr; }
   .master-editor-layout > .form-section { position: static; }
   .form-section.static-section { padding: 16px; border-radius: 14px; }
+  .installment-company-editor__title { margin-bottom: 16px; padding-bottom: 16px; }
+  .installment-company-form-grid { grid-template-columns: 1fr; padding: 0; }
+  .installment-company-form-grid > .field:last-child { grid-column: auto; }
+  .installment-company-list .inventory-list-summary { align-items: flex-start; flex-direction: column; padding: 12px 14px; gap: 10px; }
+  .installment-company-list .inventory-list-summary .button { width: 100%; }
   .dealer-brand-section .section-title { align-items: flex-start; }
   .dealer-brand-priority { grid-template-columns: 1fr; }
   .dealer-cooperation-toggle-grid { grid-template-columns: 1fr; }

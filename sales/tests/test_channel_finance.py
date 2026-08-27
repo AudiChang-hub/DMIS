@@ -472,6 +472,30 @@ class ChannelFinanceTests(TestCase):
         ):
             self.assertEqual(self.client.get(reverse(name)).status_code, 200)
 
+    def test_installment_company_page_keeps_empty_editor_out_of_primary_view(self):
+        self.client.force_login(self.user)
+        url = reverse("installment_company_list")
+
+        response = self.client.get(url)
+
+        self.assertContains(response, "既有分期公司")
+        self.assertContains(response, 'href="?new=1#company-form"')
+        self.assertNotContains(response, 'id="company-form"')
+        self.assertNotContains(response, "responsive-split master-editor-layout")
+
+    def test_installment_company_editor_opens_only_for_create_or_edit(self):
+        self.client.force_login(self.user)
+        url = reverse("installment_company_list")
+
+        create_response = self.client.get(f"{url}?new=1")
+        edit_response = self.client.get(f"{url}?edit={self.company.pk}")
+
+        self.assertContains(create_response, 'id="company-form"')
+        self.assertContains(create_response, "新增公司")
+        self.assertContains(edit_response, 'id="company-form"')
+        self.assertContains(edit_response, f"編輯 {self.company.name}")
+        self.assertContains(edit_response, f'href="{url}"')
+
     def test_installment_plan_page_supports_inline_company_creation(self):
         self.client.force_login(self.user)
 

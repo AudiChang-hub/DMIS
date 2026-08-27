@@ -3828,7 +3828,6 @@ class OrderFlowTests(TestCase):
         profile = order.operations
         self.assertEqual(profile.vehicle_cost, Decimal("60000"))
         self.assertEqual(profile.vehicle_cost_rule, self.settlement_rule)
-        self.assertEqual(profile.vehicle_cost_county, "新北市")
         self.assertIsNotNone(profile.vehicle_cost_locked_at)
         self.assertEqual(profile.incentive_rule, incentive_rule)
         self.assertEqual(profile.sales_bonus, Decimal("1500"))
@@ -5111,16 +5110,14 @@ class OrderOperationsTests(TestCase):
         self.assertEqual(performance["profit_total"], Decimal("20000"))
         self.assertContains(response, "營運戰情看板")
 
-    def test_settlement_cost_uses_county_then_locks_historical_snapshot(self):
+    def test_settlement_cost_uses_registration_date_then_locks_historical_snapshot(self):
         VehicleSettlementCostRule.objects.create(
             vehicle_model=self.model,
-            registration_county="",
             amount=Decimal("62000"),
             effective_from=date(2026, 7, 1),
         )
-        county_rule = VehicleSettlementCostRule.objects.create(
+        current_rule = VehicleSettlementCostRule.objects.create(
             vehicle_model=self.model,
-            registration_county="新北市",
             amount=Decimal("61000"),
             effective_from=date(2026, 8, 1),
         )
@@ -5134,11 +5131,11 @@ class OrderOperationsTests(TestCase):
 
         profile = apply_order_settlement_cost(self.order, "tester", lock=True)
         self.assertEqual(profile.vehicle_cost, Decimal("61000"))
-        self.assertEqual(profile.vehicle_cost_rule, county_rule)
+        self.assertEqual(profile.vehicle_cost_rule, current_rule)
         self.assertIsNotNone(profile.vehicle_cost_locked_at)
 
-        county_rule.amount = Decimal("63000")
-        county_rule.save()
+        current_rule.amount = Decimal("63000")
+        current_rule.save()
         profile = apply_order_settlement_cost(self.order, "tester")
         self.assertEqual(profile.vehicle_cost, Decimal("61000"))
 
@@ -5157,13 +5154,12 @@ class OrderOperationsTests(TestCase):
         from sales.services.settlement_cost import resolve_settlement_cost
 
         self.assertEqual(
-            resolve_settlement_cost(self.model.pk, "臺北市", date(2026, 7, 31)),
+            resolve_settlement_cost(self.model.pk, date(2026, 7, 31)),
             current,
         )
         self.assertEqual(
             resolve_settlement_cost(
                 self.model.pk,
-                "臺北市",
                 date(2026, 8, 1),
             ).amount,
             Decimal("65000"),
@@ -5615,7 +5611,6 @@ class OrderOperationsTests(TestCase):
     def test_settlement_cost_maintenance_pages_are_available(self):
         rule = VehicleSettlementCostRule.objects.create(
             vehicle_model=self.model,
-            registration_county="新北市",
             amount=Decimal("61000"),
             effective_from=date(2026, 8, 1),
         )
@@ -5627,10 +5622,17 @@ class OrderOperationsTests(TestCase):
 
         self.assertEqual(listing.status_code, 200)
         self.assertContains(listing, "代銷結算成本")
-        self.assertContains(listing, "新北市")
+        self.assertNotContains(listing, "領牌縣市")
         self.assertContains(listing, "61000")
         self.assertEqual(editing.status_code, 200)
-        self.assertContains(editing, "領牌縣市")
+        self.assertNotContains(editing, "套用順序")
+        self.assertNotContains(editing, "領牌縣市")
+        self.assertContains(editing, "機種／型號／年份")
+        self.assertContains(
+            editing,
+            f"{self.model.name}／{self.model.model_number or '型號待補'}／"
+            f"{self.model.model_year or '年份待補'}",
+        )
 
     def test_payment_page_starts_with_one_manual_row_and_collapses_system_items(self):
         response = self.client.get(

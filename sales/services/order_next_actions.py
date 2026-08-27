@@ -167,20 +167,16 @@ def _registration_action(order, registration_missing):
 
     rule = resolve_settlement_cost(
         order.vehicle_model_id,
-        order.registration_county,
         order.registration_date,
     )
     if not rule:
         query = urlencode(
-            {
-                "q": f"{order.vehicle_model.brand} {order.vehicle_model.name}",
-                "registration_county": order.registration_county,
-            }
+            {"q": f"{order.vehicle_model.name} {order.vehicle_model.model_number}"}
         )
         return NextAction(
             key="settlement-cost",
             title="補建代銷結算成本",
-            description="領牌資料已齊，但找不到適用的車型、縣市與生效日成本版本。",
+            description="領牌資料已齊，但找不到適用的車型與生效日成本版本。",
             action_label="查看成本規則",
             url=f"{reverse('settlement_cost_rule_list')}?{query}",
             badge="完成領牌前必須處理",

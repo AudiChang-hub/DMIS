@@ -26,7 +26,7 @@ MERGE_VERSIONED_RELATIONS = (
     ("installment_plan_versions", ("effective_from",), "分期方案"),
     (
         "settlement_cost_rules",
-        ("registration_county", "effective_from"),
+        ("effective_from",),
         "代銷結算成本",
     ),
     ("incentive_rules", ("effective_from",), "原廠獎勵與補助"),

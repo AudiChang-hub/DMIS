@@ -1497,13 +1497,6 @@ class VehicleSettlementCostRule(TimeStampedModel):
         related_name="settlement_cost_rules",
         verbose_name="車型",
     )
-    registration_county = models.CharField(
-        "領牌縣市",
-        max_length=10,
-        choices=TaiwanCounty.choices,
-        blank=True,
-        help_text="留空代表全國預設；有指定縣市的規則會優先套用。",
-    )
     amount = models.DecimalField(
         "代銷結算成本",
         max_digits=12,
@@ -1524,7 +1517,6 @@ class VehicleSettlementCostRule(TimeStampedModel):
     class Meta:
         ordering = [
             "vehicle_model",
-            "registration_county",
             "-effective_from",
             "-id",
         ]
@@ -1532,7 +1524,6 @@ class VehicleSettlementCostRule(TimeStampedModel):
             models.UniqueConstraint(
                 fields=[
                     "vehicle_model",
-                    "registration_county",
                     "effective_from",
                 ],
                 name="unique_settlement_cost_rule_start",
@@ -1542,7 +1533,6 @@ class VehicleSettlementCostRule(TimeStampedModel):
             models.Index(
                 fields=[
                     "vehicle_model",
-                    "registration_county",
                     "effective_from",
                 ],
                 name="settlement_cost_lookup",
@@ -1550,10 +1540,6 @@ class VehicleSettlementCostRule(TimeStampedModel):
         ]
         verbose_name = "代銷結算成本規則"
         verbose_name_plural = "代銷結算成本規則"
-
-    @property
-    def area_label(self):
-        return self.registration_county or "全國預設"
 
     @property
     def lifecycle_status(self):
@@ -1579,8 +1565,8 @@ class VehicleSettlementCostRule(TimeStampedModel):
 
     def __str__(self):
         return (
-            f"{self.vehicle_model}／{self.area_label}／"
-            f"{self.effective_from:%Y/%m/%d}／{self.amount:.0f} 元"
+            f"{self.vehicle_model}／{self.effective_from:%Y/%m/%d}／"
+            f"{self.amount:.0f} 元"
         )
 
 
@@ -2917,12 +2903,6 @@ class OrderOperationsProfile(TimeStampedModel):
         "成本認列領牌日",
         blank=True,
         null=True,
-    )
-    vehicle_cost_county = models.CharField(
-        "成本認列縣市",
-        max_length=10,
-        choices=TaiwanCounty.choices,
-        blank=True,
     )
     vehicle_cost_locked_at = models.DateTimeField(
         "成本鎖定時間",

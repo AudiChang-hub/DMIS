@@ -122,7 +122,6 @@ from .models import (
     SalesSourceCooperationProfile,
     Store,
     SubsidyDocument,
-    TaiwanCounty,
     VehicleColor,
     VehicleBrand,
     VehicleInventory,
@@ -4504,13 +4503,12 @@ def registration_complete(request, pk):
         return redirect("order_detail", pk=pk)
     rule = resolve_settlement_cost(
         order.vehicle_model_id,
-        order.registration_county,
         order.registration_date,
     )
     if not rule:
         messages.error(
             request,
-            "找不到符合車型、領牌縣市及領牌日期的代銷結算成本規則，"
+            "找不到符合車型及領牌日期的代銷結算成本規則，"
             "請先至車型資料補建後再完成領牌。",
         )
         return redirect("order_detail", pk=pk)
@@ -6169,7 +6167,6 @@ def vehicle_model_edit(request, pk):
 @login_required
 def settlement_cost_rule_list(request):
     keyword = request.GET.get("q", "").strip()
-    county = request.GET.get("registration_county", "")
     rules = VehicleSettlementCostRule.objects.select_related("vehicle_model")
     if keyword:
         rules = rules.filter(
@@ -6180,12 +6177,9 @@ def settlement_cost_rule_list(request):
             | Q(vehicle_model__factory_model_codes__code__icontains=keyword)
             | Q(note__icontains=keyword)
         ).distinct()
-    if county:
-        rules = rules.filter(registration_county=county)
     rules = rules.order_by(
         "vehicle_model__brand",
         "vehicle_model__name",
-        "registration_county",
         "-effective_from",
     )
     paginator = Paginator(rules, 100)
@@ -6196,8 +6190,7 @@ def settlement_cost_rule_list(request):
         {
             "rules": page.object_list,
             "page_obj": page,
-            "counties": TaiwanCounty.choices,
-            "selected": {"q": keyword, "registration_county": county},
+            "selected": {"q": keyword},
             "today": timezone.localdate(),
         },
     )

@@ -831,6 +831,85 @@ class ChannelFinanceTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "專銷車行")
 
+    def test_source_list_uses_line_group_colour_from_cooperation_scope(self):
+        scenarios = (
+            (
+                "黃色群組車行",
+                "sym-exclusive",
+                (
+                    (
+                        SalesSourceBrandPolicy.CooperationScope.SYM,
+                        SalesSourceCooperationProfile.RelationshipType.EXCLUSIVE,
+                    ),
+                    (
+                        SalesSourceBrandPolicy.CooperationScope.SUZUKI_GAS,
+                        SalesSourceCooperationProfile.RelationshipType.GENERAL,
+                    ),
+                ),
+            ),
+            (
+                "灰色群組車行",
+                "mixed",
+                (
+                    (
+                        SalesSourceBrandPolicy.CooperationScope.SYM,
+                        SalesSourceCooperationProfile.RelationshipType.GENERAL,
+                    ),
+                    (
+                        SalesSourceBrandPolicy.CooperationScope.SUZUKI_ELECTRIC,
+                        SalesSourceCooperationProfile.RelationshipType.GENERAL,
+                    ),
+                ),
+            ),
+            (
+                "藍色群組車行",
+                "suzuki",
+                (
+                    (
+                        SalesSourceBrandPolicy.CooperationScope.SUZUKI_GAS,
+                        SalesSourceCooperationProfile.RelationshipType.GENERAL,
+                    ),
+                ),
+            ),
+            (
+                "淡紅群組車行",
+                "sym",
+                (
+                    (
+                        SalesSourceBrandPolicy.CooperationScope.SYM,
+                        SalesSourceCooperationProfile.RelationshipType.GENERAL,
+                    ),
+                ),
+            ),
+        )
+        for name, _tone, profiles in scenarios:
+            source = SalesSource.objects.create(
+                name=name,
+                source_type=SalesSource.SourceType.DEALER,
+                has_line_group=True,
+            )
+            for scope, relationship_type in profiles:
+                SalesSourceCooperationProfile.objects.create(
+                    source=source,
+                    cooperation_scope=scope,
+                    cooperates=True,
+                    relationship_type=relationship_type,
+                )
+        self.client.force_login(self.user)
+
+        response = self.client.get(reverse("sales_source_list"))
+        html = response.content.decode()
+
+        self.assertEqual(response.status_code, 200)
+        for name, tone, _profiles in scenarios:
+            cell_start = html.index(name)
+            row = html[cell_start : html.index("</tr>", cell_start)]
+            self.assertIn(f"line-group-scope-marker--{tone}", row)
+        self.assertContains(response, "有 LINE 群組：三陽專銷，並與台鈴合作")
+        self.assertContains(response, "有 LINE 群組：三陽與台鈴一般合作")
+        self.assertContains(response, "有 LINE 群組：僅台鈴合作")
+        self.assertContains(response, "有 LINE 群組：僅三陽合作")
+
     def test_source_list_scope_filter_uses_latest_effective_state(self):
         SalesSourceBrandPolicy.objects.create(
             source=self.dealer,

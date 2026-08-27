@@ -2090,7 +2090,6 @@ class VehicleSettlementCostRuleForm(forms.ModelForm):
         model = VehicleSettlementCostRule
         fields = [
             "vehicle_model",
-            "registration_county",
             "amount",
             "announced_on",
             "effective_from",
@@ -2108,15 +2107,14 @@ class VehicleSettlementCostRuleForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fields["registration_county"].required = False
-        county_choices = list(self.fields["registration_county"].choices)
-        self.fields["registration_county"].choices = [
-            ("", "全國預設"),
-            *county_choices[1:],
-        ]
         self.fields["vehicle_model"].queryset = VehicleModel.objects.filter(
             active=True
         ).order_by("brand", "name", "-model_year")
+        self.fields["vehicle_model"].label = "機種／型號／年份"
+        self.fields["vehicle_model"].label_from_instance = lambda vehicle: (
+            f"{vehicle.name}／{vehicle.model_number or '型號待補'}／"
+            f"{vehicle.model_year or '年份待補'}"
+        )
         for field in self.fields.values():
             field.widget.attrs.setdefault("class", "form-control")
         apply_mobile_keyboard_attrs(self)
@@ -2304,7 +2302,6 @@ class OrderOperationsForm(forms.ModelForm):
             "vehicle_cost_manual",
             "vehicle_cost_rule",
             "vehicle_cost_registration_date",
-            "vehicle_cost_county",
             "vehicle_cost_locked_at",
             "vehicle_cost_locked_by",
             "incentive_rule",

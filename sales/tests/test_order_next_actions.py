@@ -206,6 +206,7 @@ class OrderNextActionTests(TestCase):
 
         self.assertEqual(actions.primary.key, "settlement-cost")
         self.assertIn(reverse("settlement_cost_rule_list"), actions.primary.url)
+        self.assertNotIn("registration_county", actions.primary.url)
 
     def test_registered_order_points_to_delivery(self):
         order = self.make_order()

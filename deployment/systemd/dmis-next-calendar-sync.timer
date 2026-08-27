@@ -1,0 +1,11 @@
+[Unit]
+Description=Monthly DMIS Next official business calendar sync
+
+[Timer]
+OnCalendar=*-*-01 04:10:00
+Persistent=true
+RandomizedDelaySec=30m
+Unit=dmis-next-calendar-sync.service
+
+[Install]
+WantedBy=timers.target

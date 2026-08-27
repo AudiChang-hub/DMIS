@@ -1,0 +1,12 @@
+[Unit]
+Description=DMIS Next monthly DGPA business calendar sync
+After=docker.service network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=/home/audi/project/DMIS-next
+ExecStart=/usr/bin/flock -n /tmp/dmis-next-calendar-sync.lock /usr/bin/docker compose -f docker-compose.django.yml -f docker-compose.django.prod.yml exec -T web python manage.py sync_business_calendar
+TimeoutStartSec=120
+Nice=10
+IOSchedulingClass=idle

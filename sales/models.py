@@ -1302,9 +1302,20 @@ class SubsidyItem(TimeStampedModel):
 
 
 class BusinessHoliday(TimeStampedModel):
+    class Source(models.TextChoices):
+        MANUAL = "manual", "人工設定"
+        DGPA = "dgpa", "人事行政總處同步"
+
     date = models.DateField("日期", unique=True, db_index=True)
     name = models.CharField("假日名稱", max_length=120)
     active = models.BooleanField("排除工作日計算", default=True)
+    source = models.CharField(
+        "資料來源",
+        max_length=20,
+        choices=Source.choices,
+        default=Source.MANUAL,
+        db_index=True,
+    )
 
     class Meta:
         ordering = ["date"]

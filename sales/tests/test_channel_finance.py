@@ -24,7 +24,6 @@ from sales.models import (
     SalesSourceCooperationProfile,
     VehicleBrand,
     VehicleColor,
-    VehicleIncentiveInstallmentRate,
     VehicleIncentiveRule,
     VehicleModel,
 )
@@ -275,14 +274,9 @@ class ChannelFinanceTests(TestCase):
         )
 
     def test_extra_disbursement_bonus_is_included_once_in_actual_disbursement(self):
-        rule = VehicleIncentiveRule.objects.create(
+        VehicleIncentiveRule.objects.create(
             vehicle_model=self.model,
             effective_from=date(2026, 8, 1),
-        )
-        VehicleIncentiveInstallmentRate.objects.create(
-            incentive_rule=rule,
-            periods=24,
-            rate=Decimal("93.50"),
         )
         order = self.make_order()
         apply_order_installment_snapshot(order)

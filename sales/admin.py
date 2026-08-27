@@ -41,7 +41,6 @@ from .models import (
     VehicleInventoryHistory,
     VehicleFactoryModelCode,
     VehicleIncentiveRule,
-    VehicleIncentiveInstallmentRate,
     VehicleModel,
     VehicleModelFamily,
     VehiclePriceVersion,
@@ -226,11 +225,6 @@ class VehicleSettlementCostRuleAdmin(admin.ModelAdmin):
     )
 
 
-class VehicleIncentiveInstallmentRateInline(admin.TabularInline):
-    model = VehicleIncentiveInstallmentRate
-    extra = 1
-
-
 @admin.register(VehicleIncentiveRule)
 class VehicleIncentiveRuleAdmin(admin.ModelAdmin):
     list_display = (
@@ -248,7 +242,6 @@ class VehicleIncentiveRuleAdmin(admin.ModelAdmin):
         "vehicle_model__name",
         "vehicle_model__model_number",
     )
-    inlines = [VehicleIncentiveInstallmentRateInline]
 
 
 class AccessoryLineInline(admin.TabularInline):

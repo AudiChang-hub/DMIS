@@ -84,7 +84,6 @@ from .forms import (
     VehicleInventoryForm,
     VehicleBrandForm,
     VehicleColorMasterFormSet,
-    VehicleIncentiveInstallmentRateFormSet,
     VehicleIncentiveRuleForm,
     VehicleModelCommissionForm,
     VehicleModelFamilyMoveForm,
@@ -6254,9 +6253,7 @@ def settlement_cost_rule_delete(request, pk):
 @login_required
 def incentive_rule_list(request):
     keyword = request.GET.get("q", "").strip()
-    rules = VehicleIncentiveRule.objects.select_related(
-        "vehicle_model"
-    ).prefetch_related("installment_rates")
+    rules = VehicleIncentiveRule.objects.select_related("vehicle_model")
     if keyword:
         rules = rules.filter(
             vehicle_brand_search_q(keyword, "vehicle_model__brand")
@@ -6286,16 +6283,9 @@ def incentive_rule_list(request):
 
 def _incentive_rule_form_view(request, instance=None):
     form = VehicleIncentiveRuleForm(request.POST or None, instance=instance)
-    rate_formset = VehicleIncentiveInstallmentRateFormSet(
-        request.POST or None,
-        instance=instance,
-        prefix="rates",
-    )
-    if request.method == "POST" and form.is_valid() and rate_formset.is_valid():
+    if request.method == "POST" and form.is_valid():
         with transaction.atomic():
             rule = form.save()
-            rate_formset.instance = rule
-            rate_formset.save()
         messages.success(
             request,
             f"已{'更新' if instance else '建立'}獎勵補助版本：{rule}",
@@ -6308,7 +6298,6 @@ def _incentive_rule_form_view(request, instance=None):
             "form": form,
             "rule": instance,
             "is_editing": instance is not None,
-            "rate_formset": rate_formset,
         },
     )
 

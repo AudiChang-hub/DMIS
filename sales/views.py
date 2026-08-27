@@ -1603,17 +1603,31 @@ def vehicle_installment_plan_list(request, model_pk):
 
 @login_required
 def dealer_volume_bonus_list(request):
-    rules = DealerVolumeBonusRule.objects.select_related("dealer").prefetch_related(
-        "tiers", "settlement__allocations"
+    show_all = request.GET.get("show") == "all"
+    rules = (
+        DealerVolumeBonusRule.objects.filter(
+            dealer__source_type=SalesSource.SourceType.DEALER
+        )
+        .select_related("dealer")
+        .prefetch_related("tiers", "settlement__allocations")
     )
     rows = []
+    hidden_count = 0
     for rule in rules:
         preview = preview_volume_bonus(rule)
+        has_settlement = hasattr(rule, "settlement")
+        if not show_all and preview["quantity"] == 0 and not has_settlement:
+            hidden_count += 1
+            continue
         rows.append({"rule": rule, "preview": preview})
     return render(
         request,
         "sales/dealer_volume_bonus_list.html",
-        {"rows": rows},
+        {
+            "rows": rows,
+            "show_all": show_all,
+            "hidden_count": hidden_count,
+        },
     )
 
 

@@ -1946,8 +1946,16 @@ body.screen-locked { overflow: hidden; }
 .source-holiday-summary strong { color: var(--ink); font-size: .9rem; white-space: nowrap; }
 .source-holiday-summary small { color: var(--forest-2); font-size: .72rem; font-weight: 800; }
 .source-holiday-summary.is-active { background: var(--mint); border-color: color-mix(in srgb, var(--forest) 28%, var(--line)); }
-.status-pill.gift-required { color: var(--amber); background: var(--amber-soft); border-color: #e9cf83; }
 .gift-not-required { color: var(--muted); font-size: .8rem; }
+.source-identity { gap: 3px; }
+.source-identity__code { color: var(--forest-2); font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: .76rem; font-weight: 850; letter-spacing: .03em; }
+.source-identity > strong { font-size: .96rem; }
+.holiday-list-marker {
+  display: inline-flex; min-height: 30px; padding: 5px 9px; align-items: center; gap: 6px;
+  color: var(--amber); background: var(--amber-soft); border: 1px solid color-mix(in srgb, var(--amber) 42%, var(--line));
+  border-radius: 999px; font-size: .78rem; font-weight: 850; white-space: nowrap;
+}
+.holiday-list-marker svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.65; stroke-linecap: round; stroke-linejoin: round; }
 .holiday-gift-hero { align-items: center; }
 .holiday-gift-summary {
   display: grid; min-width: 180px; padding: 15px 18px; gap: 2px;
@@ -3492,9 +3500,6 @@ body.screen-locked { overflow: hidden; }
 .dealer-brand-details__body { padding: 4px 16px 16px; border-top: 1px solid var(--line); }
 .dealer-brand-policy-row { overflow: visible; }
 .cooperation-summary { display: grid; min-width: 230px; max-width: 380px; gap: 7px; }
-.cooperation-summary__header { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
-.cooperation-summary__header strong { color: var(--ink); font-size: .82rem; }
-.cooperation-summary__header span { color: var(--muted); font-size: .72rem; white-space: nowrap; }
 .cooperation-summary__list { display: grid; gap: 1px; }
 .cooperation-summary__item {
   display: grid; min-width: 0; padding: 4px 0; grid-template-columns: minmax(90px, auto) minmax(0, 1fr);

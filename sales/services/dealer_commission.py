@@ -92,9 +92,15 @@ def apply_order_dealer_commission(order, *, lock=False):
 
 
 def eligible_volume_bonus_orders(rule):
+    # 台數獎金只屬於合作車行。本店來源即使因歷史匯入留下舊規則，
+    # 也不能被納入計算，避免只靠表單選項防呆而污染結算結果。
+    if rule.dealer.source_type != SalesSource.SourceType.DEALER:
+        return SalesOrder.objects.none()
     return (
         SalesOrder.objects.filter(
             source=rule.dealer,
+            source__source_type=SalesSource.SourceType.DEALER,
+            source_type=SalesOrder.SourceType.DEALER,
             vehicle_model__brand__iexact=rule.brand,
             registration_date__range=(rule.starts_on, rule.ends_on),
             registration_completed_at__isnull=False,

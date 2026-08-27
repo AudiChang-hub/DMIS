@@ -8,9 +8,16 @@
   <div>
     <p class="eyebrow">依實際領牌日期回溯</p>
     <h1>車行台數獎金</h1>
-    <p class="muted">達門檻時回溯期間內所有符合訂單；每個規則只結算一次並保存逐單明細。</p>
+    <p class="muted">預設只顯示統計期間內已有領牌銷售的合作車行；達門檻後可一次結算並保存逐單明細。</p>
   </div>
-  <a class="button primary" href="{% url 'dealer_volume_bonus_create' %}">＋ 新增規則</a>
+  <div class="hero-actions">
+    {% if show_all %}
+      <a class="button ghost" href="{% url 'dealer_volume_bonus_list' %}">只看有銷售</a>
+    {% else %}
+      <a class="button ghost" href="?show=all">全部規則{% if hidden_count %}（另 {{ hidden_count }} 筆）{% endif %}</a>
+    {% endif %}
+    <a class="button primary" href="{% url 'dealer_volume_bonus_create' %}">＋ 新增規則</a>
+  </div>
 </section>
 <section class="inventory-list-panel">
   <div class="inventory-table-wrap">
@@ -34,7 +41,7 @@
             </td>
           </tr>
         {% empty %}
-          <tr><td colspan="6">尚無台數獎金規則</td></tr>
+          <tr><td colspan="6">{% if show_all %}尚未建立任何合作車行台數獎金規則。{% else %}目前沒有統計期間內已完成領牌的合作車行銷售。{% endif %}</td></tr>
         {% endfor %}
       </tbody>
     </table>

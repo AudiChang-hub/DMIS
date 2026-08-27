@@ -8,7 +8,7 @@
   <div>
     <p class="eyebrow">依領牌日認列成本</p>
     <h1>代銷結算成本</h1>
-    <p class="muted">車輛進庫不產生成本；領牌後依車型、領牌縣市與實際領牌日固定成本快照。</p>
+    <p class="muted">車輛進庫不產生成本；領牌後依車型與實際領牌日固定成本快照。</p>
   </div>
   <a class="button primary" href="{% url 'settlement_cost_rule_create' %}">＋ 新增成本版本</a>
 </section>
@@ -17,13 +17,6 @@
   <div class="inventory-filter master-search">
     <label for="cost-q">搜尋</label>
     <input id="cost-q" type="search" name="q" value="{{ selected.q }}" placeholder="品牌、車型、型號或備註">
-  </div>
-  <div class="inventory-filter">
-    <label for="cost-county">領牌縣市</label>
-    <select id="cost-county" name="registration_county">
-      <option value="">全部縣市與全國預設</option>
-      {% for value, label in counties %}<option value="{{ value }}" {% if selected.registration_county == value %}selected{% endif %}>{{ label }}</option>{% endfor %}
-    </select>
   </div>
   <div class="inventory-filter-actions">
     <a class="button ghost" href="{% url 'settlement_cost_rule_list' %}">清除</a>
@@ -35,13 +28,12 @@
   <div class="inventory-list-summary"><strong>共 {{ page_obj.paginator.count }} 筆成本版本</strong></div>
   <div class="inventory-table-wrap">
     <table class="inventory-table settlement-cost-table">
-      <thead><tr><th>車型</th><th>領牌縣市</th><th>代銷結算成本</th><th>公告日期</th><th>生效期間</th><th>狀態</th><th>備註</th><th></th></tr></thead>
+      <thead><tr><th>機種／型號／年份</th><th>代銷結算成本</th><th>公告日期</th><th>生效期間</th><th>狀態</th><th>備註</th><th></th></tr></thead>
       <tbody>
         {% for rule in rules %}
         {% with lifecycle=rule.lifecycle_status %}
         <tr>
-          <td data-label="車型"><strong>{{ rule.vehicle_model.brand }} {{ rule.vehicle_model.name }}</strong><span>{{ rule.vehicle_model.model_number }}</span></td>
-          <td data-label="領牌縣市">{{ rule.area_label }}</td>
+          <td data-label="機種／型號／年份"><strong>{{ rule.vehicle_model.name }}</strong><span>{{ rule.vehicle_model.model_number|default:"型號待補" }}／{{ rule.vehicle_model.model_year|default:"年份待補" }}</span></td>
           <td data-label="代銷結算成本"><strong>${{ rule.amount|floatformat:0 }}</strong></td>
           <td data-label="公告日期">{{ rule.announced_on|date:"Y/m/d" }}</td>
           <td data-label="生效期間"><strong>{{ rule.effective_from|date:"Y/m/d" }}</strong><span>至 {{ rule.effective_to|date:"Y/m/d"|default:"持續有效" }}</span></td>
@@ -51,7 +43,7 @@
         </tr>
         {% endwith %}
         {% empty %}
-        <tr><td colspan="8"><div class="empty-state"><strong>尚未建立代銷結算成本</strong><p>請先建立全國預設，必要時再增加特定縣市版本。</p></div></td></tr>
+        <tr><td colspan="7"><div class="empty-state"><strong>尚未建立代銷結算成本</strong><p>請先建立適用車型與生效日期的成本版本。</p></div></td></tr>
         {% endfor %}
       </tbody>
     </table>

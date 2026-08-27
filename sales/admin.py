@@ -213,13 +213,12 @@ class VehicleInventoryHistoryAdmin(admin.ModelAdmin):
 class VehicleSettlementCostRuleAdmin(admin.ModelAdmin):
     list_display = (
         "vehicle_model",
-        "registration_county",
         "amount",
         "effective_from",
         "effective_to",
         "active",
     )
-    list_filter = ("registration_county", "active")
+    list_filter = ("active",)
     search_fields = (
         "vehicle_model__brand",
         "vehicle_model__name",

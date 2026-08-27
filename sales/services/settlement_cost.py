@@ -4,24 +4,19 @@ from django.utils import timezone
 from sales.models import OrderOperationsProfile, VehicleSettlementCostRule
 
 
-def resolve_settlement_cost(vehicle_model_id, registration_county, registration_date):
-    if not vehicle_model_id or not registration_county or not registration_date:
+def resolve_settlement_cost(vehicle_model_id, registration_date):
+    if not vehicle_model_id or not registration_date:
         return None
-    candidates = VehicleSettlementCostRule.objects.filter(
-        vehicle_model_id=vehicle_model_id,
-        active=True,
-        effective_from__lte=registration_date,
-    ).filter(
-        Q(effective_to__isnull=True) | Q(effective_to__gte=registration_date)
+    return (
+        VehicleSettlementCostRule.objects.filter(
+            vehicle_model_id=vehicle_model_id,
+            active=True,
+            effective_from__lte=registration_date,
+        )
+        .filter(Q(effective_to__isnull=True) | Q(effective_to__gte=registration_date))
+        .order_by("-effective_from", "-id")
+        .first()
     )
-    exact = candidates.filter(registration_county=registration_county).order_by(
-        "-effective_from", "-id"
-    ).first()
-    if exact:
-        return exact
-    return candidates.filter(registration_county="").order_by(
-        "-effective_from", "-id"
-    ).first()
 
 
 def apply_order_settlement_cost(order, actor_name="", *, lock=False):
@@ -30,21 +25,18 @@ def apply_order_settlement_cost(order, actor_name="", *, lock=False):
         return profile
     rule = resolve_settlement_cost(
         order.vehicle_model_id,
-        order.registration_county,
         order.registration_date,
     )
     if not rule:
         profile.vehicle_cost = 0
         profile.vehicle_cost_rule = None
         profile.vehicle_cost_registration_date = None
-        profile.vehicle_cost_county = ""
         profile.vehicle_cost_manual = False
         profile.save(
             update_fields=[
                 "vehicle_cost",
                 "vehicle_cost_rule",
                 "vehicle_cost_registration_date",
-                "vehicle_cost_county",
                 "vehicle_cost_manual",
                 "updated_at",
             ]
@@ -54,13 +46,11 @@ def apply_order_settlement_cost(order, actor_name="", *, lock=False):
     profile.vehicle_cost = rule.amount
     profile.vehicle_cost_rule = rule
     profile.vehicle_cost_registration_date = order.registration_date
-    profile.vehicle_cost_county = order.registration_county
     profile.vehicle_cost_manual = False
     update_fields = [
         "vehicle_cost",
         "vehicle_cost_rule",
         "vehicle_cost_registration_date",
-        "vehicle_cost_county",
         "vehicle_cost_manual",
         "updated_at",
     ]

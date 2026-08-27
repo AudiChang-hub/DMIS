@@ -129,7 +129,7 @@
       <label>成本認列依據</label>
       {% if profile.vehicle_cost_rule_id %}
       <div class="read-only-value">
-        <strong>{{ profile.vehicle_cost_county }} · {{ profile.vehicle_cost_registration_date|date:"Y/m/d" }}</strong>
+        <strong>領牌日 {{ profile.vehicle_cost_registration_date|date:"Y/m/d" }}</strong>
         <small>{% if profile.vehicle_cost_locked_at %}已固定，不受後續成本版本異動影響{% else %}領牌完成後固定{% endif %}</small>
       </div>
       {% else %}

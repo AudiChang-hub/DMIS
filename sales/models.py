@@ -841,7 +841,6 @@ class SalesSourceCooperationProfile(TimeStampedModel):
     class RelationshipType(models.TextChoices):
         GENERAL = "general", "一般"
         EXCLUSIVE = "exclusive", "專銷"
-        SHAREHOLDER = "shareholder", "股東"
 
     source = models.ForeignKey(
         SalesSource,

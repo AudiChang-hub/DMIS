@@ -1365,8 +1365,6 @@ def _sales_source_list_type_label(source, cooperation_overview):
         item["relationship_type"]
         for item in cooperation_overview.get("cooperating", [])
     }
-    if "股東" in relationship_types:
-        return "股東車行"
     if "專銷" in relationship_types:
         return "專銷車行"
     return "一般車行"

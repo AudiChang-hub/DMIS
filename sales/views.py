@@ -719,13 +719,27 @@ def business_holiday_list(request):
         holiday = form.save()
         messages.success(request, f"已儲存工作日排除日期：{holiday.date} {holiday.name}。")
         return redirect("business_holiday_list")
+    holidays = list(BusinessHoliday.objects.all())
+    official_holidays = [
+        holiday
+        for holiday in holidays
+        if holiday.source == BusinessHoliday.Source.DGPA
+    ]
+    latest_official_sync = max(
+        (holiday.updated_at for holiday in official_holidays),
+        default=None,
+    )
     return render(
         request,
         "sales/business_holiday_list.html",
         {
-            "holidays": BusinessHoliday.objects.all(),
+            "holidays": holidays,
             "form": form,
             "editing": editing,
+            "latest_official_sync": latest_official_sync,
+            "official_years": sorted(
+                {holiday.date.year for holiday in official_holidays}
+            ),
         },
     )
 

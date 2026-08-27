@@ -1177,6 +1177,33 @@ body.screen-locked { overflow: hidden; }
 .form-validation-summary strong,
 .form-validation-summary span { display: block; }
 .form-validation-summary span { margin-top: 4px; font-size: .86rem; }
+.holiday-sync-status {
+  display: flex;
+  margin-bottom: 20px;
+  padding: 18px 20px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  border: 1px solid var(--line);
+  border-left: 4px solid var(--accent);
+  border-radius: 16px;
+  background: var(--surface-raised);
+  box-shadow: var(--shadow-soft);
+}
+.holiday-sync-status > div { display: grid; gap: 4px; }
+.holiday-sync-status strong { font-size: 1rem; }
+.holiday-sync-status small,
+.holiday-sync-status__result span { color: var(--muted); font-size: .82rem; }
+.holiday-sync-status__result { min-width: 220px; text-align: right; }
+@media (max-width: 720px) {
+  .holiday-sync-status { align-items: stretch; flex-direction: column; gap: 14px; }
+  .holiday-sync-status__result {
+    min-width: 0;
+    padding-top: 14px;
+    border-top: 1px solid var(--line);
+    text-align: left;
+  }
+}
 .order-work-tabs button {
   display: grid; min-width: 0; min-height: 58px; padding: 8px 10px; place-content: center;
   gap: 2px; color: var(--muted); background: transparent; border: 0; border-radius: 11px;

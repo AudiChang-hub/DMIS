@@ -50,8 +50,8 @@ from .models import (
 
 @admin.register(BusinessHoliday)
 class BusinessHolidayAdmin(admin.ModelAdmin):
-    list_display = ("date", "name", "active")
-    list_filter = ("active",)
+    list_display = ("date", "name", "source", "active", "updated_at")
+    list_filter = ("source", "active")
     search_fields = ("name",)
 
 

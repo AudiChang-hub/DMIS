@@ -981,6 +981,10 @@ def sales_source_list(request):
             policies=item.current_cooperation_policies,
             profiles=item.current_cooperation_profiles,
         )
+        item.list_type_label = _sales_source_list_type_label(
+            item,
+            item.cooperation_overview,
+        )
     return render(
         request,
         "sales/sales_source_list.html",
@@ -1325,6 +1329,26 @@ def _sales_source_brand_overview(source, policies=None, profiles=None):
         "cooperating_count": len(cooperating),
         "states": states,
     }
+
+
+def _sales_source_list_type_label(source, cooperation_overview):
+    """Return a concise, user-facing classification for the source list."""
+    if source.source_type != SalesSource.SourceType.DEALER:
+        return (
+            source.category.name
+            if source.category_id
+            else source.get_source_type_display()
+        )
+
+    relationship_types = {
+        item["relationship_type"]
+        for item in cooperation_overview.get("cooperating", [])
+    }
+    if "股東" in relationship_types:
+        return "股東車行"
+    if "專銷" in relationship_types:
+        return "專銷車行"
+    return "一般車行"
 
 
 @login_required

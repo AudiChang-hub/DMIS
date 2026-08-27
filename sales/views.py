@@ -1422,6 +1422,9 @@ def installment_company_list(request):
     if edit_pk:
         editing = get_object_or_404(InstallmentCompany, pk=edit_pk)
     form = InstallmentCompanyForm(request.POST or None, instance=editing)
+    show_editor = bool(
+        editing or request.GET.get("new") == "1" or request.method == "POST"
+    )
     if request.method == "POST" and form.is_valid():
         company = form.save()
         messages.success(request, f"已儲存分期公司：{company.name}。")
@@ -1436,6 +1439,7 @@ def installment_company_list(request):
             ),
             "form": form,
             "editing": editing,
+            "show_editor": show_editor,
         },
     )
 

@@ -3510,8 +3510,23 @@ body.screen-locked { overflow: hidden; }
 .cooperation-summary__item span { min-width: 0; color: var(--muted); font-size: .76rem; overflow-wrap: anywhere; }
 .cooperation-line-status { display: flex; padding-top: 6px; align-items: center; gap: 7px; color: var(--muted); border-top: 1px solid var(--line); font-size: .76rem; font-weight: 700; }
 .cooperation-line-status i { width: 7px; height: 7px; flex: 0 0 auto; background: var(--muted); border-radius: 50%; opacity: .55; }
-.cooperation-line-status.has-group { color: var(--forest-2); }
-.cooperation-line-status.has-group i { background: var(--green); opacity: 1; }
+.cooperation-line-status.has-group { min-height: 44px; padding-top: 7px; }
+.line-group-scope-marker {
+  display: inline-grid; width: 36px; height: 36px; place-items: center; color: #20262a;
+  border: 1px solid color-mix(in srgb, currentColor 32%, transparent); border-radius: 50%;
+  box-shadow: 0 2px 8px rgba(9, 24, 31, .14);
+}
+.line-group-scope-marker svg { width: 21px; height: 21px; fill: currentColor; }
+.line-group-scope-marker--sym-exclusive { color: #332b00; background: #f4df3f; }
+.line-group-scope-marker--mixed { color: #20272c; background: #d9dee2; }
+.line-group-scope-marker--suzuki { color: #fff; background: #2455d6; }
+.line-group-scope-marker--sym { color: #4f201d; background: #efcbc7; }
+.line-group-scope-marker--unclassified { color: var(--muted); background: var(--surface-soft); }
+.cooperation-cell--sym-exclusive { box-shadow: inset 3px 0 #d5b900; }
+.cooperation-cell--mixed { box-shadow: inset 3px 0 #9aa3aa; }
+.cooperation-cell--suzuki { box-shadow: inset 3px 0 #2455d6; }
+.cooperation-cell--sym { box-shadow: inset 3px 0 #cf8d86; }
+.cooperation-cell--unclassified { box-shadow: inset 3px 0 var(--line-strong); }
 .cooperation-summary.is-empty > span { color: var(--muted); font-size: .78rem; }
 .formset-errors { margin-top: 14px; padding: 11px 13px; color: var(--red); background: var(--red-soft); border-radius: 10px; }
 .responsive-split { display: grid; grid-template-columns: minmax(320px, .72fr) minmax(0, 1.28fr); gap: 20px; align-items: start; }

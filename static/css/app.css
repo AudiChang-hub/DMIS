@@ -1986,8 +1986,18 @@ body.screen-locked { overflow: hidden; }
 .source-holiday-summary.is-active { background: var(--mint); border-color: color-mix(in srgb, var(--forest) 28%, var(--line)); }
 .gift-not-required { color: var(--muted); font-size: .8rem; }
 .source-identity { gap: 3px; }
+.source-identity__label { display: inline-flex; width: fit-content; max-width: 100%; flex-direction: column; align-items: flex-start; gap: 2px; }
+.source-identity__label.has-line-group {
+  min-width: 116px; padding: 7px 10px; border: 1px solid transparent; border-radius: 10px;
+}
 .source-identity__code { color: var(--forest-2); font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: .76rem; font-weight: 850; letter-spacing: .03em; }
-.source-identity > strong { font-size: .96rem; }
+.source-identity__label > strong { font-size: .96rem; overflow-wrap: anywhere; }
+.source-identity__label--sym-exclusive { color: #332b00; background: #f4df3f; border-color: #d5b900; }
+.source-identity__label--mixed { color: #20272c; background: #d9dee2; border-color: #9aa3aa; }
+.source-identity__label--suzuki { color: #fff; background: #2455d6; border-color: #1940ab; }
+.source-identity__label--sym { color: #4f201d; background: #efcbc7; border-color: #cf8d86; }
+.source-identity__label--unclassified { color: var(--ink); background: var(--surface-soft); border-color: var(--line-strong); }
+.source-identity__label.has-line-group .source-identity__code { color: inherit; }
 .holiday-list-marker {
   display: inline-flex; min-height: 30px; padding: 5px 9px; align-items: center; gap: 6px;
   color: var(--amber); background: var(--amber-soft); border: 1px solid color-mix(in srgb, var(--amber) 42%, var(--line));
@@ -3050,6 +3060,7 @@ body.screen-locked { overflow: hidden; }
   .inventory-table td { display: grid; min-width: 0; padding: 8px 0; grid-template-columns: 92px minmax(0, 1fr); gap: 8px; border: 0; }
   .inventory-table td::before { content: attr(data-label); color: var(--muted); font-size: .72rem; font-weight: 800; }
   .inventory-table td:nth-child(2), .inventory-table td:nth-child(3), .inventory-row-action { grid-column: 1 / -1; }
+  .sales-source-table .source-identity__label, .sales-source-table .source-identity > span { grid-column: 2; }
   .inventory-table td[colspan] { display: block; grid-column: 1 / -1; }
   .inventory-table td[colspan]::before { display: none; }
   .reconciliation-shell { overflow: visible; background: transparent; border: 0; box-shadow: none; }
@@ -3546,25 +3557,6 @@ body.screen-locked { overflow: hidden; }
 .cooperation-summary__item:last-child { border-bottom: 0; }
 .cooperation-summary__item strong { color: var(--ink); font-size: .78rem; }
 .cooperation-summary__item span { min-width: 0; color: var(--muted); font-size: .76rem; overflow-wrap: anywhere; }
-.cooperation-line-status { display: flex; padding-top: 6px; align-items: center; gap: 7px; color: var(--muted); border-top: 1px solid var(--line); font-size: .76rem; font-weight: 700; }
-.cooperation-line-status i { width: 7px; height: 7px; flex: 0 0 auto; background: var(--muted); border-radius: 50%; opacity: .55; }
-.cooperation-line-status.has-group { min-height: 44px; padding-top: 7px; }
-.line-group-scope-marker {
-  display: inline-grid; width: 36px; height: 36px; place-items: center; color: #20262a;
-  border: 1px solid color-mix(in srgb, currentColor 32%, transparent); border-radius: 50%;
-  box-shadow: 0 2px 8px rgba(9, 24, 31, .14);
-}
-.line-group-scope-marker svg { width: 21px; height: 21px; fill: currentColor; }
-.line-group-scope-marker--sym-exclusive { color: #332b00; background: #f4df3f; }
-.line-group-scope-marker--mixed { color: #20272c; background: #d9dee2; }
-.line-group-scope-marker--suzuki { color: #fff; background: #2455d6; }
-.line-group-scope-marker--sym { color: #4f201d; background: #efcbc7; }
-.line-group-scope-marker--unclassified { color: var(--muted); background: var(--surface-soft); }
-.cooperation-cell--sym-exclusive { box-shadow: inset 3px 0 #d5b900; }
-.cooperation-cell--mixed { box-shadow: inset 3px 0 #9aa3aa; }
-.cooperation-cell--suzuki { box-shadow: inset 3px 0 #2455d6; }
-.cooperation-cell--sym { box-shadow: inset 3px 0 #cf8d86; }
-.cooperation-cell--unclassified { box-shadow: inset 3px 0 var(--line-strong); }
 .cooperation-summary.is-empty > span { color: var(--muted); font-size: .78rem; }
 .formset-errors { margin-top: 14px; padding: 11px 13px; color: var(--red); background: var(--red-soft); border-radius: 10px; }
 .responsive-split { display: grid; grid-template-columns: minmax(320px, .72fr) minmax(0, 1.28fr); gap: 20px; align-items: start; }

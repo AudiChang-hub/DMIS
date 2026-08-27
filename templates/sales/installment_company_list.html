@@ -1,3 +1,57 @@
-{% extends "base.html" %}{% block title %}分期公司｜車輛銷售管理{% endblock %}{% block page_class %}page-shell--wide{% endblock %}{% block content %}
-{% url 'data_maintenance' as data_url %}{% include "sales/_page_back.html" with fallback_url=data_url label="返回資料維護區" %}<section class="hero-row compact-hero"><div><p class="eyebrow">分期主檔</p><h1>分期公司</h1><p class="muted">客服電話會在訂單套用方案時保存快照，日後修改不影響舊訂單。</p></div></section>
-<div class="responsive-split master-editor-layout"><section class="form-section static-section"><div class="section-title"><h2>{% if editing %}編輯 {{ editing.name }}{% else %}新增分期公司{% endif %}</h2></div><form method="post" class="stacked-form">{% csrf_token %}<div class="form-grid single-column">{% for field in form %}{% include "sales/_field.html" with field=field %}{% endfor %}</div><div class="form-actions">{% if editing %}<a class="button ghost" href="{% url 'installment_company_list' %}">取消</a>{% endif %}<button class="button primary">儲存</button></div></form></section><section class="inventory-list-panel"><div class="inventory-list-summary"><strong>共 {{ companies|length }} 家</strong></div><div class="inventory-table-wrap"><table class="inventory-table"><thead><tr><th>公司</th><th>客服電話</th><th>方案</th><th>訂單</th><th>狀態</th><th></th></tr></thead><tbody>{% for item in companies %}<tr><td data-label="公司"><strong>{{ item.name }}</strong></td><td data-label="客服電話">{{ item.customer_service_phone|default:"未填" }}</td><td data-label="方案">{{ item.option_count }} 筆</td><td data-label="訂單">{{ item.order_count }} 張</td><td data-label="狀態">{{ item.active|yesno:"啟用中,已停用" }}</td><td><a class="button ghost small" href="?edit={{ item.pk }}">編輯</a></td></tr>{% empty %}<tr><td colspan="6">尚無分期公司</td></tr>{% endfor %}</tbody></table></div></section></div>{% endblock %}
+{% extends "base.html" %}
+{% block title %}分期公司｜車輛銷售管理{% endblock %}
+{% block page_class %}page-shell--wide{% endblock %}
+{% block content %}
+{% url 'data_maintenance' as data_url %}{% include "sales/_page_back.html" with fallback_url=data_url label="返回資料維護區" %}
+<section class="hero-row compact-hero">
+  <div>
+    <p class="eyebrow">分期主檔</p>
+    <h1>分期公司</h1>
+    <p class="muted">集中維護公司與客服電話；訂單套用方案時會保存當下資料，不受日後修改影響。</p>
+  </div>
+  {% if not show_editor %}<div class="hero-actions"><a class="button primary" href="?new=1#company-form">＋ 新增分期公司</a></div>{% endif %}
+</section>
+
+{% if show_editor %}
+<section class="form-section static-section installment-company-editor" id="company-form">
+  <div class="section-title installment-company-editor__title">
+    <div>
+      <p class="eyebrow">{% if editing %}公司資料修改{% else %}建立新公司{% endif %}</p>
+      <h2>{% if editing %}編輯 {{ editing.name }}{% else %}新增分期公司{% endif %}</h2>
+      <p>{% if editing %}儲存後，新訂單會使用更新後的資料；既有訂單快照不變。{% else %}填寫公司名稱即可建立，客服電話與備註可稍後補充。{% endif %}</p>
+    </div>
+  </div>
+  <form method="post" class="stacked-form">{% csrf_token %}
+    <div class="form-grid installment-company-form-grid">{% for field in form %}{% include "sales/_field.html" with field=field %}{% endfor %}</div>
+    <div class="form-actions">
+      <a class="button ghost" href="{% url 'installment_company_list' %}">取消</a>
+      <button class="button primary" type="submit">{% if editing %}儲存修改{% else %}新增公司{% endif %}</button>
+    </div>
+  </form>
+</section>
+{% endif %}
+
+<section class="inventory-list-panel installment-company-list">
+  <div class="inventory-list-summary">
+    <div><strong>既有分期公司</strong><span>共 {{ companies|length }} 家</span></div>
+    {% if show_editor %}<a class="button ghost small" href="{% url 'installment_company_list' %}">收起表單</a>{% endif %}
+  </div>
+  <div class="inventory-table-wrap">
+    <table class="inventory-table installment-company-table">
+      <thead><tr><th>公司</th><th>客服電話</th><th>分期方案</th><th>使用訂單</th><th>狀態</th><th></th></tr></thead>
+      <tbody>
+        {% for item in companies %}
+        <tr>
+          <td data-label="公司"><strong>{{ item.name }}</strong>{% if item.note %}<span>{{ item.note|truncatechars:40 }}</span>{% endif %}</td>
+          <td data-label="客服電話">{{ item.customer_service_phone|default:"尚未填寫" }}</td>
+          <td data-label="分期方案">{{ item.option_count }} 筆</td>
+          <td data-label="使用訂單">{{ item.order_count }} 張</td>
+          <td data-label="狀態"><span class="status-pill{% if not item.active %} status-inactive{% endif %}">{{ item.active|yesno:"啟用中,已停用" }}</span></td>
+          <td data-label="操作" class="inventory-row-action"><a class="button ghost small" href="?edit={{ item.pk }}#company-form">編輯</a></td>
+        </tr>
+        {% empty %}<tr><td colspan="6"><div class="empty-state small"><strong>尚未建立分期公司</strong><p>使用上方「新增分期公司」開始建立。</p></div></td></tr>{% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endblock %}

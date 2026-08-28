@@ -1930,8 +1930,10 @@ body.screen-locked { overflow: hidden; }
   border: 1px solid var(--line); border-radius: var(--radius);
 }
 .master-filters.sales-source-filters {
-  grid-template-columns: minmax(260px, 1.4fr) repeat(5, minmax(130px, 1fr)) auto;
+  grid-template-columns: minmax(250px, 1.5fr) repeat(4, minmax(140px, 1fr));
 }
+.master-filters.sales-source-filters .master-search { grid-column: span 2; }
+.master-filters.sales-source-filters .inventory-filter-actions { justify-self: end; }
 .source-basic-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 .source-address-field { grid-column: span 2; }
 .source-note-field { grid-column: 1 / -1; }
@@ -1971,6 +1973,40 @@ body.screen-locked { overflow: hidden; }
   .source-category-layout { grid-template-columns: 1fr; }
 }
 .source-list-summary { min-height: 72px; padding-block: 10px; gap: 20px; }
+.source-region-groups { display: grid; padding: 16px; gap: 14px; }
+.source-region-group {
+  overflow: hidden; background: var(--surface); border: 1px solid var(--line);
+  border-radius: 14px; box-shadow: 0 7px 20px rgba(22, 49, 58, .04);
+}
+.source-region-group > summary {
+  display: flex; min-height: 70px; padding: 14px 18px; align-items: center;
+  justify-content: space-between; gap: 18px; cursor: pointer; list-style: none;
+  background: var(--surface-soft); transition: background .16s ease, border-color .16s ease;
+}
+.source-region-group > summary::-webkit-details-marker { display: none; }
+.source-region-group > summary:hover { background: var(--mint); }
+.source-region-group > summary:focus-visible { outline: 3px solid var(--focus-ring); outline-offset: -3px; }
+.source-region-group > summary > span:first-child { display: grid; min-width: 0; gap: 3px; }
+.source-region-group > summary strong { color: var(--ink); font-size: 1.02rem; }
+.source-region-group > summary small { color: var(--muted); font-size: .78rem; }
+.source-region-toggle {
+  display: inline-flex; min-width: 64px; min-height: 38px; padding: 8px 12px;
+  align-items: center; justify-content: center; color: var(--forest); background: var(--surface);
+  border: 1px solid var(--line); border-radius: 10px; font-size: .78rem; font-weight: 900;
+}
+.source-region-toggle .when-open { display: none; }
+.source-region-group[open] .source-region-toggle .when-closed { display: none; }
+.source-region-group[open] .source-region-toggle .when-open { display: inline; }
+.source-region-group[open] > summary { border-bottom: 1px solid var(--line); }
+.source-region-group .inventory-table-wrap { border: 0; border-radius: 0; box-shadow: none; }
+.source-region-group .sales-source-table { border: 0; border-radius: 0; box-shadow: none; }
+.source-district-row th {
+  padding: 10px 18px !important; color: var(--ink); background: var(--surface-soft) !important;
+  border-top: 1px solid var(--line); border-bottom: 1px solid var(--line);
+}
+.source-district-row:first-child th { border-top: 0; }
+.source-district-row th > span { font-size: .86rem; font-weight: 900; }
+.source-district-row th > small { margin-left: 8px; color: var(--muted); font-size: .72rem; font-weight: 700; }
 .source-list-summary__copy { display: grid; min-width: 0; gap: 3px; }
 .source-list-summary .button { flex: 0 0 auto; }
 .source-list-actions { display: flex; flex: 0 0 auto; align-items: center; justify-content: flex-end; gap: 10px; }
@@ -3168,6 +3204,8 @@ body.screen-locked { overflow: hidden; }
   }
   .quick-entry-actions .button { flex: 1; }
   .master-filters, .master-filters.sales-source-filters { grid-template-columns: 1fr 1fr; padding: 14px; }
+  .master-filters.sales-source-filters .master-search { grid-column: 1 / -1; }
+  .master-filters.sales-source-filters .inventory-filter-actions { justify-self: stretch; }
   .master-search, .master-filters .inventory-filter-actions { grid-column: 1 / -1; }
   .source-basic-grid { grid-template-columns: 1fr 1fr; }
   .source-address-field { grid-column: 1 / -1; }
@@ -3206,6 +3244,11 @@ body.screen-locked { overflow: hidden; }
   .vehicle-year-drawer__list { padding: 14px 14px calc(22px + env(safe-area-inset-bottom)); }
   .vehicle-year-card dl { grid-template-columns: 1fr 1fr; gap: 9px 12px; }
   .source-list-summary { padding-block: 12px; align-items: stretch; flex-direction: column; }
+  .source-region-groups { padding: 10px; gap: 10px; }
+  .source-region-group > summary { min-height: 64px; padding: 12px 13px; }
+  .source-region-toggle { min-width: 58px; min-height: 40px; }
+  .source-district-row { display: block !important; padding: 0 !important; }
+  .source-district-row th { display: block !important; width: 100% !important; padding: 9px 14px !important; }
   .source-list-actions { align-items: stretch; flex-direction: column; }
   .source-list-summary .button, .source-holiday-summary { width: 100%; justify-content: center; }
   .line-group-colour-guide { align-items: flex-start; flex-direction: column; gap: 8px; }

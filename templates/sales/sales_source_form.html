@@ -32,10 +32,15 @@
       {% include "sales/_field.html" with field=form.mobile %}
       {% include "sales/_field.html" with field=form.other_contact %}
       <div class="source-address-field">{% include "sales/_field.html" with field=form.address %}</div>
+      <div class="source-region-field" data-dealer-only>{% include "sales/_field.html" with field=form.city %}</div>
+      <div class="source-region-field" data-dealer-only>{% include "sales/_field.html" with field=form.district %}</div>
       {% include "sales/_field.html" with field=form.holiday_gift %}
       {% include "sales/_field.html" with field=form.active %}
       <div class="source-note-field">{% include "sales/_field.html" with field=form.note %}</div>
     </div>
+    <datalist id="taiwan-district-list">
+      {% for district in district_names %}<option value="{{ district }}"></option>{% endfor %}
+    </datalist>
   </section>
 
   <section class="form-section static-section source-editor-section dealer-only-section" id="line-group" data-dealer-only>

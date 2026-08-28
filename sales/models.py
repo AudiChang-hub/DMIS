@@ -266,6 +266,10 @@ class SalesSource(TimeStampedModel):
     other_contact = models.CharField("其他聯絡方式", max_length=250, blank=True)
     fax = models.CharField("傳真", max_length=50, blank=True)
     address = models.CharField("地址", max_length=250, blank=True)
+    city = models.CharField(
+        "縣市", max_length=20, choices=TaiwanCounty.choices, blank=True
+    )
+    district = models.CharField("行政區", max_length=20, blank=True)
     vehicle_capacity = models.PositiveSmallIntegerField(
         "可停放車輛數量", blank=True, null=True
     )
@@ -284,6 +288,12 @@ class SalesSource(TimeStampedModel):
 
     class Meta:
         ordering = ["source_type", "name"]
+        indexes = [
+            models.Index(
+                fields=["source_type", "city", "district", "active"],
+                name="sales_src_region_idx",
+            )
+        ]
         constraints = [
             models.UniqueConstraint(
                 fields=["source_type", "name"], name="unique_sales_source_name"
@@ -297,16 +307,32 @@ class SalesSource(TimeStampedModel):
 
     def clean(self):
         super().clean()
+        from sales.services.taiwan_address import infer_taiwan_region, is_valid_district
+
         if self.category_id and self.source_type != self.category.system_behavior:
             self.source_type = self.category.system_behavior
         if self.source_type != self.SourceType.DEALER:
             self.has_line_group = False
+        if self.source_type == self.SourceType.DEALER and self.address:
+            inferred_city, inferred_district = infer_taiwan_region(self.address)
+            self.city = self.city or inferred_city
+            self.district = self.district or inferred_district
+        if self.district and not self.city:
+            raise ValidationError({"city": "填寫行政區前，請先選擇縣市。"})
+        if self.city and not is_valid_district(self.city, self.district):
+            raise ValidationError({"district": "行政區與所選縣市不一致。"})
 
     def save(self, *args, **kwargs):
+        from sales.services.taiwan_address import infer_taiwan_region
+
         if self.category_id:
             self.source_type = self.category.system_behavior
         if self.source_type != self.SourceType.DEALER:
             self.has_line_group = False
+        elif self.address and (not self.city or not self.district):
+            inferred_city, inferred_district = infer_taiwan_region(self.address)
+            self.city = self.city or inferred_city
+            self.district = self.district or inferred_district
         return super().save(*args, **kwargs)
 
 

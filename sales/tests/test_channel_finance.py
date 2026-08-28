@@ -968,6 +968,16 @@ class ChannelFinanceTests(TestCase):
                     cooperates=True,
                     relationship_type=relationship_type,
                 )
+        unclassified_source = SalesSource.objects.create(
+            name="待補合作範圍群組車行",
+            source_type=SalesSource.SourceType.DEALER,
+            has_line_group=True,
+        )
+        no_group_source = SalesSource.objects.create(
+            name="沒有群組車行",
+            source_type=SalesSource.SourceType.DEALER,
+            has_line_group=False,
+        )
         self.client.force_login(self.user)
 
         response = self.client.get(reverse("sales_source_list"))
@@ -979,8 +989,18 @@ class ChannelFinanceTests(TestCase):
             row_start = html.rfind("<tr", 0, cell_start)
             row = html[row_start : html.index("</tr>", cell_start)]
             self.assertIn(f"source-identity__label--{tone}", row)
+        unclassified_start = html.index(unclassified_source.name)
+        unclassified_row_start = html.rfind("<tr", 0, unclassified_start)
+        unclassified_row = html[unclassified_row_start : html.index("</tr>", unclassified_start)]
+        self.assertIn("has-line-group source-identity__label--unclassified", unclassified_row)
+        no_group_start = html.index(no_group_source.name)
+        no_group_row_start = html.rfind("<tr", 0, no_group_start)
+        no_group_row = html[no_group_row_start : html.index("</tr>", no_group_start)]
+        self.assertNotIn("has-line-group", no_group_row)
         self.assertNotContains(response, "line-group-scope-marker")
         self.assertNotContains(response, "cooperation-line-status")
+        self.assertContains(response, "車行名稱有底色＝有 LINE 群組")
+        self.assertContains(response, "沒有底色代表沒有 LINE 群組")
         self.assertContains(response, "有 LINE 群組：三陽專銷，並與台鈴合作")
         self.assertContains(response, "有 LINE 群組：三陽與台鈴一般合作")
         self.assertContains(response, "有 LINE 群組：僅台鈴合作")

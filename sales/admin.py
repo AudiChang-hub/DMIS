@@ -77,11 +77,12 @@ class StoreAdmin(admin.ModelAdmin):
 class SalesSourceAdmin(admin.ModelAdmin):
     list_display = (
         "name", "category", "source_type", "responsible_person", "phone", "mobile",
-        "holiday_gift", "has_line_group", "active"
+        "city", "district", "holiday_gift", "has_line_group", "active"
     )
     list_filter = (
-        "category", "source_type", "holiday_gift", "has_line_group", "active",
+        "category", "source_type", "city", "district", "holiday_gift", "has_line_group", "active",
     )
+    search_fields = ("name", "code", "responsible_person", "phone", "mobile", "address", "city", "district")
 
 
 @admin.register(SalesSourceCategory)

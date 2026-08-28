@@ -66,6 +66,12 @@ class DealerWorkbookSyncTests(TestCase):
         )
         self.assertTrue(profiles[SalesSourceBrandPolicy.CooperationScope.SUZUKI_GAS].cooperates)
         self.assertTrue(profiles[SalesSourceBrandPolicy.CooperationScope.SUZUKI_ELECTRIC].cooperates)
+        policies = {
+            item.cooperation_scope: item
+            for item in oil_and_electric.brand_policies.all()
+        }
+        self.assertTrue(policies[SalesSourceBrandPolicy.CooperationScope.SUZUKI_GAS].cooperates)
+        self.assertTrue(policies[SalesSourceBrandPolicy.CooperationScope.SUZUKI_ELECTRIC].cooperates)
         self.assertEqual(profiles[SalesSourceBrandPolicy.CooperationScope.SUZUKI_GAS].vehicle_capacity, 3)
         self.assertEqual(oil_and_electric.note, "Excel 備註")
         self.assertTrue(oil_and_electric.holiday_gift)
@@ -78,6 +84,12 @@ class DealerWorkbookSyncTests(TestCase):
         }
         self.assertFalse(electric_profiles[SalesSourceBrandPolicy.CooperationScope.SUZUKI_GAS].cooperates)
         self.assertTrue(electric_profiles[SalesSourceBrandPolicy.CooperationScope.SUZUKI_ELECTRIC].cooperates)
+        electric_policies = {
+            item.cooperation_scope: item
+            for item in electric_only.brand_policies.all()
+        }
+        self.assertFalse(electric_policies[SalesSourceBrandPolicy.CooperationScope.SUZUKI_GAS].cooperates)
+        self.assertTrue(electric_policies[SalesSourceBrandPolicy.CooperationScope.SUZUKI_ELECTRIC].cooperates)
         self.assertEqual(electric_only.note, "")
 
         alias_target.refresh_from_db()

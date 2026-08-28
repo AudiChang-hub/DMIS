@@ -57,7 +57,9 @@ class ProductExperienceTests(TestCase):
 
         self.assertEqual(source_page.status_code, 200)
         self.assertContains(source_page, 'class="desktop-data-menu active"')
-        self.assertContains(source_page, "車行、平台與傭金")
+        self.assertContains(source_page, "合作車行與傭金")
+        self.assertContains(source_page, "網路平台")
+        self.assertContains(source_page, "本店人員")
         self.assertContains(source_page, reverse("accessory_product_list"))
         self.assertContains(source_page, reverse("settlement_cost_rule_list"))
         self.assertContains(source_page, reverse("incentive_rule_list"))

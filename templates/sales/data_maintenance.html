@@ -41,7 +41,17 @@
   </a>
   <a class="maintenance-card" href="{% url 'sales_source_list' %}">
     <span class="maintenance-card__icon">行</span>
-    <div><h2>通路與傭金</h2><p>維護本店員工、合作車行、網路平台、自訂分類與各品牌傭金規則。</p><strong>{{ sales_source_count }} 個通路</strong></div>
+    <div><h2>合作車行與傭金</h2><p>維護車行聯絡資料、品牌合作、LINE 群組及傭金規則。</p><strong>{{ dealer_source_count }} 家車行</strong></div>
+    <span aria-hidden="true">›</span>
+  </a>
+  <a class="maintenance-card" href="{% url 'sales_source_platform_list' %}">
+    <span class="maintenance-card__icon">網</span>
+    <div><h2>網路平台</h2><p>維護網路銷售平台與聯絡資料，不混入合作車行。</p><strong>{{ platform_source_count }} 個平台</strong></div>
+    <span aria-hidden="true">›</span>
+  </a>
+  <a class="maintenance-card" href="{% url 'sales_source_staff_list' %}">
+    <span class="maintenance-card__icon">員</span>
+    <div><h2>本店人員</h2><p>維護內部填單及作業人員，不混入合作車行。</p><strong>{{ staff_source_count }} 位人員</strong></div>
     <span aria-hidden="true">›</span>
   </a>
   </div>

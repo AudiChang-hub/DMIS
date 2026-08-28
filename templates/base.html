@@ -31,7 +31,9 @@
                 <a href="{% url 'vehicle_model_list' %}"><strong>車型、售價與基礎傭金</strong><small>品牌、年份、價格與車行基礎傭金</small></a>
                 <a href="{% url 'inventory_list' %}"><strong>庫存資料</strong><small>進車、車況與調車歷程</small></a>
                 <a href="{% url 'accessory_product_list' %}"><strong>配件資料</strong><small>售價、工資與參考成本</small></a>
-                <a href="{% url 'sales_source_list' %}"><strong>車行、平台與傭金</strong><small>窗口、品牌合作與傭金加減</small></a>
+                <a href="{% url 'sales_source_list' %}"><strong>合作車行與傭金</strong><small>聯絡資料、品牌合作與傭金加減</small></a>
+                <a href="{% url 'sales_source_platform_list' %}"><strong>網路平台</strong><small>平台資料與聯絡方式</small></a>
+                <a href="{% url 'sales_source_staff_list' %}"><strong>本店人員</strong><small>內部填單與作業人員</small></a>
               </section>
               <section class="data-menu-group" aria-labelledby="data-menu-rules">
                 <h2 id="data-menu-rules">費率與規則</h2>
@@ -98,7 +100,9 @@
             <a href="{% url 'vehicle_model_list' %}"><span>型</span><strong>車型／傭金</strong></a>
             <a href="{% url 'inventory_list' %}"><span>庫</span><strong>庫存</strong></a>
             <a href="{% url 'accessory_product_list' %}"><span>配</span><strong>配件</strong></a>
-            <a href="{% url 'sales_source_list' %}"><span>行</span><strong>車行／平台</strong></a>
+            <a href="{% url 'sales_source_list' %}"><span>行</span><strong>合作車行</strong></a>
+            <a href="{% url 'sales_source_platform_list' %}"><span>網</span><strong>網路平台</strong></a>
+            <a href="{% url 'sales_source_staff_list' %}"><span>員</span><strong>本店人員</strong></a>
             <a href="{% url 'installment_company_list' %}"><span>期</span><strong>分期公司</strong></a>
             <a href="{% url 'settlement_cost_rule_list' %}"><span>本</span><strong>結算成本</strong></a>
             <a href="{% url 'incentive_rule_list' %}"><span>獎</span><strong>獎勵補助</strong></a>

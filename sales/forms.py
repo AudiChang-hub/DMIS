@@ -626,11 +626,16 @@ class SalesSourceForm(forms.ModelForm):
             ),
         }
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, source_type=None, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fields["category"].queryset = SalesSourceCategory.objects.filter(
+        category_queryset = SalesSourceCategory.objects.filter(
             Q(active=True) | Q(pk=self.instance.category_id)
-        ).order_by("system_behavior", "name")
+        )
+        if source_type in {value for value, _ in SalesSource.SourceType.choices}:
+            category_queryset = category_queryset.filter(system_behavior=source_type)
+        self.fields["category"].queryset = category_queryset.order_by(
+            "system_behavior", "name"
+        )
         self.fields["category"].required = True
         behavior = (
             self.instance.category.system_behavior

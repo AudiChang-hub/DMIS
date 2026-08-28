@@ -1974,6 +1974,21 @@ body.screen-locked { overflow: hidden; }
 .source-list-summary__copy { display: grid; min-width: 0; gap: 3px; }
 .source-list-summary .button { flex: 0 0 auto; }
 .source-list-actions { display: flex; flex: 0 0 auto; align-items: center; justify-content: flex-end; gap: 10px; }
+.line-group-colour-guide {
+  display: flex; padding: 10px 16px; align-items: center; gap: 14px;
+  color: var(--muted); background: var(--surface-soft); border-top: 1px solid var(--line);
+  font-size: .78rem;
+}
+.line-group-colour-guide > strong { color: var(--ink); font-size: .8rem; white-space: nowrap; }
+.line-group-colour-guide__items { display: flex; min-width: 0; align-items: center; flex-wrap: wrap; gap: 7px 14px; }
+.line-group-colour-guide__items > span { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+.line-group-colour-guide__swatch { width: 15px; height: 15px; border: 1px solid transparent; border-radius: 5px; }
+.line-group-colour-guide__swatch.is-sym-exclusive { background: #f4df3f; border-color: #d5b900; }
+.line-group-colour-guide__swatch.is-mixed { background: #d9dee2; border-color: #9aa3aa; }
+.line-group-colour-guide__swatch.is-suzuki { background: #2455d6; border-color: #1940ab; }
+.line-group-colour-guide__swatch.is-sym { background: #efcbc7; border-color: #cf8d86; }
+.line-group-colour-guide__swatch.is-unclassified { background: #687780; border-color: #46545d; }
+.line-group-colour-guide > small { margin-left: auto; white-space: nowrap; }
 .source-holiday-summary {
   display: inline-flex; min-height: 42px; padding: 7px 12px; align-items: center; gap: 8px;
   color: var(--ink); text-decoration: none; background: var(--surface-soft);
@@ -1988,15 +2003,15 @@ body.screen-locked { overflow: hidden; }
 .source-identity { gap: 3px; }
 .source-identity__label { display: inline-flex; width: fit-content; max-width: 100%; flex-direction: column; align-items: flex-start; gap: 2px; }
 .source-identity__label.has-line-group {
-  min-width: 116px; padding: 7px 10px; border: 1px solid transparent; border-radius: 10px;
+  min-width: 116px; padding: 7px 10px; border: 2px solid transparent; border-radius: 10px;
 }
 .source-identity__code { color: var(--forest-2); font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: .76rem; font-weight: 850; letter-spacing: .03em; }
 .source-identity__label > strong { font-size: .96rem; overflow-wrap: anywhere; }
-.source-identity__label--sym-exclusive { color: #332b00; background: #f4df3f; border-color: #d5b900; }
-.source-identity__label--mixed { color: #20272c; background: #d9dee2; border-color: #9aa3aa; }
-.source-identity__label--suzuki { color: #fff; background: #2455d6; border-color: #1940ab; }
-.source-identity__label--sym { color: #4f201d; background: #efcbc7; border-color: #cf8d86; }
-.source-identity__label--unclassified { color: var(--ink); background: var(--surface-soft); border-color: var(--line-strong); }
+.source-identity__label.has-line-group.source-identity__label--sym-exclusive { color: #332b00; background: #f4df3f; border-color: #d5b900; }
+.source-identity__label.has-line-group.source-identity__label--mixed { color: #20272c; background: #d9dee2; border-color: #9aa3aa; }
+.source-identity__label.has-line-group.source-identity__label--suzuki { color: #fff; background: #2455d6; border-color: #1940ab; }
+.source-identity__label.has-line-group.source-identity__label--sym { color: #4f201d; background: #efcbc7; border-color: #cf8d86; }
+.source-identity__label.has-line-group.source-identity__label--unclassified { color: #fff; background: #687780; border-color: #46545d; }
 .source-identity__label.has-line-group .source-identity__code { color: inherit; }
 .holiday-list-marker {
   display: inline-flex; min-height: 30px; padding: 5px 9px; align-items: center; gap: 6px;
@@ -3193,6 +3208,8 @@ body.screen-locked { overflow: hidden; }
   .source-list-summary { padding-block: 12px; align-items: stretch; flex-direction: column; }
   .source-list-actions { align-items: stretch; flex-direction: column; }
   .source-list-summary .button, .source-holiday-summary { width: 100%; justify-content: center; }
+  .line-group-colour-guide { align-items: flex-start; flex-direction: column; gap: 8px; }
+  .line-group-colour-guide > small { margin-left: 0; }
   .cooperation-summary { min-width: 0; max-width: none; }
   .cooperation-summary__item { grid-template-columns: minmax(110px, .8fr) minmax(0, 1.2fr); }
   .holiday-gift-hero { align-items: stretch; }

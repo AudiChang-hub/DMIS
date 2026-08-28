@@ -968,8 +968,8 @@ class ChannelFinanceTests(TestCase):
                     cooperates=True,
                     relationship_type=relationship_type,
                 )
-        unclassified_source = SalesSource.objects.create(
-            name="待補合作範圍群組車行",
+        group_only_source = SalesSource.objects.create(
+            name="僅有群組未合作車行",
             source_type=SalesSource.SourceType.DEALER,
             has_line_group=True,
         )
@@ -989,10 +989,10 @@ class ChannelFinanceTests(TestCase):
             row_start = html.rfind("<tr", 0, cell_start)
             row = html[row_start : html.index("</tr>", cell_start)]
             self.assertIn(f"source-identity__label--{tone}", row)
-        unclassified_start = html.index(unclassified_source.name)
-        unclassified_row_start = html.rfind("<tr", 0, unclassified_start)
-        unclassified_row = html[unclassified_row_start : html.index("</tr>", unclassified_start)]
-        self.assertIn("has-line-group source-identity__label--unclassified", unclassified_row)
+        group_only_start = html.index(group_only_source.name)
+        group_only_row_start = html.rfind("<tr", 0, group_only_start)
+        group_only_row = html[group_only_row_start : html.index("</tr>", group_only_start)]
+        self.assertIn("has-line-group source-identity__label--group-only", group_only_row)
         no_group_start = html.index(no_group_source.name)
         no_group_row_start = html.rfind("<tr", 0, no_group_start)
         no_group_row = html[no_group_row_start : html.index("</tr>", no_group_start)]
@@ -1005,6 +1005,8 @@ class ChannelFinanceTests(TestCase):
         self.assertContains(response, "有 LINE 群組：三陽與台鈴一般合作")
         self.assertContains(response, "有 LINE 群組：僅台鈴合作")
         self.assertContains(response, "有 LINE 群組：僅三陽合作")
+        self.assertContains(response, "有 LINE 群組，但目前沒有合作項目")
+        self.assertContains(response, "僅有群組／未合作")
 
     def test_source_list_scope_filter_uses_latest_effective_state(self):
         SalesSourceBrandPolicy.objects.create(

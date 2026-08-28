@@ -115,6 +115,31 @@ class SalesSourceRegionListTests(TestCase):
         self.assertContains(response, "有 LINE 群組")
         self.assertContains(response, "無 LINE 群組")
 
+    def test_search_keeps_both_line_group_sections_when_one_has_no_matches(self):
+        SalesSource.objects.create(
+            name="群組限定搜尋車行",
+            source_type=SalesSource.SourceType.DEALER,
+            address="新北市板橋區文化路一段100號",
+            has_line_group=True,
+        )
+
+        response = self.client.get(
+            reverse("sales_source_list"),
+            {"q": "群組限定搜尋車行"},
+        )
+
+        sections = {
+            section["key"]: section
+            for section in response.context["line_group_sections"]
+        }
+        self.assertEqual(sections["with_group"]["count"], 1)
+        self.assertEqual(sections["without_group"]["count"], 0)
+        self.assertEqual(sections["without_group"]["region_groups"], [])
+        self.assertTrue(response.context["has_active_filters"])
+        self.assertContains(response, "0 筆符合")
+        self.assertContains(response, "其他區域的結果仍顯示在同一頁")
+        self.assertContains(response, "source-line-group-section__empty")
+
     def test_city_filter_only_returns_selected_city(self):
         response = self.client.get(
             reverse("sales_source_list"),

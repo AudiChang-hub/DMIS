@@ -1106,16 +1106,15 @@ def sales_source_list(request):
                     "open": bool(keyword or city or district or len(city_buckets) == 1),
                 }
             )
-        if region_groups:
-            line_group_sections.append(
-                {
-                    "key": line_group_key,
-                    "label": section_label,
-                    "description": section_description,
-                    "count": sum(group["count"] for group in region_groups),
-                    "region_groups": region_groups,
-                }
-            )
+        line_group_sections.append(
+            {
+                "key": line_group_key,
+                "label": section_label,
+                "description": section_description,
+                "count": sum(group["count"] for group in region_groups),
+                "region_groups": region_groups,
+            }
+        )
     city_filters = [
         {"value": value, "label": label, "count": region_counts.get(value, 0)}
         for value, label in TaiwanCounty.choices
@@ -1181,6 +1180,18 @@ def sales_source_list(request):
                 "city": city,
                 "district": district,
             },
+            "has_active_filters": any(
+                (
+                    keyword,
+                    category_id,
+                    cooperation_scope,
+                    holiday_gift,
+                    line_group,
+                    relationship_type,
+                    city,
+                    district,
+                )
+            ),
         },
     )
 

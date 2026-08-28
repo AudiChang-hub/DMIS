@@ -10,6 +10,8 @@ from pathlib import Path
 import re
 
 from django.db import transaction
+from django.db.models import Q
+from django.utils import timezone
 from openpyxl import load_workbook
 
 from sales.models import (
@@ -187,6 +189,34 @@ def _profile_values(row):
     }
 
 
+def _sync_current_policy(source, scope, cooperates):
+    """同步目前生效的商務規則，並保留既有傭金調整與備註。"""
+    today = timezone.localdate()
+    current = (
+        source.brand_policies.filter(
+            cooperation_scope=scope,
+            effective_from__lte=today,
+        )
+        .filter(Q(effective_to__isnull=True) | Q(effective_to__gte=today))
+        .order_by("-effective_from", "-pk")
+        .first()
+    )
+    if current and current.cooperates == cooperates:
+        return False
+    SalesSourceBrandPolicy.objects.update_or_create(
+        source=source,
+        cooperation_scope=scope,
+        effective_from=today,
+        defaults={
+            "cooperates": cooperates,
+            "commission_adjustment": current.commission_adjustment if current else 0,
+            "effective_to": None,
+            "note": current.note if current else "",
+        },
+    )
+    return True
+
+
 @transaction.atomic
 def sync_dealer_workbook(path, *, apply=False):
     rows = read_dealer_workbook(path)
@@ -256,6 +286,8 @@ def sync_dealer_workbook(path, *, apply=False):
                     profile_changed = True
             if profile_changed:
                 profile.save()
+                changed = True
+            if _sync_current_policy(source, scope, cooperates):
                 changed = True
 
         if not created:

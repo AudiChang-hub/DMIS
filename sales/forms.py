@@ -609,7 +609,7 @@ class SalesSourceForm(forms.ModelForm):
         fields = [
             "category", "name", "responsible_person", "phone",
             "phone_secondary", "mobile", "other_contact", "address",
-            "holiday_gift", "note", "active",
+            "city", "district", "holiday_gift", "note", "active",
         ]
         widgets = {
             "other_contact": forms.TextInput(
@@ -620,6 +620,9 @@ class SalesSourceForm(forms.ModelForm):
                     "rows": 3,
                     "placeholder": "例如：聯繫習慣、合作注意事項或其他需要記錄的資料",
                 }
+            ),
+            "district": forms.TextInput(
+                attrs={"placeholder": "例如：汐止區", "list": "taiwan-district-list"}
             ),
         }
 
@@ -647,6 +650,8 @@ class SalesSourceForm(forms.ModelForm):
         apply_mobile_keyboard_attrs(self)
 
     def clean(self):
+        from sales.services.taiwan_address import infer_taiwan_region, is_valid_district
+
         cleaned_data = super().clean()
         category = cleaned_data.get("category")
         is_dealer = bool(
@@ -657,6 +662,21 @@ class SalesSourceForm(forms.ModelForm):
             is_dealer and cleaned_data.get("line_group_presence") == "yes"
         )
         self.instance.has_line_group = has_line_group
+        address = cleaned_data.get("address", "")
+        city = cleaned_data.get("city", "")
+        district = (cleaned_data.get("district") or "").strip()
+        address_changed = "address" in self.changed_data
+        region_untouched = not ({"city", "district"} & set(self.changed_data))
+        if address and ((not city and not district) or (address_changed and region_untouched)):
+            city, district = infer_taiwan_region(address)
+            cleaned_data["city"] = city
+            cleaned_data["district"] = district
+            self.instance.city = city
+            self.instance.district = district
+        if district and not city:
+            self.add_error("city", "填寫行政區前，請先選擇縣市。")
+        elif city and not is_valid_district(city, district):
+            self.add_error("district", "行政區與所選縣市不一致，請重新確認。")
         return cleaned_data
 
     def save(self, commit=True):

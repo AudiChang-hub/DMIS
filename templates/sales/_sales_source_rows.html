@@ -1,0 +1,36 @@
+{% for item in source_items %}
+  <tr>
+    <td data-label="車行／平台／人員" class="source-identity">
+      <div class="source-identity__label{% if item.has_line_group %} has-line-group source-identity__label--{{ item.line_group_marker.tone }}{% endif %}"{% if item.has_line_group %} aria-label="{{ item.name }}；{{ item.line_group_marker.description }}" title="{{ item.line_group_marker.description }}"{% endif %}>
+        {% if item.code %}<span class="source-identity__code">{{ item.code }}</span>{% endif %}
+        <strong>{{ item.name }}</strong>
+      </div>
+      <span>{{ item.list_type_label }}</span>
+    </td>
+    <td data-label="聯絡資料">
+      <strong>{{ item.responsible_person|default:"未填負責人" }}</strong>
+      <span>{{ item.address|default:"未填地址" }}</span>
+      {% if item.phone %}<span>電話一 {{ item.phone }}</span>{% endif %}
+      {% if item.phone_secondary %}<span>電話二 {{ item.phone_secondary }}</span>{% endif %}
+      {% if item.mobile %}<span>手機 {{ item.mobile }}</span>{% endif %}
+      {% if not item.phone and not item.phone_secondary and not item.mobile %}<span>未填電話</span>{% endif %}
+    </td>
+    <td data-label="合作資料與 LINE 群組" class="cooperation-cell">
+      {% if item.source_type == 'dealer' %}
+        {% if item.cooperation_overview.cooperating_count %}
+          <div class="cooperation-summary"><div class="cooperation-summary__list">
+            {% for policy in item.cooperation_overview.cooperating %}
+              <div class="cooperation-summary__item">
+                <strong>{{ policy.label }}</strong>
+                {% if policy.vehicle_capacity or policy.commission_adjustment %}<span>{% if policy.vehicle_capacity %}可停 {{ policy.vehicle_capacity }} 台{% endif %}{% if policy.vehicle_capacity and policy.commission_adjustment %} · {% endif %}{% if policy.commission_adjustment > 0 %}傭金加 ${{ policy.commission_adjustment|floatformat:0 }}{% elif policy.commission_adjustment < 0 %}傭金減 ${{ policy.commission_adjustment|floatformat:0|slice:"1:" }}{% endif %}</span>{% endif %}
+              </div>
+            {% endfor %}
+          </div></div>
+        {% else %}<div class="cooperation-summary is-empty"><span>尚未設定合作類別</span></div>{% endif %}
+      {% else %}<span class="gift-not-required">不適用</span>{% endif %}
+    </td>
+    <td data-label="年節名單">{% if item.source_type == 'dealer' and item.holiday_gift %}<span class="holiday-list-marker" aria-label="已列入年節送禮名單"><svg viewBox="0 0 20 20" aria-hidden="true" focusable="false"><path d="M3.5 8.5h13v8h-13zM2.5 6h15v3h-15zM10 6v10.5M10 6H7.6a2.1 2.1 0 1 1 0-4.2C9.2 1.8 10 3.3 10 6Zm0 0h2.4a2.1 2.1 0 1 0 0-4.2C10.8 1.8 10 3.3 10 6Z"/></svg><span>名單內</span></span>{% else %}<span class="gift-not-required" aria-label="未列入年節送禮名單">—</span>{% endif %}</td>
+    <td data-label="狀態"><span class="status-pill">{{ item.active|yesno:"啟用中,已停用" }}</span></td>
+    <td class="inventory-row-action"><span class="row-action-buttons"><a class="button ghost small" href="{% url 'sales_source_edit' item.pk %}">編輯資料</a>{% if item.source_type == 'dealer' %}<a class="button secondary small" href="{% url 'sales_source_edit' item.pk %}#brand-policies">合作與傭金</a>{% endif %}</span></td>
+  </tr>
+{% endfor %}

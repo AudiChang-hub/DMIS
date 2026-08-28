@@ -120,6 +120,7 @@ from .models import (
     SalesSourceCategory,
     SalesSourceCooperationProfile,
     Store,
+    TaiwanCounty,
     SubsidyDocument,
     VehicleColor,
     VehicleBrand,
@@ -868,6 +869,8 @@ def positioned_template_delete(request, pk):
 
 @login_required
 def sales_source_list(request):
+    from sales.services.taiwan_address import district_choices
+
     keyword = request.GET.get("q", "").strip()
     source_type = request.GET.get("type", "")
     category_id = request.GET.get("category", "")
@@ -877,6 +880,8 @@ def sales_source_list(request):
     holiday_gift = request.GET.get("holiday_gift", "")
     line_group = request.GET.get("line_group", "").strip()
     relationship_type = request.GET.get("relationship_type", "").strip()
+    city = request.GET.get("city", "").strip()
+    district = request.GET.get("district", "").strip()
     sources = SalesSource.objects.select_related("category").order_by(
         "source_type", "category__name", "name", "id"
     )
@@ -885,6 +890,8 @@ def sales_source_list(request):
             Q(name__icontains=keyword)
             | Q(code__icontains=keyword)
             | Q(address__icontains=keyword)
+            | Q(city__icontains=keyword)
+            | Q(district__icontains=keyword)
             | Q(responsible_person__icontains=keyword)
             | Q(phone__icontains=keyword)
             | Q(phone_secondary__icontains=keyword)
@@ -964,6 +971,42 @@ def sales_source_list(request):
             source_type=SalesSource.SourceType.DEALER,
             has_line_group=False,
         )
+    region_count_queryset = sources.filter(
+        source_type=SalesSource.SourceType.DEALER
+    )
+    region_counts = {
+        row["city"] or "__unassigned__": row["total"]
+        for row in region_count_queryset.values("city").annotate(total=Count("id"))
+    }
+    valid_cities = {value for value, _ in TaiwanCounty.choices}
+    if city == "__unassigned__":
+        sources = sources.filter(
+            source_type=SalesSource.SourceType.DEALER,
+            city="",
+        )
+    elif city in valid_cities:
+        sources = sources.filter(
+            source_type=SalesSource.SourceType.DEALER,
+            city=city,
+        )
+    else:
+        city = ""
+    available_district_counts = []
+    if city and city != "__unassigned__":
+        available_district_counts = list(
+            region_count_queryset.filter(city=city)
+            .values("district")
+            .annotate(total=Count("id"))
+            .order_by("district")
+        )
+        if district == "__unassigned__":
+            sources = sources.filter(district="")
+        elif district in district_choices(city):
+            sources = sources.filter(district=district)
+        else:
+            district = ""
+    else:
+        district = ""
     today = timezone.localdate()
     current_policy_queryset = SalesSourceBrandPolicy.objects.filter(
         cooperation_scope__in=valid_scopes,
@@ -984,7 +1027,7 @@ def sales_source_list(request):
             ),
             to_attr="current_cooperation_profiles",
         ),
-    ), 100).get_page(
+    ), 500).get_page(
         request.GET.get("page")
     )
     for item in page.object_list:
@@ -1001,12 +1044,73 @@ def sales_source_list(request):
             item,
             item.cooperation_overview,
         )
+    city_order = {value: index for index, (value, _) in enumerate(TaiwanCounty.choices)}
+    dealer_buckets = {}
+    other_sources = []
+    for item in page.object_list:
+        if item.source_type != SalesSource.SourceType.DEALER:
+            other_sources.append(item)
+            continue
+        city_key = item.city or "__unassigned__"
+        district_key = item.district or "__unassigned__"
+        dealer_buckets.setdefault(city_key, {}).setdefault(district_key, []).append(item)
+    region_groups = []
+    for city_key, district_bucket in sorted(
+        dealer_buckets.items(),
+        key=lambda entry: city_order.get(entry[0], len(city_order)),
+    ):
+        official_district_order = {
+            value: index for index, value in enumerate(district_choices(city_key))
+        }
+        district_groups = [
+            {
+                "value": district_key,
+                "label": "行政區待補" if district_key == "__unassigned__" else district_key,
+                "sources": items,
+                "count": len(items),
+            }
+            for district_key, items in sorted(
+                district_bucket.items(),
+                key=lambda entry: official_district_order.get(
+                    entry[0], len(official_district_order)
+                ),
+            )
+        ]
+        region_groups.append(
+            {
+                "value": city_key,
+                "label": "地區待補" if city_key == "__unassigned__" else city_key,
+                "district_groups": district_groups,
+                "count": sum(group["count"] for group in district_groups),
+                "open": bool(keyword or city or district or len(dealer_buckets) == 1),
+            }
+        )
+    city_filters = [
+        {"value": value, "label": label, "count": region_counts.get(value, 0)}
+        for value, label in TaiwanCounty.choices
+        if region_counts.get(value, 0)
+    ]
+    if region_counts.get("__unassigned__"):
+        city_filters.append(
+            {"value": "__unassigned__", "label": "地區待補", "count": region_counts["__unassigned__"]}
+        )
     return render(
         request,
         "sales/sales_source_list.html",
         {
             "page_obj": page,
             "sources": page.object_list,
+            "region_groups": region_groups,
+            "other_sources": other_sources,
+            "city_filters": city_filters,
+            "district_filters": [
+                {
+                    "value": row["district"] or "__unassigned__",
+                    "label": row["district"] or "行政區待補",
+                    "count": row["total"],
+                }
+                for row in available_district_counts
+            ],
             "source_types": SalesSource.SourceType.choices,
             "source_categories": SalesSourceCategory.objects.filter(active=True).order_by(
                 "system_behavior", "name"
@@ -1025,6 +1129,8 @@ def sales_source_list(request):
                 "holiday_gift": holiday_gift,
                 "line_group": line_group,
                 "relationship_type": relationship_type,
+                "city": city,
+                "district": district,
             },
         },
     )
@@ -1131,6 +1237,8 @@ def sales_source_holiday_gift_manage(request):
 @login_required
 @transaction.atomic
 def sales_source_form(request, pk=None):
+    from sales.services.taiwan_address import TAIWAN_DISTRICTS
+
     source = get_object_or_404(SalesSource, pk=pk) if pk else SalesSource()
     post_data = request.POST or None
     brand_overview = _sales_source_brand_overview(source)
@@ -1192,6 +1300,9 @@ def sales_source_form(request, pk=None):
                 str(category.pk): category.system_behavior
                 for category in form.fields["category"].queryset
             },
+            "district_names": sorted(
+                {district for districts in TAIWAN_DISTRICTS.values() for district in districts}
+            ),
         },
     )
 

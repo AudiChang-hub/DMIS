@@ -57,7 +57,7 @@
   </div>
   <div class="source-region-groups">
     {% for region in region_groups %}
-      <details class="source-region-group" {% if region.open %}open{% endif %}>
+      <details class="source-region-group" data-source-region="{{ region.value }}" {% if region.open %}open{% endif %}>
         <summary>
           <span><strong>{{ region.label }}</strong><small>{{ region.count }} 家合作車行</small></span>
           <span class="source-region-toggle"><span class="when-closed">展開</span><span class="when-open">收合</span></span>
@@ -76,7 +76,7 @@
       </details>
     {% endfor %}
     {% if other_sources %}
-      <details class="source-region-group" {% if selected.type or selected.q %}open{% endif %}>
+      <details class="source-region-group" data-source-region="__other__" {% if selected.type or selected.q %}open{% endif %}>
         <summary>
           <span><strong>本店人員與網路平台</strong><small>{{ other_sources|length }} 筆</small></span>
           <span class="source-region-toggle"><span class="when-closed">展開</span><span class="when-open">收合</span></span>
@@ -89,6 +89,39 @@
 </section>
 <script>
   (() => {
+    const regionGroups = Array.from(document.querySelectorAll("[data-source-region]"));
+    const regionStorageKey = "dmis:sales-source-expanded-regions:v1";
+    const hasActiveFilters = Array.from(new URLSearchParams(window.location.search).keys())
+      .some((key) => key !== "page");
+    let expandedRegions = new Set();
+    let hasStoredRegions = false;
+
+    try {
+      const storedRegions = JSON.parse(sessionStorage.getItem(regionStorageKey) || "[]");
+      if (Array.isArray(storedRegions)) {
+        expandedRegions = new Set(storedRegions);
+        hasStoredRegions = sessionStorage.getItem(regionStorageKey) !== null;
+      }
+    } catch (_error) {
+      expandedRegions = new Set();
+    }
+
+    regionGroups.forEach((group) => {
+      const regionKey = group.dataset.sourceRegion;
+      if (!hasActiveFilters && hasStoredRegions) {
+        group.open = expandedRegions.has(regionKey);
+      }
+      group.addEventListener("toggle", () => {
+        if (group.open) expandedRegions.add(regionKey);
+        else expandedRegions.delete(regionKey);
+        try {
+          sessionStorage.setItem(regionStorageKey, JSON.stringify(Array.from(expandedRegions)));
+        } catch (_error) {
+          // 瀏覽器停用儲存時維持原本展開功能，不阻擋使用者操作。
+        }
+      });
+    });
+
     const city = document.getElementById("source-city");
     const district = document.getElementById("source-district");
     if (!city || !district) return;

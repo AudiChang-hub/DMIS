@@ -78,6 +78,9 @@ class SalesSourceRegionListTests(TestCase):
         self.assertEqual(groups["__unassigned__"]["label"], "地區待補")
         self.assertContains(response, "基隆市")
         self.assertContains(response, "安樂區")
+        self.assertContains(response, 'data-source-region="基隆市"')
+        self.assertContains(response, "dmis:sales-source-expanded-regions:v1")
+        self.assertContains(response, "sessionStorage")
 
     def test_city_filter_only_returns_selected_city(self):
         response = self.client.get(

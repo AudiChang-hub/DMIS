@@ -465,7 +465,15 @@ def data_maintenance(request):
         "vehicle_brand_count": VehicleBrand.objects.count(),
         "accessory_product_count": AccessoryProduct.objects.count(),
         "inventory_count": VehicleInventory.objects.count(),
-        "sales_source_count": SalesSource.objects.count(),
+        "dealer_source_count": SalesSource.objects.filter(
+            source_type=SalesSource.SourceType.DEALER
+        ).count(),
+        "platform_source_count": SalesSource.objects.filter(
+            source_type=SalesSource.SourceType.PLATFORM
+        ).count(),
+        "staff_source_count": SalesSource.objects.filter(
+            source_type=SalesSource.SourceType.STORE
+        ).count(),
         "installment_company_count": InstallmentCompany.objects.count(),
         "settlement_cost_rule_count": VehicleSettlementCostRule.objects.count(),
         "incentive_rule_count": VehicleIncentiveRule.objects.count(),
@@ -872,7 +880,9 @@ def sales_source_list(request):
     from sales.services.taiwan_address import district_choices
 
     keyword = request.GET.get("q", "").strip()
-    source_type = request.GET.get("type", "")
+    status = request.GET.get("status", "active").strip()
+    if status not in {"active", "inactive"}:
+        status = "active"
     category_id = request.GET.get("category", "")
     cooperation_scope = request.GET.get(
         "cooperation_scope", request.GET.get("brand", "")
@@ -882,9 +892,12 @@ def sales_source_list(request):
     relationship_type = request.GET.get("relationship_type", "").strip()
     city = request.GET.get("city", "").strip()
     district = request.GET.get("district", "").strip()
-    sources = SalesSource.objects.select_related("category").order_by(
+    sources = SalesSource.objects.filter(
+        source_type=SalesSource.SourceType.DEALER
+    ).select_related("category").order_by(
         "source_type", "category__name", "name", "id"
     )
+    sources = sources.filter(active=status == "active")
     if keyword:
         keyword_filter = (
             Q(name__icontains=keyword)
@@ -913,8 +926,6 @@ def sales_source_list(request):
         if "line" in keyword.casefold() or "群組" in keyword:
             keyword_filter |= Q(has_line_group=True)
         sources = sources.filter(keyword_filter).distinct()
-    if source_type in {value for value, _ in SalesSource.SourceType.choices}:
-        sources = sources.filter(source_type=source_type)
     if category_id.isdigit():
         sources = sources.filter(category_id=category_id)
     valid_scopes = {
@@ -1045,46 +1056,66 @@ def sales_source_list(request):
             item.cooperation_overview,
         )
     city_order = {value: index for index, (value, _) in enumerate(TaiwanCounty.choices)}
-    dealer_buckets = {}
-    other_sources = []
+    dealer_buckets = {"with_group": {}, "without_group": {}}
     for item in page.object_list:
-        if item.source_type != SalesSource.SourceType.DEALER:
-            other_sources.append(item)
-            continue
+        line_group_key = "with_group" if item.has_line_group else "without_group"
         city_key = item.city or "__unassigned__"
         district_key = item.district or "__unassigned__"
-        dealer_buckets.setdefault(city_key, {}).setdefault(district_key, []).append(item)
-    region_groups = []
-    for city_key, district_bucket in sorted(
-        dealer_buckets.items(),
-        key=lambda entry: city_order.get(entry[0], len(city_order)),
+        dealer_buckets[line_group_key].setdefault(city_key, {}).setdefault(
+            district_key, []
+        ).append(item)
+    line_group_sections = []
+    for line_group_key, section_label, section_description in (
+        ("with_group", "有 LINE 群組", "已建立日常聯繫群組的合作車行"),
+        ("without_group", "無 LINE 群組", "目前沒有 LINE 群組的合作車行"),
     ):
-        official_district_order = {
-            value: index for index, value in enumerate(district_choices(city_key))
-        }
-        district_groups = [
-            {
-                "value": district_key,
-                "label": "行政區待補" if district_key == "__unassigned__" else district_key,
-                "sources": items,
-                "count": len(items),
+        city_buckets = dealer_buckets[line_group_key]
+        region_groups = []
+        for city_key, district_bucket in sorted(
+            city_buckets.items(),
+            key=lambda entry: city_order.get(entry[0], len(city_order)),
+        ):
+            official_district_order = {
+                value: index for index, value in enumerate(district_choices(city_key))
             }
-            for district_key, items in sorted(
-                district_bucket.items(),
-                key=lambda entry: official_district_order.get(
-                    entry[0], len(official_district_order)
-                ),
+            district_groups = [
+                {
+                    "value": district_key,
+                    "label": (
+                        "行政區待補"
+                        if district_key == "__unassigned__"
+                        else district_key
+                    ),
+                    "sources": items,
+                    "count": len(items),
+                }
+                for district_key, items in sorted(
+                    district_bucket.items(),
+                    key=lambda entry: official_district_order.get(
+                        entry[0], len(official_district_order)
+                    ),
+                )
+            ]
+            region_groups.append(
+                {
+                    "value": city_key,
+                    "storage_key": f"{line_group_key}:{city_key}",
+                    "label": "地區待補" if city_key == "__unassigned__" else city_key,
+                    "district_groups": district_groups,
+                    "count": sum(group["count"] for group in district_groups),
+                    "open": bool(keyword or city or district or len(city_buckets) == 1),
+                }
             )
-        ]
-        region_groups.append(
-            {
-                "value": city_key,
-                "label": "地區待補" if city_key == "__unassigned__" else city_key,
-                "district_groups": district_groups,
-                "count": sum(group["count"] for group in district_groups),
-                "open": bool(keyword or city or district or len(dealer_buckets) == 1),
-            }
-        )
+        if region_groups:
+            line_group_sections.append(
+                {
+                    "key": line_group_key,
+                    "label": section_label,
+                    "description": section_description,
+                    "count": sum(group["count"] for group in region_groups),
+                    "region_groups": region_groups,
+                }
+            )
     city_filters = [
         {"value": value, "label": label, "count": region_counts.get(value, 0)}
         for value, label in TaiwanCounty.choices
@@ -1094,14 +1125,19 @@ def sales_source_list(request):
         city_filters.append(
             {"value": "__unassigned__", "label": "地區待補", "count": region_counts["__unassigned__"]}
         )
+    status_query = request.GET.copy()
+    status_query.pop("page", None)
+    status_query["status"] = "active"
+    active_status_url = f"{reverse('sales_source_list')}?{status_query.urlencode()}"
+    status_query["status"] = "inactive"
+    inactive_status_url = f"{reverse('sales_source_list')}?{status_query.urlencode()}"
     return render(
         request,
         "sales/sales_source_list.html",
         {
             "page_obj": page,
             "sources": page.object_list,
-            "region_groups": region_groups,
-            "other_sources": other_sources,
+            "line_group_sections": line_group_sections,
             "city_filters": city_filters,
             "district_filters": [
                 {
@@ -1111,19 +1147,32 @@ def sales_source_list(request):
                 }
                 for row in available_district_counts
             ],
-            "source_types": SalesSource.SourceType.choices,
-            "source_categories": SalesSourceCategory.objects.filter(active=True).order_by(
-                "system_behavior", "name"
-            ),
+            "source_categories": SalesSourceCategory.objects.filter(
+                active=True,
+                system_behavior=SalesSource.SourceType.DEALER,
+            ).order_by("name"),
             "cooperation_scopes": SalesSourceBrandPolicy.CooperationScope.choices,
             "relationship_types": SalesSourceCooperationProfile.RelationshipType.choices,
             "holiday_gift_count": SalesSource.objects.filter(
                 source_type=SalesSource.SourceType.DEALER,
                 holiday_gift=True,
+                active=True,
             ).count(),
+            "source_status_counts": {
+                "active": SalesSource.objects.filter(
+                    source_type=SalesSource.SourceType.DEALER, active=True
+                ).count(),
+                "inactive": SalesSource.objects.filter(
+                    source_type=SalesSource.SourceType.DEALER, active=False
+                ).count(),
+            },
+            "status_urls": {
+                "active": active_status_url,
+                "inactive": inactive_status_url,
+            },
             "selected": {
                 "q": keyword,
-                "type": source_type,
+                "status": status,
                 "category": category_id,
                 "cooperation_scope": cooperation_scope,
                 "holiday_gift": holiday_gift,
@@ -1175,6 +1224,80 @@ def vehicle_brand_list(request):
         request,
         "sales/vehicle_brand_list.html",
         {"brands": brands, "form": form, "editing": editing},
+    )
+
+
+def _sales_source_simple_list(request, source_type, *, title, description, route_name):
+    keyword = request.GET.get("q", "").strip()
+    status = request.GET.get("status", "active").strip()
+    if status not in {"active", "inactive"}:
+        status = "active"
+    sources = SalesSource.objects.filter(
+        source_type=source_type,
+        active=status == "active",
+    ).select_related("category").order_by("name", "id")
+    if keyword:
+        sources = sources.filter(
+            Q(name__icontains=keyword)
+            | Q(code__icontains=keyword)
+            | Q(responsible_person__icontains=keyword)
+            | Q(phone__icontains=keyword)
+            | Q(phone_secondary__icontains=keyword)
+            | Q(mobile__icontains=keyword)
+            | Q(other_contact__icontains=keyword)
+            | Q(address__icontains=keyword)
+            | Q(note__icontains=keyword)
+        )
+    page = Paginator(sources, 100).get_page(request.GET.get("page"))
+    status_query = request.GET.copy()
+    status_query.pop("page", None)
+    status_urls = {}
+    for value in ("active", "inactive"):
+        status_query["status"] = value
+        status_urls[value] = f"{reverse(route_name)}?{status_query.urlencode()}"
+    return render(
+        request,
+        "sales/sales_source_simple_list.html",
+        {
+            "page_obj": page,
+            "sources": page.object_list,
+            "page_title": title,
+            "page_description": description,
+            "route_name": route_name,
+            "create_kind": source_type,
+            "selected": {"q": keyword, "status": status},
+            "status_urls": status_urls,
+            "source_status_counts": {
+                "active": SalesSource.objects.filter(
+                    source_type=source_type, active=True
+                ).count(),
+                "inactive": SalesSource.objects.filter(
+                    source_type=source_type, active=False
+                ).count(),
+            },
+        },
+    )
+
+
+@login_required
+def sales_source_staff_list(request):
+    return _sales_source_simple_list(
+        request,
+        SalesSource.SourceType.STORE,
+        title="本店人員",
+        description="管理內部填單及作業人員；不混入合作車行或網路平台。",
+        route_name="sales_source_staff_list",
+    )
+
+
+@login_required
+def sales_source_platform_list(request):
+    return _sales_source_simple_list(
+        request,
+        SalesSource.SourceType.PLATFORM,
+        title="網路平台",
+        description="管理網路銷售平台與聯絡資料；不混入合作車行或本店人員。",
+        route_name="sales_source_platform_list",
     )
 
 @login_required
@@ -1242,7 +1365,22 @@ def sales_source_form(request, pk=None):
     source = get_object_or_404(SalesSource, pk=pk) if pk else SalesSource()
     post_data = request.POST or None
     brand_overview = _sales_source_brand_overview(source)
-    form = SalesSourceForm(post_data, instance=source)
+    initial = None
+    requested_kind = request.GET.get("kind", "").strip()
+    if not source.pk and not post_data:
+        if requested_kind in {value for value, _ in SalesSource.SourceType.choices}:
+            category = SalesSourceCategory.objects.filter(
+                active=True, system_behavior=requested_kind
+            ).order_by("name").first()
+            if category:
+                initial = {"category": category}
+    form_source_type = source.source_type if source.pk else requested_kind
+    form = SalesSourceForm(
+        post_data,
+        instance=source,
+        initial=initial,
+        source_type=form_source_type,
+    )
     cooperation_sections = _sales_source_cooperation_sections(
         source, post_data=post_data, brand_overview=brand_overview
     )
@@ -1286,7 +1424,37 @@ def sales_source_form(request, pk=None):
             request,
             f"已儲存{source.category.name if source.category_id else source.get_source_type_display()}：{source.name}。",
         )
-        return redirect("sales_source_list")
+        destination = {
+            SalesSource.SourceType.DEALER: "sales_source_list",
+            SalesSource.SourceType.STORE: "sales_source_staff_list",
+            SalesSource.SourceType.PLATFORM: "sales_source_platform_list",
+        }.get(source.source_type, "sales_source_list")
+        return redirect(destination)
+    context_kind = source.source_type if source.pk else requested_kind
+    if post_data and post_data.get("category"):
+        context_kind = (
+            SalesSourceCategory.objects.filter(pk=post_data.get("category"))
+            .values_list("system_behavior", flat=True)
+            .first()
+            or context_kind
+        )
+    form_context = {
+        SalesSource.SourceType.DEALER: {
+            "label": "合作車行",
+            "list_route": "sales_source_list",
+        },
+        SalesSource.SourceType.STORE: {
+            "label": "本店人員",
+            "list_route": "sales_source_staff_list",
+        },
+        SalesSource.SourceType.PLATFORM: {
+            "label": "網路平台",
+            "list_route": "sales_source_platform_list",
+        },
+    }.get(
+        context_kind,
+        {"label": "通路資料", "list_route": "data_maintenance"},
+    )
     return render(
         request,
         "sales/sales_source_form.html",
@@ -1303,6 +1471,8 @@ def sales_source_form(request, pk=None):
             "district_names": sorted(
                 {district for districts in TAIWAN_DISTRICTS.values() for district in districts}
             ),
+            "source_context_label": form_context["label"],
+            "source_list_url": reverse(form_context["list_route"]),
         },
     )
 

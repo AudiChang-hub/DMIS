@@ -3,7 +3,7 @@ from django.core.exceptions import ValidationError
 from django.test import TestCase
 from django.urls import reverse
 
-from sales.models import SalesSource
+from sales.models import SalesSource, SalesSourceCategory
 from sales.services.taiwan_address import infer_taiwan_region
 
 
@@ -72,15 +72,48 @@ class SalesSourceRegionListTests(TestCase):
         response = self.client.get(reverse("sales_source_list"))
 
         self.assertEqual(response.status_code, 200)
-        groups = {group["value"]: group for group in response.context["region_groups"]}
+        sections = {
+            section["key"]: section
+            for section in response.context["line_group_sections"]
+        }
+        groups = {
+            group["value"]: group
+            for group in sections["without_group"]["region_groups"]
+        }
         self.assertEqual(groups["基隆市"]["count"], 1)
         self.assertEqual(groups["新北市"]["district_groups"][0]["label"], "汐止區")
         self.assertEqual(groups["__unassigned__"]["label"], "地區待補")
         self.assertContains(response, "基隆市")
         self.assertContains(response, "安樂區")
-        self.assertContains(response, 'data-source-region="基隆市"')
+        self.assertContains(response, 'data-source-region="without_group:基隆市"')
         self.assertContains(response, "dmis:sales-source-expanded-regions:v1")
         self.assertContains(response, "sessionStorage")
+
+    def test_list_separates_dealers_by_line_group_status(self):
+        grouped = SalesSource.objects.create(
+            name="已有群組車行",
+            source_type=SalesSource.SourceType.DEALER,
+            address="新北市板橋區文化路一段100號",
+            has_line_group=True,
+        )
+
+        response = self.client.get(reverse("sales_source_list"))
+
+        sections = {
+            section["key"]: section
+            for section in response.context["line_group_sections"]
+        }
+        self.assertEqual(sections["with_group"]["count"], 1)
+        self.assertEqual(sections["without_group"]["count"], 4)
+        grouped_sources = [
+            source
+            for region in sections["with_group"]["region_groups"]
+            for district in region["district_groups"]
+            for source in district["sources"]
+        ]
+        self.assertEqual(grouped_sources, [grouped])
+        self.assertContains(response, "有 LINE 群組")
+        self.assertContains(response, "無 LINE 群組")
 
     def test_city_filter_only_returns_selected_city(self):
         response = self.client.get(
@@ -112,3 +145,162 @@ class SalesSourceRegionListTests(TestCase):
 
         self.assertContains(response, self.new_taipei.name)
         self.assertNotContains(response, self.keelung.name)
+
+    def test_list_defaults_to_active_sources_and_keeps_inactive_separate(self):
+        inactive = SalesSource.objects.create(
+            name="已停用歷史車行",
+            source_type=SalesSource.SourceType.DEALER,
+            address="新北市板橋區文化路一段200號",
+            active=False,
+        )
+
+        response = self.client.get(reverse("sales_source_list"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, self.new_taipei.name)
+        self.assertNotContains(response, inactive.name)
+        self.assertEqual(response.context["selected"]["status"], "active")
+        self.assertEqual(response.context["source_status_counts"]["active"], 4)
+        self.assertEqual(response.context["source_status_counts"]["inactive"], 1)
+        self.assertContains(response, "啟用中車行")
+        self.assertContains(response, "已停用車行")
+
+    def test_inactive_view_only_shows_inactive_sources_and_preserves_search(self):
+        inactive = SalesSource.objects.create(
+            name="已停用汐止車行",
+            source_type=SalesSource.SourceType.DEALER,
+            address="新北市汐止區新台五路一段200號",
+            active=False,
+        )
+        SalesSource.objects.create(
+            name="另一筆已停用車行",
+            source_type=SalesSource.SourceType.DEALER,
+            active=False,
+        )
+
+        response = self.client.get(
+            reverse("sales_source_list"),
+            {"status": "inactive", "q": "汐止"},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, inactive.name)
+        self.assertNotContains(response, self.new_taipei.name)
+        self.assertNotContains(response, "另一筆已停用車行")
+        self.assertContains(response, "歷史資料集中收納於此")
+        self.assertContains(response, 'name="status" value="inactive"')
+        self.assertIn("status=active", response.context["status_urls"]["active"])
+        self.assertIn("q=%E6%B1%90%E6%AD%A2", response.context["status_urls"]["active"])
+
+    def test_unknown_status_falls_back_to_active_sources(self):
+        inactive = SalesSource.objects.create(
+            name="不應出現的停用車行",
+            source_type=SalesSource.SourceType.DEALER,
+            active=False,
+        )
+
+        response = self.client.get(
+            reverse("sales_source_list"),
+            {"status": "unexpected"},
+        )
+
+        self.assertEqual(response.context["selected"]["status"], "active")
+        self.assertContains(response, self.keelung.name)
+        self.assertNotContains(response, inactive.name)
+
+    def test_dealer_list_does_not_mix_staff_or_platform_sources(self):
+        staff = SalesSource.objects.create(
+            name="內部行政人員",
+            source_type=SalesSource.SourceType.STORE,
+        )
+        platform = SalesSource.objects.create(
+            name="網路銷售平台",
+            source_type=SalesSource.SourceType.PLATFORM,
+        )
+
+        response = self.client.get(reverse("sales_source_list"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, self.keelung.name)
+        self.assertNotContains(response, staff.name)
+        self.assertNotContains(response, platform.name)
+        self.assertNotContains(response, "本店人員與網路平台")
+
+    def test_staff_and_platform_have_separate_screens(self):
+        staff = SalesSource.objects.create(
+            name="內部行政人員",
+            source_type=SalesSource.SourceType.STORE,
+        )
+        platform = SalesSource.objects.create(
+            name="網路銷售平台",
+            source_type=SalesSource.SourceType.PLATFORM,
+        )
+
+        staff_response = self.client.get(reverse("sales_source_staff_list"))
+        platform_response = self.client.get(reverse("sales_source_platform_list"))
+
+        self.assertEqual(staff_response.status_code, 200)
+        self.assertContains(staff_response, staff.name)
+        self.assertNotContains(staff_response, platform.name)
+        self.assertNotContains(staff_response, self.keelung.name)
+        self.assertEqual(platform_response.status_code, 200)
+        self.assertContains(platform_response, platform.name)
+        self.assertNotContains(platform_response, staff.name)
+        self.assertNotContains(platform_response, self.keelung.name)
+
+    def test_simple_source_screens_separate_inactive_records(self):
+        active_staff = SalesSource.objects.create(
+            name="啟用人員",
+            source_type=SalesSource.SourceType.STORE,
+        )
+        inactive_staff = SalesSource.objects.create(
+            name="停用人員",
+            source_type=SalesSource.SourceType.STORE,
+            active=False,
+        )
+
+        active_response = self.client.get(reverse("sales_source_staff_list"))
+        inactive_response = self.client.get(
+            reverse("sales_source_staff_list"), {"status": "inactive"}
+        )
+
+        self.assertContains(active_response, active_staff.name)
+        self.assertNotContains(active_response, inactive_staff.name)
+        self.assertContains(inactive_response, inactive_staff.name)
+        self.assertNotContains(inactive_response, active_staff.name)
+
+    def test_create_form_uses_requested_source_context_and_return_path(self):
+        staff_category = SalesSourceCategory.objects.create(
+            name="本店人員",
+            system_behavior=SalesSource.SourceType.STORE,
+        )
+        dealer_category = SalesSourceCategory.objects.create(
+            name="不應出現的車行分類",
+            system_behavior=SalesSource.SourceType.DEALER,
+        )
+
+        response = self.client.get(
+            reverse("sales_source_create"),
+            {"kind": SalesSource.SourceType.STORE},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "新增本店人員")
+        self.assertContains(response, reverse("sales_source_staff_list"))
+        self.assertIn(staff_category, response.context["form"].fields["category"].queryset)
+        self.assertNotIn(
+            dealer_category,
+            response.context["form"].fields["category"].queryset,
+        )
+
+    def test_edit_form_returns_to_the_matching_source_screen(self):
+        platform = SalesSource.objects.create(
+            name="回程測試平台",
+            source_type=SalesSource.SourceType.PLATFORM,
+        )
+
+        response = self.client.get(reverse("sales_source_edit", args=[platform.pk]))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "編輯網路平台")
+        self.assertContains(response, reverse("sales_source_platform_list"))

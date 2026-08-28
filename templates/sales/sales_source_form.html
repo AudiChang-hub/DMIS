@@ -1,16 +1,15 @@
 {% extends "base.html" %}
-{% block title %}{% if source %}編輯通路{% else %}新增通路{% endif %}｜車輛銷售管理{% endblock %}
+{% block title %}{% if source %}編輯{% else %}新增{% endif %}{{ source_context_label }}｜車輛銷售管理{% endblock %}
 {% block page_class %}page-shell--wide{% endblock %}
 {% block content %}
-{% url 'sales_source_list' as list_url %}
 {% url 'data_maintenance' as data_url %}
-{% include "sales/_page_back.html" with fallback_url=list_url label="車行、平台與傭金" root_url=data_url root_label="資料維護區" %}
+{% include "sales/_page_back.html" with fallback_url=source_list_url label=source_context_label root_url=data_url root_label="資料維護區" %}
 
 <section class="hero-row compact-hero">
   <div>
-    <p class="eyebrow">通路資料</p>
-    <h1>{% if source %}編輯 {{ source.name }}{% else %}新增通路{% endif %}</h1>
-    <p class="muted">通路可包含本店員工、合作車行與網路平台；只有合作車行會套用品牌傭金規則。</p>
+    <p class="eyebrow">{{ source_context_label }}資料</p>
+    <h1>{% if source %}編輯 {{ source.name }}{% else %}新增{{ source_context_label }}{% endif %}</h1>
+    <p class="muted">本頁只維護{{ source_context_label }}；合作車行、網路平台與本店人員各自從獨立清單進入。</p>
   </div>
 </section>
 
@@ -160,8 +159,8 @@
   </section>
 
   <div class="form-actions">
-    <a class="button ghost" href="{% url 'sales_source_list' %}">取消</a>
-    <button class="button primary">儲存通路資料</button>
+    <a class="button ghost" href="{{ source_list_url }}">取消</a>
+    <button class="button primary">儲存{{ source_context_label }}資料</button>
   </div>
 </form>
 {% endblock %}

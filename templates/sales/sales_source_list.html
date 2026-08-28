@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}通路與傭金｜車輛銷售管理{% endblock %}
+{% block title %}合作車行與傭金｜車輛銷售管理{% endblock %}
 {% block page_class %}page-shell--wide{% endblock %}
 {% block content %}
 {% url 'data_maintenance' as data_url %}
@@ -7,21 +7,34 @@
 
 <section class="hero-row compact-hero">
   <div>
-    <p class="eyebrow">本店員工、合作車行與網路平台</p>
-    <h1>通路與傭金</h1>
+    <p class="eyebrow">合作車行資料</p>
+    <h1>合作車行與傭金</h1>
     <p class="muted">合作類別同時作為價格表提供名單；傭金仍依車型基礎金額及車行加減額計算。</p>
   </div>
   <div class="hero-actions">
     <a class="button ghost" href="{% url 'sales_source_category_list' %}">通路分類</a>
     <a class="button ghost" href="{% url 'vehicle_model_list' %}">車型基礎傭金</a>
     <a class="button ghost" href="{% url 'dealer_volume_bonus_list' %}">台數獎金</a>
-    <a class="button primary" href="{% url 'sales_source_create' %}">＋ 新增通路</a>
+    <a class="button primary" href="{% url 'sales_source_create' %}?kind=dealer">＋ 新增合作車行</a>
   </div>
 </section>
 
+<nav class="source-status-switch" aria-label="依使用狀態查看合作車行">
+  <a href="{{ status_urls.active }}" class="{% if selected.status == 'active' %}is-active{% endif %}" {% if selected.status == 'active' %}aria-current="page"{% endif %}>
+    <span>目前使用</span>
+    <strong>啟用中車行</strong>
+    <b>{{ source_status_counts.active }}</b>
+  </a>
+  <a href="{{ status_urls.inactive }}" class="{% if selected.status == 'inactive' %}is-active is-inactive{% endif %}" {% if selected.status == 'inactive' %}aria-current="page"{% endif %}>
+    <span>歷史收納</span>
+    <strong>已停用車行</strong>
+    <b>{{ source_status_counts.inactive }}</b>
+  </a>
+</nav>
+
 <form method="get" class="master-filters sales-source-filters">
+  <input type="hidden" name="status" value="{{ selected.status }}">
   <div class="inventory-filter master-search"><label for="source-q">全欄位搜尋</label><input id="source-q" type="search" name="q" value="{{ selected.q }}" placeholder="車行、負責人、電話、地址、合作或備註"></div>
-  <div class="inventory-filter"><label for="source-type">類型</label><select id="source-type" name="type"><option value="">全部</option>{% for value,label in source_types %}<option value="{{ value }}" {% if selected.type == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
   <div class="inventory-filter"><label for="source-category">通路分類</label><select id="source-category" name="category"><option value="">全部分類</option>{% for item in source_categories %}<option value="{{ item.pk }}" {% if selected.category == item.pk|stringformat:'s' %}selected{% endif %}>{{ item.name }}</option>{% endfor %}</select></div>
   <div class="inventory-filter"><label for="source-city">縣市</label><select id="source-city" name="city"><option value="">全部縣市</option>{% for item in city_filters %}<option value="{{ item.value }}" {% if selected.city == item.value %}selected{% endif %}>{{ item.label }}（{{ item.count }}）</option>{% endfor %}</select></div>
   <div class="inventory-filter"><label for="source-district">行政區</label><select id="source-district" name="district" {% if not selected.city or selected.city == '__unassigned__' %}disabled{% endif %}><option value="">全部行政區</option>{% for item in district_filters %}<option value="{{ item.value }}" {% if selected.district == item.value %}selected{% endif %}>{{ item.label }}（{{ item.count }}）</option>{% endfor %}</select></div>
@@ -29,12 +42,12 @@
   <div class="inventory-filter"><label for="source-relationship-type">關係類型</label><select id="source-relationship-type" name="relationship_type"><option value="">全部關係</option>{% for value,label in relationship_types %}<option value="{{ value }}" {% if selected.relationship_type == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
   <div class="inventory-filter"><label for="source-line-group">LINE 群組</label><select id="source-line-group" name="line_group"><option value="">不限群組狀態</option><option value="yes" {% if selected.line_group == 'yes' %}selected{% endif %}>有 LINE 群組</option><option value="no" {% if selected.line_group == 'no' %}selected{% endif %}>無 LINE 群組</option></select></div>
   <div class="inventory-filter"><label for="source-holiday-gift">年節名單</label><select id="source-holiday-gift" name="holiday_gift"><option value="">不限名單狀態</option><option value="yes" {% if selected.holiday_gift == 'yes' %}selected{% endif %}>已列入名單</option><option value="no" {% if selected.holiday_gift == 'no' %}selected{% endif %}>未列入名單</option></select></div>
-  <div class="inventory-filter-actions"><a class="button ghost" href="{% url 'sales_source_list' %}">清除所有條件</a><button class="button primary">套用</button></div>
+  <div class="inventory-filter-actions"><a class="button ghost" href="{% url 'sales_source_list' %}{% if selected.status == 'inactive' %}?status=inactive{% endif %}">清除所有條件</a><button class="button primary">套用</button></div>
 </form>
 
 <section class="inventory-list-panel">
   <div class="inventory-list-summary source-list-summary">
-    <div class="source-list-summary__copy"><strong>{% if selected.holiday_gift == 'yes' %}正在查看年節送禮名單{% else %}共 {{ page_obj.paginator.count }} 個通路{% endif %}</strong><span>{% if selected.holiday_gift == 'yes' %}目前只顯示已列入年節送禮名單的車行。{% else %}合作資料可直接辨認三陽、台鈴油車及台鈴電車的合作狀態。{% endif %}</span></div>
+    <div class="source-list-summary__copy"><strong>{% if selected.holiday_gift == 'yes' %}正在查看年節送禮名單{% elif selected.status == 'inactive' %}共 {{ page_obj.paginator.count }} 個已停用通路{% else %}共 {{ page_obj.paginator.count }} 個啟用中通路{% endif %}</strong><span>{% if selected.holiday_gift == 'yes' %}目前只顯示已列入年節送禮名單的車行。{% elif selected.status == 'inactive' %}歷史資料集中收納於此；需要恢復使用時可進入編輯資料重新啟用。{% else %}合作資料可直接辨認三陽、台鈴油車及台鈴電車的合作狀態。{% endif %}</span></div>
     <nav class="source-list-actions" aria-label="年節送禮名單操作">
       {% if selected.holiday_gift == 'yes' %}
         <a class="source-holiday-summary is-active" href="{% url 'sales_source_list' %}"><span>正在查看</span><strong>年節送禮 {{ holiday_gift_count }} 家</strong><small>返回全部通路</small></a>
@@ -56,35 +69,34 @@
     <small>沒有底色代表沒有 LINE 群組</small>
   </div>
   <div class="source-region-groups">
-    {% for region in region_groups %}
-      <details class="source-region-group" data-source-region="{{ region.value }}" {% if region.open %}open{% endif %}>
-        <summary>
-          <span><strong>{{ region.label }}</strong><small>{{ region.count }} 家合作車行</small></span>
-          <span class="source-region-toggle"><span class="when-closed">展開</span><span class="when-open">收合</span></span>
-        </summary>
-        <div class="inventory-table-wrap">
-          <table class="inventory-table sales-source-table">
-            <thead><tr><th>車行</th><th>聯絡資料</th><th>合作資料與 LINE 群組</th><th>年節名單</th><th>狀態</th><th></th></tr></thead>
-            <tbody>
-              {% for district_group in region.district_groups %}
-                <tr class="source-district-row"><th colspan="6"><span>{{ district_group.label }}</span><small>{{ district_group.count }} 家</small></th></tr>
-                {% include "sales/_sales_source_rows.html" with source_items=district_group.sources %}
-              {% endfor %}
-            </tbody>
-          </table>
-        </div>
-      </details>
+    {% for line_section in line_group_sections %}
+      <section class="source-line-group-section is-{{ line_section.key }}">
+        <header>
+          <span><strong>{{ line_section.label }}</strong><small>{{ line_section.description }}</small></span>
+          <b>{{ line_section.count }} 家</b>
+        </header>
+        {% for region in line_section.region_groups %}
+          <details class="source-region-group" data-source-region="{{ region.storage_key }}" {% if region.open %}open{% endif %}>
+            <summary>
+              <span><strong>{{ region.label }}</strong><small>{{ region.count }} 家合作車行</small></span>
+              <span class="source-region-toggle"><span class="when-closed">展開</span><span class="when-open">收合</span></span>
+            </summary>
+            <div class="inventory-table-wrap">
+              <table class="inventory-table sales-source-table">
+                <thead><tr><th>車行</th><th>聯絡資料</th><th>合作資料與 LINE 群組</th><th>年節名單</th><th>狀態</th><th></th></tr></thead>
+                <tbody>
+                  {% for district_group in region.district_groups %}
+                    <tr class="source-district-row"><th colspan="6"><span>{{ district_group.label }}</span><small>{{ district_group.count }} 家</small></th></tr>
+                    {% include "sales/_sales_source_rows.html" with source_items=district_group.sources %}
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          </details>
+        {% endfor %}
+      </section>
     {% endfor %}
-    {% if other_sources %}
-      <details class="source-region-group" data-source-region="__other__" {% if selected.type or selected.q %}open{% endif %}>
-        <summary>
-          <span><strong>本店人員與網路平台</strong><small>{{ other_sources|length }} 筆</small></span>
-          <span class="source-region-toggle"><span class="when-closed">展開</span><span class="when-open">收合</span></span>
-        </summary>
-        <div class="inventory-table-wrap"><table class="inventory-table sales-source-table"><thead><tr><th>平台／人員</th><th>聯絡資料</th><th>合作資料</th><th>年節名單</th><th>狀態</th><th></th></tr></thead><tbody>{% include "sales/_sales_source_rows.html" with source_items=other_sources %}</tbody></table></div>
-      </details>
-    {% endif %}
-    {% if not region_groups and not other_sources %}<div class="empty-state"><strong>找不到符合條件的通路</strong><span>請調整搜尋條件後再試一次。</span></div>{% endif %}
+    {% if not line_group_sections %}<div class="empty-state"><strong>找不到符合條件的合作車行</strong><span>請調整搜尋條件後再試一次。</span></div>{% endif %}
   </div>
 </section>
 <script>

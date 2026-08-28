@@ -604,8 +604,7 @@ class LegacyImportTests(TestCase):
         self.assertEqual(dealer.phone, "02-1234")
         self.assertEqual(dealer.mobile, "0912")
         self.assertEqual(dealer.address, "新北市")
-        self.assertIn("合作中", dealer.note)
-        self.assertIn("歷史聯絡資料：王先生", dealer.note)
+        self.assertEqual(dealer.note, "合作中")
         self.assertIn("歷史聯絡資料：李小姐", platform.note)
         self.assertIn("分機：123", platform.note)
         self.assertIn("Email：test@example.com", platform.note)
@@ -626,6 +625,52 @@ class LegacyImportTests(TestCase):
         self.assertEqual(
             profiles[SalesSourceBrandPolicy.CooperationScope.SUZUKI_GAS].vehicle_capacity,
             5,
+        )
+
+    def test_current_dealer_workbook_maps_suzuki_electric_without_gas(self):
+        workbook = Workbook()
+        dealer = workbook.active
+        dealer.title = "車行"
+        dealer.append(["月餅", "LINE群組", "", "", "", "", "", "", "", "價格表", "", "排車容量", "", ""])
+        dealer.append(["", "", "店名", "負責人", "電話一", "電話二", "手機", "手機/傳真", "地址", "三陽", "台鈴", "三陽", "台鈴", "備註"])
+        dealer.append(["", "E", "電動車行", "王先生", "02-1234", "", "0912", "", "基隆市仁愛區", "", "電動車", "", 3, "Excel 備註"])
+        dealer.append(["", "", "油電車行", "李小姐", "02-5678", "", "0922", "", "新北市汐止區", "", "V", "", 5, "油電備註"])
+        workbook.create_sheet("網路平台").append(["平台", "聯絡人", "電話", "分機", "手機", "信箱"])
+        stream = BytesIO()
+        workbook.save(stream)
+        upload = SimpleUploadedFile("channels-current.xlsx", stream.getvalue())
+        batch = LegacyImportBatch.objects.create(
+            import_type=LegacyImportBatch.ImportType.CHANNELS,
+            source_file=upload,
+            original_filename="channels-current.xlsx",
+            file_sha256=file_sha256(upload),
+            file_size=len(stream.getvalue()),
+            uploaded_by="tester",
+        )
+
+        build_import_preview(batch)
+        confirm_import(batch, "tester")
+
+        source = SalesSource.objects.get(name="電動車行")
+        profiles = {
+            item.cooperation_scope: item.cooperates
+            for item in source.cooperation_profiles.all()
+        }
+        self.assertFalse(profiles[SalesSourceBrandPolicy.CooperationScope.SUZUKI_GAS])
+        self.assertTrue(profiles[SalesSourceBrandPolicy.CooperationScope.SUZUKI_ELECTRIC])
+        self.assertEqual(source.note, "Excel 備註")
+        self.assertTrue(source.has_line_group)
+
+        oil_and_electric = SalesSource.objects.get(name="油電車行")
+        oil_and_electric_profiles = {
+            item.cooperation_scope: item.cooperates
+            for item in oil_and_electric.cooperation_profiles.all()
+        }
+        self.assertTrue(
+            oil_and_electric_profiles[SalesSourceBrandPolicy.CooperationScope.SUZUKI_GAS]
+        )
+        self.assertTrue(
+            oil_and_electric_profiles[SalesSourceBrandPolicy.CooperationScope.SUZUKI_ELECTRIC]
         )
 
     def test_same_batch_cannot_be_confirmed_twice(self):

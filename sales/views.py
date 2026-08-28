@@ -1531,8 +1531,8 @@ def _sales_source_line_group_marker(source, cooperation_overview):
             "description": "有 LINE 群組：僅三陽合作",
         }
     return {
-        "tone": "unclassified",
-        "description": "有 LINE 群組：合作範圍尚未設定",
+        "tone": "group-only",
+        "description": "有 LINE 群組，但目前沒有合作項目",
     }
 
 

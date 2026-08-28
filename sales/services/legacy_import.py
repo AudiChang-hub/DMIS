@@ -669,23 +669,81 @@ def _channel_rows(batch, workbook):
         sheet = workbook[sheet_name]
         headers = next(sheet.iter_rows(min_row=header_row, max_row=header_row, values_only=True))
         for row_number, row_values in enumerate(sheet.iter_rows(min_row=header_row + 1, values_only=True), header_row + 1):
-            name = _text(_value(row_values, "A"))
+            current_dealer_layout = (
+                source_type == SalesSource.SourceType.DEALER
+                and len(headers) >= 11
+                and _text(headers[2]) == "店名"
+                and _text(headers[9]) == "三陽"
+                and _text(headers[10]) == "台鈴"
+            )
+            name = _text(row_values[2]) if current_dealer_layout else _text(_value(row_values, "A"))
             if not name:
                 continue
             raw = _row_dict_values(headers, row_values)
             if source_type == SalesSource.SourceType.DEALER:
-                mapped = {
-                    "name": name, "source_type": source_type,
-                    "contact_name": _text(_value(row_values, "B")),
-                    "phone": _text(_value(row_values, "C")),
-                    "phone_2": _text(_value(row_values, "D")),
-                    "mobile": _text(_value(row_values, "E")),
-                    "fax": _text(_value(row_values, "F")),
-                    "address": _text(_value(row_values, "G")),
-                    "brands": [brand for brand, column in (("SYM", "H"), ("SUZUKI", "I")) if _text(_value(row_values, column))],
-                    "vehicle_capacity": int(_decimal(_value(row_values, "J"))) or None,
-                    "note": _text(_value(row_values, "K")),
-                }
+                if current_dealer_layout:
+                    values = tuple(row_values) + (None,) * max(0, 14 - len(row_values))
+                    sym_value = _text(values[9])
+                    suzuki_value = _text(values[10]).replace(" ", "")
+                    sym_capacity = int(_decimal(values[11])) or None
+                    suzuki_capacity = int(_decimal(values[12])) or None
+                    scopes = []
+                    if sym_value.upper() in {"V", "專銷"}:
+                        scopes.append(SalesSourceBrandPolicy.CooperationScope.SYM)
+                    if suzuki_value.upper() == "V":
+                        scopes.append(SalesSourceBrandPolicy.CooperationScope.SUZUKI_GAS)
+                    if suzuki_value.upper() == "V" or suzuki_value == "電動車":
+                        scopes.append(SalesSourceBrandPolicy.CooperationScope.SUZUKI_ELECTRIC)
+                    mapped = {
+                        "name": name,
+                        "source_type": source_type,
+                        "contact_name": _text(values[3]),
+                        "phone": _text(values[4]),
+                        "phone_2": _text(values[5]),
+                        "mobile": _text(values[6]),
+                        "other_contact": _text(values[7]),
+                        "address": _text(values[8]),
+                        "cooperation_scopes": scopes,
+                        "sym_relationship": (
+                            SalesSourceCooperationProfile.RelationshipType.EXCLUSIVE
+                            if sym_value == "專銷"
+                            else SalesSourceCooperationProfile.RelationshipType.GENERAL
+                        ),
+                        "sym_capacity": sym_capacity,
+                        "suzuki_capacity": suzuki_capacity,
+                        "vehicle_capacity": max(
+                            (value for value in (sym_capacity, suzuki_capacity) if value is not None),
+                            default=None,
+                        ),
+                        "holiday_gift": bool(_text(values[0])),
+                        "has_line_group": bool(_text(values[1])),
+                        "note": _text(values[13]),
+                    }
+                else:
+                    scopes = []
+                    if _text(_value(row_values, "H")):
+                        scopes.append(SalesSourceBrandPolicy.CooperationScope.SYM)
+                    if _text(_value(row_values, "I")):
+                        scopes.extend(
+                            [
+                                SalesSourceBrandPolicy.CooperationScope.SUZUKI_GAS,
+                                SalesSourceBrandPolicy.CooperationScope.SUZUKI_ELECTRIC,
+                            ]
+                        )
+                    mapped = {
+                        "name": name, "source_type": source_type,
+                        "contact_name": _text(_value(row_values, "B")),
+                        "phone": _text(_value(row_values, "C")),
+                        "phone_2": _text(_value(row_values, "D")),
+                        "mobile": _text(_value(row_values, "E")),
+                        "fax": _text(_value(row_values, "F")),
+                        "address": _text(_value(row_values, "G")),
+                        "cooperation_scopes": scopes,
+                        "vehicle_capacity": int(_decimal(_value(row_values, "J"))) or None,
+                        "holiday_gift": False,
+                        "has_line_group": False,
+                        "note": _text(_value(row_values, "K")),
+                    }
             else:
                 mapped = {
                     "name": name, "source_type": source_type,
@@ -1189,35 +1247,48 @@ def _commit_channel_row(row):
         other_contacts.append(f"分機：{data['extension']}")
     if data.get("email"):
         other_contacts.append(f"Email：{data['email']}")
-    source.other_contact = "／".join(other_contacts)
+    source.other_contact = (
+        data.get("other_contact", "")
+        if "other_contact" in data
+        else "／".join(other_contacts)
+    )
     source.address = data.get("address", "")
     source.vehicle_capacity = data.get("vehicle_capacity")
-    source.note = _merge_note_lines(
-        source.note,
-        [data.get("note", ""), _channel_contact_note(data)],
-    )
+    source.holiday_gift = data.get("holiday_gift", source.holiday_gift)
+    source.has_line_group = data.get("has_line_group", source.has_line_group)
+    if source.source_type == SalesSource.SourceType.DEALER:
+        # 車行備註以聯絡簿為準，不再混入匯入歷程或重複聯絡資料。
+        source.note = data.get("note", "")
+    else:
+        source.note = _merge_note_lines(
+            source.note,
+            [data.get("note", ""), _channel_contact_note(data)],
+        )
     source.save()
     if source.source_type == SalesSource.SourceType.DEALER:
-        imported_scopes = set()
-        if "SYM" in data.get("brands", []):
-            imported_scopes.add(SalesSourceBrandPolicy.CooperationScope.SYM)
-        if "SUZUKI" in data.get("brands", []):
-            imported_scopes.update(
-                {
-                    SalesSourceBrandPolicy.CooperationScope.SUZUKI_GAS,
-                    SalesSourceBrandPolicy.CooperationScope.SUZUKI_ELECTRIC,
-                }
-            )
+        imported_scopes = set(data.get("cooperation_scopes", []))
         today = timezone.localdate()
         for scope, _label in SalesSourceBrandPolicy.CooperationScope.choices:
             cooperates = scope in imported_scopes
+            capacity = data.get("vehicle_capacity")
+            if scope == SalesSourceBrandPolicy.CooperationScope.SYM:
+                capacity = data.get("sym_capacity", capacity)
+            elif scope in {
+                SalesSourceBrandPolicy.CooperationScope.SUZUKI_GAS,
+                SalesSourceBrandPolicy.CooperationScope.SUZUKI_ELECTRIC,
+            }:
+                capacity = data.get("suzuki_capacity", capacity)
             SalesSourceCooperationProfile.objects.update_or_create(
                 source=source,
                 cooperation_scope=scope,
                 defaults={
                     "cooperates": cooperates,
-                    "relationship_type": SalesSourceCooperationProfile.RelationshipType.GENERAL,
-                    "vehicle_capacity": data.get("vehicle_capacity") if cooperates else None,
+                    "relationship_type": (
+                        data.get("sym_relationship", SalesSourceCooperationProfile.RelationshipType.GENERAL)
+                        if scope == SalesSourceBrandPolicy.CooperationScope.SYM
+                        else SalesSourceCooperationProfile.RelationshipType.GENERAL
+                    ),
+                    "vehicle_capacity": capacity if cooperates else None,
                 },
             )
             SalesSourceBrandPolicy.objects.update_or_create(

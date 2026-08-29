@@ -3463,7 +3463,7 @@ body.screen-locked { overflow: hidden; }
   .line-group-colour-guide { align-items: flex-start; flex-direction: column; gap: 8px; }
   .line-group-colour-guide > small { margin-left: 0; }
   .cooperation-summary { min-width: 0; max-width: none; }
-  .cooperation-summary__item { grid-template-columns: minmax(110px, .8fr) minmax(0, 1.2fr); }
+  .cooperation-summary__item { grid-template-columns: minmax(76px, auto) minmax(54px, 1fr) auto; }
   .holiday-gift-hero { align-items: stretch; }
   .holiday-gift-summary { width: 100%; }
   .holiday-gift-toolbar { align-items: stretch; flex-direction: column; }
@@ -3834,17 +3834,18 @@ body.screen-locked { overflow: hidden; }
 .cooperation-summary { display: grid; min-width: 230px; max-width: 380px; gap: 7px; }
 .cooperation-summary__list { display: grid; gap: 1px; }
 .cooperation-summary__item {
-  display: grid; min-width: 0; padding: 4px 0; grid-template-columns: minmax(90px, auto) minmax(0, 1fr);
-  align-items: baseline; gap: 8px; border-bottom: 1px solid color-mix(in srgb, var(--line) 72%, transparent);
+  display: grid; min-width: 0; padding: 6px 0;
+  grid-template-columns: minmax(76px, auto) minmax(54px, 1fr) auto;
+  align-items: center; gap: 8px; border-bottom: 1px solid color-mix(in srgb, var(--line) 72%, transparent);
 }
 .cooperation-summary__item:last-child { border-bottom: 0; }
-.cooperation-summary__item strong { color: var(--ink); font-size: .78rem; }
+.cooperation-summary__item strong { color: var(--ink); font-size: .8rem; }
 .cooperation-summary__item span { min-width: 0; color: var(--muted); font-size: .76rem; overflow-wrap: anywhere; }
-.cooperation-summary__item--capacity {
-  margin-top: 3px; padding: 7px 9px;
-  background: var(--surface-subtle); border: 1px solid var(--line); border-radius: 8px;
+.cooperation-summary__relationship { white-space: nowrap; }
+.cooperation-summary__capacity {
+  padding: 3px 7px; color: var(--ink) !important; font-weight: 800; white-space: nowrap;
+  background: var(--surface-subtle); border: 1px solid var(--line); border-radius: 999px;
 }
-.cooperation-summary__item--capacity + .cooperation-summary__item--capacity { margin-top: 1px; }
 .cooperation-summary.is-empty > span { color: var(--muted); font-size: .78rem; }
 .formset-errors { margin-top: 14px; padding: 11px 13px; color: var(--red); background: var(--red-soft); border-radius: 10px; }
 .responsive-split { display: grid; grid-template-columns: minmax(320px, .72fr) minmax(0, 1.28fr); gap: 20px; align-items: start; }

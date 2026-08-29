@@ -1713,7 +1713,7 @@ def _sales_source_brand_overview(source, policies=None, profiles=None):
                 "label": "台鈴油電",
                 "relationship_label": relationship_label,
                 "capacity_label": (
-                    f"共用 {source.suzuki_vehicle_capacity} 台"
+                    f"{source.suzuki_vehicle_capacity} 台"
                     if source.suzuki_vehicle_capacity
                     else ""
                 ),

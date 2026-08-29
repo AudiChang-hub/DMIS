@@ -1,5 +1,5 @@
 {% for item in source_items %}
-  <tr>
+  <tr id="sales-source-{{ item.pk }}" data-source-row="{{ item.pk }}">
     <td data-label="車行／平台／人員" class="source-identity">
       <div class="source-identity__label{% if item.has_line_group and selected.status == 'active' %} has-line-group source-identity__label--{{ item.line_group_marker.tone }}{% endif %}"{% if item.has_line_group and selected.status == 'active' %} aria-label="{{ item.name }}；{{ item.line_group_marker.description }}" title="{{ item.line_group_marker.description }}"{% endif %}>
         {% if item.code %}<span class="source-identity__code">{{ item.code }}</span>{% endif %}
@@ -33,7 +33,7 @@
     <td data-label="備註" class="source-list-note">{% if item.note %}<span>{{ item.note|linebreaksbr }}</span>{% else %}<span class="gift-not-required">—</span>{% endif %}</td>
     <td data-label="年節名單" class="source-gift-cell">
       {% if item.source_type == 'dealer' %}
-        <form class="source-active-toggle-form" method="post" action="{% url 'sales_source_set_holiday_gift' item.pk %}">
+        <form class="source-active-toggle-form" method="post" action="{% url 'sales_source_set_holiday_gift' item.pk %}" data-preserve-source-list-state data-source-list-control="holiday-gift">
           {% csrf_token %}
           <input type="hidden" name="holiday_gift" value="{% if item.holiday_gift %}0{% else %}1{% endif %}">
           <input type="hidden" name="next" value="{{ request.get_full_path }}">
@@ -56,6 +56,8 @@
         class="source-active-toggle-form"
         method="post"
         action="{% url 'sales_source_set_active' item.pk %}"
+        data-preserve-source-list-state
+        data-source-list-control="active"
         {% if item.active %}data-confirm="確定停用「{{ item.name }}」嗎？停用後將移至已停用車行，建立新資料時不再提供選用。"{% endif %}
       >
         {% csrf_token %}

@@ -31,7 +31,29 @@
     </td>
     <td data-label="備註" class="source-list-note">{% if item.note %}<span>{{ item.note|linebreaksbr }}</span>{% else %}<span class="gift-not-required">—</span>{% endif %}</td>
     <td data-label="年節名單">{% if item.source_type == 'dealer' and item.holiday_gift %}<span class="holiday-list-marker" aria-label="已列入年節送禮名單"><svg viewBox="0 0 20 20" aria-hidden="true" focusable="false"><path d="M3.5 8.5h13v8h-13zM2.5 6h15v3h-15zM10 6v10.5M10 6H7.6a2.1 2.1 0 1 1 0-4.2C9.2 1.8 10 3.3 10 6Zm0 0h2.4a2.1 2.1 0 1 0 0-4.2C10.8 1.8 10 3.3 10 6Z"/></svg><span>名單內</span></span>{% else %}<span class="gift-not-required" aria-label="未列入年節送禮名單">—</span>{% endif %}</td>
-    <td data-label="狀態"><span class="status-pill">{{ item.active|yesno:"啟用中,已停用" }}</span></td>
+    <td data-label="狀態" class="source-status-cell">
+      <form
+        class="source-active-toggle-form"
+        method="post"
+        action="{% url 'sales_source_set_active' item.pk %}"
+        {% if item.active %}data-confirm="確定停用「{{ item.name }}」嗎？停用後將移至已停用車行，建立新資料時不再提供選用。"{% endif %}
+      >
+        {% csrf_token %}
+        <input type="hidden" name="active" value="{% if item.active %}0{% else %}1{% endif %}">
+        <input type="hidden" name="next" value="{{ request.get_full_path }}">
+        <button
+          class="source-active-toggle{% if item.active %} is-active{% endif %}"
+          type="submit"
+          role="switch"
+          aria-checked="{{ item.active|yesno:'true,false' }}"
+          aria-label="{% if item.active %}停用{% else %}啟用{% endif %}車行 {{ item.name }}"
+          title="點擊{% if item.active %}停用{% else %}啟用{% endif %}"
+        >
+          <span class="source-active-toggle__track" aria-hidden="true"><span></span></span>
+          <span class="source-active-toggle__label">{{ item.active|yesno:"啟用中,已停用" }}</span>
+        </button>
+      </form>
+    </td>
     <td class="inventory-row-action"><span class="row-action-buttons"><a class="button ghost small" href="{% url 'sales_source_edit' item.pk %}">編輯資料</a>{% if item.source_type == 'dealer' %}<a class="button secondary small" href="{% url 'sales_source_edit' item.pk %}#brand-policies">合作與傭金</a>{% endif %}</span></td>
   </tr>
 {% endfor %}

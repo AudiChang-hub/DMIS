@@ -278,6 +278,83 @@ class SalesSourceRegionListTests(TestCase):
         self.assertContains(response, self.keelung.name)
         self.assertNotContains(response, inactive.name)
 
+    def test_dealer_status_can_be_disabled_from_list(self):
+        response = self.client.post(
+            reverse("sales_source_set_active", args=[self.new_taipei.pk]),
+            {
+                "active": "0",
+                "next": f"{reverse('sales_source_list')}?city=新北市",
+            },
+        )
+
+        self.assertRedirects(
+            response,
+            f"{reverse('sales_source_list')}?city=%E6%96%B0%E5%8C%97%E5%B8%82",
+            fetch_redirect_response=False,
+        )
+        self.new_taipei.refresh_from_db()
+        self.assertFalse(self.new_taipei.active)
+
+    def test_dealer_status_can_be_enabled_from_inactive_list(self):
+        self.new_taipei.active = False
+        self.new_taipei.save(update_fields=["active", "updated_at"])
+
+        response = self.client.post(
+            reverse("sales_source_set_active", args=[self.new_taipei.pk]),
+            {
+                "active": "1",
+                "next": f"{reverse('sales_source_list')}?status=inactive",
+            },
+        )
+
+        self.assertRedirects(
+            response,
+            f"{reverse('sales_source_list')}?status=inactive",
+            fetch_redirect_response=False,
+        )
+        self.new_taipei.refresh_from_db()
+        self.assertTrue(self.new_taipei.active)
+
+    def test_dealer_status_endpoint_rejects_get_and_non_dealer(self):
+        platform = SalesSource.objects.create(
+            name="不可切換的平台",
+            source_type=SalesSource.SourceType.PLATFORM,
+        )
+
+        get_response = self.client.get(
+            reverse("sales_source_set_active", args=[self.new_taipei.pk])
+        )
+        platform_response = self.client.post(
+            reverse("sales_source_set_active", args=[platform.pk]),
+            {"active": "0"},
+        )
+
+        self.assertEqual(get_response.status_code, 405)
+        self.assertEqual(platform_response.status_code, 404)
+
+    def test_dealer_status_endpoint_rejects_external_return_url(self):
+        response = self.client.post(
+            reverse("sales_source_set_active", args=[self.new_taipei.pk]),
+            {"active": "0", "next": "https://example.com/unsafe"},
+        )
+
+        self.assertRedirects(
+            response,
+            reverse("sales_source_list"),
+            fetch_redirect_response=False,
+        )
+
+    def test_list_renders_accessible_status_switch(self):
+        response = self.client.get(reverse("sales_source_list"))
+
+        self.assertContains(response, 'role="switch"')
+        self.assertContains(response, 'aria-checked="true"')
+        self.assertContains(
+            response,
+            reverse("sales_source_set_active", args=[self.new_taipei.pk]),
+        )
+        self.assertContains(response, "點擊停用")
+
     def test_dealer_list_does_not_mix_staff_or_platform_sources(self):
         staff = SalesSource.objects.create(
             name="內部行政人員",

@@ -177,6 +177,10 @@
     const submitHolidayGift = async (form) => {
       const button = form.querySelector("button");
       if (!button || button.disabled) return;
+      const stateInput = form.querySelector('input[name="holiday_gift"]');
+      const previousEnabled = stateInput?.value === "0";
+      const controller = new AbortController();
+      const timeoutId = window.setTimeout(() => controller.abort(), 12000);
       button.disabled = true;
       button.setAttribute("aria-busy", "true");
       form.classList.add("is-updating");
@@ -186,6 +190,7 @@
           body: new FormData(form),
           credentials: "same-origin",
           headers: { "X-Requested-With": "XMLHttpRequest" },
+          signal: controller.signal,
         });
         const payload = await response.json().catch(() => ({}));
         if (!response.ok || !payload.ok) {
@@ -193,10 +198,19 @@
         }
         updateHolidayGiftControl(form, Boolean(payload.holiday_gift));
       } catch (error) {
-        window.alert(error.message || "無法更新年節送禮名單，請稍後再試。");
+        updateHolidayGiftControl(form, previousEnabled);
+        const message = error.name === "AbortError"
+          ? "更新等候逾時，已恢復原本狀態，請再試一次。"
+          : (error.message || "無法更新年節送禮名單，請稍後再試。");
+        window.alert(message);
       } finally {
+        window.clearTimeout(timeoutId);
         button.disabled = false;
         button.removeAttribute("aria-busy");
+        button.classList.remove("is-submitting");
+        button.removeAttribute("aria-disabled");
+        form.dataset.submitting = "false";
+        form.removeAttribute("aria-busy");
         form.classList.remove("is-updating");
       }
     };

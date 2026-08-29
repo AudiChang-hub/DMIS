@@ -171,6 +171,17 @@ class SalesSourceRegionListTests(TestCase):
         self.assertContains(response, self.new_taipei.name)
         self.assertNotContains(response, self.keelung.name)
 
+    def test_list_displays_existing_dealer_note_in_its_own_column(self):
+        self.new_taipei.note = "送價格表前先以 LINE 聯繫"
+        self.new_taipei.save(update_fields=["note", "updated_at"])
+
+        response = self.client.get(reverse("sales_source_list"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "<th>備註</th>", html=True)
+        self.assertContains(response, "送價格表前先以 LINE 聯繫")
+        self.assertContains(response, 'data-label="備註"')
+
     def test_list_defaults_to_active_sources_and_keeps_inactive_separate(self):
         inactive = SalesSource.objects.create(
             name="已停用歷史車行",
@@ -216,6 +227,40 @@ class SalesSourceRegionListTests(TestCase):
         self.assertContains(response, 'name="status" value="inactive"')
         self.assertIn("status=active", response.context["status_urls"]["active"])
         self.assertIn("q=%E6%B1%90%E6%AD%A2", response.context["status_urls"]["active"])
+
+    def test_inactive_view_does_not_split_or_style_by_line_group(self):
+        SalesSource.objects.create(
+            name="停用但曾有群組車行",
+            source_type=SalesSource.SourceType.DEALER,
+            address="新北市板橋區文化路一段300號",
+            has_line_group=True,
+            active=False,
+        )
+        SalesSource.objects.create(
+            name="停用且沒有群組車行",
+            source_type=SalesSource.SourceType.DEALER,
+            address="基隆市安樂區基金一路300號",
+            has_line_group=False,
+            active=False,
+        )
+
+        response = self.client.get(
+            reverse("sales_source_list"),
+            {"status": "inactive", "line_group": "yes"},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["selected"]["line_group"], "")
+        self.assertEqual(len(response.context["line_group_sections"]), 1)
+        section = response.context["line_group_sections"][0]
+        self.assertEqual(section["key"], "inactive")
+        self.assertEqual(section["count"], 2)
+        self.assertContains(response, "停用但曾有群組車行")
+        self.assertContains(response, "停用且沒有群組車行")
+        self.assertContains(response, "歷史資料統一收納，不再依 LINE 群組區分")
+        self.assertNotContains(response, 'id="source-line-group"')
+        self.assertNotContains(response, "line-group-colour-guide")
+        self.assertNotContains(response, "has-line-group")
 
     def test_unknown_status_falls_back_to_active_sources(self):
         inactive = SalesSource.objects.create(

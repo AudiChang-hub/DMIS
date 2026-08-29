@@ -89,12 +89,22 @@
           {% if section.form.cooperates.errors %}<div class="formset-errors">{{ section.form.cooperates.errors }}</div>{% endif %}
           <div class="dealer-cooperation-profile__fields">
             {% include "sales/_field.html" with field=section.form.relationship_type %}
-            {% include "sales/_field.html" with field=section.form.vehicle_capacity %}
             <div class="dealer-cooperation-profile__note">{% include "sales/_field.html" with field=section.form.note %}</div>
           </div>
           <div class="dealer-cooperation-profile__status" data-cooperation-status>未配合</div>
         </section>
       {% endfor %}
+    </div>
+
+    <div class="dealer-capacity-settings" aria-labelledby="dealer-capacity-title">
+      <div class="dealer-capacity-settings__heading">
+        <strong id="dealer-capacity-title">排車容量</strong>
+        <small>台鈴油車與電車共用同一個容量，不會重複加總。</small>
+      </div>
+      <div class="dealer-capacity-settings__fields">
+        {% include "sales/_field.html" with field=form.sym_vehicle_capacity %}
+        {% include "sales/_field.html" with field=form.suzuki_vehicle_capacity %}
+      </div>
     </div>
 
     <div class="dealer-brand-active-summary">

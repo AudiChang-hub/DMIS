@@ -622,10 +622,8 @@ class LegacyImportTests(TestCase):
         self.assertFalse(
             profiles[SalesSourceBrandPolicy.CooperationScope.SYM].cooperates
         )
-        self.assertEqual(
-            profiles[SalesSourceBrandPolicy.CooperationScope.SUZUKI_GAS].vehicle_capacity,
-            5,
-        )
+        self.assertIsNone(dealer.sym_vehicle_capacity)
+        self.assertEqual(dealer.suzuki_vehicle_capacity, 5)
 
     def test_current_dealer_workbook_maps_suzuki_electric_without_gas(self):
         workbook = Workbook()

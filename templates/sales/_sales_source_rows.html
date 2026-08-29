@@ -19,16 +19,11 @@
       {% if item.source_type == 'dealer' %}
         {% if item.cooperation_overview.cooperating_count %}
           <div class="cooperation-summary"><div class="cooperation-summary__list">
-            {% for policy in item.cooperation_overview.cooperating %}
+            {% for row in item.cooperation_overview.compact_rows %}
               <div class="cooperation-summary__item">
-                <strong>{{ policy.label }}</strong>
-                {% if policy.commission_adjustment %}<span>{% if policy.commission_adjustment > 0 %}傭金加 ${{ policy.commission_adjustment|floatformat:0 }}{% else %}傭金減 ${{ policy.commission_adjustment|floatformat:0|slice:"1:" }}{% endif %}</span>{% endif %}
-              </div>
-            {% endfor %}
-            {% for capacity in item.cooperation_overview.capacity_summaries %}
-              <div class="cooperation-summary__item cooperation-summary__item--capacity">
-                <strong>{{ capacity.label }}</strong>
-                <span>可停 {{ capacity.vehicle_capacity }} 台</span>
+                <strong>{{ row.label }}</strong>
+                <span class="cooperation-summary__relationship">{{ row.relationship_label }}</span>
+                {% if row.capacity_label %}<span class="cooperation-summary__capacity">{{ row.capacity_label }}</span>{% endif %}
               </div>
             {% endfor %}
           </div></div>

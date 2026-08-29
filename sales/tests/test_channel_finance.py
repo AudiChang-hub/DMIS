@@ -1149,9 +1149,35 @@ class ChannelFinanceTests(TestCase):
             {"relationship_type": SalesSourceCooperationProfile.RelationshipType.EXCLUSIVE},
         )
         self.assertContains(response, "專銷")
-        self.assertContains(response, "可停 6 台")
-        self.assertContains(response, "台鈴油電共用容量")
-        self.assertEqual(response.content.decode().count("可停 6 台"), 1)
+        self.assertContains(response, "台鈴油車")
+        self.assertContains(response, "6 台")
+        self.assertNotContains(response, "台鈴油電共用容量")
+        self.assertEqual(response.content.decode().count("6 台"), 1)
+
+    def test_sales_source_list_combines_suzuki_gas_and_electric_capacity(self):
+        self.dealer.suzuki_vehicle_capacity = 3
+        self.dealer.save(update_fields=["suzuki_vehicle_capacity", "updated_at"])
+        for scope in (
+            SalesSourceBrandPolicy.CooperationScope.SUZUKI_GAS,
+            SalesSourceBrandPolicy.CooperationScope.SUZUKI_ELECTRIC,
+        ):
+            SalesSourceCooperationProfile.objects.create(
+                source=self.dealer,
+                cooperation_scope=scope,
+                cooperates=True,
+                relationship_type=(
+                    SalesSourceCooperationProfile.RelationshipType.GENERAL
+                ),
+            )
+        self.client.force_login(self.user)
+
+        response = self.client.get(reverse("sales_source_list"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "台鈴油電")
+        self.assertContains(response, "共用 3 台")
+        self.assertNotContains(response, "台鈴油電共用容量")
+        self.assertEqual(response.content.decode().count("共用 3 台"), 1)
 
     def test_sales_source_list_filters_and_labels_holiday_gift_dealers(self):
         self.dealer.holiday_gift = True

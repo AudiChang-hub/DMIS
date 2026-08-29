@@ -1677,27 +1677,68 @@ def _sales_source_brand_overview(source, policies=None, profiles=None):
                 ),
             }
         )
-    capacity_summaries = []
-    if states.get(SalesSourceBrandPolicy.CooperationScope.SYM) and source.sym_vehicle_capacity:
-        capacity_summaries.append(
-            {"label": "三陽排車容量", "vehicle_capacity": source.sym_vehicle_capacity}
-        )
-    if (
-        states.get(SalesSourceBrandPolicy.CooperationScope.SUZUKI_GAS)
-        or states.get(SalesSourceBrandPolicy.CooperationScope.SUZUKI_ELECTRIC)
-    ) and source.suzuki_vehicle_capacity:
-        capacity_summaries.append(
+    compact_rows = []
+    cooperating_by_scope = {item["scope"]: item for item in cooperating}
+    sym = cooperating_by_scope.get(SalesSourceBrandPolicy.CooperationScope.SYM)
+    suzuki_gas = cooperating_by_scope.get(
+        SalesSourceBrandPolicy.CooperationScope.SUZUKI_GAS
+    )
+    suzuki_electric = cooperating_by_scope.get(
+        SalesSourceBrandPolicy.CooperationScope.SUZUKI_ELECTRIC
+    )
+
+    if sym:
+        compact_rows.append(
             {
-                "label": "台鈴油電共用容量",
-                "vehicle_capacity": source.suzuki_vehicle_capacity,
+                "label": "SYM",
+                "relationship_label": sym["relationship_type"],
+                "capacity_label": (
+                    f"{source.sym_vehicle_capacity} 台"
+                    if source.sym_vehicle_capacity
+                    else ""
+                ),
             }
         )
+
+    if suzuki_gas and suzuki_electric:
+        if suzuki_gas["relationship_type"] == suzuki_electric["relationship_type"]:
+            relationship_label = suzuki_gas["relationship_type"]
+        else:
+            relationship_label = (
+                f"油車{suzuki_gas['relationship_type']}／"
+                f"電車{suzuki_electric['relationship_type']}"
+            )
+        compact_rows.append(
+            {
+                "label": "台鈴油電",
+                "relationship_label": relationship_label,
+                "capacity_label": (
+                    f"共用 {source.suzuki_vehicle_capacity} 台"
+                    if source.suzuki_vehicle_capacity
+                    else ""
+                ),
+            }
+        )
+    elif suzuki_gas or suzuki_electric:
+        suzuki = suzuki_gas or suzuki_electric
+        compact_rows.append(
+            {
+                "label": "台鈴油車" if suzuki_gas else "台鈴電車",
+                "relationship_label": suzuki["relationship_type"],
+                "capacity_label": (
+                    f"{source.suzuki_vehicle_capacity} 台"
+                    if source.suzuki_vehicle_capacity
+                    else ""
+                ),
+            }
+        )
+
     return {
         "priority": priority,
         "cooperating": cooperating,
         "cooperating_count": len(cooperating),
         "states": states,
-        "capacity_summaries": capacity_summaries,
+        "compact_rows": compact_rows,
     }
 
 

@@ -2249,6 +2249,13 @@ body.screen-locked { overflow: hidden; }
 .source-active-toggle.is-active .source-active-toggle__track { background: var(--green); }
 .source-active-toggle.is-active .source-active-toggle__track > span { transform: translateX(14px); }
 .source-active-toggle__label { white-space: nowrap; font-size: .82rem; font-weight: 800; }
+.source-gift-cell { min-width: 108px; }
+.source-gift-toggle.is-active {
+  color: var(--amber);
+  background: var(--amber-soft);
+  border-color: color-mix(in srgb, var(--amber) 46%, var(--line));
+}
+.source-gift-toggle.is-active .source-active-toggle__track { background: var(--amber); }
 .holiday-list-marker {
   display: inline-flex; min-height: 30px; padding: 5px 9px; align-items: center; gap: 6px;
   color: var(--amber); background: var(--amber-soft); border: 1px solid color-mix(in srgb, var(--amber) 42%, var(--line));

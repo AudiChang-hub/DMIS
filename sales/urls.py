@@ -122,6 +122,11 @@ urlpatterns = [
         name="sales_source_set_active",
     ),
     path(
+        "data/channels/<int:pk>/holiday-gift/",
+        views.sales_source_set_holiday_gift,
+        name="sales_source_set_holiday_gift",
+    ),
+    path(
         "data/installment-companies/",
         views.installment_company_list,
         name="installment_company_list",

@@ -31,7 +31,26 @@
       {% else %}<span class="gift-not-required">不適用</span>{% endif %}
     </td>
     <td data-label="備註" class="source-list-note">{% if item.note %}<span>{{ item.note|linebreaksbr }}</span>{% else %}<span class="gift-not-required">—</span>{% endif %}</td>
-    <td data-label="年節名單">{% if item.source_type == 'dealer' and item.holiday_gift %}<span class="holiday-list-marker" aria-label="已列入年節送禮名單"><svg viewBox="0 0 20 20" aria-hidden="true" focusable="false"><path d="M3.5 8.5h13v8h-13zM2.5 6h15v3h-15zM10 6v10.5M10 6H7.6a2.1 2.1 0 1 1 0-4.2C9.2 1.8 10 3.3 10 6Zm0 0h2.4a2.1 2.1 0 1 0 0-4.2C10.8 1.8 10 3.3 10 6Z"/></svg><span>名單內</span></span>{% else %}<span class="gift-not-required" aria-label="未列入年節送禮名單">—</span>{% endif %}</td>
+    <td data-label="年節名單" class="source-gift-cell">
+      {% if item.source_type == 'dealer' %}
+        <form class="source-active-toggle-form" method="post" action="{% url 'sales_source_set_holiday_gift' item.pk %}">
+          {% csrf_token %}
+          <input type="hidden" name="holiday_gift" value="{% if item.holiday_gift %}0{% else %}1{% endif %}">
+          <input type="hidden" name="next" value="{{ request.get_full_path }}">
+          <button
+            class="source-active-toggle source-gift-toggle{% if item.holiday_gift %} is-active{% endif %}"
+            type="submit"
+            role="switch"
+            aria-checked="{{ item.holiday_gift|yesno:'true,false' }}"
+            aria-label="{% if item.holiday_gift %}移出{% else %}列入{% endif %}年節送禮名單：{{ item.name }}"
+            title="點擊{% if item.holiday_gift %}移出{% else %}列入{% endif %}年節送禮名單"
+          >
+            <span class="source-active-toggle__track" aria-hidden="true"><span></span></span>
+            <span class="source-active-toggle__label">{{ item.holiday_gift|yesno:"送禮,不送" }}</span>
+          </button>
+        </form>
+      {% else %}<span class="gift-not-required">不適用</span>{% endif %}
+    </td>
     <td data-label="狀態" class="source-status-cell">
       <form
         class="source-active-toggle-form"

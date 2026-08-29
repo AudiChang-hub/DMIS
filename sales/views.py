@@ -1553,11 +1553,6 @@ def _sales_source_cooperation_sections(source, post_data=None, brand_overview=No
             initial = {
                 "cooperates": brand_overview["states"].get(scope, False),
                 "relationship_type": SalesSourceCooperationProfile.RelationshipType.GENERAL,
-                "vehicle_capacity": (
-                    source.vehicle_capacity
-                    if brand_overview["states"].get(scope, False)
-                    else None
-                ),
             }
         sections.append(
             {
@@ -1667,7 +1662,6 @@ def _sales_source_brand_overview(source, policies=None, profiles=None):
                         if profile
                         else SalesSourceCooperationProfile.RelationshipType.GENERAL
                     ),
-                    "vehicle_capacity": profile.vehicle_capacity if profile else None,
                     "note": profile.note if profile else "",
                 }
             )
@@ -1681,7 +1675,21 @@ def _sales_source_brand_overview(source, policies=None, profiles=None):
                 "relationship_type": (
                     profile.get_relationship_type_display() if profile else "一般"
                 ),
-                "vehicle_capacity": profile.vehicle_capacity if profile else None,
+            }
+        )
+    capacity_summaries = []
+    if states.get(SalesSourceBrandPolicy.CooperationScope.SYM) and source.sym_vehicle_capacity:
+        capacity_summaries.append(
+            {"label": "三陽排車容量", "vehicle_capacity": source.sym_vehicle_capacity}
+        )
+    if (
+        states.get(SalesSourceBrandPolicy.CooperationScope.SUZUKI_GAS)
+        or states.get(SalesSourceBrandPolicy.CooperationScope.SUZUKI_ELECTRIC)
+    ) and source.suzuki_vehicle_capacity:
+        capacity_summaries.append(
+            {
+                "label": "台鈴油電共用容量",
+                "vehicle_capacity": source.suzuki_vehicle_capacity,
             }
         )
     return {
@@ -1689,6 +1697,7 @@ def _sales_source_brand_overview(source, policies=None, profiles=None):
         "cooperating": cooperating,
         "cooperating_count": len(cooperating),
         "states": states,
+        "capacity_summaries": capacity_summaries,
     }
 
 

@@ -609,7 +609,8 @@ class SalesSourceForm(forms.ModelForm):
         fields = [
             "category", "name", "responsible_person", "phone",
             "phone_secondary", "mobile", "other_contact", "address",
-            "city", "district", "holiday_gift", "note", "active",
+            "city", "district", "sym_vehicle_capacity",
+            "suzuki_vehicle_capacity", "holiday_gift", "note", "active",
         ]
         widgets = {
             "other_contact": forms.TextInput(
@@ -749,9 +750,7 @@ class SalesSourceCooperationForm(forms.Form):
 class SalesSourceCooperationProfileForm(forms.ModelForm):
     class Meta:
         model = SalesSourceCooperationProfile
-        fields = [
-            "cooperates", "relationship_type", "vehicle_capacity", "note"
-        ]
+        fields = ["cooperates", "relationship_type", "note"]
         widgets = {
             "note": forms.Textarea(
                 attrs={
@@ -1161,7 +1160,8 @@ class LegacyImportRowCorrectionForm(forms.Form):
         ("email", "Email", "text", False),
         ("fax", "傳真", "text", False),
         ("address", "地址", "textarea", False),
-        ("vehicle_capacity", "停放容量", "integer", False),
+        ("sym_vehicle_capacity", "三陽排車容量", "integer", False),
+        ("suzuki_vehicle_capacity", "台鈴油電共用排車容量", "integer", False),
         ("note", "備註", "textarea", False),
     )
 

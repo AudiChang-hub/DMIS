@@ -174,17 +174,14 @@ def _profile_values(row):
         SalesSourceBrandPolicy.CooperationScope.SYM: (
             row.sym_cooperates,
             row.sym_relationship,
-            row.sym_capacity,
         ),
         SalesSourceBrandPolicy.CooperationScope.SUZUKI_GAS: (
             row.suzuki_gas_cooperates,
             SalesSourceCooperationProfile.RelationshipType.GENERAL,
-            row.suzuki_capacity,
         ),
         SalesSourceBrandPolicy.CooperationScope.SUZUKI_ELECTRIC: (
             row.suzuki_electric_cooperates,
             SalesSourceCooperationProfile.RelationshipType.GENERAL,
-            row.suzuki_capacity,
         ),
     }
 
@@ -252,10 +249,8 @@ def sync_dealer_workbook(path, *, apply=False):
             "mobile": row.mobile,
             "other_contact": row.other_contact,
             "address": row.address,
-            "vehicle_capacity": max(
-                (value for value in (row.sym_capacity, row.suzuki_capacity) if value is not None),
-                default=None,
-            ),
+            "sym_vehicle_capacity": row.sym_capacity,
+            "suzuki_vehicle_capacity": row.suzuki_capacity,
             "holiday_gift": row.holiday_gift,
             "has_line_group": row.has_line_group,
             # 備註以 Excel 為準；空白也會清除舊匯入產生的額外文字。
@@ -268,7 +263,7 @@ def sync_dealer_workbook(path, *, apply=False):
                 changed = True
         source.save()
 
-        for scope, (cooperates, relationship_type, capacity) in _profile_values(row).items():
+        for scope, (cooperates, relationship_type) in _profile_values(row).items():
             profile, profile_created = SalesSourceCooperationProfile.objects.get_or_create(
                 source=source,
                 cooperation_scope=scope,
@@ -276,7 +271,6 @@ def sync_dealer_workbook(path, *, apply=False):
             profile_values = {
                 "cooperates": cooperates,
                 "relationship_type": relationship_type,
-                "vehicle_capacity": capacity if cooperates else None,
                 "note": "",
             }
             profile_changed = profile_created

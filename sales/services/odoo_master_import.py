@@ -155,10 +155,6 @@ def _source_for_legacy(dealer, summary, apply):
         summary["sources_update" if existing else "sources_create"] += 1
         return existing
 
-    capacity = max(
-        dealer.get("sym_dispatch_capacity") or 0,
-        dealer.get("suzuki_dispatch_capacity") or 0,
-    ) or None
     has_line_group = bool(dealer.get("line_group"))
     category_name = store_type or (
         "網路平台"
@@ -180,7 +176,8 @@ def _source_for_legacy(dealer, summary, apply):
         "phone": (dealer.get("phone_1") or dealer.get("phone") or "").strip(),
         "fax": (dealer.get("mobile_fax") or "").strip(),
         "address": (dealer.get("address") or "").strip(),
-        "vehicle_capacity": capacity,
+        "sym_vehicle_capacity": dealer.get("sym_dispatch_capacity") or None,
+        "suzuki_vehicle_capacity": dealer.get("suzuki_dispatch_capacity") or None,
         "holiday_gift": bool(dealer.get("holiday_gift")),
         "has_line_group": has_line_group,
         "note": imported_note,

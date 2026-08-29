@@ -75,7 +75,7 @@ class ChannelFinanceTests(TestCase):
         self.dealer = SalesSource.objects.create(
             name="冠廷",
             source_type=SalesSource.SourceType.DEALER,
-            vehicle_capacity=5,
+            suzuki_vehicle_capacity=5,
         )
         self.policy = SalesSourceBrandPolicy.objects.create(
             source=self.dealer,
@@ -863,7 +863,6 @@ class ChannelFinanceTests(TestCase):
             cooperation_scope=SalesSourceBrandPolicy.CooperationScope.SUZUKI_GAS,
             cooperates=True,
             relationship_type=SalesSourceCooperationProfile.RelationshipType.GENERAL,
-            vehicle_capacity=0,
         )
         self.client.force_login(self.user)
 
@@ -1048,16 +1047,15 @@ class ChannelFinanceTests(TestCase):
                 "holiday_gift": "on",
                 "note": "主要合作車行",
                 "active": "on",
+                "sym_vehicle_capacity": "3",
+                "suzuki_vehicle_capacity": "2",
                 "cooperation-sym-cooperates": "on",
                 "cooperation-sym-relationship_type": "exclusive",
-                "cooperation-sym-vehicle_capacity": "3",
                 "cooperation-sym-note": "SYM 專銷合作",
                 "cooperation-suzuki_gas-relationship_type": "general",
-                "cooperation-suzuki_gas-vehicle_capacity": "",
                 "cooperation-suzuki_gas-note": "",
                 "cooperation-suzuki_electric-cooperates": "on",
                 "cooperation-suzuki_electric-relationship_type": "general",
-                "cooperation-suzuki_electric-vehicle_capacity": "2",
                 "cooperation-suzuki_electric-note": "一般合作",
                 "contacts-TOTAL_FORMS": "0",
                 "contacts-INITIAL_FORMS": "0",
@@ -1105,12 +1103,13 @@ class ChannelFinanceTests(TestCase):
         self.dealer.refresh_from_db()
         self.assertEqual(self.dealer.responsible_person, "王老闆")
         self.assertEqual(self.dealer.mobile, "0912345678")
+        self.assertEqual(self.dealer.sym_vehicle_capacity, 3)
+        self.assertEqual(self.dealer.suzuki_vehicle_capacity, 2)
         profiles = {
             item.cooperation_scope: item
             for item in self.dealer.cooperation_profiles.all()
         }
         self.assertEqual(profiles["sym"].relationship_type, "exclusive")
-        self.assertEqual(profiles["sym"].vehicle_capacity, 3)
         self.assertFalse(profiles["suzuki_gas"].cooperates)
         self.assertEqual(profiles["suzuki_electric"].relationship_type, "general")
         relationship_choices = dict(
@@ -1121,13 +1120,20 @@ class ChannelFinanceTests(TestCase):
     def test_sales_source_list_searches_contact_and_relationship_profile(self):
         self.dealer.responsible_person = "王老闆"
         self.dealer.mobile = "0912345678"
-        self.dealer.save(update_fields=["responsible_person", "mobile", "updated_at"])
+        self.dealer.suzuki_vehicle_capacity = 6
+        self.dealer.save(
+            update_fields=[
+                "responsible_person",
+                "mobile",
+                "suzuki_vehicle_capacity",
+                "updated_at",
+            ]
+        )
         SalesSourceCooperationProfile.objects.create(
             source=self.dealer,
             cooperation_scope=SalesSourceBrandPolicy.CooperationScope.SUZUKI_GAS,
             cooperates=True,
             relationship_type=SalesSourceCooperationProfile.RelationshipType.EXCLUSIVE,
-            vehicle_capacity=6,
             note="每月提供新版價格表",
         )
         self.client.force_login(self.user)
@@ -1144,6 +1150,8 @@ class ChannelFinanceTests(TestCase):
         )
         self.assertContains(response, "專銷")
         self.assertContains(response, "可停 6 台")
+        self.assertContains(response, "台鈴油電共用容量")
+        self.assertEqual(response.content.decode().count("可停 6 台"), 1)
 
     def test_sales_source_list_filters_and_labels_holiday_gift_dealers(self):
         self.dealer.holiday_gift = True

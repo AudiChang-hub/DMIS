@@ -1213,6 +1213,38 @@ def sales_source_list(request):
 
 
 @login_required
+@require_http_methods(["POST"])
+@transaction.atomic
+def sales_source_set_active(request, pk):
+    source = get_object_or_404(
+        SalesSource,
+        pk=pk,
+        source_type=SalesSource.SourceType.DEALER,
+    )
+    requested_state = request.POST.get("active", "")
+    if requested_state not in {"0", "1"}:
+        messages.error(request, "無法更新車行狀態，請重新操作。")
+    else:
+        active = requested_state == "1"
+        if source.active != active:
+            source.active = active
+            source.save(update_fields=["active", "updated_at"])
+        if active:
+            messages.success(request, f"{source.name} 已啟用，已移至啟用中車行。")
+        else:
+            messages.success(request, f"{source.name} 已停用，已移至已停用車行。")
+
+    next_url = request.POST.get("next", "")
+    if not url_has_allowed_host_and_scheme(
+        next_url,
+        allowed_hosts={request.get_host()},
+        require_https=request.is_secure(),
+    ):
+        next_url = reverse("sales_source_list")
+    return redirect(next_url)
+
+
+@login_required
 @transaction.atomic
 def vehicle_brand_list(request):
     editing = None

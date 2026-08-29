@@ -150,6 +150,22 @@ class SalesSourceRegionListTests(TestCase):
         self.assertNotContains(response, self.keelung.name)
         self.assertNotContains(response, self.taipei.name)
 
+    def test_list_preloads_district_options_for_each_available_city(self):
+        response = self.client.get(reverse("sales_source_list"))
+
+        self.assertEqual(response.status_code, 200)
+        district_map = response.context["district_filters_by_city"]
+        self.assertEqual(
+            district_map["新北市"],
+            [{"value": "汐止區", "label": "汐止區", "count": 1}],
+        )
+        self.assertEqual(
+            district_map["臺北市"],
+            [{"value": "內湖區", "label": "內湖區", "count": 1}],
+        )
+        self.assertContains(response, 'id="source-district-options"')
+        self.assertContains(response, "districtOptionsByCity")
+
     def test_district_filter_only_returns_selected_district(self):
         second_new_taipei = SalesSource.objects.create(
             name="板橋分區車行",

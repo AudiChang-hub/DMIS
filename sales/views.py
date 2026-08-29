@@ -993,6 +993,22 @@ def sales_source_list(request):
         for row in region_count_queryset.values("city").annotate(total=Count("id"))
     }
     valid_cities = {value for value, _ in TaiwanCounty.choices}
+    district_filters_by_city = {}
+    for row in (
+        region_count_queryset.exclude(city="")
+        .values("city", "district")
+        .annotate(total=Count("id"))
+        .order_by("city", "district")
+    ):
+        if row["city"] not in valid_cities:
+            continue
+        district_filters_by_city.setdefault(row["city"], []).append(
+            {
+                "value": row["district"] or "__unassigned__",
+                "label": row["district"] or "行政區待補",
+                "count": row["total"],
+            }
+        )
     if city == "__unassigned__":
         sources = sources.filter(
             source_type=SalesSource.SourceType.DEALER,
@@ -1005,14 +1021,9 @@ def sales_source_list(request):
         )
     else:
         city = ""
-    available_district_counts = []
+    available_district_filters = []
     if city and city != "__unassigned__":
-        available_district_counts = list(
-            region_count_queryset.filter(city=city)
-            .values("district")
-            .annotate(total=Count("id"))
-            .order_by("district")
-        )
+        available_district_filters = district_filters_by_city.get(city, [])
         if district == "__unassigned__":
             sources = sources.filter(district="")
         elif district in district_choices(city):
@@ -1154,14 +1165,8 @@ def sales_source_list(request):
             "sources": page.object_list,
             "line_group_sections": line_group_sections,
             "city_filters": city_filters,
-            "district_filters": [
-                {
-                    "value": row["district"] or "__unassigned__",
-                    "label": row["district"] or "行政區待補",
-                    "count": row["total"],
-                }
-                for row in available_district_counts
-            ],
+            "district_filters": available_district_filters,
+            "district_filters_by_city": district_filters_by_city,
             "source_categories": SalesSourceCategory.objects.filter(
                 active=True,
                 system_behavior=SalesSource.SourceType.DEALER,

@@ -109,10 +109,13 @@
   (() => {
     const regionGroups = Array.from(document.querySelectorAll("[data-source-region]"));
     const regionStorageKey = "dmis:sales-source-expanded-regions:v1";
+    const quickActionStorageKey = "dmis:sales-source-quick-action-state:v1";
+    const currentLocation = `${window.location.pathname}${window.location.search}`;
     const hasActiveFilters = Array.from(new URLSearchParams(window.location.search).keys())
       .some((key) => key !== "page");
     let expandedRegions = new Set();
     let hasStoredRegions = false;
+    let quickActionState = null;
 
     try {
       const storedRegions = JSON.parse(sessionStorage.getItem(regionStorageKey) || "[]");
@@ -124,9 +127,26 @@
       expandedRegions = new Set();
     }
 
+    try {
+      const storedQuickActionState = JSON.parse(sessionStorage.getItem(quickActionStorageKey) || "null");
+      if (
+        storedQuickActionState
+        && storedQuickActionState.location === currentLocation
+        && Date.now() - Number(storedQuickActionState.savedAt || 0) < 60000
+      ) {
+        quickActionState = storedQuickActionState;
+        expandedRegions = new Set(storedQuickActionState.expandedRegions || []);
+        hasStoredRegions = true;
+      } else if (storedQuickActionState) {
+        sessionStorage.removeItem(quickActionStorageKey);
+      }
+    } catch (_error) {
+      quickActionState = null;
+    }
+
     regionGroups.forEach((group) => {
       const regionKey = group.dataset.sourceRegion;
-      if (!hasActiveFilters && hasStoredRegions) {
+      if (hasStoredRegions && (!hasActiveFilters || quickActionState)) {
         group.open = expandedRegions.has(regionKey);
       }
       group.addEventListener("toggle", () => {
@@ -139,6 +159,46 @@
         }
       });
     });
+
+    window.addEventListener("submit", (event) => {
+      const form = event.target;
+      if (!(form instanceof HTMLFormElement) || !form.matches("[data-preserve-source-list-state]")) return;
+      if (event.defaultPrevented) return;
+      const sourceRow = form.closest("[data-source-row]");
+      const state = {
+        location: currentLocation,
+        expandedRegions: regionGroups
+          .filter((group) => group.open)
+          .map((group) => group.dataset.sourceRegion),
+        rowId: sourceRow?.id || "",
+        control: form.dataset.sourceListControl || "",
+        scrollY: window.scrollY,
+        savedAt: Date.now(),
+      };
+      try {
+        sessionStorage.setItem(quickActionStorageKey, JSON.stringify(state));
+      } catch (_error) {
+        // 瀏覽器停用儲存時仍可正常送出快速開關。
+      }
+    });
+
+    if (quickActionState) {
+      window.requestAnimationFrame(() => window.requestAnimationFrame(() => {
+        const sourceRow = quickActionState.rowId
+          ? document.getElementById(quickActionState.rowId)
+          : null;
+        window.scrollTo({ top: Number(quickActionState.scrollY || 0) });
+        const restoredControl = sourceRow?.querySelector(
+          `[data-source-list-control="${quickActionState.control}"] button`
+        );
+        restoredControl?.focus({ preventScroll: true });
+        try {
+          sessionStorage.removeItem(quickActionStorageKey);
+        } catch (_error) {
+          // 無法清除暫存時不影響列表操作。
+        }
+      }));
+    }
 
     const city = document.getElementById("source-city");
     const district = document.getElementById("source-district");

@@ -872,7 +872,7 @@ class ChannelFinanceTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "N26032615")
         self.assertContains(response, "一般車行")
-        self.assertContains(response, "名單內")
+        self.assertContains(response, "送禮")
         self.assertNotContains(response, "可停 0 台")
         cell_start = html.index("N26032615")
         identity_cell = html[cell_start : html.index("</td>", cell_start)]
@@ -1204,7 +1204,11 @@ class ChannelFinanceTests(TestCase):
         self.assertNotContains(response, "<strong>一般車行</strong>", html=False)
         self.assertNotContains(response, "測試平台")
         self.assertContains(response, "年節送禮 1 家")
-        self.assertContains(response, "名單內")
+        self.assertContains(response, "送禮")
+        self.assertContains(
+            response,
+            reverse("sales_source_set_holiday_gift", args=[self.dealer.pk]),
+        )
         self.assertContains(response, "返回全部通路")
         # 已在送禮名單時，不應再顯示同一個快速篩選連結；其他全站表單
         # （例如外觀設定）仍可安全保留目前查詢條件作為返回位置。
@@ -1212,6 +1216,58 @@ class ChannelFinanceTests(TestCase):
             response,
             'href="/data/channels/?type=dealer&amp;holiday_gift=yes"',
         )
+
+    def test_sales_source_holiday_gift_quick_toggle_updates_and_returns_to_list(self):
+        self.dealer.holiday_gift = False
+        self.dealer.save(update_fields=["holiday_gift"])
+        self.client.force_login(self.user)
+        next_url = f"{reverse('sales_source_list')}?city=新北市&line_group=yes"
+
+        response = self.client.post(
+            reverse("sales_source_set_holiday_gift", args=[self.dealer.pk]),
+            {"holiday_gift": "1", "next": next_url},
+        )
+
+        self.assertRedirects(response, next_url, fetch_redirect_response=False)
+        self.dealer.refresh_from_db()
+        self.assertTrue(self.dealer.holiday_gift)
+
+        response = self.client.post(
+            reverse("sales_source_set_holiday_gift", args=[self.dealer.pk]),
+            {"holiday_gift": "0", "next": reverse("sales_source_list")},
+        )
+        self.assertRedirects(response, reverse("sales_source_list"))
+        self.dealer.refresh_from_db()
+        self.assertFalse(self.dealer.holiday_gift)
+
+    def test_sales_source_holiday_gift_quick_toggle_rejects_invalid_state(self):
+        self.dealer.holiday_gift = False
+        self.dealer.save(update_fields=["holiday_gift"])
+        self.client.force_login(self.user)
+
+        response = self.client.post(
+            reverse("sales_source_set_holiday_gift", args=[self.dealer.pk]),
+            {"holiday_gift": "unexpected"},
+            follow=True,
+        )
+
+        self.assertContains(response, "無法更新年節送禮名單")
+        self.dealer.refresh_from_db()
+        self.assertFalse(self.dealer.holiday_gift)
+
+    def test_sales_source_holiday_gift_quick_toggle_only_accepts_dealers(self):
+        platform = SalesSource.objects.create(
+            name="不適用平台",
+            source_type=SalesSource.SourceType.PLATFORM,
+        )
+        self.client.force_login(self.user)
+
+        response = self.client.post(
+            reverse("sales_source_set_holiday_gift", args=[platform.pk]),
+            {"holiday_gift": "1"},
+        )
+
+        self.assertEqual(response.status_code, 404)
 
     def test_sales_source_gift_filter_can_return_to_all_source_types(self):
         self.client.force_login(self.user)

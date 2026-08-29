@@ -105,6 +105,7 @@
     {% endfor %}
   </div>
 </section>
+{{ district_filters_by_city|json_script:"source-district-options" }}
 <script>
   (() => {
     const regionGroups = Array.from(document.querySelectorAll("[data-source-region]"));
@@ -275,9 +276,21 @@
     const city = document.getElementById("source-city");
     const district = document.getElementById("source-district");
     if (!city || !district) return;
+    const districtOptionsNode = document.getElementById("source-district-options");
+    let districtOptionsByCity = {};
+    try {
+      districtOptionsByCity = JSON.parse(districtOptionsNode?.textContent || "{}");
+    } catch (_error) {
+      districtOptionsByCity = {};
+    }
     city.addEventListener("change", () => {
-      district.value = "";
-      district.disabled = !city.value || city.value === "__unassigned__";
+      const selectedCity = city.value;
+      const options = districtOptionsByCity[selectedCity] || [];
+      district.replaceChildren(new Option("全部行政區", ""));
+      options.forEach((item) => {
+        district.add(new Option(`${item.label}（${item.count}）`, item.value));
+      });
+      district.disabled = !selectedCity || selectedCity === "__unassigned__";
     });
   })();
 </script>

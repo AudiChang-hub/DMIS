@@ -1253,18 +1253,34 @@ def sales_source_set_holiday_gift(request, pk):
         pk=pk,
         source_type=SalesSource.SourceType.DEALER,
     )
+    is_ajax = request.headers.get("x-requested-with") == "XMLHttpRequest"
     requested_state = request.POST.get("holiday_gift", "")
     if requested_state not in {"0", "1"}:
+        if is_ajax:
+            return JsonResponse(
+                {"ok": False, "message": "無法更新年節送禮名單，請重新操作。"},
+                status=400,
+            )
         messages.error(request, "無法更新年節送禮名單，請重新操作。")
     else:
         holiday_gift = requested_state == "1"
         if source.holiday_gift != holiday_gift:
             source.holiday_gift = holiday_gift
             source.save(update_fields=["holiday_gift", "updated_at"])
-        if holiday_gift:
-            messages.success(request, f"{source.name} 已列入年節送禮名單。")
-        else:
-            messages.success(request, f"{source.name} 已移出年節送禮名單。")
+        success_message = (
+            f"{source.name} 已列入年節送禮名單。"
+            if holiday_gift
+            else f"{source.name} 已移出年節送禮名單。"
+        )
+        if is_ajax:
+            return JsonResponse(
+                {
+                    "ok": True,
+                    "holiday_gift": holiday_gift,
+                    "message": success_message,
+                }
+            )
+        messages.success(request, success_message)
 
     next_url = request.POST.get("next", "")
     if not url_has_allowed_host_and_scheme(

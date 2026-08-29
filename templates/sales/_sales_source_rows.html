@@ -33,7 +33,7 @@
     <td data-label="備註" class="source-list-note">{% if item.note %}<span>{{ item.note|linebreaksbr }}</span>{% else %}<span class="gift-not-required">—</span>{% endif %}</td>
     <td data-label="年節名單" class="source-gift-cell">
       {% if item.source_type == 'dealer' %}
-        <form class="source-active-toggle-form" method="post" action="{% url 'sales_source_set_holiday_gift' item.pk %}" data-preserve-source-list-state data-source-list-control="holiday-gift">
+        <form class="source-active-toggle-form" method="post" action="{% url 'sales_source_set_holiday_gift' item.pk %}" data-preserve-source-list-state data-source-list-control="holiday-gift" data-source-name="{{ item.name }}">
           {% csrf_token %}
           <input type="hidden" name="holiday_gift" value="{% if item.holiday_gift %}0{% else %}1{% endif %}">
           <input type="hidden" name="next" value="{{ request.get_full_path }}">

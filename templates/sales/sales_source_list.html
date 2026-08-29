@@ -160,10 +160,56 @@
       });
     });
 
+    const updateHolidayGiftControl = (form, enabled) => {
+      const button = form.querySelector("button");
+      const stateInput = form.querySelector('input[name="holiday_gift"]');
+      const label = button?.querySelector(".source-active-toggle__label");
+      const sourceName = form.dataset.sourceName || "此車行";
+      if (!button || !stateInput || !label) return;
+      stateInput.value = enabled ? "0" : "1";
+      button.classList.toggle("is-active", enabled);
+      button.setAttribute("aria-checked", enabled ? "true" : "false");
+      button.setAttribute("aria-label", `${enabled ? "移出" : "列入"}年節送禮名單：${sourceName}`);
+      button.title = `點擊${enabled ? "移出" : "列入"}年節送禮名單`;
+      label.textContent = enabled ? "送禮" : "不送";
+    };
+
+    const submitHolidayGift = async (form) => {
+      const button = form.querySelector("button");
+      if (!button || button.disabled) return;
+      button.disabled = true;
+      button.setAttribute("aria-busy", "true");
+      form.classList.add("is-updating");
+      try {
+        const response = await fetch(form.action, {
+          method: "POST",
+          body: new FormData(form),
+          credentials: "same-origin",
+          headers: { "X-Requested-With": "XMLHttpRequest" },
+        });
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok || !payload.ok) {
+          throw new Error(payload.message || "無法更新年節送禮名單，請稍後再試。");
+        }
+        updateHolidayGiftControl(form, Boolean(payload.holiday_gift));
+      } catch (error) {
+        window.alert(error.message || "無法更新年節送禮名單，請稍後再試。");
+      } finally {
+        button.disabled = false;
+        button.removeAttribute("aria-busy");
+        form.classList.remove("is-updating");
+      }
+    };
+
     window.addEventListener("submit", (event) => {
       const form = event.target;
       if (!(form instanceof HTMLFormElement) || !form.matches("[data-preserve-source-list-state]")) return;
       if (event.defaultPrevented) return;
+      if (form.dataset.sourceListControl === "holiday-gift") {
+        event.preventDefault();
+        submitHolidayGift(form);
+        return;
+      }
       const sourceRow = form.closest("[data-source-row]");
       const state = {
         location: currentLocation,

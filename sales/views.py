@@ -1245,6 +1245,38 @@ def sales_source_set_active(request, pk):
 
 
 @login_required
+@require_http_methods(["POST"])
+@transaction.atomic
+def sales_source_set_holiday_gift(request, pk):
+    source = get_object_or_404(
+        SalesSource,
+        pk=pk,
+        source_type=SalesSource.SourceType.DEALER,
+    )
+    requested_state = request.POST.get("holiday_gift", "")
+    if requested_state not in {"0", "1"}:
+        messages.error(request, "無法更新年節送禮名單，請重新操作。")
+    else:
+        holiday_gift = requested_state == "1"
+        if source.holiday_gift != holiday_gift:
+            source.holiday_gift = holiday_gift
+            source.save(update_fields=["holiday_gift", "updated_at"])
+        if holiday_gift:
+            messages.success(request, f"{source.name} 已列入年節送禮名單。")
+        else:
+            messages.success(request, f"{source.name} 已移出年節送禮名單。")
+
+    next_url = request.POST.get("next", "")
+    if not url_has_allowed_host_and_scheme(
+        next_url,
+        allowed_hosts={request.get_host()},
+        require_https=request.is_secure(),
+    ):
+        next_url = reverse("sales_source_list")
+    return redirect(next_url)
+
+
+@login_required
 @transaction.atomic
 def vehicle_brand_list(request):
     editing = None

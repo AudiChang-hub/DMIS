@@ -711,10 +711,6 @@ def _channel_rows(batch, workbook):
                         ),
                         "sym_capacity": sym_capacity,
                         "suzuki_capacity": suzuki_capacity,
-                        "vehicle_capacity": max(
-                            (value for value in (sym_capacity, suzuki_capacity) if value is not None),
-                            default=None,
-                        ),
                         "holiday_gift": bool(_text(values[0])),
                         "has_line_group": bool(_text(values[1])),
                         "note": _text(values[13]),
@@ -730,6 +726,15 @@ def _channel_rows(batch, workbook):
                                 SalesSourceBrandPolicy.CooperationScope.SUZUKI_ELECTRIC,
                             ]
                         )
+                    legacy_capacity = int(_decimal(_value(row_values, "J"))) or None
+                    has_sym = SalesSourceBrandPolicy.CooperationScope.SYM in scopes
+                    has_suzuki = any(
+                        scope in scopes
+                        for scope in (
+                            SalesSourceBrandPolicy.CooperationScope.SUZUKI_GAS,
+                            SalesSourceBrandPolicy.CooperationScope.SUZUKI_ELECTRIC,
+                        )
+                    )
                     mapped = {
                         "name": name, "source_type": source_type,
                         "contact_name": _text(_value(row_values, "B")),
@@ -739,7 +744,9 @@ def _channel_rows(batch, workbook):
                         "fax": _text(_value(row_values, "F")),
                         "address": _text(_value(row_values, "G")),
                         "cooperation_scopes": scopes,
-                        "vehicle_capacity": int(_decimal(_value(row_values, "J"))) or None,
+                        # 舊格式只有一欄容量；僅能依當列的合作品牌保守帶入。
+                        "sym_capacity": legacy_capacity if has_sym else None,
+                        "suzuki_capacity": legacy_capacity if has_suzuki else None,
                         "holiday_gift": False,
                         "has_line_group": False,
                         "note": _text(_value(row_values, "K")),
@@ -1253,7 +1260,12 @@ def _commit_channel_row(row):
         else "／".join(other_contacts)
     )
     source.address = data.get("address", "")
-    source.vehicle_capacity = data.get("vehicle_capacity")
+    source.sym_vehicle_capacity = data.get(
+        "sym_capacity", data.get("sym_vehicle_capacity")
+    )
+    source.suzuki_vehicle_capacity = data.get(
+        "suzuki_capacity", data.get("suzuki_vehicle_capacity")
+    )
     source.holiday_gift = data.get("holiday_gift", source.holiday_gift)
     source.has_line_group = data.get("has_line_group", source.has_line_group)
     if source.source_type == SalesSource.SourceType.DEALER:
@@ -1270,14 +1282,6 @@ def _commit_channel_row(row):
         today = timezone.localdate()
         for scope, _label in SalesSourceBrandPolicy.CooperationScope.choices:
             cooperates = scope in imported_scopes
-            capacity = data.get("vehicle_capacity")
-            if scope == SalesSourceBrandPolicy.CooperationScope.SYM:
-                capacity = data.get("sym_capacity", capacity)
-            elif scope in {
-                SalesSourceBrandPolicy.CooperationScope.SUZUKI_GAS,
-                SalesSourceBrandPolicy.CooperationScope.SUZUKI_ELECTRIC,
-            }:
-                capacity = data.get("suzuki_capacity", capacity)
             SalesSourceCooperationProfile.objects.update_or_create(
                 source=source,
                 cooperation_scope=scope,
@@ -1288,7 +1292,6 @@ def _commit_channel_row(row):
                         if scope == SalesSourceBrandPolicy.CooperationScope.SYM
                         else SalesSourceCooperationProfile.RelationshipType.GENERAL
                     ),
-                    "vehicle_capacity": capacity if cooperates else None,
                 },
             )
             SalesSourceBrandPolicy.objects.update_or_create(

@@ -270,8 +270,11 @@ class SalesSource(TimeStampedModel):
         "縣市", max_length=20, choices=TaiwanCounty.choices, blank=True
     )
     district = models.CharField("行政區", max_length=20, blank=True)
-    vehicle_capacity = models.PositiveSmallIntegerField(
-        "可停放車輛數量", blank=True, null=True
+    sym_vehicle_capacity = models.PositiveSmallIntegerField(
+        "三陽排車容量", blank=True, null=True
+    )
+    suzuki_vehicle_capacity = models.PositiveSmallIntegerField(
+        "台鈴油電共用排車容量", blank=True, null=True
     )
     holiday_gift = models.BooleanField(
         "列入年節送禮名單",
@@ -885,9 +888,6 @@ class SalesSourceCooperationProfile(TimeStampedModel):
         max_length=20,
         choices=RelationshipType.choices,
         default=RelationshipType.GENERAL,
-    )
-    vehicle_capacity = models.PositiveSmallIntegerField(
-        "可停放數量", blank=True, null=True
     )
     note = models.TextField("合作備註", blank=True)
 

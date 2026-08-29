@@ -22,7 +22,13 @@
             {% for policy in item.cooperation_overview.cooperating %}
               <div class="cooperation-summary__item">
                 <strong>{{ policy.label }}</strong>
-                {% if policy.vehicle_capacity or policy.commission_adjustment %}<span>{% if policy.vehicle_capacity %}可停 {{ policy.vehicle_capacity }} 台{% endif %}{% if policy.vehicle_capacity and policy.commission_adjustment %} · {% endif %}{% if policy.commission_adjustment > 0 %}傭金加 ${{ policy.commission_adjustment|floatformat:0 }}{% elif policy.commission_adjustment < 0 %}傭金減 ${{ policy.commission_adjustment|floatformat:0|slice:"1:" }}{% endif %}</span>{% endif %}
+                {% if policy.commission_adjustment %}<span>{% if policy.commission_adjustment > 0 %}傭金加 ${{ policy.commission_adjustment|floatformat:0 }}{% else %}傭金減 ${{ policy.commission_adjustment|floatformat:0|slice:"1:" }}{% endif %}</span>{% endif %}
+              </div>
+            {% endfor %}
+            {% for capacity in item.cooperation_overview.capacity_summaries %}
+              <div class="cooperation-summary__item cooperation-summary__item--capacity">
+                <strong>{{ capacity.label }}</strong>
+                <span>可停 {{ capacity.vehicle_capacity }} 台</span>
               </div>
             {% endfor %}
           </div></div>

@@ -1281,8 +1281,14 @@ class ChannelFinanceTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, f'id="sales-source-{self.dealer.pk}"')
         self.assertContains(response, 'data-source-list-control="holiday-gift"', count=1)
+        self.assertContains(response, 'data-allow-multiple-submit="true"', count=1)
         self.assertContains(response, 'headers: { "X-Requested-With": "XMLHttpRequest" }')
         self.assertContains(response, 'updateHolidayGiftControl(form, Boolean(payload.holiday_gift));')
+        self.assertContains(response, "const controller = new AbortController();")
+        self.assertContains(response, "window.setTimeout(() => controller.abort(), 12000)")
+        self.assertContains(response, 'signal: controller.signal,')
+        self.assertContains(response, 'updateHolidayGiftControl(form, previousEnabled);')
+        self.assertContains(response, 'form.dataset.submitting = "false";')
         self.assertContains(response, 'data-source-list-control="active"', count=1)
         self.assertContains(
             response,

@@ -1263,7 +1263,10 @@ class ChannelFinanceTests(TestCase):
             response,
             'const quickActionStorageKey = "dmis:sales-source-quick-action-state:v1";',
         )
-        self.assertContains(response, 'window.scrollTo({ top: Number(quickActionState.scrollY || 0) })')
+        self.assertContains(response, 'document.documentElement.style.scrollBehavior = "auto";')
+        self.assertContains(response, 'top: Number(quickActionState.scrollY || 0),')
+        self.assertContains(response, 'behavior: "auto",')
+        self.assertContains(response, 'document.documentElement.style.scrollBehavior = rootScrollBehavior;')
         self.assertContains(response, 'restoredControl?.focus({ preventScroll: true })')
 
     def test_sales_source_holiday_gift_quick_toggle_rejects_invalid_state(self):

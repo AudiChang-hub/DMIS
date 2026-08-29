@@ -187,11 +187,23 @@
         const sourceRow = quickActionState.rowId
           ? document.getElementById(quickActionState.rowId)
           : null;
-        window.scrollTo({ top: Number(quickActionState.scrollY || 0) });
+        const rootScrollBehavior = document.documentElement.style.scrollBehavior;
+        const bodyScrollBehavior = document.body.style.scrollBehavior;
+        document.documentElement.style.scrollBehavior = "auto";
+        document.body.style.scrollBehavior = "auto";
+        window.scrollTo({
+          top: Number(quickActionState.scrollY || 0),
+          left: window.scrollX,
+          behavior: "auto",
+        });
         const restoredControl = sourceRow?.querySelector(
           `[data-source-list-control="${quickActionState.control}"] button`
         );
         restoredControl?.focus({ preventScroll: true });
+        window.requestAnimationFrame(() => {
+          document.documentElement.style.scrollBehavior = rootScrollBehavior;
+          document.body.style.scrollBehavior = bodyScrollBehavior;
+        });
         try {
           sessionStorage.removeItem(quickActionStorageKey);
         } catch (_error) {

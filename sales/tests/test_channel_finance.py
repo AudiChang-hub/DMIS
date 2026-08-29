@@ -1240,6 +1240,29 @@ class ChannelFinanceTests(TestCase):
         self.dealer.refresh_from_db()
         self.assertFalse(self.dealer.holiday_gift)
 
+    def test_sales_source_holiday_gift_quick_toggle_updates_in_place(self):
+        self.dealer.holiday_gift = False
+        self.dealer.save(update_fields=["holiday_gift"])
+        self.client.force_login(self.user)
+
+        response = self.client.post(
+            reverse("sales_source_set_holiday_gift", args=[self.dealer.pk]),
+            {"holiday_gift": "1", "next": reverse("sales_source_list")},
+            HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.json(),
+            {
+                "ok": True,
+                "holiday_gift": True,
+                "message": f"{self.dealer.name} 已列入年節送禮名單。",
+            },
+        )
+        self.dealer.refresh_from_db()
+        self.assertTrue(self.dealer.holiday_gift)
+
     def test_sales_source_quick_toggles_preserve_expanded_region_and_scroll_state(self):
         self.dealer.address = "新北市汐止區康寧街470號"
         self.dealer.city = "新北市"
@@ -1258,6 +1281,8 @@ class ChannelFinanceTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, f'id="sales-source-{self.dealer.pk}"')
         self.assertContains(response, 'data-source-list-control="holiday-gift"', count=1)
+        self.assertContains(response, 'headers: { "X-Requested-With": "XMLHttpRequest" }')
+        self.assertContains(response, 'updateHolidayGiftControl(form, Boolean(payload.holiday_gift));')
         self.assertContains(response, 'data-source-list-control="active"', count=1)
         self.assertContains(
             response,
@@ -1281,6 +1306,25 @@ class ChannelFinanceTests(TestCase):
         )
 
         self.assertContains(response, "無法更新年節送禮名單")
+        self.dealer.refresh_from_db()
+        self.assertFalse(self.dealer.holiday_gift)
+
+    def test_sales_source_holiday_gift_ajax_rejects_invalid_state(self):
+        self.dealer.holiday_gift = False
+        self.dealer.save(update_fields=["holiday_gift"])
+        self.client.force_login(self.user)
+
+        response = self.client.post(
+            reverse("sales_source_set_holiday_gift", args=[self.dealer.pk]),
+            {"holiday_gift": "unexpected"},
+            HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(
+            response.json(),
+            {"ok": False, "message": "無法更新年節送禮名單，請重新操作。"},
+        )
         self.dealer.refresh_from_db()
         self.assertFalse(self.dealer.holiday_gift)
 

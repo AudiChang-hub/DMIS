@@ -1240,6 +1240,32 @@ class ChannelFinanceTests(TestCase):
         self.dealer.refresh_from_db()
         self.assertFalse(self.dealer.holiday_gift)
 
+    def test_sales_source_quick_toggles_preserve_expanded_region_and_scroll_state(self):
+        self.dealer.address = "新北市汐止區康寧街470號"
+        self.dealer.city = "新北市"
+        self.dealer.district = "汐止區"
+        self.dealer.has_line_group = True
+        self.dealer.save(
+            update_fields=["address", "city", "district", "has_line_group"]
+        )
+        self.client.force_login(self.user)
+
+        response = self.client.get(
+            reverse("sales_source_list"),
+            {"city": "新北市", "line_group": "yes"},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, f'id="sales-source-{self.dealer.pk}"')
+        self.assertContains(response, 'data-source-list-control="holiday-gift"', count=1)
+        self.assertContains(response, 'data-source-list-control="active"', count=1)
+        self.assertContains(
+            response,
+            'const quickActionStorageKey = "dmis:sales-source-quick-action-state:v1";',
+        )
+        self.assertContains(response, 'window.scrollTo({ top: Number(quickActionState.scrollY || 0) })')
+        self.assertContains(response, 'restoredControl?.focus({ preventScroll: true })')
+
     def test_sales_source_holiday_gift_quick_toggle_rejects_invalid_state(self):
         self.dealer.holiday_gift = False
         self.dealer.save(update_fields=["holiday_gift"])

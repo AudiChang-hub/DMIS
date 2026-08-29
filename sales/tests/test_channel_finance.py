@@ -1175,9 +1175,9 @@ class ChannelFinanceTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "台鈴油電")
-        self.assertContains(response, "共用 3 台")
+        self.assertContains(response, "3 台")
         self.assertNotContains(response, "台鈴油電共用容量")
-        self.assertEqual(response.content.decode().count("共用 3 台"), 1)
+        self.assertNotContains(response, "共用 3 台")
 
     def test_sales_source_list_filters_and_labels_holiday_gift_dealers(self):
         self.dealer.holiday_gift = True

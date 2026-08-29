@@ -898,6 +898,9 @@ def sales_source_list(request):
         "source_type", "category__name", "name", "id"
     )
     sources = sources.filter(active=status == "active")
+    if status == "inactive":
+        # 停用車行只作為歷史資料收納，不再依 LINE 群組狀態區分或篩選。
+        line_group = ""
     if keyword:
         keyword_filter = (
             Q(name__icontains=keyword)
@@ -1056,19 +1059,30 @@ def sales_source_list(request):
             item.cooperation_overview,
         )
     city_order = {value: index for index, (value, _) in enumerate(TaiwanCounty.choices)}
-    dealer_buckets = {"with_group": {}, "without_group": {}}
+    section_configs = (
+        (
+            ("inactive", "已停用車行", "歷史資料統一收納，不再依 LINE 群組區分"),
+        )
+        if status == "inactive"
+        else (
+            ("with_group", "有 LINE 群組", "已建立日常聯繫群組的合作車行"),
+            ("without_group", "無 LINE 群組", "目前沒有 LINE 群組的合作車行"),
+        )
+    )
+    dealer_buckets = {key: {} for key, _, _ in section_configs}
     for item in page.object_list:
-        line_group_key = "with_group" if item.has_line_group else "without_group"
+        line_group_key = (
+            "inactive"
+            if status == "inactive"
+            else ("with_group" if item.has_line_group else "without_group")
+        )
         city_key = item.city or "__unassigned__"
         district_key = item.district or "__unassigned__"
         dealer_buckets[line_group_key].setdefault(city_key, {}).setdefault(
             district_key, []
         ).append(item)
     line_group_sections = []
-    for line_group_key, section_label, section_description in (
-        ("with_group", "有 LINE 群組", "已建立日常聯繫群組的合作車行"),
-        ("without_group", "無 LINE 群組", "目前沒有 LINE 群組的合作車行"),
-    ):
+    for line_group_key, section_label, section_description in section_configs:
         city_buckets = dealer_buckets[line_group_key]
         region_groups = []
         for city_key, district_bucket in sorted(
@@ -1126,6 +1140,8 @@ def sales_source_list(request):
         )
     status_query = request.GET.copy()
     status_query.pop("page", None)
+    if status == "inactive":
+        status_query.pop("line_group", None)
     status_query["status"] = "active"
     active_status_url = f"{reverse('sales_source_list')}?{status_query.urlencode()}"
     status_query["status"] = "inactive"

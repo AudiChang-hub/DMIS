@@ -40,7 +40,7 @@
   <div class="inventory-filter"><label for="source-district">行政區</label><select id="source-district" name="district" {% if not selected.city or selected.city == '__unassigned__' %}disabled{% endif %}><option value="">全部行政區</option>{% for item in district_filters %}<option value="{{ item.value }}" {% if selected.district == item.value %}selected{% endif %}>{{ item.label }}（{{ item.count }}）</option>{% endfor %}</select></div>
   <div class="inventory-filter"><label for="source-cooperation-scope">合作類別</label><select id="source-cooperation-scope" name="cooperation_scope"><option value="">全部合作類別</option>{% for value,label in cooperation_scopes %}<option value="{{ value }}" {% if selected.cooperation_scope == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
   <div class="inventory-filter"><label for="source-relationship-type">關係類型</label><select id="source-relationship-type" name="relationship_type"><option value="">全部關係</option>{% for value,label in relationship_types %}<option value="{{ value }}" {% if selected.relationship_type == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
-  <div class="inventory-filter"><label for="source-line-group">LINE 群組</label><select id="source-line-group" name="line_group"><option value="">不限群組狀態</option><option value="yes" {% if selected.line_group == 'yes' %}selected{% endif %}>有 LINE 群組</option><option value="no" {% if selected.line_group == 'no' %}selected{% endif %}>無 LINE 群組</option></select></div>
+  {% if selected.status == 'active' %}<div class="inventory-filter"><label for="source-line-group">LINE 群組</label><select id="source-line-group" name="line_group"><option value="">不限群組狀態</option><option value="yes" {% if selected.line_group == 'yes' %}selected{% endif %}>有 LINE 群組</option><option value="no" {% if selected.line_group == 'no' %}selected{% endif %}>無 LINE 群組</option></select></div>{% endif %}
   <div class="inventory-filter"><label for="source-holiday-gift">年節名單</label><select id="source-holiday-gift" name="holiday_gift"><option value="">不限名單狀態</option><option value="yes" {% if selected.holiday_gift == 'yes' %}selected{% endif %}>已列入名單</option><option value="no" {% if selected.holiday_gift == 'no' %}selected{% endif %}>未列入名單</option></select></div>
   <div class="inventory-filter-actions"><a class="button ghost" href="{% url 'sales_source_list' %}{% if selected.status == 'inactive' %}?status=inactive{% endif %}">清除所有條件</a><button class="button primary">套用</button></div>
 </form>
@@ -57,7 +57,7 @@
       <a class="button ghost small" href="{% url 'sales_source_holiday_gift_manage' %}">管理名單</a>
     </nav>
   </div>
-  <div class="line-group-colour-guide" aria-label="LINE 群組底色說明">
+  {% if selected.status == 'active' %}<div class="line-group-colour-guide" aria-label="LINE 群組底色說明">
     <strong>車行名稱有底色＝有 LINE 群組</strong>
     <div class="line-group-colour-guide__items">
       <span><i class="line-group-colour-guide__swatch is-sym-exclusive" aria-hidden="true"></i>三陽專銷＋台鈴</span>
@@ -67,7 +67,7 @@
       <span><i class="line-group-colour-guide__swatch is-group-only" aria-hidden="true"></i>僅有群組／未合作</span>
     </div>
     <small>沒有底色代表沒有 LINE 群組</small>
-  </div>
+  </div>{% endif %}
   <div class="source-region-groups">
     {% for line_section in line_group_sections %}
       <section class="source-line-group-section is-{{ line_section.key }}" aria-labelledby="line-group-heading-{{ line_section.key }}">
@@ -84,10 +84,10 @@
               </summary>
               <div class="inventory-table-wrap">
                 <table class="inventory-table sales-source-table">
-                  <thead><tr><th>車行</th><th>聯絡資料</th><th>合作資料與 LINE 群組</th><th>年節名單</th><th>狀態</th><th></th></tr></thead>
+                  <thead><tr><th>車行</th><th>聯絡資料</th><th>合作資料與 LINE 群組</th><th>備註</th><th>年節名單</th><th>狀態</th><th></th></tr></thead>
                   <tbody>
                     {% for district_group in region.district_groups %}
-                      <tr class="source-district-row"><th colspan="6"><span>{{ district_group.label }}</span><small>{{ district_group.count }} 家</small></th></tr>
+                      <tr class="source-district-row"><th colspan="7"><span>{{ district_group.label }}</span><small>{{ district_group.count }} 家</small></th></tr>
                       {% include "sales/_sales_source_rows.html" with source_items=district_group.sources %}
                     {% endfor %}
                   </tbody>

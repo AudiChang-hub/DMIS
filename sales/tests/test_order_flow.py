@@ -2586,7 +2586,10 @@ class OrderFlowTests(TestCase):
         self.assertEqual(first_page.context["search_result_count"], 51)
         self.assertEqual(len(first_page.context["search_results"]), 50)
         self.assertContains(first_page, "共 51 筆")
+        self.assertContains(first_page, "第一頁")
         self.assertContains(first_page, "下一頁")
+        self.assertContains(first_page, "最後一頁")
+        self.assertContains(first_page, "輸入要前往的頁碼")
         self.assertEqual(len(second_page.context["search_results"]), 1)
         self.assertContains(second_page, "上一頁")
 
@@ -4035,6 +4038,9 @@ class OrderFlowTests(TestCase):
         self.assertEqual(first_page.context["page_obj"].paginator.count, 56)
         self.assertEqual(len(first_page.context["orders"]), 50)
         self.assertEqual(len(second_page.context["orders"]), 6)
+        self.assertContains(first_page, "第一頁")
+        self.assertContains(first_page, "最後一頁")
+        self.assertContains(first_page, "輸入要前往的頁碼")
         self.assertContains(search, searchable.number)
 
     def test_order_list_search_normalises_case_spaces_and_hyphens(self):

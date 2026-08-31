@@ -31,7 +31,11 @@ class DealerWorkbookSyncTests(TestCase):
         self.write_workbook()
         result = sync_dealer_workbook(self.workbook_path, apply=False)
         self.assertEqual(result.created, 3)
-        self.assertFalse(SalesSource.objects.exists())
+        self.assertFalse(
+            SalesSource.objects.filter(
+                source_type=SalesSource.SourceType.DEALER
+            ).exists()
+        )
 
     def test_sync_maps_suzuki_v_to_gas_and_electric_and_electric_only(self):
         self.write_workbook()

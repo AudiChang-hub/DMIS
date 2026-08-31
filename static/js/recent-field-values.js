@@ -30,9 +30,9 @@
     return !EXCLUDED_NAME.test(field.name);
   }
 
-  function disableNativeHistory(root = document) {
-    root.querySelectorAll?.(FIELD_SELECTOR).forEach(field => {
-      if (eligible(field)) field.setAttribute("autocomplete", "off");
+  function disableNativeAutocomplete(root = document) {
+    root.querySelectorAll?.("form, input, textarea, select").forEach(element => {
+      element.setAttribute("autocomplete", "off");
     });
   }
 
@@ -163,12 +163,12 @@
   });
   window.addEventListener("resize", positionList);
   window.addEventListener("scroll", positionList, true);
-  disableNativeHistory();
+  disableNativeAutocomplete();
   new MutationObserver(records => {
     records.forEach(record => record.addedNodes.forEach(node => {
       if (!(node instanceof Element)) return;
-      if (eligible(node)) node.setAttribute("autocomplete", "off");
-      disableNativeHistory(node);
+      if (node.matches("form, input, textarea, select")) node.setAttribute("autocomplete", "off");
+      disableNativeAutocomplete(node);
     }));
   }).observe(document.body, {childList: true, subtree: true});
 })();

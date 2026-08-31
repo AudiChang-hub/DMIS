@@ -326,6 +326,22 @@ class SalesSource(TimeStampedModel):
     def __str__(self):
         return self.name
 
+    @classmethod
+    def next_general_source_code(cls, *, code_date=None):
+        """依既有 N + 日期 + 兩碼序號規則產生下一個一般來源代碼。"""
+        code_date = code_date or timezone.localdate()
+        stem = f"N{code_date:%y%m%d}"
+        used_suffixes = []
+        for code in cls.objects.filter(code__startswith=stem).values_list(
+            "code", flat=True
+        ):
+            match = re.fullmatch(rf"{re.escape(stem)}(\d{{2}})", code or "")
+            if match:
+                used_suffixes.append(int(match.group(1)))
+        for suffix in range(max(used_suffixes, default=0) + 1, 100):
+            return f"{stem}{suffix:02d}"
+        raise ValidationError({"code": f"{stem} 當日來源代碼已用盡。"})
+
     @property
     def staff_store_labels(self):
         labels = dict(self.StaffStore.choices)
@@ -355,10 +371,16 @@ class SalesSource(TimeStampedModel):
 
         if self.category_id:
             self.source_type = self.category.system_behavior
+        assigned_code = False
+        if self.source_type == self.SourceType.PLATFORM and not self.code:
+            self.code = self.next_general_source_code()
+            assigned_code = True
         if self.source_type != self.SourceType.DEALER:
             self.has_line_group = False
         else:
             self.city, self.district = infer_taiwan_region(self.address)
+        if assigned_code and kwargs.get("update_fields") is not None:
+            kwargs["update_fields"] = set(kwargs["update_fields"]) | {"code"}
         return super().save(*args, **kwargs)
 
 

@@ -473,6 +473,36 @@ class LegacyImportTests(TestCase):
             "代申請補助",
         )
 
+    def test_special_platform_source_name_is_moved_to_order_note(self):
+        rules = (
+            ("momo員購", "momo"),
+            ("小樹購員購", "小樹購"),
+            ("Yahoo+假展場", "Yahoo"),
+        )
+        for legacy_name, canonical_name in rules:
+            with self.subTest(legacy_name=legacy_name):
+                self.assertEqual(
+                    _clean_sales_source_name(legacy_name), canonical_name
+                )
+                self.assertEqual(
+                    _sales_order_note(
+                        {},
+                        legacy_name,
+                        SalesOrder.TransactionType.REGULAR_NEW,
+                    ),
+                    legacy_name,
+                )
+
+        self.assertEqual(_clean_sales_source_name("上海商銀員購"), "上海商銀員購")
+        self.assertEqual(
+            _sales_order_note(
+                {},
+                "上海商銀員購",
+                SalesOrder.TransactionType.REGULAR_NEW,
+            ),
+            "",
+        )
+
     def test_used_vehicle_resale_can_share_identifier_without_reusing_inventory(self):
         batch = self.make_used_vehicle_batch()
         summary = build_import_preview(batch)

@@ -737,13 +737,32 @@ h2 { margin-bottom: 0; font-size: 1.15rem; }
   display: grid; grid-template-columns: 10px minmax(180px, 1fr) 140px auto 20px;
   min-height: 72px; padding: 12px 18px; align-items: center; gap: 12px; border-bottom: 1px solid var(--line-soft);
 }
+.order-row--detailed { grid-template-columns: 10px minmax(0, 1fr) auto 20px; min-height: 116px; }
 .order-row:last-child { border-bottom: 0; }
 .order-row:hover { background: var(--surface-soft); }
 .status-dot { width: 8px; height: 8px; background: var(--blue); border-radius: 50%; }
 .status-dot.status-contract_pending { background: var(--amber); }
 .status-dot.status-cancel_refund_pending, .status-dot.status-delivered_docs_pending { background: var(--red); }
 .order-main strong, .order-main small { display: block; }
+.order-main { min-width: 0; }
 .order-main small { margin-top: 2px; color: var(--muted); font-size: .8125rem; }
+.order-facts {
+  display: grid; margin-top: 11px;
+  grid-template-columns: 1.05fr .55fr .8fr .75fr .8fr .9fr 1.55fr;
+  gap: 10px;
+}
+.order-fact { min-width: 0; padding-left: 10px; border-left: 2px solid var(--line-soft); }
+.order-fact small { margin: 0 0 3px; color: var(--muted); font-size: .72rem; font-weight: 750; }
+.order-fact b {
+  display: block; overflow: hidden; color: var(--ink); font-size: .875rem;
+  font-weight: 800; line-height: 1.35; text-overflow: ellipsis; white-space: nowrap;
+}
+.order-fact--profit b { color: var(--blue); }
+.order-fact--profit b.is-negative { color: var(--red); }
+.order-fact--note b {
+  display: -webkit-box; overflow: hidden; -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2; white-space: normal;
+}
 .search-match-list { display: flex; margin-top: 9px; flex-wrap: wrap; gap: 6px; }
 .search-match {
   display: inline-flex; min-width: 0; overflow: hidden; border: 1px solid #cdded5;
@@ -3226,6 +3245,12 @@ body.screen-locked { overflow: hidden; }
   .metric { min-height: 120px; padding: 16px; }
   .metric strong { font-size: 2rem; }
   .order-row { grid-template-columns: 8px 1fr auto 16px; min-height: 68px; padding: 11px 13px; gap: 9px; }
+  .order-row--detailed { min-height: 0; align-items: start; }
+  .order-row--detailed .status-dot { margin-top: 7px; }
+  .order-row--detailed .status-pill { margin-top: 0; }
+  .order-facts { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 8px; }
+  .order-fact { padding-left: 8px; }
+  .order-fact--note { grid-column: 1 / -1; }
   .search-match-list { margin-top: 7px; }
   .search-match { max-width: 100%; }
   .search-match mark { max-width: 180px; }

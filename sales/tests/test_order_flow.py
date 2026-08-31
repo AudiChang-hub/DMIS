@@ -4071,6 +4071,57 @@ class OrderFlowTests(TestCase):
                 self.assertContains(response, order.number)
                 self.assertContains(response, label)
 
+    def test_order_list_shows_requested_operational_summary_fields(self):
+        family = VehicleModelFamily.objects.create(
+            brand=self.model.brand,
+            name="通勤機種",
+        )
+        VehicleModel.objects.filter(pk=self.model.pk).update(family=family)
+        self.model.refresh_from_db()
+        order = self.make_order()
+        order.source = self.dealer
+        order.source_type = SalesOrder.SourceType.DEALER
+        order.registration_date = date(2026, 8, 20)
+        order.final_plate_number = "ABC-1234"
+        order.note = "momo員購"
+        order.save(
+            update_fields=[
+                "source",
+                "source_type",
+                "registration_date",
+                "final_plate_number",
+                "note",
+                "updated_at",
+            ]
+        )
+        profile = OrderOperationsProfile.objects.get(order=order)
+        profile.actual_disbursement = Decimal("79800")
+        profile.vehicle_cost = Decimal("60000")
+        profile.save(update_fields=["actual_disbursement", "vehicle_cost", "updated_at"])
+        self.client.force_login(self.user)
+
+        response = self.client.get(reverse("order_list"))
+
+        for label in ("機種", "顏色", "領牌日期", "車號", "淨利", "車行", "備註"):
+            with self.subTest(label=label):
+                self.assertContains(response, label)
+        for value in (
+            "通勤機種",
+            "白",
+            "2026/08/20",
+            "ABC-1234",
+            "$ 19,800",
+            "測試合作車行",
+            "momo員購",
+        ):
+            with self.subTest(value=value):
+                self.assertContains(response, value)
+
+        self.assertEqual(len(response.context["orders"]), 1)
+        listed_order = response.context["orders"][0]
+        self.assertIn("operations", listed_order._state.fields_cache)
+        self.assertIn("family", listed_order.vehicle_model._state.fields_cache)
+
     def test_mobile_core_lists_have_explicit_non_overflow_layout_rules(self):
         from pathlib import Path
 
@@ -4081,7 +4132,9 @@ class OrderFlowTests(TestCase):
         )
 
         self.assertIn("order-filter-bar", order_list)
+        self.assertIn("show_order_details=True", order_list)
         self.assertIn("grid-template-columns: minmax(0, 1fr) minmax(118px, .62fr)", css)
+        self.assertIn(".order-facts { grid-template-columns: repeat(2, minmax(0, 1fr))", css)
         self.assertIn(".reconciliation-table input.form-control { width: 100%; min-width: 0", css)
         self.assertIn("mobile-field-label", reconciliation)
 

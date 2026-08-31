@@ -4043,6 +4043,64 @@ class OrderFlowTests(TestCase):
         self.assertContains(first_page, "輸入要前往的頁碼")
         self.assertContains(search, searchable.number)
 
+    def test_order_list_allows_supported_page_sizes_and_preserves_filters(self):
+        self.client.force_login(self.user)
+        self.make_order()
+        orders = [
+            SalesOrder(
+                number=f"SO-SIZE-{index:03d}",
+                owner_name=f"每頁筆數客戶 {index:03d}",
+                owner_phone=f"0913{index:06d}",
+                owner_address="新北市測試區",
+                owner_id_number=f"B{index:09d}",
+                vehicle_model=self.model,
+                color=self.color,
+                vehicle_price=Decimal("79800"),
+                status=SalesOrder.Status.ALLOCATION_PENDING,
+            )
+            for index in range(80)
+        ]
+        SalesOrder.objects.bulk_create(orders)
+
+        for per_page in (25, 50, 75, 100):
+            with self.subTest(per_page=per_page):
+                response = self.client.get(reverse("order_list"), {"per_page": per_page})
+                self.assertEqual(response.status_code, 200)
+                self.assertEqual(response.context["page_obj"].paginator.per_page, per_page)
+                self.assertEqual(len(response.context["orders"]), min(per_page, 81))
+                self.assertEqual(response.context["per_page"], per_page)
+
+        second_page = self.client.get(
+            reverse("order_list"),
+            {
+                "status": SalesOrder.Status.ALLOCATION_PENDING,
+                "per_page": 25,
+                "page": 2,
+            },
+        )
+        self.assertEqual(second_page.context["page_obj"].number, 2)
+        self.assertEqual(len(second_page.context["orders"]), 25)
+        self.assertContains(second_page, "per_page=25")
+        self.assertContains(
+            second_page,
+            f'name="status" value="{SalesOrder.Status.ALLOCATION_PENDING}"',
+        )
+
+        searched = self.client.get(
+            reverse("order_list"),
+            {"q": "每頁筆數客戶", "per_page": 75},
+        )
+        self.assertContains(searched, 'name="q" value="每頁筆數客戶"')
+        self.assertContains(searched, 'name="per_page" value="75"')
+
+        for invalid_value in ("abc", "24", "101"):
+            with self.subTest(invalid_value=invalid_value):
+                response = self.client.get(
+                    reverse("order_list"), {"per_page": invalid_value}
+                )
+                self.assertEqual(response.context["page_obj"].paginator.per_page, 50)
+                self.assertEqual(response.context["per_page"], 50)
+
     def test_order_list_search_normalises_case_spaces_and_hyphens(self):
         self.client.force_login(self.user)
         order = self.make_order()

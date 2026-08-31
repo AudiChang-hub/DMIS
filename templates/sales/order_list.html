@@ -32,7 +32,7 @@
   </div>
   <div class="order-list">
   {% for order in orders %}
-    {% include "sales/_order_row.html" %}
+    {% include "sales/_order_row.html" with show_order_details=True %}
   {% empty %}
     <div class="empty-state"><strong>尚無訂單</strong><p>建立第一張訂單後會顯示在這裡。</p></div>
   {% endfor %}

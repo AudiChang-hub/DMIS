@@ -1,8 +1,20 @@
-<a class="order-row" href="{% url 'order_detail' order.pk %}">
+{% load sales_format %}
+<a class="order-row{% if show_order_details %} order-row--detailed{% endif %}" href="{% url 'order_detail' order.pk %}">
   <span class="status-dot status-{{ order.status }}"></span>
   <span class="order-main">
     <strong>{{ order.owner_name }}</strong>
-    <small>{{ order.number }} · {{ order.vehicle_model.name }}／{{ order.color.name }}</small>
+    <small>{{ order.number }}{% if not show_order_details %} · {{ order.vehicle_model.name }}／{{ order.color.name }}{% endif %}</small>
+    {% if show_order_details %}
+    <span class="order-facts">
+      <span class="order-fact order-fact--machine"><small>機種</small><b>{% if order.vehicle_model.family %}{{ order.vehicle_model.family.name }}{% else %}{{ order.vehicle_model.name }}{% endif %}</b></span>
+      <span class="order-fact"><small>顏色</small><b>{{ order.color.name|default:"—" }}</b></span>
+      <span class="order-fact"><small>領牌日期</small><b>{{ order.registration_date|date:"Y/m/d"|default:"未領牌" }}</b></span>
+      <span class="order-fact"><small>車號</small><b>{{ order.final_plate_number|default:"—" }}</b></span>
+      <span class="order-fact order-fact--profit"><small>淨利</small><b{% if order.operations.net_profit < 0 %} class="is-negative"{% endif %}>{% if order.operations %}$ {{ order.operations.net_profit|number_with_commas }}{% else %}—{% endif %}</b></span>
+      <span class="order-fact"><small>車行</small><b>{{ order.source.name|default:order.get_source_type_display }}</b></span>
+      <span class="order-fact order-fact--note" title="{{ order.note }}"><small>備註</small><b>{{ order.note|default:"—" }}</b></span>
+    </span>
+    {% endif %}
     {% if order.search_matches %}
     <span class="search-match-list" aria-label="符合搜尋的欄位">
       {% for match in order.search_matches|slice:":6" %}
@@ -12,7 +24,7 @@
     </span>
     {% endif %}
   </span>
-  <span class="order-source">{{ order.source.name|default:order.get_source_type_display }}</span>
+  {% if not show_order_details %}<span class="order-source">{{ order.source.name|default:order.get_source_type_display }}</span>{% endif %}
   <span class="status-pill status-{{ order.status }}">{{ order.get_status_display }}</span>
   <span class="chevron">›</span>
 </a>

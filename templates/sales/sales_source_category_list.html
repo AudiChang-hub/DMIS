@@ -32,7 +32,7 @@
             <td data-label="分類名稱"><strong>{{ item.name }}</strong>{% if item.note %}<span>{{ item.note }}</span>{% endif %}</td>
             <td data-label="系統處理方式">{{ item.get_system_behavior_display }}</td>
             <td data-label="使用數">{{ item.source_count }} 個通路</td>
-            <td data-label="狀態"><span class="status-pill">{{ item.active|yesno:"啟用中,已停用" }}</span></td>
+            <td data-label="狀態">{% include "sales/_active_quick_toggle.html" with resource="sales-source-category" pk=item.pk is_active=item.active item_name=item.name %}</td>
             <td data-label="操作" class="inventory-row-action">
               <span class="row-action-buttons">
                 <a class="button ghost small" href="?edit={{ item.pk }}">編輯</a>

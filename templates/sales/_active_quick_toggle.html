@@ -1,0 +1,33 @@
+{% url 'master_record_set_active' resource pk as active_toggle_url %}
+<form
+  class="source-active-toggle-form quick-active-toggle-form"
+  method="post"
+  action="{{ action_url|default:active_toggle_url }}"
+  data-preserve-source-list-state
+  data-source-list-control="active"
+  data-active-quick-toggle
+  data-active-resource="{{ resource }}"
+  data-active-pk="{{ pk }}"
+  {% if resource == 'sales-source' %}data-legacy-action="{% url 'sales_source_set_active' pk %}"{% endif %}
+  data-active-name="{{ item_name }}"
+  data-allow-multiple-submit="true"
+  data-enabled-label="{{ enabled_label|default:'啟用中' }}"
+  data-disabled-label="{{ disabled_label|default:'已停用' }}"
+  {% if confirm_off %}data-confirm-off="{{ confirm_off }}"{% endif %}
+>
+  {% csrf_token %}
+  <input type="hidden" name="active" value="{% if is_active %}0{% else %}1{% endif %}">
+  <input type="hidden" name="next" value="{{ request.get_full_path }}">
+  <button
+    class="source-active-toggle{% if is_active %} is-active{% endif %}{% if resource == 'vehicle-model' %} vehicle-model-status--{% if is_active %}active{% else %}inactive{% endif %}{% endif %}"
+    type="submit"
+    role="switch"
+    aria-checked="{{ is_active|yesno:'true,false' }}"
+    aria-label="{% if is_active %}停用{% else %}啟用{% endif %}{{ item_name }}"
+    title="點擊{% if is_active %}停用{% else %}啟用{% endif %}"
+    {% if is_disabled %}disabled aria-disabled="true"{% endif %}
+  >
+    <span class="source-active-toggle__track" aria-hidden="true"><span></span></span>
+    <span class="source-active-toggle__label">{% if is_active %}{{ enabled_label|default:"啟用中" }}{% else %}{{ disabled_label|default:"已停用" }}{% endif %}</span>
+  </button>
+</form>

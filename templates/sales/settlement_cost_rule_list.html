@@ -38,7 +38,7 @@
           <td data-label="代銷結算成本"><strong>${{ rule.amount|floatformat:0 }}</strong></td>
           <td data-label="公告日期">{{ rule.announced_on|date:"Y/m/d" }}</td>
           <td data-label="生效期間"><strong>{{ rule.effective_from|date:"Y/m/d" }}</strong><span>至 {{ rule.effective_to|date:"Y/m/d"|default:"持續有效" }}</span></td>
-          <td data-label="狀態"><span class="status-pill cost-rule-{{ lifecycle.0 }}">{{ lifecycle.1 }}</span></td>
+          <td data-label="狀態"><div class="quick-active-toggle-stack">{% include "sales/_active_quick_toggle.html" with resource="settlement-cost-rule" pk=rule.pk is_active=rule.active item_name=rule %}{% if rule.active %}<span class="status-pill cost-rule-{{ lifecycle.0 }}">{{ lifecycle.1 }}</span>{% endif %}</div></td>
           <td data-label="備註">{{ rule.note|default:"—"|truncatechars:32 }}</td>
           <td class="inventory-row-action"><a class="button ghost small" href="{% url 'settlement_cost_rule_edit' rule.pk %}">編輯</a></td>
         </tr>

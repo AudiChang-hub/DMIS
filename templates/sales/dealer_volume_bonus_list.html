@@ -22,7 +22,7 @@
 <section class="inventory-list-panel">
   <div class="inventory-table-wrap">
     <table class="inventory-table">
-      <thead><tr><th>車行／品牌</th><th>統計期間</th><th>目前台數</th><th>門檻結果</th><th>結算</th><th></th></tr></thead>
+      <thead><tr><th>車行／品牌</th><th>統計期間</th><th>目前台數</th><th>門檻結果</th><th>結算</th><th>狀態</th><th></th></tr></thead>
       <tbody>
         {% for row in rows %}
           <tr>
@@ -31,6 +31,7 @@
             <td data-label="目前台數"><strong>{{ row.preview.quantity }} 台</strong></td>
             <td data-label="門檻結果">{% if row.preview.tier %}每台 ${{ row.preview.bonus_per_vehicle|floatformat:0 }}<span>預計 ${{ row.preview.expected_amount|floatformat:0 }}</span>{% else %}尚未達門檻{% endif %}</td>
             <td data-label="結算">{% if row.rule.settlement %}<span class="status-pill">已結算 ${{ row.rule.settlement.actual_amount|floatformat:0 }}</span><span>{{ row.rule.settlement.allocations.count }} 張訂單</span>{% else %}<span class="status-pill warning">未結算</span>{% endif %}</td>
+            <td data-label="狀態">{% include "sales/_active_quick_toggle.html" with resource="dealer-volume-bonus" pk=row.rule.pk is_active=row.rule.active item_name=row.rule %}</td>
             <td>
               {% if row.rule.settlement %}
                 <a class="button ghost small" href="{% url 'dealer_volume_bonus_revise' row.rule.settlement.pk %}">調整實際入帳</a>
@@ -41,7 +42,7 @@
             </td>
           </tr>
         {% empty %}
-          <tr><td colspan="6">{% if show_all %}尚未建立任何合作車行台數獎金規則。{% else %}目前沒有統計期間內已完成領牌的合作車行銷售。{% endif %}</td></tr>
+          <tr><td colspan="7">{% if show_all %}尚未建立任何合作車行台數獎金規則。{% else %}目前沒有統計期間內已完成領牌的合作車行銷售。{% endif %}</td></tr>
         {% endfor %}
       </tbody>
     </table>

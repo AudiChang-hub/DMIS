@@ -44,7 +44,7 @@
           <td data-label="工資">${{ item.labor_fee|floatformat:0 }}</td>
           <td data-label="參考成本">{% if item.cost is not None %}${{ item.cost|floatformat:0 }}{% else %}未維護{% endif %}</td>
           <td data-label="歷史使用">{{ item.usage_count }} 筆</td>
-          <td data-label="狀態"><span class="status-pill">{{ item.active|yesno:"啟用中,已停用" }}</span></td>
+          <td data-label="狀態">{% include "sales/_active_quick_toggle.html" with resource="accessory-product" pk=item.pk is_active=item.active item_name=item.name %}</td>
           <td class="inventory-row-action"><a class="button ghost small" href="{% url 'accessory_product_edit' item.pk %}">編輯</a></td>
         </tr>
         {% empty %}<tr><td colspan="7"><div class="empty-state"><strong>尚未建立配件資料</strong></div></td></tr>{% endfor %}

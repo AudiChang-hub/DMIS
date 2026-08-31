@@ -46,7 +46,7 @@
           <td data-label="客服電話">{{ item.customer_service_phone|default:"尚未填寫" }}</td>
           <td data-label="分期方案">{{ item.option_count }} 筆</td>
           <td data-label="使用訂單">{{ item.order_count }} 張</td>
-          <td data-label="狀態"><span class="status-pill{% if not item.active %} status-inactive{% endif %}">{{ item.active|yesno:"啟用中,已停用" }}</span></td>
+          <td data-label="狀態">{% include "sales/_active_quick_toggle.html" with resource="installment-company" pk=item.pk is_active=item.active item_name=item.name %}</td>
           <td data-label="操作" class="inventory-row-action"><a class="button ghost small" href="?edit={{ item.pk }}#company-form">編輯</a></td>
         </tr>
         {% empty %}<tr><td colspan="6"><div class="empty-state small"><strong>尚未建立分期公司</strong><p>使用上方「新增分期公司」開始建立。</p></div></td></tr>{% endfor %}

@@ -166,6 +166,34 @@ class UserManagementTests(TestCase):
         self.user.refresh_from_db()
         self.assertTrue(self.user.is_active)
 
+    def test_admin_can_quick_toggle_account_without_leaving_page(self):
+        self.client.force_login(self.admin)
+
+        response = self.client.post(
+            reverse("user_account_status", args=[self.user.pk]),
+            {"active": "0"},
+            HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["resource"], "user-account")
+        self.assertFalse(response.json()["active"])
+        self.user.refresh_from_db()
+        self.assertFalse(self.user.is_active)
+
+    def test_admin_quick_toggle_cannot_deactivate_self(self):
+        self.client.force_login(self.admin)
+
+        response = self.client.post(
+            reverse("user_account_status", args=[self.admin.pk]),
+            {"active": "0"},
+            HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.admin.refresh_from_db()
+        self.assertTrue(self.admin.is_active)
+
     def test_password_reset_forces_change_and_never_audits_plaintext(self):
         self.client.force_login(self.admin)
         new_password = "ResetPass!67890"

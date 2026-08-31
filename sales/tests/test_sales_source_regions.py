@@ -101,6 +101,13 @@ class TaiwanAddressRegionTests(TestCase):
         self.assertContains(response, "inferRegionFromAddress")
         self.assertContains(response, 'addressInput?.addEventListener("input"')
         self.assertContains(response, "populateDistrictOptions")
+        self.assertEqual(
+            response.context["source_context_kind"],
+            SalesSource.SourceType.DEALER,
+        )
+        self.assertContains(response, 'type="hidden" name="category"')
+        self.assertNotContains(response, '<label for="id_category">')
+        self.assertNotContains(response, '<select name="category"')
 
 
 class SalesSourceRegionListTests(TestCase):

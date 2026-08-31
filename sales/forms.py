@@ -622,13 +622,16 @@ class SalesSourceForm(forms.ModelForm):
                     "placeholder": "例如：聯繫習慣、合作注意事項或其他需要記錄的資料",
                 }
             ),
-            "district": forms.TextInput(
-                attrs={"placeholder": "例如：汐止區", "list": "taiwan-district-list"}
-            ),
+            "district": forms.Select(),
         }
 
     def __init__(self, *args, source_type=None, **kwargs):
         super().__init__(*args, **kwargs)
+        from sales.services.taiwan_address import (
+            district_choices,
+            normalize_taiwan_text,
+        )
+
         category_queryset = SalesSourceCategory.objects.filter(
             Q(active=True) | Q(pk=self.instance.category_id)
         )
@@ -651,6 +654,27 @@ class SalesSourceForm(forms.ModelForm):
         self.fields["line_group_presence"].initial = (
             "yes" if self.instance.has_line_group else "no"
         )
+        selected_city = normalize_taiwan_text(
+            self.data.get(self.add_prefix("city"), "")
+            if self.is_bound
+            else self.initial.get("city", self.instance.city)
+        )
+        selected_district = (
+            self.data.get(self.add_prefix("district"), "")
+            if self.is_bound
+            else self.initial.get("district", self.instance.district)
+        )
+        self.fields["district"].widget.choices = [
+            ("", "請先選擇縣市" if not selected_city else "請選擇行政區"),
+            *((district, district) for district in district_choices(selected_city)),
+        ]
+        if (
+            selected_district
+            and selected_district not in district_choices(selected_city)
+        ):
+            self.fields["district"].widget.choices.append(
+                (selected_district, f"{selected_district}（請重新確認）")
+            )
         for field in self.fields.values():
             field.widget.attrs.setdefault("class", "form-control")
         apply_mobile_keyboard_attrs(self)

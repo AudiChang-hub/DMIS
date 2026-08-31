@@ -1580,9 +1580,7 @@ def sales_source_form(request, pk=None):
                 str(category.pk): category.system_behavior
                 for category in form.fields["category"].queryset
             },
-            "district_names": sorted(
-                {district for districts in TAIWAN_DISTRICTS.values() for district in districts}
-            ),
+            "district_options_by_city": TAIWAN_DISTRICTS,
             "source_context_label": form_context["label"],
             "source_list_url": reverse(form_context["list_route"]),
         },

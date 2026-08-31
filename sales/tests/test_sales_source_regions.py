@@ -3,6 +3,7 @@ from django.core.exceptions import ValidationError
 from django.test import TestCase
 from django.urls import reverse
 
+from sales.forms import SalesSourceForm
 from sales.models import SalesSource, SalesSourceCategory
 from sales.services.taiwan_address import infer_taiwan_region
 
@@ -38,6 +39,68 @@ class TaiwanAddressRegionTests(TestCase):
 
         with self.assertRaises(ValidationError):
             source.full_clean()
+
+    def test_form_infers_region_when_only_address_is_entered(self):
+        category = SalesSourceCategory.objects.get(
+            system_behavior=SalesSource.SourceType.DEALER,
+        )
+        form = SalesSourceForm(
+            data={
+                "category": category.pk,
+                "name": "地址自動辨識車行",
+                "address": "基隆市中正區正濱里中正路718號",
+                "city": "",
+                "district": "",
+                "line_group_presence": "no",
+                "active": "on",
+            },
+            source_type=SalesSource.SourceType.DEALER,
+        )
+
+        self.assertTrue(form.is_valid(), form.errors)
+        self.assertEqual(form.cleaned_data["city"], "基隆市")
+        self.assertEqual(form.cleaned_data["district"], "中正區")
+
+    def test_district_select_only_contains_selected_city_districts(self):
+        source = SalesSource(
+            name="基隆區域選單車行",
+            source_type=SalesSource.SourceType.DEALER,
+            city="基隆市",
+            district="中正區",
+        )
+        form = SalesSourceForm(
+            instance=source,
+            source_type=SalesSource.SourceType.DEALER,
+        )
+        choices = dict(form.fields["district"].widget.choices)
+
+        self.assertIn("中正區", choices)
+        self.assertIn("七堵區", choices)
+        self.assertNotIn("汐止區", choices)
+
+    def test_edit_page_contains_address_region_linkage(self):
+        user = get_user_model().objects.create_user(
+            username="region-form-user",
+            password="pass12345",
+        )
+        category = SalesSourceCategory.objects.get(
+            system_behavior=SalesSource.SourceType.DEALER,
+        )
+        source = SalesSource.objects.create(
+            name="區域聯動車行",
+            source_type=SalesSource.SourceType.DEALER,
+            category=category,
+            address="基隆市中正區中正路1號",
+        )
+        self.client.force_login(user)
+
+        response = self.client.get(reverse("sales_source_edit", args=[source.pk]))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'id="source-district-options"')
+        self.assertContains(response, "inferRegionFromAddress")
+        self.assertContains(response, 'addressInput?.addEventListener("input"')
+        self.assertContains(response, "populateDistrictOptions")
 
 
 class SalesSourceRegionListTests(TestCase):

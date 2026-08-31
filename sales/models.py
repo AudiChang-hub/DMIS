@@ -316,10 +316,8 @@ class SalesSource(TimeStampedModel):
             self.source_type = self.category.system_behavior
         if self.source_type != self.SourceType.DEALER:
             self.has_line_group = False
-        if self.source_type == self.SourceType.DEALER and self.address:
-            inferred_city, inferred_district = infer_taiwan_region(self.address)
-            self.city = self.city or inferred_city
-            self.district = self.district or inferred_district
+        if self.source_type == self.SourceType.DEALER:
+            self.city, self.district = infer_taiwan_region(self.address)
         if self.district and not self.city:
             raise ValidationError({"city": "填寫行政區前，請先選擇縣市。"})
         if self.city and not is_valid_district(self.city, self.district):
@@ -332,10 +330,8 @@ class SalesSource(TimeStampedModel):
             self.source_type = self.category.system_behavior
         if self.source_type != self.SourceType.DEALER:
             self.has_line_group = False
-        elif self.address and (not self.city or not self.district):
-            inferred_city, inferred_district = infer_taiwan_region(self.address)
-            self.city = self.city or inferred_city
-            self.district = self.district or inferred_district
+        else:
+            self.city, self.district = infer_taiwan_region(self.address)
         return super().save(*args, **kwargs)
 
 

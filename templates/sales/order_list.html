@@ -10,6 +10,7 @@
   <a class="button primary" href="{% url 'order_create' %}">＋ 建立訂單</a>
 </section>
 <form class="filter-bar order-filter-bar" method="get">
+  <input type="hidden" name="per_page" value="{{ per_page }}">
   <label class="order-filter-search">全欄位搜尋
     <input type="search" name="q" value="{{ query }}" placeholder="姓名、電話、證件、車牌、車型…" enterkeyhint="search">
   </label>
@@ -27,9 +28,23 @@
   <button class="button primary order-filter-submit" type="submit">搜尋</button>
 </form>
 <div class="section-block">
-  <div class="inventory-list-summary">
+  <div class="inventory-list-summary order-list-summary">
     <strong>共 {{ page_obj.paginator.count }} 張訂單</strong>
-    {% if page_obj.paginator.num_pages > 1 %}<span>第 {{ page_obj.number }}／{{ page_obj.paginator.num_pages }} 頁</span>{% endif %}
+    <div class="order-list-summary__controls">
+      <form class="order-page-size-form" method="get">
+        {% if query %}<input type="hidden" name="q" value="{{ query }}">{% endif %}
+        {% if request.GET.status %}<input type="hidden" name="status" value="{{ request.GET.status }}">{% endif %}
+        <label for="order-page-size">每頁顯示
+          <select id="order-page-size" name="per_page" onchange="this.form.submit()">
+            {% for option in per_page_options %}
+              <option value="{{ option }}" {% if per_page == option %}selected{% endif %}>{{ option }} 筆</option>
+            {% endfor %}
+          </select>
+        </label>
+        <noscript><button class="button ghost small" type="submit">套用</button></noscript>
+      </form>
+      {% if page_obj.paginator.num_pages > 1 %}<span>第 {{ page_obj.number }}／{{ page_obj.paginator.num_pages }} 頁</span>{% endif %}
+    </div>
   </div>
   <div class="order-list">
   {% for order in orders %}

@@ -409,6 +409,9 @@ def system_diagnostics(request):
 
 
 logger = logging.getLogger(__name__)
+
+ORDER_LIST_PAGE_SIZE_OPTIONS = (25, 50, 75, 100)
+ORDER_LIST_DEFAULT_PAGE_SIZE = 50
 DRAFT_PRESENCE_TIMEOUT = timedelta(seconds=90)
 ORDER_PRESENCE_TIMEOUT = timedelta(seconds=90)
 
@@ -3120,7 +3123,13 @@ def order_list(request):
     elif status:
         orders = orders.filter(status=status)
     orders = orders.order_by("-order_date", "-created_at", "-pk")
-    page = Paginator(orders, 50).get_page(request.GET.get("page"))
+    try:
+        per_page = int(request.GET.get("per_page", ORDER_LIST_DEFAULT_PAGE_SIZE))
+    except (TypeError, ValueError):
+        per_page = ORDER_LIST_DEFAULT_PAGE_SIZE
+    if per_page not in ORDER_LIST_PAGE_SIZE_OPTIONS:
+        per_page = ORDER_LIST_DEFAULT_PAGE_SIZE
+    page = Paginator(orders, per_page).get_page(request.GET.get("page"))
     if query:
         for order in page.object_list:
             order.search_matches = build_order_match_summary(order, query)
@@ -3135,6 +3144,8 @@ def order_list(request):
             "query": query,
             "query_params": query_params.urlencode(),
             "statuses": SalesOrder.Status.choices,
+            "per_page": per_page,
+            "per_page_options": ORDER_LIST_PAGE_SIZE_OPTIONS,
         },
     )
 

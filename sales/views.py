@@ -1513,7 +1513,7 @@ def sales_source_form(request, pk=None):
             ).order_by("name").first()
             if category:
                 initial = {"category": category}
-    if post_data and form_source_type == SalesSource.SourceType.DEALER:
+    if form_source_type == SalesSource.SourceType.DEALER:
         fixed_category = (
             source.category
             if source.category_id
@@ -1524,8 +1524,10 @@ def sales_source_form(request, pk=None):
             ).order_by("name").first()
         )
         if fixed_category:
-            post_data = post_data.copy()
-            post_data["category"] = str(fixed_category.pk)
+            initial = {**(initial or {}), "category": fixed_category}
+            if post_data:
+                post_data = post_data.copy()
+                post_data["category"] = str(fixed_category.pk)
     form = SalesSourceForm(
         post_data,
         instance=source,

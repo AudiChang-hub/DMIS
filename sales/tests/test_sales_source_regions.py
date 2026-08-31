@@ -109,6 +109,30 @@ class TaiwanAddressRegionTests(TestCase):
         self.assertNotContains(response, '<label for="id_category">')
         self.assertNotContains(response, '<select name="category"')
 
+    def test_legacy_dealer_without_category_gets_fixed_hidden_category(self):
+        user = get_user_model().objects.create_user(
+            username="legacy-dealer-form-user",
+            password="pass12345",
+        )
+        category = SalesSourceCategory.objects.get(
+            system_behavior=SalesSource.SourceType.DEALER,
+        )
+        source = SalesSource.objects.create(
+            name="舊資料分類待補車行",
+            source_type=SalesSource.SourceType.DEALER,
+            category=None,
+        )
+        self.client.force_login(user)
+
+        response = self.client.get(reverse("sales_source_edit", args=[source.pk]))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(
+            response,
+            f'<input type="hidden" name="category" value="{category.pk}" id="id_category">',
+            html=True,
+        )
+
 
 class SalesSourceRegionListTests(TestCase):
     def setUp(self):

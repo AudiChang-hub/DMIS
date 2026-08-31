@@ -152,7 +152,7 @@ def _dealer_category():
     return category
 
 
-def _next_dealer_code(relationship_type, used_codes, today=None):
+def next_dealer_code(relationship_type, used_codes, today=None):
     today = today or date.today()
     prefix = "S" if relationship_type == SalesSourceCooperationProfile.RelationshipType.EXCLUSIVE else "N"
     stem = f"{prefix}{today:%y%m%d}"
@@ -167,6 +167,10 @@ def _next_dealer_code(relationship_type, used_codes, today=None):
             used_codes.add(candidate)
             return candidate
     raise ValueError(f"{stem} 當日車行代碼已用盡。")
+
+
+# 保留舊名稱供既有匯入流程與外部呼叫相容。
+_next_dealer_code = next_dealer_code
 
 
 def _profile_values(row):
@@ -233,7 +237,7 @@ def sync_dealer_workbook(path, *, apply=False):
                 source_type=SalesSource.SourceType.DEALER,
                 name=row.canonical_name,
                 category=category,
-                code=_next_dealer_code(row.sym_relationship, used_codes),
+                code=next_dealer_code(row.sym_relationship, used_codes),
             )
             result.created += 1
             by_name[source.name.casefold()] = source

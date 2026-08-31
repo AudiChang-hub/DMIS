@@ -56,7 +56,12 @@
           <p>@{{ account.username }}</p>
         </div>
         <div class="account-state">
-          {% if account.is_active %}<span class="status-pill success">使用中</span>{% else %}<span class="status-pill neutral">已停用</span>{% endif %}
+          {% url 'user_account_status' account.pk as account_status_url %}
+          {% if account.pk == user.pk %}
+            {% include "sales/_active_quick_toggle.html" with action_url=account_status_url resource="user-account" pk=account.pk is_active=account.is_active item_name=account.username enabled_label="使用中" disabled_label="已停用" is_disabled=True %}
+          {% else %}
+            {% include "sales/_active_quick_toggle.html" with action_url=account_status_url resource="user-account" pk=account.pk is_active=account.is_active item_name=account.username enabled_label="使用中" disabled_label="已停用" confirm_off="確定停用此帳號嗎？停用後將無法登入。" %}
+          {% endif %}
           {% if account.is_superuser %}<span class="status-pill warning">系統管理者</span>{% else %}<span class="status-pill neutral">一般人員</span>{% endif %}
           {% if account.must_change_password %}<span class="status-pill info">待變更密碼</span>{% endif %}
         </div>
@@ -67,13 +72,6 @@
         <div class="account-actions">
           <a class="button ghost small" href="{% url 'user_account_edit' account.pk %}">編輯</a>
           {% if account.pk != user.pk %}<a class="button ghost small" href="{% url 'user_account_reset_password' account.pk %}">重設密碼</a>{% endif %}
-          {% if account.pk != user.pk %}
-          <form method="post" action="{% url 'user_account_status' account.pk %}">
-            {% csrf_token %}
-            <input type="hidden" name="action" value="{% if account.is_active %}deactivate{% else %}activate{% endif %}">
-            <button class="button small {% if account.is_active %}danger-outline{% else %}secondary{% endif %}" type="submit">{% if account.is_active %}停用{% else %}重新啟用{% endif %}</button>
-          </form>
-          {% endif %}
         </div>
       </article>
     {% empty %}

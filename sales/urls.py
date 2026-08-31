@@ -36,6 +36,11 @@ urlpatterns = [
         name="registration_fee_variance_confirm",
     ),
     path("data/", views.data_maintenance, name="data_maintenance"),
+    path(
+        "data/active-toggle/<slug:resource>/<int:pk>/",
+        views.master_record_set_active,
+        name="master_record_set_active",
+    ),
     path("system/users/", views.user_management, name="user_management"),
     path("system/users/new/", views.user_account_create, name="user_account_create"),
     path("system/users/<int:pk>/edit/", views.user_account_edit, name="user_account_edit"),

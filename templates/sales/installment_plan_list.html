@@ -118,11 +118,15 @@
             {% for option in plan.options.all %}<span>{{ option.periods }} 期 · {{ option.company }} · 每期 ${{ option.monthly_amount|floatformat:0 }} · {{ option.get_expected_disbursement_method_display }}{% if option.expected_disbursement_method == 'rate' %} {{ option.expected_disbursement_rate|floatformat:-2 }}%{% elif option.expected_disbursement_method == 'fixed' %} ${{ option.expected_disbursement_fixed_amount|floatformat:0 }}{% endif %}{% if option.extra_disbursement_bonus %} · 額外撥款獎金 ${{ option.extra_disbursement_bonus|floatformat:0 }}{% endif %}</span>{% empty %}尚無期數{% endfor %}
           </td>
           <td data-label="狀態">
-            {% if not plan.active %}<span class="status-pill installment-lifecycle--inactive">已停用</span>
-            {% elif current_plan and plan.pk == current_plan.pk %}<span class="status-pill installment-lifecycle--current">目前有效</span>
-            {% elif plan.effective_from > today %}<span class="status-pill installment-lifecycle--scheduled">等待生效</span>
-            {% elif plan.effective_to and plan.effective_to < today %}<span class="status-pill installment-lifecycle--expired">效期結束</span>
-            {% else %}<span class="status-pill installment-lifecycle--superseded">已被新版取代</span>{% endif %}
+            <div class="quick-active-toggle-stack">
+              {% include "sales/_active_quick_toggle.html" with resource="installment-plan" pk=plan.pk is_active=plan.active item_name=plan %}
+              {% if plan.active %}
+                {% if current_plan and plan.pk == current_plan.pk %}<span class="status-pill installment-lifecycle--current">目前有效</span>
+                {% elif plan.effective_from > today %}<span class="status-pill installment-lifecycle--scheduled">等待生效</span>
+                {% elif plan.effective_to and plan.effective_to < today %}<span class="status-pill installment-lifecycle--expired">效期結束</span>
+                {% else %}<span class="status-pill installment-lifecycle--superseded">已被新版取代</span>{% endif %}
+              {% endif %}
+            </div>
           </td>
           <td><a class="button ghost small" href="?edit={{ plan.pk }}">編輯</a></td>
         </tr>

@@ -30,8 +30,8 @@
   </div>
   <p class="holiday-gift-filter-status" role="status" data-gift-filter-status>目前顯示全部 {{ dealer_count }} 家合作車行。</p>
 
-  <form method="post" class="holiday-gift-form" data-gift-form data-confirm="將依目前勾選更新完整年節送禮名單，確定儲存嗎？">
-    {% csrf_token %}
+  <form id="holiday-gift-bulk-form" method="post" class="holiday-gift-form" data-gift-form data-confirm="將依目前勾選更新完整年節送禮名單，確定儲存嗎？">{% csrf_token %}</form>
+  <div class="holiday-gift-form">
     <div class="inventory-table-wrap">
       <table class="inventory-table holiday-gift-table">
         <thead><tr><th>列入名單</th><th>合作車行</th><th>地址／電話</th><th>狀態</th></tr></thead>
@@ -39,11 +39,11 @@
           {% for dealer in dealers %}
             <tr data-gift-row data-search="{{ dealer.name }} {{ dealer.code }} {{ dealer.address }} {{ dealer.phone }}">
               <td data-label="列入名單">
-                <input class="holiday-gift-checkbox" id="gift-source-{{ dealer.pk }}" type="checkbox" name="source_ids" value="{{ dealer.pk }}" {% if dealer.holiday_gift %}checked{% endif %} data-gift-checkbox>
+                <input class="holiday-gift-checkbox" id="gift-source-{{ dealer.pk }}" type="checkbox" name="source_ids" value="{{ dealer.pk }}" form="holiday-gift-bulk-form" {% if dealer.holiday_gift %}checked{% endif %} data-gift-checkbox>
               </td>
               <td data-label="合作車行"><label for="gift-source-{{ dealer.pk }}"><strong>{{ dealer.name }}</strong><span>{{ dealer.code|default:"未設定代碼" }}</span></label></td>
               <td data-label="地址／電話">{{ dealer.address|default:"未填地址" }}<span>{{ dealer.phone|default:"未填電話" }}</span></td>
-              <td data-label="狀態"><span class="status-pill">{{ dealer.active|yesno:"啟用中,已停用" }}</span></td>
+              <td data-label="狀態">{% include "sales/_active_quick_toggle.html" with resource="sales-source" pk=dealer.pk is_active=dealer.active item_name=dealer.name %}</td>
             </tr>
           {% empty %}
             <tr><td colspan="4"><div class="empty-state compact"><strong>目前沒有合作車行資料</strong></div></td></tr>
@@ -55,9 +55,9 @@
     <div class="holiday-gift-save-actions">
       <div><strong>將儲存完整名單</strong><span>未勾選的車行會從年節送禮名單移除。</span></div>
       <a class="button ghost" href="{% url 'sales_source_list' %}">取消</a>
-      <button class="button primary" type="submit">儲存年節送禮名單</button>
+      <button class="button primary" type="submit" form="holiday-gift-bulk-form">儲存年節送禮名單</button>
     </div>
-  </form>
+  </div>
 </section>
 {% endblock %}
 {% block scripts %}<script src="{% static 'js/holiday-gift-maintenance.js' %}?v={{ app_version }}" defer></script>{% endblock %}

@@ -663,6 +663,7 @@ class ChannelFinanceTests(TestCase):
         self.assertEqual(response.status_code, 302)
         source = SalesSource.objects.get(name="LINE 測試車行")
         self.assertTrue(source.has_line_group)
+        self.assertRegex(source.code, r"^[NS]\d{8}$")
         self.assertFalse(source.cooperation_profiles.filter(cooperates=True).exists())
 
         source.code = "D-LINE-01"

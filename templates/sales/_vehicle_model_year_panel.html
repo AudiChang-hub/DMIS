@@ -50,11 +50,7 @@
           </div>
         </dl>
         <footer>
-          {% if year_item.active %}
-          <span class="status-pill vehicle-model-status vehicle-model-status--active"><span aria-hidden="true">✓</span>啟用中</span>
-          {% else %}
-          <span class="status-pill vehicle-model-status vehicle-model-status--inactive"><span aria-hidden="true">Ⅱ</span>已停用</span>
-          {% endif %}
+          {% include "sales/_active_quick_toggle.html" with resource="vehicle-model" pk=year_item.pk is_active=year_item.active item_name=year_item.name %}
           <a class="button ghost small" href="{% url 'vehicle_model_edit' year_item.pk %}">編輯此年式</a>
         </footer>
       </article>

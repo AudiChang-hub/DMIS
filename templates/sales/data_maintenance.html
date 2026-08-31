@@ -54,6 +54,11 @@
     <div><h2>本店人員</h2><p>維護姓名、所在店、電話與每筆傭金，不混入合作車行。</p><strong>{{ staff_source_count }} 位人員</strong></div>
     <span aria-hidden="true">›</span>
   </a>
+  <a class="maintenance-card" href="{% url 'sales_source_category_list' %}">
+    <span class="maintenance-card__icon">類</span>
+    <div><h2>通路分類</h2><p>維護合作車行、網路平台與本店人員使用的系統分類。</p><strong>{{ sales_source_category_count }} 個分類</strong></div>
+    <span aria-hidden="true">›</span>
+  </a>
   </div>
 </section>
 

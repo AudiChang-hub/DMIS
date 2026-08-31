@@ -481,6 +481,7 @@ def data_maintenance(request):
         "staff_source_count": SalesSource.objects.filter(
             source_type=SalesSource.SourceType.STORE
         ).count(),
+        "sales_source_category_count": SalesSourceCategory.objects.count(),
         "installment_company_count": InstallmentCompany.objects.count(),
         "settlement_cost_rule_count": VehicleSettlementCostRule.objects.count(),
         "incentive_rule_count": VehicleIncentiveRule.objects.count(),

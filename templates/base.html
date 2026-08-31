@@ -9,7 +9,7 @@
   <link rel="stylesheet" href="{% static 'css/app.css' %}?v={{ app_version }}">
   {% block head %}{% endblock %}
 </head>
-<body data-app-version="{{ app_version }}" data-version-endpoint="{% url 'app_version' %}">
+<body data-app-version="{{ app_version }}" data-version-endpoint="{% url 'app_version' %}" data-history-user="{% if request.user.is_authenticated %}{{ request.user.pk }}{% else %}anonymous{% endif %}">
   <a class="skip-link" href="#main-content">跳至主要內容</a>
   <header class="app-header">
     <div class="app-header-inner">
@@ -202,6 +202,7 @@
   <script src="{% static 'js/connectivity-status.js' %}?v={{ app_version }}" defer></script>
   <script src="{% static 'js/theme-selector.js' %}?v={{ app_version }}" defer></script>
   <script src="{% static 'js/searchable-select.js' %}?v={{ app_version }}" defer></script>
+  <script src="{% static 'js/recent-field-values.js' %}?v={{ app_version }}" defer></script>
   <script src="{% static 'js/active-quick-toggle.js' %}?v={{ app_version }}" defer></script>
 </body>
 </html>

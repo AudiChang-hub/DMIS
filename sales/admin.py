@@ -83,7 +83,7 @@ class SalesSourcePlatformContactInline(admin.TabularInline):
 class SalesSourceAdmin(admin.ModelAdmin):
     list_display = (
         "name", "category", "source_type", "responsible_person", "phone", "mobile",
-        "city", "district", "holiday_gift", "has_line_group", "active"
+        "city", "district", "staff_commission", "holiday_gift", "has_line_group", "active"
     )
     list_filter = (
         "category", "source_type", "city", "district", "holiday_gift", "has_line_group", "active",

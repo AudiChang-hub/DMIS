@@ -697,6 +697,61 @@ class SalesSourceForm(forms.ModelForm):
         return source
 
 
+class SalesSourceStaffForm(forms.ModelForm):
+    staff_stores = forms.MultipleChoiceField(
+        label="所在店",
+        choices=SalesSource.StaffStore.choices,
+        widget=forms.CheckboxSelectMultiple,
+        required=False,
+        help_text="可同時勾選永湛與馭盛。",
+    )
+
+    class Meta:
+        model = SalesSource
+        fields = [
+            "category", "name", "staff_stores", "phone", "staff_commission", "active",
+        ]
+        labels = {
+            "name": "姓名",
+            "phone": "電話",
+            "staff_commission": "傭金",
+        }
+        help_texts = {
+            "staff_commission": "每筆歸屬此銷售人員的基礎傭金，供後續人員傭金結算引用。",
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["category"].queryset = SalesSourceCategory.objects.filter(
+            Q(active=True) | Q(pk=self.instance.category_id),
+            system_behavior=SalesSource.SourceType.STORE,
+        ).order_by("name")
+        self.fields["category"].required = True
+        if not self.is_bound:
+            self.fields["staff_stores"].initial = list(self.instance.staff_stores or [])
+        self.fields["staff_commission"].widget.attrs.update(
+            {"inputmode": "numeric", "min": "0", "step": "1"}
+        )
+        for field in self.fields.values():
+            if not isinstance(field.widget, (forms.CheckboxInput, forms.CheckboxSelectMultiple)):
+                field.widget.attrs.setdefault("class", "form-control")
+        apply_mobile_keyboard_attrs(self)
+
+    def clean_category(self):
+        category = self.cleaned_data["category"]
+        if category.system_behavior != SalesSource.SourceType.STORE:
+            raise forms.ValidationError("本頁只能選擇本店人員分類。")
+        return category
+
+    def save(self, commit=True):
+        source = super().save(commit=False)
+        source.source_type = SalesSource.SourceType.STORE
+        source.staff_stores = list(self.cleaned_data.get("staff_stores") or [])
+        if commit:
+            source.save()
+        return source
+
+
 class SalesSourceCategoryForm(forms.ModelForm):
     class Meta:
         model = SalesSourceCategory

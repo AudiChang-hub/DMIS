@@ -15,6 +15,35 @@
 
 <form method="post" class="stacked-form" id="source-form">
   {% csrf_token %}
+  {% if source_context_kind == 'store' %}
+  <section class="form-section static-section source-editor-section staff-editor-section">
+    {{ form.category.as_hidden }}
+    <div class="section-title">
+      <div>
+        <p class="eyebrow">人員與傭金設定</p>
+        <h2>本店人員資料</h2>
+        <p class="muted">維護人員所屬門市與每筆基礎傭金；訂單選擇此人員後，後續結算可直接引用。</p>
+      </div>
+    </div>
+    {% if form.non_field_errors %}<div class="formset-errors">{{ form.non_field_errors }}</div>{% endif %}
+    <div class="staff-editor-grid">
+      <div class="staff-editor-field">{% include "sales/_field.html" with field=form.name %}</div>
+      <div class="staff-editor-field">{% include "sales/_field.html" with field=form.phone %}</div>
+      <fieldset class="staff-store-field">
+        <legend>所在店</legend>
+        <div class="staff-store-options">
+          {% for choice in form.staff_stores %}
+            <label class="staff-store-option">{{ choice.tag }}<span>{{ choice.choice_label }}</span></label>
+          {% endfor %}
+        </div>
+        {% if form.staff_stores.help_text %}<small>{{ form.staff_stores.help_text }}</small>{% endif %}
+        {% if form.staff_stores.errors %}<div class="formset-errors">{{ form.staff_stores.errors }}</div>{% endif %}
+      </fieldset>
+      <div class="staff-editor-field staff-editor-field--commission">{% include "sales/_field.html" with field=form.staff_commission %}</div>
+      <div class="staff-active-field">{% include "sales/_field.html" with field=form.active %}</div>
+    </div>
+  </section>
+  {% else %}
   <section class="form-section static-section source-editor-section">
     <div class="section-title">
       <div>
@@ -80,6 +109,7 @@
       </section>
     </div>
   </section>
+  {% endif %}
 
   {% if source_context_kind == 'platform' %}
   <section class="form-section static-section source-editor-section platform-contact-section" id="platform-contacts">
@@ -131,6 +161,7 @@
   </section>
   {% endif %}
 
+  {% if source_context_kind == 'dealer' %}
   <section class="form-section static-section source-editor-section dealer-only-section" id="line-group" data-dealer-only>
     <div class="section-title">
       <div>
@@ -239,6 +270,7 @@
       </div>
     </details>
   </section>
+  {% endif %}
 
   <section class="source-system-info" aria-label="系統資訊">
     <div>

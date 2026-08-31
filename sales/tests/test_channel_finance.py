@@ -620,16 +620,10 @@ class ChannelFinanceTests(TestCase):
             {
                 "category": category.pk,
                 "name": "文傑",
-                "note": "熟客介紹，聯繫前先傳訊息",
+                "phone": "0912-345-678",
+                "staff_stores": [SalesSource.StaffStore.YUSHENG],
+                "staff_commission": "2500",
                 "active": "on",
-                "contacts-TOTAL_FORMS": "0",
-                "contacts-INITIAL_FORMS": "0",
-                "contacts-MIN_NUM_FORMS": "0",
-                "contacts-MAX_NUM_FORMS": "1000",
-                "policies-TOTAL_FORMS": "0",
-                "policies-INITIAL_FORMS": "0",
-                "policies-MIN_NUM_FORMS": "0",
-                "policies-MAX_NUM_FORMS": "1000",
             },
         )
 
@@ -637,7 +631,9 @@ class ChannelFinanceTests(TestCase):
         source = SalesSource.objects.get(name="文傑")
         self.assertEqual(source.source_type, SalesSource.SourceType.STORE)
         self.assertEqual(source.category, category)
-        self.assertEqual(source.note, "熟客介紹，聯繫前先傳訊息")
+        self.assertEqual(source.phone, "0912-345-678")
+        self.assertEqual(source.staff_stores, [SalesSource.StaffStore.YUSHENG])
+        self.assertEqual(source.staff_commission, 2500)
 
     def test_dealer_source_form_saves_line_group_presence_and_keeps_code_readonly(self):
         category, _ = SalesSourceCategory.objects.get_or_create(

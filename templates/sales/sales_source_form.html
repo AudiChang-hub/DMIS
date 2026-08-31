@@ -37,9 +37,6 @@
       {% include "sales/_field.html" with field=form.active %}
       <div class="source-note-field">{% include "sales/_field.html" with field=form.note %}</div>
     </div>
-    <datalist id="taiwan-district-list">
-      {% for district in district_names %}<option value="{{ district }}"></option>{% endfor %}
-    </datalist>
   </section>
 
   <section class="form-section static-section source-editor-section dealer-only-section" id="line-group" data-dealer-only>
@@ -177,6 +174,7 @@
 
 {% block scripts %}
 {{ category_behaviors|json_script:"source-category-behaviors" }}
+{{ district_options_by_city|json_script:"source-district-options" }}
 <script>
 (() => {
   const policyRows = document.getElementById("policy-rows");
@@ -185,6 +183,11 @@
   const categorySelect = document.getElementById("id_category");
   const nameLabel = document.querySelector("[data-source-name-field] label");
   const presence = document.querySelector("[data-line-group-presence]");
+  const addressInput = document.getElementById("id_address");
+  const citySelect = document.getElementById("id_city");
+  const districtSelect = document.getElementById("id_district");
+  const districtOptionsByCity = JSON.parse(document.getElementById("source-district-options").textContent);
+  let addressTimer;
 
   const cooperationLabels = {
     sym: "三陽 SYM 價格表",
@@ -243,6 +246,32 @@
     });
   }
 
+  function populateDistrictOptions(city, selectedDistrict = "") {
+    if (!districtSelect) return;
+    const districts = districtOptionsByCity[city] || [];
+    districtSelect.replaceChildren(
+      new Option(city ? "請選擇行政區" : "請先選擇縣市", "")
+    );
+    districts.forEach(district => districtSelect.add(new Option(district, district)));
+    districtSelect.value = districts.includes(selectedDistrict) ? selectedDistrict : "";
+    districtSelect.disabled = !city;
+  }
+
+  function inferRegionFromAddress() {
+    if (!addressInput || !citySelect || !districtSelect) return;
+    const normalizedAddress = addressInput.value.replaceAll("台", "臺").replace(/\s/g, "");
+    const city = Object.keys(districtOptionsByCity).find(item => normalizedAddress.includes(item));
+    if (!city) return;
+    citySelect.value = city;
+    const district = (districtOptionsByCity[city] || []).find(item => normalizedAddress.includes(item)) || "";
+    populateDistrictOptions(city, district);
+  }
+
+  function scheduleRegionInference() {
+    window.clearTimeout(addressTimer);
+    addressTimer = window.setTimeout(inferRegionFromAddress, 180);
+  }
+
   function bindRemove(root = document) {
     root.querySelectorAll("[data-remove-row]").forEach(button => {
       if (button.dataset.bound) return;
@@ -283,11 +312,18 @@
 
   document.querySelector("[data-cooperation-overview]")?.addEventListener("change", updateBrandOverview);
   categorySelect?.addEventListener("change", updateSourceContext);
+  citySelect?.addEventListener("change", () => {
+    populateDistrictOptions(citySelect.value, districtSelect?.value || "");
+  });
+  addressInput?.addEventListener("input", scheduleRegionInference);
+  addressInput?.addEventListener("change", inferRegionFromAddress);
+  addressInput?.addEventListener("blur", inferRegionFromAddress);
   presence?.addEventListener("change", updateLineGroup);
   bindRemove();
   updateBrandOverview();
   updateSourceContext();
   updateLineGroup();
+  populateDistrictOptions(citySelect?.value || "", districtSelect?.value || "");
 })();
 </script>
 {% endblock %}

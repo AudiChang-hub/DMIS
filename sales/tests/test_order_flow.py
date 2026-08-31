@@ -5185,7 +5185,7 @@ class OrderOperationsTests(TestCase):
         self.assertContains(hub, reverse("sales_source_list"))
         self.assertContains(hub, reverse("sales_source_platform_list"))
         self.assertContains(hub, reverse("sales_source_staff_list"))
-        self.assertContains(hub, reverse("sales_source_category_list"))
+        self.assertContains(hub, reverse("sales_source_category_list"), count=3)
         self.assertContains(hub, "代銷結算成本")
         self.assertContains(hub, "原廠獎勵與補助")
         self.assertEqual(customers.status_code, 200)

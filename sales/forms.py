@@ -622,16 +622,12 @@ class SalesSourceForm(forms.ModelForm):
                     "placeholder": "例如：聯繫習慣、合作注意事項或其他需要記錄的資料",
                 }
             ),
-            "district": forms.Select(),
+            "city": forms.HiddenInput(),
+            "district": forms.HiddenInput(),
         }
 
     def __init__(self, *args, source_type=None, **kwargs):
         super().__init__(*args, **kwargs)
-        from sales.services.taiwan_address import (
-            district_choices,
-            normalize_taiwan_text,
-        )
-
         category_queryset = SalesSourceCategory.objects.filter(
             Q(active=True) | Q(pk=self.instance.category_id)
         )
@@ -654,27 +650,6 @@ class SalesSourceForm(forms.ModelForm):
         self.fields["line_group_presence"].initial = (
             "yes" if self.instance.has_line_group else "no"
         )
-        selected_city = normalize_taiwan_text(
-            self.data.get(self.add_prefix("city"), "")
-            if self.is_bound
-            else self.initial.get("city", self.instance.city)
-        )
-        selected_district = (
-            self.data.get(self.add_prefix("district"), "")
-            if self.is_bound
-            else self.initial.get("district", self.instance.district)
-        )
-        self.fields["district"].widget.choices = [
-            ("", "請先選擇縣市" if not selected_city else "請選擇行政區"),
-            *((district, district) for district in district_choices(selected_city)),
-        ]
-        if (
-            selected_district
-            and selected_district not in district_choices(selected_city)
-        ):
-            self.fields["district"].widget.choices.append(
-                (selected_district, f"{selected_district}（請重新確認）")
-            )
         for field in self.fields.values():
             field.widget.attrs.setdefault("class", "form-control")
         apply_mobile_keyboard_attrs(self)
@@ -693,20 +668,19 @@ class SalesSourceForm(forms.ModelForm):
         )
         self.instance.has_line_group = has_line_group
         address = cleaned_data.get("address", "")
-        city = cleaned_data.get("city", "")
-        district = (cleaned_data.get("district") or "").strip()
-        address_changed = "address" in self.changed_data
-        region_untouched = not ({"city", "district"} & set(self.changed_data))
-        if address and ((not city and not district) or (address_changed and region_untouched)):
+        if is_dealer:
             city, district = infer_taiwan_region(address)
             cleaned_data["city"] = city
             cleaned_data["district"] = district
             self.instance.city = city
             self.instance.district = district
+        else:
+            city = cleaned_data.get("city", "")
+            district = (cleaned_data.get("district") or "").strip()
         if district and not city:
-            self.add_error("city", "填寫行政區前，請先選擇縣市。")
+            self.add_error("city", "無法判定縣市，請確認地址內容。")
         elif city and not is_valid_district(city, district):
-            self.add_error("district", "行政區與所選縣市不一致，請重新確認。")
+            self.add_error("district", "系統判定的行政區與縣市不一致。")
         return cleaned_data
 
     def save(self, commit=True):

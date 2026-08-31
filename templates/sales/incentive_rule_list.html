@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load pagination_tags %}
 {% block title %}原廠獎勵與補助｜車輛銷售管理{% endblock %}
 {% block page_class %}page-shell--wide{% endblock %}
 {% block content %}
@@ -50,5 +51,6 @@
       </tbody>
     </table>
   </div>
+  {% pagination page_obj aria_label="原廠獎勵與補助分頁" %}
 </section>
 {% endblock %}

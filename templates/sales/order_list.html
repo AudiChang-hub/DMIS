@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load pagination_tags %}
 {% block title %}全部訂單｜車輛銷售管理{% endblock %}
 {% block page_class %}page-shell--wide{% endblock %}
 {% block content %}
@@ -38,11 +39,5 @@
   {% endfor %}
   </div>
 </div>
-{% if page_obj.has_other_pages %}
-<nav class="inventory-pagination" aria-label="訂單分頁">
-  {% if page_obj.has_previous %}<a class="button ghost small" href="?{% if query_params %}{{ query_params }}&{% endif %}page={{ page_obj.previous_page_number }}">上一頁</a>{% endif %}
-  <span>第 {{ page_obj.number }}／{{ page_obj.paginator.num_pages }} 頁</span>
-  {% if page_obj.has_next %}<a class="button ghost small" href="?{% if query_params %}{{ query_params }}&{% endif %}page={{ page_obj.next_page_number }}">下一頁</a>{% endif %}
-</nav>
-{% endif %}
+{% pagination page_obj aria_label="訂單分頁" %}
 {% endblock %}

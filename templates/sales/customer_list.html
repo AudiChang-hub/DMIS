@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load pagination_tags %}
 {% block title %}客戶資料｜資料維護區{% endblock %}
 {% block page_class %}page-shell--wide{% endblock %}
 {% block content %}
@@ -37,5 +38,6 @@
       </tbody>
     </table>
   </div>
+  {% pagination page_obj aria_label="客戶資料分頁" %}
 </section>
 {% endblock %}

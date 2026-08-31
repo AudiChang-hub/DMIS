@@ -1,0 +1,30 @@
+{% if page_obj.has_other_pages %}
+<nav class="site-pagination" aria-label="{{ aria_label }}">
+  {% if page_obj.has_previous %}
+    <a class="button ghost small site-pagination__link" href="{{ first_url }}">第一頁</a>
+    <a class="button ghost small site-pagination__link" href="{{ previous_url }}">上一頁</a>
+  {% else %}
+    <span class="button ghost small site-pagination__link is-disabled" aria-disabled="true">第一頁</span>
+    <span class="button ghost small site-pagination__link is-disabled" aria-disabled="true">上一頁</span>
+  {% endif %}
+
+  <strong class="site-pagination__status">第 {{ page_obj.number }}／{{ page_obj.paginator.num_pages }} 頁</strong>
+
+  <form class="site-pagination__jump" method="get" action="{{ request.path }}{{ fragment }}">
+    {% for key, value in hidden_params %}<input type="hidden" name="{{ key }}" value="{{ value }}">{% endfor %}
+    <label>前往第
+      <input type="number" name="page" value="{{ page_obj.number }}" min="1" max="{{ page_obj.paginator.num_pages }}" inputmode="numeric" aria-label="輸入要前往的頁碼">
+      頁
+    </label>
+    <button class="button ghost small" type="submit">前往</button>
+  </form>
+
+  {% if page_obj.has_next %}
+    <a class="button ghost small site-pagination__link" href="{{ next_url }}">下一頁</a>
+    <a class="button ghost small site-pagination__link" href="{{ last_url }}">最後一頁</a>
+  {% else %}
+    <span class="button ghost small site-pagination__link is-disabled" aria-disabled="true">下一頁</span>
+    <span class="button ghost small site-pagination__link is-disabled" aria-disabled="true">最後一頁</span>
+  {% endif %}
+</nav>
+{% endif %}

@@ -23,7 +23,11 @@
       </div>
     </div>
     <div class="form-grid source-basic-grid">
-      {% include "sales/_field.html" with field=form.category %}
+      {% if source_context_kind == 'dealer' %}
+        {{ form.category.as_hidden }}
+      {% else %}
+        {% include "sales/_field.html" with field=form.category %}
+      {% endif %}
       <div data-source-name-field>{% include "sales/_field.html" with field=form.name %}</div>
       {% include "sales/_field.html" with field=form.responsible_person %}
       {% include "sales/_field.html" with field=form.phone %}

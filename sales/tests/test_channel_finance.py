@@ -1031,12 +1031,13 @@ class ChannelFinanceTests(TestCase):
         )
         self.dealer.category = category
         self.dealer.save(update_fields=["category", "updated_at"])
+        wrong_category = SalesSourceCategory.objects.get(name="網路平台")
         self.client.force_login(self.user)
 
         response = self.client.post(
             reverse("sales_source_edit", args=[self.dealer.pk]),
             {
-                "category": category.pk,
+                "category": wrong_category.pk,
                 "name": self.dealer.name,
                 "responsible_person": "王老闆",
                 "phone": "02-23456789",
@@ -1077,6 +1078,9 @@ class ChannelFinanceTests(TestCase):
         )
 
         self.assertEqual(response.status_code, 302)
+        self.dealer.refresh_from_db()
+        self.assertEqual(self.dealer.category, category)
+        self.assertEqual(self.dealer.source_type, SalesSource.SourceType.DEALER)
         today = timezone.localdate()
         current_states = {}
         for scope, _label in SalesSourceBrandPolicy.CooperationScope.choices:

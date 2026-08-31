@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load pagination_tags %}
 {% block title %}庫存資料｜車輛銷售管理{% endblock %}
 {% block page_class %}page-shell--wide{% endblock %}
 {% block content %}
@@ -120,12 +121,6 @@
       </tbody>
     </table>
   </div>
-  {% if page_obj.paginator.num_pages > 1 %}
-  <nav class="inventory-pagination" aria-label="庫存分頁">
-    {% if page_obj.has_previous %}<a class="button ghost small" href="?{% if filter_query %}{{ filter_query }}&{% endif %}page={{ page_obj.previous_page_number }}">上一頁</a>{% endif %}
-    <span>第 {{ page_obj.number }}／{{ page_obj.paginator.num_pages }} 頁</span>
-    {% if page_obj.has_next %}<a class="button ghost small" href="?{% if filter_query %}{{ filter_query }}&{% endif %}page={{ page_obj.next_page_number }}">下一頁</a>{% endif %}
-  </nav>
-  {% endif %}
+  {% pagination page_obj aria_label="庫存分頁" %}
 </section>
 {% endblock %}

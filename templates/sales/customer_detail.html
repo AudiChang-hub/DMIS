@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load pagination_tags %}
 {% block title %}{{ customer.owner_name }}｜客戶資料{% endblock %}
 {% block page_class %}page-shell--wide{% endblock %}
 {% block content %}
@@ -22,5 +23,6 @@
       <div class="empty-state"><strong>目前沒有訂單</strong></div>
     {% endfor %}
   </div>
+  {% pagination page_obj aria_label="客戶歷史訂單分頁" %}
 </section>
 {% endblock %}

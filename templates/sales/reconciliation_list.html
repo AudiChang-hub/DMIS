@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% load sales_format %}
+{% load sales_format pagination_tags %}
 {% block title %}統一撥款對帳｜車輛銷售管理{% endblock %}
 {% block page_class %}page-shell--wide{% endblock %}
 {% block content %}
@@ -55,5 +55,5 @@
     </table>
   </div>
 </section>
-{% if page_obj.has_other_pages %}<nav class="pagination" aria-label="分頁">{% if page_obj.has_previous %}<a href="?{{ request.GET.urlencode }}&page={{ page_obj.previous_page_number }}">上一頁</a>{% endif %}<span>第 {{ page_obj.number }}／{{ page_obj.paginator.num_pages }} 頁</span>{% if page_obj.has_next %}<a href="?{{ request.GET.urlencode }}&page={{ page_obj.next_page_number }}">下一頁</a>{% endif %}</nav>{% endif %}
+{% pagination page_obj aria_label="撥款對帳分頁" %}
 {% endblock %}

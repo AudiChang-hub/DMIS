@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% load static %}
+{% load static pagination_tags %}
 {% block title %}匯入檢查｜車輛銷售管理{% endblock %}
 {% block page_class %}page-shell--wide{% endblock %}
 {% block content %}
@@ -287,16 +287,7 @@
       </tbody>
     </table>
   </div>
-  {% if page_obj.paginator.num_pages > 1 %}
-  <nav class="inventory-pagination import-pagination" aria-label="預覽資料分頁">
-    <span>顯示第 {{ page_obj.start_index }}–{{ page_obj.end_index }} 筆，共 {{ page_obj.paginator.count }} 筆</span>
-    <div class="inline-actions">
-      {% if page_obj.has_previous %}<a class="button ghost small" href="?page={{ page_obj.previous_page_number }}{% if selected_action %}&action={{ selected_action }}{% endif %}&q={{ search_query|urlencode }}#row-preview">← 上一頁</a>{% else %}<span class="button ghost small disabled">← 上一頁</span>{% endif %}
-      <strong>第 {{ page_obj.number }}／{{ page_obj.paginator.num_pages }} 頁</strong>
-      {% if page_obj.has_next %}<a class="button ghost small" href="?page={{ page_obj.next_page_number }}{% if selected_action %}&action={{ selected_action }}{% endif %}&q={{ search_query|urlencode }}#row-preview">下一頁 →</a>{% else %}<span class="button ghost small disabled">下一頁 →</span>{% endif %}
-    </div>
-  </nav>
-  {% endif %}
+  {% pagination page_obj aria_label="預覽資料分頁" anchor="row-preview" drop="edit" %}
 </section>
 {% endif %}
 

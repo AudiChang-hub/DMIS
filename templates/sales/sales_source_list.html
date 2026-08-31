@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load pagination_tags %}
 {% block title %}合作車行與傭金｜車輛銷售管理{% endblock %}
 {% block page_class %}page-shell--wide{% endblock %}
 {% block content %}
@@ -103,6 +104,7 @@
       </section>
     {% endfor %}
   </div>
+  {% pagination page_obj aria_label="合作車行分頁" %}
 </section>
 {{ district_filters_by_city|json_script:"source-district-options" }}
 <script>

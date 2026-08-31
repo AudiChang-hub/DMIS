@@ -394,6 +394,44 @@ class SalesSourceRegionListTests(TestCase):
         self.new_taipei.refresh_from_db()
         self.assertTrue(self.new_taipei.active)
 
+    def test_dealer_status_ajax_updates_without_reloading_list(self):
+        response = self.client.post(
+            reverse("sales_source_set_active", args=[self.new_taipei.pk]),
+            {
+                "active": "0",
+                "next": reverse("sales_source_list"),
+            },
+            HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.json(),
+            {
+                "ok": True,
+                "active": False,
+                "status_counts": {"active": 3, "inactive": 1},
+                "message": f"{self.new_taipei.name} 已停用，已移至已停用車行。",
+            },
+        )
+        self.new_taipei.refresh_from_db()
+        self.assertFalse(self.new_taipei.active)
+
+    def test_dealer_status_ajax_rejects_invalid_state(self):
+        response = self.client.post(
+            reverse("sales_source_set_active", args=[self.new_taipei.pk]),
+            {"active": "unexpected"},
+            HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(
+            response.json(),
+            {"ok": False, "message": "無法更新車行狀態，請重新操作。"},
+        )
+        self.new_taipei.refresh_from_db()
+        self.assertTrue(self.new_taipei.active)
+
     def test_dealer_status_endpoint_rejects_get_and_non_dealer(self):
         platform = SalesSource.objects.create(
             name="不可切換的平台",
@@ -433,6 +471,11 @@ class SalesSourceRegionListTests(TestCase):
             reverse("sales_source_set_active", args=[self.new_taipei.pk]),
         )
         self.assertContains(response, "點擊停用")
+        self.assertContains(response, 'data-source-name="汐止分區車行"')
+        self.assertContains(response, "const submitActive = async (form) =>")
+        self.assertContains(response, "removeMovedSourceRow(form, payload.status_counts);")
+        self.assertContains(response, 'data-source-status-count="active"')
+        self.assertContains(response, 'data-source-status-count="inactive"')
 
     def test_dealer_list_does_not_mix_staff_or_platform_sources(self):
         staff = SalesSource.objects.create(

@@ -246,6 +246,10 @@ class SalesSource(TimeStampedModel):
         DEALER = "dealer", "合作車行"
         PLATFORM = "platform", "網路平台"
 
+    class StaffStore(models.TextChoices):
+        YONGZHAN = "yongzhan", "永湛"
+        YUSHENG = "yusheng", "馭盛"
+
     name = models.CharField("來源名稱", max_length=120)
     source_type = models.CharField(
         "系統處理方式", max_length=20, choices=SourceType.choices
@@ -263,6 +267,20 @@ class SalesSource(TimeStampedModel):
     phone = models.CharField("電話一", max_length=50, blank=True)
     phone_secondary = models.CharField("電話二", max_length=50, blank=True)
     mobile = models.CharField("手機", max_length=50, blank=True)
+    staff_stores = models.JSONField(
+        "所在店",
+        default=list,
+        blank=True,
+        help_text="本店人員可同時隸屬永湛與馭盛。",
+    )
+    staff_commission = models.DecimalField(
+        "傭金",
+        max_digits=12,
+        decimal_places=0,
+        default=0,
+        validators=[MinValueValidator(0)],
+        help_text="每筆歸屬此銷售人員的基礎傭金；供後續人員傭金結算引用。",
+    )
     other_contact = models.CharField("其他聯絡方式", max_length=250, blank=True)
     fax = models.CharField("傳真", max_length=50, blank=True)
     address = models.CharField("地址", max_length=250, blank=True)
@@ -308,9 +326,18 @@ class SalesSource(TimeStampedModel):
     def __str__(self):
         return self.name
 
+    @property
+    def staff_store_labels(self):
+        labels = dict(self.StaffStore.choices)
+        return [labels[value] for value in self.staff_stores if value in labels]
+
     def clean(self):
         super().clean()
         from sales.services.taiwan_address import infer_taiwan_region, is_valid_district
+
+        invalid_staff_stores = set(self.staff_stores or []) - set(self.StaffStore.values)
+        if invalid_staff_stores:
+            raise ValidationError({"staff_stores": "所在店包含無效選項。"})
 
         if self.category_id and self.source_type != self.category.system_behavior:
             self.source_type = self.category.system_behavior

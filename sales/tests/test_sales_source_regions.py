@@ -581,6 +581,71 @@ class SalesSourceRegionListTests(TestCase):
         self.assertNotContains(platform_response, staff.name)
         self.assertNotContains(platform_response, self.keelung.name)
 
+    def test_staff_form_uses_dedicated_fields_and_saves_store_commission(self):
+        staff_category, _ = SalesSourceCategory.objects.get_or_create(
+            name="本店人員",
+            defaults={"system_behavior": SalesSource.SourceType.STORE},
+        )
+
+        form_page = self.client.get(
+            reverse("sales_source_create"),
+            {"kind": SalesSource.SourceType.STORE},
+        )
+        response = self.client.post(
+            reverse("sales_source_create"),
+            {
+                "category": staff_category.pk,
+                "name": "測試銷售人員",
+                "phone": "0912-345-678",
+                "staff_stores": [
+                    SalesSource.StaffStore.YONGZHAN,
+                    SalesSource.StaffStore.YUSHENG,
+                ],
+                "staff_commission": "3500",
+                "active": "on",
+            },
+        )
+
+        self.assertEqual(form_page.status_code, 200)
+        self.assertContains(form_page, "本店人員資料")
+        self.assertContains(form_page, "姓名")
+        self.assertContains(form_page, "所在店")
+        self.assertContains(form_page, "永湛")
+        self.assertContains(form_page, "馭盛")
+        self.assertContains(form_page, "傭金")
+        self.assertNotContains(form_page, 'id="id_address"')
+        self.assertNotContains(form_page, 'id="id_responsible_person"')
+        self.assertRedirects(response, reverse("sales_source_staff_list"))
+        staff = SalesSource.objects.get(name="測試銷售人員")
+        self.assertEqual(staff.phone, "0912-345-678")
+        self.assertEqual(
+            staff.staff_stores,
+            [
+                SalesSource.StaffStore.YONGZHAN,
+                SalesSource.StaffStore.YUSHENG,
+            ],
+        )
+        self.assertEqual(staff.staff_store_labels, ["永湛", "馭盛"])
+        self.assertEqual(staff.staff_commission, 3500)
+
+    def test_staff_list_displays_store_phone_and_per_order_commission(self):
+        staff = SalesSource.objects.create(
+            name="傭金列表人員",
+            source_type=SalesSource.SourceType.STORE,
+            phone="02-1234-5678",
+            staff_stores=[SalesSource.StaffStore.YONGZHAN],
+            staff_commission=2800,
+        )
+
+        response = self.client.get(reverse("sales_source_staff_list"))
+
+        self.assertContains(response, staff.name)
+        self.assertContains(response, "永湛")
+        self.assertContains(response, "02-1234-5678")
+        self.assertContains(response, "$2800")
+        self.assertContains(response, "每筆")
+        self.assertContains(response, "姓名或電話")
+
     def test_platform_screen_displays_and_searches_multiple_contact_windows(self):
         platform = SalesSource.objects.create(
             name="聯絡窗口測試平台",

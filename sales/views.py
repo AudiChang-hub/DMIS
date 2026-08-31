@@ -77,6 +77,7 @@ from .forms import (
     SalesSourceCooperationForm,
     SalesSourceCooperationProfileForm,
     SalesSourceForm,
+    SalesSourceStaffForm,
     SalesSourcePlatformContactFormSet,
     SignedContractForm,
     SubsidyDataForm,
@@ -1417,6 +1418,7 @@ def _sales_source_simple_list(request, source_type, *, title, description, route
                 ).count(),
             },
             "is_platform_list": source_type == SalesSource.SourceType.PLATFORM,
+            "is_staff_list": source_type == SalesSource.SourceType.STORE,
         },
     )
 
@@ -1427,7 +1429,7 @@ def sales_source_staff_list(request):
         request,
         SalesSource.SourceType.STORE,
         title="本店人員",
-        description="管理內部填單及作業人員；不混入合作車行或網路平台。",
+        description="管理本店銷售與作業人員、所在店及每筆傭金；不混入合作車行或網路平台。",
         route_name="sales_source_staff_list",
     )
 
@@ -1539,12 +1541,40 @@ def sales_source_form(request, pk=None):
             if post_data:
                 post_data = post_data.copy()
                 post_data["category"] = str(fixed_category.pk)
-    form = SalesSourceForm(
-        post_data,
-        instance=source,
-        initial=initial,
-        source_type=form_source_type,
-    )
+    if form_source_type == SalesSource.SourceType.STORE:
+        fixed_category = None
+        if (
+            source.category_id
+            and source.category.system_behavior == SalesSource.SourceType.STORE
+        ):
+            fixed_category = source.category
+        elif post_data and post_data.get("category"):
+            fixed_category = SalesSourceCategory.objects.filter(
+                pk=post_data.get("category"),
+                system_behavior=SalesSource.SourceType.STORE,
+            ).first()
+        if fixed_category is None:
+            fixed_category = SalesSourceCategory.objects.filter(
+                active=True,
+                system_behavior=SalesSource.SourceType.STORE,
+            ).order_by("name").first()
+        if fixed_category:
+            initial = {**(initial or {}), "category": fixed_category}
+            if post_data:
+                post_data = post_data.copy()
+                post_data["category"] = str(fixed_category.pk)
+        form = SalesSourceStaffForm(
+            post_data,
+            instance=source,
+            initial=initial,
+        )
+    else:
+        form = SalesSourceForm(
+            post_data,
+            instance=source,
+            initial=initial,
+            source_type=form_source_type,
+        )
     cooperation_sections = _sales_source_cooperation_sections(
         source, post_data=post_data, brand_overview=brand_overview
     )
@@ -1580,7 +1610,11 @@ def sales_source_form(request, pk=None):
     cooperation_valid = all(
         section["form"].is_valid() for section in cooperation_sections
     ) if request.method == "POST" and is_dealer else True
-    policy_valid = policy_formset.is_valid() if request.method == "POST" else False
+    policy_valid = (
+        policy_formset.is_valid()
+        if request.method == "POST" and is_dealer
+        else True
+    )
     platform_contact_valid = (
         platform_contact_formset.is_valid()
         if request.method == "POST" and form_valid and not is_dealer

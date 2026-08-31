@@ -30,7 +30,7 @@
   <input type="hidden" name="status" value="{{ selected.status }}">
   <div class="inventory-filter master-search">
     <label for="source-q">全欄位搜尋</label>
-    <input id="source-q" type="search" name="q" value="{{ selected.q }}" placeholder="名稱、代碼、電話、地址或備註">
+    <input id="source-q" type="search" name="q" value="{{ selected.q }}" placeholder="{% if is_staff_list %}姓名或電話{% else %}名稱、代碼、電話、地址或備註{% endif %}">
   </div>
   <div class="inventory-filter-actions">
     <a class="button ghost" href="{% url route_name %}{% if selected.status == 'inactive' %}?status=inactive{% endif %}">清除</a>
@@ -47,11 +47,25 @@
   </div>
   {% if sources %}
     <div class="inventory-table-wrap">
-      <table class="inventory-table sales-source-table sales-source-simple-table{% if is_platform_list %} platform-source-table{% endif %}">
+      <table class="inventory-table sales-source-table sales-source-simple-table{% if is_platform_list %} platform-source-table{% endif %}{% if is_staff_list %} staff-source-table{% endif %}">
+        {% if is_staff_list %}
+        <thead><tr><th>姓名</th><th>所在店</th><th>電話</th><th>傭金</th><th>狀態</th><th></th></tr></thead>
+        {% else %}
         <thead><tr><th>名稱</th><th>{% if is_platform_list %}聯絡窗口{% else %}聯絡資料{% endif %}</th><th>地址／備註</th><th>狀態</th><th></th></tr></thead>
+        {% endif %}
         <tbody>
           {% for source in sources %}
             <tr>
+              {% if is_staff_list %}
+              <td data-label="姓名"><strong>{{ source.name }}</strong></td>
+              <td data-label="所在店">
+                {% for store_label in source.staff_store_labels %}<span class="staff-store-chip">{{ store_label }}</span>{% empty %}<span class="muted">尚未設定</span>{% endfor %}
+              </td>
+              <td data-label="電話">{% if source.phone %}<strong>{{ source.phone }}</strong>{% else %}<span class="muted">尚未填寫</span>{% endif %}</td>
+              <td data-label="傭金"><strong class="staff-commission-value">${{ source.staff_commission|floatformat:0 }}</strong><small>每筆</small></td>
+              <td data-label="狀態"><span class="status-pill {% if source.active %}success{% endif %}">{% if source.active %}啟用中{% else %}已停用{% endif %}</span></td>
+              <td><a class="button ghost small" href="{% url 'sales_source_edit' source.pk %}">編輯資料</a></td>
+              {% else %}
               <td><strong>{{ source.name }}</strong><small>{{ source.category.name|default:source.get_source_type_display }}{% if source.code %} · {{ source.code }}{% endif %}</small></td>
               <td>
                 {% if is_platform_list %}
@@ -88,6 +102,7 @@
               <td>{% if source.address %}<span>{{ source.address }}</span>{% endif %}{% if source.note %}<small>{{ source.note }}</small>{% endif %}{% if not source.address and not source.note %}<span class="muted">尚未填寫</span>{% endif %}</td>
               <td><span class="status-pill {% if source.active %}success{% endif %}">{% if source.active %}啟用中{% else %}已停用{% endif %}</span></td>
               <td><a class="button ghost small" href="{% url 'sales_source_edit' source.pk %}">編輯資料</a></td>
+              {% endif %}
             </tr>
           {% endfor %}
         </tbody>

@@ -23,12 +23,12 @@
   <a href="{{ status_urls.active }}" class="{% if selected.status == 'active' %}is-active{% endif %}" {% if selected.status == 'active' %}aria-current="page"{% endif %}>
     <span>目前使用</span>
     <strong>啟用中車行</strong>
-    <b>{{ source_status_counts.active }}</b>
+    <b data-source-status-count="active">{{ source_status_counts.active }}</b>
   </a>
   <a href="{{ status_urls.inactive }}" class="{% if selected.status == 'inactive' %}is-active is-inactive{% endif %}" {% if selected.status == 'inactive' %}aria-current="page"{% endif %}>
     <span>歷史收納</span>
     <strong>已停用車行</strong>
-    <b>{{ source_status_counts.inactive }}</b>
+    <b data-source-status-count="inactive">{{ source_status_counts.inactive }}</b>
   </a>
 </nav>
 
@@ -47,7 +47,7 @@
 
 <section class="inventory-list-panel sales-source-directory">
   <div class="inventory-list-summary source-list-summary">
-    <div class="source-list-summary__copy"><strong>{% if selected.holiday_gift == 'yes' %}正在查看年節送禮名單{% elif selected.status == 'inactive' %}共 {{ page_obj.paginator.count }} 個已停用通路{% else %}共 {{ page_obj.paginator.count }} 個啟用中通路{% endif %}</strong><span>{% if selected.holiday_gift == 'yes' %}目前只顯示已列入年節送禮名單的車行。{% elif selected.status == 'inactive' %}歷史資料集中收納於此；需要恢復使用時可進入編輯資料重新啟用。{% else %}合作資料可直接辨認三陽、台鈴油車及台鈴電車的合作狀態。{% endif %}</span></div>
+    <div class="source-list-summary__copy"><strong data-visible-source-count>{% if selected.holiday_gift == 'yes' %}正在查看年節送禮名單{% elif selected.status == 'inactive' %}共 {{ page_obj.paginator.count }} 個已停用通路{% else %}共 {{ page_obj.paginator.count }} 個啟用中通路{% endif %}</strong><span>{% if selected.holiday_gift == 'yes' %}目前只顯示已列入年節送禮名單的車行。{% elif selected.status == 'inactive' %}歷史資料集中收納於此；需要恢復使用時可進入編輯資料重新啟用。{% else %}合作資料可直接辨認三陽、台鈴油車及台鈴電車的合作狀態。{% endif %}</span></div>
     <nav class="source-list-actions" aria-label="年節送禮名單操作">
       {% if selected.holiday_gift == 'yes' %}
         <a class="source-holiday-summary is-active" href="{% url 'sales_source_list' %}"><span>正在查看</span><strong>年節送禮 {{ holiday_gift_count }} 家</strong><small>返回全部通路</small></a>
@@ -73,13 +73,13 @@
       <section class="source-line-group-section is-{{ line_section.key }}" aria-labelledby="line-group-heading-{{ line_section.key }}">
         <header class="source-line-group-section__header">
           <span><strong id="line-group-heading-{{ line_section.key }}">{{ line_section.label }}</strong><small>{{ line_section.description }}</small></span>
-          <b>{% if has_active_filters %}{{ line_section.count }} 筆符合{% else %}{{ line_section.count }} 家{% endif %}</b>
+          <b data-source-section-count>{% if has_active_filters %}{{ line_section.count }} 筆符合{% else %}{{ line_section.count }} 家{% endif %}</b>
         </header>
         <div class="source-line-group-section__content">
           {% for region in line_section.region_groups %}
             <details class="source-region-group" data-source-region="{{ region.storage_key }}" {% if region.open %}open{% endif %}>
               <summary>
-                <span><strong>{{ region.label }}</strong><small>{{ region.count }} 家合作車行</small></span>
+                <span><strong>{{ region.label }}</strong><small data-source-region-count>{{ region.count }} 家合作車行</small></span>
                 <span class="source-region-toggle"><span class="when-closed">展開</span><span class="when-open">收合</span></span>
               </summary>
               <div class="inventory-table-wrap">
@@ -87,7 +87,7 @@
                   <thead><tr><th>車行</th><th>聯絡資料</th><th>合作資料與 LINE 群組</th><th>備註</th><th>年節名單</th><th>狀態</th><th></th></tr></thead>
                   <tbody>
                     {% for district_group in region.district_groups %}
-                      <tr class="source-district-row"><th colspan="7"><span>{{ district_group.label }}</span><small>{{ district_group.count }} 家</small></th></tr>
+                      <tr class="source-district-row"><th colspan="7"><span>{{ district_group.label }}</span><small data-source-district-count>{{ district_group.count }} 家</small></th></tr>
                       {% include "sales/_sales_source_rows.html" with source_items=district_group.sources %}
                     {% endfor %}
                   </tbody>
@@ -175,6 +175,58 @@
       label.textContent = enabled ? "送禮" : "不送";
     };
 
+    const updateActiveControl = (form, enabled) => {
+      const button = form.querySelector("button");
+      const stateInput = form.querySelector('input[name="active"]');
+      const label = button?.querySelector(".source-active-toggle__label");
+      const sourceName = form.dataset.sourceName || "此車行";
+      if (!button || !stateInput || !label) return;
+      stateInput.value = enabled ? "0" : "1";
+      button.classList.toggle("is-active", enabled);
+      button.setAttribute("aria-checked", enabled ? "true" : "false");
+      button.setAttribute("aria-label", `${enabled ? "停用" : "啟用"}車行 ${sourceName}`);
+      button.title = `點擊${enabled ? "停用" : "啟用"}`;
+      label.textContent = enabled ? "啟用中" : "已停用";
+    };
+
+    const decreaseVisibleCount = (element) => {
+      if (!element) return;
+      element.textContent = element.textContent.replace(/\d+/, (value) => String(Math.max(0, Number(value) - 1)));
+    };
+
+    const removeMovedSourceRow = (form, statusCounts) => {
+      const row = form.closest("[data-source-row]");
+      if (!row) return;
+      const region = row.closest("[data-source-region]");
+      const lineSection = row.closest(".source-line-group-section");
+      let districtHeader = row.previousElementSibling;
+      while (districtHeader && !districtHeader.matches(".source-district-row")) {
+        districtHeader = districtHeader.previousElementSibling;
+      }
+
+      row.remove();
+      decreaseVisibleCount(document.querySelector("[data-visible-source-count]"));
+      decreaseVisibleCount(lineSection?.querySelector("[data-source-section-count]"));
+      decreaseVisibleCount(region?.querySelector("[data-source-region-count]"));
+      decreaseVisibleCount(districtHeader?.querySelector("[data-source-district-count]"));
+
+      if (districtHeader) {
+        const nextRow = districtHeader.nextElementSibling;
+        if (!nextRow || nextRow.matches(".source-district-row")) districtHeader.remove();
+      }
+      if (region && !region.querySelector("[data-source-row]")) region.remove();
+      if (lineSection && !lineSection.querySelector("[data-source-region]")) {
+        const content = lineSection.querySelector(".source-line-group-section__content");
+        if (content) {
+          content.innerHTML = '<div class="source-line-group-section__empty" role="status"><strong>此區目前 0 筆符合</strong><span>車行已移至另一個使用狀態。</span></div>';
+        }
+      }
+      Object.entries(statusCounts || {}).forEach(([status, count]) => {
+        const target = document.querySelector(`[data-source-status-count="${status}"]`);
+        if (target) target.textContent = String(count);
+      });
+    };
+
     const submitHolidayGift = async (form) => {
       const button = form.querySelector("button");
       if (!button || button.disabled) return;
@@ -216,6 +268,44 @@
       }
     };
 
+    const submitActive = async (form) => {
+      const button = form.querySelector("button");
+      if (!button || button.disabled) return;
+      const stateInput = form.querySelector('input[name="active"]');
+      const previousEnabled = stateInput?.value === "0";
+      const controller = new AbortController();
+      const timeoutId = window.setTimeout(() => controller.abort(), 12000);
+      button.disabled = true;
+      button.setAttribute("aria-busy", "true");
+      form.classList.add("is-updating");
+      try {
+        const response = await fetch(form.action, {
+          method: "POST",
+          body: new FormData(form),
+          credentials: "same-origin",
+          headers: { "X-Requested-With": "XMLHttpRequest" },
+          signal: controller.signal,
+        });
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok || !payload.ok) {
+          throw new Error(payload.message || "無法更新車行狀態，請稍後再試。");
+        }
+        updateActiveControl(form, Boolean(payload.active));
+        removeMovedSourceRow(form, payload.status_counts);
+      } catch (error) {
+        updateActiveControl(form, previousEnabled);
+        const message = error.name === "AbortError"
+          ? "更新等候逾時，已恢復原本狀態，請再試一次。"
+          : (error.message || "無法更新車行狀態，請稍後再試。");
+        window.alert(message);
+      } finally {
+        window.clearTimeout(timeoutId);
+        button.disabled = false;
+        button.removeAttribute("aria-busy");
+        form.classList.remove("is-updating");
+      }
+    };
+
     window.addEventListener("submit", (event) => {
       const form = event.target;
       if (!(form instanceof HTMLFormElement) || !form.matches("[data-preserve-source-list-state]")) return;
@@ -223,6 +313,11 @@
       if (form.dataset.sourceListControl === "holiday-gift") {
         event.preventDefault();
         submitHolidayGift(form);
+        return;
+      }
+      if (form.dataset.sourceListControl === "active") {
+        event.preventDefault();
+        submitActive(form);
         return;
       }
       const sourceRow = form.closest("[data-source-row]");

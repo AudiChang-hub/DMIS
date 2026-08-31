@@ -1505,6 +1505,7 @@ def sales_source_form(request, pk=None):
     brand_overview = _sales_source_brand_overview(source)
     initial = None
     requested_kind = request.GET.get("kind", "").strip()
+    form_source_type = source.source_type if source.pk else requested_kind
     if not source.pk and not post_data:
         if requested_kind in {value for value, _ in SalesSource.SourceType.choices}:
             category = SalesSourceCategory.objects.filter(
@@ -1512,7 +1513,19 @@ def sales_source_form(request, pk=None):
             ).order_by("name").first()
             if category:
                 initial = {"category": category}
-    form_source_type = source.source_type if source.pk else requested_kind
+    if post_data and form_source_type == SalesSource.SourceType.DEALER:
+        fixed_category = (
+            source.category
+            if source.category_id
+            and source.category.system_behavior == SalesSource.SourceType.DEALER
+            else SalesSourceCategory.objects.filter(
+                active=True,
+                system_behavior=SalesSource.SourceType.DEALER,
+            ).order_by("name").first()
+        )
+        if fixed_category:
+            post_data = post_data.copy()
+            post_data["category"] = str(fixed_category.pk)
     form = SalesSourceForm(
         post_data,
         instance=source,
@@ -1608,6 +1621,7 @@ def sales_source_form(request, pk=None):
             },
             "district_options_by_city": TAIWAN_DISTRICTS,
             "source_context_label": form_context["label"],
+            "source_context_kind": context_kind,
             "source_list_url": reverse(form_context["list_route"]),
         },
     )

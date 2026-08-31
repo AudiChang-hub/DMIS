@@ -77,6 +77,7 @@ from .forms import (
     SalesSourceCooperationForm,
     SalesSourceCooperationProfileForm,
     SalesSourceForm,
+    SalesSourcePlatformContactFormSet,
     SignedContractForm,
     SubsidyDataForm,
     SubsidyItemFormSet,
@@ -119,6 +120,7 @@ from .models import (
     SalesSourceBrandPolicy,
     SalesSourceCategory,
     SalesSourceCooperationProfile,
+    SalesSourcePlatformContact,
     Store,
     TaiwanCounty,
     SubsidyDocument,
@@ -1368,7 +1370,7 @@ def _sales_source_simple_list(request, source_type, *, title, description, route
     sources = SalesSource.objects.filter(
         source_type=source_type,
         active=status == "active",
-    ).select_related("category").order_by("name", "id")
+    ).select_related("category").prefetch_related("platform_contacts").order_by("name", "id")
     if keyword:
         sources = sources.filter(
             Q(name__icontains=keyword)
@@ -1380,7 +1382,13 @@ def _sales_source_simple_list(request, source_type, *, title, description, route
             | Q(other_contact__icontains=keyword)
             | Q(address__icontains=keyword)
             | Q(note__icontains=keyword)
-        )
+            | Q(platform_contacts__contact_person__icontains=keyword)
+            | Q(platform_contacts__phone__icontains=keyword)
+            | Q(platform_contacts__extension__icontains=keyword)
+            | Q(platform_contacts__mobile__icontains=keyword)
+            | Q(platform_contacts__email__icontains=keyword)
+            | Q(platform_contacts__note__icontains=keyword)
+        ).distinct()
     page = Paginator(sources, 100).get_page(request.GET.get("page"))
     status_query = request.GET.copy()
     status_query.pop("page", None)
@@ -1408,6 +1416,7 @@ def _sales_source_simple_list(request, source_type, *, title, description, route
                     source_type=source_type, active=False
                 ).count(),
             },
+            "is_platform_list": source_type == SalesSource.SourceType.PLATFORM,
         },
     )
 
@@ -1501,6 +1510,13 @@ def sales_source_form(request, pk=None):
     initial = None
     requested_kind = request.GET.get("kind", "").strip()
     form_source_type = source.source_type if source.pk else requested_kind
+    if not form_source_type and post_data and post_data.get("category"):
+        form_source_type = (
+            SalesSourceCategory.objects.filter(pk=post_data.get("category"))
+            .values_list("system_behavior", flat=True)
+            .first()
+            or ""
+        )
     if not source.pk and not post_data:
         if requested_kind in {value for value, _ in SalesSource.SourceType.choices}:
             category = SalesSourceCategory.objects.filter(
@@ -1545,6 +1561,16 @@ def sales_source_form(request, pk=None):
         prefix="policies",
         queryset=scoped_policies,
     )
+    platform_contact_formset = SalesSourcePlatformContactFormSet(
+        post_data if form_source_type == SalesSource.SourceType.PLATFORM else None,
+        instance=source,
+        prefix="platform_contacts",
+        queryset=(
+            source.platform_contacts.all()
+            if source.pk
+            else SalesSourcePlatformContact.objects.none()
+        ),
+    )
     form_valid = form.is_valid() if request.method == "POST" else False
     is_dealer = bool(
         form_valid
@@ -1555,10 +1581,25 @@ def sales_source_form(request, pk=None):
         section["form"].is_valid() for section in cooperation_sections
     ) if request.method == "POST" and is_dealer else True
     policy_valid = policy_formset.is_valid() if request.method == "POST" else False
-    if request.method == "POST" and form_valid and cooperation_valid and policy_valid:
+    platform_contact_valid = (
+        platform_contact_formset.is_valid()
+        if request.method == "POST" and form_valid and not is_dealer
+        and form.cleaned_data["category"].system_behavior == SalesSource.SourceType.PLATFORM
+        else True
+    )
+    if (
+        request.method == "POST"
+        and form_valid
+        and cooperation_valid
+        and policy_valid
+        and platform_contact_valid
+    ):
         source = form.save()
         policy_formset.instance = source
         policy_formset.save()
+        if source.source_type == SalesSource.SourceType.PLATFORM:
+            platform_contact_formset.instance = source
+            platform_contact_formset.save()
         desired_states = {}
         if source.source_type == SalesSource.SourceType.DEALER:
             for section in cooperation_sections:
@@ -1610,6 +1651,7 @@ def sales_source_form(request, pk=None):
             "form": form,
             "cooperation_sections": cooperation_sections,
             "policy_formset": policy_formset,
+            "platform_contact_formset": platform_contact_formset,
             "source": source if source.pk else None,
             "brand_overview": brand_overview,
             "category_behaviors": {

@@ -35,10 +35,11 @@
         <header><strong>名稱與負責人</strong><small>先確認要找的是哪一筆{{ source_context_label }}資料。</small></header>
         <div class="source-basic-card__grid source-basic-card__grid--identity">
           <div data-source-name-field>{% include "sales/_field.html" with field=form.name %}</div>
-          {% include "sales/_field.html" with field=form.responsible_person %}
+          {% if source_context_kind != 'platform' %}{% include "sales/_field.html" with field=form.responsible_person %}{% endif %}
         </div>
       </section>
 
+      {% if source_context_kind != 'platform' %}
       <section class="source-basic-card">
         <header><strong>聯絡方式</strong><small>常用電話優先放在電話一，其餘方式集中記錄。</small></header>
         <div class="source-basic-card__grid source-basic-card__grid--contact">
@@ -48,6 +49,7 @@
           {% include "sales/_field.html" with field=form.other_contact %}
         </div>
       </section>
+      {% endif %}
 
       <section class="source-basic-card source-basic-card--wide">
         <header><strong>地址</strong><small>{% if source_context_kind == 'dealer' %}輸入完整地址後，系統會自動判定縣市與行政區。{% else %}記錄主要聯絡或營業地址。{% endif %}</small></header>
@@ -78,6 +80,56 @@
       </section>
     </div>
   </section>
+
+  {% if source_context_kind == 'platform' %}
+  <section class="form-section static-section source-editor-section platform-contact-section" id="platform-contacts">
+    <div class="section-title">
+      <div>
+        <p class="eyebrow">平台聯繫資料</p>
+        <h2>聯絡窗口</h2>
+        <p class="muted">每位 PM、客服、帳務或發票窗口各自保存電話、分機、手機與信箱。</p>
+      </div>
+      <span class="platform-contact-count">{{ platform_contact_formset.initial_form_count }} 位既有窗口</span>
+    </div>
+
+    {{ platform_contact_formset.management_form }}
+    {% if platform_contact_formset.non_form_errors %}<div class="formset-errors">{{ platform_contact_formset.non_form_errors }}</div>{% endif %}
+    <div class="platform-contact-editor-list" id="platform-contact-rows">
+      {% for row in platform_contact_formset %}
+        <article class="platform-contact-editor-row" data-dynamic-row>
+          {{ row.id }}{{ row.display_order }}<span hidden>{{ row.DELETE }}</span>
+          <button type="button" class="remove-row-button" data-remove-row>刪除</button>
+          <div class="platform-contact-editor-grid">
+            {% include "sales/_field.html" with field=row.contact_person %}
+            {% include "sales/_field.html" with field=row.phone %}
+            {% include "sales/_field.html" with field=row.extension %}
+            {% include "sales/_field.html" with field=row.mobile %}
+            {% include "sales/_field.html" with field=row.email %}
+            <div class="platform-contact-editor-note">{% include "sales/_field.html" with field=row.note %}</div>
+            <div class="platform-contact-editor-active">{% include "sales/_field.html" with field=row.active %}</div>
+          </div>
+          {% if row.non_field_errors %}<div class="formset-errors">{{ row.non_field_errors }}</div>{% endif %}
+        </article>
+      {% endfor %}
+    </div>
+    <template id="platform-contact-empty">
+      <article class="platform-contact-editor-row" data-dynamic-row>
+        {{ platform_contact_formset.empty_form.id }}{{ platform_contact_formset.empty_form.display_order }}<span hidden>{{ platform_contact_formset.empty_form.DELETE }}</span>
+        <button type="button" class="remove-row-button" data-remove-row>刪除</button>
+        <div class="platform-contact-editor-grid">
+          {% include "sales/_field.html" with field=platform_contact_formset.empty_form.contact_person %}
+          {% include "sales/_field.html" with field=platform_contact_formset.empty_form.phone %}
+          {% include "sales/_field.html" with field=platform_contact_formset.empty_form.extension %}
+          {% include "sales/_field.html" with field=platform_contact_formset.empty_form.mobile %}
+          {% include "sales/_field.html" with field=platform_contact_formset.empty_form.email %}
+          <div class="platform-contact-editor-note">{% include "sales/_field.html" with field=platform_contact_formset.empty_form.note %}</div>
+          <div class="platform-contact-editor-active">{% include "sales/_field.html" with field=platform_contact_formset.empty_form.active %}</div>
+        </div>
+      </article>
+    </template>
+    <button type="button" class="button ghost add-row-button" data-add-form="platform_contacts" data-target="platform-contact-rows" data-template="platform-contact-empty">＋ 新增聯絡窗口</button>
+  </section>
+  {% endif %}
 
   <section class="form-section static-section source-editor-section dealer-only-section" id="line-group" data-dealer-only>
     <div class="section-title">
@@ -350,6 +402,8 @@
         policyDetails.open = true;
         updateBrandOverview();
         window.setTimeout(() => row.querySelector('select[name$="-cooperation_scope"]')?.focus(), 0);
+      } else if (prefix === "platform_contacts") {
+        window.setTimeout(() => row.querySelector('input[name$="-contact_person"]')?.focus(), 0);
       }
     });
   });

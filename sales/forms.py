@@ -37,6 +37,7 @@ from .models import (
     SalesSourceCategory,
     SalesSourceBrandPolicy,
     SalesSourceCooperationProfile,
+    SalesSourcePlatformContact,
     Store,
     SubsidyDocument,
     SubsidyItem,
@@ -773,6 +774,40 @@ class SalesSourceCooperationProfileForm(forms.ModelForm):
             self.cleaned_data.get("relationship_type")
             or SalesSourceCooperationProfile.RelationshipType.GENERAL
         )
+
+
+class SalesSourcePlatformContactForm(forms.ModelForm):
+    class Meta:
+        model = SalesSourcePlatformContact
+        fields = [
+            "contact_person", "phone", "extension", "mobile", "email",
+            "note", "active", "display_order",
+        ]
+        widgets = {
+            "note": forms.Textarea(attrs={"rows": 2}),
+            "display_order": forms.HiddenInput(),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if not self.instance.pk and not self.is_bound:
+            self.fields["active"].initial = True
+        for field in self.fields.values():
+            if not isinstance(field.widget, (forms.CheckboxInput, forms.HiddenInput)):
+                field.widget.attrs.setdefault("class", "form-control")
+        self.fields["email"].widget.attrs.update(
+            {"inputmode": "email", "autocomplete": "email", "spellcheck": "false"}
+        )
+        apply_mobile_keyboard_attrs(self)
+
+
+SalesSourcePlatformContactFormSet = inlineformset_factory(
+    SalesSource,
+    SalesSourcePlatformContact,
+    form=SalesSourcePlatformContactForm,
+    extra=0,
+    can_delete=True,
+)
 
 
 def _brand_choices(current_value=""):

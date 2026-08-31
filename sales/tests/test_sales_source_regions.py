@@ -3,7 +3,11 @@ from django.test import TestCase
 from django.urls import reverse
 
 from sales.forms import SalesSourceForm
-from sales.models import SalesSource, SalesSourceCategory
+from sales.models import (
+    SalesSource,
+    SalesSourceCategory,
+    SalesSourcePlatformContact,
+)
 from sales.services.taiwan_address import infer_taiwan_region
 
 
@@ -576,6 +580,84 @@ class SalesSourceRegionListTests(TestCase):
         self.assertContains(platform_response, platform.name)
         self.assertNotContains(platform_response, staff.name)
         self.assertNotContains(platform_response, self.keelung.name)
+
+    def test_platform_screen_displays_and_searches_multiple_contact_windows(self):
+        platform = SalesSource.objects.create(
+            name="聯絡窗口測試平台",
+            source_type=SalesSource.SourceType.PLATFORM,
+        )
+        SalesSourcePlatformContact.objects.create(
+            source=platform,
+            contact_person="採購 王小姐",
+            phone="02-1234-5678",
+            extension="101",
+            email="buyer@example.com",
+            display_order=1,
+        )
+        SalesSourcePlatformContact.objects.create(
+            source=platform,
+            contact_person="帳務 李先生",
+            mobile="0912-345678",
+            note="發票問題請先寄信",
+            display_order=2,
+        )
+
+        response = self.client.get(reverse("sales_source_platform_list"))
+        searched = self.client.get(
+            reverse("sales_source_platform_list"), {"q": "buyer@example.com"}
+        )
+
+        self.assertContains(response, platform.name)
+        self.assertContains(response, "2 位聯絡窗口")
+        self.assertContains(response, "採購 王小姐")
+        self.assertContains(response, "分機 101")
+        self.assertContains(response, "發票問題請先寄信")
+        self.assertContains(searched, platform.name)
+
+    def test_platform_edit_form_saves_contact_formset(self):
+        platform_category = SalesSourceCategory.objects.get(
+            system_behavior=SalesSource.SourceType.PLATFORM,
+        )
+        platform = SalesSource.objects.create(
+            name="可編輯平台",
+            source_type=SalesSource.SourceType.PLATFORM,
+            category=platform_category,
+        )
+
+        edit_page = self.client.get(reverse("sales_source_edit", args=[platform.pk]))
+        response = self.client.post(
+            reverse("sales_source_edit", args=[platform.pk]),
+            {
+                "category": platform_category.pk,
+                "name": platform.name,
+                "active": "on",
+                "policies-TOTAL_FORMS": "0",
+                "policies-INITIAL_FORMS": "0",
+                "policies-MIN_NUM_FORMS": "0",
+                "policies-MAX_NUM_FORMS": "1000",
+                "platform_contacts-TOTAL_FORMS": "1",
+                "platform_contacts-INITIAL_FORMS": "0",
+                "platform_contacts-MIN_NUM_FORMS": "0",
+                "platform_contacts-MAX_NUM_FORMS": "1000",
+                "platform_contacts-0-contact_person": "PM 陳小姐",
+                "platform_contacts-0-phone": "02-8765-4321",
+                "platform_contacts-0-extension": "202",
+                "platform_contacts-0-mobile": "",
+                "platform_contacts-0-email": "pm@example.com",
+                "platform_contacts-0-note": "活動洽談",
+                "platform_contacts-0-active": "on",
+                "platform_contacts-0-display_order": "3",
+            },
+        )
+
+        self.assertContains(edit_page, "聯絡窗口")
+        self.assertContains(edit_page, "platform_contacts-TOTAL_FORMS")
+        self.assertRedirects(response, reverse("sales_source_platform_list"))
+        contact = platform.platform_contacts.get()
+        self.assertEqual(contact.contact_person, "PM 陳小姐")
+        self.assertEqual(contact.extension, "202")
+        self.assertEqual(contact.email, "pm@example.com")
+        self.assertEqual(contact.note, "活動洽談")
 
     def test_simple_source_screens_separate_inactive_records(self):
         active_staff = SalesSource.objects.create(

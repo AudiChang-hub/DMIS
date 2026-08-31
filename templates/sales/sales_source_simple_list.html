@@ -47,18 +47,43 @@
   </div>
   {% if sources %}
     <div class="inventory-table-wrap">
-      <table class="inventory-table sales-source-table sales-source-simple-table">
-        <thead><tr><th>名稱</th><th>聯絡資料</th><th>地址／備註</th><th>狀態</th><th></th></tr></thead>
+      <table class="inventory-table sales-source-table sales-source-simple-table{% if is_platform_list %} platform-source-table{% endif %}">
+        <thead><tr><th>名稱</th><th>{% if is_platform_list %}聯絡窗口{% else %}聯絡資料{% endif %}</th><th>地址／備註</th><th>狀態</th><th></th></tr></thead>
         <tbody>
           {% for source in sources %}
             <tr>
               <td><strong>{{ source.name }}</strong><small>{{ source.category.name|default:source.get_source_type_display }}{% if source.code %} · {{ source.code }}{% endif %}</small></td>
               <td>
+                {% if is_platform_list %}
+                  {% with contacts=source.platform_contacts.all %}
+                    {% if contacts %}
+                      <details class="platform-contact-summary">
+                        <summary><strong>{{ contacts|length }} 位聯絡窗口</strong><span>展開聯繫資料</span></summary>
+                        <div class="platform-contact-list">
+                          {% for contact in contacts %}
+                            <article{% if not contact.active %} class="is-inactive"{% endif %}>
+                              <header><strong>{{ contact.contact_person }}</strong>{% if not contact.active %}<span>停用</span>{% endif %}</header>
+                              <div>
+                                {% if contact.phone %}<span>電話 {{ contact.phone }}{% if contact.extension %}　分機 {{ contact.extension }}{% endif %}</span>{% elif contact.extension %}<span>分機 {{ contact.extension }}</span>{% endif %}
+                                {% if contact.mobile %}<span>手機 {{ contact.mobile }}</span>{% endif %}
+                                {% if contact.email %}<span>信箱 {{ contact.email|linebreaksbr }}</span>{% endif %}
+                                {% if contact.note %}<small>{{ contact.note|linebreaksbr }}</small>{% endif %}
+                              </div>
+                            </article>
+                          {% endfor %}
+                        </div>
+                      </details>
+                    {% else %}
+                      <span class="muted">尚未填寫聯絡窗口</span>
+                    {% endif %}
+                  {% endwith %}
+                {% else %}
                 {% if source.responsible_person %}<strong>{{ source.responsible_person }}</strong>{% endif %}
                 {% if source.phone %}<span>電話 {{ source.phone }}</span>{% endif %}
                 {% if source.phone_secondary %}<span>電話二 {{ source.phone_secondary }}</span>{% endif %}
                 {% if source.mobile %}<span>手機 {{ source.mobile }}</span>{% endif %}
                 {% if not source.responsible_person and not source.phone and not source.phone_secondary and not source.mobile %}<span class="muted">尚未填寫聯絡資料</span>{% endif %}
+                {% endif %}
               </td>
               <td>{% if source.address %}<span>{{ source.address }}</span>{% endif %}{% if source.note %}<small>{{ source.note }}</small>{% endif %}{% if not source.address and not source.note %}<span class="muted">尚未填寫</span>{% endif %}</td>
               <td><span class="status-pill {% if source.active %}success{% endif %}">{% if source.active %}啟用中{% else %}已停用{% endif %}</span></td>

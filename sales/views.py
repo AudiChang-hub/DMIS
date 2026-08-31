@@ -3081,7 +3081,12 @@ def registration_fee_variance_confirm(request, pk):
 @login_required
 def order_list(request):
     orders = SalesOrder.objects.select_related(
-        "source", "vehicle_model", "color", "search_index"
+        "source",
+        "vehicle_model",
+        "vehicle_model__family",
+        "color",
+        "operations",
+        "search_index",
     )
     query = request.GET.get("q", "").strip()
     if query:

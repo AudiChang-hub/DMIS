@@ -58,6 +58,8 @@
         action="{% url 'sales_source_set_active' item.pk %}"
         data-preserve-source-list-state
         data-source-list-control="active"
+        data-source-name="{{ item.name }}"
+        data-allow-multiple-submit="true"
         {% if item.active %}data-confirm="確定停用「{{ item.name }}」嗎？停用後將移至已停用車行，建立新資料時不再提供選用。"{% endif %}
       >
         {% csrf_token %}

@@ -1226,18 +1226,44 @@ def sales_source_set_active(request, pk):
         pk=pk,
         source_type=SalesSource.SourceType.DEALER,
     )
+    is_ajax = request.headers.get("x-requested-with") == "XMLHttpRequest"
     requested_state = request.POST.get("active", "")
     if requested_state not in {"0", "1"}:
+        if is_ajax:
+            return JsonResponse(
+                {"ok": False, "message": "無法更新車行狀態，請重新操作。"},
+                status=400,
+            )
         messages.error(request, "無法更新車行狀態，請重新操作。")
     else:
         active = requested_state == "1"
         if source.active != active:
             source.active = active
             source.save(update_fields=["active", "updated_at"])
-        if active:
-            messages.success(request, f"{source.name} 已啟用，已移至啟用中車行。")
-        else:
-            messages.success(request, f"{source.name} 已停用，已移至已停用車行。")
+        success_message = (
+            f"{source.name} 已啟用，已移至啟用中車行。"
+            if active
+            else f"{source.name} 已停用，已移至已停用車行。"
+        )
+        if is_ajax:
+            status_totals = SalesSource.objects.filter(
+                source_type=SalesSource.SourceType.DEALER
+            ).aggregate(
+                active_count=Count("id", filter=Q(active=True)),
+                inactive_count=Count("id", filter=Q(active=False)),
+            )
+            return JsonResponse(
+                {
+                    "ok": True,
+                    "active": active,
+                    "status_counts": {
+                        "active": status_totals["active_count"],
+                        "inactive": status_totals["inactive_count"],
+                    },
+                    "message": success_message,
+                }
+            )
+        messages.success(request, success_message)
 
     next_url = request.POST.get("next", "")
     if not url_has_allowed_host_and_scheme(

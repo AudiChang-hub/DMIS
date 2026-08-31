@@ -63,7 +63,7 @@
               </td>
               <td data-label="電話">{% if source.phone %}<strong>{{ source.phone }}</strong>{% else %}<span class="muted">尚未填寫</span>{% endif %}</td>
               <td data-label="傭金"><strong class="staff-commission-value">${{ source.staff_commission|floatformat:0 }}</strong><small>每筆</small></td>
-              <td data-label="狀態"><span class="status-pill {% if source.active %}success{% endif %}">{% if source.active %}啟用中{% else %}已停用{% endif %}</span></td>
+              <td data-label="狀態">{% include "sales/_active_quick_toggle.html" with resource="sales-source" pk=source.pk is_active=source.active item_name=source.name confirm_off="確定停用此資料嗎？停用後建立新資料時不再提供選用。" %}</td>
               <td><a class="button ghost small" href="{% url 'sales_source_edit' source.pk %}">編輯資料</a></td>
               {% else %}
               <td><strong>{{ source.name }}</strong><small>{{ source.category.name|default:source.get_source_type_display }}{% if source.code %} · {{ source.code }}{% endif %}</small></td>
@@ -100,7 +100,7 @@
                 {% endif %}
               </td>
               <td>{% if source.address %}<span>{{ source.address }}</span>{% endif %}{% if source.note %}<small>{{ source.note }}</small>{% endif %}{% if not source.address and not source.note %}<span class="muted">尚未填寫</span>{% endif %}</td>
-              <td><span class="status-pill {% if source.active %}success{% endif %}">{% if source.active %}啟用中{% else %}已停用{% endif %}</span></td>
+              <td>{% include "sales/_active_quick_toggle.html" with resource="sales-source" pk=source.pk is_active=source.active item_name=source.name confirm_off="確定停用此資料嗎？停用後建立新資料時不再提供選用。" %}</td>
               <td><a class="button ghost small" href="{% url 'sales_source_edit' source.pk %}">編輯資料</a></td>
               {% endif %}
             </tr>

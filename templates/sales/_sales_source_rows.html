@@ -52,31 +52,7 @@
       {% else %}<span class="gift-not-required">不適用</span>{% endif %}
     </td>
     <td data-label="狀態" class="source-status-cell">
-      <form
-        class="source-active-toggle-form"
-        method="post"
-        action="{% url 'sales_source_set_active' item.pk %}"
-        data-preserve-source-list-state
-        data-source-list-control="active"
-        data-source-name="{{ item.name }}"
-        data-allow-multiple-submit="true"
-        {% if item.active %}data-confirm="確定停用「{{ item.name }}」嗎？停用後將移至已停用車行，建立新資料時不再提供選用。"{% endif %}
-      >
-        {% csrf_token %}
-        <input type="hidden" name="active" value="{% if item.active %}0{% else %}1{% endif %}">
-        <input type="hidden" name="next" value="{{ request.get_full_path }}">
-        <button
-          class="source-active-toggle{% if item.active %} is-active{% endif %}"
-          type="submit"
-          role="switch"
-          aria-checked="{{ item.active|yesno:'true,false' }}"
-          aria-label="{% if item.active %}停用{% else %}啟用{% endif %}車行 {{ item.name }}"
-          title="點擊{% if item.active %}停用{% else %}啟用{% endif %}"
-        >
-          <span class="source-active-toggle__track" aria-hidden="true"><span></span></span>
-          <span class="source-active-toggle__label">{{ item.active|yesno:"啟用中,已停用" }}</span>
-        </button>
-      </form>
+      {% include "sales/_active_quick_toggle.html" with resource="sales-source" pk=item.pk is_active=item.active item_name=item.name confirm_off="確定停用此通路嗎？停用後建立新資料時不再提供選用。" %}
     </td>
     <td class="inventory-row-action"><span class="row-action-buttons"><a class="button ghost small" href="{% url 'sales_source_edit' item.pk %}">編輯資料</a>{% if item.source_type == 'dealer' %}<a class="button secondary small" href="{% url 'sales_source_edit' item.pk %}#brand-policies">合作與傭金</a>{% endif %}</span></td>
   </tr>

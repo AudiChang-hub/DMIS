@@ -41,7 +41,7 @@
               {% if rule.energy_type == 'gas' %}<p>{{ rule.min_cc|default:"不限" }}～{{ rule.max_cc|default:"不限" }} c.c.</p>{% endif %}
             </div>
           </div>
-          <span class="status-pill {% if rule.active %}status-completed{% else %}status-cancelled{% endif %}">{% if rule.active %}啟用中{% else %}已停用{% endif %}</span>
+          {% include "sales/_active_quick_toggle.html" with resource="brand-registration-fee-rule" pk=rule.pk is_active=rule.active item_name=rule %}
         </header>
 
         <div class="registration-rule-card__body">

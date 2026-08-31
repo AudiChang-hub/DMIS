@@ -29,6 +29,7 @@ from rq import Retry, Worker
 
 from .services.order_contract_pdf import build_order_contract_pdf
 from .services.privacy_consent_pdf import build_privacy_consent_pdf
+from .services.dealer_workbook_sync import next_dealer_code
 from .services.excel_export import sanitize_excel_row
 from .forms import (
     AccessoryProductForm,
@@ -641,16 +642,30 @@ def user_account_edit(request, pk):
 @require_http_methods(["POST"])
 def user_account_status(request, pk):
     account = get_object_or_404(get_user_model(), pk=pk)
-    requested_action = request.POST.get("action")
-    if requested_action not in {"activate", "deactivate"}:
-        messages.error(request, "無法辨識帳號狀態操作，請重新操作。")
+    is_ajax = request.headers.get("x-requested-with") == "XMLHttpRequest"
+    requested_state = request.POST.get("active", "")
+    requested_action = request.POST.get("action", "")
+    if requested_state in {"0", "1"}:
+        activate = requested_state == "1"
+    elif requested_action in {"activate", "deactivate"}:
+        activate = requested_action == "activate"
+    else:
+        message = "無法辨識帳號狀態操作，請重新操作。"
+        if is_ajax:
+            return JsonResponse({"ok": False, "message": message}, status=400)
+        messages.error(request, message)
         return redirect("user_management")
-    activate = requested_action == "activate"
     if account.pk == request.user.pk and not activate:
-        messages.error(request, "不能停用自己目前正在使用的帳號。")
+        message = "不能停用自己目前正在使用的帳號。"
+        if is_ajax:
+            return JsonResponse({"ok": False, "message": message}, status=400)
+        messages.error(request, message)
         return redirect("user_management")
     if account.is_active and account.is_superuser and not activate and _active_superuser_count() <= 1:
-        messages.error(request, "系統至少要保留一個啟用中的管理者帳號。")
+        message = "系統至少要保留一個啟用中的管理者帳號。"
+        if is_ajax:
+            return JsonResponse({"ok": False, "message": message}, status=400)
+        messages.error(request, message)
         return redirect("user_management")
     account.is_active = activate
     account.save(update_fields=["is_active"])
@@ -661,6 +676,16 @@ def user_account_status(request, pk):
         action=action,
         description=f"{'啟用' if activate else '停用'}帳號 {account.get_username()}。",
     )
+    if is_ajax:
+        return JsonResponse(
+            {
+                "ok": True,
+                "active": activate,
+                "resource": "user-account",
+                "pk": account.pk,
+                "message": f"已{'啟用' if activate else '停用'} {account.get_username()}。",
+            }
+        )
     messages.success(request, f"已{'啟用' if activate else '停用'} {account.get_username()}。")
     return redirect("user_management")
 
@@ -1321,6 +1346,77 @@ def sales_source_set_holiday_gift(request, pk):
     return redirect(next_url)
 
 
+ACTIVE_TOGGLE_RESOURCES = {
+    "accessory-product": (AccessoryProduct, "配件"),
+    "brand-registration-fee-rule": (BrandRegistrationFeeRule, "牌險規則"),
+    "business-holiday": (BusinessHoliday, "工作日排除設定"),
+    "dealer-volume-bonus": (DealerVolumeBonusRule, "台數獎金規則"),
+    "incentive-rule": (VehicleIncentiveRule, "獎勵補助版本"),
+    "installment-company": (InstallmentCompany, "分期公司"),
+    "installment-plan": (InstallmentPlanVersion, "分期方案版本"),
+    "positioned-print-template": (PositionedPrintTemplate, "列印套表"),
+    "sales-source": (SalesSource, "通路"),
+    "sales-source-category": (SalesSourceCategory, "通路分類"),
+    "settlement-cost-rule": (VehicleSettlementCostRule, "代銷結算成本版本"),
+    "vehicle-brand": (VehicleBrand, "車輛品牌"),
+    "vehicle-model": (VehicleModel, "車型版本"),
+    "vehicle-price-version": (VehiclePriceVersion, "售價版本"),
+}
+
+
+@login_required
+@require_http_methods(["POST"])
+@transaction.atomic
+def master_record_set_active(request, resource, pk):
+    resource_config = ACTIVE_TOGGLE_RESOURCES.get(resource)
+    is_ajax = request.headers.get("x-requested-with") == "XMLHttpRequest"
+    if resource_config is None:
+        if is_ajax:
+            return JsonResponse(
+                {"ok": False, "message": "不支援此項目的快速狀態切換。"},
+                status=404,
+            )
+        raise Http404("不支援此項目的快速狀態切換。")
+
+    model, resource_label = resource_config
+    record = get_object_or_404(model.objects.select_for_update(), pk=pk)
+    requested_state = request.POST.get("active", "")
+    if requested_state not in {"0", "1"}:
+        message = f"無法更新{resource_label}狀態，請重新操作。"
+        if is_ajax:
+            return JsonResponse({"ok": False, "message": message}, status=400)
+        messages.error(request, message)
+    else:
+        active = requested_state == "1"
+        if record.active != active:
+            update_values = {"active": active}
+            if any(field.name == "updated_at" for field in model._meta.fields):
+                update_values["updated_at"] = timezone.now()
+            model.objects.filter(pk=record.pk).update(**update_values)
+        item_name = str(record)
+        message = f"{resource_label}「{item_name}」已{'啟用' if active else '停用'}。"
+        if is_ajax:
+            return JsonResponse(
+                {
+                    "ok": True,
+                    "active": active,
+                    "resource": resource,
+                    "pk": record.pk,
+                    "message": message,
+                }
+            )
+        messages.success(request, message)
+
+    next_url = request.POST.get("next", "")
+    if not url_has_allowed_host_and_scheme(
+        next_url,
+        allowed_hosts={request.get_host()},
+        require_https=request.is_secure(),
+    ):
+        next_url = reverse("data_maintenance")
+    return redirect(next_url)
+
+
 @login_required
 @transaction.atomic
 def vehicle_brand_list(request):
@@ -1636,13 +1732,30 @@ def sales_source_form(request, pk=None):
             platform_contact_formset.save()
         desired_states = {}
         if source.source_type == SalesSource.SourceType.DEALER:
+            has_exclusive = False
             for section in cooperation_sections:
                 profile = section["form"].save(commit=False)
                 profile.source = source
                 profile.cooperation_scope = section["scope"]
                 profile.save()
                 desired_states[section["scope"]] = profile.cooperates
+                has_exclusive = has_exclusive or (
+                    profile.cooperates
+                    and profile.relationship_type
+                    == SalesSourceCooperationProfile.RelationshipType.EXCLUSIVE
+                )
             _sync_sales_source_cooperation_scopes(source, desired_states)
+            if not source.code:
+                used_codes = set(
+                    SalesSource.objects.exclude(code="").values_list("code", flat=True)
+                )
+                relationship_type = (
+                    SalesSourceCooperationProfile.RelationshipType.EXCLUSIVE
+                    if has_exclusive
+                    else SalesSourceCooperationProfile.RelationshipType.GENERAL
+                )
+                source.code = next_dealer_code(relationship_type, used_codes)
+                source.save(update_fields=["code", "updated_at"])
         messages.success(
             request,
             f"已儲存{source.category.name if source.category_id else source.get_source_type_display()}：{source.name}。",

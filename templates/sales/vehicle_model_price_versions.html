@@ -59,7 +59,10 @@
       <article class="price-version-item{% if editing.pk == version.pk %} is-editing{% endif %}">
         <div class="price-version-item__head">
           <div><strong>{{ version.effective_from|date:"Y/m/d" }} 起</strong><span>{% if version.effective_to %}至 {{ version.effective_to|date:"Y/m/d" }}{% else %}未設定結束日{% endif %}</span></div>
-          <span class="status-pill price-version-status price-version-status--{{ version.display_state }}">{{ version.display_state_label }}</span>
+          <div class="quick-active-toggle-stack">
+            {% include "sales/_active_quick_toggle.html" with resource="vehicle-price-version" pk=version.pk is_active=version.active item_name=version %}
+            {% if version.active %}<span class="status-pill price-version-status price-version-status--{{ version.display_state }}">{{ version.display_state_label }}</span>{% endif %}
+          </div>
         </div>
         <dl class="price-version-values">
           <div><dt>建議售價</dt><dd>{% if version.suggested_price %}${{ version.suggested_price|floatformat:0 }}・{% if version.suggested_price_includes_registration %}含牌險{% else %}不含牌險{% endif %}{% else %}未填寫{% endif %}</dd></div>

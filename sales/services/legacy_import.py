@@ -41,11 +41,17 @@ MISSING_IDENTIFIER_MESSAGE = "缺少引擎／車身號碼"
 EMPTY_SALES_PLACEHOLDER_MESSAGE = "Excel 空白公式列，系統自動略過"
 NON_VEHICLE_SALES_NOISE_MESSAGE = "缺少有效車輛序號且無交易資料，系統自動略過"
 INVALID_EMAIL_MESSAGE = "Email 格式不正確，請修正或清空後再匯入"
-PREVIEW_SCHEMA_VERSION = 7
+PREVIEW_SCHEMA_VERSION = 8
 SPECIAL_PLATFORM_SOURCE_RULES = {
     "momo員購": ("momo", "momo員購"),
     "小樹購員購": ("小樹購", "小樹購員購"),
     "Yahoo+假展場": ("Yahoo", "Yahoo+假展場"),
+}
+STORE_ORDER_NOTE_SOURCE_NAMES = {
+    "上海商銀員購",
+    "台新銀員購",
+    "台新銀行員購",
+    "華新麗華員購",
 }
 SYSTEM_VALIDATION_MESSAGES = {
     DUPLICATE_IDENTIFIER_MESSAGE,
@@ -371,6 +377,8 @@ def _clean_sales_source_name(value):
     text = _text(value).strip()
     if not text:
         return ""
+    if text in STORE_ORDER_NOTE_SOURCE_NAMES:
+        return ""
     platform_rule = SPECIAL_PLATFORM_SOURCE_RULES.get(text)
     if platform_rule:
         return platform_rule[0]
@@ -424,7 +432,10 @@ def _sales_order_note(raw, dealer_name, transaction_type, current_note=""):
         note = _join_unique_note_lines(note, "試乘車")
     if "代申請補助" in _text(dealer_name).replace(" ", ""):
         note = _join_unique_note_lines(note, "代申請補助")
-    platform_rule = SPECIAL_PLATFORM_SOURCE_RULES.get(_text(dealer_name).strip())
+    source_name = _text(dealer_name).strip()
+    if source_name in STORE_ORDER_NOTE_SOURCE_NAMES:
+        note = _join_unique_note_lines(note, source_name)
+    platform_rule = SPECIAL_PLATFORM_SOURCE_RULES.get(source_name)
     if platform_rule:
         note = _join_unique_note_lines(note, platform_rule[1])
     return note

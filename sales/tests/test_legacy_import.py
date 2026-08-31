@@ -493,12 +493,38 @@ class LegacyImportTests(TestCase):
                     legacy_name,
                 )
 
-        self.assertEqual(_clean_sales_source_name("上海商銀員購"), "上海商銀員購")
+    def test_employee_purchase_platform_name_is_moved_to_store_order_note(self):
+        source_names = (
+            "上海商銀員購",
+            "台新銀員購",
+            "台新銀行員購",
+            "華新麗華員購",
+        )
+        for source_name in source_names:
+            with self.subTest(source_name=source_name):
+                self.assertEqual(_clean_sales_source_name(source_name), "")
+                self.assertEqual(
+                    _sales_order_note(
+                        {},
+                        source_name,
+                        SalesOrder.TransactionType.REGULAR_NEW,
+                    ),
+                    source_name,
+                )
+                self.assertEqual(
+                    _sales_order_note(
+                        {"備註": source_name},
+                        source_name,
+                        SalesOrder.TransactionType.REGULAR_NEW,
+                        source_name,
+                    ),
+                    source_name,
+                )
+
+        self.assertEqual(_clean_sales_source_name("博客來"), "博客來")
         self.assertEqual(
             _sales_order_note(
-                {},
-                "上海商銀員購",
-                SalesOrder.TransactionType.REGULAR_NEW,
+                {}, "博客來", SalesOrder.TransactionType.REGULAR_NEW
             ),
             "",
         )

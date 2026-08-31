@@ -883,7 +883,6 @@ def sales_source_list(request):
     status = request.GET.get("status", "active").strip()
     if status not in {"active", "inactive"}:
         status = "active"
-    category_id = request.GET.get("category", "")
     cooperation_scope = request.GET.get(
         "cooperation_scope", request.GET.get("brand", "")
     ).strip()
@@ -929,8 +928,6 @@ def sales_source_list(request):
         if "line" in keyword.casefold() or "群組" in keyword:
             keyword_filter |= Q(has_line_group=True)
         sources = sources.filter(keyword_filter).distinct()
-    if category_id.isdigit():
-        sources = sources.filter(category_id=category_id)
     valid_scopes = {
         value for value, _ in SalesSourceBrandPolicy.CooperationScope.choices
     }
@@ -1151,6 +1148,7 @@ def sales_source_list(request):
         )
     status_query = request.GET.copy()
     status_query.pop("page", None)
+    status_query.pop("category", None)
     if status == "inactive":
         status_query.pop("line_group", None)
     status_query["status"] = "active"
@@ -1167,10 +1165,6 @@ def sales_source_list(request):
             "city_filters": city_filters,
             "district_filters": available_district_filters,
             "district_filters_by_city": district_filters_by_city,
-            "source_categories": SalesSourceCategory.objects.filter(
-                active=True,
-                system_behavior=SalesSource.SourceType.DEALER,
-            ).order_by("name"),
             "cooperation_scopes": SalesSourceBrandPolicy.CooperationScope.choices,
             "relationship_types": SalesSourceCooperationProfile.RelationshipType.choices,
             "holiday_gift_count": SalesSource.objects.filter(
@@ -1193,7 +1187,6 @@ def sales_source_list(request):
             "selected": {
                 "q": keyword,
                 "status": status,
-                "category": category_id,
                 "cooperation_scope": cooperation_scope,
                 "holiday_gift": holiday_gift,
                 "line_group": line_group,
@@ -1204,7 +1197,6 @@ def sales_source_list(request):
             "has_active_filters": any(
                 (
                     keyword,
-                    category_id,
                     cooperation_scope,
                     holiday_gift,
                     line_group,

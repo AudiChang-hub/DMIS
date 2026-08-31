@@ -183,6 +183,20 @@ class SalesSourceRegionListTests(TestCase):
         self.assertContains(response, "dmis:sales-source-expanded-regions:v1")
         self.assertContains(response, "sessionStorage")
 
+    def test_list_omits_redundant_dealer_category_filter(self):
+        response = self.client.get(
+            reverse("sales_source_list"),
+            {"category": "999999"},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, 'id="source-category"')
+        self.assertNotContains(response, '<label for="source-category">')
+        self.assertNotIn("category", response.context["selected"])
+        self.assertContains(response, self.keelung.name)
+        self.assertFalse(response.context["has_active_filters"])
+        self.assertNotIn("category=", response.context["status_urls"]["inactive"])
+
     def test_list_separates_dealers_by_line_group_status(self):
         grouped = SalesSource.objects.create(
             name="已有群組車行",

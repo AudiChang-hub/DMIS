@@ -20,4 +20,5 @@ class RecentFieldValuesTests(SimpleTestCase):
         self.assertIn("const MAX_VALUES = 10", source)
         self.assertIn("username|password|passwd|csrf|token|secret", source)
         self.assertIn("dataset.noRecentValues", source)
+        self.assertIn('querySelectorAll?.("form, input, textarea, select")', source)
         self.assertIn('setAttribute("autocomplete", "off")', source)

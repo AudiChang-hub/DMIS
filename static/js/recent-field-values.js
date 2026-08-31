@@ -10,7 +10,7 @@
     "input:not([type])",
     "textarea",
   ].join(",");
-  const EXCLUDED_NAME = /(^|[-_])(password|passwd|csrf|token|secret|otp|verification|code|uuid|id)([-_]|$)/i;
+  const EXCLUDED_NAME = /(^|[-_])(username|password|passwd|csrf|token|secret|otp|verification|code|uuid|id)([-_]|$)/i;
   const userKey = document.body?.dataset.historyUser || "anonymous";
   let currentField = null;
   let activeIndex = -1;
@@ -28,6 +28,12 @@
     if (!field.name || field.disabled || field.readOnly) return false;
     if (field.autocomplete === "new-password" || field.dataset.noRecentValues !== undefined) return false;
     return !EXCLUDED_NAME.test(field.name);
+  }
+
+  function disableNativeHistory(root = document) {
+    root.querySelectorAll?.(FIELD_SELECTOR).forEach(field => {
+      if (eligible(field)) field.setAttribute("autocomplete", "off");
+    });
   }
 
   function normalizedFieldName(field) {
@@ -157,4 +163,12 @@
   });
   window.addEventListener("resize", positionList);
   window.addEventListener("scroll", positionList, true);
+  disableNativeHistory();
+  new MutationObserver(records => {
+    records.forEach(record => record.addedNodes.forEach(node => {
+      if (!(node instanceof Element)) return;
+      if (eligible(node)) node.setAttribute("autocomplete", "off");
+      disableNativeHistory(node);
+    }));
+  }).observe(document.body, {childList: true, subtree: true});
 })();

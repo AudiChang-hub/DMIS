@@ -18,5 +18,6 @@ class RecentFieldValuesTests(SimpleTestCase):
             encoding="utf-8"
         )
         self.assertIn("const MAX_VALUES = 10", source)
-        self.assertIn("password|passwd|csrf|token|secret", source)
+        self.assertIn("username|password|passwd|csrf|token|secret", source)
         self.assertIn("dataset.noRecentValues", source)
+        self.assertIn('setAttribute("autocomplete", "off")', source)

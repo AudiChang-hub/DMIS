@@ -32,6 +32,7 @@ from .models import (
     SalesSourceCategory,
     SalesSourceBrandPolicy,
     SalesSourceCooperationProfile,
+    SalesSourcePlatformContact,
     Store,
     SubsidyDocument,
     SubsidyItem,
@@ -73,6 +74,11 @@ class StoreAdmin(admin.ModelAdmin):
     search_fields = ("name", "code")
 
 
+class SalesSourcePlatformContactInline(admin.TabularInline):
+    model = SalesSourcePlatformContact
+    extra = 0
+
+
 @admin.register(SalesSource)
 class SalesSourceAdmin(admin.ModelAdmin):
     list_display = (
@@ -83,6 +89,12 @@ class SalesSourceAdmin(admin.ModelAdmin):
         "category", "source_type", "city", "district", "holiday_gift", "has_line_group", "active",
     )
     search_fields = ("name", "code", "responsible_person", "phone", "mobile", "address", "city", "district")
+    inlines = [SalesSourcePlatformContactInline]
+
+    def get_inlines(self, request, obj):
+        if obj and obj.source_type == SalesSource.SourceType.PLATFORM:
+            return self.inlines
+        return []
 
 
 @admin.register(SalesSourceCategory)

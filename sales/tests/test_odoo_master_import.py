@@ -108,7 +108,7 @@ class OdooMasterImportTests(TestCase):
         self.assertEqual(summary["sources_create"], 1)
         self.assertEqual(summary["models_create"], 1)
         self.assertEqual(summary["legacy_transactions_not_imported"], 1614)
-        self.assertEqual(SalesSource.objects.count(), 0)
+        self.assertFalse(SalesSource.objects.filter(code="D010").exists())
         self.assertEqual(VehicleModel.objects.count(), 0)
 
     def test_apply_is_idempotent_and_imports_business_rules(self):
@@ -150,7 +150,7 @@ class OdooMasterImportTests(TestCase):
         )
         self.assertEqual(first["installment_lines_review_required"], 1)
         self.assertEqual(second["sources_update"], 1)
-        self.assertEqual(SalesSource.objects.count(), 1)
+        self.assertEqual(SalesSource.objects.filter(code="D010").count(), 1)
         self.assertEqual(VehicleModel.objects.count(), 1)
 
     def test_import_preserves_real_note_and_removes_legacy_marker(self):

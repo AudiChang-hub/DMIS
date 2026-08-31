@@ -335,6 +335,36 @@ class SalesSource(TimeStampedModel):
         return super().save(*args, **kwargs)
 
 
+class SalesSourcePlatformContact(TimeStampedModel):
+    source = models.ForeignKey(
+        SalesSource,
+        on_delete=models.CASCADE,
+        related_name="platform_contacts",
+        verbose_name="網路平台",
+    )
+    contact_person = models.CharField("聯絡人", max_length=250)
+    phone = models.CharField("電話", max_length=100, blank=True)
+    extension = models.CharField("分機", max_length=50, blank=True)
+    mobile = models.CharField("手機", max_length=100, blank=True)
+    email = models.CharField("信箱", max_length=500, blank=True)
+    note = models.TextField("補充資料", blank=True)
+    active = models.BooleanField("啟用中", default=True)
+    display_order = models.PositiveIntegerField("顯示順序", default=0)
+
+    class Meta:
+        ordering = ["source", "display_order", "id"]
+        verbose_name = "網路平台聯絡窗口"
+        verbose_name_plural = "網路平台聯絡窗口"
+
+    def __str__(self):
+        return f"{self.source.name}／{self.contact_person}"
+
+    def clean(self):
+        super().clean()
+        if self.source_id and self.source.source_type != SalesSource.SourceType.PLATFORM:
+            raise ValidationError({"source": "聯絡窗口只能設定在網路平台。"})
+
+
 class VehicleModelFamily(TimeStampedModel):
     """市場上辨識的一個機種；年份、規格與原廠型號另行維護。"""
 

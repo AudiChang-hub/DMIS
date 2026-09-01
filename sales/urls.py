@@ -37,6 +37,21 @@ urlpatterns = [
     ),
     path("data/", views.data_maintenance, name="data_maintenance"),
     path(
+        "data/price-list-distribution/",
+        views.price_list_distribution,
+        name="price_list_distribution",
+    ),
+    path(
+        "data/price-list-distribution/<int:pk>/update/",
+        views.price_list_distribution_item_update,
+        name="price_list_distribution_item_update",
+    ),
+    path(
+        "data/price-list-distribution/<int:pk>/sync/",
+        views.price_list_distribution_sync,
+        name="price_list_distribution_sync",
+    ),
+    path(
         "data/active-toggle/<slug:resource>/<int:pk>/",
         views.master_record_set_active,
         name="master_record_set_active",

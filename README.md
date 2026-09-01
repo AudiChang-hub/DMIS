@@ -130,6 +130,15 @@ docker compose -f docker-compose.django.yml -f docker-compose.django.prod.yml \
   exec -T web python manage.py sync_business_calendar --year 2026 --year 2027
 ```
 
+### 每月價格表分發清單
+
+`dmis-next-price-list-distribution.timer` 每日執行防呆：缺少本月清單時自動補建，並在每月最後一天預先建立隔月清單。
+
+```bash
+sudo bash scripts/install_django_price_list_distribution_timer.sh
+python manage.py generate_price_list_distribution --month 2026-09
+```
+
 UI 有異動時，另以桌機、平板及手機 viewport 開啟主要頁面，並在網址加入
 `?ui_audit=1`。頁面根元素的 `data-ui-layout-issues` 必須為 `0`；完整檢查清單
 見 `specs/026-django-order-mvp/04-tasks.md`。

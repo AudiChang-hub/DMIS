@@ -2,6 +2,7 @@ from django.urls import reverse
 
 from .app_version import get_app_version
 from sales.models import UserAppearancePreference
+from sales.services.mobile_quick_links import build_mobile_quick_link_context
 from sales.themes import DEFAULT_THEME, THEME_DEFINITIONS, THEME_META_COLORS, THEME_VALUES
 
 
@@ -112,14 +113,24 @@ def app_version(request):
     route_name = getattr(getattr(request, "resolver_match", None), "url_name", None)
     topic = HELP_TOPIC_BY_ROUTE.get(route_name, "quick-start")
     ui_theme = DEFAULT_THEME
+    mobile_quick_link_context = {
+        "mobile_quick_links": [],
+        "mobile_quick_link_options": [],
+        "mobile_quick_link_slots": [],
+    }
     if request.user.is_authenticated:
-        saved_theme = (
+        saved_preference = (
             UserAppearancePreference.objects.filter(user_id=request.user.pk)
-            .values_list("theme", flat=True)
+            .values("theme", "mobile_quick_links")
             .first()
         )
+        saved_theme = saved_preference["theme"] if saved_preference else None
         if saved_theme in THEME_VALUES:
             ui_theme = saved_theme
+        mobile_quick_link_context = build_mobile_quick_link_context(
+            request.user,
+            saved_preference["mobile_quick_links"] if saved_preference else [],
+        )
     return {
         "app_version": get_app_version(),
         "context_help_url": f"{reverse('user_guide')}#{topic}",
@@ -128,4 +139,5 @@ def app_version(request):
         "ui_theme": ui_theme,
         "ui_theme_options": THEME_DEFINITIONS,
         "ui_theme_meta_color": THEME_META_COLORS[ui_theme],
+        **mobile_quick_link_context,
     }

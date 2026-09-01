@@ -13,6 +13,11 @@ urlpatterns = [
         views.appearance_theme_update,
         name="appearance_theme_update",
     ),
+    path(
+        "appearance/mobile-quick-links/",
+        views.mobile_quick_links_update,
+        name="mobile_quick_links_update",
+    ),
     # 舊 Odoo 書籤與主畫面捷徑保留相容入口，避免使用者落入 404。
     path(
         "web",

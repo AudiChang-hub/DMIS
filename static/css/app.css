@@ -595,6 +595,18 @@ h2 { margin-bottom: 0; font-size: 1.15rem; }
   gap: 12px; background: var(--surface-soft); border-top: 1px solid var(--line-soft);
 }
 .theme-dialog__footer > div { display: flex; gap: 9px; }
+.mobile-shortcuts-dialog { width: min(620px, calc(100vw - 32px)); }
+.mobile-shortcuts-dialog__fields {
+  display: grid; padding: 22px 26px; overflow-y: auto; grid-template-columns: 1fr 1fr; gap: 14px;
+}
+.mobile-shortcuts-dialog__fields label { display: grid; gap: 7px; }
+.mobile-shortcuts-dialog__fields label > strong { font-size: .82rem; }
+.mobile-shortcuts-dialog__fields select {
+  width: 100%; min-height: 46px; padding: 9px 38px 9px 12px;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 10px;
+}
+.mobile-shortcuts-dialog__fields select:focus { outline: 3px solid var(--focus-ring); outline-offset: 1px; }
+.mobile-shortcuts-dialog .theme-dialog__footer > small { color: var(--muted); }
 .mobile-nav { display: none; }
 .page-shell {
   width: calc(100% - (var(--desktop-gutter) * 2)); max-width: var(--shell-standard);
@@ -3355,8 +3367,15 @@ body.screen-locked { overflow: hidden; }
     left: 12px; display: block; max-height: min(72vh, 650px); padding: 14px; overflow-y: auto;
     background: var(--surface-raised); border: 1px solid var(--line); border-radius: 16px; box-shadow: 0 -10px 34px rgba(0,0,0,.2);
   }
-  .mobile-data-popover__header { display: flex; margin-bottom: 10px; align-items: center; justify-content: space-between; }
-  .mobile-data-popover__header > a { color: var(--blue); font-size: .78rem; font-weight: 800; }
+  .mobile-data-popover__header { display: flex; margin-bottom: 10px; align-items: center; justify-content: space-between; gap: 10px; }
+  .mobile-data-popover__header > div:first-child { display: grid; gap: 1px; }
+  .mobile-data-popover__header small { color: var(--muted); font-size: .68rem; }
+  .mobile-data-popover__header-actions { display: flex; align-items: center; gap: 9px; }
+  .mobile-data-popover__header-actions > a,
+  .mobile-data-popover__header-actions > button {
+    padding: 5px 0; color: var(--blue); background: transparent; border: 0;
+    font: inherit; font-size: .76rem; font-weight: 800; cursor: pointer;
+  }
   .mobile-data-popover__grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
   .mobile-data-popover__grid a, .mobile-data-popover__footer a, .mobile-data-popover__footer button { display: grid; width: 100%; min-height: 76px; padding: 9px; place-items: center; align-content: center; gap: 4px; color: var(--forest); background: var(--surface-soft); border: 0; border-radius: 12px; font: inherit; font-size: .73rem; cursor: pointer; }
   .mobile-data-popover__footer { display: grid; margin-top: 10px; padding-top: 10px; grid-template-columns: repeat(3, 1fr); gap: 8px; border-top: 1px solid var(--line); }
@@ -3392,6 +3411,8 @@ body.screen-locked { overflow: hidden; }
   .theme-dialog__footer > .button, .theme-dialog__footer > div { width: 100%; }
   .theme-dialog__footer > div { display: grid; grid-template-columns: .8fr 1.2fr; }
   .theme-dialog__footer .button { width: 100%; min-height: 44px; }
+  .mobile-shortcuts-dialog__fields { padding: 16px; grid-template-columns: 1fr; gap: 11px; }
+  .mobile-shortcuts-dialog .theme-dialog__footer > small { font-size: .75rem; }
   .registration-rule-list { padding: 12px; gap: 12px; }
   .registration-rule-panel__heading { min-height: 64px; padding: 10px 14px; }
   .registration-rule-card__header { min-height: 76px; padding: 14px; align-items: flex-start; }

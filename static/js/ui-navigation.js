@@ -61,4 +61,45 @@
       }
     });
   }
+
+  const shortcutDialog = document.querySelector("[data-mobile-shortcuts-dialog]");
+  if (shortcutDialog) {
+    const shortcutForm = shortcutDialog.querySelector("form");
+    const shortcutSelects = [...shortcutDialog.querySelectorAll('select[name="shortcut"]')];
+    document.querySelectorAll("[data-mobile-shortcuts-open]").forEach(button => {
+      button.addEventListener("click", () => {
+        if (mobileMenu) mobileMenu.open = false;
+        shortcutDialog.showModal();
+      });
+    });
+    shortcutDialog.querySelectorAll("[data-mobile-shortcuts-close]").forEach(button => {
+      button.addEventListener("click", () => shortcutDialog.close());
+    });
+    shortcutDialog.addEventListener("click", event => {
+      if (event.target === shortcutDialog) shortcutDialog.close();
+    });
+    shortcutSelects.forEach(select => {
+      select.addEventListener("change", () => {
+        shortcutSelects.forEach(item => item.setCustomValidity(""));
+      });
+    });
+    shortcutForm?.addEventListener("submit", event => {
+      shortcutSelects.forEach(select => select.setCustomValidity(""));
+      const selected = shortcutSelects.filter(select => select.value);
+      if (!selected.length) {
+        event.preventDefault();
+        shortcutSelects[0].setCustomValidity("請至少保留一個快速前往功能。");
+        shortcutSelects[0].reportValidity();
+        return;
+      }
+      const duplicate = selected.find((select, index) => (
+        selected.findIndex(item => item.value === select.value) !== index
+      ));
+      if (duplicate) {
+        event.preventDefault();
+        duplicate.setCustomValidity("同一個功能不能重複設定。");
+        duplicate.reportValidity();
+      }
+    });
+  }
 })();

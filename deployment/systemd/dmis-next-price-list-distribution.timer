@@ -1,0 +1,11 @@
+[Unit]
+Description=Daily guard for DMIS Next monthly price list distribution
+
+[Timer]
+OnCalendar=*-*-* 03:40:00
+Persistent=true
+RandomizedDelaySec=10m
+Unit=dmis-next-price-list-distribution.service
+
+[Install]
+WantedBy=timers.target

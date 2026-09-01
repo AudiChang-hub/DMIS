@@ -3370,14 +3370,18 @@ body.screen-locked { overflow: hidden; }
   .mobile-data-popover__header { display: flex; margin-bottom: 10px; align-items: center; justify-content: space-between; gap: 10px; }
   .mobile-data-popover__header > div:first-child { display: grid; gap: 1px; }
   .mobile-data-popover__header small { color: var(--muted); font-size: .68rem; }
-  .mobile-data-popover__header-actions { display: flex; align-items: center; gap: 9px; }
-  .mobile-data-popover__header-actions > a,
-  .mobile-data-popover__header-actions > button {
-    padding: 5px 0; color: var(--blue); background: transparent; border: 0;
-    font: inherit; font-size: .76rem; font-weight: 800; cursor: pointer;
+  .mobile-data-popover__customize {
+    min-height: 34px; padding: 6px 11px; color: var(--forest); background: var(--surface-soft);
+    border: 1px solid var(--line); border-radius: 999px; font: inherit; font-size: .75rem;
+    font-weight: 800; cursor: pointer;
   }
   .mobile-data-popover__grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
   .mobile-data-popover__grid a, .mobile-data-popover__footer a, .mobile-data-popover__footer button { display: grid; width: 100%; min-height: 76px; padding: 9px; place-items: center; align-content: center; gap: 4px; color: var(--forest); background: var(--surface-soft); border: 0; border-radius: 12px; font: inherit; font-size: .73rem; cursor: pointer; }
+  .mobile-data-popover__all {
+    display: flex; min-height: 40px; margin-top: 10px; padding: 8px 12px; align-items: center;
+    justify-content: center; color: var(--blue); background: var(--surface-tint);
+    border: 1px solid var(--line); border-radius: 10px; font-size: .76rem; font-weight: 800;
+  }
   .mobile-data-popover__footer { display: grid; margin-top: 10px; padding-top: 10px; grid-template-columns: repeat(3, 1fr); gap: 8px; border-top: 1px solid var(--line); }
   .mobile-data-popover form { margin: 0; }
   .mobile-data-popover__grid a span, .mobile-data-popover__footer a span, .mobile-data-popover__footer button span { display: grid; width: 32px; height: 32px; place-items: center; color: #fff; background: var(--forest); border-radius: 10px; }

@@ -66,7 +66,7 @@ class ProductExperienceTests(TestCase):
         self.assertContains(source_page, reverse("dealer_volume_bonus_list"))
         self.assertContains(source_page, reverse("business_holiday_list"))
         self.assertContains(source_page, 'class="mobile-data-popover__grid"')
-        self.assertContains(source_page, "全部功能 →")
+        self.assertContains(source_page, "查看全部功能 →")
 
         css = Path("static/css/app.css").read_text(encoding="utf-8")
         navigation = Path("static/js/ui-navigation.js").read_text(encoding="utf-8")
@@ -94,6 +94,8 @@ class ProductExperienceTests(TestCase):
         )
         self.assertContains(response, "此帳號的常用功能")
         self.assertContains(response, "設定快速前往")
+        self.assertContains(response, "自訂捷徑")
+        self.assertContains(response, "查看全部功能 →")
         self.assertContains(response, 'data-mobile-shortcuts-open')
 
     def test_mobile_quick_links_are_saved_per_account_in_selected_order(self):

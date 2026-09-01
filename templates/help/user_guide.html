@@ -9,7 +9,7 @@
   <div>
     <p class="eyebrow">End User 使用說明</p>
     <h1>現在想做什麼？從任務開始找</h1>
-    <p>這裡只說明實際操作，不需要懂系統或資料庫。最後更新：2026/08/22・系統版本 {{ app_version }}</p>
+    <p>這裡只說明實際操作，不需要懂系統或資料庫。最後更新：2026/09/01・系統版本 {{ app_version }}</p>
   </div>
   <div class="hero-actions guide-print-actions">
     <button class="button ghost" type="button" data-print-guide>列印／存成 PDF</button>
@@ -23,13 +23,14 @@
     <span aria-hidden="true">⌕</span>
     <input id="guide-search" type="search" data-guide-search placeholder="例如：身分證、配車、退款、找不到車、Excel 匯入…" autocomplete="off">
   </div>
-  <small data-guide-count>共 21 個操作主題</small>
+  <small data-guide-count>共 24 個操作主題</small>
 </section>
 
 <div class="guide-layout">
   <nav class="guide-toc" aria-label="使用說明章節">
     <strong>快速前往</strong>
     <a href="#quick-start">三分鐘開始</a>
+    <a href="#mobile-shortcuts">手機快速前往</a>
     <a href="#dashboard">首頁與搜尋</a>
     <a href="#create-order">建立訂單</a>
     <a href="#ocr">證件與 OCR</a>
@@ -37,6 +38,8 @@
     <a href="#inventory">庫存與進車</a>
     <a href="#operations">營運與淨利</a>
     <a href="#master-data">資料維護</a>
+    <a href="#sales-sources">車行、平台與本店人員</a>
+    <a href="#price-list-distribution">每月價格表分發</a>
     <a href="#account-management">帳號與密碼</a>
     <a href="#troubleshooting">看到錯誤怎麼辦</a>
     <a href="#security">個資與安全</a>
@@ -51,7 +54,7 @@
       <div class="guide-screen-map" role="img" aria-label="系統主要入口圖解">
         <div class="guide-screen-bar"><b>車輛銷售管理</b><span>① 使用說明</span><span>② 檢查更新</span></div>
         <div class="guide-screen-body"><b>③ 戰情首頁</b><span>④ 全欄位搜尋</span><span>⑤ 今天的待辦與最近訂單</span></div>
-        <div class="guide-screen-footer"><span>首頁</span><span>訂單</span><b>＋新增</b><span>營運</span><span>資料</span></div>
+        <div class="guide-screen-footer"><span>首頁</span><span>訂單</span><b>＋新增</b><span>營運</span><span>更多</span></div>
       </div>
       <ol class="guide-steps">
         <li><strong>登入後先看戰情首頁。</strong><span>優先處理、待配車、進行中與庫存數量都會集中顯示。</span></li>
@@ -60,6 +63,16 @@
         <li><strong>工作做完才按完成。</strong><span>配車、領牌、交付等完成後會鎖定，避免後續誤改。</span></li>
       </ol>
       <div class="guide-tip"><strong>手機加到主畫面後看不到新版？</strong><span>先按上方「檢查更新」，確認草稿或修改已儲存，再按「重新載入」。</span></div>
+    </article>
+
+    <article class="guide-topic" id="mobile-shortcuts" data-guide-topic>
+      <div class="guide-topic-heading"><span>手機</span><div><p class="eyebrow">每個帳號各自設定</p><h2>手機「更多」與快速前往</h2></div></div>
+      <ol class="guide-steps">
+        <li><strong>點手機下方「更多」。</strong><span>上方先顯示你自己的快速前往，預設第一個是「價格表分發」。</span></li>
+        <li><strong>按「自訂捷徑」。</strong><span>可挑選 1～6 個常用功能並調整順序，儲存後只套用到自己的帳號。</span></li>
+        <li><strong>需要其他功能時按「查看全部功能 →」。</strong><span>這是完整功能清單，和自訂捷徑是兩個不同入口。</span></li>
+      </ol>
+      <div class="guide-tip"><strong>換手機仍會保留</strong><span>設定跟著登入帳號保存，不是只存在目前這支手機。</span></div>
     </article>
 
     <article class="guide-topic" id="dashboard" data-guide-topic>
@@ -74,7 +87,7 @@
 
     <article class="guide-topic" id="search-orders" data-guide-topic>
       <div class="guide-topic-heading"><span>03</span><div><p class="eyebrow">全部訂單</p><h2>依狀態查看與繼續處理</h2></div></div>
-      <ol class="guide-steps"><li><strong>從上方「全部訂單」或手機「訂單」進入。</strong></li><li><strong>選擇待配車、領牌、交付、取消等狀態。</strong><span>只縮小清單，不會改變訂單。</span></li><li><strong>點訂單列進入工作頁籤。</strong><span>先看狀態、尚缺項目與處理紀錄。</span></li></ol>
+      <ol class="guide-steps"><li><strong>從上方「全部訂單」或手機「訂單」進入。</strong></li><li><strong>搜尋或選擇狀態。</strong><span>篩選只縮小清單，不會改變訂單。</span></li><li><strong>先看清單摘要。</strong><span>每張訂單直接顯示機種、顏色、領牌日期、車號、淨利、車行／來源及備註。</span></li><li><strong>依工作量選每頁 25、50、75 或 100 筆。</strong><span>分頁可回第一頁、上一頁、輸入頁碼、下一頁或到最後一頁。</span></li><li><strong>點訂單列進入工作頁籤。</strong><span>先看狀態、尚缺項目與處理紀錄。</span></li></ol>
       <div class="guide-tip"><strong>避免重複訂單</strong><span>找不到訂單時，先回首頁用姓名、電話、證號或車牌做全欄位搜尋，再決定是否建立。</span></div>
     </article>
 
@@ -159,8 +172,30 @@
     <article class="guide-topic" id="master-data" data-guide-topic>
       <div class="guide-topic-heading"><span>13</span><div><p class="eyebrow">減少重複輸入</p><h2>客戶、車型與其他資料維護</h2></div></div>
       <p>資料維護是全公司共用的選項與規則。不要為了眼前一張訂單，直接改掉仍在生效的舊資料。</p>
-      <div class="guide-two-column"><section><h3>車型與生效版本</h3><ul><li>售價與分期方案依訂單日期。</li><li>分期公司另給的撥款獎金，填在該期數的「額外撥款獎金」；系統會加進預估撥款及對帳金額。</li><li>成本、獎勵與傭金依實際領牌日期。</li><li>新增未來生效版本，不回寫已完成訂單。</li><li>顏色被使用後應停用，不直接刪除。</li></ul></section><section><h3>其他主檔</h3><ul><li>配件：售價、工資與參考成本。</li><li>合作通路：車行／平台的基本資料、備註與品牌傭金。</li><li>年節送禮：查看名單後可直接返回全部資料；需增減多家時使用「管理送禮名單」批次儲存。</li><li>分期公司：名稱與客服電話。</li><li>工作日曆、品牌牌險、台數獎金與列印套表。</li></ul></section></div>
+      <div class="guide-two-column"><section><h3>車型與生效版本</h3><ul><li>車型以機種、型號與年份辨識。</li><li>售價與分期方案依訂單日期。</li><li>成本、原廠獎勵與補助依實際領牌日期；分期額外撥款只維護在分期方案，不會混入原廠獎勵。</li><li>新增未來生效版本，不回寫已完成訂單。</li><li>強制險規則會直接標示年數；顏色被使用後應停用，不直接刪除。</li></ul></section><section><h3>其他主檔</h3><ul><li>配件：售價、工資與參考成本。</li><li>分期公司：名稱與客服電話。</li><li>台數獎金：預設只列出統計期間內已有領牌銷售的外部合作車行；本店不列入。</li><li>工作日行事曆：每月同步人事行政總處資料；同步失敗會保留既有日期，也能人工補登例外。</li><li>品牌牌險、列印套表與歷史資料匯入。</li></ul></section></div>
       <div class="guide-example"><strong>正確例子</strong><p>8/15 起同車型成本從 65,000 調為 66,000：新增 8/15 生效版本，不修改 7/1 舊版本。8/14 已領牌訂單仍保留 65,000。</p></div>
+    </article>
+
+    <article class="guide-topic" id="sales-sources" data-guide-topic>
+      <div class="guide-topic-heading"><span>通路</span><div><p class="eyebrow">資料維護區</p><h2>合作車行、網路平台與本店人員</h2></div></div>
+      <p>三種來源各有獨立清單，不會混在同一個畫面；通路分類也從資料維護區進入。</p>
+      <div class="guide-two-column">
+        <section><h3>合作車行</h3><ul><li>啟用中與已停用分開收納；啟用中再區分有／無 LINE 群組。</li><li>依縣市、行政區分組；搜尋結果仍留在同一頁，不必先猜有沒有群組。</li><li>地址輸入後會判定縣市與行政區；列表篩選行政區只顯示所選縣市。</li><li>合作關係只有「專銷」與「一般」；有排車容量一定代表合作，沒有容量仍可能合作。</li><li>台鈴油車與電車的排車容量共用，不重複加總。</li></ul></section>
+        <section><h3>平台與本店人員</h3><ul><li>網路平台維護來源代碼、聯絡窗口、電話、分機、手機、Email 與備註；新資料由系統配置來源代碼。</li><li>本店人員維護姓名、所在店（永湛／馭盛）、電話與每筆傭金。</li><li>列表的「啟用中」是快速開關；合作車行的「年節送禮」也可直接切換，畫面會留在原位。</li><li>停用資料保留歷史訂單使用，但建立新訂單時不再提供選用。</li></ul></section>
+      </div>
+      <div class="guide-tip"><strong>輸入更快</strong><span>一般文字欄位會依「目前帳號＋目前欄位」顯示最近 10 筆輸入；系統已關閉瀏覽器自己產生的黑色自動完成清單。</span></div>
+    </article>
+
+    <article class="guide-topic" id="price-list-distribution" data-guide-topic>
+      <div class="guide-topic-heading"><span>分發</span><div><p class="eyebrow">每月車行跑訪</p><h2>每月價格表分發清單</h2></div></div>
+      <ol class="guide-steps">
+        <li><strong>從資料維護區或手機快速前往進入。</strong><span>每月最後一天會先建立隔月清單，已完成月份會永久保留供查詢。</span></li>
+        <li><strong>依月份、完成進度、縣市、行政區或關鍵字篩選。</strong><span>清單排除只有台鈴電動車合作的車行。</span></li>
+        <li><strong>看品牌標記準備價格表。</strong><span>顯示該車行需要三陽或台鈴價格表；三陽專銷會另外註記。</span></li>
+        <li><strong>整間車行跑完一次就按「標記完成」。</strong><span>不用依品牌分次完成；需要追蹤的狀況寫在當月備註。</span></li>
+        <li><strong>外出可直接點電話撥號。</strong><span>清單電話會盡量補齊區域碼，方便手機直接聯繫。</span></li>
+      </ol>
+      <div class="guide-exception"><strong>名單有誤時</strong><p>先回合作車行修正啟用狀態、合作品牌或專銷關係，再由有權限的人按「重新同步本月名單」。同步會更新名單與品牌標記，不會清除本月已完成狀態或備註。</p></div>
     </article>
 
     <article class="guide-topic" id="account-management" data-guide-topic>

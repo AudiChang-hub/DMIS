@@ -382,8 +382,8 @@ input::placeholder, textarea::placeholder { color: var(--muted); opacity: .86; }
 .price-distribution-progress__bar { height: 12px; overflow: hidden; background: var(--surface-soft); border-radius: 999px; }
 .price-distribution-progress__bar span { display: block; height: 100%; background: var(--forest); border-radius: inherit; transition: width .2s ease; }
 .price-distribution-progress > b { color: var(--forest); }
-.price-distribution-filters { display: grid; grid-template-columns: 150px minmax(220px, 1.6fr) repeat(3, minmax(150px, .7fr)) auto; align-items: end; gap: 12px; margin-bottom: 18px; }
-.price-distribution-filters .field { margin: 0; }
+.price-distribution-filters { grid-template-columns: 150px minmax(280px, 1.6fr) repeat(3, minmax(150px, .7fr)) auto; }
+.price-distribution-filters .inventory-filter-actions { justify-self: end; }
 .price-distribution-list { display: grid; gap: 12px; }
 .price-distribution-card { padding: 16px 18px; background: var(--surface); border: 1px solid var(--line); border-left: 5px solid #d3dce1; border-radius: 14px; }
 .price-distribution-card.is-completed { border-left-color: var(--forest); background: rgba(222, 241, 234, .48); }
@@ -414,8 +414,9 @@ input::placeholder, textarea::placeholder { color: var(--muted); opacity: .86; }
   .price-distribution-progress { grid-template-columns: 1fr auto; }
   .price-distribution-progress__bar { grid-column: 1 / -1; grid-row: 2; }
   .price-distribution-filters { grid-template-columns: 1fr 1fr; }
-  .price-distribution-filters .field:nth-child(2) { grid-column: 1 / -1; grid-row: 1; }
-  .price-distribution-filters > button { min-height: 46px; }
+  .price-distribution-filters .master-search { grid-column: 1 / -1; grid-row: 1; }
+  .price-distribution-filters .inventory-filter-actions { grid-column: 1 / -1; justify-self: stretch; }
+  .price-distribution-filters .inventory-filter-actions .button { flex: 1; min-height: 46px; }
   .price-distribution-card { padding: 14px; }
   .price-distribution-card__main { grid-template-columns: 1fr auto; }
   .price-distribution-card__brands { grid-column: 1; }

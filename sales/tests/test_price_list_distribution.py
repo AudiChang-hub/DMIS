@@ -129,6 +129,10 @@ class PriceListDistributionTests(TestCase):
         self.assertEqual(item.contact_phone, "02-24562660")
         self.assertContains(response, 'href="tel:02-24562660"')
         self.assertContains(response, "02-24562660")
+        self.assertContains(response, 'class="master-filters price-distribution-filters"')
+        self.assertContains(response, 'class="inventory-filter master-search"')
+        self.assertContains(response, "清除條件")
+        self.assertContains(response, "套用篩選")
 
     def test_page_auto_creates_month_and_ajax_updates_completion_and_note(self):
         self.create_dealer("九月車行", sym=True)

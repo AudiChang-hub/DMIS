@@ -95,26 +95,17 @@
       <details class="mobile-data-menu{% if is_data_maintenance_section %} active{% endif %}">
         <summary><span aria-hidden="true">⚙</span>更多</summary>
         <div class="mobile-data-popover">
-          <div class="mobile-data-popover__header"><strong>快速前往</strong><a href="{% url 'data_maintenance' %}">全部功能 →</a></div>
+          <div class="mobile-data-popover__header">
+            <div><strong>快速前往</strong><small>此帳號的常用功能</small></div>
+            <div class="mobile-data-popover__header-actions">
+              <button type="button" data-mobile-shortcuts-open>編輯</button>
+              <a href="{% url 'data_maintenance' %}">全部功能 →</a>
+            </div>
+          </div>
           <div class="mobile-data-popover__grid">
-            <a href="{% url 'customer_list' %}"><span>人</span><strong>客戶</strong></a>
-            <a href="{% url 'vehicle_brand_list' %}"><span>牌</span><strong>品牌</strong></a>
-            <a href="{% url 'vehicle_model_list' %}"><span>型</span><strong>車型／傭金</strong></a>
-            <a href="{% url 'inventory_list' %}"><span>庫</span><strong>庫存</strong></a>
-            <a href="{% url 'accessory_product_list' %}"><span>配</span><strong>配件</strong></a>
-            <a href="{% url 'sales_source_list' %}"><span>行</span><strong>合作車行</strong></a>
-            <a href="{% url 'sales_source_platform_list' %}"><span>網</span><strong>網路平台</strong></a>
-            <a href="{% url 'sales_source_staff_list' %}"><span>員</span><strong>本店人員</strong></a>
-            <a href="{% url 'sales_source_category_list' %}"><span>類</span><strong>通路分類</strong></a>
-            <a href="{% url 'price_list_distribution' %}"><span>表</span><strong>價格表分發</strong></a>
-            <a href="{% url 'installment_company_list' %}"><span>期</span><strong>分期公司</strong></a>
-            <a href="{% url 'settlement_cost_rule_list' %}"><span>本</span><strong>結算成本</strong></a>
-            <a href="{% url 'incentive_rule_list' %}"><span>獎</span><strong>獎勵補助</strong></a>
-            <a href="{% url 'dealer_volume_bonus_list' %}"><span>台</span><strong>台數獎金</strong></a>
-            <a href="{% url 'brand_registration_fee_rule_list' %}"><span>牌</span><strong>牌險規則</strong></a>
-            <a href="{% url 'business_holiday_list' %}"><span>曆</span><strong>工作日</strong></a>
-            <a href="{% url 'positioned_template_list' %}"><span>印</span><strong>列印套表</strong></a>
-            {% if user.is_superuser %}<a href="{% url 'user_management' %}"><span>員</span><strong>帳號管理</strong></a>{% endif %}
+            {% for shortcut in mobile_quick_links %}
+              <a href="{{ shortcut.url }}" data-mobile-quick-link="{{ shortcut.key }}"><span>{{ shortcut.icon }}</span><strong>{{ shortcut.label }}</strong></a>
+            {% endfor %}
           </div>
           <div class="mobile-data-popover__footer">
             <button type="button" data-theme-open><span aria-hidden="true">◐</span><strong>外觀配色</strong></button>
@@ -131,6 +122,41 @@
   {% endif %}
 
   {% if user.is_authenticated %}
+    <dialog class="theme-dialog mobile-shortcuts-dialog" data-mobile-shortcuts-dialog aria-labelledby="mobile-shortcuts-title">
+      <form method="post" action="{% url 'mobile_quick_links_update' %}">
+        {% csrf_token %}
+        <input type="hidden" name="next" value="{{ request.get_full_path }}">
+        <header class="theme-dialog__header">
+          <div>
+            <span class="eyebrow">個人快捷功能</span>
+            <h2 id="mobile-shortcuts-title">設定快速前往</h2>
+            <p>每個帳號可依自己的工作習慣設定 1–6 個功能，並決定排列順序。</p>
+          </div>
+          <button type="button" class="theme-dialog__close" data-mobile-shortcuts-close aria-label="關閉快速前往設定">×</button>
+        </header>
+        <div class="mobile-shortcuts-dialog__fields">
+          {% for slot in mobile_quick_link_slots %}
+            <label>
+              <strong>位置 {{ slot.number }}</strong>
+              <select name="shortcut" autocomplete="off">
+                <option value="">不使用此位置</option>
+                {% for option in mobile_quick_link_options %}
+                  <option value="{{ option.key }}" {% if option.key == slot.value %}selected{% endif %}>{{ option.label }}</option>
+                {% endfor %}
+              </select>
+            </label>
+          {% endfor %}
+        </div>
+        <footer class="theme-dialog__footer">
+          <small>留白的位置會自動略過，不會在手機選單留下空格。</small>
+          <div>
+            <button type="button" class="button ghost" data-mobile-shortcuts-close>取消</button>
+            <button type="submit" class="button primary">儲存設定</button>
+          </div>
+        </footer>
+      </form>
+    </dialog>
+
     <dialog class="theme-dialog" id="theme-dialog" data-theme-dialog aria-labelledby="theme-dialog-title">
       <form method="post" action="{% url 'appearance_theme_update' %}" data-theme-form>
         {% csrf_token %}

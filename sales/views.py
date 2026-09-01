@@ -145,6 +145,10 @@ from .models import (
     normalize_vehicle_identifier,
 )
 from .services.price_list_distribution import ensure_distribution_month, normalize_month
+from .services.mobile_quick_links import (
+    MAX_MOBILE_QUICK_LINKS,
+    available_mobile_quick_links,
+)
 from .themes import DEFAULT_THEME, THEME_VALUES
 from .services.vehicle_brands import (
     rename_vehicle_brand_references,
@@ -268,6 +272,40 @@ def appearance_theme_update(request):
         messages.success(request, "已恢復系統預設配色。")
     else:
         messages.success(request, "外觀配色已儲存，其他裝置登入後也會自動套用。")
+    return redirect(return_to)
+
+
+@login_required
+@require_http_methods(["POST"])
+def mobile_quick_links_update(request):
+    return_to = request.POST.get("next", "")
+    if not url_has_allowed_host_and_scheme(
+        return_to,
+        allowed_hosts={request.get_host()},
+        require_https=request.is_secure(),
+    ):
+        return_to = reverse("dashboard")
+
+    submitted = [value for value in request.POST.getlist("shortcut") if value]
+    allowed_keys = {item["key"] for item in available_mobile_quick_links(request.user)}
+    if not submitted:
+        messages.error(request, "請至少保留一個快速前往功能。")
+        return redirect(return_to)
+    if len(submitted) > MAX_MOBILE_QUICK_LINKS:
+        messages.error(request, "快速前往最多只能設定 6 個功能。")
+        return redirect(return_to)
+    if len(submitted) != len(set(submitted)):
+        messages.error(request, "同一個功能不能重複設定。")
+        return redirect(return_to)
+    if any(value not in allowed_keys for value in submitted):
+        messages.error(request, "快速前往包含無法使用的功能，請重新設定。")
+        return redirect(return_to)
+
+    UserAppearancePreference.objects.update_or_create(
+        user=request.user,
+        defaults={"mobile_quick_links": submitted},
+    )
+    messages.success(request, "手機快速前往已依這個帳號儲存。")
     return redirect(return_to)
 
 

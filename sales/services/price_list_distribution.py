@@ -52,6 +52,7 @@ def dealer_snapshot_rows():
                 "requires_sym": False,
                 "requires_suzuki": False,
                 "sym_exclusive": False,
+                "has_suzuki_gas": False,
             },
         )
         if profile.cooperation_scope == SalesSourceBrandPolicy.CooperationScope.SYM:
@@ -60,12 +61,16 @@ def dealer_snapshot_rows():
                 profile.relationship_type
                 == SalesSourceCooperationProfile.RelationshipType.EXCLUSIVE
             )
-        elif profile.cooperation_scope in {
-            SalesSourceBrandPolicy.CooperationScope.SUZUKI_GAS,
-            SalesSourceBrandPolicy.CooperationScope.SUZUKI_ELECTRIC,
-        }:
+        elif profile.cooperation_scope == SalesSourceBrandPolicy.CooperationScope.SUZUKI_GAS:
             row["requires_suzuki"] = True
-    return list(rows.values())
+            row["has_suzuki_gas"] = True
+        elif profile.cooperation_scope == SalesSourceBrandPolicy.CooperationScope.SUZUKI_ELECTRIC:
+            row["requires_suzuki"] = True
+    return [
+        {key: value for key, value in row.items() if key != "has_suzuki_gas"}
+        for row in rows.values()
+        if row["requires_sym"] or row["has_suzuki_gas"]
+    ]
 
 
 @transaction.atomic

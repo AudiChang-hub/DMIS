@@ -35,6 +35,12 @@ class ProductExperienceTests(TestCase):
         self.assertContains(response, 'id="create-order"')
         self.assertContains(response, 'id="ocr"')
         self.assertContains(response, 'id="inventory"')
+        self.assertContains(response, 'id="mobile-shortcuts"')
+        self.assertContains(response, 'id="sales-sources"')
+        self.assertContains(response, 'id="price-list-distribution"')
+        self.assertContains(response, "最後更新：2026/09/01")
+        self.assertContains(response, "每頁 25、50、75 或 100 筆")
+        self.assertContains(response, "每月最後一天會先建立隔月清單")
         self.assertContains(response, 'id="troubleshooting"')
         self.assertContains(response, "LicenseWatcher 尚未啟用")
         self.assertContains(response, 'data-print-guide')
@@ -49,6 +55,18 @@ class ProductExperienceTests(TestCase):
 
         inventory = self.client.get(reverse("inventory_list"))
         self.assertContains(inventory, f'{reverse("user_guide")}#inventory')
+
+        dealers = self.client.get(reverse("sales_source_list"))
+        self.assertContains(dealers, f'{reverse("user_guide")}#sales-sources')
+
+        platforms = self.client.get(reverse("sales_source_platform_list"))
+        self.assertContains(platforms, f'{reverse("user_guide")}#sales-sources')
+
+        distribution = self.client.get(reverse("price_list_distribution"))
+        self.assertContains(
+            distribution,
+            f'{reverse("user_guide")}#price-list-distribution',
+        )
 
     def test_data_navigation_exposes_common_maintenance_without_extra_detour(self):
         self.client.force_login(self.user)
@@ -420,19 +438,23 @@ class ProductExperienceTests(TestCase):
         self.assertIn('updateThemeMeta(root.dataset.theme || "professional")', script)
         self.assertNotIn("localStorage", script)
 
-    def test_maintenance_help_stays_on_master_data_topic(self):
+    def test_maintenance_help_opens_the_most_relevant_topic(self):
         self.client.force_login(self.user)
 
-        for route in (
-            reverse("sales_source_list"),
-            reverse("dealer_volume_bonus_list"),
-            reverse("business_holiday_list"),
-            reverse("brand_registration_fee_rule_list"),
-        ):
+        expected_topics = {
+            reverse("sales_source_list"): "sales-sources",
+            reverse("sales_source_staff_list"): "sales-sources",
+            reverse("sales_source_platform_list"): "sales-sources",
+            reverse("price_list_distribution"): "price-list-distribution",
+            reverse("dealer_volume_bonus_list"): "master-data",
+            reverse("business_holiday_list"): "master-data",
+            reverse("brand_registration_fee_rule_list"): "master-data",
+        }
+        for route, topic in expected_topics.items():
             with self.subTest(route=route):
                 response = self.client.get(route)
                 self.assertEqual(response.status_code, 200)
-                self.assertContains(response, f'{reverse("user_guide")}#master-data')
+                self.assertContains(response, f'{reverse("user_guide")}#{topic}')
 
     def test_every_maintenance_landing_page_has_a_clear_return_path(self):
         self.client.force_login(self.user)

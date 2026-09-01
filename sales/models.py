@@ -3693,6 +3693,12 @@ class UserAppearancePreference(TimeStampedModel):
         choices=THEME_CHOICES,
         default=DEFAULT_THEME,
     )
+    mobile_quick_links = models.JSONField(
+        "手機快速前往",
+        default=list,
+        blank=True,
+        help_text="依顯示順序保存每個帳號選用的手機快捷功能代碼。",
+    )
 
     class Meta:
         verbose_name = "使用者外觀偏好"

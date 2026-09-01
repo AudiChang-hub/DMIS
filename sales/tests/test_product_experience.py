@@ -80,6 +80,98 @@ class ProductExperienceTests(TestCase):
         self.assertIn("parseSameOriginUrl", navigation)
         self.assertIn("data-current-page-label", navigation)
 
+    def test_mobile_quick_links_use_a_compact_account_default(self):
+        self.client.force_login(self.user)
+
+        response = self.client.get(reverse("dashboard"))
+
+        self.assertEqual(response.status_code, 200)
+        content = response.content.decode()
+        self.assertEqual(content.count('data-mobile-quick-link="'), 6)
+        self.assertLess(
+            content.index('data-mobile-quick-link="price-list-distribution"'),
+            content.index('data-mobile-quick-link="sales-sources"'),
+        )
+        self.assertContains(response, "此帳號的常用功能")
+        self.assertContains(response, "設定快速前往")
+        self.assertContains(response, 'data-mobile-shortcuts-open')
+
+    def test_mobile_quick_links_are_saved_per_account_in_selected_order(self):
+        other_user = get_user_model().objects.create_user(
+            username="other-guide-user",
+            password="test-pass-123",
+        )
+        self.client.force_login(self.user)
+        target = reverse("sales_source_list")
+
+        response = self.client.post(
+            reverse("mobile_quick_links_update"),
+            {
+                "shortcut": ["inventory", "price-list-distribution", "customers"],
+                "next": target,
+            },
+        )
+
+        self.assertRedirects(response, target)
+        preference = UserAppearancePreference.objects.get(user=self.user)
+        self.assertEqual(
+            preference.mobile_quick_links,
+            ["inventory", "price-list-distribution", "customers"],
+        )
+        response = self.client.get(reverse("dashboard"))
+        content = response.content.decode()
+        self.assertEqual(content.count('data-mobile-quick-link="'), 3)
+        self.assertLess(
+            content.index('data-mobile-quick-link="inventory"'),
+            content.index('data-mobile-quick-link="price-list-distribution"'),
+        )
+
+        self.client.force_login(other_user)
+        response = self.client.get(reverse("dashboard"))
+        self.assertEqual(response.content.decode().count('data-mobile-quick-link="'), 6)
+        self.assertFalse(
+            UserAppearancePreference.objects.filter(user=other_user).exists()
+        )
+
+    def test_mobile_quick_links_reject_duplicates_empty_and_unauthorized_values(self):
+        self.client.force_login(self.user)
+        endpoint = reverse("mobile_quick_links_update")
+
+        for values in (
+            ["inventory", "inventory"],
+            [""],
+            ["user-management"],
+            ["unknown-feature"],
+        ):
+            with self.subTest(values=values):
+                response = self.client.post(
+                    endpoint,
+                    {"shortcut": values, "next": "https://example.org/steal"},
+                )
+                self.assertRedirects(response, reverse("dashboard"))
+
+        self.assertFalse(
+            UserAppearancePreference.objects.filter(user=self.user).exists()
+        )
+
+    def test_superuser_can_add_account_management_to_mobile_quick_links(self):
+        admin = get_user_model().objects.create_superuser(
+            username="shortcut-admin",
+            password="test-pass-123",
+            email="admin@example.com",
+        )
+        self.client.force_login(admin)
+
+        response = self.client.post(
+            reverse("mobile_quick_links_update"),
+            {"shortcut": ["user-management"], "next": reverse("dashboard")},
+        )
+
+        self.assertRedirects(response, reverse("dashboard"))
+        response = self.client.get(reverse("dashboard"))
+        self.assertContains(response, 'data-mobile-quick-link="user-management"')
+        self.assertContains(response, ">帳號管理</strong>")
+
     def test_disclosure_controls_use_consistent_font_independent_chevrons(self):
         self.client.force_login(self.user)
 

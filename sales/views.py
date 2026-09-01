@@ -111,6 +111,8 @@ from .models import (
     OrderEvent,
     OrderOperationsProfile,
     PaymentRecord,
+    PriceListDistributionItem,
+    PriceListDistributionMonth,
     PositionedPrintTemplate,
     OrderChange,
     OrderDraft,
@@ -142,6 +144,7 @@ from .models import (
     normalize_vehicle_model_master_value,
     normalize_vehicle_identifier,
 )
+from .services.price_list_distribution import ensure_distribution_month, normalize_month
 from .themes import DEFAULT_THEME, THEME_VALUES
 from .services.vehicle_brands import (
     rename_vehicle_brand_references,
@@ -482,6 +485,7 @@ def data_maintenance(request):
             source_type=SalesSource.SourceType.STORE
         ).count(),
         "sales_source_category_count": SalesSourceCategory.objects.count(),
+        "price_list_distribution_count": PriceListDistributionMonth.objects.count(),
         "installment_company_count": InstallmentCompany.objects.count(),
         "settlement_cost_rule_count": VehicleSettlementCostRule.objects.count(),
         "incentive_rule_count": VehicleIncentiveRule.objects.count(),
@@ -496,6 +500,122 @@ def data_maintenance(request):
         "sales/data_maintenance.html",
         context,
     )
+
+
+@login_required
+def price_list_distribution(request):
+    requested_month = request.GET.get("month", "").strip()
+    try:
+        month = normalize_month(requested_month) if requested_month else timezone.localdate().replace(day=1)
+    except (TypeError, ValueError):
+        month = timezone.localdate().replace(day=1)
+    distribution, _ = ensure_distribution_month(month, generated_by="開啟頁面自動補建")
+
+    items = distribution.items.all()
+    query = request.GET.get("q", "").strip()
+    status = request.GET.get("status", "all")
+    city = request.GET.get("city", "").strip()
+    district = request.GET.get("district", "").strip()
+    if query:
+        items = items.filter(
+            Q(dealer_name__icontains=query)
+            | Q(dealer_code__icontains=query)
+            | Q(address__icontains=query)
+            | Q(note__icontains=query)
+        )
+    if status == "completed":
+        items = items.filter(completed=True)
+    elif status == "pending":
+        items = items.filter(completed=False)
+    if city:
+        items = items.filter(city=city)
+    if district:
+        items = items.filter(district=district)
+
+    all_items = distribution.items.all()
+    total_count = all_items.count()
+    completed_count = all_items.filter(completed=True).count()
+    month_options = list(PriceListDistributionMonth.objects.order_by("-month"))
+    cities = list(
+        all_items.exclude(city="").values_list("city", flat=True).distinct().order_by("city")
+    )
+    districts = list(
+        all_items.filter(city=city).exclude(district="").values_list("district", flat=True).distinct().order_by("district")
+    ) if city else []
+    return render(
+        request,
+        "sales/price_list_distribution.html",
+        {
+            "distribution": distribution,
+            "items": items,
+            "month_options": month_options,
+            "query": query,
+            "status": status,
+            "selected_city": city,
+            "selected_district": district,
+            "cities": cities,
+            "districts": districts,
+            "total_count": total_count,
+            "completed_count": completed_count,
+            "pending_count": total_count - completed_count,
+            "progress_percent": round(completed_count * 100 / total_count) if total_count else 0,
+            "can_sync": distribution.month >= timezone.localdate().replace(day=1),
+        },
+    )
+
+
+@login_required
+@require_http_methods(["POST"])
+@transaction.atomic
+def price_list_distribution_item_update(request, pk):
+    item = get_object_or_404(
+        PriceListDistributionItem.objects.select_for_update().select_related("distribution"),
+        pk=pk,
+    )
+    changed_fields = ["updated_at"]
+    if "completed" in request.POST:
+        completed = request.POST.get("completed") == "1"
+        item.completed = completed
+        item.completed_at = timezone.now() if completed else None
+        item.completed_by = request.user.get_username() if completed else ""
+        changed_fields.extend(["completed", "completed_at", "completed_by"])
+    if "note" in request.POST:
+        item.note = request.POST.get("note", "").strip()
+        changed_fields.append("note")
+    item.save(update_fields=changed_fields)
+    total = item.distribution.items.count()
+    completed_count = item.distribution.items.filter(completed=True).count()
+    payload = {
+        "ok": True,
+        "completed": item.completed,
+        "note": item.note,
+        "completed_at": item.completed_at.isoformat() if item.completed_at else None,
+        "completed_by": item.completed_by,
+        "total_count": total,
+        "completed_count": completed_count,
+        "pending_count": total - completed_count,
+        "progress_percent": round(completed_count * 100 / total) if total else 0,
+    }
+    if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+        return JsonResponse(payload)
+    return redirect(f"{reverse('price_list_distribution')}?month={item.distribution.month:%Y-%m}")
+
+
+@login_required
+@require_http_methods(["POST"])
+def price_list_distribution_sync(request, pk):
+    distribution = get_object_or_404(PriceListDistributionMonth, pk=pk)
+    current_month = timezone.localdate().replace(day=1)
+    if distribution.month < current_month:
+        messages.error(request, "歷史月份已保存，不能重新同步名單。")
+    else:
+        ensure_distribution_month(
+            distribution.month,
+            generated_by=request.user.get_username(),
+            sync=True,
+        )
+        messages.success(request, f"已重新同步 {distribution.month:%Y 年 %m 月}分發名單。")
+    return redirect(f"{reverse('price_list_distribution')}?month={distribution.month:%Y-%m}")
 
 
 @superuser_required

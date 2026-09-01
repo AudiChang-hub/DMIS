@@ -1,0 +1,12 @@
+[Unit]
+Description=DMIS Next monthly dealer price list distribution generation
+After=docker.service network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=/home/audi/project/DMIS-next
+ExecStart=/usr/bin/flock -n /tmp/dmis-next-price-list-distribution.lock /usr/bin/docker compose -f docker-compose.django.yml -f docker-compose.django.prod.yml exec -T web python manage.py generate_price_list_distribution
+TimeoutStartSec=120
+Nice=10
+IOSchedulingClass=idle

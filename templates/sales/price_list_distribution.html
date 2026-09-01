@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}每月價格表分發｜車輛銷售管理{% endblock %}
+{% block page_class %}page-shell--wide{% endblock %}
+{% block content %}
+{% url 'data_maintenance' as data_url %}
+{% include "sales/_page_back.html" with fallback_url=data_url label="返回資料維護區" %}
+
+<section class="hero-row compact-hero price-distribution-hero">
+  <div>
+    <p class="eyebrow">每月車行跑訪清單</p>
+    <h1>{{ distribution.month|date:"Y 年 n 月" }}價格表分發</h1>
+    <p class="muted">整間車行完成一次即可；品牌與三陽專銷依清單建立當下保存。</p>
+  </div>
+  {% if can_sync %}
+  <form method="post" action="{% url 'price_list_distribution_sync' distribution.pk %}">
+    {% csrf_token %}<button class="button ghost" type="submit">重新同步本月名單</button>
+  </form>
+  {% endif %}
+</section>
+
+<section class="price-distribution-progress" aria-label="本月完成進度">
+  <div><strong data-progress-count>{{ completed_count }}／{{ total_count }} 家</strong><span data-progress-label>尚有 {{ pending_count }} 家未完成</span></div>
+  <div class="price-distribution-progress__bar"><span data-progress-bar style="width: {{ progress_percent }}%"></span></div>
+  <b data-progress-percent>{{ progress_percent }}%</b>
+</section>
+
+<form class="filter-card price-distribution-filters" method="get">
+  <div class="field"><label for="distribution-month">月份</label><select id="distribution-month" name="month" onchange="this.form.submit()">
+    {% for option in month_options %}<option value="{{ option.month|date:'Y-m' }}" {% if option.pk == distribution.pk %}selected{% endif %}>{{ option.month|date:"Y 年 n 月" }}</option>{% endfor %}
+  </select></div>
+  <div class="field"><label for="distribution-search">搜尋</label><input id="distribution-search" name="q" value="{{ query }}" placeholder="車行、代碼、地址或備註"></div>
+  <div class="field"><label for="distribution-status">進度</label><select id="distribution-status" name="status">
+    <option value="all" {% if status == 'all' %}selected{% endif %}>全部狀態</option>
+    <option value="pending" {% if status == 'pending' %}selected{% endif %}>尚未完成</option>
+    <option value="completed" {% if status == 'completed' %}selected{% endif %}>已完成</option>
+  </select></div>
+  <div class="field"><label for="distribution-city">縣市</label><select id="distribution-city" name="city" onchange="this.form.submit()">
+    <option value="">全部縣市</option>{% for option in cities %}<option value="{{ option }}" {% if option == selected_city %}selected{% endif %}>{{ option }}</option>{% endfor %}
+  </select></div>
+  <div class="field"><label for="distribution-district">行政區</label><select id="distribution-district" name="district">
+    <option value="">全部行政區</option>{% for option in districts %}<option value="{{ option }}" {% if option == selected_district %}selected{% endif %}>{{ option }}</option>{% endfor %}
+  </select></div>
+  <button class="button primary" type="submit">套用</button>
+</form>
+
+<section class="price-distribution-list" aria-label="價格表分發車行">
+  {% for item in items %}
+  <article class="price-distribution-card{% if item.completed %} is-completed{% endif %}" data-distribution-item="{{ item.pk }}">
+    <div class="price-distribution-card__main">
+      <div class="price-distribution-card__identity">
+        {% if item.dealer_code %}<small>{{ item.dealer_code }}</small>{% endif %}
+        <h2>{{ item.dealer_name }}</h2>
+        <p>{% if item.city or item.district %}{{ item.city }}{{ item.district }}{% endif %}{% if item.address %} · {{ item.address }}{% endif %}</p>
+      </div>
+      <div class="price-distribution-card__brands" aria-label="應提供價格表">
+        {% if item.requires_sym %}<span class="price-brand price-brand--sym">三陽{% if item.sym_exclusive %}專銷{% endif %}</span>{% endif %}
+        {% if item.requires_suzuki %}<span class="price-brand price-brand--suzuki">台鈴</span>{% endif %}
+      </div>
+      <form class="price-distribution-complete" method="post" action="{% url 'price_list_distribution_item_update' item.pk %}" data-distribution-complete>
+        {% csrf_token %}<input type="hidden" name="completed" value="{% if item.completed %}0{% else %}1{% endif %}">
+        <button type="submit" role="switch" aria-checked="{% if item.completed %}true{% else %}false{% endif %}" class="price-distribution-check{% if item.completed %} is-completed{% endif %}">
+          <span aria-hidden="true">✓</span><strong>{% if item.completed %}已完成{% else %}標記完成{% endif %}</strong>
+        </button>
+      </form>
+    </div>
+    <form class="price-distribution-note" method="post" action="{% url 'price_list_distribution_item_update' item.pk %}" data-distribution-note>
+      {% csrf_token %}<label for="distribution-note-{{ item.pk }}">當月備註</label>
+      <textarea id="distribution-note-{{ item.pk }}" name="note" rows="2" placeholder="記錄本月車行狀況">{{ item.note }}</textarea>
+      <small data-note-status>{% if item.note %}已儲存備註{% else %}尚無備註{% endif %}</small>
+    </form>
+  </article>
+  {% empty %}
+  <div class="empty-state"><strong>目前沒有符合條件的車行</strong><p>可清除篩選條件，或先確認車行合作資料。</p></div>
+  {% endfor %}
+</section>
+{% endblock %}
+{% block scripts %}<script src="{% static 'js/price-list-distribution.js' %}?v={{ app_version }}" defer></script>{% endblock %}

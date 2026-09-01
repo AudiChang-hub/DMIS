@@ -59,6 +59,11 @@
     <div><h2>通路分類</h2><p>維護合作車行、網路平台與本店人員使用的系統分類。</p><strong>{{ sales_source_category_count }} 個分類</strong></div>
     <span aria-hidden="true">›</span>
   </a>
+  <a class="maintenance-card" href="{% url 'price_list_distribution' %}">
+    <span class="maintenance-card__icon">表</span>
+    <div><h2>每月價格表分發</h2><p>依合作品牌產生每月車行名單，手機勾選完成進度並保存備註。</p><strong>{{ price_list_distribution_count }} 個月份</strong></div>
+    <span aria-hidden="true">›</span>
+  </a>
   </div>
 </section>
 

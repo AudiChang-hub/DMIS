@@ -981,6 +981,69 @@ class SalesSourceCooperationProfile(TimeStampedModel):
         return f"{self.source}／{self.get_cooperation_scope_display()}"
 
 
+class PriceListDistributionMonth(TimeStampedModel):
+    month = models.DateField("分發月份", unique=True, help_text="固定儲存該月 1 日。")
+    generated_by = models.CharField("建立方式", max_length=80, blank=True)
+
+    class Meta:
+        ordering = ["-month"]
+        verbose_name = "每月價格表分發清單"
+        verbose_name_plural = "每月價格表分發清單"
+
+    def __str__(self):
+        return f"{self.month:%Y 年 %m 月}價格表分發"
+
+
+class PriceListDistributionItem(TimeStampedModel):
+    distribution = models.ForeignKey(
+        PriceListDistributionMonth,
+        on_delete=models.CASCADE,
+        related_name="items",
+        verbose_name="分發月份",
+    )
+    dealer = models.ForeignKey(
+        SalesSource,
+        on_delete=models.SET_NULL,
+        related_name="price_list_distribution_items",
+        verbose_name="合作車行",
+        blank=True,
+        null=True,
+    )
+    dealer_code = models.CharField("車行代碼快照", max_length=40, blank=True)
+    dealer_name = models.CharField("車行名稱快照", max_length=120)
+    city = models.CharField("縣市快照", max_length=20, blank=True)
+    district = models.CharField("行政區快照", max_length=20, blank=True)
+    address = models.CharField("地址快照", max_length=250, blank=True)
+    requires_sym = models.BooleanField("提供三陽價格表", default=False)
+    requires_suzuki = models.BooleanField("提供台鈴價格表", default=False)
+    sym_exclusive = models.BooleanField("三陽專銷", default=False)
+    completed = models.BooleanField("已完成", default=False)
+    completed_at = models.DateTimeField("完成時間", blank=True, null=True)
+    completed_by = models.CharField("完成人員", max_length=150, blank=True)
+    note = models.TextField("當月備註", blank=True)
+
+    class Meta:
+        ordering = ["city", "district", "dealer_name", "id"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["distribution", "dealer"],
+                condition=Q(dealer__isnull=False),
+                name="unique_price_list_month_dealer",
+            )
+        ]
+        indexes = [
+            models.Index(
+                fields=["distribution", "completed", "city", "district"],
+                name="price_dist_month_status_idx",
+            )
+        ]
+        verbose_name = "每月價格表分發明細"
+        verbose_name_plural = "每月價格表分發明細"
+
+    def __str__(self):
+        return f"{self.distribution.month:%Y/%m}／{self.dealer_name}"
+
+
 class DealerVolumeBonusRule(TimeStampedModel):
     dealer = models.ForeignKey(
         SalesSource,

@@ -391,6 +391,10 @@ input::placeholder, textarea::placeholder { color: var(--muted); opacity: .86; }
 .price-distribution-card__identity small { color: var(--forest); font-weight: 800; }
 .price-distribution-card__identity h2 { margin: 3px 0; font-size: 1.12rem; }
 .price-distribution-card__identity p { margin: 0; color: var(--muted); font-size: .86rem; }
+.price-distribution-phone { display: inline-flex; align-items: baseline; gap: 7px; min-height: 36px; margin-top: 8px; padding: 7px 10px; color: var(--forest); text-decoration: none; background: #edf7f3; border: 1px solid #a9d1c4; border-radius: 9px; }
+.price-distribution-phone span { color: var(--muted); font-size: .78rem; font-weight: 800; }
+.price-distribution-phone strong { font-size: 1rem; letter-spacing: .025em; }
+.price-distribution-phone:hover { background: #dff1ea; border-color: #78b5a4; }
 .price-distribution-card__brands { display: flex; flex-wrap: wrap; gap: 7px; }
 .price-brand { padding: 6px 10px; font-size: .83rem; font-weight: 850; border: 1px solid; border-radius: 999px; }
 .price-brand--sym { color: #8b3029; background: #f9ded9; border-color: #e5aba4; }

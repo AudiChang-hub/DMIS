@@ -1014,6 +1014,7 @@ class PriceListDistributionItem(TimeStampedModel):
     city = models.CharField("縣市快照", max_length=20, blank=True)
     district = models.CharField("行政區快照", max_length=20, blank=True)
     address = models.CharField("地址快照", max_length=250, blank=True)
+    contact_phone = models.CharField("聯絡電話快照", max_length=50, blank=True)
     requires_sym = models.BooleanField("提供三陽價格表", default=False)
     requires_suzuki = models.BooleanField("提供台鈴價格表", default=False)
     sym_exclusive = models.BooleanField("三陽專銷", default=False)

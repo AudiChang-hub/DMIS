@@ -11,6 +11,7 @@ from sales.models import (
     SalesSourceBrandPolicy,
     SalesSourceCooperationProfile,
 )
+from sales.services.phone_numbers import format_taiwan_phone
 
 
 def normalize_month(value):
@@ -49,6 +50,10 @@ def dealer_snapshot_rows():
                 "city": source.city,
                 "district": source.district,
                 "address": source.address,
+                "contact_phone": format_taiwan_phone(
+                    source.phone or source.phone_secondary or source.mobile,
+                    source.city,
+                ),
                 "requires_sym": False,
                 "requires_suzuki": False,
                 "sym_exclusive": False,

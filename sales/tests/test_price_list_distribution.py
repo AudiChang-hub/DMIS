@@ -33,6 +33,9 @@ class PriceListDistributionTests(TestCase):
         active=True,
         city="新北市",
         district="汐止區",
+        phone="",
+        phone_secondary="",
+        mobile="",
     ):
         dealer = SalesSource.objects.create(
             source_type=SalesSource.SourceType.DEALER,
@@ -41,6 +44,9 @@ class PriceListDistributionTests(TestCase):
             city=city,
             district=district,
             address=f"{city}{district}測試路1號",
+            phone=phone,
+            phone_secondary=phone_secondary,
+            mobile=mobile,
             active=active,
         )
         if sym:
@@ -103,6 +109,26 @@ class PriceListDistributionTests(TestCase):
         included = distribution.items.get(dealer=sym_and_electric)
         self.assertTrue(included.requires_sym)
         self.assertTrue(included.requires_suzuki)
+
+    def test_phone_snapshot_adds_area_code_and_renders_click_to_call_link(self):
+        dealer = self.create_dealer(
+            "可撥號車行",
+            sym=True,
+            city="基隆市",
+            district="七堵區",
+            phone="24562660",
+        )
+
+        distribution, _ = ensure_distribution_month(date(2026, 9, 1))
+        item = distribution.items.get(dealer=dealer)
+        response = self.client.get(
+            reverse("price_list_distribution"),
+            {"month": "2026-09"},
+        )
+
+        self.assertEqual(item.contact_phone, "02-24562660")
+        self.assertContains(response, 'href="tel:02-24562660"')
+        self.assertContains(response, "02-24562660")
 
     def test_page_auto_creates_month_and_ajax_updates_completion_and_note(self):
         self.create_dealer("九月車行", sym=True)

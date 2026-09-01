@@ -22,13 +22,24 @@ class PriceListDistributionTests(TestCase):
         )
         self.client.force_login(self.user)
 
-    def create_dealer(self, name, *, sym=False, suzuki=False, exclusive=False, active=True):
+    def create_dealer(
+        self,
+        name,
+        *,
+        sym=False,
+        suzuki=False,
+        exclusive=False,
+        active=True,
+        city="新北市",
+        district="汐止區",
+    ):
         dealer = SalesSource.objects.create(
             source_type=SalesSource.SourceType.DEALER,
             name=name,
             code=f"CODE-{name}",
-            city="新北市",
-            district="汐止區",
+            city=city,
+            district=district,
+            address=f"{city}{district}測試路1號",
             active=active,
         )
         if sym:
@@ -108,3 +119,34 @@ class PriceListDistributionTests(TestCase):
 
         self.assertTrue(PriceListDistributionMonth.objects.filter(month=date(2026, 9, 1)).exists())
         self.assertTrue(PriceListDistributionMonth.objects.filter(month=date(2026, 10, 1)).exists())
+
+    def test_keelung_dealers_and_filter_follow_requested_district_order(self):
+        requested_order = (
+            "七堵區",
+            "暖暖區",
+            "仁愛區",
+            "信義區",
+            "中正區",
+            "中山區",
+            "安樂區",
+        )
+        for district in reversed(requested_order):
+            self.create_dealer(
+                f"{district}車行",
+                sym=True,
+                city="基隆市",
+                district=district,
+            )
+
+        response = self.client.get(
+            reverse("price_list_distribution"),
+            {"month": "2026-09", "city": "基隆市"},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["districts"], list(requested_order))
+        dealer_names = [item.dealer_name for item in response.context["items"]]
+        self.assertEqual(
+            dealer_names,
+            [f"{district}車行" for district in requested_order],
+        )

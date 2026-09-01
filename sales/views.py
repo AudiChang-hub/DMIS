@@ -504,6 +504,8 @@ def data_maintenance(request):
 
 @login_required
 def price_list_distribution(request):
+    from sales.services.taiwan_address import district_choices
+
     requested_month = request.GET.get("month", "").strip()
     try:
         month = normalize_month(requested_month) if requested_month else timezone.localdate().replace(day=1)
@@ -532,6 +534,20 @@ def price_list_distribution(request):
     if district:
         items = items.filter(district=district)
 
+    city_order = {value: index for index, (value, _) in enumerate(TaiwanCounty.choices)}
+    items = sorted(
+        items,
+        key=lambda item: (
+            city_order.get(item.city, len(city_order)),
+            {
+                value: index
+                for index, value in enumerate(district_choices(item.city))
+            }.get(item.district, len(district_choices(item.city))),
+            item.dealer_name,
+            item.pk,
+        ),
+    )
+
     all_items = distribution.items.all()
     total_count = all_items.count()
     completed_count = all_items.filter(completed=True).count()
@@ -542,6 +558,15 @@ def price_list_distribution(request):
     districts = list(
         all_items.filter(city=city).exclude(district="").values_list("district", flat=True).distinct().order_by("district")
     ) if city else []
+    if city:
+        official_district_order = {
+            value: index for index, value in enumerate(district_choices(city))
+        }
+        districts.sort(
+            key=lambda value: official_district_order.get(
+                value, len(official_district_order)
+            )
+        )
     return render(
         request,
         "sales/price_list_distribution.html",
@@ -1157,6 +1182,16 @@ def sales_source_list(request):
                 "label": row["district"] or "行政區待補",
                 "count": row["total"],
             }
+        )
+    for district_city, options in district_filters_by_city.items():
+        official_district_order = {
+            value: index
+            for index, value in enumerate(district_choices(district_city))
+        }
+        options.sort(
+            key=lambda option: official_district_order.get(
+                option["value"], len(official_district_order)
+            )
         )
     if city == "__unassigned__":
         sources = sources.filter(

@@ -25,23 +25,23 @@
   <b data-progress-percent>{{ progress_percent }}%</b>
 </section>
 
-<form class="filter-card price-distribution-filters" method="get">
-  <div class="field"><label for="distribution-month">月份</label><select id="distribution-month" name="month" onchange="this.form.submit()">
+<form class="master-filters price-distribution-filters" method="get">
+  <div class="inventory-filter"><label for="distribution-month">月份</label><select id="distribution-month" name="month" onchange="this.form.submit()">
     {% for option in month_options %}<option value="{{ option.month|date:'Y-m' }}" {% if option.pk == distribution.pk %}selected{% endif %}>{{ option.month|date:"Y 年 n 月" }}</option>{% endfor %}
   </select></div>
-  <div class="field"><label for="distribution-search">搜尋</label><input id="distribution-search" name="q" value="{{ query }}" placeholder="車行、代碼、地址或備註"></div>
-  <div class="field"><label for="distribution-status">進度</label><select id="distribution-status" name="status">
+  <div class="inventory-filter master-search"><label for="distribution-search">搜尋車行</label><input id="distribution-search" type="search" name="q" value="{{ query }}" placeholder="輸入車行名稱、代碼、地址或備註"></div>
+  <div class="inventory-filter"><label for="distribution-status">完成進度</label><select id="distribution-status" name="status">
     <option value="all" {% if status == 'all' %}selected{% endif %}>全部狀態</option>
     <option value="pending" {% if status == 'pending' %}selected{% endif %}>尚未完成</option>
     <option value="completed" {% if status == 'completed' %}selected{% endif %}>已完成</option>
   </select></div>
-  <div class="field"><label for="distribution-city">縣市</label><select id="distribution-city" name="city" onchange="this.form.submit()">
+  <div class="inventory-filter"><label for="distribution-city">縣市</label><select id="distribution-city" name="city" onchange="this.form.submit()">
     <option value="">全部縣市</option>{% for option in cities %}<option value="{{ option }}" {% if option == selected_city %}selected{% endif %}>{{ option }}</option>{% endfor %}
   </select></div>
-  <div class="field"><label for="distribution-district">行政區</label><select id="distribution-district" name="district">
+  <div class="inventory-filter"><label for="distribution-district">行政區</label><select id="distribution-district" name="district" {% if not selected_city %}disabled{% endif %}>
     <option value="">全部行政區</option>{% for option in districts %}<option value="{{ option }}" {% if option == selected_district %}selected{% endif %}>{{ option }}</option>{% endfor %}
   </select></div>
-  <button class="button primary" type="submit">套用</button>
+  <div class="inventory-filter-actions"><a class="button ghost" href="{% url 'price_list_distribution' %}?month={{ distribution.month|date:'Y-m' }}">清除條件</a><button class="button primary" type="submit">套用篩選</button></div>
 </form>
 
 <section class="price-distribution-list" aria-label="價格表分發車行">

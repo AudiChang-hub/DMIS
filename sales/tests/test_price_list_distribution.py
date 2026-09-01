@@ -28,6 +28,7 @@ class PriceListDistributionTests(TestCase):
         *,
         sym=False,
         suzuki=False,
+        suzuki_electric_only=False,
         exclusive=False,
         active=True,
         city="新北市",
@@ -59,6 +60,7 @@ class PriceListDistributionTests(TestCase):
                 cooperation_scope=SalesSourceBrandPolicy.CooperationScope.SUZUKI_GAS,
                 cooperates=True,
             )
+        if suzuki or suzuki_electric_only:
             SalesSourceCooperationProfile.objects.create(
                 source=dealer,
                 cooperation_scope=SalesSourceBrandPolicy.CooperationScope.SUZUKI_ELECTRIC,
@@ -83,6 +85,24 @@ class PriceListDistributionTests(TestCase):
         dealer.save(update_fields=["name", "updated_at"])
         item.refresh_from_db()
         self.assertEqual(item.dealer_name, "專銷雙品牌")
+
+    def test_month_snapshot_excludes_suzuki_electric_only_dealers(self):
+        electric_only = self.create_dealer(
+            "只有台鈴電車",
+            suzuki_electric_only=True,
+        )
+        sym_and_electric = self.create_dealer(
+            "三陽加台鈴電車",
+            sym=True,
+            suzuki_electric_only=True,
+        )
+
+        distribution, _ = ensure_distribution_month(date(2026, 9, 1))
+
+        self.assertFalse(distribution.items.filter(dealer=electric_only).exists())
+        included = distribution.items.get(dealer=sym_and_electric)
+        self.assertTrue(included.requires_sym)
+        self.assertTrue(included.requires_suzuki)
 
     def test_page_auto_creates_month_and_ajax_updates_completion_and_note(self):
         self.create_dealer("九月車行", sym=True)

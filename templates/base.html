@@ -97,16 +97,14 @@
         <div class="mobile-data-popover">
           <div class="mobile-data-popover__header">
             <div><strong>快速前往</strong><small>此帳號的常用功能</small></div>
-            <div class="mobile-data-popover__header-actions">
-              <button type="button" data-mobile-shortcuts-open>編輯</button>
-              <a href="{% url 'data_maintenance' %}">全部功能 →</a>
-            </div>
+            <button type="button" class="mobile-data-popover__customize" data-mobile-shortcuts-open>自訂捷徑</button>
           </div>
           <div class="mobile-data-popover__grid">
             {% for shortcut in mobile_quick_links %}
               <a href="{{ shortcut.url }}" data-mobile-quick-link="{{ shortcut.key }}"><span>{{ shortcut.icon }}</span><strong>{{ shortcut.label }}</strong></a>
             {% endfor %}
           </div>
+          <a class="mobile-data-popover__all" href="{% url 'data_maintenance' %}">查看全部功能 →</a>
           <div class="mobile-data-popover__footer">
             <button type="button" data-theme-open><span aria-hidden="true">◐</span><strong>外觀配色</strong></button>
             <a href="{% url 'password_change_required' %}"><span aria-hidden="true">鎖</span><strong>變更密碼</strong></a>

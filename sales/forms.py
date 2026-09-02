@@ -759,6 +759,7 @@ class SalesSourceCategoryForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.fields["name"].label = "類別名稱"
         for field in self.fields.values():
             field.widget.attrs.setdefault("class", "form-control")
         apply_mobile_keyboard_attrs(self)
@@ -771,7 +772,7 @@ class SalesSourceCategoryForm(forms.ModelForm):
             and self.instance.sources.exists()
         ):
             raise forms.ValidationError(
-                "此分類已有通路使用，不能改變系統處理方式；請另建新分類後再調整通路。"
+                "此類別已有通路使用，不能改變系統處理方式；請另建新類別後再調整通路。"
             )
         return behavior
 
@@ -2058,19 +2059,19 @@ class LegacyVehicleModelQuickCreateForm(forms.ModelForm):
 
 class LegacySalesSourceQuickCreateForm(forms.ModelForm):
     source_category = forms.ModelChoiceField(
-        label="通路分類",
+        label="通路類別",
         queryset=SalesSourceCategory.objects.none(),
         required=False,
         help_text="例如：合作車行、網路平台、本店員工。",
     )
     new_category_name = forms.CharField(
-        label="新分類名稱",
+        label="新類別名稱",
         required=False,
         max_length=80,
-        help_text="現有分類不適用時才填寫，例如：本店員工。",
+        help_text="現有類別不適用時才填寫，例如：本店員工。",
     )
     new_category_behavior = forms.ChoiceField(
-        label="新分類的系統處理方式",
+        label="新類別的系統處理方式",
         required=False,
         choices=SalesSourceCategory.SystemBehavior.choices,
         help_text="本店來源不套車行傭金；合作車行與網路平台會進入各自對帳流程。",
@@ -2099,9 +2100,9 @@ class LegacySalesSourceQuickCreateForm(forms.ModelForm):
         new_name = (cleaned.get("new_category_name") or "").strip()
         behavior = cleaned.get("new_category_behavior")
         if not selected and not new_name:
-            self.add_error("source_category", "請選擇既有分類，或建立一個新分類。")
+            self.add_error("source_category", "請選擇既有類別，或建立一個新類別。")
         if new_name and not behavior:
-            self.add_error("new_category_behavior", "建立新分類時請選擇系統處理方式。")
+            self.add_error("new_category_behavior", "建立新類別時請選擇系統處理方式。")
         existing = SalesSourceCategory.objects.filter(name__iexact=new_name).first()
         if existing and behavior and existing.system_behavior != behavior:
             self.add_error(
@@ -2791,7 +2792,7 @@ class BaseQuickInventoryEntryFormSet(BaseFormSet):
         }
         for form, identifier in active_forms:
             if identifier in existing_identifiers:
-                form.add_error("identifier", "此號碼已存在於庫存資料。")
+                form.add_error("identifier", "此號碼已存在於車輛庫存。")
 
 
 QuickInventoryEntryFormSet = formset_factory(

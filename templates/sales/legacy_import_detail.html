@@ -3,7 +3,7 @@
 {% block title %}匯入檢查｜車輛銷售管理{% endblock %}
 {% block page_class %}page-shell--wide{% endblock %}
 {% block content %}
-{% url 'legacy_import_list' as list_url %}{% url 'data_maintenance' as data_url %}{% include "sales/_page_back.html" with fallback_url=list_url label="歷史匯入" root_url=data_url root_label="資料維護區" %}
+{% url 'legacy_import_list' as list_url %}{% url 'data_maintenance' as data_url %}{% include "sales/_page_back.html" with fallback_url=list_url label="舊資料 Excel 匯入" root_url=data_url root_label="資料維護區" %}
 
 <section class="hero-row compact-hero import-detail-hero">
   <div>
@@ -197,7 +197,7 @@
         {% include "sales/_field.html" with field=sales_source_quick_form.address %}
       </div>
       <details class="import-inline-category-create">
-        <summary>＋ 現有分類不適用，建立新分類</summary>
+        <summary>＋ 現有類別不適用，建立新類別</summary>
         <div class="import-master-form-grid">
           {% include "sales/_field.html" with field=sales_source_quick_form.new_category_name %}
           {% include "sales/_field.html" with field=sales_source_quick_form.new_category_behavior %}

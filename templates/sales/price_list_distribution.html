@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% load static %}
-{% block title %}每月價格表分發｜車輛銷售管理{% endblock %}
+{% block title %}價格表分發｜車輛銷售管理{% endblock %}
 {% block page_class %}page-shell--wide{% endblock %}
 {% block content %}
 {% url 'data_maintenance' as data_url %}
@@ -8,8 +8,8 @@
 
 <section class="hero-row compact-hero price-distribution-hero">
   <div>
-    <p class="eyebrow">每月車行跑訪清單</p>
-    <h1>{{ distribution.month|date:"Y 年 n 月" }}價格表分發</h1>
+    <p class="eyebrow">{{ distribution.month|date:"Y 年 n 月" }} · 車行跑訪清單</p>
+    <h1>價格表分發</h1>
     <p class="muted">整間車行完成一次即可；品牌與三陽專銷依清單建立當下保存。</p>
   </div>
   <div class="hero-actions">

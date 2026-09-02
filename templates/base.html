@@ -26,29 +26,29 @@
             <div class="data-menu-popover" aria-label="資料維護選單">
               <section class="data-menu-group" aria-labelledby="data-menu-daily">
                 <h2 id="data-menu-daily">日常資料</h2>
-                <a href="{% url 'vehicle_brand_list' %}"><strong>品牌資料</strong><small>共用品牌名稱與別名</small></a>
-                <a href="{% url 'vehicle_model_list' %}"><strong>車型、售價與基礎傭金</strong><small>品牌、年份、價格與車行基礎傭金</small></a>
-                <a href="{% url 'inventory_list' %}"><strong>庫存資料</strong><small>進車、車況與調車歷程</small></a>
-                <a href="{% url 'accessory_product_list' %}"><strong>配件資料</strong><small>售價、工資與參考成本</small></a>
-                <a href="{% url 'customer_list' %}"><strong>客戶資料</strong><small>聯絡資料與歷史訂單</small></a>
-                <a href="{% url 'sales_source_category_list' %}"><strong>通路分類</strong><small>合作車行、平台與本店人員的系統分類</small></a>
-                <a href="{% url 'sales_source_list' %}"><strong>合作車行與傭金</strong><small>聯絡資料、品牌合作與傭金加減</small></a>
+                <a href="{% url 'vehicle_brand_list' %}"><strong>車輛品牌</strong><small>共用品牌名稱與別名</small></a>
+                <a href="{% url 'vehicle_model_list' %}"><strong>機種與售價</strong><small>年式、規格、價格與車行基礎傭金</small></a>
+                <a href="{% url 'inventory_list' %}"><strong>車輛庫存</strong><small>進車、車況與調車歷程</small></a>
+                <a href="{% url 'accessory_product_list' %}"><strong>配件與工資</strong><small>售價、安裝工資與參考成本</small></a>
+                <a href="{% url 'customer_list' %}"><strong>客戶查詢</strong><small>聯絡資料與歷史訂單</small></a>
+                <a href="{% url 'sales_source_category_list' %}"><strong>通路類別</strong><small>合作車行、平台與本店人員的系統分類</small></a>
+                <a href="{% url 'sales_source_list' %}"><strong>合作車行</strong><small>聯絡資料、品牌合作與傭金加減</small></a>
                 <a href="{% url 'sales_source_platform_list' %}"><strong>網路平台</strong><small>平台資料與聯絡方式</small></a>
                 <a href="{% url 'sales_source_staff_list' %}"><strong>本店人員</strong><small>人員、所在店與每筆傭金</small></a>
-                <a href="{% url 'price_list_distribution' %}"><strong>每月價格表分發</strong><small>手機勾選車行跑訪進度與當月備註</small></a>
+                <a href="{% url 'price_list_distribution' %}"><strong>價格表分發</strong><small>手機勾選車行跑訪進度與當月備註</small></a>
               </section>
               <section class="data-menu-group" aria-labelledby="data-menu-rules">
                 <h2 id="data-menu-rules">費率與規則</h2>
-                <a href="{% url 'settlement_cost_rule_list' %}"><strong>代銷結算成本</strong><small>依車型與領牌日生效</small></a>
+                <a href="{% url 'settlement_cost_rule_list' %}"><strong>車輛結算成本</strong><small>依機種與領牌日生效</small></a>
                 <a href="{% url 'incentive_rule_list' %}"><strong>原廠獎勵與補助</strong><small>實銷、促銷與分期補貼</small></a>
                 <a href="{% url 'dealer_volume_bonus_list' %}"><strong>車行台數獎金</strong><small>門檻、期間與逐單結算</small></a>
-                <a href="{% url 'installment_company_list' %}"><strong>分期公司</strong><small>客服電話與車型分期方案</small></a>
-                <a href="{% url 'brand_registration_fee_rule_list' %}"><strong>品牌牌險規則</strong><small>品牌公式或固定金額</small></a>
-                <a href="{% url 'business_holiday_list' %}"><strong>工作日行事曆</strong><small>提醒期限排除的假日</small></a>
+                <a href="{% url 'installment_company_list' %}"><strong>分期公司與方案</strong><small>公司、客服電話與機種分期方案</small></a>
+                <a href="{% url 'brand_registration_fee_rule_list' %}"><strong>領牌與強制險</strong><small>依品牌及生效日設定金額</small></a>
+                <a href="{% url 'business_holiday_list' %}"><strong>工作日與假日設定</strong><small>設定期限計算要排除的日期</small></a>
               </section>
               <div class="data-menu-tools">
-                <a href="{% url 'legacy_import_list' %}"><strong>歷史 Excel 匯入</strong></a>
-                <a href="{% url 'positioned_template_list' %}"><strong>列印套表</strong></a>
+                <a href="{% url 'legacy_import_list' %}"><strong>舊資料 Excel 匯入</strong></a>
+                <a href="{% url 'positioned_template_list' %}"><strong>列印範本設定</strong></a>
                 {% if user.is_superuser %}<a href="{% url 'user_management' %}"><strong>帳號與權限</strong></a>{% endif %}
                 <a class="data-menu-all" href="{% url 'data_maintenance' %}"><strong>查看全部維護功能 →</strong></a>
               </div>

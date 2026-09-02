@@ -16,7 +16,7 @@ DELETE_BLOCKING_RELATIONS = (
     ("salesorder_set", "訂單"),
     ("price_versions", "售價版本"),
     ("installment_plan_versions", "分期方案"),
-    ("settlement_cost_rules", "代銷結算成本"),
+    ("settlement_cost_rules", "車輛結算成本"),
     ("incentive_rules", "原廠獎勵與補助"),
     ("legacy_import_mappings", "歷史匯入對應"),
 )
@@ -27,7 +27,7 @@ MERGE_VERSIONED_RELATIONS = (
     (
         "settlement_cost_rules",
         ("effective_from",),
-        "代銷結算成本",
+        "車輛結算成本",
     ),
     ("incentive_rules", ("effective_from",), "原廠獎勵與補助"),
 )

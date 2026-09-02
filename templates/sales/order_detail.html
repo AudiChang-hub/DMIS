@@ -384,7 +384,7 @@
         <label for="{{ registration_form.registration_county.id_for_label }}">領牌縣市 <span class="required-inline">必填</span></label>
         {{ registration_form.registration_county }}
       </div>
-      <small class="field-help registration-data-form__help">代銷結算成本會依車型與實際領牌日期判斷；領牌縣市僅供領牌及營運資料使用。</small>
+      <small class="field-help registration-data-form__help">車輛結算成本會依機種與實際領牌日期判斷；領牌縣市僅供領牌及營運資料使用。</small>
       <div class="registration-data-form__plate">
         <label for="{{ registration_form.final_plate_number.id_for_label }}">車牌號碼 <span class="required-inline">必填</span></label>
         {{ registration_form.final_plate_number }}
@@ -395,7 +395,7 @@
     </form>
     {% if operations_profile.vehicle_cost_rule_id %}
     <div class="note-box">
-      <strong>{% if operations_profile.vehicle_cost_locked_at %}已確認{% else %}預估{% endif %}代銷結算成本：${{ operations_profile.vehicle_cost|number_with_commas }}</strong>
+      <strong>{% if operations_profile.vehicle_cost_locked_at %}已確認{% else %}預估{% endif %}車輛結算成本：${{ operations_profile.vehicle_cost|number_with_commas }}</strong>
       <p>領牌日 {{ operations_profile.vehicle_cost_registration_date|date:"Y/m/d" }}{% if operations_profile.vehicle_cost_locked_at %} · 已於 {{ operations_profile.vehicle_cost_locked_at|date:"Y/m/d H:i" }} 固定{% endif %}</p>
     </div>
     {% elif order.registration_date and order.registration_county %}

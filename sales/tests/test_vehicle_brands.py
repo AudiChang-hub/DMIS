@@ -407,4 +407,4 @@ class VehicleBrandMasterTests(TestCase):
         response = self.client.get(reverse("data_maintenance"))
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, reverse("vehicle_brand_list"))
-        self.assertContains(response, "品牌資料")
+        self.assertContains(response, "車輛品牌")

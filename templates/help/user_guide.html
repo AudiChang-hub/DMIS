@@ -39,7 +39,7 @@
     <a href="#operations">營運與淨利</a>
     <a href="#master-data">資料維護</a>
     <a href="#sales-sources">車行、平台與本店人員</a>
-    <a href="#price-list-distribution">每月價格表分發</a>
+    <a href="#price-list-distribution">價格表分發</a>
     <a href="#account-management">帳號與密碼</a>
     <a href="#troubleshooting">看到錯誤怎麼辦</a>
     <a href="#security">個資與安全</a>
@@ -141,7 +141,7 @@
     <article class="guide-topic" id="registration" data-guide-topic>
       <div class="guide-topic-heading"><span>09</span><div><p class="eyebrow">配車後</p><h2>領牌資料與文件</h2></div></div>
       <ol class="guide-steps"><li><strong>填實際領牌日期、領牌縣市與車牌。</strong></li><li><strong>上傳必備文件。</strong><span>新行照、新車領牌登記書與發票；有選號再上傳選號單。</span></li><li><strong>其他保險單可彈性新增。</strong></li><li><strong>尚缺項目歸零後確認完成。</strong><span>完成後鎖定，不能再任意替換文件或更換配車。</span></li></ol>
-      <div class="guide-two-column"><section><h3>系統會做什麼</h3><ul><li>依實際領牌日與縣市帶入代銷結算成本。</li><li>依實際領牌日帶入獎勵與補助版本。</li><li>油車依排氣量級距試算牌險；電動車依品牌與輕型／重型規則帶入固定領牌規費及強制險，兩者仍可依正式單據修正。</li></ul></section><section><h3>遇到例外</h3><ul><li>找不到成本：先補成本版本，不要填 0。</li><li>牌險不同：依單據輸入並在首頁確認差額。</li><li>電動車沒有金額：先確認車型已選輕型／重型，且品牌牌險規則已有領牌日適用版本。</li><li>微型電動二輪車：目前採人工單據。</li></ul></section></div>
+      <div class="guide-two-column"><section><h3>系統會做什麼</h3><ul><li>依實際領牌日與縣市帶入車輛結算成本。</li><li>依實際領牌日帶入獎勵與補助版本。</li><li>油車依排氣量級距試算領牌與強制險；電動車依品牌與輕型／重型規則帶入固定領牌規費及強制險，兩者仍可依正式單據修正。</li></ul></section><section><h3>遇到例外</h3><ul><li>找不到成本：先補成本版本，不要填 0。</li><li>領牌或強制險金額不同：依單據輸入並在首頁確認差額。</li><li>電動車沒有金額：先確認機種已選輕型／重型，且「領牌與強制險」已有適用領牌日的版本。</li><li>微型電動二輪車：目前採人工單據。</li></ul></section></div>
     </article>
 
     <article class="guide-topic" id="delivery" data-guide-topic>
@@ -170,15 +170,15 @@
     </article>
 
     <article class="guide-topic" id="master-data" data-guide-topic>
-      <div class="guide-topic-heading"><span>13</span><div><p class="eyebrow">減少重複輸入</p><h2>客戶、車型與其他資料維護</h2></div></div>
+      <div class="guide-topic-heading"><span>13</span><div><p class="eyebrow">減少重複輸入</p><h2>機種、售價與其他資料設定</h2></div></div>
       <p>資料維護是全公司共用的選項與規則。不要為了眼前一張訂單，直接改掉仍在生效的舊資料。</p>
-      <div class="guide-two-column"><section><h3>車型與生效版本</h3><ul><li>車型以機種、型號與年份辨識。</li><li>售價與分期方案依訂單日期。</li><li>成本、原廠獎勵與補助依實際領牌日期；分期額外撥款只維護在分期方案，不會混入原廠獎勵。</li><li>新增未來生效版本，不回寫已完成訂單。</li><li>強制險規則會直接標示年數；顏色被使用後應停用，不直接刪除。</li></ul></section><section><h3>其他主檔</h3><ul><li>配件：售價、工資與參考成本。</li><li>分期公司：名稱與客服電話。</li><li>台數獎金：預設只列出統計期間內已有領牌銷售的外部合作車行；本店不列入。</li><li>工作日行事曆：每月同步人事行政總處資料；同步失敗會保留既有日期，也能人工補登例外。</li><li>品牌牌險、列印套表與歷史資料匯入。</li></ul></section></div>
-      <div class="guide-example"><strong>正確例子</strong><p>8/15 起同車型成本從 65,000 調為 66,000：新增 8/15 生效版本，不修改 7/1 舊版本。8/14 已領牌訂單仍保留 65,000。</p></div>
+      <div class="guide-two-column"><section><h3>機種與生效版本</h3><ul><li>車輛以機種、型號與年份辨識。</li><li>售價與分期方案依訂單日期。</li><li>成本、原廠獎勵與補助依實際領牌日期；分期額外撥款只維護在分期方案，不會混入原廠獎勵。</li><li>新增未來生效版本，不回寫已完成訂單。</li><li>強制險規則會直接標示年數；顏色被使用後應停用，不直接刪除。</li></ul></section><section><h3>其他設定</h3><ul><li>配件與工資：售價、安裝工資與參考成本。</li><li>分期公司與方案：公司名稱、客服電話及各機種方案。</li><li>車行台數獎金：預設只列出統計期間內已有領牌銷售的外部合作車行；本店不列入。</li><li>工作日與假日設定：每月同步人事行政總處資料；同步失敗會保留既有日期，也能人工補登例外。</li><li>其他功能包含領牌與強制險、列印範本設定及舊資料 Excel 匯入。</li></ul></section></div>
+      <div class="guide-example"><strong>正確例子</strong><p>8/15 起同機種成本從 65,000 調為 66,000：新增 8/15 生效版本，不修改 7/1 舊版本。8/14 已領牌訂單仍保留 65,000。</p></div>
     </article>
 
     <article class="guide-topic" id="sales-sources" data-guide-topic>
       <div class="guide-topic-heading"><span>通路</span><div><p class="eyebrow">資料維護區</p><h2>合作車行、網路平台與本店人員</h2></div></div>
-      <p>三種來源各有獨立清單，不會混在同一個畫面；通路分類也從資料維護區進入。</p>
+      <p>三種來源各有獨立清單，不會混在同一個畫面；通路類別也從資料維護區進入。</p>
       <div class="guide-two-column">
         <section><h3>合作車行</h3><ul><li>啟用中與已停用分開收納；啟用中再區分有／無 LINE 群組。</li><li>依縣市、行政區分組；搜尋結果仍留在同一頁，不必先猜有沒有群組。</li><li>地址輸入後會判定縣市與行政區；列表篩選行政區只顯示所選縣市。</li><li>合作關係只有「專銷」與「一般」；有排車容量一定代表合作，沒有容量仍可能合作。</li><li>台鈴油車與電車的排車容量共用，不重複加總。</li></ul></section>
         <section><h3>平台與本店人員</h3><ul><li>網路平台維護來源代碼、聯絡窗口、電話、分機、手機、Email 與備註；新資料由系統配置來源代碼。</li><li>本店人員維護姓名、所在店（永湛／馭盛）、電話與每筆傭金。</li><li>列表的「啟用中」是快速開關；合作車行的「年節送禮」也可直接切換，畫面會留在原位。</li><li>停用資料保留歷史訂單使用，但建立新訂單時不再提供選用。</li></ul></section>
@@ -187,7 +187,7 @@
     </article>
 
     <article class="guide-topic" id="price-list-distribution" data-guide-topic>
-      <div class="guide-topic-heading"><span>分發</span><div><p class="eyebrow">每月車行跑訪</p><h2>每月價格表分發清單</h2></div></div>
+      <div class="guide-topic-heading"><span>分發</span><div><p class="eyebrow">每月車行跑訪</p><h2>價格表分發</h2></div></div>
       <ol class="guide-steps">
         <li><strong>月底先確認隔月名單。</strong><span>每月最後一天會建立隔月清單並沿用上月的負責人與拜訪順序；新增車行會保持「未分配」，已停用負責人不會被帶入。</span></li>
         <li><strong>按「分配與排序」。</strong><span>先用縣市、行政區或關鍵字找出範圍；可全選目前結果後取消少數例外，也可只勾選需要的幾家。勾選後操作列會切換成批次指派模式，選擇負責人並按一次「指派給○○（N 家）」即可完成。</span></li>
@@ -238,8 +238,8 @@
     </article>
 
     <article class="guide-topic" id="print-templates" data-guide-topic>
-      <div class="guide-topic-heading"><span>17</span><div><p class="eyebrow">紙本作業</p><h2>合約、個資同意書與列印套表</h2></div></div>
-      <div class="guide-two-column"><section><h3>訂單文件</h3><ul><li>建立訂單後可一次列印三頁：訂購單兩份、個資同意書一份。</li><li>紙本簽名後，合約與個資同意書分開上傳歸檔。</li><li>手機列印會開啟 PDF，再選可用印表機或分享至電腦。</li></ul></section><section><h3>信封／報件單</h3><ul><li>在列印套表建立新版。</li><li>背景可用 Excel、PDF 或圖片；信封可無背景。</li><li>用最近訂單預覽位置，再調 X、Y 與印表機偏移。</li></ul></section></div>
+      <div class="guide-topic-heading"><span>17</span><div><p class="eyebrow">紙本作業</p><h2>合約、個資同意書與列印範本</h2></div></div>
+      <div class="guide-two-column"><section><h3>訂單文件</h3><ul><li>建立訂單後可一次列印三頁：訂購單兩份、個資同意書一份。</li><li>紙本簽名後，合約與個資同意書分開上傳歸檔。</li><li>手機列印會開啟 PDF，再選可用印表機或分享至電腦。</li></ul></section><section><h3>信封／報件單</h3><ul><li>在「列印範本設定」建立新版。</li><li>背景可用 Excel、PDF 或圖片；信封可無背景。</li><li>用最近訂單預覽位置，再調 X、Y 與印表機偏移。</li></ul></section></div>
       <div class="guide-tip"><strong>列印證件影本</strong><span>到訂單資料的車主區展開「列印／下載浮水印證件」，每次選「限領牌使用」或「限申請補助使用」及正反面；PDF 會帶當天日期，原始照片不會被改動。</span></div>
       <div class="guide-exception"><strong>列印偏掉</strong><p>調整套表或印表機偏移，不要修改訂單資料來配合版面。</p></div>
     </article>

@@ -8,7 +8,7 @@
   <div>
     <p class="eyebrow">集中管理基礎資料</p>
     <h1>資料維護區</h1>
-    <p class="muted">客戶、車型、庫存、車行、傭金與作業規則都集中在這裡；常用功能也可由上方選單直接前往。</p>
+    <p class="muted">車輛、客戶、通路、費率與作業規則都集中在這裡；常用功能也可由上方選單直接前往。</p>
   </div>
 </section>
 <section class="maintenance-section" aria-labelledby="maintenance-daily">
@@ -16,37 +16,37 @@
   <div class="maintenance-grid">
   <a class="maintenance-card" href="{% url 'vehicle_brand_list' %}">
     <span class="maintenance-card__icon">牌</span>
-    <div><h2>品牌資料</h2><p>統一車型、牌險、車行傭金及台數獎金使用的品牌名稱與別名。</p><strong>{{ vehicle_brand_count }} 個品牌</strong></div>
+    <div><h2>車輛品牌</h2><p>統一機種、領牌費用、車行傭金及台數獎金使用的品牌名稱與別名。</p><strong>{{ vehicle_brand_count }} 個品牌</strong></div>
     <span aria-hidden="true">›</span>
   </a>
   <a class="maintenance-card" href="{% url 'vehicle_model_list' %}">
     <span class="maintenance-card__icon">型</span>
-    <div><h2>機種、售價與基礎傭金</h2><p>維護機種、原廠型號、年份、顏色、售價及車行基礎傭金。</p><strong>{{ vehicle_model_count }} 個機種 · {{ vehicle_model_version_count }} 筆年式／規格</strong></div>
+    <div><h2>機種與售價</h2><p>維護機種、原廠型號、年份、顏色、售價及車行基礎傭金。</p><strong>{{ vehicle_model_count }} 個機種 · {{ vehicle_model_version_count }} 筆年式／規格</strong></div>
     <span aria-hidden="true">›</span>
   </a>
   <a class="maintenance-card" href="{% url 'inventory_list' %}">
     <span class="maintenance-card__icon">庫</span>
-    <div><h2>庫存資料</h2><p>管理進車、車況、調車歷程與目前可售狀態。</p><strong>{{ inventory_count }} 台車輛</strong></div>
+    <div><h2>車輛庫存</h2><p>管理進車、車況、調車歷程與目前可售狀態。</p><strong>{{ inventory_count }} 台車輛</strong></div>
     <span aria-hidden="true">›</span>
   </a>
   <a class="maintenance-card" href="{% url 'accessory_product_list' %}">
     <span class="maintenance-card__icon">配</span>
-    <div><h2>配件資料</h2><p>維護配件售價、安裝工資與內部參考成本，訂單會保存當時快照。</p><strong>{{ accessory_product_count }} 項配件</strong></div>
+    <div><h2>配件與工資</h2><p>維護配件售價、安裝工資與內部參考成本，訂單會保存當時快照。</p><strong>{{ accessory_product_count }} 項配件</strong></div>
     <span aria-hidden="true">›</span>
   </a>
   <a class="maintenance-card" href="{% url 'customer_list' %}">
     <span class="maintenance-card__icon">人</span>
-    <div><h2>客戶資料</h2><p>從既有訂單彙整車主聯絡資料與歷史訂單。</p><strong>{{ customer_count }} 位客戶</strong></div>
+    <div><h2>客戶查詢</h2><p>從既有訂單查詢車主聯絡資料與歷史訂單；資料仍由訂單修改。</p><strong>{{ customer_count }} 位客戶</strong></div>
     <span aria-hidden="true">›</span>
   </a>
   <a class="maintenance-card" href="{% url 'sales_source_category_list' %}">
     <span class="maintenance-card__icon">類</span>
-    <div><h2>通路分類</h2><p>維護合作車行、網路平台與本店人員使用的系統分類。</p><strong>{{ sales_source_category_count }} 個分類</strong></div>
+    <div><h2>通路類別</h2><p>維護合作車行、網路平台與本店人員使用的系統類別。</p><strong>{{ sales_source_category_count }} 個類別</strong></div>
     <span aria-hidden="true">›</span>
   </a>
   <a class="maintenance-card" href="{% url 'sales_source_list' %}">
     <span class="maintenance-card__icon">行</span>
-    <div><h2>合作車行與傭金</h2><p>維護車行聯絡資料、品牌合作、LINE 群組及傭金規則。</p><strong>{{ dealer_source_count }} 家車行</strong></div>
+    <div><h2>合作車行</h2><p>維護車行聯絡資料、品牌合作、LINE 群組及傭金規則。</p><strong>{{ dealer_source_count }} 家車行</strong></div>
     <span aria-hidden="true">›</span>
   </a>
   <a class="maintenance-card" href="{% url 'sales_source_platform_list' %}">
@@ -61,7 +61,7 @@
   </a>
   <a class="maintenance-card" href="{% url 'price_list_distribution' %}">
     <span class="maintenance-card__icon">表</span>
-    <div><h2>每月價格表分發</h2><p>依合作品牌產生每月車行名單，手機勾選完成進度並保存備註。</p><strong>{{ price_list_distribution_count }} 個月份</strong></div>
+    <div><h2>價格表分發</h2><p>依合作品牌產生每月車行名單，手機勾選完成進度並保存備註。</p><strong>{{ price_list_distribution_count }} 個月份</strong></div>
     <span aria-hidden="true">›</span>
   </a>
   </div>
@@ -72,7 +72,7 @@
   <div class="maintenance-grid">
   <a class="maintenance-card" href="{% url 'settlement_cost_rule_list' %}">
     <span class="maintenance-card__icon">本</span>
-    <div><h2>代銷結算成本</h2><p>依車型與實際領牌日維護成本生效版本。</p><strong>{{ settlement_cost_rule_count }} 筆成本版本</strong></div>
+    <div><h2>車輛結算成本</h2><p>依機種與實際領牌日維護成本生效版本。</p><strong>{{ settlement_cost_rule_count }} 筆成本版本</strong></div>
     <span aria-hidden="true">›</span>
   </a>
   <a class="maintenance-card" href="{% url 'incentive_rule_list' %}">
@@ -87,17 +87,17 @@
   </a>
   <a class="maintenance-card" href="{% url 'installment_company_list' %}">
     <span class="maintenance-card__icon">期</span>
-    <div><h2>分期公司</h2><p>維護分期公司與客服電話；各車型方案由車型資料設定。</p><strong>{{ installment_company_count }} 家公司</strong></div>
+    <div><h2>分期公司與方案</h2><p>維護分期公司與客服電話；各機種方案由機種與售價設定。</p><strong>{{ installment_company_count }} 家公司</strong></div>
     <span aria-hidden="true">›</span>
   </a>
   <a class="maintenance-card" href="{% url 'brand_registration_fee_rule_list' %}">
     <span class="maintenance-card__icon">牌</span>
-    <div><h2>品牌牌險規則</h2><p>依品牌、生效日與排氣量維護公式、固定總額或人工輸入。</p><strong>{{ registration_fee_rule_count }} 個啟用規則</strong></div>
+    <div><h2>領牌與強制險</h2><p>依品牌、生效日與排氣量設定領牌費用及強制險金額。</p><strong>{{ registration_fee_rule_count }} 個啟用規則</strong></div>
     <span aria-hidden="true">›</span>
   </a>
   <a class="maintenance-card" href="{% url 'business_holiday_list' %}">
     <span class="maintenance-card__icon">曆</span>
-    <div><h2>工作日行事曆</h2><p>維護國定假日，供合作車行三日文件與七日尾款提醒排除。</p><strong>{{ holiday_count }} 個排除日期</strong></div>
+    <div><h2>工作日與假日設定</h2><p>維護國定假日，供合作車行三日文件與七日尾款提醒排除。</p><strong>{{ holiday_count }} 個排除日期</strong></div>
     <span aria-hidden="true">›</span>
   </a>
   </div>
@@ -108,17 +108,17 @@
   <div class="maintenance-grid maintenance-grid--tools">
   <a class="maintenance-card" href="{% url 'legacy_import_list' %}">
     <span class="maintenance-card__icon">匯</span>
-    <div><h2>歷史 Excel 匯入</h2><p>上傳進銷貨庫存表或通路名冊，預覽差異與衝突後再確認寫入。</p><strong>保留來源檔與逐列結果</strong></div>
+    <div><h2>舊資料 Excel 匯入</h2><p>上傳進銷貨庫存表或通路名冊，預覽差異與衝突後再確認寫入。</p><strong>保留來源檔與逐列結果</strong></div>
     <span aria-hidden="true">›</span>
   </a>
   <a class="maintenance-card" href="{% url 'positioned_template_list' %}">
     <span class="maintenance-card__icon">印</span>
-    <div><h2>列印套表</h2><p>維護信封、報件單、聲明書與點檢表的背景、欄位位置及印表機偏移。</p><strong>可預覽實際訂單 PDF</strong></div>
+    <div><h2>列印範本設定</h2><p>維護信封、報件單、聲明書與點檢表的背景、欄位位置及印表機偏移。</p><strong>可預覽實際訂單 PDF</strong></div>
     <span aria-hidden="true">›</span>
   </a>
   <a class="maintenance-card" href="{% url 'system_diagnostics' %}">
     <span class="maintenance-card__icon">診</span>
-    <div><h2>系統狀態</h2><p>檢查資料庫、證件辨識、搜尋背景工作與照片文件空間。</p><strong>遇到處理卡住時先查看</strong></div>
+    <div><h2>系統狀態檢查</h2><p>檢查資料庫、證件辨識、搜尋背景工作與照片文件空間。</p><strong>遇到處理卡住時先查看</strong></div>
     <span aria-hidden="true">›</span>
   </a>
   {% if user.is_superuser %}

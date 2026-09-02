@@ -1020,7 +1020,7 @@ class OrderFlowTests(TestCase):
         )
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "此號碼已存在於庫存資料")
+        self.assertContains(response, "此號碼已存在於車輛庫存")
         self.assertEqual(VehicleInventory.objects.count(), 1)
 
     def test_quick_inventory_page_is_list_based_and_hides_location(self):
@@ -3870,7 +3870,7 @@ class OrderFlowTests(TestCase):
         order.refresh_from_db()
         self.assertFalse(order.is_registration_complete)
         messages = [str(message) for message in response.wsgi_request._messages]
-        self.assertTrue(any("代銷結算成本規則" in message for message in messages))
+        self.assertTrue(any("車輛結算成本規則" in message for message in messages))
 
     def test_plate_selection_document_is_conditionally_required(self):
         order = self.make_order()
@@ -5174,19 +5174,19 @@ class OrderOperationsTests(TestCase):
         customers = self.client.get(reverse("customer_list"), {"q": "營運測試"})
 
         self.assertEqual(hub.status_code, 200)
-        self.assertContains(hub, "客戶資料")
-        self.assertContains(hub, "車型、售價與基礎傭金")
-        self.assertContains(hub, "庫存資料")
-        self.assertContains(hub, "配件資料")
-        self.assertContains(hub, "合作車行與傭金")
+        self.assertContains(hub, "客戶查詢")
+        self.assertContains(hub, "機種與售價")
+        self.assertContains(hub, "車輛庫存")
+        self.assertContains(hub, "配件與工資")
+        self.assertContains(hub, "合作車行")
         self.assertContains(hub, "網路平台")
         self.assertContains(hub, "本店人員")
-        self.assertContains(hub, "通路分類")
+        self.assertContains(hub, "通路類別")
         self.assertContains(hub, reverse("sales_source_list"))
         self.assertContains(hub, reverse("sales_source_platform_list"))
         self.assertContains(hub, reverse("sales_source_staff_list"))
         self.assertContains(hub, reverse("sales_source_category_list"))
-        self.assertContains(hub, "代銷結算成本")
+        self.assertContains(hub, "車輛結算成本")
         self.assertContains(hub, "原廠獎勵與補助")
         self.assertEqual(customers.status_code, 200)
         self.assertContains(customers, self.order.owner_name)
@@ -5761,7 +5761,7 @@ class OrderOperationsTests(TestCase):
         )
 
         self.assertEqual(listing.status_code, 200)
-        self.assertContains(listing, "代銷結算成本")
+        self.assertContains(listing, "車輛結算成本")
         self.assertNotContains(listing, "領牌縣市")
         self.assertContains(listing, "61000")
         self.assertEqual(editing.status_code, 200)

@@ -1916,16 +1916,16 @@ def sales_source_set_holiday_gift(request, pk):
 
 ACTIVE_TOGGLE_RESOURCES = {
     "accessory-product": (AccessoryProduct, "配件"),
-    "brand-registration-fee-rule": (BrandRegistrationFeeRule, "牌險規則"),
+    "brand-registration-fee-rule": (BrandRegistrationFeeRule, "領牌與強制險規則"),
     "business-holiday": (BusinessHoliday, "工作日排除設定"),
     "dealer-volume-bonus": (DealerVolumeBonusRule, "台數獎金規則"),
     "incentive-rule": (VehicleIncentiveRule, "獎勵補助版本"),
     "installment-company": (InstallmentCompany, "分期公司"),
     "installment-plan": (InstallmentPlanVersion, "分期方案版本"),
-    "positioned-print-template": (PositionedPrintTemplate, "列印套表"),
+    "positioned-print-template": (PositionedPrintTemplate, "列印範本"),
     "sales-source": (SalesSource, "通路"),
-    "sales-source-category": (SalesSourceCategory, "通路分類"),
-    "settlement-cost-rule": (VehicleSettlementCostRule, "代銷結算成本版本"),
+    "sales-source-category": (SalesSourceCategory, "通路類別"),
+    "settlement-cost-rule": (VehicleSettlementCostRule, "車輛結算成本版本"),
     "vehicle-brand": (VehicleBrand, "車輛品牌"),
     "vehicle-model": (VehicleModel, "車型版本"),
     "vehicle-price-version": (VehiclePriceVersion, "售價版本"),
@@ -3017,12 +3017,12 @@ def sales_source_category_list(request):
         else:
             label = category.name
             category.delete()
-            messages.success(request, f"已刪除未使用的通路分類：{label}。")
+            messages.success(request, f"已刪除未使用的通路類別：{label}。")
         return redirect("sales_source_category_list")
     form = SalesSourceCategoryForm(request.POST or None, instance=editing)
     if request.method == "POST" and form.is_valid():
         category = form.save()
-        messages.success(request, f"已儲存通路分類：{category.name}。")
+        messages.success(request, f"已儲存通路類別：{category.name}。")
         return redirect("sales_source_category_list")
     categories = SalesSourceCategory.objects.annotate(
         source_count=Count("sources")
@@ -5633,7 +5633,7 @@ def registration_save(request, pk):
         else:
             messages.warning(
                 request,
-                "領牌資料已保存，但目前找不到適用的代銷結算成本規則；"
+                "領牌資料已保存，但目前找不到適用的車輛結算成本規則；"
                 "請先至車型資料的成本規則補建，否則無法完成領牌。",
             )
     else:
@@ -5781,7 +5781,7 @@ def registration_complete(request, pk):
     if not rule:
         messages.error(
             request,
-            "找不到符合車型及領牌日期的代銷結算成本規則，"
+            "找不到符合機種及領牌日期的車輛結算成本規則，"
             "請先至車型資料補建後再完成領牌。",
         )
         return redirect("order_detail", pk=pk)

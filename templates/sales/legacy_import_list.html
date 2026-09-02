@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}歷史 Excel 匯入｜車輛銷售管理{% endblock %}
+{% block title %}舊資料 Excel 匯入｜車輛銷售管理{% endblock %}
 {% block page_class %}page-shell--wide{% endblock %}
 {% block content %}
 {% url 'data_maintenance' as data_url %}{% include "sales/_page_back.html" with fallback_url=data_url label="返回資料維護區" %}
@@ -7,7 +7,7 @@
 <section class="hero-row compact-hero import-page-hero">
   <div>
     <p class="eyebrow">平行試營運資料轉換</p>
-    <h1>歷史 Excel 匯入</h1>
+    <h1>舊資料 Excel 匯入</h1>
     <p class="muted">上傳後先檢查、修正與排除問題列；完成確認前不會寫入正式訂單或庫存。</p>
   </div>
 </section>

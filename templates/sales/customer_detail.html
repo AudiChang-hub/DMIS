@@ -1,14 +1,14 @@
 {% extends "base.html" %}
 {% load pagination_tags %}
-{% block title %}{{ customer.owner_name }}｜客戶資料{% endblock %}
+{% block title %}{{ customer.owner_name }}｜客戶查詢{% endblock %}
 {% block page_class %}page-shell--wide{% endblock %}
 {% block content %}
 {% url 'customer_list' as customer_list_url %}
 {% url 'data_maintenance' as data_url %}
-{% include "sales/_page_back.html" with fallback_url=customer_list_url label="客戶資料" root_url=data_url root_label="資料維護區" %}
+{% include "sales/_page_back.html" with fallback_url=customer_list_url label="客戶查詢" root_url=data_url root_label="資料維護區" %}
 <section class="hero-row compact-hero customer-detail-hero">
   <div>
-    <p class="eyebrow">客戶資料</p>
+    <p class="eyebrow">客戶查詢</p>
     <h1>{{ customer.owner_name }}</h1>
     <p class="muted">{{ customer.get_owner_type_display }} · {{ customer.masked_id_number }} · {{ customer.owner_phone }}</p>
   </div>

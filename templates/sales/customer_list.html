@@ -1,12 +1,12 @@
 {% extends "base.html" %}
 {% load pagination_tags %}
-{% block title %}客戶資料｜資料維護區{% endblock %}
+{% block title %}客戶查詢｜車輛銷售管理{% endblock %}
 {% block page_class %}page-shell--wide{% endblock %}
 {% block content %}
 {% url 'data_maintenance' as data_url %}
 {% include "sales/_page_back.html" with fallback_url=data_url label="返回資料維護區" %}
 <section class="hero-row compact-hero">
-  <div><p class="eyebrow">資料維護區</p><h1>客戶資料</h1><p class="muted">同一證件號碼只顯示一筆，內容取自最近一張訂單；修改請由訂單進行並留下紀錄。</p></div>
+  <div><p class="eyebrow">資料維護區</p><h1>客戶查詢</h1><p class="muted">同一證件號碼只顯示一筆，內容取自最近一張訂單；修改請由訂單進行並留下紀錄。</p></div>
 </section>
 <form class="inventory-filters customer-filters" method="get">
   <div class="inventory-filter inventory-filter--search">
@@ -33,11 +33,11 @@
           <td class="inventory-row-action"><a class="button ghost small" href="{% url 'customer_detail' customer.pk %}">查看全部訂單</a></td>
         </tr>
       {% empty %}
-        <tr><td colspan="8"><div class="empty-state"><strong>查無客戶資料</strong></div></td></tr>
+        <tr><td colspan="8"><div class="empty-state"><strong>查無符合條件的客戶</strong></div></td></tr>
       {% endfor %}
       </tbody>
     </table>
   </div>
-  {% pagination page_obj aria_label="客戶資料分頁" %}
+  {% pagination page_obj aria_label="客戶查詢分頁" %}
 </section>
 {% endblock %}

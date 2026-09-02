@@ -96,32 +96,38 @@
     {% endif %}
     <div class="price-assignment-table-wrap">
       <table class="price-assignment-table">
-        <thead><tr><th>選取／順序</th><th>車行</th><th>區域</th><th>負責人</th></tr></thead>
+        <thead><tr><th>順序</th><th>車行</th><th>區域</th><th>負責人</th></tr></thead>
         <tbody>
           {% for item in items %}
           <tr data-assignment-row data-assignee-id="{{ item.assigned_to_id|default:'' }}" data-original-assignee-id="{{ item.assigned_to_id|default:'' }}" data-original-order="{{ item.visit_order }}">
-            <td data-label="選取／順序">
+            <td data-label="順序">
               <input type="hidden" name="item_id" value="{{ item.pk }}">
               <input type="hidden" name="order_{{ item.pk }}" value="{{ item.visit_order }}" data-order-input>
-              {% if editable %}<label class="price-assignment-row-check"><input type="checkbox" name="selected_item_id" value="{{ item.pk }}" aria-label="選取 {{ item.dealer_name }}" data-row-select></label>{% endif %}
-              <button class="price-assignment-drag" type="button" aria-label="拖曳調整 {{ item.dealer_name }} 的拜訪順序" data-drag-handle{% if not editable or not item.assigned_to_id or not item.visit_order %} disabled{% endif %}>
-                <span class="price-assignment-drag__grip" aria-hidden="true">⠿</span>
-                <span data-order-label>{% if item.visit_order %}第 {{ item.visit_order }} 站{% else %}尚未排序{% endif %}</span>
-              </button>
+              <div class="price-assignment-order-cell">
+                {% if editable %}<label class="price-assignment-row-check"><input type="checkbox" name="selected_item_id" value="{{ item.pk }}" aria-label="選取 {{ item.dealer_name }}" data-row-select></label>{% endif %}
+                <button class="price-assignment-drag" type="button" aria-label="按住並拖曳 {{ item.dealer_name }}，調整拜訪順序" data-drag-handle{% if not editable or not item.assigned_to_id or not item.visit_order %} disabled{% endif %}>
+                  <span class="price-assignment-drag__grip" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></span>
+                  <span data-order-label>{% if item.visit_order %}第 {{ item.visit_order }} 站{% else %}尚未排序{% endif %}</span>
+                </button>
+              </div>
             </td>
             <td data-label="車行"><strong>{{ item.dealer_name }}</strong><small>{{ item.dealer_code }}</small></td>
             <td data-label="區域"><strong>{{ item.city }}{{ item.district }}</strong><small>{{ item.address }}</small></td>
             <td data-label="負責人">
-              <select name="assignee_{{ item.pk }}" {% if not editable %}disabled{% endif %} data-assignee-select>
-                <option value="">未分配</option>
-                {% for user in users %}{% if user.is_active or user.pk == item.assigned_to_id %}<option value="{{ user.pk }}"{% if user.pk == item.assigned_to_id %} selected{% endif %}>{{ user.get_full_name|default:user.username }}{% if not user.is_active %}（已停用）{% endif %}</option>{% endif %}{% endfor %}
-              </select>
+              <div class="price-assignment-owner-control">
+                <select id="assignment-assignee-{{ item.pk }}" name="assignee_{{ item.pk }}" aria-label="{{ item.dealer_name }}的負責人" {% if not editable %}disabled{% endif %} data-assignee-select>
+                  <option value="">未分配</option>
+                  {% for user in users %}{% if user.is_active or user.pk == item.assigned_to_id %}<option value="{{ user.pk }}"{% if user.pk == item.assigned_to_id %} selected{% endif %}>{{ user.get_full_name|default:user.username }}{% if not user.is_active %}（已停用）{% endif %}</option>{% endif %}{% endfor %}
+                </select>
+                <span class="price-assignment-owner-control__chevron" aria-hidden="true"></span>
+              </div>
             </td>
           </tr>
           {% endfor %}
         </tbody>
       </table>
     </div>
+    <p class="visually-hidden" aria-live="polite" data-drag-announcer></p>
   </form>
   {% else %}
   <div class="empty-state"><strong>目前沒有符合條件的車行</strong><p>請清除篩選，或改查其他負責人與區域。</p></div>

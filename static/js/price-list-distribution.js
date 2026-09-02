@@ -1,14 +1,24 @@
 (() => {
   async function submitForm(form) {
-    const response = await fetch(form.action, {
-      method: "POST",
-      body: new FormData(form),
-      credentials: "same-origin",
-      headers: {"X-Requested-With": "XMLHttpRequest"},
-    });
-    const payload = await response.json().catch(() => ({}));
-    if (!response.ok || !payload.ok) throw new Error(payload.message || "儲存失敗，請稍後再試。");
-    return payload;
+    const controller = new AbortController();
+    const timeoutId = window.setTimeout(() => controller.abort(), 12000);
+    try {
+      const response = await fetch(form.action, {
+        method: "POST",
+        body: new FormData(form),
+        credentials: "same-origin",
+        headers: {"X-Requested-With": "XMLHttpRequest"},
+        signal: controller.signal,
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok || !payload.ok) throw new Error(payload.message || "儲存失敗，請稍後再試。");
+      return payload;
+    } catch (error) {
+      if (error.name === "AbortError") throw new Error("儲存等待逾時，請確認網路後再試一次。");
+      throw error;
+    } finally {
+      window.clearTimeout(timeoutId);
+    }
   }
 
   function updateProgress(payload) {
@@ -16,6 +26,14 @@
     document.querySelector("[data-progress-label]").textContent = `尚有 ${payload.pending_count} 家未完成`;
     document.querySelector("[data-progress-percent]").textContent = `${payload.progress_percent}%`;
     document.querySelector("[data-progress-bar]").style.width = `${payload.progress_percent}%`;
+    Object.entries(payload.assignment_progress || {}).forEach(([key, progress]) => {
+      const card = document.querySelector(`[data-assignment-progress-key="${key}"]`);
+      if (!card) return;
+      const completed = card.querySelector("[data-assignment-completed]");
+      const total = card.querySelector("[data-assignment-total]");
+      if (completed) completed.textContent = String(progress.completed);
+      if (total) total.textContent = String(progress.total);
+    });
   }
 
   document.addEventListener("submit", async event => {

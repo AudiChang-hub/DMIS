@@ -5,6 +5,15 @@
   const orderLabel = row => row.querySelector("[data-order-label]");
   const dragHandle = row => row.querySelector("[data-drag-handle]");
   const rowChecks = () => rows().map(row => row.querySelector("[data-row-select]")).filter(Boolean);
+  const dragAnnouncer = document.querySelector("[data-drag-announcer]");
+
+  function dealerName(row) {
+    return row.querySelector('td[data-label="車行"] strong')?.textContent.trim() || "這家車行";
+  }
+
+  function clearDropMarker() {
+    rows().forEach(row => row.classList.remove("is-drop-before", "is-drop-after"));
+  }
 
   function updateRowDirty(row) {
     const changed = (
@@ -74,7 +83,6 @@
       input.value = String(originalOrder);
       label.textContent = originalOrder ? `第 ${originalOrder} 站` : "尚未排序";
       handle.disabled = !originalOrder;
-      handle.draggable = Boolean(originalOrder);
       updateActions();
       return;
     }
@@ -82,7 +90,6 @@
       input.value = "0";
       label.textContent = "尚未排序";
       handle.disabled = true;
-      handle.draggable = false;
       updateActions();
       return;
     }
@@ -90,7 +97,6 @@
       input.value = "0";
       label.textContent = "儲存後排最後";
       handle.disabled = true;
-      handle.draggable = false;
     }
     updateActions();
   }
@@ -119,6 +125,7 @@
       .map(candidate => Number(orderInput(candidate).value || 0))
       .sort((left, right) => left - right);
     row.classList.add("is-dragging");
+    document.body.classList.add("is-reordering-price-assignments");
     return {row, slots};
   }
 
@@ -127,15 +134,23 @@
     if (Number(orderInput(target)?.value || 0) <= 0) return;
     const body = state.row.parentElement;
     const rect = target.getBoundingClientRect();
-    body.insertBefore(state.row, clientY > rect.top + rect.height / 2 ? target.nextSibling : target);
+    const placeAfter = clientY > rect.top + rect.height / 2;
+    clearDropMarker();
+    target.classList.add(placeAfter ? "is-drop-after" : "is-drop-before");
+    body.insertBefore(state.row, placeAfter ? target.nextSibling : target);
     applyOrderSlots(state);
   }
 
   function finishDrag(state) {
     if (!state) return;
+    clearDropMarker();
     state.row.classList.remove("is-dragging");
+    document.body.classList.remove("is-reordering-price-assignments");
     applyOrderSlots(state);
     updateActions();
+    if (dragAnnouncer) {
+      dragAnnouncer.textContent = `${dealerName(state.row)}已移到${orderLabel(state.row)?.textContent || "新位置"}，尚未儲存。`;
+    }
     dragHandle(state.row)?.focus({preventScroll: true});
   }
 
@@ -160,20 +175,9 @@
     if (select) updateRowAssignment(select.closest("[data-assignment-row]"), select.value);
   });
 
-  let mouseDrag = null;
+  let activePointerDrag = null;
+
   document.querySelectorAll("[data-drag-handle]").forEach(handle => {
-    handle.draggable = !handle.disabled;
-    handle.addEventListener("dragstart", event => {
-      if (handle.disabled) return event.preventDefault();
-      mouseDrag = beginDrag(handle.closest("[data-assignment-row]"));
-      if (!mouseDrag) return event.preventDefault();
-      event.dataTransfer.effectAllowed = "move";
-      event.dataTransfer.setData("text/plain", "route-order");
-    });
-    handle.addEventListener("dragend", () => {
-      finishDrag(mouseDrag);
-      mouseDrag = null;
-    });
     handle.addEventListener("keydown", event => {
       if (!["ArrowUp", "ArrowDown"].includes(event.key) || handle.disabled) return;
       const row = handle.closest("[data-assignment-row]");
@@ -189,42 +193,58 @@
       finishDrag(state);
     });
 
-    let touchDrag = null;
     handle.addEventListener("pointerdown", event => {
-      if (event.pointerType === "mouse" || handle.disabled) return;
-      touchDrag = beginDrag(handle.closest("[data-assignment-row]"));
-      if (!touchDrag) return;
+      if (handle.disabled || (event.pointerType === "mouse" && event.button !== 0)) return;
+      const row = handle.closest("[data-assignment-row]");
+      if (sortableRows(row).length < 2) return;
       event.preventDefault();
-      handle.setPointerCapture(event.pointerId);
+      handle.focus({preventScroll: true});
+      activePointerDrag = {
+        row,
+        pointerId: event.pointerId,
+        startX: event.clientX,
+        startY: event.clientY,
+        state: null,
+      };
     });
-    handle.addEventListener("pointermove", event => {
-      if (!touchDrag) return;
-      event.preventDefault();
-      const target = document.elementFromPoint(event.clientX, event.clientY)?.closest("[data-assignment-row]");
-      placeAtPointer(touchDrag, target, event.clientY);
-      if (event.clientY < 110) window.scrollBy({top: -18, behavior: "auto"});
-      else if (event.clientY > window.innerHeight - 110) window.scrollBy({top: 18, behavior: "auto"});
-    });
-    const endTouchDrag = event => {
-      if (!touchDrag) return;
-      event.preventDefault();
-      finishDrag(touchDrag);
-      touchDrag = null;
-    };
-    handle.addEventListener("pointerup", endTouchDrag);
-    handle.addEventListener("pointercancel", endTouchDrag);
   });
 
-  document.addEventListener("dragover", event => {
-    if (!mouseDrag) return;
-    const target = event.target.closest("[data-assignment-row]");
-    if (!target || assigneeValue(target) !== assigneeValue(mouseDrag.row)) return;
+  document.addEventListener("pointermove", event => {
+    if (!activePointerDrag || activePointerDrag.pointerId !== event.pointerId) return;
+    if (!activePointerDrag.state) {
+      const distance = Math.hypot(
+        event.clientX - activePointerDrag.startX,
+        event.clientY - activePointerDrag.startY
+      );
+      if (distance < 6) return;
+      activePointerDrag.state = beginDrag(activePointerDrag.row);
+      if (!activePointerDrag.state) {
+        activePointerDrag = null;
+        return;
+      }
+    }
     event.preventDefault();
-    event.dataTransfer.dropEffect = "move";
-    placeAtPointer(mouseDrag, target, event.clientY);
-  });
-  document.addEventListener("drop", event => {
-    if (mouseDrag) event.preventDefault();
+    const target = document.elementsFromPoint(event.clientX, event.clientY)
+      .map(element => element.closest?.("[data-assignment-row]"))
+      .find(row => row && row !== activePointerDrag.row);
+    placeAtPointer(activePointerDrag.state, target, event.clientY);
+    if (event.clientY < 110) window.scrollBy({top: -18, behavior: "auto"});
+    else if (event.clientY > window.innerHeight - 110) window.scrollBy({top: 18, behavior: "auto"});
+  }, {passive: false});
+
+  function endPointerDrag(event) {
+    if (!activePointerDrag || activePointerDrag.pointerId !== event.pointerId) return;
+    event.preventDefault();
+    const state = activePointerDrag.state;
+    activePointerDrag = null;
+    if (state) finishDrag(state);
+  }
+
+  document.addEventListener("pointerup", endPointerDrag);
+  document.addEventListener("pointercancel", endPointerDrag);
+  window.addEventListener("blur", () => {
+    if (activePointerDrag?.state) finishDrag(activePointerDrag.state);
+    activePointerDrag = null;
   });
 
   updateActions();

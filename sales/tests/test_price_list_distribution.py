@@ -272,29 +272,32 @@ class PriceListDistributionTests(TestCase):
         self.assertNotContains(response, "同事車行")
 
     @patch("sales.views.timezone.localdate", return_value=date(2026, 9, 2))
-    def test_bulk_region_assignment_appends_order_and_leaves_other_area_unassigned(self, _mock_localdate):
-        self.create_dealer("汐止甲", sym=True, district="汐止區")
-        self.create_dealer("汐止乙", sym=True, district="汐止區")
-        self.create_dealer("板橋甲", sym=True, district="板橋區")
+    def test_selected_assignment_appends_order_and_leaves_unchecked_dealer_unassigned(self, _mock_localdate):
+        first = self.create_dealer("汐止甲", sym=True, district="汐止區")
+        second = self.create_dealer("汐止乙", sym=True, district="汐止區")
+        unchecked = self.create_dealer("例外車行", sym=True, district="汐止區")
         distribution, _ = ensure_distribution_month(date(2026, 9, 1))
+        selected_ids = [
+            distribution.items.get(dealer=first).pk,
+            distribution.items.get(dealer=second).pk,
+        ]
 
         response = self.client.post(
             reverse("price_list_distribution_assignments", args=[distribution.pk]),
             {
-                "action": "bulk_assign",
-                "bulk_city": "新北市",
-                "bulk_district": "汐止區",
-                "bulk_assignee": str(self.user.pk),
+                "action": "assign_selected",
+                "selected_item_id": [str(item_id) for item_id in selected_ids],
+                "selected_assignee": str(self.user.pk),
             },
         )
 
         self.assertEqual(response.status_code, 302)
         assigned = list(
-            distribution.items.filter(district="汐止區").order_by("visit_order")
+            distribution.items.filter(pk__in=selected_ids).order_by("visit_order")
         )
         self.assertEqual([item.assigned_to for item in assigned], [self.user, self.user])
         self.assertEqual([item.visit_order for item in assigned], [1, 2])
-        self.assertIsNone(distribution.items.get(district="板橋區").assigned_to)
+        self.assertIsNone(distribution.items.get(dealer=unchecked).assigned_to)
 
     @patch("sales.views.timezone.localdate", return_value=date(2026, 9, 2))
     def test_assignment_page_explains_region_workflow_and_mobile_controls(self, _mock_localdate):
@@ -306,10 +309,12 @@ class PriceListDistributionTests(TestCase):
         )
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "區域批次分配")
-        self.assertContains(response, "逐間調整與拜訪順序")
+        self.assertContains(response, "先縮小範圍，再勾選例外")
+        self.assertContains(response, "分工與拜訪順序")
         self.assertContains(response, "確認本月分工")
-        self.assertContains(response, 'data-move="up"')
+        self.assertContains(response, "data-select-all")
+        self.assertContains(response, "data-drag-handle")
+        self.assertNotContains(response, 'type="number"')
         self.assertContains(response, "price-list-distribution-assignments.js")
         self.assertContains(response, f'{reverse("user_guide")}#price-list-distribution')
 

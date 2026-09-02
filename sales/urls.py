@@ -52,6 +52,11 @@ urlpatterns = [
         name="price_list_distribution_item_update",
     ),
     path(
+        "data/price-list-distribution/<int:pk>/assignments/",
+        views.price_list_distribution_assignments,
+        name="price_list_distribution_assignments",
+    ),
+    path(
         "data/price-list-distribution/<int:pk>/sync/",
         views.price_list_distribution_sync,
         name="price_list_distribution_sync",

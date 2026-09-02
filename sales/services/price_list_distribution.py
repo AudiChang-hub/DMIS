@@ -78,6 +78,31 @@ def dealer_snapshot_rows():
     ]
 
 
+def assignment_user_label(user):
+    if not user:
+        return ""
+    return user.get_full_name().strip() or user.get_username()
+
+
+def previous_assignment_rows(month):
+    previous = (
+        PriceListDistributionMonth.objects.filter(month__lt=normalize_month(month))
+        .order_by("-month")
+        .first()
+    )
+    if not previous:
+        return None, {}
+    rows = {}
+    for item in previous.items.select_related("assigned_to").exclude(dealer_id=None):
+        assigned_to = item.assigned_to if item.assigned_to and item.assigned_to.is_active else None
+        rows[item.dealer_id] = {
+            "assigned_to": assigned_to,
+            "assigned_to_name": assignment_user_label(assigned_to),
+            "visit_order": item.visit_order if assigned_to else 0,
+        }
+    return previous, rows
+
+
 @transaction.atomic
 def ensure_distribution_month(month, *, generated_by="system", sync=False):
     month = normalize_month(month)
@@ -89,14 +114,18 @@ def ensure_distribution_month(month, *, generated_by="system", sync=False):
         return distribution, False
 
     rows = dealer_snapshot_rows()
+    _, previous_assignments = previous_assignment_rows(month) if created else (None, {})
     current_dealer_ids = set()
     for values in rows:
         dealer = values["dealer"]
         current_dealer_ids.add(dealer.pk)
+        defaults = {key: value for key, value in values.items() if key != "dealer"}
+        if created:
+            defaults.update(previous_assignments.get(dealer.pk, {}))
         PriceListDistributionItem.objects.update_or_create(
             distribution=distribution,
             dealer=dealer,
-            defaults={key: value for key, value in values.items() if key != "dealer"},
+            defaults=defaults,
         )
 
     if sync:
@@ -105,6 +134,40 @@ def ensure_distribution_month(month, *, generated_by="system", sync=False):
             note="",
         ).exclude(dealer_id__in=current_dealer_ids).delete()
     return distribution, created
+
+
+@transaction.atomic
+def copy_previous_assignments(distribution):
+    previous, assignments = previous_assignment_rows(distribution.month)
+    if not previous:
+        return None, 0
+    updated = 0
+    for item in distribution.items.select_related("dealer"):
+        values = assignments.get(
+            item.dealer_id,
+            {"assigned_to": None, "assigned_to_name": "", "visit_order": 0},
+        )
+        changed = (
+            item.assigned_to_id != getattr(values["assigned_to"], "pk", None)
+            or item.assigned_to_name != values["assigned_to_name"]
+            or item.visit_order != values["visit_order"]
+        )
+        if not changed:
+            continue
+        item.assigned_to = values["assigned_to"]
+        item.assigned_to_name = values["assigned_to_name"]
+        item.visit_order = values["visit_order"]
+        item.save(
+            update_fields=["assigned_to", "assigned_to_name", "visit_order", "updated_at"]
+        )
+        updated += 1
+    if updated and distribution.assignment_confirmed_at:
+        distribution.assignment_confirmed_at = None
+        distribution.assignment_confirmed_by = ""
+        distribution.save(
+            update_fields=["assignment_confirmed_at", "assignment_confirmed_by", "updated_at"]
+        )
+    return previous, updated
 
 
 def ensure_scheduled_distribution(*, today=None):

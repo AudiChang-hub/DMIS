@@ -16,7 +16,7 @@ from django.conf import settings
 from django.core.files.base import ContentFile
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import IntegrityError, connection, transaction
-from django.db.models import Count, DecimalField, Exists, OuterRef, Prefetch, Q, Subquery, Sum
+from django.db.models import Count, DecimalField, Exists, Max, OuterRef, Prefetch, Q, Subquery, Sum
 from django.core.paginator import Paginator
 from django.http import FileResponse, Http404, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
@@ -144,7 +144,12 @@ from .models import (
     normalize_vehicle_model_master_value,
     normalize_vehicle_identifier,
 )
-from .services.price_list_distribution import ensure_distribution_month, normalize_month
+from .services.price_list_distribution import (
+    assignment_user_label,
+    copy_previous_assignments,
+    ensure_distribution_month,
+    normalize_month,
+)
 from .services.mobile_quick_links import (
     MAX_MOBILE_QUICK_LINKS,
     available_mobile_quick_links,
@@ -540,6 +545,87 @@ def data_maintenance(request):
     )
 
 
+def _price_distribution_geo_key(item):
+    from sales.services.taiwan_address import district_choices
+
+    city_order = {value: index for index, (value, _) in enumerate(TaiwanCounty.choices)}
+    district_order = {
+        value: index for index, value in enumerate(district_choices(item.city))
+    }
+    return (
+        city_order.get(item.city, len(city_order)),
+        district_order.get(item.district, len(district_order)),
+        item.dealer_name,
+        item.pk,
+    )
+
+
+def _price_distribution_users(distribution):
+    assigned_ids = distribution.items.exclude(assigned_to_id=None).values_list(
+        "assigned_to_id", flat=True
+    )
+    return list(
+        get_user_model()
+        .objects.filter(Q(is_active=True) | Q(pk__in=assigned_ids))
+        .distinct()
+        .order_by("first_name", "username", "pk")
+    )
+
+
+def _price_distribution_progress(distribution):
+    rows = list(
+        distribution.items.values("assigned_to_id")
+        .annotate(total=Count("id"), completed=Count("id", filter=Q(completed=True)))
+        .order_by()
+    )
+    return {
+        "unassigned" if row["assigned_to_id"] is None else str(row["assigned_to_id"]): {
+            "total": row["total"],
+            "completed": row["completed"],
+        }
+        for row in rows
+    }
+
+
+def _clear_price_distribution_assignment_confirmation(distribution):
+    if not distribution.assignment_confirmed_at and not distribution.assignment_confirmed_by:
+        return
+    distribution.assignment_confirmed_at = None
+    distribution.assignment_confirmed_by = ""
+    distribution.save(
+        update_fields=["assignment_confirmed_at", "assignment_confirmed_by", "updated_at"]
+    )
+
+
+def _normalize_price_distribution_orders(distribution, user_ids=None):
+    user_ids = set(user_ids or [])
+    if not user_ids:
+        user_ids = set(
+            distribution.items.exclude(assigned_to_id=None).values_list(
+                "assigned_to_id", flat=True
+            )
+        )
+    now = timezone.now()
+    changed = []
+    for user_id in user_ids:
+        items = sorted(
+            distribution.items.filter(assigned_to_id=user_id),
+            key=lambda item: (
+                item.visit_order <= 0,
+                item.visit_order if item.visit_order > 0 else 10**9,
+                _price_distribution_geo_key(item),
+            ),
+        )
+        for index, item in enumerate(items, start=1):
+            if item.visit_order == index:
+                continue
+            item.visit_order = index
+            item.updated_at = now
+            changed.append(item)
+    if changed:
+        PriceListDistributionItem.objects.bulk_update(changed, ["visit_order", "updated_at"])
+
+
 @login_required
 def price_list_distribution(request):
     from sales.services.taiwan_address import district_choices
@@ -551,17 +637,34 @@ def price_list_distribution(request):
         month = timezone.localdate().replace(day=1)
     distribution, _ = ensure_distribution_month(month, generated_by="開啟頁面自動補建")
 
-    items = distribution.items.all()
+    all_items = distribution.items.select_related("assigned_to")
+    items = all_items
     query = request.GET.get("q", "").strip()
     status = request.GET.get("status", "all")
     city = request.GET.get("city", "").strip()
     district = request.GET.get("district", "").strip()
+    users = _price_distribution_users(distribution)
+    user_ids = {user.pk for user in users}
+    owner = request.GET.get("owner", "").strip()
+    if not owner:
+        owner = "me" if all_items.filter(assigned_to=request.user).exists() else "all"
+    if owner == "me":
+        items = items.filter(assigned_to=request.user)
+    elif owner == "unassigned":
+        items = items.filter(assigned_to=None)
+    elif owner == "all":
+        pass
+    elif owner.isdigit() and int(owner) in user_ids:
+        items = items.filter(assigned_to_id=int(owner))
+    else:
+        owner = "all"
     if query:
         items = items.filter(
             Q(dealer_name__icontains=query)
             | Q(dealer_code__icontains=query)
             | Q(address__icontains=query)
             | Q(note__icontains=query)
+            | Q(assigned_to_name__icontains=query)
         )
     if status == "completed":
         items = items.filter(completed=True)
@@ -572,23 +675,76 @@ def price_list_distribution(request):
     if district:
         items = items.filter(district=district)
 
-    city_order = {value: index for index, (value, _) in enumerate(TaiwanCounty.choices)}
-    items = sorted(
-        items,
-        key=lambda item: (
-            city_order.get(item.city, len(city_order)),
-            {
-                value: index
-                for index, value in enumerate(district_choices(item.city))
-            }.get(item.district, len(district_choices(item.city))),
-            item.dealer_name,
-            item.pk,
-        ),
-    )
+    if owner == "all":
+        items = sorted(items, key=_price_distribution_geo_key)
+    else:
+        items = sorted(
+            items,
+            key=lambda item: (
+                item.visit_order <= 0,
+                item.visit_order if item.visit_order > 0 else 10**9,
+                _price_distribution_geo_key(item),
+            ),
+        )
 
-    all_items = distribution.items.all()
     total_count = all_items.count()
     completed_count = all_items.filter(completed=True).count()
+    assignment_progress = _price_distribution_progress(distribution)
+    owner_query = request.GET.copy()
+    owner_query["month"] = f"{distribution.month:%Y-%m}"
+    owner_query.pop("page", None)
+
+    def owner_url(value):
+        params = owner_query.copy()
+        params["owner"] = value
+        return f"?{params.urlencode()}"
+
+    my_progress = assignment_progress.get(str(request.user.pk), {"total": 0, "completed": 0})
+    assignment_groups = [
+        {
+            "key": "me",
+            "label": "我的車行",
+            "name": _editing_name(request.user),
+            "total": my_progress["total"],
+            "completed": my_progress["completed"],
+            "url": owner_url("me"),
+        }
+    ]
+    for user in users:
+        if user.pk == request.user.pk:
+            continue
+        progress = assignment_progress.get(str(user.pk), {"total": 0, "completed": 0})
+        assignment_groups.append(
+            {
+                "key": str(user.pk),
+                "label": assignment_user_label(user),
+                "name": "負責車行",
+                "total": progress["total"],
+                "completed": progress["completed"],
+                "url": owner_url(str(user.pk)),
+            }
+        )
+    unassigned_progress = assignment_progress.get("unassigned", {"total": 0, "completed": 0})
+    assignment_groups.extend(
+        [
+            {
+                "key": "unassigned",
+                "label": "未分配",
+                "name": "需要確認負責人",
+                "total": unassigned_progress["total"],
+                "completed": unassigned_progress["completed"],
+                "url": owner_url("unassigned"),
+            },
+            {
+                "key": "all",
+                "label": "全部車行",
+                "name": "本月完整名單",
+                "total": total_count,
+                "completed": completed_count,
+                "url": owner_url("all"),
+            },
+        ]
+    )
     month_options = list(PriceListDistributionMonth.objects.order_by("-month"))
     cities = list(
         all_items.exclude(city="").values_list("city", flat=True).distinct().order_by("city")
@@ -614,6 +770,9 @@ def price_list_distribution(request):
             "month_options": month_options,
             "query": query,
             "status": status,
+            "selected_owner": owner,
+            "assignment_groups": assignment_groups,
+            "unassigned_count": unassigned_progress["total"],
             "selected_city": city,
             "selected_district": district,
             "cities": cities,
@@ -623,6 +782,253 @@ def price_list_distribution(request):
             "pending_count": total_count - completed_count,
             "progress_percent": round(completed_count * 100 / total_count) if total_count else 0,
             "can_sync": distribution.month >= timezone.localdate().replace(day=1),
+            "assignment_editable": distribution.month >= timezone.localdate().replace(day=1),
+        },
+    )
+
+
+@login_required
+@transaction.atomic
+def price_list_distribution_assignments(request, pk):
+    from sales.services.taiwan_address import district_choices
+
+    distribution = get_object_or_404(PriceListDistributionMonth, pk=pk)
+    editable = distribution.month >= timezone.localdate().replace(day=1)
+    users = _price_distribution_users(distribution)
+    active_users = {user.pk: user for user in users if user.is_active}
+
+    if request.method == "POST":
+        if not editable:
+            messages.error(request, "歷史月份已保存，不能再修改分工與順序。")
+            return redirect(request.get_full_path())
+
+        action = request.POST.get("action", "").strip()
+        touched_user_ids = set()
+        changed = False
+
+        if action == "bulk_assign":
+            city = request.POST.get("bulk_city", "").strip()
+            district = request.POST.get("bulk_district", "").strip()
+            assignee_value = request.POST.get("bulk_assignee", "").strip()
+            if not city:
+                messages.error(request, "請先選擇要批次分配的縣市。")
+                return redirect(request.get_full_path())
+            target_items = distribution.items.filter(city=city).select_related("assigned_to")
+            if district:
+                target_items = target_items.filter(district=district)
+            target_items = sorted(target_items, key=_price_distribution_geo_key)
+            assignee = active_users.get(int(assignee_value)) if assignee_value.isdigit() else None
+            if assignee_value and not assignee:
+                messages.error(request, "選擇的負責人目前無法使用。")
+                return redirect(request.get_full_path())
+            next_order = (
+                distribution.items.filter(assigned_to=assignee).aggregate(value=Max("visit_order"))["value"]
+                or 0
+            ) if assignee else 0
+            now = timezone.now()
+            updated_items = []
+            for item in target_items:
+                if item.assigned_to_id:
+                    touched_user_ids.add(item.assigned_to_id)
+                if assignee:
+                    touched_user_ids.add(assignee.pk)
+                    if item.assigned_to_id != assignee.pk or item.visit_order <= 0:
+                        next_order += 1
+                        item.visit_order = next_order
+                    item.assigned_to = assignee
+                    item.assigned_to_name = assignment_user_label(assignee)
+                else:
+                    item.assigned_to = None
+                    item.assigned_to_name = ""
+                    item.visit_order = 0
+                item.updated_at = now
+                updated_items.append(item)
+            if updated_items:
+                PriceListDistributionItem.objects.bulk_update(
+                    updated_items,
+                    ["assigned_to", "assigned_to_name", "visit_order", "updated_at"],
+                )
+                changed = True
+                area_label = f"{city}{district}" if district else city
+                messages.success(
+                    request,
+                    f"已將 {area_label} 的 {len(updated_items)} 家車行"
+                    f"{'分配給 ' + assignment_user_label(assignee) if assignee else '改為未分配'}。",
+                )
+            else:
+                messages.info(request, "所選區域目前沒有車行。")
+
+        elif action == "save_rows":
+            item_ids = [value for value in request.POST.getlist("item_id") if value.isdigit()]
+            selected_items = list(
+                distribution.items.select_for_update().filter(pk__in=item_ids)
+            )
+            now = timezone.now()
+            updated_items = []
+            for item in selected_items:
+                assignee_value = request.POST.get(f"assignee_{item.pk}", "").strip()
+                assignee = active_users.get(int(assignee_value)) if assignee_value.isdigit() else None
+                if (
+                    assignee_value.isdigit()
+                    and not assignee
+                    and item.assigned_to_id == int(assignee_value)
+                ):
+                    assignee = item.assigned_to
+                if assignee_value and not assignee:
+                    messages.error(request, f"{item.dealer_name} 的負責人已停用，請重新選擇。")
+                    return redirect(request.get_full_path())
+                if item.assigned_to_id:
+                    touched_user_ids.add(item.assigned_to_id)
+                if assignee:
+                    touched_user_ids.add(assignee.pk)
+                try:
+                    requested_order = max(0, int(request.POST.get(f"order_{item.pk}", "0") or 0))
+                except (TypeError, ValueError):
+                    requested_order = 0
+                new_order = requested_order if assignee else 0
+                new_name = assignment_user_label(assignee)
+                if (
+                    item.assigned_to_id == getattr(assignee, "pk", None)
+                    and item.assigned_to_name == new_name
+                    and item.visit_order == new_order
+                ):
+                    continue
+                item.assigned_to = assignee
+                item.assigned_to_name = new_name
+                item.visit_order = new_order
+                item.updated_at = now
+                updated_items.append(item)
+            if updated_items:
+                PriceListDistributionItem.objects.bulk_update(
+                    updated_items,
+                    ["assigned_to", "assigned_to_name", "visit_order", "updated_at"],
+                )
+                changed = True
+                messages.success(request, f"已儲存 {len(updated_items)} 家車行的分工與順序。")
+            else:
+                messages.info(request, "分工與順序沒有變更。")
+
+        elif action == "copy_previous":
+            previous, updated_count = copy_previous_assignments(distribution)
+            if previous:
+                changed = updated_count > 0
+                messages.success(
+                    request,
+                    f"已沿用 {previous.month:%Y 年 %m 月}分工，共更新 {updated_count} 家車行。",
+                )
+            else:
+                messages.info(request, "目前沒有更早月份可供沿用。")
+
+        elif action == "confirm":
+            unassigned_count = distribution.items.filter(assigned_to=None).count()
+            if unassigned_count:
+                messages.error(request, f"尚有 {unassigned_count} 家車行未分配，完成分工後才能確認。")
+            else:
+                distribution.assignment_confirmed_at = timezone.now()
+                distribution.assignment_confirmed_by = _editing_name(request.user)
+                distribution.save(
+                    update_fields=["assignment_confirmed_at", "assignment_confirmed_by", "updated_at"]
+                )
+                messages.success(request, "本月分工已確認，可以開始依各自清單進行分發。")
+            return redirect(request.get_full_path())
+        else:
+            messages.error(request, "無法辨識這次操作，請重新整理後再試。")
+            return redirect(request.get_full_path())
+
+        if changed:
+            _normalize_price_distribution_orders(distribution, touched_user_ids)
+            _clear_price_distribution_assignment_confirmation(distribution)
+        return redirect(request.get_full_path())
+
+    query = request.GET.get("q", "").strip()
+    owner = request.GET.get("owner", "all").strip()
+    city = request.GET.get("city", "").strip()
+    district = request.GET.get("district", "").strip()
+    items = distribution.items.select_related("assigned_to")
+    if query:
+        items = items.filter(
+            Q(dealer_name__icontains=query)
+            | Q(dealer_code__icontains=query)
+            | Q(address__icontains=query)
+            | Q(assigned_to_name__icontains=query)
+        )
+    if owner == "unassigned":
+        items = items.filter(assigned_to=None)
+    elif owner.isdigit() and int(owner) in {user.pk for user in users}:
+        items = items.filter(assigned_to_id=int(owner))
+    else:
+        owner = "all"
+    if city:
+        items = items.filter(city=city)
+    if district:
+        items = items.filter(district=district)
+    items = list(items)
+    if owner == "all":
+        items.sort(
+            key=lambda item: (
+                item.assigned_to_name or "\uffff",
+                item.visit_order <= 0,
+                item.visit_order if item.visit_order > 0 else 10**9,
+                _price_distribution_geo_key(item),
+            )
+        )
+    else:
+        items.sort(
+            key=lambda item: (
+                item.visit_order <= 0,
+                item.visit_order if item.visit_order > 0 else 10**9,
+                _price_distribution_geo_key(item),
+            )
+        )
+
+    all_items = distribution.items.all()
+    cities = list(
+        all_items.exclude(city="").values_list("city", flat=True).distinct().order_by("city")
+    )
+    districts = list(
+        all_items.filter(city=city)
+        .exclude(district="")
+        .values_list("district", flat=True)
+        .distinct()
+        .order_by("district")
+    ) if city else []
+    if city:
+        official_order = {value: index for index, value in enumerate(district_choices(city))}
+        districts.sort(key=lambda value: official_order.get(value, len(official_order)))
+    previous_distribution = (
+        PriceListDistributionMonth.objects.filter(month__lt=distribution.month)
+        .order_by("-month")
+        .first()
+    )
+    district_options_by_city = {}
+    for option_city in cities:
+        available = set(
+            all_items.filter(city=option_city)
+            .exclude(district="")
+            .values_list("district", flat=True)
+        )
+        district_options_by_city[option_city] = [
+            value for value in district_choices(option_city) if value in available
+        ]
+    return render(
+        request,
+        "sales/price_list_distribution_assignments.html",
+        {
+            "distribution": distribution,
+            "items": items,
+            "users": users,
+            "editable": editable,
+            "previous_distribution": previous_distribution,
+            "query": query,
+            "selected_owner": owner,
+            "selected_city": city,
+            "selected_district": district,
+            "cities": cities,
+            "districts": districts,
+            "district_options_by_city": district_options_by_city,
+            "unassigned_count": all_items.filter(assigned_to=None).count(),
+            "assigned_count": all_items.exclude(assigned_to=None).count(),
+            "total_count": all_items.count(),
         },
     )
 
@@ -658,6 +1064,7 @@ def price_list_distribution_item_update(request, pk):
         "completed_count": completed_count,
         "pending_count": total - completed_count,
         "progress_percent": round(completed_count * 100 / total) if total else 0,
+        "assignment_progress": _price_distribution_progress(item.distribution),
     }
     if request.headers.get("X-Requested-With") == "XMLHttpRequest":
         return JsonResponse(payload)
@@ -677,7 +1084,11 @@ def price_list_distribution_sync(request, pk):
             generated_by=request.user.get_username(),
             sync=True,
         )
-        messages.success(request, f"已重新同步 {distribution.month:%Y 年 %m 月}分發名單。")
+        _clear_price_distribution_assignment_confirmation(distribution)
+        messages.success(
+            request,
+            f"已重新同步 {distribution.month:%Y 年 %m 月}分發名單；請重新確認本月分工。",
+        )
     return redirect(f"{reverse('price_list_distribution')}?month={distribution.month:%Y-%m}")
 
 

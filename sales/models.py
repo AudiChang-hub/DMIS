@@ -984,6 +984,8 @@ class SalesSourceCooperationProfile(TimeStampedModel):
 class PriceListDistributionMonth(TimeStampedModel):
     month = models.DateField("分發月份", unique=True, help_text="固定儲存該月 1 日。")
     generated_by = models.CharField("建立方式", max_length=80, blank=True)
+    assignment_confirmed_at = models.DateTimeField("分工確認時間", blank=True, null=True)
+    assignment_confirmed_by = models.CharField("分工確認人員", max_length=150, blank=True)
 
     class Meta:
         ordering = ["-month"]
@@ -1018,6 +1020,16 @@ class PriceListDistributionItem(TimeStampedModel):
     requires_sym = models.BooleanField("提供三陽價格表", default=False)
     requires_suzuki = models.BooleanField("提供台鈴價格表", default=False)
     sym_exclusive = models.BooleanField("三陽專銷", default=False)
+    assigned_to = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        related_name="assigned_price_list_distribution_items",
+        verbose_name="當月負責人",
+        blank=True,
+        null=True,
+    )
+    assigned_to_name = models.CharField("負責人名稱快照", max_length=150, blank=True)
+    visit_order = models.PositiveIntegerField("拜訪順序", default=0)
     completed = models.BooleanField("已完成", default=False)
     completed_at = models.DateTimeField("完成時間", blank=True, null=True)
     completed_by = models.CharField("完成人員", max_length=150, blank=True)
@@ -1036,7 +1048,11 @@ class PriceListDistributionItem(TimeStampedModel):
             models.Index(
                 fields=["distribution", "completed", "city", "district"],
                 name="price_dist_month_status_idx",
-            )
+            ),
+            models.Index(
+                fields=["distribution", "assigned_to", "visit_order"],
+                name="price_dist_owner_order_idx",
+            ),
         ]
         verbose_name = "每月價格表分發明細"
         verbose_name_plural = "每月價格表分發明細"

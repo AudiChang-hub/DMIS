@@ -28,25 +28,7 @@
   <b data-progress-percent>{{ progress_percent }}%</b>
 </section>
 
-<section class="price-assignment-overview{% if distribution.assignment_confirmed_at %} is-confirmed{% elif unassigned_count %} needs-attention{% endif %}" aria-label="本月分工">
-  <header>
-    <div>
-      <strong>{% if distribution.assignment_confirmed_at %}本月分工已確認{% elif unassigned_count %}本月分工尚未完成{% else %}本月分工尚未確認{% endif %}</strong>
-      <span>{% if distribution.assignment_confirmed_at %}{{ distribution.assignment_confirmed_by }}於 {{ distribution.assignment_confirmed_at|date:"Y/m/d H:i" }} 確認{% elif unassigned_count %}尚有 {{ unassigned_count }} 家車行未指定負責人{% else %}全部車行已有負責人，請確認後開始分發{% endif %}</span>
-    </div>
-    {% if assignment_editable %}<a href="{% url 'price_list_distribution_assignments' distribution.pk %}">{% if unassigned_count %}前往完成分工{% else %}調整分工與順序{% endif %} →</a>{% endif %}
-  </header>
-  <nav class="price-assignment-tabs" aria-label="依負責人查看清單">
-    {% for group in assignment_groups %}
-      <a href="{{ group.url }}" class="{% if selected_owner == group.key %}is-active{% endif %}{% if group.key == 'unassigned' and group.total %} is-warning{% endif %}" {% if selected_owner == group.key %}aria-current="page"{% endif %} data-assignment-progress-key="{% if group.key == 'me' %}{{ request.user.pk }}{% else %}{{ group.key }}{% endif %}">
-        <span>{{ group.label }}</span><small>{{ group.name }}</small><strong><b data-assignment-completed>{{ group.completed }}</b>／<b data-assignment-total>{{ group.total }}</b> 家</strong>
-      </a>
-    {% endfor %}
-  </nav>
-</section>
-
 <form class="master-filters price-distribution-filters" method="get">
-  <input type="hidden" name="owner" value="{{ selected_owner }}">
   <div class="inventory-filter"><label for="distribution-month">月份</label><select id="distribution-month" name="month" onchange="this.form.submit()">
     {% for option in month_options %}<option value="{{ option.month|date:'Y-m' }}" {% if option.pk == distribution.pk %}selected{% endif %}>{{ option.month|date:"Y 年 n 月" }}</option>{% endfor %}
   </select></div>
@@ -55,6 +37,12 @@
     <option value="all" {% if status == 'all' %}selected{% endif %}>全部狀態</option>
     <option value="pending" {% if status == 'pending' %}selected{% endif %}>尚未完成</option>
     <option value="completed" {% if status == 'completed' %}selected{% endif %}>已完成</option>
+  </select></div>
+  <div class="inventory-filter"><label for="distribution-owner">負責人</label><select id="distribution-owner" name="owner">
+    <option value="me" {% if selected_owner == 'me' %}selected{% endif %}>我的車行</option>
+    {% for owner_user in owner_users %}{% if owner_user.pk != request.user.pk %}<option value="{{ owner_user.pk }}" {% if selected_owner == owner_user.pk|stringformat:'s' %}selected{% endif %}>{{ owner_user.get_full_name|default:owner_user.username }}</option>{% endif %}{% endfor %}
+    <option value="unassigned" {% if selected_owner == 'unassigned' %}selected{% endif %}>未分配</option>
+    <option value="all" {% if selected_owner == 'all' %}selected{% endif %}>全部車行</option>
   </select></div>
   <div class="inventory-filter"><label for="distribution-city">縣市</label><select id="distribution-city" name="city" onchange="this.form.submit()">
     <option value="">全部縣市</option>{% for option in cities %}<option value="{{ option }}" {% if option == selected_city %}selected{% endif %}>{{ option }}</option>{% endfor %}

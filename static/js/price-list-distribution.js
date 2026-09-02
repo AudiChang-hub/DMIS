@@ -26,14 +26,6 @@
     document.querySelector("[data-progress-label]").textContent = `尚有 ${payload.pending_count} 家未完成`;
     document.querySelector("[data-progress-percent]").textContent = `${payload.progress_percent}%`;
     document.querySelector("[data-progress-bar]").style.width = `${payload.progress_percent}%`;
-    Object.entries(payload.assignment_progress || {}).forEach(([key, progress]) => {
-      const card = document.querySelector(`[data-assignment-progress-key="${key}"]`);
-      if (!card) return;
-      const completed = card.querySelector("[data-assignment-completed]");
-      const total = card.querySelector("[data-assignment-total]");
-      if (completed) completed.textContent = String(progress.completed);
-      if (total) total.textContent = String(progress.total);
-    });
   }
 
   document.addEventListener("submit", async event => {

@@ -100,6 +100,40 @@ class ProductExperienceTests(TestCase):
         self.assertIn("parseSameOriginUrl", navigation)
         self.assertIn("data-current-page-label", navigation)
 
+    def test_maintenance_items_follow_related_workflow_order(self):
+        daily_routes = (
+            "vehicle_brand_list",
+            "vehicle_model_list",
+            "inventory_list",
+            "accessory_product_list",
+            "customer_list",
+            "sales_source_category_list",
+            "sales_source_list",
+            "sales_source_platform_list",
+            "sales_source_staff_list",
+            "price_list_distribution",
+        )
+        rule_routes = (
+            "settlement_cost_rule_list",
+            "incentive_rule_list",
+            "dealer_volume_bonus_list",
+            "installment_company_list",
+            "brand_registration_fee_rule_list",
+            "business_holiday_list",
+        )
+
+        for template_path in (
+            Path("templates/base.html"),
+            Path("templates/sales/data_maintenance.html"),
+        ):
+            source = template_path.read_text(encoding="utf-8")
+            with self.subTest(template_path=template_path, group="daily"):
+                positions = [source.index(f"url '{route}'") for route in daily_routes]
+                self.assertEqual(positions, sorted(positions))
+            with self.subTest(template_path=template_path, group="rules"):
+                positions = [source.index(f"url '{route}'") for route in rule_routes]
+                self.assertEqual(positions, sorted(positions))
+
     def test_mobile_quick_links_use_a_compact_account_default(self):
         self.client.force_login(self.user)
 

@@ -266,6 +266,8 @@ class PriceListDistributionTests(TestCase):
         )
         self.assertContains(response, "我的車行")
         self.assertContains(response, "協作同事")
+        self.assertContains(response, 'id="distribution-owner"')
+        self.assertNotContains(response, "price-assignment-overview")
         self.assertContains(response, "第 1 站")
         self.assertNotContains(response, "同事車行")
 

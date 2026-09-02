@@ -382,22 +382,7 @@ input::placeholder, textarea::placeholder { color: var(--muted); opacity: .86; }
 .price-distribution-progress__bar { height: 12px; overflow: hidden; background: var(--surface-soft); border-radius: 999px; }
 .price-distribution-progress__bar span { display: block; height: 100%; background: var(--forest); border-radius: inherit; transition: width .2s ease; }
 .price-distribution-progress > b { color: var(--forest); }
-.price-assignment-overview { margin-bottom: 16px; overflow: hidden; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; }
-.price-assignment-overview > header { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 13px 16px; background: var(--surface-soft); border-bottom: 1px solid var(--line); }
-.price-assignment-overview > header div { display: grid; gap: 2px; }
-.price-assignment-overview > header span { color: var(--muted); font-size: .84rem; }
-.price-assignment-overview > header a { color: var(--forest); font-weight: 850; text-decoration: none; }
-.price-assignment-overview.is-confirmed > header { background: rgba(222, 241, 234, .72); }
-.price-assignment-overview.needs-attention > header { background: #fff3da; }
-.price-assignment-tabs { display: grid; grid-template-columns: repeat(auto-fit, minmax(155px, 1fr)); gap: 1px; background: var(--line); }
-.price-assignment-tabs a { display: grid; min-width: 0; gap: 2px; padding: 12px 14px; color: var(--ink); text-decoration: none; background: var(--surface); border-bottom: 3px solid transparent; }
-.price-assignment-tabs a:hover { background: var(--surface-soft); }
-.price-assignment-tabs a.is-active { background: #edf4fb; border-bottom-color: var(--blue); }
-.price-assignment-tabs a.is-warning:not(.is-active) { background: #fff9eb; }
-.price-assignment-tabs span { overflow: hidden; font-weight: 850; text-overflow: ellipsis; white-space: nowrap; }
-.price-assignment-tabs small { overflow: hidden; color: var(--muted); text-overflow: ellipsis; white-space: nowrap; }
-.price-assignment-tabs strong { margin-top: 5px; color: var(--forest); font-size: .91rem; }
-.master-filters.price-distribution-filters { grid-template-columns: 150px minmax(280px, 1.6fr) repeat(3, minmax(150px, .7fr)) auto; }
+.master-filters.price-distribution-filters { grid-template-columns: 150px minmax(240px, 1.5fr) repeat(4, minmax(135px, .7fr)) auto; }
 .price-distribution-filters .inventory-filter-actions { justify-self: end; }
 .price-distribution-list { display: grid; gap: 12px; }
 .price-distribution-card { padding: 16px 18px; background: var(--surface); border: 1px solid var(--line); border-left: 5px solid #d3dce1; border-radius: 14px; }
@@ -465,12 +450,17 @@ input::placeholder, textarea::placeholder { color: var(--muted); opacity: .86; }
 .price-assignment-save { display: flex; align-items: center; justify-content: flex-end; gap: 16px; }
 .price-assignment-save span { color: var(--muted); font-size: .82rem; }
 
+@media (min-width: 841px) and (max-width: 1200px) {
+  .master-filters.price-distribution-filters { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .price-distribution-filters .master-search { grid-column: span 2; }
+  .price-distribution-filters .inventory-filter-actions { grid-column: 1 / -1; justify-self: stretch; }
+  .price-distribution-filters .inventory-filter-actions .button { flex: 1; }
+}
+
 @media (max-width: 840px) {
   .price-distribution-hero { align-items: flex-start; }
   .price-distribution-progress { grid-template-columns: 1fr auto; }
   .price-distribution-progress__bar { grid-column: 1 / -1; grid-row: 2; }
-  .price-assignment-overview > header { align-items: flex-start; flex-direction: column; }
-  .price-assignment-tabs { grid-template-columns: 1fr 1fr; }
   .master-filters.price-distribution-filters { grid-template-columns: 1fr 1fr; }
   .price-distribution-filters .master-search { grid-column: 1 / -1; grid-row: 1; }
   .price-distribution-filters .inventory-filter-actions { grid-column: 1 / -1; justify-self: stretch; }

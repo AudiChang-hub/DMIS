@@ -572,21 +572,6 @@ def _price_distribution_users(distribution):
     )
 
 
-def _price_distribution_progress(distribution):
-    rows = list(
-        distribution.items.values("assigned_to_id")
-        .annotate(total=Count("id"), completed=Count("id", filter=Q(completed=True)))
-        .order_by()
-    )
-    return {
-        "unassigned" if row["assigned_to_id"] is None else str(row["assigned_to_id"]): {
-            "total": row["total"],
-            "completed": row["completed"],
-        }
-        for row in rows
-    }
-
-
 def _clear_price_distribution_assignment_confirmation(distribution):
     if not distribution.assignment_confirmed_at and not distribution.assignment_confirmed_by:
         return
@@ -689,62 +674,6 @@ def price_list_distribution(request):
 
     total_count = all_items.count()
     completed_count = all_items.filter(completed=True).count()
-    assignment_progress = _price_distribution_progress(distribution)
-    owner_query = request.GET.copy()
-    owner_query["month"] = f"{distribution.month:%Y-%m}"
-    owner_query.pop("page", None)
-
-    def owner_url(value):
-        params = owner_query.copy()
-        params["owner"] = value
-        return f"?{params.urlencode()}"
-
-    my_progress = assignment_progress.get(str(request.user.pk), {"total": 0, "completed": 0})
-    assignment_groups = [
-        {
-            "key": "me",
-            "label": "我的車行",
-            "name": _editing_name(request.user),
-            "total": my_progress["total"],
-            "completed": my_progress["completed"],
-            "url": owner_url("me"),
-        }
-    ]
-    for user in users:
-        if user.pk == request.user.pk:
-            continue
-        progress = assignment_progress.get(str(user.pk), {"total": 0, "completed": 0})
-        assignment_groups.append(
-            {
-                "key": str(user.pk),
-                "label": assignment_user_label(user),
-                "name": "負責車行",
-                "total": progress["total"],
-                "completed": progress["completed"],
-                "url": owner_url(str(user.pk)),
-            }
-        )
-    unassigned_progress = assignment_progress.get("unassigned", {"total": 0, "completed": 0})
-    assignment_groups.extend(
-        [
-            {
-                "key": "unassigned",
-                "label": "未分配",
-                "name": "需要確認負責人",
-                "total": unassigned_progress["total"],
-                "completed": unassigned_progress["completed"],
-                "url": owner_url("unassigned"),
-            },
-            {
-                "key": "all",
-                "label": "全部車行",
-                "name": "本月完整名單",
-                "total": total_count,
-                "completed": completed_count,
-                "url": owner_url("all"),
-            },
-        ]
-    )
     month_options = list(PriceListDistributionMonth.objects.order_by("-month"))
     cities = list(
         all_items.exclude(city="").values_list("city", flat=True).distinct().order_by("city")
@@ -771,8 +700,7 @@ def price_list_distribution(request):
             "query": query,
             "status": status,
             "selected_owner": owner,
-            "assignment_groups": assignment_groups,
-            "unassigned_count": unassigned_progress["total"],
+            "owner_users": users,
             "selected_city": city,
             "selected_district": district,
             "cities": cities,
@@ -1064,7 +992,6 @@ def price_list_distribution_item_update(request, pk):
         "completed_count": completed_count,
         "pending_count": total - completed_count,
         "progress_percent": round(completed_count * 100 / total) if total else 0,
-        "assignment_progress": _price_distribution_progress(item.distribution),
     }
     if request.headers.get("X-Requested-With") == "XMLHttpRequest":
         return JsonResponse(payload)

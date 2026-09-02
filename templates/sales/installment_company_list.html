@@ -1,12 +1,12 @@
 {% extends "base.html" %}
-{% block title %}分期公司｜車輛銷售管理{% endblock %}
+{% block title %}分期公司與方案｜車輛銷售管理{% endblock %}
 {% block page_class %}page-shell--wide{% endblock %}
 {% block content %}
 {% url 'data_maintenance' as data_url %}{% include "sales/_page_back.html" with fallback_url=data_url label="返回資料維護區" %}
 <section class="hero-row compact-hero">
   <div>
     <p class="eyebrow">分期主檔</p>
-    <h1>分期公司</h1>
+    <h1>分期公司與方案</h1>
     <p class="muted">集中維護公司與客服電話；訂單套用方案時會保存當下資料，不受日後修改影響。</p>
   </div>
   {% if not show_editor %}<div class="hero-actions"><a class="button primary" href="?new=1#company-form">＋ 新增分期公司</a></div>{% endif %}

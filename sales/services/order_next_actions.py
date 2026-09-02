@@ -175,8 +175,8 @@ def _registration_action(order, registration_missing):
         )
         return NextAction(
             key="settlement-cost",
-            title="補建代銷結算成本",
-            description="領牌資料已齊，但找不到適用的車型與生效日成本版本。",
+            title="補建車輛結算成本",
+            description="領牌資料已齊，但找不到適用的機種與生效日成本版本。",
             action_label="查看成本規則",
             url=f"{reverse('settlement_cost_rule_list')}?{query}",
             badge="完成領牌前必須處理",

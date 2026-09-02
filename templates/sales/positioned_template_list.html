@@ -1,9 +1,9 @@
 {% extends "base.html" %}
-{% block title %}列印套表｜車輛銷售管理{% endblock %}
+{% block title %}列印範本設定｜車輛銷售管理{% endblock %}
 {% block page_class %}page-shell--wide{% endblock %}
 {% block content %}
 {% url 'data_maintenance' as maintenance_url %}{% include "sales/_page_back.html" with fallback_url=maintenance_url label="返回資料維護區" %}
-<section class="hero-row compact-hero"><div><p class="eyebrow">文件輸出</p><h1>列印套表</h1><p class="muted">信封可使用空白背景；報件單可上傳 Excel、PDF 或圖片並定位訂單欄位。</p></div><a class="button primary" href="{% url 'positioned_template_create' %}">＋ 新增範本</a></section>
+<section class="hero-row compact-hero"><div><p class="eyebrow">文件輸出</p><h1>列印範本設定</h1><p class="muted">信封可使用空白背景；報件單可上傳 Excel、PDF 或圖片並定位訂單欄位。</p></div><a class="button primary" href="{% url 'positioned_template_create' %}">＋ 新增範本</a></section>
 <section class="section-block"><div class="section-title"><h2>範本版本</h2><span>{{ templates|length }} 筆</span></div>
 <div class="responsive-table-wrap"><table class="data-table"><thead><tr><th>類型</th><th>名稱</th><th>版本</th><th>紙張</th><th>動態欄位</th><th>背景</th><th>狀態</th><th>操作</th></tr></thead><tbody>
 {% for item in templates %}<tr><td>{{ item.get_document_type_display }}</td><td>{{ item.name }}</td><td>v{{ item.version }}</td><td>{{ item.get_paper_size_display }}／{{ item.get_orientation_display }}</td><td>{{ item.fields.count }}</td><td>{% if item.background_file %}{{ item.background_file.name|cut:"print_templates/" }}{% else %}空白{% endif %}</td><td>{% include "sales/_active_quick_toggle.html" with resource="positioned-print-template" pk=item.pk is_active=item.active item_name=item.name %}</td><td><a class="button ghost small" href="{% url 'positioned_template_edit' item.pk %}">編輯</a><a class="button ghost small" target="_blank" href="{% url 'positioned_template_preview' item.pk %}">預覽</a><form class="inline-form" method="post" action="{% url 'positioned_template_delete' item.pk %}">{% csrf_token %}<button class="button danger small" type="submit" data-confirm="確定刪除此範本與所有欄位嗎？">刪除</button></form></td></tr>

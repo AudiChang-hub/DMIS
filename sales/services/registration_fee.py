@@ -113,7 +113,7 @@ def calendar_remaining_days(registration_date):
 
 def calculate_registration_fee(displacement_cc, registration_date, period_years):
     if not displacement_cc:
-        raise UnsupportedRegistrationFee("請先在資料維護區的車型資料設定排氣量。")
+        raise UnsupportedRegistrationFee("請先在資料維護區的「機種與售價」設定排氣量。")
     rate = rate_class_for(displacement_cc)
     standard_days = standard_remaining_days(registration_date)
     actual_days = calendar_remaining_days(registration_date)

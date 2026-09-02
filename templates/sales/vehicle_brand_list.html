@@ -1,14 +1,14 @@
 {% extends "base.html" %}
-{% block title %}品牌資料｜車輛銷售管理{% endblock %}
+{% block title %}車輛品牌｜車輛銷售管理{% endblock %}
 {% block page_class %}page-shell--wide{% endblock %}
 {% block content %}
 {% url 'data_maintenance' as data_url %}
 {% include "sales/_page_back.html" with fallback_url=data_url label="返回資料維護區" %}
 <section class="hero-row compact-hero">
   <div>
-    <p class="eyebrow">車型與商業規則共用主檔</p>
-    <h1>品牌資料</h1>
-    <p class="muted">可用所屬主品牌整理品牌關係；車型與交易仍保留子品牌名稱，售價、牌險與傭金規則也各自維護。</p>
+    <p class="eyebrow">機種與商業規則共用主檔</p>
+    <h1>車輛品牌</h1>
+    <p class="muted">可用所屬主品牌整理品牌關係；機種與交易仍保留子品牌名稱，售價、領牌與傭金規則也各自維護。</p>
   </div>
 </section>
 <div class="responsive-split master-editor-layout">

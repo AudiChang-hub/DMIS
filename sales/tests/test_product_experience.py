@@ -77,7 +77,7 @@ class ProductExperienceTests(TestCase):
 
         self.assertEqual(source_page.status_code, 200)
         self.assertContains(source_page, 'class="desktop-data-menu active"')
-        self.assertContains(source_page, "合作車行與傭金")
+        self.assertContains(source_page, "合作車行")
         self.assertContains(source_page, "網路平台")
         self.assertContains(source_page, "本店人員")
         self.assertContains(source_page, reverse("accessory_product_list"))
@@ -133,6 +133,52 @@ class ProductExperienceTests(TestCase):
             with self.subTest(template_path=template_path, group="rules"):
                 positions = [source.index(f"url '{route}'") for route in rule_routes]
                 self.assertEqual(positions, sorted(positions))
+
+    def test_maintenance_entry_names_match_destination_page_titles(self):
+        destinations = (
+            ("vehicle_brand_list", "車輛品牌", "vehicle_brand_list.html"),
+            ("vehicle_model_list", "機種與售價", "vehicle_model_list.html"),
+            ("inventory_list", "車輛庫存", "inventory_list.html"),
+            ("accessory_product_list", "配件與工資", "accessory_product_list.html"),
+            ("customer_list", "客戶查詢", "customer_list.html"),
+            ("sales_source_category_list", "通路類別", "sales_source_category_list.html"),
+            ("sales_source_list", "合作車行", "sales_source_list.html"),
+            ("price_list_distribution", "價格表分發", "price_list_distribution.html"),
+            ("settlement_cost_rule_list", "車輛結算成本", "settlement_cost_rule_list.html"),
+            ("incentive_rule_list", "原廠獎勵與補助", "incentive_rule_list.html"),
+            ("dealer_volume_bonus_list", "車行台數獎金", "dealer_volume_bonus_list.html"),
+            ("installment_company_list", "分期公司與方案", "installment_company_list.html"),
+            ("brand_registration_fee_rule_list", "領牌與強制險", "brand_registration_fee_rule_list.html"),
+            ("business_holiday_list", "工作日與假日設定", "business_holiday_list.html"),
+            ("legacy_import_list", "舊資料 Excel 匯入", "legacy_import_list.html"),
+            ("positioned_template_list", "列印範本設定", "positioned_template_list.html"),
+            ("system_diagnostics", "系統狀態檢查", "system_diagnostics.html"),
+            ("user_management", "帳號與權限", "user_management.html"),
+        )
+        hub = Path("templates/sales/data_maintenance.html").read_text(encoding="utf-8")
+        navigation = Path("templates/base.html").read_text(encoding="utf-8")
+
+        for route, label, filename in destinations:
+            destination = Path("templates/sales", filename).read_text(encoding="utf-8")
+            with self.subTest(route=route):
+                self.assertIn(f"url '{route}'", hub)
+                self.assertIn(f"<h2>{label}</h2>", hub)
+                self.assertIn(f"{{% block title %}}{label}｜", destination)
+                self.assertIn(f"<h1>{label}</h1>", destination)
+                if route not in {"system_diagnostics", "user_management"}:
+                    self.assertIn(f"url '{route}'", navigation)
+                    self.assertIn(f"<strong>{label}</strong>", navigation)
+
+        self.client.force_login(self.user)
+        for route, label in (
+            ("sales_source_platform_list", "網路平台"),
+            ("sales_source_staff_list", "本店人員"),
+        ):
+            with self.subTest(route=route):
+                response = self.client.get(reverse(route))
+                self.assertEqual(response.status_code, 200)
+                self.assertContains(response, f"<h1>{label}</h1>", html=True)
+                self.assertContains(response, f"<title>{label}｜車輛銷售管理</title>", html=True)
 
     def test_mobile_quick_links_use_a_compact_account_default(self):
         self.client.force_login(self.user)
@@ -226,7 +272,7 @@ class ProductExperienceTests(TestCase):
         self.assertRedirects(response, reverse("dashboard"))
         response = self.client.get(reverse("dashboard"))
         self.assertContains(response, 'data-mobile-quick-link="user-management"')
-        self.assertContains(response, ">帳號管理</strong>")
+        self.assertContains(response, ">帳號與權限</strong>")
 
     def test_disclosure_controls_use_consistent_font_independent_chevrons(self):
         self.client.force_login(self.user)
@@ -541,7 +587,7 @@ class ProductExperienceTests(TestCase):
         response = self.client.get(url)
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "系統狀態")
+        self.assertContains(response, "系統狀態檢查")
         self.assertContains(response, "訂單資料庫")
         self.assertContains(response, "全欄位搜尋")
         self.assertContains(response, "照片與文件空間")

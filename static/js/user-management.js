@@ -27,8 +27,6 @@
       const password = securePassword();
       first.value = password;
       second.value = password;
-      first.type = "text";
-      second.type = "text";
       output.textContent = password;
       tools.hidden = false;
     });

@@ -300,6 +300,37 @@ class PriceListDistributionTests(TestCase):
         self.assertIsNone(distribution.items.get(dealer=unchecked).assigned_to)
 
     @patch("sales.views.timezone.localdate", return_value=date(2026, 9, 2))
+    def test_selected_assignment_also_saves_other_pending_row_adjustments(self, _mock_localdate):
+        selected_dealer = self.create_dealer("批次指派車行", sym=True)
+        adjusted_dealer = self.create_dealer("個別調整車行", sym=True)
+        distribution, _ = ensure_distribution_month(date(2026, 9, 1))
+        selected_item = distribution.items.get(dealer=selected_dealer)
+        adjusted_item = distribution.items.get(dealer=adjusted_dealer)
+
+        response = self.client.post(
+            reverse("price_list_distribution_assignments", args=[distribution.pk]),
+            {
+                "action": "assign_selected",
+                "selected_item_id": [str(selected_item.pk)],
+                "selected_assignee": str(self.user.pk),
+                "item_id": [str(selected_item.pk), str(adjusted_item.pk)],
+                f"assignee_{selected_item.pk}": str(self.colleague.pk),
+                f"order_{selected_item.pk}": "9",
+                f"assignee_{adjusted_item.pk}": str(self.colleague.pk),
+                f"order_{adjusted_item.pk}": "7",
+            },
+            follow=True,
+        )
+
+        self.assertContains(response, "並儲存其他調整")
+        selected_item.refresh_from_db()
+        adjusted_item.refresh_from_db()
+        self.assertEqual(selected_item.assigned_to, self.user)
+        self.assertEqual(selected_item.visit_order, 1)
+        self.assertEqual(adjusted_item.assigned_to, self.colleague)
+        self.assertEqual(adjusted_item.visit_order, 1)
+
+    @patch("sales.views.timezone.localdate", return_value=date(2026, 9, 2))
     def test_assignment_page_explains_region_workflow_and_mobile_controls(self, _mock_localdate):
         self.create_dealer("分工畫面車行", sym=True)
         distribution, _ = ensure_distribution_month(date(2026, 9, 1))
@@ -313,6 +344,11 @@ class PriceListDistributionTests(TestCase):
         self.assertContains(response, "分工與拜訪順序")
         self.assertContains(response, "確認本月分工")
         self.assertContains(response, "data-select-all")
+        self.assertContains(response, "data-batch-controls")
+        self.assertContains(response, "data-save-controls")
+        self.assertContains(response, "勾選車行後，即可一次指派負責人")
+        self.assertContains(response, "儲存排序與個別調整")
+        self.assertNotContains(response, ">儲存變更</button>")
         self.assertContains(response, "data-drag-handle")
         self.assertNotContains(response, 'type="number"')
         self.assertContains(response, "price-list-distribution-assignments.js")

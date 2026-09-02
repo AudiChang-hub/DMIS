@@ -734,6 +734,51 @@ def price_list_distribution_assignments(request, pk):
         touched_user_ids = set()
         changed = False
 
+        def build_row_updates(*, excluded_ids=None):
+            excluded_ids = excluded_ids or set()
+            item_ids = [value for value in request.POST.getlist("item_id") if value.isdigit()]
+            selected_items = list(
+                distribution.items.select_for_update()
+                .select_related("assigned_to")
+                .filter(pk__in=item_ids)
+                .exclude(pk__in=excluded_ids)
+            )
+            now = timezone.now()
+            updated_items = []
+            for item in selected_items:
+                assignee_value = request.POST.get(f"assignee_{item.pk}", "").strip()
+                assignee = active_users.get(int(assignee_value)) if assignee_value.isdigit() else None
+                if (
+                    assignee_value.isdigit()
+                    and not assignee
+                    and item.assigned_to_id == int(assignee_value)
+                ):
+                    assignee = item.assigned_to
+                if assignee_value and not assignee:
+                    return [], f"{item.dealer_name} 的負責人已停用，請重新選擇。"
+                if item.assigned_to_id:
+                    touched_user_ids.add(item.assigned_to_id)
+                if assignee:
+                    touched_user_ids.add(assignee.pk)
+                try:
+                    requested_order = max(0, int(request.POST.get(f"order_{item.pk}", "0") or 0))
+                except (TypeError, ValueError):
+                    requested_order = 0
+                new_order = requested_order if assignee else 0
+                new_name = assignment_user_label(assignee)
+                if (
+                    item.assigned_to_id == getattr(assignee, "pk", None)
+                    and item.assigned_to_name == new_name
+                    and item.visit_order == new_order
+                ):
+                    continue
+                item.assigned_to = assignee
+                item.assigned_to_name = new_name
+                item.visit_order = new_order
+                item.updated_at = now
+                updated_items.append(item)
+            return updated_items, ""
+
         if action == "assign_selected":
             selected_ids = [
                 int(value)
@@ -748,6 +793,16 @@ def price_list_distribution_assignments(request, pk):
             if assignee_value and not assignee:
                 messages.error(request, "選擇的負責人目前無法使用。")
                 return redirect(request.get_full_path())
+            row_updates, row_error = build_row_updates(excluded_ids=set(selected_ids))
+            if row_error:
+                messages.error(request, row_error)
+                return redirect(request.get_full_path())
+            if row_updates:
+                PriceListDistributionItem.objects.bulk_update(
+                    row_updates,
+                    ["assigned_to", "assigned_to_name", "visit_order", "updated_at"],
+                )
+                changed = True
             target_by_id = {
                 item.pk: item
                 for item in distribution.items.select_for_update()
@@ -794,62 +849,30 @@ def price_list_distribution_assignments(request, pk):
                 messages.success(
                     request,
                     f"已將勾選的 {len(updated_items)} 家車行"
-                    f"{'分配給 ' + assignment_user_label(assignee) if assignee else '改為未分配'}。",
+                    f"{'分配給 ' + assignment_user_label(assignee) if assignee else '改為未分配'}"
+                    f"{'，並儲存其他調整' if row_updates else ''}。",
                 )
             elif not target_items:
                 messages.info(request, "勾選的車行已不在本月清單中，請重新整理後再試。")
+            elif row_updates:
+                messages.success(request, "所選車行的分配未變更，其他排序與個別調整已儲存。")
             else:
                 messages.info(request, "勾選的車行已是這項分配，不需要重複儲存。")
 
         elif action == "save_rows":
-            item_ids = [value for value in request.POST.getlist("item_id") if value.isdigit()]
-            selected_items = list(
-                distribution.items.select_for_update().filter(pk__in=item_ids)
-            )
-            now = timezone.now()
-            updated_items = []
-            for item in selected_items:
-                assignee_value = request.POST.get(f"assignee_{item.pk}", "").strip()
-                assignee = active_users.get(int(assignee_value)) if assignee_value.isdigit() else None
-                if (
-                    assignee_value.isdigit()
-                    and not assignee
-                    and item.assigned_to_id == int(assignee_value)
-                ):
-                    assignee = item.assigned_to
-                if assignee_value and not assignee:
-                    messages.error(request, f"{item.dealer_name} 的負責人已停用，請重新選擇。")
-                    return redirect(request.get_full_path())
-                if item.assigned_to_id:
-                    touched_user_ids.add(item.assigned_to_id)
-                if assignee:
-                    touched_user_ids.add(assignee.pk)
-                try:
-                    requested_order = max(0, int(request.POST.get(f"order_{item.pk}", "0") or 0))
-                except (TypeError, ValueError):
-                    requested_order = 0
-                new_order = requested_order if assignee else 0
-                new_name = assignment_user_label(assignee)
-                if (
-                    item.assigned_to_id == getattr(assignee, "pk", None)
-                    and item.assigned_to_name == new_name
-                    and item.visit_order == new_order
-                ):
-                    continue
-                item.assigned_to = assignee
-                item.assigned_to_name = new_name
-                item.visit_order = new_order
-                item.updated_at = now
-                updated_items.append(item)
+            updated_items, row_error = build_row_updates()
+            if row_error:
+                messages.error(request, row_error)
+                return redirect(request.get_full_path())
             if updated_items:
                 PriceListDistributionItem.objects.bulk_update(
                     updated_items,
                     ["assigned_to", "assigned_to_name", "visit_order", "updated_at"],
                 )
                 changed = True
-                messages.success(request, f"已儲存 {len(updated_items)} 家車行的分工與順序。")
+                messages.success(request, f"已儲存 {len(updated_items)} 家車行的排序與個別調整。")
             else:
-                messages.info(request, "分工與順序沒有變更。")
+                messages.info(request, "沒有需要儲存的排序或個別調整。")
 
         elif action == "copy_previous":
             previous, updated_count = copy_previous_assignments(distribution)

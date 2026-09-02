@@ -6,18 +6,61 @@
   const dragHandle = row => row.querySelector("[data-drag-handle]");
   const rowChecks = () => rows().map(row => row.querySelector("[data-row-select]")).filter(Boolean);
 
-  function updateSelection() {
+  function updateRowDirty(row) {
+    const changed = (
+      assigneeValue(row) !== (row.dataset.originalAssigneeId || "")
+      || Number(orderInput(row)?.value || 0) !== Number(row.dataset.originalOrder || 0)
+    );
+    row.classList.toggle("has-unsaved-change", changed);
+    return changed;
+  }
+
+  function updateActions() {
     const checks = rowChecks();
     const selected = checks.filter(check => check.checked);
+    const dirty = rows().filter(updateRowDirty);
     const selectAll = document.querySelector("[data-select-all]");
     const count = document.querySelector("[data-selected-count]");
+    const toolbar = document.querySelector("[data-selection-toolbar]");
+    const idleHint = document.querySelector("[data-idle-hint]");
+    const batchControls = document.querySelector("[data-batch-controls]");
+    const saveControls = document.querySelector("[data-save-controls]");
+    const dirtyCount = document.querySelector("[data-dirty-count]");
+    const dirtyNote = document.querySelector("[data-batch-dirty-note]");
+    const assignee = document.querySelector("[data-selected-assignee]");
     const assignButton = document.querySelector("[data-assign-selected]");
+
+    checks.forEach(check => {
+      check.closest("[data-assignment-row]")?.classList.toggle("is-selected", check.checked);
+    });
     if (selectAll) {
       selectAll.checked = checks.length > 0 && selected.length === checks.length;
       selectAll.indeterminate = selected.length > 0 && selected.length < checks.length;
     }
-    if (count) count.textContent = selected.length ? `已選 ${selected.length} 家` : "尚未選取";
-    if (assignButton) assignButton.disabled = selected.length === 0;
+    if (count) {
+      if (selected.length) count.textContent = `已選 ${selected.length} 家`;
+      else if (dirty.length) count.textContent = `${dirty.length} 家待儲存`;
+      else count.textContent = "尚未選取";
+    }
+
+    const batchMode = selected.length > 0;
+    const pendingMode = !batchMode && dirty.length > 0;
+    toolbar?.classList.toggle("is-batch-mode", batchMode);
+    toolbar?.classList.toggle("has-pending-changes", pendingMode);
+    if (idleHint) idleHint.hidden = batchMode || pendingMode;
+    if (batchControls) batchControls.hidden = !batchMode;
+    if (saveControls) saveControls.hidden = !pendingMode;
+    if (dirtyCount) dirtyCount.textContent = `${dirty.length} 家有變更`;
+    if (dirtyNote) dirtyNote.hidden = dirty.length === 0;
+
+    if (assignButton) {
+      assignButton.disabled = !batchMode;
+      const target = assignee?.value || "";
+      const targetLabel = assignee?.selectedOptions?.[0]?.textContent.trim() || "未分配";
+      assignButton.textContent = target
+        ? `指派給 ${targetLabel}（${selected.length} 家）`
+        : `取消分配（${selected.length} 家）`;
+    }
   }
 
   function updateRowAssignment(row, newAssignee) {
@@ -32,6 +75,7 @@
       label.textContent = originalOrder ? `第 ${originalOrder} 站` : "尚未排序";
       handle.disabled = !originalOrder;
       handle.draggable = Boolean(originalOrder);
+      updateActions();
       return;
     }
     if (!newAssignee) {
@@ -39,6 +83,7 @@
       label.textContent = "尚未排序";
       handle.disabled = true;
       handle.draggable = false;
+      updateActions();
       return;
     }
     if (previousAssignee !== newAssignee) {
@@ -47,6 +92,7 @@
       handle.disabled = true;
       handle.draggable = false;
     }
+    updateActions();
   }
 
   function sortableRows(row) {
@@ -89,19 +135,25 @@
     if (!state) return;
     state.row.classList.remove("is-dragging");
     applyOrderSlots(state);
+    updateActions();
     dragHandle(state.row)?.focus({preventScroll: true});
   }
 
   const selectAll = document.querySelector("[data-select-all]");
   selectAll?.addEventListener("change", () => {
     rowChecks().forEach(check => { check.checked = selectAll.checked; });
-    updateSelection();
+    updateActions();
   });
 
   document.addEventListener("change", event => {
     const rowCheck = event.target.closest("[data-row-select]");
     if (rowCheck) {
-      updateSelection();
+      updateActions();
+      return;
+    }
+    const targetAssignee = event.target.closest("[data-selected-assignee]");
+    if (targetAssignee) {
+      updateActions();
       return;
     }
     const select = event.target.closest("[data-assignee-select]");
@@ -175,5 +227,5 @@
     if (mouseDrag) event.preventDefault();
   });
 
-  updateSelection();
+  updateActions();
 })();

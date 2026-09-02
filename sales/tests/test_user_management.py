@@ -98,6 +98,58 @@ class UserManagementTests(TestCase):
         self.assertNotIn(password, audit.description)
         self.assertNotIn(password, str(audit.metadata))
 
+    def test_password_policy_accepts_eight_character_password_without_symbols(self):
+        self.client.force_login(self.admin)
+        password = "m7q4v2x9"
+
+        response = self.client.post(
+            reverse("user_account_create"),
+            {
+                "display_name": "短密碼測試",
+                "username": "short-password-user",
+                "password1": password,
+                "password2": password,
+                "is_active": "on",
+            },
+        )
+
+        self.assertRedirects(response, reverse("user_management"))
+        account = get_user_model().objects.get(username="short-password-user")
+        self.assertTrue(account.check_password(password))
+
+    def test_password_policy_rejects_password_shorter_than_eight_characters(self):
+        self.client.force_login(self.admin)
+
+        response = self.client.post(
+            reverse("user_account_create"),
+            {
+                "display_name": "過短密碼測試",
+                "username": "too-short-password-user",
+                "password1": "m7q4v2x",
+                "password2": "m7q4v2x",
+                "is_active": "on",
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "8 個字元")
+        self.assertFalse(
+            get_user_model().objects.filter(username="too-short-password-user").exists()
+        )
+
+    def test_password_pages_explain_the_simplified_policy(self):
+        self.client.force_login(self.admin)
+
+        create_page = self.client.get(reverse("user_account_create"))
+        reset_page = self.client.get(
+            reverse("user_account_reset_password", args=[self.user.pk])
+        )
+
+        for response in (create_page, reset_page):
+            with self.subTest(path=response.request["PATH_INFO"]):
+                self.assertContains(response, "密碼至少 8 碼")
+                self.assertContains(response, "不強制符號或大小寫")
+
     def test_username_is_unique_without_case_difference(self):
         self.client.force_login(self.admin)
         response = self.client.post(

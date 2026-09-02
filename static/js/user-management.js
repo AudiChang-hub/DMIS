@@ -1,16 +1,16 @@
 (() => {
-  const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789";
-  const symbols = "!@#$%";
+  const letters = "abcdefghjkmnpqrstuvwxyz";
+  const digits = "23456789";
 
   function securePassword() {
-    const bytes = new Uint32Array(28);
+    const bytes = new Uint32Array(16);
     window.crypto.getRandomValues(bytes);
-    const chars = Array.from(bytes.slice(0, 14), (value, index) => {
-      const source = index < 2 ? symbols : alphabet;
+    const chars = Array.from(bytes.slice(0, 8), (value, index) => {
+      const source = index < 2 ? digits : letters;
       return source[value % source.length];
     });
     for (let index = chars.length - 1; index > 0; index -= 1) {
-      const swapIndex = bytes[14 + index] % (index + 1);
+      const swapIndex = bytes[8 + index] % (index + 1);
       [chars[index], chars[swapIndex]] = [chars[swapIndex], chars[index]];
     }
     return chars.join("");

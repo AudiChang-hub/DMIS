@@ -26,7 +26,7 @@
       <div class="{% if form.password2.errors %}has-error{% endif %}"><label for="{{ form.password2.id_for_label }}">{{ form.password2.label }}</label>{{ form.password2 }}{% for error in form.password2.errors %}<p class="field-error">{{ error }}</p>{% endfor %}</div>
     </div>
     <div class="password-tools" hidden data-password-tools><code data-generated-password></code><button class="button ghost small" type="button" data-copy-password>複製密碼</button></div>
-    <p class="form-guidance">密碼至少 10 個字元，不能太常見或只由數字組成。儲存後系統不會再顯示這組密碼。</p>
+    <p class="form-guidance">密碼至少 8 碼，不強制符號或大小寫；不能太常見或只由數字組成。儲存後系統不會再顯示這組密碼。</p>
   </div>
   {% endif %}
   <div class="account-form__section">

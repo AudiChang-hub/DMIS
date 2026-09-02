@@ -423,32 +423,43 @@ input::placeholder, textarea::placeholder { color: var(--muted); opacity: .86; }
 .price-assignment-status > p b { flex: 0 0 auto; padding: 4px 8px; color: var(--forest); background: #dff1ea; border-radius: 999px; }
 .price-assignment-status.needs-attention > p { color: #744500; background: #fff3da; }
 .price-assignment-status.needs-attention > p b { color: #744500; background: #ffe2a5; }
-.price-assignment-workflow { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 14px; }
-.price-assignment-workflow article { display: flex; align-items: center; gap: 11px; padding: 13px 15px; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; }
-.price-assignment-workflow article > b { display: grid; place-items: center; width: 30px; height: 30px; color: #fff; background: var(--forest); border-radius: 50%; }
-.price-assignment-workflow article div { display: grid; gap: 2px; }
-.price-assignment-workflow article span { color: var(--muted); font-size: .78rem; }
-.price-assignment-bulk { margin-bottom: 14px; }
-.price-assignment-bulk .section-title div { display: grid; gap: 3px; }
-.price-assignment-bulk .section-title p, .price-assignment-list .section-title p { margin: 0; color: var(--muted); font-size: .84rem; }
-.price-assignment-bulk__form { display: grid; grid-template-columns: repeat(3, minmax(160px, 1fr)) auto; align-items: end; gap: 12px; padding: 16px; }
-.price-assignment-bulk__form label { display: grid; gap: 6px; font-size: .82rem; font-weight: 800; }
+.price-assignment-picker { margin-bottom: 14px; overflow: hidden; }
+.price-assignment-picker > .section-title { align-items: center; gap: 24px; }
+.price-assignment-picker > .section-title > p { max-width: 620px; margin: 0; color: var(--muted); font-size: .84rem; }
+.price-assignment-picker .eyebrow { margin-bottom: 3px; }
 .master-filters.price-assignment-filters { grid-template-columns: minmax(260px, 1.5fr) repeat(3, minmax(145px, .7fr)) auto; }
+.price-assignment-picker .price-assignment-filters { margin: 0; border: 0; border-top: 1px solid var(--line); border-radius: 0; }
 .price-assignment-list .section-title { align-items: center; }
+.price-assignment-list .section-title p { margin: 0; color: var(--muted); font-size: .84rem; }
+.price-assignment-actionbar {
+  position: sticky; z-index: 24; top: 78px; display: grid; padding: 11px 14px;
+  grid-template-columns: auto auto minmax(190px, 240px) auto auto; align-items: center; gap: 10px;
+  background: rgba(255,255,255,.96); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line);
+  box-shadow: 0 9px 22px rgba(24,50,59,.12); backdrop-filter: blur(12px);
+}
+.price-assignment-select-all { display: flex; min-height: 42px; padding: 0 11px; align-items: center; gap: 8px; font-weight: 850; background: var(--surface-soft); border-radius: 10px; cursor: pointer; }
+.price-assignment-select-all input, .price-assignment-row-check input { width: 20px; height: 20px; accent-color: var(--forest); cursor: pointer; }
+.price-assignment-actionbar > strong { min-width: 78px; color: var(--forest); font-size: .84rem; }
+.price-assignment-target { display: grid; grid-template-columns: auto 1fr; align-items: center; gap: 8px; color: var(--muted); font-size: .78rem; font-weight: 850; }
+.price-assignment-target select { min-width: 0; min-height: 42px; padding: 0 32px 0 11px; color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: 10px; }
+.price-assignment-actionbar .button { min-height: 42px; white-space: nowrap; }
 .price-assignment-table-wrap { overflow-x: auto; }
 .price-assignment-table { width: 100%; border-collapse: collapse; }
 .price-assignment-table th { padding: 10px 12px; color: var(--muted); font-size: .78rem; text-align: left; background: var(--surface-soft); border-bottom: 1px solid var(--line); }
 .price-assignment-table td { padding: 11px 12px; vertical-align: middle; border-bottom: 1px solid var(--line-soft); }
+.price-assignment-table tbody tr { transition: opacity .14s ease, background .14s ease, box-shadow .14s ease; }
+.price-assignment-table tbody tr.is-dragging { position: relative; z-index: 2; opacity: .5; pointer-events: none; background: #edf4fb; box-shadow: inset 4px 0 var(--blue); }
 .price-assignment-table tbody tr:last-child td { border-bottom: 0; }
 .price-assignment-table td > strong, .price-assignment-table td > small { display: block; }
 .price-assignment-table td > small { margin-top: 3px; color: var(--muted); }
-.price-assignment-order { display: flex; align-items: center; gap: 5px; color: var(--muted); font-size: .78rem; white-space: nowrap; }
-.price-assignment-order input { width: 62px; min-height: 40px; padding: 7px; text-align: center; }
-.price-assignment-move { white-space: nowrap; }
-.price-assignment-move button { width: 38px; height: 38px; margin-left: 4px; color: var(--forest); font-weight: 900; background: var(--surface); border: 1px solid var(--line); border-radius: 9px; cursor: pointer; }
-.price-assignment-move button:hover { background: var(--surface-soft); border-color: var(--forest); }
-.price-assignment-save { display: flex; align-items: center; justify-content: flex-end; gap: 16px; }
-.price-assignment-save span { color: var(--muted); font-size: .82rem; }
+.price-assignment-table td:first-child { min-width: 190px; }
+.price-assignment-table td:first-child { display: flex; align-items: center; gap: 10px; }
+.price-assignment-row-check { display: grid; width: 32px; min-height: 42px; place-items: center; flex: 0 0 auto; }
+.price-assignment-drag { display: flex; min-width: 124px; min-height: 42px; padding: 0 10px; align-items: center; justify-content: flex-start; gap: 7px; color: var(--forest); background: var(--surface-soft); border: 1px solid var(--line); border-radius: 10px; font-weight: 850; cursor: grab; touch-action: none; }
+.price-assignment-drag:hover:not(:disabled) { background: #edf4fb; border-color: var(--blue); }
+.price-assignment-drag:active:not(:disabled) { cursor: grabbing; }
+.price-assignment-drag:disabled { color: var(--muted); opacity: .62; cursor: not-allowed; }
+.price-assignment-drag__grip { font-size: 1.25rem; line-height: 1; }
 
 @media (min-width: 841px) and (max-width: 1200px) {
   .master-filters.price-distribution-filters { grid-template-columns: repeat(3, minmax(0, 1fr)); }
@@ -480,33 +491,31 @@ input::placeholder, textarea::placeholder { color: var(--muted); opacity: .86; }
   .price-assignment-status { grid-template-columns: repeat(3, 1fr); }
   .price-assignment-status > p { grid-column: 1 / -1; align-items: flex-start; }
   .price-assignment-status > div { padding: 11px; }
-  .price-assignment-workflow { grid-template-columns: 1fr; gap: 7px; }
-  .price-assignment-workflow article { padding: 10px 12px; }
-  .price-assignment-bulk__form, .master-filters.price-assignment-filters { grid-template-columns: 1fr 1fr; }
-  .price-assignment-bulk__form button, .price-assignment-filters .master-search, .price-assignment-filters .inventory-filter-actions { grid-column: 1 / -1; }
-  .price-assignment-bulk__form button { min-height: 46px; }
+  .price-assignment-picker > .section-title { align-items: flex-start; flex-direction: column; gap: 6px; }
+  .master-filters.price-assignment-filters { grid-template-columns: 1fr 1fr; }
+  .price-assignment-filters .master-search, .price-assignment-filters .inventory-filter-actions { grid-column: 1 / -1; }
   .price-assignment-list .section-title { align-items: flex-start; flex-direction: column; }
-  .price-assignment-list .section-title .button { width: 100%; }
+  .price-assignment-actionbar { top: 62px; padding: 9px 10px; grid-template-columns: 1fr auto; gap: 8px; }
+  .price-assignment-select-all { min-width: 0; }
+  .price-assignment-actionbar > strong { text-align: right; }
+  .price-assignment-target { grid-column: 1 / -1; grid-template-columns: 64px 1fr; }
+  .price-assignment-actionbar .button { min-width: 0; padding-right: 10px; padding-left: 10px; }
   .price-assignment-table-wrap { overflow: visible; }
   .price-assignment-table, .price-assignment-table tbody { display: block; }
   .price-assignment-table thead { display: none; }
   .price-assignment-table tbody { display: grid; gap: 10px; padding: 12px; }
-  .price-assignment-table tr { display: grid; grid-template-columns: 94px minmax(0, 1fr); gap: 10px 12px; padding: 13px; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; }
+  .price-assignment-table tr { display: grid; grid-template-columns: 138px minmax(0, 1fr); gap: 10px 12px; padding: 13px; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; }
   .price-assignment-table td { display: block; min-width: 0; padding: 0; border: 0; }
   .price-assignment-table td:nth-child(1) { grid-column: 1; grid-row: 1; }
   .price-assignment-table td:nth-child(2) { grid-column: 2; grid-row: 1; }
   .price-assignment-table td:nth-child(3), .price-assignment-table td:nth-child(4) { grid-column: 1 / -1; }
   .price-assignment-table td:nth-child(3) { padding-top: 9px; border-top: 1px solid var(--line-soft); }
   .price-assignment-table td:nth-child(4) select { width: 100%; min-height: 44px; }
-  .price-assignment-table td:nth-child(5) { grid-column: 1 / -1; display: flex; gap: 8px; }
-  .price-assignment-table td:nth-child(5) button { flex: 1; min-height: 44px; margin: 0; }
   .price-assignment-table td::before { display: block; margin-bottom: 4px; color: var(--muted); font-size: .72rem; font-weight: 800; content: attr(data-label); }
   .price-assignment-table td:first-child::before { display: none; }
-  .price-assignment-order { align-items: flex-start; flex-direction: column; gap: 2px; }
-  .price-assignment-order span:last-child { display: none; }
-  .price-assignment-order input { width: 72px; }
-  .price-assignment-save { align-items: stretch; flex-direction: column; padding-bottom: calc(12px + env(safe-area-inset-bottom)); }
-  .price-assignment-save .button { min-height: 48px; }
+  .price-assignment-table td:first-child { min-width: 0; gap: 6px; }
+  .price-assignment-row-check { width: 28px; }
+  .price-assignment-drag { min-width: 102px; padding: 0 7px; font-size: .78rem; }
 }
 button, a { -webkit-tap-highlight-color: transparent; }
 h1, h2, h3, p { margin-top: 0; }

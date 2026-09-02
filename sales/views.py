@@ -734,21 +734,27 @@ def price_list_distribution_assignments(request, pk):
         touched_user_ids = set()
         changed = False
 
-        if action == "bulk_assign":
-            city = request.POST.get("bulk_city", "").strip()
-            district = request.POST.get("bulk_district", "").strip()
-            assignee_value = request.POST.get("bulk_assignee", "").strip()
-            if not city:
-                messages.error(request, "請先選擇要批次分配的縣市。")
+        if action == "assign_selected":
+            selected_ids = [
+                int(value)
+                for value in request.POST.getlist("selected_item_id")
+                if value.isdigit()
+            ]
+            if not selected_ids:
+                messages.error(request, "請先勾選要分配的車行。")
                 return redirect(request.get_full_path())
-            target_items = distribution.items.filter(city=city).select_related("assigned_to")
-            if district:
-                target_items = target_items.filter(district=district)
-            target_items = sorted(target_items, key=_price_distribution_geo_key)
+            assignee_value = request.POST.get("selected_assignee", "").strip()
             assignee = active_users.get(int(assignee_value)) if assignee_value.isdigit() else None
             if assignee_value and not assignee:
                 messages.error(request, "選擇的負責人目前無法使用。")
                 return redirect(request.get_full_path())
+            target_by_id = {
+                item.pk: item
+                for item in distribution.items.select_for_update()
+                .select_related("assigned_to")
+                .filter(pk__in=selected_ids)
+            }
+            target_items = [target_by_id[item_id] for item_id in selected_ids if item_id in target_by_id]
             next_order = (
                 distribution.items.filter(assigned_to=assignee).aggregate(value=Max("visit_order"))["value"]
                 or 0
@@ -760,15 +766,23 @@ def price_list_distribution_assignments(request, pk):
                     touched_user_ids.add(item.assigned_to_id)
                 if assignee:
                     touched_user_ids.add(assignee.pk)
+                    new_order = item.visit_order
                     if item.assigned_to_id != assignee.pk or item.visit_order <= 0:
                         next_order += 1
-                        item.visit_order = next_order
-                    item.assigned_to = assignee
-                    item.assigned_to_name = assignment_user_label(assignee)
+                        new_order = next_order
+                    new_name = assignment_user_label(assignee)
                 else:
-                    item.assigned_to = None
-                    item.assigned_to_name = ""
-                    item.visit_order = 0
+                    new_order = 0
+                    new_name = ""
+                if (
+                    item.assigned_to_id == getattr(assignee, "pk", None)
+                    and item.assigned_to_name == new_name
+                    and item.visit_order == new_order
+                ):
+                    continue
+                item.assigned_to = assignee
+                item.assigned_to_name = new_name
+                item.visit_order = new_order
                 item.updated_at = now
                 updated_items.append(item)
             if updated_items:
@@ -777,14 +791,15 @@ def price_list_distribution_assignments(request, pk):
                     ["assigned_to", "assigned_to_name", "visit_order", "updated_at"],
                 )
                 changed = True
-                area_label = f"{city}{district}" if district else city
                 messages.success(
                     request,
-                    f"已將 {area_label} 的 {len(updated_items)} 家車行"
+                    f"已將勾選的 {len(updated_items)} 家車行"
                     f"{'分配給 ' + assignment_user_label(assignee) if assignee else '改為未分配'}。",
                 )
+            elif not target_items:
+                messages.info(request, "勾選的車行已不在本月清單中，請重新整理後再試。")
             else:
-                messages.info(request, "所選區域目前沒有車行。")
+                messages.info(request, "勾選的車行已是這項分配，不需要重複儲存。")
 
         elif action == "save_rows":
             item_ids = [value for value in request.POST.getlist("item_id") if value.isdigit()]

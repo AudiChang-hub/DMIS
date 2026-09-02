@@ -739,7 +739,6 @@ def price_list_distribution_assignments(request, pk):
             item_ids = [value for value in request.POST.getlist("item_id") if value.isdigit()]
             selected_items = list(
                 distribution.items.select_for_update()
-                .select_related("assigned_to")
                 .filter(pk__in=item_ids)
                 .exclude(pk__in=excluded_ids)
             )
@@ -806,7 +805,6 @@ def price_list_distribution_assignments(request, pk):
             target_by_id = {
                 item.pk: item
                 for item in distribution.items.select_for_update()
-                .select_related("assigned_to")
                 .filter(pk__in=selected_ids)
             }
             target_items = [target_by_id[item_id] for item_id in selected_ids if item_id in target_by_id]

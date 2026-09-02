@@ -12,11 +12,14 @@
     <h1>{{ distribution.month|date:"Y 年 n 月" }}價格表分發</h1>
     <p class="muted">整間車行完成一次即可；品牌與三陽專銷依清單建立當下保存。</p>
   </div>
-  {% if can_sync %}
-  <form method="post" action="{% url 'price_list_distribution_sync' distribution.pk %}">
-    {% csrf_token %}<button class="button ghost" type="submit">重新同步本月名單</button>
-  </form>
-  {% endif %}
+  <div class="hero-actions">
+    {% if assignment_editable %}<a class="button primary" href="{% url 'price_list_distribution_assignments' distribution.pk %}">分配與排序</a>{% endif %}
+    {% if can_sync %}
+    <form method="post" action="{% url 'price_list_distribution_sync' distribution.pk %}">
+      {% csrf_token %}<button class="button ghost" type="submit">重新同步本月名單</button>
+    </form>
+    {% endif %}
+  </div>
 </section>
 
 <section class="price-distribution-progress" aria-label="本月完成進度">
@@ -25,7 +28,25 @@
   <b data-progress-percent>{{ progress_percent }}%</b>
 </section>
 
+<section class="price-assignment-overview{% if distribution.assignment_confirmed_at %} is-confirmed{% elif unassigned_count %} needs-attention{% endif %}" aria-label="本月分工">
+  <header>
+    <div>
+      <strong>{% if distribution.assignment_confirmed_at %}本月分工已確認{% elif unassigned_count %}本月分工尚未完成{% else %}本月分工尚未確認{% endif %}</strong>
+      <span>{% if distribution.assignment_confirmed_at %}{{ distribution.assignment_confirmed_by }}於 {{ distribution.assignment_confirmed_at|date:"Y/m/d H:i" }} 確認{% elif unassigned_count %}尚有 {{ unassigned_count }} 家車行未指定負責人{% else %}全部車行已有負責人，請確認後開始分發{% endif %}</span>
+    </div>
+    {% if assignment_editable %}<a href="{% url 'price_list_distribution_assignments' distribution.pk %}">{% if unassigned_count %}前往完成分工{% else %}調整分工與順序{% endif %} →</a>{% endif %}
+  </header>
+  <nav class="price-assignment-tabs" aria-label="依負責人查看清單">
+    {% for group in assignment_groups %}
+      <a href="{{ group.url }}" class="{% if selected_owner == group.key %}is-active{% endif %}{% if group.key == 'unassigned' and group.total %} is-warning{% endif %}" {% if selected_owner == group.key %}aria-current="page"{% endif %} data-assignment-progress-key="{% if group.key == 'me' %}{{ request.user.pk }}{% else %}{{ group.key }}{% endif %}">
+        <span>{{ group.label }}</span><small>{{ group.name }}</small><strong><b data-assignment-completed>{{ group.completed }}</b>／<b data-assignment-total>{{ group.total }}</b> 家</strong>
+      </a>
+    {% endfor %}
+  </nav>
+</section>
+
 <form class="master-filters price-distribution-filters" method="get">
+  <input type="hidden" name="owner" value="{{ selected_owner }}">
   <div class="inventory-filter"><label for="distribution-month">月份</label><select id="distribution-month" name="month" onchange="this.form.submit()">
     {% for option in month_options %}<option value="{{ option.month|date:'Y-m' }}" {% if option.pk == distribution.pk %}selected{% endif %}>{{ option.month|date:"Y 年 n 月" }}</option>{% endfor %}
   </select></div>
@@ -41,7 +62,7 @@
   <div class="inventory-filter"><label for="distribution-district">行政區</label><select id="distribution-district" name="district" {% if not selected_city %}disabled{% endif %}>
     <option value="">全部行政區</option>{% for option in districts %}<option value="{{ option }}" {% if option == selected_district %}selected{% endif %}>{{ option }}</option>{% endfor %}
   </select></div>
-  <div class="inventory-filter-actions"><a class="button ghost" href="{% url 'price_list_distribution' %}?month={{ distribution.month|date:'Y-m' }}">清除條件</a><button class="button primary" type="submit">套用篩選</button></div>
+  <div class="inventory-filter-actions"><a class="button ghost" href="{% url 'price_list_distribution' %}?month={{ distribution.month|date:'Y-m' }}&amp;owner={{ selected_owner }}">清除條件</a><button class="button primary" type="submit">套用篩選</button></div>
 </form>
 
 <section class="price-distribution-list" aria-label="價格表分發車行">
@@ -58,6 +79,10 @@
         {% if item.requires_sym %}<span class="price-brand price-brand--sym">三陽{% if item.sym_exclusive %}專銷{% endif %}</span>{% endif %}
         {% if item.requires_suzuki %}<span class="price-brand price-brand--suzuki">台鈴</span>{% endif %}
       </div>
+      <div class="price-distribution-card__assignment{% if not item.assigned_to_id %} is-unassigned{% endif %}">
+        {% if item.visit_order %}<b>第 {{ item.visit_order }} 站</b>{% endif %}
+        <span>負責人</span><strong>{{ item.assigned_to_name|default:"未分配" }}</strong>
+      </div>
       <form class="price-distribution-complete" method="post" action="{% url 'price_list_distribution_item_update' item.pk %}" data-distribution-complete>
         {% csrf_token %}<input type="hidden" name="completed" value="{% if item.completed %}0{% else %}1{% endif %}">
         <button type="submit" role="switch" aria-checked="{% if item.completed %}true{% else %}false{% endif %}" class="price-distribution-check{% if item.completed %} is-completed{% endif %}">
@@ -72,7 +97,7 @@
     </form>
   </article>
   {% empty %}
-  <div class="empty-state"><strong>目前沒有符合條件的車行</strong><p>可清除篩選條件，或先確認車行合作資料。</p></div>
+  <div class="empty-state"><strong>目前沒有符合條件的車行</strong><p>可切換負責人、清除篩選條件，或先確認本月分工與車行合作資料。</p></div>
   {% endfor %}
 </section>
 {% endblock %}

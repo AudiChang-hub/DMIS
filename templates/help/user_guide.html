@@ -9,7 +9,7 @@
   <div>
     <p class="eyebrow">End User 使用說明</p>
     <h1>現在想做什麼？從任務開始找</h1>
-    <p>這裡只說明實際操作，不需要懂系統或資料庫。最後更新：2026/09/01・系統版本 {{ app_version }}</p>
+    <p>這裡只說明實際操作，不需要懂系統或資料庫。最後更新：2026/09/02・系統版本 {{ app_version }}</p>
   </div>
   <div class="hero-actions guide-print-actions">
     <button class="button ghost" type="button" data-print-guide>列印／存成 PDF</button>
@@ -189,13 +189,16 @@
     <article class="guide-topic" id="price-list-distribution" data-guide-topic>
       <div class="guide-topic-heading"><span>分發</span><div><p class="eyebrow">每月車行跑訪</p><h2>每月價格表分發清單</h2></div></div>
       <ol class="guide-steps">
-        <li><strong>從資料維護區或手機快速前往進入。</strong><span>每月最後一天會先建立隔月清單，已完成月份會永久保留供查詢。</span></li>
-        <li><strong>依月份、完成進度、縣市、行政區或關鍵字篩選。</strong><span>清單排除只有台鈴電動車合作的車行。</span></li>
-        <li><strong>看品牌標記準備價格表。</strong><span>顯示該車行需要三陽或台鈴價格表；三陽專銷會另外註記。</span></li>
-        <li><strong>整間車行跑完一次就按「標記完成」。</strong><span>不用依品牌分次完成；需要追蹤的狀況寫在當月備註。</span></li>
-        <li><strong>外出可直接點電話撥號。</strong><span>清單電話會盡量補齊區域碼，方便手機直接聯繫。</span></li>
+        <li><strong>月底先確認隔月名單。</strong><span>每月最後一天會建立隔月清單並沿用上月的負責人與拜訪順序；新增車行會保持「未分配」，已停用負責人不會被帶入。</span></li>
+        <li><strong>按「分配與排序」。</strong><span>先依縣市或行政區批次指定負責人，再逐間處理少數例外。</span></li>
+        <li><strong>調整各自的拜訪順序。</strong><span>可直接輸入第幾站，或用上下箭頭交換前後；每位負責人的順序分開計算，儲存後會整理成連續號碼。</span></li>
+        <li><strong>確認本月分工。</strong><span>所有車行都指定負責人後才能確認；確認後若再次修改分工，系統會自動取消確認，提醒重新核對。</span></li>
+        <li><strong>切換「我的車行／同事／未分配／全部」。</strong><span>不必先猜區域，自己的清單會優先依拜訪順序排列；仍可搭配完成進度、縣市、行政區或關鍵字篩選。</span></li>
+        <li><strong>看品牌標記並完成分發。</strong><span>顯示應提供的三陽或台鈴價格表，三陽專銷會另外註記；整間車行跑完一次就按「標記完成」，不用依品牌分次完成。</span></li>
+        <li><strong>外出直接聯絡並留下當月備註。</strong><span>電話會盡量補齊區域碼供手機撥號；需要追蹤的狀況寫在該月份備註。</span></li>
       </ol>
-      <div class="guide-exception"><strong>名單有誤時</strong><p>先回合作車行修正啟用狀態、合作品牌或專銷關係，再由有權限的人按「重新同步本月名單」。同步會更新名單與品牌標記，不會清除本月已完成狀態或備註。</p></div>
+      <div class="guide-two-column"><section><h3>沿用與歷史</h3><ul><li>需要重新套用時，可在分配畫面按「沿用上月分工」。</li><li>歷史月份保存當時負責人、順序、完成紀錄與備註，只供查詢。</li><li>每間車行只有一位當月負責人，避免重複跑訪。</li></ul></section><section><h3>名單有誤</h3><ul><li>先回合作車行修正啟用狀態、合作品牌或專銷關係。</li><li>再按「重新同步本月名單」。</li><li>同步不會清除已完成狀態、備註、負責人或拜訪順序。</li></ul></section></div>
+      <div class="guide-exception"><strong>只有台鈴電動車</strong><p>這類車行不會進入價格表分發清單；如果應該出現，請先確認車行是否另有三陽或台鈴油車合作。</p></div>
     </article>
 
     <article class="guide-topic" id="account-management" data-guide-topic>

@@ -79,12 +79,19 @@
     <div class="price-assignment-actionbar" data-selection-toolbar>
       <label class="price-assignment-select-all"><input type="checkbox" data-select-all><span>全選目前 {{ items|length }} 家</span></label>
       <strong data-selected-count aria-live="polite">尚未選取</strong>
-      <label class="price-assignment-target"><span>指派給</span><select name="selected_assignee" data-selected-assignee>
-        <option value="">未分配</option>
-        {% for user in users %}{% if user.is_active %}<option value="{{ user.pk }}">{{ user.get_full_name|default:user.username }}</option>{% endif %}{% endfor %}
-      </select></label>
-      <button class="button ghost" type="submit" name="action" value="assign_selected" data-assign-selected disabled>指派所選車行</button>
-      <button class="button primary" type="submit" name="action" value="save_rows">儲存變更</button>
+      <p class="price-assignment-idle" data-idle-hint>勾選車行後，即可一次指派負責人。</p>
+      <div class="price-assignment-batch" data-batch-controls hidden>
+        <label class="price-assignment-target"><span>指派給</span><select name="selected_assignee" data-selected-assignee>
+          <option value="">未分配</option>
+          {% for user in users %}{% if user.is_active %}<option value="{{ user.pk }}">{{ user.get_full_name|default:user.username }}</option>{% endif %}{% endfor %}
+        </select></label>
+        <span class="price-assignment-batch__note" data-batch-dirty-note hidden>會一併儲存其他調整</span>
+        <button class="button primary" type="submit" name="action" value="assign_selected" data-assign-selected disabled>指派所選車行</button>
+      </div>
+      <div class="price-assignment-save" data-save-controls hidden>
+        <span><b data-dirty-count>尚有變更</b>，請儲存後再離開。</span>
+        <button class="button primary" type="submit" name="action" value="save_rows" data-save-rows>儲存排序與個別調整</button>
+      </div>
     </div>
     {% endif %}
     <div class="price-assignment-table-wrap">

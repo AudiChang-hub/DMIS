@@ -10,7 +10,7 @@
   <div>
     <p class="eyebrow">每月負責區域與路線</p>
     <h1>{{ distribution.month|date:"Y 年 n 月" }}分配與排序</h1>
-    <p class="muted">先用區域批次分配，再處理少數例外；拜訪順序依每位負責人分開計算。</p>
+    <p class="muted">先依區域找出車行、勾選例外，再用拖曳安排每位負責人的拜訪順序。</p>
   </div>
   <div class="hero-actions">
     <a class="button ghost" href="{% url 'price_list_distribution' %}?month={{ distribution.month|date:'Y-m' }}">查看分發清單</a>
@@ -46,70 +46,61 @@
   </p>
 </section>
 
-{% if editable %}
-<section class="price-assignment-workflow" aria-label="分工步驟">
-  <article><b>1</b><div><strong>區域批次分配</strong><span>先處理大多數車行</span></div></article>
-  <article><b>2</b><div><strong>調整例外與順序</strong><span>逐間修改少數差異</span></div></article>
-  <article><b>3</b><div><strong>確認本月分工</strong><span>避免遺漏未分配車行</span></div></article>
-</section>
-
-<section class="section-block price-assignment-bulk">
-  <div class="section-title"><div><h2>區域批次分配</h2><p>整個縣市或行政區一次指定給同一位負責人，既有例外之後仍可逐間修改。</p></div></div>
-  <form method="post" class="price-assignment-bulk__form" data-bulk-assignment-form>
-    {% csrf_token %}<input type="hidden" name="action" value="bulk_assign">
-    <label>縣市
-      <select name="bulk_city" required data-bulk-city>
-        <option value="">請選擇縣市</option>
-        {% for option in cities %}<option value="{{ option }}">{{ option }}</option>{% endfor %}
-      </select>
-    </label>
-    <label>行政區
-      <select name="bulk_district" disabled data-bulk-district><option value="">整個縣市</option></select>
-    </label>
-    <label>負責人
-      <select name="bulk_assignee">
-        <option value="">改為未分配</option>
-        {% for user in users %}{% if user.is_active %}<option value="{{ user.pk }}">{{ user.get_full_name|default:user.username }}</option>{% endif %}{% endfor %}
-      </select>
-    </label>
-    <button class="button primary" type="submit">套用區域分配</button>
+<section class="section-block price-assignment-picker">
+  <div class="section-title">
+    <div><p class="eyebrow">先縮小範圍，再勾選例外</p><h2>找出這次要分配的車行</h2></div>
+    <p>例如先篩「基隆市」並全選，再取消銘傑；篩「內湖區」後則只勾要負責的五家。</p>
+  </div>
+  <form method="get" class="master-filters price-assignment-filters">
+    <div class="inventory-filter master-search"><label for="assignment-q">搜尋車行</label><input id="assignment-q" type="search" name="q" value="{{ query }}" placeholder="車行名稱、代碼、地址或負責人"></div>
+    <div class="inventory-filter"><label for="assignment-owner">目前負責人</label><select id="assignment-owner" name="owner">
+      <option value="all"{% if selected_owner == 'all' %} selected{% endif %}>不限負責人</option>
+      <option value="unassigned"{% if selected_owner == 'unassigned' %} selected{% endif %}>未分配</option>
+      {% for user in users %}<option value="{{ user.pk }}"{% if selected_owner == user.pk|stringformat:'s' %} selected{% endif %}>{{ user.get_full_name|default:user.username }}</option>{% endfor %}
+    </select></div>
+    <div class="inventory-filter"><label for="assignment-city">縣市</label><select id="assignment-city" name="city" onchange="this.form.submit()">
+      <option value="">全部縣市</option>{% for option in cities %}<option value="{{ option }}"{% if selected_city == option %} selected{% endif %}>{{ option }}</option>{% endfor %}
+    </select></div>
+    <div class="inventory-filter"><label for="assignment-district">行政區</label><select id="assignment-district" name="district"{% if not selected_city %} disabled{% endif %}>
+      <option value="">全部行政區</option>{% for option in districts %}<option value="{{ option }}"{% if selected_district == option %} selected{% endif %}>{{ option }}</option>{% endfor %}
+    </select></div>
+    <div class="inventory-filter-actions"><a class="button ghost" href="{% url 'price_list_distribution_assignments' distribution.pk %}">清除條件</a><button class="button primary" type="submit">顯示車行</button></div>
   </form>
 </section>
-{% endif %}
-
-<form method="get" class="master-filters price-assignment-filters">
-  <div class="inventory-filter master-search"><label for="assignment-q">搜尋車行</label><input id="assignment-q" type="search" name="q" value="{{ query }}" placeholder="車行名稱、代碼、地址或負責人"></div>
-  <div class="inventory-filter"><label for="assignment-owner">負責人</label><select id="assignment-owner" name="owner">
-    <option value="all"{% if selected_owner == 'all' %} selected{% endif %}>全部負責人</option>
-    <option value="unassigned"{% if selected_owner == 'unassigned' %} selected{% endif %}>未分配</option>
-    {% for user in users %}<option value="{{ user.pk }}"{% if selected_owner == user.pk|stringformat:'s' %} selected{% endif %}>{{ user.get_full_name|default:user.username }}</option>{% endfor %}
-  </select></div>
-  <div class="inventory-filter"><label for="assignment-city">縣市</label><select id="assignment-city" name="city" onchange="this.form.submit()">
-    <option value="">全部縣市</option>{% for option in cities %}<option value="{{ option }}"{% if selected_city == option %} selected{% endif %}>{{ option }}</option>{% endfor %}
-  </select></div>
-  <div class="inventory-filter"><label for="assignment-district">行政區</label><select id="assignment-district" name="district"{% if not selected_city %} disabled{% endif %}>
-    <option value="">全部行政區</option>{% for option in districts %}<option value="{{ option }}"{% if selected_district == option %} selected{% endif %}>{{ option }}</option>{% endfor %}
-  </select></div>
-  <div class="inventory-filter-actions"><a class="button ghost" href="{% url 'price_list_distribution_assignments' distribution.pk %}">清除條件</a><button class="button primary" type="submit">套用篩選</button></div>
-</form>
 
 <section class="section-block price-assignment-list">
   <div class="section-title">
-    <div><h2>逐間調整與拜訪順序</h2><p>順序只在同一位負責人的清單內比較；可直接輸入數字，或用箭頭交換前後順序。</p></div>
-    {% if editable and items %}<button class="button ghost small" type="button" data-renumber-visible>依目前清單重新編號</button>{% endif %}
+    <div><h2>分工與拜訪順序</h2><p>共 {{ items|length }} 家；先勾選要一起指派的車行。分配完成後，抓住把手拖曳即可調整同一人的路線。</p></div>
   </div>
   {% if items %}
   <form method="post" data-assignment-rows-form>
-    {% csrf_token %}<input type="hidden" name="action" value="save_rows">
+    {% csrf_token %}
+    {% if editable %}
+    <div class="price-assignment-actionbar" data-selection-toolbar>
+      <label class="price-assignment-select-all"><input type="checkbox" data-select-all><span>全選目前 {{ items|length }} 家</span></label>
+      <strong data-selected-count aria-live="polite">尚未選取</strong>
+      <label class="price-assignment-target"><span>指派給</span><select name="selected_assignee" data-selected-assignee>
+        <option value="">未分配</option>
+        {% for user in users %}{% if user.is_active %}<option value="{{ user.pk }}">{{ user.get_full_name|default:user.username }}</option>{% endif %}{% endfor %}
+      </select></label>
+      <button class="button ghost" type="submit" name="action" value="assign_selected" data-assign-selected disabled>指派所選車行</button>
+      <button class="button primary" type="submit" name="action" value="save_rows">儲存變更</button>
+    </div>
+    {% endif %}
     <div class="price-assignment-table-wrap">
       <table class="price-assignment-table">
-        <thead><tr><th>順序</th><th>車行</th><th>區域</th><th>負責人</th><th aria-label="調整順序"></th></tr></thead>
+        <thead><tr><th>選取／順序</th><th>車行</th><th>區域</th><th>負責人</th></tr></thead>
         <tbody>
           {% for item in items %}
-          <tr data-assignment-row>
-            <td data-label="順序">
+          <tr data-assignment-row data-assignee-id="{{ item.assigned_to_id|default:'' }}" data-original-assignee-id="{{ item.assigned_to_id|default:'' }}" data-original-order="{{ item.visit_order }}">
+            <td data-label="選取／順序">
               <input type="hidden" name="item_id" value="{{ item.pk }}">
-              <label class="price-assignment-order"><span>第</span><input type="number" min="1" step="1" name="order_{{ item.pk }}" value="{% if item.visit_order %}{{ item.visit_order }}{% endif %}" {% if not editable or not item.assigned_to_id %}disabled{% endif %} data-order-input><span>站</span></label>
+              <input type="hidden" name="order_{{ item.pk }}" value="{{ item.visit_order }}" data-order-input>
+              {% if editable %}<label class="price-assignment-row-check"><input type="checkbox" name="selected_item_id" value="{{ item.pk }}" aria-label="選取 {{ item.dealer_name }}" data-row-select></label>{% endif %}
+              <button class="price-assignment-drag" type="button" aria-label="拖曳調整 {{ item.dealer_name }} 的拜訪順序" data-drag-handle{% if not editable or not item.assigned_to_id or not item.visit_order %} disabled{% endif %}>
+                <span class="price-assignment-drag__grip" aria-hidden="true">⠿</span>
+                <span data-order-label>{% if item.visit_order %}第 {{ item.visit_order }} 站{% else %}尚未排序{% endif %}</span>
+              </button>
             </td>
             <td data-label="車行"><strong>{{ item.dealer_name }}</strong><small>{{ item.dealer_code }}</small></td>
             <td data-label="區域"><strong>{{ item.city }}{{ item.district }}</strong><small>{{ item.address }}</small></td>
@@ -119,15 +110,11 @@
                 {% for user in users %}{% if user.is_active or user.pk == item.assigned_to_id %}<option value="{{ user.pk }}"{% if user.pk == item.assigned_to_id %} selected{% endif %}>{{ user.get_full_name|default:user.username }}{% if not user.is_active %}（已停用）{% endif %}</option>{% endif %}{% endfor %}
               </select>
             </td>
-            <td class="price-assignment-move" data-label="前後調整">
-              {% if editable %}<button type="button" title="往前一站" aria-label="{{ item.dealer_name }}往前一站" data-move="up">↑</button><button type="button" title="往後一站" aria-label="{{ item.dealer_name }}往後一站" data-move="down">↓</button>{% endif %}
-            </td>
           </tr>
           {% endfor %}
         </tbody>
       </table>
     </div>
-    {% if editable %}<div class="sticky-actions price-assignment-save"><span>儲存後會自動整理為連續順序，並取消先前的「已確認分工」。</span><button class="button primary" type="submit">儲存分工與順序</button></div>{% endif %}
   </form>
   {% else %}
   <div class="empty-state"><strong>目前沒有符合條件的車行</strong><p>請清除篩選，或改查其他負責人與區域。</p></div>

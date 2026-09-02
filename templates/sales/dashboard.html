@@ -99,7 +99,7 @@
 
   <div class="command-grid command-grid--lower">
     <section class="section-block inventory-command">
-      <div class="section-title"><h2>庫存概況</h2><a href="{% url 'inventory_list' %}">查看庫存資料</a></div>
+      <div class="section-title"><h2>庫存概況</h2><a href="{% url 'inventory_list' %}">查看車輛庫存</a></div>
       <div class="inventory-kpis">
         <a href="{% url 'inventory_list' %}"><span>庫存總數</span><strong>{{ dashboard.inventory.total }}</strong></a>
         <a href="{% url 'inventory_list' %}?status=available"><span>可售</span><strong>{{ dashboard.inventory.available }}</strong></a>

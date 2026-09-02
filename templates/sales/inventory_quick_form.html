@@ -4,7 +4,7 @@
 {% block content %}
 {% url 'inventory_list' as inventory_list_url %}
 {% url 'data_maintenance' as data_url %}
-{% include "sales/_page_back.html" with fallback_url=inventory_list_url label="庫存資料" root_url=data_url root_label="資料維護區" %}
+{% include "sales/_page_back.html" with fallback_url=inventory_list_url label="車輛庫存" root_url=data_url root_label="資料維護區" %}
 <section class="hero-row compact-hero">
   <div>
     <p class="eyebrow">批次建立庫存</p>

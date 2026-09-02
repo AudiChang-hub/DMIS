@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% load static %}
-{% block title %}分配與排序｜{{ distribution.month|date:"Y 年 n 月" }}價格表分發{% endblock %}
+{% block title %}分配與排序｜價格表分發{% endblock %}
 {% block page_class %}page-shell--wide{% endblock %}
 {% block content %}
 {% url 'price_list_distribution' as distribution_url %}
@@ -8,8 +8,8 @@
 
 <section class="hero-row compact-hero price-assignment-hero">
   <div>
-    <p class="eyebrow">每月負責區域與路線</p>
-    <h1>{{ distribution.month|date:"Y 年 n 月" }}分配與排序</h1>
+    <p class="eyebrow">{{ distribution.month|date:"Y 年 n 月" }} · 價格表分發</p>
+    <h1>分配與排序</h1>
     <p class="muted">先依區域找出車行、勾選例外，再用拖曳安排每位負責人的拜訪順序。</p>
   </div>
   <div class="hero-actions">

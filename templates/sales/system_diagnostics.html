@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}系統狀態｜車輛銷售管理{% endblock %}
+{% block title %}系統狀態檢查｜車輛銷售管理{% endblock %}
 {% block page_class %}page-shell--standard{% endblock %}
 {% block content %}
 {% url 'data_maintenance' as maintenance_url %}
@@ -7,7 +7,7 @@
 <section class="hero-row compact-hero system-status-hero">
   <div>
     <p class="eyebrow">內部診斷</p>
-    <h1>系統狀態</h1>
+    <h1>系統狀態檢查</h1>
     <p class="muted">若上傳、辨識或搜尋一直沒有完成，可先看這裡；本頁不顯示密碼或連線資訊。</p>
   </div>
   <a class="button ghost" href="{% url 'system_diagnostics' %}">重新檢查</a>

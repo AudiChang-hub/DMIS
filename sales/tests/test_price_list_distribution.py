@@ -146,7 +146,8 @@ class PriceListDistributionTests(TestCase):
         self.create_dealer("九月車行", sym=True)
         response = self.client.get(reverse("price_list_distribution"), {"month": "2026-09"})
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "2026 年 9 月價格表分發")
+        self.assertContains(response, "2026 年 9 月")
+        self.assertContains(response, "價格表分發")
         item = PriceListDistributionMonth.objects.get(month=date(2026, 9, 1)).items.get()
 
         completed = self.client.post(

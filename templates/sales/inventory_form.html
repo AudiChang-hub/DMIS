@@ -4,10 +4,10 @@
 {% block content %}
 {% url 'inventory_list' as inventory_list_url %}
 {% url 'data_maintenance' as data_url %}
-{% include "sales/_page_back.html" with fallback_url=inventory_list_url label="庫存資料" root_url=data_url root_label="資料維護區" %}
+{% include "sales/_page_back.html" with fallback_url=inventory_list_url label="車輛庫存" root_url=data_url root_label="資料維護區" %}
 <section class="hero-row compact-hero">
   <div>
-    <p class="eyebrow">{% if is_editing %}庫存資料維護{% else %}人工逐台輸入{% endif %}</p>
+    <p class="eyebrow">{% if is_editing %}車輛庫存維護{% else %}人工逐台輸入{% endif %}</p>
     <h1>{% if is_editing %}編輯庫存{% else %}新增進車{% endif %}</h1>
     {% if is_editing %}<p class="muted">{{ vehicle.vehicle_model.name }}／{{ vehicle.identifier }} · {{ vehicle.get_status_display }}</p>{% endif %}
   </div>

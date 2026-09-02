@@ -253,7 +253,7 @@
 
     <article class="vehicle-business-card">
       <div class="vehicle-business-card__top"><span class="vehicle-business-card__icon">本</span><span class="status-pill">{{ settlement_rule_count }} 筆版本</span></div>
-      <h3>代銷結算成本</h3>
+      <h3>車輛結算成本</h3>
       <strong class="vehicle-business-card__value">{{ settlement_rule_count }} 筆</strong>
       <p>依實際領牌日與適用地區認列，不回寫已結算訂單。</p>
       <a class="button ghost" href="{% url 'settlement_cost_rule_list' %}?q={{ vehicle_model.model_number|urlencode }}">維護結算成本</a>

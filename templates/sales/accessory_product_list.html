@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% load pagination_tags %}
-{% block title %}配件資料｜車輛銷售管理{% endblock %}
+{% block title %}配件與工資｜車輛銷售管理{% endblock %}
 {% block page_class %}page-shell--wide{% endblock %}
 {% block content %}
 {% url 'data_maintenance' as data_url %}
@@ -8,7 +8,7 @@
 <section class="hero-row compact-hero">
   <div>
     <p class="eyebrow">訂單配件共用資料</p>
-    <h1>配件資料</h1>
+    <h1>配件與工資</h1>
     <p class="muted">訂單只需選擇配件；售價與工資會保存為當時快照，後續修改主檔不影響舊訂單。</p>
   </div>
   <a class="button primary" href="{% url 'accessory_product_create' %}">＋ 新增配件</a>
@@ -47,10 +47,10 @@
           <td data-label="狀態">{% include "sales/_active_quick_toggle.html" with resource="accessory-product" pk=item.pk is_active=item.active item_name=item.name %}</td>
           <td class="inventory-row-action"><a class="button ghost small" href="{% url 'accessory_product_edit' item.pk %}">編輯</a></td>
         </tr>
-        {% empty %}<tr><td colspan="7"><div class="empty-state"><strong>尚未建立配件資料</strong></div></td></tr>{% endfor %}
+        {% empty %}<tr><td colspan="7"><div class="empty-state"><strong>尚未建立配件</strong></div></td></tr>{% endfor %}
       </tbody>
     </table>
   </div>
-  {% pagination page_obj aria_label="配件資料分頁" %}
+  {% pagination page_obj aria_label="配件與工資分頁" %}
 </section>
 {% endblock %}

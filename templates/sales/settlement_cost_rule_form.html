@@ -4,7 +4,7 @@
 {% block content %}
 {% url 'settlement_cost_rule_list' as cost_list_url %}
 {% url 'data_maintenance' as data_url %}
-{% include "sales/_page_back.html" with fallback_url=cost_list_url label="代銷結算成本" root_url=data_url root_label="資料維護區" %}
+{% include "sales/_page_back.html" with fallback_url=cost_list_url label="車輛結算成本" root_url=data_url root_label="資料維護區" %}
 <section class="hero-row compact-hero">
   <div>
     <p class="eyebrow">成本版本維護</p>
@@ -16,7 +16,7 @@
   {% csrf_token %}
   {% if form.non_field_errors %}<div class="message error">{{ form.non_field_errors }}</div>{% endif %}
   <section class="card master-model-section">
-    <div class="section-heading"><div><p class="eyebrow">適用條件</p><h2>代銷結算成本規則</h2></div></div>
+    <div class="section-heading"><div><p class="eyebrow">適用條件</p><h2>車輛結算成本規則</h2></div></div>
     <div class="form-grid master-model-grid">
       {% for field in form %}{% include "sales/_field.html" with field=field %}{% endfor %}
     </div>

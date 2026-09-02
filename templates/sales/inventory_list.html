@@ -1,19 +1,19 @@
 {% extends "base.html" %}
 {% load pagination_tags %}
-{% block title %}庫存資料｜車輛銷售管理{% endblock %}
+{% block title %}車輛庫存｜車輛銷售管理{% endblock %}
 {% block page_class %}page-shell--wide{% endblock %}
 {% block content %}
 {% url 'data_maintenance' as data_url %}
 {% include "sales/_page_back.html" with fallback_url=data_url label="返回資料維護區" %}
 <section class="hero-row compact-hero">
-  <div><p class="eyebrow">資料維護區</p><h1>庫存資料</h1><p class="muted">預設顯示仍需管理的車輛；已交付、已售出與停用資料保留於歷史資料。</p></div>
+  <div><p class="eyebrow">資料維護區</p><h1>車輛庫存</h1><p class="muted">預設顯示仍需管理的車輛；已交付、已售出與停用資料保留於歷史資料。</p></div>
   <div class="hero-actions">
     <a class="button ghost" href="{% url 'inventory_create' %}">新增單台</a>
     <a class="button primary" href="{% url 'inventory_quick_create' %}">＋ 快速進車</a>
   </div>
 </section>
 
-<nav class="inventory-scope-tabs" aria-label="庫存資料範圍">
+<nav class="inventory-scope-tabs" aria-label="車輛庫存範圍">
   <a class="inventory-scope-tab{% if selected.scope == 'current' %} is-active{% endif %}" href="{% url 'inventory_list' %}?scope=current" {% if selected.scope == 'current' %}aria-current="page"{% endif %}>
     <span><strong>現有庫存</strong><small>可銷售與仍在處理中的車輛</small></span>
     <b>{{ inventory_counts.current }}</b>
@@ -78,7 +78,7 @@
   </div>
 </form>
 
-<section class="inventory-list-panel" aria-label="庫存資料列表">
+<section class="inventory-list-panel" aria-label="車輛庫存列表">
   <div class="inventory-list-summary">
     <strong>{% if selected.scope == 'history' %}歷史資料{% else %}現有庫存{% endif %}共 {{ page_obj.paginator.count }} 台</strong>
     {% if page_obj.paginator.num_pages > 1 %}<span>第 {{ page_obj.number }}／{{ page_obj.paginator.num_pages }} 頁</span>{% endif %}

@@ -46,6 +46,7 @@
     {% endif %}
   </section>
   <section class="form-section static-section"><div class="form-grid">{% include "sales/_field.html" with field=form.note %}{% include "sales/_field.html" with field=form.active %}</div></section>
+  {% if rule %}<div class="bonus-delete-entry"><a class="button ghost bonus-delete-link" href="{% url 'dealer_volume_bonus_delete' rule.pk %}">{% if form.conditions_locked %}查看刪除限制{% else %}刪除這筆規則{% endif %}</a><span>僅未結算規則可刪除，需另行確認。</span></div>{% endif %}
   <div class="bonus-save-bar"><span>儲存規則後可查看逐單試算，不會直接結算或付款。</span><div><a class="button ghost" href="{{ list_url }}">取消</a><button type="submit" class="button primary">儲存規則</button></div></div>
 </form>
 {% endblock %}

@@ -26,6 +26,7 @@
       {% if tab == 'rules' %}
         {% include "sales/_active_quick_toggle.html" with resource="dealer-volume-bonus" pk=row.rule.pk is_active=row.rule.active item_name=row.display_name %}
         <a class="button primary" href="{% url 'dealer_volume_bonus_edit' row.rule.pk %}">{% if row.has_settlement %}檢視規則／管理期間{% else %}編輯規則{% endif %}</a>
+        <a class="button ghost bonus-delete-link" href="{% url 'dealer_volume_bonus_delete' row.rule.pk %}">{% if row.has_settlement %}刪除限制{% else %}刪除規則{% endif %}</a>
       {% else %}
         {% if not row.rule.active %}<span class="muted">已停用</span>{% endif %}
         <a class="button ghost small" href="{{ list_url }}?tab=rules#bonus-rule-{{ row.rule.pk }}">查看規則</a>

@@ -194,7 +194,7 @@ class VolumeBonusConditionsTests(TestCase):
         self.assertContains(response, 'data-bonus-view="rules"')
         self.assertContains(response, 'aria-current="page">規則管理')
         self.assertContains(response, named.name)
-        self.assertContains(response, f'台數獎金規則 #{unnamed.pk}')
+        self.assertContains(response, unnamed.display_name)
         self.assertContains(response, self.b.name)
         self.assertContains(response, reverse('dealer_volume_bonus_edit', args=[named.pk]))
         unnamed.refresh_from_db()

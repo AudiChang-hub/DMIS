@@ -1,0 +1,26 @@
+{% extends "base.html" %}{% load static %}
+{% block title %}刪除台數獎金規則｜車輛銷售管理{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'css/dealer-volume-bonus.css' %}?v={{ app_version }}">{% endblock %}
+{% block content %}
+{% url 'dealer_volume_bonus_list' as list_url %}
+{% include "sales/_page_back.html" with fallback_url=list_url label="返回規則管理" %}
+<div class="bonus-delete-page">
+  <section class="hero-row compact-hero"><div><p class="eyebrow">先核對，再確認</p><h1>刪除台數獎金規則</h1><p class="muted">只刪除這套設定，不刪除訂單，也不更動其他規則。</p></div></section>
+  <section class="inventory-list-panel bonus-rule-card">
+    <div class="bonus-rule-heading"><div><h2>{{ rule.display_name }}</h2><p class="muted">規則編號 #{{ rule.pk }}</p></div></div>
+    <dl class="bonus-rule-details"><div><dt>適用車行</dt><dd>{{ rule.dealer|default:'全部合作車行，逐家計算' }}</dd></div><div><dt>車輛條件</dt><dd>{{ rule.conditions_label }}</dd></div></dl>
+    <div class="bonus-rule-periods"><h3>{% if settlement_count %}統計期間{% else %}將一併刪除的期間{% endif %}（{{ periods|length }} 期）</h3><ul>{% for period in periods %}<li><strong>{{ period.label }}</strong><span>{{ period.starts_on|date:'Y/m/d' }}－{{ period.ends_on|date:'Y/m/d' }}</span></li>{% endfor %}</ul></div>
+    <h3 class="bonus-tier-label">{% if settlement_count %}台數門檻{% else %}將一併刪除的門檻{% endif %}（{{ tiers|length }} 段）</h3>
+    <div class="bonus-tier-summary">{% for tier in tiers %}<span>{{ tier.minimum_quantity }} 台起 · 每台 &#36;{{ tier.bonus_per_vehicle|floatformat:0 }}</span>{% endfor %}</div>
+  </section>
+  {% if settlement_count %}
+    <section class="form-section static-section bonus-delete-notice"><h2>已有結算，不能刪除</h2><p>此規則已有 {{ settlement_count }} 筆結算。為保留獎金分攤與歷史金額，請回到規則管理使用停用開關。</p><a class="button primary" href="{{ list_url }}?tab=rules#bonus-rule-{{ rule.pk }}">返回規則管理</a></section>
+  {% else %}
+    <form method="post" class="stacked-form" data-bonus-delete-form>
+      {% csrf_token %}<input type="hidden" name="confirmation_token" value="{{ confirmation_token }}">
+      <section class="form-section static-section bonus-delete-notice"><h2>刪除後會發生什麼？</h2><ul><li>目前符合條件的 {{ matching_orders }} 張訂單仍保留，之後不再套用這筆規則試算。</li><li>規則、所屬品牌與車型範圍、期間及門檻會一起移除；既有收支與其他規則不變。</li><li>系統保存刪除人員、時間及設定快照供稽核；畫面不提供一鍵復原。</li></ul><label for="id_confirm_delete" class="bonus-delete-confirm"><input id="id_confirm_delete" type="checkbox" name="confirm_delete" value="yes" required><span>我已核對，確認刪除這筆未結算規則</span></label></section>
+      <div class="bonus-save-bar"><span>刪除前會再次檢查是否已結算或被修改。</span><div><a class="button ghost" href="{{ list_url }}?tab=rules#bonus-rule-{{ rule.pk }}">取消</a><button type="submit" class="button danger">確認刪除</button></div></div>
+    </form>
+  {% endif %}
+</div>
+{% endblock %}

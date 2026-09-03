@@ -11,17 +11,18 @@
   const isEnabled = () => /^(true|1|on)$/i.test(enabled.value);
   const sync = () => {
     const isDealer = sourceType.value === 'dealer';
-    root.hidden = !isDealer;
+    const eligible = isDealer || sourceType.value === 'store';
+    root.hidden = !eligible;
     if (!select) return; // 已結算：只顯示固定歸屬。
-    const expanded = isDealer && isEnabled();
+    const expanded = eligible && isEnabled();
     panel.hidden = !expanded;
     select.disabled = !expanded;
     select.required = expanded;
     toggle.setAttribute('aria-expanded', String(expanded));
-    toggle.textContent = expanded ? '取消指定，改回原車行' : '＋ 這台算給其他車行';
+    toggle.textContent = expanded ? (isDealer ? '取消指定，改回原車行' : '取消指定車行') : '＋ 這台算給其他車行';
     const chosen = select.selectedOptions[0];
     summary.textContent = select.value && chosen
-      ? `這台的台數、基礎傭金與台數獎金 → ${chosen.textContent.trim()}` : '請選擇這台算給哪間車行。';
+      ? (isDealer ? `這台的台數、基礎傭金與台數獎金 → ${chosen.textContent.trim()}` : `台數與台數獎金 → ${chosen.textContent.trim()}；本店來源不變，不新增基礎傭金。`) : '請選擇這台算給哪間車行。';
   };
   toggle?.addEventListener('click', () => {
     enabled.value = isEnabled() ? 'False' : 'True';
@@ -40,7 +41,7 @@
     }
   });
   sourceType.addEventListener('change', () => {
-    if (sourceType.value !== 'dealer' && select) {
+    if (!['dealer', 'store'].includes(sourceType.value) && select) {
       enabled.value = 'False';
       select.value = '';
       select.dispatchEvent(new Event('change', {bubbles: true}));

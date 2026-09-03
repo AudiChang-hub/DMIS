@@ -140,7 +140,7 @@
     {% include "sales/_field.html" with field=form.gift_expense %}
     {% include "sales/_field.html" with field=form.shipping_expense %}
     {% include "sales/_field.html" with field=form.dealer_commission_expense %}
-    {% if order.source_type == "dealer" %}<div class="field"><label>傭金收款車行</label><div class="read-only-value"><strong>{{ order.effective_commission_recipient }}</strong><small>台數與傭金歸屬；原銷售車行為 {{ order.source }}。</small></div></div>{% endif %}
+    {% if order.effective_commission_recipient %}<div class="field"><label>傭金收款車行</label><div class="read-only-value"><strong>{{ order.effective_commission_recipient }}</strong><small>{% if order.source_type == 'store' %}原來源保留本店；指定台數不新增基礎傭金。{% else %}台數與傭金歸屬；原銷售車行為 {{ order.source }}。{% endif %}</small></div></div>{% endif %}
     {% include "sales/_field.html" with field=form.card_fee_expense %}
   </div></details>
   <details class="operation-section" open><summary><strong>領牌相關收支</strong><span>系統先帶入，支出與收入皆可個別人工修改</span></summary>

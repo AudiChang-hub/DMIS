@@ -2853,15 +2853,15 @@ class SalesOrder(TimeStampedModel):
 
     @property
     def effective_commission_recipient(self):
-        if self.source_type != self.SourceType.DEALER:
+        if self.source_type not in {self.SourceType.DEALER, self.SourceType.STORE}:
             return None
-        return self.commission_recipient or self.source
+        return self.commission_recipient or (self.source if self.source_type == self.SourceType.DEALER else None)
 
     @property
     def commission_attribution_block_reason(self):
-        if self.source_type != self.SourceType.DEALER:
-            return "只有合作車行訂單可以調整台數與傭金歸屬。"
-        if not self.source_id or self.source.source_type != SalesSource.SourceType.DEALER:
+        if self.source_type not in {self.SourceType.DEALER, self.SourceType.STORE}:
+            return "目前僅本店與合作車行訂單可以調整台數歸屬。"
+        if self.source_type == self.SourceType.DEALER and (not self.source_id or self.source.source_type != SalesSource.SourceType.DEALER):
             return "原銷售車行資料不完整，請先確認訂單來源。"
         if self.status == self.Status.CANCELLED:
             return "已取消的訂單不能調整台數與傭金歸屬。"
@@ -2882,9 +2882,9 @@ class SalesOrder(TimeStampedModel):
             "vehicle_model_id", "registration_date", "registration_completed_at", "status",
         ).first() if self.pk else None
         if self.commission_recipient_id:
-            if (self.source_type != self.SourceType.DEALER
+            if (self.source_type not in {self.SourceType.DEALER, self.SourceType.STORE}
                     or self.commission_recipient.source_type != SalesSource.SourceType.DEALER):
-                errors["commission_recipient"] = "只有合作車行訂單能將台數與傭金歸給其他合作車行。"
+                errors["commission_recipient"] = "本店與合作車行訂單只能指定合作車行作為歸屬。"
             elif (not self.commission_recipient.active and (
                 not previous or previous["commission_recipient_id"] != self.commission_recipient_id
             )):
@@ -2900,7 +2900,7 @@ class SalesOrder(TimeStampedModel):
                 errors["commission_recipient"] = "此訂單已結算台數獎金，不可變更原車行或台數與傭金歸屬。"
         else:
             changed = True
-        if (changed and self.source_type == self.SourceType.DEALER and self.registration_date
+        if (changed and self.effective_commission_recipient and self.registration_date
                 and self.registration_completed_at and self.vehicle_model_id
                 and self.status != self.Status.CANCELLED):
             if DealerVolumeBonusSettlement.objects.filter(

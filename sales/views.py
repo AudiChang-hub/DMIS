@@ -5297,7 +5297,7 @@ def _order_snapshot(order):
             continue
         value = field.value_from_object(order)
         snapshot[field.verbose_name] = str(value or "")
-    if order.source_type == SalesOrder.SourceType.DEALER:
+    if order.source_type in {SalesOrder.SourceType.DEALER, SalesOrder.SourceType.STORE}:
         snapshot["台數與傭金歸屬車行"] = str(order.effective_commission_recipient or "")
     snapshot["配件"] = [
         {

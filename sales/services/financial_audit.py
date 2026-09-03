@@ -48,6 +48,9 @@ def audit_financial_consistency(sample_limit=30):
             report("legacy_disbursement_no_snapshot", order, "舊確認資料無撤回快照，不自動推測原值")
         if order.registration_completed_at and not profile.vehicle_cost:
             report("registered_cost_missing", order, "已領牌但成本為零，淨利尚待核對")
+        if (order.registration_completed_at and order.status != "cancelled"
+                and profile.vehicle_cost > 0 and not profile.actual_disbursement):
+            report("disbursement_missing", order, "已領牌且有成本，但實際撥款為零；不得直接視為虧損")
         allocations = list(order.dealer_volume_bonus_allocations.all())
         if profile.dealer_commission_locked_at and "dealer_commission_expense" not in protected:
             expected = profile.dealer_commission_base + profile.dealer_commission_adjustment + sum(a.amount for a in allocations)

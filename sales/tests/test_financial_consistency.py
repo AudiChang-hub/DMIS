@@ -223,6 +223,13 @@ class FinancialConsistencyTests(TestCase):
         self.client.post(reverse("reconciliation_update", args=[payment.pk]), data)
         self.assertEqual(self.profile(order).actual_disbursement, 0)
 
+    def test_audit_flags_missing_disbursement_without_inferring_income(self):
+        order = self.order(registration_completed_at=timezone.now())
+        OrderOperationsProfile.objects.filter(order=order).update(vehicle_cost=50000, actual_disbursement=0)
+        audit = audit_financial_consistency()
+        self.assertEqual(audit["finding_counts"]["disbursement_missing"], 1)
+        self.assertEqual(self.profile(order).actual_disbursement, 0)
+
     def test_missing_or_stale_financial_revision_is_rejected(self):
         order = self.order()
         profile = self.profile(order)

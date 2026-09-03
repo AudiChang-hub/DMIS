@@ -38,7 +38,9 @@ class ProductExperienceTests(TestCase):
         self.assertContains(response, 'id="mobile-shortcuts"')
         self.assertContains(response, 'id="sales-sources"')
         self.assertContains(response, 'id="price-list-distribution"')
-        self.assertContains(response, "最後更新：2026/09/02")
+        self.assertContains(response, "最後更新：2026/09/03")
+        self.assertContains(response, 'id="dealer-volume-bonus"')
+        self.assertContains(response, 'href="#dealer-volume-bonus"')
         self.assertContains(response, "每頁 25、50、75 或 100 筆")
         self.assertContains(response, "每月最後一天會建立隔月清單")
         self.assertContains(response, "分配與排序")
@@ -528,7 +530,7 @@ class ProductExperienceTests(TestCase):
             reverse("sales_source_staff_list"): "sales-sources",
             reverse("sales_source_platform_list"): "sales-sources",
             reverse("price_list_distribution"): "price-list-distribution",
-            reverse("dealer_volume_bonus_list"): "master-data",
+            reverse("dealer_volume_bonus_list"): "dealer-volume-bonus",
             reverse("business_holiday_list"): "master-data",
             reverse("brand_registration_fee_rule_list"): "master-data",
         }

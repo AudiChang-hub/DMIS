@@ -53,6 +53,9 @@ jobs:
       - name: Run Django system checks
         run: python manage.py check
 
+      - name: Verify floating list viewport placement
+        run: node --test tests/frontend/floating-list.test.cjs
+
       - name: Verify migrations are committed
         run: python manage.py makemigrations --check --dry-run
 

@@ -21,6 +21,7 @@
   list.setAttribute("role", "listbox");
   list.id = "recent-field-values-list";
   document.body.append(list);
+  const floating = window.DMISFloatingList.create(list, closeList);
 
   function eligible(field) {
     if (!(field instanceof HTMLInputElement || field instanceof HTMLTextAreaElement)) return false;
@@ -66,21 +67,10 @@
     }
   }
 
-  function positionList() {
-    if (!currentField || list.hidden) return;
-    const rect = currentField.getBoundingClientRect();
-    const gap = 5;
-    const viewportGap = 10;
-    const width = Math.max(220, Math.min(rect.width, window.innerWidth - viewportGap * 2));
-    const left = Math.min(Math.max(viewportGap, rect.left), window.innerWidth - width - viewportGap);
-    list.style.left = `${left}px`;
-    list.style.width = `${width}px`;
-    list.style.top = `${Math.min(rect.bottom + gap, window.innerHeight - 180)}px`;
-  }
-
   function closeList() {
     if (currentField) currentField.setAttribute("aria-expanded", "false");
     list.hidden = true;
+    floating.close();
     list.replaceChildren();
     currentField = null;
     activeIndex = -1;
@@ -101,6 +91,7 @@
     if (!eligible(field)) return closeList();
     const values = recentValues(field);
     if (!values.length) return closeList();
+    if (currentField && currentField !== field) closeList();
     currentField = field;
     activeIndex = -1;
     list.replaceChildren();
@@ -122,8 +113,7 @@
     });
     field.setAttribute("aria-controls", list.id);
     field.setAttribute("aria-expanded", "true");
-    list.hidden = false;
-    positionList();
+    floating.open(field);
   }
 
   function moveActive(direction) {
@@ -161,8 +151,6 @@
       closeList();
     }
   });
-  window.addEventListener("resize", positionList);
-  window.addEventListener("scroll", positionList, true);
   disableNativeAutocomplete();
   new MutationObserver(records => {
     records.forEach(record => record.addedNodes.forEach(node => {

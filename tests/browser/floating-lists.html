@@ -1,0 +1,17 @@
+<!doctype html><html lang="zh-Hant"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>共用浮動選單回歸驗證</title>
+<link rel="stylesheet" href="http://127.0.0.1:8012/static/css/app.css">
+<style>body{padding:24px}main{max-width:720px;margin:auto}.clip{height:120px;overflow:hidden;transform:translateZ(0);border:1px solid #ccc;padding:16px}dialog{padding:24px!important}dialog form{display:grid;gap:16px}#results{white-space:pre-wrap;font:14px monospace}#sticky{position:fixed;bottom:0;left:0;right:0;height:48px;z-index:1300;background:#dde3f4;padding:12px}main>.button{margin:4px}.spacer{height:120px}</style>
+<body data-history-user="qa-user"><main><h1>共用浮動選單驗證</h1>
+<p>本機測試頁，所有選項皆為測試資料，不連接正式儲存。</p>
+<button class="button primary" id="run">執行回歸測試</button>
+<button class="button ghost" id="open">開啟測試彈窗</button>
+<div class="clip"><label for="page-select">裁切容器中的下拉選單</label><select id="page-select" data-searchable-select="1"><option value="">請選擇</option value="a">Alpha 測試車型</option><option value="b">Beta 測試車型</option></select></div>
+<pre id="results" role="status">等待測試</pre>
+<dialog id="modal" class="import-master-dialog"><form method="dialog"><h2>對應既有車型（測試）</h2><p>模擬匯入彈窗的滾動、裁切與固定列。</p><div class="spacer"></div><label for="modal-select">對應既有車型</label><select id="modal-select" data-searchable-select="1"><option value="">請選擇</option><option value="a">Alpha 測試車型</option><option value="b">Beta 測試車型</option></select><label for="memo">最近輸入測試</label><input id="memo" name="memo"><button class="button primary" value="close">關閉測試彈窗</button></form></dialog>
+<dialog id="second" class="import-master-dialog"><form method="dialog"><h2>第二個彈窗／多選</h2><label for="multi">複選車型</label><select id="multi" multiple data-searchable-select="1"><option value="a">Alpha 測試車型</option><option value="b">Beta 測試車型</option></select><button class="button primary">關閉</button></form></dialog>
+<div id="sticky">模擬固定操作列（z-index: 1300）</div>
+<script src="http://127.0.0.1:8012/static/js/floating-list.js"></script>
+<script src="http://127.0.0.1:8012/static/js/searchable-select.js"></script>
+<script src="http://127.0.0.1:8012/static/js/recent-field-values.js"></script>
+<script src="floating-lists.js"></script></main></body></html>

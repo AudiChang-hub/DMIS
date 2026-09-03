@@ -12,6 +12,8 @@ class RecentFieldValuesTests(SimpleTestCase):
         source = (Path(settings.BASE_DIR) / "templates" / "base.html").read_text(encoding="utf-8")
         self.assertIn("recent-field-values.js", source)
         self.assertIn("data-history-user", source)
+        self.assertLess(source.index("floating-list.js"), source.index("searchable-select.js"))
+        self.assertLess(source.index("floating-list.js"), source.index("recent-field-values.js"))
 
     def test_script_keeps_ten_values_and_excludes_sensitive_fields(self):
         source = (Path(settings.BASE_DIR) / "static" / "js" / "recent-field-values.js").read_text(

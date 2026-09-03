@@ -3794,6 +3794,7 @@ class IdOcrJob(TimeStampedModel):
 
 
 class UserAppearancePreference(TimeStampedModel):
+    calendar_view = models.CharField("工作日曆檢視", max_length=5, default="month", choices=[("year", "年"), ("month", "月"), ("day", "日")])
     user = models.OneToOneField(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,

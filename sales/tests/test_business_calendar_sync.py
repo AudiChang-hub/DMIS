@@ -8,7 +8,7 @@ from django.contrib.auth import get_user_model
 from django.test import TestCase
 from django.urls import reverse
 
-from sales.models import BusinessHoliday
+from sales.models import BusinessHoliday, UserAppearancePreference
 from sales.services.dgpa_calendar import (
     DATASET_METADATA_URL,
     CalendarSyncError,
@@ -171,6 +171,50 @@ class BusinessCalendarSyncTests(TestCase):
 
 
 class BusinessCalendarPageTests(TestCase):
+    def test_year_has_twelve_months_and_leap_day(self):
+        response = self.client.get(reverse("business_holiday_list"), {"view": "year", "month": "2028-02"})
+        self.assertContains(response, 'class="holiday-year-month"', count=12)
+        february = response.context["year_months"][1]
+        self.assertEqual(max(day["number"] for day in february["days"]), 29)
+        self.assertContains(response, '?view=month&amp;month=2028-02')
+
+    def test_view_preference_is_remembered_and_isolated_by_account(self):
+        url = reverse("business_holiday_list")
+        self.client.get(url, {"view": "year"})
+        self.assertEqual(self.client.get(url).context["calendar_view"], "year")
+        self.assertEqual(UserAppearancePreference.objects.get(user=self.user).calendar_view, "year")
+        another = get_user_model().objects.create_user(username="other-calendar-user")
+        self.client.force_login(another)
+        self.assertEqual(self.client.get(url).context["calendar_view"], "month")
+
+    def test_day_shows_official_record_and_weekend_remains_excluded(self):
+        holiday = BusinessHoliday.objects.create(date=date(2026, 9, 26), name="測試假日", source=BusinessHoliday.Source.DGPA, active=False)
+        response = self.client.get(reverse("business_holiday_list"), {"view": "day", "day": "2026-09-26"})
+        self.assertEqual(response.context["editing"], holiday)
+        self.assertTrue(response.context["day_excluded"])
+        self.assertContains(response, "未啟用額外排除")
+        self.assertContains(response, 'name="selected_date" value="2026-09-26"')
+
+    def test_day_weekday_without_record_prefills_date(self):
+        response = self.client.get(reverse("business_holiday_list"), {"view": "day", "day": "2026-09-03"})
+        self.assertFalse(response.context["day_excluded"])
+        self.assertEqual(response.context["form"].initial["date"], date(2026, 9, 3))
+
+    def test_day_save_and_delete_preserve_selected_date(self):
+        url = reverse("business_holiday_list")
+        response = self.client.post(url, {"view": "day", "selected_date": "2026-09-30", "month": "2026-09", "date": "2026-10-01", "name": "例外休假", "active": "on"})
+        expected = f"{url}?month=2026-10&view=day&day=2026-10-01"
+        self.assertRedirects(response, expected)
+        holiday = BusinessHoliday.objects.get(date=date(2026, 10, 1))
+        response = self.client.post(reverse("business_holiday_delete", args=[holiday.pk]), {"view": "day", "selected_date": "2026-10-01", "month": "2026-10"})
+        self.assertRedirects(response, expected)
+        self.assertFalse(BusinessHoliday.objects.filter(pk=holiday.pk).exists())
+
+    def test_invalid_view_and_date_fall_back_safely(self):
+        response = self.client.get(reverse("business_holiday_list"), {"view": "invalid", "month": "9999-99", "day": "invalid"})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["calendar_view"], "month")
+
     def setUp(self):
         BusinessHoliday.objects.all().delete()
         self.user = get_user_model().objects.create_user(

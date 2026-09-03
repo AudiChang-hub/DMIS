@@ -33,25 +33,39 @@
   </div>
 </section>
 
-<section class="holiday-calendar-shell" data-holiday-calendar>
+<section class="holiday-calendar-shell view-{{ calendar_view }}" data-holiday-calendar data-calendar-view="{{ calendar_view }}">
   <header class="holiday-calendar-toolbar">
     <div class="holiday-calendar-toolbar__period">
-      <span class="eyebrow">目前月份</span>
-      <h2>{{ current_month|date:"Y 年 n 月" }}</h2>
+      <span class="eyebrow">工作日曆</span>
+      <h2>{{ period_title }}</h2>
+      {% if calendar_view == 'month' %}
       <div class="holiday-calendar-summary" aria-label="本月設定摘要">
         <span><strong>{{ month_excluded_count }}</strong> 個排除日期</span>
         <span><strong>{{ month_manual_count }}</strong> 個人工調整</span>
       </div>
+      {% endif %}
     </div>
-    <nav class="holiday-calendar-navigation" aria-label="切換月份">
-      <a class="button ghost" href="?month={{ previous_month|date:'Y-m' }}">上個月</a>
-      <a class="button ghost" href="?month={{ today|date:'Y-m' }}">回到本月</a>
-      <a class="button ghost" href="?month={{ next_month|date:'Y-m' }}">下個月</a>
+    <nav class="holiday-view-switch" aria-label="日曆檢視">
+      <a href="?view=year&amp;month={{ current_month|date:'Y-m' }}&amp;day={{ selected_date|date:'Y-m-d' }}" {% if calendar_view == 'year' %}aria-current="page"{% endif %}>年</a>
+      <a href="?view=month&amp;month={{ current_month|date:'Y-m' }}&amp;day={{ selected_date|date:'Y-m-d' }}" {% if calendar_view == 'month' %}aria-current="page"{% endif %}>月</a>
+      <a href="?view=day&amp;month={{ current_month|date:'Y-m' }}&amp;day={{ selected_date|date:'Y-m-d' }}" {% if calendar_view == 'day' %}aria-current="page"{% endif %}>日</a>
+    </nav>
+    <nav class="holiday-calendar-navigation" aria-label="切換日期範圍">
+      <a class="button ghost" href="?view={{ calendar_view }}&amp;month={{ previous_period|date:'Y-m' }}&amp;day={{ previous_period|date:'Y-m-d' }}">上一{{ period_label }}</a>
+      <a class="button ghost" href="?view={{ calendar_view }}&amp;month={{ today|date:'Y-m' }}&amp;day={{ today|date:'Y-m-d' }}">回到今天</a>
+      <a class="button ghost" href="?view={{ calendar_view }}&amp;month={{ next_period|date:'Y-m' }}&amp;day={{ next_period|date:'Y-m-d' }}">下一{{ period_label }}</a>
       <label class="holiday-month-picker">
+        {% if calendar_view == 'day' %}
+        <span class="visually-hidden">直接選擇日期</span>
+        <input type="date" value="{{ selected_date|date:'Y-m-d' }}" data-holiday-date-picker autocomplete="off">
+        {% else %}
         <span class="visually-hidden">直接選擇月份</span>
         <input type="month" value="{{ current_month|date:'Y-m' }}" data-holiday-month-picker autocomplete="off">
+        {% endif %}
       </label>
+      {% if calendar_view != 'day' %}
       <button class="button primary" type="button" data-holiday-create>新增日期</button>
+      {% endif %}
     </nav>
   </header>
 
@@ -63,6 +77,18 @@
         <span><i class="is-weekend" aria-hidden="true"></i>固定週休</span>
         <span><i class="is-inactive" aria-hidden="true"></i>不排除</span>
       </div>
+      {% if calendar_view == 'year' %}
+        {% include 'sales/_business_holiday_year.html' %}
+      {% elif calendar_view == 'day' %}
+        <article class="holiday-day-detail">
+          <span class="eyebrow">{{ selected_date|date:'Y 年 n 月' }} · {{ selected_date|date:'l' }}</span>
+          <strong class="holiday-day-detail__number">{{ selected_date|date:'j' }}</strong>
+          <h3>{% if day_holiday %}{{ day_holiday.name }}{% elif day_weekend %}固定週休{% else %}工作日{% endif %}</h3>
+          <span class="status-pill{% if day_excluded %} warning{% else %} success{% endif %}">{% if day_excluded %}不計入工作日{% else %}計入工作日{% endif %}</span>
+          <p class="muted">{% if day_holiday %}{{ day_holiday.get_source_display }}{% if not day_holiday.active %} · 未啟用額外排除{% endif %}{% else %}尚無額外設定{% endif %}{% if day_weekend %} · 週六、週日固定不計{% endif %}</p>
+          <a class="button ghost" href="?view=month&amp;month={{ current_month|date:'Y-m' }}&amp;day={{ selected_date|date:'Y-m-d' }}">返回月曆</a>
+        </article>
+      {% else %}
       <div class="holiday-calendar-grid" role="grid" aria-label="{{ current_month|date:'Y 年 n 月' }}工作日月曆">
         {% for weekday in "一二三四五六日" %}
           <div class="holiday-calendar-weekday{% if forloop.counter > 5 %} is-weekend{% endif %}" role="columnheader">週{{ weekday }}</div>
@@ -100,7 +126,7 @@
             {% else %}
               <a
                 class="holiday-calendar-day is-outside"
-                href="?month={{ cell.date|date:'Y-m' }}"
+                href="?view=month&amp;month={{ cell.date|date:'Y-m' }}"
                 role="gridcell"
                 aria-label="前往 {{ cell.date|date:'Y 年 n 月' }}"
               ><span class="holiday-calendar-day__number">{{ cell.date.day }}</span></a>
@@ -108,6 +134,7 @@
           {% endfor %}
         {% endfor %}
       </div>
+      {% endif %}
     </div>
 
     <div class="holiday-editor-backdrop" data-holiday-editor-close hidden></div>
@@ -127,6 +154,8 @@
       <form method="post" class="holiday-calendar-form" data-holiday-form autocomplete="off">
         {% csrf_token %}
         <input type="hidden" name="month" value="{{ current_month|date:'Y-m' }}">
+        <input type="hidden" name="view" value="{{ calendar_view }}">
+        <input type="hidden" name="selected_date" value="{{ selected_date|date:'Y-m-d' }}">
         <input type="hidden" name="holiday_id" value="{% if editing %}{{ editing.pk }}{% endif %}" data-holiday-id-input>
         {% if form.non_field_errors %}
           <div class="form-validation-summary" role="alert">{% for error in form.non_field_errors %}<span>{{ error }}</span>{% endfor %}</div>
@@ -167,12 +196,15 @@
       >
         {% csrf_token %}
         <input type="hidden" name="month" value="{{ current_month|date:'Y-m' }}">
+        <input type="hidden" name="view" value="{{ calendar_view }}">
+        <input type="hidden" name="selected_date" value="{{ selected_date|date:'Y-m-d' }}">
         <button class="button danger" type="submit" data-holiday-delete-button data-confirm="確定刪除這個日期嗎？">刪除日期</button>
       </form>
     </aside>
   </div>
 </section>
 
+{% if calendar_view == 'month' %}
 <details class="section-block holiday-list-disclosure">
   <summary>
     <span><strong>本月日期清單</strong><small>需要逐筆核對時再展開</small></span>
@@ -188,7 +220,7 @@
             <td>{{ holiday.name }}</td>
             <td><span class="status-pill{% if holiday.source == 'dgpa' %} success{% endif %}">{{ holiday.get_source_display }}</span></td>
             <td>{% include "sales/_active_quick_toggle.html" with resource="business-holiday" pk=holiday.pk is_active=holiday.active item_name=holiday.name enabled_label="排除" disabled_label="不排除" %}</td>
-            <td><a class="button ghost small" href="?month={{ current_month|date:'Y-m' }}&amp;edit={{ holiday.pk }}">開啟設定</a></td>
+            <td><a class="button ghost small" href="?view=day&amp;day={{ holiday.date|date:'Y-m-d' }}">開啟設定</a></td>
           </tr>
         {% empty %}
           <tr><td colspan="5">本月沒有額外設定；週六與週日仍會固定排除。</td></tr>
@@ -197,6 +229,7 @@
     </table>
   </div>
 </details>
+{% endif %}
 {% endblock %}
 {% block scripts %}
   <script src="{% static 'js/business-holiday-calendar.js' %}?v={{ app_version }}" defer></script>

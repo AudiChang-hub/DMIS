@@ -19,6 +19,12 @@
   const sourceLabel = calendar.querySelector("[data-holiday-source-output]");
   const activeHelp = calendar.querySelector("[data-holiday-active-help]");
   const monthPicker = calendar.querySelector("[data-holiday-month-picker]");
+  const datePicker = calendar.querySelector("[data-holiday-date-picker]");
+  const openDay = (isoDate) => {
+    const destination = new URL(window.location.href);
+    destination.search = new URLSearchParams({ view: "day", day: isoDate }).toString();
+    window.location.assign(destination);
+  };
   let lastTrigger = null;
 
   if (!editor || !form || !dateInput || !nameInput || !activeInput) return;
@@ -78,7 +84,7 @@
     const day = event.target.closest("[data-holiday-date]");
     if (day) {
       event.preventDefault();
-      prepareEditor(day);
+      openDay(day.dataset.holidayDate);
       return;
     }
 
@@ -94,13 +100,7 @@
       const suggestedDate = todayIso.startsWith(`${currentMonth}-`)
         ? todayIso
         : `${currentMonth}-01`;
-      prepareEditor({
-        dataset: {
-          holidayDate: suggestedDate,
-          holidayWeekend: String([0, 6].includes(new Date(`${suggestedDate}T12:00:00`).getDay())),
-        },
-        focus: () => createButton.focus({ preventScroll: true }),
-      });
+      openDay(suggestedDate);
       return;
     }
 
@@ -115,7 +115,11 @@
     const destination = new URL(window.location.href);
     destination.search = "";
     destination.searchParams.set("month", monthPicker.value);
+    destination.searchParams.set("view", "month");
     window.location.assign(destination);
+  });
+  datePicker?.addEventListener("change", () => {
+    if (datePicker.value) openDay(datePicker.value);
   });
 
   window.addEventListener("activequicktoggle:changed", (event) => {

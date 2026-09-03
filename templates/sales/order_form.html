@@ -1,4 +1,6 @@
 {% extends "base.html" %}
+{% load static %}
+{% block head %}<link rel="stylesheet" href="{% static 'css/order-commission-recipient.css' %}?v={{ app_version }}">{% endblock %}
 {% block title %}{% if editing_order %}編輯 {{ editing_order.number }}{% else %}建立訂單{% endif %}｜車輛銷售管理{% endblock %}
 {% block page_class %}page-shell--form{% endblock %}
 {% block content %}
@@ -61,6 +63,7 @@
         {% include "sales/_field.html" with field=form.source %}
       </div>
     </div>
+    {% include "sales/_order_commission_recipient.html" %}
   </details>
 
   <details class="form-section" id="owner" open>
@@ -305,6 +308,7 @@
 {% endif %}
 {% endblock %}
 {% block scripts %}
+<script src="{% static 'js/order-commission-recipient.js' %}?v={{ app_version }}" defer></script>
 {{ vehicle_rate_data|json_script:"vehicle-rate-data" }}
 {{ accessory_product_data|json_script:"accessory-product-data" }}
 <script>

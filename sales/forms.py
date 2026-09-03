@@ -155,7 +155,41 @@ class DateInput(forms.DateInput):
         super().__init__(*args, **kwargs)
 
 
+class OrderCommissionAttributionForm(forms.Form):
+    commission_recipient = forms.ModelChoiceField(
+        label="這台算給哪間車行", queryset=SalesSource.objects.none(), required=False,
+        widget=forms.Select(attrs={
+            "class": "form-control", "data-searchable-select": "1",
+            "data-search-placeholder": "搜尋車行名稱",
+            "data-searchable-include-empty": "1",
+        }),
+    )
+    reason = forms.CharField(
+        label="調整原因", max_length=500,
+        widget=forms.Textarea(attrs={"class": "form-control", "rows": 2}),
+    )
+    order_revision = forms.IntegerField(min_value=0, widget=forms.HiddenInput)
+
+    def __init__(self, *args, order, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["commission_recipient"].queryset = SalesSource.objects.filter(
+            Q(active=True) | Q(pk=order.commission_recipient_id),
+            source_type=SalesSource.SourceType.DEALER,
+        ).exclude(pk=order.source_id).order_by("name", "pk")
+        self.fields["commission_recipient"].empty_label = f"原銷售車行：{order.source}"
+        self.initial.update(commission_recipient=order.commission_recipient_id, order_revision=order.revision)
+
+    def clean(self):
+        data = super().clean()
+        if self.add_prefix("commission_recipient") not in self.data:
+            self.add_error("commission_recipient", "請選擇歸屬車行，或選回原銷售車行。")
+        return data
+
+
 class SalesOrderForm(forms.ModelForm):
+    assign_commission_to_other = forms.BooleanField(
+        label="這台算給其他車行", required=False, widget=forms.HiddenInput,
+    )
     vehicle_energy_type = forms.ChoiceField(
         label="動力類型",
         choices=VehicleModel.EnergyType.choices,
@@ -173,6 +207,7 @@ class SalesOrderForm(forms.ModelForm):
         fields = [
             "source_type",
             "source",
+            "commission_recipient",
             "owner_type",
             "owner_name",
             "owner_name_en",
@@ -281,13 +316,30 @@ class SalesOrderForm(forms.ModelForm):
         selected_source_type = (
             self.data.get("source_type")
             if self.is_bound
-            else self.instance.source_type or SalesOrder.SourceType.STORE
+            else self.initial.get("source_type") or self.instance.source_type or SalesOrder.SourceType.STORE
         )
         self.fields["source"].queryset = SalesSource.objects.filter(
             active=True,
             source_type=selected_source_type,
         )
         self.fields["source"].required = False
+        self.commission_attribution_locked = bool(
+            self.instance.pk and self.instance.dealer_volume_bonus_allocations.exists()
+        )
+        if self.instance.registration_completed_at:
+            self.fields["registration_date"].disabled = True
+        self.fields["commission_recipient"].queryset = SalesSource.objects.filter(
+            Q(active=True) | Q(pk=self.instance.commission_recipient_id),
+            source_type=SalesSource.SourceType.DEALER,
+        ).order_by("name", "pk")
+        self.initial.setdefault("assign_commission_to_other", bool(
+            self.initial.get("commission_recipient") or self.instance.commission_recipient_id
+        ))
+        self.fields["commission_recipient"].empty_label = "搜尋或選擇歸屬車行"
+        self.fields["commission_recipient"].help_text = ""
+        if self.commission_attribution_locked:
+            self.fields["commission_recipient"].disabled = True
+            self.fields["assign_commission_to_other"].disabled = True
         self.fields["source"].help_text = (
             "本店訂單可選擇承辦員工；合作車行與網路平台則必須選擇來源名稱。"
         )
@@ -307,6 +359,7 @@ class SalesOrderForm(forms.ModelForm):
             field.widget.attrs.setdefault("class", "form-control")
         searchable_selects = {
             "source": "輸入車行或平台名稱",
+            "commission_recipient": "輸入歸屬車行名稱",
             "vehicle_model": "輸入品牌、車型、型號或年份",
             "color": "輸入車色名稱",
         }
@@ -370,6 +423,21 @@ class SalesOrderForm(forms.ModelForm):
         source = data.get("source")
         if source and source.source_type != source_type:
             self.add_error("source", "來源名稱與選擇的訂單來源不一致。")
+        # 舊版表單／草稿未帶新開關時，保留已存歸屬；明確關閉才清除。
+        enabled = data.get("assign_commission_to_other")
+        if self.is_bound and self.data.get("commission_recipient_nojs") == "1":
+            enabled = bool(data.get("commission_recipient"))
+        if self.is_bound and "assign_commission_to_other" not in self.data and not self.instance.pk:
+            enabled = bool(data.get("commission_recipient"))
+        if self.is_bound and "assign_commission_to_other" not in self.data and self.instance.pk:
+            data["commission_recipient"] = self.instance.commission_recipient
+            enabled = bool(self.instance.commission_recipient_id)
+        if not enabled or source_type != SalesOrder.SourceType.DEALER:
+            data["commission_recipient"] = None
+        elif not data.get("commission_recipient"):
+            self.add_error("commission_recipient", "請選擇這台的台數與傭金歸屬車行。")
+        elif source and data["commission_recipient"].pk == source.pk:
+            data["commission_recipient"] = None
 
         if data.get("vehicle_category") == SalesOrder.VehicleCategory.USED:
             data["transaction_type"] = SalesOrder.TransactionType.USED
@@ -1156,16 +1224,21 @@ class DealerVolumeBonusSettlementForm(forms.ModelForm):
     class Meta:
         model = DealerVolumeBonusSettlement
         fields = ["actual_amount", "adjustment_reason"]
-        widgets = {"adjustment_reason": forms.Textarea(attrs={"rows": 2})}
+        labels = {"actual_amount": "實際台數獎金（不含原傭金）"}
+        widgets = {
+            "actual_amount": forms.NumberInput(attrs={"class": "form-control"}),
+            "adjustment_reason": forms.Textarea(attrs={"rows": 2, "class": "form-control"}),
+        }
 
 
 class DealerVolumeBonusAdjustmentForm(forms.Form):
     actual_amount = forms.DecimalField(
-        label="修正後實際金額", max_digits=12, decimal_places=0, min_value=0
+        label="修正後台數獎金", max_digits=12, decimal_places=0, min_value=0,
+        widget=forms.NumberInput(attrs={"class": "form-control"}),
     )
     reason = forms.CharField(
         label="調整原因",
-        widget=forms.Textarea(attrs={"rows": 2}),
+        widget=forms.Textarea(attrs={"rows": 2, "class": "form-control"}),
         help_text="必填；此內容會永久保留在調整歷程。",
     )
 
@@ -2337,6 +2410,7 @@ VehicleColorMasterFormSet = inlineformset_factory(
 
 
 class OrderOperationsForm(forms.ModelForm):
+    financial_revision = forms.CharField(required=False, widget=forms.HiddenInput())
     vehicle_control_password = forms.CharField(
         label="車控密碼",
         required=False,
@@ -2369,6 +2443,11 @@ class OrderOperationsForm(forms.ModelForm):
             "incentive_locked_at",
             "incentive_locked_by",
             "manual_financial_fields",
+            "dealer_commission_base",
+            "dealer_commission_adjustment",
+            "dealer_commission_policy",
+            "dealer_commission_registration_date",
+            "dealer_commission_locked_at",
             "vehicle_control_password_encrypted",
             "battery_password_encrypted",
             "updated_by",
@@ -2396,6 +2475,9 @@ class OrderOperationsForm(forms.ModelForm):
             "card_fee_income",
             "card_fee_expense",
         }
+        self.initial["financial_revision"] = self.instance.updated_at.isoformat() if self.instance.updated_at else ""
+        if self.instance.payment_disbursement_snapshot:
+            synced_fields.add("actual_disbursement")
         for name, field in self.fields.items():
             field.widget.attrs.setdefault("class", "form-control")
             if name in synced_fields:
@@ -2427,6 +2509,8 @@ class OrderOperationsForm(forms.ModelForm):
         for name, field in self.fields.items():
             if isinstance(field, forms.DecimalField) and cleaned.get(name) is None:
                 cleaned[name] = Decimal("0")
+        if cleaned.get("financial_revision") != self.initial.get("financial_revision"):
+            raise forms.ValidationError("營運或收款資料已更新，請重新載入頁面再修改，避免覆蓋他人的金額。")
         return cleaned
 
 
@@ -2472,12 +2556,10 @@ class PaymentRecordForm(forms.ModelForm):
                 self.fields[name].help_text = "由訂單自動同步。"
         for name, field in self.fields.items():
             field.widget.attrs.setdefault("class", "form-control")
-            if (
-                isinstance(field, forms.DecimalField)
-                and not self.is_bound
-                and self.initial.get(name) in (None, 0, Decimal("0"))
-            ):
-                self.initial[name] = ""
+            if isinstance(field, forms.DecimalField):
+                field.required = False
+                if self.initial.get(name) in (None, 0, Decimal("0")):
+                    self.initial[name] = ""
         apply_mobile_keyboard_attrs(self)
 
     def clean(self):
@@ -2487,6 +2569,12 @@ class PaymentRecordForm(forms.ModelForm):
             cleaned.get("card_fee_charged") or Decimal("0"),
             cleaned.get("bank_card_fee") or Decimal("0"),
         )
+        for name, field in self.fields.items():
+            if isinstance(field, forms.DecimalField) and cleaned.get(name) is None:
+                cleaned[name] = Decimal("0")
+        for name in ("expected_amount", "received_amount"):
+            if cleaned.get(name) is not None and cleaned[name] < 0:
+                self.add_error(name, "收款金額不可為負數；退款請使用退款流程。")
         if any(card_values) and cleaned.get("payment_method") != "刷卡":
             self.add_error("payment_method", "填寫刷卡明細時，付款方式必須選擇「刷卡」。")
         return cleaned
@@ -2652,6 +2740,9 @@ class ReconciliationRecordForm(forms.ModelForm):
 
     def clean(self):
         cleaned = super().clean()
+        for name in ("expected_amount", "received_amount"):
+            if cleaned.get(name) is not None and cleaned[name] < 0:
+                self.add_error(name, "收款金額不可為負數；退款請使用退款流程。")
         expected = cleaned.get("expected_amount")
         if expected is None:
             expected = self.original_expected_amount

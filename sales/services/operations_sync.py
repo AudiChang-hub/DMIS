@@ -21,7 +21,7 @@ def _expected_installment_disbursement(order):
     return Decimal(str(amount)) if amount is not None else Decimal("0")
 
 
-def _upsert_system_payment(order, key, defaults):
+def _upsert_system_payment(order, key, defaults, *, update_receivables=False):
     from sales.models import PaymentRecord
 
     payment, created = PaymentRecord.objects.get_or_create(
@@ -31,9 +31,10 @@ def _upsert_system_payment(order, key, defaults):
     )
     if created:
         return payment
+    before = {name: getattr(payment, name) for name in defaults}
     protected = payment.confirmed or payment.received_amount or payment.proof
     payment.item_name = defaults["item_name"]
-    if not protected and not payment.expected_amount_overridden:
+    if (not protected or update_receivables) and not payment.expected_amount_overridden:
         payment.expected_amount = defaults["expected_amount"]
     if key == "deposit" and not protected:
         for field in (
@@ -42,7 +43,9 @@ def _upsert_system_payment(order, key, defaults):
             "payment_method",
         ):
             setattr(payment, field, defaults[field])
-    payment.save()
+    changed = [name for name in defaults if getattr(payment, name) != before[name]]
+    if changed:
+        payment.save(update_fields=[*changed, "updated_at"])
     return payment
 
 
@@ -54,14 +57,15 @@ def refresh_payment_confirmation(order_id):
         return
     records = PaymentRecord.objects.filter(order_id=order_id)
     expected = records.aggregate(total=Sum("expected_amount"))["total"] or Decimal("0")
-    received = records.filter(confirmed=True).aggregate(
-        total=Sum("received_amount")
-    )["total"] or Decimal("0")
-    confirmed = bool(records.exists() and expected > 0 and received >= expected)
-    installment_confirmed = records.filter(
+    # 某筆溢收不能抵掉另一筆尚未收清的款項。
+    confirmed = bool(records.exists() and expected > 0 and all(
+        record.is_settled for record in records
+    ))
+    installment_record = records.filter(
         system_key="installment_disbursement",
-        confirmed=True,
-    ).exists()
+    ).first()
+    # 匯款已確認不等於所有款項已收清；短款仍由 payment_confirmed／應收差額呈現。
+    installment_confirmed = bool(installment_record and installment_record.confirmed)
     updates = []
     if profile.payment_confirmed != confirmed:
         profile.payment_confirmed = confirmed
@@ -74,7 +78,54 @@ def refresh_payment_confirmation(order_id):
 
 
 @transaction.atomic
-def sync_order_operations(order_id):
+def sync_payment_financials(order_id, *, adopt_payment_id=None):
+    """所有收款入口共用；原始收款紀錄與營運財務在同一交易更新。"""
+    from sales.models import OrderOperationsProfile, SalesOrder
+
+    order = SalesOrder.objects.select_for_update().filter(pk=order_id).first()
+    if not order:
+        return
+    profile = OrderOperationsProfile.objects.filter(order_id=order_id).first()
+    if not profile:
+        return
+    fields = ("card_fee_income", "card_fee_expense", "actual_disbursement",
+              "payment_disbursement_snapshot", "manual_financial_fields")
+    before = {name: getattr(profile, name) for name in fields}
+    totals = order.payment_records.aggregate(income=Sum("card_fee_charged"), expense=Sum("bank_card_fee"))
+    profile.card_fee_income = totals["income"] or Decimal("0")
+    profile.card_fee_expense = totals["expense"] or Decimal("0")
+    key = ("installment_disbursement" if order.payment_type == order.PaymentType.INSTALLMENT
+           else "balance" if order.source_type == order.SourceType.PLATFORM else None)
+    payment = order.payment_records.filter(system_key=key, confirmed=True).first() if key else None
+    snapshot = dict(profile.payment_disbursement_snapshot or {})
+    protected = set(profile.manual_financial_fields or [])
+    if payment and (snapshot or payment.pk == adopt_payment_id):
+        if not snapshot:
+            snapshot = {"previous": str(profile.actual_disbursement),
+                        "was_manual": "actual_disbursement" in protected}
+        profile.actual_disbursement = payment.received_amount
+        protected.add("actual_disbursement")
+        snapshot.update(payment_id=payment.pk, applied=str(payment.received_amount))
+    elif not payment and snapshot:
+        # 只撤回由收款管理的金額，不覆寫之後另行人工輸入的金額。
+        if profile.actual_disbursement == Decimal(snapshot["applied"]):
+            if snapshot["was_manual"]:
+                profile.actual_disbursement = Decimal(snapshot["previous"])
+            else:
+                from .incentive_rule import _calculated_disbursement
+                profile.actual_disbursement = _calculated_disbursement(order) or Decimal("0")
+                protected.discard("actual_disbursement")
+        snapshot = {}
+    profile.payment_disbursement_snapshot = snapshot
+    profile.manual_financial_fields = sorted(protected)
+    changed = [name for name in fields if getattr(profile, name) != before[name]]
+    if changed:
+        profile.save(update_fields=[*changed, "updated_at"])
+    refresh_payment_confirmation(order_id)
+
+
+@transaction.atomic
+def sync_order_operations(order_id, *, update_receivables=False):
     from sales.models import OrderOperationsProfile, PaymentRecord, SalesOrder
 
     order = (
@@ -88,6 +139,7 @@ def sync_order_operations(order_id):
     if not order:
         return None
     profile, _created = OrderOperationsProfile.objects.get_or_create(order=order)
+    profile_before = {field.attname: field.value_from_object(profile) for field in profile._meta.concrete_fields}
     profile.dealer_name = order.source.name if order.source_id else ""
     if (
         order.source_type != order.SourceType.PLATFORM
@@ -152,7 +204,9 @@ def sync_order_operations(order_id):
         if order.payment_type == SalesOrder.PaymentType.INSTALLMENT
         else ""
     )
-    profile.save()
+    changed = [name for name, value in profile_before.items() if getattr(profile, name) != value]
+    if changed:
+        profile.save(update_fields=[*changed, "updated_at"])
 
     active_keys = {"deposit"}
     _upsert_system_payment(
@@ -167,6 +221,7 @@ def sync_order_operations(order_id):
             if order.deposit_method
             else "",
         },
+        update_receivables=update_receivables,
     )
 
     if order.payment_type == SalesOrder.PaymentType.INSTALLMENT:
@@ -196,6 +251,7 @@ def sync_order_operations(order_id):
                 "received_on": None,
                 "payment_method": "分期撥款",
             },
+            update_receivables=update_receivables,
         )
         balance_label = "分期外應收"
     else:
@@ -212,6 +268,7 @@ def sync_order_operations(order_id):
             "received_on": None,
             "payment_method": order.get_payment_type_display(),
         },
+        update_receivables=update_receivables,
     )
 
     stale = PaymentRecord.objects.filter(order=order).exclude(system_key="")

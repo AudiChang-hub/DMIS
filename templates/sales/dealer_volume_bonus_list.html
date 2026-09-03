@@ -8,7 +8,7 @@
   <div>
     <p class="eyebrow">依實際領牌日期回溯</p>
     <h1>車行台數獎金</h1>
-    <p class="muted">預設只顯示統計期間內已有領牌銷售的合作車行；達門檻後可一次結算並保存逐單明細。</p>
+    <p class="muted">依訂單的台數與傭金歸屬車行統計，達門檻後結算；原銷售車行保留在逐單明細中。</p>
   </div>
   <div class="hero-actions">
     {% if show_all %}
@@ -34,7 +34,7 @@
             <td data-label="狀態">{% include "sales/_active_quick_toggle.html" with resource="dealer-volume-bonus" pk=row.rule.pk is_active=row.rule.active item_name=row.rule %}</td>
             <td>
               {% if row.rule.settlement %}
-                <a class="button ghost small" href="{% url 'dealer_volume_bonus_revise' row.rule.settlement.pk %}">調整實際入帳</a>
+                <a class="button ghost small" href="{% url 'dealer_volume_bonus_revise' row.rule.settlement.pk %}">明細／調整獎金</a>
               {% else %}
                 <a class="button ghost small" href="{% url 'dealer_volume_bonus_edit' row.rule.pk %}">編輯</a>
                 {% if row.preview.tier %}<a class="button primary small" href="{% url 'dealer_volume_bonus_settle' row.rule.pk %}">結算</a>{% endif %}

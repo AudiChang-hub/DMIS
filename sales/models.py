@@ -1091,6 +1091,11 @@ class DealerVolumeBonusRule(TimeStampedModel):
             raise ValidationError({"ends_on": "統計結束日不可早於開始日。"})
         if self.dealer_id and self.dealer.source_type != SalesSource.SourceType.DEALER:
             raise ValidationError({"dealer": "台數獎金只能設定合作車行。"})
+        if self.pk and DealerVolumeBonusSettlement.objects.filter(rule_id=self.pk).exists():
+            fields = ("dealer_id", "brand", "starts_on", "ends_on")
+            previous = type(self).objects.filter(pk=self.pk).values(*fields).get()
+            if any(previous[name] != getattr(self, name) for name in fields):
+                raise ValidationError("已結算規則的車行、品牌與期間不可改動，請另建新規則。")
 
     def save(self, *args, **kwargs):
         self.full_clean()
@@ -1182,6 +1187,10 @@ class DealerVolumeBonusAllocation(TimeStampedModel):
     )
     amount = models.DecimalField(
         "分配金額", max_digits=12, decimal_places=0, default=0
+    )
+    original_commission_amount = models.DecimalField(
+        "原傭金快照（含車行加減額）", max_digits=12, decimal_places=0,
+        null=True, blank=True,
     )
 
     class Meta:
@@ -2140,6 +2149,11 @@ class SalesOrder(TimeStampedModel):
         null=True,
         verbose_name="來源名稱",
     )
+    commission_recipient = models.ForeignKey(
+        SalesSource, on_delete=models.PROTECT, blank=True, null=True,
+        related_name="credited_orders", verbose_name="台數與傭金歸屬車行",
+        limit_choices_to={"source_type": SalesSource.SourceType.DEALER},
+    )
     status = models.CharField(
         "訂單狀態",
         max_length=32,
@@ -2837,6 +2851,24 @@ class SalesOrder(TimeStampedModel):
         self.installment_status = ""
         self.installment_decided_on = None
 
+    @property
+    def effective_commission_recipient(self):
+        if self.source_type != self.SourceType.DEALER:
+            return None
+        return self.commission_recipient or self.source
+
+    @property
+    def commission_attribution_block_reason(self):
+        if self.source_type != self.SourceType.DEALER:
+            return "只有合作車行訂單可以調整台數與傭金歸屬。"
+        if not self.source_id or self.source.source_type != SalesSource.SourceType.DEALER:
+            return "原銷售車行資料不完整，請先確認訂單來源。"
+        if self.status == self.Status.CANCELLED:
+            return "已取消的訂單不能調整台數與傭金歸屬。"
+        if self.dealer_volume_bonus_allocations.exists():
+            return "已結算台數獎金，歸屬已鎖定；不能直接更換收款車行。"
+        return ""
+
     def clean(self):
         if self.payment_type != self.PaymentType.INSTALLMENT:
             self.clear_installment_details()
@@ -2845,6 +2877,39 @@ class SalesOrder(TimeStampedModel):
             errors["source"] = "合作車行或網路平台訂單必須選擇來源名稱。"
         if self.source_id and self.source.source_type != self.source_type:
             errors["source"] = "來源名稱與訂單來源類型不一致。"
+        previous = type(self).objects.filter(pk=self.pk).values(
+            "source_type", "source_id", "commission_recipient_id",
+            "vehicle_model_id", "registration_date", "registration_completed_at", "status",
+        ).first() if self.pk else None
+        if self.commission_recipient_id:
+            if (self.source_type != self.SourceType.DEALER
+                    or self.commission_recipient.source_type != SalesSource.SourceType.DEALER):
+                errors["commission_recipient"] = "只有合作車行訂單能將台數與傭金歸給其他合作車行。"
+            elif (not self.commission_recipient.active and (
+                not previous or previous["commission_recipient_id"] != self.commission_recipient_id
+            )):
+                errors["commission_recipient"] = "請選擇啟用中的合作車行。"
+            if self.commission_recipient_id == self.source_id:
+                self.commission_recipient = None
+        if previous:
+            changed = any(getattr(self, key) != previous[key] for key in (
+                "source_type", "source_id", "commission_recipient_id", "vehicle_model_id",
+                "registration_date", "registration_completed_at",
+            )) or (self.status == self.Status.CANCELLED and previous["status"] != self.status)
+            if changed and self.dealer_volume_bonus_allocations.exists():
+                errors["commission_recipient"] = "此訂單已結算台數獎金，不可變更原車行或台數與傭金歸屬。"
+        else:
+            changed = True
+        if (changed and self.source_type == self.SourceType.DEALER and self.registration_date
+                and self.registration_completed_at and self.vehicle_model_id
+                and self.status != self.Status.CANCELLED):
+            if DealerVolumeBonusSettlement.objects.filter(
+                rule__dealer_id=self.commission_recipient_id or self.source_id,
+                rule__brand__iexact=self.vehicle_model.brand,
+                rule__starts_on__lte=self.registration_date,
+                rule__ends_on__gte=self.registration_date,
+            ).exists():
+                errors["commission_recipient"] = "目標車行在該領牌期間已結算台數獎金，不能加入或變更已結算清單。"
         if self.vehicle_category == self.VehicleCategory.USED:
             self.transaction_type = self.TransactionType.USED
         elif self.transaction_type == self.TransactionType.USED:
@@ -2861,7 +2926,20 @@ class SalesOrder(TimeStampedModel):
         if errors:
             raise ValidationError(errors)
 
+    @transaction.atomic
     def save(self, *args, **kwargs):
+        if self.pk:
+            # 與結算共用訂單列鎖，避免歸屬變更和結算同時通過驗證。
+            type(self).objects.select_for_update().filter(pk=self.pk).exists()
+        receivable_fields = ("actual_balance", "deposit_amount", "payment_type", "installment_amount", "installment_plan_snapshot")
+        persisted = type(self).objects.filter(pk=self.pk).values(*receivable_fields).first() if self.pk else None
+        written_fields = kwargs.get("update_fields")
+        self._receivable_changed = persisted is None or any(
+            getattr(self, name) != persisted[name] for name in receivable_fields
+            if written_fields is None or name in written_fields
+        )
+        from .services.financial_refresh import lock_bonus_periods
+        lock_bonus_periods(self)
         if not self.number:
             self.number = f"SO{timezone.localdate():%Y%m%d}-{uuid.uuid4().hex[:6].upper()}"
         if self.id_verified and not self.id_verified_at:
@@ -3101,6 +3179,10 @@ class OrderOperationsProfile(TimeStampedModel):
         blank=True,
         help_text="記錄不應再被訂單同步覆蓋的收支欄位。",
     )
+    payment_disbursement_snapshot = models.JSONField(
+        "收款連動前撥款快照", default=dict, blank=True, editable=False,
+        help_text="取消收款確認時恢復先前值；不回推舊資料。",
+    )
     registration_tax_expense = models.DecimalField("領牌稅金支出", max_digits=12, decimal_places=0, default=0)
     compulsory_insurance_expense = models.DecimalField("強制險支出", max_digits=12, decimal_places=0, default=0)
     plate_selection_expense = models.DecimalField("選號支出", max_digits=12, decimal_places=0, default=0)
@@ -3248,6 +3330,21 @@ class OrderOperationsProfile(TimeStampedModel):
 
 
 class PaymentRecord(TimeStampedModel):
+    @transaction.atomic
+    def save(self, *args, **kwargs):
+        SalesOrder.objects.select_for_update().get(pk=self.order_id)
+        fields = ("received_amount", "confirmed", "system_key")
+        previous = type(self).objects.filter(pk=self.pk).values(*fields).first() if self.pk else None
+        self._disbursement_changed = previous is None or any(
+            previous[name] != getattr(self, name) for name in fields
+        )
+        return super().save(*args, **kwargs)
+
+    @transaction.atomic
+    def delete(self, *args, **kwargs):
+        SalesOrder.objects.select_for_update().get(pk=self.order_id)
+        return super().delete(*args, **kwargs)
+
     order = models.ForeignKey(
         SalesOrder,
         on_delete=models.CASCADE,

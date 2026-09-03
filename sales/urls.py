@@ -233,6 +233,8 @@ urlpatterns = [
     path("orders/drafts/<uuid:pk>/delete/", views.draft_delete, name="draft_delete"),
     path("orders/<int:pk>/", views.order_detail, name="order_detail"),
     path("orders/<int:pk>/edit/", views.order_edit, name="order_edit"),
+    path("orders/<int:pk>/commission-attribution/", views.order_commission_attribution_update,
+         name="order_commission_attribution_update"),
     path(
         "orders/<int:pk>/operations/",
         views.order_operations,

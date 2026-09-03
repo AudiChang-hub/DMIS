@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% load static sales_format %}
+{% block head %}<link rel="stylesheet" href="{% static 'css/order-commission-recipient.css' %}?v={{ app_version }}">{% endblock %}
 {% block title %}{{ order.number }}｜車輛銷售管理{% endblock %}
 {% block page_class %}page-shell--wide{% endblock %}
 {% block content %}
@@ -17,6 +18,8 @@
     <a class="button secondary" href="{% url 'order_documents_print' order.pk %}" target="_blank">一鍵列印全部文件</a>
   </div>
 </section>
+
+{% include "sales/_order_commission_attribution.html" %}
 
 {% if request.GET.created == "1" %}
 <dialog class="print-dialog" id="print-contract-dialog">
@@ -722,6 +725,7 @@
       <div><dt>車色</dt><dd>{{ order.color.name }}</dd></div>
       <div><dt>動力／排氣量</dt><dd>{{ order.vehicle_model.get_energy_type_display }}{% if order.vehicle_model.displacement_cc %}／{{ order.vehicle_model.displacement_cc }} c.c.{% endif %}</dd></div>
       <div><dt>來源</dt><dd>{{ order.source.name|default:"本店" }}{% if order.source.category %}／{{ order.source.category.name }}{% endif %}</dd></div>
+      {% if order.commission_recipient_id %}<div class="wide highlight-data"><dt>台數與傭金歸屬</dt><dd>{{ order.commission_recipient }}<small>本單台數與傭金歸給此車行；原銷售來源不變。</small></dd></div>{% endif %}
       <div><dt>交車方式</dt><dd>{{ order.get_delivery_method_display }}{% if order.delivery_destination %}／{{ order.delivery_destination }}{% endif %}</dd></div>
       {% if order.allocated_vehicle %}
       <div class="wide highlight-data"><dt>實體車</dt><dd>{{ order.allocated_vehicle.identifier }} · {{ order.allocated_vehicle.actual_location_label }}</dd></div>
@@ -951,6 +955,7 @@
 </div>
 {% endblock %}
 {% block scripts %}
+<script src="{% static 'js/order-commission-attribution.js' %}?v={{ app_version }}" defer></script>
 <script src="{% static 'js/order-detail-tabs.js' %}?v={{ app_version }}" defer></script>
 <script src="{% static 'js/next-actions.js' %}?v={{ app_version }}" defer></script>
 <script src="{% static 'js/subsidy-items.js' %}?v={{ app_version }}" defer></script>

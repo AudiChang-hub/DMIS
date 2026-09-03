@@ -215,7 +215,7 @@
       if (!options.length) {
         const empty = document.createElement("p");
         empty.className = "searchable-select__empty";
-        empty.textContent = "找不到符合的選項";
+        empty.textContent = select.dataset.searchEmptyMessage || "找不到符合的選項";
         list.append(empty);
         return;
       }

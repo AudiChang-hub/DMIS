@@ -15,6 +15,14 @@
   .bonus-settlement-layout { grid-template-columns: 1fr; }
 }
 .bonus-rule-form { max-width: 1180px; margin: 0 auto; }
+.bonus-period-type { display: flex; flex-wrap: wrap; gap: 10px; margin: 0 0 20px; padding: 0; border: 0; }
+.bonus-period-type legend { font-size: .85rem; font-weight: 800; margin-bottom: 10px; }
+.bonus-period-type label { display: flex; align-items: center; gap: 8px; padding: 12px 18px; border: 1px solid var(--line); border-radius: 10px; cursor: pointer; }
+.bonus-period-type label:has(input:checked) { border-color: var(--forest); background: var(--surface-soft); color: var(--forest); }
+.bonus-period-type input { width: 18px; height: 18px; min-height: 0; margin: 0; accent-color: var(--forest); }
+.bonus-period-type label:focus-within { outline: 2px solid var(--forest); outline-offset: 2px; }
+.bonus-rule-form [data-period-presets][hidden], .bonus-rule-form [data-period-custom][hidden], .bonus-rule-form [data-period-month][hidden], .bonus-rule-form [data-period-quarter][hidden] { display: none; }
+.bonus-period-fields { margin-bottom: 18px; }
 .bonus-section-heading, .bonus-rule-heading { display: flex; align-items: center; justify-content: space-between; gap: 18px; margin-bottom: 22px; }
 .bonus-section-heading h2, .bonus-rule-heading h2 { margin: 5px 0 0; font-size: 1.2rem; }
 .bonus-section-heading > .muted { font-size: .84rem; }

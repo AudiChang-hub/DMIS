@@ -44,7 +44,7 @@
           <input type="hidden" name="next" value="{{ request.get_full_path }}">
           <button
             class="source-active-toggle source-gift-toggle{% if item.holiday_gift %} is-active{% endif %}"
-            type="submit"
+            type="button"
             role="switch"
             aria-checked="{{ item.holiday_gift|yesno:'true,false' }}"
             aria-label="{% if item.holiday_gift %}移出{% else %}列入{% endif %}年節送禮名單：{{ item.name }}"

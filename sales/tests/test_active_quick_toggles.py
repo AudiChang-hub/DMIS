@@ -69,6 +69,18 @@ class ActiveQuickToggleTests(TestCase):
         self.assertEqual(response.status_code, 404)
         self.assertFalse(response.json()["ok"])
 
+    def test_shared_quick_toggle_never_depends_on_native_form_navigation(self):
+        template = (
+            Path(settings.BASE_DIR) / "templates" / "sales" / "_active_quick_toggle.html"
+        ).read_text(encoding="utf-8")
+        script = (
+            Path(settings.BASE_DIR) / "static" / "js" / "active-quick-toggle.js"
+        ).read_text(encoding="utf-8")
+
+        self.assertIn('type="button"', template)
+        self.assertIn('document.addEventListener("click"', script)
+        self.assertIn('window.addEventListener("pageshow", resetPendingToggles)', script)
+
     def test_all_master_status_lists_use_shared_quick_toggle(self):
         expected_resources = {
             "accessory_product_list.html": "accessory-product",

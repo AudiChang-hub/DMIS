@@ -481,6 +481,24 @@ class SalesSourceRegionListTests(TestCase):
         self.new_taipei.refresh_from_db()
         self.assertFalse(self.new_taipei.active)
 
+    def test_shared_dealer_toggle_returns_counts_for_in_place_row_removal(self):
+        response = self.client.post(
+            reverse(
+                "master_record_set_active",
+                args=["sales-source", self.new_taipei.pk],
+            ),
+            {"active": "0"},
+            HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["resource"], "sales-source")
+        self.assertEqual(response.json()["pk"], self.new_taipei.pk)
+        self.assertEqual(
+            response.json()["status_counts"],
+            {"active": 3, "inactive": 1},
+        )
+
     def test_dealer_status_ajax_rejects_invalid_state(self):
         response = self.client.post(
             reverse("sales_source_set_active", args=[self.new_taipei.pk]),
@@ -536,7 +554,7 @@ class SalesSourceRegionListTests(TestCase):
         )
         self.assertContains(response, "點擊停用")
         self.assertContains(response, 'data-source-name="汐止分區車行"')
-        self.assertContains(response, "const submitActive = async (form) =>")
+        self.assertContains(response, "activequicktoggle:changed")
         self.assertContains(response, "removeMovedSourceRow(form, payload.status_counts);")
         self.assertContains(response, 'data-source-status-count="active"')
         self.assertContains(response, 'data-source-status-count="inactive"')

@@ -11,6 +11,7 @@
   <div>
     <p class="eyebrow">台數獎金修正</p>
     <h1>{{ settlement.rule }}</h1>
+    <p class="muted">{{ settlement.rule.period_label }} · {{ settlement.rule.starts_on|date:'Y/m/d' }}－{{ settlement.rule.ends_on|date:'Y/m/d' }} · {{ settlement.rule.conditions_label }}</p>
     <p>收款車行：{{ settlement.dealer }}；只調整本規則獎金，不會改變原傭金、其他規則獎金或收款車行。</p>
     <p class="muted">目前實際金額 ${{ settlement.actual_amount|floatformat:0 }}，調整後會重新平均分攤到 {{ settlement.allocations.count }} 張訂單。</p>
   </div>

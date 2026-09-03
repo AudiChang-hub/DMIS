@@ -4,7 +4,7 @@
 {% block page_class %}page-shell--wide{% endblock %}
 {% block content %}
 {% url 'dealer_volume_bonus_list' as list_url %}{% include "sales/_page_back.html" with fallback_url=list_url label="返回台數獎金" %}
-<section class="hero-row compact-hero"><div><p class="eyebrow">逐單核對，再確認結算</p><h1>{{ rule }}</h1><p class="muted">{{ rule.conditions_label }}</p><p>{{ rule.starts_on|date:'Y/m/d' }}－{{ rule.ends_on|date:'Y/m/d' }}</p></div></section>
+<section class="hero-row compact-hero"><div><p class="eyebrow">逐單核對，再確認結算</p><h1>{{ rule }}</h1><p class="muted">{{ rule.conditions_label }}</p><p>{{ rule.period_label }} · {{ rule.starts_on|date:'Y/m/d' }}－{{ rule.ends_on|date:'Y/m/d' }}</p></div></section>
 {% if not dealer %}
 <section class="form-section static-section"><h2>先選擇收款車行</h2><p class="muted">各車行分開計算門檻與結算。</p><form method="get" class="stacked-form"><div class="field"><label for="bonus-dealer">收款車行</label><select id="bonus-dealer" name="dealer" class="form-control" data-searchable-select="1" required><option value="">請選擇車行</option>{% for item in dealers %}<option value="{{ item.pk }}">{{ item }}</option>{% endfor %}</select></div><button class="button primary">查看試算</button></form></section>
 {% else %}

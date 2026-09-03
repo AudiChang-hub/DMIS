@@ -9,7 +9,7 @@ from django.urls import reverse
 from django.utils import timezone
 
 from sales.forms import DealerVolumeBonusRuleForm, DealerVolumeBonusTierFormSet
-from sales.models import (DealerVolumeBonusRule, DealerVolumeBonusTier, DealerVolumeBonusSettlement,
+from sales.models import (DealerVolumeBonusRule, DealerVolumeBonusTier, DealerVolumeBonusSettlement, DealerVolumeBonusBrand,
                           OrderOperationsProfile, SalesOrder, SalesSource, VehicleBrand, VehicleModel, VehicleColor)
 from sales.services.dealer_commission import (preview_volume_bonus, create_volume_bonus_settlement,
                                              revise_volume_bonus_settlement, dealer_volume_bonus_total, matching_bonus_rules)
@@ -46,7 +46,7 @@ class VolumeBonusConditionsTests(TestCase):
         return rule
 
     def payload(self, **overrides):
-        data = dict(name='9 月油車加碼', dealer='', brand='SUZUKI', energy_type='gas', vehicle_models=[str(self.model.pk)],
+        data = dict(name='9 月油車加碼', dealer='', brands=['SUZUKI'], energy_type='gas', vehicle_models=[str(self.model.pk)],
                     starts_on='2026-09-01', ends_on='2026-09-30', active='on', note='',
                     **{'tiers-TOTAL_FORMS': '1', 'tiers-INITIAL_FORMS': '0', 'tiers-0-minimum_quantity': '1', 'tiers-0-bonus_per_vehicle': '300'})
         data.update(overrides)
@@ -257,7 +257,154 @@ class VolumeBonusMigrationTests(TransactionTestCase):
             self.assertEqual(upgraded.actual_amount, 1100)
             self.assertEqual(upgraded.adjustment_reason, '舊調整原因')
             self.assertEqual(upgraded.rule.brand, 'SYM')
+            self.assertEqual(upgraded.rule.brand_names, ['SYM'])
+            self.assertEqual(upgraded.rule.period_type, 'custom')
             self.assertEqual(upgraded.rule.energy_type, '')
             self.assertFalse(upgraded.rule.vehicle_models.exists())
         finally:
             MigrationExecutor(connection).migrate(latest)
+
+
+class VolumeBonusPeriodsAndBrandsTests(TestCase):
+    order = VolumeBonusConditionsTests.order
+    rule = VolumeBonusConditionsTests.rule
+    payload = VolumeBonusConditionsTests.payload
+
+    @classmethod
+    def setUpTestData(cls):
+        VolumeBonusConditionsTests.setUpTestData.__func__(cls)
+        cls.sym = VehicleModel.objects.create(brand='SYM', name='三陽測試', energy_type='gas', base_dealer_commission=1500)
+        cls.sym_color = VehicleColor.objects.create(vehicle_model=cls.sym, name='白')
+
+    def multiple_rule(self, **kwargs):
+        rule = self.rule(**kwargs)
+        rule.brands.create(brand='SYM')
+        rule.brands.create(brand='SUZUKI')
+        return rule
+
+    def test_calendar_boundaries_and_leap_years(self):
+        from sales.services.bonus_periods import bonus_period_dates
+        for year, days in [(2024, 29), (2026, 28), (2100, 28), (2000, 29)]:
+            self.assertEqual(bonus_period_dates('month', year, 2), (date(year, 2, 1), date(year, 2, days)))
+        for quarter, start, end in [(1, 1, date(2026, 3, 31)), (2, 4, date(2026, 6, 30)), (3, 7, date(2026, 9, 30)), (4, 10, date(2026, 12, 31))]:
+            self.assertEqual(bonus_period_dates('quarter', 2026, quarter), (date(2026, start, 1), end))
+        self.assertEqual(bonus_period_dates('month', 9999, 12)[1], date(9999, 12, 31))
+        for args in [('month', 2026, 13), ('quarter', 2026, 0), ('month', 1899, 1), ('custom', 2026, 1)]:
+            with self.assertRaises(ValueError): bonus_period_dates(*args)
+
+    def test_server_derives_preset_dates_instead_of_trusting_posted_dates(self):
+        for kind, period, start, end in [('month', '2', date(2024, 2, 1), date(2024, 2, 29)), ('quarter', '3', date(2024, 7, 1), date(2024, 9, 30))]:
+            form = DealerVolumeBonusRuleForm(self.payload(period_type=kind, period_year='2024', **{f'period_{kind}': period}))
+            self.assertTrue(form.is_valid(), form.errors)
+            rule = form.save()
+            self.assertEqual((rule.starts_on, rule.ends_on), (start, end))
+            self.assertEqual(rule.period_type, kind)
+
+    def test_invalid_presets_and_custom_dates_are_rejected(self):
+        for values in [dict(period_type='month'), dict(period_type='quarter', period_year='2026', period_quarter='5'), dict(period_type='month', period_year='0', period_month='1'), dict(period_type='custom', starts_on=''), dict(period_type='custom', ends_on='2026-08-31')]:
+            form = DealerVolumeBonusRuleForm(self.payload(**values))
+            self.assertFalse(form.is_valid(), values)
+        form = DealerVolumeBonusRuleForm(self.payload(period_type='custom', starts_on='2026-08-15', ends_on='2026-10-14'))
+        self.assertTrue(form.is_valid(), form.errors)
+        rule = form.save()
+        self.assertEqual((rule.starts_on, rule.ends_on), (date(2026, 8, 15), date(2026, 10, 14)))
+
+    def test_model_rejects_partial_month_or_quarter(self):
+        with self.assertRaisesMessage(ValidationError, '完整月份'):
+            self.rule(period_type='month', starts_on=date(2026, 9, 2))
+        with self.assertRaisesMessage(ValidationError, '完整月份'):
+            self.rule(period_type='quarter')
+
+    def test_multiple_brands_combine_threshold_without_other_dealer(self):
+        suzuki = self.order()
+        sym1 = self.order(vehicle_model=self.sym, color=self.sym_color)
+        sym2 = self.order(vehicle_model=self.sym, color=self.sym_color)
+        self.order(self.b)
+        rule = self.multiple_rule(minimum=3, energy_type='gas')
+        preview = preview_volume_bonus(rule, self.a)
+        self.assertEqual(preview['quantity'], 3)
+        self.assertEqual(preview['expected_amount'], 1500)
+        self.assertEqual({order.pk for order in preview['orders']}, {suzuki.pk, sym1.pk, sym2.pk})
+        self.assertEqual(preview_volume_bonus(rule, self.b)['expected_amount'], 0)
+        for order in (suzuki, sym1):
+            self.assertEqual(list(matching_bonus_rules(order, self.a.pk).values_list('pk', flat=True)), [rule.pk])
+        settled = create_volume_bonus_settlement(rule, 'test', dealer=self.a)
+        self.assertEqual(settled.allocations.count(), 3)
+        self.assertEqual(settled.actual_amount, 1500)
+
+    def test_brand_energy_and_model_intersection(self):
+        wanted = self.order(vehicle_model=self.sym, color=self.sym_color)
+        self.order(); self.order(vehicle_model=self.ev, color=self.ev_color)
+        rule = self.multiple_rule(energy_type='gas')
+        rule.vehicle_models.add(self.sym)
+        self.assertEqual([o.pk for o in preview_volume_bonus(rule, self.a)['orders']], [wanted.pk])
+        rule.vehicle_models.clear()
+        self.assertEqual(preview_volume_bonus(rule, self.a)['quantity'], 2)
+
+    def test_monthly_and_quarterly_bonuses_stack_in_their_own_periods(self):
+        orders = [self.order(order_date=date(2026, month, 1), registration_date=date(2026, month, day))
+                  for month, day in [(6, 30), (7, 1), (7, 31), (8, 31), (9, 1), (9, 30), (10, 1)]]
+        quarter = self.multiple_rule(minimum=5, period_type='quarter', starts_on=date(2026, 7, 1))
+        month = self.multiple_rule(amount=300, minimum=2, period_type='month')
+        self.assertEqual(preview_volume_bonus(quarter, self.a)['quantity'], 5)
+        self.assertEqual(preview_volume_bonus(month, self.a)['quantity'], 2)
+        create_volume_bonus_settlement(month, 'test', dealer=self.a)
+        create_volume_bonus_settlement(quarter, 'test', dealer=self.a)
+        self.assertEqual([dealer_volume_bonus_total(o) for o in orders], [0, 500, 500, 500, 800, 800, 0])
+
+    def test_post_saves_multiple_brands_and_quarter_summary(self):
+        self.client.force_login(self.user)
+        data = self.payload(brands=['SYM', 'SUZUKI', 'SYM'], vehicle_models=[], period_type='quarter', period_year='2026', period_quarter='3', starts_on='', ends_on='')
+        response = self.client.post(reverse('dealer_volume_bonus_create'), data)
+        self.assertEqual(response.status_code, 302)
+        rule = DealerVolumeBonusRule.objects.get(name=data['name'])
+        self.assertEqual(rule.brand_names, ['SYM', 'SUZUKI'])
+        self.assertEqual(rule.brand, '')
+        self.assertEqual(rule.period_label, '2026 年第 3 季')
+        self.assertContains(self.client.get(response.url), '2026 年第 3 季')
+        self.assertContains(self.client.get(response.url), 'SYM＋SUZUKI')
+        data.update(brands=[], period_type='custom', starts_on='2026-09-01', ends_on='2026-09-10', **{'tiers-INITIAL_FORMS': '1', 'tiers-0-id': str(rule.tiers.get().pk)})
+        self.assertEqual(self.client.post(reverse('dealer_volume_bonus_edit', args=[rule.pk]), data).status_code, 302)
+        rule.refresh_from_db()
+        self.assertEqual(rule.brand_names, [])
+        self.assertEqual(rule.period_type, 'custom')
+
+    def test_selected_models_must_belong_to_one_of_selected_brands(self):
+        form = DealerVolumeBonusRuleForm(self.payload(brands=['SYM', 'SUZUKI'], vehicle_models=[str(self.model.pk), str(self.sym.pk)]))
+        self.assertTrue(form.is_valid(), form.errors)
+        form = DealerVolumeBonusRuleForm(self.payload(brands=['SYM']))
+        self.assertFalse(form.is_valid())
+        self.assertIn('vehicle_models', form.errors)
+        form = DealerVolumeBonusRuleForm(self.payload(brands=['unknown-brand']))
+        self.assertFalse(form.is_valid())
+
+    def test_settled_brand_collection_period_and_destination_are_locked(self):
+        self.order()
+        rule = self.multiple_rule(dealer=self.a)
+        create_volume_bonus_settlement(rule, 'test')
+        with self.assertRaises(ValidationError): rule.brands.create(brand='PGO')
+        item = rule.brands.first(); item.brand = 'PGO'
+        with self.assertRaises(ValidationError): item.save()
+        with self.assertRaises(ValidationError), transaction.atomic(): rule.brands.all().delete()
+        rule.period_type = 'month'
+        with self.assertRaises(ValidationError): rule.save()
+        target_order = self.order(self.b, vehicle_model=self.sym, color=self.sym_color)
+        target_order.commission_recipient = self.a
+        with self.assertRaisesMessage(ValidationError, '已結算'): target_order.save()
+
+    def test_brand_master_usage_and_safe_rename_keep_matching(self):
+        from sales.services.vehicle_brands import vehicle_brand_is_used, rename_vehicle_brand_references
+        rule = self.multiple_rule()
+        self.assertTrue(vehicle_brand_is_used('SYM'))
+        rename_vehicle_brand_references('SYM', '更名三陽')
+        self.assertEqual(rule.brand_names, ['更名三陽', 'SUZUKI'])
+
+    def test_reverse_migration_refuses_to_drop_multi_brand_scope(self):
+        from importlib import import_module
+        from types import SimpleNamespace
+        from django.apps import apps
+        from django.db import connection
+        self.multiple_rule()
+        reverse_data = import_module('sales.migrations.0115_bonus_periods_and_brands').verify_reverse_is_safe
+        with self.assertRaisesMessage(RuntimeError, '不能直接降版'):
+            reverse_data(apps, SimpleNamespace(connection=connection))

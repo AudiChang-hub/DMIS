@@ -18,6 +18,7 @@ from .models import (
     VehicleIncentiveRule,
     SalesSourceBrandPolicy,
     DealerVolumeBonusRule,
+    DealerVolumeBonusBrand,
     DealerVolumeBonusTier,
     DealerVolumeBonusSettlement,
 )
@@ -55,10 +56,14 @@ def protect_settled_bonus_models(sender, instance, action, reverse, pk_set, **kw
 
 
 @receiver(pre_delete, sender=DealerVolumeBonusTier)
+@receiver(pre_delete, sender=DealerVolumeBonusBrand)
 def protect_settled_bonus_tier_delete(sender, instance, **kwargs):
     from django.core.exceptions import ValidationError
-    if DealerVolumeBonusSettlement.objects.filter(rule_id=instance.rule_id).exists():
-        raise ValidationError("已結算規則不可刪除門檻，請另建新規則。")
+    from django.db import transaction
+    with transaction.atomic():
+        DealerVolumeBonusRule.objects.select_for_update().get(pk=instance.rule_id)
+        if DealerVolumeBonusSettlement.objects.filter(rule_id=instance.rule_id).exists():
+            raise ValidationError("已結算規則不可刪除門檻或品牌，請另建新規則。")
 
 
 @receiver(post_save, sender=SalesOrder)

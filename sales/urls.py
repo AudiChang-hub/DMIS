@@ -192,6 +192,11 @@ urlpatterns = [
         name="dealer_volume_bonus_edit",
     ),
     path(
+        "data/dealer-volume-bonuses/<int:pk>/delete/",
+        views.dealer_volume_bonus_delete,
+        name="dealer_volume_bonus_delete",
+    ),
+    path(
         "data/dealer-volume-bonuses/<int:pk>/settle/",
         views.dealer_volume_bonus_settle,
         name="dealer_volume_bonus_settle",

@@ -1,0 +1,14 @@
+<p class="muted">點選月份查看日期，再點日期開啟設定。</p>
+<div class="holiday-year-grid">
+  {% for item in year_months %}
+    <a class="holiday-year-month" href="?view=month&amp;month={{ item.month|date:'Y-m' }}" aria-label="查看 {{ item.month|date:'Y 年 n 月' }}">
+      <h3>{{ item.month|date:'n 月' }} <span aria-hidden="true">→</span></h3>
+      <div class="holiday-mini-grid" aria-hidden="true">
+        {% for weekday in '一二三四五六日' %}<b>{{ weekday }}</b>{% endfor %}
+        {% for cell in item.days %}
+          <span class="{% if cell.weekend %}is-weekend {% endif %}{% if cell.holiday %}{% if not cell.holiday.active %}is-inactive{% elif cell.holiday.source == 'dgpa' %}is-official{% else %}is-manual{% endif %}{% endif %}" {% if cell.holiday %}title="{{ cell.holiday.name }}"{% endif %}>{% if cell.number %}{{ cell.number }}{% endif %}</span>
+        {% endfor %}
+      </div>
+    </a>
+  {% endfor %}
+</div>

@@ -1330,27 +1330,49 @@ def password_change_required(request):
 
 @login_required
 def business_holiday_list(request):
+    saved_view = UserAppearancePreference.objects.filter(user=request.user).values_list("calendar_view", flat=True).first() or "month"
+    selected_view = request.POST.get("view") or request.GET.get("view") or saved_view
+    selected_view = selected_view if selected_view in {"year", "month", "day"} else "month"
+    if selected_view != saved_view:
+        UserAppearancePreference.objects.update_or_create(user=request.user, defaults={"calendar_view": selected_view})
     editing = None
     edit_pk = request.POST.get("holiday_id") or request.GET.get("edit")
     if edit_pk:
         editing = get_object_or_404(BusinessHoliday, pk=edit_pk)
 
     today = timezone.localdate()
+    try:
+        selected_date = date.fromisoformat(request.POST.get("selected_date") or request.GET.get("day") or today.isoformat())
+        if not 2 <= selected_date.year <= 9998:
+            raise ValueError
+    except (TypeError, ValueError):
+        selected_date = today
     requested_month = request.POST.get("month") or request.GET.get("month")
+    if selected_view == "day":
+        requested_month = selected_date.strftime("%Y-%m")
+        if not editing and request.method != "POST":
+            editing = BusinessHoliday.objects.filter(date=selected_date).first()
     try:
         year_text, month_text = (requested_month or "").split("-", 1)
         current_month = date(int(year_text), int(month_text), 1)
+        if not 2 <= current_month.year <= 9998:
+            raise ValueError
     except (TypeError, ValueError):
         reference_date = editing.date if editing else today
         current_month = reference_date.replace(day=1)
 
-    form = BusinessHolidayForm(request.POST or None, instance=editing)
+    if selected_view != "day" and selected_date.replace(day=1) != current_month:
+        selected_date = current_month
+    form = BusinessHolidayForm(request.POST or None, instance=editing,
+                               initial={"date": selected_date} if selected_view == "day" and not editing else None)
     if request.method == "POST" and form.is_valid():
         holiday = form.save()
         messages.success(request, f"已儲存工作日排除日期：{holiday.date} {holiday.name}。")
-        return redirect(
-            f"{reverse('business_holiday_list')}?month={current_month:%Y-%m}"
-        )
+        if selected_view == "day":
+            selected_date = holiday.date
+            current_month = holiday.date.replace(day=1)
+        suffix = f"&view={selected_view}&day={selected_date.isoformat()}" if request.POST.get("view") else ""
+        return redirect(f"{reverse('business_holiday_list')}?month={current_month:%Y-%m}{suffix}")
 
     next_month = (current_month.replace(day=28) + timedelta(days=4)).replace(day=1)
     previous_month = (current_month - timedelta(days=1)).replace(day=1)
@@ -1383,6 +1405,26 @@ def business_holiday_list(request):
         if holiday.date.year == current_month.year
         and holiday.date.month == current_month.month
     ]
+    year_months = []
+    if selected_view == "year":
+        year_holidays = {item.date: item for item in BusinessHoliday.objects.filter(date__year=current_month.year)}
+        for number in range(1, 13):
+            weeks = calendar.Calendar(firstweekday=0).monthdayscalendar(current_month.year, number)
+            year_months.append({"month": date(current_month.year, number, 1), "days": [
+                {"number": day, "weekend": index % 7 >= 5,
+                 "holiday": year_holidays.get(date(current_month.year, number, day)) if day else None}
+                for index, day in enumerate(day for week in weeks for day in week)
+            ]})
+    if selected_view == "year":
+        previous_period, next_period = current_month.replace(year=max(2, current_month.year - 1)), current_month.replace(year=min(9998, current_month.year + 1))
+        period_label, period_title = "年", f"{current_month.year} 年"
+    elif selected_view == "day":
+        previous_period, next_period = selected_date - timedelta(days=1), selected_date + timedelta(days=1)
+        period_label, period_title = "日", f"{selected_date.year} 年 {selected_date.month} 月 {selected_date.day} 日"
+    else:
+        previous_period, next_period = previous_month, next_month
+        period_label, period_title = "月", f"{current_month.year} 年 {current_month.month} 月"
+    day_holiday = BusinessHoliday.objects.filter(date=selected_date).first() if selected_view == "day" else None
     official_holidays = list(
         BusinessHoliday.objects.filter(source=BusinessHoliday.Source.DGPA)
     )
@@ -1394,6 +1436,11 @@ def business_holiday_list(request):
         request,
         "sales/business_holiday_list.html",
         {
+            "calendar_view": selected_view, "selected_date": selected_date,
+            "year_months": year_months, "period_label": period_label, "period_title": period_title,
+            "previous_period": previous_period, "next_period": next_period,
+            "day_holiday": day_holiday, "day_weekend": selected_date.weekday() >= 5,
+            "day_excluded": selected_date.weekday() >= 5 or bool(day_holiday and day_holiday.active),
             "holidays": month_holidays,
             "form": form,
             "editing": editing,
@@ -1432,7 +1479,15 @@ def business_holiday_delete(request, pk):
         safe_month = date(int(year_text), int(month_text), 1).strftime("%Y-%m")
     except (TypeError, ValueError):
         safe_month = timezone.localdate().strftime("%Y-%m")
-    return redirect(f"{reverse('business_holiday_list')}?month={safe_month}")
+    selected_view = request.POST.get("view")
+    suffix = ""
+    if selected_view in {"year", "month", "day"}:
+        try:
+            selected_date = date.fromisoformat(request.POST.get("selected_date", ""))
+        except ValueError:
+            selected_date = timezone.localdate()
+        suffix = f"&view={selected_view}&day={selected_date.isoformat()}"
+    return redirect(f"{reverse('business_holiday_list')}?month={safe_month}{suffix}")
 
 
 @login_required

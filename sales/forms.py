@@ -1188,9 +1188,32 @@ InstallmentPlanOptionFormSet = inlineformset_factory(
 )
 
 
+class BonusBrandSelectMultiple(forms.SelectMultiple):
+    def create_option(self, name, value, label, selected, index, subindex=None, attrs=None):
+        option = super().create_option(name, value, label, selected, index, subindex, attrs)
+        option['attrs']['data-bonus-brand'] = str(value).casefold()
+        return option
+
+
+class BonusVehicleModelSelectMultiple(forms.SelectMultiple):
+    allowed_brands = frozenset()
+    allowed_energy = ''
+
+    def create_option(self, name, value, label, selected, index, subindex=None, attrs=None):
+        option = super().create_option(name, value, label, selected, index, subindex, attrs)
+        if hasattr(value, 'instance'):
+            model = value.instance
+            option['attrs'].update({'data-bonus-brand': model.brand.casefold(), 'data-bonus-energy': model.energy_type})
+            if ((self.allowed_brands and model.brand.casefold() not in self.allowed_brands)
+                    or (self.allowed_energy and model.energy_type != self.allowed_energy)):
+                # 只隱藏候選項，不清除既有選取；不相符資料仍由 clean 拒絕。
+                option['attrs']['hidden'] = True
+        return option
+
+
 class DealerVolumeBonusRuleForm(forms.ModelForm):
     name = forms.CharField(label="規則名稱", max_length=120, widget=forms.TextInput(attrs={"placeholder": "例如：9 月台鈴油車加碼"}))
-    brands = forms.MultipleChoiceField(label="品牌", required=False)
+    brands = forms.MultipleChoiceField(label="品牌", required=False, widget=BonusBrandSelectMultiple)
     period_type = forms.ChoiceField(label="統計方式", choices=DealerVolumeBonusRule.PeriodType.choices, required=False, widget=forms.RadioSelect)
     period_year = forms.IntegerField(label="年份", min_value=1900, max_value=9999, required=False)
     period_month = forms.ChoiceField(label="月份", choices=[(str(month), f"{month} 月") for month in range(1, 13)], required=False)
@@ -1204,6 +1227,7 @@ class DealerVolumeBonusRuleForm(forms.ModelForm):
         widgets = {
             "starts_on": DateInput(), "ends_on": DateInput(),
             "note": forms.Textarea(attrs={"rows": 2}),
+            "vehicle_models": BonusVehicleModelSelectMultiple(),
         }
 
     def __init__(self, *args, **kwargs):
@@ -1235,7 +1259,7 @@ class DealerVolumeBonusRuleForm(forms.ModelForm):
         self.fields["energy_type"].choices = [("", "不限能源"), *VehicleModel.EnergyType.choices]
         selected = self.instance.vehicle_models.values_list("pk", flat=True) if self.instance.pk else []
         self.fields["vehicle_models"].queryset = VehicleModel.objects.filter(Q(active=True) | Q(pk__in=selected)).order_by("brand", "name", "model_year")
-        self.fields["vehicle_models"].widget.attrs.update({"data-searchable-select": "1", "data-search-placeholder": "不限車型；需要時搜尋並複選"})
+        self.fields["vehicle_models"].widget.attrs.update({"data-searchable-select": "1", "data-search-placeholder": "搜尋符合品牌、能源的車型", "data-search-empty-message": "沒有符合條件的車型"})
         self.fields["dealer"].widget.attrs["data-searchable-include-empty"] = "1"
         if self.instance.pk and not self.instance.name and not self.conditions_locked:
             self.initial["name"] = str(self.instance)
@@ -1247,6 +1271,9 @@ class DealerVolumeBonusRuleForm(forms.ModelForm):
             for name, field in self.fields.items():
                 if name not in {'period_months', 'period_quarters'}:
                     field.disabled = True
+        model_widget = self.fields['vehicle_models'].widget
+        model_widget.allowed_brands = {name.casefold() for name in (self['brands'].value() or [])}
+        model_widget.allowed_energy = self['energy_type'].value() or ''
         apply_mobile_keyboard_attrs(self)
 
     def clean(self):

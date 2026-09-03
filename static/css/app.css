@@ -392,7 +392,7 @@ input::placeholder, textarea::placeholder { color: var(--muted); opacity: .86; }
 .price-distribution-card__identity h2 { margin: 3px 0; font-size: 1.12rem; }
 .price-distribution-card__identity p { margin: 0; color: var(--muted); font-size: .86rem; }
 .price-distribution-card__actions { display: flex; flex-wrap: wrap; align-items: stretch; gap: 8px; margin-top: 9px; }
-.price-distribution-phone, .price-distribution-map { display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-height: 40px; padding: 7px 11px; text-decoration: none; border: 1px solid; border-radius: 9px; transition: background-color .15s ease, border-color .15s ease, box-shadow .15s ease; }
+.price-distribution-phone, .price-distribution-map { display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-height: 40px; padding: 7px 11px; white-space: nowrap; text-decoration: none; border: 1px solid; border-radius: 9px; transition: background-color .15s ease, border-color .15s ease, box-shadow .15s ease; }
 .price-distribution-phone { color: var(--forest); background: #edf7f3; border-color: #a9d1c4; }
 .price-distribution-phone span { color: var(--muted); font-size: .78rem; font-weight: 800; }
 .price-distribution-phone strong { font-size: 1rem; letter-spacing: .025em; }
@@ -508,14 +508,14 @@ body.is-reordering-price-assignments { cursor: grabbing; user-select: none; }
   .price-distribution-filters .inventory-filter-actions .button { flex: 1; min-height: 46px; }
   .price-distribution-card { padding: 14px; }
   .price-distribution-card__main { grid-template-columns: minmax(0, 1fr) auto; }
-  .price-distribution-card__identity { grid-column: 1; grid-row: 1; }
-  .price-distribution-card__actions { display: grid; grid-template-columns: minmax(0, 1fr) auto; }
+  .price-distribution-card__identity { grid-column: 1 / -1; grid-row: 1; }
+  .price-distribution-card__actions { display: grid; grid-template-columns: minmax(150px, 1fr) auto; }
   .price-distribution-phone, .price-distribution-map { min-height: 44px; }
   .price-distribution-phone { min-width: 0; }
   .price-distribution-map { min-width: 108px; }
   .price-distribution-card__brands { grid-column: 1; grid-row: 2; }
   .price-distribution-card__assignment { grid-column: 1; grid-row: 3; margin-top: 2px; }
-  .price-distribution-complete { grid-column: 2; grid-row: 1 / 4; }
+  .price-distribution-complete { grid-column: 2; grid-row: 2 / 4; }
   .price-distribution-check { min-width: 102px; justify-content: center; }
   .price-distribution-note { grid-template-columns: 1fr auto; }
   .price-distribution-note textarea { grid-column: 1 / -1; min-height: 64px; }

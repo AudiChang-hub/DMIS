@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% block title %}刪除合作車行｜車輛銷售管理{% endblock %}
+{% block content %}
+{% url 'sales_source_edit' source.pk as edit_url %}
+{% include "sales/_page_back.html" with fallback_url=edit_url label="返回編輯車行" %}
+
+<section class="hero-row compact-hero source-delete-hero">
+  <div>
+    <p class="eyebrow">誤建資料處理</p>
+    <h1>永久刪除合作車行</h1>
+    <p class="muted">正常停止合作請停用；永久刪除只適用於從未投入營運的誤建資料。</p>
+  </div>
+</section>
+
+<section class="source-delete-card">
+  <header class="source-delete-card__identity">
+    <div><span>車行名稱</span><strong>{{ source.name }}</strong></div>
+    <div><span>來源代碼</span><strong>{{ source.code|default:"尚未設定" }}</strong></div>
+  </header>
+
+  {% if can_delete %}
+    <div class="source-delete-card__status is-available">
+      <strong>檢查完成，可以永久刪除</strong>
+      <p>目前沒有訂單、庫存、台數獎金規則或舊資料匯入對應。刪除後，車行基本資料與合作設定無法復原；既有價格表月份仍保留當時的名稱與地址快照。</p>
+    </div>
+    <form method="post" class="source-delete-confirm-form" data-delete-confirm-form data-source-name="{{ source.name }}">
+      {% csrf_token %}
+      <label for="confirm_name">請輸入完整車行名稱「{{ source.name }}」確認</label>
+      <input id="confirm_name" name="confirm_name" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" required data-delete-confirm-input>
+      <div class="form-actions">
+        <a class="button ghost" href="{{ edit_url }}">取消</a>
+        <button class="button danger" type="submit" disabled data-delete-confirm-submit>永久刪除車行</button>
+      </div>
+    </form>
+  {% else %}
+    <div class="source-delete-card__status is-blocked">
+      <strong>目前不能永久刪除</strong>
+      <p>這間車行已有營運資料。為避免訂單、庫存或計算紀錄失去來源，請改用停用。</p>
+    </div>
+    <ul class="source-delete-blockers">
+      {% for blocker in blockers %}
+        <li><span>{{ blocker.label }}</span><strong>{{ blocker.count }} 筆</strong></li>
+      {% endfor %}
+    </ul>
+    <div class="form-actions">
+      <a class="button ghost" href="{% url 'sales_source_list' %}">返回車行列表</a>
+      <a class="button primary" href="{{ edit_url }}">返回編輯車行</a>
+    </div>
+  {% endif %}
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(() => {
+  const form = document.querySelector("[data-delete-confirm-form]");
+  if (!form) return;
+  const input = form.querySelector("[data-delete-confirm-input]");
+  const submit = form.querySelector("[data-delete-confirm-submit]");
+  const expectedName = form.dataset.sourceName;
+  const update = () => { submit.disabled = input.value.trim() !== expectedName; };
+  input.addEventListener("input", update);
+  update();
+})();
+</script>
+{% endblock %}

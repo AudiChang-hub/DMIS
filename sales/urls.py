@@ -147,6 +147,11 @@ urlpatterns = [
         name="sales_source_edit",
     ),
     path(
+        "data/channels/<int:pk>/delete/",
+        views.sales_source_delete,
+        name="sales_source_delete",
+    ),
+    path(
         "data/channels/<int:pk>/status/",
         views.sales_source_set_active,
         name="sales_source_set_active",

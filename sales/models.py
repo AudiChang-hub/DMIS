@@ -1121,7 +1121,16 @@ class DealerVolumeBonusRule(TimeStampedModel):
         return result
 
     def __str__(self):
-        return self.name or f"{self.dealer or '全部合作車行'}／{self.brand or '不限品牌'}／{self.starts_on:%Y/%m/%d}"
+        return self.display_name
+
+    @property
+    def display_name(self):
+        if self.name:
+            return self.name
+        parts = ["＋".join(self.brand_names) or "全品牌"]
+        if self.energy_type:
+            parts.append(self.get_energy_type_display())
+        return " ".join([*parts, "台數獎金"])
 
     @property
     def brand_names(self):
@@ -1248,6 +1257,20 @@ class DealerVolumeBonusTier(TimeStampedModel):
     def save(self, *args, **kwargs):
         self.full_clean()
         return super().save(*args, **kwargs)
+
+
+class DealerVolumeBonusDeletion(models.Model):
+    original_rule_id = models.PositiveBigIntegerField("原規則編號", unique=True)
+    rule_name = models.TextField("刪除時名稱")
+    actor = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, related_name="bonus_rule_deletions")
+    actor_name = models.CharField("操作人員快照", max_length=150)
+    deleted_at = models.DateTimeField("刪除時間", auto_now_add=True)
+    snapshot = models.JSONField("原規則完整設定")
+
+    class Meta:
+        ordering = ["-deleted_at", "-pk"]
+        verbose_name = "台數獎金規則刪除紀錄"
+        verbose_name_plural = "台數獎金規則刪除紀錄"
 
 
 class DealerVolumeBonusSettlement(TimeStampedModel):

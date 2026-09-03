@@ -208,6 +208,7 @@ from .services.installment_plan import (
     resolve_installment_plan_version,
 )
 from .services.dealer_commission import apply_order_dealer_commission
+from .services.bonus_rule_deletion import bonus_rule_delete_preview, delete_bonus_rule
 from .services.dealer_commission import (
     create_volume_bonus_settlement,
     preview_volume_bonus,
@@ -3076,7 +3077,7 @@ def dealer_volume_bonus_list(request):
             continue
         rows.append({
             "rule": rule,
-            "display_name": rule.name or f"台數獎金規則 #{rule.pk}",
+            "display_name": rule.display_name,
             "period_groups": groups,
             "has_settlement": rule.settlements.exists(),
         })
@@ -3094,6 +3095,28 @@ def dealer_volume_bonus_list(request):
 
 def _bonus_results_url(rule_id):
     return f"{reverse('dealer_volume_bonus_list')}?tab=settlements&show=all#bonus-rule-{rule_id}"
+
+
+@login_required
+@require_http_methods(["GET", "POST"])
+def dealer_volume_bonus_delete(request, pk):
+    rule = get_object_or_404(DealerVolumeBonusRule.objects.select_related("dealer"), pk=pk)
+    if request.method == "POST":
+        try:
+            if request.POST.get("confirm_delete") != "yes":
+                raise ValidationError("請勾選確認已了解刪除影響。")
+            name = delete_bonus_rule(rule_id=pk, actor=request.user, confirmation_token=request.POST.get("confirmation_token", ""))
+        except ValidationError as exc:
+            messages.error(request, "; ".join(exc.messages))
+            rule = DealerVolumeBonusRule.objects.filter(pk=pk).select_related("dealer").first()
+            if rule is None:
+                return redirect("dealer_volume_bonus_list")
+        else:
+            messages.success(request, f"已刪除「{name}」及所屬期間、門檻；訂單與既有收支保留。")
+            return redirect(f"{reverse('dealer_volume_bonus_list')}?tab=rules")
+    return render(request, "sales/dealer_volume_bonus_confirm_delete.html", {
+        "rule": rule, **bonus_rule_delete_preview(rule, request.user),
+    }, status=400 if request.method == "POST" else 200)
 
 
 @login_required

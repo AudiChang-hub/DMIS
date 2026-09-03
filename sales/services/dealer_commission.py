@@ -275,7 +275,10 @@ def _allocation_amounts(total, count):
 
 @transaction.atomic
 def create_volume_bonus_settlement(rule, actor_name, actual_amount=None, reason="", *, dealer=None, period=None):
-    rule = DealerVolumeBonusRule.objects.select_for_update().get(pk=rule.pk)
+    try:
+        rule = DealerVolumeBonusRule.objects.select_for_update().get(pk=rule.pk)
+    except DealerVolumeBonusRule.DoesNotExist as exc:
+        raise ValueError("此規則已刪除，未執行結算，請返回規則管理。") from exc
     period = resolve_bonus_period(rule, period)
     dealer = dealer or rule.dealer
     if not dealer or dealer.source_type != SalesSource.SourceType.DEALER or (rule.dealer_id and dealer.pk != rule.dealer_id):

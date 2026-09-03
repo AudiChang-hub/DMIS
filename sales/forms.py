@@ -1212,7 +1212,9 @@ class BonusVehicleModelSelectMultiple(forms.SelectMultiple):
 
 
 class DealerVolumeBonusRuleForm(forms.ModelForm):
-    name = forms.CharField(label="規則名稱", max_length=120, widget=forms.TextInput(attrs={"placeholder": "例如：9 月台鈴油車加碼"}))
+    name = forms.CharField(label="規則名稱", max_length=120, required=False,
+        help_text="可留白，依目前品牌與能源自動命名；自行填寫時保留自訂名稱。",
+        widget=forms.TextInput(attrs={"placeholder": "留白自動命名，或輸入自訂名稱"}))
     brands = forms.MultipleChoiceField(label="品牌", required=False, widget=BonusBrandSelectMultiple)
     period_type = forms.ChoiceField(label="統計方式", choices=DealerVolumeBonusRule.PeriodType.choices, required=False, widget=forms.RadioSelect)
     period_year = forms.IntegerField(label="年份", min_value=1900, max_value=9999, required=False)
@@ -1261,8 +1263,6 @@ class DealerVolumeBonusRuleForm(forms.ModelForm):
         self.fields["vehicle_models"].queryset = VehicleModel.objects.filter(Q(active=True) | Q(pk__in=selected)).order_by("brand", "name", "model_year")
         self.fields["vehicle_models"].widget.attrs.update({"data-searchable-select": "1", "data-search-placeholder": "搜尋符合品牌、能源的車型", "data-search-empty-message": "沒有符合條件的車型"})
         self.fields["dealer"].widget.attrs["data-searchable-include-empty"] = "1"
-        if self.instance.pk and not self.instance.name and not self.conditions_locked:
-            self.initial["name"] = str(self.instance)
         for field in self.fields.values():
             if not isinstance(field.widget, (forms.CheckboxInput, forms.RadioSelect, forms.CheckboxSelectMultiple)):
                 field.widget.attrs.setdefault("class", "form-control")

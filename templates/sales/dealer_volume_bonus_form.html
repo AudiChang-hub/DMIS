@@ -3,7 +3,7 @@
 {% block head %}<link rel="stylesheet" href="{% static 'css/dealer-volume-bonus.css' %}?v={{ app_version }}">{% endblock %}
 {% block page_class %}page-shell--wide{% endblock %}
 {% block content %}
-{% url 'dealer_volume_bonus_list' as list_url %}{% include "sales/_page_back.html" with fallback_url=list_url label="返回台數獎金" %}
+{% url 'dealer_volume_bonus_list' as list_url %}{% include "sales/_page_back.html" with fallback_url=list_url label="返回規則管理" %}
 <section class="hero-row compact-hero"><div><p class="eyebrow">給合作車行的獎金</p><h1>{% if rule %}編輯{% else %}新增{% endif %}台數獎金規則</h1><p class="muted">設定適用條件與台數門檻；同一台符合不同規則時，獎金累加。</p></div><a class="button ghost" href="{% url 'user_guide' %}#dealer-volume-bonus">操作說明</a></section>
 <form method="post" class="stacked-form bonus-rule-form" data-bonus-rule-form {% if form.conditions_locked %}data-conditions-locked{% endif %}>{% csrf_token %}<input type="hidden" name="period_selection_version" value="2">
   {{ form.non_field_errors }}

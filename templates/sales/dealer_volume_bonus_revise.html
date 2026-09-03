@@ -4,9 +4,8 @@
 {% block title %}調整台數獎金｜車輛銷售管理{% endblock %}
 {% block page_class %}page-shell--wide{% endblock %}
 {% block content %}
-{% url 'dealer_volume_bonus_list' as list_url %}
 {% url 'sales_source_list' as source_url %}
-{% include "sales/_page_back.html" with fallback_url=list_url label="台數獎金" root_url=source_url root_label="車行、平台與傭金" %}
+{% include "sales/_page_back.html" with fallback_url=return_url label="返回試算／結算" root_url=source_url root_label="車行、平台與傭金" %}
 <section class="hero-row compact-hero">
   <div>
     <p class="eyebrow">台數獎金修正</p>
@@ -24,7 +23,7 @@
       {{ form.non_field_errors }}
       {% for field in form %}{% include "sales/_field.html" with field=field %}{% endfor %}
       <div class="note-box warning">調整會更新各訂單的車行傭金支出與單筆淨利；已人工覆寫的總額仍保留，請另外核對。原因及調整前後金額會永久保存。</div>
-      <div class="form-actions"><a class="button ghost" href="{% url 'dealer_volume_bonus_list' %}">取消</a><button class="button primary">儲存調整</button></div>
+      <div class="form-actions"><a class="button ghost" href="{{ return_url }}">取消</a><button class="button primary">儲存調整</button></div>
     </form>
   </section>
   <section class="inventory-list-panel">

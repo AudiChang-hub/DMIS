@@ -3,7 +3,7 @@
 {% block title %}台數獎金試算與結算｜車輛銷售管理{% endblock %}
 {% block page_class %}page-shell--wide{% endblock %}
 {% block content %}
-{% url 'dealer_volume_bonus_list' as list_url %}{% include "sales/_page_back.html" with fallback_url=list_url label="返回台數獎金" %}
+{% include "sales/_page_back.html" with fallback_url=return_url label="返回試算／結算" %}
 <section class="hero-row compact-hero"><div><p class="eyebrow">逐單核對，再確認結算</p><h1>{{ rule }}</h1><p class="muted">{{ rule.conditions_label }}</p>{% if period %}<p>{{ period }}</p>{% endif %}</div></section>
 {% if not period %}
 <section class="form-section static-section"><h2>先選擇統計期間</h2><p class="muted">各期獨立計算，不合併台數。</p><div class="bonus-selected-periods">{% for item in periods %}<a class="button ghost" href="?period={{ item.pk }}">{{ item }}</a>{% endfor %}</div></section>
@@ -26,7 +26,7 @@
       {% if preview.original_commission_total == None %}<div class="note-box warning">部分訂單已人工覆寫傭金總支出。系統保留人工值，不自動拆分或追加；支付前請核對原傭金與本次獎金。</div>{% endif %}
       {% for field in form %}{% include "sales/_field.html" with field=field %}{% endfor %}
       <div class="note-box warning">此處填寫台數獎金，不含原傭金或其他規則獎金。結算後保存逐單金額及收款歸屬，不能再修改規則條件或更換訂單歸屬。此操作不代表已付款。</div>
-      <div class="form-actions"><a class="button ghost" href="{{ list_url }}">返回</a><button class="button primary">確認結算本期</button></div>
+      <div class="form-actions"><a class="button ghost" href="{{ return_url }}">返回試算／結算</a><button class="button primary">確認結算本期</button></div>
     </form>
     {% else %}<div class="note-box">{% if not rule.active %}此規則已停用，不能結算。{% else %}目前尚未達到門檻，可先核對逐單明細。{% endif %}</div>{% endif %}
   </section>

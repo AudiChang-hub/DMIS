@@ -3,18 +3,54 @@
 {% block head %}<link rel="stylesheet" href="{% static 'css/dealer-volume-bonus.css' %}?v={{ app_version }}">{% endblock %}
 {% block page_class %}page-shell--wide{% endblock %}
 {% block content %}
-{% url 'sales_source_list' as source_url %}{% include "sales/_page_back.html" with fallback_url=source_url label="返回合作車行" %}
-<section class="hero-row compact-hero"><div><p class="eyebrow">依實際領牌日期回溯</p><h1>車行台數獎金</h1><p class="muted">依歸屬車行分開統計；品牌、能源別、車型與車行加碼可累加。</p></div><div class="hero-actions">{% if show_all %}<a class="button ghost" href="{% url 'dealer_volume_bonus_list' %}">只看有銷售</a>{% else %}<a class="button ghost" href="?show=all">全部規則{% if hidden_count %}（另 {{ hidden_count }} 筆）{% endif %}</a>{% endif %}<a class="button primary" href="{% url 'dealer_volume_bonus_create' %}">＋ 新增規則</a></div></section>
-<div class="bonus-rule-list">
+{% url 'sales_source_list' as source_url %}{% url 'dealer_volume_bonus_list' as list_url %}
+{% include "sales/_page_back.html" with fallback_url=source_url label="返回合作車行" %}
+<section class="hero-row compact-hero">
+  <div><p class="eyebrow">合作車行獎金</p><h1>車行台數獎金</h1><p class="muted">{% if tab == 'rules' %}先設定獎金條件，再到「試算／結算」核對各車行金額。{% else %}依領牌日期與獎金歸屬車行統計，各期間分開結算。{% endif %}</p></div>
+  {% if tab == 'rules' %}<a class="button primary" href="{% url 'dealer_volume_bonus_create' %}">＋ 新增規則</a>{% endif %}
+</section>
+<nav class="bonus-page-tabs" aria-label="台數獎金功能">
+  <a href="{{ list_url }}?tab=rules"{% if tab == 'rules' %} aria-current="page"{% endif %}>規則管理</a>
+  <a href="{{ list_url }}?tab=settlements"{% if tab == 'settlements' %} aria-current="page"{% endif %}>試算／結算</a>
+</nav>
+<div class="bonus-list-heading">
+  <h2>{% if tab == 'rules' %}全部規則 <small>{{ rows|length }} 筆</small>{% else %}{% if show_all %}全部試算結果{% else %}有銷售或已結算{% endif %}{% endif %}</h2>
+  {% if tab == 'settlements' %}<a class="button ghost small" href="{{ list_url }}?tab=settlements{% if not show_all %}&amp;show=all{% endif %}">{% if show_all %}只看有銷售或已結算{% else %}包含無銷售規則{% if hidden_count %}（{{ hidden_count }} 筆）{% endif %}{% endif %}</a>{% endif %}
+</div>
+<div class="bonus-rule-list" data-bonus-view="{{ tab }}">
 {% for row in rows %}
   <section class="inventory-list-panel bonus-rule-card" id="bonus-rule-{{ row.rule.pk }}">
-    <div class="bonus-rule-heading"><div><h2>{{ row.rule }}</h2><p>{{ row.rule.conditions_label }}</p><p class="muted">{{ row.period_groups|length }} 個期間，分開計算 · {{ row.rule.dealer|default:'全部合作車行，逐家計算' }}</p></div><div class="hero-actions">{% include "sales/_active_quick_toggle.html" with resource="dealer-volume-bonus" pk=row.rule.pk is_active=row.rule.active item_name=row.rule %}<a class="button ghost small" href="{% url 'dealer_volume_bonus_edit' row.rule.pk %}">{% if row.has_settlement %}管理適用期間{% else %}編輯規則{% endif %}</a>{% if row.has_settlement %}<span class="muted">共用條件已鎖定</span>{% endif %}</div></div>
-    <div class="bonus-tier-summary">{% for tier in row.rule.tiers.all %}<span>{{ tier.minimum_quantity }} 台起 · 每台 &#36;{{ tier.bonus_per_vehicle|floatformat:0 }}</span>{% endfor %}</div>
-    {% for group in row.period_groups %}<div class="bonus-period-result"><header><h3>{{ group.period.label }}</h3><p>{{ group.period.starts_on|date:'Y/m/d' }}－{{ group.period.ends_on|date:'Y/m/d' }}</p></header>
-    <div class="inventory-table-wrap"><table class="inventory-table"><thead><tr><th>收款車行</th><th>符合台數</th><th>本期獎金</th><th>結算狀態</th><th>操作</th></tr></thead><tbody>
-      {% for entry in group.entries %}<tr><td data-label="收款車行"><strong>{{ entry.dealer }}</strong></td><td data-label="符合台數">{{ entry.quantity }} 台</td><td data-label="本期獎金">{% if entry.tier %}每台 &#36;{{ entry.bonus_per_vehicle|floatformat:0 }}<span>預計 &#36;{{ entry.expected_amount|floatformat:0 }}</span>{% else %}尚未達門檻{% endif %}</td><td data-label="結算狀態">{% if entry.settlement %}已結算 &#36;{{ entry.settlement.actual_amount|floatformat:0 }}{% else %}未結算{% endif %}</td><td data-label="操作">{% if entry.settlement %}<a class="button ghost small" href="{% url 'dealer_volume_bonus_revise' entry.settlement.pk %}">明細／調整獎金</a>{% else %}<a class="button ghost small" href="{% url 'dealer_volume_bonus_settle' row.rule.pk %}?dealer={{ entry.dealer.pk }}&amp;period={{ group.period.pk }}">試算明細{% if entry.tier and row.rule.active %}／結算{% endif %}</a>{% endif %}</td></tr>
-      {% empty %}<tr><td colspan="5">0 台 · 目前沒有符合條件的已領牌訂單。</td></tr>{% endfor %}
-    </tbody></table></div></div>{% endfor %}
+    <div class="bonus-rule-heading">
+      <div><h2>{{ row.display_name }}</h2>{% if tab == 'settlements' %}<p>{{ row.rule.conditions_label }}</p>{% endif %}</div>
+      <div class="bonus-rule-actions">
+      {% if tab == 'rules' %}
+        {% include "sales/_active_quick_toggle.html" with resource="dealer-volume-bonus" pk=row.rule.pk is_active=row.rule.active item_name=row.display_name %}
+        <a class="button primary" href="{% url 'dealer_volume_bonus_edit' row.rule.pk %}">{% if row.has_settlement %}檢視規則／管理期間{% else %}編輯規則{% endif %}</a>
+      {% else %}
+        {% if not row.rule.active %}<span class="muted">已停用</span>{% endif %}
+        <a class="button ghost small" href="{{ list_url }}?tab=rules#bonus-rule-{{ row.rule.pk }}">查看規則</a>
+      {% endif %}
+      </div>
+    </div>
+    {% if tab == 'rules' %}
+      <dl class="bonus-rule-details">
+        <div><dt>適用車行</dt><dd>{{ row.rule.dealer|default:'全部合作車行，逐家計算' }}</dd></div>
+        <div><dt>車輛條件</dt><dd>{{ row.rule.conditions_label }}</dd></div>
+      </dl>
+      <div class="bonus-rule-periods"><h3>統計期間</h3><ul>{% for period in row.rule.periods.all %}<li><strong>{{ period.label }}</strong><span>{{ period.starts_on|date:'Y/m/d' }}－{{ period.ends_on|date:'Y/m/d' }}</span></li>{% empty %}<li>尚未設定期間</li>{% endfor %}</ul></div>
+      <h3 class="bonus-tier-label">台數門檻與獎金</h3>
+    {% endif %}
+    <div class="bonus-tier-summary">{% for tier in row.rule.tiers.all %}<span>{{ tier.minimum_quantity }} 台起 · 每台 &#36;{{ tier.bonus_per_vehicle|floatformat:0 }}</span>{% empty %}<span>尚未設定門檻</span>{% endfor %}</div>
+    {% if tab == 'rules' %}
+      <footer class="bonus-rule-footer"><p>{% if row.has_settlement %}已有結算：共用條件與門檻已鎖定，仍可管理適用期間。{% else %}可編輯車行、品牌、能源別、車型、期間與門檻。{% endif %}</p><a href="{{ list_url }}?tab=settlements&amp;show=all#bonus-rule-{{ row.rule.pk }}">查看試算 →</a></footer>
+    {% else %}
+      {% include "sales/_bonus_rule_results.html" %}
+    {% endif %}
   </section>
-{% empty %}<section class="form-section static-section">{% if show_all %}尚未建立任何合作車行台數獎金規則。{% else %}目前沒有統計期間內已完成領牌的合作車行銷售。可點「全部規則」查看尚未達門檻的設定。{% endif %}</section>{% endfor %}
+{% empty %}
+  <section class="form-section static-section bonus-empty">
+  {% if tab == 'rules' %}<h2>尚未建立獎金規則</h2><p>點選上方「新增規則」，設定適用車行及獎金條件。</p>
+  {% else %}<h2>目前沒有{% if not show_all %}符合條件的{% endif %}試算結果</h2><p>尚無銷售的規則仍會保留，可到「規則管理」查看或編輯。</p><a class="button ghost" href="{{ list_url }}?tab=rules">前往規則管理</a>{% endif %}
+  </section>
+{% endfor %}
 </div>{% endblock %}

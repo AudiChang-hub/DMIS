@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const {periodRange} = require('../../static/js/dealer-volume-bonus.js');
+const {periodRange, periodRanges} = require('../../static/js/dealer-volume-bonus.js');
 
 test('月份包含閏年與年底邊界', () => {
   assert.deepEqual(periodRange('month', 2024, 2), ['2024-02-01', '2024-02-29']);
@@ -17,4 +17,12 @@ test('無效年份與月份不產生猜測日期', () => {
   for (const args of [['quarter',2026,5],['month',2026,0],['month','',1],['month',2026.5,1],['month',10000,1],['custom',2026,1]]) {
     assert.equal(periodRange(...args), null);
   }
+});
+test('複選月份去重並排序，不把中間未選月份合併', () => {
+  assert.deepEqual(periodRanges('month', 2026, ['11', '9', '9']), [['2026-09-01', '2026-09-30'], ['2026-11-01', '2026-11-30']]);
+});
+test('複選季度維持各季獨立，空選取不自動回填', () => {
+  assert.deepEqual(periodRanges('quarter', 2026, ['1', '4']), [['2026-01-01', '2026-03-31'], ['2026-10-01', '2026-12-31']]);
+  assert.deepEqual(periodRanges('month', 2026, []), []);
+  assert.deepEqual(periodRanges('month', '', ['1']), []);
 });

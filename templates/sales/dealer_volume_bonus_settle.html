@@ -4,9 +4,11 @@
 {% block page_class %}page-shell--wide{% endblock %}
 {% block content %}
 {% url 'dealer_volume_bonus_list' as list_url %}{% include "sales/_page_back.html" with fallback_url=list_url label="返回台數獎金" %}
-<section class="hero-row compact-hero"><div><p class="eyebrow">逐單核對，再確認結算</p><h1>{{ rule }}</h1><p class="muted">{{ rule.conditions_label }}</p><p>{{ rule.period_label }} · {{ rule.starts_on|date:'Y/m/d' }}－{{ rule.ends_on|date:'Y/m/d' }}</p></div></section>
-{% if not dealer %}
-<section class="form-section static-section"><h2>先選擇收款車行</h2><p class="muted">各車行分開計算門檻與結算。</p><form method="get" class="stacked-form"><div class="field"><label for="bonus-dealer">收款車行</label><select id="bonus-dealer" name="dealer" class="form-control" data-searchable-select="1" required><option value="">請選擇車行</option>{% for item in dealers %}<option value="{{ item.pk }}">{{ item }}</option>{% endfor %}</select></div><button class="button primary">查看試算</button></form></section>
+<section class="hero-row compact-hero"><div><p class="eyebrow">逐單核對，再確認結算</p><h1>{{ rule }}</h1><p class="muted">{{ rule.conditions_label }}</p>{% if period %}<p>{{ period }}</p>{% endif %}</div></section>
+{% if not period %}
+<section class="form-section static-section"><h2>先選擇統計期間</h2><p class="muted">各期獨立計算，不合併台數。</p><div class="bonus-selected-periods">{% for item in periods %}<a class="button ghost" href="?period={{ item.pk }}">{{ item }}</a>{% endfor %}</div></section>
+{% elif not dealer %}
+<section class="form-section static-section"><h2>先選擇收款車行</h2><p class="muted">各車行分開計算門檻與結算。</p><form method="get" class="stacked-form"><input type="hidden" name="period" value="{{ period.pk }}"><div class="field"><label for="bonus-dealer">收款車行</label><select id="bonus-dealer" name="dealer" class="form-control" data-searchable-select="1" required><option value="">請選擇車行</option>{% for item in dealers %}<option value="{{ item.pk }}">{{ item }}</option>{% endfor %}</select></div><button class="button primary">查看試算</button></form></section>
 {% else %}
 <div class="responsive-split bonus-settlement-layout">
   <section class="form-section static-section">
@@ -18,13 +20,13 @@
       <div class="total"><dt>本次預計結算獎金</dt><dd>&#36;{{ preview.expected_amount|floatformat:0 }}</dd></div>
       <div><dt>這些訂單的各規則累計獎金</dt><dd>&#36;{{ preview.combined_bonus_total|floatformat:0 }}</dd></div>
     </dl>
-    <p class="form-hint">累計包含其他規則的試算與已結算獎金；本次只結算這一條規則。原傭金不重複加算。</p>
+    <p class="form-hint">累計包含其他規則的試算與已結算獎金；本次只結算這條規則的 {{ period.label }}。其他期間不受影響，原傭金不重複加算。</p>
     {% if preview.tier and rule.active %}
-    <form method="post" class="stacked-form">{% csrf_token %}{{ form.non_field_errors }}
+    <form method="post" class="stacked-form">{% csrf_token %}<input type="hidden" name="period" value="{{ period.pk }}">{{ form.non_field_errors }}
       {% if preview.original_commission_total == None %}<div class="note-box warning">部分訂單已人工覆寫傭金總支出。系統保留人工值，不自動拆分或追加；支付前請核對原傭金與本次獎金。</div>{% endif %}
       {% for field in form %}{% include "sales/_field.html" with field=field %}{% endfor %}
       <div class="note-box warning">此處填寫台數獎金，不含原傭金或其他規則獎金。結算後保存逐單金額及收款歸屬，不能再修改規則條件或更換訂單歸屬。此操作不代表已付款。</div>
-      <div class="form-actions"><a class="button ghost" href="{{ list_url }}">返回</a><button class="button primary">確認結算本規則</button></div>
+      <div class="form-actions"><a class="button ghost" href="{{ list_url }}">返回</a><button class="button primary">確認結算本期</button></div>
     </form>
     {% else %}<div class="note-box">{% if not rule.active %}此規則已停用，不能結算。{% else %}目前尚未達到門檻，可先核對逐單明細。{% endif %}</div>{% endif %}
   </section>

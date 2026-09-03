@@ -55,7 +55,8 @@ def change_order_commission_recipient(
     normalized_id = recipient.pk if recipient else None
     if normalized_id == order.commission_recipient_id:
         return False
-    if DealerVolumeBonusSettlement.objects.filter(rule_id__in=locked_rule_ids, dealer_id=target_id).exists():
+    if DealerVolumeBonusSettlement.objects.filter(rule_id__in=locked_rule_ids, dealer_id=target_id,
+                                                period__starts_on__lte=order.registration_date, period__ends_on__gte=order.registration_date).exists():
         raise ValidationError("指定車行在這張訂單的領牌期間已結算台數獎金，不能直接加入已結算清單。")
 
     before = str(order.effective_commission_recipient or "未指定車行")

@@ -103,6 +103,7 @@ from .models import (
     BusinessHoliday,
     BrandRegistrationFeeRule,
     DealerVolumeBonusRule,
+    DealerVolumeBonusPeriod,
     DealerVolumeBonusSettlement,
     DeliveryRecord,
     InstallmentCompany,
@@ -3057,16 +3058,21 @@ def dealer_volume_bonus_list(request):
             Q(dealer__source_type=SalesSource.SourceType.DEALER) | Q(dealer__isnull=True)
         )
         .select_related("dealer")
-        .prefetch_related("tiers", "brands", "vehicle_models", "settlements")
+        .prefetch_related("tiers", "brands", "vehicle_models", "settlements", "periods")
     )
     rows = []
     hidden_count = 0
     for rule in rules:
-        entries = [preview_volume_bonus(rule, dealer) for dealer in bonus_rule_dealers(rule)]
+        groups = []
+        entries = []
+        for period in rule.periods.all():
+            period_entries = [preview_volume_bonus(rule, dealer, period=period) for dealer in bonus_rule_dealers(rule, period=period)]
+            entries.extend(period_entries)
+            groups.append({'period': period, 'entries': period_entries})
         if not show_all and not any(entry["quantity"] or entry["settlement"] for entry in entries):
             hidden_count += 1
             continue
-        rows.append({"rule": rule, "entries": entries, "has_settlement": rule.settlements.exists()})
+        rows.append({"rule": rule, "entries": entries, "period_groups": groups, "has_settlement": rule.settlements.exists()})
     return render(
         request,
         "sales/dealer_volume_bonus_list.html",
@@ -3082,18 +3088,18 @@ def dealer_volume_bonus_list(request):
 @transaction.atomic
 def dealer_volume_bonus_form(request, pk=None):
     rule = get_object_or_404(DealerVolumeBonusRule.objects.select_for_update(), pk=pk) if pk else DealerVolumeBonusRule()
-    if rule.pk and rule.settlements.exists():
-        messages.error(request, "此規則已完成結算，為保留明細不可再修改。")
-        return redirect("dealer_volume_bonus_list")
     post_data = request.POST or None
     form = DealerVolumeBonusRuleForm(post_data, instance=rule)
     tier_formset = DealerVolumeBonusTierFormSet(
-        post_data, instance=rule, prefix="tiers"
+        None if form.conditions_locked else post_data, instance=rule, prefix="tiers"
     )
-    if request.method == "POST" and form.is_valid() and tier_formset.is_valid():
+    if rule.pk:
+        tier_formset.extra = 0
+    if request.method == "POST" and form.is_valid() and (form.conditions_locked or tier_formset.is_valid()):
         rule = form.save()
         tier_formset.instance = rule
-        tier_formset.save()
+        if not form.conditions_locked:
+            tier_formset.save()
         messages.success(request, "車行台數獎金規則已儲存。")
         return redirect(f"{reverse('dealer_volume_bonus_list')}?show=all#bonus-rule-{rule.pk}")
     return render(
@@ -3107,18 +3113,31 @@ def dealer_volume_bonus_form(request, pk=None):
 @transaction.atomic
 def dealer_volume_bonus_settle(request, pk):
     rule = get_object_or_404(DealerVolumeBonusRule.objects.select_related("dealer"), pk=pk)
-    dealers = bonus_rule_dealers(rule)
+    periods = list(rule.periods.all())
+    period_id = request.POST.get('period', request.GET.get('period', ''))
+    if request.method == 'POST' and request.GET.get('period') and request.POST.get('period') != request.GET['period']:
+        return HttpResponse('結算期間已變更，請重新開啟試算頁。', status=400)
+    if period_id:
+        if not period_id.isdigit():
+            raise Http404
+        period = get_object_or_404(DealerVolumeBonusPeriod, pk=int(period_id), rule=rule)
+    elif len(periods) == 1:
+        period = periods[0]
+    else:
+        return render(request, 'sales/dealer_volume_bonus_settle.html', {'rule': rule, 'periods': periods}, status=400 if request.method == 'POST' else 200)
+    dealers = bonus_rule_dealers(rule, period=period)
     dealer = rule.dealer
     if not dealer and request.GET.get("dealer", "").isdigit():
         dealer = next((item for item in dealers if item.pk == int(request.GET["dealer"])), None)
     if not dealer:
-        return render(request, "sales/dealer_volume_bonus_settle.html", {"rule": rule, "dealers": dealers})
-    if rule.settlements.filter(dealer=dealer).exists():
+        return render(request, "sales/dealer_volume_bonus_settle.html", {"rule": rule, "period": period, "dealers": dealers})
+    if rule.settlements.filter(dealer=dealer, period=period).exists():
         messages.error(request, "此規則已完成結算，不可重複結算。")
         return redirect("dealer_volume_bonus_list")
-    preview = preview_volume_bonus(rule, dealer, include_combined=True)
+    preview = preview_volume_bonus(rule, dealer, period=period, include_combined=True)
     settlement = DealerVolumeBonusSettlement(
         rule=rule,
+        period=period,
         dealer=dealer,
         expected_amount=preview["expected_amount"],
         actual_amount=preview["expected_amount"],
@@ -3132,6 +3151,7 @@ def dealer_volume_bonus_settle(request, pk):
                 form.cleaned_data["actual_amount"],
                 form.cleaned_data["adjustment_reason"],
                 dealer=dealer,
+                period=period,
             )
         except (ValueError, ValidationError) as exc:
             messages.error(request, str(exc))
@@ -3141,7 +3161,7 @@ def dealer_volume_bonus_settle(request, pk):
     return render(
         request,
         "sales/dealer_volume_bonus_settle.html",
-        {"rule": rule, "preview": preview, "form": form, "dealer": dealer},
+        {"rule": rule, "period": period, "preview": preview, "form": form, "dealer": dealer},
     )
 
 
@@ -3149,7 +3169,7 @@ def dealer_volume_bonus_settle(request, pk):
 @transaction.atomic
 def dealer_volume_bonus_revise(request, pk):
     settlement = get_object_or_404(
-        DealerVolumeBonusSettlement.objects.select_related("rule__dealer", "dealer").prefetch_related(
+        DealerVolumeBonusSettlement.objects.select_related("rule__dealer", "dealer", "period").prefetch_related(
             "allocations__order__vehicle_model", "adjustments"
         ),
         pk=pk,

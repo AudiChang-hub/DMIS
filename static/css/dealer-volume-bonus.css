@@ -22,7 +22,26 @@
 .bonus-period-type input { width: 18px; height: 18px; min-height: 0; margin: 0; accent-color: var(--forest); }
 .bonus-period-type label:focus-within { outline: 2px solid var(--forest); outline-offset: 2px; }
 .bonus-rule-form [data-period-presets][hidden], .bonus-rule-form [data-period-custom][hidden], .bonus-rule-form [data-period-month][hidden], .bonus-rule-form [data-period-quarter][hidden] { display: none; }
-.bonus-period-fields { margin-bottom: 18px; }
+.form-grid.bonus-period-fields { grid-template-columns: 200px minmax(0, 1fr); margin-bottom: 18px; }
+.bonus-period-fields > .field { align-self: start; }
+.bonus-period-choices { border: 0; padding: 0; margin: 0; min-width: 0; }
+.bonus-period-choices legend { font-weight: 800; font-size: .85rem; margin-bottom: 10px; }
+.bonus-period-toolbar { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+.bonus-period-grid { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 8px; }
+.bonus-quarter-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.bonus-period-grid label { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 12px 8px; min-height: 48px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); cursor: pointer; }
+.bonus-period-grid input { flex: 0 0 18px; width: 18px; height: 18px; min-height: 0; margin: 0; accent-color: var(--forest); }
+.bonus-period-grid label:has(input:checked) { color: var(--forest); border-color: var(--forest); background: var(--surface-soft); font-weight: 800; }
+.bonus-period-grid label:focus-within { outline: 2px solid var(--forest); outline-offset: 2px; }
+.bonus-period-grid label.is-locked { flex-wrap: wrap; cursor: not-allowed; }
+.bonus-period-grid label.is-locked small { flex-basis: 100%; text-align: center; color: var(--muted); font-size: .7rem; }
+.bonus-selected-periods { display: flex; flex-wrap: wrap; gap: 8px; list-style: none; padding: 0; margin: 14px 0 0; }
+.bonus-selected-periods li { padding: 8px 12px; border: 1px solid var(--line); border-radius: 8px; font-size: .85rem; color: var(--muted); }
+.bonus-period-result { border-top: 1px solid var(--line); }
+.bonus-period-result > header { padding: 16px 22px; display: flex; flex-wrap: wrap; gap: 8px 18px; align-items: center; background: var(--surface-soft); }
+.bonus-period-result h3, .bonus-period-result p { margin: 0; }
+.bonus-period-result h3 { font-size: 1rem; }
+.bonus-period-result p { font-size: .85rem; color: var(--muted); }
 .bonus-section-heading, .bonus-rule-heading { display: flex; align-items: center; justify-content: space-between; gap: 18px; margin-bottom: 22px; }
 .bonus-section-heading h2, .bonus-rule-heading h2 { margin: 5px 0 0; font-size: 1.2rem; }
 .bonus-section-heading > .muted { font-size: .84rem; }
@@ -45,7 +64,14 @@
 .bonus-components { list-style: none; padding: 0; margin: 0; display: grid; gap: 8px; }
 .bonus-components small { display: inline; margin-left: 5px; color: var(--muted); }
 .bonus-components .is-current { font-weight: 800; color: var(--forest); }
+@media (max-width: 1100px) and (min-width: 761px) {
+  .bonus-period-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .bonus-quarter-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
 @media (max-width: 760px) {
+  .form-grid.bonus-period-fields { grid-template-columns: minmax(0, 1fr); }
+  .bonus-period-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .bonus-quarter-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .bonus-rule-card .inventory-table tr, .bonus-settlement-layout .inventory-table tr { grid-template-columns: minmax(0, 1fr); }
   .bonus-rule-card .inventory-table td, .bonus-settlement-layout .inventory-table td { display: block; grid-column: 1 / -1; }
   .bonus-rule-card .inventory-table td::before, .bonus-settlement-layout .inventory-table td::before { display: block; margin-bottom: 5px; }
@@ -57,4 +83,7 @@
   .bonus-save-bar > span { display: none; }
   .bonus-save-bar > div { width: 100%; }
   .bonus-save-bar .button { flex: 1; }
+}
+@media (max-width: 480px) {
+  .bonus-quarter-grid { grid-template-columns: minmax(0, 1fr); }
 }

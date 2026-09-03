@@ -241,3 +241,15 @@ class VolumeBonusMultiplePeriodsTests(TestCase):
         settlement.period = rule.periods.last()
         with self.assertRaisesMessage(ValidationError, '不可變更'):
             settlement.save()
+
+    def test_legacy_unnamed_settled_rule_can_manage_periods_without_renaming(self):
+        rule = self.rule(name='', period_type='month')
+        for _ in range(3): self.order()
+        settlement = create_volume_bonus_settlement(rule, 'test', dealer=self.a)
+        form = DealerVolumeBonusRuleForm(self.edit_payload(rule, ('9', '10')), instance=rule)
+        self.assertTrue(form.is_valid(), form.errors)
+        form.save()
+        rule.refresh_from_db()
+        self.assertEqual(rule.name, '')
+        self.assertEqual(rule.periods.count(), 2)
+        self.assertEqual(rule.periods.first().pk, settlement.period_id)

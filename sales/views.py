@@ -148,6 +148,8 @@ from .services.price_list_distribution import (
     assignment_user_label,
     copy_previous_assignments,
     ensure_distribution_month,
+    full_distribution_address,
+    google_maps_directions_url,
     normalize_month,
 )
 from .services.mobile_quick_links import (
@@ -670,6 +672,19 @@ def price_list_distribution(request):
                 item.visit_order if item.visit_order > 0 else 10**9,
                 _price_distribution_geo_key(item),
             ),
+        )
+
+    for item in items:
+        item.display_address = full_distribution_address(
+            city=item.city,
+            district=item.district,
+            address=item.address,
+        )
+        item.google_maps_url = google_maps_directions_url(
+            dealer_name=item.dealer_name,
+            city=item.city,
+            district=item.district,
+            address=item.address,
         )
 
     total_count = all_items.count()

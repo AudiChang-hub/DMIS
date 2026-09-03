@@ -1,5 +1,6 @@
 from calendar import monthrange
 from datetime import date, timedelta
+from urllib.parse import urlencode
 
 from django.db import transaction
 from django.utils import timezone
@@ -12,6 +13,38 @@ from sales.models import (
     SalesSourceCooperationProfile,
 )
 from sales.services.phone_numbers import format_taiwan_phone
+
+
+def full_distribution_address(*, city="", district="", address=""):
+    city = (city or "").strip()
+    district = (district or "").strip()
+    address = (address or "").strip()
+    if not address:
+        return f"{city}{district}"
+    missing_region = "".join(
+        region for region in (city, district) if region and region not in address
+    )
+    return f"{missing_region}{address}"
+
+
+def google_maps_directions_url(*, dealer_name="", city="", district="", address=""):
+    if not (address or "").strip():
+        return ""
+    destination = " ".join(
+        part
+        for part in (
+            (dealer_name or "").strip(),
+            full_distribution_address(city=city, district=district, address=address),
+        )
+        if part
+    )
+    return "https://www.google.com/maps/dir/?" + urlencode(
+        {
+            "api": "1",
+            "destination": destination,
+            "travelmode": "driving",
+        }
+    )
 
 
 def normalize_month(value):

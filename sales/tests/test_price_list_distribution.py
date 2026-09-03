@@ -1,4 +1,5 @@
 from datetime import date
+from urllib.parse import parse_qs, urlparse
 from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
@@ -13,7 +14,11 @@ from sales.models import (
     SalesSourceCooperationProfile,
     SalesSourceBrandPolicy,
 )
-from sales.services.price_list_distribution import ensure_distribution_month
+from sales.services.price_list_distribution import (
+    ensure_distribution_month,
+    full_distribution_address,
+    google_maps_directions_url,
+)
 
 
 class PriceListDistributionTests(TestCase):
@@ -44,6 +49,7 @@ class PriceListDistributionTests(TestCase):
         phone="",
         phone_secondary="",
         mobile="",
+        address=None,
     ):
         dealer = SalesSource.objects.create(
             source_type=SalesSource.SourceType.DEALER,
@@ -51,7 +57,7 @@ class PriceListDistributionTests(TestCase):
             code=f"CODE-{name}",
             city=city,
             district=district,
-            address=f"{city}{district}測試路1號",
+            address=(f"{city}{district}測試路1號" if address is None else address),
             phone=phone,
             phone_secondary=phone_secondary,
             mobile=mobile,
@@ -141,6 +147,50 @@ class PriceListDistributionTests(TestCase):
         self.assertContains(response, 'class="inventory-filter master-search"')
         self.assertContains(response, "清除條件")
         self.assertContains(response, "套用篩選")
+
+    def test_address_renders_once_and_links_to_google_maps_driving_directions(self):
+        dealer = self.create_dealer(
+            "導航車行",
+            sym=True,
+            city="基隆市",
+            district="七堵區",
+            address="基隆市七堵區測試路1號",
+        )
+
+        distribution, _ = ensure_distribution_month(date(2026, 9, 1))
+        item = distribution.items.get(dealer=dealer)
+        expected_url = google_maps_directions_url(
+            dealer_name=item.dealer_name,
+            city=item.city,
+            district=item.district,
+            address=item.address,
+        )
+        response = self.client.get(reverse("price_list_distribution"), {"month": "2026-09"})
+
+        self.assertEqual(
+            full_distribution_address(
+                city=item.city,
+                district=item.district,
+                address=item.address,
+            ),
+            "基隆市七堵區測試路1號",
+        )
+        query = parse_qs(urlparse(expected_url).query)
+        self.assertEqual(query["api"], ["1"])
+        self.assertEqual(query["destination"], ["導航車行 基隆市七堵區測試路1號"])
+        self.assertEqual(query["travelmode"], ["driving"])
+        self.assertContains(response, "基隆市七堵區測試路1號", count=1)
+        self.assertContains(response, f'href="{expected_url.replace("&", "&amp;")}"')
+        self.assertContains(response, 'target="_blank"')
+        self.assertContains(response, "Google Maps")
+        self.assertContains(response, "導航")
+
+    def test_dealer_without_address_does_not_render_navigation_action(self):
+        self.create_dealer("無地址車行", sym=True, address="")
+
+        response = self.client.get(reverse("price_list_distribution"), {"month": "2026-09"})
+
+        self.assertNotContains(response, "price-distribution-map")
 
     def test_page_auto_creates_month_and_ajax_updates_completion_and_note(self):
         self.create_dealer("九月車行", sym=True)

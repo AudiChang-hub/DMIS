@@ -47,7 +47,7 @@ class OrderCommissionRecipientTests(TestCase):
         return rule
 
     def make_order(self, source=None, recipient=None, **kwargs):
-        fields = dict(source_type="dealer", source=source or self.b, commission_recipient=recipient,
+        fields = dict(source_type="dealer", source=source if source is not None else (self.b if kwargs.get("source_type", "dealer") == "dealer" else None), commission_recipient=recipient,
                       order_date=date(2026, 9, 1), owner_type="company", owner_name="測試公司", owner_id_number="83739807",
                       owner_phone="0912345678", owner_address="測試地址", vehicle_model=self.model, color=self.color,
                       vehicle_price=70000, actual_balance=70000, calculated_balance=70000,
@@ -92,7 +92,104 @@ class OrderCommissionRecipientTests(TestCase):
         self.assertIsNone(form.save().commission_recipient_id)
         form = SalesOrderForm(data=self.post_data(source_type="store", source="", assign_commission_to_other="True", commission_recipient=self.a.pk))
         self.assertTrue(form.is_valid(), form.errors)
-        self.assertIsNone(form.save().commission_recipient_id)
+        self.assertEqual(form.save().commission_recipient_id, self.a.pk)
+
+    def test_store_legacy_form_preserves_attribution(self):
+        order = self.make_order(source_type="store", recipient=self.a)
+        form = SalesOrderForm(data=self.post_data(source_type="store", source=""), instance=order)
+        self.assertTrue(form.is_valid(), form.errors)
+        self.assertEqual(form.save().commission_recipient_id, self.a.pk)
+
+    def test_completed_store_and_dealer_show_prominent_nojs_entry(self):
+        self.client.force_login(self.user)
+        for source_type in ("store", "dealer"):
+            order = self.make_order(source_type=source_type, status=SalesOrder.Status.COMPLETED)
+            page = self.client.get(reverse("order_detail", args=[order.pk]), {"attribution": "1"})
+            self.assertContains(page, "data-open-attribution")
+            self.assertContains(page, 'class="commission-attribution__editor" open')
+            self.assertContains(page, "data-commission-attribution-form")
+            if source_type == "store":
+                self.assertContains(page, "不指定車行（保留本店來源）")
+
+    def test_completed_store_assign_restore_only_changes_attribution(self):
+        self.client.force_login(self.user)
+        self.make_order(self.a)
+        self.make_order(self.a)
+        staff = SalesSource.objects.create(name="本店承辦人", source_type="store")
+        for source in (None, staff):
+            order = self.make_order(source=source, source_type="store", status=SalesOrder.Status.COMPLETED)
+            before = SalesOrder.objects.filter(pk=order.pk).values().get()
+            profile_before = OrderOperationsProfile.objects.filter(order=order).values().get()
+            payments_before = list(PaymentRecord.objects.filter(order=order).values())
+            url = reverse("order_commission_attribution_update", args=[order.pk])
+            self.assertEqual(self.client.post(url, self.attribution_data(order, self.a)).status_code, 302)
+            order.refresh_from_db()
+            after = SalesOrder.objects.filter(pk=order.pk).values().get()
+            for field, value in before.items():
+                if field not in {"commission_recipient_id", "revision", "updated_at"}:
+                    self.assertEqual(after[field], value, field)
+            self.assertEqual(OrderOperationsProfile.objects.filter(order=order).values().get(), profile_before)
+            self.assertEqual(list(PaymentRecord.objects.filter(order=order).values()), payments_before)
+            preview = preview_volume_bonus(self.a_rule)
+            self.assertEqual(preview["quantity"], 3)
+            self.assertEqual(preview["original_commission_total"], 4000)
+            self.assertEqual(preview["expected_amount"], 1500)
+            self.assertEqual(order.effective_commission_recipient, self.a)
+            self.assertContains(self.client.get(reverse("order_operations", args=[order.pk])), "原來源保留本店")
+            self.assertEqual(self.client.post(url, self.attribution_data(order)).status_code, 302)
+            order.refresh_from_db()
+            self.assertIsNone(order.effective_commission_recipient)
+            self.assertEqual(preview_volume_bonus(self.a_rule)["quantity"], 2)
+            self.assertEqual(OrderChange.objects.filter(order=order).count(), 2)
+
+    def test_store_settlement_updates_profit_without_new_base_commission(self):
+        self.make_order(self.a)
+        self.make_order(self.a)
+        order = self.make_order(source_type="store", recipient=self.a)
+        profile = OrderOperationsProfile.objects.get(order=order)
+        profit_before = profile.net_profit
+        settlement = create_volume_bonus_settlement(self.a_rule, "test")
+        profile.refresh_from_db()
+        self.assertEqual(settlement.allocations.get(order=order).original_commission_amount, 0)
+        self.assertEqual(profile.dealer_commission_base, 0)
+        self.assertEqual(profile.dealer_commission_expense, 500)
+        self.assertEqual(profile.net_profit, profit_before - 500)
+        revise_volume_bonus_settlement(settlement, "test", 1800, "調整獎金")
+        profile.refresh_from_db()
+        self.assertEqual(profile.dealer_commission_expense, 600)
+        self.assertEqual(profile.net_profit, profit_before - 600)
+        order.commission_recipient = None
+        with self.assertRaises(ValidationError):
+            order.save()
+        with self.assertRaises(ValidationError):
+            self.make_order(source_type="store", recipient=self.a)
+
+    def test_store_existing_base_and_manual_total_are_preserved(self):
+        self.make_order(self.a)
+        normal = self.make_order(source_type="store", recipient=self.a)
+        manual = self.make_order(source_type="store", recipient=self.a)
+        # 歷史本店單若已有明確拆分，不因指定台數覆寫既有金額。
+        OrderOperationsProfile.objects.filter(order=normal).update(dealer_commission_base=350, dealer_commission_expense=350)
+        OrderOperationsProfile.objects.filter(order=manual).update(dealer_commission_expense=900, manual_financial_fields=["dealer_commission_expense"])
+        settlement = create_volume_bonus_settlement(self.a_rule, "test")
+        normal_profile = OrderOperationsProfile.objects.get(order=normal)
+        manual_profile = OrderOperationsProfile.objects.get(order=manual)
+        self.assertEqual(normal_profile.dealer_commission_base, 350)
+        self.assertEqual(normal_profile.dealer_commission_expense, 850)
+        self.assertEqual(manual_profile.dealer_commission_expense, 900)
+        self.assertEqual(settlement.allocations.get(order=normal).original_commission_amount, 350)
+        self.assertIsNone(settlement.allocations.get(order=manual).original_commission_amount)
+
+    def test_store_cannot_join_settled_period_through_dedicated_action(self):
+        self.client.force_login(self.user)
+        for _ in range(3):
+            self.make_order(self.a)
+        create_volume_bonus_settlement(self.a_rule, "test")
+        order = self.make_order(source_type="store", status=SalesOrder.Status.COMPLETED)
+        response = self.client.post(reverse("order_commission_attribution_update", args=[order.pk]), self.attribution_data(order, self.a))
+        self.assertEqual(response.status_code, 400)
+        order.refresh_from_db()
+        self.assertIsNone(order.commission_recipient_id)
 
     def test_missing_target_shows_error(self):
         form = SalesOrderForm(data=self.post_data(assign_commission_to_other="True"))

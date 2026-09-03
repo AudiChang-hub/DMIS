@@ -9,8 +9,8 @@
     <div id="order-credit-panel" class="order-credit-panel" data-credit-panel>
       {% include "sales/_field.html" with field=form.commission_recipient %}
       <p class="order-credit-summary" data-credit-summary role="status" aria-live="polite"></p>
-      <small class="muted">只影響這張訂單。原銷售車行保留，原傭金金額不重新套算。</small>
+      <small class="muted">只影響這張訂單，保留原銷售來源。本店單不新增基礎傭金，車行單沿用原傭金。</small>
     </div>
-    <noscript><input type="hidden" name="commission_recipient_nojs" value="1"><p>選擇歸屬車行即會隨訂單儲存；留空代表原車行。</p></noscript>
+    <noscript><input type="hidden" name="commission_recipient_nojs" value="1"><p>選擇歸屬車行即會隨訂單儲存；留空恢復原車行，本店單則不指定車行。</p></noscript>
   {% endif %}
 </div>

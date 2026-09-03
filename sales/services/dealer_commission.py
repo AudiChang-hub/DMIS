@@ -66,6 +66,9 @@ def original_dealer_commission(order):
     if profile and "dealer_commission_expense" in profile.manual_financial_fields:
         # 人工覆寫的是總支出，不能猜測其中的原傭金／獎金拆分。
         return None
+    if order.source_type == SalesOrder.SourceType.STORE:
+        # 本店指定台數不產生新的機種基礎傭金；保留既有明確的傭金拆分。
+        return (profile.dealer_commission_base + profile.dealer_commission_adjustment) if profile else Decimal("0")
     if profile and profile.dealer_commission_locked_at:
         return profile.dealer_commission_base + profile.dealer_commission_adjustment
     policy = resolve_dealer_brand_policy(
@@ -78,7 +81,7 @@ def original_dealer_commission(order):
 
 def _apply_bonus_expense(order):
     profile = OrderOperationsProfile.objects.filter(order=order).first()
-    if not profile or not profile.dealer_commission_locked_at:
+    if not profile or (not profile.dealer_commission_locked_at and order.source_type != SalesOrder.SourceType.STORE):
         return apply_order_dealer_commission(order)
     if "dealer_commission_expense" not in profile.manual_financial_fields:
         profile.dealer_commission_expense = (
@@ -124,17 +127,18 @@ def apply_order_dealer_commission(order, *, lock=False):
 
 
 def eligible_volume_bonus_orders(rule):
-    # 台數獎金只屬於合作車行。本店來源即使因歷史匯入留下舊規則，
-    # 也不能被納入計算，避免只靠表單選項防呆而污染結算結果。
+    # 收款對象必須是合作車行；本店單僅在明確指定車行後列入。
     if rule.dealer.source_type != SalesSource.SourceType.DEALER:
         return SalesOrder.objects.none()
     return (
         SalesOrder.objects.filter(
-            source__source_type=SalesSource.SourceType.DEALER,
-            source_type=SalesOrder.SourceType.DEALER,
             vehicle_model__brand__iexact=rule.brand,
             registration_date__range=(rule.starts_on, rule.ends_on),
             registration_completed_at__isnull=False,
+        )
+        .filter(
+            Q(source_type=SalesOrder.SourceType.DEALER, source__source_type=SalesSource.SourceType.DEALER)
+            | Q(source_type=SalesOrder.SourceType.STORE, commission_recipient=rule.dealer)
         )
         .filter(
             Q(commission_recipient=rule.dealer)

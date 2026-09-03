@@ -32,6 +32,7 @@ def change_order_commission_recipient(
         raise ValidationError("此訂單已被更新，請重新載入後再調整歸屬。")
     if (order.registration_date != initial_order.registration_date
             or order.vehicle_model.brand != initial_order.vehicle_model.brand
+            or order.source_type != initial_order.source_type
             or order.source_id != initial_order.source_id):
         raise ValidationError("訂單的來源或領牌資料已更新，請重新載入後再調整歸屬。")
     now = timezone.now()
@@ -56,8 +57,8 @@ def change_order_commission_recipient(
     if DealerVolumeBonusSettlement.objects.filter(rule_id__in=locked_rule_ids).exists():
         raise ValidationError("指定車行在這張訂單的領牌期間已結算台數獎金，不能直接加入已結算清單。")
 
-    before = str(order.effective_commission_recipient)
-    after = str(recipient or order.source)
+    before = str(order.effective_commission_recipient or "未指定車行")
+    after = str(recipient or (order.source if order.source_type == SalesOrder.SourceType.DEALER else None) or "未指定車行")
     # 有意使用白名單 update：save()/signals 會整理交付日期與重同步財務。
     # 上方已在列鎖內完成此專用操作驗證；下方稽核信號會更新搜尋索引。
     SalesOrder.objects.filter(pk=order.pk).update(

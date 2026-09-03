@@ -14,9 +14,10 @@ class Command(BaseCommand):
 
     @transaction.atomic
     def handle(self, *args, **options):
-        rule = DealerVolumeBonusRule.objects.select_for_update().filter(pk=options["rule_id"]).first()
-        if not rule:
-            raise CommandError("找不到指定規則。")
+        try:
+            rule = DealerVolumeBonusRule.objects.select_for_update().get(pk=options["rule_id"])
+        except DealerVolumeBonusRule.DoesNotExist as exc:
+            raise CommandError("找不到指定規則。") from exc
         if not rule.name:
             self.stdout.write("已是自動命名，沒有變更。")
             return

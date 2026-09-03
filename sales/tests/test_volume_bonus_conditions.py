@@ -191,7 +191,8 @@ class VolumeBonusConditionsTests(TestCase):
         self.assertEqual(DealerVolumeBonusSettlement.objects.count(), 0)
         self.assertEqual(Client(enforce_csrf_checks=True).post(url, {}).status_code, 403)
         create_volume_bonus_settlement(rule, 'test')
-        self.assertEqual(self.client.get(reverse('dealer_volume_bonus_edit', args=[rule.pk])).status_code, 302)
+        locked_page = self.client.get(reverse('dealer_volume_bonus_edit', args=[rule.pk]))
+        self.assertContains(locked_page, '共用條件及門檻已鎖定')
         rule.energy_type = 'gas'
         with self.assertRaises(ValidationError): rule.save()
         tier = rule.tiers.get(); tier.bonus_per_vehicle = 999
@@ -259,6 +260,8 @@ class VolumeBonusMigrationTests(TransactionTestCase):
             self.assertEqual(upgraded.rule.brand, 'SYM')
             self.assertEqual(upgraded.rule.brand_names, ['SYM'])
             self.assertEqual(upgraded.rule.period_type, 'custom')
+            self.assertEqual(upgraded.period.rule_id, rule.pk)
+            self.assertEqual((upgraded.period.starts_on, upgraded.period.ends_on), (date(2026, 8, 1), date(2026, 8, 31)))
             self.assertEqual(upgraded.rule.energy_type, '')
             self.assertFalse(upgraded.rule.vehicle_models.exists())
         finally:

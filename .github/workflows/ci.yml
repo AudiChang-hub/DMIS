@@ -67,7 +67,7 @@ jobs:
           POSTGRES_DB: finance_ci
           POSTGRES_USER: finance_ci
           POSTGRES_PASSWORD: ci-isolated-only
-        run: python manage.py test sales.tests.test_financial_consistency sales.tests.test_order_commission_recipient sales.tests.test_channel_finance sales.tests.test_volume_bonus_conditions --noinput
+        run: python manage.py test sales.tests.test_financial_consistency sales.tests.test_order_commission_recipient sales.tests.test_channel_finance sales.tests.test_volume_bonus_conditions sales.tests.test_volume_bonus_multiple_periods --noinput
 
   build:
     runs-on: ubuntu-latest

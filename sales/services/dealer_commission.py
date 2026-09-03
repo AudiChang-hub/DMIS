@@ -8,6 +8,7 @@ from sales.models import (
     DealerVolumeBonusAdjustment,
     DealerVolumeBonusAllocation,
     DealerVolumeBonusRule,
+    DealerVolumeBonusPeriod,
     DealerVolumeBonusBrand,
     DealerVolumeBonusSettlement,
     OrderOperationsProfile,
@@ -133,9 +134,9 @@ def matching_bonus_rules(order, dealer_id):
         return DealerVolumeBonusRule.objects.none()
     links = DealerVolumeBonusRule.vehicle_models.through.objects.filter(dealervolumebonusrule_id=OuterRef("pk"))
     brands = DealerVolumeBonusBrand.objects.filter(rule_id=OuterRef("pk"))
-    return (DealerVolumeBonusRule.objects.filter(
-        starts_on__lte=order.registration_date, ends_on__gte=order.registration_date,
-    ).filter(Q(dealer_id=dealer_id) | Q(dealer__isnull=True))
+    periods = DealerVolumeBonusPeriod.objects.filter(rule_id=OuterRef('pk'), starts_on__lte=order.registration_date, ends_on__gte=order.registration_date)
+    return (DealerVolumeBonusRule.objects.annotate(matches_period=Exists(periods)).filter(matches_period=True)
+        .filter(Q(dealer_id=dealer_id) | Q(dealer__isnull=True))
         .annotate(has_brands=Exists(brands), matches_brand=Exists(brands.filter(brand__iexact=order.vehicle_model.brand)))
         .filter(Q(matches_brand=True) | (Q(has_brands=False) & (Q(brand="") | Q(brand__iexact=order.vehicle_model.brand))))
         .filter(Q(energy_type="") | Q(energy_type=order.vehicle_model.energy_type))
@@ -143,13 +144,27 @@ def matching_bonus_rules(order, dealer_id):
         .filter(Q(has_models=False) | Q(matches_model=True)))
 
 
-def eligible_volume_bonus_orders(rule, dealer=None):
+def resolve_bonus_period(rule, period=None):
+    if period is not None:
+        period_id = getattr(period, 'pk', period)
+        selected = rule.periods.filter(pk=period_id).first()
+        if not selected:
+            raise ValueError("統計期間不屬於此規則。")
+        return selected
+    periods = list(rule.periods.all())
+    if len(periods) != 1:
+        raise ValueError("此規則有多個期間，請先選擇本次統計期間。")
+    return periods[0]
+
+
+def eligible_volume_bonus_orders(rule, dealer=None, *, period=None):
+    period = resolve_bonus_period(rule, period)
     # 收款對象必須是合作車行；本店單僅在明確指定車行後列入。
     dealer = dealer or rule.dealer
     if dealer and (dealer.source_type != SalesSource.SourceType.DEALER or (rule.dealer_id and dealer.pk != rule.dealer_id)):
         return SalesOrder.objects.none()
     orders = (SalesOrder.objects.filter(
-        registration_date__range=(rule.starts_on, rule.ends_on), registration_completed_at__isnull=False,
+        registration_date__range=(period.starts_on, period.ends_on), registration_completed_at__isnull=False,
     ).filter(
         Q(source_type=SalesOrder.SourceType.DEALER, source__source_type=SalesSource.SourceType.DEALER)
         | Q(source_type=SalesOrder.SourceType.STORE, commission_recipient__source_type=SalesSource.SourceType.DEALER)
@@ -170,52 +185,55 @@ def eligible_volume_bonus_orders(rule, dealer=None):
     return orders
 
 
-def bonus_rule_dealers(rule):
+def bonus_rule_dealers(rule, *, period=None):
+    period = resolve_bonus_period(rule, period)
     if rule.dealer_id:
         return [rule.dealer] if rule.dealer.source_type == SalesSource.SourceType.DEALER else []
-    ids = {order.effective_commission_recipient.pk for order in eligible_volume_bonus_orders(rule)}
-    ids.update(rule.settlements.values_list("dealer_id", flat=True))
+    ids = {order.effective_commission_recipient.pk for order in eligible_volume_bonus_orders(rule, period=period)}
+    ids.update(rule.settlements.filter(period=period).values_list("dealer_id", flat=True))
     return list(SalesSource.objects.filter(pk__in=ids, source_type=SalesSource.SourceType.DEALER).order_by("name"))
 
 
-def preview_volume_bonus(rule, dealer=None, *, include_combined=False):
+def preview_volume_bonus(rule, dealer=None, *, period=None, include_combined=False):
+    period = resolve_bonus_period(rule, period)
     dealer = dealer or rule.dealer
     if not dealer:
         raise ValueError("請先選擇收款車行，各車行須分開試算。")
-    settlement = DealerVolumeBonusSettlement.objects.filter(rule=rule, dealer=dealer).first()
+    settlement = DealerVolumeBonusSettlement.objects.filter(rule=rule, period=period, dealer=dealer).first()
     if settlement:
         allocations = list(settlement.allocations.select_related("order__source", "order__vehicle_model"))
         orders = [item.order for item in allocations]
         original_amounts = {item.order_id: item.original_commission_amount for item in allocations}
     else:
-        orders = list(eligible_volume_bonus_orders(rule, dealer))
+        orders = list(eligible_volume_bonus_orders(rule, dealer, period=period))
         original_amounts = {o.pk: original_dealer_commission(o) for o in orders}
     preview = _build_volume_bonus_preview(rule, orders, original_amounts, settlement)
-    preview.update(dealer=dealer, settlement=settlement)
+    preview.update(dealer=dealer, settlement=settlement, period=period)
     if include_combined:
-        add_combined_bonus_details(preview, rule, dealer)
+        add_combined_bonus_details(preview, rule, dealer, period)
     return preview
 
 
-def add_combined_bonus_details(preview, rule, dealer):
+def add_combined_bonus_details(preview, rule, dealer, period):
     """逐單呈現全部規則，不重複加原傭金；未結算與已入帳清楚區分。"""
     order_ids = {order.pk for order in preview["orders"]}
     details = {pk: [] for pk in order_ids}
-    candidates = DealerVolumeBonusRule.objects.filter(
-        Q(dealer=dealer) | Q(dealer__isnull=True),
-        starts_on__lte=rule.ends_on, ends_on__gte=rule.starts_on,
-    ).prefetch_related("brands", "vehicle_models", "tiers").order_by("pk")
-    for candidate in candidates:
-        settled = DealerVolumeBonusSettlement.objects.filter(rule=candidate, dealer=dealer).first()
+    candidates = DealerVolumeBonusPeriod.objects.filter(
+        Q(rule__dealer=dealer) | Q(rule__dealer__isnull=True),
+        starts_on__lte=period.ends_on, ends_on__gte=period.starts_on,
+    ).select_related('rule').prefetch_related('rule__brands', 'rule__vehicle_models', 'rule__tiers').order_by('rule_id', 'starts_on')
+    for candidate_period in candidates:
+        candidate = candidate_period.rule
+        settled = DealerVolumeBonusSettlement.objects.filter(rule=candidate, period=candidate_period, dealer=dealer).first()
         if settled:
             amounts = settled.allocations.filter(order_id__in=order_ids).values_list("order_id", "amount")
         elif candidate.active:
-            other = preview_volume_bonus(candidate, dealer)
+            other = preview_volume_bonus(candidate, dealer, period=candidate_period)
             amounts = [(order.pk, other["bonus_per_vehicle"]) for order in other["orders"] if order.pk in order_ids and other["tier"]]
         else:
             continue
         for pk, amount in amounts:
-            details[pk].append({"name": str(candidate), "amount": amount, "settled": bool(settled), "current": candidate.pk == rule.pk})
+            details[pk].append({"name": str(candidate), "period_label": candidate_period.label, "amount": amount, "settled": bool(settled), "current": candidate_period.pk == period.pk})
     for order in preview["orders"]:
         order.bonus_details = details[order.pk]
         order.combined_bonus = sum((item["amount"] for item in order.bonus_details), Decimal("0"))
@@ -256,18 +274,19 @@ def _allocation_amounts(total, count):
 
 
 @transaction.atomic
-def create_volume_bonus_settlement(rule, actor_name, actual_amount=None, reason="", *, dealer=None):
+def create_volume_bonus_settlement(rule, actor_name, actual_amount=None, reason="", *, dealer=None, period=None):
     rule = DealerVolumeBonusRule.objects.select_for_update().get(pk=rule.pk)
+    period = resolve_bonus_period(rule, period)
     dealer = dealer or rule.dealer
     if not dealer or dealer.source_type != SalesSource.SourceType.DEALER or (rule.dealer_id and dealer.pk != rule.dealer_id):
         raise ValueError("請選擇此規則適用的收款車行。")
-    if DealerVolumeBonusSettlement.objects.filter(rule=rule, dealer=dealer).exists():
+    if DealerVolumeBonusSettlement.objects.filter(rule=rule, period=period, dealer=dealer).exists():
         raise ValueError("此規則已完成結算，不可重複建立。")
     if not rule.active:
         raise ValueError("已停用的規則不可結算。")
     # 只結算這次實際鎖定的訂單，不再查一次而混入未鎖定的新單。
     # 訂單變更歸屬使用相同列鎖；固定鎖定順序避免相互等待。
-    orders = list(eligible_volume_bonus_orders(rule, dealer).select_for_update(of=("self",)).order_by("pk"))
+    orders = list(eligible_volume_bonus_orders(rule, dealer, period=period).select_for_update(of=("self",)).order_by("pk"))
     orders.sort(key=lambda order: (order.registration_date, order.number))
     preview = _build_volume_bonus_preview(
         rule, orders, {order.pk: original_dealer_commission(order) for order in orders},
@@ -280,6 +299,7 @@ def create_volume_bonus_settlement(rule, actor_name, actual_amount=None, reason=
     amounts = _allocation_amounts(actual, len(preview["orders"]))
     settlement = DealerVolumeBonusSettlement.objects.create(
         rule=rule,
+        period=period,
         dealer=dealer,
         qualified_quantity=preview["quantity"],
         bonus_per_vehicle=preview["bonus_per_vehicle"],

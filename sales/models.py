@@ -1110,9 +1110,15 @@ class DealerVolumeBonusRule(TimeStampedModel):
             if any(previous[name] != getattr(self, name) for name in fields):
                 raise ValidationError("已結算規則的條件不可改動，請另建新規則。")
 
+    @transaction.atomic
     def save(self, *args, **kwargs):
+        if self.pk:
+            type(self).objects.select_for_update().get(pk=self.pk)
         self.full_clean()
-        return super().save(*args, **kwargs)
+        result = super().save(*args, **kwargs)
+        if not self.periods.exists():
+            DealerVolumeBonusPeriod.objects.create(rule=self, starts_on=self.starts_on, ends_on=self.ends_on)
+        return result
 
     def __str__(self):
         return self.name or f"{self.dealer or '全部合作車行'}／{self.brand or '不限品牌'}／{self.starts_on:%Y/%m/%d}"
@@ -1139,6 +1145,52 @@ class DealerVolumeBonusRule(TimeStampedModel):
         models = list(self.vehicle_models.all()) if self.pk else []
         parts.append("、".join(str(model) for model in models) if models else "不限車型")
         return " · ".join(parts)
+
+
+class DealerVolumeBonusPeriod(models.Model):
+    rule = models.ForeignKey(DealerVolumeBonusRule, on_delete=models.CASCADE, related_name="periods")
+    starts_on = models.DateField("統計開始日")
+    ends_on = models.DateField("統計結束日")
+
+    class Meta:
+        ordering = ["starts_on", "id"]
+        constraints = [models.UniqueConstraint(fields=["rule", "starts_on", "ends_on"], name="unique_bonus_rule_period")]
+
+    @property
+    def label(self):
+        if self.rule.period_type == DealerVolumeBonusRule.PeriodType.MONTH:
+            return f"{self.starts_on.year} 年 {self.starts_on.month} 月"
+        if self.rule.period_type == DealerVolumeBonusRule.PeriodType.QUARTER:
+            return f"{self.starts_on.year} 年第 {(self.starts_on.month - 1) // 3 + 1} 季"
+        return "自訂期間"
+
+    def __str__(self):
+        return f"{self.label} · {self.starts_on:%Y/%m/%d}－{self.ends_on:%Y/%m/%d}"
+
+    def clean(self):
+        if not self.rule_id or not self.starts_on or not self.ends_on:
+            return
+        if self.ends_on < self.starts_on:
+            raise ValidationError("期間結束日不可早於開始日。")
+        if self.rule.period_type != DealerVolumeBonusRule.PeriodType.CUSTOM:
+            from .services.bonus_periods import bonus_period_dates
+            number = self.starts_on.month if self.rule.period_type == 'month' else (self.starts_on.month - 1) // 3 + 1
+            if (self.starts_on, self.ends_on) != bonus_period_dates(self.rule.period_type, self.starts_on.year, number):
+                raise ValidationError("期間須涵蓋完整月份或季度。")
+        if type(self).objects.filter(rule_id=self.rule_id, starts_on__lte=self.ends_on, ends_on__gte=self.starts_on).exclude(pk=self.pk).exists():
+            raise ValidationError("同一規則的統計期間不可重疊。")
+        if self.pk:
+            previous = type(self).objects.get(pk=self.pk)
+            if previous.rule_id != self.rule_id:
+                raise ValidationError("期間不可移至其他規則。")
+            if previous.settlements.exists() and (previous.starts_on, previous.ends_on) != (self.starts_on, self.ends_on):
+                raise ValidationError("已結算期間不可修改。")
+
+    @transaction.atomic
+    def save(self, *args, **kwargs):
+        DealerVolumeBonusRule.objects.select_for_update().get(pk=self.rule_id)
+        self.full_clean()
+        return super().save(*args, **kwargs)
 
 
 class DealerVolumeBonusBrand(models.Model):
@@ -1199,6 +1251,7 @@ class DealerVolumeBonusTier(TimeStampedModel):
 
 
 class DealerVolumeBonusSettlement(TimeStampedModel):
+    period = models.ForeignKey(DealerVolumeBonusPeriod, on_delete=models.PROTECT, related_name="settlements", verbose_name="統計期間")
     rule = models.ForeignKey(
         DealerVolumeBonusRule,
         on_delete=models.PROTECT,
@@ -1222,15 +1275,26 @@ class DealerVolumeBonusSettlement(TimeStampedModel):
 
     class Meta:
         ordering = ["-settled_on", "-id"]
-        constraints = [models.UniqueConstraint(fields=["rule", "dealer"], name="unique_bonus_rule_dealer_settlement")]
+        constraints = [models.UniqueConstraint(fields=["rule", "period", "dealer"], name="unique_bonus_rule_period_dealer_settlement")]
         verbose_name = "車行台數獎金結算"
         verbose_name_plural = "車行台數獎金結算"
 
     def clean(self):
+        if self.period_id and self.period.rule_id != self.rule_id:
+            raise ValidationError({"period": "統計期間不屬於此規則。"})
+        if self.pk:
+            previous = type(self).objects.get(pk=self.pk)
+            if (self.rule_id, self.period_id, self.dealer_id) != (previous.rule_id, previous.period_id, previous.dealer_id):
+                raise ValidationError("已結算的規則、期間與收款車行不可變更。")
         if self.actual_amount != self.expected_amount and not self.adjustment_reason.strip():
             raise ValidationError({"adjustment_reason": "實際金額不同時必須填寫原因。"})
 
     def save(self, *args, **kwargs):
+        if not self.period_id and self.rule_id:
+            periods = list(self.rule.periods.all()[:2])
+            if len(periods) != 1:
+                raise ValidationError("請明確指定本次結算期間。")
+            self.period = periods[0]
         self.full_clean()
         return super().save(*args, **kwargs)
 
@@ -2970,6 +3034,7 @@ class SalesOrder(TimeStampedModel):
             recipient_id = self.commission_recipient_id or self.source_id
             if DealerVolumeBonusSettlement.objects.filter(
                 dealer_id=recipient_id, rule__in=matching_bonus_rules(self, recipient_id),
+                period__starts_on__lte=self.registration_date, period__ends_on__gte=self.registration_date,
             ).exists():
                 errors["commission_recipient"] = "目標車行在該領牌期間已結算台數獎金，不能加入或變更已結算清單。"
         if self.vehicle_category == self.VehicleCategory.USED:

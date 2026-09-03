@@ -1,0 +1,6 @@
+<div class="bonus-tier-row" data-bonus-tier {% if row.DELETE.value %}hidden{% endif %}>
+  {{ row.id }}{{ row.non_field_errors }}
+  {% include "sales/_field.html" with field=row.minimum_quantity %}
+  {% include "sales/_field.html" with field=row.bonus_per_vehicle %}
+  <div class="bonus-tier-remove"><span hidden>{{ row.DELETE }}</span><button type="button" class="button ghost" data-remove-bonus-tier aria-label="移除此段門檻">移除</button></div>
+</div>

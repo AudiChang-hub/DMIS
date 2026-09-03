@@ -1187,11 +1187,12 @@ InstallmentPlanOptionFormSet = inlineformset_factory(
 
 
 class DealerVolumeBonusRuleForm(forms.ModelForm):
-    brand = forms.ChoiceField(label="品牌")
+    name = forms.CharField(label="規則名稱", max_length=120, widget=forms.TextInput(attrs={"placeholder": "例如：9 月台鈴油車加碼"}))
+    brand = forms.ChoiceField(label="品牌", required=False)
 
     class Meta:
         model = DealerVolumeBonusRule
-        fields = ["dealer", "brand", "starts_on", "ends_on", "active", "note"]
+        fields = ["name", "dealer", "brand", "energy_type", "vehicle_models", "starts_on", "ends_on", "active", "note"]
         widgets = {
             "starts_on": DateInput(), "ends_on": DateInput(),
             "note": forms.Textarea(attrs={"rows": 2}),
@@ -1200,24 +1201,66 @@ class DealerVolumeBonusRuleForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         _apply_brand_choice(self)
+        self.fields["brand"].choices = [("", "不限品牌"), *list(self.fields["brand"].choices)[1:]]
         self.fields["dealer"].queryset = SalesSource.objects.filter(
-            source_type=SalesSource.SourceType.DEALER, active=True
+            Q(active=True) | Q(pk=self.instance.dealer_id), source_type=SalesSource.SourceType.DEALER,
         ).order_by("name")
+        self.fields["dealer"].empty_label = "全部合作車行"
+        self.fields["dealer"].label = "適用車行"
+        self.fields["dealer"].widget.attrs.update({"data-searchable-select": "1", "data-search-placeholder": "全部合作車行，或搜尋指定一家"})
+        self.fields["energy_type"].choices = [("", "不限能源"), *VehicleModel.EnergyType.choices]
+        selected = self.instance.vehicle_models.values_list("pk", flat=True) if self.instance.pk else []
+        self.fields["vehicle_models"].queryset = VehicleModel.objects.filter(Q(active=True) | Q(pk__in=selected)).order_by("brand", "name", "model_year")
+        self.fields["vehicle_models"].widget.attrs.update({"data-searchable-select": "1", "data-search-placeholder": "不限車型；需要時搜尋並複選"})
+        for name in ("brand", "dealer"):
+            self.fields[name].widget.attrs["data-searchable-include-empty"] = "1"
+        if self.instance.pk and not self.instance.name:
+            self.initial["name"] = str(self.instance)
         for field in self.fields.values():
-            field.widget.attrs.setdefault("class", "form-control")
+            if not isinstance(field.widget, forms.CheckboxInput):
+                field.widget.attrs.setdefault("class", "form-control")
         apply_mobile_keyboard_attrs(self)
+
+    def clean(self):
+        data = super().clean()
+        for model in data.get("vehicle_models", []):
+            if data.get("brand") and model.brand.casefold() != data["brand"].casefold():
+                self.add_error("vehicle_models", "指定車型與品牌不一致，請調整品牌或車型。")
+                break
+            if data.get("energy_type") and model.energy_type != data["energy_type"]:
+                self.add_error("vehicle_models", "指定車型與能源別不一致，請調整能源別或車型。")
+                break
+        if self.instance.pk and self.instance.settlements.exists():
+            raise forms.ValidationError("此規則已有結算，請另建新規則。")
+        return data
 
 
 class DealerVolumeBonusTierForm(forms.ModelForm):
     class Meta:
         model = DealerVolumeBonusTier
         fields = ["minimum_quantity", "bonus_per_vehicle"]
+        widgets = {name: forms.NumberInput(attrs={"class": "form-control", "min": minimum, "step": "1", "inputmode": "numeric"})
+                   for name, minimum in (("minimum_quantity", 1), ("bonus_per_vehicle", 0))}
+
+
+class BaseDealerVolumeBonusTierFormSet(BaseInlineFormSet):
+    def clean(self):
+        super().clean()
+        if any(self.errors):
+            return
+        rows = [form.cleaned_data for form in self.forms if form.cleaned_data and not form.cleaned_data.get("DELETE")]
+        if not rows:
+            raise forms.ValidationError("請至少新增一段台數門檻。")
+        quantities = [row.get("minimum_quantity") for row in rows]
+        if len(quantities) != len(set(quantities)):
+            raise forms.ValidationError("最低台數不可重複。")
 
 
 DealerVolumeBonusTierFormSet = inlineformset_factory(
     DealerVolumeBonusRule,
     DealerVolumeBonusTier,
     form=DealerVolumeBonusTierForm,
+    formset=BaseDealerVolumeBonusTierFormSet,
     extra=1,
     can_delete=True,
 )

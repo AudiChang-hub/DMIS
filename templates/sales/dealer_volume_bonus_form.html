@@ -1,2 +1,35 @@
-{% extends "base.html" %}{% block title %}台數獎金規則｜車輛銷售管理{% endblock %}{% block page_class %}page-shell--wide{% endblock %}{% block content %}
-{% url 'dealer_volume_bonus_list' as list_url %}{% include "sales/_page_back.html" with fallback_url=list_url label="返回台數獎金" %}<section class="hero-row compact-hero"><div><p class="eyebrow">車行＋品牌＋期間</p><h1>{% if rule %}編輯台數獎金規則{% else %}新增台數獎金規則{% endif %}</h1></div></section><form method="post" class="stacked-form">{% csrf_token %}<section class="form-section static-section"><div class="form-grid">{% for field in form %}{% include "sales/_field.html" with field=field %}{% endfor %}</div></section><section class="form-section static-section"><div class="section-title"><h2>台數門檻</h2></div>{{ tier_formset.management_form }}{% for row in tier_formset %}<div class="dynamic-row master-dynamic-row">{{ row.id }}{% for field in row.visible_fields %}{% include "sales/_field.html" with field=field %}{% endfor %}</div>{% endfor %}<p class="form-hint">可設定多段門檻；系統採用已達到的最高門檻。</p></section><div class="form-actions"><a class="button ghost" href="{% url 'dealer_volume_bonus_list' %}">取消</a><button class="button primary">儲存規則</button></div></form>{% endblock %}
+{% extends "base.html" %}{% load static %}
+{% block title %}台數獎金規則｜車輛銷售管理{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'css/dealer-volume-bonus.css' %}?v={{ app_version }}">{% endblock %}
+{% block page_class %}page-shell--wide{% endblock %}
+{% block content %}
+{% url 'dealer_volume_bonus_list' as list_url %}{% include "sales/_page_back.html" with fallback_url=list_url label="返回台數獎金" %}
+<section class="hero-row compact-hero"><div><p class="eyebrow">給合作車行的獎金</p><h1>{% if rule %}編輯{% else %}新增{% endif %}台數獎金規則</h1><p class="muted">設定適用條件與台數門檻；同一台符合不同規則時，獎金累加。</p></div><a class="button ghost" href="{% url 'user_guide' %}#dealer-volume-bonus">操作說明</a></section>
+<form method="post" class="stacked-form bonus-rule-form" data-bonus-rule-form>{% csrf_token %}
+  {{ form.non_field_errors }}
+  <section class="form-section static-section">
+    <div class="bonus-section-heading"><div><span class="eyebrow">01 · 適用條件</span><h2>這筆獎金給誰、哪些車？</h2></div><span class="muted">同一規則內的條件須同時符合</span></div>
+    <div class="form-grid">
+      {% include "sales/_field.html" with field=form.name %}{% include "sales/_field.html" with field=form.dealer %}
+      {% include "sales/_field.html" with field=form.brand %}{% include "sales/_field.html" with field=form.energy_type %}
+      <div class="span-2">{% include "sales/_field.html" with field=form.vehicle_models %}<p class="form-hint">未指定即不限車型；可搜尋並選擇多個車型。</p></div>
+    </div>
+    <p class="bonus-context-note">選「全部合作車行」仍逐家計算台數，不會把不同車行的台數加在一起。</p>
+  </section>
+  <section class="form-section static-section">
+    <div class="bonus-section-heading"><div><span class="eyebrow">02 · 統計期間</span><h2>依實際領牌日期計算</h2></div></div>
+    <div class="form-grid">{% include "sales/_field.html" with field=form.starts_on %}{% include "sales/_field.html" with field=form.ends_on %}</div>
+  </section>
+  <section class="form-section static-section">
+    <div class="bonus-section-heading"><div><span class="eyebrow">03 · 台數門檻</span><h2>達到幾台，每台給多少？</h2></div><button class="button ghost" type="button" data-add-bonus-tier>＋ 新增門檻</button></div>
+    {{ tier_formset.management_form }}{{ tier_formset.non_form_errors }}
+    <div class="bonus-tier-list" data-bonus-tiers>{% for row in tier_formset %}{% include "sales/_bonus_tier_row.html" %}{% endfor %}</div>
+    <template data-bonus-tier-template>{% include "sales/_bonus_tier_row.html" with row=tier_formset.empty_form %}</template>
+    <p class="form-hint">同一規則只採最高已達門檻，套用本期全部符合訂單。例如 3 台／每台 500 元，達 3 台即為 1,500 元。</p>
+    <p class="bonus-tier-status" role="status" aria-live="polite" data-bonus-tier-status></p>
+  </section>
+  <section class="form-section static-section"><div class="form-grid">{% include "sales/_field.html" with field=form.note %}{% include "sales/_field.html" with field=form.active %}</div></section>
+  <div class="bonus-save-bar"><span>儲存規則後可查看逐單試算，不會直接結算或付款。</span><div><a class="button ghost" href="{{ list_url }}">取消</a><button type="submit" class="button primary">儲存規則</button></div></div>
+</form>
+{% endblock %}
+{% block scripts %}<script src="{% static 'js/dealer-volume-bonus.js' %}?v={{ app_version }}" defer></script>{% endblock %}

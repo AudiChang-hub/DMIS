@@ -429,18 +429,22 @@ class ChannelFinanceTests(TestCase):
 
         response = self.client.get(reverse("dealer_volume_bonus_list"))
 
+        self.assertContains(response, self.dealer.name)
+        self.assertContains(response, "編輯規則")
+        results_url = reverse("dealer_volume_bonus_list") + "?tab=settlements"
+        response = self.client.get(results_url)
         self.assertNotContains(response, self.dealer.name)
-        self.assertContains(response, "目前沒有統計期間內已完成領牌")
-        self.assertContains(response, "全部規則（另 1 筆）")
+        self.assertContains(response, "目前沒有符合條件的試算結果")
+        self.assertContains(response, "包含無銷售規則（1 筆）")
 
         all_rules_response = self.client.get(
-            reverse("dealer_volume_bonus_list") + "?show=all"
+            results_url + "&show=all"
         )
         self.assertContains(all_rules_response, self.dealer.name)
         self.assertContains(all_rules_response, "0 台")
 
         self.make_order()
-        sales_response = self.client.get(reverse("dealer_volume_bonus_list"))
+        sales_response = self.client.get(results_url)
         self.assertContains(sales_response, self.dealer.name)
         self.assertContains(sales_response, "1 台")
 

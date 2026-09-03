@@ -61,6 +61,29 @@
 .bonus-save-bar > span { color: var(--muted); font-size: .85rem; }
 .bonus-save-bar > div { display: flex; gap: 10px; flex-shrink: 0; }
 .bonus-rule-list { display: grid; gap: 24px; }
+.bonus-page-tabs { display: flex; gap: 6px; padding: 6px; margin-bottom: 24px; border: 1px solid var(--line); border-radius: 14px; background: var(--surface-soft); max-width: 480px; }
+.bonus-page-tabs a { flex: 1; display: flex; align-items: center; justify-content: center; min-height: 48px; padding: 10px 14px; border-radius: 10px; color: var(--muted); font-weight: 800; text-decoration: none; }
+.bonus-page-tabs a[aria-current="page"] { color: var(--forest); background: var(--surface); box-shadow: 0 2px 8px rgb(0 0 0 / 8%); }
+.bonus-page-tabs a:focus-visible, .bonus-rule-footer a:focus-visible { outline: 2px solid var(--forest); outline-offset: 2px; }
+.bonus-list-heading { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 16px; }
+.bonus-list-heading h2 { font-size: 1.1rem; margin: 0; }
+.bonus-list-heading small { font-size: .85rem; color: var(--muted); margin-left: 8px; font-weight: 400; }
+.bonus-rule-card { scroll-margin-top: 90px; }
+.bonus-rule-heading > div { min-width: 0; }
+.bonus-rule-heading h2 { overflow-wrap: anywhere; }
+.bonus-rule-actions { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; flex-shrink: 0; }
+.bonus-rule-details { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 2fr); gap: 18px; margin: 0; padding: 0 22px 22px; }
+.bonus-rule-details dt, .bonus-rule-periods h3, .bonus-tier-label { font-size: .85rem; color: var(--muted); margin: 0 0 8px; font-weight: 600; }
+.bonus-rule-details dd { margin: 0; line-height: 1.6; overflow-wrap: anywhere; }
+.bonus-rule-periods { padding: 0 22px 22px; }
+.bonus-rule-periods ul { display: flex; flex-wrap: wrap; gap: 10px; list-style: none; margin: 0; padding: 0; }
+.bonus-rule-periods li { display: flex; flex-direction: column; gap: 5px; padding: 10px 14px; border: 1px solid var(--line); border-radius: 10px; font-size: .85rem; overflow-wrap: anywhere; }
+.bonus-rule-periods li span { color: var(--muted); }
+.bonus-tier-label { padding: 0 22px; }
+.bonus-rule-footer { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 18px; padding: 12px 22px; border-top: 1px solid var(--line); }
+.bonus-rule-footer p { margin: 0; color: var(--muted); font-size: .85rem; }
+.bonus-rule-footer a { display: inline-flex; align-items: center; min-height: 44px; font-weight: 800; flex-shrink: 0; }
+.bonus-empty p { color: var(--muted); }
 .bonus-rule-heading { margin: 0; padding: 22px; }
 .bonus-rule-heading p { margin: 8px 0 0; overflow-wrap: anywhere; }
 .bonus-tier-summary { display: flex; flex-wrap: wrap; gap: 8px; padding: 0 22px 18px; }
@@ -74,6 +97,10 @@
   .bonus-quarter-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 @media (max-width: 760px) {
+  .bonus-rule-details { grid-template-columns: minmax(0, 1fr); }
+  .bonus-rule-actions { width: 100%; }
+  .bonus-rule-actions .button { white-space: normal; min-height: 44px; }
+  .bonus-page-tabs a { padding: 10px 8px; }
   .bonus-model-conflict { scroll-margin-bottom: 180px; }
   .form-grid.bonus-period-fields { grid-template-columns: minmax(0, 1fr); }
   .bonus-period-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }

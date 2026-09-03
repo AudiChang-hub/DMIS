@@ -1,42 +1,203 @@
 {% extends "base.html" %}
+{% load static %}
 {% block title %}工作日與假日設定｜車輛銷售管理{% endblock %}
 {% block page_class %}page-shell--wide{% endblock %}
 {% block content %}
 {% url 'data_maintenance' as maintenance_url %}
 {% include "sales/_page_back.html" with fallback_url=maintenance_url label="返回資料維護區" %}
-<section class="hero-row compact-hero">
-  <div><p class="eyebrow">期限計算依據</p><h1>工作日與假日設定</h1><p class="muted">週六、週日固定不計；國定假日每月由人事行政總處同步，也可人工補登例外日期。</p></div>
-</section>
-<section class="holiday-sync-status" aria-label="官方行事曆同步狀態">
+
+<section class="hero-row compact-hero holiday-calendar-hero">
   <div>
-    <span class="eyebrow">官方自動同步</span>
+    <p class="eyebrow">期限計算依據</p>
+    <h1>工作日與假日設定</h1>
+    <p class="muted">月曆會自動排除週六、週日與啟用中的假日；點選日期即可新增或調整。</p>
+  </div>
+</section>
+
+<section class="holiday-sync-status" aria-label="官方行事曆同步狀態">
+  <div class="holiday-sync-status__summary">
+    <span class="eyebrow">人事行政總處同步</span>
     <strong>每月同步當年與次年行事曆</strong>
-    <small>同步失敗時會保留現有資料，不會影響工作日期限計算。</small>
+    <small>同步失敗會保留既有資料，不影響工作日期限計算。</small>
   </div>
   <div class="holiday-sync-status__result">
     {% if latest_official_sync %}
       <span>最近同步</span>
       <strong>{{ latest_official_sync|date:"Y/m/d H:i" }}</strong>
-      <small>{% for year in official_years %}{% if not forloop.first %}、{% endif %}{{ year }}{% endfor %} 年</small>
+      <small>{% for year in official_years %}{% if not forloop.first %}、{% endif %}{{ year }}{% endfor %} 年資料</small>
     {% else %}
-      <span>尚待首次排程同步</span>
-      <strong>既有日期仍正常使用</strong>
+      <span>同步狀態</span>
+      <strong>尚待首次排程同步</strong>
+      <small>既有日期仍正常使用</small>
     {% endif %}
   </div>
 </section>
-<section class="section-block holiday-editor">
-  <div class="section-title"><h2>{% if editing %}編輯排除日期{% else %}新增排除日期{% endif %}</h2>{% if editing %}<a href="{% url 'business_holiday_list' %}">取消編輯</a>{% endif %}</div>
-  <form method="post" class="form-grid compact-grid">
-    {% csrf_token %}
-    {% for field in form %}<div><label for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}{% for error in field.errors %}<small class="field-error">{{ error }}</small>{% endfor %}</div>{% endfor %}
-    <div><button class="button primary" type="submit">儲存日期</button></div>
-  </form>
+
+<section class="holiday-calendar-shell" data-holiday-calendar>
+  <header class="holiday-calendar-toolbar">
+    <div class="holiday-calendar-toolbar__period">
+      <span class="eyebrow">目前月份</span>
+      <h2>{{ current_month|date:"Y 年 n 月" }}</h2>
+      <div class="holiday-calendar-summary" aria-label="本月設定摘要">
+        <span><strong>{{ month_excluded_count }}</strong> 個排除日期</span>
+        <span><strong>{{ month_manual_count }}</strong> 個人工調整</span>
+      </div>
+    </div>
+    <nav class="holiday-calendar-navigation" aria-label="切換月份">
+      <a class="button ghost" href="?month={{ previous_month|date:'Y-m' }}">上個月</a>
+      <a class="button ghost" href="?month={{ today|date:'Y-m' }}">回到本月</a>
+      <a class="button ghost" href="?month={{ next_month|date:'Y-m' }}">下個月</a>
+      <label class="holiday-month-picker">
+        <span class="visually-hidden">直接選擇月份</span>
+        <input type="month" value="{{ current_month|date:'Y-m' }}" data-holiday-month-picker autocomplete="off">
+      </label>
+      <button class="button primary" type="button" data-holiday-create>新增日期</button>
+    </nav>
+  </header>
+
+  <div class="holiday-calendar-layout">
+    <div class="holiday-calendar-main">
+      <div class="holiday-calendar-legend" aria-label="月曆圖例">
+        <span><i class="is-official" aria-hidden="true"></i>官方假日</span>
+        <span><i class="is-manual" aria-hidden="true"></i>人工設定</span>
+        <span><i class="is-weekend" aria-hidden="true"></i>固定週休</span>
+        <span><i class="is-inactive" aria-hidden="true"></i>不排除</span>
+      </div>
+      <div class="holiday-calendar-grid" role="grid" aria-label="{{ current_month|date:'Y 年 n 月' }}工作日月曆">
+        {% for weekday in "一二三四五六日" %}
+          <div class="holiday-calendar-weekday{% if forloop.counter > 5 %} is-weekend{% endif %}" role="columnheader">週{{ weekday }}</div>
+        {% endfor %}
+        {% for week in calendar_weeks %}
+          {% for cell in week %}
+            {% if cell.in_month %}
+              <button
+                class="holiday-calendar-day{% if cell.is_today %} is-today{% endif %}{% if cell.is_weekend %} is-weekend{% endif %}{% if cell.holiday %} has-holiday{% if cell.holiday.active %} is-excluded{% else %} is-inactive{% endif %}{% if cell.holiday.source == 'dgpa' %} is-official{% else %} is-manual{% endif %}{% endif %}"
+                type="button"
+                role="gridcell"
+                data-holiday-date="{{ cell.date|date:'Y-m-d' }}"
+                data-holiday-weekend="{{ cell.is_weekend|yesno:'true,false' }}"
+                {% if cell.holiday %}
+                  data-holiday-id="{{ cell.holiday.pk }}"
+                  data-holiday-name="{{ cell.holiday.name|escape }}"
+                  data-holiday-active="{{ cell.holiday.active|yesno:'true,false' }}"
+                  data-holiday-source="{{ cell.holiday.source }}"
+                  data-holiday-source-label="{{ cell.holiday.get_source_display }}"
+                  data-holiday-delete-url="{% url 'business_holiday_delete' cell.holiday.pk %}"
+                {% endif %}
+                aria-label="{{ cell.date|date:'n 月 j 日' }}{% if cell.holiday %}，{{ cell.holiday.name }}，{% if cell.holiday.active %}排除工作日計算{% else %}不排除工作日計算{% endif %}{% elif cell.is_weekend %}，固定週休{% else %}，工作日{% endif %}"
+              >
+                <span class="holiday-calendar-day__number">{{ cell.date.day }}</span>
+                {% if cell.is_today %}<span class="holiday-calendar-day__today">今天</span>{% endif %}
+                {% if cell.holiday %}
+                  <strong>{{ cell.holiday.name }}</strong>
+                  <span class="holiday-calendar-day__source">{% if cell.holiday.source == 'dgpa' %}官方{% else %}人工{% endif %}{% if not cell.holiday.active %} · 不排除{% endif %}</span>
+                {% elif cell.is_weekend %}
+                  <span class="holiday-calendar-day__weekend">固定週休</span>
+                {% else %}
+                  <span class="holiday-calendar-day__workday">工作日</span>
+                {% endif %}
+              </button>
+            {% else %}
+              <a
+                class="holiday-calendar-day is-outside"
+                href="?month={{ cell.date|date:'Y-m' }}"
+                role="gridcell"
+                aria-label="前往 {{ cell.date|date:'Y 年 n 月' }}"
+              ><span class="holiday-calendar-day__number">{{ cell.date.day }}</span></a>
+            {% endif %}
+          {% endfor %}
+        {% endfor %}
+      </div>
+    </div>
+
+    <div class="holiday-editor-backdrop" data-holiday-editor-close hidden></div>
+    <aside
+      class="holiday-calendar-editor{% if editor_open %} is-open{% endif %}"
+      data-holiday-editor
+      data-editor-open="{{ editor_open|yesno:'true,false' }}"
+      aria-label="日期設定"
+    >
+      <header class="holiday-calendar-editor__header">
+        <div>
+          <span class="eyebrow" data-holiday-editor-mode>{% if editing %}調整日期{% else %}新增日期{% endif %}</span>
+          <h2 data-holiday-editor-title>{% if editing %}{{ editing.date|date:"n 月 j 日" }}{% else %}設定排除日期{% endif %}</h2>
+        </div>
+        <button class="holiday-editor-close" type="button" data-holiday-editor-close aria-label="關閉日期設定">關閉</button>
+      </header>
+      <form method="post" class="holiday-calendar-form" data-holiday-form autocomplete="off">
+        {% csrf_token %}
+        <input type="hidden" name="month" value="{{ current_month|date:'Y-m' }}">
+        <input type="hidden" name="holiday_id" value="{% if editing %}{{ editing.pk }}{% endif %}" data-holiday-id-input>
+        {% if form.non_field_errors %}
+          <div class="form-validation-summary" role="alert">{% for error in form.non_field_errors %}<span>{{ error }}</span>{% endfor %}</div>
+        {% endif %}
+        <div class="holiday-calendar-field">
+          <label for="{{ form.date.id_for_label }}">{{ form.date.label }}</label>
+          {{ form.date }}
+          {% for error in form.date.errors %}<small class="field-error">{{ error }}</small>{% endfor %}
+        </div>
+        <div class="holiday-calendar-field">
+          <label for="{{ form.name.id_for_label }}">{{ form.name.label }}</label>
+          {{ form.name }}
+          {% for error in form.name.errors %}<small class="field-error">{{ error }}</small>{% endfor %}
+        </div>
+        <div class="holiday-calendar-source" data-holiday-source-row{% if not editing %} hidden{% endif %}>
+          <span>資料來源</span>
+          <strong data-holiday-source-output>{% if editing %}{{ editing.get_source_display }}{% endif %}</strong>
+        </div>
+        <label class="holiday-calendar-active" for="{{ form.active.id_for_label }}">
+          {{ form.active }}
+          <span>
+            <strong>排除工作日計算</strong>
+            <small data-holiday-active-help>關閉後仍保留紀錄，但不再額外排除；週末仍固定不計。</small>
+          </span>
+        </label>
+        {% for error in form.active.errors %}<small class="field-error">{{ error }}</small>{% endfor %}
+        <div class="holiday-calendar-editor__actions">
+          <button class="button ghost" type="button" data-holiday-editor-close>取消</button>
+          <button class="button primary" type="submit">儲存日期</button>
+        </div>
+      </form>
+      <form
+        class="holiday-calendar-delete"
+        method="post"
+        action="{% if editing %}{% url 'business_holiday_delete' editing.pk %}{% endif %}"
+        data-holiday-delete-form
+        {% if not editing %}hidden{% endif %}
+      >
+        {% csrf_token %}
+        <input type="hidden" name="month" value="{{ current_month|date:'Y-m' }}">
+        <button class="button danger" type="submit" data-holiday-delete-button data-confirm="確定刪除這個日期嗎？">刪除日期</button>
+      </form>
+    </aside>
+  </div>
 </section>
-<section class="section-block">
-  <div class="section-title"><h2>已設定日期</h2><span>{{ holidays|length }} 筆</span></div>
-  <div class="responsive-table-wrap"><table class="data-table"><thead><tr><th>日期</th><th>名稱</th><th>來源</th><th>狀態</th><th>操作</th></tr></thead><tbody>
-    {% for holiday in holidays %}<tr><td>{{ holiday.date|date:"Y/m/d" }}</td><td>{{ holiday.name }}</td><td><span class="status-pill{% if holiday.source == 'dgpa' %} success{% endif %}">{{ holiday.get_source_display }}</span></td><td>{% include "sales/_active_quick_toggle.html" with resource="business-holiday" pk=holiday.pk is_active=holiday.active item_name=holiday.name enabled_label="排除" disabled_label="不排除" %}</td><td><a class="button ghost small" href="?edit={{ holiday.pk }}">編輯</a><form class="inline-form" method="post" action="{% url 'business_holiday_delete' holiday.pk %}">{% csrf_token %}<button class="button danger small" type="submit" data-confirm="確定刪除這個日期嗎？{% if holiday.source == 'dgpa' %}官方日期會在下次同步時重新建立。{% endif %}">刪除</button></form></td></tr>
-    {% empty %}<tr><td colspan="5">尚未設定國定假日；目前只會排除週六與週日。</td></tr>{% endfor %}
-  </tbody></table></div>
-</section>
+
+<details class="section-block holiday-list-disclosure">
+  <summary>
+    <span><strong>本月日期清單</strong><small>需要逐筆核對時再展開</small></span>
+    <span>{{ holidays|length }} 筆</span>
+  </summary>
+  <div class="responsive-table-wrap">
+    <table class="data-table">
+      <thead><tr><th>日期</th><th>名稱</th><th>來源</th><th>是否排除</th><th>操作</th></tr></thead>
+      <tbody>
+        {% for holiday in holidays %}
+          <tr>
+            <td>{{ holiday.date|date:"Y/m/d" }}</td>
+            <td>{{ holiday.name }}</td>
+            <td><span class="status-pill{% if holiday.source == 'dgpa' %} success{% endif %}">{{ holiday.get_source_display }}</span></td>
+            <td>{% include "sales/_active_quick_toggle.html" with resource="business-holiday" pk=holiday.pk is_active=holiday.active item_name=holiday.name enabled_label="排除" disabled_label="不排除" %}</td>
+            <td><a class="button ghost small" href="?month={{ current_month|date:'Y-m' }}&amp;edit={{ holiday.pk }}">開啟設定</a></td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="5">本月沒有額外設定；週六與週日仍會固定排除。</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</details>
+{% endblock %}
+{% block scripts %}
+  <script src="{% static 'js/business-holiday-calendar.js' %}?v={{ app_version }}" defer></script>
 {% endblock %}

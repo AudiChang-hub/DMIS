@@ -67,10 +67,34 @@
     }
   };
 
+  const resetPendingToggles = () => {
+    document.querySelectorAll("[data-active-quick-toggle].is-updating").forEach((form) => {
+      const button = form.querySelector("button[role='switch']");
+      form.classList.remove("is-updating");
+      form.removeAttribute("aria-busy");
+      form.dataset.submitting = "false";
+      if (!button) return;
+      button.removeAttribute("aria-busy");
+      button.classList.remove("is-submitting");
+      button.removeAttribute("aria-disabled");
+      button.disabled = false;
+    });
+  };
+
+  document.addEventListener("click", (event) => {
+    const button = event.target.closest(
+      "[data-active-quick-toggle] button[role='switch']"
+    );
+    if (!button) return;
+    event.preventDefault();
+    submitToggle(button.form);
+  });
+
   document.addEventListener("submit", (event) => {
     const form = event.target;
     if (!(form instanceof HTMLFormElement) || !form.matches("[data-active-quick-toggle]")) return;
     event.preventDefault();
     submitToggle(form);
   });
+  window.addEventListener("pageshow", resetPendingToggles);
 })();

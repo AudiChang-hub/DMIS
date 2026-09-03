@@ -1994,15 +1994,25 @@ def master_record_set_active(request, resource, pk):
         item_name = str(record)
         message = f"{resource_label}「{item_name}」已{'啟用' if active else '停用'}。"
         if is_ajax:
-            return JsonResponse(
-                {
-                    "ok": True,
-                    "active": active,
-                    "resource": resource,
-                    "pk": record.pk,
-                    "message": message,
+            payload = {
+                "ok": True,
+                "active": active,
+                "resource": resource,
+                "pk": record.pk,
+                "message": message,
+            }
+            if resource == "sales-source":
+                status_totals = SalesSource.objects.filter(
+                    source_type=SalesSource.SourceType.DEALER
+                ).aggregate(
+                    active_count=Count("id", filter=Q(active=True)),
+                    inactive_count=Count("id", filter=Q(active=False)),
+                )
+                payload["status_counts"] = {
+                    "active": status_totals["active_count"],
+                    "inactive": status_totals["inactive_count"],
                 }
-            )
+            return JsonResponse(payload)
         messages.success(request, message)
 
     next_url = request.POST.get("next", "")

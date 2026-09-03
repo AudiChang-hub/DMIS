@@ -81,17 +81,20 @@
                 <span><strong>{{ region.label }}</strong><small data-source-region-count>{{ region.count }} 家合作車行</small></span>
                 <span class="source-region-toggle"><span class="when-closed">展開</span><span class="when-open">收合</span></span>
               </summary>
-              <div class="inventory-table-wrap">
-                <table class="inventory-table sales-source-table">
-                  <thead><tr><th>車行</th><th>聯絡資料</th><th>合作資料與 LINE 群組</th><th>備註</th><th>年節名單</th><th>狀態</th><th></th></tr></thead>
-                  <tbody>
-                    {% for district_group in region.district_groups %}
-                      <tr class="source-district-row"><th colspan="7"><span>{{ district_group.label }}</span><small data-source-district-count>{{ district_group.count }} 家</small></th></tr>
-                      {% include "sales/_sales_source_rows.html" with source_items=district_group.sources %}
-                    {% endfor %}
-                  </tbody>
-                </table>
-              </div>
+              <template data-source-region-template>
+                <div class="inventory-table-wrap">
+                  <table class="inventory-table sales-source-table">
+                    <thead><tr><th>車行</th><th>聯絡資料</th><th>合作資料與 LINE 群組</th><th>備註</th><th>年節名單</th><th>狀態</th><th></th></tr></thead>
+                    <tbody>
+                      {% for district_group in region.district_groups %}
+                        <tr class="source-district-row"><th colspan="7"><span>{{ district_group.label }}</span><small data-source-district-count>{{ district_group.count }} 家</small></th></tr>
+                        {% include "sales/_sales_source_rows.html" with source_items=district_group.sources %}
+                      {% endfor %}
+                    </tbody>
+                  </table>
+                </div>
+              </template>
+              <div data-source-region-content></div>
             </details>
           {% empty %}
             <div class="source-line-group-section__empty" role="status">
@@ -117,6 +120,14 @@
     let expandedRegions = new Set();
     let hasStoredRegions = false;
     let quickActionState = null;
+
+    const hydrateRegion = (group) => {
+      const template = group.querySelector(":scope > template[data-source-region-template]");
+      const content = group.querySelector(":scope > [data-source-region-content]");
+      if (!template || !content) return;
+      content.replaceChildren(template.content.cloneNode(true));
+      template.remove();
+    };
 
     try {
       const storedRegions = JSON.parse(sessionStorage.getItem(regionStorageKey) || "[]");
@@ -150,9 +161,12 @@
       if (hasStoredRegions && (!hasActiveFilters || quickActionState)) {
         group.open = expandedRegions.has(regionKey);
       }
+      if (group.open) hydrateRegion(group);
       group.addEventListener("toggle", () => {
-        if (group.open) expandedRegions.add(regionKey);
-        else expandedRegions.delete(regionKey);
+        if (group.open) {
+          hydrateRegion(group);
+          expandedRegions.add(regionKey);
+        } else expandedRegions.delete(regionKey);
         try {
           sessionStorage.setItem(regionStorageKey, JSON.stringify(Array.from(expandedRegions)));
         } catch (_error) {
@@ -175,23 +189,14 @@
       label.textContent = enabled ? "送禮" : "不送";
     };
 
-    const updateActiveControl = (form, enabled) => {
-      const button = form.querySelector("button");
-      const stateInput = form.querySelector('input[name="active"]');
-      const label = button?.querySelector(".source-active-toggle__label");
-      const sourceName = form.dataset.sourceName || "此車行";
-      if (!button || !stateInput || !label) return;
-      stateInput.value = enabled ? "0" : "1";
-      button.classList.toggle("is-active", enabled);
-      button.setAttribute("aria-checked", enabled ? "true" : "false");
-      button.setAttribute("aria-label", `${enabled ? "停用" : "啟用"}車行 ${sourceName}`);
-      button.title = `點擊${enabled ? "停用" : "啟用"}`;
-      label.textContent = enabled ? "啟用中" : "已停用";
-    };
-
     const decreaseVisibleCount = (element) => {
-      if (!element) return;
-      element.textContent = element.textContent.replace(/\d+/, (value) => String(Math.max(0, Number(value) - 1)));
+      if (!element) return null;
+      let nextCount = null;
+      element.textContent = element.textContent.replace(/\d+/, (value) => {
+        nextCount = Math.max(0, Number(value) - 1);
+        return String(nextCount);
+      });
+      return nextCount;
     };
 
     const removeMovedSourceRow = (form, statusCounts) => {
@@ -206,7 +211,7 @@
 
       row.remove();
       decreaseVisibleCount(document.querySelector("[data-visible-source-count]"));
-      decreaseVisibleCount(lineSection?.querySelector("[data-source-section-count]"));
+      const sectionRemaining = decreaseVisibleCount(lineSection?.querySelector("[data-source-section-count]"));
       decreaseVisibleCount(region?.querySelector("[data-source-region-count]"));
       decreaseVisibleCount(districtHeader?.querySelector("[data-source-district-count]"));
 
@@ -215,7 +220,7 @@
         if (!nextRow || nextRow.matches(".source-district-row")) districtHeader.remove();
       }
       if (region && !region.querySelector("[data-source-row]")) region.remove();
-      if (lineSection && !lineSection.querySelector("[data-source-region]")) {
+      if (lineSection && sectionRemaining === 0) {
         const content = lineSection.querySelector(".source-line-group-section__content");
         if (content) {
           content.innerHTML = '<div class="source-line-group-section__empty" role="status"><strong>此區目前 0 筆符合</strong><span>車行已移至另一個使用狀態。</span></div>';
@@ -268,43 +273,40 @@
       }
     };
 
-    const submitActive = async (form) => {
-      const button = form.querySelector("button");
-      if (!button || button.disabled) return;
-      const stateInput = form.querySelector('input[name="active"]');
-      const previousEnabled = stateInput?.value === "0";
-      const controller = new AbortController();
-      const timeoutId = window.setTimeout(() => controller.abort(), 12000);
-      button.disabled = true;
-      button.setAttribute("aria-busy", "true");
-      form.classList.add("is-updating");
-      try {
-        const response = await fetch(form.action, {
-          method: "POST",
-          body: new FormData(form),
-          credentials: "same-origin",
-          headers: { "X-Requested-With": "XMLHttpRequest" },
-          signal: controller.signal,
-        });
-        const payload = await response.json().catch(() => ({}));
-        if (!response.ok || !payload.ok) {
-          throw new Error(payload.message || "無法更新車行狀態，請稍後再試。");
-        }
-        updateActiveControl(form, Boolean(payload.active));
-        removeMovedSourceRow(form, payload.status_counts);
-      } catch (error) {
-        updateActiveControl(form, previousEnabled);
-        const message = error.name === "AbortError"
-          ? "更新等候逾時，已恢復原本狀態，請再試一次。"
-          : (error.message || "無法更新車行狀態，請稍後再試。");
-        window.alert(message);
-      } finally {
-        window.clearTimeout(timeoutId);
+    const resetSourceListToggles = () => {
+      document.querySelectorAll(
+        '[data-preserve-source-list-state][data-source-list-control="holiday-gift"].is-updating'
+      ).forEach((form) => {
+        const button = form.querySelector('button[role="switch"]');
+        form.classList.remove("is-updating");
+        form.removeAttribute("aria-busy");
+        form.dataset.submitting = "false";
+        if (!button) return;
         button.disabled = false;
         button.removeAttribute("aria-busy");
-        form.classList.remove("is-updating");
-      }
+        button.classList.remove("is-submitting");
+        button.removeAttribute("aria-disabled");
+      });
     };
+
+    window.addEventListener("activequicktoggle:changed", (event) => {
+      const payload = event.detail || {};
+      if (payload.resource !== "sales-source") return;
+      const form = document.querySelector(
+        `[data-active-quick-toggle][data-active-resource="sales-source"][data-active-pk="${payload.pk}"]`
+      );
+      if (form) removeMovedSourceRow(form, payload.status_counts);
+    });
+
+    window.addEventListener("click", (event) => {
+      const button = event.target.closest(
+        '[data-preserve-source-list-state][data-source-list-control="holiday-gift"] button[role="switch"]'
+      );
+      if (!button) return;
+      event.preventDefault();
+      submitHolidayGift(button.form);
+    });
+    window.addEventListener("pageshow", resetSourceListToggles);
 
     window.addEventListener("submit", (event) => {
       const form = event.target;
@@ -315,11 +317,7 @@
         submitHolidayGift(form);
         return;
       }
-      if (form.dataset.sourceListControl === "active") {
-        event.preventDefault();
-        submitActive(form);
-        return;
-      }
+      if (form.dataset.sourceListControl === "active") return;
       const sourceRow = form.closest("[data-source-row]");
       const state = {
         location: currentLocation,

@@ -56,49 +56,8 @@
 
     const storageKey = `dmis-recent-select:${select.name}`;
     let activeIndex = -1;
-    let dropdownPortaled = false;
-
-    function positionDropdown() {
-      if (!dropdownPortaled || list.hidden) return;
-      const rect = input.getBoundingClientRect();
-      const viewportGap = 12;
-      const listGap = 5;
-      const availableBelow = window.innerHeight - rect.bottom - viewportGap;
-      const availableAbove = rect.top - viewportGap;
-      const openAbove = availableBelow < 220 && availableAbove > availableBelow;
-      const availableSpace = Math.max(150, openAbove ? availableAbove : availableBelow);
-      const maxHeight = Math.min(330, Math.max(150, availableSpace - listGap));
-
-      const listWidth = Math.max(220, Math.min(rect.width, window.innerWidth - viewportGap * 2));
-      const listLeft = Math.min(
-        Math.max(viewportGap, rect.left),
-        window.innerWidth - listWidth - viewportGap
-      );
-      list.style.left = `${listLeft}px`;
-      list.style.width = `${listWidth}px`;
-      list.style.maxHeight = `${maxHeight}px`;
-      list.style.top = openAbove ? "auto" : `${rect.bottom + listGap}px`;
-      list.style.bottom = openAbove ? `${window.innerHeight - rect.top + listGap}px` : "auto";
-    }
-
-    function portalDropdown() {
-      if (dropdownPortaled) return;
-      document.body.append(list);
-      dropdownPortaled = true;
-      list.classList.add("is-portaled");
-      window.addEventListener("resize", positionDropdown);
-      window.addEventListener("scroll", positionDropdown, true);
-    }
-
-    function restoreDropdown() {
-      if (!dropdownPortaled) return;
-      window.removeEventListener("resize", positionDropdown);
-      window.removeEventListener("scroll", positionDropdown, true);
-      wrapper.append(list);
-      dropdownPortaled = false;
-      list.classList.remove("is-portaled");
-      list.removeAttribute("style");
-    }
+    let suppressFocusOpen = false;
+    const floating = window.DMISFloatingList.create(list, () => closeList({restore: true}));
 
     function availableOptions() {
       return [...select.options].filter(option => (
@@ -152,7 +111,7 @@
 
     function closeList({restore = false} = {}) {
       list.hidden = true;
-      restoreDropdown();
+      floating.close();
       wrapper.classList.remove("is-open");
       input.setAttribute("aria-expanded", "false");
       input.removeAttribute("aria-activedescendant");
@@ -189,7 +148,9 @@
       remember(option);
       closeList();
       select.dispatchEvent(new Event("change", {bubbles: true}));
-      input.focus();
+      suppressFocusOpen = true;
+      input.focus({preventScroll: true});
+      suppressFocusOpen = false;
     }
 
     function renderOptions(query = "") {
@@ -278,16 +239,16 @@
     function openList(query = "") {
       if (select.disabled) return;
       renderOptions(query);
-      portalDropdown();
-      list.hidden = false;
+      floating.open(input);
       wrapper.classList.add("is-open");
       input.setAttribute("aria-expanded", "true");
-      positionDropdown();
+      floating.position();
     }
 
     function syncFromSelect() {
       input.disabled = select.disabled;
       wrapper.classList.toggle("is-disabled", select.disabled);
+      if (select.disabled) closeList({restore: true});
       renderChips();
       if (!wrapper.classList.contains("is-open")) {
         input.value = selectedLabel();
@@ -339,6 +300,7 @@
     }
 
     input.addEventListener("focus", () => {
+      if (suppressFocusOpen) return;
       openList();
       if (!isMultiple && selectedLabel()) input.select();
     });
@@ -365,7 +327,6 @@
         closeList({restore: true});
       }
     });
-    input.addEventListener("blur", () => setTimeout(() => closeList({restore: true}), 120));
     select.addEventListener("change", syncFromSelect);
     select.addEventListener("invalid", event => {
       event.preventDefault();

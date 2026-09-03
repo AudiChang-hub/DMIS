@@ -5,8 +5,10 @@
 {% block content %}
 {% url 'dealer_volume_bonus_list' as list_url %}{% include "sales/_page_back.html" with fallback_url=list_url label="返回台數獎金" %}
 <section class="hero-row compact-hero"><div><p class="eyebrow">給合作車行的獎金</p><h1>{% if rule %}編輯{% else %}新增{% endif %}台數獎金規則</h1><p class="muted">設定適用條件與台數門檻；同一台符合不同規則時，獎金累加。</p></div><a class="button ghost" href="{% url 'user_guide' %}#dealer-volume-bonus">操作說明</a></section>
-<form method="post" class="stacked-form bonus-rule-form" data-bonus-rule-form>{% csrf_token %}
+<form method="post" class="stacked-form bonus-rule-form" data-bonus-rule-form {% if form.conditions_locked %}data-conditions-locked{% endif %}>{% csrf_token %}<input type="hidden" name="period_selection_version" value="2">
   {{ form.non_field_errors }}
+  {{ form.locked_period_values|json_script:"bonus-locked-periods" }}
+  {% if form.conditions_locked %}<div class="bonus-context-note">已有期間完成結算，共用條件及門檻已鎖定；可增減同年度其他未結算期間。已結算：{% for period in form.locked_periods %}{{ period.label }}{% if not forloop.last %}、{% endif %}{% endfor %}。</div>{% endif %}
   <section class="form-section static-section">
     <div class="bonus-section-heading"><div><span class="eyebrow">01 · 適用條件</span><h2>這筆獎金給誰、哪些車？</h2></div><span class="muted">同一規則內的條件須同時符合</span></div>
     <div class="form-grid">
@@ -21,19 +23,21 @@
     <fieldset class="bonus-period-type"><legend>統計方式</legend>{% for choice in form.period_type %}<label>{{ choice.tag }}<span>{{ choice.choice_label }}</span></label>{% endfor %}{{ form.period_type.errors }}</fieldset>
     <div class="form-grid bonus-period-fields" data-period-presets>
       {% include "sales/_field.html" with field=form.period_year %}
-      <div data-period-month>{% include "sales/_field.html" with field=form.period_month %}</div>
-      <div data-period-quarter>{% include "sales/_field.html" with field=form.period_quarter %}</div>
+      <fieldset class="bonus-period-choices" data-period-month><legend>{{ form.period_months.label }}</legend><div class="bonus-period-toolbar"><button type="button" class="button ghost small" data-period-select-all="period_months">全選月份</button><button type="button" class="button ghost small" data-period-clear="period_months">清除選取</button></div><div class="bonus-period-grid">{% for choice in form.period_months %}<label>{{ choice.tag }}<span>{{ choice.choice_label }}</span></label>{% endfor %}</div>{{ form.period_months.errors }}</fieldset>
+      <fieldset class="bonus-period-choices" data-period-quarter><legend>{{ form.period_quarters.label }}</legend><div class="bonus-period-toolbar"><button type="button" class="button ghost small" data-period-select-all="period_quarters">全選季度</button><button type="button" class="button ghost small" data-period-clear="period_quarters">清除選取</button></div><div class="bonus-period-grid bonus-quarter-grid">{% for choice in form.period_quarters %}<label>{{ choice.tag }}<span>{{ choice.choice_label }}</span></label>{% endfor %}</div>{{ form.period_quarters.errors }}</fieldset>
     </div>
     <div class="form-grid" data-period-custom>{% include "sales/_field.html" with field=form.starts_on %}{% include "sales/_field.html" with field=form.ends_on %}</div>
-    <p class="bonus-context-note" role="status" aria-live="polite" data-period-summary>按月／按季會自動帶出完整期間；其他日期請選自訂。</p>
+    <p class="bonus-context-note" role="status" aria-live="polite" data-period-summary>所選期間各自計算門檻與獎金，不合併台數。</p><ul class="bonus-selected-periods" data-period-preview></ul>
   </section>
   <section class="form-section static-section">
-    <div class="bonus-section-heading"><div><span class="eyebrow">03 · 台數門檻</span><h2>達到幾台，每台給多少？</h2></div><button class="button ghost" type="button" data-add-bonus-tier>＋ 新增門檻</button></div>
+    <div class="bonus-section-heading"><div><span class="eyebrow">03 · 台數門檻</span><h2>達到幾台，每台給多少？</h2></div>{% if not form.conditions_locked %}<button class="button ghost" type="button" data-add-bonus-tier>＋ 新增門檻</button>{% endif %}</div>
+    {% if form.conditions_locked %}<div class="bonus-tier-summary">{% for tier in rule.tiers.all %}<span>{{ tier.minimum_quantity }} 台起 · 每台 &#36;{{ tier.bonus_per_vehicle|floatformat:0 }}</span>{% endfor %}</div>{% else %}
     {{ tier_formset.management_form }}{{ tier_formset.non_form_errors }}
     <div class="bonus-tier-list" data-bonus-tiers>{% for row in tier_formset %}{% include "sales/_bonus_tier_row.html" %}{% endfor %}</div>
     <template data-bonus-tier-template>{% include "sales/_bonus_tier_row.html" with row=tier_formset.empty_form %}</template>
     <p class="form-hint">同一規則只採最高已達門檻，套用本期全部符合訂單。例如 3 台／每台 500 元，達 3 台即為 1,500 元。</p>
     <p class="bonus-tier-status" role="status" aria-live="polite" data-bonus-tier-status></p>
+    {% endif %}
   </section>
   <section class="form-section static-section"><div class="form-grid">{% include "sales/_field.html" with field=form.note %}{% include "sales/_field.html" with field=form.active %}</div></section>
   <div class="bonus-save-bar"><span>儲存規則後可查看逐單試算，不會直接結算或付款。</span><div><a class="button ghost" href="{{ list_url }}">取消</a><button type="submit" class="button primary">儲存規則</button></div></div>

@@ -424,7 +424,7 @@ class ProductExperienceTests(TestCase):
         self.assertIn('event.key === "ArrowDown"', script)
         self.assertIn('event.key === "Enter"', script)
         self.assertIn('event.key === "Escape"', script)
-        self.assertIn('empty.textContent = "找不到符合的選項"', script)
+        self.assertIn('empty.textContent = select.dataset.searchEmptyMessage || "找不到符合的選項"', script)
         self.assertIn('select.dataset.searchableIncludeEmpty === "1"', script)
         self.assertIn('select.dataset.searchableMultiple === "1"', script)
         self.assertIn('chips.className = "searchable-select__chips"', script)

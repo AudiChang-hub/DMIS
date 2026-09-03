@@ -238,6 +238,16 @@ class FinancialConsistencyTests(TestCase):
             self.assertFalse(form.is_valid())
             self.assertIn("重新載入", str(form.non_field_errors()))
 
+    def test_payment_change_invalidates_financial_form_even_when_totals_unchanged(self):
+        order = self.order()
+        revision = self.profile(order).updated_at.isoformat()
+        payment = order.payment_records.get(system_key="balance")
+        payment.expected_amount += 100
+        payment.save()
+        form = OrderOperationsForm(data={"financial_revision": revision}, instance=self.profile(order))
+        self.assertFalse(form.is_valid())
+        self.assertIn("重新載入", str(form.non_field_errors()))
+
     def test_operations_actual_browser_payload_skips_blank_payment_row(self):
         order = self.order()
         self.client.force_login(self.user)

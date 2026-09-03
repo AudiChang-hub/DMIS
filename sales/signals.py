@@ -136,4 +136,5 @@ def refresh_confirmation_after_payment_change(sender, instance, **kwargs):
         sync_payment_financials(
             instance.order_id,
             adopt_payment_id=instance.pk if getattr(instance, "_disbursement_changed", False) else None,
+            touch_revision=True,
         )

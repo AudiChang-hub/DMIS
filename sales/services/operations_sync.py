@@ -78,7 +78,7 @@ def refresh_payment_confirmation(order_id):
 
 
 @transaction.atomic
-def sync_payment_financials(order_id, *, adopt_payment_id=None):
+def sync_payment_financials(order_id, *, adopt_payment_id=None, touch_revision=False):
     """所有收款入口共用；原始收款紀錄與營運財務在同一交易更新。"""
     from sales.models import OrderOperationsProfile, SalesOrder
 
@@ -119,7 +119,8 @@ def sync_payment_financials(order_id, *, adopt_payment_id=None):
     profile.payment_disbursement_snapshot = snapshot
     profile.manual_financial_fields = sorted(protected)
     changed = [name for name in fields if getattr(profile, name) != before[name]]
-    if changed:
+    # 明細變更即使未改變合計，也須使其他人已開啟的營運表單失效。
+    if changed or touch_revision:
         profile.save(update_fields=[*changed, "updated_at"])
     refresh_payment_confirmation(order_id)
 

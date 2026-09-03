@@ -1237,12 +1237,13 @@ class DealerVolumeBonusRuleForm(forms.ModelForm):
         self.fields["vehicle_models"].queryset = VehicleModel.objects.filter(Q(active=True) | Q(pk__in=selected)).order_by("brand", "name", "model_year")
         self.fields["vehicle_models"].widget.attrs.update({"data-searchable-select": "1", "data-search-placeholder": "不限車型；需要時搜尋並複選"})
         self.fields["dealer"].widget.attrs["data-searchable-include-empty"] = "1"
-        if self.instance.pk and not self.instance.name:
+        if self.instance.pk and not self.instance.name and not self.conditions_locked:
             self.initial["name"] = str(self.instance)
         for field in self.fields.values():
             if not isinstance(field.widget, (forms.CheckboxInput, forms.RadioSelect, forms.CheckboxSelectMultiple)):
                 field.widget.attrs.setdefault("class", "form-control")
         if self.conditions_locked:
+            self.fields['name'].required = False  # 舊規則可無名稱；管理期間不能代填而改動快照。
             for name, field in self.fields.items():
                 if name not in {'period_months', 'period_quarters'}:
                     field.disabled = True

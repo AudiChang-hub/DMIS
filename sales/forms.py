@@ -176,7 +176,10 @@ class OrderCommissionAttributionForm(forms.Form):
             Q(active=True) | Q(pk=order.commission_recipient_id),
             source_type=SalesSource.SourceType.DEALER,
         ).exclude(pk=order.source_id).order_by("name", "pk")
-        self.fields["commission_recipient"].empty_label = f"原銷售車行：{order.source}"
+        self.fields["commission_recipient"].empty_label = (
+            f"原銷售車行：{order.source}" if order.source_type == SalesOrder.SourceType.DEALER
+            else "不指定車行（保留本店來源）"
+        )
         self.initial.update(commission_recipient=order.commission_recipient_id, order_revision=order.revision)
 
     def clean(self):
@@ -432,7 +435,7 @@ class SalesOrderForm(forms.ModelForm):
         if self.is_bound and "assign_commission_to_other" not in self.data and self.instance.pk:
             data["commission_recipient"] = self.instance.commission_recipient
             enabled = bool(self.instance.commission_recipient_id)
-        if not enabled or source_type != SalesOrder.SourceType.DEALER:
+        if not enabled or source_type not in {SalesOrder.SourceType.DEALER, SalesOrder.SourceType.STORE}:
             data["commission_recipient"] = None
         elif not data.get("commission_recipient"):
             self.add_error("commission_recipient", "請選擇這台的台數與傭金歸屬車行。")

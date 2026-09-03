@@ -49,6 +49,18 @@ from .models import (
 )
 
 
+class ReadOnlyFinancialAdmin(admin.ModelAdmin):
+    """財務與訂單異動統一由有驗證、稽核及連動的業務頁執行。"""
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+
 @admin.register(BusinessHoliday)
 class BusinessHolidayAdmin(admin.ModelAdmin):
     list_display = ("date", "name", "source", "active", "updated_at")
@@ -114,9 +126,9 @@ admin.site.register(SalesSourceBrandPolicy)
 admin.site.register(SalesSourceCooperationProfile)
 admin.site.register(DealerVolumeBonusRule)
 admin.site.register(DealerVolumeBonusTier)
-admin.site.register(DealerVolumeBonusSettlement)
-admin.site.register(DealerVolumeBonusAllocation)
-admin.site.register(DealerVolumeBonusAdjustment)
+admin.site.register(DealerVolumeBonusSettlement, ReadOnlyFinancialAdmin)
+admin.site.register(DealerVolumeBonusAllocation, ReadOnlyFinancialAdmin)
+admin.site.register(DealerVolumeBonusAdjustment, ReadOnlyFinancialAdmin)
 admin.site.register(LegacyImportBatch)
 admin.site.register(LegacyImportCorrection)
 admin.site.register(LegacyImportMasterMapping)
@@ -295,7 +307,7 @@ class SubsidyDocumentInline(admin.TabularInline):
 
 
 @admin.register(SalesOrder)
-class SalesOrderAdmin(admin.ModelAdmin):
+class SalesOrderAdmin(ReadOnlyFinancialAdmin):
     list_display = (
         "number",
         "owner_name",
@@ -333,7 +345,7 @@ class SalesOrderAdmin(admin.ModelAdmin):
 
 
 @admin.register(OrderOperationsProfile)
-class OrderOperationsProfileAdmin(admin.ModelAdmin):
+class OrderOperationsProfileAdmin(ReadOnlyFinancialAdmin):
     list_display = (
         "order",
         "payment_confirmed",

@@ -30,7 +30,7 @@
 </section>
 
 <form method="post" enctype="multipart/form-data" class="operations-form">
-  {% csrf_token %}{{ payment_formset.management_form }}
+  {% csrf_token %}{{ payment_formset.management_form }}{{ form.financial_revision }}
   {% if form.non_field_errors or payment_formset.non_form_errors %}<div class="message error">{{ form.non_field_errors }}{{ payment_formset.non_form_errors }}</div>{% endif %}
   <details class="operation-section" open><summary><strong>收款與分期對帳</strong><span>多筆收款、撥款與發票</span></summary>
     <div class="operation-grid">
@@ -45,6 +45,7 @@
     <div class="note-box">
       <strong>實際撥款計算</strong>
       <p>現金依車款售價自動帶入；分期依訂單日套用的分期方案快照帶入；網路平台與刷卡訂單由人員輸入。人工修改後不再被系統覆蓋。</p>
+      <p>確認分期或平台撥款後，實際撥款與淨利依收款紀錄同步；要更正請修改該筆收款。取消確認或刪除該筆收款時，會恢復確認前的人工金額，或本單預估值。舊資料若沒有連動快照，需人工核對，不猜測回填。</p>
       {% if order.payment_type == "installment" %}
         {% if order.installment_plan_snapshot.extra_disbursement_bonus %}
         <p><strong>額外撥款獎金：</strong>${{ order.installment_plan_snapshot.extra_disbursement_bonus|floatformat:0 }}（已包含在預估撥款與實際撥款試算，不會另外重複計入單筆淨利）</p>
@@ -139,6 +140,7 @@
     {% include "sales/_field.html" with field=form.gift_expense %}
     {% include "sales/_field.html" with field=form.shipping_expense %}
     {% include "sales/_field.html" with field=form.dealer_commission_expense %}
+    {% if order.source_type == "dealer" %}<div class="field"><label>傭金收款車行</label><div class="read-only-value"><strong>{{ order.effective_commission_recipient }}</strong><small>台數與傭金歸屬；原銷售車行為 {{ order.source }}。</small></div></div>{% endif %}
     {% include "sales/_field.html" with field=form.card_fee_expense %}
   </div></details>
   <details class="operation-section" open><summary><strong>領牌相關收支</strong><span>系統先帶入，支出與收入皆可個別人工修改</span></summary>

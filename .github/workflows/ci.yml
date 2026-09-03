@@ -10,6 +10,18 @@ jobs:
   django-quality:
     name: Django 品質檢查
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: finance_ci
+          POSTGRES_USER: finance_ci
+          POSTGRES_PASSWORD: ci-isolated-only
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U finance_ci -d finance_ci"
+          --health-interval 5s --health-timeout 5s --health-retries 12
     env:
       DJANGO_DEBUG: "1"
       DJANGO_SECRET_KEY: ci-only-not-for-production
@@ -46,6 +58,13 @@ jobs:
 
       - name: Run Django tests with SQLite
         run: python manage.py test sales
+      - name: Verify financial transactions with PostgreSQL
+        env:
+          POSTGRES_HOST: 127.0.0.1
+          POSTGRES_DB: finance_ci
+          POSTGRES_USER: finance_ci
+          POSTGRES_PASSWORD: ci-isolated-only
+        run: python manage.py test sales.tests.test_financial_consistency sales.tests.test_order_commission_recipient sales.tests.test_channel_finance --noinput
 
   build:
     runs-on: ubuntu-latest

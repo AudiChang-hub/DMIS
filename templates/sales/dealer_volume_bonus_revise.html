@@ -1,4 +1,6 @@
 {% extends "base.html" %}
+{% load static %}
+{% block head %}<link rel="stylesheet" href="{% static 'css/dealer-volume-bonus.css' %}?v={{ app_version }}">{% endblock %}
 {% block title %}調整台數獎金｜車輛銷售管理{% endblock %}
 {% block page_class %}page-shell--wide{% endblock %}
 {% block content %}
@@ -7,12 +9,13 @@
 {% include "sales/_page_back.html" with fallback_url=list_url label="台數獎金" root_url=source_url root_label="車行、平台與傭金" %}
 <section class="hero-row compact-hero">
   <div>
-    <p class="eyebrow">實際入帳修正</p>
+    <p class="eyebrow">台數獎金修正</p>
     <h1>{{ settlement.rule.dealer }}／{{ settlement.rule.brand }}</h1>
+    <p>基礎傭金與台數獎金統一歸 {{ settlement.rule.dealer }}；調整台數獎金不會改變原傭金或收款車行。</p>
     <p class="muted">目前實際金額 ${{ settlement.actual_amount|floatformat:0 }}，調整後會重新平均分攤到 {{ settlement.allocations.count }} 張訂單。</p>
   </div>
 </section>
-<div class="responsive-split">
+<div class="responsive-split bonus-settlement-layout">
   <section class="form-section static-section">
     <div class="section-title"><h2>調整金額</h2><strong>預計 ${{ settlement.expected_amount|floatformat:0 }}</strong></div>
     <form method="post" class="stacked-form">
@@ -23,6 +26,8 @@
     </form>
   </section>
   <section class="inventory-list-panel">
+    <div class="inventory-list-summary"><strong>原傭金與台數獎金明細</strong></div>
+    <div class="inventory-table-wrap"><table class="inventory-table"><thead><tr><th>訂單／原車行</th><th>原傭金</th><th>台數獎金</th></tr></thead><tbody>{% for allocation in settlement.allocations.all %}<tr><td data-label="訂單／原車行"><a href="{% url 'order_detail' allocation.order.pk %}">{{ allocation.order.number }}</a><span>{{ allocation.order.source }}</span></td><td data-label="原傭金">{% if allocation.original_commission_amount != None %}${{ allocation.original_commission_amount|floatformat:0 }}{% else %}原傭金未留快照<span>舊結算或人工總額，請核對</span>{% endif %}</td><td data-label="台數獎金">${{ allocation.amount|floatformat:0 }}</td></tr>{% endfor %}</tbody></table></div>
     <div class="inventory-list-summary"><strong>歷次調整</strong></div>
     <div class="inventory-table-wrap">
       <table class="inventory-table">

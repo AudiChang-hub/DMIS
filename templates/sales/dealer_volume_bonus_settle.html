@@ -1,2 +1,35 @@
-{% extends "base.html" %}{% block title %}結算台數獎金｜車輛銷售管理{% endblock %}{% block page_class %}page-shell--wide{% endblock %}{% block content %}
-{% url 'dealer_volume_bonus_list' as list_url %}{% include "sales/_page_back.html" with fallback_url=list_url label="返回台數獎金" %}<section class="hero-row compact-hero"><div><p class="eyebrow">一次性結算</p><h1>{{ rule.dealer }}／{{ rule.brand }}</h1><p class="muted">{{ rule.starts_on|date:'Y/m/d' }}－{{ rule.ends_on|date:'Y/m/d' }}，共 {{ preview.quantity }} 台，每台 ${{ preview.bonus_per_vehicle|floatformat:0 }}。</p></div></section><div class="responsive-split"><section class="form-section static-section"><div class="section-title"><h2>結算金額</h2><strong>預計 ${{ preview.expected_amount|floatformat:0 }}</strong></div><form method="post" class="stacked-form">{% csrf_token %}{% for field in form %}{% include "sales/_field.html" with field=field %}{% endfor %}<div class="note-box warning">結算後會保存逐單明細，規則不可再修改或重複結算。</div><div class="form-actions"><a class="button ghost" href="{% url 'dealer_volume_bonus_list' %}">取消</a><button class="button primary">確認結算</button></div></form></section><section class="inventory-list-panel"><div class="inventory-list-summary"><strong>計算明細</strong></div><div class="inventory-table-wrap"><table class="inventory-table"><thead><tr><th>領牌日</th><th>訂單</th><th>車主</th><th>車型</th></tr></thead><tbody>{% for order in preview.orders %}<tr><td>{{ order.registration_date|date:'Y/m/d' }}</td><td><a href="{% url 'order_detail' order.pk %}">{{ order.number }}</a></td><td>{{ order.owner_name }}</td><td>{{ order.vehicle_model.brand }} {{ order.vehicle_model.name }}</td></tr>{% endfor %}</tbody></table></div></section></div>{% endblock %}
+{% extends "base.html" %}
+{% load static %}
+{% block head %}<link rel="stylesheet" href="{% static 'css/dealer-volume-bonus.css' %}?v={{ app_version }}">{% endblock %}
+{% block title %}結算台數獎金｜車輛銷售管理{% endblock %}
+{% block page_class %}page-shell--wide{% endblock %}
+{% block content %}
+{% url 'dealer_volume_bonus_list' as list_url %}{% include "sales/_page_back.html" with fallback_url=list_url label="返回台數獎金" %}
+<section class="hero-row compact-hero"><div><p class="eyebrow">依訂單歸屬結算</p><h1>{{ rule.dealer }}／{{ rule.brand }}</h1><p class="muted">{{ rule.starts_on|date:'Y/m/d' }}－{{ rule.ends_on|date:'Y/m/d' }}，共 {{ preview.quantity }} 台，每台獎金 ${{ preview.bonus_per_vehicle|floatformat:0 }}。</p></div></section>
+<div class="responsive-split bonus-settlement-layout">
+  <section class="form-section static-section">
+    <div class="section-title"><h2>收款車行：{{ rule.dealer }}</h2></div>
+    <dl class="money-list">
+      <div><dt>原傭金（含車行加減額）</dt><dd>{% if preview.original_commission_total != None %}${{ preview.original_commission_total|floatformat:0 }}{% else %}人工總額待核對{% endif %}</dd></div>
+      <div><dt>預計台數獎金</dt><dd>${{ preview.expected_amount|floatformat:0 }}</dd></div>
+      <div class="total"><dt>預計合計</dt><dd>{% if preview.total_payable != None %}${{ preview.total_payable|floatformat:0 }}{% else %}待核對{% endif %}</dd></div>
+    </dl>
+    <form method="post" class="stacked-form">{% csrf_token %}{{ form.non_field_errors }}
+      {% if preview.original_commission_total == None %}<div class="note-box warning">部分訂單已人工覆寫傭金總支出。系統保留人工值，不自動拆分或追加；支付前請核對原傭金與本次獎金。</div>{% endif %}
+      {% for field in form %}{% include "sales/_field.html" with field=field %}{% endfor %}
+      <div class="note-box warning">此處填寫台數獎金，不含原傭金。結算後保存逐單金額及收款歸屬；不可再更換歸屬車行。此操作不代表已付款，勿重複支付已付原傭金。</div>
+      <div class="form-actions"><a class="button ghost" href="{{ list_url }}">取消</a><button class="button primary">確認結算</button></div>
+    </form>
+  </section>
+  <section class="inventory-list-panel"><div class="inventory-list-summary"><strong>逐單明細 · 全部歸 {{ rule.dealer }}</strong></div>
+    <div class="inventory-table-wrap"><table class="inventory-table">
+      <thead><tr><th>領牌日／訂單</th><th>原銷售車行</th><th>車主／車型</th><th>原傭金</th></tr></thead>
+      <tbody>{% for order in preview.orders %}<tr>
+        <td data-label="領牌日／訂單">{{ order.registration_date|date:'Y/m/d' }}<span><a href="{% url 'order_detail' order.pk %}">{{ order.number }}</a></span></td>
+        <td data-label="原銷售車行">{{ order.source }}</td>
+        <td data-label="車主／車型">{{ order.owner_name }}<span>{{ order.vehicle_model.name }}</span></td>
+        <td data-label="原傭金">{% if order.original_commission_amount != None %}${{ order.original_commission_amount|floatformat:0 }}{% else %}人工總額待核對{% endif %}</td>
+      </tr>{% empty %}<tr><td colspan="4">沒有符合條件的訂單。</td></tr>{% endfor %}</tbody>
+    </table></div>
+  </section>
+</div>{% endblock %}

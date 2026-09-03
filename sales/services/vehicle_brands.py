@@ -65,6 +65,7 @@ def vehicle_brand_search_q(value, field_name="brand"):
 def vehicle_brand_is_used(name):
     from sales.models import (
         BrandRegistrationFeeRule,
+        DealerVolumeBonusBrand,
         DealerVolumeBonusRule,
         SalesSourceBrandPolicy,
         VehicleModel,
@@ -76,6 +77,7 @@ def vehicle_brand_is_used(name):
             VehicleModel,
             SalesSourceBrandPolicy,
             DealerVolumeBonusRule,
+            DealerVolumeBonusBrand,
             BrandRegistrationFeeRule,
         )
     )
@@ -84,6 +86,7 @@ def vehicle_brand_is_used(name):
 def rename_vehicle_brand_references(old_name, new_name):
     from sales.models import (
         BrandRegistrationFeeRule,
+        DealerVolumeBonusBrand,
         DealerVolumeBonusRule,
         SalesSourceBrandPolicy,
         VehicleModel,
@@ -98,3 +101,4 @@ def rename_vehicle_brand_references(old_name, new_name):
         BrandRegistrationFeeRule,
     ):
         model.objects.filter(brand__iexact=old_name).update(brand=new_name)
+    DealerVolumeBonusBrand.objects.filter(brand__iexact=old_name).update(brand=new_name)

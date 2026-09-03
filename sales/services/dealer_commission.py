@@ -8,6 +8,7 @@ from sales.models import (
     DealerVolumeBonusAdjustment,
     DealerVolumeBonusAllocation,
     DealerVolumeBonusRule,
+    DealerVolumeBonusBrand,
     DealerVolumeBonusSettlement,
     OrderOperationsProfile,
     SalesOrder,
@@ -131,10 +132,12 @@ def matching_bonus_rules(order, dealer_id):
     if not dealer_id or not order.registration_date or not order.vehicle_model_id:
         return DealerVolumeBonusRule.objects.none()
     links = DealerVolumeBonusRule.vehicle_models.through.objects.filter(dealervolumebonusrule_id=OuterRef("pk"))
+    brands = DealerVolumeBonusBrand.objects.filter(rule_id=OuterRef("pk"))
     return (DealerVolumeBonusRule.objects.filter(
         starts_on__lte=order.registration_date, ends_on__gte=order.registration_date,
     ).filter(Q(dealer_id=dealer_id) | Q(dealer__isnull=True))
-        .filter(Q(brand="") | Q(brand__iexact=order.vehicle_model.brand))
+        .annotate(has_brands=Exists(brands), matches_brand=Exists(brands.filter(brand__iexact=order.vehicle_model.brand)))
+        .filter(Q(matches_brand=True) | (Q(has_brands=False) & (Q(brand="") | Q(brand__iexact=order.vehicle_model.brand))))
         .filter(Q(energy_type="") | Q(energy_type=order.vehicle_model.energy_type))
         .annotate(has_models=Exists(links), matches_model=Exists(links.filter(vehiclemodel_id=order.vehicle_model_id)))
         .filter(Q(has_models=False) | Q(matches_model=True)))
@@ -154,8 +157,11 @@ def eligible_volume_bonus_orders(rule, dealer=None):
         .select_related("vehicle_model", "source", "commission_recipient").order_by("registration_date", "number"))
     if dealer:
         orders = orders.filter(Q(commission_recipient=dealer) | Q(commission_recipient__isnull=True, source=dealer))
-    if rule.brand:
-        orders = orders.filter(vehicle_model__brand__iexact=rule.brand)
+    if rule.brand_names:
+        brand_query = Q()
+        for name in rule.brand_names:
+            brand_query |= Q(vehicle_model__brand__iexact=name)
+        orders = orders.filter(brand_query)
     if rule.energy_type:
         orders = orders.filter(vehicle_model__energy_type=rule.energy_type)
     models = list(rule.vehicle_models.all()) if rule.pk else []
@@ -198,7 +204,7 @@ def add_combined_bonus_details(preview, rule, dealer):
     candidates = DealerVolumeBonusRule.objects.filter(
         Q(dealer=dealer) | Q(dealer__isnull=True),
         starts_on__lte=rule.ends_on, ends_on__gte=rule.starts_on,
-    ).prefetch_related("vehicle_models", "tiers").order_by("pk")
+    ).prefetch_related("brands", "vehicle_models", "tiers").order_by("pk")
     for candidate in candidates:
         settled = DealerVolumeBonusSettlement.objects.filter(rule=candidate, dealer=dealer).first()
         if settled:

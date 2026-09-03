@@ -3057,7 +3057,7 @@ def dealer_volume_bonus_list(request):
             Q(dealer__source_type=SalesSource.SourceType.DEALER) | Q(dealer__isnull=True)
         )
         .select_related("dealer")
-        .prefetch_related("tiers", "vehicle_models", "settlements")
+        .prefetch_related("tiers", "brands", "vehicle_models", "settlements")
     )
     rows = []
     hidden_count = 0

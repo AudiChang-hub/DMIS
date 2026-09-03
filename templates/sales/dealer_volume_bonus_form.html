@@ -11,14 +11,21 @@
     <div class="bonus-section-heading"><div><span class="eyebrow">01 · 適用條件</span><h2>這筆獎金給誰、哪些車？</h2></div><span class="muted">同一規則內的條件須同時符合</span></div>
     <div class="form-grid">
       {% include "sales/_field.html" with field=form.name %}{% include "sales/_field.html" with field=form.dealer %}
-      {% include "sales/_field.html" with field=form.brand %}{% include "sales/_field.html" with field=form.energy_type %}
+      <div>{% include "sales/_field.html" with field=form.brands %}<p class="form-hint">所選品牌合併計算台數；未選即不限品牌。</p></div>{% include "sales/_field.html" with field=form.energy_type %}
       <div class="span-2">{% include "sales/_field.html" with field=form.vehicle_models %}<p class="form-hint">未指定即不限車型；可搜尋並選擇多個車型。</p></div>
     </div>
     <p class="bonus-context-note">選「全部合作車行」仍逐家計算台數，不會把不同車行的台數加在一起。</p>
   </section>
   <section class="form-section static-section">
     <div class="bonus-section-heading"><div><span class="eyebrow">02 · 統計期間</span><h2>依實際領牌日期計算</h2></div></div>
-    <div class="form-grid">{% include "sales/_field.html" with field=form.starts_on %}{% include "sales/_field.html" with field=form.ends_on %}</div>
+    <fieldset class="bonus-period-type"><legend>統計方式</legend>{% for choice in form.period_type %}<label>{{ choice.tag }}<span>{{ choice.choice_label }}</span></label>{% endfor %}{{ form.period_type.errors }}</fieldset>
+    <div class="form-grid bonus-period-fields" data-period-presets>
+      {% include "sales/_field.html" with field=form.period_year %}
+      <div data-period-month>{% include "sales/_field.html" with field=form.period_month %}</div>
+      <div data-period-quarter>{% include "sales/_field.html" with field=form.period_quarter %}</div>
+    </div>
+    <div class="form-grid" data-period-custom>{% include "sales/_field.html" with field=form.starts_on %}{% include "sales/_field.html" with field=form.ends_on %}</div>
+    <p class="bonus-context-note" role="status" aria-live="polite" data-period-summary>按月／按季會自動帶出完整期間；其他日期請選自訂。</p>
   </section>
   <section class="form-section static-section">
     <div class="bonus-section-heading"><div><span class="eyebrow">03 · 台數門檻</span><h2>達到幾台，每台給多少？</h2></div><button class="button ghost" type="button" data-add-bonus-tier>＋ 新增門檻</button></div>

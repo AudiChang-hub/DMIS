@@ -18,6 +18,7 @@ from .models import (
     BusinessHoliday,
     BrandRegistrationFeeRule,
     DealerVolumeBonusRule,
+    DealerVolumeBonusBrand,
     DealerVolumeBonusSettlement,
     DealerVolumeBonusTier,
     DeliveryRecord,
@@ -1188,11 +1189,15 @@ InstallmentPlanOptionFormSet = inlineformset_factory(
 
 class DealerVolumeBonusRuleForm(forms.ModelForm):
     name = forms.CharField(label="規則名稱", max_length=120, widget=forms.TextInput(attrs={"placeholder": "例如：9 月台鈴油車加碼"}))
-    brand = forms.ChoiceField(label="品牌", required=False)
+    brands = forms.MultipleChoiceField(label="品牌", required=False)
+    period_type = forms.ChoiceField(label="統計方式", choices=DealerVolumeBonusRule.PeriodType.choices, required=False, widget=forms.RadioSelect)
+    period_year = forms.IntegerField(label="年份", min_value=1900, max_value=9999, required=False)
+    period_month = forms.ChoiceField(label="月份", choices=[(str(month), f"{month} 月") for month in range(1, 13)], required=False)
+    period_quarter = forms.ChoiceField(label="季度", choices=[(str(quarter), f"第 {quarter} 季（{quarter * 3 - 2}～{quarter * 3} 月）") for quarter in range(1, 5)], required=False)
 
     class Meta:
         model = DealerVolumeBonusRule
-        fields = ["name", "dealer", "brand", "energy_type", "vehicle_models", "starts_on", "ends_on", "active", "note"]
+        fields = ["name", "dealer", "brands", "energy_type", "vehicle_models", "period_type", "period_year", "period_month", "period_quarter", "starts_on", "ends_on", "active", "note"]
         widgets = {
             "starts_on": DateInput(), "ends_on": DateInput(),
             "note": forms.Textarea(attrs={"rows": 2}),
@@ -1200,8 +1205,18 @@ class DealerVolumeBonusRuleForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        _apply_brand_choice(self)
-        self.fields["brand"].choices = [("", "不限品牌"), *list(self.fields["brand"].choices)[1:]]
+        names = self.instance.brand_names
+        choices = _brand_choices()[1:]
+        choices.extend((name, name) for name in names if name not in {value for value, _ in choices})
+        self.fields["brands"].choices = choices
+        self.initial["brands"] = names
+        self.fields["brands"].widget.attrs.update({"data-searchable-select": "1", "data-search-placeholder": "不限品牌；搜尋並複選，合併計算台數"})
+        effective = self.instance.starts_on or timezone.localdate()
+        self.initial.update(period_year=effective.year, period_month=str(effective.month), period_quarter=str((effective.month - 1) // 3 + 1))
+        if not self.instance.pk:
+            self.initial["period_type"] = DealerVolumeBonusRule.PeriodType.MONTH
+        for name in ("starts_on", "ends_on"):
+            self.fields[name].required = False
         self.fields["dealer"].queryset = SalesSource.objects.filter(
             Q(active=True) | Q(pk=self.instance.dealer_id), source_type=SalesSource.SourceType.DEALER,
         ).order_by("name")
@@ -1212,20 +1227,36 @@ class DealerVolumeBonusRuleForm(forms.ModelForm):
         selected = self.instance.vehicle_models.values_list("pk", flat=True) if self.instance.pk else []
         self.fields["vehicle_models"].queryset = VehicleModel.objects.filter(Q(active=True) | Q(pk__in=selected)).order_by("brand", "name", "model_year")
         self.fields["vehicle_models"].widget.attrs.update({"data-searchable-select": "1", "data-search-placeholder": "不限車型；需要時搜尋並複選"})
-        for name in ("brand", "dealer"):
-            self.fields[name].widget.attrs["data-searchable-include-empty"] = "1"
+        self.fields["dealer"].widget.attrs["data-searchable-include-empty"] = "1"
         if self.instance.pk and not self.instance.name:
             self.initial["name"] = str(self.instance)
         for field in self.fields.values():
-            if not isinstance(field.widget, forms.CheckboxInput):
+            if not isinstance(field.widget, (forms.CheckboxInput, forms.RadioSelect)):
                 field.widget.attrs.setdefault("class", "form-control")
         apply_mobile_keyboard_attrs(self)
 
     def clean(self):
         data = super().clean()
+        from .services.bonus_periods import bonus_period_dates
+        period_type = data["period_type"] = data.get("period_type") or DealerVolumeBonusRule.PeriodType.CUSTOM
+        if period_type == DealerVolumeBonusRule.PeriodType.CUSTOM:
+            for field in ("starts_on", "ends_on"):
+                if not data.get(field):
+                    self.add_error(field, "請填寫自訂期間日期。")
+        else:
+            period_field = "period_month" if period_type == DealerVolumeBonusRule.PeriodType.MONTH else "period_quarter"
+            for field in ("period_year", period_field):
+                if not data.get(field):
+                    self.add_error(field, "請選擇完整的年份與月份／季度。")
+            if data.get("period_year") and data.get(period_field):
+                data["starts_on"], data["ends_on"] = bonus_period_dates(period_type, data["period_year"], data[period_field])
+        names = list(dict.fromkeys(data.get("brands", [])))
+        data["brands"] = names
+        # 單品牌仍保存舊欄位；多品牌以名稱快照集合為準，不用分隔字串儲存。
+        self.instance.brand = names[0] if len(names) == 1 else ""
         for model in data.get("vehicle_models", []):
-            if data.get("brand") and model.brand.casefold() != data["brand"].casefold():
-                self.add_error("vehicle_models", "指定車型與品牌不一致，請調整品牌或車型。")
+            if names and model.brand.casefold() not in {name.casefold() for name in names}:
+                self.add_error("vehicle_models", "指定車型不屬於所選品牌，請調整品牌或車型。")
                 break
             if data.get("energy_type") and model.energy_type != data["energy_type"]:
                 self.add_error("vehicle_models", "指定車型與能源別不一致，請調整能源別或車型。")
@@ -1233,6 +1264,21 @@ class DealerVolumeBonusRuleForm(forms.ModelForm):
         if self.instance.pk and self.instance.settlements.exists():
             raise forms.ValidationError("此規則已有結算，請另建新規則。")
         return data
+
+    @transaction.atomic
+    def _save_m2m(self):
+        DealerVolumeBonusRule.objects.select_for_update().get(pk=self.instance.pk)
+        if self.instance.settlements.exists():
+            raise ValidationError("此規則已有結算，請另建新規則。")
+        super()._save_m2m()
+        self.instance.brands.all().delete()
+        DealerVolumeBonusBrand.objects.bulk_create([
+            DealerVolumeBonusBrand(rule=self.instance, brand=name) for name in self.cleaned_data["brands"]
+        ])
+
+    @transaction.atomic
+    def save(self, commit=True):
+        return super().save(commit=commit)
 
 
 class DealerVolumeBonusTierForm(forms.ModelForm):

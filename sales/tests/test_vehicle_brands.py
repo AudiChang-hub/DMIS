@@ -33,13 +33,14 @@ class VehicleBrandMasterTests(TestCase):
         ):
             with self.subTest(form=form_class.__name__):
                 form = form_class()
-                self.assertEqual(form.fields["brand"].widget.input_type, "select")
+                field = form.fields["brands" if form_class is DealerVolumeBonusRuleForm else "brand"]
+                self.assertEqual(field.widget.input_type, "select")
                 self.assertIn(
-                    ("SUZUKI", "SUZUKI"), list(form.fields["brand"].choices)
+                    ("SUZUKI", "SUZUKI"), list(field.choices)
                 )
                 self.assertIn(
                     ("eMOVING", "SUZUKI｜eMOVING"),
-                    list(form.fields["brand"].choices),
+                    list(field.choices),
                 )
 
         cooperation_form = SalesSourceBrandPolicyForm()

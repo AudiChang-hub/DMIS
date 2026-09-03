@@ -60,8 +60,13 @@
       <div class="price-distribution-card__identity">
         {% if item.dealer_code %}<small>{{ item.dealer_code }}</small>{% endif %}
         <h2>{{ item.dealer_name }}</h2>
-        <p>{% if item.city or item.district %}{{ item.city }}{{ item.district }}{% endif %}{% if item.address %} · {{ item.address }}{% endif %}</p>
-        {% if item.contact_phone %}<a class="price-distribution-phone" href="tel:{{ item.contact_phone }}"><span>電話</span><strong>{{ item.contact_phone }}</strong></a>{% endif %}
+        {% if item.display_address %}<p>{{ item.display_address }}</p>{% endif %}
+        {% if item.contact_phone or item.google_maps_url %}
+        <div class="price-distribution-card__actions" aria-label="{{ item.dealer_name }}的聯絡與導航">
+          {% if item.contact_phone %}<a class="price-distribution-phone" href="tel:{{ item.contact_phone }}"><span>電話</span><strong>{{ item.contact_phone }}</strong></a>{% endif %}
+          {% if item.google_maps_url %}<a class="price-distribution-map" href="{{ item.google_maps_url }}" target="_blank" rel="noopener" aria-label="使用 Google Maps 導航至{{ item.dealer_name }}"><span>Google Maps</span><strong>導航</strong></a>{% endif %}
+        </div>
+        {% endif %}
       </div>
       <div class="price-distribution-card__brands" aria-label="應提供價格表">
         {% if item.requires_sym %}<span class="price-brand price-brand--sym">三陽{% if item.sym_exclusive %}專銷{% endif %}</span>{% endif %}

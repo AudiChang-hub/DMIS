@@ -1,4 +1,4 @@
-from django.db.models.signals import m2m_changed, post_delete, post_save
+from django.db.models.signals import m2m_changed, pre_delete, post_delete, post_save
 from django.dispatch import receiver
 
 from .models import (
@@ -17,6 +17,9 @@ from .models import (
     VehicleSettlementCostRule,
     VehicleIncentiveRule,
     SalesSourceBrandPolicy,
+    DealerVolumeBonusRule,
+    DealerVolumeBonusTier,
+    DealerVolumeBonusSettlement,
 )
 from .services.operations_sync import (
     refresh_payment_confirmation,
@@ -36,6 +39,26 @@ ORDER_CHILD_MODELS = (
     OrderOperationsProfile,
     PaymentRecord,
 )
+
+
+@receiver(m2m_changed, sender=DealerVolumeBonusRule.vehicle_models.through)
+def protect_settled_bonus_models(sender, instance, action, reverse, pk_set, **kwargs):
+    if action not in {"pre_add", "pre_remove", "pre_clear"}:
+        return
+    from django.core.exceptions import ValidationError
+    from django.db import transaction
+    ids = (pk_set if pk_set is not None else instance.volume_bonus_rules.values_list("pk", flat=True)) if reverse else [instance.pk]
+    with transaction.atomic():
+        locked = list(DealerVolumeBonusRule.objects.select_for_update().filter(pk__in=ids).order_by("pk").values_list("pk", flat=True))
+        if DealerVolumeBonusSettlement.objects.filter(rule_id__in=locked).exists():
+            raise ValidationError("已結算規則不可修改指定車型，請另建新規則。")
+
+
+@receiver(pre_delete, sender=DealerVolumeBonusTier)
+def protect_settled_bonus_tier_delete(sender, instance, **kwargs):
+    from django.core.exceptions import ValidationError
+    if DealerVolumeBonusSettlement.objects.filter(rule_id=instance.rule_id).exists():
+        raise ValidationError("已結算規則不可刪除門檻，請另建新規則。")
 
 
 @receiver(post_save, sender=SalesOrder)

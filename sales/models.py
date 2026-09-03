@@ -1062,14 +1062,18 @@ class PriceListDistributionItem(TimeStampedModel):
 
 
 class DealerVolumeBonusRule(TimeStampedModel):
+    name = models.CharField("規則名稱", max_length=120, blank=True)
     dealer = models.ForeignKey(
         SalesSource,
         on_delete=models.PROTECT,
         related_name="volume_bonus_rules",
         limit_choices_to={"source_type": SalesSource.SourceType.DEALER},
         verbose_name="合作車行",
+        null=True, blank=True,
     )
-    brand = models.CharField("品牌", max_length=80)
+    brand = models.CharField("品牌", max_length=80, blank=True)
+    energy_type = models.CharField("能源別", max_length=20, choices=VehicleModel.EnergyType.choices, blank=True)
+    vehicle_models = models.ManyToManyField(VehicleModel, blank=True, related_name="volume_bonus_rules", verbose_name="指定車型")
     starts_on = models.DateField("統計開始日")
     ends_on = models.DateField("統計結束日")
     note = models.TextField("備註", blank=True)
@@ -1077,32 +1081,33 @@ class DealerVolumeBonusRule(TimeStampedModel):
 
     class Meta:
         ordering = ["-starts_on", "dealer", "brand"]
-        constraints = [
-            models.UniqueConstraint(
-                fields=["dealer", "brand", "starts_on", "ends_on"],
-                name="unique_dealer_volume_bonus_period",
-            )
-        ]
         verbose_name = "車行台數獎金規則"
         verbose_name_plural = "車行台數獎金規則"
 
     def clean(self):
-        if self.ends_on < self.starts_on:
+        if self.ends_on and self.starts_on and self.ends_on < self.starts_on:
             raise ValidationError({"ends_on": "統計結束日不可早於開始日。"})
         if self.dealer_id and self.dealer.source_type != SalesSource.SourceType.DEALER:
             raise ValidationError({"dealer": "台數獎金只能設定合作車行。"})
         if self.pk and DealerVolumeBonusSettlement.objects.filter(rule_id=self.pk).exists():
-            fields = ("dealer_id", "brand", "starts_on", "ends_on")
+            fields = ("name", "dealer_id", "brand", "energy_type", "starts_on", "ends_on")
             previous = type(self).objects.filter(pk=self.pk).values(*fields).get()
             if any(previous[name] != getattr(self, name) for name in fields):
-                raise ValidationError("已結算規則的車行、品牌與期間不可改動，請另建新規則。")
+                raise ValidationError("已結算規則的條件不可改動，請另建新規則。")
 
     def save(self, *args, **kwargs):
         self.full_clean()
         return super().save(*args, **kwargs)
 
     def __str__(self):
-        return f"{self.dealer}／{self.brand}／{self.starts_on:%Y/%m/%d}"
+        return self.name or f"{self.dealer or '全部合作車行'}／{self.brand or '不限品牌'}／{self.starts_on:%Y/%m/%d}"
+
+    @property
+    def conditions_label(self):
+        parts = [self.brand or "不限品牌", self.get_energy_type_display() if self.energy_type else "不限能源"]
+        models = list(self.vehicle_models.all()) if self.pk else []
+        parts.append("、".join(str(model) for model in models) if models else "不限車型")
+        return " · ".join(parts)
 
 
 class DealerVolumeBonusTier(TimeStampedModel):
@@ -1136,14 +1141,23 @@ class DealerVolumeBonusTier(TimeStampedModel):
     def __str__(self):
         return f"{self.minimum_quantity} 台／每台 {self.bonus_per_vehicle:.0f} 元"
 
+    def clean(self):
+        if self.rule_id and DealerVolumeBonusSettlement.objects.filter(rule_id=self.rule_id).exists():
+            raise ValidationError("已結算規則不可修改門檻，請另建新規則。")
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        return super().save(*args, **kwargs)
+
 
 class DealerVolumeBonusSettlement(TimeStampedModel):
-    rule = models.OneToOneField(
+    rule = models.ForeignKey(
         DealerVolumeBonusRule,
         on_delete=models.PROTECT,
-        related_name="settlement",
+        related_name="settlements",
         verbose_name="台數獎金規則",
     )
+    dealer = models.ForeignKey(SalesSource, on_delete=models.PROTECT, related_name="volume_bonus_settlements", verbose_name="收款車行")
     qualified_quantity = models.PositiveSmallIntegerField("符合台數", default=0)
     bonus_per_vehicle = models.DecimalField(
         "採用每台獎金", max_digits=12, decimal_places=0, default=0
@@ -1160,6 +1174,7 @@ class DealerVolumeBonusSettlement(TimeStampedModel):
 
     class Meta:
         ordering = ["-settled_on", "-id"]
+        constraints = [models.UniqueConstraint(fields=["rule", "dealer"], name="unique_bonus_rule_dealer_settlement")]
         verbose_name = "車行台數獎金結算"
         verbose_name_plural = "車行台數獎金結算"
 
@@ -2903,11 +2918,10 @@ class SalesOrder(TimeStampedModel):
         if (changed and self.effective_commission_recipient and self.registration_date
                 and self.registration_completed_at and self.vehicle_model_id
                 and self.status != self.Status.CANCELLED):
+            from .services.dealer_commission import matching_bonus_rules
+            recipient_id = self.commission_recipient_id or self.source_id
             if DealerVolumeBonusSettlement.objects.filter(
-                rule__dealer_id=self.commission_recipient_id or self.source_id,
-                rule__brand__iexact=self.vehicle_model.brand,
-                rule__starts_on__lte=self.registration_date,
-                rule__ends_on__gte=self.registration_date,
+                dealer_id=recipient_id, rule__in=matching_bonus_rules(self, recipient_id),
             ).exists():
                 errors["commission_recipient"] = "目標車行在該領牌期間已結算台數獎金，不能加入或變更已結算清單。"
         if self.vehicle_category == self.VehicleCategory.USED:

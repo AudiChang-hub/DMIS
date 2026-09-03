@@ -10,8 +10,8 @@
 <section class="hero-row compact-hero">
   <div>
     <p class="eyebrow">台數獎金修正</p>
-    <h1>{{ settlement.rule.dealer }}／{{ settlement.rule.brand }}</h1>
-    <p>基礎傭金與台數獎金統一歸 {{ settlement.rule.dealer }}；調整台數獎金不會改變原傭金或收款車行。</p>
+    <h1>{{ settlement.rule }}</h1>
+    <p>收款車行：{{ settlement.dealer }}；只調整本規則獎金，不會改變原傭金、其他規則獎金或收款車行。</p>
     <p class="muted">目前實際金額 ${{ settlement.actual_amount|floatformat:0 }}，調整後會重新平均分攤到 {{ settlement.allocations.count }} 張訂單。</p>
   </div>
 </section>
@@ -20,8 +20,9 @@
     <div class="section-title"><h2>調整金額</h2><strong>預計 ${{ settlement.expected_amount|floatformat:0 }}</strong></div>
     <form method="post" class="stacked-form">
       {% csrf_token %}
+      {{ form.non_field_errors }}
       {% for field in form %}{% include "sales/_field.html" with field=field %}{% endfor %}
-      <div class="note-box warning">調整會更新各訂單的車行傭金支出與單筆淨利；原因及調整前後金額會永久保存。</div>
+      <div class="note-box warning">調整會更新各訂單的車行傭金支出與單筆淨利；已人工覆寫的總額仍保留，請另外核對。原因及調整前後金額會永久保存。</div>
       <div class="form-actions"><a class="button ghost" href="{% url 'dealer_volume_bonus_list' %}">取消</a><button class="button primary">儲存調整</button></div>
     </form>
   </section>
@@ -34,7 +35,7 @@
         <thead><tr><th>時間</th><th>人員</th><th>金額</th><th>原因</th></tr></thead>
         <tbody>
           {% for adjustment in settlement.adjustments.all %}
-            <tr><td>{{ adjustment.created_at|date:'Y/m/d H:i' }}</td><td>{{ adjustment.adjusted_by }}</td><td>${{ adjustment.previous_amount|floatformat:0 }} → ${{ adjustment.revised_amount|floatformat:0 }}</td><td>{{ adjustment.reason }}</td></tr>
+            <tr><td data-label="時間">{{ adjustment.created_at|date:'Y/m/d H:i' }}</td><td data-label="人員">{{ adjustment.adjusted_by }}</td><td data-label="金額">${{ adjustment.previous_amount|floatformat:0 }} → ${{ adjustment.revised_amount|floatformat:0 }}</td><td data-label="原因">{{ adjustment.reason }}</td></tr>
           {% empty %}<tr><td colspan="4">尚無調整紀錄</td></tr>{% endfor %}
         </tbody>
       </table>

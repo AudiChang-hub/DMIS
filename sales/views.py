@@ -210,6 +210,7 @@ from .services.dealer_commission import apply_order_dealer_commission
 from .services.dealer_commission import (
     create_volume_bonus_settlement,
     preview_volume_bonus,
+    bonus_rule_dealers,
     revise_volume_bonus_settlement,
 )
 from .services.dashboard_metrics import build_dashboard_metrics
@@ -3053,20 +3054,19 @@ def dealer_volume_bonus_list(request):
     show_all = request.GET.get("show") == "all"
     rules = (
         DealerVolumeBonusRule.objects.filter(
-            dealer__source_type=SalesSource.SourceType.DEALER
+            Q(dealer__source_type=SalesSource.SourceType.DEALER) | Q(dealer__isnull=True)
         )
         .select_related("dealer")
-        .prefetch_related("tiers", "settlement__allocations")
+        .prefetch_related("tiers", "vehicle_models", "settlements")
     )
     rows = []
     hidden_count = 0
     for rule in rules:
-        preview = preview_volume_bonus(rule)
-        has_settlement = hasattr(rule, "settlement")
-        if not show_all and preview["quantity"] == 0 and not has_settlement:
+        entries = [preview_volume_bonus(rule, dealer) for dealer in bonus_rule_dealers(rule)]
+        if not show_all and not any(entry["quantity"] or entry["settlement"] for entry in entries):
             hidden_count += 1
             continue
-        rows.append({"rule": rule, "preview": preview})
+        rows.append({"rule": rule, "entries": entries, "has_settlement": rule.settlements.exists()})
     return render(
         request,
         "sales/dealer_volume_bonus_list.html",
@@ -3081,8 +3081,8 @@ def dealer_volume_bonus_list(request):
 @login_required
 @transaction.atomic
 def dealer_volume_bonus_form(request, pk=None):
-    rule = get_object_or_404(DealerVolumeBonusRule, pk=pk) if pk else DealerVolumeBonusRule()
-    if rule.pk and hasattr(rule, "settlement"):
+    rule = get_object_or_404(DealerVolumeBonusRule.objects.select_for_update(), pk=pk) if pk else DealerVolumeBonusRule()
+    if rule.pk and rule.settlements.exists():
         messages.error(request, "此規則已完成結算，為保留明細不可再修改。")
         return redirect("dealer_volume_bonus_list")
     post_data = request.POST or None
@@ -3095,7 +3095,7 @@ def dealer_volume_bonus_form(request, pk=None):
         tier_formset.instance = rule
         tier_formset.save()
         messages.success(request, "車行台數獎金規則已儲存。")
-        return redirect("dealer_volume_bonus_list")
+        return redirect(f"{reverse('dealer_volume_bonus_list')}?show=all#bonus-rule-{rule.pk}")
     return render(
         request,
         "sales/dealer_volume_bonus_form.html",
@@ -3107,12 +3107,19 @@ def dealer_volume_bonus_form(request, pk=None):
 @transaction.atomic
 def dealer_volume_bonus_settle(request, pk):
     rule = get_object_or_404(DealerVolumeBonusRule.objects.select_related("dealer"), pk=pk)
-    if hasattr(rule, "settlement"):
+    dealers = bonus_rule_dealers(rule)
+    dealer = rule.dealer
+    if not dealer and request.GET.get("dealer", "").isdigit():
+        dealer = next((item for item in dealers if item.pk == int(request.GET["dealer"])), None)
+    if not dealer:
+        return render(request, "sales/dealer_volume_bonus_settle.html", {"rule": rule, "dealers": dealers})
+    if rule.settlements.filter(dealer=dealer).exists():
         messages.error(request, "此規則已完成結算，不可重複結算。")
         return redirect("dealer_volume_bonus_list")
-    preview = preview_volume_bonus(rule)
+    preview = preview_volume_bonus(rule, dealer, include_combined=True)
     settlement = DealerVolumeBonusSettlement(
         rule=rule,
+        dealer=dealer,
         expected_amount=preview["expected_amount"],
         actual_amount=preview["expected_amount"],
     )
@@ -3124,6 +3131,7 @@ def dealer_volume_bonus_settle(request, pk):
                 _editing_name(request.user),
                 form.cleaned_data["actual_amount"],
                 form.cleaned_data["adjustment_reason"],
+                dealer=dealer,
             )
         except (ValueError, ValidationError) as exc:
             messages.error(request, str(exc))
@@ -3133,7 +3141,7 @@ def dealer_volume_bonus_settle(request, pk):
     return render(
         request,
         "sales/dealer_volume_bonus_settle.html",
-        {"rule": rule, "preview": preview, "form": form},
+        {"rule": rule, "preview": preview, "form": form, "dealer": dealer},
     )
 
 
@@ -3141,7 +3149,7 @@ def dealer_volume_bonus_settle(request, pk):
 @transaction.atomic
 def dealer_volume_bonus_revise(request, pk):
     settlement = get_object_or_404(
-        DealerVolumeBonusSettlement.objects.select_related("rule__dealer").prefetch_related(
+        DealerVolumeBonusSettlement.objects.select_related("rule__dealer", "dealer").prefetch_related(
             "allocations__order__vehicle_model", "adjustments"
         ),
         pk=pk,

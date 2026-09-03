@@ -4,7 +4,8 @@ from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.utils import timezone
 
-from sales.models import DealerVolumeBonusRule, DealerVolumeBonusSettlement, OrderChange, OrderEvent, SalesOrder, SalesSource
+from sales.models import DealerVolumeBonusSettlement, OrderChange, OrderEvent, SalesOrder, SalesSource
+from .dealer_commission import matching_bonus_rules
 
 
 @transaction.atomic
@@ -18,10 +19,8 @@ def change_order_commission_recipient(
     target_id = recipient_id or initial_order.source_id
     locked_rule_ids = []
     if initial_order.registration_date:
-        locked_rule_ids = list(DealerVolumeBonusRule.objects.select_for_update().filter(
-            dealer_id=target_id, brand__iexact=initial_order.vehicle_model.brand,
-            starts_on__lte=initial_order.registration_date, ends_on__gte=initial_order.registration_date,
-        ).order_by("pk").values_list("pk", flat=True))
+        locked_rule_ids = list(matching_bonus_rules(initial_order, target_id).select_for_update(of=("self",))
+                               .order_by("pk").values_list("pk", flat=True))
     order = SalesOrder.objects.select_for_update(of=("self",)).select_related(
         "source", "commission_recipient", "vehicle_model",
     ).get(pk=order_id)
@@ -31,7 +30,9 @@ def change_order_commission_recipient(
     if expected_revision != order.revision:
         raise ValidationError("此訂單已被更新，請重新載入後再調整歸屬。")
     if (order.registration_date != initial_order.registration_date
+            or order.vehicle_model_id != initial_order.vehicle_model_id
             or order.vehicle_model.brand != initial_order.vehicle_model.brand
+            or order.vehicle_model.energy_type != initial_order.vehicle_model.energy_type
             or order.source_type != initial_order.source_type
             or order.source_id != initial_order.source_id):
         raise ValidationError("訂單的來源或領牌資料已更新，請重新載入後再調整歸屬。")
@@ -54,7 +55,7 @@ def change_order_commission_recipient(
     normalized_id = recipient.pk if recipient else None
     if normalized_id == order.commission_recipient_id:
         return False
-    if DealerVolumeBonusSettlement.objects.filter(rule_id__in=locked_rule_ids).exists():
+    if DealerVolumeBonusSettlement.objects.filter(rule_id__in=locked_rule_ids, dealer_id=target_id).exists():
         raise ValidationError("指定車行在這張訂單的領牌期間已結算台數獎金，不能直接加入已結算清單。")
 
     before = str(order.effective_commission_recipient or "未指定車行")

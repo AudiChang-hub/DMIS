@@ -152,6 +152,10 @@ from .services.price_list_distribution import (
     google_maps_directions_url,
     normalize_month,
 )
+from .services.sales_source_deletion import (
+    delete_unused_dealer,
+    sales_source_delete_blockers,
+)
 from .services.mobile_quick_links import (
     MAX_MOBILE_QUICK_LINKS,
     available_mobile_quick_links,
@@ -1680,6 +1684,17 @@ def sales_source_list(request):
             item,
             item.cooperation_overview,
         )
+        item.display_address = full_distribution_address(
+            city=item.city,
+            district=item.district,
+            address=item.address,
+        )
+        item.google_maps_url = google_maps_directions_url(
+            dealer_name=item.name,
+            city=item.city,
+            district=item.district,
+            address=item.address,
+        )
     city_order = {value: index for index, (value, _) in enumerate(TaiwanCounty.choices)}
     section_configs = (
         (
@@ -2392,6 +2407,47 @@ def sales_source_form(request, pk=None):
             "source_context_label": form_context["label"],
             "source_context_kind": context_kind,
             "source_list_url": reverse(form_context["list_route"]),
+        },
+    )
+
+
+@login_required
+@require_http_methods(["GET", "POST"])
+def sales_source_delete(request, pk):
+    source = get_object_or_404(
+        SalesSource,
+        pk=pk,
+        source_type=SalesSource.SourceType.DEALER,
+    )
+    blockers = sales_source_delete_blockers(source)
+
+    if request.method == "POST":
+        confirmation_name = request.POST.get("confirm_name", "").strip()
+        if blockers:
+            messages.error(
+                request,
+                "此車行已有營運資料，只能停用，不能永久刪除。",
+            )
+        elif confirmation_name != source.name:
+            messages.error(request, "車行名稱不一致，未執行永久刪除。")
+        else:
+            try:
+                deleted_name = delete_unused_dealer(source_id=source.pk)
+            except ValidationError as exc:
+                messages.error(request, "; ".join(exc.messages))
+                source.refresh_from_db()
+                blockers = sales_source_delete_blockers(source)
+            else:
+                messages.success(request, f"已永久刪除誤建車行：{deleted_name}。")
+                return redirect("sales_source_list")
+
+    return render(
+        request,
+        "sales/sales_source_confirm_delete.html",
+        {
+            "source": source,
+            "blockers": blockers,
+            "can_delete": not blockers,
         },
     )
 

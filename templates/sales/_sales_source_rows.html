@@ -9,7 +9,12 @@
     </td>
     <td data-label="聯絡資料">
       <strong>{{ item.responsible_person|default:"未填負責人" }}</strong>
-      <span>{{ item.address|default:"未填地址" }}</span>
+      <span>{{ item.display_address|default:"未填地址" }}</span>
+      {% if item.google_maps_url %}
+        <a class="source-map-link" href="{{ item.google_maps_url }}" target="_blank" rel="noopener" aria-label="使用 Google Maps 導航至 {{ item.name }}">
+          <span>Google Maps</span><strong>導航</strong>
+        </a>
+      {% endif %}
       {% if item.phone %}<span>電話一 {{ item.phone }}</span>{% endif %}
       {% if item.phone_secondary %}<span>電話二 {{ item.phone_secondary }}</span>{% endif %}
       {% if item.mobile %}<span>手機 {{ item.mobile }}</span>{% endif %}

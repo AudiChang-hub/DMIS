@@ -3052,6 +3052,7 @@ def vehicle_installment_plan_list(request, model_pk):
 
 @login_required
 def dealer_volume_bonus_list(request):
+    tab = "settlements" if request.GET.get("tab") == "settlements" else "rules"
     show_all = request.GET.get("show") == "all"
     rules = (
         DealerVolumeBonusRule.objects.filter(
@@ -3065,23 +3066,34 @@ def dealer_volume_bonus_list(request):
     for rule in rules:
         groups = []
         entries = []
-        for period in rule.periods.all():
-            period_entries = [preview_volume_bonus(rule, dealer, period=period) for dealer in bonus_rule_dealers(rule, period=period)]
-            entries.extend(period_entries)
-            groups.append({'period': period, 'entries': period_entries})
-        if not show_all and not any(entry["quantity"] or entry["settlement"] for entry in entries):
+        if tab == "settlements":
+            for period in rule.periods.all():
+                period_entries = [preview_volume_bonus(rule, dealer, period=period) for dealer in bonus_rule_dealers(rule, period=period)]
+                entries.extend(period_entries)
+                groups.append({'period': period, 'entries': period_entries})
+        if tab == "settlements" and not show_all and not any(entry["quantity"] or entry["settlement"] for entry in entries):
             hidden_count += 1
             continue
-        rows.append({"rule": rule, "entries": entries, "period_groups": groups, "has_settlement": rule.settlements.exists()})
+        rows.append({
+            "rule": rule,
+            "display_name": rule.name or f"台數獎金規則 #{rule.pk}",
+            "period_groups": groups,
+            "has_settlement": rule.settlements.exists(),
+        })
     return render(
         request,
         "sales/dealer_volume_bonus_list.html",
         {
             "rows": rows,
+            "tab": tab,
             "show_all": show_all,
             "hidden_count": hidden_count,
         },
     )
+
+
+def _bonus_results_url(rule_id):
+    return f"{reverse('dealer_volume_bonus_list')}?tab=settlements&show=all#bonus-rule-{rule_id}"
 
 
 @login_required
@@ -3101,7 +3113,7 @@ def dealer_volume_bonus_form(request, pk=None):
         if not form.conditions_locked:
             tier_formset.save()
         messages.success(request, "車行台數獎金規則已儲存。")
-        return redirect(f"{reverse('dealer_volume_bonus_list')}?show=all#bonus-rule-{rule.pk}")
+        return redirect(f"{reverse('dealer_volume_bonus_list')}?tab=rules#bonus-rule-{rule.pk}")
     return render(
         request,
         "sales/dealer_volume_bonus_form.html",
@@ -3113,6 +3125,7 @@ def dealer_volume_bonus_form(request, pk=None):
 @transaction.atomic
 def dealer_volume_bonus_settle(request, pk):
     rule = get_object_or_404(DealerVolumeBonusRule.objects.select_related("dealer"), pk=pk)
+    return_url = _bonus_results_url(rule.pk)
     periods = list(rule.periods.all())
     period_id = request.POST.get('period', request.GET.get('period', ''))
     if request.method == 'POST' and request.GET.get('period') and request.POST.get('period') != request.GET['period']:
@@ -3124,16 +3137,16 @@ def dealer_volume_bonus_settle(request, pk):
     elif len(periods) == 1:
         period = periods[0]
     else:
-        return render(request, 'sales/dealer_volume_bonus_settle.html', {'rule': rule, 'periods': periods}, status=400 if request.method == 'POST' else 200)
+        return render(request, 'sales/dealer_volume_bonus_settle.html', {'rule': rule, 'periods': periods, 'return_url': return_url}, status=400 if request.method == 'POST' else 200)
     dealers = bonus_rule_dealers(rule, period=period)
     dealer = rule.dealer
     if not dealer and request.GET.get("dealer", "").isdigit():
         dealer = next((item for item in dealers if item.pk == int(request.GET["dealer"])), None)
     if not dealer:
-        return render(request, "sales/dealer_volume_bonus_settle.html", {"rule": rule, "period": period, "dealers": dealers})
+        return render(request, "sales/dealer_volume_bonus_settle.html", {"rule": rule, "period": period, "dealers": dealers, "return_url": return_url})
     if rule.settlements.filter(dealer=dealer, period=period).exists():
         messages.error(request, "此規則已完成結算，不可重複結算。")
-        return redirect("dealer_volume_bonus_list")
+        return redirect(return_url)
     preview = preview_volume_bonus(rule, dealer, period=period, include_combined=True)
     settlement = DealerVolumeBonusSettlement(
         rule=rule,
@@ -3157,11 +3170,11 @@ def dealer_volume_bonus_settle(request, pk):
             messages.error(request, str(exc))
         else:
             messages.success(request, "台數獎金已結算並保存逐單明細。")
-            return redirect("dealer_volume_bonus_list")
+            return redirect(return_url)
     return render(
         request,
         "sales/dealer_volume_bonus_settle.html",
-        {"rule": rule, "period": period, "preview": preview, "form": form, "dealer": dealer},
+        {"rule": rule, "period": period, "preview": preview, "form": form, "dealer": dealer, "return_url": return_url},
     )
 
 
@@ -3174,6 +3187,7 @@ def dealer_volume_bonus_revise(request, pk):
         ),
         pk=pk,
     )
+    return_url = _bonus_results_url(settlement.rule_id)
     form = DealerVolumeBonusAdjustmentForm(
         request.POST or None,
         initial={"actual_amount": settlement.actual_amount},
@@ -3190,11 +3204,11 @@ def dealer_volume_bonus_revise(request, pk):
             messages.error(request, str(exc))
         else:
             messages.success(request, "實際台數獎金已重新分攤，並保存調整紀錄。")
-            return redirect("dealer_volume_bonus_list")
+            return redirect(return_url)
     return render(
         request,
         "sales/dealer_volume_bonus_revise.html",
-        {"settlement": settlement, "form": form},
+        {"settlement": settlement, "form": form, "return_url": return_url},
     )
 
 

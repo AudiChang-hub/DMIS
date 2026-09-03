@@ -1238,12 +1238,16 @@ input[type="file"].form-control { padding: 10px; }
   max-height: min(330px, 52vh); padding: 6px; overflow-y: auto; background: var(--surface);
   border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 14px 32px rgba(24,50,59,.16);
 }
-.searchable-select__list.is-portaled {
-  position: fixed; z-index: 1300; right: auto; margin: 0;
+.dmis-floating-list {
+  position: fixed; z-index: 1400; inset: auto; margin: 0; box-sizing: border-box;
+  min-width: 0; min-height: 0; overflow-y: auto; overscroll-behavior: contain;
 }
+.dmis-floating-list[hidden], .dmis-floating-list[popover]:not(:popover-open) { display: none; }
+.dmis-floating-list::backdrop { background: transparent; pointer-events: none; }
 .searchable-select__list button {
   display: block; width: 100%; min-height: 44px; padding: 9px 11px; color: var(--ink);
   background: transparent; border: 0; border-radius: 8px; cursor: pointer; text-align: left;
+  box-sizing: border-box; overflow-wrap: anywhere;
 }
 .searchable-select__list button:hover,
 .searchable-select__list button.is-active,
@@ -1271,15 +1275,15 @@ input[type="file"].form-control { padding: 10px; }
   border: 1px solid var(--line); border-radius: 8px; font-size: .75rem; font-weight: 850;
 }
 .searchable-select__list .searchable-select__bulk-action:disabled { opacity: .45; cursor: default; }
-.searchable-select.is-multiple .searchable-select__list button[role="option"] {
+.searchable-select__list[aria-multiselectable="true"] button[role="option"] {
   display: flex; align-items: center; gap: 9px;
 }
-.searchable-select.is-multiple .searchable-select__list button[role="option"]::before {
+.searchable-select__list[aria-multiselectable="true"] button[role="option"]::before {
   display: grid; flex: 0 0 18px; width: 18px; height: 18px; place-items: center;
   color: #fff; border: 1px solid var(--line); border-radius: 5px; content: "";
   font-size: .7rem; font-weight: 950;
 }
-.searchable-select.is-multiple .searchable-select__list button[role="option"][aria-selected="true"]::before {
+.searchable-select__list[aria-multiselectable="true"] button[role="option"][aria-selected="true"]::before {
   background: var(--forest); border-color: var(--forest); content: "✓";
 }
 .searchable-select__empty { margin: 0; padding: 14px 10px; color: var(--muted); font-size: .875rem; text-align: center; }

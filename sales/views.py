@@ -61,6 +61,7 @@ from .forms import (
     OtherFeeFormSet,
     OrderOperationsForm,
     OrderEditForm,
+    OrderCommissionAttributionForm,
     PrivacyConsentForm,
     PaymentRecordFormSet,
     PositionedPrintFieldFormSet,
@@ -156,6 +157,7 @@ from .services.sales_source_deletion import (
     delete_unused_dealer,
     sales_source_delete_blockers,
 )
+from .services.order_commission_attribution import change_order_commission_recipient
 from .services.mobile_quick_links import (
     MAX_MOBILE_QUICK_LINKS,
     available_mobile_quick_links,
@@ -3042,7 +3044,7 @@ def dealer_volume_bonus_revise(request, pk):
         except (ValueError, ValidationError) as exc:
             messages.error(request, str(exc))
         else:
-            messages.success(request, "實際入帳金額已重新分攤，並保存調整紀錄。")
+            messages.success(request, "實際台數獎金已重新分攤，並保存調整紀錄。")
             return redirect("dealer_volume_bonus_list")
     return render(
         request,
@@ -4177,6 +4179,8 @@ def reconciliation_list(request):
 @login_required
 @transaction.atomic
 def reconciliation_update(request, pk):
+    order_id = get_object_or_404(PaymentRecord, pk=pk).order_id
+    SalesOrder.objects.select_for_update().get(pk=order_id)
     record = get_object_or_404(
         PaymentRecord.objects.select_for_update().select_related("order"),
         pk=pk,
@@ -4207,26 +4211,6 @@ def reconciliation_update(request, pk):
             record.confirmed_by = ""
             record.confirmed_at = None
         record.save()
-        if record.confirmed and (
-            record.system_key == "installment_disbursement"
-            or record.order.source_type == SalesOrder.SourceType.PLATFORM
-        ):
-            profile, _created = OrderOperationsProfile.objects.get_or_create(
-                order=record.order
-            )
-            profile.actual_disbursement = record.received_amount
-            protected = set(profile.manual_financial_fields or [])
-            protected.add("actual_disbursement")
-            profile.manual_financial_fields = sorted(protected)
-            profile.updated_by = _editing_name(request.user)
-            profile.save(
-                update_fields=[
-                    "actual_disbursement",
-                    "manual_financial_fields",
-                    "updated_by",
-                    "updated_at",
-                ]
-            )
         refresh_payment_confirmation(record.order_id)
         after = {
             "預計金額": str(record.expected_amount),
@@ -4300,6 +4284,7 @@ def operations_report_export(request):
         "電池合約帳號", "安全帽", "公司禮券、匯款", "其他",
         "平台贈品", "客服電話", "分期資訊", "車行",
         "總收入", "總支出", "單筆淨利",
+        "台數與傭金歸屬車行",
     ]
     sheet.append(headers)
     for cell in sheet[1]:
@@ -4369,6 +4354,7 @@ def operations_report_export(request):
             profile.total_income if profile else 0,
             profile.total_expense if profile else 0,
             profile.net_profit if profile else 0,
+            str(order.effective_commission_recipient or ""),
         ]))
     sheet.freeze_panes = "A2"
     sheet.auto_filter.ref = sheet.dimensions
@@ -4736,10 +4722,11 @@ def draft_presence(request, pk):
 
 
 @login_required
-def order_detail(request, pk):
+def order_detail(request, pk, *, commission_form=None):
     order = get_object_or_404(
         SalesOrder.objects.select_related(
             "source",
+            "commission_recipient",
             "vehicle_model",
             "color",
             "allocated_vehicle",
@@ -4850,11 +4837,16 @@ def order_detail(request, pk):
     }
     requested_tab = request.GET.get("tab", "")
     active_tab = requested_tab if requested_tab in valid_tabs else "order"
+    commission_block_reason = order.commission_attribution_block_reason
+    if commission_form is None and not commission_block_reason:
+        commission_form = OrderCommissionAttributionForm(order=order, prefix="attribution")
     return render(
         request,
         "sales/order_detail.html",
         {
             "order": order,
+            "commission_form": commission_form,
+            "commission_block_reason": commission_block_reason,
             "contract_form": SignedContractForm(instance=order),
             "privacy_consent_form": PrivacyConsentForm(instance=order),
             "allocation_form": AllocationForm(order),
@@ -4891,7 +4883,37 @@ def order_detail(request, pk):
                 "document_type", "-version"
             ),
         },
+        status=400 if commission_form is not None and commission_form.is_bound and commission_form.errors else 200,
     )
+
+
+@login_required
+@require_http_methods(["POST"])
+def order_commission_attribution_update(request, pk):
+    order = get_object_or_404(SalesOrder.objects.select_related("source"), pk=pk)
+    destination = f"{reverse('order_detail', args=[pk])}#commission-attribution"
+    if order.commission_attribution_block_reason:
+        messages.error(request, order.commission_attribution_block_reason)
+        return redirect(destination)
+    form = OrderCommissionAttributionForm(request.POST, order=order, prefix="attribution")
+    if form.is_valid():
+        recipient = form.cleaned_data["commission_recipient"]
+        try:
+            changed = change_order_commission_recipient(
+                order_id=pk, recipient_id=recipient.pk if recipient else None,
+                reason=form.cleaned_data["reason"], expected_revision=form.cleaned_data["order_revision"],
+                actor_name=_editing_name(request.user), editing_session=request.session.session_key,
+                presence_timeout=ORDER_PRESENCE_TIMEOUT,
+            )
+        except ValidationError as exc:
+            form.add_error(None, exc)
+        else:
+            if changed:
+                messages.success(request, "台數與傭金歸屬已更新；原訂單內容與金額不變。")
+            else:
+                messages.info(request, "歸屬未變更，沒有新增調整紀錄。")
+            return redirect(destination)
+    return order_detail(request, pk, commission_form=form)
 
 
 def _operations_snapshot(profile):
@@ -4909,14 +4931,16 @@ def _operations_snapshot(profile):
 
 
 @login_required
+@transaction.atomic
 def order_operations(request, pk):
     order = get_object_or_404(
-        SalesOrder.objects.select_related(
+        SalesOrder.objects.select_for_update(of=("self",)).select_related(
             "vehicle_model", "color", "allocated_vehicle"
         ),
         pk=pk,
     )
-    sync_order_operations(order.pk)
+    if request.method != "POST":
+        sync_order_operations(order.pk)
     profile = OrderOperationsProfile.objects.get(order=order)
     financial_before = {
         field_name: getattr(profile, field_name)
@@ -4974,15 +4998,9 @@ def order_operations(request, pk):
                             "confirmed_at", "confirmed_by", "updated_at"
                         ]
                     )
-            card_totals = order.payment_records.aggregate(
-                income=Sum("card_fee_charged"),
-                expense=Sum("bank_card_fee"),
-            )
-            profile.card_fee_income = card_totals["income"] or 0
-            profile.card_fee_expense = card_totals["expense"] or 0
-            profile.save(
-                update_fields=["card_fee_income", "card_fee_expense", "updated_at"]
-            )
+            from .services.operations_sync import sync_payment_financials
+            sync_payment_financials(order.pk)
+            profile.refresh_from_db()
             after = _operations_snapshot(profile)
             changes = {
                 key: {"before": before.get(key, ""), "after": value}
@@ -5004,6 +5022,9 @@ def order_operations(request, pk):
             )
         messages.success(request, "營運、收款及損益資料已更新。")
         return redirect("order_operations", pk=order.pk)
+    # ModelForm 驗證會改動 instance；未儲存的輸入不得冒充已入帳的摘要。
+    if request.method == "POST":
+        profile.refresh_from_db()
     return render(
         request,
         "sales/order_operations.html",
@@ -5159,6 +5180,8 @@ def _order_snapshot(order):
             continue
         value = field.value_from_object(order)
         snapshot[field.verbose_name] = str(value or "")
+    if order.source_type == SalesOrder.SourceType.DEALER:
+        snapshot["台數與傭金歸屬車行"] = str(order.effective_commission_recipient or "")
     snapshot["配件"] = [
         {
             "名稱": line.name,
@@ -5257,6 +5280,10 @@ def order_edit(request, pk):
             for field_name in ("id_front", "id_back")
         }
         previous_vehicle_model_id = order.vehicle_model_id
+        installment_before = tuple(getattr(order, name) for name in (
+            "vehicle_model_id", "order_date", "payment_type", "vehicle_price",
+            "installment_company", "installment_periods", "installment_monthly", "installment_opening_fee",
+        ))
         balance_was_automatic = order.actual_balance == order.calculated_balance
         previous_actual_balance = order.actual_balance
         form = OrderEditForm(request.POST, request.FILES, instance=order)
@@ -5287,7 +5314,12 @@ def order_edit(request, pk):
                     or not order.price_snapshot
                 ),
             )
-            apply_order_installment_snapshot(order)
+            installment_after = tuple(getattr(order, name) for name in (
+                "vehicle_model_id", "order_date", "payment_type", "vehicle_price",
+                "installment_company", "installment_periods", "installment_monthly", "installment_opening_fee",
+            ))
+            if installment_after != installment_before or not order.installment_plan_snapshot:
+                apply_order_installment_snapshot(order)
             formset.save()
             fee_formset.save()
             order._prefetched_objects_cache = {}
@@ -5309,6 +5341,8 @@ def order_edit(request, pk):
                 ]
             )
             after = _order_snapshot(order)
+            from .services.financial_refresh import refresh_unlocked_financials
+            refresh_unlocked_financials(order.pk)
             changes = _snapshot_changes(before, after)
             reason = form.cleaned_data["change_reason"]
             OrderChange.objects.create(

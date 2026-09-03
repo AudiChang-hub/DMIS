@@ -16,6 +16,7 @@ class SalesSourceDeleteBlocker:
 
 _DEALER_DELETE_RELATIONS = (
     ("salesorder_set", "訂單"),
+    ("credited_orders", "台數與傭金歸屬訂單"),
     ("located_vehicles", "目前停放於此車行的庫存車輛"),
     ("volume_bonus_rules", "台數獎金規則"),
     ("legacy_import_mappings", "舊資料匯入對應"),

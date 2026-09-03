@@ -14,9 +14,13 @@ from .models import (
     VehicleInventory,
     VehicleFactoryModelCode,
     VehicleModel,
+    VehicleSettlementCostRule,
+    VehicleIncentiveRule,
+    SalesSourceBrandPolicy,
 )
 from .services.operations_sync import (
     refresh_payment_confirmation,
+    sync_payment_financials,
     sync_order_operations,
 )
 from .services.order_search import schedule_order_search_rebuild
@@ -36,7 +40,7 @@ ORDER_CHILD_MODELS = (
 
 @receiver(post_save, sender=SalesOrder)
 def rebuild_search_after_order_save(sender, instance, **kwargs):
-    sync_order_operations(instance.pk)
+    sync_order_operations(instance.pk, update_receivables=getattr(instance, "_receivable_changed", False))
     schedule_order_search_rebuild(instance.pk)
 
 
@@ -83,6 +87,28 @@ def _rebuild_vehicle_model_orders(vehicle_model_ids):
 @receiver(post_save, sender=VehicleModel)
 def rebuild_search_after_vehicle_model_save(sender, instance, **kwargs):
     _rebuild_vehicle_model_orders([instance.pk])
+    _refresh_pending_rates(SalesOrder.objects.filter(vehicle_model_id=instance.pk))
+
+
+def _refresh_pending_rates(orders):
+    from .services.financial_refresh import refresh_unlocked_financials
+    for order_id in orders.filter(registration_completed_at__isnull=True).exclude(
+        status=SalesOrder.Status.CANCELLED,
+    ).order_by("pk").values_list("pk", flat=True):
+        refresh_unlocked_financials(order_id)
+
+
+@receiver(post_save, sender=VehicleSettlementCostRule)
+@receiver(post_delete, sender=VehicleSettlementCostRule)
+@receiver(post_save, sender=VehicleIncentiveRule)
+@receiver(post_delete, sender=VehicleIncentiveRule)
+@receiver(post_save, sender=SalesSourceBrandPolicy)
+@receiver(post_delete, sender=SalesSourceBrandPolicy)
+def refresh_pending_rates_after_rule_change(sender, instance, **kwargs):
+    orders = SalesOrder.objects.filter(source_id=instance.source_id) if sender is SalesSourceBrandPolicy else (
+        SalesOrder.objects.filter(vehicle_model_id=instance.vehicle_model_id)
+    )
+    _refresh_pending_rates(orders)
 
 
 @receiver(post_save, sender=VehicleFactoryModelCode)
@@ -107,4 +133,7 @@ def rebuild_search_after_factory_model_code_link(sender, instance, action, rever
 @receiver(post_delete, sender=PaymentRecord)
 def refresh_confirmation_after_payment_change(sender, instance, **kwargs):
     if instance.order_id:
-        refresh_payment_confirmation(instance.order_id)
+        sync_payment_financials(
+            instance.order_id,
+            adopt_payment_id=instance.pk if getattr(instance, "_disbursement_changed", False) else None,
+        )

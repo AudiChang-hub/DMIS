@@ -2622,7 +2622,7 @@ class OrderFlowTests(TestCase):
             accessory_form.fields["amount"].widget.attrs["readonly"], True
         )
         self.assertEqual(fee_form.fields["name"].widget.attrs["lang"], "zh-Hant")
-        for field_name in ("source", "vehicle_model", "color"):
+        for field_name in ("source", "commission_recipient", "vehicle_model", "color"):
             self.assertEqual(
                 order_form.fields[field_name].widget.attrs["data-searchable-select"],
                 "1",
@@ -2636,7 +2636,7 @@ class OrderFlowTests(TestCase):
         response = self.client.get(reverse("order_create"))
 
         self.assertContains(response, "searchable-select.js")
-        self.assertContains(response, 'data-searchable-select="1"', count=3)
+        self.assertContains(response, 'data-searchable-select="1"', count=4)
         self.assertContains(response, "loadVehicleColors")
         self.assertContains(response, "請先選擇車型")
 

@@ -10,14 +10,14 @@
   const requestedTab = new URL(window.location.href).searchParams.get("tab");
   const savedTab = window.localStorage.getItem(storageKey);
 
-  function activate(name, updateUrl = true) {
+  function activate(name, updateUrl = true, scrollTab = true) {
     const activeName = validTabs.has(name) ? name : "order";
     tabs.forEach((tab) => {
       const active = tab.dataset.tab === activeName;
       tab.classList.toggle("is-active", active);
       tab.setAttribute("aria-selected", active ? "true" : "false");
       tab.tabIndex = active ? 0 : -1;
-      if (active) {
+      if (active && scrollTab) {
         tab.scrollIntoView({block: "nearest", inline: "nearest"});
       }
     });
@@ -77,5 +77,5 @@
     });
   }
 
-  activate(requestedTab || savedTab || "order", Boolean(requestedTab));
+  activate(requestedTab || savedTab || "order", Boolean(requestedTab), false);
 })();

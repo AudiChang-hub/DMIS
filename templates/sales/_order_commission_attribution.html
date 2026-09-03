@@ -1,0 +1,28 @@
+{% if order.source_type == 'dealer' %}
+<section class="commission-attribution" id="commission-attribution" aria-label="台數與傭金歸屬">
+  <div class="commission-attribution__current">
+    <div><span class="muted">台數與傭金歸屬</span><strong>{{ order.effective_commission_recipient|default:'待確認' }}</strong></div>
+    <p>原銷售車行：{{ order.source|default:'未設定' }}<span>依原領牌期間計算</span></p>
+  </div>
+  {% if commission_block_reason %}
+    <p class="commission-attribution__locked">{{ commission_block_reason }}</p>
+  {% elif commission_form %}
+    <details class="commission-attribution__editor"{% if commission_form.is_bound %} open{% endif %}>
+      <summary>調整台數與傭金歸屬<span aria-hidden="true">⌄</span></summary>
+      <form method="post" action="{% url 'order_commission_attribution_update' order.pk %}#commission-attribution" data-commission-attribution-form>
+        {% csrf_token %}{{ commission_form.order_revision }}
+        {% if commission_form.errors %}<div class="note-box warning" role="alert"><strong>尚未儲存，請確認下列提示。</strong>{{ commission_form.non_field_errors }}{{ commission_form.order_revision.errors }}<a href="{% url 'order_detail' order.pk %}#commission-attribution">重新載入最新資料</a></div>{% endif %}
+        <div class="commission-attribution__fields">
+          {% include "sales/_field.html" with field=commission_form.commission_recipient %}
+          {% include "sales/_field.html" with field=commission_form.reason %}
+        </div>
+        <p class="commission-attribution__hint">只調整這一台的台數與傭金歸屬，不變更原車行、交付紀錄或原金額。選回「原銷售車行」即可取消指定。</p>
+        <div class="commission-attribution__actions">
+          <button type="button" class="button ghost" data-cancel-attribution hidden>取消</button>
+          <button type="submit" class="button primary">儲存歸屬</button>
+        </div>
+      </form>
+    </details>
+  {% endif %}
+</section>
+{% endif %}

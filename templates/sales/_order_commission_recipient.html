@@ -1,0 +1,16 @@
+<div class="order-credit" data-order-credit>
+  {{ form.assign_commission_to_other }}
+  {% if form.commission_attribution_locked %}
+    {{ form.commission_recipient.as_hidden }}
+    <p class="muted">台數與傭金歸屬：<strong>{{ editing_order.effective_commission_recipient }}</strong> · 已結算，不能更換</p>
+    {{ form.commission_recipient.errors }}
+  {% else %}
+    <button type="button" class="order-credit-toggle" data-credit-toggle aria-expanded="false" aria-controls="order-credit-panel">＋ 這台算給其他車行</button>
+    <div id="order-credit-panel" class="order-credit-panel" data-credit-panel>
+      {% include "sales/_field.html" with field=form.commission_recipient %}
+      <p class="order-credit-summary" data-credit-summary role="status" aria-live="polite"></p>
+      <small class="muted">只影響這張訂單。原銷售車行保留，原傭金金額不重新套算。</small>
+    </div>
+    <noscript><input type="hidden" name="commission_recipient_nojs" value="1"><p>選擇歸屬車行即會隨訂單儲存；留空代表原車行。</p></noscript>
+  {% endif %}
+</div>

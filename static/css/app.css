@@ -1608,7 +1608,7 @@ body.screen-locked { overflow: hidden; }
   background: var(--surface); border: 1px solid var(--line); border-radius: 12px; cursor: pointer;
 }
 .holiday-calendar-active input {
-  appearance: none; position: relative; width: 44px; height: 26px; flex: 0 0 44px;
+  appearance: none; position: relative; width: 44px; height: 26px; min-height: 26px; padding: 0; flex: 0 0 44px;
   background: var(--line); border: 0; border-radius: 999px; cursor: pointer;
 }
 .holiday-calendar-active input::after {

@@ -294,6 +294,28 @@
     <button class="button primary">儲存{{ source_context_label }}資料</button>
   </div>
 </form>
+
+{% if source and source_context_kind == 'dealer' %}
+<section class="source-record-management" aria-labelledby="source-record-management-title">
+  <div class="source-record-management__heading">
+    <div>
+      <p class="eyebrow">資料生命週期</p>
+      <h2 id="source-record-management-title">車行資料管理</h2>
+    </div>
+    <p>正常結束合作請使用「停用」；只有完全誤建且從未投入營運的資料才可永久刪除。</p>
+  </div>
+  <div class="source-record-management__options">
+    <article>
+      <div><strong>停用車行</strong><span>保留訂單與歷史資料，之後仍可重新啟用。</span></div>
+      <span class="status-pill{% if source.active %} success{% endif %}">{{ source.active|yesno:"目前啟用中,目前已停用" }}</span>
+    </article>
+    <article class="source-record-management__danger">
+      <div><strong>永久刪除誤建資料</strong><span>系統會先檢查訂單、庫存與相關設定，不符合條件時不會刪除。</span></div>
+      <a class="button danger-outline" href="{% url 'sales_source_delete' source.pk %}">檢查並永久刪除</a>
+    </article>
+  </div>
+</section>
+{% endif %}
 {% endblock %}
 
 {% block scripts %}

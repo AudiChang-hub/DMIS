@@ -192,3 +192,86 @@ class BusinessCalendarPageTests(TestCase):
         self.assertContains(response, "人事行政總處同步")
         self.assertContains(response, "每月同步當年與次年行事曆")
         self.assertContains(response, "2026 年")
+
+    def test_page_renders_selected_month_as_calendar_and_limits_list_to_month(self):
+        official = BusinessHoliday.objects.create(
+            date=date(2026, 9, 25),
+            name="中秋節",
+            source=BusinessHoliday.Source.DGPA,
+        )
+        manual = BusinessHoliday.objects.create(
+            date=date(2026, 9, 30),
+            name="公司盤點日",
+            source=BusinessHoliday.Source.MANUAL,
+        )
+        BusinessHoliday.objects.create(
+            date=date(2026, 10, 1),
+            name="十月測試日",
+        )
+
+        response = self.client.get(
+            reverse("business_holiday_list"),
+            {"month": "2026-09"},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["current_month"], date(2026, 9, 1))
+        self.assertEqual(
+            {holiday.pk for holiday in response.context["holidays"]},
+            {official.pk, manual.pk},
+        )
+        self.assertEqual(len(response.context["calendar_weeks"]), 5)
+        self.assertContains(response, 'class="holiday-calendar-grid"')
+        self.assertContains(response, 'data-holiday-date="2026-09-25"')
+        self.assertContains(response, 'data-holiday-source="dgpa"')
+        self.assertContains(
+            response,
+            'aria-label="9 月 25 日，中秋節，排除工作日計算"',
+        )
+        self.assertContains(response, "本月日期清單")
+        self.assertContains(response, "新增日期")
+
+    def test_calendar_post_can_edit_existing_official_date_and_preserves_month(self):
+        holiday = BusinessHoliday.objects.create(
+            date=date(2026, 9, 25),
+            name="原名稱",
+            source=BusinessHoliday.Source.DGPA,
+        )
+
+        response = self.client.post(
+            reverse("business_holiday_list"),
+            {
+                "holiday_id": holiday.pk,
+                "month": "2026-09",
+                "date": "2026-09-25",
+                "name": "中秋節",
+            },
+        )
+
+        self.assertRedirects(
+            response,
+            f"{reverse('business_holiday_list')}?month=2026-09",
+            fetch_redirect_response=False,
+        )
+        holiday.refresh_from_db()
+        self.assertEqual(holiday.name, "中秋節")
+        self.assertEqual(holiday.source, BusinessHoliday.Source.DGPA)
+        self.assertFalse(holiday.active)
+
+    def test_delete_returns_to_same_calendar_month(self):
+        holiday = BusinessHoliday.objects.create(
+            date=date(2026, 9, 30),
+            name="公司盤點日",
+        )
+
+        response = self.client.post(
+            reverse("business_holiday_delete", args=[holiday.pk]),
+            {"month": "2026-09"},
+        )
+
+        self.assertRedirects(
+            response,
+            f"{reverse('business_holiday_list')}?month=2026-09",
+            fetch_redirect_response=False,
+        )
+        self.assertFalse(BusinessHoliday.objects.filter(pk=holiday.pk).exists())

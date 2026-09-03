@@ -1,3 +1,4 @@
+import calendar
 import json
 import logging
 import shutil
@@ -1330,20 +1331,61 @@ def password_change_required(request):
 @login_required
 def business_holiday_list(request):
     editing = None
-    edit_pk = request.GET.get("edit")
+    edit_pk = request.POST.get("holiday_id") or request.GET.get("edit")
     if edit_pk:
         editing = get_object_or_404(BusinessHoliday, pk=edit_pk)
+
+    today = timezone.localdate()
+    requested_month = request.POST.get("month") or request.GET.get("month")
+    try:
+        year_text, month_text = (requested_month or "").split("-", 1)
+        current_month = date(int(year_text), int(month_text), 1)
+    except (TypeError, ValueError):
+        reference_date = editing.date if editing else today
+        current_month = reference_date.replace(day=1)
+
     form = BusinessHolidayForm(request.POST or None, instance=editing)
     if request.method == "POST" and form.is_valid():
         holiday = form.save()
         messages.success(request, f"已儲存工作日排除日期：{holiday.date} {holiday.name}。")
-        return redirect("business_holiday_list")
-    holidays = list(BusinessHoliday.objects.all())
-    official_holidays = [
-        holiday
-        for holiday in holidays
-        if holiday.source == BusinessHoliday.Source.DGPA
+        return redirect(
+            f"{reverse('business_holiday_list')}?month={current_month:%Y-%m}"
+        )
+
+    next_month = (current_month.replace(day=28) + timedelta(days=4)).replace(day=1)
+    previous_month = (current_month - timedelta(days=1)).replace(day=1)
+    calendar_dates = calendar.Calendar(firstweekday=0).monthdatescalendar(
+        current_month.year,
+        current_month.month,
+    )
+    visible_start = calendar_dates[0][0]
+    visible_end = calendar_dates[-1][-1]
+    visible_holidays = list(
+        BusinessHoliday.objects.filter(date__range=(visible_start, visible_end))
+    )
+    holidays_by_date = {holiday.date: holiday for holiday in visible_holidays}
+    calendar_weeks = [
+        [
+            {
+                "date": calendar_date,
+                "in_month": calendar_date.month == current_month.month,
+                "is_today": calendar_date == today,
+                "is_weekend": calendar_date.weekday() >= 5,
+                "holiday": holidays_by_date.get(calendar_date),
+            }
+            for calendar_date in week
+        ]
+        for week in calendar_dates
     ]
+    month_holidays = [
+        holiday
+        for holiday in visible_holidays
+        if holiday.date.year == current_month.year
+        and holiday.date.month == current_month.month
+    ]
+    official_holidays = list(
+        BusinessHoliday.objects.filter(source=BusinessHoliday.Source.DGPA)
+    )
     latest_official_sync = max(
         (holiday.updated_at for holiday in official_holidays),
         default=None,
@@ -1352,9 +1394,23 @@ def business_holiday_list(request):
         request,
         "sales/business_holiday_list.html",
         {
-            "holidays": holidays,
+            "holidays": month_holidays,
             "form": form,
             "editing": editing,
+            "editor_open": bool(editing or form.errors),
+            "calendar_weeks": calendar_weeks,
+            "current_month": current_month,
+            "previous_month": previous_month,
+            "next_month": next_month,
+            "today": today,
+            "month_excluded_count": sum(
+                1 for holiday in month_holidays if holiday.active
+            ),
+            "month_manual_count": sum(
+                1
+                for holiday in month_holidays
+                if holiday.source == BusinessHoliday.Source.MANUAL
+            ),
             "latest_official_sync": latest_official_sync,
             "official_years": sorted(
                 {holiday.date.year for holiday in official_holidays}
@@ -1370,7 +1426,13 @@ def business_holiday_delete(request, pk):
         label = str(holiday)
         holiday.delete()
         messages.success(request, f"已刪除 {label}。")
-    return redirect("business_holiday_list")
+    month = request.POST.get("month", "")
+    try:
+        year_text, month_text = month.split("-", 1)
+        safe_month = date(int(year_text), int(month_text), 1).strftime("%Y-%m")
+    except (TypeError, ValueError):
+        safe_month = timezone.localdate().strftime("%Y-%m")
+    return redirect(f"{reverse('business_holiday_list')}?month={safe_month}")
 
 
 @login_required

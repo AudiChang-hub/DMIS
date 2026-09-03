@@ -5,17 +5,14 @@ def lock_bonus_periods(order):
     """整單儲存與結算互斥；NOWAIT 避免已持訂單鎖時反向等待規則鎖。"""
     from django.core.exceptions import ValidationError
     from django.db import DatabaseError
-    from sales.models import DealerVolumeBonusRule
+    from .dealer_commission import matching_bonus_rules
 
     if not order.registration_completed_at or not order.registration_date or not order.vehicle_model_id:
         return
     try:
         with transaction.atomic():
-            list(DealerVolumeBonusRule.objects.select_for_update(nowait=True).filter(
-                dealer_id=order.commission_recipient_id or order.source_id,
-                brand__iexact=order.vehicle_model.brand,
-                starts_on__lte=order.registration_date, ends_on__gte=order.registration_date,
-            ).order_by("pk").values_list("pk", flat=True))
+            list(matching_bonus_rules(order, order.commission_recipient_id or order.source_id)
+                 .select_for_update(nowait=True, of=("self",)).order_by("pk").values_list("pk", flat=True))
     except DatabaseError as exc:
         cause = exc.__cause__
         if getattr(cause, "sqlstate", None) == "55P03" or getattr(cause, "pgcode", None) == "55P03":

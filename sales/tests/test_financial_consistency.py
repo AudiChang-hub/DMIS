@@ -1,7 +1,7 @@
 from datetime import date
 from decimal import Decimal
 from unittest.mock import patch
-from threading import Event, Thread
+from threading import Barrier, Event, Thread
 
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
@@ -279,6 +279,38 @@ class FinancialConsistencyTests(TestCase):
 
 
 class FinancialPostgresConcurrencyTests(TransactionTestCase):
+    @skipUnlessDBFeature("has_select_for_update_nowait")
+    def test_overlapping_bonus_settlements_accumulate_without_lost_update(self):
+        FinancialConsistencyTests.setUpTestData.__func__(type(self))
+        order = FinancialConsistencyTests.order(self)
+        order.registration_completed_at = timezone.now()
+        order.save()
+        first = FinancialConsistencyTests.rule(self)
+        second = DealerVolumeBonusRule.objects.create(name="能源加碼", energy_type=order.vehicle_model.energy_type,
+                                                      starts_on=first.starts_on, ends_on=first.ends_on)
+        DealerVolumeBonusTier.objects.create(rule=second, minimum_quantity=1, bonus_per_vehicle=300)
+        gate = Barrier(2)
+        errors = []
+
+        def settle(rule):
+            close_old_connections()
+            try:
+                gate.wait(timeout=10)
+                create_volume_bonus_settlement(rule, "concurrency-test", dealer=self.dealer)
+            except Exception as exc:
+                errors.append(str(exc))
+            finally:
+                connection.close()
+
+        workers = [Thread(target=settle, args=(rule,), daemon=True) for rule in (first, second)]
+        for worker in workers: worker.start()
+        for worker in workers: worker.join(15)
+        self.assertFalse(any(worker.is_alive() for worker in workers))
+        self.assertEqual(errors, [])
+        self.assertEqual(order.dealer_volume_bonus_allocations.count(), 2)
+        profile = OrderOperationsProfile.objects.get(order=order)
+        self.assertEqual(profile.dealer_commission_expense, profile.dealer_commission_base + profile.dealer_commission_adjustment + 800)
+
     @skipUnlessDBFeature("has_select_for_update_nowait")
     def test_order_save_rejects_in_progress_bonus_settlement_without_deadlock(self):
         FinancialConsistencyTests.setUpTestData.__func__(type(self))

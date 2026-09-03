@@ -1,35 +1,41 @@
-{% extends "base.html" %}
-{% load static %}
+{% extends "base.html" %}{% load static %}
 {% block head %}<link rel="stylesheet" href="{% static 'css/dealer-volume-bonus.css' %}?v={{ app_version }}">{% endblock %}
-{% block title %}結算台數獎金｜車輛銷售管理{% endblock %}
+{% block title %}台數獎金試算與結算｜車輛銷售管理{% endblock %}
 {% block page_class %}page-shell--wide{% endblock %}
 {% block content %}
 {% url 'dealer_volume_bonus_list' as list_url %}{% include "sales/_page_back.html" with fallback_url=list_url label="返回台數獎金" %}
-<section class="hero-row compact-hero"><div><p class="eyebrow">依訂單歸屬結算</p><h1>{{ rule.dealer }}／{{ rule.brand }}</h1><p class="muted">{{ rule.starts_on|date:'Y/m/d' }}－{{ rule.ends_on|date:'Y/m/d' }}，共 {{ preview.quantity }} 台，每台獎金 ${{ preview.bonus_per_vehicle|floatformat:0 }}。</p></div></section>
+<section class="hero-row compact-hero"><div><p class="eyebrow">逐單核對，再確認結算</p><h1>{{ rule }}</h1><p class="muted">{{ rule.conditions_label }}</p><p>{{ rule.starts_on|date:'Y/m/d' }}－{{ rule.ends_on|date:'Y/m/d' }}</p></div></section>
+{% if not dealer %}
+<section class="form-section static-section"><h2>先選擇收款車行</h2><p class="muted">各車行分開計算門檻與結算。</p><form method="get" class="stacked-form"><div class="field"><label for="bonus-dealer">收款車行</label><select id="bonus-dealer" name="dealer" class="form-control" data-searchable-select="1" required><option value="">請選擇車行</option>{% for item in dealers %}<option value="{{ item.pk }}">{{ item }}</option>{% endfor %}</select></div><button class="button primary">查看試算</button></form></section>
+{% else %}
 <div class="responsive-split bonus-settlement-layout">
   <section class="form-section static-section">
-    <div class="section-title"><h2>收款車行：{{ rule.dealer }}</h2></div>
+    <div class="section-title"><h2>收款車行：{{ dealer }}</h2></div>
     <dl class="money-list">
-      <div><dt>原傭金（含車行加減額）</dt><dd>{% if preview.original_commission_total != None %}${{ preview.original_commission_total|floatformat:0 }}{% else %}人工總額待核對{% endif %}</dd></div>
-      <div><dt>預計台數獎金</dt><dd>${{ preview.expected_amount|floatformat:0 }}</dd></div>
-      <div class="total"><dt>預計合計</dt><dd>{% if preview.total_payable != None %}${{ preview.total_payable|floatformat:0 }}{% else %}待核對{% endif %}</dd></div>
+      <div><dt>本規則符合台數</dt><dd>{{ preview.quantity }} 台</dd></div>
+      <div><dt>採用每台獎金</dt><dd>&#36;{{ preview.bonus_per_vehicle|floatformat:0 }}</dd></div>
+      <div><dt>原傭金（含車行加減額）</dt><dd>{% if preview.original_commission_total != None %}&#36;{{ preview.original_commission_total|floatformat:0 }}{% else %}人工總額待核對{% endif %}</dd></div>
+      <div class="total"><dt>本次預計結算獎金</dt><dd>&#36;{{ preview.expected_amount|floatformat:0 }}</dd></div>
+      <div><dt>這些訂單的各規則累計獎金</dt><dd>&#36;{{ preview.combined_bonus_total|floatformat:0 }}</dd></div>
     </dl>
+    <p class="form-hint">累計包含其他規則的試算與已結算獎金；本次只結算這一條規則。原傭金不重複加算。</p>
+    {% if preview.tier and rule.active %}
     <form method="post" class="stacked-form">{% csrf_token %}{{ form.non_field_errors }}
       {% if preview.original_commission_total == None %}<div class="note-box warning">部分訂單已人工覆寫傭金總支出。系統保留人工值，不自動拆分或追加；支付前請核對原傭金與本次獎金。</div>{% endif %}
       {% for field in form %}{% include "sales/_field.html" with field=field %}{% endfor %}
-      <div class="note-box warning">此處填寫台數獎金，不含原傭金。結算後保存逐單金額及收款歸屬；不可再更換歸屬車行。此操作不代表已付款，勿重複支付已付原傭金。</div>
-      <div class="form-actions"><a class="button ghost" href="{{ list_url }}">取消</a><button class="button primary">確認結算</button></div>
+      <div class="note-box warning">此處填寫台數獎金，不含原傭金或其他規則獎金。結算後保存逐單金額及收款歸屬，不能再修改規則條件或更換訂單歸屬。此操作不代表已付款。</div>
+      <div class="form-actions"><a class="button ghost" href="{{ list_url }}">返回</a><button class="button primary">確認結算本規則</button></div>
     </form>
+    {% else %}<div class="note-box">{% if not rule.active %}此規則已停用，不能結算。{% else %}目前尚未達到門檻，可先核對逐單明細。{% endif %}</div>{% endif %}
   </section>
-  <section class="inventory-list-panel"><div class="inventory-list-summary"><strong>逐單明細 · 全部歸 {{ rule.dealer }}</strong></div>
-    <div class="inventory-table-wrap"><table class="inventory-table">
-      <thead><tr><th>領牌日／訂單</th><th>原銷售車行</th><th>車主／車型</th><th>原傭金</th></tr></thead>
-      <tbody>{% for order in preview.orders %}<tr>
-        <td data-label="領牌日／訂單">{{ order.registration_date|date:'Y/m/d' }}<span><a href="{% url 'order_detail' order.pk %}">{{ order.number }}</a></span></td>
-        <td data-label="原銷售車行">{{ order.source }}</td>
-        <td data-label="車主／車型">{{ order.owner_name }}<span>{{ order.vehicle_model.name }}</span></td>
-        <td data-label="原傭金">{% if order.original_commission_amount != None %}${{ order.original_commission_amount|floatformat:0 }}{% else %}人工總額待核對{% endif %}</td>
-      </tr>{% empty %}<tr><td colspan="4">沒有符合條件的訂單。</td></tr>{% endfor %}</tbody>
-    </table></div>
+  <section class="inventory-list-panel"><div class="inventory-list-summary"><strong>逐單明細 · 全部歸 {{ dealer }}</strong></div>
+    <div class="inventory-table-wrap"><table class="inventory-table"><thead><tr><th>領牌日／訂單</th><th>原銷售車行／車型</th><th>原傭金</th><th>各規則獎金</th></tr></thead><tbody>
+    {% for order in preview.orders %}<tr>
+      <td data-label="領牌日／訂單">{{ order.registration_date|date:'Y/m/d' }}<span><a href="{% url 'order_detail' order.pk %}">{{ order.number }}</a></span><span>{{ order.owner_name }}</span></td>
+      <td data-label="原銷售車行／車型">{{ order.source|default:'本店' }}<span>{{ order.vehicle_model }}</span></td>
+      <td data-label="原傭金">{% if order.original_commission_amount != None %}&#36;{{ order.original_commission_amount|floatformat:0 }}{% else %}人工總額待核對{% endif %}</td>
+      <td data-label="各規則獎金"><ul class="bonus-components">{% for item in order.bonus_details %}<li {% if item.current %}class="is-current"{% endif %}>{{ item.name }} · &#36;{{ item.amount|floatformat:0 }}<small>{% if item.settled %}已結算{% else %}試算{% endif %}{% if item.current %} · 本規則{% endif %}</small></li>{% empty %}<li>尚無已達門檻獎金</li>{% endfor %}</ul><span>累計 &#36;{{ order.combined_bonus|floatformat:0 }}</span></td>
+    </tr>{% empty %}<tr><td colspan="4">沒有符合條件的訂單。</td></tr>{% endfor %}</tbody></table></div>
   </section>
-</div>{% endblock %}
+</div>
+{% endif %}{% endblock %}

@@ -1,5 +1,6 @@
-from decimal import Decimal
+import json
 import re
+from decimal import Decimal
 from django import forms
 from django.contrib.auth import get_user_model, password_validation
 from django.contrib.auth.forms import PasswordChangeForm
@@ -2942,6 +2943,34 @@ class DealerVehicleRewardPlanForm(forms.ModelForm):
         apply_mobile_keyboard_attrs(self)
 
 
+DEALER_REWARD_UNIT_OTHER = "__other__"
+DEALER_REWARD_UNITS = {
+    DealerVehicleRewardItem.RewardType.PHYSICAL: [
+        "件",
+        "個",
+        "組",
+        "瓶",
+        "罐",
+        "盒",
+        "條",
+        "顆",
+        "套",
+    ],
+    DealerVehicleRewardItem.RewardType.CASH_GIFT: ["元"],
+    DealerVehicleRewardItem.RewardType.VOUCHER: ["元", "張", "份"],
+    DealerVehicleRewardItem.RewardType.TRAVEL_POINTS: ["點"],
+}
+DEALER_REWARD_DEFAULT_UNITS = {
+    DealerVehicleRewardItem.RewardType.PHYSICAL: "件",
+    DealerVehicleRewardItem.RewardType.CASH_GIFT: "元",
+    DealerVehicleRewardItem.RewardType.VOUCHER: "元",
+    DealerVehicleRewardItem.RewardType.TRAVEL_POINTS: "點",
+}
+DEALER_REWARD_STANDARD_UNITS = list(
+    dict.fromkeys(unit for units in DEALER_REWARD_UNITS.values() for unit in units)
+)
+
+
 class DealerVehicleRewardItemForm(forms.ModelForm):
     class Meta:
         model = DealerVehicleRewardItem
@@ -2951,15 +2980,68 @@ class DealerVehicleRewardItemForm(forms.ModelForm):
             "quantity": forms.NumberInput(
                 attrs={"min": "0.01", "step": "0.01", "inputmode": "decimal"}
             ),
-            "unit": forms.TextInput(attrs={"placeholder": "瓶／條／元／點"}),
+            "unit": forms.Select(attrs={"data-reward-unit": ""}),
             "note": forms.TextInput(attrs={"placeholder": "選填說明"}),
         }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.fields["reward_type"].widget.attrs["data-reward-type"] = ""
+        unit_field = self.fields["unit"]
+        unit_field.required = False
+        current_unit = (
+            self.data.get(self.add_prefix("unit"), "")
+            if self.is_bound
+            else self.initial.get("unit", "") or getattr(self.instance, "unit", "")
+        )
+        choices = [("", "請選擇單位")]
+        choices.extend((unit, unit) for unit in DEALER_REWARD_STANDARD_UNITS)
+        if (
+            current_unit
+            and current_unit != DEALER_REWARD_UNIT_OTHER
+            and current_unit not in DEALER_REWARD_STANDARD_UNITS
+        ):
+            choices.append((current_unit, f"目前單位：{current_unit}"))
+        choices.append((DEALER_REWARD_UNIT_OTHER, "其他（自行輸入）"))
+        unit_field.widget.choices = choices
+        unit_field.help_text = "選項會依獎勵類型自動切換。"
+        unit_field.widget.attrs.update(
+            {
+                "data-reward-units": json.dumps(
+                    DEALER_REWARD_UNITS, ensure_ascii=False
+                ),
+                "data-reward-default-units": json.dumps(
+                    DEALER_REWARD_DEFAULT_UNITS, ensure_ascii=False
+                ),
+                "data-reward-unit-other-value": (
+                    self.data.get(self.add_prefix("unit_other"), "")
+                    if self.is_bound
+                    else ""
+                ),
+            }
+        )
         for field in self.fields.values():
             field.widget.attrs.setdefault("class", "form-control")
         apply_mobile_keyboard_attrs(self)
+
+    def clean_unit(self):
+        reward_type = self.cleaned_data.get("reward_type")
+        unit = (self.cleaned_data.get("unit") or "").strip()
+        allowed_units = DEALER_REWARD_UNITS.get(reward_type, [])
+        if not unit:
+            return DEALER_REWARD_DEFAULT_UNITS.get(reward_type, "件")
+        if unit == DEALER_REWARD_UNIT_OTHER:
+            unit = self.data.get(self.add_prefix("unit_other"), "").strip()
+            if not unit:
+                raise ValidationError("請輸入其他單位。")
+            if len(unit) > 20:
+                raise ValidationError("其他單位不可超過 20 個字。")
+            if unit in DEALER_REWARD_STANDARD_UNITS and unit not in allowed_units:
+                raise ValidationError("請選擇符合獎勵類型的單位。")
+            return unit
+        if unit in DEALER_REWARD_STANDARD_UNITS and unit not in allowed_units:
+            raise ValidationError("請選擇符合獎勵類型的單位。")
+        return unit
 
 
 class BaseDealerVehicleRewardItemFormSet(BaseInlineFormSet):

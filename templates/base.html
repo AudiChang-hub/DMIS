@@ -55,7 +55,7 @@
                 <a href="{% url 'legacy_import_list' %}"><strong>舊資料 Excel 匯入</strong></a>
                 <a href="{% url 'positioned_template_list' %}"><strong>列印範本設定</strong></a>
                 {% if user.is_superuser %}<a href="{% url 'user_management' %}"><strong>帳號與權限</strong></a>{% endif %}
-                <a class="data-menu-all" href="{% url 'data_maintenance' %}"><strong>查看全部維護功能 →</strong></a>
+                <a href="{% url 'system_diagnostics' %}"><strong>系統狀態檢查</strong></a>
               </div>
             </div>
           </div>

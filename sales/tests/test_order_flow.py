@@ -1470,10 +1470,9 @@ class OrderFlowTests(TestCase):
             'class="vehicle-model-family-group is-inactive"',
             html=False,
         )
-        self.assertContains(response, "vehicle-model-status--active")
-        self.assertContains(response, "vehicle-model-status--inactive")
-        self.assertContains(response, "✓")
-        self.assertContains(response, "Ⅱ")
+        self.assertContains(response, "vehicle-model-active-toggle", count=2)
+        self.assertNotContains(response, "vehicle-model-status--active")
+        self.assertNotContains(response, "vehicle-model-status--inactive")
 
     def test_vehicle_model_list_displays_latest_active_year_before_inactive_year(self):
         active_model = VehicleModel.objects.create(
@@ -5744,7 +5743,7 @@ class OrderOperationsTests(TestCase):
 
         response = self.client.post(url, {"base_dealer_commission": "1500"})
 
-        self.assertRedirects(response, reverse("vehicle_model_edit", args=[self.model.pk]))
+        self.assertRedirects(response, f"{url}#cash-commission")
         self.model.refresh_from_db()
         self.assertEqual(self.model.base_dealer_commission, Decimal("1500"))
 

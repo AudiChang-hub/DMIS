@@ -195,8 +195,18 @@ class VehicleBrandMasterTests(TestCase):
                 "電車待補功率",
                 "油車 50",
                 "油車 125",
-                "停用電車",
             ],
+        )
+        inactive_response = self.client.get(
+            reverse("vehicle_model_list"), {"status": "inactive"}
+        )
+        inactive_group = next(
+            item
+            for item in inactive_response.context["vehicle_model_groups"]
+            if item["name"] == brand.name
+        )
+        self.assertEqual(
+            [family["name"] for family in inactive_group["families"]], ["停用電車"]
         )
 
     def test_new_parent_child_brand_is_grouped_without_ui_special_case(self):

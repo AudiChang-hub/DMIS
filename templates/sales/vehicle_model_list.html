@@ -20,7 +20,21 @@
   </div>
 </section>
 
+<nav class="source-status-switch" aria-label="依使用狀態查看機種與售價">
+  <a href="{{ status_urls.active }}" class="{% if selected.status == 'active' %}is-active{% endif %}" {% if selected.status == 'active' %}aria-current="page"{% endif %}>
+    <span>目前使用</span>
+    <strong>啟用中機種</strong>
+    <b>{{ vehicle_model_status_counts.active }}</b>
+  </a>
+  <a href="{{ status_urls.inactive }}" class="{% if selected.status == 'inactive' %}is-active is-inactive{% endif %}" {% if selected.status == 'inactive' %}aria-current="page"{% endif %}>
+    <span>歷史收納</span>
+    <strong>已停用機種</strong>
+    <b>{{ vehicle_model_status_counts.inactive }}</b>
+  </a>
+</nav>
+
 <form method="get" class="master-filters">
+  <input type="hidden" name="status" value="{{ selected.status }}">
   <div class="inventory-filter master-search">
     <label for="model-q">搜尋</label>
     <input id="model-q" type="search" name="q" value="{{ selected.q }}" placeholder="品牌、機種、型號、型式或顏色">
@@ -32,16 +46,8 @@
       {% for value, label in energy_types %}<option value="{{ value }}" {% if selected.energy_type == value %}selected{% endif %}>{{ label }}</option>{% endfor %}
     </select>
   </div>
-  <div class="inventory-filter">
-    <label for="model-active">狀態</label>
-    <select id="model-active" name="active">
-      <option value="">全部狀態</option>
-      <option value="yes" {% if selected.active == "yes" %}selected{% endif %}>啟用中</option>
-      <option value="no" {% if selected.active == "no" %}selected{% endif %}>已停用</option>
-    </select>
-  </div>
   <div class="inventory-filter-actions">
-    <a class="button ghost" href="{% url 'vehicle_model_list' %}">清除</a>
+    <a class="button ghost" href="{% url 'vehicle_model_list' %}{% if selected.status == 'inactive' %}?status=inactive{% endif %}">清除</a>
     <button class="button primary" type="submit">套用</button>
   </div>
 </form>
@@ -63,7 +69,7 @@
       </span>
       <span class="vehicle-brand-group__metrics">
         <strong>{{ group.total_count }} 個機種</strong>
-        <small>{{ group.version_count }} 筆設定 · {{ group.active_count }} 個啟用中</small>
+        <small>{% if selected.status == 'inactive' %}歷史資料集中收納{% else %}{{ group.version_count }} 筆設定 · {{ group.active_count }} 個啟用中{% endif %}</small>
       </span>
       <span class="vehicle-brand-group__toggle" aria-hidden="true">
         <span class="vehicle-brand-group__toggle-open">展開</span>

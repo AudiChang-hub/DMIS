@@ -21,7 +21,7 @@
   </a>
   <a class="maintenance-card" href="{% url 'vehicle_model_list' %}">
     <span class="maintenance-card__icon">型</span>
-    <div><h2>機種與售價</h2><p>維護機種、原廠型號、年份、顏色、售價及車行基礎傭金。</p><strong>{{ vehicle_model_count }} 個機種 · {{ vehicle_model_version_count }} 筆年式／規格</strong></div>
+    <div><h2>機種與售價</h2><p>維護機種、原廠型號、年份、顏色與售價版本。</p><strong>{{ vehicle_model_count }} 個機種 · {{ vehicle_model_version_count }} 筆年式／規格</strong></div>
     <span aria-hidden="true">›</span>
   </a>
   <a class="maintenance-card" href="{% url 'inventory_list' %}">
@@ -78,6 +78,11 @@
   <a class="maintenance-card" href="{% url 'incentive_rule_list' %}">
     <span class="maintenance-card__icon">補</span>
     <div><h2>原廠獎勵與補助</h2><p>維護實銷獎勵、促銷補助與分期補貼息。</p><strong>{{ incentive_rule_count }} 筆獎勵版本</strong></div>
+    <span aria-hidden="true">›</span>
+  </a>
+  <a class="maintenance-card" href="{% url 'dealer_sales_program_list' %}">
+    <span class="maintenance-card__icon">佣</span>
+    <div><h2>車行傭金與銷售獎勵</h2><p>依車型維護逐台給付的現金傭金、實物、紅包、禮券與旅遊點數。</p><strong>{{ dealer_sales_program_count }} 個車型已設定獎勵</strong></div>
     <span aria-hidden="true">›</span>
   </a>
   <a class="maintenance-card" href="{% url 'dealer_volume_bonus_list' %}">

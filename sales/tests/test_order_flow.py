@@ -322,7 +322,7 @@ class OrderFlowTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "售價版本")
-        self.assertContains(response, "車行基礎傭金")
+        self.assertContains(response, "車行傭金與銷售獎勵")
         self.assertContains(response, "原廠獎勵與補助")
         self.assertContains(response, 'name="motor_power_kw"')
         self.assertContains(response, 'name="horsepower_hp"')
@@ -721,11 +721,7 @@ class OrderFlowTests(TestCase):
     def test_vehicle_model_business_pages_offer_previous_screen_and_fixed_hierarchy(self):
         self.client.force_login(self.user)
         model_url = reverse("vehicle_model_edit", args=[self.model.pk])
-        for route_name in (
-            "vehicle_model_price_versions",
-            "vehicle_model_commission",
-            "vehicle_installment_plan_list",
-        ):
+        for route_name in ("vehicle_model_price_versions", "vehicle_installment_plan_list"):
             with self.subTest(route_name=route_name):
                 response = self.client.get(reverse(route_name, args=[self.model.pk]))
 
@@ -735,6 +731,16 @@ class OrderFlowTests(TestCase):
                 self.assertContains(response, f'data-fallback-url="{model_url}"')
                 self.assertContains(response, "車型資料")
                 self.assertContains(response, "車型設定")
+
+        program_list_url = reverse("dealer_sales_program_list")
+        response = self.client.get(
+            reverse("vehicle_model_commission", args=[self.model.pk])
+        )
+        self.assertContains(response, f'href="{program_list_url}"')
+        self.assertContains(response, "data-smart-back")
+        self.assertContains(response, f'data-fallback-url="{program_list_url}"')
+        self.assertContains(response, "資料維護區")
+        self.assertContains(response, "車行傭金與銷售獎勵")
 
     def test_vehicle_model_edit_has_fixed_model_parent_and_smart_previous_screen(self):
         self.client.force_login(self.user)

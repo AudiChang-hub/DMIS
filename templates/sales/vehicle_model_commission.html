@@ -1,10 +1,10 @@
 {% extends "base.html" %}{% load static %}
-{% block title %}車行方案｜車輛銷售管理{% endblock %}
+{% block title %}車行傭金與銷售獎勵｜車輛銷售管理{% endblock %}
 {% block page_class %}page-shell--form dealer-program-page{% endblock %}
 {% block content %}
-{% url 'vehicle_model_edit' vehicle_model.pk as model_edit_url %}{% url 'vehicle_model_list' as model_list_url %}
-{% include "sales/_page_back.html" with fallback_url=model_edit_url label="車型設定" root_url=model_list_url root_label="車型資料" %}
-<section class="hero-row compact-hero dealer-program-hero"><div><p class="eyebrow">{{ vehicle_model.brand }} {{ vehicle_model.name }}／{{ vehicle_model.model_number }}</p><h1>車行方案</h1><p class="muted">此頁已綁定目前車型，不需要再次選擇。現金傭金與額外獎勵分開保存、清楚辨識。</p></div></section>
+{% url 'dealer_sales_program_list' as program_list_url %}{% url 'data_maintenance' as data_url %}
+{% include "sales/_page_back.html" with fallback_url=program_list_url label="車行傭金與銷售獎勵" root_url=data_url root_label="資料維護區" current_label=vehicle_model.name %}
+<section class="hero-row compact-hero dealer-program-hero"><div><p class="eyebrow">{{ vehicle_model.brand }} {{ vehicle_model.name }}／{{ vehicle_model.model_number }}</p><h1>車行傭金與銷售獎勵</h1><p class="muted">此頁已綁定目前車型，不需要再次選擇。現金傭金與額外獎勵分開保存、清楚辨識。</p></div></section>
 
 <section id="cash-commission" class="card commission-editor-card dealer-program-section">
   <div class="commission-editor-card__intro"><span class="vehicle-business-card__icon">佣</span><div><p class="eyebrow">現金</p><h2>車行基礎傭金</h2><p>合作車行銷售此車型時的預設金額；特定車行加減仍在該車行資料維護。</p></div></div>
@@ -22,7 +22,7 @@
     <div class="dealer-reward-items" data-reward-rows>{% for item_form in reward_formset %}<div class="dealer-reward-item" data-reward-row>{{ item_form.id }}{% for field in item_form.visible_fields %}{% if field.name != 'DELETE' %}<div>{% include "sales/_field.html" with field=field %}</div>{% endif %}{% endfor %}<span hidden>{{ item_form.DELETE }}</span><button type="button" class="button danger-outline small" data-remove-reward>移除此筆</button></div>{% endfor %}</div>
     <template data-reward-template><div class="dealer-reward-item" data-reward-row>{{ reward_formset.empty_form.id }}{% for field in reward_formset.empty_form.visible_fields %}{% if field.name != 'DELETE' %}<div>{% include "sales/_field.html" with field=field %}</div>{% endif %}{% endfor %}<span hidden>{{ reward_formset.empty_form.DELETE }}</span><button type="button" class="button danger-outline small" data-remove-reward>移除此筆</button></div></template>
     <div class="dealer-reward-accounting-note"><strong>目前不自動入帳</strong><span>先保存公司承諾給車行的內容；待確認實物、紅包、禮券及點數的認列時點後，再接上發放與淨利。</span></div>
-    <div class="form-actions dealer-reward-actions"><a class="button ghost" href="{{ model_edit_url }}#business-settings">返回車型設定</a><button class="button primary" type="submit">儲存附加獎勵</button></div>
+    <div class="form-actions dealer-reward-actions"><a class="button ghost" href="{{ program_list_url }}">返回方案總覽</a><button class="button primary" type="submit">儲存附加獎勵</button></div>
   </form>
 </section>
 {% endblock %}

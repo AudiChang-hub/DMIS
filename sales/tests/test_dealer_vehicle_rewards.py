@@ -79,6 +79,66 @@ class DealerVehicleRewardTests(TestCase):
         self.model.refresh_from_db()
         self.assertEqual(self.model.base_dealer_commission, Decimal("1200"))
 
+    def test_reward_unit_is_a_type_aware_select_with_other_option(self):
+        response = self.client.get(self.url)
+
+        self.assertContains(response, 'data-reward-unit=""')
+        self.assertContains(response, "其他（自行輸入）")
+        self.assertContains(response, "選項會依獎勵類型自動切換")
+
+    def test_custom_reward_unit_is_saved_without_changing_the_model_field(self):
+        payload = self.reward_payload(
+            items=[("physical", "清潔保養包", "1", "__other__", "")]
+        )
+        payload["reward_items-0-unit_other"] = "包"
+
+        response = self.client.post(self.url, payload)
+
+        plan = DealerVehicleRewardPlan.objects.get()
+        self.assertRedirects(response, f"{self.url}?reward={plan.pk}#dealer-rewards")
+        self.assertEqual(plan.items.get().unit, "包")
+
+    def test_existing_custom_reward_unit_remains_available_when_editing(self):
+        plan = DealerVehicleRewardPlan.objects.create(
+            vehicle_model=self.model, effective_from=date(2026, 9, 1)
+        )
+        DealerVehicleRewardItem.objects.create(
+            plan=plan,
+            reward_type="physical",
+            name="保養耗材",
+            quantity=1,
+            unit="桶",
+        )
+
+        response = self.client.get(f"{self.url}?reward={plan.pk}")
+
+        self.assertContains(response, "目前單位：桶")
+        self.assertContains(response, '<option value="桶" selected>目前單位：桶</option>', html=True)
+
+    def test_other_reward_unit_requires_a_custom_value(self):
+        response = self.client.post(
+            self.url,
+            self.reward_payload(
+                items=[("physical", "清潔保養包", "1", "__other__", "")]
+            ),
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "請輸入其他單位")
+        self.assertFalse(DealerVehicleRewardPlan.objects.exists())
+
+    def test_reward_unit_rejects_a_standard_unit_for_the_wrong_type(self):
+        response = self.client.post(
+            self.url,
+            self.reward_payload(
+                items=[("travel_points", "國內旅遊", "1", "瓶", "")]
+            ),
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "請選擇符合獎勵類型的單位")
+        self.assertFalse(DealerVehicleRewardPlan.objects.exists())
+
     def test_commission_save_does_not_change_reward_plan(self):
         plan = DealerVehicleRewardPlan.objects.create(
             vehicle_model=self.model, effective_from=date(2026, 9, 1)

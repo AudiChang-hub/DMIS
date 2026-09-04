@@ -1466,17 +1466,14 @@ class OrderFlowTests(TestCase):
         family_ids = [
             family["display_model"].pk for family in suzuki_group["families"]
         ]
-        self.assertLess(
-            family_ids.index(active_model.pk),
-            family_ids.index(inactive_model.pk),
+        self.assertEqual(family_ids, [active_model.pk])
+        inactive_response = self.client.get(
+            reverse("vehicle_model_list"), {"q": "機種", "status": "inactive"}
         )
-        self.assertContains(response, "以下為已停用機種")
-        self.assertContains(
-            response,
-            'class="vehicle-model-family-group is-inactive"',
-            html=False,
-        )
-        self.assertContains(response, "vehicle-model-active-toggle", count=2)
+        self.assertContains(inactive_response, inactive_model.name)
+        self.assertNotContains(inactive_response, active_model.name)
+        self.assertContains(response, "啟用中機種")
+        self.assertContains(response, "已停用機種")
         self.assertNotContains(response, "vehicle-model-status--active")
         self.assertNotContains(response, "vehicle-model-status--inactive")
 
@@ -1513,10 +1510,17 @@ class OrderFlowTests(TestCase):
             if family["name"] == "排序測試車"
         )
         self.assertEqual(family["display_model"].pk, active_model.pk)
-        self.assertEqual(
-            [model.pk for model in family["models"]],
-            [active_model.pk, inactive_model.pk],
+        self.assertEqual([model.pk for model in family["models"]], [active_model.pk])
+        inactive_response = self.client.get(
+            reverse("vehicle_model_list"), {"q": "排序測試車", "status": "inactive"}
         )
+        inactive_family = next(
+            family
+            for group in inactive_response.context["vehicle_model_groups"]
+            for family in group["families"]
+            if family["name"] == "排序測試車"
+        )
+        self.assertEqual([model.pk for model in inactive_family["models"]], [inactive_model.pk])
 
     def test_vehicle_model_list_groups_factory_codes_under_one_machine(self):
         first = VehicleModel.objects.create(
@@ -1550,14 +1554,14 @@ class OrderFlowTests(TestCase):
 
         self.assertEqual(first.family_id, second.family_id)
         self.assertEqual(response.context["vehicle_model_count"], 1)
-        self.assertEqual(response.context["vehicle_model_version_count"], 3)
+        self.assertEqual(response.context["vehicle_model_version_count"], 2)
         family = next(
             family
             for group in response.context["vehicle_model_groups"]
             for family in group["families"]
             if family["name"] == "eReady Fun"
         )
-        self.assertEqual(family["version_count"], 3)
+        self.assertEqual(family["version_count"], 2)
         self.assertEqual(family["active_year_count"], 2)
         self.assertEqual(family["display_model"].pk, second.pk)
         self.assertFalse(family["display_is_search_match"])
@@ -1566,7 +1570,7 @@ class OrderFlowTests(TestCase):
         self.assertNotContains(response, '<details class="vehicle-model-family-group"', html=False)
         self.assertNotContains(response, 'class="vehicle-model-year-history-row"', html=False)
         self.assertNotContains(response, "3 個原廠型號")
-        self.assertContains(response, "EV060L、EV062、EV062-OLD", count=1)
+        self.assertContains(response, "EV060L、EV062", count=1)
         self.assertContains(response, "<span>2 個年式</span>", count=1, html=True)
         self.assertNotContains(response, "<span>3 個年式</span>", html=True)
         self.assertContains(response, 'data-open-year-panel="vehicle-year-panel-', html=False)
@@ -1632,8 +1636,12 @@ class OrderFlowTests(TestCase):
             {"q": "歷史年式顯示測試"},
         )
 
-        self.assertContains(response, "查看歷史資料", count=1)
-        self.assertNotContains(response, "<span>1 個年式</span>", html=True)
+        self.assertNotContains(response, "查看歷史資料")
+        inactive_response = self.client.get(
+            reverse("vehicle_model_list"),
+            {"q": "歷史年式顯示測試", "status": "inactive"},
+        )
+        self.assertContains(inactive_response, "歷史年式顯示測試")
 
     def test_vehicle_model_list_labels_same_year_active_versions_as_year_data(self):
         VehicleModel.objects.create(

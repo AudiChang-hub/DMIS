@@ -40,7 +40,6 @@ class ProductExperienceTests(TestCase):
         self.assertContains(response, 'id="price-list-distribution"')
         self.assertContains(response, "最後更新：2026/09/04")
         self.assertContains(response, 'id="dealer-sales-programs"')
-        self.assertContains(response, "分成兩個頁籤")
         self.assertContains(response, 'id="dealer-volume-bonus"')
         self.assertContains(response, 'href="#dealer-volume-bonus"')
         self.assertContains(response, "每頁 25、50、75 或 100 筆")

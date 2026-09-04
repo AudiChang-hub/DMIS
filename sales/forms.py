@@ -3004,7 +3004,6 @@ class DealerVehicleRewardItemForm(forms.ModelForm):
             choices.append((current_unit, f"目前單位：{current_unit}"))
         choices.append((DEALER_REWARD_UNIT_OTHER, "其他（自行輸入）"))
         unit_field.widget.choices = choices
-        unit_field.help_text = "選項會依獎勵類型自動切換。"
         unit_field.widget.attrs.update(
             {
                 "data-reward-units": json.dumps(

@@ -1,10 +1,11 @@
 from pathlib import Path
+from unittest.mock import MagicMock, patch
 
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AnonymousUser
 from django.core.cache import cache
 from django.http import HttpResponse
-from django.test import RequestFactory, TestCase
+from django.test import RequestFactory, TestCase, override_settings
 from django.urls import reverse
 
 from config.middleware import RequestIdMiddleware
@@ -635,6 +636,62 @@ class ProductExperienceTests(TestCase):
         self.assertContains(response, "照片與文件空間")
         self.assertNotContains(response, "DJANGO_SECRET_KEY")
         self.assertNotContains(response, "REDIS_URL")
+
+    @override_settings(REDIS_URL="redis://diagnostics.test/0")
+    @patch("sales.views.StartedJobRegistry")
+    @patch("sales.views.Worker.count", return_value=1)
+    @patch("sales.views.django_rq.get_queue")
+    def test_diagnostics_separates_online_workers_from_processing_jobs(
+        self,
+        get_queue,
+        _worker_count,
+        started_registry,
+    ):
+        queue = MagicMock()
+        queue.name = "test"
+        queue.count = 0
+        get_queue.return_value = queue
+        started_registry.return_value.count = 0
+        self.client.force_login(self.user)
+
+        response = self.client.get(reverse("system_diagnostics"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "3 個背景服務正常，0 件處理中，0 件等待")
+        self.assertContains(response, "服務正常 · 待命中", count=3)
+        self.assertContains(response, "0 件處理中", count=4)
+        self.assertNotContains(response, "個執行中")
+        self.assertEqual(started_registry.call_count, 3)
+
+    @override_settings(REDIS_URL="redis://diagnostics.test/0")
+    @patch("sales.views.StartedJobRegistry")
+    @patch("sales.views.Worker.count", side_effect=[1, 1, 0])
+    @patch("sales.views.django_rq.get_queue")
+    def test_diagnostics_reports_real_processing_waiting_and_offline_states(
+        self,
+        get_queue,
+        _worker_count,
+        started_registry,
+    ):
+        queues = []
+        for name, waiting in (("ocr", 0), ("search", 2), ("imports", 0)):
+            queue = MagicMock()
+            queue.name = name
+            queue.count = waiting
+            queues.append(queue)
+        get_queue.side_effect = queues
+        started_registry.side_effect = lambda name, connection: MagicMock(
+            count=1 if name == "ocr" else 0
+        )
+        self.client.force_login(self.user)
+
+        response = self.client.get(reverse("system_diagnostics"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "2 個背景服務正常，1 件處理中，2 件等待")
+        self.assertContains(response, "服務正常")
+        self.assertContains(response, "服務正常 · 待命中")
+        self.assertContains(response, "服務離線")
 
     def test_error_pages_use_plain_language_and_support_reference(self):
         request = RequestFactory().get("/missing/")

@@ -1,5 +1,12 @@
 # 任務清單 (04-tasks)
 
+## 正式機網路邊界（2026-09-04 安全稽核）
+
+- [x] 舊 Odoo Web、PostgreSQL 與 Metabase 的 host published port 僅綁定 `127.0.0.1`
+- [x] Cloudflare Tunnel 與服務間連線維持走 Docker network，不依賴區網公開 port
+- [x] 正式機既有 PostgreSQL 角色須另行輪替預設密碼，不能只修改 `.env`
+- [x] 套用後從其他區網主機驗證 5433 無法連線，並確認 Metabase 與備份仍正常
+
 ## 品牌授權子表（feat: dealer-brand-auth）
 
 ### 規格說明

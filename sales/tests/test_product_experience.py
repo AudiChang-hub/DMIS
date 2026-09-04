@@ -95,6 +95,9 @@ class ProductExperienceTests(TestCase):
         css = Path("static/css/app.css").read_text(encoding="utf-8")
         navigation = Path("static/js/ui-navigation.js").read_text(encoding="utf-8")
         self.assertIn("max-height: min(72vh, 650px)", css)
+        self.assertIn("max-width: 100%; overflow-x: clip; scroll-behavior: smooth;", css)
+        self.assertIn("@media (max-width: 1280px) and (min-width: 861px)", css)
+        self.assertIn(".hero-actions { flex: 1 1 560px; flex-wrap: wrap; }", css)
         self.assertIn(
             ".hero-row { align-items: stretch; flex-direction: column; gap: 14px; }",
             css,

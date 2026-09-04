@@ -46,6 +46,8 @@ from .forms import (
     DealerVolumeBonusRuleForm,
     DealerVolumeBonusSettlementForm,
     DealerVolumeBonusTierFormSet,
+    DealerVehicleRewardItemFormSet,
+    DealerVehicleRewardPlanForm,
     DiscountDecisionForm,
     DiscountRequestForm,
     DeliveryCompletionForm,
@@ -105,6 +107,7 @@ from .models import (
     DealerVolumeBonusRule,
     DealerVolumeBonusPeriod,
     DealerVolumeBonusSettlement,
+    DealerVehicleRewardPlan,
     DeliveryRecord,
     InstallmentCompany,
     InstallmentPlanVersion,
@@ -7575,6 +7578,18 @@ def _vehicle_model_form_view(request, instance=None):
         else:
             messages.success(request, "未使用的年式／規格已永久刪除。")
             return redirect("vehicle_model_list")
+    current_dealer_reward_plan = None
+    if is_editing:
+        current_dealer_reward_plan = (
+            instance.dealer_reward_plans.filter(
+                active=True,
+                effective_from__lte=today,
+            )
+            .filter(Q(effective_to__isnull=True) | Q(effective_to__gte=today))
+            .prefetch_related("items")
+            .order_by("-effective_from", "-id")
+            .first()
+        )
     model_post = request.POST if request.method == "POST" and action == "save_model" else None
     model_post, merged_color_names, preserved_history_color_names = (
         _coalesce_vehicle_color_post(model_post, instance)
@@ -7684,6 +7699,10 @@ def _vehicle_model_form_view(request, instance=None):
             "incentive_rule_count": (
                 instance.incentive_rules.count() if is_editing else 0
             ),
+            "dealer_reward_plan_count": (
+                instance.dealer_reward_plans.count() if is_editing else 0
+            ),
+            "current_dealer_reward_plan": current_dealer_reward_plan,
             "installment_plan_version_count": len(installment_plan_versions),
             "installment_option_count": installment_option_count,
             "current_installment_plan": current_installment_plan,
@@ -8000,21 +8019,84 @@ def vehicle_model_price_versions(request, model_pk):
 @login_required
 def vehicle_model_commission(request, model_pk):
     vehicle_model = get_object_or_404(VehicleModel, pk=model_pk)
+    reward_plans = vehicle_model.dealer_reward_plans.prefetch_related("items")
+    reward_id = (
+        request.POST.get("reward_id")
+        if request.method == "POST"
+        else request.GET.get("reward")
+    )
+    creating_reward = (
+        request.POST.get("new_reward") == "1"
+        if request.method == "POST"
+        else request.GET.get("new_reward") == "1"
+    )
+    if reward_id:
+        reward_plan = get_object_or_404(reward_plans, pk=reward_id)
+    elif creating_reward:
+        reward_plan = None
+    else:
+        today = timezone.localdate()
+        reward_plan = (
+            reward_plans.filter(active=True, effective_from__lte=today)
+            .filter(Q(effective_to__isnull=True) | Q(effective_to__gte=today))
+            .first()
+            or reward_plans.first()
+        )
+    reward_instance = reward_plan or DealerVehicleRewardPlan(vehicle_model=vehicle_model)
+    action = request.POST.get("action", "save_commission")
     form = VehicleModelCommissionForm(
-        request.POST or None,
+        request.POST if request.method == "POST" and action == "save_commission" else None,
         initial={"base_dealer_commission": vehicle_model.base_dealer_commission},
     )
-    if request.method == "POST" and form.is_valid():
+    reward_form = DealerVehicleRewardPlanForm(
+        request.POST if request.method == "POST" and action == "save_rewards" else None,
+        instance=reward_instance,
+    )
+    reward_formset = DealerVehicleRewardItemFormSet(
+        request.POST if request.method == "POST" and action == "save_rewards" else None,
+        instance=reward_instance,
+        prefix="reward_items",
+    )
+    if request.method == "POST" and action == "save_commission" and form.is_valid():
         vehicle_model.base_dealer_commission = form.cleaned_data[
             "base_dealer_commission"
         ]
         vehicle_model.save(update_fields=["base_dealer_commission", "updated_at"])
         messages.success(request, "車行基礎傭金已更新。")
-        return redirect("vehicle_model_edit", pk=vehicle_model.pk)
+        return redirect(f"{reverse('vehicle_model_commission', args=[vehicle_model.pk])}#cash-commission")
+    if (
+        request.method == "POST"
+        and action == "save_rewards"
+        and reward_form.is_valid()
+        and reward_formset.is_valid()
+    ):
+        try:
+            with transaction.atomic():
+                saved_plan = reward_form.save()
+                reward_formset.instance = saved_plan
+                reward_formset.save()
+        except (ValidationError, IntegrityError) as exc:
+            reward_form.add_error(None, exc)
+        else:
+            messages.success(request, "車行附加獎勵方案已儲存。")
+            return redirect(
+                f"{reverse('vehicle_model_commission', args=[vehicle_model.pk])}?reward={saved_plan.pk}#dealer-rewards"
+            )
+    plan_rows = list(reward_plans)
+    for plan in plan_rows:
+        plan.display_status, plan.display_status_label = plan.lifecycle_status
     return render(
         request,
         "sales/vehicle_model_commission.html",
-        {"vehicle_model": vehicle_model, "form": form},
+        {
+            "vehicle_model": vehicle_model,
+            "form": form,
+            "reward_form": reward_form,
+            "reward_formset": reward_formset,
+            "reward_plan": reward_plan,
+            "reward_plans": plan_rows,
+            "creating_reward": reward_plan is None,
+        },
     )
 
 

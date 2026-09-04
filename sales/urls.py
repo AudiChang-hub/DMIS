@@ -410,6 +410,21 @@ urlpatterns = [
         name="accessory_product_edit",
     ),
     path(
+        "data/dealer-reward-items/",
+        views.dealer_reward_catalog_list,
+        name="dealer_reward_catalog_list",
+    ),
+    path(
+        "data/dealer-reward-items/new/",
+        views.dealer_reward_catalog_create,
+        name="dealer_reward_catalog_create",
+    ),
+    path(
+        "data/dealer-reward-items/<int:pk>/edit/",
+        views.dealer_reward_catalog_edit,
+        name="dealer_reward_catalog_edit",
+    ),
+    path(
         "data/settlement-costs/",
         views.settlement_cost_rule_list,
         name="settlement_cost_rule_list",

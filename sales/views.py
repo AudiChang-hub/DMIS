@@ -46,6 +46,8 @@ from .forms import (
     DealerVolumeBonusRuleForm,
     DealerVolumeBonusSettlementForm,
     DealerVolumeBonusTierFormSet,
+    DealerRewardCatalogItemForm,
+    DealerRewardCostVersionFormSet,
     DealerVehicleRewardItemFormSet,
     DealerVehicleRewardPlanForm,
     DiscountDecisionForm,
@@ -107,6 +109,9 @@ from .models import (
     DealerVolumeBonusRule,
     DealerVolumeBonusPeriod,
     DealerVolumeBonusSettlement,
+    DealerRewardCatalogItem,
+    DealerRewardCostVersion,
+    DealerVehicleRewardItem,
     DealerVehicleRewardPlan,
     DeliveryRecord,
     InstallmentCompany,
@@ -532,6 +537,7 @@ def data_maintenance(request):
         "vehicle_model_version_count": VehicleModel.objects.count(),
         "vehicle_brand_count": VehicleBrand.objects.count(),
         "accessory_product_count": AccessoryProduct.objects.count(),
+        "dealer_reward_catalog_count": DealerRewardCatalogItem.objects.count(),
         "inventory_count": VehicleInventory.objects.count(),
         "dealer_source_count": SalesSource.objects.filter(
             source_type=SalesSource.SourceType.DEALER
@@ -2074,6 +2080,7 @@ def sales_source_set_holiday_gift(request, pk):
 
 ACTIVE_TOGGLE_RESOURCES = {
     "accessory-product": (AccessoryProduct, "配件"),
+    "dealer-reward-catalog-item": (DealerRewardCatalogItem, "車行獎勵品項"),
     "brand-registration-fee-rule": (BrandRegistrationFeeRule, "領牌與強制險規則"),
     "business-holiday": (BusinessHoliday, "工作日排除設定"),
     "dealer-volume-bonus": (DealerVolumeBonusRule, "台數獎金規則"),
@@ -7508,6 +7515,102 @@ def accessory_product_edit(request, pk):
     )
 
 
+@login_required
+def dealer_reward_catalog_list(request):
+    keyword = request.GET.get("q", "").strip()
+    reward_type = request.GET.get("reward_type", "")
+    status = request.GET.get("status", "active")
+    if status not in {"active", "inactive"}:
+        status = "active"
+    items = DealerRewardCatalogItem.objects.annotate(
+        plan_usage_count=Count("plan_items", distinct=True)
+    ).prefetch_related(
+        Prefetch(
+            "cost_versions",
+            queryset=DealerRewardCostVersion.objects.order_by("-effective_from", "-id"),
+            to_attr="prefetched_cost_versions",
+        )
+    )
+    if keyword:
+        items = items.filter(Q(name__icontains=keyword) | Q(note__icontains=keyword))
+    if reward_type:
+        items = items.filter(reward_type=reward_type)
+    items = items.filter(active=status == "active").order_by("reward_type", "name", "unit")
+    status_counts = DealerRewardCatalogItem.objects.aggregate(
+        active_count=Count("id", filter=Q(active=True)),
+        inactive_count=Count("id", filter=Q(active=False)),
+    )
+    page = Paginator(items, 100).get_page(request.GET.get("page"))
+    today = timezone.localdate()
+    for item in page.object_list:
+        item.current_cost_version = item.cost_version_on(today)
+    return render(
+        request,
+        "sales/dealer_reward_catalog_list.html",
+        {
+            "items": page.object_list,
+            "page_obj": page,
+            "reward_types": DealerVehicleRewardItem.RewardType.choices,
+            "status_counts": status_counts,
+            "status_urls": {
+                "active": reverse("dealer_reward_catalog_list"),
+                "inactive": f"{reverse('dealer_reward_catalog_list')}?status=inactive",
+            },
+            "selected": {
+                "q": keyword,
+                "reward_type": reward_type,
+                "status": status,
+            },
+        },
+    )
+
+
+def _dealer_reward_catalog_form_view(request, instance=None):
+    catalog_item = instance or DealerRewardCatalogItem()
+    form = DealerRewardCatalogItemForm(request.POST or None, instance=catalog_item)
+    cost_formset = DealerRewardCostVersionFormSet(
+        request.POST or None,
+        instance=catalog_item,
+        prefix="cost_versions",
+    )
+    if request.method == "POST" and form.is_valid() and cost_formset.is_valid():
+        try:
+            with transaction.atomic():
+                saved_item = form.save()
+                cost_formset.instance = saved_item
+                cost_formset.save()
+        except (ValidationError, IntegrityError) as exc:
+            form.add_error(None, exc)
+        else:
+            messages.success(
+                request,
+                f"已{'更新' if instance else '新增'}車行獎勵品項：{saved_item.name}。",
+            )
+            return redirect("dealer_reward_catalog_list")
+    return render(
+        request,
+        "sales/dealer_reward_catalog_form.html",
+        {
+            "form": form,
+            "cost_formset": cost_formset,
+            "editing_item": instance,
+        },
+    )
+
+
+@login_required
+def dealer_reward_catalog_create(request):
+    return _dealer_reward_catalog_form_view(request)
+
+
+@login_required
+def dealer_reward_catalog_edit(request, pk):
+    return _dealer_reward_catalog_form_view(
+        request,
+        get_object_or_404(DealerRewardCatalogItem, pk=pk),
+    )
+
+
 def _coalesce_vehicle_color_post(post_data, instance):
     if not post_data or not instance:
         return post_data, (), ()
@@ -8151,7 +8254,9 @@ def vehicle_model_price_versions(request, model_pk):
 @login_required
 def vehicle_model_commission(request, model_pk):
     vehicle_model = get_object_or_404(VehicleModel, pk=model_pk)
-    reward_plans = vehicle_model.dealer_reward_plans.prefetch_related("items")
+    reward_plans = vehicle_model.dealer_reward_plans.prefetch_related(
+        "items__catalog_item"
+    )
     reward_id = (
         request.POST.get("reward_id")
         if request.method == "POST"
@@ -8217,6 +8322,32 @@ def vehicle_model_commission(request, model_pk):
     plan_rows = list(reward_plans)
     for plan in plan_rows:
         plan.display_status, plan.display_status_label = plan.lifecycle_status
+    catalog_items = DealerRewardCatalogItem.objects.filter(
+        Q(active=True) | Q(plan_items__plan__vehicle_model=vehicle_model)
+    ).distinct().prefetch_related(
+        Prefetch(
+            "cost_versions",
+            queryset=DealerRewardCostVersion.objects.filter(active=True).order_by(
+                "-effective_from", "-id"
+            ),
+            to_attr="prefetched_cost_versions",
+        )
+    )
+    reward_catalog_metadata = {
+        str(item.pk): {
+            "type": item.get_reward_type_display(),
+            "unit": item.unit,
+            "costs": [
+                {
+                    "from": version.effective_from.isoformat(),
+                    "to": version.effective_to.isoformat() if version.effective_to else "",
+                    "amount": str(version.unit_cost),
+                }
+                for version in item.prefetched_cost_versions
+            ],
+        }
+        for item in catalog_items
+    }
     return render(
         request,
         "sales/vehicle_model_commission.html",
@@ -8228,6 +8359,7 @@ def vehicle_model_commission(request, model_pk):
             "reward_plan": reward_plan,
             "reward_plans": plan_rows,
             "creating_reward": reward_plan is None,
+            "reward_catalog_metadata": reward_catalog_metadata,
         },
     )
 

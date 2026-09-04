@@ -10,6 +10,10 @@ from .models import (
     DealerVolumeBonusRule,
     DealerVolumeBonusSettlement,
     DealerVolumeBonusTier,
+    DealerRewardCatalogItem,
+    DealerRewardCostVersion,
+    DealerVehicleRewardItem,
+    DealerVehicleRewardPlan,
     DeliveryRecord,
     InstallmentCompany,
     InstallmentPlanOption,
@@ -129,6 +133,10 @@ admin.site.register(DealerVolumeBonusTier, ReadOnlyFinancialAdmin)
 admin.site.register(DealerVolumeBonusSettlement, ReadOnlyFinancialAdmin)
 admin.site.register(DealerVolumeBonusAllocation, ReadOnlyFinancialAdmin)
 admin.site.register(DealerVolumeBonusAdjustment, ReadOnlyFinancialAdmin)
+admin.site.register(DealerRewardCatalogItem)
+admin.site.register(DealerRewardCostVersion)
+admin.site.register(DealerVehicleRewardPlan)
+admin.site.register(DealerVehicleRewardItem)
 admin.site.register(LegacyImportBatch)
 admin.site.register(LegacyImportCorrection)
 admin.site.register(LegacyImportMasterMapping)

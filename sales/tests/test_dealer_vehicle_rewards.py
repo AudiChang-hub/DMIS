@@ -1,5 +1,6 @@
 from datetime import date
 from decimal import Decimal
+from pathlib import Path
 
 from django.contrib.auth import get_user_model
 from django.test import TestCase
@@ -84,7 +85,28 @@ class DealerVehicleRewardTests(TestCase):
 
         self.assertContains(response, 'data-reward-unit=""')
         self.assertContains(response, "其他（自行輸入）")
-        self.assertContains(response, "選項會依獎勵類型自動切換")
+        self.assertContains(response, "單位會依獎勵類型自動切換")
+
+    def test_reward_editor_uses_grouped_responsive_layout(self):
+        response = self.client.get(self.url)
+        content = response.content.decode()
+
+        self.assertContains(response, 'class="dealer-reward-settings"')
+        self.assertContains(response, 'class="dealer-reward-enabled-toggle"')
+        self.assertContains(response, 'class="dealer-reward-item__fields"')
+        self.assertContains(response, 'class="dealer-reward-item__note"')
+        self.assertNotContains(response, "返回方案總覽")
+        self.assertEqual(content.count("儲存附加獎勵"), 1)
+
+        css = (Path(__file__).resolve().parents[2] / "static" / "css" / "app.css").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn(".dealer-reward-item__fields {", css)
+        self.assertIn("align-items: start", css)
+        self.assertNotIn(
+            "grid-template-columns: 1fr 1.4fr .8fr .7fr 1.4fr auto",
+            css,
+        )
 
     def test_custom_reward_unit_is_saved_without_changing_the_model_field(self):
         payload = self.reward_payload(

@@ -87,6 +87,7 @@ class ActiveQuickToggleTests(TestCase):
             "brand_registration_fee_rule_list.html": "brand-registration-fee-rule",
             "business_holiday_list.html": "business-holiday",
             "dealer_volume_bonus_list.html": "dealer-volume-bonus",
+            "dealer_reward_catalog_list.html": "dealer-reward-catalog-item",
             "incentive_rule_list.html": "incentive-rule",
             "installment_company_list.html": "installment-company",
             "installment_plan_list.html": "installment-plan",

@@ -34,6 +34,11 @@
     <div><h2>配件與工資</h2><p>維護配件售價、安裝工資與內部參考成本，訂單會保存當時快照。</p><strong>{{ accessory_product_count }} 項配件</strong></div>
     <span aria-hidden="true">›</span>
   </a>
+  <a class="maintenance-card" href="{% url 'dealer_reward_catalog_list' %}">
+    <span class="maintenance-card__icon">禮</span>
+    <div><h2>車行獎勵品項</h2><p>集中維護實物、紅包、禮券與點數的單位及成本版本。</p><strong>{{ dealer_reward_catalog_count }} 個品項</strong></div>
+    <span aria-hidden="true">›</span>
+  </a>
   <a class="maintenance-card" href="{% url 'customer_list' %}">
     <span class="maintenance-card__icon">人</span>
     <div><h2>客戶查詢</h2><p>從既有訂單查詢車主聯絡資料與歷史訂單；資料仍由訂單修改。</p><strong>{{ customer_count }} 位客戶</strong></div>

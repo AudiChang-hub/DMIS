@@ -43,6 +43,12 @@ MOBILE_QUICK_LINK_DEFINITIONS = (
         "route": "accessory_product_list",
     },
     {
+        "key": "dealer-reward-items",
+        "label": "車行獎勵品項",
+        "icon": "禮",
+        "route": "dealer_reward_catalog_list",
+    },
+    {
         "key": "staff",
         "label": "本店人員",
         "icon": "員",

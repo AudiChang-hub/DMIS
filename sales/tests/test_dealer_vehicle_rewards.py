@@ -7,6 +7,8 @@ from django.test import TestCase
 from django.urls import reverse
 
 from sales.models import (
+    DealerRewardCatalogItem,
+    DealerRewardCostVersion,
     DealerVehicleRewardItem,
     DealerVehicleRewardPlan,
     VehicleModel,
@@ -27,6 +29,30 @@ class DealerVehicleRewardTests(TestCase):
             displacement_cc=125,
             base_dealer_commission=1200,
         )
+        cls.physical_item = DealerRewardCatalogItem.objects.create(
+            reward_type="physical", name="全合成機油", unit="瓶"
+        )
+        cls.travel_item = DealerRewardCatalogItem.objects.create(
+            reward_type="travel_points", name="國內旅遊", unit="點"
+        )
+        cls.voucher_item = DealerRewardCatalogItem.objects.create(
+            reward_type="voucher", name="禮券", unit="元"
+        )
+        DealerRewardCostVersion.objects.create(
+            catalog_item=cls.physical_item,
+            effective_from=date(2026, 1, 1),
+            unit_cost=180,
+        )
+        DealerRewardCostVersion.objects.create(
+            catalog_item=cls.travel_item,
+            effective_from=date(2026, 1, 1),
+            unit_cost=25,
+        )
+        DealerRewardCostVersion.objects.create(
+            catalog_item=cls.voucher_item,
+            effective_from=date(2026, 1, 1),
+            unit_cost=500,
+        )
 
     def setUp(self):
         self.client.force_login(self.user)
@@ -34,8 +60,8 @@ class DealerVehicleRewardTests(TestCase):
 
     def reward_payload(self, *, start="2026-09-01", items=None, **overrides):
         items = items or [
-            ("physical", "全合成機油", "2", "瓶", ""),
-            ("travel_points", "國內旅遊", "1", "", "逐台累積"),
+            (self.physical_item, "2", ""),
+            (self.travel_item, "1", "逐台累積"),
         ]
         data = {
             "action": "save_rewards",
@@ -50,12 +76,10 @@ class DealerVehicleRewardTests(TestCase):
             "reward_items-MIN_NUM_FORMS": "1",
             "reward_items-MAX_NUM_FORMS": "1000",
         }
-        for index, (kind, name, quantity, unit, note) in enumerate(items):
+        for index, (catalog_item, quantity, note) in enumerate(items):
             data.update({
-                f"reward_items-{index}-reward_type": kind,
-                f"reward_items-{index}-name": name,
+                f"reward_items-{index}-catalog_item": str(catalog_item.pk),
                 f"reward_items-{index}-quantity": quantity,
-                f"reward_items-{index}-unit": unit,
                 f"reward_items-{index}-note": note,
             })
         data.update(overrides)
@@ -77,15 +101,61 @@ class DealerVehicleRewardTests(TestCase):
         self.assertEqual(plan.items.count(), 2)
         self.assertEqual(plan.items.get(reward_type="physical").display_label, "全合成機油 2 瓶")
         self.assertEqual(plan.items.get(reward_type="travel_points").unit, "點")
+        self.assertEqual(
+            plan.items.get(reward_type="physical").unit_cost_snapshot,
+            Decimal("180"),
+        )
+        self.assertEqual(
+            plan.items.get(reward_type="physical").total_cost_snapshot,
+            Decimal("360"),
+        )
         self.model.refresh_from_db()
         self.assertEqual(self.model.base_dealer_commission, Decimal("1200"))
 
-    def test_reward_unit_is_a_type_aware_select_with_other_option(self):
+    def test_cost_snapshot_is_stable_until_catalog_or_effective_date_changes(self):
+        response = self.client.post(
+            self.url,
+            self.reward_payload(items=[(self.physical_item, "2", "")]),
+        )
+        plan = DealerVehicleRewardPlan.objects.get()
+        reward = plan.items.get()
+        self.assertRedirects(response, f"{self.url}?reward={plan.pk}#dealer-rewards")
+        self.assertEqual(reward.unit_cost_snapshot, Decimal("180"))
+
+        first_cost = self.physical_item.cost_versions.get()
+        first_cost.effective_to = date(2026, 9, 30)
+        first_cost.save()
+        DealerRewardCostVersion.objects.create(
+            catalog_item=self.physical_item,
+            effective_from=date(2026, 10, 1),
+            unit_cost=220,
+        )
+        edit_payload = self.reward_payload(
+            items=[(self.physical_item, "2", "只改說明")],
+            reward_id=str(plan.pk),
+            new_reward="",
+            **{
+                "reward_items-INITIAL_FORMS": "1",
+                "reward_items-0-id": str(reward.pk),
+            },
+        )
+        self.client.post(self.url, edit_payload)
+        reward.refresh_from_db()
+        self.assertEqual(reward.unit_cost_snapshot, Decimal("180"))
+
+        edit_payload["effective_from"] = "2026-10-01"
+        self.client.post(self.url, edit_payload)
+        reward.refresh_from_db()
+        self.assertEqual(reward.unit_cost_snapshot, Decimal("220"))
+        self.assertEqual(reward.cost_effective_on_snapshot, date(2026, 10, 1))
+
+    def test_reward_page_uses_catalog_select_and_cost_preview(self):
         response = self.client.get(self.url)
 
-        self.assertContains(response, 'data-reward-unit=""')
-        self.assertContains(response, "其他（自行輸入）")
-        self.assertContains(response, "單位會依獎勵類型自動切換")
+        self.assertContains(response, 'data-reward-catalog=""')
+        self.assertContains(response, "全合成機油 · 實物／瓶")
+        self.assertContains(response, "單位成本快照")
+        self.assertContains(response, reverse("dealer_reward_catalog_list"))
 
     def test_reward_editor_uses_grouped_responsive_layout(self):
         response = self.client.get(self.url)
@@ -107,59 +177,6 @@ class DealerVehicleRewardTests(TestCase):
             "grid-template-columns: 1fr 1.4fr .8fr .7fr 1.4fr auto",
             css,
         )
-
-    def test_custom_reward_unit_is_saved_without_changing_the_model_field(self):
-        payload = self.reward_payload(
-            items=[("physical", "清潔保養包", "1", "__other__", "")]
-        )
-        payload["reward_items-0-unit_other"] = "包"
-
-        response = self.client.post(self.url, payload)
-
-        plan = DealerVehicleRewardPlan.objects.get()
-        self.assertRedirects(response, f"{self.url}?reward={plan.pk}#dealer-rewards")
-        self.assertEqual(plan.items.get().unit, "包")
-
-    def test_existing_custom_reward_unit_remains_available_when_editing(self):
-        plan = DealerVehicleRewardPlan.objects.create(
-            vehicle_model=self.model, effective_from=date(2026, 9, 1)
-        )
-        DealerVehicleRewardItem.objects.create(
-            plan=plan,
-            reward_type="physical",
-            name="保養耗材",
-            quantity=1,
-            unit="桶",
-        )
-
-        response = self.client.get(f"{self.url}?reward={plan.pk}")
-
-        self.assertContains(response, "目前單位：桶")
-        self.assertContains(response, '<option value="桶" selected>目前單位：桶</option>', html=True)
-
-    def test_other_reward_unit_requires_a_custom_value(self):
-        response = self.client.post(
-            self.url,
-            self.reward_payload(
-                items=[("physical", "清潔保養包", "1", "__other__", "")]
-            ),
-        )
-
-        self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "請輸入其他單位")
-        self.assertFalse(DealerVehicleRewardPlan.objects.exists())
-
-    def test_reward_unit_rejects_a_standard_unit_for_the_wrong_type(self):
-        response = self.client.post(
-            self.url,
-            self.reward_payload(
-                items=[("travel_points", "國內旅遊", "1", "瓶", "")]
-            ),
-        )
-
-        self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "請選擇符合獎勵類型的單位")
-        self.assertFalse(DealerVehicleRewardPlan.objects.exists())
 
     def test_commission_save_does_not_change_reward_plan(self):
         plan = DealerVehicleRewardPlan.objects.create(
@@ -187,14 +204,14 @@ class DealerVehicleRewardTests(TestCase):
         )
         response = self.client.post(
             self.url,
-            self.reward_payload(start="2026-09-15", items=[("voucher", "禮券", "500", "元", "")]),
+            self.reward_payload(start="2026-09-15", items=[(self.voucher_item, "1", "")]),
         )
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "此期間已有啟用中的車行附加獎勵")
         self.assertEqual(DealerVehicleRewardPlan.objects.count(), 1)
 
     def test_duplicate_or_empty_items_are_rejected_atomically(self):
-        duplicate = [("physical", "機油", "1", "瓶", ""), ("physical", "機油", "2", "瓶", "")]
+        duplicate = [(self.physical_item, "1", ""), (self.physical_item, "2", "")]
         response = self.client.post(self.url, self.reward_payload(items=duplicate))
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "同一方案不可重複填寫相同獎勵")

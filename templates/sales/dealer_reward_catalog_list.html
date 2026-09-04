@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% load pagination_tags %}
+{% block title %}車行獎勵品項｜車輛銷售管理{% endblock %}
+{% block page_class %}page-shell--wide{% endblock %}
+{% block content %}
+{% url 'data_maintenance' as data_url %}
+{% include "sales/_page_back.html" with fallback_url=data_url label="返回資料維護區" %}
+<section class="hero-row compact-hero">
+  <div>
+    <p class="eyebrow">車行獎勵共用品項</p>
+    <h1>車行獎勵品項</h1>
+    <p class="muted">集中維護實物、紅包、禮券與點數的單位及成本版本；車型方案只需選擇品項與數量。</p>
+  </div>
+  <a class="button primary" href="{% url 'dealer_reward_catalog_create' %}">＋ 新增獎勵品項</a>
+</section>
+
+<nav class="source-status-switch" aria-label="依使用狀態查看車行獎勵品項">
+  <a href="{{ status_urls.active }}" class="{% if selected.status == 'active' %}is-active{% endif %}" {% if selected.status == 'active' %}aria-current="page"{% endif %}>
+    <span>目前使用</span><strong>啟用中品項</strong><b>{{ status_counts.active_count }}</b>
+  </a>
+  <a href="{{ status_urls.inactive }}" class="{% if selected.status == 'inactive' %}is-active is-inactive{% endif %}" {% if selected.status == 'inactive' %}aria-current="page"{% endif %}>
+    <span>歷史收納</span><strong>已停用品項</strong><b>{{ status_counts.inactive_count }}</b>
+  </a>
+</nav>
+
+<form method="get" class="master-filters customer-filters">
+  <input type="hidden" name="status" value="{{ selected.status }}">
+  <div class="inventory-filter master-search">
+    <label for="reward-item-q">搜尋</label>
+    <input id="reward-item-q" type="search" name="q" value="{{ selected.q }}" placeholder="品項名稱或內部備註">
+  </div>
+  <div class="inventory-filter">
+    <label for="reward-item-type">類型</label>
+    <select id="reward-item-type" name="reward_type">
+      <option value="">全部類型</option>
+      {% for value, label in reward_types %}<option value="{{ value }}" {% if selected.reward_type == value %}selected{% endif %}>{{ label }}</option>{% endfor %}
+    </select>
+  </div>
+  <div class="inventory-filter-actions">
+    <a class="button ghost" href="{% url 'dealer_reward_catalog_list' %}{% if selected.status == 'inactive' %}?status=inactive{% endif %}">清除</a>
+    <button class="button primary" type="submit">套用</button>
+  </div>
+</form>
+
+<section class="inventory-list-panel">
+  <div class="inventory-list-summary"><strong>共 {{ page_obj.paginator.count }} 個品項</strong><span>成本依生效日期保留版本，不會覆蓋已保存的方案快照。</span></div>
+  <div class="inventory-table-wrap">
+    <table class="inventory-table">
+      <thead><tr><th>品項</th><th>類型</th><th>單位</th><th>目前單位成本</th><th>成本期間</th><th>使用方案</th><th>狀態</th><th></th></tr></thead>
+      <tbody>
+        {% for item in items %}
+        <tr>
+          <td data-label="品項"><strong>{{ item.name }}</strong>{% if item.note %}<span>{{ item.note }}</span>{% endif %}</td>
+          <td data-label="類型">{{ item.get_reward_type_display }}</td>
+          <td data-label="單位">{{ item.unit }}</td>
+          <td data-label="目前單位成本">{% if item.current_cost_version %}<strong>${{ item.current_cost_version.unit_cost|floatformat:2 }}</strong>{% else %}<span class="muted">尚未生效</span>{% endif %}</td>
+          <td data-label="成本期間">{% if item.current_cost_version %}{{ item.current_cost_version.effective_from|date:'Y/m/d' }}{% if item.current_cost_version.effective_to %}－{{ item.current_cost_version.effective_to|date:'Y/m/d' }}{% else %}起{% endif %}{% else %}—{% endif %}</td>
+          <td data-label="使用方案">{{ item.plan_usage_count }} 筆</td>
+          <td data-label="狀態">{% include "sales/_active_quick_toggle.html" with resource="dealer-reward-catalog-item" pk=item.pk is_active=item.active item_name=item.name %}</td>
+          <td class="inventory-row-action"><a class="button ghost small" href="{% url 'dealer_reward_catalog_edit' item.pk %}">編輯</a></td>
+        </tr>
+        {% empty %}<tr><td colspan="8"><div class="empty-state"><strong>{% if selected.status == 'inactive' %}尚無已停用品項{% else %}尚未建立獎勵品項{% endif %}</strong><span>新增後即可在車型的車行附加獎勵中選用。</span></div></td></tr>{% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% pagination page_obj aria_label="車行獎勵品項分頁" %}
+</section>
+{% endblock %}

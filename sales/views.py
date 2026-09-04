@@ -7327,8 +7327,10 @@ def dealer_sales_program_list(request):
     keyword = request.GET.get("q", "").strip()
     brand = request.GET.get("brand", "").strip()
     energy_type = request.GET.get("energy_type", "").strip()
-    active = request.GET.get("active", "").strip()
     reward = request.GET.get("reward", "").strip()
+    status = request.GET.get("status", "").strip()
+    if status not in {"active", "inactive"}:
+        status = "inactive" if request.GET.get("active") == "no" else "active"
     today = timezone.localdate()
 
     brand_choices = list(
@@ -7341,8 +7343,10 @@ def dealer_sales_program_list(request):
         active=True,
         effective_from__lte=today,
     ).filter(Q(effective_to__isnull=True) | Q(effective_to__gte=today))
-    models = VehicleModel.objects.select_related("family").annotate(
-        has_current_reward=Exists(current_rewards),
+    models = (
+        VehicleModel.objects.filter(active=status == "active")
+        .select_related("family")
+        .annotate(has_current_reward=Exists(current_rewards))
     )
     if keyword:
         keyword_query = (
@@ -7360,10 +7364,6 @@ def dealer_sales_program_list(request):
     valid_energy_types = {value for value, _label in VehicleModel.EnergyType.choices}
     if energy_type in valid_energy_types:
         models = models.filter(energy_type=energy_type)
-    if active == "yes":
-        models = models.filter(active=True)
-    elif active == "no":
-        models = models.filter(active=False)
     if reward == "yes":
         models = models.filter(has_current_reward=True)
     elif reward == "no":
@@ -7404,6 +7404,16 @@ def dealer_sales_program_list(request):
             vehicle_model.reward_state = "empty"
             vehicle_model.reward_state_label = "尚未設定"
 
+    status_query = request.GET.copy()
+    status_query.pop("page", None)
+    status_query.pop("active", None)
+    status_urls = {}
+    for value in ("active", "inactive"):
+        status_query["status"] = value
+        status_urls[value] = (
+            f"{reverse('dealer_sales_program_list')}?{status_query.urlencode()}"
+        )
+
     return render(
         request,
         "sales/dealer_sales_program_list.html",
@@ -7412,12 +7422,17 @@ def dealer_sales_program_list(request):
             "vehicle_models": page.object_list,
             "brand_choices": brand_choices,
             "energy_types": VehicleModel.EnergyType.choices,
+            "status_urls": status_urls,
+            "vehicle_status_counts": {
+                "active": VehicleModel.objects.filter(active=True).count(),
+                "inactive": VehicleModel.objects.filter(active=False).count(),
+            },
             "selected": {
                 "q": keyword,
                 "brand": brand,
                 "energy_type": energy_type,
-                "active": active,
                 "reward": reward,
+                "status": status,
             },
         },
     )

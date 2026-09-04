@@ -7060,14 +7060,16 @@ def inventory_list(request):
 def vehicle_model_list(request):
     keyword = request.GET.get("q", "").strip()
     energy_type = request.GET.get("energy_type", "")
-    active = request.GET.get("active", "")
+    status = request.GET.get("status", "").strip()
+    if status not in {"active", "inactive"}:
+        status = "inactive" if request.GET.get("active") == "no" else "active"
     today = timezone.localdate()
     current_prices = VehiclePriceVersion.objects.filter(
         vehicle_model_id=OuterRef("pk"),
         active=True,
         effective_from__lte=today,
     ).filter(Q(effective_to__isnull=True) | Q(effective_to__gte=today))
-    models = VehicleModel.objects.annotate(
+    models = VehicleModel.objects.filter(active=status == "active").annotate(
         available_count=Count(
             "vehicleinventory",
             filter=Q(vehicleinventory__status=VehicleInventory.Status.AVAILABLE),
@@ -7117,10 +7119,6 @@ def vehicle_model_list(request):
     }
     if energy_type in valid_energy_types:
         models = models.filter(energy_type=energy_type)
-    if active == "yes":
-        models = models.filter(active=True)
-    elif active == "no":
-        models = models.filter(active=False)
     models = list(
         models.select_related("family")
         .prefetch_related("factory_model_codes")
@@ -7178,7 +7176,7 @@ def vehicle_model_list(request):
         grouped_models.values(),
         key=lambda group: (group["display_order"], group["name"].casefold()),
     )
-    filters_applied = bool(keyword or energy_type or active)
+    filters_applied = bool(keyword or energy_type)
     for group in vehicle_model_groups:
         for family in group["families"].values():
             family["models"].sort(
@@ -7304,6 +7302,16 @@ def vehicle_model_list(request):
 
     vehicle_model_count = sum(group["total_count"] for group in vehicle_model_groups)
 
+    status_query = request.GET.copy()
+    status_query.pop("page", None)
+    status_query.pop("active", None)
+    status_urls = {}
+    for value in ("active", "inactive"):
+        status_query["status"] = value
+        status_urls[value] = (
+            f"{reverse('vehicle_model_list')}?{status_query.urlencode()}"
+        )
+
     return render(
         request,
         "sales/vehicle_model_list.html",
@@ -7312,11 +7320,16 @@ def vehicle_model_list(request):
             "vehicle_model_count": vehicle_model_count,
             "vehicle_model_version_count": len(models),
             "energy_types": VehicleModel.EnergyType.choices,
+            "status_urls": status_urls,
+            "vehicle_model_status_counts": {
+                "active": VehicleModel.objects.filter(active=True).count(),
+                "inactive": VehicleModel.objects.filter(active=False).count(),
+            },
             "filters_applied": filters_applied,
             "selected": {
                 "q": keyword,
                 "energy_type": energy_type,
-                "active": active,
+                "status": status,
             },
         },
     )

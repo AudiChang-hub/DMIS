@@ -1,0 +1,107 @@
+{% extends "base.html" %}
+{% load pagination_tags %}
+{% block title %}車行傭金與銷售獎勵｜車輛銷售管理{% endblock %}
+{% block page_class %}page-shell--wide{% endblock %}
+{% block content %}
+{% url 'data_maintenance' as data_url %}
+{% include "sales/_page_back.html" with fallback_url=data_url label="返回資料維護區" %}
+
+<section class="hero-row compact-hero">
+  <div>
+    <p class="eyebrow">合作車行逐台給付</p>
+    <h1>車行傭金與銷售獎勵</h1>
+    <p class="muted">先找到車型，再設定每賣一台給合作車行的現金傭金、實物、紅包、禮券或旅遊點數。</p>
+  </div>
+</section>
+
+<section class="dealer-program-type-guide" aria-label="車行獎勵類型說明">
+  <div class="is-current">
+    <span>本頁</span>
+    <strong>逐台給付</strong>
+    <small>每張訂單依車型套用傭金與附加獎勵。</small>
+  </div>
+  <a href="{% url 'dealer_volume_bonus_list' %}">
+    <span>另一項規則</span>
+    <strong>達到台數門檻才給付</strong>
+    <small>請前往「車行台數獎金」設定。</small>
+  </a>
+</section>
+
+<form method="get" class="master-filters dealer-program-filters">
+  <div class="inventory-filter master-search">
+    <label for="program-q">搜尋車型</label>
+    <input id="program-q" type="search" name="q" value="{{ selected.q }}" placeholder="品牌、機種、型號或年份">
+  </div>
+  <div class="inventory-filter">
+    <label for="program-brand">品牌</label>
+    <select id="program-brand" name="brand">
+      <option value="">全部品牌</option>
+      {% for item in brand_choices %}<option value="{{ item }}" {% if selected.brand == item %}selected{% endif %}>{{ item }}</option>{% endfor %}
+    </select>
+  </div>
+  <div class="inventory-filter">
+    <label for="program-energy">能源別</label>
+    <select id="program-energy" name="energy_type">
+      <option value="">全部能源別</option>
+      {% for value, label in energy_types %}<option value="{{ value }}" {% if selected.energy_type == value %}selected{% endif %}>{{ label }}</option>{% endfor %}
+    </select>
+  </div>
+  <div class="inventory-filter">
+    <label for="program-active">車型狀態</label>
+    <select id="program-active" name="active">
+      <option value="">全部狀態</option>
+      <option value="yes" {% if selected.active == 'yes' %}selected{% endif %}>啟用中</option>
+      <option value="no" {% if selected.active == 'no' %}selected{% endif %}>已停用</option>
+    </select>
+  </div>
+  <div class="inventory-filter">
+    <label for="program-reward">附加獎勵</label>
+    <select id="program-reward" name="reward">
+      <option value="">全部設定狀態</option>
+      <option value="yes" {% if selected.reward == 'yes' %}selected{% endif %}>目前有獎勵</option>
+      <option value="no" {% if selected.reward == 'no' %}selected{% endif %}>目前無獎勵</option>
+    </select>
+  </div>
+  <div class="inventory-filter-actions">
+    <a class="button ghost" href="{% url 'dealer_sales_program_list' %}">清除</a>
+    <button class="button primary" type="submit">套用</button>
+  </div>
+</form>
+
+<section class="inventory-list-panel dealer-program-directory">
+  <div class="inventory-list-summary dealer-program-directory__summary">
+    <div><strong>共 {{ page_obj.paginator.count }} 筆車型設定</strong><span>傭金與獎勵都綁定既有車型，不會重複建立車型資料。</span></div>
+  </div>
+  <div class="inventory-table-wrap">
+    <table class="inventory-table dealer-program-directory-table">
+      <thead><tr><th>車型</th><th>品牌／能源</th><th>車行基礎傭金</th><th>目前附加獎勵</th><th>車型狀態</th><th></th></tr></thead>
+      <tbody>
+        {% for item in vehicle_models %}
+        <tr>
+          <td data-label="車型">
+            <strong>{{ item.family.name|default:item.name }}</strong>
+            <span>{{ item.model_number|default:'型號待補' }}{% if item.model_year %} · {{ item.model_year }}{% endif %}{% if item.model_code %} · {{ item.get_model_code_display }}{% endif %}</span>
+          </td>
+          <td data-label="品牌／能源"><strong>{{ item.brand }}</strong><span>{{ item.get_energy_type_display }}</span></td>
+          <td data-label="基礎傭金"><strong>${{ item.base_dealer_commission|floatformat:0 }}</strong><span>每台預設現金傭金</span></td>
+          <td data-label="附加獎勵" class="dealer-program-reward-cell">
+            <span class="reward-state reward-state--{{ item.reward_state }}">{{ item.reward_state_label }}</span>
+            {% if item.display_reward_plan %}
+              <strong>{{ item.display_reward_plan.reward_summary|default:'版本內尚未填寫項目' }}</strong>
+              <span>{{ item.display_reward_plan.effective_from|date:'Y/m/d' }}{% if item.display_reward_plan.effective_to %}－{{ item.display_reward_plan.effective_to|date:'Y/m/d' }}{% else %}起{% endif %}</span>
+            {% else %}
+              <span>可依生效期間建立多個版本</span>
+            {% endif %}
+          </td>
+          <td data-label="車型狀態"><span class="status-pill status-{% if item.active %}available{% else %}inactive{% endif %}">{% if item.active %}啟用中{% else %}已停用{% endif %}</span></td>
+          <td class="inventory-row-action"><a class="button primary small" href="{% url 'vehicle_model_commission' item.pk %}">設定傭金與獎勵</a></td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="6"><div class="empty-state"><strong>沒有符合條件的車型</strong><span>請調整搜尋或篩選條件後再試一次。</span></div></td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% pagination page_obj aria_label="車行傭金與銷售獎勵分頁" %}
+</section>
+{% endblock %}

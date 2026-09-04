@@ -79,6 +79,12 @@ MOBILE_QUICK_LINK_DEFINITIONS = (
         "route": "dealer_volume_bonus_list",
     },
     {
+        "key": "dealer-sales-programs",
+        "label": "車行傭金與銷售獎勵",
+        "icon": "佣",
+        "route": "dealer_sales_program_list",
+    },
+    {
         "key": "registration-fees",
         "label": "領牌與強制險",
         "icon": "險",

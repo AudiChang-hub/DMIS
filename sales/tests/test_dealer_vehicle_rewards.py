@@ -62,7 +62,7 @@ class DealerVehicleRewardTests(TestCase):
 
     def test_page_is_bound_to_vehicle_and_separates_commission_from_rewards(self):
         response = self.client.get(self.url)
-        self.assertContains(response, "車行方案")
+        self.assertContains(response, "車行傭金與銷售獎勵")
         self.assertContains(response, "車型由系統帶入，不需重選")
         self.assertContains(response, "車行基礎傭金")
         self.assertContains(response, "車行附加獎勵")
@@ -126,8 +126,47 @@ class DealerVehicleRewardTests(TestCase):
             plan=plan, reward_type="cash_gift", name="紅包", quantity=1000
         )
         response = self.client.get(reverse("vehicle_model_edit", args=[self.model.pk]))
-        self.assertContains(response, "車行方案")
+        self.assertContains(response, "車行傭金與銷售獎勵")
         self.assertContains(response, "紅包 1000 元")
         listing = self.client.get(reverse("vehicle_model_list"))
         self.assertContains(listing, "vehicle-model-active-toggle")
         self.assertNotContains(listing, "vehicle-model-status--active")
+
+    def test_program_directory_is_a_first_class_searchable_entry(self):
+        plan = DealerVehicleRewardPlan.objects.create(
+            vehicle_model=self.model, effective_from=date(2026, 9, 1)
+        )
+        DealerVehicleRewardItem.objects.create(
+            plan=plan, reward_type="physical", name="全合成機油", quantity=2, unit="瓶"
+        )
+        other_model = VehicleModel.objects.create(
+            brand="SYM",
+            name="沒有獎勵的車型",
+            model_number="NO-REWARD",
+            model_year=2025,
+            model_code=VehicleModel.ModelType.DRUM,
+            energy_type=VehicleModel.EnergyType.GAS,
+            displacement_cc=125,
+        )
+        url = reverse("dealer_sales_program_list")
+
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "車行傭金與銷售獎勵")
+        self.assertContains(response, "全合成機油 2 瓶")
+        self.assertContains(response, reverse("vehicle_model_commission", args=[self.model.pk]))
+        self.assertContains(response, reverse("vehicle_model_commission", args=[other_model.pk]))
+
+        filtered = self.client.get(url, {"brand": "SUZUKI", "reward": "yes"})
+        self.assertContains(filtered, "獎勵測試車")
+        self.assertNotContains(filtered, "沒有獎勵的車型")
+
+    def test_program_directory_is_exposed_from_maintenance_and_mobile_shortcuts(self):
+        route = reverse("dealer_sales_program_list")
+        maintenance = self.client.get(reverse("data_maintenance"))
+        self.assertContains(maintenance, route)
+        self.assertContains(maintenance, "逐台給付的現金傭金")
+
+        dashboard = self.client.get(reverse("dashboard"))
+        self.assertContains(dashboard, "車行傭金與銷售獎勵")
+        self.assertContains(dashboard, 'value="dealer-sales-programs"')

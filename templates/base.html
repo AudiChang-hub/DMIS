@@ -27,7 +27,7 @@
               <section class="data-menu-group" aria-labelledby="data-menu-daily">
                 <h2 id="data-menu-daily">日常資料</h2>
                 <a href="{% url 'vehicle_brand_list' %}"><strong>車輛品牌</strong><small>共用品牌名稱與別名</small></a>
-                <a href="{% url 'vehicle_model_list' %}"><strong>機種與售價</strong><small>年式、規格、價格與車行基礎傭金</small></a>
+                <a href="{% url 'vehicle_model_list' %}"><strong>機種與售價</strong><small>年式、規格、顏色與價格</small></a>
                 <a href="{% url 'inventory_list' %}"><strong>車輛庫存</strong><small>進車、車況與調車歷程</small></a>
                 <a href="{% url 'accessory_product_list' %}"><strong>配件與工資</strong><small>售價、安裝工資與參考成本</small></a>
                 <a href="{% url 'customer_list' %}"><strong>客戶查詢</strong><small>聯絡資料與歷史訂單</small></a>
@@ -41,6 +41,7 @@
                 <h2 id="data-menu-rules">費率與規則</h2>
                 <a href="{% url 'settlement_cost_rule_list' %}"><strong>車輛結算成本</strong><small>依機種與領牌日生效</small></a>
                 <a href="{% url 'incentive_rule_list' %}"><strong>原廠獎勵與補助</strong><small>實銷、促銷與分期補貼</small></a>
+                <a href="{% url 'dealer_sales_program_list' %}"><strong>車行傭金與銷售獎勵</strong><small>逐台給付的傭金、實物、禮券與點數</small></a>
                 <a href="{% url 'dealer_volume_bonus_list' %}"><strong>車行台數獎金</strong><small>門檻、期間與逐單結算</small></a>
                 <a href="{% url 'installment_company_list' %}"><strong>分期公司與方案</strong><small>公司、客服電話與機種分期方案</small></a>
                 <a href="{% url 'brand_registration_fee_rule_list' %}"><strong>領牌與強制險</strong><small>依品牌及生效日設定金額</small></a>

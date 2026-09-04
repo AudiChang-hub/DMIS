@@ -104,6 +104,26 @@ class ProductExperienceTests(TestCase):
         self.assertIn("parseSameOriginUrl", navigation)
         self.assertIn("data-current-page-label", navigation)
 
+    def test_vehicle_model_list_keeps_only_its_primary_create_action(self):
+        self.client.force_login(self.user)
+
+        response = self.client.get(reverse("vehicle_model_list"))
+
+        self.assertEqual(response.status_code, 200)
+        html = response.content.decode()
+        hero_actions = html.split('<div class="hero-actions">', 1)[1].split(
+            "</div>", 1
+        )[0]
+        self.assertIn(reverse("vehicle_model_create"), hero_actions)
+        self.assertIn("＋ 新增機種／年式", hero_actions)
+        for unrelated_route in (
+            "accessory_product_list",
+            "settlement_cost_rule_list",
+            "incentive_rule_list",
+            "dealer_sales_program_list",
+        ):
+            self.assertNotIn(reverse(unrelated_route), hero_actions)
+
     def test_maintenance_items_follow_related_workflow_order(self):
         daily_routes = (
             "vehicle_brand_list",

@@ -3553,6 +3553,7 @@ body.screen-locked { overflow: hidden; }
   border: 1px solid var(--line); border-radius: 12px;
 }
 .dealer-reward-item .field { padding: 0; }
+.dealer-reward-unit-other { margin-top: 6px; }
 .dealer-reward-accounting-note { display: flex; margin-top: 18px; padding: 13px 15px; gap: 10px; color: #71501a; background: #fff6df; border: 1px solid #e5cd96; border-radius: 12px; }
 .dealer-reward-actions { position: sticky; bottom: 14px; z-index: 5; margin-top: 20px; padding: 12px; background: color-mix(in srgb, var(--surface) 94%, transparent); border: 1px solid var(--line); border-radius: 14px; box-shadow: 0 8px 24px rgb(30 46 95 / 12%); backdrop-filter: blur(8px); }
 .dealer-reward-actions .button { white-space: nowrap; }

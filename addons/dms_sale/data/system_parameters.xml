@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data noupdate="1">
+        <!-- 電車帳密解鎖密碼，管理員請於此處設定實際密碼 -->
+        <record id="param_ev_reveal_password" model="ir.config_parameter">
+            <field name="key">dms_sale.ev_reveal_password</field>
+            <field name="value">changeme</field>
+        </record>
+    </data>
+</odoo>

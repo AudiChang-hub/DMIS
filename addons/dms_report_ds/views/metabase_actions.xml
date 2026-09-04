@@ -1,0 +1,294 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- ╔══════════════════════════════════════════════════════╗ -->
+    <!-- ║  Metabase Client Actions（22 頁 Dashboard）          ║ -->
+    <!-- ╚══════════════════════════════════════════════════════╝ -->
+
+    <record id="action_mb_p1" model="ir.actions.client">
+        <field name="name">總車輛銷售</field>
+        <field name="tag">metabase_dashboard</field>
+        <field name="params">{"dashboard_uuid": "905078c7-f139-4b6a-8434-ed2b0f6a98b1"}</field>
+    </record>
+    <record id="action_mb_p2" model="ir.actions.client">
+        <field name="name">銷售機種及車型統計</field>
+        <field name="tag">metabase_dashboard</field>
+        <field name="params">{"dashboard_uuid": "be4022e0-1435-4b8f-8b05-dbf3fa140b18"}</field>
+    </record>
+    <record id="action_mb_p3" model="ir.actions.client">
+        <field name="name">電動車銷售統計</field>
+        <field name="tag">metabase_dashboard</field>
+        <field name="params">{"dashboard_uuid": "8cbc7d44-628c-4a70-ba74-7bda1559a8f7"}</field>
+    </record>
+    <record id="action_mb_p4" model="ir.actions.client">
+        <field name="name">基隆公益青年</field>
+        <field name="tag">metabase_dashboard</field>
+        <field name="params">{"dashboard_uuid": "8f75637a-1e68-4ff1-b406-2e302b62a547"}</field>
+    </record>
+    <record id="action_mb_p5" model="ir.actions.client">
+        <field name="name">電動車-網路平台</field>
+        <field name="tag">metabase_dashboard</field>
+        <field name="params">{"dashboard_uuid": "e4a83a40-8712-4f7d-8638-a5fc588029be"}</field>
+    </record>
+    <record id="action_mb_p6" model="ir.actions.client">
+        <field name="name">電動車-車行</field>
+        <field name="tag">metabase_dashboard</field>
+        <field name="params">{"dashboard_uuid": "88bcf37a-64e4-4552-94cc-7cafb7d5a3f1"}</field>
+    </record>
+    <record id="action_mb_p7" model="ir.actions.client">
+        <field name="name">電動車-佣金明細</field>
+        <field name="tag">metabase_dashboard</field>
+        <field name="params">{"dashboard_uuid": "75ae17a4-5deb-40d7-b124-523d14528cda"}</field>
+    </record>
+    <record id="action_mb_p8" model="ir.actions.client">
+        <field name="name">電動車-台數統計</field>
+        <field name="tag">metabase_dashboard</field>
+        <field name="params">{"dashboard_uuid": "e3192aab-a617-4c93-806e-601786308f20"}</field>
+    </record>
+    <record id="action_mb_p9" model="ir.actions.client">
+        <field name="name">油車銷售統計</field>
+        <field name="tag">metabase_dashboard</field>
+        <field name="params">{"dashboard_uuid": "1bb5a0e4-2d15-4d17-91dd-d2ad087fb53a"}</field>
+    </record>
+    <record id="action_mb_p10" model="ir.actions.client">
+        <field name="name">油車-網路平台</field>
+        <field name="tag">metabase_dashboard</field>
+        <field name="params">{"dashboard_uuid": "f9ad7c76-eb04-49f4-b3c2-a28ae6a6b5eb"}</field>
+    </record>
+    <record id="action_mb_p11" model="ir.actions.client">
+        <field name="name">油車-車行</field>
+        <field name="tag">metabase_dashboard</field>
+        <field name="params">{"dashboard_uuid": "508884db-28f6-4dd1-ae52-c89e46fc3577"}</field>
+    </record>
+    <record id="action_mb_p12" model="ir.actions.client">
+        <field name="name">油車-佣金明細</field>
+        <field name="tag">metabase_dashboard</field>
+        <field name="params">{"dashboard_uuid": "95770575-0aa5-4ef3-8a1d-8699047be9e4"}</field>
+    </record>
+    <record id="action_mb_p13" model="ir.actions.client">
+        <field name="name">油車-台數統計</field>
+        <field name="tag">metabase_dashboard</field>
+        <field name="params">{"dashboard_uuid": "23ce259e-c7a5-4f4c-bea5-0e9269af42c7"}</field>
+    </record>
+    <record id="action_mb_oil_owner_age" model="ir.actions.client">
+        <field name="name">油車-車主年齡分布</field>
+        <field name="tag">oil_owner_dashboard</field>
+    </record>
+    <record id="action_mb_p14" model="ir.actions.client">
+        <field name="name">地區×銷量（基隆公益）</field>
+        <field name="tag">metabase_dashboard</field>
+        <field name="params">{"dashboard_uuid": "71de9578-68f8-4391-a2cc-ecb08309774a"}</field>
+    </record>
+    <record id="action_mb_p15" model="ir.actions.client">
+        <field name="name">區域×車型（基隆公益）</field>
+        <field name="tag">metabase_dashboard</field>
+        <field name="params">{"dashboard_uuid": "51ae6a82-52ef-47c2-bd2a-78ccf1e3cdf2"}</field>
+    </record>
+    <record id="action_mb_p16" model="ir.actions.client">
+        <field name="name">性別×年齡</field>
+        <field name="tag">metabase_dashboard</field>
+        <field name="params">{"dashboard_uuid": "377904bf-595e-46a1-9a40-debc412ef721"}</field>
+    </record>
+    <record id="action_mb_p17" model="ir.actions.client">
+        <field name="name">車型×性別</field>
+        <field name="tag">metabase_dashboard</field>
+        <field name="params">{"dashboard_uuid": "5e33871b-5350-4a9d-97a6-2c1fff8cb425"}</field>
+    </record>
+    <record id="action_mb_p18" model="ir.actions.client">
+        <field name="name">車型×顏色</field>
+        <field name="tag">metabase_dashboard</field>
+        <field name="params">{"dashboard_uuid": "76c45736-8322-4b15-b989-3b4e98aca925"}</field>
+    </record>
+    <record id="action_mb_p19" model="ir.actions.client">
+        <field name="name">性別×車型顏色</field>
+        <field name="tag">metabase_dashboard</field>
+        <field name="params">{"dashboard_uuid": "353bcdf6-de5b-4ca4-8571-f3d2d0800758"}</field>
+    </record>
+    <record id="action_mb_p20" model="ir.actions.client">
+        <field name="name">通路銷售統計</field>
+        <field name="tag">metabase_dashboard</field>
+        <field name="params">{"dashboard_uuid": "7afe6e64-0df8-4dc3-a660-7b1d3c66e266"}</field>
+    </record>
+    <record id="action_mb_p21" model="ir.actions.client">
+        <field name="name">基隆公益青年統計</field>
+        <field name="tag">metabase_dashboard</field>
+        <field name="params">{"dashboard_uuid": "cfade0d2-6dbe-4db8-adb6-1bedc4e36560"}</field>
+    </record>
+    <record id="action_mb_p22" model="ir.actions.client">
+        <field name="name">客群×車型分析（基隆公益）</field>
+        <field name="tag">metabase_dashboard</field>
+        <field name="params">{"dashboard_uuid": "5b8a2815-9ec3-4ca6-b96e-ff5cd2a83ad5"}</field>
+    </record>
+
+    <!-- ╔══════════════════════════════════════════════════════╗ -->
+    <!-- ║  選單結構 — Metabase Dashboard 為主                  ║ -->
+    <!-- ╚══════════════════════════════════════════════════════╝ -->
+
+    <!-- ── 重新指定既有頂層選單項 ── -->
+    <!-- 銷售總覽 → Metabase P1 -->
+    <record id="menu_ds_report_main" model="ir.ui.menu">
+        <field name="action" ref="action_mb_p1"/>
+        <field name="name">總車輛銷售</field>
+    </record>
+
+    <!-- ── 電動車子選單 ── -->
+    <menuitem id="menu_mb_electric_parent"
+              name="電動車專區"
+              parent="menu_ds_report_root"
+              sequence="20"/>
+    <menuitem id="menu_mb_p3" name="銷售統計"
+              parent="menu_mb_electric_parent" action="action_mb_p3" sequence="10"/>
+    <menuitem id="menu_mb_p5" name="網路平台"
+              parent="menu_mb_electric_parent" action="action_mb_p5" sequence="20"/>
+    <menuitem id="menu_mb_p6" name="車行"
+              parent="menu_mb_electric_parent" action="action_mb_p6" sequence="30"/>
+    <menuitem id="menu_mb_p7" name="佣金明細"
+              parent="menu_mb_electric_parent" action="action_mb_p7" sequence="40"/>
+    <menuitem id="menu_mb_p8" name="台數統計"
+              parent="menu_mb_electric_parent" action="action_mb_p8" sequence="50"/>
+
+    <!-- ── 油車子選單 ── -->
+    <menuitem id="menu_mb_oil_parent"
+              name="油車專區"
+              parent="menu_ds_report_root"
+              sequence="30"/>
+    <menuitem id="menu_mb_p9" name="銷售統計"
+              parent="menu_mb_oil_parent" action="action_mb_p9" sequence="10"/>
+    <menuitem id="menu_mb_p10" name="網路平台"
+              parent="menu_mb_oil_parent" action="action_mb_p10" sequence="20"/>
+    <menuitem id="menu_mb_p11" name="車行"
+              parent="menu_mb_oil_parent" action="action_mb_p11" sequence="30"/>
+    <menuitem id="menu_mb_p12" name="佣金明細"
+              parent="menu_mb_oil_parent" action="action_mb_p12" sequence="40"/>
+    <menuitem id="menu_mb_p13" name="台數統計"
+              parent="menu_mb_oil_parent" action="action_mb_p13" sequence="50"/>
+    <menuitem id="menu_mb_oil_owner_age" name="車主年齡分布"
+              parent="menu_mb_oil_parent" action="action_mb_oil_owner_age" sequence="60"/>
+
+    <!-- ── 地區分析子選單 ── -->
+    <menuitem id="menu_mb_region_parent"
+              name="地區分析"
+              parent="menu_mb_electric_parent"
+              sequence="60"/>
+    <menuitem id="menu_mb_p14" name="地區×銷量（基隆公益）"
+              parent="menu_mb_keelung_parent" action="action_mb_p14" sequence="20"/>
+    <menuitem id="menu_mb_p15" name="區域×車型（基隆公益）"
+              parent="menu_mb_keelung_parent" action="action_mb_p15" sequence="30"/>
+    <record id="menu_mb_region_parent" model="ir.ui.menu">
+        <field name="active" eval="False"/>
+    </record>
+
+    <!-- ── 客群分析子選單 ── -->
+    <menuitem id="menu_mb_demo_parent"
+              name="客群分析"
+              parent="menu_mb_electric_parent"
+              sequence="70"/>
+    <menuitem id="menu_mb_p16" name="性別×年齡"
+              parent="menu_mb_demo_parent" action="action_mb_p16" sequence="10"/>
+    <menuitem id="menu_mb_p17" name="車型×性別"
+              parent="menu_mb_demo_parent" action="action_mb_p17" sequence="20"/>
+    <menuitem id="menu_mb_p18" name="車型×顏色"
+              parent="menu_mb_demo_parent" action="action_mb_p18" sequence="30"/>
+    <menuitem id="menu_mb_p19" name="性別×車型顏色"
+              parent="menu_mb_demo_parent" action="action_mb_p19" sequence="40"/>
+    <menuitem id="menu_mb_p22" name="客群×車型分析（基隆公益）"
+              parent="menu_mb_keelung_parent" action="action_mb_p22" sequence="40"/>
+
+    <!-- ── 基隆公益青年子選單 ── -->
+    <menuitem id="menu_mb_keelung_parent"
+              name="基隆公益青年"
+              parent="menu_mb_electric_parent"
+              sequence="80"/>
+    <menuitem id="menu_mb_p4" name="總覽"
+              parent="menu_mb_keelung_parent" action="action_mb_p4" sequence="10"/>
+    <menuitem id="menu_mb_p21" name="統計表"
+              parent="menu_mb_keelung_parent" action="action_mb_p21" sequence="20"/>
+    <record id="menu_mb_p21" model="ir.ui.menu">
+        <field name="active" eval="False"/>
+    </record>
+
+    <!-- ── 通路 + 機種 ── -->
+    <menuitem id="menu_mb_p20" name="通路銷售統計"
+              parent="menu_ds_report_root" action="action_mb_p20" sequence="18"/>
+    <menuitem id="menu_mb_p2" name="銷售機種及車型統計"
+              parent="menu_ds_report_root" action="action_mb_p2" sequence="15"/>
+
+    <!-- ╔══════════════════════════════════════════════════════╗ -->
+    <!-- ║  原 Odoo 視圖移至「原始數據查詢」                    ║ -->
+    <!-- ╚══════════════════════════════════════════════════════╝ -->
+
+    <menuitem id="menu_mb_raw_parent"
+              name="原始數據查詢"
+              parent="menu_ds_report_root"
+              sequence="200"/>
+
+    <!-- 把原本直接掛在 menu_ds_report_root 的 Odoo 視圖子選單移進來 -->
+    <record id="menu_ds_electric" model="ir.ui.menu">
+        <field name="parent_id" ref="menu_mb_raw_parent"/>
+        <field name="name">電動車（Odoo 視圖）</field>
+        <field name="sequence">210</field>
+    </record>
+    <record id="menu_ds_oil" model="ir.ui.menu">
+        <field name="parent_id" ref="menu_mb_raw_parent"/>
+        <field name="name">油車（Odoo 視圖）</field>
+        <field name="sequence">220</field>
+    </record>
+    <record id="menu_ds_dealer" model="ir.ui.menu">
+        <field name="parent_id" ref="menu_mb_raw_parent"/>
+        <field name="name">車行（Odoo 視圖）</field>
+        <field name="sequence">230</field>
+    </record>
+    <record id="menu_ds_platform" model="ir.ui.menu">
+        <field name="parent_id" ref="menu_mb_raw_parent"/>
+        <field name="name">網路平台（Odoo 視圖）</field>
+        <field name="sequence">240</field>
+    </record>
+    <record id="menu_ds_demographics" model="ir.ui.menu">
+        <field name="parent_id" ref="menu_mb_raw_parent"/>
+        <field name="name">客群（Odoo 視圖）</field>
+        <field name="sequence">250</field>
+    </record>
+    <record id="menu_ds_region" model="ir.ui.menu">
+        <field name="parent_id" ref="menu_mb_raw_parent"/>
+        <field name="name">地區（Odoo 視圖）</field>
+        <field name="sequence">260</field>
+    </record>
+    <record id="menu_ds_channel" model="ir.ui.menu">
+        <field name="parent_id" ref="menu_mb_raw_parent"/>
+        <field name="name">通路（Odoo 視圖）</field>
+        <field name="sequence">270</field>
+    </record>
+    <record id="menu_ds_commission" model="ir.ui.menu">
+        <field name="parent_id" ref="menu_mb_raw_parent"/>
+        <field name="name">佣金（Odoo 視圖）</field>
+        <field name="sequence">280</field>
+    </record>
+
+    <!-- 舊報表模組選單也移入原始數據查詢 -->
+    <record id="dms_report.menu_report_sales" model="ir.ui.menu">
+        <field name="parent_id" ref="menu_mb_raw_parent"/>
+        <field name="name">銷售報表</field>
+        <field name="sequence">310</field>
+    </record>
+    <record id="dms_report.menu_report_profit" model="ir.ui.menu">
+        <field name="parent_id" ref="menu_mb_raw_parent"/>
+        <field name="name">利潤報表</field>
+        <field name="sequence">320</field>
+    </record>
+    <record id="dms_report.menu_report_commission" model="ir.ui.menu">
+        <field name="parent_id" ref="menu_mb_raw_parent"/>
+        <field name="name">傭金報表</field>
+        <field name="sequence">330</field>
+    </record>
+    <record id="dms_report_rule.menu_report_rule" model="ir.ui.menu">
+        <field name="parent_id" ref="menu_mb_raw_parent"/>
+        <field name="name">報表規則</field>
+        <field name="sequence">340</field>
+    </record>
+    <record id="dms_report_virtual.menu_report_virtual_field" model="ir.ui.menu">
+        <field name="parent_id" ref="menu_mb_raw_parent"/>
+        <field name="name">虛擬欄位</field>
+        <field name="sequence">350</field>
+    </record>
+
+</odoo>

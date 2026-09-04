@@ -1,0 +1,300 @@
+.o_oil_owner_dashboard {
+    min-height: calc(100vh - 46px);
+    padding: 14px 18px 22px;
+    background: #f7f8fb;
+    color: #1f2937;
+    overflow: auto;
+}
+
+.o_oil_owner_toolbar {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(150px, 1fr)) auto;
+    gap: 12px;
+    align-items: end;
+    max-width: 1180px;
+    margin: 0 auto 12px;
+    position: relative;
+    z-index: 20;
+}
+
+.o_oil_owner_filter {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.o_oil_owner_filter label {
+    font-size: 12px;
+    font-weight: 700;
+    color: #4b5563;
+}
+
+.o_oil_owner_dropdown {
+    position: relative;
+}
+
+.o_oil_owner_dropdown_btn {
+    width: 100%;
+    height: 38px;
+    border: 1px solid #dde1ea;
+    border-radius: 8px;
+    background: #fff;
+    color: #1f2937;
+    padding: 0 10px;
+    font-size: 13px;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 8px;
+    align-items: center;
+    text-align: left;
+}
+
+.o_oil_owner_dropdown_btn span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.o_oil_owner_dropdown_btn i {
+    color: #6b7280;
+    font-size: 11px;
+}
+
+.o_oil_owner_dropdown_menu {
+    display: none;
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    right: 0;
+    max-height: 260px;
+    overflow: auto;
+    padding: 6px;
+    background: #fff;
+    border: 1px solid #dde1ea;
+    border-radius: 8px;
+    box-shadow: 0 10px 24px rgba(15, 23, 42, 0.16);
+}
+
+.o_oil_owner_dropdown_menu.is-open {
+    display: block;
+}
+
+.o_oil_owner_check {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 30px;
+    padding: 4px 6px;
+    margin: 0;
+    border-radius: 6px;
+    font-size: 13px;
+    color: #1f2937;
+    cursor: pointer;
+}
+
+.o_oil_owner_check:hover {
+    background: #f3f0ff;
+}
+
+.o_oil_owner_check input {
+    margin: 0;
+}
+
+.o_oil_owner_reset {
+    height: 36px;
+    border: 1px solid #dde1ea;
+}
+
+.o_oil_owner_grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 18px;
+    max-width: 1180px;
+    margin: 0 auto;
+}
+
+.o_oil_owner_card {
+    min-height: 0;
+    background: #fff;
+    border: 1px solid #e4e7ee;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.08);
+    padding: 22px 30px 18px;
+    display: flex;
+    flex-direction: column;
+}
+
+.o_oil_owner_card_title {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 22px;
+    font-weight: 800;
+    color: #111827;
+    margin-bottom: 16px;
+}
+
+.o_oil_owner_card_title i {
+    color: #7546d8;
+    font-size: 24px;
+}
+
+.o_oil_owner_gender_body {
+    display: grid;
+    grid-template-columns: minmax(230px, 1fr) minmax(180px, 0.82fr);
+    gap: 22px;
+    align-items: center;
+    flex: 1;
+}
+
+.o_oil_owner_donut {
+    width: min(100%, 260px);
+    aspect-ratio: 1;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    margin: 0 auto;
+}
+
+.o_oil_owner_donut_inner {
+    width: 45%;
+    aspect-ratio: 1;
+    border-radius: 50%;
+    background: #fff;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: #111827;
+}
+
+.o_oil_owner_donut_inner strong {
+    font-size: 30px;
+    line-height: 1.05;
+}
+
+.o_oil_owner_donut_inner span {
+    font-size: 16px;
+    font-weight: 800;
+}
+
+.o_oil_owner_gender_legend {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.o_oil_owner_gender_row {
+    display: grid;
+    grid-template-columns: 16px 1fr auto;
+    align-items: center;
+    gap: 12px;
+    font-size: 17px;
+}
+
+.o_oil_owner_dot {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+}
+
+.o_oil_owner_label {
+    color: #374151;
+    font-weight: 700;
+}
+
+.o_oil_owner_gender_row strong,
+.o_oil_owner_age_row strong {
+    color: #111827;
+    font-size: 20px;
+    min-width: 72px;
+    text-align: right;
+}
+
+.o_oil_owner_age_list {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    flex: 1;
+    justify-content: center;
+}
+
+.o_oil_owner_age_row {
+    display: grid;
+    grid-template-columns: 110px minmax(140px, 1fr) 130px;
+    gap: 16px;
+    align-items: center;
+}
+
+.o_oil_owner_age_label {
+    font-size: 17px;
+    color: #374151;
+    font-weight: 700;
+}
+
+.o_oil_owner_age_track {
+    height: 14px;
+    border-radius: 999px;
+    background: transparent;
+    overflow: hidden;
+}
+
+.o_oil_owner_age_bar {
+    display: block;
+    height: 100%;
+    min-width: 0;
+    border-radius: 999px;
+    box-shadow: 0 1px 4px rgba(101, 58, 196, 0.25);
+}
+
+.o_oil_owner_top_percent {
+    color: #f59e0b !important;
+}
+
+.o_oil_owner_top_badge {
+    display: inline-block;
+    margin-left: 6px;
+    color: #f59e0b;
+    font-size: 13px;
+    font-weight: 800;
+}
+
+.o_oil_owner_note {
+    margin-top: 16px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-height: 44px;
+    border-radius: 8px;
+    background: #f0e9ff;
+    color: #6d47d8;
+    padding: 10px 14px;
+    font-size: 15px;
+    font-weight: 800;
+}
+
+.o_oil_owner_note i {
+    font-size: 18px;
+}
+
+.o_oil_owner_loading {
+    min-height: 360px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+@media (max-width: 980px) {
+    .o_oil_owner_toolbar,
+    .o_oil_owner_grid {
+        grid-template-columns: 1fr;
+    }
+
+    .o_oil_owner_gender_body {
+        grid-template-columns: 1fr;
+    }
+
+    .o_oil_owner_card {
+        min-height: auto;
+    }
+}

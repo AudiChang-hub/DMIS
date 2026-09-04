@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="view_motor_type_rule_tree" model="ir.ui.view">
+        <field name="name">dms.motor.type.rule.tree</field>
+        <field name="model">dms.motor.type.rule</field>
+        <field name="arch" type="xml">
+            <tree string="車種類型規則" editable="bottom">
+                <field name="sequence" widget="handle"/>
+                <field name="name"/>
+                <field name="pattern"/>
+                <field name="result"/>
+                <field name="active" widget="boolean_toggle"/>
+                <field name="note" optional="hide"/>
+            </tree>
+        </field>
+    </record>
+
+    <record id="view_motor_type_rule_form" model="ir.ui.view">
+        <field name="name">dms.motor.type.rule.form</field>
+        <field name="model">dms.motor.type.rule</field>
+        <field name="arch" type="xml">
+            <form string="車種類型規則">
+                <header>
+                    <button name="action_rebuild_view" type="object"
+                            string="重新套用規則" class="btn-primary"/>
+                </header>
+                <sheet>
+                    <widget name="web_ribbon" title="已停用"
+                            bg_color="bg-danger" attrs="{'invisible': [('active', '=', True)]}"/>
+                    <group>
+                        <group>
+                            <field name="name"/>
+                            <field name="sequence"/>
+                            <field name="active"/>
+                        </group>
+                        <group>
+                            <field name="pattern"/>
+                            <field name="result"/>
+                        </group>
+                    </group>
+                    <group string="備註">
+                        <field name="note" nolabel="1"/>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_motor_type_rule_search" model="ir.ui.view">
+        <field name="name">dms.motor.type.rule.search</field>
+        <field name="model">dms.motor.type.rule</field>
+        <field name="arch" type="xml">
+            <search>
+                <field name="name"/>
+                <field name="pattern"/>
+                <field name="result"/>
+                <filter name="active" string="啟用中"
+                        domain="[('active', '=', True)]"/>
+                <filter name="inactive" string="已停用"
+                        domain="[('active', '=', False)]"/>
+                <group expand="0" string="分組">
+                    <filter name="group_result" string="分類結果"
+                            context="{'group_by': 'result'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <record id="action_motor_type_rule" model="ir.actions.act_window">
+        <field name="name">車種類型規則</field>
+        <field name="res_model">dms.motor.type.rule</field>
+        <field name="view_mode">tree,form</field>
+        <field name="context">{'search_default_active': 1}</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">建立車種類型分類規則</p>
+            <p>規則套用於 Metabase 報表 <code>ds.sales.report</code> 的「車種類型」欄位。
+            數字越小的順序越先比對；首個命中即為最終結果。</p>
+        </field>
+    </record>
+
+    <menuitem id="menu_motor_type_rule"
+              name="車種類型規則"
+              parent="dms_report.menu_dms_report_root"
+              action="action_motor_type_rule"
+              sequence="60"/>
+
+</odoo>

@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+  <!-- 零件管理：獨立的頂層大項 -->
+  <menuitem id="menu_dms_parts_root"
+            name="零件管理"
+            sequence="76"/>
+
+  <!-- 查詢零件 -->
+  <menuitem id="menu_parts_catalog_search"
+            name="查詢零件"
+            parent="menu_dms_parts_root"
+            action="dms_parts.action_catalog_search_wizard"
+            sequence="30"/>
+
+  <!-- 將 dms_product 定義的「零件管理」群組移至新頂層 -->
+  <record model="ir.ui.menu" id="dms_product.menu_dms_parts_group">
+    <field name="parent_id" ref="menu_dms_parts_root"/>
+    <field name="sequence">10</field>
+  </record>
+
+  <!-- 零件目錄管理 -->
+  <menuitem id="menu_parts_catalog_group"
+            name="零件目錄管理"
+            parent="menu_dms_parts_root"
+            sequence="20"/>
+
+  <menuitem id="menu_parts_catalog"
+            name="目錄清單"
+            parent="menu_parts_catalog_group"
+            action="dms_parts.action_part_catalog"
+            sequence="10"/>
+
+  <menuitem id="menu_parts_catalog_import"
+            name="CSV 批次匯入"
+            parent="menu_parts_catalog_group"
+            action="dms_parts.action_catalog_import_wizard"
+            sequence="20"/>
+
+</odoo>

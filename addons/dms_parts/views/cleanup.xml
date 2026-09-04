@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo noupdate="0">
+  <!-- 移除 dms_parts 獨立根選單，零件管理已移入產品及零件管理 -->
+  <delete model="ir.ui.menu" search="[('id', '=', ref('dms_parts.menu_dms_parts_root'))]"/>
+</odoo>

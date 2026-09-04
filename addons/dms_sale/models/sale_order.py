@@ -13,26 +13,49 @@ class SaleOrder(models.Model):
     order_date = fields.Date(
         string='訂單日期', required=True, default=fields.Date.today)
     sale_type = fields.Selection(
-        [('store', '店面'), ('dealer', '車行')],
+        [('store', '店面'), ('dealer', '車行'), ('online', '網路平台')],
         string='交易類型', required=True, default='store')
     state = fields.Selection(
-        [('draft', '草稿'), ('confirmed', '確認'), ('cancel', '取消')],
-        string='狀態', default='draft', required=True)
+        [('draft', '草稿'), ('confirmed', '已成立'), ('cancel', '已取消')],
+        string='狀態', default='draft', required=True, copy=False)
     active = fields.Boolean(string='啟用', default=True)
 
     # ── 客戶資訊 ──────────────────────────────────────────
-    customer_id = fields.Many2one(
-        'res.partner', string='已建檔客戶', ondelete='restrict',
-        help='可選：選取已建檔客戶時自動帶入下方資料，不常化也可直接填寫')
     customer_name = fields.Char(string='客戶姓名', required=True)
     customer_phone = fields.Char(string='聯絡電話')
+    customer_email = fields.Char(string='Email')
     id_number = fields.Char(string='身分證字號')
-    birthday_roc = fields.Char(string='民國生日')
+    birthday_ad = fields.Date(string='西元生日')
+    birthday_roc = fields.Char(
+        string='民國生日',
+        compute='_compute_birthday_roc',
+        store=False,
+    )
     address_registered = fields.Text(string='戶籍地址')
+
+    # ── 訂單來源 ──────────────────────────────────────────
+    sale_origin = fields.Selection(
+        [('manual', '手動建立'), ('order_processor', 'OrderProcessor 匯入'),
+         ('excel', 'Excel 匯入')],
+        string='訂單來源', default='manual', copy=False)
+    source_folder = fields.Char(
+        string='來源資料夾', copy=False,
+        groups='base.group_no_one')
+    source_product_name = fields.Char(
+        string='原始車款字串', copy=False)
+    source_dealer_name = fields.Char(
+        string='原始車行名稱', copy=False)
+    source_color_name = fields.Char(
+        string='原始顏色字串', copy=False)
+    excel_sync_id = fields.Char(
+        string='來源序號', copy=False, index=True)
 
     # ── 車輛資訊 ──────────────────────────────────────────
     product_id = fields.Many2one(
-        'dms.product', string='車款', required=True, ondelete='restrict')
+        'dms.product', string='車款', ondelete='restrict')
+    product_brand_id = fields.Many2one(
+        'dms.brand', string='品牌',
+        related='product_id.brand_id', store=True, readonly=True)
     product_energy_type = fields.Selection(
         related='product_id.energy_type',
         string='能源型式', readonly=True, store=False)
@@ -41,21 +64,38 @@ class SaleOrder(models.Model):
         domain="[('product_id', '=', product_id)]",
         ondelete='restrict')
     engine_number = fields.Char(string='引擎號碼')
+
+    # ── display 欄位（M2O 有值取其名稱，否則取 source_* 備存字串） ──
+    display_color_name = fields.Char(
+        string='顯示顏色', compute='_compute_display_fields', store=True)
+    display_product_name = fields.Char(
+        string='顯示車款', compute='_compute_display_fields', store=True)
+    display_dealer_name = fields.Char(
+        string='顯示車行', compute='_compute_display_fields', store=True)
     frame_number = fields.Char(string='車身號碼')
     plate_number = fields.Char(string='車牌號碼')
     registration_date = fields.Date(string='領牌日期')
 
     # ── 金流 ──────────────────────────────────────────────
     cash_price = fields.Float(
-        string='參考售價', digits=(12, 0), help='從車款售價自動帶入，可手動調整')
+        string='建議售價', digits=(12, 0), help='從車款建議售價自動帶入，可手動調整')
     amount_total = fields.Float(string='實際收款價', digits=(12, 0))
     cost = fields.Float(string='成本', digits=(12, 0))
     payment_method = fields.Selection(
         [('cash', '現金'), ('credit', '信用卡'), ('installment', '分期')],
         string='付款方式')
-    finance_company = fields.Char(string='分期公司')
+    finance_company = fields.Selection(
+        [('和潤', '和潤'), ('遠信', '遠信'), ('仲信', '仲信'), ('other', '其他')],
+        string='分期公司')
+    finance_company_other = fields.Char(string='其他分期公司')
+    installment_plan_id = fields.Many2one(
+        'dms.product.installment.line',
+        string='分期方案',
+        ondelete='set null')
     installment_periods = fields.Integer(string='分期期數', default=0)
     installment_monthly = fields.Float(string='月付金', digits=(12, 0))
+    installment_setup_fee = fields.Float(string='設定費', digits=(12, 0), default=0)
+    installment_open_fee = fields.Float(string='開辦費', digits=(12, 0), default=0)
 
     # ── 車行（B2B） ───────────────────────────────────────
     dealer_id = fields.Many2one('dms.dealer', string='車行', ondelete='restrict')
@@ -70,8 +110,10 @@ class SaleOrder(models.Model):
     fee_insurance = fields.Float(string='代繳保險費', digits=(12, 0))
     fee_guild_cert = fields.Float(string='公會證明費', digits=(12, 0))
     fee_document = fields.Float(string='文件處理費', digits=(12, 0))
-    fee_other = fields.Float(string='其他', digits=(12, 0))
+    fee_other = fields.Float(string='其他費用（含精品）', digits=(12, 0))
     fee_plate_selection = fields.Float(string='選號費', digits=(12, 0))
+    fee_scrap_vehicle = fields.Float(string='舊車回收費', digits=(12, 0))
+    fee_plate_insurance = fields.Float(string='牌險費', digits=(12, 0))
     fee_total = fields.Float(
         string='牌險合計', digits=(12, 0),
         compute='_compute_fee_total', store=True)
@@ -93,25 +135,182 @@ class SaleOrder(models.Model):
     special_plan = fields.Char(string='特殊方案')
     note = fields.Text(string='備註')
 
+    # ── 補助申辦 ──────────────────────────────────────────
+    subsidy_boie_status = fields.Char(string='工業局申請狀態')
+    subsidy_moenv_status = fields.Char(string='環境部申請狀態')
+    subsidy_city_status = fields.Char(string='縣市政府申請狀態')
+    moea_invoice_no = fields.Char(string='工業局發票號碼')
+    moea_invoice_date = fields.Date(string='發票日期')
+    balance_invoice_no = fields.Char(string='尾款發票號碼')
+    subsidy_plan = fields.Char(string='補助方案')
+    subsidy_amount = fields.Float(string='補助金額', digits=(12, 0))
+    subsidy_moea = fields.Float(string='工業局', digits=(12, 0))
+    subsidy_moea_date = fields.Date(string='工業局申請日')
+    subsidy_moenv = fields.Float(string='環境部', digits=(12, 0))
+    subsidy_moenv_date = fields.Date(string='環境部申請日')
+    subsidy_local = fields.Float(string='縣市政府', digits=(12, 0))
+    subsidy_local_date = fields.Date(string='縣市政府申請日')
+    remittance_bank = fields.Char(string='銀行')
+    remittance_account = fields.Char(string='匯款帳戶')
+
+    # ── 其他資訊 ──────────────────────────────────────────
+    extra_helmet = fields.Char(string='安全帽')
+    extra_gift_voucher = fields.Char(string='公司禮卷、匯款')
+    extra_platform_gift = fields.Char(string='平台贈品')
+    extra_company_gift = fields.Char(string='公司贈品')
+    extra_customer_service_phone = fields.Char(string='客服電話')
+    extra_special_plan = fields.Char(string='特殊方案')
+    extra_other = fields.Char(string='其他')
+    extra_note = fields.Text(string='備註')
+
+    # ── 舊車資訊 ──────────────────────────────────────────
+    used_car_owner = fields.Char(string='舊車車主')
+    used_car_owner_id_no = fields.Char(string='舊車車主身分證字號')
+    used_car_owner_phone = fields.Char(string='舊車車主電話')
+    used_car_owner_address = fields.Char(string='舊車戶籍')
+    used_car_plate = fields.Char(string='舊車牌照號碼')
+    used_car_engine_no = fields.Char(string='舊車引擎號碼')
+    used_car_brand = fields.Char(string='舊車廠牌')
+    used_car_displacement = fields.Char(string='排氣量')
+    used_car_manufacture_date = fields.Date(string='出廠日期')
+    used_car_scrap_date = fields.Date(string='報廢日期')
+    used_car_recycle_date = fields.Date(string='回收日期')
+
+    # ── 電車資訊 ──────────────────────────────────────────
+    ev_control_account = fields.Char(string='車控帳號')
+    ev_control_password = fields.Char(string='車控密碼')
+    ev_battery_plan = fields.Char(string='電池合約方案')
+    ev_battery_start_date = fields.Date(string='電池合約啟用日期')
+    ev_battery_account = fields.Char(string='電池合約帳號')
+    ev_battery_password = fields.Char(string='電池合約密碼')
+    show_ev_passwords = fields.Boolean(
+        string='電車密碼已解鎖', default=False, copy=False)
+
+    # ── 汰舊換新 ──────────────────────────────────────────
+    is_trade_in = fields.Boolean(string='有汰舊', default=False)
+
+    # ── 收益統計：支出 ───────────────────────────────────
+    out_credit_card_fee = fields.Float(string='信用卡手續費支出', digits=(12, 0), default=0)
+    out_installment_fee = fields.Float(string='分期手續費支出', digits=(12, 0), default=0)
+    out_plate_tax = fields.Float(string='領牌稅金支出', digits=(12, 0), default=0)
+    out_compulsory_ins = fields.Float(string='強制險支出', digits=(12, 0), default=0)
+    out_plate_select = fields.Float(string='選號支出', digits=(12, 0), default=0)
+    out_used_car = fields.Float(string='中古車支出', digits=(12, 0), default=0)
+    out_gift_shipping = fields.Float(string='贈品、運費支出', digits=(12, 0), default=0)
+    out_dealer_commission = fields.Float(string='車行傭金支出', digits=(12, 0), default=0)
+    out_friendly_dealer_bonus = fields.Float(string='友善車行獎金支出', digits=(12, 0), default=0)
+    out_first_sale_bonus = fields.Float(string='首賣獎金支出', digits=(12, 0), default=0)
+    out_unit_bonus = fields.Float(string='台數獎金支出', digits=(12, 0), default=0)
+
+    # ── 收益統計：收入 ───────────────────────────────────
+    received_amount = fields.Float(
+        string='收款價', digits=(12, 0), default=0,
+        help='實際收款金額，預設帶入總成交價；分期時可手動調整為首款或實收金額')
+    in_plate_tax = fields.Float(string='領牌稅金收入', digits=(12, 0), default=0)
+    in_compulsory_ins = fields.Float(string='強制險收入', digits=(12, 0), default=0)
+    in_agency_fee = fields.Float(string='代辦費收入', digits=(12, 0), default=0)
+    in_scrap_agency = fields.Float(string='報廢代辦收入', digits=(12, 0), default=0)
+    in_plate_select = fields.Float(string='選號收入', digits=(12, 0), default=0)
+    in_used_car = fields.Float(string='中古車收入', digits=(12, 0), default=0)
+    in_scrap_car = fields.Float(string='報廢車收入', digits=(12, 0), default=0)
+    in_card_installment_fee = fields.Float(string='刷卡、分期手續費收入', digits=(12, 0), default=0)
+    in_yamaha_bonus = fields.Float(string='山葉獎金收入', digits=(12, 0), default=0)
+    in_friendly_dealer_bonus = fields.Float(string='友善車行獎金收入', digits=(12, 0), default=0)
+    in_other = fields.Float(string='其他收入', digits=(12, 0), default=0)
+    in_actual_sales_bonus = fields.Float(string='實銷獎勵金', digits=(12, 0), default=0)
+    in_promo_subsidy = fields.Float(string='促銷補助金', digits=(12, 0), default=0)
+    in_installment_subsidy = fields.Float(string='分期補貼息', digits=(12, 0), default=0)
+    in_compulsory_ins_commission = fields.Float(string='強制險傭金', digits=(12, 0), default=0)
+    in_credit_card_commission = fields.Float(string='信用卡傭金', digits=(12, 0), default=0)
+    net_profit = fields.Float(
+        string='單筆淨利', digits=(12, 0),
+        compute='_compute_net_profit', store=True)
+
     # ── 計算欄位 ──────────────────────────────────────────
+    @api.depends('birthday_ad')
+    def _compute_birthday_roc(self):
+        for rec in self:
+            if rec.birthday_ad:
+                roc_year = rec.birthday_ad.year - 1911
+                rec.birthday_roc = (
+                    f"民國{roc_year}年"
+                    f"{rec.birthday_ad.month:02d}月"
+                    f"{rec.birthday_ad.day:02d}日"
+                )
+            else:
+                rec.birthday_roc = False
+
     @api.depends(
         'fee_vehicle_registration', 'fee_inspection', 'fee_plate',
         'fee_stamp', 'fee_insurance', 'fee_guild_cert',
-        'fee_document', 'fee_other', 'fee_plate_selection')
+        'fee_document', 'fee_other', 'fee_plate_selection', 'fee_scrap_vehicle',
+        'fee_plate_insurance')
     def _compute_fee_total(self):
         for rec in self:
             rec.fee_total = (
+                rec.fee_plate_insurance +
                 rec.fee_vehicle_registration + rec.fee_inspection +
                 rec.fee_plate + rec.fee_stamp + rec.fee_insurance +
                 rec.fee_guild_cert + rec.fee_document +
-                rec.fee_other + rec.fee_plate_selection
+                rec.fee_other + rec.fee_plate_selection + rec.fee_scrap_vehicle
             )
 
-    @api.depends('amount_total', 'deposit_amount')
+    @api.depends('amount_total', 'deposit_amount', 'payment_method',
+                 'installment_setup_fee', 'installment_open_fee', 'fee_total')
     def _compute_balance(self):
         for rec in self:
-            rec.balance_amount = (rec.amount_total or 0) - (rec.deposit_amount or 0)
+            if rec.payment_method == 'installment':
+                rec.balance_amount = (
+                    (rec.installment_setup_fee or 0) +
+                    (rec.installment_open_fee or 0) +
+                    (rec.fee_total or 0) -
+                    (rec.deposit_amount or 0)
+                )
+            else:
+                rec.balance_amount = (rec.amount_total or 0) - (rec.deposit_amount or 0)
 
+    _PROFIT_INCOME_FIELDS = (
+        'amount_total',
+        'in_plate_tax', 'in_compulsory_ins', 'in_agency_fee', 'in_scrap_agency',
+        'in_plate_select', 'in_used_car', 'in_scrap_car', 'in_card_installment_fee',
+        'in_yamaha_bonus', 'in_friendly_dealer_bonus', 'in_other',
+        'in_actual_sales_bonus', 'in_promo_subsidy', 'in_installment_subsidy',
+        'in_compulsory_ins_commission', 'in_credit_card_commission',
+    )
+    _PROFIT_EXPENSE_FIELDS = (
+        'cost',
+        'out_credit_card_fee', 'out_installment_fee', 'out_plate_tax',
+        'out_compulsory_ins', 'out_plate_select', 'out_used_car',
+        'out_gift_shipping', 'out_dealer_commission', 'out_friendly_dealer_bonus',
+        'out_first_sale_bonus', 'out_unit_bonus',
+    )
+
+    @api.depends(*_PROFIT_INCOME_FIELDS, *_PROFIT_EXPENSE_FIELDS)
+    def _compute_net_profit(self):
+        for rec in self:
+            income = sum(getattr(rec, f) or 0 for f in self._PROFIT_INCOME_FIELDS)
+            expense = sum(getattr(rec, f) or 0 for f in self._PROFIT_EXPENSE_FIELDS)
+            rec.net_profit = income - expense
+    @api.depends('color_id', 'source_color_name')
+    def _compute_display_fields_color(self):
+        for rec in self:
+            rec.display_color_name = rec.color_id.name if rec.color_id else (rec.source_color_name or False)
+
+    @api.depends('product_id', 'product_id.name', 'source_product_name',
+                 'color_id', 'color_id.name', 'source_color_name',
+                 'dealer_id', 'dealer_id.name', 'source_dealer_name')
+    def _compute_display_fields(self):
+        for rec in self:
+            rec.display_color_name = rec.color_id.name if rec.color_id else (rec.source_color_name or False)
+            rec.display_product_name = rec.product_id.name if rec.product_id else (rec.source_product_name or False)
+            rec.display_dealer_name = rec.dealer_id.name if rec.dealer_id else (rec.source_dealer_name or False)
+
+    # ── SQL 約束 ──────────────────────────────────────────
+    _sql_constraints = [
+        ('excel_sync_id_uniq',
+         'UNIQUE(excel_sync_id)',
+         'Excel 來源序號已存在，不得重複建立'),
+    ]
     # ── 序號 ──────────────────────────────────────────────
     @api.model_create_multi
     def create(self, vals_list):
@@ -119,46 +318,119 @@ class SaleOrder(models.Model):
             if vals.get('name', '/') == '/':
                 vals['name'] = (
                     self.env['ir.sequence'].next_by_code('dms.sale.order') or '/')
+            self._sync_sale_type_with_dealer(vals)
         return super().create(vals_list)
 
+    def write(self, vals):
+        # 若調整 dealer_id 或 sale_type，依車行類型校正交易類型
+        if 'dealer_id' in vals or 'sale_type' in vals:
+            for rec in self:
+                merged = {
+                    'dealer_id': vals.get('dealer_id', rec.dealer_id.id),
+                    'sale_type': vals.get('sale_type', rec.sale_type),
+                }
+                self._sync_sale_type_with_dealer(merged)
+                # 將回填後的 sale_type 套到本筆
+                if merged['sale_type'] != vals.get('sale_type', rec.sale_type):
+                    vals = dict(vals, sale_type=merged['sale_type'])
+        return super().write(vals)
+
+    @api.model
+    def _sync_sale_type_with_dealer(self, vals):
+        """當 dealer 的 store_type 為「網路平台」時，sale_type 自動設為 'online'。
+
+        在沒有 dealer 的情況下不變動 sale_type；其他類型亦保留原值，
+        以免覆寫使用者明確設定的『店面』/『車行』。"""
+        dealer_id = vals.get('dealer_id')
+        if not dealer_id:
+            return
+        dealer = self.env['dms.dealer'].browse(dealer_id)
+        if not dealer or not dealer.store_type_id:
+            return
+        if dealer.store_type_id.name == '網路平台':
+            vals['sale_type'] = 'online'
+
+    @api.onchange('dealer_id')
+    def _onchange_dealer_sync_sale_type(self):
+        if self.dealer_id and self.dealer_id.store_type_id.name == '網路平台':
+            self.sale_type = 'online'
+        elif self.dealer_id and self.sale_type == 'store':
+            # 帶入車行時若使用者尚未指定，預設為車行
+            self.sale_type = 'dealer'
+
     # ── Onchange ──────────────────────────────────────────
-    @api.onchange('customer_id')
-    def _onchange_customer_id(self):
-        if self.customer_id:
-            p = self.customer_id
-            self.customer_name = p.name
-            self.customer_phone = p.phone or p.mobile or ''
-            self.id_number = getattr(p, 'id_number', '') or ''
-            self.birthday_roc = getattr(p, 'dms_birthday_roc', '') or ''
-            self.address_registered = getattr(p, 'address_registered', '') or ''
+    def action_apply_received_amount(self):
+        """按鈕：將當前總成交價 amount_total 套用至收款價。"""
+        self.received_amount = self.amount_total
+
+    def action_apply_plate_tax(self):
+        """按鈕：將交易資訊領牌費同時套用至領牌稅金支出與收入。"""
+        val = self.fee_vehicle_registration or 0.0
+        self.out_plate_tax = val
+        self.in_plate_tax = val
+
+    def action_apply_compulsory_ins(self):
+        """按鈕：將交易資訊強制險同時套用至強制險支出與收入。"""
+        val = self.fee_insurance or 0.0
+        self.out_compulsory_ins = val
+        self.in_compulsory_ins = val
+
+    @api.onchange('installment_plan_id')
+    def _onchange_installment_plan_id(self):
+        plan = self.installment_plan_id
+        if plan:
+            self.installment_periods = plan.periods
+            self.installment_monthly = plan.monthly_payment
+            self.installment_setup_fee = plan.setup_fee
+            self.installment_open_fee = plan.opening_fee
 
     @api.onchange('product_id')
     def _onchange_product_id(self):
         self.color_id = False  # 車款變更時清空顏色
+        self.installment_plan_id = False  # 車款變更時清空分期方案
+        plan_domain = [('product_id', '=', self.product_id.id)] if self.product_id else [('id', '=', False)]
         if not self.product_id:
-            return
-        # 帶入現金售價（取最新有效月份）
-        price = self.env['dms.vehicle.price'].search(
-            [('product_id', '=', self.product_id.id), ('active', '=', True)],
-            order='valid_year_month desc', limit=1)
-        if price:
-            self.cash_price = price.cash_price
+            return {'domain': {'installment_plan_id': plan_domain}}
+
+        # 優先使用產品建議售價（suggested_price > 0 時直接採用）
+        if self.product_id.suggested_price:
+            self.cash_price = self.product_id.suggested_price
+        else:
+            # 次優先讀取 dms.price.line 現金價
+            price_line = self.env['dms.price.line'].get_effective_line(
+                self.product_id,
+                query_date=self.order_date or fields.Date.context_today(self),
+            )
+            if price_line and price_line.cash_price:
+                self.cash_price = price_line.cash_price
+            elif self.product_id.effective_price:
+                # 再次優先：產品有效售價（promo_price 或 cash_price）
+                self.cash_price = self.product_id.effective_price
+            else:
+                # Fallback：舊車款售價相容層（待 018 移除）
+                price = self.env['dms.vehicle.price'].search(
+                    [('product_id', '=', self.product_id.id), ('active', '=', True)],
+                    order='valid_year_month desc', limit=1)
+                if price:
+                    self.cash_price = price.cash_price
         # 電車：自動帶入牌險費
         if self.product_id.energy_type == 'electric':
             fee = self.env['dms.ev.fee.schedule'].search(
                 [('product_id', '=', self.product_id.id), ('active', '=', True)],
                 order='valid_from desc', limit=1)
             if fee:
-                self.fee_vehicle_registration = fee.fee_vehicle_registration
+                self.fee_plate_insurance = (fee.fee_vehicle_registration or 0) + (fee.fee_insurance or 0)
+                self.fee_vehicle_registration = 0
+                self.fee_insurance = 0
                 self.fee_inspection = fee.fee_inspection
                 self.fee_plate = fee.fee_plate
                 self.fee_stamp = fee.fee_stamp
-                self.fee_insurance = fee.fee_insurance
                 self.fee_guild_cert = fee.fee_guild_cert
                 self.fee_document = fee.fee_document
                 self.fee_other = fee.fee_other
         else:
             # 油車：清空牌險費供手動填入
+            self.fee_plate_insurance = 0
             self.fee_vehicle_registration = 0
             self.fee_inspection = 0
             self.fee_plate = 0
@@ -167,6 +439,7 @@ class SaleOrder(models.Model):
             self.fee_guild_cert = 0
             self.fee_document = 0
             self.fee_other = 0
+        return {'domain': {'installment_plan_id': plan_domain}}
 
     @api.onchange('dealer_id', 'product_id', 'installment_periods')
     def _onchange_commission(self):
@@ -198,3 +471,20 @@ class SaleOrder(models.Model):
 
     def button_cancel(self):
         self.write({'state': 'cancel'})
+
+    def action_reveal_ev_passwords(self):
+        """開啟解鎖 Wizard，驗證密碼後才顯示電車帳密"""
+        self.ensure_one()
+        return {
+            'type': 'ir.actions.act_window',
+            'name': '解鎖電車帳密',
+            'res_model': 'dms.ev.password.wizard',
+            'view_mode': 'form',
+            'target': 'new',
+            'context': {'default_order_id': self.id},
+        }
+
+    def action_hide_ev_passwords(self):
+        """隱藏電車帳密"""
+        self.ensure_one()
+        self.show_ev_passwords = False

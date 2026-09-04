@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+  <!-- 隱藏不再使用的選單 -->
+  <data noupdate="0">
+    <!-- 根選單：討論 / 財務結算 / 庫存 -->
+    <record id="mail.menu_root_discuss" model="ir.ui.menu">
+      <field name="active" eval="False"/>
+    </record>
+    <record id="stock.menu_stock_root" model="ir.ui.menu">
+      <field name="active" eval="False"/>
+    </record>
+    <record id="dms_finance.menu_dms_finance_root" model="ir.ui.menu">
+      <field name="active" eval="False"/>
+    </record>
+    <!-- 銷售分析底下的「原始數據查詢」 -->
+    <record id="dms_report_ds.menu_mb_raw_parent" model="ir.ui.menu">
+      <field name="active" eval="False"/>
+    </record>
+  </data>
+</odoo>

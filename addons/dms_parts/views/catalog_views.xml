@@ -1,0 +1,119 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+  <!-- Catalog Tree -->
+  <record id="view_part_catalog_tree" model="ir.ui.view">
+    <field name="name">dms.part.catalog.tree</field>
+    <field name="model">dms.part.catalog</field>
+    <field name="arch" type="xml">
+      <tree string="零件目錄">
+        <field name="name"/>
+        <field name="template_id"/>
+        <field name="engine_prefix"/>
+        <field name="frame_prefix" optional="hide"/>
+        <field name="setup_date"/>
+        <field name="section_count" string="爆炸圖數量"/>
+        <field name="active" optional="hide"/>
+      </tree>
+    </field>
+  </record>
+
+  <!-- Catalog Form -->
+  <record id="view_part_catalog_form" model="ir.ui.view">
+    <field name="name">dms.part.catalog.form</field>
+    <field name="model">dms.part.catalog</field>
+    <field name="arch" type="xml">
+      <form string="零件目錄">
+        <sheet>
+          <!-- Stat button：一鍵跳到爆炸圖分區 Kanban -->
+          <div class="oe_button_box" name="button_box">
+            <button name="action_open_sections" type="object"
+                    class="oe_stat_button" icon="fa-puzzle-piece">
+              <field name="section_count" widget="statinfo" string="爆炸圖分區"/>
+            </button>
+            <button name="action_open_pdf_wizard" type="object"
+                    class="oe_stat_button" icon="fa-file-pdf-o"
+                    attrs="{'invisible': [('id','=',False)]}">
+              <span class="o_stat_text">從 PDF 批次建立</span>
+            </button>
+          </div>
+
+          <div class="oe_title">
+            <label for="name"/>
+            <h1><field name="name" placeholder="目錄名稱，如：UQ125DA 2025版"/></h1>
+          </div>
+
+          <notebook>
+            <page string="基本資料">
+              <group>
+                <group string="車型資訊">
+                  <field name="template_id"/>
+                  <field name="setup_date"/>
+                  <field name="active"/>
+                </group>
+                <group string="號碼前綴（用於查詢比對）">
+                  <field name="engine_prefix" placeholder="如：DD"/>
+                  <field name="frame_prefix" placeholder="如：RF1A（選填）"/>
+                </group>
+              </group>
+              <group string="備註">
+                <field name="note" nolabel="1"/>
+              </group>
+            </page>
+
+            <page string="分區清單（爆炸圖）">
+              <div class="alert alert-info" role="alert">
+                <i class="fa fa-lightbulb-o"/>
+                每一個「分區」對應一張爆炸圖。新增分區後，點擊分區名稱即可上傳爆炸圖並輸入零件清單。
+                或點擊上方「<strong>爆炸圖分區</strong>」按鈕以圖片格狀方式檢視。
+              </div>
+              <field name="section_ids">
+                <tree editable="bottom">
+                  <field name="sequence" widget="handle"/>
+                  <field name="code" placeholder="E01"/>
+                  <field name="name" placeholder="如：引擎蓋"/>
+                  <field name="category"/>
+                  <field name="line_count" string="零件數" readonly="1"/>
+                </tree>
+              </field>
+            </page>
+          </notebook>
+        </sheet>
+      </form>
+    </field>
+  </record>
+
+  <!-- Catalog Search -->
+  <record id="view_part_catalog_search" model="ir.ui.view">
+    <field name="name">dms.part.catalog.search</field>
+    <field name="model">dms.part.catalog</field>
+    <field name="arch" type="xml">
+      <search string="目錄搜尋">
+        <field name="name"/>
+        <field name="template_id"/>
+        <field name="engine_prefix"/>
+        <filter name="filter_active" string="啟用中" domain="[('active','=',True)]"/>
+        <group expand="0" string="分組依據">
+          <filter name="group_template" string="車型" context="{'group_by': 'template_id'}"/>
+        </group>
+      </search>
+    </field>
+  </record>
+
+  <record id="action_part_catalog" model="ir.actions.act_window">
+    <field name="name">零件目錄</field>
+    <field name="res_model">dms.part.catalog</field>
+    <field name="view_mode">tree,form</field>
+    <field name="context">{'search_default_filter_active': 1}</field>
+    <field name="help" type="html">
+      <p class="o_view_nocontent_smiling_face">
+        尚未建立任何零件目錄
+      </p>
+      <p>
+        每份「零件目錄」對應一個車型版本的零件手冊。<br/>
+        建立後可在目錄裡新增多個「爆炸圖分區（E01、E02...）」，
+        每個分區上傳一張爆炸圖並填入對應零件清單。
+      </p>
+    </field>
+  </record>
+</odoo>

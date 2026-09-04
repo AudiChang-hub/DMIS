@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+  <record id="view_commission_volume_gift_tree" model="ir.ui.view">
+    <field name="name">dms.commission.volume.gift.tree</field>
+    <field name="model">dms.commission.volume.gift</field>
+    <field name="arch" type="xml">
+      <tree string="台數實物獎勵規則">
+        <field name="rule_type" widget="badge"
+               decoration-info="rule_type == 'general'"
+               decoration-warning="rule_type == 'specific'"/>
+        <field name="name"/>
+        <field name="mode" optional="show"/>
+        <field name="brand_id" optional="show"/>
+        <field name="energy_type" optional="show"/>
+        <field name="min_qty"/>
+        <field name="part_id"/>
+        <field name="qty_per_unit" optional="show"/>
+        <field name="fixed_qty" optional="show"/>
+        <field name="period_type" optional="show"/>
+        <field name="date_from" optional="show"/>
+        <field name="date_to" optional="show"/>
+        <field name="active" optional="show"/>
+        <field name="dealer_ids" widget="many2many_tags" optional="hide"/>
+        <field name="note" optional="hide"/>
+      </tree>
+    </field>
+  </record>
+
+  <record id="view_commission_volume_gift_form" model="ir.ui.view">
+    <field name="name">dms.commission.volume.gift.form</field>
+    <field name="model">dms.commission.volume.gift</field>
+    <field name="arch" type="xml">
+      <form string="台數實物獎勵規則">
+        <sheet>
+          <div class="alert alert-warning" role="alert" style="margin-bottom:16px;">
+            <strong>❗ 排除邏輯：</strong>
+            若車行有任何特殊規則（台數獎金或台數實物），通用規則對該車行<strong>完全無效</strong>。
+            請確認已為特殊車行設定完整的個別規則。
+          </div>
+          <group>
+            <group>
+              <field name="name"/>
+              <field name="rule_type" readonly="1"/>
+              <field name="mode"/>
+              <field name="brand_id" placeholder="留空 = 所有品牌"/>
+              <field name="energy_type"/>
+              <field name="min_qty"/>
+            </group>
+            <group>
+              <field name="part_id"/>
+              <field name="qty_per_unit"
+                     attrs="{'invisible': [('mode','=','milestone_repeat')]}"/>
+              <field name="fixed_qty"
+                     attrs="{'invisible': [('mode','!=','milestone_repeat')]}"/>
+              <field name="period_type"/>
+              <field name="date_from"
+                     attrs="{'required': [('period_type','=','custom')]}"/>
+              <field name="date_to"
+                     attrs="{'required': [('period_type','=','custom')]}"/>
+              <field name="active"/>
+            </group>
+          </group>
+          <separator string="適用車行（留空 = 全部）"/>
+          <field name="dealer_ids" nolabel="1" widget="many2many_tags" class="w-100"/>
+          <separator string="備註"/>
+          <field name="note" nolabel="1" placeholder="請輸入備註內容..."/>
+        </sheet>
+      </form>
+    </field>
+  </record>
+
+  <record id="action_commission_volume_gift" model="ir.actions.act_window">
+    <field name="name">台數實物獎勵規則</field>
+    <field name="res_model">dms.commission.volume.gift</field>
+    <field name="view_mode">tree,form</field>
+    <field name="context">{'search_default_active': True}</field>
+  </record>
+
+  <record id="view_commission_volume_gift_search" model="ir.ui.view">
+    <field name="name">dms.commission.volume.gift.search</field>
+    <field name="model">dms.commission.volume.gift</field>
+    <field name="arch" type="xml">
+      <search string="台數實物獎勵規則搜尋">
+        <field name="name" string="名稱"/>
+        <field name="part_id" string="零件"/>
+        <filter name="filter_specific" string="特殊規則" domain="[('rule_type','=','specific')]"/>
+        <filter name="filter_general" string="通用規則" domain="[('rule_type','=','general')]"/>
+        <separator/>
+        <filter name="filter_active" string="啟用中" domain="[('active','=',True)]"/>
+        <separator/>
+        <filter name="filter_archived" string="已歸檔" domain="[('active','=',False)]"/>
+        <group expand="0" string="分組依據">
+          <filter name="group_mode" string="計算模式" context="{'group_by': 'mode'}"/>
+          <filter name="group_rule_type" string="規則類型" context="{'group_by': 'rule_type'}"/>
+        </group>
+      </search>
+    </field>
+  </record>
+
+</odoo>

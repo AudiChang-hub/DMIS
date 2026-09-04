@@ -309,9 +309,11 @@ html[data-theme="high-contrast"] {
 
 * { box-sizing: border-box; }
 [hidden] { display: none !important; }
-html { scroll-behavior: smooth; }
+html {
+  max-width: 100%; overflow-x: clip; scroll-behavior: smooth;
+}
 body {
-  margin: 0;
+  max-width: 100%; margin: 0; overflow-x: clip;
   color: var(--ink);
   background: var(--paper);
   font-family: "Noto Sans TC", "Microsoft JhengHei", system-ui, sans-serif;
@@ -748,9 +750,16 @@ h2 { margin-bottom: 0; font-size: 1.15rem; }
 .page-shell--wide { max-width: var(--shell-wide); }
 .page-shell--form { max-width: var(--shell-form); }
 .page-shell--compact { max-width: var(--shell-compact); }
-.hero-row { display: flex; align-items: end; justify-content: space-between; gap: 24px; margin-bottom: 26px; }
+.hero-row { display: flex; min-width: 0; align-items: end; justify-content: space-between; gap: 24px; margin-bottom: 26px; }
+.hero-row > * { min-width: 0; }
 .hero-row p:last-child { margin-bottom: 0; }
 .hero-actions { display: flex; align-items: center; justify-content: flex-end; gap: 10px; }
+@media (max-width: 1280px) and (min-width: 861px) {
+  .hero-row { align-items: flex-start; }
+  .hero-row > :first-child { flex: 1 1 320px; }
+  .hero-actions { flex: 1 1 560px; flex-wrap: wrap; }
+  .hero-actions .button { white-space: normal; text-align: center; }
+}
 .compact-hero { align-items: center; }
 .button {
   display: inline-flex; min-height: 46px; padding: 0 18px; align-items: center; justify-content: center;

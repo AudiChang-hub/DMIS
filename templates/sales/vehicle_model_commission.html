@@ -17,12 +17,56 @@
   <form method="post" class="dealer-reward-form">{% csrf_token %}<input type="hidden" name="action" value="save_rewards"><input type="hidden" name="reward_id" value="{{ reward_plan.pk|default:'' }}">{% if creating_reward %}<input type="hidden" name="new_reward" value="1">{% endif %}{{ reward_formset.management_form }}
     {% if reward_form.non_field_errors or reward_formset.non_form_errors %}<div class="message error">{{ reward_form.non_field_errors }}{{ reward_formset.non_form_errors }}</div>{% endif %}
     <div class="dealer-reward-editor-title"><div><span>{{ creating_reward|yesno:'建立新版本,編輯版本' }}</span><strong>{{ vehicle_model.name }} {{ vehicle_model.model_year|default:'' }} {{ vehicle_model.get_model_code_display }}</strong></div><small>車型由系統帶入，不需重選</small></div>
-    <div class="form-grid dealer-reward-period-grid">{% for field in reward_form %}{% include "sales/_field.html" with field=field %}{% endfor %}</div>
-    <div class="dealer-reward-items-heading"><div><h3>本車型提供的獎勵</h3><p>可同時加入多筆，例如機油 2 瓶、紅包 1,000 元、旅遊點數 1 點。</p></div><button type="button" class="button ghost small" data-add-reward>＋ 新增獎勵</button></div>
-    <div class="dealer-reward-items" data-reward-rows>{% for item_form in reward_formset %}<div class="dealer-reward-item" data-reward-row>{{ item_form.id }}{% for field in item_form.visible_fields %}{% if field.name != 'DELETE' %}<div>{% include "sales/_field.html" with field=field %}</div>{% endif %}{% endfor %}<span hidden>{{ item_form.DELETE }}</span><button type="button" class="button danger-outline small" data-remove-reward>移除此筆</button></div>{% endfor %}</div>
-    <template data-reward-template><div class="dealer-reward-item" data-reward-row>{{ reward_formset.empty_form.id }}{% for field in reward_formset.empty_form.visible_fields %}{% if field.name != 'DELETE' %}<div>{% include "sales/_field.html" with field=field %}</div>{% endif %}{% endfor %}<span hidden>{{ reward_formset.empty_form.DELETE }}</span><button type="button" class="button danger-outline small" data-remove-reward>移除此筆</button></div></template>
+    <section class="dealer-reward-settings" aria-labelledby="dealer-reward-period-title">
+      <div class="dealer-reward-settings__heading"><h3 id="dealer-reward-period-title">適用期間</h3><p>設定這一版獎勵何時生效；結束日期可留白。</p></div>
+      <div class="dealer-reward-period-grid">
+        <div>{% include "sales/_field.html" with field=reward_form.effective_from %}</div>
+        <div>{% include "sales/_field.html" with field=reward_form.effective_to %}</div>
+        <div class="dealer-reward-status-field">
+          <span class="dealer-reward-field-label">狀態</span>
+          <label class="dealer-reward-enabled-toggle">
+            {{ reward_form.active }}
+            <span class="dealer-reward-enabled-toggle__track" aria-hidden="true"><span></span></span>
+            <strong>啟用此版本</strong>
+          </label>
+          {% if reward_form.active.errors %}<span>{% for error in reward_form.active.errors %}<small class="field-error">{{ error }}</small>{% endfor %}</span>{% endif %}
+        </div>
+      </div>
+      <div class="dealer-reward-period-note">{% include "sales/_field.html" with field=reward_form.note %}</div>
+    </section>
+    <div class="dealer-reward-items-heading"><div><h3>本車型提供的獎勵</h3><p>每筆代表每售出一台適用；單位會依獎勵類型自動切換。</p></div><button type="button" class="button ghost small" data-add-reward>＋ 新增獎勵</button></div>
+    <div class="dealer-reward-items" data-reward-rows>
+      {% for item_form in reward_formset %}
+        <section class="dealer-reward-item" data-reward-row>
+          {{ item_form.id }}
+          <div class="dealer-reward-item__header"><div><strong>獎勵內容</strong><span>每售出一台適用</span></div><button type="button" class="button danger-outline small" data-remove-reward>移除此筆</button></div>
+          <div class="dealer-reward-item__fields">
+            <div>{% include "sales/_field.html" with field=item_form.reward_type %}</div>
+            <div>{% include "sales/_field.html" with field=item_form.name %}</div>
+            <div>{% include "sales/_field.html" with field=item_form.quantity %}</div>
+            <div>{% include "sales/_field.html" with field=item_form.unit %}</div>
+          </div>
+          <div class="dealer-reward-item__note">{% include "sales/_field.html" with field=item_form.note %}</div>
+          <span hidden>{{ item_form.DELETE }}</span>
+        </section>
+      {% endfor %}
+    </div>
+    <template data-reward-template>
+      <section class="dealer-reward-item" data-reward-row>
+        {{ reward_formset.empty_form.id }}
+        <div class="dealer-reward-item__header"><div><strong>獎勵內容</strong><span>每售出一台適用</span></div><button type="button" class="button danger-outline small" data-remove-reward>移除此筆</button></div>
+        <div class="dealer-reward-item__fields">
+          <div>{% include "sales/_field.html" with field=reward_formset.empty_form.reward_type %}</div>
+          <div>{% include "sales/_field.html" with field=reward_formset.empty_form.name %}</div>
+          <div>{% include "sales/_field.html" with field=reward_formset.empty_form.quantity %}</div>
+          <div>{% include "sales/_field.html" with field=reward_formset.empty_form.unit %}</div>
+        </div>
+        <div class="dealer-reward-item__note">{% include "sales/_field.html" with field=reward_formset.empty_form.note %}</div>
+        <span hidden>{{ reward_formset.empty_form.DELETE }}</span>
+      </section>
+    </template>
     <div class="dealer-reward-accounting-note"><strong>目前不自動入帳</strong><span>先保存公司承諾給車行的內容；待確認實物、紅包、禮券及點數的認列時點後，再接上發放與淨利。</span></div>
-    <div class="form-actions dealer-reward-actions"><a class="button ghost" href="{{ program_list_url }}">返回方案總覽</a><button class="button primary" type="submit">儲存附加獎勵</button></div>
+    <div class="form-actions dealer-reward-actions"><button class="button primary" type="submit">儲存附加獎勵</button></div>
   </form>
 </section>
 {% endblock %}

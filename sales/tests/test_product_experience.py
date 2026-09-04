@@ -38,7 +38,8 @@ class ProductExperienceTests(TestCase):
         self.assertContains(response, 'id="mobile-shortcuts"')
         self.assertContains(response, 'id="sales-sources"')
         self.assertContains(response, 'id="price-list-distribution"')
-        self.assertContains(response, "最後更新：2026/09/03")
+        self.assertContains(response, "最後更新：2026/09/04")
+        self.assertContains(response, 'id="dealer-sales-programs"')
         self.assertContains(response, 'id="dealer-volume-bonus"')
         self.assertContains(response, 'href="#dealer-volume-bonus"')
         self.assertContains(response, "每頁 25、50、75 或 100 筆")
@@ -85,6 +86,7 @@ class ProductExperienceTests(TestCase):
         self.assertContains(source_page, reverse("accessory_product_list"))
         self.assertContains(source_page, reverse("settlement_cost_rule_list"))
         self.assertContains(source_page, reverse("incentive_rule_list"))
+        self.assertContains(source_page, reverse("dealer_sales_program_list"))
         self.assertContains(source_page, reverse("dealer_volume_bonus_list"))
         self.assertContains(source_page, reverse("business_holiday_list"))
         self.assertContains(source_page, 'class="mobile-data-popover__grid"')
@@ -118,6 +120,7 @@ class ProductExperienceTests(TestCase):
         rule_routes = (
             "settlement_cost_rule_list",
             "incentive_rule_list",
+            "dealer_sales_program_list",
             "dealer_volume_bonus_list",
             "installment_company_list",
             "brand_registration_fee_rule_list",
@@ -148,6 +151,7 @@ class ProductExperienceTests(TestCase):
             ("price_list_distribution", "價格表分發", "price_list_distribution.html"),
             ("settlement_cost_rule_list", "車輛結算成本", "settlement_cost_rule_list.html"),
             ("incentive_rule_list", "原廠獎勵與補助", "incentive_rule_list.html"),
+            ("dealer_sales_program_list", "車行傭金與銷售獎勵", "dealer_sales_program_list.html"),
             ("dealer_volume_bonus_list", "車行台數獎金", "dealer_volume_bonus_list.html"),
             ("installment_company_list", "分期公司與方案", "installment_company_list.html"),
             ("brand_registration_fee_rule_list", "領牌與強制險", "brand_registration_fee_rule_list.html"),
@@ -530,6 +534,7 @@ class ProductExperienceTests(TestCase):
             reverse("sales_source_staff_list"): "sales-sources",
             reverse("sales_source_platform_list"): "sales-sources",
             reverse("price_list_distribution"): "price-list-distribution",
+            reverse("dealer_sales_program_list"): "dealer-sales-programs",
             reverse("dealer_volume_bonus_list"): "dealer-volume-bonus",
             reverse("business_holiday_list"): "master-data",
             reverse("brand_registration_fee_rule_list"): "master-data",
@@ -548,6 +553,7 @@ class ProductExperienceTests(TestCase):
             "customer_list": "data_maintenance",
             "inventory_list": "data_maintenance",
             "vehicle_model_list": "data_maintenance",
+            "dealer_sales_program_list": "data_maintenance",
             "accessory_product_list": "data_maintenance",
             "sales_source_list": "data_maintenance",
             "installment_company_list": "data_maintenance",

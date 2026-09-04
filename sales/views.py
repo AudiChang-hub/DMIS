@@ -547,6 +547,9 @@ def data_maintenance(request):
         "installment_company_count": InstallmentCompany.objects.count(),
         "settlement_cost_rule_count": VehicleSettlementCostRule.objects.count(),
         "incentive_rule_count": VehicleIncentiveRule.objects.count(),
+        "dealer_sales_program_count": DealerVehicleRewardPlan.objects.values(
+            "vehicle_model_id"
+        ).distinct().count(),
         "dealer_bonus_rule_count": DealerVolumeBonusRule.objects.count(),
         "holiday_count": BusinessHoliday.objects.filter(active=True).count(),
         "registration_fee_rule_count": BrandRegistrationFeeRule.objects.filter(active=True).count(),
@@ -7314,6 +7317,107 @@ def vehicle_model_list(request):
                 "q": keyword,
                 "energy_type": energy_type,
                 "active": active,
+            },
+        },
+    )
+
+
+@login_required
+def dealer_sales_program_list(request):
+    keyword = request.GET.get("q", "").strip()
+    brand = request.GET.get("brand", "").strip()
+    energy_type = request.GET.get("energy_type", "").strip()
+    active = request.GET.get("active", "").strip()
+    reward = request.GET.get("reward", "").strip()
+    today = timezone.localdate()
+
+    brand_choices = list(
+        VehicleModel.objects.order_by("brand")
+        .values_list("brand", flat=True)
+        .distinct()
+    )
+    current_rewards = DealerVehicleRewardPlan.objects.filter(
+        vehicle_model_id=OuterRef("pk"),
+        active=True,
+        effective_from__lte=today,
+    ).filter(Q(effective_to__isnull=True) | Q(effective_to__gte=today))
+    models = VehicleModel.objects.select_related("family").annotate(
+        has_current_reward=Exists(current_rewards),
+    )
+    if keyword:
+        keyword_query = (
+            vehicle_brand_search_q(keyword)
+            | Q(family__name__icontains=keyword)
+            | Q(name__icontains=keyword)
+            | Q(model_number__icontains=keyword)
+            | Q(factory_model_codes__code__icontains=keyword)
+        )
+        if keyword.isdigit() and len(keyword) == 4:
+            keyword_query |= Q(model_year=int(keyword))
+        models = models.filter(keyword_query).distinct()
+    if brand in brand_choices:
+        models = models.filter(brand=brand)
+    valid_energy_types = {value for value, _label in VehicleModel.EnergyType.choices}
+    if energy_type in valid_energy_types:
+        models = models.filter(energy_type=energy_type)
+    if active == "yes":
+        models = models.filter(active=True)
+    elif active == "no":
+        models = models.filter(active=False)
+    if reward == "yes":
+        models = models.filter(has_current_reward=True)
+    elif reward == "no":
+        models = models.filter(has_current_reward=False)
+
+    reward_plans = DealerVehicleRewardPlan.objects.prefetch_related("items").order_by(
+        "-effective_from", "-id"
+    )
+    models = models.prefetch_related(
+        Prefetch(
+            "dealer_reward_plans",
+            queryset=reward_plans,
+            to_attr="program_reward_plans",
+        )
+    ).order_by("brand", "family__name", "name", "-model_year", "model_number", "pk")
+    page = Paginator(models, 50).get_page(request.GET.get("page"))
+    for vehicle_model in page.object_list:
+        plans = vehicle_model.program_reward_plans
+        current_plan = next(
+            (plan for plan in plans if plan.lifecycle_status[0] == "current"),
+            None,
+        )
+        future_plan = next(
+            (plan for plan in reversed(plans) if plan.lifecycle_status[0] == "future"),
+            None,
+        )
+        vehicle_model.display_reward_plan = current_plan or future_plan
+        if current_plan:
+            vehicle_model.reward_state = "current"
+            vehicle_model.reward_state_label = "目前有獎勵"
+        elif future_plan:
+            vehicle_model.reward_state = "future"
+            vehicle_model.reward_state_label = "已有未來版本"
+        elif plans:
+            vehicle_model.reward_state = "history"
+            vehicle_model.reward_state_label = "僅有歷史版本"
+        else:
+            vehicle_model.reward_state = "empty"
+            vehicle_model.reward_state_label = "尚未設定"
+
+    return render(
+        request,
+        "sales/dealer_sales_program_list.html",
+        {
+            "page_obj": page,
+            "vehicle_models": page.object_list,
+            "brand_choices": brand_choices,
+            "energy_types": VehicleModel.EnergyType.choices,
+            "selected": {
+                "q": keyword,
+                "brand": brand,
+                "energy_type": energy_type,
+                "active": active,
+                "reward": reward,
             },
         },
     )

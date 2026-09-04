@@ -370,6 +370,11 @@ urlpatterns = [
         name="vehicle_model_list",
     ),
     path(
+        "data/dealer-sales-programs/",
+        views.dealer_sales_program_list,
+        name="dealer_sales_program_list",
+    ),
+    path(
         "data/vehicle-models/new/",
         views.vehicle_model_create,
         name="vehicle_model_create",

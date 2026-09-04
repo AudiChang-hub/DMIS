@@ -91,9 +91,16 @@ class ProductExperienceTests(TestCase):
         self.assertContains(source_page, reverse("business_holiday_list"))
         self.assertContains(source_page, 'class="mobile-data-popover__grid"')
         self.assertContains(source_page, "查看全部功能 →")
+        self.assertContains(source_page, "車輛與商品")
+        self.assertContains(source_page, "通路、客戶與人員")
+        self.assertContains(source_page, "費率與規則")
 
         css = Path("static/css/app.css").read_text(encoding="utf-8")
         navigation = Path("static/js/ui-navigation.js").read_text(encoding="utf-8")
+        self.assertIn("width: min(980px, calc(100vw - 48px))", css)
+        self.assertIn("grid-template-columns: repeat(3, minmax(0, 1fr))", css)
+        self.assertIn("max-height: calc(100vh - 88px)", css)
+        self.assertIn("overscroll-behavior: contain", css)
         self.assertIn("max-height: min(72vh, 650px)", css)
         self.assertIn(
             ".hero-row { align-items: stretch; flex-direction: column; gap: 14px; }",

@@ -27,7 +27,21 @@
   </a>
 </section>
 
+<nav class="source-status-switch" aria-label="依車型狀態查看傭金與銷售獎勵">
+  <a href="{{ status_urls.active }}" class="{% if selected.status == 'active' %}is-active{% endif %}" {% if selected.status == 'active' %}aria-current="page"{% endif %}>
+    <span>目前使用</span>
+    <strong>啟用中車型</strong>
+    <b>{{ vehicle_status_counts.active }}</b>
+  </a>
+  <a href="{{ status_urls.inactive }}" class="{% if selected.status == 'inactive' %}is-active is-inactive{% endif %}" {% if selected.status == 'inactive' %}aria-current="page"{% endif %}>
+    <span>歷史收納</span>
+    <strong>已停用車型</strong>
+    <b>{{ vehicle_status_counts.inactive }}</b>
+  </a>
+</nav>
+
 <form method="get" class="master-filters dealer-program-filters">
+  <input type="hidden" name="status" value="{{ selected.status }}">
   <div class="inventory-filter master-search">
     <label for="program-q">搜尋車型</label>
     <input id="program-q" type="search" name="q" value="{{ selected.q }}" placeholder="品牌、機種、型號或年份">
@@ -47,14 +61,6 @@
     </select>
   </div>
   <div class="inventory-filter">
-    <label for="program-active">車型狀態</label>
-    <select id="program-active" name="active">
-      <option value="">全部狀態</option>
-      <option value="yes" {% if selected.active == 'yes' %}selected{% endif %}>啟用中</option>
-      <option value="no" {% if selected.active == 'no' %}selected{% endif %}>已停用</option>
-    </select>
-  </div>
-  <div class="inventory-filter">
     <label for="program-reward">附加獎勵</label>
     <select id="program-reward" name="reward">
       <option value="">全部設定狀態</option>
@@ -63,18 +69,18 @@
     </select>
   </div>
   <div class="inventory-filter-actions">
-    <a class="button ghost" href="{% url 'dealer_sales_program_list' %}">清除</a>
+    <a class="button ghost" href="{% url 'dealer_sales_program_list' %}{% if selected.status == 'inactive' %}?status=inactive{% endif %}">清除</a>
     <button class="button primary" type="submit">套用</button>
   </div>
 </form>
 
 <section class="inventory-list-panel dealer-program-directory">
   <div class="inventory-list-summary dealer-program-directory__summary">
-    <div><strong>共 {{ page_obj.paginator.count }} 筆車型設定</strong><span>傭金與獎勵都綁定既有車型，不會重複建立車型資料。</span></div>
+    <div><strong>共 {{ page_obj.paginator.count }} 筆{% if selected.status == 'inactive' %}已停用{% else %}啟用中{% endif %}車型設定</strong><span>{% if selected.status == 'inactive' %}歷史車型集中收納於此，需要時仍可查看原有傭金與獎勵設定。{% else %}傭金與獎勵都綁定既有車型，不會重複建立車型資料。{% endif %}</span></div>
   </div>
   <div class="inventory-table-wrap">
     <table class="inventory-table dealer-program-directory-table">
-      <thead><tr><th>車型</th><th>品牌／能源</th><th>車行基礎傭金</th><th>目前附加獎勵</th><th>車型狀態</th><th></th></tr></thead>
+      <thead><tr><th>車型</th><th>品牌／能源</th><th>車行基礎傭金</th><th>目前附加獎勵</th><th></th></tr></thead>
       <tbody>
         {% for item in vehicle_models %}
         <tr>
@@ -93,11 +99,10 @@
               <span>可依生效期間建立多個版本</span>
             {% endif %}
           </td>
-          <td data-label="車型狀態"><span class="status-pill status-{% if item.active %}available{% else %}inactive{% endif %}">{% if item.active %}啟用中{% else %}已停用{% endif %}</span></td>
           <td class="inventory-row-action"><a class="button primary small" href="{% url 'vehicle_model_commission' item.pk %}">設定傭金與獎勵</a></td>
         </tr>
         {% empty %}
-        <tr><td colspan="6"><div class="empty-state"><strong>沒有符合條件的車型</strong><span>請調整搜尋或篩選條件後再試一次。</span></div></td></tr>
+        <tr><td colspan="5"><div class="empty-state"><strong>沒有符合條件的車型</strong><span>請調整搜尋或篩選條件後再試一次。</span></div></td></tr>
         {% endfor %}
       </tbody>
     </table>

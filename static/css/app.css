@@ -3511,11 +3511,11 @@ body.screen-locked { overflow: hidden; }
 .dealer-program-type-guide strong { font-size: 1rem; }
 .dealer-program-type-guide small { color: var(--muted); font-size: .8rem; }
 .master-filters.dealer-program-filters {
-  grid-template-columns: minmax(240px, 1.35fr) repeat(4, minmax(135px, .72fr)) auto;
+  grid-template-columns: minmax(240px, 1.35fr) repeat(3, minmax(135px, .72fr)) auto;
 }
 .dealer-program-directory__summary > div { display: grid; gap: 3px; }
 .dealer-program-directory__summary span { color: var(--muted); font-size: .8rem; }
-.dealer-program-directory-table { min-width: 1040px; }
+.dealer-program-directory-table { min-width: 920px; }
 .dealer-program-directory-table th:nth-child(1) { width: 20%; }
 .dealer-program-directory-table th:nth-child(4) { width: 30%; }
 .dealer-program-reward-cell { display: grid; gap: 4px; }

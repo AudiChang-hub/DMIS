@@ -148,6 +148,16 @@ class DealerVehicleRewardTests(TestCase):
             energy_type=VehicleModel.EnergyType.GAS,
             displacement_cc=125,
         )
+        inactive_model = VehicleModel.objects.create(
+            brand="SUZUKI",
+            name="歷史停用車型",
+            model_number="INACTIVE",
+            model_year=2024,
+            model_code=VehicleModel.ModelType.DISC,
+            energy_type=VehicleModel.EnergyType.GAS,
+            displacement_cc=125,
+            active=False,
+        )
         url = reverse("dealer_sales_program_list")
 
         response = self.client.get(url)
@@ -156,10 +166,25 @@ class DealerVehicleRewardTests(TestCase):
         self.assertContains(response, "全合成機油 2 瓶")
         self.assertContains(response, reverse("vehicle_model_commission", args=[self.model.pk]))
         self.assertContains(response, reverse("vehicle_model_commission", args=[other_model.pk]))
+        self.assertNotContains(response, "歷史停用車型")
+        self.assertContains(response, "啟用中車型")
+        self.assertContains(response, "已停用車型")
+        self.assertNotContains(response, "全部狀態")
 
         filtered = self.client.get(url, {"brand": "SUZUKI", "reward": "yes"})
         self.assertContains(filtered, "獎勵測試車")
         self.assertNotContains(filtered, "沒有獎勵的車型")
+
+        inactive = self.client.get(url, {"status": "inactive"})
+        self.assertContains(inactive, "歷史停用車型")
+        self.assertNotContains(inactive, "獎勵測試車")
+        self.assertContains(
+            inactive,
+            reverse("vehicle_model_commission", args=[inactive_model.pk]),
+        )
+
+        preserved = self.client.get(url, {"status": "active", "brand": "SUZUKI"})
+        self.assertContains(preserved, "?status=inactive&amp;brand=SUZUKI")
 
     def test_program_directory_is_exposed_from_maintenance_and_mobile_shortcuts(self):
         route = reverse("dealer_sales_program_list")

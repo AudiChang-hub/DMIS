@@ -639,8 +639,6 @@ h2 { margin-bottom: 0; font-size: 1.15rem; }
   border-top: 1px solid var(--line);
 }
 .data-menu-tools a { color: var(--forest); background: var(--surface-soft); text-align: center; }
-.data-menu-tools .data-menu-all { color: #fff; background: var(--forest); }
-.data-menu-tools .data-menu-all:hover, .data-menu-tools .data-menu-all:focus-visible { background: var(--forest-2); }
 .logout-form { margin-left: 8px; }
 .link-button { padding: 10px; color: var(--header-text); background: none; border: 0; cursor: pointer; }
 .theme-toggle-button {

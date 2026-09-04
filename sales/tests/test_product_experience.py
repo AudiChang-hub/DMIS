@@ -89,6 +89,9 @@ class ProductExperienceTests(TestCase):
         self.assertContains(source_page, reverse("dealer_sales_program_list"))
         self.assertContains(source_page, reverse("dealer_volume_bonus_list"))
         self.assertContains(source_page, reverse("business_holiday_list"))
+        self.assertContains(source_page, reverse("system_diagnostics"))
+        self.assertContains(source_page, "系統狀態檢查")
+        self.assertNotContains(source_page, "查看全部維護功能")
         self.assertContains(source_page, 'class="mobile-data-popover__grid"')
         self.assertContains(source_page, "查看全部功能 →")
         self.assertContains(source_page, "車輛與商品")
@@ -200,7 +203,7 @@ class ProductExperienceTests(TestCase):
                 self.assertIn(f"<h2>{label}</h2>", hub)
                 self.assertIn(f"{{% block title %}}{label}｜", destination)
                 self.assertIn(f"<h1>{label}</h1>", destination)
-                if route not in {"system_diagnostics", "user_management"}:
+                if route != "user_management":
                     self.assertIn(f"url '{route}'", navigation)
                     self.assertIn(f"<strong>{label}</strong>", navigation)
 

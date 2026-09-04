@@ -2077,6 +2077,14 @@ class DealerVehicleRewardItem(TimeStampedModel):
         related_name="items",
         verbose_name="獎勵方案",
     )
+    catalog_item = models.ForeignKey(
+        "DealerRewardCatalogItem",
+        on_delete=models.PROTECT,
+        related_name="plan_items",
+        verbose_name="獎勵品項",
+        blank=True,
+        null=True,
+    )
     reward_type = models.CharField("類型", max_length=24, choices=RewardType.choices)
     name = models.CharField("獎勵名稱", max_length=120)
     quantity = models.DecimalField(
@@ -2086,6 +2094,19 @@ class DealerVehicleRewardItem(TimeStampedModel):
         validators=[MinValueValidator(Decimal("0.01"))],
     )
     unit = models.CharField("單位", max_length=20, blank=True)
+    unit_cost_snapshot = models.DecimalField(
+        "單位成本快照",
+        max_digits=12,
+        decimal_places=2,
+        validators=[MinValueValidator(Decimal("0"))],
+        blank=True,
+        null=True,
+    )
+    cost_effective_on_snapshot = models.DateField(
+        "成本快照基準日",
+        blank=True,
+        null=True,
+    )
     note = models.CharField("說明", max_length=250, blank=True)
 
     class Meta:
@@ -2094,6 +2115,10 @@ class DealerVehicleRewardItem(TimeStampedModel):
         verbose_name_plural = "車行附加獎勵項目"
 
     def clean(self):
+        if self.catalog_item_id:
+            self.reward_type = self.catalog_item.reward_type
+            self.name = self.catalog_item.name
+            self.unit = self.catalog_item.unit
         self.name = (self.name or "").strip()
         self.unit = (self.unit or "").strip()
         if not self.unit:
@@ -2115,8 +2140,157 @@ class DealerVehicleRewardItem(TimeStampedModel):
     def display_label(self):
         return f"{self.name} {self.display_quantity} {self.unit}"
 
+    @property
+    def total_cost_snapshot(self):
+        if self.unit_cost_snapshot is None:
+            return None
+        return self.quantity * self.unit_cost_snapshot
+
     def __str__(self):
         return self.display_label
+
+
+class DealerRewardCatalogItem(TimeStampedModel):
+    reward_type = models.CharField(
+        "類型",
+        max_length=24,
+        choices=DealerVehicleRewardItem.RewardType.choices,
+    )
+    name = models.CharField("品項名稱", max_length=120)
+    unit = models.CharField("預設單位", max_length=20)
+    active = models.BooleanField("啟用中", default=True)
+    note = models.CharField("內部備註", max_length=250, blank=True)
+
+    class Meta:
+        ordering = ["reward_type", "name", "unit"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["reward_type", "name", "unit"],
+                name="unique_dealer_reward_catalog_item",
+            )
+        ]
+        verbose_name = "車行獎勵品項"
+        verbose_name_plural = "車行獎勵品項"
+
+    def clean(self):
+        self.name = (self.name or "").strip()
+        self.unit = (self.unit or "").strip()
+        errors = {}
+        if not self.name:
+            errors["name"] = "請填寫品項名稱。"
+        if not self.unit:
+            errors["unit"] = "請選擇或填寫單位。"
+        if errors:
+            raise ValidationError(errors)
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        return super().save(*args, **kwargs)
+
+    def cost_version_on(self, effective_on=None):
+        effective_on = effective_on or timezone.localdate()
+        versions = getattr(self, "prefetched_cost_versions", None)
+        if versions is not None:
+            return next(
+                (
+                    version
+                    for version in versions
+                    if version.active
+                    and version.effective_from <= effective_on
+                    and (
+                        version.effective_to is None
+                        or version.effective_to >= effective_on
+                    )
+                ),
+                None,
+            )
+        return (
+            self.cost_versions.filter(active=True, effective_from__lte=effective_on)
+            .filter(Q(effective_to__isnull=True) | Q(effective_to__gte=effective_on))
+            .order_by("-effective_from", "-id")
+            .first()
+        )
+
+    def __str__(self):
+        return self.name
+
+
+class DealerRewardCostVersion(TimeStampedModel):
+    catalog_item = models.ForeignKey(
+        DealerRewardCatalogItem,
+        on_delete=models.CASCADE,
+        related_name="cost_versions",
+        verbose_name="獎勵品項",
+    )
+    unit_cost = models.DecimalField(
+        "單位成本",
+        max_digits=12,
+        decimal_places=2,
+        validators=[MinValueValidator(Decimal("0"))],
+    )
+    effective_from = models.DateField("生效日期", default=timezone.localdate)
+    effective_to = models.DateField("結束日期", blank=True, null=True)
+    active = models.BooleanField("啟用中", default=True)
+    note = models.CharField("成本備註", max_length=250, blank=True)
+
+    class Meta:
+        ordering = ["-effective_from", "-id"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["catalog_item", "effective_from"],
+                name="unique_dealer_reward_cost_start",
+            )
+        ]
+        indexes = [
+            models.Index(
+                fields=["catalog_item", "effective_from"],
+                name="dealer_reward_cost_lookup",
+            )
+        ]
+        verbose_name = "車行獎勵成本版本"
+        verbose_name_plural = "車行獎勵成本版本"
+
+    def clean(self):
+        errors = {}
+        if self.effective_to and self.effective_to < self.effective_from:
+            errors["effective_to"] = "結束日期不可早於生效日期。"
+        if (
+            self.active
+            and self.catalog_item_id
+            and self.effective_from
+            and not getattr(self, "_skip_overlap_validation", False)
+        ):
+            overlap = type(self).objects.filter(
+                catalog_item_id=self.catalog_item_id,
+                active=True,
+            ).exclude(pk=self.pk)
+            if self.effective_to:
+                overlap = overlap.filter(effective_from__lte=self.effective_to)
+            overlap = overlap.filter(
+                Q(effective_to__isnull=True) | Q(effective_to__gte=self.effective_from)
+            )
+            if overlap.exists():
+                errors["effective_from"] = "此期間已有啟用中的成本版本。"
+        if errors:
+            raise ValidationError(errors)
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        return super().save(*args, **kwargs)
+
+    @property
+    def lifecycle_status(self):
+        today = timezone.localdate()
+        if not self.active:
+            return "inactive", "已停用"
+        if self.effective_from > today:
+            return "future", "尚未生效"
+        if self.effective_to and self.effective_to < today:
+            return "expired", "已到期"
+        return "current", "目前採用"
+
+    def __str__(self):
+        return f"{self.catalog_item}／${self.unit_cost}／{self.effective_from:%Y/%m/%d}"
 
 
 class VehicleColor(TimeStampedModel):

@@ -1,0 +1,60 @@
+{% extends "base.html" %}{% load static %}
+{% block title %}{% if editing_item %}編輯獎勵品項{% else %}新增獎勵品項{% endif %}｜車輛銷售管理{% endblock %}
+{% block page_class %}page-shell--form{% endblock %}
+{% block content %}
+{% url 'dealer_reward_catalog_list' as list_url %}{% url 'data_maintenance' as data_url %}
+{% include "sales/_page_back.html" with fallback_url=list_url label="車行獎勵品項" root_url=data_url root_label="資料維護區" %}
+<section class="hero-row compact-hero">
+  <div><p class="eyebrow">日常共用資料</p><h1>{% if editing_item %}編輯獎勵品項{% else %}新增獎勵品項{% endif %}</h1><p class="muted">品項只建立一次；成本調整請新增生效版本，不要直接覆蓋歷史金額。</p></div>
+</section>
+<form method="post" class="master-form-card dealer-reward-catalog-form" data-reward-catalog-form>
+  {% csrf_token %}{{ cost_formset.management_form }}
+  {% if form.non_field_errors or cost_formset.non_form_errors %}<div class="message error">{{ form.non_field_errors }}{{ cost_formset.non_form_errors }}</div>{% endif %}
+  <section class="dealer-reward-settings" aria-labelledby="reward-item-basic-title">
+    <div class="dealer-reward-settings__heading"><h2 id="reward-item-basic-title">品項資料</h2><p>名稱與單位會自動帶入各車型獎勵方案。</p></div>
+    <div class="dealer-reward-catalog-grid">
+      <div>{% include "sales/_field.html" with field=form.reward_type %}</div>
+      <div>{% include "sales/_field.html" with field=form.name %}</div>
+      <div>{% include "sales/_field.html" with field=form.unit %}</div>
+      <div>{% include "sales/_field.html" with field=form.active %}</div>
+    </div>
+    <div class="dealer-reward-period-note">{% include "sales/_field.html" with field=form.note %}</div>
+  </section>
+
+  <section class="dealer-reward-cost-section" aria-labelledby="reward-cost-title">
+    <div class="dealer-reward-items-heading"><div><h2 id="reward-cost-title">成本版本</h2><p>新成本請設定新的生效日期；同一時間只能有一個啟用中的版本。</p></div><button type="button" class="button ghost small" data-add-cost-version>＋ 新增成本版本</button></div>
+    <div class="dealer-reward-cost-rows" data-cost-version-rows>
+      {% for cost_form in cost_formset %}
+      <section class="dealer-reward-cost-row" data-cost-version-row>
+        {{ cost_form.id }}
+        <div class="dealer-reward-cost-row__header"><strong>成本版本</strong><button type="button" class="button danger-outline small" data-remove-cost-version>移除此版本</button></div>
+        <div class="dealer-reward-cost-grid">
+          <div>{% include "sales/_field.html" with field=cost_form.effective_from %}</div>
+          <div>{% include "sales/_field.html" with field=cost_form.effective_to %}</div>
+          <div>{% include "sales/_field.html" with field=cost_form.unit_cost %}</div>
+          <div>{% include "sales/_field.html" with field=cost_form.active %}</div>
+        </div>
+        <div class="dealer-reward-period-note">{% include "sales/_field.html" with field=cost_form.note %}</div>
+        <span hidden>{{ cost_form.DELETE }}</span>
+      </section>
+      {% endfor %}
+    </div>
+    <template data-cost-version-template>
+      <section class="dealer-reward-cost-row" data-cost-version-row>
+        {{ cost_formset.empty_form.id }}
+        <div class="dealer-reward-cost-row__header"><strong>成本版本</strong><button type="button" class="button danger-outline small" data-remove-cost-version>移除此版本</button></div>
+        <div class="dealer-reward-cost-grid">
+          <div>{% include "sales/_field.html" with field=cost_formset.empty_form.effective_from %}</div>
+          <div>{% include "sales/_field.html" with field=cost_formset.empty_form.effective_to %}</div>
+          <div>{% include "sales/_field.html" with field=cost_formset.empty_form.unit_cost %}</div>
+          <div>{% include "sales/_field.html" with field=cost_formset.empty_form.active %}</div>
+        </div>
+        <div class="dealer-reward-period-note">{% include "sales/_field.html" with field=cost_formset.empty_form.note %}</div>
+        <span hidden>{{ cost_formset.empty_form.DELETE }}</span>
+      </section>
+    </template>
+  </section>
+  <div class="form-actions dealer-reward-actions"><a class="button ghost" href="{{ list_url }}">取消</a><button class="button primary" type="submit">儲存獎勵品項</button></div>
+</form>
+{% endblock %}
+{% block scripts %}<script src="{% static 'js/dealer-reward-catalog.js' %}?v={{ app_version }}" defer></script>{% endblock %}

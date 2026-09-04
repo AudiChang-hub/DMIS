@@ -23,6 +23,8 @@ from .models import (
     DealerVolumeBonusPeriod,
     DealerVolumeBonusSettlement,
     DealerVolumeBonusTier,
+    DealerRewardCatalogItem,
+    DealerRewardCostVersion,
     DealerVehicleRewardItem,
     DealerVehicleRewardPlan,
     DeliveryRecord,
@@ -2971,17 +2973,14 @@ DEALER_REWARD_STANDARD_UNITS = list(
 )
 
 
-class DealerVehicleRewardItemForm(forms.ModelForm):
+class DealerRewardCatalogItemForm(forms.ModelForm):
     class Meta:
-        model = DealerVehicleRewardItem
-        fields = ["reward_type", "name", "quantity", "unit", "note"]
+        model = DealerRewardCatalogItem
+        fields = ["reward_type", "name", "unit", "active", "note"]
         widgets = {
             "name": forms.TextInput(attrs={"placeholder": "例如：全合成機油"}),
-            "quantity": forms.NumberInput(
-                attrs={"min": "0.01", "step": "0.01", "inputmode": "decimal"}
-            ),
             "unit": forms.Select(attrs={"data-reward-unit": ""}),
-            "note": forms.TextInput(attrs={"placeholder": "選填說明"}),
+            "note": forms.TextInput(attrs={"placeholder": "例如：固定採購品牌或供應商"}),
         }
 
     def __init__(self, *args, **kwargs):
@@ -3043,6 +3042,124 @@ class DealerVehicleRewardItemForm(forms.ModelForm):
         return unit
 
 
+class DealerRewardCostVersionForm(forms.ModelForm):
+    class Meta:
+        model = DealerRewardCostVersion
+        fields = ["effective_from", "effective_to", "unit_cost", "active", "note"]
+        widgets = {
+            "effective_from": DateInput(),
+            "effective_to": DateInput(),
+            "unit_cost": forms.NumberInput(
+                attrs={"min": "0", "step": "0.01", "inputmode": "decimal"}
+            ),
+            "note": forms.TextInput(attrs={"placeholder": "例如：供應商報價單"}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["effective_to"].help_text = "可留白，代表持續有效。"
+        for field in self.fields.values():
+            if not isinstance(field.widget, forms.CheckboxInput):
+                field.widget.attrs.setdefault("class", "form-control")
+        apply_mobile_keyboard_attrs(self)
+
+    def clean(self):
+        cleaned_data = super().clean()
+        self.instance._skip_overlap_validation = True
+        return cleaned_data
+
+
+class BaseDealerRewardCostVersionFormSet(BaseInlineFormSet):
+    def clean(self):
+        super().clean()
+        if any(self.errors):
+            return
+        active_periods = []
+        for form in self.forms:
+            if not form.cleaned_data or form.cleaned_data.get("DELETE"):
+                continue
+            if not form.cleaned_data.get("active"):
+                continue
+            start = form.cleaned_data.get("effective_from")
+            end = form.cleaned_data.get("effective_to")
+            if start:
+                active_periods.append((start, end))
+        active_periods.sort(key=lambda period: period[0])
+        for previous, current in zip(active_periods, active_periods[1:]):
+            if previous[1] is None or previous[1] >= current[0]:
+                raise ValidationError("啟用中的成本版本期間不可重疊。")
+
+
+DealerRewardCostVersionFormSet = inlineformset_factory(
+    DealerRewardCatalogItem,
+    DealerRewardCostVersion,
+    form=DealerRewardCostVersionForm,
+    formset=BaseDealerRewardCostVersionFormSet,
+    extra=1,
+    can_delete=True,
+    min_num=1,
+    validate_min=True,
+)
+
+
+class DealerRewardCatalogChoiceField(forms.ModelChoiceField):
+    def label_from_instance(self, item):
+        return f"{item.name} · {item.get_reward_type_display()}／{item.unit}"
+
+
+class DealerVehicleRewardItemForm(forms.ModelForm):
+    catalog_item = DealerRewardCatalogChoiceField(
+        label="獎勵品項",
+        queryset=DealerRewardCatalogItem.objects.none(),
+    )
+
+    class Meta:
+        model = DealerVehicleRewardItem
+        fields = ["catalog_item", "quantity", "note"]
+        widgets = {
+            "quantity": forms.NumberInput(
+                attrs={"min": "0.01", "step": "0.01", "inputmode": "decimal"}
+            ),
+            "note": forms.TextInput(attrs={"placeholder": "此車型的選填說明"}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._original_catalog_item_id = self.instance.catalog_item_id
+        catalog_items = DealerRewardCatalogItem.objects.filter(active=True)
+        if self.instance.catalog_item_id:
+            catalog_items = DealerRewardCatalogItem.objects.filter(
+                Q(active=True) | Q(pk=self.instance.catalog_item_id)
+            )
+        self.fields["catalog_item"].queryset = catalog_items.order_by(
+            "reward_type", "name", "unit"
+        )
+        self.fields["catalog_item"].widget.attrs["data-reward-catalog"] = ""
+        for field in self.fields.values():
+            field.widget.attrs.setdefault("class", "form-control")
+        apply_mobile_keyboard_attrs(self)
+
+    def save(self, commit=True):
+        item = super().save(commit=False)
+        catalog_item = self.cleaned_data["catalog_item"]
+        item.reward_type = catalog_item.reward_type
+        item.name = catalog_item.name
+        item.unit = catalog_item.unit
+        effective_on = getattr(self, "reward_effective_on", None) or timezone.localdate()
+        if not (
+            item.pk
+            and self._original_catalog_item_id == catalog_item.pk
+            and item.cost_effective_on_snapshot == effective_on
+        ):
+            cost_version = catalog_item.cost_version_on(effective_on)
+            item.unit_cost_snapshot = cost_version.unit_cost if cost_version else None
+            item.cost_effective_on_snapshot = effective_on
+        if commit:
+            item.save()
+            self.save_m2m()
+        return item
+
+
 class BaseDealerVehicleRewardItemFormSet(BaseInlineFormSet):
     def clean(self):
         super().clean()
@@ -3053,12 +3170,41 @@ class BaseDealerVehicleRewardItemFormSet(BaseInlineFormSet):
             if not form.cleaned_data or form.cleaned_data.get("DELETE"):
                 continue
             key = (
-                form.cleaned_data.get("reward_type"),
-                (form.cleaned_data.get("name") or "").strip().casefold(),
+                form.cleaned_data.get("catalog_item"),
             )
             if key in seen:
                 raise ValidationError("同一方案不可重複填寫相同獎勵。")
             seen.add(key)
+
+    def save(self, commit=True):
+        for form in self.forms:
+            form.reward_effective_on = self.instance.effective_from
+        saved_items = super().save(commit=commit)
+        if commit:
+            for form in self.forms:
+                if not form.cleaned_data or form.cleaned_data.get("DELETE"):
+                    continue
+                item = form.instance
+                if (
+                    item.pk
+                    and item.catalog_item_id
+                    and item.cost_effective_on_snapshot != self.instance.effective_from
+                ):
+                    cost_version = item.catalog_item.cost_version_on(
+                        self.instance.effective_from
+                    )
+                    item.unit_cost_snapshot = (
+                        cost_version.unit_cost if cost_version else None
+                    )
+                    item.cost_effective_on_snapshot = self.instance.effective_from
+                    item.save(
+                        update_fields=[
+                            "unit_cost_snapshot",
+                            "cost_effective_on_snapshot",
+                            "updated_at",
+                        ]
+                    )
+        return saved_items
 
 
 DealerVehicleRewardItemFormSet = inlineformset_factory(

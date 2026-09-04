@@ -12,7 +12,7 @@
 </section>
 
 <section id="dealer-rewards" class="card dealer-reward-panel">
-  <div class="dealer-reward-heading"><div><p class="eyebrow">實物、紅包、禮券與點數</p><h2>車行附加獎勵</h2><p class="muted">每個生效期間可設定多個項目；這些項目不是傭金，也不會混入傭金金額。</p></div><a class="button ghost" href="{% url 'vehicle_model_commission' vehicle_model.pk %}?new_reward=1#dealer-rewards">＋ 新增版本</a></div>
+  <div class="dealer-reward-heading"><div><p class="eyebrow">實物、紅包、禮券與點數</p><h2>車行附加獎勵</h2><p class="muted">每個生效期間可設定多個項目；品項、單位及成本由「<a href="{% url 'dealer_reward_catalog_list' %}">車行獎勵品項</a>」集中維護。</p></div><a class="button ghost" href="{% url 'vehicle_model_commission' vehicle_model.pk %}?new_reward=1#dealer-rewards">＋ 新增版本</a></div>
   {% if reward_plans %}<nav class="dealer-reward-versions" aria-label="獎勵版本">{% for plan in reward_plans %}<a href="{% url 'vehicle_model_commission' vehicle_model.pk %}?reward={{ plan.pk }}#dealer-rewards" class="dealer-reward-version{% if reward_plan.pk == plan.pk %} is-current{% endif %}"><strong>{{ plan.effective_from|date:'Y/m/d' }}</strong><span>{% if plan.effective_to %}至 {{ plan.effective_to|date:'Y/m/d' }}{% else %}起持續有效{% endif %}</span><small class="reward-state reward-state--{{ plan.display_status }}">{{ plan.display_status_label }}</small><em>{{ plan.reward_summary|default:'尚未填寫項目' }}</em></a>{% endfor %}</nav>{% endif %}
   <form method="post" class="dealer-reward-form">{% csrf_token %}<input type="hidden" name="action" value="save_rewards"><input type="hidden" name="reward_id" value="{{ reward_plan.pk|default:'' }}">{% if creating_reward %}<input type="hidden" name="new_reward" value="1">{% endif %}{{ reward_formset.management_form }}
     {% if reward_form.non_field_errors or reward_formset.non_form_errors %}<div class="message error">{{ reward_form.non_field_errors }}{{ reward_formset.non_form_errors }}</div>{% endif %}
@@ -34,17 +34,20 @@
       </div>
       <div class="dealer-reward-period-note">{% include "sales/_field.html" with field=reward_form.note %}</div>
     </section>
-    <div class="dealer-reward-items-heading"><div><h3>本車型提供的獎勵</h3><p>每筆代表每售出一台適用；單位會依獎勵類型自動切換。</p></div><button type="button" class="button ghost small" data-add-reward>＋ 新增獎勵</button></div>
+    <div class="dealer-reward-items-heading"><div><h3>本車型提供的獎勵</h3><p>每筆代表每售出一台適用；選擇品項後會自動帶入類型、單位與適用成本。</p></div><button type="button" class="button ghost small" data-add-reward>＋ 新增獎勵</button></div>
     <div class="dealer-reward-items" data-reward-rows>
       {% for item_form in reward_formset %}
         <section class="dealer-reward-item" data-reward-row>
           {{ item_form.id }}
           <div class="dealer-reward-item__header"><div><strong>獎勵內容</strong><span>每售出一台適用</span></div><button type="button" class="button danger-outline small" data-remove-reward>移除此筆</button></div>
           <div class="dealer-reward-item__fields">
-            <div>{% include "sales/_field.html" with field=item_form.reward_type %}</div>
-            <div>{% include "sales/_field.html" with field=item_form.name %}</div>
+            <div>{% include "sales/_field.html" with field=item_form.catalog_item %}</div>
             <div>{% include "sales/_field.html" with field=item_form.quantity %}</div>
-            <div>{% include "sales/_field.html" with field=item_form.unit %}</div>
+          </div>
+          <div class="dealer-reward-item__cost-summary" data-reward-cost-summary data-unit-cost-snapshot="{{ item_form.instance.unit_cost_snapshot|default_if_none:'' }}">
+            <span><small>類型／單位</small><strong data-reward-catalog-unit>{% if item_form.instance.catalog_item %}{{ item_form.instance.catalog_item.get_reward_type_display }}／{{ item_form.instance.unit }}{% else %}選擇品項後顯示{% endif %}</strong></span>
+            <span><small>單位成本快照</small><strong data-reward-unit-cost>{% if item_form.instance.unit_cost_snapshot is not None %}${{ item_form.instance.unit_cost_snapshot|floatformat:2 }}{% else %}尚未維護{% endif %}</strong></span>
+            <span><small>本項預估成本</small><strong data-reward-total-cost>{% if item_form.instance.total_cost_snapshot is not None %}${{ item_form.instance.total_cost_snapshot|floatformat:2 }}{% else %}—{% endif %}</strong></span>
           </div>
           <div class="dealer-reward-item__note">{% include "sales/_field.html" with field=item_form.note %}</div>
           <span hidden>{{ item_form.DELETE }}</span>
@@ -56,11 +59,10 @@
         {{ reward_formset.empty_form.id }}
         <div class="dealer-reward-item__header"><div><strong>獎勵內容</strong><span>每售出一台適用</span></div><button type="button" class="button danger-outline small" data-remove-reward>移除此筆</button></div>
         <div class="dealer-reward-item__fields">
-          <div>{% include "sales/_field.html" with field=reward_formset.empty_form.reward_type %}</div>
-          <div>{% include "sales/_field.html" with field=reward_formset.empty_form.name %}</div>
+          <div>{% include "sales/_field.html" with field=reward_formset.empty_form.catalog_item %}</div>
           <div>{% include "sales/_field.html" with field=reward_formset.empty_form.quantity %}</div>
-          <div>{% include "sales/_field.html" with field=reward_formset.empty_form.unit %}</div>
         </div>
+        <div class="dealer-reward-item__cost-summary" data-reward-cost-summary data-unit-cost-snapshot=""><span><small>類型／單位</small><strong data-reward-catalog-unit>選擇品項後顯示</strong></span><span><small>單位成本快照</small><strong data-reward-unit-cost>—</strong></span><span><small>本項預估成本</small><strong data-reward-total-cost>—</strong></span></div>
         <div class="dealer-reward-item__note">{% include "sales/_field.html" with field=reward_formset.empty_form.note %}</div>
         <span hidden>{{ reward_formset.empty_form.DELETE }}</span>
       </section>
@@ -68,6 +70,7 @@
     <div class="dealer-reward-accounting-note"><strong>目前不自動入帳</strong><span>先保存公司承諾給車行的內容；待確認實物、紅包、禮券及點數的認列時點後，再接上發放與淨利。</span></div>
     <div class="form-actions dealer-reward-actions"><button class="button primary" type="submit">儲存附加獎勵</button></div>
   </form>
+  {{ reward_catalog_metadata|json_script:"dealer-reward-catalog-data" }}
 </section>
 {% endblock %}
 {% block scripts %}<script src="{% static 'js/dealer-vehicle-rewards.js' %}?v={{ app_version }}" defer></script>{% endblock %}

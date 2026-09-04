@@ -32,15 +32,15 @@
 
 {% if queue_details %}
 <section class="section-block system-queue-details">
-  <div class="section-title"><h2>背景工作明細</h2><span>等待數量會隨工作完成而下降</span></div>
+  <div class="section-title"><h2>背景工作明細</h2><span>只有真正處理工作時才會顯示處理中</span></div>
   <div class="system-queue-list">
-    {% for queue in queue_details %}<div><strong>{{ queue.label }}</strong><span>{{ queue.workers }} 個執行中</span><span>{{ queue.waiting }} 件等待</span></div>{% endfor %}
+    {% for queue in queue_details %}<div><strong>{{ queue.label }}</strong><span>{{ queue.service_status }}</span><span>{{ queue.processing }} 件處理中</span><span>{{ queue.waiting }} 件等待</span></div>{% endfor %}
   </div>
 </section>
 {% endif %}
 
 <aside class="guide-tip system-status-help">
   <strong>什麼時候要通知管理者？</strong>
-  <span>出現紅色狀態、照片空間低於 10%，或等待數量長時間不下降時，請提供本頁截圖與發生時間；不必傳送客戶證件或訂單內容。</span>
+  <span>出現紅色狀態、照片空間低於 10%，或處理中／等待數量長時間不下降時，請提供本頁截圖與發生時間；不必傳送客戶證件或訂單內容。</span>
 </aside>
 {% endblock %}

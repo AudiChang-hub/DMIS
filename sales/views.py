@@ -27,6 +27,7 @@ from django.utils import timezone
 from django.views.decorators.http import require_http_methods
 import django_rq
 from rq import Retry, Worker
+from rq.registry import StartedJobRegistry
 
 from .services.order_contract_pdf import build_order_contract_pdf
 from .services.privacy_consent_pdf import build_privacy_consent_pdf
@@ -404,17 +405,34 @@ def system_diagnostics(request):
             ):
                 queue = django_rq.get_queue(queue_name)
                 queue.connection.ping()
+                worker_count = Worker.count(connection=queue.connection, queue=queue)
+                processing_count = StartedJobRegistry(
+                    queue.name,
+                    connection=queue.connection,
+                ).count
+                if worker_count == 0:
+                    service_status = "服務離線"
+                elif processing_count:
+                    service_status = "服務正常"
+                else:
+                    service_status = "服務正常 · 待命中"
                 queue_details.append(
                     {
                         "label": label,
                         "waiting": queue.count,
-                        "workers": Worker.count(connection=queue.connection, queue=queue),
+                        "workers": worker_count,
+                        "processing": processing_count,
+                        "service_status": service_status,
                     }
                 )
             waiting_total = sum(item["waiting"] for item in queue_details)
-            worker_total = sum(item["workers"] for item in queue_details)
-            tone = "success" if worker_total >= 3 else "warning"
-            summary = f"{worker_total} 個背景工作執行中，{waiting_total} 件等待處理"
+            processing_total = sum(item["processing"] for item in queue_details)
+            online_service_total = sum(bool(item["workers"]) for item in queue_details)
+            tone = "success" if online_service_total == len(queue_details) else "warning"
+            summary = (
+                f"{online_service_total} 個背景服務正常，"
+                f"{processing_total} 件處理中，{waiting_total} 件等待"
+            )
             checks.append(
                 {"key": "workers", "label": "背景工作", "tone": tone, "summary": summary}
             )

@@ -1999,6 +1999,126 @@ class VehicleIncentiveRule(TimeStampedModel):
         return f"{self.vehicle_model}／{self.effective_from:%Y/%m/%d}"
 
 
+class DealerVehicleRewardPlan(TimeStampedModel):
+    vehicle_model = models.ForeignKey(
+        VehicleModel,
+        on_delete=models.PROTECT,
+        related_name="dealer_reward_plans",
+        verbose_name="車型",
+    )
+    effective_from = models.DateField("生效日期", default=timezone.localdate)
+    effective_to = models.DateField("結束日期", blank=True, null=True)
+    active = models.BooleanField("啟用中", default=True)
+    note = models.TextField("備註", blank=True)
+
+    class Meta:
+        ordering = ["-effective_from", "-id"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["vehicle_model", "effective_from"],
+                name="unique_dealer_reward_plan_start",
+            )
+        ]
+        verbose_name = "車行附加獎勵方案"
+        verbose_name_plural = "車行附加獎勵方案"
+
+    def clean(self):
+        errors = {}
+        if self.effective_to and self.effective_to < self.effective_from:
+            errors["effective_to"] = "結束日期不可早於生效日期。"
+        if self.active and self.vehicle_model_id and self.effective_from:
+            overlap = type(self).objects.filter(
+                vehicle_model_id=self.vehicle_model_id,
+                active=True,
+            ).exclude(pk=self.pk)
+            if self.effective_to:
+                overlap = overlap.filter(effective_from__lte=self.effective_to)
+            overlap = overlap.filter(
+                Q(effective_to__isnull=True) | Q(effective_to__gte=self.effective_from)
+            )
+            if overlap.exists():
+                errors["effective_from"] = "此期間已有啟用中的車行附加獎勵，請先調整原方案結束日。"
+        if errors:
+            raise ValidationError(errors)
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        return super().save(*args, **kwargs)
+
+    @property
+    def lifecycle_status(self):
+        today = timezone.localdate()
+        if not self.active:
+            return "inactive", "已停用"
+        if self.effective_from > today:
+            return "future", "尚未生效"
+        if self.effective_to and self.effective_to < today:
+            return "expired", "已到期"
+        return "current", "目前採用"
+
+    @property
+    def reward_summary(self):
+        return "、".join(item.display_label for item in self.items.all())
+
+    def __str__(self):
+        return f"{self.vehicle_model}／車行附加獎勵／{self.effective_from:%Y/%m/%d}"
+
+
+class DealerVehicleRewardItem(TimeStampedModel):
+    class RewardType(models.TextChoices):
+        PHYSICAL = "physical", "實物"
+        CASH_GIFT = "cash_gift", "紅包／現金"
+        VOUCHER = "voucher", "禮券／兌換券"
+        TRAVEL_POINTS = "travel_points", "旅遊點數"
+
+    plan = models.ForeignKey(
+        DealerVehicleRewardPlan,
+        on_delete=models.CASCADE,
+        related_name="items",
+        verbose_name="獎勵方案",
+    )
+    reward_type = models.CharField("類型", max_length=24, choices=RewardType.choices)
+    name = models.CharField("獎勵名稱", max_length=120)
+    quantity = models.DecimalField(
+        "數量／金額／點數",
+        max_digits=12,
+        decimal_places=2,
+        validators=[MinValueValidator(Decimal("0.01"))],
+    )
+    unit = models.CharField("單位", max_length=20, blank=True)
+    note = models.CharField("說明", max_length=250, blank=True)
+
+    class Meta:
+        ordering = ["id"]
+        verbose_name = "車行附加獎勵項目"
+        verbose_name_plural = "車行附加獎勵項目"
+
+    def clean(self):
+        self.name = (self.name or "").strip()
+        self.unit = (self.unit or "").strip()
+        if not self.unit:
+            self.unit = {
+                self.RewardType.CASH_GIFT: "元",
+                self.RewardType.VOUCHER: "元",
+                self.RewardType.TRAVEL_POINTS: "點",
+            }.get(self.reward_type, "件")
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        return super().save(*args, **kwargs)
+
+    @property
+    def display_quantity(self):
+        return format(self.quantity.normalize(), "f")
+
+    @property
+    def display_label(self):
+        return f"{self.name} {self.display_quantity} {self.unit}"
+
+    def __str__(self):
+        return self.display_label
+
+
 class VehicleColor(TimeStampedModel):
     vehicle_model = models.ForeignKey(
         VehicleModel,

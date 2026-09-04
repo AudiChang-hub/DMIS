@@ -22,6 +22,8 @@ from .models import (
     DealerVolumeBonusPeriod,
     DealerVolumeBonusSettlement,
     DealerVolumeBonusTier,
+    DealerVehicleRewardItem,
+    DealerVehicleRewardPlan,
     DeliveryRecord,
     InstallmentCompany,
     InstallmentPlanOption,
@@ -2917,6 +2919,77 @@ class ReconciliationRecordForm(forms.ModelForm):
         if commit:
             payment.save()
         return payment
+
+
+class DealerVehicleRewardPlanForm(forms.ModelForm):
+    class Meta:
+        model = DealerVehicleRewardPlan
+        fields = ["effective_from", "effective_to", "active", "note"]
+        widgets = {
+            "effective_from": DateInput(),
+            "effective_to": DateInput(),
+            "note": forms.Textarea(
+                attrs={"rows": 2, "placeholder": "例如：公司九月促銷方案"}
+            ),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["effective_to"].help_text = "可留白，代表持續有效。"
+        for field in self.fields.values():
+            if not isinstance(field.widget, forms.CheckboxInput):
+                field.widget.attrs.setdefault("class", "form-control")
+        apply_mobile_keyboard_attrs(self)
+
+
+class DealerVehicleRewardItemForm(forms.ModelForm):
+    class Meta:
+        model = DealerVehicleRewardItem
+        fields = ["reward_type", "name", "quantity", "unit", "note"]
+        widgets = {
+            "name": forms.TextInput(attrs={"placeholder": "例如：全合成機油"}),
+            "quantity": forms.NumberInput(
+                attrs={"min": "0.01", "step": "0.01", "inputmode": "decimal"}
+            ),
+            "unit": forms.TextInput(attrs={"placeholder": "瓶／條／元／點"}),
+            "note": forms.TextInput(attrs={"placeholder": "選填說明"}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        for field in self.fields.values():
+            field.widget.attrs.setdefault("class", "form-control")
+        apply_mobile_keyboard_attrs(self)
+
+
+class BaseDealerVehicleRewardItemFormSet(BaseInlineFormSet):
+    def clean(self):
+        super().clean()
+        if any(self.errors):
+            return
+        seen = set()
+        for form in self.forms:
+            if not form.cleaned_data or form.cleaned_data.get("DELETE"):
+                continue
+            key = (
+                form.cleaned_data.get("reward_type"),
+                (form.cleaned_data.get("name") or "").strip().casefold(),
+            )
+            if key in seen:
+                raise ValidationError("同一方案不可重複填寫相同獎勵。")
+            seen.add(key)
+
+
+DealerVehicleRewardItemFormSet = inlineformset_factory(
+    DealerVehicleRewardPlan,
+    DealerVehicleRewardItem,
+    form=DealerVehicleRewardItemForm,
+    formset=BaseDealerVehicleRewardItemFormSet,
+    extra=0,
+    can_delete=True,
+    min_num=1,
+    validate_min=True,
+)
 
 
 PaymentRecordFormSet = inlineformset_factory(

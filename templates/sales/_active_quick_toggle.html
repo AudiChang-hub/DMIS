@@ -19,7 +19,7 @@
   <input type="hidden" name="active" value="{% if is_active %}0{% else %}1{% endif %}">
   <input type="hidden" name="next" value="{{ request.get_full_path }}">
   <button
-    class="source-active-toggle{% if is_active %} is-active{% endif %}{% if resource == 'vehicle-model' %} vehicle-model-status--{% if is_active %}active{% else %}inactive{% endif %}{% endif %}"
+    class="source-active-toggle{% if is_active %} is-active{% endif %}{% if resource == 'vehicle-model' %} vehicle-model-active-toggle{% endif %}"
     type="button"
     role="switch"
     aria-checked="{{ is_active|yesno:'true,false' }}"

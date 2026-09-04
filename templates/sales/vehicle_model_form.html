@@ -183,7 +183,7 @@
   <div class="vehicle-business-settings__heading">
     <div>
       <p class="eyebrow">商務設定</p>
-      <h2>售價、傭金與結算規則</h2>
+      <h2>售價、車行方案與結算規則</h2>
       <p class="muted">這些資料會依日期或交易方式改變，因此與車型規格分開維護。</p>
     </div>
     <span class="status-pill">車型：{{ vehicle_model.brand }} {{ vehicle_model.name }} {{ vehicle_model.model_number }}</span>
@@ -204,11 +204,11 @@
     </article>
 
     <article class="vehicle-business-card">
-      <div class="vehicle-business-card__top"><span class="vehicle-business-card__icon">佣</span><span class="status-pill">預設值</span></div>
-      <h3>車行基礎傭金</h3>
+      <div class="vehicle-business-card__top"><span class="vehicle-business-card__icon">行</span><span class="status-pill">{{ dealer_reward_plan_count }} 筆獎勵版本</span></div>
+      <h3>車行方案</h3>
       <strong class="vehicle-business-card__value">${{ vehicle_model.base_dealer_commission|floatformat:0 }}</strong>
-      <p>合作車行銷售此車型時的預設傭金；特定車行加減另行設定。</p>
-      <a class="button ghost" href="{% url 'vehicle_model_commission' vehicle_model.pk %}">維護基礎傭金</a>
+      <p>基礎傭金{% if current_dealer_reward_plan %} · {{ current_dealer_reward_plan.reward_summary }}{% else %} · 尚未設定附加獎勵{% endif %}</p>
+      <a class="button ghost" href="{% url 'vehicle_model_commission' vehicle_model.pk %}">維護車行方案</a>
     </article>
 
     <article class="vehicle-business-card">

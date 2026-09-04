@@ -18,6 +18,7 @@ DELETE_BLOCKING_RELATIONS = (
     ("installment_plan_versions", "分期方案"),
     ("settlement_cost_rules", "車輛結算成本"),
     ("incentive_rules", "原廠獎勵與補助"),
+    ("dealer_reward_plans", "車行附加獎勵"),
     ("legacy_import_mappings", "歷史匯入對應"),
 )
 
@@ -30,6 +31,7 @@ MERGE_VERSIONED_RELATIONS = (
         "車輛結算成本",
     ),
     ("incentive_rules", ("effective_from",), "原廠獎勵與補助"),
+    ("dealer_reward_plans", ("effective_from",), "車行附加獎勵"),
 )
 
 
@@ -42,6 +44,7 @@ def vehicle_model_relation_summary(vehicle_model):
         "installments": vehicle_model.installment_plan_versions.count(),
         "settlements": vehicle_model.settlement_cost_rules.count(),
         "incentives": vehicle_model.incentive_rules.count(),
+        "dealer_rewards": vehicle_model.dealer_reward_plans.count(),
     }
 
 

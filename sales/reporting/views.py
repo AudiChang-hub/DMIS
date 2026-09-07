@@ -1,0 +1,245 @@
+import copy
+import csv
+import hashlib
+import json
+from functools import wraps
+from urllib.parse import urlencode
+
+from django.contrib import messages
+from django.contrib.auth.decorators import login_required
+from django.core.exceptions import PermissionDenied, ValidationError
+from django.core.paginator import Paginator
+from django.db import transaction
+from django.http import Http404, HttpResponse
+from django.shortcuts import get_object_or_404, redirect, render
+from django.utils import timezone
+from django.views.decorators.cache import never_cache
+from django.views.decorators.http import require_POST
+
+from .engine import card_result, drill_query, validate_config
+from .forms import CardFormSet, FilterForm, ReportForm
+from .models import ReportDefinition, ReportRevision
+
+
+def is_editor(user):
+    return user.is_authenticated and user.is_active and user.is_superuser and user.get_username() == "admin"
+
+
+def editor_required(view):
+    @wraps(view)
+    @login_required
+    @never_cache
+    def wrapped(request, *args, **kwargs):
+        if not is_editor(request.user):
+            raise PermissionDenied("只有 admin 可以管理報表設計。")
+        return view(request, *args, **kwargs)
+    return wrapped
+
+
+def initial_config():
+    return {"title": "銷售台數分析", "description": "依領牌日期探索銷售結構；不含草稿及取消訂單。",
+            "audience": "admin", "date_basis": "registration_date", "cards": [
+                {"title": "品牌銷售台數", "dimension": "brand", "metric": "count", "chart": "bar", "formula": "", "limit": 20, "sort": "value"},
+                {"title": "每月銷售走勢", "dimension": "month", "metric": "count", "chart": "line", "formula": "", "limit": 200, "sort": "key"},
+            ]}
+
+
+def results(config, filters):
+    items = []
+    for index, card in enumerate(config["cards"]):
+        result = card_result(config, card, filters)
+        result["index"] = index
+        items.append(result)
+    return items
+
+
+def accessible_report(request, pk):
+    report = get_object_or_404(ReportDefinition, pk=pk, published__isnull=False)
+    if not request.user.is_active or (report.published["audience"] != "team" and not is_editor(request.user)):
+        raise Http404
+    return report
+
+
+def publication_key(report):
+    return hashlib.sha256(json.dumps(report.published, sort_keys=True, ensure_ascii=False).encode()).hexdigest()[:20]
+
+
+def stale_publication(request, report):
+    return request.GET.get("revision") and request.GET["revision"] != publication_key(report)
+
+
+def filters_for(request):
+    form = FilterForm(request.GET)
+    if not form.is_valid():
+        raise ValidationError("；".join(str(error) for errors in form.errors.values() for error in errors))
+    return form, form.cleaned_data
+
+
+@login_required
+@never_cache
+def center(request):
+    reports = ReportDefinition.objects.exclude(published=None)
+    if not is_editor(request.user):
+        reports = reports.filter(published__audience="team")
+    return render(request, "sales/reporting/center.html", {"reports": reports})
+
+
+@editor_required
+def manage(request):
+    return render(request, "sales/reporting/manage.html", {"reports": ReportDefinition.objects.all()})
+
+
+@editor_required
+def edit(request, pk=None):
+    report = get_object_or_404(ReportDefinition, pk=pk) if pk else None
+    config = report.draft if report else initial_config()
+    form = ReportForm(request.POST or None, initial={**config, "version": report.version if report else 0})
+    formset = CardFormSet(request.POST or None, initial=config["cards"], prefix="cards")
+    preview = None
+    status = 200
+    if request.method == "POST" and form.is_valid() and formset.is_valid():
+        config = {key: form.cleaned_data[key] for key in ("title", "description", "audience", "date_basis")}
+        config["cards"] = [{key: card.cleaned_data[key] for key in ("title", "dimension", "metric", "chart", "formula", "limit", "sort")}
+                           for card in formset.ordered_forms]
+        action = request.POST.get("action")
+        try:
+            validate_config(config)
+            if action == "preview":
+                preview = results(config, {})
+            elif action in ("save", "publish"):
+                with transaction.atomic():
+                    if report:
+                        report = ReportDefinition.objects.select_for_update().get(pk=report.pk)
+                        if report.version != form.cleaned_data["version"]:
+                            raise ValidationError("此報表已由另一個分頁更新。本頁輸入仍保留，請另開管理頁確認最新版本，避免覆蓋。")
+                    else:
+                        if form.cleaned_data["version"] != 0:
+                            raise ValidationError("新報表版本不正確。")
+                        report = ReportDefinition()
+                    report.draft = config
+                    report.version += 1
+                    if action == "publish":
+                        # 發布前實際執行，無效或超限的公式不進入讀者版本。
+                        results(config, {})
+                        report.published = copy.deepcopy(config)
+                        report.published_at = timezone.now()
+                    report.save()
+                    ReportRevision.objects.create(report=report, version=report.version, action=action, config=config, actor=request.user)
+                messages.success(request, "報表已發布。" if action == "publish" else "草稿已儲存，已發布版本不受影響。")
+                return redirect("report_edit", pk=report.pk)
+            else:
+                raise ValidationError("請使用儲存草稿、預覽或發布按鈕。")
+        except ValidationError as error:
+            form.add_error(None, error)
+            status = 400
+    rendered_cards = [*formset.ordered_forms, *formset.deleted_forms] if formset.is_bound and formset.is_valid() else formset
+    return render(request, "sales/reporting/edit.html", {"report": report, "form": form, "formset": formset, "rendered_cards": rendered_cards,
+                  "preview": preview, "is_preview": True, "revisions": report.revisions.all()[:20] if report else []}, status=status)
+
+
+@editor_required
+@require_POST
+def lifecycle(request, pk):
+    with transaction.atomic():
+        report = get_object_or_404(ReportDefinition.objects.select_for_update(), pk=pk)
+        if str(report.version) != request.POST.get("version"):
+            return HttpResponse("報表已更新，請重新整理後再操作。", status=409)
+        action = request.POST.get("action")
+        if action == "duplicate":
+            config = copy.deepcopy(report.draft)
+            config["title"] = config["title"][:94] + "（複本）"
+            config["audience"] = "admin"
+            duplicate = ReportDefinition.objects.create(draft=config, version=1)
+            ReportRevision.objects.create(report=duplicate, version=1, action="duplicate", config=config, actor=request.user)
+            return redirect("report_edit", pk=duplicate.pk)
+        if action == "unpublish":
+            report.published = None
+            report.published_at = None
+        elif action == "restore":
+            raw_revision = request.POST.get("revision", "")
+            if not raw_revision.isascii() or not raw_revision.isdigit() or len(raw_revision) > 9:
+                return HttpResponse("版本編號不正確。", status=400)
+            revision = get_object_or_404(report.revisions, version=int(raw_revision))
+            report.draft = copy.deepcopy(revision.config)
+        else:
+            return HttpResponse("不支援此操作。", status=400)
+        report.version += 1
+        report.save()
+        ReportRevision.objects.create(report=report, version=report.version, action=action, config=report.draft, actor=request.user)
+    messages.success(request, "已取消發布，讀者不再能開啟。" if action == "unpublish" else "已還原為草稿，檢查後再發布。")
+    return redirect("report_edit", pk=pk)
+
+
+@login_required
+@never_cache
+def display(request, pk):
+    report = accessible_report(request, pk)
+    form = FilterForm(request.GET)
+    items = []
+    error = ""
+    if form.is_valid():
+        try:
+            items = results(report.published, form.cleaned_data)
+        except ValidationError as exc:
+            error = "；".join(exc.messages)
+    query = urlencode({**{key: value for key, value in request.GET.items() if key in ("start", "end", "brand", "energy")}, "revision": publication_key(report)})
+    return render(request, "sales/reporting/display.html", {"report": report, "config": report.published,
+                  "filter_form": form, "results": items, "query": query, "error": error, "queried_at": timezone.now()})
+
+
+def selected_card(config, index):
+    if index < 0 or index >= len(config["cards"]):
+        raise Http404
+    return config["cards"][index]
+
+
+@login_required
+@never_cache
+def detail(request, pk, index):
+    report = accessible_report(request, pk)
+    if stale_publication(request, report):
+        return render(request, "sales/reporting/stale.html", {"report": report}, status=409)
+    card = selected_card(report.published, index)
+    try:
+        _, filters = filters_for(request)
+        queryset = drill_query(report.published, card, filters, request.GET.get("group", "__all__"))
+    except ValidationError as error:
+        return HttpResponse("；".join(error.messages), status=400, content_type="text/plain; charset=utf-8")
+    page = Paginator(queryset.select_related("vehicle_model", "source", "commission_recipient").order_by("-order_date", "-pk"), 50).get_page(request.GET.get("page"))
+    query = request.GET.copy()
+    query.pop("page", None)
+    return render(request, "sales/reporting/detail.html", {"report": report, "card": card, "page_obj": page,
+                  "query": query.urlencode(), "back_query": urlencode({k: v for k, v in filters.items() if v})})
+
+
+def csv_safe(value):
+    text = str(value)
+    return "'" + text if text.lstrip().startswith(("=", "+", "-", "@", "\t", "\r", "\n")) else text
+
+
+@login_required
+@never_cache
+def export(request, pk, index):
+    report = accessible_report(request, pk)
+    if stale_publication(request, report):
+        return render(request, "sales/reporting/stale.html", {"report": report}, status=409)
+    card = selected_card(report.published, index)
+    try:
+        _, filters = filters_for(request)
+        result = card_result(report.published, card, filters)
+    except ValidationError as error:
+        return HttpResponse("；".join(error.messages), status=400, content_type="text/plain; charset=utf-8")
+    response = HttpResponse(content_type="text/csv; charset=utf-8")
+    response["Content-Disposition"] = f'attachment; filename="report-{pk}-chart-{index}.csv"'
+    response.write("\ufeff")
+    writer = csv.writer(response)
+    writer.writerow(["報表", csv_safe(report.published["title"]), "圖表", csv_safe(card["title"])])
+    writer.writerow(["日期依據", report.published["date_basis"], "篩選", csv_safe(urlencode({k: v for k, v in filters.items() if v}))])
+    writer.writerow(["統計範圍", "不含草稿與取消訂單；車價不是實收／淨利"])
+    writer.writerow(["公式", csv_safe(card["formula"] if card["metric"] == "formula" else card["metric"])])
+    writer.writerow([result["dimension_label"], result["metric_label"], "訂單台數"])
+    for row in result["rows"]:
+        writer.writerow([csv_safe(row["label"]), row["value"] if row["value"] is not None else "無法計算", row["count"]])
+    if result["truncated"]:
+        writer.writerow(["提醒", "僅匯出目前圖表顯示群組，非全部群組"])
+    return response

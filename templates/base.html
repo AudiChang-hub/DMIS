@@ -21,6 +21,7 @@
           <a href="{% url 'dashboard' %}" {% if request.resolver_match.url_name == 'dashboard' %}class="active" aria-current="page"{% endif %}>戰情首頁</a>
           <a href="{% url 'order_list' %}" {% if request.resolver_match.url_name == 'order_list' or request.resolver_match.url_name == 'order_detail' or request.resolver_match.url_name == 'order_edit' or request.resolver_match.url_name == 'order_create' %}class="active" aria-current="page"{% endif %}>全部訂單</a>
           <a href="{% url 'operations_report' %}" {% if request.resolver_match.url_name == 'operations_report' or request.resolver_match.url_name == 'order_operations' or request.resolver_match.url_name == 'reconciliation_list' %}class="active" aria-current="page"{% endif %}>營運總表</a>
+          <a href="{% url 'report_center' %}" {% if request.resolver_match.url_name == 'report_center' or request.resolver_match.url_name == 'report_display' or request.resolver_match.url_name == 'report_detail' %}class="active" aria-current="page"{% endif %}>報表中心</a>
           <div class="desktop-data-menu{% if is_data_maintenance_section %} active{% endif %}">
             <a href="{% url 'data_maintenance' %}">資料維護區 <span class="ui-chevron desktop-data-menu__chevron" aria-hidden="true"></span></a>
             <div class="data-menu-popover" aria-label="資料維護選單">
@@ -52,6 +53,7 @@
                 <a href="{% url 'business_holiday_list' %}"><strong>工作日與假日設定</strong><small>設定期限計算要排除的日期</small></a>
               </section>
               <div class="data-menu-tools">
+                {% if user.is_superuser and user.username == 'admin' %}<a href="{% url 'report_manage' %}"><strong>報表設計管理</strong></a>{% endif %}
                 <a href="{% url 'legacy_import_list' %}"><strong>舊資料 Excel 匯入</strong></a>
                 <a href="{% url 'positioned_template_list' %}"><strong>列印範本設定</strong></a>
                 {% if user.is_superuser %}<a href="{% url 'user_management' %}"><strong>帳號與權限</strong></a>{% endif %}
@@ -110,6 +112,7 @@
               <a href="{{ shortcut.url }}" data-mobile-quick-link="{{ shortcut.key }}"><span>{{ shortcut.icon }}</span><strong>{{ shortcut.label }}</strong></a>
             {% endfor %}
           </div>
+          <a class="mobile-data-popover__all" href="{% url 'report_center' %}">報表中心 →</a>
           <a class="mobile-data-popover__all" href="{% url 'data_maintenance' %}">查看全部功能 →</a>
           <div class="mobile-data-popover__footer">
             <button type="button" data-theme-open><span aria-hidden="true">◐</span><strong>外觀配色</strong></button>

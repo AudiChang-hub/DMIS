@@ -9,7 +9,7 @@
   <div>
     <p class="eyebrow">End User 使用說明</p>
     <h1>現在想做什麼？從任務開始找</h1>
-    <p>這裡只說明實際操作，不需要懂系統或資料庫。最後更新：2026/09/04・系統版本 {{ app_version }}</p>
+    <p>這裡只說明實際操作，不需要懂系統或資料庫。最後更新：2026/09/07・系統版本 {{ app_version }}</p>
   </div>
   <div class="hero-actions guide-print-actions">
     <button class="button ghost" type="button" data-print-guide>列印／存成 PDF</button>
@@ -37,6 +37,7 @@
     <a href="#order-work">訂單建立後</a>
     <a href="#inventory">庫存與進車</a>
     <a href="#operations">營運與淨利</a>
+    <a href="#reports">報表中心與設計</a>
     <a href="#master-data">資料維護</a>
     <a href="#dealer-sales-programs">車行傭金與銷售獎勵</a>
     <a href="#dealer-volume-bonus">車行台數獎金</a>
@@ -322,6 +323,28 @@
       <div class="guide-topic-heading"><span>安全</span><div><p class="eyebrow">每個人都要遵守</p><h2>個資、帳號與敏感資料</h2></div></div>
       <ul class="guide-checklist"><li>每人使用自己的帳號，不共用；變更紀錄才知道是誰操作。</li><li>密碼連續錯誤 5 次會暫停嘗試 15 分鐘；不要一直重按登入。</li><li>公用電腦或手機使用完畢要登出；裝置遺失立即通知管理者。</li><li>OCR 完成仍要人工核對，不把證件照片貼到 LINE 群組當作系統歸檔。</li><li>下載到手機的證件與存摺，送件完成後刪除本機副本。</li><li>車控與電池密碼只填專用欄位，不抄到備註；每次查看都應有正當作業目的。</li><li>發現不認識的操作人、異常變更或不該看到的資料，立即停止操作並回報。</li></ul>
       <div class="guide-tip"><strong>系統目前的權限</strong><span>僅限內部成員且日常營運功能多數相同；帳號與權限管理只開放系統管理者。這不代表可查看或修改與工作無關的個資。</span></div>
+    </article>
+
+    <article class="guide-topic" id="reports" data-guide-topic>
+      <div class="guide-topic-heading"><span>報</span><div><p class="eyebrow">從彙總追查來源</p><h2>報表中心與報表設計管理</h2></div></div>
+      <ol class="guide-steps">
+        <li><strong>查看報表：上方「報表中心」。</strong><span>手機在「更多」中直接進入，也能將報表中心加入自己的快速前往。只會列出 admin 已發布且開放給你的報表。</span></li>
+        <li><strong>先看統計日期依據，再套用篩選。</strong><span>可篩選開始／結束日期、品牌、能源別。依領牌日期時，不計未領牌訂單；兩種日期依據都排除草稿與取消訂單。</span></li>
+        <li><strong>點分類名稱，查看組成這個數字的訂單。</strong><span>「查看全部符合訂單」包含整個篩選範圍。明細每頁 50 筆，可點訂單號碼回原訂單；不在報表清單顯示車主姓名或證件資料。</span></li>
+        <li><strong>匯出目前圖表，或列印／另存 PDF。</strong><span>CSV 使用相同篩選條件與顯示群組；若設定 Top N，CSV 也只有這些群組，畫面會提醒。PDF 使用瀏覽器列印功能，不是背景排程寄送。</span></li>
+      </ol>
+      <div class="guide-tip"><strong>金額不是同一回事</strong><span>「訂單車價合計」不是實收、正式收入或淨利；「訂單台數」也不是車行獎金規則的結算台數。財務仍以營運與對帳流程為準。</span></div>
+      {% if user.is_superuser and user.username == 'admin' %}
+      <h3>admin：建立與修改報表</h3>
+      <ol class="guide-steps">
+        <li><strong>資料維護區 → 報表設計管理 → 建立報表。</strong><span>使用品牌台數／每月走勢模板起步；填名稱、說明、日期依據與發布對象。新報表預設只有 admin 查看。</span></li>
+        <li><strong>設定圖表。</strong><span>每份最多 8 張，支援長條、折線、資料表及指標卡。依品牌、車型、能源別、月份、領牌縣市、原通路或歸屬車行分類，並可用上移／下移調整順序。</span></li>
+        <li><strong>需要試算時才選「自訂試算」。</strong><span>例如 sale_total / count；只支援 count（台數）、sale_total（車價合計）、average_price（平均車價）、數字及 + − * / 與括號。公式不會修改訂單或財務，除以零會明確顯示無法計算。</span></li>
+        <li><strong>預覽 → 發布。</strong><span>預覽不儲存；「儲存草稿」不影響讀者。「發布報表」會同時保存本次設計，不必先按儲存。操作列會固定顯示；離開未儲存內容前會提醒。</span></li>
+        <li><strong>複製、還原與取消發布。</strong><span>複製後是新的私人草稿；還原版本也只變更草稿，確認後再發布。取消發布會同步封鎖原連結、明細與匯出，不刪除歷史紀錄。不同分頁同時修改時，系統阻止舊版本覆蓋。</span></li>
+      </ol>
+      <p>第一版尚未包含跨資料源融合、自由畫布、多頁、樞紐、同期比較、CASE 分群、排程寄送或 Google 連接器；原 Data Studio 報表的公式尚未核對，不會冒充已完整搬入。</p>
+      {% endif %}
     </article>
 
     <article class="guide-topic" id="glossary" data-guide-topic>

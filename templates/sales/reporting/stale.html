@@ -1,0 +1,2 @@
+{% extends 'sales/reporting/layout.html' %}
+{% block report_content %}<section class="report-panel report-empty"><h1>報表設計已更新</h1><p>為避免用舊圖表的分類開啟新版明細或匯出，請先重新開啟報表，再選擇要查的數字。</p><a class="button" href="{% url 'report_display' report.pk %}">重新開啟報表</a></section>{% endblock %}

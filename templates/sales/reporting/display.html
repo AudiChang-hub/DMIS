@@ -1,0 +1,9 @@
+{% extends 'sales/reporting/layout.html' %}
+{% block title %}{{ config.title }} · 報表中心{% endblock %}
+{% block report_content %}
+<a href="{% url 'report_center' %}">← 報表中心</a><header class="report-heading"><div><p class="eyebrow">已發布分析報表</p><h1>{{ config.title }}</h1><p>{{ config.description }}</p></div><button type="button" class="button secondary" data-report-print>列印／另存 PDF</button></header>
+<form class="report-panel report-filter" method="get">{{ filter_form.non_field_errors }}{% for field in filter_form %}<div class="report-field"><label for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}{{ field.errors }}</div>{% endfor %}<button class="button">套用篩選</button><a class="button secondary" href="{% url 'report_display' report.pk %}">清除</a></form>
+<p class="report-context">依據：{% if config.date_basis == 'registration_date' %}領牌日期（不含未領牌）{% else %}訂單日期{% endif %}；不含草稿與取消訂單。車價不代表實收或淨利。<br>資料查詢時間 {{ queried_at|date:'Y/m/d H:i:s' }} · 報表發布 {{ report.published_at|date:'Y/m/d H:i' }}</p>
+{% if error %}<p class="report-notice" role="alert">無法完成查詢：{{ error }}</p>{% endif %}
+<div class="report-grid">{% for result in results %}{% include 'sales/reporting/result.html' %}{% endfor %}</div>
+{% endblock %}

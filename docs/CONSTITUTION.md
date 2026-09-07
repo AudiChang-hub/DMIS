@@ -1,8 +1,7 @@
 # 專案治理規範（CONSTITUTION）
 
-本文件是 DMIS 的變更治理基準。Django 是目前正式 runtime；Odoo 僅保留歷史程式與
-資料遷移用途。驗證命令必須依實際受影響的 runtime 選擇，不得以舊系統 smoke 代替
-Django 驗證，也不得反向替代。
+本文件是 DMIS 的變更治理基準。Django 是目前唯一正式 runtime；Odoo、Metabase
+與舊報表資料源已退役。歷史規格不得作為重啟舊系統的指示。
 
 ## 共同規則
 
@@ -52,10 +51,9 @@ template/CSS 字串測試不能冒充真實瀏覽器與實體設備驗收。
 6. migration、儲存路徑或重大財務邏輯異動前必須先備份；高風險異動需有可操作的還原
    步驟，不得以 `docker compose down` 或破壞性 Git 指令處理失敗部署。
 
-## Legacy Odoo
+## 已退役系統
 
-只有實際修改 `addons/**` 或舊 `docker-compose.yml` 時，才使用 Odoo 的安裝、升級與
-`scripts/smoke_odoo.sh`／`make smoke`。禁止修改 Odoo 核心程式；legacy 自訂仍限於
-`addons/`。Odoo 文件與 smoke 的存在不代表舊系統仍是正式功能入口。
+Odoo 與 Metabase 不得重新接回正式流程。新報表依目前 Django 資料與經確認的營運
+規則重建，不沿用已刪除的舊報表資料源。備份演練規範見 `docs/RESTORE_DRILL.md`。
 
 不符合以上規則的變更不得標示完成，並應在合併或部署前補正。

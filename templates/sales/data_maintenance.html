@@ -137,6 +137,11 @@
     <div><h2>帳號與權限</h2><p>建立內部帳號、停用離職人員、重設臨時密碼並查看帳號異動紀錄。</p><strong>{{ system_user_count }} 個系統帳號</strong></div>
     <span aria-hidden="true">›</span>
   </a>
+  <a class="maintenance-card" href="{% url 'system_integrity_report' %}">
+    <span class="maintenance-card__icon">稽</span>
+    <div><h2>系統完整性報告</h2><p>查看最新弱點掃描、UI／UX、營運流程、文件同步結果與已知限制。</p><strong>僅系統管理者可查看</strong></div>
+    <span aria-hidden="true">›</span>
+  </a>
   {% endif %}
   </div>
 </section>

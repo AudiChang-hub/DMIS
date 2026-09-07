@@ -1,4 +1,7 @@
 from django.contrib import admin
+from django.contrib.auth import get_user_model
+from django.contrib.auth.admin import GroupAdmin, UserAdmin
+from django.contrib.auth.models import Group
 
 from .models import (
     AccessoryProduct,
@@ -53,8 +56,9 @@ from .models import (
 )
 
 
-class ReadOnlyFinancialAdmin(admin.ModelAdmin):
-    """財務與訂單異動統一由有驗證、稽核及連動的業務頁執行。"""
+class ReadOnlyAdminMixin:
+    """正式異動統一由具驗證、稽核及連動處理的系統頁面執行。"""
+
     def has_add_permission(self, request):
         return False
 
@@ -65,27 +69,47 @@ class ReadOnlyFinancialAdmin(admin.ModelAdmin):
         return False
 
 
+class ReadOnlyOperationalAdmin(ReadOnlyAdminMixin, admin.ModelAdmin):
+    pass
+
+
+# 保留 Django admin 作為緊急查詢入口，但不允許繞過帳號管理流程直接改權限。
+User = get_user_model()
+admin.site.unregister(User)
+admin.site.unregister(Group)
+
+
+@admin.register(User)
+class ReadOnlyUserAdmin(ReadOnlyAdminMixin, UserAdmin):
+    pass
+
+
+@admin.register(Group)
+class ReadOnlyGroupAdmin(ReadOnlyAdminMixin, GroupAdmin):
+    pass
+
+
 @admin.register(BusinessHoliday)
-class BusinessHolidayAdmin(admin.ModelAdmin):
+class BusinessHolidayAdmin(ReadOnlyOperationalAdmin):
     list_display = ("date", "name", "source", "active", "updated_at")
     list_filter = ("source", "active")
     search_fields = ("name",)
 
 
 @admin.register(DeliveryRecord)
-class DeliveryRecordAdmin(admin.ModelAdmin):
+class DeliveryRecordAdmin(ReadOnlyOperationalAdmin):
     list_display = ("order", "recipient_name", "handover_location", "completed_by")
     search_fields = ("order__number", "recipient_name", "recipient_phone")
 
 
 @admin.register(OrderDraft)
-class OrderDraftAdmin(admin.ModelAdmin):
+class OrderDraftAdmin(ReadOnlyOperationalAdmin):
     list_display = ("display_name", "updated_by", "revision", "updated_at")
     readonly_fields = ("created_at", "updated_at", "revision")
 
 
 @admin.register(Store)
-class StoreAdmin(admin.ModelAdmin):
+class StoreAdmin(ReadOnlyOperationalAdmin):
     list_display = ("name", "code", "active")
     search_fields = ("name", "code")
 
@@ -93,10 +117,20 @@ class StoreAdmin(admin.ModelAdmin):
 class SalesSourcePlatformContactInline(admin.TabularInline):
     model = SalesSourcePlatformContact
     extra = 0
+    can_delete = False
+
+    def has_add_permission(self, request, obj=None):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
 
 
 @admin.register(SalesSource)
-class SalesSourceAdmin(admin.ModelAdmin):
+class SalesSourceAdmin(ReadOnlyOperationalAdmin):
     list_display = (
         "name", "category", "source_type", "responsible_person", "phone", "mobile",
         "city", "district", "staff_commission", "holiday_gift", "has_line_group", "active"
@@ -114,47 +148,57 @@ class SalesSourceAdmin(admin.ModelAdmin):
 
 
 @admin.register(SalesSourceCategory)
-class SalesSourceCategoryAdmin(admin.ModelAdmin):
+class SalesSourceCategoryAdmin(ReadOnlyOperationalAdmin):
     list_display = ("name", "system_behavior", "active")
     list_filter = ("system_behavior", "active")
     search_fields = ("name", "note")
 
 
-admin.site.register(InstallmentCompany)
-admin.site.register(VehicleBrand)
-admin.site.register(VehicleModelFamily)
-admin.site.register(VehicleFactoryModelCode)
-admin.site.register(InstallmentPlanVersion)
-admin.site.register(InstallmentPlanOption)
-admin.site.register(SalesSourceBrandPolicy)
-admin.site.register(SalesSourceCooperationProfile)
-admin.site.register(DealerVolumeBonusRule, ReadOnlyFinancialAdmin)
-admin.site.register(DealerVolumeBonusTier, ReadOnlyFinancialAdmin)
-admin.site.register(DealerVolumeBonusSettlement, ReadOnlyFinancialAdmin)
-admin.site.register(DealerVolumeBonusAllocation, ReadOnlyFinancialAdmin)
-admin.site.register(DealerVolumeBonusAdjustment, ReadOnlyFinancialAdmin)
-admin.site.register(DealerRewardCatalogItem)
-admin.site.register(DealerRewardCostVersion)
-admin.site.register(DealerVehicleRewardPlan)
-admin.site.register(DealerVehicleRewardItem)
-admin.site.register(LegacyImportBatch)
-admin.site.register(LegacyImportCorrection)
-admin.site.register(LegacyImportMasterMapping)
-admin.site.register(LegacyImportRow)
-admin.site.register(LegacySalesSnapshot)
-admin.site.register(SubsidyItem)
-admin.site.register(BrandRegistrationFeeRule)
-admin.site.register(PositionedPrintTemplate)
-admin.site.register(PositionedPrintField)
+admin.site.register(InstallmentCompany, ReadOnlyOperationalAdmin)
+admin.site.register(VehicleBrand, ReadOnlyOperationalAdmin)
+admin.site.register(VehicleModelFamily, ReadOnlyOperationalAdmin)
+admin.site.register(VehicleFactoryModelCode, ReadOnlyOperationalAdmin)
+admin.site.register(InstallmentPlanVersion, ReadOnlyOperationalAdmin)
+admin.site.register(InstallmentPlanOption, ReadOnlyOperationalAdmin)
+admin.site.register(SalesSourceBrandPolicy, ReadOnlyOperationalAdmin)
+admin.site.register(SalesSourceCooperationProfile, ReadOnlyOperationalAdmin)
+admin.site.register(DealerVolumeBonusRule, ReadOnlyOperationalAdmin)
+admin.site.register(DealerVolumeBonusTier, ReadOnlyOperationalAdmin)
+admin.site.register(DealerVolumeBonusSettlement, ReadOnlyOperationalAdmin)
+admin.site.register(DealerVolumeBonusAllocation, ReadOnlyOperationalAdmin)
+admin.site.register(DealerVolumeBonusAdjustment, ReadOnlyOperationalAdmin)
+admin.site.register(DealerRewardCatalogItem, ReadOnlyOperationalAdmin)
+admin.site.register(DealerRewardCostVersion, ReadOnlyOperationalAdmin)
+admin.site.register(DealerVehicleRewardPlan, ReadOnlyOperationalAdmin)
+admin.site.register(DealerVehicleRewardItem, ReadOnlyOperationalAdmin)
+admin.site.register(LegacyImportBatch, ReadOnlyOperationalAdmin)
+admin.site.register(LegacyImportCorrection, ReadOnlyOperationalAdmin)
+admin.site.register(LegacyImportMasterMapping, ReadOnlyOperationalAdmin)
+admin.site.register(LegacyImportRow, ReadOnlyOperationalAdmin)
+admin.site.register(LegacySalesSnapshot, ReadOnlyOperationalAdmin)
+admin.site.register(SubsidyItem, ReadOnlyOperationalAdmin)
+admin.site.register(BrandRegistrationFeeRule, ReadOnlyOperationalAdmin)
+admin.site.register(PositionedPrintTemplate, ReadOnlyOperationalAdmin)
+admin.site.register(PositionedPrintField, ReadOnlyOperationalAdmin)
 
 
 class VehicleColorInline(admin.TabularInline):
     model = VehicleColor
-    extra = 1
+    extra = 0
+    can_delete = False
+
+    def has_add_permission(self, request, obj=None):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
 
 
 @admin.register(VehicleModel)
-class VehicleModelAdmin(admin.ModelAdmin):
+class VehicleModelAdmin(ReadOnlyOperationalAdmin):
     list_display = (
         "brand",
         "name",
@@ -173,7 +217,7 @@ class VehicleModelAdmin(admin.ModelAdmin):
 
 
 @admin.register(VehicleInventory)
-class VehicleInventoryAdmin(admin.ModelAdmin):
+class VehicleInventoryAdmin(ReadOnlyOperationalAdmin):
     list_display = (
         "identifier",
         "vehicle_model",
@@ -186,7 +230,7 @@ class VehicleInventoryAdmin(admin.ModelAdmin):
 
 
 @admin.register(VehiclePriceVersion)
-class VehiclePriceVersionAdmin(admin.ModelAdmin):
+class VehiclePriceVersionAdmin(ReadOnlyOperationalAdmin):
     list_display = (
         "vehicle_model",
         "suggested_price",
@@ -206,14 +250,14 @@ class VehiclePriceVersionAdmin(admin.ModelAdmin):
 
 
 @admin.register(AccessoryProduct)
-class AccessoryProductAdmin(admin.ModelAdmin):
+class AccessoryProductAdmin(ReadOnlyOperationalAdmin):
     list_display = ("name", "sale_price", "labor_fee", "cost", "active")
     list_filter = ("active",)
     search_fields = ("name", "note")
 
 
 @admin.register(VehicleInventoryHistory)
-class VehicleInventoryHistoryAdmin(admin.ModelAdmin):
+class VehicleInventoryHistoryAdmin(ReadOnlyOperationalAdmin):
     list_display = ("vehicle", "event_type", "actor_name", "created_at")
     list_filter = ("event_type", "status_snapshot", "location_store_snapshot")
     search_fields = ("vehicle__engine_number", "vehicle__frame_number", "actor_name", "reason")
@@ -242,7 +286,7 @@ class VehicleInventoryHistoryAdmin(admin.ModelAdmin):
 
 
 @admin.register(VehicleSettlementCostRule)
-class VehicleSettlementCostRuleAdmin(admin.ModelAdmin):
+class VehicleSettlementCostRuleAdmin(ReadOnlyOperationalAdmin):
     list_display = (
         "vehicle_model",
         "amount",
@@ -259,7 +303,7 @@ class VehicleSettlementCostRuleAdmin(admin.ModelAdmin):
 
 
 @admin.register(VehicleIncentiveRule)
-class VehicleIncentiveRuleAdmin(admin.ModelAdmin):
+class VehicleIncentiveRuleAdmin(ReadOnlyOperationalAdmin):
     list_display = (
         "vehicle_model",
         "sales_bonus",
@@ -315,7 +359,7 @@ class SubsidyDocumentInline(admin.TabularInline):
 
 
 @admin.register(SalesOrder)
-class SalesOrderAdmin(ReadOnlyFinancialAdmin):
+class SalesOrderAdmin(ReadOnlyOperationalAdmin):
     list_display = (
         "number",
         "owner_name",
@@ -353,7 +397,7 @@ class SalesOrderAdmin(ReadOnlyFinancialAdmin):
 
 
 @admin.register(OrderOperationsProfile)
-class OrderOperationsProfileAdmin(ReadOnlyFinancialAdmin):
+class OrderOperationsProfileAdmin(ReadOnlyOperationalAdmin):
     list_display = (
         "order",
         "payment_confirmed",

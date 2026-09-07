@@ -12,10 +12,13 @@ from urllib import request
 
 import websocket  # type: ignore
 
-BASE = "http://localhost:8069"
-DB = "dmis_dev"
-USER = "admin"
-PWD = "admin"
+BASE = os.environ.get("ODOO_URL", "http://localhost:8069")
+DB = os.environ.get("ODOO_DB", "dmis_dev")
+USER = os.environ.get("ODOO_USERNAME", "admin")
+PWD = os.environ.get("ODOO_PASSWORD")
+HTTP_TIMEOUT = float(os.environ.get("ODOO_HTTP_TIMEOUT", "30"))
+if not PWD:
+    raise SystemExit("請先設定 ODOO_PASSWORD 環境變數。")
 OUT = Path("/home/audi/project/DMIS/output_report/screenshots_rules")
 OUT.mkdir(parents=True, exist_ok=True)
 
@@ -28,7 +31,7 @@ def authenticate():
         f"{BASE}/web/session/authenticate", data=body,
         headers={"Content-Type": "application/json"},
     )
-    resp = request.urlopen(req)
+    resp = request.urlopen(req, timeout=HTTP_TIMEOUT)
     cookie = resp.headers.get("Set-Cookie", "")
     for part in cookie.split(","):
         for kv in part.split(";"):

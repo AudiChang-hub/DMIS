@@ -1,5 +1,19 @@
 (() => {
+  const isInsideClosedDetails = element => {
+    let ancestor = element.parentElement;
+    while (ancestor) {
+      if (ancestor.matches("details:not([open])")) {
+        const summary = ancestor.querySelector(":scope > summary");
+        if (!summary || !summary.contains(element)) return true;
+      }
+      ancestor = ancestor.parentElement;
+    }
+    return false;
+  };
+
   const isVisible = element => {
+    if (element.hidden || isInsideClosedDetails(element)) return false;
+    if (typeof element.checkVisibility === "function" && !element.checkVisibility()) return false;
     const style = getComputedStyle(element);
     const rect = element.getBoundingClientRect();
     return (
@@ -8,6 +22,21 @@
       && rect.width > 0
       && rect.height > 0
     );
+  };
+
+  const getContainingHorizontalScrollport = element => {
+    let ancestor = element.parentElement;
+    while (ancestor && ancestor !== document.body) {
+      const overflowX = getComputedStyle(ancestor).overflowX;
+      if (
+        ["auto", "scroll"].includes(overflowX)
+        && ancestor.scrollWidth > ancestor.clientWidth + 1
+      ) {
+        return ancestor;
+      }
+      ancestor = ancestor.parentElement;
+    }
+    return null;
   };
 
   const describe = element => (
@@ -63,6 +92,11 @@
       if (!isVisible(element) || element.closest(".order-work-tabs")) return;
       const rect = element.getBoundingClientRect();
       if (rect.left < -2 || rect.right > viewportWidth + 2) {
+        const scrollport = getContainingHorizontalScrollport(element);
+        if (scrollport) {
+          const scrollportRect = scrollport.getBoundingClientRect();
+          if (scrollportRect.left >= -2 && scrollportRect.right <= viewportWidth + 2) return;
+        }
         issues.push(`${describe(element)} 超出畫面左右邊界`);
       }
     });

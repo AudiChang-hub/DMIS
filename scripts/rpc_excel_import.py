@@ -7,7 +7,12 @@
 import base64
 import os
 import sys
-import xmlrpc.client
+# defusedxml monkey patch is applied before the first XML-RPC request.
+import xmlrpc.client  # nosec B411
+
+from defusedxml.xmlrpc import monkey_patch
+
+monkey_patch()
 
 PORT = os.environ.get('ODOO_PORT', '8069')
 DB = os.environ.get('POSTGRES_DB', 'dmis_dev')

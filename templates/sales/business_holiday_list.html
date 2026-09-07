@@ -89,9 +89,9 @@
           <a class="button ghost" href="?view=month&amp;month={{ current_month|date:'Y-m' }}&amp;day={{ selected_date|date:'Y-m-d' }}">返回月曆</a>
         </article>
       {% else %}
-      <div class="holiday-calendar-grid" role="grid" aria-label="{{ current_month|date:'Y 年 n 月' }}工作日月曆">
+      <div class="holiday-calendar-grid" role="group" aria-label="{{ current_month|date:'Y 年 n 月' }}工作日月曆">
         {% for weekday in "一二三四五六日" %}
-          <div class="holiday-calendar-weekday{% if forloop.counter > 5 %} is-weekend{% endif %}" role="columnheader">週{{ weekday }}</div>
+          <div class="holiday-calendar-weekday{% if forloop.counter > 5 %} is-weekend{% endif %}">週{{ weekday }}</div>
         {% endfor %}
         {% for week in calendar_weeks %}
           {% for cell in week %}
@@ -99,7 +99,6 @@
               <button
                 class="holiday-calendar-day{% if cell.is_today %} is-today{% endif %}{% if cell.is_weekend %} is-weekend{% endif %}{% if cell.holiday %} has-holiday{% if cell.holiday.active %} is-excluded{% else %} is-inactive{% endif %}{% if cell.holiday.source == 'dgpa' %} is-official{% else %} is-manual{% endif %}{% endif %}"
                 type="button"
-                role="gridcell"
                 data-holiday-date="{{ cell.date|date:'Y-m-d' }}"
                 data-holiday-weekend="{{ cell.is_weekend|yesno:'true,false' }}"
                 {% if cell.holiday %}
@@ -127,7 +126,6 @@
               <a
                 class="holiday-calendar-day is-outside"
                 href="?view=month&amp;month={{ cell.date|date:'Y-m' }}"
-                role="gridcell"
                 aria-label="前往 {{ cell.date|date:'Y 年 n 月' }}"
               ><span class="holiday-calendar-day__number">{{ cell.date.day }}</span></a>
             {% endif %}

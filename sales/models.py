@@ -4329,3 +4329,7 @@ class UserAccountAuditLog(TimeStampedModel):
 
     def __str__(self):
         return f"{self.get_action_display()}－{self.target_username}"
+
+
+# 同屬 sales app；分開模組，避免報表定義擴大營運模型檔案。
+from .reporting.models import ReportDefinition, ReportRevision  # noqa: E402,F401

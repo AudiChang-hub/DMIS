@@ -1,0 +1,6 @@
+<section class="report-panel report-editor-card" data-report-card>
+  <header class="report-card-toolbar"><h2>圖表 <span data-card-number>{{ forloop.counter }}</span></h2><div class="report-actions"><button type="button" class="button secondary" data-card-up aria-label="圖表上移">↑ 上移</button><button type="button" class="button secondary" data-card-down aria-label="圖表下移">↓ 下移</button><button type="button" class="button secondary" data-card-delete>移除此圖</button></div></header>
+  {{ card.non_field_errors }}
+  <div class="report-form-grid">{% for field in card %}{% if field.name != 'DELETE' and field.name != 'ORDER' %}<div class="report-field{% if field.name == 'formula' %} report-field--formula{% endif %}"><label for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}{{ field.errors }}{% if field.help_text %}<small>{{ field.help_text }}</small>{% endif %}</div>{% endif %}{% endfor %}</div>
+  <div hidden>{{ card.DELETE }}{{ card.ORDER }}</div>
+</section>

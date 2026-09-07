@@ -682,6 +682,8 @@ h2 { margin-bottom: 0; font-size: 1.15rem; }
 .integrity-summary-card > div { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
 .integrity-summary-card span { color: var(--muted); font-size: .76rem; font-weight: 800; }
 .integrity-summary-card strong { color: var(--green); font-size: .92rem; }
+.integrity-summary-card.integrity-restore--attention { border-top-color: var(--amber); }
+.integrity-restore--attention strong { color: var(--amber); }
 .integrity-summary-card p { margin: 9px 0 0; color: var(--muted); font-size: .82rem; line-height: 1.55; }
 .integrity-evidence {
   margin-bottom: 16px;

@@ -12,3 +12,5 @@ user timer enabled 且 Linger=yes；權限與狀態解析回歸測試通過。�
 
 實際首輪抓到 PostgreSQL 初始化暫時 socket 導致誤判 ready；改以 TCP readiness 排除
 初始化暫時伺服器。重跑成功核對 74 表及 937 個附件；每輪另存摘要歷史供追溯。
+
+UI：失敗、尚未執行與逾期使用警示色，不可沿用成功的綠色卡片；admin-only 路由持續測試。

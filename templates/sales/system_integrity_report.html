@@ -27,7 +27,7 @@
   </div>
 </section>
 
-<section class="integrity-summary-card" aria-labelledby="restore-drill-title">
+<section class="integrity-summary-card{% if not integrity_report.restore_drill.success %} integrity-restore--attention{% endif %}" aria-labelledby="restore-drill-title">
   <h2 id="restore-drill-title">正式備份還原演練</h2>
   <p><strong>{{ integrity_report.restore_drill.label }}</strong></p>
   {% if integrity_report.restore_drill.checked_at %}<p class="muted">最近檢查：{{ integrity_report.restore_drill.checked_at|date:"Y/m/d H:i" }}</p>{% endif %}

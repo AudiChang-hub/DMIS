@@ -1,0 +1,10 @@
+[Unit]
+Description=DMIS isolated production backup restore drill
+
+[Service]
+Type=oneshot
+WorkingDirectory=/home/audi/project/DMIS-next
+ExecStart=/usr/bin/python3 /home/audi/project/DMIS-next/scripts/restore_drill.py
+TimeoutStartSec=30min
+TimeoutStopSec=2min
+UMask=0077

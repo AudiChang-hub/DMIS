@@ -1,8 +1,8 @@
 # DMIS Next｜車輛銷售管理系統（Django）
 
 DMIS Next 是目前正式維護的車輛銷售、庫存與營運系統。2026-07-28 起由
-Django 版本接手新功能；`addons/`、`docker-compose.yml` 與舊 Odoo 文件只保留供
-歷史查閱，不是目前功能與部署入口。
+Django 版本接手新功能。舊 Odoo、Metabase 及其資料源已退役，舊模組與部署入口已移除；
+歷史規格僅供追溯，不可依其重新啟動舊系統。
 
 ## 目前功能
 
@@ -230,16 +230,15 @@ python manage.py generate_price_list_distribution --month 2026-09
 - LicenseWatcher Ubuntu worker 尚未啟用；指定號碼仍依人工流程處理。
 - 實體手機相機、分享、印表機偏移與現場網路需人工驗收。
 
-## 舊 Odoo 資料與文件
+## 正式備份自動還原演練
 
-舊 Odoo 只作歷史參考，不與目前 Django 正式服務同時作為資料輸入來源。需要搬移主檔
-時，先乾跑再由管理者確認：
+詳見 [還原演練與舊系統退役](docs/RESTORE_DRILL.md)。每週日清晨使用正式備份在隔離
+環境還原，逐表核對筆數、附件 SHA-256、Django migration 與健康檢查。結果只供
+superuser 在「系統完整性報告」查看；過期、失敗與未執行不會顯示成通過。
 
 ```bash
-python manage.py import_odoo_master_data /tmp/odoo-master.json
-python manage.py import_odoo_master_data /tmp/odoo-master.json --apply
+python3 scripts/restore_drill.py
 ```
 
-指令可依車行代碼、車型組合鍵與有效日期重跑。舊銷貨不會直接轉成正式訂單，以避免與
-正式 Excel 重複。歷史 Odoo 安裝與模組紀錄請看 `addons/`、`docs/CHANGELOG.md` 與舊版
-specs；若要修改 legacy runtime，仍須使用對應的 Odoo smoke，不能拿 Django 驗證代替。
+此演練不覆寫正式庫，也不代表已完成異地整機切換。歷史 JSON 主檔匯入指令保留相容性，
+但不連線舊 Odoo；未來報表須重新規劃，不沿用已刪除的 Metabase 資料源。

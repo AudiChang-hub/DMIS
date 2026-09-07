@@ -79,7 +79,7 @@
       if (!segment.length) return;
       const path = document.createElementNS(svg.namespaceURI, "polyline");
       path.setAttribute("points", segment.join(" ")); path.setAttribute("fill", "none");
-      path.setAttribute("stroke", "#4555a0"); path.setAttribute("stroke-width", "3"); svg.append(path);
+      path.setAttribute("stroke", "var(--forest)"); path.setAttribute("stroke-width", "3"); svg.append(path);
     };
     let segment = [];
     points.forEach((value, index) => {
@@ -88,12 +88,12 @@
       const y = 155 - (value - min) / range * 130;
       segment.push(`${x},${y}`);
       const dot = document.createElementNS(svg.namespaceURI, "circle");
-      dot.setAttribute("cx", String(x)); dot.setAttribute("cy", String(y)); dot.setAttribute("r", "4"); dot.setAttribute("fill", "#4555a0");
+      dot.setAttribute("cx", String(x)); dot.setAttribute("cy", String(y)); dot.setAttribute("r", "4"); dot.setAttribute("fill", "var(--forest)");
       const title = document.createElementNS(svg.namespaceURI, "title"); title.textContent = `${rows[index].dataset.pointLabel}: ${value}`;
       dot.append(title); svg.append(dot);
     });
     addLine(segment);
-    const label = document.createElementNS(svg.namespaceURI, "text"); label.setAttribute("x", "20"); label.setAttribute("y", "183"); label.setAttribute("font-size", "12"); label.setAttribute("fill", "#52647d");
+    const label = document.createElementNS(svg.namespaceURI, "text"); label.setAttribute("x", "20"); label.setAttribute("y", "183"); label.setAttribute("font-size", "12"); label.setAttribute("fill", "var(--muted)");
     label.textContent = `${rows[0].dataset.pointLabel} → ${rows.at(-1).dataset.pointLabel}（逐群數值詳見下表）`; svg.append(label);
     chart.querySelector("[data-line-chart]")?.append(svg);
   });

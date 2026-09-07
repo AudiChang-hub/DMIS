@@ -7,6 +7,7 @@ from django.core.exceptions import ImproperlyConfigured
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY", "dev-only-change-me")
+RESTORE_DRILL_STATUS_PATH = os.environ.get("RESTORE_DRILL_STATUS_PATH", "")
 DEBUG = os.environ.get("DJANGO_DEBUG", "1") == "1"
 IS_PRODUCTION = os.environ.get("DJANGO_ENV", "development") == "production"
 if (not DEBUG or IS_PRODUCTION) and SECRET_KEY == "dev-only-change-me":

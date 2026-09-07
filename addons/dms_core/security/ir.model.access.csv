@@ -1,8 +1,0 @@
-id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
-access_dms_dealer,dms.dealer,model_dms_dealer,,1,1,1,1
-access_dms_dealer_tag,dms.dealer.tag,model_dms_dealer_tag,,1,1,1,1
-access_dms_dealer_type,dms.dealer.type,model_dms_dealer_type,,1,1,1,1
-access_dms_brand,dms.brand,model_dms_brand,,1,1,1,1
-access_dms_store_type,dms.store_type,model_dms_store_type,,1,1,1,1
-access_dms_dealer_brand_auth,dms.dealer.brand.auth,model_dms_dealer_brand_auth,,1,1,1,1
-access_dms_system_about,dms.system.about,model_dms_system_about,base.group_user,1,0,0,0

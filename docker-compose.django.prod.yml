@@ -1,5 +1,9 @@
 services:
   web:
+    environment:
+      RESTORE_DRILL_STATUS_PATH: /run/dmis-restore/latest.json
+    volumes:
+      - /srv/dmis-data/dmis-next/restore-drills:/run/dmis-restore:ro
     env_file:
       - path: .env.django
         required: true

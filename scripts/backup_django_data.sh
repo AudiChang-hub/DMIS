@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
+umask 077
 
 PROJECT_DIR=${DMIS_NEXT_PROJECT_DIR:-/home/audi/project/DMIS-next}
 DATA_ROOT=${DMIS_DATA_ROOT:-/srv/dmis-data/dmis-next}
@@ -40,8 +41,10 @@ timestamp=$(date +%Y%m%d_%H%M%S)
 daily_db="$BACKUP_ROOT/postgres/daily/dmis_${timestamp}.sql.gz"
 log "建立 PostgreSQL 每日備份"
 docker compose -f "$COMPOSE_FILE" exec -T db sh -c \
-    'pg_dump -U "$POSTGRES_USER" "$POSTGRES_DB"' |
-    gzip -c >"$daily_db"
+    'pg_dump --no-owner --no-acl -U "$POSTGRES_USER" "$POSTGRES_DB"' |
+    gzip -c >"${daily_db}.partial"
+gzip -t "${daily_db}.partial"
+mv "${daily_db}.partial" "$daily_db"
 [[ -s "$daily_db" ]] || {
     rm -f "$daily_db"
     log "ERROR: PostgreSQL 備份檔為空"

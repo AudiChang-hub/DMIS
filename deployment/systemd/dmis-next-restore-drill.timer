@@ -1,0 +1,11 @@
+[Unit]
+Description=Weekly DMIS isolated restore drill
+
+[Timer]
+OnCalendar=Sun *-*-* 05:00:00
+RandomizedDelaySec=300
+Persistent=true
+Unit=dmis-next-restore-drill.service
+
+[Install]
+WantedBy=timers.target

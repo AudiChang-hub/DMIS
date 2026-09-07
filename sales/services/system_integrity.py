@@ -6,6 +6,7 @@ record; this module provides a durable operational summary for administrators.
 """
 
 from datetime import date
+from .restore_drill_status import restore_drill_status
 
 
 AUDIT_COMPLETED_ON = date(2026, 9, 7)
@@ -16,6 +17,7 @@ def build_system_integrity_report():
     """Return the immutable content for the latest completed audit."""
 
     return {
+        "restore_drill": restore_drill_status(),
         "audit_date": AUDIT_COMPLETED_ON,
         "revision": AUDIT_REVISION,
         "conclusion": (
@@ -270,10 +272,9 @@ def build_system_integrity_report():
                 ),
             },
             {
-                "title": "舊維護工具仍有中低度靜態提示",
+                "title": "歷史程式及規格的適用範圍",
                 "detail": (
-                    "Git 追蹤的非測試 Python 程式已無高風險結果，但舊 Odoo 與 Metabase 工具仍有"
-                    "timeout、SQL 組字等中低度提示。它們不屬目前 Django 請求流程，重新啟用前須逐項複核。"
+                    "Odoo 與 Metabase 的部署入口、模組及報表維護工具已退役移除；Git 歷史與舊規格不代表目前功能。"
                 ),
             },
             {
@@ -290,10 +291,9 @@ def build_system_integrity_report():
                 ),
             },
             {
-                "title": "舊報表資料源仍待完成憑證輪替",
+                "title": "舊報表退役，未來報表須重新設計",
                 "detail": (
-                    "舊 Odoo 已停止，其資料庫連接埠已限本機、連線角色也已降為唯讀；"
-                    "為避免中斷 Metabase，既有報表連線憑證需在取得 Metabase 管理權限後同步輪替。"
+                    "依管理者決定移除舊 Odoo、Metabase 及其資料源，不沿用舊報表；目前 Django 營運資料維持不變。"
                 ),
             },
             {
@@ -318,9 +318,10 @@ def build_system_integrity_report():
                 ),
             },
             {
-                "title": "備份已驗證可讀，尚未做正式還原演練",
+                "title": "還原演練範圍與限制",
                 "detail": (
-                    "本次部署前備份已確認大小、雜湊及目錄可讀；為避免影響營運，沒有覆寫正式資料進行整庫還原。"
+                    "每週以正式每日備份在隔離容器還原，核對每張表筆數、附件 SHA-256、遷移狀態與 Django 健康檢查。"
+                    "實際結果見本頁即時紀錄；不覆寫正式庫，不代表異地主機、DNS 切換或零資料損失演練。"
                 ),
             },
         ),

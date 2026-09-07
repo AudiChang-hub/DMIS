@@ -88,7 +88,9 @@ jobs:
         run: python manage.py makemigrations --check --dry-run
 
       - name: Run Django tests with SQLite
-        run: python manage.py test sales --noinput
+        run: |
+          python -m unittest discover -s tests/ops
+          python manage.py test sales --noinput
 
       - name: Verify financial transactions with PostgreSQL
         env:

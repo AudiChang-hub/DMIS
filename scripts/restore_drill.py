@@ -113,7 +113,7 @@ def main():
              "-e", "POSTGRES_HOST_AUTH_METHOD=trust", "-e", "POSTGRES_DB=drill",
              "postgres:16"], stdout=subprocess.DEVNULL)
         for _ in range(60):
-            ready = subprocess.run(["docker", "exec", database, "pg_isready", "-U", "postgres"],
+            ready = subprocess.run(["docker", "exec", database, "pg_isready", "-h", "127.0.0.1", "-U", "postgres", "-d", "drill"],
                                    timeout=10, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
             if ready.returncode == 0:
                 break
@@ -177,6 +177,8 @@ def main():
             result.update(status="failed", failed_stage="cleanup")
         result.update(duration_seconds=round(time.monotonic() - started),
                       checked_at=datetime.now(timezone.utc).isoformat())
+        history = status_dir / (datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S") + "-" + token + ".json")
+        history.write_text(json.dumps(result), encoding="utf-8")
         publish()
     return 0 if result["status"] == "success" else 1
 

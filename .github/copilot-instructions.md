@@ -28,3 +28,8 @@
 Prompt 與 Slash Commands：
 
 - 將 prompt files 放在 `.github/prompts/`，副檔名使用 `.prompt.md`，並在 frontmatter 提供 `name`、`description`、`argument-hint`、`agent`，以便 Copilot Chat 的 slash command 能識別並顯示。
+# 2026-09-07 退役更正
+
+目前唯一 runtime 是 Django/PostgreSQL 16；Odoo、Metabase、addons、舊 compose 與 Makefile
+已刪除。下文涉及舊模組、make smoke、Odoo restart 的規範僅供歷史追溯，不得執行。
+現行治理、測試與部署以 `docs/CONSTITUTION.md`、`README.md`、`scripts/deploy_django.sh` 為準。

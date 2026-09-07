@@ -12,6 +12,7 @@
 - 不載入正式密碼、Vision secret、Redis、Tunnel 或寄信設定；不啟動正式背景工作。
 - 完成或失敗均清除本輪 UUID 容器、網路及暫存檔。殘留清理失敗視為演練失敗。
 - 摘要保存在 `/srv/dmis-data/dmis-next/restore-drills/latest.json`，僅掛載給 web 唯讀。
+- 各次結果另存不含個資的時間戳 JSON，供管理者在主機追溯；網頁不提供原始檔下載。
 - admin 的「系統完整性報告」顯示最近結果；一般帳號回應 403，不可查看摘要。
 - 超過 8 天未有結果或執行中超過 1 小時，介面顯示逾期；systemd 失敗可由 journal 查驗。
 

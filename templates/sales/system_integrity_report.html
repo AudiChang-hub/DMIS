@@ -4,15 +4,6 @@
 {% block content %}
 {% url 'data_maintenance' as maintenance_url %}
 {% include "sales/_page_back.html" with fallback_url=maintenance_url label="返回資料維護區" %}
-<section class="card" aria-labelledby="restore-drill-title">
-  <h2 id="restore-drill-title">正式備份還原演練</h2>
-  <p>{{ integrity_report.restore_drill.label }}</p>
-  {% if integrity_report.restore_drill.checked_at %}<p class="muted">最近檢查：{{ integrity_report.restore_drill.checked_at|date:"Y/m/d H:i" }}</p>{% endif %}
-  {% if integrity_report.restore_drill.success %}
-  <p>已核對 {{ integrity_report.restore_drill.tables }} 張資料表、{{ integrity_report.restore_drill.rows }} 筆資料與 {{ integrity_report.restore_drill.media_files }} 個附件；耗時 {{ integrity_report.restore_drill.duration_seconds }} 秒。</p>
-  {% endif %}
-  <p class="muted">每週日清晨自動執行；只在隔離環境還原，不會覆寫正式資料。</p>
-</section>
 
 <section class="hero-row compact-hero integrity-report-hero">
   <div>
@@ -34,6 +25,16 @@
     <h2 id="integrity-conclusion-title">核心功能已驗證，歷史財務資料仍待核對</h2>
     <p>{{ integrity_report.conclusion }}</p>
   </div>
+</section>
+
+<section class="integrity-summary-card" aria-labelledby="restore-drill-title">
+  <h2 id="restore-drill-title">正式備份還原演練</h2>
+  <p><strong>{{ integrity_report.restore_drill.label }}</strong></p>
+  {% if integrity_report.restore_drill.checked_at %}<p class="muted">最近檢查：{{ integrity_report.restore_drill.checked_at|date:"Y/m/d H:i" }}</p>{% endif %}
+  {% if integrity_report.restore_drill.success %}
+  <p>已核對 {{ integrity_report.restore_drill.tables }} 張資料表、{{ integrity_report.restore_drill.rows }} 筆資料與 {{ integrity_report.restore_drill.media_files }} 個附件；耗時 {{ integrity_report.restore_drill.duration_seconds }} 秒。</p>
+  {% endif %}
+  <p class="muted">每週日清晨自動執行；只在隔離環境還原，不會覆寫正式資料。</p>
 </section>
 
 <section class="integrity-summary-grid" aria-label="稽核摘要">

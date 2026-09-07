@@ -19,6 +19,19 @@ document.querySelector('#run').onclick = async () => {
       assert(list('page-select').matches(':popover-open'), '未進入頂層');
       assert(hit(list('page-select').querySelector('button')), '選項被遮住');
     });
+    await check('搜尋下拉：只有可見輸入框可聚焦且保有欄位名稱', async () => {
+      const native = document.querySelector('#page-select');
+      assert(native.tabIndex === -1 && native.getAttribute('aria-hidden') === 'true', '原生欄位仍進入鍵盤或無障礙樹');
+      assert(document.querySelector('label[for="page-select-search"]'), '可見搜尋欄位失去標籤');
+    });
+    await check('測試資料：Alpha 選項可搜尋並寫回原欄位', async () => {
+      input('page-select').value = 'Alpha'; input('page-select').dispatchEvent(new Event('input'));
+      await tick();
+      const alpha = list('page-select').querySelector('[data-value="a"]');
+      assert(alpha, 'Alpha 選項未建立');
+      alpha.click(); await tick();
+      assert(document.querySelector('#page-select').value === 'a', 'Alpha 值未寫回');
+    });
     await check('第一個彈窗：選項在 dialog 裡、且位於其頂層', async () => {
       modal.showModal(); input('modal-select').focus(); await tick();
       assert(list('page-select').hidden, '舊選單未收起');

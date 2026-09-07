@@ -2,12 +2,20 @@
 建立 Excel 中缺少的車款至 dms.product（及對應 dms.product.template）
 執行方式：python3 scripts/create_missing_products.py
 """
-import xmlrpc.client
+import os
+# defusedxml monkey patch is applied before the first XML-RPC request.
+import xmlrpc.client  # nosec B411
 
-URL = 'http://localhost:8069'
-DB  = 'dmis_dev'
-USER = 'admin'
-PASS = 'admin'
+from defusedxml.xmlrpc import monkey_patch
+
+monkey_patch()
+
+URL = os.environ.get('ODOO_URL', 'http://localhost:8069')
+DB = os.environ.get('ODOO_DB', 'dmis_dev')
+USER = os.environ.get('ODOO_USERNAME', 'admin')
+PASS = os.environ.get('ODOO_PASSWORD')
+if not PASS:
+    raise SystemExit('請先設定 ODOO_PASSWORD 環境變數。')
 
 uid = xmlrpc.client.ServerProxy(URL + '/xmlrpc/2/common').authenticate(DB, USER, PASS, {})
 m   = xmlrpc.client.ServerProxy(URL + '/xmlrpc/2/object')

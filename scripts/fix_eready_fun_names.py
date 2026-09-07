@@ -5,7 +5,12 @@ from __future__ import annotations
 
 import json
 import os
-import xmlrpc.client
+# defusedxml monkey patch is applied before the first XML-RPC request.
+import xmlrpc.client  # nosec B411
+
+from defusedxml.xmlrpc import monkey_patch
+
+monkey_patch()
 
 
 ODOO_URL = os.environ.get('ODOO_URL', 'http://localhost:8069')

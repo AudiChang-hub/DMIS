@@ -43,6 +43,7 @@
     <a href="#sales-sources">車行、平台與本店人員</a>
     <a href="#price-list-distribution">價格表分發</a>
     <a href="#account-management">帳號與密碼</a>
+    <a href="#system-integrity">系統狀態與完整性</a>
     <a href="#troubleshooting">看到錯誤怎麼辦</a>
     <a href="#security">個資與安全</a>
   </nav>
@@ -95,7 +96,7 @@
 
     <article class="guide-topic" id="create-order" data-guide-topic>
       <div class="guide-topic-heading"><span>04</span><div><p class="eyebrow">客人在面前</p><h2>建立訂單與自動草稿</h2></div></div>
-      <div class="guide-flow" aria-label="建立訂單五個區塊">
+      <div class="guide-flow" role="region" aria-label="建立訂單五個區塊" tabindex="0">
         <span><b>1</b>來源</span><i>→</i><span><b>2</b>車主</span><i>→</i><span><b>3</b>車輛</span><i>→</i><span><b>4</b>金額</span><i>→</i><span><b>5</b>需求</span>
       </div>
       <ol class="guide-steps">
@@ -280,6 +281,24 @@
       <div class="guide-two-column"><section><h3>訂單文件</h3><ul><li>建立訂單後可一次列印三頁：訂購單兩份、個資同意書一份。</li><li>紙本簽名後，合約與個資同意書分開上傳歸檔。</li><li>手機列印會開啟 PDF，再選可用印表機或分享至電腦。</li></ul></section><section><h3>信封／報件單</h3><ul><li>在「列印範本設定」建立新版。</li><li>背景可用 Excel、PDF 或圖片；信封可無背景。</li><li>用最近訂單預覽位置，再調 X、Y 與印表機偏移。</li></ul></section></div>
       <div class="guide-tip"><strong>列印證件影本</strong><span>到訂單資料的車主區展開「列印／下載浮水印證件」，每次選「限領牌使用」或「限申請補助使用」及正反面；PDF 會帶當天日期，原始照片不會被改動。</span></div>
       <div class="guide-exception"><strong>列印偏掉</strong><p>調整套表或印表機偏移，不要修改訂單資料來配合版面。</p></div>
+    </article>
+
+    <article class="guide-topic" id="system-integrity" data-guide-topic>
+      <div class="guide-topic-heading"><span>系統</span><div><p class="eyebrow">狀態與版本查核</p><h2>系統狀態與完整性報告</h2></div></div>
+      <div class="guide-two-column">
+        <section>
+          <h3>即時狀態</h3>
+          <p><code>/system-status/</code> 顯示目前資料庫、背景工作、搜尋索引與檔案空間等服務狀態；內容會隨當下環境變化，不能當成某一版本的驗收證明。</p>
+        </section>
+        <section>
+          <h3>版本化稽核</h3>
+          <p><code>/system/integrity-report/</code> 保存該版本已執行的檢查、證據與已知限制。只有 <code>superuser</code> 會看到入口並可查看；一般使用者不顯示入口，直接輸入網址也會收到 403。</p>
+        </section>
+      </div>
+      <div class="guide-exception"><strong>報告不代表「全部安全」</strong><p>完整性報告只反映報告列出的範圍與執行時間；未涵蓋的操作情境、第三方服務及報告完成後的變更仍可能產生風險，應持續依測試、監控與人工查核結果處理。</p></div>
+      {% if request.user.is_superuser %}
+      <div class="guide-print-actions"><a class="button ghost" href="{% url 'system_diagnostics' %}">查看即時狀態</a><a class="button primary" href="{% url 'system_integrity_report' %}">查看完整性報告</a></div>
+      {% endif %}
     </article>
 
     <article class="guide-topic" id="troubleshooting" data-guide-topic>

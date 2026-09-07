@@ -1,6 +1,11 @@
 import os
-import xmlrpc.client
+# defusedxml monkey patch is applied before the first XML-RPC request.
+import xmlrpc.client  # nosec B411
+
+from defusedxml.xmlrpc import monkey_patch
 from lxml import etree
+
+monkey_patch()
 
 url = os.environ.get('ODOO_URL', 'http://localhost:8069')
 db = os.environ.get('ODOO_DB', 'dmis_dev')

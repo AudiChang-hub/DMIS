@@ -1,15 +1,61 @@
-# 憲法（CONSTITUTION）
+# 專案治理規範（CONSTITUTION）
 
-本文件為專案治理憲法，旨在確保專案穩定、可測試與規格一致性。
+本文件是 DMIS 的變更治理基準。Django 是目前正式 runtime；Odoo 僅保留歷史程式與
+資料遷移用途。驗證命令必須依實際受影響的 runtime 選擇，不得以舊系統 smoke 代替
+Django 驗證，也不得反向替代。
 
-條款（繁體中文為主）：
+## 共同規則
 
-1. 所有文件、PR 標題/描述、commit message 一律繁體中文；但技術性代號或第三方授權可附英文說明。
-2. 任何變更若修改 `addons/**` 或 `docker-compose.yml`，必須同步更新 `specs/**`。CI 會檢查，若未同步則 CI 失敗。
-3. 禁止修改 Odoo 核心程式；所有自定義應放在 `addons/` 內的模組中。
-4. 必須提供可重現的環境（`docker compose`）與一鍵驗證（`make smoke`）。
-5. 規格（`specs/`）為變更合規依據，包含 charter、spec、plan、tasks、acceptance 等文件。
-6. 任何變更若需重啟 Odoo 才能生效，實作者必須在修改完成後自動執行 `docker compose restart odoo`，不得等待提醒；若不確定是否需要重啟，預設應重啟並補做基本驗證。
-7. 完成自動重啟後，至少需確認 `docker compose ps` 狀態正常，並執行 `bash scripts/smoke_odoo.sh` 或 `make smoke` 其中之一。
+1. 文件、PR 標題／描述與 commit message 以繁體中文為主；技術代號、程式 identifiers
+   與第三方名稱可保留英文。
+2. 採 spec-driven 流程：需求釐清後先更新對應 `specs/`，再實作、測試、commit、部署
+   與驗證。Django runtime、模板、靜態資源、migration、依賴或部署關鍵檔有行為變更時，
+   必須同步規格；legacy `addons/**`、`docker-compose.yml` 亦同。
+3. 優先小步修改並保留現有資料相容性。涉及資料庫時，必須檢查 migration、舊資料轉換、
+   transaction、鎖定、unique／foreign key、可重跑性、備份與 rollback。
+4. 不得提交 `.env*`、token、secret、客戶文件、資料庫、log 或備份。敏感資料只能由環境
+   變數或唯讀 secret mount 提供。
+5. 不得將尚未執行的測試、正式部署或人工驗收寫成「通過」。已知限制、skip、失敗與
+   未涵蓋範圍必須在 release／完整性報告中明列。
+6. Django admin 只作管理者緊急查詢，所有 model 維持唯讀；正式異動必須使用具備欄位
+   驗證、財務連動與稽核紀錄的系統業務頁面。
 
-違反條款將由維護者要求補正，並可拒絕合併。
+## Django 變更最低驗證
+
+一般程式變更至少執行：
+
+```bash
+python manage.py check
+python manage.py makemigrations --check --dry-run
+python manage.py test <受影響測試>
+```
+
+合併或正式部署前另須執行完整 Django 測試；金流、傭金、台數歸屬、台數獎金、結算、
+併發與鎖定異動，必須保留 PostgreSQL 測試。依賴異動須跑 `pip-audit`。設定或容器異動
+須跑 `python manage.py check --deploy`、建置 `Dockerfile.django`，並驗證 runtime allowlist
+與非 root 使用者。
+
+UI 變更須依 `specs/026-django-order-mvp/04-tasks.md` 以桌機、平板、手機及鍵盤檢查；
+template/CSS 字串測試不能冒充真實瀏覽器與實體設備驗收。
+
+## 正式部署完成條件
+
+1. 先確認 T470P 正式 checkout、branch、工作樹、備份與可回復版本。
+2. 只使用 `docker-compose.django.yml` 與 `docker-compose.django.prod.yml` 部署 Django；
+   不因應用更新任意重啟 PostgreSQL、Redis 或同機其他服務。
+3. 正式 Web port 只可綁定 loopback，由 Cloudflare Tunnel 對外提供 HTTPS；token 與
+   Google Vision 金鑰不得進入 image 或 repo。
+4. Django web 與 workers 必須使用非 superuser 的資料庫 app role；PostgreSQL 管理角色
+   只供初始化、維護與備份，其帳密不得提供給 application containers。
+5. 部署後必須確認 compose health、背景 workers、本機 `/health/`、正式網域 `/health/`
+   與至少一個登入後關鍵流程。只有容器 `Up` 不算完成。
+6. migration、儲存路徑或重大財務邏輯異動前必須先備份；高風險異動需有可操作的還原
+   步驟，不得以 `docker compose down` 或破壞性 Git 指令處理失敗部署。
+
+## Legacy Odoo
+
+只有實際修改 `addons/**` 或舊 `docker-compose.yml` 時，才使用 Odoo 的安裝、升級與
+`scripts/smoke_odoo.sh`／`make smoke`。禁止修改 Odoo 核心程式；legacy 自訂仍限於
+`addons/`。Odoo 文件與 smoke 的存在不代表舊系統仍是正式功能入口。
+
+不符合以上規則的變更不得標示完成，並應在合併或部署前補正。

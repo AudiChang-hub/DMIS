@@ -1,103 +1,190 @@
-# DMIS Next — Django 訂單與庫存 MVP
+# DMIS Next｜車輛銷售管理系統（Django）
 
-2026-07-28 起新增 Django 版本，目標是取代 Odoo 作為後續正式系統。既有
-`addons/` 與 Odoo 規格暫時保留作歷史參考，不再作為新功能實作入口。
+DMIS Next 是目前正式維護的車輛銷售、庫存與營運系統。2026-07-28 起由
+Django 版本接手新功能；`addons/`、`docker-compose.yml` 與舊 Odoo 文件只保留供
+歷史查閱，不是目前功能與部署入口。
 
-目前第一個可操作流程：
+## 目前功能
 
-1. 手機建立訂單並拍攝證件正反面。
-2. 列印一式兩份的正式訂購合約。
-3. 可選擇上傳合約附件歸檔。
-4. 訂單建立後即可從跨門市庫存配車。
-5. 配車後鎖定實體車，避免重複銷售。
-6. 首頁集中顯示全部門市待辦，並支援跨欄位搜尋。
+- 訂單草稿、證件 OCR、建立／修改、列印與完整變更紀錄。
+- 配車、改配、庫存位置與車況歷程、領牌、補助、交付、取消與全額退款。
+- 訂金、尾款、分期／平台撥款、刷卡費、成本、收入、支出、對帳與單筆淨利。
+- 車行傭金、單筆台數與傭金歸屬、跨品牌／能源／車型／車行的台數獎金。
+- 車型別附加獎勵，以及實物、紅包、禮券、點數品項與成本版本。
+- 本店人員、合作車行、網路平台、通路分類、車型、售價、分期與牌險等主檔。
+- 每月價格表分發：負責人、拖拉順序、電話、Google Maps、完成狀態與當月備註。
+- 全欄位搜尋、歷史 Excel 預覽／匯入、工作日曆、定位套表與每帳號手機捷徑。
 
-本機快速啟動：
+操作規則以 [使用者操作手冊](docs/USER_MANUAL.md) 與登入後右上角「使用說明」
+為準。管理者可由「資料維護區 → 系統完整性報告」查看目前版本的稽核摘要；
+即時資料庫、背景工作、搜尋索引及儲存空間則看「系統狀態檢查」。
+
+## 本機開發
+
+需求：Python 3.12、Node.js（只用於前端靜態測試），以及可讀取繁中文字型的環境。
 
 ```powershell
+python -m pip install -r requirements-django.txt
 python manage.py migrate
 python manage.py seed_demo --username admin --password 請設定測試密碼
 python manage.py runserver
 ```
 
-開啟 `http://127.0.0.1:8000/`。
+開啟 `http://127.0.0.1:8000/`。未設定 `POSTGRES_HOST` 時使用本機 SQLite；這只適合
+開發與測試，正式環境必須使用 PostgreSQL。
 
-T470P Ubuntu Docker 啟動：
+## 自動驗證
 
-```bash
-cp .env.django.example .env.django
-# 修改 .env.django 中的 secret、密碼與網域
-docker compose -f docker-compose.django.yml up -d --build
-docker compose -f docker-compose.django.yml exec web \
-  python manage.py seed_demo --username admin --password '請設定強密碼'
-```
-
-部署完成後固定執行：
-
-```bash
-docker compose -f docker-compose.django.yml ps
-bash scripts/smoke_django.sh http://127.0.0.1:19999
-docker compose -f docker-compose.django.yml exec web python manage.py check --deploy
-```
-
-正式環境使用資源限制與 log 輪替 override：
-
-```bash
-docker compose -f docker-compose.django.yml \
-  -f docker-compose.django.prod.yml up -d
-```
-
-正式網域 `https://dmis.moto-core.com/` 沿用 T470P 既有的 Cloudflare Tunnel
-與 `http://odoo:8069` 來源名稱。該名稱由新系統的 `tunnel-proxy` 服務接手並轉送
-至 `http://web:8000`，Tunnel connector 也由 `docker-compose.django.prod.yml`
-管理並固定使用 HTTP/2，避免 T470P 網路上的 QUIC 連線反覆逾時；不需新建
-Tunnel、DNS 或 credentials。
-
-正式機必須將既有 Tunnel token 單獨存放於
-`secrets/cloudflare-tunnel.token`，內容只包含 token，權限設為 `600`。該目錄已被
-Git 忽略；token 與 credentials 不得寫入 repo 或 `.env.django`。切換前必須確認
-`/health/`；若新 connector 無法連線，可先重新啟動保留的舊
-`dmis-cloudflared-1` connector，再停止 `dmis-next-cloudflared-1` 回復服務。
-
-### 舊 Odoo 主檔遷移
-
-舊 Odoo 的車行、品牌合作、車型、顏色、價格版本、國定假日及可安全映射的
-傭金規則，可用下列流程先乾跑再套用：
-
-```bash
-# 在舊 Odoo container 內匯出（唯讀）
-python /tmp/export_odoo_master_data.py \
-  --database dmis_dev --output /tmp/odoo-master.json
-
-# 在 Django container 內預覽；確認後才加 --apply
-python manage.py import_odoo_master_data /tmp/odoo-master.json
-python manage.py import_odoo_master_data /tmp/odoo-master.json --apply
-```
-
-匯入指令可重跑，會以車行代碼、車型組合鍵及有效日期更新既有資料。舊 Odoo
-銷貨不會直接轉成正式訂單，避免和正式 Excel 重複；實物贈品規則與缺少分期
-公司的舊分期列也只列入報告，待人工確認語意後再處理。
-
-`/health/` 僅回報 Web 與資料庫是否可用，不顯示版本、密碼或環境內容。正式媒體目錄
-必須讓 UID/GID `1000:1000` 可寫；完整容器安全檢查見
-`docs/DJANGO_CONTAINER_SECURITY.md`。
-
-驗證：
+提交前至少執行：
 
 ```powershell
 python manage.py check
+python manage.py makemigrations --check --dry-run
 python manage.py test sales
+node --test tests/frontend/floating-list.test.cjs tests/frontend/bonus-periods.test.cjs tests/frontend/bonus-model-filter.test.cjs
 ```
 
-### T470P 儲存與備份
+依賴弱點比對：
 
-正式環境的 PostgreSQL 保留在 SSD；訂單媒體與本機備份位於
-`/srv/dmis-data/dmis-next`。`dmis-next-backup.timer` 每日執行：
+```powershell
+python -m pip install pip-audit
+python -m pip_audit -r requirements-django.txt
+```
 
-- PostgreSQL 每日備份保留 14 天、每週保留 8 週、每月保留約 12 個月。
-- 媒體每日同步目前鏡像，並建立每週、每月封存。
+財務一致性稽核是唯讀命令；先在備份或只讀可接受的環境確認，再對正式資料執行：
 
-維運檢查：
+```powershell
+python manage.py audit_financial_consistency --sample-limit 30
+```
+
+正式設定檢查需使用測試專用 secret 與 PostgreSQL 測試連線，不能把正式 secret 寫進
+命令、CI 或 log：
+
+```bash
+DJANGO_DEBUG=0 \
+DJANGO_ENV=production \
+DJANGO_SECRET_KEY=ci-only-7Vf4pQ9xT2mR8kN5sL1dC6wH3zB0yG7uJ4aE9rP2nX8qM5 \
+DJANGO_ALLOWED_HOSTS=dmis.example.test,localhost,127.0.0.1 \
+DJANGO_CSRF_TRUSTED_ORIGINS=https://dmis.example.test \
+POSTGRES_HOST=127.0.0.1 \
+POSTGRES_DB=finance_ci \
+POSTGRES_USER=finance_ci \
+POSTGRES_PASSWORD=ci-isolated-only \
+DJANGO_DB_USER=finance_ci_app \
+DJANGO_DB_PASSWORD=ci-app-isolated-only \
+python manage.py check --deploy
+```
+
+GitHub Actions 目前執行：
+
+- `pip-audit`、Django 一般與 `--deploy` system check。
+- migration 漂移檢查、全部 Django SQLite 測試及關鍵財務 PostgreSQL 測試。
+- 三組既有前端行為測試。
+- `Dockerfile.django` 正式映像建置、非 root 身分、runtime allowlist 與映像內
+  `check --deploy`。
+- 一次性 PostgreSQL 16 初始化，驗證 Django app role 為 database owner 且沒有
+  superuser、createdb、createrole 或 replication 權限。
+- PR 的 spec 同步檢查。
+
+目前 repo 未啟用 GitHub Code scanning、Secret scanning 與 Dependabot alerts API；
+`pip-audit` 與本機程式檢查不能取代持續式代管掃描。若 GitHub 方案與權限允許，應再
+開啟這三項服務。CI 也不是實體手機、相機、分享與印表機驗收的替代品。
+
+UI 有異動時，另以桌機 `1440×900`、平板 `820×1180`、手機 `390×844` 開啟受影響
+頁面，並在網址加入 `?ui_audit=1`；根元素的 `data-ui-layout-issues` 應為 `0`。
+同時以鍵盤檢查焦點順序、下拉選單、彈窗、固定操作列、拖拉替代操作及放大後內容。
+驗收項目見 `specs/026-django-order-mvp/04-tasks.md`。
+
+## T470P 正式部署
+
+正式專案目錄為 `/home/audi/project/DMIS-next`。第一次設定：
+
+```bash
+cp .env.django.example .env.django
+# 設定獨立 secret、PostgreSQL 強密碼、正式網域與本機綁定 port
+```
+
+正式 `.env.django` 的 Web port 必須只綁 loopback：
+
+```dotenv
+DJANGO_PORT=19999
+DJANGO_DEBUG=0
+DJANGO_ENV=production
+DJANGO_ALLOWED_HOSTS=dmis.moto-core.com,localhost,127.0.0.1
+DJANGO_CSRF_TRUSTED_ORIGINS=https://dmis.moto-core.com
+POSTGRES_DB=dmis
+POSTGRES_USER=dmis_admin
+POSTGRES_PASSWORD=請替換為資料庫管理角色強密碼
+DJANGO_DB_USER=dmis_app
+DJANGO_DB_PASSWORD=請替換為應用程式資料庫強密碼
+```
+
+`POSTGRES_USER`／`POSTGRES_PASSWORD` 是 PostgreSQL 管理角色，供資料庫初始化與備份；
+Django 的一般連線只使用 `DJANGO_DB_USER`／`DJANGO_DB_PASSWORD`。初始化腳本會讓 app
+role 成為該 database owner，但保持 `NOSUPERUSER`、`NOCREATEDB`、`NOCREATEROLE` 與
+`NOREPLICATION`。既有 volume 補跑時只移交目前 database 的非系統物件，不會變更其他
+database 或 tablespace 的所有權。Compose 會在 web 與三個 worker 內清空管理角色變數，
+避免應用程式取得管理密碼。兩組帳密必須不同，且不得沿用範例文字。
+
+`scripts/init_django_db.sh` 只會由 PostgreSQL 官方 image 在**全新資料 volume** 自動執行。
+既有正式 volume 不會補跑；升級前須先完成可還原備份，再以既有管理角色在 DB container
+內明確執行一次，確認 app role 建立成功後才切換 Django 連線：
+
+```bash
+docker compose -f docker-compose.django.yml \
+  -f docker-compose.django.prod.yml exec -T db \
+  bash /docker-entrypoint-initdb.d/10-dmis-app-role.sh
+```
+
+若 app role 已存在，初始化腳本不會替它輪替密碼；更換既有密碼須由資料庫管理者安排，
+並同步更新 `DJANGO_DB_PASSWORD`。不要只改 `POSTGRES_PASSWORD` 就假設既有 volume 的管理
+角色密碼已變更。
+
+`19999` 是 T470P 上的本機健康檢查入口，不應直接暴露給區網或 Internet。正式使用者
+只經 `https://dmis.moto-core.com/` 與 Cloudflare Tunnel 進入；
+`docker-compose.django.prod.yml` 的 `tunnel-proxy` 保留舊來源名稱 `odoo:8069`，但實際
+轉送到 Django `web:8000`。Tunnel connector 固定使用 HTTP/2。
+
+Tunnel token 只存於 `secrets/cloudflare-tunnel.token`，檔案權限設為 `600`；不得提交
+至 Git，也不得放進 `.env.django`。Google Vision 金鑰同樣只能以唯讀 secret mount
+提供。
+
+正式啟動與檢查：
+
+```bash
+docker compose -f docker-compose.django.yml \
+  -f docker-compose.django.prod.yml up -d --build
+docker compose -f docker-compose.django.yml \
+  -f docker-compose.django.prod.yml ps
+bash scripts/smoke_django.sh http://127.0.0.1:19999
+docker compose -f docker-compose.django.yml \
+  -f docker-compose.django.prod.yml exec -T web python manage.py check --deploy
+curl --fail --silent --show-error https://dmis.moto-core.com/health/
+```
+
+`/health/` 只回報 Web 與資料庫能否使用，不顯示版本、密碼或環境內容。部署完成不只
+看容器是否 `Up`，還要確認本機與正式網域健康檢查、背景 workers，以及實際登入後的
+關鍵頁面。
+
+### 安全部署腳本
+
+```bash
+chmod +x scripts/deploy_django.sh scripts/backup_django_data.sh
+./scripts/deploy_django.sh
+```
+
+腳本會確認 branch、乾淨工作樹與 fast-forward，先備份 PostgreSQL 和媒體，再重建
+web／OCR／搜尋／匯入服務、重建 tunnel proxy、驗證 HTTP/2 connector 與正式網域。
+資料庫與 Redis 不會因應用更新而重啟。任一檢查失敗時不得用 `docker compose down`
+繞過保護，應依 log 修正或回復前一個已驗證版本。
+
+## 儲存、備份與排程
+
+正式 PostgreSQL 保留於 SSD，媒體與本機備份位於 `/srv/dmis-data/dmis-next`。
+`dmis-next-backup.timer` 每日執行：
+
+- PostgreSQL 每日備份保留 14 天、每週 8 週、每月約 12 個月。
+- 媒體每日同步目前鏡像，另建立每週與每月封存。
 
 ```bash
 findmnt /srv/dmis-data
@@ -105,16 +192,13 @@ systemctl status dmis-next-backup.timer
 journalctl -u dmis-next-backup.service -n 100 --no-pager
 ```
 
-舊的 `dmis-next_django_media` volume 是遷移回復點，確認新儲存穩定前不得刪除。
+只有備份檔存在不代表可還原；重大 migration 或儲存異動前應在隔離環境演練還原。
+舊的 `dmis-next_django_media` volume 是遷移回復點，確認新儲存與還原流程前不得刪除。
 
-### 工作日行事曆自動同步
+### 工作日行事曆
 
-`dmis-next-calendar-sync.timer` 每月 1 日在背景執行一次，從政府資料開放平臺的
-「中華民國政府行政機關辦公日曆表」同步當年與次年的平日放假資料。次年尚未
-公布時只更新當年；下載或驗證失敗時不會改動既有資料。人工補登的例外日期會
-保留，週六與週日仍由系統固定排除。
-
-正式機安裝與檢查：
+`dmis-next-calendar-sync.timer` 每月 1 日同步當年與次年的政府辦公日曆。下載、網域、
+重新導向、檔案大小或內容驗證失敗時保留既有資料；人工例外日期不會被覆蓋。
 
 ```bash
 sudo bash scripts/install_django_calendar_sync_timer.sh
@@ -123,225 +207,39 @@ sudo systemctl start dmis-next-calendar-sync.service
 journalctl -u dmis-next-calendar-sync.service -n 50 --no-pager
 ```
 
-需要指定年度人工同步時，可在 web container 執行：
+### 每月價格表分發
 
-```bash
-docker compose -f docker-compose.django.yml -f docker-compose.django.prod.yml \
-  exec -T web python manage.py sync_business_calendar --year 2026 --year 2027
-```
-
-### 每月價格表分發清單
-
-`dmis-next-price-list-distribution.timer` 每日執行防呆：缺少本月清單時自動補建，並在每月最後一天預先建立隔月清單。
+`dmis-next-price-list-distribution.timer` 每日防呆：缺少本月清單時補建，並於每月最後
+一天預先建立隔月清單。
 
 ```bash
 sudo bash scripts/install_django_price_list_distribution_timer.sh
+systemctl list-timers dmis-next-price-list-distribution.timer --all
 python manage.py generate_price_list_distribution --month 2026-09
 ```
 
-UI 有異動時，另以桌機、平板及手機 viewport 開啟主要頁面，並在網址加入
-`?ui_audit=1`。頁面根元素的 `data-ui-layout-issues` 必須為 `0`；完整檢查清單
-見 `specs/026-django-order-mvp/04-tasks.md`。
+## 已知功能邊界
 
-訂單、配車、補助、領牌、交付、取消退款、工作日提醒、營運財務、
-歷史 Excel 匯入及定位套表均已納入 Django 系統。LicenseWatcher Ubuntu
-worker 依目前決策暫緩，不列入本次正式部署；後續若啟動，仍以
-`specs/026-django-order-mvp/` 的自動監控與回傳候選號碼邊界為準。
+- 車行附加獎勵會保存承諾內容與單位成本快照，但尚未自動建立庫存出庫、應付款或
+  單筆淨利支出；正式發放仍須依單據處理。
+- 日常營運頁目前採內部帳號互信，多數登入者權限相同；「帳號與權限」及「系統完整性
+  報告」只開放 superuser。這不代表可以查看或修改與工作無關的個資。
+- Django admin 僅供系統管理者在緊急狀況下查詢。訂單、庫存、財務、獎勵、匯入及其他
+  正式資料異動一律走系統業務頁面，以保留驗證、連動與稽核紀錄；admin 中的資料模型
+  全部為唯讀。
+- LicenseWatcher Ubuntu worker 尚未啟用；指定號碼仍依人工流程處理。
+- 實體手機相機、分享、印表機偏移與現場網路需人工驗收。
 
-### 正式環境安全與容量
+## 舊 Odoo 資料與文件
 
-- PostgreSQL 保留於 SSD；媒體檔與備份放在 Toshiba 資料碟。
-- 全欄位訂單搜尋使用單筆彙整索引；PostgreSQL 另建立 `pg_trgm` GIN index。
-- 訂單日期、實際領牌日期及收款確認查詢均建立資料庫索引。
-- 上傳請求上限為 30 MB，超過 5 MB 的單一檔案會改用暫存檔處理，避免擠占 Web 記憶體。
-- 正式環境必須設定獨立 `DJANGO_SECRET_KEY` 與 PostgreSQL 強密碼；不得提交 `.env.django` 或 Google Vision 金鑰。
-- 若直接在內網以 `http://T470P:19999` 存取，須將 HTTPS 相關環境變數設為 `0`；若前方有 HTTPS reverse proxy，則維持安全 Cookie、HSTS 與 SSL redirect。
-
----
-
-## 舊版 Odoo 歷史說明
-
-如何載入示範資料（Seed / Demo）：
-
-1. 安裝 `DMS Core` 模組時，系統會自動載入 `data/seed.xml` 的示範資料（若 manifest 中 `data` 包含 `data/seed.xml`）。
-2. 若需要重新載入示範資料，可於模組安裝前先移除模組後重新安裝；或在開發環境使用匯入工具匯入 `addons/dms_core/data/seed.xml` 中的紀錄。
-
-驗證步驟（示範資料）：
-
-1. 啟動專案：
+舊 Odoo 只作歷史參考，不與目前 Django 正式服務同時作為資料輸入來源。需要搬移主檔
+時，先乾跑再由管理者確認：
 
 ```bash
-make up
+python manage.py import_odoo_master_data /tmp/odoo-master.json
+python manage.py import_odoo_master_data /tmp/odoo-master.json --apply
 ```
 
-2. 確認 Odoo 可達並登入後台（http://localhost:8069）。
-3. 在 Apps 更新應用清單，安裝 `DMS Core`。
-4. 安裝完成後，前往 `DMS -> 車行`，應可看到至少三筆示範資料（D001、D002、D003）。
-# DMIS
-
-此專案為 Odoo Community 最小專案骨架，包含 docker-compose 一鍵啟動、smoke 測試與規格治理。所有文件皆以繁體中文為主。
-
-> 2026-03-27 架構更新：
-> - `dms_catalog` 與舊 `dms_pricelist` 已終止，歷史收尾以 `014-module-removal` 為準
-> - `dms_product` 已依 `015-dms-product-rebuild` 重建為新的獨立產品管理模組
-> - `dms_sale` 保留銷售交易與 legacy 相容模型，查價邏輯優先讀取 `dms_product` 的 canonical 價格結構
-
-快速開始：
-
-1. 複製 `.env.example` 為 `.env` 並調整必要參數。
-2. 啟動：
-
-```bash
-make up
-```
-
-3. 看日誌：
-
-```bash
-make logs
-```
-
-4. 驗證：
-
-```bash
-make smoke
-```
-
-若目前環境沒有安裝 `make`，可直接使用：
-
-```bash
-docker compose up -d
-bash scripts/smoke_odoo.sh
-```
-
-Windows 使用者備註：
-
-- 若系統沒有 `make` 或使用 Windows 原生 PowerShell，可改用下列等效指令：
-
-	- 啟動服務（PowerShell / CMD）：
-
-		```powershell
-		docker compose up -d --build
-		```
-
-	- 在 Git Bash 下使用原有 bash 腳本：
-
-		```bash
-		bash scripts/smoke_odoo.sh
-		```
-
-	- 或在 PowerShell 直接執行新增的檢查腳本：
-
-		```powershell
-		.\scripts\smoke_odoo.ps1
-		```
-
-VS Code 建議設定（讓自動化/Tasks 使用 PowerShell 不載入使用者 profile）：
-
-- 檔案：`.vscode/settings.json`
-- 內容示例：已加入 `terminal.integrated.automationProfile.windows`，會使用 PowerShell 並帶 `-NoProfile` 參數，避免在自動化終端載入使用者的 profile，減少非預期中斷（例如 3 秒退出問題）。
-
-
-開發：新增 module 至 `addons/`，並同步更新 `specs/` 下對應規格檔。
-
-## T470P Django 安全部署
-
-正式環境位於 `/home/audi/project/DMIS-next`。部署腳本會依序檢查 branch 與
-工作樹、建立 PostgreSQL 與媒體備份、僅重建 Django web／OCR／搜尋服務，
-再重新載入 tunnel proxy 並驗證正式網域。資料庫、Redis 與同機其他服務不會
-因應用程式更新而重啟。
-
-```bash
-chmod +x scripts/deploy_django.sh scripts/backup_django_data.sh
-./scripts/deploy_django.sh
-```
-
-若工作樹有已追蹤的未提交修改、遠端不是 fast-forward、備份失敗、容器未恢復
-健康或正式網域回傳錯誤，腳本會停止並留下明確訊息。請勿跳過檢查直接執行
-`docker compose down`。
-
-## 舊 Odoo 自動部署（切換後已停用）
-
-以下為舊系統保留紀錄。舊環境可使用 systemd user timer，每分鐘檢查指定 Git branch。只有遠端
-出現 fast-forward commit 且工作樹乾淨時才會部署；更新前會備份 PostgreSQL，
-有 addon 變更時會升級對應 Odoo module，最後執行 smoke test。
-
-首次安裝：
-
-```bash
-chmod +x scripts/install_auto_deploy.sh scripts/auto_deploy.sh
-./scripts/install_auto_deploy.sh
-```
-
-查看狀態與日誌：
-
-```bash
-systemctl --user status dmis-auto-deploy.timer
-journalctl --user -u dmis-auto-deploy.service -n 100 --no-pager
-```
-
-手動 dry-run：
-
-```bash
-DMIS_DEPLOY_DRY_RUN=1 ./scripts/auto_deploy.sh
-```
-
-如何安裝 `dms_core` 模組（繁中）：
-
-1. 確保專案已啟動：`make up`。
-2. 開啟瀏覽器至 http://localhost:8069，登入 Odoo 後台（或建立管理員帳號）。
-3. 進入「應用程式（Apps）」，點選右上角的「更新應用清單」或在開發者模式下按「更新模組清單」。
-4. 在搜尋欄輸入「DMS Core」或「車行」，找到 `DMS Core` 模組後按安裝。
-5. 安裝後可在側邊選單 `DMS -> 車行` 瀏覽/建立車行。
-
-提示：若在 Apps 找不到模組，請確認 `addons/` 已正確掛載到容器的 `/mnt/extra-addons`，並在 Odoo 的 Apps 頁面中按「更新應用清單」。
-
-## 模組清單
-
-| Phase | 模組 | 選單名稱 | 狀態 |
-|-------|------|----------|------|
-| 0 | dms_core | 車行管理 | ✅ 完成 |
-| 1 | dms_customer | 客戶管理 | ✅ 完成 |
-| 2 | dms_sale | 銷售管理（交易主流程 + legacy 相容） | ✅ 已實作 |
-| 2 | dms_product | 產品管理（模板 / SKU / 價格 / 分期 / 費用） | ✅ 已重建 |
-| 2 | dms_visit | 拜訪紀錄 | ✅ 完成 |
-| 3 | dms_finance | 財務結算 | ✅ 已實作 |
-| 4 | dms_report | 報表分析 | ✅ 已實作 |
-| 4 | dms_report_rule | 報表規則 | ✅ 已實作 |
-| 4 | dms_report_virtual | 虛擬欄位 | ✅ 已實作 |
-| Admin | user_management | 使用者管理 | ✅ 完成 |
-
-歷史說明：
-
-- `dms_catalog` 路線已正式撤回，相關歷史脈絡收斂於 `specs/014-module-removal/`
-- 舊 `dms_product` / `dms_pricelist` 已在 014 收尾移除；015 之後由新的 `dms_product` 模組重新作為唯一正式產品入口
-- 舊 `dms_sale` 產品 / 價目選單已隱藏，正式入口改為「產品管理」App；`dms_sale` 仍保留 `dms.product` / `dms.vehicle.price` 等 legacy 相容結構
-
-## 維運腳本
-
-- 清理已移除 `dms_catalog` / `dms_pricelist` 的殘留 metadata、舊頂層選單與模組登記，並清除重建 `dms_product` 前的孤兒模組 XML ID：
-
-```bash
-python3 scripts/cleanup_dms_catalog_metadata.py
-```
-
-
-使用 Slash Commands（Copilot Chat）:
-
-- Prompt 檔放置位置：`.github/prompts/`，副檔名 `.prompt.md`。
-- 可用的指令（在 Copilot Chat 輸入 `/` 後可見）：
-	- `/dms-specify`：需求變更入口，輸入需求描述後會產出 Spec-first 的影響分析、要更新的 specs 檔案草稿、最小實作步驟與 PR 範本。
-	- `/dms-feature`：新功能入口，會在 `specs/` 中建立新的 00~05 檔案骨架、列出 Open Questions/Assumptions，並產出最小實作建議。
-	- `/dms-merge`：合併前檢查清單產生器，輸入 PR 編號或連結會回傳繁中合併檢查項與建議（不會合併）。
-
-快速開始（示例）：
-
-- /dms-specify <貼上需求變更>
-- /dms-feature <新功能一句話目標>
-
-工作流程（簡要）：
-
-1. 使用 `/dms-specify` 或 `/dms-feature` 產出或更新 specs（Spec-first）。
-2. 在 `specs/` 完成並確認後，建立 feature branch、實作最小變更；凡變更需要重啟 Odoo 才生效者，修改後需自動執行 `docker compose restart odoo`，再執行 `make smoke`。
-3. 開 PR，PR 描述必填對應 specs 路徑；CI 會檢查若修改 `addons/**` 或 `docker-compose.yml`、`scripts/**`、`Makefile` 必須同步更新 `specs/**`。
-4. 使用 `/dms-merge` 產出合併檢查清單後再合併。
+指令可依車行代碼、車型組合鍵與有效日期重跑。舊銷貨不會直接轉成正式訂單，以避免與
+正式 Excel 重複。歷史 Odoo 安裝與模組紀錄請看 `addons/`、`docs/CHANGELOG.md` 與舊版
+specs；若要修改 legacy runtime，仍須使用對應的 Odoo smoke，不能拿 Django 驗證代替。

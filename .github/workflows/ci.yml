@@ -6,10 +6,14 @@ on:
   pull_request:
     types: [opened, synchronize, reopened]
 
+permissions:
+  contents: read
+
 jobs:
   django-quality:
     name: Django 品質檢查
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     services:
       postgres:
         image: postgres:16
@@ -45,22 +49,47 @@ jobs:
       - name: Install Django dependencies
         run: |
           python -m pip install --disable-pip-version-check -r requirements-django.txt
-          python -m pip install --disable-pip-version-check pip-audit
+          python -m pip install --disable-pip-version-check pip-audit bandit
 
       - name: Audit Python dependencies
         run: python -m pip_audit -r requirements-django.txt
 
+      - name: Reject high-severity Python findings in tracked code
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          mapfile -t PYTHON_FILES < <(git ls-files '*.py' | grep -Ev '(^|/)(tests?|migrations)/')
+          test "${#PYTHON_FILES[@]}" -gt 0
+          python -m bandit -lll "${PYTHON_FILES[@]}"
+
       - name: Run Django system checks
         run: python manage.py check
 
-      - name: Verify floating list viewport placement
+      - name: Run Django production deployment checks
+        env:
+          DJANGO_DEBUG: "0"
+          DJANGO_ENV: production
+          DJANGO_SECRET_KEY: ci-only-7Vf4pQ9xT2mR8kN5sL1dC6wH3zB0yG7uJ4aE9rP2nX8qM5
+          DJANGO_ALLOWED_HOSTS: dmis.example.test,localhost,127.0.0.1
+          DJANGO_CSRF_TRUSTED_ORIGINS: https://dmis.example.test
+          DJANGO_SECURE_SSL_REDIRECT: "1"
+          POSTGRES_HOST: 127.0.0.1
+          POSTGRES_DB: finance_ci
+          POSTGRES_USER: finance_ci
+          POSTGRES_PASSWORD: ci-isolated-only
+          DJANGO_DB_USER: finance_app_ci
+          DJANGO_DB_PASSWORD: ci-runtime-only
+        run: python manage.py check --deploy
+
+      - name: Verify existing frontend behavior checks
         run: node --test tests/frontend/floating-list.test.cjs tests/frontend/bonus-periods.test.cjs tests/frontend/bonus-model-filter.test.cjs
 
       - name: Verify migrations are committed
         run: python manage.py makemigrations --check --dry-run
 
       - name: Run Django tests with SQLite
-        run: python manage.py test sales
+        run: python manage.py test sales --noinput
+
       - name: Verify financial transactions with PostgreSQL
         env:
           POSTGRES_HOST: 127.0.0.1
@@ -69,41 +98,140 @@ jobs:
           POSTGRES_PASSWORD: ci-isolated-only
         run: python manage.py test sales.tests.test_financial_consistency sales.tests.test_order_commission_recipient sales.tests.test_channel_finance sales.tests.test_volume_bonus_conditions sales.tests.test_volume_bonus_multiple_periods sales.tests.test_bonus_model_filter sales.tests.test_bonus_rule_deletion --noinput
 
-  build:
+  django-image:
+    name: Django 正式映像檢查
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
-      - name: Set up Docker Compose
-        run: |
-          sudo apt-get update && sudo apt-get install -y curl jq
-          # docker and docker-compose should be available on runners
+      - name: Build Django runtime image
+        run: docker build --pull -f Dockerfile.django -t dmis-django:ci .
 
-      - name: Ensure .env exists
+      - name: Verify runtime allowlist and non-root user
         run: |
-          if [ ! -f .env ] && [ -f .env.example ]; then
-            cp .env.example .env
-            echo ".env created from .env.example"
-          else
-            echo ".env already present or .env.example missing"
+          docker run --rm --entrypoint sh dmis-django:ci -c '
+            set -eu
+            test "$(id -u)" -ne 0
+            test -f /app/manage.py
+            test -f /app/scripts/start_django.sh
+            test ! -e /app/.git
+            test ! -e /app/.env
+            test ! -e /app/.env.django
+            test ! -e /app/secrets
+            test ! -e /app/db.sqlite3
+            test -z "$(find /app/media -mindepth 1 -print -quit)"
+          '
+
+      - name: Verify production settings inside image
+        run: |
+          docker run --rm --entrypoint python \
+            -e DJANGO_DEBUG=0 \
+            -e DJANGO_ENV=production \
+            -e DJANGO_SECRET_KEY=ci-only-7Vf4pQ9xT2mR8kN5sL1dC6wH3zB0yG7uJ4aE9rP2nX8qM5 \
+            -e DJANGO_ALLOWED_HOSTS=dmis.example.test,localhost,127.0.0.1 \
+            -e DJANGO_CSRF_TRUSTED_ORIGINS=https://dmis.example.test \
+            -e DJANGO_SECURE_SSL_REDIRECT=1 \
+            -e POSTGRES_HOST=database.invalid \
+            -e POSTGRES_DB=ci \
+            -e POSTGRES_USER=ci_admin \
+            -e POSTGRES_PASSWORD=ci-admin-only \
+            -e DJANGO_DB_USER=ci_app \
+            -e DJANGO_DB_PASSWORD=ci-runtime-only \
+            dmis-django:ci manage.py check --deploy
+
+      - name: Verify least-privilege PostgreSQL runtime role
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          DB_ROLE_CONTAINER="dmis-ci-db-role-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          POSTGRES_USER="ci_admin"
+          POSTGRES_DB="ci_role_test"
+          POSTGRES_PASSWORD="$(openssl rand -hex 24)"
+          DJANGO_DB_USER="ci_app"
+          DJANGO_DB_PASSWORD="$(openssl rand -hex 24)"
+          export DB_ROLE_CONTAINER POSTGRES_USER POSTGRES_DB POSTGRES_PASSWORD
+          export DJANGO_DB_USER DJANGO_DB_PASSWORD
+
+          cleanup() {
+            docker stop --time 10 "$DB_ROLE_CONTAINER" >/dev/null 2>&1 || true
+            docker rm -f "$DB_ROLE_CONTAINER" >/dev/null 2>&1 || true
+          }
+          trap cleanup EXIT INT TERM
+
+          docker run --detach --name "$DB_ROLE_CONTAINER" \
+            -e POSTGRES_USER -e POSTGRES_DB -e POSTGRES_PASSWORD \
+            -e DJANGO_DB_USER -e DJANGO_DB_PASSWORD \
+            --mount "type=bind,src=$PWD/scripts/init_django_db.sh,dst=/docker-entrypoint-initdb.d/10-dmis-app-role.sh,readonly" \
+            postgres:16 >/dev/null
+
+          if ! timeout 90s bash -c '
+            while true; do
+              if [ "$(docker inspect --format="{{.State.Running}}" "$DB_ROLE_CONTAINER" 2>/dev/null || true)" != "true" ]; then
+                exit 1
+              fi
+              role_state="$(
+                docker exec -i "$DB_ROLE_CONTAINER" psql \
+                  --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" \
+                  --tuples-only --no-align --set ON_ERROR_STOP=1 \
+                  --set app_user="$DJANGO_DB_USER" --set db_name="$POSTGRES_DB" \
+                  <<< "SELECT CASE WHEN r.rolcanlogin AND NOT r.rolsuper AND NOT r.rolcreatedb AND NOT r.rolcreaterole AND NOT r.rolreplication AND d.datdba = r.oid AND NOT EXISTS (SELECT 1 FROM pg_database other_db WHERE other_db.datdba = r.oid AND other_db.datname <> :'\''db_name'\'') AND NOT EXISTS (SELECT 1 FROM pg_tablespace tablespace WHERE tablespace.spcowner = r.oid) THEN '\''ok'\'' ELSE '\''invalid'\'' END FROM pg_roles r JOIN pg_database d ON d.datname = :'\''db_name'\'' WHERE r.rolname = :'\''app_user'\'';" \
+                  2>/dev/null || true
+              )"
+              case "$role_state" in
+                ok) exit 0 ;;
+                invalid) exit 2 ;;
+              esac
+              sleep 2
+            done
+          '; then
+            docker logs --tail 80 "$DB_ROLE_CONTAINER" >&2
+            exit 1
           fi
 
-      - name: Start services
-        run: |
-          docker compose up -d --build
+          timeout 30s bash -c '
+            until docker exec -e PGPASSWORD="$DJANGO_DB_PASSWORD" "$DB_ROLE_CONTAINER" \
+              psql --host 127.0.0.1 --username "$DJANGO_DB_USER" \
+              --dbname "$POSTGRES_DB" --set ON_ERROR_STOP=1 \
+              --command "SELECT 1" >/dev/null 2>&1; do
+              sleep 1
+            done
+          '
 
-      - name: Make smoke executable
-        run: chmod +x scripts/smoke_odoo.sh || true
+          if docker exec -e DJANGO_DB_PASSWORD="$POSTGRES_PASSWORD" \
+            "$DB_ROLE_CONTAINER" \
+            bash /docker-entrypoint-initdb.d/10-dmis-app-role.sh >/dev/null 2>&1; then
+            echo "Error: 初始化腳本接受了與管理角色相同的 app 密碼。" >&2
+            exit 1
+          fi
 
-      - name: Wait for Odoo smoke
-        run: ./scripts/smoke_odoo.sh
+          # 模擬既有 volume：管理角色曾建立資料表，重跑腳本後 app role 必須
+          # 能讀寫既有資料並執行 Django migration 所需的 ALTER TABLE。
+          docker exec "$DB_ROLE_CONTAINER" psql \
+            --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" \
+            --set ON_ERROR_STOP=1 \
+            --command "CREATE TABLE legacy_role_probe (id bigint PRIMARY KEY, note text); INSERT INTO legacy_role_probe VALUES (1, 'before-role-split'); ALTER ROLE \"$DJANGO_DB_USER\" WITH SUPERUSER CREATEDB CREATEROLE REPLICATION;" \
+            >/dev/null
+          docker exec "$DB_ROLE_CONTAINER" \
+            bash /docker-entrypoint-initdb.d/10-dmis-app-role.sh >/dev/null
+          test "$(
+            docker exec -i "$DB_ROLE_CONTAINER" psql \
+              --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" \
+              --tuples-only --no-align --set ON_ERROR_STOP=1 \
+              --set app_user="$DJANGO_DB_USER" \
+              <<< "SELECT CASE WHEN rolcanlogin AND NOT rolsuper AND NOT rolcreatedb AND NOT rolcreaterole AND NOT rolreplication THEN 'ok' ELSE 'invalid' END FROM pg_roles WHERE rolname = :'app_user';"
+          )" = "ok"
+          docker exec -e PGPASSWORD="$DJANGO_DB_PASSWORD" "$DB_ROLE_CONTAINER" \
+            psql --host 127.0.0.1 --username "$DJANGO_DB_USER" \
+            --dbname "$POSTGRES_DB" --set ON_ERROR_STOP=1 \
+            --command "SELECT note FROM legacy_role_probe WHERE id = 1; INSERT INTO legacy_role_probe VALUES (2, 'after-role-split'); ALTER TABLE legacy_role_probe ADD COLUMN verified boolean NOT NULL DEFAULT true;" \
+            >/dev/null
 
   pr-spec-check:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -115,10 +243,14 @@ jobs:
           BASE=origin/${{ github.event.pull_request.base.ref }}
           git fetch origin ${{ github.event.pull_request.base.ref }} --depth=1 || true
           CHANGED=$(git diff --name-only $BASE...HEAD || true)
-          echo "Changed files:\n$CHANGED"
-          # If any of these critical files changed, require specs/ to also change
-          echo "$CHANGED" | grep -E '^(addons/|docker-compose.yml|scripts/|Makefile)' && (
-            echo "$CHANGED" | grep -q '^specs/' || (
-              echo "Error: 修改 addons/**、docker-compose.yml、scripts/** 或 Makefile 時，必須同步更新 specs/**。" && exit 1
-            )
-          ) || echo "No critical changes or specs OK"
+          printf 'Changed files:\n%s\n' "$CHANGED"
+          # Django runtime、部署或 legacy Odoo 關鍵檔變更時，皆要求同步規格。
+          if printf '%s\n' "$CHANGED" | grep -Eq '^(sales/|config/|templates/|static/|Dockerfile\.django$|docker-compose\.django(\.prod)?\.yml$|requirements-django\.txt$|addons/|docker-compose\.yml$|scripts/|Makefile$)'; then
+            if ! printf '%s\n' "$CHANGED" | grep -q '^specs/'; then
+              echo "Error: 修改 Django/Odoo runtime 或部署關鍵檔時，必須同步更新 specs/**。"
+              exit 1
+            fi
+            echo "Critical changes include a specs update."
+          else
+            echo "No critical runtime or deployment changes."
+          fi

@@ -8,6 +8,7 @@ from sales.themes import DEFAULT_THEME, THEME_DEFINITIONS, THEME_META_COLORS, TH
 
 HELP_TOPIC_BY_ROUTE = {
     "dashboard": "dashboard",
+    "system_diagnostics": "system-integrity",
     "order_list": "search-orders",
     "order_create": "create-order",
     "order_edit": "create-order",
@@ -66,6 +67,7 @@ HELP_TOPIC_BY_ROUTE = {
     "incentive_rule_create": "master-data",
     "incentive_rule_edit": "master-data",
     "user_management": "account-management",
+    "system_integrity_report": "system-integrity",
     "user_account_create": "account-management",
     "user_account_edit": "account-management",
     "user_account_reset_password": "account-management",
@@ -75,6 +77,7 @@ HELP_TOPIC_BY_ROUTE = {
 
 DATA_MAINTENANCE_ROUTES = {
     "data_maintenance",
+    "system_diagnostics",
     "customer_list",
     "customer_detail",
     "inventory_list",
@@ -128,6 +131,7 @@ DATA_MAINTENANCE_ROUTES = {
     "user_account_create",
     "user_account_edit",
     "user_account_reset_password",
+    "system_integrity_report",
 }
 
 

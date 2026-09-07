@@ -1,9 +1,17 @@
 from django.contrib.auth import get_user_model
 from django.test import TestCase
 from django.urls import reverse
+from unittest.mock import patch
 
 
 class SystemIntegrityReportTests(TestCase):
+    def test_restore_failure_is_not_styled_as_success(self):
+        self.client.force_login(self.admin)
+        with patch("sales.services.system_integrity.restore_drill_status", return_value={"label": "還原演練失敗", "success": False}):
+            response = self.client.get(reverse("system_integrity_report"))
+        self.assertContains(response, "integrity-restore--attention")
+        self.assertContains(response, "還原演練失敗")
+
     def setUp(self):
         self.admin = get_user_model().objects.create_superuser(
             username="integrity-admin",

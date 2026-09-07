@@ -129,13 +129,18 @@ CHANNEL_LAYERS = {
     )
 }
 
+_database_user = os.environ.get("DJANGO_DB_USER") or os.environ.get("POSTGRES_USER", "dmis")
+_database_password = os.environ.get("DJANGO_DB_PASSWORD") or os.environ.get(
+    "POSTGRES_PASSWORD", "dmis"
+)
+
 if os.environ.get("POSTGRES_HOST"):
     DATABASES = {
         "default": {
             "ENGINE": "django.db.backends.postgresql",
             "NAME": os.environ.get("POSTGRES_DB", "dmis"),
-            "USER": os.environ.get("POSTGRES_USER", "dmis"),
-            "PASSWORD": os.environ.get("POSTGRES_PASSWORD", "dmis"),
+            "USER": _database_user,
+            "PASSWORD": _database_password,
             "HOST": os.environ["POSTGRES_HOST"],
             "PORT": os.environ.get("POSTGRES_PORT", "5432"),
         }
@@ -151,8 +156,16 @@ else:
 if IS_PRODUCTION:
     if not os.environ.get("POSTGRES_HOST"):
         raise ImproperlyConfigured("正式環境必須使用 PostgreSQL。")
-    if os.environ.get("POSTGRES_PASSWORD") in {None, "", "dmis", "請替換為強密碼"}:
-        raise ImproperlyConfigured("正式環境必須設定非預設 POSTGRES_PASSWORD。")
+    if not os.environ.get("DJANGO_DB_USER") or not os.environ.get("DJANGO_DB_PASSWORD"):
+        raise ImproperlyConfigured("正式環境必須設定獨立的 DJANGO_DB_USER 與 DJANGO_DB_PASSWORD。")
+    if os.environ.get("DJANGO_DB_USER") == os.environ.get("POSTGRES_USER"):
+        raise ImproperlyConfigured("Django runtime 不可使用 PostgreSQL 管理角色。")
+    if (
+        not _database_password
+        or _database_password == "dmis"
+        or _database_password.startswith("請替換")
+    ):
+        raise ImproperlyConfigured("正式環境必須設定非預設資料庫密碼。")
     if not ALLOWED_HOSTS or ALLOWED_HOSTS == ["*"]:
         raise ImproperlyConfigured("正式環境必須明確設定 DJANGO_ALLOWED_HOSTS。")
 

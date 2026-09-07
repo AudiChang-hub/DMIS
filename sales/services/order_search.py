@@ -1,3 +1,4 @@
+import logging
 from pathlib import PurePath
 
 import django_rq
@@ -18,6 +19,9 @@ from sales.models import (
     VehicleModel,
 )
 from sales.services.vehicle_brands import vehicle_brand_search_names
+
+
+logger = logging.getLogger(__name__)
 
 
 INTERNAL_FIELDS = {
@@ -475,12 +479,28 @@ def schedule_order_search_rebuild(order_id):
         rebuild_order_search_index(order_id)
         return
 
-    transaction.on_commit(
-        lambda: django_rq.get_queue("search").enqueue(
-            rebuild_order_search_index,
-            order_id,
-            job_timeout=90,
-            result_ttl=300,
-            failure_ttl=86400,
-        )
-    )
+    def enqueue_or_rebuild():
+        try:
+            django_rq.get_queue("search").enqueue(
+                rebuild_order_search_index,
+                order_id,
+                job_timeout=90,
+                result_ttl=300,
+                failure_ttl=86400,
+            )
+        except Exception:
+            logger.exception(
+                "搜尋索引無法排入背景佇列，改用同步重建",
+                extra={"order_id": order_id},
+            )
+            try:
+                rebuild_order_search_index(order_id)
+            except Exception:
+                # 索引屬於衍生資料；即使降級重建也失敗，不應讓已提交的
+                # 訂單操作回傳 500。保留完整日誌供管理者後續重建。
+                logger.exception(
+                    "搜尋索引同步降級重建失敗",
+                    extra={"order_id": order_id},
+                )
+
+    transaction.on_commit(enqueue_or_rebuild)

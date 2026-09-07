@@ -25,6 +25,7 @@ from django.urls import reverse
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.utils import timezone
 from django.views.decorators.http import require_http_methods
+from django.views.decorators.cache import never_cache
 import django_rq
 from rq import Retry, Worker
 from rq.registry import StartedJobRegistry
@@ -243,6 +244,7 @@ from .services.identity_document_pdf import (
     build_identity_document_pdf,
 )
 from .services.upload_validation import validate_image_upload
+from .services.system_integrity import build_system_integrity_report
 
 
 def _form_error_text(form):
@@ -336,13 +338,13 @@ def mobile_quick_links_update(request):
 
 
 def superuser_required(view_func):
-    """只允許目前仍啟用的系統管理者進入帳號管理功能。"""
+    """只允許目前仍啟用的系統管理者進入管理者專用功能。"""
 
     @wraps(view_func)
     @login_required
     def wrapped(request, *args, **kwargs):
         if not request.user.is_active or not request.user.is_superuser:
-            raise PermissionDenied("只有系統管理者可以管理帳號。")
+            raise PermissionDenied("只有系統管理者可以使用此功能。")
         return view_func(request, *args, **kwargs)
 
     return wrapped
@@ -493,6 +495,18 @@ def system_diagnostics(request):
             "checked_at": timezone.localtime(),
             "overall_tone": overall_tone,
         },
+    )
+
+
+@superuser_required
+@never_cache
+def system_integrity_report(request):
+    """Show the latest versioned integrity audit to system administrators only."""
+
+    return render(
+        request,
+        "sales/system_integrity_report.html",
+        {"integrity_report": build_system_integrity_report()},
     )
 
 

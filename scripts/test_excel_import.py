@@ -3,10 +3,15 @@
 透過 Odoo XML-RPC 呼叫 Excel 匯入 Wizard 的 action_import，
 執行完整匯入並顯示結果。
 """
-import xmlrpc.client
 import base64
 import os
 import sys
+# defusedxml monkey patch is applied before the first XML-RPC request.
+import xmlrpc.client  # nosec B411
+
+from defusedxml.xmlrpc import monkey_patch
+
+monkey_patch()
 
 ODOO_URL = os.environ.get('ODOO_URL', 'http://localhost:8069')
 DB = os.environ.get('ODOO_DB', 'dmis_dev')

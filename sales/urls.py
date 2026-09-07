@@ -7,6 +7,11 @@ from . import views
 urlpatterns = [
     path("health/", views.system_health, name="system_health"),
     path("system-status/", views.system_diagnostics, name="system_diagnostics"),
+    path(
+        "system/integrity-report/",
+        views.system_integrity_report,
+        name="system_integrity_report",
+    ),
     path("api/app-version/", views.app_version, name="app_version"),
     path(
         "appearance/theme/",

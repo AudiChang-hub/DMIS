@@ -83,7 +83,7 @@
     <strong>{% if selected.scope == 'history' %}歷史資料{% else %}現有庫存{% endif %}共 {{ page_obj.paginator.count }} 台</strong>
     {% if page_obj.paginator.num_pages > 1 %}<span>第 {{ page_obj.number }}／{{ page_obj.paginator.num_pages }} 頁</span>{% endif %}
   </div>
-  <div class="inventory-table-wrap">
+  <div class="inventory-table-wrap" tabindex="0" aria-label="車輛庫存清單，可左右捲動查看完整欄位">
     <table class="inventory-table">
       <thead>
         <tr>

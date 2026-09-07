@@ -5,6 +5,8 @@
     if (select.dataset.searchableReady === "1") return;
     select.dataset.searchableReady = "1";
     select.classList.add("searchable-select__native");
+    select.tabIndex = -1;
+    select.setAttribute("aria-hidden", "true");
 
     const wrapper = document.createElement("div");
     wrapper.className = "searchable-select";

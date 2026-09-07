@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+{% block title %}系統完整性報告｜車輛銷售管理{% endblock %}
+{% block page_class %}page-shell--standard integrity-report-page{% endblock %}
+{% block content %}
+{% url 'data_maintenance' as maintenance_url %}
+{% include "sales/_page_back.html" with fallback_url=maintenance_url label="返回資料維護區" %}
+
+<section class="hero-row compact-hero integrity-report-hero">
+  <div>
+    <p class="eyebrow">管理者專用 · 版本化稽核紀錄</p>
+    <h1>系統完整性報告</h1>
+    <p class="muted">整合安全、UI／UX、核心流程與文件檢查；這不是人員績效或進度排行。</p>
+  </div>
+  <dl class="integrity-report-meta" aria-label="報告版本">
+    <div><dt>稽核日期</dt><dd>{{ integrity_report.audit_date|date:"Y/m/d" }}</dd></div>
+    <div><dt>報告版次</dt><dd>{{ integrity_report.revision }}</dd></div>
+    <div><dt>目前載入版本</dt><dd>{{ app_version }}</dd></div>
+  </dl>
+</section>
+
+<section class="integrity-conclusion" aria-labelledby="integrity-conclusion-title">
+  <span class="integrity-conclusion__mark" aria-hidden="true">✓</span>
+  <div>
+    <p class="eyebrow">目前結論</p>
+    <h2 id="integrity-conclusion-title">核心功能已驗證，歷史財務資料仍待核對</h2>
+    <p>{{ integrity_report.conclusion }}</p>
+  </div>
+</section>
+
+<section class="integrity-summary-grid" aria-label="稽核摘要">
+  {% for item in integrity_report.summary %}
+  <article class="integrity-summary-card integrity-tone--{{ item.tone }}">
+    <div><span>{{ item.label }}</span><strong>{{ item.status }}</strong></div>
+    <p>{{ item.detail }}</p>
+  </article>
+  {% endfor %}
+</section>
+
+<section class="integrity-evidence" aria-labelledby="integrity-evidence-title">
+  <header>
+    <p class="eyebrow">本版驗證依據</p>
+    <h2 id="integrity-evidence-title">不是只看畫面，也不是只跑單一測試</h2>
+  </header>
+  <div class="integrity-evidence-grid">
+    {% for item in integrity_report.evidence %}
+    <article>
+      <span>{{ item.label }}</span>
+      <strong>{{ item.value }}</strong>
+      <p>{{ item.detail }}</p>
+    </article>
+    {% endfor %}
+  </div>
+</section>
+
+<nav class="integrity-section-nav" aria-label="報告章節">
+  {% for section in integrity_report.sections %}<a href="#{{ section.id }}">{{ section.title }}</a>{% endfor %}
+  <a href="#known-limits">已知限制</a>
+</nav>
+
+{% for section in integrity_report.sections %}
+<section class="integrity-section" id="{{ section.id }}" aria-labelledby="{{ section.id }}-title">
+  <header class="integrity-section__header">
+    <div><p class="eyebrow">{{ section.eyebrow }}</p><h2 id="{{ section.id }}-title">{{ section.title }}</h2></div>
+    <span class="integrity-section__status integrity-tone--{{ section.tone }}">{{ section.status }}</span>
+  </header>
+  <div class="integrity-check-list">
+    {% for item in section.items %}
+    <article class="integrity-check-row">
+      <div class="integrity-check-row__result">
+        <span class="integrity-check-row__mark integrity-tone--{{ item.tone }}" aria-hidden="true">✓</span>
+        <div><h3>{{ item.label }}</h3><span>{{ item.result }}</span></div>
+      </div>
+      <p>{{ item.detail }}</p>
+    </article>
+    {% endfor %}
+  </div>
+</section>
+{% endfor %}
+
+<section class="integrity-section integrity-section--limits" id="known-limits" aria-labelledby="known-limits-title">
+  <header class="integrity-section__header">
+    <div><p class="eyebrow">刻意保留的邊界</p><h2 id="known-limits-title">已知限制與後續注意事項</h2></div>
+    <span class="integrity-section__status integrity-tone--warning">需持續追蹤</span>
+  </header>
+  <div class="integrity-limit-grid">
+    {% for item in integrity_report.limitations %}
+    <article><h3>{{ item.title }}</h3><p>{{ item.detail }}</p></article>
+    {% endfor %}
+  </div>
+</section>
+
+<aside class="integrity-method-note" aria-labelledby="integrity-method-title">
+  <h2 id="integrity-method-title">如何解讀這份報告</h2>
+  <ul>{% for note in integrity_report.method_notes %}<li>{{ note }}</li>{% endfor %}</ul>
+</aside>
+{% endblock %}

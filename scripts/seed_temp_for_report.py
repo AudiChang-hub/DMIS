@@ -9,10 +9,13 @@ import os
 import sys
 from urllib import request
 
-BASE = "http://localhost:8069"
-DB = "dmis_dev"
-USER = "admin"
-PWD = "admin"
+BASE = os.environ.get("ODOO_URL", "http://localhost:8069")
+DB = os.environ.get("ODOO_DB", "dmis_dev")
+USER = os.environ.get("ODOO_USERNAME", "admin")
+PWD = os.environ.get("ODOO_PASSWORD")
+HTTP_TIMEOUT = float(os.environ.get("ODOO_HTTP_TIMEOUT", "30"))
+if not PWD:
+    raise SystemExit("請先設定 ODOO_PASSWORD 環境變數。")
 TRACK_FILE = "/tmp/dmis_seed_ids.json"
 
 
@@ -23,7 +26,7 @@ def login():
         data=json.dumps(body).encode(),
         headers={"Content-Type": "application/json"},
     )
-    resp = request.urlopen(req)
+    resp = request.urlopen(req, timeout=HTTP_TIMEOUT)
     sid = ""
     for part in resp.headers.get("Set-Cookie", "").split(","):
         for kv in part.split(";"):
@@ -45,7 +48,7 @@ def rpc(model, method, args=None, kwargs=None, sid=None):
     headers = {"Content-Type": "application/json", "Cookie": f"session_id={sid}"}
     req = request.Request(f"{BASE}/web/dataset/call_kw",
                           data=json.dumps(payload).encode(), headers=headers)
-    res = json.loads(request.urlopen(req).read())
+    res = json.loads(request.urlopen(req, timeout=HTTP_TIMEOUT).read())
     if "error" in res:
         msg = res["error"].get("data", {}).get("message", res["error"])
         raise RuntimeError(msg)

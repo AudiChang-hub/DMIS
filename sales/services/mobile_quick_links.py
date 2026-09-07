@@ -4,6 +4,7 @@ from django.urls import reverse
 MAX_MOBILE_QUICK_LINKS = 6
 
 MOBILE_QUICK_LINK_DEFINITIONS = (
+    {"key": "reports", "label": "報表中心", "icon": "圖", "route": "report_center"},
     {
         "key": "price-list-distribution",
         "label": "價格表分發",

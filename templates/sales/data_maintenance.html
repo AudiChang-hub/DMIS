@@ -132,6 +132,13 @@
     <span aria-hidden="true">›</span>
   </a>
   {% if user.is_superuser %}
+  {% if user.username == 'admin' %}
+  <a class="maintenance-card" href="{% url 'report_manage' %}">
+    <span class="maintenance-card__icon">圖</span>
+    <div><h2>報表設計管理</h2><p>建立草稿、設計圖表、預覽公式與發布報表；不改動正式帳務。</p><strong>僅 admin 可編輯與發布</strong></div>
+    <span aria-hidden="true">›</span>
+  </a>
+  {% endif %}
   <a class="maintenance-card" href="{% url 'user_management' %}">
     <span class="maintenance-card__icon">員</span>
     <div><h2>帳號與權限</h2><p>建立內部帳號、停用離職人員、重設臨時密碼並查看帳號異動紀錄。</p><strong>{{ system_user_count }} 個系統帳號</strong></div>

@@ -13,6 +13,72 @@ from sales.reporting.views import initial_config
 
 
 class ReportingTests(TestCase):
+    def test_stacked_other_series_preserves_total_nulls_and_scoped_drill(self):
+        card = {**self.config["cards"][0], "chart": "stacked", "dimension": "month", "series": "source",
+                "series_limit": 1, "series_other": True}
+        SalesOrder.objects.filter(source=self.a).update(source=None)
+        result = card_result(self.config, card, {})
+        self.assertTrue(result["series_truncated"])
+        segments = result["rows"][0]["segments"]
+        self.assertEqual(sum(segment["count"] for segment in segments), 3)
+        other = next(segment for segment in segments if segment["key"].startswith("o:"))
+        self.assertEqual(other["count"], 1)
+        self.assertEqual(drill_query(self.config, card, {}, other["key"]).count(), 1)
+        self.assertTrue(drill_query(self.config, card, {}, other["key"]).first().source_id is None)
+        without_other = {**card, "series_other": False}
+        truncated = card_result(self.config, without_other, {})
+        self.assertEqual(truncated["rows"][0]["count"], 3)
+        self.assertEqual(sum(segment["count"] for segment in truncated["rows"][0]["segments"]), 2)
+        with self.assertRaises(ValidationError):
+            drill_query(self.config, without_other, {}, other["key"])
+
+    def test_stacked_series_bounds_validation(self):
+        for key, value in (("series_limit", 0), ("series_limit", 201), ("series_limit", True), ("series_other", "true")):
+            config = copy.deepcopy(self.config)
+            config["cards"][0][key] = value
+            with self.subTest(key=key, value=value), self.assertRaises(ValidationError):
+                validate_config(config)
+
+    def test_stacked_other_csv_includes_merged_values_and_scope_note(self):
+        self.login()
+        config = copy.deepcopy(self.config)
+        config["cards"][0].update(chart="stacked", dimension="month", series="source", series_limit=1, series_other=True)
+        self.report.published = config
+        self.report.save()
+        response = self.client.get(reverse("report_export", args=[self.report.pk, 0]))
+        self.assertContains(response, "2026/09,乙車行,2,2")
+        self.assertContains(response, "2026/09,其他系列（合併）,1,1")
+        self.assertContains(response, "其餘合併為其他")
+
+    def test_source_motor_type_uses_import_model_without_changing_master(self):
+        from sales.models import LegacyImportBatch, LegacyImportRow, LegacySalesSnapshot
+        batch = LegacyImportBatch.objects.create(import_type="operations", source_file="test-only.xlsx",
+            original_filename="test-only.xlsx", file_sha256="a" * 64, file_size=0, uploaded_by="tester")
+        row = LegacyImportRow.objects.create(batch=batch, sheet_name="銷售", source_row=1,
+            fingerprint="b" * 64, action="create", mapped_data={"model_number": "M02"})
+        order = SalesOrder.objects.first()
+        original_number = order.vehicle_model.model_number
+        LegacySalesSnapshot.objects.create(order=order, import_row=row)
+        card = {**self.config["cards"][0], "dimension": "legacy_motor_type"}
+        result = card_result(self.config, card, {})
+        self.assertEqual(next(r for r in result["rows"] if r["label"] == "微型電車")["count"], 1)
+        self.assertEqual(list(drill_query(self.config, card, {}, "v:微型電車").values_list("pk", flat=True)), [order.pk])
+        self.assertIn("不影響", result["compatibility_note"])
+        order.vehicle_model.refresh_from_db()
+        self.assertEqual(order.vehicle_model.model_number, original_number)
+
+    def test_source_motor_type_preserves_full_match_not_keyword_search(self):
+        card = {**self.config["cards"][0], "dimension": "legacy_motor_type"}
+        for model_number, label in (("EV076SZV", "白牌電車"), ("S2ABS", "白牌電車"),
+                                    ("EZZY", "綠牌電車"), ("M02", "微型電車"),
+                                    ("UT125XZ", "速克達"), ("DS250", "擋車"),
+                                    ("UQ125DA", "其他"), ("Pulse Ultra", "其他"), ("UQ\n", "其他"), ("uq", "其他"), ("", "其他")):
+            with self.subTest(model_number=model_number):
+                VehicleModel.objects.all().update(model_number=model_number)
+                result = card_result(self.config, card, {})
+                self.assertEqual([(row["label"], row["count"]) for row in result["rows"]], [(label, 3)])
+                self.assertEqual(drill_query(self.config, card, {}, result["rows"][0]["key"]).count(), 3)
+
     def test_stacked_series_totals_and_detail_match_with_top_n(self):
         card = {**self.config["cards"][0], "chart": "stacked", "dimension": "source", "series": "energy", "limit": 1}
         result = card_result(self.config, card, {})

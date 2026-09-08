@@ -15,6 +15,13 @@
       card.querySelector("[data-card-up]").disabled = index === 0;
       card.querySelector("[data-card-down]").disabled = index === all.length - 1;
       card.querySelector(".report-field--formula").hidden = card.querySelector('[name$="-metric"]').value !== "formula";
+      ["series", "series_limit", "series_other"].forEach(name => {
+        const field = card.querySelector(`[name$="-${name}"]`);
+        if (field) {
+          field.disabled = card.querySelector('[name$="-chart"]').value !== "stacked";
+          field.closest(".report-field").hidden = field.disabled;
+        }
+      });
     });
     editor.addEventListener("input", markDirty);
     editor.addEventListener("change", () => { markDirty(); update(); });

@@ -62,6 +62,9 @@ class CardForm(ScopeForm):
     chart = forms.ChoiceField(label="呈現方式", choices=CHARTS.items())
     dimension = forms.ChoiceField(label="依什麼分類", choices=DIMENSIONS.items())
     series = forms.ChoiceField(label="細分系列（堆疊圖使用）", choices=[("", "不細分"), *DIMENSIONS.items()], required=False)
+    series_limit = forms.IntegerField(label="最多顯示幾個系列", min_value=1, max_value=200, initial=200, required=False,
+        help_text="依目前顯示主分類中的系列合計由高到低取前 N 個。")
+    series_other = forms.BooleanField(label="其餘系列合併為其他", required=False)
     metric = forms.ChoiceField(label="要看什麼數字", choices=METRICS.items())
     formula = forms.CharField(label="自訂試算公式", required=False, max_length=200,
                               help_text="僅自訂試算使用，例如 sale_total / count；支援 + − * / 與括號。")
@@ -73,6 +76,9 @@ class CardForm(ScopeForm):
         if self.cleaned_data.get("metric") == "formula":
             formula_tree(expression)
         return expression
+
+    def clean_series_limit(self):
+        return self.cleaned_data["series_limit"] or 200
 
 
 CardFormSet = formset_factory(CardForm, extra=0, min_num=1, max_num=8, absolute_max=8,

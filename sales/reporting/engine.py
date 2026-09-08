@@ -225,6 +225,15 @@ def base_query(config, filters, card=None):
                 interval[basis + "__lt"] = date(first.year + (first.month == 12), first.month % 12 + 1, 1)
             months |= Q(**interval)
         queryset = queryset.filter(months)
+    from .cross_filter import selections
+    # 每個選取以不含 focus 的發布範圍下鑽，避免遞迴與讀者覆蓋固定條件。
+    for selected in selections(filters.get("focus")):
+        if selected["card"] >= len(config["cards"]):
+            raise ValidationError("選取圖表已不存在，請清除選取後再試。")
+        selection_filters = {key: value for key, value in filters.items() if key != "focus"}
+        selection_filters["grain"] = selected["grain"]
+        subset = drill_query(config, config["cards"][selected["card"]], selection_filters, selected["group"])
+        queryset = queryset.filter(pk__in=subset.values("pk"))
     return queryset
 
 

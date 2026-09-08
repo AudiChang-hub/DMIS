@@ -101,6 +101,7 @@ CardFormSet = formset_factory(CardForm, extra=0, min_num=0, max_num=8, absolute_
 
 
 class FilterForm(forms.Form):
+    focus = forms.CharField(required=False, max_length=6000, widget=forms.HiddenInput)
     grain = forms.ChoiceField(label="日期圖表層級", required=False, choices=[("", "依原設計"), ("year", "按年"), ("month", "按月"), ("day", "按日")])
     start = forms.DateField(label="開始日期", required=False, widget=forms.DateInput(attrs={"type": "date"}))
     end = forms.DateField(label="結束日期", required=False, widget=forms.DateInput(attrs={"type": "date"}))
@@ -126,6 +127,8 @@ class FilterForm(forms.Form):
 
     def clean(self):
         data = super().clean()
+        from .cross_filter import selections
+        selections(data.get("focus"))
         if data.get("start") and data.get("end") and data["start"] > data["end"]:
             raise forms.ValidationError("開始日期不可晚於結束日期。")
         if len(data.get("months", [])) > 120:

@@ -13,6 +13,65 @@ from sales.reporting.views import initial_config
 
 
 class ReportingTests(TestCase):
+    def test_cross_filter_intersects_cards_records_and_exports(self):
+        import json
+        from sales.reporting.records import record_context
+        from sales.reporting.views import publication_key
+        config = {**self.config, "include_records": True, "records_columns": ["number"], "cards": [
+            {**self.config["cards"][0], "dimension": "source"},
+            {**self.config["cards"][0], "dimension": "recipient"}]}
+        filters = {"focus": json.dumps([{"card": 0, "group": str(self.b.pk), "grain": ""},
+                                        {"card": 1, "group": str(self.a.pk), "grain": ""}])}
+        for card in config["cards"]:
+            self.assertEqual(card_result(config, card, filters)["count"], 1)
+            self.assertEqual(drill_query(config, card, filters, "__all__").count(), 1)
+        self.assertEqual(record_context(config, filters)["records_page"].paginator.count, 1)
+        self.report.published = config
+        self.report.save()
+        self.login(self.user)
+        params = {**filters, "revision": publication_key(self.report)}
+        response = self.client.get(reverse("report_display", args=[self.report.pk]), params)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.context["focus_items"]), 2)
+        self.assertEqual(response.context["records_page"].paginator.count, 1)
+        self.assertContains(self.client.get(reverse("report_records_export", args=[self.report.pk]), params), "訂單編號")
+        config["cards"][0]["fixed_filters"] = {"source": [str(self.a.pk)]}
+        self.assertEqual(card_result(config, config["cards"][1], filters)["count"], 0)
+
+    def test_cross_filter_freezes_selected_date_grain(self):
+        import json
+        card = {**self.config["cards"][0], "dimension": "month"}
+        config = {**self.config, "cards": [card]}
+        filters = {"grain": "day", "focus": json.dumps([{"card": 0, "group": "2026-01-01", "grain": "year"}])}
+        result = card_result(config, card, filters)
+        self.assertEqual(result["count"], 3)
+        self.assertEqual(result["rows"][0]["label"], "2026/09/01")
+
+    def test_cross_filter_rejects_unbounded_or_ambiguous_selection(self):
+        import json
+        from sales.reporting.cross_filter import selections
+        valid = {"card": 0, "group": "v:SUZUKI", "grain": ""}
+        for value in ([valid] * 9, [valid, valid], [{**valid, "card": True}], [{**valid, "lookup": "owner_phone"}],
+                      [{**valid, "group": "o:2026-09-01"}], [{**valid, "group": "__all__"}], [{**valid, "grain": "bad"}]):
+            with self.subTest(value=value), self.assertRaises(ValidationError):
+                selections(json.dumps(value))
+        with self.assertRaises(ValidationError):
+            card_result(self.config, self.config["cards"][0], {"focus": json.dumps([{**valid, "card": 7}])})
+
+    def test_cross_filter_requires_current_publication_all_endpoints(self):
+        import json
+        self.login(self.user)
+        params = {"focus": json.dumps([{"card": 0, "group": "v:SUZUKI", "grain": ""}])}
+        self.report.published = {**self.config, "include_records": True}
+        self.report.save()
+        for revision in (None, "old"):
+            if revision:
+                params["revision"] = revision
+            for route, args in (("report_display", [self.report.pk]), ("report_records_export", [self.report.pk]),
+                                ("report_detail", [self.report.pk, 0]), ("report_export", [self.report.pk, 0])):
+                with self.subTest(route=route, revision=revision):
+                    self.assertEqual(self.client.get(reverse(route, args=args), params).status_code, 409)
+
     def test_source_draft_command_is_private_idempotent_and_preserves_edits(self):
         from django.core.management import call_command
         from io import StringIO

@@ -1,5 +1,6 @@
 <section data-detail-content>
 <h2>{{ card.title }}：來源訂單</h2><p>共 {{ page_obj.paginator.count }} 張符合訂單；依目前篩選與選取分類。點訂單編號可回到原訂單。</p>
+{% if scope_labels %}<div class="report-scope-summary"><strong>固定範圍（同時符合）</strong>{% for label in scope_labels %}<span>{{ label }}</span>{% endfor %}</div>{% endif %}
 {% if card.metric == 'dealer_commission' %}<p>以下為 DMIS 保存的車行傭金支出，不代表已付款。缺少收支資料不視為零。</p>{% endif %}
 <div class="report-table-wrap"><table class="report-results report-detail-table">
 <thead><tr><th>訂單</th><th>訂單／領牌日期</th><th>品牌／車型</th><th>原銷售通路</th><th>台數／傭金歸屬車行</th>

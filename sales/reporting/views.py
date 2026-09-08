@@ -16,7 +16,7 @@ from django.utils import timezone
 from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_POST
 
-from .engine import NAVIGATION_GROUPS, card_result, drill_query, scope_labels, validate_config
+from .engine import DATE_DIMENSIONS, NAVIGATION_GROUPS, card_result, drill_query, scope_labels, validate_config
 from .forms import CardFormSet, FilterForm, ReportForm
 from .models import ReportDefinition, ReportRevision
 from .records import RECORD_COLUMNS, DEFAULT_RECORD_COLUMNS, RECORD_NOTE, record_context, record_queryset, record_cells
@@ -45,11 +45,23 @@ def initial_config():
             ]}
 
 
+def card_filters(filters, index):
+    return {**filters, "_card_grain": filters.get(f"grain_{index}"), "_card_sort": filters.get(f"sort_{index}")}
+
+
 def results(config, filters):
     items = []
     for index, card in enumerate(config["cards"]):
-        result = card_result(config, card, filters)
+        result = card_result(config, card, card_filters(filters, index))
         result["index"] = index
+        result["sort_field"] = f"sort_{index}"
+        result["grain_field"] = f"grain_{index}"
+        result["selected_sort"] = filters.get(f"sort_{index}", "")
+        result["selected_grain"] = filters.get(f"grain_{index}", "")
+        result["date_dimension"] = card["dimension"] in DATE_DIMENSIONS
+        result["controls_hidden"] = [{"name": key, "value": entry} for key, value in filters.items()
+            if value and key not in (f"sort_{index}", f"grain_{index}") and not key.startswith("_")
+            for entry in (value if isinstance(value, (list, tuple)) else [value])]
         items.append(result)
     return items
 
@@ -78,7 +90,7 @@ def filters_for(request, config=None):
 
 
 def filter_query(filters):
-    return urlencode({key: value for key, value in filters.items() if value}, doseq=True)
+    return urlencode({key: value for key, value in filters.items() if value and not key.startswith("_")}, doseq=True)
 
 
 def navigation(request):
@@ -272,7 +284,7 @@ def detail(request, pk, index):
     card = selected_card(report.published, index)
     try:
         _, filters = filters_for(request, report.published)
-        queryset = drill_query(report.published, card, filters, request.GET.get("group", "__all__"))
+        queryset = drill_query(report.published, card, card_filters(filters, index), request.GET.get("group", "__all__"))
     except ValidationError as error:
         return HttpResponse("；".join(error.messages), status=400, content_type="text/plain; charset=utf-8")
     page = Paginator(queryset.select_related("vehicle_model", "source", "commission_recipient", "operations").order_by("-order_date", "-pk"), 50).get_page(request.GET.get("page"))
@@ -298,7 +310,7 @@ def export(request, pk, index):
     card = selected_card(report.published, index)
     try:
         _, filters = filters_for(request, report.published)
-        result = card_result(report.published, card, filters)
+        result = card_result(report.published, card, card_filters(filters, index))
     except ValidationError as error:
         return HttpResponse("；".join(error.messages), status=400, content_type="text/plain; charset=utf-8")
     response = HttpResponse(content_type="text/csv; charset=utf-8")

@@ -9,7 +9,7 @@ from django.db.models import Avg, Case, Count, F, IntegerField, Q, Sum, Value, W
 from django.db.models.functions import TruncMonth, TruncYear
 
 from sales.models import SalesOrder, SalesSource, VehicleModel, VehicleModelFamily
-from .source_compatibility import SOURCE_CLASSIFICATIONS, motor_type_expression, source_model_query, sales_source_expression, sales_source_query
+from .source_compatibility import SOURCE_CLASSIFICATIONS, MODEL_PRESENCE, model_presence_query, motor_type_expression, source_model_query, sales_source_expression, sales_source_query
 from .records import RECORD_COLUMNS, DEFAULT_RECORD_COLUMNS
 
 
@@ -40,6 +40,8 @@ def dimension_color(dimension, raw, index):
 SCOPE_LOOKUPS = {"brand": "vehicle_model__brand", "energy": "vehicle_model__energy_type",
                  "source_type": "source_type", "source": "source_id", "model": "vehicle_model_id", "legacy_source": "report_legacy_source"}
 SCOPE_LABELS = {"brand": "品牌", "energy": "能源別", "source_type": "來源類型", "source": "車行／平台", "model": "指定車型", "legacy_source": "原報表銷售來源（五分類）"}
+SCOPE_LOOKUPS["model_presence"] = "report_model_presence"
+SCOPE_LABELS["model_presence"] = "原型號完整性（比對用）"
 
 
 def validate_scope(scope):
@@ -58,6 +60,8 @@ def validate_scope(scope):
                 raise ValidationError("固定條件的分類不正確。")
             if key == "legacy_source" and value not in SOURCE_CLASSIFICATIONS:
                 raise ValidationError("原報表來源分類不正確。")
+            if key == "model_presence" and value not in MODEL_PRESENCE:
+                raise ValidationError("原型號完整性條件不正確。")
 
 
 def scope_labels(scope):
@@ -72,6 +76,8 @@ def scope_labels(scope):
             labels = dict(VehicleModel.EnergyType.choices)
         elif key == "source_type":
             labels = dict(SalesOrder.SourceType.choices)
+        elif key == "model_presence":
+            labels = MODEL_PRESENCE
         elif key == "source":
             labels = {str(pk): name for pk, name in SalesSource.objects.filter(pk__in=values).values_list("pk", "name")}
         elif key == "model":
@@ -197,6 +203,8 @@ def validate_config(config):
 def base_query(config, filters, card=None):
     queryset = SalesOrder.objects.exclude(status__in=EXCLUDED_STATUSES)
     scopes = (config.get("fixed_filters", {}), (card or {}).get("fixed_filters", {}))
+    if any(isinstance(scope, dict) and scope.get("model_presence") for scope in scopes):
+        queryset = model_presence_query(queryset)
     if filters.get("legacy_source") or any(isinstance(scope, dict) and scope.get("legacy_source") for scope in scopes):
         queryset = sales_source_query(queryset).annotate(report_legacy_source=sales_source_expression())
     # 各層皆取交集；讀者 GET 參數無法覆蓋發布版本的固定範圍。
@@ -230,7 +238,7 @@ def base_query(config, filters, card=None):
     for selected in selections(filters.get("focus")):
         if selected["card"] >= len(config["cards"]):
             raise ValidationError("選取圖表已不存在，請清除選取後再試。")
-        selection_filters = {key: value for key, value in filters.items() if key != "focus"}
+        selection_filters = {key: value for key, value in filters.items() if key != "focus" and not key.startswith("_")}
         selection_filters["grain"] = selected["grain"]
         subset = drill_query(config, config["cards"][selected["card"]], selection_filters, selected["group"])
         queryset = queryset.filter(pk__in=subset.values("pk"))
@@ -263,7 +271,12 @@ def dimension_query(queryset, dimension, basis, alias="report_key"):
 
 def effective_card(card, filters):
     """讀者的日期粒度只改變日期分類，不修改發布設定或非日期圖。"""
-    grain = filters.get("grain")
+    grain = filters.get("_card_grain") or filters.get("grain")
+    sort = filters.get("_card_sort")
+    if sort:
+        if sort not in ("key", "key_desc", "value"):
+            raise ValidationError("圖表排序不正確。")
+        card = {**card, "sort": sort}
     if grain and grain not in DATE_DIMENSIONS:
         raise ValidationError("日期粒度不正確。")
     if grain and card["dimension"] in DATE_DIMENSIONS:

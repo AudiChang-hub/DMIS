@@ -57,6 +57,15 @@ def motor_type_expression():
 
 
 SOURCE_CLASSIFICATIONS = ("馭盛", "網路平台", "店內員工", "展場", "車行")
+MODEL_PRESENCE = {"present": "有原型號值（包含空字串）", "missing": "原型號為空值或未提供"}
+
+
+def model_presence_query(queryset):
+    """原 Model IS NOT NULL；空字串不同於 NULL，歷史缺鍵也不冒充已知原值。"""
+    absent = Q(legacy_snapshot__isnull=False) & (
+        ~Q(legacy_snapshot__import_row__mapped_data__has_key="model_number") | Q(ImportedJsonNull("model_number")))
+    return queryset.annotate(report_model_presence=Case(
+        When(absent, then=Value("missing")), default=Value("present"), output_field=CharField()))
 
 
 def sales_source_query(queryset):

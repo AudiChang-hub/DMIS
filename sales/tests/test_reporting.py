@@ -13,6 +13,38 @@ from sales.reporting.views import initial_config
 
 
 class ReportingTests(TestCase):
+    def test_reader_controls_change_only_selected_chart_and_preserve_export_drill(self):
+        from sales.reporting.views import publication_key
+        card = {**self.config["cards"][0], "dimension": "month"}
+        self.report.published = {**self.config, "cards": [card, {**card, "title": "第二圖"}]}
+        self.report.save()
+        self.login(self.user)
+        params = {"grain_0": "year", "grain_1": "day", "sort_0": "key_desc", "brand": ["SUZUKI"],
+                  "revision": publication_key(self.report)}
+        response = self.client.get(reverse("report_display", args=[self.report.pk]), params)
+        self.assertEqual(response.context["results"][0]["rows"][0]["label"], "2026")
+        self.assertEqual(response.context["results"][1]["rows"][0]["label"], "2026/09/01")
+        self.assertEqual(response.context["results"][0]["card"]["sort"], "key_desc")
+        hidden = response.context["results"][0]["controls_hidden"]
+        self.assertIn({"name": "grain_1", "value": "day"}, hidden)
+        self.assertIn({"name": "brand", "value": "SUZUKI"}, hidden)
+        self.assertNotIn({"name": "grain_0", "value": "year"}, hidden)
+        self.assertContains(self.client.get(reverse("report_export", args=[self.report.pk, 0]), params), "2026,3,3")
+        detail = self.client.get(reverse("report_detail", args=[self.report.pk, 0]), {**params, "group": "2026-01-01"})
+        self.assertEqual(detail.context["page_obj"].paginator.count, 3)
+        self.report.refresh_from_db()
+        self.assertEqual(self.report.published["cards"][0]["dimension"], "month")
+        invalid = self.client.get(reverse("report_export", args=[self.report.pk, 0]), {"sort_0": "owner_phone"})
+        self.assertEqual(invalid.status_code, 400)
+
+    def test_rebuild_progress_is_only_available_to_exact_admin(self):
+        self.login()
+        self.assertContains(self.client.get(reverse("report_manage")), "原 Google 報表重建核對紀錄")
+        for user in (self.user, self.other_admin):
+            self.login(user)
+            self.assertEqual(self.client.get(reverse("report_manage")).status_code, 403)
+            self.assertNotContains(self.client.get(reverse("report_center")), "原 Google 報表重建核對紀錄")
+
     def test_cross_filter_intersects_cards_records_and_exports(self):
         import json
         from sales.reporting.records import record_context
@@ -276,6 +308,15 @@ class ReportingTests(TestCase):
         self.assertIn("不影響", result["compatibility_note"])
         order.vehicle_model.refresh_from_db()
         self.assertEqual(order.vehicle_model.model_number, original_number)
+        present_config = {**self.config, "fixed_filters": {"model_presence": ["present"]}}
+        missing_config = {**self.config, "fixed_filters": {"model_presence": ["missing"]}}
+        for mapped, expected in (({}, 2), ({"model_number": None}, 2), ({"model_number": ""}, 3),
+                                 ({"model_number": "null"}, 3), ({"model_number": "M02"}, 3)):
+            with self.subTest(mapped=mapped):
+                row.mapped_data = mapped
+                row.save(update_fields=["mapped_data"])
+                self.assertEqual(card_result(present_config, card, {})["count"], expected)
+                self.assertEqual(card_result(missing_config, card, {})["count"], 3 - expected)
         source_card = {**card, "dimension": "legacy_sales_source"}
         for raw_name, expected in ((None, "馭盛"), ("null", "車行"), ("Yahoo+假展場", "車行"), ("Yahoo", "網路平台")):
             row.mapped_data["dealer_name_raw"] = raw_name

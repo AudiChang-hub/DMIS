@@ -168,7 +168,7 @@ if (typeof module !== "undefined" && module.exports) module.exports = {reportPoi
           try { selected = JSON.parse(filters.get("focus") || "[]"); } catch { selected = []; }
           const index = Number(link.closest("[data-chart-index]").dataset.chartIndex);
           selected = selected.filter(item => item.card !== index);
-          selected.push({card:index, group, grain:filters.get("grain") || ""});
+          selected.push({card:index, group, grain:filters.get(`grain_${index}`) || filters.get("grain") || ""});
           filters.set("focus", JSON.stringify(selected));
           filters.delete("group"); filters.delete("inline"); filters.delete("records_page");
           location.assign(`${location.pathname}?${filters.toString()}`);

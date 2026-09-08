@@ -134,6 +134,33 @@ class ReportingTests(TestCase):
             call_command("create_source_report_draft")
         self.assertEqual(ReportDefinition.objects.count(), 1)
 
+    def test_electric_source_draft_has_independent_fixed_scope_and_preserves_both_pages(self):
+        from django.core.management import call_command
+        from io import StringIO
+        before = list(SalesOrder.objects.order_by("pk").values())
+        call_command("create_source_report_draft", stdout=StringIO())
+        call_command("create_source_report_draft", page="electric", stdout=StringIO())
+        report = ReportDefinition.objects.get(draft__title="電動車銷售統計｜原報表核對版")
+        self.assertIsNone(report.published)
+        self.assertEqual(report.draft["audience"], "admin")
+        self.assertEqual(report.draft["fixed_filters"]["legacy_energy"], ["電車"])
+        self.assertEqual(len(report.draft["cards"]), 3)
+        self.assertEqual(report.draft["cards"][1]["series"], "legacy_model")
+        self.assertIn("legacy_premium", report.draft["records_columns"])
+        for card in report.draft["cards"]:
+            self.assertEqual(card_result(report.draft, card, {"legacy_energy": ["油車"]})["count"], 0)
+        report.draft["description"] = "保留第二頁調整"
+        report.save()
+        call_command("create_source_report_draft", page="electric", stdout=StringIO())
+        report.refresh_from_db()
+        self.assertEqual(report.draft["description"], "保留第二頁調整")
+        self.assertEqual(report.revisions.count(), 1)
+        self.assertEqual(ReportDefinition.objects.count(), 3)
+        self.assertEqual(list(SalesOrder.objects.order_by("pk").values()), before)
+        self.login(self.user)
+        self.assertEqual(self.client.get(reverse("report_display", args=[report.pk])).status_code, 404)
+        self.assertEqual(self.client.get(reverse("report_edit", args=[report.pk])).status_code, 403)
+
     def test_records_export_escapes_formulas_and_limits_size(self):
         from unittest.mock import patch
         self.report.published = {**self.config, "include_records": True, "records_columns": ["owner_name"]}
@@ -301,11 +328,45 @@ class ReportingTests(TestCase):
         order = SalesOrder.objects.first()
         original_number = order.vehicle_model.model_number
         LegacySalesSnapshot.objects.create(order=order, import_row=row)
+        from sales.reporting.records import record_cells
+        row.raw_data = {"收款價": None, "公司禮卷、匯款": "禮券 2000 元", "平台贈品": "機油", "其他": " 安全帽 ", "公司贈品": "不能混用的欄位"}
+        row.save(update_fields=["raw_data"])
+        order.refresh_from_db()
+        fields = ["historical_received_price", "legacy_gift_card", "legacy_platform_gift", "legacy_premium"]
+        self.assertEqual([cell["value"] for cell in record_cells(order, fields)],
+                         ["原始未填寫", "禮券 2000 元", "機油", "安全帽"])
+        row.raw_data["收款價"] = 0
+        row.save(update_fields=["raw_data"])
+        order.refresh_from_db()
+        self.assertEqual(Decimal(record_cells(order, ["historical_received_price"])[0]["value"]), Decimal("0"))
         card = {**self.config["cards"][0], "dimension": "legacy_motor_type"}
         result = card_result(self.config, card, {})
         self.assertEqual(next(r for r in result["rows"] if r["label"] == "微型電車")["count"], 1)
         self.assertEqual(list(drill_query(self.config, card, {}, "v:微型電車").values_list("pk", flat=True)), [order.pk])
         self.assertIn("不影響", result["compatibility_note"])
+        model_card = {**card, "dimension": "legacy_model"}
+        model_result = card_result(self.config, model_card, {})
+        self.assertEqual(next(r for r in model_result["rows"] if r["label"] == "M02")["count"], 1)
+        self.assertEqual(list(drill_query(self.config, model_card, {}, "v:M02").values_list("pk", flat=True)), [order.pk])
+        stacked_model = {**card, "chart": "stacked", "dimension": "day", "series": "legacy_model"}
+        stacked_result = card_result(self.config, stacked_model, {})
+        segment = next(s for r in stacked_result["rows"] for s in r["segments"] if s["label"] == "M02")
+        self.assertEqual(drill_query(self.config, stacked_model, {}, segment["key"]).count(), 1)
+        from sales.reporting.records import record_context
+        records_config = {**self.config, "records_columns": ["legacy_sales_source", "legacy_energy", "energy"]}
+        record = next(r for r in record_context(records_config, {})["records_rows"] if r["pk"] == order.pk)
+        self.assertEqual([c["value"] for c in record["cells"]], ["車行", "電車", "油車"])
+        energy_card = {**card, "dimension": "legacy_energy"}
+        for model_number, expected in (("EV060L", "電車"), ("EV_any", "電車"), ("ev060l", "油車"),
+                                       ("GOGORO Pulse", "電車"), ("Pulse", "電車"), ("Pulse Ultra", "油車"),
+                                       ("M02", "電車"), ("M02\n", "油車"), ("JDL-B1", "油車")):
+            with self.subTest(source_energy_model=model_number):
+                row.mapped_data = {"model_number": model_number}
+                row.save(update_fields=["mapped_data"])
+                matching = drill_query(self.config, energy_card, {}, "v:" + expected)
+                self.assertTrue(matching.filter(pk=order.pk).exists())
+                scoped_energy = {**self.config, "fixed_filters": {"legacy_energy": [expected]}}
+                self.assertEqual(card_result(scoped_energy, energy_card, {})["count"], matching.count())
         order.vehicle_model.refresh_from_db()
         self.assertEqual(order.vehicle_model.model_number, original_number)
         present_config = {**self.config, "fixed_filters": {"model_presence": ["present"]}}

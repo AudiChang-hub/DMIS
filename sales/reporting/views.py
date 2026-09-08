@@ -66,7 +66,8 @@ def publication_key(report):
 
 
 def stale_publication(request, report):
-    return request.GET.get("revision") and request.GET["revision"] != publication_key(report)
+    return ((bool(request.GET.get("focus")) and not request.GET.get("revision")) or
+            (request.GET.get("revision") and request.GET["revision"] != publication_key(report)))
 
 
 def filters_for(request, config=None):
@@ -196,7 +197,7 @@ def lifecycle(request, pk):
 @never_cache
 def display(request, pk):
     report = accessible_report(request, pk)
-    if request.GET.get("records_page") and stale_publication(request, report):
+    if (request.GET.get("records_page") or request.GET.get("focus")) and stale_publication(request, report):
         return render(request, "sales/reporting/stale.html", {"report": report}, status=409)
     form = FilterForm(request.GET, date_basis=report.published["date_basis"])
     items = []
@@ -210,10 +211,21 @@ def display(request, pk):
         except ValidationError as exc:
             error = "；".join(exc.messages)
     query = filter_query(form.cleaned_data) if form.is_valid() else ""
+    focus_items = []
+    if form.is_valid():
+        from .cross_filter import selections, selection_label
+        chosen = selections(form.cleaned_data.get("focus"))
+        for item in chosen:
+            if item["card"] < len(report.published["cards"]):
+                remaining = [value for value in chosen if value != item]
+                clear_filters = {**form.cleaned_data, "focus": json.dumps(remaining) if remaining else ""}
+                focus_items.append({"title": report.published["cards"][item["card"]]["title"] + "：" + selection_label(report.published, item),
+                    "remove_query": filter_query(clear_filters) + "&revision=" + publication_key(report)})
     query += ("&" if query else "") + urlencode({"revision": publication_key(report)})
     return render(request, "sales/reporting/display.html", {"report": report, "config": report.published,
                   "navigation": navigation(request), "scope_labels": scope_labels(report.published.get("fixed_filters", {})),
-                  "filter_form": form, "results": items, **records, "query": query, "error": error, "queried_at": timezone.now()})
+                  "filter_form": form, "results": items, **records, "query": query, "error": error, "queried_at": timezone.now(),
+                  "publication_key": publication_key(report), "focus_items": focus_items})
 
 
 @login_required

@@ -9,12 +9,14 @@ from django.db.models import Avg, Case, Count, F, IntegerField, Q, Sum, Value, W
 from django.db.models.functions import TruncMonth, TruncYear
 
 from sales.models import SalesOrder, SalesSource, VehicleModel, VehicleModelFamily
+from .source_compatibility import motor_type_expression, source_model_query
 
 
 DIMENSIONS = {
     "month": "月份", "brand": "品牌", "model": "車型", "energy": "能源別",
     "source": "原銷售車行／通路", "recipient": "台數與傭金歸屬車行", "county": "領牌縣市",
     "year": "年份", "day": "日期", "family": "機種", "source_type": "來源類型", "color": "車色",
+    "legacy_motor_type": "舊報表車種分類（比對用）",
 }
 METRICS = {"count": "訂單台數", "sale_total": "訂單車價合計", "average_price": "平均訂單車價", "formula": "自訂試算"}
 METRICS["dealer_commission"] = "DMIS 車行傭金支出"
@@ -143,8 +145,12 @@ def validate_config(config):
         raise ValidationError("每份報表請保留 1–8 張圖表。")
     for card in config["cards"]:
         card_fields = {"title", "dimension", "metric", "chart", "formula", "limit", "sort"}
-        if not isinstance(card, dict) or not card_fields <= set(card) or set(card) - card_fields - {"fixed_filters", "series"}:
+        if not isinstance(card, dict) or not card_fields <= set(card) or set(card) - card_fields - {"fixed_filters", "series", "series_limit", "series_other"}:
             raise ValidationError("圖表格式不正確。")
+        if type(card.get("series_limit", 200)) is not int or not 1 <= card.get("series_limit", 200) <= 200:
+            raise ValidationError("細分系列上限須為 1–200。")
+        if type(card.get("series_other", False)) is not bool:
+            raise ValidationError("其他系列設定不正確。")
         if card.get("series", "") not in ("", *DIMENSIONS):
             raise ValidationError("細分系列不正確。")
         if card["chart"] == "stacked" and (not card.get("series") or card["series"] == card["dimension"] or card["metric"] not in ("count", "sale_total")):
@@ -197,6 +203,8 @@ def base_query(config, filters, card=None):
 
 
 def dimension_query(queryset, dimension, basis, alias="report_key"):
+    if dimension == "legacy_motor_type":
+        return source_model_query(queryset).annotate(**{alias: motor_type_expression()})
     mapping = {
         "brand": "vehicle_model__brand", "model": "vehicle_model_id",
         "energy": "vehicle_model__energy_type", "source": "source_id", "county": "registration_county",
@@ -338,6 +346,8 @@ def card_result(config, card, filters):
         row["width"] = float(abs(Decimal(row["value"])) / maximum * 100) if maximum and row["value"] is not None else 0
         row["percentage"] = float(Decimal(row["value"]) / total * 100) if metric in ("count", "sale_total") and total and row["value"] is not None else None
     series_legend = []
+    other_series_keys = []
+    series_truncated = False
     if card["chart"] == "stacked":
         primary = Q(report_key__in=keys)
         if any(row["report_key"] is None for row in rows):
@@ -347,14 +357,26 @@ def card_result(config, card, filters):
         if len(cells) > 2000:
             raise ValidationError("堆疊圖超過 2000 個細分組合，請減少顯示群數或縮小篩選範圍。")
         series_keys = list(dict.fromkeys(cell["report_series"] for cell in cells))
+        series_totals = {key: 0 for key in series_keys}
+        for cell in cells:
+            series_totals[cell["report_series"]] += value_of(cell)
+        # 依目前顯示主分類中的合計排名；同值依原始查詢順序穩定排列。
+        series_keys.sort(key=lambda key: series_totals[key], reverse=True)
+        other_series_keys = series_keys[card.get("series_limit", 200):]
+        series_truncated = bool(other_series_keys)
+        series_keys = series_keys[:card.get("series_limit", 200)]
         series_labels = dimension_labels(card["series"], [key for key in series_keys if key is not None])
         palette = ["#4257a5", "#278168", "#b65b33", "#9269af", "#28789d", "#a86e11", "#b3446c", "#5c6b78"]
         colors = {key: palette[index % len(palette)] for index, key in enumerate(series_keys)}
         series_legend = [{"label": dimension_label(card["series"], key, series_labels), "color": colors[key]} for key in series_keys]
+        if other_series_keys and card.get("series_other"):
+            series_legend.append({"label": "其他系列（合併）", "color": "#66717d"})
         primary_values = {row["key"]: row for row in values}
         for row in values:
             row["segments"] = []
         for cell in cells:
+            if cell["report_series"] in other_series_keys:
+                continue
             parent = primary_values[encode_key(cell["report_key"])]
             value = value_of(cell)
             label = dimension_label(card["series"], cell["report_series"], series_labels)
@@ -362,6 +384,16 @@ def card_result(config, card, filters):
                 "label": label, "point_label": parent["label"] + " · " + label, "value": str(value), "display": display_value(value),
                 "count": cell["count"], "color": colors[cell["report_series"]],
                 "width": float(value / Decimal(parent["value"]) * 100) if Decimal(parent["value"]) else 0})
+        if other_series_keys and card.get("series_other"):
+            for parent in values:
+                omitted = [cell for cell in cells if encode_key(cell["report_key"]) == parent["key"] and cell["report_series"] in other_series_keys]
+                if not omitted:
+                    continue
+                value = sum(value_of(cell) for cell in omitted)
+                parent["segments"].append({"key": "o:" + parent["key"], "label": "其他系列（合併）",
+                    "point_label": parent["label"] + " · 其他系列（合併）", "value": str(value), "display": display_value(value),
+                    "count": sum(cell["count"] for cell in omitted), "color": "#66717d",
+                    "width": float(value / Decimal(parent["value"]) * 100) if Decimal(parent["value"]) else 0})
     if card["chart"] == "donut" and (metric not in ("count", "sale_total") or any(Decimal(row["value"] or 0) < 0 for row in values)):
         raise ValidationError("圓環占比不支援平均、試算或負值，請改用資料表。")
     financial_note = ""
@@ -371,9 +403,12 @@ def card_result(config, card, filters):
         if missing:
             financial_note += f" 其中 {missing} 張訂單缺少收支資料，合計暫不顯示，請由來源訂單補齊。"
     return {"card": card, "rows": values, "total": display_value(total), "count": totals["count"],
+            "compatibility_note": ("比對用分類：沿用原報表 MotorType 整段匹配公式。歷史訂單使用匯入型號，新訂單使用 DMIS 型號；額外字尾可能歸其他。不影響車型、傭金或獎金規則，亦不代表兩套來源資料已逐筆核對。"
+                                   if "legacy_motor_type" in (dimension, card.get("series")) else ""),
             "scope_labels": scope_labels(card.get("fixed_filters", {})),
             "financial_note": financial_note,
             "series_legend": series_legend, "series_label": DIMENSIONS.get(card.get("series"), ""),
+            "series_truncated": series_truncated, "other_series_keys": other_series_keys,
             "raw_total": str(total) if total is not None else None,
             "truncated": truncated, "metric_label": METRICS[metric], "dimension_label": DIMENSIONS[dimension]}
 
@@ -384,6 +419,15 @@ def drill_query(config, card, filters, key):
     if key == "__all__":
         return queryset
     try:
+        if isinstance(key, str) and key.startswith("o:"):
+            if card["chart"] != "stacked" or not card.get("series_other"):
+                raise ValueError
+            parent = decode_key(card["dimension"], key[2:])
+            omitted = card_result(config, card, filters)["other_series_keys"]
+            conditions = Q(report_series__in=[value for value in omitted if value is not None])
+            if None in omitted:
+                conditions |= Q(report_series__isnull=True)
+            return dimension_query(queryset, card["series"], config["date_basis"], "report_series").filter(conditions, report_key=parent)
         if isinstance(key, str) and key.startswith("c:"):
             if card["chart"] != "stacked" or not card.get("series") or len(key) > 600:
                 raise ValueError

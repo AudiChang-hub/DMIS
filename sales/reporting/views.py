@@ -115,7 +115,7 @@ def edit(request, pk=None):
     if request.method == "POST" and form.is_valid() and formset.is_valid():
         config = {key: form.cleaned_data[key] for key in ("title", "description", "audience", "date_basis", "navigation_group", "page_order", "include_undated")}
         config["fixed_filters"] = form.scope_data()
-        config["cards"] = [{**{key: card.cleaned_data[key] for key in ("title", "dimension", "metric", "chart", "formula", "limit", "sort", "series")}, "fixed_filters": card.scope_data()}
+        config["cards"] = [{**{key: card.cleaned_data[key] for key in ("title", "dimension", "metric", "chart", "formula", "limit", "sort", "series", "series_limit", "series_other")}, "fixed_filters": card.scope_data()}
                            for card in formset.ordered_forms]
         action = request.POST.get("action")
         try:
@@ -260,6 +260,8 @@ def export(request, pk, index):
     writer.writerow(["統計範圍", "不含草稿與取消訂單；車價不是實收／淨利"])
     if result.get("financial_note"):
         writer.writerow(["財務口徑", result["financial_note"]])
+    if result.get("compatibility_note"):
+        writer.writerow(["分類口徑", result["compatibility_note"]])
     writer.writerow(["公式", csv_safe(card["formula"] if card["metric"] == "formula" else card["metric"])])
     writer.writerow(["未填日期", "未選期間時納入，另列未填日期" if report.published.get("include_undated") else "領牌日期基準時排除"])
     if card["chart"] == "stacked":
@@ -273,4 +275,6 @@ def export(request, pk, index):
             writer.writerow([csv_safe(row["label"]), row["value"] if row["value"] is not None else row["display"], row["count"]])
     if result["truncated"]:
         writer.writerow(["提醒", "僅匯出目前圖表顯示群組，非全部群組"])
+    if result["series_truncated"]:
+        writer.writerow(["細分系列", "其餘合併為其他" if card.get("series_other") else "未顯示系列未匯出；完整彙總仍包含"])
     return response

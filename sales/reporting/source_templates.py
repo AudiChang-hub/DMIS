@@ -48,7 +48,7 @@ def electric_vehicle_sales():
 
 
 def electric_platform_sales():
-    """p_oyi9bhn3wd：月份主軸、清洗後平台名称系列，非 DMIS 通路主檔 ID。"""
+    """p_oyi9bhn3wd：月份主軸、清洗後平台名稱系列，非 DMIS 通路主檔 ID。"""
     config = electric_vehicle_sales()
     config.update(title="電動車－網路平台銷售統計｜原報表核對版", page_order=40,
                   description="依原平台分頁的一張月份堆疊圖與來源明細建立。平台名稱沿用原報表清洗方式，不改寫通路主檔。原能源／來源公式與資料差異仍在核對，尚未通過跨來源完整驗收。歷史贈品記載不代表已發放。")
@@ -60,4 +60,5 @@ def electric_platform_sales():
     return config
 
 
-SOURCE_TEMPLATES = {"total": total_vehicle_sales, "electric": electric_vehicle_sales, "electric-platform": electric_platform_sales}
+SOURCE_TEMPLATES = {"total": total_vehicle_sales, "electric": electric_vehicle_sales,
+                    "electric-platform": electric_platform_sales}

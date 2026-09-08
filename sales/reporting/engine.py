@@ -10,7 +10,7 @@ from django.db.models.functions import TruncMonth, TruncYear
 
 from sales.models import SalesOrder, SalesSource, VehicleModel, VehicleModelFamily
 from .source_compatibility import SOURCE_CLASSIFICATIONS, MODEL_PRESENCE, model_presence_query, motor_type_expression, source_model_query, sales_source_expression, sales_source_query
-from .source_compatibility import SOURCE_ENERGIES, source_energy_expression
+from .source_compatibility import SOURCE_ENERGIES, source_energy_expression, source_dealer_query
 from .records import RECORD_COLUMNS, DEFAULT_RECORD_COLUMNS
 
 
@@ -22,6 +22,7 @@ DIMENSIONS = {
     "legacy_sales_source": "舊報表銷售來源（比對用）",
     "legacy_model": "原型號文字（比對用）",
     "legacy_energy": "原報表能源分類（比對用）",
+    "legacy_dealer": "原報表車行／平台名稱（比對用）",
 }
 METRICS = {"count": "訂單台數", "sale_total": "訂單車價合計", "average_price": "平均訂單車價", "formula": "自訂試算"}
 METRICS["dealer_commission"] = "DMIS 車行傭金支出"
@@ -212,7 +213,7 @@ def base_query(config, filters, card=None):
     scopes = (config.get("fixed_filters", {}), (card or {}).get("fixed_filters", {}))
     if any(isinstance(scope, dict) and scope.get("model_presence") for scope in scopes):
         queryset = model_presence_query(queryset)
-    if any(isinstance(scope, dict) and scope.get("legacy_energy") for scope in scopes):
+    if filters.get("legacy_energy") or any(isinstance(scope, dict) and scope.get("legacy_energy") for scope in scopes):
         queryset = source_model_query(queryset).annotate(report_legacy_energy=source_energy_expression())
     if filters.get("legacy_source") or any(isinstance(scope, dict) and scope.get("legacy_source") for scope in scopes):
         queryset = sales_source_query(queryset).annotate(report_legacy_source=sales_source_expression())
@@ -229,7 +230,8 @@ def base_query(config, filters, card=None):
         if filters.get(key):
             queryset = queryset.filter(**{lookup: filters[key]})
     for key, lookup in (("brand", "vehicle_model__brand"), ("energy", "vehicle_model__energy_type"),
-                        ("source", "source_id"), ("source_type", "source_type"), ("legacy_source", "report_legacy_source")):
+                        ("source", "source_id"), ("source_type", "source_type"), ("legacy_source", "report_legacy_source"),
+                        ("legacy_energy", "report_legacy_energy")):
         selected = filters.get(key)
         if selected:
             queryset = queryset.filter(**{lookup + "__in": selected if isinstance(selected, (list, tuple)) else [selected]})
@@ -255,6 +257,8 @@ def base_query(config, filters, card=None):
 
 
 def dimension_query(queryset, dimension, basis, alias="report_key"):
+    if dimension == "legacy_dealer":
+        return source_dealer_query(queryset).annotate(**{alias: F("report_dealer_label")})
     if dimension == "legacy_energy":
         return source_model_query(queryset).annotate(**{alias: source_energy_expression()})
     if dimension == "legacy_model":
@@ -471,7 +475,7 @@ def card_result(config, card, filters):
             financial_note += f" 其中 {missing} 張訂單缺少收支資料，合計暫不顯示，請由來源訂單補齊。"
     return {"card": card, "rows": values, "total": display_value(total), "count": totals["count"],
             "compatibility_note": ("比對用分類：依已核對的原型號、車種／能源／來源公式；歷史訂單使用匯入型號／原車行文字，新訂單使用 DMIS 主檔。各公式的整段匹配、字首、大小寫與加號規則不同。不影響車型、傭金或獎金規則，亦不代表兩套來源資料已逐筆核對。"
-                                   if {"legacy_motor_type", "legacy_sales_source", "legacy_model", "legacy_energy"}.intersection((dimension, card.get("series"))) else ""),
+                                   if {"legacy_motor_type", "legacy_sales_source", "legacy_model", "legacy_energy", "legacy_dealer"}.intersection((dimension, card.get("series"))) else ""),
             "scope_labels": scope_labels(card.get("fixed_filters", {})),
             "financial_note": financial_note,
             "series_legend": series_legend, "series_label": DIMENSIONS.get(card.get("series"), ""),

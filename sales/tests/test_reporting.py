@@ -13,6 +13,53 @@ from sales.reporting.views import initial_config
 
 
 class ReportingTests(TestCase):
+    def test_dmis_commission_uses_saved_amount_and_missing_is_not_zero(self):
+        from sales.models import OrderOperationsProfile
+        card = {**self.config["cards"][0], "metric": "dealer_commission", "dimension": "recipient"}
+        orders = list(SalesOrder.objects.order_by("pk"))
+        # 正常建單會自動建立 operations；刻意移除測試資料以模擬歷史缺漏。
+        OrderOperationsProfile.objects.filter(order=orders[2]).delete()
+        for order, amount in zip(orders[:2], [Decimal("1250"), Decimal("2750")]):
+            OrderOperationsProfile.objects.update_or_create(order=order, defaults={
+                "dealer_commission_expense": amount, "dealer_commission_base": 99999,
+                "manual_financial_fields": ["dealer_commission_expense"],
+            })
+        result = card_result(self.config, card, {})
+        self.assertEqual(result["total"], "待補收支資料")
+        self.assertEqual(result["raw_total"], None)
+        self.assertIn("1 張訂單缺少", result["financial_note"])
+        by_key = {row["key"]: row for row in result["rows"]}
+        self.assertEqual(by_key[str(self.a.pk)]["value"], "4000")
+        self.assertEqual(by_key[str(self.b.pk)]["display"], "待補收支資料")
+        self.assertFalse(OrderOperationsProfile.objects.filter(order=orders[2]).exists())
+        OrderOperationsProfile.objects.create(order=orders[2], dealer_commission_expense=0)
+        result = card_result(self.config, card, {})
+        self.assertEqual(result["total"], "4,000")
+        self.assertEqual(sum(Decimal(row["value"]) for row in result["rows"]), Decimal("4000"))
+        self.assertEqual(result["count"], 3)
+        self.assertEqual(card_result(self.config, card, {"source_type": ["store"]})["total"], "0")
+
+    def test_commission_detail_export_and_formula_boundaries(self):
+        from sales.models import OrderOperationsProfile
+        OrderOperationsProfile.objects.filter(order=SalesOrder.objects.first()).delete()
+        self.login()
+        config = copy.deepcopy(self.config)
+        config["cards"][0]["metric"] = "dealer_commission"
+        self.report.published = config
+        self.report.save()
+        self.assertEqual(validate_config(config), config)
+        response = self.client.get(reverse("report_detail", args=[self.report.pk, 0]), {"inline": "1"})
+        self.assertContains(response, "DMIS 車行傭金支出")
+        self.assertContains(response, "待補收支資料")
+        exported = self.client.get(reverse("report_export", args=[self.report.pk, 0]))
+        self.assertContains(exported, "不代表已付款")
+        self.assertContains(exported, "待補收支資料")
+        with self.assertRaises(ValidationError):
+            formula_tree("dealer_commission + 500")
+        config["cards"][0]["chart"] = "donut"
+        with self.assertRaises(ValidationError):
+            validate_config(config)
+
     @classmethod
     def setUpTestData(cls):
         users = get_user_model()
@@ -35,6 +82,94 @@ class ReportingTests(TestCase):
 
     def login(self, user=None):
         self.client.force_login(user or self.admin)
+
+    def test_multiselect_intersection_keeps_repeated_query_in_detail_and_export(self):
+        self.login()
+        order = SalesOrder.objects.first()
+        order.registration_date = date(2026, 8, 31)
+        order.save(update_fields=["registration_date"])
+        params = {"months": ["2026-08", "2026-09"], "source": [str(self.a.pk), str(self.b.pk)], "brand": ["SUZUKI"], "energy": ["gas"]}
+        response = self.client.get(reverse("report_display", args=[self.report.pk]), params)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["results"][0]["count"], 3)
+        self.assertIn("months=2026-08&months=2026-09", response.context["query"])
+        self.assertIn(f"source={self.a.pk}&source={self.b.pk}", response.context["query"])
+        detail = self.client.get(reverse("report_detail", args=[self.report.pk, 0]), params)
+        self.assertEqual(detail.context["page_obj"].paginator.count, 3)
+        self.assertIn("months=2026-08&months=2026-09", detail.context["back_query"])
+        exported = self.client.get(reverse("report_export", args=[self.report.pk, 0]), params)
+        self.assertContains(exported, "months=2026-08&months=2026-09")
+        response = self.client.get(reverse("report_display", args=[self.report.pk]), {**params, "months": ["2026-09"]})
+        self.assertEqual(response.context["results"][0]["count"], 2)
+        response = self.client.get(reverse("report_display", args=[self.report.pk]), {**params, "source_type": ["store"]})
+        self.assertEqual(response.context["results"][0]["count"], 0)
+
+    def test_invalid_multiselect_rejected_and_empty_legacy_filter_compatible(self):
+        self.login()
+        route = reverse("report_display", args=[self.report.pk])
+        response = self.client.get(route, {"months": ["not-a-month"]})
+        self.assertFalse(response.context["filter_form"].is_valid())
+        self.assertEqual(response.context["results"], [])
+        response = self.client.get(route, {"brand": "", "energy": ""})
+        self.assertEqual(response.context["results"][0]["count"], 3)
+        response = self.client.get(reverse("report_export", args=[self.report.pk, 0]), {"source": ["9999999999999999999999"]})
+        self.assertEqual(response.status_code, 400)
+
+    def test_months_do_not_include_gap_and_preserve_order_date_basis(self):
+        config = copy.deepcopy(self.config)
+        self.assertEqual(card_result(config, config["cards"][0], {"months": ["2026-08", "2026-10"]})["count"], 0)
+        config["date_basis"] = "order_date"
+        self.assertEqual(card_result(config, config["cards"][0], {"months": ["2026-08"]})["count"], 3)
+        self.assertEqual(card_result(config, config["cards"][0], {"months": ["9999-12"]})["count"], 0)
+
+    def test_inline_detail_shares_permission_and_stale_revision_protection(self):
+        self.login()
+        url = reverse("report_detail", args=[self.report.pk, 0])
+        response = self.client.get(url, {"inline": "1", "group": "v:SUZUKI"})
+        self.assertContains(response, "data-detail-content")
+        self.assertNotContains(response, "<html")
+        self.assertEqual(response.context["page_obj"].paginator.count, 3)
+        self.assertEqual(self.client.get(url, {"inline": "1", "revision": "obsolete"}).status_code, 409)
+        self.report.published = {**self.config, "audience": "admin"}
+        self.report.save()
+        self.login(self.user)
+        self.assertEqual(self.client.get(url, {"inline": "1"}).status_code, 404)
+
+    def test_navigation_order_and_private_titles_do_not_leak(self):
+        public = copy.deepcopy(self.config)
+        public.update(title="較前的銷售頁", navigation_group="sales", page_order=1)
+        earlier = ReportDefinition.objects.create(draft=public, published=public)
+        private = {**public, "title": "不可外洩私人頁", "audience": "admin"}
+        ReportDefinition.objects.create(draft=private, published=private)
+        self.login(self.user)
+        response = self.client.get(reverse("report_display", args=[self.report.pk]))
+        self.assertContains(response, "較前的銷售頁")
+        self.assertNotContains(response, "不可外洩私人頁")
+        self.assertEqual(response.context["navigation"][0]["pages"][0].pk, earlier.pk)
+        self.login()
+        payload = self.data()
+        payload.update(navigation_group="analysis", page_order="12")
+        self.assertEqual(self.client.post(reverse("report_edit", args=[self.report.pk]), payload).status_code, 302)
+        self.report.refresh_from_db()
+        self.assertEqual(self.report.draft["navigation_group"], "analysis")
+        self.assertEqual(self.report.draft["page_order"], 12)
+
+    def test_donut_uses_complete_total_not_truncated_total(self):
+        config = copy.deepcopy(self.config)
+        card = config["cards"][0]
+        card.update(chart="donut", dimension="source", limit=1)
+        result = card_result(config, card, {})
+        self.assertEqual(result["count"], 3)
+        self.assertEqual(result["rows"][0]["count"], 2)
+        self.assertAlmostEqual(result["rows"][0]["percentage"], 200 / 3)
+        self.assertTrue(result["truncated"])
+        card["metric"] = "average_price"
+        with self.assertRaises(ValidationError):
+            validate_config(config)
+        card["metric"] = "sale_total"
+        SalesOrder.objects.filter(pk=SalesOrder.objects.first().pk).update(vehicle_price=-1)
+        with self.assertRaises(ValidationError):
+            card_result(config, card, {})
 
     def data(self, config=None, action="save", version=1):
         config = copy.deepcopy(config or self.config)

@@ -4,7 +4,7 @@ from datetime import date
 from decimal import Decimal, InvalidOperation, localcontext
 
 from django.core.exceptions import ValidationError
-from django.db.models import Avg, Case, Count, F, IntegerField, Sum, Value, When
+from django.db.models import Avg, Case, Count, F, IntegerField, Q, Sum, Value, When
 from django.db.models.functions import TruncMonth
 
 from sales.models import SalesOrder, SalesSource, VehicleModel
@@ -15,7 +15,9 @@ DIMENSIONS = {
     "source": "原銷售車行／通路", "recipient": "台數與傭金歸屬車行", "county": "領牌縣市",
 }
 METRICS = {"count": "訂單台數", "sale_total": "訂單車價合計", "average_price": "平均訂單車價", "formula": "自訂試算"}
-CHARTS = {"bar": "長條圖", "line": "折線圖", "table": "資料表", "score": "指標卡"}
+METRICS["dealer_commission"] = "DMIS 車行傭金支出"
+CHARTS = {"bar": "長條圖", "line": "折線圖", "donut": "圓環占比圖", "table": "資料表", "score": "指標卡"}
+NAVIGATION_GROUPS = {"sales": "銷售統計", "analysis": "大數據分析", "custom": "自訂報表"}
 AGGREGATES = {"count": Count("pk"), "sale_total": Sum("vehicle_price"), "average_price": Avg("vehicle_price")}
 EXCLUDED_STATUSES = ["draft", "cancel_refund_pending", "cancelled"]
 MAX_GROUPS = 200
@@ -77,8 +79,13 @@ def calculate(expression, metrics):
 
 
 def validate_config(config):
-    if not isinstance(config, dict) or set(config) != {"title", "description", "audience", "date_basis", "cards"}:
+    required = {"title", "description", "audience", "date_basis", "cards"}
+    if not isinstance(config, dict) or not required <= set(config) or set(config) - required - {"navigation_group", "page_order"}:
         raise ValidationError("報表設定格式不正確。")
+    if config.get("navigation_group", "custom") not in NAVIGATION_GROUPS:
+        raise ValidationError("報表導覽分類不正確。")
+    if type(config.get("page_order", 0)) is not int or not 0 <= config.get("page_order", 0) <= 999:
+        raise ValidationError("頁面順序須為 0–999。")
     for key, maximum in (("title", 100), ("description", 1000)):
         if not isinstance(config[key], str) or len(config[key]) > maximum:
             raise ValidationError("報表名稱或說明過長。")
@@ -101,6 +108,8 @@ def validate_config(config):
             raise ValidationError("公式過長。")
         if card["metric"] == "formula":
             formula_tree(card["formula"])
+        if card["chart"] == "donut" and card["metric"] not in ("count", "sale_total"):
+            raise ValidationError("圓環占比請使用訂單台數或車價合計；平均與自訂試算不能相加計算占比。")
     return config
 
 
@@ -112,10 +121,20 @@ def base_query(config, filters):
     for key, lookup in (("start", f"{basis}__gte"), ("end", f"{basis}__lte")):
         if filters.get(key):
             queryset = queryset.filter(**{lookup: filters[key]})
-    if filters.get("brand"):
-        queryset = queryset.filter(vehicle_model__brand=filters["brand"])
-    if filters.get("energy"):
-        queryset = queryset.filter(vehicle_model__energy_type=filters["energy"])
+    for key, lookup in (("brand", "vehicle_model__brand"), ("energy", "vehicle_model__energy_type"),
+                        ("source", "source_id"), ("source_type", "source_type")):
+        selected = filters.get(key)
+        if selected:
+            queryset = queryset.filter(**{lookup + "__in": selected if isinstance(selected, (list, tuple)) else [selected]})
+    if filters.get("months"):
+        months = Q()
+        for month in filters["months"]:
+            first = date.fromisoformat(month + "-01")
+            interval = {basis + "__gte": first}
+            if first != date(9999, 12, 1):
+                interval[basis + "__lt"] = date(first.year + (first.month == 12), first.month % 12 + 1, 1)
+            months |= Q(**interval)
+        queryset = queryset.filter(months)
     return queryset
 
 
@@ -145,13 +164,29 @@ def format_value(value):
 
 def card_result(config, card, filters):
     queryset = base_query(config, filters)
-    totals = queryset.aggregate(**AGGREGATES)
+    if card["chart"] == "donut" and card["metric"] == "sale_total" and queryset.filter(vehicle_price__lt=0).exists():
+        raise ValidationError("篩選範圍包含負車價，不適合以圓環呈現，請改用資料表。")
     metric = card["metric"]
-    value_of = lambda row: calculate(card["formula"], row) if metric == "formula" else row[metric] or 0
+    aggregates = dict(AGGREGATES)
+    if metric == "dealer_commission":
+        # OneToOne 收支資料不會倍增訂單；不可再 JOIN 獎金分配後重複加總。
+        aggregates.update(dealer_commission=Sum("operations__dealer_commission_expense"),
+                          financial_count=Count("operations__pk"))
+    totals = queryset.aggregate(**aggregates)
+
+    def value_of(row):
+        if metric == "dealer_commission" and row["financial_count"] != row["count"]:
+            return None
+        return calculate(card["formula"], row) if metric == "formula" else row[metric] or 0
+
+    def display_value(value):
+        if metric == "dealer_commission" and value is None:
+            return "待補收支資料"
+        return format_value(value)
     total = value_of(totals)
     groups = dimension_query(queryset, card["dimension"], config["date_basis"])
     # 有界查詢：最多 201 群。自訂公式先取完整的最多 200 群後排序；過量明確拒絕。
-    grouped = groups.values("report_key").annotate(**AGGREGATES).order_by("report_key")
+    grouped = groups.values("report_key").annotate(**aggregates).order_by("report_key")
     if metric != "formula" and card["sort"] == "value":
         grouped = grouped.order_by(f"-{metric}", "report_key")
     rows = list(grouped[:MAX_GROUPS + 1])
@@ -183,11 +218,22 @@ def card_result(config, card, filters):
         if raw is None or raw == "":
             label = "本店／未指定通路" if dimension == "source" else "未歸屬車行" if dimension == "recipient" else "未填寫"
         values.append({"key": key, "label": str(label), "value": str(value) if value is not None else None,
-                       "display": format_value(value), "count": row["count"]})
+                       "display": display_value(value), "count": row["count"]})
     maximum = max((abs(Decimal(row["value"])) for row in values if row["value"] is not None), default=Decimal(0))
     for row in values:
         row["width"] = float(abs(Decimal(row["value"])) / maximum * 100) if maximum and row["value"] is not None else 0
-    return {"card": card, "rows": values, "total": format_value(total), "count": totals["count"],
+        row["percentage"] = float(Decimal(row["value"]) / total * 100) if metric in ("count", "sale_total") and total and row["value"] is not None else None
+    if card["chart"] == "donut" and (metric not in ("count", "sale_total") or any(Decimal(row["value"] or 0) < 0 for row in values)):
+        raise ValidationError("圓環占比不支援平均、試算或負值，請改用資料表。")
+    financial_note = ""
+    if metric == "dealer_commission":
+        financial_note = "讀取 DMIS 保存的車行傭金支出（可能含已分配獎金），不代表已付款；報表不重算或重複加計獎金。"
+        missing = totals["count"] - totals["financial_count"]
+        if missing:
+            financial_note += f" 其中 {missing} 張訂單缺少收支資料，合計暫不顯示，請由來源訂單補齊。"
+    return {"card": card, "rows": values, "total": display_value(total), "count": totals["count"],
+            "financial_note": financial_note,
+            "raw_total": str(total) if total is not None else None,
             "truncated": truncated, "metric_label": METRICS[metric], "dimension_label": DIMENSIONS[dimension]}
 
 

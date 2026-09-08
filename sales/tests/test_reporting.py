@@ -241,6 +241,46 @@ class ReportingTests(TestCase):
         with self.assertRaises(ValidationError):
             validate_config({**self.config, "cards": []})
 
+    def test_records_checkbox_save_preserves_existing_column_order(self):
+        from sales.reporting.forms import ReportForm
+        initial = {**self.config, "records_columns": ["legacy_premium", "number", "legacy_gift_card"]}
+        form = ReportForm(initial=initial)
+        form.cleaned_data = {"records_columns": ["number", "color", "legacy_gift_card", "legacy_premium"]}
+        self.assertEqual(form.clean_records_columns(), ["legacy_premium", "number", "legacy_gift_card", "color"])
+        form.cleaned_data = {"records_columns": ["number"]}
+        self.assertEqual(form.clean_records_columns(), ["number"])
+
+    def test_source_dealer_normalization_merges_only_report_groups_and_drills_exactly(self):
+        before = list(SalesOrder.objects.order_by("pk").values())
+        SalesSource.objects.filter(pk=self.a.pk).update(name=" p c \t")
+        SalesSource.objects.filter(pk=self.b.pk).update(name="PC")
+        card = {**self.config["cards"][0], "dimension": "legacy_dealer"}
+        result = card_result(self.config, card, {})
+        self.assertEqual([(r["label"], r["count"]) for r in result["rows"]], [("PC", 3)])
+        self.assertEqual(drill_query(self.config, card, {}, "v:PC").count(), 3)
+        SalesSource.objects.filter(pk=self.a.pk).update(name="P\u3000C")
+        result = card_result(self.config, card, {})
+        self.assertEqual({r["label"] for r in result["rows"]}, {"P\u3000C", "PC"})
+        SalesSource.objects.filter(pk=self.a.pk).update(name="   ")
+        self.assertEqual(drill_query(self.config, card, {}, "v:馭盛").count(), 1)
+        self.assertEqual(list(SalesOrder.objects.order_by("pk").values()), before)
+
+    def test_platform_candidate_intersects_source_and_energy_and_keeps_dealer_labels(self):
+        from sales.reporting.source_templates import electric_platform_sales
+        from sales.reporting.records import record_context
+        config = validate_config(electric_platform_sales())
+        self.model.model_number = "EV060L"
+        self.model.save(update_fields=["model_number"])
+        SalesSource.objects.filter(pk=self.a.pk).update(name="PC")
+        SalesSource.objects.filter(pk=self.b.pk).update(name="momo")
+        result = card_result(config, config["cards"][0], {})
+        self.assertEqual(result["count"], 3)
+        self.assertEqual({s["label"] for r in result["rows"] for s in r["segments"]}, {"PC", "MOMO"})
+        rows = record_context(config, {})["records_rows"]
+        self.assertEqual({r["cells"][1]["value"] for r in rows}, {"PC", "MOMO"})
+        self.assertEqual(card_result(config, config["cards"][0], {"legacy_source": ["車行"]})["count"], 0)
+        self.assertEqual(card_result(config, config["cards"][0], {"legacy_energy": ["油車"]})["count"], 0)
+
     def test_records_financial_values_use_confirmed_receipts_and_missing_is_not_zero(self):
         from sales.models import PaymentRecord, OrderOperationsProfile
         from sales.reporting.records import record_context

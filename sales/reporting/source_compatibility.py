@@ -1,7 +1,7 @@
 """原報表非財務分類的唯讀比對口徑；不覆寫 DMIS 主檔或獎金規則。"""
 from django.db.models import BooleanField, Case, CharField, F, Func, Q, Value, When
 from django.db.models.fields.json import KeyTextTransform
-from django.db.models.functions import Coalesce
+from django.db.models.functions import Coalesce, Replace, Trim, Upper
 
 
 # 2026-09-08 原報表 MotorType / calc_l2y60pz9wd 實際公式。
@@ -98,3 +98,15 @@ def sales_source_expression():
         When(report_source_name="展場", then=Value("展場")),
         default=Value("車行"), output_field=CharField(),
     )
+
+
+def source_dealer_query(queryset):
+    """Dealer_NotNull：只清理報表分組，不合併或修改正式車行資料。"""
+    queryset = sales_source_query(queryset).annotate(report_trimmed_source=Trim(F("report_source_name")))
+    cleaned = F("report_source_name")
+    # 原 RE2 \\s 為 ASCII [\\t\\n\\f\\r ]，不是 Python 的所有 Unicode 空白。
+    for whitespace in (" ", "\t", "\n", "\f", "\r"):
+        cleaned = Replace(cleaned, Value(whitespace), Value(""))
+    return queryset.annotate(report_dealer_label=Case(
+        When(report_trimmed_source="", then=Value("馭盛")),
+        default=Upper(Trim(cleaned)), output_field=CharField()))

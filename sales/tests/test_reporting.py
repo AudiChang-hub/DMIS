@@ -13,6 +13,62 @@ from sales.reporting.views import initial_config
 
 
 class ReportingTests(TestCase):
+    def test_stacked_series_totals_and_detail_match_with_top_n(self):
+        card = {**self.config["cards"][0], "chart": "stacked", "dimension": "source", "series": "energy", "limit": 1}
+        result = card_result(self.config, card, {})
+        self.assertTrue(result["truncated"])
+        self.assertEqual(len(result["rows"]), 1)
+        for row in result["rows"]:
+            self.assertEqual(sum(segment["count"] for segment in row["segments"]), row["count"])
+            for segment in row["segments"]:
+                self.assertEqual(drill_query(self.config, card, {}, segment["key"]).count(), segment["count"])
+        for key in ('c:[]', 'c:{}', 'c:["x","v:gas"]', 'c:[null,{}]'):
+            with self.subTest(key=key), self.assertRaises(ValidationError):
+                drill_query(self.config, card, {}, key)
+
+    def test_calendar_grain_and_undated_are_explicit_and_read_only(self):
+        config = {**self.config, "include_undated": True}
+        card = {**self.config["cards"][0], "chart": "stacked", "dimension": "month", "series": "source", "sort": "key_desc"}
+        SalesOrder.objects.filter(pk=SalesOrder.objects.first().pk).update(registration_date=None)
+        result = card_result(config, card, {"grain": "year"})
+        self.assertEqual(result["count"], 3)
+        self.assertEqual(result["rows"][-1]["label"], "日期未填寫")
+        self.assertEqual(result["dimension_label"], "年份")
+        self.assertEqual(card["dimension"], "month")
+        for row in result["rows"]:
+            for segment in row["segments"]:
+                self.assertEqual(drill_query(config, card, {"grain": "year"}, segment["key"]).count(), segment["count"])
+        self.assertEqual(card_result(config, card, {"start": date(2026, 1, 1)})["count"], 2)
+        self.assertEqual(card_result(self.config, card, {})["count"], 2)
+        with self.assertRaises(ValidationError):
+            card_result(config, card, {"grain": "arbitrary"})
+
+    def test_stacked_config_rejects_non_additive_and_ambiguous_series(self):
+        for metric, series in (("average_price", "source"), ("dealer_commission", "source"), ("count", "brand"), ("count", "")):
+            config = copy.deepcopy(self.config)
+            config["cards"][0].update(chart="stacked", metric=metric, dimension="brand", series=series)
+            with self.subTest(metric=metric, series=series), self.assertRaises(ValidationError):
+                validate_config(config)
+        with self.assertRaises(ValidationError):
+            validate_config({**self.config, "include_undated": "false"})
+
+    def test_stacked_published_export_and_calendar_detail_share_scope(self):
+        self.login()
+        config = copy.deepcopy(self.config)
+        config["cards"][0].update(chart="stacked", dimension="month", series="source")
+        self.report.published = config
+        self.report.save()
+        result = card_result(config, config["cards"][0], {"grain": "year"})
+        exported = self.client.get(reverse("report_export", args=[self.report.pk, 0]), {"grain": "year"})
+        self.assertContains(exported, "年份,原銷售車行／通路,訂單台數")
+        self.assertContains(exported, "2026,甲車行,1,1")
+        self.assertContains(exported, "2026,乙車行,2,2")
+        segment = result["rows"][0]["segments"][0]
+        response = self.client.get(reverse("report_detail", args=[self.report.pk, 0]), {
+            "grain": "year", "group": segment["key"], "inline": "1"})
+        self.assertEqual(response.context["page_obj"].paginator.count, segment["count"])
+
+
     def test_fixed_scopes_intersect_and_cannot_be_overridden_by_reader(self):
         config = copy.deepcopy(self.config)
         config["fixed_filters"] = {"energy": ["gas"], "source": [str(self.a.pk), str(self.b.pk)]}

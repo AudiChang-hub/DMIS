@@ -69,6 +69,7 @@ if (typeof module !== "undefined" && module.exports) module.exports = {reportPoi
       target.addEventListener("focus", show); target.addEventListener("pointerleave", () => { tip.hidden = true; });
       target.addEventListener("blur", () => { tip.hidden = true; });
       target.addEventListener("click", event => {
+        if (link && link.contains(event.target)) { tip.hidden = true; return; }
         if (event.pointerType === "touch") { show(event); return; }
         tip.hidden = true; link?.click();
       });
@@ -77,7 +78,15 @@ if (typeof module !== "undefined" && module.exports) module.exports = {reportPoi
         if (link && (event.key === "Enter" || event.key === " ")) { event.preventDefault(); tip.hidden = true; link.click(); }
       });
     };
-    rows.forEach(row => { const bar = row.querySelector(".report-bar-track"); if (bar) attach(bar, row); });
+    rows.forEach(row => {
+      const bar = row.querySelector(".report-bar-track");
+      if (bar) attach(bar, row);
+      if (row.hasAttribute("data-stack-segment")) {
+        attach(row, row);
+        const link = row.querySelector("[data-report-drill]");
+        if (link) link.tabIndex = -1;
+      }
+    });
     if (chart.dataset.chart === "line") {
       const validRows = rows.filter(row => row.dataset.pointValue !== "" && Number.isFinite(Number(row.dataset.pointValue)));
       chart.querySelectorAll("svg circle").forEach((dot, index) => { dot.setAttribute("r", "7"); attach(dot, validRows[index]); });
@@ -151,8 +160,9 @@ if (typeof module !== "undefined" && module.exports) module.exports = {reportPoi
     event.preventDefault();
     if (link.matches("[data-report-drill]")) {
       document.querySelectorAll(".report-row-selected").forEach(row => row.classList.remove("report-row-selected"));
-      const row = link.closest("tr"); row.classList.add("report-row-selected");
-      loadDetail(link.href, `已選取：${row.dataset.pointLabel}`);
+      const row = link.closest("[data-point-label]") || link.closest(".report-stack-row");
+      row?.classList.add("report-row-selected");
+      loadDetail(link.href, `已選取：${row?.dataset.pointLabel || link.getAttribute("aria-label") || link.textContent.trim()}`);
     } else loadDetail(new URL(link.getAttribute("href"), currentUrl).href, selection.textContent);
   });
   panel.querySelector("[data-detail-clear]").addEventListener("click", () => {

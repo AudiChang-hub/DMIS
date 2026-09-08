@@ -2,10 +2,44 @@ from django import forms
 from django.forms import formset_factory
 
 from sales.models import SalesOrder, SalesSource, VehicleModel
-from .engine import CHARTS, DIMENSIONS, METRICS, NAVIGATION_GROUPS, formula_tree
+from .engine import CHARTS, DIMENSIONS, METRICS, NAVIGATION_GROUPS, SCOPE_LABELS, formula_tree, validate_scope
 
 
-class ReportForm(forms.Form):
+class ScopeForm(forms.Form):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.initial = dict(self.initial)
+        choices = {
+            "brand": [(name, name) for name in VehicleModel.objects.order_by("brand").values_list("brand", flat=True).distinct()],
+            "energy": VehicleModel.EnergyType.choices,
+            "source_type": SalesOrder.SourceType.choices,
+            "source": [(str(pk), name) for pk, name in SalesSource.objects.order_by("name", "pk").values_list("pk", "name")],
+            "model": [(str(model.pk), str(model)) for model in VehicleModel.objects.order_by("brand", "name", "pk")],
+        }
+        scope = self.initial.get("fixed_filters", {})
+        validate_scope(scope)
+        for key, label in SCOPE_LABELS.items():
+            options = list(choices[key])
+            known = {value for value, _ in options}
+            # 保留已刪除主檔的固定限制；重新開啟儲存不可變成不限。
+            options.extend((value, f"已移除項目 #{value}") for value in scope.get(key, []) if value not in known)
+            self.fields["fixed_" + key] = forms.MultipleChoiceField(label=label, choices=options, required=False)
+            self.initial["fixed_" + key] = scope.get(key, [])
+
+    def primary_fields(self):
+        return [field for field in self.visible_fields() if not field.name.startswith("fixed_")]
+
+    def scope_fields(self):
+        return [self["fixed_" + key] for key in SCOPE_LABELS]
+
+    def scope_count(self):
+        return sum(len(field.value() or []) for field in self.scope_fields())
+
+    def scope_data(self):
+        return {key: self.cleaned_data["fixed_" + key] for key in SCOPE_LABELS if self.cleaned_data.get("fixed_" + key)}
+
+
+class ReportForm(ScopeForm):
     title = forms.CharField(label="報表名稱", max_length=100)
     description = forms.CharField(label="報表說明", required=False, max_length=1000, widget=forms.Textarea(attrs={"rows": 2}))
     audience = forms.ChoiceField(label="發布後可查看的人", choices=[("admin", "只有我（admin）"), ("team", "所有已登入的內部帳號")])
@@ -21,7 +55,7 @@ class ReportForm(forms.Form):
         return self.cleaned_data["page_order"] or 0
 
 
-class CardForm(forms.Form):
+class CardForm(ScopeForm):
     title = forms.CharField(label="圖表名稱", max_length=100)
     chart = forms.ChoiceField(label="呈現方式", choices=CHARTS.items())
     dimension = forms.ChoiceField(label="依什麼分類", choices=DIMENSIONS.items())

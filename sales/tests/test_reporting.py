@@ -13,6 +13,72 @@ from sales.reporting.views import initial_config
 
 
 class ReportingTests(TestCase):
+    def test_fixed_scopes_intersect_and_cannot_be_overridden_by_reader(self):
+        config = copy.deepcopy(self.config)
+        config["fixed_filters"] = {"energy": ["gas"], "source": [str(self.a.pk), str(self.b.pk)]}
+        card = config["cards"][0]
+        card["fixed_filters"] = {"source": [str(self.a.pk)], "model": [str(self.model.pk)]}
+        self.assertEqual(validate_config(config), config)
+        self.assertEqual(card_result(config, card, {})["count"], 1)
+        self.assertEqual(card_result(config, card, {"source": [str(self.b.pk)]})["count"], 0)
+        self.assertEqual(card_result(config, card, {"energy": ["electric"]})["count"], 0)
+        self.assertEqual(drill_query(config, card, {}, "__all__").count(), 1)
+        self.assertEqual(drill_query(config, card, {"source": [str(self.b.pk)]}, "__all__").count(), 0)
+        config["fixed_filters"]["model"] = ["99999999"]
+        self.assertEqual(card_result(config, card, {})["count"], 0)
+
+    def test_fixed_scopes_publish_preview_restore_and_preserve_legacy_config(self):
+        from sales.reporting.forms import ReportForm, CardForm
+        original = copy.deepcopy(self.config)
+        ReportForm(initial=original)
+        CardForm(initial=original["cards"][0])
+        self.assertEqual(original, self.config)
+        self.login()
+        payload = self.data(action="preview")
+        payload.update(fixed_energy=["gas"], **{"cards-0-fixed_source": [str(self.a.pk)]})
+        response = self.client.post(reverse("report_edit", args=[self.report.pk]), payload)
+        self.assertEqual(response.context["preview"][0]["count"], 1)
+        self.assertEqual(response.context["preview"][1]["count"], 3)
+        self.report.refresh_from_db()
+        self.assertEqual(self.report.version, 1)
+        payload["action"] = "publish"
+        self.assertEqual(self.client.post(reverse("report_edit", args=[self.report.pk]), payload).status_code, 302)
+        self.report.refresh_from_db()
+        self.assertEqual(self.report.published["fixed_filters"], {"energy": ["gas"]})
+        self.assertEqual(self.report.published["cards"][0]["fixed_filters"], {"source": [str(self.a.pk)]})
+        response = self.client.get(reverse("report_edit", args=[self.report.pk]))
+        self.assertEqual(response.context["form"]["fixed_energy"].value(), ["gas"])
+        self.assertEqual(response.context["formset"][0]["fixed_source"].value(), [str(self.a.pk)])
+        self.assertEqual(validate_config(self.config), self.config)
+
+    def test_fixed_scopes_display_detail_export_consistent_and_safe(self):
+        config = copy.deepcopy(self.config)
+        config["fixed_filters"] = {"energy": ["gas"]}
+        config["cards"][0]["fixed_filters"] = {"source": [str(self.a.pk)]}
+        self.report.published = config
+        self.report.save()
+        self.login(self.user)
+        response = self.client.get(reverse("report_display", args=[self.report.pk]), {"fixed_energy": "electric"})
+        self.assertContains(response, "報表固定範圍")
+        self.assertEqual(response.context["results"][0]["count"], 1)
+        detail = self.client.get(reverse("report_detail", args=[self.report.pk, 0]), {"inline": "1"})
+        self.assertEqual(detail.context["page_obj"].paginator.count, 1)
+        self.assertContains(detail, "甲車行")
+        exported = self.client.get(reverse("report_export", args=[self.report.pk, 0]))
+        self.assertContains(exported, "報表固定範圍")
+        self.assertContains(exported, "圖表固定範圍")
+        self.assertContains(exported, "SUZUKI,1,1")
+        self.assertNotContains(exported, "乙車行")
+
+    def test_invalid_fixed_scopes_rejected_and_deleted_option_preserved(self):
+        from sales.reporting.forms import ReportForm
+        for invalid in (None, [], {"owner_phone": ["x"]}, {"brand": "SUZUKI"}, {"source": ["1__gte"]},
+                        {"source": ["9" * 30]}, {"energy": ["bogus"]}, {"brand": ["x"] * 201}, {"model": [True]}):
+            with self.subTest(invalid=invalid), self.assertRaises(ValidationError):
+                validate_config({**self.config, "fixed_filters": invalid})
+        form = ReportForm(initial={**self.config, "fixed_filters": {"source": ["99999999"]}})
+        self.assertIn(("99999999", "已移除項目 #99999999"), form.fields["fixed_source"].choices)
+
     def test_dmis_commission_uses_saved_amount_and_missing_is_not_zero(self):
         from sales.models import OrderOperationsProfile
         card = {**self.config["cards"][0], "metric": "dealer_commission", "dimension": "recipient"}

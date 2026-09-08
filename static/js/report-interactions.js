@@ -13,11 +13,18 @@ if (typeof module !== "undefined" && module.exports) module.exports = {reportPoi
 (() => {
   "use strict";
   if (typeof document === "undefined") return;
-  document.querySelectorAll("[data-report-multi]").forEach(control => {
+  const initMulti = root => root.querySelectorAll("[data-report-multi]").forEach(control => {
+    if (control.dataset.multiReady) return;
+    control.dataset.multiReady = "true";
     const inputs = [...control.querySelectorAll('input[type="checkbox"]')];
     const update = () => {
       const selected = inputs.filter(input => input.checked);
       control.querySelector("[data-multi-summary]").textContent = selected.length ? `已選 ${selected.length} 項` : "不限（可複選）";
+      const scope = control.closest(".report-card-scope");
+      if (scope) {
+        const count = scope.querySelectorAll('input[type="checkbox"]:checked').length;
+        scope.querySelector("[data-scope-count]").textContent = count ? `已選 ${count} 項` : "沿用報表範圍";
+      }
     };
     control.addEventListener("change", update);
     control.querySelector("[data-multi-search]").addEventListener("input", event => {
@@ -25,9 +32,10 @@ if (typeof module !== "undefined" && module.exports) module.exports = {reportPoi
       control.querySelectorAll("[data-multi-option]").forEach(option => { option.hidden = !option.textContent.toLocaleLowerCase().includes(query); });
     });
     control.querySelector("[data-multi-all]").addEventListener("click", () => {
-      inputs.filter(input => !input.closest("label").hidden).forEach(input => { input.checked = true; }); update();
+      inputs.filter(input => !input.closest("label").hidden).forEach(input => { input.checked = true; });
+      control.dispatchEvent(new Event("change", {bubbles:true}));
     });
-    control.querySelector("[data-multi-clear]").addEventListener("click", () => { inputs.forEach(input => { input.checked = false; }); update(); });
+    control.querySelector("[data-multi-clear]").addEventListener("click", () => { inputs.forEach(input => { input.checked = false; }); control.dispatchEvent(new Event("change", {bubbles:true})); });
     control.addEventListener("toggle", () => {
       if (control.open) document.querySelectorAll("[data-report-multi]").forEach(other => { if (other !== control) other.open = false; });
     });
@@ -35,6 +43,9 @@ if (typeof module !== "undefined" && module.exports) module.exports = {reportPoi
     document.addEventListener("click", event => { if (!control.contains(event.target)) control.open = false; });
     update();
   });
+  initMulti(document);
+  const editorCards = document.querySelector("[data-report-cards]");
+  if (editorCards) new MutationObserver(() => initMulti(editorCards)).observe(editorCards, {childList:true});
 
   const palette = ["#4257a5", "#278168", "#b65b33", "#9269af", "#28789d", "#a86e11", "#b3446c", "#5c6b78"];
   document.querySelectorAll(".report-chart").forEach((chart, chartIndex) => {

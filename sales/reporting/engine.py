@@ -21,6 +21,45 @@ NAVIGATION_GROUPS = {"sales": "銷售統計", "analysis": "大數據分析", "cu
 AGGREGATES = {"count": Count("pk"), "sale_total": Sum("vehicle_price"), "average_price": Avg("vehicle_price")}
 EXCLUDED_STATUSES = ["draft", "cancel_refund_pending", "cancelled"]
 MAX_GROUPS = 200
+SCOPE_LOOKUPS = {"brand": "vehicle_model__brand", "energy": "vehicle_model__energy_type",
+                 "source_type": "source_type", "source": "source_id", "model": "vehicle_model_id"}
+SCOPE_LABELS = {"brand": "品牌", "energy": "能源別", "source_type": "來源類型", "source": "車行／平台", "model": "指定車型"}
+
+
+def validate_scope(scope):
+    if not isinstance(scope, dict) or set(scope) - SCOPE_LOOKUPS.keys():
+        raise ValidationError("固定條件包含不支援的欄位。")
+    for key, values in scope.items():
+        if not isinstance(values, list) or len(values) > 200:
+            raise ValidationError("每個固定條件最多選擇 200 項。")
+        for value in values:
+            if not isinstance(value, str) or not value or len(value) > 100:
+                raise ValidationError("固定條件格式不正確。")
+            if key in ("model", "source") and (not value.isascii() or not value.isdigit() or not 0 < int(value) <= 9223372036854775807):
+                raise ValidationError("固定條件的資料編號不正確。")
+            choices = dict(VehicleModel.EnergyType.choices) if key == "energy" else dict(SalesOrder.SourceType.choices) if key == "source_type" else None
+            if choices is not None and value not in choices:
+                raise ValidationError("固定條件的分類不正確。")
+
+
+def scope_labels(scope):
+    """顯示已保存條件；主檔已刪除時保留 ID 提醒，不默默放寬範圍。"""
+    validate_scope(scope)
+    items = []
+    for key, values in scope.items():
+        if not values:
+            continue
+        labels = {}
+        if key == "energy":
+            labels = dict(VehicleModel.EnergyType.choices)
+        elif key == "source_type":
+            labels = dict(SalesOrder.SourceType.choices)
+        elif key == "source":
+            labels = {str(pk): name for pk, name in SalesSource.objects.filter(pk__in=values).values_list("pk", "name")}
+        elif key == "model":
+            labels = {str(model.pk): str(model) for model in VehicleModel.objects.filter(pk__in=values)}
+        items.append(f"{SCOPE_LABELS[key]}：" + "、".join(labels.get(value, f"已移除項目 #{value}" if key in ("model", "source") else value) for value in values))
+    return items
 
 
 def formula_tree(expression):
@@ -80,8 +119,9 @@ def calculate(expression, metrics):
 
 def validate_config(config):
     required = {"title", "description", "audience", "date_basis", "cards"}
-    if not isinstance(config, dict) or not required <= set(config) or set(config) - required - {"navigation_group", "page_order"}:
+    if not isinstance(config, dict) or not required <= set(config) or set(config) - required - {"navigation_group", "page_order", "fixed_filters"}:
         raise ValidationError("報表設定格式不正確。")
+    validate_scope(config.get("fixed_filters", {}))
     if config.get("navigation_group", "custom") not in NAVIGATION_GROUPS:
         raise ValidationError("報表導覽分類不正確。")
     if type(config.get("page_order", 0)) is not int or not 0 <= config.get("page_order", 0) <= 999:
@@ -96,8 +136,10 @@ def validate_config(config):
     if not isinstance(config["cards"], list) or not 1 <= len(config["cards"]) <= 8:
         raise ValidationError("每份報表請保留 1–8 張圖表。")
     for card in config["cards"]:
-        if not isinstance(card, dict) or set(card) != {"title", "dimension", "metric", "chart", "formula", "limit", "sort"}:
+        card_fields = {"title", "dimension", "metric", "chart", "formula", "limit", "sort"}
+        if not isinstance(card, dict) or not card_fields <= set(card) or set(card) - card_fields - {"fixed_filters"}:
             raise ValidationError("圖表格式不正確。")
+        validate_scope(card.get("fixed_filters", {}))
         if not isinstance(card["title"], str) or not 1 <= len(card["title"].strip()) <= 100:
             raise ValidationError("每張圖表請填寫 1–100 字的標題。")
         if card["dimension"] not in DIMENSIONS or card["metric"] not in METRICS or card["chart"] not in CHARTS:
@@ -113,8 +155,14 @@ def validate_config(config):
     return config
 
 
-def base_query(config, filters):
+def base_query(config, filters, card=None):
     queryset = SalesOrder.objects.exclude(status__in=EXCLUDED_STATUSES)
+    # 各層皆取交集；讀者 GET 參數無法覆蓋發布版本的固定範圍。
+    for scope in (config.get("fixed_filters", {}), (card or {}).get("fixed_filters", {})):
+        validate_scope(scope)
+        for key, values in scope.items():
+            if values:
+                queryset = queryset.filter(**{SCOPE_LOOKUPS[key] + "__in": values})
     basis = config["date_basis"]
     if basis == "registration_date":
         queryset = queryset.filter(registration_date__isnull=False)
@@ -163,7 +211,7 @@ def format_value(value):
 
 
 def card_result(config, card, filters):
-    queryset = base_query(config, filters)
+    queryset = base_query(config, filters, card)
     if card["chart"] == "donut" and card["metric"] == "sale_total" and queryset.filter(vehicle_price__lt=0).exists():
         raise ValidationError("篩選範圍包含負車價，不適合以圓環呈現，請改用資料表。")
     metric = card["metric"]
@@ -232,13 +280,14 @@ def card_result(config, card, filters):
         if missing:
             financial_note += f" 其中 {missing} 張訂單缺少收支資料，合計暫不顯示，請由來源訂單補齊。"
     return {"card": card, "rows": values, "total": display_value(total), "count": totals["count"],
+            "scope_labels": scope_labels(card.get("fixed_filters", {})),
             "financial_note": financial_note,
             "raw_total": str(total) if total is not None else None,
             "truncated": truncated, "metric_label": METRICS[metric], "dimension_label": DIMENSIONS[dimension]}
 
 
 def drill_query(config, card, filters, key):
-    queryset = dimension_query(base_query(config, filters), card["dimension"], config["date_basis"])
+    queryset = dimension_query(base_query(config, filters, card), card["dimension"], config["date_basis"])
     if key == "__all__":
         return queryset
     if key == "__none__":

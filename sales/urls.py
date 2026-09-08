@@ -8,6 +8,7 @@ from .reporting import views as report_views
 urlpatterns = [
     path("reports/", report_views.center, name="report_center"),
     path("reports/<int:pk>/", report_views.display, name="report_display"),
+    path("reports/<int:pk>/orders/export/", report_views.records_export, name="report_records_export"),
     path("reports/<int:pk>/charts/<int:index>/orders/", report_views.detail, name="report_detail"),
     path("reports/<int:pk>/charts/<int:index>/export/", report_views.export, name="report_export"),
     path("data/report-design/", report_views.manage, name="report_manage"),

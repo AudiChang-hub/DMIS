@@ -9,7 +9,8 @@ from django.db.models import Avg, Case, Count, F, IntegerField, Q, Sum, Value, W
 from django.db.models.functions import TruncMonth, TruncYear
 
 from sales.models import SalesOrder, SalesSource, VehicleModel, VehicleModelFamily
-from .source_compatibility import motor_type_expression, source_model_query
+from .source_compatibility import SOURCE_CLASSIFICATIONS, motor_type_expression, source_model_query, sales_source_expression, sales_source_query
+from .records import RECORD_COLUMNS, DEFAULT_RECORD_COLUMNS
 
 
 DIMENSIONS = {
@@ -17,6 +18,7 @@ DIMENSIONS = {
     "source": "原銷售車行／通路", "recipient": "台數與傭金歸屬車行", "county": "領牌縣市",
     "year": "年份", "day": "日期", "family": "機種", "source_type": "來源類型", "color": "車色",
     "legacy_motor_type": "舊報表車種分類（比對用）",
+    "legacy_sales_source": "舊報表銷售來源（比對用）",
 }
 METRICS = {"count": "訂單台數", "sale_total": "訂單車價合計", "average_price": "平均訂單車價", "formula": "自訂試算"}
 METRICS["dealer_commission"] = "DMIS 車行傭金支出"
@@ -27,9 +29,17 @@ NAVIGATION_GROUPS = {"sales": "銷售統計", "analysis": "大數據分析", "cu
 AGGREGATES = {"count": Count("pk"), "sale_total": Sum("vehicle_price"), "average_price": Avg("vehicle_price")}
 EXCLUDED_STATUSES = ["draft", "cancel_refund_pending", "cancelled"]
 MAX_GROUPS = 200
+PALETTE = ["#4257a5", "#278168", "#b65b33", "#9269af", "#28789d", "#a86e11", "#b3446c", "#5c6b78"]
+
+
+def dimension_color(dimension, raw, index):
+    categories = SOURCE_CLASSIFICATIONS if dimension == "legacy_sales_source" else ("白牌電車", "綠牌電車", "微型電車", "速克達", "擋車", "其他") if dimension == "legacy_motor_type" else ()
+    return PALETTE[categories.index(raw) if raw in categories else index % len(PALETTE)]
+
+
 SCOPE_LOOKUPS = {"brand": "vehicle_model__brand", "energy": "vehicle_model__energy_type",
-                 "source_type": "source_type", "source": "source_id", "model": "vehicle_model_id"}
-SCOPE_LABELS = {"brand": "品牌", "energy": "能源別", "source_type": "來源類型", "source": "車行／平台", "model": "指定車型"}
+                 "source_type": "source_type", "source": "source_id", "model": "vehicle_model_id", "legacy_source": "report_legacy_source"}
+SCOPE_LABELS = {"brand": "品牌", "energy": "能源別", "source_type": "來源類型", "source": "車行／平台", "model": "指定車型", "legacy_source": "原報表銷售來源（五分類）"}
 
 
 def validate_scope(scope):
@@ -46,6 +56,8 @@ def validate_scope(scope):
             choices = dict(VehicleModel.EnergyType.choices) if key == "energy" else dict(SalesOrder.SourceType.choices) if key == "source_type" else None
             if choices is not None and value not in choices:
                 raise ValidationError("固定條件的分類不正確。")
+            if key == "legacy_source" and value not in SOURCE_CLASSIFICATIONS:
+                raise ValidationError("原報表來源分類不正確。")
 
 
 def scope_labels(scope):
@@ -125,10 +137,19 @@ def calculate(expression, metrics):
 
 def validate_config(config):
     required = {"title", "description", "audience", "date_basis", "cards"}
-    if not isinstance(config, dict) or not required <= set(config) or set(config) - required - {"navigation_group", "page_order", "fixed_filters", "include_undated"}:
+    if not isinstance(config, dict) or not required <= set(config) or set(config) - required - {"navigation_group", "page_order", "fixed_filters", "include_undated", "include_records", "records_columns", "records_page_size"}:
         raise ValidationError("報表設定格式不正確。")
     if type(config.get("include_undated", False)) is not bool:
         raise ValidationError("未領牌資料設定不正確。")
+    if type(config.get("include_records", False)) is not bool:
+        raise ValidationError("明細表設定不正確。")
+    columns = config.get("records_columns", DEFAULT_RECORD_COLUMNS)
+    if not isinstance(columns, list) or any(not isinstance(key, str) or key not in RECORD_COLUMNS for key in columns) or len(set(columns)) != len(columns):
+        raise ValidationError("明細欄位不正確。")
+    if config.get("include_records") and not columns:
+        raise ValidationError("請至少選擇一個明細欄位。")
+    if type(config.get("records_page_size", 10)) is not int or config.get("records_page_size", 10) not in (10, 25, 50):
+        raise ValidationError("明細每頁筆數須為 10、25 或 50。")
     validate_scope(config.get("fixed_filters", {}))
     if config.get("navigation_group", "custom") not in NAVIGATION_GROUPS:
         raise ValidationError("報表導覽分類不正確。")
@@ -141,16 +162,18 @@ def validate_config(config):
         raise ValidationError("請填寫報表名稱。")
     if config["audience"] not in ("admin", "team") or config["date_basis"] not in ("registration_date", "order_date"):
         raise ValidationError("請選擇有效的查看對象與日期依據。")
-    if not isinstance(config["cards"], list) or not 1 <= len(config["cards"]) <= 8:
-        raise ValidationError("每份報表請保留 1–8 張圖表。")
+    if not isinstance(config["cards"], list) or not (0 if config.get("include_records") else 1) <= len(config["cards"]) <= 8:
+        raise ValidationError("每份報表最多 8 張圖表；沒有圖表時請啟用明細表。")
     for card in config["cards"]:
         card_fields = {"title", "dimension", "metric", "chart", "formula", "limit", "sort"}
-        if not isinstance(card, dict) or not card_fields <= set(card) or set(card) - card_fields - {"fixed_filters", "series", "series_limit", "series_other"}:
+        if not isinstance(card, dict) or not card_fields <= set(card) or set(card) - card_fields - {"fixed_filters", "series", "series_limit", "series_other", "series_sort"}:
             raise ValidationError("圖表格式不正確。")
         if type(card.get("series_limit", 200)) is not int or not 1 <= card.get("series_limit", 200) <= 200:
             raise ValidationError("細分系列上限須為 1–200。")
         if type(card.get("series_other", False)) is not bool:
             raise ValidationError("其他系列設定不正確。")
+        if card.get("series_sort", "value") not in ("value", "key", "key_desc"):
+            raise ValidationError("系列排序不正確。")
         if card.get("series", "") not in ("", *DIMENSIONS):
             raise ValidationError("細分系列不正確。")
         if card["chart"] == "stacked" and (not card.get("series") or card["series"] == card["dimension"] or card["metric"] not in ("count", "sale_total")):
@@ -173,8 +196,11 @@ def validate_config(config):
 
 def base_query(config, filters, card=None):
     queryset = SalesOrder.objects.exclude(status__in=EXCLUDED_STATUSES)
+    scopes = (config.get("fixed_filters", {}), (card or {}).get("fixed_filters", {}))
+    if filters.get("legacy_source") or any(isinstance(scope, dict) and scope.get("legacy_source") for scope in scopes):
+        queryset = sales_source_query(queryset).annotate(report_legacy_source=sales_source_expression())
     # 各層皆取交集；讀者 GET 參數無法覆蓋發布版本的固定範圍。
-    for scope in (config.get("fixed_filters", {}), (card or {}).get("fixed_filters", {})):
+    for scope in scopes:
         validate_scope(scope)
         for key, values in scope.items():
             if values:
@@ -186,7 +212,7 @@ def base_query(config, filters, card=None):
         if filters.get(key):
             queryset = queryset.filter(**{lookup: filters[key]})
     for key, lookup in (("brand", "vehicle_model__brand"), ("energy", "vehicle_model__energy_type"),
-                        ("source", "source_id"), ("source_type", "source_type")):
+                        ("source", "source_id"), ("source_type", "source_type"), ("legacy_source", "report_legacy_source")):
         selected = filters.get(key)
         if selected:
             queryset = queryset.filter(**{lookup + "__in": selected if isinstance(selected, (list, tuple)) else [selected]})
@@ -205,6 +231,8 @@ def base_query(config, filters, card=None):
 def dimension_query(queryset, dimension, basis, alias="report_key"):
     if dimension == "legacy_motor_type":
         return source_model_query(queryset).annotate(**{alias: motor_type_expression()})
+    if dimension == "legacy_sales_source":
+        return sales_source_query(queryset).annotate(**{alias: sales_source_expression()})
     mapping = {
         "brand": "vehicle_model__brand", "model": "vehicle_model_id",
         "energy": "vehicle_model__energy_type", "source": "source_id", "county": "registration_county",
@@ -339,7 +367,7 @@ def card_result(config, card, filters):
         value = value_of(row)
         key = encode_key(raw)
         label = dimension_label(dimension, raw, labels)
-        values.append({"key": key, "label": str(label), "value": str(value) if value is not None else None,
+        values.append({"key": key, "label": str(label), "color": dimension_color(dimension, raw, len(values)), "value": str(value) if value is not None else None,
                        "display": display_value(value), "count": row["count"]})
     maximum = max((abs(Decimal(row["value"])) for row in values if row["value"] is not None), default=Decimal(0))
     for row in values:
@@ -361,20 +389,24 @@ def card_result(config, card, filters):
         for cell in cells:
             series_totals[cell["report_series"]] += value_of(cell)
         # 依目前顯示主分類中的合計排名；同值依原始查詢順序穩定排列。
-        series_keys.sort(key=lambda key: series_totals[key], reverse=True)
+        all_series_labels = dimension_labels(card["series"], [key for key in series_keys if key is not None])
+        if card.get("series_sort", "value") == "value":
+            series_keys.sort(key=lambda key: series_totals[key], reverse=True)
+        else:
+            series_keys.sort(key=lambda key: dimension_label(card["series"], key, all_series_labels), reverse=card["series_sort"] == "key_desc")
         other_series_keys = series_keys[card.get("series_limit", 200):]
         series_truncated = bool(other_series_keys)
         series_keys = series_keys[:card.get("series_limit", 200)]
-        series_labels = dimension_labels(card["series"], [key for key in series_keys if key is not None])
-        palette = ["#4257a5", "#278168", "#b65b33", "#9269af", "#28789d", "#a86e11", "#b3446c", "#5c6b78"]
-        colors = {key: palette[index % len(palette)] for index, key in enumerate(series_keys)}
+        series_labels = all_series_labels
+        colors = {key: dimension_color(card["series"], key, index) for index, key in enumerate(series_keys)}
         series_legend = [{"label": dimension_label(card["series"], key, series_labels), "color": colors[key]} for key in series_keys]
         if other_series_keys and card.get("series_other"):
             series_legend.append({"label": "其他系列（合併）", "color": "#66717d"})
         primary_values = {row["key"]: row for row in values}
+        series_rank = {key: index for index, key in enumerate(series_keys)}
         for row in values:
             row["segments"] = []
-        for cell in cells:
+        for cell in sorted(cells, key=lambda cell: series_rank.get(cell["report_series"], len(series_keys))):
             if cell["report_series"] in other_series_keys:
                 continue
             parent = primary_values[encode_key(cell["report_key"])]
@@ -403,8 +435,8 @@ def card_result(config, card, filters):
         if missing:
             financial_note += f" 其中 {missing} 張訂單缺少收支資料，合計暫不顯示，請由來源訂單補齊。"
     return {"card": card, "rows": values, "total": display_value(total), "count": totals["count"],
-            "compatibility_note": ("比對用分類：沿用原報表 MotorType 整段匹配公式。歷史訂單使用匯入型號，新訂單使用 DMIS 型號；額外字尾可能歸其他。不影響車型、傭金或獎金規則，亦不代表兩套來源資料已逐筆核對。"
-                                   if "legacy_motor_type" in (dimension, card.get("series")) else ""),
+            "compatibility_note": ("比對用分類：沿用原報表整段匹配公式；歷史訂單使用匯入型號／原車行文字，新訂單使用 DMIS 主檔。額外字尾與加號可能影響分類。不影響車型、傭金或獎金規則，亦不代表兩套來源資料已逐筆核對。"
+                                   if {"legacy_motor_type", "legacy_sales_source"}.intersection((dimension, card.get("series"))) else ""),
             "scope_labels": scope_labels(card.get("fixed_filters", {})),
             "financial_note": financial_note,
             "series_legend": series_legend, "series_label": DIMENSIONS.get(card.get("series"), ""),

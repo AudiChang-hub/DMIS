@@ -15,7 +15,7 @@
       card.querySelector("[data-card-up]").disabled = index === 0;
       card.querySelector("[data-card-down]").disabled = index === all.length - 1;
       card.querySelector(".report-field--formula").hidden = card.querySelector('[name$="-metric"]').value !== "formula";
-      ["series", "series_limit", "series_other"].forEach(name => {
+      ["series", "series_limit", "series_other", "series_sort"].forEach(name => {
         const field = card.querySelector(`[name$="-${name}"]`);
         if (field) {
           field.disabled = card.querySelector('[name$="-chart"]').value !== "stacked";
@@ -50,7 +50,7 @@
       if (!card) return;
       const visible = cards(); const index = visible.indexOf(card);
       if (target.matches("[data-card-delete]")) {
-        if (visible.length === 1) { message.textContent = "至少須保留一張圖表。"; return; }
+        if (visible.length === 1 && !editor.querySelector('[name="include_records"]')?.checked) { message.textContent = "至少須保留一張圖表，或啟用來源訂單明細表。"; return; }
         card.querySelector('[name$="-DELETE"]').checked = true;
         card.hidden = true;
         card.querySelectorAll("[required]").forEach(input => input.required = false);

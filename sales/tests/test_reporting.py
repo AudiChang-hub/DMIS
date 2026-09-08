@@ -13,6 +13,157 @@ from sales.reporting.views import initial_config
 
 
 class ReportingTests(TestCase):
+    def test_source_draft_command_is_private_idempotent_and_preserves_edits(self):
+        from django.core.management import call_command
+        from io import StringIO
+        before = list(SalesOrder.objects.order_by("pk").values())
+        call_command("create_source_report_draft", stdout=StringIO())
+        report = ReportDefinition.objects.exclude(pk=self.report.pk).get()
+        self.assertIsNone(report.published)
+        self.assertEqual(report.draft["audience"], "admin")
+        self.assertEqual(len(report.draft["cards"]), 4)
+        report.draft["description"] = "管理者保留的修改"
+        report.save()
+        call_command("create_source_report_draft", stdout=StringIO())
+        report.refresh_from_db()
+        self.assertEqual(report.draft["description"], "管理者保留的修改")
+        self.assertEqual(report.revisions.count(), 1)
+        self.assertEqual(ReportDefinition.objects.count(), 2)
+        self.assertEqual(list(SalesOrder.objects.order_by("pk").values()), before)
+        self.login(self.user)
+        self.assertEqual(self.client.get(reverse("report_display", args=[report.pk])).status_code, 404)
+        self.assertEqual(self.client.get(reverse("report_edit", args=[report.pk])).status_code, 403)
+
+    def test_source_draft_requires_exact_active_admin(self):
+        from django.core.management import call_command
+        from django.core.management.base import CommandError
+        self.admin.is_active = False
+        self.admin.save()
+        with self.assertRaises(CommandError):
+            call_command("create_source_report_draft")
+        self.assertEqual(ReportDefinition.objects.count(), 1)
+
+    def test_records_export_escapes_formulas_and_limits_size(self):
+        from unittest.mock import patch
+        self.report.published = {**self.config, "include_records": True, "records_columns": ["owner_name"]}
+        self.report.save()
+        SalesOrder.objects.update(owner_name="=HYPERLINK(123)")
+        self.login(self.user)
+        endpoint = reverse("report_records_export", args=[self.report.pk])
+        response = self.client.get(endpoint)
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("'=HYPERLINK(123)", response.content.decode("utf-8-sig"))
+        with patch("sales.reporting.views.record_queryset") as query:
+            query.return_value.count.return_value = 5001
+            self.assertEqual(self.client.get(endpoint).status_code, 400)
+            query.return_value.iterator.assert_not_called()
+
+    def test_records_invalid_page_is_safe_and_queries_are_bounded(self):
+        from sales.reporting.records import record_context
+        with self.assertNumQueries(3):
+            context = record_context(self.config, {}, "not-a-page")
+        self.assertEqual(context["records_page"].number, 1)
+        self.assertEqual(len(context["records_rows"]), 3)
+        self.assertEqual(record_context(self.config, {}, 99999)["records_page"].number, 1)
+
+    def test_series_name_sort_and_colors_agree_between_stacks_and_pies(self):
+        SalesSource.objects.filter(pk=self.a.pk).update(name="文傑")
+        stack = {**self.config["cards"][0], "chart": "stacked", "dimension": "month", "series": "legacy_sales_source", "series_sort": "key_desc"}
+        result = card_result(self.config, stack, {})
+        labels = [item["label"] for item in result["series_legend"]]
+        self.assertEqual(labels, sorted(labels, reverse=True))
+        self.assertEqual([item["label"] for item in result["rows"][0]["segments"]], labels)
+        pie = {**self.config["cards"][0], "chart": "donut", "dimension": "legacy_sales_source"}
+        pie_colors = {row["label"]: row["color"] for row in card_result(self.config, pie, {})["rows"]}
+        self.assertEqual({item["label"]: item["color"] for item in result["series_legend"]}, pie_colors)
+
+    def test_original_source_filter_intersects_fixed_scope_and_records(self):
+        from sales.reporting.records import record_context
+        SalesSource.objects.filter(pk=self.a.pk).update(name="文傑")
+        config = {**self.config, "fixed_filters": {"legacy_source": ["店內員工"]}}
+        self.assertEqual(validate_config(config), config)
+        self.assertEqual(card_result(config, config["cards"][0], {})["count"], 1)
+        self.assertEqual(record_context(config, {})["records_page"].paginator.count, 1)
+        self.assertEqual(card_result(config, config["cards"][0], {"legacy_source": ["車行"]})["count"], 0)
+        self.assertEqual(record_context(config, {"legacy_source": ["車行"]})["records_page"].paginator.count, 0)
+        with self.assertRaises(ValidationError):
+            validate_config({**config, "fixed_filters": {"legacy_source": ["bogus"]}})
+
+    def test_records_only_publish_export_whitelist_and_scope(self):
+        import csv
+        from io import StringIO
+        self.login()
+        config = {**copy.deepcopy(self.config), "include_records": True, "records_columns": ["number", "source", "total_received"],
+                  "records_page_size": 10, "cards": []}
+        payload = self.data(config=config, action="publish")
+        payload.update(include_records="on", records_columns=config["records_columns"], records_page_size=10,
+                       fixed_source=[str(self.a.pk)])
+        self.assertEqual(self.client.post(reverse("report_edit", args=[self.report.pk]), payload).status_code, 302)
+        response = self.client.get(reverse("report_display", args=[self.report.pk]))
+        self.assertEqual(response.context["records_page"].paginator.count, 1)
+        self.assertContains(response, "來源訂單明細")
+        self.assertNotContains(response, "不可洩漏的車主")
+        self.assertNotContains(response, "0912345678")
+        exported = self.client.get(reverse("report_records_export", args=[self.report.pk]))
+        rows = list(csv.reader(StringIO(exported.content.decode("utf-8-sig"))))
+        self.assertEqual(rows[3], ["訂單編號", "目前銷售通路", "DMIS 已確認實收"])
+        self.assertEqual(len(rows[4:]), 1)
+        self.assertNotContains(exported, "83739807")
+        narrowed = self.client.get(reverse("report_display", args=[self.report.pk]), {"source": [str(self.b.pk)]})
+        self.assertEqual(narrowed.context["records_page"].paginator.count, 0)
+        self.assertContains(narrowed, "目前範圍沒有符合的訂單")
+
+    def test_records_configuration_rejects_private_fields_and_empty_design(self):
+        for columns in (["owner_id_number"], ["owner_phone"], ["legacy_snapshot__raw_financials"], ["number", "number"], []):
+            with self.subTest(columns=columns), self.assertRaises(ValidationError):
+                validate_config({**self.config, "include_records": True, "records_columns": columns})
+        for size in (True, 0, 500):
+            with self.subTest(size=size), self.assertRaises(ValidationError):
+                validate_config({**self.config, "records_page_size": size})
+        with self.assertRaises(ValidationError):
+            validate_config({**self.config, "cards": []})
+
+    def test_records_financial_values_use_confirmed_receipts_and_missing_is_not_zero(self):
+        from sales.models import PaymentRecord, OrderOperationsProfile
+        from sales.reporting.records import record_context
+        order = SalesOrder.objects.first()
+        PaymentRecord.objects.create(order=order, item_name="測試已確認", expected_amount=100, received_amount=100, confirmed=True)
+        PaymentRecord.objects.create(order=order, item_name="測試未確認", expected_amount=900, received_amount=900, confirmed=False)
+        config = {**self.config, "include_records": True, "records_columns": ["number", "total_received", "historical_received_price"]}
+        context = record_context(config, {})
+        row = next(row for row in context["records_rows"] if row["pk"] == order.pk)
+        self.assertEqual(row["cells"][1]["value"], "100")
+        self.assertEqual(row["cells"][2]["value"], "非歷史匯入")
+        OrderOperationsProfile.objects.filter(order=order).delete()
+        row = next(row for row in record_context(config, {})["records_rows"] if row["pk"] == order.pk)
+        self.assertEqual(row["cells"][1]["value"], "待補收支資料")
+
+    def test_records_private_export_and_old_pagination_are_blocked(self):
+        from sales.reporting.views import publication_key
+        config = {**self.config, "audience": "admin", "include_records": True, "records_columns": ["number"]}
+        self.report.published = config
+        self.report.save()
+        revision = publication_key(self.report)
+        self.login(self.user)
+        self.assertEqual(self.client.get(reverse("report_records_export", args=[self.report.pk])).status_code, 404)
+        self.login()
+        self.report.published = {**config, "title": "新版"}
+        self.report.save()
+        for url in (reverse("report_display", args=[self.report.pk]), reverse("report_records_export", args=[self.report.pk])):
+            self.assertEqual(self.client.get(url, {"records_page": 2, "revision": revision}).status_code, 409)
+
+    def test_source_sales_classification_preserves_five_categories_and_regex_plus(self):
+        card = {**self.config["cards"][0], "dimension": "legacy_sales_source"}
+        for name, label in (("中古車", "馭盛"), ("假展場", "馭盛"), ("Yahoo", "網路平台"),
+                            ("文傑", "店內員工"), ("峻生", "店內員工"), ("展場", "展場"),
+                            ("Yahoo+假展場", "車行"), ("Yahoo假展場", "網路平台"),
+                            ("Yahoo假展場\n", "車行"), ("其他", "車行")):
+            with self.subTest(name=name):
+                SalesSource.objects.filter(pk=self.a.pk).update(name=name)
+                result = card_result(self.config, card, {"source": [str(self.a.pk)]})
+                self.assertEqual([(row["label"], row["count"]) for row in result["rows"]], [(label, 1)])
+                self.assertEqual(drill_query(self.config, card, {"source": [str(self.a.pk)]}, result["rows"][0]["key"]).count(), 1)
+
     def test_stacked_other_series_preserves_total_nulls_and_scoped_drill(self):
         card = {**self.config["cards"][0], "chart": "stacked", "dimension": "month", "series": "source",
                 "series_limit": 1, "series_other": True}
@@ -66,6 +217,13 @@ class ReportingTests(TestCase):
         self.assertIn("不影響", result["compatibility_note"])
         order.vehicle_model.refresh_from_db()
         self.assertEqual(order.vehicle_model.model_number, original_number)
+        source_card = {**card, "dimension": "legacy_sales_source"}
+        for raw_name, expected in ((None, "馭盛"), ("null", "車行"), ("Yahoo+假展場", "車行"), ("Yahoo", "網路平台")):
+            row.mapped_data["dealer_name_raw"] = raw_name
+            row.save(update_fields=["mapped_data"])
+            result = card_result(self.config, source_card, {})
+            group = next(item for item in result["rows"] if item["label"] == expected)
+            self.assertIn(order.pk, drill_query(self.config, source_card, {}, group["key"]).values_list("pk", flat=True))
 
     def test_source_motor_type_preserves_full_match_not_keyword_search(self):
         card = {**self.config["cards"][0], "dimension": "legacy_motor_type"}

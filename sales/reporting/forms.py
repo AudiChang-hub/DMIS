@@ -43,7 +43,9 @@ class ReportForm(ScopeForm):
     title = forms.CharField(label="報表名稱", max_length=100)
     description = forms.CharField(label="報表說明", required=False, max_length=1000, widget=forms.Textarea(attrs={"rows": 2}))
     audience = forms.ChoiceField(label="發布後可查看的人", choices=[("admin", "只有我（admin）"), ("team", "所有已登入的內部帳號")])
-    date_basis = forms.ChoiceField(label="統計日期依據", choices=[("registration_date", "領牌日期（未領牌訂單不計入）"), ("order_date", "訂單日期")])
+    date_basis = forms.ChoiceField(label="統計日期依據", choices=[("registration_date", "領牌日期"), ("order_date", "訂單日期")])
+    include_undated = forms.BooleanField(label="未選期間時包含尚未領牌訂單", required=False,
+        help_text="僅影響本報表分析；日期未填寫另列，不計入任何月份。指定期間或月份時仍排除未填日期。")
     version = forms.IntegerField(min_value=0, widget=forms.HiddenInput)
     navigation_group = forms.ChoiceField(label="側欄分類", choices=NAVIGATION_GROUPS.items(), required=False)
     page_order = forms.IntegerField(label="側欄順序（小的在前）", min_value=0, max_value=999, required=False)
@@ -59,11 +61,12 @@ class CardForm(ScopeForm):
     title = forms.CharField(label="圖表名稱", max_length=100)
     chart = forms.ChoiceField(label="呈現方式", choices=CHARTS.items())
     dimension = forms.ChoiceField(label="依什麼分類", choices=DIMENSIONS.items())
+    series = forms.ChoiceField(label="細分系列（堆疊圖使用）", choices=[("", "不細分"), *DIMENSIONS.items()], required=False)
     metric = forms.ChoiceField(label="要看什麼數字", choices=METRICS.items())
     formula = forms.CharField(label="自訂試算公式", required=False, max_length=200,
                               help_text="僅自訂試算使用，例如 sale_total / count；支援 + − * / 與括號。")
     limit = forms.IntegerField(label="最多顯示幾群", min_value=1, max_value=200, initial=20)
-    sort = forms.ChoiceField(label="排列方式", choices=[("key", "分類順序（月份由早到晚）"), ("value", "數值由高到低")])
+    sort = forms.ChoiceField(label="排列方式", choices=[("key", "分類順序（日期由早到晚）"), ("key_desc", "分類倒序（日期由近到遠）"), ("value", "數值由高到低")])
 
     def clean_formula(self):
         expression = self.cleaned_data["formula"]
@@ -77,6 +80,7 @@ CardFormSet = formset_factory(CardForm, extra=0, min_num=1, max_num=8, absolute_
 
 
 class FilterForm(forms.Form):
+    grain = forms.ChoiceField(label="日期圖表層級", required=False, choices=[("", "依原設計"), ("year", "按年"), ("month", "按月"), ("day", "按日")])
     start = forms.DateField(label="開始日期", required=False, widget=forms.DateInput(attrs={"type": "date"}))
     end = forms.DateField(label="結束日期", required=False, widget=forms.DateInput(attrs={"type": "date"}))
     months = forms.MultipleChoiceField(label="月份（可複選）", required=False)

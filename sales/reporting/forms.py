@@ -4,7 +4,7 @@ from django.forms import formset_factory
 from sales.models import SalesOrder, SalesSource, VehicleModel
 from .engine import CHARTS, DIMENSIONS, METRICS, NAVIGATION_GROUPS, SCOPE_LABELS, formula_tree, validate_scope
 from .records import RECORD_COLUMNS, DEFAULT_RECORD_COLUMNS
-from .source_compatibility import SOURCE_CLASSIFICATIONS
+from .source_compatibility import SOURCE_CLASSIFICATIONS, MODEL_PRESENCE
 
 
 class ScopeForm(forms.Form):
@@ -18,6 +18,7 @@ class ScopeForm(forms.Form):
             "source": [(str(pk), name) for pk, name in SalesSource.objects.order_by("name", "pk").values_list("pk", "name")],
             "model": [(str(model.pk), str(model)) for model in VehicleModel.objects.order_by("brand", "name", "pk")],
             "legacy_source": [(label, label) for label in SOURCE_CLASSIFICATIONS],
+            "model_presence": list(MODEL_PRESENCE.items()),
         }
         scope = self.initial.get("fixed_filters", {})
         validate_scope(scope)
@@ -115,6 +116,11 @@ class FilterForm(forms.Form):
     def __init__(self, *args, **kwargs):
         self.date_basis = kwargs.pop("date_basis", "registration_date")
         super().__init__(*args, **kwargs)
+        for index in range(8):
+            self.fields[f"grain_{index}"] = forms.ChoiceField(required=False, widget=forms.HiddenInput,
+                choices=[("", "依整頁設定"), ("year", "按年"), ("month", "按月"), ("day", "按日")])
+            self.fields[f"sort_{index}"] = forms.ChoiceField(required=False, widget=forms.HiddenInput,
+                choices=[("", "依原設計"), ("key", "分類順序"), ("key_desc", "分類倒序"), ("value", "數值遞減")])
         # 舊版單選空字串仍表示全部；QueryDict 保留多值，不轉成普通 dict。
         if self.is_bound and hasattr(self.data, "getlist"):
             self.data = self.data.copy()

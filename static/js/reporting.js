@@ -15,10 +15,11 @@
       card.querySelector("[data-card-up]").disabled = index === 0;
       card.querySelector("[data-card-down]").disabled = index === all.length - 1;
       card.querySelector(".report-field--formula").hidden = card.querySelector('[name$="-metric"]').value !== "formula";
-      ["series", "series_limit", "series_other", "series_sort"].forEach(name => {
+      ["series", "series_limit", "series_other", "series_sort", "additional_metrics"].forEach(name => {
         const field = card.querySelector(`[name$="-${name}"]`);
         if (field) {
-          field.disabled = card.querySelector('[name$="-chart"]').value !== "stacked";
+          const chart = card.querySelector('[name$="-chart"]').value;
+          field.disabled = name === "additional_metrics" ? chart !== "table" : name === "series" ? !["stacked", "table"].includes(chart) : chart !== "stacked";
           field.closest(".report-field").hidden = field.disabled;
         }
       });

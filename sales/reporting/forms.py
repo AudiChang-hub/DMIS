@@ -80,12 +80,16 @@ class CardForm(ScopeForm):
     title = forms.CharField(label="圖表名稱", max_length=100)
     chart = forms.ChoiceField(label="呈現方式", choices=CHARTS.items())
     dimension = forms.ChoiceField(label="依什麼分類", choices=DIMENSIONS.items())
-    series = forms.ChoiceField(label="細分系列（堆疊圖使用）", choices=[("", "不細分"), *DIMENSIONS.items()], required=False)
+    series = forms.ChoiceField(label="細分系列／第二分類", choices=[("", "不細分"), *DIMENSIONS.items()], required=False,
+        help_text="堆疊圖作為系列；資料表作為第二個分組欄位，例如月份＋歸屬車行。")
     series_limit = forms.IntegerField(label="最多顯示幾個系列", min_value=1, max_value=200, initial=200, required=False,
         help_text="依下方系列排序取前 N 個；數值排名以目前顯示主分類中的合計計算。")
     series_sort = forms.ChoiceField(label="系列排列方式", choices=[("value", "系列合計由高到低"), ("key", "系列名稱由前到後"), ("key_desc", "系列名稱由後到前")], required=False)
     series_other = forms.BooleanField(label="其餘系列合併為其他", required=False)
     metric = forms.ChoiceField(label="要看什麼數字", choices=METRICS.items())
+    additional_metrics = forms.MultipleChoiceField(label="同表附加指標", required=False,
+        choices=[(key, value) for key, value in METRICS.items() if key != "formula"],
+        help_text="資料表可同時顯示最多 4 個附加指標；不要重複選主要指標。")
     formula = forms.CharField(label="自訂試算公式", required=False, max_length=200,
                               help_text="僅自訂試算使用，例如 sale_total / count；支援 + − * / 與括號。")
     limit = forms.IntegerField(label="最多顯示幾群", min_value=1, max_value=200, initial=20)
@@ -109,6 +113,17 @@ CardFormSet = formset_factory(CardForm, extra=0, min_num=0, max_num=8, absolute_
 
 
 class FilterForm(forms.Form):
+    COMMON_FIELDS = ("start", "end", "months", "source")
+
+    def common_fields(self):
+        return [self[name] for name in self.COMMON_FIELDS]
+
+    def advanced_fields(self):
+        return [field for field in self.visible_fields() if field.name not in self.COMMON_FIELDS]
+
+    def advanced_count(self):
+        return sum(bool(field.value()) for field in self.advanced_fields())
+
     focus = forms.CharField(required=False, max_length=6000, widget=forms.HiddenInput)
     grain = forms.ChoiceField(label="日期圖表層級", required=False, choices=[("", "依原設計"), ("year", "按年"), ("month", "按月"), ("day", "按日")])
     start = forms.DateField(label="開始日期", required=False, widget=forms.DateInput(attrs={"type": "date"}))

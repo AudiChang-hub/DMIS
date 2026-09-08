@@ -130,7 +130,7 @@ def edit(request, pk=None):
     if request.method == "POST" and form.is_valid() and formset.is_valid():
         config = {key: form.cleaned_data[key] for key in ("title", "description", "audience", "date_basis", "navigation_group", "page_order", "include_undated", "include_records", "records_columns", "records_page_size")}
         config["fixed_filters"] = form.scope_data()
-        config["cards"] = [{**{key: card.cleaned_data[key] for key in ("title", "dimension", "metric", "chart", "formula", "limit", "sort", "series", "series_limit", "series_other", "series_sort")}, "fixed_filters": card.scope_data()}
+        config["cards"] = [{**{key: card.cleaned_data[key] for key in ("title", "dimension", "metric", "chart", "formula", "limit", "sort", "series", "series_limit", "series_other", "series_sort", "additional_metrics")}, "fixed_filters": card.scope_data()}
                            for card in formset.ordered_forms]
         action = request.POST.get("action")
         try:
@@ -328,7 +328,12 @@ def export(request, pk, index):
         writer.writerow(["分類口徑", result["compatibility_note"]])
     writer.writerow(["公式", csv_safe(card["formula"] if card["metric"] == "formula" else card["metric"])])
     writer.writerow(["未填日期", "未選期間時納入，另列未填日期" if report.published.get("include_undated") else "領牌日期基準時排除"])
-    if card["chart"] == "stacked":
+    if result.get("summary_table"):
+        writer.writerow([*result["table_dimension_labels"], *result["table_metric_labels"]])
+        for row in result["rows"]:
+            writer.writerow([*[csv_safe(value) for value in row["dimension_cells"]],
+                             *[cell["value"] if cell["value"] is not None else cell["display"] for cell in row["metric_cells"]]])
+    elif card["chart"] == "stacked":
         writer.writerow([result["dimension_label"], result["series_label"], result["metric_label"], "訂單台數"])
         for row in result["rows"]:
             for segment in row["segments"]:

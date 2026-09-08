@@ -1,0 +1,9 @@
+<div class="report-table-wrap"><table class="report-results report-summary-table">
+  <caption class="sr-only">{{ result.card.title }} 多欄彙總與來源明細</caption>
+  <thead><tr>{% for label in result.table_dimension_labels %}<th scope="col">{{ label }}</th>{% endfor %}{% for label in result.table_metric_labels %}<th scope="col">{{ label }}</th>{% endfor %}</tr></thead>
+  <tbody>{% for row in result.rows %}<tr>
+    {% for label in row.dimension_cells %}<th scope="row">{% if not is_preview %}<a data-report-drill href="{% url 'report_detail' report.pk result.index %}?{{ query }}&amp;group={{ row.key|urlencode }}" aria-label="查看 {{ row.label }} 的 {{ row.count }} 張訂單">{{ label }}</a>{% else %}{{ label }}{% endif %}</th>{% endfor %}
+    {% for cell in row.metric_cells %}<td>{{ cell.display }}</td>{% endfor %}
+  </tr>{% empty %}<tr><td colspan="{{ result.table_colspan }}">此範圍沒有符合的訂單，請調整篩選條件。</td></tr>{% endfor %}</tbody>
+  <tfoot><tr><th scope="row" colspan="{{ result.table_dimension_labels|length }}">完整篩選範圍彙總</th>{% for cell in result.table_total_cells %}<td>{{ cell.display }}</td>{% endfor %}</tr></tfoot>
+</table></div>

@@ -14,6 +14,8 @@ RECORD_COLUMNS = {
     "legacy_premium": "歷史公司贈品",
     "legacy_sales_source": "原報表來源類型", "legacy_energy": "原報表能源分類",
     "legacy_dealer": "原報表車行／平台名稱",
+    "commission_recipient": "台數與傭金歸屬車行", "plate_number": "車牌號碼",
+    "dealer_commission": "DMIS 車行傭金支出",
 }
 DEFAULT_RECORD_COLUMNS = ["registration_date", "source", "model_number", "energy", "color", "owner_name", "payment_confirmed", "total_received"]
 RECORD_NOTE = "明細依 DMIS 目前訂單與收款紀錄顯示；歷史車行、收款價、禮券與贈品保留匯入來源值，不代表目前實收、已結清或獎勵已發放。原始未填寫、欄位未提供與實際零值分開呈現；新訂單的歷史欄標為非歷史匯入。不輸出證件、聯絡資訊或原始資料中的帳號密碼。"
@@ -31,7 +33,7 @@ def record_queryset(config, filters):
     if "legacy_dealer" in columns:
         queryset = source_dealer_query(queryset)
     return queryset.select_related(
-        "source", "vehicle_model", "color", "allocated_vehicle", "legacy_snapshot__import_row", "operations",
+        "source", "commission_recipient", "vehicle_model", "color", "allocated_vehicle", "legacy_snapshot__import_row", "operations",
     ).prefetch_related("payment_records").order_by(F(config["date_basis"]).desc(nulls_first=True), "-pk")
 
 
@@ -67,6 +69,9 @@ def record_cells(order, columns):
         "legacy_sales_source": getattr(order, "record_source_classification", "待核對"),
         "legacy_energy": getattr(order, "record_energy_classification", "待核對"),
         "legacy_dealer": getattr(order, "report_dealer_label", "待核對"),
+        "commission_recipient": order.commission_recipient.name if order.commission_recipient else order.source.name if order.source_type == "dealer" and order.source else "未歸屬車行",
+        "plate_number": order.final_plate_number or "尚未填寫",
+        "dealer_commission": str(operations.dealer_commission_expense) if operations else "待補收支資料",
     }
     if legacy and ("收款價" not in raw or raw["收款價"] in (None, "")):
         values["historical_received_price"] = original_text("收款價")

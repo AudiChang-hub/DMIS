@@ -13,7 +13,9 @@
 {% if result.card.chart == 'line' or result.card.chart == 'donut' %}<div data-line-chart></div>{% endif %}
 {% if result.card.chart == 'stacked' %}{% include 'sales/reporting/stacked.html' %}{% endif %}
 {% if result.series_truncated %}<p class="report-notice">依系列排序顯示前 {{ result.card.series_limit }} 個；數值排名以顯示主分類中的合計計算。{% if result.card.series_other %}其餘合併為「其他系列」，可點擊查閱。{% else %}其餘未顯示、未匯出；主分類合計與上方彙總仍包含，背景空白為未顯示部分。{% endif %}</p>{% endif %}
+{% if result.summary_table %}{% include 'sales/reporting/summary_table.html' %}{% else %}
 <div class="report-table-wrap"><table class="report-results"><caption class="sr-only">{{ result.card.title }} 資料與明細入口</caption><thead><tr><th scope="col">{{ result.dimension_label }}</th><th scope="col">{{ result.metric_label }}</th></tr></thead><tbody>{% for row in result.rows %}<tr data-point-color="{{ row.color }}" data-point-label="{{ row.label }}" data-point-count="{{ row.count }}" data-point-display="{{ row.display }}" data-point-percentage="{{ row.percentage|default_if_none:'' }}" data-point-value="{{ row.value|default_if_none:'' }}"><th scope="row">{% if not is_preview %}<a data-report-drill href="{% url 'report_detail' report.pk result.index %}?{{ query }}&amp;group={{ row.key|urlencode }}">{{ row.label }}</a>{% else %}{{ row.label }}{% endif %}</th><td><span>{{ row.display }}</span>{% if result.card.chart == 'bar' %}<span class="report-bar-track" tabindex="0" role="img" aria-label="{{ row.label }}：{{ row.display }}"><span style="width:{{ row.width|floatformat:2 }}%"></span></span>{% endif %}</td></tr>{% empty %}<tr><td colspan="2">此範圍沒有符合的訂單，請調整篩選條件。</td></tr>{% endfor %}</tbody></table></div>
+{% endif %}
 {% if result.truncated %}<p class="report-notice">僅顯示前 {{ result.card.limit }} 群，圖表與 CSV 不含其餘群組；上方彙總仍包含完整篩選範圍。</p>{% endif %}
 {% endif %}
 </section>

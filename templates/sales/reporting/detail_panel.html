@@ -1,0 +1,17 @@
+<section data-detail-content>
+<h2>{{ card.title }}：來源訂單</h2><p>共 {{ page_obj.paginator.count }} 張符合訂單；依目前篩選與選取分類。點訂單編號可回到原訂單。</p>
+{% if card.metric == 'dealer_commission' %}<p>以下為 DMIS 保存的車行傭金支出，不代表已付款。缺少收支資料不視為零。</p>{% endif %}
+<div class="report-table-wrap"><table class="report-results report-detail-table">
+<thead><tr><th>訂單</th><th>訂單／領牌日期</th><th>品牌／車型</th><th>原銷售通路</th><th>台數／傭金歸屬車行</th>
+<th>{% if card.metric == 'dealer_commission' %}DMIS 車行傭金支出{% else %}訂單車價{% endif %}</th></tr></thead>
+<tbody>{% for order in page_obj %}<tr>
+<td data-label="訂單"><a href="{% url 'order_detail' order.pk %}">{{ order.number }}</a></td>
+<td data-label="訂單／領牌日期">{{ order.order_date|date:'Y/m/d' }}<br>{{ order.registration_date|date:'Y/m/d'|default:'未領牌' }}</td>
+<td data-label="品牌／車型">{{ order.vehicle_model.brand }}<br>{{ order.vehicle_model.name }}</td>
+<td data-label="原銷售通路">{{ order.source.name|default:'本店／未指定' }}</td>
+<td data-label="台數／傭金歸屬車行">{{ order.effective_commission_recipient.name|default:'未歸屬車行' }}</td>
+{% if card.metric == 'dealer_commission' %}<td data-label="DMIS 車行傭金支出">{% if order.operations %}{{ order.operations.dealer_commission_expense }}{% else %}待補收支資料{% endif %}</td>
+{% else %}<td data-label="訂單車價">{{ order.vehicle_price }}</td>{% endif %}
+</tr>{% empty %}<tr><td colspan="6">目前沒有符合的訂單，來源可能已更新。</td></tr>{% endfor %}</tbody></table></div>
+<nav class="report-pagination" aria-label="明細分頁">{% if page_obj.has_previous %}<a class="button secondary" data-detail-page href="?{{ query }}&amp;page={{ page_obj.previous_page_number }}">上一頁</a>{% endif %}<span>第 {{ page_obj.number }} / {{ page_obj.paginator.num_pages }} 頁</span>{% if page_obj.has_next %}<a class="button secondary" data-detail-page href="?{{ query }}&amp;page={{ page_obj.next_page_number }}">下一頁</a>{% endif %}</nav>
+</section>

@@ -69,6 +69,12 @@ class ReportForm(ScopeForm):
     def clean_page_order(self):
         return self.cleaned_data["page_order"] or 0
 
+    def clean_records_columns(self):
+        # CheckboxSelectMultiple 會以選項清單順序送出；不可因預覽／儲存而打亂既有欄位順序。
+        selected = self.cleaned_data["records_columns"]
+        existing = self.initial.get("records_columns", [])
+        return [key for key in existing if key in selected] + [key for key in selected if key not in existing]
+
 
 class CardForm(ScopeForm):
     title = forms.CharField(label="圖表名稱", max_length=100)
@@ -113,6 +119,7 @@ class FilterForm(forms.Form):
     source_type = forms.MultipleChoiceField(label="來源類型", required=False, choices=SalesOrder.SourceType.choices)
     source = forms.MultipleChoiceField(label="車行／平台", required=False)
     legacy_source = forms.MultipleChoiceField(label="原報表銷售來源（五分類）", required=False, choices=[(label, label) for label in SOURCE_CLASSIFICATIONS])
+    legacy_energy = forms.MultipleChoiceField(label="原報表能源（比對用）", required=False, choices=[(label, label) for label in SOURCE_ENERGIES])
 
     def __init__(self, *args, **kwargs):
         self.date_basis = kwargs.pop("date_basis", "registration_date")

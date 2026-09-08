@@ -16,7 +16,7 @@ from django.utils import timezone
 from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_POST
 
-from .engine import NAVIGATION_GROUPS, card_result, drill_query, validate_config
+from .engine import NAVIGATION_GROUPS, card_result, drill_query, scope_labels, validate_config
 from .forms import CardFormSet, FilterForm, ReportForm
 from .models import ReportDefinition, ReportRevision
 
@@ -114,7 +114,8 @@ def edit(request, pk=None):
     status = 200
     if request.method == "POST" and form.is_valid() and formset.is_valid():
         config = {key: form.cleaned_data[key] for key in ("title", "description", "audience", "date_basis", "navigation_group", "page_order")}
-        config["cards"] = [{key: card.cleaned_data[key] for key in ("title", "dimension", "metric", "chart", "formula", "limit", "sort")}
+        config["fixed_filters"] = form.scope_data()
+        config["cards"] = [{**{key: card.cleaned_data[key] for key in ("title", "dimension", "metric", "chart", "formula", "limit", "sort")}, "fixed_filters": card.scope_data()}
                            for card in formset.ordered_forms]
         action = request.POST.get("action")
         try:
@@ -200,7 +201,8 @@ def display(request, pk):
     query = filter_query(form.cleaned_data) if form.is_valid() else ""
     query += ("&" if query else "") + urlencode({"revision": publication_key(report)})
     return render(request, "sales/reporting/display.html", {"report": report, "config": report.published,
-                  "navigation": navigation(request), "filter_form": form, "results": items, "query": query, "error": error, "queried_at": timezone.now()})
+                  "navigation": navigation(request), "scope_labels": scope_labels(report.published.get("fixed_filters", {})),
+                  "filter_form": form, "results": items, "query": query, "error": error, "queried_at": timezone.now()})
 
 
 def selected_card(config, index):
@@ -226,6 +228,7 @@ def detail(request, pk, index):
     query.pop("page", None)
     template = "sales/reporting/detail_panel.html" if request.GET.get("inline") == "1" else "sales/reporting/detail.html"
     return render(request, template, {"report": report, "card": card, "page_obj": page,
+                  "scope_labels": scope_labels(report.published.get("fixed_filters", {})) + scope_labels(card.get("fixed_filters", {})),
                   "query": query.urlencode(), "back_query": filter_query(filters)})
 
 
@@ -252,6 +255,8 @@ def export(request, pk, index):
     writer = csv.writer(response)
     writer.writerow(["報表", csv_safe(report.published["title"]), "圖表", csv_safe(card["title"])])
     writer.writerow(["日期依據", report.published["date_basis"], "篩選", csv_safe(filter_query(filters))])
+    writer.writerow(["報表固定範圍", csv_safe("；".join(scope_labels(report.published.get("fixed_filters", {}))) or "不限")])
+    writer.writerow(["圖表固定範圍", csv_safe("；".join(result["scope_labels"]) or "沿用報表範圍")])
     writer.writerow(["統計範圍", "不含草稿與取消訂單；車價不是實收／淨利"])
     if result.get("financial_note"):
         writer.writerow(["財務口徑", result["financial_note"]])

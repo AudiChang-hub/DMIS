@@ -13,6 +13,101 @@ from sales.reporting.views import initial_config
 
 
 class ReportingTests(TestCase):
+    def test_reader_filter_groups_preserve_selected_advanced_conditions(self):
+        from sales.reporting.forms import FilterForm
+        from django.http import QueryDict
+        form = FilterForm(QueryDict("brand=SUZUKI&energy=gas&sort_0=key_desc"))
+        self.assertTrue(form.is_valid(), form.errors)
+        self.assertEqual([field.name for field in form.common_fields()], ["start", "end", "months", "source"])
+        self.assertEqual(form.advanced_count(), 2)
+        self.assertNotIn("sort_0", [field.name for field in form.advanced_fields()])
+        self.login(self.user)
+        response = self.client.get(reverse("report_display", args=[self.report.pk]), {"brand": "SUZUKI", "energy": "gas"})
+        self.assertContains(response, 'class="report-advanced-filter" open')
+        self.assertContains(response, "已使用 2 項")
+        self.assertEqual(response.context["results"][0]["count"], 3)
+        self.assertContains(self.client.get(reverse("report_display", args=[self.report.pk])), "進階篩選")
+
+    def test_count_detail_keeps_saved_recipient_plate_and_finance_fields(self):
+        from sales.reporting.records import record_context
+        config = {**self.config, "include_records": True,
+                  "records_columns": ["commission_recipient", "legacy_dealer", "plate_number", "dealer_commission"]}
+        validate_config(config)
+        order = SalesOrder.objects.order_by("pk")[1]
+        SalesOrder.objects.filter(pk=order.pk).update(final_plate_number="QA-1234")
+        rows = record_context(config, {})["records_rows"]
+        row = next(row for row in rows if row["pk"] == order.pk)
+        cells = {cell["key"]: cell["value"] for cell in row["cells"]}
+        self.assertEqual(cells["commission_recipient"], "甲車行")
+        self.assertEqual(cells["legacy_dealer"], "乙車行")
+        self.assertEqual(cells["plate_number"], "QA-1234")
+        self.assertEqual(Decimal(cells["dealer_commission"]), 0)
+
+    def test_summary_table_groups_two_dimensions_and_exports_all_metrics(self):
+        import json
+        from sales.reporting.views import publication_key
+        card = {**self.config["cards"][0], "chart": "table", "dimension": "month", "series": "recipient",
+                "additional_metrics": ["sale_total", "dealer_commission"]}
+        config = {**self.config, "cards": [card]}
+        validate_config(config)
+        result = card_result(config, card, {})
+        self.assertEqual(result["count"], 3)
+        self.assertEqual(len(result["rows"]), 2)
+        first = next(row for row in result["rows"] if row["count"] == 2)
+        self.assertEqual(first["dimension_cells"], ["2026/09", "甲車行"])
+        self.assertEqual(first["metric_cells"][1]["value"], "30000")
+        self.assertEqual(drill_query(config, card, {}, first["key"]).count(), 2)
+        focus = json.dumps([{"card": 0, "group": first["key"], "grain": ""}])
+        self.assertEqual(card_result(config, card, {"focus": focus})["count"], 2)
+        self.report.published = config
+        self.report.save()
+        self.login(self.user)
+        params = {"focus": focus, "revision": publication_key(self.report)}
+        self.assertContains(self.client.get(reverse("report_display", args=[self.report.pk]), params), "多欄彙總與來源明細")
+        exported = self.client.get(reverse("report_export", args=[self.report.pk, 0]), params)
+        self.assertContains(exported, "月份,台數與傭金歸屬車行,訂單台數,訂單車價合計,DMIS 車行傭金支出")
+        self.assertContains(exported, "2026/09,甲車行,2,30000")
+
+    def test_saved_bonus_summary_does_not_multiply_order_values_or_recalculate_manual_total(self):
+        from sales.models import DealerVolumeBonusRule, DealerVolumeBonusSettlement, DealerVolumeBonusAllocation, OrderOperationsProfile
+        order = SalesOrder.objects.order_by("pk").first()
+        for amount in (100, 200):
+            rule = DealerVolumeBonusRule.objects.create(dealer=self.a, brand="SUZUKI",
+                starts_on=date(2026, 9, 1), ends_on=date(2026, 9, 30))
+            settlement = DealerVolumeBonusSettlement.objects.create(rule=rule, dealer=self.a,
+                expected_amount=amount, actual_amount=amount, qualified_quantity=1)
+            DealerVolumeBonusAllocation.objects.create(order=order, settlement=settlement, amount=amount)
+        OrderOperationsProfile.objects.filter(order=order).update(dealer_commission_expense=765,
+            dealer_commission_base=99999, manual_financial_fields=["dealer_commission_expense"])
+        card = {**self.config["cards"][0], "chart": "table", "dimension": "month", "series": "recipient",
+                "metric": "dealer_bonus", "additional_metrics": ["count", "sale_total", "dealer_commission"]}
+        result = card_result(self.config, card, {})
+        self.assertEqual(Decimal(result["raw_total"]), 300)
+        self.assertEqual(result["count"], 3)
+        self.assertEqual([Decimal(cell["value"]) for cell in result["table_total_cells"]], [300, 3, 60000, 765])
+        self.assertIn("兩欄不可再相加", result["financial_note"])
+        self.assertEqual(OrderOperationsProfile.objects.get(order=order).dealer_commission_expense, 765)
+        self.assertEqual(DealerVolumeBonusAllocation.objects.count(), 2)
+
+    def test_summary_table_missing_finance_does_not_hide_counts_or_invent_zero(self):
+        from sales.models import OrderOperationsProfile
+        OrderOperationsProfile.objects.filter(order=SalesOrder.objects.first()).delete()
+        card = {**self.config["cards"][0], "chart": "table", "additional_metrics": ["dealer_bonus", "dealer_commission"]}
+        result = card_result(self.config, card, {})
+        self.assertEqual(result["total"], "3")
+        self.assertEqual([cell["display"] for cell in result["table_total_cells"]], ["3", "待補收支資料", "待補收支資料"])
+
+    def test_summary_table_rejects_ambiguous_or_unbounded_configuration(self):
+        card = {**self.config["cards"][0], "chart": "table"}
+        invalid = [{"additional_metrics": ["count"]}, {"additional_metrics": ["sale_total"] * 5},
+                   {"additional_metrics": ["formula"]}, {"additional_metrics": ["owner_phone"]},
+                   {"additional_metrics": "sale_total"}, {"additional_metrics": [["count"]]},
+                   {"series": "brand"}, {"series": "month", "metric": "formula", "formula": "count"},
+                   {"chart": "bar", "metric": "dealer_bonus"}]
+        for values in invalid:
+            with self.subTest(values=values), self.assertRaises(ValidationError):
+                validate_config({**self.config, "cards": [{**card, **values}]})
+
     def test_reader_controls_change_only_selected_chart_and_preserve_export_drill(self):
         from sales.reporting.views import publication_key
         card = {**self.config["cards"][0], "dimension": "month"}

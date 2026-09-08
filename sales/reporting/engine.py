@@ -26,6 +26,7 @@ DIMENSIONS = {
 }
 METRICS = {"count": "訂單台數", "sale_total": "訂單車價合計", "average_price": "平均訂單車價", "formula": "自訂試算"}
 METRICS["dealer_commission"] = "DMIS 車行傭金支出"
+METRICS["dealer_bonus"] = "DMIS 已分配台數獎金"
 CHARTS = {"bar": "長條圖", "line": "折線圖", "donut": "圓環占比圖", "table": "資料表", "score": "指標卡"}
 CHARTS["stacked"] = "堆疊長條圖"
 DATE_DIMENSIONS = ("year", "month", "day")
@@ -180,7 +181,7 @@ def validate_config(config):
         raise ValidationError("每份報表最多 8 張圖表；沒有圖表時請啟用明細表。")
     for card in config["cards"]:
         card_fields = {"title", "dimension", "metric", "chart", "formula", "limit", "sort"}
-        if not isinstance(card, dict) or not card_fields <= set(card) or set(card) - card_fields - {"fixed_filters", "series", "series_limit", "series_other", "series_sort"}:
+        if not isinstance(card, dict) or not card_fields <= set(card) or set(card) - card_fields - {"fixed_filters", "series", "series_limit", "series_other", "series_sort", "additional_metrics"}:
             raise ValidationError("圖表格式不正確。")
         if type(card.get("series_limit", 200)) is not int or not 1 <= card.get("series_limit", 200) <= 200:
             raise ValidationError("細分系列上限須為 1–200。")
@@ -190,6 +191,13 @@ def validate_config(config):
             raise ValidationError("系列排序不正確。")
         if card.get("series", "") not in ("", *DIMENSIONS):
             raise ValidationError("細分系列不正確。")
+        extra = card.get("additional_metrics", [])
+        if not isinstance(extra, list) or len(extra) > 4 or any(not isinstance(key, str) or key not in METRICS or key == "formula" for key in extra) or len(set(extra)) != len(extra) or card["metric"] in extra:
+            raise ValidationError("附加指標須互不重複，最多 4 項，且不能重複主要指標或使用試算公式。")
+        if (extra or card["metric"] == "dealer_bonus") and card["chart"] != "table":
+            raise ValidationError("附加指標及已分配台數獎金目前請使用資料表。")
+        if card["chart"] == "table" and (extra or card.get("series")) and (card["metric"] == "formula" or card.get("series") == card["dimension"]):
+            raise ValidationError("多欄彙總表請選不同的分類，且不使用自訂試算。")
         if card["chart"] == "stacked" and (not card.get("series") or card["series"] == card["dimension"] or card["metric"] not in ("count", "sale_total")):
             raise ValidationError("堆疊圖請選不同的分類與細分系列，指標限訂單台數或非負車價合計。")
         validate_scope(card.get("fixed_filters", {}))
@@ -362,6 +370,9 @@ def format_value(value):
 
 def card_result(config, card, filters):
     card = effective_card(card, filters)
+    if card["chart"] == "table" and (card.get("series") or card.get("additional_metrics") or card["metric"] == "dealer_bonus"):
+        from .summary_table import summary_result
+        return summary_result(config, card, filters)
     queryset = base_query(config, filters, card)
     if card["chart"] in ("donut", "stacked") and card["metric"] == "sale_total" and queryset.filter(vehicle_price__lt=0).exists():
         raise ValidationError("篩選範圍包含負車價，不適合以圓環或堆疊占比呈現，請改用資料表。")
@@ -500,7 +511,7 @@ def drill_query(config, card, filters, key):
                 conditions |= Q(report_series__isnull=True)
             return dimension_query(queryset, card["series"], config["date_basis"], "report_series").filter(conditions, report_key=parent)
         if isinstance(key, str) and key.startswith("c:"):
-            if card["chart"] != "stacked" or not card.get("series") or len(key) > 600:
+            if card["chart"] not in ("stacked", "table") or not card.get("series") or len(key) > 600:
                 raise ValueError
             pair = json.loads(key[2:])
             if not isinstance(pair, list) or len(pair) != 2:

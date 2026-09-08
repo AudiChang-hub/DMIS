@@ -159,6 +159,23 @@ if (typeof module !== "undefined" && module.exports) module.exports = {reportPoi
     if (!link || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey || event.button) return;
     event.preventDefault();
     if (link.matches("[data-report-drill]")) {
+      if (document.querySelector("[data-report-click-mode]")?.value === "filter") {
+        const target = new URL(link.href);
+        const group = target.searchParams.get("group");
+        if (!group?.startsWith("o:")) {
+          const filters = new URLSearchParams(target.search);
+          let selected;
+          try { selected = JSON.parse(filters.get("focus") || "[]"); } catch { selected = []; }
+          const index = Number(link.closest("[data-chart-index]").dataset.chartIndex);
+          selected = selected.filter(item => item.card !== index);
+          selected.push({card:index, group, grain:filters.get("grain") || ""});
+          filters.set("focus", JSON.stringify(selected));
+          filters.delete("group"); filters.delete("inline"); filters.delete("records_page");
+          location.assign(`${location.pathname}?${filters.toString()}`);
+          return;
+        }
+        // 動態 Top N 的其他集合不冒充穩定分類，保留既有的精確下鑽。
+      }
       document.querySelectorAll(".report-row-selected").forEach(row => row.classList.remove("report-row-selected"));
       const row = link.closest("[data-point-label]") || link.closest(".report-stack-row");
       row?.classList.add("report-row-selected");

@@ -107,7 +107,7 @@ if (typeof module !== "undefined" && module.exports) module.exports = {reportPoi
         rows.forEach((row, index) => {
           const fraction = reportFraction(row.dataset.pointValue, total);
           if (!fraction) return;
-          const color = palette[index % palette.length];
+          const color = row.dataset.pointColor || palette[index % palette.length];
           attach(ring(color, fraction, offset), row); offset += fraction;
           const swatch = document.createElement("span"); swatch.className = "report-legend-dot"; swatch.style.background = color;
           row.querySelector("th").prepend(swatch);

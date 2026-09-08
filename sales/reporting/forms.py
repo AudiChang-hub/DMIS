@@ -4,7 +4,7 @@ from django.forms import formset_factory
 from sales.models import SalesOrder, SalesSource, VehicleModel
 from .engine import CHARTS, DIMENSIONS, METRICS, NAVIGATION_GROUPS, SCOPE_LABELS, formula_tree, validate_scope
 from .records import RECORD_COLUMNS, DEFAULT_RECORD_COLUMNS
-from .source_compatibility import SOURCE_CLASSIFICATIONS, MODEL_PRESENCE
+from .source_compatibility import SOURCE_CLASSIFICATIONS, MODEL_PRESENCE, SOURCE_ENERGIES
 
 
 class ScopeForm(forms.Form):
@@ -19,6 +19,7 @@ class ScopeForm(forms.Form):
             "model": [(str(model.pk), str(model)) for model in VehicleModel.objects.order_by("brand", "name", "pk")],
             "legacy_source": [(label, label) for label in SOURCE_CLASSIFICATIONS],
             "model_presence": list(MODEL_PRESENCE.items()),
+            "legacy_energy": [(label, label) for label in SOURCE_ENERGIES],
         }
         scope = self.initial.get("fixed_filters", {})
         validate_scope(scope)

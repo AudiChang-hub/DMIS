@@ -57,6 +57,17 @@ def motor_type_expression():
 
 
 SOURCE_CLASSIFICATIONS = ("馭盛", "網路平台", "店內員工", "展場", "車行")
+SOURCE_ENERGIES = ("電車", "油車")
+ELECTRIC_MODELS = ("BOBE", "VIVAMIX", "VIVABASIC", "TSV57", "SHINE", "S2ABS", "Pulse",
+                   "JEGO", "EZ1", "EZZY", "VIVAXLSF", "Ur2", "M01", "M02")
+
+
+def source_energy_expression():
+    """calc_y9ocl9j2wd 實際公式；EV 大小寫敏感、gogoro 忽略大小寫、其餘整段匹配。"""
+    electric = Q(report_source_model__regex=r"^EV") | Q(report_source_model__icontains="gogoro") | Q(report_source_model__in=ELECTRIC_MODELS)
+    return Case(When(electric, then=Value("電車")), default=Value("油車"), output_field=CharField())
+
+
 MODEL_PRESENCE = {"present": "有原型號值（包含空字串）", "missing": "原型號為空值或未提供"}
 
 

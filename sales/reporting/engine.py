@@ -10,6 +10,7 @@ from django.db.models.functions import TruncMonth, TruncYear
 
 from sales.models import SalesOrder, SalesSource, VehicleModel, VehicleModelFamily
 from .source_compatibility import SOURCE_CLASSIFICATIONS, MODEL_PRESENCE, model_presence_query, motor_type_expression, source_model_query, sales_source_expression, sales_source_query
+from .source_compatibility import SOURCE_ENERGIES, source_energy_expression
 from .records import RECORD_COLUMNS, DEFAULT_RECORD_COLUMNS
 
 
@@ -19,6 +20,8 @@ DIMENSIONS = {
     "year": "年份", "day": "日期", "family": "機種", "source_type": "來源類型", "color": "車色",
     "legacy_motor_type": "舊報表車種分類（比對用）",
     "legacy_sales_source": "舊報表銷售來源（比對用）",
+    "legacy_model": "原型號文字（比對用）",
+    "legacy_energy": "原報表能源分類（比對用）",
 }
 METRICS = {"count": "訂單台數", "sale_total": "訂單車價合計", "average_price": "平均訂單車價", "formula": "自訂試算"}
 METRICS["dealer_commission"] = "DMIS 車行傭金支出"
@@ -42,6 +45,8 @@ SCOPE_LOOKUPS = {"brand": "vehicle_model__brand", "energy": "vehicle_model__ener
 SCOPE_LABELS = {"brand": "品牌", "energy": "能源別", "source_type": "來源類型", "source": "車行／平台", "model": "指定車型", "legacy_source": "原報表銷售來源（五分類）"}
 SCOPE_LOOKUPS["model_presence"] = "report_model_presence"
 SCOPE_LABELS["model_presence"] = "原型號完整性（比對用）"
+SCOPE_LOOKUPS["legacy_energy"] = "report_legacy_energy"
+SCOPE_LABELS["legacy_energy"] = "原報表能源分類（比對用）"
 
 
 def validate_scope(scope):
@@ -62,6 +67,8 @@ def validate_scope(scope):
                 raise ValidationError("原報表來源分類不正確。")
             if key == "model_presence" and value not in MODEL_PRESENCE:
                 raise ValidationError("原型號完整性條件不正確。")
+            if key == "legacy_energy" and value not in SOURCE_ENERGIES:
+                raise ValidationError("原報表能源分類不正確。")
 
 
 def scope_labels(scope):
@@ -205,6 +212,8 @@ def base_query(config, filters, card=None):
     scopes = (config.get("fixed_filters", {}), (card or {}).get("fixed_filters", {}))
     if any(isinstance(scope, dict) and scope.get("model_presence") for scope in scopes):
         queryset = model_presence_query(queryset)
+    if any(isinstance(scope, dict) and scope.get("legacy_energy") for scope in scopes):
+        queryset = source_model_query(queryset).annotate(report_legacy_energy=source_energy_expression())
     if filters.get("legacy_source") or any(isinstance(scope, dict) and scope.get("legacy_source") for scope in scopes):
         queryset = sales_source_query(queryset).annotate(report_legacy_source=sales_source_expression())
     # 各層皆取交集；讀者 GET 參數無法覆蓋發布版本的固定範圍。
@@ -246,6 +255,10 @@ def base_query(config, filters, card=None):
 
 
 def dimension_query(queryset, dimension, basis, alias="report_key"):
+    if dimension == "legacy_energy":
+        return source_model_query(queryset).annotate(**{alias: source_energy_expression()})
+    if dimension == "legacy_model":
+        return source_model_query(queryset).annotate(**{alias: F("report_source_model")})
     if dimension == "legacy_motor_type":
         return source_model_query(queryset).annotate(**{alias: motor_type_expression()})
     if dimension == "legacy_sales_source":
@@ -457,8 +470,8 @@ def card_result(config, card, filters):
         if missing:
             financial_note += f" 其中 {missing} 張訂單缺少收支資料，合計暫不顯示，請由來源訂單補齊。"
     return {"card": card, "rows": values, "total": display_value(total), "count": totals["count"],
-            "compatibility_note": ("比對用分類：沿用原報表整段匹配公式；歷史訂單使用匯入型號／原車行文字，新訂單使用 DMIS 主檔。額外字尾與加號可能影響分類。不影響車型、傭金或獎金規則，亦不代表兩套來源資料已逐筆核對。"
-                                   if {"legacy_motor_type", "legacy_sales_source"}.intersection((dimension, card.get("series"))) else ""),
+            "compatibility_note": ("比對用分類：依已核對的原型號、車種／能源／來源公式；歷史訂單使用匯入型號／原車行文字，新訂單使用 DMIS 主檔。各公式的整段匹配、字首、大小寫與加號規則不同。不影響車型、傭金或獎金規則，亦不代表兩套來源資料已逐筆核對。"
+                                   if {"legacy_motor_type", "legacy_sales_source", "legacy_model", "legacy_energy"}.intersection((dimension, card.get("series"))) else ""),
             "scope_labels": scope_labels(card.get("fixed_filters", {})),
             "financial_note": financial_note,
             "series_legend": series_legend, "series_label": DIMENSIONS.get(card.get("series"), ""),

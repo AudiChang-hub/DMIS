@@ -13,7 +13,7 @@ def total_vehicle_sales():
         "include_undated": True, "navigation_group": "sales", "page_order": 10,
         "fixed_filters": {"model_presence": ["present"]},
         "include_records": True, "records_page_size": 10,
-        "records_columns": ["registration_date", "legacy_source_name", "model_number", "identifier", "energy", "color",
+        "records_columns": ["registration_date", "legacy_source_name", "model_number", "identifier", "legacy_energy", "energy", "color",
                             "owner_name", "subsidy", "payment_confirmed", "historical_received_price", "total_received"],
         "cards": [
             card("總車輛銷售", "stacked", "month", 24, "key_desc", series="legacy_sales_source", series_limit=20, series_other=True, series_sort="key_desc"),
@@ -22,3 +22,29 @@ def total_vehicle_sales():
             card("車種分類占比", "donut", "legacy_motor_type", 10),
         ],
     }
+
+
+def electric_vehicle_sales():
+    """p_v7fndtm3wd：使用原能源公式核對，不改寫 DMIS 能源與獎勵。"""
+    def card(title, chart, dimension, limit, sort="value", **extra):
+        return {"title": title, "chart": chart, "dimension": dimension, "metric": "count", "formula": "",
+                "limit": limit, "sort": sort, **extra}
+
+    return {
+        "title": "電動車銷售統計｜原報表核對版", "audience": "admin", "date_basis": "registration_date",
+        "description": "依原頁三圖與明細建立，能源採原報表公式作比對，不修改 DMIS 主檔。原 CSV 的 Pulse Ultra、EZZY 500 與可見能源公式有矛盾，另有來源未匹配資料，尚未通過跨來源驗收。歷史贈品不代表已發放，新單獎勵仍以 DMIS 為準。",
+        "include_undated": True, "navigation_group": "sales", "page_order": 20,
+        "fixed_filters": {"model_presence": ["present"], "legacy_energy": ["電車"]},
+        "include_records": True, "records_page_size": 10,
+        "records_columns": ["registration_date", "legacy_source_name", "legacy_sales_source", "model_number", "identifier", "legacy_energy", "energy", "color",
+                            "owner_name", "legacy_gift_card", "legacy_platform_gift", "legacy_premium",
+                            "payment_confirmed", "historical_received_price", "total_received"],
+        "cards": [
+            card("電動車每月銷售來源", "stacked", "month", 24, "key_desc", series="legacy_sales_source", series_limit=10, series_other=False, series_sort="value"),
+            card("電動車每日銷售型號", "stacked", "day", 20, "key_desc", series="legacy_model", series_limit=20, series_other=False, series_sort="value"),
+            card("電動車型號占比", "donut", "legacy_model", 20),
+        ],
+    }
+
+
+SOURCE_TEMPLATES = {"total": total_vehicle_sales, "electric": electric_vehicle_sales}

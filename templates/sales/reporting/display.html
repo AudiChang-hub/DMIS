@@ -11,5 +11,5 @@
 {% if error %}<p class="report-notice" role="alert">無法完成查詢：{{ error }}</p>{% endif %}
 <div class="report-exploration" data-report-exploration><div class="report-grid">{% for result in results %}{% include 'sales/reporting/result.html' %}{% endfor %}</div>
 <section class="report-panel report-inline-detail" data-inline-detail hidden aria-label="選取分類的訂單明細"><header class="report-card-toolbar"><h2 data-detail-selection tabindex="-1">來源訂單</h2><button type="button" class="button secondary" data-detail-clear>清除選取</button></header><p data-detail-status role="status"></p><div data-detail-body></div></section>
-</div></div></div>
+</div>{% include 'sales/reporting/records.html' %}</div></div>
 {% endblock %}

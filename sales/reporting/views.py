@@ -19,6 +19,7 @@ from django.views.decorators.http import require_POST
 from .engine import NAVIGATION_GROUPS, card_result, drill_query, scope_labels, validate_config
 from .forms import CardFormSet, FilterForm, ReportForm
 from .models import ReportDefinition, ReportRevision
+from .records import RECORD_COLUMNS, DEFAULT_RECORD_COLUMNS, RECORD_NOTE, record_context, record_queryset, record_cells
 
 
 def is_editor(user):
@@ -111,17 +112,20 @@ def edit(request, pk=None):
     form = ReportForm(request.POST or None, initial={**config, "version": report.version if report else 0})
     formset = CardFormSet(request.POST or None, initial=config["cards"], prefix="cards")
     preview = None
+    preview_records = {}
     status = 200
     if request.method == "POST" and form.is_valid() and formset.is_valid():
-        config = {key: form.cleaned_data[key] for key in ("title", "description", "audience", "date_basis", "navigation_group", "page_order", "include_undated")}
+        config = {key: form.cleaned_data[key] for key in ("title", "description", "audience", "date_basis", "navigation_group", "page_order", "include_undated", "include_records", "records_columns", "records_page_size")}
         config["fixed_filters"] = form.scope_data()
-        config["cards"] = [{**{key: card.cleaned_data[key] for key in ("title", "dimension", "metric", "chart", "formula", "limit", "sort", "series", "series_limit", "series_other")}, "fixed_filters": card.scope_data()}
+        config["cards"] = [{**{key: card.cleaned_data[key] for key in ("title", "dimension", "metric", "chart", "formula", "limit", "sort", "series", "series_limit", "series_other", "series_sort")}, "fixed_filters": card.scope_data()}
                            for card in formset.ordered_forms]
         action = request.POST.get("action")
         try:
             validate_config(config)
             if action == "preview":
                 preview = results(config, {})
+                if config.get("include_records"):
+                    preview_records = record_context(config, {})
             elif action in ("save", "publish"):
                 with transaction.atomic():
                     if report:
@@ -137,6 +141,8 @@ def edit(request, pk=None):
                     if action == "publish":
                         # 發布前實際執行，無效或超限的公式不進入讀者版本。
                         results(config, {})
+                        if config.get("include_records"):
+                            record_context(config, {})
                         report.published = copy.deepcopy(config)
                         report.published_at = timezone.now()
                     report.save()
@@ -150,7 +156,7 @@ def edit(request, pk=None):
             status = 400
     rendered_cards = [*formset.ordered_forms, *formset.deleted_forms] if formset.is_bound and formset.is_valid() else formset
     return render(request, "sales/reporting/edit.html", {"report": report, "form": form, "formset": formset, "rendered_cards": rendered_cards,
-                  "preview": preview, "is_preview": True, "revisions": report.revisions.all()[:20] if report else []}, status=status)
+                  "preview": preview, "is_preview": True, **preview_records, "revisions": report.revisions.all()[:20] if report else []}, status=status)
 
 
 @editor_required
@@ -190,19 +196,53 @@ def lifecycle(request, pk):
 @never_cache
 def display(request, pk):
     report = accessible_report(request, pk)
+    if request.GET.get("records_page") and stale_publication(request, report):
+        return render(request, "sales/reporting/stale.html", {"report": report}, status=409)
     form = FilterForm(request.GET, date_basis=report.published["date_basis"])
     items = []
+    records = {}
     error = ""
     if form.is_valid():
         try:
             items = results(report.published, form.cleaned_data)
+            if report.published.get("include_records"):
+                records = record_context(report.published, form.cleaned_data, request.GET.get("records_page", 1))
         except ValidationError as exc:
             error = "；".join(exc.messages)
     query = filter_query(form.cleaned_data) if form.is_valid() else ""
     query += ("&" if query else "") + urlencode({"revision": publication_key(report)})
     return render(request, "sales/reporting/display.html", {"report": report, "config": report.published,
                   "navigation": navigation(request), "scope_labels": scope_labels(report.published.get("fixed_filters", {})),
-                  "filter_form": form, "results": items, "query": query, "error": error, "queried_at": timezone.now()})
+                  "filter_form": form, "results": items, **records, "query": query, "error": error, "queried_at": timezone.now()})
+
+
+@login_required
+@never_cache
+def records_export(request, pk):
+    report = accessible_report(request, pk)
+    if not report.published.get("include_records"):
+        raise Http404
+    if stale_publication(request, report):
+        return render(request, "sales/reporting/stale.html", {"report": report}, status=409)
+    try:
+        _, filters = filters_for(request, report.published)
+    except ValidationError as error:
+        return HttpResponse("；".join(error.messages), status=400, content_type="text/plain; charset=utf-8")
+    queryset = record_queryset(report.published, filters)
+    if queryset.count() > 5000:
+        return HttpResponse("明細超過 5000 筆，請縮小篩選範圍後匯出。", status=400)
+    columns = report.published.get("records_columns", DEFAULT_RECORD_COLUMNS)
+    response = HttpResponse(content_type="text/csv; charset=utf-8")
+    response["Content-Disposition"] = f'attachment; filename="report-{pk}-orders.csv"'
+    response.write("\ufeff")
+    writer = csv.writer(response)
+    writer.writerow(["報表", csv_safe(report.published["title"]), "篩選", csv_safe(filter_query(filters))])
+    writer.writerow(["報表固定範圍", csv_safe("；".join(scope_labels(report.published.get("fixed_filters", {}))) or "不限")])
+    writer.writerow(["口徑", RECORD_NOTE])
+    writer.writerow([RECORD_COLUMNS[key] for key in columns])
+    for order in queryset.iterator(chunk_size=250):
+        writer.writerow([csv_safe(cell["value"]) for cell in record_cells(order, columns)])
+    return response
 
 
 def selected_card(config, index):

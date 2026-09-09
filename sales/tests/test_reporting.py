@@ -65,7 +65,7 @@ class ReportingTests(TestCase):
         from django.utils import timezone
         orders = list(SalesOrder.objects.order_by("pk"))
         for order, birthday in zip(orders, (None, date(timezone.localdate().year - 19, 1, 1), date(timezone.localdate().year - 20, 1, 1))):
-            SalesOrder.objects.filter(pk=order.pk).update(owner_type="local", owner_birth_date=birthday)
+            SalesOrder.objects.filter(pk=order.pk).update(owner_type="local", owner_birth_date=birthday, owner_id_number="A123456789")
         config = {**self.config, "fixed_filters": {"age_scope": ["adult_or_unknown"]}}
         self.assertEqual(set(base_query(config, {}).values_list("pk", flat=True)), {orders[0].pk, orders[2].pk})
         SalesOrder.objects.filter(pk=orders[1].pk).update(owner_birth_date=date(timezone.localdate().year + 1, 1, 1))
@@ -124,6 +124,7 @@ class ReportingTests(TestCase):
         samples = [
             ("local", "A123456789", None, "生日未填", "男性", "60歲以上", "男性"),
             ("company", "12345678", None, "公司或其他", "公司或其他", "60歲以上", "女性"),
+            ("local", "12345678", None, "公司或其他", "公司或其他", "60歲以上", "女性"),
             ("local", "X1", None, "生日未填", "公司或其他", "60歲以上", "男性"),
             ("foreign", "A923456789", date(timezone.localdate().year - 25, 1, 1), "20-29歲", "女性", "20-29歲", "女性"),
             ("foreign", "A823456789", None, "生日未填", "男性", "60歲以上", "男性"),
@@ -143,7 +144,7 @@ class ReportingTests(TestCase):
         card = {**self.config["cards"][0], "dimension": "age_group"}
         config = {**self.config, "cards": [card]}
         validate_config(config)
-        SalesOrder.objects.update(owner_birth_date=None, owner_type="local")
+        SalesOrder.objects.update(owner_birth_date=None, owner_type="local", owner_id_number="A123456789")
         result = card_result(config, card, {})
         self.assertEqual(result["count"], 3)
         self.assertEqual(len(result["rows"]), 1)

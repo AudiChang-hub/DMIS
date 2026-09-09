@@ -7,6 +7,15 @@ const {reportDebounce} = require('../../static/js/report-interactions.js');
 const {reportUpdateError} = require('../../static/js/report-interactions.js');
 const {reportOverviewColor, reportMonthSummary} = require('../../static/js/report-interactions.js');
 const {reportElectricColor} = require('../../static/js/report-interactions.js');
+const {reportAnalysisColor} = require('../../static/js/report-analysis.js');
+
+test('人口分類顏色不隨篩選排序漂移且未知分類保留', () => {
+  assert.equal(reportAnalysisColor('男性','#000'),'#737373');
+  assert.equal(reportAnalysisColor('女性','#000'),'#f15a60');
+  assert.equal(reportAnalysisColor('公司或其他','#000'),'#7ac36a');
+  assert.equal(reportAnalysisColor('灰','#000'),'#5a9bd4');
+  assert.equal(reportAnalysisColor('未列顏色','#123456'),'#123456');
+});
 
 test('電動車來源配色獨立，型號兩圖同色且不受排序影響', () => {
   assert.equal(reportElectricColor('車行','#000'), '#f15a60');

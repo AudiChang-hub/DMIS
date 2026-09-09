@@ -30,6 +30,17 @@ function initReportOverviewTools(chart) {
       act('下鑽：按月', () => notify({grain:'month'})).disabled = current === 'month';
     }
   }
+  if (chart.dataset.chart === 'table') {
+    const cells = [...chart.querySelectorAll('.report-summary-table thead th')];
+    cells.slice(0,2).forEach((cell,index) => {
+      const button=document.createElement('button'); button.type='button'; button.className='report-table-sort';
+      button.textContent=cell.textContent+' ↕';
+      button.addEventListener('click',()=>{
+        const current=form.querySelector('[name^="sort_"]').value;
+        notify({sort:index===0 ? (current==='key'?'key_desc':'key') : (current==='value'?'value_asc':'value')});
+      }); cell.replaceChildren(button);
+    });
+  }
   act('重設此圖選取與查看方式', () => notify({reset:true}));
   act('查看來源訂單', () => { menu.open = false; chart.querySelector('[data-report-open-detail]')?.click(); });
   act('放大／還原圖表', () => { menu.open = false; chart.querySelector('[data-chart-fullscreen]').click(); });
@@ -43,7 +54,19 @@ function initReportOverviewTools(chart) {
     act('匯出資料', () => { const url = new URL(exportLink.href); url.searchParams.set('format',format.value); url.searchParams.set('formatted',keep.checked ? '1' : '0'); const link = document.createElement('a'); link.href = url.href; link.download = ''; document.body.append(link); link.click(); link.remove(); menu.open = false; });
   }
   async function chartImage() {
-    const source = chart.querySelector('svg'); if (!source) throw new Error('目前沒有可匯出的圖形。');
+    const source = chart.querySelector('svg');
+    if (!source && chart.dataset.chart === 'table') {
+      const table=chart.querySelector('.report-results');
+      const rows=[...table.rows].filter(row=>!row.hidden).map(row=>[...row.cells].map(cell=>cell.textContent.trim()));
+      const canvas=document.createElement('canvas'), context=canvas.getContext('2d');
+      const columns=Math.max(...rows.map(row=>row.length)), cellWidth=250, lineHeight=44;
+      canvas.width=columns*cellWidth+40; canvas.height=rows.length*lineHeight+90;
+      context.fillStyle='#fff'; context.fillRect(0,0,canvas.width,canvas.height); context.fillStyle='#142e4d'; context.font='22px sans-serif';
+      context.fillText(chart.querySelector('h2').textContent+'（目前分頁）',20,35);
+      rows.forEach((row,i)=>{ context.fillStyle=i%2?'#fff':'#f2f4fa'; context.fillRect(20,60+i*lineHeight,canvas.width-40,lineHeight); context.fillStyle='#142e4d'; context.font='20px sans-serif'; row.forEach((text,j)=>context.fillText(text,28+j*cellWidth,88+i*lineHeight,cellWidth-16)); });
+      return await new Promise((resolve,reject)=>canvas.toBlob(blob=>blob?resolve(blob):reject(new Error('無法產生表格圖片。')),'image/png'));
+    }
+    if (!source) throw new Error('目前沒有可匯出的圖形。');
     const clone = source.cloneNode(true);
     const originals = [source, ...source.querySelectorAll('*')], copies = [clone, ...clone.querySelectorAll('*')];
     originals.forEach((node, index) => {

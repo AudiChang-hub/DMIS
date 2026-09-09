@@ -77,7 +77,7 @@ def results(config, filters, *, retain_candidates=False):
 
 def accessible_report(request, pk):
     report = get_object_or_404(ReportDefinition, pk=pk, published__isnull=False)
-    if not request.user.is_active or ((report.published["audience"] != "team" or report.published.get("records_mode") == "population") and not is_editor(request.user)):
+    if not request.user.is_active or ((report.published["audience"] != "team" or report.published.get("records_mode") == "population" or 'legacy_notes' in report.published.get('records_columns', [])) and not is_editor(request.user)):
         raise Http404
     return report
 
@@ -92,7 +92,7 @@ def stale_publication(request, report):
 
 
 def filters_for(request, config=None):
-    form = FilterForm(request.GET, date_basis=(config or {}).get("date_basis", "registration_date"))
+    form = FilterForm(request.GET, date_basis=(config or {}).get("date_basis", "registration_date"), config=config)
     if not form.is_valid():
         raise ValidationError("；".join(str(error) for errors in form.errors.values() for error in errors))
     return form, form.cleaned_data
@@ -110,7 +110,7 @@ def navigation(request):
         reports = reports.filter(published__audience="team")
     groups = {key: [] for key in NAVIGATION_GROUPS}
     for report in reports:
-        if not is_editor(request.user) and report.published.get("records_mode") == "population":
+        if not is_editor(request.user) and (report.published.get("records_mode") == "population" or 'legacy_notes' in report.published.get('records_columns', [])):
             continue
         report.reader_title = reader_title(report.published)
         groups[report.published.get("navigation_group", "custom")].append(report)
@@ -263,7 +263,7 @@ def display(request, pk):
     report = accessible_report(request, pk)
     if (request.GET.get("records_page") or request.GET.get("focus")) and stale_publication(request, report):
         return render(request, "sales/reporting/stale.html", {"report": report}, status=409)
-    form = FilterForm(request.GET, date_basis=report.published["date_basis"], reader_layout=report.published.get("reader_layout", "standard"))
+    form = FilterForm(request.GET, date_basis=report.published["date_basis"], reader_layout=report.published.get("reader_layout", "standard"), config=report.published)
     items = []
     records = {}
     error = ""
@@ -291,6 +291,7 @@ def display(request, pk):
         request.session["report_reader_page"] = remembered
     return render(request, "sales/reporting/display.html", {"report": report, "config": report.published,
                   "reader_title": reader_title(report.published),
+                  "reader_overview": report.published.get('reader_layout', 'standard') != 'standard',
                   "navigation": navigation(request), "scope_labels": scope_labels(report.published.get("fixed_filters", {})),
                   "filter_form": form, "results": items, **records, "query": query, "error": error, "queried_at": timezone.now(),
                   "publication_key": publication_key(report), "focus_items": focus_items, "can_edit_report": is_editor(request.user)})

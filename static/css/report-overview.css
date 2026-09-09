@@ -38,3 +38,28 @@
   .report-reader-layout:has(.report-electric-overview) .report-page-nav nav { max-height:55vh; }
   .report-reader-layout:has(.report-electric-overview) .report-current-page { display:block; font-weight:400; }
 }
+.report-reader-main[data-reader-layout="gasoline_overview"] .report-grid > .report-chart:first-child { grid-column:1/-1; }
+.report-reader-main[data-reader-layout="analysis_overview"] .report-chart > .report-scope-summary { font-size:1rem; padding:8px; margin-bottom:8px; }
+.report-reader-shell .report-sales-overview .report-analysis-plot { width:100%; min-width:640px; height:auto; flex-shrink:0; display:block; margin:auto 0; }
+.report-reader-shell .report-solid-pie .report-point-selected { stroke-width:150px; }
+.report-reader-main[data-reader-layout="count_overview"] { display:grid; grid-template-columns:minmax(320px, .85fr) minmax(0,1.4fr); gap:16px; align-items:start; }
+.report-reader-main[data-reader-layout="count_overview"] > * { grid-column:1/-1; }
+.report-reader-main[data-reader-layout="count_overview"] > .report-exploration { grid-column:1; }
+.report-reader-main[data-reader-layout="count_overview"] > .report-record-panel { grid-column:2; margin:0; }
+.report-reader-main[data-reader-layout="count_overview"] .report-grid { grid-template-columns:1fr; }
+.report-reader-main[data-reader-layout="count_overview"] .report-record-panel .report-card-toolbar { flex-wrap:wrap; }
+.report-reader-main[data-reader-layout="count_overview"] .report-summary-table { min-width:530px; }
+.report-reader-main[data-reader-layout="count_overview"] .report-detail-table { min-width:900px; }
+.report-table-sort { border:0; background:none; color:inherit; padding:6px 0; font:inherit; font-weight:700; cursor:pointer; }
+.report-record-note > summary { cursor:pointer; min-height:40px; padding:8px 0; }
+.report-reader-main[data-reader-layout="analysis_overview"] .report-filter > .report-filter-grid { grid-template-columns:minmax(240px,500px); }
+@media(max-width:1300px) {
+ .report-reader-main[data-reader-layout="count_overview"] { display:block; }
+ .report-reader-main[data-reader-layout="count_overview"] > .report-record-panel { margin-top:18px; }
+}
+@media(max-width:1100px) {
+ .report-reader-layout:has(.report-sales-overview:not([data-reader-layout="sales_overview"])) { grid-template-columns:1fr; }
+ .report-reader-layout:has(.report-sales-overview:not([data-reader-layout="sales_overview"])) .report-page-nav { position:static; max-height:none; }
+ .report-reader-layout:has(.report-sales-overview:not([data-reader-layout="sales_overview"])) .report-page-nav nav { max-height:55vh; }
+ .report-reader-layout:has(.report-sales-overview:not([data-reader-layout="sales_overview"])) .report-current-page { display:block; font-weight:400; }
+}

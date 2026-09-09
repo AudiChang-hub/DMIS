@@ -16,6 +16,20 @@ function reportElectricColor(label, fallback) {
   const index = models.indexOf(label);
   return {'馭盛':colors[0],'車行':colors[1],'網路平台':colors[2],'店內員工':colors[3],'展場':colors[4]}[label] || (index >= 0 ? colors[index % colors.length] : fallback);
 }
+function reportReaderColor(layout, label, fallback, energy) {
+  if (layout === 'analysis_overview') return reportAnalysisColor(label, fallback);
+  const palette = ['#737373','#f15a60','#7ac36a','#5a9bd4','#faa75a','#9e67ab','#ce7058','#d17fb1','#7dd3ef','#ee8ab5'];
+  if (layout === 'gasoline_overview') {
+    const models = ['UQ125DA','UQ125','UC125DA','UC125','UT125XDA','UT125XZ','UG125','GSX-R150','GSX250F','GSX250'];
+    const i=models.indexOf(label);
+    return i<0 ? reportElectricColor(label,fallback) : palette[i];
+  }
+  if (layout === 'platform_overview') {
+    const platforms = energy === '油車' ? ['YAHOO','FRIDAY','百利市','PC','小樹購','燦坤','YAHOO+假展場'] : ['MOMO','小樹購員購','PC','YAHOO','蝦皮','MOMO員購','燦坤'];
+    const i=platforms.indexOf(label); return i<0 ? fallback : palette[i];
+  }
+  return layout === 'electric_overview' ? reportElectricColor(label,fallback) : reportOverviewColor(label,fallback);
+}
 function reportMonthSummary(label, segments, total) {
   return [label, ...segments.filter(item => Number(item.value)).map(item => `${item.label}：${item.display}`), `總計：${total}`].join('\n');
 }
@@ -79,7 +93,7 @@ function initReportVisuals(root) {
     control.dataset.multiReady = "true";
     const inputs = [...control.querySelectorAll('input[type="checkbox"]')];
     const fieldName = inputs[0]?.name;
-    const sourceStyle = control.closest('.report-sales-overview .report-filter-grid') && ['months','legacy_source'].includes(fieldName);
+    const sourceStyle = control.closest('.report-sales-overview .report-filter-grid') && ['months','legacy_source','legacy_dealer'].includes(fieldName);
     const form = control.closest('form');
     const emptyField = sourceStyle && form.elements.namedItem(`empty_${fieldName}`);
     if (sourceStyle) {
@@ -198,7 +212,9 @@ function initReportVisuals(root) {
       }
     });
     const overview = chart.closest('.report-sales-overview');
-    const overviewColor = chart.closest('.report-electric-overview') ? reportElectricColor : reportOverviewColor;
+    const layout = overview?.dataset.readerLayout;
+    const legendColors = new Map([...chart.querySelectorAll('.report-series-legend span')].map((entry,i)=>[entry.textContent.trim(),['#737373','#f15a60','#7ac36a','#5a9bd4','#faa75a','#9e67ab','#ce7058','#d17fb1','#7dd3ef','#ee8ab5'][i%10]]));
+    const overviewColor = (label, fallback) => layout === 'dealer_overview' ? legendColors.get(label)||fallback : reportReaderColor(layout, label, fallback, overview?.dataset.reportEnergy);
     if (overview) {
       rows.forEach(row => { row.dataset.pointColor = overviewColor(row.dataset.pointLabel, row.dataset.pointColor); });
       chart.querySelectorAll('.report-series-legend span').forEach(entry => {
@@ -216,14 +232,15 @@ function initReportVisuals(root) {
         else { note.dataset.overviewClassification = 'true'; explanation.append(note); }
       });
     }
-    if (overview && chart.dataset.chart === 'stacked') {
+    if (layout === 'analysis_overview' && ['stacked','bar'].includes(chart.dataset.chart)) renderReportAnalysis(chart, attach);
+    if (overview && layout !== 'analysis_overview' && chart.dataset.chart === 'stacked') {
       const stacks = chart.querySelector('.report-stacks');
       const groups = [...stacks.querySelectorAll('.report-stack-row')];
       if (groups.length) {
         const ns = 'http://www.w3.org/2000/svg', svg = document.createElementNS(ns, 'svg');
-        const wideElectric = overview.classList.contains('report-electric-overview') && chart.classList.contains('report-chart--wide');
+        const wideElectric = (['electric_overview','gasoline_overview'].includes(layout) && chart.classList.contains('report-chart--wide')) || ['platform_overview','dealer_overview'].includes(layout);
         const width = wideElectric ? Math.max(740, chart.clientWidth - 24) : 740;
-        const left = 108, right = 100, top = 8, rowHeight = 26;
+        const left = layout === 'dealer_overview' ? 190 : 108, right = 100, top = 8, rowHeight = 26;
         const bottom = top + rowHeight * groups.length, plotWidth = width - left - right;
         const totals = [...chart.querySelectorAll('.report-results tr[data-point-value]')].map(row => Number(row.dataset.pointValue));
         const monthRows = [...chart.querySelectorAll('.report-results tr[data-point-value]')];
@@ -253,7 +270,8 @@ function initReportVisuals(root) {
             const value = Number(segment.dataset.pointValue || 0), segmentWidth = Math.max(0, value) / maximum * plotWidth;
             if (!segmentWidth) return;
             const rect = element('rect', {x:left+offset,y:y+2,width:segmentWidth,height:23,fill:overviewColor(segment.dataset.seriesLabel, segment.style.backgroundColor)});
-            rect.setAttribute('aria-hidden', 'true');
+            if (layout === 'dealer_overview') attach(rect, segment);
+            else rect.setAttribute('aria-hidden', 'true');
             if (segmentWidth >= String(segment.dataset.pointDisplay).length * 11 + 8) element('text', {x:left+offset+segmentWidth/2,y:y+20,'text-anchor':'middle',fill:'#fff','font-size':17,'pointer-events':'none'}, segment.dataset.pointDisplay);
             else smallLabels.push({x:left+offset+segmentWidth/2,text:segment.dataset.pointDisplay,color:overviewColor(segment.dataset.seriesLabel,segment.style.backgroundColor)});
             offset += segmentWidth;
@@ -269,7 +287,7 @@ function initReportVisuals(root) {
             labelX += String(label.text).length * 11 + 8;
           }
           // 整列包含短小系列與空白處，滑鼠提示及點選皆使用月份，不誤變為月份加通路。
-          const hit = element('rect', {x:left,y:y+1,width:plotWidth,height:24,fill:'transparent'});
+          const hit = element('rect', {x:layout === 'dealer_overview' ? 0 : left,y:y+1,width:layout === 'dealer_overview' ? left-5 : plotWidth,height:24,fill:'transparent'});
           hit.classList.add('report-month-target'); attach(hit, month);
         });
         let brushStart = null, brushing = false, suppressClick = false;
@@ -314,9 +332,11 @@ function initReportVisuals(root) {
       if (total > 0 && rows.length) {
         const ns = "http://www.w3.org/2000/svg";
         const svg = document.createElementNS(ns, "svg"); svg.setAttribute("viewBox", "0 0 300 300"); svg.classList.add("report-donut");
+        const solid = layout === 'analysis_overview' && overview.querySelectorAll('[data-chart-index]').length === 4;
+        if (solid) svg.classList.add('report-solid-pie');
         const ring = (color, fraction, offset) => {
           const circle = document.createElementNS(ns, "circle");
-          for (const [key, value] of Object.entries({cx:150,cy:150,r:100,fill:"none",stroke:color,"stroke-width":46,pathLength:100,"stroke-dasharray":`${fraction} ${100-fraction}`,"stroke-dashoffset":-offset,transform:"rotate(-90 150 150)"})) circle.setAttribute(key, String(value));
+          for (const [key, value] of Object.entries({cx:150,cy:150,r:solid?75:100,fill:"none",stroke:color,"stroke-width":solid?150:46,pathLength:100,"stroke-dasharray":`${fraction} ${100-fraction}`,"stroke-dashoffset":-offset,transform:"rotate(-90 150 150)"})) circle.setAttribute(key, String(value));
           svg.append(circle); return circle;
         };
         ring("var(--line)", 100, 0); let offset = 0;

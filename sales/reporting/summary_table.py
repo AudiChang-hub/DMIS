@@ -31,6 +31,8 @@ def summary_result(config, card, filters):
     ordering = [F(fields[0]).desc(nulls_last=True)] if card["sort"] == "key_desc" else [fields[0]]
     if card["sort"] == "value":
         ordering = [F(card["metric"]).desc(nulls_last=True), fields[0]]
+    elif card['sort'] == 'value_asc':
+        ordering = [F(card['metric']).asc(nulls_first=True), fields[0]]
     rows = list(grouped.order_by(*ordering, *fields[1:])[:min(card["limit"], MAX_GROUPS) + 1])
     truncated = len(rows) > card["limit"]
     rows = rows[:card["limit"]]
@@ -67,5 +69,5 @@ def summary_result(config, card, filters):
             "table_colspan": len(dimensions) + len(metrics),
             "dimension_label": "／".join(DIMENSIONS[key] for key in dimensions),
             "metric_label": METRICS[card["metric"]], "financial_note": note,
-            "compatibility_note": "原報表分類只供比對，不修改 DMIS 主檔或財務歸屬。" if any(key.startswith("legacy_") for key in dimensions) else "",
+            "compatibility_note": "按原銷售車行彙總；實際台數／傭金歸屬請看來源明細，本表不取代 DMIS 結算。" if 'legacy_dealer' in dimensions and financial else ("原報表分類只供比對，不修改 DMIS 主檔或財務歸屬。" if any(key.startswith("legacy_") for key in dimensions) else ""),
             "scope_labels": scope_labels(card.get("fixed_filters", {})), "series_truncated": False}

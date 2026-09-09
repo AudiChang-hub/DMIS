@@ -245,6 +245,8 @@ def validate_config(config):
 
 def base_query(config, filters, card=None):
     queryset = SalesOrder.objects.exclude(status__in=EXCLUDED_STATUSES)
+    if filters.get("empty_months") or filters.get("empty_legacy_source"):
+        queryset = queryset.none()
     scopes = (config.get("fixed_filters", {}), (card or {}).get("fixed_filters", {}))
     for scope in scopes:
         validate_scope(scope)
@@ -351,7 +353,7 @@ def effective_card(card, filters):
     grain = filters.get("_card_grain") or filters.get("grain")
     sort = filters.get("_card_sort")
     if sort:
-        if sort not in ("key", "key_desc", "value"):
+        if sort not in ("key", "key_desc", "value", "value_asc"):
             raise ValidationError("圖表排序不正確。")
         card = {**card, "sort": sort}
     if grain and grain not in DATE_DIMENSIONS:
@@ -453,12 +455,14 @@ def card_result(config, card, filters):
         grouped = grouped.order_by(F("report_key").desc(nulls_last=True))
     if metric != "formula" and card["sort"] == "value":
         grouped = grouped.order_by(f"-{metric}", "report_key")
+    if metric != "formula" and card["sort"] == "value_asc":
+        grouped = grouped.order_by(metric, "report_key")
     rows = list(grouped[:MAX_GROUPS + 1])
     if len(rows) > MAX_GROUPS and metric == "formula":
         raise ValidationError("自訂試算超過 200 個群組，請縮小期間或改用其他維度。")
     truncated = len(rows) > card["limit"]
-    if metric == "formula" and card["sort"] == "value":
-        rows.sort(key=lambda row: (value_of(row) is not None, value_of(row) or 0), reverse=True)
+    if metric == "formula" and card["sort"] in ("value", "value_asc"):
+        rows.sort(key=lambda row: (value_of(row) is not None, value_of(row) or 0), reverse=card["sort"] == "value")
     rows = rows[:card["limit"]]
     dimension = card["dimension"]
     keys = [row["report_key"] for row in rows if row["report_key"] is not None]

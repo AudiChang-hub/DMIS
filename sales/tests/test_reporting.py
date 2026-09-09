@@ -13,6 +13,73 @@ from sales.reporting.views import initial_config
 
 
 class ReportingTests(TestCase):
+    def test_total_sales_month_correction_is_idempotent_and_preserves_unpublished_draft(self):
+        from importlib import import_module
+        from types import SimpleNamespace
+        from django.apps import apps
+        from django.db import connection
+        from sales.reporting.source_templates import total_vehicle_sales
+        migrate = import_module('sales.migrations.0121_total_sales_month_grain').correct_month
+        config = total_vehicle_sales()
+        config['cards'][2]['dimension'] = 'day'
+        self.report.published = config
+        self.report.draft = {**copy.deepcopy(config), 'title':'管理者尚未發布的名稱'}
+        self.report.save()
+        draft = copy.deepcopy(self.report.draft)
+        migrate(apps, SimpleNamespace(connection=connection))
+        self.report.refresh_from_db()
+        self.assertEqual(self.report.published['cards'][2]['dimension'], 'month')
+        self.assertEqual(self.report.draft, draft)
+        self.assertEqual(self.report.version, 2)
+        self.assertEqual(self.report.published['fixed_filters'], config['fixed_filters'])
+        migrate(apps, SimpleNamespace(connection=connection))
+        self.assertEqual(ReportRevision.objects.filter(report=self.report).count(), 1)
+
+    def test_overview_empty_filter_and_csv_formats(self):
+        self.login()
+        for key in ('empty_months', 'empty_legacy_source'):
+            response = self.client.get(reverse('report_display', args=[self.report.pk]), {key: '1'})
+            self.assertEqual(response.context['results'][0]['count'], 0)
+        url = reverse('report_export', args=[self.report.pk, 0])
+        self.assertFalse(self.client.get(url, {'format':'csv'}).content.startswith(b'\xef\xbb\xbf'))
+        import csv
+        rows = list(csv.reader(self.client.get(url, {'format':'csv'}).content.decode().splitlines()))
+        self.assertEqual(rows[0], ['品牌','訂單台數'])
+        self.assertTrue(all(len(row) == 2 for row in rows))
+        self.assertTrue(self.client.get(url, {'format':'excel'}).content.startswith(b'\xef\xbb\xbf'))
+        self.assertEqual(self.client.get(url, {'format':'sql'}).status_code, 400)
+
+    def test_record_sort_whitelist_applies_before_pagination_and_keeps_revision(self):
+        from sales.reporting.records import record_queryset, RECORD_SORTS
+        from sales.reporting.views import publication_key
+        config = {**self.config, 'include_records':True, 'records_columns':list(RECORD_SORTS)}
+        orders = list(SalesOrder.objects.order_by('pk'))
+        for index, order in enumerate(orders):
+            order.owner_name = ['乙', '丙', '甲'][index]
+            order.save(update_fields=['owner_name'])
+        self.assertEqual([o.owner_name for o in record_queryset(config, {'records_sort':'owner_name'})], sorted(['乙','丙','甲']))
+        self.assertEqual([o.owner_name for o in record_queryset(config, {'records_sort':'-owner_name'})], sorted(['乙','丙','甲'], reverse=True))
+        # JSON 來源、替代型號及引擎／車身排序均可在 SQLite / PostgreSQL 上執行。
+        for key in RECORD_SORTS:
+            self.assertEqual(record_queryset(config, {'records_sort':key}).count(), 3)
+            list(record_queryset(config, {'records_sort':key}))
+        self.report.published = config
+        self.report.save()
+        self.login()
+        response = self.client.get(reverse('report_display', args=[self.report.pk]), {'records_sort':'-owner_name'})
+        self.assertContains(response, 'aria-sort="descending"')
+        self.assertContains(response, 'revision=' + publication_key(self.report))
+        response = self.client.get(reverse('report_display', args=[self.report.pk]), {'records_sort':'owner_id_number'})
+        self.assertFalse(response.context['filter_form'].is_valid())
+
+    def test_numeric_ascending_chart_sort_and_month_source_default(self):
+        from sales.reporting.source_templates import SOURCE_TEMPLATES
+        card = {**self.config['cards'][0], 'dimension':'source'}
+        result = card_result(self.config, card, {'_card_sort':'value_asc'})
+        self.assertEqual([row['count'] for row in result['rows']], [1,2])
+        total = next(config for factory in SOURCE_TEMPLATES.values() if (config := factory()).get('reader_layout') == 'sales_overview')
+        self.assertEqual([card['dimension'] for card in total['cards'] if card['chart']=='stacked'], ['month','month'])
+
     def test_sales_overview_layout_is_explicit_validated_and_preserved(self):
         from sales.reporting.forms import FilterForm
         config = {**self.config, "reader_layout": "sales_overview"}
@@ -501,7 +568,7 @@ class ReportingTests(TestCase):
     def test_cross_filter_multiselect_is_bounded_and_typed(self):
         import json
         from sales.reporting.cross_filter import selections
-        for groups in ([], ["a"] * 2, list(map(str, range(21))), [None], [["a"]], ["__all__"], ["o:test"]):
+        for groups in ([], ["a"] * 2, list(map(str, range(201))), [None], [["a"]], ["__all__"], ["o:test"]):
             with self.subTest(groups=groups), self.assertRaises(ValidationError):
                 selections(json.dumps([{"card": 0, "group": groups, "grain": ""}]))
 

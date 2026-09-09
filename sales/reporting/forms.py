@@ -78,7 +78,8 @@ class ReportForm(ScopeForm):
     include_records = forms.BooleanField(label="顯示來源訂單明細表", required=False)
     records_columns = forms.MultipleChoiceField(label="明細顯示欄位", choices=RECORD_COLUMNS.items(), initial=DEFAULT_RECORD_COLUMNS,
         required=False, widget=forms.CheckboxSelectMultiple)
-    records_page_size = forms.TypedChoiceField(label="明細每頁筆數", choices=[(10, "10 筆"), (25, "25 筆"), (50, "50 筆")],
+    records_mode = forms.ChoiceField(label="附表方式", choices=[("orders", "逐筆訂單（自選欄位）"), ("population", "車色／車主／性別分組（遮罩證號，僅 admin）")], required=False)
+    records_page_size = forms.TypedChoiceField(label="明細每頁筆數", choices=[(10, "10 筆"), (25, "25 筆"), (50, "50 筆"), (100, "100 筆")],
         coerce=int, initial=10, required=False, empty_value=10)
 
     def primary_fields(self):
@@ -86,6 +87,9 @@ class ReportForm(ScopeForm):
 
     def clean_navigation_group(self):
         return self.cleaned_data["navigation_group"] or "custom"
+
+    def clean_records_mode(self):
+        return self.cleaned_data["records_mode"] or "orders"
 
     def clean_page_order(self):
         return self.cleaned_data["page_order"] or 0

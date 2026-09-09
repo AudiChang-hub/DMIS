@@ -68,7 +68,7 @@ def results(config, filters):
 
 def accessible_report(request, pk):
     report = get_object_or_404(ReportDefinition, pk=pk, published__isnull=False)
-    if not request.user.is_active or (report.published["audience"] != "team" and not is_editor(request.user)):
+    if not request.user.is_active or ((report.published["audience"] != "team" or report.published.get("records_mode") == "population") and not is_editor(request.user)):
         raise Http404
     return report
 
@@ -152,7 +152,7 @@ def edit(request, pk=None):
     preview_records = {}
     status = 200
     if request.method == "POST" and form.is_valid() and formset.is_valid():
-        config = {key: form.cleaned_data[key] for key in ("title", "description", "audience", "date_basis", "navigation_group", "page_order", "include_undated", "include_records", "records_columns", "records_page_size")}
+        config = {key: form.cleaned_data[key] for key in ("title", "description", "audience", "date_basis", "navigation_group", "page_order", "include_undated", "include_records", "records_columns", "records_page_size", "records_mode")}
         config["fixed_filters"] = form.scope_data()
         config["cards"] = [{**{key: card.cleaned_data[key] for key in ("title", "dimension", "metric", "chart", "formula", "limit", "sort", "series", "series_limit", "series_other", "series_sort", "additional_metrics")}, "fixed_filters": card.scope_data()}
                            for card in formset.ordered_forms]
@@ -276,7 +276,15 @@ def records_export(request, pk):
         _, filters = filters_for(request, report.published)
     except ValidationError as error:
         return HttpResponse("；".join(error.messages), status=400, content_type="text/plain; charset=utf-8")
-    queryset = record_queryset(report.published, filters)
+    grouped = report.published.get("records_mode") == "population"
+    if grouped:
+        from .population_table import population_queryset, population_cells, HEADERS, NOTE
+        # 發布設定被異常改寫時，也不能透過匯出繞過 admin 限制。
+        if not is_editor(request.user):
+            raise Http404
+        queryset = population_queryset(report.published, filters)
+    else:
+        queryset = record_queryset(report.published, filters)
     if queryset.count() > 5000:
         return HttpResponse("明細超過 5000 筆，請縮小篩選範圍後匯出。", status=400)
     columns = report.published.get("records_columns", DEFAULT_RECORD_COLUMNS)
@@ -286,10 +294,11 @@ def records_export(request, pk):
     writer = csv.writer(response)
     writer.writerow(["報表", csv_safe(report.published["title"]), "篩選", csv_safe(filter_query(filters))])
     writer.writerow(["報表固定範圍", csv_safe("；".join(scope_labels(report.published.get("fixed_filters", {}))) or "不限")])
-    writer.writerow(["口徑", RECORD_NOTE])
-    writer.writerow([RECORD_COLUMNS[key] for key in columns])
+    writer.writerow(["口徑", NOTE if grouped else RECORD_NOTE])
+    writer.writerow(HEADERS if grouped else [RECORD_COLUMNS[key] for key in columns])
     for order in queryset.iterator(chunk_size=250):
-        writer.writerow([csv_safe(cell["value"]) for cell in record_cells(order, columns)])
+        values = population_cells(order) if grouped else [cell["value"] for cell in record_cells(order, columns)]
+        writer.writerow([csv_safe(value) for value in values])
     return response
 
 

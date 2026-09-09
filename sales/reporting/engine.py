@@ -169,7 +169,7 @@ def calculate(expression, metrics):
 
 def validate_config(config):
     required = {"title", "description", "audience", "date_basis", "cards"}
-    if not isinstance(config, dict) or not required <= set(config) or set(config) - required - {"navigation_group", "page_order", "fixed_filters", "include_undated", "include_records", "records_columns", "records_page_size"}:
+    if not isinstance(config, dict) or not required <= set(config) or set(config) - required - {"navigation_group", "page_order", "fixed_filters", "include_undated", "include_records", "records_columns", "records_page_size", "records_mode"}:
         raise ValidationError("報表設定格式不正確。")
     if type(config.get("include_undated", False)) is not bool:
         raise ValidationError("未領牌資料設定不正確。")
@@ -178,10 +178,14 @@ def validate_config(config):
     columns = config.get("records_columns", DEFAULT_RECORD_COLUMNS)
     if not isinstance(columns, list) or any(not isinstance(key, str) or key not in RECORD_COLUMNS for key in columns) or len(set(columns)) != len(columns):
         raise ValidationError("明細欄位不正確。")
-    if config.get("include_records") and not columns:
+    if config.get("include_records") and not columns and config.get("records_mode") != "population":
         raise ValidationError("請至少選擇一個明細欄位。")
-    if type(config.get("records_page_size", 10)) is not int or config.get("records_page_size", 10) not in (10, 25, 50):
-        raise ValidationError("明細每頁筆數須為 10、25 或 50。")
+    if type(config.get("records_page_size", 10)) is not int or config.get("records_page_size", 10) not in (10, 25, 50, 100):
+        raise ValidationError("明細每頁筆數須為 10、25、50 或 100。")
+    if config.get("records_mode", "orders") not in ("orders", "population"):
+        raise ValidationError("明細表模式不正確。")
+    if config.get("records_mode") == "population" and config["audience"] != "admin":
+        raise ValidationError("人口分組附表僅供 admin 核對，不開放其他帳號。")
     validate_scope(config.get("fixed_filters", {}))
     if config.get("navigation_group", "custom") not in NAVIGATION_GROUPS:
         raise ValidationError("報表導覽分類不正確。")

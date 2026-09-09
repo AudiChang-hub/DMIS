@@ -119,6 +119,30 @@ def manage(request):
 
 
 @editor_required
+def draft_preview(request, pk):
+    """只讀取已儲存草稿；不發布、不新增版本，不能由讀者路由存取。"""
+    report = get_object_or_404(ReportDefinition, pk=pk)
+    config = report.draft
+    form = FilterForm(request.GET, date_basis=config["date_basis"])
+    items, records, error = [], {}, ""
+    if form.is_valid():
+        try:
+            validate_config(config)
+            items = results(config, form.cleaned_data)
+            if config.get("include_records"):
+                records = record_context(config, form.cleaned_data, request.GET.get("records_page", 1))
+        except ValidationError as exc:
+            error = "；".join(exc.messages)
+    return render(request, "sales/reporting/draft_preview.html", {
+        "report": report, "config": config, "filter_form": form, "results": items,
+        "scope_labels": scope_labels(config.get("fixed_filters", {})), "error": error,
+        "query": filter_query(form.cleaned_data) if form.is_valid() else "", **records,
+        "is_preview": True, "standalone_preview": True,
+        "draft_reports": sorted(ReportDefinition.objects.all(), key=lambda row: (row.draft.get("page_order", 0), row.pk)),
+    })
+
+
+@editor_required
 def edit(request, pk=None):
     report = get_object_or_404(ReportDefinition, pk=pk) if pk else None
     config = report.draft if report else initial_config()

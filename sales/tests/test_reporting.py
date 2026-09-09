@@ -31,8 +31,13 @@ class ReportingTests(TestCase):
         self.assertEqual(self.report.published["reader_layout"], "sales_overview")
         response = self.client.get(reverse("report_display", args=[self.report.pk]))
         self.assertContains(response, 'report-sales-overview')
+        self.assertContains(response, 'data-report-selection-hint')
+        self.assertNotContains(response, 'data-report-multiple')
         self.assertEqual(response.context["filter_form"].COMMON_FIELDS, ("legacy_source", "months"))
         self.assertEqual(FilterForm().COMMON_FIELDS, ("start", "end", "months", "source"))
+        self.report.published = self.config
+        self.report.save(update_fields=["published"])
+        self.assertContains(self.client.get(reverse("report_display", args=[self.report.pk])), 'data-report-multiple')
 
     def test_center_opens_ordered_report_and_remembers_authorized_page(self):
         self.login()

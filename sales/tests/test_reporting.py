@@ -13,6 +13,27 @@ from sales.reporting.views import initial_config
 
 
 class ReportingTests(TestCase):
+    def test_sales_overview_layout_is_explicit_validated_and_preserved(self):
+        from sales.reporting.forms import FilterForm
+        config = {**self.config, "reader_layout": "sales_overview"}
+        validate_config(config)
+        with self.assertRaises(ValidationError):
+            validate_config({**config, "reader_layout": "arbitrary"})
+        form = FilterForm(reader_layout="sales_overview")
+        self.assertEqual([field.name for field in form.common_fields()], ["legacy_source", "months"])
+        self.assertIn("start", [field.name for field in form.advanced_fields()])
+        self.login()
+        payload = self.data(config, action="publish")
+        payload["reader_layout"] = "sales_overview"
+        response = self.client.post(reverse("report_edit", args=[self.report.pk]), payload)
+        self.assertEqual(response.status_code, 302)
+        self.report.refresh_from_db()
+        self.assertEqual(self.report.published["reader_layout"], "sales_overview")
+        response = self.client.get(reverse("report_display", args=[self.report.pk]))
+        self.assertContains(response, 'report-sales-overview')
+        self.assertEqual(response.context["filter_form"].COMMON_FIELDS, ("legacy_source", "months"))
+        self.assertEqual(FilterForm().COMMON_FIELDS, ("start", "end", "months", "source"))
+
     def test_center_opens_ordered_report_and_remembers_authorized_page(self):
         self.login()
         config = {**self.config, "title": "總車輛銷售｜原報表核對版", "navigation_group": "sales", "page_order": 1}

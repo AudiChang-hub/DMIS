@@ -25,7 +25,14 @@ function reportToggleSelection(selected, card, group, grain, multiple) {
   if (next.length > 20) throw new Error("同一張圖最多選取 20 個分類。");
   return [...selected.filter(item => item.card !== card), ...(next.length ? [{card, group:next.length === 1 ? next[0] : next, grain}] : [])];
 }
-if (typeof module !== "undefined" && module.exports) module.exports = {reportPointText, reportFraction, reportScopeCount, reportPageRange, reportToggleSelection};
+function reportAxisMaximum(values) {
+  const maximum = Math.max(0, ...values.filter(Number.isFinite));
+  if (!maximum) return 4;
+  const rough = maximum / 4, power = 10 ** Math.floor(Math.log10(rough));
+  const step = [1, 2, 5, 10].find(value => value * power >= rough) * power;
+  return Math.max(4, Math.ceil(step) * 4);
+}
+if (typeof module !== "undefined" && module.exports) module.exports = {reportPointText, reportFraction, reportScopeCount, reportPageRange, reportToggleSelection, reportAxisMaximum};
 function initReportVisuals(root) {
   "use strict";
   if (typeof document === "undefined") return;
@@ -135,6 +142,57 @@ function initReportVisuals(root) {
         if (link) link.tabIndex = -1;
       }
     });
+    const overview = chart.closest('.report-sales-overview');
+    if (overview) {
+      const explanation = overview.querySelector('.report-reader-description');
+      chart.querySelectorAll('.report-notice').forEach(note => {
+        if (!note.textContent.trim().startsWith('比對用分類：')) return;
+        const exists = [...explanation.querySelectorAll('[data-overview-classification]')].some(item => item.textContent === note.textContent);
+        if (exists) note.remove();
+        else { note.dataset.overviewClassification = 'true'; explanation.append(note); }
+      });
+    }
+    if (overview && chart.dataset.chart === 'stacked') {
+      const stacks = chart.querySelector('.report-stacks');
+      const groups = [...stacks.querySelectorAll('.report-stack-row')];
+      if (groups.length) {
+        const ns = 'http://www.w3.org/2000/svg', svg = document.createElementNS(ns, 'svg');
+        const width = 600, left = 92, right = 28, top = 8, rowHeight = 20;
+        const bottom = top + rowHeight * groups.length, plotWidth = width - left - right;
+        const totals = [...chart.querySelectorAll('.report-results tr[data-point-value]')].map(row => Number(row.dataset.pointValue));
+        const maximum = reportAxisMaximum(totals);
+        svg.classList.add('report-overview-plot'); svg.setAttribute('viewBox', `0 0 ${width} ${bottom + 30}`);
+        svg.setAttribute('aria-label', chart.querySelector('h2').textContent + ' 水平堆疊圖');
+        const element = (tag, attrs, text) => {
+          const item = document.createElementNS(ns, tag);
+          Object.entries(attrs).forEach(([key, value]) => item.setAttribute(key, String(value)));
+          if (text !== undefined) item.textContent = text;
+          svg.append(item); return item;
+        };
+        for (let index = 0; index <= 4; index++) {
+          const x = left + plotWidth * index / 4;
+          element('line', {x1:x,x2:x,y1:top,y2:bottom,stroke:'var(--line)'});
+          element('text', {x,y:bottom+20,'text-anchor':'middle',fill:'currentColor','font-size':11}, String(maximum * index / 4));
+        }
+        groups.forEach((group, index) => {
+          const y = top + index * rowHeight;
+          element('text', {x:left-8,y:y+16,'text-anchor':'end',fill:'currentColor','font-size':11}, group.querySelector('.report-stack-caption strong').textContent);
+          let offset = 0;
+          group.querySelectorAll('[data-stack-segment]').forEach(segment => {
+            const value = Number(segment.dataset.pointValue || 0), segmentWidth = Math.max(0, value) / maximum * plotWidth;
+            if (!segmentWidth) return;
+            const rect = element('rect', {x:left+offset,y:y+2,width:segmentWidth,height:17,fill:segment.style.backgroundColor});
+            attach(rect, segment);
+            if (segmentWidth >= 18) element('text', {x:left+offset+segmentWidth/2,y:y+16,'text-anchor':'middle',fill:'#fff','font-size':10,'pointer-events':'none'}, segment.dataset.pointDisplay);
+            offset += segmentWidth;
+          });
+        });
+        stacks.before(svg);
+      }
+      const alternative = document.createElement('details'); alternative.className = 'report-chart-data';
+      const summary = document.createElement('summary'); summary.textContent = '查看分類與細分數字';
+      stacks.before(alternative); alternative.append(summary, stacks);
+    }
     if (chart.dataset.chart === "line") {
       const validRows = rows.filter(row => row.dataset.pointValue !== "" && Number.isFinite(Number(row.dataset.pointValue)));
       chart.querySelectorAll("svg circle").forEach((dot, index) => { dot.setAttribute("r", "7"); attach(dot, validRows[index]); });
@@ -165,6 +223,24 @@ function initReportVisuals(root) {
         if (offset < 99.99) { const note = document.createElement("p"); note.className = "report-muted"; note.textContent = "灰色區域為未顯示群組；占比以完整篩選範圍計算。"; host.append(note); }
       } else host.textContent = "目前沒有可呈現的正值資料。";
     }
+    if (overview) {
+      const table = chart.querySelector('.report-table-wrap');
+      if (table && chart.dataset.chart === 'donut') {
+        const legend = document.createElement('div'); legend.className = 'report-overview-legend';
+        rows.forEach(row => {
+          const link = row.querySelector('[data-report-drill]');
+          if (!link) return;
+          const entry = link.cloneNode(true), dot = document.createElement('i'); dot.style.background = row.dataset.pointColor;
+          entry.prepend(dot); entry.append(` ${Number(row.dataset.pointPercentage || 0).toFixed(1)}%`); legend.append(entry);
+        });
+        chart.querySelector('[data-line-chart]').before(legend);
+      }
+      if (table) {
+        const detail = document.createElement('details'), summary = document.createElement('summary');
+        detail.className = 'report-chart-data'; summary.textContent = '查看圖表資料';
+        table.before(detail); detail.append(summary, table);
+      }
+    }
     chart.querySelector("[data-chart-fullscreen]")?.addEventListener("click", () => {
       // 使用頁內放大，不倚賴瀏覽器全螢幕授權；Escape 或原按鈕即可返回。
       const expanded = chart.classList.toggle("report-chart-expanded");
@@ -189,6 +265,10 @@ if (typeof document !== "undefined") initReportVisuals(document);
   const selection = panel.querySelector("[data-detail-selection]");
   let updateController, updateSequence = 0, desiredUrl = new URL(location.href), failedUrl;
   const reader = document.querySelector(".report-reader-main");
+  if (reader.classList.contains('report-sales-overview')) {
+    const description = reader.querySelector('.report-reader-description');
+    reader.querySelectorAll(':scope > .report-context,:scope > .report-scope-summary').forEach(item => description.append(item));
+  }
   const updateStatus = reader.querySelector("[data-report-update-status]");
   const retry = reader.querySelector("[data-report-retry]");
   const selectedItems = () => { try { return JSON.parse(desiredUrl.searchParams.get("focus") || "[]"); } catch { return []; } };

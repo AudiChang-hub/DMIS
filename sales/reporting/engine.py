@@ -169,8 +169,10 @@ def calculate(expression, metrics):
 
 def validate_config(config):
     required = {"title", "description", "audience", "date_basis", "cards"}
-    if not isinstance(config, dict) or not required <= set(config) or set(config) - required - {"navigation_group", "page_order", "fixed_filters", "include_undated", "include_records", "records_columns", "records_page_size", "records_mode"}:
+    if not isinstance(config, dict) or not required <= set(config) or set(config) - required - {"reader_layout", "navigation_group", "page_order", "fixed_filters", "include_undated", "include_records", "records_columns", "records_page_size", "records_mode"}:
         raise ValidationError("報表設定格式不正確。")
+    if config.get("reader_layout", "standard") not in ("standard", "sales_overview"):
+        raise ValidationError("閱讀版型不正確。")
     if type(config.get("include_undated", False)) is not bool:
         raise ValidationError("未領牌資料設定不正確。")
     if type(config.get("include_records", False)) is not bool:

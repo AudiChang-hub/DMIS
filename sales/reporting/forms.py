@@ -66,6 +66,11 @@ class ScopeForm(forms.Form):
 
 
 class ReportForm(ScopeForm):
+    reader_layout = forms.ChoiceField(label="閱讀版型", required=False, choices=[("standard", "一般報表"), ("sales_overview", "銷售總覽（原報表緊湊版型）")])
+
+    def clean_reader_layout(self):
+        return self.cleaned_data["reader_layout"] or "standard"
+
     title = forms.CharField(label="報表名稱", max_length=100)
     description = forms.CharField(label="報表說明", required=False, max_length=1000, widget=forms.Textarea(attrs={"rows": 2}))
     audience = forms.ChoiceField(label="發布後可查看的人", choices=[("admin", "只有我（admin）"), ("team", "所有已登入的內部帳號")])
@@ -169,7 +174,12 @@ class FilterForm(forms.Form):
 
     def __init__(self, *args, **kwargs):
         self.date_basis = kwargs.pop("date_basis", "registration_date")
+        layout = kwargs.pop("reader_layout", "standard")
         super().__init__(*args, **kwargs)
+        if layout == "sales_overview":
+            self.COMMON_FIELDS = ("legacy_source", "months")
+            self.fields["legacy_source"].label = "銷售來源"
+            self.fields["months"].label = "領牌年月"
         for index in range(8):
             self.fields[f"grain_{index}"] = forms.ChoiceField(required=False, widget=forms.HiddenInput,
                 choices=[("", "依整頁設定"), ("year", "按年"), ("month", "按月"), ("day", "按日")])

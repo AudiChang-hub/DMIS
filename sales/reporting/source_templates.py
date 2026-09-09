@@ -10,7 +10,7 @@ def total_vehicle_sales():
     return {
         "title": "總車輛銷售｜原報表核對版", "audience": "admin", "date_basis": "registration_date",
         "description": "依原報表四圖與明細建立的核對版本。資料讀取 DMIS，包含未填領牌日期；原始來源與 DMIS 筆數仍有差異，尚未完成逐筆對帳與全部互動驗收。",
-        "include_undated": True, "navigation_group": "sales", "page_order": 10,
+        "include_undated": True, "navigation_group": "sales", "page_order": 10, "reader_layout": "sales_overview",
         "fixed_filters": {"model_presence": ["present"]},
         "include_records": True, "records_page_size": 10,
         "records_columns": ["registration_date", "legacy_source_name", "model_number", "identifier", "legacy_energy", "energy", "color",

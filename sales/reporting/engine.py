@@ -14,6 +14,7 @@ from .source_compatibility import SOURCE_CLASSIFICATIONS, MODEL_PRESENCE, model_
 from .source_compatibility import SOURCE_ENERGIES, source_energy_expression, source_dealer_query
 from .records import RECORD_COLUMNS, DEFAULT_RECORD_COLUMNS
 from .demographics import DEMOGRAPHIC_DIMENSIONS, demographic_query
+from .reader_layouts import READER_LAYOUTS
 
 
 DIMENSIONS = {
@@ -171,7 +172,7 @@ def validate_config(config):
     required = {"title", "description", "audience", "date_basis", "cards"}
     if not isinstance(config, dict) or not required <= set(config) or set(config) - required - {"reader_layout", "navigation_group", "page_order", "fixed_filters", "include_undated", "include_records", "records_columns", "records_page_size", "records_mode"}:
         raise ValidationError("報表設定格式不正確。")
-    if config.get("reader_layout", "standard") not in ("standard", "sales_overview", "electric_overview"):
+    if config.get("reader_layout", "standard") not in READER_LAYOUTS:
         raise ValidationError("閱讀版型不正確。")
     if type(config.get("include_undated", False)) is not bool:
         raise ValidationError("未領牌資料設定不正確。")
@@ -188,6 +189,8 @@ def validate_config(config):
         raise ValidationError("明細表模式不正確。")
     if config.get("records_mode") == "population" and config["audience"] != "admin":
         raise ValidationError("人口分組附表僅供 admin 核對，不開放其他帳號。")
+    if 'legacy_notes' in columns and config['audience'] != 'admin':
+        raise ValidationError('歷史訂單備註僅供 admin 核對。')
     validate_scope(config.get("fixed_filters", {}))
     if config.get("navigation_group", "custom") not in NAVIGATION_GROUPS:
         raise ValidationError("報表導覽分類不正確。")
@@ -245,7 +248,7 @@ def validate_config(config):
 
 def base_query(config, filters, card=None):
     queryset = SalesOrder.objects.exclude(status__in=EXCLUDED_STATUSES)
-    if filters.get("empty_months") or filters.get("empty_legacy_source"):
+    if filters.get("empty_months") or filters.get("empty_legacy_source") or filters.get("empty_legacy_dealer"):
         queryset = queryset.none()
     scopes = (config.get("fixed_filters", {}), (card or {}).get("fixed_filters", {}))
     for scope in scopes:
@@ -258,6 +261,8 @@ def base_query(config, filters, card=None):
         queryset = source_model_query(queryset).annotate(report_legacy_energy=source_energy_expression())
     if filters.get("legacy_source") or any(isinstance(scope, dict) and scope.get("legacy_source") for scope in scopes):
         queryset = sales_source_query(queryset).annotate(report_legacy_source=sales_source_expression())
+    if filters.get('legacy_dealer'):
+        queryset = source_dealer_query(queryset).filter(report_dealer_label__in=filters['legacy_dealer'])
     # 各層皆取交集；讀者 GET 參數無法覆蓋發布版本的固定範圍。
     for scope in scopes:
         for key, values in scope.items():
@@ -310,7 +315,12 @@ def base_query(config, filters, card=None):
         groups = selected["group"] if isinstance(selected["group"], list) else [selected["group"]]
         alternatives = Q()
         for group in groups:
-            subset = drill_query(config, config["cards"][selected["card"]], selection_filters, group)
+            selected_card = config["cards"][selected["card"]]
+            # 人口分析選的是性別／車色；各目標圖仍保留自己的車型條件。
+            # 不把 FUN 的車型限制傳到 RUN 而讓其他三圖全部變零。
+            if config.get('reader_layout') == 'analysis_overview' and selected_card['dimension'] in ('sex', 'color', 'age_group'):
+                selected_card = {**selected_card, 'fixed_filters': {}}
+            subset = drill_query(config, selected_card, selection_filters, group)
             alternatives |= Q(pk__in=subset.values("pk"))
         queryset = queryset.filter(alternatives)
     return queryset

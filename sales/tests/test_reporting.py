@@ -13,6 +13,98 @@ from sales.reporting.views import initial_config
 
 
 class ReportingTests(TestCase):
+    def test_selected_reader_layouts_and_channel_names_are_scoped(self):
+        from sales.reporting.source_templates import SOURCE_TEMPLATES
+        from sales.reporting.forms import FilterForm
+        from sales.reporting.records import record_queryset
+        from sales.reporting.views import publication_key
+        for name, factory in SOURCE_TEMPLATES.items():
+            config = validate_config(factory())
+            self.assertNotEqual(config.get('reader_layout'), 'standard', name)
+            self.report.published = config
+            self.report.save()
+            self.login()
+            response = self.client.get(reverse('report_display', args=[self.report.pk]))
+            self.assertEqual(response.status_code, 200, name)
+            self.assertNotContains(response, 'data-report-multiple')
+        self.model.model_number = 'UC125DA'
+        self.model.save(update_fields=['model_number'])
+        config = SOURCE_TEMPLATES['gasoline-dealer']()
+        form = FilterForm({'legacy_dealer':['甲車行']}, reader_layout=config['reader_layout'], config=config)
+        self.assertTrue(form.is_valid(), form.errors)
+        self.assertEqual(form.COMMON_FIELDS, ('legacy_dealer','months'))
+        self.assertEqual(record_queryset(config,form.cleaned_data).count(),1)
+        self.assertEqual(record_queryset(config,{'empty_legacy_dealer':True}).count(),0)
+        self.report.published=config
+        self.report.save()
+        response=self.client.get(reverse('report_export',args=[self.report.pk,0]),{'legacy_dealer':['甲車行'],'format':'excel','revision':publication_key(self.report)})
+        self.assertEqual(response.status_code,200)
+        self.assertTrue(response.content.startswith(b'\xef\xbb\xbf'))
+        self.assertNotIn('乙車行',response.content.decode('utf-8-sig'))
+
+    def test_analysis_cross_selection_keeps_each_models_scope(self):
+        import json
+        from sales.reporting.source_templates import model_analysis
+        from sales.reporting.views import results
+        self.model.model_number='EV060L'
+        self.model.save(update_fields=['model_number'])
+        run=VehicleModel.objects.create(brand='SUZUKI',name='RUN',model_number='EV076',energy_type='electric')
+        order=SalesOrder.objects.first()
+        SalesOrder.objects.filter(pk=order.pk).update(vehicle_model=run)
+        SalesOrder.objects.update(owner_type='local',owner_id_number='A123456789')
+        config=model_analysis('sex')
+        filters={'focus':json.dumps([{'card':0,'group':'v:男性','grain':''}])}
+        linked=results(config,filters,retain_candidates=True)
+        self.assertEqual([result['count'] for result in linked],[2,1,0,0])
+        self.assertEqual(drill_query(config,config['cards'][0],{},'v:男性').count(),2)
+        # 原一般報表仍採訂單交集，不全域改變 cross-filter 的意義。
+        config['reader_layout']='standard'
+        self.assertEqual(results(config,filters)[1]['count'],0)
+
+    def test_remaining_migration_is_idempotent_preserves_custom_draft_and_scopes(self):
+        from importlib import import_module
+        from types import SimpleNamespace
+        from django.apps import apps
+        from django.db import connection
+        from sales.reporting.source_templates import SOURCE_TEMPLATES
+        migrate=import_module('sales.migrations.0123_remaining_report_readers').upgrade_readers
+        created=[]
+        for name,factory in SOURCE_TEMPLATES.items():
+            config=factory()
+            if name in ('total','electric'):
+                continue
+            config.pop('reader_layout',None)
+            if name=='gasoline':
+                config['cards'][1].update(dimension='day',title='油車每日銷售型號')
+            if 'legacy_notes' in config.get('records_columns',[]): config['records_columns'].remove('legacy_notes')
+            draft={**copy.deepcopy(config),'description':'尚未發布的管理者修改'}
+            r=ReportDefinition.objects.create(published=config,draft=draft,version=1)
+            created.append((r.pk,copy.deepcopy(config),draft))
+        original=copy.deepcopy(self.report.published)
+        migrate(apps,SimpleNamespace(connection=connection))
+        for pk,old,draft in created:
+            r=ReportDefinition.objects.get(pk=pk)
+            self.assertEqual(r.version,2)
+            self.assertEqual(r.draft,draft)
+            self.assertEqual(r.published['fixed_filters'],old['fixed_filters'])
+            validate_config(r.published)
+        migrate(apps,SimpleNamespace(connection=connection))
+        self.assertTrue(all(ReportDefinition.objects.get(pk=pk).version==2 for pk,_,_ in created))
+        self.report.refresh_from_db()
+        self.assertEqual(self.report.published,original)
+
+    def test_legacy_notes_never_open_to_team_or_arbitrary_raw_fields(self):
+        from sales.reporting.source_templates import dealer_sales
+        config=dealer_sales()
+        self.assertIn('legacy_notes',config['records_columns'])
+        config['audience']='team'
+        with self.assertRaises(ValidationError): validate_config(config)
+        self.report.published=config
+        self.report.save()
+        self.login(self.user)
+        for route,args in [('report_display',[self.report.pk]),('report_records_export',[self.report.pk]),('report_export',[self.report.pk,0])]:
+            self.assertEqual(self.client.get(reverse(route,args=args)).status_code,404)
+
     def test_electric_gift_sort_uses_correct_raw_columns_and_handles_null(self):
         from sales.models import LegacyImportBatch, LegacyImportRow, LegacySalesSnapshot
         from sales.reporting.records import record_queryset, record_cells, RECORD_SORTS
@@ -42,7 +134,7 @@ class ReportingTests(TestCase):
         for name, factory in SOURCE_TEMPLATES.items():
             if name not in ('electric','total'):
                 self.assertNotEqual(factory().get('reader_layout'), 'electric_overview')
-        self.assertEqual(SOURCE_TEMPLATES['gasoline']()['cards'][1]['dimension'], 'day')
+        self.assertEqual(SOURCE_TEMPLATES['gasoline']()['cards'][1]['dimension'], 'month')
         self.assertEqual(FilterForm(reader_layout='electric_overview').COMMON_FIELDS, ('legacy_source','months'))
         self.model.model_number = 'EV060L'
         self.model.save(update_fields=['model_number'])
@@ -520,6 +612,13 @@ class ReportingTests(TestCase):
         exported = self.client.get(reverse("report_export", args=[self.report.pk, 0]), params)
         self.assertContains(exported, "月份,台數與傭金歸屬車行,訂單台數,訂單車價合計,DMIS 車行傭金支出")
         self.assertContains(exported, "2026/09,甲車行,2,30000")
+
+    def test_summary_table_numeric_sort_orders_all_groups_before_pagination(self):
+        card = {**self.config['cards'][0], 'chart': 'table', 'dimension': 'recipient',
+                'additional_metrics': ['sale_total']}
+        for ordering, expected in [('value_asc', [1, 2]), ('value', [2, 1])]:
+            result = card_result(self.config, card, {'_card_sort': ordering})
+            self.assertEqual([row['count'] for row in result['rows']], expected)
 
     def test_saved_bonus_summary_does_not_multiply_order_values_or_recalculate_manual_total(self):
         from sales.models import DealerVolumeBonusRule, DealerVolumeBonusSettlement, DealerVolumeBonusAllocation, OrderOperationsProfile

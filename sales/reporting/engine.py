@@ -202,8 +202,12 @@ def validate_config(config):
         raise ValidationError("每份報表最多 8 張圖表；沒有圖表時請啟用明細表。")
     for card in config["cards"]:
         card_fields = {"title", "dimension", "metric", "chart", "formula", "limit", "sort"}
-        if not isinstance(card, dict) or not card_fields <= set(card) or set(card) - card_fields - {"fixed_filters", "series", "series_limit", "series_other", "series_sort", "additional_metrics"}:
+        if not isinstance(card, dict) or not card_fields <= set(card) or set(card) - card_fields - {"fixed_filters", "series", "series_limit", "series_other", "series_sort", "additional_metrics", "width", "height"}:
             raise ValidationError("圖表格式不正確。")
+        if type(card.get("width", 6)) is not int or card.get("width", 6) not in (6, 12):
+            raise ValidationError("圖表寬度須為半寬或全寬。")
+        if "height" in card and (type(card["height"]) is not int or not 320 <= card["height"] <= 1200):
+            raise ValidationError("圖表高度須為 320–1200 像素。")
         if type(card.get("series_limit", 200)) is not int or not 1 <= card.get("series_limit", 200) <= 200:
             raise ValidationError("細分系列上限須為 1–200。")
         if type(card.get("series_other", False)) is not bool:

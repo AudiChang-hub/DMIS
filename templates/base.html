@@ -53,13 +53,16 @@
                 <a href="{% url 'business_holiday_list' %}"><strong>工作日與假日設定</strong><small>設定期限計算要排除的日期</small></a>
               </section>
               <div class="data-menu-tools">
-                {% if user.is_superuser and user.username == 'admin' %}<a href="{% url 'report_manage' %}"><strong>報表設計管理</strong></a>{% endif %}
                 <a href="{% url 'legacy_import_list' %}"><strong>舊資料 Excel 匯入</strong></a>
                 <a href="{% url 'positioned_template_list' %}"><strong>列印範本設定</strong></a>
-                {% if user.is_superuser %}<a href="{% url 'user_management' %}"><strong>帳號與權限</strong></a>{% endif %}
                 <a href="{% url 'system_diagnostics' %}"><strong>系統狀態檢查</strong></a>
-                {% if user.is_superuser %}<a href="{% url 'system_integrity_report' %}"><strong>系統完整性報告</strong></a>{% endif %}
               </div>
+              {% if user.is_superuser %}<section class="data-menu-tools data-menu-admin" aria-label="管理者工具">
+                <h2>管理者工具</h2>
+                {% if user.username == 'admin' %}<a href="{% url 'report_manage' %}"><strong>報表設計管理</strong></a>{% endif %}
+                <a href="{% url 'user_management' %}"><strong>帳號與權限</strong></a>
+                <a href="{% url 'system_integrity_report' %}"><strong>系統完整性報告</strong></a>
+              </section>{% endif %}
             </div>
           </div>
         </nav>

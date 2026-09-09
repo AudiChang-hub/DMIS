@@ -63,6 +63,7 @@
       update(); markDirty();
     });
     editor.addEventListener("submit", () => { dirty = false; update(); });
+    editor.addEventListener("report-layout-change", () => { update(); markDirty(); });
     window.addEventListener("beforeunload", event => { if (dirty) { event.preventDefault(); event.returnValue = ""; } });
     container.querySelectorAll('[name$="-DELETE"]:checked').forEach(input => {
       const removed = input.closest("[data-report-card]"); removed.hidden = true;

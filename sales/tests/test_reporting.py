@@ -68,7 +68,9 @@ class ReportingTests(TestCase):
         self.report.refresh_from_db()
         self.assertEqual(self.report.published["cards"][0]["width"], 12)
         self.assertEqual(self.report.published["cards"][0]["height"], 640)
-        self.assertContains(self.client.get(reverse("report_display", args=[self.report.pk])), 'height:640px')
+        response = self.client.get(reverse("report_display", args=[self.report.pk]))
+        self.assertContains(response, 'style="min-height:640px"')
+        self.assertNotContains(response, 'height:640px;overflow:auto')
         saved_version = self.report.version
         altered = copy.deepcopy(config)
         altered["cards"][0].update(width=6, height=360)

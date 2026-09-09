@@ -18,7 +18,7 @@ def total_vehicle_sales():
         "cards": [
             card("總車輛銷售", "stacked", "month", 24, "key_desc", series="legacy_sales_source", series_limit=20, series_other=True, series_sort="key_desc"),
             card("銷售來源占比", "donut", "legacy_sales_source", 10),
-            card("銷售機種統計（原分類）", "stacked", "day", 24, "key_desc", series="legacy_motor_type", series_limit=10, series_other=False, series_sort="value"),
+            card("銷售機種統計（原分類）", "stacked", "month", 24, "key_desc", series="legacy_motor_type", series_limit=10, series_other=False, series_sort="value"),
             card("車種分類占比", "donut", "legacy_motor_type", 10),
         ],
     }

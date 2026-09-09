@@ -21,7 +21,7 @@ def selections(raw):
                 raise ValueError
             seen.add(item["card"])
             groups = item["group"] if isinstance(item["group"], list) else [item["group"]]
-            if not 1 <= len(groups) <= 20 or any(not isinstance(group, str) or not 0 < len(group) <= 600 or group == "__all__" for group in groups):
+            if not 1 <= len(groups) <= 200 or any(not isinstance(group, str) or not 0 < len(group) <= 600 or group == "__all__" for group in groups):
                 raise ValueError
             if len(set(groups)) != len(groups):
                 raise ValueError

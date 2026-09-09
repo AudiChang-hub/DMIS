@@ -1,0 +1,29 @@
+/* 僅限總車輛銷售；舊報表及設計器保持原呈現。 */
+.report-sales-overview .report-overview-tools-ready > .report-chart-options,
+.report-sales-overview .report-overview-tools-ready > .report-chart-controls,
+.report-sales-overview .report-overview-tools-ready .report-card-toolbar > .report-export,
+.report-sales-overview .report-overview-tools-ready .report-card-toolbar small { display:none; }
+.report-sales-overview .report-overview-tools-ready > .report-score { display:flex; flex-wrap:wrap; align-items:baseline; gap:.5rem; margin:.25rem 0 .75rem; }
+.report-sales-overview .report-overview-tools-ready > .report-score > span { display:none; }
+.report-sales-overview .report-card-toolbar { overflow:visible; align-items:center; }
+.report-overview-tools { position:relative; margin-left:auto; flex-shrink:0; }
+.report-overview-tools > summary { cursor:pointer; padding:.5rem .75rem; border:1px solid var(--line); border-radius:10px; }
+.report-overview-tools[open] { z-index:40; }
+.report-overview-tool-list { position:absolute; right:0; top:100%; width:min(310px,80vw); max-height:65vh; overflow:auto; padding:12px; border:1px solid var(--line); border-radius:12px; background:var(--surface); box-shadow:0 10px 28px #0003; display:grid; gap:8px; }
+.report-overview-tool-list button,.report-overview-tool-list select { text-align:left; min-height:40px; border:1px solid var(--line); border-radius:8px; padding:8px; color:var(--ink); background:var(--surface); }
+.report-overview-tool-list button:disabled { opacity:.45; cursor:not-allowed; }
+.report-overview-tool-list label { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+.report-overview-tool-list input[type=checkbox] { width:20px; height:20px; }
+.report-sales-overview .report-multi-list label button { margin-left:auto; flex-shrink:0; padding:4px 8px; border:1px solid var(--line); border-radius:6px; background:var(--surface); color:var(--ink); }
+.report-sales-overview .report-month-target { cursor:pointer; }
+.report-sales-overview .report-month-target.report-brush-candidate { fill:color-mix(in srgb,var(--amber) 25%,transparent); stroke:var(--amber); }
+.report-reader-shell .report-sales-overview .report-overview-plot { min-width:640px; }
+.report-reader-shell .report-sales-overview .report-donut { max-width:600px; }
+.report-sales-overview .report-month-target.report-point-selected { fill:color-mix(in srgb,var(--amber) 12%,transparent); stroke:var(--amber); stroke-width:2; }
+.report-sales-overview .report-record-panel th a { display:block; white-space:nowrap; }
+@media(max-width:700px) { .report-sales-overview .report-card-toolbar { flex-wrap:wrap; gap:8px; } .report-overview-tools > summary { min-height:40px; } }
+@media print { .report-overview-tools { display:none!important; } }
+.report-image-export { width:min(800px,90vw); max-height:85vh; overflow:auto; color:var(--ink); background:var(--surface); border:1px solid var(--line); border-radius:16px; padding:20px; }
+.report-image-export::backdrop { background:#0008; }
+.report-image-export img { display:block; max-width:100%; max-height:60vh; object-fit:contain; margin:12px auto; }
+.report-image-export .button { margin-right:12px; }

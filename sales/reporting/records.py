@@ -1,6 +1,19 @@
 """報表明細白名單；不輸出證件、地址、電話、帳號或原始 JSON。"""
 from django.core.paginator import Paginator
-from django.db.models import F
+from django.db.models import F, Case, When, Value, CharField, DecimalField, OuterRef, Subquery, Sum
+from django.db.models.fields.json import KeyTextTransform
+from django.db.models.functions import Coalesce, NullIf
+
+
+# 明細欄位到查詢的固定白名單；不能把讀者輸入直接傳入 order_by。
+RECORD_SORTS = {
+    'number': 'number', 'registration_date': 'registration_date', 'source': 'source__name',
+    'legacy_source_name': 'record_sort_source', 'model_number': 'record_sort_model',
+    'identifier': 'record_sort_identifier', 'energy': 'vehicle_model__energy_type',
+    'color': 'color__name', 'owner_name': 'owner_name', 'subsidy': 'subsidy_type',
+    'payment_confirmed': 'operations__payment_confirmed', 'total_received': 'record_sort_received',
+    'historical_received_price': 'legacy_snapshot__historical_received_price',
+}
 
 
 RECORD_COLUMNS = {
@@ -41,9 +54,28 @@ def record_queryset(config, filters):
         queryset = source_model_query(queryset).annotate(record_energy_classification=source_energy_expression())
     if "legacy_dealer" in columns:
         queryset = source_dealer_query(queryset)
+    sort_key = filters.get('records_sort', '')
+    sort_name = sort_key.removeprefix('-')
+    if sort_name in columns and sort_name in RECORD_SORTS:
+        text = CharField()
+        if sort_name == 'total_received':
+            from sales.models import PaymentRecord
+            money = DecimalField(max_digits=16, decimal_places=2)
+            received = PaymentRecord.objects.filter(order_id=OuterRef('pk'), confirmed=True).values('order_id').annotate(total=Sum('received_amount')).values('total')
+            queryset = queryset.annotate(record_sort_received=Case(When(operations__isnull=True, then=Value(None, output_field=money)), default=Coalesce(Subquery(received, output_field=money), Value(0, output_field=money)), output_field=money))
+        if sort_name in ('legacy_source_name', 'model_number'):
+            legacy_text = KeyTextTransform('dealer_name_raw' if sort_name == 'legacy_source_name' else 'model_number', 'legacy_snapshot__import_row__mapped_data')
+            fallback = Value('非歷史匯入') if sort_name == 'legacy_source_name' else Coalesce(NullIf(F('vehicle_model__model_number'), Value('')), F('vehicle_model__name'))
+            queryset = queryset.annotate(**{RECORD_SORTS[sort_name]: Case(When(legacy_snapshot__isnull=False, then=legacy_text), default=fallback, output_field=text)})
+        if sort_name == 'identifier':
+            queryset = queryset.annotate(record_sort_identifier=Coalesce(NullIf(F('allocated_vehicle__engine_number'), Value('')), NullIf(F('allocated_vehicle__frame_number'), Value('')), NullIf(F('legacy_snapshot__vehicle_identifier'), Value('')), Value('尚未填寫'), output_field=text))
+        expression = F(RECORD_SORTS[sort_name])
+        ordering = expression.desc(nulls_last=True) if sort_key.startswith('-') else expression.asc(nulls_first=True)
+    else:
+        ordering = F(config['date_basis']).desc(nulls_first=True)
     return queryset.select_related(
         "source", "commission_recipient", "vehicle_model", "color", "allocated_vehicle", "legacy_snapshot__import_row", "operations",
-    ).prefetch_related("payment_records").order_by(F(config["date_basis"]).desc(nulls_first=True), "-pk")
+    ).prefetch_related("payment_records").order_by(ordering, "-pk")
 
 
 def record_cells(order, columns):
@@ -95,5 +127,11 @@ def record_context(config, filters, page_number=1):
         return population_context(config, filters, page_number)
     columns = config.get("records_columns", DEFAULT_RECORD_COLUMNS)
     page = Paginator(record_queryset(config, filters), config.get("records_page_size", 10)).get_page(page_number)
-    return {"records_page": page, "records_headers": [RECORD_COLUMNS[key] for key in columns],
+    from .views import filter_query
+    sort = filters.get('records_sort', '')
+    headers = []
+    for key in columns:
+        headers.append({'label': RECORD_COLUMNS[key], 'query': filter_query({**filters, 'records_sort': key if sort == '-' + key else '-' + key}),
+                        'sortable': key in RECORD_SORTS, 'direction': 'descending' if sort == '-' + key else 'ascending' if sort == key else 'none'})
+    return {"records_page": page, "records_headers": [RECORD_COLUMNS[key] for key in columns], "records_sort_headers": headers,
             "records_rows": [{"pk": order.pk, "cells": record_cells(order, columns)} for order in page], "records_note": RECORD_NOTE}

@@ -5,6 +5,18 @@ const {reportToggleSelection} = require('../../static/js/report-interactions.js'
 const {reportAxisMaximum} = require('../../static/js/report-interactions.js');
 const {reportDebounce} = require('../../static/js/report-interactions.js');
 const {reportUpdateError} = require('../../static/js/report-interactions.js');
+const {reportOverviewColor, reportMonthSummary} = require('../../static/js/report-interactions.js');
+
+test('原報表整月提示包含全部非零系列及合計，不把月份縮成單一通路', () => {
+  const summary = reportMonthSummary('2026/08', [{label:'馭盛',value:29,display:'29'},{label:'車行',value:5,display:'5'},{label:'展場',value:0,display:'0'}], '34');
+  assert.equal(summary, '2026/08\n馭盛：29\n車行：5\n總計：34');
+  assert.equal(reportPointText({pointSummary:summary}, '訂單台數'), summary);
+});
+test('來源與機種原色固定，不因排序或篩選改變', () => {
+  assert.equal(reportOverviewColor('車行','#000'), '#7ac36a');
+  assert.equal(reportOverviewColor('速克達','#000'), '#f15a60');
+  assert.equal(reportOverviewColor('其他','#123456'), '#123456');
+});
 
 test('離線與逾時提示中文復原方式，保留權限及版本等具體錯誤', () => {
   assert.match(reportUpdateError(new TypeError('Failed to fetch')), /無法連線.*重試/);
@@ -49,7 +61,7 @@ test('圖表單選、重點取消、複選聯集與移除保留其他圖條件',
   assert.deepEqual(chosen[1].group, ['A','C']);
   assert.equal(reportToggleSelection(chosen, 0, 'A', '', true)[1].group, 'C');
   assert.equal(reportToggleSelection(chosen, 0, 'D', 'year', true)[1].group, 'D');
-  assert.throws(() => reportToggleSelection([{card:0,group:Array.from({length:20},(_,i)=>String(i)),grain:''}],0,'extra','',true), /20/);
+  assert.throws(() => reportToggleSelection([{card:0,group:Array.from({length:200},(_,i)=>String(i)),grain:''}],0,'extra','',true), /200/);
 });
 
 test('彙總分頁不遺漏尾頁，切換筆數及非法頁碼有界限', () => {

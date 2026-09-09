@@ -1,10 +1,8 @@
 """雙分類、多指標彙總表；獎金讀取已保存分配，不重算業務規則。"""
 import json
 
-from django.db.models import Count, DecimalField, F, OuterRef, Subquery, Sum, Value
-from django.db.models.functions import Coalesce
-
-from sales.models import DealerVolumeBonusAllocation
+from django.db.models import Count, F, Sum
+from .financial_query import with_saved_bonus
 
 
 def summary_result(config, card, filters):
@@ -22,11 +20,7 @@ def summary_result(config, card, filters):
         aggregates["dealer_commission"] = Sum("operations__dealer_commission_expense")
     if "dealer_bonus" in metrics:
         # 先按訂單彙總，避免一張訂單多筆分配 JOIN 後把台數與車價倍增。
-        allocations = (DealerVolumeBonusAllocation.objects.filter(order_id=OuterRef("pk"))
-                       .order_by().values("order_id").annotate(total=Sum("amount")).values("total"))
-        money = DecimalField(max_digits=20, decimal_places=2)
-        queryset = queryset.annotate(report_saved_bonus=Coalesce(
-            Subquery(allocations, output_field=money), Value(0), output_field=money))
+        queryset = with_saved_bonus(queryset)
         aggregates["dealer_bonus"] = Sum("report_saved_bonus")
 
     totals = queryset.aggregate(**aggregates)

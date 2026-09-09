@@ -2,4 +2,4 @@
 {% if field.field.widget.allow_multiple_selected %}
 <details class="report-multiselect" data-report-multi><summary id="{{ field.id_for_label }}"><span class="sr-only">{{ field.label }}：</span><span data-multi-summary>不限（可複選）</span></summary>
 <div class="report-multi-options"><input type="search" placeholder="搜尋{{ field.label }}" aria-label="搜尋{{ field.label }}" data-multi-search autocomplete="off"><div class="report-multi-actions"><button type="button" data-multi-all>全選搜尋結果</button><button type="button" data-multi-clear>清除限制</button></div><small>未勾選表示不限；與其他欄位條件同時套用。</small><div class="report-multi-list">{% for value,label in field.field.choices %}<label data-multi-option><input type="checkbox" name="{{ field.html_name }}" value="{{ value }}" {% if value in field.value %}checked{% endif %}><span>{{ label }}</span></label>{% empty %}<p>目前沒有可選項目。</p>{% endfor %}</div></div></details>
-{% else %}{{ field }}{% endif %}{{ field.errors }}</div>
+{% else %}{{ field }}{% endif %}{% if field.help_text %}<small>{{ field.help_text }}</small>{% endif %}{{ field.errors }}</div>

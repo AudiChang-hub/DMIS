@@ -16,6 +16,8 @@ RECORD_COLUMNS = {
     "legacy_dealer": "原報表車行／平台名稱",
     "commission_recipient": "台數與傭金歸屬車行", "plate_number": "車牌號碼",
     "dealer_commission": "DMIS 車行傭金支出",
+    "dealer_bonus": "DMIS 已分配台數獎金",
+    "sex": "性別（修正分類）", "age_group": "年齡層（修正分類）",
 }
 DEFAULT_RECORD_COLUMNS = ["registration_date", "source", "model_number", "energy", "color", "owner_name", "payment_confirmed", "total_received"]
 RECORD_NOTE = "明細依 DMIS 目前訂單與收款紀錄顯示；歷史車行、收款價、禮券與贈品保留匯入來源值，不代表目前實收、已結清或獎勵已發放。原始未填寫、欄位未提供與實際零值分開呈現；新訂單的歷史欄標為非歷史匯入。不輸出證件、聯絡資訊或原始資料中的帳號密碼。"
@@ -26,6 +28,13 @@ def record_queryset(config, filters):
     from .source_compatibility import sales_source_query, sales_source_expression, source_model_query, source_energy_expression, source_dealer_query
     queryset = base_query(config, filters)
     columns = config.get("records_columns", DEFAULT_RECORD_COLUMNS)
+    if "dealer_bonus" in columns:
+        from .financial_query import with_saved_bonus
+        queryset = with_saved_bonus(queryset)
+    for dimension in ("sex", "age_group"):
+        if dimension in columns:
+            from .demographics import demographic_query
+            queryset = demographic_query(queryset, dimension, "record_" + dimension)
     if "legacy_sales_source" in columns:
         queryset = sales_source_query(queryset).annotate(record_source_classification=sales_source_expression())
     if "legacy_energy" in columns:
@@ -72,6 +81,8 @@ def record_cells(order, columns):
         "commission_recipient": order.commission_recipient.name if order.commission_recipient else order.source.name if order.source_type == "dealer" and order.source else "未歸屬車行",
         "plate_number": order.final_plate_number or "尚未填寫",
         "dealer_commission": str(operations.dealer_commission_expense) if operations else "待補收支資料",
+        "dealer_bonus": str(getattr(order, "report_saved_bonus", 0)) if operations else "待補收支資料",
+        "sex": getattr(order, "record_sex", "待核對"), "age_group": getattr(order, "record_age_group", "待核對"),
     }
     if legacy and ("收款價" not in raw or raw["收款價"] in (None, "")):
         values["historical_received_price"] = original_text("收款價")

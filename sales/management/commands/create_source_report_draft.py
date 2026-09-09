@@ -12,7 +12,7 @@ class Command(BaseCommand):
     help = "建立指定原報表核對草稿（僅 admin、不自動發布、已存在則保留）"
 
     def add_arguments(self, parser):
-        parser.add_argument("--page", choices=SOURCE_TEMPLATES, default="total", help="total：總車輛銷售；electric：電動車；electric-platform：電動車網路平台")
+        parser.add_argument("--page", choices=SOURCE_TEMPLATES, default="total", help="total：總銷售；electric／gasoline：電動車／油車；加 -platform 表示網路平台分頁")
 
     @transaction.atomic
     def handle(self, *args, **options):

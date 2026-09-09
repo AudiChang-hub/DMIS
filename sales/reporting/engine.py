@@ -1,6 +1,7 @@
 """白名單彙總查詢。禁止任意 ORM 路徑、SQL 與 Python eval。"""
 import ast
 import json
+import re
 from datetime import date
 from decimal import Decimal, InvalidOperation, localcontext
 
@@ -12,6 +13,7 @@ from sales.models import SalesOrder, SalesSource, VehicleModel, VehicleModelFami
 from .source_compatibility import SOURCE_CLASSIFICATIONS, MODEL_PRESENCE, model_presence_query, motor_type_expression, source_model_query, sales_source_expression, sales_source_query
 from .source_compatibility import SOURCE_ENERGIES, source_energy_expression, source_dealer_query
 from .records import RECORD_COLUMNS, DEFAULT_RECORD_COLUMNS
+from .demographics import DEMOGRAPHIC_DIMENSIONS, demographic_query
 
 
 DIMENSIONS = {
@@ -24,6 +26,7 @@ DIMENSIONS = {
     "legacy_energy": "原報表能源分類（比對用）",
     "legacy_dealer": "原報表車行／平台名稱（比對用）",
 }
+DIMENSIONS.update(DEMOGRAPHIC_DIMENSIONS)
 METRICS = {"count": "訂單台數", "sale_total": "訂單車價合計", "average_price": "平均訂單車價", "formula": "自訂試算"}
 METRICS["dealer_commission"] = "DMIS 車行傭金支出"
 METRICS["dealer_bonus"] = "DMIS 已分配台數獎金"
@@ -49,6 +52,16 @@ SCOPE_LOOKUPS["model_presence"] = "report_model_presence"
 SCOPE_LABELS["model_presence"] = "原型號完整性（比對用）"
 SCOPE_LOOKUPS["legacy_energy"] = "report_legacy_energy"
 SCOPE_LABELS["legacy_energy"] = "原報表能源分類（比對用）"
+MODEL_TEXT_SCOPES = {
+    "model_exact": "原型號完整符合（每行一項）",
+    "model_prefix": "原型號開頭符合（每行一項）",
+    "model_contains": "原型號包含文字（每行一項）",
+    "model_exclude": "排除完整原型號（每行一項）",
+}
+SCOPE_LOOKUPS.update({key: "report_source_model" for key in MODEL_TEXT_SCOPES})
+SCOPE_LABELS.update(MODEL_TEXT_SCOPES)
+SCOPE_LOOKUPS["age_scope"] = "report_age_scope"
+SCOPE_LABELS["age_scope"] = "年齡範圍（保留未知資料）"
 
 
 def validate_scope(scope):
@@ -71,6 +84,8 @@ def validate_scope(scope):
                 raise ValidationError("原型號完整性條件不正確。")
             if key == "legacy_energy" and value not in SOURCE_ENERGIES:
                 raise ValidationError("原報表能源分類不正確。")
+            if key == "age_scope" and value != "adult_or_unknown":
+                raise ValidationError("年齡範圍不正確。")
 
 
 def scope_labels(scope):
@@ -87,6 +102,8 @@ def scope_labels(scope):
             labels = dict(SalesOrder.SourceType.choices)
         elif key == "model_presence":
             labels = MODEL_PRESENCE
+        elif key == "age_scope":
+            labels = {"adult_or_unknown": "20 歲以上；另列生日未填、生日異常及公司或其他"}
         elif key == "source":
             labels = {str(pk): name for pk, name in SalesSource.objects.filter(pk__in=values).values_list("pk", "name")}
         elif key == "model":
@@ -219,6 +236,10 @@ def validate_config(config):
 def base_query(config, filters, card=None):
     queryset = SalesOrder.objects.exclude(status__in=EXCLUDED_STATUSES)
     scopes = (config.get("fixed_filters", {}), (card or {}).get("fixed_filters", {}))
+    for scope in scopes:
+        validate_scope(scope)
+    if any(any(scope.get(key) for key in MODEL_TEXT_SCOPES) for scope in scopes):
+        queryset = source_model_query(queryset)
     if any(isinstance(scope, dict) and scope.get("model_presence") for scope in scopes):
         queryset = model_presence_query(queryset)
     if filters.get("legacy_energy") or any(isinstance(scope, dict) and scope.get("legacy_energy") for scope in scopes):
@@ -227,9 +248,24 @@ def base_query(config, filters, card=None):
         queryset = sales_source_query(queryset).annotate(report_legacy_source=sales_source_expression())
     # 各層皆取交集；讀者 GET 參數無法覆蓋發布版本的固定範圍。
     for scope in scopes:
-        validate_scope(scope)
         for key, values in scope.items():
             if values:
+                if key in MODEL_TEXT_SCOPES:
+                    if key == "model_exact":
+                        queryset = queryset.filter(report_source_model__in=values)
+                    elif key == "model_exclude":
+                        queryset = queryset.exclude(report_source_model__in=values)
+                    else:
+                        condition = Q()
+                        for value in values:
+                            # 使用固定運算子與跳脫的文字，不接受任意 regex 或 ORM 路徑。
+                            pattern = ("^" if key == "model_prefix" else "") + re.escape(value)
+                            condition |= Q(report_source_model__regex=pattern)
+                        queryset = queryset.filter(condition)
+                    continue
+                if key == "age_scope":
+                    queryset = demographic_query(queryset, "age_group", "report_age_scope").exclude(report_age_scope="20歲以下")
+                    continue
                 queryset = queryset.filter(**{SCOPE_LOOKUPS[key] + "__in": values})
     basis = config["date_basis"]
     if basis == "registration_date" and not config.get("include_undated", False):
@@ -265,6 +301,8 @@ def base_query(config, filters, card=None):
 
 
 def dimension_query(queryset, dimension, basis, alias="report_key"):
+    if dimension in DEMOGRAPHIC_DIMENSIONS:
+        return demographic_query(queryset, dimension, alias)
     if dimension == "legacy_dealer":
         return source_dealer_query(queryset).annotate(**{alias: F("report_dealer_label")})
     if dimension == "legacy_energy":

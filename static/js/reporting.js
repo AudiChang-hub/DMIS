@@ -2,7 +2,7 @@
   "use strict";
   const readerPages = document.querySelector("[data-reader-pages]");
   if (readerPages) {
-    const mobile = window.matchMedia(document.querySelector('.report-electric-overview') ? "(max-width: 1100px)" : "(max-width: 800px)");
+    const mobile = window.matchMedia(document.querySelector('.report-sales-overview:not([data-reader-layout="sales_overview"])') ? "(max-width: 1100px)" : "(max-width: 800px)");
     const adaptPages = () => { readerPages.open = !mobile.matches; };
     adaptPages();
     mobile.addEventListener("change", adaptPages);

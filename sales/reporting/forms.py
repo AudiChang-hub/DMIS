@@ -66,7 +66,8 @@ class ScopeForm(forms.Form):
 
 
 class ReportForm(ScopeForm):
-    reader_layout = forms.ChoiceField(label="閱讀版型", required=False, choices=[("standard", "一般報表"), ("sales_overview", "銷售總覽（原報表緊湊版型）"), ("electric_overview", "電動車銷售（三圖連動版型）")])
+    from .reader_layouts import READER_LAYOUTS
+    reader_layout = forms.ChoiceField(label="閱讀版型", required=False, choices=list(READER_LAYOUTS.items()))
 
     def clean_reader_layout(self):
         return self.cleaned_data["reader_layout"] or "standard"
@@ -163,6 +164,7 @@ class FilterForm(forms.Form):
     focus = forms.CharField(required=False, max_length=6000, widget=forms.HiddenInput)
     empty_months = forms.BooleanField(required=False, widget=forms.HiddenInput)
     empty_legacy_source = forms.BooleanField(required=False, widget=forms.HiddenInput)
+    empty_legacy_dealer = forms.BooleanField(required=False, widget=forms.HiddenInput)
     from .records import RECORD_SORTS
     records_sort = forms.ChoiceField(required=False, widget=forms.HiddenInput, choices=[('', '預設排序')] + [(prefix + key, RECORD_COLUMNS[key]) for key in RECORD_SORTS for prefix in ('', '-')])
     grain = forms.ChoiceField(label="日期圖表層級", required=False, choices=[("", "依原設計"), ("year", "按年"), ("month", "按月"), ("day", "按日")])
@@ -174,16 +176,25 @@ class FilterForm(forms.Form):
     source_type = forms.MultipleChoiceField(label="來源類型", required=False, choices=SalesOrder.SourceType.choices)
     source = forms.MultipleChoiceField(label="車行／平台", required=False)
     legacy_source = forms.MultipleChoiceField(label="原報表銷售來源（五分類）", required=False, choices=[(label, label) for label in SOURCE_CLASSIFICATIONS])
+    legacy_dealer = forms.MultipleChoiceField(label="原報表車行／平台名稱", required=False)
     legacy_energy = forms.MultipleChoiceField(label="原報表能源（比對用）", required=False, choices=[(label, label) for label in SOURCE_ENERGIES])
 
     def __init__(self, *args, **kwargs):
         self.date_basis = kwargs.pop("date_basis", "registration_date")
         layout = kwargs.pop("reader_layout", "standard")
+        config = kwargs.pop('config', None)
         super().__init__(*args, **kwargs)
-        if layout in ("sales_overview", "electric_overview"):
+        if layout in ("sales_overview", "electric_overview", "gasoline_overview"):
             self.COMMON_FIELDS = ("legacy_source", "months")
             self.fields["legacy_source"].label = "銷售來源"
             self.fields["months"].label = "領牌年月"
+        if layout in ('platform_overview', 'dealer_overview', 'count_overview'):
+            self.COMMON_FIELDS = ('legacy_dealer', 'months')
+            self.fields['legacy_dealer'].label = '平台名稱' if layout == 'platform_overview' else '車行名稱（原銷售）'
+            self.fields['months'].label = '領牌年月'
+        if layout == 'analysis_overview':
+            self.COMMON_FIELDS = ('months',)
+            self.fields['months'].label = '領牌年月'
         for index in range(8):
             self.fields[f"grain_{index}"] = forms.ChoiceField(required=False, widget=forms.HiddenInput,
                 choices=[("", "依整頁設定"), ("year", "按年"), ("month", "按月"), ("day", "按日")])
@@ -192,10 +203,15 @@ class FilterForm(forms.Form):
         # 舊版單選空字串仍表示全部；QueryDict 保留多值，不轉成普通 dict。
         if self.is_bound and hasattr(self.data, "getlist"):
             self.data = self.data.copy()
-            for key in ("months", "brand", "energy", "source_type", "source", "legacy_source"):
+            for key in ("months", "brand", "energy", "source_type", "source", "legacy_source", "legacy_dealer"):
                 self.data.setlist(key, [value for value in self.data.getlist(key) if value])
         self.fields["brand"].choices = [(name, name) for name in VehicleModel.objects.order_by("brand").values_list("brand", flat=True).distinct()]
         self.fields["source"].choices = [(str(pk), name) for pk, name in SalesSource.objects.order_by("name", "pk").values_list("pk", "name")]
+        from .engine import base_query
+        from .source_compatibility import source_dealer_query
+        choice_config = config or {'date_basis': self.date_basis, 'include_undated': True}
+        self.fields['legacy_dealer'].choices = [(name, name) for name in source_dealer_query(base_query(choice_config, {}))
+            .order_by('report_dealer_label').values_list('report_dealer_label', flat=True).distinct()]
         self.fields["months"].choices = [(month.strftime("%Y-%m"), month.strftime("%Y 年 %m 月"))
             for month in SalesOrder.objects.dates(self.date_basis, "month", order="DESC")]
 
@@ -207,4 +223,6 @@ class FilterForm(forms.Form):
             raise forms.ValidationError("開始日期不可晚於結束日期。")
         if len(data.get("months", [])) > 120:
             raise forms.ValidationError("一次最多選擇 120 個月份；全部期間請清除月份選取。")
+        if len(data.get('legacy_dealer', [])) > 200:
+            raise forms.ValidationError('一次最多選擇 200 個車行／平台。')
         return data

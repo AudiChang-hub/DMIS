@@ -50,7 +50,7 @@ def electric_vehicle_sales():
 def electric_platform_sales():
     """p_oyi9bhn3wd：月份主軸、清洗後平台名稱系列，非 DMIS 通路主檔 ID。"""
     config = electric_vehicle_sales()
-    config.pop("reader_layout", None)
+    config['reader_layout'] = 'platform_overview'
     config["cards"][0].pop("width", None)
     config.update(title="電動車－網路平台銷售統計｜原報表核對版", page_order=30,
                   description="依原平台分頁的一張月份堆疊圖與來源明細建立。平台名稱沿用原報表清洗方式，不改寫通路主檔。原能源／來源公式與資料差異仍在核對，尚未通過跨來源完整驗收。歷史贈品記載不代表已發放。")
@@ -63,11 +63,10 @@ def electric_platform_sales():
 
 
 def gasoline_vehicle_sales():
-    """p_vi50zol3wd：保留三圖與明細，油車每日系列上限是10而非電車的20。"""
+    """p_vi50zol3wd：Chrome 原圖按月，油車型號系列上限10，電車20。"""
     config = electric_vehicle_sales()
-    config.pop("reader_layout", None)
-    config["cards"][0].pop("width", None)
-    config["cards"][1].update(dimension="day", title="電動車每日銷售型號")
+    config['reader_layout'] = 'gasoline_overview'
+    config["cards"][1].update(dimension="month", title="電動車每月銷售型號")
     config.update(title="油車銷售統計｜原報表核對版", page_order=60,
                   description="依原油車頁三圖與明細建立；以原報表能源分類核對，不改動 DMIS 車型、訂單或財務。原分類公式與來源資料仍有待釐清差異，本頁尚未通過完整跨來源驗收。歷史禮券與贈品不代表目前已發放。")
     config["fixed_filters"]["legacy_energy"] = ["油車"]
@@ -90,13 +89,15 @@ def gasoline_platform_sales():
 def dealer_sales(gasoline=False):
     config = gasoline_platform_sales() if gasoline else electric_platform_sales()
     vehicle = "油車" if gasoline else "電動車"
-    config.update(title=vehicle + "－車行銷售統計｜原報表核對版", page_order=80 if gasoline else 40)
+    config.update(title=vehicle + "－車行銷售統計｜原報表核對版", page_order=80 if gasoline else 40, reader_layout='dealer_overview')
     config["fixed_filters"]["legacy_source"] = ["車行"]
-    config["description"] = "依原頁車行／月份堆疊與逐筆明細建立，原分類與 DMIS 仍待跨來源核對；電動車頁原始備註尚待安全欄位映射，尚未完整驗收。"
+    config["description"] = "依原頁車行／月份堆疊與逐筆明細建立，原分類與 DMIS 仍待跨來源核對；電動車頁歷史備註取原始備註欄，僅供 admin 查閱。"
     config["cards"] = [{"title": vehicle + "車行每月銷售", "chart": "stacked", "dimension": "legacy_dealer",
                         "series": "month", "metric": "count", "formula": "", "limit": 50, "sort": "value",
                         "series_limit": 20, "series_other": True, "series_sort": "key_desc"}]
     config["records_columns"].remove("legacy_platform_gift")
+    if not gasoline:
+        config['records_columns'].append('legacy_notes')
     return config
 
 
@@ -104,6 +105,7 @@ def dealer_counts(gasoline=False):
     config = dealer_sales(gasoline)
     vehicle = "油車" if gasoline else "電動車"
     config.update(title=vehicle + "－台數統計｜原報表核對版", page_order=90 if gasoline else 50,
+                  reader_layout='count_overview',
                   records_page_size=25,
                   description="依原頁車行台數彙總與逐筆獎勵明細建立。獎勵改讀 DMIS 已保存台數獎金分配，不套用舊報表公式；傭金與獎金分欄，不修改財務。原來源分類及表格分頁仍待完整驗收。")
     config["cards"] = [{"title": vehicle + "車行台數與獎金", "chart": "table", "dimension": "legacy_dealer",
@@ -127,7 +129,7 @@ def model_analysis(kind):
     return {
         "title": title + "｜原報表核對版", "audience": "admin", "date_basis": "registration_date",
         "description": "四個車型圖依原頁各自篩選。性別採已確認的新分類，保留公司或其他，不沿用舊圖排除未知性別的做法；分類差異須另行核對。資料為 DMIS，目前仍是未完成跨來源驗收的候選版本。",
-        "include_undated": True, "navigation_group": "analysis", "page_order": 110 if is_sex else 120,
+        "include_undated": True, "navigation_group": "analysis", "page_order": 110 if is_sex else 120, "reader_layout": "analysis_overview",
         "fixed_filters": {"model_presence": ["present"]}, "include_records": False,
         "cards": [
             {"title": name + ("－性別" if is_sex else "－顏色"), "chart": "donut" if is_sex else "bar",
@@ -142,7 +144,7 @@ def age_sex_analysis():
     return {
         "title": "性別 X 年齡｜原報表核對版", "audience": "admin", "date_basis": "registration_date",
         "description": "依原頁兩圖重建，年齡採當年度減出生年度。依使用者確認，生日未填、生日異常及公司或其他獨立顯示，不沿用原公式誤歸入高齡或排除未知性別的做法；其餘保留 EV 開頭、電車及 20 歲以上條件。尚待資料勾稽與完整 UI 驗收。",
-        "include_undated": True, "navigation_group": "analysis", "page_order": 100,
+        "include_undated": True, "navigation_group": "analysis", "page_order": 100, "reader_layout": "analysis_overview",
         "fixed_filters": {"model_presence": ["present"], "legacy_energy": ["電車"],
                           "model_prefix": ["EV"], "age_scope": ["adult_or_unknown"]},
         "include_records": False,

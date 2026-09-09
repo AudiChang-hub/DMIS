@@ -18,6 +18,13 @@ RECORD_SORTS = {
     'legacy_gift_card': 'record_sort_gift_card',
     'legacy_platform_gift': 'record_sort_platform_gift',
     'legacy_premium': 'record_sort_premium',
+    'legacy_notes': 'record_sort_notes',
+    'legacy_dealer': 'report_dealer_label',
+    'plate_number': 'final_plate_number',
+    'commission_recipient': 'record_sort_recipient',
+    'dealer_bonus': 'report_saved_bonus',
+    'dealer_commission': 'operations__dealer_commission_expense',
+    'sex': 'record_sex', 'age_group': 'record_age_group',
 }
 
 
@@ -30,6 +37,7 @@ RECORD_COLUMNS = {
     "legacy_gift_card": "歷史公司禮券／匯款",
     "legacy_platform_gift": "歷史平台贈品",
     "legacy_premium": "歷史公司贈品",
+    "legacy_notes": "歷史訂單備註（admin）",
     "legacy_sales_source": "原報表來源類型", "legacy_energy": "原報表能源分類",
     "legacy_dealer": "原報表車行／平台名稱",
     "commission_recipient": "台數與傭金歸屬車行", "plate_number": "車牌號碼",
@@ -74,7 +82,9 @@ def record_queryset(config, filters):
             queryset = queryset.annotate(**{RECORD_SORTS[sort_name]: Case(When(legacy_snapshot__isnull=False, then=legacy_text), default=fallback, output_field=text)})
         if sort_name == 'identifier':
             queryset = queryset.annotate(record_sort_identifier=Coalesce(NullIf(F('allocated_vehicle__engine_number'), Value('')), NullIf(F('allocated_vehicle__frame_number'), Value('')), NullIf(F('legacy_snapshot__vehicle_identifier'), Value('')), Value('尚未填寫'), output_field=text))
-        raw_keys = {'legacy_gift_card':'公司禮卷、匯款', 'legacy_platform_gift':'平台贈品', 'legacy_premium':'其他'}
+        if sort_name == 'commission_recipient':
+            queryset = queryset.annotate(record_sort_recipient=Case(When(commission_recipient__isnull=False, then=F('commission_recipient__name')), When(source_type='dealer', source__isnull=False, then=F('source__name')), default=Value('未歸屬車行'), output_field=text))
+        raw_keys = {'legacy_gift_card':'公司禮卷、匯款', 'legacy_platform_gift':'平台贈品', 'legacy_premium':'其他', 'legacy_notes':'備註'}
         if sort_name in raw_keys:
             raw_key = raw_keys[sort_name]
             raw_path = 'legacy_snapshot__import_row__raw_data__' + raw_key
@@ -123,6 +133,7 @@ def record_cells(order, columns):
         "legacy_platform_gift": original_text("平台贈品"),
         # 原 Looker Premium 對應舊 Excel「其他」，992 筆逐列核對一致（2 筆僅邊界空白）。
         "legacy_premium": original_text("其他"),
+        "legacy_notes": original_text('備註'),
         "legacy_sales_source": getattr(order, "record_source_classification", "待核對"),
         "legacy_energy": getattr(order, "record_energy_classification", "待核對"),
         "legacy_dealer": getattr(order, "report_dealer_label", "待核對"),

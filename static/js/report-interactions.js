@@ -1,10 +1,25 @@
 /* 圖表互動只讀取伺服器已授權資料；不修改報表或訂單。 */
 function reportPointText(data, metric) {
+  if (data.pointSummary) return data.pointSummary;
   let text = `${data.pointLabel}\n${metric}：${data.pointDisplay}`;
   if (metric !== "訂單台數") text += `\n訂單台數：${data.pointCount}`;
   if (data.pointPercentage !== "" && Number.isFinite(Number(data.pointPercentage))) text += `\n占${data.pointScope || '完整篩選範圍'}：${Number(data.pointPercentage).toFixed(1)}%`;
   return text;
 }
+function reportOverviewColor(label, fallback) {
+  return {'馭盛':'#737373','車行':'#7ac36a','網路平台':'#f15a60','店內員工':'#faa75a','展場':'#5a9bd4',
+    '白牌電車':'#737373','速克達':'#f15a60','綠牌電車':'#7ac36a','擋車':'#5a9bd4','微型電車':'#faa75a'}[label] || fallback;
+}
+function reportMonthSummary(label, segments, total) {
+  return [label, ...segments.filter(item => Number(item.value)).map(item => `${item.label}：${item.display}`), `總計：${total}`].join('\n');
+}
+function resizeReportDonutLabels(root = document) {
+  root.querySelectorAll('.report-sales-overview .report-donut').forEach(svg => {
+    const width = svg.getBoundingClientRect().width;
+    if (width) svg.querySelectorAll('text').forEach(text => { text.style.fontSize = `${16 * 300 / width}px`; });
+  });
+}
+if (typeof window !== 'undefined') window.addEventListener('resize', () => resizeReportDonutLabels());
 function reportFraction(value, total) {
   if (!Number.isFinite(Number(value)) || !Number.isFinite(Number(total)) || Number(total) <= 0) return 0;
   return Math.max(0, Math.min(100, Number(value) / Number(total) * 100));
@@ -22,7 +37,7 @@ function reportToggleSelection(selected, card, group, grain, multiple) {
   const previous = selected.find(item => item.card === card);
   const groups = previous && previous.grain === grain ? [].concat(previous.group) : [];
   const next = multiple ? (groups.includes(group) ? groups.filter(value => value !== group) : [...groups, group]) : (groups.length === 1 && groups[0] === group ? [] : [group]);
-  if (next.length > 20) throw new Error("同一張圖最多選取 20 個分類。");
+  if (next.length > 200) throw new Error("同一張圖最多選取 200 個分類。");
   return [...selected.filter(item => item.card !== card), ...(next.length ? [{card, group:next.length === 1 ? next[0] : next, grain}] : [])];
 }
 function reportAxisMaximum(values) {
@@ -44,7 +59,7 @@ function reportUpdateError(error) {
   if (error.name === 'TypeError') return '暫時無法連線，保留上次成功畫面；請確認網路後重試。';
   return error.message || '無法完成更新，請稍後重試。';
 }
-if (typeof module !== "undefined" && module.exports) module.exports = {reportPointText, reportFraction, reportScopeCount, reportPageRange, reportToggleSelection, reportAxisMaximum, reportDebounce, reportUpdateError};
+if (typeof module !== "undefined" && module.exports) module.exports = {reportPointText, reportFraction, reportScopeCount, reportPageRange, reportToggleSelection, reportAxisMaximum, reportDebounce, reportUpdateError, reportOverviewColor, reportMonthSummary};
 function initReportVisuals(root) {
   "use strict";
   if (typeof document === "undefined") return;
@@ -57,9 +72,31 @@ function initReportVisuals(root) {
     if (control.dataset.multiReady) return;
     control.dataset.multiReady = "true";
     const inputs = [...control.querySelectorAll('input[type="checkbox"]')];
+    const fieldName = inputs[0]?.name;
+    const sourceStyle = control.closest('.report-sales-overview .report-filter-grid') && ['months','legacy_source'].includes(fieldName);
+    const form = control.closest('form');
+    const emptyField = sourceStyle && form.elements.namedItem(`empty_${fieldName}`);
+    if (sourceStyle) {
+      control.syncFromServer = () => {
+        if (!inputs.some(input => input.checked) && !['True','true','1'].includes(emptyField.value)) inputs.forEach(input => { input.checked = true; });
+      };
+      control.syncFromServer();
+      control.querySelector('[data-multi-clear]').textContent = '全部取消';
+      control.querySelector('.report-multi-options > small').textContent = '全部勾選表示不限；全部取消則不顯示資料。可點「只選此項」。';
+      form.addEventListener('formdata', event => {
+        const selected = inputs.filter(input => input.checked);
+        if (selected.length === inputs.length) event.formData.delete(fieldName);
+        event.formData.set(`empty_${fieldName}`, selected.length ? '' : '1');
+      });
+      inputs.forEach(input => {
+        const only = document.createElement('button'); only.type = 'button'; only.textContent = '只選此項';
+        only.addEventListener('click', event => { event.preventDefault(); inputs.forEach(other => { other.checked = other === input; }); control.dispatchEvent(new Event('change', {bubbles:true})); });
+        input.closest('label').append(only);
+      });
+    }
     const update = () => {
       const selected = inputs.filter(input => input.checked);
-      control.querySelector("[data-multi-summary]").textContent = selected.length ? `已選 ${selected.length} 項` : "不限（可複選）";
+      control.querySelector("[data-multi-summary]").textContent = sourceStyle ? (selected.length === inputs.length ? '全部' : selected.length ? `已選 ${selected.length} 項` : '未選取（無資料）') : selected.length ? `已選 ${selected.length} 項` : "不限（可複選）";
       const scope = control.closest(".report-card-scope");
       if (scope) updateScope(scope);
     };
@@ -156,6 +193,10 @@ function initReportVisuals(root) {
     });
     const overview = chart.closest('.report-sales-overview');
     if (overview) {
+      rows.forEach(row => { row.dataset.pointColor = reportOverviewColor(row.dataset.pointLabel, row.dataset.pointColor); });
+      chart.querySelectorAll('.report-series-legend span').forEach(entry => {
+        const dot = entry.querySelector('i'); if (dot) dot.style.background = reportOverviewColor(entry.textContent.trim(), dot.style.background);
+      });
       rows.forEach(row => {
         row.dataset.pointScope = chart.querySelector('.report-candidate-note') ? '候選分類範圍' : '完整篩選範圍';
         if (row.hasAttribute('data-stack-segment')) row.dataset.pointPercentage = reportFraction(row.dataset.pointValue, chart.dataset.total);
@@ -173,9 +214,10 @@ function initReportVisuals(root) {
       const groups = [...stacks.querySelectorAll('.report-stack-row')];
       if (groups.length) {
         const ns = 'http://www.w3.org/2000/svg', svg = document.createElementNS(ns, 'svg');
-        const width = 600, left = 108, right = 28, top = 8, rowHeight = 26;
+        const width = 740, left = 108, right = 100, top = 8, rowHeight = 26;
         const bottom = top + rowHeight * groups.length, plotWidth = width - left - right;
         const totals = [...chart.querySelectorAll('.report-results tr[data-point-value]')].map(row => Number(row.dataset.pointValue));
+        const monthRows = [...chart.querySelectorAll('.report-results tr[data-point-value]')];
         const maximum = reportAxisMaximum(totals);
         svg.classList.add('report-overview-plot'); svg.setAttribute('viewBox', `0 0 ${width} ${bottom + 30}`);
         svg.setAttribute('aria-label', chart.querySelector('h2').textContent + ' 水平堆疊圖');
@@ -192,17 +234,57 @@ function initReportVisuals(root) {
         }
         groups.forEach((group, index) => {
           const y = top + index * rowHeight;
+          const month = monthRows[index];
+          const segments = [...group.querySelectorAll('[data-stack-segment]')];
+          month.dataset.pointSummary = reportMonthSummary(month.dataset.pointLabel, segments.map(segment => ({label:segment.dataset.seriesLabel,value:segment.dataset.pointValue,display:segment.dataset.pointDisplay})), month.dataset.pointDisplay);
           element('text', {x:left-8,y:y+20,'text-anchor':'end',fill:'currentColor','font-size':17}, group.querySelector('.report-stack-caption strong').textContent);
           let offset = 0;
+          const smallLabels = [];
           group.querySelectorAll('[data-stack-segment]').forEach(segment => {
             const value = Number(segment.dataset.pointValue || 0), segmentWidth = Math.max(0, value) / maximum * plotWidth;
             if (!segmentWidth) return;
-            const rect = element('rect', {x:left+offset,y:y+2,width:segmentWidth,height:23,fill:segment.style.backgroundColor});
-            attach(rect, segment);
+            const rect = element('rect', {x:left+offset,y:y+2,width:segmentWidth,height:23,fill:reportOverviewColor(segment.dataset.seriesLabel, segment.style.backgroundColor)});
+            rect.setAttribute('aria-hidden', 'true');
             if (segmentWidth >= String(segment.dataset.pointDisplay).length * 11 + 8) element('text', {x:left+offset+segmentWidth/2,y:y+20,'text-anchor':'middle',fill:'#fff','font-size':17,'pointer-events':'none'}, segment.dataset.pointDisplay);
+            else smallLabels.push({x:left+offset+segmentWidth/2,text:segment.dataset.pointDisplay,color:reportOverviewColor(segment.dataset.seriesLabel,segment.style.backgroundColor)});
             offset += segmentWidth;
           });
+          let labelX = left + offset + 10;
+          smallLabels.forEach(label => {
+            element('line',{x1:label.x,y1:y+3,x2:labelX,y2:y+3,stroke:label.color,'pointer-events':'none'});
+            element('text',{x:labelX,y:y+20,fill:'currentColor','font-size':17,'pointer-events':'none'},label.text);
+            labelX += String(label.text).length * 11 + 8;
+          });
+          // 整列包含短小系列與空白處，滑鼠提示及點選皆使用月份，不誤變為月份加通路。
+          const hit = element('rect', {x:left,y:y+1,width:plotWidth,height:24,fill:'transparent'});
+          hit.classList.add('report-month-target'); attach(hit, month);
         });
+        let brushStart = null, brushing = false, suppressClick = false;
+        const points = [...svg.querySelectorAll('.report-month-target')];
+        const clearBrush = () => points.forEach(point => point.classList.remove('report-brush-candidate'));
+        const range = (a,b) => points.filter(point => { const r=point.getBoundingClientRect(); return r.bottom >= Math.min(a,b) && r.top <= Math.max(a,b); });
+        svg.addEventListener('pointerdown', event => {
+          if (event.button !== 0 || event.pointerType === 'touch' || !event.target.closest('.report-month-target')) return;
+          brushStart = event.clientY; brushing = false;
+        });
+        svg.addEventListener('pointermove', event => {
+          if (brushStart === null || !event.buttons) return;
+          if (Math.abs(event.clientY-brushStart) > 5) {
+            brushing = true; svg.setPointerCapture(event.pointerId); tip.hidden = true; clearBrush();
+            range(brushStart,event.clientY).forEach(point => point.classList.add('report-brush-candidate'));
+          }
+        });
+        svg.addEventListener('pointerup', event => {
+          if (brushing) {
+            suppressClick = true;
+            chart.dispatchEvent(new CustomEvent('report-view-change',{bubbles:true,detail:{card:Number(chart.dataset.chartIndex),groups:range(brushStart,event.clientY).map(point=>point.dataset.selectionGroup),additive:event.ctrlKey || event.metaKey}}));
+            setTimeout(()=>{ suppressClick=false; },0);
+          }
+          brushStart = null; brushing = false; clearBrush();
+          if (svg.hasPointerCapture(event.pointerId)) svg.releasePointerCapture(event.pointerId);
+        });
+        svg.addEventListener('pointercancel',()=>{ brushStart=null; brushing=false; clearBrush(); });
+        svg.addEventListener('click',event=>{ if (suppressClick) { event.preventDefault(); event.stopImmediatePropagation(); } },true);
         stacks.before(svg);
       }
       // 已有可聚焦的圖形及提示；保留原 DOM 作為連結來源，不重複呈現展開操作。
@@ -229,12 +311,20 @@ function initReportVisuals(root) {
           const fraction = reportFraction(row.dataset.pointValue, total);
           if (!fraction) return;
           const color = row.dataset.pointColor || palette[index % palette.length];
-          attach(ring(color, fraction, offset), row); offset += fraction;
+          attach(ring(color, fraction, offset), row);
+          if (overview && fraction >= 2) {
+            const angle = (offset + fraction / 2) * Math.PI / 50 - Math.PI / 2;
+            const label = document.createElementNS(ns, 'text');
+            for (const [key,value] of Object.entries({x:150+100*Math.cos(angle),y:155+100*Math.sin(angle),'text-anchor':'middle',fill:'#fff','font-size':14,'pointer-events':'none'})) label.setAttribute(key,String(value));
+            label.textContent = `${fraction.toFixed(1)}%`; svg.append(label);
+          }
+          offset += fraction;
           const swatch = document.createElement("span"); swatch.className = "report-legend-dot"; swatch.style.background = color;
           row.querySelector("th").prepend(swatch);
         });
-        const text = document.createElementNS(ns, "text"); text.setAttribute("x", "150"); text.setAttribute("y", "154"); text.setAttribute("text-anchor", "middle"); text.setAttribute("fill", "currentColor"); text.textContent = chart.querySelector(".report-score strong").textContent; svg.append(text);
+        if (!overview) { const text = document.createElementNS(ns, "text"); text.setAttribute("x", "150"); text.setAttribute("y", "154"); text.setAttribute("text-anchor", "middle"); text.setAttribute("fill", "currentColor"); text.textContent = chart.querySelector(".report-score strong").textContent; svg.append(text); }
         host.append(svg);
+        if (overview) resizeReportDonutLabels(chart);
         if (offset < 99.99) { const note = document.createElement("p"); note.className = "report-muted"; note.textContent = "灰色區域為未顯示群組；占比以完整篩選範圍計算。"; host.append(note); }
       } else host.textContent = "目前沒有可呈現的正值資料。";
     }
@@ -253,6 +343,7 @@ function initReportVisuals(root) {
       if (table) {
         if (['stacked', 'donut'].includes(chart.dataset.chart)) table.hidden = true;
       }
+      if (typeof initReportOverviewTools === 'function') initReportOverviewTools(chart);
     }
     chart.querySelector("[data-chart-fullscreen]")?.addEventListener("click", () => {
       // 使用頁內放大，不倚賴瀏覽器全螢幕授權；Escape 或原按鈕即可返回。
@@ -349,7 +440,7 @@ if (typeof document !== "undefined") initReportVisuals(document);
         else if (sources.length) field.value = sources[0].value;
       }
       syncingFilters = true;
-      try { currentForm.querySelectorAll('[data-report-multi]').forEach(control => control.dispatchEvent(new Event('change', {bubbles:true}))); }
+      try { currentForm.querySelectorAll('[data-report-multi]').forEach(control => { control.syncFromServer?.(); control.dispatchEvent(new Event('change', {bubbles:true})); }); }
       finally { syncingFilters = false; }
       currentForm.querySelector('.report-advanced-filter summary').textContent = nextForm.querySelector('.report-advanced-filter summary').textContent;
       ++sequence; controller?.abort(); panel.hidden = true; body.replaceChildren();
@@ -371,6 +462,24 @@ if (typeof document !== "undefined") initReportVisuals(document);
     } finally { clearTimeout(timer); if (ticket === updateSequence) reader.removeAttribute("aria-busy"); }
   }
   paintSelection();
+  reader.addEventListener('report-view-change', event => {
+    const {card, sort, grain, reset, groups, additive} = event.detail;
+    const target = new URL(desiredUrl);
+    target.searchParams.set('revision', reader.querySelector('.report-filter [name="revision"]').value);
+    if (sort !== undefined) target.searchParams.set(`sort_${card}`, sort);
+    if (grain !== undefined) target.searchParams.set(`grain_${card}`, grain);
+    if (reset) { target.searchParams.delete(`sort_${card}`); target.searchParams.delete(`grain_${card}`); }
+    if (grain !== undefined || reset) target.searchParams.set('focus', JSON.stringify(selectedItems().filter(item => item.card !== card)));
+    if (groups?.length) {
+      const selected = selectedItems();
+      const currentGrain = target.searchParams.get(`grain_${card}`) || target.searchParams.get('grain') || '';
+      const previous = selected.find(item => item.card === card && item.grain === currentGrain);
+      const combined = [...new Set([...(additive && previous ? [].concat(previous.group) : []), ...groups])];
+      target.searchParams.set('focus', JSON.stringify([...selected.filter(item=>item.card!==card),{card,group:combined,grain:currentGrain}]));
+    }
+    target.searchParams.delete('records_page');
+    queueOverviewUpdate(target, '正在套用圖表查看方式…');
+  });
   retry.addEventListener("click", () => updateReport(failedUrl));
   window.addEventListener("popstate", () => updateReport(location.href, false));
   if (overview) reader.querySelector('.report-filter').addEventListener('change', event => {
@@ -382,7 +491,7 @@ if (typeof document !== "undefined") initReportVisuals(document);
     queueOverviewUpdate(target, '篩選已選取，可繼續選擇；圖表即將同步…');
   });
   document.addEventListener("click", event => {
-    const clear = event.target.closest("[data-report-clear-filter],.report-filter-actions a,.report-record-panel .report-pagination a");
+    const clear = event.target.closest("[data-report-clear-filter],.report-filter-actions a,.report-record-panel .report-pagination a,[data-report-record-sort]");
     if (clear && !event.ctrlKey && !event.metaKey) { event.preventDefault(); updateReport(clear.href); }
   });
   reader.addEventListener("submit", event => {

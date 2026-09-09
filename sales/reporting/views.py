@@ -293,7 +293,7 @@ def display(request, pk):
                   "reader_title": reader_title(report.published),
                   "navigation": navigation(request), "scope_labels": scope_labels(report.published.get("fixed_filters", {})),
                   "filter_form": form, "results": items, **records, "query": query, "error": error, "queried_at": timezone.now(),
-                  "publication_key": publication_key(report), "focus_items": focus_items})
+                  "publication_key": publication_key(report), "focus_items": focus_items, "can_edit_report": is_editor(request.user)})
 
 
 @login_required
@@ -378,37 +378,47 @@ def export(request, pk, index):
         result = card_result(report.published, card, card_filters(filters, index))
     except ValidationError as error:
         return HttpResponse("；".join(error.messages), status=400, content_type="text/plain; charset=utf-8")
+    export_format = request.GET.get('format', 'excel')
+    if export_format not in ('csv', 'excel') or request.GET.get('formatted', '0') not in ('0', '1'):
+        return HttpResponse('不支援的匯出格式。', status=400)
+    formatted = request.GET.get('formatted') == '1'
     response = HttpResponse(content_type="text/csv; charset=utf-8")
     response["Content-Disposition"] = f'attachment; filename="report-{pk}-chart-{index}.csv"'
-    response.write("\ufeff")
+    if export_format == 'excel':
+        response.write("\ufeff")
     writer = csv.writer(response)
-    writer.writerow(["報表", csv_safe(report.published["title"]), "圖表", csv_safe(card["title"])])
-    writer.writerow(["日期依據", report.published["date_basis"], "篩選", csv_safe(filter_query(filters))])
-    writer.writerow(["報表固定範圍", csv_safe("；".join(scope_labels(report.published.get("fixed_filters", {}))) or "不限")])
-    writer.writerow(["圖表固定範圍", csv_safe("；".join(result["scope_labels"]) or "沿用報表範圍")])
-    writer.writerow(["統計範圍", "不含草稿與取消訂單；車價不是實收／淨利"])
-    if result.get("financial_note"):
-        writer.writerow(["財務口徑", result["financial_note"]])
-    if result.get("compatibility_note"):
-        writer.writerow(["分類口徑", result["compatibility_note"]])
-    writer.writerow(["公式", csv_safe(card["formula"] if card["metric"] == "formula" else card["metric"])])
-    writer.writerow(["未填日期", "未選期間時納入，另列未填日期" if report.published.get("include_undated") else "領牌日期基準時排除"])
+    # 原入口保留稽核說明；新明確格式輸出矩形資料，方便匯入試算表。
+    include_notes = 'format' not in request.GET
+    if include_notes:
+        writer.writerow(["報表", csv_safe(report.published["title"]), "圖表", csv_safe(card["title"])])
+        writer.writerow(["日期依據", report.published["date_basis"], "篩選", csv_safe(filter_query(filters))])
+        writer.writerow(["報表固定範圍", csv_safe("；".join(scope_labels(report.published.get("fixed_filters", {}))) or "不限")])
+        writer.writerow(["圖表固定範圍", csv_safe("；".join(result["scope_labels"]) or "沿用報表範圍")])
+        writer.writerow(["統計範圍", "不含草稿與取消訂單；車價不是實收／淨利"])
+        if result.get("financial_note"):
+            writer.writerow(["財務口徑", result["financial_note"]])
+        if result.get("compatibility_note"):
+            writer.writerow(["分類口徑", result["compatibility_note"]])
+        writer.writerow(["公式", csv_safe(card["formula"] if card["metric"] == "formula" else card["metric"])])
+        writer.writerow(["未填日期", "未選期間時納入，另列未填日期" if report.published.get("include_undated") else "領牌日期基準時排除"])
     if result.get("summary_table"):
         writer.writerow([*result["table_dimension_labels"], *result["table_metric_labels"]])
         for row in result["rows"]:
             writer.writerow([*[csv_safe(value) for value in row["dimension_cells"]],
                              *[cell["value"] if cell["value"] is not None else cell["display"] for cell in row["metric_cells"]]])
     elif card["chart"] == "stacked":
-        writer.writerow([result["dimension_label"], result["series_label"], result["metric_label"], "訂單台數"])
+        include_count = include_notes or card['metric'] != 'count'
+        writer.writerow([result["dimension_label"], result["series_label"], result["metric_label"], *(['訂單台數'] if include_count else [])])
         for row in result["rows"]:
             for segment in row["segments"]:
-                writer.writerow([csv_safe(row["label"]), csv_safe(segment["label"]), segment["value"], segment["count"]])
+                writer.writerow([csv_safe(row["label"]), csv_safe(segment["label"]), segment["display"] if formatted else segment["value"], *([segment['count']] if include_count else [])])
     else:
-        writer.writerow([result["dimension_label"], result["metric_label"], "訂單台數"])
+        include_count = include_notes or card['metric'] != 'count'
+        writer.writerow([result["dimension_label"], result["metric_label"], *(['訂單台數'] if include_count else [])])
         for row in result["rows"]:
-            writer.writerow([csv_safe(row["label"]), row["value"] if row["value"] is not None else row["display"], row["count"]])
-    if result["truncated"]:
+            writer.writerow([csv_safe(row["label"]), row["display"] if formatted or row["value"] is None else row["value"], *([row['count']] if include_count else [])])
+    if include_notes and result["truncated"]:
         writer.writerow(["提醒", "僅匯出目前圖表顯示群組，非全部群組"])
-    if result["series_truncated"]:
+    if include_notes and result["series_truncated"]:
         writer.writerow(["細分系列", "其餘合併為其他" if card.get("series_other") else "未顯示系列未匯出；完整彙總仍包含"])
     return response

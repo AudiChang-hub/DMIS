@@ -161,6 +161,10 @@ class FilterForm(forms.Form):
         return sum(bool(field.value()) for field in self.advanced_fields())
 
     focus = forms.CharField(required=False, max_length=6000, widget=forms.HiddenInput)
+    empty_months = forms.BooleanField(required=False, widget=forms.HiddenInput)
+    empty_legacy_source = forms.BooleanField(required=False, widget=forms.HiddenInput)
+    from .records import RECORD_SORTS
+    records_sort = forms.ChoiceField(required=False, widget=forms.HiddenInput, choices=[('', '預設排序')] + [(prefix + key, RECORD_COLUMNS[key]) for key in RECORD_SORTS for prefix in ('', '-')])
     grain = forms.ChoiceField(label="日期圖表層級", required=False, choices=[("", "依原設計"), ("year", "按年"), ("month", "按月"), ("day", "按日")])
     start = forms.DateField(label="開始日期", required=False, widget=forms.DateInput(attrs={"type": "date"}))
     end = forms.DateField(label="結束日期", required=False, widget=forms.DateInput(attrs={"type": "date"}))
@@ -184,7 +188,7 @@ class FilterForm(forms.Form):
             self.fields[f"grain_{index}"] = forms.ChoiceField(required=False, widget=forms.HiddenInput,
                 choices=[("", "依整頁設定"), ("year", "按年"), ("month", "按月"), ("day", "按日")])
             self.fields[f"sort_{index}"] = forms.ChoiceField(required=False, widget=forms.HiddenInput,
-                choices=[("", "依原設計"), ("key", "分類順序"), ("key_desc", "分類倒序"), ("value", "數值遞減")])
+                choices=[("", "依原設計"), ("key", "分類順序"), ("key_desc", "分類倒序"), ("value", "數值遞減"), ("value_asc", "數值遞增")])
         # 舊版單選空字串仍表示全部；QueryDict 保留多值，不轉成普通 dict。
         if self.is_bound and hasattr(self.data, "getlist"):
             self.data = self.data.copy()

@@ -13,6 +13,45 @@ from sales.reporting.views import initial_config
 
 
 class ReportingTests(TestCase):
+    def test_center_opens_ordered_report_and_remembers_authorized_page(self):
+        self.login()
+        config = {**self.config, "title": "總車輛銷售｜原報表核對版", "navigation_group": "sales", "page_order": 1}
+        first = ReportDefinition.objects.create(draft=config, published=config, version=1)
+        response = self.client.get(reverse("report_center"))
+        self.assertEqual(response.context["report"].pk, first.pk)
+        self.assertContains(response, '<h1>總車輛銷售</h1>', html=True)
+        self.assertContains(response, 'aria-current="page"')
+        self.assertNotContains(response, "report-cover")
+        self.client.get(reverse("report_display", args=[self.report.pk]))
+        self.assertEqual(self.client.get(reverse("report_center")).context["report"].pk, self.report.pk)
+        self.report.published = None
+        self.report.save()
+        self.assertEqual(self.client.get(reverse("report_center")).context["report"].pk, first.pk)
+
+    def test_center_does_not_reuse_another_accounts_or_revoked_page(self):
+        self.login(self.user)
+        config = {**self.config, "audience": "admin", "title": "不能洩漏的私人報表"}
+        private = ReportDefinition.objects.create(draft=config, published=config, version=1)
+        session = self.client.session
+        session["report_reader_page"] = {"user": str(self.user.pk), "report": private.pk}
+        session.save()
+        response = self.client.get(reverse("report_center"))
+        self.assertNotContains(response, config["title"])
+        self.assertNotEqual(response.context["report"].pk, private.pk)
+        session = self.client.session
+        session["report_reader_page"] = {"user": str(self.admin.pk), "report": private.pk}
+        session.save()
+        self.assertNotContains(self.client.get(reverse("report_center")), config["title"])
+        ReportDefinition.objects.update(published=None)
+        self.assertContains(self.client.get(reverse("report_center")), "目前沒有可查看的報表")
+        self.assertNotIn("report_reader_page", self.client.session)
+
+    def test_population_page_is_not_exposed_by_navigation_with_malformed_team_audience(self):
+        config = {**self.config, "records_mode": "population", "audience": "team", "title": "私人群組"}
+        ReportDefinition.objects.create(draft=config, published=config, version=1)
+        self.login(self.user)
+        self.assertNotContains(self.client.get(reverse("report_center")), "私人群組")
+
     def test_canvas_preview_is_readonly_and_layout_is_published_and_restorable(self):
         self.login()
         config = copy.deepcopy(self.config)

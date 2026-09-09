@@ -1,5 +1,12 @@
 (() => {
   "use strict";
+  const readerPages = document.querySelector("[data-reader-pages]");
+  if (readerPages) {
+    const mobile = window.matchMedia("(max-width: 800px)");
+    const adaptPages = () => { readerPages.open = !mobile.matches; };
+    adaptPages();
+    mobile.addEventListener("change", adaptPages);
+  }
   const editor = document.querySelector("[data-report-editor]");
   if (editor) {
     const container = editor.querySelector("[data-report-cards]");

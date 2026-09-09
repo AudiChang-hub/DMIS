@@ -13,6 +13,59 @@ from sales.reporting.views import initial_config
 
 
 class ReportingTests(TestCase):
+    def test_population_groups_keep_identity_distinct_and_mask_every_output(self):
+        from sales.reporting.records import record_context
+        config = {**self.config, "audience": "admin", "include_records": True,
+                  "records_mode": "population", "records_page_size": 100}
+        orders = list(SalesOrder.objects.order_by("pk"))
+        SalesOrder.objects.update(owner_type="local", owner_name="=測試車主", owner_id_number="A123456789")
+        SalesOrder.objects.filter(pk=orders[-1].pk).update(owner_id_number="A198765489")
+        before = list(SalesOrder.objects.order_by("pk").values())
+        context = record_context(validate_config(config), {})
+        self.assertEqual(context["records_page"].paginator.count, 2)
+        self.assertEqual([row["cells"][-1]["value"] for row in context["records_rows"]], [2, 1])
+        self.assertEqual({row["cells"][3]["value"] for row in context["records_rows"]}, {"A＊＊＊＊＊＊89"})
+        self.assertNotIn("A123456789", repr(context["records_rows"]))
+        self.assertNotIn("A198765489", repr(context["records_page"].object_list))
+        self.assertEqual(record_context(config, {"source": [str(self.a.pk)]})["records_rows"][0]["cells"][-1]["value"], 1)
+        self.report.published = config
+        self.report.save()
+        self.login()
+        for route in ("report_display", "report_records_export"):
+            response = self.client.get(reverse(route, args=[self.report.pk]))
+            self.assertContains(response, "A＊＊＊＊＊＊89")
+            self.assertNotContains(response, "A123456789")
+            self.assertNotContains(response, "A198765489")
+        exported = self.client.get(reverse("report_records_export", args=[self.report.pk])).content.decode("utf-8-sig")
+        self.assertIn("'=測試車主", exported)
+        for user in (self.user, self.other_admin):
+            self.login(user)
+            for route in ("report_display", "report_records_export"):
+                self.assertEqual(self.client.get(reverse(route, args=[self.report.pk])).status_code, 404)
+        self.assertEqual(before, list(SalesOrder.objects.order_by("pk").values()))
+        with self.assertRaises(ValidationError):
+            validate_config({**config, "audience": "team"})
+
+    def test_population_pagination_is_full_not_top_two_hundred(self):
+        from sales.reporting.records import record_context
+        seed = SalesOrder.objects.first()
+        copies = []
+        for index in range(201):
+            order = copy.copy(seed)
+            order.pk = None
+            order.number = f"POP-TEST-{index:04}"
+            order.owner_name = f"合成車主-{index:04}"
+            copies.append(order)
+        SalesOrder.objects.bulk_create(copies)
+        config = {**self.config, "audience": "admin", "include_records": True,
+                  "records_mode": "population", "records_page_size": 100}
+        pages = [record_context(config, {}, page)["records_page"] for page in (1, 2, 3)]
+        self.assertEqual(pages[0].paginator.count, 202)
+        self.assertEqual([len(page.object_list) for page in pages], [100, 100, 2])
+        self.assertEqual(sum(row["cells"][-1]["value"] for page in pages for row in page.object_list), 204)
+        self.assertEqual(record_context(config, {}, "invalid")["records_page"].number, 1)
+        self.assertEqual(record_context(config, {}, 999)["records_page"].number, 3)
+
     def test_standalone_draft_preview_is_admin_only_readonly_and_filters_draft(self):
         config = {**self.config, "title": "未發布草稿標題", "fixed_filters": {"source": [str(self.a.pk)]},
                   "include_records": True, "records_columns": ["sex"]}

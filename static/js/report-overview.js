@@ -1,4 +1,4 @@
-/* 總車輛銷售的圖表工具：只操作已授權的畫面與唯讀查詢。 */
+/* 銷售閱讀版型的圖表工具：只操作已授權的畫面與唯讀查詢。 */
 function initReportOverviewTools(chart) {
   if (!chart.closest('.report-sales-overview')) return;
   const toolbar = chart.querySelector('.report-card-toolbar');
@@ -57,13 +57,22 @@ function initReportOverviewTools(chart) {
     const uri = URL.createObjectURL(new Blob([new XMLSerializer().serializeToString(clone)], {type:'image/svg+xml'}));
     try {
       const image = new Image(); image.src = uri; await image.decode();
-      const canvas = document.createElement('canvas'); canvas.width = width; canvas.height = height + 150;
-      const context = canvas.getContext('2d'); context.fillStyle = getComputedStyle(chart).backgroundColor; context.fillRect(0,0,canvas.width,canvas.height);
-      context.fillStyle = getComputedStyle(chart).color; context.font = '24px sans-serif'; context.fillText(chart.querySelector('h2').textContent, 24, 36);
+      const canvas = document.createElement('canvas'); canvas.width = width;
+      const context = canvas.getContext('2d');
       const entries = [...chart.querySelectorAll('.report-series-legend span,.report-overview-legend a')];
       let x = 24, y = 70; context.font = '20px sans-serif';
-      entries.forEach(entry => { const label = entry.textContent.trim(), needed = context.measureText(label).width + 42; if (x + needed > width - 24) { x = 24; y += 30; } context.fillStyle = getComputedStyle(entry.querySelector('i')).backgroundColor; context.fillRect(x,y-15,16,16); context.fillStyle = getComputedStyle(chart).color; context.fillText(label,x+24,y); x += needed; });
-      context.drawImage(image,0,150,width,height);
+      const legend = entries.map(entry => {
+        const label = entry.textContent.trim(), needed = context.measureText(label).width + 42;
+        if (x + needed > width - 24 && x > 24) { x = 24; y += 30; }
+        const item = {label,x,y,color:getComputedStyle(entry.querySelector('i')).backgroundColor}; x += needed; return item;
+      });
+      const headerHeight = Math.max(110, y + 35);
+      canvas.height = height + headerHeight;
+      context.fillStyle = getComputedStyle(chart).backgroundColor; context.fillRect(0,0,canvas.width,canvas.height);
+      context.fillStyle = getComputedStyle(chart).color; context.font = '24px sans-serif'; context.fillText(chart.querySelector('h2').textContent, 24, 36);
+      context.font = '20px sans-serif';
+      legend.forEach(item => { context.fillStyle=item.color; context.fillRect(item.x,item.y-15,16,16); context.fillStyle=getComputedStyle(chart).color; context.fillText(item.label,item.x+24,item.y,width-48); });
+      context.drawImage(image,0,headerHeight,width,height);
       return await new Promise((resolve,reject) => canvas.toBlob(blob => blob ? resolve(blob) : reject(new Error('無法產生圖片。')), 'image/png'));
     } finally { URL.revokeObjectURL(uri); }
   }

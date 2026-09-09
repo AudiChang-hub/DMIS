@@ -13,6 +13,90 @@ from sales.reporting.views import initial_config
 
 
 class ReportingTests(TestCase):
+    def test_electric_gift_sort_uses_correct_raw_columns_and_handles_null(self):
+        from sales.models import LegacyImportBatch, LegacyImportRow, LegacySalesSnapshot
+        from sales.reporting.records import record_queryset, record_cells, RECORD_SORTS
+        from sales.reporting.source_templates import electric_vehicle_sales
+        config = electric_vehicle_sales()
+        batch = LegacyImportBatch.objects.create(import_type='operations', source_file='qa.xlsx', original_filename='qa.xlsx', file_sha256='c'*64, file_size=0, uploaded_by='tester')
+        raw_rows = [{'公司禮卷、匯款':' A ', '平台贈品':'機油', '其他':' 安全帽 ', '公司贈品':'不可取用'},
+                    {'公司禮卷、匯款':None, '平台贈品':'', '其他':None}, {}]
+        for index,order in enumerate(SalesOrder.objects.order_by('pk')):
+            row=LegacyImportRow.objects.create(batch=batch,sheet_name='銷售',source_row=index+1,fingerprint=str(index)*64,action='create',mapped_data={'model_number':'EV060L'},raw_data=raw_rows[index])
+            LegacySalesSnapshot.objects.create(order=order,import_row=row)
+        for key in ('legacy_gift_card','legacy_platform_gift','legacy_premium'):
+            for prefix in ('','-'):
+                rows=list(record_queryset(config,{'records_sort':prefix+key}))
+                self.assertEqual(len(rows),3)
+                for order in rows:
+                    self.assertEqual(getattr(order,RECORD_SORTS[key]),record_cells(order,[key])[0]['value'])
+
+    def test_electric_layout_month_links_filters_and_other_factories_stay_independent(self):
+        import json
+        from sales.reporting.source_templates import SOURCE_TEMPLATES
+        from sales.reporting.forms import FilterForm
+        config = validate_config(SOURCE_TEMPLATES['electric']())
+        self.assertEqual(config['reader_layout'], 'electric_overview')
+        self.assertEqual([card['dimension'] for card in config['cards']], ['month','month','legacy_model'])
+        self.assertEqual(config['cards'][0]['width'], 12)
+        for name, factory in SOURCE_TEMPLATES.items():
+            if name not in ('electric','total'):
+                self.assertNotEqual(factory().get('reader_layout'), 'electric_overview')
+        self.assertEqual(SOURCE_TEMPLATES['gasoline']()['cards'][1]['dimension'], 'day')
+        self.assertEqual(FilterForm(reader_layout='electric_overview').COMMON_FIELDS, ('legacy_source','months'))
+        self.model.model_number = 'EV060L'
+        self.model.save(update_fields=['model_number'])
+        order = SalesOrder.objects.first()
+        order.registration_date = date(2026,8,1)
+        order.save(update_fields=['registration_date'])
+        self.report.published = config
+        self.report.save()
+        self.login()
+        response = self.client.get(reverse('report_display', args=[self.report.pk]))
+        self.assertContains(response, 'report-electric-overview')
+        self.assertNotContains(response, 'data-report-multiple')
+        self.assertEqual([r['count'] for r in response.context['results']], [3,3,3])
+        from sales.reporting.views import publication_key
+        filters = {'revision':publication_key(self.report), 'focus':json.dumps([{'card':1,'group':'2026-08-01','grain':'month'}])}
+        response = self.client.get(reverse('report_display', args=[self.report.pk]), filters)
+        self.assertEqual(response.context['results'][0]['count'], 1)
+        self.assertEqual(response.context['results'][2]['count'], 1)
+        self.assertEqual(response.context['records_page'].paginator.count, 1)
+        for key in ('empty_months','empty_legacy_source'):
+            response = self.client.get(reverse('report_display', args=[self.report.pk]), {key:'1'})
+            self.assertEqual([r['count'] for r in response.context['results']], [0,0,0])
+        self.assertEqual([card_result(config, card, {'legacy_energy':['油車']})['count'] for card in config['cards']], [0,0,0])
+        self.login(self.user)
+        self.assertEqual(self.client.get(reverse('report_display', args=[self.report.pk])).status_code, 404)
+
+    def test_electric_migration_preserves_scope_draft_and_other_reports(self):
+        from importlib import import_module
+        from types import SimpleNamespace
+        from django.apps import apps
+        from django.db import connection
+        from sales.reporting.source_templates import electric_vehicle_sales, gasoline_vehicle_sales
+        migrate = import_module('sales.migrations.0122_electric_sales_overview').upgrade_electric
+        config = electric_vehicle_sales()
+        config.pop('reader_layout')
+        config['cards'][0].pop('width')
+        config['cards'][1].update(dimension='day', title='電動車每日銷售型號')
+        config['fixed_filters']['brand'] = ['SUZUKI']
+        self.report.published = config
+        self.report.draft = {**copy.deepcopy(config), 'description':'未發布調整'}
+        self.report.save()
+        draft = copy.deepcopy(self.report.draft)
+        other = ReportDefinition.objects.create(draft=gasoline_vehicle_sales(), published=gasoline_vehicle_sales(), version=1)
+        migrate(apps, SimpleNamespace(connection=connection))
+        self.report.refresh_from_db()
+        other.refresh_from_db()
+        self.assertEqual(self.report.published['reader_layout'], 'electric_overview')
+        self.assertEqual(self.report.published['cards'][1]['dimension'], 'month')
+        self.assertEqual(self.report.published['fixed_filters'], config['fixed_filters'])
+        self.assertEqual(self.report.draft, draft)
+        self.assertEqual(other.published, gasoline_vehicle_sales())
+        migrate(apps, SimpleNamespace(connection=connection))
+        self.assertEqual(ReportRevision.objects.filter(report=self.report).count(), 1)
+
     def test_total_sales_month_correction_is_idempotent_and_preserves_unpublished_draft(self):
         from importlib import import_module
         from types import SimpleNamespace

@@ -6,6 +6,17 @@ const {reportAxisMaximum} = require('../../static/js/report-interactions.js');
 const {reportDebounce} = require('../../static/js/report-interactions.js');
 const {reportUpdateError} = require('../../static/js/report-interactions.js');
 const {reportOverviewColor, reportMonthSummary} = require('../../static/js/report-interactions.js');
+const {reportElectricColor} = require('../../static/js/report-interactions.js');
+
+test('電動車來源配色獨立，型號兩圖同色且不受排序影響', () => {
+  assert.equal(reportElectricColor('車行','#000'), '#f15a60');
+  assert.equal(reportElectricColor('網路平台','#000'), '#7ac36a');
+  assert.equal(reportOverviewColor('車行','#000'), '#7ac36a');
+  assert.equal(reportElectricColor('EV060L','#000'), '#737373');
+  assert.equal(reportElectricColor('EV076S','#000'), '#7ac36a');
+  assert.equal(reportElectricColor('M02','#000'), '#7dd3ef');
+  assert.equal(reportElectricColor('未列型號','#123456'), '#123456');
+});
 
 test('原報表整月提示包含全部非零系列及合計，不把月份縮成單一通路', () => {
   const summary = reportMonthSummary('2026/08', [{label:'馭盛',value:29,display:'29'},{label:'車行',value:5,display:'5'},{label:'展場',value:0,display:'0'}], '34');

@@ -1,8 +1,8 @@
 """報表明細白名單；不輸出證件、地址、電話、帳號或原始 JSON。"""
 from django.core.paginator import Paginator
-from django.db.models import F, Case, When, Value, CharField, DecimalField, OuterRef, Subquery, Sum
+from django.db.models import F, Q, Case, When, Value, CharField, DecimalField, OuterRef, Subquery, Sum
 from django.db.models.fields.json import KeyTextTransform
-from django.db.models.functions import Coalesce, NullIf
+from django.db.models.functions import Coalesce, NullIf, Trim
 
 
 # 明細欄位到查詢的固定白名單；不能把讀者輸入直接傳入 order_by。
@@ -13,6 +13,11 @@ RECORD_SORTS = {
     'color': 'color__name', 'owner_name': 'owner_name', 'subsidy': 'subsidy_type',
     'payment_confirmed': 'operations__payment_confirmed', 'total_received': 'record_sort_received',
     'historical_received_price': 'legacy_snapshot__historical_received_price',
+    'legacy_sales_source': 'record_source_classification',
+    'legacy_energy': 'record_energy_classification',
+    'legacy_gift_card': 'record_sort_gift_card',
+    'legacy_platform_gift': 'record_sort_platform_gift',
+    'legacy_premium': 'record_sort_premium',
 }
 
 
@@ -69,6 +74,17 @@ def record_queryset(config, filters):
             queryset = queryset.annotate(**{RECORD_SORTS[sort_name]: Case(When(legacy_snapshot__isnull=False, then=legacy_text), default=fallback, output_field=text)})
         if sort_name == 'identifier':
             queryset = queryset.annotate(record_sort_identifier=Coalesce(NullIf(F('allocated_vehicle__engine_number'), Value('')), NullIf(F('allocated_vehicle__frame_number'), Value('')), NullIf(F('legacy_snapshot__vehicle_identifier'), Value('')), Value('尚未填寫'), output_field=text))
+        raw_keys = {'legacy_gift_card':'公司禮卷、匯款', 'legacy_platform_gift':'平台贈品', 'legacy_premium':'其他'}
+        if sort_name in raw_keys:
+            raw_key = raw_keys[sort_name]
+            raw_path = 'legacy_snapshot__import_row__raw_data__' + raw_key
+            raw_value = KeyTextTransform(raw_key, 'legacy_snapshot__import_row__raw_data')
+            queryset = queryset.annotate(record_sort_trimmed=Trim(raw_value))
+            queryset = queryset.annotate(**{RECORD_SORTS[sort_name]: Case(
+                When(legacy_snapshot__isnull=True, then=Value('非歷史匯入')),
+                When(**{raw_path + '__isnull':True}, then=Value('原始欄位未提供')),
+                When(Q(**{raw_path:None}) | Q(record_sort_trimmed=''), then=Value('原始未填寫')),
+                default=F('record_sort_trimmed'), output_field=text)})
         expression = F(RECORD_SORTS[sort_name])
         ordering = expression.desc(nulls_last=True) if sort_key.startswith('-') else expression.asc(nulls_first=True)
     else:

@@ -102,6 +102,12 @@ class ReportForm(ScopeForm):
 
 
 class CardForm(ScopeForm):
+    width = forms.TypedChoiceField(label="圖表寬度", choices=[(6, "半寬（並排）"), (12, "全寬")], coerce=int, required=False, empty_value=6, initial=6)
+    height = forms.IntegerField(label="圖表高度（像素）", min_value=320, max_value=1200, required=False, initial=520)
+
+    def clean_height(self):
+        return self.cleaned_data.get("height") or 520
+
     title = forms.CharField(label="圖表名稱", max_length=100)
     chart = forms.ChoiceField(label="呈現方式", choices=CHARTS.items())
     dimension = forms.ChoiceField(label="依什麼分類", choices=DIMENSIONS.items())

@@ -1,4 +1,4 @@
-/* 僅限總車輛銷售；舊報表及設計器保持原呈現。 */
+/* 明確啟用總覽／電動車閱讀版型；其餘報表及設計器保持原呈現。 */
 .report-sales-overview .report-overview-tools-ready > .report-chart-options,
 .report-sales-overview .report-overview-tools-ready > .report-chart-controls,
 .report-sales-overview .report-overview-tools-ready .report-card-toolbar > .report-export,
@@ -27,3 +27,14 @@
 .report-image-export::backdrop { background:#0008; }
 .report-image-export img { display:block; max-width:100%; max-height:60vh; object-fit:contain; margin:12px auto; }
 .report-image-export .button { margin-right:12px; }
+.report-electric-overview .report-grid > .report-chart:first-child { grid-column:1 / -1; }
+.report-electric-overview .report-series-legend { display:flex; flex-wrap:wrap; gap:8px 14px; }
+.report-electric-overview .report-overview-legend { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); }
+.report-electric-overview .report-overview-legend a { overflow-wrap:anywhere; }
+@media(max-width:700px) { .report-electric-overview .report-overview-legend { grid-template-columns:repeat(2,minmax(0,1fr)); } }
+@media(max-width:1100px) {
+  .report-reader-layout:has(.report-electric-overview) { grid-template-columns:1fr; }
+  .report-reader-layout:has(.report-electric-overview) .report-page-nav { position:static; max-height:none; }
+  .report-reader-layout:has(.report-electric-overview) .report-page-nav nav { max-height:55vh; }
+  .report-reader-layout:has(.report-electric-overview) .report-current-page { display:block; font-weight:400; }
+}

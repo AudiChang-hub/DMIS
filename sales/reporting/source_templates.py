@@ -33,15 +33,15 @@ def electric_vehicle_sales():
     return {
         "title": "電動車銷售統計｜原報表核對版", "audience": "admin", "date_basis": "registration_date",
         "description": "依原頁三圖與明細建立，能源採原報表公式作比對，不修改 DMIS 主檔。原 CSV 的 Pulse Ultra、EZZY 500 與可見能源公式有矛盾，另有來源未匹配資料，尚未通過跨來源驗收。歷史贈品不代表已發放，新單獎勵仍以 DMIS 為準。",
-        "include_undated": True, "navigation_group": "sales", "page_order": 20,
+        "include_undated": True, "navigation_group": "sales", "page_order": 20, "reader_layout": "electric_overview",
         "fixed_filters": {"model_presence": ["present"], "legacy_energy": ["電車"]},
         "include_records": True, "records_page_size": 10,
         "records_columns": ["registration_date", "legacy_source_name", "legacy_sales_source", "model_number", "identifier", "legacy_energy", "energy", "color",
                             "owner_name", "legacy_gift_card", "legacy_platform_gift", "legacy_premium",
                             "payment_confirmed", "historical_received_price", "total_received"],
         "cards": [
-            card("電動車每月銷售來源", "stacked", "month", 24, "key_desc", series="legacy_sales_source", series_limit=10, series_other=False, series_sort="value"),
-            card("電動車每日銷售型號", "stacked", "day", 20, "key_desc", series="legacy_model", series_limit=20, series_other=False, series_sort="value"),
+            card("電動車每月銷售來源", "stacked", "month", 24, "key_desc", series="legacy_sales_source", series_limit=10, series_other=False, series_sort="value", width=12),
+            card("電動車每月銷售型號", "stacked", "month", 20, "key_desc", series="legacy_model", series_limit=20, series_other=False, series_sort="value"),
             card("電動車型號占比", "donut", "legacy_model", 20),
         ],
     }
@@ -50,6 +50,8 @@ def electric_vehicle_sales():
 def electric_platform_sales():
     """p_oyi9bhn3wd：月份主軸、清洗後平台名稱系列，非 DMIS 通路主檔 ID。"""
     config = electric_vehicle_sales()
+    config.pop("reader_layout", None)
+    config["cards"][0].pop("width", None)
     config.update(title="電動車－網路平台銷售統計｜原報表核對版", page_order=30,
                   description="依原平台分頁的一張月份堆疊圖與來源明細建立。平台名稱沿用原報表清洗方式，不改寫通路主檔。原能源／來源公式與資料差異仍在核對，尚未通過跨來源完整驗收。歷史贈品記載不代表已發放。")
     config["fixed_filters"]["legacy_source"] = ["網路平台"]
@@ -63,6 +65,9 @@ def electric_platform_sales():
 def gasoline_vehicle_sales():
     """p_vi50zol3wd：保留三圖與明細，油車每日系列上限是10而非電車的20。"""
     config = electric_vehicle_sales()
+    config.pop("reader_layout", None)
+    config["cards"][0].pop("width", None)
+    config["cards"][1].update(dimension="day", title="電動車每日銷售型號")
     config.update(title="油車銷售統計｜原報表核對版", page_order=60,
                   description="依原油車頁三圖與明細建立；以原報表能源分類核對，不改動 DMIS 車型、訂單或財務。原分類公式與來源資料仍有待釐清差異，本頁尚未通過完整跨來源驗收。歷史禮券與贈品不代表目前已發放。")
     config["fixed_filters"]["legacy_energy"] = ["油車"]

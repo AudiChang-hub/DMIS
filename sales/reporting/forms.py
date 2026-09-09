@@ -66,7 +66,7 @@ class ScopeForm(forms.Form):
 
 
 class ReportForm(ScopeForm):
-    reader_layout = forms.ChoiceField(label="閱讀版型", required=False, choices=[("standard", "一般報表"), ("sales_overview", "銷售總覽（原報表緊湊版型）")])
+    reader_layout = forms.ChoiceField(label="閱讀版型", required=False, choices=[("standard", "一般報表"), ("sales_overview", "銷售總覽（原報表緊湊版型）"), ("electric_overview", "電動車銷售（三圖連動版型）")])
 
     def clean_reader_layout(self):
         return self.cleaned_data["reader_layout"] or "standard"
@@ -180,7 +180,7 @@ class FilterForm(forms.Form):
         self.date_basis = kwargs.pop("date_basis", "registration_date")
         layout = kwargs.pop("reader_layout", "standard")
         super().__init__(*args, **kwargs)
-        if layout == "sales_overview":
+        if layout in ("sales_overview", "electric_overview"):
             self.COMMON_FIELDS = ("legacy_source", "months")
             self.fields["legacy_source"].label = "銷售來源"
             self.fields["months"].label = "領牌年月"

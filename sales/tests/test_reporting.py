@@ -13,6 +13,115 @@ from sales.reporting.views import initial_config
 
 
 class ReportingTests(TestCase):
+    def test_all_thirteen_selected_source_drafts_validate_and_do_not_publish(self):
+        from django.core.management import call_command
+        from io import StringIO
+        from sales.reporting.source_templates import SOURCE_TEMPLATES
+        self.assertEqual(len(SOURCE_TEMPLATES), 13)
+        orders = list(SalesOrder.objects.order_by("pk").values())
+        for key, factory in SOURCE_TEMPLATES.items():
+            with self.subTest(page=key):
+                config = validate_config(factory())
+                self.assertEqual(config["audience"], "admin")
+                for card in config["cards"]:
+                    card_result(config, card, {})
+                call_command("create_source_report_draft", page=key, stdout=StringIO())
+                report = ReportDefinition.objects.get(draft__title=config["title"])
+                self.assertFalse(report.published)
+                call_command("create_source_report_draft", page=key, stdout=StringIO())
+                self.assertEqual(ReportDefinition.objects.filter(draft__title=config["title"]).count(), 1)
+        self.assertEqual(orders, list(SalesOrder.objects.order_by("pk").values()))
+
+    def test_age_scope_keeps_unknowns_and_excludes_only_known_under_twenty(self):
+        from sales.reporting.engine import base_query
+        from django.utils import timezone
+        orders = list(SalesOrder.objects.order_by("pk"))
+        for order, birthday in zip(orders, (None, date(timezone.localdate().year - 19, 1, 1), date(timezone.localdate().year - 20, 1, 1))):
+            SalesOrder.objects.filter(pk=order.pk).update(owner_type="local", owner_birth_date=birthday)
+        config = {**self.config, "fixed_filters": {"age_scope": ["adult_or_unknown"]}}
+        self.assertEqual(set(base_query(config, {}).values_list("pk", flat=True)), {orders[0].pk, orders[2].pk})
+        SalesOrder.objects.filter(pk=orders[1].pk).update(owner_birth_date=date(timezone.localdate().year + 1, 1, 1))
+        self.assertEqual(base_query(config, {}).count(), 3)
+
+    def test_bonus_record_and_summary_use_same_saved_allocations(self):
+        from sales.models import DealerVolumeBonusRule, DealerVolumeBonusSettlement, DealerVolumeBonusAllocation, OrderOperationsProfile
+        from sales.reporting.records import record_context
+        order = SalesOrder.objects.order_by("pk").first()
+        OrderOperationsProfile.objects.get_or_create(order=order)
+        rule = DealerVolumeBonusRule.objects.create(dealer=self.a, brand="SUZUKI", starts_on=date(2026, 9, 1), ends_on=date(2026, 9, 30))
+        settlement = DealerVolumeBonusSettlement.objects.create(rule=rule, dealer=self.a, expected_amount=123, actual_amount=123, qualified_quantity=1)
+        DealerVolumeBonusAllocation.objects.create(settlement=settlement, order=order, amount=123)
+        config = {**self.config, "include_records": True, "records_columns": ["dealer_bonus", "sex"]}
+        row = next(row for row in record_context(config, {})["records_rows"] if row["pk"] == order.pk)
+        self.assertEqual(Decimal(row["cells"][0]["value"]), Decimal("123"))
+        self.assertEqual(row["cells"][1]["value"], "公司或其他")
+
+    def test_model_text_scopes_are_literal_intersections_and_editable(self):
+        from sales.reporting.engine import base_query
+        from sales.reporting.forms import ScopeForm
+        VehicleModel.objects.filter(pk=self.model.pk).update(model_number="EV076SZV")
+        self.assertEqual(base_query({**self.config, "fixed_filters": {"model_prefix": ["EV076"]}}, {}).count(), 3)
+        self.assertEqual(base_query({**self.config, "fixed_filters": {"model_prefix": ["EV076"], "model_exclude": ["EV076SZV"]}}, {}).count(), 0)
+        for pattern in ("EV.*", "ev076", "EV076$"):
+            self.assertEqual(base_query({**self.config, "fixed_filters": {"model_contains": [pattern]}}, {}).count(), 0)
+        config = {**self.config, "fixed_filters": {"model_prefix": ["EV"]}}
+        self.assertEqual(base_query(config, {}, {"fixed_filters": {"model_exact": ["OTHER"]}}).count(), 0)
+        form = ScopeForm({"fixed_model_prefix": "EV076\nEV070\nEV076", "fixed_model_exclude": "EV076SZV"})
+        self.assertTrue(form.is_valid(), form.errors)
+        self.assertEqual(form.scope_data(), {"model_prefix": ["EV076", "EV070"], "model_exclude": ["EV076SZV"]})
+        initial = ScopeForm(initial={"fixed_filters": form.scope_data()})
+        self.assertEqual(initial["fixed_model_prefix"].value(), "EV076\nEV070")
+        self.assertEqual(initial.scope_count(), 3)
+        self.assertFalse(ScopeForm({"fixed_model_prefix": "x" * 101}).is_valid())
+
+    def test_model_analysis_templates_preserve_different_source_filters_and_unknown_sex(self):
+        from sales.reporting.source_templates import model_analysis
+        sex, color = model_analysis("sex"), model_analysis("color")
+        for config in (sex, color):
+            validate_config(config)
+            self.assertEqual(len(config["cards"]), 4)
+            self.assertEqual(config["audience"], "admin")
+        self.assertEqual(sex["cards"][0]["fixed_filters"], {"model_contains": ["EV060L"]})
+        self.assertEqual(color["cards"][0]["fixed_filters"], {"model_contains": ["EV060"]})
+        VehicleModel.objects.filter(pk=self.model.pk).update(model_number="EV060L")
+        result = card_result(sex, sex["cards"][0], {})
+        self.assertEqual(result["count"], 3)
+        self.assertEqual(result["rows"][0]["label"], "公司或其他")
+        self.assertEqual(drill_query(sex, sex["cards"][0], {}, result["rows"][0]["key"]).count(), 3)
+
+    def test_demographics_keep_unknowns_and_legacy_comparison_without_mutation(self):
+        from sales.reporting.engine import dimension_query
+        from django.utils import timezone
+        order = SalesOrder.objects.order_by("pk").first()
+        samples = [
+            ("local", "A123456789", None, "生日未填", "男性", "60歲以上", "男性"),
+            ("company", "12345678", None, "公司或其他", "公司或其他", "60歲以上", "女性"),
+            ("local", "X1", None, "生日未填", "公司或其他", "60歲以上", "男性"),
+            ("foreign", "A923456789", date(timezone.localdate().year - 25, 1, 1), "20-29歲", "女性", "20-29歲", "女性"),
+            ("foreign", "A823456789", None, "生日未填", "男性", "60歲以上", "男性"),
+            ("local", "", None, "生日未填", "公司或其他", "60歲以上", "未填寫或格式錯誤"),
+        ]
+        for owner_type, identity, birthday, *expected in samples:
+            with self.subTest(owner_type=owner_type, expected=expected):
+                SalesOrder.objects.filter(pk=order.pk).update(
+                    owner_type=owner_type, owner_id_number=identity, owner_birth_date=birthday)
+                before = SalesOrder.objects.filter(pk=order.pk).values().get()
+                for dimension, label in zip(("age_group", "sex", "legacy_age_group", "legacy_sex"), expected):
+                    query = dimension_query(SalesOrder.objects.filter(pk=order.pk), dimension, "registration_date")
+                    self.assertEqual(query.values_list("report_key", flat=True).get(), label)
+                self.assertEqual(before, SalesOrder.objects.filter(pk=order.pk).values().get())
+
+    def test_demographic_charts_keep_missing_birthdays_and_support_drill(self):
+        card = {**self.config["cards"][0], "dimension": "age_group"}
+        config = {**self.config, "cards": [card]}
+        validate_config(config)
+        SalesOrder.objects.update(owner_birth_date=None, owner_type="local")
+        result = card_result(config, card, {})
+        self.assertEqual(result["count"], 3)
+        self.assertEqual(len(result["rows"]), 1)
+        self.assertEqual(result["rows"][0]["label"], "生日未填")
+        self.assertEqual(drill_query(config, card, {}, result["rows"][0]["key"]).count(), 3)
+
     def test_reader_filter_groups_preserve_selected_advanced_conditions(self):
         from sales.reporting.forms import FilterForm
         from django.http import QueryDict
@@ -255,6 +364,56 @@ class ReportingTests(TestCase):
         self.login(self.user)
         self.assertEqual(self.client.get(reverse("report_display", args=[report.pk])).status_code, 404)
         self.assertEqual(self.client.get(reverse("report_edit", args=[report.pk])).status_code, 403)
+
+    def test_gasoline_source_drafts_preserve_scope_and_do_not_change_orders(self):
+        from django.core.management import call_command
+        from io import StringIO
+        from sales.reporting.source_templates import electric_vehicle_sales, gasoline_vehicle_sales, gasoline_platform_sales
+        from sales.reporting.records import record_context
+        before = list(SalesOrder.objects.order_by("pk").values())
+        for page, factory, cards in (("gasoline", gasoline_vehicle_sales, 3), ("gasoline-platform", gasoline_platform_sales, 1)):
+            with self.subTest(page=page):
+                config = validate_config(factory())
+                self.assertEqual(len(config["cards"]), cards)
+                self.assertEqual(config["fixed_filters"]["legacy_energy"], ["油車"])
+                for card in config["cards"]:
+                    result = card_result(config, card, {})
+                    self.assertEqual(result["count"], record_context(config, {})["records_page"].paginator.count)
+                    self.assertEqual(card_result(config, card, {"legacy_energy": ["電車"]})["count"], 0)
+                    for row in result["rows"]:
+                        self.assertEqual(drill_query(config, card, {}, row["key"]).count(), row["count"])
+                call_command("create_source_report_draft", page=page, stdout=StringIO())
+                report = ReportDefinition.objects.get(draft__title=config["title"])
+                self.assertIsNone(report.published)
+                self.assertEqual(report.draft["audience"], "admin")
+                report.draft["description"] = "保留管理者修改"
+                report.save()
+                call_command("create_source_report_draft", page=page, stdout=StringIO())
+                report.refresh_from_db()
+                self.assertEqual(report.draft["description"], "保留管理者修改")
+                self.login(self.user)
+                self.assertEqual(self.client.get(reverse("report_edit", args=[report.pk])).status_code, 403)
+                self.assertEqual(self.client.get(reverse("report_display", args=[report.pk])).status_code, 404)
+        self.assertEqual(gasoline_vehicle_sales()["cards"][1]["series_limit"], 10)
+        self.assertEqual(electric_vehicle_sales()["cards"][1]["series_limit"], 20)
+        self.assertEqual(list(SalesOrder.objects.order_by("pk").values()), before)
+
+    def test_gasoline_platform_drills_use_both_fixed_filters(self):
+        from sales.reporting.source_templates import gasoline_platform_sales
+        self.model.model_number = "UC125DA"
+        self.model.save(update_fields=["model_number"])
+        SalesSource.objects.filter(pk=self.a.pk).update(name="PC")
+        SalesSource.objects.filter(pk=self.b.pk).update(name="一般車行")
+        config = validate_config(gasoline_platform_sales())
+        card = config["cards"][0]
+        result = card_result(config, card, {})
+        expected = SalesOrder.objects.filter(source=self.a).count()
+        self.assertGreater(expected, 0)
+        self.assertEqual(result["count"], expected)
+        for row in result["rows"]:
+            for segment in row["segments"]:
+                self.assertEqual(drill_query(config, card, {}, segment["key"]).count(), segment["count"])
+        self.assertEqual(card_result(config, card, {"legacy_source": ["車行"]})["count"], 0)
 
     def test_records_export_escapes_formulas_and_limits_size(self):
         from unittest.mock import patch

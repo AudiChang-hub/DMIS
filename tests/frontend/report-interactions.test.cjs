@@ -1,6 +1,17 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const {reportPointText, reportFraction} = require('../../static/js/report-interactions.js');
+const {reportPointText, reportFraction, reportScopeCount, reportPageRange} = require('../../static/js/report-interactions.js');
+
+test('彙總分頁不遺漏尾頁，切換筆數及非法頁碼有界限', () => {
+  assert.deepEqual(reportPageRange(51, 25, 3), {page:3, pages:3, start:50, end:51});
+  assert.deepEqual(reportPageRange(51, 100, 3), {page:1, pages:1, start:0, end:51});
+  assert.deepEqual(reportPageRange(0, 0, -1), {page:1, pages:1, start:0, end:0});
+});
+
+test('圖表固定條件數量包含文字條件並排除空行及重複值', () => {
+  assert.equal(reportScopeCount(2, ['EV076\r\nEV070\r\nEV076', ' \n']), 4);
+  assert.equal(reportScopeCount(0, ['', 'EV060L']), 1);
+});
 test('提示保留分類、指標、台數與完整範圍占比', () => {
   const text = reportPointText({pointLabel:'2026/09 · 車行', pointDisplay:'60,000', pointCount:'3', pointPercentage:'25.55'}, '訂單車價合計');
   assert.match(text, /2026\/09 · 車行/); assert.match(text, /訂單車價合計：60,000/);

@@ -13,12 +13,37 @@ from sales.reporting.views import initial_config
 
 
 class ReportingTests(TestCase):
+    def test_standalone_draft_preview_is_admin_only_readonly_and_filters_draft(self):
+        config = {**self.config, "title": "未發布草稿標題", "fixed_filters": {"source": [str(self.a.pk)]},
+                  "include_records": True, "records_columns": ["sex"]}
+        report = ReportDefinition.objects.create(draft=config, version=1)
+        url = reverse("report_draft_preview", args=[report.pk])
+        before = ReportRevision.objects.count()
+        self.login()
+        response = self.client.get(url)
+        self.assertContains(response, "未發布草稿標題")
+        self.assertEqual(response.context["results"][0]["count"], 1)
+        self.assertContains(response, "公司或其他")
+        self.assertContains(response, f'href="{url}">清除我的篩選')
+        self.assertNotContains(response, "匯出全部符合明細 CSV")
+        self.assertEqual(self.client.get(url, {"source": [str(self.b.pk)]}).context["results"][0]["count"], 0)
+        report.refresh_from_db()
+        self.assertEqual(report.version, 1)
+        self.assertFalse(report.published)
+        self.assertEqual(ReportRevision.objects.count(), before)
+        for user in (self.user, self.other_admin):
+            self.login(user)
+            self.assertEqual(self.client.get(url).status_code, 403)
+        self.client.logout()
+        self.assertEqual(self.client.get(url).status_code, 302)
+
     def test_all_thirteen_selected_source_drafts_validate_and_do_not_publish(self):
         from django.core.management import call_command
         from io import StringIO
         from sales.reporting.source_templates import SOURCE_TEMPLATES
         self.assertEqual(len(SOURCE_TEMPLATES), 13)
         orders = list(SalesOrder.objects.order_by("pk").values())
+        self.login()
         for key, factory in SOURCE_TEMPLATES.items():
             with self.subTest(page=key):
                 config = validate_config(factory())
@@ -28,6 +53,9 @@ class ReportingTests(TestCase):
                 call_command("create_source_report_draft", page=key, stdout=StringIO())
                 report = ReportDefinition.objects.get(draft__title=config["title"])
                 self.assertFalse(report.published)
+                preview = self.client.get(reverse("report_draft_preview", args=[report.pk]))
+                self.assertEqual(preview.status_code, 200)
+                self.assertFalse(preview.context["error"])
                 call_command("create_source_report_draft", page=key, stdout=StringIO())
                 self.assertEqual(ReportDefinition.objects.filter(draft__title=config["title"]).count(), 1)
         self.assertEqual(orders, list(SalesOrder.objects.order_by("pk").values()))

@@ -1,0 +1,12 @@
+{% extends 'sales/reporting/layout.html' %}
+{% block title %}{{ config.title }} · 草稿核對{% endblock %}
+{% block report_content %}
+<header class="report-heading"><div><p class="eyebrow">僅 admin · 已儲存草稿的唯讀核對</p><h1>{{ config.title }}</h1><p>{{ config.description }}</p></div><div class="report-actions"><a class="button secondary" href="{% url 'report_manage' %}">返回設計管理</a><a class="button" href="{% url 'report_edit' report.pk %}">編輯設計</a></div></header>
+<p class="report-notice">尚未作為正式報表交付。這裡不會儲存、發布或改動訂單；篩選只影響本次核對。圖表點選下鑽與匯出仍在正式發布頁使用。</p>
+<details class="report-panel"><summary>切換核對報表</summary><nav class="report-actions" aria-label="草稿核對報表">{% for draft in draft_reports %}<a class="button secondary" href="{% url 'report_draft_preview' draft.pk %}" {% if draft.pk == report.pk %}aria-current="page"{% endif %}>{{ draft.draft.title }}</a>{% endfor %}</nav></details>
+{% if scope_labels %}<div class="report-scope-summary"><strong>固定範圍</strong>{% for label in scope_labels %}<span>{{ label }}</span>{% endfor %}</div>{% endif %}
+{% include 'sales/reporting/reader_filters.html' %}
+{% if error %}<p class="report-notice" role="alert">{{ error }}</p>{% endif %}
+<div class="report-grid">{% for result in results %}{% include 'sales/reporting/result.html' %}{% endfor %}</div>
+{% include 'sales/reporting/records.html' %}
+{% endblock %}

@@ -7,5 +7,5 @@
     <summary>進階篩選{% if filter_form.advanced_count %} · 已使用 {{ filter_form.advanced_count }} 項{% else %} · 品牌、能源及其他條件{% endif %}</summary>
     <div class="report-filter-grid">{% for field in filter_form.advanced_fields %}{% include 'sales/reporting/filter_field.html' %}{% endfor %}</div>
   </details>
-  <div class="report-filter-actions"><button class="button">套用篩選</button><a class="button secondary" href="{% url 'report_display' report.pk %}">清除我的篩選</a></div>
+  <div class="report-filter-actions"><button class="button">套用篩選</button><a class="button secondary" href="{% if standalone_preview %}{% url 'report_draft_preview' report.pk %}{% else %}{% url 'report_display' report.pk %}{% endif %}">清除我的篩選</a></div>
 </form>

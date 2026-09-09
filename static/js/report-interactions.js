@@ -39,7 +39,12 @@ function reportDebounce(run, delay = 300, timers = globalThis) {
     schedule(value) { timers.clearTimeout(timer); timer = timers.setTimeout(() => run(value), delay); }
   };
 }
-if (typeof module !== "undefined" && module.exports) module.exports = {reportPointText, reportFraction, reportScopeCount, reportPageRange, reportToggleSelection, reportAxisMaximum, reportDebounce};
+function reportUpdateError(error) {
+  if (error.name === 'AbortError') return '更新逾時，保留上次成功畫面；請重試。';
+  if (error.name === 'TypeError') return '暫時無法連線，保留上次成功畫面；請確認網路後重試。';
+  return error.message || '無法完成更新，請稍後重試。';
+}
+if (typeof module !== "undefined" && module.exports) module.exports = {reportPointText, reportFraction, reportScopeCount, reportPageRange, reportToggleSelection, reportAxisMaximum, reportDebounce, reportUpdateError};
 function initReportVisuals(root) {
   "use strict";
   if (typeof document === "undefined") return;
@@ -361,7 +366,7 @@ if (typeof document !== "undefined") initReportVisuals(document);
         if (ticket !== updateSequence) return;
         desiredUrl = new URL(location.href);
         paintSelection();
-        updateStatus.textContent = error.name === "AbortError" ? "更新逾時，保留上次成功畫面；請重試。" : error.message;
+        updateStatus.textContent = reportUpdateError(error);
       retry.hidden = false;
     } finally { clearTimeout(timer); if (ticket === updateSequence) reader.removeAttribute("aria-busy"); }
   }

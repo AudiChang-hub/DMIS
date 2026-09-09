@@ -4,6 +4,13 @@ const {reportPointText, reportFraction, reportScopeCount, reportPageRange} = req
 const {reportToggleSelection} = require('../../static/js/report-interactions.js');
 const {reportAxisMaximum} = require('../../static/js/report-interactions.js');
 const {reportDebounce} = require('../../static/js/report-interactions.js');
+const {reportUpdateError} = require('../../static/js/report-interactions.js');
+
+test('離線與逾時提示中文復原方式，保留權限及版本等具體錯誤', () => {
+  assert.match(reportUpdateError(new TypeError('Failed to fetch')), /無法連線.*重試/);
+  assert.match(reportUpdateError({name:'AbortError'}), /逾時.*重試/);
+  assert.equal(reportUpdateError(new Error('報表版本已更新')), '報表版本已更新');
+});
 
 test('連續複選只送最後完整條件，取消待送查詢不留下舊操作', () => {
   const jobs = new Map(); let id = 0; const received = [];

@@ -2,8 +2,5 @@
 {% block title %}報表中心{% endblock %}
 {% block report_content %}
 <header class="report-heading"><div><p class="eyebrow">從數字找到原因</p><h1>報表中心</h1><p>查看已發布的分析報表；使用日期、品牌與能源別篩選，再點數字追查訂單。</p></div></header>
-<div class="report-grid">
-{% for report in reports %}<a class="report-panel report-cover" href="{% url 'report_display' report.pk %}"><span class="report-tag">{{ report.published.cards|length }} 張圖表</span><h2>{{ report.published.title }}</h2><p>{{ report.published.description }}</p><footer><small>發布於 {{ report.published_at|date:'Y/m/d H:i' }}</small><strong>開啟報表 →</strong></footer></a>
-{% empty %}<section class="report-panel report-empty"><h2>目前沒有可查看的報表</h2><p>管理者發布報表並開放查看後，就會出現在這裡。</p></section>{% endfor %}
-</div>
+<section class="report-panel report-empty"><h2>目前沒有可查看的報表</h2><p>管理者發布報表並開放查看後，就會出現在這裡。</p></section>
 {% endblock %}

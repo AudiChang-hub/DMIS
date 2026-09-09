@@ -1,10 +1,11 @@
 {% extends 'sales/reporting/layout.html' %}
-{% block title %}{{ config.title }} · 報表中心{% endblock %}
+{% block title %}{{ reader_title }} · 報表中心{% endblock %}
 {% block report_content %}
 <div class="report-reader-layout">
-<aside class="report-page-nav"><details open><summary>報表頁面</summary><nav aria-label="報表頁面">{% for section in navigation %}<h2>{{ section.label }}</h2>{% for item in section.pages %}<a href="{% url 'report_display' item.pk %}" {% if item.pk == report.pk %}aria-current="page"{% endif %}>{{ item.published.title }}</a>{% endfor %}{% endfor %}</nav></details></aside>
+<aside class="report-page-nav"><details open data-reader-pages><summary>報表頁面 <span class="report-current-page">{{ reader_title }}</span></summary><nav aria-label="報表頁面">{% for section in navigation %}<h2>{{ section.label }}</h2>{% for item in section.pages %}<a href="{% url 'report_display' item.pk %}" {% if item.pk == report.pk %}aria-current="page"{% endif %}>{{ item.reader_title }}</a>{% endfor %}{% endfor %}</nav></details></aside>
 <div class="report-reader-main">
-<a href="{% url 'report_center' %}">← 報表中心</a><header class="report-heading"><div><p class="eyebrow">已發布分析報表</p><h1>{{ config.title }}</h1><p>{{ config.description }}</p></div><button type="button" class="button secondary" data-report-print>列印／另存 PDF</button></header>
+<header class="report-heading"><div><p class="eyebrow">報表中心 · 已發布分析報表</p><h1>{{ reader_title }}</h1></div><button type="button" class="button secondary" data-report-print>列印／另存 PDF</button></header>
+<details class="report-reader-description"><summary>資料口徑與說明</summary><p>{{ config.description }}</p></details>
 {% if scope_labels %}<section class="report-scope-summary" aria-label="報表固定範圍"><strong>報表固定範圍</strong>{% for label in scope_labels %}<span>{{ label }}</span>{% endfor %}<small>下方篩選只會再縮小範圍；清除篩選不解除固定條件。</small></section>{% endif %}
 {% include 'sales/reporting/reader_filters.html' %}
 <section class="report-panel report-selection-controls" aria-label="圖表探索方式"><label for="report-click-mode">點選圖表時</label><select id="report-click-mode" data-report-click-mode><option value="detail">查看同頁明細</option><option value="filter" {% if focus_items %}selected{% endif %}>篩選整頁圖表與明細</option></select><p>可從不同圖表逐步縮小範圍；同一張圖再次選取會替換該圖限制，不會修改資料。合併的「其他系列」目前僅支援查看明細。</p>{% for item in focus_items %}<a class="button secondary" href="?{{ item.remove_query }}">移除「{{ item.title }}」選取 ×</a>{% endfor %}</section>

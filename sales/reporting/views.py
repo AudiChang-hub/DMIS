@@ -95,23 +95,37 @@ def filter_query(filters):
 
 
 def navigation(request):
+    if not request.user.is_active:
+        return []
     reports = ReportDefinition.objects.filter(published__isnull=False)
     if not is_editor(request.user):
         reports = reports.filter(published__audience="team")
     groups = {key: [] for key in NAVIGATION_GROUPS}
     for report in reports:
+        if not is_editor(request.user) and report.published.get("records_mode") == "population":
+            continue
+        report.reader_title = reader_title(report.published)
         groups[report.published.get("navigation_group", "custom")].append(report)
     return [{"label": NAVIGATION_GROUPS[key], "pages": sorted(pages, key=lambda page: (page.published.get("page_order", 0), page.pk))}
             for key, pages in groups.items() if pages]
 
 
+def reader_title(config):
+    return config["title"].removesuffix("｜原報表核對版").rstrip()
+
+
 @login_required
 @never_cache
 def center(request):
-    reports = ReportDefinition.objects.exclude(published=None)
-    if not is_editor(request.user):
-        reports = reports.filter(published__audience="team")
-    return render(request, "sales/reporting/center.html", {"reports": reports})
+    pages = [report for group in navigation(request) for report in group["pages"]]
+    if not pages:
+        request.session.pop("report_reader_page", None)
+        return render(request, "sales/reporting/center.html")
+    remembered = request.session.get("report_reader_page", {})
+    if not isinstance(remembered, dict) or remembered.get("user") != str(request.user.pk):
+        remembered = {}
+    selected = next((page for page in pages if page.pk == remembered.get("report")), pages[0])
+    return display(request, selected.pk)
 
 
 @editor_required
@@ -264,7 +278,11 @@ def display(request, pk):
                 focus_items.append({"title": report.published["cards"][item["card"]]["title"] + "：" + selection_label(report.published, item),
                     "remove_query": filter_query(clear_filters) + "&revision=" + publication_key(report)})
     query += ("&" if query else "") + urlencode({"revision": publication_key(report)})
+    remembered = {"user": str(request.user.pk), "report": report.pk}
+    if request.session.get("report_reader_page") != remembered:
+        request.session["report_reader_page"] = remembered
     return render(request, "sales/reporting/display.html", {"report": report, "config": report.published,
+                  "reader_title": reader_title(report.published),
                   "navigation": navigation(request), "scope_labels": scope_labels(report.published.get("fixed_filters", {})),
                   "filter_form": form, "results": items, **records, "query": query, "error": error, "queried_at": timezone.now(),
                   "publication_key": publication_key(report), "focus_items": focus_items})

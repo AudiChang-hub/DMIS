@@ -20,11 +20,14 @@ def selections(raw):
             if type(item["card"]) is not int or not 0 <= item["card"] < 8 or item["card"] in seen:
                 raise ValueError
             seen.add(item["card"])
-            if not isinstance(item["group"], str) or not 0 < len(item["group"]) <= 600 or item["group"] == "__all__":
+            groups = item["group"] if isinstance(item["group"], list) else [item["group"]]
+            if not 1 <= len(groups) <= 20 or any(not isinstance(group, str) or not 0 < len(group) <= 600 or group == "__all__" for group in groups):
+                raise ValueError
+            if len(set(groups)) != len(groups):
                 raise ValueError
             if item["grain"] not in ("", "year", "month", "day"):
                 raise ValueError
-            if item["group"].startswith("o:"):
+            if any(group.startswith("o:") for group in groups):
                 raise ValidationError("合併的其他系列目前請用明細模式查看，不能作為全頁交叉篩選。")
         return values
     except (ValueError, TypeError, RecursionError):
@@ -32,6 +35,8 @@ def selections(raw):
 
 
 def selection_label(config, item):
+    if isinstance(item["group"], list):
+        return "、".join(selection_label(config, {**item, "group": group}) for group in item["group"])
     from .engine import decode_key, dimension_label, dimension_labels, effective_card
     try:
         card = effective_card(config["cards"][item["card"]], {"grain": item["grain"]})

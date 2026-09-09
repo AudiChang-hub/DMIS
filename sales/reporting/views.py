@@ -50,10 +50,18 @@ def card_filters(filters, index):
     return {**filters, "_card_grain": filters.get(f"grain_{index}"), "_card_sort": filters.get(f"sort_{index}")}
 
 
-def results(config, filters):
+def results(config, filters, *, retain_candidates=False):
     items = []
     for index, card in enumerate(config["cards"]):
-        result = card_result(config, card, card_filters(filters, index))
+        visual_filters = filters
+        if retain_candidates and filters.get("focus"):
+            from .cross_filter import selections
+            chosen = selections(filters["focus"])
+            remaining = [item for item in chosen if item["card"] != index]
+            if len(remaining) != len(chosen):
+                visual_filters = {**filters, "focus": json.dumps(remaining)}
+        result = card_result(config, card, card_filters(visual_filters, index))
+        result["retained_candidates"] = visual_filters is not filters
         result["index"] = index
         result["sort_field"] = f"sort_{index}"
         result["grain_field"] = f"grain_{index}"
@@ -261,7 +269,7 @@ def display(request, pk):
     error = ""
     if form.is_valid():
         try:
-            items = results(report.published, form.cleaned_data)
+            items = results(report.published, form.cleaned_data, retain_candidates=True)
             if report.published.get("include_records"):
                 records = record_context(report.published, form.cleaned_data, request.GET.get("records_page", 1))
         except ValidationError as exc:

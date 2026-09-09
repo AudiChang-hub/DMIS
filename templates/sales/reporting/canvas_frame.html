@@ -1,0 +1,7 @@
+{% load static %}<!doctype html>
+<html lang="zh-Hant" data-theme="{{ ui_theme|default:'professional' }}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="{% static 'css/app.css' %}?v={{ app_version }}"><link rel="stylesheet" href="{% static 'css/reporting.css' %}?v={{ app_version }}">
+<style>body{margin:0;padding:0;background:transparent}.report-chart{margin:0;border:0;box-shadow:none;height:auto!important;overflow:visible!important}.report-chart-controls{display:none}</style>
+</head><body>{% include 'sales/reporting/result.html' %}
+<script src="{% static 'js/reporting.js' %}?v={{ app_version }}" defer></script><script src="{% static 'js/report-interactions.js' %}?v={{ app_version }}" defer></script>
+</body></html>

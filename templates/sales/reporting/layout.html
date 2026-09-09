@@ -1,4 +1,4 @@
 {% extends 'base.html' %}{% load static %}
 {% block head %}<link rel="stylesheet" href="{% static 'css/reporting.css' %}?v={{ app_version }}">{% endblock %}
 {% block content %}<div class="report-workspace">{% block report_content %}{% endblock %}</div>{% endblock %}
-{% block scripts %}<script src="{% static 'js/reporting.js' %}?v={{ app_version }}" defer></script><script src="{% static 'js/report-interactions.js' %}?v={{ app_version }}" defer></script>{% endblock %}
+{% block scripts %}<script src="{% static 'js/reporting.js' %}?v={{ app_version }}" defer></script><script src="{% static 'js/report-interactions.js' %}?v={{ app_version }}" defer></script><script src="{% static 'js/report-designer.js' %}?v={{ app_version }}" defer></script>{% endblock %}

@@ -13,6 +13,50 @@ from sales.reporting.views import initial_config
 
 
 class ReportingTests(TestCase):
+    def test_canvas_preview_is_readonly_and_layout_is_published_and_restorable(self):
+        self.login()
+        config = copy.deepcopy(self.config)
+        config["cards"][0].update(width=12, height=640)
+        url = reverse("report_edit", args=[self.report.pk])
+        previous = ReportRevision.objects.count()
+        response = self.client.post(url, self.data(config, action="canvas"))
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("report-chart--wide", response.json()["cards"][0])
+        self.assertEqual(ReportRevision.objects.count(), previous)
+        self.report.refresh_from_db()
+        self.assertEqual(self.report.version, 1)
+        self.assertEqual(self.client.post(url, self.data(config, action="publish")).status_code, 302)
+        self.report.refresh_from_db()
+        self.assertEqual(self.report.published["cards"][0]["width"], 12)
+        self.assertEqual(self.report.published["cards"][0]["height"], 640)
+        self.assertContains(self.client.get(reverse("report_display", args=[self.report.pk])), 'height:640px')
+        saved_version = self.report.version
+        altered = copy.deepcopy(config)
+        altered["cards"][0].update(width=6, height=360)
+        self.client.post(url, self.data(altered, action="save", version=saved_version))
+        restored = self.client.post(reverse("report_lifecycle", args=[self.report.pk]), {"action": "restore", "version": saved_version + 1, "revision": saved_version})
+        self.assertEqual(restored.status_code, 302)
+        self.report.refresh_from_db()
+        self.assertEqual(self.report.draft["cards"][0]["height"], 640)
+        self.assertEqual(self.report.published["cards"][0]["height"], 640)
+        for user in (self.user, self.other_admin):
+            self.login(user)
+            self.assertEqual(self.client.post(url, self.data(config, action="canvas")).status_code, 403)
+
+    def test_canvas_rejects_invalid_layout_and_preserves_legacy_config(self):
+        validate_config(self.config)
+        for key, value in (("width", 7), ("width", True), ("height", 319), ("height", 1201), ("height", "520;display:none")):
+            config = copy.deepcopy(self.config)
+            config["cards"][0][key] = value
+            with self.assertRaises(ValidationError):
+                validate_config(config)
+        self.login()
+        payload = self.data(action="canvas")
+        payload["cards-0-height"] = "1201"
+        response = self.client.post(reverse("report_edit", args=[self.report.pk]), payload)
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("errors", response.json())
+
     def test_population_groups_keep_identity_distinct_and_mask_every_output(self):
         from sales.reporting.records import record_context
         config = {**self.config, "audience": "admin", "include_records": True,

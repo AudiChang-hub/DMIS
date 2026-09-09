@@ -10,7 +10,8 @@ from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.core.paginator import Paginator
 from django.db import transaction
-from django.http import Http404, HttpResponse
+from django.http import Http404, HttpResponse, JsonResponse
+from django.template.loader import render_to_string
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views.decorators.cache import never_cache
@@ -154,12 +155,15 @@ def edit(request, pk=None):
     if request.method == "POST" and form.is_valid() and formset.is_valid():
         config = {key: form.cleaned_data[key] for key in ("title", "description", "audience", "date_basis", "navigation_group", "page_order", "include_undated", "include_records", "records_columns", "records_page_size", "records_mode")}
         config["fixed_filters"] = form.scope_data()
-        config["cards"] = [{**{key: card.cleaned_data[key] for key in ("title", "dimension", "metric", "chart", "formula", "limit", "sort", "series", "series_limit", "series_other", "series_sort", "additional_metrics")}, "fixed_filters": card.scope_data()}
+        config["cards"] = [{**{key: card.cleaned_data[key] for key in ("title", "dimension", "metric", "chart", "formula", "limit", "sort", "series", "series_limit", "series_other", "series_sort", "additional_metrics", "width", "height")}, "fixed_filters": card.scope_data()}
                            for card in formset.ordered_forms]
         action = request.POST.get("action")
         try:
             validate_config(config)
-            if action == "preview":
+            if action == "canvas":
+                items = results(config, {})
+                return JsonResponse({"cards": [render_to_string("sales/reporting/canvas_frame.html", {"result": item, "is_preview": True}, request=request) for item in items]})
+            elif action == "preview":
                 preview = results(config, {})
                 if config.get("include_records"):
                     preview_records = record_context(config, {})
@@ -191,6 +195,8 @@ def edit(request, pk=None):
         except ValidationError as error:
             form.add_error(None, error)
             status = 400
+    if request.method == "POST" and request.POST.get("action") == "canvas":
+        return JsonResponse({"errors": {"report": form.errors.get_json_data(), "cards": formset.errors, "formset": list(formset.non_form_errors())}}, status=400)
     rendered_cards = [*formset.ordered_forms, *formset.deleted_forms] if formset.is_bound and formset.is_valid() else formset
     return render(request, "sales/reporting/edit.html", {"report": report, "form": form, "formset": formset, "rendered_cards": rendered_cards,
                   "preview": preview, "is_preview": True, **preview_records, "revisions": report.revisions.all()[:20] if report else []}, status=status)

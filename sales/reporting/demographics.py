@@ -38,7 +38,8 @@ def demographic_query(queryset, dimension, alias):
         conditions = []
         if dimension == "age_group":
             conditions = [
-                When(owner_type="company", then=Value("公司或其他")),
+                # 歷史匯入沒有設定 owner_type，八碼統編不能因預設 local 而當自然人。
+                When(Q(owner_type="company") | Q(report_id_normalized__regex=r"^[0-9]{8}$"), then=Value("公司或其他")),
                 When(owner_birth_date__isnull=True, then=Value("生日未填")),
                 When(owner_birth_date__gt=today, then=Value("生日異常")),
             ]

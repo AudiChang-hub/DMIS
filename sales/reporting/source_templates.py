@@ -154,8 +154,8 @@ def age_sex_analysis():
 def sex_model_color_analysis():
     config = model_analysis("sex")
     config.update(title="性別 X 車型顏色｜原報表核對版", page_order=130, include_records=True,
-                  records_page_size=50, records_columns=["color", "owner_name", "sex", "number"],
-                  description="四個車型分別依顏色／性別呈現，保留原車型條件、使用修正性別分類。附表目前以訂單明細核對；原表的證號顯示方式正在確認，分組與分頁尚待補齊，不視為完整驗收。")
+                  records_page_size=100, records_mode="population", records_columns=["color", "owner_name", "sex", "number"],
+                  description="四個車型分別依顏色／性別呈現，保留原車型條件、使用修正性別分類。附表依車色、車主、修正性別及證號分組，每頁100組；證號暫採遮罩安全預設，僅供admin核對，跨來源差異尚未完整驗收。")
     for card in config["cards"]:
         card.update(title=card["title"] + " X 顏色", chart="stacked", dimension="color", series="sex", limit=100,
                     series_limit=10, series_other=False, series_sort="value")

@@ -90,6 +90,9 @@ def record_cells(order, columns):
 
 
 def record_context(config, filters, page_number=1):
+    if config.get("records_mode") == "population":
+        from .population_table import population_context
+        return population_context(config, filters, page_number)
     columns = config.get("records_columns", DEFAULT_RECORD_COLUMNS)
     page = Paginator(record_queryset(config, filters), config.get("records_page_size", 10)).get_page(page_number)
     return {"records_page": page, "records_headers": [RECORD_COLUMNS[key] for key in columns],

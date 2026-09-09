@@ -83,7 +83,10 @@
   document.querySelector("[data-confirm-unpublish]")?.addEventListener("submit", event => {
     if (!window.confirm("確定取消發布？讀者將無法再查看此報表，草稿與歷史版本仍會保留。")) event.preventDefault();
   });
-  document.querySelectorAll('[data-chart="line"]').forEach(chart => {
+  renderReportLines(document);
+})();
+function renderReportLines(root) {
+  root.querySelectorAll('[data-chart="line"]').forEach(chart => {
     const rows = [...chart.querySelectorAll("[data-point-value]")];
     const points = rows.map(row => row.dataset.pointValue === "" ? null : Number(row.dataset.pointValue));
     const valid = points.filter(value => value !== null && Number.isFinite(value));
@@ -113,4 +116,4 @@
     label.textContent = `${rows[0].dataset.pointLabel} → ${rows.at(-1).dataset.pointLabel}（逐群數值詳見下表）`; svg.append(label);
     chart.querySelector("[data-line-chart]")?.append(svg);
   });
-})();
+}

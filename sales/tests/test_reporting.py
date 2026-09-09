@@ -448,6 +448,35 @@ class ReportingTests(TestCase):
         self.assertEqual(result["count"], 3)
         self.assertEqual(result["rows"][0]["label"], "2026/09/01")
 
+    def test_cross_filter_multiselect_union_and_candidate_preservation(self):
+        import json
+        from sales.reporting.views import results
+        from sales.reporting.records import record_context
+        card = {**self.config["cards"][0], "dimension": "source"}
+        config = {**self.config, "cards": [card, {**card, "dimension": "recipient"}], "include_records": True, "records_columns": ["number"]}
+        one = {"card": 0, "group": str(self.b.pk), "grain": ""}
+        both = {**one, "group": [str(self.a.pk), str(self.b.pk)]}
+        filters = {"focus": json.dumps([both])}
+        self.assertEqual(card_result(config, card, filters)["count"], 3)
+        filters = {"focus": json.dumps([both, {"card": 1, "group": str(self.a.pk), "grain": ""}])}
+        self.assertEqual(card_result(config, card, filters)["count"], 2)
+        self.assertEqual(record_context(config, filters)["records_page"].paginator.count, 2)
+        filters = {"focus": json.dumps([one])}
+        candidates = results(config, filters, retain_candidates=True)
+        self.assertEqual(candidates[0]["count"], 3)
+        self.assertTrue(candidates[0]["retained_candidates"])
+        self.assertEqual(candidates[1]["count"], 2)
+        self.assertFalse(candidates[1]["retained_candidates"])
+        config["fixed_filters"] = {"source": [str(self.a.pk)]}
+        self.assertEqual(card_result(config, card, {"focus": json.dumps([both])})["count"], 1)
+
+    def test_cross_filter_multiselect_is_bounded_and_typed(self):
+        import json
+        from sales.reporting.cross_filter import selections
+        for groups in ([], ["a"] * 2, list(map(str, range(21))), [None], [["a"]], ["__all__"], ["o:test"]):
+            with self.subTest(groups=groups), self.assertRaises(ValidationError):
+                selections(json.dumps([{"card": 0, "group": groups, "grain": ""}]))
+
     def test_cross_filter_rejects_unbounded_or_ambiguous_selection(self):
         import json
         from sales.reporting.cross_filter import selections

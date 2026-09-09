@@ -1,6 +1,18 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const {reportPointText, reportFraction, reportScopeCount, reportPageRange} = require('../../static/js/report-interactions.js');
+const {reportToggleSelection} = require('../../static/js/report-interactions.js');
+
+test('圖表單選、重點取消、複選聯集與移除保留其他圖條件', () => {
+  const other = {card:1, group:'B', grain:''};
+  let chosen = reportToggleSelection([other], 0, 'A', '', false);
+  assert.deepEqual(reportToggleSelection(chosen, 0, 'A', '', false), [other]);
+  chosen = reportToggleSelection(chosen, 0, 'C', '', true);
+  assert.deepEqual(chosen[1].group, ['A','C']);
+  assert.equal(reportToggleSelection(chosen, 0, 'A', '', true)[1].group, 'C');
+  assert.equal(reportToggleSelection(chosen, 0, 'D', 'year', true)[1].group, 'D');
+  assert.throws(() => reportToggleSelection([{card:0,group:Array.from({length:20},(_,i)=>String(i)),grain:''}],0,'extra','',true), /20/);
+});
 
 test('彙總分頁不遺漏尾頁，切換筆數及非法頁碼有界限', () => {
   assert.deepEqual(reportPageRange(51, 25, 3), {page:3, pages:3, start:50, end:51});

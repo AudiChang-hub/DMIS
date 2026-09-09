@@ -18,8 +18,15 @@ function reportPageRange(total, size, requested) {
   const page = Math.max(1, Math.min(pages, Number.isInteger(requested) ? requested : 1));
   return {page, pages, start: (page - 1) * size, end: Math.min(total, page * size)};
 }
-if (typeof module !== "undefined" && module.exports) module.exports = {reportPointText, reportFraction, reportScopeCount, reportPageRange};
-(() => {
+function reportToggleSelection(selected, card, group, grain, multiple) {
+  const previous = selected.find(item => item.card === card);
+  const groups = previous && previous.grain === grain ? [].concat(previous.group) : [];
+  const next = multiple ? (groups.includes(group) ? groups.filter(value => value !== group) : [...groups, group]) : (groups.length === 1 && groups[0] === group ? [] : [group]);
+  if (next.length > 20) throw new Error("同一張圖最多選取 20 個分類。");
+  return [...selected.filter(item => item.card !== card), ...(next.length ? [{card, group:next.length === 1 ? next[0] : next, grain}] : [])];
+}
+if (typeof module !== "undefined" && module.exports) module.exports = {reportPointText, reportFraction, reportScopeCount, reportPageRange, reportToggleSelection};
+function initReportVisuals(root) {
   "use strict";
   if (typeof document === "undefined") return;
   const updateScope = scope => {
@@ -51,11 +58,10 @@ if (typeof module !== "undefined" && module.exports) module.exports = {reportPoi
       if (control.open) document.querySelectorAll("[data-report-multi]").forEach(other => { if (other !== control) other.open = false; });
     });
     control.addEventListener("keydown", event => { if (event.key === "Escape") { control.open = false; control.querySelector("summary").focus(); } });
-    document.addEventListener("click", event => { if (!control.contains(event.target)) control.open = false; });
     update();
   });
-  initMulti(document);
-  document.addEventListener("input", event => {
+  initMulti(root);
+  root.addEventListener("input", event => {
     const scope = event.target.closest(".report-card-scope");
     if (!scope || event.target.tagName !== "TEXTAREA") return;
     updateScope(scope);
@@ -63,7 +69,7 @@ if (typeof module !== "undefined" && module.exports) module.exports = {reportPoi
   const editorCards = document.querySelector("[data-report-cards]");
   if (editorCards) new MutationObserver(() => initMulti(editorCards)).observe(editorCards, {childList:true});
 
-  document.querySelectorAll('[data-chart="table"] table.report-results').forEach(table => {
+  root.querySelectorAll('[data-chart="table"] table.report-results').forEach(table => {
     const rows = [...table.tBodies[0].rows];
     if (rows.length <= 10) return;
     let page = 1;
@@ -89,13 +95,14 @@ if (typeof module !== "undefined" && module.exports) module.exports = {reportPoi
   });
 
   const palette = ["#4257a5", "#278168", "#b65b33", "#9269af", "#28789d", "#a86e11", "#b3446c", "#5c6b78"];
-  document.querySelectorAll(".report-chart").forEach((chart, chartIndex) => {
+  root.querySelectorAll(".report-chart").forEach((chart, chartIndex) => {
     const rows = [...chart.querySelectorAll("[data-point-value]")];
     const tip = document.createElement("div");
     tip.className = "report-point-tooltip"; tip.id = `report-tooltip-${chartIndex}`; tip.setAttribute("role", "tooltip"); tip.hidden = true; chart.append(tip);
     const describe = row => reportPointText(row.dataset, chart.dataset.metricLabel);
-    const attach = (target, row) => {
-      const link = row.querySelector("[data-report-drill]");
+      const attach = (target, row) => {
+        const link = row.querySelector("[data-report-drill]");
+        if (link) target.dataset.selectionGroup = new URL(link.href).searchParams.get("group");
       target.setAttribute("tabindex", "0"); target.setAttribute("role", link ? "button" : "img");
       target.setAttribute("aria-label", describe(row)); target.setAttribute("aria-describedby", tip.id);
       const show = event => {
@@ -111,8 +118,8 @@ if (typeof module !== "undefined" && module.exports) module.exports = {reportPoi
       target.addEventListener("blur", () => { tip.hidden = true; });
       target.addEventListener("click", event => {
         if (link && link.contains(event.target)) { tip.hidden = true; return; }
-        if (event.pointerType === "touch") { show(event); return; }
-        tip.hidden = true; link?.click();
+        tip.hidden = true;
+        link?.dispatchEvent(new MouseEvent("click", {bubbles:true, cancelable:true, ctrlKey:event.ctrlKey, metaKey:event.metaKey, shiftKey:event.shiftKey}));
       });
       target.addEventListener("keydown", event => {
         if (event.key === "Escape") tip.hidden = true;
@@ -167,12 +174,102 @@ if (typeof module !== "undefined" && module.exports) module.exports = {reportPoi
     chart.addEventListener("keydown", event => { if (event.key === "Escape") { chart.classList.remove("report-chart-expanded"); const button = chart.querySelector("[data-chart-fullscreen]"); if (button) button.textContent = "放大圖表"; } });
   });
 
+}
+if (typeof document !== "undefined") initReportVisuals(document);
+(() => {
+  if (typeof document === "undefined") return;
+  document.addEventListener("click", event => {
+    document.querySelectorAll("[data-report-multi]").forEach(control => { if (!control.contains(event.target)) control.open = false; });
+  });
   const panel = document.querySelector("[data-inline-detail]");
   if (!panel) return;
   let controller, sequence = 0, currentUrl = null;
   const body = panel.querySelector("[data-detail-body]");
   const status = panel.querySelector("[data-detail-status]");
   const selection = panel.querySelector("[data-detail-selection]");
+  let updateController, updateSequence = 0, desiredUrl = new URL(location.href), failedUrl;
+  const reader = document.querySelector(".report-reader-main");
+  const updateStatus = reader.querySelector("[data-report-update-status]");
+  const retry = reader.querySelector("[data-report-retry]");
+  const selectedItems = () => { try { return JSON.parse(desiredUrl.searchParams.get("focus") || "[]"); } catch { return []; } };
+  function paintSelection() {
+    const selected = selectedItems();
+    reader.querySelectorAll("[data-report-drill]").forEach(link => {
+      const card = Number(link.closest("[data-chart-index]")?.dataset.chartIndex);
+      const group = new URL(link.href).searchParams.get("group");
+      const active = selected.some(item => item.card === card && [].concat(item.group).includes(group));
+        link.setAttribute("role", "button");
+        link.setAttribute("aria-pressed", String(active));
+        (link.closest("[data-point-value]") || link).classList.toggle("report-row-selected", active);
+      });
+      reader.querySelectorAll("[data-selection-group]").forEach(target => {
+        const card = Number(target.closest("[data-chart-index]")?.dataset.chartIndex);
+        const active = selected.some(item => item.card === card && [].concat(item.group).includes(target.dataset.selectionGroup));
+        target.setAttribute("aria-pressed", String(active));
+        target.classList.toggle("report-point-selected", active);
+      });
+  }
+  async function updateReport(url, push = true) {
+    updateController?.abort(); updateController = new AbortController();
+    const own = updateController, ticket = ++updateSequence;
+    desiredUrl = new URL(url, location.href); failedUrl = desiredUrl.href;
+    const target = desiredUrl.href;
+    reader.setAttribute("aria-busy", "true"); updateStatus.textContent = "正在連動更新…"; retry.hidden = true;
+    const timer = setTimeout(() => own.abort(), 20000);
+    try {
+      const response = await fetch(target, {signal:own.signal, credentials:"same-origin", headers:{"X-Requested-With":"XMLHttpRequest"}});
+      if (!response.ok || response.redirected) throw new Error(response.status === 409 ? "報表版本已更新，請重新整理後再操作。" : "更新失敗，請確認登入與查看權限。");
+      const doc = new DOMParser().parseFromString(await response.text(), "text/html");
+      const next = doc.querySelector(".report-reader-main"), nextGrid = next?.querySelector(".report-grid");
+      if (!nextGrid || next.querySelector('[role="alert"]') || next.querySelector(".errorlist")) throw new Error("篩選無法套用，請檢查條件或重新整理。");
+      if (ticket !== updateSequence) return;
+      const grid = reader.querySelector(".report-grid");
+      grid.replaceWith(document.importNode(nextGrid, true));
+      for (const selector of [".report-context", "[data-report-selection-tags]"]) {
+        reader.querySelector(selector).replaceWith(document.importNode(next.querySelector(selector), true));
+      }
+      const oldRecords = reader.querySelector(".report-record-panel"), newRecords = next.querySelector(".report-record-panel");
+      if (newRecords) {
+        const imported = document.importNode(newRecords, true);
+        if (oldRecords) oldRecords.replaceWith(imported); else reader.querySelector("[data-report-exploration]").after(imported);
+      } else oldRecords?.remove();
+      const currentForm = reader.querySelector('.report-filter'), nextForm = next.querySelector('.report-filter');
+      for (const field of currentForm.elements) {
+        if (!field.name) continue;
+        const sources = [...nextForm.elements].filter(input => input.name === field.name);
+        if (field.type === 'checkbox' || field.type === 'radio') field.checked = sources.some(input => input.value === field.value && input.checked);
+        else if (sources.length) field.value = sources[0].value;
+      }
+      currentForm.querySelectorAll('[data-report-multi]').forEach(control => control.dispatchEvent(new Event('change', {bubbles:true})));
+      currentForm.querySelector('.report-advanced-filter summary').textContent = nextForm.querySelector('.report-advanced-filter summary').textContent;
+      ++sequence; controller?.abort(); panel.hidden = true; body.replaceChildren();
+      reader.querySelector("[data-report-exploration]").classList.remove("has-detail");
+      const newGrid = reader.querySelector(".report-grid");
+      renderReportLines(newGrid); initReportVisuals(newGrid); paintSelection();
+      if (push) history.pushState(null, "", target);
+      updateStatus.textContent = "圖表與表格已同步更新";
+      } catch (error) {
+        if (ticket !== updateSequence) return;
+        desiredUrl = new URL(location.href);
+        updateStatus.textContent = error.name === "AbortError" ? "更新逾時，保留上次成功畫面；請重試。" : error.message;
+      retry.hidden = false;
+    } finally { clearTimeout(timer); if (ticket === updateSequence) reader.removeAttribute("aria-busy"); }
+  }
+  paintSelection();
+  retry.addEventListener("click", () => updateReport(failedUrl));
+  window.addEventListener("popstate", () => updateReport(location.href, false));
+  document.addEventListener("click", event => {
+    const clear = event.target.closest("[data-report-clear-filter],.report-filter-actions a,.report-record-panel .report-pagination a");
+    if (clear && !event.ctrlKey && !event.metaKey) { event.preventDefault(); updateReport(clear.href); }
+  });
+  reader.addEventListener("submit", event => {
+    const form = event.target;
+    if (!form.matches(".report-filter,.report-card-filters")) return;
+    event.preventDefault();
+    const target = new URL(form.getAttribute("action") || location.pathname, location.href);
+    target.search = new URLSearchParams(new FormData(form)).toString();
+    updateReport(target);
+  });
   async function loadDetail(url, label) {
     controller?.abort(); controller = new AbortController(); const ownController = controller; const ticket = ++sequence;
     panel.hidden = false; panel.setAttribute("aria-busy", "true"); status.textContent = "正在讀取明細…";
@@ -196,23 +293,26 @@ if (typeof module !== "undefined" && module.exports) module.exports = {reportPoi
     } finally { clearTimeout(timeout); if (ticket === sequence) panel.removeAttribute("aria-busy"); }
   }
   document.addEventListener("click", event => {
-    const link = event.target.closest("a[data-report-drill],a[data-detail-page]");
-    if (!link || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey || event.button) return;
+    const link = event.target.closest("a[data-report-drill],a[data-detail-page],a[data-report-open-detail]");
+    if (!link || event.altKey || event.button || (!link.matches('[data-report-drill]') && (event.ctrlKey || event.metaKey || event.shiftKey))) return;
     event.preventDefault();
+    if (link.matches("[data-report-open-detail]")) { loadDetail(link.href, "目前篩選的來源訂單"); return; }
     if (link.matches("[data-report-drill]")) {
-      if (document.querySelector("[data-report-click-mode]")?.value === "filter") {
+      if (updateStatus) {
         const target = new URL(link.href);
         const group = target.searchParams.get("group");
         if (!group?.startsWith("o:")) {
-          const filters = new URLSearchParams(target.search);
+          const filters = new URLSearchParams(desiredUrl.search);
+          filters.set("revision", target.searchParams.get("revision"));
           let selected;
           try { selected = JSON.parse(filters.get("focus") || "[]"); } catch { selected = []; }
           const index = Number(link.closest("[data-chart-index]").dataset.chartIndex);
-          selected = selected.filter(item => item.card !== index);
-          selected.push({card:index, group, grain:filters.get(`grain_${index}`) || filters.get("grain") || ""});
+          try {
+            selected = reportToggleSelection(selected, index, group, filters.get(`grain_${index}`) || filters.get("grain") || "", event.ctrlKey || event.metaKey || event.shiftKey || reader.querySelector("[data-report-multiple]").checked);
+          } catch (error) { updateStatus.textContent = error.message; return; }
           filters.set("focus", JSON.stringify(selected));
           filters.delete("group"); filters.delete("inline"); filters.delete("records_page");
-          location.assign(`${location.pathname}?${filters.toString()}`);
+          updateReport(`${location.pathname}?${filters.toString()}`);
           return;
         }
         // 動態 Top N 的其他集合不冒充穩定分類，保留既有的精確下鑽。
@@ -228,4 +328,5 @@ if (typeof module !== "undefined" && module.exports) module.exports = {reportPoi
     document.querySelector("[data-report-exploration]").classList.remove("has-detail");
     const selected = document.querySelector(".report-row-selected"); selected?.querySelector("a")?.focus(); selected?.classList.remove("report-row-selected");
   });
+  document.addEventListener('keydown', event => { if (event.key === 'Escape' && !panel.hidden) panel.querySelector('[data-detail-clear]').click(); });
 })();

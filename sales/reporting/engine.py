@@ -303,8 +303,12 @@ def base_query(config, filters, card=None):
             raise ValidationError("選取圖表已不存在，請清除選取後再試。")
         selection_filters = {key: value for key, value in filters.items() if key != "focus" and not key.startswith("_")}
         selection_filters["grain"] = selected["grain"]
-        subset = drill_query(config, config["cards"][selected["card"]], selection_filters, selected["group"])
-        queryset = queryset.filter(pk__in=subset.values("pk"))
+        groups = selected["group"] if isinstance(selected["group"], list) else [selected["group"]]
+        alternatives = Q()
+        for group in groups:
+            subset = drill_query(config, config["cards"][selected["card"]], selection_filters, group)
+            alternatives |= Q(pk__in=subset.values("pk"))
+        queryset = queryset.filter(alternatives)
     return queryset
 
 

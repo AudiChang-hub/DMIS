@@ -9,10 +9,24 @@ function reportFraction(value, total) {
   if (!Number.isFinite(Number(value)) || !Number.isFinite(Number(total)) || Number(total) <= 0) return 0;
   return Math.max(0, Math.min(100, Number(value) / Number(total) * 100));
 }
-if (typeof module !== "undefined" && module.exports) module.exports = {reportPointText, reportFraction};
+function reportScopeCount(selected, texts) {
+  return selected + texts.reduce((sum, text) => sum + new Set(text.split(/\r?\n/).map(line => line.trim()).filter(Boolean)).size, 0);
+}
+function reportPageRange(total, size, requested) {
+  size = [10, 25, 50, 100].includes(size) ? size : 25;
+  const pages = Math.max(1, Math.ceil(total / size));
+  const page = Math.max(1, Math.min(pages, Number.isInteger(requested) ? requested : 1));
+  return {page, pages, start: (page - 1) * size, end: Math.min(total, page * size)};
+}
+if (typeof module !== "undefined" && module.exports) module.exports = {reportPointText, reportFraction, reportScopeCount, reportPageRange};
 (() => {
   "use strict";
   if (typeof document === "undefined") return;
+  const updateScope = scope => {
+    const count = reportScopeCount(scope.querySelectorAll('input[type="checkbox"]:checked').length,
+      [...scope.querySelectorAll('textarea')].map(field => field.value));
+    scope.querySelector("[data-scope-count]").textContent = count ? `已選 ${count} 項` : "沿用報表範圍";
+  };
   const initMulti = root => root.querySelectorAll("[data-report-multi]").forEach(control => {
     if (control.dataset.multiReady) return;
     control.dataset.multiReady = "true";
@@ -21,10 +35,7 @@ if (typeof module !== "undefined" && module.exports) module.exports = {reportPoi
       const selected = inputs.filter(input => input.checked);
       control.querySelector("[data-multi-summary]").textContent = selected.length ? `已選 ${selected.length} 項` : "不限（可複選）";
       const scope = control.closest(".report-card-scope");
-      if (scope) {
-        const count = scope.querySelectorAll('input[type="checkbox"]:checked').length;
-        scope.querySelector("[data-scope-count]").textContent = count ? `已選 ${count} 項` : "沿用報表範圍";
-      }
+      if (scope) updateScope(scope);
     };
     control.addEventListener("change", update);
     control.querySelector("[data-multi-search]").addEventListener("input", event => {
@@ -44,8 +55,38 @@ if (typeof module !== "undefined" && module.exports) module.exports = {reportPoi
     update();
   });
   initMulti(document);
+  document.addEventListener("input", event => {
+    const scope = event.target.closest(".report-card-scope");
+    if (!scope || event.target.tagName !== "TEXTAREA") return;
+    updateScope(scope);
+  });
   const editorCards = document.querySelector("[data-report-cards]");
   if (editorCards) new MutationObserver(() => initMulti(editorCards)).observe(editorCards, {childList:true});
+
+  document.querySelectorAll('[data-chart="table"] table.report-results').forEach(table => {
+    const rows = [...table.tBodies[0].rows];
+    if (rows.length <= 10) return;
+    let page = 1;
+    const nav = document.createElement("nav"); nav.className = "report-pagination";
+    nav.setAttribute("aria-label", "彙總表分頁");
+    const sizeLabel = document.createElement("label"); sizeLabel.textContent = "每頁群組 ";
+    const size = document.createElement("select"); size.setAttribute("aria-label", "彙總表每頁群組");
+    [10, 25, 50, 100].forEach(value => { const option = document.createElement("option"); option.value = value; option.textContent = value; size.append(option); });
+    size.value = "25"; sizeLabel.append(size);
+    const previous = document.createElement("button"), next = document.createElement("button"), status = document.createElement("span");
+    previous.type = next.type = "button"; previous.className = next.className = "button secondary";
+    previous.textContent = "上一頁"; next.textContent = "下一頁"; status.setAttribute("aria-live", "polite");
+    const render = () => {
+      const range = reportPageRange(rows.length, Number(size.value), page); page = range.page;
+      rows.forEach((row, index) => { row.hidden = index < range.start || index >= range.end; });
+      status.textContent = `第 ${page}／${range.pages} 頁 · 顯示第 ${range.start + 1}–${range.end} 群，共 ${rows.length} 群`;
+      previous.disabled = page === 1; next.disabled = page === range.pages;
+    };
+    previous.addEventListener("click", () => { page--; render(); });
+    next.addEventListener("click", () => { page++; render(); });
+    size.addEventListener("change", () => { page = 1; render(); });
+    nav.append(sizeLabel, previous, status, next); table.closest(".report-table-wrap").after(nav); render();
+  });
 
   const palette = ["#4257a5", "#278168", "#b65b33", "#9269af", "#28789d", "#a86e11", "#b3446c", "#5c6b78"];
   document.querySelectorAll(".report-chart").forEach((chart, chartIndex) => {

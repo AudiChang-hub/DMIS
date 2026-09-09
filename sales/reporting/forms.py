@@ -2,7 +2,7 @@ from django import forms
 from django.forms import formset_factory
 
 from sales.models import SalesOrder, SalesSource, VehicleModel
-from .engine import CHARTS, DIMENSIONS, METRICS, NAVIGATION_GROUPS, SCOPE_LABELS, formula_tree, validate_scope
+from .engine import CHARTS, DIMENSIONS, METRICS, NAVIGATION_GROUPS, SCOPE_LABELS, MODEL_TEXT_SCOPES, formula_tree, validate_scope
 from .records import RECORD_COLUMNS, DEFAULT_RECORD_COLUMNS
 from .source_compatibility import SOURCE_CLASSIFICATIONS, MODEL_PRESENCE, SOURCE_ENERGIES
 
@@ -20,10 +20,17 @@ class ScopeForm(forms.Form):
             "legacy_source": [(label, label) for label in SOURCE_CLASSIFICATIONS],
             "model_presence": list(MODEL_PRESENCE.items()),
             "legacy_energy": [(label, label) for label in SOURCE_ENERGIES],
+            "age_scope": [("adult_or_unknown", "20 歲以上，另列生日未填、生日異常及公司或其他")],
         }
         scope = self.initial.get("fixed_filters", {})
         validate_scope(scope)
         for key, label in SCOPE_LABELS.items():
+            if key in MODEL_TEXT_SCOPES:
+                self.fields["fixed_" + key] = forms.CharField(label=label, required=False, max_length=20200,
+                    widget=forms.Textarea(attrs={"rows": 2}), help_text=("區分大小寫；任何一項完整符合即排除。" if key == "model_exclude"
+                    else "區分大小寫；同欄任一項符合即可，不同欄取交集。"))
+                self.initial["fixed_" + key] = "\n".join(scope.get(key, []))
+                continue
             options = list(choices[key])
             known = {value for value, _ in options}
             # 保留已刪除主檔的固定限制；重新開啟儲存不可變成不限。
@@ -38,7 +45,21 @@ class ScopeForm(forms.Form):
         return [self["fixed_" + key] for key in SCOPE_LABELS]
 
     def scope_count(self):
-        return sum(len(field.value() or []) for field in self.scope_fields())
+        return sum(len((field.value() or "").splitlines()) if field.name.removeprefix("fixed_") in MODEL_TEXT_SCOPES
+                   else len(field.value() or []) for field in self.scope_fields())
+
+    def clean(self):
+        cleaned = super().clean()
+        for key in MODEL_TEXT_SCOPES:
+            name = "fixed_" + key
+            values = list(dict.fromkeys(line.strip() for line in cleaned.get(name, "").splitlines() if line.strip()))
+            try:
+                validate_scope({key: values})
+            except forms.ValidationError as error:
+                self.add_error(name, error)
+            else:
+                cleaned[name] = values
+        return cleaned
 
     def scope_data(self):
         return {key: self.cleaned_data["fixed_" + key] for key in SCOPE_LABELS if self.cleaned_data.get("fixed_" + key)}

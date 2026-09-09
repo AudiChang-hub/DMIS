@@ -3,6 +3,27 @@ const assert = require('node:assert/strict');
 const {reportPointText, reportFraction, reportScopeCount, reportPageRange} = require('../../static/js/report-interactions.js');
 const {reportToggleSelection} = require('../../static/js/report-interactions.js');
 const {reportAxisMaximum} = require('../../static/js/report-interactions.js');
+const {reportDebounce} = require('../../static/js/report-interactions.js');
+
+test('連續複選只送最後完整條件，取消待送查詢不留下舊操作', () => {
+  const jobs = new Map(); let id = 0; const received = [];
+  const timers = {setTimeout(fn) { jobs.set(++id, fn); return id; }, clearTimeout(key) { jobs.delete(key); }};
+  const queue = reportDebounce(value => received.push(value), 300, timers);
+  let selected = [];
+  for (const group of ['A', 'B', 'C']) {
+    selected = reportToggleSelection(selected, 0, group, '', true);
+    queue.schedule(selected);
+  }
+  assert.equal(jobs.size, 1);
+  [...jobs.values()][0]();
+  assert.deepEqual(received[0][0].group, ['A', 'B', 'C']);
+  queue.schedule('過時條件'); queue.cancel();
+  assert.equal(jobs.size, 0);
+});
+
+test('候選圖提示明確標示占比基準，不冒充套用所有篩選', () => {
+  assert.match(reportPointText({pointLabel:'車行',pointDisplay:'20',pointCount:'20',pointPercentage:25,pointScope:'候選分類範圍'},'訂單台數'), /占候選分類範圍：25.0%/);
+});
 
 test('銷售座標軸涵蓋最大值，空資料與非數值安全且台數刻度為整數', () => {
   for (const values of [[], [0], [1,7], [NaN, 25], [255], [1,9999]]) {

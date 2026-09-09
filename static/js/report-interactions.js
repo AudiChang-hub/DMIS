@@ -2,7 +2,7 @@
 function reportPointText(data, metric) {
   let text = `${data.pointLabel}\n${metric}：${data.pointDisplay}`;
   if (metric !== "訂單台數") text += `\n訂單台數：${data.pointCount}`;
-  if (data.pointPercentage !== "" && Number.isFinite(Number(data.pointPercentage))) text += `\n占完整篩選範圍：${Number(data.pointPercentage).toFixed(1)}%`;
+  if (data.pointPercentage !== "" && Number.isFinite(Number(data.pointPercentage))) text += `\n占${data.pointScope || '完整篩選範圍'}：${Number(data.pointPercentage).toFixed(1)}%`;
   return text;
 }
 function reportFraction(value, total) {
@@ -32,7 +32,14 @@ function reportAxisMaximum(values) {
   const step = [1, 2, 5, 10].find(value => value * power >= rough) * power;
   return Math.max(4, Math.ceil(step) * 4);
 }
-if (typeof module !== "undefined" && module.exports) module.exports = {reportPointText, reportFraction, reportScopeCount, reportPageRange, reportToggleSelection, reportAxisMaximum};
+function reportDebounce(run, delay = 300, timers = globalThis) {
+  let timer;
+  return {
+    cancel() { timers.clearTimeout(timer); },
+    schedule(value) { timers.clearTimeout(timer); timer = timers.setTimeout(() => run(value), delay); }
+  };
+}
+if (typeof module !== "undefined" && module.exports) module.exports = {reportPointText, reportFraction, reportScopeCount, reportPageRange, reportToggleSelection, reportAxisMaximum, reportDebounce};
 function initReportVisuals(root) {
   "use strict";
   if (typeof document === "undefined") return;
@@ -130,7 +137,7 @@ function initReportVisuals(root) {
       });
       target.addEventListener("keydown", event => {
         if (event.key === "Escape") tip.hidden = true;
-        if (link && (event.key === "Enter" || event.key === " ")) { event.preventDefault(); tip.hidden = true; link.click(); }
+        if (link && (event.key === "Enter" || event.key === " ")) { event.preventDefault(); tip.hidden = true; link.dispatchEvent(new MouseEvent('click', {bubbles:true, cancelable:true, ctrlKey:event.ctrlKey, metaKey:event.metaKey, shiftKey:event.shiftKey})); }
       });
     };
     rows.forEach(row => {
@@ -144,6 +151,10 @@ function initReportVisuals(root) {
     });
     const overview = chart.closest('.report-sales-overview');
     if (overview) {
+      rows.forEach(row => {
+        row.dataset.pointScope = chart.querySelector('.report-candidate-note') ? '候選分類範圍' : '完整篩選範圍';
+        if (row.hasAttribute('data-stack-segment')) row.dataset.pointPercentage = reportFraction(row.dataset.pointValue, chart.dataset.total);
+      });
       const explanation = overview.querySelector('.report-reader-description');
       chart.querySelectorAll('.report-notice').forEach(note => {
         if (!note.textContent.trim().startsWith('比對用分類：')) return;
@@ -157,7 +168,7 @@ function initReportVisuals(root) {
       const groups = [...stacks.querySelectorAll('.report-stack-row')];
       if (groups.length) {
         const ns = 'http://www.w3.org/2000/svg', svg = document.createElementNS(ns, 'svg');
-        const width = 600, left = 92, right = 28, top = 8, rowHeight = 20;
+        const width = 600, left = 108, right = 28, top = 8, rowHeight = 26;
         const bottom = top + rowHeight * groups.length, plotWidth = width - left - right;
         const totals = [...chart.querySelectorAll('.report-results tr[data-point-value]')].map(row => Number(row.dataset.pointValue));
         const maximum = reportAxisMaximum(totals);
@@ -172,26 +183,25 @@ function initReportVisuals(root) {
         for (let index = 0; index <= 4; index++) {
           const x = left + plotWidth * index / 4;
           element('line', {x1:x,x2:x,y1:top,y2:bottom,stroke:'var(--line)'});
-          element('text', {x,y:bottom+20,'text-anchor':'middle',fill:'currentColor','font-size':11}, String(maximum * index / 4));
+          element('text', {x,y:bottom+22,'text-anchor':'middle',fill:'currentColor','font-size':17}, String(maximum * index / 4));
         }
         groups.forEach((group, index) => {
           const y = top + index * rowHeight;
-          element('text', {x:left-8,y:y+16,'text-anchor':'end',fill:'currentColor','font-size':11}, group.querySelector('.report-stack-caption strong').textContent);
+          element('text', {x:left-8,y:y+20,'text-anchor':'end',fill:'currentColor','font-size':17}, group.querySelector('.report-stack-caption strong').textContent);
           let offset = 0;
           group.querySelectorAll('[data-stack-segment]').forEach(segment => {
             const value = Number(segment.dataset.pointValue || 0), segmentWidth = Math.max(0, value) / maximum * plotWidth;
             if (!segmentWidth) return;
-            const rect = element('rect', {x:left+offset,y:y+2,width:segmentWidth,height:17,fill:segment.style.backgroundColor});
+            const rect = element('rect', {x:left+offset,y:y+2,width:segmentWidth,height:23,fill:segment.style.backgroundColor});
             attach(rect, segment);
-            if (segmentWidth >= 18) element('text', {x:left+offset+segmentWidth/2,y:y+16,'text-anchor':'middle',fill:'#fff','font-size':10,'pointer-events':'none'}, segment.dataset.pointDisplay);
+            if (segmentWidth >= String(segment.dataset.pointDisplay).length * 11 + 8) element('text', {x:left+offset+segmentWidth/2,y:y+20,'text-anchor':'middle',fill:'#fff','font-size':17,'pointer-events':'none'}, segment.dataset.pointDisplay);
             offset += segmentWidth;
           });
         });
         stacks.before(svg);
       }
-      const alternative = document.createElement('details'); alternative.className = 'report-chart-data';
-      const summary = document.createElement('summary'); summary.textContent = '查看分類與細分數字';
-      stacks.before(alternative); alternative.append(summary, stacks);
+      // 已有可聚焦的圖形及提示；保留原 DOM 作為連結來源，不重複呈現展開操作。
+      stacks.hidden = true;
     }
     if (chart.dataset.chart === "line") {
       const validRows = rows.filter(row => row.dataset.pointValue !== "" && Number.isFinite(Number(row.dataset.pointValue)));
@@ -236,9 +246,7 @@ function initReportVisuals(root) {
         chart.querySelector('[data-line-chart]').before(legend);
       }
       if (table) {
-        const detail = document.createElement('details'), summary = document.createElement('summary');
-        detail.className = 'report-chart-data'; summary.textContent = '查看圖表資料';
-        table.before(detail); detail.append(summary, table);
+        if (['stacked', 'donut'].includes(chart.dataset.chart)) table.hidden = true;
       }
     }
     chart.querySelector("[data-chart-fullscreen]")?.addEventListener("click", () => {
@@ -263,14 +271,24 @@ if (typeof document !== "undefined") initReportVisuals(document);
   const body = panel.querySelector("[data-detail-body]");
   const status = panel.querySelector("[data-detail-status]");
   const selection = panel.querySelector("[data-detail-selection]");
-  let updateController, updateSequence = 0, desiredUrl = new URL(location.href), failedUrl;
+  let updateController, updateSequence = 0, desiredUrl = new URL(location.href), failedUrl, syncingFilters = false;
+  const selectionQueue = reportDebounce(url => updateReport(url));
   const reader = document.querySelector(".report-reader-main");
+  const overview = reader.classList.contains('report-sales-overview');
+  if (overview && matchMedia('(pointer: coarse)').matches) reader.querySelector('[data-report-selection-hint]').textContent = '點選查看數字並連動 · 連點複選 · 再點取消';
   if (reader.classList.contains('report-sales-overview')) {
     const description = reader.querySelector('.report-reader-description');
     reader.querySelectorAll(':scope > .report-context,:scope > .report-scope-summary').forEach(item => description.append(item));
   }
   const updateStatus = reader.querySelector("[data-report-update-status]");
   const retry = reader.querySelector("[data-report-retry]");
+  function queueOverviewUpdate(url, message) {
+    ++updateSequence; updateController?.abort(); selectionQueue.cancel();
+    desiredUrl = new URL(url, location.href); paintSelection();
+    reader.setAttribute('aria-busy', 'true'); retry.hidden = true;
+    updateStatus.textContent = message;
+    selectionQueue.schedule(desiredUrl.href);
+  }
   const selectedItems = () => { try { return JSON.parse(desiredUrl.searchParams.get("focus") || "[]"); } catch { return []; } };
   function paintSelection() {
     const selected = selectedItems();
@@ -290,6 +308,7 @@ if (typeof document !== "undefined") initReportVisuals(document);
       });
   }
   async function updateReport(url, push = true) {
+    selectionQueue.cancel();
     updateController?.abort(); updateController = new AbortController();
     const own = updateController, ticket = ++updateSequence;
     desiredUrl = new URL(url, location.href); failedUrl = desiredUrl.href;
@@ -304,6 +323,10 @@ if (typeof document !== "undefined") initReportVisuals(document);
       if (!nextGrid || next.querySelector('[role="alert"]') || next.querySelector(".errorlist")) throw new Error("篩選無法套用，請檢查條件或重新整理。");
       if (ticket !== updateSequence) return;
       const grid = reader.querySelector(".report-grid");
+      const focused = document.activeElement;
+      const focusPoint = overview && grid.contains(focused) && focused.dataset.selectionGroup ? {
+        card: focused.closest('[data-chart-index]').dataset.chartIndex, group: focused.dataset.selectionGroup
+      } : null;
       grid.replaceWith(document.importNode(nextGrid, true));
       for (const selector of [".report-context", "[data-report-selection-tags]"]) {
         reader.querySelector(selector).replaceWith(document.importNode(next.querySelector(selector), true));
@@ -320,17 +343,24 @@ if (typeof document !== "undefined") initReportVisuals(document);
         if (field.type === 'checkbox' || field.type === 'radio') field.checked = sources.some(input => input.value === field.value && input.checked);
         else if (sources.length) field.value = sources[0].value;
       }
-      currentForm.querySelectorAll('[data-report-multi]').forEach(control => control.dispatchEvent(new Event('change', {bubbles:true})));
+      syncingFilters = true;
+      try { currentForm.querySelectorAll('[data-report-multi]').forEach(control => control.dispatchEvent(new Event('change', {bubbles:true}))); }
+      finally { syncingFilters = false; }
       currentForm.querySelector('.report-advanced-filter summary').textContent = nextForm.querySelector('.report-advanced-filter summary').textContent;
       ++sequence; controller?.abort(); panel.hidden = true; body.replaceChildren();
       reader.querySelector("[data-report-exploration]").classList.remove("has-detail");
       const newGrid = reader.querySelector(".report-grid");
       renderReportLines(newGrid); initReportVisuals(newGrid); paintSelection();
+      if (focusPoint) {
+        const replacement = [...newGrid.querySelectorAll('[data-selection-group]')].find(point => point.dataset.selectionGroup === focusPoint.group && point.closest('[data-chart-index]').dataset.chartIndex === focusPoint.card);
+        replacement?.focus({preventScroll:true});
+      }
       if (push) history.pushState(null, "", target);
       updateStatus.textContent = "圖表與表格已同步更新";
       } catch (error) {
         if (ticket !== updateSequence) return;
         desiredUrl = new URL(location.href);
+        paintSelection();
         updateStatus.textContent = error.name === "AbortError" ? "更新逾時，保留上次成功畫面；請重試。" : error.message;
       retry.hidden = false;
     } finally { clearTimeout(timer); if (ticket === updateSequence) reader.removeAttribute("aria-busy"); }
@@ -338,6 +368,14 @@ if (typeof document !== "undefined") initReportVisuals(document);
   paintSelection();
   retry.addEventListener("click", () => updateReport(failedUrl));
   window.addEventListener("popstate", () => updateReport(location.href, false));
+  if (overview) reader.querySelector('.report-filter').addEventListener('change', event => {
+    if (syncingFilters || !event.target.closest('[data-report-multi]')) return;
+    const target = new URL(location.pathname, location.href);
+    target.search = new URLSearchParams(new FormData(event.currentTarget)).toString();
+    target.searchParams.set('focus', desiredUrl.searchParams.get('focus') || '');
+    target.searchParams.delete('records_page');
+    queueOverviewUpdate(target, '篩選已選取，可繼續選擇；圖表即將同步…');
+  });
   document.addEventListener("click", event => {
     const clear = event.target.closest("[data-report-clear-filter],.report-filter-actions a,.report-record-panel .report-pagination a");
     if (clear && !event.ctrlKey && !event.metaKey) { event.preventDefault(); updateReport(clear.href); }
@@ -388,11 +426,15 @@ if (typeof document !== "undefined") initReportVisuals(document);
           try { selected = JSON.parse(filters.get("focus") || "[]"); } catch { selected = []; }
           const index = Number(link.closest("[data-chart-index]").dataset.chartIndex);
           try {
-            selected = reportToggleSelection(selected, index, group, filters.get(`grain_${index}`) || filters.get("grain") || "", event.ctrlKey || event.metaKey || event.shiftKey || reader.querySelector("[data-report-multiple]").checked);
+            selected = reportToggleSelection(selected, index, group, filters.get(`grain_${index}`) || filters.get("grain") || "", event.ctrlKey || event.metaKey || event.shiftKey || reader.querySelector("[data-report-multiple]")?.checked || (overview && matchMedia('(pointer: coarse)').matches));
           } catch (error) { updateStatus.textContent = error.message; return; }
           filters.set("focus", JSON.stringify(selected));
           filters.delete("group"); filters.delete("inline"); filters.delete("records_page");
-          updateReport(`${location.pathname}?${filters.toString()}`);
+          const nextUrl = `${location.pathname}?${filters.toString()}`;
+          if (overview) {
+            // 在等待下一次點選時即淘汰舊請求，避免舊回應替換使用者正在操作的圖形。
+            queueOverviewUpdate(nextUrl, `已選 ${selected.reduce((sum, item) => sum + [].concat(item.group).length, 0)} 個分類，可繼續點選…`);
+          } else updateReport(nextUrl);
           return;
         }
         // 動態 Top N 的其他集合不冒充穩定分類，保留既有的精確下鑽。

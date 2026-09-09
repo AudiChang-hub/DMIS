@@ -175,7 +175,7 @@ def edit(request, pk=None):
     preview_records = {}
     status = 200
     if request.method == "POST" and form.is_valid() and formset.is_valid():
-        config = {key: form.cleaned_data[key] for key in ("title", "description", "audience", "date_basis", "navigation_group", "page_order", "include_undated", "include_records", "records_columns", "records_page_size", "records_mode")}
+        config = {key: form.cleaned_data[key] for key in ("reader_layout", "title", "description", "audience", "date_basis", "navigation_group", "page_order", "include_undated", "include_records", "records_columns", "records_page_size", "records_mode")}
         config["fixed_filters"] = form.scope_data()
         config["cards"] = [{**{key: card.cleaned_data[key] for key in ("title", "dimension", "metric", "chart", "formula", "limit", "sort", "series", "series_limit", "series_other", "series_sort", "additional_metrics", "width", "height")}, "fixed_filters": card.scope_data()}
                            for card in formset.ordered_forms]
@@ -263,7 +263,7 @@ def display(request, pk):
     report = accessible_report(request, pk)
     if (request.GET.get("records_page") or request.GET.get("focus")) and stale_publication(request, report):
         return render(request, "sales/reporting/stale.html", {"report": report}, status=409)
-    form = FilterForm(request.GET, date_basis=report.published["date_basis"])
+    form = FilterForm(request.GET, date_basis=report.published["date_basis"], reader_layout=report.published.get("reader_layout", "standard"))
     items = []
     records = {}
     error = ""

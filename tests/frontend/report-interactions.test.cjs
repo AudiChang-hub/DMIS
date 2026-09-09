@@ -2,6 +2,16 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const {reportPointText, reportFraction, reportScopeCount, reportPageRange} = require('../../static/js/report-interactions.js');
 const {reportToggleSelection} = require('../../static/js/report-interactions.js');
+const {reportAxisMaximum} = require('../../static/js/report-interactions.js');
+
+test('銷售座標軸涵蓋最大值，空資料與非數值安全且台數刻度為整數', () => {
+  for (const values of [[], [0], [1,7], [NaN, 25], [255], [1,9999]]) {
+    const maximum=reportAxisMaximum(values);
+    assert.ok(Number.isFinite(maximum) && maximum > 0);
+    assert.equal(maximum % 4, 0);
+    assert.ok(maximum >= Math.max(0,...values.filter(Number.isFinite)));
+  }
+});
 
 test('圖表單選、重點取消、複選聯集與移除保留其他圖條件', () => {
   const other = {card:1, group:'B', grain:''};

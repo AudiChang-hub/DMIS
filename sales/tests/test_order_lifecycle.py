@@ -237,6 +237,46 @@ class OrderLifecycleTests(TestCase):
         self.assertEqual(order.status, SalesOrder.Status.CANCELLED)
         self.assertEqual(order.refund_amount, Decimal("5000"))
 
+    def test_cancellation_card_is_collapsed_and_keeps_confirmation_form(self):
+        order, _vehicle = self.make_order()
+        self.client.force_login(self.user)
+        response = self.client.get(reverse("order_detail", args=[order.pk]))
+        self.assertContains(response, '<details class="section-block cancellation-panel cancellation-disclosure">')
+        self.assertContains(response, "訂單取消與退款")
+        self.assertContains(response, "展開取消流程")
+        self.assertContains(response, "收合取消流程")
+        self.assertContains(response, 'action="%s"' % reverse("cancellation_request", args=[order.pk]))
+        card = response.content.decode().split('class="section-block cancellation-panel cancellation-disclosure"', 1)[1].split("</details>", 1)[0]
+        summary = card.split("<summary>", 1)[1].split("</summary>", 1)[0]
+        self.assertNotIn("<button", summary)
+        self.assertIn('name="csrfmiddlewaretoken"', card)
+        self.assertIn('data-confirm="確定登記取消這張訂單嗎？"', card)
+        self.assertIn("必須全額退款後才算取消完成", card)
+        order.refresh_from_db()
+        self.assertEqual(order.status, SalesOrder.Status.ALLOCATED)
+
+    def test_cancellation_card_hidden_after_registration_or_delivery(self):
+        self.client.force_login(self.user)
+        for field in ("registration_completed_at", "delivered_at"):
+            with self.subTest(field=field):
+                order, _vehicle = self.make_order()
+                updates = {field: timezone.now()}
+                if field == "delivered_at":
+                    updates["status"] = SalesOrder.Status.DELIVERED_DOCS_PENDING
+                SalesOrder.objects.filter(pk=order.pk).update(**updates)
+                response = self.client.get(reverse("order_detail", args=[order.pk]))
+                self.assertNotContains(response, "cancellation-disclosure")
+
+    def test_cancellation_states_show_refund_or_history_not_new_request(self):
+        self.client.force_login(self.user)
+        for deposit, text in ((Decimal("5000"), "訂金尚待全額退款"), (Decimal("0"), "訂單已取消")):
+            with self.subTest(deposit=deposit):
+                order, _vehicle = self.make_order(deposit=deposit)
+                order.request_cancellation("測試人員", "客戶取消")
+                response = self.client.get(reverse("order_detail", args=[order.pk]))
+                self.assertContains(response, text)
+                self.assertNotContains(response, "cancellation-disclosure")
+
     def test_registered_order_cannot_be_cancelled(self):
         order, _vehicle = self.make_order()
         order.registration_completed_at = timezone.now()

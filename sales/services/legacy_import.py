@@ -1358,7 +1358,7 @@ def _commit_inventory_row(row):
     row.committed_model, row.committed_pk = "VehicleInventory", str(vehicle.pk)
 
 
-def _commit_sales_row(row, actor_name):
+def _commit_sales_row(row, actor_name, *, pending_order=None):
     data = row.mapped_data
     model = _model_for_number(data["model_number"])
     color = _color_for_model(model, data["color"])
@@ -1366,7 +1366,7 @@ def _commit_sales_row(row, actor_name):
     vehicle = None
     if vehicle_category == SalesOrder.VehicleCategory.NEW and data["identifier"]:
         vehicle = VehicleInventory.objects.filter(normalized_engine_number=data["identifier"]).first() or VehicleInventory.objects.filter(normalized_frame_number=data["identifier"]).first()
-    order_date = _date(data["order_date"]) or _date(data["registration_date"]) or timezone.localdate()
+    order_date = _date(data["order_date"]) or (timezone.localdate() if pending_order else _date(data["registration_date"])) or timezone.localdate()
     owner_id = data["owner_id_number"] or f"HIST-{str(row.batch_id)[:8]}-{row.source_row}"
     source = _source_for_name(data.get("dealer_name", ""))
     source_type = SalesOrder.SourceType.STORE
@@ -1378,7 +1378,10 @@ def _commit_sales_row(row, actor_name):
         owner_name=data["owner_name"] or "歷史資料未填", owner_phone=data["owner_phone"] or "未提供",
         owner_email=data["owner_email"], owner_birth_date=_date(data["owner_birth_date"]),
         owner_address=data["owner_address"] or "未提供", owner_id_number=owner_id,
-        vehicle_model=model, color=color, vehicle_price=0, vehicle_category=vehicle_category,
+        vehicle_model=model, color=color, vehicle_price=pending_order["vehicle_price"] if pending_order else 0, vehicle_category=vehicle_category,
+        actual_balance=pending_order["balance"] if pending_order else 0,
+        balance_adjustment_reason=pending_order["reason"] if pending_order else "",
+        vehicle_price_adjustment_reason=pending_order["reason"] if pending_order else "",
         transaction_type=data.get("transaction_type") or SalesOrder.TransactionType.REGULAR_NEW,
         registration_date=_date(data["registration_date"]), final_plate_number=data["plate_number"],
         payment_type=SalesOrder.PaymentType.INSTALLMENT if data["installment_periods"] else (SalesOrder.PaymentType.CARD if _decimal(data["card_received"]) else SalesOrder.PaymentType.CASH),
@@ -1392,14 +1395,18 @@ def _commit_sales_row(row, actor_name):
         ),
         allocated_vehicle=vehicle,
     )
-    delivered_at = timezone.make_aware(datetime.combine(_date(data["registration_date"]) or order_date, time(hour=12)))
-    SalesOrder.objects.filter(pk=order.pk).update(
-        status=SalesOrder.Status.COMPLETED, delivered_at=delivered_at, delivered_by="歷史資料匯入",
-        registration_completed_at=delivered_at if data["registration_date"] else None,
-        registration_completed_by="歷史資料匯入" if data["registration_date"] else "",
-    )
+    if pending_order:
+        SalesOrder.objects.filter(pk=order.pk).update(status=SalesOrder.Status.ALLOCATED if vehicle else SalesOrder.Status.ALLOCATION_PENDING,
+            calculated_balance=order.calculate_balance())
+    else:
+        delivered_at = timezone.make_aware(datetime.combine(_date(data["registration_date"]) or order_date, time(hour=12)))
+        SalesOrder.objects.filter(pk=order.pk).update(
+            status=SalesOrder.Status.COMPLETED, delivered_at=delivered_at, delivered_by="歷史資料匯入",
+            registration_completed_at=delivered_at if data["registration_date"] else None,
+            registration_completed_by="歷史資料匯入" if data["registration_date"] else "",
+        )
     if vehicle:
-        VehicleInventory.objects.filter(pk=vehicle.pk).update(status=VehicleInventory.Status.SOLD)
+        VehicleInventory.objects.filter(pk=vehicle.pk).update(status=VehicleInventory.Status.RESERVED if pending_order else VehicleInventory.Status.SOLD)
     profile, _ = OrderOperationsProfile.objects.get_or_create(order=order)
     profile.dealer_name = data.get("dealer_name", "")
     profile.vehicle_cost = _decimal(row.raw_data.get("成本"))
@@ -1431,9 +1438,20 @@ def _commit_sales_row(row, actor_name):
     profile.company_gift_or_remittance = data["company_gift"]
     profile.updated_by = actor_name
     profile.save()
-    for key, amount, method in (("legacy_cash", data["cash_received"], "cash"), ("legacy_card", data["card_received"], "card")):
-        if _decimal(amount):
-            PaymentRecord.objects.create(order=order, system_key=key, item_name="歷史收款", expected_amount=_decimal(amount), received_amount=_decimal(amount), received_on=order_date, payment_method=method, confirmed=data["payment_confirmed"])
+    if pending_order:
+        cash, card = _decimal(data["cash_received"]), _decimal(data["card_received"])
+        payment, _ = PaymentRecord.objects.get_or_create(order=order, system_key="balance", defaults={"item_name": "尾款"})
+        payment.expected_amount = pending_order["balance"]
+        payment.received_amount = cash + card
+        payment.received_on = order_date if cash + card else None
+        payment.payment_method = "現金／刷卡" if cash and card else ("刷卡" if card else "現金")
+        payment.confirmed = bool(cash + card) and data["payment_confirmed"]
+        payment.note = f"退訂換買家補匯：本次 Excel 現金 {cash}、刷卡 {card}；原買家款項未轉入。"
+        payment.save()
+    else:
+        for key, amount, method in (("legacy_cash", data["cash_received"], "cash"), ("legacy_card", data["card_received"], "card")):
+            if _decimal(amount):
+                PaymentRecord.objects.create(order=order, system_key=key, item_name="歷史收款", expected_amount=_decimal(amount), received_amount=_decimal(amount), received_on=order_date, payment_method=method, confirmed=data["payment_confirmed"])
     LegacySalesSnapshot.objects.create(
         order=order, import_row=row,
         historical_received_price=_decimal(data["historical_received_price"]),
@@ -1558,7 +1576,7 @@ def confirm_import(batch, actor_name):
 
 
 @transaction.atomic
-def retry_completed_import_row(row, mapping, decision, reason, actor_name):
+def retry_completed_import_row(row, mapping, decision, reason, actor_name, *, pending_order=None):
     row = LegacyImportRow.objects.select_for_update().select_related("batch").get(pk=row.pk)
     batch = LegacyImportBatch.objects.select_for_update().get(pk=row.batch_id)
     if batch.status != LegacyImportBatch.Status.COMPLETED:
@@ -1592,7 +1610,7 @@ def retry_completed_import_row(row, mapping, decision, reason, actor_name):
                 elif row.sheet_name == "進貨":
                     _commit_inventory_row(row)
                 elif row.sheet_name == "銷貨":
-                    _commit_sales_row(row, actor_name)
+                    _commit_sales_row(row, actor_name, pending_order=pending_order)
                 else:
                     raise ValueError("不支援的匯入工作表。")
         except Exception as exc:

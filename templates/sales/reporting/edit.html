@@ -1,6 +1,7 @@
 {% extends 'sales/reporting/layout.html' %}
 {% load static %}
-{% block head %}{{ block.super }}<link rel="stylesheet" href="{% static 'css/report-designer.css' %}?v={{ app_version }}">{% endblock %}
+{% block head %}{{ block.super }}<link rel="stylesheet" href="{% static 'css/report-designer.css' %}?v={{ app_version }}"><link rel="stylesheet" href="{% static 'css/report-chart-picker.css' %}?v={{ app_version }}">{% endblock %}
+{% block scripts %}{{ block.super }}<script src="{% static 'js/report-chart-picker.js' %}?v={{ app_version }}" defer></script>{% endblock %}
 {% block title %}{% if report %}編輯報表{% else %}建立報表{% endif %}{% endblock %}
 {% block report_content %}
 <a href="{% url 'report_manage' %}">← 報表設計管理</a>

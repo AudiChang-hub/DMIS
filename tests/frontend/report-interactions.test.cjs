@@ -8,6 +8,40 @@ const {reportUpdateError} = require('../../static/js/report-interactions.js');
 const {reportOverviewColor, reportMonthSummary} = require('../../static/js/report-interactions.js');
 const {reportElectricColor} = require('../../static/js/report-interactions.js');
 const {reportAnalysisColor} = require('../../static/js/report-analysis.js');
+const {reportBarTooltip,reportBarTooltipText,renderReportBarTooltip} = require('../../static/js/report-tooltip.js');
+
+test('長條彩色明細保留微小數字、原圖顏色並以該長條總數計算占比', () => {
+  const data={pointLabel:'2026/09',pointValue:'101',pointDisplay:'101'};
+  const items=[{label:'車行',value:100,display:'100',color:'#123456'},{label:'平台',value:1,display:'1',color:'#abcdef'}];
+  const tip=reportBarTooltip(data,items,'訂單台數',1000,'完整篩選範圍');
+  assert.deepEqual(tip.entries.map(x=>[x.label,x.color,x.percentage]),[['車行','#123456','99.0%'],['平台','#abcdef','1.0%']]);
+  assert.equal(tip.total,'101');
+  assert.match(reportBarTooltipText(tip,'平台'),/目前指向：平台/);
+  assert.match(reportBarTooltipText(tip),/總計：101/);
+});
+test('未顯示系列獨立列出，不把已顯示分類重新正規化為百分之百', () => {
+  const tip=reportBarTooltip({pointLabel:'月份',pointValue:'10',pointDisplay:'10'},[{label:'A',value:4,display:'4',color:'#123'}],'訂單台數',100,'候選分類範圍');
+  assert.deepEqual(tip.entries.map(x=>[x.label,x.value,x.percentage]),[['A',4,'40.0%'],['未顯示系列',6,'60.0%']]);
+  assert.match(tip.note,/候選分類/);
+});
+test('基本長條以整圖為分母；平均、零總數與負數不捏造占比', () => {
+  const data={pointLabel:'車型',pointValue:'20',pointDisplay:'20',pointColor:'#456'};
+  assert.equal(reportBarTooltip(data,null,'訂單台數',80,'完整篩選範圍').entries[0].percentage,'25.0%');
+  for(const [value,metric,total] of [['0','訂單台數',0],['-1','訂單車價合計',10],['20','平均車價',80],['20','分析試算',80]]) {
+    const tip=reportBarTooltip({...data,pointValue:value},null,metric,total,'完整篩選範圍');
+    assert.equal(tip.entries[0].percentage,'—');
+  }
+});
+test('彩色提示只使用文字節點，名稱不作 HTML；長清單不截斷', () => {
+  const doc={createElement:()=>({ownerDocument:doc,children:[],style:{},setAttribute(){},append(...children){this.children.push(...children);},set innerHTML(value){throw new Error('不可插入 HTML');}})};
+  const tip=doc.createElement(); tip.classList={add(){}}; tip.replaceChildren=()=>{tip.children=[];};
+  const entries=Array.from({length:25},(_,i)=>({label:i===0?'<img src=x onerror=alert(1)>':String(i),value:1,display:'1',color:'#123456'}));
+  renderReportBarTooltip(tip,reportBarTooltip({pointLabel:'月份',pointValue:'25',pointDisplay:'25'},entries,'訂單台數',25,'完整篩選範圍'));
+  const list=tip.children.find(x=>x.className==='report-tooltip-items');
+  assert.equal(list.children.length,25);
+  assert.equal(list.children[0].children[0].children[1].textContent,entries[0].label);
+  assert.equal(list.children[0].children[0].children[0].style.backgroundColor,'#123456');
+});
 
 test('人口分類顏色不隨篩選排序漂移且未知分類保留', () => {
   assert.equal(reportAnalysisColor('男性','#000'),'#737373');

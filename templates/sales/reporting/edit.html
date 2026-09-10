@@ -1,4 +1,6 @@
 {% extends 'sales/reporting/layout.html' %}
+{% load static %}
+{% block head %}{{ block.super }}<link rel="stylesheet" href="{% static 'css/report-designer.css' %}?v={{ app_version }}">{% endblock %}
 {% block title %}{% if report %}編輯報表{% else %}建立報表{% endif %}{% endblock %}
 {% block report_content %}
 <a href="{% url 'report_manage' %}">← 報表設計管理</a>
@@ -11,13 +13,22 @@
 <details class="report-panel report-dictionary"><summary>資料字典與計算口徑</summary><p>資料來源：系統訂單，每張訂單計 1 台。不含草稿、取消及待退款取消訂單；依領牌日期時，未領牌訂單不計入。這不是車行台數獎金的結算台數，獎金仍依原規則計算。</p><dl><dt>count</dt><dd>符合條件的訂單台數。</dd><dt>sale_total</dt><dd>訂單車價（vehicle_price）合計，不代表實收、收入認列或淨利。</dd><dt>average_price</dt><dd>符合條件訂單的平均車價，不是各群平均再平均。</dd></dl><p>原銷售車行與台數／傭金歸屬車行分開選擇；歸屬車行優先採訂單指定對象，否則採原合作車行。本店與平台不自動當成車行。</p><p>自訂試算僅支援上述彙總指標、數字與 + − * /、括號。例：sale_total / count。除以零或超限會顯示「無法計算」，不會當成 0。</p><p>數字即時讀取來源，不回寫訂單、傭金或財務快照。最多 8 張圖、每張最多 200 群；Top N 不會被標示為完整總數。</p></details>
 {{ formset.management_form }}{{ formset.non_form_errors }}
 <section class="report-design-workbench" data-workbench hidden>
-<div class="report-canvas-area"><header class="report-card-toolbar"><div><h2>報表畫布</h2><p>選取圖表後在右側設定；拖曳標題列排序，拖曳右下角調整寬高。</p></div><button type="button" class="button secondary" data-refresh-canvas>更新實際圖表</button></header><p data-canvas-status role="status" aria-live="polite">正在載入實際資料…</p><div class="report-design-canvas" data-design-canvas></div></div>
-<aside class="report-property-panel" aria-label="所選圖表設定"><h2>圖表設定</h2><p>修改設定後，按「更新實際圖表」確認結果；儲存並發布後才會更新報表中心。</p><div data-report-cards>{% for card in rendered_cards %}{% include 'sales/reporting/card_form.html' %}{% endfor %}</div></aside>
+<div class="designer-toolbar" aria-label="畫布工具列">
+<button type="button" class="button secondary" data-focus-workbench aria-pressed="false">專注設計</button>
+<button type="button" class="button secondary" data-toggle-navigator aria-expanded="true">頁面與圖表</button>
+<div class="designer-mode" role="group" aria-label="操作模式"><button type="button" data-designer-mode="edit" aria-pressed="true">編輯版面</button><button type="button" data-designer-mode="preview" aria-pressed="false">互動預覽</button></div>
+<label>內容寬度 <select data-canvas-width><option value="1440">桌面 1440 px</option><option value="1180">桌面 1180 px</option><option value="820">平板 820 px</option><option value="390">手機 390 px</option></select></label>
+<label>縮放 <select data-canvas-zoom><option value="fit">符合寬度</option><option value="page">整頁</option><option value="1">100%</option><option value="0.75">75%</option><option value="0.5">50%</option></select></label>
+<output data-zoom-label></output><button type="button" class="button secondary" data-refresh-canvas>更新預覽</button><button type="button" class="button secondary" data-toggle-properties aria-expanded="true">圖表設定</button>
+</div>
+<aside class="designer-navigator" aria-label="頁面與圖表"><h2>頁面</h2><p class="report-muted">切換前請儲存本頁草稿。</p><nav>{% for page in designer_pages %}<a href="{% url 'report_edit' page.pk %}" {% if page.pk == report.pk %}aria-current="page"{% endif %}>{{ page.reader_title }}</a>{% endfor %}</nav><h2>本頁圖表</h2><div data-designer-chart-list></div><button type="button" class="button secondary" data-add-card>＋ 新增圖表</button></aside>
+<div class="report-canvas-area"><p data-canvas-status role="status" aria-live="polite">正在載入整頁實際資料…</p><p class="designer-mode-help" data-mode-help>選取圖表後在右側設定；拖曳選取框標題可排序，右下角可調整大小。滑鼠與鍵盤皆可操作。</p><div class="designer-viewport"><div class="report-design-canvas" data-design-canvas></div></div></div>
+<aside class="report-property-panel" aria-label="所選圖表設定"><h2>圖表設定</h2><p>修改後自動更新整頁預覽；仍須儲存並發布，讀者才會看到變更。</p><div class="designer-property-tabs" role="tablist" aria-label="圖表設定分類"><button type="button" role="tab" data-property-tab="data" aria-selected="true">資料</button><button type="button" role="tab" data-property-tab="style" aria-selected="false">樣式</button><button type="button" role="tab" data-property-tab="layout" aria-selected="false">版面</button><button type="button" role="tab" data-property-tab="interaction" aria-selected="false">互動</button></div><div data-report-cards>{% for card in rendered_cards %}{% include 'sales/reporting/card_form.html' %}{% endfor %}</div><div class="designer-interaction-help" hidden data-interaction-help><h3>預覽中的操作</h3><p>切換「互動預覽」後，滑鼠移到圖形會顯示對照色與數字；點選分類會依該報表既有設定連動其他圖表。</p><p>按住 Ctrl／⌘ 可複選；可清除選取、查看來源訂單明細、調整日期與匯出 CSV。試選條件只影響本次預覽，不會寫入訂單或發布設定。</p><p>回到「編輯版面」即可選取、拖曳與調整圖表；不會誤觸資料篩選。</p></div></aside>
 </section>
 <noscript><p>視覺化工作台需要啟用 JavaScript。</p></noscript>
 <template data-card-template>{% include 'sales/reporting/card_form.html' with card=formset.empty_form %}</template>
-<button type="button" class="button secondary" data-add-card>＋ 新增圖表</button><span class="report-muted" data-card-message role="status"></span>
-<div class="report-savebar"><span data-save-state role="status">{% if report %}目前版本 {{ report.version }}{% else %}尚未儲存{% endif %}</span><div class="report-actions"><button class="button secondary" name="action" value="preview">預覽本次設計</button><button class="button secondary" name="action" value="save">儲存草稿</button><button class="button" name="action" value="publish">發布報表</button></div></div>
+<span class="report-muted" data-card-message role="status"></span>
+<div class="report-savebar"><span data-save-state role="status">{% if report %}目前版本 {{ report.version }}{% else %}尚未儲存{% endif %}</span><div class="report-actions"><button type="button" class="button secondary" data-designer-mode="preview">預覽本次設計</button><button class="button secondary" name="action" value="save">儲存草稿</button><button class="button" name="action" value="publish">儲存並發布</button></div></div>
 </form>
 {% if preview is not None %}<section id="report-preview"><header class="report-heading"><div><p class="eyebrow">本次輸入的試算 · 尚未發布</p><h2>預覽結果</h2><p>預覽採全部期間。正式報表可再依日期、品牌與能源別篩選。</p></div></header><div class="report-grid">{% for result in preview %}{% include 'sales/reporting/result.html' %}{% endfor %}</div></section>{% endif %}
 {% include 'sales/reporting/records.html' %}

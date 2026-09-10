@@ -329,7 +329,7 @@ class ReportingTests(TestCase):
         previous = ReportRevision.objects.count()
         response = self.client.post(url, self.data(config, action="canvas"))
         self.assertEqual(response.status_code, 200)
-        self.assertIn("report-chart--wide", response.json()["cards"][0])
+        self.assertIn("report-chart--wide", response.json()["document"])
         self.assertEqual(ReportRevision.objects.count(), previous)
         self.report.refresh_from_db()
         self.assertEqual(self.report.version, 1)

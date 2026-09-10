@@ -188,6 +188,7 @@ function initReportVisuals(root) {
       target.setAttribute("tabindex", "0"); target.setAttribute("role", link ? "button" : "img");
       target.setAttribute("aria-label", describe(row)); target.setAttribute("aria-describedby", tip.id);
       const show = event => {
+        if (chart.dataset.showTooltip === 'hide') return;
         clearTimeout(hideTimer);
         if(row.reportTooltip) renderReportBarTooltip(tip, row.reportTooltip, row.dataset.seriesLabel);
         else { tip.classList.remove('report-tooltip-rich'); tip.textContent = describe(row); }
@@ -218,8 +219,9 @@ function initReportVisuals(root) {
     const overview = chart.closest('.report-sales-overview');
     const layout = overview?.dataset.readerLayout;
     const legendColors = new Map([...chart.querySelectorAll('.report-series-legend span')].map((entry,i)=>[entry.textContent.trim(),['#737373','#f15a60','#7ac36a','#5a9bd4','#faa75a','#9e67ab','#ce7058','#d17fb1','#7dd3ef','#ee8ab5'][i%10]]));
-    const overviewColor = (label, fallback) => layout === 'dealer_overview' ? legendColors.get(label)||fallback : reportReaderColor(layout, label, fallback, overview?.dataset.reportEnergy);
-    if (overview) {
+    const contrast = ['#0072b2','#d55e00','#009e73','#cc79a7','#e69f00','#56b4e9','#333333','#806400'];
+    const overviewColor = (label, fallback) => chart.dataset.palette === 'accessible' ? contrast[[...label].reduce((sum, ch) => (sum * 31 + ch.codePointAt(0)) >>> 0, 0) % contrast.length] : layout === 'dealer_overview' ? legendColors.get(label)||fallback : reportReaderColor(layout, label, fallback, overview?.dataset.reportEnergy);
+    if (overview || chart.dataset.palette === 'accessible') {
       rows.forEach(row => { row.dataset.pointColor = overviewColor(row.dataset.pointLabel, row.dataset.pointColor); });
       chart.querySelectorAll('.report-series-legend span').forEach(entry => {
         const dot = entry.querySelector('i'); if (dot) dot.style.background = overviewColor(entry.textContent.trim(), dot.style.background);
@@ -228,8 +230,9 @@ function initReportVisuals(root) {
         row.dataset.pointScope = chart.querySelector('.report-candidate-note') ? '候選分類範圍' : '完整篩選範圍';
         if (row.hasAttribute('data-stack-segment')) row.dataset.pointPercentage = reportFraction(row.dataset.pointValue, chart.dataset.total);
       });
-      const explanation = overview.querySelector('.report-reader-description');
+      const explanation = overview?.querySelector('.report-reader-description');
       chart.querySelectorAll('.report-notice').forEach(note => {
+        if (!explanation) return;
         if (!note.textContent.trim().startsWith('比對用分類：')) return;
         const exists = [...explanation.querySelectorAll('[data-overview-classification]')].some(item => item.textContent === note.textContent);
         if (exists) note.remove();
@@ -242,9 +245,11 @@ function initReportVisuals(root) {
       mainRows.forEach((row,index) => {
         const segments = chart.dataset.chart === 'stacked' ? [...groups[index].querySelectorAll('[data-stack-segment]')] : null;
         const bar = row.querySelector('.report-bar-track');
-        if (bar && !overview) row.dataset.pointColor = getComputedStyle(bar.firstElementChild).backgroundColor;
+        if (bar && !overview && chart.dataset.palette !== 'accessible') row.dataset.pointColor = getComputedStyle(bar.firstElementChild).backgroundColor;
+        if (bar && chart.dataset.palette === 'accessible') bar.firstElementChild.style.backgroundColor = row.dataset.pointColor;
         const values = segments?.map(segment => ({label:segment.dataset.seriesLabel,value:segment.dataset.pointValue,
-          display:segment.dataset.pointDisplay,color:overview ? overviewColor(segment.dataset.seriesLabel,segment.style.backgroundColor) : segment.style.backgroundColor}));
+          display:segment.dataset.pointDisplay,color:(overview || chart.dataset.palette === 'accessible') ? overviewColor(segment.dataset.seriesLabel,segment.style.backgroundColor) : segment.style.backgroundColor}));
+        if (chart.dataset.palette === 'accessible') segments?.forEach(segment => { segment.style.backgroundColor = overviewColor(segment.dataset.seriesLabel, segment.style.backgroundColor); });
         row.reportTooltip = reportBarTooltip(row.dataset,values,chart.dataset.metricLabel,chart.dataset.total,chart.querySelector('.report-candidate-note') ? '候選分類範圍' : '完整篩選範圍');
         segments?.forEach(segment => { segment.reportTooltip = row.reportTooltip; });
         if(bar) {
@@ -394,6 +399,15 @@ function initReportVisuals(root) {
       }
       if (typeof initReportOverviewTools === 'function') initReportOverviewTools(chart);
     }
+    const fontSize = Number(chart.dataset.fontSize);
+    if ([16,18,20,24].includes(fontSize)) {
+      chart.style.fontSize = `${fontSize}px`;
+      chart.querySelectorAll('svg text, .report-overview-legend, .report-series-legend, .report-results, .report-card-toolbar h2').forEach(el => el.style.fontSize = `${fontSize}px`);
+    }
+    if (['left','center','right'].includes(chart.dataset.titleAlign)) {
+      const heading = chart.querySelector('.report-card-toolbar h2'); if (heading) heading.style.setProperty('text-align', chart.dataset.titleAlign, 'important');
+    }
+    if (chart.dataset.showLegend === 'hide') chart.querySelectorAll('.report-overview-legend,.report-series-legend').forEach(el => el.hidden = true);
     chart.querySelector("[data-chart-fullscreen]")?.addEventListener("click", () => {
       // 使用頁內放大，不倚賴瀏覽器全螢幕授權；Escape 或原按鈕即可返回。
       const expanded = chart.classList.toggle("report-chart-expanded");
@@ -416,7 +430,7 @@ if (typeof document !== "undefined") initReportVisuals(document);
   const body = panel.querySelector("[data-detail-body]");
   const status = panel.querySelector("[data-detail-status]");
   const selection = panel.querySelector("[data-detail-selection]");
-  let updateController, updateSequence = 0, desiredUrl = new URL(location.href), failedUrl, syncingFilters = false;
+  let updateController, updateSequence = 0, desiredUrl = new URL((window.reportPreviewLocation || location.href)), failedUrl, syncingFilters = false;
   const selectionQueue = reportDebounce(url => updateReport(url));
   const reader = document.querySelector(".report-reader-main");
   const overview = reader.classList.contains('report-sales-overview');
@@ -429,7 +443,7 @@ if (typeof document !== "undefined") initReportVisuals(document);
   const retry = reader.querySelector("[data-report-retry]");
   function queueOverviewUpdate(url, message) {
     ++updateSequence; updateController?.abort(); selectionQueue.cancel();
-    desiredUrl = new URL(url, location.href); paintSelection();
+    desiredUrl = new URL(url, (window.reportPreviewLocation || location.href)); paintSelection();
     reader.setAttribute('aria-busy', 'true'); retry.hidden = true;
     updateStatus.textContent = message;
     selectionQueue.schedule(desiredUrl.href);
@@ -456,12 +470,12 @@ if (typeof document !== "undefined") initReportVisuals(document);
     selectionQueue.cancel();
     updateController?.abort(); updateController = new AbortController();
     const own = updateController, ticket = ++updateSequence;
-    desiredUrl = new URL(url, location.href); failedUrl = desiredUrl.href;
+    desiredUrl = new URL(url, (window.reportPreviewLocation || location.href)); failedUrl = desiredUrl.href;
     const target = desiredUrl.href;
     reader.setAttribute("aria-busy", "true"); updateStatus.textContent = "正在連動更新…"; retry.hidden = true;
     const timer = setTimeout(() => own.abort(), 20000);
     try {
-      const response = await fetch(target, {signal:own.signal, credentials:"same-origin", headers:{"X-Requested-With":"XMLHttpRequest"}});
+      const response = await (window.reportPreviewFetch || fetch)(target, {signal:own.signal, credentials:"same-origin", headers:{"X-Requested-With":"XMLHttpRequest"}});
       if (!response.ok || response.redirected) throw new Error(response.status === 409 ? "報表版本已更新，請重新整理後再操作。" : "更新失敗，請確認登入與查看權限。");
       const doc = new DOMParser().parseFromString(await response.text(), "text/html");
       const next = doc.querySelector(".report-reader-main"), nextGrid = next?.querySelector(".report-grid");
@@ -500,11 +514,12 @@ if (typeof document !== "undefined") initReportVisuals(document);
         const replacement = [...newGrid.querySelectorAll('[data-selection-group]')].find(point => point.dataset.selectionGroup === focusPoint.group && point.closest('[data-chart-index]').dataset.chartIndex === focusPoint.card);
         replacement?.focus({preventScroll:true});
       }
-      if (push) history.pushState(null, "", target);
+      if (window.reportPreviewLocation) window.reportPreviewLocation = target;
+      else if (push) history.pushState(null, "", target);
       updateStatus.textContent = "圖表與表格已同步更新";
       } catch (error) {
         if (ticket !== updateSequence) return;
-        desiredUrl = new URL(location.href);
+        desiredUrl = new URL((window.reportPreviewLocation || location.href));
         paintSelection();
         updateStatus.textContent = reportUpdateError(error);
       retry.hidden = false;
@@ -530,10 +545,10 @@ if (typeof document !== "undefined") initReportVisuals(document);
     queueOverviewUpdate(target, '正在套用圖表查看方式…');
   });
   retry.addEventListener("click", () => updateReport(failedUrl));
-  window.addEventListener("popstate", () => updateReport(location.href, false));
+  window.addEventListener("popstate", () => updateReport((window.reportPreviewLocation || location.href), false));
   if (overview) reader.querySelector('.report-filter').addEventListener('change', event => {
     if (syncingFilters || !event.target.closest('[data-report-multi]')) return;
-    const target = new URL(location.pathname, location.href);
+    const target = new URL(new URL(window.reportPreviewLocation || location.href).pathname, (window.reportPreviewLocation || location.href));
     target.search = new URLSearchParams(new FormData(event.currentTarget)).toString();
     target.searchParams.set('focus', desiredUrl.searchParams.get('focus') || '');
     target.searchParams.delete('records_page');
@@ -547,7 +562,7 @@ if (typeof document !== "undefined") initReportVisuals(document);
     const form = event.target;
     if (!form.matches(".report-filter,.report-card-filters")) return;
     event.preventDefault();
-    const target = new URL(form.getAttribute("action") || location.pathname, location.href);
+    const target = new URL(form.getAttribute("action") || new URL(window.reportPreviewLocation || location.href).pathname, (window.reportPreviewLocation || location.href));
     target.search = new URLSearchParams(new FormData(form)).toString();
     updateReport(target);
   });
@@ -556,10 +571,10 @@ if (typeof document !== "undefined") initReportVisuals(document);
     panel.hidden = false; panel.setAttribute("aria-busy", "true"); status.textContent = "正在讀取明細…";
     body.replaceChildren(); selection.textContent = label;
     document.querySelector("[data-report-exploration]").classList.add("has-detail");
-    const target = new URL(url, location.href); target.searchParams.set("inline", "1"); currentUrl = target;
+    const target = new URL(url, (window.reportPreviewLocation || location.href)); target.searchParams.set("inline", "1"); currentUrl = target;
     const timeout = setTimeout(() => ownController.abort(), 15000);
     try {
-      const response = await fetch(target, {signal:ownController.signal, credentials:"same-origin", headers:{"X-Requested-With":"XMLHttpRequest"}});
+      const response = await (window.reportPreviewFetch || fetch)(target, {signal:ownController.signal, credentials:"same-origin", headers:{"X-Requested-With":"XMLHttpRequest"}});
       if (!response.ok || response.redirected) throw new Error(response.status === 409 ? "報表已更新，請重新整理報表後再選取。" : "無法讀取明細，請確認登入與查看權限，或稍後再試。");
       const documentFragment = new DOMParser().parseFromString(await response.text(), "text/html");
       const content = documentFragment.querySelector("[data-detail-content]");
@@ -579,6 +594,7 @@ if (typeof document !== "undefined") initReportVisuals(document);
     event.preventDefault();
     if (link.matches("[data-report-open-detail]")) { loadDetail(link.href, "目前篩選的來源訂單"); return; }
     if (link.matches("[data-report-drill]")) {
+      if (link.closest('[data-chart-index]')?.dataset.crossFilter === 'off') return;
       if (updateStatus) {
         const target = new URL(link.href);
         const group = target.searchParams.get("group");
@@ -593,7 +609,7 @@ if (typeof document !== "undefined") initReportVisuals(document);
           } catch (error) { updateStatus.textContent = error.message; return; }
           filters.set("focus", JSON.stringify(selected));
           filters.delete("group"); filters.delete("inline"); filters.delete("records_page");
-          const nextUrl = `${location.pathname}?${filters.toString()}`;
+          const nextUrl = `${new URL(window.reportPreviewLocation || location.href).pathname}?${filters.toString()}`;
           if (overview) {
             // 在等待下一次點選時即淘汰舊請求，避免舊回應替換使用者正在操作的圖形。
             queueOverviewUpdate(nextUrl, `已選 ${selected.reduce((sum, item) => sum + [].concat(item.group).length, 0)} 個分類，可繼續點選…`);

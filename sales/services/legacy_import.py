@@ -76,6 +76,8 @@ def _has_invalid_email(value):
 
 def friendly_import_message(message):
     text = str(message)
+    if "allocated_vehicle" in text and ("已經存在" in text or "已存在" in text):
+        return "此車輛已有配車訂單。請核對是否重複匯入、領牌改期或退訂後換買家；不要為了通過檢查而修改正確的引擎／車身號碼。"
     if "owner_email" in text and ("電子郵件" in text or "email" in text.lower()):
         return INVALID_EMAIL_MESSAGE
     return text

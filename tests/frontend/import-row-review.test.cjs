@@ -4,14 +4,14 @@ const fs = require('node:fs');
 const vm = require('node:vm');
 const source = fs.readFileSync('static/js/import-row-review.js', 'utf8');
 
-function setup({error=false, primary=true, known=true, loaded=true}={}) {
+function setup({error=false, workflow=false, primary=true, known=true, loaded=true}={}) {
   const calls=[]; const listeners={};
   const target = id => ({id, focus:opts=>calls.push(['focus',id,opts]), closest:()=>null, scrollIntoView:opts=>calls.push(['scroll',id,opts])});
-  const fields={error:target('error'),primary:target('primary'),known:target('known'),summary:target('summary')};
+  const fields={error:target('error'),workflow:target('workflow'),primary:target('primary'),known:target('known'),summary:target('summary')};
   let click;
   const editor={
     addEventListener:(name,callback)=>listeners[name]=callback,
-    querySelector:selector=>selector.startsWith('.has-error') ? (error?fields.error:null) : selector.includes('primary') ? (primary?fields.primary:null) : selector.includes('field') ? (known?fields.known:null) : fields.summary,
+    querySelector:selector=>selector.startsWith('.has-error') ? (error?fields.error:null) : selector.includes('workflow') ? (workflow?fields.workflow:null) : selector.includes('primary') ? (primary?fields.primary:null) : selector.includes('field') ? (known?fields.known:null) : fields.summary,
     querySelectorAll:()=>[{getAttribute:()=> '#known',addEventListener:(_event,callback)=>click=callback}],
     contains:()=>true,
   };
@@ -24,6 +24,10 @@ test('修正定位優先表單錯誤，再選主要差異欄位',()=>{
   assert.equal(setup().calls[0][1],'primary');
   assert.equal(setup({primary:false}).calls[0][1],'known');
   assert.equal(setup({primary:false,known:false}).calls[0][1],'summary');
+});
+test('換買家流程優先於差異欄位，但不蓋過表單錯誤',()=>{
+  assert.equal(setup({workflow:true}).calls[0][1],'workflow');
+  assert.equal(setup({workflow:true,error:true}).calls[0][1],'error');
 });
 test('頁面載入後才定位，避免被瀏覽器的錨點捲動蓋過',()=>{
   const state=setup({loaded:false}); assert.equal(state.calls.length,0);

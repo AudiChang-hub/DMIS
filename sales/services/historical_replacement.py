@@ -9,7 +9,7 @@ from django.db import transaction
 from django.utils import timezone
 
 from sales.models import (
-    DeliveryRecord, LegacyImportBatch, LegacyImportRow, LegacySalesSnapshot,
+    DeliveryRecord, LegacyImportBatch, LegacyImportRow, LegacyImportCorrection, LegacySalesSnapshot,
     OrderChange, OrderEvent, OrderOperationsProfile, PaymentRecord,
     RegistrationDocument, SalesOrder, VehicleInventory, VehicleInventoryHistory,
     normalize_vehicle_identifier,
@@ -18,6 +18,37 @@ from .financial_refresh import lock_bonus_periods
 from .legacy_import import retry_completed_import_row
 
 SALT = "historical-buyer-replacement-v1"
+
+
+@transaction.atomic
+def prepare_replacement_review(*, row, mapping, reason, user, order_id=None):
+    """只儲存本列，接到確認頁；絕不在導頁階段取消或建立訂單。"""
+    require_admin(user)
+    from .legacy_import import _json_clean_value
+    from .import_row_review import build_import_row_review
+    batch = LegacyImportBatch.objects.select_for_update().get(pk=row.batch_id)
+    row = LegacyImportRow.objects.select_for_update().get(pk=row.pk, batch_id=batch.pk)
+    row.batch = batch
+    before = dict(row.mapped_data)
+    row.mapped_data = {**before, **{key: _json_clean_value(value) for key, value in mapping.items()}}
+    if "identifier_raw" in mapping:
+        row.mapped_data["identifier"] = normalize_vehicle_identifier(mapping["identifier_raw"]) or ""
+    candidates = build_import_row_review(row, {})["replacement_candidates"]
+    if order_id:
+        candidates = [order for order in candidates if str(order.pk) == str(order_id)]
+        if not candidates:
+            raise ValueError("原訂單與目前填寫的車號／買家不符，請重新核對；尚未執行退訂或補匯。")
+    elif not candidates:
+        return None
+    if len(candidates) != 1:
+        raise ValueError("同號碼有多筆占用訂單，請從上方清單選擇要核對的原買家，不會自動決定。")
+    row.manually_corrected = True
+    row.corrected_by = user.get_username()
+    row.corrected_at = timezone.now()
+    row.save(update_fields=["mapped_data", "manually_corrected", "corrected_by", "corrected_at", "updated_at"])
+    LegacyImportCorrection.objects.create(row=row, decision=LegacyImportCorrection.Decision.CORRECT,
+        before_data=before, after_data=row.mapped_data, reason=reason, corrected_by=user.get_username())
+    return candidates[0]
 
 
 def require_admin(user):

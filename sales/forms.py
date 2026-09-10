@@ -1555,6 +1555,9 @@ class LegacyImportRowCorrectionForm(forms.Form):
             field.initial = initial
             self.fields[key] = field
         self.fields["decision"].initial = "exclude" if row.excluded else "correct"
+        latest_correction = row.corrections.order_by("-created_at", "-pk").first()
+        if latest_correction:
+            self.fields["reason"].initial = latest_correction.reason
         self.order_fields(["decision", *self.editable_keys, "reason"])
         for field in self.fields.values():
             if not isinstance(field.widget, (forms.CheckboxInput, forms.RadioSelect)):

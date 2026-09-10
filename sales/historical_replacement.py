@@ -93,8 +93,10 @@ def historical_buyer_replacement(request, pk, row_pk, order_pk):
     row = get_object_or_404(LegacyImportRow.objects.select_related("batch"), pk=row_pk, batch_id=pk)
     order = get_object_or_404(SalesOrder, pk=order_pk)
     preview = replacement_preview(row, order)
+    latest_correction = row.corrections.order_by("-created_at", "-pk").first()
     form = HistoricalReplacementForm(request.POST if request.method == "POST" else None,
-        preview=preview, initial={"preview_token": preview_token(preview, request.user)})
+        preview=preview, initial={"preview_token": preview_token(preview, request.user),
+            "reason": latest_correction.reason[:250] if latest_correction else "", "incoming_status": "pending"})
     if request.method == "POST" and form.is_valid() and not preview["blockers"]:
         try:
             new_order = replace_historical_buyer(row_id=row.pk, order_id=order.pk, user=request.user, data=request.POST)

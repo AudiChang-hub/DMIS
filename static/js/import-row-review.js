@@ -17,6 +17,7 @@
   // 送出失敗優先定位真正的表單錯誤；其餘依畫面順序定位待核對欄位。
   const initialFocus = () => requestAnimationFrame(() => requestAnimationFrame(() => !interacted && reveal(
     editor.querySelector('.has-error input, .has-error select, .has-error textarea')
+    || editor.querySelector('[data-import-review-workflow]')
     || editor.querySelector('[data-import-review-primary]')
     || editor.querySelector('[data-import-review-field]')
     || editor.querySelector('.import-review-summary')

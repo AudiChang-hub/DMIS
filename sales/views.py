@@ -3629,6 +3629,10 @@ def legacy_import_master_resolve(request, pk, mapping_type):
 def legacy_import_row_decide(request, pk, row_pk):
     batch = get_object_or_404(LegacyImportBatch.objects.select_for_update(), pk=pk)
     row = get_object_or_404(batch.rows.select_for_update(), pk=row_pk)
+    replacement_order = request.POST.get("replacement_order")
+    if replacement_order:
+        from sales.services.historical_replacement import require_admin
+        require_admin(request.user)
     form = LegacyImportRowCorrectionForm(request.POST, row=row)
     if not form.is_valid():
         rows = batch.rows.filter(action=row.action)
@@ -3666,6 +3670,15 @@ def legacy_import_row_decide(request, pk, row_pk):
         )
     try:
         if batch.status == LegacyImportBatch.Status.COMPLETED:
+            if replacement_order and form.cleaned_data["decision"] != "correct":
+                raise ValueError("換買家核對不能同時選擇不匯入此列，請確認處理方式。")
+            if form.cleaned_data["decision"] == "correct" and request.user.is_superuser and request.user.username == "admin":
+                from sales.services.historical_replacement import prepare_replacement_review
+                target_order = prepare_replacement_review(row=row, mapping=form.cleaned_mapping(),
+                    reason=form.cleaned_data["reason"], user=request.user, order_id=replacement_order)
+                if target_order:
+                    messages.info(request, "已保存本頁資料與說明。下一步核對原／新買家；尚未取消、退款或補匯。")
+                    return redirect("historical_buyer_replacement", pk=batch.pk, row_pk=row.pk, order_pk=target_order.pk)
             retry_result = retry_completed_import_row(
                 row,
                 form.cleaned_mapping(),
@@ -3694,6 +3707,8 @@ def legacy_import_row_decide(request, pk, row_pk):
         )
     except ValueError as exc:
         messages.error(request, str(exc))
+        if batch.status == LegacyImportBatch.Status.COMPLETED:
+            return redirect(f"{reverse('legacy_import_detail', args=[batch.pk])}?action=error&edit={row.pk}#row-editor")
     else:
         remaining = summary["counts"].get("conflict", 0) + summary["counts"].get("error", 0)
         if form.cleaned_data["decision"] == "exclude":

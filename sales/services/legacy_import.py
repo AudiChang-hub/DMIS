@@ -1577,8 +1577,11 @@ def confirm_import(batch, actor_name):
 
 @transaction.atomic
 def retry_completed_import_row(row, mapping, decision, reason, actor_name, *, pending_order=None):
-    row = LegacyImportRow.objects.select_for_update().select_related("batch").get(pk=row.pk)
-    batch = LegacyImportBatch.objects.select_for_update().get(pk=row.batch_id)
+    # 與退訂換買家共用 batch -> row 順序；不可先鎖 row 再反向等待 batch。
+    batch_id = LegacyImportRow.objects.values_list("batch_id", flat=True).get(pk=row.pk)
+    batch = LegacyImportBatch.objects.select_for_update().get(pk=batch_id)
+    row = LegacyImportRow.objects.select_for_update().get(pk=row.pk, batch_id=batch.pk)
+    row.batch = batch
     if batch.status != LegacyImportBatch.Status.COMPLETED:
         raise ValueError("只有已完成批次中的失敗資料可以補匯。")
     if row.action != LegacyImportRow.Action.ERROR or row.committed_model:

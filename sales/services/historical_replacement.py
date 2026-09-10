@@ -137,6 +137,8 @@ def replace_historical_buyer(*, row_id, order_id, user, data):
         raise ValidationError(f"新買家補匯失敗，原單、配車及所有異動均已回復：{result['error']}")
     row.refresh_from_db()
     new_order = SalesOrder.objects.get(pk=row.committed_pk)
+    if new_order.allocated_vehicle_id != vehicle.pk:
+        raise ValidationError("同號碼對應到不同庫存車輛，已回復所有異動。請核對完整重複清單，不可自動改配其他車輛。")
     OrderChange.objects.create(order=order, reason=f"歷史退訂換買家；補匯新單 {new_order.number}；{facts['reason']}", changes=audit, actor_name=actor)
     OrderEvent.objects.create(order=order, event_type="historical_buyer_replaced", description=f"已更正歷史匯入退訂狀態，保留原收支；實際已退清 {facts['actual_received']} 元。新單 {new_order.number}。", actor_name=actor)
     OrderEvent.objects.create(order=new_order, event_type="historical_buyer_replacement", description=f"由歷史退訂更正補匯，原單 {order.number}。新單進度：{new_order.get_status_display()}。未轉移原單收款；{facts['reason']}", actor_name=actor)

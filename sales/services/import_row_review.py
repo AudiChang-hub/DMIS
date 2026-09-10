@@ -100,6 +100,12 @@ def build_import_row_review(row, labels):
             notes.setdefault("identifier_raw", "同一車輛已有訂單，請先核對差異與原訂單狀態，不要為了通過檢查而修改正確號碼。")
     from sales.services.legacy_import import friendly_import_message
 
+    replacement_candidates = [item["order"] for item in comparisons
+        if row.batch.status == "completed" and row.action == "error" and not row.committed_model and not row.committed_pk
+        and row.sheet_name == "銷貨" and row.mapped_data.get("vehicle_category") == SalesOrder.VehicleCategory.NEW
+        and item["occupies_vehicle"] and item["order"].vehicle_category == SalesOrder.VehicleCategory.NEW
+        and _text(row.mapped_data.get("owner_name")) and _text(row.mapped_data.get("owner_name")) != item["order"].owner_name.strip()]
     return {"notes": notes, "comparisons": comparisons, "peer_rows": peer_rows, "identifier": identifier,
+            "replacement_candidates": replacement_candidates,
             "related_vehicles": related_vehicles,
             "messages": [friendly_import_message(message) for message in messages]}

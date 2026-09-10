@@ -64,6 +64,90 @@ class ReplacementFixture:
 
 
 class HistoricalReplacementTests(ReplacementFixture, TestCase):
+    def correction_data(self, **changes):
+        return {**{key: value if value is not None else "" for key, value in self.row.mapped_data.items()},
+                "decision": "correct", "reason": "原買家退訂，新買家尚待領牌交車", **changes}
+
+    def test_regular_correction_continues_to_review_without_retry_or_order_changes(self):
+        before_orders = list(SalesOrder.objects.values())
+        before_payments = list(PaymentRecord.objects.values())
+        before_inventory = list(VehicleInventory.objects.values())
+        before_summary = self.batch.result_summary
+        url = reverse("legacy_import_row_decide", args=[self.batch.pk, self.row.pk])
+        with patch("sales.views.retry_completed_import_row") as retry:
+            response = self.client.post(url, self.correction_data(owner_phone="0912345678"))
+        self.assertRedirects(response, self.url)
+        retry.assert_not_called()
+        self.row.refresh_from_db()
+        self.batch.refresh_from_db()
+        self.assertEqual(self.row.mapped_data["owner_phone"], "0912345678")
+        self.assertEqual(self.row.action, "error")
+        self.assertFalse(self.row.committed_pk)
+        self.assertEqual(self.batch.result_summary, before_summary)
+        self.assertEqual(before_orders, list(SalesOrder.objects.values()))
+        self.assertEqual(before_payments, list(PaymentRecord.objects.values()))
+        self.assertEqual(before_inventory, list(VehicleInventory.objects.values()))
+        preview = self.client.get(self.url)
+        self.assertEqual(preview.context["form"]["reason"].value(), "原買家退訂，新買家尚待領牌交車")
+        self.assertEqual(preview.context["form"]["incoming_status"].value(), "pending")
+        for name in ("original_unregistered", "original_undelivered", "finances_checked"):
+            self.assertFalse(preview.context["form"][name].value())
+        editor = self.client.get(reverse("legacy_import_detail", args=[self.batch.pk]), {"edit": self.row.pk})
+        self.assertContains(editor, "data-import-review-workflow")
+        self.assertEqual(editor.context["correction_form"]["reason"].value(), "原買家退訂，新買家尚待領牌交車")
+
+    def test_explicit_review_validates_submitted_identifier_and_permission(self):
+        url = reverse("legacy_import_row_decide", args=[self.batch.pk, self.row.pk])
+        before = dict(self.row.mapped_data)
+        response = self.client.post(url, self.correction_data(replacement_order=self.order.pk, identifier_raw="OTHER"))
+        self.assertEqual(response.status_code, 302)
+        self.assertIn("edit=", response.url)
+        self.row.refresh_from_db()
+        self.assertEqual(before, self.row.mapped_data)
+        self.assertEqual(SalesOrder.objects.count(), 1)
+        staff = get_user_model().objects.create_user("reviewstaff", is_staff=True)
+        self.client.force_login(staff)
+        self.assertEqual(self.client.post(url, self.correction_data(replacement_order=self.order.pk)).status_code, 403)
+
+    def test_guided_flow_cancels_and_releases_original_only_after_final_confirmation(self):
+        response = self.client.post(reverse("legacy_import_row_decide", args=[self.batch.pk, self.row.pk]),
+            self.correction_data(replacement_order=self.order.pk))
+        self.assertRedirects(response, self.url)
+        final = self.data()
+        final.update(incoming_status="pending", pending_vehicle_price="76000", pending_balance="76000")
+        response = self.client.post(self.url, final)
+        self.assertEqual(response.status_code, 302)
+        self.row.refresh_from_db()
+        self.order.refresh_from_db()
+        new = SalesOrder.objects.get(pk=self.row.committed_pk)
+        self.assertEqual(self.order.status, SalesOrder.Status.CANCELLED)
+        self.assertIsNone(self.order.allocated_vehicle_id)
+        self.assertEqual(new.allocated_vehicle_id, self.vehicle_id)
+        self.assertEqual(new.status, SalesOrder.Status.ALLOCATED)
+        self.assertFalse(new.registration_completed_at)
+        self.assertFalse(new.delivered_at)
+        vehicle = VehicleInventory.objects.get(pk=self.vehicle_id)
+        self.assertEqual(vehicle.status, VehicleInventory.Status.RESERVED)
+        self.assertTrue(vehicle.normalized_engine_number or vehicle.normalized_frame_number)
+
+    def test_exclusion_does_not_enter_replacement(self):
+        response = self.client.post(reverse("legacy_import_row_decide", args=[self.batch.pk, self.row.pk]),
+            self.correction_data(decision="exclude"))
+        self.assertEqual(response.status_code, 302)
+        self.row.refresh_from_db()
+        self.order.refresh_from_db()
+        self.assertEqual(self.row.action, "exclude")
+        self.assertEqual(self.order.status, "completed")
+        self.assertEqual(self.order.allocated_vehicle_id, self.vehicle_id)
+
+    def test_corrected_identifier_rechecks_candidates_and_can_use_regular_import(self):
+        response = self.client.post(reverse("legacy_import_row_decide", args=[self.batch.pk, self.row.pk]),
+            self.correction_data(identifier_raw="NEW123"))
+        self.assertEqual(response.status_code, 302)
+        self.assertNotIn("/replace/", response.url)
+        self.row.refresh_from_db()
+        self.assertEqual(self.row.action, "create")
+
     def test_preview_readonly_and_no_prechecked_facts(self):
         before = list(SalesOrder.objects.values())
         response = self.client.get(self.url)

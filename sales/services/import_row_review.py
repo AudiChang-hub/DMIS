@@ -21,6 +21,14 @@ def _text(value):
     return str(value if value is not None else "").strip()
 
 
+def same_import_buyer(data, order):
+    incoming_id = _text(data.get("owner_id_number")).upper()
+    existing_id = _text(order.owner_id_number).upper()
+    if incoming_id and existing_id and not existing_id.startswith("HIST-") and incoming_id != existing_id:
+        return False
+    return bool(_text(data.get("owner_name"))) and _text(data.get("owner_name")) == order.owner_name.strip()
+
+
 def build_import_row_review(row, labels):
     notes = {}
     messages = [str(message) for message in row.messages]
@@ -83,7 +91,7 @@ def build_import_row_review(row, labels):
                 guidance = "Excel 換名字不代表原訂單已取消。請先查看原訂單的退訂、收退款及配車狀態，再決定如何處理；不可直接把原訂單改成新買家。"
             elif "registration_date" in differences:
                 title = "領牌日期不同：請核對是否改期"
-                guidance = "可能是同一張訂單改期，不應只因日期不同再建立一張。請至原訂單確認實際領牌日期，並由訂單流程處理相關異動。"
+                guidance = "可能是同一張訂單改期，不應再建立一張。admin 可使用上方「核對領牌改期」入口，確認預計或實際日期後更新原單。"
             elif differences:
                 title = "同一車輛有資料差異，需人工核對"
                 guidance = "請比對既有訂單及上次匯入內容，確認是資料更新或另一筆交易。"
@@ -105,7 +113,14 @@ def build_import_row_review(row, labels):
         and row.sheet_name == "銷貨" and row.mapped_data.get("vehicle_category") == SalesOrder.VehicleCategory.NEW
         and item["occupies_vehicle"] and item["order"].vehicle_category == SalesOrder.VehicleCategory.NEW
         and _text(row.mapped_data.get("owner_name")) and _text(row.mapped_data.get("owner_name")) != item["order"].owner_name.strip()]
+    date_candidates = [item["order"] for item in comparisons
+        if row.batch.status == "completed" and row.action == "error" and not row.committed_model and not row.committed_pk
+        and row.sheet_name == "銷貨" and row.mapped_data.get("vehicle_category") == SalesOrder.VehicleCategory.NEW
+        and item["occupies_vehicle"] and item["order"].vehicle_category == SalesOrder.VehicleCategory.NEW
+        and same_import_buyer(row.mapped_data, item["order"])
+        and _text(row.mapped_data.get("registration_date")) != _text(item["order"].registration_date)]
     return {"notes": notes, "comparisons": comparisons, "peer_rows": peer_rows, "identifier": identifier,
+            "date_candidates": date_candidates,
             "replacement_candidates": replacement_candidates,
             "related_vehicles": related_vehicles,
             "messages": [friendly_import_message(message) for message in messages]}

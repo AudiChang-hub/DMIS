@@ -3630,7 +3630,8 @@ def legacy_import_row_decide(request, pk, row_pk):
     batch = get_object_or_404(LegacyImportBatch.objects.select_for_update(), pk=pk)
     row = get_object_or_404(batch.rows.select_for_update(), pk=row_pk)
     replacement_order = request.POST.get("replacement_order")
-    if replacement_order:
+    date_order = request.POST.get("date_order")
+    if replacement_order or date_order:
         from sales.services.historical_replacement import require_admin
         require_admin(request.user)
     form = LegacyImportRowCorrectionForm(request.POST, row=row)
@@ -3670,10 +3671,18 @@ def legacy_import_row_decide(request, pk, row_pk):
         )
     try:
         if batch.status == LegacyImportBatch.Status.COMPLETED:
-            if replacement_order and form.cleaned_data["decision"] != "correct":
-                raise ValueError("換買家核對不能同時選擇不匯入此列，請確認處理方式。")
+            if replacement_order and date_order:
+                raise ValueError("改期與換買家不能同時執行，請重新核對。")
+            if (replacement_order or date_order) and form.cleaned_data["decision"] != "correct":
+                raise ValueError("核對流程不能同時選擇不匯入此列，請確認處理方式。")
             if form.cleaned_data["decision"] == "correct" and request.user.is_superuser and request.user.username == "admin":
                 from sales.services.historical_replacement import prepare_replacement_review
+                if not replacement_order:
+                    target_order = prepare_replacement_review(row=row, mapping=form.cleaned_mapping(),
+                        reason=form.cleaned_data["reason"], user=request.user, order_id=date_order, review_kind="date")
+                    if target_order:
+                        messages.info(request, "已保存本列與說明，請核對領牌改期；尚未修改原訂單或新增資料。")
+                        return redirect("historical_date_change", pk=batch.pk, row_pk=row.pk, order_pk=target_order.pk)
                 target_order = prepare_replacement_review(row=row, mapping=form.cleaned_mapping(),
                     reason=form.cleaned_data["reason"], user=request.user, order_id=replacement_order)
                 if target_order:

@@ -40,6 +40,7 @@ HELP_TOPIC_BY_ROUTE = {
     "data_maintenance": "master-data",
     "legacy_import_list": "import-data",
     "legacy_import_detail": "import-data",
+    "historical_date_change": "import-data",
     "historical_buyer_replacement": "import-data",
     "positioned_template_list": "print-templates",
     "positioned_template_create": "print-templates",

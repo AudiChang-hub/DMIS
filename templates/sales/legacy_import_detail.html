@@ -249,13 +249,20 @@
   </div>
   <form method="post" action="{% url 'legacy_import_row_decide' batch.pk editing_row.pk %}" class="import-correction-form">
     {% csrf_token %}
+    {% if correction_form.review.date_candidates and request.user.is_superuser and request.user.username == 'admin' %}
+    <aside class="import-review-summary" data-import-review-workflow tabindex="-1" aria-label="同買家領牌改期流程">
+      <h3>同一位買家、同一台車，請核對領牌改期</h3>
+      <p>這不是新增訂單。先保存本列與說明，再確認日期性質，更新原訂單並保留配車及收支。</p>
+      <div class="inline-actions">{% for original in correction_form.review.date_candidates %}<button type="submit" name="date_order" value="{{ original.pk }}" class="button primary">下一步：核對領牌改期 {{ original.registration_date|date:'Y/m/d' }} → {{ editing_row.mapped_data.registration_date }}</button>{% endfor %}</div>
+    </aside>
+    {% endif %}
     {% if correction_form.review.replacement_candidates and request.user.is_superuser and request.user.username == 'admin' %}
     <aside class="import-review-summary" data-import-review-workflow tabindex="-1" aria-label="退訂換買家處理流程">
       <h3>這台車仍由原買家占用，請先核對換買家流程</h3>
       <p>填寫「退訂」說明不會自動取消原訂單。下方按鈕會先保存本頁修改與說明，再帶你確認新舊買家；此步驟不會取消、退款或建立訂單。</p>
       <p><strong>1 保存本列 → 2 核對原單與新單 → 3 確認後補匯</strong></p>
       <div class="inline-actions">{% for original in correction_form.review.replacement_candidates %}<button type="submit" name="replacement_order" value="{{ original.pk }}" class="button primary">下一步：核對 {{ original.owner_name }} → {{ editing_row.mapped_data.owner_name }}</button>{% endfor %}</div>
-      <p>仍可在下方修正新買家資料；已填說明會帶入下一頁。同買家改期請到原訂單處理，不使用換買家。</p>
+      <p>仍可在下方修正新買家資料；已填說明會帶入下一頁。同買家改期請使用「核對領牌改期」，不使用換買家。</p>
     </aside>
     {% endif %}
     <aside class="import-review-summary" id="import-review-summary" aria-label="本列需要核對的項目" tabindex="-1">
@@ -273,7 +280,7 @@
       <p><strong>{{ comparison.order.owner_name }}</strong> · {{ comparison.order.get_vehicle_category_display }} · {% if comparison.occupies_vehicle %}<strong>目前配車占用</strong>{% else %}歷史紀錄／目前未占用此車{% endif %}</p>
       <p><a href="{% url 'order_detail' comparison.order.pk %}" target="_blank" rel="noopener">查看原訂單 {{ comparison.order.number }} ↗</a> · {{ comparison.order.get_status_display }}</p>
       {% if request.user.is_superuser and request.user.username == 'admin' and batch.status == 'completed' and editing_row.action == 'error' and editing_row.sheet_name == '銷貨' and comparison.occupies_vehicle and comparison.order.vehicle_category == 'new' %}
-      <p>若是退訂換買家，請使用上方「下一步：核對」按鈕，會一併保存本頁內容；若只是同買家改期，請到原訂單修改。</p>
+      <p>換買家與同買家改期是不同流程。請使用上方對應的「下一步：核對」或「核對領牌改期」入口，會一併保存本頁內容；不會在此步驟變更訂單。</p>
       {% endif %}
       {% if comparison.previous_row %}<p>上次匯入：{{ comparison.previous_row.sheet_name }}第 {{ comparison.previous_row.source_row }} 列。比對號碼相同的訂單，不以 Excel 列號判斷。</p>{% else %}<p>此訂單沒有歷史 Excel 快照，僅能比對系統目前資料。</p>{% endif %}
       <div class="inventory-table-wrap"><table class="inventory-table import-comparison-table">
@@ -287,7 +294,7 @@
       {% for field in correction_form %}{% if field.name != 'decision' and field.name != 'reason' %}{% include "sales/_import_review_field.html" with field=field %}{% endif %}{% endfor %}
     </div>
     {% include "sales/_field.html" with field=correction_form.reason %}
-    <div class="form-actions"><button class="button primary" type="submit">{% if correction_form.review.replacement_candidates and request.user.is_superuser and request.user.username == 'admin' %}儲存並繼續核對{% elif batch.status == 'completed' %}修正並補匯此列{% else %}儲存並重新驗證{% endif %}</button><a class="button ghost" href="?action={{ selected_action }}#issue-review">取消</a></div>
+    <div class="form-actions"><button class="button primary" type="submit">{% if correction_form.review.date_candidates and request.user.is_superuser and request.user.username == 'admin' %}儲存並核對改期{% elif correction_form.review.replacement_candidates and request.user.is_superuser and request.user.username == 'admin' %}儲存並繼續核對{% elif batch.status == 'completed' %}修正並補匯此列{% else %}儲存並重新驗證{% endif %}</button><a class="button ghost" href="?action={{ selected_action }}#issue-review">取消</a></div>
   </form>
   {% if editing_row.corrections.exists %}<details class="import-correction-history"><summary>查看人工處理紀錄（{{ editing_row.corrections.count }} 筆）</summary>{% for correction in editing_row.corrections.all %}<p><strong>{{ correction.get_decision_display }}</strong> · {{ correction.corrected_by }} · {{ correction.created_at|date:'Y/m/d H:i' }}<br>{{ correction.reason }}</p>{% endfor %}</details>{% endif %}
 </section>

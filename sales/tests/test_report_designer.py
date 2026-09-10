@@ -29,6 +29,23 @@ class ReportDesignerTests(TestCase):
                 payload[f'cards-{index}-fixed_{key}'] = '\n'.join(value) if key in MODEL_TEXT_SCOPES else value
         return payload
 
+    def test_chart_picker_keeps_native_form_and_whitelisted_choices(self):
+        from sales.reporting.forms import CardForm
+        from sales.reporting.engine import CHARTS
+        self.login()
+        response = self.client.get(reverse('report_edit', args=[self.report.pk]))
+        self.assertContains(response, 'js/report-chart-picker.js')
+        self.assertContains(response, 'css/report-chart-picker.css')
+        self.assertContains(response, 'name="cards-0-chart"')
+        self.assertEqual(dict(CardForm.base_fields['chart'].choices), CHARTS)
+        for chart in CHARTS:
+            payload = self.designer_payload(copy.deepcopy(self.report.draft))
+            payload['cards-0-chart'] = chart
+            payload['cards-0-dimension'] = 'month'
+            payload['cards-0-series'] = 'brand' if chart == 'stacked' else ''
+            preview = self.client.post(reverse('report_edit', args=[self.report.pk]), payload)
+            self.assertEqual(preview.status_code, 200, (chart, preview.content[:400]))
+
     def test_whole_canvas_all_official_pages_readonly(self):
         self.login()
         versions = list(ReportRevision.objects.values_list('pk', flat=True))

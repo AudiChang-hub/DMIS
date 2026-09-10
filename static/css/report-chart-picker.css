@@ -1,0 +1,21 @@
+[data-report-cards] select[data-visual-chart-select][hidden]{display:none!important}
+[data-report-cards] .chart-type-trigger{display:flex;align-items:center;gap:12px;width:100%;min-height:60px;padding:8px 12px;border:1px solid #bac3e1;border-radius:10px;background:#fff;color:#202d55;font:inherit;text-align:left;cursor:pointer}
+.chart-type-trigger svg{width:64px;height:40px;flex:none}
+.chart-type-trigger span:first-of-type{flex:1;font-weight:600}
+.chart-type-dialog{box-sizing:border-box;width:620px;max-width:calc(100vw - 24px);max-height:calc(100dvh - 32px);padding:24px;margin:auto;border:1px solid #c6cde3;border-radius:16px;background:#fff;color:#202d55;box-shadow:0 16px 60px #14204040;overflow:auto;font-size:16px}
+.chart-type-dialog::backdrop{background:#18213f55}
+.chart-type-dialog header{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.chart-type-dialog h2{font-size:22px;line-height:1.4;margin:0}
+.chart-type-dialog p{font-size:16px;line-height:1.6;color:#596782;margin:12px 0 18px}
+.chart-type-close{flex:none;min-height:44px;padding:8px 12px;border:1px solid #c6cde3;border-radius:8px;background:#f5f6fb;color:inherit;font:inherit;cursor:pointer}
+.chart-type-options{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.chart-type-option{position:relative;display:flex;flex-direction:column;align-items:center;gap:6px;min-width:0;padding:12px;border:2px solid #e0e4f0;border-radius:12px;background:#fff;color:inherit;font:inherit;cursor:pointer;text-align:center}
+.chart-type-option svg{width:120px;max-width:100%;height:72px}
+.chart-type-option strong{font-size:17px;line-height:1.4}
+.chart-type-description{font-size:16px;line-height:1.5;color:#596782}
+.chart-type-check{display:none;position:absolute;right:8px;top:8px;width:24px;height:24px;border-radius:50%;background:#4054a6;color:white;line-height:24px;font-weight:700}
+.chart-type-option[aria-pressed=true]{border-color:#4054a6;background:#f0f3ff}
+.chart-type-option[aria-pressed=true] .chart-type-check{display:block}
+.chart-type-option:hover{border-color:#7385c7;background:#f5f7ff}
+.chart-type-option:focus-visible,.chart-type-close:focus-visible,[data-report-cards] .chart-type-trigger:focus-visible{outline:3px solid #b27304;outline-offset:2px}
+@media(max-width:480px){.chart-type-dialog{padding:16px}.chart-type-dialog h2{font-size:20px}.chart-type-options{gap:8px}.chart-type-option{padding:10px 6px}.chart-type-option svg{height:58px}.chart-type-trigger svg{width:52px}}

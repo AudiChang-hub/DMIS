@@ -82,7 +82,7 @@ jobs:
         run: python manage.py check --deploy
 
       - name: Verify existing frontend behavior checks
-        run: node --test tests/frontend/floating-list.test.cjs tests/frontend/bonus-periods.test.cjs tests/frontend/bonus-model-filter.test.cjs tests/frontend/report-interactions.test.cjs tests/frontend/report-designer.test.cjs tests/frontend/import-row-review.test.cjs
+        run: node --test tests/frontend/floating-list.test.cjs tests/frontend/bonus-periods.test.cjs tests/frontend/bonus-model-filter.test.cjs tests/frontend/report-interactions.test.cjs tests/frontend/report-designer.test.cjs tests/frontend/report-chart-picker.test.cjs tests/frontend/import-row-review.test.cjs
 
       - name: Verify migrations are committed
         run: python manage.py makemigrations --check --dry-run

@@ -157,6 +157,7 @@ class HistoricalReplacementTests(ReplacementFixture, TestCase):
         balance = new.payment_records.get(system_key="balance")
         self.assertEqual(balance.expected_amount, 71000)
         self.assertEqual(balance.received_amount, 5000)
+        self.assertEqual(new.actual_balance - balance.received_amount, 66000)
         self.assertFalse(new.payment_records.filter(system_key__startswith="legacy_").exists())
         self.assertEqual(old_payments, list(self.order.payment_records.values()))
         with self.assertRaises(ValidationError):
@@ -187,6 +188,17 @@ class HistoricalReplacementTests(ReplacementFixture, TestCase):
         data.update(incoming_status="pending", pending_vehicle_price="70000", pending_balance="1000")
         with self.assertRaisesMessage(ValidationError, "低於本次 Excel 實收"):
             self.execute(data)
+
+    def test_pending_invalid_receipts_cannot_release_original_vehicle(self):
+        for amount in ("-100", "NaN", "Infinity"):
+            self.row.mapped_data["cash_received"] = amount
+            self.row.save()
+            data = self.data()
+            data.update(incoming_status="pending", pending_vehicle_price="70000", pending_balance="70000")
+            with self.assertRaises(ValidationError):
+                self.execute(data)
+            self.order.refresh_from_db()
+            self.assertEqual(self.order.allocated_vehicle_id, self.vehicle_id)
 
     def test_successful_post_redirects_to_new_order(self):
         response = self.client.post(self.url, self.data())

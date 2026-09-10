@@ -23,8 +23,8 @@ class HistoricalReplacementForm(forms.Form):
     incoming_status = forms.ChoiceField(label="新買家目前進度", choices=[("", "請依實際狀況選擇"), ("pending", "尚待領牌／交車"), ("completed", "已完成領牌及交車")])
     pending_vehicle_price = forms.DecimalField(label="新訂單成交車價（待辦訂單必填）", required=False, max_digits=12, decimal_places=0, min_value=1,
         help_text="依合約核對車價，不直接把 Excel 收款價當成車價。已完成的歷史銷售不需填。")
-    pending_balance = forms.DecimalField(label="新訂單應收尾款總額（待辦訂單必填）", required=False, max_digits=12, decimal_places=0, min_value=0,
-        help_text="扣除訂金後的應收總額，尚未扣除本次 Excel 現金／刷卡實收；兩者會分開保存。")
+    pending_balance = forms.DecimalField(label="新訂單約定應收總額（含已收款，待辦訂單必填）", required=False, max_digits=12, decimal_places=0, min_value=0,
+        help_text="請勿先扣除已收款。本流程不另外扣訂金；本次 Excel 現金／刷卡會記為尾款實收，應收與實收分開保存。")
     collection_status = forms.ChoiceField(label="原買家款項狀況", choices=[("", "請依實際情況選擇"), ("none", "從未收款"), ("refunded", "曾收款，已全額退清")])
     actual_received = forms.DecimalField(label="原買家實際曾收款總額", max_digits=12, decimal_places=0, min_value=0,
         help_text="從未收款請填 0；曾收款請填已全額退清的金額，不會轉入新訂單。")
@@ -62,7 +62,10 @@ class HistoricalReplacementForm(forms.Form):
                     self.add_error(key, "尚待領牌／交車時，必須核對新訂單金額，不能沿用歷史匯入的零元應收。")
             from decimal import Decimal, InvalidOperation
             try:
-                received = sum((Decimal(str(self.preview["row"].mapped_data.get(key) or 0)) for key in ("cash_received", "card_received")), Decimal("0"))
+                receipts = [Decimal(str(self.preview["row"].mapped_data.get(key) or 0)) for key in ("cash_received", "card_received")]
+                if any(not value.is_finite() or value < 0 for value in receipts):
+                    raise InvalidOperation
+                received = sum(receipts, Decimal("0"))
                 if data.get("pending_balance") is not None and data["pending_balance"] < received:
                     self.add_error("pending_balance", "應收尾款總額低於本次 Excel 實收，請先核對是否誤把已收金額再次扣除。")
             except InvalidOperation:

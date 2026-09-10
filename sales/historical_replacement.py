@@ -21,9 +21,9 @@ class HistoricalReplacementForm(forms.Form):
     original_undelivered = forms.BooleanField(label="原買家未實際交車（原交付完成紀錄僅為歷史匯入誤標）")
     finances_checked = forms.BooleanField(label="已核對原單傭金、獎金、實物及所有收支，沒有未處理的款項或獎勵")
     incoming_status = forms.ChoiceField(label="新買家目前進度", choices=[("", "請依實際狀況選擇"), ("pending", "尚待領牌／交車"), ("completed", "已完成領牌及交車")])
-    pending_vehicle_price = forms.DecimalField(label="新訂單成交車價（待辦訂單必填）", required=False, max_digits=12, decimal_places=0, min_value=1,
+    pending_vehicle_price = forms.DecimalField(label="新訂單成交車價", required=False, max_digits=12, decimal_places=0, min_value=1,
         help_text="依合約核對車價，不直接把 Excel 收款價當成車價。已完成的歷史銷售不需填。")
-    pending_balance = forms.DecimalField(label="新訂單約定應收總額（含已收款，待辦訂單必填）", required=False, max_digits=12, decimal_places=0, min_value=0,
+    pending_balance = forms.DecimalField(label="新訂單約定應收總額（含已收款）", required=False, max_digits=12, decimal_places=0, min_value=0,
         help_text="請勿先扣除已收款。本流程不另外扣訂金；本次 Excel 現金／刷卡會記為尾款實收，應收與實收分開保存。")
     collection_status = forms.ChoiceField(label="原買家款項狀況", choices=[("", "請依實際情況選擇"), ("none", "從未收款"), ("refunded", "曾收款，已全額退清")])
     actual_received = forms.DecimalField(label="原買家實際曾收款總額", max_digits=12, decimal_places=0, min_value=0,

@@ -3,7 +3,7 @@ import re
 
 from django.db.models import Q
 
-from sales.models import SalesOrder, normalize_vehicle_identifier
+from sales.models import LegacyImportRow, SalesOrder, normalize_vehicle_identifier
 
 
 COMPARISON_FIELDS = {
@@ -31,24 +31,24 @@ def build_import_row_review(row, labels):
     if any("allocated_vehicle" in m or "識別號碼" in m for m in messages):
         notes["identifier_raw"] = "請核對引擎／車身號碼；同車輛可能已有訂單，不代表號碼一定填錯。"
     comparisons = []
+    peer_rows = []
     identifier = normalize_vehicle_identifier(row.mapped_data.get("identifier_raw") or row.mapped_data.get("identifier"))
-    if row.sheet_name == "銷貨" and identifier:
+    if row.sheet_name in {"銷貨", "進貨"} and identifier:
         # 號碼正規化後精確比對，不以姓名、日期或 Excel 列號猜測同一筆訂單。
         orders = SalesOrder.objects.filter(
             Q(allocated_vehicle__normalized_engine_number=identifier)
             | Q(allocated_vehicle__normalized_frame_number=identifier)
             | Q(legacy_snapshot__import_row__mapped_data__identifier=identifier),
-            vehicle_category=row.mapped_data.get("vehicle_category") or SalesOrder.VehicleCategory.NEW,
-        ).select_related("vehicle_model", "color", "source", "legacy_snapshot__import_row").distinct().order_by("pk")
-        candidates = list(orders[:6])
-        for order in candidates[:5]:
+        ).select_related("vehicle_model", "color", "source", "allocated_vehicle", "legacy_snapshot__import_row").distinct().order_by("pk")
+        # 所有同號碼訂單都要可見；新車／中古／已取消是核對資訊，不是排除條件。
+        for order in orders:
             snapshot = getattr(order, "legacy_snapshot", None)
             previous = snapshot.import_row.mapped_data if snapshot else None
             current = {
                 "owner_name": order.owner_name,
                 "registration_date": order.registration_date,
                 "order_date": order.order_date,
-                "model_number": order.vehicle_model.model_number,
+                "model_number": order.vehicle_model.model_number if order.vehicle_model else "",
                 "plate_number": order.final_plate_number,
                 "color": order.color.name if order.color else "",
                 "dealer_name": order.source.name if order.source else "",
@@ -81,11 +81,15 @@ def build_import_row_review(row, labels):
             else:
                 title = "主要欄位相同：疑似重複匯入"
                 guidance = "仍須核對收支及其他欄位，不能僅憑車輛號碼自動略過；確認重複後可選擇不匯入此列並填寫原因。"
-            comparisons.append({"order": order, "title": title, "guidance": guidance, "values": values, "previous_row": snapshot.import_row if snapshot else None})
+            vehicle = order.allocated_vehicle
+            occupies = bool(vehicle and identifier in {vehicle.normalized_engine_number, vehicle.normalized_frame_number})
+            comparisons.append({"order": order, "title": title, "guidance": guidance, "values": values,
+                                "occupies_vehicle": occupies, "previous_row": snapshot.import_row if snapshot else None})
+        peer_rows = list(LegacyImportRow.objects.filter(batch_id=row.batch_id, mapped_data__identifier=identifier)
+                         .exclude(pk=row.pk).order_by("sheet_name", "source_row", "pk"))
         if comparisons:
             notes.setdefault("identifier_raw", "同一車輛已有訂單，請先核對差異與原訂單狀態，不要為了通過檢查而修改正確號碼。")
-    else:
-        candidates = []
     from sales.services.legacy_import import friendly_import_message
 
-    return {"notes": notes, "comparisons": comparisons, "more_candidates": len(candidates) > 5, "messages": [friendly_import_message(message) for message in messages]}
+    return {"notes": notes, "comparisons": comparisons, "peer_rows": peer_rows, "identifier": identifier,
+            "messages": [friendly_import_message(message) for message in messages]}

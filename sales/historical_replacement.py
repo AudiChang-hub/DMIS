@@ -20,7 +20,11 @@ class HistoricalReplacementForm(forms.Form):
     original_unregistered = forms.BooleanField(label="原買家未實際領牌（原領牌完成紀錄僅為歷史匯入誤標）")
     original_undelivered = forms.BooleanField(label="原買家未實際交車（原交付完成紀錄僅為歷史匯入誤標）")
     finances_checked = forms.BooleanField(label="已核對原單傭金、獎金、實物及所有收支，沒有未處理的款項或獎勵")
-    incoming_completed = forms.BooleanField(label="新買家這筆確實是已完成的歷史銷售，不是尚待交付的預訂單")
+    incoming_status = forms.ChoiceField(label="新買家目前進度", choices=[("", "請依實際狀況選擇"), ("pending", "尚待領牌／交車"), ("completed", "已完成領牌及交車")])
+    pending_vehicle_price = forms.DecimalField(label="新訂單成交車價（待辦訂單必填）", required=False, max_digits=12, decimal_places=0, min_value=1,
+        help_text="依合約核對車價，不直接把 Excel 收款價當成車價。已完成的歷史銷售不需填。")
+    pending_balance = forms.DecimalField(label="新訂單應收尾款總額（待辦訂單必填）", required=False, max_digits=12, decimal_places=0, min_value=0,
+        help_text="扣除訂金後的應收總額，尚未扣除本次 Excel 現金／刷卡實收；兩者會分開保存。")
     collection_status = forms.ChoiceField(label="原買家款項狀況", choices=[("", "請依實際情況選擇"), ("none", "從未收款"), ("refunded", "曾收款，已全額退清")])
     actual_received = forms.DecimalField(label="原買家實際曾收款總額", max_digits=12, decimal_places=0, min_value=0,
         help_text="從未收款請填 0；曾收款請填已全額退清的金額，不會轉入新訂單。")
@@ -44,6 +48,25 @@ class HistoricalReplacementForm(forms.Form):
         if data.get("confirm_number") != self.preview["order"].number:
             self.add_error("confirm_number", "編號必須與上方原訂單一致。")
         amount = data.get("actual_received")
+        if data.get("incoming_status") == "completed":
+            from django.utils.dateparse import parse_date
+            try:
+                completed_date = parse_date(str(self.preview["row"].mapped_data.get("registration_date") or ""))
+            except ValueError:
+                completed_date = None
+            if not completed_date or completed_date > timezone.localdate():
+                self.add_error("incoming_status", "已完成領牌時必須有有效的實際領牌日期，不能空白或填未來日期。")
+        if data.get("incoming_status") == "pending":
+            for key in ("pending_vehicle_price", "pending_balance"):
+                if data.get(key) is None:
+                    self.add_error(key, "尚待領牌／交車時，必須核對新訂單金額，不能沿用歷史匯入的零元應收。")
+            from decimal import Decimal, InvalidOperation
+            try:
+                received = sum((Decimal(str(self.preview["row"].mapped_data.get(key) or 0)) for key in ("cash_received", "card_received")), Decimal("0"))
+                if data.get("pending_balance") is not None and data["pending_balance"] < received:
+                    self.add_error("pending_balance", "應收尾款總額低於本次 Excel 實收，請先核對是否誤把已收金額再次扣除。")
+            except InvalidOperation:
+                self.add_error("pending_balance", "本次 Excel 收款金額格式異常，請先修正來源列。")
         if data.get("collection_status") == "none":
             if amount != 0 or self.preview["recorded_received"] > 0:
                 self.add_error("collection_status", "原單已有收款紀錄或填入非零金額，不能選擇從未收款。請先核對。")

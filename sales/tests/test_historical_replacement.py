@@ -55,7 +55,7 @@ class ReplacementFixture:
         self.order.refresh_from_db()
         preview = replacement_preview(self.row, self.order)
         return dict(preview_token=preview_token(preview, self.admin), confirm_number=self.order.number,
-            original_unregistered=True, original_undelivered=True, finances_checked=True, incoming_completed=True,
+            original_unregistered=True, original_undelivered=True, finances_checked=True, incoming_status="completed",
             collection_status="none", actual_received="0", reason="驗收：原買家退訂，未實際領牌交車")
 
     def execute(self, data=None, user=None):
@@ -68,7 +68,7 @@ class HistoricalReplacementTests(ReplacementFixture, TestCase):
         before = list(SalesOrder.objects.values())
         response = self.client.get(self.url)
         self.assertContains(response, "驗收原買家 → 驗收新買家")
-        for name in ("original_unregistered", "original_undelivered", "finances_checked", "incoming_completed"):
+        for name in ("original_unregistered", "original_undelivered", "finances_checked"):
             self.assertFalse(response.context["form"][name].value())
         self.assertEqual(before, list(SalesOrder.objects.values()))
         self.assertIn("no-store", response["Cache-Control"])
@@ -134,11 +134,59 @@ class HistoricalReplacementTests(ReplacementFixture, TestCase):
         self.assertEqual(csrf_client.post(self.url, self.data()).status_code, 403)
 
     def test_required_facts_and_number(self):
-        for field in ("original_unregistered", "original_undelivered", "finances_checked", "incoming_completed", "reason", "confirm_number"):
+        for field in ("original_unregistered", "original_undelivered", "finances_checked", "incoming_status", "reason", "confirm_number"):
             data = self.data()
             data.pop(field)
             self.assertEqual(self.client.post(self.url, data).status_code, 400)
         self.assertEqual(SalesOrder.objects.count(), 1)
+
+    def test_pending_order_preserves_schedule_and_requires_real_completion(self):
+        self.row.mapped_data.update(registration_date="2026-09-11", cash_received="3000", card_received="2000", payment_confirmed=True)
+        self.row.save()
+        data = self.data()
+        data.update(incoming_status="pending", pending_vehicle_price="70000", pending_balance="71000")
+        old_payments = list(self.order.payment_records.values())
+        new = self.execute(data)
+        self.assertEqual(new.status, SalesOrder.Status.ALLOCATED)
+        self.assertIsNone(new.registration_completed_at)
+        self.assertIsNone(new.delivered_at)
+        self.assertEqual(str(new.registration_date), "2026-09-11")
+        self.assertEqual(new.allocated_vehicle.status, VehicleInventory.Status.RESERVED)
+        self.assertEqual(new.vehicle_price, 70000)
+        self.assertEqual(new.actual_balance, 71000)
+        balance = new.payment_records.get(system_key="balance")
+        self.assertEqual(balance.expected_amount, 71000)
+        self.assertEqual(balance.received_amount, 5000)
+        self.assertFalse(new.payment_records.filter(system_key__startswith="legacy_").exists())
+        self.assertEqual(old_payments, list(self.order.payment_records.values()))
+        with self.assertRaises(ValidationError):
+            new.complete_registration("admin")
+        from django.utils import timezone
+        with self.assertRaises(ValidationError):
+            new.complete_delivery(timezone.now(), "admin")
+
+    def test_pending_order_never_assumes_zero_price_or_receivable(self):
+        data = self.data()
+        data["incoming_status"] = "pending"
+        with self.assertRaisesMessage(ValidationError, "必須核對新訂單金額"):
+            self.execute(data)
+        self.assertEqual(SalesOrder.objects.count(), 1)
+
+    def test_future_registration_cannot_be_declared_completed(self):
+        from datetime import timedelta
+        from django.utils import timezone
+        self.row.mapped_data["registration_date"] = str(timezone.localdate() + timedelta(days=1))
+        self.row.save()
+        with self.assertRaisesMessage(ValidationError, "未來日期"):
+            self.execute()
+
+    def test_pending_receivable_cannot_be_less_than_incoming_receipts(self):
+        self.row.mapped_data["cash_received"] = "3000"
+        self.row.save()
+        data = self.data()
+        data.update(incoming_status="pending", pending_vehicle_price="70000", pending_balance="1000")
+        with self.assertRaisesMessage(ValidationError, "低於本次 Excel 實收"):
+            self.execute(data)
 
     def test_successful_post_redirects_to_new_order(self):
         response = self.client.post(self.url, self.data())
@@ -217,7 +265,14 @@ class HistoricalReplacementTests(ReplacementFixture, TestCase):
 @skipUnless(connection.vendor == "postgresql", "PostgreSQL 列鎖驗證")
 class HistoricalReplacementConcurrencyTests(ReplacementFixture, TransactionTestCase):
     def test_double_submit_creates_only_one_replacement(self):
+        self.assert_single_replacement(self.data())
+
+    def test_double_submit_pending_order_creates_only_one_replacement(self):
         data = self.data()
+        data.update(incoming_status="pending", pending_vehicle_price="70000", pending_balance="70000")
+        self.assert_single_replacement(data)
+
+    def assert_single_replacement(self, data):
         barrier = Barrier(2)
         def submit():
             close_old_connections()

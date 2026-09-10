@@ -129,12 +129,15 @@ def replace_historical_buyer(*, row_id, order_id, user, data):
         status_snapshot=VehicleInventory.Status.AVAILABLE, location_store_snapshot=vehicle.location_store,
         location_label_snapshot=vehicle.actual_location_label, condition_note_snapshot=vehicle.condition_note,
         condition_resolution_snapshot=vehicle.condition_resolution)
-    result = retry_completed_import_row(row, {}, "correct", f"原單 {order.number} 歷史退訂更正：{facts['reason']}", actor)
+    pending_order = None
+    if facts["incoming_status"] == "pending":
+        pending_order = {"vehicle_price": facts["pending_vehicle_price"], "balance": facts["pending_balance"], "reason": facts["reason"]}
+    result = retry_completed_import_row(row, {}, "correct", f"原單 {order.number} 歷史退訂更正：{facts['reason']}", actor, pending_order=pending_order)
     if not result["ok"]:
         raise ValidationError(f"新買家補匯失敗，原單、配車及所有異動均已回復：{result['error']}")
     row.refresh_from_db()
     new_order = SalesOrder.objects.get(pk=row.committed_pk)
     OrderChange.objects.create(order=order, reason=f"歷史退訂換買家；補匯新單 {new_order.number}；{facts['reason']}", changes=audit, actor_name=actor)
     OrderEvent.objects.create(order=order, event_type="historical_buyer_replaced", description=f"已更正歷史匯入退訂狀態，保留原收支；實際已退清 {facts['actual_received']} 元。新單 {new_order.number}。", actor_name=actor)
-    OrderEvent.objects.create(order=new_order, event_type="historical_buyer_replacement", description=f"由歷史退訂更正補匯，原單 {order.number}。未轉移原單收款；{facts['reason']}", actor_name=actor)
+    OrderEvent.objects.create(order=new_order, event_type="historical_buyer_replacement", description=f"由歷史退訂更正補匯，原單 {order.number}。新單進度：{new_order.get_status_display()}。未轉移原單收款；{facts['reason']}", actor_name=actor)
     return new_order

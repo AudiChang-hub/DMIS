@@ -108,6 +108,33 @@ class ReportForm(ScopeForm):
 
 
 class CardForm(ScopeForm):
+    font_size = forms.TypedChoiceField(label="圖表文字大小", choices=[(0, "依原版型"), (16, "16 px"), (18, "18 px"), (20, "20 px"), (24, "24 px")], coerce=int, required=False, empty_value=0)
+    title_align = forms.ChoiceField(label="標題對齊", choices=[("", "依原版型"), ("left", "靠左"), ("center", "置中"), ("right", "靠右")], required=False)
+    palette = forms.ChoiceField(label="分類配色", choices=[("", "原報表配色"), ("accessible", "高辨識對比色")], required=False,
+        help_text="同一分類在圖形、圖例與滑入提示保持同色；不更動原始資料。")
+    show_legend = forms.ChoiceField(label="圖例", choices=[("", "顯示（依原版型）"), ("hide", "隱藏")], required=False,
+        help_text="適用圓餅與堆疊圖。隱藏圖例仍可滑入查看分類與數字。")
+    show_tooltip = forms.ChoiceField(label="滑入提示", choices=[("", "顯示數字與分類"), ("hide", "不顯示浮動提示")], required=False)
+    cross_filter = forms.ChoiceField(label="點選圖形", choices=[("", "依報表既有方式連動"), ("off", "僅查看，不連動")], required=False,
+        help_text="互動預覽可實際試選；關閉連動不影響其他圖表或來源明細入口。")
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        explanations = {
+            "width": "半寬可與下一張並排；全寬獨占一列。窄螢幕依正式版型調整。",
+            "height": "320–1200 px，設定最小高度；文字或資料較多會自然延伸，不裁切內容。",
+            "title": "顯示在圖表上方，例如每月銷售台數；只修改標題，不修改統計口徑。",
+            "chart": "長條比較數量、圓餅比較占比、折線看趨勢、堆疊看組成、資料表看明細數字。",
+            "dimension": "先依此欄分組，例如月份或品牌；更換分類會改變每一根長條代表的意義。",
+            "metric": "每一群要彙總的值；傭金與獎金沿用 DMIS 既有結果，不在此重新計算付款。",
+            "limit": "1–200 群。只限制圖表顯示群數，不等於完整資料總數；超出時會有提示。",
+            "sort": "日期由近到遠適合近期趨勢；數值由高到低適合排行。",
+            "font_size": "只調整此圖文字；畫布縮放則是整頁等比例縮放，兩者不同。",
+            "title_align": "覆寫此圖標題位置；選依原版型即可維持原報表習慣。",
+        }
+        for name, explanation in explanations.items():
+            self.fields[name].help_text = explanation
+
     width = forms.TypedChoiceField(label="圖表寬度", choices=[(6, "半寬（並排）"), (12, "全寬")], coerce=int, required=False, empty_value=6, initial=6)
     height = forms.IntegerField(label="圖表高度（像素）", min_value=320, max_value=1200, required=False, initial=520)
 

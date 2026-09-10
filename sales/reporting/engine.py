@@ -207,8 +207,13 @@ def validate_config(config):
         raise ValidationError("每份報表最多 8 張圖表；沒有圖表時請啟用明細表。")
     for card in config["cards"]:
         card_fields = {"title", "dimension", "metric", "chart", "formula", "limit", "sort"}
-        if not isinstance(card, dict) or not card_fields <= set(card) or set(card) - card_fields - {"fixed_filters", "series", "series_limit", "series_other", "series_sort", "additional_metrics", "width", "height"}:
+        if not isinstance(card, dict) or not card_fields <= set(card) or set(card) - card_fields - {"fixed_filters", "series", "series_limit", "series_other", "series_sort", "additional_metrics", "width", "height", "font_size", "title_align", "palette", "show_legend", "show_tooltip", "cross_filter"}:
             raise ValidationError("圖表格式不正確。")
+        if type(card.get("font_size", 0)) is not int or card.get("font_size", 0) not in (0, 16, 18, 20, 24):
+            raise ValidationError("圖表字級不正確。")
+        for option, allowed in {"title_align": ("", "left", "center", "right"), "palette": ("", "accessible"), "show_legend": ("", "hide"), "show_tooltip": ("", "hide"), "cross_filter": ("", "off")}.items():
+            if card.get(option, "") not in allowed:
+                raise ValidationError("圖表樣式或互動設定不正確。")
         if type(card.get("width", 6)) is not int or card.get("width", 6) not in (6, 12):
             raise ValidationError("圖表寬度須為半寬或全寬。")
         if "height" in card and (type(card["height"]) is not int or not 320 <= card["height"] <= 1200):

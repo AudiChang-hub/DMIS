@@ -1556,6 +1556,21 @@ class LegacyImportRowCorrectionForm(forms.Form):
             self.fields[key] = field
         self.fields["decision"].initial = "exclude" if row.excluded else "correct"
         self.order_fields(["decision", *self.editable_keys, "reason"])
+        for field in self.fields.values():
+            if not isinstance(field.widget, (forms.CheckboxInput, forms.RadioSelect)):
+                field.widget.attrs["class"] = "form-control"
+        from sales.services.import_row_review import build_import_row_review
+
+        self.review = build_import_row_review(row, {key: label for key, label, *_ in schema})
+        for key, note in self.review["notes"].items():
+            if key in self.fields:
+                self.fields[key].review_note = note
+                self.fields[key].widget.attrs["data-import-review-field"] = "true"
+                self.fields[key].widget.attrs["aria-describedby"] = f"{self[key].id_for_label}_review"
+        review_keys = [key for key in self.review["notes"] if key in self.fields]
+        if review_keys:
+            primary = next((key for key in review_keys if key != "identifier_raw"), review_keys[0])
+            self.fields[primary].widget.attrs["data-import-review-primary"] = "true"
 
     def clean(self):
         cleaned = super().clean()

@@ -1,0 +1,4 @@
+<div class="import-review-field{% if field.field.review_note %} import-review-field--highlight{% endif %}">
+  {% include "sales/_field.html" with field=field %}
+  {% if field.field.review_note %}<p class="import-review-note" id="{{ field.id_for_label }}_review"><strong>需要核對</strong> · {{ field.field.review_note }} <a href="#import-review-summary">查看核對重點與差異表 ↑</a></p>{% endif %}
+</div>

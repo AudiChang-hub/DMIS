@@ -5446,6 +5446,18 @@ form[aria-busy="true"] { cursor: progress; }
 .import-decision-field label { display: flex; align-items: center; gap: 7px; font-weight: 800; }
 .import-correction-fields { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px 16px; }
 .import-correction-fields .field { margin: 0; }
+.import-review-summary, .import-order-comparison { padding: 18px; margin-bottom: 18px; border: 1px solid var(--line); border-radius: 12px; }
+.import-review-summary .inline-actions { display: flex; flex-wrap: wrap; gap: 10px 18px; }
+.import-review-summary a { text-decoration: underline; }
+.import-review-field { min-width: 0; scroll-margin-top: 110px; }
+.import-review-field--highlight { padding: 12px; background: var(--amber-soft); border: 2px solid var(--amber); border-radius: 12px; }
+.import-review-field--highlight:focus-within { outline: 3px solid #b77700; outline-offset: 3px; }
+.import-review-note { margin: 8px 0 0; font-size: 1rem; line-height: 1.6; }
+.import-review-note a { display: block; min-height: 44px; padding-top: 8px; text-decoration: underline; }
+.import-comparison-changed, .import-comparison-changed td, .import-comparison-changed th { background: var(--amber-soft); color: var(--ink); }
+.import-comparison-changed th { border-left: 4px solid #b77700; }
+.import-comparison-changed th span { color: var(--ink); font-weight: 700; }
+.import-comparison-table { min-width: 640px; }
 .import-correction-form > .field { margin-top: 16px; }
 .import-correction-history { margin: 0 20px 20px; padding: 13px 15px; background: var(--surface-soft); border-radius: 10px; }
 .import-correction-history summary { cursor: pointer; font-weight: 850; }

@@ -34,10 +34,10 @@ function renderReportAnalysis(chart, attach) {
       const label=stacked ? segment.dataset.seriesLabel : row.dataset.pointLabel;
       const rect=make('rect',{x,y:bottom-offset-h,width:barWidth,height:h,fill:reportAnalysisColor(label,segment.dataset.pointColor||segment.style.backgroundColor||'#737373')});
       attach(rect,segment);
-      if(h>=24) make('text',{x:x+barWidth/2,y:bottom-offset-h/2+6,'text-anchor':'middle',fill:'#fff','font-size':20,'pointer-events':'none'},segment.dataset.pointDisplay);
       offset+=h;
     });
-    make('text',{x:x+barWidth/2,y:bottom-offset-8,'text-anchor':'middle',fill:'currentColor','font-size':20},row.dataset.pointDisplay);
+    const totalHeight = Math.max(0,Number(row.dataset.pointValue))/maximum*(bottom-top);
+    make('text',{x:x+barWidth/2,y:bottom-totalHeight-8,'text-anchor':'middle',fill:'currentColor','font-size':20,'class':'report-bar-total-label'},row.dataset.pointDisplay);
     const label=make('text',{x:x+barWidth/2,y:bottom+28,'text-anchor':'middle',fill:'currentColor','font-size':20},row.dataset.pointLabel);
     attach(label,row);
     if(row.dataset.pointLabel.length>6) label.setAttribute('transform',`rotate(-25 ${x+barWidth/2} ${bottom+28})`);

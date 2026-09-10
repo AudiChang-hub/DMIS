@@ -21,7 +21,7 @@ SALT = "historical-buyer-replacement-v1"
 
 
 @transaction.atomic
-def prepare_replacement_review(*, row, mapping, reason, user, order_id=None):
+def prepare_replacement_review(*, row, mapping, reason, user, order_id=None, review_kind="replacement"):
     """只儲存本列，接到確認頁；絕不在導頁階段取消或建立訂單。"""
     require_admin(user)
     from .legacy_import import _json_clean_value
@@ -33,7 +33,9 @@ def prepare_replacement_review(*, row, mapping, reason, user, order_id=None):
     row.mapped_data = {**before, **{key: _json_clean_value(value) for key, value in mapping.items()}}
     if "identifier_raw" in mapping:
         row.mapped_data["identifier"] = normalize_vehicle_identifier(mapping["identifier_raw"]) or ""
-    candidates = build_import_row_review(row, {})["replacement_candidates"]
+    if review_kind not in {"replacement", "date"}:
+        raise ValueError("不支援的核對流程。")
+    candidates = build_import_row_review(row, {})[f"{review_kind}_candidates"]
     if order_id:
         candidates = [order for order in candidates if str(order.pk) == str(order_id)]
         if not candidates:
@@ -41,7 +43,7 @@ def prepare_replacement_review(*, row, mapping, reason, user, order_id=None):
     elif not candidates:
         return None
     if len(candidates) != 1:
-        raise ValueError("同號碼有多筆占用訂單，請從上方清單選擇要核對的原買家，不會自動決定。")
+        raise ValueError("同號碼有多筆占用訂單，請從上方清單選擇要核對的原訂單，不會自動決定。")
     row.manually_corrected = True
     row.corrected_by = user.get_username()
     row.corrected_at = timezone.now()
@@ -53,7 +55,7 @@ def prepare_replacement_review(*, row, mapping, reason, user, order_id=None):
 
 def require_admin(user):
     if not (user.is_authenticated and user.is_active and user.is_superuser and user.get_username() == "admin"):
-        raise PermissionDenied("只有 admin 可以更正歷史退訂換買家。")
+        raise PermissionDenied("只有 admin 可以更正歷史匯入訂單。")
 
 
 def replacement_preview(row, order):

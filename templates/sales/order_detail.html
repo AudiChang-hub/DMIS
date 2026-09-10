@@ -893,12 +893,26 @@
   {% if order.refund_proof %}<a class="button ghost" href="{% url 'protected_media' 'order' order.pk 'refund_proof' %}" target="_blank">查看退款證明</a>{% endif %}
 </section>
 {% elif not order.is_delivered and not order.is_registration_complete %}
-<details class="section-block cancellation-panel">
-  <summary><strong>取消訂單</strong><span>僅限尚未領牌、尚未交付</span></summary>
-  <form method="post" action="{% url 'cancellation_request' order.pk %}" class="form-grid compact-grid">
+<details class="section-block cancellation-panel cancellation-disclosure">
+  <summary>
+    <span class="cancellation-disclosure__heading">
+      <strong>訂單取消與退款</strong>
+      <span>客戶不再購車時，由此登記取消並處理訂金退款。</span>
+      <span class="cancellation-disclosure__condition">僅限尚未領牌、尚未交付</span>
+    </span>
+    <span class="cancellation-disclosure__toggle">
+      <span class="cancellation-disclosure__expand">展開取消流程</span>
+      <span class="cancellation-disclosure__collapse">收合取消流程</span>
+      <span class="cancellation-disclosure__chevron" aria-hidden="true"></span>
+    </span>
+  </summary>
+  <form method="post" action="{% url 'cancellation_request' order.pk %}" class="form-grid compact-grid cancellation-disclosure__form">
     {% csrf_token %}
     {% for field in cancellation_form %}<div class="{% if field.name == 'note' %}wide{% endif %}"><label for="{{ field.id_for_label }}">{{ field.label }}{% if field.field.required %} <span class="required-inline">必填</span>{% endif %}</label>{{ field }}</div>{% endfor %}
-    <div class="wide"><p class="form-hint">若已收訂金，必須全額退款後才算取消完成；已配車輛會解除預留。</p><button class="button danger" type="submit" data-confirm="確定登記取消這張訂單嗎？">登記取消訂單</button></div>
+    <div class="wide cancellation-disclosure__actions">
+      <p class="cancellation-disclosure__notice"><strong>送出前請確認</strong>登記取消後，已配車輛會解除預留；若已收訂金，必須全額退款後才算取消完成。</p>
+      <button class="button danger" type="submit" data-confirm="確定登記取消這張訂單嗎？">登記取消訂單</button>
+    </div>
   </form>
 </details>
 {% endif %}

@@ -1,0 +1,14 @@
+html,body{margin:0!important;padding:0!important;min-height:0!important;background:#f6f7fc}
+.report-workspace{width:100%!important;max-width:none!important;margin:0!important;padding:0!important}
+.report-reader-layout{display:block!important;margin:0!important;padding:0!important}
+.report-reader-main{width:100%;min-width:0}
+.designer-chart-overlay{position:absolute;inset:0;z-index:15;border:2px solid transparent;pointer-events:auto;border-radius:inherit;background:transparent;cursor:pointer}
+.designer-chart-overlay:hover{border-color:#7b87c0}
+.designer-chart-overlay.is-selected{border-color:#3e4ca3;box-shadow:0 0 0 1px white inset}
+.designer-chart-overlay>button{font:600 16px system-ui;color:white;background:#3e4ca3;border:0;padding:8px;border-radius:4px;cursor:grab;touch-action:none}
+.designer-chart-overlay [data-resize]{position:absolute;bottom:0;right:0;cursor:nwse-resize}
+.designer-chart-overlay:focus-visible{outline:3px solid #b88100}
+body[data-designer-mode=edit] .report-chart{position:relative}
+body[data-designer-mode=preview] .designer-chart-overlay{display:none}
+body[data-designer-mode=edit] .report-reader-main>form,body[data-designer-mode=edit] [data-report-filters]{pointer-events:none}
+body[data-designer-mode=edit] [data-inline-detail]{display:none}

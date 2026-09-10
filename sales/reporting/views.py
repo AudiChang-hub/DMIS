@@ -76,6 +76,10 @@ def results(config, filters, *, retain_candidates=False):
 
 
 def accessible_report(request, pk):
+    if hasattr(request, "_designer_report"):
+        if not is_editor(request.user) or request._designer_report.pk != pk:
+            raise PermissionDenied
+        return request._designer_report
     report = get_object_or_404(ReportDefinition, pk=pk, published__isnull=False)
     if not request.user.is_active or ((report.published["audience"] != "team" or report.published.get("records_mode") == "population" or 'legacy_notes' in report.published.get('records_columns', [])) and not is_editor(request.user)):
         raise Http404
@@ -177,14 +181,16 @@ def edit(request, pk=None):
     if request.method == "POST" and form.is_valid() and formset.is_valid():
         config = {key: form.cleaned_data[key] for key in ("reader_layout", "title", "description", "audience", "date_basis", "navigation_group", "page_order", "include_undated", "include_records", "records_columns", "records_page_size", "records_mode")}
         config["fixed_filters"] = form.scope_data()
-        config["cards"] = [{**{key: card.cleaned_data[key] for key in ("title", "dimension", "metric", "chart", "formula", "limit", "sort", "series", "series_limit", "series_other", "series_sort", "additional_metrics", "width", "height")}, "fixed_filters": card.scope_data()}
+        config["cards"] = [{**{key: card.cleaned_data[key] for key in ("title", "dimension", "metric", "chart", "formula", "limit", "sort", "series", "series_limit", "series_other", "series_sort", "additional_metrics", "width", "height", "font_size", "title_align", "palette", "show_legend", "show_tooltip", "cross_filter")}, "fixed_filters": card.scope_data()}
                            for card in formset.ordered_forms]
         action = request.POST.get("action")
         try:
             validate_config(config)
             if action == "canvas":
-                items = results(config, {})
-                return JsonResponse({"cards": [render_to_string("sales/reporting/canvas_frame.html", {"result": item, "is_preview": True}, request=request) for item in items]})
+                from .designer import preview_response
+                response = preview_response(request, report, config)
+                return JsonResponse({"document": response.content.decode(), "status": response.status_code,
+                                     "content_type": response.get("Content-Type", "text/html")})
             elif action == "preview":
                 preview = results(config, {})
                 if config.get("include_records"):
@@ -220,7 +226,11 @@ def edit(request, pk=None):
     if request.method == "POST" and request.POST.get("action") == "canvas":
         return JsonResponse({"errors": {"report": form.errors.get_json_data(), "cards": formset.errors, "formset": list(formset.non_form_errors())}}, status=400)
     rendered_cards = [*formset.ordered_forms, *formset.deleted_forms] if formset.is_bound and formset.is_valid() else formset
+    designer_pages = sorted(ReportDefinition.objects.all(), key=lambda row: (list(NAVIGATION_GROUPS).index(row.draft.get("navigation_group", "custom")), row.draft.get("page_order", 0), row.pk))
+    for page in designer_pages:
+        page.reader_title = reader_title(page.draft)
     return render(request, "sales/reporting/edit.html", {"report": report, "form": form, "formset": formset, "rendered_cards": rendered_cards,
+                  "designer_pages": designer_pages,
                   "preview": preview, "is_preview": True, **preview_records, "revisions": report.revisions.all()[:20] if report else []}, status=status)
 
 
@@ -287,14 +297,19 @@ def display(request, pk):
                     "remove_query": filter_query(clear_filters) + "&revision=" + publication_key(report)})
     query += ("&" if query else "") + urlencode({"revision": publication_key(report)})
     remembered = {"user": str(request.user.pk), "report": report.pk}
-    if request.session.get("report_reader_page") != remembered:
+    if not hasattr(request, "_designer_report") and request.session.get("report_reader_page") != remembered:
         request.session["report_reader_page"] = remembered
     return render(request, "sales/reporting/display.html", {"report": report, "config": report.published,
                   "reader_title": reader_title(report.published),
                   "reader_overview": report.published.get('reader_layout', 'standard') != 'standard',
                   "navigation": navigation(request), "scope_labels": scope_labels(report.published.get("fixed_filters", {})),
                   "filter_form": form, "results": items, **records, "query": query, "error": error, "queried_at": timezone.now(),
-                  "publication_key": publication_key(report), "focus_items": focus_items, "can_edit_report": is_editor(request.user)})
+                  "publication_key": publication_key(report), "focus_items": focus_items,
+                  "can_edit_report": is_editor(request.user) and not hasattr(request, "_designer_report"),
+                  "designer_frame": hasattr(request, "_designer_report"),
+                  "report_base": "sales/reporting/designer_frame.html" if hasattr(request, "_designer_report") else "sales/reporting/layout.html",
+                  "preview_boot": {"channel": getattr(request, "_designer_channel", ""),
+                                   "url": request.build_absolute_uri(request.path + "?" + query)}})
 
 
 @login_required

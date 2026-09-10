@@ -30,9 +30,14 @@
           field.closest(".report-field").hidden = field.disabled;
         }
       });
+      const kind = card.querySelector('[name$="-chart"]').value;
+      for (const [name, supported] of Object.entries({show_legend:['donut','stacked'], palette:['bar','donut','stacked'], show_tooltip:['bar','donut','stacked','line','table'], cross_filter:['bar','donut','stacked','line','table']})) {
+        const input = card.querySelector(`[name$="-${name}"]`);
+        if (input) { input.disabled = !supported.includes(kind); input.closest('.report-field').hidden = input.disabled; }
+      }
     });
-    editor.addEventListener("input", markDirty);
-    editor.addEventListener("change", () => { markDirty(); update(); });
+    editor.addEventListener("input", event => { if (event.target.name) markDirty(); });
+    editor.addEventListener("change", event => { if (event.target.name) { markDirty(); update(); } });
     editor.addEventListener("click", event => {
       const target = event.target.closest("button");
       if (!target) return;

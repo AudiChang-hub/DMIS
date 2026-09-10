@@ -1,0 +1,54 @@
+/* 設計器專用工作台；不改動讀者頁面或既有財務元件。 */
+body:has([data-report-editor]) .page-shell,body:has([data-report-editor]) .report-workspace{max-width:none;width:100%;padding-inline:20px}
+body:has([data-report-editor]) .report-heading{margin:12px 0;align-items:center}
+body:has([data-report-editor]) .report-heading h1{font-size:26px;margin:0}
+body:has([data-report-editor]) .report-heading .eyebrow{display:none}
+body:has([data-report-editor]) .report-heading p{margin:6px 0}
+[data-report-editor] .report-page-settings{padding:12px 18px;margin:12px 0}
+[data-report-editor] .report-design-workbench{display:grid;grid-template-columns:210px minmax(0,1fr) 340px;grid-template-rows:auto minmax(520px,1fr);gap:0;border:1px solid var(--border,#ccd0e3);border-radius:12px;overflow:hidden;background:#fff}
+.designer-toolbar{grid-column:1/-1;display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:12px;border-bottom:1px solid #ccd0e3;background:#fff}
+.designer-toolbar label{display:flex;align-items:center;gap:6px;white-space:nowrap;font-size:16px}
+.designer-toolbar select{width:auto;min-height:38px;padding:6px;border:1px solid #ccd0e3;border-radius:6px}
+.designer-toolbar .button{min-height:38px;padding:8px 12px}
+.designer-mode{display:flex;border:1px solid #ccd0e3;border-radius:8px;overflow:hidden}
+.designer-mode button,.designer-property-tabs button{border:0;padding:10px;background:transparent;color:inherit;cursor:pointer;font:inherit}
+.designer-mode [aria-pressed=true],.designer-property-tabs [aria-selected=true]{background:#404e9c;color:#fff}
+.designer-navigator{padding:16px;border-right:1px solid #ccd0e3;overflow:auto;max-height:calc(100vh - 230px)}
+.designer-navigator h2,.report-property-panel h2{font-size:18px;margin:8px 0}
+.designer-navigator nav,.designer-navigator [data-designer-chart-list]{display:grid;gap:4px;margin:12px 0}
+.designer-navigator a,.designer-navigator [data-select-chart]{padding:10px;border-radius:6px;text-align:left;font-size:16px;overflow-wrap:anywhere;border:0;background:none;color:inherit}
+.designer-navigator [aria-current=page],.designer-navigator [aria-pressed=true]{background:#eceefa;color:#30428f;font-weight:700}
+[data-report-editor] .report-canvas-area{min-width:0;background:#e9ecf2;padding:12px;overflow:hidden}
+.designer-mode-help,[data-canvas-status]{font-size:16px;margin:6px 0 10px}
+.designer-viewport{overflow:auto;height:calc(100vh - 340px);min-height:480px;padding:16px;background:#dce1eb;border-radius:8px}
+[data-report-editor] .report-design-canvas{display:block;position:relative;padding:0;border:0;background:white;box-shadow:0 3px 14px #22334b25;min-height:0}
+.report-design-canvas>iframe{display:block;border:0;max-width:none;transform-origin:top left;position:absolute;left:0;top:0;background:#fff}
+[data-report-editor] .report-property-panel{position:static;top:auto;padding:14px;border:0;border-left:1px solid #ccd0e3;border-radius:0;max-height:calc(100vh - 230px);overflow:auto;min-width:0}
+.report-property-panel p,.report-property-panel small{font-size:16px;line-height:1.6}
+.designer-property-tabs{display:flex;position:sticky;top:-14px;z-index:3;background:white;border-bottom:1px solid #ccd0e3;margin-bottom:12px}
+.designer-property-tabs button{flex:1;padding:12px 6px}
+[data-report-editor] .report-editor-card{padding:0;border:0;box-shadow:none;margin:0}
+[data-report-editor] .report-editor-card[data-selected=false]{display:none}
+[data-report-editor] .report-editor-card .report-form-grid{grid-template-columns:1fr}
+[data-report-editor] .report-editor-card .report-card-toolbar{display:block}
+[data-report-editor] .report-editor-card .report-card-toolbar .report-actions{flex-wrap:wrap;gap:6px;margin:10px 0}
+[data-report-editor] .report-editor-card .button{padding:8px;font-size:16px}
+[data-report-editor] .report-field{margin-bottom:14px;min-width:0}
+[data-report-editor] .report-field label{font-size:16px}
+[data-report-editor] .report-field small{display:block;color:#596780}
+[data-report-editor] .report-savebar{position:static;margin:12px 0;padding:12px 18px}
+[data-report-editor] .report-design-workbench.is-nav-hidden{grid-template-columns:minmax(0,1fr) 340px}
+[data-report-editor] .report-design-workbench.is-properties-hidden{grid-template-columns:210px minmax(0,1fr)}
+[data-report-editor] .report-design-workbench.is-nav-hidden.is-properties-hidden{grid-template-columns:minmax(0,1fr)}
+.is-nav-hidden .designer-navigator,.is-properties-hidden .report-property-panel{display:none}
+.designer-focused [data-report-editor] .report-design-workbench{position:fixed;inset:82px 12px 82px;z-index:40;grid-template-rows:auto minmax(0,1fr);align-items:stretch;margin:0;box-shadow:0 8px 28px #22334b20}
+.designer-focused [data-report-editor] .report-canvas-area{display:flex;flex-direction:column;min-height:0;align-self:stretch}
+.designer-focused .designer-viewport{height:auto;min-height:0;flex:1}
+.designer-focused [data-report-editor] .report-property-panel,.designer-focused .designer-navigator{max-height:none;min-height:0;align-self:stretch;height:100%}
+.designer-focused [data-report-editor] .report-savebar{position:fixed;bottom:8px;left:12px;right:12px;z-index:41;margin:0;background:white}
+.designer-focused{overflow:hidden}
+@media(max-width:1100px){[data-focus-workbench]{display:none!important}}
+[data-report-editor] [hidden]{display:none!important}
+[data-report-editor] button:focus-visible,[data-report-editor] a:focus-visible{outline:3px solid #bd8700;outline-offset:2px}
+@media(max-width:1100px){[data-report-editor] .report-design-workbench{grid-template-columns:170px minmax(0,1fr) 300px}[data-report-editor] .report-design-workbench.is-nav-hidden{grid-template-columns:minmax(0,1fr) 300px}}
+@media(max-width:850px){body:has([data-report-editor]) .page-shell,body:has([data-report-editor]) .report-workspace{padding-inline:8px}[data-report-editor] .report-design-workbench,[data-report-editor] .report-design-workbench.is-nav-hidden,[data-report-editor] .report-design-workbench.is-properties-hidden,[data-report-editor] .report-design-workbench.is-nav-hidden.is-properties-hidden{display:flex;flex-direction:column}.designer-navigator{max-height:240px;border-bottom:1px solid #ccd0e3}.designer-viewport{height:520px;min-height:0;padding:6px}[data-report-editor] .report-property-panel{max-height:none;border-left:0}.designer-toolbar{gap:6px}.designer-toolbar label{flex-wrap:wrap}.report-heading{flex-wrap:wrap}}

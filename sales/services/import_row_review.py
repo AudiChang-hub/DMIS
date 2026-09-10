@@ -69,7 +69,13 @@ def build_import_row_review(row, labels):
             identity_changed = bool(incoming_id and existing_id and not existing_id.startswith("HIST-") and incoming_id != existing_id)
             if identity_changed:
                 notes["owner_id_number"] = "車主證號與既有訂單不同，請核對是否為不同買家；不會自動覆寫原訂單。"
-            if "owner_name" in differences or identity_changed:
+            if row.sheet_name == "進貨":
+                title = "同號碼已有銷售紀錄：請核對庫存與交易"
+                guidance = "進貨與銷貨是不同用途的資料，買家欄位空白不代表退訂。請先核對車輛狀態與相關訂單。"
+            elif row.mapped_data.get("vehicle_category") and row.mapped_data["vehicle_category"] != order.vehicle_category:
+                title = "同車輛的不同交易類別：請核對完整歷史"
+                guidance = "新車與中古轉售可能是合法的不同交易，不會僅憑相同號碼判定重複或取消原單。"
+            elif "owner_name" in differences or identity_changed:
                 title = "車主資料不同：請核對是否退訂後換買家"
                 guidance = "Excel 換名字不代表原訂單已取消。請先查看原訂單的退訂、收退款及配車狀態，再決定如何處理；不可直接把原訂單改成新買家。"
             elif "registration_date" in differences:

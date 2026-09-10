@@ -1,9 +1,9 @@
 <div class="report-series-legend" aria-label="{{ result.series_label }}圖例">{% for item in result.series_legend %}<span><i style="background:{{ item.color }}"></i>{{ item.label }}</span>{% endfor %}</div>
 <div class="report-stacks">
-{% for row in result.rows %}<div class="report-stack-row"><div class="report-stack-caption"><strong>{{ row.label }}</strong><span>{{ row.display }}</span></div>
+{% for row in result.rows %}<div class="report-stack-row"><div class="report-stack-caption"><strong>{{ row.label }}</strong></div>
 <div class="report-stack-track"><div class="report-stack-total" style="width:{{ row.width|floatformat:4 }}%">
 {% for segment in row.segments %}<span class="report-stack-segment" style="width:{{ segment.width|floatformat:4 }}%;background:{{ segment.color }}" data-stack-segment data-series-label="{{ segment.label }}" data-point-label="{{ segment.point_label }}" data-point-value="{{ segment.value }}" data-point-display="{{ segment.display }}" data-point-count="{{ segment.count }}" data-point-percentage="">
-{% if not is_preview %}<a data-report-drill href="{% url 'report_detail' report.pk result.index %}?{{ query }}&amp;group={{ segment.key|urlencode }}" aria-label="{{ segment.point_label }}：{{ segment.display }}，查看訂單">{{ segment.display }}</a>{% else %}<span>{{ segment.display }}</span>{% endif %}</span>{% endfor %}
+{% if not is_preview %}<a data-report-drill href="{% url 'report_detail' report.pk result.index %}?{{ query }}&amp;group={{ segment.key|urlencode }}" aria-label="{{ segment.point_label }}：{{ segment.display }}，查看訂單"><span class="sr-only">{{ segment.display }}</span></a>{% else %}<span class="sr-only">{{ segment.display }}</span>{% endif %}</span>{% endfor %}<span class="report-stack-end-value">{{ row.display }}</span>
 </div></div>
 <details class="report-stack-data"><summary>{{ row.label }} 細分數字</summary><ul>{% for segment in row.segments %}<li>{% if not is_preview %}<a data-report-drill href="{% url 'report_detail' report.pk result.index %}?{{ query }}&amp;group={{ segment.key|urlencode }}">{{ segment.label }}：{{ segment.display }}</a>{% else %}{{ segment.label }}：{{ segment.display }}{% endif %}</li>{% endfor %}</ul></details></div>{% empty %}<p>此範圍沒有符合的訂單。</p>{% endfor %}
 </div>

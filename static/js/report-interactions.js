@@ -175,14 +175,24 @@ function initReportVisuals(root) {
     const rows = [...chart.querySelectorAll("[data-point-value]")];
     const tip = document.createElement("div");
     tip.className = "report-point-tooltip"; tip.id = `report-tooltip-${chartIndex}`; tip.setAttribute("role", "tooltip"); tip.hidden = true; chart.append(tip);
-    const describe = row => reportPointText(row.dataset, chart.dataset.metricLabel);
+    let hideTimer;
+    if (typeof tip.showPopover === 'function') tip.setAttribute('popover','manual');
+    const hideTip = () => { if(typeof tip.hidePopover === 'function' && tip.matches(':popover-open')) tip.hidePopover(); tip.hidden = true; };
+    tip.addEventListener('pointerenter', () => clearTimeout(hideTimer));
+    tip.addEventListener('pointerleave', hideTip);
+    tip.addEventListener('keydown', event => { if(event.key === 'Escape') hideTip(); });
+    const describe = row => row.reportTooltip ? reportBarTooltipText(row.reportTooltip, row.dataset.seriesLabel) : reportPointText(row.dataset, chart.dataset.metricLabel);
       const attach = (target, row) => {
         const link = row.querySelector("[data-report-drill]");
         if (link) target.dataset.selectionGroup = new URL(link.href).searchParams.get("group");
       target.setAttribute("tabindex", "0"); target.setAttribute("role", link ? "button" : "img");
       target.setAttribute("aria-label", describe(row)); target.setAttribute("aria-describedby", tip.id);
       const show = event => {
-        tip.textContent = describe(row); tip.hidden = false;
+        clearTimeout(hideTimer);
+        if(row.reportTooltip) renderReportBarTooltip(tip, row.reportTooltip, row.dataset.seriesLabel);
+        else { tip.classList.remove('report-tooltip-rich'); tip.textContent = describe(row); }
+        tip.hidden = false;
+        if (typeof tip.showPopover === 'function') tip.showPopover();
         const box = target.getBoundingClientRect();
         const x = event?.clientX || box.left + box.width / 2;
         const y = event?.clientY || box.top;
@@ -190,27 +200,21 @@ function initReportVisuals(root) {
         tip.style.top = `${Math.max(8, Math.min(y + 14, window.innerHeight - tip.offsetHeight - 8))}px`;
       };
       target.addEventListener("pointerenter", show); target.addEventListener("pointermove", show);
-      target.addEventListener("focus", show); target.addEventListener("pointerleave", () => { tip.hidden = true; });
-      target.addEventListener("blur", () => { tip.hidden = true; });
+      target.addEventListener("focus", show); target.addEventListener("pointerleave", () => { hideTimer = setTimeout(hideTip, 150); });
+      target.addEventListener("blur", hideTip);
       target.addEventListener("click", event => {
-        if (link && link.contains(event.target)) { tip.hidden = true; return; }
-        tip.hidden = true;
+        if (link && link.contains(event.target)) { hideTip(); return; }
+        hideTip();
         link?.dispatchEvent(new MouseEvent("click", {bubbles:true, cancelable:true, ctrlKey:event.ctrlKey, metaKey:event.metaKey, shiftKey:event.shiftKey}));
       });
       target.addEventListener("keydown", event => {
-        if (event.key === "Escape") tip.hidden = true;
-        if (link && (event.key === "Enter" || event.key === " ")) { event.preventDefault(); tip.hidden = true; link.dispatchEvent(new MouseEvent('click', {bubbles:true, cancelable:true, ctrlKey:event.ctrlKey, metaKey:event.metaKey, shiftKey:event.shiftKey})); }
+        if (event.key === "Escape") hideTip();
+        if (row.reportTooltip && !tip.hidden && ['PageDown','PageUp'].includes(event.key)) {
+          event.preventDefault(); tip.scrollBy(0,(event.key === 'PageDown' ? 1 : -1)*tip.clientHeight*.8);
+        }
+        if (link && (event.key === "Enter" || event.key === " ")) { event.preventDefault(); hideTip(); link.dispatchEvent(new MouseEvent('click', {bubbles:true, cancelable:true, ctrlKey:event.ctrlKey, metaKey:event.metaKey, shiftKey:event.shiftKey})); }
       });
     };
-    rows.forEach(row => {
-      const bar = row.querySelector(".report-bar-track");
-      if (bar) attach(bar, row);
-      if (row.hasAttribute("data-stack-segment")) {
-        attach(row, row);
-        const link = row.querySelector("[data-report-drill]");
-        if (link) link.tabIndex = -1;
-      }
-    });
     const overview = chart.closest('.report-sales-overview');
     const layout = overview?.dataset.readerLayout;
     const legendColors = new Map([...chart.querySelectorAll('.report-series-legend span')].map((entry,i)=>[entry.textContent.trim(),['#737373','#f15a60','#7ac36a','#5a9bd4','#faa75a','#9e67ab','#ce7058','#d17fb1','#7dd3ef','#ee8ab5'][i%10]]));
@@ -232,6 +236,29 @@ function initReportVisuals(root) {
         else { note.dataset.overviewClassification = 'true'; explanation.append(note); }
       });
     }
+    if (['stacked','bar'].includes(chart.dataset.chart)) {
+      const mainRows = [...chart.querySelectorAll('.report-results tr[data-point-value]')];
+      const groups = [...chart.querySelectorAll('.report-stack-row')];
+      mainRows.forEach((row,index) => {
+        const segments = chart.dataset.chart === 'stacked' ? [...groups[index].querySelectorAll('[data-stack-segment]')] : null;
+        const bar = row.querySelector('.report-bar-track');
+        if (bar && !overview) row.dataset.pointColor = getComputedStyle(bar.firstElementChild).backgroundColor;
+        const values = segments?.map(segment => ({label:segment.dataset.seriesLabel,value:segment.dataset.pointValue,
+          display:segment.dataset.pointDisplay,color:overview ? overviewColor(segment.dataset.seriesLabel,segment.style.backgroundColor) : segment.style.backgroundColor}));
+        row.reportTooltip = reportBarTooltip(row.dataset,values,chart.dataset.metricLabel,chart.dataset.total,chart.querySelector('.report-candidate-note') ? '候選分類範圍' : '完整篩選範圍');
+        segments?.forEach(segment => { segment.reportTooltip = row.reportTooltip; });
+        if(bar) {
+          attach(bar,row);
+          const value = row.querySelector('td > span'); value.hidden = true;
+          const end = document.createElement('span'); end.className = 'report-bar-end-value'; end.textContent = row.dataset.pointDisplay;
+          bar.firstElementChild.append(end); bar.classList.add('report-bar-total-only');
+        }
+      });
+    }
+    rows.filter(row => row.hasAttribute('data-stack-segment')).forEach(row => {
+      attach(row,row);
+      const link = row.querySelector('[data-report-drill]'); if(link) link.tabIndex = -1;
+    });
     if (layout === 'analysis_overview' && ['stacked','bar'].includes(chart.dataset.chart)) renderReportAnalysis(chart, attach);
     if (overview && layout !== 'analysis_overview' && chart.dataset.chart === 'stacked') {
       const stacks = chart.querySelector('.report-stacks');
@@ -265,27 +292,16 @@ function initReportVisuals(root) {
           month.dataset.pointSummary = reportMonthSummary(month.dataset.pointLabel, segments.map(segment => ({label:segment.dataset.seriesLabel,value:segment.dataset.pointValue,display:segment.dataset.pointDisplay})), month.dataset.pointDisplay);
           element('text', {x:left-8,y:y+20,'text-anchor':'end',fill:'currentColor','font-size':17}, group.querySelector('.report-stack-caption strong').textContent);
           let offset = 0;
-          const smallLabels = [];
           group.querySelectorAll('[data-stack-segment]').forEach(segment => {
             const value = Number(segment.dataset.pointValue || 0), segmentWidth = Math.max(0, value) / maximum * plotWidth;
             if (!segmentWidth) return;
             const rect = element('rect', {x:left+offset,y:y+2,width:segmentWidth,height:23,fill:overviewColor(segment.dataset.seriesLabel, segment.style.backgroundColor)});
             if (layout === 'dealer_overview') attach(rect, segment);
             else rect.setAttribute('aria-hidden', 'true');
-            if (segmentWidth >= String(segment.dataset.pointDisplay).length * 11 + 8) element('text', {x:left+offset+segmentWidth/2,y:y+20,'text-anchor':'middle',fill:'#fff','font-size':17,'pointer-events':'none'}, segment.dataset.pointDisplay);
-            else smallLabels.push({x:left+offset+segmentWidth/2,text:segment.dataset.pointDisplay,color:overviewColor(segment.dataset.seriesLabel,segment.style.backgroundColor)});
             offset += segmentWidth;
           });
-          let labelX = left + offset + 10;
-          for (const label of smallLabels) {
-            if (labelX + String(label.text).length * 11 > width - 22) {
-              element('text',{x:Math.min(labelX,width-20),y:y+20,fill:'currentColor','font-size':17,'pointer-events':'none'},'…');
-              break; // 完整非零系列仍全部保留在月份提示；不讓窄畫面的文字溢出圖表。
-            }
-            element('line',{x1:label.x,y1:y+3,x2:labelX,y2:y+3,stroke:label.color,'pointer-events':'none'});
-            element('text',{x:labelX,y:y+20,fill:'currentColor','font-size':17,'pointer-events':'none'},label.text);
-            labelX += String(label.text).length * 11 + 8;
-          }
+          const totalX = left + Math.max(0,Number(month.dataset.pointValue)) / maximum * plotWidth + 10;
+          element('text', {x:totalX,y:y+20,fill:'currentColor','font-size':17,'class':'report-bar-total-label','pointer-events':'none'}, month.dataset.pointDisplay);
           // 整列包含短小系列與空白處，滑鼠提示及點選皆使用月份，不誤變為月份加通路。
           const hit = element('rect', {x:layout === 'dealer_overview' ? 0 : left,y:y+1,width:layout === 'dealer_overview' ? left-5 : plotWidth,height:24,fill:'transparent'});
           hit.classList.add('report-month-target'); attach(hit, month);
@@ -301,7 +317,7 @@ function initReportVisuals(root) {
         svg.addEventListener('pointermove', event => {
           if (brushStart === null || !event.buttons) return;
           if (Math.abs(event.clientY-brushStart) > 5) {
-            brushing = true; svg.setPointerCapture(event.pointerId); tip.hidden = true; clearBrush();
+            brushing = true; svg.setPointerCapture(event.pointerId); hideTip(); clearBrush();
             range(brushStart,event.clientY).forEach(point => point.classList.add('report-brush-candidate'));
           }
         });

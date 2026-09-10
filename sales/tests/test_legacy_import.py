@@ -178,6 +178,94 @@ class LegacyImportTests(TestCase):
     def test_upload_form_only_contains_type_and_file(self):
         self.assertEqual(list(LegacyImportUploadForm().fields), ["import_type", "source_file"])
 
+    def make_review_row(self, changes=None):
+        batch = self.make_batch(LegacyImportBatch.ImportType.OPERATIONS)
+        build_import_preview(batch)
+        confirm_import(batch, "tester")
+        original = batch.rows.get(sheet_name="銷貨")
+        row = LegacyImportRow.objects.create(
+            batch=batch, sheet_name="銷貨", source_row=1752,
+            fingerprint="review-only", natural_key="review-only",
+            action=LegacyImportRow.Action.ERROR, raw_data={},
+            mapped_data={**original.mapped_data, **(changes or {})},
+            messages=["allocated_vehicle：包含 已配車輛 的 銷售訂單 已經存在。"],
+        )
+        return row, SalesOrder.objects.get(pk=original.committed_pk)
+
+    def test_import_review_date_change_focus_and_three_way_comparison(self):
+        row, order = self.make_review_row({"registration_date": "2026-08-15"})
+        before = list(SalesOrder.objects.values())
+        form = LegacyImportRowCorrectionForm(row=row)
+        comparison = form.review["comparisons"][0]
+        self.assertIn("改期", comparison["title"])
+        field = next(value for value in comparison["values"] if value["key"] == "registration_date")
+        self.assertEqual((field["previous"], field["current"], field["incoming"]), ("2026-08-01", "2026-08-01", "2026-08-15"))
+        self.assertEqual(form.fields["registration_date"].widget.attrs["data-import-review-primary"], "true")
+        self.assertNotIn("allocated_vehicle", form.review["messages"][0])
+        response = self.client.get(reverse("legacy_import_detail", args=[row.batch_id]), {"action": "error", "edit": row.pk})
+        self.assertContains(response, "import-review-field--highlight")
+        self.assertContains(response, "上次匯入的 Excel")
+        self.assertContains(response, order.number)
+        self.assertContains(response, 'id_registration_date_review')
+        self.assertEqual(before, list(SalesOrder.objects.values()))
+        row.refresh_from_db()
+        self.assertEqual(row.action, LegacyImportRow.Action.ERROR)
+        self.assertFalse(row.corrections.exists())
+
+    def test_import_review_changed_buyer_is_not_a_duplicate_or_automatic_cancel(self):
+        row, order = self.make_review_row({"owner_name": '<script>alert("test")</script>'})
+        form = LegacyImportRowCorrectionForm(row=row)
+        self.assertIn("換買家", form.review["comparisons"][0]["title"])
+        self.assertEqual(form.fields["owner_name"].widget.attrs["data-import-review-primary"], "true")
+        response = self.client.get(reverse("legacy_import_detail", args=[row.batch_id]), {"edit": row.pk})
+        self.assertContains(response, '&lt;script&gt;')
+        self.assertNotContains(response, '<script>alert("test")</script>')
+        order.refresh_from_db()
+        self.assertEqual(order.owner_name, "正式車主")
+        self.assertEqual(order.status, SalesOrder.Status.COMPLETED)
+
+    def test_import_review_normalized_identifier_and_same_major_fields(self):
+        row, order = self.make_review_row({"identifier_raw": "ab 123"})
+        form = LegacyImportRowCorrectionForm(row=row)
+        self.assertIn("疑似重複", form.review["comparisons"][0]["title"])
+        self.assertIn("仍須核對收支", form.review["comparisons"][0]["guidance"])
+        self.assertEqual(form.review["comparisons"][0]["order"], order)
+
+    def test_import_review_keeps_current_and_historical_values_separate(self):
+        row, order = self.make_review_row({"registration_date": "2026-08-15"})
+        SalesOrder.objects.filter(pk=order.pk).update(registration_date="2026-08-20")
+        comparison = LegacyImportRowCorrectionForm(row=row).review["comparisons"][0]
+        field = next(value for value in comparison["values"] if value["key"] == "registration_date")
+        self.assertEqual((field["previous"], field["current"], field["incoming"]), ("2026-08-01", "2026-08-20", "2026-08-15"))
+
+    def test_import_review_no_snapshot_and_different_vehicle_not_matched(self):
+        row, order = self.make_review_row()
+        LegacySalesSnapshot.objects.filter(order=order).delete()
+        form = LegacyImportRowCorrectionForm(row=row)
+        self.assertIsNone(form.review["comparisons"][0]["previous_row"])
+        row.mapped_data["identifier_raw"] = "NOT-THIS-VEHICLE"
+        self.assertEqual(LegacyImportRowCorrectionForm(row=row).review["comparisons"], [])
+
+    def test_import_review_unknown_error_is_not_assigned_to_random_field(self):
+        batch = self.make_batch(LegacyImportBatch.ImportType.OPERATIONS)
+        build_import_preview(batch)
+        row = batch.rows.get(sheet_name="銷貨")
+        row.messages = ["來源暫時無法讀取"]
+        form = LegacyImportRowCorrectionForm(row=row)
+        self.assertEqual(form.review["notes"], {})
+        self.assertEqual(form.review["messages"], row.messages)
+        row.messages = ["owner_email：電子郵件格式不正確"]
+        form = LegacyImportRowCorrectionForm(row=row)
+        self.assertIn("data-import-review-primary", form.fields["owner_email"].widget.attrs)
+
+    def test_import_review_id_difference_and_vehicle_category_boundary(self):
+        row, order = self.make_review_row({"owner_id_number": "B223456789"})
+        form = LegacyImportRowCorrectionForm(row=row)
+        self.assertIn("換買家", form.review["comparisons"][0]["title"])
+        self.assertIn("owner_id_number", form.review["notes"])
+        row.mapped_data["vehicle_category"] = SalesOrder.VehicleCategory.USED
+        self.assertEqual(LegacyImportRowCorrectionForm(row=row).review["comparisons"], [])
+
     def test_invalid_row_can_be_excluded_without_filling_required_import_fields(self):
         batch = self.make_batch(LegacyImportBatch.ImportType.OPERATIONS)
         build_import_preview(batch)

@@ -286,6 +286,14 @@ class LegacyImportTests(TestCase):
         self.assertContains(response, "目前配車占用")
         self.assertContains(response, "全部相關訂單")
 
+    def test_inventory_review_does_not_infer_buyer_cancellation(self):
+        row, order = self.make_review_row()
+        inventory = row.batch.rows.get(sheet_name="進貨")
+        comparison = LegacyImportRowCorrectionForm(row=inventory).review["comparisons"][0]
+        self.assertEqual(comparison["order"], order)
+        self.assertIn("核對庫存", comparison["title"])
+        self.assertNotIn("換買家", comparison["title"])
+
     def test_invalid_row_can_be_excluded_without_filling_required_import_fields(self):
         batch = self.make_batch(LegacyImportBatch.ImportType.OPERATIONS)
         build_import_preview(batch)

@@ -262,7 +262,7 @@
       <h3>{{ comparison.title }}</h3><p>{{ comparison.guidance }}</p>
       <p><strong>{{ comparison.order.owner_name }}</strong> · {{ comparison.order.get_vehicle_category_display }} · {% if comparison.occupies_vehicle %}<strong>目前配車占用</strong>{% else %}歷史紀錄／目前未占用此車{% endif %}</p>
       <p><a href="{% url 'order_detail' comparison.order.pk %}" target="_blank" rel="noopener">查看原訂單 {{ comparison.order.number }} ↗</a> · {{ comparison.order.get_status_display }}</p>
-      {% if request.user.is_superuser and request.user.username == 'admin' and batch.status == 'completed' and editing_row.action == 'error' %}
+      {% if request.user.is_superuser and request.user.username == 'admin' and batch.status == 'completed' and editing_row.action == 'error' and editing_row.sheet_name == '銷貨' and comparison.occupies_vehicle and comparison.order.vehicle_category == 'new' %}
       <p><a class="button ghost" href="{% url 'historical_buyer_replacement' batch.pk editing_row.pk comparison.order.pk %}">原買家退訂？核對並換買家補匯 →</a><br><small>先儲存暫存欄位修正再開啟；此入口只預覽，不會立即取消或匯入。</small></p>
       {% endif %}
       {% if comparison.previous_row %}<p>上次匯入：{{ comparison.previous_row.sheet_name }}第 {{ comparison.previous_row.source_row }} 列。比對號碼相同的訂單，不以 Excel 列號判斷。</p>{% else %}<p>此訂單沒有歷史 Excel 快照，僅能比對系統目前資料。</p>{% endif %}

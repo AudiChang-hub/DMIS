@@ -258,13 +258,33 @@ class LegacyImportTests(TestCase):
         form = LegacyImportRowCorrectionForm(row=row)
         self.assertIn("data-import-review-primary", form.fields["owner_email"].widget.attrs)
 
-    def test_import_review_id_difference_and_vehicle_category_boundary(self):
+    def test_import_review_id_difference_and_all_vehicle_categories_visible(self):
         row, order = self.make_review_row({"owner_id_number": "B223456789"})
         form = LegacyImportRowCorrectionForm(row=row)
         self.assertIn("換買家", form.review["comparisons"][0]["title"])
         self.assertIn("owner_id_number", form.review["notes"])
         row.mapped_data["vehicle_category"] = SalesOrder.VehicleCategory.USED
-        self.assertEqual(LegacyImportRowCorrectionForm(row=row).review["comparisons"], [])
+        self.assertEqual(LegacyImportRowCorrectionForm(row=row).review["comparisons"][0]["order"], order)
+
+    def test_import_review_lists_all_orders_beyond_five_and_peer_rows(self):
+        row, original = self.make_review_row()
+        for index in range(6):
+            archived = SalesOrder.objects.create(owner_name=f"歷史買家{index}", owner_id_number=f"HIST-REVIEW-{index}",
+                owner_phone="未提供", owner_address="未提供", vehicle_model=original.vehicle_model, color=original.color,
+                vehicle_category=SalesOrder.VehicleCategory.USED, status=SalesOrder.Status.CANCELLED)
+            peer = LegacyImportRow.objects.create(batch=row.batch, sheet_name="銷貨", source_row=1800+index,
+                fingerprint=f"peer-{index}", natural_key=f"peer-{index}", action="create", mapped_data=original.legacy_snapshot.import_row.mapped_data,
+                committed_model="SalesOrder", committed_pk=str(archived.pk))
+            LegacySalesSnapshot.objects.create(order=archived, import_row=peer, vehicle_identifier="AB-123")
+        review = LegacyImportRowCorrectionForm(row=row).review
+        self.assertEqual(len(review["comparisons"]), 7)
+        self.assertEqual(sum(item["occupies_vehicle"] for item in review["comparisons"]), 1)
+        self.assertGreaterEqual(len(review["peer_rows"]), 7)
+        response = self.client.get(reverse("legacy_import_detail", args=[row.batch_id]), {"edit": row.pk})
+        for index in range(6):
+            self.assertContains(response, f"歷史買家{index}")
+        self.assertContains(response, "目前配車占用")
+        self.assertContains(response, "全部相關訂單")
 
     def test_invalid_row_can_be_excluded_without_filling_required_import_fields(self):
         batch = self.make_batch(LegacyImportBatch.ImportType.OPERATIONS)

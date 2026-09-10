@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}歷史退訂換買家｜車輛銷售管理{% endblock %}
+{% block content %}
+<section class="hero-row compact-hero"><div><p class="eyebrow">僅限 admin · 歷史匯入更正</p><h1>退訂換買家</h1><p>{{ preview.order.owner_name }} → {{ preview.row.mapped_data.owner_name }}</p></div><a class="button ghost" href="{% url 'legacy_import_detail' preview.row.batch_id %}?action=error&amp;edit={{ preview.row.pk }}#row-editor">返回本列核對</a></section>
+<section class="panel replacement-panel">
+  <h2>先確認是這兩筆資料</h2>
+  <div class="replacement-grid">
+    <div><h3>原買家：{{ preview.order.owner_name }}</h3><p><a href="{% url 'order_detail' preview.order.pk %}" target="_blank" rel="noopener">{{ preview.order.number }} ↗</a></p><p>系統狀態：{{ preview.order.get_status_display }}</p><p>原標記領牌日期：{{ preview.order.registration_date|date:'Y/m/d'|default:'未填' }}</p><p>原標記交付：{{ preview.order.delivered_at|date:'Y/m/d'|default:'未填' }} · {{ preview.order.delivered_by }}</p></div>
+    <div><h3>新買家：{{ preview.row.mapped_data.owner_name }}</h3><p>{{ preview.row.sheet_name }}第 {{ preview.row.source_row }} 列</p><p>車輛識別：{{ preview.row.mapped_data.identifier }}</p><p>本次領牌日期：{{ preview.row.mapped_data.registration_date|default:'未填' }}</p><p>僅使用已儲存的本列資料，不會帶入其他頁尚未儲存的內容。</p></div>
+  </div>
+  <div class="import-review-summary"><strong>只適用於歷史匯入誤標完成</strong><p>原買家必須未實際領牌、未交車，且款項未收或已全額退清。若實際已領牌、交付或仍有待處理款項，不可使用此流程。</p><p>新買家補匯會沿用歷史匯入規則，標記為<strong>已完成／已交付</strong>。若新買家只是預訂，請勿送出，應另循一般新訂單流程。</p></div>
+  <h3>原單財務保留，不轉給新買家</h3><p>系統已記錄收款（付款合計與訂金取較高者）：{{ preview.recorded_received }} 元。</p>
+  <details><summary>查看保留的收款與營運金額</summary>{% for payment in preview.payments %}<p>{{ payment.item_name }}：已收 {{ payment.received_amount }} 元</p>{% empty %}<p>沒有付款紀錄。</p>{% endfor %}{% for item in preview.financials %}<p>{{ item.label }}：{{ item.value }}</p>{% endfor %}</details>
+</section>
+{% if preview.blockers %}<section class="panel replacement-panel" role="alert"><h2>目前不能執行</h2><ul>{% for blocker in preview.blockers %}<li>{{ blocker }}</li>{% endfor %}</ul><p>請保留證據與原單，不要刪除文件或修改識別號碼來繞過檢查。</p></section>
+{% else %}
+<form method="post" class="panel replacement-panel">{% csrf_token %}{{ form.preview_token }}
+  {% if form.errors %}<div role="alert" class="import-review-summary"><strong>尚未執行，請檢查下方欄位</strong>{{ form.non_field_errors }}{{ form.preview_token.errors }}<a href="{{ request.path }}">重新載入並核對最新資料</a></div>{% endif %}
+  <h2>確認實際狀況</h2><p>以下均不預先勾選；領牌日期不能單憑 Excel 刪除或改名推定作廢。</p>
+  <div class="replacement-facts">{% include 'sales/_field.html' with field=form.original_unregistered %}{% include 'sales/_field.html' with field=form.original_undelivered %}{% include 'sales/_field.html' with field=form.finances_checked %}{% include 'sales/_field.html' with field=form.incoming_completed %}</div>
+  <div class="replacement-grid">{% include 'sales/_field.html' with field=form.collection_status %}{% include 'sales/_field.html' with field=form.actual_received %}{% include 'sales/_field.html' with field=form.refund_on %}{% include 'sales/_field.html' with field=form.refund_method %}</div>
+  {% include 'sales/_field.html' with field=form.refund_reference %}{% include 'sales/_field.html' with field=form.reason %}{% include 'sales/_field.html' with field=form.confirm_number %}
+  <div class="import-review-summary"><strong>送出後的異動</strong><p>原單更正為退訂 → 解除原配車 → 補匯新買家並配回同一車輛。任一步失敗，全部回復。</p><p>保留原始 Excel、原訂單、收款與營運金額及異動歷程。原單不再計入有效銷售／未結算台數；本頁只記錄已完成退款的事實，不會實際轉帳或搬移收款。已有結算台數獎金會阻擋。</p></div>
+  <div class="form-actions"><button type="submit" class="button primary">確認更正原單並補匯新買家</button></div>
+</form>{% endif %}
+{% endblock %}

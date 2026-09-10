@@ -181,6 +181,24 @@ class HistoricalReplacementTests(ReplacementFixture, TestCase):
         with self.assertRaisesMessage(ValidationError, "未來日期"):
             self.execute()
 
+    def test_cross_engine_frame_collision_cannot_allocate_another_vehicle(self):
+        VehicleInventory.objects.filter(pk=self.vehicle_id).update(engine_number="", normalized_engine_number="", frame_number="AB-123", normalized_frame_number="AB123")
+        other = VehicleInventory.objects.create(vehicle_model=self.order.vehicle_model, color=self.order.color, engine_number="AB123",
+            ownership_store=Store.objects.get(code="MAIN"), location_store=Store.objects.get(code="MAIN"))
+        from sales.forms import LegacyImportRowCorrectionForm
+        self.assertEqual(len(LegacyImportRowCorrectionForm(row=self.row).review["related_vehicles"]), 2)
+        response = self.client.get(reverse("legacy_import_detail", args=[self.batch.pk]), {"edit": self.row.pk})
+        self.assertContains(response, f"核對庫存 #{other.pk}")
+        self.assertContains(response, f"核對庫存 #{self.vehicle_id}")
+        with self.assertRaisesMessage(ValidationError, "不同庫存車輛"):
+            self.execute()
+        self.order.refresh_from_db()
+        other.refresh_from_db()
+        self.assertEqual(self.order.status, SalesOrder.Status.COMPLETED)
+        self.assertEqual(self.order.allocated_vehicle_id, self.vehicle_id)
+        self.assertEqual(other.status, VehicleInventory.Status.AVAILABLE)
+        self.assertEqual(SalesOrder.objects.count(), 1)
+
     def test_pending_receivable_cannot_be_less_than_incoming_receipts(self):
         self.row.mapped_data["cash_received"] = "3000"
         self.row.save()
@@ -276,6 +294,32 @@ class HistoricalReplacementTests(ReplacementFixture, TestCase):
 
 @skipUnless(connection.vendor == "postgresql", "PostgreSQL 列鎖驗證")
 class HistoricalReplacementConcurrencyTests(ReplacementFixture, TransactionTestCase):
+    def test_regular_retry_and_replacement_share_lock_order(self):
+        from sales.services.legacy_import import retry_completed_import_row
+        data = self.data()
+        barrier = Barrier(2)
+        def submit(mode):
+            close_old_connections()
+            try:
+                with connection.cursor() as cursor:
+                    cursor.execute("SET lock_timeout = '10s'")
+                barrier.wait(timeout=10)
+                try:
+                    if mode == "replace":
+                        self.execute(data)
+                        return "created"
+                    result = retry_completed_import_row(self.row, {}, "correct", "併發核對", "admin")
+                    return "created" if result["ok"] else "blocked"
+                except (ValidationError, ValueError):
+                    return "blocked"
+            finally:
+                close_old_connections()
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            results = list(pool.map(submit, ["replace", "regular"]))
+        self.assertLessEqual(results.count("created"), 1)
+        self.assertEqual(SalesOrder.objects.count(), 1 + results.count("created"))
+        self.assertEqual(SalesOrder.objects.filter(allocated_vehicle_id=self.vehicle_id).count(), 1)
+
     def test_double_submit_creates_only_one_replacement(self):
         self.assert_single_replacement(self.data())
 

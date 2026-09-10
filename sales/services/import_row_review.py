@@ -3,7 +3,7 @@ import re
 
 from django.db.models import Q
 
-from sales.models import LegacyImportRow, SalesOrder, normalize_vehicle_identifier
+from sales.models import LegacyImportRow, SalesOrder, VehicleInventory, normalize_vehicle_identifier
 
 
 COMPARISON_FIELDS = {
@@ -32,8 +32,11 @@ def build_import_row_review(row, labels):
         notes["identifier_raw"] = "請核對引擎／車身號碼；同車輛可能已有訂單，不代表號碼一定填錯。"
     comparisons = []
     peer_rows = []
+    related_vehicles = []
     identifier = normalize_vehicle_identifier(row.mapped_data.get("identifier_raw") or row.mapped_data.get("identifier"))
     if row.sheet_name in {"銷貨", "進貨"} and identifier:
+        related_vehicles = list(VehicleInventory.objects.filter(Q(normalized_engine_number=identifier)
+            | Q(normalized_frame_number=identifier)).select_related("vehicle_model").order_by("pk"))
         # 號碼正規化後精確比對，不以姓名、日期或 Excel 列號猜測同一筆訂單。
         orders = SalesOrder.objects.filter(
             Q(allocated_vehicle__normalized_engine_number=identifier)
@@ -98,4 +101,5 @@ def build_import_row_review(row, labels):
     from sales.services.legacy_import import friendly_import_message
 
     return {"notes": notes, "comparisons": comparisons, "peer_rows": peer_rows, "identifier": identifier,
+            "related_vehicles": related_vehicles,
             "messages": [friendly_import_message(message) for message in messages]}

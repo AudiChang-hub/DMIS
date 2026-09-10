@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}核對領牌改期｜車輛銷售管理{% endblock %}
+{% block content %}
+<section class="hero-row compact-hero"><div><p class="eyebrow">僅限 admin · 更新原訂單，不新增</p><h1>核對領牌改期</h1><p>{{ preview.order.owner_name }} · <a href="{% url 'order_detail' preview.order.pk %}" target="_blank" rel="noopener">{{ preview.order.number }} ↗</a></p></div><a class="button ghost" href="{% url 'legacy_import_detail' preview.row.batch_id %}?action=error&amp;edit={{ preview.row.pk }}#row-editor">返回本列修正</a></section>
+<section class="panel replacement-panel">
+  <h2>同一位買家、同一台車，只更正領牌日期</h2>
+  <p>{{ preview.row.sheet_name }}第 {{ preview.row.source_row }} 列 · 車輛識別 {{ preview.row.mapped_data.identifier }} · 原單狀態：{{ preview.order.get_status_display }}</p>
+  <div class="replacement-grid"><div><h3>原單日期</h3><p>{{ preview.order.registration_date|date:'Y/m/d'|default:'未填' }}</p></div><div class="import-review-summary"><h3>本次日期</h3><p>{{ preview.day|date:'Y/m/d'|default:'無效／未填' }}</p></div></div>
+  <p><strong>目前尚未更新。</strong>不必移除車身號碼，不會退訂、改買家或重新配車。</p>
+  <details><summary>查看其他差異（本次不會覆寫）</summary>{% for item in preview.comparison.values %}{% if item.changed and item.key != 'registration_date' %}<p><strong>{{ item.label }}</strong>：原單 {{ item.current|default:'未填' }} → Excel {{ item.incoming|default:'未填' }}；本次保留原單。</p>{% endif %}{% endfor %}<p>來源列其他收支、個人資料與說明也不會自動更新到原訂單；有需要請另走原訂單維護流程。</p></details>
+</section>
+<section class="panel replacement-panel">
+  <h2>日期影響與財務核對</h2>
+  <div class="import-review-summary"><strong>保留原收支，不自動重套費率</strong><p>以下為「目前主檔」在兩個日期的適用版本參考，不是原交易的實際金額，也不是已完成財務對帳。人工調整、歷史金額與已鎖定快照仍保留；未來在原訂單操作領牌／費用時，須再依 DMIS 規則核對。</p><p>預計模式會撤除歷史誤標的領牌／交付完成時間，改為「已配車」、庫存「已預留」；以領牌完成為依據的台數獎金會暫時排除。已實際領牌模式保留原交付進度，按更正日期歸期；一般依日期報表亦會移至新日期。</p></div>
+  <div class="replacement-grid">{% for item in preview.impacts %}<div{% if item.changed %} class="import-review-summary"{% endif %}><h3>{{ item.label }}{% if item.changed %} · 有差異{% endif %}</h3><p>原日期：{{ item.before }}</p><p>新日期：{{ item.after }}</p></div>{% endfor %}</div>
+  <details><summary>查看原單營運金額（不改動）</summary>{% for item in preview.financials %}<p>{{ item.label }}：{{ item.value }} 元</p>{% empty %}<p>未建立營運金額。</p>{% endfor %}</details>
+</section>
+{% if preview.blockers %}<section class="panel replacement-panel" role="alert"><h2>目前不能直接更正</h2><ul>{% for message in preview.blockers %}<li>{{ message }}</li>{% endfor %}</ul><p>不要刪除領牌文件或改車身號碼來繞過檢查。</p></section>
+{% else %}<form method="post" class="panel replacement-panel">{% csrf_token %}{{ form.preview_token }}
+  <h2>確認後更新原單</h2>
+  {% if form.errors %}<div class="import-review-summary" role="alert"><strong>尚未更新，請檢查下方欄位</strong>{{ form.non_field_errors }}{{ form.preview_token.errors }}<a href="{{ request.path }}">重新載入核對</a></div>{% endif %}
+  {% include 'sales/_field.html' with field=form.date_kind %}
+  <p>若只是預定去領牌，請選「預計領牌」，不可把未來日期標成已完成；本頁不會自動判斷真實進度。</p>
+  <div class="replacement-facts">{% include 'sales/_field.html' with field=form.same_buyer_confirmed %}{% include 'sales/_field.html' with field=form.facts_confirmed %}{% include 'sales/_field.html' with field=form.impact_confirmed %}</div>
+  {% include 'sales/_field.html' with field=form.reason %}
+  <p>送出後會更新原訂單並保留異動歷程，此列改列「已更新」。任一步失敗，全部回復。</p>
+  <div class="form-actions"><button type="submit" class="button primary">確認改期並更新原訂單</button></div>
+</form>{% endif %}
+{% endblock %}

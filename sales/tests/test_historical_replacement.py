@@ -64,6 +64,17 @@ class ReplacementFixture:
 
 
 class HistoricalReplacementTests(ReplacementFixture, TestCase):
+    def test_pending_amount_labels_show_explicit_conditional_required_markers(self):
+        response = self.client.get(self.url)
+        for name, label in (
+            ("pending_vehicle_price", "新訂單成交車價"),
+            ("pending_balance", "新訂單約定應收總額（含已收款）"),
+        ):
+            self.assertContains(response, f'<label for="id_{name}">{label}<em>必填（尚待領牌／交車時）</em></label>', html=True)
+            self.assertFalse(response.context["form"].fields[name].required)
+        self.assertContains(response, '<em>必填（尚待領牌／交車時）</em>', count=2, html=True)
+        self.assertContains(response, '<label for="id_confirm_number">輸入原訂單編號以確認<em>必填</em></label>', html=True)
+
     def correction_data(self, **changes):
         return {**{key: value if value is not None else "" for key, value in self.row.mapped_data.items()},
                 "decision": "correct", "reason": "原買家退訂，新買家尚待領牌交車", **changes}

@@ -2,7 +2,7 @@
   {% if field.field.widget.input_type == "checkbox" %}
     <label class="checkbox-label">{{ field }}<span>{{ field.label }}</span></label>
   {% else %}
-    <label for="{{ field.id_for_label }}">{{ field.label }}{% if field.field.required %}<em>必填</em>{% endif %}</label>
+    <label for="{{ field.id_for_label }}">{{ field.label }}{% if required_label %}<em>{{ required_label }}</em>{% elif field.field.required %}<em>必填</em>{% endif %}</label>
     {{ field }}
   {% endif %}
   {% if field.help_text %}<small class="help-text" id="{{ field.id_for_label }}_help">{{ field.help_text }}</small>{% endif %}

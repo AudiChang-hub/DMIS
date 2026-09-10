@@ -21,7 +21,7 @@
   <div class="replacement-facts">{% include 'sales/_field.html' with field=form.original_unregistered %}{% include 'sales/_field.html' with field=form.original_undelivered %}{% include 'sales/_field.html' with field=form.finances_checked %}</div>
   <h3>新買家的訂單進度與應收</h3>{% include 'sales/_field.html' with field=form.incoming_status %}
   <p>Excel 歷史收款價：{{ preview.row.mapped_data.historical_received_price|default:'未填' }}；現金實收：{{ preview.row.mapped_data.cash_received|default:'0' }}；刷卡實收：{{ preview.row.mapped_data.card_received|default:'0' }}。金額需依合約核對，不能直接推定車價、訂金或應收尾款。</p>
-  <div class="replacement-grid">{% include 'sales/_field.html' with field=form.pending_vehicle_price %}{% include 'sales/_field.html' with field=form.pending_balance %}</div>
+  <div class="replacement-grid">{% include 'sales/_field.html' with field=form.pending_vehicle_price required_label='必填（尚待領牌／交車時）' %}{% include 'sales/_field.html' with field=form.pending_balance required_label='必填（尚待領牌／交車時）' %}</div>
   <p>尚未領牌的新單仍須於一般訂單流程核對分期、牌險與其他費用，再完成領牌及交付。</p>
   <div class="replacement-grid">{% include 'sales/_field.html' with field=form.collection_status %}{% include 'sales/_field.html' with field=form.actual_received %}{% include 'sales/_field.html' with field=form.refund_on %}{% include 'sales/_field.html' with field=form.refund_method %}</div>
   {% include 'sales/_field.html' with field=form.refund_reference %}{% include 'sales/_field.html' with field=form.reason %}{% include 'sales/_field.html' with field=form.confirm_number %}

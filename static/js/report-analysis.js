@@ -4,6 +4,9 @@ function reportAnalysisColor(label, fallback) {
     '灰':'#5a9bd4','白':'#faa75a','藍':'#7ac36a','帕瑪森白':'#7dd3ef','黑':'#f15a60',
     '魔綠幻紫':'#737373','黃':'#9e67ab','海神藍':'#ce7058'}[label] || fallback;
 }
+function reportAnalysisFill(label, fallback, palette) {
+  return palette === 'accessible' ? fallback : reportAnalysisColor(label, fallback);
+}
 function renderReportAnalysis(chart, attach) {
   const rows = [...chart.querySelectorAll('.report-results tr[data-point-value]')];
   if (!rows.length) return;
@@ -32,7 +35,8 @@ function renderReportAnalysis(chart, attach) {
       const value=Number(segment.dataset.pointValue), h=value/maximum*(bottom-top);
       if(!h) return;
       const label=stacked ? segment.dataset.seriesLabel : row.dataset.pointLabel;
-      const rect=make('rect',{x,y:bottom-offset-h,width:barWidth,height:h,fill:reportAnalysisColor(label,segment.dataset.pointColor||segment.style.backgroundColor||'#737373')});
+      const fallback = chart.dataset.palette === 'accessible' && stacked ? segment.style.backgroundColor : segment.dataset.pointColor||segment.style.backgroundColor||'#737373';
+      const rect=make('rect',{x,y:bottom-offset-h,width:barWidth,height:h,fill:reportAnalysisFill(label,fallback,chart.dataset.palette)});
       attach(rect,segment);
       offset+=h;
     });
@@ -45,4 +49,4 @@ function renderReportAnalysis(chart, attach) {
   const table=chart.querySelector('.report-table-wrap'); table.before(svg); table.hidden=true;
   const stacks=chart.querySelector('.report-stacks'); if(stacks) stacks.hidden=true;
 }
-if(typeof module!=='undefined' && module.exports) module.exports={reportAnalysisColor};
+if(typeof module!=='undefined' && module.exports) module.exports={reportAnalysisColor,reportAnalysisFill};

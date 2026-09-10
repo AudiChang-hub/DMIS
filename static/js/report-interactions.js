@@ -528,6 +528,7 @@ if (typeof document !== "undefined") initReportVisuals(document);
   paintSelection();
   reader.addEventListener('report-view-change', event => {
     const {card, sort, grain, reset, groups, additive} = event.detail;
+    if (groups?.length && [...reader.querySelectorAll('[data-chart-index]')].find(item => item.dataset.chartIndex === String(card))?.dataset.crossFilter === 'off') return;
     const target = new URL(desiredUrl);
     target.searchParams.set('revision', reader.querySelector('.report-filter [name="revision"]').value);
     if (sort !== undefined) target.searchParams.set(`sort_${card}`, sort);

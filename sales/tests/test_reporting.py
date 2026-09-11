@@ -841,7 +841,7 @@ class ReportingTests(TestCase):
         before = list(SalesOrder.objects.order_by("pk").values())
         call_command("create_source_report_draft", stdout=StringIO())
         call_command("create_source_report_draft", page="electric", stdout=StringIO())
-        report = ReportDefinition.objects.get(draft__title="電動車銷售統計｜原報表核對版")
+        report = ReportDefinition.objects.get(draft__title="電動車銷售統計")
         self.assertIsNone(report.published)
         self.assertEqual(report.draft["audience"], "admin")
         self.assertEqual(report.draft["fixed_filters"]["legacy_energy"], ["電車"])

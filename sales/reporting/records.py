@@ -30,16 +30,16 @@ RECORD_SORTS = {
 
 RECORD_COLUMNS = {
     "number": "訂單編號", "registration_date": "領牌日期", "source": "目前銷售通路",
-    "legacy_source_name": "歷史原車行", "model_number": "車型／型號", "identifier": "引擎／車身號碼",
-    "energy": "DMIS 能源別", "color": "車色", "owner_name": "車主姓名", "subsidy": "補助方案",
-    "payment_confirmed": "DMIS 收款確認", "total_received": "DMIS 已確認實收",
-    "historical_received_price": "歷史收款價（原始）",
+    "legacy_source_name": "售出車行", "model_number": "車型／型號", "identifier": "引擎／車身號碼",
+    "energy": "能源別", "color": "車色", "owner_name": "車主姓名", "subsidy": "補助方案",
+    "payment_confirmed": "收款確認", "total_received": "DMIS 已確認實收",
+    "historical_received_price": "收款價",
     "legacy_gift_card": "歷史公司禮券／匯款",
     "legacy_platform_gift": "歷史平台贈品",
     "legacy_premium": "歷史公司贈品",
     "legacy_notes": "歷史訂單備註（admin）",
     "legacy_sales_source": "原報表來源類型", "legacy_energy": "原報表能源分類",
-    "legacy_dealer": "原報表車行／平台名稱",
+    "legacy_dealer": "售出車行",
     "commission_recipient": "台數與傭金歸屬車行", "plate_number": "車牌號碼",
     "dealer_commission": "DMIS 車行傭金支出",
     "dealer_bonus": "DMIS 已分配台數獎金",
@@ -49,11 +49,23 @@ DEFAULT_RECORD_COLUMNS = ["registration_date", "source", "model_number", "energy
 RECORD_NOTE = "明細依 DMIS 目前訂單與收款紀錄顯示；歷史車行、收款價、禮券與贈品保留匯入來源值，不代表目前實收、已結清或獎勵已發放。原始未填寫、欄位未提供與實際零值分開呈現；新訂單的歷史欄標為非歷史匯入。不輸出證件、聯絡資訊或原始資料中的帳號密碼。"
 
 
+def visible_record_columns(config):
+    columns = config.get('records_columns', DEFAULT_RECORD_COLUMNS)
+    return [key for key in columns if key != 'total_received'] if config.get('reader_layout', 'standard') != 'standard' else columns
+
+
+def selling_dealer_expression():
+    from .source_compatibility import imported_text
+    return Coalesce(NullIf(Trim(Case(
+        When(legacy_snapshot__isnull=False, then=imported_text('dealer_name_raw')),
+        default=F('source__name'), output_field=CharField())), Value('')), Value('馭盛'))
+
+
 def record_queryset(config, filters):
     from .engine import base_query
     from .source_compatibility import sales_source_query, sales_source_expression, source_model_query, source_energy_expression, source_dealer_query
     queryset = base_query(config, filters)
-    columns = config.get("records_columns", DEFAULT_RECORD_COLUMNS)
+    columns = visible_record_columns(config)
     if "dealer_bonus" in columns:
         from .financial_query import with_saved_bonus
         queryset = with_saved_bonus(queryset)
@@ -80,6 +92,8 @@ def record_queryset(config, filters):
             legacy_text = KeyTextTransform('dealer_name_raw' if sort_name == 'legacy_source_name' else 'model_number', 'legacy_snapshot__import_row__mapped_data')
             fallback = Value('非歷史匯入') if sort_name == 'legacy_source_name' else Coalesce(NullIf(F('vehicle_model__model_number'), Value('')), F('vehicle_model__name'))
             queryset = queryset.annotate(**{RECORD_SORTS[sort_name]: Case(When(legacy_snapshot__isnull=False, then=legacy_text), default=fallback, output_field=text)})
+            if sort_name == 'legacy_source_name':
+                queryset = queryset.annotate(record_sort_source=selling_dealer_expression())
         if sort_name == 'identifier':
             queryset = queryset.annotate(record_sort_identifier=Coalesce(NullIf(F('allocated_vehicle__engine_number'), Value('')), NullIf(F('allocated_vehicle__frame_number'), Value('')), NullIf(F('legacy_snapshot__vehicle_identifier'), Value('')), Value('尚未填寫'), output_field=text))
         if sort_name == 'commission_recipient':
@@ -121,12 +135,12 @@ def record_cells(order, columns):
         "number": order.number,
         "registration_date": order.registration_date.strftime("%Y/%m/%d") if order.registration_date else "日期未填寫",
         "source": order.source.name if order.source else "本店／未指定",
-        "legacy_source_name": mapped.get("dealer_name_raw", "") if legacy else "非歷史匯入",
+        "legacy_source_name": str((mapped.get("dealer_name_raw") if legacy else order.source.name if order.source else '') or '').strip() or '馭盛',
         "model_number": mapped.get("model_number") if legacy else order.vehicle_model.model_number or order.vehicle_model.name,
         "identifier": identifier or (legacy.vehicle_identifier if legacy else "") or "尚未填寫",
         "energy": order.vehicle_model.get_energy_type_display(), "color": order.color.name, "owner_name": order.owner_name,
         "subsidy": order.subsidy_type or "未填寫",
-        "payment_confirmed": ("已確認" if operations.payment_confirmed else "未確認") if operations else "待補收支資料",
+        "payment_confirmed": ("已收款" if operations.payment_confirmed else "未收款") if operations else "待補收支資料",
         "total_received": str(operations.total_received) if operations else "待補收支資料",
         "historical_received_price": str(legacy.historical_received_price) if legacy else "非歷史匯入",
         "legacy_gift_card": original_text("公司禮卷、匯款"),
@@ -152,7 +166,7 @@ def record_context(config, filters, page_number=1):
     if config.get("records_mode") == "population":
         from .population_table import population_context
         return population_context(config, filters, page_number)
-    columns = config.get("records_columns", DEFAULT_RECORD_COLUMNS)
+    columns = visible_record_columns(config)
     page = Paginator(record_queryset(config, filters), config.get("records_page_size", 10)).get_page(page_number)
     from .views import filter_query
     sort = filters.get('records_sort', '')

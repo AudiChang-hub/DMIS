@@ -24,7 +24,8 @@ class HolidayGiftFieldMigrationTests(TransactionTestCase):
         self.addCleanup(self._restore_latest_schema)
 
     def _restore_latest_schema(self):
-        MigrationExecutor(connection).migrate([self.restore_to])
+        executor = MigrationExecutor(connection)
+        executor.migrate(executor.loader.graph.leaf_nodes())
 
     def _migrate(self):
         self.executor = MigrationExecutor(connection)

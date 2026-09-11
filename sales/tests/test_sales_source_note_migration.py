@@ -17,7 +17,7 @@ class SalesSourceNoteMigrationTests(TransactionTestCase):
 
     def _restore_latest_schema(self):
         executor = MigrationExecutor(connection)
-        executor.migrate([self.restore_to])
+        executor.migrate(executor.loader.graph.leaf_nodes())
 
     def test_notes_and_contact_details_are_preserved_in_one_note(self):
         SalesSource = self.old_apps.get_model("sales", "SalesSource")

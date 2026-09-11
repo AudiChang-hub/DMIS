@@ -15,7 +15,8 @@ class BaifuSalesSourceMergeMigrationTests(TransactionTestCase):
         self.addCleanup(self._restore_latest_schema)
 
     def _restore_latest_schema(self):
-        MigrationExecutor(connection).migrate([self.migrate_to])
+        executor = MigrationExecutor(connection)
+        executor.migrate(executor.loader.graph.leaf_nodes())
 
     def test_duplicate_baifu_is_merged_and_legacy_name_is_mapped(self):
         SalesSource = self.old_apps.get_model("sales", "SalesSource")
@@ -90,4 +91,3 @@ class BaifuSalesSourceMergeMigrationTests(TransactionTestCase):
         )
         self.assertEqual(mapping.sales_source_id, merged.pk)
         self.assertFalse(mapping.ignored)
-

@@ -15,7 +15,8 @@ class EmployeePurchasePlatformToStoreMigrationTests(TransactionTestCase):
         self.addCleanup(self._restore_latest_schema)
 
     def _restore_latest_schema(self):
-        MigrationExecutor(connection).migrate([self.migrate_to])
+        executor = MigrationExecutor(connection)
+        executor.migrate(executor.loader.graph.leaf_nodes())
 
     def test_only_confirmed_employee_purchase_platforms_become_store_orders(self):
         SalesSource = self.old_apps.get_model("sales", "SalesSource")

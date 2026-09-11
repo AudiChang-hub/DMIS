@@ -11,7 +11,8 @@
   {% url 'order_list' as form_back_url %}
   {% include "sales/_page_back.html" with fallback_url=form_back_url label="全部訂單" %}
 {% endif %}
-<form method="post" enctype="multipart/form-data" class="mobile-order-form" id="order-form" data-custom-validation="true">
+{% if editing_order.is_delivered %}<div class="card"><strong>完成後修正</strong><p>可繼續修改訂單內容，必須填寫原因並確認；交付狀態不變，已配車及已結算限制仍保留。未改計費條件時保留原金額與快照。</p></div>{% endif %}
+<form method="post" enctype="multipart/form-data" class="mobile-order-form" id="order-form" data-custom-validation="true" {% if editing_order.is_delivered %}data-completed-correction="true"{% endif %}>
   {% csrf_token %}
   <input type="hidden" name="_draft_id" id="draft-id" value="{{ draft.pk|default:'' }}">
   <input type="hidden" name="_order_revision" value="{{ editing_order.revision|default:0 }}">
@@ -22,6 +23,7 @@
   <input type="hidden" name="_field_versions" id="field-versions" value="{}">
   {{ formset.management_form }}
   {{ fee_formset.management_form }}
+  {% if editing_order.is_delivered %}{% include "sales/_field.html" with field=form.confirm_completed_correction %}{% endif %}
   <section class="hero-row compact-hero form-heading">
     <div><p class="eyebrow">{% if editing_order %}正式訂單{% else %}訂單建檔{% endif %}</p><h1>{% if editing_order %}編輯訂單{% elif draft %}繼續編輯草稿{% else %}建立新訂單{% endif %}</h1><p class="muted">{% if editing_order %}儲存後會保留修改人、時間、原因及變更前後內容。{% else %}依序填寫，送出後直接進入待配車。{% endif %}</p></div>
     <div class="hero-actions">
@@ -360,6 +362,13 @@
   const orderForm = byId("order-form");
   const draftId = byId("draft-id");
   const editingOrderId = byId("editing-order-id").value;
+  const completedRegistrationInputs = [vehicleModel, registrationDate, insurancePeriod, plateSelectionFee, lienRegistrationFee];
+  const completedRegistrationBasis = orderForm.dataset.completedCorrection
+    ? JSON.stringify(completedRegistrationInputs.map(input => input.value)) : null;
+  const completedFeeFields = ["id_registration_plate_fee", "id_registration_license_fee", "id_registration_inspection_fee",
+    "id_road_maintenance_fee", "id_license_tax_fee", "id_compulsory_insurance_fee", "id_registration_calculated_total"];
+  const completedFeeValues = completedFeeFields.map(id => byId(id).value);
+  const completedActualPlateFee = actualPlateInsuranceFee.value;
   const draftRevision = byId("draft-revision");
   const draftStatus = byId("draft-status");
   const draftStatusMessage = byId("draft-status-message");
@@ -682,6 +691,13 @@
   }
 
   function calculateRegistrationFee() {
+    if (completedRegistrationBasis !== null && completedRegistrationBasis === JSON.stringify(completedRegistrationInputs.map(input => input.value))) {
+      const followedCalculation = actualPlateInsuranceFee.value === calculatedRegistrationTotal.value;
+      completedFeeFields.forEach((id, index) => { byId(id).value = completedFeeValues[index]; });
+      if (followedCalculation) actualPlateInsuranceFee.value = completedActualPlateFee;
+      rateSummary.textContent = "完成後修正：保留原訂單牌險，變更計費條件才重新試算";
+      return;
+    }
     const modelData = vehicleRateData[vehicleModel.value];
     const energyType = vehicleEnergyType.value;
     const isGas = energyType === "gas";

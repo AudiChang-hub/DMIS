@@ -162,7 +162,7 @@ class OrderFlowTests(TestCase):
         self.assertEqual(self.vehicle.status, VehicleInventory.Status.RESERVED)
         self.assertEqual(order.status, SalesOrder.Status.ALLOCATED)
 
-    def test_edit_page_available_until_delivery(self):
+    def test_edit_page_remains_available_after_delivery(self):
         order = self.make_order()
         self.client.force_login(self.user)
 
@@ -179,8 +179,9 @@ class OrderFlowTests(TestCase):
 
         order.status = SalesOrder.Status.DELIVERED_DOCS_PENDING
         order.save(update_fields=["status", "updated_at"])
-        locked = self.client.get(reverse("order_edit", args=[order.pk]))
-        self.assertRedirects(locked, reverse("order_detail", args=[order.pk]))
+        delivered = self.client.get(reverse("order_edit", args=[order.pk]))
+        self.assertEqual(delivered.status_code, 200)
+        self.assertContains(delivered, "完成後修正")
 
     def test_order_detail_uses_consistent_section_spacing(self):
         css = (

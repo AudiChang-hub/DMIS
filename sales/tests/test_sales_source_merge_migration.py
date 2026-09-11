@@ -15,7 +15,8 @@ class SalesSourceMergeMigrationTests(TransactionTestCase):
         self.addCleanup(self._restore_latest_schema)
 
     def _restore_latest_schema(self):
-        MigrationExecutor(connection).migrate([self.migrate_to])
+        executor = MigrationExecutor(connection)
+        executor.migrate(executor.loader.graph.leaf_nodes())
 
     def test_duplicate_dealers_are_merged_without_losing_profiles_or_mapping(self):
         SalesSource = self.old_apps.get_model("sales", "SalesSource")

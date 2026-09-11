@@ -128,16 +128,18 @@ DEFAULT_MOBILE_QUICK_LINK_KEYS = (
 )
 
 
-def available_mobile_quick_links(user):
+def available_mobile_quick_links(user, *, policy=None):
+    from sales.access.services import AccessPolicy
+    policy = policy or AccessPolicy(user)
     return [
         {**item, "url": reverse(item["route"])}
         for item in MOBILE_QUICK_LINK_DEFINITIONS
-        if not item.get("superuser_only") or user.is_superuser
+        if (not item.get("superuser_only") or user.is_superuser) and policy.route(item["route"])
     ]
 
 
-def normalize_mobile_quick_link_keys(user, values, *, use_default=True):
-    allowed_keys = {item["key"] for item in available_mobile_quick_links(user)}
+def normalize_mobile_quick_link_keys(user, values, *, use_default=True, policy=None):
+    allowed_keys = {item["key"] for item in available_mobile_quick_links(user, policy=policy)}
     normalized = []
     for value in values or ():
         if value in allowed_keys and value not in normalized:
@@ -149,9 +151,11 @@ def normalize_mobile_quick_link_keys(user, values, *, use_default=True):
     return [key for key in DEFAULT_MOBILE_QUICK_LINK_KEYS if key in allowed_keys]
 
 
-def build_mobile_quick_link_context(user, saved_values):
-    options = available_mobile_quick_links(user)
-    selected_keys = normalize_mobile_quick_link_keys(user, saved_values)
+def build_mobile_quick_link_context(user, saved_values, *, policy=None):
+    from sales.access.services import AccessPolicy
+    policy = policy or AccessPolicy(user)
+    options = available_mobile_quick_links(user, policy=policy)
+    selected_keys = normalize_mobile_quick_link_keys(user, saved_values, policy=policy)
     by_key = {item["key"]: item for item in options}
     selected = [by_key[key] for key in selected_keys]
     slots = [

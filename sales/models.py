@@ -4334,3 +4334,4 @@ class UserAccountAuditLog(TimeStampedModel):
 # 同屬 sales app；分開模組，避免報表定義擴大營運模型檔案。
 from .reporting.models import ReportDefinition, ReportRevision  # noqa: E402,F401
 from .reporting.models import ReportClassification, ReportClassificationRevision  # noqa: E402,F401
+from .access.models import UserAccessState, ScreenAccessGrant, ReportAccessGrant, UserAccessRevision  # noqa: E402,F401

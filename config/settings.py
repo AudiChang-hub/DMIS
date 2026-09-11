@@ -48,6 +48,7 @@ MIDDLEWARE = [
     "sales.reporting.classification.ClassificationSnapshotMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "config.middleware.ForcePasswordChangeMiddleware",
+    "sales.access.middleware.ScreenAccessMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
 

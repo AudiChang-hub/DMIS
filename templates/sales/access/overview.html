@@ -1,0 +1,11 @@
+{% extends "base.html" %}{% load static %}
+{% block title %}人員畫面權限總覽｜車輛銷售管理{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'css/screen-access.css' %}?v={{ app_version }}">{% endblock %}
+{% block content %}
+<a href="{% url 'user_management' %}">← 帳號與權限</a>
+<section class="hero-row"><div><p class="eyebrow">ADMIN · 畫面授權</p><h1>人員畫面權限總覽</h1><p>沿用舊制者尚未限制；請逐人預覽並確認，才會啟用白名單。</p></div></section>
+<form method="get" class="access-tools"><label>搜尋姓名／帳號<input name="q" value="{{ query }}" type="search"></label><button class="button primary">搜尋</button></form>
+<div class="access-people">{% for row in rows %}<article class="card"><h2>{{ row.account.get_full_name|default:row.account.username }}</h2><p>@{{ row.account.username }} · {% if row.account.is_active %}使用中{% else %}已停用（所有業務權限無效）{% endif %}</p>
+<p>{% if row.root %}admin 固定最高權限{% elif row.configured %}已啟用白名單 · 第 {{ row.version }} 版{% else %}<strong>沿用舊制，尚未套用</strong>{% endif %}</p>
+<p>可查看 {{ row.screens }} 個畫面群組 · {{ row.reports }} 份報表</p>{% if not row.root %}<a class="button primary" href="{% url 'access_edit' row.account.pk %}">設定畫面權限</a>{% endif %}</article>{% empty %}<p>沒有符合的人員。</p>{% endfor %}</div>
+{% endblock %}

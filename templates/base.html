@@ -1,3 +1,4 @@
+{% load screen_access %}
 {% load static %}
 <!doctype html>
 <html lang="zh-Hant" data-theme="{{ ui_theme|default:'professional' }}">
@@ -18,51 +19,51 @@
       </a>
       {% if user.is_authenticated %}
         <nav class="desktop-nav" aria-label="主要選單">
-          <a href="{% url 'dashboard' %}" {% if request.resolver_match.url_name == 'dashboard' %}class="active" aria-current="page"{% endif %}>戰情首頁</a>
-          <a href="{% url 'order_list' %}" {% if request.resolver_match.url_name == 'order_list' or request.resolver_match.url_name == 'order_detail' or request.resolver_match.url_name == 'order_edit' or request.resolver_match.url_name == 'order_create' %}class="active" aria-current="page"{% endif %}>全部訂單</a>
-          <a href="{% url 'operations_report' %}" {% if request.resolver_match.url_name == 'operations_report' or request.resolver_match.url_name == 'order_operations' or request.resolver_match.url_name == 'reconciliation_list' %}class="active" aria-current="page"{% endif %}>營運總表</a>
-          <a href="{% url 'report_center' %}" {% if request.resolver_match.url_name == 'report_center' or request.resolver_match.url_name == 'report_display' or request.resolver_match.url_name == 'report_detail' %}class="active" aria-current="page"{% endif %}>報表中心</a>
+          {% if_access 'dashboard' %}<a href="{% url 'dashboard' %}" {% if request.resolver_match.url_name == 'dashboard' %}class="active" aria-current="page"{% endif %}>戰情首頁</a>{% endif_access %}
+          {% if_access 'order_list' %}<a href="{% url 'order_list' %}" {% if request.resolver_match.url_name == 'order_list' or request.resolver_match.url_name == 'order_detail' or request.resolver_match.url_name == 'order_edit' or request.resolver_match.url_name == 'order_create' %}class="active" aria-current="page"{% endif %}>全部訂單</a>{% endif_access %}
+          {% if_access 'operations_report' %}<a href="{% url 'operations_report' %}" {% if request.resolver_match.url_name == 'operations_report' or request.resolver_match.url_name == 'order_operations' or request.resolver_match.url_name == 'reconciliation_list' %}class="active" aria-current="page"{% endif %}>營運總表</a>{% endif_access %}
+          {% if_access 'report_center' %}<a href="{% url 'report_center' %}" {% if request.resolver_match.url_name == 'report_center' or request.resolver_match.url_name == 'report_display' or request.resolver_match.url_name == 'report_detail' %}class="active" aria-current="page"{% endif %}>報表中心</a>{% endif_access %}
           <div class="desktop-data-menu{% if is_data_maintenance_section %} active{% endif %}">
-            <a href="{% url 'data_maintenance' %}">資料維護區 <span class="ui-chevron desktop-data-menu__chevron" aria-hidden="true"></span></a>
+            {% if_access 'data_maintenance' %}<a href="{% url 'data_maintenance' %}">資料維護區 <span class="ui-chevron desktop-data-menu__chevron" aria-hidden="true"></span></a>{% endif_access %}
             <div class="data-menu-popover" aria-label="資料維護選單">
               <section class="data-menu-group" aria-labelledby="data-menu-vehicles">
                 <h2 id="data-menu-vehicles">車輛與商品</h2>
-                <a href="{% url 'vehicle_brand_list' %}"><strong>車輛品牌</strong><small>共用品牌名稱與別名</small></a>
-                <a href="{% url 'vehicle_model_list' %}"><strong>機種與售價</strong><small>年式、規格、顏色與價格</small></a>
-                <a href="{% url 'inventory_list' %}"><strong>車輛庫存</strong><small>進車、車況與調車歷程</small></a>
-                <a href="{% url 'accessory_product_list' %}"><strong>配件與工資</strong><small>售價、安裝工資與參考成本</small></a>
-                <a href="{% url 'dealer_reward_catalog_list' %}"><strong>車行獎勵品項</strong><small>實物、禮券、點數與成本版本</small></a>
+                {% if_access 'vehicle_brand_list' %}<a href="{% url 'vehicle_brand_list' %}"><strong>車輛品牌</strong><small>共用品牌名稱與別名</small></a>{% endif_access %}
+                {% if_access 'vehicle_model_list' %}<a href="{% url 'vehicle_model_list' %}"><strong>機種與售價</strong><small>年式、規格、顏色與價格</small></a>{% endif_access %}
+                {% if_access 'inventory_list' %}<a href="{% url 'inventory_list' %}"><strong>車輛庫存</strong><small>進車、車況與調車歷程</small></a>{% endif_access %}
+                {% if_access 'accessory_product_list' %}<a href="{% url 'accessory_product_list' %}"><strong>配件與工資</strong><small>售價、安裝工資與參考成本</small></a>{% endif_access %}
+                {% if_access 'dealer_reward_catalog_list' %}<a href="{% url 'dealer_reward_catalog_list' %}"><strong>車行獎勵品項</strong><small>實物、禮券、點數與成本版本</small></a>{% endif_access %}
               </section>
               <section class="data-menu-group" aria-labelledby="data-menu-channels">
                 <h2 id="data-menu-channels">通路、客戶與人員</h2>
-                <a href="{% url 'customer_list' %}"><strong>客戶查詢</strong><small>聯絡資料與歷史訂單</small></a>
-                <a href="{% url 'sales_source_category_list' %}"><strong>通路類別</strong><small>合作車行、平台與本店人員的系統分類</small></a>
-                <a href="{% url 'sales_source_list' %}"><strong>合作車行</strong><small>聯絡資料、品牌合作與傭金加減</small></a>
-                <a href="{% url 'sales_source_platform_list' %}"><strong>網路平台</strong><small>平台資料與聯絡方式</small></a>
-                <a href="{% url 'sales_source_staff_list' %}"><strong>本店人員</strong><small>人員、所在店與每筆傭金</small></a>
-                <a href="{% url 'price_list_distribution' %}"><strong>價格表分發</strong><small>手機勾選車行跑訪進度與當月備註</small></a>
+                {% if_access 'customer_list' %}<a href="{% url 'customer_list' %}"><strong>客戶查詢</strong><small>聯絡資料與歷史訂單</small></a>{% endif_access %}
+                {% if_access 'sales_source_category_list' %}<a href="{% url 'sales_source_category_list' %}"><strong>通路類別</strong><small>合作車行、平台與本店人員的系統分類</small></a>{% endif_access %}
+                {% if_access 'sales_source_list' %}<a href="{% url 'sales_source_list' %}"><strong>合作車行</strong><small>聯絡資料、品牌合作與傭金加減</small></a>{% endif_access %}
+                {% if_access 'sales_source_platform_list' %}<a href="{% url 'sales_source_platform_list' %}"><strong>網路平台</strong><small>平台資料與聯絡方式</small></a>{% endif_access %}
+                {% if_access 'sales_source_staff_list' %}<a href="{% url 'sales_source_staff_list' %}"><strong>本店人員</strong><small>人員、所在店與每筆傭金</small></a>{% endif_access %}
+                {% if_access 'price_list_distribution' %}<a href="{% url 'price_list_distribution' %}"><strong>價格表分發</strong><small>手機勾選車行跑訪進度與當月備註</small></a>{% endif_access %}
               </section>
               <section class="data-menu-group" aria-labelledby="data-menu-rules">
                 <h2 id="data-menu-rules">費率與規則</h2>
-                <a href="{% url 'settlement_cost_rule_list' %}"><strong>車輛結算成本</strong><small>依機種與領牌日生效</small></a>
-                <a href="{% url 'incentive_rule_list' %}"><strong>原廠獎勵與補助</strong><small>實銷、促銷與分期補貼</small></a>
-                <a href="{% url 'dealer_sales_program_list' %}"><strong>車行傭金與銷售獎勵</strong><small>逐台給付的傭金、實物、禮券與點數</small></a>
-                <a href="{% url 'dealer_volume_bonus_list' %}"><strong>車行台數獎金</strong><small>門檻、期間與逐單結算</small></a>
-                <a href="{% url 'installment_company_list' %}"><strong>分期公司與方案</strong><small>公司、客服電話與機種分期方案</small></a>
-                <a href="{% url 'brand_registration_fee_rule_list' %}"><strong>領牌與強制險</strong><small>依品牌及生效日設定金額</small></a>
-                <a href="{% url 'business_holiday_list' %}"><strong>工作日與假日設定</strong><small>設定期限計算要排除的日期</small></a>
+                {% if_access 'settlement_cost_rule_list' %}<a href="{% url 'settlement_cost_rule_list' %}"><strong>車輛結算成本</strong><small>依機種與領牌日生效</small></a>{% endif_access %}
+                {% if_access 'incentive_rule_list' %}<a href="{% url 'incentive_rule_list' %}"><strong>原廠獎勵與補助</strong><small>實銷、促銷與分期補貼</small></a>{% endif_access %}
+                {% if_access 'dealer_sales_program_list' %}<a href="{% url 'dealer_sales_program_list' %}"><strong>車行傭金與銷售獎勵</strong><small>逐台給付的傭金、實物、禮券與點數</small></a>{% endif_access %}
+                {% if_access 'dealer_volume_bonus_list' %}<a href="{% url 'dealer_volume_bonus_list' %}"><strong>車行台數獎金</strong><small>門檻、期間與逐單結算</small></a>{% endif_access %}
+                {% if_access 'installment_company_list' %}<a href="{% url 'installment_company_list' %}"><strong>分期公司與方案</strong><small>公司、客服電話與機種分期方案</small></a>{% endif_access %}
+                {% if_access 'brand_registration_fee_rule_list' %}<a href="{% url 'brand_registration_fee_rule_list' %}"><strong>領牌與強制險</strong><small>依品牌及生效日設定金額</small></a>{% endif_access %}
+                {% if_access 'business_holiday_list' %}<a href="{% url 'business_holiday_list' %}"><strong>工作日與假日設定</strong><small>設定期限計算要排除的日期</small></a>{% endif_access %}
               </section>
               <div class="data-menu-tools">
-                <a href="{% url 'legacy_import_list' %}"><strong>舊資料 Excel 匯入</strong></a>
-                <a href="{% url 'positioned_template_list' %}"><strong>列印範本設定</strong></a>
-                <a href="{% url 'system_diagnostics' %}"><strong>系統狀態檢查</strong></a>
+                {% if_access 'legacy_import_list' %}<a href="{% url 'legacy_import_list' %}"><strong>舊資料 Excel 匯入</strong></a>{% endif_access %}
+                {% if_access 'positioned_template_list' %}<a href="{% url 'positioned_template_list' %}"><strong>列印範本設定</strong></a>{% endif_access %}
+                {% if_access 'system_diagnostics' %}<a href="{% url 'system_diagnostics' %}"><strong>系統狀態檢查</strong></a>{% endif_access %}
               </div>
               {% if user.is_superuser %}<section class="data-menu-tools data-menu-admin" aria-label="管理者工具">
                 <h2>管理者工具</h2>
-                {% if user.username == 'admin' %}<a href="{% url 'report_manage' %}"><strong>報表設計管理</strong></a>{% endif %}
-                {% if user.username == 'admin' %}<a href="{% url 'report_classification' %}"><strong>報表分類設定</strong></a>{% endif %}
-                <a href="{% url 'user_management' %}"><strong>帳號與權限</strong></a>
-                <a href="{% url 'system_integrity_report' %}"><strong>系統完整性報告</strong></a>
+                {% if user.username == 'admin' %}{% if_access 'report_manage' %}<a href="{% url 'report_manage' %}"><strong>報表設計管理</strong></a>{% endif_access %}{% endif %}
+                {% if user.username == 'admin' %}{% if_access 'report_classification' %}<a href="{% url 'report_classification' %}"><strong>報表分類設定</strong></a>{% endif_access %}{% endif %}
+                {% if_access 'user_management' %}<a href="{% url 'user_management' %}"><strong>帳號與權限</strong></a>{% endif_access %}
+                {% if_access 'system_integrity_report' %}<a href="{% url 'system_integrity_report' %}"><strong>系統完整性報告</strong></a>{% endif_access %}
               </section>{% endif %}
             </div>
           </div>
@@ -89,7 +90,7 @@
           </svg>
           <span class="update-check-label">檢查更新</span>
         </button>
-        <a class="header-account-link" href="{% url 'password_change_required' %}" title="變更我的密碼">我的密碼</a>
+        {% if_access 'password_change_required' %}<a class="header-account-link" href="{% url 'password_change_required' %}" title="變更我的密碼">我的密碼</a>{% endif_access %}
         <form action="{% url 'logout' %}" method="post" class="logout-form">
           {% csrf_token %}
           <button type="submit" class="link-button">登出</button>
@@ -100,10 +101,10 @@
 
   {% if user.is_authenticated %}
     <nav class="mobile-nav" aria-label="手機主要選單">
-      <a href="{% url 'dashboard' %}" {% if request.resolver_match.url_name == 'dashboard' %}class="active" aria-current="page"{% endif %}><span>⌂</span>首頁</a>
-      <a href="{% url 'order_list' %}" {% if request.resolver_match.url_name == 'order_list' or request.resolver_match.url_name == 'order_detail' or request.resolver_match.url_name == 'order_edit' %}class="active" aria-current="page"{% endif %}><span>▤</span>訂單</a>
-      <a class="mobile-new{% if request.resolver_match.url_name == 'order_create' %} active{% endif %}" href="{% url 'order_create' %}" {% if request.resolver_match.url_name == 'order_create' %}aria-current="page"{% endif %}><span>＋</span>新增</a>
-      <a href="{% url 'operations_report' %}" {% if request.resolver_match.url_name == 'operations_report' or request.resolver_match.url_name == 'order_operations' or request.resolver_match.url_name == 'reconciliation_list' %}class="active" aria-current="page"{% endif %}><span>＄</span>營運</a>
+      {% if_access 'dashboard' %}<a href="{% url 'dashboard' %}" {% if request.resolver_match.url_name == 'dashboard' %}class="active" aria-current="page"{% endif %}><span>⌂</span>首頁</a>{% endif_access %}
+      {% if_access 'order_list' %}<a href="{% url 'order_list' %}" {% if request.resolver_match.url_name == 'order_list' or request.resolver_match.url_name == 'order_detail' or request.resolver_match.url_name == 'order_edit' %}class="active" aria-current="page"{% endif %}><span>▤</span>訂單</a>{% endif_access %}
+      {% if_access 'order_create' %}<a class="mobile-new{% if request.resolver_match.url_name == 'order_create' %} active{% endif %}" href="{% url 'order_create' %}" {% if request.resolver_match.url_name == 'order_create' %}aria-current="page"{% endif %}><span>＋</span>新增</a>{% endif_access %}
+      {% if_access 'operations_report' %}<a href="{% url 'operations_report' %}" {% if request.resolver_match.url_name == 'operations_report' or request.resolver_match.url_name == 'order_operations' or request.resolver_match.url_name == 'reconciliation_list' %}class="active" aria-current="page"{% endif %}><span>＄</span>營運</a>{% endif_access %}
       <details class="mobile-data-menu{% if is_data_maintenance_section %} active{% endif %}">
         <summary><span aria-hidden="true">⚙</span>更多</summary>
         <div class="mobile-data-popover">
@@ -116,11 +117,11 @@
               <a href="{{ shortcut.url }}" data-mobile-quick-link="{{ shortcut.key }}"><span>{{ shortcut.icon }}</span><strong>{{ shortcut.label }}</strong></a>
             {% endfor %}
           </div>
-          <a class="mobile-data-popover__all" href="{% url 'report_center' %}">報表中心 →</a>
-          <a class="mobile-data-popover__all" href="{% url 'data_maintenance' %}">查看全部功能 →</a>
+          {% if_access 'report_center' %}<a class="mobile-data-popover__all" href="{% url 'report_center' %}">報表中心 →</a>{% endif_access %}
+          {% if_access 'data_maintenance' %}<a class="mobile-data-popover__all" href="{% url 'data_maintenance' %}">查看全部功能 →</a>{% endif_access %}
           <div class="mobile-data-popover__footer">
             <button type="button" data-theme-open><span aria-hidden="true">◐</span><strong>外觀配色</strong></button>
-            <a href="{% url 'password_change_required' %}"><span aria-hidden="true">鎖</span><strong>變更密碼</strong></a>
+            {% if_access 'password_change_required' %}<a href="{% url 'password_change_required' %}"><span aria-hidden="true">鎖</span><strong>變更密碼</strong></a>{% endif_access %}
             <a href="{{ context_help_url }}" target="_blank" rel="noopener"><span aria-hidden="true">?</span><strong>使用說明</strong></a>
           <form action="{% url 'logout' %}" method="post" class="mobile-logout-form">
             {% csrf_token %}
@@ -232,6 +233,7 @@
         {% endfor %}
       </div>
     {% endif %}
+    {% if screen_read_only %}<p class="card" role="status">目前畫面為僅查看權限；新增、修改及刪除須由 admin 另行開放。</p>{% endif %}
     {% block content %}{% endblock %}
   </main>
   {% block scripts %}{% endblock %}

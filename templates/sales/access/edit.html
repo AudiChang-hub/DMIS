@@ -1,0 +1,26 @@
+{% extends "base.html" %}{% load static %}
+{% block title %}{{ account.username }} 畫面權限｜車輛銷售管理{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'css/screen-access.css' %}?v={{ app_version }}">{% endblock %}
+{% block content %}
+<a href="{% url 'access_overview' %}">← 人員權限總覽</a>
+<header class="hero-row"><div><p class="eyebrow">ADMIN · 逐人授權</p><h1>{{ account.get_full_name|default:account.username }} 的畫面權限</h1><p>@{{ account.username }} · {% if account.is_active %}使用中{% else %}已停用，勾選不會啟用帳號{% endif %} · 第 {{ before.version }} 版</p></div></header>
+{% if error %}<p class="access-notice" role="alert">{{ error }}</p>{% endif %}
+{% if not before.configured %}<p class="access-notice">目前沿用舊制。下列勾選以既有資格為起點；確認套用後，未勾選的畫面及新發布報表都不開放。</p>{% endif %}
+<p class="muted">查看包含該畫面原有統計與關聯摘要，不是「只看自己的資料」。敏感報表及管理者資格仍沿用既有限制；取消查看會一併取消操作與匯出。瀏覽器自行列印／截圖不受系統控制。</p>
+{% if preview %}
+<section class="access-notice"><h2>確認變更 · {{ changed_count }} 個項目</h2><p>這是選單與權限預覽，尚未生效，也沒有登入對方帳號。確認後下一次請求生效。</p>
+<details><summary>預覽可見功能（{{ visible_rows|length }} 項）</summary><ul>{% for row in visible_rows %}<li>{{ row.label }}</li>{% empty %}<li>不開放任何業務功能，只保留個人功能。</li>{% endfor %}</ul></details></section>
+{% else %}
+<form method="post" class="access-tools">{% csrf_token %}<input type="hidden" name="version" value="{{ before.version }}"><label for="copy-account">複製另一位人員至預覽</label><select id="copy-account" name="source" required><option value="">選擇人員</option>{% for source in copy_accounts %}<option value="{{ source.pk }}">{{ source.get_full_name|default:source.username }}（{{ source.username }}）</option>{% endfor %}</select><button class="button secondary" name="action" value="copy">複製並預覽</button></form>
+{% endif %}
+<div class="access-tools"><label>搜尋畫面<input type="search" data-access-search placeholder="輸入畫面或報表名稱"></label><label>顯示<select data-access-filter><option value="all">全部</option><option value="selected">已開放</option><option value="changed">有變更</option></select></label></div>
+<form method="post" data-access-form>{% csrf_token %}<input type="hidden" name="version" value="{{ before.version }}">
+{% if preview %}<input type="hidden" name="preview_token" value="{{ preview_token }}">{% endif %}
+<div class="access-grid">
+{% for row in rows %}<fieldset class="access-row{% if row.changed %} is-changed{% endif %}" data-access-row data-label="{{ row.label }}"><legend>{% if row.kind == 'reports' %}<small>報表</small>{% else %}<small>畫面</small>{% endif %} {{ row.label }}</legend>
+{% if not row.eligible %}<p class="muted">原有資格不允許開放，此處不可擴權。</p>{% endif %}
+<div class="access-checks">{% for cell in row.cells %}<label>{% if cell.supported %}<input type="checkbox" name="{{ cell.name }}" data-action="{{ cell.action }}" data-before="{{ cell.before|yesno:'1,0' }}" {% if cell.checked %}checked{% endif %} {% if preview or not row.eligible %}disabled{% endif %}> {{ cell.label }}{% if preview and cell.checked != cell.before %}<strong>{% if cell.checked %}新增{% else %}收回{% endif %}</strong>{% endif %}{% else %}<span class="muted">{{ cell.label }}：不適用</span>{% endif %}</label>{% endfor %}</div></fieldset>{% endfor %}
+</div><footer class="access-footer">{% if preview %}<button class="button secondary" name="action" value="back">返回調整</button><button class="button primary" name="action" value="apply">確認並套用</button>{% else %}<a class="button secondary" href="{% url 'access_overview' %}">取消</a><button class="button primary" name="action" value="preview">預覽變更</button>{% endif %}</footer></form>
+<details class="card"><summary>權限異動歷程（最近 20 筆）</summary>{% for revision in revisions %}<form method="post" class="access-history">{% csrf_token %}<input type="hidden" name="version" value="{{ before.version }}"><input type="hidden" name="revision" value="{{ revision.pk }}"><span>第 {{ revision.version }} 版 · {{ revision.created_at|date:'Y/m/d H:i' }} · {{ revision.actor_name }}</span><button class="button secondary" name="action" value="restore">還原此版並預覽</button></form><details><summary>查看此版異動</summary><ul>{% for row in revision.changes %}<li>{{ row.label }}：{% for cell in row.cells %}{% if cell.supported and cell.checked != cell.before %}{{ cell.label }} {% if cell.checked %}新增{% else %}收回{% endif %}；{% endif %}{% endfor %}</li>{% empty %}<li>可見項目未變更；已確認採用白名單。</li>{% endfor %}</ul></details>{% empty %}<p>尚無套用紀錄。</p>{% endfor %}</details>
+<script src="{% static 'js/screen-access.js' %}?v={{ app_version }}" defer></script>
+{% endblock %}

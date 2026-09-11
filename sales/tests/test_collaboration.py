@@ -1,5 +1,6 @@
 from asgiref.sync import async_to_sync
 from channels.testing import WebsocketCommunicator
+from channels.db import database_sync_to_async
 from django.contrib.auth import get_user_model
 from django.test import Client, TransactionTestCase, override_settings
 
@@ -67,6 +68,45 @@ class DraftCollaborationTests(TransactionTestCase):
         self.assertEqual(state.version, 2)
         self.draft.refresh_from_db()
         self.assertEqual(self.draft.data["owner_name"], "陳小華")
+
+    def test_screen_access_blocks_socket_before_draft_snapshot(self):
+        from sales.access.models import UserAccessState
+        UserAccessState.objects.create(user=self.first_user, configured=True)
+        async_to_sync(self.denied_socket)(self.headers(self.first_user))
+
+    async def denied_socket(self, headers):
+        socket = WebsocketCommunicator(application, f"/ws/orders/drafts/{self.draft.pk}/?client-denied", headers=headers)
+        self.assertEqual(await socket.connect(), (False, 4403))
+        await socket.disconnect()
+
+    def test_screen_access_revocation_blocks_existing_socket_write(self):
+        from sales.access.models import ScreenAccessGrant, UserAccessState
+        UserAccessState.objects.create(user=self.first_user, configured=True)
+        ScreenAccessGrant.objects.create(user=self.first_user, screen_key="orders", view=True, operate=True)
+        async_to_sync(self.revoke_socket)(self.headers(self.first_user), incoming=True)
+        self.draft.refresh_from_db()
+        self.assertEqual(self.draft.data["owner_name"], "")
+        self.assertFalse(DraftFieldState.objects.filter(draft=self.draft).exists())
+
+    def test_screen_access_revocation_blocks_existing_socket_broadcast(self):
+        from sales.access.models import ScreenAccessGrant, UserAccessState
+        UserAccessState.objects.create(user=self.first_user, configured=True)
+        ScreenAccessGrant.objects.create(user=self.first_user, screen_key="orders", view=True, operate=True)
+        async_to_sync(self.revoke_socket)(self.headers(self.first_user), incoming=False)
+
+    async def revoke_socket(self, headers, *, incoming):
+        from channels.layers import get_channel_layer
+        from sales.access.models import ScreenAccessGrant
+        socket = WebsocketCommunicator(application, f"/ws/orders/drafts/{self.draft.pk}/?client-revoke", headers=headers)
+        self.assertTrue((await socket.connect())[0])
+        self.assertEqual((await socket.receive_json_from())["type"], "snapshot")
+        await database_sync_to_async(lambda: ScreenAccessGrant.objects.filter(user=self.first_user).delete())()
+        if incoming:
+            await socket.send_json_to({"type": "field.update", "field": "owner_name", "value": "不得保存", "base_version": 0, "kind": "text"})
+        else:
+            await get_channel_layer().group_send(f"draft_{str(self.draft.pk).replace('-', '')}", {"type": "collaboration.message", "payload": {"type": "field.updated", "value": "不得送出"}})
+        self.assertEqual(await socket.receive_output(timeout=3), {"type": "websocket.close", "code": 4403})
+        await socket.disconnect()
 
     async def collaboration_scenario(self, first_headers, second_headers):
         first = WebsocketCommunicator(

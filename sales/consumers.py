@@ -5,11 +5,12 @@ from datetime import timedelta
 
 from channels.db import database_sync_to_async
 from channels.generic.websocket import AsyncJsonWebsocketConsumer
+from django.contrib.auth import HASH_SESSION_KEY, get_user_model
 from django.db import transaction
 from django.utils import timezone
 
 from .collaboration import merge_text
-from .models import DraftFieldPresence, DraftFieldState, OrderDraft
+from .models import DraftFieldPresence, DraftFieldState, OrderDraft, UserSecurityProfile
 
 
 FIELD_KEY_PATTERN = re.compile(r"^[A-Za-z0-9_-]{1,200}$")
@@ -28,6 +29,9 @@ class DraftCollaborationConsumer(AsyncJsonWebsocketConsumer):
         if not user.is_authenticated:
             await self.close(code=4401)
             return
+        if not await self._has_screen_access():
+            await self.close(code=4403)
+            return
         self.draft_id = str(self.scope["url_route"]["kwargs"]["draft_id"])
         self.group_name = f"draft_{self.draft_id.replace('-', '')}"
         self.client_id = self.scope["query_string"].decode()[:64]
@@ -42,12 +46,13 @@ class DraftCollaborationConsumer(AsyncJsonWebsocketConsumer):
             return
 
         await self.channel_layer.group_add(self.group_name, self.channel_name)
+        self._joined = True
         await self.accept()
         snapshot = await self._snapshot()
         await self.send_json({"type": "snapshot", **snapshot})
 
     async def disconnect(self, close_code):
-        if not hasattr(self, "group_name"):
+        if not getattr(self, "_joined", False):
             return
         await self._clear_presence()
         await self.channel_layer.group_send(
@@ -63,6 +68,9 @@ class DraftCollaborationConsumer(AsyncJsonWebsocketConsumer):
         await self.channel_layer.group_discard(self.group_name, self.channel_name)
 
     async def receive_json(self, content, **kwargs):
+        if not await self._has_screen_access():
+            await self.close(code=4403)
+            return
         message_type = content.get("type")
         if message_type == "presence.focus":
             field_key = content.get("field")
@@ -142,7 +150,20 @@ class DraftCollaborationConsumer(AsyncJsonWebsocketConsumer):
         )
 
     async def collaboration_message(self, event):
+        if not await self._has_screen_access():
+            await self.close(code=4403)
+            return
         await self.send_json(event["payload"])
+
+    @database_sync_to_async
+    def _has_screen_access(self):
+        from .access.services import AccessPolicy
+        user = get_user_model().objects.filter(pk=self.scope["user"].pk, is_active=True).first()
+        if not user or self.scope["session"].get(HASH_SESSION_KEY) != user.get_session_auth_hash():
+            return False
+        if UserSecurityProfile.objects.filter(user=user, must_change_password=True).exists():
+            return False
+        return AccessPolicy(user).screen("orders", "operate")
 
     @staticmethod
     def _valid_field_key(field_key):

@@ -135,6 +135,7 @@ class ScreenAccessTests(TestCase):
         self.client.force_login(self.user)
         for route in ("system_integrity_report", "user_management"):
             self.assertEqual(self.client.get(reverse(route)).status_code, 200)
+        self.assertNotContains(self.client.get(reverse("user_management")), "＋ 建立帳號")
         self.assertEqual(self.client.get(reverse("user_account_create")).status_code, 403)
         self.assertContains(self.client.get(reverse("data_maintenance")), reverse("system_integrity_report"))
         self.assertEqual(self.client.get(reverse("access_overview")).status_code, 403)
@@ -162,6 +163,9 @@ class ScreenAccessTests(TestCase):
         self.assertContains(response, "@admin")
         self.assertContains(response, 'name="screens.integrity.view"')
         self.assertTrue(all(cell["supported"] for row in response.context["rows"] for cell in row["cells"]))
+        grouped = [row["key"] for group in response.context["groups"] for section in group["sections"] for row in section["rows"] if row["kind"] == "screens"]
+        from sales.access.registry import SCREENS
+        self.assertCountEqual(grouped, [screen.key for screen in SCREENS])
 
     def test_revocation_applies_to_existing_session_next_request(self):
         grant = self.grant("brands")

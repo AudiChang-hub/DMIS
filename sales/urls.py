@@ -5,6 +5,7 @@ from . import views
 from .historical_replacement import historical_buyer_replacement
 from .historical_date_change import historical_date_change
 from .reporting import views as report_views
+from .reporting import classification_views
 
 
 urlpatterns = [
@@ -14,6 +15,7 @@ urlpatterns = [
     path("reports/<int:pk>/charts/<int:index>/orders/", report_views.detail, name="report_detail"),
     path("reports/<int:pk>/charts/<int:index>/export/", report_views.export, name="report_export"),
     path("data/report-design/", report_views.manage, name="report_manage"),
+    path("data/report-classifications/", classification_views.manage, name="report_classification"),
     path("data/report-design/new/", report_views.edit, name="report_create"),
     path("data/report-design/<int:pk>/", report_views.edit, name="report_edit"),
     path("data/report-design/<int:pk>/preview/", report_views.draft_preview, name="report_draft_preview"),

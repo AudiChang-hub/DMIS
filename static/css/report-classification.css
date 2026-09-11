@@ -1,0 +1,23 @@
+.classification-workspace{max-width:1200px;margin:auto;font-size:16px}
+.classification-workspace .report-panel{scroll-margin-top:100px}
+.classification-status,.classification-row-actions,.classification-links,.classification-search{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.classification-status{justify-content:space-between}
+.classification-links{margin:16px 0}
+.classification-links a,.classification-row-actions a{padding:10px 12px;border:1px solid var(--line);border-radius:8px;min-height:44px;box-sizing:border-box}
+.classification-editor{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;padding:18px;background:var(--surface-soft);border-radius:12px;margin:16px 0}
+.classification-editor p{display:flex;flex-direction:column;gap:6px;margin:0;min-width:0}
+.classification-workspace input:not([type=checkbox]),.classification-workspace select{width:100%;box-sizing:border-box;min-height:44px;font:inherit;padding:10px;border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--ink)}
+.classification-workspace input[type=color]{padding:4px}
+.classification-workspace input[type=checkbox]{width:22px;height:22px;accent-color:var(--forest)}
+.classification-workspace button{min-height:44px;padding:10px 14px;border:1px solid var(--line);border-radius:8px;font:inherit;cursor:pointer}
+.classification-workspace small,.classification-workspace .helptext{font-size:14px;color:var(--muted)}
+.classification-table{overflow:auto;max-width:100%;margin:14px 0}
+.classification-table table{width:100%;border-collapse:collapse;min-width:560px}
+.classification-table th,.classification-table td{padding:12px;text-align:left;border-bottom:1px solid var(--line);overflow-wrap:anywhere}
+.classification-table th{background:var(--surface-soft)}
+.classification-color{display:inline-block;width:16px;height:16px;border:1px solid var(--line);border-radius:4px;margin-right:8px}
+.classification-search input,.classification-search select{flex:1;min-width:170px;max-width:400px}
+.classification-error,.classification-workspace .errorlist{color:#a51b27}
+.classification-publish{display:grid;gap:16px;padding:16px;border:2px solid var(--forest);border-radius:12px}
+.classification-workspace :is(button,a,input,select):focus-visible{outline:3px solid var(--forest);outline-offset:3px}
+@media(max-width:650px){.classification-editor{grid-template-columns:1fr;padding:12px}.classification-workspace .report-panel{padding:16px}.classification-workspace h1{font-size:26px}.classification-row-actions{min-width:170px}}

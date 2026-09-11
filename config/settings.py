@@ -45,6 +45,7 @@ MIDDLEWARE = [
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "sales.reporting.classification.ClassificationSnapshotMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "config.middleware.ForcePasswordChangeMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",

@@ -138,6 +138,11 @@
     <div><h2>報表設計管理</h2><p>建立草稿、設計圖表、預覽公式與發布報表；不改動正式帳務。</p><strong>僅 admin 可編輯與發布</strong></div>
     <span aria-hidden="true">›</span>
   </a>
+  <a class="maintenance-card" href="{% url 'report_classification' %}">
+    <span class="maintenance-card__icon">類</span>
+    <div><h2>報表分類設定</h2><p>管理車種類別、型號規則、未分類清單與發布版本。</p><strong>先試算再發布；不改訂單或財務</strong></div>
+    <span aria-hidden="true">›</span>
+  </a>
   {% endif %}
   <a class="maintenance-card" href="{% url 'user_management' %}">
     <span class="maintenance-card__icon">員</span>

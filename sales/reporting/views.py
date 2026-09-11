@@ -87,7 +87,9 @@ def accessible_report(request, pk):
 
 
 def publication_key(report):
-    return hashlib.sha256(json.dumps(report.published, sort_keys=True, ensure_ascii=False).encode()).hexdigest()[:20]
+    from .classification import published_snapshot
+    classification_version = published_snapshot()[1]
+    return hashlib.sha256(json.dumps([report.published, classification_version], sort_keys=True, ensure_ascii=False).encode()).hexdigest()[:20]
 
 
 def stale_publication(request, report):

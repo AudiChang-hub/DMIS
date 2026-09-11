@@ -50,12 +50,8 @@ def source_model_query(queryset):
 
 
 def motor_type_expression():
-    # 2026-09-11 使用者確認型號系列；不將其餘未知電動車改名。
-    return Case(When(report_source_model__regex=r'^(UQ|UC|UG|UT)[0-9]', then=Value('速克達')),
-                When(report_source_model__regex=r'^(GSX|DS)([0-9]|-[A-Z0-9])', then=Value('擋車')), *(
-        When(report_source_model__in=values, then=Value(label))
-        for values, label in MOTOR_TYPE_GROUPS
-    ), default=Value("其他"), output_field=CharField())
+    from .classification import classification_expression
+    return classification_expression()
 
 
 SOURCE_CLASSIFICATIONS = ("馭盛", "網路平台", "店內員工", "展場", "車行")

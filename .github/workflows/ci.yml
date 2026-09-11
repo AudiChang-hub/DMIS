@@ -82,7 +82,7 @@ jobs:
         run: python manage.py check --deploy
 
       - name: Verify existing frontend behavior checks
-        run: node --test tests/frontend/floating-list.test.cjs tests/frontend/bonus-periods.test.cjs tests/frontend/bonus-model-filter.test.cjs tests/frontend/report-interactions.test.cjs tests/frontend/report-designer.test.cjs tests/frontend/report-chart-picker.test.cjs tests/frontend/import-row-review.test.cjs
+        run: node --test tests/frontend/floating-list.test.cjs tests/frontend/bonus-periods.test.cjs tests/frontend/bonus-model-filter.test.cjs tests/frontend/report-interactions.test.cjs tests/frontend/report-designer.test.cjs tests/frontend/report-chart-picker.test.cjs tests/frontend/import-row-review.test.cjs tests/frontend/order-installment-picker.test.cjs
 
       - name: Verify migrations are committed
         run: python manage.py makemigrations --check --dry-run
@@ -98,7 +98,7 @@ jobs:
           POSTGRES_DB: finance_ci
           POSTGRES_USER: finance_ci
           POSTGRES_PASSWORD: ci-isolated-only
-        run: python manage.py test sales.tests.test_financial_consistency sales.tests.test_order_commission_recipient sales.tests.test_channel_finance sales.tests.test_volume_bonus_conditions sales.tests.test_volume_bonus_multiple_periods sales.tests.test_bonus_model_filter sales.tests.test_bonus_rule_deletion sales.tests.test_reporting sales.tests.test_report_classification sales.tests.test_historical_replacement sales.tests.test_historical_date_change sales.tests.test_screen_access sales.tests.test_collaboration sales.tests.test_completed_order_corrections --noinput
+        run: python manage.py test sales.tests.test_financial_consistency sales.tests.test_order_commission_recipient sales.tests.test_channel_finance sales.tests.test_volume_bonus_conditions sales.tests.test_volume_bonus_multiple_periods sales.tests.test_bonus_model_filter sales.tests.test_bonus_rule_deletion sales.tests.test_reporting sales.tests.test_report_classification sales.tests.test_historical_replacement sales.tests.test_historical_date_change sales.tests.test_screen_access sales.tests.test_collaboration sales.tests.test_completed_order_corrections sales.tests.test_order_installment_picker --noinput
 
   django-image:
     name: Django 正式映像檢查

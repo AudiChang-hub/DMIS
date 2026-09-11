@@ -170,6 +170,7 @@ def app_version(request):
     return {
         "app_version": get_app_version(),
         "can_manage_screen_access": is_root(request.user),
+        "show_management_tools": bool(is_root(request.user) or access_policy.screen("accounts") or access_policy.screen("integrity")),
         "access_routes": {name: access_policy.route(name) for name in ROUTES},
         "screen_read_only": bool(screen_key and access_policy.configured and not access_policy.root and not access_policy.screen(screen_key, "operate")),
         "context_help_url": f"{reverse('user_guide')}#{topic}",

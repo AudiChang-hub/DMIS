@@ -108,12 +108,60 @@ class ScreenAccessTests(TestCase):
         request.user = self.user
         self.assertEqual([r.pk for group in navigation(request) for r in group["pages"]], [self.report.pk])
 
-    def test_sensitive_report_ceiling_cannot_be_overridden(self):
+    def test_explicit_report_grant_overrides_legacy_audience_and_sensitive_ceiling(self):
         ReportAccessGrant.objects.create(user=self.user, report=self.report, view=True, export=True)
         for config in ({"audience": "admin"}, {"records_mode": "population"}, {"records_columns": ["legacy_notes"]}):
             self.report.published = {**self.report.draft, **config}
             self.report.save()
-            self.assertEqual(self.client.get(reverse("report_display", args=[self.report.pk])).status_code, 403)
+            self.assertEqual(self.client.get(reverse("report_display", args=[self.report.pk])).status_code, 200)
+            self.assertEqual(self.client.get(reverse("report_records_export", args=[self.report.pk])).status_code, 200)
+        self.client.force_login(self.legacy)
+        self.assertEqual(self.client.get(reverse("report_display", args=[self.report.pk])).status_code, 404)
+
+    def test_admin_can_save_all_three_flags_without_changing_target_role(self):
+        response = self.preview(**{
+            "screens.integrity.view": "on", "screens.accounts.view": "on",
+            "screens.dashboard.view": "on", "screens.dashboard.operate": "on", "screens.dashboard.export": "on",
+            f"reports.{self.report.pk}.view": "on", f"reports.{self.report.pk}.operate": "on",
+        })
+        self.assertEqual(response.status_code, 200)
+        self.client.post(reverse("access_edit", args=[self.user.pk]), {"action": "apply", "preview_token": response.context["preview_token"]})
+        self.user.refresh_from_db()
+        self.assertFalse(self.user.is_superuser)
+        policy = AccessPolicy(self.user)
+        self.assertTrue(policy.screen("dashboard", "operate"))
+        self.assertTrue(policy.screen("dashboard", "export"))
+        self.assertTrue(policy.report(self.report, "operate"))
+        self.client.force_login(self.user)
+        for route in ("system_integrity_report", "user_management"):
+            self.assertEqual(self.client.get(reverse(route)).status_code, 200)
+        self.assertEqual(self.client.get(reverse("user_account_create")).status_code, 403)
+        self.assertContains(self.client.get(reverse("data_maintenance")), reverse("system_integrity_report"))
+        self.assertEqual(self.client.get(reverse("access_overview")).status_code, 403)
+
+    def test_delegated_account_operator_cannot_promote_or_take_over_admin(self):
+        self.grant("accounts", operate=True)
+        self.assertEqual(self.client.get(reverse("user_account_create")).status_code, 200)
+        self.assertEqual(self.client.post(reverse("user_account_create"), {"is_superuser": "on"}).status_code, 403)
+        for account in (self.root, self.manager):
+            for route in ("user_account_edit", "user_account_reset_password", "user_account_status"):
+                self.assertEqual(self.client.post(reverse(route, args=[account.pk]), {}).status_code, 403)
+        response = self.client.post(reverse("user_account_create"), {"display_name": "授權建立", "username": "delegated-new", "password1": "Test-Only-123", "password2": "Test-Only-123", "is_active": "on"})
+        self.assertEqual(response.status_code, 302)
+        account = get_user_model().objects.get(username="delegated-new")
+        self.assertFalse(account.is_superuser)
+        self.assertTrue(UserAccessState.objects.get(user=account).configured)
+
+    def test_grouped_ui_has_enabled_checkboxes_and_current_login_identity(self):
+        self.client.force_login(self.root)
+        response = self.client.get(reverse("access_edit", args=[self.user.pk]))
+        self.assertEqual([group["label"] for group in response.context["groups"]], ["戰情首頁", "全部訂單", "營運總表", "報表中心", "資料維護區"])
+        self.assertNotContains(response, "原有資格不允許")
+        self.assertNotContains(response, "不適用")
+        self.assertContains(response, 'aria-label="目前登入帳號"')
+        self.assertContains(response, "@admin")
+        self.assertContains(response, 'name="screens.integrity.view"')
+        self.assertTrue(all(cell["supported"] for row in response.context["rows"] for cell in row["cells"]))
 
     def test_revocation_applies_to_existing_session_next_request(self):
         grant = self.grant("brands")

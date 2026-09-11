@@ -131,7 +131,7 @@
     <div><h2>系統狀態檢查</h2><p>檢查資料庫、證件辨識、搜尋背景工作與照片文件空間。</p><strong>遇到處理卡住時先查看</strong></div>
     <span aria-hidden="true">›</span>
   </a>{% endif_access %}
-  {% if user.is_superuser %}
+  {% if show_management_tools %}
   {% if user.username == 'admin' %}
   {% if_access 'report_manage' %}<a class="maintenance-card" href="{% url 'report_manage' %}">
     <span class="maintenance-card__icon">圖</span>
@@ -151,7 +151,7 @@
   </a>{% endif_access %}
   {% if_access 'system_integrity_report' %}<a class="maintenance-card" href="{% url 'system_integrity_report' %}">
     <span class="maintenance-card__icon">稽</span>
-    <div><h2>系統完整性報告</h2><p>查看最新弱點掃描、UI／UX、營運流程、文件同步結果與已知限制。</p><strong>僅系統管理者可查看</strong></div>
+    <div><h2>系統完整性報告</h2><p>查看最新弱點掃描、UI／UX、營運流程、文件同步結果與已知限制。</p><strong>由 admin 指定可查看人員</strong></div>
     <span aria-hidden="true">›</span>
   </a>{% endif_access %}
   {% endif %}

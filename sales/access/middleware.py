@@ -30,6 +30,10 @@ class ScreenAccessMiddleware(MiddlewareMixin):
         if name in {"user_account_create", "user_account_edit"} and request.method == "POST" and request.POST.get("username") == "admin" and not is_root(request.user):
             raise PermissionDenied
         policy = policy_for(request)
+        if policy.configured and not policy.root and name in {"user_account_create", "user_account_edit", "user_account_status", "user_account_reset_password"}:
+            target_user = get_user_model().objects.filter(pk=view_kwargs.get("pk")).first()
+            if (target_user and (target_user.is_superuser or target_user.is_staff)) or (request.method == "POST" and request.POST.get("is_superuser")):
+                raise PermissionDenied("帳號操作授權不包含提升管理角色或接管管理者帳號，請由 admin 處理。")
         if policy.root or not policy.configured:
             # 舊制與 root 交回原 view 的資格與 404／400 語意；上方帳號防接管仍執行。
             return None

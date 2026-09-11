@@ -338,12 +338,15 @@ def mobile_quick_links_update(request):
 
 
 def superuser_required(view_func):
-    """只允許目前仍啟用的系統管理者進入管理者專用功能。"""
+    """舊制管理者或 admin 明確授權的畫面能力；不提升帳號角色。"""
 
     @wraps(view_func)
     @login_required
     def wrapped(request, *args, **kwargs):
-        if not request.user.is_active or not request.user.is_superuser:
+        from .access.services import policy_for
+        policy = policy_for(request)
+        allowed = policy.route(view_func.__name__, request.method, kwargs) if policy.configured else request.user.is_superuser
+        if not request.user.is_active or not allowed:
             raise PermissionDenied("只有系統管理者可以使用此功能。")
         return view_func(request, *args, **kwargs)
 
@@ -592,7 +595,8 @@ def data_maintenance(request):
         "holiday_count": BusinessHoliday.objects.filter(active=True).count(),
         "registration_fee_rule_count": BrandRegistrationFeeRule.objects.filter(active=True).count(),
     }
-    if request.user.is_superuser:
+    from .access.services import policy_for
+    if policy_for(request).screen("accounts"):
         context["system_user_count"] = get_user_model().objects.count()
     return render(
         request,
@@ -1174,6 +1178,10 @@ def user_management(request):
 @require_http_methods(["GET", "POST"])
 def user_account_create(request):
     form = AdminUserCreateForm(request.POST or None)
+    from .access.services import policy_for
+    if policy_for(request).configured and not policy_for(request).root:
+        form.fields["is_superuser"].disabled = True
+        form.fields["is_superuser"].initial = False
     if request.method == "POST" and form.is_valid():
         with transaction.atomic():
             user = get_user_model().objects.create_user(
@@ -1215,12 +1223,15 @@ def user_account_create(request):
 def user_account_edit(request, pk):
     account = get_object_or_404(get_user_model(), pk=pk)
     form = AdminUserEditForm(request.POST or None, instance=account)
+    from .access.services import policy_for
+    if policy_for(request).configured and not policy_for(request).root:
+        form.fields["is_superuser"].disabled = True
     if request.method == "POST" and form.is_valid():
         new_active = form.cleaned_data["is_active"]
         new_superuser = form.cleaned_data["is_superuser"]
         if account.pk == request.user.pk and not new_active:
             form.add_error("is_active", "不能停用自己目前正在使用的帳號。")
-        if account.pk == request.user.pk and not new_superuser:
+        if account.pk == request.user.pk and request.user.is_superuser and not new_superuser:
             form.add_error("is_superuser", "不能移除自己目前的管理者權限。")
         if (
             account.is_active
@@ -8612,17 +8623,27 @@ def sales_sources(request):
 def installment_plan_options(request):
     model_id = request.GET.get("vehicle_model")
     raw_date = request.GET.get("order_date")
+    order_id = request.GET.get("order_id")
+    if order_id:
+        from .access.services import policy_for
+        if not policy_for(request).screen("orders"):
+            raise PermissionDenied
+        if not str(order_id).isdigit():
+            return JsonResponse({"error": "訂單編號格式錯誤。"}, status=400)
+        original_order = get_object_or_404(SalesOrder, pk=order_id)
+        raw_date = original_order.order_date.isoformat()
     try:
         order_date = date.fromisoformat(raw_date) if raw_date else timezone.localdate()
     except ValueError:
         return JsonResponse({"error": "訂單日期格式錯誤。"}, status=400)
     if not model_id or not str(model_id).isdigit():
-        return JsonResponse({"options": []})
+        return JsonResponse({"options": [], "order_date": order_date.isoformat()})
     version = resolve_installment_plan_version(int(model_id), order_date)
     if not version:
-        return JsonResponse({"options": []})
+        return JsonResponse({"options": [], "order_date": order_date.isoformat()})
     return JsonResponse(
         {
+            "order_date": order_date.isoformat(),
             "version": {
                 "id": version.pk,
                 "effective_from": version.effective_from.isoformat(),

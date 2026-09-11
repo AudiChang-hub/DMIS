@@ -11,8 +11,8 @@ from django.views.decorators.http import require_http_methods
 
 from sales.reporting.models import ReportDefinition
 from .models import UserAccessRevision
-from .registry import SCREENS
-from .services import AccessPolicy, apply_policy, is_root, normalize, policy_for, report_ceiling, snapshot
+from .registry import SCREENS, SCREEN_GROUPS
+from .services import AccessPolicy, apply_policy, is_root, normalize, policy_for, snapshot
 
 SALT = "dmis.screen-access.preview.v1"
 
@@ -63,20 +63,35 @@ def rows_for(user, data, before, reports):
     rows = []
     for screen in SCREENS:
         rows.append({"key": screen.key, "kind": "screens", "label": screen.label,
-                     "eligible": screen.ceiling != "superuser" or user.is_superuser,
+                     "eligible": True,
                      "operate": screen.operate, "export": screen.export})
     for report in reports:
         rows.append({"key": str(report.pk), "kind": "reports", "label": report.published.get("title", "未命名報表"),
-                     "eligible": report_ceiling(user, report, include_inactive=True), "operate": False, "export": True})
+                     "eligible": True, "operate": False, "export": True,
+                     "section": report.published.get("navigation_group", "custom")})
     for row in rows:
         current = before.get(row["kind"], {}).get(row["key"], {})
         proposed = data.get(row["kind"], {}).get(row["key"], {})
         row["changed"] = current != proposed
         row["cells"] = [{"name": f'{row["kind"]}.{row["key"]}.{action}', "action": action, "label": label,
-                         "supported": action == "view" or row[action], "checked": proposed.get(action, False),
+                         "supported": True, "checked": proposed.get(action, False),
                          "before": current.get(action, False)}
                         for action, label in (("view", "查看"), ("operate", "操作"), ("export", "匯出／列印"))]
     return rows
+
+
+def grouped_rows(rows):
+    from sales.reporting.engine import NAVIGATION_GROUPS
+    by_key = {row["key"]: row for row in rows if row["kind"] == "screens"}
+    result = []
+    for key, label, sections in SCREEN_GROUPS:
+        if key == "reports":
+            groups = [{"label": name, "rows": [row for row in rows if row["kind"] == "reports" and row["section"] == group]}
+                      for group, name in NAVIGATION_GROUPS.items()]
+        else:
+            groups = [{"label": name, "rows": [by_key[item] for item in keys]} for name, keys in sections]
+        result.append({"key": key, "label": label, "sections": [group for group in groups if group["rows"]]})
+    return result
 
 
 @root_required
@@ -140,7 +155,7 @@ def edit(request, pk):
     for revision in revisions:
         revision.changes = [row for row in rows_for(account, revision.after, revision.before, reports) if row["changed"]]
     return render(request, "sales/access/edit.html", {
-        "account": account, "before": before, "rows": rows, "preview": preview, "preview_token": token,
+        "account": account, "before": before, "rows": rows, "groups": grouped_rows(rows), "preview": preview, "preview_token": token,
         "error": error, "changed_count": sum(row["changed"] for row in rows),
         "visible_rows": [r for r in rows if r["cells"][0]["checked"]],
         "copy_accounts": get_user_model().objects.exclude(pk=account.pk).exclude(username="admin").order_by("username"),

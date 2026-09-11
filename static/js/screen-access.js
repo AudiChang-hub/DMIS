@@ -13,6 +13,12 @@
       row.hidden = !row.dataset.label.toLowerCase().includes(search.value.trim().toLowerCase()) ||
         (filter.value === 'selected' && !checks.some(input => input.checked)) || (filter.value === 'changed' && !changed);
     }
+    form.querySelectorAll('[data-access-subcategory], [data-access-category]').forEach(group => {
+      group.hidden = ![...group.querySelectorAll('[data-access-row]')].some(row => !row.hidden);
+    });
+    const visible = rows.filter(row => !row.hidden).length;
+    document.querySelector('[data-access-count]').textContent = `顯示 ${visible}／${rows.length} 項`;
+    document.querySelector('[data-access-empty]').hidden = visible > 0;
   }
   form.addEventListener('change', event => {
     const input = event.target;

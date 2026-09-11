@@ -9,6 +9,7 @@
   <title>{% block title %}車輛銷售管理{% endblock %}</title>
   <link rel="stylesheet" href="{% static 'css/app.css' %}?v={{ app_version }}">
   {% block head %}{% endblock %}
+  <link rel="stylesheet" href="{% static 'css/ui-comfort.css' %}?v={{ app_version }}">
 </head>
 <body data-app-version="{{ app_version }}" data-version-endpoint="{% url 'app_version' %}" data-history-user="{% if request.user.is_authenticated %}{{ request.user.pk }}{% else %}anonymous{% endif %}">
   <a class="skip-link" href="#main-content">跳至主要內容</a>
@@ -58,7 +59,7 @@
                 {% if_access 'positioned_template_list' %}<a href="{% url 'positioned_template_list' %}"><strong>列印範本設定</strong></a>{% endif_access %}
                 {% if_access 'system_diagnostics' %}<a href="{% url 'system_diagnostics' %}"><strong>系統狀態檢查</strong></a>{% endif_access %}
               </div>
-              {% if user.is_superuser %}<section class="data-menu-tools data-menu-admin" aria-label="管理者工具">
+              {% if show_management_tools %}<section class="data-menu-tools data-menu-admin" aria-label="管理者工具">
                 <h2>管理者工具</h2>
                 {% if user.username == 'admin' %}{% if_access 'report_manage' %}<a href="{% url 'report_manage' %}"><strong>報表設計管理</strong></a>{% endif_access %}{% endif %}
                 {% if user.username == 'admin' %}{% if_access 'report_classification' %}<a href="{% url 'report_classification' %}"><strong>報表分類設定</strong></a>{% endif_access %}{% endif %}
@@ -91,6 +92,7 @@
           <span class="update-check-label">檢查更新</span>
         </button>
         {% if_access 'password_change_required' %}<a class="header-account-link" href="{% url 'password_change_required' %}" title="變更我的密碼">我的密碼</a>{% endif_access %}
+        <div class="header-identity" aria-label="目前登入帳號" title="目前登入：{{ request.user.get_full_name|default:request.user.username }}（{{ request.user.username }}）"><span>目前登入</span><strong>{{ request.user.get_full_name|default:request.user.username }}</strong><small>@{{ request.user.username }}</small></div>
         <form action="{% url 'logout' %}" method="post" class="logout-form">
           {% csrf_token %}
           <button type="submit" class="link-button">登出</button>
@@ -238,6 +240,7 @@
   </main>
   {% if screen_read_only %}<script src="{% static 'js/screen-readonly.js' %}?v={{ app_version }}" defer></script>{% endif %}
   {% block scripts %}{% endblock %}
+  <script src="{% static 'js/header-layout.js' %}?v={{ app_version }}" defer></script>
   <script src="{% static 'js/message-toasts.js' %}?v={{ app_version }}" defer></script>
   <script src="{% static 'js/form-feedback.js' %}?v={{ app_version }}" defer></script>
   <script src="{% static 'js/ui-navigation.js' %}?v={{ app_version }}" defer></script>

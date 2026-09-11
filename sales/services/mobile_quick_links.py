@@ -134,7 +134,7 @@ def available_mobile_quick_links(user, *, policy=None):
     return [
         {**item, "url": reverse(item["route"])}
         for item in MOBILE_QUICK_LINK_DEFINITIONS
-        if (not item.get("superuser_only") or user.is_superuser) and policy.route(item["route"])
+        if policy.route(item["route"])
     ]
 
 

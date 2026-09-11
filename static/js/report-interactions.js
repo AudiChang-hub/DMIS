@@ -220,7 +220,7 @@ function initReportVisuals(root) {
     const layout = overview?.dataset.readerLayout;
     const legendColors = new Map([...chart.querySelectorAll('.report-series-legend span')].map((entry,i)=>[entry.textContent.trim(),['#737373','#f15a60','#7ac36a','#5a9bd4','#faa75a','#9e67ab','#ce7058','#d17fb1','#7dd3ef','#ee8ab5'][i%10]]));
     const contrast = ['#0072b2','#d55e00','#009e73','#cc79a7','#e69f00','#56b4e9','#333333','#806400'];
-    const overviewColor = (label, fallback) => chart.dataset.palette === 'accessible' ? contrast[[...label].reduce((sum, ch) => (sum * 31 + ch.codePointAt(0)) >>> 0, 0) % contrast.length] : layout === 'dealer_overview' ? legendColors.get(label)||fallback : reportReaderColor(layout, label, fallback, overview?.dataset.reportEnergy);
+    const overviewColor = (label, fallback) => chart.dataset.palette === 'accessible' ? contrast[[...label].reduce((sum, ch) => (sum * 31 + ch.codePointAt(0)) >>> 0, 0) % contrast.length] : chart.dataset.classificationColors === 'true' ? fallback : layout === 'dealer_overview' ? legendColors.get(label)||fallback : reportReaderColor(layout, label, fallback, overview?.dataset.reportEnergy);
     if (overview || chart.dataset.palette === 'accessible') {
       rows.forEach(row => { row.dataset.pointColor = overviewColor(row.dataset.pointLabel, row.dataset.pointColor); });
       chart.querySelectorAll('.report-series-legend span').forEach(entry => {

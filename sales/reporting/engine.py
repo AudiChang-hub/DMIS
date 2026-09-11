@@ -42,6 +42,11 @@ PALETTE = ["#4257a5", "#278168", "#b65b33", "#9269af", "#28789d", "#a86e11", "#b
 
 
 def dimension_color(dimension, raw, index):
+    if dimension == 'legacy_motor_type':
+        from .classification import published_snapshot
+        category = next((c for c in published_snapshot()[0]['categories'] if c['name'] == raw), None)
+        if category:
+            return category['color']
     categories = SOURCE_CLASSIFICATIONS if dimension == "legacy_sales_source" else ("白牌電車", "綠牌電車", "微型電車", "速克達", "擋車", "其他") if dimension == "legacy_motor_type" else ()
     return PALETTE[categories.index(raw) if raw in categories else index % len(PALETTE)]
 
@@ -561,6 +566,7 @@ def card_result(config, card, filters):
             "scope_labels": scope_labels(card.get("fixed_filters", {})),
             "financial_note": financial_note,
             "series_legend": series_legend, "series_label": DIMENSIONS.get(card.get("series"), ""),
+            "classification_colors": (card.get('series') or card['dimension']) == 'legacy_motor_type',
             "series_truncated": series_truncated, "other_series_keys": other_series_keys,
             "raw_total": str(total) if total is not None else None,
             "truncated": truncated, "metric_label": METRICS[metric], "dimension_label": DIMENSIONS[dimension]}

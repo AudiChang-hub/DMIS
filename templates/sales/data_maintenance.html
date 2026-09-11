@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+{% extends "base.html" %}{% load screen_access %}
 {% block title %}資料維護區｜車輛銷售管理{% endblock %}
 {% block page_class %}page-shell--wide{% endblock %}
 {% block content %}
@@ -14,146 +14,146 @@
 <section class="maintenance-section" aria-labelledby="maintenance-daily">
   <div class="maintenance-section__heading"><div><p class="eyebrow">平常最常使用</p><h2 id="maintenance-daily">日常資料</h2></div><p>建立訂單與管理車輛時會直接使用這些內容。</p></div>
   <div class="maintenance-grid">
-  <a class="maintenance-card" href="{% url 'vehicle_brand_list' %}">
+  {% if_access 'vehicle_brand_list' %}<a class="maintenance-card" href="{% url 'vehicle_brand_list' %}">
     <span class="maintenance-card__icon">牌</span>
     <div><h2>車輛品牌</h2><p>統一機種、領牌費用、車行傭金及台數獎金使用的品牌名稱與別名。</p><strong>{{ vehicle_brand_count }} 個品牌</strong></div>
     <span aria-hidden="true">›</span>
-  </a>
-  <a class="maintenance-card" href="{% url 'vehicle_model_list' %}">
+  </a>{% endif_access %}
+  {% if_access 'vehicle_model_list' %}<a class="maintenance-card" href="{% url 'vehicle_model_list' %}">
     <span class="maintenance-card__icon">型</span>
     <div><h2>機種與售價</h2><p>維護機種、原廠型號、年份、顏色與售價版本。</p><strong>{{ vehicle_model_count }} 個機種 · {{ vehicle_model_version_count }} 筆年式／規格</strong></div>
     <span aria-hidden="true">›</span>
-  </a>
-  <a class="maintenance-card" href="{% url 'inventory_list' %}">
+  </a>{% endif_access %}
+  {% if_access 'inventory_list' %}<a class="maintenance-card" href="{% url 'inventory_list' %}">
     <span class="maintenance-card__icon">庫</span>
     <div><h2>車輛庫存</h2><p>管理進車、車況、調車歷程與目前可售狀態。</p><strong>{{ inventory_count }} 台車輛</strong></div>
     <span aria-hidden="true">›</span>
-  </a>
-  <a class="maintenance-card" href="{% url 'accessory_product_list' %}">
+  </a>{% endif_access %}
+  {% if_access 'accessory_product_list' %}<a class="maintenance-card" href="{% url 'accessory_product_list' %}">
     <span class="maintenance-card__icon">配</span>
     <div><h2>配件與工資</h2><p>維護配件售價、安裝工資與內部參考成本，訂單會保存當時快照。</p><strong>{{ accessory_product_count }} 項配件</strong></div>
     <span aria-hidden="true">›</span>
-  </a>
-  <a class="maintenance-card" href="{% url 'dealer_reward_catalog_list' %}">
+  </a>{% endif_access %}
+  {% if_access 'dealer_reward_catalog_list' %}<a class="maintenance-card" href="{% url 'dealer_reward_catalog_list' %}">
     <span class="maintenance-card__icon">禮</span>
     <div><h2>車行獎勵品項</h2><p>集中維護實物、紅包、禮券與點數的單位及成本版本。</p><strong>{{ dealer_reward_catalog_count }} 個品項</strong></div>
     <span aria-hidden="true">›</span>
-  </a>
-  <a class="maintenance-card" href="{% url 'customer_list' %}">
+  </a>{% endif_access %}
+  {% if_access 'customer_list' %}<a class="maintenance-card" href="{% url 'customer_list' %}">
     <span class="maintenance-card__icon">人</span>
     <div><h2>客戶查詢</h2><p>從既有訂單查詢車主聯絡資料與歷史訂單；資料仍由訂單修改。</p><strong>{{ customer_count }} 位客戶</strong></div>
     <span aria-hidden="true">›</span>
-  </a>
-  <a class="maintenance-card" href="{% url 'sales_source_category_list' %}">
+  </a>{% endif_access %}
+  {% if_access 'sales_source_category_list' %}<a class="maintenance-card" href="{% url 'sales_source_category_list' %}">
     <span class="maintenance-card__icon">類</span>
     <div><h2>通路類別</h2><p>維護合作車行、網路平台與本店人員使用的系統類別。</p><strong>{{ sales_source_category_count }} 個類別</strong></div>
     <span aria-hidden="true">›</span>
-  </a>
-  <a class="maintenance-card" href="{% url 'sales_source_list' %}">
+  </a>{% endif_access %}
+  {% if_access 'sales_source_list' %}<a class="maintenance-card" href="{% url 'sales_source_list' %}">
     <span class="maintenance-card__icon">行</span>
     <div><h2>合作車行</h2><p>維護車行聯絡資料、品牌合作、LINE 群組及傭金規則。</p><strong>{{ dealer_source_count }} 家車行</strong></div>
     <span aria-hidden="true">›</span>
-  </a>
-  <a class="maintenance-card" href="{% url 'sales_source_platform_list' %}">
+  </a>{% endif_access %}
+  {% if_access 'sales_source_platform_list' %}<a class="maintenance-card" href="{% url 'sales_source_platform_list' %}">
     <span class="maintenance-card__icon">網</span>
     <div><h2>網路平台</h2><p>維護網路銷售平台與聯絡資料，不混入合作車行。</p><strong>{{ platform_source_count }} 個平台</strong></div>
     <span aria-hidden="true">›</span>
-  </a>
-  <a class="maintenance-card" href="{% url 'sales_source_staff_list' %}">
+  </a>{% endif_access %}
+  {% if_access 'sales_source_staff_list' %}<a class="maintenance-card" href="{% url 'sales_source_staff_list' %}">
     <span class="maintenance-card__icon">員</span>
     <div><h2>本店人員</h2><p>維護姓名、所在店、電話與每筆傭金，不混入合作車行。</p><strong>{{ staff_source_count }} 位人員</strong></div>
     <span aria-hidden="true">›</span>
-  </a>
-  <a class="maintenance-card" href="{% url 'price_list_distribution' %}">
+  </a>{% endif_access %}
+  {% if_access 'price_list_distribution' %}<a class="maintenance-card" href="{% url 'price_list_distribution' %}">
     <span class="maintenance-card__icon">表</span>
     <div><h2>價格表分發</h2><p>依合作品牌產生每月車行名單，手機勾選完成進度並保存備註。</p><strong>{{ price_list_distribution_count }} 個月份</strong></div>
     <span aria-hidden="true">›</span>
-  </a>
+  </a>{% endif_access %}
   </div>
 </section>
 
 <section class="maintenance-section" aria-labelledby="maintenance-rules">
   <div class="maintenance-section__heading"><div><p class="eyebrow">系統自動帶入</p><h2 id="maintenance-rules">費率與規則</h2></div><p>變更只影響符合生效條件的新資料，不會回頭改掉既有訂單快照。</p></div>
   <div class="maintenance-grid">
-  <a class="maintenance-card" href="{% url 'settlement_cost_rule_list' %}">
+  {% if_access 'settlement_cost_rule_list' %}<a class="maintenance-card" href="{% url 'settlement_cost_rule_list' %}">
     <span class="maintenance-card__icon">本</span>
     <div><h2>車輛結算成本</h2><p>依機種與實際領牌日維護成本生效版本。</p><strong>{{ settlement_cost_rule_count }} 筆成本版本</strong></div>
     <span aria-hidden="true">›</span>
-  </a>
-  <a class="maintenance-card" href="{% url 'incentive_rule_list' %}">
+  </a>{% endif_access %}
+  {% if_access 'incentive_rule_list' %}<a class="maintenance-card" href="{% url 'incentive_rule_list' %}">
     <span class="maintenance-card__icon">補</span>
     <div><h2>原廠獎勵與補助</h2><p>維護實銷獎勵、促銷補助與分期補貼息。</p><strong>{{ incentive_rule_count }} 筆獎勵版本</strong></div>
     <span aria-hidden="true">›</span>
-  </a>
-  <a class="maintenance-card" href="{% url 'dealer_sales_program_list' %}">
+  </a>{% endif_access %}
+  {% if_access 'dealer_sales_program_list' %}<a class="maintenance-card" href="{% url 'dealer_sales_program_list' %}">
     <span class="maintenance-card__icon">佣</span>
     <div><h2>車行傭金與銷售獎勵</h2><p>依車型維護逐台給付的現金傭金、實物、紅包、禮券與旅遊點數。</p><strong>{{ dealer_sales_program_count }} 個車型已設定獎勵</strong></div>
     <span aria-hidden="true">›</span>
-  </a>
-  <a class="maintenance-card" href="{% url 'dealer_volume_bonus_list' %}">
+  </a>{% endif_access %}
+  {% if_access 'dealer_volume_bonus_list' %}<a class="maintenance-card" href="{% url 'dealer_volume_bonus_list' %}">
     <span class="maintenance-card__icon">獎</span>
     <div><h2>車行台數獎金</h2><p>依車行、品牌與領牌期間設定門檻及保存逐單結算。</p><strong>{{ dealer_bonus_rule_count }} 筆獎金規則</strong></div>
     <span aria-hidden="true">›</span>
-  </a>
-  <a class="maintenance-card" href="{% url 'installment_company_list' %}">
+  </a>{% endif_access %}
+  {% if_access 'installment_company_list' %}<a class="maintenance-card" href="{% url 'installment_company_list' %}">
     <span class="maintenance-card__icon">期</span>
     <div><h2>分期公司與方案</h2><p>維護分期公司與客服電話；各機種方案由機種與售價設定。</p><strong>{{ installment_company_count }} 家公司</strong></div>
     <span aria-hidden="true">›</span>
-  </a>
-  <a class="maintenance-card" href="{% url 'brand_registration_fee_rule_list' %}">
+  </a>{% endif_access %}
+  {% if_access 'brand_registration_fee_rule_list' %}<a class="maintenance-card" href="{% url 'brand_registration_fee_rule_list' %}">
     <span class="maintenance-card__icon">牌</span>
     <div><h2>領牌與強制險</h2><p>依品牌、生效日與排氣量設定領牌費用及強制險金額。</p><strong>{{ registration_fee_rule_count }} 個啟用規則</strong></div>
     <span aria-hidden="true">›</span>
-  </a>
-  <a class="maintenance-card" href="{% url 'business_holiday_list' %}">
+  </a>{% endif_access %}
+  {% if_access 'business_holiday_list' %}<a class="maintenance-card" href="{% url 'business_holiday_list' %}">
     <span class="maintenance-card__icon">曆</span>
     <div><h2>工作日與假日設定</h2><p>維護國定假日，供合作車行三日文件與七日尾款提醒排除。</p><strong>{{ holiday_count }} 個排除日期</strong></div>
     <span aria-hidden="true">›</span>
-  </a>
+  </a>{% endif_access %}
   </div>
 </section>
 
 <section class="maintenance-section" aria-labelledby="maintenance-tools">
   <div class="maintenance-section__heading"><div><p class="eyebrow">需要時再使用</p><h2 id="maintenance-tools">匯入與列印工具</h2></div><p>不影響日常開單，集中處理歷史資料與特殊文件格式。</p></div>
   <div class="maintenance-grid maintenance-grid--tools">
-  <a class="maintenance-card" href="{% url 'legacy_import_list' %}">
+  {% if_access 'legacy_import_list' %}<a class="maintenance-card" href="{% url 'legacy_import_list' %}">
     <span class="maintenance-card__icon">匯</span>
     <div><h2>舊資料 Excel 匯入</h2><p>上傳進銷貨庫存表或通路名冊，預覽差異與衝突後再確認寫入。</p><strong>保留來源檔與逐列結果</strong></div>
     <span aria-hidden="true">›</span>
-  </a>
-  <a class="maintenance-card" href="{% url 'positioned_template_list' %}">
+  </a>{% endif_access %}
+  {% if_access 'positioned_template_list' %}<a class="maintenance-card" href="{% url 'positioned_template_list' %}">
     <span class="maintenance-card__icon">印</span>
     <div><h2>列印範本設定</h2><p>維護信封、報件單、聲明書與點檢表的背景、欄位位置及印表機偏移。</p><strong>可預覽實際訂單 PDF</strong></div>
     <span aria-hidden="true">›</span>
-  </a>
-  <a class="maintenance-card" href="{% url 'system_diagnostics' %}">
+  </a>{% endif_access %}
+  {% if_access 'system_diagnostics' %}<a class="maintenance-card" href="{% url 'system_diagnostics' %}">
     <span class="maintenance-card__icon">診</span>
     <div><h2>系統狀態檢查</h2><p>檢查資料庫、證件辨識、搜尋背景工作與照片文件空間。</p><strong>遇到處理卡住時先查看</strong></div>
     <span aria-hidden="true">›</span>
-  </a>
+  </a>{% endif_access %}
   {% if user.is_superuser %}
   {% if user.username == 'admin' %}
-  <a class="maintenance-card" href="{% url 'report_manage' %}">
+  {% if_access 'report_manage' %}<a class="maintenance-card" href="{% url 'report_manage' %}">
     <span class="maintenance-card__icon">圖</span>
     <div><h2>報表設計管理</h2><p>建立草稿、設計圖表、預覽公式與發布報表；不改動正式帳務。</p><strong>僅 admin 可編輯與發布</strong></div>
     <span aria-hidden="true">›</span>
-  </a>
-  <a class="maintenance-card" href="{% url 'report_classification' %}">
+  </a>{% endif_access %}
+  {% if_access 'report_classification' %}<a class="maintenance-card" href="{% url 'report_classification' %}">
     <span class="maintenance-card__icon">類</span>
     <div><h2>報表分類設定</h2><p>管理車種類別、型號規則、未分類清單與發布版本。</p><strong>先試算再發布；不改訂單或財務</strong></div>
     <span aria-hidden="true">›</span>
-  </a>
+  </a>{% endif_access %}
   {% endif %}
-  <a class="maintenance-card" href="{% url 'user_management' %}">
+  {% if_access 'user_management' %}<a class="maintenance-card" href="{% url 'user_management' %}">
     <span class="maintenance-card__icon">員</span>
     <div><h2>帳號與權限</h2><p>建立內部帳號、停用離職人員、重設臨時密碼並查看帳號異動紀錄。</p><strong>{{ system_user_count }} 個系統帳號</strong></div>
     <span aria-hidden="true">›</span>
-  </a>
-  <a class="maintenance-card" href="{% url 'system_integrity_report' %}">
+  </a>{% endif_access %}
+  {% if_access 'system_integrity_report' %}<a class="maintenance-card" href="{% url 'system_integrity_report' %}">
     <span class="maintenance-card__icon">稽</span>
     <div><h2>系統完整性報告</h2><p>查看最新弱點掃描、UI／UX、營運流程、文件同步結果與已知限制。</p><strong>僅系統管理者可查看</strong></div>
     <span aria-hidden="true">›</span>
-  </a>
+  </a>{% endif_access %}
   {% endif %}
   </div>
 </section>

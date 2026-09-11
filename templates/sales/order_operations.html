@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+{% extends "base.html" %}{% load screen_access %}
 {% block title %}營運資料｜{{ order.number }}{% endblock %}
 {% block page_class %}page-shell--wide{% endblock %}
 {% block content %}
@@ -7,7 +7,7 @@
 {% include "sales/_page_back.html" with fallback_url=order_url label="訂單資料" root_url=order_list_url root_label="全部訂單" %}
 <section class="hero-row compact-hero">
   <div><p class="eyebrow">收款、成本與後續作業</p><h1>營運資料</h1><p class="muted">{{ order.number }} · {{ order.owner_name }} · {{ order.vehicle_model }}</p></div>
-  <a class="button ghost" href="{% url 'operations_report' %}">營運總表</a>
+  {% if_access 'operations_report' %}<a class="button ghost" href="{% url 'operations_report' %}">營運總表</a>{% endif_access %}
 </section>
 <section class="operations-summary">
   <div><small>總收款金額</small><strong>${{ profile.total_received|floatformat:0 }}</strong></div>
@@ -222,7 +222,7 @@
     {% include "sales/_field.html" with field=form.customer_service_phone %}
   </div></details>
   <div class="operation-change-reason">{% include "sales/_field.html" with field=form.change_reason %}</div>
-  <div class="operations-actions"><a class="button ghost" href="{% url 'order_detail' order.pk %}">取消</a><button class="button primary" type="submit">儲存營運資料</button></div>
+  <div class="operations-actions">{% if_access 'order_detail' order.pk %}<a class="button ghost" href="{% url 'order_detail' order.pk %}">取消</a>{% endif_access %}<button class="button primary" type="submit">儲存營運資料</button></div>
 </form>
 {% endblock %}
 {% block scripts %}

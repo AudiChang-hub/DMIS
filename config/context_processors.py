@@ -141,7 +141,11 @@ DATA_MAINTENANCE_ROUTES = {
 
 
 def app_version(request):
+    from sales.access.services import is_root, policy_for
+    from sales.access.registry import ROUTES
+    access_policy = policy_for(request)
     route_name = getattr(getattr(request, "resolver_match", None), "url_name", None)
+    screen_key = ROUTES.get(route_name, (None,))[0]
     topic = HELP_TOPIC_BY_ROUTE.get(route_name, "quick-start")
     ui_theme = DEFAULT_THEME
     mobile_quick_link_context = {
@@ -161,9 +165,13 @@ def app_version(request):
         mobile_quick_link_context = build_mobile_quick_link_context(
             request.user,
             saved_preference["mobile_quick_links"] if saved_preference else [],
+            policy=access_policy,
         )
     return {
         "app_version": get_app_version(),
+        "can_manage_screen_access": is_root(request.user),
+        "access_routes": {name: access_policy.route(name) for name in ROUTES},
+        "screen_read_only": bool(screen_key and access_policy.configured and not access_policy.root and not access_policy.screen(screen_key, "operate")),
         "context_help_url": f"{reverse('user_guide')}#{topic}",
         "is_data_maintenance_section": route_name in DATA_MAINTENANCE_ROUTES,
         "request_id": getattr(request, "request_id", ""),

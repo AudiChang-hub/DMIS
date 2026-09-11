@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+{% extends "base.html" %}{% load screen_access %}
 {% load pagination_tags %}
 {% block title %}全部訂單｜車輛銷售管理{% endblock %}
 {% block page_class %}page-shell--wide{% endblock %}
@@ -7,7 +7,7 @@
 {% include "sales/_page_back.html" with fallback_url=dashboard_url label="戰情首頁" %}
 <section class="hero-row compact-hero">
   <div><p class="eyebrow">訂單管理</p><h1>全部訂單</h1></div>
-  <a class="button primary" href="{% url 'order_create' %}">＋ 建立訂單</a>
+  {% if_access 'order_create' %}<a class="button primary" href="{% url 'order_create' %}">＋ 建立訂單</a>{% endif_access %}
 </section>
 <form class="filter-bar order-filter-bar" method="get">
   <input type="hidden" name="per_page" value="{{ per_page }}">

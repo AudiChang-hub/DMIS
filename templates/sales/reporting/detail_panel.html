@@ -1,3 +1,4 @@
+{% load screen_access %}
 <section data-detail-content>
 <h2>{{ card.title }}：來源訂單</h2><p>共 {{ page_obj.paginator.count }} 張符合訂單；依目前篩選與選取分類。點訂單編號可回到原訂單。</p>
 {% if scope_labels %}<div class="report-scope-summary"><strong>固定範圍（同時符合）</strong>{% for label in scope_labels %}<span>{{ label }}</span>{% endfor %}</div>{% endif %}
@@ -6,7 +7,7 @@
 <thead><tr><th>訂單</th><th>訂單／領牌日期</th><th>品牌／車型</th><th>原銷售通路</th><th>台數／傭金歸屬車行</th>
 <th>{% if card.metric == 'dealer_commission' %}DMIS 車行傭金支出{% else %}訂單車價{% endif %}</th></tr></thead>
 <tbody>{% for order in page_obj %}<tr>
-<td data-label="訂單"><a href="{% url 'order_detail' order.pk %}">{{ order.number }}</a></td>
+<td data-label="訂單">{% can_access 'order_detail' order.pk as can_view_order %}{% if can_view_order %}<a href="{% url 'order_detail' order.pk %}">{{ order.number }}</a>{% else %}{{ order.number }}{% endif %}</td>
 <td data-label="訂單／領牌日期">{{ order.order_date|date:'Y/m/d' }}<br>{{ order.registration_date|date:'Y/m/d'|default:'未領牌' }}</td>
 <td data-label="品牌／車型">{{ order.vehicle_model.brand }}<br>{{ order.vehicle_model.name }}</td>
 <td data-label="原銷售通路">{{ order.source.name|default:'本店／未指定' }}</td>

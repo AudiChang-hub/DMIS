@@ -6,9 +6,13 @@ from .historical_replacement import historical_buyer_replacement
 from .historical_date_change import historical_date_change
 from .reporting import views as report_views
 from .reporting import classification_views
+from .access import views as access_views
 
 
 urlpatterns = [
+    path("account/access/", access_views.home, name="access_home"),
+    path("system/users/access/", access_views.overview, name="access_overview"),
+    path("system/users/<int:pk>/access/", access_views.edit, name="access_edit"),
     path("reports/", report_views.center, name="report_center"),
     path("reports/<int:pk>/", report_views.display, name="report_display"),
     path("reports/<int:pk>/orders/export/", report_views.records_export, name="report_records_export"),

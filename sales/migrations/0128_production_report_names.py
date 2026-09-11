@@ -14,7 +14,8 @@ def rename_reports(apps, schema_editor):
                 continue
             updated = dict(config)
             title = updated.get('title', '')
-            updated['title'] = title.replace('｜原報表核對版', '').replace('原報表核對版', '').rstrip(' ｜|') if '原報表核對版' in title else title
+            if isinstance(title, str) and '原報表核對版' in title:
+                updated['title'] = title.replace('｜原報表核對版', '').replace('原報表核對版', '').rstrip(' ｜|')
             description = updated.get('description')
             if isinstance(description, str):
                 updated['description'] = description.replace('依原報表四圖與明細建立的核對版本。', '依原報表四圖與明細建立。')

@@ -13,6 +13,31 @@ from sales.reporting.views import initial_config
 
 
 class ReportingTests(TestCase):
+    def test_report_pagination_preserves_filters_and_inline_endpoint(self):
+        from unittest.mock import patch
+        from django.core.paginator import Paginator
+        from sales.reporting.views import publication_key
+        self.report.published = {**self.config, 'include_records':True}
+        self.report.save()
+        self.login()
+        params = {'brand':['SUZUKI'], 'records_sort':'-registration_date', 'revision':publication_key(self.report)}
+        with patch('sales.reporting.records.Paginator', side_effect=lambda rows, size: Paginator(rows, 1)):
+            response = self.client.get(reverse('report_display',args=[self.report.pk]), {**params,'records_page':2})
+        self.assertEqual(response.status_code,200)
+        self.assertTrue(response.context['filter_form'].is_valid(), response.context['filter_form'].errors)
+        self.assertContains(response,'data-report-page-jump')
+        self.assertContains(response,'name="records_page" value="2"')
+        self.assertContains(response,'最後一頁')
+        self.assertContains(response,'name="revision" value="'+params['revision']+'"')
+        url = reverse('report_detail',args=[self.report.pk,0])
+        for inline in ('', '1'):
+            with patch('sales.reporting.views.Paginator', side_effect=lambda rows, size: Paginator(rows, 1)):
+                response = self.client.get(url, {'inline':inline,'page':2,'group':'__all__', 'revision':params['revision']})
+            self.assertEqual(response.status_code,200)
+            self.assertContains(response,'data-detail-jump')
+            self.assertContains(response,'name="page" value="2"')
+            self.assertContains(response,'action="'+url+'"')
+
     def test_selected_reader_layouts_and_channel_names_are_scoped(self):
         from sales.reporting.source_templates import SOURCE_TEMPLATES
         from sales.reporting.forms import FilterForm

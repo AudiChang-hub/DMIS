@@ -125,7 +125,7 @@ def navigation(request):
 
 
 def reader_title(config):
-    return config["title"].removesuffix("｜原報表核對版").rstrip()
+    return config["title"].replace("｜原報表核對版", "").replace("原報表核對版", "").rstrip(" ｜|")
 
 
 @login_required
@@ -260,6 +260,7 @@ def lifecycle(request, pk):
                 return HttpResponse("版本編號不正確。", status=400)
             revision = get_object_or_404(report.revisions, version=int(raw_revision))
             report.draft = copy.deepcopy(revision.config)
+            report.draft["title"] = reader_title(report.draft)
         else:
             return HttpResponse("不支援此操作。", status=400)
         report.version += 1

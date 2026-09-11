@@ -236,6 +236,7 @@
     {% if screen_read_only %}<p class="card" role="status">目前畫面為僅查看權限；新增、修改及刪除須由 admin 另行開放。</p>{% endif %}
     {% block content %}{% endblock %}
   </main>
+  {% if screen_read_only %}<script src="{% static 'js/screen-readonly.js' %}?v={{ app_version }}" defer></script>{% endif %}
   {% block scripts %}{% endblock %}
   <script src="{% static 'js/message-toasts.js' %}?v={{ app_version }}" defer></script>
   <script src="{% static 'js/form-feedback.js' %}?v={{ app_version }}" defer></script>

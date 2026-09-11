@@ -2966,6 +2966,11 @@ class SalesOrder(TimeStampedModel):
         return self.status != self.Status.CANCELLED
 
     @property
+    def can_edit_content(self):
+        """完成後可稽核修正內容，但不放寬改配／交付等 is_editable 流程門檻。"""
+        return self.status != self.Status.CANCELLED
+
+    @property
     def accessory_total(self):
         return (
             sum(line.line_total for line in self.accessories.all())
@@ -3396,7 +3401,7 @@ class SalesOrder(TimeStampedModel):
             self.calculated_balance = self.calculate_balance()
         if self.status == self.Status.DRAFT:
             self.status = self.Status.ALLOCATION_PENDING
-        if self.is_delivered and not self.delivered_at:
+        if self.is_delivered and not self.delivered_at and not getattr(self, "_preserve_delivery_metadata", False):
             self.delivered_at = timezone.now()
             if not self.delivered_by:
                 self.delivered_by = "系統狀態同步"

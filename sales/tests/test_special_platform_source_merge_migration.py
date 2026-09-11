@@ -15,7 +15,8 @@ class SpecialPlatformSourceMergeMigrationTests(TransactionTestCase):
         self.addCleanup(self._restore_latest_schema)
 
     def _restore_latest_schema(self):
-        MigrationExecutor(connection).migrate([self.migrate_to])
+        executor = MigrationExecutor(connection)
+        executor.migrate(executor.loader.graph.leaf_nodes())
 
     def test_only_confirmed_special_platforms_are_merged_into_order_notes(self):
         SalesSource = self.old_apps.get_model("sales", "SalesSource")

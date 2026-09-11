@@ -557,7 +557,22 @@ class SalesOrderForm(forms.ModelForm):
             if data.get(field_name) is None:
                 data[field_name] = 0
                 self.cleaned_data[field_name] = 0
-        if model and model.energy_type in {
+        preserve_completed_registration = bool(
+            self.instance.pk and self.instance.is_delivered and model
+            and model.pk == self._initial_vehicle_model_id
+            and all(data.get(name) == getattr(self.instance, name) for name in (
+                "registration_date", "compulsory_insurance_period", "plate_selection_fee", "lien_registration_fee",
+            ))
+        )
+        if preserve_completed_registration:
+            for name in (
+                "registration_plate_fee", "registration_license_fee", "registration_inspection_fee",
+                "road_maintenance_fee", "license_tax_fee", "compulsory_insurance_fee", "registration_calculated_total",
+            ):
+                data[name] = getattr(self.instance, name)
+            if data.get("plate_insurance_fee") is None:
+                data["plate_insurance_fee"] = self.instance.plate_insurance_fee
+        elif model and model.energy_type in {
             VehicleModel.EnergyType.GAS,
             VehicleModel.EnergyType.ELECTRIC,
             VehicleModel.EnergyType.LIGHT_ELECTRIC,
@@ -662,7 +677,10 @@ class SalesOrderForm(forms.ModelForm):
                 "送至指定地點或委託託運時必須填寫目的地。",
             )
 
-        if data.get("owner_type") == SalesOrder.OwnerType.LOCAL:
+        preserve_completed_identity = bool(self.instance.pk and self.instance.is_delivered and all(
+            data.get(name) == getattr(self.instance, name) for name in ("owner_type", "owner_name", "owner_id_number")
+        ))
+        if data.get("owner_type") == SalesOrder.OwnerType.LOCAL and not preserve_completed_identity:
             for field_name in ("id_front", "id_back"):
                 if (
                     not data.get(field_name)
@@ -670,7 +688,7 @@ class SalesOrderForm(forms.ModelForm):
                     and not self.existing_documents.get(field_name)
                 ):
                     self.add_error(field_name, "本國自然人需上傳身分證正反面。")
-        if not data.get("id_verified"):
+        if not data.get("id_verified") and not (preserve_completed_identity and not self.instance.id_verified):
             self.add_error("id_verified", "請對照證件並確認資料正確。")
         return data
 
@@ -1594,6 +1612,10 @@ class LegacyImportRowCorrectionForm(forms.Form):
 
 
 class OrderEditForm(SalesOrderForm):
+    confirm_completed_correction = forms.BooleanField(
+        label="我確認這是完成後修正，交付狀態不變；金額調整後會核對應收差額。",
+        required=False,
+    )
     change_reason = forms.CharField(
         label="變更原因",
         required=True,
@@ -1601,6 +1623,13 @@ class OrderEditForm(SalesOrderForm):
             attrs={"rows": 2, "placeholder": "請說明本次修改原因"}
         ),
     )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if self.instance.is_delivered:
+            self.fields["confirm_completed_correction"].required = True
+        else:
+            self.fields.pop("confirm_completed_correction")
 
     def clean(self):
         data = super().clean()
@@ -1894,6 +1923,7 @@ class VehicleModelMasterForm(forms.ModelForm):
         empty_label="建立新機種",
         help_text="新增年式／規格時可直接選既有機種；選取後以既有品牌與機種名稱為準。",
     )
+
     model_number = forms.CharField(
         label="原廠型號",
         help_text="同一年式／規格可填多個原廠型號，請用頓號、逗號或換行分隔。",

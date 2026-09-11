@@ -1,35 +1,38 @@
 from urllib.parse import urlencode
 
 from django import template
+from django.http import QueryDict
 
 
 register = template.Library()
 
 
 @register.inclusion_tag("sales/_pagination.html", takes_context=True)
-def pagination(context, page_obj, aria_label="分頁", anchor="", drop=""):
+def pagination(context, page_obj, aria_label="分頁", anchor="", drop="", page_param="page", query=None, mode=""):
     """Render the shared pagination controls while preserving active filters."""
     if not page_obj or not page_obj.paginator.num_pages:
         return {"page_obj": None}
 
     request = context["request"]
-    dropped_keys = {"page"}
+    dropped_keys = {page_param}
     dropped_keys.update(key.strip() for key in drop.split(",") if key.strip())
     preserved_params = [
         (key, value)
-        for key, values in request.GET.lists()
+        for key, values in (request.GET if query is None else QueryDict(query)).lists()
         if key not in dropped_keys
         for value in values
     ]
     fragment = f"#{anchor.lstrip('#')}" if anchor else ""
 
     def page_url(page_number):
-        query = urlencode([*preserved_params, ("page", page_number)])
+        query = urlencode([*preserved_params, (page_param, page_number)])
         return f"?{query}{fragment}"
 
     return {
         "page_obj": page_obj,
         "request": request,
+        "page_param": page_param,
+        "mode": mode,
         "aria_label": aria_label,
         "fragment": fragment,
         "hidden_params": preserved_params,

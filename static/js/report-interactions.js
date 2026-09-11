@@ -53,6 +53,44 @@ function reportPageRange(total, size, requested) {
   const page = Math.max(1, Math.min(pages, Number.isInteger(requested) ? requested : 1));
   return {page, pages, start: (page - 1) * size, end: Math.min(total, page * size)};
 }
+function initReportTablePagination(table) {
+  const rows = [...table.tBodies[0].rows];
+  if (rows.length <= 10) return;
+  const doc = table.ownerDocument;
+  let page = 1;
+  const nav = doc.createElement('nav'); nav.className = 'site-pagination report-pagination';
+  nav.setAttribute('aria-label', '彙總表分頁');
+  const sizeLabel = doc.createElement('label'); sizeLabel.textContent = '每頁群組 ';
+  const size = doc.createElement('select'); size.setAttribute('aria-label', '彙總表每頁群組');
+  [10,25,50,100].forEach(value => { const option = doc.createElement('option'); option.value = value; option.textContent = value; size.append(option); });
+  size.value = '25'; sizeLabel.append(size);
+  const button = text => { const b = doc.createElement('button'); b.type = 'button'; b.className = 'button ghost small secondary site-pagination__link'; b.textContent = text; return b; };
+  const first = button('第一頁'), previous = button('上一頁'), next = button('下一頁'), last = button('最後一頁');
+  const status = doc.createElement('strong'); status.className = 'site-pagination__status'; status.setAttribute('aria-live', 'polite');
+  const jump = doc.createElement('form'); jump.className = 'site-pagination__jump';
+  const label = doc.createElement('label'); label.append('前往第 ');
+  const input = doc.createElement('input'); input.type = 'number'; input.min = '1'; input.step = '1'; input.required = true; input.inputMode = 'numeric'; input.setAttribute('aria-label', '輸入要前往的頁碼');
+  label.append(input, ' 頁'); const go = button('前往'); go.type = 'submit'; jump.append(label, go);
+  const render = () => {
+    const range = reportPageRange(rows.length, Number(size.value), page); page = range.page;
+    rows.forEach((row, index) => { row.hidden = index < range.start || index >= range.end; });
+    status.textContent = `第 ${page}／${range.pages} 頁 · 顯示第 ${range.start + 1}–${range.end} 群，共 ${rows.length} 群`;
+    input.value = String(page); input.max = String(range.pages);
+    first.disabled = previous.disabled = page === 1; last.disabled = next.disabled = page === range.pages;
+  };
+  first.addEventListener('click', () => { page = 1; render(); });
+  previous.addEventListener('click', () => { page--; render(); });
+  next.addEventListener('click', () => { page++; render(); });
+  last.addEventListener('click', () => { page = reportPageRange(rows.length, Number(size.value), 1).pages; render(); });
+  jump.addEventListener('submit', event => {
+    event.preventDefault();
+    if (!jump.reportValidity()) return;
+    page = Number(input.value); render();
+  });
+  size.addEventListener('change', () => { page = 1; render(); });
+  nav.append(sizeLabel, first, previous, status, jump, next, last);
+  table.closest('.report-table-wrap').after(nav); render();
+}
 function reportToggleSelection(selected, card, group, grain, multiple) {
   const previous = selected.find(item => item.card === card);
   const groups = previous && previous.grain === grain ? [].concat(previous.group) : [];
@@ -79,7 +117,7 @@ function reportUpdateError(error) {
   if (error.name === 'TypeError') return '暫時無法連線，保留上次成功畫面；請確認網路後重試。';
   return error.message || '無法完成更新，請稍後重試。';
 }
-if (typeof module !== "undefined" && module.exports) module.exports = {reportPointText, reportFraction, reportScopeCount, reportPageRange, reportToggleSelection, reportAxisMaximum, reportDebounce, reportUpdateError, reportOverviewColor, reportElectricColor, reportMonthSummary};
+if (typeof module !== "undefined" && module.exports) module.exports = {reportPointText, reportFraction, reportScopeCount, reportPageRange, reportToggleSelection, reportAxisMaximum, reportDebounce, reportUpdateError, reportOverviewColor, reportElectricColor, reportMonthSummary, initReportTablePagination};
 function initReportVisuals(root) {
   "use strict";
   if (typeof document === "undefined") return;
@@ -145,30 +183,7 @@ function initReportVisuals(root) {
   const editorCards = document.querySelector("[data-report-cards]");
   if (editorCards) new MutationObserver(() => initMulti(editorCards)).observe(editorCards, {childList:true});
 
-  root.querySelectorAll('[data-chart="table"] table.report-results').forEach(table => {
-    const rows = [...table.tBodies[0].rows];
-    if (rows.length <= 10) return;
-    let page = 1;
-    const nav = document.createElement("nav"); nav.className = "report-pagination";
-    nav.setAttribute("aria-label", "彙總表分頁");
-    const sizeLabel = document.createElement("label"); sizeLabel.textContent = "每頁群組 ";
-    const size = document.createElement("select"); size.setAttribute("aria-label", "彙總表每頁群組");
-    [10, 25, 50, 100].forEach(value => { const option = document.createElement("option"); option.value = value; option.textContent = value; size.append(option); });
-    size.value = "25"; sizeLabel.append(size);
-    const previous = document.createElement("button"), next = document.createElement("button"), status = document.createElement("span");
-    previous.type = next.type = "button"; previous.className = next.className = "button secondary";
-    previous.textContent = "上一頁"; next.textContent = "下一頁"; status.setAttribute("aria-live", "polite");
-    const render = () => {
-      const range = reportPageRange(rows.length, Number(size.value), page); page = range.page;
-      rows.forEach((row, index) => { row.hidden = index < range.start || index >= range.end; });
-      status.textContent = `第 ${page}／${range.pages} 頁 · 顯示第 ${range.start + 1}–${range.end} 群，共 ${rows.length} 群`;
-      previous.disabled = page === 1; next.disabled = page === range.pages;
-    };
-    previous.addEventListener("click", () => { page--; render(); });
-    next.addEventListener("click", () => { page++; render(); });
-    size.addEventListener("change", () => { page = 1; render(); });
-    nav.append(sizeLabel, previous, status, next); table.closest(".report-table-wrap").after(nav); render();
-  });
+  root.querySelectorAll('[data-chart="table"] table.report-results').forEach(initReportTablePagination);
 
   const palette = ["#4257a5", "#278168", "#b65b33", "#9269af", "#28789d", "#a86e11", "#b3446c", "#5c6b78"];
   root.querySelectorAll(".report-chart").forEach((chart, chartIndex) => {
@@ -561,7 +576,7 @@ if (typeof document !== "undefined") initReportVisuals(document);
   });
   reader.addEventListener("submit", event => {
     const form = event.target;
-    if (!form.matches(".report-filter,.report-card-filters")) return;
+    if (!form.matches(".report-filter,.report-card-filters,[data-report-page-jump]")) return;
     event.preventDefault();
     const target = new URL(form.getAttribute("action") || new URL(window.reportPreviewLocation || location.href).pathname, (window.reportPreviewLocation || location.href));
     target.search = new URLSearchParams(new FormData(form)).toString();
@@ -589,6 +604,14 @@ if (typeof document !== "undefined") initReportVisuals(document);
       status.textContent = error.name === "AbortError" ? "讀取逾時，請重新點選分類再試。" : error.message;
     } finally { clearTimeout(timeout); if (ticket === sequence) panel.removeAttribute("aria-busy"); }
   }
+  document.addEventListener('submit', event => {
+    const form = event.target;
+    if (!form.matches('[data-detail-jump]')) return;
+    event.preventDefault();
+    const target = new URL(form.action, currentUrl);
+    target.search = new URLSearchParams(new FormData(form)).toString();
+    loadDetail(target, selection.textContent);
+  });
   document.addEventListener("click", event => {
     const link = event.target.closest("a[data-report-drill],a[data-detail-page],a[data-report-open-detail]");
     if (!link || event.altKey || event.button || (!link.matches('[data-report-drill]') && (event.ctrlKey || event.metaKey || event.shiftKey))) return;

@@ -15,7 +15,8 @@ class SharedDealerVehicleCapacityMigrationTests(TransactionTestCase):
         self.addCleanup(self._restore_latest_schema)
 
     def _restore_latest_schema(self):
-        MigrationExecutor(connection).migrate([self.migrate_to])
+        executor = MigrationExecutor(connection)
+        executor.migrate(executor.loader.graph.leaf_nodes())
 
     def test_suzuki_gas_and_electric_capacity_is_collapsed_to_one_shared_value(self):
         SalesSource = self.old_apps.get_model("sales", "SalesSource")

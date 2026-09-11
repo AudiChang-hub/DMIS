@@ -21,7 +21,8 @@ class NetworkPlatformContactMigrationTests(TransactionTestCase):
         self.addCleanup(self._restore_latest_schema)
 
     def _restore_latest_schema(self):
-        MigrationExecutor(connection).migrate([self.migrate_to])
+        executor = MigrationExecutor(connection)
+        executor.migrate(executor.loader.graph.leaf_nodes())
 
     def test_imports_only_non_struck_contacts_and_excludes_huang_yuting(self):
         SalesSource = self.old_apps.get_model("sales", "SalesSource")

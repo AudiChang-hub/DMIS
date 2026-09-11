@@ -382,10 +382,10 @@ class OrderCommissionRecipientTests(TestCase):
                 self.assertTrue(change.actor_name)
                 self.assertEqual(OrderEvent.objects.filter(order=order, event_type="commission_attribution_updated").count(), 1)
                 if status != SalesOrder.Status.DELIVERY_PENDING:
-                    self.assertRedirects(self.client.get(reverse("order_edit", args=[order.pk])), reverse("order_detail", args=[order.pk]))
+                    self.assertContains(self.client.get(reverse("order_edit", args=[order.pk])), "完成後修正")
                     page = self.client.get(reverse("order_detail", args=[order.pk]))
                     self.assertContains(page, "調整台數與傭金歸屬")
-                    self.assertNotContains(page, f'href="{reverse("order_edit", args=[order.pk])}"')
+                    self.assertContains(page, f'href="{reverse("order_edit", args=[order.pk])}"')
 
     def test_dedicated_action_restores_original_and_unchanged_is_noop(self):
         order = self.make_order(recipient=self.a, status=SalesOrder.Status.COMPLETED)

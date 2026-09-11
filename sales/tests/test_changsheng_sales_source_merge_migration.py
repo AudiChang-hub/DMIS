@@ -15,7 +15,8 @@ class ChangshengSalesSourceMergeMigrationTests(TransactionTestCase):
         self.addCleanup(self._restore_latest_schema)
 
     def _restore_latest_schema(self):
-        MigrationExecutor(connection).migrate([self.migrate_to])
+        executor = MigrationExecutor(connection)
+        executor.migrate(executor.loader.graph.leaf_nodes())
 
     def test_trial_source_is_merged_and_mapping_is_preserved(self):
         SalesSource = self.old_apps.get_model("sales", "SalesSource")

@@ -5508,9 +5508,12 @@ def order_edit(request, pk):
         SalesOrder.objects.select_for_update(),
         pk=pk,
     )
-    if not order.is_editable:
-        messages.error(request, "此訂單已交車、完成或取消，內容已鎖定。")
+    if not order.can_edit_content:
+        messages.error(request, "此訂單已取消，內容已鎖定。")
         return redirect("order_detail", pk=pk)
+    completed_correction = order.is_delivered
+    # 歷史訂單可能缺少交付時間；內容修正不等同重新交車。
+    order._preserve_delivery_metadata = completed_correction
     if not _claim_edit_lock(order, request, ORDER_PRESENCE_TIMEOUT):
         messages.error(
             request,
@@ -5560,18 +5563,16 @@ def order_edit(request, pk):
                 order,
                 previous_identity_names,
             )
-            apply_order_price_snapshot(
-                order,
-                force=(
-                    previous_vehicle_model_id != order.vehicle_model_id
-                    or not order.price_snapshot
-                ),
-            )
+            if not completed_correction or previous_vehicle_model_id != order.vehicle_model_id:
+                apply_order_price_snapshot(
+                    order,
+                    force=(previous_vehicle_model_id != order.vehicle_model_id or not order.price_snapshot),
+                )
             installment_after = tuple(getattr(order, name) for name in (
                 "vehicle_model_id", "order_date", "payment_type", "vehicle_price",
                 "installment_company", "installment_periods", "installment_monthly", "installment_opening_fee",
             ))
-            if installment_after != installment_before or not order.installment_plan_snapshot:
+            if installment_after != installment_before or (not completed_correction and not order.installment_plan_snapshot):
                 apply_order_installment_snapshot(order)
             formset.save()
             fee_formset.save()
@@ -5595,7 +5596,8 @@ def order_edit(request, pk):
             )
             after = _order_snapshot(order)
             from .services.financial_refresh import refresh_unlocked_financials
-            refresh_unlocked_financials(order.pk)
+            if not completed_correction:
+                refresh_unlocked_financials(order.pk)
             changes = _snapshot_changes(before, after)
             reason = form.cleaned_data["change_reason"]
             OrderChange.objects.create(
@@ -5607,10 +5609,12 @@ def order_edit(request, pk):
             OrderEvent.objects.create(
                 order=order,
                 event_type="updated",
-                description=f"修改訂單：{reason}（{len(changes)} 個項目）",
+                description=f"{'完成後修正' if completed_correction else '修改訂單'}：{reason}（{len(changes)} 個項目）",
                 actor_name=_editing_name(request.user),
             )
             messages.success(request, "訂單內容已更新，變更紀錄已保存。")
+            if completed_correction:
+                messages.info(request, "完成後修正已保存，交付狀態不變；如有調整金額，請至訂單作業確認應收差額。")
             return redirect("order_detail", pk=pk)
     else:
         form = OrderEditForm(instance=order)

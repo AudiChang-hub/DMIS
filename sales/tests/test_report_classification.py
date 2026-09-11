@@ -59,6 +59,11 @@ class ReportClassificationTests(TestCase):
         self.publish()
         self.assertNotEqual(publication_key(self.report), key)
         self.assertEqual(dimension_color('legacy_motor_type','一般速克達',0),'#123456')
+        from django.template.loader import render_to_string
+        card = {**self.config['cards'][0], 'dimension':'legacy_motor_type', 'chart':'bar'}
+        result = card_result(self.config, card, {})
+        rendered = render_to_string('sales/reporting/result.html', {'result':result, 'is_preview':True})
+        self.assertIn(';background:#123456', rendered)
         self.assertEqual(list(inventory().annotate(c=classification_expression()).values_list('c',flat=True)), ['一般速克達']*3)
         self.change('restore', {'revision':1})
         self.assertEqual(published_snapshot()[0]['categories'][3]['name'],'一般速克達')

@@ -81,6 +81,9 @@ def accessible_report(request, pk):
             raise PermissionDenied
         return request._designer_report
     report = get_object_or_404(ReportDefinition, pk=pk, published__isnull=False)
+    from sales.access.services import policy_for
+    if not policy_for(request).report(report):
+        raise Http404
     if not request.user.is_active or ((report.published["audience"] != "team" or report.published.get("records_mode") == "population" or 'legacy_notes' in report.published.get('records_columns', [])) and not is_editor(request.user)):
         raise Http404
     return report
@@ -116,6 +119,9 @@ def navigation(request):
         reports = reports.filter(published__audience="team")
     groups = {key: [] for key in NAVIGATION_GROUPS}
     for report in reports:
+        from sales.access.services import policy_for
+        if not policy_for(request).report(report):
+            continue
         if not is_editor(request.user) and (report.published.get("records_mode") == "population" or 'legacy_notes' in report.published.get('records_columns', [])):
             continue
         report.reader_title = reader_title(report.published)
@@ -318,6 +324,9 @@ def display(request, pk):
 @never_cache
 def records_export(request, pk):
     report = accessible_report(request, pk)
+    from sales.access.services import policy_for
+    if not policy_for(request).report(report, "export"):
+        raise PermissionDenied
     if not report.published.get("include_records"):
         raise Http404
     if stale_publication(request, report):
@@ -388,6 +397,9 @@ def csv_safe(value):
 @never_cache
 def export(request, pk, index):
     report = accessible_report(request, pk)
+    from sales.access.services import policy_for
+    if not policy_for(request).report(report, "export"):
+        raise PermissionDenied
     if stale_publication(request, report):
         return render(request, "sales/reporting/stale.html", {"report": report}, status=409)
     card = selected_card(report.published, index)

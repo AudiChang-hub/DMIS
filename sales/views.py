@@ -1188,6 +1188,8 @@ def user_account_create(request):
                 user=user,
                 must_change_password=form.cleaned_data["must_change_password"],
             )
+            from .access.models import UserAccessState
+            UserAccessState.objects.create(user=user, configured=True)
             _account_audit(
                 actor=request.user,
                 target=user,

@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+{% extends "base.html" %}{% load screen_access %}
 {% load sales_format pagination_tags %}
 {% block title %}營運總表｜車輛銷售管理{% endblock %}
 {% block page_class %}page-shell--wide{% endblock %}
@@ -11,7 +11,7 @@
     <h1>營運總表</h1>
     <p class="muted">集中查詢每張訂單的收款、支出及單筆淨利；Excel 會套用相同篩選條件。</p>
   </div>
-  <div class="hero-actions"><a class="button ghost" href="{% url 'reconciliation_list' %}">統一撥款對帳</a><a class="button primary" href="{% url 'operations_report_export' %}?{{ request.GET.urlencode }}">匯出 Excel</a></div>
+  <div class="hero-actions">{% if_access 'reconciliation_list' %}<a class="button ghost" href="{% url 'reconciliation_list' %}">統一撥款對帳</a>{% endif_access %}{% if_access 'operations_report_export' %}<a class="button primary" href="{% url 'operations_report_export' %}?{{ request.GET.urlencode }}">匯出 Excel</a>{% endif_access %}</div>
 </section>
 
 <form class="inventory-filters operations-filters" method="get">
@@ -22,7 +22,7 @@
   <div><label for="date-from">日期起</label><input id="date-from" type="date" name="date_from" value="{{ selected.date_from }}"></div>
   <div><label for="date-to">日期迄</label><input id="date-to" type="date" name="date_to" value="{{ selected.date_to }}"></div>
   <label class="filter-check"><input type="checkbox" name="include_cancelled" value="1"{% if selected.include_cancelled == "1" %} checked{% endif %}> 包含已取消訂單</label>
-  <div class="inventory-filter-actions"><a class="button ghost" href="{% url 'operations_report' %}">清除</a><button class="button primary" type="submit">套用篩選</button></div>
+  <div class="inventory-filter-actions">{% if_access 'operations_report' %}<a class="button ghost" href="{% url 'operations_report' %}">清除</a>{% endif_access %}<button class="button primary" type="submit">套用篩選</button></div>
 </form>
 
 <section class="dashboard-section operations-analysis">
@@ -94,7 +94,7 @@
           <td data-label="總支出" class="number-cell">${{ order.operation_data.total_expense|default:0|floatformat:0 }}</td>
           <td data-label="單筆淨利" class="number-cell profit-value">${% if order.operation_data %}{{ order.operation_data.net_profit|floatformat:0 }}{% else %}0{% endif %}</td>
           <td data-label="狀態"><span class="status-pill">{{ order.get_status_display }}</span><small>{% if order.operation_data.payment_confirmed %}收款已確認{% else %}收款待確認{% endif %}</small></td>
-          <td class="inventory-row-action"><a class="button ghost small" href="{% url 'order_operations' order.pk %}">查看／編輯</a></td>
+          <td class="inventory-row-action">{% if_access 'order_operations' order.pk %}<a class="button ghost small" href="{% url 'order_operations' order.pk %}">查看／編輯</a>{% endif_access %}</td>
         </tr>
       {% empty %}
         <tr><td colspan="9"><div class="empty-state"><strong>查無符合資料</strong><p>請調整搜尋字詞或篩選條件。</p></div></td></tr>

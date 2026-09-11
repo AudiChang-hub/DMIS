@@ -11,7 +11,7 @@
     <h1>帳號與權限</h1>
     <p class="muted">建立每位內部人員自己的帳號；密碼只可建立或重設，系統不會顯示既有密碼。</p>
   </div>
-  <a class="button primary" href="{% url 'user_account_create' %}">＋ 建立帳號</a>
+  <div class="account-actions">{% if can_manage_screen_access %}<a class="button secondary" href="{% url 'access_overview' %}">權限總覽</a>{% endif %}<a class="button primary" href="{% url 'user_account_create' %}">＋ 建立帳號</a></div>
 </section>
 
 <section class="account-summary" aria-label="帳號統計">
@@ -70,6 +70,7 @@
           <strong>{% if account.last_login %}{{ account.last_login|date:"Y/m/d H:i" }}{% else %}尚未登入{% endif %}</strong>
         </div>
         <div class="account-actions">
+          {% if can_manage_screen_access %}{% if account.username == 'admin' %}<span class="status-pill neutral">admin 權限固定</span>{% else %}<a class="button primary small" href="{% url 'access_edit' account.pk %}">畫面權限</a>{% endif %}{% endif %}
           <a class="button ghost small" href="{% url 'user_account_edit' account.pk %}">編輯</a>
           {% if account.pk != user.pk %}<a class="button ghost small" href="{% url 'user_account_reset_password' account.pk %}">重設密碼</a>{% endif %}
         </div>

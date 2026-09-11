@@ -1,0 +1,7 @@
+{% extends "base.html" %}
+{% block title %}我的可用功能｜車輛銷售管理{% endblock %}
+{% block content %}
+<section class="card"><h1>我的可用功能</h1><p>畫面由 admin 分別授權；如需其他功能，請洽 admin。</p>
+<div class="maintenance-grid">{% for link in access_links %}<a class="button secondary" href="{% url link.route %}">{{ link.label }}</a>{% empty %}<p>尚未獲授權使用業務畫面。仍可變更個人密碼與登出。</p>{% endfor %}</div>
+<p><a href="{% url 'report_center' %}">查看已授權報表</a></p></section>
+{% endblock %}

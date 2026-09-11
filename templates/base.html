@@ -60,6 +60,7 @@
               {% if user.is_superuser %}<section class="data-menu-tools data-menu-admin" aria-label="管理者工具">
                 <h2>管理者工具</h2>
                 {% if user.username == 'admin' %}<a href="{% url 'report_manage' %}"><strong>報表設計管理</strong></a>{% endif %}
+                {% if user.username == 'admin' %}<a href="{% url 'report_classification' %}"><strong>報表分類設定</strong></a>{% endif %}
                 <a href="{% url 'user_management' %}"><strong>帳號與權限</strong></a>
                 <a href="{% url 'system_integrity_report' %}"><strong>系統完整性報告</strong></a>
               </section>{% endif %}

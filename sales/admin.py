@@ -73,6 +73,11 @@ class ReadOnlyOperationalAdmin(ReadOnlyAdminMixin, admin.ModelAdmin):
     pass
 
 
+from .reporting.models import ReportClassification, ReportClassificationRevision
+admin.site.register(ReportClassification, ReadOnlyOperationalAdmin)
+admin.site.register(ReportClassificationRevision, ReadOnlyOperationalAdmin)
+
+
 # 保留 Django admin 作為緊急查詢入口，但不允許繞過帳號管理流程直接改權限。
 User = get_user_model()
 admin.site.unregister(User)

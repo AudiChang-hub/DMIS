@@ -20,7 +20,7 @@ from django.views.decorators.http import require_POST
 from .engine import DATE_DIMENSIONS, NAVIGATION_GROUPS, card_result, drill_query, scope_labels, validate_config
 from .forms import CardFormSet, FilterForm, ReportForm
 from .models import ReportDefinition, ReportRevision
-from .records import RECORD_COLUMNS, DEFAULT_RECORD_COLUMNS, RECORD_NOTE, record_context, record_queryset, record_cells
+from .records import RECORD_COLUMNS, DEFAULT_RECORD_COLUMNS, RECORD_NOTE, record_context, record_queryset, record_cells, visible_record_columns
 
 
 def is_editor(user):
@@ -150,7 +150,7 @@ def draft_preview(request, pk):
     """只讀取已儲存草稿；不發布、不新增版本，不能由讀者路由存取。"""
     report = get_object_or_404(ReportDefinition, pk=pk)
     config = report.draft
-    form = FilterForm(request.GET, date_basis=config["date_basis"])
+    form = FilterForm(request.GET, date_basis=config["date_basis"], config=config)
     items, records, error = [], {}, ""
     if form.is_valid():
         try:
@@ -335,7 +335,7 @@ def records_export(request, pk):
         queryset = record_queryset(report.published, filters)
     if queryset.count() > 5000:
         return HttpResponse("明細超過 5000 筆，請縮小篩選範圍後匯出。", status=400)
-    columns = report.published.get("records_columns", DEFAULT_RECORD_COLUMNS)
+    columns = visible_record_columns(report.published)
     response = HttpResponse(content_type="text/csv; charset=utf-8")
     response["Content-Disposition"] = f'attachment; filename="report-{pk}-orders.csv"'
     response.write("\ufeff")

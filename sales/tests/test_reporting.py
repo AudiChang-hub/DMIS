@@ -1157,7 +1157,9 @@ class ReportingTests(TestCase):
         for model_number, label in (("EV076SZV", "白牌電車"), ("S2ABS", "白牌電車"),
                                     ("EZZY", "綠牌電車"), ("M02", "微型電車"),
                                     ("UT125XZ", "速克達"), ("DS250", "擋車"),
-                                    ("UQ125DA", "其他"), ("Pulse Ultra", "其他"), ("UQ\n", "其他"), ("uq", "其他"), ("", "其他")):
+                                    ("UQ125DA", "速克達"), ("UC125DA", "速克達"), ("UG125", "速克達"), ("UT125XDA", "速克達"),
+                                    ("GSX-R150", "擋車"), ("GSX250F", "擋車"), ("DS250M4", "擋車"),
+                                    ("EV062FL", "其他"), ("Pulse Ultra", "其他"), ("UQ\n", "其他"), ("uq", "其他"), ("", "其他")):
             with self.subTest(model_number=model_number):
                 VehicleModel.objects.all().update(model_number=model_number)
                 result = card_result(self.config, card, {})

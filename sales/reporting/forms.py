@@ -208,8 +208,9 @@ class FilterForm(forms.Form):
 
     def __init__(self, *args, **kwargs):
         self.date_basis = kwargs.pop("date_basis", "registration_date")
-        layout = kwargs.pop("reader_layout", "standard")
+        layout = kwargs.pop("reader_layout", None)
         config = kwargs.pop('config', None)
+        layout = layout or (config or {}).get('reader_layout', 'standard')
         super().__init__(*args, **kwargs)
         if layout in ("sales_overview", "electric_overview", "gasoline_overview"):
             self.COMMON_FIELDS = ("legacy_source", "months")
@@ -241,6 +242,11 @@ class FilterForm(forms.Form):
             .order_by('report_dealer_label').values_list('report_dealer_label', flat=True).distinct()]
         self.fields["months"].choices = [(month.strftime("%Y-%m"), month.strftime("%Y 年 %m 月"))
             for month in SalesOrder.objects.dates(self.date_basis, "month", order="DESC")]
+        # 固定能源範圍仍由 engine 套用；移除讀者控制項與舊網址殘留限制。
+        self.fields.pop('legacy_energy')
+        if layout != 'standard':
+            self.fields.pop('source')
+            self.fields['legacy_dealer'].label = '車行／平台'
 
     def clean(self):
         data = super().clean()

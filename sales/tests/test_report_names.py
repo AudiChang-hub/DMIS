@@ -24,6 +24,7 @@ class ReportNameTests(TestCase):
         revision = ReportRevision.objects.create(report=report, version=1, action='save', config=old)
         draft = ReportDefinition.objects.create(draft={**old, 'title': '油車｜原報表核對版（複本）'}, version=0)
         custom = ReportDefinition.objects.create(draft={**old, 'title': '自訂正式分析'}, version=0)
+        empty = ReportDefinition.objects.create(draft={})
         migrate = import_module('sales.migrations.0128_production_report_names').rename_reports
         migrate(apps, SimpleNamespace(connection=connection))
         report.refresh_from_db()
@@ -38,6 +39,8 @@ class ReportNameTests(TestCase):
         self.assertEqual(draft.draft['title'], '油車（複本）')
         custom.refresh_from_db()
         self.assertEqual(custom.version, 0)
+        empty.refresh_from_db()
+        self.assertEqual((empty.draft, empty.version), ({}, 0))
         migrate(apps, SimpleNamespace(connection=connection))
         report.refresh_from_db()
         self.assertEqual(report.version, 2)

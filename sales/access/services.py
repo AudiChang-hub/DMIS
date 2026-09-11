@@ -33,15 +33,15 @@ class AccessPolicy:
         self._report_definitions = {}
         if self.configured and not self.root:
             self.screens = {row["screen_key"]: row for row in ScreenAccessGrant.objects.filter(user=user).values("screen_key", "view", "operate", "export")}
-            self.reports = {row["report_id"]: row for row in ReportAccessGrant.objects.filter(user=user).values("report_id", "view", "export")}
+            self.reports = {row["report_id"]: row for row in ReportAccessGrant.objects.filter(user=user).values("report_id", "view", "operate", "export")}
 
     def screen(self, key, action="view"):
         screen = BY_KEY.get(key)
         if not self.active or not screen or action not in {"view", "operate", "export"}:
             return False
-        if screen.ceiling == "superuser" and not self.user.is_superuser:
+        if not self.configured and screen.ceiling == "superuser" and not self.user.is_superuser:
             return False
-        if action != "view" and not getattr(screen, action):
+        if not self.configured and action != "view" and not getattr(screen, action):
             return False
         if self.root or not self.configured:
             return True
@@ -49,10 +49,12 @@ class AccessPolicy:
         return bool(grant.get("view") and grant.get(action))
 
     def report(self, report, action="view"):
-        if not report_ceiling(self.user, report):
+        if not self.active or not report.published or action not in {"view", "operate", "export"}:
             return False
-        if self.root or not self.configured:
+        if self.root:
             return True
+        if not self.configured:
+            return action != "operate" and report_ceiling(self.user, report)
         grant = self.reports.get(report.pk, {})
         return bool(grant.get("view") and grant.get(action))
 
@@ -103,24 +105,28 @@ def snapshot(user, reports):
     if policy.configured and not policy.root:
         data = {"screens": policy.screens, "reports": {str(key): grant for key, grant in policy.reports.items()}}
     else:
-        data = {"screens": {s.key: {a: True for a in ("view", "operate", "export")} for s in SCREENS},
-                "reports": {str(r.pk): {"view": True, "export": True} for r in reports}}
+        data = {"screens": {s.key: {"view": s.ceiling != "superuser" or user.is_superuser,
+                    "operate": s.operate and (s.ceiling != "superuser" or user.is_superuser),
+                    "export": s.export and (s.ceiling != "superuser" or user.is_superuser)} for s in SCREENS},
+                "reports": {str(r.pk): {"view": report_ceiling(user, r, include_inactive=True),
+                    "operate": False, "export": report_ceiling(user, r, include_inactive=True)} for r in reports}}
     return {"configured": policy.configured, "version": policy.version, **normalize(user, data, reports)}
 
 
 def normalize(user, data, reports):
-    """從舊歷程或複製來源還原也要重驗目前能力與敏感資料上限。"""
+    """admin 明確授權高於舊角色；只驗已知項目及查看依賴，不改帳號角色。"""
     result = {"screens": {}, "reports": {}}
     for screen in SCREENS:
         grant = data.get("screens", {}).get(screen.key, {})
-        view = grant.get("view") is True and (screen.ceiling != "superuser" or user.is_superuser)
+        view = grant.get("view") is True
         result["screens"][screen.key] = {"view": view,
-            "operate": view and screen.operate and grant.get("operate") is True,
-            "export": view and screen.export and grant.get("export") is True}
+            "operate": view and grant.get("operate") is True,
+            "export": view and grant.get("export") is True}
     for report in reports:
         grant = data.get("reports", {}).get(str(report.pk), {})
-        view = grant.get("view") is True and report_ceiling(user, report, include_inactive=True)
-        result["reports"][str(report.pk)] = {"view": view, "export": view and grant.get("export") is True}
+        view = grant.get("view") is True and bool(report.published)
+        result["reports"][str(report.pk)] = {"view": view, "operate": view and grant.get("operate") is True,
+                                          "export": view and grant.get("export") is True}
     return result
 
 

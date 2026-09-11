@@ -32,13 +32,14 @@ class ReportAccessGrant(models.Model):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     report = models.ForeignKey("sales.ReportDefinition", on_delete=models.CASCADE)
     view = models.BooleanField(default=False)
+    operate = models.BooleanField(default=False)
     export = models.BooleanField(default=False)
 
     class Meta:
         app_label = "sales"
         constraints = [
             models.UniqueConstraint(fields=["user", "report"], name="unique_user_report_access"),
-            models.CheckConstraint(condition=models.Q(view=True) | models.Q(export=False), name="report_export_requires_view"),
+            models.CheckConstraint(condition=models.Q(view=True) | models.Q(operate=False, export=False), name="report_actions_require_view"),
         ]
 
 

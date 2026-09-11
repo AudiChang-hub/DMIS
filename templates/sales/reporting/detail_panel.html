@@ -14,5 +14,5 @@
 {% if card.metric == 'dealer_commission' %}<td data-label="DMIS 車行傭金支出">{% if order.operations %}{{ order.operations.dealer_commission_expense }}{% else %}待補收支資料{% endif %}</td>
 {% else %}<td data-label="訂單車價">{{ order.vehicle_price }}</td>{% endif %}
 </tr>{% empty %}<tr><td colspan="6">目前沒有符合的訂單，來源可能已更新。</td></tr>{% endfor %}</tbody></table></div>
-<nav class="report-pagination" aria-label="明細分頁">{% if page_obj.has_previous %}<a class="button secondary" data-detail-page href="?{{ query }}&amp;page={{ page_obj.previous_page_number }}">上一頁</a>{% endif %}<span>第 {{ page_obj.number }} / {{ page_obj.paginator.num_pages }} 頁</span>{% if page_obj.has_next %}<a class="button secondary" data-detail-page href="?{{ query }}&amp;page={{ page_obj.next_page_number }}">下一頁</a>{% endif %}</nav>
+{% load pagination_tags %}{% pagination page_obj aria_label="明細分頁" query=query mode="detail" %}
 </section>

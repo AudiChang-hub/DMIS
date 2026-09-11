@@ -92,3 +92,30 @@ class SharedPaginationUiTests(SimpleTestCase):
                 content = (template_root / template_name).read_text(encoding="utf-8")
                 self.assertIn("{% pagination ", content)
                 self.assertIn("pagination_tags", content)
+
+    def test_report_records_use_named_page_and_normalized_query(self):
+        request = self.request_factory.get('/reports/2/', {'records_page':2, 'unsafe':'discard'})
+        html = self.render_pagination(request, Paginator(range(35),10).page(2),
+            page_param='records_page', mode='records', anchor='source-records',
+            query='brand=A&brand=B&records_sort=-date&revision=latest&focus=selected&records_page=99')
+        self.assertIn('name="records_page" value="2"', html)
+        self.assertNotIn('name="page"', html)
+        self.assertNotIn('unsafe', html)
+        self.assertNotIn('records_page=99', html)
+        self.assertIn('brand=A&amp;brand=B&amp;records_sort=-date&amp;revision=latest&amp;focus=selected&amp;records_page=4#source-records', html)
+        self.assertIn('data-report-page-jump', html)
+        self.assertIn('step="1" required', html)
+
+    def test_inline_detail_links_and_jump_use_detail_endpoint(self):
+        request = self.request_factory.get('/reports/2/cards/0/', {'inline':1,'group':'v:速克達','page':2})
+        html = self.render_pagination(request, Paginator(range(35),10).page(2), mode='detail')
+        self.assertEqual(html.count('data-detail-page'),4)
+        self.assertIn('data-detail-jump', html)
+        self.assertIn('action="/reports/2/cards/0/"', html)
+        self.assertIn('name="inline" value="1"', html)
+        self.assertIn('name="group" value="v:速克達"', html)
+
+    def test_empty_and_single_page_do_not_offer_invalid_navigation(self):
+        request = self.request_factory.get('/reports/2/')
+        for rows in ([], [1]):
+            self.assertNotIn('<nav', self.render_pagination(request, Paginator(rows,10).get_page(1)))

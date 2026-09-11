@@ -8,7 +8,46 @@ const {reportUpdateError} = require('../../static/js/report-interactions.js');
 const {reportOverviewColor, reportMonthSummary} = require('../../static/js/report-interactions.js');
 const {reportElectricColor} = require('../../static/js/report-interactions.js');
 const {reportAnalysisColor} = require('../../static/js/report-analysis.js');
+const {initReportTablePagination} = require('../../static/js/report-interactions.js');
 const {reportBarTooltip,reportBarTooltipText,renderReportBarTooltip} = require('../../static/js/report-tooltip.js');
+
+test('彙總表首末頁、指定頁碼、每頁筆數及邊界控制', () => {
+  const elements = [];
+  const doc = {createElement(tag) {
+    const node = {tag, children:[], events:{}, attrs:{},
+      append(...items) { this.children.push(...items); },
+      setAttribute(key,value) { this.attrs[key]=value; },
+      addEventListener(name,fn) { this.events[name]=fn; },
+      reportValidity() { return valid; }};
+    elements.push(node); return node;
+  }};
+  let valid = true, nav;
+  const rows = Array.from({length:61},()=>({hidden:false}));
+  initReportTablePagination({ownerDocument:doc,tBodies:[{rows}],closest:()=>({after:n=>nav=n})});
+  const button = label => elements.find(e=>e.tag==='button' && e.textContent===label);
+  const input = elements.find(e=>e.tag==='input');
+  const form = elements.find(e=>e.tag==='form');
+  const status = elements.find(e=>e.tag==='strong');
+  const visible = () => rows.filter(r=>!r.hidden).length;
+  assert.equal(nav.attrs['aria-label'],'彙總表分頁');
+  assert.equal(button('第一頁').disabled,true);
+  assert.equal(visible(),25);
+  button('最後一頁').events.click();
+  assert.equal(input.value,'3'); assert.equal(visible(),11);
+  assert.equal(button('下一頁').disabled,true);
+  input.value='2'; form.events.submit({preventDefault(){}});
+  assert.equal(visible(),25); assert.match(status.textContent,/第 2／3 頁/);
+  valid=false; input.value='999'; form.events.submit({preventDefault(){}});
+  assert.match(status.textContent,/第 2／3 頁/);
+  valid=true; button('第一頁').events.click(); assert.equal(input.value,'1');
+  button('下一頁').events.click(); assert.equal(input.value,'2');
+  button('上一頁').events.click(); assert.equal(input.value,'1');
+  const size=elements.find(e=>e.tag==='select'); size.value='10'; size.events.change();
+  assert.equal(input.max,'7'); assert.equal(input.value,'1'); assert.equal(visible(),10);
+  const before=elements.length;
+  initReportTablePagination({tBodies:[{rows:[]}],ownerDocument:doc});
+  assert.equal(elements.length,before);
+});
 
 test('長條彩色明細保留微小數字、原圖顏色並以該長條總數計算占比', () => {
   const data={pointLabel:'2026/09',pointValue:'101',pointDisplay:'101'};

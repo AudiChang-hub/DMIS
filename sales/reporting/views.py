@@ -84,8 +84,6 @@ def accessible_report(request, pk):
     from sales.access.services import policy_for
     if not policy_for(request).report(report):
         raise Http404
-    if not request.user.is_active or ((report.published["audience"] != "team" or report.published.get("records_mode") == "population" or 'legacy_notes' in report.published.get('records_columns', [])) and not is_editor(request.user)):
-        raise Http404
     return report
 
 
@@ -115,14 +113,10 @@ def navigation(request):
     if not request.user.is_active:
         return []
     reports = ReportDefinition.objects.filter(published__isnull=False)
-    if not is_editor(request.user):
-        reports = reports.filter(published__audience="team")
     groups = {key: [] for key in NAVIGATION_GROUPS}
     for report in reports:
         from sales.access.services import policy_for
         if not policy_for(request).report(report):
-            continue
-        if not is_editor(request.user) and (report.published.get("records_mode") == "population" or 'legacy_notes' in report.published.get('records_columns', [])):
             continue
         report.reader_title = reader_title(report.published)
         groups[report.published.get("navigation_group", "custom")].append(report)
@@ -338,9 +332,7 @@ def records_export(request, pk):
     grouped = report.published.get("records_mode") == "population"
     if grouped:
         from .population_table import population_queryset, population_cells, HEADERS, NOTE
-        # 發布設定被異常改寫時，也不能透過匯出繞過 admin 限制。
-        if not is_editor(request.user):
-            raise Http404
+        # accessible_report 與上方 export 檢核均已套用逐份授權。
         queryset = population_queryset(report.published, filters)
     else:
         queryset = record_queryset(report.published, filters)

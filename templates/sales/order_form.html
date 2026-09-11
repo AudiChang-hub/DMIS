@@ -195,9 +195,17 @@
     </div>
     <div class="conditional-panel" data-conditional="installment">
       <h3>分期資料</h3>
+      <div class="installment-picker">
+        <div class="form-grid">
+          <div class="field"><label for="installment-company-choice">分期公司（車型方案）</label><select id="installment-company-choice"><option value="">載入已設定的公司…</option></select></div>
+          <div class="field"><label for="installment-period-choice">期數與每期金額</label><select id="installment-period-choice"><option value="">請先選擇分期公司</option></select></div>
+        </div>
+        <button class="button ghost" type="button" id="installment-manual-toggle" aria-expanded="true">保留原值／人工調整</button>
+        <button class="button secondary" type="button" id="installment-apply" disabled>套用選取方案</button>
+      </div>
       <div class="form-grid">
-        {% include "sales/_field.html" with field=form.installment_company %}
-        {% include "sales/_field.html" with field=form.installment_periods %}
+        <div data-installment-manual>{% include "sales/_field.html" with field=form.installment_company %}</div>
+        <div data-installment-manual>{% include "sales/_field.html" with field=form.installment_periods %}</div>
         {% include "sales/_field.html" with field=form.installment_opening_fee %}
         {% include "sales/_field.html" with field=form.installment_monthly %}
       </div>
@@ -310,6 +318,7 @@
 {% endif %}
 {% endblock %}
 {% block scripts %}
+<script src="{% static 'js/order-installment-picker.js' %}?v={{ app_version }}"></script>
 <script src="{% static 'js/order-commission-recipient.js' %}?v={{ app_version }}" defer></script>
 {{ vehicle_rate_data|json_script:"vehicle-rate-data" }}
 {{ accessory_product_data|json_script:"accessory-product-data" }}
@@ -329,7 +338,6 @@
   const installmentPlanEndpoint = "{% url 'installment_plan_options' %}";
   const vehiclePriceEndpoint = "{% url 'vehicle_price_options' %}";
   const installmentPlanHint = byId("installment-plan-hint");
-  let installmentPlanOptions = [];
   const plateChoice = byId("id_plate_choice");
   const deliveryMethod = byId("id_delivery_method");
   const vehicleModel = byId("id_vehicle_model");
@@ -537,52 +545,11 @@
     return Number(input?.value || 0);
   }
 
-  function applyInstallmentPlanOption({force = false} = {}) {
-    if (paymentType.value !== "installment") return;
-    const periodsInput = byId("id_installment_periods");
-    const option = installmentPlanOptions.find(
-      item => Number(item.periods) === Number(periodsInput?.value || 0)
-    );
-    if (!option) {
-      installmentPlanHint.textContent = installmentPlanOptions.length
-        ? "此期數沒有預設方案，請確認期數或由內部人員填寫。"
-        : "此車型在訂單日沒有有效的分期方案，請由內部人員填寫。";
-      return;
-    }
-    const mappings = [
-      [byId("id_installment_company"), option.company],
-      [byId("id_installment_opening_fee"), option.opening_fee],
-      [byId("id_installment_monthly"), option.monthly_amount],
-    ];
-    mappings.forEach(([input, value]) => {
-      if (input && (force || input.value === "")) {
-        input.value = value ?? "";
-        input.dispatchEvent(new Event("input", {bubbles: true}));
-      }
-    });
-    const bonusHint = Number(option.extra_disbursement_bonus || 0) > 0
-      ? `，預估撥款另含獎金 $${Number(option.extra_disbursement_bonus).toLocaleString("zh-TW")}`
-      : "";
-    installmentPlanHint.textContent = `已帶入 ${option.company}／${option.periods} 期${bonusHint}；如本案條件不同仍可人工修改。`;
-  }
-
-  async function loadInstallmentPlanOptions({force = false} = {}) {
-    installmentPlanOptions = [];
-    if (!vehicleModel.value) {
-      applyInstallmentPlanOption({force});
-      return;
-    }
-    try {
-      const params = new URLSearchParams({vehicle_model: vehicleModel.value});
-      const response = await fetch(`${installmentPlanEndpoint}?${params}`);
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.error || "無法讀取分期方案");
-      installmentPlanOptions = data.options || [];
-      applyInstallmentPlanOption({force});
-    } catch (error) {
-      installmentPlanHint.textContent = `${error.message}，請由內部人員填寫。`;
-    }
-  }
+  const installmentPicker = DmisInstallmentPicker.create({
+    endpoint: installmentPlanEndpoint, vehicleModel, paymentType,
+    orderId: editingOrderId, hint: installmentPlanHint,
+  });
+  const loadInstallmentPlanOptions = options => installmentPicker.load(options);
 
   function formatMoney(value) {
     return `$${Number(value).toLocaleString("zh-TW", {maximumFractionDigits: 0})}`;
@@ -790,6 +757,7 @@
     showConditional("installment", paymentType.value === "installment");
     const installmentRequired = paymentType.value === "installment";
     installmentInputs.forEach(input => { input.required = installmentRequired; });
+    installmentPicker.syncRequired();
     showConditional("trade-in-owner", isTradeInSubsidy.checked);
     showConditional("watch", plateChoice.value === "watch");
     showConditional("preference", plateChoice.value === "preference");
@@ -906,10 +874,6 @@
     await loadVehicleColors();
   });
   loadVehicleColors({preserveCurrent: true});
-  byId("id_installment_periods")?.addEventListener(
-    "change",
-    () => applyInstallmentPlanOption({force: true}),
-  );
   if (paymentType.value === "installment") loadInstallmentPlanOptions();
   vehiclePrice?.addEventListener("input", updateVehiclePriceAdjustmentState);
   loadVehiclePrice();

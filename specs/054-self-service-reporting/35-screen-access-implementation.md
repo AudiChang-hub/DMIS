@@ -1,5 +1,7 @@
 # 人員畫面權限實作與驗收
 
+> 後續規則：依使用者要求，本文舊角色／audience 上限由 [37-admin-delegation-and-order-usability.md](37-admin-delegation-and-order-usability.md) 取代；admin 明確授權後可開放，所有三項勾選均可保存。本文保留原始上線紀錄。
+
 ## 操作
 
 admin → 資料維護區 → 帳號與權限 → 人員右側「畫面權限」，或頁首「權限總覽」。

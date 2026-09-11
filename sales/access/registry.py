@@ -40,6 +40,18 @@ SCREENS = (
     Screen("accounts", "帳號管理（不含畫面授權）", "user_management", ceiling="superuser"),
 )
 BY_KEY = {screen.key: screen for screen in SCREENS}
+SCREEN_GROUPS = (
+    ("dashboard", "戰情首頁", (("首頁", ("dashboard",)),)),
+    ("orders", "全部訂單", (("訂單與作業", ("orders", "work")),)),
+    ("operations", "營運總表", (("營運與對帳", ("operations", "reconciliation")),)),
+    ("reports", "報表中心", ()),
+    ("data", "資料維護區", (
+        ("車輛與商品", ("brands", "models", "inventory", "accessories", "rewards")),
+        ("通路、客戶與人員", ("customers", "sources", "distribution")),
+        ("費率與規則", ("costs", "incentives", "commissions", "bonuses", "installments", "fees", "holidays")),
+        ("工具與管理", ("imports", "templates", "diagnostics", "integrity", "accounts")),
+    )),
+)
 # 一般端點：安全方法查看，其餘方法操作；混合列表 POST 亦受控。
 ROUTES = {}
 

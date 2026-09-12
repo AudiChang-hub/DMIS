@@ -67,4 +67,5 @@ def sort_context(params, tokens):
         columns.append({'key':key, 'label':label, 'rank':rank, 'direction':'▼' if descending else '▲',
                         'aria_sort':('descending' if descending else 'ascending') if rank == 1 else 'none', 'url':'?' + query.urlencode()})
     return {'sort_value':','.join(tokens), 'sort_columns':columns,
+            'sort_number_column':next(column for column in columns if column['key'] == 'number'),
             'sort_active':sorted((column for column in columns if column['rank']), key=lambda column:column['rank'])}

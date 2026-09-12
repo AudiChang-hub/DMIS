@@ -9,8 +9,9 @@
       <span class="order-fact order-fact--machine"><small>機種</small><b>{% if order.vehicle_model.family %}{{ order.vehicle_model.family.name }}{% else %}{{ order.vehicle_model.name }}{% endif %}</b></span>
       <span class="order-fact"><small>顏色</small><b>{{ order.color.name|default:"—" }}</b></span>
       <span class="order-fact"><small>領牌日期</small><b>{{ order.registration_date|date:"Y/m/d"|default:"未領牌" }}</b></span>
+      <span class="order-fact"><small>訂單成立日期</small><b>{{ order.established_on|date:"Y/m/d"|default:"待補領牌日" }}</b></span>
       <span class="order-fact"><small>車號</small><b>{{ order.final_plate_number|default:"—" }}</b></span>
-      <span class="order-fact order-fact--profit"><small>淨利</small><b{% if order.operations.net_profit < 0 %} class="is-negative"{% endif %}>{% if order.operations %}$ {{ order.operations.net_profit|number_with_commas }}{% else %}—{% endif %}</b></span>
+      <span class="order-fact order-fact--profit"><small>淨利</small><b{% if order.operations.net_profit < 0 %} class="is-negative"{% endif %}>{% if order.operations %}$ {{ order.operations.net_profit|number_with_commas }}{% else %}—{% endif %}</b>{% if order.operations.legacy_finance_reconciliation and not order.operations.profit_is_ready %}<small>待核對</small>{% endif %}</span>
       <span class="order-fact"><small>車行</small><b>{{ order.source.name|default:order.get_source_type_display }}</b></span>
       <span class="order-fact order-fact--note" title="{{ order.note }}"><small>備註</small><b>{{ order.note|default:"—" }}</b></span>
     </span>

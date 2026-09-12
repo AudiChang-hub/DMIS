@@ -1,0 +1,21 @@
+const test = require('node:test');
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const vm = require('node:vm');
+const source = fs.readFileSync('static/js/header-layout.js', 'utf8');
+test('header and menu heights respond to wrapping and visual viewport changes', () => {
+  const vars = {}, events = {}, menuEvents = {};
+  let height = 130, focused = false;
+  const menu = {dataset: {}, addEventListener: (k,v) => {menuEvents[k]=v;}, querySelector: () => ({focus: () => {focused=true;}})};
+  const header = {getBoundingClientRect: () => ({height}), querySelector: () => menu};
+  const window = {innerHeight:800, visualViewport:{height:800, addEventListener:(k,v)=>{events['visual'+k]=v;}}, addEventListener:(k,v)=>{events[k]=v;}};
+  vm.runInNewContext(source,{window, document:{querySelector:()=>header, documentElement:{style:{setProperty:(k,v)=>{vars[k]=v;}}}}});
+  assert.equal(vars['--app-header-height'],'130px');
+  assert.equal(vars['--data-menu-available-height'],'658px');
+  height=210; window.visualViewport.height=500; events.visualresize();
+  assert.equal(vars['--app-header-height'],'210px');
+  assert.equal(vars['--data-menu-available-height'],'278px');
+  menuEvents.keydown({key:'Escape',preventDefault(){}});
+  assert.equal(menu.dataset.dismissed,'true'); assert.equal(focused,true);
+  menuEvents.pointerenter(); assert.equal(menu.dataset.dismissed,undefined);
+});

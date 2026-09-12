@@ -616,6 +616,11 @@ def _operations_sales_rows(batch, workbook):
         natural_key = _sales_transaction_key(mapped)
         name_mismatch = bool(mapped["owner_name_primary"] and mapped["owner_name_detail"] and mapped["owner_name_primary"] != mapped["owner_name_detail"])
         messages = ["銷貨與車主資料區姓名不同，採車主資料區"] if name_mismatch else []
+        from .legacy_finance import reconcile_source
+        finance_check, _ = reconcile_source(raw)
+        mapped["finance_reconciliation"] = finance_check
+        if finance_check["status"] != "matched":
+            messages.append(f"財務待核對：{finance_check['reason']}；匯入後不列入淨利合計。")
         rows.append(
             LegacyImportRow(
                 batch=batch,
@@ -1373,7 +1378,7 @@ def _commit_sales_row(row, actor_name, *, pending_order=None):
     if source:
         source_type = source.source_type
     order = SalesOrder.objects.create(
-        order_date=order_date, status=SalesOrder.Status.ALLOCATION_PENDING,
+        order_date=order_date, established_on=_date(data["registration_date"]), status=SalesOrder.Status.ALLOCATION_PENDING,
         source=source, source_type=source_type,
         owner_name=data["owner_name"] or "歷史資料未填", owner_phone=data["owner_phone"] or "未提供",
         owner_email=data["owner_email"], owner_birth_date=_date(data["owner_birth_date"]),
@@ -1423,6 +1428,9 @@ def _commit_sales_row(row, actor_name, *, pending_order=None):
     profile.installment_interest_subsidy = _decimal(row.raw_data.get("分期補貼息"))
     profile.insurance_commission = _decimal(row.raw_data.get("強制險傭金"))
     profile.credit_card_commission = _decimal(row.raw_data.get("信用卡傭金"))
+    if not pending_order:
+        from .legacy_finance import import_financials
+        import_financials(profile, row.raw_data)
     profile.payment_confirmed = data["payment_confirmed"]
     profile.invoice_date = _date(data["invoice_date"])
     profile.balance_invoice_number = data["balance_invoice_number"]

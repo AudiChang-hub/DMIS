@@ -124,6 +124,25 @@ def used_vehicle_resale_workbook_bytes(mark_as_used=True):
 
 
 class LegacyImportTests(TestCase):
+    def test_import_formation_date_and_full_finance_mapping(self):
+        batch = self.make_batch(LegacyImportBatch.ImportType.OPERATIONS)
+        workbook = load_workbook(BytesIO(workbook_bytes()))
+        sheet = workbook["銷貨"]
+        sheet["AM3"], sheet["AM4"] = "單筆淨利", 9573.936
+        sheet["L3"], sheet["L4"] = "信用卡手續費支出", 426.064
+        stream = BytesIO()
+        workbook.save(stream)
+        batch.source_file.save("formation-finance.xlsx", SimpleUploadedFile("formation-finance.xlsx", stream.getvalue()))
+        build_import_preview(batch)
+        confirm_import(batch, "tester")
+        order = SalesOrder.objects.get()
+        from datetime import date
+        from decimal import Decimal
+        self.assertEqual(order.established_on, date(2026, 8, 1))
+        self.assertEqual(order.order_date, date(2026, 7, 30))
+        self.assertEqual(order.operations.net_profit, Decimal("9573.936"))
+        self.assertEqual(order.operations.legacy_finance_reconciliation["status"], "matched")
+
     def setUp(self):
         Store.objects.create(name="總店", code="MAIN")
         self.user = get_user_model().objects.create_user(username="importer", password="test-pass")

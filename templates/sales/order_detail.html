@@ -10,7 +10,7 @@
 <section class="hero-row detail-hero">
   <div>
     <div class="title-with-status"><h1>{{ order.owner_name }}</h1><span class="status-pill large status-{{ order.status }}">{{ order.get_status_display }}</span></div>
-    <p class="muted">{{ order.number }} · {{ order.order_date }}</p>
+    <p class="muted">{{ order.number }} · 訂單成立日期 {{ order.established_on|date:"Y/m/d"|default:"待補領牌日" }} · 領牌日期 {{ order.registration_date|date:"Y/m/d"|default:"尚未領牌" }}</p>
   </div>
   <div class="hero-actions">
     {% if order.can_edit_content %}{% if_access 'order_edit' order.pk %}<a class="button primary" href="{% url 'order_edit' order.pk %}">編輯訂單{% if order.is_delivered %}（完成後修正）{% endif %}</a>{% endif_access %}{% endif %}

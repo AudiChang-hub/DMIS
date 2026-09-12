@@ -55,7 +55,7 @@ def _sales_snapshot(start, end):
     profit_ready = 0
     for order in orders:
         profile = getattr(order, "operations", None)
-        if profile and profile.vehicle_cost:
+        if profile and profile.profit_is_ready:
             profit_total += profile.net_profit
             profit_ready += 1
     return {

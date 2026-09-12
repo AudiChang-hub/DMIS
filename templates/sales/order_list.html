@@ -1,5 +1,5 @@
 {% extends "base.html" %}{% load screen_access %}
-{% load pagination_tags %}
+{% load pagination_tags sales_format static %}
 {% block title %}全部訂單｜車輛銷售管理{% endblock %}
 {% block page_class %}page-shell--wide{% endblock %}
 {% block content %}
@@ -11,6 +11,7 @@
 </section>
 <form class="filter-bar order-filter-bar" method="get">
   <input type="hidden" name="per_page" value="{{ per_page }}">
+  <input type="hidden" name="sort" value="{{ sort_value }}">
   <label class="order-filter-search">全欄位搜尋
     <input type="search" name="q" value="{{ query }}" placeholder="姓名、電話、證件、車牌、車型…" enterkeyhint="search">
   </label>
@@ -32,6 +33,7 @@
     <strong>共 {{ page_obj.paginator.count }} 張訂單</strong>
     <div class="order-list-summary__controls">
       <form class="order-page-size-form" method="get">
+        <input type="hidden" name="sort" value="{{ sort_value }}">
         {% if query %}<input type="hidden" name="q" value="{{ query }}">{% endif %}
         {% if request.GET.status %}<input type="hidden" name="status" value="{{ request.GET.status }}">{% endif %}
         <label for="order-page-size">每頁顯示
@@ -46,7 +48,29 @@
       {% if page_obj.paginator.num_pages > 1 %}<span>第 {{ page_obj.number }}／{{ page_obj.paginator.num_pages }} 頁</span>{% endif %}
     </div>
   </div>
-  <div class="order-list">
+  <div class="order-sort-controls" data-order-sort="{{ sort_value }}">
+    <span>點擊欄位切換升降冪；Shift＋點擊追加。數字代表優先順序。</span>
+    <label><input type="checkbox" data-sort-append> 追加排序（手機適用）</label>
+    <a href="{% querystring sort='' page=None %}" data-sort-clear>清除排序</a>
+    <div class="order-sort-mobile">{% for column in sort_columns %}<a href="{{ column.url }}" data-order-sort-key="{{ column.key }}">{{ column.label }}{% if column.rank %} {{ column.direction }}{{ column.rank }}{% endif %}</a>{% endfor %}</div>
+    <p aria-live="polite">目前排序：{% for column in sort_active %}<span>{{ column.rank }}. {{ column.label }} {{ column.direction }}　</span>{% endfor %}{% if not sort_value %}預設（訂單版本日期由新到舊）{% endif %}</p>
+  </div>
+  <div class="table-wrap order-sort-table" tabindex="0" aria-label="訂單列表，可水平捲動">
+    <table><thead><tr>{% for column in sort_columns %}<th scope="col" aria-sort="{{ column.aria_sort }}"><a href="{{ column.url }}" data-order-sort-key="{{ column.key }}">{{ column.label }} {% if column.rank %}{{ column.direction }}{{ column.rank }}{% else %}↕{% endif %}</a></th>{% endfor %}</tr></thead>
+    <tbody>{% for order in orders %}<tr>
+      <td><a href="{% url 'order_detail' order.pk %}">{{ order.owner_name }}</a>{% if order.search_matches %}<small class="search-match-list">{% for match in order.search_matches|slice:":6" %}<span>{{ match.label }}：<mark>{{ match.value }}</mark></span>{% endfor %}</small>{% endif %}</td>
+      <td><a href="{% url 'order_detail' order.pk %}">{{ order.number }}</a></td>
+      <td>{{ order.vehicle_model.family.name|default:order.vehicle_model.name }}</td>
+      <td>{{ order.color.name|default:"—" }}</td>
+      <td>{{ order.registration_date|date:"Y/m/d"|default:"未領牌" }}</td>
+      <td>{{ order.established_on|date:"Y/m/d"|default:"待補領牌日" }}</td>
+      <td>{{ order.final_plate_number|default:"—" }}</td>
+      <td>{% if order.operations %}$ {{ order.operations.net_profit|number_with_commas }}{% if order.operations.legacy_finance_reconciliation and not order.operations.profit_is_ready %}<small>（待核對）</small>{% endif %}{% else %}—{% endif %}</td>
+      <td>{{ order.source.name|default:order.get_source_type_display }}</td>
+      <td>{{ order.get_status_display }}</td><td class="order-table-note">{{ order.note|default:"—" }}</td>
+    </tr>{% empty %}<tr><td colspan="11">尚無符合條件的訂單</td></tr>{% endfor %}</tbody></table>
+  </div>
+  <div class="order-list order-sort-cards">
   {% for order in orders %}
     {% include "sales/_order_row.html" with show_order_details=True %}
   {% empty %}
@@ -56,3 +80,4 @@
 </div>
 {% pagination page_obj aria_label="訂單分頁" %}
 {% endblock %}
+{% block scripts %}<script src="{% static 'js/order-sorting.js' %}?v={{ app_version }}" defer></script>{% endblock %}

@@ -4226,7 +4226,9 @@ def order_list(request):
         )
     elif status:
         orders = orders.filter(status=status)
-    orders = orders.order_by("-order_date", "-created_at", "-pk")
+    from sales.services.order_sorting import parse_sort, sort_context, sort_orders
+    sort_tokens = parse_sort(request.GET.get("sort", ""))
+    orders = sort_orders(orders, sort_tokens)
     try:
         per_page = int(request.GET.get("per_page", ORDER_LIST_DEFAULT_PAGE_SIZE))
     except (TypeError, ValueError):
@@ -4250,6 +4252,7 @@ def order_list(request):
             "statuses": SalesOrder.Status.choices,
             "per_page": per_page,
             "per_page_options": ORDER_LIST_PAGE_SIZE_OPTIONS,
+            **sort_context(request.GET, sort_tokens),
         },
     )
 

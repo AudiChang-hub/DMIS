@@ -11,9 +11,7 @@
       const next = existing === key ? '-' + key : key;
       let tokens = [];
       if (key) {
-        if (event.shiftKey || controls.querySelector('[data-sort-append]').checked) {
-          tokens = existing ? current.map(token => token === existing ? next : token) : [...current, next];
-        } else tokens = [next];
+        tokens = existing ? current.map(token => token === existing ? next : token) : [...current, next];
       }
       const url = new URL(location.href);
       url.searchParams.delete('page');

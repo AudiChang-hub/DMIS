@@ -61,7 +61,9 @@ def sort_context(params, tokens):
         rank, descending = active.get(key, (None, False))
         query = params.copy()
         query.pop('page', None)
-        query['sort'] = key if descending else '-' + key if rank else key
+        next_token = key if descending else '-' + key if rank else key
+        next_tokens = [next_token if token.lstrip('-') == key else token for token in tokens] if rank else [*tokens, key]
+        query['sort'] = ','.join(next_tokens)
         columns.append({'key':key, 'label':label, 'rank':rank, 'direction':'▼' if descending else '▲',
                         'aria_sort':('descending' if descending else 'ascending') if rank == 1 else 'none', 'url':'?' + query.urlencode()})
     return {'sort_value':','.join(tokens), 'sort_columns':columns,

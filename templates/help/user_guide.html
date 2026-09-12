@@ -9,7 +9,7 @@
   <div>
     <p class="eyebrow">End User 使用說明</p>
     <h1>現在想做什麼？從任務開始找</h1>
-    <p>這裡只說明實際操作，不需要懂系統或資料庫。最後更新：2026/09/07・系統版本 {{ app_version }}</p>
+    <p>這裡只說明實際操作，不需要懂系統或資料庫。最後更新：2026/09/12・系統版本 {{ app_version }}</p>
   </div>
   <div class="hero-actions guide-print-actions">
     <button class="button ghost" type="button" data-print-guide>列印／存成 PDF</button>
@@ -50,6 +50,20 @@
   </nav>
 
   <div class="guide-content" role="region" aria-label="操作說明內容">
+    <article class="guide-topic" id="command-center-update" data-guide-topic>
+      <h2>新版戰情首頁、排序與狀態</h2>
+      <ul>
+        <li>戰情首頁看近 12 個月走勢、收款風險與作業卡點；營運總表查逐筆收支及成本；報表中心做車型、通路分析。</li>
+        <li>本月新成立訂單依成立日期，其餘成交成果依領牌日截至今日。與上月同期比較，月底比較完整月份；上月為零顯示無比較基準。</li>
+        <li>車款成交額是車款售價合計，不是實際收款。訂單淨利未含公司租金、薪資等全公司費用。待補成本或待核對資料不計入淨利；圖表斷線／破折號代表缺資料，不是零獲利。</li>
+        <li>收款風險涵蓋所有月份目前未結事項：待收款按應收大於已收；已有收款待確認按實收已登記但營運收款未確認。兩類可能重疊。點指標下方連結查看明細，仍受原畫面權限限制。</li>
+        <li>訂單表頭直接點擊追加排序，再點切換方向。排序條件列可逐項「移除」「提前」「延後」；「全部清除」才會移除全部。日期顯示新→舊／舊→新，金額大→小／小→大，文字採系統正序／反序。</li>
+        <li>領牌日期排第一順位時，遞減會把未領牌置前，遞增置後；排序後回第一頁，保留搜尋及篩選。</li>
+        <li>狀態同時顯示色塊與文字：灰色草稿／取消、黃橙色待處理、藍色進行中、綠色完成、紅橙色退款或補件提醒。自家車行來源顯示馭盛。</li>
+        <li>取消／已退款與取消待退款不計成交淨利；缺日期顯示「—」，不再催補領牌日。既有日期、收款、退款、費用與異動紀錄仍保留；取消待退款仍須完成退款。</li>
+        <li>可在外觀選擇深淺色或高對比；顏色不取代文字，鍵盤焦點有外框，停用按鈕仍可辨識。</li>
+      </ul>
+    </article>
     <p class="guide-empty" data-guide-empty hidden>找不到完全相同的內容。請改用較短的關鍵字，例如把「無法更換配車」改成「配車」。</p>
 
     <article class="guide-topic guide-topic--featured" id="quick-start" data-guide-topic>
@@ -83,7 +97,7 @@
       <div class="guide-topic-heading"><span>02</span><div><p class="eyebrow">每天第一站</p><h2>戰情首頁與 Excel 式搜尋</h2></div></div>
       <div class="guide-two-column">
         <section><h3>怎麼找</h3><ul><li>輸入 <code>0912</code> 找電話片段。</li><li>輸入 <code>ABC1234</code> 或 <code>ABC-1234</code> 找車牌。</li><li>輸入姓名、車型、配件、備註或文件名稱。</li><li>搜尋結果會標示「哪個欄位、哪段內容」符合。</li></ul></section>
-        <section><h3>怎麼看</h3><ul><li>「優先處理」是逾期或重大待辦。</li><li>「待配車」是訂單成立但未指定實體車。</li><li>「進行中」是配車後至交付完成前。</li><li>本月成果以實際領牌日期認列，不是訂單建立日。</li></ul></section>
+        <section><h3>怎麼看</h3><ul><li>先看成交趨勢、淨利完整度與收款風險。</li><li>「待配車」是訂單成立但未指定實體車。</li><li>「進行中」是配車後至交付完成前。</li><li>新成立訂單依成立日，成交成果依實際領牌日；均排除取消／退款。</li></ul></section>
       </div>
       <div class="guide-example"><strong>例子</strong><p>只記得客人姓「張」且買灰色 SUI 125：先搜「張」，再從結果顯示的車型／車色辨認，不必翻每一張訂單。</p></div>
       <div class="guide-exception"><strong>搜尋不到</strong><p>改用部分內容、移除空格或連字號；「最近訂單」只顯示最新資料，要看全部請進「全部訂單」。</p></div>

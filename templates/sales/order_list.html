@@ -49,28 +49,34 @@
     </div>
   </div>
   <div class="order-sort-controls" data-order-sort="{{ sort_value }}">
-    <span>直接點擊欄位追加排序；再次點擊切換升降冪。數字代表優先順序，重新排序請先清除。</span>
-    <a href="{% querystring sort='' page=None %}" data-sort-clear>清除排序</a>
-    <div class="order-sort-mobile">{% for column in sort_columns %}<a href="{{ column.url }}" data-order-sort-key="{{ column.key }}">{{ column.label }}{% if column.rank %} {{ column.direction }}{{ column.rank }}{% endif %}</a>{% endfor %}</div>
-    <p aria-live="polite">目前排序：{% for column in sort_active %}<span>{{ column.rank }}. {{ column.label }} {{ column.direction }}　</span>{% endfor %}{% if not sort_value %}預設（訂單版本日期由新到舊）{% endif %}</p>
+    <span>點擊欄位追加排序，再點切換方向；可逐項移除或調整順位，不影響其他條件。</span>
+    <a href="{% querystring sort='' page=None %}" data-sort-clear>全部清除</a>
+    <div class="order-sort-mobile">{% for column in sort_columns %}<a href="{{ column.url }}" data-order-sort-key="{{ column.key }}">{{ column.label }}{% if column.rank %} · {{ column.direction_label }}（第 {{ column.rank }} 順位）{% else %} · 排序{% endif %}</a>{% endfor %}</div>
+    <p aria-live="polite">目前排序：{% if not sort_value %}預設（訂單版本日期由新到舊）{% endif %}</p>
+    <ol class="sort-chip-list" aria-label="排序條件與優先順序">{% for column in sort_active %}<li>
+      <a href="{{ column.url }}" data-order-sort-key="{{ column.key }}" aria-label="切換{{ column.label }}排序方向">{{ column.rank }}. {{ column.label }}：{{ column.direction_label }}</a>
+      {% if column.up_url %}<a href="{{ column.up_url }}" aria-label="提前{{ column.label }}排序順位">提前</a>{% endif %}
+      {% if column.down_url %}<a href="{{ column.down_url }}" aria-label="延後{{ column.label }}排序順位">延後</a>{% endif %}
+      <a href="{{ column.remove_url }}" class="sort-remove" aria-label="移除{{ column.label }}排序">移除</a>
+    </li>{% endfor %}</ol>
   </div>
   <div class="table-wrap order-sort-table" tabindex="0" aria-label="訂單列表，可水平捲動">
     <table><thead><tr>{% for column in sort_columns %}{% if column.key != 'number' %}
       <th scope="col" aria-sort="{% if column.key == 'owner_name' and sort_number_column.rank == 1 %}{{ sort_number_column.aria_sort }}{% else %}{{ column.aria_sort }}{% endif %}">
-        <a href="{{ column.url }}" data-order-sort-key="{{ column.key }}">{{ column.label }} {% if column.rank %}{{ column.direction }}{{ column.rank }}{% else %}↕{% endif %}</a>
-        {% if column.key == 'owner_name' %}<a class="order-number-sort" href="{{ sort_number_column.url }}" data-order-sort-key="number">訂單編號 {% if sort_number_column.rank %}{{ sort_number_column.direction }}{{ sort_number_column.rank }}{% else %}↕{% endif %}</a>{% endif %}
+        <a href="{{ column.url }}" data-order-sort-key="{{ column.key }}">{{ column.label }}<small>{% if column.rank %}{{ column.direction_label }} · 第 {{ column.rank }} 順位{% else %}點擊排序{% endif %}</small></a>
+        {% if column.key == 'owner_name' %}<a class="order-number-sort" href="{{ sort_number_column.url }}" data-order-sort-key="number">訂單編號{% if sort_number_column.rank %} · {{ sort_number_column.direction_label }} · {{ sort_number_column.rank }}{% else %}排序{% endif %}</a>{% endif %}
       </th>
     {% endif %}{% endfor %}</tr></thead>
     <tbody>{% for order in orders %}<tr>
       <td class="order-table-owner"><a class="order-owner-link" href="{% url 'order_detail' order.pk %}"><strong>{{ order.owner_name }}</strong><small>{{ order.number }}</small></a>{% if order.search_matches %}<small class="search-match-list">{% for match in order.search_matches|slice:":6" %}<span>{{ match.label }}：<mark>{{ match.value }}</mark></span>{% endfor %}</small>{% endif %}</td>
       <td>{{ order.vehicle_model.family.name|default:order.vehicle_model.name }}</td>
       <td>{{ order.color.name|default:"—" }}</td>
-      <td>{{ order.registration_date|date:"Y/m/d"|default:"未領牌" }}</td>
-      <td>{{ order.established_on|date:"Y/m/d"|default:"待補領牌日" }}</td>
+      <td>{{ order.registration_display }}</td>
+      <td>{{ order.established_display }}</td>
       <td>{{ order.final_plate_number|default:"—" }}</td>
-      <td>{% if order.operations %}$ {{ order.operations.net_profit|number_with_commas }}{% if order.operations.legacy_finance_reconciliation and not order.operations.profit_is_ready %}<small>（待核對）</small>{% endif %}{% else %}—{% endif %}</td>
-      <td>{{ order.source.name|default:order.get_source_type_display }}</td>
-      <td>{{ order.get_status_display }}</td><td class="order-table-note">{{ order.note|default:"—" }}</td>
+      <td>{% include 'sales/_order_profit.html' with profile=order.operations %}</td>
+      <td>{{ order.source_display }}</td>
+      <td><span class="status-pill status-{{ order.status }}">{{ order.get_status_display }}</span></td><td class="order-table-note">{{ order.note|default:"—" }}</td>
     </tr>{% empty %}<tr><td colspan="10">尚無符合條件的訂單</td></tr>{% endfor %}</tbody></table>
   </div>
   <div class="order-list order-sort-cards">

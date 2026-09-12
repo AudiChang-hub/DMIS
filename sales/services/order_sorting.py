@@ -1,5 +1,5 @@
 """訂單列表唯讀排序；欄位白名單與既有財務公式。"""
-from django.db.models import Case, CharField, DecimalField, F, Func, Value, When
+from django.db.models import Case, CharField, DecimalField, F, Func, Q, Value, When
 from django.db.models.functions import Coalesce, NullIf
 
 from sales.models import OrderOperationsProfile, SalesOrder
@@ -36,8 +36,10 @@ def sort_orders(orders, tokens):
     if 'machine' in keys:
         annotations['_sort_machine'] = Coalesce(NullIf('vehicle_model__family__name', Value('')), 'vehicle_model__name')
     if 'source' in keys:
-        annotations['_sort_source'] = Coalesce(NullIf('source__name', Value('')), Case(
-            *[When(source_type=value, then=Value(label)) for value, label in SalesOrder.SourceType.choices], output_field=CharField()))
+        annotations['_sort_source'] = Case(
+            When(Q(source_type='store') & (Q(source__isnull=True) | Q(source__name__in=['', '本店'])), then=Value('馭盛')),
+            default=Coalesce(NullIf('source__name', Value('')), Case(
+                *[When(source_type=value, then=Value(label)) for value, label in SalesOrder.SourceType.choices], output_field=CharField())))
     if 'status' in keys:
         annotations['_sort_status'] = Case(*[When(status=value, then=Value(label)) for value, label in SalesOrder.Status.choices], output_field=CharField())
     if 'profit' in keys:
@@ -49,7 +51,9 @@ def sort_orders(orders, tokens):
                       *[-amount(f) for f in OrderOperationsProfile.EXPENSE_FIELDS],
                       *[amount(f) for f in (*OrderOperationsProfile.INCOME_FIELDS, *OrderOperationsProfile.INCENTIVE_FIELDS)],
                       template='(%(expressions)s)', arg_joiner=' + ', output_field=money)
-        annotations['_sort_profit'] = Case(When(operations__isnull=False, then=profit), output_field=money)
+        annotations['_sort_profit'] = Case(
+            When(status__in=['cancelled', 'cancel_refund_pending'], then=Value(None)),
+            When(operations__isnull=False, then=profit), output_field=money)
     orders = orders.annotate(**annotations)
     ordering = []
     for token in tokens:
@@ -65,6 +69,11 @@ def sort_orders(orders, tokens):
 
 def sort_context(params, tokens):
     columns = []
+    def url_for(values):
+        query = params.copy()
+        query.pop('page', None)
+        query['sort'] = ','.join(values)
+        return '?' + query.urlencode()
     active = {token.lstrip('-'): (i + 1, token.startswith('-')) for i, token in enumerate(tokens)}
     for key, label in COLUMNS:
         rank, descending = active.get(key, (None, False))
@@ -73,7 +82,18 @@ def sort_context(params, tokens):
         next_token = key if descending else '-' + key if rank else key
         next_tokens = [next_token if token.lstrip('-') == key else token for token in tokens] if rank else [*tokens, key]
         query['sort'] = ','.join(next_tokens)
+        directions = ('舊→新', '新→舊') if key in ('registration_date', 'established_on') else ('小→大', '大→小') if key == 'profit' else ('正序', '反序')
+        position = (rank or 1) - 1
+        before, after = list(tokens), list(tokens)
+        if rank and position > 0:
+            before[position-1], before[position] = before[position], before[position-1]
+        if rank and position < len(tokens)-1:
+            after[position+1], after[position] = after[position], after[position+1]
         columns.append({'key':key, 'label':label, 'rank':rank, 'direction':'▼' if descending else '▲',
+                        'direction_label': directions[int(descending)],
+                        'remove_url': url_for([t for t in tokens if t.lstrip('-') != key]),
+                        'up_url': url_for(before) if rank and position > 0 else '',
+                        'down_url': url_for(after) if rank and position < len(tokens)-1 else '',
                         'aria_sort':('descending' if descending else 'ascending') if rank == 1 else 'none', 'url':'?' + query.urlencode()})
     return {'sort_value':','.join(tokens), 'sort_columns':columns,
             'sort_number_column':next(column for column in columns if column['key'] == 'number'),

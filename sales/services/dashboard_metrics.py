@@ -12,6 +12,7 @@ from sales.models import (
     VehicleInventory,
 )
 from sales.services.business_days import build_dealer_reminders
+from sales.services.sales_metrics import CANCELLED_STATUSES, filter_payment_risk, summarize_sales
 
 
 def _month_bounds(day):
@@ -34,39 +35,26 @@ def _aware_end(day):
 
 def _percent_change(current, previous):
     if previous == 0:
-        return None if current == 0 else 100
-    return round(((current - previous) / previous) * 100, 1)
+        return None
+    return round(((current - previous) / abs(previous)) * 100, 1)
 
 
-def _sales_snapshot(start, end):
+def _sales_snapshot(start, end, source=None):
     orders = list(
         SalesOrder.objects.filter(
             registration_date__gte=start,
             registration_date__lte=end,
         )
-        .exclude(status=SalesOrder.Status.CANCELLED)
+        .exclude(status__in=CANCELLED_STATUSES)
         .select_related("operations")
-    )
-    sales_total = sum(
-        (order.actual_balance + order.deposit_amount for order in orders),
-        Decimal("0"),
-    )
-    profit_total = Decimal("0")
-    profit_ready = 0
-    for order in orders:
-        profile = getattr(order, "operations", None)
-        if profile and profile.profit_is_ready:
-            profit_total += profile.net_profit
-            profit_ready += 1
+        .prefetch_related("payment_records")
+    ) if source is None else [order for order in source if start <= order.registration_date <= end]
+    summary = summarize_sales(orders)
     return {
+        **summary,
         "orders": orders,
-        "count": len(orders),
-        "sales_total": sales_total,
-        "profit_total": profit_total,
-        "profit_ready": profit_ready,
-        "average_profit": (
-            profit_total / profit_ready if profit_ready else Decimal("0")
-        ),
+        "sales_total": summary['vehicle_sales'],
+        "profit_total": summary['net_profit'],
     }
 
 
@@ -74,8 +62,41 @@ def build_dashboard_metrics(today=None):
     today = today or timezone.localdate()
     month_start, month_end = _month_bounds(today)
     previous_start, previous_end = _month_bounds(_previous_month(today))
-    current = _sales_snapshot(month_start, month_end)
-    previous = _sales_snapshot(previous_start, previous_end)
+    comparison_end = previous_end if today == month_end else previous_start.replace(day=min(today.day, previous_end.day))
+    starts = [month_start]
+    for _ in range(11):
+        starts.insert(0, _previous_month(starts[0]))
+    source = list(SalesOrder.objects.filter(registration_date__range=(starts[0], today))
+                  .exclude(status__in=CANCELLED_STATUSES).select_related('operations').prefetch_related('payment_records'))
+    current = _sales_snapshot(month_start, today, source)
+    previous = _sales_snapshot(previous_start, comparison_end, source)
+    trend = []
+    for start in starts:
+        end = min(_month_bounds(start)[1], today)
+        trend.append({'label': start.strftime('%Y/%m'), 'start': start.isoformat(), 'end': end.isoformat(),
+                      **_sales_snapshot(start, end, source)})
+    charts = []
+    for key, label, unit in [('count', '領牌成交台數', '台'), ('sales_total', '車款成交額', '元'), ('profit_total', '可計入訂單淨利', '元')]:
+        values = [float(row[key]) if key != 'profit_total' or row['profit_ready'] else None for row in trend]
+        low, high = min([0] + [v for v in values if v is not None]), max([0] + [v for v in values if v is not None])
+        scale = high - low or 1
+        zero_y = 130 - (0 - low) / scale * 110
+        points, segments, segment = [], [], []
+        for index, (row, value) in enumerate(zip(trend, values)):
+            if value is None:
+                if segment:
+                    segments.append(' '.join(segment))
+                    segment = []
+                continue
+            x, y = 20 + index * 40, 130 - (value - low) / scale * 110
+            segment.append(f'{x},{y:.2f}')
+            points.append({'x': x, 'y': f'{y:.2f}', 'label': row['label'], 'value': row[key]})
+        if segment:
+            segments.append(' '.join(segment))
+        charts.append({'label': label, 'unit': unit, 'segments': segments, 'points': points,
+                       'low': low, 'high': high, 'zero_y': f'{zero_y:.2f}'})
+    all_orders = SalesOrder.objects.all()
+    risk = {key: filter_payment_risk(all_orders, key).count() for key in ('outstanding', 'unconfirmed', 'refund')}
 
     active = SalesOrder.objects.exclude(
         status__in=[SalesOrder.Status.COMPLETED, SalesOrder.Status.CANCELLED]
@@ -111,10 +132,16 @@ def build_dashboard_metrics(today=None):
         .order_by("registration_date", "id")[:20]
     )
     return {
+        'trend': trend,
+        'charts': charts,
+        'risk': risk,
+        'new_orders': all_orders.filter(established_on__range=(month_start, today)).exclude(status__in=CANCELLED_STATUSES).count(),
         "period": {
             "label": f"{month_start.year}年{month_start.month}月",
             "start": month_start,
-            "end": month_end,
+            "end": today,
+            "previous_start": previous_start,
+            "previous_end": comparison_end,
         },
         "performance": {
             **current,

@@ -4258,9 +4258,11 @@ def order_list(request):
 
 
 def _operations_report_queryset(request):
+    from sales.services.sales_metrics import CANCELLED_STATUSES, filter_payment_risk
     rows = SalesOrder.objects.select_related(
         "vehicle_model", "color", "allocated_vehicle", "operations", "source"
     ).prefetch_related("payment_records")
+    rows = filter_payment_risk(rows, request.GET.get('risk', ''))
     keyword = request.GET.get("q", "").strip()
     if keyword:
         rows = rows.filter(build_order_search_query(keyword)).distinct()
@@ -4284,46 +4286,30 @@ def _operations_report_queryset(request):
         rows = rows.filter(**{f"{date_field}__gte": request.GET["date_from"]})
     if request.GET.get("date_to"):
         rows = rows.filter(**{f"{date_field}__lte": request.GET["date_to"]})
-    if request.GET.get("include_cancelled") != "1":
-        rows = rows.exclude(status=SalesOrder.Status.CANCELLED)
+    if request.GET.get("include_cancelled") != "1" and request.GET.get('risk') != 'refund':
+        rows = rows.exclude(status__in=CANCELLED_STATUSES)
     return rows.order_by(f"-{sort_field}", "-id")
 
 
 def _operations_analysis(rows):
-    summary = {
-        "count": 0,
-        "vehicle_sales": Decimal("0"),
-        "actual_received": Decimal("0"),
-        "net_profit": Decimal("0"),
-        "profit_ready": 0,
-    }
+    from sales.services.sales_metrics import summarize_sales
+    rows = list(rows)
+    summary = summarize_sales(rows)
     models = {}
     for order in rows:
-        profile = getattr(order, "operations", None)
-        received = profile.total_received if profile else Decimal("0")
-        profit = profile.net_profit if profile and profile.profit_is_ready else Decimal("0")
-        summary["count"] += 1
-        summary["vehicle_sales"] += order.vehicle_price
-        summary["actual_received"] += received
-        summary["net_profit"] += profit
-        if profile and profile.profit_is_ready:
-            summary["profit_ready"] += 1
+        if order.is_cancelled_sale:
+            continue
         key = order.vehicle_model_id
         bucket = models.setdefault(
             key,
             {
                 "label": f"{order.vehicle_model.brand} {order.vehicle_model.name}".strip(),
-                "count": 0,
-                "vehicle_sales": Decimal("0"),
-                "actual_received": Decimal("0"),
-                "net_profit": Decimal("0"),
+                'orders': [],
             },
         )
-        bucket["count"] += 1
-        bucket["vehicle_sales"] += order.vehicle_price
-        bucket["actual_received"] += received
-        bucket["net_profit"] += profit
-    summary["average_price"] = summary["vehicle_sales"] / summary["count"] if summary["count"] else Decimal("0")
+        bucket['orders'].append(order)
+    for bucket in models.values():
+        bucket.update(summarize_sales(bucket.pop('orders')))
     return summary, sorted(models.values(), key=lambda item: (-item["count"], item["label"]))
 
 
@@ -4346,6 +4332,7 @@ def operations_report(request):
             "analysis_summary": analysis_summary,
             "model_breakdown": model_breakdown,
             "date_basis_label": {
+                "established": "訂單成立日期",
                 "order": "訂單日期",
                 "delivery": "實際交付日期",
                 "registration": "實際領牌日期",
@@ -4628,7 +4615,7 @@ def operations_report_export(request):
             op("installment_info"), op("dealer_name"),
             profile.total_income if profile else 0,
             profile.total_expense if profile else 0,
-            profile.net_profit if profile else 0,
+            None if order.is_cancelled_sale else (profile.net_profit if profile else 0),
             str(order.effective_commission_recipient or ""),
             order.established_on,
             *[op(field, 0) for field in imported_financial_columns],

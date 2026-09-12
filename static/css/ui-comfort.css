@@ -125,3 +125,56 @@
   }
 }
 @media print { .header-identity { display: none; } }
+
+/* 文字色與按鈕底色分離，深色外觀不共用低對比的品牌色。 */
+@media screen {
+  :root { --action-text: var(--forest); --action-bg: var(--forest); --action-on: #fff; --submit-bg: #f4e3b9; --submit-text: #18323b; }
+  html[data-theme="night-blue"] { --action-text: #9de5d8; --action-bg: #185f59; --submit-bg: #f4e3b9; --submit-text: #18323b; }
+  .eyebrow, .editing-presence.mine, .order-sort-controls a, .order-sort-table th a, .order-sort-table td a,
+  .inventory-kpis strong, .data-menu-tools a, .section-title a, .command-trends a, .command-risk-grid a,
+  .button.secondary { color: var(--action-text); }
+  .editing-presence.mine { background: var(--surface-tint); border-color: var(--line); }
+  .form-progress { background: var(--surface-glass); border-radius: 12px; }
+  .form-progress a.active { color: var(--action-on); background: var(--action-bg); }
+  .mobile-submit .button { color: var(--submit-text); background: var(--submit-bg); border: 1px solid var(--submit-bg); }
+  .mobile-submit .button.danger-ghost { color: var(--red); background: var(--surface); border-color: var(--red); }
+  .button.primary, .performance-card--primary { background: var(--action-bg); color: var(--action-on); }
+  .button.primary:hover { background: var(--action-bg); box-shadow: 0 0 0 2px var(--action-text); }
+  .performance-card--primary > em, .performance-card--primary > span, .performance-card--primary small { color: #fff; }
+  .performance-card:not(.performance-card--primary) > em { color: var(--muted); }
+  .button:disabled, button:disabled { opacity: .7; cursor: not-allowed; }
+  a:focus-visible, button:focus-visible, summary:focus-visible { outline: 3px solid var(--focus-ring); outline-offset: 3px; }
+  .status-pill { border: 1px solid currentColor; padding: 6px 10px; font-weight: 700; white-space: normal; line-height: 1.5; }
+  .status-pill.status-draft, .status-pill.status-cancelled { color: #35434d; background: #e9eef1; border-color: #87949d; }
+  .status-pill.status-allocation_pending, .status-pill.status-transfer_pending { color: #694100; background: #fff0c9; border-color: #ab791c; }
+  .status-pill.status-allocated, .status-pill.status-in_transfer, .status-pill.status-delivery_pending { color: #164774; background: #e3f0ff; border-color: #648bad; }
+  .status-pill.status-completed { color: #185536; background: #def4e6; border-color: #558469; }
+  .status-pill.status-cancel_refund_pending, .status-pill.status-delivered_docs_pending { color: #842e25; background: #ffe7df; border-color: #b66e60; }
+  .is-negative { color: var(--red); }
+  .order-sort-table th a small { display: block; color: var(--muted); font-size: .7rem; font-weight: 500; }
+  .sort-chip-list { display: flex; flex-wrap: wrap; gap: 10px; margin: 10px 0 18px; padding: 0; list-style: none; }
+  .sort-chip-list li { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 8px; background: var(--surface-soft); border: 1px solid var(--line); border-radius: 12px; }
+  .sort-chip-list a { padding: 8px; border-radius: 6px; }
+  .sort-chip-list .sort-remove { color: var(--red); border-left: 1px solid var(--line); }
+  .command-kpis { grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); }
+  .command-chart-grid, .command-risk-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px; }
+  .command-chart-grid figure { margin: 0; min-width: 0; padding: 16px; border: 1px solid var(--line); border-radius: 14px; background: var(--surface-soft); }
+  .command-chart-grid figcaption { font-weight: 700; }
+  .command-chart-grid svg { display: block; width: 100%; height: auto; overflow: visible; }
+  .chart-line { fill: none; stroke: var(--action-text); stroke-width: 3; }
+  .chart-point { fill: var(--action-text); }
+  .chart-baseline { stroke: var(--muted); stroke-width: 1; stroke-dasharray: 4 4; }
+  .command-chart-grid text { fill: var(--muted); font-size: 13px; }
+  .command-trends details { margin-top: 20px; }
+  .command-trends > p, .command-trends > details, .command-trends > .command-chart-grid { margin-inline: 20px; }
+  .command-trends summary, .command-history > summary { cursor: pointer; padding: 12px 0; font-weight: 700; }
+  .command-trend-table { width: 100%; border-collapse: collapse; }
+  .command-trend-table td, .command-trend-table th { padding: 12px; border-bottom: 1px solid var(--line); text-align: left; white-space: nowrap; }
+  .command-data-quality { padding: 16px; margin-top: 20px; color: var(--ink); background: var(--surface-tint); border-left: 4px solid var(--action-text); }
+  .command-history .command-grid { margin-top: 18px; }
+  @media (prefers-color-scheme: dark) {
+    html[data-theme="system"] { --action-text: #9de5d8; --action-bg: #185f59; --submit-bg: #f4e3b9; --submit-text: #18323b; }
+  }
+  @media (max-width: 1000px) { .command-chart-grid { grid-template-columns: 1fr; } }
+  @media (max-width: 700px) { .command-risk-grid { grid-template-columns: 1fr; } .sort-chip-list li { width: 100%; } }
+}

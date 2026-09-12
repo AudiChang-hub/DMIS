@@ -7,6 +7,7 @@ from django.db.models.functions import Coalesce, NullIf, Trim
 
 # 明細欄位到查詢的固定白名單；不能把讀者輸入直接傳入 order_by。
 RECORD_SORTS = {
+    'established_on': 'established_on',
     'number': 'number', 'registration_date': 'registration_date', 'source': 'source__name',
     'legacy_source_name': 'record_sort_source', 'model_number': 'record_sort_model',
     'identifier': 'record_sort_identifier', 'energy': 'vehicle_model__energy_type',
@@ -29,6 +30,7 @@ RECORD_SORTS = {
 
 
 RECORD_COLUMNS = {
+    "established_on": "訂單成立日期",
     "number": "訂單編號", "registration_date": "領牌日期", "source": "目前銷售通路",
     "legacy_source_name": "售出車行", "model_number": "車型／型號", "identifier": "引擎／車身號碼",
     "energy": "能源別", "color": "車色", "owner_name": "車主姓名", "subsidy": "補助方案",
@@ -132,6 +134,7 @@ def record_cells(order, columns):
     vehicle = order.allocated_vehicle
     identifier = (vehicle.engine_number or vehicle.frame_number) if vehicle else ""
     values = {
+        "established_on": order.established_on.strftime("%Y/%m/%d") if order.established_on else "待補領牌日",
         "number": order.number,
         "registration_date": order.registration_date.strftime("%Y/%m/%d") if order.registration_date else "日期未填寫",
         "source": order.source.name if order.source else "本店／未指定",

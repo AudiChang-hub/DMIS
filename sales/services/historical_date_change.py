@@ -151,6 +151,8 @@ def change_historical_date(*, row_id, order_id, user, data):
     facts = form.cleaned_data
     now, actor = timezone.now(), user.get_username()
     changes = {"registration_date": preview["day"], "revision": order.revision + 1, "updated_at": now}
+    if order.established_on is None:
+        changes["established_on"] = preview["day"]
     if facts["date_kind"] == "planned":
         changes.update(status=SalesOrder.Status.ALLOCATED, registration_completed_at=None,
             registration_completed_by="", delivered_at=None, delivered_by="")

@@ -4272,6 +4272,7 @@ def _operations_report_queryset(request):
     date_basis = request.GET.get("date_basis", "registration")
     date_field = {
         "order": "order_date",
+        "established": "established_on",
         "delivery": "delivered_at__date",
         "registration": "registration_date",
     }.get(date_basis, "registration_date")
@@ -4297,12 +4298,12 @@ def _operations_analysis(rows):
     for order in rows:
         profile = getattr(order, "operations", None)
         received = profile.total_received if profile else Decimal("0")
-        profit = profile.net_profit if profile and profile.vehicle_cost else Decimal("0")
+        profit = profile.net_profit if profile and profile.profit_is_ready else Decimal("0")
         summary["count"] += 1
         summary["vehicle_sales"] += order.vehicle_price
         summary["actual_received"] += received
         summary["net_profit"] += profit
-        if profile and profile.vehicle_cost:
+        if profile and profile.profit_is_ready:
             summary["profit_ready"] += 1
         key = order.vehicle_model_id
         bucket = models.setdefault(
@@ -4530,6 +4531,11 @@ def operations_report_export(request):
     workbook = Workbook()
     sheet = workbook.active
     sheet.title = "營運總表"
+    imported_financial_columns = (
+        "legacy_card_fee_expense", "installment_fee_expense", "used_vehicle_expense", "gift_shipping_expense",
+        "friendly_dealer_bonus_expense", "first_sale_bonus_expense", "volume_bonus_expense",
+        "used_vehicle_income", "card_installment_fee_income", "yamaha_bonus_income", "friendly_dealer_bonus_income",
+    )
     headers = [
         "訂單編號", "訂單日期", "車種", "型號", "型式", "顏色", "引擎／車身號碼",
         "車主名稱", "車牌號碼", "車款售價", "實際撥款", "成本",
@@ -4549,7 +4555,9 @@ def operations_report_export(request):
         "平台贈品", "客服電話", "分期資訊", "車行",
         "總收入", "總支出", "單筆淨利",
         "台數與傭金歸屬車行",
+        "訂單成立日期",
     ]
+    headers.extend(OrderOperationsProfile._meta.get_field(field).verbose_name for field in imported_financial_columns)
     sheet.append(headers)
     for cell in sheet[1]:
         cell.font = Font(bold=True, color="FFFFFF")
@@ -4619,6 +4627,8 @@ def operations_report_export(request):
             profile.total_expense if profile else 0,
             profile.net_profit if profile else 0,
             str(order.effective_commission_recipient or ""),
+            order.established_on,
+            *[op(field, 0) for field in imported_financial_columns],
         ]))
     sheet.freeze_panes = "A2"
     sheet.auto_filter.ref = sheet.dimensions
@@ -5265,6 +5275,13 @@ def order_operations(request, pk):
             from .services.operations_sync import sync_payment_financials
             sync_payment_financials(order.pk)
             profile.refresh_from_db()
+            if form.cleaned_data.get("confirm_legacy_finance"):
+                profile.legacy_finance_reconciliation = {
+                    **profile.legacy_finance_reconciliation, "status": "reviewed",
+                    "reviewed_by": _editing_name(request.user), "reviewed_at": timezone.now().isoformat(),
+                    "review_reason": form.cleaned_data["change_reason"], "reviewed_profit": str(profile.net_profit),
+                }
+                profile.save(update_fields=["legacy_finance_reconciliation", "updated_at"])
             after = _operations_snapshot(profile)
             changes = {
                 key: {"before": before.get(key, ""), "after": value}

@@ -16,6 +16,16 @@
   <div class="profit"><small>單筆淨利</small><strong>${{ profile.net_profit|floatformat:0 }}</strong></div>
 </section>
 <p class="muted operations-profit-formula">單筆淨利＝實際撥款－成本－總支出＋總收入＋實銷獎勵金＋促銷補助金＋分期補貼息＋強制險傭金＋信用卡傭金</p>
+{% if profile.legacy_finance_reconciliation %}
+<details class="note-box"><summary>Excel 匯入財務核對</summary>
+  {% if profile.legacy_finance_reconciliation.status == 'matched' %}
+  <p>匯入時已核對原淨利 {{ profile.legacy_finance_reconciliation.source_profit }} 元，差額 {{ profile.legacy_finance_reconciliation.difference }} 元。收款價為歷史計算基礎，不代表已收款；後續人工修改會反映於目前淨利。</p>
+  {% if profile.legacy_finance_reconciliation.expense_scope == 'L:S' %}<p>本筆沿用原 Excel 早期公式，未扣友善車行、首賣、台數獎金支出；原始值仍留存在匯入資料。</p>{% endif %}
+  {% elif profile.legacy_finance_reconciliation.status == 'reviewed' %}
+  <p>已由 {{ profile.legacy_finance_reconciliation.reviewed_by }} 人工核對：{{ profile.legacy_finance_reconciliation.review_reason }}。後續修改仍會反映於目前淨利。</p>
+  {% else %}<p class="field-error">待核對：{{ profile.legacy_finance_reconciliation.reason }}。請於下方完成金額核對與確認，才會列入淨利合計。</p>{% endif %}
+</details>
+{% endif %}
 
 <section class="section-block internal-discount-panel">
   <div class="section-title"><div><h2>內部折扣核准</h2><small>不出現在建立訂單畫面；核准後才會扣減應收，配件主檔售價與工資快照不會被改寫。</small></div><span class="status-pill">{{ order.get_discount_status_display|default:"未申請" }}</span></div>
@@ -31,6 +41,7 @@
 
 <form method="post" enctype="multipart/form-data" class="operations-form">
   {% csrf_token %}{{ payment_formset.management_form }}{{ form.financial_revision }}
+  {% if form.confirm_legacy_finance %}<div class="note-box">{% include "sales/_field.html" with field=form.confirm_legacy_finance %}</div>{% endif %}
   {% if form.non_field_errors or payment_formset.non_form_errors %}<div class="message error">{{ form.non_field_errors }}{{ payment_formset.non_form_errors }}</div>{% endif %}
   <details class="operation-section" open><summary><strong>收款與分期對帳</strong><span>多筆收款、撥款與發票</span></summary>
     <div class="operation-grid">
@@ -133,6 +144,8 @@
         <strong>領牌日 {{ profile.vehicle_cost_registration_date|date:"Y/m/d" }}</strong>
         <small>{% if profile.vehicle_cost_locked_at %}已固定，不受後續成本版本異動影響{% else %}領牌完成後固定{% endif %}</small>
       </div>
+      {% elif profile.legacy_finance_reconciliation %}
+      <div class="read-only-value"><strong>Excel 匯入成本</strong><small>保留歷史來源，不依今日主檔重算</small></div>
       {% else %}
       <div class="read-only-value"><strong>尚未認列</strong><small>完成領牌資料並符合成本規則後自動帶入</small></div>
       {% endif %}
@@ -142,6 +155,13 @@
     {% include "sales/_field.html" with field=form.dealer_commission_expense %}
     {% if order.effective_commission_recipient %}<div class="field"><label>傭金收款車行</label><div class="read-only-value"><strong>{{ order.effective_commission_recipient }}</strong><small>{% if order.source_type == 'store' %}原來源保留本店；指定台數不新增基礎傭金。{% else %}台數與傭金歸屬；原銷售車行為 {{ order.source }}。{% endif %}</small></div></div>{% endif %}
     {% include "sales/_field.html" with field=form.card_fee_expense %}
+    {% include "sales/_field.html" with field=form.legacy_card_fee_expense %}
+    {% include "sales/_field.html" with field=form.installment_fee_expense %}
+    {% include "sales/_field.html" with field=form.used_vehicle_expense %}
+    {% include "sales/_field.html" with field=form.gift_shipping_expense %}
+    {% include "sales/_field.html" with field=form.friendly_dealer_bonus_expense %}
+    {% include "sales/_field.html" with field=form.first_sale_bonus_expense %}
+    {% include "sales/_field.html" with field=form.volume_bonus_expense %}
   </div></details>
   <details class="operation-section" open><summary><strong>領牌相關收支</strong><span>系統先帶入，支出與收入皆可個別人工修改</span></summary>
     <div class="financial-pair-grid">
@@ -162,6 +182,10 @@
     {% include "sales/_field.html" with field=form.installment_fee_income %}
     {% include "sales/_field.html" with field=form.card_fee_income %}
     {% include "sales/_field.html" with field=form.other_income %}
+    {% include "sales/_field.html" with field=form.used_vehicle_income %}
+    {% include "sales/_field.html" with field=form.card_installment_fee_income %}
+    {% include "sales/_field.html" with field=form.yamaha_bonus_income %}
+    {% include "sales/_field.html" with field=form.friendly_dealer_bonus_income %}
     {% include "sales/_field.html" with field=form.scrap_agency_income %}
     {% include "sales/_field.html" with field=form.scrap_vehicle_income %}
     {% include "sales/_field.html" with field=form.insurance_commission %}

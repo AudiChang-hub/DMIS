@@ -2583,6 +2583,7 @@ class SalesOrder(TimeStampedModel):
 
     number = models.CharField("訂單編號", max_length=24, unique=True, editable=False)
     order_date = models.DateField("訂單日期", default=timezone.localdate)
+    established_on = models.DateField("訂單成立日期", default=timezone.localdate, null=True, blank=True, editable=False, db_index=True)
     source_type = models.CharField(
         "訂單來源", max_length=20, choices=SourceType.choices, default=SourceType.STORE
     )
@@ -3391,6 +3392,10 @@ class SalesOrder(TimeStampedModel):
         lock_bonus_periods(self)
         if not self.number:
             self.number = f"SO{timezone.localdate():%Y%m%d}-{uuid.uuid4().hex[:6].upper()}"
+        if self.pk and self.established_on is None and self.registration_date and hasattr(self, "legacy_snapshot"):
+            self.established_on = self.registration_date
+            if kwargs.get("update_fields") is not None:
+                kwargs["update_fields"] = set(kwargs["update_fields"]) | {"established_on"}
         if self.id_verified and not self.id_verified_at:
             self.id_verified_at = timezone.now()
         if self.signed_contract and not self.signed_contract_uploaded_at:
@@ -3573,8 +3578,8 @@ class OrderOperationsProfile(TimeStampedModel):
         verbose_name="訂單",
     )
     dealer_name = models.CharField("車行", max_length=160, blank=True)
-    actual_disbursement = models.DecimalField("實際撥款", max_digits=12, decimal_places=0, default=0)
-    vehicle_cost = models.DecimalField("車輛成本", max_digits=12, decimal_places=0, default=0)
+    actual_disbursement = models.DecimalField("實際撥款", max_digits=16, decimal_places=4, default=0)
+    vehicle_cost = models.DecimalField("車輛成本", max_digits=16, decimal_places=4, default=0)
     vehicle_cost_manual = models.BooleanField("車輛成本已人工調整", default=False)
     vehicle_cost_rule = models.ForeignKey(
         VehicleSettlementCostRule,
@@ -3632,12 +3637,12 @@ class OrderOperationsProfile(TimeStampedModel):
         "收款連動前撥款快照", default=dict, blank=True, editable=False,
         help_text="取消收款確認時恢復先前值；不回推舊資料。",
     )
-    registration_tax_expense = models.DecimalField("領牌稅金支出", max_digits=12, decimal_places=0, default=0)
-    compulsory_insurance_expense = models.DecimalField("強制險支出", max_digits=12, decimal_places=0, default=0)
-    plate_selection_expense = models.DecimalField("選號支出", max_digits=12, decimal_places=0, default=0)
-    gift_expense = models.DecimalField("贈品支出", max_digits=12, decimal_places=0, default=0)
-    shipping_expense = models.DecimalField("運費支出", max_digits=12, decimal_places=0, default=0)
-    dealer_commission_expense = models.DecimalField("車行傭金支出", max_digits=12, decimal_places=0, default=0)
+    registration_tax_expense = models.DecimalField("領牌稅金支出", max_digits=16, decimal_places=4, default=0)
+    compulsory_insurance_expense = models.DecimalField("強制險支出", max_digits=16, decimal_places=4, default=0)
+    plate_selection_expense = models.DecimalField("選號支出", max_digits=16, decimal_places=4, default=0)
+    gift_expense = models.DecimalField("贈品支出", max_digits=16, decimal_places=4, default=0)
+    shipping_expense = models.DecimalField("運費支出", max_digits=16, decimal_places=4, default=0)
+    dealer_commission_expense = models.DecimalField("車行傭金支出", max_digits=16, decimal_places=4, default=0)
     dealer_commission_base = models.DecimalField(
         "車行基礎佣金快照", max_digits=12, decimal_places=0, default=0
     )
@@ -3658,21 +3663,21 @@ class OrderOperationsProfile(TimeStampedModel):
     dealer_commission_locked_at = models.DateTimeField(
         "車行佣金鎖定時間", blank=True, null=True
     )
-    card_fee_expense = models.DecimalField("銀行刷卡手續費支出", max_digits=12, decimal_places=0, default=0)
-    registration_tax_income = models.DecimalField("領牌稅金收入", max_digits=12, decimal_places=0, default=0)
-    compulsory_insurance_income = models.DecimalField("強制險收入", max_digits=12, decimal_places=0, default=0)
-    agency_fee_income = models.DecimalField("代辦費收入", max_digits=12, decimal_places=0, default=0)
-    plate_selection_income = models.DecimalField("選號收入", max_digits=12, decimal_places=0, default=0)
-    installment_fee_income = models.DecimalField("分期手續費收入", max_digits=12, decimal_places=0, default=0)
-    card_fee_income = models.DecimalField("刷卡手續費收入", max_digits=12, decimal_places=0, default=0)
-    other_income = models.DecimalField("其他收入", max_digits=12, decimal_places=0, default=0)
-    scrap_agency_income = models.DecimalField("報廢代辦收入", max_digits=12, decimal_places=0, default=0)
-    scrap_vehicle_income = models.DecimalField("報廢車收入", max_digits=12, decimal_places=0, default=0)
-    sales_bonus = models.DecimalField("實銷獎勵金", max_digits=12, decimal_places=0, default=0)
-    promotion_subsidy = models.DecimalField("促銷補助金", max_digits=12, decimal_places=0, default=0)
-    installment_interest_subsidy = models.DecimalField("分期補貼息", max_digits=12, decimal_places=0, default=0)
-    insurance_commission = models.DecimalField("強制險傭金", max_digits=12, decimal_places=0, default=0)
-    credit_card_commission = models.DecimalField("信用卡傭金", max_digits=12, decimal_places=0, default=0)
+    card_fee_expense = models.DecimalField("銀行刷卡手續費支出", max_digits=16, decimal_places=4, default=0)
+    registration_tax_income = models.DecimalField("領牌稅金收入", max_digits=16, decimal_places=4, default=0)
+    compulsory_insurance_income = models.DecimalField("強制險收入", max_digits=16, decimal_places=4, default=0)
+    agency_fee_income = models.DecimalField("代辦費收入", max_digits=16, decimal_places=4, default=0)
+    plate_selection_income = models.DecimalField("選號收入", max_digits=16, decimal_places=4, default=0)
+    installment_fee_income = models.DecimalField("分期手續費收入", max_digits=16, decimal_places=4, default=0)
+    card_fee_income = models.DecimalField("刷卡手續費收入", max_digits=16, decimal_places=4, default=0)
+    other_income = models.DecimalField("其他收入", max_digits=16, decimal_places=4, default=0)
+    scrap_agency_income = models.DecimalField("報廢代辦收入", max_digits=16, decimal_places=4, default=0)
+    scrap_vehicle_income = models.DecimalField("報廢車收入", max_digits=16, decimal_places=4, default=0)
+    sales_bonus = models.DecimalField("實銷獎勵金", max_digits=16, decimal_places=4, default=0)
+    promotion_subsidy = models.DecimalField("促銷補助金", max_digits=16, decimal_places=4, default=0)
+    installment_interest_subsidy = models.DecimalField("分期補貼息", max_digits=16, decimal_places=4, default=0)
+    insurance_commission = models.DecimalField("強制險傭金", max_digits=16, decimal_places=4, default=0)
+    credit_card_commission = models.DecimalField("信用卡傭金", max_digits=16, decimal_places=4, default=0)
     payment_confirmed = models.BooleanField("確認收款", default=False)
     installment_transfer_confirmed = models.BooleanField("分期公司確認匯款", default=False)
     invoice_date = models.DateField("發票日期", blank=True, null=True)
@@ -3704,13 +3709,30 @@ class OrderOperationsProfile(TimeStampedModel):
     installment_info = models.TextField("分期資訊", blank=True)
     updated_by = models.CharField("最後更新人員", max_length=150, blank=True)
 
+    legacy_finance_reconciliation = models.JSONField("匯入財務核對", default=dict, blank=True, editable=False)
+    legacy_card_fee_expense = models.DecimalField("匯入信用卡手續費支出", max_digits=16, decimal_places=4, default=0)
+    installment_fee_expense = models.DecimalField("分期手續費支出", max_digits=16, decimal_places=4, default=0)
+    used_vehicle_expense = models.DecimalField("中古車支出", max_digits=16, decimal_places=4, default=0)
+    gift_shipping_expense = models.DecimalField("贈品、運費合併支出", max_digits=16, decimal_places=4, default=0)
+    friendly_dealer_bonus_expense = models.DecimalField("友善車行獎金支出", max_digits=16, decimal_places=4, default=0)
+    first_sale_bonus_expense = models.DecimalField("首賣獎金支出", max_digits=16, decimal_places=4, default=0)
+    volume_bonus_expense = models.DecimalField("歷史台數獎金支出", max_digits=16, decimal_places=4, default=0)
+    used_vehicle_income = models.DecimalField("中古車收入", max_digits=16, decimal_places=4, default=0)
+    card_installment_fee_income = models.DecimalField("刷卡、分期手續費合併收入", max_digits=16, decimal_places=4, default=0)
+    yamaha_bonus_income = models.DecimalField("山葉獎金收入", max_digits=16, decimal_places=4, default=0)
+    friendly_dealer_bonus_income = models.DecimalField("友善車行獎金收入", max_digits=16, decimal_places=4, default=0)
+
     INCOME_FIELDS = (
+        "used_vehicle_income", "card_installment_fee_income", "yamaha_bonus_income", "friendly_dealer_bonus_income",
         "registration_tax_income", "compulsory_insurance_income",
         "agency_fee_income", "plate_selection_income", "installment_fee_income",
         "card_fee_income", "other_income", "scrap_agency_income",
         "scrap_vehicle_income",
     )
     EXPENSE_FIELDS = (
+        "legacy_card_fee_expense",
+        "installment_fee_expense", "used_vehicle_expense", "gift_shipping_expense",
+        "friendly_dealer_bonus_expense", "first_sale_bonus_expense", "volume_bonus_expense",
         "registration_tax_expense",
         "compulsory_insurance_expense", "plate_selection_expense",
         "gift_expense", "shipping_expense", "dealer_commission_expense",
@@ -3754,6 +3776,10 @@ class OrderOperationsProfile(TimeStampedModel):
             + self.total_income
             + incentive_total
         )
+
+    @property
+    def profit_is_ready(self):
+        return bool(self.vehicle_cost) and self.legacy_finance_reconciliation.get("status", "matched") not in ("missing", "mismatch", "invalid", "preserved_changes")
 
     @property
     def total_received(self):

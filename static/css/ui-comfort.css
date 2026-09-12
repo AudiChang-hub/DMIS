@@ -39,7 +39,7 @@
   .installment-picker select { width: 100%; min-height: 48px; border: 1px solid var(--line); border-radius: 10px; padding: 10px 14px; color: var(--ink); background: var(--surface); font: inherit; }
   .installment-picker .button { margin-top: 18px; }
   [data-installment-manual][hidden] { display: none; }
-  @media (min-width: 861px) and (max-width: 1500px) {
+  @media (min-width: 861px) and (max-width: 1800px) {
     .app-header-inner { flex-wrap: wrap; padding-block: 8px; }
     .desktop-nav { order: 10; width: 100%; justify-content: center; min-height: 46px; margin-top: 8px; }
     .form-progress { top: 120px; }
@@ -70,5 +70,23 @@
   }
   .form-progress { top: var(--app-header-height, 108px); }
   .access-category { scroll-margin-top: calc(var(--app-header-height, 108px) + 24px); }
+  .app-header-inner { position: relative; }
+  .desktop-data-menu { position: static; }
+  .data-menu-popover {
+    top: 100%; right: 0; width: min(980px, 100%);
+    max-height: calc(100dvh - var(--app-header-height, 144px) - 12px);
+    max-height: var(--data-menu-available-height, calc(100vh - var(--app-header-height, 144px) - 12px));
+    overflow-x: hidden; scrollbar-gutter: stable;
+  }
+  .data-menu-popover a { overflow-wrap: anywhere; }
+  .desktop-data-menu[data-dismissed] .data-menu-popover { display: none; }
+  .report-page-nav { top: calc(var(--app-header-height, 144px) + 16px); max-height: calc(100dvh - var(--app-header-height, 144px) - 32px); }
+  .app-header-inner > :not(.brand):not(.desktop-nav) { flex-shrink: 0; }
+  @media (min-width: 861px) and (max-width: 1100px) {
+    .data-menu-popover { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .data-menu-group:last-of-type { grid-column: 1 / -1; }
+    .app-header-inner { column-gap: 4px; }
+    .brand { padding-right: 8px; }
+  }
 }
 @media print { .header-identity { display: none; } }

@@ -68,6 +68,10 @@
   .order-sort-table td { min-width: 90px; white-space: nowrap; }
   .order-sort-table tbody tr:hover { background: var(--surface-tint); }
   .order-sort-table td a { color: var(--forest); text-decoration: underline; text-underline-offset: 3px; }
+  .order-sort-table .order-table-owner { min-width: 145px; max-width: 190px; white-space: normal; }
+  .order-owner-link { display: grid; gap: 6px; overflow-wrap: anywhere; }
+  .order-owner-link small { color: var(--muted); font-size: .72rem; }
+  .order-sort-table th a.order-number-sort { padding-top: 0; font-size: .75rem; font-weight: 500; }
   .order-sort-table .order-table-note { min-width: 180px; max-width: 300px; overflow-wrap: anywhere; white-space: normal; }
   .order-sort-cards, .order-sort-mobile { display: none; }
   @media (max-width: 860px) {

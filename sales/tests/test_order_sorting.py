@@ -60,3 +60,15 @@ class OrderSortingTests(TestCase):
         self.assertEqual(links['profit'], 'owner_name,-established_on,profit')
         self.assertNotContains(response, 'data-sort-append')
         self.assertNotContains(response, 'Shift')
+        self.assertContains(response, '<th scope="col"', count=10)
+        self.assertContains(response, 'class="order-table-owner"', count=2)
+        self.assertContains(response, f'<a class="order-owner-link" href="{reverse("order_detail", args=[self.orders[1].pk])}"><strong>AlphaSort</strong><small>{self.orders[1].number}</small></a>', html=True)
+
+    def test_merged_header_retains_number_sort_and_empty_colspan(self):
+        self.client.force_login(self.user)
+        response = self.client.get(reverse('order_list'), {'sort':'-number'})
+        self.assertContains(response, '<th scope="col" aria-sort="descending">', count=1)
+        self.assertContains(response, 'class="order-number-sort"')
+        self.assertEqual(response.context['sort_number_column']['rank'], 1)
+        empty = self.client.get(reverse('order_list'), {'q':'no-matching-order-xyz'})
+        self.assertContains(empty, 'colspan="10"')

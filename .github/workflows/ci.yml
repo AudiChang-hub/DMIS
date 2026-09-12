@@ -87,6 +87,17 @@ jobs:
       - name: Verify migrations are committed
         run: python manage.py makemigrations --check --dry-run
 
+      - name: Verify order sorting interactions
+        run: node --test tests/frontend/order-sorting.test.cjs
+
+      - name: Verify order sorting with PostgreSQL
+        env:
+          POSTGRES_HOST: 127.0.0.1
+          POSTGRES_DB: finance_ci
+          POSTGRES_USER: finance_ci
+          POSTGRES_PASSWORD: ci-isolated-only
+        run: python manage.py test sales.tests.test_order_sorting --noinput
+
       - name: Run Django tests with SQLite
         run: |
           python -m unittest discover -s tests/ops

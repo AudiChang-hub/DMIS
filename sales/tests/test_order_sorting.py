@@ -54,3 +54,9 @@ class OrderSortingTests(TestCase):
         for column in response.context['sort_columns']:
             self.assertNotIn('page', parse_qs(urlsplit(column['url']).query))
             self.assertIn('q=', column['url'])
+        links = {column['key']:parse_qs(urlsplit(column['url']).query)['sort'][0] for column in response.context['sort_columns']}
+        self.assertEqual(links['owner_name'], '-owner_name,-established_on')
+        self.assertEqual(links['established_on'], 'owner_name,established_on')
+        self.assertEqual(links['profit'], 'owner_name,-established_on,profit')
+        self.assertNotContains(response, 'data-sort-append')
+        self.assertNotContains(response, 'Shift')

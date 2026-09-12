@@ -49,8 +49,7 @@
     </div>
   </div>
   <div class="order-sort-controls" data-order-sort="{{ sort_value }}">
-    <span>點擊欄位切換升降冪；Shift＋點擊追加。數字代表優先順序。</span>
-    <label><input type="checkbox" data-sort-append> 追加排序（手機適用）</label>
+    <span>直接點擊欄位追加排序；再次點擊切換升降冪。數字代表優先順序，重新排序請先清除。</span>
     <a href="{% querystring sort='' page=None %}" data-sort-clear>清除排序</a>
     <div class="order-sort-mobile">{% for column in sort_columns %}<a href="{{ column.url }}" data-order-sort-key="{{ column.key }}">{{ column.label }}{% if column.rank %} {{ column.direction }}{{ column.rank }}{% endif %}</a>{% endfor %}</div>
     <p aria-live="polite">目前排序：{% for column in sort_active %}<span>{{ column.rank }}. {{ column.label }} {{ column.direction }}　</span>{% endfor %}{% if not sort_value %}預設（訂單版本日期由新到舊）{% endif %}</p>

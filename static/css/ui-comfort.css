@@ -39,11 +39,42 @@
   .installment-picker select { width: 100%; min-height: 48px; border: 1px solid var(--line); border-radius: 10px; padding: 10px 14px; color: var(--ink); background: var(--surface); font: inherit; }
   .installment-picker .button { margin-top: 18px; }
   [data-installment-manual][hidden] { display: none; }
-  @media (min-width: 861px) and (max-width: 1800px) {
-    .app-header-inner { flex-wrap: wrap; padding-block: 8px; }
-    .desktop-nav { order: 10; width: 100%; justify-content: center; min-height: 46px; margin-top: 8px; }
-    .form-progress { top: 120px; }
-    .access-category { scroll-margin-top: 160px; }
+  @media (min-width: 861px) {
+    .app-header-inner { flex-wrap: nowrap; gap: 4px; }
+    .desktop-nav { flex: 0 0 auto; min-height: 72px; white-space: nowrap; }
+    .desktop-nav > a, .desktop-data-menu > a { padding-inline: 12px; }
+    .brand { flex-shrink: 0; padding-right: 12px; }
+  }
+  @media (min-width: 861px) and (max-width: 1400px) {
+    .app-header { padding-inline: 12px; }
+    .desktop-nav > a, .desktop-data-menu > a { padding-inline: 7px; font-size: .8rem; }
+    .brand small, .theme-toggle-button strong, .header-help-link strong, .update-check-label { display: none; }
+    .brand strong { font-size: .85rem; }
+    .theme-toggle-button, .header-help-link, .update-check-button { padding-inline: 6px; margin-left: 0; }
+    .header-identity { min-width: 60px; max-width: 90px; padding-inline: 6px; margin-left: 2px; }
+    .header-account-link { font-size: .75rem; padding-inline: 4px; }
+    .logout-form { margin-left: 2px; }
+  }
+  .logout-button { display: inline-flex; align-items: center; gap: 6px; min-height: 42px; padding: 9px 12px; border: 1px solid var(--header-muted); border-radius: 10px; color: var(--header-text); background: var(--header-interactive); font: inherit; font-size: .82rem; font-weight: 700; white-space: nowrap; cursor: pointer; }
+  .logout-button:hover, .logout-button:focus-visible { background: var(--gold); color: var(--ink); }
+  .order-sort-controls { padding: 16px; line-height: 1.8; display: flex; flex-wrap: wrap; gap: 12px 20px; }
+  .order-sort-controls p { flex-basis: 100%; margin: 0; }
+  .order-sort-controls a, .order-sort-table th a { color: var(--forest); text-decoration: underline; text-underline-offset: 4px; }
+  .order-sort-table th { white-space: nowrap; }
+  .order-sort-table th a { display: block; padding-block: 8px; }
+  .order-sort-table { width: 100%; max-width: 100%; overflow-x: auto; }
+  .order-sort-table table { width: 100%; border-collapse: collapse; }
+  .order-sort-table td, .order-sort-table th { padding-inline: 14px; border-bottom: 1px solid var(--line); text-align: left; }
+  .order-sort-table td { min-width: 90px; white-space: nowrap; }
+  .order-sort-table tbody tr:hover { background: var(--surface-tint); }
+  .order-sort-table td a { color: var(--forest); text-decoration: underline; text-underline-offset: 3px; }
+  .order-sort-table .order-table-note { min-width: 180px; max-width: 300px; overflow-wrap: anywhere; white-space: normal; }
+  .order-sort-cards, .order-sort-mobile { display: none; }
+  @media (max-width: 860px) {
+    .order-sort-table { display: none; }
+    .order-sort-cards { display: grid; }
+    .order-sort-mobile { display: flex; flex-wrap: wrap; gap: 10px; }
+    .order-sort-mobile a { padding: 8px 12px; border: 1px solid var(--line); border-radius: 8px; }
   }
   @media (max-width: 860px) {
     .app-header-inner { flex-wrap: wrap; gap: 4px; padding-block: 6px; }

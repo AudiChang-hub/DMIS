@@ -95,7 +95,7 @@
         <div class="header-identity" aria-label="目前登入帳號" title="目前登入：{{ request.user.get_full_name|default:request.user.username }}（{{ request.user.username }}）"><span>目前登入</span><strong>{{ request.user.get_full_name|default:request.user.username }}</strong><small>@{{ request.user.username }}</small></div>
         <form action="{% url 'logout' %}" method="post" class="logout-form">
           {% csrf_token %}
-          <button type="submit" class="link-button">登出</button>
+          <button type="submit" class="logout-button"><span aria-hidden="true">↪</span> 登出系統</button>
         </form>
       {% endif %}
     </div>

@@ -75,7 +75,7 @@ class ReportForm(ScopeForm):
     title = forms.CharField(label="報表名稱", max_length=100)
     description = forms.CharField(label="報表說明", required=False, max_length=1000, widget=forms.Textarea(attrs={"rows": 2}))
     audience = forms.ChoiceField(label="發布後可查看的人", choices=[("admin", "只有我（admin）"), ("team", "所有已登入的內部帳號")])
-    date_basis = forms.ChoiceField(label="統計日期依據", choices=[("registration_date", "領牌日期"), ("order_date", "訂單日期")])
+    date_basis = forms.ChoiceField(label="統計日期依據", choices=[("registration_date", "領牌日期"), ("established_on", "訂單成立日期"), ("order_date", "訂單版本日期")])
     include_undated = forms.BooleanField(label="未選期間時包含尚未領牌訂單", required=False,
         help_text="僅影響本報表分析；日期未填寫另列，不計入任何月份。指定期間或月份時仍排除未填日期。")
     version = forms.IntegerField(min_value=0, widget=forms.HiddenInput)

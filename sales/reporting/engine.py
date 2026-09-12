@@ -206,7 +206,7 @@ def validate_config(config):
             raise ValidationError("報表名稱或說明過長。")
     if not config["title"].strip():
         raise ValidationError("請填寫報表名稱。")
-    if config["audience"] not in ("admin", "team") or config["date_basis"] not in ("registration_date", "order_date"):
+    if config["audience"] not in ("admin", "team") or config["date_basis"] not in ("registration_date", "order_date", "established_on"):
         raise ValidationError("請選擇有效的查看對象與日期依據。")
     if not isinstance(config["cards"], list) or not (0 if config.get("include_records") else 1) <= len(config["cards"]) <= 8:
         raise ValidationError("每份報表最多 8 張圖表；沒有圖表時請啟用明細表。")

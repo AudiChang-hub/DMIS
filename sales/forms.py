@@ -2615,6 +2615,10 @@ VehicleColorMasterFormSet = inlineformset_factory(
 
 
 class OrderOperationsForm(forms.ModelForm):
+    confirm_legacy_finance = forms.BooleanField(
+        label="我已核對本單收支，採目前金額計入淨利", required=False,
+        help_text="請先逐項確認金額，並填寫本次更新說明；不會變更收款確認狀態。",
+    )
     financial_revision = forms.CharField(required=False, widget=forms.HiddenInput())
     vehicle_control_password = forms.CharField(
         label="車控密碼",
@@ -2681,6 +2685,10 @@ class OrderOperationsForm(forms.ModelForm):
             "card_fee_expense",
         }
         self.initial["financial_revision"] = self.instance.updated_at.isoformat() if self.instance.updated_at else ""
+        if self.instance.legacy_finance_reconciliation.get("status") not in ("missing", "mismatch", "invalid", "preserved_changes"):
+            self.fields.pop("confirm_legacy_finance")
+        if self.instance.legacy_finance_reconciliation:
+            synced_fields.discard("vehicle_cost")
         if self.instance.payment_disbursement_snapshot:
             synced_fields.add("actual_disbursement")
         for name, field in self.fields.items():
@@ -2716,6 +2724,8 @@ class OrderOperationsForm(forms.ModelForm):
                 cleaned[name] = Decimal("0")
         if cleaned.get("financial_revision") != self.initial.get("financial_revision"):
             raise forms.ValidationError("營運或收款資料已更新，請重新載入頁面再修改，避免覆蓋他人的金額。")
+        if cleaned.get("confirm_legacy_finance") and not cleaned.get("change_reason", "").strip():
+            self.add_error("change_reason", "人工確認歷史收支時，請填寫核對依據或修正說明。")
         return cleaned
 
 

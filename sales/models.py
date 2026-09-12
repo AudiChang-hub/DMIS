@@ -2962,6 +2962,25 @@ class SalesOrder(TimeStampedModel):
         }
 
     @property
+    def is_cancelled_sale(self):
+        return self.status in {self.Status.CANCELLED, self.Status.CANCEL_REFUND_PENDING}
+
+    @property
+    def source_display(self):
+        name = self.source.name if self.source_id else ''
+        if self.source_type == self.SourceType.STORE and name in ('', '本店'):
+            return '馭盛'
+        return name or self.get_source_type_display()
+
+    @property
+    def registration_display(self):
+        return self.registration_date.strftime('%Y/%m/%d') if self.registration_date else ('—' if self.is_cancelled_sale else '未領牌')
+
+    @property
+    def established_display(self):
+        return self.established_on.strftime('%Y/%m/%d') if self.established_on else ('—' if self.is_cancelled_sale else '待補領牌日')
+
+    @property
     def can_manage_subsidy(self):
         """補助可能在交付後才申請或補件，僅正式取消後鎖定。"""
         return self.status != self.Status.CANCELLED

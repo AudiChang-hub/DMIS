@@ -13,7 +13,7 @@
   <div><small>總收款金額</small><strong>${{ profile.total_received|floatformat:0 }}</strong></div>
   <div><small>總收入</small><strong>${{ profile.total_income|floatformat:0 }}</strong></div>
   <div><small>總支出</small><strong>${{ profile.total_expense|floatformat:0 }}</strong></div>
-  <div class="profit"><small>單筆淨利</small><strong>${{ profile.net_profit|floatformat:0 }}</strong></div>
+  <div class="profit"><small>單筆淨利</small>{% include 'sales/_order_profit.html' %}</div>
 </section>
 <p class="muted operations-profit-formula">單筆淨利＝實際撥款－成本－總支出＋總收入＋實銷獎勵金＋促銷補助金＋分期補貼息＋強制險傭金＋信用卡傭金</p>
 {% if profile.legacy_finance_reconciliation %}

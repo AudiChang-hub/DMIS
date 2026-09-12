@@ -1,0 +1,1 @@
+{% load sales_format %}{% if order.is_cancelled_sale %}<span title="取消訂單不列入成交淨利">—</span>{% elif profile %}<span class="{% if profile.net_profit < 0 %}is-negative{% endif %}">$ {{ profile.net_profit|number_with_commas }}</span>{% if not profile.profit_is_ready %}<small>待核對，未列入淨利合計</small>{% endif %}{% else %}—{% endif %}

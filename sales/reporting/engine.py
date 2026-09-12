@@ -442,6 +442,14 @@ def format_value(value):
     return f"{number:,.0f}" if number == number.to_integral() else f"{number:,.2f}"
 
 
+def numeric_text(value):
+    """統一 SQLite／PostgreSQL Decimal 尾零，保留所有有效小數。"""
+    if value is None:
+        return None
+    text = format(value, "f") if isinstance(value, Decimal) else str(value)
+    return text.rstrip("0").rstrip(".") if "." in text else text
+
+
 def card_result(config, card, filters):
     card = effective_card(card, filters)
     if card["chart"] == "table" and (card.get("series") or card.get("additional_metrics") or card["metric"] == "dealer_bonus"):
@@ -493,7 +501,7 @@ def card_result(config, card, filters):
         value = value_of(row)
         key = encode_key(raw)
         label = dimension_label(dimension, raw, labels)
-        values.append({"key": key, "label": str(label), "color": dimension_color(dimension, raw, len(values)), "value": str(value) if value is not None else None,
+        values.append({"key": key, "label": str(label), "color": dimension_color(dimension, raw, len(values)), "value": numeric_text(value),
                        "display": display_value(value), "count": row["count"]})
     maximum = max((abs(Decimal(row["value"])) for row in values if row["value"] is not None), default=Decimal(0))
     for row in values:

@@ -14,6 +14,14 @@ from sales.services.operations_sync import sync_order_operations
 
 
 class LegacyFinanceMappingTests(SimpleTestCase):
+    def test_report_numbers_are_backend_independent_without_rounding(self):
+        from sales.reporting.engine import numeric_text
+        self.assertEqual(numeric_text(Decimal("4000.0000")), "4000")
+        self.assertEqual(numeric_text(Decimal("426.0640")), "426.064")
+        self.assertEqual(numeric_text(Decimal("0.0000")), "0")
+        self.assertEqual(numeric_text(4000), "4000")
+        self.assertIsNone(numeric_text(None))
+
     def test_missing_disbursement_and_fractional_fee(self):
         raw = {"收款價": 74980, "成本": 71500, "信用卡手續費支出": "426.064", "其他收入": 4257, "單筆淨利": "7310.936"}
         audit, values = reconcile_source(raw)

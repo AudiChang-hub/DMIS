@@ -88,7 +88,9 @@ jobs:
         run: python manage.py makemigrations --check --dry-run
 
       - name: Verify order sorting interactions
-        run: node --test tests/frontend/order-sorting.test.cjs
+        run: |
+          node --test tests/frontend/order-sorting.test.cjs
+          python manage.py test sales.tests.test_order_sorting --noinput
 
       - name: Verify order sorting with PostgreSQL
         env:

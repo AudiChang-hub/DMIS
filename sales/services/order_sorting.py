@@ -1,8 +1,5 @@
 """訂單列表唯讀排序；欄位白名單與既有財務公式。"""
-from functools import reduce
-from operator import add
-
-from django.db.models import Case, CharField, DecimalField, F, Value, When
+from django.db.models import Case, CharField, DecimalField, F, Func, Value, When
 from django.db.models.functions import Coalesce, NullIf
 
 from sales.models import OrderOperationsProfile, SalesOrder
@@ -47,9 +44,11 @@ def sort_orders(orders, tokens):
         money = DecimalField(max_digits=20, decimal_places=4)
         def amount(field):
             return Coalesce(F('operations__' + field), Value(0), output_field=money)
-        profit = amount('actual_disbursement') - amount('vehicle_cost')
-        profit -= reduce(add, (amount(f) for f in OrderOperationsProfile.EXPENSE_FIELDS), Value(0))
-        profit += reduce(add, (amount(f) for f in (*OrderOperationsProfile.INCOME_FIELDS, *OrderOperationsProfile.INCENTIVE_FIELDS)), Value(0))
+        # 平坦加總避免舊版 SQLite 對數十層括號的 parser stack 限制。
+        profit = Func(amount('actual_disbursement'), -amount('vehicle_cost'),
+                      *[-amount(f) for f in OrderOperationsProfile.EXPENSE_FIELDS],
+                      *[amount(f) for f in (*OrderOperationsProfile.INCOME_FIELDS, *OrderOperationsProfile.INCENTIVE_FIELDS)],
+                      template='(%(expressions)s)', arg_joiner=' + ', output_field=money)
         annotations['_sort_profit'] = Case(When(operations__isnull=False, then=profit), output_field=money)
     orders = orders.annotate(**annotations)
     return orders.order_by(*[F(FIELDS[t.lstrip('-')]).desc(nulls_last=True) if t.startswith('-') else F(FIELDS[t]).asc(nulls_last=True) for t in tokens], '-pk')

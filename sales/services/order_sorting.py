@@ -51,7 +51,16 @@ def sort_orders(orders, tokens):
                       template='(%(expressions)s)', arg_joiner=' + ', output_field=money)
         annotations['_sort_profit'] = Case(When(operations__isnull=False, then=profit), output_field=money)
     orders = orders.annotate(**annotations)
-    return orders.order_by(*[F(FIELDS[t.lstrip('-')]).desc(nulls_last=True) if t.startswith('-') else F(FIELDS[t]).asc(nulls_last=True) for t in tokens], '-pk')
+    ordering = []
+    for token in tokens:
+        key = token.lstrip('-')
+        field = F(FIELDS[key])
+        if token.startswith('-'):
+            # 未領牌視為日期遞減的最前端；不改變其他欄位的空值規則。
+            ordering.append(field.desc(nulls_first=True) if key == 'registration_date' else field.desc(nulls_last=True))
+        else:
+            ordering.append(field.asc(nulls_last=True))
+    return orders.order_by(*ordering, '-pk')
 
 
 def sort_context(params, tokens):

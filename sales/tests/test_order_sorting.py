@@ -32,6 +32,41 @@ class OrderSortingTests(TestCase):
                 self.assertEqual(sort_orders(SalesOrder.objects.all(), [key]).count(), 4)
                 self.assertEqual(len(list(sort_orders(SalesOrder.objects.all(), ['-'+key]))), 4)
 
+    def test_registration_date_null_position_and_secondary_sort(self):
+        a, b, c, d = self.orders
+        SalesOrder.objects.filter(pk=a.pk).update(registration_date=date(2020, 1, 1))
+        SalesOrder.objects.filter(pk=c.pk).update(registration_date=date(2020, 1, 2))
+        orders = SalesOrder.objects.all()
+        self.assertEqual(list(sort_orders(orders, ['registration_date', 'owner_name'])), [a, c, b, d])
+        self.assertEqual(list(sort_orders(orders, ['-registration_date', 'owner_name'])), [b, d, c, a])
+        self.assertEqual(list(sort_orders(orders, ['-registration_date', '-owner_name'])), [d, b, c, a])
+        self.assertEqual(list(sort_orders(orders, ['owner_name', '-registration_date'])), [b, c, a, d])
+
+    def test_registration_date_pagination_keeps_unregistered_orders(self):
+        self.client.force_login(self.user)
+        pending = self.orders[-1]
+        SalesOrder.objects.exclude(pk=pending.pk).update(registration_date=date(2020, 1, 1))
+        template = self.orders[0]
+        for index in range(23):
+            SalesOrder.objects.create(
+                owner_name=f'PageSort{index}', owner_phone=template.owner_phone,
+                owner_address=template.owner_address, owner_id_number=template.owner_id_number,
+                vehicle_model=template.vehicle_model, color=template.color,
+                registration_date=date(2020, 1, 2),
+            )
+        for token, pending_page in [('registration_date', 2), ('-registration_date', 1)]:
+            seen = []
+            for page in (1, 2):
+                response = self.client.get(reverse('order_list'), {'sort': token, 'per_page': 25, 'page': page})
+                self.assertEqual(response.status_code, 200)
+                self.assertEqual(response.context['page_obj'].paginator.count, 27)
+                rows = list(response.context['orders'])
+                seen.extend(order.pk for order in rows)
+                if page == pending_page:
+                    self.assertEqual(rows[0 if token.startswith('-') else -1].pk, pending.pk)
+            self.assertEqual(len(set(seen)), 27)
+            self.assertEqual(set(seen), set(SalesOrder.objects.values_list('pk', flat=True)))
+
     def test_profit_sort_matches_model_with_fractional_values(self):
         for index, order in enumerate(self.orders):
             p = order.operations

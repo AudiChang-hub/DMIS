@@ -84,7 +84,9 @@ class ProfitPrivacyTests(TestCase):
             self.client.logout()
             url = reverse("catalog_color_image", args=[self.model.pk, self.color.pk])
             response = self.client.get(url)
-            self.assertEqual(response.status_code, 200); response.close()
+            self.assertEqual(response.status_code, 200)
+            # 由 test client 的串流 wrapper 收尾，避免直接 close 關閉 PG 測試交易。
+            self.assertTrue(b"".join(response.streaming_content).startswith(b"\x89PNG"))
             self.assertEqual(response["Cache-Control"], "no-store")
             other = VehicleModel.objects.create(brand="TEST", name="其他型號")
             VehicleCatalogEntry.objects.create(vehicle_model=other, published=True)

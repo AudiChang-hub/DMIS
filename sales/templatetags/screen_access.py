@@ -7,6 +7,12 @@ register = template.Library()
 
 
 @register.simple_tag(takes_context=True)
+def help_visible(context, topic):
+    from sales.services.audience_content import LEGACY_HELP_RULES, permitted
+    return permitted(policy_for(context["request"]), LEGACY_HELP_RULES.get(topic, ("root",)))
+
+
+@register.simple_tag(takes_context=True)
 def can_access(context, name, *args):
     request = context.get("request")
     if request is None:

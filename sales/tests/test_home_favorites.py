@@ -12,6 +12,10 @@ class HomeFavoritesTests(TestCase):
     def setUpTestData(cls):
         cls.user = get_user_model().objects.create_user("favorites-user", password="test-only")
         cls.other = get_user_model().objects.create_user("favorites-other", password="test-only")
+        from sales.models import ReportDefinition
+        from sales.reporting.views import initial_config
+        config = initial_config(); config["audience"] = "team"
+        ReportDefinition.objects.create(draft=config, published=config)
 
     def setUp(self):
         self.client.force_login(self.user)

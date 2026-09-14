@@ -15,7 +15,9 @@ class Screen:
 SCREENS = (
     Screen("dashboard", "全公司戰情指標（營運總表）", "operations_report", False),
     Screen("orders", "訂單、草稿與文件", "order_list", True, True),
+    Screen("catalog", "選車下單入口", "catalog", False),
     Screen("order_finance", "訂單內部財務編輯", "order_list", True),
+    Screen("profit", "查看淨利（另需本人密碼解鎖）", "order_list", False, True),
     Screen("work", "訂單作業、配車、領牌、交付與收退款", "order_list", True, True),
     Screen("operations", "財務彙總與營運匯出（營運總表）", "operations_report", False, True),
     Screen("reconciliation", "對帳作業", "reconciliation_list"),
@@ -42,7 +44,7 @@ SCREENS = (
 )
 BY_KEY = {screen.key: screen for screen in SCREENS}
 SCREEN_GROUPS = (
-    ("orders", "全部訂單", (("訂單與作業", ("orders", "work", "order_finance")),)),
+    ("orders", "全部訂單", (("訂單與作業", ("catalog", "orders", "work", "order_finance", "profit")),)),
     ("operations", "營運總表", (("營運與對帳", ("dashboard", "operations", "reconciliation")),)),
     ("reports", "報表中心", ()),
     ("data", "資料維護區", (
@@ -111,7 +113,8 @@ PERSONAL = set("dashboard home_favorites system_health app_version appearance_th
 ROOT_ONLY = set("announcement_manage announcement_edit access_overview access_edit report_manage report_classification report_create report_edit report_draft_preview report_lifecycle".split())
 ROOT_ONLY.add("order_account_scope")
 ROOT_ONLY.update({"catalog_manage", "catalog_edit", "dealer_accounts", "dealer_account_create", "dealer_account_edit"})
-PERSONAL.update({"catalog", "catalog_detail", "catalog_image"})
+PERSONAL.update({"catalog", "catalog_detail", "catalog_image", "catalog_color_image"})
+PERSONAL.update({"profit_unlock", "profit_lock"})
 REPORT_ROUTES = {"report_display": "view", "report_detail": "view", "report_records_export": "export", "report_export": "export"}
 LOOKUPS = {
     "vehicle_colors": ("orders", "inventory", "models"),

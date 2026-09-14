@@ -49,6 +49,8 @@ class ReplacementFixture:
             mapped_data={**original.mapped_data, "owner_name": "驗收新買家", "owner_id_number": "B223456789"})
         self.url = reverse("historical_buyer_replacement", args=[self.batch.pk, self.row.pk, self.order.pk])
         self.client.force_login(self.admin)
+        from sales.tests.profit_helpers import unlock_profit
+        unlock_profit(self, self.admin)
 
     def data(self):
         self.row.refresh_from_db()

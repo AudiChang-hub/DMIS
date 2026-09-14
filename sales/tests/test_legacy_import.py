@@ -147,6 +147,8 @@ class LegacyImportTests(TestCase):
         Store.objects.create(name="總店", code="MAIN")
         self.user = get_user_model().objects.create_user(username="importer", password="test-pass")
         self.client.force_login(self.user)
+        from sales.tests.profit_helpers import unlock_profit
+        unlock_profit(self, self.user)
         self.tempdir = TemporaryDirectory()
         self.override = override_settings(MEDIA_ROOT=self.tempdir.name)
         self.override.enable()

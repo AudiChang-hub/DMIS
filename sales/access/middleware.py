@@ -40,6 +40,27 @@ class ScreenAccessMiddleware(MiddlewareMixin):
         if name in {"user_account_create", "user_account_edit"} and request.method == "POST" and request.POST.get("username") == "admin" and not is_root(request.user):
             raise PermissionDenied
         policy = policy_for(request)
+        # 隱私閘門在 root／舊制捷徑前執行，admin 也必須重新驗證。
+        from sales.services.profit_access import profit_is_unlocked, can_view_profit
+        sensitive = name in {"operations_report_export", "legacy_import_detail", "legacy_import_status"}
+        if match.app_name == "admin" and name and name.startswith(("sales_orderoperationsprofile_", "sales_legacysalessnapshot_", "sales_orderchange_", "sales_salesordersearchindex_", "sales_legacyimportrow_")):
+            sensitive = True
+        if sensitive and policy.route(name, request.method, view_kwargs) and not profit_is_unlocked(request):
+            if not can_view_profit(request):
+                raise PermissionDenied("此內容含淨利或原始財務資料，尚未取得查看淨利權限。")
+            if request.method not in {"GET", "HEAD"}:
+                raise PermissionDenied("請先解鎖淨利再操作。")
+            from django.urls import reverse
+            from urllib.parse import urlencode
+            return redirect(reverse("profit_unlock") + "?" + urlencode({"next": request.get_full_path()}))
+        if sensitive and name in {"operations_report_export", "report_export", "report_records_export"} and not policy.screen("profit", "export"):
+            raise PermissionDenied("沒有淨利匯出權限。")
+        if name in {"data_maintenance", "report_center"} and not policy.route(name):
+            if name == "report_center":
+                request.session.pop("report_reader_page", None)
+            raise PermissionDenied("此分類沒有已授權功能。")
+        if name in {"catalog", "catalog_detail", "catalog_image", "catalog_color_image"} and not policy.route(name):
+            raise PermissionDenied("未取得選車下單權限。")
         if policy.configured and not policy.root and name in {"user_account_create", "user_account_edit", "user_account_status", "user_account_reset_password"}:
             target_user = get_user_model().objects.filter(pk=view_kwargs.get("pk")).first()
             if (target_user and (target_user.is_superuser or target_user.is_staff)) or (request.method == "POST" and request.POST.get("is_superuser")):

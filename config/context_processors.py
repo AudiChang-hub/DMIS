@@ -8,8 +8,9 @@ from sales.themes import DEFAULT_THEME, THEME_DEFINITIONS, THEME_META_COLORS, TH
 
 
 HELP_TOPIC_BY_ROUTE = {
-    "catalog": "catalog-accounts", "catalog_detail": "catalog-accounts", "catalog_manage": "catalog-accounts", "catalog_edit": "catalog-accounts",
-    "dealer_accounts": "catalog-accounts", "dealer_account_create": "catalog-accounts", "dealer_account_edit": "catalog-accounts",
+    "profit_unlock": "profit-access",
+    "catalog": "catalog-accounts", "catalog_detail": "catalog-accounts", "catalog_manage": "catalog-manage", "catalog_edit": "catalog-manage",
+    "dealer_accounts": "account-management", "dealer_account_create": "account-management", "dealer_account_edit": "account-management",
     "home_favorites": "home-favorites",
     "announcement_manage": "announcements", "announcement_edit": "announcements",
     "report_center": "reports", "report_display": "reports", "report_detail": "reports",
@@ -147,12 +148,19 @@ DATA_MAINTENANCE_ROUTES = {
 
 
 def app_version(request):
+    from sales.services.profit_access import profit_context
     from sales.access.services import is_root, policy_for
     from sales.access.registry import ROUTES
     access_policy = policy_for(request)
     route_name = getattr(getattr(request, "resolver_match", None), "url_name", None)
     screen_key = ROUTES.get(route_name, (None,))[0]
     topic = HELP_TOPIC_BY_ROUTE.get(route_name, "quick-start")
+    from sales.services.audience_content import help_context, LEGACY_HELP_RULES, permitted
+    visible_topics = {item["id"] for item in help_context(access_policy)["scoped_help"]}
+    if topic in visible_topics:
+        topic += "-current"
+    elif not permitted(access_policy, LEGACY_HELP_RULES.get(topic, ("root",))):
+        topic = "personal-current"
     ui_theme = DEFAULT_THEME
     mobile_quick_link_context = {
         "mobile_quick_links": [],
@@ -174,6 +182,14 @@ def app_version(request):
             policy=access_policy,
         )
     return {
+        **profit_context(request),
+        "order_entry_url": reverse("catalog") if access_policy.route("catalog") else reverse("order_create"),
+        "orders_group_visible": access_policy.route("order_list") or access_policy.route("catalog") or access_policy.route("order_create"),
+        "orders_group_url": reverse("order_list") if access_policy.route("order_list") else reverse("catalog") if access_policy.route("catalog") else reverse("order_create"),
+        "data_vehicle_visible": any(access_policy.route(name) for name in ("vehicle_brand_list", "vehicle_model_list", "inventory_list", "accessory_product_list", "dealer_reward_catalog_list", "catalog_manage")),
+        "data_people_visible": any(access_policy.route(name) for name in ("customer_list", "sales_source_list", "price_list_distribution")),
+        "data_rules_visible": any(access_policy.route(name) for name in ("settlement_cost_rule_list", "incentive_rule_list", "dealer_sales_program_list", "dealer_volume_bonus_list", "installment_company_list", "brand_registration_fee_rule_list", "business_holiday_list")),
+        "data_tools_visible": any(access_policy.route(name) for name in ("legacy_import_list", "positioned_template_list", "system_diagnostics")),
         "app_version": get_app_version(),
         "intake_dealer": access_policy.dealer,
         "intake_can_submit": access_policy.route("order_create"),

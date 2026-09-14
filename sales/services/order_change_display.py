@@ -192,18 +192,24 @@ def _list_diff(label, values):
     return items
 
 
-def build_order_change_cards(changes):
+PRIVATE_CHANGE_FIELDS = {"legacy_finance_reconciliation", "匯入財務核對", "net_profit", "單筆淨利"}
+
+
+def build_order_change_cards(changes, *, profit_unlocked=True):
     cards = []
     for change in changes:
         grouped = {name: [] for name, _ in GROUPS}
         grouped["其他"] = []
         for label, values in change.changes.items():
+            if not profit_unlocked and label in PRIVATE_CHANGE_FIELDS:
+                continue
             if label in {"配件", "其他費用"}:
                 entries = _list_diff(label, values)
             else:
                 entries = [
                     {
                         "action": "修改",
+                        "profit_private": label in PRIVATE_CHANGE_FIELDS,
                         "label": label,
                         "before": _format_value(label, values.get("before")),
                         "after": _format_value(label, values.get("after")),

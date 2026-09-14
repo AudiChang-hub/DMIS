@@ -92,6 +92,7 @@ class CatalogAccountTests(TestCase):
             "password2": "Strong-test-7302!",
             "is_active": "on",
             "can_submit_orders": "on",
+            "can_view_orders": "on", "can_browse_catalog": "on",
         }
         data.update(changes)
         return data
@@ -102,6 +103,7 @@ class CatalogAccountTests(TestCase):
             "username": self.dealer.username,
             "is_active": "on",
             "can_submit_orders": "on",
+            "can_view_orders": "on", "can_browse_catalog": "on",
             "expected_revision": "0",
         }
         data.update(changes)

@@ -94,6 +94,9 @@ class CommandCenterTests(TestCase):
 
     def test_cancelled_display_export_and_original_money_preserved(self):
         self.client.force_login(self.user)
+        from sales.tests.profit_helpers import unlock_profit
+        unlock_profit(self, self.user)
+        self.client.force_login(self.user)
         for status in ('cancelled', 'cancel_refund_pending'):
             order = self.make_order(status=status, profit=12345)
             response = self.client.get(reverse('order_list'), {'status':status})
@@ -154,17 +157,20 @@ class CommandCenterTests(TestCase):
 
     def test_dashboard_and_help_render_new_controls(self):
         self.client.force_login(self.user)
+        from sales.tests.profit_helpers import unlock_profit
+        unlock_profit(self, self.user)
+        self.client.force_login(self.user)
         response = self.client.get(reverse('operations_report'))
         self.assertContains(response, '近 12 個月公司走勢')
         self.assertContains(response, '已有收款待確認')
         self.assertContains(response, '不是包含全公司費用的公司淨利')
         self.assertEqual(response.content.decode().count('viewBox="0 0 480 165"'), 3)
         response = self.client.get(reverse('order_list'), {'sort':'registration_date,owner_name'})
-        self.assertContains(response, '移除車主排序')
-        self.assertContains(response, '提前車主排序順位')
+        self.assertContains(response, '移除姓名排序')
+        self.assertContains(response, '提前姓名排序順位')
         self.assertContains(response, '全部清除')
         self.assertNotContains(response, '重新排序請先清除')
-        self.assertContains(self.client.get(reverse('user_guide')), '新版首頁、營運總表、排序與狀態')
+        self.assertContains(self.client.get(reverse('user_guide')), '訂單列表與排序')
 
     def test_dashboard_grant_does_not_grant_financial_drilldown(self):
         from sales.access.models import ScreenAccessGrant, UserAccessState

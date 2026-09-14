@@ -1,32 +1,32 @@
 {% load sales_format %}
-<a class="order-row{% if show_order_details %} order-row--detailed{% endif %}" href="{% url 'order_detail' order.pk %}">
+{% if show_order_details %}<div class="order-row order-row--detailed">{% else %}<a class="order-row" href="{% url 'order_detail' order.pk %}">{% endif %}
   <span class="status-dot status-{{ order.status }}"></span>
-  <span class="order-main">
-    <strong>{{ order.owner_name }}</strong>
+  <div class="order-main">
+    <strong>{% if show_order_details %}<a href="{% url 'order_detail' order.pk %}">{{ order.owner_name }}</a>{% else %}{{ order.owner_name }}{% endif %}</strong>
     <small>{{ order.number }}{% if not show_order_details %} · {{ order.vehicle_model.name }}／{{ order.color.name }}{% endif %}</small>
     {% if show_order_details %}
-    <span class="order-facts">
-      <span class="order-fact order-fact--machine"><small>機種</small><b>{% if order.vehicle_model.family %}{{ order.vehicle_model.family.name }}{% else %}{{ order.vehicle_model.name }}{% endif %}</b></span>
+    <div class="order-facts">
+      <div class="order-fact order-fact--machine"><small>機種</small>{% firstof order.vehicle_model.family.name order.vehicle_model.name as machine_name %}{% include 'sales/_compact_text.html' with value=machine_name limit=10 %}</div>
       <span class="order-fact"><small>顏色</small><b>{{ order.color.name|default:"—" }}</b></span>
       <span class="order-fact"><small>領牌日期</small><b>{{ order.registration_display }}</b></span>
       <span class="order-fact"><small>訂單成立日期</small><b>{{ order.established_display }}</b></span>
       <span class="order-fact"><small>車號</small><b>{{ order.final_plate_number|default:"—" }}</b></span>
       <span class="order-fact order-fact--profit"><small>淨利</small>{% include 'sales/_order_profit.html' with profile=order.operations %}</span>
       <span class="order-fact"><small>車行</small><b>{{ order.source_display }}</b></span>
-      <span class="order-fact order-fact--note" title="{{ order.note }}"><small>備註</small><b>{{ order.note|default:"—" }}</b></span>
-    </span>
+      <div class="order-fact order-fact--note"><small>備註</small>{% include 'sales/_compact_text.html' with value=order.note|default:"—" limit=12 %}</div>
+    </div>
     {% endif %}
     {% if order.search_matches %}
-    <span class="search-match-list" aria-label="符合搜尋的欄位">
+    <span class="search-match-list" aria-label="符合搜尋的欄位"{% if profit_unlocked %} data-profit-value{% endif %}>
       {% for match in order.search_matches|slice:":6" %}
       <span class="search-match"><b>{{ match.label }}</b><mark>{{ match.value }}</mark></span>
       {% endfor %}
       {% if order.search_matches|length > 6 %}<span class="search-match-more">另 {{ order.search_matches|length|add:"-6" }} 個欄位符合</span>{% endif %}
     </span>
     {% endif %}
-  </span>
+  </div>
   {% if not show_order_details %}<span class="order-source">{{ order.source_display }}</span>{% endif %}
   <span class="status-pill status-{{ order.status }}">{{ order.get_status_display }}</span>
-  <span class="chevron">›</span>
-</a>
+  {% if show_order_details %}<a class="chevron" href="{% url 'order_detail' order.pk %}" aria-label="查看 {{ order.number }} 訂單">›</a>{% else %}<span class="chevron">›</span>{% endif %}
+{% if show_order_details %}</div>{% else %}</a>{% endif %}
 

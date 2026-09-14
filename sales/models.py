@@ -2351,6 +2351,7 @@ class VehicleColor(TimeStampedModel):
         verbose_name="車型",
     )
     name = models.CharField("車色", max_length=80)
+    catalog_image = models.ImageField("車色展示圖片", upload_to="catalog/colors/%Y/%m/", blank=True)
     active = models.BooleanField("啟用中", default=True)
 
     class Meta:
@@ -4298,6 +4299,8 @@ class SalesOrderSearchIndex(TimeStampedModel):
     )
     search_text = models.TextField("搜尋文字", blank=True)
     match_payload = models.JSONField("命中欄位資料", default=list, blank=True)
+    safe_search_text = models.TextField("不含原始財務的搜尋文字", blank=True)
+    safe_match_payload = models.JSONField("不含原始財務的命中資料", default=list, blank=True)
 
     class Meta:
         verbose_name = "訂單搜尋索引"
@@ -4394,6 +4397,8 @@ class OrderAccountProfile(TimeStampedModel):
     source = models.ForeignKey(SalesSource, on_delete=models.PROTECT, null=True, blank=True, verbose_name="預設店別／所屬車行")
     revision = models.PositiveIntegerField(default=0)
     can_submit_orders = models.BooleanField("可建立訂單與使用草稿", default=True)
+    can_view_orders = models.BooleanField("可查看本車行訂單", default=True)
+    can_browse_catalog = models.BooleanField("可使用選車入口", default=True)
 
     def clean(self):
         super().clean()

@@ -2,6 +2,7 @@
 {% block title %}營運資料｜{{ order.number }}{% endblock %}
 {% block page_class %}page-shell--wide{% endblock %}
 {% block content %}
+{% include 'sales/_profit_control.html' %}
 {% url 'order_detail' order.pk as order_url %}
 {% url 'order_list' as order_list_url %}
 {% include "sales/_page_back.html" with fallback_url=order_url label="訂單資料" root_url=order_list_url root_label="全部訂單" %}
@@ -16,10 +17,10 @@
   <div class="profit"><small>單筆淨利</small>{% include 'sales/_order_profit.html' %}</div>
 </section>
 <p class="muted operations-profit-formula">單筆淨利＝實際撥款－成本－總支出＋總收入＋實銷獎勵金＋促銷補助金＋分期補貼息＋強制險傭金＋信用卡傭金</p>
-{% if profile.legacy_finance_reconciliation %}
+{% if profile.legacy_finance_reconciliation and profit_unlocked %}
 <details class="note-box"><summary>Excel 匯入財務核對</summary>
   {% if profile.legacy_finance_reconciliation.status == 'matched' %}
-  <p>匯入時已核對原淨利 {{ profile.legacy_finance_reconciliation.source_profit }} 元，差額 {{ profile.legacy_finance_reconciliation.difference }} 元。收款價為歷史計算基礎，不代表已收款；後續人工修改會反映於目前淨利。</p>
+  <p data-profit-value>匯入時已核對原淨利 {{ profile.legacy_finance_reconciliation.source_profit }} 元，差額 {{ profile.legacy_finance_reconciliation.difference }} 元。收款價為歷史計算基礎，不代表已收款；後續人工修改會反映於目前淨利。</p>
   {% if profile.legacy_finance_reconciliation.expense_scope == 'L:S' %}<p>本筆沿用原 Excel 早期公式，未扣友善車行、首賣、台數獎金支出；原始值仍留存在匯入資料。</p>{% endif %}
   {% elif profile.legacy_finance_reconciliation.status == 'reviewed' %}
   <p>已由 {{ profile.legacy_finance_reconciliation.reviewed_by }} 人工核對：{{ profile.legacy_finance_reconciliation.review_reason }}。後續修改仍會反映於目前淨利。</p>

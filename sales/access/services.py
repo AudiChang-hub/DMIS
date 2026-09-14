@@ -39,8 +39,12 @@ class AccessPolicy:
             self.reports = {row["report_id"]: row for row in ReportAccessGrant.objects.filter(user=user).values("report_id", "view", "operate", "export")}
 
     def screen(self, key, action="view"):
+        if key == "profit":
+            return bool(self.active and not self.dealer and (self.root or
+                (self.screens.get(key, {}).get("view") and self.screens.get(key, {}).get(action))))
         if self.dealer:
             return bool(self.active and self.order_profile.source_id and self.order_profile.source.active and key == "orders"
+                and self.order_profile.can_view_orders
                 and (action == "view" or (action == "operate" and self.order_profile.can_submit_orders)))
         screen = BY_KEY.get(key)
         if not self.active or not screen or action not in {"view", "operate", "export"}:
@@ -73,6 +77,8 @@ class AccessPolicy:
             if name in DEALER_ACCOUNT_ROUTES:
                 return True
             return bool(self.active and dealer_route_allowed(self.order_profile, name))
+        if name in {"catalog", "catalog_detail", "catalog_image", "catalog_color_image"}:
+            return not self.user.is_authenticated or self.screen("catalog")
         if name in PERSONAL:
             return True
         if not self.active:
@@ -83,9 +89,15 @@ class AccessPolicy:
             return self.root
         if name == "operations_report":
             return self.screen("operations") or self.screen("dashboard")
-        if name in {"data_maintenance", "report_center"}:
-            # 空白目錄是安全入口；實際項目仍依個別授權過濾。
-            return True
+        if name == "data_maintenance":
+            from .registry import SCREEN_GROUPS
+            keys = [key for group, _, sections in SCREEN_GROUPS if group == "data" for _, keys in sections for key in keys]
+            return any(self.screen(key) for key in keys)
+        if name == "report_center":
+            from sales.reporting.models import ReportDefinition
+            if not hasattr(self, "_report_center_allowed"):
+                self._report_center_allowed = any(self.report(report) for report in ReportDefinition.objects.filter(published__isnull=False))
+            return self._report_center_allowed
         if name in REPORT_ROUTES:
             from sales.reporting.models import ReportDefinition
             pk = kwargs.get("pk")
@@ -120,7 +132,7 @@ def snapshot(user, reports):
     if policy.configured and not policy.root:
         data = {"screens": policy.screens, "reports": {str(key): grant for key, grant in policy.reports.items()}}
     else:
-        data = {"screens": {s.key: {"view": s.ceiling != "superuser" or user.is_superuser,
+        data = {"screens": {s.key: {"view": s.key != "profit" and (s.ceiling != "superuser" or user.is_superuser),
                     "operate": s.operate and (s.ceiling != "superuser" or user.is_superuser),
                     "export": s.export and (s.ceiling != "superuser" or user.is_superuser)} for s in SCREENS},
                 "reports": {str(r.pk): {"view": report_ceiling(user, r, include_inactive=True),

@@ -4150,6 +4150,9 @@ class OrderFlowTests(TestCase):
                 self.assertContains(response, label)
 
     def test_order_list_shows_requested_operational_summary_fields(self):
+        self.client.force_login(self.user)
+        from sales.tests.profit_helpers import unlock_profit
+        unlock_profit(self, self.user)
         family = VehicleModelFamily.objects.create(
             brand=self.model.brand,
             name="通勤機種",
@@ -5229,6 +5232,9 @@ class OrderOperationsTests(TestCase):
         self.assertContains(response, "2 張歷史訂單")
 
     def test_dashboard_uses_registration_date_for_monthly_performance(self):
+        self.client.force_login(self.user)
+        from sales.tests.profit_helpers import unlock_profit
+        unlock_profit(self, self.user)
         profile = self.order.operations
         profile.actual_disbursement = Decimal("80000")
         profile.vehicle_cost = Decimal("60000")
@@ -5933,6 +5939,9 @@ class OrderOperationsTests(TestCase):
         )
 
     def test_operations_report_and_excel_export(self):
+        self.client.force_login(self.user)
+        from sales.tests.profit_helpers import unlock_profit
+        unlock_profit(self, self.user)
         self.order.registration_date = timezone.localdate()
         self.order.save(update_fields=["registration_date", "updated_at"])
         profile = self.order.operations
@@ -5966,6 +5975,9 @@ class OrderOperationsTests(TestCase):
         self.assertEqual(sheet.cell(row=2, column=1).value, self.order.number)
 
     def test_operations_excel_export_escapes_formula_like_user_text(self):
+        self.client.force_login(self.user)
+        from sales.tests.profit_helpers import unlock_profit
+        unlock_profit(self, self.user)
         self.order.owner_name = "=HYPERLINK(\"https://evil.example\",\"點我\")"
         self.order.owner_address = "+CMD|' /C calc'!A0"
         self.order.delivery_destination = "-2+3"

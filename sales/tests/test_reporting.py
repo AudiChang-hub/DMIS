@@ -337,7 +337,7 @@ class ReportingTests(TestCase):
         session.save()
         self.assertNotContains(self.client.get(reverse("report_center")), config["title"])
         ReportDefinition.objects.update(published=None)
-        self.assertContains(self.client.get(reverse("report_center")), "目前沒有可查看的報表")
+        self.assertEqual(self.client.get(reverse("report_center")).status_code, 403)
         self.assertNotIn("report_reader_page", self.client.session)
 
     def test_population_page_is_not_exposed_by_navigation_with_malformed_team_audience(self):

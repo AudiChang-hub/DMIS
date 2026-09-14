@@ -76,11 +76,15 @@ DEALER_ROUTES = {
     "login", "logout", "access_home",
 }
 DEALER_ACCOUNT_ROUTES = {"login", "logout", "password_change_required", "password_change"}
-DEALER_ROUTES.update({"catalog", "catalog_detail", "catalog_image"})
+DEALER_ROUTES.update({"catalog", "catalog_detail", "catalog_image", "catalog_color_image"})
 DEALER_SUBMIT_ROUTES = {"order_create", "draft_save", "draft_presence", "draft_delete", "id_card_ocr", "id_card_ocr_status", "id_card_ocr_invalidate"}
 
 
 def dealer_route_allowed(profile, name):
+    if name in {"catalog", "catalog_detail", "catalog_image", "catalog_color_image"}:
+        return bool(profile.source_id and profile.source.active and profile.can_browse_catalog)
+    if name not in {"dashboard", "user_guide", "access_home", "app_version", "system_health", "appearance_theme_update", "mobile_quick_links_update"} and not profile.can_view_orders:
+        return False
     return bool(profile.source_id and profile.source.active and name in DEALER_ROUTES
         and (profile.can_submit_orders or name not in DEALER_SUBMIT_ROUTES))
 

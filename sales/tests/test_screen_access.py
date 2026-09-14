@@ -83,7 +83,8 @@ class ScreenAccessTests(TestCase):
     def test_no_permission_home_and_navigation_do_not_leak_counts_or_shortcuts(self):
         self.assertEqual(self.client.get(reverse("dashboard")).status_code, 200)
         response = self.client.get(reverse("data_maintenance"))
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, 403)
+        response = self.client.get(reverse("dashboard"))
         self.assertNotContains(response, reverse("inventory_list"))
         self.assertNotContains(response, reverse("order_list"))
         self.assertNotContains(response, reverse("sales_source_list"))
@@ -110,6 +111,8 @@ class ScreenAccessTests(TestCase):
 
     def test_explicit_report_grant_overrides_legacy_audience_and_sensitive_ceiling(self):
         ReportAccessGrant.objects.create(user=self.user, report=self.report, view=True, export=True)
+        self.grant("profit", export=True)
+        self.client.post(reverse("profit_unlock"), {"password": "Test-Only-123"})
         for config in ({"audience": "admin"}, {"records_mode": "population"}, {"records_columns": ["legacy_notes"]}):
             self.report.published = {**self.report.draft, **config}
             self.report.save()
@@ -120,6 +123,7 @@ class ScreenAccessTests(TestCase):
 
     def test_admin_can_save_all_three_flags_without_changing_target_role(self):
         response = self.preview(**{
+            "screens.profit.view": "on",
             "screens.integrity.view": "on", "screens.accounts.view": "on",
             "screens.dashboard.view": "on", "screens.dashboard.operate": "on", "screens.dashboard.export": "on",
             f"reports.{self.report.pk}.view": "on", f"reports.{self.report.pk}.operate": "on",
@@ -134,6 +138,7 @@ class ScreenAccessTests(TestCase):
         self.assertTrue(policy.report(self.report, "operate"))
         self.client.force_login(self.user)
         for route in ("system_integrity_report", "user_management"):
+            self.client.post(reverse("profit_unlock"), {"password": "Test-Only-123"})
             self.assertEqual(self.client.get(reverse(route)).status_code, 200)
         self.assertNotContains(self.client.get(reverse("user_management")), "＋ 建立帳號")
         self.assertEqual(self.client.get(reverse("user_account_create")).status_code, 403)

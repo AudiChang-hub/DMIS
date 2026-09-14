@@ -18,13 +18,29 @@ from sales.models import (
 )
 
 
-class DealerCreateForm(AdminUserCreateForm):
+class DealerFeatureMixin:
+    def clean(self):
+        cleaned = super().clean()
+        if cleaned.get("can_submit_orders") and not cleaned.get("can_view_orders"):
+            self.add_error("can_submit_orders", "建立訂單需同時開放查看本車行訂單。")
+        return cleaned
+
+    def feature_fields(self):
+        for key in ("can_view_orders", "can_browse_catalog", "can_submit_orders"):
+            self.fields[key].widget.attrs["class"] = "form-check"
+        self.fields["username"].widget.attrs.update({"autocomplete": "section-new-dealer username", "autocapitalize": "none", "spellcheck": "false", "data-dealer-username": ""})
+
+
+class DealerCreateForm(DealerFeatureMixin, AdminUserCreateForm):
+    can_view_orders = forms.BooleanField(label="查看本車行訂單進度", required=False, initial=True)
+    can_browse_catalog = forms.BooleanField(label="選車下單入口", required=False, initial=True)
     can_submit_orders = forms.BooleanField(
         label="可建立訂單與使用自己的草稿", required=False, initial=True
     )
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.feature_fields()
         self.fields["is_superuser"].disabled = True
         self.fields["is_superuser"].initial = False
         self.fields["is_superuser"].widget = forms.HiddenInput()
@@ -32,7 +48,9 @@ class DealerCreateForm(AdminUserCreateForm):
         self.fields["must_change_password"].initial = True
 
 
-class DealerEditForm(AdminUserEditForm):
+class DealerEditForm(DealerFeatureMixin, AdminUserEditForm):
+    can_view_orders = forms.BooleanField(label="查看本車行訂單進度", required=False)
+    can_browse_catalog = forms.BooleanField(label="選車下單入口", required=False)
     can_submit_orders = forms.BooleanField(
         label="可建立訂單與使用自己的草稿", required=False
     )
@@ -40,6 +58,9 @@ class DealerEditForm(AdminUserEditForm):
 
     def __init__(self, *args, profile, **kwargs):
         super().__init__(*args, **kwargs)
+        self.feature_fields()
+        self.fields["can_view_orders"].initial = profile.can_view_orders
+        self.fields["can_browse_catalog"].initial = profile.can_browse_catalog
         self.fields["is_superuser"].disabled = True
         self.fields["is_superuser"].initial = False
         self.fields["is_superuser"].widget = forms.HiddenInput()
@@ -51,6 +72,17 @@ def dealer_source(pk):
     return get_object_or_404(
         SalesSource, pk=pk, source_type=SalesSource.SourceType.DEALER
     )
+
+
+def suggested_username(source):
+    import re
+    prefix = re.sub(r"[^A-Za-z0-9_-]", "", source.code)[:40] or f"dealer-{source.pk}"
+    used = set(get_user_model().objects.filter(username__istartswith=prefix + "-").values_list("username", flat=True))
+    used = {name.casefold() for name in used}
+    index = 1
+    while f"{prefix}-{index:02d}".casefold() in used:
+        index += 1
+    return f"{prefix}-{index:02d}"
 
 
 @root_required
@@ -101,6 +133,8 @@ def dealer_account_create(request, source_pk):
                         kind="dealer",
                         source=source,
                         can_submit_orders=form.cleaned_data["can_submit_orders"],
+                        can_view_orders=form.cleaned_data["can_view_orders"],
+                        can_browse_catalog=form.cleaned_data["can_browse_catalog"],
                     )
                     UserSecurityProfile.objects.create(
                         user=user, must_change_password=True
@@ -115,6 +149,8 @@ def dealer_account_create(request, source_pk):
                         metadata={
                             "source_id": source.pk,
                             "can_submit_orders": form.cleaned_data["can_submit_orders"],
+                            "can_view_orders": form.cleaned_data["can_view_orders"],
+                            "can_browse_catalog": form.cleaned_data["can_browse_catalog"],
                         },
                     )
                     messages.success(
@@ -125,7 +161,7 @@ def dealer_account_create(request, source_pk):
         except IntegrityError:
             form.add_error("username", "此帳號剛被建立，請換一個登入帳號。")
     return render(
-        request, "sales/dealer_account_form.html", {"source": source, "form": form}
+        request, "sales/dealer_account_form.html", {"source": source, "form": form, "suggested_username": suggested_username(source)}
     )
 
 
@@ -160,6 +196,8 @@ def dealer_account_edit(request, pk):
                         "username": user.username,
                         "is_active": user.is_active,
                         "can_submit_orders": current.can_submit_orders,
+                        "can_view_orders": current.can_view_orders,
+                        "can_browse_catalog": current.can_browse_catalog,
                     }
                     user.username = form.cleaned_data["username"]
                     user.first_name = form.cleaned_data["display_name"].strip()
@@ -174,9 +212,11 @@ def dealer_account_edit(request, pk):
                         ]
                     )
                     current.can_submit_orders = form.cleaned_data["can_submit_orders"]
+                    current.can_view_orders = form.cleaned_data["can_view_orders"]
+                    current.can_browse_catalog = form.cleaned_data["can_browse_catalog"]
                     current.revision += 1
                     current.save(
-                        update_fields=["can_submit_orders", "revision", "updated_at"]
+                        update_fields=["can_submit_orders", "can_view_orders", "can_browse_catalog", "revision", "updated_at"]
                     )
                     from sales.views import _invalidate_user_sessions
 
@@ -194,6 +234,8 @@ def dealer_account_edit(request, pk):
                                 "username": user.username,
                                 "is_active": user.is_active,
                                 "can_submit_orders": current.can_submit_orders,
+                                "can_view_orders": current.can_view_orders,
+                                "can_browse_catalog": current.can_browse_catalog,
                             },
                         },
                     )

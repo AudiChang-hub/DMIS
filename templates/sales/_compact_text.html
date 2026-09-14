@@ -1,0 +1,1 @@
+{% load compact_text %}{% compact_value value limit as compact %}<span class="compact-text-wide">{{ value }}</span>{% if compact.shortened %}<details class="compact-text-narrow"><summary aria-label="展開完整內容">{{ compact.preview }}</summary><div>{{ value }}</div></details>{% else %}<span class="compact-text-narrow">{{ value }}</span>{% endif %}

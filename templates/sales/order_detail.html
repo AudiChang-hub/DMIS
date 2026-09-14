@@ -949,7 +949,7 @@
     <div class="change-group">
       <h3>{{ group.name }}</h3>
       {% for item in group.items %}
-      <div class="change-item">
+      <div class="change-item"{% if item.profit_private %} data-profit-value{% endif %}>
         {% if item.action == "新增" %}
           <span class="change-badge added">新增</span><strong>{{ item.after }}</strong>
         {% elif item.action == "移除" %}

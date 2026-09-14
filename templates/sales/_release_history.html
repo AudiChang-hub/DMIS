@@ -1,0 +1,22 @@
+<section class="section-block release-history" aria-labelledby="release-history-title">
+  <p class="eyebrow">目前執行版本 · {{ release_version }}</p>
+  <h2 id="release-history-title">版本歷程</h2>
+  <p class="muted">每次更新，都有跡可循。點選版本可展開或收合內容。</p>
+  {% for entry in release_history %}
+  <details class="release-entry"{% if forloop.first %} open{% endif %}>
+    <summary><span class="release-heading"><strong>版本 {{ entry.version }}</strong>{% if entry.version == release_version %}<span class="release-current">目前版本</span>{% endif %}<span class="release-date">發布日期 <time datetime="{{ entry.date }}">{{ entry.date }}</time></span></span></summary>
+    <div class="release-content"><h3>{{ entry.title }}</h3>
+      {% for change in entry.changes %}<h4>{{ change.kind }}</h4><ul class="home-release-list">{% for item in change.items %}<li>{{ item }}</li>{% endfor %}</ul>{% endfor %}
+    </div>
+  </details>
+  {% endfor %}
+  {% if legacy_updates %}<details class="release-legacy">
+    <summary>正式編版前更新紀錄（{{ legacy_updates|length }} 筆）</summary>
+    <p class="muted">以下為 Git 提交日期，並非正式發布日期；不回溯編造版號，僅整理可查證的近期更新。</p>
+    {% for entry in legacy_updates %}<details class="release-entry">
+      <summary><span class="release-heading"><strong>{{ entry.title }}</strong><span class="release-date">提交日期 <time datetime="{{ entry.date }}">{{ entry.date }}</time></span></span></summary>
+      <div class="release-content"><ul class="home-release-list">{% for item in entry.items %}<li>{{ item }}</li>{% endfor %}</ul><p class="muted">來源提交：{% for commit in entry.commits %}<code>{{ commit }}</code>{% if not forloop.last %}、{% endif %}{% endfor %}</p></div>
+    </details>{% endfor %}
+  </details>
+  {% endif %}{% if can_manage_screen_access %}<details class="release-technical"><summary>技術資訊</summary><p>正式版本 {{ release_version }} · 建置識別碼 <code>{{ app_version }}</code></p><p class="muted">「檢查更新」使用建置識別碼確認程式是否變更。日常公告與正式版本各自維護。</p></details>
+{% endif %}</section>

@@ -25,6 +25,8 @@ Django 版本接手新功能。舊 Odoo、Metabase 及其資料源已退役，�
 
 ## 本機開發
 
+正式版本、首頁版本歷程及 Git 發布標籤請依 [正式版號與發布流程](docs/RELEASE_POLICY.md) 維護。
+
 需求：Python 3.12、Node.js（只用於前端靜態測試），以及可讀取繁中文字型的環境。
 
 ```powershell

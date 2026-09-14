@@ -44,6 +44,21 @@ class SystemHomeTests(TestCase):
         response = self.client.get(reverse("dashboard"), {"q": "姓名", "page": 2})
         self.assertRedirects(response, reverse("order_list") + "?q=%E5%A7%93%E5%90%8D&page=2")
 
+    def test_home_release_history_and_update_fingerprint_are_independent(self):
+        from config.release_notes import CURRENT_VERSION, RELEASES
+        self.client.force_login(self.staff)
+        response = self.client.get(reverse("dashboard"))
+        self.assertContains(response, f"版本 {CURRENT_VERSION}")
+        self.assertContains(response, 'class="release-entry" open', count=1)
+        self.assertContains(response, "正式編版前更新紀錄")
+        self.assertContains(response, "並非正式發布日期")
+        self.assertContains(response, "技術資訊")
+        self.assertEqual(response.context["release_history"], RELEASES)
+        fingerprint = response.context["app_version"]
+        self.assertRegex(fingerprint, r"^[0-9a-f]{12}$")
+        self.assertContains(response, f'data-app-version="{fingerprint}"')
+        self.assertContains(self.client.get(reverse("user_guide")), f"系統版本 {CURRENT_VERSION}")
+
     def test_visibility_boundaries_order_and_escaping(self):
         now = timezone.now()
         first = SystemAnnouncement.objects.create(title="一般公告", body="一般", starts_at=now, published=True)

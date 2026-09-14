@@ -29,7 +29,7 @@ def main():
             raise ValueError("基準必須是完整 Git SHA")
         # 以已發布標籤為界，不把尚未發布的中間修正 commit 當成另一個版本。
         tags = [tag for tag in git("tag", "--merged", args.base, "--list", "v*").splitlines()
-                if re.fullmatch(r"v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)", tag)]
+                if re.fullmatch(r"v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)", tag)]
         baseline = f"refs/tags/{max(tags, key=lambda tag: version_tuple(tag[1:]))}" if tags else None
         previous = read_literal(git("show", f"{baseline}:config/release_notes.py"), "RELEASES") if baseline else ()
         changed = git("diff", "--name-only", baseline or args.base, "HEAD").splitlines()

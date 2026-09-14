@@ -3,13 +3,11 @@
 {% block page_class %}system-home{% endblock %}
 {% block content %}
 <section class="hero-row"><div><p class="eyebrow">工作入口</p><h1>首頁</h1><p>歡迎，{{ user.get_full_name|default:user.username }}（@{{ user.username }}）</p><p class="muted">版本更新、最新消息與常用功能，都從這裡開始。</p></div>{% if_access 'announcement_manage' %}<a class="button ghost" href="{% url 'announcement_manage' %}">管理系統公告</a>{% endif_access %}</section>
-<section class="section-block"><h2>常用功能</h2><div class="home-links">
-{% if_access 'order_list' %}<a class="button primary" href="{% url 'order_list' %}">全部訂單</a>{% endif_access %}
-{% if_access 'order_create' %}<a class="button ghost" href="{% url 'order_create' %}">建立訂單</a>{% endif_access %}
-{% if_access 'operations_report' %}<a class="button ghost" href="{% url 'operations_report' %}">營運總表</a>{% endif_access %}
-{% if_access 'report_center' %}<a class="button ghost" href="{% url 'report_center' %}">報表中心</a>{% endif_access %}
-<a class="button ghost" href="{% url 'user_guide' %}" target="_blank" rel="noopener">使用說明</a>
-</div>{% if mobile_quick_links %}<details class="home-shortcuts"><summary>我的其他常用捷徑</summary><div class="home-links">{% for link in mobile_quick_links %}<a class="button ghost" href="{{ link.url }}">{{ link.label }}</a>{% endfor %}</div></details>{% endif %}<p class="muted">僅顯示目前帳號可使用的入口；需要其他畫面請聯絡 admin。</p></section>
+<section class="section-block" aria-labelledby="home-favorites-title">
+  <div class="favorites-heading"><div><h2 id="home-favorites-title">我的最愛・常用功能</h2><p class="muted">{% if favorites_customized %}你的工作入口，依你設定的順序排列。{% else %}先提供常用入口，你可以勾選與排列自己的我的最愛。{% endif %}</p></div><a class="button ghost" href="{% url 'home_favorites' %}">編輯我的最愛</a></div>
+  <div class="home-links" data-home-favorites>{% for link in favorite_links %}<a class="button ghost" href="{{ link.url }}" data-home-favorite="{{ link.key }}">{{ link.label }}</a>{% empty %}<p>目前沒有可顯示的收藏。點選「編輯我的最愛」加入功能；主要選單仍可使用。</p>{% endfor %}</div>
+  <p class="muted">僅顯示目前帳號可使用的功能；設定只影響你自己，不改變其他人的首頁或手機快速前往。</p>
+</section>
 <div class="system-home-grid">
 <section class="section-block"><h2>系統公告與最新消息</h2>
 {% for item in page_obj %}<article class="announcement-card">{% if item.pinned %}<strong>置頂公告</strong> · {% endif %}<time>{{ item.starts_at|date:"Y/m/d H:i" }}</time><h3>{{ item.title }}</h3><p class="announcement-body">{{ item.body }}</p></article>{% empty %}<div class="empty-state">目前沒有公告或維護通知。</div>{% endfor %}

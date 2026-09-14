@@ -1,7 +1,7 @@
 from django.urls import path
 from django.views.generic import RedirectView
 
-from . import views, announcement_views
+from . import views, announcement_views, favorite_views
 from .historical_replacement import historical_buyer_replacement
 from .historical_date_change import historical_date_change
 from .reporting import views as report_views
@@ -10,6 +10,7 @@ from .access import views as access_views
 
 
 urlpatterns = [
+    path("account/home-favorites/", favorite_views.home_favorites, name="home_favorites"),
     path("system/announcements/", announcement_views.manage, name="announcement_manage"),
     path("system/announcements/<int:pk>/", announcement_views.manage, name="announcement_edit"),
     path("account/access/", access_views.home, name="access_home"),

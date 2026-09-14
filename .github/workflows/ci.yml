@@ -91,6 +91,17 @@ jobs:
       - name: Verify existing frontend behavior checks
         run: node --test tests/frontend/floating-list.test.cjs tests/frontend/bonus-periods.test.cjs tests/frontend/bonus-model-filter.test.cjs tests/frontend/report-interactions.test.cjs tests/frontend/report-designer.test.cjs tests/frontend/report-chart-picker.test.cjs tests/frontend/import-row-review.test.cjs tests/frontend/order-installment-picker.test.cjs tests/frontend/header-layout.test.cjs
 
+      - name: Verify home favorites frontend
+        run: node --test tests/frontend/home-favorites.test.cjs
+
+      - name: Verify home favorites with PostgreSQL
+        env:
+          POSTGRES_HOST: 127.0.0.1
+          POSTGRES_DB: finance_ci
+          POSTGRES_USER: finance_ci
+          POSTGRES_PASSWORD: ci-isolated-only
+        run: python manage.py test sales.tests.test_home_favorites --noinput
+
       - name: Verify migrations are committed
         run: python manage.py makemigrations --check --dry-run
 

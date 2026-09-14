@@ -61,6 +61,13 @@ else
     git merge --ff-only "origin/$DEPLOY_BRANCH"
 fi
 
+log "核對正式版號與已發布標籤；未標記版本不得部署"
+release_version=$(python3 -c 'from config.release_notes import CURRENT_VERSION; print(CURRENT_VERSION)')
+git fetch --quiet origin "refs/tags/v${release_version}:refs/tags/v${release_version}" ||
+    fail "找不到正式發布標籤 v${release_version}"
+python3 scripts/check_release.py --tag "v${release_version}" ||
+    fail "正式版號或標籤提交核對失敗；不重啟應用服務"
+
 log "重建 Django web 與背景工作 image"
 "${compose[@]}" build web ocr-worker search-worker import-worker
 

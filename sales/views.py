@@ -4084,6 +4084,7 @@ def dashboard(request):
     from config.release_notes import LEGACY_UPDATES, RELEASE, RELEASES
     from sales.access.services import policy_for
     from sales.models import SystemAnnouncement
+    from sales.services.home_favorites import favorite_context
     if request.GET.get("q", "").strip():
         if not policy_for(request).route("order_list"):
             raise PermissionDenied
@@ -4092,6 +4093,7 @@ def dashboard(request):
         "release": RELEASE,
         "release_history": RELEASES,
         "legacy_updates": LEGACY_UPDATES,
+        **favorite_context(request.user, UserAppearancePreference.objects.filter(user=request.user).first(), policy=policy_for(request)),
         "page_obj": Paginator(SystemAnnouncement.visible(), 8).get_page(request.GET.get("page")),
     })
 

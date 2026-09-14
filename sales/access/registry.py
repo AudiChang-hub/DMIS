@@ -104,7 +104,7 @@ register("integrity", "system_integrity_report")
 register("accounts", "user_management")
 register("accounts", "user_account_create user_account_edit user_account_status user_account_reset_password", "operate")
 
-PERSONAL = set("dashboard system_health app_version appearance_theme_update mobile_quick_links_update user_guide password_change_required access_home login logout throttled_admin_login".split())
+PERSONAL = set("dashboard home_favorites system_health app_version appearance_theme_update mobile_quick_links_update user_guide password_change_required access_home login logout throttled_admin_login".split())
 ROOT_ONLY = set("announcement_manage announcement_edit access_overview access_edit report_manage report_classification report_create report_edit report_draft_preview report_lifecycle".split())
 REPORT_ROUTES = {"report_display": "view", "report_detail": "view", "report_records_export": "export", "report_export": "export"}
 LOOKUPS = {

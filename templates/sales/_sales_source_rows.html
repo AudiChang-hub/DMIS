@@ -59,6 +59,6 @@
     <td data-label="狀態" class="source-status-cell">
       {% include "sales/_active_quick_toggle.html" with resource="sales-source" pk=item.pk is_active=item.active item_name=item.name confirm_off="確定停用此通路嗎？停用後建立新資料時不再提供選用。" %}
     </td>
-    <td class="inventory-row-action"><span class="row-action-buttons"><a class="button ghost small" href="{% url 'sales_source_edit' item.pk %}">編輯資料</a>{% if item.source_type == 'dealer' %}<a class="button secondary small" href="{% url 'sales_source_edit' item.pk %}#brand-policies">合作與傭金</a>{% endif %}</span></td>
+    <td class="inventory-row-action"><span class="row-action-buttons"><a class="button ghost small" href="{% url 'sales_source_edit' item.pk %}">編輯資料</a>{% if item.source_type == 'dealer' %}<a class="button secondary small" href="{% url 'sales_source_edit' item.pk %}#brand-policies">合作與傭金</a>{% if can_manage_screen_access %}<a class="button small" href="{% url 'dealer_accounts' item.pk %}">登入帳號</a>{% endif %}{% endif %}</span></td>
   </tr>
 {% endfor %}

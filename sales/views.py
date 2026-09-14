@@ -1132,7 +1132,15 @@ def price_list_distribution_sync(request, pk):
 def user_management(request):
     query = request.GET.get("q", "").strip()
     status = request.GET.get("status", "all")
-    users = get_user_model().objects.select_related("security_profile")
+    users = get_user_model().objects.select_related("security_profile", "order_account__source")
+    kind = request.GET.get("kind", "")
+    source_id = request.GET.get("source", "")
+    if kind == "dealer":
+        users = users.filter(order_account__kind="dealer")
+    elif kind == "internal":
+        users = users.exclude(order_account__kind="dealer")
+    if source_id.isascii() and source_id.isdigit() and len(source_id) < 12:
+        users = users.filter(order_account__source_id=int(source_id))
     if query:
         users = users.filter(
             Q(username__icontains=query)
@@ -1161,6 +1169,9 @@ def user_management(request):
         "sales/user_management.html",
         {
             "accounts": users,
+            "account_kind": kind,
+            "account_source": source_id,
+            "dealer_sources": SalesSource.objects.filter(source_type="dealer").order_by("name"),
             "query": query,
             "status": status,
             "counts": {
@@ -1221,6 +1232,9 @@ def user_account_create(request):
 @superuser_required
 @require_http_methods(["GET", "POST"])
 def user_account_edit(request, pk):
+    from sales.models import OrderAccountProfile
+    if OrderAccountProfile.objects.filter(user_id=pk, kind="dealer").exists():
+        return redirect("dealer_account_edit", pk=pk)
     account = get_object_or_404(get_user_model(), pk=pk)
     form = AdminUserEditForm(request.POST or None, instance=account)
     from .access.services import policy_for
@@ -1281,6 +1295,10 @@ def user_account_edit(request, pk):
 @superuser_required
 @require_http_methods(["POST"])
 def user_account_status(request, pk):
+    from sales.models import OrderAccountProfile
+    if OrderAccountProfile.objects.filter(user_id=pk, kind="dealer").exists():
+        messages.info(request, "請在車行帳號設定確認狀態與功能後儲存。")
+        return redirect("dealer_account_edit", pk=pk)
     account = get_object_or_404(get_user_model(), pk=pk)
     is_ajax = request.headers.get("x-requested-with") == "XMLHttpRequest"
     requested_state = request.POST.get("active", "")
@@ -1357,6 +1375,10 @@ def user_account_reset_password(request, pk):
                 metadata={"must_change_password": profile.must_change_password},
             )
         messages.success(request, f"已重設 {account.get_username()} 的密碼，既有裝置已登出。")
+        from sales.services.order_intake import dealer_source
+        source = dealer_source(account)
+        if source:
+            return redirect("dealer_accounts", source_pk=source.pk)
         return redirect("user_management")
     return render(request, "sales/user_password_reset.html", {"form": form, "account": account})
 
@@ -4082,6 +4104,10 @@ def app_version(request):
 @login_required
 def dashboard(request):
     from sales.services.order_intake import scoped_orders
+    from sales.services.order_intake import is_dealer, dealer_source
+    if is_dealer(request.user):
+        return render(request, "sales/dealer_home.html", {"dealer_source": dealer_source(request.user),
+            "pending_count": scoped_orders(request.user).filter(status=SalesOrder.Status.INTAKE_PENDING).count()})
     from config.release_notes import LEGACY_UPDATES, RELEASE, RELEASES
     from sales.access.services import policy_for
     from sales.models import SystemAnnouncement

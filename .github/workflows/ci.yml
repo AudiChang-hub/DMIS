@@ -111,7 +111,7 @@ jobs:
           POSTGRES_DB: finance_ci
           POSTGRES_USER: finance_ci
           POSTGRES_PASSWORD: ci-isolated-only
-        run: python manage.py test sales.tests.test_order_intake --noinput
+        run: python manage.py test sales.tests.test_order_intake sales.tests.test_catalog_accounts --noinput
 
       - name: Verify order sorting interactions
         run: |

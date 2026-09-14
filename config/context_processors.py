@@ -8,6 +8,8 @@ from sales.themes import DEFAULT_THEME, THEME_DEFINITIONS, THEME_META_COLORS, TH
 
 
 HELP_TOPIC_BY_ROUTE = {
+    "catalog": "catalog-accounts", "catalog_detail": "catalog-accounts", "catalog_manage": "catalog-accounts", "catalog_edit": "catalog-accounts",
+    "dealer_accounts": "catalog-accounts", "dealer_account_create": "catalog-accounts", "dealer_account_edit": "catalog-accounts",
     "home_favorites": "home-favorites",
     "announcement_manage": "announcements", "announcement_edit": "announcements",
     "report_center": "reports", "report_display": "reports", "report_detail": "reports",
@@ -174,6 +176,7 @@ def app_version(request):
     return {
         "app_version": get_app_version(),
         "intake_dealer": access_policy.dealer,
+        "intake_can_submit": access_policy.route("order_create"),
         "intake_finance_editable": not access_policy.dealer and access_policy.screen("order_finance", "operate"),
         "intake_can_receive": not access_policy.dealer and access_policy.screen("work", "operate"),
         "release_version": CURRENT_VERSION,

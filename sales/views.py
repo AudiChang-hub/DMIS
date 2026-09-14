@@ -4081,7 +4081,7 @@ def app_version(request):
 
 @login_required
 def dashboard(request):
-    from config.release_notes import RELEASE
+    from config.release_notes import LEGACY_UPDATES, RELEASE, RELEASES
     from sales.access.services import policy_for
     from sales.models import SystemAnnouncement
     if request.GET.get("q", "").strip():
@@ -4090,6 +4090,8 @@ def dashboard(request):
         return redirect(f"{reverse('order_list')}?{request.GET.urlencode()}")
     return render(request, "sales/dashboard.html", {
         "release": RELEASE,
+        "release_history": RELEASES,
+        "legacy_updates": LEGACY_UPDATES,
         "page_obj": Paginator(SystemAnnouncement.visible(), 8).get_page(request.GET.get("page")),
     })
 

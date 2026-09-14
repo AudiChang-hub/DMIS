@@ -7,7 +7,7 @@ from datetime import date, datetime, timedelta, timezone
 
 def version_tuple(value):
     # 正式上線只接受穩定版；預覽版不列入正式版本歷程。
-    if not isinstance(value, str) or not re.fullmatch(r"(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)", value):
+    if not isinstance(value, str) or not re.fullmatch(r"(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)", value):
         raise ValueError("正式版號必須是無前導零的 X.Y.Z")
     return tuple(map(int, value.split(".")))
 
@@ -75,5 +75,4 @@ def is_runtime_path(path):
     return (
         path.startswith(("config/", "sales/", "templates/", "static/"))
         and "/tests/" not in path
-        and path.endswith((".py", ".html", ".css", ".js"))
     ) or path.startswith(("Dockerfile.django", "docker-compose.django", "requirements-django", "scripts/"))

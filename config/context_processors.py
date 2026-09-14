@@ -8,6 +8,7 @@ from sales.themes import DEFAULT_THEME, THEME_DEFINITIONS, THEME_META_COLORS, TH
 
 
 HELP_TOPIC_BY_ROUTE = {
+    "home_favorites": "home-favorites",
     "announcement_manage": "announcements", "announcement_edit": "announcements",
     "report_center": "reports", "report_display": "reports", "report_detail": "reports",
     "report_manage": "reports", "report_create": "reports", "report_edit": "reports",

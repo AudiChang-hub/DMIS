@@ -4357,6 +4357,8 @@ class UserAppearancePreference(TimeStampedModel):
         blank=True,
         help_text="依顯示順序保存每個帳號選用的手機快捷功能代碼。",
     )
+    home_favorites = models.JSONField("首頁我的最愛", null=True, blank=True, default=None)
+    home_favorites_version = models.PositiveIntegerField("首頁收藏設定版本", default=0)
 
     class Meta:
         verbose_name = "使用者外觀偏好"

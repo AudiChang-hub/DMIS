@@ -4,20 +4,23 @@ from unittest.mock import patch
 
 from django.test import SimpleTestCase
 
-from config.release_notes import CURRENT_VERSION, LEGACY_UPDATES, RELEASE, RELEASES
+from config.release_notes import CURRENT_VERSION, LEGACY_UPDATES, RELEASE as CURRENT_RELEASE, RELEASES
 from config.release_validation import is_runtime_path, read_literal, validate_releases, validate_transition, version_tuple
 from scripts import check_release
+
+RELEASE = {"version": "1.0.0", "date": "2026-09-14", "title": "測試版本",
+           "changes": ({"kind": "新增", "items": ("測試內容",)},)}
 
 
 class ReleaseHistoryTests(SimpleTestCase):
     def test_current_release_has_one_source(self):
         validate_releases(RELEASES, LEGACY_UPDATES)
-        self.assertIs(RELEASE, RELEASES[0])
-        self.assertEqual(CURRENT_VERSION, RELEASE["version"])
+        self.assertIs(CURRENT_RELEASE, RELEASES[0])
+        self.assertEqual(CURRENT_VERSION, CURRENT_RELEASE["version"])
 
     def test_semver_numeric_order_and_rejected_formats(self):
         self.assertGreater(version_tuple("1.10.0"), version_tuple("1.9.0"))
-        for value in ("01.0.0", "1.0", "v1.0.0", "1.0.0-rc.1", "1.0.0+hash", "-1.0.0", "1.0.0\n", None):
+        for value in ("01.0.0", "1.0", "v1.0.0", "1.0.0-rc.1", "1.0.0+hash", "-1.0.0", "1.0.0\n", "1.1２.0", None):
             with self.subTest(value=value), self.assertRaises(ValueError):
                 version_tuple(value)
 
@@ -53,7 +56,7 @@ class ReleaseHistoryTests(SimpleTestCase):
         validate_transition(RELEASES, (), True)
         with self.assertRaisesMessage(ValueError, "必須新增正式版號"):
             validate_transition(RELEASES, RELEASES, True)
-        for path in ("sales/views.py", "templates/base.html", "static/css/ui-comfort.css", "config/release_notes.py", "scripts/deploy_django.sh", "requirements-django.txt"):
+        for path in ("sales/views.py", "templates/base.html", "static/css/ui-comfort.css", "static/images/logo.png", "config/release_notes.py", "scripts/deploy_django.sh", "requirements-django.txt"):
             self.assertTrue(is_runtime_path(path))
         for path in ("README.md", "docs/RELEASE_POLICY.md", "sales/tests/test_release_history.py"):
             self.assertFalse(is_runtime_path(path))

@@ -104,8 +104,10 @@ class CommandCenterTests(TestCase):
             self.assertContains(response, f'status-pill status-{status}')
             self.assertEqual(SalesOrder.objects.get(pk=order.pk).operations.net_profit, 12345)
         response = self.client.get(reverse('operations_report'), {'include_cancelled':1})
-        self.assertEqual(response.context['analysis_summary']['count'], 0)
-        self.assertEqual(response.context['page_obj'].paginator.count, 2)
+        self.assertEqual(response.status_code, 302)
+        listing = self.client.get(response["Location"])
+        self.assertEqual(listing.context['page_obj'].paginator.count, 2)
+        self.assertEqual(self.client.get(reverse('operations_report')).context['analysis_summary']['count'], 0)
         exported = self.client.get(reverse('operations_report_export'), {'include_cancelled':1})
         sheet = load_workbook(BytesIO(exported.content)).active
         column = [c.value for c in sheet[1]].index('單筆淨利')+1
@@ -152,7 +154,7 @@ class CommandCenterTests(TestCase):
 
     def test_dashboard_and_help_render_new_controls(self):
         self.client.force_login(self.user)
-        response = self.client.get(reverse('dashboard'))
+        response = self.client.get(reverse('operations_report'))
         self.assertContains(response, '近 12 個月公司走勢')
         self.assertContains(response, '已有收款待確認')
         self.assertContains(response, '不是包含全公司費用的公司淨利')
@@ -162,7 +164,7 @@ class CommandCenterTests(TestCase):
         self.assertContains(response, '提前車主排序順位')
         self.assertContains(response, '全部清除')
         self.assertNotContains(response, '重新排序請先清除')
-        self.assertContains(self.client.get(reverse('user_guide')), '新版戰情首頁、排序與狀態')
+        self.assertContains(self.client.get(reverse('user_guide')), '新版首頁、營運總表、排序與狀態')
 
     def test_dashboard_grant_does_not_grant_financial_drilldown(self):
         from sales.access.models import ScreenAccessGrant, UserAccessState
@@ -170,9 +172,11 @@ class CommandCenterTests(TestCase):
         UserAccessState.objects.create(user=user, configured=True)
         ScreenAccessGrant.objects.create(user=user, screen_key='dashboard', view=True)
         self.client.force_login(user)
-        response = self.client.get(reverse('dashboard'))
+        response = self.client.get(reverse('operations_report'))
         self.assertContains(response, '近 12 個月公司走勢')
-        self.assertNotContains(response, 'href="/operations/?')
+        self.assertNotContains(response, 'href="/orders/?')
         self.assertNotContains(response, '＋ 建立訂單')
+        self.assertNotContains(response, '本月車型表現')
+        self.assertNotContains(response, '累計實際收款額')
         self.assertEqual(self.client.get(reverse('operations_report'), {'risk':'refund'}).status_code, 403)
         self.assertEqual(self.client.get(reverse('operations_report_export')).status_code, 403)

@@ -47,7 +47,7 @@ def home_favorites(request):
                 preference.home_favorites = selected
                 preference.home_favorites_version += 1
                 preference.save(update_fields=["home_favorites", "home_favorites_version", "updated_at"])
-            messages.success(request, "我的最愛已儲存，其他裝置登入此帳號也會套用。")
+            messages.success(request, "常用功能已儲存，其他裝置登入此帳號也會套用。")
             return redirect("dashboard")
         except (ValueError, ValidationError) as exc:
             status = status if status == 409 else 400

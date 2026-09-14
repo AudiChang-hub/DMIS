@@ -214,6 +214,20 @@
 .announcement-form .errorlist { color: var(--danger, #bd3944); }
 .announcement-time-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; }
 .home-release-list { padding-left: 24px; line-height: 1.9; }
+.release-history { color: var(--ink); }
+.release-history summary { min-height: 48px; padding: 14px 0; cursor: pointer; color: var(--ink); }
+.release-history summary:focus-visible { outline: 3px solid var(--forest, #0d706b); outline-offset: 4px; border-radius: 6px; }
+.release-entry, .release-legacy, .release-technical { border-top: 1px solid var(--line); margin-top: 16px; }
+.release-heading { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; max-width: calc(100% - 24px); vertical-align: top; }
+.release-heading > strong { font-size: 1.15rem; }
+.release-date { flex-basis: 100%; font-size: .9rem; color: var(--muted); }
+.release-current { color: var(--ink); border: 1px solid var(--line); border-radius: 999px; padding: 3px 10px; font-size: .8rem; }
+.release-content { padding: 0 0 12px 20px; }
+.release-content h3 { margin: 8px 0 18px; font-size: 1.05rem; }
+.release-content h4 { margin: 18px 0 6px; }
+.release-content .home-release-list { margin: 6px 0 16px; }
+.release-content li + li { margin-top: 8px; }
+.release-technical { font-size: .9rem; overflow-wrap: anywhere; }
 .order-drilldown { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; margin: 20px 0; }
 @media (max-width: 1000px) { .system-home-grid { grid-template-columns: minmax(0, 1fr); } }
 @media (max-width: 800px) { .announcement-time-grid { grid-template-columns: minmax(0, 1fr); } }

@@ -1,6 +1,7 @@
 from django.urls import reverse
 
 from .app_version import get_app_version
+from .release_notes import CURRENT_VERSION
 from sales.models import UserAppearancePreference
 from sales.services.mobile_quick_links import build_mobile_quick_link_context
 from sales.themes import DEFAULT_THEME, THEME_DEFINITIONS, THEME_META_COLORS, THEME_VALUES
@@ -171,6 +172,7 @@ def app_version(request):
         )
     return {
         "app_version": get_app_version(),
+        "release_version": CURRENT_VERSION,
         "can_manage_screen_access": is_root(request.user),
         "show_management_tools": bool(is_root(request.user) or access_policy.screen("accounts") or access_policy.screen("integrity")),
         "access_routes": {name: access_policy.route(name) for name in ROUTES},

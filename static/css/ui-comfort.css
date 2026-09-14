@@ -188,6 +188,7 @@
 .system-home-grid > *, .announcement-body { min-width: 0; overflow-wrap: anywhere; }
 .home-links { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 20px; }
 .home-shortcuts { margin-top: 20px; }
+.performance-card > a { display: flex; align-items: center; min-height: 44px; margin-top: 8px; color: var(--link); text-decoration: underline; text-underline-offset: 4px; font-weight: 700; }
 .announcement-card { padding: 22px 0; border-bottom: 1px solid var(--line); }
 .system-home .section-block { padding: 24px; }
 .system-home .section-block > h2:first-child { margin-top: 0; }

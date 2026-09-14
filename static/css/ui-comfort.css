@@ -260,6 +260,16 @@
 .release-content .home-release-list { margin: 6px 0 16px; }
 .release-content li + li { margin-top: 8px; }
 .release-technical { font-size: .9rem; overflow-wrap: anywhere; }
+.status-pill.status-intake_pending { background: #fff1c2; color: #694600; border: 2px solid #b87600; font-weight: 800; }
+.status-dot.status-intake_pending { background: #b87600; }
+.intake-home-notice { display: flex; flex-wrap: wrap; align-items: center; gap: 16px; margin-bottom: 24px; }
+.intake-home-notice p { flex-basis: 100%; margin: 0; }
+.intake-receipt { border-inline-start: 5px solid #b87600; scroll-margin-top: 110px; }
+.order-sort-table td small { display: block; }
+.intake-accept-card label { display: inline-flex; align-items: center; gap: 12px; white-space: nowrap; min-height: 44px; font-weight: 700; }
+.intake-accept-card input[type=checkbox] { width: 22px; height: 22px; min-height: 22px; flex: 0 0 22px; }
+.intake-accept-card p { margin: 8px 0 0; }
+.intake-vehicle-hint { padding: 0 24px; }
 .order-drilldown { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; margin: 20px 0; }
 @media (max-width: 1000px) { .system-home-grid { grid-template-columns: minmax(0, 1fr); } }
 @media (max-width: 800px) { .announcement-time-grid { grid-template-columns: minmax(0, 1fr); } }

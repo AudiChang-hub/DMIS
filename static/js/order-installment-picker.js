@@ -69,7 +69,7 @@
       for (const [key, input] of Object.entries(inputs)) emit(input, option[key]);
       setManual(false);
       const bonus = Number(option.extra_disbursement_bonus || 0);
-      config.hint.textContent = `${versionHint}已選取 ${option.company}／${option.periods} 期；每期金額與開辦費已帶入${bonus ? `，預估撥款另含獎金 $${bonus.toLocaleString('zh-TW')}` : ''}，仍可依本單條件調整。`;
+      config.hint.textContent = `${versionHint}已選取 ${option.company}／${option.periods} 期；每期金額與開辦費已帶入${bonus ? `，預估撥款另含獎金 $${bonus.toLocaleString('zh-TW')}` : ''}${inputs.monthly_amount.disabled ? '。如需調整，請洽店內人員。' : '，仍可依本單條件調整。'}`;
     }
     company.addEventListener('change', () => {
       renderPeriods();

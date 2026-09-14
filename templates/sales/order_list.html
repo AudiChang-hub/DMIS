@@ -88,7 +88,7 @@
       <td>{{ order.final_plate_number|default:"—" }}</td>
       <td>{% include 'sales/_order_profit.html' with profile=order.operations %}</td>
       <td>{{ order.source_display }}</td>
-      <td><span class="status-pill status-{{ order.status }}">{{ order.get_status_display }}</span></td><td class="order-table-note">{{ order.note|default:"—" }}</td>
+      <td><span class="status-pill status-{{ order.status }}">{{ order.get_status_display }}</span>{% if order.accepted_at %}<small class="muted">{{ order.accepted_name }} · {{ order.accepted_at|date:"m/d H:i" }}</small>{% endif %}</td><td class="order-table-note">{{ order.note|default:"—" }}</td>
     </tr>{% empty %}<tr><td colspan="10">尚無符合條件的訂單</td></tr>{% endfor %}</tbody></table>
   </div>
   <div class="order-list order-sort-cards">

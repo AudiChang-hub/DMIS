@@ -15,6 +15,7 @@
 {% if editing_order.is_delivered %}<div class="card"><strong>完成後修正</strong><p>可繼續修改訂單內容，必須填寫原因並確認；交付狀態不變，已配車及已結算限制仍保留。未改計費條件時保留原金額與快照。</p></div>{% endif %}
 <form method="post" enctype="multipart/form-data" class="mobile-order-form" id="order-form" data-custom-validation="true" {% if editing_order.is_delivered %}data-completed-correction="true"{% endif %}>
   {% csrf_token %}
+  {% if intake_mode %}<input type="hidden" name="_submission_key" value="{{ submission_key }}">{% endif %}
   <input type="hidden" name="_draft_id" id="draft-id" value="{{ draft.pk|default:'' }}">
   <input type="hidden" name="_order_revision" value="{{ editing_order.revision|default:0 }}">
   <input type="hidden" id="editing-order-id" value="{{ editing_order.pk|default:'' }}">
@@ -26,7 +27,7 @@
   {{ fee_formset.management_form }}
   {% if editing_order.is_delivered %}{% include "sales/_field.html" with field=form.confirm_completed_correction %}{% endif %}
   <section class="hero-row compact-hero form-heading">
-    <div><p class="eyebrow">{% if editing_order %}正式訂單{% else %}訂單建檔{% endif %}</p><h1>{% if editing_order %}編輯訂單{% elif draft %}繼續編輯草稿{% else %}建立新訂單{% endif %}</h1><p class="muted">{% if editing_order %}儲存後會保留修改人、時間、原因及變更前後內容。{% else %}依序填寫，送出後直接進入待配車。{% endif %}</p></div>
+    <div><p class="eyebrow">{% if editing_order %}正式訂單{% else %}訂單建檔{% endif %}</p><h1>{% if editing_order %}編輯訂單{% elif draft %}繼續編輯草稿{% else %}建立新訂單{% endif %}</h1><p class="muted">{% if editing_order %}儲存後會保留修改人、時間、原因及變更前後內容。{% else %}先選車款與顏色，再填寫下訂資料；送出後由店內人員接單，再安排配車。{% endif %}</p></div>
     <div class="hero-actions">
       {% if editing_order %}<a class="button ghost desktop-save" href="{% url 'order_detail' editing_order.pk %}" data-cancel-edit>取消修改</a>{% endif %}
       <button class="button primary desktop-save" type="submit">{% if editing_order %}儲存修改{% else %}建立訂單{% endif %}</button>
@@ -54,23 +55,35 @@
   {% endif %}
 
   <div class="form-progress" id="form-progress" aria-label="填單段落">
-    <a href="#source" class="active" aria-current="step">1 來源</a><a href="#owner">2 車主</a><a href="#vehicle">3 車輛</a>
+    <a href="#vehicle" class="active" aria-current="step">1 車款</a><a href="#source">2 來源</a><a href="#owner">3 車主</a>
     <a href="#payment">4 金額</a><a href="#extras">5 需求</a>
   </div>
 
+  <details class="form-section" id="vehicle" open>
+    <summary><span class="step-number">1</span><span><strong>訂購車輛</strong><small>只選車型與車色，簽約後再配實體車</small></span></summary>
+    <p class="muted intake-vehicle-hint">先選車款與顏色，後續填單會保留你的選擇。</p>
+    <div class="form-grid">
+      {% include "sales/_field.html" with field=form.vehicle_energy_type %}
+      {% include "sales/_field.html" with field=form.vehicle_model %}
+      {% include "sales/_field.html" with field=form.color %}
+      {% include "sales/_field.html" with field=form.vehicle_category %}
+      {% include "sales/_field.html" with field=form.transaction_type %}
+    </div>
+  </details>
+
   <details class="form-section" id="source" open>
-    <summary><span class="step-number">1</span><span><strong>訂單來源</strong><small>哪間店、從哪裡接到訂單</small></span></summary>
+    <summary><span class="step-number">2</span><span><strong>訂單來源</strong><small>哪間店、從哪裡接到訂單</small></span></summary>
     <div class="form-grid">
       {% include "sales/_field.html" with field=form.source_type %}
       <div class="field span-2" data-conditional="source">
         {% include "sales/_field.html" with field=form.source %}
       </div>
     </div>
-    {% include "sales/_order_commission_recipient.html" %}
+    <div {% if intake_mode and not intake_finance_editable %}hidden{% endif %}>{% include "sales/_order_commission_recipient.html" %}</div>
   </details>
 
   <details class="form-section" id="owner" open>
-    <summary><span class="step-number">2</span><span><strong>車主與證件</strong><small>拍照後自動辨識，再對照證件核對</small></span></summary>
+    <summary><span class="step-number">3</span><span><strong>車主與證件</strong><small>拍照後自動辨識，再對照證件核對</small></span></summary>
     <div class="info-banner" data-conditional="identity-upload">
       本國自然人上傳身分證、外籍／居留者上傳居留證正反面後，會自動辨識姓名、生日、證號與地址。辨識結果仍須對照照片核對。
     </div>
@@ -135,34 +148,25 @@
     </div>
   </details>
 
-  <details class="form-section" id="vehicle" open>
-    <summary><span class="step-number">3</span><span><strong>訂購車輛</strong><small>只選車型與車色，簽約後再配實體車</small></span></summary>
-    <div class="form-grid">
-      {% include "sales/_field.html" with field=form.vehicle_energy_type %}
-      {% include "sales/_field.html" with field=form.vehicle_model %}
-      {% include "sales/_field.html" with field=form.color %}
-      {% include "sales/_field.html" with field=form.vehicle_category %}
-      {% include "sales/_field.html" with field=form.transaction_type %}
-    </div>
-  </details>
+
 
   <details class="form-section" id="payment" open>
-    <summary><span class="step-number">4</span><span><strong>價格與付款</strong><small>系統先試算，最終公式仍可調整</small></span></summary>
+    <summary><span class="step-number">4</span><span><strong>價格與付款</strong><small>售價與分期取自車型設定，內部調整依帳號權限開放</small></span></summary>
     <div class="form-grid">
       {% include "sales/_field.html" with field=form.payment_type %}
       {% include "sales/_field.html" with field=form.vehicle_price %}
       <div class="span-2 vehicle-price-guidance" id="vehicle-price-guidance" aria-live="polite">
         <strong id="vehicle-price-guidance-title">選擇車型與付款方式後，系統會帶入適用售價</strong>
-        <span id="vehicle-price-guidance-detail">若本案成交價不同，仍可修改並記錄原因。</span>
+        <span id="vehicle-price-guidance-detail">{% if intake_mode and not intake_finance_editable %}成交條件如需調整，請在備註說明，由店內人員核對。{% else %}若本案成交價不同，仍可修改並記錄原因。{% endif %}</span>
       </div>
       <div class="span-2 vehicle-price-adjustment" id="vehicle-price-adjustment" hidden>
         {% include "sales/_field.html" with field=form.vehicle_price_adjustment_reason %}
       </div>
-      {% include "sales/_field.html" with field=form.deposit_amount %}
-      {% include "sales/_field.html" with field=form.deposit_date %}
-      {% include "sales/_field.html" with field=form.deposit_method %}
+      <div {% if intake_mode and not intake_finance_editable %}hidden{% endif %}>{% include "sales/_field.html" with field=form.deposit_amount %}</div>
+      <div {% if intake_mode and not intake_finance_editable %}hidden{% endif %}>{% include "sales/_field.html" with field=form.deposit_date %}</div>
+      <div {% if intake_mode and not intake_finance_editable %}hidden{% endif %}>{% include "sales/_field.html" with field=form.deposit_method %}</div>
     </div>
-    <div class="subsection registration-fee-subsection">
+    <details class="card" {% if intake_mode and not intake_finance_editable %}hidden{% endif %}><summary>店內財務・領牌規費與強制險</summary><div class="subsection registration-fee-subsection">
       <div class="section-title">
         <div>
           <h3>領牌規費與強制險</h3>
@@ -194,6 +198,7 @@
         微型電動二輪車目前請依正式單據人工填寫實際牌險合計。
       </div>
     </div>
+    </details>
     <div class="conditional-panel" data-conditional="installment">
       <h3>分期資料</h3>
       <div class="installment-picker">
@@ -201,7 +206,7 @@
           <div class="field"><label for="installment-company-choice">分期公司（車型方案）</label><select id="installment-company-choice"><option value="">載入已設定的公司…</option></select></div>
           <div class="field"><label for="installment-period-choice">期數與每期金額</label><select id="installment-period-choice"><option value="">請先選擇分期公司</option></select></div>
         </div>
-        <button class="button ghost" type="button" id="installment-manual-toggle" aria-expanded="true">保留原值／人工調整</button>
+        <button class="button ghost" type="button" id="installment-manual-toggle" aria-expanded="true" {% if intake_mode and not intake_finance_editable %}hidden{% endif %}>保留原值／人工調整</button>
         <button class="button secondary" type="button" id="installment-apply" disabled>套用選取方案</button>
       </div>
       <div class="form-grid">
@@ -212,7 +217,7 @@
       </div>
       <p class="form-hint" id="installment-plan-hint" aria-live="polite">選擇車型與期數後，系統會帶入目前有效的分期公司、每期金額及開辦費；仍可由內部人員修改。</p>
     </div>
-    <div class="subsection fee-subsection">
+    <div class="subsection fee-subsection" {% if intake_mode and not intake_finance_editable %}hidden{% endif %}>
       <div class="section-title"><h3>其他費用</h3></div>
       <div id="other-fee-forms">
       {% for fee_form in fee_formset %}
@@ -238,10 +243,11 @@
     </div>
   </details>
 
-  <details class="form-section" id="extras">
+  <details class="form-section" id="extras" {% if intake_mode %}open{% endif %}>
     <summary><span class="step-number">5</span><span><strong>其他需求</strong><small>配件、汰舊、選號與交車方式</small></span></summary>
     <div class="form-grid">
-      <div class="span-2 verify-box">{% include "sales/_field.html" with field=form.is_trade_in_subsidy %}</div>
+      {% include "sales/_field.html" with field=form.trade_in_intent %}<p class="muted">汰舊意向可先選待確認；補助是否申請由店內後續核對。</p>
+      <div class="span-2 verify-box" {% if intake_mode and not intake_finance_editable %}hidden{% endif %}>{% include "sales/_field.html" with field=form.is_trade_in_subsidy %}</div>
       <div class="span-2 verify-box" data-conditional="trade-in-owner">{% include "sales/_field.html" with field=form.old_owner_same_as_owner %}</div>
       {% include "sales/_field.html" with field=form.plate_choice %}
       <div data-conditional="watch">{% include "sales/_field.html" with field=form.watched_numbers %}</div>
@@ -252,7 +258,8 @@
       </div>
       <div class="span-2">{% include "sales/_field.html" with field=form.note %}</div>
     </div>
-    <div class="subsection">
+    {% if intake_mode %}<div class="card"><h3>下訂附件</h3><p>支援圖片／PDF，每個檔案最多 20 MB；分期表 1 個、補充附件最多 10 個。同次含證件合計最多 35 MB，較多檔案請暫存後重開草稿分批續傳。自動暫存成功後才算保存。</p><div class="form-grid"><label>分期表<input type="file" name="installment_document" accept="image/*,application/pdf"></label><label>補充檔案<input type="file" name="supplement_documents" accept="image/*,application/pdf" multiple></label></div>{% include "sales/_intake_attachments.html" %}</div>{% endif %}
+    <div class="subsection" {% if intake_mode and not intake_finance_editable %}hidden{% endif %}>
       <div class="section-title"><h3>配件</h3></div>
       <div id="accessory-forms">
       {% for accessory_form in formset %}
@@ -291,6 +298,7 @@
     {% include "sales/_field.html" with field=form.change_reason %}
   </div>
   {% endif %}
+  {% if intake_mode and intake_can_receive %}<div class="card intake-accept-card"><label>{{ form.accept_by_me }} 由我接單</label><p>勾選後，建立訂單時同時記錄你為接單人；不勾選則先進入待接單清單。</p></div>{% endif %}
   <div class="mobile-submit">
     {% if editing_order %}<a class="button ghost" href="{% url 'order_detail' editing_order.pk %}" data-cancel-edit>取消修改</a>{% endif %}
     {% if not editing_order %}
@@ -567,7 +575,7 @@
       const difference = Math.abs(entered - Number(currentPriceRecommendation.price));
       vehiclePriceGuidanceDetail.textContent = `目前輸入 ${formatMoney(entered)}，與系統建議相差 ${formatMoney(difference)}；請留下調整原因。`;
     } else if (currentPriceRecommendation) {
-      vehiclePriceGuidanceDetail.textContent = "已套用售價版本；如人工修改成交價，系統會要求記錄原因。";
+      vehiclePriceGuidanceDetail.textContent = vehiclePrice.disabled ? "已套用車型售價；如需調整成交條件，請在備註說明，由店內人員核對。" : "已套用售價版本；如人工修改成交價，系統會要求記錄原因。";
     }
   }
 
@@ -1442,6 +1450,7 @@
   }
 
   function connectCollaboration() {
+    {% if intake_dealer %}return;{% endif %}
     if (!draftId.value || submittingOrder) return;
     if ([WebSocket.OPEN, WebSocket.CONNECTING].includes(collaborationSocket?.readyState)) return;
     clearTimeout(collaborationReconnectTimer);

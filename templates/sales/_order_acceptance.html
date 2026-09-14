@@ -1,0 +1,8 @@
+<section class="card intake-receipt" id="order-acceptance" aria-label="接單進度">
+{% if order.status == 'intake_pending' %}
+  <h2>待接單</h2><p>訂單已送達，等待店內人員接單。接單後會在此顯示負責人與時間。</p>
+  {% if intake_can_receive %}<form method="post" action="{% url 'order_receive' order.pk %}">{% csrf_token %}<button class="button primary">由我接單</button></form>{% endif %}
+{% elif order.accepted_at %}
+  <h2>已接單</h2><p><strong>{{ order.accepted_name }}</strong> 於 {{ order.accepted_at|date:"Y/m/d H:i" }} 接單</p>
+{% elif order.submitted_by_id %}<p>目前狀態：{{ order.get_status_display }}；尚無接單紀錄。</p>{% else %}<p>目前狀態：{{ order.get_status_display }}。此為導入接單機制前的訂單，未回填接單人。</p>{% endif %}
+</section>

@@ -158,9 +158,12 @@ class DraftCollaborationConsumer(AsyncJsonWebsocketConsumer):
     @database_sync_to_async
     def _has_screen_access(self):
         from .access.services import AccessPolicy
+        from .services.order_intake import is_dealer
         user = get_user_model().objects.filter(pk=self.scope["user"].pk, is_active=True).first()
         if not user or self.scope["session"].get(HASH_SESSION_KEY) != user.get_session_auth_hash():
             return False
+        if is_dealer(user):
+            return False  # 外部草稿採個人自動暫存，不加入內部協作廣播。
         if UserSecurityProfile.objects.filter(user=user, must_change_password=True).exists():
             return False
         return AccessPolicy(user).screen("orders", "operate")

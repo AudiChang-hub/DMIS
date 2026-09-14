@@ -21,6 +21,8 @@
 </section>
 
 {% include "sales/_order_commission_attribution.html" %}
+{% include "sales/_order_acceptance.html" %}
+{% include "sales/_intake_attachments.html" with intake_attachments=order.intake_attachments.all %}
 
 {% if request.GET.created == "1" %}
 <dialog class="print-dialog" id="print-contract-dialog">

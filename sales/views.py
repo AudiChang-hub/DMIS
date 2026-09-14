@@ -4081,6 +4081,7 @@ def app_version(request):
 
 @login_required
 def dashboard(request):
+    from sales.services.order_intake import scoped_orders
     from config.release_notes import LEGACY_UPDATES, RELEASE, RELEASES
     from sales.access.services import policy_for
     from sales.models import SystemAnnouncement
@@ -4091,6 +4092,7 @@ def dashboard(request):
         return redirect(f"{reverse('order_list')}?{request.GET.urlencode()}")
     return render(request, "sales/dashboard.html", {
         "release": RELEASE,
+        "intake_pending_count": scoped_orders(request.user).filter(status=SalesOrder.Status.INTAKE_PENDING).count() if policy_for(request).route("order_list") else 0,
         "release_history": RELEASES,
         "legacy_updates": LEGACY_UPDATES,
         **favorite_context(request.user, UserAppearancePreference.objects.filter(user=request.user).first(), policy=policy_for(request)),
@@ -4144,6 +4146,16 @@ def registration_fee_variance_confirm(request, pk):
 
 @login_required
 def order_list(request):
+    from sales.services.order_intake import is_dealer, scoped_orders, scoped_drafts
+    if is_dealer(request.user):
+        orders = scoped_orders(request.user).select_related("vehicle_model", "color").order_by("-created_at", "-pk")
+        query = request.GET.get("q", "").strip()
+        if query:
+            orders = orders.filter(Q(number__icontains=query) | Q(owner_name__icontains=query) | Q(vehicle_model__name__icontains=query))
+        if request.GET.get("status") in SalesOrder.Status.values:
+            orders = orders.filter(status=request.GET["status"])
+        page = Paginator(orders, 25).get_page(request.GET.get("page"))
+        return render(request, "sales/dealer_order_list.html", {"page_obj": page, "orders": page, "query": query, "statuses": SalesOrder.Status.choices, "own_drafts": Paginator(scoped_drafts(request.user), 10).get_page(request.GET.get("draft_page"))})
     from sales.access.services import policy_for
     orders = SalesOrder.objects.select_related(
         "source",
@@ -4560,9 +4572,26 @@ def operations_report_export(request):
 @login_required
 @transaction.atomic
 def order_create(request):
+    import uuid
+    from django.contrib.auth import get_user_model
+    from sales.intake_forms import IntakeOrderForm, validated_intake_uploads
+    from sales.services.order_intake import intake_context, receive_order, save_intake_uploads, prepare_intake_uploads, scoped_drafts
+    submission_key = None
+    if request.method == "POST":
+        get_user_model().objects.select_for_update().get(pk=request.user.pk)
+        try:
+            submission_key = uuid.UUID(request.POST["_submission_key"]) if request.POST.get("_submission_key") else uuid.uuid4()
+        except (ValueError, AttributeError):
+            return HttpResponse("送出識別碼無效，請重新開啟訂單表單。", status=400)
+        submitted = SalesOrder.objects.filter(submission_key=submission_key).first()
+        if submitted:
+            if submitted.submitted_by_id != request.user.pk:
+                raise PermissionDenied
+            messages.info(request, "這次送出已建立訂單，已開啟原訂單，沒有重複新增。")
+            return redirect("order_detail", pk=submitted.pk)
     draft_id = request.POST.get("_draft_id") or request.GET.get("draft")
     draft = (
-        get_object_or_404(OrderDraft.objects.select_for_update(), pk=draft_id)
+        get_object_or_404(scoped_drafts(request.user).select_for_update(), pk=draft_id)
         if draft_id
         else None
     )
@@ -4578,13 +4607,24 @@ def order_create(request):
     }
     if request.method == "POST":
         post_data = request.POST
-        form = SalesOrderForm(
+        form = IntakeOrderForm(
             post_data,
             request.FILES,
+            user=request.user,
             existing_documents=existing_documents,
         )
+        if not form.finance_editable:
+            post_data = post_data.copy()
+            post_data.update({"accessories-TOTAL_FORMS": "0", "accessories-INITIAL_FORMS": "0", "other_fees-TOTAL_FORMS": "0", "other_fees-INITIAL_FORMS": "0"})
         formset = AccessoryFormSet(post_data)
         fee_formset = OtherFeeFormSet(post_data, prefix="other_fees")
+        uploads = []
+        form.is_valid()
+        try:
+            uploads = validated_intake_uploads(request.FILES)
+            prepare_intake_uploads(uploads, draft=draft, remove_ids=request.POST.getlist("_remove_intake_attachments"))
+        except ValidationError as exc:
+            form.add_error(None, exc)
         if form.is_valid() and formset.is_valid() and fee_formset.is_valid():
             order = form.save(commit=False)
             if draft:
@@ -4594,7 +4634,9 @@ def order_create(request):
                 if not form.cleaned_data.get("id_back") and draft.id_back:
                     order.id_back = draft.id_back.name
                     draft.id_back = ""
-            order.status = SalesOrder.Status.ALLOCATION_PENDING
+            order.status = SalesOrder.Status.INTAKE_PENDING
+            order.submission_key = submission_key
+            order.submitted_by = request.user
             order.save()
             apply_order_price_snapshot(order)
             apply_order_installment_snapshot(order)
@@ -4610,16 +4652,27 @@ def order_create(request):
             OrderEvent.objects.create(
                 order=order,
                 event_type="created",
-                description="建立訂單，進入待配車。",
+                description="建立訂單，等待店內人員接單。",
                 actor_name=request.user.get_username(),
             )
             if draft:
+                draft.intake_attachments.update(order=order, draft=None)
+            save_intake_uploads(request.user, uploads, order=order, remove_ids=request.POST.getlist("_remove_intake_attachments") if draft else ())
+            if form.cleaned_data.get("accept_by_me"):
+                receive_order(request.user, order.pk)
+            if draft:
                 draft.delete_with_files()
-            messages.success(request, "訂單已建立並進入待配車。")
+            messages.success(request, "訂單已建立並由你接單。" if form.cleaned_data.get("accept_by_me") else "訂單已建立，等待店內人員接單。")
             return redirect(f"{reverse('order_detail', kwargs={'pk': order.pk})}?created=1")
     else:
-        initial = _draft_form_initial(draft.data) if draft else None
-        form = SalesOrderForm(initial=initial)
+        initial = _draft_form_initial(draft.data) if draft else {}
+        if not draft and request.GET.get("model", "").isdigit():
+            selected_model = VehicleModel.objects.filter(pk=request.GET["model"], active=True).first()
+            if selected_model:
+                initial.update(vehicle_model=selected_model.pk, vehicle_energy_type=selected_model.energy_type)
+                if request.GET.get("color", "").isdigit() and VehicleColor.objects.filter(pk=request.GET["color"], vehicle_model=selected_model, active=True).exists():
+                    initial["color"] = request.GET["color"]
+        form = IntakeOrderForm(initial=initial, user=request.user)
         formset = AccessoryFormSet(
             initial=_draft_lines(
                 draft.data,
@@ -4652,6 +4705,10 @@ def order_create(request):
             "draft": draft,
             "document_source": draft,
             "document_model": "draft",
+            "intake_mode": True,
+            "submission_key": submission_key or (draft.data.get("_submission_key") if draft else None) or uuid.uuid4(),
+            "intake_attachments": draft.intake_attachments.all() if draft else [],
+            **intake_context(request.user),
             "vehicle_rate_data": _vehicle_rate_data(),
             "accessory_product_data": _accessory_product_data(),
         },
@@ -4721,12 +4778,18 @@ def _validate_draft_image(upload):
 @login_required
 @transaction.atomic
 def draft_save(request):
+    from sales.intake_forms import validated_intake_uploads
+    from sales.services.order_intake import save_intake_uploads, prepare_intake_uploads, scoped_drafts
     if request.method != "POST":
         return JsonResponse({"ok": False, "error": "僅接受 POST。"}, status=405)
+    try:
+        uploads = validated_intake_uploads(request.FILES)
+    except ValidationError as exc:
+        return JsonResponse({"ok": False, "error": " ".join(exc.messages)}, status=400)
     draft_id = request.POST.get("_draft_id")
     is_new = not draft_id
     if draft_id:
-        draft = get_object_or_404(OrderDraft.objects.select_for_update(), pk=draft_id)
+        draft = get_object_or_404(scoped_drafts(request.user).select_for_update(), pk=draft_id)
         if not _claim_edit_lock(draft, request, DRAFT_PRESENCE_TIMEOUT):
             return JsonResponse(
                 {
@@ -4752,12 +4815,17 @@ def draft_save(request):
             )
     else:
         draft = OrderDraft(
+            owner_account=request.user,
             created_by=request.user.get_username(),
             editing_session=_session_key(request),
             editing_by=_editing_name(request.user),
             editing_at=timezone.now(),
         )
 
+    try:
+        prepare_intake_uploads(uploads, draft=draft, remove_ids=request.POST.getlist("_remove_intake_attachments"))
+    except ValidationError as exc:
+        return JsonResponse({"ok": False, "error": " ".join(exc.messages)}, status=400)
     excluded = {
         "csrfmiddlewaretoken",
         "_draft_id",
@@ -4765,12 +4833,22 @@ def draft_save(request):
         "_remove_id_front",
         "_remove_id_back",
         "_field_versions",
+        "_remove_intake_attachments",
     }
     draft.data = {
         key: values if len(values) > 1 else values[0]
         for key, values in request.POST.lists()
         if key not in excluded
     }
+    from sales.intake_forms import FINANCE_FIELDS
+    from sales.services.order_intake import account_profile, can_edit_finance, can_receive
+    if not can_edit_finance(request.user):
+        draft.data = {key: value for key, value in draft.data.items() if key not in FINANCE_FIELDS and not key.startswith(("accessories-", "other_fees-"))}
+    if not can_receive(request.user):
+        draft.data.pop("accept_by_me", None)
+    profile = account_profile(request.user)
+    if profile and profile.kind == "dealer":
+        draft.data.update(source_type="dealer", source=str(profile.source_id))
     for field_name in ("id_front", "id_back"):
         if request.POST.get(f"_remove_{field_name}") == "1":
             current = getattr(draft, field_name)
@@ -4793,6 +4871,11 @@ def draft_save(request):
         draft.revision += 1
     draft.updated_by = request.user.get_username()
     draft.save()
+    try:
+        save_intake_uploads(request.user, uploads, draft=draft, remove_ids=request.POST.getlist("_remove_intake_attachments"))
+    except ValidationError as exc:
+        transaction.set_rollback(True)
+        return JsonResponse({"ok": False, "error": " ".join(exc.messages)}, status=400)
     photo_urls = {
         field_name: (
             reverse(
@@ -4908,6 +4991,10 @@ def draft_presence(request, pk):
 
 @login_required
 def order_detail(request, pk, *, commission_form=None):
+    from sales.services.order_intake import is_dealer, scoped_orders
+    if is_dealer(request.user):
+        order = get_object_or_404(scoped_orders(request.user).select_related("vehicle_model", "color", "source"), pk=pk)
+        return render(request, "sales/dealer_order_detail.html", {"order": order})
     order = get_object_or_404(
         SalesOrder.objects.select_related(
             "source",
@@ -8540,6 +8627,10 @@ def vehicle_colors(request):
 
 @login_required
 def sales_sources(request):
+    from sales.services.order_intake import dealer_source
+    source = dealer_source(request.user)
+    if source:
+        return JsonResponse({"results": [{"id": source.pk, "name": source.name}]})
     source_type = request.GET.get("type")
     sources = SalesSource.objects.filter(
         source_type=source_type, active=True
@@ -8549,6 +8640,8 @@ def sales_sources(request):
 
 @login_required
 def installment_plan_options(request):
+    from sales.services.order_intake import can_edit_finance
+    finance_editable = can_edit_finance(request.user)
     model_id = request.GET.get("vehicle_model")
     raw_date = request.GET.get("order_date")
     order_id = request.GET.get("order_id")
@@ -8580,7 +8673,7 @@ def installment_plan_options(request):
                 ),
             },
             "options": [
-                installment_option_payload(option)
+                {key: value for key, value in installment_option_payload(option).items() if finance_editable or key in {"id", "periods", "monthly_amount", "company_id", "company", "customer_service_phone", "opening_fee", "effective_from", "effective_to"}}
                 for option in version.options.select_related("company").all()
             ],
         }

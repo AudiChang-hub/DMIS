@@ -35,6 +35,12 @@ class HomeFavoritesTests(TestCase):
         self.assertNotContains(response, 'value="report-design"')
         self.assertContains(response, "搜尋功能")
         self.assertContains(response, "首頁顯示預覽")
+        self.assertContains(response, "編輯常用功能")
+        self.assertContains(response, "儲存常用功能")
+        self.assertNotContains(response, "我的最愛")
+        home = self.client.get(reverse("dashboard"))
+        self.assertContains(home, '<h2 id="home-favorites-title">常用功能</h2>', html=True)
+        self.assertContains(home, "編輯常用功能")
 
     def test_save_order_and_account_isolation(self):
         response = self.save(["inventory", "orders", "help"], user_id=self.other.pk, next="https://example.com/")
@@ -60,7 +66,7 @@ class HomeFavoritesTests(TestCase):
         for name in ("dashboard", "home_favorites"):
             response = self.client.get(reverse(name))
             self.assertEqual(response.context["favorite_keys"], [])
-        self.assertContains(self.client.get(reverse("dashboard")), "目前沒有可顯示的收藏")
+        self.assertContains(self.client.get(reverse("dashboard")), "目前沒有可顯示的常用功能")
 
     def test_default_initialization_preserves_existing_mobile_links_and_theme(self):
         preference = UserAppearancePreference.objects.create(user=self.user, mobile_quick_links=["inventory", "customers"], theme="night-blue")

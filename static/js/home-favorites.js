@@ -53,7 +53,7 @@
   function render(message) {
     inputs.forEach(input => {
       input.checked = keys.includes(input.value);
-      input.closest("[data-favorite-option]").querySelector("small").textContent = input.checked ? "已加入我的最愛" : "加入首頁我的最愛";
+      input.closest("[data-favorite-option]").querySelector("small").textContent = input.checked ? "已加入常用功能" : "加入首頁常用功能";
     });
     picked.replaceChildren();
     keys.forEach((key, index) => {

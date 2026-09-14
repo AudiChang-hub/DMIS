@@ -89,7 +89,9 @@ class OrderIntakeTests(TestCase):
         attachment = OrderIntakeAttachment.objects.get()
         download = self.client.get(reverse("order_intake_attachment", args=[attachment.pk]))
         self.assertEqual(download.status_code, 200)
-        download.close()
+        # 透過 Django test client 的 closing_iterator_wrapper 收尾，避免
+        # 直接 response.close() 觸發 request_finished 而關閉測試中的 PG 交易。
+        self.assertTrue(b"".join(download.streaming_content).startswith(b"\x89PNG"))
         self.profile.source = self.other_dealer
         self.profile.save()
         self.assertEqual(self.client.get(reverse("order_intake_attachment", args=[attachment.pk])).status_code, 404)

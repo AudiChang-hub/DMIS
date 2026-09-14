@@ -3,7 +3,7 @@
 {% block page_class %}page-shell--wide{% endblock %}
 {% block content %}
 {% url 'dashboard' as dashboard_url %}
-{% include "sales/_page_back.html" with fallback_url=dashboard_url label="返回戰情首頁" %}
+{% include "sales/_page_back.html" with fallback_url=dashboard_url label="返回首頁" %}
 <section class="hero-row compact-hero">
   <div>
     <p class="eyebrow">集中管理基礎資料</p>
@@ -131,6 +131,7 @@
     <div><h2>系統狀態檢查</h2><p>檢查資料庫、證件辨識、搜尋背景工作與照片文件空間。</p><strong>遇到處理卡住時先查看</strong></div>
     <span aria-hidden="true">›</span>
   </a>{% endif_access %}
+  {% if_access 'announcement_manage' %}<a class="maintenance-card" href="{% url 'announcement_manage' %}"><span class="maintenance-card__icon">訊</span><div><h2>系統公告管理</h2><p>編輯首頁公告、置頂及預約發布／結束時間。</p><strong>僅 admin 可管理；保留修訂紀錄</strong></div><span aria-hidden="true">›</span></a>{% endif_access %}
   {% if show_management_tools %}
   {% if user.username == 'admin' %}
   {% if_access 'report_manage' %}<a class="maintenance-card" href="{% url 'report_manage' %}">

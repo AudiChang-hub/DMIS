@@ -22,6 +22,56 @@ class TimeStampedModel(models.Model):
         abstract = True
 
 
+class SystemAnnouncement(TimeStampedModel):
+    title = models.CharField("標題", max_length=160)
+    body = models.TextField("內容", max_length=10000)
+    published = models.BooleanField("發布", default=False)
+    pinned = models.BooleanField("置頂", default=False)
+    starts_at = models.DateTimeField("開始顯示時間", default=timezone.now)
+    ends_at = models.DateTimeField("結束顯示時間", null=True, blank=True)
+    version = models.PositiveIntegerField(default=1, editable=False)
+    updated_by = models.CharField("修改人", max_length=150, blank=True)
+
+    class Meta:
+        ordering = ("-pinned", "-starts_at", "-pk")
+        constraints = [models.CheckConstraint(
+            condition=Q(ends_at__isnull=True) | Q(ends_at__gt=models.F("starts_at")),
+            name="announcement_valid_window",
+        )]
+
+    def clean(self):
+        if self.ends_at and self.starts_at and self.ends_at <= self.starts_at:
+            raise ValidationError({"ends_at": "結束時間必須晚於開始時間。"})
+
+    @classmethod
+    def visible(cls, now=None):
+        now = now or timezone.now()
+        return cls.objects.filter(published=True, starts_at__lte=now).filter(Q(ends_at__isnull=True) | Q(ends_at__gt=now))
+
+    @property
+    def display_status(self):
+        now = timezone.now()
+        if not self.published:
+            return "未發布"
+        if self.starts_at > now:
+            return "預約發布"
+        if self.ends_at and self.ends_at <= now:
+            return "已結束"
+        return "顯示中"
+
+
+class SystemAnnouncementRevision(models.Model):
+    announcement = models.ForeignKey(SystemAnnouncement, on_delete=models.PROTECT, related_name="revisions")
+    version = models.PositiveIntegerField()
+    content = models.JSONField()
+    actor_name = models.CharField(max_length=150)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ("-version",)
+        constraints = [models.UniqueConstraint(fields=("announcement", "version"), name="announcement_unique_revision")]
+
+
 def normalize_vehicle_identifier(value):
     """建立比對鍵；畫面仍保留使用者輸入的原始號碼。"""
     return re.sub(r"[\s-]+", "", value or "").upper() or None

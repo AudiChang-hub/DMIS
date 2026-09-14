@@ -2539,7 +2539,7 @@ class OrderFlowTests(TestCase):
         )
         for query, label, value in cases:
             with self.subTest(query=query):
-                response = self.client.get(reverse("dashboard"), {"q": query})
+                response = self.client.get(reverse("order_list"), {"q": query})
                 self.assertEqual(response.status_code, 200)
                 self.assertContains(response, order.owner_name)
                 self.assertContains(response, label)
@@ -2551,7 +2551,7 @@ class OrderFlowTests(TestCase):
         order = self.make_order()
         self.client.force_login(self.user)
 
-        response = self.client.get(reverse("dashboard"), {"q": "SUZUKI"})
+        response = self.client.get(reverse("order_list"), {"q": "SUZUKI"})
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, order.owner_name)
@@ -2563,7 +2563,7 @@ class OrderFlowTests(TestCase):
         self.client.force_login(self.user)
 
         response = self.client.get(
-            reverse("dashboard"), {"q": order.owner_id_number}
+            reverse("order_list"), {"q": order.owner_id_number}
         )
 
         self.assertContains(response, "證件號碼／統一編號")
@@ -2591,20 +2591,20 @@ class OrderFlowTests(TestCase):
         self.client.force_login(self.user)
 
         first_page = self.client.get(
-            reverse("dashboard"), {"q": "批次搜尋車主"}
+            reverse("order_list"), {"q": "批次搜尋車主", "per_page": 50}
         )
         second_page = self.client.get(
-            reverse("dashboard"), {"q": "批次搜尋車主", "page": 2}
+            reverse("order_list"), {"q": "批次搜尋車主", "per_page": 50, "page": 2}
         )
 
-        self.assertEqual(first_page.context["search_result_count"], 51)
-        self.assertEqual(len(first_page.context["search_results"]), 50)
-        self.assertContains(first_page, "共 51 筆")
+        self.assertEqual(first_page.context["page_obj"].paginator.count, 51)
+        self.assertEqual(len(first_page.context["orders"]), 50)
+        self.assertContains(first_page, "共 51 張訂單")
         self.assertContains(first_page, "第一頁")
         self.assertContains(first_page, "下一頁")
         self.assertContains(first_page, "最後一頁")
         self.assertContains(first_page, "輸入要前往的頁碼")
-        self.assertEqual(len(second_page.context["search_results"]), 1)
+        self.assertEqual(len(second_page.context["orders"]), 1)
         self.assertContains(second_page, "上一頁")
 
     def test_forms_provide_field_specific_mobile_keyboard_hints(self):
@@ -4020,7 +4020,7 @@ class OrderFlowTests(TestCase):
         order = self.make_order()
         self.client.force_login(self.user)
 
-        response = self.client.get(reverse("dashboard"), {"q": "5678"})
+        response = self.client.get(reverse("order_list"), {"q": "5678"})
 
         self.assertContains(response, order.owner_name)
         self.assertContains(response, order.number)
@@ -4227,7 +4227,7 @@ class OrderFlowTests(TestCase):
     def test_dashboard_shows_clickable_in_progress_metric_and_empty_section(self):
         self.client.force_login(self.user)
 
-        empty_response = self.client.get(reverse("dashboard"))
+        empty_response = self.client.get(reverse("operations_report"))
         self.assertContains(empty_response, "訂單進行中")
         self.assertContains(empty_response, "?status=in_progress")
 
@@ -4235,10 +4235,9 @@ class OrderFlowTests(TestCase):
         order.status = SalesOrder.Status.ALLOCATED
         order.save(update_fields=["status"])
 
-        response = self.client.get(reverse("dashboard"))
-        self.assertEqual(response.context["counts"]["in_progress"], 1)
+        response = self.client.get(reverse("operations_report"))
         self.assertEqual(response.context["dashboard"]["workload"]["in_progress"], 1)
-        self.assertContains(response, order.number)
+        self.assertNotContains(response, order.number)
 
         filtered = self.client.get(reverse("order_list"), {"status": "in_progress"})
         self.assertContains(filtered, order.number)
@@ -5239,13 +5238,13 @@ class OrderOperationsTests(TestCase):
         self.order.registration_date = timezone.localdate()
         self.order.save(update_fields=["status", "registration_date", "updated_at"])
 
-        response = self.client.get(reverse("dashboard"))
+        response = self.client.get(reverse("operations_report"))
 
         performance = response.context["dashboard"]["performance"]
         self.assertEqual(performance["count"], 1)
         self.assertEqual(performance["sales_total"], Decimal("80000"))
         self.assertEqual(performance["profit_total"], Decimal("20000"))
-        self.assertContains(response, "營運戰情看板")
+        self.assertContains(response, "營運總表")
 
     def test_settlement_cost_uses_registration_date_then_locks_historical_snapshot(self):
         VehicleSettlementCostRule.objects.create(
@@ -5934,6 +5933,8 @@ class OrderOperationsTests(TestCase):
         )
 
     def test_operations_report_and_excel_export(self):
+        self.order.registration_date = timezone.localdate()
+        self.order.save(update_fields=["registration_date", "updated_at"])
         profile = self.order.operations
         profile.vehicle_cost = Decimal("60000")
         profile.save()
@@ -5941,12 +5942,10 @@ class OrderOperationsTests(TestCase):
         export_response = self.client.get(reverse("operations_report_export"))
 
         self.assertEqual(list_response.status_code, 200)
-        self.assertContains(list_response, self.order.number)
+        self.assertNotContains(list_response, self.order.number)
         self.assertContains(list_response, "車款成交額")
         self.assertContains(list_response, "實際領牌日期")
-        self.assertContains(list_response, "依車型查看營運表現")
-        self.assertContains(list_response, 'class="analysis-table"')
-        self.assertContains(list_response, "$ 80,000")
+        self.assertContains(list_response, "本月車型表現")
         self.assertEqual(list_response.context["analysis_summary"]["count"], 1)
         self.assertEqual(
             list_response.context["analysis_summary"]["vehicle_sales"],

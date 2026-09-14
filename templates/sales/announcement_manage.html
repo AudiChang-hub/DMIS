@@ -1,0 +1,29 @@
+{% extends "base.html" %}{% load pagination_tags %}
+{% block title %}系統公告管理｜車輛銷售管理{% endblock %}
+{% block page_class %}system-home{% endblock %}
+{% block content %}
+<section class="hero-row"><div><p class="eyebrow">管理者工具 · 僅 admin</p><h1>系統公告管理</h1><p class="muted">發布後會顯示於所有已登入人員的首頁。不放置客戶資料、密碼或財務敏感資訊。</p></div><a class="button ghost" href="{% url 'dashboard' %}">返回首頁</a></section>
+<div class="system-home-grid">
+<section class="section-block">
+  <h2>{% if announcement %}編輯公告{% else %}新增公告{% endif %}</h2>
+  {% if announcement %}<p>目前：{{ announcement.display_status }} · 第 {{ announcement.version }} 版</p>{% endif %}
+  <form method="post" class="announcement-form">{% csrf_token %}
+    {{ form.expected_version }}{{ form.expected_version.errors }}{{ form.non_field_errors }}
+    <label>標題{{ form.title }}{{ form.title.errors }}</label>
+    <label>公告內容（純文字）{{ form.body }}{{ form.body.errors }}</label>
+    <label>{{ form.pinned }}置頂公告</label>
+    <p class="muted">時間皆為台北時間。開始時間到達才顯示，結束時間到達即隱藏；結束可留白。</p>
+    <div class="announcement-time-grid"><label>開始顯示時間{{ form.starts_at }}{{ form.starts_at.errors }}</label><label>結束顯示時間{{ form.ends_at }}{{ form.ends_at.errors }}</label></div>
+    <div class="home-links">
+      <button type="submit" class="button ghost" name="action" value="save">儲存{% if not announcement %}草稿{% endif %}</button>
+      <button type="submit" class="button primary" name="action" value="publish">儲存並發布</button>
+      {% if announcement.published %}<button type="submit" class="button ghost" name="action" value="unpublish">儲存並取消發布</button>{% endif %}
+      <a class="button ghost" href="{% url 'announcement_manage' %}">新增另一則</a>
+    </div>
+    <p class="muted">「儲存」維持目前發布狀態；取消發布可隱藏公告並保留紀錄。</p>
+  </form>
+  {% if revisions %}<details><summary>最近十次修訂紀錄</summary>{% for revision in revisions %}<details class="announcement-card"><summary>第 {{ revision.version }} 版 · {{ revision.created_at|date:"Y/m/d H:i" }} · {{ revision.actor_name }}</summary><h3>{{ revision.content.title }}</h3><p>發布：{{ revision.content.published|yesno:"是,否" }} · 置頂：{{ revision.content.pinned|yesno:"是,否" }} · {{ revision.content.starts_at }}～{{ revision.content.ends_at|default:"無結束時間" }}</p><p class="announcement-body">{{ revision.content.body }}</p></details>{% endfor %}</details>{% endif %}
+</section>
+<section class="section-block"><h2>所有公告</h2>{% for item in page_obj %}<article class="announcement-card"><small>{{ item.display_status }}{% if item.pinned %} · 置頂{% endif %}</small><h3><a href="{% url 'announcement_edit' item.pk %}">{{ item.title }}</a></h3><p class="muted">{{ item.starts_at|date:"Y/m/d H:i" }}～{{ item.ends_at|date:"Y/m/d H:i"|default:"無結束時間" }}</p></article>{% empty %}<p>尚未建立公告。先儲存草稿，確認內容後再發布。</p>{% endfor %}{% pagination page_obj aria_label="公告管理分頁" %}</section>
+</div>
+{% endblock %}

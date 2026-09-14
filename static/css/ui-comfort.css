@@ -145,7 +145,7 @@
   .button:disabled, button:disabled { opacity: .7; cursor: not-allowed; }
   a:focus-visible, button:focus-visible, summary:focus-visible { outline: 3px solid var(--focus-ring); outline-offset: 3px; }
   .status-pill { border: 1px solid currentColor; padding: 6px 10px; font-weight: 700; white-space: normal; line-height: 1.5; }
-  .status-pill.status-draft, .status-pill.status-cancelled { color: #35434d; background: #e9eef1; border-color: #87949d; }
+  .status-pill.status-draft { color: #35434d; background: #e9eef1; border-color: #87949d; }
   .status-pill.status-allocation_pending, .status-pill.status-transfer_pending { color: #694100; background: #fff0c9; border-color: #ab791c; }
   .status-pill.status-allocated, .status-pill.status-in_transfer, .status-pill.status-delivery_pending { color: #164774; background: #e3f0ff; border-color: #648bad; }
   .status-pill.status-completed { color: #185536; background: #def4e6; border-color: #558469; }
@@ -178,3 +178,41 @@
   @media (max-width: 1000px) { .command-chart-grid { grid-template-columns: 1fr; } }
   @media (max-width: 700px) { .command-risk-grid { grid-template-columns: 1fr; } .sort-chip-list li { width: 100%; } }
 }
+
+/* 取消狀態在所有配色維持實心與高對比，不淡化整列。 */
+.status-pill.status-cancelled { color: #fff; background: #344351; border: 2px solid #8499ac; }
+.status-dot.status-cancelled { background: #344351; border: 1px solid #8499ac; }
+.status-pill.status-cancelled::before { content: "×"; font-size: 1.2em; font-weight: 900; margin-right: .35em; }
+.system-home-grid { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 24px; align-items: start; }
+.system-home .hero-row > .button { flex-shrink: 0; white-space: nowrap; }
+.system-home-grid > *, .announcement-body { min-width: 0; overflow-wrap: anywhere; }
+.home-links { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 20px; }
+.home-shortcuts { margin-top: 20px; }
+.announcement-card { padding: 22px 0; border-bottom: 1px solid var(--line); }
+.system-home .section-block { padding: 24px; }
+.system-home .section-block > h2:first-child { margin-top: 0; }
+.order-filter-bar { flex-wrap: wrap; }
+.order-filter-bar > details { width: 100%; padding: 20px; grid-column: 1 / -1; grid-row: 3; order: 4; flex-basis: 100%; }
+.order-filter-bar .order-filter-submit { grid-row: 2; }
+.order-filter-bar .order-filter-status { grid-row: 2; }
+.order-filter-bar .order-filter-search { grid-row: 1; }
+.order-filter-bar input:not([type=hidden]), .order-filter-bar select,
+.announcement-form input:not([type=hidden]):not([type=checkbox]), .announcement-form textarea {
+  width: 100%; min-width: 0; min-height: 48px; padding: 12px 14px; border: 1px solid var(--line);
+  border-radius: 10px; background: var(--surface); color: var(--ink); font: inherit;
+}
+.announcement-form textarea { resize: vertical; }
+.order-filter-bar > details summary { margin-bottom: 16px; }
+.operations-model-summary { padding: 24px; }
+.announcement-card h3 { margin: 10px 0; }
+.announcement-body { white-space: pre-wrap; line-height: 1.8; }
+.announcement-form { display: grid; gap: 22px; }
+.announcement-form label { display: grid; gap: 10px; }
+.announcement-form label:has(input[type=checkbox]) { display: flex; align-items: center; }
+.announcement-form input[type=checkbox] { width: 22px; height: 22px; }
+.announcement-form .errorlist { color: var(--danger, #bd3944); }
+.announcement-time-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; }
+.home-release-list { padding-left: 24px; line-height: 1.9; }
+.order-drilldown { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; margin: 20px 0; }
+@media (max-width: 1000px) { .system-home-grid { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 800px) { .announcement-time-grid { grid-template-columns: minmax(0, 1fr); } }

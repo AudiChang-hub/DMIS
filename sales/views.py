@@ -4081,64 +4081,17 @@ def app_version(request):
 
 @login_required
 def dashboard(request):
-    query = request.GET.get("q", "").strip()
-    orders = SalesOrder.objects.select_related(
-        "source",
-        "vehicle_model",
-        "color",
-        "allocated_vehicle",
-        "allocated_vehicle__ownership_store",
-        "allocated_vehicle__location_store",
-        "allocated_vehicle__current_dealer",
-        "search_index",
-    ).prefetch_related(
-        "accessories",
-        "other_fees",
-        "subsidy_documents",
-        "registration_documents",
-        "events",
-        "changes",
-    )
-    search_results = None
-    search_result_count = 0
-    if query:
-        matched_orders = orders.filter(build_order_search_query(query)).distinct()
-        paginator = Paginator(matched_orders, 50)
-        search_results = paginator.get_page(request.GET.get("page"))
-        search_result_count = paginator.count
-        for order in search_results:
-            order.search_matches = build_order_match_summary(order, query)
-
-    urgent_statuses = [
-        SalesOrder.Status.CANCEL_REFUND_PENDING,
-        SalesOrder.Status.DELIVERED_DOCS_PENDING,
-    ]
-    metrics = build_dashboard_metrics() if not query else None
-    urgent_orders = (
-        SalesOrder.objects.select_related(
-            "source", "vehicle_model", "color", "allocated_vehicle"
-        )
-        .filter(status__in=urgent_statuses)
-        .order_by("-updated_at")[:5]
-        if metrics
-        else []
-    )
-    context = {
-        "query": query,
-        "search_results": search_results,
-        "search_result_count": search_result_count,
-        "dashboard": metrics,
-        "urgent_orders": urgent_orders,
-        "dealer_reminders": metrics["dealer_reminders"] if metrics else [],
-        "counts": {
-            "urgent": metrics["workload"]["urgent"] if metrics else 0,
-            "allocation": metrics["workload"]["allocation"] if metrics else 0,
-            "in_progress": metrics["workload"]["in_progress"] if metrics else 0,
-            "inventory": metrics["inventory"]["available"] if metrics else 0,
-        },
-        "drafts": OrderDraft.objects.all()[:5],
-    }
-    return render(request, "sales/dashboard.html", context)
+    from config.release_notes import RELEASE
+    from sales.access.services import policy_for
+    from sales.models import SystemAnnouncement
+    if request.GET.get("q", "").strip():
+        if not policy_for(request).route("order_list"):
+            raise PermissionDenied
+        return redirect(f"{reverse('order_list')}?{request.GET.urlencode()}")
+    return render(request, "sales/dashboard.html", {
+        "release": RELEASE,
+        "page_obj": Paginator(SystemAnnouncement.visible(), 8).get_page(request.GET.get("page")),
+    })
 
 
 @login_required
@@ -4182,11 +4135,12 @@ def registration_fee_variance_confirm(request, pk):
                 actor_name=_editing_name(request.user),
             )
             messages.success(request, "牌險差額已確認並保存紀錄。")
-    return redirect("dashboard")
+    return redirect("order_detail", pk=order.pk) if request.POST.get("return_to_order") == "1" else redirect("operations_report")
 
 
 @login_required
 def order_list(request):
+    from sales.access.services import policy_for
     orders = SalesOrder.objects.select_related(
         "source",
         "vehicle_model",
@@ -4198,34 +4152,8 @@ def order_list(request):
     query = request.GET.get("q", "").strip()
     if query:
         orders = orders.filter(build_order_search_query(query)).distinct()
-    status = request.GET.get("status")
-    if status == "registration_pending":
-        orders = orders.filter(
-            status__in=[
-                SalesOrder.Status.ALLOCATED,
-                SalesOrder.Status.TRANSFER_PENDING,
-                SalesOrder.Status.IN_TRANSFER,
-            ]
-        )
-    elif status == "in_progress":
-        orders = orders.exclude(
-            status__in=[
-                SalesOrder.Status.ALLOCATION_PENDING,
-                SalesOrder.Status.CANCEL_REFUND_PENDING,
-                SalesOrder.Status.DELIVERED_DOCS_PENDING,
-                SalesOrder.Status.COMPLETED,
-                SalesOrder.Status.CANCELLED,
-            ]
-        )
-    elif status == "urgent":
-        orders = orders.filter(
-            status__in=[
-                SalesOrder.Status.CANCEL_REFUND_PENDING,
-                SalesOrder.Status.DELIVERED_DOCS_PENDING,
-            ]
-        )
-    elif status:
-        orders = orders.filter(status=status)
+    from sales.services.order_filters import filter_order_analysis, analysis_filter_context
+    orders = filter_order_analysis(orders, request.GET)
     from sales.services.order_sorting import parse_sort, sort_context, sort_orders
     sort_tokens = parse_sort(request.GET.get("sort", ""))
     orders = sort_orders(orders, sort_tokens)
@@ -4252,43 +4180,24 @@ def order_list(request):
             "statuses": SalesOrder.Status.choices,
             "per_page": per_page,
             "per_page_options": ORDER_LIST_PAGE_SIZE_OPTIONS,
+            **analysis_filter_context(request.GET),
+            "drafts": Paginator(OrderDraft.objects.all(), 25).get_page(request.GET.get("page")) if request.GET.get("drafts") == "1" and policy_for(request).route("order_create") else [],
             **sort_context(request.GET, sort_tokens),
         },
     )
 
 
 def _operations_report_queryset(request):
-    from sales.services.sales_metrics import CANCELLED_STATUSES, filter_payment_risk
+    from sales.services.order_filters import filter_order_analysis
     rows = SalesOrder.objects.select_related(
         "vehicle_model", "color", "allocated_vehicle", "operations", "source"
     ).prefetch_related("payment_records")
-    rows = filter_payment_risk(rows, request.GET.get('risk', ''))
     keyword = request.GET.get("q", "").strip()
     if keyword:
         rows = rows.filter(build_order_search_query(keyword)).distinct()
-    energy_type = request.GET.get("energy_type", "")
-    if energy_type in {value for value, _ in VehicleModel.EnergyType.choices}:
-        rows = rows.filter(vehicle_model__energy_type=energy_type)
-    payment_status = request.GET.get("payment_status", "")
-    if payment_status == "confirmed":
-        rows = rows.filter(operations__payment_confirmed=True)
-    elif payment_status == "pending":
-        rows = rows.exclude(operations__payment_confirmed=True)
-    date_basis = request.GET.get("date_basis", "registration")
-    date_field = {
-        "order": "order_date",
-        "established": "established_on",
-        "delivery": "delivered_at__date",
-        "registration": "registration_date",
-    }.get(date_basis, "registration_date")
-    sort_field = "delivered_at" if date_basis == "delivery" else date_field
-    if request.GET.get("date_from"):
-        rows = rows.filter(**{f"{date_field}__gte": request.GET["date_from"]})
-    if request.GET.get("date_to"):
-        rows = rows.filter(**{f"{date_field}__lte": request.GET["date_to"]})
-    if request.GET.get("include_cancelled") != "1" and request.GET.get('risk') != 'refund':
-        rows = rows.exclude(status__in=CANCELLED_STATUSES)
-    return rows.order_by(f"-{sort_field}", "-id")
+    rows = filter_order_analysis(rows, request.GET, business_default=True)
+    date_field = {"order": "order_date", "established": "established_on", "delivery": "delivered_at"}.get(request.GET.get("date_basis"), "registration_date")
+    return rows.order_by(f"-{date_field}", "-id")
 
 
 def _operations_analysis(rows):
@@ -4315,30 +4224,38 @@ def _operations_analysis(rows):
 
 @login_required
 def operations_report(request):
-    rows = _operations_report_queryset(request)
-    analysis_summary, model_breakdown = _operations_analysis(rows)
-    paginator = Paginator(rows, 100)
-    page = paginator.get_page(request.GET.get("page"))
-    for order in page.object_list:
-        order.operation_data = getattr(order, "operations", None)
-    return render(
-        request,
-        "sales/operations_report.html",
-        {
-            "orders": page.object_list,
-            "page_obj": page,
-            "energy_types": VehicleModel.EnergyType.choices,
-            "selected": request.GET,
-            "analysis_summary": analysis_summary,
-            "model_breakdown": model_breakdown,
-            "date_basis_label": {
-                "established": "訂單成立日期",
-                "order": "訂單日期",
-                "delivery": "實際交付日期",
-                "registration": "實際領牌日期",
-            }.get(request.GET.get("date_basis", "registration"), "實際領牌日期"),
-        },
-    )
+    from sales.access.services import policy_for
+    policy = policy_for(request)
+    if any(request.GET.get(key) for key in ("q", "risk", "date_from", "date_to", "energy_type", "payment_status", "include_cancelled")):
+        if not policy.route("order_list"):
+            raise PermissionDenied
+        params = request.GET.copy()
+        params["business_only"] = "0" if params.get("include_cancelled") == "1" or params.get("risk") == "refund" else "1"
+        return redirect(f"{reverse('order_list')}?{params.urlencode()}")
+    metrics = build_dashboard_metrics()
+    summary, models = _operations_analysis(metrics["performance"]["orders"])
+    return render(request, "sales/operations_report.html", {
+        "dashboard": metrics, "analysis_summary": summary, "model_breakdown": models,
+        "show_company_workload": policy.screen("dashboard"),
+        "show_financial_summary": policy.screen("operations"),
+        "workload_cards": [
+            {"label": label, "count": metrics["workload"][key], "status": status}
+            for key, label, status in [
+                ("allocation", "待配車", "allocation_pending"), ("in_progress", "訂單進行中", "in_progress"),
+                ("registration", "待領牌", "registration_pending"), ("delivery", "待交付", "delivery_pending"),
+                ("urgent", "優先處理", "urgent"),
+            ]
+        ],
+        "inventory_cards": [
+            {"label": label, "count": metrics["inventory"][key], "status": status}
+            for key, label, status in [
+                ("total", "庫存總數", ""), ("available", "可售", "available"), ("reserved", "已預留", "reserved"),
+                ("transfer", "調車中", "transfer"), ("issues", "車況異常", "condition_issue"),
+            ]
+        ],
+        "dealer_due_count": len({item["order"].pk for item in metrics["dealer_reminders"]}),
+        "fee_variance_count": metrics["registration_fee_variances"].count(),
+    })
 
 
 def _reconciliation_queryset(request):

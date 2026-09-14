@@ -7,6 +7,7 @@ from sales.themes import DEFAULT_THEME, THEME_DEFINITIONS, THEME_META_COLORS, TH
 
 
 HELP_TOPIC_BY_ROUTE = {
+    "announcement_manage": "announcements", "announcement_edit": "announcements",
     "report_center": "reports", "report_display": "reports", "report_detail": "reports",
     "report_manage": "reports", "report_create": "reports", "report_edit": "reports",
     "dashboard": "dashboard",
@@ -80,6 +81,7 @@ HELP_TOPIC_BY_ROUTE = {
 
 
 DATA_MAINTENANCE_ROUTES = {
+    "announcement_manage", "announcement_edit",
     "report_manage", "report_create", "report_edit",
     "data_maintenance",
     "system_diagnostics",

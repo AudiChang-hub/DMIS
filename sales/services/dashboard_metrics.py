@@ -1,13 +1,11 @@
 from calendar import monthrange
 from datetime import datetime, time, timedelta
-from decimal import Decimal
 
-from django.db.models import Count, F
+from django.db.models import Count
 from django.utils import timezone
 
 from sales.models import (
     OrderDraft,
-    OrderEvent,
     SalesOrder,
     VehicleInventory,
 )
@@ -67,7 +65,7 @@ def build_dashboard_metrics(today=None):
     for _ in range(11):
         starts.insert(0, _previous_month(starts[0]))
     source = list(SalesOrder.objects.filter(registration_date__range=(starts[0], today))
-                  .exclude(status__in=CANCELLED_STATUSES).select_related('operations').prefetch_related('payment_records'))
+                  .exclude(status__in=CANCELLED_STATUSES).select_related('operations', 'vehicle_model').prefetch_related('payment_records'))
     current = _sales_snapshot(month_start, today, source)
     previous = _sales_snapshot(previous_start, comparison_end, source)
     trend = []
@@ -115,22 +113,8 @@ def build_dashboard_metrics(today=None):
         .annotate(total=Count("id"))
         .values_list("status", "total")
     )
-    registration_fee_variances = list(
-        SalesOrder.objects.filter(
-            registration_date__isnull=False,
-            registration_calculated_total__gt=0,
-        )
-        .exclude(status=SalesOrder.Status.CANCELLED)
-        .exclude(plate_insurance_fee=F("registration_calculated_total"))
-        .exclude(
-            registration_fee_variance_confirmed_calculated_total=F(
-                "registration_calculated_total"
-            ),
-            registration_fee_variance_confirmed_actual_total=F("plate_insurance_fee"),
-        )
-        .select_related("vehicle_model")
-        .order_by("registration_date", "id")[:20]
-    )
+    from .order_filters import fee_variance_orders
+    registration_fee_variances = fee_variance_orders(SalesOrder.objects.all()).order_by("registration_date", "id")
     return {
         'trend': trend,
         'charts': charts,
@@ -188,11 +172,4 @@ def build_dashboard_metrics(today=None):
         "urgent_statuses": urgent_statuses,
         "dealer_reminders": due_dealer_reminders,
         "registration_fee_variances": registration_fee_variances,
-        "recent_orders": SalesOrder.objects.select_related(
-            "vehicle_model", "color", "source"
-        )
-        .exclude(status=SalesOrder.Status.CANCELLED)
-        .order_by("-created_at")[:5],
-        "recent_events": OrderEvent.objects.select_related("order")
-        .order_by("-created_at")[:5],
     }

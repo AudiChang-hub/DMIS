@@ -68,6 +68,8 @@ class AccessPolicy:
             return True
         if name in ROOT_ONLY:
             return self.root
+        if name == "operations_report":
+            return self.screen("operations") or self.screen("dashboard")
         if name in {"data_maintenance", "report_center"}:
             # 空白目錄是安全入口；實際項目仍依個別授權過濾。
             return True

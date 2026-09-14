@@ -796,7 +796,7 @@ class ProductExperienceTests(TestCase):
 class UserDocumentationTests(TestCase):
     def test_end_user_manual_is_current_django_workflow(self):
         manual = Path("docs/USER_MANUAL.md").read_text(encoding="utf-8")
-        self.assertIn("戰情首頁與全欄位搜尋", manual)
+        self.assertIn("系統首頁與全欄位搜尋", manual)
         self.assertIn("訂單建立後怎麼做", manual)
         self.assertIn("營運、淨利與對帳", manual)
         self.assertNotIn("Odoo 16", manual)

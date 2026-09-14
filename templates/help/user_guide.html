@@ -80,7 +80,7 @@
       <ol class="guide-steps">
         <li><strong>登入後先看首頁。</strong><span>確認目前帳號、版本更新與公告；經營數據請進營運總表。</span></li>
         <li><strong>要找資料就直接搜尋。</strong><span>像 Excel 的尋找，不必先選姓名、電話或車牌欄位。</span></li>
-        <li><strong>客人在面前就按「＋新增」。</strong><span>依來源、車主、車輛、金額、需求五區填寫，輸入中會自動保存草稿。</span></li>
+        <li><strong>客人在面前就按「＋新增」。</strong><span>依車輛、來源、車主、金額、需求五區填寫，輸入中會自動保存草稿；送出後先待接單。</span></li>
         <li><strong>工作做完才按完成。</strong><span>配車、領牌、交付等完成後會鎖定，避免後續誤改。</span></li>
       </ol>
       <div class="guide-tip"><strong>手機加到主畫面後看不到新版？</strong><span>先按上方「檢查更新」，確認草稿或修改已儲存，再按「重新載入」。</span></div>
@@ -116,16 +116,18 @@
     <article class="guide-topic" id="create-order" data-guide-topic>
       <div class="guide-topic-heading"><span>04</span><div><p class="eyebrow">客人在面前</p><h2>建立訂單與自動草稿</h2></div></div>
       <div class="guide-flow" role="region" aria-label="建立訂單五個區塊" tabindex="0">
-        <span><b>1</b>來源</span><i>→</i><span><b>2</b>車主</span><i>→</i><span><b>3</b>車輛</span><i>→</i><span><b>4</b>金額</span><i>→</i><span><b>5</b>需求</span>
+        <span><b>1</b>車輛</span><i>→</i><span><b>2</b>來源</span><i>→</i><span><b>3</b>車主</span><i>→</i><span><b>4</b>金額</span><i>→</i><span><b>5</b>需求</span>
       </div>
       <ol class="guide-steps">
-        <li><strong>來源。</strong><span>本店不需再選名稱；合作車行或網路平台要選正確來源。找不到時先請管理者新增，不要亂選。</span></li>
+        <li><strong>先選車輛。</strong><span>選品牌車型、年份與車色。此時不選引擎／車身號碼，店內接單後才配車。</span></li>
+        <li><strong>來源。</strong><span>admin 預設馭盛；合作車行帳號固定所屬車行，店內代填時請選正確來源。找不到時先請管理者新增，不要亂選。</span></li>
         <li><strong>車主與證件。</strong><span>本國自然人、外籍／居留者上傳正反面；法人由人員自行填公司基本資料。</span></li>
-        <li><strong>車輛。</strong><span>選品牌車型、年份與車色。此時不選引擎／車身號碼，建立後才配車。</span></li>
         <li><strong>金額。</strong><span>選現金、分期或刷卡；分期才會出現公司、期數、開辦費與每期金額。其他費用不是必填。</span></li>
         <li><strong>需求。</strong><span>選號方式與交車方式必填；配件、汰舊／補助依實際需要填寫。</span></li>
       </ol>
-      <div class="guide-example"><strong>完整例子</strong><p>陳小華在本店買 SUZUKI SUI 125／2026／白，現金付款、不申請補助、來店取車：來源選本店；完成證件核對；選車型車色；付款選現金；牌險依單據；交車選來店取車，再按「建立訂單」。</p></div>
+      <div class="guide-example"><strong>完整例子</strong><p>在馭盛購車，先選車型車色，來源選馭盛；完成車主與證件核對，選付款及交車方式，再按「建立訂單」。店內人員可勾「由我接單」，否則新單會進待接單，尚不可配車。</p></div>
+      <div class="guide-tip"><strong>店內與車行共用流程</strong><span>車行帳號固定所屬車行，分期從車型方案選取，不能修改店內售價、收款或其他財務。需求寫在備註，分期表及補充檔案可隨草稿保存；送出後由店內協助修正。</span></div>
+      <div class="guide-two-column"><section><h3>有人接單了嗎？</h3><p>首頁顯示待接單筆數，點入可查看清單。店內開啟訂單按「由我接單」，會保存接單人與時間；車行在訂單進度看到相同資訊。重新整理可取得最新狀態。</p></section><section><h3>admin 如何指定帳號？</h3><p>資料維護區 → 帳號與權限 → 該帳號「下單身分／所屬通路」。admin 為馭盛店內管理帳號；合作車行必須綁定車行。畫面權限中的「訂單內部財務編輯」控制店內財務表單修改，接單權限屬於訂單作業。車行不因勾選內部畫面而取得公司資料。</p></section></div>
       <div class="guide-tip"><strong>外籍與法人</strong><span>外籍／居留者不需登記護照。法人由人員自行填基本資料；領牌前準備登記證明、核准函、近一期 401、公司大小章，申請補助另備公司存摺。沒有專屬名稱的資料放到對應工作的「其他文件」並清楚命名。</span></div>
       <div class="guide-two-column"><section><h3>草稿</h3><p>開始輸入後會自動保存。新建單與重新開啟草稿都能看到「刪除草稿」。刪除會連草稿照片一起移除，無法復原。</p></section><section><h3>正式修改</h3><p>訂單建立後的修改不會自動保存，必須填變更原因並按「儲存修改」。不想保留就按「取消修改」。</p></section></div>
     </article>

@@ -74,6 +74,12 @@ class DraftCollaborationTests(TransactionTestCase):
         UserAccessState.objects.create(user=self.first_user, configured=True)
         async_to_sync(self.denied_socket)(self.headers(self.first_user))
 
+    def test_dealer_cannot_join_internal_draft_socket(self):
+        from sales.models import OrderAccountProfile, SalesSource
+        source = SalesSource.objects.create(name="協作隔離車行", source_type="dealer")
+        OrderAccountProfile.objects.create(user=self.first_user, kind="dealer", source=source)
+        async_to_sync(self.denied_socket)(self.headers(self.first_user))
+
     async def denied_socket(self, headers):
         socket = WebsocketCommunicator(application, f"/ws/orders/drafts/{self.draft.pk}/?client-denied", headers=headers)
         self.assertEqual(await socket.connect(), (False, 4403))

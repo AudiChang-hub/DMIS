@@ -1,0 +1,7 @@
+{% extends "base.html" %}
+{% block title %}下單身分與所屬通路{% endblock %}
+{% block content %}
+<section class="hero-row"><div><h1>下單身分與所屬通路</h1><p>{{ account.get_full_name|default:account.username }}（@{{ account.username }}）</p></div></section>
+<div class="card"><p>店內人員使用原有畫面權限；合作車行僅能下單及查看所屬車行訂單，不能查看公司財務或其他車行資料。admin 為馭盛店內管理帳號。</p><p>變更所屬車行會立即變更此帳號可見的訂單範圍，請確認後儲存。</p></div>
+<form method="post" class="card">{% csrf_token %}{{ form.non_field_errors }}{{ form.expected_revision }}<div class="form-grid">{% include "sales/_field.html" with field=form.kind %}{% include "sales/_field.html" with field=form.source %}</div><p><a class="button ghost" href="{% url 'user_management' %}">取消</a> <button class="button primary">儲存設定</button></p></form>
+{% endblock %}

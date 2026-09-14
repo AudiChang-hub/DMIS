@@ -4,6 +4,7 @@
 {% block content %}
 <section class="hero-row"><div><p class="eyebrow">工作入口</p><h1>首頁</h1><p>歡迎，{{ user.get_full_name|default:user.username }}（@{{ user.username }}）</p><p class="muted">版本更新、最新消息與常用功能，都從這裡開始。</p></div>{% if_access 'announcement_manage' %}<a class="button ghost" href="{% url 'announcement_manage' %}">管理系統公告</a>{% endif_access %}</section>
 <section class="section-block" aria-labelledby="home-favorites-title">
+  {% if intake_can_receive or intake_dealer %}<div class="card intake-home-notice"><strong>{% if intake_can_receive %}待接單工作{% else %}等待店內接單{% endif %}：{{ intake_pending_count }} 筆</strong> <a class="button {% if intake_pending_count %}primary{% else %}ghost{% endif %}" href="{% url 'order_list' %}?status=intake_pending">查看待接單</a><p class="muted">{% if intake_can_receive %}開啟訂單後按「由我接單」，車行即可看到接單人與時間。{% else %}接單後可在訂單進度查看負責人與時間。{% endif %}</p></div>{% endif %}
   <div class="favorites-heading"><div><h2 id="home-favorites-title">常用功能</h2><p class="muted">{% if favorites_customized %}你的工作入口，依你設定的順序排列。{% else %}先提供常用入口，你可以勾選與排列自己的常用功能。{% endif %}</p></div><a class="button ghost" href="{% url 'home_favorites' %}">編輯常用功能</a></div>
   <div class="home-links" data-home-favorites>{% for link in favorite_links %}<a class="button ghost" href="{{ link.url }}" data-home-favorite="{{ link.key }}">{{ link.label }}</a>{% empty %}<p>目前沒有可顯示的常用功能。點選「編輯常用功能」加入功能；主要選單仍可使用。</p>{% endfor %}</div>
   <p class="muted">僅顯示目前帳號可使用的功能；設定只影響你自己，不改變其他人的首頁或手機快速前往。</p>

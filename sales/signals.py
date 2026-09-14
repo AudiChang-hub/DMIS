@@ -1,5 +1,14 @@
 from django.db.models.signals import m2m_changed, pre_delete, post_delete, post_save
 from django.dispatch import receiver
+from django.db import transaction
+from .models import OrderIntakeAttachment
+
+
+@receiver(post_delete, sender=OrderIntakeAttachment)
+def remove_intake_attachment_file(sender, instance, **kwargs):
+    if instance.file:
+        storage, name = instance.file.storage, instance.file.name
+        transaction.on_commit(lambda: storage.delete(name))
 
 from .models import (
     AccessoryLine,

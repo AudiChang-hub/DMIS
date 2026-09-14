@@ -1612,6 +1612,9 @@ class LegacyImportRowCorrectionForm(forms.Form):
 
 
 class OrderEditForm(SalesOrderForm):
+    class Meta(SalesOrderForm.Meta):
+        fields = [*SalesOrderForm.Meta.fields, "trade_in_intent"]
+
     confirm_completed_correction = forms.BooleanField(
         label="我確認這是完成後修正，交付狀態不變；金額調整後會核對應收差額。",
         required=False,
@@ -1626,6 +1629,7 @@ class OrderEditForm(SalesOrderForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.fields["trade_in_intent"].required = False
         if self.instance.is_delivered:
             self.fields["confirm_completed_correction"].required = True
         else:
@@ -1633,6 +1637,7 @@ class OrderEditForm(SalesOrderForm):
 
     def clean(self):
         data = super().clean()
+        data["trade_in_intent"] = (data.get("trade_in_intent") or "unknown") if "trade_in_intent" in self.data else self.instance.trade_in_intent
         if (
             self.instance.actual_balance != self.instance.calculated_balance
             and not self.instance.balance_adjustment_reason

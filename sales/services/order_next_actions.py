@@ -219,6 +219,9 @@ def build_order_next_actions(
 ):
     """依訂單事實產生一項主要建議與最多兩項平行建議。"""
     today = today or timezone.localdate()
+    if order.status == SalesOrder.Status.INTAKE_PENDING:
+        primary = NextAction(key="receive-order", title="等待店內接單", description="先確認接單人，接單後再進行配車。", action_label="查看接單進度", url=reverse("order_detail", args=[order.pk]) + "#order-acceptance")
+        return OrderNextActions(primary, (), _state_key(primary, ()))
     registration_missing = (
         list(registration_missing)
         if registration_missing is not None

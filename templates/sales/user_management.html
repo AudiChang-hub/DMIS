@@ -71,6 +71,7 @@
         </div>
         <div class="account-actions">
           {% if can_manage_screen_access %}{% if account.username == 'admin' %}<span class="status-pill neutral">admin 權限固定</span>{% else %}<a class="button primary small" href="{% url 'access_edit' account.pk %}">畫面權限</a>{% endif %}{% endif %}
+          {% if can_manage_screen_access %}<a class="button ghost small" href="{% url 'order_account_scope' account.pk %}">下單身分／所屬通路</a>{% endif %}
           {% if not screen_read_only %}<a class="button ghost small" href="{% url 'user_account_edit' account.pk %}">編輯</a>
           {% if account.pk != user.pk %}<a class="button ghost small" href="{% url 'user_account_reset_password' account.pk %}">重設密碼</a>{% endif %}{% endif %}
         </div>

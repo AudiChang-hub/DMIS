@@ -2621,6 +2621,7 @@ class SalesOrder(TimeStampedModel):
 
     class Status(models.TextChoices):
         DRAFT = "draft", "草稿"
+        INTAKE_PENDING = "intake_pending", "待接單"
         ALLOCATION_PENDING = "allocation_pending", "待配車"
         ALLOCATED = "allocated", "已配車"
         TRANSFER_PENDING = "transfer_pending", "待調車"
@@ -2632,6 +2633,12 @@ class SalesOrder(TimeStampedModel):
         CANCELLED = "cancelled", "已取消／已退款"
 
     number = models.CharField("訂單編號", max_length=24, unique=True, editable=False)
+    submission_key = models.UUIDField(null=True, blank=True, unique=True, editable=False)
+    submitted_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, blank=True, related_name="submitted_orders", verbose_name="下單帳號")
+    accepted_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, blank=True, related_name="accepted_orders", verbose_name="接單人")
+    accepted_name = models.CharField("接單人名稱快照", max_length=160, blank=True)
+    accepted_at = models.DateTimeField("接單時間", null=True, blank=True)
+    trade_in_intent = models.CharField("是否有汰舊", max_length=12, choices=(("unknown", "待確認"), ("yes", "是"), ("no", "否")), default="unknown")
     order_date = models.DateField("訂單日期", default=timezone.localdate)
     established_on = models.DateField("訂單成立日期", default=timezone.localdate, null=True, blank=True, editable=False, db_index=True)
     source_type = models.CharField(
@@ -3490,6 +3497,8 @@ class SalesOrder(TimeStampedModel):
     @transaction.atomic
     def allocate(self, vehicle):
         locked_order = type(self).objects.select_for_update().get(pk=self.pk)
+        if locked_order.status == self.Status.INTAKE_PENDING:
+            raise ValidationError("請先接單，再進行配車。")
         locked = VehicleInventory.objects.select_for_update().get(pk=vehicle.pk)
         if locked_order.allocated_vehicle_id:
             raise ValidationError("此訂單已配車，請先解除原配車。")
@@ -4108,6 +4117,7 @@ class SubsidyDocument(TimeStampedModel):
 
 class OrderDraft(TimeStampedModel):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    owner_account = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, blank=True, related_name="order_drafts", verbose_name="下單帳號")
     data = models.JSONField("草稿內容", default=dict, blank=True)
     id_front = models.ImageField(
         "證件正面", upload_to="drafts/id/%Y/%m/", blank=True
@@ -4366,6 +4376,34 @@ class UserAppearancePreference(TimeStampedModel):
 
     def __str__(self):
         return f"{self.user.get_username()}－{self.get_theme_display()}"
+
+
+class OrderAccountProfile(TimeStampedModel):
+    """所屬通路與外部資料範圍；不以 is_staff 或車行名稱推測角色。"""
+    user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="order_account")
+    kind = models.CharField("下單身分", max_length=12, choices=(("internal", "店內人員"), ("dealer", "合作車行")), default="internal")
+    source = models.ForeignKey(SalesSource, on_delete=models.PROTECT, null=True, blank=True, verbose_name="預設店別／所屬車行")
+    revision = models.PositiveIntegerField(default=0)
+
+    def clean(self):
+        super().clean()
+        if self.kind == "dealer" and (not self.source_id or self.source.source_type != SalesSource.SourceType.DEALER):
+            raise ValidationError({"source": "合作車行帳號必須綁定合作車行。"})
+        if self.kind == "dealer" and self.user.get_username() == "admin":
+            raise ValidationError("admin 為馭盛店內管理帳號，不可改為外部車行。")
+
+
+class OrderIntakeAttachment(TimeStampedModel):
+    checksum = models.CharField(max_length=64)
+    order = models.ForeignKey(SalesOrder, on_delete=models.CASCADE, null=True, blank=True, related_name="intake_attachments")
+    draft = models.ForeignKey(OrderDraft, on_delete=models.CASCADE, null=True, blank=True, related_name="intake_attachments")
+    kind = models.CharField("附件類型", max_length=16, choices=(("installment", "分期表"), ("supplement", "補充檔案")))
+    file = models.FileField("附件", upload_to="orders/intake/%Y/%m/")
+    uploaded_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
+    name = models.CharField("原始檔名", max_length=200)
+
+    class Meta:
+        constraints = [models.CheckConstraint(condition=(models.Q(order__isnull=False, draft__isnull=True) | models.Q(order__isnull=True, draft__isnull=False)), name="intake_attachment_one_parent")]
 
 
 class UserSecurityProfile(TimeStampedModel):

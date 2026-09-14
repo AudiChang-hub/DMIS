@@ -14,6 +14,12 @@ class ScreenAccessMiddleware(MiddlewareMixin):
             return None  # 沿用原登入 redirect 與公開健康檢查。
         match = request.resolver_match
         name = match.url_name
+        from sales.services.order_intake import guard_dealer_request
+        guard_dealer_request(request, name, view_kwargs)
+        if name in {"order_edit", "order_operations", "registration_fee_variance_confirm", "order_commission_attribution_update", "delivery_payment_update", "order_discount_decide"} and request.method == "POST":
+            from sales.services.order_intake import can_edit_finance
+            if not can_edit_finance(request.user):
+                raise PermissionDenied("沒有訂單內部財務編輯權限。")
         target = getattr(view_func, "view_initkwargs", {}).get("pattern_name")
         if target:
             name = target

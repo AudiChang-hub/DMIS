@@ -25,6 +25,9 @@ class AccessPolicy:
         self.user = user
         self.root = is_root(user)
         self.active = bool(user.is_authenticated and user.is_active)
+        from sales.services.order_intake import account_profile
+        self.order_profile = account_profile(user)
+        self.dealer = bool(self.order_profile and self.order_profile.kind == "dealer")
         state = UserAccessState.objects.filter(user_id=user.pk).first() if user.is_authenticated else None
         self.configured = bool(state and state.configured)
         self.version = state.version if state else 0
@@ -36,6 +39,8 @@ class AccessPolicy:
             self.reports = {row["report_id"]: row for row in ReportAccessGrant.objects.filter(user=user).values("report_id", "view", "operate", "export")}
 
     def screen(self, key, action="view"):
+        if self.dealer:
+            return bool(self.active and self.order_profile.source_id and self.order_profile.source.active and key == "orders" and action in {"view", "operate"})
         screen = BY_KEY.get(key)
         if not self.active or not screen or action not in {"view", "operate", "export"}:
             return False
@@ -60,6 +65,11 @@ class AccessPolicy:
 
     def route(self, name, method="GET", kwargs=None):
         kwargs = kwargs or {}
+        if self.dealer:
+            from sales.services.order_intake import DEALER_ROUTES, DEALER_ACCOUNT_ROUTES
+            if name in DEALER_ACCOUNT_ROUTES:
+                return True
+            return bool(self.active and self.order_profile.source_id and self.order_profile.source.active and name in DEALER_ROUTES)
         if name in PERSONAL:
             return True
         if not self.active:

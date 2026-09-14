@@ -38,7 +38,7 @@ def favorite_context(user, preference=None, *, policy=None, selected=None):
     policy = policy or AccessPolicy(user)
     groups, options = [], []
     for key, title, description, keys in GROUPS:
-        items = [{**LINKS[k], "url": reverse(LINKS[k]["route"]), "group": title}
+        items = [{**LINKS[k], "url": reverse("catalog" if k == "new-order" and policy.route("catalog") else LINKS[k]["route"]), "group": title}
                  for k in keys if policy.route(LINKS[k]["route"])]
         if items:
             groups.append({"key": key, "title": title, "description": description, "options": items})

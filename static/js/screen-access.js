@@ -30,6 +30,12 @@
     dirty = true;
     refresh();
   });
+  form.querySelectorAll('[data-access-bulk]').forEach(button => button.addEventListener('click', () => {
+    const category = button.closest('[data-access-category]');
+    category.querySelectorAll('input[type="checkbox"]:not(:disabled)').forEach(box => { box.checked = button.dataset.accessBulk === '1'; });
+    dirty = true;
+    refresh();
+  }));
   search.addEventListener('input', refresh);
   filter.addEventListener('change', refresh);
   document.addEventListener('submit', () => { dirty = false; });

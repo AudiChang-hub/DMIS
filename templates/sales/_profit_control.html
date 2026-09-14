@@ -1,0 +1,4 @@
+<div class="profit-control" data-profit-until="{{ profit_unlock_until }}">
+{% if profit_unlocked %}<span>淨利已解鎖 · 最長 5 分鐘</span><form method="post" action="{% url 'profit_lock' %}">{% csrf_token %}<input type="hidden" name="next" value="{{ request.get_full_path }}"><button class="button ghost small">立即鎖定</button></form>
+{% elif profit_allowed %}<span>淨利已鎖定</span><a class="button ghost small" href="{% url 'profit_unlock' %}?next={{ request.get_full_path|urlencode }}">輸入密碼查看</a>
+{% else %}<span>淨利未授權 · 請洽 admin</span>{% endif %}</div>

@@ -19,7 +19,7 @@
 <form method="post" data-access-form>{% csrf_token %}<input type="hidden" name="version" value="{{ before.version }}">
 {% if preview %}<input type="hidden" name="preview_token" value="{{ preview_token }}">{% endif %}
 {% for group in groups %}<section class="access-category" id="access-{{ group.key }}" data-access-category aria-labelledby="access-heading-{{ group.key }}">
-<h2 id="access-heading-{{ group.key }}">{{ group.label }}</h2>
+<div class="favorites-heading"><h2 id="access-heading-{{ group.key }}">{{ group.label }}</h2>{% if not preview %}<div class="hero-actions"><button type="button" class="button ghost small" data-access-bulk="1">本大項全選</button><button type="button" class="button ghost small" data-access-bulk="0">全部取消</button></div>{% endif %}</div><p class="muted">批次操作包含本大項被搜尋隱藏的項目；其他大項不變，預覽確認後才生效。</p>
 {% for section in group.sections %}<section class="access-subcategory" data-access-subcategory><h3>{{ section.label }}</h3><div class="access-grid">
 {% for row in section.rows %}<fieldset class="access-row{% if row.changed %} is-changed{% endif %}" data-access-row data-label="{{ group.label }} {{ section.label }} {{ row.label }}"><legend>{{ row.label }}</legend>
 <div class="access-checks">{% for cell in row.cells %}<label><input type="checkbox" name="{{ cell.name }}" data-action="{{ cell.action }}" data-before="{{ cell.before|yesno:'1,0' }}" {% if cell.checked %}checked{% endif %} {% if preview %}disabled{% endif %}> {{ cell.label }}{% if preview and cell.checked != cell.before %}<strong>{% if cell.checked %}新增{% else %}收回{% endif %}</strong>{% endif %}</label>{% endfor %}</div></fieldset>{% endfor %}

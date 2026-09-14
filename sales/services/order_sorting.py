@@ -6,10 +6,9 @@ from sales.models import OrderOperationsProfile, SalesOrder
 
 
 COLUMNS = (
-    ('owner_name', '車主'), ('number', '訂單編號'), ('machine', '機種'),
-    ('color', '顏色'), ('registration_date', '領牌日期'),
-    ('established_on', '訂單成立日期'), ('plate', '車號'), ('profit', '淨利'),
-    ('source', '車行／平台'), ('status', '狀態'), ('note', '備註'),
+    ('established_on', '訂單成立日期'), ('registration_date', '領牌日期'), ('plate', '車號'),
+    ('owner_name', '姓名'), ('number', '訂單編號'), ('machine', '機種'), ('color', '顏色'),
+    ('source', '車行／平台'), ('status', '狀態'), ('note', '備註'), ('profit', '淨利'),
 )
 FIELDS = dict(owner_name='owner_name', number='number', machine='_sort_machine',
               color='color__name', registration_date='registration_date',
@@ -67,7 +66,7 @@ def sort_orders(orders, tokens):
     return orders.order_by(*ordering, '-pk')
 
 
-def sort_context(params, tokens):
+def sort_context(params, tokens, *, profit_unlocked=True):
     columns = []
     def url_for(values):
         query = params.copy()
@@ -89,7 +88,7 @@ def sort_context(params, tokens):
             before[position-1], before[position] = before[position], before[position-1]
         if rank and position < len(tokens)-1:
             after[position+1], after[position] = after[position], after[position+1]
-        columns.append({'key':key, 'label':label, 'rank':rank, 'direction':'▼' if descending else '▲',
+        columns.append({'key':key, 'label':label, 'locked': key == 'profit' and not profit_unlocked, 'rank':rank, 'direction':'▼' if descending else '▲',
                         'direction_label': directions[int(descending)],
                         'remove_url': url_for([t for t in tokens if t.lstrip('-') != key]),
                         'up_url': url_for(before) if rank and position > 0 else '',

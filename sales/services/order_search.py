@@ -174,7 +174,7 @@ def _order_fields():
     ]
 
 
-def build_order_search_query(query):
+def build_order_search_query(query, *, profit_unlocked=True):
     # search_text 與查詢字串都已 casefold；使用 contains 才能讓 PostgreSQL
     # 直接採用 search_text 的 gin_trgm_ops index，避免 UPPER() 使索引失效。
     terms = {_normalise(query)}
@@ -182,7 +182,8 @@ def build_order_search_query(query):
     result = Q()
     for term in terms:
         if term:
-            result |= Q(search_index__search_text__contains=term)
+            lookup = "search_index__search_text__contains" if profit_unlocked else "search_index__safe_search_text__contains"
+            result |= Q(**{lookup: term})
     return result
 
 
@@ -193,9 +194,11 @@ def _append_match(matches, label, value, sensitive=False):
         matches.append(item)
 
 
-def build_order_match_summary(order, query):
+def build_order_match_summary(order, query, *, profit_unlocked=True):
     search_terms = [query, *vehicle_brand_search_names(query)]
-    cached = getattr(getattr(order, "search_index", None), "match_payload", None)
+    cached = getattr(getattr(order, "search_index", None), "match_payload" if profit_unlocked else "safe_match_payload", None)
+    if cached is None and not profit_unlocked:
+        cached = build_order_search_payload(order, include_private=False)
     if cached is not None:
         return [
             {
@@ -340,18 +343,20 @@ def build_order_match_summary(order, query):
     return matches
 
 
-def _index_item(items, label, value, sensitive=False):
+def _index_item(items, label, value, sensitive=False, *, private=False):
     if isinstance(value, models.fields.files.FieldFile):
         value = PurePath(value.name).name if value else ""
     if value in (None, ""):
         return
     text = str(value)
     item = {"label": str(label), "value": text, "sensitive": bool(sensitive)}
+    if private:
+        item["profit_private"] = True
     if item not in items:
         items.append(item)
 
 
-def build_order_search_payload(order):
+def build_order_search_payload(order, *, include_private=True):
     items = []
     for field in _order_fields():
         raw_value = getattr(order, field.name)
@@ -395,19 +400,21 @@ def build_order_search_payload(order):
         _index_item(items, "歷史現金收款", legacy.cash_received)
         _index_item(items, "歷史刷卡收款", legacy.card_received)
         _index_item(items, "銷售方案分類", legacy.sales_category)
-        for label, value in legacy.raw_financials.items():
-            _index_item(items, label, value)
+        for label, value in (legacy.raw_financials.items() if include_private else ()):
+            _index_item(items, label, value, private=True)
 
     profile = getattr(order, "operations", None)
     if profile:
         for field in profile._meta.fields:
+            if not include_private and isinstance(field, models.JSONField):
+                continue  # 財務核對 JSON 可能包含原始／核對後淨利。
             if field.name in {
                 "id", "order", "created_at", "updated_at",
                 "vehicle_control_password_encrypted",
                 "battery_password_encrypted",
             }:
                 continue
-            _index_item(items, field.verbose_name, _display_value(profile, field))
+            _index_item(items, field.verbose_name, _display_value(profile, field), private=isinstance(field, models.JSONField))
 
     collections = (
         (order.accessories.all(), (
@@ -465,12 +472,15 @@ def rebuild_order_search_index(order_id):
     if not order:
         return
     payload = build_order_search_payload(order)
+    safe_payload = [item for item in payload if not item.get("profit_private")]
     search_text = "\n".join(
         {_normalise(item["value"]) for item in payload if item.get("value")}
     )
     SalesOrderSearchIndex.objects.update_or_create(
         order=order,
-        defaults={"search_text": search_text, "match_payload": payload},
+        defaults={"search_text": search_text, "match_payload": payload,
+                  "safe_search_text": "\n".join({_normalise(item["value"]) for item in safe_payload if item.get("value")}),
+                  "safe_match_payload": safe_payload},
     )
 
 

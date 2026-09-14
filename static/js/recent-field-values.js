@@ -32,7 +32,12 @@
   }
 
   function disableNativeAutocomplete(root = document) {
-    root.querySelectorAll?.("form, input, textarea, select").forEach(element => {
+    const elements = [...(root.querySelectorAll?.("form, input, textarea, select") || [])];
+    if (root.matches?.("form, input, textarea, select")) elements.push(root);
+    elements.forEach(element => {
+      // 登入／開通表單的明確提示不可覆寫，否則瀏覽器容易誤填現用帳密。
+      if (element.type === "password" || EXCLUDED_NAME.test(element.name || "") ||
+          /(?:^|\s)(?:username|new-password|current-password)(?:\s|$)/.test(element.getAttribute("autocomplete") || "")) return;
       element.setAttribute("autocomplete", "off");
     });
   }
@@ -155,7 +160,6 @@
   new MutationObserver(records => {
     records.forEach(record => record.addedNodes.forEach(node => {
       if (!(node instanceof Element)) return;
-      if (node.matches("form, input, textarea, select")) node.setAttribute("autocomplete", "off");
       disableNativeAutocomplete(node);
     }));
   }).observe(document.body, {childList: true, subtree: true});

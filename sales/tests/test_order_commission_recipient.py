@@ -294,6 +294,9 @@ class OrderCommissionRecipientTests(TestCase):
         self.assertEqual(change.changes["台數與傭金歸屬車行"], {"before": "B車行", "after": "A車行"})
 
     def test_ui_detail_help_and_export_show_recipient(self):
+        self.client.force_login(self.user)
+        from sales.tests.profit_helpers import unlock_profit
+        unlock_profit(self, self.user)
         order = self.make_order(recipient=self.a)
         self.client.force_login(self.user)
         self.assertContains(self.client.get(reverse("order_create")), "這台算給其他車行")

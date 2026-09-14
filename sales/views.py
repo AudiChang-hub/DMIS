@@ -4103,10 +4103,13 @@ def app_version(request):
 
 @login_required
 def dashboard(request):
+    from sales.services.audience_content import release_context
+    from sales.access.services import policy_for
     from sales.services.order_intake import scoped_orders
     from sales.services.order_intake import is_dealer, dealer_source
     if is_dealer(request.user):
         return render(request, "sales/dealer_home.html", {"dealer_source": dealer_source(request.user),
+            **release_context(policy_for(request)),
             "pending_count": scoped_orders(request.user).filter(status=SalesOrder.Status.INTAKE_PENDING).count()})
     from config.release_notes import LEGACY_UPDATES, RELEASE, RELEASES
     from sales.access.services import policy_for
@@ -4119,8 +4122,7 @@ def dashboard(request):
     return render(request, "sales/dashboard.html", {
         "release": RELEASE,
         "intake_pending_count": scoped_orders(request.user).filter(status=SalesOrder.Status.INTAKE_PENDING).count() if policy_for(request).route("order_list") else 0,
-        "release_history": RELEASES,
-        "legacy_updates": LEGACY_UPDATES,
+        **release_context(policy_for(request)),
         **favorite_context(request.user, UserAppearancePreference.objects.filter(user=request.user).first(), policy=policy_for(request)),
         "page_obj": Paginator(SystemAnnouncement.visible(), 8).get_page(request.GET.get("page")),
     })
@@ -4129,7 +4131,9 @@ def dashboard(request):
 @login_required
 def user_guide(request):
     """提供不含技術術語、可搜尋與列印的 End User 使用說明。"""
-    return render(request, "help/user_guide.html")
+    from sales.services.audience_content import help_context
+    from sales.access.services import policy_for
+    return render(request, "help/user_guide.html", help_context(policy_for(request)))
 
 
 @login_required
@@ -4183,6 +4187,8 @@ def order_list(request):
         page = Paginator(orders, 25).get_page(request.GET.get("page"))
         return render(request, "sales/dealer_order_list.html", {"page_obj": page, "orders": page, "query": query, "statuses": SalesOrder.Status.choices, "own_drafts": Paginator(scoped_drafts(request.user), 10).get_page(request.GET.get("draft_page"))})
     from sales.access.services import policy_for
+    from sales.services.profit_access import profit_is_unlocked
+    profit_visible = profit_is_unlocked(request)
     orders = SalesOrder.objects.select_related(
         "source",
         "vehicle_model",
@@ -4193,11 +4199,13 @@ def order_list(request):
     )
     query = request.GET.get("q", "").strip()
     if query:
-        orders = orders.filter(build_order_search_query(query)).distinct()
+        orders = orders.filter(build_order_search_query(query, profit_unlocked=profit_visible)).distinct()
     from sales.services.order_filters import filter_order_analysis, analysis_filter_context
     orders = filter_order_analysis(orders, request.GET)
     from sales.services.order_sorting import parse_sort, sort_context, sort_orders
     sort_tokens = parse_sort(request.GET.get("sort", ""))
+    if not profit_visible:
+        sort_tokens = [token for token in sort_tokens if token.lstrip("-") != "profit"]
     orders = sort_orders(orders, sort_tokens)
     try:
         per_page = int(request.GET.get("per_page", ORDER_LIST_DEFAULT_PAGE_SIZE))
@@ -4208,7 +4216,7 @@ def order_list(request):
     page = Paginator(orders, per_page).get_page(request.GET.get("page"))
     if query:
         for order in page.object_list:
-            order.search_matches = build_order_match_summary(order, query)
+            order.search_matches = build_order_match_summary(order, query, profit_unlocked=profit_visible)
     query_params = request.GET.copy()
     query_params.pop("page", None)
     return render(
@@ -4224,7 +4232,7 @@ def order_list(request):
             "per_page_options": ORDER_LIST_PAGE_SIZE_OPTIONS,
             **analysis_filter_context(request.GET),
             "drafts": Paginator(OrderDraft.objects.all(), 25).get_page(request.GET.get("page")) if request.GET.get("drafts") == "1" and policy_for(request).route("order_create") else [],
-            **sort_context(request.GET, sort_tokens),
+            **sort_context(request.GET, sort_tokens, profit_unlocked=profit_visible),
         },
     )
 
@@ -4236,7 +4244,8 @@ def _operations_report_queryset(request):
     ).prefetch_related("payment_records")
     keyword = request.GET.get("q", "").strip()
     if keyword:
-        rows = rows.filter(build_order_search_query(keyword)).distinct()
+        from sales.services.profit_access import profit_is_unlocked
+        rows = rows.filter(build_order_search_query(keyword, profit_unlocked=profit_is_unlocked(request))).distinct()
     rows = filter_order_analysis(rows, request.GET, business_default=True)
     date_field = {"order": "order_date", "established": "established_on", "delivery": "delivered_at"}.get(request.GET.get("date_basis"), "registration_date")
     return rows.order_by(f"-{date_field}", "-id")
@@ -4276,6 +4285,12 @@ def operations_report(request):
         return redirect(f"{reverse('order_list')}?{params.urlencode()}")
     metrics = build_dashboard_metrics()
     summary, models = _operations_analysis(metrics["performance"]["orders"])
+    from sales.services.profit_access import profit_is_unlocked
+    if not profit_is_unlocked(request):
+        for bucket in [metrics["performance"], *metrics["trend"], summary, *models]:
+            for key in ("profit_total", "net_profit", "average_profit", "profit_change"):
+                bucket.pop(key, None)
+        metrics["charts"] = [chart for chart in metrics["charts"] if chart["label"] != "可計入訂單淨利"]
     return render(request, "sales/operations_report.html", {
         "dashboard": metrics, "analysis_summary": summary, "model_breakdown": models,
         "show_company_workload": policy.screen("dashboard"),
@@ -5017,6 +5032,7 @@ def draft_presence(request, pk):
 
 @login_required
 def order_detail(request, pk, *, commission_form=None):
+    from sales.services.profit_access import profit_is_unlocked
     from sales.services.order_intake import is_dealer, scoped_orders
     if is_dealer(request.user):
         order = get_object_or_404(scoped_orders(request.user).select_related("vehicle_model", "color", "source"), pk=pk)
@@ -5162,7 +5178,7 @@ def order_detail(request, pk, *, commission_form=None):
             "subsidy_missing": subsidy_missing,
             "subsidy_form": SubsidyDataForm(instance=order),
             "subsidy_item_formset": SubsidyItemFormSet(instance=order, prefix="subsidy_items"),
-            "change_cards": build_order_change_cards(order.changes.all()),
+            "change_cards": build_order_change_cards(order.changes.all(), profit_unlocked=profit_is_unlocked(request)),
             "operations_profile": operations_profile,
             "next_actions": next_actions,
             "active_tab": active_tab,

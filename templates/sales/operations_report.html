@@ -2,6 +2,7 @@
 {% block title %}營運總表｜車輛銷售管理{% endblock %}
 {% block page_class %}page-shell--wide{% endblock %}
 {% block content %}
+{% include 'sales/_profit_control.html' %}
 {% url 'dashboard' as dashboard_url %}
 {% include "sales/_page_back.html" with fallback_url=dashboard_url label="首頁" %}
 <section class="hero-row"><div><p class="eyebrow">經營分析</p><h1>營運總表</h1><p class="muted">掌握公司走向、收款風險與作業卡點。逐筆查詢集中於全部訂單，此處不重複列出訂單。</p></div><div class="hero-actions">{% if_access 'order_list' %}<a class="button primary" href="{% url 'order_list' %}">前往全部訂單</a>{% endif_access %}{% if_access 'operations_report_export' %}<a class="button ghost" href="{% url 'operations_report_export' %}?date_from={{ dashboard.period.start|date:'Y-m-d' }}&date_to={{ dashboard.period.end|date:'Y-m-d' }}">匯出本月營運明細</a>{% endif_access %}{% if_access 'reconciliation_list' %}<a class="button ghost" href="{% url 'reconciliation_list' %}">統一撥款對帳</a>{% endif_access %}</div></section>
@@ -24,12 +25,12 @@
       </article>
       <article class="performance-card">
         <span>可計入訂單淨利合計</span>
-        <strong>{% if dashboard.performance.profit_ready %}<small>$</small>{{ dashboard.performance.profit_total|number_with_commas }}{% else %}—{% endif %}</strong>
+        <strong data-profit-value>{% if not profit_unlocked %}已鎖定{% elif dashboard.performance.profit_ready %}<small>$</small>{{ dashboard.performance.profit_total|number_with_commas }}{% else %}—{% endif %}</strong>
         <em>{{ dashboard.performance.profit_ready }}／{{ dashboard.performance.count }} 筆可計入淨利（待核對者未計入）</em>
       </article>
       <article class="performance-card">
         <span>平均單筆淨利</span>
-        <strong>{% if dashboard.performance.profit_ready %}<small>$</small>{{ dashboard.performance.average_profit|number_with_commas }}{% else %}—{% endif %}</strong>
+        <strong data-profit-value>{% if not profit_unlocked %}已鎖定{% elif dashboard.performance.profit_ready %}<small>$</small>{{ dashboard.performance.average_profit|number_with_commas }}{% else %}—{% endif %}</strong>
         <em>只除以可計入筆數；不含公司租金、薪資等營業費用</em>
       </article>
     </div>
@@ -39,7 +40,7 @@
   <section class="section-block command-trends" aria-labelledby="trends-title">
     <div class="section-title"><h2 id="trends-title">近 12 個月公司走勢</h2>{% if_access 'order_list' %}<a href="{% url 'order_list' %}?business_only=1&date_from={{ dashboard.period.start|date:'Y-m-d' }}&date_to={{ dashboard.period.end|date:'Y-m-d' }}">核對本月明細</a>{% endif_access %}</div>
     <p class="muted">台數、成交額與淨利分開比較。最後一個月僅截至今日；淨利斷線代表沒有可計入資料，不是零獲利。</p>
-    <div class="command-chart-grid">{% for chart in dashboard.charts %}<figure>
+    <div class="command-chart-grid">{% for chart in dashboard.charts %}<figure{% if chart.label == '可計入訂單淨利' %} data-profit-value{% endif %}>
       <figcaption>{{ chart.label }}（{{ chart.unit }}）</figcaption>
       <svg viewBox="0 0 480 165" role="img" aria-label="{{ chart.label }}近十二月走勢；精確數值見下方月份表">
         <line x1="20" x2="460" y1="{{ chart.zero_y }}" y2="{{ chart.zero_y }}" class="chart-baseline" />
@@ -50,7 +51,7 @@
       <small class="muted">圖示範圍 {{ chart.low|number_with_commas }}～{{ chart.high|number_with_commas }} {{ chart.unit }}；虛線為零</small>
     </figure>{% endfor %}</div>
     <details><summary>查看每月數值與明細（含淨利完整度）</summary><div class="table-wrap" tabindex="0" aria-label="每月數值，可水平捲動"><table class="command-trend-table"><thead><tr><th>月份</th><th>領牌台數</th><th>車款成交額</th><th>可計入訂單淨利</th><th>可計入／總筆數</th><th>明細</th></tr></thead><tbody>
-    {% for row in dashboard.trend %}<tr><th>{{ row.label }}{% if forloop.last %}（截至今日）{% endif %}</th><td>{{ row.count }}</td><td>$ {{ row.sales_total|number_with_commas }}</td><td>{% if row.profit_ready %}$ {{ row.profit_total|number_with_commas }}{% else %}—{% endif %}</td><td>{{ row.profit_ready }}／{{ row.count }}</td><td>{% if_access 'order_list' %}<a href="{% url 'order_list' %}?business_only=1&date_basis=registration&date_from={{ row.start }}&date_to={{ row.end }}">核對明細</a>{% endif_access %}</td></tr>{% endfor %}
+    {% for row in dashboard.trend %}<tr><th>{{ row.label }}{% if forloop.last %}（截至今日）{% endif %}</th><td>{{ row.count }}</td><td>$ {{ row.sales_total|number_with_commas }}</td><td data-profit-value>{% if not profit_unlocked %}已鎖定{% elif row.profit_ready %}$ {{ row.profit_total|number_with_commas }}{% else %}—{% endif %}</td><td>{{ row.profit_ready }}／{{ row.count }}</td><td>{% if_access 'order_list' %}<a href="{% url 'order_list' %}?business_only=1&date_basis=registration&date_from={{ row.start }}&date_to={{ row.end }}">核對明細</a>{% endif_access %}</td></tr>{% endfor %}
     </tbody></table></div></details>
     <p class="command-data-quality">本月 {{ dashboard.performance.profit_ready }}／{{ dashboard.performance.count }} 筆可計入淨利，{{ dashboard.performance.profit_pending }} 筆待補成本或核對。這是訂單淨利，不是包含全公司費用的公司淨利。</p>
   </section>
@@ -64,7 +65,7 @@
   </section>
 
 
-{% if show_financial_summary %}<section class="section-block operations-model-summary"><h2>本月車型表現</h2><p class="muted">依本月實際領牌日期；淨利只計入資料完整的訂單。</p><div class="table-wrap"><table><thead><tr><th>車型</th><th>成交台數</th><th>車款成交額</th><th>可計入淨利</th><th>淨利完整度</th></tr></thead><tbody>{% for item in model_breakdown %}<tr><th>{{ item.label }}</th><td>{{ item.count }}</td><td>{{ item.vehicle_sales|number_with_commas }}</td><td>{% if item.profit_ready %}{{ item.net_profit|number_with_commas }}{% else %}—{% endif %}</td><td>{{ item.profit_ready }}／{{ item.count }}</td></tr>{% empty %}<tr><td colspan="5">本月尚無成交資料</td></tr>{% endfor %}</tbody></table></div></section>
+{% if show_financial_summary %}<section class="section-block operations-model-summary"><h2>本月車型表現</h2><p class="muted">依本月實際領牌日期；淨利只計入資料完整的訂單。</p><div class="table-wrap"><table><thead><tr><th>車型</th><th>成交台數</th><th>車款成交額</th><th>可計入淨利</th><th>淨利完整度</th></tr></thead><tbody>{% for item in model_breakdown %}<tr><th>{{ item.label }}</th><td>{{ item.count }}</td><td>{{ item.vehicle_sales|number_with_commas }}</td><td data-profit-value>{% if not profit_unlocked %}已鎖定{% elif item.profit_ready %}{{ item.net_profit|number_with_commas }}{% else %}—{% endif %}</td><td>{{ item.profit_ready }}／{{ item.count }}</td></tr>{% empty %}<tr><td colspan="5">本月尚無成交資料</td></tr>{% endfor %}</tbody></table></div></section>
 {% endif %}
 {% if show_company_workload %}
 <section class="dashboard-section"><h2>即時工作量</h2><div class="command-risk-grid">

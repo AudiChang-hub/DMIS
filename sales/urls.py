@@ -1,7 +1,7 @@
 from django.urls import path
 from django.views.generic import RedirectView
 
-from . import views, announcement_views, favorite_views, intake_views, catalog_views, dealer_account_views
+from . import views, announcement_views, favorite_views, intake_views, catalog_views, dealer_account_views, profit_views
 from .historical_replacement import historical_buyer_replacement
 from .historical_date_change import historical_date_change
 from .reporting import views as report_views
@@ -10,9 +10,12 @@ from .access import views as access_views
 
 
 urlpatterns = [
+    path("account/profit/unlock/", profit_views.profit_unlock, name="profit_unlock"),
+    path("account/profit/lock/", profit_views.profit_lock, name="profit_lock"),
     path("catalog/", catalog_views.catalog, name="catalog"),
     path("catalog/<int:pk>/", catalog_views.catalog_detail, name="catalog_detail"),
     path("catalog/<int:pk>/image/", catalog_views.catalog_image, name="catalog_image"),
+    path("catalog/<int:pk>/colors/<int:color_pk>/image/", catalog_views.catalog_image, name="catalog_color_image"),
     path("data/catalog/", catalog_views.catalog_manage, name="catalog_manage"),
     path("data/catalog/<int:pk>/", catalog_views.catalog_edit, name="catalog_edit"),
     path("data/channels/<int:source_pk>/accounts/", dealer_account_views.dealer_accounts, name="dealer_accounts"),

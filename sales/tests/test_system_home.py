@@ -50,10 +50,10 @@ class SystemHomeTests(TestCase):
         response = self.client.get(reverse("dashboard"))
         self.assertContains(response, f"版本 {CURRENT_VERSION}")
         self.assertContains(response, 'class="release-entry" open', count=1)
-        self.assertContains(response, "正式編版前更新紀錄")
-        self.assertContains(response, "並非正式發布日期")
-        self.assertContains(response, "技術資訊")
-        self.assertEqual(response.context["release_history"], RELEASES)
+        self.assertNotContains(response, "正式編版前更新紀錄")
+        self.assertNotContains(response, "並非正式發布日期")
+        self.assertNotContains(response, '<summary>技術資訊</summary>')
+        self.assertNotEqual(response.context["release_history"], RELEASES)
         fingerprint = response.context["app_version"]
         self.assertRegex(fingerprint, r"^[0-9a-f]{12}$")
         self.assertContains(response, f'data-app-version="{fingerprint}"')
@@ -184,6 +184,9 @@ class OperationsNavigationTests(TestCase):
                 self.assertContains(response, f"risk={risk}&amp;sort=")
 
     def test_blank_dates_keep_unregistered_but_invalid_dates_fail_closed(self):
+        self.client.force_login(self.user)
+        from sales.tests.profit_helpers import unlock_profit
+        unlock_profit(self, self.user)
         self.make_order()
         self.make_order(timezone.localdate())
         page = self.client.get(reverse("order_list"), {"date_from": "", "date_to": "", "sort": "-registration_date"})

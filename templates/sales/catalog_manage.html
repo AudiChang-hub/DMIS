@@ -1,0 +1,6 @@
+{% extends "base.html" %}{% load pagination_tags sales_format %}
+{% block title %}選車展示管理{% endblock %}{% block content %}
+<section class="hero-row"><div><h1>選車展示管理</h1><p>只公開明確上架的車款。規格、售價與分期共用機種主檔，這裡只維護展示圖片與介紹。</p></div><a class="button" href="{% url 'catalog' %}">查看公開入口</a></section>
+<form method="get" class="card"><label>搜尋品牌／車型／型號<input class="form-control" name="q" value="{{ query }}"></label><button class="button primary">搜尋</button></form>
+{% for model in page_obj %}<article class="card hero-row"><div><h2>{{ model }}</h2><p>{% if not model.active %}車型已停用，不公開{% elif model.catalog_entry.published %}已上架{% else %}未上架{% endif %}</p></div><a class="button" href="{% url 'catalog_edit' model.pk %}">編輯展示</a></article>{% empty %}<p class="card">找不到車款。</p>{% endfor %}{% pagination page_obj aria_label="展示管理分頁" %}
+{% endblock %}

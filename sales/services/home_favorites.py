@@ -5,6 +5,8 @@ from .mobile_quick_links import MOBILE_QUICK_LINK_DEFINITIONS
 
 
 EXTRA_LINKS = (
+    {"key": "catalog", "label": "選車下單", "route": "catalog"},
+    {"key": "catalog-manage", "label": "選車展示管理", "route": "catalog_manage"},
     {"key": "orders", "label": "全部訂單", "route": "order_list"},
     {"key": "new-order", "label": "建立訂單", "route": "order_create"},
     {"key": "operations", "label": "營運總表", "route": "operations_report"},
@@ -19,7 +21,7 @@ EXTRA_LINKS = (
 )
 LINKS = {item["key"]: item for item in (*MOBILE_QUICK_LINK_DEFINITIONS, *EXTRA_LINKS)}
 GROUPS = (
-    ("orders", "全部訂單", "查詢、建立及處理訂單", ("orders", "new-order")),
+    ("orders", "全部訂單", "查詢、建立及處理訂單", ("orders", "new-order", "catalog", "catalog-manage")),
     ("operations", "營運總表", "公司走勢與對帳", ("operations", "reconciliation")),
     ("reports", "報表中心", "分析、設計及分類", ("reports", "report-design", "report-categories")),
     ("vehicles", "資料維護・車輛與商品", "品牌、售價、庫存及配件", ("vehicle-brands", "vehicle-models", "inventory", "accessories", "dealer-reward-items")),

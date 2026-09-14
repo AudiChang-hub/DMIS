@@ -40,7 +40,8 @@ class AccessPolicy:
 
     def screen(self, key, action="view"):
         if self.dealer:
-            return bool(self.active and self.order_profile.source_id and self.order_profile.source.active and key == "orders" and action in {"view", "operate"})
+            return bool(self.active and self.order_profile.source_id and self.order_profile.source.active and key == "orders"
+                and (action == "view" or (action == "operate" and self.order_profile.can_submit_orders)))
         screen = BY_KEY.get(key)
         if not self.active or not screen or action not in {"view", "operate", "export"}:
             return False
@@ -54,6 +55,8 @@ class AccessPolicy:
         return bool(grant.get("view") and grant.get(action))
 
     def report(self, report, action="view"):
+        if self.dealer:
+            return False
         if not self.active or not report.published or action not in {"view", "operate", "export"}:
             return False
         if self.root:
@@ -66,10 +69,10 @@ class AccessPolicy:
     def route(self, name, method="GET", kwargs=None):
         kwargs = kwargs or {}
         if self.dealer:
-            from sales.services.order_intake import DEALER_ROUTES, DEALER_ACCOUNT_ROUTES
+            from sales.services.order_intake import dealer_route_allowed, DEALER_ACCOUNT_ROUTES
             if name in DEALER_ACCOUNT_ROUTES:
                 return True
-            return bool(self.active and self.order_profile.source_id and self.order_profile.source.active and name in DEALER_ROUTES)
+            return bool(self.active and dealer_route_allowed(self.order_profile, name))
         if name in PERSONAL:
             return True
         if not self.active:

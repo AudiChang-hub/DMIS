@@ -3,9 +3,10 @@
 {% block content %}
 <section class="login-panel">
   <div>
-    <p class="eyebrow">內部管理系統</p>
+    <p class="eyebrow">馭盛・店內與合作車行登入</p>
     <h1>從客人下訂，到實際交車。</h1>
-    <p class="muted">所有門市使用同一套流程，手機也能完成建單、拍照與文件上傳。</p>
+    <p class="muted">店內與合作車行使用同一套下單流程，手機也能選車、填單與上傳文件。帳號請洽馭盛開通。</p>
+    <a class="button" href="{% url 'catalog' %}">先看看車款</a>
   </div>
   <form method="post" class="card login-card">
     {% csrf_token %}

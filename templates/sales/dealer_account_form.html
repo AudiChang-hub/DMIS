@@ -1,0 +1,5 @@
+{% extends "base.html" %}{% block title %}車行帳號設定{% endblock %}{% block content %}
+<a class="button" href="{% url 'dealer_accounts' source.pk %}">← 返回 {{ source.name }} 登入帳號</a><h1>{% if account %}編輯{% else %}開通{% endif %}車行帳號</h1>
+<section class="card"><h2>權限與資料範圍</h2><p>此帳號固定屬於 <strong>{{ source.name }}</strong>，可選車並查看該車行訂單；不能查看其他車行、內部財務或管理帳號。</p><p>取消「可建立訂單與使用自己的草稿」即為唯讀進度模式。停用會禁止登入，歷史訂單與操作紀錄保留。</p></section>
+<form class="card stacked-form" method="post">{% csrf_token %}{{ form.non_field_errors }}{% for field in form.hidden_fields %}{{ field }}{% endfor %}{% for field in form.visible_fields %}{% include "sales/_field.html" with field=field %}{% endfor %}<p>密碼不會儲存明文或再次顯示；請透過安全管道交付本人。</p><button class="button primary">{% if account %}確認儲存帳號與功能{% else %}確認開通並套用以上權限{% endif %}</button></form>
+{% endblock %}

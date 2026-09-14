@@ -43,7 +43,10 @@ def scoped_orders(user, queryset=None):
 
 def scoped_drafts(user, queryset=None):
     queryset = queryset if queryset is not None else OrderDraft.objects.all()
-    return queryset.filter(owner_account=user) if is_dealer(user) else queryset
+    profile = account_profile(user)
+    if profile and profile.kind == "dealer":
+        return queryset.filter(owner_account=user) if profile.can_submit_orders else queryset.none()
+    return queryset
 
 
 @transaction.atomic
@@ -73,6 +76,13 @@ DEALER_ROUTES = {
     "login", "logout", "access_home",
 }
 DEALER_ACCOUNT_ROUTES = {"login", "logout", "password_change_required", "password_change"}
+DEALER_ROUTES.update({"catalog", "catalog_detail", "catalog_image"})
+DEALER_SUBMIT_ROUTES = {"order_create", "draft_save", "draft_presence", "draft_delete", "id_card_ocr", "id_card_ocr_status", "id_card_ocr_invalidate"}
+
+
+def dealer_route_allowed(profile, name):
+    return bool(profile.source_id and profile.source.active and name in DEALER_ROUTES
+        and (profile.can_submit_orders or name not in DEALER_SUBMIT_ROUTES))
 
 
 def prepare_intake_uploads(uploads, *, order=None, draft=None, remove_ids=()):
@@ -128,7 +138,7 @@ def guard_dealer_request(request, name, kwargs):
         return
     if name in DEALER_ACCOUNT_ROUTES:
         return
-    if name not in DEALER_ROUTES or not profile.source_id or not profile.source.active:
+    if not dealer_route_allowed(profile, name):
         raise PermissionDenied("此車行帳號無法使用這項功能。")
     if name == "order_detail" and not scoped_orders(request.user).filter(pk=kwargs.get("pk")).exists():
         raise Http404

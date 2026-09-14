@@ -14,6 +14,10 @@ class ScreenAccessMiddleware(MiddlewareMixin):
             return None  # 沿用原登入 redirect 與公開健康檢查。
         match = request.resolver_match
         name = match.url_name
+        if name in {"user_account_edit", "user_account_status", "user_account_reset_password", "access_edit"}:
+            from sales.models import OrderAccountProfile
+            if OrderAccountProfile.objects.filter(user_id=view_kwargs.get("pk"), kind="dealer").exists() and not is_root(request.user):
+                raise PermissionDenied("車行登入帳號及功能只能由 admin 管理。")
         from sales.services.order_intake import guard_dealer_request
         guard_dealer_request(request, name, view_kwargs)
         if name in {"order_edit", "order_operations", "registration_fee_variance_confirm", "order_commission_attribution_update", "delivery_payment_update", "order_discount_decide"} and request.method == "POST":

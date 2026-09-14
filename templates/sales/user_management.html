@@ -9,9 +9,9 @@
   <div>
     <p class="eyebrow">依 admin 指定的畫面權限開放</p>
     <h1>帳號與權限</h1>
-    <p class="muted">建立每位內部人員自己的帳號；密碼只可建立或重設，系統不會顯示既有密碼。</p>
+    <p class="muted">馭盛內部人員與合作車行帳號集中管理；與合作車行頁面同步，密碼只能重設、不顯示原文。</p>
   </div>
-  <div class="account-actions">{% if can_manage_screen_access %}<a class="button secondary" href="{% url 'access_overview' %}">權限總覽</a>{% endif %}{% if not screen_read_only %}<a class="button primary" href="{% url 'user_account_create' %}">＋ 建立帳號</a>{% endif %}</div>
+  <div class="account-actions">{% if can_manage_screen_access %}<a class="button secondary" href="{% url 'access_overview' %}">權限總覽</a><a class="button" href="{% url 'sales_source_list' %}">到合作車行開通帳號</a>{% endif %}{% if not screen_read_only %}<a class="button primary" href="{% url 'user_account_create' %}">＋ 建立內部帳號</a>{% endif %}</div>
 </section>
 
 <section class="account-summary" aria-label="帳號統計">
@@ -22,6 +22,8 @@
 </section>
 
 <form class="account-filter card" method="get">
+  <div><label for="account-kind">人員身分</label><select id="account-kind" name="kind"><option value="">全部</option><option value="internal" {% if account_kind == 'internal' %}selected{% endif %}>馭盛內部人員</option><option value="dealer" {% if account_kind == 'dealer' %}selected{% endif %}>合作車行帳號</option></select></div>
+  <div><label for="account-source">所屬車行</label><select id="account-source" name="source"><option value="">全部車行</option>{% for source in dealer_sources %}<option value="{{ source.pk }}" {% if account_source == source.pk|stringformat:'s' %}selected{% endif %}>{{ source.name }}</option>{% endfor %}</select></div>
   <div>
     <label for="account-search">搜尋姓名或帳號</label>
     <input class="form-control" id="account-search" name="q" value="{{ query }}" placeholder="例如 Sylvia、sylvia">
@@ -44,7 +46,7 @@
 
 <section class="account-panel">
   <header class="account-panel__header">
-    <div><p class="eyebrow">內部使用者</p><h2>帳號清單</h2></div>
+    <div><p class="eyebrow">內部與車行人員</p><h2>帳號清單</h2></div>
     <span>{{ accounts|length }} 筆結果</span>
   </header>
   <div class="account-list">
@@ -54,10 +56,12 @@
         <div class="account-identity">
           <div><h3>{{ account.get_full_name|default:account.username }}</h3>{% if account.pk == user.pk %}<span class="status-pill neutral">目前帳號</span>{% endif %}</div>
           <p>@{{ account.username }}</p>
+          {% if account.order_account.kind == 'dealer' %}<p>合作車行：{{ account.order_account.source.name }} · {% if account.order_account.can_submit_orders %}可下單與查詢{% else %}唯讀進度{% endif %}</p>{% endif %}
         </div>
         <div class="account-state">
           {% url 'user_account_status' account.pk as account_status_url %}
-          {% if account.pk == user.pk %}
+          {% if account.order_account.kind == 'dealer' %}<span class="status-pill {% if account.is_active %}info{% else %}warning{% endif %}">{% if account.is_active %}使用中{% else %}已停用{% endif %}</span>
+          {% elif account.pk == user.pk %}
             {% include "sales/_active_quick_toggle.html" with action_url=account_status_url resource="user-account" pk=account.pk is_active=account.is_active item_name=account.username enabled_label="使用中" disabled_label="已停用" is_disabled=True %}
           {% else %}
             {% include "sales/_active_quick_toggle.html" with action_url=account_status_url resource="user-account" pk=account.pk is_active=account.is_active item_name=account.username enabled_label="使用中" disabled_label="已停用" confirm_off="確定停用此帳號嗎？停用後將無法登入。" %}
@@ -70,10 +74,12 @@
           <strong>{% if account.last_login %}{{ account.last_login|date:"Y/m/d H:i" }}{% else %}尚未登入{% endif %}</strong>
         </div>
         <div class="account-actions">
+          {% if account.order_account.kind == 'dealer' %}{% if can_manage_screen_access %}<a class="button primary small" href="{% url 'dealer_account_edit' account.pk %}">車行帳號與功能</a><a class="button small" href="{% url 'dealer_accounts' account.order_account.source_id %}">所屬車行帳號</a><a class="button ghost small" href="{% url 'user_account_reset_password' account.pk %}">重設密碼</a>{% endif %}{% else %}
           {% if can_manage_screen_access %}{% if account.username == 'admin' %}<span class="status-pill neutral">admin 權限固定</span>{% else %}<a class="button primary small" href="{% url 'access_edit' account.pk %}">畫面權限</a>{% endif %}{% endif %}
           {% if can_manage_screen_access %}<a class="button ghost small" href="{% url 'order_account_scope' account.pk %}">下單身分／所屬通路</a>{% endif %}
           {% if not screen_read_only %}<a class="button ghost small" href="{% url 'user_account_edit' account.pk %}">編輯</a>
           {% if account.pk != user.pk %}<a class="button ghost small" href="{% url 'user_account_reset_password' account.pk %}">重設密碼</a>{% endif %}{% endif %}
+          {% endif %}
         </div>
       </article>
     {% empty %}

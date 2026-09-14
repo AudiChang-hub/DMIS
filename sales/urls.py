@@ -1,7 +1,7 @@
 from django.urls import path
 from django.views.generic import RedirectView
 
-from . import views, announcement_views, favorite_views, intake_views
+from . import views, announcement_views, favorite_views, intake_views, catalog_views, dealer_account_views
 from .historical_replacement import historical_buyer_replacement
 from .historical_date_change import historical_date_change
 from .reporting import views as report_views
@@ -10,6 +10,14 @@ from .access import views as access_views
 
 
 urlpatterns = [
+    path("catalog/", catalog_views.catalog, name="catalog"),
+    path("catalog/<int:pk>/", catalog_views.catalog_detail, name="catalog_detail"),
+    path("catalog/<int:pk>/image/", catalog_views.catalog_image, name="catalog_image"),
+    path("data/catalog/", catalog_views.catalog_manage, name="catalog_manage"),
+    path("data/catalog/<int:pk>/", catalog_views.catalog_edit, name="catalog_edit"),
+    path("data/channels/<int:source_pk>/accounts/", dealer_account_views.dealer_accounts, name="dealer_accounts"),
+    path("data/channels/<int:source_pk>/accounts/new/", dealer_account_views.dealer_account_create, name="dealer_account_create"),
+    path("system/users/<int:pk>/dealer/", dealer_account_views.dealer_account_edit, name="dealer_account_edit"),
     path("orders/<int:pk>/receive/", intake_views.order_receive, name="order_receive"),
     path("orders/intake-attachments/<int:pk>/", intake_views.order_intake_attachment, name="order_intake_attachment"),
     path("system/users/<int:pk>/order-scope/", intake_views.order_account_scope, name="order_account_scope"),

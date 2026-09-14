@@ -1,0 +1,5 @@
+{% extends "base.html" %}{% block title %}車行工作台{% endblock %}{% block content %}
+<section class="hero-row"><div><p class="eyebrow">車行工作台</p><h1>{{ dealer_source.name }}</h1><p>你好，{{ user.get_full_name|default:user.username }}。訂單與進度都在這裡。</p></div></section>
+<div class="catalog-grid"><section class="card"><h2>選車下單</h2><p>查看上架車款、售價與分期，選好後接續填單。</p><a class="button primary" href="{% url 'catalog' %}">開始選車</a></section><section class="card"><h2>訂單進度</h2><p>待馭盛接單 {{ pending_count }} 筆；接單人與時間會顯示於訂單。</p><a class="button" href="{% url 'order_list' %}">查看本車行訂單</a></section>{% if intake_can_submit %}<section class="card"><h2>我的草稿</h2><p>繼續尚未送出的訂單，只顯示你自己的草稿。</p><a class="button" href="{% url 'order_list' %}#my-drafts">接續填單</a></section>{% endif %}</div>
+<section class="card"><h2>帳號設定</h2><p>目前身分：{% if intake_can_submit %}可下單與查詢{% else %}唯讀進度{% endif %}。人員與功能異動請洽馭盛 admin。</p><a class="button" href="{% url 'password_change_required' %}">變更我的密碼</a></section>
+{% endblock %}

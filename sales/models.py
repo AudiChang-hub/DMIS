@@ -4378,12 +4378,22 @@ class UserAppearancePreference(TimeStampedModel):
         return f"{self.user.get_username()}－{self.get_theme_display()}"
 
 
+class VehicleCatalogEntry(TimeStampedModel):
+    vehicle_model = models.OneToOneField(VehicleModel, on_delete=models.CASCADE, related_name="catalog_entry")
+    image = models.ImageField("車款主圖", upload_to="catalog/%Y/%m/", blank=True)
+    description = models.TextField("車款介紹", blank=True, max_length=4000)
+    published = models.BooleanField("上架至公開選車入口", default=False)
+    position = models.PositiveIntegerField("排序（小的在前）", default=0)
+    revision = models.PositiveIntegerField(default=0)
+
+
 class OrderAccountProfile(TimeStampedModel):
     """所屬通路與外部資料範圍；不以 is_staff 或車行名稱推測角色。"""
     user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="order_account")
     kind = models.CharField("下單身分", max_length=12, choices=(("internal", "店內人員"), ("dealer", "合作車行")), default="internal")
     source = models.ForeignKey(SalesSource, on_delete=models.PROTECT, null=True, blank=True, verbose_name="預設店別／所屬車行")
     revision = models.PositiveIntegerField(default=0)
+    can_submit_orders = models.BooleanField("可建立訂單與使用草稿", default=True)
 
     def clean(self):
         super().clean()

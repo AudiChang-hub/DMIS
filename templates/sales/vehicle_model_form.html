@@ -14,6 +14,7 @@
   <div class="hero-actions"><a class="button ghost" href="{% url 'vehicle_brand_list' %}">維護品牌</a></div>
 </section>
 
+{% if is_editing and can_manage_screen_access %}<p><a class="button" href="{% url 'catalog_edit' vehicle_model.pk %}">圖片、介紹與上架設定</a></p>{% endif %}
 <form method="post" class="master-model-form">
   {% csrf_token %}
   <input type="hidden" name="action" value="save_model">

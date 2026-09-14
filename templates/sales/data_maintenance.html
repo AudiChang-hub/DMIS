@@ -14,6 +14,7 @@
 <section class="maintenance-section" aria-labelledby="maintenance-daily">
   <div class="maintenance-section__heading"><div><p class="eyebrow">平常最常使用</p><h2 id="maintenance-daily">日常資料</h2></div><p>建立訂單與管理車輛時會直接使用這些內容。</p></div>
   <div class="maintenance-grid">
+  {% if can_manage_screen_access %}<a class="maintenance-card" href="{% url 'catalog_manage' %}"><span class="maintenance-card__icon">展</span><div><h2>選車展示管理</h2><p>上傳車款圖片、介紹與設定公開上架；售價與分期共用機種資料。</p><strong>未上架不公開</strong></div><span aria-hidden="true">›</span></a>{% endif %}
   {% if_access 'vehicle_brand_list' %}<a class="maintenance-card" href="{% url 'vehicle_brand_list' %}">
     <span class="maintenance-card__icon">牌</span>
     <div><h2>車輛品牌</h2><p>統一機種、領牌費用、車行傭金及台數獎金使用的品牌名稱與別名。</p><strong>{{ vehicle_brand_count }} 個品牌</strong></div>

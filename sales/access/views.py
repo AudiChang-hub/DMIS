@@ -54,6 +54,7 @@ def overview(request):
     for user in accounts:
         policy = AccessPolicy(user)
         rows.append({"account": user, "root": policy.root, "configured": policy.configured, "version": policy.version,
+                     "dealer": policy.dealer, "dealer_profile": policy.order_profile,
                      "screens": sum(policy.screen(s.key) for s in SCREENS),
                      "reports": sum(policy.report(r) for r in reports)})
     return render(request, "sales/access/overview.html", {"rows": rows, "query": query})
@@ -97,6 +98,9 @@ def grouped_rows(rows):
 @root_required
 @require_http_methods(["GET", "POST"])
 def edit(request, pk):
+    from sales.services.order_intake import is_dealer
+    if is_dealer(get_object_or_404(get_user_model(), pk=pk)):
+        return redirect("dealer_account_edit", pk=pk)
     account = get_object_or_404(get_user_model(), pk=pk)
     if account.get_username() == "admin":
         messages.info(request, "admin 權限固定，不可取消或複製覆蓋。")

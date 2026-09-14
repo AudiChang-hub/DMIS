@@ -13,10 +13,10 @@ class Screen:
 
 
 SCREENS = (
-    Screen("dashboard", "戰情首頁（含全公司統計）", "dashboard", False),
+    Screen("dashboard", "全公司戰情指標（營運總表）", "operations_report", False),
     Screen("orders", "訂單、草稿與文件", "order_list", True, True),
     Screen("work", "訂單作業、配車、領牌、交付與收退款", "order_list", True, True),
-    Screen("operations", "營運總表", "operations_report", False, True),
+    Screen("operations", "財務彙總與營運匯出（營運總表）", "operations_report", False, True),
     Screen("reconciliation", "對帳作業", "reconciliation_list"),
     Screen("inventory", "車輛庫存與歷程", "inventory_list"),
     Screen("brands", "車輛品牌", "vehicle_brand_list"),
@@ -41,9 +41,8 @@ SCREENS = (
 )
 BY_KEY = {screen.key: screen for screen in SCREENS}
 SCREEN_GROUPS = (
-    ("dashboard", "戰情首頁", (("首頁", ("dashboard",)),)),
     ("orders", "全部訂單", (("訂單與作業", ("orders", "work")),)),
-    ("operations", "營運總表", (("營運與對帳", ("operations", "reconciliation")),)),
+    ("operations", "營運總表", (("營運與對帳", ("dashboard", "operations", "reconciliation")),)),
     ("reports", "報表中心", ()),
     ("data", "資料維護區", (
         ("車輛與商品", ("brands", "models", "inventory", "accessories", "rewards")),
@@ -63,7 +62,6 @@ def register(key, names, action="auto"):
         ROUTES[name] = (key, action)
 
 
-register("dashboard", "dashboard")
 register("orders", "order_list order_detail")
 register("orders", "order_create order_edit draft_save draft_presence draft_delete order_edit_presence contract_upload privacy_consent_upload id_card_ocr id_card_ocr_status id_card_ocr_invalidate", "operate")
 register("orders", "contract_print privacy_consent_print order_documents_print identity_documents_print", "export")
@@ -106,8 +104,8 @@ register("integrity", "system_integrity_report")
 register("accounts", "user_management")
 register("accounts", "user_account_create user_account_edit user_account_status user_account_reset_password", "operate")
 
-PERSONAL = set("system_health app_version appearance_theme_update mobile_quick_links_update user_guide password_change_required access_home login logout throttled_admin_login".split())
-ROOT_ONLY = set("access_overview access_edit report_manage report_classification report_create report_edit report_draft_preview report_lifecycle".split())
+PERSONAL = set("dashboard system_health app_version appearance_theme_update mobile_quick_links_update user_guide password_change_required access_home login logout throttled_admin_login".split())
+ROOT_ONLY = set("announcement_manage announcement_edit access_overview access_edit report_manage report_classification report_create report_edit report_draft_preview report_lifecycle".split())
 REPORT_ROUTES = {"report_display": "view", "report_detail": "view", "report_records_export": "export", "report_export": "export"}
 LOOKUPS = {
     "vehicle_colors": ("orders", "inventory", "models"),

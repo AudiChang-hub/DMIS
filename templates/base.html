@@ -20,7 +20,7 @@
       </a>
       {% if user.is_authenticated %}
         <nav class="desktop-nav" aria-label="主要選單">
-          {% if_access 'dashboard' %}<a href="{% url 'dashboard' %}" {% if request.resolver_match.url_name == 'dashboard' %}class="active" aria-current="page"{% endif %}>戰情首頁</a>{% endif_access %}
+          {% if_access 'dashboard' %}<a href="{% url 'dashboard' %}" {% if request.resolver_match.url_name == 'dashboard' %}class="active" aria-current="page"{% endif %}>首頁</a>{% endif_access %}
           {% if_access 'order_list' %}<a href="{% url 'order_list' %}" {% if request.resolver_match.url_name == 'order_list' or request.resolver_match.url_name == 'order_detail' or request.resolver_match.url_name == 'order_edit' or request.resolver_match.url_name == 'order_create' %}class="active" aria-current="page"{% endif %}>全部訂單</a>{% endif_access %}
           {% if_access 'operations_report' %}<a href="{% url 'operations_report' %}" {% if request.resolver_match.url_name == 'operations_report' or request.resolver_match.url_name == 'order_operations' or request.resolver_match.url_name == 'reconciliation_list' %}class="active" aria-current="page"{% endif %}>營運總表</a>{% endif_access %}
           {% if_access 'report_center' %}<a href="{% url 'report_center' %}" {% if request.resolver_match.url_name == 'report_center' or request.resolver_match.url_name == 'report_display' or request.resolver_match.url_name == 'report_detail' %}class="active" aria-current="page"{% endif %}>報表中心</a>{% endif_access %}
@@ -61,6 +61,7 @@
               </div>
               {% if show_management_tools %}<section class="data-menu-tools data-menu-admin" aria-label="管理者工具">
                 <h2>管理者工具</h2>
+                {% if_access 'announcement_manage' %}<a href="{% url 'announcement_manage' %}"><strong>系統公告管理</strong></a>{% endif_access %}
                 {% if user.username == 'admin' %}{% if_access 'report_manage' %}<a href="{% url 'report_manage' %}"><strong>報表設計管理</strong></a>{% endif_access %}{% endif %}
                 {% if user.username == 'admin' %}{% if_access 'report_classification' %}<a href="{% url 'report_classification' %}"><strong>報表分類設定</strong></a>{% endif_access %}{% endif %}
                 {% if_access 'user_management' %}<a href="{% url 'user_management' %}"><strong>帳號與權限</strong></a>{% endif_access %}

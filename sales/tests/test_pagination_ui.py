@@ -15,7 +15,7 @@ class SharedPaginationUiTests(SimpleTestCase):
         "incentive_rule_list.html",
         "inventory_list.html",
         "legacy_import_detail.html",
-        "operations_report.html",
+        "announcement_manage.html",
         "order_list.html",
         "reconciliation_list.html",
         "sales_source_list.html",

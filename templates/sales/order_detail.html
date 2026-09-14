@@ -6,7 +6,7 @@
 {% block content %}
 {% url 'order_list' as order_list_url %}
 {% url 'dashboard' as dashboard_url %}
-{% include "sales/_page_back.html" with fallback_url=order_list_url label="全部訂單" root_url=dashboard_url root_label="戰情首頁" %}
+{% include "sales/_page_back.html" with fallback_url=order_list_url label="全部訂單" root_url=dashboard_url root_label="首頁" %}
 <section class="hero-row detail-hero">
   <div>
     <div class="title-with-status"><h1>{{ order.owner_name }}</h1><span class="status-pill large status-{{ order.status }}">{{ order.get_status_display }}</span></div>
@@ -776,7 +776,7 @@
           <div class="registration-breakdown__total">
             <span>試算合計</span>
             <strong>${{ order.registration_calculated_total|number_with_commas }}</strong>
-            {% if order.plate_insurance_fee != order.registration_calculated_total %}<em>已人工調整實收</em>{% endif %}
+            {% if order.plate_insurance_fee != order.registration_calculated_total %}<em>已人工調整實收</em>{% if not order.is_cancelled_sale %}{% if_access 'registration_fee_variance_confirm' order.pk %}<form method="post" action="{% url 'registration_fee_variance_confirm' order.pk %}">{% csrf_token %}<input type="hidden" name="return_to_order" value="1"><button class="button ghost small" type="submit">確認牌險差異</button></form>{% endif_access %}{% endif %}{% endif %}
           </div>
         </div>
         <div class="registration-breakdown__items">

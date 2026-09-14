@@ -1,108 +1,78 @@
-{% extends "base.html" %}{% load screen_access %}
-{% load sales_format pagination_tags %}
+{% extends "base.html" %}{% load sales_format screen_access %}
 {% block title %}營運總表｜車輛銷售管理{% endblock %}
 {% block page_class %}page-shell--wide{% endblock %}
 {% block content %}
 {% url 'dashboard' as dashboard_url %}
-{% include "sales/_page_back.html" with fallback_url=dashboard_url label="戰情首頁" %}
-<section class="hero-row">
-  <div>
-    <p class="eyebrow">收款、成本、補助與履約</p>
-    <h1>營運總表</h1>
-    <p class="muted">逐筆核對收款、成本、支出及訂單淨利；公司走勢請看戰情首頁。Excel 套用相同篩選條件。</p>
-  </div>
-  <div class="hero-actions">{% if_access 'reconciliation_list' %}<a class="button ghost" href="{% url 'reconciliation_list' %}">統一撥款對帳</a>{% endif_access %}{% if_access 'operations_report_export' %}<a class="button primary" href="{% url 'operations_report_export' %}?{{ request.GET.urlencode }}">匯出 Excel</a>{% endif_access %}</div>
-</section>
+{% include "sales/_page_back.html" with fallback_url=dashboard_url label="首頁" %}
+<section class="hero-row"><div><p class="eyebrow">經營分析</p><h1>營運總表</h1><p class="muted">掌握公司走向、收款風險與作業卡點。逐筆查詢集中於全部訂單，此處不重複列出訂單。</p></div><div class="hero-actions">{% if_access 'order_list' %}<a class="button primary" href="{% url 'order_list' %}">前往全部訂單</a>{% endif_access %}{% if_access 'operations_report_export' %}<a class="button ghost" href="{% url 'operations_report_export' %}?date_from={{ dashboard.period.start|date:'Y-m-d' }}&date_to={{ dashboard.period.end|date:'Y-m-d' }}">匯出本月營運明細</a>{% endif_access %}{% if_access 'reconciliation_list' %}<a class="button ghost" href="{% url 'reconciliation_list' %}">統一撥款對帳</a>{% endif_access %}</div></section>
+  <section class="dashboard-section">
+    <div class="dashboard-section__heading">
+      <div><p class="eyebrow">本月成果</p><h2>{{ dashboard.period.label }}營運數字</h2></div>
+      <small>截至 {{ dashboard.period.end|date:'Y/m/d' }}；比較 {{ dashboard.period.previous_start|date:'m/d' }}～{{ dashboard.period.previous_end|date:'m/d' }}。成交依領牌日、排除取消／退款。</small>
+    </div>
+    <div class="performance-grid command-kpis">
+      <article class="performance-card"><span>本月新成立訂單</span><strong>{{ dashboard.new_orders }}<small>張</small></strong><em>依訂單成立日期，排除取消／退款；不等於本月領牌台數</em>{% if_access 'order_list' %}<a href="{% url 'order_list' %}?business_only=1&date_basis=established&date_from={{ dashboard.period.start|date:'Y-m-d' }}&date_to={{ dashboard.period.end|date:'Y-m-d' }}">查看新成立訂單</a>{% endif_access %}</article>
+      <article class="performance-card performance-card--primary">
+        <span>本月成交台數</span>
+        <strong>{{ dashboard.performance.count }}<small>台</small></strong>
+        <em>{% if dashboard.performance.count_change != None %}較上月同期 {{ dashboard.performance.count_change }}%{% else %}上月同期無比較基準{% endif %}</em>
+      </article>
+      <article class="performance-card">
+        <span>本月車款成交額</span>
+        <strong><small>$</small>{{ dashboard.performance.sales_total|number_with_commas }}</strong>
+        <em>{% if dashboard.performance.sales_change != None %}較上月同期 {{ dashboard.performance.sales_change }}%{% else %}上月同期無比較基準{% endif %}</em>
+      </article>
+      <article class="performance-card">
+        <span>可計入訂單淨利合計</span>
+        <strong>{% if dashboard.performance.profit_ready %}<small>$</small>{{ dashboard.performance.profit_total|number_with_commas }}{% else %}—{% endif %}</strong>
+        <em>{{ dashboard.performance.profit_ready }}／{{ dashboard.performance.count }} 筆可計入淨利（待核對者未計入）</em>
+      </article>
+      <article class="performance-card">
+        <span>平均單筆淨利</span>
+        <strong>{% if dashboard.performance.profit_ready %}<small>$</small>{{ dashboard.performance.average_profit|number_with_commas }}{% else %}—{% endif %}</strong>
+        <em>只除以可計入筆數；不含公司租金、薪資等營業費用</em>
+      </article>
+    </div>
+  </section>
 
-<form class="inventory-filters operations-filters" method="get">
-  <div><label for="payment-risk">收款風險</label><select id="payment-risk" name="risk"><option value="">全部</option><option value="outstanding"{% if selected.risk == 'outstanding' %} selected{% endif %}>待收款（應收大於已收）</option><option value="unconfirmed"{% if selected.risk == 'unconfirmed' %} selected{% endif %}>已有收款待確認</option><option value="refund"{% if selected.risk == 'refund' %} selected{% endif %}>取消待退款</option></select></div>
-  <div class="master-search"><label for="operations-q">全欄位搜尋</label><input id="operations-q" name="q" value="{{ selected.q }}" placeholder="訂單、姓名、車牌、車型、發票、舊車、收款…"></div>
-  <div><label for="energy-type">能源別</label><select id="energy-type" name="energy_type"><option value="">全部</option>{% for value, label in energy_types %}<option value="{{ value }}"{% if selected.energy_type == value %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
-  <div><label for="payment-status">收款確認</label><select id="payment-status" name="payment_status"><option value="">全部</option><option value="confirmed"{% if selected.payment_status == "confirmed" %} selected{% endif %}>已確認</option><option value="pending"{% if selected.payment_status == "pending" %} selected{% endif %}>待確認</option></select></div>
-  <div><label for="date-basis">日期依據</label><select id="date-basis" name="date_basis"><option value="registration"{% if selected.date_basis == "registration" or not selected.date_basis %} selected{% endif %}>實際領牌日期</option><option value="order"{% if selected.date_basis == "order" %} selected{% endif %}>訂單版本日期</option><option value="established"{% if selected.date_basis == "established" %} selected{% endif %}>訂單成立日期</option><option value="delivery"{% if selected.date_basis == "delivery" %} selected{% endif %}>實際交付日期</option></select></div>
-  <div><label for="date-from">日期起</label><input id="date-from" type="date" name="date_from" value="{{ selected.date_from }}"></div>
-  <div><label for="date-to">日期迄</label><input id="date-to" type="date" name="date_to" value="{{ selected.date_to }}"></div>
-  <label class="filter-check"><input type="checkbox" name="include_cancelled" value="1"{% if selected.include_cancelled == "1" %} checked{% endif %}> 包含取消／退款訂單明細</label>
-  <div class="inventory-filter-actions">{% if_access 'operations_report' %}<a class="button ghost" href="{% url 'operations_report' %}">清除</a>{% endif_access %}<button class="button primary" type="submit">套用篩選</button></div>
-</form>
+  {% if show_financial_summary %}<p class="command-data-quality">本月領牌訂單的累計實際收款額：$ {{ dashboard.performance.actual_received|number_with_commas }}（依這批訂單的收款明細，不等於本月現金流入）。</p>{% endif %}
+  <section class="section-block command-trends" aria-labelledby="trends-title">
+    <div class="section-title"><h2 id="trends-title">近 12 個月公司走勢</h2>{% if_access 'order_list' %}<a href="{% url 'order_list' %}?business_only=1&date_from={{ dashboard.period.start|date:'Y-m-d' }}&date_to={{ dashboard.period.end|date:'Y-m-d' }}">核對本月明細</a>{% endif_access %}</div>
+    <p class="muted">台數、成交額與淨利分開比較。最後一個月僅截至今日；淨利斷線代表沒有可計入資料，不是零獲利。</p>
+    <div class="command-chart-grid">{% for chart in dashboard.charts %}<figure>
+      <figcaption>{{ chart.label }}（{{ chart.unit }}）</figcaption>
+      <svg viewBox="0 0 480 165" role="img" aria-label="{{ chart.label }}近十二月走勢；精確數值見下方月份表">
+        <line x1="20" x2="460" y1="{{ chart.zero_y }}" y2="{{ chart.zero_y }}" class="chart-baseline" />
+        {% for segment in chart.segments %}<polyline points="{{ segment }}" class="chart-line" />{% endfor %}
+        {% for point in chart.points %}<circle cx="{{ point.x }}" cy="{{ point.y }}" r="4" class="chart-point"><title>{{ point.label }}：{{ point.value|number_with_commas }} {{ chart.unit }}</title></circle>{% endfor %}
+        <text x="20" y="158">{{ dashboard.trend.0.label }}</text><text x="460" y="158" text-anchor="end">{{ dashboard.period.end|date:'Y/m' }}</text>
+      </svg>
+      <small class="muted">圖示範圍 {{ chart.low|number_with_commas }}～{{ chart.high|number_with_commas }} {{ chart.unit }}；虛線為零</small>
+    </figure>{% endfor %}</div>
+    <details><summary>查看每月數值與明細（含淨利完整度）</summary><div class="table-wrap" tabindex="0" aria-label="每月數值，可水平捲動"><table class="command-trend-table"><thead><tr><th>月份</th><th>領牌台數</th><th>車款成交額</th><th>可計入訂單淨利</th><th>可計入／總筆數</th><th>明細</th></tr></thead><tbody>
+    {% for row in dashboard.trend %}<tr><th>{{ row.label }}{% if forloop.last %}（截至今日）{% endif %}</th><td>{{ row.count }}</td><td>$ {{ row.sales_total|number_with_commas }}</td><td>{% if row.profit_ready %}$ {{ row.profit_total|number_with_commas }}{% else %}—{% endif %}</td><td>{{ row.profit_ready }}／{{ row.count }}</td><td>{% if_access 'order_list' %}<a href="{% url 'order_list' %}?business_only=1&date_basis=registration&date_from={{ row.start }}&date_to={{ row.end }}">核對明細</a>{% endif_access %}</td></tr>{% endfor %}
+    </tbody></table></div></details>
+    <p class="command-data-quality">本月 {{ dashboard.performance.profit_ready }}／{{ dashboard.performance.count }} 筆可計入淨利，{{ dashboard.performance.profit_pending }} 筆待補成本或核對。這是訂單淨利，不是包含全公司費用的公司淨利。</p>
+  </section>
 
-<section class="dashboard-section operations-analysis">
-  <div class="dashboard-section__heading"><div><p class="eyebrow">{{ date_basis_label }}統計</p><h2>目前篩選結果</h2></div><small>彙總排除取消／退款訂單；明細與原收退款紀錄仍保留。與首頁相同日期範圍、條件時使用相同成交口徑。</small></div>
-  <div class="performance-grid">
-    <article class="performance-card performance-card--primary"><span>銷售台數</span><strong>{{ analysis_summary.count }}<small>台</small></strong></article>
-    <article class="performance-card"><span>車款成交額</span><strong><small>$</small>{{ analysis_summary.vehicle_sales|floatformat:0 }}</strong><em>平均 ${{ analysis_summary.average_price|floatformat:0 }}</em></article>
-    <article class="performance-card"><span>實際收款額</span><strong><small>$</small>{{ analysis_summary.actual_received|floatformat:0 }}</strong><em>依收款明細已收金額</em></article>
-    <article class="performance-card"><span>目前單筆淨利合計</span><strong><small>$</small>{{ analysis_summary.net_profit|floatformat:0 }}</strong><em>{{ analysis_summary.profit_ready }}／{{ analysis_summary.count }} 筆可計入淨利（待核對者未計入）</em></article>
-  </div>
-</section>
+  <section class="dashboard-section" aria-labelledby="risk-title"><div class="section-title"><h2 id="risk-title">收款風險與退款待辦</h2><small>所有月份的目前未結事項；各類可能重疊，不相加</small></div>
+    <div class="command-risk-grid">
+      <article class="performance-card"><span>待收款訂單</span><strong>{{ dashboard.risk.outstanding }}<small>張</small></strong><em>收款明細應收大於已收</em>{% if_access 'order_list' %}<a href="{% url 'order_list' %}?risk=outstanding">查看待收明細</a>{% endif_access %}</article>
+      <article class="performance-card"><span>已有收款待確認</span><strong>{{ dashboard.risk.unconfirmed }}<small>張</small></strong><em>已有實收登記、營運收款尚未確認</em>{% if_access 'order_list' %}<a href="{% url 'order_list' %}?risk=unconfirmed">核對收款</a>{% endif_access %}</article>
+      <article class="performance-card"><span>取消待退款</span><strong>{{ dashboard.risk.refund }}<small>張</small></strong><em>不列成交，仍需完成全額退訂金</em>{% if_access 'order_list' %}<a href="{% url 'order_list' %}?risk=refund">查看退款待辦</a>{% endif_access %}</article>
+    </div>
+  </section>
 
-{% if model_breakdown %}
-<details class="section-block analysis-breakdown">
-  <summary class="analysis-breakdown__summary">
-    <span class="analysis-breakdown__title">
-      <span class="analysis-breakdown__icon" aria-hidden="true">車</span>
-      <span>
-        <strong>依車型查看營運表現</strong>
-        <small>快速比較成交台數、收款進度與目前淨利</small>
-      </span>
-    </span>
-    <span class="analysis-breakdown__count">{{ model_breakdown|length }} 個車型</span>
-    <span class="analysis-breakdown__chevron" aria-hidden="true"><span class="ui-chevron"></span></span>
-  </summary>
-  <div class="responsive-table-wrap analysis-table-wrap">
-    <table class="analysis-table">
-      <thead>
-        <tr>
-          <th scope="col">車型</th>
-          <th scope="col" class="number-cell">成交台數</th>
-          <th scope="col" class="number-cell">車款成交額</th>
-          <th scope="col" class="number-cell">實際收款</th>
-          <th scope="col" class="number-cell">目前淨利</th>
-        </tr>
-      </thead>
-      <tbody>
-      {% for row in model_breakdown %}
-        <tr>
-          <th scope="row" data-label="車型"><strong>{{ row.label }}</strong></th>
-          <td data-label="成交台數" class="number-cell"><strong>{{ row.count }}</strong><small>台</small></td>
-          <td data-label="車款成交額" class="number-cell"><span class="money-value">$ {{ row.vehicle_sales|number_with_commas }}</span></td>
-          <td data-label="實際收款" class="number-cell"><span class="money-value">$ {{ row.actual_received|number_with_commas }}</span></td>
-          <td data-label="目前淨利" class="number-cell profit-cell{% if row.net_profit < 0 %} is-negative{% endif %}">
-            <span class="money-value">$ {{ row.net_profit|number_with_commas }}</span>
-            {% if row.net_profit < 0 %}<small>負值，請確認收款與成本資料</small>{% endif %}
-          </td>
-        </tr>
-      {% endfor %}
-      </tbody>
-    </table>
-  </div>
-</details>
+
+{% if show_financial_summary %}<section class="section-block operations-model-summary"><h2>本月車型表現</h2><p class="muted">依本月實際領牌日期；淨利只計入資料完整的訂單。</p><div class="table-wrap"><table><thead><tr><th>車型</th><th>成交台數</th><th>車款成交額</th><th>可計入淨利</th><th>淨利完整度</th></tr></thead><tbody>{% for item in model_breakdown %}<tr><th>{{ item.label }}</th><td>{{ item.count }}</td><td>{{ item.vehicle_sales|number_with_commas }}</td><td>{% if item.profit_ready %}{{ item.net_profit|number_with_commas }}{% else %}—{% endif %}</td><td>{{ item.profit_ready }}／{{ item.count }}</td></tr>{% empty %}<tr><td colspan="5">本月尚無成交資料</td></tr>{% endfor %}</tbody></table></div></section>
 {% endif %}
-
-<section class="section-block operations-table-shell">
-  <div class="section-title"><div><p class="eyebrow">查詢結果</p><h2>{{ page_obj.paginator.count }} 筆訂單</h2></div></div>
-  <div class="table-scroll">
-    <table class="inventory-table operations-table">
-      <thead><tr><th>訂單／車主</th><th>車輛</th><th>付款</th><th class="number-cell">總收款</th><th class="number-cell">總收入</th><th class="number-cell">總支出</th><th class="number-cell">單筆淨利</th><th>狀態</th><th></th></tr></thead>
-      <tbody>
-      {% for order in orders %}
-        <tr>
-          <td data-label="訂單／車主"><strong>{{ order.owner_name }}</strong><small>{{ order.number }} · 成立 {{ order.established_display }}</small></td>
-          <td data-label="車輛"><strong>{{ order.vehicle_model }}</strong><small>{{ order.color.name }}{% if order.final_plate_number %} · {{ order.final_plate_number }}{% endif %}</small></td>
-          <td data-label="付款"><strong>{{ order.get_payment_type_display }}</strong><small>{% if order.payment_type == "installment" %}{{ order.installment_company }}／{{ order.installment_periods }}期{% else %}{{ order.source_display }}{% endif %}</small></td>
-          <td data-label="總收款" class="number-cell">${{ order.operation_data.total_received|default:0|floatformat:0 }}</td>
-          <td data-label="總收入" class="number-cell">${% if order.operation_data %}{{ order.operation_data.total_income|floatformat:0 }}{% else %}0{% endif %}</td>
-          <td data-label="總支出" class="number-cell">${{ order.operation_data.total_expense|default:0|floatformat:0 }}</td>
-          <td data-label="單筆淨利" class="number-cell profit-value">{% include 'sales/_order_profit.html' with profile=order.operation_data %}</td>
-          <td data-label="狀態"><span class="status-pill status-{{ order.status }}">{{ order.get_status_display }}</span>{% if not order.is_cancelled_sale %}<small>{% if order.operation_data.payment_confirmed %}收款已確認{% else %}收款待確認{% endif %}</small>{% endif %}</td>
-          <td class="inventory-row-action">{% if_access 'order_operations' order.pk %}<a class="button ghost small" href="{% url 'order_operations' order.pk %}">查看／編輯</a>{% endif_access %}</td>
-        </tr>
-      {% empty %}
-        <tr><td colspan="9"><div class="empty-state"><strong>查無符合資料</strong><p>請調整搜尋字詞或篩選條件。</p></div></td></tr>
-      {% endfor %}
-      </tbody>
-    </table>
-  </div>
-</section>
-{% pagination page_obj aria_label="營運總表分頁" %}
+{% if show_company_workload %}
+<section class="dashboard-section"><h2>即時工作量</h2><div class="command-risk-grid">
+{% for item in workload_cards %}<article class="performance-card"><span>{{ item.label }}</span><strong>{{ item.count }}</strong>{% if_access 'order_list' %}<a href="{% url 'order_list' %}?status={{ item.status }}">查看待辦</a>{% endif_access %}</article>{% endfor %}
+<article class="performance-card"><span>未完成草稿</span><strong>{{ dashboard.workload.drafts }}</strong>{% if_access 'order_create' %}{% if_access 'order_list' %}<a href="{% url 'order_list' %}?drafts=1#drafts">查看草稿</a>{% endif_access %}{% endif_access %}</article>
+<article class="performance-card"><span>合作車行到期提醒</span><strong>{{ dealer_due_count }}</strong><em>以訂單去重；可能同時缺文件及待確認尾款</em>{% if_access 'order_list' %}<a href="{% url 'order_list' %}?attention=dealer">查看到期待辦</a>{% endif_access %}</article>
+<article class="performance-card"><span>牌險金額差異待確認</span><strong>{{ fee_variance_count }}</strong>{% if_access 'order_list' %}<a href="{% url 'order_list' %}?attention=fees">查看差異訂單</a>{% endif_access %}</article>
+</div></section>
+<section class="section-block operations-model-summary"><h2>庫存概況</h2><div class="command-risk-grid">{% for item in inventory_cards %}<article class="performance-card"><span>{{ item.label }}</span><strong>{{ item.count }}</strong>{% if_access 'inventory_list' %}<a href="{% url 'inventory_list' %}{% if item.status %}?status={{ item.status }}{% endif %}">查看庫存</a>{% endif_access %}</article>{% endfor %}</div></section>
+{% endif %}
 {% endblock %}

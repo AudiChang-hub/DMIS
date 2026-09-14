@@ -9,7 +9,7 @@
   <div>
     <p class="eyebrow">End User 使用說明</p>
     <h1>現在想做什麼？從任務開始找</h1>
-    <p>這裡只說明實際操作，不需要懂系統或資料庫。最後更新：2026/09/12・系統版本 {{ app_version }}</p>
+    <p>這裡只說明實際操作，不需要懂系統或資料庫。最後更新：2026/09/14・系統版本 {{ app_version }}</p>
   </div>
   <div class="hero-actions guide-print-actions">
     <button class="button ghost" type="button" data-print-guide>列印／存成 PDF</button>
@@ -51,15 +51,15 @@
 
   <div class="guide-content" role="region" aria-label="操作說明內容">
     <article class="guide-topic" id="command-center-update" data-guide-topic>
-      <h2>新版戰情首頁、排序與狀態</h2>
+      <h2>新版首頁、營運總表、排序與狀態</h2>
       <ul>
-        <li>戰情首頁看近 12 個月走勢、收款風險與作業卡點；營運總表查逐筆收支及成本；報表中心做車型、通路分析。</li>
+        <li>首頁看版本與公告；營運總表看近 12 個月走勢、收款風險與作業卡點；全部訂單負責查單及逐筆收支；報表中心做車型、通路分析。</li>
         <li>本月新成立訂單依成立日期，其餘成交成果依領牌日截至今日。與上月同期比較，月底比較完整月份；上月為零顯示無比較基準。</li>
         <li>車款成交額是車款售價合計，不是實際收款。訂單淨利未含公司租金、薪資等全公司費用。待補成本或待核對資料不計入淨利；圖表斷線／破折號代表缺資料，不是零獲利。</li>
         <li>收款風險涵蓋所有月份目前未結事項：待收款按應收大於已收；已有收款待確認按實收已登記但營運收款未確認。兩類可能重疊。點指標下方連結查看明細，仍受原畫面權限限制。</li>
         <li>訂單表頭直接點擊追加排序，再點切換方向。排序條件列可逐項「移除」「提前」「延後」；「全部清除」才會移除全部。日期顯示新→舊／舊→新，金額大→小／小→大，文字採系統正序／反序。</li>
         <li>領牌日期排第一順位時，遞減會把未領牌置前，遞增置後；排序後回第一頁，保留搜尋及篩選。</li>
-        <li>狀態同時顯示色塊與文字：灰色草稿／取消、黃橙色待處理、藍色進行中、綠色完成、紅橙色退款或補件提醒。自家車行來源顯示馭盛。</li>
+        <li>狀態同時顯示色塊與文字：淺灰色草稿、深石墨底白字與 × 符號的已取消／已退款、黃橙色待處理、藍色進行中、綠色完成、紅橙色退款或補件提醒。自家車行來源顯示馭盛。</li>
         <li>取消／已退款與取消待退款不計成交淨利；缺日期顯示「—」，不再催補領牌日。既有日期、收款、退款、費用與異動紀錄仍保留；取消待退款仍須完成退款。</li>
         <li>可在外觀選擇深淺色或高對比；顏色不取代文字，鍵盤焦點有外框，停用按鈕仍可辨識。</li>
       </ul>
@@ -68,14 +68,14 @@
 
     <article class="guide-topic guide-topic--featured" id="quick-start" data-guide-topic>
       <div class="guide-topic-heading"><span>01</span><div><p class="eyebrow">第一次使用</p><h2>三分鐘認識系統</h2></div></div>
-      <p class="guide-lead">先記住四件事：首頁看待辦、任何內容都能搜尋、訂單建立後才配實體車、資料有問題不要重複建單。</p>
+      <p class="guide-lead">先記住四件事：首頁看公告、任何內容都能搜尋、訂單建立後才配實體車、資料有問題不要重複建單。</p>
       <div class="guide-screen-map" role="img" aria-label="系統主要入口圖解">
         <div class="guide-screen-bar"><b>車輛銷售管理</b><span>① 使用說明</span><span>② 檢查更新</span></div>
-        <div class="guide-screen-body"><b>③ 戰情首頁</b><span>④ 全欄位搜尋</span><span>⑤ 今天的待辦與最近訂單</span></div>
+        <div class="guide-screen-body"><b>③ 系統首頁</b><span>④ 全欄位搜尋</span><span>⑤ 版本、公告與常用入口</span></div>
         <div class="guide-screen-footer"><span>首頁</span><span>訂單</span><b>＋新增</b><span>營運</span><span>更多</span></div>
       </div>
       <ol class="guide-steps">
-        <li><strong>登入後先看戰情首頁。</strong><span>優先處理、待配車、進行中與庫存數量都會集中顯示。</span></li>
+        <li><strong>登入後先看首頁。</strong><span>確認目前帳號、版本更新與公告；經營數據請進營運總表。</span></li>
         <li><strong>要找資料就直接搜尋。</strong><span>像 Excel 的尋找，不必先選姓名、電話或車牌欄位。</span></li>
         <li><strong>客人在面前就按「＋新增」。</strong><span>依來源、車主、車輛、金額、需求五區填寫，輸入中會自動保存草稿。</span></li>
         <li><strong>工作做完才按完成。</strong><span>配車、領牌、交付等完成後會鎖定，避免後續誤改。</span></li>
@@ -93,20 +93,21 @@
       <div class="guide-tip"><strong>換手機仍會保留</strong><span>設定跟著登入帳號保存，不是只存在目前這支手機。</span></div>
     </article>
 
+    <article class="guide-topic" id="announcements" data-guide-topic><h2>系統公告管理（僅 admin）</h2><ol class="guide-steps"><li>從「資料維護區 → 系統公告管理」或首頁「管理系統公告」進入。</li><li>填標題、純文字內容、置頂與台北時間起訖。結束時間可留白。</li><li>「儲存」保留目前發布狀態；新公告先存草稿。「儲存並發布」才會在到達開始時間後顯示。</li><li>到結束時間自動隱藏；「儲存並取消發布」可立即隱藏。未發布公告仍保留供編輯。</li><li>每次修改保留修訂紀錄；版本衝突會阻擋覆寫，需重新載入。</li></ol><p>公告提供所有已登入人員閱讀，不填客戶個資或財務機密。版本說明由部署更新，不等於日常公告。</p></article>
     <article class="guide-topic" id="dashboard" data-guide-topic>
-      <div class="guide-topic-heading"><span>02</span><div><p class="eyebrow">每天第一站</p><h2>戰情首頁與 Excel 式搜尋</h2></div></div>
+      <div class="guide-topic-heading"><span>02</span><div><p class="eyebrow">每天第一站</p><h2>系統首頁與 Excel 式搜尋</h2></div></div>
       <div class="guide-two-column">
-        <section><h3>怎麼找</h3><ul><li>輸入 <code>0912</code> 找電話片段。</li><li>輸入 <code>ABC1234</code> 或 <code>ABC-1234</code> 找車牌。</li><li>輸入姓名、車型、配件、備註或文件名稱。</li><li>搜尋結果會標示「哪個欄位、哪段內容」符合。</li></ul></section>
-        <section><h3>怎麼看</h3><ul><li>先看成交趨勢、淨利完整度與收款風險。</li><li>「待配車」是訂單成立但未指定實體車。</li><li>「進行中」是配車後至交付完成前。</li><li>新成立訂單依成立日，成交成果依實際領牌日；均排除取消／退款。</li></ul></section>
+        <section><h3>在「全部訂單」怎麼找</h3><ul><li>輸入 <code>0912</code> 找電話片段。</li><li>輸入 <code>ABC1234</code> 或 <code>ABC-1234</code> 找車牌。</li><li>輸入姓名、車型、配件、備註或文件名稱。</li><li>搜尋結果會標示「哪個欄位、哪段內容」符合。</li></ul></section>
+        <section><h3>在「營運總表」怎麼看</h3><ul><li>先看成交趨勢、淨利完整度與收款風險。</li><li>「待配車」是訂單成立但未指定實體車。</li><li>「進行中」是配車後至交付完成前。</li><li>新成立訂單依成立日，成交成果依實際領牌日；均排除取消／退款。</li></ul></section>
       </div>
       <div class="guide-example"><strong>例子</strong><p>只記得客人姓「張」且買灰色 SUI 125：先搜「張」，再從結果顯示的車型／車色辨認，不必翻每一張訂單。</p></div>
-      <div class="guide-exception"><strong>搜尋不到</strong><p>改用部分內容、移除空格或連字號；「最近訂單」只顯示最新資料，要看全部請進「全部訂單」。</p></div>
+      <div class="guide-exception"><strong>搜尋不到</strong><p>在全部訂單改用部分內容、移除空格或連字號；也請檢查日期與狀態篩選。</p></div>
     </article>
 
     <article class="guide-topic" id="search-orders" data-guide-topic>
       <div class="guide-topic-heading"><span>03</span><div><p class="eyebrow">全部訂單</p><h2>依狀態查看與繼續處理</h2></div></div>
       <ol class="guide-steps"><li><strong>從上方「全部訂單」或手機「訂單」進入。</strong></li><li><strong>搜尋或選擇狀態。</strong><span>篩選只縮小清單，不會改變訂單。</span></li><li><strong>先看清單摘要。</strong><span>每張訂單直接顯示機種、顏色、領牌日期、車號、淨利、車行／來源及備註。</span></li><li><strong>依工作量選每頁 25、50、75 或 100 筆。</strong><span>分頁可回第一頁、上一頁、輸入頁碼、下一頁或到最後一頁。</span></li><li><strong>點訂單列進入工作頁籤。</strong><span>先看狀態、尚缺項目與處理紀錄。</span></li></ol>
-      <div class="guide-tip"><strong>避免重複訂單</strong><span>找不到訂單時，先回首頁用姓名、電話、證號或車牌做全欄位搜尋，再決定是否建立。</span></div>
+      <div class="guide-tip"><strong>避免重複訂單</strong><span>找不到訂單時，先到全部訂單用姓名、電話、證號或車牌做全欄位搜尋，再決定是否建立。</span></div>
     </article>
 
     <article class="guide-topic" id="create-order" data-guide-topic>

@@ -43,7 +43,7 @@ class OrderDeletionTests(TestCase):
         self.assertEqual(self.client.post(reverse("order_delete", args=[self.order.pk]), self.payload()).status_code, 302)
         self.assertFalse(SalesOrder.objects.filter(pk=self.order.pk).exists())
         from sales.reporting.engine import base_query
-        self.assertFalse(base_query({}, {}).filter(pk=self.order.pk).exists())
+        self.assertFalse(base_query({"date_basis": "established_on"}, {}).filter(pk=self.order.pk).exists())
         self.assertEqual(self.client.get(reverse("order_detail", args=[self.order.pk])).status_code, 404)
         self.assertEqual(self.client.get(reverse("order_edit", args=[self.order.pk])).status_code, 404)
         self.assertContains(self.client.get(reverse("order_recycle_bin")), "重複建立測試單")

@@ -4122,6 +4122,7 @@ def dashboard(request):
     return render(request, "sales/dashboard.html", {
         "release": RELEASE,
         "intake_pending_count": scoped_orders(request.user).filter(status=SalesOrder.Status.INTAKE_PENDING).count() if policy_for(request).route("order_list") else 0,
+        "deletion_pending_count": SalesOrder.objects.filter(deletion_requested_at__isnull=False).count() if policy_for(request).root else 0,
         **release_context(policy_for(request)),
         **favorite_context(request.user, UserAppearancePreference.objects.filter(user=request.user).first(), policy=policy_for(request)),
         "page_obj": Paginator(SystemAnnouncement.visible(), 8).get_page(request.GET.get("page")),
@@ -4612,8 +4613,9 @@ def operations_report_export(request):
 
 @login_required
 @transaction.atomic
-def order_create(request):
+def order_create(request, reception=False):
     import uuid
+    from sales.access.services import policy_for
     from django.contrib.auth import get_user_model
     from sales.intake_forms import IntakeOrderForm, validated_intake_uploads
     from sales.services.order_intake import intake_context, receive_order, save_intake_uploads, prepare_intake_uploads, scoped_drafts
@@ -4630,20 +4632,26 @@ def order_create(request):
                 raise PermissionDenied
             if submitted.deleted_at:
                 return HttpResponse("這次送出對應的訂單已刪除，請洽授權人員還原，或重新建立新的訂單草稿。", status=409)
-            messages.info(request, "這次送出已建立訂單，已開啟原訂單，沒有重複新增。")
-            return redirect("order_detail", pk=submitted.pk)
+            messages.info(request, "這次送出已建立訂單，沒有重複新增。")
+            return redirect("order_submitted" if reception else "order_detail", pk=submitted.pk)
     draft_id = request.POST.get("_draft_id") or request.GET.get("draft")
     draft = (
-        get_object_or_404(scoped_drafts(request.user).select_for_update(), pk=draft_id)
+        get_object_or_404(scoped_drafts(request.user, reception=reception).select_for_update(), pk=draft_id)
         if draft_id
         else None
     )
+    if reception and draft and not draft.data.get("_reception"):
+        return HttpResponse("這是內部建檔草稿，請由原內部草稿入口繼續，避免覆寫既有財務內容。", status=409)
+    if draft and draft.data.get("_reception"):
+        if draft.owner_account_id != request.user.pk:
+            raise PermissionDenied("接待草稿僅限本人繼續。")
+        reception = True
     if draft and not _claim_edit_lock(draft, request, DRAFT_PRESENCE_TIMEOUT):
         messages.error(
             request,
             f"此草稿目前由 {draft.editing_by or '其他人員'} 編輯，暫時無法進入。",
         )
-        return redirect("dashboard")
+        return redirect(("catalog" if policy_for(request).route("catalog") else "order_start") if reception else "dashboard")
     existing_documents = {
         "id_front": bool(draft and draft.id_front),
         "id_back": bool(draft and draft.id_back),
@@ -4654,6 +4662,7 @@ def order_create(request):
             post_data,
             request.FILES,
             user=request.user,
+            reception=reception,
             existing_documents=existing_documents,
         )
         if not form.finance_editable:
@@ -4706,6 +4715,8 @@ def order_create(request):
             if draft:
                 draft.delete_with_files()
             messages.success(request, "訂單已建立並由你接單。" if form.cleaned_data.get("accept_by_me") else "訂單已建立，等待店內人員接單。")
+            if reception:
+                return redirect("order_submitted", pk=order.pk)
             return redirect(f"{reverse('order_detail', kwargs={'pk': order.pk})}?created=1")
     else:
         initial = _draft_form_initial(draft.data) if draft else {}
@@ -4715,7 +4726,7 @@ def order_create(request):
                 initial.update(vehicle_model=selected_model.pk, vehicle_energy_type=selected_model.energy_type)
                 if request.GET.get("color", "").isdigit() and VehicleColor.objects.filter(pk=request.GET["color"], vehicle_model=selected_model, active=True).exists():
                     initial["color"] = request.GET["color"]
-        form = IntakeOrderForm(initial=initial, user=request.user)
+        form = IntakeOrderForm(initial=initial, user=request.user, reception=reception)
         formset = AccessoryFormSet(
             initial=_draft_lines(
                 draft.data,
@@ -4729,12 +4740,12 @@ def order_create(request):
                     "note",
                 ),
             )
-            if draft
+            if draft and not reception
             else None
         )
         fee_formset = OtherFeeFormSet(
             initial=_draft_lines(draft.data, "other_fees", ("name", "amount"))
-            if draft
+            if draft and not reception
             else None,
             prefix="other_fees",
         )
@@ -4752,8 +4763,16 @@ def order_create(request):
             "submission_key": submission_key or (draft.data.get("_submission_key") if draft else None) or uuid.uuid4(),
             "intake_attachments": draft.intake_attachments.all() if draft else [],
             **intake_context(request.user),
+            "reception_mode": reception,
+            "reception_back_url": reverse("catalog" if policy_for(request).route("catalog") else "dashboard"),
+            "reception_back_label": "返回選車" if policy_for(request).route("catalog") else "離開接待",
+            "intake_can_receive": not reception and intake_context(request.user)["intake_can_receive"],
+            "intake_finance_editable": form.finance_editable,
+            "draft_save_route": "intake_draft_save" if reception else "draft_save",
+            "installment_options_route": "intake_installment_options" if reception else "installment_plan_options",
+            "price_options_route": "intake_price_options" if reception else "vehicle_price_options",
             "vehicle_rate_data": _vehicle_rate_data(),
-            "accessory_product_data": _accessory_product_data(),
+            "accessory_product_data": {} if reception else _accessory_product_data(),
         },
     )
 
@@ -4820,7 +4839,7 @@ def _validate_draft_image(upload):
 
 @login_required
 @transaction.atomic
-def draft_save(request):
+def draft_save(request, reception=False):
     from sales.intake_forms import validated_intake_uploads
     from sales.services.order_intake import save_intake_uploads, prepare_intake_uploads, scoped_drafts
     if request.method != "POST":
@@ -4832,7 +4851,13 @@ def draft_save(request):
     draft_id = request.POST.get("_draft_id")
     is_new = not draft_id
     if draft_id:
-        draft = get_object_or_404(scoped_drafts(request.user).select_for_update(), pk=draft_id)
+        draft = get_object_or_404(scoped_drafts(request.user, reception=reception).select_for_update(), pk=draft_id)
+        if reception and not draft.data.get("_reception"):
+            return JsonResponse({"ok": False, "error": "請由原內部草稿入口繼續編輯。"}, status=409)
+        if draft.data.get("_reception"):
+            if draft.owner_account_id != request.user.pk:
+                raise PermissionDenied("接待草稿僅限本人繼續。")
+            reception = True
         if not _claim_edit_lock(draft, request, DRAFT_PRESENCE_TIMEOUT):
             return JsonResponse(
                 {
@@ -4877,6 +4902,7 @@ def draft_save(request):
         "_remove_id_back",
         "_field_versions",
         "_remove_intake_attachments",
+        "_reception",
     }
     draft.data = {
         key: values if len(values) > 1 else values[0]
@@ -4885,9 +4911,11 @@ def draft_save(request):
     }
     from sales.intake_forms import FINANCE_FIELDS
     from sales.services.order_intake import account_profile, can_edit_finance, can_receive
-    if not can_edit_finance(request.user):
+    if reception or not can_edit_finance(request.user):
         draft.data = {key: value for key, value in draft.data.items() if key not in FINANCE_FIELDS and not key.startswith(("accessories-", "other_fees-"))}
-    if not can_receive(request.user):
+    if reception:
+        draft.data["_reception"] = True
+    if reception or not can_receive(request.user):
         draft.data.pop("accept_by_me", None)
     profile = account_profile(request.user)
     if profile and profile.kind == "dealer":
@@ -4936,7 +4964,7 @@ def draft_save(request):
             "id": str(draft.pk),
             "revision": draft.revision,
             "updated_at": timezone.localtime(draft.updated_at).strftime("%H:%M"),
-            "edit_url": f"{reverse('order_create')}?draft={draft.pk}",
+            "edit_url": f"{reverse('order_start' if reception else 'order_create')}?draft={draft.pk}",
             "photos": photo_urls,
         }
     )
@@ -4945,6 +4973,7 @@ def draft_save(request):
 @login_required
 @transaction.atomic
 def draft_delete(request, pk):
+    from sales.access.services import policy_for
     if request.method != "POST":
         if request.headers.get("Accept") == "application/json":
             return JsonResponse(
@@ -4953,6 +4982,7 @@ def draft_delete(request, pk):
             )
         return redirect(f"{reverse('order_create')}?draft={pk}")
     draft = get_object_or_404(OrderDraft.objects.select_for_update(), pk=pk)
+    return_route = ("catalog" if policy_for(request).route("catalog") else "order_start") if draft.is_reception_draft else "dashboard"
     if not _claim_edit_lock(draft, request, DRAFT_PRESENCE_TIMEOUT):
         error = f"此草稿目前由 {draft.editing_by or '其他人員'} 編輯，無法刪除。"
         if request.headers.get("Accept") == "application/json":
@@ -4961,13 +4991,13 @@ def draft_delete(request, pk):
             request,
             error,
         )
-        return redirect("dashboard")
+        return redirect(return_route)
     draft.delete_with_files()
     if request.headers.get("Accept") == "application/json":
         messages.success(request, "草稿與暫存證件照片已刪除。")
-        return JsonResponse({"ok": True, "redirect_url": reverse("dashboard")})
+        return JsonResponse({"ok": True, "redirect_url": reverse(return_route)})
     messages.success(request, "草稿與暫存證件照片已刪除。")
-    return redirect("dashboard")
+    return redirect(return_route)
 
 
 @login_required
@@ -8686,9 +8716,11 @@ def sales_sources(request):
 
 
 @login_required
-def installment_plan_options(request):
+def installment_plan_options(request, reception=False):
+    if reception and request.GET.get("order_id"):
+        raise PermissionDenied("接待模式僅能查詢對客方案。")
     from sales.services.order_intake import can_edit_finance
-    finance_editable = can_edit_finance(request.user)
+    finance_editable = not reception and can_edit_finance(request.user)
     model_id = request.GET.get("vehicle_model")
     raw_date = request.GET.get("order_date")
     order_id = request.GET.get("order_id")
@@ -8728,7 +8760,9 @@ def installment_plan_options(request):
 
 
 @login_required
-def vehicle_price_options(request):
+def vehicle_price_options(request, reception=False):
+    if reception and request.GET.get("order_id"):
+        raise PermissionDenied("接待模式僅能查詢對客售價。")
     model_id = request.GET.get("vehicle_model")
     order_id = request.GET.get("order_id")
     payment_type = request.GET.get("payment_type") or SalesOrder.PaymentType.CASH

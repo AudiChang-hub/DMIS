@@ -15,8 +15,9 @@ class Screen:
 SCREENS = (
     Screen("dashboard", "全公司戰情指標（營運總表）", "operations_report", False),
     Screen("orders", "訂單、草稿與文件", "order_list", True, True),
-    Screen("order_delete", "刪除與還原訂單（獨立授權）", "order_recycle_bin"),
+    Screen("order_delete", "刪除申請與回收區（admin 確認刪除）", "order_recycle_bin"),
     Screen("catalog", "選車下單入口", "catalog", False),
+    Screen("order_intake", "建立訂單與本人接待草稿", "order_start"),
     Screen("order_finance", "訂單內部財務編輯", "order_list", True),
     Screen("profit", "查看淨利（另需本人密碼解鎖）", "order_list", False, True),
     Screen("work", "訂單作業、配車、領牌、交付與收退款", "order_list", True, True),
@@ -45,7 +46,8 @@ SCREENS = (
 )
 BY_KEY = {screen.key: screen for screen in SCREENS}
 SCREEN_GROUPS = (
-    ("orders", "全部訂單", (("訂單與作業", ("catalog", "orders", "work", "order_finance", "profit", "order_delete")),)),
+    ("intake", "建立訂單", (("接待下單", ("catalog", "order_intake")),)),
+    ("orders", "全部訂單", (("訂單與作業", ("orders", "work", "order_finance", "profit", "order_delete")),)),
     ("operations", "營運總表", (("營運與對帳", ("dashboard", "operations", "reconciliation")),)),
     ("reports", "報表中心", ()),
     ("data", "資料維護區", (
@@ -67,8 +69,11 @@ def register(key, names, action="auto"):
 
 
 register("orders", "order_list order_detail")
+register("order_intake", "order_start intake_draft_save", "operate")
+register("order_intake", "order_submitted intake_installment_options intake_price_options", "view")
 register("order_delete", "order_recycle_bin", "view")
 register("order_delete", "order_delete order_restore", "operate")
+register("order_intake", "intake_drafts", "operate")
 register("orders", "order_intake_attachment", "view")
 register("work", "order_receive", "operate")
 register("orders", "order_create order_edit draft_save draft_presence draft_delete order_edit_presence contract_upload privacy_consent_upload id_card_ocr id_card_ocr_status id_card_ocr_invalidate", "operate")
@@ -115,13 +120,14 @@ register("accounts", "user_account_create user_account_edit user_account_status 
 PERSONAL = set("dashboard home_favorites system_health app_version appearance_theme_update mobile_quick_links_update user_guide password_change_required access_home login logout throttled_admin_login".split())
 ROOT_ONLY = set("announcement_manage announcement_edit access_overview access_edit report_manage report_classification report_create report_edit report_draft_preview report_lifecycle".split())
 ROOT_ONLY.add("order_account_scope")
+ROOT_ONLY.add("order_deletion_queue")
 ROOT_ONLY.update({"catalog_manage", "catalog_edit", "catalog_preview_image", "catalog_preview_color_image", "dealer_accounts", "dealer_account_create", "dealer_account_edit"})
 PERSONAL.update({"catalog", "catalog_detail", "catalog_image", "catalog_color_image"})
 PERSONAL.update({"profit_unlock", "profit_lock"})
 REPORT_ROUTES = {"report_display": "view", "report_detail": "view", "report_records_export": "export", "report_export": "export"}
 LOOKUPS = {
-    "vehicle_colors": ("orders", "inventory", "models"),
-    "sales_sources": ("orders", "sources", "distribution", "bonuses"),
+    "vehicle_colors": ("order_intake", "orders", "inventory", "models"),
+    "sales_sources": ("order_intake", "orders", "sources", "distribution", "bonuses"),
     "installment_plan_options": ("orders", "models"),
     "vehicle_price_options": ("orders", "models"),
 }

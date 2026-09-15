@@ -9,8 +9,11 @@
   {% url 'order_detail' editing_order.pk as form_back_url %}
   {% include "sales/_page_back.html" with fallback_url=form_back_url label="取消修改，返回訂單" cancel_edit=True %}
 {% else %}
+  {% if reception_mode %}<a class="button" href="{{ reception_back_url }}">← {{ reception_back_label }}</a>
+  {% else %}
   {% url 'order_list' as form_back_url %}
   {% include "sales/_page_back.html" with fallback_url=form_back_url label="全部訂單" %}
+  {% endif %}
 {% endif %}
 {% if editing_order.is_delivered %}<div class="card"><strong>完成後修正</strong><p>可繼續修改訂單內容，必須填寫原因並確認；交付狀態不變，已配車及已結算限制仍保留。未改計費條件時保留原金額與快照。</p></div>{% endif %}
 <form method="post" enctype="multipart/form-data" class="mobile-order-form" id="order-form" data-custom-validation="true" {% if editing_order.is_delivered %}data-completed-correction="true"{% endif %}>
@@ -151,7 +154,7 @@
 
 
   <details class="form-section" id="payment" open>
-    <summary><span class="step-number">4</span><span><strong>價格與付款</strong><small>售價與分期取自車型設定，內部調整依帳號權限開放</small></span></summary>
+    <summary><span class="step-number">4</span><span><strong>價格與付款</strong><small>{% if reception_mode %}售價與分期取自車型設定，特殊需求請填備註{% else %}售價與分期取自車型設定，內部調整依帳號權限開放{% endif %}</small></span></summary>
     <div class="form-grid">
       {% include "sales/_field.html" with field=form.payment_type %}
       {% include "sales/_field.html" with field=form.vehicle_price %}
@@ -344,8 +347,8 @@
     byId("id_installment_opening_fee"),
     byId("id_installment_monthly"),
   ].filter(Boolean);
-  const installmentPlanEndpoint = "{% url 'installment_plan_options' %}";
-  const vehiclePriceEndpoint = "{% url 'vehicle_price_options' %}";
+  const installmentPlanEndpoint = "{% url installment_options_route|default:'installment_plan_options' %}";
+  const vehiclePriceEndpoint = "{% url price_options_route|default:'vehicle_price_options' %}";
   const installmentPlanHint = byId("installment-plan-hint");
   const plateChoice = byId("id_plate_choice");
   const deliveryMethod = byId("id_delivery_method");
@@ -1450,7 +1453,7 @@
   }
 
   function connectCollaboration() {
-    {% if intake_dealer %}return;{% endif %}
+    {% if intake_dealer or reception_mode %}return;{% endif %}
     if (!draftId.value || submittingOrder) return;
     if ([WebSocket.OPEN, WebSocket.CONNECTING].includes(collaborationSocket?.readyState)) return;
     clearTimeout(collaborationReconnectTimer);
@@ -1695,7 +1698,7 @@
     if (!requestPhotoDirty.id_front) payload.delete("id_front");
     if (!requestPhotoDirty.id_back) payload.delete("id_back");
     try {
-      const response = await fetch("{% url 'draft_save' %}", {
+      const response = await fetch("{% url draft_save_route|default:'draft_save' %}", {
         method: "POST",
         headers: {"X-CSRFToken": document.querySelector("[name=csrfmiddlewaretoken]").value},
         body: payload,

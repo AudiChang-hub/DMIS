@@ -11,7 +11,14 @@ from .access import views as access_views
 
 
 urlpatterns = [
+    path("intake/drafts/", intake_views.intake_drafts, name="intake_drafts"),
+    path("intake/new/", views.order_create, {"reception": True}, name="order_start"),
+    path("intake/drafts/save/", views.draft_save, {"reception": True}, name="intake_draft_save"),
+    path("intake/submitted/<int:pk>/", intake_views.order_submitted, name="order_submitted"),
+    path("intake/options/installments/", views.installment_plan_options, {"reception": True}, name="intake_installment_options"),
+    path("intake/options/prices/", views.vehicle_price_options, {"reception": True}, name="intake_price_options"),
     path("orders/deleted/", order_deletion_views.order_recycle_bin, name="order_recycle_bin"),
+    path("orders/deletion-review/", order_deletion_views.order_deletion_queue, name="order_deletion_queue"),
     path("orders/<int:pk>/delete/", order_deletion_views.order_delete, name="order_delete"),
     path("orders/<int:pk>/restore/", order_deletion_views.order_restore, name="order_restore"),
     path("account/profit/unlock/", profit_views.profit_unlock, name="profit_unlock"),

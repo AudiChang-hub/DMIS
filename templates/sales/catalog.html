@@ -1,8 +1,8 @@
 {% extends "base.html" %}{% load pagination_tags sales_format %}
-{% block title %}選車下單｜馭盛{% endblock %}
+{% block title %}建立訂單・選擇車款｜馭盛{% endblock %}
 {% block content %}
-<section class="hero-row"><div><p class="eyebrow">馭盛・選車入口</p><h1>選一台適合的車</h1><p>查看車款與有效方案，選好後登入接續填單。</p></div>{% if can_manage_screen_access %}<a class="button" href="{% url 'catalog_manage' %}">管理展示車款</a>{% endif %}</section>
-{% if intake_can_submit %}<p class="catalog-direct">已知道車款，或需要未上架的車型？ <a class="button ghost small" href="{% url 'order_create' %}">直接填寫訂單</a></p>{% endif %}
+<section class="hero-row"><div><p class="eyebrow">馭盛・建立訂單</p><h1>選一台適合的車</h1><p>先選車款與顏色，再填寫本次下訂資料。</p></div></section>
+{% if intake_can_submit %}<p class="catalog-direct">已知道車款，或需要未上架的車型？ <a class="button ghost small" href="{% url 'order_start' %}">直接填寫訂單</a></p>{% endif %}
 <form method="get" class="card form-grid catalog-filter"><label>搜尋車款<select class="form-control" name="model"><option value="">全部上架車款</option>{% for model in model_options %}<option value="{{ model.pk }}" {% if selected_model == model.pk|stringformat:"s" %}selected{% endif %}>{{ model }}</option>{% endfor %}</select></label><label>品牌<select class="form-control" name="brand"><option value="">全部品牌</option>{% for brand in brands %}<option {% if brand == selected_brand %}selected{% endif %}>{{ brand }}</option>{% endfor %}</select></label><label>能源別<select class="form-control" name="energy"><option value="">全部能源</option>{% for value,label in energies %}<option value="{{ value }}" {% if value == selected_energy %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></label><div class="hero-actions"><button class="button primary">搜尋</button><a class="button" href="{% url 'catalog' %}">清除</a></div></form>
 <p>共 {{ model_count }} 款車型／{{ page_obj.paginator.count }} 個車色選項</p><div class="catalog-grid">
 {% for card in cards %}

@@ -41,11 +41,14 @@ def scoped_orders(user, queryset=None):
     return queryset
 
 
-def scoped_drafts(user, queryset=None):
+def scoped_drafts(user, queryset=None, *, reception=False):
     queryset = queryset if queryset is not None else OrderDraft.objects.all()
     profile = account_profile(user)
     if profile and profile.kind == "dealer":
         return queryset.filter(owner_account=user) if profile.can_submit_orders else queryset.none()
+    from sales.access.services import AccessPolicy
+    if reception or not AccessPolicy(user).screen("orders"):
+        return queryset.filter(owner_account=user)
     return queryset
 
 
@@ -77,12 +80,18 @@ DEALER_ROUTES = {
 }
 DEALER_ACCOUNT_ROUTES = {"login", "logout", "password_change_required", "password_change"}
 DEALER_ROUTES.update({"catalog", "catalog_detail", "catalog_image", "catalog_color_image"})
+DEALER_ROUTES.update({"order_start", "intake_draft_save", "order_submitted", "intake_installment_options", "intake_price_options"})
 DEALER_SUBMIT_ROUTES = {"order_create", "draft_save", "draft_presence", "draft_delete", "id_card_ocr", "id_card_ocr_status", "id_card_ocr_invalidate"}
+DEALER_SUBMIT_ROUTES.update({"order_start", "intake_draft_save", "order_submitted", "intake_installment_options", "intake_price_options", "intake_drafts"})
 
 
 def dealer_route_allowed(profile, name):
     if name in {"catalog", "catalog_detail", "catalog_image", "catalog_color_image"}:
         return bool(profile.source_id and profile.source.active and profile.can_browse_catalog)
+    if name in DEALER_SUBMIT_ROUTES:
+        return bool(profile.source_id and profile.source.active and profile.can_submit_orders)
+    if name in {"vehicle_colors", "sales_sources", "installment_plan_options", "vehicle_price_options", "protected_media", "order_intake_attachment"}:
+        return bool(profile.source_id and profile.source.active and (profile.can_submit_orders or profile.can_view_orders))
     if name not in {"dashboard", "user_guide", "access_home", "app_version", "system_health", "appearance_theme_update", "mobile_quick_links_update"} and not profile.can_view_orders:
         return False
     return bool(profile.source_id and profile.source.active and name in DEALER_ROUTES
@@ -152,7 +161,7 @@ def guard_dealer_request(request, name, kwargs):
     if draft_id:
         submitted_key = request.POST.get("_submission_key")
         try:
-            already_submitted = bool(name == "order_create" and submitted_key and SalesOrder.objects.filter(submission_key=submitted_key, submitted_by=request.user).exists())
+            already_submitted = bool(name in {"order_create", "order_start"} and submitted_key and SalesOrder.objects.filter(submission_key=submitted_key, submitted_by=request.user).exists())
         except (ValidationError, ValueError):
             already_submitted = False
         try:
@@ -165,6 +174,8 @@ def guard_dealer_request(request, name, kwargs):
         raise PermissionDenied("車行選車僅能查詢公開方案。")
     if name == "protected_media":
         kind, pk, field = kwargs.get("model_name"), kwargs.get("pk"), kwargs.get("field_name")
+        if kind == "order" and not profile.can_view_orders:
+            raise PermissionDenied("沒有查詢訂單權限。")
         if field not in {"id_front", "id_back"}:
             raise PermissionDenied
         qs = scoped_orders(request.user) if kind == "order" else scoped_drafts(request.user) if kind == "draft" else None

@@ -1372,7 +1372,15 @@ class DealerVolumeBonusSettlement(TimeStampedModel):
         return super().save(*args, **kwargs)
 
 
+class ActiveBonusAllocationManager(models.Manager):
+    def get_queryset(self):
+        return super().get_queryset().filter(voided_at__isnull=True)
+
+
 class DealerVolumeBonusAllocation(TimeStampedModel):
+    objects = ActiveBonusAllocationManager()
+    all_objects = models.Manager()
+    voided_at = models.DateTimeField("訂單刪除作廢時間", null=True, blank=True, editable=False)
     settlement = models.ForeignKey(
         DealerVolumeBonusSettlement,
         on_delete=models.CASCADE,
@@ -2576,6 +2584,18 @@ class SalesOrder(TimeStampedModel):
     deleted_at = models.DateTimeField("刪除時間", null=True, blank=True, db_index=True, editable=False)
     deleted_by = models.CharField("刪除人員", max_length=150, blank=True, editable=False)
     deletion_reason = models.CharField("刪除原因", max_length=500, blank=True, editable=False)
+    deletion_requested_at = models.DateTimeField("刪除申請時間", null=True, blank=True, db_index=True, editable=False)
+    deletion_requested_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, blank=True, related_name="order_deletion_requests", editable=False)
+    deletion_request_reason = models.CharField("刪除申請原因", max_length=500, blank=True, editable=False)
+    deletion_effects = models.JSONField("刪除影響快照", default=dict, blank=True, editable=False)
+
+    @property
+    def display_status(self):
+        return "刪除確認中" if self.deletion_requested_at else self.get_status_display()
+
+    @property
+    def display_status_code(self):
+        return "deletion_pending" if self.deletion_requested_at else self.status
 
     class VehicleCategory(models.TextChoices):
         NEW = "new", "新車"
@@ -4133,6 +4153,10 @@ class OrderDraft(TimeStampedModel):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     owner_account = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, blank=True, related_name="order_drafts", verbose_name="下單帳號")
     data = models.JSONField("草稿內容", default=dict, blank=True)
+
+    @property
+    def is_reception_draft(self):
+        return bool(self.data.get("_reception"))
     id_front = models.ImageField(
         "證件正面", upload_to="drafts/id/%Y/%m/", blank=True
     )

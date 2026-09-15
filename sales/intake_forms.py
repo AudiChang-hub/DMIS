@@ -26,15 +26,15 @@ class IntakeOrderForm(SalesOrderForm):
     class Meta(SalesOrderForm.Meta):
         fields = [*SalesOrderForm.Meta.fields, "trade_in_intent"]
 
-    def __init__(self, *args, user, **kwargs):
+    def __init__(self, *args, user, reception=False, **kwargs):
         supplied_initial = kwargs.get("initial") or {}
         self.intake_user = user
-        self.finance_editable = can_edit_finance(user)
+        self.finance_editable = not reception and can_edit_finance(user)
         profile = account_profile(user)
         self.dealer = bool(profile and profile.kind == "dealer")
         super().__init__(*args, **kwargs)
         self.fields["trade_in_intent"].required = False
-        self.fields["accept_by_me"].disabled = not can_receive(user)
+        self.fields["accept_by_me"].disabled = reception or not can_receive(user)
         if profile and profile.source_id:
             from sales.models import SalesSource
             for key, value in (("source_type", profile.source.source_type), ("source", profile.source_id)):

@@ -19,12 +19,6 @@ from sales.models import (
 
 
 class DealerFeatureMixin:
-    def clean(self):
-        cleaned = super().clean()
-        if cleaned.get("can_submit_orders") and not cleaned.get("can_view_orders"):
-            self.add_error("can_submit_orders", "建立訂單需同時開放查看本車行訂單。")
-        return cleaned
-
     def feature_fields(self):
         for key in ("can_view_orders", "can_browse_catalog", "can_submit_orders"):
             self.fields[key].widget.attrs["class"] = "form-check"

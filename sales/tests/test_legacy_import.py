@@ -124,6 +124,25 @@ def used_vehicle_resale_workbook_bytes(mark_as_used=True):
 
 
 class LegacyImportTests(TestCase):
+    def test_deleted_import_is_not_recreated_by_stale_row_commit(self):
+        from sales.services.order_deletion import change_deletion, confirmation_token
+        from sales.services.legacy_import import _commit_sales_row
+        batch = self.make_batch("operations")
+        build_import_preview(batch)
+        confirm_import(batch, "tester")
+        order = SalesOrder.objects.get()
+        root = get_user_model().objects.create_superuser("admin", password="Synthetic-test-only-89!")
+        change_deletion(user=root, order_id=order.pk, restore=False, force=True, reason="匯入錯誤",
+            expected_updated_at=order.updated_at.isoformat(), confirmation=confirmation_token(order, root))
+        repeated = self.make_batch("operations")
+        build_import_preview(repeated)
+        row = repeated.rows.get(sheet_name="銷貨")
+        row.action = LegacyImportRow.Action.CREATE  # 模擬舊預覽／重試，不信任先前判定。
+        _commit_sales_row(row, "tester")
+        self.assertEqual(row.action, LegacyImportRow.Action.SKIP)
+        self.assertEqual(SalesOrder.objects.count(), 0)
+        self.assertEqual(SalesOrder.all_objects.count(), 1)
+
     def test_import_formation_date_and_full_finance_mapping(self):
         batch = self.make_batch(LegacyImportBatch.ImportType.OPERATIONS)
         workbook = load_workbook(BytesIO(workbook_bytes()))

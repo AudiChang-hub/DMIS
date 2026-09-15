@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block title %}{{ order.number }}｜訂單進度{% endblock %}
 {% block content %}
-<a class="button ghost" href="{% url 'order_list' %}">返回訂單</a><section class="hero-row"><div><h1>{{ order.owner_name }}</h1><p>{{ order.number }} · {{ order.established_display }}</p></div><span class="status-pill status-{{ order.status }}">{{ order.get_status_display }}</span></section>
+<a class="button ghost" href="{% url 'order_list' %}">返回訂單</a><section class="hero-row"><div><h1>{{ order.owner_name }}</h1><p>{{ order.number }} · {{ order.established_display }}</p></div><span class="status-pill status-{{ order.display_status_code }}">{{ order.display_status }}</span></section>
 {% include "sales/_order_acceptance.html" %}
 <section class="card"><h2>下訂資料</h2><p>{{ order.vehicle_model }}／{{ order.color.name }}</p><p>車行：{{ order.source }} · 電話：{{ order.owner_phone }}</p><p>車價：$ {{ order.vehicle_price|floatformat:0 }} · 付款方式：{{ order.get_payment_type_display }}{% if order.installment_periods %}／{{ order.installment_company }} {{ order.installment_periods }} 期 · 每期 $ {{ order.installment_monthly|floatformat:0 }} · 開辦費 $ {{ order.installment_opening_fee|floatformat:0 }}{% endif %}</p><p>汰舊：{{ order.get_trade_in_intent_display }}</p><p>{{ order.note|linebreaksbr }}</p><p>需要修改已送出資料時，請聯絡店內人員協助，避免接單後資料不一致。</p></section>
 {% include "sales/_intake_attachments.html" with intake_attachments=order.intake_attachments.all %}

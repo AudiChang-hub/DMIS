@@ -2,6 +2,7 @@ from django.urls import path
 from django.views.generic import RedirectView
 
 from . import views, announcement_views, favorite_views, intake_views, catalog_views, dealer_account_views, profit_views
+from . import order_deletion_views
 from .historical_replacement import historical_buyer_replacement
 from .historical_date_change import historical_date_change
 from .reporting import views as report_views
@@ -10,6 +11,9 @@ from .access import views as access_views
 
 
 urlpatterns = [
+    path("orders/deleted/", order_deletion_views.order_recycle_bin, name="order_recycle_bin"),
+    path("orders/<int:pk>/delete/", order_deletion_views.order_delete, name="order_delete"),
+    path("orders/<int:pk>/restore/", order_deletion_views.order_restore, name="order_restore"),
     path("account/profit/unlock/", profit_views.profit_unlock, name="profit_unlock"),
     path("account/profit/lock/", profit_views.profit_lock, name="profit_lock"),
     path("catalog/", catalog_views.catalog, name="catalog"),

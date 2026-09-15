@@ -2565,7 +2565,18 @@ class VehicleInventoryHistory(TimeStampedModel):
         return f"{self.vehicle.identifier}／{self.get_event_type_display()}"
 
 
+class ActiveSalesOrderManager(models.Manager):
+    def get_queryset(self):
+        return super().get_queryset().filter(deleted_at__isnull=True)
+
+
 class SalesOrder(TimeStampedModel):
+    objects = ActiveSalesOrderManager()
+    all_objects = models.Manager()
+    deleted_at = models.DateTimeField("刪除時間", null=True, blank=True, db_index=True, editable=False)
+    deleted_by = models.CharField("刪除人員", max_length=150, blank=True, editable=False)
+    deletion_reason = models.CharField("刪除原因", max_length=500, blank=True, editable=False)
+
     class VehicleCategory(models.TextChoices):
         NEW = "new", "新車"
         USED = "used", "中古車"
@@ -3457,7 +3468,9 @@ class SalesOrder(TimeStampedModel):
     def save(self, *args, **kwargs):
         if self.pk:
             # 與結算共用訂單列鎖，避免歸屬變更和結算同時通過驗證。
-            type(self).objects.select_for_update().filter(pk=self.pk).exists()
+            existing = type(self).all_objects.select_for_update().only("deleted_at").filter(pk=self.pk).first()
+            if existing and existing.deleted_at:
+                raise ValidationError("此訂單已刪除，請先由已授權人員還原。")
         receivable_fields = ("actual_balance", "deposit_amount", "payment_type", "installment_amount", "installment_plan_snapshot")
         persisted = type(self).objects.filter(pk=self.pk).values(*receivable_fields).first() if self.pk else None
         written_fields = kwargs.get("update_fields")

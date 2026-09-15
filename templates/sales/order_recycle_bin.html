@@ -1,0 +1,11 @@
+{% extends 'base.html' %}{% load screen_access pagination_tags %}
+{% block title %}已刪除訂單｜車輛銷售管理{% endblock %}
+{% block content %}
+<a class="button ghost" href="{% url 'order_list' %}">返回全部訂單</a>
+<section class="section-block order-recycle-panel"><h1>已刪除訂單</h1><p>這裡的訂單不納入一般列表與統計。原始紀錄及附件仍保留，還原需具備操作權限。</p>
+<form method="get"><label for="deleted-order-search">搜尋訂單編號或姓名</label><input id="deleted-order-search" name="q" value="{{ query }}" maxlength="160"><button type="submit" class="button primary">搜尋</button></form>
+<p>共 {{ page_obj.paginator.count }} 筆</p>
+{% for order in page_obj %}<article class="section-block"><h2>{{ order.owner_name }} · {{ order.number }}</h2><p>{{ order.vehicle_model.name }}／{{ order.color.name }} · 原狀態：{{ order.get_status_display }}</p><p>{{ order.deleted_at|date:'Y/m/d H:i' }} · {{ order.deleted_by }}</p><p>刪除原因：{{ order.deletion_reason }}</p>{% if_access 'order_restore' order.pk %}<a class="button primary" href="{% url 'order_restore' order.pk %}">還原訂單</a>{% endif_access %}</article>{% empty %}<p>沒有符合條件的已刪除訂單。</p>{% endfor %}
+{% pagination page_obj aria_label='已刪除訂單分頁' %}
+</section>
+{% endblock %}

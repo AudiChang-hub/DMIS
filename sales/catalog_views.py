@@ -55,14 +55,22 @@ def catalog(request):
         model_options = model_options.filter(brand=brand)
     if energy:
         model_options = model_options.filter(energy_type=energy)
-    page = Paginator(
-        models.order_by("catalog_entry__position", "brand", "name", "pk"), 12
-    ).get_page(request.GET.get("page"))
+    colors = VehicleColor.objects.filter(active=True, vehicle_model__in=models).select_related(
+        "vehicle_model__catalog_entry"
+    ).order_by("vehicle_model__catalog_entry__position", "vehicle_model__brand",
+               "vehicle_model__name", "vehicle_model_id", "name", "pk")
+    page = Paginator(colors, 12).get_page(request.GET.get("page"))
+    cards, model_cards = [], {}
+    for color in page:
+        if color.vehicle_model_id not in model_cards:
+            model_cards[color.vehicle_model_id] = model_card(color.vehicle_model)
+        cards.append({**model_cards[color.vehicle_model_id], "color": color})
     return render(
         request,
         "sales/catalog.html",
         {
-            "cards": [model_card(m) for m in page],
+            "cards": cards,
+            "model_count": models.count(),
             "page_obj": page,
             "query": query,
             "selected_model": selected_model,
@@ -81,6 +89,8 @@ def catalog(request):
 @require_safe
 def catalog_detail(request, pk):
     model = get_object_or_404(listed_models(), pk=pk)
+    colors = list(model.colors.filter(active=True))
+    selected_color = request.GET.get("color", "")[:20]
     version = resolve_vehicle_price_version(pk, timezone.localdate())
     plan = resolve_installment_plan_version(pk, timezone.localdate())
     # 不將 expected_disbursement、內部註記等資料送到模板或 JSON。
@@ -100,7 +110,8 @@ def catalog_detail(request, pk):
             **model_card(model),
             "price_version": version,
             "options": options,
-            "colors": model.colors.filter(active=True),
+            "colors": colors,
+            "selected_color_id": next((c.pk for c in colors if str(c.pk) == selected_color), None),
             "today": timezone.localdate(),
         },
     )
@@ -130,6 +141,11 @@ def catalog_image(request, pk, color_pk=None):
 
 class CatalogForm(forms.ModelForm):
     expected_revision = forms.IntegerField(widget=forms.HiddenInput, min_value=0)
+    main_image_color = forms.ModelChoiceField(
+        queryset=VehicleColor.objects.none(), required=False,
+        label="將既有主圖對應至車色", empty_label="不變更車色圖片",
+        help_text="確認主圖的實際顏色後才選擇；其他顏色不會共用此圖。已有不同車色圖時不覆蓋。",
+    )
 
     class Meta:
         model = VehicleCatalogEntry
@@ -140,6 +156,7 @@ class CatalogForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         self.fields["expected_revision"].initial = self.instance.revision
         self.catalog_colors = list(self.instance.vehicle_model.colors.all())
+        self.fields["main_image_color"].queryset = self.instance.vehicle_model.colors.filter(active=True)
         for color in self.catalog_colors:
             self.fields[f"color_image_{color.pk}"] = forms.ImageField(label=f"{color.name} · 車色圖片", required=False,
                 widget=forms.FileInput(attrs={"accept": "image/jpeg,image/png,image/webp"}))
@@ -170,6 +187,14 @@ class CatalogForm(forms.ModelForm):
 
     def clean(self):
         data = super().clean()
+        target_color = data.get("main_image_color")
+        if target_color:
+            if not self.instance.image or hasattr(data.get("image"), "content_type"):
+                self.add_error("main_image_color", "請先儲存主圖，再確認要對應的車色。")
+            elif target_color.catalog_image and target_color.catalog_image.name != self.instance.image.name:
+                self.add_error("main_image_color", "此車色已有不同圖片；若需更換，請使用該色的圖片上傳欄位。")
+            if data.get(f"color_image_{target_color.pk}") or data.get(f"color_remove_{target_color.pk}"):
+                self.add_error("main_image_color", "同一車色不可同時對應主圖、上傳或移除圖片。")
         for color in self.catalog_colors:
             key = f"color_image_{color.pk}"
             upload = data.get(key)
@@ -215,6 +240,7 @@ def catalog_edit(request, pk):
     form = CatalogForm(request.POST or None, request.FILES or None, instance=entry)
     if request.method == "POST" and form.is_valid():
         with transaction.atomic():
+            target_color = form.cleaned_data.get("main_image_color")
             locked_model = VehicleModel.objects.select_for_update().get(pk=pk)
             current = (
                 VehicleCatalogEntry.objects.select_for_update()
@@ -227,10 +253,18 @@ def catalog_edit(request, pk):
                 form.add_error(None, "車款展示已被其他視窗更新，請重新整理。")
             elif form.cleaned_data["published"] and not locked_model.active:
                 form.add_error(None, "車款剛被停用，請重新整理。")
+            elif target_color and not VehicleColor.objects.filter(
+                pk=target_color.pk, vehicle_model=locked_model, active=True,
+                catalog_image=target_color.catalog_image.name,
+            ).exists():
+                form.add_error(None, "車色或圖片已被修改，請重新整理後再確認。")
             else:
                 changed = form.save(commit=False)
                 changed.revision += 1
                 changed.save()
+                if target_color:
+                    target_color.catalog_image = changed.image.name
+                    target_color.save(update_fields=["catalog_image", "updated_at"])
                 for color in form.catalog_colors:
                     upload = form.cleaned_data.get(f"color_image_{color.pk}")
                     if upload or form.cleaned_data.get(f"color_remove_{color.pk}"):
@@ -246,6 +280,7 @@ def catalog_edit(request, pk):
                         "model_id": pk,
                         "published": changed.published,
                         "revision": changed.revision,
+                        "main_image_color_id": target_color.pk if target_color else None,
                     },
                 )
                 messages.success(request, "車款展示已儲存；上架且啟用的車款才會公開。")

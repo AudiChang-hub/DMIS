@@ -1761,15 +1761,16 @@ class OrderFlowTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "啟用顏色")
-        self.assertContains(response, 'data-label="啟用顏色">2 種', html=False)
-        self.assertNotContains(response, 'data-label="啟用顏色">3 種', html=False)
+        self.assertContains(response, '<strong>2 種</strong>', html=True)
+        self.assertContains(response, '<li>黑</li>', html=True)
+        self.assertNotContains(response, '停用灰')
 
         self.model.colors.filter(active=True).update(active=False)
         response = self.client.get(
             reverse("vehicle_model_list"),
             {"q": self.model.name},
         )
-        self.assertContains(response, 'data-label="啟用顏色">0 種', html=False)
+        self.assertContains(response, '尚無啟用顏色')
 
     def test_vehicle_model_number_is_required_when_maintaining_master(self):
         self.client.force_login(self.user)

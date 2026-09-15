@@ -1,0 +1,1 @@
+<div class="enabled-colors"><strong>{{ item.enabled_colors|length }} 種</strong>{% if item.enabled_colors %}<ul aria-label="{{ item.model_year|default:'未填年式' }} 啟用顏色">{% for color in item.enabled_colors %}<li>{{ color.name }}</li>{% endfor %}</ul>{% else %}<small>尚無啟用顏色</small>{% endif %}</div>

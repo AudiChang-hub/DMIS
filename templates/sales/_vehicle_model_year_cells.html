@@ -31,7 +31,7 @@
 </td>
 <td data-label="目前建議售價">{% if item.current_suggested_price %}${{ item.current_suggested_price|floatformat:0 }}{% else %}尚未設定{% endif %}</td>
 <td data-label="車行基礎傭金"><strong>${{ item.base_dealer_commission|floatformat:0 }}</strong><span>特定車行加減另於車行資料設定</span></td>
-<td data-label="啟用顏色">{{ item.active_color_count }} 種</td>
+<td data-label="啟用顏色">{% include 'sales/_enabled_colors.html' with item=item %}</td>
 <td data-label="庫存">
   <a
     class="vehicle-model-inventory-link"

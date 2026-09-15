@@ -15,6 +15,7 @@ class Screen:
 SCREENS = (
     Screen("dashboard", "全公司戰情指標（營運總表）", "operations_report", False),
     Screen("orders", "訂單、草稿與文件", "order_list", True, True),
+    Screen("order_delete", "刪除與還原訂單（獨立授權）", "order_recycle_bin"),
     Screen("catalog", "選車下單入口", "catalog", False),
     Screen("order_finance", "訂單內部財務編輯", "order_list", True),
     Screen("profit", "查看淨利（另需本人密碼解鎖）", "order_list", False, True),
@@ -44,7 +45,7 @@ SCREENS = (
 )
 BY_KEY = {screen.key: screen for screen in SCREENS}
 SCREEN_GROUPS = (
-    ("orders", "全部訂單", (("訂單與作業", ("catalog", "orders", "work", "order_finance", "profit")),)),
+    ("orders", "全部訂單", (("訂單與作業", ("catalog", "orders", "work", "order_finance", "profit", "order_delete")),)),
     ("operations", "營運總表", (("營運與對帳", ("dashboard", "operations", "reconciliation")),)),
     ("reports", "報表中心", ()),
     ("data", "資料維護區", (
@@ -66,6 +67,8 @@ def register(key, names, action="auto"):
 
 
 register("orders", "order_list order_detail")
+register("order_delete", "order_recycle_bin", "view")
+register("order_delete", "order_delete order_restore", "operate")
 register("orders", "order_intake_attachment", "view")
 register("work", "order_receive", "operate")
 register("orders", "order_create order_edit draft_save draft_presence draft_delete order_edit_presence contract_upload privacy_consent_upload id_card_ocr id_card_ocr_status id_card_ocr_invalidate", "operate")

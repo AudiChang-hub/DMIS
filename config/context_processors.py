@@ -10,6 +10,7 @@ from sales.themes import DEFAULT_THEME, THEME_DEFINITIONS, THEME_META_COLORS, TH
 HELP_TOPIC_BY_ROUTE = {
     "profit_unlock": "profit-access",
     "catalog": "catalog-accounts", "catalog_detail": "catalog-accounts", "catalog_manage": "catalog-manage", "catalog_edit": "catalog-manage",
+    "order_delete": "order-recycle-bin", "order_restore": "order-recycle-bin", "order_recycle_bin": "order-recycle-bin",
     "dealer_accounts": "account-management", "dealer_account_create": "account-management", "dealer_account_edit": "account-management",
     "home_favorites": "home-favorites",
     "announcement_manage": "announcements", "announcement_edit": "announcements",

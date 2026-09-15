@@ -1,10 +1,11 @@
-{% load sales_format %}
+{% load sales_format screen_access %}
 {% if show_order_details %}<div class="order-row order-row--detailed">{% else %}<a class="order-row" href="{% url 'order_detail' order.pk %}">{% endif %}
   <span class="status-dot status-{{ order.status }}"></span>
   <div class="order-main">
     <strong>{% if show_order_details %}<a href="{% url 'order_detail' order.pk %}">{{ order.owner_name }}</a>{% else %}{{ order.owner_name }}{% endif %}</strong>
     <small>{{ order.number }}{% if not show_order_details %} · {{ order.vehicle_model.name }}／{{ order.color.name }}{% endif %}</small>
     {% if show_order_details %}
+    {% if_access 'order_delete' order.pk %}<a class="button danger-ghost small" href="{% url 'order_delete' order.pk %}" aria-label="刪除訂單 {{ order.number }}">刪除訂單</a>{% endif_access %}
     <div class="order-facts">
       <div class="order-fact order-fact--machine"><small>機種</small>{% firstof order.vehicle_model.family.name order.vehicle_model.name as machine_name %}{% include 'sales/_compact_text.html' with value=machine_name limit=10 %}</div>
       <span class="order-fact"><small>顏色</small><b>{{ order.color.name|default:"—" }}</b></span>

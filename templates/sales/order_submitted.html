@@ -7,6 +7,6 @@
   <dl><dt>訂購車款</dt><dd>{{ order.vehicle_model }}</dd><dt>顏色</dt><dd>{{ order.color.name }}</dd>
   <dt>目前狀態</dt><dd>{{ order.get_status_display }}</dd></dl>
   {% if order.accepted_at %}<p>馭盛已接單，將依訂單安排後續作業。</p>{% else %}<p>已送達馭盛，等待店內人員接單。請保留訂單編號供後續查詢。</p>{% endif %}
-  <div class="hero-actions"><a class="button primary" href="{{ order_entry_url }}">再建立一筆</a><a class="button" href="{% url 'dashboard' %}">離開接待</a></div>
+  <div class="hero-actions"><a class="button primary" href="{{ order_entry_url }}">再建立一筆</a><a class="button" href="{% url 'dashboard' %}">回首頁</a></div>
 </section>
 {% endblock %}

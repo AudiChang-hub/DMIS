@@ -17,12 +17,12 @@
   <a class="skip-link" href="#main-content">跳至主要內容</a>
   <header class="app-header">
     <div class="app-header-inner">
-      <a class="brand" href="{% if reception_mode %}{{ order_entry_url }}{% else %}{% url 'dashboard' %}{% endif %}">
+      <a class="brand" href="{% if reception_mode and not user.is_authenticated %}{{ order_entry_url }}{% else %}{% url 'dashboard' %}{% endif %}">
         <span class="brand-copy"><strong>車輛銷售管理</strong><small>訂單、配車、交付都在同一處</small></span>
       </a>
       {% if user.is_authenticated %}
         {% if reception_mode %}
-        <nav class="desktop-nav reception-nav" aria-label="接待下單"><a href="{{ order_entry_url }}" class="active">建立訂單</a><a href="{% url 'dashboard' %}">離開接待</a></nav>
+        <nav class="desktop-nav reception-nav" aria-label="接待下單"><a href="{% url 'dashboard' %}">首頁</a><a href="{{ order_entry_url }}" class="active">建立訂單</a></nav>
         <span class="reception-account">目前登入：{{ user.get_full_name|default:user.username }}</span>
         {% else %}
         <nav class="desktop-nav" aria-label="主要選單">

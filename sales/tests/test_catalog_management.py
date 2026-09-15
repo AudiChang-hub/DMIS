@@ -105,7 +105,9 @@ class CatalogManagementTests(TestCase):
                     self.assertIn("private", response["Cache-Control"])
                     self.assertIn("no-store", response["Cache-Control"])
                 finally:
-                    response.close()
+                    # 由測試客戶端的串流 wrapper 關閉回應；直接 close 會發出
+                    # request_finished，誤關 PostgreSQL TestCase 的交易連線。
+                    b"".join(response.streaming_content)
             self.assertEqual(self.client.get(reverse("catalog_image", args=[self.model.pk])).status_code, 404)
             self.assertEqual(self.client.get(reverse("catalog_color_image", args=[self.model.pk, self.gray.pk])).status_code, 404)
             user = get_user_model().objects.create_user("preview-denied")

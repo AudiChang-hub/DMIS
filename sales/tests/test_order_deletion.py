@@ -14,7 +14,7 @@ from django.utils import timezone
 from sales.access.models import ScreenAccessGrant, UserAccessState
 from sales.access.services import AccessPolicy, snapshot
 from sales.models import OrderAccountProfile, OrderEvent, PaymentRecord, SalesOrder, SalesSource, VehicleColor, VehicleModel
-from sales.services.order_deletion import change_deletion, deletion_blockers
+from sales.services.order_deletion import change_deletion, deletion_blockers, review_deletion, confirmation_token
 
 
 class OrderDeletionTests(TestCase):
@@ -133,9 +133,190 @@ class OrderDeletionTests(TestCase):
         self.assertContains(self.client.get(reverse("order_recycle_bin"), {"q": self.order.number}), "共 1 筆")
         self.assertEqual(SalesOrder._base_manager.get(pk=self.order.pk).number, self.order.number)
 
+    def permit_staff(self):
+        UserAccessState.objects.create(user=self.staff, configured=True)
+        ScreenAccessGrant.objects.create(user=self.staff, screen_key="order_delete", view=True, operate=True)
+        ScreenAccessGrant.objects.create(user=self.staff, screen_key="orders", view=True)
+
+    def review(self, user, action, reason="匯入錯誤"):
+        result = review_deletion(user=user, order_id=self.order.pk, action=action, reason=reason,
+                                expected_updated_at=self.order.updated_at.isoformat())
+        self.order.refresh_from_db()
+        return result
+
+    def force_delete(self):
+        self.change(force=True, confirmation=confirmation_token(self.order, self.root))
+        self.order = SalesOrder.all_objects.get(pk=self.order.pk)
+
+    def test_request_cancel_reject_and_approve_keep_original_status(self):
+        self.permit_staff()
+        SalesOrder.objects.filter(pk=self.order.pk).update(status="completed")
+        self.order.refresh_from_db()
+        self.review(self.staff, "request")
+        self.assertEqual((self.order.status, self.order.display_status), ("completed", "刪除確認中"))
+        self.assertContains(self.client.get(reverse("order_deletion_queue")), "匯入錯誤")
+        self.assertContains(self.client.get(reverse("order_list"), {"status": "deletion_pending"}), self.order.number)
+        with self.assertRaises(ValidationError):
+            self.review(self.staff, "request")
+        self.review(self.staff, "cancel")
+        self.assertEqual(self.order.display_status, "已完成")
+        self.review(self.staff, "request")
+        self.review(self.root, "reject", "資料仍需保留")
+        self.assertIsNone(self.order.deletion_requested_at)
+        self.review(self.staff, "request")
+        self.force_delete()
+        self.assertFalse(SalesOrder.objects.filter(pk=self.order.pk).exists())
+        self.assertIsNone(self.order.deletion_requested_at)
+        self.assertIn("匯入錯誤", OrderEvent.objects.filter(order=self.order, event_type="soft_deleted").get().description)
+
+    def test_non_admin_cannot_force_delete_reject_or_cancel_someone_else(self):
+        self.permit_staff()
+        self.review(self.root, "request")
+        for action in ("cancel", "reject"):
+            with self.assertRaises(PermissionDenied):
+                self.review(self.staff, action)
+        with self.assertRaises(PermissionDenied):
+            change_deletion(user=self.staff, order_id=self.order.pk, restore=False, reason="惡意繞過",
+                expected_updated_at=self.order.updated_at.isoformat(), force=True)
+        self.client.force_login(self.staff)
+        self.assertEqual(self.client.get(reverse("order_deletion_queue")).status_code, 403)
+        self.assertEqual(self.client.post(reverse("order_delete", args=[self.order.pk]), self.payload(action="delete", force="on")).status_code, 403)
+
+    def test_request_ui_cancel_and_stale_review(self):
+        self.permit_staff()
+        self.client.force_login(self.staff)
+        url = reverse("order_delete", args=[self.order.pk])
+        self.assertContains(self.client.get(url), "送出刪除申請")
+        old = self.payload()
+        self.assertEqual(self.client.post(url, old).status_code, 302)
+        self.order.refresh_from_db()
+        page = self.client.get(url)
+        self.assertContains(page, "取消刪除申請")
+        from html.parser import HTMLParser
+        class Inputs(HTMLParser):
+            values = {}
+            def handle_starttag(parser, tag, attributes):
+                attrs = dict(attributes)
+                if tag == "input" and attrs.get("name"):
+                    parser.values[attrs["name"]] = attrs.get("value", "")
+        inputs = Inputs()
+        inputs.feed(page.content.decode())
+        self.assertEqual(inputs.values["expected_updated_at"], self.order.updated_at.isoformat())
+        self.assertEqual(self.client.post(url, inputs.values).status_code, 302)
+        with self.assertRaises(ValidationError):
+            review_deletion(user=self.root, order_id=self.order.pk, action="reject", reason="檢查", expected_updated_at=old["expected_updated_at"])
+
+    def test_force_keeps_receipts_but_removes_queries_and_requires_fresh_confirmation(self):
+        payment = PaymentRecord.objects.create(order=self.order, item_name="合成實收", received_amount=1000)
+        token = confirmation_token(self.order, self.root)
+        PaymentRecord.objects.filter(pk=payment.pk).update(received_amount=2000)
+        with self.assertRaisesMessage(ValidationError, "關聯已變更"):
+            self.change(force=True, confirmation=token)
+        self.force_delete()
+        self.assertEqual(PaymentRecord.objects.get(pk=payment.pk).received_amount, 2000)
+        self.assertIsNone(self.order.refund_completed_on)
+        self.assertNotContains(self.client.get(reverse("reconciliation_list")), self.order.number)
+        self.assertEqual(self.client.get(reverse("order_detail", args=[self.order.pk])).status_code, 404)
+
+    def test_admin_completed_order_confirmation_form_executes_force_delete(self):
+        SalesOrder.objects.filter(pk=self.order.pk).update(status="completed")
+        self.order.refresh_from_db()
+        url = reverse("order_delete", args=[self.order.pk])
+        page = self.client.get(url)
+        self.assertContains(page, "確認刪除訂單")
+        self.assertTrue(page.context["form"].fields["force"].required)
+        payload = self.payload(force="on", impact_confirmation=page.context["form"]["impact_confirmation"].value())
+        self.assertEqual(self.client.post(url, payload).status_code, 302)
+        self.assertFalse(SalesOrder.objects.filter(pk=self.order.pk).exists())
+
+    def make_inventory(self, status="reserved"):
+        from sales.models import Store, VehicleInventory
+        store = Store.objects.create(name="合成庫存門市")
+        vehicle = VehicleInventory.objects.create(vehicle_model=self.model, color=self.color,
+            ownership_store=store, location_store=store, status=status, frame_number="QA-DELETE-ONLY")
+        SalesOrder.objects.filter(pk=self.order.pk).update(allocated_vehicle=vehicle)
+        self.order.refresh_from_db()
+        return vehicle
+
+    def test_force_release_unregistered_vehicle_and_restore(self):
+        vehicle = self.make_inventory()
+        self.force_delete()
+        vehicle.refresh_from_db()
+        self.assertEqual(vehicle.status, "available")
+        self.assertIsNone(self.order.allocated_vehicle_id)
+        self.change(restore=True)
+        self.order = SalesOrder.objects.get(pk=self.order.pk)
+        vehicle.refresh_from_db()
+        self.assertEqual(vehicle.status, "reserved")
+        self.assertEqual(self.order.allocated_vehicle_id, vehicle.pk)
+
+    def test_registered_vehicle_is_not_returned_as_new_stock_and_restore_conflict_is_atomic(self):
+        from sales.models import VehicleInventory
+        vehicle = self.make_inventory("sold")
+        self.force_delete()
+        vehicle.refresh_from_db()
+        self.assertEqual(vehicle.status, "inactive")
+        VehicleInventory.objects.filter(pk=vehicle.pk).update(status="condition_issue")
+        with self.assertRaisesMessage(ValidationError, "庫存車已異動"):
+            self.change(restore=True)
+        self.assertFalse(SalesOrder.objects.filter(pk=self.order.pk).exists())
+
+    def test_bonus_allocation_void_and_restore_preserves_other_order_allocation(self):
+        from datetime import date
+        from sales.models import DealerVolumeBonusRule, DealerVolumeBonusTier, DealerVolumeBonusSettlement, DealerVolumeBonusAllocation
+        dealer = SalesSource.objects.create(name="合成獎金車行", source_type="dealer")
+        rule = DealerVolumeBonusRule.objects.create(dealer=dealer, starts_on=date(2026, 9, 1), ends_on=date(2026, 9, 30))
+        DealerVolumeBonusTier.objects.create(rule=rule, minimum_quantity=1, bonus_per_vehicle=100)
+        DealerVolumeBonusTier.objects.create(rule=rule, minimum_quantity=2, bonus_per_vehicle=200)
+        settlement = DealerVolumeBonusSettlement.objects.create(rule=rule, dealer=dealer, qualified_quantity=2, expected_amount=400, actual_amount=400, bonus_per_vehicle=200)
+        first = DealerVolumeBonusAllocation.objects.create(settlement=settlement, order=self.order, amount=200)
+        other = SalesOrder.objects.create(owner_name="不得被轉嫁", owner_phone="0", owner_address="測試", owner_id_number="B123456789", vehicle_model=self.model, color=self.color)
+        second = DealerVolumeBonusAllocation.objects.create(settlement=settlement, order=other, amount=200)
+        self.force_delete()
+        settlement.refresh_from_db()
+        self.assertEqual((settlement.qualified_quantity, settlement.expected_amount, settlement.actual_amount), (1, 100, 200))
+        self.assertEqual(DealerVolumeBonusAllocation.objects.get(pk=second.pk).amount, 200)
+        self.assertFalse(DealerVolumeBonusAllocation.objects.filter(pk=first.pk).exists())
+        self.assertTrue(DealerVolumeBonusAllocation.all_objects.filter(pk=first.pk).exists())
+        self.change(restore=True)
+        settlement.refresh_from_db()
+        self.assertEqual((settlement.qualified_quantity, settlement.expected_amount, settlement.actual_amount), (2, 400, 400))
+        self.assertEqual(settlement.adjustments.count(), 2)
+
 
 @skipUnless(connection.vendor == "postgresql", "需要 PostgreSQL 行鎖")
 class OrderDeletionConcurrencyTests(TransactionTestCase):
+    def test_cancel_and_admin_approval_have_one_winner(self):
+        root = get_user_model().objects.create_superuser("admin", password="Concurrent-QA-only-42!")
+        staff = get_user_model().objects.create_user("requester")
+        UserAccessState.objects.create(user=staff, configured=True)
+        ScreenAccessGrant.objects.create(user=staff, screen_key="order_delete", view=True, operate=True)
+        model = VehicleModel.objects.create(brand="QA", name="審核鎖定")
+        color = VehicleColor.objects.create(vehicle_model=model, name="灰")
+        order = SalesOrder.objects.create(owner_name="合成申請", owner_phone="0", owner_address="合成地址", owner_id_number="A123456789", vehicle_model=model, color=color, status="completed")
+        review_deletion(user=staff, order_id=order.pk, action="request", reason="重複匯入", expected_updated_at=order.updated_at.isoformat())
+        order.refresh_from_db()
+        version, token = order.updated_at.isoformat(), confirmation_token(order, root)
+        barrier = Barrier(2)
+        def run(action):
+            close_old_connections()
+            try:
+                user = get_user_model().objects.get(pk=root.pk if action == "approve" else staff.pk)
+                barrier.wait(timeout=10)
+                try:
+                    if action == "approve":
+                        change_deletion(user=user, order_id=order.pk, restore=False, reason="確認匯入錯誤", expected_updated_at=version, force=True, confirmation=token)
+                    else:
+                        review_deletion(user=user, order_id=order.pk, action="cancel", reason="取消", expected_updated_at=version)
+                    return "done"
+                except (ValidationError, SalesOrder.DoesNotExist):
+                    return "conflict"
+            finally:
+                close_old_connections()
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            futures = [pool.submit(run, action) for action in ("approve", "cancel")]
+            self.assertCountEqual([item.result(timeout=30) for item in futures], ["done", "conflict"])
+
     def test_concurrent_delete_has_one_winner_and_one_audit_event(self):
         root = get_user_model().objects.create_superuser("admin", password="Concurrent-QA-only-42!")
         model = VehicleModel.objects.create(brand="QA", name="鎖定測試")

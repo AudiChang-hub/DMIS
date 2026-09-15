@@ -111,7 +111,7 @@ jobs:
           POSTGRES_DB: finance_ci
           POSTGRES_USER: finance_ci
           POSTGRES_PASSWORD: ci-isolated-only
-        run: python manage.py test sales.tests.test_order_intake sales.tests.test_catalog_accounts sales.tests.test_profit_privacy_ux sales.tests.test_catalog_color_list sales.tests.test_catalog_management sales.tests.test_order_deletion --noinput
+        run: python manage.py test sales.tests.test_order_intake sales.tests.test_reception_entry sales.tests.test_catalog_accounts sales.tests.test_profit_privacy_ux sales.tests.test_catalog_color_list sales.tests.test_catalog_management sales.tests.test_order_deletion sales.tests.test_legacy_import.LegacyImportTests.test_deleted_import_is_not_recreated_by_stale_row_commit --noinput
 
       - name: Verify order sorting interactions
         run: |

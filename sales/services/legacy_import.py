@@ -1363,8 +1363,23 @@ def _commit_inventory_row(row):
     row.committed_model, row.committed_pk = "VehicleInventory", str(vehicle.pk)
 
 
+@transaction.atomic
 def _commit_sales_row(row, actor_name, *, pending_order=None):
     data = row.mapped_data
+    # 預覽後仍可能被另一批先匯入；交易鍵鎖覆蓋含回收區的來源快照。
+    # 保留歷史快照，讓刪除不會被重新匯入意外復活。
+    if not pending_order:
+        from django.db import connection
+        key = _sales_transaction_key(data)
+        if connection.vendor == "postgresql":
+            lock_key = int.from_bytes(hashlib.sha256(key.encode()).digest()[:8], "big", signed=True)
+            with connection.cursor() as cursor:
+                cursor.execute("SELECT pg_advisory_xact_lock(%s)", [lock_key])
+        previous = LegacySalesSnapshot.objects.filter(import_row__natural_key=key).first()
+        if previous:
+            row.action = LegacyImportRow.Action.SKIP
+            row.committed_model, row.committed_pk = "SalesOrder", str(previous.order_id)
+            return
     model = _model_for_number(data["model_number"])
     color = _color_for_model(model, data["color"])
     vehicle_category = data.get("vehicle_category") or SalesOrder.VehicleCategory.NEW
@@ -1549,7 +1564,7 @@ def confirm_import(batch, actor_name):
                     elif row.sheet_name == "銷貨":
                         _commit_sales_row(row, actor_name)
                     row.save(update_fields=["action", "committed_model", "committed_pk", "updated_at"])
-                result["updated" if row.action == LegacyImportRow.Action.UPDATE else "created"] += 1
+                result["skipped" if row.action == LegacyImportRow.Action.SKIP else "updated" if row.action == LegacyImportRow.Action.UPDATE else "created"] += 1
             except Exception as exc:
                 row.action = LegacyImportRow.Action.ERROR
                 row.messages = [*row.messages, _friendly_import_exception(exc)]

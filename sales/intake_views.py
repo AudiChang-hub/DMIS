@@ -14,6 +14,17 @@ from sales.services.order_intake import is_dealer, receive_order, scoped_orders,
 
 
 @login_required
+@require_http_methods(["GET", "HEAD"])
+def intake_drafts(request):
+    from django.core.paginator import Paginator
+    from sales.access.services import AccessPolicy
+    if not AccessPolicy(request.user).screen("order_intake", "operate"):
+        raise PermissionDenied("沒有建立訂單權限。")
+    rows = scoped_drafts(request.user, reception=True).filter(data___reception=True).order_by("-updated_at", "pk")
+    return render(request, "sales/intake_drafts.html", {"page_obj": Paginator(rows, 20).get_page(request.GET.get("page"))})
+
+
+@login_required
 @require_POST
 def order_receive(request, pk):
     get_object_or_404(SalesOrder, pk=pk)
@@ -68,6 +79,9 @@ def order_account_scope(request, pk):
 def order_intake_attachment(request, pk):
     attachment = get_object_or_404(OrderIntakeAttachment, pk=pk)
     if attachment.order_id:
+        from sales.access.services import policy_for
+        if not policy_for(request).route("order_detail"):
+            raise PermissionDenied
         get_object_or_404(scoped_orders(request.user), pk=attachment.order_id)
     else:
         get_object_or_404(scoped_drafts(request.user), pk=attachment.draft_id)
@@ -79,3 +93,12 @@ def order_intake_attachment(request, pk):
     response["Cache-Control"] = "private, no-store"
     response["X-Content-Type-Options"] = "nosniff"
     return response
+
+
+@login_required
+@require_http_methods(["GET", "HEAD"])
+def order_submitted(request, pk):
+    """接待確認只讀本人建立的本筆摘要，不載入內部財務明細。"""
+    order = get_object_or_404(scoped_orders(request.user).select_related("vehicle_model", "color"),
+                              pk=pk, submitted_by=request.user)
+    return render(request, "sales/order_submitted.html", {"order": order, "reception_mode": True})

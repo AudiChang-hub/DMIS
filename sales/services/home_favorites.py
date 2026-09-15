@@ -5,10 +5,11 @@ from .mobile_quick_links import MOBILE_QUICK_LINK_DEFINITIONS
 
 
 EXTRA_LINKS = (
-    {"key": "catalog", "label": "選車下單", "route": "catalog"},
+    {"key": "catalog", "label": "建立訂單・選擇車款", "route": "catalog"},
     {"key": "catalog-manage", "label": "選車展示管理", "route": "catalog_manage"},
     {"key": "orders", "label": "全部訂單", "route": "order_list"},
-    {"key": "new-order", "label": "建立訂單", "route": "order_create"},
+    {"key": "new-order", "label": "建立訂單", "route": "order_start"},
+    {"key": "intake-drafts", "label": "我的接待草稿", "route": "intake_drafts"},
     {"key": "operations", "label": "營運總表", "route": "operations_report"},
     {"key": "reconciliation", "label": "對帳作業", "route": "reconciliation_list"},
     {"key": "help", "label": "使用說明", "route": "user_guide"},
@@ -21,10 +22,11 @@ EXTRA_LINKS = (
 )
 LINKS = {item["key"]: item for item in (*MOBILE_QUICK_LINK_DEFINITIONS, *EXTRA_LINKS)}
 GROUPS = (
-    ("orders", "全部訂單", "查詢、建立及處理訂單", ("orders", "new-order", "catalog", "catalog-manage")),
+    ("intake", "建立訂單", "選車與接待下單，不先開啟訂單列表", ("new-order", "catalog", "intake-drafts")),
+    ("orders", "全部訂單", "查詢及處理既有訂單", ("orders",)),
     ("operations", "營運總表", "公司走勢與對帳", ("operations", "reconciliation")),
     ("reports", "報表中心", "分析、設計及分類", ("reports", "report-design", "report-categories")),
-    ("vehicles", "資料維護・車輛與商品", "品牌、售價、庫存及配件", ("vehicle-brands", "vehicle-models", "inventory", "accessories", "dealer-reward-items")),
+    ("vehicles", "資料維護・車輛與商品", "品牌、售價、庫存及配件", ("vehicle-brands", "vehicle-models", "catalog-manage", "inventory", "accessories", "dealer-reward-items")),
     ("people", "資料維護・通路與人員", "客戶、車行及工作分發", ("customers", "sales-sources", "network-platforms", "staff", "source-categories", "price-list-distribution")),
     ("rules", "資料維護・費率與規則", "成本、獎勵、分期與日曆", ("settlement-costs", "incentives", "dealer-sales-programs", "dealer-bonuses", "installment-companies", "registration-fees", "business-holidays")),
     ("tools", "資料維護・工具與管理", "匯入、列印、帳號及公告", ("imports", "print-templates", "diagnostics", "integrity", "user-management", "announcements")),

@@ -343,6 +343,8 @@ def revise_volume_bonus_settlement(settlement, actor_name, actual_amount, reason
 
     previous = settlement.actual_amount
     allocations = list(settlement.allocations.select_related("order"))
+    if not allocations:
+        raise ValueError("此結算已無有效訂單，不可調整金額；原紀錄仍保留供稽核。")
     # 與其他規則結算／更正共用訂單列鎖，避免同單加總遺失。
     list(SalesOrder.objects.select_for_update().filter(pk__in=[item.order_id for item in allocations]).order_by("pk"))
     amounts = _allocation_amounts(revised, len(allocations))

@@ -161,7 +161,7 @@ class ScreenAccessTests(TestCase):
     def test_grouped_ui_has_enabled_checkboxes_and_current_login_identity(self):
         self.client.force_login(self.root)
         response = self.client.get(reverse("access_edit", args=[self.user.pk]))
-        self.assertEqual([group["label"] for group in response.context["groups"]], ["全部訂單", "營運總表", "報表中心", "資料維護區"])
+        self.assertEqual([group["label"] for group in response.context["groups"]], ["建立訂單", "全部訂單", "營運總表", "報表中心", "資料維護區"])
         self.assertNotContains(response, "原有資格不允許")
         self.assertNotContains(response, "不適用")
         self.assertContains(response, 'aria-label="目前登入帳號"')

@@ -27,7 +27,7 @@
     {% endif %}
   </div>
   {% if not show_order_details %}<span class="order-source">{{ order.source_display }}</span>{% endif %}
-  <span class="status-pill status-{{ order.status }}">{{ order.get_status_display }}</span>
+  <span class="status-pill status-{{ order.display_status_code }}">{{ order.display_status }}</span>
   {% if show_order_details %}<a class="chevron" href="{% url 'order_detail' order.pk %}" aria-label="查看 {{ order.number }} 訂單">›</a>{% else %}<span class="chevron">›</span>{% endif %}
 {% if show_order_details %}</div>{% else %}</a>{% endif %}
 

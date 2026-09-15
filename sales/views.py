@@ -4720,7 +4720,16 @@ def order_create(request, reception=False):
             return redirect(f"{reverse('order_detail', kwargs={'pk': order.pk})}?created=1")
     else:
         initial = _draft_form_initial(draft.data) if draft else {}
-        if not draft and request.GET.get("model", "").isdigit():
+        if not draft and request.GET.get("selection"):
+            from sales.services.catalog_selection import selection_initial
+            try:
+                initial.update(selection_initial(request.GET["selection"]))
+                selected_model = VehicleModel.objects.get(pk=initial["vehicle_model"])
+                initial["vehicle_energy_type"] = selected_model.energy_type
+            except ValidationError:
+                messages.error(request, "原選擇已失效，或車色、售價與方案已有異動，請重新選擇車款與付款方案。")
+                return redirect("catalog")
+        if not draft and not request.GET.get("selection") and request.GET.get("model", "").isdigit():
             selected_model = VehicleModel.objects.filter(pk=request.GET["model"], active=True).first()
             if selected_model:
                 initial.update(vehicle_model=selected_model.pk, vehicle_energy_type=selected_model.energy_type)

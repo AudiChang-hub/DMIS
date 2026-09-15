@@ -22,6 +22,7 @@ FINANCE_FIELDS = (
 
 class IntakeOrderForm(SalesOrderForm):
     accept_by_me = forms.BooleanField(label="由我接單（建立後直接進入待配車）", required=False)
+    catalog_selection = forms.CharField(required=False, widget=forms.HiddenInput, max_length=4096)
 
     class Meta(SalesOrderForm.Meta):
         fields = [*SalesOrderForm.Meta.fields, "trade_in_intent"]
@@ -55,6 +56,17 @@ class IntakeOrderForm(SalesOrderForm):
                 self.initial[name] = 0 if name == "deposit_amount" else None
             self.initial["compulsory_insurance_period"] = 1
             self.initial["old_owner_same_as_owner"] = True
+        self.catalog_summary = None
+        token = self.data.get("catalog_selection") if self.is_bound else self.initial.get("catalog_selection")
+        if token:
+            from sales.services.catalog_selection import read_selection
+            try:
+                self.catalog_summary = read_selection(token)
+                if not self.is_bound:
+                    self.initial["installment_monthly"] = self.catalog_summary["monthly"]
+                    self.initial["installment_opening_fee"] = self.catalog_summary["opening_fee"]
+            except ValidationError:
+                pass  # 保留草稿內容；送出時明確提示重新確認，不在載入時換價。
 
     def clean(self):
         data = super().clean()
@@ -64,12 +76,24 @@ class IntakeOrderForm(SalesOrderForm):
             self.add_error("owner_email", "電動車需填寫車主 Email。")
         if not self.finance_editable and model and data.get("payment_type") == SalesOrder.PaymentType.INSTALLMENT:
             version = resolve_installment_plan_version(model.pk, timezone.localdate())
-            option = version.options.select_related("company").filter(periods=data.get("installment_periods"), company__name=data.get("installment_company")).first() if version else None
+            option = version.options.select_related("company").filter(periods=data.get("installment_periods"), company__name=data.get("installment_company"), company__active=True).first() if version else None
             if not option:
                 self.add_error("installment_periods", "請選擇此車型目前有效的分期方案；無方案請洽店內人員。")
             else:
                 data["installment_monthly"] = option.monthly_amount
                 data["installment_opening_fee"] = option.opening_fee
+        if data.get("catalog_selection"):
+            from sales.services.catalog_selection import validate_selection, CHANGE_MESSAGE
+            try:
+                selected = validate_selection(data["catalog_selection"])
+                color = data.get("color")
+                if (not model or not color or model.pk != selected["model"] or color.pk != selected["color"]
+                        or data.get("payment_type") != selected["payment_type"]
+                        or (selected["payment_type"] == "installment" and
+                            (data.get("installment_company") != selected["company"] or data.get("installment_periods") != selected["periods"]))):
+                    raise ValidationError(CHANGE_MESSAGE)
+            except ValidationError as exc:
+                self.add_error("catalog_selection", exc)
         return data
 
 

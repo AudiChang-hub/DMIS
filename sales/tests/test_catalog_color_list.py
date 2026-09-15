@@ -64,7 +64,8 @@ class CatalogColorListTests(TestCase):
             self.assertIsNone(self.client.get(url, {"color": invalid}).context["selected_color_id"])
         response = self.client.get(url, {"color": self.gray.pk})
         self.assertEqual(response.context["selected_color_id"], self.gray.pk)
-        self.assertContains(response, f'value="{self.gray.pk}" required aria-label="灰" checked')
+        self.assertContains(response, 'aria-current="true"')
+        self.assertContains(response, "已選車色")
 
     def test_main_image_assignment_is_explicit_audited_and_repeatable(self):
         with tempfile.TemporaryDirectory() as media, override_settings(MEDIA_ROOT=media):

@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% load static %}
+{% load static sales_format %}
 {% block head %}<link rel="stylesheet" href="{% static 'css/order-commission-recipient.css' %}?v={{ app_version }}">{% endblock %}
 {% block title %}{% if editing_order %}編輯 {{ editing_order.number }}{% else %}建立訂單{% endif %}｜車輛銷售管理{% endblock %}
 {% block page_class %}page-shell--form{% endblock %}
@@ -28,6 +28,7 @@
   <input type="hidden" name="_field_versions" id="field-versions" value="{}">
   {{ formset.management_form }}
   {{ fee_formset.management_form }}
+  {% if intake_mode %}{{ form.catalog_selection }}{% endif %}
   {% if editing_order.is_delivered %}{% include "sales/_field.html" with field=form.confirm_completed_correction %}{% endif %}
   <section class="hero-row compact-hero form-heading">
     <div><p class="eyebrow">{% if editing_order %}正式訂單{% else %}訂單建檔{% endif %}</p><h1>{% if editing_order %}編輯訂單{% elif draft %}繼續編輯草稿{% else %}建立新訂單{% endif %}</h1><p class="muted">{% if editing_order %}儲存後會保留修改人、時間、原因及變更前後內容。{% else %}先選車款與顏色，再填寫下訂資料；送出後由店內人員接單，再安排配車。{% endif %}</p></div>
@@ -62,7 +63,20 @@
     <a href="#payment">4 金額</a><a href="#extras">5 需求</a>
   </div>
 
-  <details class="form-section" id="vehicle" open>
+  {% if form.catalog_selection.value %}
+  <section class="card catalog-intake-summary" data-catalog-intake-summary>
+    <h2>已選車款與付款方案</h2>
+    {% with chosen=form.catalog_summary %}{% if chosen %}
+    <p>{{ chosen.model_label }}／{{ chosen.color_label }}</p>
+    <p>{% if chosen.payment_type == 'cash' %}現金{% else %}{{ chosen.company }}／{{ chosen.periods }} 期 · 每期 {{ chosen.monthly|number_with_commas }} 元 · 開辦費 {{ chosen.opening_fee|number_with_commas }} 元{% endif %}{% if chosen.price != None %} · 車價 {{ chosen.price|number_with_commas }} 元{% endif %}</p>
+    {% endif %}{% endwith %}
+    <p>選擇已帶入，可直接填寫來源、車主及交車需求；需要調整時再更換。</p>
+    {{ form.catalog_selection.errors }}
+    <button type="button" class="button ghost" data-catalog-change>更換車款／付款方案</button>
+    <noscript><p>同頁更換方案需要啟用 JavaScript；原選擇仍可正常送出，若方案失效請重新選車。</p></noscript>
+  </section>
+  {% endif %}
+  <details class="form-section" id="vehicle" {% if not form.catalog_summary or form.errors %}open{% endif %}>
     <summary><span class="step-number">1</span><span><strong>訂購車輛</strong><small>只選車型與車色，簽約後再配實體車</small></span></summary>
     <p class="muted intake-vehicle-hint">先選車款與顏色，後續填單會保留你的選擇。</p>
     <div class="form-grid">
@@ -153,7 +167,7 @@
 
 
 
-  <details class="form-section" id="payment" open>
+  <details class="form-section" id="payment" {% if not form.catalog_summary or form.errors %}open{% endif %}>
     <summary><span class="step-number">4</span><span><strong>價格與付款</strong><small>{% if reception_mode %}售價與分期取自車型設定，特殊需求請填備註{% else %}售價與分期取自車型設定，內部調整依帳號權限開放{% endif %}</small></span></summary>
     <div class="form-grid">
       {% include "sales/_field.html" with field=form.payment_type %}
@@ -1821,4 +1835,5 @@
   });
 })();
 </script>
+{% if intake_mode %}<script src="{% static 'js/catalog-intake.js' %}?v={{ app_version }}" defer></script>{% endif %}
 {% endblock %}

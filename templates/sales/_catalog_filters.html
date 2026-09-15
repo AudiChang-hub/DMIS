@@ -1,0 +1,6 @@
+<div class="catalog-manage-filters">
+  <label for="catalog-brand">品牌<select class="form-control" id="catalog-brand" name="brand"><option value="">全部品牌</option>{% for value in brands %}<option value="{{ value }}"{% if selected_brand == value %} selected{% endif %}>{{ value }}</option>{% endfor %}</select></label>
+  <label for="catalog-model-name">車型<select class="form-control" id="catalog-model-name" name="model_name"><option value="">全部車型</option>{% for value in model_names %}<option value="{{ value }}"{% if selected_name == value %} selected{% endif %}>{{ value }}</option>{% endfor %}</select></label>
+  <label for="catalog-model-number">型號<select class="form-control" id="catalog-model-number" name="model_number"><option value="">全部型號</option>{% for value in model_numbers %}<option value="{{ value }}"{% if selected_number == value %} selected{% endif %}>{{ value }}</option>{% endfor %}</select></label>
+  <label for="catalog-energy">能源別<select class="form-control" id="catalog-energy" name="energy"><option value="">全部能源</option>{% for value,label in energies %}<option value="{{ value }}"{% if selected_energy == value %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
+</div>

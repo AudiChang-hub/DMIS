@@ -128,6 +128,7 @@ class OrderDeletionTests(TestCase):
         payment = PaymentRecord.objects.create(order=self.order, item_name="證明", proof="private/not-opened.png")
         self.change()
         self.assertEqual(self.client.get(reverse("protected_media", args=["payment", payment.pk, "proof"])).status_code, 404)
+        self.assertEqual(self.client.post(reverse("reconciliation_update", args=[payment.pk]), {}).status_code, 404)
         self.assertContains(self.client.get(reverse("order_recycle_bin"), {"q": "不存在"}), "共 0 筆")
         self.assertContains(self.client.get(reverse("order_recycle_bin"), {"q": self.order.number}), "共 1 筆")
         self.assertEqual(SalesOrder._base_manager.get(pk=self.order.pk).number, self.order.number)

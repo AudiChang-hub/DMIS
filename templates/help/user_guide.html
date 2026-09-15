@@ -9,7 +9,7 @@
   <div>
     <p class="eyebrow">End User 使用說明</p>
     <h1>現在想做什麼？從任務開始找</h1>
-    <p>這裡只說明實際操作，不需要懂系統或資料庫。最後更新：2026/09/14・系統版本 {{ release_version }}</p>
+    <p>這裡只說明實際操作，不需要懂系統或資料庫。最後更新：2026/09/15・系統版本 {{ release_version }}</p>
   </div>
   <div class="hero-actions guide-print-actions">
     <button class="button ghost" type="button" data-print-guide>列印／存成 PDF</button>
@@ -56,6 +56,9 @@
     {% if can_manage_screen_access %}<section id="catalog-accounts" class="guide-topic" data-guide-topic>
       <h2>選車入口與車行帳號</h2>
       <ol><li>admin 從「資料維護區 → 選車展示管理」選擇車款，上傳有權使用的圖片、填寫介紹並上架。售價、規格與分期沿用機種設定；未上架或停用不公開。</li><li>「合作車行 → 登入帳號」可新增每位人員、調整下單權限、停用與重設密碼；帳號自動綁定該車行，與「帳號與權限」同步。</li><li>車行帳號預設可下單及查看本車行進度；取消下單勾選後為唯讀進度。只有 admin 可調整，不需要再進內部畫面權限逐格設定。</li><li>分享系統的「選車下單」入口。選車色後登入，會帶入共用訂單；送出後為待接單，馭盛接單後可看到人員與時間。</li><li>首次登入需更換臨時密碼；不建議多人共用同一帳號。停用保留歷史紀錄。</li></ol>
+      <h3>展示管理篩選與啟用車色</h3>
+      <p>依「品牌 → 車型 → 型號」選擇後按「套用篩選」，也可搭配關鍵字；換頁保留條件，「清除篩選」返回全部啟用車款。停用車型不列出，啟用但未上架的車款仍可準備展示。</p>
+      <p>編輯頁每個啟用車色各有圖片預覽、上傳及移除；不選新檔會保留原圖，停用色的照片不會刪除。未上架圖片只有 admin 能預覽。主圖對應收在「車款主圖與既有圖片對應（進階）」。若編輯途中被停用或其他人已更新，請重新整理再操作。</p>
       <p>原 Google Sites／Forms 未自動停用，切換前請確認歷史資料與附件已保存。本功能不移除 Google Vision 辨識或 Cloudflare 連線服務。</p>
     </section>{% endif %}
     {% help_visible 'command-center-update' as topic_visible %}{% if topic_visible %}<article class="guide-topic" id="command-center-update" data-guide-topic>

@@ -1,4 +1,35 @@
 {% extends "base.html" %}{% block title %}編輯車款展示{% endblock %}{% block content %}
-<a class="button" href="{% url 'catalog_manage' %}">← 返回展示管理</a><h1>編輯車款展示</h1><h2>{{ model }}</h2><div class="card"><p>上架後，圖片、介紹、既有規格及有效對客售價／分期將公開。成本、佣金與撥款不會公開。只上傳你有權使用的圖片。</p><a href="{% url 'vehicle_model_edit' model.pk %}">修改機種規格、售價與分期</a></div>
-<form method="post" enctype="multipart/form-data" class="card stacked-form">{% csrf_token %}{{ form.non_field_errors }}{{ form.expected_revision }}{% if entry.image %}<p>已有主圖；不選新檔案會保留原圖。</p>{% if entry.published and model.active %}<img class="catalog-image" src="{% url 'catalog_image' model.pk %}" alt="目前車款主圖">{% endif %}{% endif %}<p>圖片支援 JPEG、PNG、WebP，每張最多 8 MB。列表與選色卡片均使用各車色圖片；既有主圖需在下方明確對應車色，未補圖不會借用其他顏色。</p><div class="catalog-color-grid">{% for color in form.catalog_colors %}{% if color.catalog_image %}<div class="card"><strong>{{ color.name }}</strong><p>已有車色圖片；不選新檔會保留。</p>{% if entry.published and model.active and color.active %}<img class="catalog-image" src="{% url 'catalog_color_image' model.pk color.pk %}" alt="{{ color.name }}">{% endif %}</div>{% endif %}{% endfor %}</div>{% for field in form.visible_fields %}{% include "sales/_field.html" with field=field %}{% endfor %}<button class="button primary">儲存展示設定</button></form>
+<a class="button" href="{% url 'catalog_manage' %}">← 返回展示管理</a><h1>編輯車款展示</h1><h2>{{ model }}</h2>
+<div class="card"><p>此處只編輯啟用車色的展示圖片。停用車色不顯示，原有圖片仍保留；啟用狀態請至機種資料調整。</p><a href="{% url 'vehicle_model_edit' model.pk %}">修改機種規格、車色、售價與分期</a></div>
+<form method="post" enctype="multipart/form-data" class="stacked-form">
+  {% csrf_token %}{{ form.non_field_errors }}{{ form.expected_revision }}
+  <section class="card stacked-form">
+    <h2>展示設定</h2><p>上架後公開圖片、介紹及有效對客售價／分期，不公開成本、佣金與撥款。只上傳你有權使用的圖片。</p>
+    {% include "sales/_field.html" with field=form.description %}
+    {% include "sales/_field.html" with field=form.published %}
+    {% include "sales/_field.html" with field=form.position %}
+  </section>
+  <section class="card stacked-form">
+    <h2>啟用車色圖片 <small>共 {{ form.catalog_colors|length }} 色</small></h2>
+    <p>每張最多 8 MB，支援 JPEG、PNG、WebP。不選新檔案就保留原圖；缺圖車色仍會顯示於選車入口。</p>
+    <div class="catalog-color-edit-grid">
+      {% for section in form.color_sections %}
+      <section class="catalog-color-editor" aria-label="{{ section.color.name }} 車色設定">
+        <h3>{{ section.color.name }}</h3>
+        {% if section.color.catalog_image %}<img class="catalog-image" src="{% url 'catalog_preview_color_image' model.pk section.color.pk %}" alt="{{ section.color.name }}目前圖片" loading="lazy">{% else %}<div class="catalog-placeholder">此車色圖片待補</div>{% endif %}
+        {% include "sales/_field.html" with field=section.upload %}
+        {% if section.color.catalog_image %}{% include "sales/_field.html" with field=section.remove %}{% endif %}
+      </section>
+      {% empty %}<p>目前沒有啟用車色，請先至機種資料啟用需要展示的顏色。</p>{% endfor %}
+    </div>
+  </section>
+  <details class="card stacked-form"{% if form.image.errors or form.main_image_color.errors %} open{% endif %}>
+    <summary>車款主圖與既有圖片對應（進階）</summary>
+    <p>選車卡片使用各車色圖片，不會自動共用主圖。若已有主圖，可在此明確對應一個啟用車色。</p>
+    {% if entry.image %}<img class="catalog-image catalog-main-preview" src="{% url 'catalog_preview_image' model.pk %}" alt="目前車款主圖">{% endif %}
+    {% include "sales/_field.html" with field=form.image %}
+    {% include "sales/_field.html" with field=form.main_image_color %}
+  </details>
+  <div class="catalog-manage-actions"><button class="button primary">儲存展示設定</button><a class="button" href="{% url 'catalog_manage' %}">取消返回</a></div>
+</form>
 {% endblock %}

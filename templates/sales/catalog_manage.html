@@ -2,11 +2,7 @@
 {% block title %}選車展示管理{% endblock %}{% block content %}
 <section class="hero-row"><div><h1>選車展示管理</h1><p>只列出啟用車款，包含已上架與未上架。規格、售價與分期共用機種主檔，這裡維護展示圖片與介紹。</p></div><a class="button" href="{% url 'catalog' %}">查看公開入口</a></section>
 <form method="get" class="card stacked-form" data-catalog-filters>
-  <div class="catalog-manage-filters">
-    <label for="catalog-brand">品牌<select class="form-control" id="catalog-brand" name="brand"><option value="">全部品牌</option>{% for value in brands %}<option value="{{ value }}"{% if selected_brand == value %} selected{% endif %}>{{ value }}</option>{% endfor %}</select></label>
-    <label for="catalog-model-name">車型<select class="form-control" id="catalog-model-name" name="model_name"><option value="">全部車型</option>{% for value in model_names %}<option value="{{ value }}"{% if selected_name == value %} selected{% endif %}>{{ value }}</option>{% endfor %}</select></label>
-    <label for="catalog-model-number">型號<select class="form-control" id="catalog-model-number" name="model_number"><option value="">全部型號</option>{% for value in model_numbers %}<option value="{{ value }}"{% if selected_number == value %} selected{% endif %}>{{ value }}</option>{% endfor %}</select></label>
-  </div>
+  {% include 'sales/_catalog_filters.html' %}
   <label for="catalog-query">關鍵字<input class="form-control" id="catalog-query" name="q" value="{{ query }}" placeholder="搜尋品牌、車型或型號"></label>
   <p class="help-text">依品牌、車型逐步縮小型號選項，選好後按「套用篩選」。變更上層條件會清除下層選擇。</p>
   <div class="catalog-manage-actions"><button class="button primary">套用篩選</button><a class="button" href="{% url 'catalog_manage' %}">清除篩選</a></div>
@@ -16,4 +12,4 @@
 {% pagination page_obj aria_label="展示管理分頁" %}
 {{ filter_options|json_script:"catalog-filter-options" }}
 {% endblock %}
-{% block scripts %}<script src="{% static 'js/catalog-manage.js' %}" defer></script>{% endblock %}
+{% block scripts %}<script src="{% static 'js/catalog-manage.js' %}?v={{ app_version }}" defer></script>{% endblock %}

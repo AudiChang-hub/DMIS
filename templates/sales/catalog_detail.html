@@ -1,12 +1,47 @@
-{% extends "base.html" %}{% load screen_access sales_format %}
+{% extends "base.html" %}{% load sales_format static %}
 {% block title %}{{ model }}｜馭盛選車{% endblock %}
 {% block content %}
-<a class="button" href="{% url 'catalog' %}">← 返回選車</a><section class="hero-row"><div><h1>{{ model.name }}</h1><p>{{ model }}</p></div></section>
-<section class="catalog-color-section"><h2>選擇車色</h2><p>點選圖片確認顏色，再接續填寫訂單。</p><form method="get" action="{% url 'order_start' %}"><input type="hidden" name="model" value="{{ model.pk }}"><fieldset class="catalog-color-grid"><legend class="sr-only">車色</legend>
-{% for color in colors %}<label class="catalog-color-card">{% if not user.is_authenticated or intake_can_submit %}<input type="radio" name="color" value="{{ color.pk }}" required aria-label="{{ color.name }}"{% if selected_color_id == color.pk %} checked{% endif %}>{% endif %}<span class="catalog-color-visual">{% if color.catalog_image %}<img src="{% url 'catalog_color_image' model.pk color.pk %}" alt="{{ model.name }} · {{ color.name }}" loading="lazy">{% else %}<span class="catalog-color-placeholder">{{ color.name }}<small>此車色圖片待補</small></span>{% endif %}</span><strong>{{ color.name }}</strong></label>{% empty %}<p>目前沒有可選車色，請洽馭盛。</p>{% endfor %}</fieldset>
-{% if not user.is_authenticated or intake_can_submit %}<div class="catalog-color-actions"><p>機種與車色會一併帶入共用訂單；登入後保留選擇。</p><button class="button primary" {% if not colors %}disabled{% endif %}>{% if user.is_authenticated %}使用所選車色，接續填單{% else %}登入並接續填單{% endif %}</button></div>{% else %}<p>此帳號僅可查看；下單權限請洽 admin。</p>{% endif %}</form></section>
-<div class="catalog-detail"><section class="card"><p class="catalog-description">{{ model.catalog_entry.description }}</p><h2>車款規格</h2><dl><dt>品牌／能源</dt><dd>{{ model.brand }}／{{ model.get_energy_type_display }}</dd>{% if model.model_year %}<dt>年式</dt><dd>{{ model.model_year }}</dd>{% endif %}{% if model.model_code %}<dt>型式</dt><dd>{{ model.get_model_code_display }}</dd>{% endif %}{% if model.displacement_cc %}<dt>排氣量</dt><dd>{{ model.displacement_cc }} c.c.</dd>{% endif %}{% if model.motor_power_kw %}<dt>馬達功率</dt><dd>{{ model.motor_power_kw }} kW</dd>{% endif %}{% if model.horsepower_hp %}<dt>馬力</dt><dd>{{ model.horsepower_hp }} HP</dd>{% endif %}</dl></section>
-<section class="card"><h2>售價與分期</h2><p>方案查詢日：{{ today|date:"Y/m/d" }}；實際內容以下訂當日與店內確認為準。</p>{% if price != None %}<p>{{ price_label }} <strong>NT$ {{ price|number_with_commas }}</strong></p>{% else %}<p>售價尚未設定，請洽馭盛確認。</p>{% endif %}{% if price_version.suggested_price != None and price_version %}<p>建議售價 NT$ {{ price_version.suggested_price|number_with_commas }}（{% if price_version.suggested_price_includes_registration %}含領牌規費與強制險{% else %}不含領牌規費與強制險{% endif %}）</p>{% endif %}
-{% for option in options %}<div class="catalog-plan"><strong>{{ option.company__name }} · {{ option.periods }} 期</strong><p>每期 NT$ {{ option.monthly_amount|number_with_commas }} · 開辦費 NT$ {{ option.opening_fee|number_with_commas }}</p></div>{% empty %}<p>目前沒有有效分期方案，請洽馭盛。</p>{% endfor %}
-</section></div>
+<a class="button" href="{% url 'catalog' %}">← 返回選車</a>
+<section class="hero-row"><div><h1>{{ model.name }}</h1><p>{{ model }}</p></div></section>
+{% if selected_color %}
+<section class="card catalog-selected-color" aria-labelledby="selected-color-title">
+  {% if selected_color.catalog_image %}<img class="catalog-image" src="{% url 'catalog_color_image' model.pk selected_color.pk %}" alt="{{ model.name }} · {{ selected_color.name }}">{% else %}<div class="catalog-placeholder">此車色圖片待補</div>{% endif %}
+  <div><p class="eyebrow">已選車色</p><h2 id="selected-color-title">{{ selected_color.name }}</h2><p>此車色會直接帶入訂單，不需再次選擇。</p></div>
+</section>
+{% endif %}
+<details class="catalog-color-section" {% if not selected_color %}open{% endif %}>
+  <summary>{% if selected_color %}更換車色{% else %}請先選擇車色{% endif %}</summary>
+  <div class="catalog-color-grid">
+  {% for color in colors %}<a class="catalog-color-card" href="{% url 'catalog_detail' model.pk %}?color={{ color.pk }}"{% if selected_color_id == color.pk %} aria-current="true"{% endif %}>
+    <span class="catalog-color-visual">{% if color.catalog_image %}<img src="{% url 'catalog_color_image' model.pk color.pk %}" alt="{{ model.name }} · {{ color.name }}" loading="lazy">{% else %}<span class="catalog-color-placeholder">{{ color.name }}<small>此車色圖片待補</small></span>{% endif %}</span><strong>{{ color.name }}</strong>
+  </a>{% empty %}<p>目前沒有可選車色，請洽馭盛。</p>{% endfor %}
+  </div>
+</details>
+<section class="card"><p class="catalog-description">{{ model.catalog_entry.description }}</p><h2>車款規格</h2>
+  <dl class="catalog-specs"><dt>品牌／能源</dt><dd>{{ model.brand }}／{{ model.get_energy_type_display }}</dd>{% if model.model_year %}<dt>年式</dt><dd>{{ model.model_year }}</dd>{% endif %}{% if model.model_code %}<dt>型式</dt><dd>{{ model.get_model_code_display }}</dd>{% endif %}{% if model.displacement_cc %}<dt>排氣量</dt><dd>{{ model.displacement_cc }} c.c.</dd>{% endif %}{% if model.motor_power_kw %}<dt>馬達功率</dt><dd>{{ model.motor_power_kw }} kW</dd>{% endif %}{% if model.horsepower_hp %}<dt>馬力</dt><dd>{{ model.horsepower_hp }} HP</dd>{% endif %}</dl>
+</section>
+<form method="get" action="{% url 'order_start' %}" class="catalog-payment-form">
+  <section class="card"><h2>售價與分期</h2><p>方案查詢日：{{ today|date:"Y/m/d" }}。選擇付款方案後接續填單；送出時會再核對有效方案。</p>
+  {% if price_version %}<p>建議售價{% if price_version.suggested_price != None %} NT$ {{ price_version.suggested_price|number_with_commas }}{% endif %}（{% if price_version.suggested_price_includes_registration %}含領牌規費與強制險{% else %}不含領牌規費與強制險{% endif %}）</p>{% endif %}
+  {% if selected_color %}
+  <fieldset class="catalog-payment-grid"><legend>選擇付款方式</legend>
+    {% for choice in payment_choices %}<label class="catalog-payment-card">
+      <input type="radio" name="selection" value="{{ choice.token }}" required {% if forloop.first %}checked{% endif %} data-payment-label="{% if choice.payment_type == 'cash' %}現金{% else %}{{ choice.company }}／{{ choice.periods }} 期{% endif %}">
+      <span><strong>{% if choice.payment_type == 'cash' %}現金{% else %}分期 · {{ choice.company }}／{{ choice.periods }} 期{% endif %}</strong>
+      <span>{% if choice.price != None %}{{ choice.price_label }} NT$ {{ choice.price|number_with_commas }}{% else %}售價尚未設定，請洽馭盛{% endif %}</span>
+      {% if choice.payment_type == 'installment' %}<span>每期 NT$ {{ choice.monthly|number_with_commas }} · 開辦費 NT$ {{ choice.opening_fee|number_with_commas }}</span>{% endif %}</span>
+    </label>{% endfor %}
+  </fieldset>
+  {% else %}<p>請先在上方選擇車色，再選付款方式。</p>{% if price != None %}<p>{{ price_label }} NT$ {{ price|number_with_commas }}</p>{% endif %}
+    {% for option in options %}<p>{{ option.company.name }} · {{ option.periods }} 期 · 每期 NT$ {{ option.monthly_amount|number_with_commas }} · 開辦費 NT$ {{ option.opening_fee|number_with_commas }}</p>{% endfor %}
+  {% endif %}
+  {% if not options %}<p>目前沒有有效分期方案，請洽馭盛。</p>{% endif %}
+  </section>
+  <section class="card catalog-checkout" aria-label="確認本次選擇">
+    {% if selected_color %}<h2>本次選擇</h2><p>{{ model }}／{{ selected_color.name }}</p><p>付款方式：<strong data-payment-summary aria-live="polite">現金</strong></p>{% endif %}
+    {% if not user.is_authenticated or intake_can_submit %}<p>車款、車色與付款方案會一併帶入；登入後保留選擇。</p><button class="button primary" {% if not selected_color %}disabled{% endif %}>{% if user.is_authenticated %}確認選擇，接續填單{% else %}登入並接續填單{% endif %}</button>
+    {% else %}<p>此帳號僅可查看；下單權限請洽 admin。</p>{% endif %}
+  </section>
+</form>
 {% endblock %}
+{% block scripts %}<script src="{% static 'js/catalog-payment.js' %}?v={{ app_version }}" defer></script>{% endblock %}

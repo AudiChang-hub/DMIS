@@ -20,3 +20,9 @@ test('空資料與不存在條件不產生錯誤選項', () => {
   assert.deepEqual(choices([],'name','',''), []);
   assert.deepEqual(choices(rows,'model_number','MISSING',''), []);
 });
+test('能源別與品牌車型取交集', () => {
+  const energyRows = [{brand:'S',name:'A',model_number:'G',energy_type:'gas'},
+    {brand:'S',name:'B',model_number:'E',energy_type:'electric'}];
+  assert.deepEqual(choices(energyRows,'name','S','','electric'), ['B']);
+  assert.deepEqual(choices(energyRows,'model_number','S','A','electric'), []);
+});

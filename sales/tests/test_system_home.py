@@ -48,7 +48,8 @@ class SystemHomeTests(TestCase):
         from config.release_notes import CURRENT_VERSION, RELEASES
         self.client.force_login(self.staff)
         response = self.client.get(reverse("dashboard"))
-        self.assertContains(response, f"版本 {CURRENT_VERSION}")
+        for entry in response.context["release_history"]:
+            self.assertContains(response, f"版本 {entry['version']}")
         self.assertContains(response, 'class="release-entry" open', count=1)
         self.assertNotContains(response, "正式編版前更新紀錄")
         self.assertNotContains(response, "並非正式發布日期")

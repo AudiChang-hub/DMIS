@@ -5,6 +5,7 @@
 {% block content %}
 {% url 'dashboard' as dashboard_url %}
 {% include "sales/_page_back.html" with fallback_url=dashboard_url label="首頁" %}
+{% if_access 'order_recycle_bin' %}<p><a class="button ghost" href="{% url 'order_recycle_bin' %}">已刪除訂單／還原</a></p>{% endif_access %}
 <section class="hero-row compact-hero">
   <div><p class="eyebrow">訂單管理</p><h1>全部訂單</h1></div>
   {% if_access 'order_create' %}<a class="button primary" href="{{ order_entry_url }}">＋ 建立訂單</a>{% endif_access %}
@@ -81,7 +82,7 @@
       </th>
     {% endif %}{% endfor %}</tr></thead>
     <tbody>{% for order in orders %}<tr>
-      <td>{{ order.established_display }}</td>
+      <td>{{ order.established_display }}{% if_access 'order_delete' order.pk %}<small><a class="button danger-ghost small" href="{% url 'order_delete' order.pk %}" aria-label="刪除訂單 {{ order.number }}">刪除訂單</a></small>{% endif_access %}</td>
       <td>{{ order.registration_display }}</td>
       <td>{{ order.final_plate_number|default:"—" }}</td>
       <td class="order-table-owner"><a class="order-owner-link" href="{% url 'order_detail' order.pk %}"><strong>{{ order.owner_name }}</strong><small>{{ order.number }}</small></a>{% if order.search_matches %}<small class="search-match-list" data-profit-value>{% for match in order.search_matches|slice:":6" %}<span>{{ match.label }}：<mark>{{ match.value }}</mark></span>{% endfor %}</small>{% endif %}</td>

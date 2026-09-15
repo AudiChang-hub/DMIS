@@ -39,7 +39,7 @@ class AccessPolicy:
             self.reports = {row["report_id"]: row for row in ReportAccessGrant.objects.filter(user=user).values("report_id", "view", "operate", "export")}
 
     def screen(self, key, action="view"):
-        if key == "profit":
+        if key in {"profit", "order_delete"}:
             return bool(self.active and not self.dealer and (self.root or
                 (self.screens.get(key, {}).get("view") and self.screens.get(key, {}).get(action))))
         if self.dealer:
@@ -132,8 +132,8 @@ def snapshot(user, reports):
     if policy.configured and not policy.root:
         data = {"screens": policy.screens, "reports": {str(key): grant for key, grant in policy.reports.items()}}
     else:
-        data = {"screens": {s.key: {"view": s.key != "profit" and (s.ceiling != "superuser" or user.is_superuser),
-                    "operate": s.operate and (s.ceiling != "superuser" or user.is_superuser),
+        data = {"screens": {s.key: {"view": s.key not in {"profit", "order_delete"} and (s.ceiling != "superuser" or user.is_superuser),
+                    "operate": s.key != "order_delete" and s.operate and (s.ceiling != "superuser" or user.is_superuser),
                     "export": s.export and (s.ceiling != "superuser" or user.is_superuser)} for s in SCREENS},
                 "reports": {str(r.pk): {"view": report_ceiling(user, r, include_inactive=True),
                     "operate": False, "export": report_ceiling(user, r, include_inactive=True)} for r in reports}}

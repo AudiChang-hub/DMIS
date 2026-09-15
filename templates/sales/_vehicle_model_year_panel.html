@@ -32,6 +32,7 @@
           <div><dt>型號</dt><dd>{{ year_item.model_number|default:"待補" }}</dd></div>
           <div><dt>型式</dt><dd>{% if year_item.model_code %}{{ year_item.get_model_code_display }}{% else %}待補{% endif %}</dd></div>
           <div><dt>能源別</dt><dd>{{ year_item.get_energy_type_display }}</dd></div>
+          <div><dt>啟用顏色</dt><dd>{% include 'sales/_enabled_colors.html' with item=year_item %}</dd></div>
           {% if year_item.energy_type == "gas" %}
           <div><dt>排氣量</dt><dd>{% if year_item.displacement_cc %}{{ year_item.displacement_cc }} c.c.{% else %}待補{% endif %}</dd></div>
           {% else %}

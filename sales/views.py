@@ -4409,7 +4409,7 @@ def reconciliation_list(request):
 @transaction.atomic
 def reconciliation_update(request, pk):
     order_id = get_object_or_404(PaymentRecord, pk=pk).order_id
-    SalesOrder.objects.select_for_update().get(pk=order_id)
+    get_object_or_404(SalesOrder.objects.select_for_update(), pk=order_id)
     record = get_object_or_404(
         PaymentRecord.objects.select_for_update().select_related("order"),
         pk=pk,

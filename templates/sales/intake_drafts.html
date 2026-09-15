@@ -1,0 +1,4 @@
+{% extends 'base.html' %}{% load pagination_tags %}
+{% block title %}我的接待草稿｜車輛銷售管理{% endblock %}
+{% block content %}<h1>我的接待草稿</h1><p>這是內部準備畫面，只顯示你自己的接待草稿。面對客戶時，請先開啟本次要填寫的草稿。</p>
+{% for draft in page_obj %}<section class="section-block"><strong>{{ draft.display_name }}</strong><p>{{ draft.display_vehicle }} · {{ draft.updated_at|date:'Y/m/d H:i' }}</p><a class="button primary" href="{% url 'order_start' %}?draft={{ draft.pk }}">繼續本筆下單</a></section>{% empty %}<p>目前沒有未完成的接待草稿。</p>{% endfor %}{% pagination page_obj %}{% endblock %}

@@ -1,0 +1,4 @@
+{% extends 'base.html' %}{% load pagination_tags %}
+{% block title %}刪除審核｜車輛銷售管理{% endblock %}
+{% block content %}<h1>刪除審核</h1><p>只有 admin 可確認刪除；請核對申請原因與關聯影響。共 {{ page_obj.paginator.count }} 筆待確認。</p>
+{% for order in page_obj %}<section class="section-block"><strong>{{ order.number }} · {{ order.owner_name }}</strong><p>{{ order.deletion_requested_by }} · {{ order.deletion_requested_at|date:'Y/m/d H:i' }}</p><p>{{ order.deletion_request_reason }}</p><a class="button primary" href="{% url 'order_delete' order.pk %}">檢查與審核</a></section>{% empty %}<p>目前沒有待審核的刪除申請。</p>{% endfor %}{% pagination page_obj %}{% endblock %}

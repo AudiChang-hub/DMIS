@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block title %}訂單已成立｜馭盛{% endblock %}
+{% block content %}
+<section class="card reception-confirmation" aria-labelledby="submitted-title">
+  <p class="eyebrow">建立訂單完成</p><h1 id="submitted-title">訂單已成立</h1>
+  <p>訂單編號 <strong>{{ order.number }}</strong></p>
+  <dl><dt>訂購車款</dt><dd>{{ order.vehicle_model }}</dd><dt>顏色</dt><dd>{{ order.color.name }}</dd>
+  <dt>目前狀態</dt><dd>{{ order.get_status_display }}</dd></dl>
+  {% if order.accepted_at %}<p>馭盛已接單，將依訂單安排後續作業。</p>{% else %}<p>已送達馭盛，等待店內人員接單。請保留訂單編號供後續查詢。</p>{% endif %}
+  <div class="hero-actions"><a class="button primary" href="{{ order_entry_url }}">再建立一筆</a><a class="button" href="{% url 'dashboard' %}">離開接待</a></div>
+</section>
+{% endblock %}

@@ -40,6 +40,29 @@ class ScreenAccessMiddleware(MiddlewareMixin):
         if name in {"user_account_create", "user_account_edit"} and request.method == "POST" and request.POST.get("username") == "admin" and not is_root(request.user):
             raise PermissionDenied
         policy = policy_for(request)
+        # 僅建立權限不能藉草稿、證件或查價端點讀取其他客戶資料。
+        if name in {"draft_save", "draft_presence", "draft_delete", "order_create", "order_start", "intake_draft_save"}:
+            if not policy.route(name, request.method, view_kwargs):
+                raise PermissionDenied("沒有建立訂單與草稿權限。")
+            draft_id = (view_kwargs.get("pk") if name in {"draft_presence", "draft_delete"}
+                        else request.POST.get("_draft_id") or request.GET.get("draft"))
+            if draft_id and (name in {"order_start", "intake_draft_save"} or not policy.screen("orders")):
+                from sales.models import OrderDraft, SalesOrder
+                from django.http import Http404
+                from django.core.exceptions import ValidationError
+                try:
+                    repeated = name == "order_start" and request.POST.get("_submission_key") and SalesOrder.objects.filter(
+                        submission_key=request.POST["_submission_key"], submitted_by=request.user).exists()
+                    if not repeated and not OrderDraft.objects.filter(pk=draft_id, owner_account=request.user).exists():
+                        raise Http404
+                except (ValidationError, ValueError):
+                    raise Http404 from None
+        if name == "protected_media" and view_kwargs.get("model_name") == "draft" and not policy.screen("orders"):
+            from django.shortcuts import get_object_or_404
+            from sales.models import OrderDraft
+            get_object_or_404(OrderDraft, pk=view_kwargs.get("pk"), owner_account=request.user)
+        if name == "vehicle_price_options" and request.GET.get("order_id") and not policy.screen("orders"):
+            raise PermissionDenied("沒有查詢訂單快照權限。")
         # 隱私閘門在 root／舊制捷徑前執行，admin 也必須重新驗證。
         from sales.services.profit_access import profit_is_unlocked, can_view_profit
         sensitive = name in {"operations_report_export", "legacy_import_detail", "legacy_import_status"}

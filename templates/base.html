@@ -16,12 +16,17 @@
   <a class="skip-link" href="#main-content">跳至主要內容</a>
   <header class="app-header">
     <div class="app-header-inner">
-      <a class="brand" href="{% url 'dashboard' %}">
+      <a class="brand" href="{% if reception_mode %}{{ order_entry_url }}{% else %}{% url 'dashboard' %}{% endif %}">
         <span class="brand-copy"><strong>車輛銷售管理</strong><small>訂單、配車、交付都在同一處</small></span>
       </a>
       {% if user.is_authenticated %}
+        {% if reception_mode %}
+        <nav class="desktop-nav reception-nav" aria-label="接待下單"><a href="{{ order_entry_url }}" class="active">建立訂單</a><a href="{% url 'dashboard' %}">離開接待</a></nav>
+        <span class="reception-account">目前登入：{{ user.get_full_name|default:user.username }}</span>
+        {% else %}
         <nav class="desktop-nav" aria-label="主要選單">
           {% if_access 'dashboard' %}<a href="{% url 'dashboard' %}" {% if request.resolver_match.url_name == 'dashboard' %}class="active" aria-current="page"{% endif %}>首頁</a>{% endif_access %}
+          {% if order_entry_visible %}<a href="{{ order_entry_url }}">建立訂單</a>{% endif %}
           {% if orders_group_visible %}<a href="{{ orders_group_url }}" {% if request.resolver_match.url_name == 'order_list' or request.resolver_match.url_name == 'order_detail' or request.resolver_match.url_name == 'order_edit' or request.resolver_match.url_name == 'order_create' %}class="active" aria-current="page"{% endif %}>{% if intake_dealer %}訂單{% else %}全部訂單{% endif %}</a>{% endif %}
           {% if_access 'operations_report' %}<a href="{% url 'operations_report' %}" {% if request.resolver_match.url_name == 'operations_report' or request.resolver_match.url_name == 'order_operations' or request.resolver_match.url_name == 'reconciliation_list' %}class="active" aria-current="page"{% endif %}>營運總表</a>{% endif_access %}
           {% if_access 'report_center' %}<a href="{% url 'report_center' %}" {% if request.resolver_match.url_name == 'report_center' or request.resolver_match.url_name == 'report_display' or request.resolver_match.url_name == 'report_detail' %}class="active" aria-current="page"{% endif %}>報表中心</a>{% endif_access %}
@@ -100,15 +105,16 @@
           {% csrf_token %}
           <button type="submit" class="logout-button"><span aria-hidden="true">↪</span> 登出系統</button>
         </form>
+        {% endif %}
       {% endif %}
     </div>
   </header>
 
-  {% if user.is_authenticated %}
+  {% if user.is_authenticated and not reception_mode %}
     <nav class="mobile-nav" aria-label="手機主要選單">
       {% if_access 'dashboard' %}<a href="{% url 'dashboard' %}" {% if request.resolver_match.url_name == 'dashboard' %}class="active" aria-current="page"{% endif %}><span>⌂</span>首頁</a>{% endif_access %}
+      {% if order_entry_visible %}<a class="mobile-new" href="{{ order_entry_url }}"><span>＋</span>建立訂單</a>{% endif %}
       {% if orders_group_visible %}<a href="{{ orders_group_url }}" {% if request.resolver_match.url_name == 'order_list' or request.resolver_match.url_name == 'order_detail' or request.resolver_match.url_name == 'order_edit' %}class="active" aria-current="page"{% endif %}><span>▤</span>訂單</a>{% endif %}
-      {% if_access 'order_create' %}<a class="mobile-new" href="{{ order_entry_url }}"><span>＋</span>新增</a>{% endif_access %}
       {% if_access 'operations_report' %}<a href="{% url 'operations_report' %}" {% if request.resolver_match.url_name == 'operations_report' or request.resolver_match.url_name == 'order_operations' or request.resolver_match.url_name == 'reconciliation_list' %}class="active" aria-current="page"{% endif %}><span>＄</span>營運</a>{% endif_access %}
       <details class="mobile-data-menu{% if is_data_maintenance_section %} active{% endif %}">
         <summary><span aria-hidden="true">⚙</span>更多</summary>

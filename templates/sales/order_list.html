@@ -6,9 +6,9 @@
 {% url 'dashboard' as dashboard_url %}
 {% include "sales/_page_back.html" with fallback_url=dashboard_url label="首頁" %}
 {% if_access 'order_recycle_bin' %}<p><a class="button ghost" href="{% url 'order_recycle_bin' %}">已刪除訂單／還原</a></p>{% endif_access %}
+{% if_access 'order_deletion_queue' %}<p><a class="button primary" href="{% url 'order_deletion_queue' %}">刪除審核</a></p>{% endif_access %}
 <section class="hero-row compact-hero">
   <div><p class="eyebrow">訂單管理</p><h1>全部訂單</h1></div>
-  {% if_access 'order_create' %}<a class="button primary" href="{{ order_entry_url }}">＋ 建立訂單</a>{% endif_access %}
 </section>
 <form class="filter-bar order-filter-bar" method="get">
   <input type="hidden" name="per_page" value="{{ per_page }}">
@@ -19,6 +19,7 @@
   <label class="order-filter-status">狀態
     <select name="status" onchange="this.form.submit()">
       <option value="">全部狀態</option>
+      <option value="deletion_pending" {% if request.GET.status == 'deletion_pending' %}selected{% endif %}>刪除確認中</option>
       <option value="urgent" {% if request.GET.status == "urgent" %}selected{% endif %}>需要優先處理</option>
       <option value="in_progress" {% if request.GET.status == "in_progress" %}selected{% endif %}>進行中</option>
       <option value="registration_pending" {% if request.GET.status == "registration_pending" %}selected{% endif %}>待領牌（含調車）</option>
@@ -89,7 +90,7 @@
       <td class="order-table-machine">{% include 'sales/_compact_text.html' with value=order.vehicle_model.family.name|default:order.vehicle_model.name limit=10 %}</td>
       <td>{{ order.color.name|default:"—" }}</td>
       <td>{{ order.source_display }}</td>
-      <td><span class="status-pill status-{{ order.status }}">{{ order.get_status_display }}</span>{% if order.accepted_at %}<small class="muted">{{ order.accepted_name }} · {{ order.accepted_at|date:"m/d H:i" }}</small>{% endif %}</td><td class="order-table-note">{% include 'sales/_compact_text.html' with value=order.note|default:"—" limit=12 %}</td>
+      <td><span class="status-pill status-{{ order.display_status_code }}">{{ order.display_status }}</span>{% if order.deletion_requested_at %}<small>原狀態：{{ order.get_status_display }}</small>{% endif %}{% if order.accepted_at %}<small class="muted">{{ order.accepted_name }} · {{ order.accepted_at|date:"m/d H:i" }}</small>{% endif %}</td><td class="order-table-note">{% include 'sales/_compact_text.html' with value=order.note|default:"—" limit=12 %}</td>
       <td>{% include 'sales/_order_profit.html' with profile=order.operations %}</td>
     </tr>{% empty %}<tr><td colspan="10">尚無符合條件的訂單</td></tr>{% endfor %}</tbody></table>
   </div>

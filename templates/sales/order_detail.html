@@ -9,7 +9,7 @@
 {% include "sales/_page_back.html" with fallback_url=order_list_url label="全部訂單" root_url=dashboard_url root_label="首頁" %}
 <section class="hero-row detail-hero">
   <div>
-    <div class="title-with-status"><h1>{{ order.owner_name }}</h1><span class="status-pill large status-{{ order.status }}">{{ order.get_status_display }}</span></div>
+    <div class="title-with-status"><h1>{{ order.owner_name }}</h1><span class="status-pill large status-{{ order.display_status_code }}">{{ order.display_status }}</span></div>
     <p class="muted">{{ order.number }} · 訂單成立日期 {{ order.established_display }} · 領牌日期 {{ order.registration_display }}</p>
   </div>
   <div class="hero-actions">

@@ -67,3 +67,8 @@
 .catalog-image-preview[data-preview-state=error] .catalog-preview-status{padding:12px;border:2px solid var(--danger,#b74444);border-radius:6px;background:var(--surface-tint)}
 .catalog-image-preview .button{align-self:flex-start}.catalog-image-preview .catalog-placeholder{min-height:200px}
 @media(max-width:650px){.catalog-manage-filters,.catalog-color-edit-grid{grid-template-columns:minmax(0,1fr);gap:18px}.catalog-color-editor{padding:18px}}
+.app-header .reception-nav {display:flex!important;flex-wrap:wrap;margin-left:auto;gap:8px;}
+.reception-confirmation {max-width:720px;margin:32px auto;padding:clamp(24px,4vw,48px);}
+.reception-confirmation dl {display:grid;grid-template-columns:100px minmax(0,1fr);gap:16px;}
+.reception-confirmation dd {margin:0;overflow-wrap:anywhere;}
+.status-pill.status-deletion_pending { background: #f7c65b; color: #382800; border: 2px solid #966400; font-weight: 800; }

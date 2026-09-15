@@ -23,7 +23,9 @@ def filter_order_analysis(rows, params, *, business_default=False):
         "registration_pending": ["allocated", "transfer_pending", "in_transfer"],
         "urgent": ["cancel_refund_pending", "delivered_docs_pending"],
     }
-    if status in groups:
+    if status == "deletion_pending":
+        rows = rows.filter(deletion_requested_at__isnull=False)
+    elif status in groups:
         rows = rows.filter(status__in=groups[status])
     elif status == "in_progress":
         rows = rows.exclude(status__in=["intake_pending", "allocation_pending", "cancel_refund_pending", "delivered_docs_pending", "completed", "cancelled"])

@@ -43,6 +43,9 @@ class AccessPolicy:
             return bool(self.active and not self.dealer and (self.root or
                 (self.screens.get(key, {}).get("view") and self.screens.get(key, {}).get(action))))
         if self.dealer:
+            if key == "order_intake":
+                return bool(self.active and self.order_profile.source_id and self.order_profile.source.active
+                            and self.order_profile.can_submit_orders and action in {"view", "operate"})
             return bool(self.active and self.order_profile.source_id and self.order_profile.source.active and key == "orders"
                 and self.order_profile.can_view_orders
                 and (action == "view" or (action == "operate" and self.order_profile.can_submit_orders)))
@@ -87,6 +90,18 @@ class AccessPolicy:
             return True
         if name in ROOT_ONLY:
             return self.root
+        if name == "order_deletion_queue":
+            return self.root
+        if name == "order_create":
+            return self.screen("order_intake", "operate") and self.screen("orders", "operate")
+        if name in {"draft_save", "draft_presence", "draft_delete"}:
+            return self.screen("order_intake", "operate")
+        if name in {"id_card_ocr", "id_card_ocr_status", "id_card_ocr_invalidate"}:
+            return self.screen("order_intake", "operate") or self.screen("orders", "operate")
+        if name == "order_intake_attachment":
+            return self.screen("orders") or self.screen("order_intake", "operate")
+        if name == "protected_media" and kwargs.get("model_name") == "draft":
+            return self.screen("orders") or self.screen("order_intake", "operate")
         if name == "operations_report":
             return self.screen("operations") or self.screen("dashboard")
         if name == "data_maintenance":

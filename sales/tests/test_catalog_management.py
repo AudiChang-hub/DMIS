@@ -59,6 +59,22 @@ class CatalogManagementTests(TestCase):
         self.inactive.refresh_from_db()
         self.assertEqual(self.inactive.catalog_image.name, "catalog/keep-original.png")
 
+    def test_preview_components_cover_active_colors_and_main_image(self):
+        self.gray.catalog_image = "catalog/gray.png"
+        self.gray.save()
+        self.entry.image = "catalog/main.png"
+        self.entry.save()
+        response = self.client.get(self.url)
+        self.assertContains(response, "data-catalog-image-preview", count=3)
+        self.assertContains(response, "data-preview-cancel", count=3)
+        self.assertContains(response, "js/catalog-image-preview.js")
+        for field in (f"color_image_{self.gray.pk}", f"color_image_{self.white.pk}", "image"):
+            self.assertContains(response, f'id="id_{field}_preview_status"', count=1)
+        self.assertContains(response, f'src="{reverse("catalog_preview_color_image", args=[self.model.pk, self.gray.pk])}"')
+        self.assertContains(response, f'src="{reverse("catalog_preview_image", args=[self.model.pk])}"')
+        self.assertNotContains(response, 'src=""')
+        self.assertNotContains(response, f'name="color_image_{self.inactive.pk}"')
+
     def test_inactive_foreign_and_unknown_color_posts_rejected(self):
         foreign = VehicleColor.objects.create(vehicle_model=self.other, name="其他紅")
         for pk in (self.inactive.pk, foreign.pk, 999999):

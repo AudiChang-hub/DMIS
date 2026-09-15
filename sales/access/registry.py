@@ -115,7 +115,7 @@ register("accounts", "user_account_create user_account_edit user_account_status 
 PERSONAL = set("dashboard home_favorites system_health app_version appearance_theme_update mobile_quick_links_update user_guide password_change_required access_home login logout throttled_admin_login".split())
 ROOT_ONLY = set("announcement_manage announcement_edit access_overview access_edit report_manage report_classification report_create report_edit report_draft_preview report_lifecycle".split())
 ROOT_ONLY.add("order_account_scope")
-ROOT_ONLY.update({"catalog_manage", "catalog_edit", "dealer_accounts", "dealer_account_create", "dealer_account_edit"})
+ROOT_ONLY.update({"catalog_manage", "catalog_edit", "catalog_preview_image", "catalog_preview_color_image", "dealer_accounts", "dealer_account_create", "dealer_account_edit"})
 PERSONAL.update({"catalog", "catalog_detail", "catalog_image", "catalog_color_image"})
 PERSONAL.update({"profit_unlock", "profit_lock"})
 REPORT_ROUTES = {"report_display": "view", "report_detail": "view", "report_records_export": "export", "report_export": "export"}

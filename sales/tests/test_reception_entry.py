@@ -43,6 +43,8 @@ class ReceptionEntryTests(TestCase):
         receipt = self.client.get(result.url)
         self.assertContains(receipt, order.number)
         self.assertContains(receipt, "再建立一筆")
+        self.assertContains(receipt, f'<a class="button" href="{reverse("dashboard")}">回首頁</a>', html=True)
+        self.assertNotContains(receipt, "離開接待")
         self.assertNotContains(receipt, "測試車主")
         self.assertNotContains(receipt, "淨利")
         self.assertEqual(self.client.get(reverse("order_detail", args=[order.pk])).status_code, 403)
@@ -128,11 +130,30 @@ class ReceptionEntryTests(TestCase):
         self.assertEqual(str(response.context["form"]["color"].value()), str(self.color.pk))
         self.assertNotContains(response, 'aria-label="主要選單"')
         self.assertNotContains(response, 'href="/orders/"')
-        self.assertContains(response, "離開接待")
+        self.assertContains(response, f'<a href="{reverse("dashboard")}">首頁</a>', html=True)
+        self.assertNotContains(response, "離開接待")
         self.assertContains(response, reverse("intake_draft_save"))
         self.assertContains(response, reverse("intake_installment_options"))
         listing = self.client.get(reverse("order_list"))
         self.assertNotContains(listing, "＋ 建立訂單")
+
+    def test_reception_home_navigation_is_consistent_for_staff_and_dealers(self):
+        from sales.models import VehicleCatalogEntry
+        VehicleCatalogEntry.objects.create(vehicle_model=self.model, published=True)
+        for user in (self.root, self.dealer_user):
+            self.client.force_login(user)
+            for url in (reverse("catalog"), reverse("catalog_detail", args=[self.model.pk]), reverse("order_start")):
+                page = self.client.get(url)
+                self.assertEqual(page.status_code, 200)
+                body = page.content.decode()
+                nav = body.split('aria-label="接待下單">', 1)[1].split("</nav>", 1)[0]
+                self.assertLess(nav.index(">首頁</a>"), nav.index(">建立訂單</a>"))
+                self.assertContains(page, f'<a class="brand" href="{reverse("dashboard")}">')
+                self.assertNotContains(page, 'href="/orders/"')
+                self.assertNotContains(page, "離開接待")
+            self.assertEqual(self.client.get(reverse("dashboard")).status_code, 200)
+        self.client.logout()
+        self.assertContains(self.client.get(reverse("catalog")), f'<a class="brand" href="{reverse("catalog")}">')
 
     def test_grant_migration_is_audited_idempotent_and_does_not_expand_viewers(self):
         UserAccessState.objects.create(user=self.user, configured=True, version=0)

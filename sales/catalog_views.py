@@ -17,6 +17,7 @@ from sales.services.price_version import (
     recommended_vehicle_price,
 )
 from sales.services.installment_plan import resolve_installment_plan_version
+from sales.services.catalog_selection import selection_data, sign_selection
 
 
 def listed_models():
@@ -31,30 +32,38 @@ def model_card(model):
     return {"model": model, "price": price, "price_label": label}
 
 
+def catalog_filters(models, request):
+    """共用篩選，但由呼叫端限定公開／管理的資料範圍。"""
+    selected = {key: request.GET.get(key, "").strip()[:150]
+                for key in ("brand", "model_name", "model_number", "energy", "q")}
+    rows = list(models.order_by("brand", "name", "model_number", "energy_type")
+                .values("brand", "name", "model_number", "energy_type").distinct())
+    mapping = {"brand": "brand", "model_name": "name", "model_number": "model_number", "energy": "energy_type"}
+    filtered = models
+    for key, field in mapping.items():
+        if selected[key]:
+            filtered = filtered.filter(**{field: selected[key]})
+    if selected["q"]:
+        filtered = filtered.filter(Q(name__icontains=selected["q"]) | Q(brand__icontains=selected["q"]) | Q(model_number__icontains=selected["q"]))
+    def choices(field, *parents):
+        return sorted({row[field] for row in rows if row[field] and all(
+            not selected[key] or row[mapping[key]] == selected[key] for key in parents)})
+    return filtered, {
+        "filter_options": rows, "brands": choices("brand"),
+        "model_names": choices("name", "brand", "energy"),
+        "model_numbers": choices("model_number", "brand", "model_name", "energy"),
+        "selected_brand": selected["brand"], "selected_name": selected["model_name"],
+        "selected_number": selected["model_number"], "selected_energy": selected["energy"],
+        "query": selected["q"], "energies": VehicleModel.EnergyType.choices,
+    }
+
+
 @require_safe
 def catalog(request):
-    models = listed_models()
+    models, filters = catalog_filters(listed_models(), request)
     selected_model = request.GET.get("model", "")[:20]
     if selected_model:
         models = models.filter(pk=int(selected_model)) if selected_model.isascii() and selected_model.isdigit() and len(selected_model) < 19 else models.none()
-    query = request.GET.get("q", "").strip()[:150]
-    brand = request.GET.get("brand", "")[:80]
-    energy = request.GET.get("energy", "")[:20]
-    if query:
-        models = models.filter(
-            Q(name__icontains=query)
-            | Q(brand__icontains=query)
-            | Q(model_number__icontains=query)
-        )
-    if brand:
-        models = models.filter(brand=brand)
-    if energy:
-        models = models.filter(energy_type=energy)
-    model_options = listed_models()
-    if brand:
-        model_options = model_options.filter(brand=brand)
-    if energy:
-        model_options = model_options.filter(energy_type=energy)
     colors = VehicleColor.objects.filter(active=True, vehicle_model__in=models).select_related(
         "vehicle_model__catalog_entry"
     ).order_by("vehicle_model__catalog_entry__position", "vehicle_model__brand",
@@ -72,16 +81,8 @@ def catalog(request):
             "cards": cards,
             "model_count": models.count(),
             "page_obj": page,
-            "query": query,
             "selected_model": selected_model,
-            "model_options": model_options.order_by("brand", "name", "pk"),
-            "selected_brand": brand,
-            "selected_energy": energy,
-            "brands": listed_models()
-            .order_by("brand")
-            .values_list("brand", flat=True)
-            .distinct(),
-            "energies": VehicleModel.EnergyType.choices,
+            **filters,
         },
     )
 
@@ -91,27 +92,35 @@ def catalog_detail(request, pk):
     model = get_object_or_404(listed_models(), pk=pk)
     colors = list(model.colors.filter(active=True))
     selected_color = request.GET.get("color", "")[:20]
+    chosen_color = next((c for c in colors if str(c.pk) == selected_color), None)
     version = resolve_vehicle_price_version(pk, timezone.localdate())
     plan = resolve_installment_plan_version(pk, timezone.localdate())
     # 不將 expected_disbursement、內部註記等資料送到模板或 JSON。
     options = (
         list(
-            plan.options.filter(company__active=True)
+            plan.options.select_related("company").filter(company__active=True)
             .order_by("periods")
-            .values("periods", "monthly_amount", "opening_fee", "company__name")
         )
         if plan
         else []
     )
+    payment_choices = []
+    if chosen_color:
+        for option in [None, *options]:
+            data = selection_data(model, chosen_color, "installment" if option else "cash", option)
+            payment_choices.append({**data, "token": sign_selection(data)})
     return render(
         request,
         "sales/catalog_detail.html",
         {
             **model_card(model),
             "price_version": version,
-            "options": options,
+            "options": [{"company": {"name": option.company.name}, "periods": option.periods,
+                         "monthly_amount": option.monthly_amount, "opening_fee": option.opening_fee} for option in options],
             "colors": colors,
-            "selected_color_id": next((c.pk for c in colors if str(c.pk) == selected_color), None),
+            "selected_color": chosen_color,
+            "selected_color_id": chosen_color.pk if chosen_color else None,
+            "payment_choices": payment_choices,
             "today": timezone.localdate(),
         },
     )
@@ -241,32 +250,13 @@ class CatalogForm(forms.ModelForm):
 @root_required
 @require_safe
 def catalog_manage(request):
-    query = request.GET.get("q", "").strip()[:150]
-    brand = request.GET.get("brand", "").strip()[:80]
-    name = request.GET.get("model_name", "").strip()[:120]
-    number = request.GET.get("model_number", "").strip()[:120]
     active_models = VehicleModel.objects.filter(active=True)
-    options = list(active_models.order_by("brand", "name", "model_number")
-                   .values("brand", "name", "model_number").distinct())
-    models = active_models.select_related("catalog_entry").filter(
-        Q(name__icontains=query)
-        | Q(brand__icontains=query)
-        | Q(model_number__icontains=query)
-    )
-    for field, value in (("brand", brand), ("name", name), ("model_number", number)):
-        if value:
-            models = models.filter(**{field: value})
+    models, filters = catalog_filters(active_models.select_related("catalog_entry"), request)
     return render(
         request,
         "sales/catalog_manage.html",
         {
-            "query": query,
-            "selected_brand": brand, "selected_name": name, "selected_number": number,
-            "filter_options": options,
-            "brands": sorted({row["brand"] for row in options if row["brand"]}),
-            "model_names": sorted({row["name"] for row in options if not brand or row["brand"] == brand}),
-            "model_numbers": sorted({row["model_number"] for row in options if row["model_number"]
-                and (not brand or row["brand"] == brand) and (not name or row["name"] == name)}),
+            **filters,
             "page_obj": Paginator(models.order_by("brand", "name", "pk"), 20).get_page(
                 request.GET.get("page")
             ),

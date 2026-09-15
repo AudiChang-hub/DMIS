@@ -128,6 +128,10 @@ def catalog_image(request, pk, color_pk=None):
     photo = entry.image
     if color_pk is not None:
         photo = get_object_or_404(VehicleColor, pk=color_pk, vehicle_model_id=pk, active=True).catalog_image
+    return image_response(photo)
+
+
+def image_response(photo):
     if not photo:
         raise Http404
     try:
@@ -136,6 +140,20 @@ def catalog_image(request, pk, color_pk=None):
         raise Http404 from None
     response["X-Content-Type-Options"] = "nosniff"
     response["Cache-Control"] = "no-store"
+    return response
+
+
+@root_required
+@require_safe
+def catalog_preview_image(request, pk, color_pk=None):
+    """未上架圖片僅限管理者預覽，不放寬公開圖片入口。"""
+    model = get_object_or_404(VehicleModel, pk=pk, active=True)
+    if color_pk is not None:
+        photo = get_object_or_404(model.colors, pk=color_pk, active=True).catalog_image
+    else:
+        photo = get_object_or_404(VehicleCatalogEntry, vehicle_model=model).image
+    response = image_response(photo)
+    response["Cache-Control"] = "private, no-store"
     return response
 
 
@@ -155,7 +173,7 @@ class CatalogForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields["expected_revision"].initial = self.instance.revision
-        self.catalog_colors = list(self.instance.vehicle_model.colors.all())
+        self.catalog_colors = list(self.instance.vehicle_model.colors.filter(active=True).order_by("name", "pk"))
         self.fields["main_image_color"].queryset = self.instance.vehicle_model.colors.filter(active=True)
         for color in self.catalog_colors:
             self.fields[f"color_image_{color.pk}"] = forms.ImageField(label=f"{color.name} · 車色圖片", required=False,
@@ -172,6 +190,12 @@ class CatalogForm(forms.ModelForm):
                 else "form-control"
             )
 
+        self.color_sections = [
+            {"color": color, "upload": self[f"color_image_{color.pk}"],
+             "remove": self[f"color_remove_{color.pk}"]}
+            for color in self.catalog_colors
+        ]
+
     def clean_image(self):
         upload = self.cleaned_data.get("image")
         if upload and hasattr(upload, "content_type"):
@@ -187,6 +211,9 @@ class CatalogForm(forms.ModelForm):
 
     def clean(self):
         data = super().clean()
+        if any(key.startswith(("color_image_", "color_remove_")) and key not in self.fields
+               for key in set(self.data) | set(self.files)):
+            self.add_error(None, "車色已停用或不屬於此車款，請重新整理後再編輯。")
         target_color = data.get("main_image_color")
         if target_color:
             if not self.instance.image or hasattr(data.get("image"), "content_type"):
@@ -198,6 +225,8 @@ class CatalogForm(forms.ModelForm):
         for color in self.catalog_colors:
             key = f"color_image_{color.pk}"
             upload = data.get(key)
+            if upload and data.get(f"color_remove_{color.pk}"):
+                self.add_error(key, "同一車色不可同時上傳與移除圖片。")
             if upload:
                 fmt = getattr(getattr(upload, "image", None), "format", "")
                 if upload.size > 8 * 1024 * 1024 or fmt not in {"JPEG", "PNG", "WEBP"}:
@@ -213,16 +242,31 @@ class CatalogForm(forms.ModelForm):
 @require_safe
 def catalog_manage(request):
     query = request.GET.get("q", "").strip()[:150]
-    models = VehicleModel.objects.select_related("catalog_entry").filter(
+    brand = request.GET.get("brand", "").strip()[:80]
+    name = request.GET.get("model_name", "").strip()[:120]
+    number = request.GET.get("model_number", "").strip()[:120]
+    active_models = VehicleModel.objects.filter(active=True)
+    options = list(active_models.order_by("brand", "name", "model_number")
+                   .values("brand", "name", "model_number").distinct())
+    models = active_models.select_related("catalog_entry").filter(
         Q(name__icontains=query)
         | Q(brand__icontains=query)
         | Q(model_number__icontains=query)
     )
+    for field, value in (("brand", brand), ("name", name), ("model_number", number)):
+        if value:
+            models = models.filter(**{field: value})
     return render(
         request,
         "sales/catalog_manage.html",
         {
             "query": query,
+            "selected_brand": brand, "selected_name": name, "selected_number": number,
+            "filter_options": options,
+            "brands": sorted({row["brand"] for row in options if row["brand"]}),
+            "model_names": sorted({row["name"] for row in options if not brand or row["brand"] == brand}),
+            "model_numbers": sorted({row["model_number"] for row in options if row["model_number"]
+                and (not brand or row["brand"] == brand) and (not name or row["name"] == name)}),
             "page_obj": Paginator(models.order_by("brand", "name", "pk"), 20).get_page(
                 request.GET.get("page")
             ),
@@ -233,7 +277,7 @@ def catalog_manage(request):
 @root_required
 @require_http_methods(["GET", "POST"])
 def catalog_edit(request, pk):
-    model = get_object_or_404(VehicleModel, pk=pk)
+    model = get_object_or_404(VehicleModel, pk=pk, active=True)
     entry = VehicleCatalogEntry.objects.filter(
         vehicle_model=model
     ).first() or VehicleCatalogEntry(vehicle_model=model)
@@ -247,12 +291,21 @@ def catalog_edit(request, pk):
                 .filter(vehicle_model=model)
                 .first()
             )
+            locked_colors = {color.pk: color for color in VehicleColor.objects.select_for_update()
+                             .filter(vehicle_model=locked_model).order_by("pk")}
+            colors_changed = any(
+                color.pk not in locked_colors or not locked_colors[color.pk].active
+                or locked_colors[color.pk].catalog_image.name != color.catalog_image.name
+                for color in form.catalog_colors
+            )
             if form.cleaned_data["expected_revision"] != (
                 current.revision if current else 0
             ):
                 form.add_error(None, "車款展示已被其他視窗更新，請重新整理。")
-            elif form.cleaned_data["published"] and not locked_model.active:
+            elif not locked_model.active:
                 form.add_error(None, "車款剛被停用，請重新整理。")
+            elif colors_changed:
+                form.add_error(None, "車色或圖片已被修改，請重新整理後再確認。")
             elif target_color and not VehicleColor.objects.filter(
                 pk=target_color.pk, vehicle_model=locked_model, active=True,
                 catalog_image=target_color.catalog_image.name,

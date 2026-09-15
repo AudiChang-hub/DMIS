@@ -4316,7 +4316,7 @@ def operations_report(request):
 
 
 def _reconciliation_queryset(request):
-    records = PaymentRecord.objects.select_related(
+    records = PaymentRecord.objects.filter(order__deleted_at__isnull=True).select_related(
         "order",
         "order__source",
         "order__vehicle_model",
@@ -4624,10 +4624,12 @@ def order_create(request):
             submission_key = uuid.UUID(request.POST["_submission_key"]) if request.POST.get("_submission_key") else uuid.uuid4()
         except (ValueError, AttributeError):
             return HttpResponse("送出識別碼無效，請重新開啟訂單表單。", status=400)
-        submitted = SalesOrder.objects.filter(submission_key=submission_key).first()
+        submitted = SalesOrder.all_objects.filter(submission_key=submission_key).first()
         if submitted:
             if submitted.submitted_by_id != request.user.pk:
                 raise PermissionDenied
+            if submitted.deleted_at:
+                return HttpResponse("這次送出對應的訂單已刪除，請洽授權人員還原，或重新建立新的訂單草稿。", status=409)
             messages.info(request, "這次送出已建立訂單，已開啟原訂單，沒有重複新增。")
             return redirect("order_detail", pk=submitted.pk)
     draft_id = request.POST.get("_draft_id") or request.GET.get("draft")
@@ -7258,7 +7260,10 @@ def vehicle_model_list(request):
         models = models.filter(energy_type=energy_type)
     models = list(
         models.select_related("family")
-        .prefetch_related("factory_model_codes")
+        .prefetch_related("factory_model_codes", Prefetch(
+            "colors", queryset=VehicleColor.objects.filter(active=True).order_by("name", "pk"),
+            to_attr="enabled_colors",
+        ))
         .order_by("brand", "family__name", "name", "-model_year", "model_code")
     )
 
@@ -8944,6 +8949,8 @@ def protected_media(request, model_name, pk, field_name):
         raise Http404
     model = allowed[model_name][0]
     instance = get_object_or_404(model, pk=pk)
+    if model_name in {"payment", "delivery"} and not SalesOrder.objects.filter(pk=instance.order_id).exists():
+        raise Http404
     file_field = getattr(instance, field_name)
     if not file_field:
         raise Http404

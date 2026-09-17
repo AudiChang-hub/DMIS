@@ -13,6 +13,7 @@
     <p class="muted">{% site_text 'reconciliation_list.699f0b9879fe' %}</p>
   </div>
 </section>
+<section class="section-block"><h2>如何登記入帳</h2><ol><li>選「分期公司」可找分期撥款；平台／合作車行列的是該筆尾款，不是全單所有收款。</li><li>核對預計金額，再填實際收到的金額、入帳日期及收款帳戶。預計金額不符時，展開「本單特殊撥款」填金額與原因。</li><li>資料核對完成才勾「已確認」並儲存；未收到款項不要勾選。</li></ol><p><strong>本頁差額＝實際入帳－預計入帳，不是淨利，也不是整張訂單的未收餘額。</strong>預計與實際都是 0 也會算出差額 0；是否收款仍以入帳紀錄及確認狀態為準。</p></section>
 <form class="inventory-filters operations-filters" method="get">
   <div class="master-search"><label for="reconcile-q">搜尋</label><input id="reconcile-q" name="q" value="{{ selected.q }}" placeholder="訂單、車主、車牌、公司、平台或車行"></div>
   <div><label for="reconcile-channel">對帳對象</label><select id="reconcile-channel" name="channel"><option value="">全部</option><option value="installment"{% if selected.channel == 'installment' %} selected{% endif %}>分期公司</option><option value="platform"{% if selected.channel == 'platform' %} selected{% endif %}>網路平台</option><option value="dealer"{% if selected.channel == 'dealer' %} selected{% endif %}>合作車行</option></select></div>
@@ -29,7 +30,7 @@
       <tbody>
       {% for record in records %}
         <tr>
-          <td data-label="訂單／車主"><strong>{{ record.order.owner_name }}</strong><span>{{ record.order.number }} · {{ record.order.order_date|date:"Y/m/d" }}</span></td>
+          <td data-label="訂單／車主"><strong>{{ record.order.owner_name }}</strong><span>{{ record.order.number }} · {{ record.order.order_date|date:"Y/m/d" }}</span><small>{{ record.item_name }} · {{ record.reconciliation_state }}</small></td>
           <td data-label="對帳對象"><strong>{{ record.reconciliation_party }}</strong><span>{{ record.reconciliation_channel_label }}</span></td>
           <td data-label="預計金額" class="number-cell reconciliation-expected">
             <span class="mobile-field-label">預計金額</span>
@@ -42,7 +43,7 @@
             </details>
           </td>
           <td data-label="實際金額"><input class="form-control reconciliation-money" form="reconciliation-{{ record.pk }}" type="number" min="0" step="1" name="received_amount" value="{{ record.received_amount|floatformat:0 }}" aria-label="{{ record.order.number }} 實際金額"></td>
-          <td data-label="差額" class="number-cell reconciliation-difference {% if record.reconciliation_difference != 0 %}difference-warning{% endif %}"><span class="mobile-field-label">差額</span><strong>${{ record.reconciliation_difference|number_with_commas }}</strong></td>
+          <td data-label="撥款差額" class="number-cell reconciliation-difference {% if record.reconciliation_difference != 0 %}difference-warning{% endif %}"><span class="mobile-field-label">撥款差額</span><strong>${{ record.reconciliation_difference|number_with_commas }}</strong>{% if not record.confirmed %}<small>尚未確認，不代表已收款</small>{% endif %}</td>
           <td data-label="入帳日期"><input class="form-control" form="reconciliation-{{ record.pk }}" type="date" name="received_on" value="{{ record.received_on|date:'Y-m-d' }}"></td>
           <td data-label="收款帳戶"><input class="form-control" form="reconciliation-{{ record.pk }}" type="text" name="receiving_account" value="{{ record.receiving_account }}"></td>
           <td data-label="確認"><label class="compact-check"><input form="reconciliation-{{ record.pk }}" type="checkbox" name="confirmed"{% if record.confirmed %} checked{% endif %}><span>{% if record.confirmed %}已確認{% else %}待確認{% endif %}</span></label></td>

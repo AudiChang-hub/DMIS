@@ -1,0 +1,3 @@
+{% extends 'base.html' %}
+{% block title %}已解鎖，可下載檔案{% endblock %}
+{% block content %}<section class="account-editor card stacked-form"><p class="eyebrow">驗證完成</p><h1>已解鎖淨利</h1><p>請按下方按鈕下載檔案。下載不會離開這個畫面；解鎖有效時間為 5 分鐘，逾時請重新驗證。</p><div class="hero-actions"><a class="button primary" href="{{ download_url }}">下載檔案</a><a class="button ghost" href="{% url 'operations_report' %}">返回營運總表</a><a class="button ghost" href="{% url 'dashboard' %}">回首頁</a></div></section>{% endblock %}

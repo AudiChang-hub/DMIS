@@ -12,6 +12,7 @@ from .models import GiftDistribution, GiftDistributionItem, GiftDistributionEven
 
 
 class DistributionForm(forms.ModelForm):
+    include_holiday_dealers = forms.BooleanField(label="帶入預設年節送禮車行名單", required=False, help_text="僅帶入啟用且已勾選「列入年節送禮名單」的合作車行；建立後可自行增減。")
     class Meta:
         model = GiftDistribution
         fields = ["title", "scheduled_on", "note"]
@@ -28,11 +29,20 @@ class ItemForm(forms.ModelForm):
 @login_required
 @require_http_methods(["GET", "POST"])
 def manage(request, pk=None):
-    activity = get_object_or_404(GiftDistribution, pk=pk) if pk else None
+    activity = get_object_or_404(GiftDistribution, pk=pk, deleted_at__isnull=True) if pk else None
     form = DistributionForm(request.POST or None) if not activity else ItemForm(request.POST or None)
     if request.method == "POST":
         action = request.POST.get("action", "add")
-        if activity and activity.archived:
+        if action == "delete" and activity and request.POST.get("confirm_delete") == "yes":
+            with transaction.atomic():
+                activity = GiftDistribution.objects.select_for_update().get(pk=pk)
+                if not activity.deleted_at:
+                    activity.deleted_at = timezone.now()
+                    activity.save(update_fields=["deleted_at", "updated_at"])
+                    GiftDistributionEvent.objects.create(distribution=activity, actor=request.user.get_username(), description="刪除活動（保留名單與稽核紀錄）")
+            messages.success(request, "活動已從清單移除；名單與稽核紀錄保留，不影響合作車行資料。")
+            return redirect("gift_distribution")
+        elif activity and activity.archived:
             messages.error(request, "此活動已封存，不可再修改工作紀錄。")
         elif action == "archive" and activity and request.POST.get("confirm") == "yes":
             with transaction.atomic():
@@ -46,7 +56,7 @@ def manage(request, pk=None):
                 with transaction.atomic():
                     if activity:
                         activity = GiftDistribution.objects.select_for_update().get(pk=pk)
-                        if activity.archived:
+                        if activity.archived or activity.deleted_at:
                             messages.error(request, "活動已由其他人封存，未新增名單。")
                             return redirect("gift_distribution_detail", pk=pk)
                         item = form.save(commit=False)
@@ -69,6 +79,11 @@ def manage(request, pk=None):
                         activity.created_by = request.user.get_username()
                         activity.save()
                         description = "手動建立活動（尚無名單）"
+                        if form.cleaned_data["include_holiday_dealers"]:
+                            sources = SalesSource.objects.filter(active=True, source_type="dealer", holiday_gift=True).order_by("pk")
+                            for source in sources:
+                                GiftDistributionItem.objects.get_or_create(distribution=activity, recipient=source.name, defaults={"source":source})
+                            description = f"建立活動並帶入年節送禮名單 {activity.items.count()} 位"
                     GiftDistributionEvent.objects.create(distribution=activity, actor=request.user.get_username(), description=description)
                 messages.success(request, "已儲存。")
                 return redirect("gift_distribution_detail", pk=activity.pk)
@@ -79,7 +94,7 @@ def manage(request, pk=None):
             sources = SalesSource.objects.filter(pk__in=[i for i in ids if i.isdigit()], active=True, source_type="dealer")
             with transaction.atomic():
                 activity = GiftDistribution.objects.select_for_update().get(pk=pk)
-                if activity.archived:
+                if activity.archived or activity.deleted_at:
                     messages.error(request, "活動已由其他人封存，未新增名單。")
                     return redirect("gift_distribution_detail", pk=pk)
                 count = 0
@@ -97,8 +112,10 @@ def manage(request, pk=None):
                 GiftDistributionEvent.objects.create(distribution=activity, actor=request.user.get_username(), description=f"手動勾選加入 {count} 位送禮對象")
             messages.success(request, f"已加入 {count} 位；重複名單不再新增。")
             return redirect("gift_distribution_detail", pk=pk)
-    rows = activity.items.filter(removed=False) if activity else GiftDistribution.objects.filter(archived=request.GET.get("history") == "1").annotate(total=Count("items", filter=Q(items__removed=False)), done=Count("items", filter=Q(items__removed=False, items__completed=True)))
+    rows = activity.items.filter(removed=False) if activity else GiftDistribution.objects.filter(deleted_at__isnull=True, archived=request.GET.get("history") == "1").annotate(total=Count("items", filter=Q(items__removed=False)), done=Count("items", filter=Q(items__removed=False, items__completed=True)))
     query = request.GET.get("q", "").strip()
+    if not activity:
+        rows = rows.order_by("-created_at", "-pk")
     if query:
         rows = rows.filter(recipient__icontains=query) if activity else rows.filter(title__icontains=query)
     if activity and request.GET.get("state") in {"pending", "done"}:
@@ -117,7 +134,7 @@ def update_item(request, pk):
     item = get_object_or_404(GiftDistributionItem, pk=pk)
     activity = GiftDistribution.objects.select_for_update().get(pk=item.distribution_id)
     item = GiftDistributionItem.objects.select_for_update().get(pk=pk)
-    if activity.archived or item.removed or str(item.version) != request.POST.get("version"):
+    if activity.archived or activity.deleted_at or item.removed or str(item.version) != request.POST.get("version"):
         messages.error(request, "紀錄已變更或封存，請重新確認後操作。")
     elif request.POST.get("action") in {"complete", "reopen", "remove"}:
         action = request.POST["action"]

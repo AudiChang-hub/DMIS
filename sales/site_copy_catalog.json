@@ -1,4 +1,16 @@
 {
+  "print.contract.plate_description": {
+    "page": "列印車輛訂購單・牌險說明",
+    "default": "領牌＋強制險",
+    "template": "sales/services/order_contract_pdf.py",
+    "max_length": 24
+  },
+  "print.contract.plate_description_pending": {
+    "page": "列印車輛訂購單・牌險說明",
+    "default": "領牌＋強制險，依單據收款",
+    "template": "sales/services/order_contract_pdf.py",
+    "max_length": 32
+  },
   "_business_holiday_year.89b570331679": {
     "page": "工作日與假日",
     "default": "點選月份查看日期，再點日期開啟設定。",
@@ -1221,7 +1233,7 @@
   },
   "order_form.01b4c1935981": {
     "page": "訂單填寫",
-    "default": "選擇配件與數量。接待下單依現行售價計算；贈送或例外價格由店內財務人員確認。",
+    "default": "選擇配件與數量，預帶售價與工資。經 admin 授權者可選贈送或註明原因調價；配件總額自動計算。",
     "template": "templates/sales/order_form.html"
   },
   "order_form.3c48542d2741": {

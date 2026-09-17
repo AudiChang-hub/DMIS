@@ -77,7 +77,7 @@ test('切換車型後舊回應不能蓋掉新選單',async()=>{
   const first=picker.load(); config.vehicleModel.value='8'; const second=picker.load();
   pending[1](response([options[2]])); await second;
   pending[0](response([options[0]])); await first;
-  assert.deepEqual(elements['installment-company-choice'].children.map(x=>x.value),['','乙公司']);
+  assert.deepEqual(elements['installment-company-choice'].children.map(x=>x.value),['','乙公司','__custom__']);
 });
 test('選單模式只驗可見選單，非分期不要求選取',async()=>{
   const {picker,elements,config,manualFields}=setup(async()=>response(),original);
@@ -87,4 +87,15 @@ test('選單模式只驗可見選單，非分期不要求選取',async()=>{
   assert.equal(elements['installment-period-choice'].required,true);
   config.paymentType.value='cash'; picker.syncRequired();
   assert.equal(elements['installment-period-choice'].required,false);
+});
+
+test('其他分期展開人工欄位，不清空原值、不套用方案', async()=>{
+  const {picker,elements,manualFields}=setup(async()=>response(),original);
+  await picker.load();
+  elements['installment-company-choice'].value='__custom__';
+  elements['installment-company-choice'].dispatchEvent(new Event('change'));
+  assert.ok(manualFields.every(field=>!field.hidden));
+  assert.equal(elements['installment-period-choice'].disabled,true);
+  assert.equal(elements['installment-period-choice'].required,false);
+  for (const [key,value] of Object.entries(original)) assert.equal(elements[key].value,value);
 });

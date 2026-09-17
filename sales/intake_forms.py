@@ -20,6 +20,11 @@ FINANCE_FIELDS = (
     "is_trade_in_subsidy", "old_owner_same_as_owner",
 )
 
+PRICING_FIELDS = {
+    "vehicle_price", "vehicle_price_adjustment_reason", "installment_opening_fee", "installment_monthly",
+    "plate_insurance_fee", "plate_selection_fee", "lien_registration_fee",
+}
+
 
 class IntakeOrderForm(SalesOrderForm):
     accept_by_me = forms.BooleanField(label="由我接單（建立後直接進入待配車）", required=False)
@@ -32,10 +37,15 @@ class IntakeOrderForm(SalesOrderForm):
         supplied_initial = kwargs.get("initial") or {}
         self.intake_user = user
         self.finance_editable = not reception and can_edit_finance(user)
+        from sales.access.services import AccessPolicy
+        self.pricing_editable = AccessPolicy(user).screen("order_pricing", "operate") or self.finance_editable
         profile = account_profile(user)
         self.dealer = bool(profile and profile.kind == "dealer")
         super().__init__(*args, **kwargs)
         self.fields["trade_in_intent"].required = False
+        self.fields["installment_custom"].disabled = not self.pricing_editable
+        if not self.pricing_editable:
+            self.initial["installment_custom"] = False
         self.fields["accept_by_me"].disabled = reception or not can_receive(user)
         if profile and profile.source_id:
             from sales.models import SalesSource
@@ -48,9 +58,12 @@ class IntakeOrderForm(SalesOrderForm):
                 self.fields["source"].queryset = SalesSource.objects.filter(pk=profile.source_id, active=True)
         if not self.finance_editable:
             self.fields["commission_recipient"].queryset = self.fields["commission_recipient"].queryset.none()
-            for name in ("installment_company", "installment_periods"):
-                self.fields[name].widget.attrs["readonly"] = True
+            if not self.pricing_editable:
+                for name in ("installment_company", "installment_periods"):
+                    self.fields[name].widget.attrs["readonly"] = True
             for name in FINANCE_FIELDS:
+                if self.pricing_editable and name in PRICING_FIELDS:
+                    continue
                 field = self.fields[name]
                 field.disabled = True
                 field.required = False
@@ -75,7 +88,7 @@ class IntakeOrderForm(SalesOrderForm):
         model = data.get("vehicle_model")
         if model and model.energy_type != "gas" and not data.get("owner_email"):
             self.add_error("owner_email", "電動車需填寫車主 Email。")
-        if not self.finance_editable and model and data.get("payment_type") == SalesOrder.PaymentType.INSTALLMENT:
+        if not self.pricing_editable and model and data.get("payment_type") == SalesOrder.PaymentType.INSTALLMENT:
             version = resolve_installment_plan_version(model.pk, timezone.localdate())
             option = version.options.select_related("company").filter(periods=data.get("installment_periods"), company__name=data.get("installment_company"), company__active=True).first() if version else None
             if not option:
@@ -89,8 +102,8 @@ class IntakeOrderForm(SalesOrderForm):
                 selected = validate_selection(data["catalog_selection"])
                 color = data.get("color")
                 if (not model or not color or model.pk != selected["model"] or color.pk != selected["color"]
-                        or data.get("payment_type") != selected["payment_type"]
-                        or (selected["payment_type"] == "installment" and
+                        or (not self.pricing_editable and data.get("payment_type") != selected["payment_type"])
+                        or (not self.pricing_editable and selected["payment_type"] == "installment" and
                             (data.get("installment_company") != selected["company"] or data.get("installment_periods") != selected["periods"]))):
                     raise ValidationError(CHANGE_MESSAGE)
             except ValidationError as exc:

@@ -4,7 +4,8 @@ from django.contrib.auth.decorators import login_required
 from django.core.cache import cache
 from django.core.exceptions import PermissionDenied
 from django.shortcuts import redirect, render
-from django.urls import reverse
+from django.urls import reverse, resolve, Resolver404
+from urllib.parse import urlsplit
 from django.utils import timezone
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.cache import never_cache
@@ -55,7 +56,15 @@ def profit_unlock(request):
                 "until": timezone.now().timestamp() + UNLOCK_SECONDS}
             UserAccountAuditLog.objects.create(actor=request.user, target=request.user,
                 target_username=request.user.username, action="update", description="本人密碼驗證成功，淨利解鎖 5 分鐘")
-            return redirect(return_url(request))
+            target = return_url(request)
+            try:
+                route = resolve(urlsplit(target).path).url_name
+            except Resolver404:
+                route = ""
+            if route in {"operations_report_export", "report_records_export", "report_export"}:
+                # 先回傳正常 HTML 結束密碼送出，再由使用者下載；不讓附件回應卡住原表單。
+                return render(request, "sales/profit_download.html", {"download_url": target})
+            return redirect(target)
     return render(request, "sales/profit_unlock.html", {"form": form, "next_url": return_url(request)}, status=status)
 
 

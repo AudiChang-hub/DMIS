@@ -52,8 +52,13 @@ def manage(request):
                     return redirect(request.get_full_path())
     query = request.GET.get("q", "").strip().casefold()
     page_filter = request.GET.get("section", "")
-    rows = [{"key": code, **entry, "customized": code in overrides} for code, entry in entries.items()
-            if (not page_filter or entry["page"] == page_filter) and (not query or query in (entry["default"] + entry["page"] + (overrides[code].text if code in overrides else "")).casefold())]
+    scope = request.GET.get("scope", "")
+    words = query.split()
+    rows = [{"key": code, **entry, "current": overrides[code].text if code in overrides else entry["default"], "customized": code in overrides} for code, entry in entries.items()
+            if (scope != "print" or code.startswith("print.")) and (scope != "screen" or not code.startswith("print."))
+            and (request.GET.get("customized") != "1" or code in overrides)
+            and (not page_filter or entry["page"] == page_filter)
+            and all(word in (code + entry["default"] + entry["page"] + (overrides[code].text if code in overrides else "")).casefold() for word in words)]
     return render(request, "sales/site_copy_manage.html", {"entry": entries.get(key), "key": key, "form": form,
         "sections": sorted({e["page"] for e in entries.values()}), "page_obj": Paginator(rows, 20).get_page(request.GET.get("page")),
         "revisions": SiteTextRevision.objects.filter(key=key)[:10] if key else []}, status=status)

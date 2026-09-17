@@ -257,6 +257,7 @@ class SalesOrderForm(forms.ModelForm):
             "deposit_date",
             "deposit_method",
             "installment_company",
+            "installment_custom",
             "installment_periods",
             "installment_monthly",
             "is_trade_in_subsidy",
@@ -481,7 +482,7 @@ class SalesOrderForm(forms.ModelForm):
                 data.get("order_date") or self.instance.order_date or timezone.localdate(),
                 data.get("installment_periods"),
             )
-            if option:
+            if option and not data.get("installment_custom"):
                 defaults = {
                     "installment_company": option.company.name,
                     "installment_opening_fee": option.opening_fee,
@@ -494,7 +495,14 @@ class SalesOrderForm(forms.ModelForm):
             for field_name in installment_fields:
                 if data.get(field_name) in (None, ""):
                     self.add_error(field_name, "選擇分期付款時，此欄位為必填。")
+            if data.get("installment_custom"):
+                for field_name in ("installment_periods", "installment_monthly"):
+                    if data.get(field_name) is not None and data[field_name] <= 0:
+                        self.add_error(field_name, "自訂分期的期數與每期金額必須大於零。")
+                if data.get("installment_opening_fee") is not None and data["installment_opening_fee"] < 0:
+                    self.add_error("installment_opening_fee", "開辦費不可為負數。")
         else:
+            data["installment_custom"] = False
             for field_name in installment_fields:
                 value = "" if field_name == "installment_company" else 0
                 data[field_name] = value
@@ -1723,7 +1731,10 @@ class AccessoryLineForm(forms.ModelForm):
         for field_name in ("quantity", "line_type"):
             if data.get(field_name) in (None, ""):
                 self.add_error(field_name, "填寫配件名稱後，此欄位為必填。")
-        if self.allow_manual:
+        if data.get("line_type") == "gift":
+            data["amount"] = data["labor_fee"] = Decimal("0")
+            self.instance.name = product.name
+        elif self.allow_manual:
             defaults = {"amount": product.sale_price, "labor_fee": product.labor_fee}
             for key, default in defaults.items():
                 if data.get(key) is None:

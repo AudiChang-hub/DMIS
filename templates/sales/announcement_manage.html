@@ -1,5 +1,5 @@
 {% extends "base.html" %}{% load site_copy %}{% load pagination_tags static %}
-{% block head %}<script src="{% static 'js/recipient-picker.js' %}" defer></script>{% endblock %}
+{% block head %}<script src="{% static 'js/recipient-picker.js' %}?v={{ app_version }}" defer></script><script src="{% static 'js/announcement-images.js' %}?v={{ app_version }}" defer></script>{% endblock %}
 {% block title %}系統公告管理｜車輛銷售管理{% endblock %}
 {% block page_class %}system-home{% endblock %}
 {% block content %}
@@ -9,13 +9,15 @@
 <section class="section-block">
   <h2>{% if announcement %}編輯公告{% else %}新增公告{% endif %}</h2>
   {% if announcement %}<p>目前：{{ announcement.display_status }} · 第 {{ announcement.version }} 版</p>{% endif %}
-  <form method="post" class="announcement-form">{% csrf_token %}
+  <form method="post" enctype="multipart/form-data" class="announcement-form">{% csrf_token %}
     {{ form.expected_version }}{{ form.expected_version.errors }}{{ form.non_field_errors }}
     <label>標題{{ form.title }}{{ form.title.errors }}</label>
     <label>公告內容（純文字）{{ form.body }}{{ form.body.errors }}</label>
+    <section class="announcement-images"><h3>公告圖片</h3><p>每張最多 8 MB，JPEG／PNG／WebP；每則最多 8 張，一次上傳合計 24 MB。先預覽，儲存後才上傳。</p>{% for picture in images %}<figure><img src="{% url 'announcement_image' picture.pk %}" alt="目前公告圖片 {{ forloop.counter }}" loading="lazy"><label><input type="checkbox" name="remove_images" value="{{ picture.pk }}">移除此圖</label></figure>{% endfor %}{{ form.remove_images.errors }}<label>{{ form.uploads.label }}{{ form.uploads }}</label>{{ form.uploads.errors }}<p data-announcement-upload-status role="status"></p><div data-announcement-previews class="announcement-preview-grid"></div></section>
     <label>{{ form.pinned }}置頂公告</label>
     <label>顯示對象{{ form.audience }}{{ form.audience.errors }}</label>
-    <fieldset data-recipient-picker><legend>指定人員（選擇「指定人員」時生效）</legend><label>搜尋姓名或帳號<input type="search" data-recipient-search placeholder="輸入關鍵字縮小勾選清單"></label><div class="form-actions"><button type="button" class="button ghost small" data-recipient-select="yes">勾選搜尋結果</button><button type="button" class="button ghost small" data-recipient-select="no">取消搜尋結果</button></div><div class="recipient-options">{{ form.recipients }}</div>{{ form.recipients.errors }}</fieldset>
+    <fieldset data-recipient-picker data-audience="dealers"><legend>指定合作車行</legend><label>搜尋車行、代碼、地區或通路類別<input type="search" data-recipient-search placeholder="例如：新北、專銷或車行名稱"></label><div class="form-actions"><button type="button" class="button ghost small" data-recipient-select="yes">勾選搜尋結果</button><button type="button" class="button ghost small" data-recipient-select="no">取消搜尋結果</button></div><div class="recipient-options">{{ form.dealers }}</div>{{ form.dealers.errors }}</fieldset>
+    <fieldset data-recipient-picker data-audience="selected"><legend>指定人員</legend><label>搜尋姓名或帳號<input type="search" data-recipient-search placeholder="輸入關鍵字縮小勾選清單"></label><div class="form-actions"><button type="button" class="button ghost small" data-recipient-select="yes">勾選搜尋結果</button><button type="button" class="button ghost small" data-recipient-select="no">取消搜尋結果</button></div><div class="recipient-options">{{ form.recipients }}</div>{{ form.recipients.errors }}</fieldset>
     <p class="muted">{% site_text 'announcement_manage.9c9929773cc9' %}</p>
     <div class="announcement-time-grid"><label>開始顯示時間{{ form.starts_at }}{{ form.starts_at.errors }}</label><label>結束顯示時間{{ form.ends_at }}{{ form.ends_at.errors }}</label></div>
     <div class="home-links">

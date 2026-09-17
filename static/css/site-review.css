@@ -69,3 +69,13 @@
     .recycle-table td::before { content: attr(data-label); display: block; color: var(--muted); font-size: .8rem; }
   }
 }
+/* 公告圖片與補件區沿用主題色，不讓大圖片撐破手機版面。 */
+.announcement-images img, .announcement-preview-grid img { display:block; max-width:100%; height:auto; object-fit:contain; }
+.announcement-images figure { margin:1rem 0; }
+.announcement-preview-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,200px),1fr)); gap:1rem; }
+.announcement-preview-grid figure { margin:0; min-width:0; }
+.announcement-preview-grid img { max-height:260px; }
+.announcement-preview-grid figcaption { overflow-wrap:anywhere; }
+.attachment-section { margin-top:2rem; padding-top:1.5rem; border-top:1px solid var(--line); }
+[data-accessory-total] { display:block; font-weight:700; }
+.news-center [role="tabpanel"][hidden] { display:none; }

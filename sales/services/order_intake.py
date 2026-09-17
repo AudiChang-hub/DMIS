@@ -79,7 +79,7 @@ DEALER_ROUTES = {
     "login", "logout", "access_home",
 }
 DEALER_ACCOUNT_ROUTES = {"login", "logout", "password_change_required", "password_change"}
-DEALER_ACCOUNT_ROUTES.update({"announcement_detail", "release_history"})
+DEALER_ACCOUNT_ROUTES.update({"announcement_detail", "announcement_image", "release_history"})
 DEALER_ROUTES.update({"catalog", "catalog_detail", "catalog_image", "catalog_color_image"})
 DEALER_ROUTES.update({"order_start", "intake_draft_save", "order_submitted", "intake_installment_options", "intake_price_options"})
 DEALER_SUBMIT_ROUTES = {"order_create", "draft_save", "draft_presence", "draft_delete", "id_card_ocr", "id_card_ocr_status", "id_card_ocr_invalidate"}

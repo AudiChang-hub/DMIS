@@ -1,5 +1,11 @@
 "use strict";
 document.querySelectorAll("[data-recipient-picker]").forEach(picker => {
+  const audience = picker.closest('form')?.querySelector('[name="audience"]');
+  if (audience && picker.dataset.audience) {
+    const syncAudience = () => { picker.hidden = audience.value !== picker.dataset.audience; };
+    audience.addEventListener('change', syncAudience);
+    syncAudience();
+  }
   const search = picker.querySelector("[data-recipient-search]");
   const boxes = [...picker.querySelectorAll('input[type="checkbox"]')];
   search.addEventListener("input", () => {

@@ -1,9 +1,11 @@
-{% load site_copy %}{% load pagination_tags %}
+{% load site_copy %}{% load pagination_tags static %}
+<script src="{% static 'js/home-news.js' %}?v={{ app_version }}" defer></script>
 <section class="section-block news-center" aria-labelledby="news-title">
   <p class="eyebrow">目前執行版本 {{ release_version }}</p>
   <div class="favorites-heading"><h2 id="news-title">公告與更新</h2>{% if expired_announcement_count %}<a class="button ghost" href="{% url 'announcement_manage' %}?history=1">{{ expired_announcement_count }} 則公告已到期，待整理</a>{% endif %}</div>
-  <nav class="news-tabs" aria-label="公告分類"><a href="?news=announcements"{% if news_tab == 'announcements' %} aria-current="page"{% endif %}>系統公告與最新消息</a><a href="?news=releases"{% if news_tab == 'releases' %} aria-current="page"{% endif %}>版本歷程</a></nav>
-  {% if news_tab == 'releases' %}{% include 'sales/_release_history.html' %}{% else %}
+  <nav class="news-tabs" data-news-tabs aria-label="公告分類"><a id="tab-announcements" data-panel="news-announcements" href="?news=announcements"{% if news_tab == 'announcements' %} aria-current="page"{% endif %}>系統公告與最新消息</a><a id="tab-releases" data-panel="news-releases" href="?news=releases"{% if news_tab == 'releases' %} aria-current="page"{% endif %}>版本歷程</a></nav>
+  <div id="news-releases"{% if news_tab != 'releases' %} hidden{% endif %}>{% include 'sales/_release_history.html' %}</div>
+  <div id="news-announcements"{% if news_tab == 'releases' %} hidden{% endif %}>
   <div class="news-list">{% for item in page_obj %}<article class="news-row{% if item.pinned %} is-pinned{% endif %}"><div>{% if item.pinned %}<span class="pin-badge">📌 置頂</span>{% endif %}<time>{{ item.starts_at|date:"Y/m/d H:i" }} 台北</time><h3><a href="{% url 'announcement_detail' item.pk %}">{{ item.title }}</a></h3><p class="muted">{{ item.body|truncatechars:100 }}</p></div><a class="button ghost small" href="{% url 'announcement_detail' item.pk %}" aria-label="閱讀 {{ item.title }}">閱讀公告</a></article>{% empty %}<div class="empty-state"><h3>目前沒有新公告</h3><p>{% site_text '_home_news.a07a43ed9136' %}</p></div>{% endfor %}</div>
-  {% pagination page_obj aria_label="系統公告分頁" %}{% endif %}
+  {% pagination page_obj aria_label="系統公告分頁" %}</div>
 </section>

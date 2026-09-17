@@ -1,0 +1,2331 @@
+{
+  "_business_holiday_year.89b570331679": {
+    "page": "工作日與假日",
+    "default": "點選月份查看日期，再點日期開啟設定。",
+    "template": "templates/sales/_business_holiday_year.html"
+  },
+  "_catalog_image_preview.44fb38f63c8b": {
+    "page": "展示圖片",
+    "default": "選檔後可先預覽；按「儲存展示設定」才會上傳。",
+    "template": "templates/sales/_catalog_image_preview.html"
+  },
+  "_home_news.a07a43ed9136": {
+    "page": "首頁消息",
+    "default": "新消息發布後，會顯示在這裡。",
+    "template": "templates/sales/_home_news.html"
+  },
+  "_intake_attachments.67b0208ac91e": {
+    "page": "接待附件",
+    "default": "不需要的檔案可勾選移除，下一次暫存或送出時生效；新增附件暫存成功後，重新開啟草稿即可查看。",
+    "template": "templates/sales/_intake_attachments.html"
+  },
+  "_order_acceptance.e23fbf07e849": {
+    "page": "內部接單",
+    "default": "訂單已送達，等待店內人員接單。接單後會在此顯示負責人與時間。",
+    "template": "templates/sales/_order_acceptance.html"
+  },
+  "_order_commission_recipient.fc1aef0a2743": {
+    "page": "台數歸屬",
+    "default": "只影響這張訂單，保留原銷售來源。本店單不新增基礎傭金，車行單沿用原傭金。",
+    "template": "templates/sales/_order_commission_recipient.html"
+  },
+  "_order_commission_recipient.369ea8c19526": {
+    "page": "台數歸屬",
+    "default": "選擇歸屬車行即會隨訂單儲存；留空恢復原車行，本店單則不指定車行。",
+    "template": "templates/sales/_order_commission_recipient.html"
+  },
+  "edit.b951cebb26b0": {
+    "page": "共通畫面說明",
+    "default": "ADMIN · 逐人授權",
+    "template": "templates/sales/access/edit.html"
+  },
+  "edit.192102b29e9a": {
+    "page": "共通畫面說明",
+    "default": "目前沿用舊制。下列勾選以既有資格為起點；確認套用後，未勾選的畫面及新發布報表都不開放。",
+    "template": "templates/sales/access/edit.html"
+  },
+  "edit.4a78066416ae": {
+    "page": "共通畫面說明",
+    "default": "由 admin 決定開放，不受舊角色限制。查看包含畫面原有統計與關聯摘要，不是「只看自己的資料」；取消查看會一併取消操作與匯出。只有 admin 能授權他人，勾選不會提升帳號的管理角色。",
+    "template": "templates/sales/access/edit.html"
+  },
+  "edit.d0562249ba5e": {
+    "page": "共通畫面說明",
+    "default": "各項授權都可勾選保存；若畫面尚無操作或匯出入口，授權不會新增該功能。報表操作不包含設計／發布；瀏覽器自行列印／截圖不受系統控制。",
+    "template": "templates/sales/access/edit.html"
+  },
+  "edit.d994cd9a96b0": {
+    "page": "共通畫面說明",
+    "default": "這是選單與權限預覽，尚未生效，也沒有登入對方帳號。確認後下一次請求生效。",
+    "template": "templates/sales/access/edit.html"
+  },
+  "edit.1ff5da23cd11": {
+    "page": "共通畫面說明",
+    "default": "批次操作包含本大項被搜尋隱藏的項目；其他大項不變，預覽確認後才生效。",
+    "template": "templates/sales/access/edit.html"
+  },
+  "edit.6cfca5e34bf9": {
+    "page": "共通畫面說明",
+    "default": "沒有符合條件的畫面，請調整搜尋或顯示條件。",
+    "template": "templates/sales/access/edit.html"
+  },
+  "home.977b1b7e6a34": {
+    "page": "我的可用功能",
+    "default": "畫面由 admin 分別授權；如需其他功能，請洽 admin。",
+    "template": "templates/sales/access/home.html"
+  },
+  "home.d12ccc7e11dc": {
+    "page": "我的可用功能",
+    "default": "尚未獲授權使用業務畫面。仍可變更個人密碼與登出。",
+    "template": "templates/sales/access/home.html"
+  },
+  "overview.d113553a021d": {
+    "page": "人員畫面權限總覽",
+    "default": "ADMIN · 畫面授權",
+    "template": "templates/sales/access/overview.html"
+  },
+  "overview.c19207fae5aa": {
+    "page": "人員畫面權限總覽",
+    "default": "沿用舊制者尚未限制；請逐人預覽並確認，才會啟用白名單。",
+    "template": "templates/sales/access/overview.html"
+  },
+  "accessory_product_form.6ccffe67463d": {
+    "page": "共通畫面說明",
+    "default": "售價與工資會在加入訂單時保存快照；參考成本不會顯示在客戶訂單。",
+    "template": "templates/sales/accessory_product_form.html"
+  },
+  "accessory_product_list.78db5a962a4a": {
+    "page": "配件與工資",
+    "default": "訂單只需選擇配件；售價與工資會保存為當時快照，後續修改主檔不影響舊訂單。",
+    "template": "templates/sales/accessory_product_list.html"
+  },
+  "announcement_action.668a44e7bad8": {
+    "page": "整理公告",
+    "default": "封存後可於歷史公告查看；刪除後不再列出，保留稽核紀錄。兩者都會停止對使用者顯示。",
+    "template": "templates/sales/announcement_action.html"
+  },
+  "announcement_action.11999b717b26": {
+    "page": "整理公告",
+    "default": "公告已變更，請重新開啟後確認。",
+    "template": "templates/sales/announcement_action.html"
+  },
+  "announcement_manage.8763e02b6fcf": {
+    "page": "系統公告管理",
+    "default": "管理者工具 · 僅 admin",
+    "template": "templates/sales/announcement_manage.html"
+  },
+  "announcement_manage.932bc63d878c": {
+    "page": "系統公告管理",
+    "default": "依顯示對象發布公告，過期公告自動隱藏並移至歷史列表。",
+    "template": "templates/sales/announcement_manage.html"
+  },
+  "announcement_manage.9c9929773cc9": {
+    "page": "系統公告管理",
+    "default": "時間皆為台北時間。開始時間到達才顯示，結束時間到達即隱藏；結束可留白。",
+    "template": "templates/sales/announcement_manage.html"
+  },
+  "announcement_manage.00177309758b": {
+    "page": "系統公告管理",
+    "default": "「儲存」維持目前發布狀態；取消發布可隱藏公告並保留紀錄。",
+    "template": "templates/sales/announcement_manage.html"
+  },
+  "brand_registration_fee_rule_list.f3f2dfff0f97": {
+    "page": "領牌與強制險",
+    "default": "品牌、能源別與領牌日生效版本",
+    "template": "templates/sales/brand_registration_fee_rule_list.html"
+  },
+  "brand_registration_fee_rule_list.5043197c5f07": {
+    "page": "領牌與強制險",
+    "default": "公式依日期與排氣量試算；固定整包直接採用總額；固定分項分別保存領牌規費及強制險；人工輸入則於訂單依單據填寫。",
+    "template": "templates/sales/brand_registration_fee_rule_list.html"
+  },
+  "brand_registration_fee_rule_list.2b441934d1c7": {
+    "page": "領牌與強制險",
+    "default": "依品牌、適用車輛與生效日期快速核對。",
+    "template": "templates/sales/brand_registration_fee_rule_list.html"
+  },
+  "brand_registration_fee_rule_list.4f35150585bd": {
+    "page": "領牌與強制險",
+    "default": "油車仍會依 51～600 c.c. 的排氣量級距套用公式。",
+    "template": "templates/sales/brand_registration_fee_rule_list.html"
+  },
+  "business_holiday_list.77298bd0ebb6": {
+    "page": "工作日與假日設定",
+    "default": "月曆會自動排除週六、週日與啟用中的假日；點選日期即可新增或調整。",
+    "template": "templates/sales/business_holiday_list.html"
+  },
+  "business_holiday_list.7b3b36e4d35b": {
+    "page": "工作日與假日設定",
+    "default": "同步失敗會保留既有資料，不影響工作日期限計算。",
+    "template": "templates/sales/business_holiday_list.html"
+  },
+  "business_holiday_list.cc8a0752b815": {
+    "page": "工作日與假日設定",
+    "default": "關閉後仍保留紀錄，但不再額外排除；週末仍固定不計。",
+    "template": "templates/sales/business_holiday_list.html"
+  },
+  "catalog.32d283d85dbf": {
+    "page": "選一台適合的車",
+    "default": "先選車款與顏色，再填寫本次下訂資料。",
+    "template": "templates/sales/catalog.html"
+  },
+  "catalog.7159e7097df2": {
+    "page": "選一台適合的車",
+    "default": "依品牌、車型、型號與能源別縮小範圍，再套用篩選。",
+    "template": "templates/sales/catalog.html"
+  },
+  "catalog.ea9ea39f13c5": {
+    "page": "選一台適合的車",
+    "default": "請調整篩選，或洽馭盛確認。尚未上架不代表沒有販售。",
+    "template": "templates/sales/catalog.html"
+  },
+  "catalog_detail.f42c7d4ec135": {
+    "page": "共通畫面說明",
+    "default": "此車色會直接帶入訂單，不需再次選擇。",
+    "template": "templates/sales/catalog_detail.html"
+  },
+  "catalog_detail.9fa9d403b69d": {
+    "page": "共通畫面說明",
+    "default": "目前沒有可選車色，請洽馭盛。",
+    "template": "templates/sales/catalog_detail.html"
+  },
+  "catalog_detail.8eb0ce5b14af": {
+    "page": "共通畫面說明",
+    "default": "請先在上方選擇車色，再選付款方式。",
+    "template": "templates/sales/catalog_detail.html"
+  },
+  "catalog_detail.4530d4c9971c": {
+    "page": "共通畫面說明",
+    "default": "目前沒有有效分期方案，請洽馭盛。",
+    "template": "templates/sales/catalog_detail.html"
+  },
+  "catalog_detail.85078b39b78b": {
+    "page": "共通畫面說明",
+    "default": "車款、車色與付款方案會一併帶入；登入後保留選擇。",
+    "template": "templates/sales/catalog_detail.html"
+  },
+  "catalog_detail.c71df4fcedfd": {
+    "page": "共通畫面說明",
+    "default": "此帳號僅可查看；下單權限請洽 admin。",
+    "template": "templates/sales/catalog_detail.html"
+  },
+  "catalog_edit.c923277f878f": {
+    "page": "編輯車款展示",
+    "default": "此處只編輯啟用車色的展示圖片。停用車色不顯示，原有圖片仍保留；啟用狀態請至機種資料調整。",
+    "template": "templates/sales/catalog_edit.html"
+  },
+  "catalog_edit.1f0c5a321ff9": {
+    "page": "編輯車款展示",
+    "default": "上架後公開圖片、介紹及有效對客售價／分期，不公開成本、佣金與撥款。只上傳你有權使用的圖片。",
+    "template": "templates/sales/catalog_edit.html"
+  },
+  "catalog_edit.c62cb11399a5": {
+    "page": "編輯車款展示",
+    "default": "每張最多 8 MB，支援 JPEG、PNG、WebP。不選新檔案就保留原圖；缺圖車色仍會顯示於選車入口。",
+    "template": "templates/sales/catalog_edit.html"
+  },
+  "catalog_edit.1a17c7a726a0": {
+    "page": "編輯車款展示",
+    "default": "目前沒有啟用車色，請先至機種資料啟用需要展示的顏色。",
+    "template": "templates/sales/catalog_edit.html"
+  },
+  "catalog_edit.4a0c35de26ac": {
+    "page": "編輯車款展示",
+    "default": "選車卡片使用各車色圖片，不會自動共用主圖。若已有主圖，可在此明確對應一個啟用車色。",
+    "template": "templates/sales/catalog_edit.html"
+  },
+  "catalog_manage.504ae0cdacfd": {
+    "page": "選車展示管理",
+    "default": "只列出啟用車款，包含已上架與未上架。規格、售價與分期共用機種主檔，這裡維護展示圖片與介紹。",
+    "template": "templates/sales/catalog_manage.html"
+  },
+  "catalog_manage.fc99099c0daa": {
+    "page": "選車展示管理",
+    "default": "依品牌、車型逐步縮小型號選項，選好後按「套用篩選」。變更上層條件會清除下層選擇。",
+    "template": "templates/sales/catalog_manage.html"
+  },
+  "catalog_manage.06eb430fed89": {
+    "page": "選車展示管理",
+    "default": "找不到符合條件的啟用車款，請調整或清除篩選。",
+    "template": "templates/sales/catalog_manage.html"
+  },
+  "contract_print.70d3495a23f1": {
+    "page": "機車訂購合約",
+    "default": "目前為第一版暫用合約，正式範本提供後會替換版面。",
+    "template": "templates/sales/contract_print.html"
+  },
+  "contract_print.33b497d6f7c5": {
+    "page": "機車訂購合約",
+    "default": "一、本合約所列車型、車色、價款及附加需求，經雙方確認後成立。",
+    "template": "templates/sales/contract_print.html"
+  },
+  "contract_print.64118d4b7027": {
+    "page": "機車訂購合約",
+    "default": "二、實際配車於簽署後由店方依庫存協調，車輛識別資料於配車後補登。",
+    "template": "templates/sales/contract_print.html"
+  },
+  "contract_print.af534fa90a94": {
+    "page": "機車訂購合約",
+    "default": "三、正式條款將於店方提供既有合約範本後更新；本頁目前供流程測試使用。",
+    "template": "templates/sales/contract_print.html"
+  },
+  "customer_list.415352fbf834": {
+    "page": "客戶查詢",
+    "default": "同一證件號碼只顯示一筆，內容取自最近一張訂單；修改請由訂單進行並留下紀錄。",
+    "template": "templates/sales/customer_list.html"
+  },
+  "dashboard.710cd31a0032": {
+    "page": "首頁",
+    "default": "版本更新、最新消息與常用功能，都從這裡開始。",
+    "template": "templates/sales/dashboard.html"
+  },
+  "dashboard.4ec07225adc7": {
+    "page": "首頁",
+    "default": "確認原因與關聯影響後，由 admin 決定刪除或駁回。",
+    "template": "templates/sales/dashboard.html"
+  },
+  "dashboard.0b8a01010b2c": {
+    "page": "首頁",
+    "default": "目前沒有可顯示的常用功能。點選「編輯常用功能」加入功能；主要選單仍可使用。",
+    "template": "templates/sales/dashboard.html"
+  },
+  "dashboard.b7947760861b": {
+    "page": "首頁",
+    "default": "僅顯示目前帳號可使用的功能；設定只影響你自己，不改變其他人的首頁或手機快速前往。",
+    "template": "templates/sales/dashboard.html"
+  },
+  "data_maintenance.df8d4de7e06b": {
+    "page": "資料維護區",
+    "default": "車輛、客戶、通路、費率與作業規則都集中在這裡；常用功能也可由上方選單直接前往。",
+    "template": "templates/sales/data_maintenance.html"
+  },
+  "data_maintenance.82dc6cd5dbcb": {
+    "page": "資料維護區",
+    "default": "建立訂單與管理車輛時會直接使用這些內容。",
+    "template": "templates/sales/data_maintenance.html"
+  },
+  "data_maintenance.9f148548722c": {
+    "page": "資料維護區",
+    "default": "上傳車款圖片、介紹與設定公開上架；售價與分期共用機種資料。",
+    "template": "templates/sales/data_maintenance.html"
+  },
+  "data_maintenance.b57566e37b63": {
+    "page": "資料維護區",
+    "default": "統一機種、領牌費用、車行傭金及台數獎金使用的品牌名稱與別名。",
+    "template": "templates/sales/data_maintenance.html"
+  },
+  "data_maintenance.439b5cacbee0": {
+    "page": "資料維護區",
+    "default": "維護機種、原廠型號、年份、顏色與售價版本。",
+    "template": "templates/sales/data_maintenance.html"
+  },
+  "data_maintenance.0cc25e25c532": {
+    "page": "資料維護區",
+    "default": "管理進車、車況、調車歷程與目前可售狀態。",
+    "template": "templates/sales/data_maintenance.html"
+  },
+  "data_maintenance.2cf69035cb84": {
+    "page": "資料維護區",
+    "default": "維護配件售價、安裝工資與內部參考成本，訂單會保存當時快照。",
+    "template": "templates/sales/data_maintenance.html"
+  },
+  "data_maintenance.7b1ac913dc4c": {
+    "page": "資料維護區",
+    "default": "集中維護實物、紅包、禮券與點數的單位及成本版本。",
+    "template": "templates/sales/data_maintenance.html"
+  },
+  "data_maintenance.8f2d8c214578": {
+    "page": "資料維護區",
+    "default": "從既有訂單查詢車主聯絡資料與歷史訂單；資料仍由訂單修改。",
+    "template": "templates/sales/data_maintenance.html"
+  },
+  "data_maintenance.156fba8a63ca": {
+    "page": "資料維護區",
+    "default": "維護合作車行、網路平台與本店人員使用的系統類別。",
+    "template": "templates/sales/data_maintenance.html"
+  },
+  "data_maintenance.befed6a27348": {
+    "page": "資料維護區",
+    "default": "維護車行聯絡資料、品牌合作、LINE 群組及傭金規則。",
+    "template": "templates/sales/data_maintenance.html"
+  },
+  "data_maintenance.e28c9e5876ca": {
+    "page": "資料維護區",
+    "default": "維護網路銷售平台與聯絡資料，不混入合作車行。",
+    "template": "templates/sales/data_maintenance.html"
+  },
+  "data_maintenance.982feebb9388": {
+    "page": "資料維護區",
+    "default": "維護姓名、所在店、電話與每筆傭金，不混入合作車行。",
+    "template": "templates/sales/data_maintenance.html"
+  },
+  "data_maintenance.bb89fc95743e": {
+    "page": "資料維護區",
+    "default": "依合作品牌產生每月車行名單，手機勾選完成進度並保存備註。",
+    "template": "templates/sales/data_maintenance.html"
+  },
+  "data_maintenance.966d4a0e8e2f": {
+    "page": "資料維護區",
+    "default": "變更只影響符合生效條件的新資料，不會回頭改掉既有訂單快照。",
+    "template": "templates/sales/data_maintenance.html"
+  },
+  "data_maintenance.e446c3013a86": {
+    "page": "資料維護區",
+    "default": "依機種與實際領牌日維護成本生效版本。",
+    "template": "templates/sales/data_maintenance.html"
+  },
+  "data_maintenance.275db464f367": {
+    "page": "資料維護區",
+    "default": "維護實銷獎勵、促銷補助與分期補貼息。",
+    "template": "templates/sales/data_maintenance.html"
+  },
+  "data_maintenance.a3460965ce09": {
+    "page": "資料維護區",
+    "default": "依車型維護逐台給付的現金傭金、實物、紅包、禮券與旅遊點數。",
+    "template": "templates/sales/data_maintenance.html"
+  },
+  "data_maintenance.024404dfac26": {
+    "page": "資料維護區",
+    "default": "依車行、品牌與領牌期間設定門檻及保存逐單結算。",
+    "template": "templates/sales/data_maintenance.html"
+  },
+  "data_maintenance.aaa509a64a8f": {
+    "page": "資料維護區",
+    "default": "維護分期公司與客服電話；各機種方案由機種與售價設定。",
+    "template": "templates/sales/data_maintenance.html"
+  },
+  "data_maintenance.f6c2557b3e28": {
+    "page": "資料維護區",
+    "default": "依品牌、生效日與排氣量設定領牌費用及強制險金額。",
+    "template": "templates/sales/data_maintenance.html"
+  },
+  "data_maintenance.012258bacb6a": {
+    "page": "資料維護區",
+    "default": "維護國定假日，供合作車行三日文件與七日尾款提醒排除。",
+    "template": "templates/sales/data_maintenance.html"
+  },
+  "data_maintenance.d685f822b3a5": {
+    "page": "資料維護區",
+    "default": "不影響日常開單，集中處理歷史資料與特殊文件格式。",
+    "template": "templates/sales/data_maintenance.html"
+  },
+  "data_maintenance.b3b6ca05df7a": {
+    "page": "資料維護區",
+    "default": "上傳進銷貨庫存表或通路名冊，預覽差異與衝突後再確認寫入。",
+    "template": "templates/sales/data_maintenance.html"
+  },
+  "data_maintenance.1b821101b3e3": {
+    "page": "資料維護區",
+    "default": "維護信封、報件單、聲明書與點檢表的背景、欄位位置及印表機偏移。",
+    "template": "templates/sales/data_maintenance.html"
+  },
+  "data_maintenance.66830ead94ed": {
+    "page": "資料維護區",
+    "default": "檢查資料庫、證件辨識、搜尋背景工作與照片文件空間。",
+    "template": "templates/sales/data_maintenance.html"
+  },
+  "data_maintenance.17fcbc3514ac": {
+    "page": "資料維護區",
+    "default": "編輯首頁公告、置頂及預約發布／結束時間。",
+    "template": "templates/sales/data_maintenance.html"
+  },
+  "data_maintenance.53a143d6b2a0": {
+    "page": "資料維護區",
+    "default": "建立草稿、設計圖表、預覽公式與發布報表；不改動正式帳務。",
+    "template": "templates/sales/data_maintenance.html"
+  },
+  "data_maintenance.7365034c0b5e": {
+    "page": "資料維護區",
+    "default": "管理車種類別、型號規則、未分類清單與發布版本。",
+    "template": "templates/sales/data_maintenance.html"
+  },
+  "data_maintenance.5ecd54819548": {
+    "page": "資料維護區",
+    "default": "建立內部帳號、停用離職人員、重設臨時密碼並查看帳號異動紀錄。",
+    "template": "templates/sales/data_maintenance.html"
+  },
+  "data_maintenance.170703f6fd49": {
+    "page": "資料維護區",
+    "default": "查看最新弱點掃描、UI／UX、營運流程、文件同步結果與已知限制。",
+    "template": "templates/sales/data_maintenance.html"
+  },
+  "dealer_account_form.9cc6fa7e3faa": {
+    "page": "車行帳號設定",
+    "default": "請填新使用者的資料，不是你目前登入的帳密。",
+    "template": "templates/sales/dealer_account_form.html"
+  },
+  "dealer_account_form.823cd488ec02": {
+    "page": "車行帳號設定",
+    "default": "也可自行輸入；車行編號＋人員序號可支援同店多人，儲存時再次檢查重複。",
+    "template": "templates/sales/dealer_account_form.html"
+  },
+  "dealer_account_form.ac1dfdd338b8": {
+    "page": "車行帳號設定",
+    "default": "下單需同時開放訂單進度；全部取消後隱藏訂單大項，只保留首頁與個人設定。若取消選車但保留下單，可直接填單。",
+    "template": "templates/sales/dealer_account_form.html"
+  },
+  "dealer_accounts.e01ef7bdb6dd": {
+    "page": "共通畫面說明",
+    "default": "人員帳號與功能設定 · 與「帳號與權限」即時同步",
+    "template": "templates/sales/dealer_accounts.html"
+  },
+  "dealer_accounts.762dd25c43ed": {
+    "page": "共通畫面說明",
+    "default": "可分別開放選車、查看本車行訂單及建立訂單。沒有開放任何子項時，該大項不顯示；不能存取內部財務或其他車行。",
+    "template": "templates/sales/dealer_accounts.html"
+  },
+  "dealer_accounts.3ebc04c98b57": {
+    "page": "共通畫面說明",
+    "default": "管理登入狀態、可用功能與密碼重設。",
+    "template": "templates/sales/dealer_accounts.html"
+  },
+  "dealer_home.991611d48b14": {
+    "page": "車行首頁",
+    "default": "選車、選色，接續填寫本次訂單。",
+    "template": "templates/sales/dealer_home.html"
+  },
+  "dealer_home.4d51d28f6022": {
+    "page": "車行首頁",
+    "default": "接續本人尚未送出的訂單。",
+    "template": "templates/sales/dealer_home.html"
+  },
+  "dealer_home.c7a0c0559067": {
+    "page": "車行首頁",
+    "default": "目前無下單權限；已開放的訂單採唯讀進度模式。",
+    "template": "templates/sales/dealer_home.html"
+  },
+  "dealer_home.520c2dcaebd6": {
+    "page": "車行首頁",
+    "default": "功能開放及人員異動請洽馭盛 admin。",
+    "template": "templates/sales/dealer_home.html"
+  },
+  "dealer_order_detail.cdec17ff2b44": {
+    "page": "共通畫面說明",
+    "default": "需要修改已送出資料時，請聯絡店內人員協助，避免接單後資料不一致。",
+    "template": "templates/sales/dealer_order_detail.html"
+  },
+  "dealer_order_list.c057ed8dd5ad": {
+    "page": "訂單進度",
+    "default": "僅顯示所屬車行的訂單；送出後可查看接單人與後續進度。",
+    "template": "templates/sales/dealer_order_list.html"
+  },
+  "dealer_reward_catalog_form.582b20f7a08d": {
+    "page": "共通畫面說明",
+    "default": "品項只建立一次；成本調整請新增生效版本，不要直接覆蓋歷史金額。",
+    "template": "templates/sales/dealer_reward_catalog_form.html"
+  },
+  "dealer_reward_catalog_form.ebedcab17ff7": {
+    "page": "共通畫面說明",
+    "default": "名稱與單位會自動帶入各車型獎勵方案。",
+    "template": "templates/sales/dealer_reward_catalog_form.html"
+  },
+  "dealer_reward_catalog_form.be9314f0a4f3": {
+    "page": "共通畫面說明",
+    "default": "新成本請設定新的生效日期；同一時間只能有一個啟用中的版本。",
+    "template": "templates/sales/dealer_reward_catalog_form.html"
+  },
+  "dealer_reward_catalog_list.1717d50ad514": {
+    "page": "車行獎勵品項",
+    "default": "集中維護實物、紅包、禮券與點數的單位及成本版本；車型方案只需選擇品項與數量。",
+    "template": "templates/sales/dealer_reward_catalog_list.html"
+  },
+  "dealer_sales_program_list.778729eedf4b": {
+    "page": "車行傭金與銷售獎勵",
+    "default": "先找到車型，再設定每賣一台給合作車行的現金傭金、實物、紅包、禮券或旅遊點數。",
+    "template": "templates/sales/dealer_sales_program_list.html"
+  },
+  "dealer_sales_program_list.ade2027bfa3b": {
+    "page": "車行傭金與銷售獎勵",
+    "default": "每張訂單依車型套用傭金與附加獎勵。",
+    "template": "templates/sales/dealer_sales_program_list.html"
+  },
+  "dealer_sales_program_list.95feb8ac79a9": {
+    "page": "車行傭金與銷售獎勵",
+    "default": "請前往「車行台數獎金」設定。",
+    "template": "templates/sales/dealer_sales_program_list.html"
+  },
+  "dealer_volume_bonus_confirm_delete.2cb714fadb9b": {
+    "page": "刪除台數獎金規則",
+    "default": "只刪除這套設定，不刪除訂單，也不更動其他規則。",
+    "template": "templates/sales/dealer_volume_bonus_confirm_delete.html"
+  },
+  "dealer_volume_bonus_form.9cac0e3ff35a": {
+    "page": "台數獎金規則",
+    "default": "設定適用條件與台數門檻；同一台符合不同規則時，獎金累加。",
+    "template": "templates/sales/dealer_volume_bonus_form.html"
+  },
+  "dealer_volume_bonus_form.311e33599f62": {
+    "page": "台數獎金規則",
+    "default": "所選品牌合併計算台數；未選即不限品牌。",
+    "template": "templates/sales/dealer_volume_bonus_form.html"
+  },
+  "dealer_volume_bonus_form.7fd6b4831fd4": {
+    "page": "台數獎金規則",
+    "default": "只顯示符合品牌、能源的車型；未指定即不限車型。",
+    "template": "templates/sales/dealer_volume_bonus_form.html"
+  },
+  "dealer_volume_bonus_form.7d955c9a25fe": {
+    "page": "台數獎金規則",
+    "default": "選「全部合作車行」仍逐家計算台數，不會把不同車行的台數加在一起。",
+    "template": "templates/sales/dealer_volume_bonus_form.html"
+  },
+  "dealer_volume_bonus_form.8ac1e7426cf1": {
+    "page": "台數獎金規則",
+    "default": "所選期間各自計算門檻與獎金，不合併台數。",
+    "template": "templates/sales/dealer_volume_bonus_form.html"
+  },
+  "dealer_volume_bonus_form.b8da6c66fce3": {
+    "page": "台數獎金規則",
+    "default": "同一規則只採最高已達門檻，套用本期全部符合訂單。例如 3 台／每台 500 元，達 3 台即為 1,500 元。",
+    "template": "templates/sales/dealer_volume_bonus_form.html"
+  },
+  "dealer_volume_bonus_list.bd098199f5fa": {
+    "page": "車行台數獎金",
+    "default": "點選上方「新增規則」，設定適用車行及獎金條件。",
+    "template": "templates/sales/dealer_volume_bonus_list.html"
+  },
+  "dealer_volume_bonus_list.a2a0e29770a6": {
+    "page": "車行台數獎金",
+    "default": "尚無銷售的規則仍會保留，可到「規則管理」查看或編輯。",
+    "template": "templates/sales/dealer_volume_bonus_list.html"
+  },
+  "dealer_volume_bonus_settle.6e1d7bce32e6": {
+    "page": "台數獎金試算與結算",
+    "default": "各期獨立計算，不合併台數。",
+    "template": "templates/sales/dealer_volume_bonus_settle.html"
+  },
+  "dealer_volume_bonus_settle.63010827821f": {
+    "page": "台數獎金試算與結算",
+    "default": "各車行分開計算門檻與結算。",
+    "template": "templates/sales/dealer_volume_bonus_settle.html"
+  },
+  "gift_distribution.47981000af75": {
+    "page": "年節送禮分發",
+    "default": "手動建立活動與送禮名單，與每月價格表清單分開管理。",
+    "template": "templates/sales/gift_distribution.html"
+  },
+  "historical_buyer_replacement.ed419b6a2c4c": {
+    "page": "退訂換買家",
+    "default": "僅限 admin · 歷史匯入更正",
+    "template": "templates/sales/historical_buyer_replacement.html"
+  },
+  "historical_buyer_replacement.7bd3caf445d1": {
+    "page": "退訂換買家",
+    "default": "本頁尚未執行退訂或補匯。上一頁已儲存的說明會帶入下方，不需重新填寫。",
+    "template": "templates/sales/historical_buyer_replacement.html"
+  },
+  "historical_buyer_replacement.837132fd6aa6": {
+    "page": "退訂換買家",
+    "default": "僅使用已儲存的本列資料，不會帶入其他頁尚未儲存的內容。",
+    "template": "templates/sales/historical_buyer_replacement.html"
+  },
+  "historical_buyer_replacement.5e3a00140349": {
+    "page": "退訂換買家",
+    "default": "原買家必須未實際領牌、未交車，且款項未收或已全額退清。若實際已領牌、交付或仍有待處理款項，不可使用此流程。",
+    "template": "templates/sales/historical_buyer_replacement.html"
+  },
+  "historical_buyer_replacement.946894b8d80a": {
+    "page": "退訂換買家",
+    "default": "請保留證據與原單，不要刪除文件或修改識別號碼來繞過檢查。",
+    "template": "templates/sales/historical_buyer_replacement.html"
+  },
+  "historical_buyer_replacement.802c2a69e1f9": {
+    "page": "退訂換買家",
+    "default": "以下均不預先勾選；領牌日期不能單憑 Excel 刪除或改名推定作廢。只在確實符合時勾選。",
+    "template": "templates/sales/historical_buyer_replacement.html"
+  },
+  "historical_buyer_replacement.2dfb704e6672": {
+    "page": "退訂換買家",
+    "default": "尚未領牌的新單仍須於一般訂單流程核對分期、牌險與其他費用，再完成領牌及交付。",
+    "template": "templates/sales/historical_buyer_replacement.html"
+  },
+  "historical_buyer_replacement.cbc72ebc4faf": {
+    "page": "退訂換買家",
+    "default": "原單更正為退訂 → 解除原配車 → 補匯新買家並配回同一車輛。任一步失敗，全部回復。",
+    "template": "templates/sales/historical_buyer_replacement.html"
+  },
+  "historical_buyer_replacement.7f49fe8116ea": {
+    "page": "退訂換買家",
+    "default": "保留原始 Excel、原訂單、收款與營運金額及異動歷程。原單不再計入有效銷售／未結算台數；本頁只記錄已完成退款的事實，不會實際轉帳或搬移收款。已有結算台數獎金會阻擋。",
+    "template": "templates/sales/historical_buyer_replacement.html"
+  },
+  "historical_buyer_replacement.31c279c8e8b4": {
+    "page": "退訂換買家",
+    "default": "「釋放車輛」會移除原訂單的配車關聯，讓同一台車可配給新買家；不會刪除庫存車身號碼或原交易歷史。",
+    "template": "templates/sales/historical_buyer_replacement.html"
+  },
+  "historical_date_change.bf691665cf14": {
+    "page": "核對領牌改期",
+    "default": "僅限 admin · 更新原訂單，不新增",
+    "template": "templates/sales/historical_date_change.html"
+  },
+  "historical_date_change.49654b4f6005": {
+    "page": "核對領牌改期",
+    "default": "來源列其他收支、個人資料與說明也不會自動更新到原訂單；有需要請另走原訂單維護流程。",
+    "template": "templates/sales/historical_date_change.html"
+  },
+  "historical_date_change.768e4d710aa4": {
+    "page": "核對領牌改期",
+    "default": "以下為「目前主檔」在兩個日期的適用版本參考，不是原交易的實際金額，也不是已完成財務對帳。人工調整、歷史金額與已鎖定快照仍保留；未來在原訂單操作領牌／費用時，須再依 DMIS 規則核對。",
+    "template": "templates/sales/historical_date_change.html"
+  },
+  "historical_date_change.edab054d87b6": {
+    "page": "核對領牌改期",
+    "default": "預計模式會撤除歷史誤標的領牌／交付完成時間，改為「已配車」、庫存「已預留」；以領牌完成為依據的台數獎金會暫時排除。已實際領牌模式保留原交付進度，按更正日期歸期；一般依日期報表亦會移至新日期。",
+    "template": "templates/sales/historical_date_change.html"
+  },
+  "historical_date_change.2f71c04e12a9": {
+    "page": "核對領牌改期",
+    "default": "不要刪除領牌文件或改車身號碼來繞過檢查。",
+    "template": "templates/sales/historical_date_change.html"
+  },
+  "historical_date_change.3801dd2065cc": {
+    "page": "核對領牌改期",
+    "default": "若只是預定去領牌，請選「預計領牌」，不可把未來日期標成已完成；本頁不會自動判斷真實進度。",
+    "template": "templates/sales/historical_date_change.html"
+  },
+  "historical_date_change.620044a10a62": {
+    "page": "核對領牌改期",
+    "default": "送出後會更新原訂單並保留異動歷程，此列改列「已更新」。任一步失敗，全部回復。",
+    "template": "templates/sales/historical_date_change.html"
+  },
+  "home_favorites.cf96b5fd5dbe": {
+    "page": "編輯常用功能",
+    "default": "勾選常用功能，再調整順序，讓首頁更符合你的工作習慣。",
+    "template": "templates/sales/home_favorites.html"
+  },
+  "home_favorites.115d0ddef348": {
+    "page": "編輯常用功能",
+    "default": "目前未啟用 JavaScript，仍可勾選後儲存；保留原有項目順序，新勾選項目依下方分類順序附加。",
+    "template": "templates/sales/home_favorites.html"
+  },
+  "home_favorites.4357e3bdd4db": {
+    "page": "編輯常用功能",
+    "default": "找不到符合的功能。試試其他關鍵字，或取消「只看已勾選」。未提供的功能可能尚未取得權限，請聯絡 admin。",
+    "template": "templates/sales/home_favorites.html"
+  },
+  "home_favorites.a8d0a290d192": {
+    "page": "編輯常用功能",
+    "default": "由上到下就是首頁的顯示順序，勾選後可在這裡移動或移除。",
+    "template": "templates/sales/home_favorites.html"
+  },
+  "home_favorites.87752b3e88d3": {
+    "page": "編輯常用功能",
+    "default": "尚未選擇功能。你也可以儲存空清單，之後隨時再加入。",
+    "template": "templates/sales/home_favorites.html"
+  },
+  "home_favorites.dffc1d13b9ad": {
+    "page": "編輯常用功能",
+    "default": "上述操作只改變本次草稿，按「儲存常用功能」才會生效。",
+    "template": "templates/sales/home_favorites.html"
+  },
+  "incentive_rule_form.a844efbb3476": {
+    "page": "共通畫面說明",
+    "default": "版本依實際領牌日期套用；結束日期留空代表持續有效，較新的生效版本會優先。",
+    "template": "templates/sales/incentive_rule_form.html"
+  },
+  "incentive_rule_form.531c59056fd0": {
+    "page": "共通畫面說明",
+    "default": "分期公司、期數、每期金額、開辦費及預估撥款皆以訂單日套用分期方案；本頁只維護原廠獎勵與補助。",
+    "template": "templates/sales/incentive_rule_form.html"
+  },
+  "incentive_rule_form.b3fe47b46d70": {
+    "page": "共通畫面說明",
+    "default": "領牌完成時會將金額固定於訂單。之後新增或修改車型版本，不會改動已完成訂單的損益資料。",
+    "template": "templates/sales/incentive_rule_form.html"
+  },
+  "incentive_rule_list.5625a3b6e4f7": {
+    "page": "原廠獎勵與補助",
+    "default": "維護各車型的實銷獎勵金、促銷補助金及分期補貼息；套用後會保存訂單快照。",
+    "template": "templates/sales/incentive_rule_list.html"
+  },
+  "incentive_rule_list.c43f1dbaa16c": {
+    "page": "原廠獎勵與補助",
+    "default": "建立後，訂單會依實際領牌日期自動套用。",
+    "template": "templates/sales/incentive_rule_list.html"
+  },
+  "installment_company_list.ebfc7c9fc811": {
+    "page": "分期公司與方案",
+    "default": "集中維護公司與客服電話；訂單套用方案時會保存當下資料，不受日後修改影響。",
+    "template": "templates/sales/installment_company_list.html"
+  },
+  "installment_company_list.4b00ab3ebcea": {
+    "page": "分期公司與方案",
+    "default": "使用上方「新增分期公司」開始建立。",
+    "template": "templates/sales/installment_company_list.html"
+  },
+  "installment_plan_list.65c84ecf7f02": {
+    "page": "分期方案",
+    "default": "訂單依訂單日期選版本，再由期數帶入公司、每期金額、開辦費與預估撥款方式。",
+    "template": "templates/sales/installment_plan_list.html"
+  },
+  "installment_plan_list.b1528867904d": {
+    "page": "分期方案",
+    "default": "一般方案選比例或固定金額；沒有固定規則的特殊案件選「本單另填」。",
+    "template": "templates/sales/installment_plan_list.html"
+  },
+  "installment_plan_list.506f08ad19ad": {
+    "page": "分期方案",
+    "default": "建立後會立即加入目前及後續新增的期數選單，並套用到剛才編輯的期數。",
+    "template": "templates/sales/installment_plan_list.html"
+  },
+  "installment_plan_list.ee6c77b09275": {
+    "page": "分期方案",
+    "default": "可稍後再到分期公司主檔補充或修改。",
+    "template": "templates/sales/installment_plan_list.html"
+  },
+  "intake_drafts.da8965b63ceb": {
+    "page": "我的接待草稿",
+    "default": "這是內部準備畫面，只顯示你自己的接待草稿。面對客戶時，請先開啟本次要填寫的草稿。",
+    "template": "templates/sales/intake_drafts.html"
+  },
+  "intake_drafts.5f66dbfdf6c9": {
+    "page": "我的接待草稿",
+    "default": "目前沒有未完成的接待草稿。",
+    "template": "templates/sales/intake_drafts.html"
+  },
+  "inventory_form.ffd9da590d6c": {
+    "page": "共通畫面說明",
+    "default": "可在下方選擇新照片取代，或勾選清除。",
+    "template": "templates/sales/inventory_form.html"
+  },
+  "inventory_form.ad64a5a44030": {
+    "page": "共通畫面說明",
+    "default": "變更實際位置後，系統會自動留下調度時間、來源與目的地。",
+    "template": "templates/sales/inventory_form.html"
+  },
+  "inventory_list.7640890eb318": {
+    "page": "車輛庫存",
+    "default": "預設顯示仍需管理的車輛；已交付、已售出與停用資料保留於歷史資料。",
+    "template": "templates/sales/inventory_list.html"
+  },
+  "inventory_list.8b43447f5743": {
+    "page": "車輛庫存",
+    "default": "可銷售與仍在處理中的車輛",
+    "template": "templates/sales/inventory_list.html"
+  },
+  "inventory_list.2ee8b3ef4bbe": {
+    "page": "車輛庫存",
+    "default": "已交付、已售出與停用車輛",
+    "template": "templates/sales/inventory_list.html"
+  },
+  "inventory_quick_form.010933ad9a73": {
+    "page": "快速進車",
+    "default": "每列代表一台車；進車地點固定為本店，資料全部正確後才會整批建立。",
+    "template": "templates/sales/inventory_quick_form.html"
+  },
+  "legacy_import_detail.88d2204f24b4": {
+    "page": "匯入檢查",
+    "default": "你可以離開這個畫面，匯入不會中斷；回來後仍可查看最新進度。",
+    "template": "templates/sales/legacy_import_detail.html"
+  },
+  "legacy_import_detail.dc5625c8d431": {
+    "page": "匯入檢查",
+    "default": "這類問題無法在逐列編輯中修復，請修正 Excel 後重新上傳。",
+    "template": "templates/sales/legacy_import_detail.html"
+  },
+  "legacy_import_detail.672487fd1cd5": {
+    "page": "匯入檢查",
+    "default": "系統目前採車主資料區姓名。",
+    "template": "templates/sales/legacy_import_detail.html"
+  },
+  "legacy_import_detail.08efada5364b": {
+    "page": "匯入檢查",
+    "default": "歷史資料無法可靠拆分，保留原始值供追查。",
+    "template": "templates/sales/legacy_import_detail.html"
+  },
+  "legacy_import_detail.f826876776a5": {
+    "page": "匯入檢查",
+    "default": "中古車可沿用原車識別號碼，不會重複占用新車庫存。",
+    "template": "templates/sales/legacy_import_detail.html"
+  },
+  "legacy_import_detail.a9a82a0a2298": {
+    "page": "匯入檢查",
+    "default": "確認平行使用期間的庫存落差。",
+    "template": "templates/sales/legacy_import_detail.html"
+  },
+  "legacy_import_detail.9ed91a0f9ebc": {
+    "page": "匯入檢查",
+    "default": "把 Excel 名稱對應到既有主檔、在此快速新增，或保留為歷史文字。處理後會立即重新驗證本批資料。",
+    "template": "templates/sales/legacy_import_detail.html"
+  },
+  "legacy_import_detail.6a594c2d6990": {
+    "page": "匯入檢查",
+    "default": "請先用車牌、車色與引擎／車身號碼確認，再選擇正式車型。",
+    "template": "templates/sales/legacy_import_detail.html"
+  },
+  "legacy_import_detail.78e7c64a6f08": {
+    "page": "匯入檢查",
+    "default": "選擇正確車型後，這個 Excel 名稱往後都會自動套用相同對應。",
+    "template": "templates/sales/legacy_import_detail.html"
+  },
+  "legacy_import_detail.a80f522519f7": {
+    "page": "匯入檢查",
+    "default": "先建立匯入必要資訊；售價、成本與獎勵規則可稍後到車型資料補充。",
+    "template": "templates/sales/legacy_import_detail.html"
+  },
+  "legacy_import_detail.b1ed877bed51": {
+    "page": "匯入檢查",
+    "default": "適用於 Excel 名稱不同，但實際上是同一家車行或平台的資料。",
+    "template": "templates/sales/legacy_import_detail.html"
+  },
+  "legacy_import_detail.d5aadd852687": {
+    "page": "匯入檢查",
+    "default": "先建立基本資料；若現有分類不適用，可在這裡直接新增。聯絡人、品牌合作與傭金規則可稍後補充。",
+    "template": "templates/sales/legacy_import_detail.html"
+  },
+  "legacy_import_detail.5632f3203ade": {
+    "page": "匯入檢查",
+    "default": "原始檔不會被修改；下方只調整本次匯入要使用的暫存值。",
+    "template": "templates/sales/legacy_import_detail.html"
+  },
+  "legacy_import_detail.e76c00b81f02": {
+    "page": "匯入檢查",
+    "default": "這不是新增訂單。先保存本列與說明，再確認日期性質，更新原訂單並保留配車及收支。",
+    "template": "templates/sales/legacy_import_detail.html"
+  },
+  "legacy_import_detail.23ce80edad52": {
+    "page": "匯入檢查",
+    "default": "填寫「退訂」說明不會自動取消原訂單。下方按鈕會先保存本頁修改與說明，再帶你確認新舊買家；此步驟不會取消、退款或建立訂單。",
+    "template": "templates/sales/legacy_import_detail.html"
+  },
+  "legacy_import_detail.273266029232": {
+    "page": "匯入檢查",
+    "default": "仍可在下方修正新買家資料；已填說明會帶入下一頁。同買家改期請使用「核對領牌改期」，不使用換買家。",
+    "template": "templates/sales/legacy_import_detail.html"
+  },
+  "legacy_import_detail.52b03a466ea0": {
+    "page": "匯入檢查",
+    "default": "醒目欄位表示需要核對，不代表一定填錯。確認既有訂單前，請勿直接重複補匯。",
+    "template": "templates/sales/legacy_import_detail.html"
+  },
+  "legacy_import_detail.e22509614e73": {
+    "page": "匯入檢查",
+    "default": "引擎與車身欄位可能互相撞號，請核對全部庫存，不會自動改配其他車輛。",
+    "template": "templates/sales/legacy_import_detail.html"
+  },
+  "legacy_import_detail.6cf3dc2cef2a": {
+    "page": "匯入檢查",
+    "default": "進貨與銷貨會分別列出，不代表都是重複交易。",
+    "template": "templates/sales/legacy_import_detail.html"
+  },
+  "legacy_import_detail.effa0382094a": {
+    "page": "匯入檢查",
+    "default": "換買家與同買家改期是不同流程。請使用上方對應的「下一步：核對」或「核對領牌改期」入口，會一併保存本頁內容；不會在此步驟變更訂單。",
+    "template": "templates/sales/legacy_import_detail.html"
+  },
+  "legacy_import_detail.e20c8abce86d": {
+    "page": "匯入檢查",
+    "default": "此訂單沒有歷史 Excel 快照，僅能比對系統目前資料。",
+    "template": "templates/sales/legacy_import_detail.html"
+  },
+  "legacy_import_detail.965d8c4b6782": {
+    "page": "匯入檢查",
+    "default": "人工修正只影響這次匯入暫存值，不會覆蓋原始 Excel。",
+    "template": "templates/sales/legacy_import_detail.html"
+  },
+  "legacy_import_list.ce35c1a42aca": {
+    "page": "舊資料 Excel 匯入",
+    "default": "上傳後先檢查、修正與排除問題列；完成確認前不會寫入正式訂單或庫存。",
+    "template": "templates/sales/legacy_import_list.html"
+  },
+  "operations_report.cd4b2671ea91": {
+    "page": "營運總表",
+    "default": "掌握公司走向、收款風險與作業卡點。逐筆查詢集中於全部訂單，此處不重複列出訂單。",
+    "template": "templates/sales/operations_report.html"
+  },
+  "operations_report.911199825608": {
+    "page": "營運總表",
+    "default": "台數、成交額與淨利分開比較。最後一個月僅截至今日；淨利斷線代表沒有可計入資料，不是零獲利。",
+    "template": "templates/sales/operations_report.html"
+  },
+  "operations_report.8f3928fa3b5e": {
+    "page": "營運總表",
+    "default": "所有月份的目前未結事項；各類可能重疊，不相加",
+    "template": "templates/sales/operations_report.html"
+  },
+  "operations_report.e892df1710b3": {
+    "page": "營運總表",
+    "default": "依本月實際領牌日期；淨利只計入資料完整的訂單。",
+    "template": "templates/sales/operations_report.html"
+  },
+  "order_account_scope.25058192b0c5": {
+    "page": "下單身分與所屬通路",
+    "default": "店內人員使用原有畫面權限；合作車行僅能下單及查看所屬車行訂單，不能查看公司財務或其他車行資料。admin 為馭盛店內管理帳號。",
+    "template": "templates/sales/order_account_scope.html"
+  },
+  "order_account_scope.0a9a4a2ac2cf": {
+    "page": "下單身分與所屬通路",
+    "default": "變更所屬車行會立即變更此帳號可見的訂單範圍，請確認後儲存。",
+    "template": "templates/sales/order_account_scope.html"
+  },
+  "order_deletion_confirm.3bc70b1b75a9": {
+    "page": "共通畫面說明",
+    "default": "審核前保留原作業狀態與統計；取消申請不會改變交易。",
+    "template": "templates/sales/order_deletion_confirm.html"
+  },
+  "order_deletion_confirm.bb5486fef45c": {
+    "page": "共通畫面說明",
+    "default": "送出後交由 admin 審核，不會立即刪除。申請人可以取消申請。",
+    "template": "templates/sales/order_deletion_confirm.html"
+  },
+  "order_deletion_confirm.5d225fb87253": {
+    "page": "共通畫面說明",
+    "default": "admin 可在下方明確勾選後作廢訂單影響：停止一般查詢、統計與收款待辦，解除配車及作廢獎金分配。不抹除歷史證據，不轉移到新單；已領牌／交付的庫存車轉為停用，並非可銷售新車。",
+    "template": "templates/sales/order_deletion_confirm.html"
+  },
+  "order_deletion_queue.86210f7abc8b": {
+    "page": "刪除審核",
+    "default": "目前沒有待審核的刪除申請。",
+    "template": "templates/sales/order_deletion_queue.html"
+  },
+  "order_detail.b4ee54c429c4": {
+    "page": "訂單內容",
+    "default": "請選擇要列印的簽署文件；開啟後可使用手機或電腦的列印功能選擇印表機。",
+    "template": "templates/sales/order_detail.html"
+  },
+  "order_detail.088173a21f94": {
+    "page": "訂單內容",
+    "default": "保留原車識別號碼供查詢，不重複綁定實體庫存",
+    "template": "templates/sales/order_detail.html"
+  },
+  "order_detail.8b672b874902": {
+    "page": "訂單內容",
+    "default": "目前無符合的可售庫存，請先建立進車資料。",
+    "template": "templates/sales/order_detail.html"
+  },
+  "order_detail.1061a429c530": {
+    "page": "訂單內容",
+    "default": "此訂單已有車牌號碼、領牌完成紀錄或領牌文件，為避免車輛與文件對錯，請先確認並處理領牌資料。",
+    "template": "templates/sales/order_detail.html"
+  },
+  "order_detail.779374150fc1": {
+    "page": "訂單內容",
+    "default": "目前沒有其他符合車型及車色的可售庫存。",
+    "template": "templates/sales/order_detail.html"
+  },
+  "order_detail.d64e046da912": {
+    "page": "訂單內容",
+    "default": "確認後，原車會恢復為可售，新車會立即鎖定並留下完整變更紀錄。",
+    "template": "templates/sales/order_detail.html"
+  },
+  "order_detail.70cd34ac680c": {
+    "page": "訂單內容",
+    "default": "訂單已結案或取消，僅供查看。",
+    "template": "templates/sales/order_detail.html"
+  },
+  "order_detail.84ab150d7e35": {
+    "page": "訂單內容",
+    "default": "勾選後會立即啟用並開放文件上傳；關閉不會刪除已上傳文件。",
+    "template": "templates/sales/order_detail.html"
+  },
+  "order_detail.16d07928b807": {
+    "page": "訂單內容",
+    "default": "若不是同一人，需補齊舊車主姓名、證號、存摺封面與聲明書。",
+    "template": "templates/sales/order_detail.html"
+  },
+  "order_detail.6033f4a4b570": {
+    "page": "訂單內容",
+    "default": "修改舊車資料或補助項目後，即可在這裡儲存。",
+    "template": "templates/sales/order_detail.html"
+  },
+  "order_detail.a6bea5b2956a": {
+    "page": "訂單內容",
+    "default": "與領牌文件分開保存；可直接拍照或上傳圖片、PDF。",
+    "template": "templates/sales/order_detail.html"
+  },
+  "order_detail.b14167f8e945": {
+    "page": "訂單內容",
+    "default": "可依實際需求新增多份圖片、PDF、Word、Excel 或文字檔；不列入補助完成條件。",
+    "template": "templates/sales/order_detail.html"
+  },
+  "order_detail.98bfed2bc1c1": {
+    "page": "訂單內容",
+    "default": "單一檔案上限 20 MB，不接受執行檔。",
+    "template": "templates/sales/order_detail.html"
+  },
+  "order_detail.38f944b02b9c": {
+    "page": "訂單內容",
+    "default": "已上傳的文件仍會保留；再次啟用後可繼續補齊資料。",
+    "template": "templates/sales/order_detail.html"
+  },
+  "order_detail.742df47d654e": {
+    "page": "訂單內容",
+    "default": "補助作業與配車相互獨立，可依實際送件進度繼續辦理。",
+    "template": "templates/sales/order_detail.html"
+  },
+  "order_detail.dac67b8f5494": {
+    "page": "訂單內容",
+    "default": "完成配車後，才能登記實際領牌日期、車牌號碼並上傳相關文件。",
+    "template": "templates/sales/order_detail.html"
+  },
+  "order_detail.b03ace01bdda": {
+    "page": "訂單內容",
+    "default": "車輛結算成本會依機種與實際領牌日期判斷；領牌縣市僅供領牌及營運資料使用。",
+    "template": "templates/sales/order_detail.html"
+  },
+  "order_detail.f76d73826e85": {
+    "page": "訂單內容",
+    "default": "支援拍照或選擇 JPG、PNG、WebP、PDF；上傳錯誤時可刪除或直接替換。",
+    "template": "templates/sales/order_detail.html"
+  },
+  "order_detail.694d2fbee690": {
+    "page": "訂單內容",
+    "default": "若另有第三人責任險、車體險等，可依實際名稱新增多份文件。",
+    "template": "templates/sales/order_detail.html"
+  },
+  "order_detail.bce60d0f7a34": {
+    "page": "訂單內容",
+    "default": "確認後將鎖定本階段內容，訂單進入待交付。",
+    "template": "templates/sales/order_detail.html"
+  },
+  "order_detail.c4b8fc8f1bd2": {
+    "page": "訂單內容",
+    "default": "合作車行可先領車；尚未收清時，首頁會持續提醒。",
+    "template": "templates/sales/order_detail.html"
+  },
+  "order_detail.a0bc4d13a7bb": {
+    "page": "訂單內容",
+    "default": "一般訂單須先確認尾款收清，才能完成交付。",
+    "template": "templates/sales/order_detail.html"
+  },
+  "order_detail.987b2e8b79d5": {
+    "page": "訂單內容",
+    "default": "部分收款可先保存；全數收清後再勾選確認。",
+    "template": "templates/sales/order_detail.html"
+  },
+  "order_detail.3d2efe687324": {
+    "page": "訂單內容",
+    "default": "此訂單為合作車行領車，可先交付車輛；領牌資料與文件仍須補齊後才能結案。",
+    "template": "templates/sales/order_detail.html"
+  },
+  "order_detail.63bfa0623e10": {
+    "page": "訂單內容",
+    "default": "領牌階段已完成，可進行後續收款與車輛交付作業。",
+    "template": "templates/sales/order_detail.html"
+  },
+  "order_detail.888f88e01465": {
+    "page": "訂單內容",
+    "default": "請點選最接近的狀況；特殊情形可寫在下方交付備註。",
+    "template": "templates/sales/order_detail.html"
+  },
+  "order_detail.16b976fde2c5": {
+    "page": "訂單內容",
+    "default": "選擇「發現刮傷或損壞」時必填。",
+    "template": "templates/sales/order_detail.html"
+  },
+  "order_detail.8a1ee2445105": {
+    "page": "訂單內容",
+    "default": "委託託運時，實際交付時間是交給託運公司的時間。完成後訂單與實體車輛將鎖定。",
+    "template": "templates/sales/order_detail.html"
+  },
+  "order_detail.5dd8edcdc2f2": {
+    "page": "訂單內容",
+    "default": "一般訂單必須先完成領牌，才可進入交付階段。",
+    "template": "templates/sales/order_detail.html"
+  },
+  "order_detail.7811e1f3c290": {
+    "page": "訂單內容",
+    "default": "系統只建立本次 PDF，不會改動原始照片；浮水印會帶用途與今天日期。",
+    "template": "templates/sales/order_detail.html"
+  },
+  "order_detail.8470a8d69a64": {
+    "page": "訂單內容",
+    "default": "本單台數與傭金歸給此車行；原銷售來源不變。",
+    "template": "templates/sales/order_detail.html"
+  },
+  "order_detail.e0dfcca76bee": {
+    "page": "訂單內容",
+    "default": "訂單建立時已保存價格快照，不受後續版本調整影響。",
+    "template": "templates/sales/order_detail.html"
+  },
+  "order_detail.c8ba076ab19d": {
+    "page": "訂單內容",
+    "default": "不列入作業階段；取得紙本簽名後可隨時補上。",
+    "template": "templates/sales/order_detail.html"
+  },
+  "order_detail.8f7144ef61f6": {
+    "page": "訂單內容",
+    "default": "上傳已簽署或掃描的訂購合約；未上傳不影響配車與交付。",
+    "template": "templates/sales/order_detail.html"
+  },
+  "order_detail.d97010d7fe91": {
+    "page": "訂單內容",
+    "default": "個資同意書與訂購合約分開保存，方便日後單獨查閱。",
+    "template": "templates/sales/order_detail.html"
+  },
+  "order_detail.da82613529cc": {
+    "page": "訂單內容",
+    "default": "使用目前啟用的定位範本直接套入本訂單資料。",
+    "template": "templates/sales/order_detail.html"
+  },
+  "order_form.d24335d3fe34": {
+    "page": "訂單填寫",
+    "default": "可繼續修改訂單內容，必須填寫原因並確認；交付狀態不變，已配車及已結算限制仍保留。未改計費條件時保留原金額與快照。",
+    "template": "templates/sales/order_form.html"
+  },
+  "order_form.dedf51422a3a": {
+    "page": "訂單填寫",
+    "default": "選擇已帶入，可直接填寫來源、車主及交車需求；需要調整時再更換。",
+    "template": "templates/sales/order_form.html"
+  },
+  "order_form.6be3bc009cdf": {
+    "page": "訂單填寫",
+    "default": "同頁更換方案需要啟用 JavaScript；原選擇仍可正常送出，若方案失效請重新選車。",
+    "template": "templates/sales/order_form.html"
+  },
+  "order_form.82c91b987da4": {
+    "page": "訂單填寫",
+    "default": "只選車型與車色，簽約後再配實體車",
+    "template": "templates/sales/order_form.html"
+  },
+  "order_form.9313f14b5c44": {
+    "page": "訂單填寫",
+    "default": "先選車款與顏色，後續填單會保留你的選擇。",
+    "template": "templates/sales/order_form.html"
+  },
+  "order_form.8a0d36a5de3d": {
+    "page": "訂單填寫",
+    "default": "拍照後自動辨識，再對照證件核對",
+    "template": "templates/sales/order_form.html"
+  },
+  "order_form.22518dd5a27d": {
+    "page": "訂單填寫",
+    "default": "選擇動力類型與車型後自動試算",
+    "template": "templates/sales/order_form.html"
+  },
+  "order_form.95121456d49f": {
+    "page": "訂單填寫",
+    "default": "油車依領牌日、排氣量與保險期間試算；電動車與輕型電動車依品牌及領牌級別規則帶入。「實際牌險合計」仍可由人員調整。",
+    "template": "templates/sales/order_form.html"
+  },
+  "order_form.e4b6f41700b0": {
+    "page": "訂單填寫",
+    "default": "選擇車型與期數後，系統會帶入目前有效的分期公司、每期金額及開辦費；仍可由內部人員修改。",
+    "template": "templates/sales/order_form.html"
+  },
+  "order_form.7eacf129bc3f": {
+    "page": "訂單填寫",
+    "default": "配件、汰舊、選號與交車方式",
+    "template": "templates/sales/order_form.html"
+  },
+  "order_form.7825ae5a8413": {
+    "page": "訂單填寫",
+    "default": "汰舊意向可先選待確認；補助是否申請由店內後續核對。",
+    "template": "templates/sales/order_form.html"
+  },
+  "order_form.06e865b632d7": {
+    "page": "訂單填寫",
+    "default": "支援圖片／PDF，每個檔案最多 20 MB；分期表 1 個、補充附件最多 10 個。同次含證件合計最多 35 MB，較多檔案請暫存後重開草稿分批續傳。自動暫存成功後才算保存。",
+    "template": "templates/sales/order_form.html"
+  },
+  "order_form.01b4c1935981": {
+    "page": "訂單填寫",
+    "default": "選擇配件與數量。接待下單依現行售價計算；贈送或例外價格由店內財務人員確認。",
+    "template": "templates/sales/order_form.html"
+  },
+  "order_form.3c48542d2741": {
+    "page": "訂單填寫",
+    "default": "勾選後，建立訂單時同時記錄你為接單人；不勾選則先進入待接單清單。",
+    "template": "templates/sales/order_form.html"
+  },
+  "order_form.f014372ecb14": {
+    "page": "訂單填寫",
+    "default": "照片已安全保存，可繼續填寫",
+    "template": "templates/sales/order_form.html"
+  },
+  "order_list.f73efc30a7cd": {
+    "page": "全部訂單",
+    "default": "日期範圍留白時，保留沒有日期的訂單。取消待退款條件保留退款待辦。",
+    "template": "templates/sales/order_list.html"
+  },
+  "order_list.53c85242b009": {
+    "page": "全部訂單",
+    "default": "建立第一張訂單後會顯示在這裡。",
+    "template": "templates/sales/order_list.html"
+  },
+  "order_operations.5581c6988866": {
+    "page": "營運資料",
+    "default": "單筆淨利＝實際撥款－成本－總支出＋總收入＋實銷獎勵金＋促銷補助金＋分期補貼息＋強制險傭金＋信用卡傭金",
+    "template": "templates/sales/order_operations.html"
+  },
+  "order_operations.715d63971b11": {
+    "page": "營運資料",
+    "default": "本筆沿用原 Excel 早期公式，未扣友善車行、首賣、台數獎金支出；原始值仍留存在匯入資料。",
+    "template": "templates/sales/order_operations.html"
+  },
+  "order_operations.fb6f0cbe2651": {
+    "page": "營運資料",
+    "default": "不出現在建立訂單畫面；核准後才會扣減應收，配件主檔售價與工資快照不會被改寫。",
+    "template": "templates/sales/order_operations.html"
+  },
+  "order_operations.c3a138109390": {
+    "page": "營運資料",
+    "default": "現金依車款售價自動帶入；分期依訂單日套用的分期方案快照帶入；網路平台與刷卡訂單由人員輸入。人工修改後不再被系統覆蓋。",
+    "template": "templates/sales/order_operations.html"
+  },
+  "order_operations.787a0ef7d8ff": {
+    "page": "營運資料",
+    "default": "確認分期或平台撥款後，實際撥款與淨利依收款紀錄同步；要更正請修改該筆收款。取消確認或刪除該筆收款時，會恢復確認前的人工金額，或本單預估值。舊資料若沒有連動快照，需人工核對，不猜測回填。",
+    "template": "templates/sales/order_operations.html"
+  },
+  "order_operations.c74319d1693b": {
+    "page": "營運資料",
+    "default": "本單套用的分期方案未設定預估撥款，請至車型的分期方案補設定，或人工輸入實際撥款。",
+    "template": "templates/sales/order_operations.html"
+  },
+  "order_operations.96a10ddcad5b": {
+    "page": "營運資料",
+    "default": "保留歷史來源，不依今日主檔重算",
+    "template": "templates/sales/order_operations.html"
+  },
+  "order_operations.9078ddafbd24": {
+    "page": "營運資料",
+    "default": "完成領牌資料並符合成本規則後自動帶入",
+    "template": "templates/sales/order_operations.html"
+  },
+  "order_operations.3eb12d00a468": {
+    "page": "營運資料",
+    "default": "目前以 0 元帶入；可至車型資料新增版本",
+    "template": "templates/sales/order_operations.html"
+  },
+  "order_recycle_bin.03775d5dc415": {
+    "page": "已刪除訂單",
+    "default": "這裡的訂單不納入一般列表與統計。原始紀錄及附件仍保留，還原需具備操作權限。",
+    "template": "templates/sales/order_recycle_bin.html"
+  },
+  "order_recycle_bin.c59d8c92981a": {
+    "page": "已刪除訂單",
+    "default": "沒有符合條件的已刪除訂單。",
+    "template": "templates/sales/order_recycle_bin.html"
+  },
+  "order_submitted.f3e4dbab124d": {
+    "page": "訂單已成立",
+    "default": "馭盛已接單，將依訂單安排後續作業。",
+    "template": "templates/sales/order_submitted.html"
+  },
+  "order_submitted.47c0a43d4711": {
+    "page": "訂單已成立",
+    "default": "已送達馭盛，等待店內人員接單。請保留訂單編號供後續查詢。",
+    "template": "templates/sales/order_submitted.html"
+  },
+  "positioned_template_form.e12485e70082": {
+    "page": "共通畫面說明",
+    "default": "位置以紙張左上角為基準，單位為 mm；預覽會套用最近一張訂單。",
+    "template": "templates/sales/positioned_template_form.html"
+  },
+  "positioned_template_form.861b8cdaa064": {
+    "page": "共通畫面說明",
+    "default": "可新增、刪除；X 是左側距離，Y 是頂端距離。",
+    "template": "templates/sales/positioned_template_form.html"
+  },
+  "positioned_template_list.6d3c7c965291": {
+    "page": "列印範本設定",
+    "default": "信封可使用空白背景；報件單可上傳 Excel、PDF 或圖片並定位訂單欄位。",
+    "template": "templates/sales/positioned_template_list.html"
+  },
+  "price_list_distribution.dd149bef545f": {
+    "page": "價格表分發",
+    "default": "整間車行完成一次即可；品牌與三陽專銷依清單建立當下保存。",
+    "template": "templates/sales/price_list_distribution.html"
+  },
+  "price_list_distribution.ff13cbbbca46": {
+    "page": "價格表分發",
+    "default": "可切換負責人、清除篩選條件，或先確認本月分工與車行合作資料。",
+    "template": "templates/sales/price_list_distribution.html"
+  },
+  "price_list_distribution_assignments.d3d01a5df52a": {
+    "page": "分配與排序",
+    "default": "先依區域找出車行、勾選例外，再用拖曳安排每位負責人的拜訪順序。",
+    "template": "templates/sales/price_list_distribution_assignments.html"
+  },
+  "price_list_distribution_assignments.a1d2208a8f58": {
+    "page": "分配與排序",
+    "default": "例如先篩「基隆市」並全選，再取消銘傑；篩「內湖區」後則只勾要負責的五家。",
+    "template": "templates/sales/price_list_distribution_assignments.html"
+  },
+  "price_list_distribution_assignments.d7c735bc53ac": {
+    "page": "分配與排序",
+    "default": "勾選車行後，即可一次指派負責人。",
+    "template": "templates/sales/price_list_distribution_assignments.html"
+  },
+  "price_list_distribution_assignments.0b90ab237d85": {
+    "page": "分配與排序",
+    "default": "請清除篩選，或改查其他負責人與區域。",
+    "template": "templates/sales/price_list_distribution_assignments.html"
+  },
+  "profit_unlock.e09829d88ad7": {
+    "page": "解鎖淨利",
+    "default": "此裝置目前登入階段可查看 5 分鐘，到期自動鎖定；不會延長，也不會改變財務編輯權限。",
+    "template": "templates/sales/profit_unlock.html"
+  },
+  "reconciliation_list.699f0b9879fe": {
+    "page": "統一撥款對帳",
+    "default": "只核對分期公司、網路平台與合作車行的預計金額、實際金額及差額；不需逐張進入訂單。",
+    "template": "templates/sales/reconciliation_list.html"
+  },
+  "card_form.b5d978c86009": {
+    "page": "共通畫面說明",
+    "default": "不選即沿用報表範圍。例如同頁一張只看油車，另一張只看電動車；不能超出整份報表的固定範圍。",
+    "template": "templates/sales/reporting/card_form.html"
+  },
+  "center.34a045be48f5": {
+    "page": "報表中心",
+    "default": "查看已發布的分析報表；使用日期、品牌與能源別篩選，再點數字追查訂單。",
+    "template": "templates/sales/reporting/center.html"
+  },
+  "center.d908ac991f81": {
+    "page": "報表中心",
+    "default": "管理者發布報表並開放查看後，就會出現在這裡。",
+    "template": "templates/sales/reporting/center.html"
+  },
+  "classification.dfb6eb191b8d": {
+    "page": "報表分類設定",
+    "default": "管理報表車種分類，不修改訂單、車型主檔、能源、佣金或收款。",
+    "template": "templates/sales/reporting/classification.html"
+  },
+  "classification.3b1904850cb4": {
+    "page": "報表分類設定",
+    "default": "修改先存草稿；還原也不會立即取代正式分類。",
+    "template": "templates/sales/reporting/classification.html"
+  },
+  "classification.7a5d593c3d6a": {
+    "page": "報表分類設定",
+    "default": "包含歷史訂單，不含草稿及取消訂單。畫面最多列 200 組，總數包含所有變更。",
+    "template": "templates/sales/reporting/classification.html"
+  },
+  "classification.1e77f7d6888d": {
+    "page": "報表分類設定",
+    "default": "有規則使用或曾發布使用的類別不能直接刪除。停用後所屬規則不再生效，資料會落到「其他」，請先試算。",
+    "template": "templates/sales/reporting/classification.html"
+  },
+  "classification.ae50d973d1d4": {
+    "page": "報表分類設定",
+    "default": "精確型號優先；不同類別的系列開頭重疊時會阻擋儲存。可先停用舊規則，再建立新規則。數字系列例如 UQ125DA；數字／-代碼系列例如 GSX250F、GSX-R150。",
+    "template": "templates/sales/reporting/classification.html"
+  },
+  "classification.0f6efc50cc18": {
+    "page": "報表分類設定",
+    "default": "顯示不含草稿及取消訂單的原型號彙總；主檔名稱僅供參考，同一原型號可能對應多個主檔。本頁選取會建立／更新精確型號規則，尚未發布前不影響正式報表。",
+    "template": "templates/sales/reporting/classification.html"
+  },
+  "classification.ad43e12b9927": {
+    "page": "報表分類設定",
+    "default": "還原會建立新草稿，仍需試算並發布；目前正式版本不立即改變。以下列出最近 30 個發布版本。",
+    "template": "templates/sales/reporting/classification.html"
+  },
+  "detail_panel.4fc503f4a0d9": {
+    "page": "共通畫面說明",
+    "default": "以下為 DMIS 保存的車行傭金支出，不代表已付款。缺少收支資料不視為零。",
+    "template": "templates/sales/reporting/detail_panel.html"
+  },
+  "display.4950691be4b4": {
+    "page": "共通畫面說明",
+    "default": "下方篩選只會再縮小範圍；清除篩選不解除固定條件。",
+    "template": "templates/sales/reporting/display.html"
+  },
+  "display.3f84b7566769": {
+    "page": "共通畫面說明",
+    "default": "指向查看數字 · Ctrl／⌘ 複選 · 再點取消",
+    "template": "templates/sales/reporting/display.html"
+  },
+  "display.84dc5c9c97a7": {
+    "page": "共通畫面說明",
+    "default": "再次點選取消 · Ctrl／⌘ 可複選",
+    "template": "templates/sales/reporting/display.html"
+  },
+  "draft_preview.6d87f693ded9": {
+    "page": "共通畫面說明",
+    "default": "僅 admin · 已儲存草稿的唯讀核對",
+    "template": "templates/sales/reporting/draft_preview.html"
+  },
+  "draft_preview.809b4854fe2b": {
+    "page": "共通畫面說明",
+    "default": "尚未作為正式報表交付。這裡不會儲存、發布或改動訂單；篩選只影響本次核對。圖表點選下鑽與匯出仍在正式發布頁使用。",
+    "template": "templates/sales/reporting/draft_preview.html"
+  },
+  "edit.45288452ca9c": {
+    "page": "共通畫面說明",
+    "default": "設計工作台 · 僅 admin",
+    "template": "templates/sales/reporting/edit.html"
+  },
+  "edit.51aaf2bc3ae2": {
+    "page": "共通畫面說明",
+    "default": "草稿與已發布版本互相獨立；「發布報表」會一併儲存本次變更，不必先按儲存。",
+    "template": "templates/sales/reporting/edit.html"
+  },
+  "edit.19009959b48b": {
+    "page": "共通畫面說明",
+    "default": "未勾選表示不限。同欄多選取聯集，不同欄位同時符合；讀者只能再縮小範圍，不能解除這裡的限制。",
+    "template": "templates/sales/reporting/edit.html"
+  },
+  "edit.8cad70e264d4": {
+    "page": "共通畫面說明",
+    "default": "可搭配圖表，也可只做附表。逐筆明細採白名單；人口分組固定顯示車色、姓名、修正性別、遮罩證號及台數，僅供 admin，不輸出完整證號、聯絡資訊或帳密。",
+    "template": "templates/sales/reporting/edit.html"
+  },
+  "edit.fd4d0cf594cc": {
+    "page": "共通畫面說明",
+    "default": "下列欄位僅用於逐筆訂單；人口分組使用固定欄位。",
+    "template": "templates/sales/reporting/edit.html"
+  },
+  "edit.f6cfe346052b": {
+    "page": "共通畫面說明",
+    "default": "資料來源：系統訂單，每張訂單計 1 台。不含草稿、取消及待退款取消訂單；依領牌日期時，未領牌訂單不計入。這不是車行台數獎金的結算台數，獎金仍依原規則計算。",
+    "template": "templates/sales/reporting/edit.html"
+  },
+  "edit.7ee41ca2fe6b": {
+    "page": "共通畫面說明",
+    "default": "原銷售車行與台數／傭金歸屬車行分開選擇；歸屬車行優先採訂單指定對象，否則採原合作車行。本店與平台不自動當成車行。",
+    "template": "templates/sales/reporting/edit.html"
+  },
+  "edit.8a599d5b6014": {
+    "page": "共通畫面說明",
+    "default": "自訂試算僅支援上述彙總指標、數字與 + − * /、括號。例：sale_total / count。除以零或超限會顯示「無法計算」，不會當成 0。",
+    "template": "templates/sales/reporting/edit.html"
+  },
+  "edit.2b0cc3a8fff6": {
+    "page": "共通畫面說明",
+    "default": "數字即時讀取來源，不回寫訂單、傭金或財務快照。最多 8 張圖、每張最多 200 群；Top N 不會被標示為完整總數。",
+    "template": "templates/sales/reporting/edit.html"
+  },
+  "edit.d7a227788033": {
+    "page": "共通畫面說明",
+    "default": "選取圖表後在右側設定；拖曳選取框標題可排序，右下角可調整大小。滑鼠與鍵盤皆可操作。",
+    "template": "templates/sales/reporting/edit.html"
+  },
+  "edit.d3842b583a77": {
+    "page": "共通畫面說明",
+    "default": "修改後自動更新整頁預覽；仍須儲存並發布，讀者才會看到變更。",
+    "template": "templates/sales/reporting/edit.html"
+  },
+  "edit.f5fbfe8a4786": {
+    "page": "共通畫面說明",
+    "default": "切換「互動預覽」後，滑鼠移到圖形會顯示對照色與數字；點選分類會依該報表既有設定連動其他圖表。",
+    "template": "templates/sales/reporting/edit.html"
+  },
+  "edit.a20499db3da0": {
+    "page": "共通畫面說明",
+    "default": "按住 Ctrl／⌘ 可複選；可清除選取、查看來源訂單明細、調整日期與匯出 CSV。試選條件只影響本次預覽，不會寫入訂單或發布設定。",
+    "template": "templates/sales/reporting/edit.html"
+  },
+  "edit.ecf6a72e5c6a": {
+    "page": "共通畫面說明",
+    "default": "回到「編輯版面」即可選取、拖曳與調整圖表；不會誤觸資料篩選。",
+    "template": "templates/sales/reporting/edit.html"
+  },
+  "edit.a59458cd388d": {
+    "page": "共通畫面說明",
+    "default": "視覺化工作台需要啟用 JavaScript。",
+    "template": "templates/sales/reporting/edit.html"
+  },
+  "edit.251ca316b0fc": {
+    "page": "共通畫面說明",
+    "default": "本次輸入的試算 · 尚未發布",
+    "template": "templates/sales/reporting/edit.html"
+  },
+  "edit.e8416d495019": {
+    "page": "共通畫面說明",
+    "default": "預覽採全部期間。正式報表可再依日期、品牌與能源別篩選。",
+    "template": "templates/sales/reporting/edit.html"
+  },
+  "edit.01843a0dbf18": {
+    "page": "共通畫面說明",
+    "default": "還原只變更草稿，不立即取代已發布內容。",
+    "template": "templates/sales/reporting/edit.html"
+  },
+  "edit.ea43436b509e": {
+    "page": "共通畫面說明",
+    "default": "取消發布後，原連結、明細與匯出都會停止開放；草稿及歷史版本仍保留。",
+    "template": "templates/sales/reporting/edit.html"
+  },
+  "filter_field.d2f49c902c06": {
+    "page": "共通畫面說明",
+    "default": "未勾選表示不限；與其他欄位條件同時套用。",
+    "template": "templates/sales/reporting/filter_field.html"
+  },
+  "manage.3176240ab03f": {
+    "page": "報表設計管理",
+    "default": "先建立草稿、預覽數字，再發布給指定對象。設計公式不會修改訂單或正式帳務。",
+    "template": "templates/sales/reporting/manage.html"
+  },
+  "manage.7cb008aae515": {
+    "page": "報表設計管理",
+    "default": "內建品牌台數與每月走勢作為起點，所有分類和圖型都能自行調整。",
+    "template": "templates/sales/reporting/manage.html"
+  },
+  "progress.a3eea610ee03": {
+    "page": "共通畫面說明",
+    "default": "依使用者明確指示，指定 13 張報表已於報表中心發布，保留 admin 查看限制與歷史版本。發布不代表原 Google 資料差異已全部消除；以下舊核對紀錄保留供追溯，不再表示目前仍未發布。",
+    "template": "templates/sales/reporting/progress.html"
+  },
+  "progress.374bdf17aa26": {
+    "page": "共通畫面說明",
+    "default": "報表設計採畫布與右側設定：拖曳標題把手排序、右下角調整尺寸，或使用上移／下移與寬高欄位。按「更新實際圖表」查詢預覽，再按「儲存並發布」一次完成。手機單欄；預覽與版面設定不更動訂單或財務。",
+    "template": "templates/sales/reporting/progress.html"
+  },
+  "progress.a892cf8650a1": {
+    "page": "共通畫面說明",
+    "default": "正式站 13 頁均為 admin HTTP 200、一般帳號 HTTP 403，未發布查看頁 HTTP 404。人口附表 1,740 群合計仍為 1,744 台，每頁 100 群，完整證號不出現在畫面或 CSV。只有未經編輯的本次草稿被升級，舊版本仍保留；未修改訂單與財務。",
+    "template": "templates/sales/reporting/progress.html"
+  },
+  "progress.83e6d6782a29": {
+    "page": "共通畫面說明",
+    "default": "待確認：原來源最新唯讀資料匯出、歷史備註顯示方式及證號遮罩偏好。全部原圖視覺／互動與新附表手機驗收仍待完成；此進度不等於整套 BI 或全系統弱點掃描已完成。",
+    "template": "templates/sales/reporting/progress.html"
+  },
+  "progress.60a8af20ad92": {
+    "page": "共通畫面說明",
+    "default": "已補齊紅勾 13 頁的候選設定及各車型獨立的開頭、包含、完整符合與排除條件；建立時僅為 admin 草稿，不覆寫已存在的設計，不自動發布。生日未填、公司或其他獨立列示，原公式只供核對；分析不回寫訂單。",
+    "template": "templates/sales/reporting/progress.html"
+  },
+  "progress.9049780bd36c": {
+    "page": "共通畫面說明",
+    "default": "前階段完整回歸 864 項（860 通過、4 略過），圖表前端 6 項通過。2741e247 的 CI 與正式部署已通過；13 頁草稿在正式站皆為 admin HTTP 200、一般帳號 HTTP 403，未發布查看頁 HTTP 404。資料庫及 Redis 未重啟。最新人口分組增量本機報表測試 81 項通過；新提交仍須另經 CI 與部署，不借用舊版本驗證。",
+    "template": "templates/sales/reporting/progress.html"
+  },
+  "progress.38b2e1f44300": {
+    "page": "共通畫面說明",
+    "default": "人口附表可依車色、車主、修正性別及證號分組，每頁 100 組，完整分頁不受圖表 Top N 限制。證號暫採遮罩安全預設，僅 admin 可核對與匯出；同樣遮罩但不同證號不會合併。202 群分頁及畫面／CSV 不洩漏完整證號已有自動測試。",
+    "template": "templates/sales/reporting/progress.html"
+  },
+  "progress.4bd2b162959c": {
+    "page": "共通畫面說明",
+    "default": "尚待：人口分析附表分組與證號遮罩確認、電動車車行備註映射、原始來源筆數差異、其餘逐圖視覺與互動，以及正式發布。彙總分頁不解除每圖最多 200 群的安全上限；超出仍明確提示，不能冒充全量匯出。",
+    "template": "templates/sales/reporting/progress.html"
+  },
+  "progress.853d7100b7b3": {
+    "page": "共通畫面說明",
+    "default": "這是本次報表增量紀錄，不取代 2026/09/07 的全系統稽核，也不是人員績效。依使用者紅勾確認，本次只製作 13 頁：銷售統計 9 頁、大數據分析 4 頁。未勾選的傭金明細、公益青年與隱藏頁不製作。總銷售、電動車、電動車平台已有核對草稿，草稿不覆蓋管理者修改、不自動發布。完整逐頁驗收仍為 0／13。",
+    "template": "templates/sales/reporting/progress.html"
+  },
+  "progress.0dd561de0a53": {
+    "page": "共通畫面說明",
+    "default": "銷售統計：總車輛銷售、電動車銷售統計、電動車網路平台、電動車車行、電動車台數、油車銷售統計、油車網路平台、油車車行、油車台數。大數據分析：性別 X 年齡、車型 X 性別、車型 X 顏色、性別 X 車型顏色。",
+    "template": "templates/sales/reporting/progress.html"
+  },
+  "progress.0a61fb262496": {
+    "page": "共通畫面說明",
+    "default": "DMIS 正式唯讀核對為 1,744 張訂單，其中 3 張未填領牌日期。原表格 CSV 有 1,745 分組列，唯一匹配 1,742；3 筆原來源未匹配、2 筆 DMIS 未匹配，不能直接視為少匯入一張訂單。匹配資料另有 2 筆日期、1 筆型號、1 筆補助不同；18 筆金額差異都是原空白與匯入零值，不是已證實的付款差額。未修改任何訂單或金額。",
+    "template": "templates/sales/reporting/progress.html"
+  },
+  "progress.3a54623d5a90": {
+    "page": "共通畫面說明",
+    "default": "電動車原 CSV 有 993 列，匹配 992。禮券／匯款與平台贈品逐筆一致；公司贈品實際對應舊 Excel「其他」，忽略邊界空白後一致。原 Energy Type 公式與 CSV 中 Pulse Ultra、EZZY 500 各一筆的分類不一致，原因尚未查明；來源一致性仍待驗收。",
+    "template": "templates/sales/reporting/progress.html"
+  },
+  "progress.f39e4f6246a4": {
+    "page": "共通畫面說明",
+    "default": "傭金與獎金沿用 DMIS 保存的業務計算；原分類公式只用於非財務比對。歷史收款價與 DMIS 已確認實收分開顯示，不把實物方案當作已發放，也不為對齊報表而改動訂單。",
+    "template": "templates/sales/reporting/progress.html"
+  },
+  "progress.c981eb29ab14": {
+    "page": "共通畫面說明",
+    "default": "原報表逐圖樣式與互動驗收、分組列與來源訂單的完整對帳、其餘頁面，以及可編輯條件公式、樞紐／融合、自由版面與排程等仍待完成。同一圖多分類複選、動態「其他系列」的全頁交叉篩選仍未提供。草稿建立不代表已完成原報表移轉。",
+    "template": "templates/sales/reporting/progress.html"
+  },
+  "progress.7ffce4adcdfb": {
+    "page": "共通畫面說明",
+    "default": "既有部署證據：e39d5b3 的 CI（含 PostgreSQL、安全及映像檢查）通過，部署前備份已檢查；正式健康、跨圖交集、單圖層級與登入權限驗證通過。電動車草稿僅 admin 可編輯、未發布不能由查看入口讀取。不以既有驗證推定後續提交已完成部署或逐頁驗收。",
+    "template": "templates/sales/reporting/progress.html"
+  },
+  "result.de570f7a62b7": {
+    "page": "共通畫面說明",
+    "default": "此圖保留候選分類供改選；來源明細與匯出依完整選取。",
+    "template": "templates/sales/reporting/result.html"
+  },
+  "stale.0cc69c78af60": {
+    "page": "報表設計已更新",
+    "default": "為避免用舊圖表的分類開啟新版明細或匯出，請先重新開啟報表，再選擇要查的數字。",
+    "template": "templates/sales/reporting/stale.html"
+  },
+  "sales_source_category_list.7c4a2b928cad": {
+    "page": "通路類別",
+    "default": "類別名稱提供人員辨識；系統處理方式決定是否套用車行傭金、平台對帳或視為本店來源。",
+    "template": "templates/sales/sales_source_category_list.html"
+  },
+  "sales_source_category_list.75aff869afd7": {
+    "page": "通路類別",
+    "default": "類別使用後仍可改名或停用，但不能改變系統處理方式。",
+    "template": "templates/sales/sales_source_category_list.html"
+  },
+  "sales_source_confirm_delete.46c3937cdeec": {
+    "page": "永久刪除合作車行",
+    "default": "正常停止合作請停用；永久刪除只適用於從未投入營運的誤建資料。",
+    "template": "templates/sales/sales_source_confirm_delete.html"
+  },
+  "sales_source_confirm_delete.a37cb3dc30d1": {
+    "page": "永久刪除合作車行",
+    "default": "目前沒有訂單、庫存、台數獎金規則或舊資料匯入對應。刪除後，車行基本資料與合作設定無法復原；既有價格表月份仍保留當時的名稱與地址快照。",
+    "template": "templates/sales/sales_source_confirm_delete.html"
+  },
+  "sales_source_confirm_delete.e73e893f22e3": {
+    "page": "永久刪除合作車行",
+    "default": "這間車行已有營運資料。為避免訂單、庫存或計算紀錄失去來源，請改用停用。",
+    "template": "templates/sales/sales_source_confirm_delete.html"
+  },
+  "sales_source_form.a5f48252b9d9": {
+    "page": "共通畫面說明",
+    "default": "維護人員所屬門市與每筆基礎傭金；訂單選擇此人員後，後續結算可直接引用。",
+    "template": "templates/sales/sales_source_form.html"
+  },
+  "sales_source_form.9aa8365df814": {
+    "page": "共通畫面說明",
+    "default": "常用電話優先放在電話一，其餘方式集中記錄。",
+    "template": "templates/sales/sales_source_form.html"
+  },
+  "sales_source_form.d58e77149c35": {
+    "page": "共通畫面說明",
+    "default": "這兩項也能在車行列表快速切換。",
+    "template": "templates/sales/sales_source_form.html"
+  },
+  "sales_source_form.337f70dc1448": {
+    "page": "共通畫面說明",
+    "default": "只記錄其他欄位無法表達的補充資料。",
+    "template": "templates/sales/sales_source_form.html"
+  },
+  "sales_source_form.e8200c13fbb8": {
+    "page": "共通畫面說明",
+    "default": "每位 PM、客服、帳務或發票窗口各自保存電話、分機、手機與信箱。",
+    "template": "templates/sales/sales_source_form.html"
+  },
+  "sales_source_form.fc529602225a": {
+    "page": "共通畫面說明",
+    "default": "只記錄車行是否有 LINE 群組；群組涵蓋內容可由下方合作類別辨認。",
+    "template": "templates/sales/sales_source_form.html"
+  },
+  "sales_source_form.7debd44d4dbe": {
+    "page": "共通畫面說明",
+    "default": "勾選代表此車行有配合；有合作即代表需要提供該類別的價格表。",
+    "template": "templates/sales/sales_source_form.html"
+  },
+  "sales_source_form.19268cb892b7": {
+    "page": "共通畫面說明",
+    "default": "台鈴油車與電車共用同一個容量，不會重複加總。",
+    "template": "templates/sales/sales_source_form.html"
+  },
+  "sales_source_form.dcc454537a08": {
+    "page": "共通畫面說明",
+    "default": "目前沒有要提供價格表的類別",
+    "template": "templates/sales/sales_source_form.html"
+  },
+  "sales_source_form.795c23dfcd9c": {
+    "page": "共通畫面說明",
+    "default": "上方勾選決定合作與價格表名單；此處只設定特定車行的傭金加減額、生效期間及備註。",
+    "template": "templates/sales/sales_source_form.html"
+  },
+  "sales_source_form.49b5d7a2c065": {
+    "page": "共通畫面說明",
+    "default": "這些資料由系統或歷史匯入建立，不在基本資料中修改。",
+    "template": "templates/sales/sales_source_form.html"
+  },
+  "sales_source_form.6db444b56919": {
+    "page": "共通畫面說明",
+    "default": "建立後才會顯示資料編號；網路平台的來源代碼會由系統自動配置。",
+    "template": "templates/sales/sales_source_form.html"
+  },
+  "sales_source_form.9a216cf845d5": {
+    "page": "共通畫面說明",
+    "default": "正常結束合作請使用「停用」；只有完全誤建且從未投入營運的資料才可永久刪除。",
+    "template": "templates/sales/sales_source_form.html"
+  },
+  "sales_source_holiday_gift_manage.e72ec788bf20": {
+    "page": "管理年節送禮名單",
+    "default": "直接勾選需要安排年節送禮的合作車行，完成後一次儲存，不必逐家進入編輯。",
+    "template": "templates/sales/sales_source_holiday_gift_manage.html"
+  },
+  "sales_source_list.9be09c61d765": {
+    "page": "合作車行",
+    "default": "合作類別同時作為價格表提供名單；傭金仍依車型基礎金額及車行加減額計算。",
+    "template": "templates/sales/sales_source_list.html"
+  },
+  "sales_source_list.41dbf0f467e4": {
+    "page": "合作車行",
+    "default": "沒有底色代表沒有 LINE 群組",
+    "template": "templates/sales/sales_source_list.html"
+  },
+  "settlement_cost_rule_form.daaa2f542288": {
+    "page": "共通畫面說明",
+    "default": "新版本可提前建立；只有領牌日到達生效日後才會套用，不會回寫已完成訂單。",
+    "template": "templates/sales/settlement_cost_rule_form.html"
+  },
+  "settlement_cost_rule_list.7a65e761c113": {
+    "page": "車輛結算成本",
+    "default": "車輛進庫不產生成本；領牌後依車型與實際領牌日固定成本快照。",
+    "template": "templates/sales/settlement_cost_rule_list.html"
+  },
+  "settlement_cost_rule_list.d2d540a3a87d": {
+    "page": "車輛結算成本",
+    "default": "請先建立適用機種與生效日期的成本版本。",
+    "template": "templates/sales/settlement_cost_rule_list.html"
+  },
+  "site_copy_manage.2f2d63829e18": {
+    "page": "畫面與列印說明文字",
+    "default": "搜尋畫面上的說明文字，修改後立即生效。僅維護文字，不改變計算、權限或程式判斷。",
+    "template": "templates/sales/site_copy_manage.html"
+  },
+  "system_diagnostics.b3ae113de7be": {
+    "page": "系統狀態檢查",
+    "default": "若上傳、辨識或搜尋一直沒有完成，可先看這裡；本頁不顯示密碼或連線資訊。",
+    "template": "templates/sales/system_diagnostics.html"
+  },
+  "system_integrity_report.ba0d34c46d0f": {
+    "page": "系統完整性報告",
+    "default": "admin 授權查看 · 版本化稽核紀錄",
+    "template": "templates/sales/system_integrity_report.html"
+  },
+  "system_integrity_report.d2bb19e6d624": {
+    "page": "系統完整性報告",
+    "default": "整合安全、UI／UX、核心流程與文件檢查；這不是人員績效或進度排行。",
+    "template": "templates/sales/system_integrity_report.html"
+  },
+  "system_integrity_report.6151d982d0a1": {
+    "page": "系統完整性報告",
+    "default": "每週日清晨自動執行；只在隔離環境還原，不會覆寫正式資料。",
+    "template": "templates/sales/system_integrity_report.html"
+  },
+  "user_account_form.b3057c77f976": {
+    "page": "共通畫面說明",
+    "default": "每位人員使用自己的帳號，才能正確保留訂單與資料的操作人紀錄。",
+    "template": "templates/sales/user_account_form.html"
+  },
+  "user_account_form.78ae154cad38": {
+    "page": "共通畫面說明",
+    "default": "畫面會顯示這個名稱，方便辨識是誰修改資料。",
+    "template": "templates/sales/user_account_form.html"
+  },
+  "user_account_form.e59ee6d047eb": {
+    "page": "共通畫面說明",
+    "default": "建議使用容易辨識的英文帳號，不分大小寫檢查重複。",
+    "template": "templates/sales/user_account_form.html"
+  },
+  "user_account_form.37c41b9796a9": {
+    "page": "共通畫面說明",
+    "default": "密碼至少 8 碼，不強制符號或大小寫；不能太常見或只由數字組成。儲存後系統不會再顯示這組密碼。",
+    "template": "templates/sales/user_account_form.html"
+  },
+  "user_account_form.8553f4fb90f6": {
+    "page": "共通畫面說明",
+    "default": "停用後無法登入，但歷史操作紀錄仍會保留。",
+    "template": "templates/sales/user_account_form.html"
+  },
+  "user_account_form.10f97acb8728": {
+    "page": "共通畫面說明",
+    "default": "可建立帳號、重設密碼及管理全部系統設定。",
+    "template": "templates/sales/user_account_form.html"
+  },
+  "user_account_form.76bc75d3e7e6": {
+    "page": "共通畫面說明",
+    "default": "第一次登入時，必須先設定只有本人知道的新密碼。",
+    "template": "templates/sales/user_account_form.html"
+  },
+  "user_management.68fc7d413c8a": {
+    "page": "帳號與權限",
+    "default": "依 admin 指定的畫面權限開放",
+    "template": "templates/sales/user_management.html"
+  },
+  "user_management.33c628515715": {
+    "page": "帳號與權限",
+    "default": "馭盛內部人員與合作車行帳號集中管理；與合作車行頁面同步，密碼只能重設、不顯示原文。",
+    "template": "templates/sales/user_management.html"
+  },
+  "user_management.0e410fb07e15": {
+    "page": "帳號與權限",
+    "default": "請清除篩選或改用其他姓名、帳號搜尋。",
+    "template": "templates/sales/user_management.html"
+  },
+  "user_password_reset.8b50fc8dc701": {
+    "page": "重設密碼",
+    "default": "完成後，這個帳號在其他裝置上的既有登入會立即失效。",
+    "template": "templates/sales/user_password_reset.html"
+  },
+  "user_password_reset.4b3701a5ceeb": {
+    "page": "重設密碼",
+    "default": "密碼至少 8 碼，不強制符號或大小寫；不能太常見或只由數字組成。",
+    "template": "templates/sales/user_password_reset.html"
+  },
+  "user_password_reset.d2583205b7bb": {
+    "page": "重設密碼",
+    "default": "建議保留勾選，確保臨時密碼不會被長期使用。",
+    "template": "templates/sales/user_password_reset.html"
+  },
+  "vehicle_brand_list.f94c730ecce4": {
+    "page": "車輛品牌",
+    "default": "可用所屬主品牌整理品牌關係；機種與交易仍保留子品牌名稱，售價、領牌與傭金規則也各自維護。",
+    "template": "templates/sales/vehicle_brand_list.html"
+  },
+  "vehicle_model_commission.28c0856d271d": {
+    "page": "車行傭金與銷售獎勵",
+    "default": "此頁已綁定目前車型，不需要再次選擇。現金傭金與額外獎勵分開保存、清楚辨識。",
+    "template": "templates/sales/vehicle_model_commission.html"
+  },
+  "vehicle_model_commission.6234fe3bef5e": {
+    "page": "車行傭金與銷售獎勵",
+    "default": "合作車行銷售此車型時的預設金額；特定車行加減仍在該車行資料維護。",
+    "template": "templates/sales/vehicle_model_commission.html"
+  },
+  "vehicle_model_commission.3d544bae8236": {
+    "page": "車行傭金與銷售獎勵",
+    "default": "車型由系統帶入，不需重選",
+    "template": "templates/sales/vehicle_model_commission.html"
+  },
+  "vehicle_model_commission.cfe514de4232": {
+    "page": "車行傭金與銷售獎勵",
+    "default": "設定這一版獎勵何時生效；結束日期可留白。",
+    "template": "templates/sales/vehicle_model_commission.html"
+  },
+  "vehicle_model_commission.fb16fc7dfb6a": {
+    "page": "車行傭金與銷售獎勵",
+    "default": "每筆代表每售出一台適用；選擇品項後會自動帶入類型、單位與適用成本。",
+    "template": "templates/sales/vehicle_model_commission.html"
+  },
+  "vehicle_model_form.b5d77486a6c7": {
+    "page": "共通畫面說明",
+    "default": "修正年份、合併重複資料、移至其他機種，或刪除未使用的年式",
+    "template": "templates/sales/vehicle_model_form.html"
+  },
+  "vehicle_model_form.c6c5c823afa5": {
+    "page": "共通畫面說明",
+    "default": "年份輸入錯誤時使用；這筆資料會原地修改，不會建立新資料。",
+    "template": "templates/sales/vehicle_model_form.html"
+  },
+  "vehicle_model_form.8ea2672f039d": {
+    "page": "共通畫面說明",
+    "default": "同一機種、同一年份因原始型號寫法不同而重複時使用。",
+    "template": "templates/sales/vehicle_model_form.html"
+  },
+  "vehicle_model_form.0582758fee11": {
+    "page": "共通畫面說明",
+    "default": "目前年式建立在錯誤機種時使用；若目標已有相同年式，系統會安全合併。",
+    "template": "templates/sales/vehicle_model_form.html"
+  },
+  "vehicle_model_form.6ab816a5bba4": {
+    "page": "共通畫面說明",
+    "default": "這筆資料沒有訂單、庫存或商務版本；刪除後無法復原。",
+    "template": "templates/sales/vehicle_model_form.html"
+  },
+  "vehicle_model_form.7df257ecf95b": {
+    "page": "共通畫面說明",
+    "default": "這些資料會依日期或交易方式改變，因此與車型規格分開維護。",
+    "template": "templates/sales/vehicle_model_form.html"
+  },
+  "vehicle_model_form.792c8fe86011": {
+    "page": "共通畫面說明",
+    "default": "接單前請建立至少一筆有效售價。",
+    "template": "templates/sales/vehicle_model_form.html"
+  },
+  "vehicle_model_form.df64954cc870": {
+    "page": "共通畫面說明",
+    "default": "依實際領牌日與適用地區認列，不回寫已結算訂單。",
+    "template": "templates/sales/vehicle_model_form.html"
+  },
+  "vehicle_model_form.319a23535750": {
+    "page": "共通畫面說明",
+    "default": "實銷獎勵、促銷補助及分期補貼息。",
+    "template": "templates/sales/vehicle_model_form.html"
+  },
+  "vehicle_model_list.7d03bbe9000b": {
+    "page": "機種與售價",
+    "default": "一個機種可包含多個原廠型號與年式規格；售價、成本、分期及獎勵仍依年式／規格分開維護。",
+    "template": "templates/sales/vehicle_model_list.html"
+  },
+  "vehicle_model_list.8255ed2730af": {
+    "page": "機種與售價",
+    "default": "保留歷史資料，不會提供新增訂單選用",
+    "template": "templates/sales/vehicle_model_list.html"
+  },
+  "vehicle_model_price_versions.a344abcfe368": {
+    "page": "售價版本",
+    "default": "價格異動時建立新版本；系統依訂單日期帶入，既有訂單仍保留當時快照。",
+    "template": "templates/sales/vehicle_model_price_versions.html"
+  },
+  "vehicle_model_price_versions.bcd8f217ae1d": {
+    "page": "售價版本",
+    "default": "此版本仍保留給歷史訂單使用；今天的新訂單會採用較新的版本。",
+    "template": "templates/sales/vehicle_model_price_versions.html"
+  },
+  "vehicle_model_price_versions.796cad144516": {
+    "page": "售價版本",
+    "default": "請在左側建立第一筆，之後訂單才能自動帶入價格。",
+    "template": "templates/sales/vehicle_model_price_versions.html"
+  },
+  "field_help.c0f6ec1a7eef": {
+    "page": "欄位提示說明",
+    "default": "本店訂單可選擇承辦員工；合作車行與網路平台則必須選擇來源名稱。",
+    "template": "sales/forms.py"
+  },
+  "field_help.02b52587a168": {
+    "page": "欄位提示說明",
+    "default": "以本單車款售價乘上此比例試算。",
+    "template": "sales/forms.py"
+  },
+  "field_help.0efcd1c69465": {
+    "page": "欄位提示說明",
+    "default": "每張套用此方案的訂單都先帶入這個預估金額。",
+    "template": "sales/forms.py"
+  },
+  "field_help.3b1ce27bc66d": {
+    "page": "欄位提示說明",
+    "default": "例如和潤另給 300 元；系統會加進預估撥款與對帳金額，不會再重複列入淨利獎勵。",
+    "template": "sales/forms.py"
+  },
+  "field_help.6c2197e284a1": {
+    "page": "欄位提示說明",
+    "default": "可留白，代表持續有效。",
+    "template": "sales/forms.py"
+  },
+  "field_help.82206a7c9904": {
+    "page": "欄位提示說明",
+    "default": "公式計算依領牌日與排氣量試算；固定整包直接採用總額；固定分項分別保存領牌規費與強制險；人工輸入不預帶金額。",
+    "template": "sales/forms.py"
+  },
+  "field_help.0b85a44b049d": {
+    "page": "欄位提示說明",
+    "default": "不拆分明細，系統直接採用此牌險總額。",
+    "template": "sales/forms.py"
+  },
+  "field_help.57a586c1e44c": {
+    "page": "欄位提示說明",
+    "default": "固定分項時的領牌規費。",
+    "template": "sales/forms.py"
+  },
+  "field_help.12a56e205844": {
+    "page": "欄位提示說明",
+    "default": "固定分項時的強制險金額。",
+    "template": "sales/forms.py"
+  },
+  "field_help.ed2bf68e7c45": {
+    "page": "欄位提示說明",
+    "default": "可同時勾選永湛與馭盛。",
+    "template": "sales/forms.py"
+  },
+  "field_help.b98e52dcda3a": {
+    "page": "欄位提示說明",
+    "default": "可留白，依目前品牌與能源自動命名；自行填寫時保留自訂名稱。",
+    "template": "sales/forms.py"
+  },
+  "field_help.d5cceeb7ed2a": {
+    "page": "欄位提示說明",
+    "default": "必填；此內容會永久保留在調整歷程。",
+    "template": "sales/forms.py"
+  },
+  "field_help.9dec6085face": {
+    "page": "欄位提示說明",
+    "default": "此內容會連同處理人員與時間保留在稽核紀錄。",
+    "template": "sales/forms.py"
+  },
+  "field_help.c2cb541c63a6": {
+    "page": "欄位提示說明",
+    "default": "新增年式／規格時可直接選既有機種；選取後以既有品牌與機種名稱為準。",
+    "template": "sales/forms.py"
+  },
+  "field_help.af2dabd6020b": {
+    "page": "欄位提示說明",
+    "default": "同一年式／規格可填多個原廠型號，請用頓號、逗號或換行分隔。",
+    "template": "sales/forms.py"
+  },
+  "field_help.31b1f3a1259a": {
+    "page": "欄位提示說明",
+    "default": "若年份或所屬機種需要修正，請使用頁面下方的「年式資料修正」。",
+    "template": "sales/forms.py"
+  },
+  "field_help.910c3c97db9b": {
+    "page": "欄位提示說明",
+    "default": "修改後會同步套用到這個機種的所有年式；訂單、庫存及商務設定仍會保留。",
+    "template": "sales/forms.py"
+  },
+  "field_help.a882b6b70d56": {
+    "page": "欄位提示說明",
+    "default": "只列出相同品牌的其他機種；若目標已有相同年份與型式，系統會安全合併並保留兩邊的關聯資料。",
+    "template": "sales/forms.py"
+  },
+  "field_help.70b153136a81": {
+    "page": "欄位提示說明",
+    "default": "目前這筆會併入所選資料；訂單、庫存、顏色與商務設定都會保留。",
+    "template": "sales/forms.py"
+  },
+  "field_help.bc121461b8be": {
+    "page": "欄位提示說明",
+    "default": "只修正年份；顏色、售價、分期、庫存及訂單等資料都會保留。",
+    "template": "sales/forms.py"
+  },
+  "field_help.77bc818d13a9": {
+    "page": "欄位提示說明",
+    "default": "可用逗號、頓號或換行分隔；系統會自動去除重複顏色。",
+    "template": "sales/forms.py"
+  },
+  "field_help.ee6167c354b8": {
+    "page": "欄位提示說明",
+    "default": "例如：合作車行、網路平台、本店員工。",
+    "template": "sales/forms.py"
+  },
+  "field_help.d377d6b0b0ee": {
+    "page": "欄位提示說明",
+    "default": "現有類別不適用時才填寫，例如：本店員工。",
+    "template": "sales/forms.py"
+  },
+  "field_help.e72216a638ee": {
+    "page": "欄位提示說明",
+    "default": "本店來源不套車行傭金；合作車行與網路平台會進入各自對帳流程。",
+    "template": "sales/forms.py"
+  },
+  "field_help.5786ad329e57": {
+    "page": "欄位提示說明",
+    "default": "請先逐項確認金額，並填寫本次更新說明；不會變更收款確認狀態。",
+    "template": "sales/forms.py"
+  },
+  "field_help.52812e992b28": {
+    "page": "欄位提示說明",
+    "default": "留空表示保留目前密碼。",
+    "template": "sales/forms.py"
+  },
+  "field_help.4b4e3fc4b12d": {
+    "page": "欄位提示說明",
+    "default": "合作車行銷售此車型時的預設傭金；特定車行的加減金額仍在通路資料維護。",
+    "template": "sales/forms.py"
+  },
+  "field_help.cedcb758f85d": {
+    "page": "欄位提示說明",
+    "default": "此品牌已有車型或規則使用，名稱已鎖定；其他寫法請新增為別名。",
+    "template": "sales/forms.py"
+  },
+  "field_help.55ffdffebd18": {
+    "page": "欄位提示說明",
+    "default": "由訂單或收款紀錄自動同步。",
+    "template": "sales/forms.py"
+  },
+  "field_help.8eda9224659d": {
+    "page": "欄位提示說明",
+    "default": "由訂單自動同步。",
+    "template": "sales/forms.py"
+  },
+  "field_help.3e8afcbe29c1": {
+    "page": "欄位提示說明",
+    "default": "系統會先帶入，可人工修改；修改後不再被訂單同步覆蓋。",
+    "template": "sales/forms.py"
+  },
+  "field_help.85657eb0aa02": {
+    "page": "欄位提示說明",
+    "default": "決定是否套用車行傭金、平台對帳或視為本店來源。",
+    "template": "sales/models.py"
+  },
+  "field_help.52723307e6c5": {
+    "page": "欄位提示說明",
+    "default": "例如 eMOVING 所屬主品牌為 SUZUKI；交易仍保留 eMOVING 品牌名稱。",
+    "template": "sales/models.py"
+  },
+  "field_help.f9a583634d8d": {
+    "page": "欄位提示說明",
+    "default": "可用逗號、頓號或換行分隔，例如：台鈴、台鈴 Suzuki。",
+    "template": "sales/models.py"
+  },
+  "field_help.ff74b104b931": {
+    "page": "欄位提示說明",
+    "default": "品牌識別與列印文件使用；建議透明背景 PNG 或清晰橫式圖片。",
+    "template": "sales/models.py"
+  },
+  "field_help.9546a1c5bf2a": {
+    "page": "欄位提示說明",
+    "default": "本店人員可同時隸屬永湛與馭盛。",
+    "template": "sales/models.py"
+  },
+  "field_help.4652c5f28425": {
+    "page": "欄位提示說明",
+    "default": "每筆歸屬此銷售人員的基礎傭金；供後續人員傭金結算引用。",
+    "template": "sales/models.py"
+  },
+  "field_help.4d79c63e9ff4": {
+    "page": "欄位提示說明",
+    "default": "勾選後可在車行列表一鍵篩選。",
+    "template": "sales/models.py"
+  },
+  "field_help.f3cc1fb8cd8c": {
+    "page": "欄位提示說明",
+    "default": "只記錄是否有車行 LINE 群組；不會影響價格表提供對象。",
+    "template": "sales/models.py"
+  },
+  "field_help.dbf14574b41e": {
+    "page": "欄位提示說明",
+    "default": "原廠型號或版本代碼；既有資料可暫時留空。",
+    "template": "sales/models.py"
+  },
+  "field_help.666b09b97111": {
+    "page": "欄位提示說明",
+    "default": "既有車型可暫時留空；新建車型請填西元年份。",
+    "template": "sales/models.py"
+  },
+  "field_help.5176f06e5033": {
+    "page": "欄位提示說明",
+    "default": "油車領牌試算使用；電動車、輕型電動車與微型電動二輪車可留空。",
+    "template": "sales/models.py"
+  },
+  "field_help.b2cd4cf4cc62": {
+    "page": "欄位提示說明",
+    "default": "電動車、輕型電動車或微型電動二輪車選填；不會自動換算馬力。",
+    "template": "sales/models.py"
+  },
+  "field_help.ac06617efdf3": {
+    "page": "欄位提示說明",
+    "default": "電動車、輕型電動車或微型電動二輪車選填；不會由 kW 自動換算。",
+    "template": "sales/models.py"
+  },
+  "field_help.5ba56cbf52f1": {
+    "page": "欄位提示說明",
+    "default": "電動車使用；輕型電動車會自動套用輕型級別，不會由馬達功率推算。",
+    "template": "sales/models.py"
+  },
+  "field_help.c833699e36b7": {
+    "page": "欄位提示說明",
+    "default": "勾選表示此版本的建議售價已包含牌險；未勾選則依正式單據另收。",
+    "template": "sales/models.py"
+  },
+  "field_help.7b4432d82209": {
+    "page": "欄位提示說明",
+    "default": "可留空，代表持續有效；訂單依訂單日期選用版本。",
+    "template": "sales/models.py"
+  },
+  "field_help.0fd8850f660a": {
+    "page": "欄位提示說明",
+    "default": "按比例以車款售價試算；固定金額直接帶入；特殊案件可選本單另填。",
+    "template": "sales/models.py"
+  },
+  "field_help.59dc8c2dbd83": {
+    "page": "欄位提示說明",
+    "default": "分期公司在基礎撥款外另給的獎金；會加進預估撥款總額。",
+    "template": "sales/models.py"
+  },
+  "field_help.6329df9ebf2d": {
+    "page": "欄位提示說明",
+    "default": "無法固定維護時可留空；此欄位不會顯示在客戶訂單。",
+    "template": "sales/models.py"
+  },
+  "field_help.a377bf66edff": {
+    "page": "欄位提示說明",
+    "default": "保留舊資料相容；新設定請使用合作類別。",
+    "template": "sales/models.py"
+  },
+  "field_help.4d5a6afd991b": {
+    "page": "欄位提示說明",
+    "default": "目前只區分三陽、台鈴油車與台鈴電車。",
+    "template": "sales/models.py"
+  },
+  "field_help.77c6864a8a6a": {
+    "page": "欄位提示說明",
+    "default": "加碼請填正數，減少請填負數。",
+    "template": "sales/models.py"
+  },
+  "field_help.14805ebe62ce": {
+    "page": "欄位提示說明",
+    "default": "固定儲存該月 1 日。",
+    "template": "sales/models.py"
+  },
+  "field_help.ee789f428f00": {
+    "page": "欄位提示說明",
+    "default": "不建立或對應主檔；匯入時仍保留 Excel 原始文字。",
+    "template": "sales/models.py"
+  },
+  "field_help.04c5194608b3": {
+    "page": "欄位提示說明",
+    "default": "可留空；建立下一版本時，系統會依生效日選用最新規則。",
+    "template": "sales/models.py"
+  },
+  "field_help.2aa974c296a3": {
+    "page": "欄位提示說明",
+    "default": "可留空，代表持續有效；有較新版本時會優先採用新版本。",
+    "template": "sales/models.py"
+  },
+  "field_help.2f496d190c73": {
+    "page": "欄位提示說明",
+    "default": "未選擇代表車輛位於本店；放在車行時請選擇車行名稱。",
+    "template": "sales/models.py"
+  },
+  "field_help.731aded9e57d": {
+    "page": "欄位提示說明",
+    "default": "供車輛年份顯示與庫存先進先出判斷。",
+    "template": "sales/models.py"
+  },
+  "field_help.05601aeb897f": {
+    "page": "欄位提示說明",
+    "default": "用來區分一般新車、領牌車、試乘車、中獎車或中古車交易。",
+    "template": "sales/models.py"
+  },
+  "field_help.45f69d914fc6": {
+    "page": "欄位提示說明",
+    "default": "成交車價與售價版本不同時，記錄本次人工調整原因。",
+    "template": "sales/models.py"
+  },
+  "field_help.2c700e8d3538": {
+    "page": "欄位提示說明",
+    "default": "記錄不應再被訂單同步覆蓋的收支欄位。",
+    "template": "sales/models.py"
+  },
+  "field_help.8963a3b4bed3": {
+    "page": "欄位提示說明",
+    "default": "取消收款確認時恢復先前值；不回推舊資料。",
+    "template": "sales/models.py"
+  },
+  "field_help.0c8eb115e90d": {
+    "page": "欄位提示說明",
+    "default": "空白代表人工新增的收款紀錄。",
+    "template": "sales/models.py"
+  },
+  "field_help.e44a5f443c94": {
+    "page": "欄位提示說明",
+    "default": "依顯示順序保存每個帳號選用的手機快捷功能代碼。",
+    "template": "sales/models.py"
+  },
+  "print.contract.qualification": {
+    "page": "列印訂購合約・確認事項",
+    "default": "□ 本人（或本公司）已自行審閱並詳讀中央或地方政府公告之補助辦法，包括申請資格、過戶限制及應備文件等。",
+    "template": "sales/services/order_contract_pdf.py",
+    "max_length": 90
+  },
+  "print.contract.subsidy": {
+    "page": "列印訂購合約・確認事項",
+    "default": "□ 本人（或本公司）了解店方僅協助代辦補助申請，補助金額及核准與否以主管機關審核結果為準。",
+    "template": "sales/services/order_contract_pdf.py",
+    "max_length": 90
+  },
+  "print.contract.confirmation": {
+    "page": "列印訂購合約・確認事項",
+    "default": "□ 本人（或本公司）了解並確認本訂購單所載車型、車色、價款、配件、付款方式及其他需求均屬正確。",
+    "template": "sales/services/order_contract_pdf.py",
+    "max_length": 90
+  },
+  "print.contract.registration": {
+    "page": "列印訂購合約・確認事項",
+    "default": "□ 本人（或本公司）了解機車屬於財產登記制，經領牌不再是新車，領牌後無法辦理退換貨。",
+    "template": "sales/services/order_contract_pdf.py",
+    "max_length": 90
+  },
+  "print.privacy.clause1": {
+    "page": "列印個資同意書・條文",
+    "default": "1. 車主之個人資料係由台鈴工業股份有限公司（以下稱本公司）所蒐集。基於履行本契約、維修保養服務、事故處理、拖吊服務、保險及保險理賠、客戶關懷服務及行銷等目的，本公司得於中華民國境內，蒐集、處理及利用車主所提供之個人資料。蒐集個人資料類別包括：姓名、性別、身份證字號、出生日期、出生地、婚姻狀況、戶籍住址、聯絡地址、住家電話、行動電話、E-mail等識別個人者及其他為履行上述蒐集之目的所必要之相關個人資料。",
+    "template": "sales/services/privacy_consent_pdf.py",
+    "max_length": 204
+  },
+  "print.privacy.clause2": {
+    "page": "列印個資同意書・條文",
+    "default": "2. 車主同意基於上述目的之必要，台鈴工業股份有限公司得委託其關係企業、台鈴授權之經銷商，就個人資料蒐集、處理或是予以利用。個人資料之利用方式包括自動化機器或其他非自動化之利用方式。",
+    "template": "sales/services/privacy_consent_pdf.py",
+    "max_length": 91
+  },
+  "print.privacy.clause3": {
+    "page": "列印個資同意書・條文",
+    "default": "3. 車主瞭解在符合個人資料保護相關法令規定下，其得向本公司請求閱覽、補充、更正、停止蒐集、處理或利用，或抹除其個人資料，或請求提供該等資料之複製本。",
+    "template": "sales/services/privacy_consent_pdf.py",
+    "max_length": 75
+  },
+  "print.privacy.clause4": {
+    "page": "列印個資同意書・條文",
+    "default": "4. 車主瞭解如其不願提供上開個人資料，或要求本公司停止處理、利用或抹除其個人資料，可能導致上述部分或全部之目的無法完成，而對車主之權益有所影響。",
+    "template": "sales/services/privacy_consent_pdf.py",
+    "max_length": 73
+  },
+  "print.privacy.clause5": {
+    "page": "列印個資同意書・條文",
+    "default": "5. 本同意書如有未盡事宜，本公司將依個人資料保護法或其他相關法令之規定辦理。",
+    "template": "sales/services/privacy_consent_pdf.py",
+    "max_length": 39
+  }
+}

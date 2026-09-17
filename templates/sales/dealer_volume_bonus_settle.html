@@ -1,4 +1,4 @@
-{% extends "base.html" %}{% load static %}
+{% extends "base.html" %}{% load site_copy %}{% load static %}
 {% block head %}<link rel="stylesheet" href="{% static 'css/dealer-volume-bonus.css' %}?v={{ app_version }}">{% endblock %}
 {% block title %}台數獎金試算與結算｜車輛銷售管理{% endblock %}
 {% block page_class %}page-shell--wide{% endblock %}
@@ -6,9 +6,9 @@
 {% include "sales/_page_back.html" with fallback_url=return_url label="返回試算／結算" %}
 <section class="hero-row compact-hero"><div><p class="eyebrow">逐單核對，再確認結算</p><h1>{{ rule }}</h1><p class="muted">{{ rule.conditions_label }}</p>{% if period %}<p>{{ period }}</p>{% endif %}</div></section>
 {% if not period %}
-<section class="form-section static-section"><h2>先選擇統計期間</h2><p class="muted">各期獨立計算，不合併台數。</p><div class="bonus-selected-periods">{% for item in periods %}<a class="button ghost" href="?period={{ item.pk }}">{{ item }}</a>{% endfor %}</div></section>
+<section class="form-section static-section"><h2>先選擇統計期間</h2><p class="muted">{% site_text 'dealer_volume_bonus_settle.6e1d7bce32e6' %}</p><div class="bonus-selected-periods">{% for item in periods %}<a class="button ghost" href="?period={{ item.pk }}">{{ item }}</a>{% endfor %}</div></section>
 {% elif not dealer %}
-<section class="form-section static-section"><h2>先選擇收款車行</h2><p class="muted">各車行分開計算門檻與結算。</p><form method="get" class="stacked-form"><input type="hidden" name="period" value="{{ period.pk }}"><div class="field"><label for="bonus-dealer">收款車行</label><select id="bonus-dealer" name="dealer" class="form-control" data-searchable-select="1" required><option value="">請選擇車行</option>{% for item in dealers %}<option value="{{ item.pk }}">{{ item }}</option>{% endfor %}</select></div><button class="button primary">查看試算</button></form></section>
+<section class="form-section static-section"><h2>先選擇收款車行</h2><p class="muted">{% site_text 'dealer_volume_bonus_settle.63010827821f' %}</p><form method="get" class="stacked-form"><input type="hidden" name="period" value="{{ period.pk }}"><div class="field"><label for="bonus-dealer">收款車行</label><select id="bonus-dealer" name="dealer" class="form-control" data-searchable-select="1" required><option value="">請選擇車行</option>{% for item in dealers %}<option value="{{ item.pk }}">{{ item }}</option>{% endfor %}</select></div><button class="button primary">查看試算</button></form></section>
 {% else %}
 <div class="responsive-split bonus-settlement-layout">
   <section class="form-section static-section">

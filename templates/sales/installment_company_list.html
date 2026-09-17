@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+{% extends "base.html" %}{% load site_copy %}
 {% block title %}分期公司與方案｜車輛銷售管理{% endblock %}
 {% block page_class %}page-shell--wide{% endblock %}
 {% block content %}
@@ -7,7 +7,7 @@
   <div>
     <p class="eyebrow">分期主檔</p>
     <h1>分期公司與方案</h1>
-    <p class="muted">集中維護公司與客服電話；訂單套用方案時會保存當下資料，不受日後修改影響。</p>
+    <p class="muted">{% site_text 'installment_company_list.ebfc7c9fc811' %}</p>
   </div>
   {% if not show_editor %}<div class="hero-actions"><a class="button primary" href="?new=1#company-form">＋ 新增分期公司</a></div>{% endif %}
 </section>
@@ -49,7 +49,7 @@
           <td data-label="狀態">{% include "sales/_active_quick_toggle.html" with resource="installment-company" pk=item.pk is_active=item.active item_name=item.name %}</td>
           <td data-label="操作" class="inventory-row-action"><a class="button ghost small" href="?edit={{ item.pk }}#company-form">編輯</a></td>
         </tr>
-        {% empty %}<tr><td colspan="6"><div class="empty-state small"><strong>尚未建立分期公司</strong><p>使用上方「新增分期公司」開始建立。</p></div></td></tr>{% endfor %}
+        {% empty %}<tr><td colspan="6"><div class="empty-state small"><strong>尚未建立分期公司</strong><p>{% site_text 'installment_company_list.4b00ab3ebcea' %}</p></div></td></tr>{% endfor %}
       </tbody>
     </table>
   </div>

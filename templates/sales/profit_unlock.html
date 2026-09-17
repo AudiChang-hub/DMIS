@@ -1,4 +1,5 @@
-{% extends 'base.html' %}
+{% extends 'base.html' %}{% load site_copy %}
 {% block title %}解鎖淨利{% endblock %}
-{% block content %}<section class="account-editor"><p class="eyebrow">敏感資料保護</p><h1>解鎖淨利</h1><p>正在驗證 {{ user.get_full_name|default:user.username }}（@{{ user.username }}）。請使用自己的登入密碼，不是其他人員或共用帳號的密碼。</p>
-<form method="post" class="card stacked-form">{% csrf_token %}<input type="hidden" name="next" value="{{ next_url }}">{{ form.non_field_errors }}{% include 'sales/_field.html' with field=form.password %}<p class="muted">此裝置目前登入階段可查看 5 分鐘，到期自動鎖定；不會延長，也不會改變財務編輯權限。</p><div class="hero-actions"><a class="button ghost" href="{{ next_url }}">取消</a><button class="button primary">驗證並解鎖</button></div></form></section>{% endblock %}
+{% block content %}
+{% site_navigation %}<section class="account-editor"><p class="eyebrow">敏感資料保護</p><h1>解鎖淨利</h1><p>正在驗證 {{ user.get_full_name|default:user.username }}（@{{ user.username }}）。請使用自己的登入密碼，不是其他人員或共用帳號的密碼。</p>
+<form method="post" class="card stacked-form">{% csrf_token %}<input type="hidden" name="next" value="{{ next_url }}">{{ form.non_field_errors }}{% include 'sales/_field.html' with field=form.password %}<p class="muted">{% site_text 'profit_unlock.e09829d88ad7' %}</p><div class="hero-actions"><a class="button ghost" href="{{ next_url }}">取消</a><button class="button primary">驗證並解鎖</button></div></form></section>{% endblock %}

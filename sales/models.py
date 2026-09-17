@@ -31,6 +31,11 @@ class SystemAnnouncement(TimeStampedModel):
     ends_at = models.DateTimeField("結束顯示時間", null=True, blank=True)
     version = models.PositiveIntegerField(default=1, editable=False)
     updated_by = models.CharField("修改人", max_length=150, blank=True)
+    audience = models.CharField("顯示對象", max_length=20, default="all", choices=[
+        ("all", "所有人員"), ("internal", "店內人員"), ("dealer", "合作車行人員"), ("selected", "指定人員")])
+    recipients = models.ManyToManyField(settings.AUTH_USER_MODEL, blank=True, related_name="targeted_announcements", verbose_name="指定人員")
+    archived_at = models.DateTimeField("封存時間", null=True, blank=True)
+    deleted_at = models.DateTimeField("刪除時間", null=True, blank=True)
 
     class Meta:
         ordering = ("-pinned", "-starts_at", "-pk")
@@ -44,13 +49,22 @@ class SystemAnnouncement(TimeStampedModel):
             raise ValidationError({"ends_at": "結束時間必須晚於開始時間。"})
 
     @classmethod
-    def visible(cls, now=None):
+    def visible(cls, now=None, user=None):
         now = now or timezone.now()
-        return cls.objects.filter(published=True, starts_at__lte=now).filter(Q(ends_at__isnull=True) | Q(ends_at__gt=now))
+        rows = cls.objects.filter(published=True, starts_at__lte=now, archived_at__isnull=True, deleted_at__isnull=True).filter(Q(ends_at__isnull=True) | Q(ends_at__gt=now))
+        if user is None:
+            return rows.filter(audience="all")
+        from sales.services.order_intake import is_dealer
+        group = "dealer" if is_dealer(user) else "internal"
+        return rows.filter(Q(audience__in=["all", group]) | Q(audience="selected", recipients=user)).distinct()
 
     @property
     def display_status(self):
         now = timezone.now()
+        if self.deleted_at:
+            return "已刪除"
+        if self.archived_at:
+            return "已封存"
         if not self.published:
             return "未發布"
         if self.starts_at > now:
@@ -70,6 +84,67 @@ class SystemAnnouncementRevision(models.Model):
     class Meta:
         ordering = ("-version",)
         constraints = [models.UniqueConstraint(fields=("announcement", "version"), name="announcement_unique_revision")]
+
+
+class ReleasePublication(models.Model):
+    version = models.CharField("正式版號", max_length=30, unique=True)
+    published_at = models.DateTimeField("首次成功發布時間", default=timezone.now, editable=False)
+
+
+class SiteTextOverride(TimeStampedModel):
+    key = models.CharField(max_length=180, unique=True)
+    text = models.TextField(max_length=10000)
+    version = models.PositiveIntegerField(default=1)
+    updated_by = models.CharField(max_length=150)
+
+
+class SiteTextRevision(models.Model):
+    key = models.CharField(max_length=180, db_index=True)
+    before = models.TextField(blank=True)
+    after = models.TextField(blank=True)
+    actor = models.CharField(max_length=150)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at", "-pk"]
+
+
+class GiftDistribution(TimeStampedModel):
+    title = models.CharField("活動名稱", max_length=150)
+    scheduled_on = models.DateField("預計送禮日", null=True, blank=True)
+    note = models.TextField("活動說明", blank=True, max_length=2000)
+    archived = models.BooleanField(default=False)
+    created_by = models.CharField(max_length=150)
+
+    class Meta:
+        ordering = ["-created_at", "-pk"]
+
+
+class GiftDistributionItem(TimeStampedModel):
+    distribution = models.ForeignKey(GiftDistribution, on_delete=models.PROTECT, related_name="items")
+    source = models.ForeignKey("SalesSource", on_delete=models.SET_NULL, null=True, blank=True)
+    recipient = models.CharField("送禮對象", max_length=150)
+    gift = models.CharField("禮品內容", max_length=150, blank=True)
+    note = models.CharField("工作備註", max_length=1000, blank=True)
+    completed = models.BooleanField("已完成", default=False)
+    completed_at = models.DateTimeField(null=True, blank=True)
+    completed_by = models.CharField(max_length=150, blank=True)
+    removed = models.BooleanField(default=False)
+    version = models.PositiveIntegerField(default=1)
+
+    class Meta:
+        ordering = ["completed", "recipient", "pk"]
+        constraints = [models.UniqueConstraint(fields=["distribution", "recipient"], name="gift_unique_recipient")]
+
+
+class GiftDistributionEvent(models.Model):
+    distribution = models.ForeignKey(GiftDistribution, on_delete=models.PROTECT, related_name="events")
+    description = models.CharField(max_length=1500)
+    actor = models.CharField(max_length=150)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at", "-pk"]
 
 
 def normalize_vehicle_identifier(value):
@@ -2889,6 +2964,7 @@ class SalesOrder(TimeStampedModel):
     discount_status = models.CharField(
         "折扣狀態", max_length=20, choices=DiscountStatus.choices, blank=True, editable=False
     )
+    discount_basis_total = models.DecimalField("申請折扣時的原總價", max_digits=12, decimal_places=0, blank=True, null=True, editable=False)
     discount_requested_at = models.DateTimeField("折扣申請時間", blank=True, null=True, editable=False)
     discount_requested_by = models.CharField("折扣申請人", max_length=150, blank=True, editable=False)
     discount_decided_at = models.DateTimeField("折扣確認時間", blank=True, null=True, editable=False)
@@ -3386,6 +3462,9 @@ class SalesOrder(TimeStampedModel):
             ]
         )
 
+    registration_manual = models.BooleanField("自行調整牌險明細", default=False)
+    registration_adjustment_reason = models.CharField("牌險調整原因", max_length=500, blank=True)
+
     def calculate_balance(self):
         return (
             self.vehicle_price
@@ -3398,6 +3477,15 @@ class SalesOrder(TimeStampedModel):
             - self.old_vehicle_valuation
             - self.approved_discount_amount
         )
+
+    @property
+    def pre_discount_total(self):
+        """客戶總費用，未扣訂金、舊車折抵與已核准優惠。"""
+        return self.calculate_balance() + self.deposit_amount + self.old_vehicle_valuation + self.approved_discount_amount
+
+    @property
+    def discounted_total(self):
+        return self.pre_discount_total - self.approved_discount_amount
 
     def clear_installment_details(self):
         self.installment_company = ""

@@ -31,6 +31,7 @@ SCREENS = (
     Screen("customers", "客戶查詢（含聯絡與歷史摘要）", "customer_list", False),
     Screen("sources", "通路與人員（合作車行、平台、本店人員、類別、節禮）", "sales_source_list"),
     Screen("distribution", "價格表分發", "price_list_distribution"),
+    Screen("gift_distribution", "年節送禮分發", "gift_distribution"),
     Screen("costs", "車輛結算成本", "settlement_cost_rule_list"),
     Screen("incentives", "原廠獎勵與補助", "incentive_rule_list"),
     Screen("commissions", "車行傭金與銷售獎勵", "dealer_sales_program_list"),
@@ -52,7 +53,7 @@ SCREEN_GROUPS = (
     ("reports", "報表中心", ()),
     ("data", "資料維護區", (
         ("車輛與商品", ("brands", "models", "inventory", "accessories", "rewards")),
-        ("通路、客戶與人員", ("customers", "sources", "distribution")),
+        ("通路、客戶與人員", ("customers", "sources", "distribution", "gift_distribution")),
         ("費率與規則", ("costs", "incentives", "commissions", "bonuses", "installments", "fees", "holidays")),
         ("工具與管理", ("imports", "templates", "diagnostics", "integrity", "accounts")),
     )),
@@ -120,6 +121,11 @@ register("accounts", "user_account_create user_account_edit user_account_status 
 PERSONAL = set("dashboard home_favorites system_health app_version appearance_theme_update mobile_quick_links_update user_guide password_change_required access_home login logout throttled_admin_login".split())
 ROOT_ONLY = set("announcement_manage announcement_edit access_overview access_edit report_manage report_classification report_create report_edit report_draft_preview report_lifecycle".split())
 ROOT_ONLY.add("order_account_scope")
+register("gift_distribution", "gift_distribution gift_distribution_detail")
+register("gift_distribution", "gift_distribution_update", "operate")
+ROOT_ONLY.add("announcement_action")
+ROOT_ONLY.add("site_copy_manage")
+PERSONAL.update({"announcement_detail", "release_history"})
 ROOT_ONLY.add("order_deletion_queue")
 ROOT_ONLY.update({"catalog_manage", "catalog_edit", "catalog_preview_image", "catalog_preview_color_image", "dealer_accounts", "dealer_account_create", "dealer_account_edit"})
 PERSONAL.update({"catalog", "catalog_detail", "catalog_image", "catalog_color_image"})

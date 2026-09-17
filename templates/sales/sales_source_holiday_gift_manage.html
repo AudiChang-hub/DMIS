@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+{% extends "base.html" %}{% load site_copy %}
 {% load static %}
 {% block title %}管理年節送禮名單｜車輛銷售管理{% endblock %}
 {% block page_class %}page-shell--wide{% endblock %}
@@ -8,7 +8,7 @@
   <div>
     <p class="eyebrow">合作關係維護</p>
     <h1>管理年節送禮名單</h1>
-    <p class="muted">直接勾選需要安排年節送禮的合作車行，完成後一次儲存，不必逐家進入編輯。</p>
+    <p class="muted">{% site_text 'sales_source_holiday_gift_manage.e72ec788bf20' %}</p>
   </div>
   <div class="holiday-gift-summary" aria-live="polite">
     <span>目前名單</span>

@@ -12,6 +12,7 @@
   <link rel="stylesheet" href="{% static 'css/ui-comfort.css' %}?v={{ app_version }}">
   <link rel="stylesheet" href="{% static 'css/account-workspace.css' %}?v={{ app_version }}">
   <link rel="stylesheet" href="{% static 'css/catalog-selection.css' %}?v={{ app_version }}">
+  <link rel="stylesheet" href="{% static 'css/site-review.css' %}?v={{ app_version }}">
 </head>
 <body data-profit-until="{{ profit_unlock_until }}" data-app-version="{{ app_version }}" data-version-endpoint="{% url 'app_version' %}" data-history-user="{% if request.user.is_authenticated %}{{ request.user.pk }}{% else %}anonymous{% endif %}">
   <a class="skip-link" href="#main-content">跳至主要內容</a>
@@ -21,10 +22,6 @@
         <span class="brand-copy"><strong>車輛銷售管理</strong><small>訂單、配車、交付都在同一處</small></span>
       </a>
       {% if user.is_authenticated %}
-        {% if reception_mode %}
-        <nav class="desktop-nav reception-nav" aria-label="接待下單"><a href="{% url 'dashboard' %}">首頁</a><a href="{{ order_entry_url }}" class="active">建立訂單</a></nav>
-        <span class="reception-account">目前登入：{{ user.get_full_name|default:user.username }}</span>
-        {% else %}
         <nav class="desktop-nav" aria-label="主要選單">
           {% if_access 'dashboard' %}<a href="{% url 'dashboard' %}" {% if request.resolver_match.url_name == 'dashboard' %}class="active" aria-current="page"{% endif %}>首頁</a>{% endif_access %}
           {% if order_entry_visible %}<a href="{{ order_entry_url }}">建立訂單</a>{% endif %}
@@ -51,6 +48,7 @@
                 {% if_access 'sales_source_platform_list' %}<a href="{% url 'sales_source_platform_list' %}"><strong>網路平台</strong><small>平台資料與聯絡方式</small></a>{% endif_access %}
                 {% if_access 'sales_source_staff_list' %}<a href="{% url 'sales_source_staff_list' %}"><strong>本店人員</strong><small>人員、所在店與每筆傭金</small></a>{% endif_access %}
                 {% if_access 'price_list_distribution' %}<a href="{% url 'price_list_distribution' %}"><strong>價格表分發</strong><small>手機勾選車行跑訪進度與當月備註</small></a>{% endif_access %}
+                {% if_access 'gift_distribution' %}<a href="{% url 'gift_distribution' %}"><strong>年節送禮分發</strong><small>手動建立名單與完成紀錄</small></a>{% endif_access %}
               </section>{% endif %}
               {% if data_rules_visible %}<section class="data-menu-group" aria-labelledby="data-menu-rules">
                 <h2 id="data-menu-rules">費率與規則</h2>
@@ -70,6 +68,7 @@
               {% if show_management_tools %}<section class="data-menu-tools data-menu-admin" aria-label="管理者工具">
                 <h2>管理者工具</h2>
                 {% if_access 'announcement_manage' %}<a href="{% url 'announcement_manage' %}"><strong>系統公告管理</strong></a>{% endif_access %}
+                {% if_access 'site_copy_manage' %}<a href="{% url 'site_copy_manage' %}"><strong>畫面與列印說明文字</strong></a>{% endif_access %}
                 {% if user.username == 'admin' %}{% if_access 'report_manage' %}<a href="{% url 'report_manage' %}"><strong>報表設計管理</strong></a>{% endif_access %}{% endif %}
                 {% if user.username == 'admin' %}{% if_access 'report_classification' %}<a href="{% url 'report_classification' %}"><strong>報表分類設定</strong></a>{% endif_access %}{% endif %}
                 {% if_access 'user_management' %}<a href="{% url 'user_management' %}"><strong>帳號與權限</strong></a>{% endif_access %}
@@ -106,12 +105,11 @@
           {% csrf_token %}
           <button type="submit" class="logout-button"><span aria-hidden="true">↪</span> 登出系統</button>
         </form>
-        {% endif %}
       {% endif %}
     </div>
   </header>
 
-  {% if user.is_authenticated and not reception_mode %}
+  {% if user.is_authenticated %}
     <nav class="mobile-nav" aria-label="手機主要選單">
       {% if_access 'dashboard' %}<a href="{% url 'dashboard' %}" {% if request.resolver_match.url_name == 'dashboard' %}class="active" aria-current="page"{% endif %}><span>⌂</span>首頁</a>{% endif_access %}
       {% if order_entry_visible %}<a class="mobile-new" href="{{ order_entry_url }}"><span>＋</span>建立訂單</a>{% endif %}

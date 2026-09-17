@@ -3,6 +3,8 @@ from django.views.generic import RedirectView
 
 from . import views, announcement_views, favorite_views, intake_views, catalog_views, dealer_account_views, profit_views
 from . import order_deletion_views
+from . import gift_views
+from . import site_copy_views
 from .historical_replacement import historical_buyer_replacement
 from .historical_date_change import historical_date_change
 from .reporting import views as report_views
@@ -11,6 +13,10 @@ from .access import views as access_views
 
 
 urlpatterns = [
+    path("system/text/", site_copy_views.manage, name="site_copy_manage"),
+    path("data/gift-distribution/", gift_views.manage, name="gift_distribution"),
+    path("data/gift-distribution/<int:pk>/", gift_views.manage, name="gift_distribution_detail"),
+    path("data/gift-distribution/items/<int:pk>/", gift_views.update_item, name="gift_distribution_update"),
     path("intake/drafts/", intake_views.intake_drafts, name="intake_drafts"),
     path("intake/new/", views.order_create, {"reception": True}, name="order_start"),
     path("intake/drafts/save/", views.draft_save, {"reception": True}, name="intake_draft_save"),
@@ -40,6 +46,9 @@ urlpatterns = [
     path("account/home-favorites/", favorite_views.home_favorites, name="home_favorites"),
     path("system/announcements/", announcement_views.manage, name="announcement_manage"),
     path("system/announcements/<int:pk>/", announcement_views.manage, name="announcement_edit"),
+    path("system/announcements/<int:pk>/action/", announcement_views.lifecycle, name="announcement_action"),
+    path("news/<int:pk>/", announcement_views.detail, name="announcement_detail"),
+    path("releases/", announcement_views.release_history, name="release_history"),
     path("account/access/", access_views.home, name="access_home"),
     path("system/users/access/", access_views.overview, name="access_overview"),
     path("system/users/<int:pk>/access/", access_views.edit, name="access_edit"),

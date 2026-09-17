@@ -1,6 +1,6 @@
-<section class="card intake-receipt" id="order-acceptance" aria-label="接單進度">
+{% load site_copy %}<section class="card intake-receipt" id="order-acceptance" aria-label="接單進度">
 {% if order.status == 'intake_pending' %}
-  <h2>待接單</h2><p>訂單已送達，等待店內人員接單。接單後會在此顯示負責人與時間。</p>
+  <h2>待接單</h2><p>{% site_text '_order_acceptance.e23fbf07e849' %}</p>
   {% if intake_can_receive %}<form method="post" action="{% url 'order_receive' order.pk %}">{% csrf_token %}<button class="button primary">由我接單</button></form>{% endif %}
 {% elif order.accepted_at %}
   <h2>已接單</h2><p><strong>{{ order.accepted_name }}</strong> 於 {{ order.accepted_at|date:"Y/m/d H:i" }} 接單</p>

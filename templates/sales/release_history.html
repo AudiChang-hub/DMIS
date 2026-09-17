@@ -1,0 +1,2 @@
+{% extends 'base.html' %}{% load site_copy %}{% load pagination_tags %}{% block title %}完整版本歷程{% endblock %}{% block content %}
+{% site_navigation %}{% include 'sales/_release_history.html' %}{% pagination page_obj aria_label='版本歷程分頁' %}{% endblock %}

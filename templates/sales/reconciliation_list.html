@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+{% extends "base.html" %}{% load site_copy %}
 {% load sales_format pagination_tags %}
 {% block title %}統一撥款對帳｜車輛銷售管理{% endblock %}
 {% block page_class %}page-shell--wide{% endblock %}
@@ -10,7 +10,7 @@
   <div>
     <p class="eyebrow">集中核對實際入帳</p>
     <h1>統一撥款對帳</h1>
-    <p class="muted">只核對分期公司、網路平台與合作車行的預計金額、實際金額及差額；不需逐張進入訂單。</p>
+    <p class="muted">{% site_text 'reconciliation_list.699f0b9879fe' %}</p>
   </div>
 </section>
 <form class="inventory-filters operations-filters" method="get">

@@ -1,14 +1,15 @@
-{% extends "base.html" %}{% load pagination_tags static %}
+{% extends "base.html" %}{% load site_copy %}{% load pagination_tags static %}
 {% block title %}選車展示管理{% endblock %}{% block content %}
-<section class="hero-row"><div><h1>選車展示管理</h1><p>只列出啟用車款，包含已上架與未上架。規格、售價與分期共用機種主檔，這裡維護展示圖片與介紹。</p></div><a class="button" href="{% url 'catalog' %}">查看公開入口</a></section>
+{% site_navigation %}
+<section class="hero-row"><div><h1>選車展示管理</h1><p>{% site_text 'catalog_manage.504ae0cdacfd' %}</p></div><a class="button" href="{% url 'catalog' %}">查看公開入口</a></section>
 <form method="get" class="card stacked-form" data-catalog-filters>
   {% include 'sales/_catalog_filters.html' %}
   <label for="catalog-query">關鍵字<input class="form-control" id="catalog-query" name="q" value="{{ query }}" placeholder="搜尋品牌、車型或型號"></label>
-  <p class="help-text">依品牌、車型逐步縮小型號選項，選好後按「套用篩選」。變更上層條件會清除下層選擇。</p>
+  <p class="help-text">{% site_text 'catalog_manage.fc99099c0daa' %}</p>
   <div class="catalog-manage-actions"><button class="button primary">套用篩選</button><a class="button" href="{% url 'catalog_manage' %}">清除篩選</a></div>
 </form>
 <p role="status">符合條件的啟用車款：{{ page_obj.paginator.count }} 款</p>
-{% for model in page_obj %}<article class="card hero-row"><div><h2>{{ model }}</h2><p>{% if model.catalog_entry.published %}已上架{% else %}未上架{% endif %}</p></div><a class="button" href="{% url 'catalog_edit' model.pk %}">編輯展示</a></article>{% empty %}<p class="card">找不到符合條件的啟用車款，請調整或清除篩選。</p>{% endfor %}
+{% for model in page_obj %}<article class="card hero-row"><div><h2>{{ model }}</h2><p>{% if model.catalog_entry.published %}已上架{% else %}未上架{% endif %}</p></div><a class="button" href="{% url 'catalog_edit' model.pk %}">編輯展示</a></article>{% empty %}<p class="card">{% site_text 'catalog_manage.06eb430fed89' %}</p>{% endfor %}
 {% pagination page_obj aria_label="展示管理分頁" %}
 {{ filter_options|json_script:"catalog-filter-options" }}
 {% endblock %}

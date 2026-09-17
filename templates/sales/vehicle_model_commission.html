@@ -1,13 +1,13 @@
-{% extends "base.html" %}{% load static %}
+{% extends "base.html" %}{% load site_copy %}{% load static %}
 {% block title %}車行傭金與銷售獎勵｜車輛銷售管理{% endblock %}
 {% block page_class %}page-shell--form dealer-program-page{% endblock %}
 {% block content %}
 {% url 'dealer_sales_program_list' as program_list_url %}{% url 'data_maintenance' as data_url %}
 {% include "sales/_page_back.html" with fallback_url=program_list_url label="車行傭金與銷售獎勵" root_url=data_url root_label="資料維護區" current_label=vehicle_model.name %}
-<section class="hero-row compact-hero dealer-program-hero"><div><p class="eyebrow">{{ vehicle_model.brand }} {{ vehicle_model.name }}／{{ vehicle_model.model_number }}</p><h1>車行傭金與銷售獎勵</h1><p class="muted">此頁已綁定目前車型，不需要再次選擇。現金傭金與額外獎勵分開保存、清楚辨識。</p></div></section>
+<section class="hero-row compact-hero dealer-program-hero"><div><p class="eyebrow">{{ vehicle_model.brand }} {{ vehicle_model.name }}／{{ vehicle_model.model_number }}</p><h1>車行傭金與銷售獎勵</h1><p class="muted">{% site_text 'vehicle_model_commission.28c0856d271d' %}</p></div></section>
 
 <section id="cash-commission" class="card commission-editor-card dealer-program-section">
-  <div class="commission-editor-card__intro"><span class="vehicle-business-card__icon">佣</span><div><p class="eyebrow">現金</p><h2>車行基礎傭金</h2><p>合作車行銷售此車型時的預設金額；特定車行加減仍在該車行資料維護。</p></div></div>
+  <div class="commission-editor-card__intro"><span class="vehicle-business-card__icon">佣</span><div><p class="eyebrow">現金</p><h2>車行基礎傭金</h2><p>{% site_text 'vehicle_model_commission.6234fe3bef5e' %}</p></div></div>
   <form method="post">{% csrf_token %}<input type="hidden" name="action" value="save_commission">{% if form.non_field_errors %}<div class="message error">{{ form.non_field_errors }}</div>{% endif %}<div class="commission-editor-card__field">{% for field in form %}{% include "sales/_field.html" with field=field %}{% endfor %}</div><div class="form-actions"><button class="button primary" type="submit">儲存基礎傭金</button></div></form>
 </section>
 
@@ -16,9 +16,9 @@
   {% if reward_plans %}<nav class="dealer-reward-versions" aria-label="獎勵版本">{% for plan in reward_plans %}<a href="{% url 'vehicle_model_commission' vehicle_model.pk %}?reward={{ plan.pk }}#dealer-rewards" class="dealer-reward-version{% if reward_plan.pk == plan.pk %} is-current{% endif %}"><strong>{{ plan.effective_from|date:'Y/m/d' }}</strong><span>{% if plan.effective_to %}至 {{ plan.effective_to|date:'Y/m/d' }}{% else %}起持續有效{% endif %}</span><small class="reward-state reward-state--{{ plan.display_status }}">{{ plan.display_status_label }}</small><em>{{ plan.reward_summary|default:'尚未填寫項目' }}</em></a>{% endfor %}</nav>{% endif %}
   <form method="post" class="dealer-reward-form">{% csrf_token %}<input type="hidden" name="action" value="save_rewards"><input type="hidden" name="reward_id" value="{{ reward_plan.pk|default:'' }}">{% if creating_reward %}<input type="hidden" name="new_reward" value="1">{% endif %}{{ reward_formset.management_form }}
     {% if reward_form.non_field_errors or reward_formset.non_form_errors %}<div class="message error">{{ reward_form.non_field_errors }}{{ reward_formset.non_form_errors }}</div>{% endif %}
-    <div class="dealer-reward-editor-title"><div><span>{{ creating_reward|yesno:'建立新版本,編輯版本' }}</span><strong>{{ vehicle_model.name }} {{ vehicle_model.model_year|default:'' }} {{ vehicle_model.get_model_code_display }}</strong></div><small>車型由系統帶入，不需重選</small></div>
+    <div class="dealer-reward-editor-title"><div><span>{{ creating_reward|yesno:'建立新版本,編輯版本' }}</span><strong>{{ vehicle_model.name }} {{ vehicle_model.model_year|default:'' }} {{ vehicle_model.get_model_code_display }}</strong></div><small>{% site_text 'vehicle_model_commission.3d544bae8236' %}</small></div>
     <section class="dealer-reward-settings" aria-labelledby="dealer-reward-period-title">
-      <div class="dealer-reward-settings__heading"><h3 id="dealer-reward-period-title">適用期間</h3><p>設定這一版獎勵何時生效；結束日期可留白。</p></div>
+      <div class="dealer-reward-settings__heading"><h3 id="dealer-reward-period-title">適用期間</h3><p>{% site_text 'vehicle_model_commission.cfe514de4232' %}</p></div>
       <div class="dealer-reward-period-grid">
         <div>{% include "sales/_field.html" with field=reward_form.effective_from %}</div>
         <div>{% include "sales/_field.html" with field=reward_form.effective_to %}</div>
@@ -34,7 +34,7 @@
       </div>
       <div class="dealer-reward-period-note">{% include "sales/_field.html" with field=reward_form.note %}</div>
     </section>
-    <div class="dealer-reward-items-heading"><div><h3>本車型提供的獎勵</h3><p>每筆代表每售出一台適用；選擇品項後會自動帶入類型、單位與適用成本。</p></div><button type="button" class="button ghost small" data-add-reward>＋ 新增獎勵</button></div>
+    <div class="dealer-reward-items-heading"><div><h3>本車型提供的獎勵</h3><p>{% site_text 'vehicle_model_commission.fb16fc7dfb6a' %}</p></div><button type="button" class="button ghost small" data-add-reward>＋ 新增獎勵</button></div>
     <div class="dealer-reward-items" data-reward-rows>
       {% for item_form in reward_formset %}
         <section class="dealer-reward-item" data-reward-row>

@@ -1,11 +1,11 @@
-{% extends "base.html" %}{% load static %}
+{% extends "base.html" %}{% load site_copy %}{% load static %}
 {% block title %}刪除台數獎金規則｜車輛銷售管理{% endblock %}
 {% block head %}<link rel="stylesheet" href="{% static 'css/dealer-volume-bonus.css' %}?v={{ app_version }}">{% endblock %}
 {% block content %}
 {% url 'dealer_volume_bonus_list' as list_url %}
 {% include "sales/_page_back.html" with fallback_url=list_url label="返回規則管理" %}
 <div class="bonus-delete-page">
-  <section class="hero-row compact-hero"><div><p class="eyebrow">先核對，再確認</p><h1>刪除台數獎金規則</h1><p class="muted">只刪除這套設定，不刪除訂單，也不更動其他規則。</p></div></section>
+  <section class="hero-row compact-hero"><div><p class="eyebrow">先核對，再確認</p><h1>刪除台數獎金規則</h1><p class="muted">{% site_text 'dealer_volume_bonus_confirm_delete.2cb714fadb9b' %}</p></div></section>
   <section class="inventory-list-panel bonus-rule-card">
     <div class="bonus-rule-heading"><div><h2>{{ rule.display_name }}</h2><p class="muted">規則編號 #{{ rule.pk }}</p></div></div>
     <dl class="bonus-rule-details"><div><dt>適用車行</dt><dd>{{ rule.dealer|default:'全部合作車行，逐家計算' }}</dd></div><div><dt>車輛條件</dt><dd>{{ rule.conditions_label }}</dd></div></dl>

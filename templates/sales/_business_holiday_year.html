@@ -1,4 +1,4 @@
-<p class="muted">點選月份查看日期，再點日期開啟設定。</p>
+{% load site_copy %}<p class="muted">{% site_text '_business_holiday_year.89b570331679' %}</p>
 <div class="holiday-year-grid">
   {% for item in year_months %}
     <a class="holiday-year-month" href="?view=month&amp;month={{ item.month|date:'Y-m' }}" aria-label="查看 {{ item.month|date:'Y 年 n 月' }}">

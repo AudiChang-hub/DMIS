@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+{% extends "base.html" %}{% load site_copy %}
 {% load static %}
 {% block title %}分配與排序｜價格表分發{% endblock %}
 {% block page_class %}page-shell--wide{% endblock %}
@@ -10,7 +10,7 @@
   <div>
     <p class="eyebrow">{{ distribution.month|date:"Y 年 n 月" }} · 價格表分發</p>
     <h1>分配與排序</h1>
-    <p class="muted">先依區域找出車行、勾選例外，再用拖曳安排每位負責人的拜訪順序。</p>
+    <p class="muted">{% site_text 'price_list_distribution_assignments.d3d01a5df52a' %}</p>
   </div>
   <div class="hero-actions">
     <a class="button ghost" href="{% url 'price_list_distribution' %}?month={{ distribution.month|date:'Y-m' }}">查看分發清單</a>
@@ -49,7 +49,7 @@
 <section class="section-block price-assignment-picker">
   <div class="section-title">
     <div><p class="eyebrow">先縮小範圍，再勾選例外</p><h2>找出這次要分配的車行</h2></div>
-    <p>例如先篩「基隆市」並全選，再取消銘傑；篩「內湖區」後則只勾要負責的五家。</p>
+    <p>{% site_text 'price_list_distribution_assignments.a1d2208a8f58' %}</p>
   </div>
   <form method="get" class="master-filters price-assignment-filters">
     <div class="inventory-filter master-search"><label for="assignment-q">搜尋車行</label><input id="assignment-q" type="search" name="q" value="{{ query }}" placeholder="車行名稱、代碼、地址或負責人"></div>
@@ -79,7 +79,7 @@
     <div class="price-assignment-actionbar" data-selection-toolbar>
       <label class="price-assignment-select-all"><input type="checkbox" data-select-all><span>全選目前 {{ items|length }} 家</span></label>
       <strong data-selected-count aria-live="polite">尚未選取</strong>
-      <p class="price-assignment-idle" data-idle-hint>勾選車行後，即可一次指派負責人。</p>
+      <p class="price-assignment-idle" data-idle-hint>{% site_text 'price_list_distribution_assignments.d7c735bc53ac' %}</p>
       <div class="price-assignment-batch" data-batch-controls hidden>
         <label class="price-assignment-target"><span>指派給</span><select name="selected_assignee" data-selected-assignee>
           <option value="">未分配</option>
@@ -130,7 +130,7 @@
     <p class="visually-hidden" aria-live="polite" data-drag-announcer></p>
   </form>
   {% else %}
-  <div class="empty-state"><strong>目前沒有符合條件的車行</strong><p>請清除篩選，或改查其他負責人與區域。</p></div>
+  <div class="empty-state"><strong>目前沒有符合條件的車行</strong><p>{% site_text 'price_list_distribution_assignments.0b90ab237d85' %}</p></div>
   {% endif %}
 </section>
 

@@ -4103,17 +4103,15 @@ def app_version(request):
 
 @login_required
 def dashboard(request):
-    from sales.services.audience_content import release_context
+    from sales.announcement_views import home_news_context
     from sales.access.services import policy_for
     from sales.services.order_intake import scoped_orders
     from sales.services.order_intake import is_dealer, dealer_source
     if is_dealer(request.user):
         return render(request, "sales/dealer_home.html", {"dealer_source": dealer_source(request.user),
-            **release_context(policy_for(request)),
+            **home_news_context(request),
             "pending_count": scoped_orders(request.user).filter(status=SalesOrder.Status.INTAKE_PENDING).count()})
-    from config.release_notes import LEGACY_UPDATES, RELEASE, RELEASES
-    from sales.access.services import policy_for
-    from sales.models import SystemAnnouncement
+    from config.release_notes import RELEASE
     from sales.services.home_favorites import favorite_context
     if request.GET.get("q", "").strip():
         if not policy_for(request).route("order_list"):
@@ -4123,9 +4121,8 @@ def dashboard(request):
         "release": RELEASE,
         "intake_pending_count": scoped_orders(request.user).filter(status=SalesOrder.Status.INTAKE_PENDING).count() if policy_for(request).route("order_list") else 0,
         "deletion_pending_count": SalesOrder.objects.filter(deletion_requested_at__isnull=False).count() if policy_for(request).root else 0,
-        **release_context(policy_for(request)),
         **favorite_context(request.user, UserAppearancePreference.objects.filter(user=request.user).first(), policy=policy_for(request)),
-        "page_obj": Paginator(SystemAnnouncement.visible(), 8).get_page(request.GET.get("page")),
+        **home_news_context(request),
     })
 
 
@@ -4220,6 +4217,10 @@ def order_list(request):
             order.search_matches = build_order_match_summary(order, query, profit_unlocked=profit_visible)
     query_params = request.GET.copy()
     query_params.pop("page", None)
+    draft_rows = scoped_drafts(request.user)
+    if query:
+        draft_rows = draft_rows.filter(Q(data__owner_name__icontains=query) | Q(data__owner_phone__icontains=query) | Q(created_by__icontains=query))
+    show_drafts = request.GET.get("drafts") == "1" or request.GET.get("status") == "draft"
     return render(
         request,
         "sales/order_list.html",
@@ -4232,7 +4233,8 @@ def order_list(request):
             "per_page": per_page,
             "per_page_options": ORDER_LIST_PAGE_SIZE_OPTIONS,
             **analysis_filter_context(request.GET),
-            "drafts": Paginator(OrderDraft.objects.all(), 25).get_page(request.GET.get("page")) if request.GET.get("drafts") == "1" and policy_for(request).route("order_create") else [],
+            "drafts": Paginator(draft_rows, 25).get_page(request.GET.get("draft_page")) if show_drafts else [],
+            "draft_count": draft_rows.count(), "show_drafts": show_drafts,
             **sort_context(request.GET, sort_tokens, profit_unlocked=profit_visible),
         },
     )
@@ -4667,8 +4669,11 @@ def order_create(request, reception=False):
         )
         if not form.finance_editable:
             post_data = post_data.copy()
-            post_data.update({"accessories-TOTAL_FORMS": "0", "accessories-INITIAL_FORMS": "0", "other_fees-TOTAL_FORMS": "0", "other_fees-INITIAL_FORMS": "0"})
-        formset = AccessoryFormSet(post_data)
+            post_data.update({"other_fees-TOTAL_FORMS": "0", "other_fees-INITIAL_FORMS": "0"})
+        formset = AccessoryFormSet(post_data, form_kwargs={"allow_manual": form.finance_editable, "purchase_only": not form.finance_editable})
+        if not form.finance_editable:
+            for accessory_form in formset:
+                accessory_form.fields["line_type"].choices = [("purchase", "加購")]
         fee_formset = OtherFeeFormSet(post_data, prefix="other_fees")
         uploads = []
         form.is_valid()
@@ -4749,8 +4754,9 @@ def order_create(request, reception=False):
                     "note",
                 ),
             )
-            if draft and not reception
-            else None
+            if draft
+            else None,
+            form_kwargs={"allow_manual": form.finance_editable, "purchase_only": not form.finance_editable},
         )
         fee_formset = OtherFeeFormSet(
             initial=_draft_lines(draft.data, "other_fees", ("name", "amount"))
@@ -4781,7 +4787,7 @@ def order_create(request, reception=False):
             "installment_options_route": "intake_installment_options" if reception else "installment_plan_options",
             "price_options_route": "intake_price_options" if reception else "vehicle_price_options",
             "vehicle_rate_data": _vehicle_rate_data(),
-            "accessory_product_data": {} if reception else _accessory_product_data(),
+            "accessory_product_data": _accessory_product_data(),
         },
     )
 
@@ -4921,7 +4927,10 @@ def draft_save(request, reception=False):
     from sales.intake_forms import FINANCE_FIELDS
     from sales.services.order_intake import account_profile, can_edit_finance, can_receive
     if reception or not can_edit_finance(request.user):
-        draft.data = {key: value for key, value in draft.data.items() if key not in FINANCE_FIELDS and not key.startswith(("accessories-", "other_fees-"))}
+        draft.data = {key: value for key, value in draft.data.items() if key not in FINANCE_FIELDS and not key.startswith("other_fees-")}
+        for key in list(draft.data):
+            if key.startswith("accessories-") and key.endswith(("-amount", "-labor_fee")):
+                draft.data.pop(key)
     if reception:
         draft.data["_reception"] = True
     if reception or not can_receive(request.user):
@@ -5413,11 +5422,13 @@ def order_discount_request(request, pk):
     if request.method != "POST" or not order.is_editable:
         messages.error(request, "已交付、完成或取消的訂單不可再申請折扣。")
         return redirect("order_operations", pk=pk)
-    form = DiscountRequestForm(request.POST)
+    form = DiscountRequestForm(request.POST, total=order.pre_discount_total)
     if not form.is_valid():
         messages.error(request, "折扣申請未送出：" + " ".join(error for errors in form.errors.values() for error in errors))
         return redirect("order_operations", pk=pk)
     order.discount_requested_amount = form.cleaned_data["amount"]
+    order.discount_basis_total = order.pre_discount_total
+    discount_detail = (f"總價 {order.pre_discount_total:,.0f} 元 × {form.cleaned_data['rate']} 折；" if form.cleaned_data.get("mode") == "rate" else f"總價 {order.pre_discount_total:,.0f} 元減少 {form.cleaned_data['amount']:,.0f} 元；")
     order.discount_reason = form.cleaned_data["reason"]
     order.discount_status = SalesOrder.DiscountStatus.PENDING
     order.discount_requested_at = timezone.now()
@@ -5427,7 +5438,7 @@ def order_discount_request(request, pk):
     order.discount_decision_note = ""
     order.save(
         update_fields=[
-            "discount_requested_amount", "discount_reason", "discount_status",
+            "discount_requested_amount", "discount_basis_total", "discount_reason", "discount_status",
             "discount_requested_at", "discount_requested_by", "discount_decided_at",
             "discount_decided_by", "discount_decision_note", "updated_at",
         ]
@@ -5435,7 +5446,7 @@ def order_discount_request(request, pk):
     OrderEvent.objects.create(
         order=order,
         event_type="discount_requested",
-        description=f"申請內部折扣 {order.discount_requested_amount:,.0f} 元：{order.discount_reason}",
+        description=f"{discount_detail}申請原因：{order.discount_reason}",
         actor_name=_editing_name(request.user),
     )
     messages.success(request, "折扣申請已送出；核准前不會改變應收金額。")
@@ -5457,6 +5468,12 @@ def order_discount_decide(request, pk):
     old_expected = order.calculate_balance()
     was_automatic = order.actual_balance in {old_calculated, old_expected}
     approved = form.cleaned_data["decision"] == "approve"
+    if approved and (not order.is_editable or (order.discount_basis_total is not None and order.discount_basis_total != order.pre_discount_total)):
+        messages.error(request, "訂單狀態或折扣前總價已變更，請重新確認並申請折扣。")
+        return redirect("order_operations", pk=pk)
+    if approved and order.discount_requested_amount > order.pre_discount_total:
+        messages.error(request, "訂單總價已變更，原優惠超過目前總價，請重新申請。")
+        return redirect("order_operations", pk=pk)
     before_amount = order.approved_discount_amount
     order.approved_discount_amount = order.discount_requested_amount if approved else before_amount
     order.discount_status = SalesOrder.DiscountStatus.APPROVED if approved else SalesOrder.DiscountStatus.REJECTED
@@ -5652,7 +5669,7 @@ def order_edit(request, pk):
         balance_was_automatic = order.actual_balance == order.calculated_balance
         previous_actual_balance = order.actual_balance
         form = OrderEditForm(request.POST, request.FILES, instance=order)
-        formset = AccessoryFormSet(request.POST, instance=order)
+        formset = AccessoryFormSet(request.POST, instance=order, form_kwargs={"allow_manual": True})
         fee_formset = OtherFeeFormSet(
             request.POST, instance=order, prefix="other_fees"
         )
@@ -5727,7 +5744,7 @@ def order_edit(request, pk):
             return redirect("order_detail", pk=pk)
     else:
         form = OrderEditForm(instance=order)
-        formset = AccessoryFormSet(instance=order)
+        formset = AccessoryFormSet(instance=order, form_kwargs={"allow_manual": True})
         fee_formset = OtherFeeFormSet(instance=order, prefix="other_fees")
 
     return render(

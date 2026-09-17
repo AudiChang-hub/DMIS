@@ -108,6 +108,7 @@ for attempt in $(seq 1 30); do
     if curl --fail --silent --show-error --max-time 10 "$PUBLIC_HEALTH_URL" >/dev/null; then
         log "正式網域健康檢查通過"
         ./scripts/verify_django_public_route.sh
+        "${compose[@]}" exec -T web python manage.py record_release
         install -d "$(dirname "$DEPLOY_STATE_FILE")"
         state_tmp="${DEPLOY_STATE_FILE}.tmp.$$"
         printf '%s\n' "$remote_sha" >"$state_tmp"

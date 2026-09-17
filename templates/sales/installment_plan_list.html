@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+{% extends "base.html" %}{% load site_copy %}
 {% block title %}分期方案｜車輛銷售管理{% endblock %}
 {% block page_class %}page-shell--wide{% endblock %}
 {% block content %}
@@ -9,7 +9,7 @@
   <div>
     <p class="eyebrow">{{ vehicle_model.brand }} {{ vehicle_model.name }}</p>
     <h1>分期方案</h1>
-    <p class="muted">訂單依訂單日期選版本，再由期數帶入公司、每期金額、開辦費與預估撥款方式。</p>
+    <p class="muted">{% site_text 'installment_plan_list.65c84ecf7f02' %}</p>
   </div>
   <div class="hero-actions">
     {% if editing %}<a class="button ghost" href="{% url 'vehicle_installment_plan_list' vehicle_model.pk %}">＋ 新增下一版本</a>{% endif %}
@@ -53,7 +53,7 @@
     <div class="form-grid">{% for field in form %}{% include "sales/_field.html" with field=field %}{% endfor %}</div>
     <div class="subsection">
       <div class="section-title">
-        <div><h3>期數、金額與預估撥款</h3><p class="muted">一般方案選比例或固定金額；沒有固定規則的特殊案件選「本單另填」。</p></div>
+        <div><h3>期數、金額與預估撥款</h3><p class="muted">{% site_text 'installment_plan_list.b1528867904d' %}</p></div>
       </div>
       {{ option_formset.management_form }}
       <div id="option-rows">
@@ -95,10 +95,10 @@
   <form method="post" action="{% url 'installment_company_quick_create' %}" id="quick-company-form">
     {% csrf_token %}
     <header><div><span>不離開目前方案</span><h3>新增分期公司</h3></div><button type="button" aria-label="關閉" data-close-company-dialog>×</button></header>
-    <p>建立後會立即加入目前及後續新增的期數選單，並套用到剛才編輯的期數。</p>
+    <p>{% site_text 'installment_plan_list.506f08ad19ad' %}</p>
     <div class="form-grid single-column">
       <div class="field" data-quick-company-field="name"><label for="quick-company-name">公司名稱<em>必填</em></label><input class="form-control" id="quick-company-name" name="name" maxlength="120" autocomplete="organization" required><small class="field-error" data-quick-company-error="name" hidden></small></div>
-      <div class="field" data-quick-company-field="customer_service_phone"><label for="quick-company-phone">客服電話</label><input class="form-control" id="quick-company-phone" name="customer_service_phone" maxlength="50" inputmode="tel" autocomplete="tel"><small class="help-text">可稍後再到分期公司主檔補充或修改。</small><small class="field-error" data-quick-company-error="customer_service_phone" hidden></small></div>
+      <div class="field" data-quick-company-field="customer_service_phone"><label for="quick-company-phone">客服電話</label><input class="form-control" id="quick-company-phone" name="customer_service_phone" maxlength="50" inputmode="tel" autocomplete="tel"><small class="help-text">{% site_text 'installment_plan_list.ee6c77b09275' %}</small><small class="field-error" data-quick-company-error="customer_service_phone" hidden></small></div>
     </div>
     <p class="dialog-submit-error" data-quick-company-error="__all__" hidden></p>
     <div class="form-actions"><button class="button ghost" type="button" data-close-company-dialog>取消</button><button class="button primary" type="submit" data-company-submit>建立並套用</button></div>

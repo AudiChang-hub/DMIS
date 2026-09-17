@@ -4,6 +4,8 @@ from config.release_notes import RELEASES, LEGACY_UPDATES
 # (版本, 更新分類) 的順序與已發布內容一一對照；不覆寫歷史發布文字。
 # 每個 tuple 內全部權限皆需成立；空 tuple 表示所有已登入人員。
 RELEASE_RULES = {
+    ("1.9.0", "新增"): [(), ("root",), ("gift_distribution",), ("root",), ("screen:order_finance",)],
+    ("1.9.0", "改善"): [("order_start",), ("order_list", "internal"), ("screen:order_finance",), ("identity_documents_print",), ()],
     ("1.8.1", "修正"): [()],
     ("1.8.0", "新增"): [("catalog",), ("catalog",)],
     ("1.8.0", "改善"): [("catalog",), ("order_start",)],
@@ -42,6 +44,8 @@ def permitted(policy, rules):
 
 
 def release_context(policy):
+    from sales.models import ReleasePublication
+    publications = dict(ReleasePublication.objects.values_list("version", "published_at"))
     history = []
     for entry in RELEASES:
         changes = []
@@ -53,7 +57,7 @@ def release_context(policy):
                 changes.append({"kind": group["kind"], "items": items})
         if changes:
             # 混合權限標題不能把隱藏項目的名稱洩漏給讀者。
-            history.append({**entry, "title": entry["title"] if policy.root else "與你可用功能相關的更新", "changes": changes})
+            history.append({**entry, "published_at": publications.get(entry["version"]), "title": entry["title"] if policy.root else "與你可用功能相關的更新", "changes": changes})
     legacy = []
     for index, entry in enumerate(LEGACY_UPDATES):
         rules = LEGACY_RULES[index] if index < len(LEGACY_RULES) else []
@@ -65,6 +69,19 @@ def release_context(policy):
 
 # 給受限帳號的說明逐項拆開，避免共用長篇章節混入管理或財務內容。
 HELP_ITEMS = (
+    ("news", "公告與版本歷程", (), (
+        "首頁消息中心可切換公告與版本歷程，首頁只列最近兩版；點查看完整版本歷程可分頁查詢。",
+        "公告依帳號對象顯示，到期後自動隱藏；點閱讀全文查看內容及連結。發布時間以台北時間呈現，未記錄的舊時間不另推估。")),
+    ("gift-distribution", "年節送禮", ("gift_distribution",), (
+        "資料維護區 → 年節送禮，先手動建立活動，再勾選車行或輸入其他對象，不會自動沿用每月價格表名單。",
+        "完成後勾選完成送禮，可取消完成或移除名單，所有動作留下紀錄；封存後只供查閱。")),
+    ("site-copy", "說明文字管理", ("root",), (
+        "資料維護區 → 說明文字管理，可依頁面分類與關鍵字查找，修改頁面提示、欄位說明及訂購合約確認事項。",
+        "僅接受純文字，儲存即生效並保留異動紀錄；可還原預設。列印文字有字數限制，修改後請先預覽紙本；文字不會改變權限或計算規則。")),
+    ("custom-discount", "實際費用與總價折扣", ("screen:order_finance",), (
+        "配件售價、工資與牌險明細可註明原因調整；系統試算值保留比對。",
+        "訂單作業 → 內部折扣核准，可輸入任意折數（例如 9.25）或總價減少金額；核准後取代原優惠，不重複累加。",
+        "折扣以未扣訂金及舊車折抵的總價計算，不改分期公司撥款、佣金與成本；申請後若總價改變，必須重新申請。")),
     ("order-recycle-bin", "已刪除訂單與還原", ("order_recycle_bin",), (
         "一般人員的刪除申請由 admin 核准後，訂單才移至已刪除訂單；審核前仍保留原交易。",
         "已刪除訂單不納入一般列表與統計，但原狀態、金額、附件及歷史保留；從全部訂單上方的已刪除訂單／還原入口查詢並還原。",
@@ -91,7 +108,7 @@ HELP_ITEMS = (
     ("create-order", "建立訂單與草稿", ("order_start",), (
         "主選單首頁後方的建立訂單，直接選車、選色與填資料；不必先打開全部訂單。沒有選車權限時直接填單。",
         "上架車款以外可按直接填寫訂單。正式送出前確認機種、車色、分期與附件；送出後等待馭盛接單。",
-        "接待頁上方依序為首頁、建立訂單；按首頁或左上系統名稱可回首頁。接待畫面不顯示其他訂單或內部財務；送出只顯示本筆成立結果，可按再建立一筆或回首頁，再進入已授權的管理畫面。",
+        "接待頁保留帳號已授權的主選單；按首頁或左上系統名稱可回首頁。填單內容不顯示其他訂單或內部財務，可選擇加購配件；送出只顯示本筆成立結果，可按再建立一筆或回首頁。",
         "我的接待草稿只顯示本人的資料，可加入首頁常用功能。草稿不是正式訂單；建立與查詢由 admin 分開授權。")),
     ("order-deletion", "刪除申請與審核", ("order_recycle_bin",), (
         "全部訂單點刪除訂單並說明原因；一般人員送出的是申請，狀態顯示刪除確認中，原交易與統計在核准前不變。申請人可取消尚未處理的申請。",

@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+{% extends "base.html" %}{% load site_copy %}
 {% load static pagination_tags %}
 {% block title %}匯入檢查｜車輛銷售管理{% endblock %}
 {% block page_class %}page-shell--wide{% endblock %}
@@ -40,7 +40,7 @@
 {% if batch.status == 'processing' %}
   <section class="import-progress-card" data-import-progress-url="{% url 'legacy_import_status' batch.pk %}">
     <div class="import-progress-card__heading">
-      <div><p class="eyebrow">背景處理中</p><h2>正在把資料寫入正式系統</h2><p>你可以離開這個畫面，匯入不會中斷；回來後仍可查看最新進度。</p></div>
+      <div><p class="eyebrow">背景處理中</p><h2>正在把資料寫入正式系統</h2><p>{% site_text 'legacy_import_detail.88d2204f24b4' %}</p></div>
       <strong data-import-progress-percent>{{ processing_percent }}%</strong>
     </div>
     <div class="import-progress-track" role="progressbar" aria-label="歷史資料匯入進度" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ processing_percent }}">
@@ -71,7 +71,7 @@
 <section class="note-box warning import-file-errors">
   <strong>檔案結構需要修正</strong>
   {% for sheet, error in batch.preview_summary.errors.items %}<p>{{ sheet }}：{{ error }}</p>{% endfor %}
-  <small>這類問題無法在逐列編輯中修復，請修正 Excel 後重新上傳。</small>
+  <small>{% site_text 'legacy_import_detail.dc5625c8d431' %}</small>
 </section>
 {% endif %}
 
@@ -84,10 +84,10 @@
   </div>
   {% if batch.import_type == 'operations' %}
   <div class="import-validation-grid">
-    <article><span>建議確認</span><strong>車主姓名雙欄差異 {{ validation.owner_name_differences }} 筆</strong><p>系統目前採車主資料區姓名。</p></article>
-    <article><span>建議確認</span><strong>刷卡／分期合併收入 {{ validation.combined_fee_income_rows }} 筆</strong><p>歷史資料無法可靠拆分，保留原始值供追查。</p></article>
-    <article><span>交易辨識</span><strong>中古車交易 {{ validation.used_vehicle_sales }} 筆</strong><p>中古車可沿用原車識別號碼，不會重複占用新車庫存。</p></article>
-    <article><span>庫存核對</span><strong>Excel 可售 {{ validation.source_available_count }} 台／系統可售 {{ validation.system_available_count }} 台</strong><p>確認平行使用期間的庫存落差。</p></article>
+    <article><span>建議確認</span><strong>車主姓名雙欄差異 {{ validation.owner_name_differences }} 筆</strong><p>{% site_text 'legacy_import_detail.672487fd1cd5' %}</p></article>
+    <article><span>建議確認</span><strong>刷卡／分期合併收入 {{ validation.combined_fee_income_rows }} 筆</strong><p>{% site_text 'legacy_import_detail.08efada5364b' %}</p></article>
+    <article><span>交易辨識</span><strong>中古車交易 {{ validation.used_vehicle_sales }} 筆</strong><p>{% site_text 'legacy_import_detail.f826876776a5' %}</p></article>
+    <article><span>庫存核對</span><strong>Excel 可售 {{ validation.source_available_count }} 台／系統可售 {{ validation.system_available_count }} 台</strong><p>{% site_text 'legacy_import_detail.a9a82a0a2298' %}</p></article>
     <article class="{% if validation.unmapped_models %}attention{% endif %}"><span>待補主檔</span><strong>未對應車型 {{ validation.unmapped_models|length }} 個</strong>{% if validation.unmapped_models %}<a class="import-validation-action" href="#master-data-workspace">立即補齊</a><details><summary>先查看清單</summary><p>{{ validation.unmapped_models|join:'、' }}</p></details>{% else %}<p>車型皆已能正確對應。</p>{% endif %}</article>
     <article class="{% if validation.unmapped_sources %}attention{% endif %}"><span>待補主檔</span><strong>未對應通路 {{ validation.unmapped_sources|length }} 個</strong>{% if validation.unmapped_sources %}<a class="import-validation-action" href="#master-data-workspace">立即補齊</a><details><summary>先查看清單</summary><p>{{ validation.unmapped_sources|join:'、' }}</p></details>{% else %}<p>通路皆已能正確對應。</p>{% endif %}</article>
     <article><span>庫存差異</span><strong>Excel 有、系統無 {{ validation.source_only_inventory|length }} 台</strong><details><summary>查看識別號碼</summary><p>{{ validation.source_only_inventory|join:'、'|default:'無' }}</p></details></article>
@@ -103,7 +103,7 @@
 {% if master_workspace.models or master_workspace.sources %}
 <section class="import-master-workspace" id="master-data-workspace" tabindex="-1">
   <header class="import-master-workspace__header">
-    <div><p class="eyebrow">不必離開匯入畫面</p><h2>待補主檔工作台</h2><p>把 Excel 名稱對應到既有主檔、在此快速新增，或保留為歷史文字。處理後會立即重新驗證本批資料。</p></div>
+    <div><p class="eyebrow">不必離開匯入畫面</p><h2>待補主檔工作台</h2><p>{% site_text 'legacy_import_detail.9ed91a0f9ebc' %}</p></div>
     <span class="status-pill warning">尚有 {{ master_workspace.total }} 個</span>
   </header>
 
@@ -122,7 +122,7 @@
           <button class="button secondary small" type="button" data-master-dialog="vehicle-model-create-dialog" data-source-value="{{ item.source_value }}" data-colors="{{ item.colors_text }}" data-master-preview-id="vehicle-model-preview-{{ forloop.counter }}">快速新增</button>
           <form method="post" action="{% url 'legacy_import_master_resolve' batch.pk 'vehicle_model' %}" onsubmit="return confirm('確定保留「{{ item.source_value|escapejs }}」為歷史文字，不建立正式車型主檔？');">{% csrf_token %}<input type="hidden" name="source_value" value="{{ item.source_value }}"><input type="hidden" name="resolution_action" value="ignore"><button class="button text small" type="submit">保留文字</button></form>
         </div>
-        <template id="vehicle-model-preview-{{ forloop.counter }}"><section class="import-master-dialog-preview"><strong>Excel 相關資料</strong><p>請先用車牌、車色與引擎／車身號碼確認，再選擇正式車型。</p>{% include "sales/_legacy_model_examples.html" with examples=item.examples %}</section></template>
+        <template id="vehicle-model-preview-{{ forloop.counter }}"><section class="import-master-dialog-preview"><strong>Excel 相關資料</strong><p>{% site_text 'legacy_import_detail.6a594c2d6990' %}</p>{% include "sales/_legacy_model_examples.html" with examples=item.examples %}</section></template>
       </article>
       {% endfor %}
     </div>
@@ -150,7 +150,7 @@
   <dialog class="import-master-dialog" id="vehicle-model-link-dialog">
     <form method="post" action="{% url 'legacy_import_master_resolve' batch.pk 'vehicle_model' %}">{% csrf_token %}<input type="hidden" name="source_value" data-master-source-input><input type="hidden" name="resolution_action" value="link">
       <header><div><span>對應既有車型</span><h3 data-master-source-label></h3></div><button type="button" aria-label="關閉" data-close-dialog>×</button></header>
-      <p>選擇正確車型後，這個 Excel 名稱往後都會自動套用相同對應。</p>
+      <p>{% site_text 'legacy_import_detail.78e7c64a6f08' %}</p>
       <div data-master-preview-target></div>
       {% include "sales/_field.html" with field=vehicle_model_link_form.vehicle_model %}
       <div class="form-actions"><button class="button primary" type="submit">儲存對應</button><button class="button ghost" type="button" data-close-dialog>取消</button></div>
@@ -160,7 +160,7 @@
   <dialog class="import-master-dialog import-master-dialog--wide" id="vehicle-model-create-dialog">
     <form method="post" action="{% url 'legacy_import_master_resolve' batch.pk 'vehicle_model' %}">{% csrf_token %}<input type="hidden" name="source_value" data-master-source-input><input type="hidden" name="resolution_action" value="create">
       <header><div><span>快速建立車型</span><h3 data-master-source-label></h3></div><button type="button" aria-label="關閉" data-close-dialog>×</button></header>
-      <p>先建立匯入必要資訊；售價、成本與獎勵規則可稍後到車型資料補充。</p>
+      <p>{% site_text 'legacy_import_detail.a80f522519f7' %}</p>
       <div data-master-preview-target></div>
       <div class="import-master-form-grid">
         {% include "sales/_field.html" with field=vehicle_model_quick_form.brand %}
@@ -181,7 +181,7 @@
   <dialog class="import-master-dialog" id="sales-source-link-dialog">
     <form method="post" action="{% url 'legacy_import_master_resolve' batch.pk 'sales_source' %}">{% csrf_token %}<input type="hidden" name="source_value" data-master-source-input><input type="hidden" name="resolution_action" value="link">
       <header><div><span>對應既有通路</span><h3 data-master-source-label></h3></div><button type="button" aria-label="關閉" data-close-dialog>×</button></header>
-      <p>適用於 Excel 名稱不同，但實際上是同一家車行或平台的資料。</p>
+      <p>{% site_text 'legacy_import_detail.b1ed877bed51' %}</p>
       {% include "sales/_field.html" with field=sales_source_link_form.sales_source %}
       <div class="form-actions"><button class="button primary" type="submit">儲存對應</button><button class="button ghost" type="button" data-close-dialog>取消</button></div>
     </form>
@@ -190,7 +190,7 @@
   <dialog class="import-master-dialog" id="sales-source-create-dialog">
     <form method="post" action="{% url 'legacy_import_master_resolve' batch.pk 'sales_source' %}">{% csrf_token %}<input type="hidden" name="source_value" data-master-source-input><input type="hidden" name="resolution_action" value="create">
       <header><div><span>快速建立通路</span><h3 data-master-source-label></h3></div><button type="button" aria-label="關閉" data-close-dialog>×</button></header>
-      <p>先建立基本資料；若現有分類不適用，可在這裡直接新增。聯絡人、品牌合作與傭金規則可稍後補充。</p>
+      <p>{% site_text 'legacy_import_detail.d5aadd852687' %}</p>
       <div class="import-master-form-grid">
         {% include "sales/_field.html" with field=sales_source_quick_form.source_category %}
         {% include "sales/_field.html" with field=sales_source_quick_form.name %}
@@ -244,7 +244,7 @@
   </div>
   <div class="import-original-data">
     <strong>Excel 原始內容</strong>
-    <p>原始檔不會被修改；下方只調整本次匯入要使用的暫存值。</p>
+    <p>{% site_text 'legacy_import_detail.5632f3203ade' %}</p>
     <details><summary>查看此列完整原始資料</summary><dl>{% for key, value in editing_row.raw_data.items %}<div><dt>{{ key }}</dt><dd>{{ value|default:'—' }}</dd></div>{% endfor %}</dl></details>
   </div>
   <form method="post" action="{% url 'legacy_import_row_decide' batch.pk editing_row.pk %}" class="import-correction-form">
@@ -252,37 +252,37 @@
     {% if correction_form.review.date_candidates and request.user.is_superuser and request.user.username == 'admin' %}
     <aside class="import-review-summary" data-import-review-workflow tabindex="-1" aria-label="同買家領牌改期流程">
       <h3>同一位買家、同一台車，請核對領牌改期</h3>
-      <p>這不是新增訂單。先保存本列與說明，再確認日期性質，更新原訂單並保留配車及收支。</p>
+      <p>{% site_text 'legacy_import_detail.e76c00b81f02' %}</p>
       <div class="inline-actions">{% for original in correction_form.review.date_candidates %}<button type="submit" name="date_order" value="{{ original.pk }}" class="button primary">下一步：核對領牌改期 {{ original.registration_date|date:'Y/m/d' }} → {{ editing_row.mapped_data.registration_date }}</button>{% endfor %}</div>
     </aside>
     {% endif %}
     {% if correction_form.review.replacement_candidates and request.user.is_superuser and request.user.username == 'admin' %}
     <aside class="import-review-summary" data-import-review-workflow tabindex="-1" aria-label="退訂換買家處理流程">
       <h3>這台車仍由原買家占用，請先核對換買家流程</h3>
-      <p>填寫「退訂」說明不會自動取消原訂單。下方按鈕會先保存本頁修改與說明，再帶你確認新舊買家；此步驟不會取消、退款或建立訂單。</p>
+      <p>{% site_text 'legacy_import_detail.23ce80edad52' %}</p>
       <p><strong>1 保存本列 → 2 核對原單與新單 → 3 確認後補匯</strong></p>
       <div class="inline-actions">{% for original in correction_form.review.replacement_candidates %}<button type="submit" name="replacement_order" value="{{ original.pk }}" class="button primary">下一步：核對 {{ original.owner_name }} → {{ editing_row.mapped_data.owner_name }}</button>{% endfor %}</div>
-      <p>仍可在下方修正新買家資料；已填說明會帶入下一頁。同買家改期請使用「核對領牌改期」，不使用換買家。</p>
+      <p>{% site_text 'legacy_import_detail.273266029232' %}</p>
     </aside>
     {% endif %}
     <aside class="import-review-summary" id="import-review-summary" aria-label="本列需要核對的項目" tabindex="-1">
       <strong>本列核對重點</strong>
-      <p>醒目欄位表示需要核對，不代表一定填錯。確認既有訂單前，請勿直接重複補匯。</p>
+      <p>{% site_text 'legacy_import_detail.52b03a466ea0' %}</p>
       <div class="inline-actions">{% for field in correction_form %}{% if field.field.review_note %}<a href="#{{ field.id_for_label }}">核對{{ field.label }}</a>{% endif %}{% endfor %}</div>
       {% for message in correction_form.review.messages %}<p>{{ message }}</p>{% endfor %}
     </aside>
     {% if correction_form.review.comparisons %}<h3>同號碼的全部相關訂單 · {{ correction_form.review.comparisons|length }} 筆</h3><p>識別號碼 {{ correction_form.review.identifier }}。包含已取消與中古交易，列出不代表全部有錯；請逐筆核對，不會自動覆寫。</p>{% endif %}
-    {% if correction_form.review.related_vehicles|length > 1 %}<aside class="import-review-summary"><strong>同號碼對應多筆庫存 · {{ correction_form.review.related_vehicles|length }} 筆</strong><p>引擎與車身欄位可能互相撞號，請核對全部庫存，不會自動改配其他車輛。</p><ul>{% for vehicle in correction_form.review.related_vehicles %}<li><a href="{% url 'inventory_edit' vehicle.pk %}" target="_blank" rel="noopener">核對庫存 #{{ vehicle.pk }} ↗</a> · {{ vehicle.vehicle_model }} · {{ vehicle.get_status_display }} · 引擎：{{ vehicle.engine_number|default:'未填' }} · 車身：{{ vehicle.frame_number|default:'未填' }}</li>{% endfor %}</ul></aside>{% endif %}
-    {% if correction_form.review.peer_rows %}<details class="import-order-comparison" open><summary>本批其他同號碼來源列 · {{ correction_form.review.peer_rows|length }} 筆</summary><p>進貨與銷貨會分別列出，不代表都是重複交易。</p><ul>{% for peer in correction_form.review.peer_rows %}<li>{{ peer.sheet_name }}第 {{ peer.source_row }} 列 · {{ peer.mapped_data.owner_name|default:'未填買家／庫存資料' }} · {{ peer.mapped_data.registration_date|default:'未填領牌日期' }} · {{ peer.get_action_display }}{% if peer.action == 'error' or peer.action == 'conflict' %} · <a href="?action={{ peer.action }}&amp;edit={{ peer.pk }}#row-editor">核對這一列</a>{% endif %}</li>{% endfor %}</ul></details>{% endif %}
+    {% if correction_form.review.related_vehicles|length > 1 %}<aside class="import-review-summary"><strong>同號碼對應多筆庫存 · {{ correction_form.review.related_vehicles|length }} 筆</strong><p>{% site_text 'legacy_import_detail.e22509614e73' %}</p><ul>{% for vehicle in correction_form.review.related_vehicles %}<li><a href="{% url 'inventory_edit' vehicle.pk %}" target="_blank" rel="noopener">核對庫存 #{{ vehicle.pk }} ↗</a> · {{ vehicle.vehicle_model }} · {{ vehicle.get_status_display }} · 引擎：{{ vehicle.engine_number|default:'未填' }} · 車身：{{ vehicle.frame_number|default:'未填' }}</li>{% endfor %}</ul></aside>{% endif %}
+    {% if correction_form.review.peer_rows %}<details class="import-order-comparison" open><summary>本批其他同號碼來源列 · {{ correction_form.review.peer_rows|length }} 筆</summary><p>{% site_text 'legacy_import_detail.6cf3dc2cef2a' %}</p><ul>{% for peer in correction_form.review.peer_rows %}<li>{{ peer.sheet_name }}第 {{ peer.source_row }} 列 · {{ peer.mapped_data.owner_name|default:'未填買家／庫存資料' }} · {{ peer.mapped_data.registration_date|default:'未填領牌日期' }} · {{ peer.get_action_display }}{% if peer.action == 'error' or peer.action == 'conflict' %} · <a href="?action={{ peer.action }}&amp;edit={{ peer.pk }}#row-editor">核對這一列</a>{% endif %}</li>{% endfor %}</ul></details>{% endif %}
     {% for comparison in correction_form.review.comparisons %}
     <section class="import-order-comparison" aria-label="既有訂單差異">
       <h3>{{ comparison.title }}</h3><p>{{ comparison.guidance }}</p>
       <p><strong>{{ comparison.order.owner_name }}</strong> · {{ comparison.order.get_vehicle_category_display }} · {% if comparison.occupies_vehicle %}<strong>目前配車占用</strong>{% else %}歷史紀錄／目前未占用此車{% endif %}</p>
       <p><a href="{% url 'order_detail' comparison.order.pk %}" target="_blank" rel="noopener">查看原訂單 {{ comparison.order.number }} ↗</a> · {{ comparison.order.get_status_display }}</p>
       {% if request.user.is_superuser and request.user.username == 'admin' and batch.status == 'completed' and editing_row.action == 'error' and editing_row.sheet_name == '銷貨' and comparison.occupies_vehicle and comparison.order.vehicle_category == 'new' %}
-      <p>換買家與同買家改期是不同流程。請使用上方對應的「下一步：核對」或「核對領牌改期」入口，會一併保存本頁內容；不會在此步驟變更訂單。</p>
+      <p>{% site_text 'legacy_import_detail.effa0382094a' %}</p>
       {% endif %}
-      {% if comparison.previous_row %}<p>上次匯入：{{ comparison.previous_row.sheet_name }}第 {{ comparison.previous_row.source_row }} 列。比對號碼相同的訂單，不以 Excel 列號判斷。</p>{% else %}<p>此訂單沒有歷史 Excel 快照，僅能比對系統目前資料。</p>{% endif %}
+      {% if comparison.previous_row %}<p>上次匯入：{{ comparison.previous_row.sheet_name }}第 {{ comparison.previous_row.source_row }} 列。比對號碼相同的訂單，不以 Excel 列號判斷。</p>{% else %}<p>{% site_text 'legacy_import_detail.e20c8abce86d' %}</p>{% endif %}
       <div class="inventory-table-wrap"><table class="inventory-table import-comparison-table">
         <thead><tr><th>欄位</th><th>上次匯入的 Excel</th><th>系統目前資料</th><th>本次 Excel／暫存修正值</th></tr></thead>
         <tbody>{% for item in comparison.values %}<tr{% if item.changed %} class="import-comparison-changed"{% endif %}><th scope="row">{{ item.label }}{% if item.changed %}<span> · 有差異</span>{% endif %}</th><td>{{ item.previous|default_if_none:'無快照'|default:'未填' }}</td><td>{{ item.current|default:'未填' }}</td><td>{{ item.incoming|default:'未填' }}</td></tr>{% endfor %}</tbody>
@@ -332,7 +332,7 @@
 {% endif %}
 
 <section class="import-source-note">
-  <details><summary>來源檔與稽核資訊</summary><p>SHA-256：<code>{{ batch.file_sha256 }}</code></p><p>來源工作表：{{ batch.source_sheets|join:'、' }}</p><p>人工修正只影響這次匯入暫存值，不會覆蓋原始 Excel。</p></details>
+  <details><summary>來源檔與稽核資訊</summary><p>SHA-256：<code>{{ batch.file_sha256 }}</code></p><p>來源工作表：{{ batch.source_sheets|join:'、' }}</p><p>{% site_text 'legacy_import_detail.965d8c4b6782' %}</p></details>
 </section>
 {% endif %}
 {% endblock %}

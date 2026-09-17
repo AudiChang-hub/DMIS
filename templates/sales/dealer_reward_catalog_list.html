@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+{% extends "base.html" %}{% load site_copy %}
 {% load pagination_tags %}
 {% block title %}車行獎勵品項｜車輛銷售管理{% endblock %}
 {% block page_class %}page-shell--wide{% endblock %}
@@ -9,7 +9,7 @@
   <div>
     <p class="eyebrow">車行獎勵共用品項</p>
     <h1>車行獎勵品項</h1>
-    <p class="muted">集中維護實物、紅包、禮券與點數的單位及成本版本；車型方案只需選擇品項與數量。</p>
+    <p class="muted">{% site_text 'dealer_reward_catalog_list.1717d50ad514' %}</p>
   </div>
   <a class="button primary" href="{% url 'dealer_reward_catalog_create' %}">＋ 新增獎勵品項</a>
 </section>

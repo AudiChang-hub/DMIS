@@ -83,30 +83,26 @@ def build_identity_document_pdf(order, purpose, side_fields, generated_on):
     pdf.setAuthor("馭盛國際有限公司")
     watermark = f"{PURPOSE_LABELS[purpose]}  {generated_on:%Y/%m/%d}"
 
-    for field_name in selected:
+    for index, field_name in enumerate(selected):
         file_field = getattr(order, field_name, None)
         if not file_field:
             raise ValueError(f"尚未保存{SIDE_LABELS[field_name]}。")
         image_reader, (image_width, image_height), buffer = _image_reader(file_field)
         try:
-            margin_x, margin_y = 18 * mm, 28 * mm
-            available_width = A4[0] - 2 * margin_x
-            available_height = A4[1] - 2 * margin_y
+            margin_x, margin_y = 14 * mm, 24 * mm
+            available_width = 86 * mm
+            available_height = 56 * mm
             scale = min(
                 available_width / image_width,
                 available_height / image_height,
             )
             width, height = image_width * scale, image_height * scale
-            x = (A4[0] - width) / 2
-            y = (A4[1] - height) / 2
+            slot_x = margin_x + index * 96 * mm
+            x = slot_x + (available_width - width) / 2
+            y = A4[1] - margin_y - height
             pdf.setFillColor(HexColor("#17221D"))
             pdf.setFont("IdentityDocument", 12)
-            pdf.drawString(margin_x, A4[1] - 16 * mm, SIDE_LABELS[field_name])
-            pdf.drawRightString(
-                A4[0] - margin_x,
-                A4[1] - 16 * mm,
-                order.number,
-            )
+            pdf.drawString(slot_x, A4[1] - 18 * mm, SIDE_LABELS[field_name])
             pdf.drawImage(
                 image_reader,
                 x,
@@ -116,13 +112,21 @@ def build_identity_document_pdf(order, purpose, side_fields, generated_on):
                 preserveAspectRatio=True,
                 mask="auto",
             )
-            _draw_watermark(pdf, watermark)
-            pdf.setFillColor(HexColor("#5E6B64"))
-            pdf.setFont("IdentityDocument", 9)
-            pdf.drawCentredString(A4[0] / 2, 11 * mm, watermark)
-            pdf.showPage()
+            # 浮水印直接跨過每張縮小後的證件，不能僅印在頁尾空白處。
+            pdf.saveState()
+            pdf.setFillColor(Color(0.55, 0.08, 0.06, alpha=0.24))
+            pdf.setFont("IdentityDocument", 10)
+            pdf.translate(x + width / 2, y + height / 2)
+            pdf.rotate(22)
+            for offset in (-12, 12):
+                pdf.drawCentredString(0, offset, watermark)
+            pdf.restoreState()
         finally:
             buffer.close()
 
+    pdf.setFillColor(HexColor("#5E6B64"))
+    pdf.setFont("IdentityDocument", 9)
+    pdf.drawString(14 * mm, A4[1] - 86 * mm, f"{order.number} · {watermark}")
+    pdf.showPage()
     pdf.save()
     return output.getvalue()

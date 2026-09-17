@@ -99,9 +99,24 @@ class SiteReviewTests(TestCase):
         self.client.post(update, {"action":"reopen","version":2})
         item.refresh_from_db(); self.assertFalse(item.completed)
         self.assertEqual(GiftDistributionEvent.objects.filter(distribution=activity).count(), 4)
+        original_created_at = item.created_at
+        self.client.post(update, {"action":"remove", "version":3})
+        self.assertEqual(self.client.post(detail, {"action":"add", "recipient":item.recipient, "gift":"更換禮盒"}).status_code, 302)
+        item.refresh_from_db()
+        self.assertFalse(item.removed)
+        self.assertEqual(item.created_at, original_created_at)
+        self.assertEqual(item.gift, "更換禮盒")
+        self.assertEqual(activity.items.count(), 1)
         self.client.post(detail, {"action":"archive","confirm":"yes"})
-        self.client.post(update, {"action":"complete","version":3})
+        self.client.post(update, {"action":"complete","version":5})
         item.refresh_from_db(); self.assertFalse(item.completed)
+        from sales.access.models import UserAccessState, ScreenAccessGrant
+        UserAccessState.objects.update_or_create(user=self.user, defaults={"configured":True})
+        ScreenAccessGrant.objects.update_or_create(user=self.user, screen_key="gift_distribution", defaults={"view":True,"operate":False})
+        self.client.force_login(self.user)
+        self.assertEqual(self.client.get(detail).status_code, 200)
+        self.assertEqual(self.client.post(url, {"action":"add", "title":"不得建立"}).status_code, 403)
+        self.assertEqual(self.client.post(update, {"action":"complete","version":5}).status_code, 403)
 
     def test_custom_total_discount_modes(self):
         rate = DiscountRequestForm({"mode":"rate", "rate":"9.25", "reason":"優惠"}, total=Decimal("10001"))

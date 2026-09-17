@@ -7,29 +7,54 @@ from django.core.exceptions import PermissionDenied
 from django.core.paginator import Paginator
 from django.db import transaction
 from django.db.models import Q
+from django.http import FileResponse, Http404
+from django.views.decorators.cache import never_cache
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views.decorators.http import require_http_methods
 
 from .access.services import is_root
-from .models import SystemAnnouncement, SystemAnnouncementRevision
+from .models import SystemAnnouncement, SystemAnnouncementRevision, SalesSource, AnnouncementImage
+from sales.services.upload_validation import validate_image_upload
+import uuid
+from pathlib import Path
+
+
+class MultipleImagesInput(forms.FileInput):
+    allow_multiple_selected = True
+
+
+class MultipleImagesField(forms.FileField):
+    def clean(self, data, initial=None):
+        files = list(data or []) if isinstance(data, (list, tuple)) else [data] if data else []
+        if len(files) > 8 or sum(f.size for f in files) > 24 * 1024 * 1024:
+            raise forms.ValidationError("一次最多 8 張圖片、合計 24 MB。")
+        for image in files:
+            validate_image_upload(image, max_bytes=8 * 1024 * 1024)
+        return files
 
 
 class AnnouncementForm(forms.ModelForm):
     expected_version = forms.IntegerField(widget=forms.HiddenInput, min_value=0)
+    uploads = MultipleImagesField(label="新增公告圖片", required=False, widget=MultipleImagesInput(attrs={"accept":"image/jpeg,image/png,image/webp", "data-announcement-upload":""}))
+    remove_images = forms.ModelMultipleChoiceField(queryset=AnnouncementImage.objects.none(), required=False, widget=forms.CheckboxSelectMultiple)
 
     class Meta:
         model = SystemAnnouncement
-        fields = ("title", "body", "pinned", "starts_at", "ends_at", "audience", "recipients")
+        fields = ("title", "body", "pinned", "starts_at", "ends_at", "audience", "recipients", "dealers")
         widgets = {
             "body": forms.Textarea(attrs={"rows": 8}),
             "starts_at": forms.DateTimeInput(format="%Y-%m-%dT%H:%M", attrs={"type": "datetime-local"}),
             "ends_at": forms.DateTimeInput(format="%Y-%m-%dT%H:%M", attrs={"type": "datetime-local"}),
             "recipients": forms.CheckboxSelectMultiple,
+            "dealers": forms.CheckboxSelectMultiple,
         }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.fields["dealers"].queryset = SalesSource.objects.filter(source_type="dealer", active=True).select_related("category").order_by("city", "name")
+        self.fields["dealers"].label_from_instance = lambda source: " · ".join(str(value) for value in (source.name, source.code, f"{source.city}{source.district}", source.category) if value)
+        self.fields["remove_images"].queryset = self.instance.images.filter(removed=False) if self.instance.pk else AnnouncementImage.objects.none()
         self.fields["recipients"].queryset = get_user_model().objects.filter(is_active=True).order_by("username")
         self.fields["recipients"].label_from_instance = lambda user: f"{user.get_full_name() or user.username}（{user.username}）"
         # 舊版已開啟的表單仍可儲存，未帶新欄位時維持原受眾。
@@ -43,6 +68,11 @@ class AnnouncementForm(forms.ModelForm):
         data = super().clean()
         if data.get("audience") == "selected" and not data.get("recipients"):
             self.add_error("recipients", "請至少勾選一位人員，或改選其他顯示對象。")
+        if data.get("audience") == "dealers" and not data.get("dealers"):
+            self.add_error("dealers", "請至少勾選一家合作車行。")
+        retained = self.fields["remove_images"].queryset.count() - len(data.get("remove_images") or [])
+        if retained + len(data.get("uploads") or []) > 8:
+            self.add_error("uploads", "每則公告最多保留 8 張圖片，請先移除不需要的圖片。")
         return data
 
 
@@ -52,7 +82,7 @@ def manage(request, pk=None):
     if not is_root(request.user):
         raise PermissionDenied
     item = get_object_or_404(SystemAnnouncement, pk=pk, deleted_at__isnull=True) if pk else SystemAnnouncement(starts_at=timezone.localtime().replace(second=0, microsecond=0))
-    form = AnnouncementForm(request.POST or None, instance=item, initial={"expected_version": item.version if pk else 0})
+    form = AnnouncementForm(request.POST or None, request.FILES or None, instance=item, initial={"expected_version": item.version if pk else 0})
     status = 200
     if request.method == "POST" and form.is_valid():
         action = request.POST.get("action")
@@ -61,7 +91,7 @@ def manage(request, pk=None):
         else:
             with transaction.atomic():
                 current = SystemAnnouncement.objects.select_for_update().get(pk=pk) if pk else None
-                if form.cleaned_data["expected_version"] != (current.version if current else 0):
+                if (current and current.deleted_at) or form.cleaned_data["expected_version"] != (current.version if current else 0):
                     form.add_error(None, "公告已由其他視窗修改，本次未覆寫。請重新載入後再編輯。")
                     status = 409
                 else:
@@ -71,12 +101,18 @@ def manage(request, pk=None):
                     saved.updated_by = request.user.get_username()
                     saved.save()
                     form.save_m2m()
+                    saved.images.filter(pk__in=form.cleaned_data["remove_images"]).update(removed=True)
+                    for upload in form.cleaned_data["uploads"]:
+                        upload.name = uuid.uuid4().hex + Path(upload.name).suffix.lower()
+                        AnnouncementImage.objects.create(announcement=saved, image=upload)
                     SystemAnnouncementRevision.objects.create(announcement=saved, version=saved.version,
                         actor_name=saved.updated_by, content={
                             "title": saved.title, "body": saved.body, "published": saved.published,
                             "pinned": saved.pinned, "starts_at": saved.starts_at.isoformat(),
                             "ends_at": saved.ends_at.isoformat() if saved.ends_at else None,
                             "audience": saved.audience, "recipients": list(saved.recipients.values_list("pk", flat=True)),
+                            "dealers": list(saved.dealers.values_list("pk", flat=True)),
+                            "images": list(saved.images.filter(removed=False).values_list("pk", flat=True)),
                         })
                     messages.success(request, f"公告已儲存（{saved.display_status}）。")
                     return redirect("announcement_edit", pk=saved.pk)
@@ -90,6 +126,7 @@ def manage(request, pk=None):
         "form": form, "announcement": item if pk else None,
         "page_obj": Paginator(rows, 10).get_page(request.GET.get("page")), "history": history,
         "revisions": item.revisions.all()[:10] if pk else [],
+        "images": item.images.filter(removed=False) if pk else [],
     }, status=status)
 
 
@@ -123,7 +160,24 @@ def lifecycle(request, pk):
 @login_required
 def detail(request, pk):
     item = get_object_or_404(SystemAnnouncement.visible(user=request.user), pk=pk)
-    return render(request, "sales/announcement_detail.html", {"item": item})
+    return render(request, "sales/announcement_detail.html", {"item": item, "images": item.images.filter(removed=False)})
+
+
+@login_required
+@never_cache
+@require_http_methods(["GET", "HEAD"])
+def image_file(request, pk):
+    rows = AnnouncementImage.objects.filter(removed=False, announcement__deleted_at__isnull=True)
+    if not is_root(request.user):
+        rows = rows.filter(announcement__in=SystemAnnouncement.visible(user=request.user))
+    picture = get_object_or_404(rows, pk=pk)
+    try:
+        response = FileResponse(picture.image.open("rb"))
+    except (OSError, ValueError) as exc:
+        raise Http404 from exc
+    response["Cache-Control"] = "private, no-store"
+    response["X-Content-Type-Options"] = "nosniff"
+    return response
 
 
 def home_news_context(request):

@@ -8,7 +8,7 @@ from django.core.paginator import Paginator
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_http_methods
 from sales.access.views import root_required
-from sales.access.models import UserAccessState
+from sales.access.models import UserAccessState, ScreenAccessGrant
 from sales.forms import AdminUserCreateForm, AdminUserEditForm
 from sales.models import (
     SalesSource,
@@ -26,6 +26,7 @@ class DealerFeatureMixin:
 
 
 class DealerCreateForm(DealerFeatureMixin, AdminUserCreateForm):
+    can_adjust_pricing = forms.BooleanField(label="下單金額調整（成交價、配件贈送／調價、自訂分期）", required=False)
     can_view_orders = forms.BooleanField(label="查看本車行訂單進度", required=False, initial=True)
     can_browse_catalog = forms.BooleanField(label="選車下單入口", required=False, initial=True)
     can_submit_orders = forms.BooleanField(
@@ -43,6 +44,7 @@ class DealerCreateForm(DealerFeatureMixin, AdminUserCreateForm):
 
 
 class DealerEditForm(DealerFeatureMixin, AdminUserEditForm):
+    can_adjust_pricing = forms.BooleanField(label="下單金額調整（成交價、配件贈送／調價、自訂分期）", required=False)
     can_view_orders = forms.BooleanField(label="查看本車行訂單進度", required=False)
     can_browse_catalog = forms.BooleanField(label="選車下單入口", required=False)
     can_submit_orders = forms.BooleanField(
@@ -60,6 +62,7 @@ class DealerEditForm(DealerFeatureMixin, AdminUserEditForm):
         self.fields["is_superuser"].widget = forms.HiddenInput()
         self.fields["can_submit_orders"].initial = profile.can_submit_orders
         self.fields["expected_revision"].initial = profile.revision
+        self.fields["can_adjust_pricing"].initial = ScreenAccessGrant.objects.filter(user=profile.user, screen_key="order_pricing", view=True, operate=True).exists()
 
 
 def dealer_source(pk):
@@ -134,6 +137,7 @@ def dealer_account_create(request, source_pk):
                         user=user, must_change_password=True
                     )
                     UserAccessState.objects.create(user=user, configured=True)
+                    ScreenAccessGrant.objects.create(user=user, screen_key="order_pricing", view=form.cleaned_data["can_adjust_pricing"], operate=form.cleaned_data["can_adjust_pricing"])
                     UserAccountAuditLog.objects.create(
                         actor=request.user,
                         target=user,
@@ -141,6 +145,7 @@ def dealer_account_create(request, source_pk):
                         action="create",
                         description=f"開通 {source.name} 車行帳號 {user.username}",
                         metadata={
+                            "can_adjust_pricing": form.cleaned_data["can_adjust_pricing"],
                             "source_id": source.pk,
                             "can_submit_orders": form.cleaned_data["can_submit_orders"],
                             "can_view_orders": form.cleaned_data["can_view_orders"],
@@ -187,6 +192,7 @@ def dealer_account_edit(request, pk):
                     form.add_error(None, "所屬車行已停用，不能啟用帳號。")
                 else:
                     before = {
+                        "can_adjust_pricing": ScreenAccessGrant.objects.filter(user=user, screen_key="order_pricing", view=True, operate=True).exists(),
                         "username": user.username,
                         "is_active": user.is_active,
                         "can_submit_orders": current.can_submit_orders,
@@ -209,6 +215,11 @@ def dealer_account_edit(request, pk):
                     current.can_view_orders = form.cleaned_data["can_view_orders"]
                     current.can_browse_catalog = form.cleaned_data["can_browse_catalog"]
                     current.revision += 1
+                    ScreenAccessGrant.objects.update_or_create(user=user, screen_key="order_pricing", defaults={"view": form.cleaned_data["can_adjust_pricing"], "operate": form.cleaned_data["can_adjust_pricing"], "export": False})
+                    access_state, _ = UserAccessState.objects.get_or_create(user=user)
+                    access_state.configured = True
+                    access_state.version += 1
+                    access_state.save(update_fields=["configured", "version", "updated_at"])
                     current.save(
                         update_fields=["can_submit_orders", "can_view_orders", "can_browse_catalog", "revision", "updated_at"]
                     )
@@ -225,6 +236,7 @@ def dealer_account_edit(request, pk):
                         metadata={
                             "before": before,
                             "after": {
+                                "can_adjust_pricing": form.cleaned_data["can_adjust_pricing"],
                                 "username": user.username,
                                 "is_active": user.is_active,
                                 "can_submit_orders": current.can_submit_orders,

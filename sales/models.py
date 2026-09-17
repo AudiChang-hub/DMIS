@@ -32,8 +32,9 @@ class SystemAnnouncement(TimeStampedModel):
     version = models.PositiveIntegerField(default=1, editable=False)
     updated_by = models.CharField("修改人", max_length=150, blank=True)
     audience = models.CharField("顯示對象", max_length=20, default="all", choices=[
-        ("all", "所有人員"), ("internal", "店內人員"), ("dealer", "合作車行人員"), ("selected", "指定人員")])
+        ("all", "所有人員"), ("internal", "店內人員"), ("dealer", "合作車行人員"), ("selected", "指定人員"), ("dealers", "指定合作車行")])
     recipients = models.ManyToManyField(settings.AUTH_USER_MODEL, blank=True, related_name="targeted_announcements", verbose_name="指定人員")
+    dealers = models.ManyToManyField("SalesSource", blank=True, related_name="announcements", verbose_name="指定合作車行")
     archived_at = models.DateTimeField("封存時間", null=True, blank=True)
     deleted_at = models.DateTimeField("刪除時間", null=True, blank=True)
 
@@ -54,9 +55,13 @@ class SystemAnnouncement(TimeStampedModel):
         rows = cls.objects.filter(published=True, starts_at__lte=now, archived_at__isnull=True, deleted_at__isnull=True).filter(Q(ends_at__isnull=True) | Q(ends_at__gt=now))
         if user is None:
             return rows.filter(audience="all")
-        from sales.services.order_intake import is_dealer
+        from sales.services.order_intake import dealer_source, is_dealer
         group = "dealer" if is_dealer(user) else "internal"
-        return rows.filter(Q(audience__in=["all", group]) | Q(audience="selected", recipients=user)).distinct()
+        audience = Q(audience__in=["all", group]) | Q(audience="selected", recipients=user)
+        source = dealer_source(user)
+        if source and source.active:
+            audience |= Q(audience="dealers", dealers=source)
+        return rows.filter(audience).distinct()
 
     @property
     def display_status(self):
@@ -72,6 +77,12 @@ class SystemAnnouncement(TimeStampedModel):
         if self.ends_at and self.ends_at <= now:
             return "已結束"
         return "顯示中"
+
+
+class AnnouncementImage(models.Model):
+    announcement = models.ForeignKey(SystemAnnouncement, on_delete=models.PROTECT, related_name="images")
+    image = models.ImageField(upload_to="announcements/%Y/%m/")
+    removed = models.BooleanField(default=False)
 
 
 class SystemAnnouncementRevision(models.Model):
@@ -114,6 +125,7 @@ class GiftDistribution(TimeStampedModel):
     scheduled_on = models.DateField("預計送禮日", null=True, blank=True)
     note = models.TextField("活動說明", blank=True, max_length=2000)
     archived = models.BooleanField(default=False)
+    deleted_at = models.DateTimeField(null=True, blank=True)
     created_by = models.CharField(max_length=150)
 
     class Meta:
@@ -2945,6 +2957,7 @@ class SalesOrder(TimeStampedModel):
     balance_adjustment_reason = models.TextField("尾款調整原因", blank=True)
 
     installment_company = models.CharField("分期公司", max_length=100, blank=True)
+    installment_custom = models.BooleanField("其他／自訂分期", default=False)
     installment_company_master = models.ForeignKey(
         InstallmentCompany,
         on_delete=models.SET_NULL,

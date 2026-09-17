@@ -18,6 +18,7 @@ SCREENS = (
     Screen("order_delete", "刪除申請與回收區（admin 確認刪除）", "order_recycle_bin"),
     Screen("catalog", "選車下單入口", "catalog", False),
     Screen("order_intake", "建立訂單與本人接待草稿", "order_start"),
+    Screen("order_pricing", "下單金額調整（成交價、配件與自訂分期）", "order_start"),
     Screen("order_finance", "訂單內部財務編輯", "order_list", True),
     Screen("profit", "查看淨利（另需本人密碼解鎖）", "order_list", False, True),
     Screen("work", "訂單作業、配車、領牌、交付與收退款", "order_list", True, True),
@@ -47,7 +48,7 @@ SCREENS = (
 )
 BY_KEY = {screen.key: screen for screen in SCREENS}
 SCREEN_GROUPS = (
-    ("intake", "建立訂單", (("接待下單", ("catalog", "order_intake")),)),
+    ("intake", "建立訂單", (("接待下單", ("catalog", "order_intake", "order_pricing")),)),
     ("orders", "全部訂單", (("訂單與作業", ("orders", "work", "order_finance", "profit", "order_delete")),)),
     ("operations", "營運總表", (("營運與對帳", ("dashboard", "operations", "reconciliation")),)),
     ("reports", "報表中心", ()),
@@ -125,7 +126,7 @@ register("gift_distribution", "gift_distribution gift_distribution_detail")
 register("gift_distribution", "gift_distribution_update", "operate")
 ROOT_ONLY.add("announcement_action")
 ROOT_ONLY.add("site_copy_manage")
-PERSONAL.update({"announcement_detail", "release_history"})
+PERSONAL.update({"announcement_detail", "announcement_image", "release_history"})
 ROOT_ONLY.add("order_deletion_queue")
 ROOT_ONLY.update({"catalog_manage", "catalog_edit", "catalog_preview_image", "catalog_preview_color_image", "dealer_accounts", "dealer_account_create", "dealer_account_edit"})
 PERSONAL.update({"catalog", "catalog_detail", "catalog_image", "catalog_color_image"})

@@ -4388,6 +4388,9 @@ def _decorate_reconciliation_record(record):
     record.reconciliation_difference = (
         record.received_amount - record.expected_amount
     )
+    record.reconciliation_state = ("已確認入帳" if record.confirmed else
+        "預計金額待核對" if record.expected_amount == 0 else
+        "尚未登記入帳" if not record.received_on and record.received_amount == 0 else "已登記，待確認")
     return record
 
 
@@ -4670,10 +4673,7 @@ def order_create(request, reception=False):
         if not form.finance_editable:
             post_data = post_data.copy()
             post_data.update({"other_fees-TOTAL_FORMS": "0", "other_fees-INITIAL_FORMS": "0"})
-        formset = AccessoryFormSet(post_data, form_kwargs={"allow_manual": form.finance_editable, "purchase_only": not form.finance_editable})
-        if not form.finance_editable:
-            for accessory_form in formset:
-                accessory_form.fields["line_type"].choices = [("purchase", "加購")]
+        formset = AccessoryFormSet(post_data, form_kwargs={"allow_manual": form.pricing_editable, "purchase_only": not form.pricing_editable})
         fee_formset = OtherFeeFormSet(post_data, prefix="other_fees")
         uploads = []
         form.is_valid()
@@ -4756,7 +4756,7 @@ def order_create(request, reception=False):
             )
             if draft
             else None,
-            form_kwargs={"allow_manual": form.finance_editable, "purchase_only": not form.finance_editable},
+            form_kwargs={"allow_manual": form.pricing_editable, "purchase_only": not form.pricing_editable},
         )
         fee_formset = OtherFeeFormSet(
             initial=_draft_lines(draft.data, "other_fees", ("name", "amount"))
@@ -4783,6 +4783,7 @@ def order_create(request, reception=False):
             "reception_back_label": "返回選車" if policy_for(request).route("catalog") else "離開接待",
             "intake_can_receive": not reception and intake_context(request.user)["intake_can_receive"],
             "intake_finance_editable": form.finance_editable,
+            "intake_pricing_editable": form.pricing_editable,
             "draft_save_route": "intake_draft_save" if reception else "draft_save",
             "installment_options_route": "intake_installment_options" if reception else "installment_plan_options",
             "price_options_route": "intake_price_options" if reception else "vehicle_price_options",
@@ -5664,7 +5665,7 @@ def order_edit(request, pk):
         previous_vehicle_model_id = order.vehicle_model_id
         installment_before = tuple(getattr(order, name) for name in (
             "vehicle_model_id", "order_date", "payment_type", "vehicle_price",
-            "installment_company", "installment_periods", "installment_monthly", "installment_opening_fee",
+            "installment_company", "installment_periods", "installment_monthly", "installment_opening_fee", "installment_custom",
         ))
         balance_was_automatic = order.actual_balance == order.calculated_balance
         previous_actual_balance = order.actual_balance
@@ -5696,7 +5697,7 @@ def order_edit(request, pk):
                 )
             installment_after = tuple(getattr(order, name) for name in (
                 "vehicle_model_id", "order_date", "payment_type", "vehicle_price",
-                "installment_company", "installment_periods", "installment_monthly", "installment_opening_fee",
+                "installment_company", "installment_periods", "installment_monthly", "installment_opening_fee", "installment_custom",
             ))
             if installment_after != installment_before or (not completed_correction and not order.installment_plan_snapshot):
                 apply_order_installment_snapshot(order)

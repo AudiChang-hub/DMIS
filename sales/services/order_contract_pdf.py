@@ -281,7 +281,7 @@ def draw_order_page(c, order, copy_label, page_number, printed_at):
     separated_other_fees = order.plate_selection_fee + order.lien_registration_fee
     plate_amount = max(order.plate_insurance_fee - separated_other_fees, 0)
     if order.registration_date:
-        plate_description = "領牌＋強制險"
+        plate_description = safe(print_copy(c, "contract.plate_description", "領牌＋強制險"))
         rate_label = registration_rate_label(
             order.registration_rate_class,
             order.vehicle_model.displacement_cc,
@@ -294,7 +294,7 @@ def draw_order_page(c, order, copy_label, page_number, printed_at):
         else:
             plate_description += f"（{order.get_compulsory_insurance_period_display()}）"
     else:
-        plate_description = "領牌＋強制險，依單據收款"
+        plate_description = safe(print_copy(c, "contract.plate_description_pending", "領牌＋強制險，依單據收款"))
     plate_money = money(plate_amount) if plate_amount else "—"
     rows.append(
         [

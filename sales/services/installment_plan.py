@@ -122,7 +122,7 @@ def apply_order_installment_snapshot(order):
         order.order_date,
         order.installment_periods,
     )
-    if not option:
+    if not option or order.installment_custom:
         order.installment_company_master = None
         order.installment_plan_option = None
         order.installment_plan_snapshot = {

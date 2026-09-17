@@ -10,6 +10,7 @@
     const periods = byId('installment-period-choice');
     const toggle = byId('installment-manual-toggle');
     const applyButton = byId('installment-apply');
+    const custom = byId('id_installment_custom');
     const manualFields = [...doc.querySelectorAll('[data-installment-manual]')];
     const inputs = {
       company: byId('id_installment_company'), periods: byId('id_installment_periods'),
@@ -37,10 +38,11 @@
       manual = value;
       manualFields.forEach(field => { field.hidden = !value; });
       toggle.setAttribute('aria-expanded', String(value));
-      toggle.textContent = value ? '改用車型方案' : '保留原值／人工調整';
-      toggle.disabled = options.length === 0;
+      toggle.textContent = value ? '改用車型方案' : '其他／自訂分期';
+      toggle.disabled = false;
       syncRequired();
     }
+    custom?.addEventListener('change', () => { setManual(custom.checked); if (custom.checked) company.value = '__custom__'; });
     function renderPeriods(selected = '') {
       reset(periods, company.value ? '請選擇期數' : '請先選擇分期公司');
       companyOptions(options, company.value).forEach(option => {
@@ -52,13 +54,15 @@
     function render(preserve) {
       reset(company, options.length ? '請選擇分期公司' : '此日期無有效車型方案');
       companyNames(options).forEach(name => add(company, name, name));
+      if (!inputs.monthly_amount.disabled && !inputs.company.readOnly) add(company, '__custom__', '其他／自訂分期');
       const found = preserve && options.find(option => option.company === inputs.company.value && Number(option.periods) === Number(inputs.periods.value));
       if (found) company.value = found.company;
       else if (companyNames(options).length === 1) company.value = options[0].company;
       renderPeriods(found ? found.periods : '');
-      company.disabled = !options.length;
+      company.disabled = !options.length && inputs.monthly_amount.disabled;
       const historical = preserve && (inputs.company.value || Number(inputs.periods.value) > 0);
-      setManual(!options.length || Boolean(historical && !found));
+      setManual(Boolean(custom?.checked) || !options.length || Boolean(historical && !found));
+      if (custom?.checked) company.value = '__custom__';
       config.hint.textContent = versionHint + (historical
         ? '保留原訂單公司、期數與金額；明確選擇方案後才會重新帶入。'
         : options.length ? '請選擇公司與期數，帶入每期金額及開辦費。' : '沒有有效方案，可保留原值或人工填寫；不套用今天的其他版本。');
@@ -66,12 +70,22 @@
     function apply() {
       const option = options.find(item => item.company === company.value && String(item.periods) === periods.value);
       if (!option) return;
+      if (custom) custom.checked = false;
       for (const [key, input] of Object.entries(inputs)) emit(input, option[key]);
       setManual(false);
       const bonus = Number(option.extra_disbursement_bonus || 0);
       config.hint.textContent = `${versionHint}已選取 ${option.company}／${option.periods} 期；每期金額與開辦費已帶入${bonus ? `，預估撥款另含獎金 $${bonus.toLocaleString('zh-TW')}` : ''}${inputs.monthly_amount.disabled ? '。如需調整，請洽店內人員。' : '，仍可依本單條件調整。'}`;
     }
     company.addEventListener('change', () => {
+      if (company.value === '__custom__') {
+        if (custom) { custom.checked = true; custom.dispatchEvent(new Event('input', {bubbles:true})); }
+        renderPeriods();
+        periods.disabled = true;
+        setManual(true);
+        config.hint.textContent = '自訂分期：請填公司、期數、每期金額與開辦費，不會自動套用車型方案。';
+        inputs.company.focus?.();
+        return;
+      }
       renderPeriods();
       setManual(false);
       emit(inputs.company, company.value);
@@ -85,6 +99,7 @@
         setManual(false);
         config.hint.textContent = `${versionHint}請選擇公司與期數；未選取前不更改原值。`;
       } else {
+        if (custom) { custom.checked = true; custom.dispatchEvent(new Event('input', {bubbles:true})); }
         setManual(true);
         config.hint.textContent = `${versionHint}人工調整模式：保留現有內容，不自動套用車型方案。`;
       }

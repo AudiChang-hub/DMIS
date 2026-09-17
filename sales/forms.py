@@ -247,6 +247,8 @@ class SalesOrderForm(forms.ModelForm):
             "lien_registration_fee",
             "registration_calculated_total",
             "payment_type",
+            "registration_manual",
+            "registration_adjustment_reason",
             "vehicle_price",
             "vehicle_price_adjustment_reason",
             "plate_insurance_fee",
@@ -391,8 +393,9 @@ class SalesOrderForm(forms.ModelForm):
             "registration_calculated_total",
         ):
             self.fields[field_name].required = False
-            self.fields[field_name].widget.attrs["readonly"] = True
-            self.fields[field_name].widget.attrs["tabindex"] = "-1"
+            if field_name == "registration_calculated_total":
+                self.fields[field_name].widget.attrs["readonly"] = True
+                self.fields[field_name].widget.attrs["tabindex"] = "-1"
         self.fields["plate_insurance_fee"].required = False
         # 前端會立即帶入售價；後端仍以同一版本解析補齊，避免網路或 JS
         # 暫時失敗時讓使用者建立出缺少車價的訂單。
@@ -546,6 +549,8 @@ class SalesOrderForm(forms.ModelForm):
                 "成交車價與系統售價版本不同，請填寫調整原因。",
             )
 
+        manual_fee_names = ("registration_plate_fee", "registration_license_fee", "registration_inspection_fee", "road_maintenance_fee", "license_tax_fee", "compulsory_insurance_fee", "plate_selection_fee", "lien_registration_fee")
+        manual_fee_values = {name: data.get(name) or Decimal("0") for name in manual_fee_names}
         registration_date = data.get("registration_date")
         insurance_period = (
             data.get("compulsory_insurance_period")
@@ -667,6 +672,15 @@ class SalesOrderForm(forms.ModelForm):
             if data.get(field_name) is None:
                 data[field_name] = Decimal("0")
                 self.cleaned_data[field_name] = Decimal("0")
+
+        if data.get("registration_manual"):
+            if not (data.get("registration_adjustment_reason") or "").strip():
+                self.add_error("registration_adjustment_reason", "自行調整牌險明細時，請填寫原因。")
+            for name, value in manual_fee_values.items():
+                if value < 0:
+                    self.add_error(name, "金額不可小於零。")
+                data[name] = value
+            data["plate_insurance_fee"] = sum(manual_fee_values.values())
 
         if data.get("delivery_method") in {
             SalesOrder.DeliveryMethod.DIRECT_DELIVERY,
@@ -1667,8 +1681,11 @@ class AccessoryLineForm(forms.ModelForm):
             "note",
         ]
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, allow_manual=False, purchase_only=False, **kwargs):
+        self.allow_manual = allow_manual
         super().__init__(*args, **kwargs)
+        if purchase_only:
+            self.fields["line_type"].choices = [("purchase", "加購")]
         self.original_accessory_product_id = self.instance.accessory_product_id
         self.fields["accessory_product"].queryset = AccessoryProduct.objects.filter(
             Q(active=True) | Q(pk=self.instance.accessory_product_id)
@@ -1683,8 +1700,9 @@ class AccessoryLineForm(forms.ModelForm):
         ):
             self.fields[field_name].required = False
         for field_name in ("amount", "labor_fee"):
-            self.fields[field_name].widget.attrs["readonly"] = True
-            self.fields[field_name].widget.attrs["tabindex"] = "-1"
+            if not allow_manual:
+                self.fields[field_name].widget.attrs["readonly"] = True
+                self.fields[field_name].widget.attrs["tabindex"] = "-1"
         for field in self.fields.values():
             field.widget.attrs.setdefault("class", "form-control")
         apply_mobile_keyboard_attrs(self)
@@ -1705,7 +1723,18 @@ class AccessoryLineForm(forms.ModelForm):
         for field_name in ("quantity", "line_type"):
             if data.get(field_name) in (None, ""):
                 self.add_error(field_name, "填寫配件名稱後，此欄位為必填。")
-        if not self.instance.pk or product.pk != self.original_accessory_product_id:
+        if self.allow_manual:
+            defaults = {"amount": product.sale_price, "labor_fee": product.labor_fee}
+            for key, default in defaults.items():
+                if data.get(key) is None:
+                    data[key] = getattr(self.instance, key) if self.instance.pk and product.pk == self.original_accessory_product_id else default
+                if data[key] < 0:
+                    self.add_error(key, "金額不可小於零。")
+            baseline = {key: getattr(self.instance, key) for key in defaults} if self.instance.pk and product.pk == self.original_accessory_product_id else defaults
+            if any(data.get(key) != default for key, default in baseline.items()) and not data.get("note", "").strip():
+                self.add_error("note", "配件售價或工資與預設不同，請在備註說明調整原因。")
+            self.instance.name = product.name
+        elif not self.instance.pk or product.pk != self.original_accessory_product_id:
             data["amount"] = product.sale_price
             data["labor_fee"] = product.labor_fee
             self.cleaned_data["amount"] = product.sale_price
@@ -3533,7 +3562,17 @@ class RegistrationStageForm(forms.ModelForm):
     def save(self, commit=True):
         order = super().save(commit=False)
         model = order.vehicle_model
-        if order.registration_date and hasattr(self, "_registration_result"):
+        if order.registration_manual:
+            # 人工核定明細不能被領牌作業的重新試算覆寫。
+            if order.registration_date and hasattr(self, "_registration_result"):
+                result = self._registration_result
+                order.registration_rate_class = result.rate_class
+                order.registration_calculated_total = (
+                    result.fixed_and_variable_total
+                    + order.plate_selection_fee
+                    + order.lien_registration_fee
+                )
+        elif order.registration_date and hasattr(self, "_registration_result"):
             result = self._registration_result
             order.registration_rate_class = result.rate_class
             order.registration_plate_fee = result.plate_fee
@@ -3914,14 +3953,32 @@ PositionedPrintFieldFormSet = inlineformset_factory(
 
 
 class DiscountRequestForm(forms.Form):
-    amount = forms.DecimalField(label="折扣金額", max_digits=12, decimal_places=0, min_value=1)
+    mode = forms.ChoiceField(label="調整方式", choices=[("amount", "總價減少指定金額"), ("rate", "總價乘上自訂折數")], required=False)
+    amount = forms.DecimalField(label="總價減少金額（元）", max_digits=12, decimal_places=0, min_value=1, required=False)
+    rate = forms.DecimalField(label="折數（9 為九折、9.5 為九五折）", max_digits=5, decimal_places=2, min_value=Decimal("0.01"), max_value=Decimal("9.99"), required=False)
     reason = forms.CharField(label="申請原因", max_length=250, widget=forms.Textarea(attrs={"rows": 2}))
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, total=None, **kwargs):
+        self.total = total
         super().__init__(*args, **kwargs)
         for field in self.fields.values():
             field.widget.attrs.setdefault("class", "form-control")
         self.fields["amount"].widget.attrs["inputmode"] = "numeric"
+
+    def clean(self):
+        from decimal import ROUND_HALF_UP
+        data = super().clean()
+        if data.get("mode") == "rate":
+            if data.get("rate") is None or self.total is None:
+                self.add_error("rate", "請輸入折數，並重新確認訂單總價。")
+            else:
+                final = (self.total * data["rate"] / Decimal("10")).quantize(Decimal("1"), rounding=ROUND_HALF_UP)
+                data["amount"] = self.total - final
+        elif not data.get("amount"):
+            self.add_error("amount", "請輸入要減少的金額。")
+        if data.get("amount") is not None and self.total is not None and not (0 < data["amount"] <= self.total):
+            self.add_error("amount", "優惠須大於零，且不可超過折扣前總價。")
+        return data
 
 
 class DiscountDecisionForm(forms.Form):

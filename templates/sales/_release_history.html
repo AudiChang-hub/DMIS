@@ -4,7 +4,7 @@
   <p class="muted">每次更新，都有跡可循。點選版本可展開或收合內容。</p>
   {% for entry in release_history %}
   <details class="release-entry"{% if forloop.first %} open{% endif %}>
-    <summary><span class="release-heading"><strong>版本 {{ entry.version }}</strong>{% if entry.version == release_version %}<span class="release-current">目前版本</span>{% endif %}<span class="release-date">發布日期 <time datetime="{{ entry.date }}">{{ entry.date }}</time></span></span></summary>
+    <summary><span class="release-heading"><strong>版本 {{ entry.version }}</strong>{% if entry.version == release_version %}<span class="release-current">目前版本</span>{% endif %}<span class="release-date">{% if entry.published_at %}發布時間 <time datetime="{{ entry.published_at|date:'c' }}">{{ entry.published_at|date:"Y-m-d H:i" }}</time>（台北）{% else %}發布日期 <time datetime="{{ entry.date }}">{{ entry.date }}</time> <small>未記錄時間</small>{% endif %}</span></span></summary>
     <div class="release-content"><h3>{{ entry.title }}</h3>
       {% for change in entry.changes %}<h4>{{ change.kind }}</h4><ul class="home-release-list">{% for item in change.items %}<li>{{ item }}</li>{% endfor %}</ul>{% endfor %}
     </div>
@@ -18,5 +18,4 @@
       <div class="release-content"><ul class="home-release-list">{% for item in entry.items %}<li>{{ item }}</li>{% endfor %}</ul><p class="muted">來源提交：{% for commit in entry.commits %}<code>{{ commit }}</code>{% if not forloop.last %}、{% endif %}{% endfor %}</p></div>
     </details>{% endfor %}
   </details>
-  {% endif %}{% if can_manage_screen_access %}<details class="release-technical"><summary>技術資訊</summary><p>正式版本 {{ release_version }} · 建置識別碼 <code>{{ app_version }}</code></p><p class="muted">「檢查更新」使用建置識別碼確認程式是否變更。日常公告與正式版本各自維護。</p></details>
-{% endif %}</section>
+  {% endif %}{% if release_compact %}<a class="button ghost" href="{% url 'release_history' %}">查看完整版本歷程</a>{% endif %}</section>

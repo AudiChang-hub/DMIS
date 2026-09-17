@@ -5,7 +5,7 @@ from django import forms
 from django.contrib import messages
 from django.core.paginator import Paginator
 from django.db import transaction
-from django.db.models import Q
+from django.db.models import Q, Case, When, Value, IntegerField
 from django.http import FileResponse, Http404
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
@@ -66,8 +66,13 @@ def catalog(request):
         models = models.filter(pk=int(selected_model)) if selected_model.isascii() and selected_model.isdigit() and len(selected_model) < 19 else models.none()
     colors = VehicleColor.objects.filter(active=True, vehicle_model__in=models).select_related(
         "vehicle_model__catalog_entry"
-    ).order_by("vehicle_model__catalog_entry__position", "vehicle_model__brand",
-               "vehicle_model__name", "vehicle_model_id", "name", "pk")
+    ).annotate(energy_rank=Case(
+        When(vehicle_model__energy_type="gas", then=Value(0)),
+        When(vehicle_model__energy_type="micro_electric", then=Value(1)),
+        When(vehicle_model__energy_type="light_electric", then=Value(2)),
+        default=Value(3), output_field=IntegerField(),
+    )).order_by("vehicle_model__brand", "energy_rank", "vehicle_model__displacement_cc",
+               "vehicle_model__name", "vehicle_model__model_number", "vehicle_model_id", "name", "pk")
     page = Paginator(colors, 12).get_page(request.GET.get("page"))
     cards, model_cards = [], {}
     for color in page:

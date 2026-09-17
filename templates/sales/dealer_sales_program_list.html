@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+{% extends "base.html" %}{% load site_copy %}
 {% load pagination_tags %}
 {% block title %}車行傭金與銷售獎勵｜車輛銷售管理{% endblock %}
 {% block page_class %}page-shell--wide{% endblock %}
@@ -10,7 +10,7 @@
   <div>
     <p class="eyebrow">合作車行逐台給付</p>
     <h1>車行傭金與銷售獎勵</h1>
-    <p class="muted">先找到車型，再設定每賣一台給合作車行的現金傭金、實物、紅包、禮券或旅遊點數。</p>
+    <p class="muted">{% site_text 'dealer_sales_program_list.778729eedf4b' %}</p>
   </div>
 </section>
 
@@ -18,12 +18,12 @@
   <div class="is-current">
     <span>本頁</span>
     <strong>逐台給付</strong>
-    <small>每張訂單依車型套用傭金與附加獎勵。</small>
+    <small>{% site_text 'dealer_sales_program_list.ade2027bfa3b' %}</small>
   </div>
   <a href="{% url 'dealer_volume_bonus_list' %}">
     <span>另一項規則</span>
     <strong>達到台數門檻才給付</strong>
-    <small>請前往「車行台數獎金」設定。</small>
+    <small>{% site_text 'dealer_sales_program_list.95feb8ac79a9' %}</small>
   </a>
 </section>
 

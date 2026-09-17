@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+{% extends "base.html" %}{% load site_copy %}
 {% load pagination_tags %}
 {% block title %}客戶查詢｜車輛銷售管理{% endblock %}
 {% block page_class %}page-shell--wide{% endblock %}
@@ -6,7 +6,7 @@
 {% url 'data_maintenance' as data_url %}
 {% include "sales/_page_back.html" with fallback_url=data_url label="返回資料維護區" %}
 <section class="hero-row compact-hero">
-  <div><p class="eyebrow">資料維護區</p><h1>客戶查詢</h1><p class="muted">同一證件號碼只顯示一筆，內容取自最近一張訂單；修改請由訂單進行並留下紀錄。</p></div>
+  <div><p class="eyebrow">資料維護區</p><h1>客戶查詢</h1><p class="muted">{% site_text 'customer_list.415352fbf834' %}</p></div>
 </section>
 <form class="inventory-filters customer-filters" method="get">
   <div class="inventory-filter inventory-filter--search">

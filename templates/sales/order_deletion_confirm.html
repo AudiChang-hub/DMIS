@@ -1,16 +1,16 @@
-{% extends 'base.html' %}
+{% extends 'base.html' %}{% load site_copy %}
 {% block title %}{% if restore %}還原{% else %}刪除{% endif %}訂單｜車輛銷售管理{% endblock %}
 {% block content %}
-<a class="button ghost" href="{% if restore %}{% url 'order_recycle_bin' %}{% else %}{% url 'order_list' %}{% endif %}">返回{% if restore %}已刪除訂單{% else %}全部訂單{% endif %}</a>
+{% site_navigation %}
 <section class="section-block order-recycle-panel">
   <h1>{% if restore %}還原訂單{% elif deletion_admin %}確認刪除訂單{% else %}申請刪除訂單{% endif %}</h1>
   <h2>{{ order.owner_name }} · {{ order.number }}</h2>
   <p>{{ order.vehicle_model }}／{{ order.color.name }} · {{ order.get_status_display }}</p>
   <p>{% if restore %}還原後重新出現在一般訂單與統計中，維持原狀態與金額，不重新計算歷史財務。{% else %}訂單將移至「已刪除訂單」，不再顯示於一般查詢與統計；附件、金額及歷史仍保留，可還原。刪除不等於取消交易或完成退款。{% endif %}</p>
   {% if restore %}<p>刪除人員：{{ order.deleted_by }} · {{ order.deleted_at|date:'Y/m/d H:i' }}</p><p>刪除原因：{{ order.deletion_reason }}</p>{% endif %}
-  {% if order.deletion_requested_at %}<div class="section-block"><strong class="status-pill status-deletion_pending">刪除確認中</strong><p>申請人：{{ order.deletion_requested_by.get_full_name|default:order.deletion_requested_by.username }} · {{ order.deletion_requested_at|date:'Y/m/d H:i' }}</p><p>申請原因：{{ order.deletion_request_reason }}</p><p>審核前保留原作業狀態與統計；取消申請不會改變交易。</p></div>{% endif %}
-  {% if not deletion_admin and not restore %}<p>送出後交由 admin 審核，不會立即刪除。申請人可以取消申請。</p>{% endif %}
-  {% if impacts and deletion_admin %}<div class="section-block" role="note"><h2>本次刪除須確認的關聯</h2><ul>{% for impact in impacts %}<li>{{ impact }}</li>{% endfor %}</ul><p>admin 可在下方明確勾選後作廢訂單影響：停止一般查詢、統計與收款待辦，解除配車及作廢獎金分配。不抹除歷史證據，不轉移到新單；已領牌／交付的庫存車轉為停用，並非可銷售新車。</p></div>{% endif %}
+  {% if order.deletion_requested_at %}<div class="section-block"><strong class="status-pill status-deletion_pending">刪除確認中</strong><p>申請人：{{ order.deletion_requested_by.get_full_name|default:order.deletion_requested_by.username }} · {{ order.deletion_requested_at|date:'Y/m/d H:i' }}</p><p>申請原因：{{ order.deletion_request_reason }}</p><p>{% site_text 'order_deletion_confirm.3bc70b1b75a9' %}</p></div>{% endif %}
+  {% if not deletion_admin and not restore %}<p>{% site_text 'order_deletion_confirm.bb5486fef45c' %}</p>{% endif %}
+  {% if impacts and deletion_admin %}<div class="section-block" role="note"><h2>本次刪除須確認的關聯</h2><ul>{% for impact in impacts %}<li>{{ impact }}</li>{% endfor %}</ul><p>{% site_text 'order_deletion_confirm.5d225fb87253' %}</p></div>{% endif %}
   {% if blockers %}<div role="alert"><h2>請先處理以下事項</h2><ul>{% for blocker in blockers %}<li>{{ blocker }}</li>{% endfor %}</ul></div>{% endif %}
   {{ form.non_field_errors }}
   {% if deletion_admin or restore or not order.deletion_requested_at %}<form method="post">{% csrf_token %}

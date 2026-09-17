@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+{% extends "base.html" %}{% load site_copy %}
 {% block title %}系統完整性報告｜車輛銷售管理{% endblock %}
 {% block page_class %}page-shell--standard integrity-report-page{% endblock %}
 {% block content %}
@@ -7,9 +7,9 @@
 
 <section class="hero-row compact-hero integrity-report-hero">
   <div>
-    <p class="eyebrow">admin 授權查看 · 版本化稽核紀錄</p>
+    <p class="eyebrow">{% site_text 'system_integrity_report.ba0d34c46d0f' %}</p>
     <h1>系統完整性報告</h1>
-    <p class="muted">整合安全、UI／UX、核心流程與文件檢查；這不是人員績效或進度排行。</p>
+    <p class="muted">{% site_text 'system_integrity_report.d2bb19e6d624' %}</p>
   </div>
   <dl class="integrity-report-meta" aria-label="報告版本">
     <div><dt>稽核日期</dt><dd>{{ integrity_report.audit_date|date:"Y/m/d" }}</dd></div>
@@ -34,7 +34,7 @@
   {% if integrity_report.restore_drill.success %}
   <p>已核對 {{ integrity_report.restore_drill.tables }} 張資料表、{{ integrity_report.restore_drill.rows }} 筆資料與 {{ integrity_report.restore_drill.media_files }} 個附件；耗時 {{ integrity_report.restore_drill.duration_seconds }} 秒。</p>
   {% endif %}
-  <p class="muted">每週日清晨自動執行；只在隔離環境還原，不會覆寫正式資料。</p>
+  <p class="muted">{% site_text 'system_integrity_report.6151d982d0a1' %}</p>
 </section>
 
 <section class="integrity-summary-grid" aria-label="稽核摘要">

@@ -1,8 +1,9 @@
-{% extends "base.html" %}{% load static %}
+{% extends "base.html" %}{% load site_copy %}{% load static %}
 {% block title %}編輯常用功能｜車輛銷售管理{% endblock %}
 {% block page_class %}favorites-page{% endblock %}
 {% block content %}
-<header class="hero-row"><div><p class="eyebrow">個人首頁設定</p><h1>編輯常用功能</h1><p>勾選常用功能，再調整順序，讓首頁更符合你的工作習慣。</p><p class="muted">設定帳號：{{ user.get_full_name|default:user.username }}（@{{ user.username }}）・只影響你的首頁</p></div></header>
+{% site_navigation %}
+<header class="hero-row"><div><p class="eyebrow">個人首頁設定</p><h1>編輯常用功能</h1><p>{% site_text 'home_favorites.cf96b5fd5dbe' %}</p><p class="muted">設定帳號：{{ user.get_full_name|default:user.username }}（@{{ user.username }}）・只影響你的首頁</p></div></header>
 {% if favorite_error %}<div class="favorite-error" role="alert">{{ favorite_error }}</div>{% endif %}
 <form method="post" action="{% url 'home_favorites' %}" class="favorites-editor" data-favorites-form>
   {% csrf_token %}<input type="hidden" name="expected_version" value="{{ favorite_version }}"><input type="hidden" name="order" value="" data-favorites-order>
@@ -14,19 +15,19 @@
   </div>
   <div class="favorites-layout">
     <section class="favorites-catalog" aria-label="可加入的功能">
-      <noscript><p class="card">目前未啟用 JavaScript，仍可勾選後儲存；保留原有項目順序，新勾選項目依下方分類順序附加。</p></noscript>
+      <noscript><p class="card">{% site_text 'home_favorites.115d0ddef348' %}</p></noscript>
       {% for group in favorite_groups %}<fieldset class="favorites-group" data-favorites-group><legend>{{ group.title }}</legend><p class="muted">{{ group.description }}</p><div class="favorites-options">
         {% for option in group.options %}<label class="favorite-option" data-favorite-option data-search="{{ option.label }} {{ group.title }}"><input type="checkbox" name="favorite" value="{{ option.key }}" {% if option.key in favorite_keys %}checked{% endif %}><span><strong>{{ option.label }}</strong><small>{% if option.key in favorite_keys %}已加入常用功能{% else %}加入首頁常用功能{% endif %}</small></span></label>{% endfor %}
       </div></fieldset>{% endfor %}
-      <p class="card" data-favorites-no-results hidden>找不到符合的功能。試試其他關鍵字，或取消「只看已勾選」。未提供的功能可能尚未取得權限，請聯絡 admin。</p>
+      <p class="card" data-favorites-no-results hidden>{% site_text 'home_favorites.4357e3bdd4db' %}</p>
     </section>
     <aside class="favorites-preview card" data-favorites-preview hidden aria-labelledby="favorites-preview-title">
-      <h2 id="favorites-preview-title">首頁顯示預覽</h2><p class="muted">由上到下就是首頁的顯示順序，勾選後可在這裡移動或移除。</p>
+      <h2 id="favorites-preview-title">首頁顯示預覽</h2><p class="muted">{% site_text 'home_favorites.a8d0a290d192' %}</p>
       <p><strong data-favorites-count>0</strong> 個功能已加入</p>
       <ol class="favorites-picked" data-favorites-picked></ol>
-      <p data-favorites-empty hidden>尚未選擇功能。你也可以儲存空清單，之後隨時再加入。</p>
+      <p data-favorites-empty hidden>{% site_text 'home_favorites.87752b3e88d3' %}</p>
       <div class="favorites-draft-tools"><button type="button" class="button ghost" data-favorites-default>恢復預設</button><button type="button" class="button ghost" data-favorites-clear>全部取消勾選</button></div>
-      <p class="muted">上述操作只改變本次草稿，按「儲存常用功能」才會生效。</p>
+      <p class="muted">{% site_text 'home_favorites.dffc1d13b9ad' %}</p>
       <a class="button ghost" href="#favorites-tools">繼續選擇功能</a>
     </aside>
   </div>

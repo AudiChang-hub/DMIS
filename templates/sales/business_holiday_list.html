@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+{% extends "base.html" %}{% load site_copy %}
 {% load static %}
 {% block title %}工作日與假日設定｜車輛銷售管理{% endblock %}
 {% block page_class %}page-shell--wide{% endblock %}
@@ -10,7 +10,7 @@
   <div>
     <p class="eyebrow">期限計算依據</p>
     <h1>工作日與假日設定</h1>
-    <p class="muted">月曆會自動排除週六、週日與啟用中的假日；點選日期即可新增或調整。</p>
+    <p class="muted">{% site_text 'business_holiday_list.77298bd0ebb6' %}</p>
   </div>
 </section>
 
@@ -18,7 +18,7 @@
   <div class="holiday-sync-status__summary">
     <span class="eyebrow">人事行政總處同步</span>
     <strong>每月同步當年與次年行事曆</strong>
-    <small>同步失敗會保留既有資料，不影響工作日期限計算。</small>
+    <small>{% site_text 'business_holiday_list.7b3b36e4d35b' %}</small>
   </div>
   <div class="holiday-sync-status__result">
     {% if latest_official_sync %}
@@ -176,7 +176,7 @@
           {{ form.active }}
           <span>
             <strong>排除工作日計算</strong>
-            <small data-holiday-active-help>關閉後仍保留紀錄，但不再額外排除；週末仍固定不計。</small>
+            <small data-holiday-active-help>{% site_text 'business_holiday_list.cc8a0752b815' %}</small>
           </span>
         </label>
         {% for error in form.active.errors %}<small class="field-error">{{ error }}</small>{% endfor %}

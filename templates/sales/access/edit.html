@@ -1,15 +1,16 @@
-{% extends "base.html" %}{% load static %}
+{% extends "base.html" %}{% load site_copy %}{% load static %}
 {% block title %}{{ account.username }} 畫面權限｜車輛銷售管理{% endblock %}
 {% block head %}<link rel="stylesheet" href="{% static 'css/screen-access.css' %}?v={{ app_version }}">{% endblock %}
 {% block content %}
+{% site_navigation %}
 <a href="{% url 'access_overview' %}">← 人員權限總覽</a>
-<header class="hero-row"><div><p class="eyebrow">ADMIN · 逐人授權</p><h1>{{ account.get_full_name|default:account.username }} 的畫面權限</h1><p>@{{ account.username }} · {% if account.is_active %}使用中{% else %}已停用，勾選不會啟用帳號{% endif %} · 第 {{ before.version }} 版</p></div></header>
+<header class="hero-row"><div><p class="eyebrow">{% site_text 'edit.b951cebb26b0' %}</p><h1>{{ account.get_full_name|default:account.username }} 的畫面權限</h1><p>@{{ account.username }} · {% if account.is_active %}使用中{% else %}已停用，勾選不會啟用帳號{% endif %} · 第 {{ before.version }} 版</p></div></header>
 {% if error %}<p class="access-notice" role="alert">{{ error }}</p>{% endif %}
-{% if not before.configured %}<p class="access-notice">目前沿用舊制。下列勾選以既有資格為起點；確認套用後，未勾選的畫面及新發布報表都不開放。</p>{% endif %}
-<p class="muted">由 admin 決定開放，不受舊角色限制。查看包含畫面原有統計與關聯摘要，不是「只看自己的資料」；取消查看會一併取消操作與匯出。只有 admin 能授權他人，勾選不會提升帳號的管理角色。</p>
-<p class="muted">各項授權都可勾選保存；若畫面尚無操作或匯出入口，授權不會新增該功能。報表操作不包含設計／發布；瀏覽器自行列印／截圖不受系統控制。</p>
+{% if not before.configured %}<p class="access-notice">{% site_text 'edit.192102b29e9a' %}</p>{% endif %}
+<p class="muted">{% site_text 'edit.4a78066416ae' %}</p>
+<p class="muted">{% site_text 'edit.d0562249ba5e' %}</p>
 {% if preview %}
-<section class="access-notice"><h2>確認變更 · {{ changed_count }} 個項目</h2><p>這是選單與權限預覽，尚未生效，也沒有登入對方帳號。確認後下一次請求生效。</p>
+<section class="access-notice"><h2>確認變更 · {{ changed_count }} 個項目</h2><p>{% site_text 'edit.d994cd9a96b0' %}</p>
 <details><summary>預覽可見功能（{{ visible_rows|length }} 項）</summary><ul>{% for row in visible_rows %}<li>{{ row.label }}</li>{% empty %}<li>不開放任何業務功能，只保留個人功能。</li>{% endfor %}</ul></details></section>
 {% else %}
 <form method="post" class="access-tools">{% csrf_token %}<input type="hidden" name="version" value="{{ before.version }}"><label for="copy-account">複製另一位人員至預覽</label><select id="copy-account" name="source" required><option value="">選擇人員</option>{% for source in copy_accounts %}<option value="{{ source.pk }}">{{ source.get_full_name|default:source.username }}（{{ source.username }}）</option>{% endfor %}</select><button class="button secondary" name="action" value="copy">複製並預覽</button></form>
@@ -19,12 +20,12 @@
 <form method="post" data-access-form>{% csrf_token %}<input type="hidden" name="version" value="{{ before.version }}">
 {% if preview %}<input type="hidden" name="preview_token" value="{{ preview_token }}">{% endif %}
 {% for group in groups %}<section class="access-category" id="access-{{ group.key }}" data-access-category aria-labelledby="access-heading-{{ group.key }}">
-<div class="favorites-heading"><h2 id="access-heading-{{ group.key }}">{{ group.label }}</h2>{% if not preview %}<div class="hero-actions"><button type="button" class="button ghost small" data-access-bulk="1">本大項全選</button><button type="button" class="button ghost small" data-access-bulk="0">全部取消</button></div>{% endif %}</div><p class="muted">批次操作包含本大項被搜尋隱藏的項目；其他大項不變，預覽確認後才生效。</p>
+<div class="favorites-heading"><h2 id="access-heading-{{ group.key }}">{{ group.label }}</h2>{% if not preview %}<div class="hero-actions"><button type="button" class="button ghost small" data-access-bulk="1">本大項全選</button><button type="button" class="button ghost small" data-access-bulk="0">全部取消</button></div>{% endif %}</div><p class="muted">{% site_text 'edit.1ff5da23cd11' %}</p>
 {% for section in group.sections %}<section class="access-subcategory" data-access-subcategory><h3>{{ section.label }}</h3><div class="access-grid">
 {% for row in section.rows %}<fieldset class="access-row{% if row.changed %} is-changed{% endif %}" data-access-row data-label="{{ group.label }} {{ section.label }} {{ row.label }}"><legend>{{ row.label }}</legend>
 <div class="access-checks">{% for cell in row.cells %}<label><input type="checkbox" name="{{ cell.name }}" data-action="{{ cell.action }}" data-before="{{ cell.before|yesno:'1,0' }}" {% if cell.checked %}checked{% endif %} {% if preview %}disabled{% endif %}> {{ cell.label }}{% if preview and cell.checked != cell.before %}<strong>{% if cell.checked %}新增{% else %}收回{% endif %}</strong>{% endif %}</label>{% endfor %}</div></fieldset>{% endfor %}
 </div></section>{% empty %}<p class="muted">尚無已發布報表可設定。</p>{% endfor %}</section>{% endfor %}
-<p class="access-empty" data-access-empty hidden>沒有符合條件的畫面，請調整搜尋或顯示條件。</p>
+<p class="access-empty" data-access-empty hidden>{% site_text 'edit.6cfca5e34bf9' %}</p>
 <footer class="access-footer">{% if preview %}<button class="button secondary" name="action" value="back">返回調整</button><button class="button primary" name="action" value="apply">確認並套用</button>{% else %}<a class="button secondary" href="{% url 'access_overview' %}">取消</a><button class="button primary" name="action" value="preview">預覽變更</button>{% endif %}</footer></form>
 <details class="card"><summary>權限異動歷程（最近 20 筆）</summary>{% for revision in revisions %}<form method="post" class="access-history">{% csrf_token %}<input type="hidden" name="version" value="{{ before.version }}"><input type="hidden" name="revision" value="{{ revision.pk }}"><span>第 {{ revision.version }} 版 · {{ revision.created_at|date:'Y/m/d H:i' }} · {{ revision.actor_name }}</span><button class="button secondary" name="action" value="restore">還原此版並預覽</button></form><details><summary>查看此版異動</summary><ul>{% for row in revision.changes %}<li>{{ row.label }}：{% for cell in row.cells %}{% if cell.supported and cell.checked != cell.before %}{{ cell.label }} {% if cell.checked %}新增{% else %}收回{% endif %}；{% endif %}{% endfor %}</li>{% empty %}<li>可見項目未變更；已確認採用白名單。</li>{% endfor %}</ul></details>{% empty %}<p>尚無套用紀錄。</p>{% endfor %}</details>
 <script src="{% static 'js/screen-access.js' %}?v={{ app_version }}" defer></script>

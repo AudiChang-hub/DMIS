@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+{% extends "base.html" %}{% load site_copy %}
 {% load static sales_format %}
 {% block head %}<link rel="stylesheet" href="{% static 'css/order-commission-recipient.css' %}?v={{ app_version }}">{% endblock %}
 {% block title %}{% if editing_order %}編輯 {{ editing_order.number }}{% else %}建立訂單{% endif %}｜車輛銷售管理{% endblock %}
@@ -9,13 +9,13 @@
   {% url 'order_detail' editing_order.pk as form_back_url %}
   {% include "sales/_page_back.html" with fallback_url=form_back_url label="取消修改，返回訂單" cancel_edit=True %}
 {% else %}
-  {% if reception_mode %}<a class="button" href="{{ reception_back_url }}">← {{ reception_back_label }}</a>
+  {% if reception_mode %}{% include "sales/_page_back.html" with fallback_url=reception_back_url label=reception_back_label %}
   {% else %}
   {% url 'order_list' as form_back_url %}
   {% include "sales/_page_back.html" with fallback_url=form_back_url label="全部訂單" %}
   {% endif %}
 {% endif %}
-{% if editing_order.is_delivered %}<div class="card"><strong>完成後修正</strong><p>可繼續修改訂單內容，必須填寫原因並確認；交付狀態不變，已配車及已結算限制仍保留。未改計費條件時保留原金額與快照。</p></div>{% endif %}
+{% if editing_order.is_delivered %}<div class="card"><strong>完成後修正</strong><p>{% site_text 'order_form.d24335d3fe34' %}</p></div>{% endif %}
 <form method="post" enctype="multipart/form-data" class="mobile-order-form" id="order-form" data-custom-validation="true" {% if editing_order.is_delivered %}data-completed-correction="true"{% endif %}>
   {% csrf_token %}
   {% if intake_mode %}<input type="hidden" name="_submission_key" value="{{ submission_key }}">{% endif %}
@@ -70,15 +70,15 @@
     <p>{{ chosen.model_label }}／{{ chosen.color_label }}</p>
     <p>{% if chosen.payment_type == 'cash' %}現金{% else %}{{ chosen.company }}／{{ chosen.periods }} 期 · 每期 {{ chosen.monthly|number_with_commas }} 元 · 開辦費 {{ chosen.opening_fee|number_with_commas }} 元{% endif %}{% if chosen.price != None %} · 車價 {{ chosen.price|number_with_commas }} 元{% endif %}</p>
     {% endif %}{% endwith %}
-    <p>選擇已帶入，可直接填寫來源、車主及交車需求；需要調整時再更換。</p>
+    <p>{% site_text 'order_form.dedf51422a3a' %}</p>
     {{ form.catalog_selection.errors }}
     <button type="button" class="button ghost" data-catalog-change>更換車款／付款方案</button>
-    <noscript><p>同頁更換方案需要啟用 JavaScript；原選擇仍可正常送出，若方案失效請重新選車。</p></noscript>
+    <noscript><p>{% site_text 'order_form.6be3bc009cdf' %}</p></noscript>
   </section>
   {% endif %}
   <details class="form-section" id="vehicle" {% if not form.catalog_summary or form.errors %}open{% endif %}>
-    <summary><span class="step-number">1</span><span><strong>訂購車輛</strong><small>只選車型與車色，簽約後再配實體車</small></span></summary>
-    <p class="muted intake-vehicle-hint">先選車款與顏色，後續填單會保留你的選擇。</p>
+    <summary><span class="step-number">1</span><span><strong>訂購車輛</strong><small>{% site_text 'order_form.82c91b987da4' %}</small></span></summary>
+    <p class="muted intake-vehicle-hint">{% site_text 'order_form.9313f14b5c44' %}</p>
     <div class="form-grid">
       {% include "sales/_field.html" with field=form.vehicle_energy_type %}
       {% include "sales/_field.html" with field=form.vehicle_model %}
@@ -100,7 +100,7 @@
   </details>
 
   <details class="form-section" id="owner" open>
-    <summary><span class="step-number">3</span><span><strong>車主與證件</strong><small>拍照後自動辨識，再對照證件核對</small></span></summary>
+    <summary><span class="step-number">3</span><span><strong>車主與證件</strong><small>{% site_text 'order_form.8a0d36a5de3d' %}</small></span></summary>
     <div class="info-banner" data-conditional="identity-upload">
       本國自然人上傳身分證、外籍／居留者上傳居留證正反面後，會自動辨識姓名、生日、證號與地址。辨識結果仍須對照照片核對。
     </div>
@@ -187,10 +187,11 @@
       <div class="section-title">
         <div>
           <h3>領牌規費與強制險</h3>
-          <p id="registration-rate-summary">選擇動力類型與車型後自動試算</p>
+          <p id="registration-rate-summary">{% site_text 'order_form.22518dd5a27d' %}</p>
         </div>
       </div>
       <div id="gas-registration-calculator">
+        <div class="form-grid">{% include "sales/_field.html" with field=form.registration_manual %}{% include "sales/_field.html" with field=form.registration_adjustment_reason %}</div>
         <div class="form-grid">
           {% if editing_order %}
             {% include "sales/_field.html" with field=form.registration_date %}
@@ -209,7 +210,7 @@
           {% include "sales/_field.html" with field=form.registration_calculated_total %}
           {% include "sales/_field.html" with field=form.plate_insurance_fee %}
         </div>
-        <p class="form-hint">油車依領牌日、排氣量與保險期間試算；電動車與輕型電動車依品牌及領牌級別規則帶入。「實際牌險合計」仍可由人員調整。</p>
+        <p class="form-hint">{% site_text 'order_form.95121456d49f' %}</p>
       </div>
       <div id="non-gas-registration-message" class="note-box" hidden>
         微型電動二輪車目前請依正式單據人工填寫實際牌險合計。
@@ -232,7 +233,7 @@
         {% include "sales/_field.html" with field=form.installment_opening_fee %}
         {% include "sales/_field.html" with field=form.installment_monthly %}
       </div>
-      <p class="form-hint" id="installment-plan-hint" aria-live="polite">選擇車型與期數後，系統會帶入目前有效的分期公司、每期金額及開辦費；仍可由內部人員修改。</p>
+      <p class="form-hint" id="installment-plan-hint" aria-live="polite">{% site_text 'order_form.e4b6f41700b0' %}</p>
     </div>
     <div class="subsection fee-subsection" {% if intake_mode and not intake_finance_editable %}hidden{% endif %}>
       <div class="section-title"><h3>其他費用</h3></div>
@@ -261,9 +262,9 @@
   </details>
 
   <details class="form-section" id="extras" {% if intake_mode %}open{% endif %}>
-    <summary><span class="step-number">5</span><span><strong>其他需求</strong><small>配件、汰舊、選號與交車方式</small></span></summary>
+    <summary><span class="step-number">5</span><span><strong>其他需求</strong><small>{% site_text 'order_form.7eacf129bc3f' %}</small></span></summary>
     <div class="form-grid">
-      {% include "sales/_field.html" with field=form.trade_in_intent %}<p class="muted">汰舊意向可先選待確認；補助是否申請由店內後續核對。</p>
+      {% include "sales/_field.html" with field=form.trade_in_intent %}<p class="muted">{% site_text 'order_form.7825ae5a8413' %}</p>
       <div class="span-2 verify-box" {% if intake_mode and not intake_finance_editable %}hidden{% endif %}>{% include "sales/_field.html" with field=form.is_trade_in_subsidy %}</div>
       <div class="span-2 verify-box" data-conditional="trade-in-owner">{% include "sales/_field.html" with field=form.old_owner_same_as_owner %}</div>
       {% include "sales/_field.html" with field=form.plate_choice %}
@@ -275,9 +276,10 @@
       </div>
       <div class="span-2">{% include "sales/_field.html" with field=form.note %}</div>
     </div>
-    {% if intake_mode %}<div class="card"><h3>下訂附件</h3><p>支援圖片／PDF，每個檔案最多 20 MB；分期表 1 個、補充附件最多 10 個。同次含證件合計最多 35 MB，較多檔案請暫存後重開草稿分批續傳。自動暫存成功後才算保存。</p><div class="form-grid"><label>分期表<input type="file" name="installment_document" accept="image/*,application/pdf"></label><label>補充檔案<input type="file" name="supplement_documents" accept="image/*,application/pdf" multiple></label></div>{% include "sales/_intake_attachments.html" %}</div>{% endif %}
-    <div class="subsection" {% if intake_mode and not intake_finance_editable %}hidden{% endif %}>
+    {% if intake_mode %}<div class="card"><h3>下訂附件</h3><p>{% site_text 'order_form.06e865b632d7' %}</p><div class="form-grid"><label>分期表<input type="file" name="installment_document" accept="image/*,application/pdf"></label><label>補充檔案<input type="file" name="supplement_documents" accept="image/*,application/pdf" multiple></label></div>{% include "sales/_intake_attachments.html" %}</div>{% endif %}
+    <div class="subsection accessory-section">
       <div class="section-title"><h3>配件</h3></div>
+      <p class="muted">{% site_text 'order_form.01b4c1935981' %}</p>
       <div id="accessory-forms">
       {% for accessory_form in formset %}
         <div class="accessory-row dynamic-row{% if accessory_form.DELETE.value %} is-pending-delete{% endif %}" data-accessory-row data-dynamic-row data-row-label="配件">
@@ -315,7 +317,7 @@
     {% include "sales/_field.html" with field=form.change_reason %}
   </div>
   {% endif %}
-  {% if intake_mode and intake_can_receive %}<div class="card intake-accept-card"><label>{{ form.accept_by_me }} 由我接單</label><p>勾選後，建立訂單時同時記錄你為接單人；不勾選則先進入待接單清單。</p></div>{% endif %}
+  {% if intake_mode and intake_can_receive %}<div class="card intake-accept-card"><label>{{ form.accept_by_me }} 由我接單</label><p>{% site_text 'order_form.3c48542d2741' %}</p></div>{% endif %}
   <div class="mobile-submit">
     {% if editing_order %}<a class="button ghost" href="{% url 'order_detail' editing_order.pk %}" data-cancel-edit>取消修改</a>{% endif %}
     {% if not editing_order %}
@@ -684,6 +686,14 @@
   }
 
   function calculateRegistrationFee() {
+    const manual = byId("id_registration_manual")?.checked;
+    const manualFields = ["registration_plate_fee", "registration_license_fee", "registration_inspection_fee", "road_maintenance_fee", "license_tax_fee", "compulsory_insurance_fee"];
+    manualFields.forEach(name => { if (byId(`id_${name}`)) byId(`id_${name}`).readOnly = !manual; });
+    if (manual) {
+      actualPlateInsuranceFee.value = [...manualFields, "plate_selection_fee", "lien_registration_fee"].reduce((sum, name) => sum + (Number(byId(`id_${name}`)?.value) || 0), 0);
+      rateSummary.textContent = "自行調整：實際牌險為明細合計，儲存時需填寫原因";
+      return;
+    }
     if (completedRegistrationBasis !== null && completedRegistrationBasis === JSON.stringify(completedRegistrationInputs.map(input => input.value))) {
       const followedCalculation = actualPlateInsuranceFee.value === calculatedRegistrationTotal.value;
       completedFeeFields.forEach((id, index) => { byId(id).value = completedFeeValues[index]; });
@@ -830,6 +840,8 @@
     .forEach(el => el.addEventListener("change", calculateRegistrationFee));
   [plateSelectionFee, lienRegistrationFee]
     .forEach(el => el.addEventListener("input", calculateRegistrationFee));
+  ["registration_manual", "registration_plate_fee", "registration_license_fee", "registration_inspection_fee", "road_maintenance_fee", "license_tax_fee", "compulsory_insurance_fee"]
+    .forEach(name => byId(`id_${name}`)?.addEventListener("input", calculateRegistrationFee));
   filterVehicleModels();
   calculateRegistrationFee();
   refresh();
@@ -1112,7 +1124,7 @@
   refreshPhotoButtons();
   refreshOcrEntryState();
 
-  function refreshAccessoryRequired(row) {
+  function refreshAccessoryRequired(row, changed = false) {
     if (row.classList.contains("is-pending-delete")) return;
     const productInput = row.querySelector('[name$="-accessory_product"]');
     const hasProduct = Boolean(productInput?.value);
@@ -1123,15 +1135,15 @@
     if (product) {
       const salePrice = row.querySelector('[name$="-amount"]');
       const laborFee = row.querySelector('[name$="-labor_fee"]');
-      if (salePrice) salePrice.value = product.sale_price;
-      if (laborFee) laborFee.value = product.labor_fee;
+      if (salePrice && (changed || salePrice.value === "")) salePrice.value = product.sale_price;
+      if (laborFee && (changed || laborFee.value === "")) laborFee.value = product.labor_fee;
     }
   }
 
   function bindAccessoryRow(row) {
     const productInput = row.querySelector('[name$="-accessory_product"]');
     productInput?.addEventListener("change", () => {
-      refreshAccessoryRequired(row);
+      refreshAccessoryRequired(row, true);
       scheduleDraft();
     });
     refreshAccessoryRequired(row);
@@ -1669,7 +1681,7 @@
       state.className = "saved-photo-state";
       state.dataset.savedPhoto = fieldName;
       state.innerHTML = `
-        <span><strong>已暫存${sideLabel}照片</strong><small>照片已安全保存，可繼續填寫</small></span>
+        <span><strong>已暫存${sideLabel}照片</strong><small>{% site_text 'order_form.f014372ecb14' %}</small></span>
         <a target="_blank">查看</a>
         <button type="button">更換</button>
       `;

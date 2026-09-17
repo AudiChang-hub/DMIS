@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+{% extends "base.html" %}{% load site_copy %}
 {% load pagination_tags %}
 {% block title %}配件與工資｜車輛銷售管理{% endblock %}
 {% block page_class %}page-shell--wide{% endblock %}
@@ -9,7 +9,7 @@
   <div>
     <p class="eyebrow">訂單配件共用資料</p>
     <h1>配件與工資</h1>
-    <p class="muted">訂單只需選擇配件；售價與工資會保存為當時快照，後續修改主檔不影響舊訂單。</p>
+    <p class="muted">{% site_text 'accessory_product_list.78db5a962a4a' %}</p>
   </div>
   <a class="button primary" href="{% url 'accessory_product_create' %}">＋ 新增配件</a>
 </section>

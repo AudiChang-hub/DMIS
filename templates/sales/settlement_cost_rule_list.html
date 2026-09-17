@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+{% extends "base.html" %}{% load site_copy %}
 {% load pagination_tags %}
 {% block title %}車輛結算成本｜車輛銷售管理{% endblock %}
 {% block page_class %}page-shell--wide{% endblock %}
@@ -9,7 +9,7 @@
   <div>
     <p class="eyebrow">依領牌日認列成本</p>
     <h1>車輛結算成本</h1>
-    <p class="muted">車輛進庫不產生成本；領牌後依車型與實際領牌日固定成本快照。</p>
+    <p class="muted">{% site_text 'settlement_cost_rule_list.7a65e761c113' %}</p>
   </div>
   <a class="button primary" href="{% url 'settlement_cost_rule_create' %}">＋ 新增成本版本</a>
 </section>
@@ -44,7 +44,7 @@
         </tr>
         {% endwith %}
         {% empty %}
-        <tr><td colspan="7"><div class="empty-state"><strong>尚未建立車輛結算成本</strong><p>請先建立適用機種與生效日期的成本版本。</p></div></td></tr>
+        <tr><td colspan="7"><div class="empty-state"><strong>尚未建立車輛結算成本</strong><p>{% site_text 'settlement_cost_rule_list.d2d540a3a87d' %}</p></div></td></tr>
         {% endfor %}
       </tbody>
     </table>

@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+{% extends "base.html" %}{% load site_copy %}
 {% block title %}售價版本｜車輛銷售管理{% endblock %}
 {% block page_class %}page-shell--wide{% endblock %}
 {% block content %}
@@ -9,7 +9,7 @@
   <div>
     <p class="eyebrow">{{ vehicle_model.brand }} {{ vehicle_model.name }}／{{ vehicle_model.model_number }}</p>
     <h1>售價版本</h1>
-    <p class="muted">價格異動時建立新版本；系統依訂單日期帶入，既有訂單仍保留當時快照。</p>
+    <p class="muted">{% site_text 'vehicle_model_price_versions.a344abcfe368' %}</p>
   </div>
 </section>
 
@@ -68,12 +68,12 @@
           <div><dt>建議售價</dt><dd>{% if version.suggested_price %}${{ version.suggested_price|floatformat:0 }}・{% if version.suggested_price_includes_registration %}含牌險{% else %}不含牌險{% endif %}{% else %}未填寫{% endif %}</dd></div>
           <div><dt>現金價</dt><dd>{% if version.cash_price %}${{ version.cash_price|floatformat:0 }}{% else %}未填寫{% endif %}</dd></div>
         </dl>
-        {% if version.display_state == "superseded" %}<p class="price-version-item__explanation">此版本仍保留給歷史訂單使用；今天的新訂單會採用較新的版本。</p>{% endif %}
+        {% if version.display_state == "superseded" %}<p class="price-version-item__explanation">{% site_text 'vehicle_model_price_versions.bcd8f217ae1d' %}</p>{% endif %}
         {% if version.source_note %}<p class="price-version-item__note">{{ version.source_note }}</p>{% endif %}
         <a class="button ghost small" href="?edit={{ version.pk }}">編輯此版本</a>
       </article>
       {% empty %}
-      <div class="empty-state"><strong>尚未建立售價版本</strong><p>請在左側建立第一筆，之後訂單才能自動帶入價格。</p></div>
+      <div class="empty-state"><strong>尚未建立售價版本</strong><p>{% site_text 'vehicle_model_price_versions.796cad144516' %}</p></div>
       {% endfor %}
     </div>
   </section>

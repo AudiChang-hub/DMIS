@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+{% extends "base.html" %}{% load site_copy %}
 {% block title %}通路類別｜車輛銷售管理{% endblock %}
 {% block page_class %}page-shell--wide{% endblock %}
 {% block content %}
@@ -7,12 +7,12 @@
   <div>
     <p class="eyebrow">通路主檔</p>
     <h1>通路類別</h1>
-    <p class="muted">類別名稱提供人員辨識；系統處理方式決定是否套用車行傭金、平台對帳或視為本店來源。</p>
+    <p class="muted">{% site_text 'sales_source_category_list.7c4a2b928cad' %}</p>
   </div>
 </section>
 <div class="master-layout source-category-layout">
   <section class="form-section static-section">
-    <div class="section-title"><div><h2>{% if editing %}編輯 {{ editing.name }}{% else %}新增類別{% endif %}</h2><p>類別使用後仍可改名或停用，但不能改變系統處理方式。</p></div></div>
+    <div class="section-title"><div><h2>{% if editing %}編輯 {{ editing.name }}{% else %}新增類別{% endif %}</h2><p>{% site_text 'sales_source_category_list.75aff869afd7' %}</p></div></div>
     <form method="post" class="stacked-form">{% csrf_token %}
       {% for field in form %}{% include "sales/_field.html" with field=field %}{% endfor %}
       <div class="form-actions">

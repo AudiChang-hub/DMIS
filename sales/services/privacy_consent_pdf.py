@@ -11,6 +11,7 @@ from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.pdfgen import canvas
 from reportlab.platypus import Paragraph
+from sales.services.site_copy import print_copy
 
 PAGE_W, PAGE_H = A4
 MARGIN_X = 20 * mm
@@ -134,8 +135,8 @@ def build_privacy_consent_pdf(order):
         "個人資料，可能導致上述部分或全部之目的無法完成，而對車主之權益有所影響。",
         "5. 本同意書如有未盡事宜，本公司將依個人資料保護法或其他相關法令之規定辦理。",
     ]
-    for clause in clauses:
-        y = _draw_paragraph(c, clause, body_style, y, 3.2 * mm)
+    for index, clause in enumerate(clauses, 1):
+        y = _draw_paragraph(c, escape(print_copy(c, f"privacy.clause{index}", clause)), body_style, y, 3.2 * mm)
 
     y = max(y - 7 * mm, 92 * mm)
     c.setFillColor(black)

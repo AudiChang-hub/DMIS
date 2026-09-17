@@ -133,6 +133,8 @@
   }
 
   function lockSubmittingForm(form, submitter) {
+    // 下載／另開分頁不會卸載目前頁面，不能套用等待導頁的永久鎖定。
+    if (form.target === "_blank" || form.dataset.download === "true") return true;
     if (form.dataset.allowMultipleSubmit === "true") return true;
     if (form.dataset.submitting === "true") return false;
     form.dataset.submitting = "true";

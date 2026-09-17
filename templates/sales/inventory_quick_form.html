@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+{% extends "base.html" %}{% load site_copy %}
 {% block title %}快速進車｜車輛銷售管理{% endblock %}
 {% block page_class %}page-shell--wide{% endblock %}
 {% block content %}
@@ -9,7 +9,7 @@
   <div>
     <p class="eyebrow">批次建立庫存</p>
     <h1>快速進車</h1>
-    <p class="muted">每列代表一台車；進車地點固定為本店，資料全部正確後才會整批建立。</p>
+    <p class="muted">{% site_text 'inventory_quick_form.010933ad9a73' %}</p>
   </div>
 </section>
 

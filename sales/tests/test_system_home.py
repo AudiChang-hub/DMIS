@@ -47,7 +47,7 @@ class SystemHomeTests(TestCase):
     def test_home_release_history_and_update_fingerprint_are_independent(self):
         from config.release_notes import CURRENT_VERSION, RELEASES
         self.client.force_login(self.staff)
-        response = self.client.get(reverse("dashboard"))
+        response = self.client.get(reverse("dashboard"), {"news": "releases"})
         for entry in response.context["release_history"]:
             self.assertContains(response, f"版本 {entry['version']}")
         self.assertContains(response, 'class="release-entry" open', count=1)

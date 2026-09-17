@@ -1,4 +1,4 @@
-{% extends "base.html" %}{% load screen_access %}
+{% extends "base.html" %}{% load site_copy static %}{% load screen_access %}
 {% block title %}營運資料｜{{ order.number }}{% endblock %}
 {% block page_class %}page-shell--wide{% endblock %}
 {% block content %}
@@ -16,12 +16,12 @@
   <div><small>總支出</small><strong>${{ profile.total_expense|floatformat:0 }}</strong></div>
   <div class="profit"><small>單筆淨利</small>{% include 'sales/_order_profit.html' %}</div>
 </section>
-<p class="muted operations-profit-formula">單筆淨利＝實際撥款－成本－總支出＋總收入＋實銷獎勵金＋促銷補助金＋分期補貼息＋強制險傭金＋信用卡傭金</p>
+<p class="muted operations-profit-formula">{% site_text 'order_operations.5581c6988866' %}</p>
 {% if profile.legacy_finance_reconciliation and profit_unlocked %}
 <details class="note-box"><summary>Excel 匯入財務核對</summary>
   {% if profile.legacy_finance_reconciliation.status == 'matched' %}
   <p data-profit-value>匯入時已核對原淨利 {{ profile.legacy_finance_reconciliation.source_profit }} 元，差額 {{ profile.legacy_finance_reconciliation.difference }} 元。收款價為歷史計算基礎，不代表已收款；後續人工修改會反映於目前淨利。</p>
-  {% if profile.legacy_finance_reconciliation.expense_scope == 'L:S' %}<p>本筆沿用原 Excel 早期公式，未扣友善車行、首賣、台數獎金支出；原始值仍留存在匯入資料。</p>{% endif %}
+  {% if profile.legacy_finance_reconciliation.expense_scope == 'L:S' %}<p>{% site_text 'order_operations.715d63971b11' %}</p>{% endif %}
   {% elif profile.legacy_finance_reconciliation.status == 'reviewed' %}
   <p>已由 {{ profile.legacy_finance_reconciliation.reviewed_by }} 人工核對：{{ profile.legacy_finance_reconciliation.review_reason }}。後續修改仍會反映於目前淨利。</p>
   {% else %}<p class="field-error">待核對：{{ profile.legacy_finance_reconciliation.reason }}。請於下方完成金額核對與確認，才會列入淨利合計。</p>{% endif %}
@@ -29,13 +29,14 @@
 {% endif %}
 
 <section class="section-block internal-discount-panel">
-  <div class="section-title"><div><h2>內部折扣核准</h2><small>不出現在建立訂單畫面；核准後才會扣減應收，配件主檔售價與工資快照不會被改寫。</small></div><span class="status-pill">{{ order.get_discount_status_display|default:"未申請" }}</span></div>
-  <div class="discount-summary"><span>目前已套用折扣</span><strong>${{ order.approved_discount_amount|floatformat:0 }}</strong>{% if order.discount_requested_at %}<small>最近申請：{{ order.discount_requested_amount|floatformat:0 }} 元 · {{ order.discount_requested_by }} · {{ order.discount_requested_at|date:"Y/m/d H:i" }}</small>{% endif %}</div>
+  <div class="section-title"><div><h2>內部折扣核准</h2><small>{% site_text 'order_operations.fb6f0cbe2651' %}</small></div><span class="status-pill">{{ order.get_discount_status_display|default:"未申請" }}</span></div>
+  <div class="discount-summary"><span>折扣前總價</span><strong>${{ order.pre_discount_total|floatformat:0 }}</strong><span>目前已套用折扣</span><strong>${{ order.approved_discount_amount|floatformat:0 }}</strong><span>折扣後總價</span><strong>${{ order.discounted_total|floatformat:0 }}</strong>{% if order.discount_requested_at %}<small>最近申請：{{ order.discount_requested_amount|floatformat:0 }} 元 · {{ order.discount_requested_by }} · {{ order.discount_requested_at|date:"Y/m/d H:i" }}</small>{% endif %}</div>
+  <p class="muted">可自行輸入折數或總價減少金額；核准後取代原優惠，不重複累加。分期公司撥款、佣金與成本不變；訂金與舊車折抵於折扣後另扣。</p>
   {% if order.is_editable %}
     {% if order.discount_status == "pending" %}
     <div class="discount-decision-grid"><div><strong>申請原因</strong><p>{{ order.discount_reason }}</p></div><form method="post" action="{% url 'order_discount_decide' order.pk %}">{% csrf_token %}{{ discount_decision_form.as_p }}<button class="button primary" type="submit">確認處理</button></form></div>
     {% else %}
-    <form class="form-grid compact-grid" method="post" action="{% url 'order_discount_request' order.pk %}">{% csrf_token %}{% for field in discount_request_form %}<div><label for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}{% for error in field.errors %}<small class="field-error">{{ error }}</small>{% endfor %}</div>{% endfor %}<div><button class="button secondary" type="submit">送出折扣申請</button></div></form>
+    <form class="form-grid compact-grid" data-discount-total="{{ order.pre_discount_total|stringformat:'f' }}" method="post" action="{% url 'order_discount_request' order.pk %}">{% csrf_token %}{% for field in discount_request_form %}<div data-discount-field><label for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}{% for error in field.errors %}<small class="field-error">{{ error }}</small>{% endfor %}</div>{% endfor %}<output data-discount-preview aria-live="polite"></output><div><button class="button secondary" type="submit">送出折扣申請</button></div></form>
     {% endif %}
   {% endif %}
 </section>
@@ -56,8 +57,8 @@
     </div>
     <div class="note-box">
       <strong>實際撥款計算</strong>
-      <p>現金依車款售價自動帶入；分期依訂單日套用的分期方案快照帶入；網路平台與刷卡訂單由人員輸入。人工修改後不再被系統覆蓋。</p>
-      <p>確認分期或平台撥款後，實際撥款與淨利依收款紀錄同步；要更正請修改該筆收款。取消確認或刪除該筆收款時，會恢復確認前的人工金額，或本單預估值。舊資料若沒有連動快照，需人工核對，不猜測回填。</p>
+      <p>{% site_text 'order_operations.c3a138109390' %}</p>
+      <p>{% site_text 'order_operations.787a0ef7d8ff' %}</p>
       {% if order.payment_type == "installment" %}
         {% if order.installment_plan_snapshot.extra_disbursement_bonus %}
         <p><strong>額外撥款獎金：</strong>${{ order.installment_plan_snapshot.extra_disbursement_bonus|floatformat:0 }}（已包含在預估撥款與實際撥款試算，不會另外重複計入單筆淨利）</p>
@@ -65,7 +66,7 @@
         {% if order.installment_plan_snapshot.expected_disbursement_amount != None %}
         <p><strong>本單預估撥款：</strong>${{ order.installment_plan_snapshot.expected_disbursement_amount|floatformat:0 }} · {{ order.installment_periods }} 期 · {{ order.installment_plan_snapshot.expected_disbursement_method_label }}</p>
         {% else %}
-        <p class="field-error">本單套用的分期方案未設定預估撥款，請至車型的分期方案補設定，或人工輸入實際撥款。</p>
+        <p class="field-error">{% site_text 'order_operations.c74319d1693b' %}</p>
         {% endif %}
       {% endif %}
     </div>
@@ -146,9 +147,9 @@
         <small>{% if profile.vehicle_cost_locked_at %}已固定，不受後續成本版本異動影響{% else %}領牌完成後固定{% endif %}</small>
       </div>
       {% elif profile.legacy_finance_reconciliation %}
-      <div class="read-only-value"><strong>Excel 匯入成本</strong><small>保留歷史來源，不依今日主檔重算</small></div>
+      <div class="read-only-value"><strong>Excel 匯入成本</strong><small>{% site_text 'order_operations.96a10ddcad5b' %}</small></div>
       {% else %}
-      <div class="read-only-value"><strong>尚未認列</strong><small>完成領牌資料並符合成本規則後自動帶入</small></div>
+      <div class="read-only-value"><strong>尚未認列</strong><small>{% site_text 'order_operations.9078ddafbd24' %}</small></div>
       {% endif %}
     </div>
     {% include "sales/_field.html" with field=form.gift_expense %}
@@ -202,7 +203,7 @@
           <small>{% if profile.incentive_locked_at %}已固定，不受後續版本異動影響{% else %}領牌完成後固定{% endif %}</small>
         </div>
         {% elif order.registration_date %}
-        <div class="read-only-value"><strong>沒有符合領牌日期的版本</strong><small>目前以 0 元帶入；可至車型資料新增版本</small></div>
+        <div class="read-only-value"><strong>沒有符合領牌日期的版本</strong><small>{% site_text 'order_operations.3eb12d00a468' %}</small></div>
         {% else %}
         <div class="read-only-value"><strong>等待實際領牌日期</strong><small>填寫領牌日期後自動帶入</small></div>
         {% endif %}
@@ -251,6 +252,7 @@
 </form>
 {% endblock %}
 {% block scripts %}
+<script src="{% static 'js/discount-preview.js' %}" defer></script>
 <script>
 (() => {
   const rows = document.getElementById("payment-records");

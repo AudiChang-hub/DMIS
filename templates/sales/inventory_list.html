@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+{% extends "base.html" %}{% load site_copy %}
 {% load pagination_tags %}
 {% block title %}車輛庫存｜車輛銷售管理{% endblock %}
 {% block page_class %}page-shell--wide{% endblock %}
@@ -6,7 +6,7 @@
 {% url 'data_maintenance' as data_url %}
 {% include "sales/_page_back.html" with fallback_url=data_url label="返回資料維護區" %}
 <section class="hero-row compact-hero">
-  <div><p class="eyebrow">資料維護區</p><h1>車輛庫存</h1><p class="muted">預設顯示仍需管理的車輛；已交付、已售出與停用資料保留於歷史資料。</p></div>
+  <div><p class="eyebrow">資料維護區</p><h1>車輛庫存</h1><p class="muted">{% site_text 'inventory_list.7640890eb318' %}</p></div>
   <div class="hero-actions">
     <a class="button ghost" href="{% url 'inventory_create' %}">新增單台</a>
     <a class="button primary" href="{% url 'inventory_quick_create' %}">＋ 快速進車</a>
@@ -15,11 +15,11 @@
 
 <nav class="inventory-scope-tabs" aria-label="車輛庫存範圍">
   <a class="inventory-scope-tab{% if selected.scope == 'current' %} is-active{% endif %}" href="{% url 'inventory_list' %}?scope=current" {% if selected.scope == 'current' %}aria-current="page"{% endif %}>
-    <span><strong>現有庫存</strong><small>可銷售與仍在處理中的車輛</small></span>
+    <span><strong>現有庫存</strong><small>{% site_text 'inventory_list.8b43447f5743' %}</small></span>
     <b>{{ inventory_counts.current }}</b>
   </a>
   <a class="inventory-scope-tab{% if selected.scope == 'history' %} is-active{% endif %}" href="{% url 'inventory_list' %}?scope=history" {% if selected.scope == 'history' %}aria-current="page"{% endif %}>
-    <span><strong>歷史資料</strong><small>已交付、已售出與停用車輛</small></span>
+    <span><strong>歷史資料</strong><small>{% site_text 'inventory_list.2ee8b3ef4bbe' %}</small></span>
     <b>{{ inventory_counts.history }}</b>
   </a>
 </nav>

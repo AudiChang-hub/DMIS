@@ -1,9 +1,10 @@
-{% extends "base.html" %}{% load static %}
+{% extends "base.html" %}{% load site_copy %}{% load static %}
 {% block title %}人員畫面權限總覽｜車輛銷售管理{% endblock %}
 {% block head %}<link rel="stylesheet" href="{% static 'css/screen-access.css' %}?v={{ app_version }}">{% endblock %}
 {% block content %}
+{% site_navigation %}
 <a href="{% url 'user_management' %}">← 帳號與權限</a>
-<section class="hero-row"><div><p class="eyebrow">ADMIN · 畫面授權</p><h1>人員畫面權限總覽</h1><p>沿用舊制者尚未限制；請逐人預覽並確認，才會啟用白名單。</p></div></section>
+<section class="hero-row"><div><p class="eyebrow">{% site_text 'overview.d113553a021d' %}</p><h1>人員畫面權限總覽</h1><p>{% site_text 'overview.c19207fae5aa' %}</p></div></section>
 <form method="get" class="access-tools"><label>搜尋姓名／帳號<input name="q" value="{{ query }}" type="search"></label><button class="button primary">搜尋</button></form>
 <div class="access-people">{% for row in rows %}<article class="card"><h2>{{ row.account.get_full_name|default:row.account.username }}</h2><p>@{{ row.account.username }} · {% if row.account.is_active %}使用中{% else %}已停用（所有業務權限無效）{% endif %}</p>
 {% if row.dealer %}<p>合作車行：{{ row.dealer_profile.source.name }} · {% if row.dealer_profile.can_submit_orders %}可下單與查詢{% else %}唯讀進度{% endif %}；不可查看公司財務或報表。</p><a class="button primary" href="{% url 'dealer_account_edit' row.account.pk %}">車行帳號與功能</a>{% else %}

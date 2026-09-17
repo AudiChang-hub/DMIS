@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+{% extends "base.html" %}{% load site_copy %}
 {% block title %}刪除合作車行｜車輛銷售管理{% endblock %}
 {% block content %}
 {% url 'sales_source_edit' source.pk as edit_url %}
@@ -8,7 +8,7 @@
   <div>
     <p class="eyebrow">誤建資料處理</p>
     <h1>永久刪除合作車行</h1>
-    <p class="muted">正常停止合作請停用；永久刪除只適用於從未投入營運的誤建資料。</p>
+    <p class="muted">{% site_text 'sales_source_confirm_delete.46c3937cdeec' %}</p>
   </div>
 </section>
 
@@ -21,7 +21,7 @@
   {% if can_delete %}
     <div class="source-delete-card__status is-available">
       <strong>檢查完成，可以永久刪除</strong>
-      <p>目前沒有訂單、庫存、台數獎金規則或舊資料匯入對應。刪除後，車行基本資料與合作設定無法復原；既有價格表月份仍保留當時的名稱與地址快照。</p>
+      <p>{% site_text 'sales_source_confirm_delete.a37cb3dc30d1' %}</p>
     </div>
     <form method="post" class="source-delete-confirm-form" data-delete-confirm-form data-source-name="{{ source.name }}">
       {% csrf_token %}
@@ -35,7 +35,7 @@
   {% else %}
     <div class="source-delete-card__status is-blocked">
       <strong>目前不能永久刪除</strong>
-      <p>這間車行已有營運資料。為避免訂單、庫存或計算紀錄失去來源，請改用停用。</p>
+      <p>{% site_text 'sales_source_confirm_delete.e73e893f22e3' %}</p>
     </div>
     <ul class="source-delete-blockers">
       {% for blocker in blockers %}

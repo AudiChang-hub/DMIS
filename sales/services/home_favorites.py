@@ -5,6 +5,7 @@ from .mobile_quick_links import MOBILE_QUICK_LINK_DEFINITIONS
 
 
 EXTRA_LINKS = (
+    {"key": "site-copy", "label": "說明文字管理", "route": "site_copy_manage"},
     {"key": "catalog", "label": "建立訂單・選擇車款", "route": "catalog"},
     {"key": "catalog-manage", "label": "選車展示管理", "route": "catalog_manage"},
     {"key": "orders", "label": "全部訂單", "route": "order_list"},
@@ -27,9 +28,9 @@ GROUPS = (
     ("operations", "營運總表", "公司走勢與對帳", ("operations", "reconciliation")),
     ("reports", "報表中心", "分析、設計及分類", ("reports", "report-design", "report-categories")),
     ("vehicles", "資料維護・車輛與商品", "品牌、售價、庫存及配件", ("vehicle-brands", "vehicle-models", "catalog-manage", "inventory", "accessories", "dealer-reward-items")),
-    ("people", "資料維護・通路與人員", "客戶、車行及工作分發", ("customers", "sales-sources", "network-platforms", "staff", "source-categories", "price-list-distribution")),
+    ("people", "資料維護・通路與人員", "客戶、車行及工作分發", ("customers", "sales-sources", "network-platforms", "staff", "source-categories", "price-list-distribution", "gift-distribution")),
     ("rules", "資料維護・費率與規則", "成本、獎勵、分期與日曆", ("settlement-costs", "incentives", "dealer-sales-programs", "dealer-bonuses", "installment-companies", "registration-fees", "business-holidays")),
-    ("tools", "資料維護・工具與管理", "匯入、列印、帳號及公告", ("imports", "print-templates", "diagnostics", "integrity", "user-management", "announcements")),
+    ("tools", "資料維護・工具與管理", "匯入、列印、帳號及公告", ("imports", "print-templates", "diagnostics", "integrity", "user-management", "announcements", "site-copy")),
     ("help", "使用說明", "隨時查閱操作方式", ("help",)),
 )
 DEFAULT_KEYS = ("orders", "new-order", "operations", "reports", "help")

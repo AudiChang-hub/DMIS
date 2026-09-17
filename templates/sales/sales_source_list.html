@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+{% extends "base.html" %}{% load site_copy %}
 {% load pagination_tags %}
 {% block title %}合作車行｜車輛銷售管理{% endblock %}
 {% block page_class %}page-shell--wide{% endblock %}
@@ -10,7 +10,7 @@
   <div>
     <p class="eyebrow">合作車行資料</p>
     <h1>合作車行</h1>
-    <p class="muted">合作類別同時作為價格表提供名單；傭金仍依車型基礎金額及車行加減額計算。</p>
+    <p class="muted">{% site_text 'sales_source_list.9be09c61d765' %}</p>
   </div>
   <div class="hero-actions">
     <a class="button ghost" href="{% url 'vehicle_model_list' %}">車型基礎傭金</a>
@@ -65,7 +65,7 @@
       <span><i class="line-group-colour-guide__swatch is-sym" aria-hidden="true"></i>僅三陽</span>
       <span><i class="line-group-colour-guide__swatch is-group-only" aria-hidden="true"></i>僅有群組／未合作</span>
     </div>
-    <small>沒有底色代表沒有 LINE 群組</small>
+    <small>{% site_text 'sales_source_list.41dbf0f467e4' %}</small>
   </div>{% endif %}
   <div class="source-region-groups">
     {% for line_section in line_group_sections %}

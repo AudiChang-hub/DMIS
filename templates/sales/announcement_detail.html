@@ -1,0 +1,4 @@
+{% extends 'base.html' %}{% load site_copy %}
+{% block title %}{{ item.title }}｜系統公告{% endblock %}
+{% block content %}
+{% site_navigation %}<article class="section-block reading-panel">{% if item.pinned %}<span class="pin-badge">📌 置頂公告</span>{% endif %}<p class="muted"><time>{{ item.starts_at|date:'Y/m/d H:i' }}</time> 台北時間</p><h1>{{ item.title }}</h1><div class="announcement-body">{{ item.body|urlize|linebreaksbr }}</div></article>{% endblock %}

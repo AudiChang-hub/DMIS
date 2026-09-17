@@ -128,8 +128,8 @@ class ReceptionEntryTests(TestCase):
         self.assertEqual(client.post(reverse("intake_draft_save"), {}).status_code, 403)
         response = self.client.get(reverse("order_start"), {"model": self.model.pk, "color": self.color.pk})
         self.assertEqual(str(response.context["form"]["color"].value()), str(self.color.pk))
-        self.assertNotContains(response, 'aria-label="主要選單"')
-        self.assertNotContains(response, 'href="/orders/"')
+        self.assertContains(response, 'aria-label="主要選單"')
+        self.assertContains(response, 'href="/orders/"')
         self.assertContains(response, f'<a href="{reverse("dashboard")}">首頁</a>', html=True)
         self.assertNotContains(response, "離開接待")
         self.assertContains(response, reverse("intake_draft_save"))
@@ -146,10 +146,10 @@ class ReceptionEntryTests(TestCase):
                 page = self.client.get(url)
                 self.assertEqual(page.status_code, 200)
                 body = page.content.decode()
-                nav = body.split('aria-label="接待下單">', 1)[1].split("</nav>", 1)[0]
+                nav = body.split('aria-label="主要選單">', 1)[1].split("</nav>", 1)[0]
                 self.assertLess(nav.index(">首頁</a>"), nav.index(">建立訂單</a>"))
                 self.assertContains(page, f'<a class="brand" href="{reverse("dashboard")}">')
-                self.assertNotContains(page, 'href="/orders/"')
+                self.assertContains(page, 'href="/orders/"')
                 self.assertNotContains(page, "離開接待")
             self.assertEqual(self.client.get(reverse("dashboard")).status_code, 200)
         self.client.logout()

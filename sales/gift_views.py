@@ -53,8 +53,15 @@ def manage(request, pk=None):
                         item.distribution = activity
                         previous = GiftDistributionItem.objects.filter(distribution=activity, recipient=item.recipient, removed=True).first()
                         if previous:
-                            item.pk = previous.pk
-                            item.version = previous.version + 1
+                            # 沿用舊列保留建立時間及來源，不以新物件覆寫非空時間欄位。
+                            previous.gift = item.gift
+                            previous.note = item.note
+                            previous.removed = False
+                            previous.completed = False
+                            previous.completed_at = None
+                            previous.completed_by = ""
+                            previous.version += 1
+                            item = previous
                         item.save()
                         description = f"新增送禮對象：{item.recipient}／{item.gift}"
                     else:

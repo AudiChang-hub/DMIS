@@ -83,6 +83,30 @@ class SiteReviewFollowupTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertFalse(SalesOrder.objects.exists())
 
+    def test_pricing_draft_retains_authorized_values_but_not_financial_fields(self):
+        from sales.models import OrderDraft
+        self.grant_pricing(self.dealer_user)
+        self.client.force_login(self.dealer_user)
+        data = self.complete_data()
+        data.update(vehicle_price="76000", vehicle_price_adjustment_reason="核准調價", installment_custom="on",
+                    payment_type="installment", installment_company="其他融資", installment_periods="17",
+                    installment_monthly="5100", installment_opening_fee="350", deposit_amount="9999",
+                    **{"accessories-0-amount":"900", "accessories-0-labor_fee":"50"})
+        response = self.client.post(reverse("intake_draft_save"), data)
+        self.assertEqual(response.status_code, 200)
+        draft = OrderDraft.objects.get()
+        for key in ("vehicle_price", "installment_monthly", "installment_opening_fee", "installment_custom", "accessories-0-amount", "accessories-0-labor_fee"):
+            self.assertEqual(draft.data[key], data[key])
+        self.assertNotIn("deposit_amount", draft.data)
+        page = self.client.get(reverse("order_start"), {"draft":draft.pk})
+        self.assertEqual(page.context['form']['installment_monthly'].value(), "5100")
+        self.assertEqual(page.context['form']['installment_opening_fee'].value(), "350")
+        self.grant_pricing(self.dealer_user, False)
+        self.client.post(reverse("intake_draft_save"), {**data, "_draft_id":draft.pk, "_draft_revision":draft.revision})
+        draft.refresh_from_db()
+        for key in ("vehicle_price", "installment_monthly", "installment_opening_fee", "installment_custom", "accessories-0-amount"):
+            self.assertNotIn(key, draft.data)
+
     def test_authorized_gift_is_zero_and_attachment_after_accessory(self):
         self.client.force_login(self.root)
         product = AccessoryProduct.objects.create(name="後架", sale_price=1200, labor_fee=200)

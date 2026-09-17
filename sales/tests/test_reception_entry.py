@@ -49,14 +49,14 @@ class ReceptionEntryTests(TestCase):
         self.assertNotContains(receipt, "淨利")
         self.assertEqual(self.client.get(reverse("order_detail", args=[order.pk])).status_code, 403)
 
-    def test_reception_forces_public_terms_even_for_admin_and_is_idempotent(self):
+    def test_reception_allows_admin_pricing_but_hides_finance_and_is_idempotent(self):
         self.client.force_login(self.root)
         key = str(uuid.uuid4())
-        result = self.submit(_submission_key=key, vehicle_price="1", deposit_amount="99999", accept_by_me="on",
+        result = self.submit(_submission_key=key, vehicle_price="76000", vehicle_price_adjustment_reason="管理員核准成交價", deposit_amount="99999", accept_by_me="on",
                              **{"other_fees-0-name": "FORGED-INTERNAL", "other_fees-0-amount": "999"})
         self.assertEqual(result.status_code, 302, result.context and result.context["form"].errors)
         order = SalesOrder.objects.get()
-        self.assertEqual((order.vehicle_price, order.deposit_amount, order.status), (79800, 0, "intake_pending"))
+        self.assertEqual((order.vehicle_price, order.deposit_amount, order.status), (76000, 0, "intake_pending"))
         self.assertFalse(order.other_fees.exists())
         repeated = self.submit(_submission_key=key)
         self.assertEqual(repeated.url, result.url)

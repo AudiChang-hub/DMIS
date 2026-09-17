@@ -4925,10 +4925,15 @@ def draft_save(request, reception=False):
         for key, values in request.POST.lists()
         if key not in excluded
     }
-    from sales.intake_forms import FINANCE_FIELDS
+    from sales.intake_forms import FINANCE_FIELDS, PRICING_FIELDS
+    from sales.access.services import policy_for
     from sales.services.order_intake import account_profile, can_edit_finance, can_receive
+    pricing_editable = policy_for(request).screen("order_pricing", "operate") or (not reception and can_edit_finance(request.user))
     if reception or not can_edit_finance(request.user):
-        draft.data = {key: value for key, value in draft.data.items() if key not in FINANCE_FIELDS and not key.startswith("other_fees-")}
+        blocked_fields = set(FINANCE_FIELDS) - (PRICING_FIELDS if pricing_editable else set())
+        draft.data = {key: value for key, value in draft.data.items() if key not in blocked_fields and not key.startswith("other_fees-")}
+    if not pricing_editable:
+        draft.data.pop("installment_custom", None)
         for key in list(draft.data):
             if key.startswith("accessories-") and key.endswith(("-amount", "-labor_fee")):
                 draft.data.pop(key)

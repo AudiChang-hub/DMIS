@@ -39,6 +39,8 @@ class CatalogSelectionTests(TestCase):
         self.assertNotContains(page, "expected_disbursement")
 
     def test_cash_and_installment_prefill_and_submit_server_amounts(self):
+        # 未取得新增的調價權限，仍必須採用伺服器核定價格。
+        self.client.force_login(self.user)
         for installment in (False, True):
             with self.subTest(installment=installment):
                 token = self.token(installment)
@@ -93,11 +95,22 @@ class CatalogSelectionTests(TestCase):
         self.assertEqual(self.client.get(reverse("order_start"), {"selection": "tamper"}).status_code, 302)
 
     def test_foreign_color_or_payment_tamper_requires_reconfirm(self):
+        self.client.force_login(self.user)
         response = self.submit(catalog_selection=self.token(True), payment_type="cash")
         self.assertIn("catalog_selection", response.context["form"].errors)
         another = VehicleColor.objects.create(vehicle_model=self.model, name="另一色")
         response = self.submit(catalog_selection=self.token(), color=another.pk)
         self.assertIn("catalog_selection", response.context["form"].errors)
+
+    def test_authorized_pricing_can_change_payment_not_selected_color(self):
+        response = self.submit(catalog_selection=self.token(True), payment_type="cash",
+                               vehicle_price="76000", vehicle_price_adjustment_reason="改為現金議價")
+        self.assertEqual(response.status_code, 302, response.context and response.context['form'].errors)
+        self.assertEqual(SalesOrder.objects.get().vehicle_price, 76000)
+        another = VehicleColor.objects.create(vehicle_model=self.model, name="不可偷換車色")
+        response = self.submit(catalog_selection=self.token(), color=another.pk)
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("catalog_selection", response.context['form'].errors)
 
     def test_login_return_keeps_selection_and_dealer_receives_same_terms(self):
         token = self.token(True)

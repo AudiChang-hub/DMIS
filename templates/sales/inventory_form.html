@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+{% extends "base.html" %}{% load site_copy %}
 {% block title %}{% if is_editing %}編輯庫存{% else %}新增進車{% endif %}｜車輛銷售管理{% endblock %}
 {% block page_class %}{% if is_editing %}page-shell--wide{% else %}page-shell--compact{% endif %}{% endblock %}
 {% block content %}
@@ -21,7 +21,7 @@
   {% endif %}
   {% if is_editing and vehicle.condition_photo %}
   <div class="inventory-photo-preview">
-    <div><strong>目前車況照片</strong><small>可在下方選擇新照片取代，或勾選清除。</small></div>
+    <div><strong>目前車況照片</strong><small>{% site_text 'inventory_form.ffd9da590d6c' %}</small></div>
     <a href="{% url 'protected_media' 'vehicle' vehicle.pk 'condition_photo' %}" target="_blank">
       <img src="{% url 'protected_media' 'vehicle' vehicle.pk 'condition_photo' %}" alt="車況照片預覽">
     </a>
@@ -51,7 +51,7 @@
     {% endfor %}
   </div>
   {% else %}
-  <div class="empty-state compact"><strong>尚無調車紀錄</strong><p>變更實際位置後，系統會自動留下調度時間、來源與目的地。</p></div>
+  <div class="empty-state compact"><strong>尚無調車紀錄</strong><p>{% site_text 'inventory_form.ad64a5a44030' %}</p></div>
   {% endif %}
 </section>
 

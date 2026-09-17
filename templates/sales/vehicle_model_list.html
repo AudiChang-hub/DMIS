@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+{% extends "base.html" %}{% load site_copy %}
 {% load static %}
 {% block title %}機種與售價｜車輛銷售管理{% endblock %}
 {% block page_class %}page-shell--wide{% endblock %}
@@ -9,7 +9,7 @@
   <div>
     <p class="eyebrow">訂單與庫存共用資料</p>
     <h1>機種與售價</h1>
-    <p class="muted">一個機種可包含多個原廠型號與年式規格；售價、成本、分期及獎勵仍依年式／規格分開維護。</p>
+    <p class="muted">{% site_text 'vehicle_model_list.7d03bbe9000b' %}</p>
   </div>
   <div class="hero-actions">
     <a class="button primary" href="{% url 'vehicle_model_create' %}">＋ 新增機種／年式</a>
@@ -80,7 +80,7 @@
           {% for family in group.families %}
           {% if family.is_first_inactive %}
           <tr class="vehicle-model-inactive-divider">
-            <td colspan="11"><span aria-hidden="true">Ⅱ</span><strong>以下為已停用機種</strong><small>保留歷史資料，不會提供新增訂單選用</small></td>
+            <td colspan="11"><span aria-hidden="true">Ⅱ</span><strong>以下為已停用機種</strong><small>{% site_text 'vehicle_model_list.8255ed2730af' %}</small></td>
           </tr>
           {% endif %}
           {% with item=family.display_model %}

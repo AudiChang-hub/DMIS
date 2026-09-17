@@ -4453,7 +4453,8 @@ class OrderFlowTests(TestCase):
         reader = PdfReader(BytesIO(content))
 
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(len(reader.pages), 2)
+        self.assertEqual(len(reader.pages), 1)
+        self.assertAlmostEqual(float(reader.pages[0].mediabox.width), 595.276, places=2)
         self.assertIn("private", response["Cache-Control"])
         self.assertIn("no-store", response["Cache-Control"])
         self.assertEqual(response["X-Content-Type-Options"], "nosniff")

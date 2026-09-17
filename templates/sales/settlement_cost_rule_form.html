@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+{% extends "base.html" %}{% load site_copy %}
 {% block title %}{% if is_editing %}編輯{% else %}新增{% endif %}成本版本｜車輛銷售管理{% endblock %}
 {% block page_class %}page-shell--form{% endblock %}
 {% block content %}
@@ -9,7 +9,7 @@
   <div>
     <p class="eyebrow">成本版本維護</p>
     <h1>{% if is_editing %}編輯成本版本{% else %}新增成本版本{% endif %}</h1>
-    <p class="muted">新版本可提前建立；只有領牌日到達生效日後才會套用，不會回寫已完成訂單。</p>
+    <p class="muted">{% site_text 'settlement_cost_rule_form.daaa2f542288' %}</p>
   </div>
 </section>
 <form method="post" class="master-model-form">

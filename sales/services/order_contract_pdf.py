@@ -15,6 +15,7 @@ from reportlab.pdfgen import canvas
 from reportlab.platypus import Paragraph, Table, TableStyle
 
 from sales.services.registration_fee import registration_rate_label
+from sales.services.site_copy import print_copy
 
 
 FONT_CANDIDATES = [
@@ -498,29 +499,25 @@ def draw_order_page(c, order, copy_label, page_number, printed_at):
     terms = [
         [
             p(
-                "□ 本人（或本公司）已自行審閱並詳讀中央或地方政府公告之補助辦法，"
-                "包括申請資格、過戶限制及應備文件等。",
+                escape(print_copy(c, "contract.qualification", "□ 本人（或本公司）已自行審閱並詳讀中央或地方政府公告之補助辦法，包括申請資格、過戶限制及應備文件等。")),
                 small_style,
             )
         ],
         [
             p(
-                "□ 本人（或本公司）了解店方僅協助代辦補助申請，補助金額及核准與否"
-                "以主管機關審核結果為準。",
+                escape(print_copy(c, "contract.subsidy", "□ 本人（或本公司）了解店方僅協助代辦補助申請，補助金額及核准與否以主管機關審核結果為準。")),
                 small_style,
             )
         ],
         [
             p(
-                "□ 本人（或本公司）了解並確認本訂購單所載車型、車色、價款、配件、"
-                "付款方式及其他需求均屬正確。",
+                escape(print_copy(c, "contract.confirmation", "□ 本人（或本公司）了解並確認本訂購單所載車型、車色、價款、配件、付款方式及其他需求均屬正確。")),
                 small_style,
             )
         ],
         [
             p(
-                "□ 本人（或本公司）了解機車屬於財產登記制，經領牌不再是新車，"
-                "領牌後無法辦理退換貨。",
+                escape(print_copy(c, "contract.registration", "□ 本人（或本公司）了解機車屬於財產登記制，經領牌不再是新車，領牌後無法辦理退換貨。")),
                 small_style,
             )
         ],

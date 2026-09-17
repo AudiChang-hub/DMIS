@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+{% extends "base.html" %}{% load site_copy %}
 {% block title %}{% if is_editing %}編輯年式／規格{% else %}新增機種／年式{% endif %}｜車輛銷售管理{% endblock %}
 {% block page_class %}page-shell--form{% endblock %}
 {% block content %}
@@ -79,7 +79,7 @@
 <section id="data-correction" class="card vehicle-model-correction">
   <details{% if year_correction_form.errors or merge_form.errors or move_form.errors %} open{% endif %}>
     <summary>
-      <span><strong>年式資料修正</strong><small>修正年份、合併重複資料、移至其他機種，或刪除未使用的年式</small></span>
+      <span><strong>年式資料修正</strong><small>{% site_text 'vehicle_model_form.b5d77486a6c7' %}</small></span>
       <span class="vehicle-model-correction__summary-action">資料修正</span>
     </summary>
     <div class="vehicle-model-correction__body">
@@ -99,7 +99,7 @@
       <div class="vehicle-model-correction-action">
         <div class="vehicle-model-correction-action__heading">
           <span class="vehicle-model-correction-action__number">1</span>
-          <div><h3>修正年份</h3><p>年份輸入錯誤時使用；這筆資料會原地修改，不會建立新資料。</p></div>
+          <div><h3>修正年份</h3><p>{% site_text 'vehicle_model_form.c6c5c823afa5' %}</p></div>
         </div>
         <div class="vehicle-model-correction__notice">
           <strong>所有關聯資料都會保留</strong>
@@ -119,7 +119,7 @@
       <div class="vehicle-model-correction-action">
         <div class="vehicle-model-correction-action__heading">
           <span class="vehicle-model-correction-action__number">2</span>
-          <div><h3>合併重複年式</h3><p>同一機種、同一年份因原始型號寫法不同而重複時使用。</p></div>
+          <div><h3>合併重複年式</h3><p>{% site_text 'vehicle_model_form.8ea2672f039d' %}</p></div>
         </div>
         <div class="vehicle-model-correction__notice">
           <strong>先檢查，再合併</strong>
@@ -138,7 +138,7 @@
       <div class="vehicle-model-correction-action">
         <div class="vehicle-model-correction-action__heading">
           <span class="vehicle-model-correction-action__number">{% if has_merge_targets %}3{% else %}2{% endif %}</span>
-          <div><h3>移至或合併其他機種</h3><p>目前年式建立在錯誤機種時使用；若目標已有相同年式，系統會安全合併。</p></div>
+          <div><h3>移至或合併其他機種</h3><p>{% site_text 'vehicle_model_form.0582758fee11' %}</p></div>
         </div>
       {% if has_move_targets %}
       <form method="post" class="vehicle-model-move-form" data-confirm-form="確定要將這個年式移至所選機種嗎？若目標已有相同年式，系統會合併並保留兩邊資料。">
@@ -164,7 +164,7 @@
           {% if delete_blockers %}
           <p>目前不能刪除，因為仍有：{% for blocker in delete_blockers %}{{ blocker.label }} {{ blocker.count }} 筆{% if not forloop.last %}、{% endif %}{% endfor %}。</p>
           {% else %}
-          <p>這筆資料沒有訂單、庫存或商務版本；刪除後無法復原。</p>
+          <p>{% site_text 'vehicle_model_form.6ab816a5bba4' %}</p>
           {% endif %}
         </div>
         {% if not delete_blockers %}
@@ -185,7 +185,7 @@
     <div>
       <p class="eyebrow">商務設定</p>
       <h2>售價、車行傭金與結算規則</h2>
-      <p class="muted">這些資料會依日期或交易方式改變，因此與車型規格分開維護。</p>
+      <p class="muted">{% site_text 'vehicle_model_form.7df257ecf95b' %}</p>
     </div>
     <span class="status-pill">車型：{{ vehicle_model.brand }} {{ vehicle_model.name }} {{ vehicle_model.model_number }}</span>
   </div>
@@ -199,7 +199,7 @@
       <p>目前有效的建議售價・{% if current_price_version.suggested_price_includes_registration %}含牌險{% else %}不含牌險{% endif %}</p>
       {% else %}
       <strong class="vehicle-business-card__value vehicle-business-card__value--missing">尚未設定</strong>
-      <p>接單前請建立至少一筆有效售價。</p>
+      <p>{% site_text 'vehicle_model_form.792c8fe86011' %}</p>
       {% endif %}
       <a class="button primary" href="{% url 'vehicle_model_price_versions' vehicle_model.pk %}">維護售價版本</a>
     </article>
@@ -256,7 +256,7 @@
       <div class="vehicle-business-card__top"><span class="vehicle-business-card__icon">本</span><span class="status-pill">{{ settlement_rule_count }} 筆版本</span></div>
       <h3>車輛結算成本</h3>
       <strong class="vehicle-business-card__value">{{ settlement_rule_count }} 筆</strong>
-      <p>依實際領牌日與適用地區認列，不回寫已結算訂單。</p>
+      <p>{% site_text 'vehicle_model_form.df64954cc870' %}</p>
       <a class="button ghost" href="{% url 'settlement_cost_rule_list' %}?q={{ vehicle_model.model_number|urlencode }}">維護結算成本</a>
     </article>
 
@@ -264,7 +264,7 @@
       <div class="vehicle-business-card__top"><span class="vehicle-business-card__icon">獎</span><span class="status-pill">{{ incentive_rule_count }} 筆版本</span></div>
       <h3>原廠獎勵與補助</h3>
       <strong class="vehicle-business-card__value">{{ incentive_rule_count }} 筆</strong>
-      <p>實銷獎勵、促銷補助及分期補貼息。</p>
+      <p>{% site_text 'vehicle_model_form.319a23535750' %}</p>
       <a class="button ghost" href="{% url 'incentive_rule_list' %}?q={{ vehicle_model.model_number|urlencode }}">維護原廠獎勵</a>
     </article>
   </div>

@@ -1,4 +1,4 @@
-{% extends "base.html" %}{% load screen_access %}
+{% extends "base.html" %}{% load site_copy %}{% load screen_access %}
 {% load static sales_format %}
 {% block head %}<link rel="stylesheet" href="{% static 'css/order-commission-recipient.css' %}?v={{ app_version }}">{% endblock %}
 {% block title %}{{ order.number }}｜車輛銷售管理{% endblock %}
@@ -28,7 +28,7 @@
 {% if request.GET.created == "1" %}
 <dialog class="print-dialog" id="print-contract-dialog">
   <h2>訂單已建立</h2>
-  <p>請選擇要列印的簽署文件；開啟後可使用手機或電腦的列印功能選擇印表機。</p>
+  <p>{% site_text 'order_detail.b4ee54c429c4' %}</p>
   <div class="dialog-actions">
     <button class="button ghost" type="button" id="print-later">稍後列印</button>
     {% if_access 'contract_print' order.pk %}<a class="button ghost" href="{% url 'contract_print' order.pk %}" target="_blank">只印訂購合約</a>{% endif_access %}
@@ -71,7 +71,7 @@
     <div class="allocation-overview__identity">
       <span class="allocation-overview__label">引擎／車身號碼</span>
       <strong>{{ order.legacy_snapshot.vehicle_identifier|default:'歷史資料未填' }}</strong>
-      <small>保留原車識別號碼供查詢，不重複綁定實體庫存</small>
+      <small>{% site_text 'order_detail.088173a21f94' %}</small>
     </div>
     <div class="allocation-overview__vehicle">
       <span class="allocation-overview__label">車款規格</span>
@@ -88,7 +88,7 @@
     {% if allocation_form.vehicle.field.queryset %}
       <button class="button primary block" type="submit">確認配車並鎖定</button>
     {% else %}
-      <p class="field-error">目前無符合的可售庫存，請先建立進車資料。</p>
+      <p class="field-error">{% site_text 'order_detail.8b672b874902' %}</p>
     {% endif %}
   </form>
 </section>
@@ -131,7 +131,7 @@
     {% if order.has_registration_started %}
     <div class="allocation-lock-note">
       <strong>目前無法改配</strong>
-      <p>此訂單已有車牌號碼、領牌完成紀錄或領牌文件，為避免車輛與文件對錯，請先確認並處理領牌資料。</p>
+      <p>{% site_text 'order_detail.1061a429c530' %}</p>
     </div>
     {% else %}
     <details class="reallocation-panel">
@@ -149,16 +149,16 @@
         {% if reallocation_form.vehicle.field.queryset %}
           <button class="button primary" type="submit">確認更換配車</button>
         {% else %}
-          <p class="field-error">目前沒有其他符合車型及車色的可售庫存。</p>
+          <p class="field-error">{% site_text 'order_detail.779374150fc1' %}</p>
         {% endif %}
       </form>
-      <p class="reallocation-panel__hint">確認後，原車會恢復為可售，新車會立即鎖定並留下完整變更紀錄。</p>
+      <p class="reallocation-panel__hint">{% site_text 'order_detail.d64e046da912' %}</p>
     </details>
     {% endif %}
   {% endif %}
 </section>
 {% else %}
-<section class="section-block"><div class="stage-empty"><strong>此訂單目前無法配車</strong><p>訂單已結案或取消，僅供查看。</p></div></section>
+<section class="section-block"><div class="stage-empty"><strong>此訂單目前無法配車</strong><p>{% site_text 'order_detail.70cd34ac680c' %}</p></div></section>
 {% endif %}
 </div>
 
@@ -184,11 +184,11 @@
     <input type="hidden" name="_order_revision" value="{{ order.revision }}">
     <label class="subsidy-toggle">
       {{ subsidy_form.is_trade_in_subsidy }}
-      <span><strong>申請汰舊／政府補助</strong><small data-subsidy-toggle-message>勾選後會立即啟用並開放文件上傳；關閉不會刪除已上傳文件。</small></span>
+      <span><strong>申請汰舊／政府補助</strong><small data-subsidy-toggle-message>{% site_text 'order_detail.84ab150d7e35' %}</small></span>
     </label>
     <label class="subsidy-toggle subsidy-owner-toggle">
       {{ subsidy_form.old_owner_same_as_owner }}
-      <span><strong>新舊車主為同一人</strong><small>若不是同一人，需補齊舊車主姓名、證號、存摺封面與聲明書。</small></span>
+      <span><strong>新舊車主為同一人</strong><small>{% site_text 'order_detail.16d07928b807' %}</small></span>
     </label>
     <div class="subsidy-edit-grid">
       <div><label for="{{ subsidy_form.trade_in_plate.id_for_label }}">舊車車牌</label>{{ subsidy_form.trade_in_plate }}</div>
@@ -217,7 +217,7 @@
     <div class="subsidy-save-dock is-saved" data-subsidy-save-dock role="status" aria-live="polite">
       <div class="subsidy-save-dock__copy">
         <strong data-subsidy-save-title>補助資料已儲存</strong>
-        <small data-subsidy-save-description>修改舊車資料或補助項目後，即可在這裡儲存。</small>
+        <small data-subsidy-save-description>{% site_text 'order_detail.6033f4a4b570' %}</small>
       </div>
       <button class="button primary" type="submit" data-subsidy-save-button disabled>資料已儲存</button>
     </div>
@@ -255,7 +255,7 @@
   <div class="subsidy-documents-heading content-section-heading">
     <div>
       <h3>補助文件</h3>
-      <p>與領牌文件分開保存；可直接拍照或上傳圖片、PDF。</p>
+      <p>{% site_text 'order_detail.a6bea5b2956a' %}</p>
     </div>
   </div>
     <div class="registration-document-list subsidy-document-list">
@@ -297,7 +297,7 @@
       <div class="other-subsidy-documents__heading content-section-heading">
         <div>
           <h3>其他補助文件</h3>
-          <p>可依實際需求新增多份圖片、PDF、Word、Excel 或文字檔；不列入補助完成條件。</p>
+          <p>{% site_text 'order_detail.b14167f8e945' %}</p>
         </div>
       </div>
       {% for document in other_subsidy_documents %}
@@ -335,7 +335,7 @@
         <div>
           <label for="other-subsidy-file">選擇文件 <span class="required-inline">必填</span></label>
           <input id="other-subsidy-file" type="file" name="file" accept="image/jpeg,image/png,image/webp,image/heic,image/heif,application/pdf,.doc,.docx,.odt,.xls,.xlsx,.ods,.txt,.csv" required>
-          <small>單一檔案上限 20 MB，不接受執行檔。</small>
+          <small>{% site_text 'order_detail.98bfed2bc1c1' %}</small>
         </div>
         <button class="button secondary" type="submit">＋ 新增其他文件</button>
       </form>
@@ -346,13 +346,13 @@
       <div>
         {% if not order.is_trade_in_subsidy %}
           <strong>目前未啟用補助申請</strong>
-          <p>已上傳的文件仍會保留；再次啟用後可繼續補齊資料。</p>
+          <p>{% site_text 'order_detail.38f944b02b9c' %}</p>
         {% elif subsidy_missing %}
           <strong>補助資料尚缺 {{ subsidy_missing|length }} 項</strong>
           <p>{{ subsidy_missing|join:"、" }}</p>
         {% else %}
           <strong>補助基本資料與文件已齊全</strong>
-          <p>補助作業與配車相互獨立，可依實際送件進度繼續辦理。</p>
+          <p>{% site_text 'order_detail.742df47d654e' %}</p>
         {% endif %}
       </div>
     </div>
@@ -378,7 +378,7 @@
   {% if not order.allocated_vehicle %}
     <div class="stage-empty">
       <strong>尚未開放領牌作業</strong>
-      <p>完成配車後，才能登記實際領牌日期、車牌號碼並上傳相關文件。</p>
+      <p>{% site_text 'order_detail.dac67b8f5494' %}</p>
     </div>
   {% else %}
     <form class="registration-data-form" method="post" action="{% url 'registration_save' order.pk %}">
@@ -391,7 +391,7 @@
         <label for="{{ registration_form.registration_county.id_for_label }}">領牌縣市 <span class="required-inline">必填</span></label>
         {{ registration_form.registration_county }}
       </div>
-      <small class="field-help registration-data-form__help">車輛結算成本會依機種與實際領牌日期判斷；領牌縣市僅供領牌及營運資料使用。</small>
+      <small class="field-help registration-data-form__help">{% site_text 'order_detail.b03ace01bdda' %}</small>
       <div class="registration-data-form__plate">
         <label for="{{ registration_form.final_plate_number.id_for_label }}">車牌號碼 <span class="required-inline">必填</span></label>
         {{ registration_form.final_plate_number }}
@@ -436,7 +436,7 @@
       <div class="registration-documents__heading content-section-heading">
         <div>
           <h3>領牌文件</h3>
-          <p>支援拍照或選擇 JPG、PNG、WebP、PDF；上傳錯誤時可刪除或直接替換。</p>
+          <p>{% site_text 'order_detail.f76d73826e85' %}</p>
         </div>
       </div>
       <div class="registration-document-list">
@@ -478,7 +478,7 @@
         <div class="other-insurance__heading content-section-heading">
           <div>
             <h3>其他保險單</h3>
-            <p>若另有第三人責任險、車體險等，可依實際名稱新增多份文件。</p>
+            <p>{% site_text 'order_detail.694d2fbee690' %}</p>
           </div>
         </div>
         {% for document in other_insurance_documents %}
@@ -524,7 +524,7 @@
           <p>{{ registration_missing|join:"、" }}</p>
         {% else %}
           <strong>領牌資料與必備文件已齊全</strong>
-          <p>確認後將鎖定本階段內容，訂單進入待交付。</p>
+          <p>{% site_text 'order_detail.bce60d0f7a34' %}</p>
         {% endif %}
       </div>
       {% if not order.is_registration_complete %}
@@ -551,9 +551,9 @@
         <p class="eyebrow">交車前收尾</p>
         <h3>{{ balance_payment.item_name }}</h3>
         {% if order.source_type == "dealer" %}
-        <p>合作車行可先領車；尚未收清時，首頁會持續提醒。</p>
+        <p>{% site_text 'order_detail.c4b8fc8f1bd2' %}</p>
         {% else %}
-        <p>一般訂單須先確認尾款收清，才能完成交付。</p>
+        <p>{% site_text 'order_detail.a0bc4d13a7bb' %}</p>
         {% endif %}
       </div>
       {% if balance_payment.is_settled %}
@@ -581,7 +581,7 @@
         <div><label for="{{ balance_payment_form.receiving_account.id_for_label }}">{{ balance_payment_form.receiving_account.label }}</label>{{ balance_payment_form.receiving_account }}</div>
         <div><label for="{{ balance_payment_form.proof.id_for_label }}">{{ balance_payment_form.proof.label }}</label>{{ balance_payment_form.proof }}{% if balance_payment.proof %}{% if_access 'protected_media' 'payment' balance_payment.pk 'proof' %}<a class="field-file-link" href="{% url 'protected_media' 'payment' balance_payment.pk 'proof' %}" target="_blank">查看目前證明</a>{% endif_access %}{% endif %}</div>
         <div><label for="{{ balance_payment_form.note.id_for_label }}">{{ balance_payment_form.note.label }}</label>{{ balance_payment_form.note }}</div>
-        <div class="wide"><label class="check-card">{{ balance_payment_form.confirmed }} <span>{{ balance_payment_form.confirmed.label }}</span></label><p class="form-hint">部分收款可先保存；全數收清後再勾選確認。</p></div>
+        <div class="wide"><label class="check-card">{{ balance_payment_form.confirmed }} <span>{{ balance_payment_form.confirmed.label }}</span></label><p class="form-hint">{% site_text 'order_detail.987b2e8b79d5' %}</p></div>
       </div>
       <div class="delivery-payment__actions">
         <span>收款資料會同步至營運與對帳，不需重複登記。</span>
@@ -643,9 +643,9 @@
     </div>
   {% elif order.can_deliver %}
     {% if order.source_type == "dealer" and not order.is_registration_complete %}
-      <p>此訂單為合作車行領車，可先交付車輛；領牌資料與文件仍須補齊後才能結案。</p>
+      <p>{% site_text 'order_detail.3d2efe687324' %}</p>
     {% else %}
-      <p>領牌階段已完成，可進行後續收款與車輛交付作業。</p>
+      <p>{% site_text 'order_detail.63bfa0623e10' %}</p>
     {% endif %}
     <form class="stage-form delivery-completion-form" method="post" enctype="multipart/form-data" action="{% url 'delivery_complete' order.pk %}">
       {% csrf_token %}
@@ -655,7 +655,7 @@
         <fieldset class="wide delivery-condition-field">
           <legend>{{ field.label }} <span class="required-inline">必填</span></legend>
           {{ field }}
-          <p class="form-hint">請點選最接近的狀況；特殊情形可寫在下方交付備註。</p>
+          <p class="form-hint">{% site_text 'order_detail.888f88e01465' %}</p>
         </fieldset>
         {% else %}
         <div class="{% if field.name == 'damage_note' or field.name == 'note' %}wide{% endif %}"{% if field.name == 'damage_note' %} data-delivery-damage-details{% endif %}>
@@ -663,7 +663,7 @@
           <label class="check-card">{{ field }} <span>{{ field.label }}</span></label>
           {% else %}
           <label for="{{ field.id_for_label }}">{{ field.label }}{% if field.field.required %} <span class="required-inline">必填</span>{% endif %}</label>{{ field }}
-          {% if field.name == 'damage_note' %}<p class="form-hint">選擇「發現刮傷或損壞」時必填。</p>{% endif %}
+          {% if field.name == 'damage_note' %}<p class="form-hint">{% site_text 'order_detail.16b976fde2c5' %}</p>{% endif %}
           {% endif %}
         </div>
         {% endif %}
@@ -672,13 +672,13 @@
       <div class="delivery-completion-actions">
         <div class="delivery-completion-actions__copy">
           <strong>完成前請再次確認交付資料</strong>
-          <p>委託託運時，實際交付時間是交給託運公司的時間。完成後訂單與實體車輛將鎖定。</p>
+          <p>{% site_text 'order_detail.8a1ee2445105' %}</p>
         </div>
         <button class="button primary" type="submit"{% if not balance_ready_for_delivery %} disabled aria-disabled="true" title="請先保存並確認尾款收清"{% else %} data-confirm="確認完成交付嗎？完成後訂單與實體車輛將鎖定。"{% endif %}>{% if balance_ready_for_delivery %}確認完成交付{% else %}請先確認尾款收清{% endif %}</button>
       </div>
     </form>
   {% else %}
-    <p>一般訂單必須先完成領牌，才可進入交付階段。</p>
+    <p>{% site_text 'order_detail.5dd8edcdc2f2' %}</p>
   {% endif %}
 </section>
 </div>
@@ -714,7 +714,7 @@
           {% if order.id_front %}<label><input type="checkbox" name="sides" value="id_front" checked> 證件正面</label>{% endif %}
           {% if order.id_back %}<label><input type="checkbox" name="sides" value="id_back" checked> 證件反面</label>{% endif %}
         </fieldset>
-        <p class="muted">系統只建立本次 PDF，不會改動原始照片；浮水印會帶用途與今天日期。</p>
+        <p class="muted">{% site_text 'order_detail.7811e1f3c290' %}</p>
         <button class="button ghost block" type="submit">產生浮水印 PDF</button>
       </form>
     </details>
@@ -729,7 +729,7 @@
       <div><dt>車色</dt><dd>{{ order.color.name }}</dd></div>
       <div><dt>動力／排氣量</dt><dd>{{ order.vehicle_model.get_energy_type_display }}{% if order.vehicle_model.displacement_cc %}／{{ order.vehicle_model.displacement_cc }} c.c.{% endif %}</dd></div>
       <div><dt>來源</dt><dd>{{ order.source.name|default:"本店" }}{% if order.source.category %}／{{ order.source.category.name }}{% endif %}</dd></div>
-      {% if order.commission_recipient_id %}<div class="wide highlight-data"><dt>台數與傭金歸屬</dt><dd>{{ order.commission_recipient }}<small>本單台數與傭金歸給此車行；原銷售來源不變。</small></dd></div>{% endif %}
+      {% if order.commission_recipient_id %}<div class="wide highlight-data"><dt>台數與傭金歸屬</dt><dd>{{ order.commission_recipient }}<small>{% site_text 'order_detail.8470a8d69a64' %}</small></dd></div>{% endif %}
       <div><dt>交車方式</dt><dd>{{ order.get_delivery_method_display }}{% if order.delivery_destination %}／{{ order.delivery_destination }}{% endif %}</dd></div>
       {% if order.allocated_vehicle %}
       <div class="wide highlight-data"><dt>實體車</dt><dd>{{ order.allocated_vehicle.identifier }} · {{ order.allocated_vehicle.actual_location_label }}</dd></div>
@@ -754,7 +754,7 @@
           {% if order.vehicle_price_adjustment_reason %}
           <small>人工調整原因：{{ order.vehicle_price_adjustment_reason }}</small>
           {% else %}
-          <small>訂單建立時已保存價格快照，不受後續版本調整影響。</small>
+          <small>{% site_text 'order_detail.e0dfcca76bee' %}</small>
           {% endif %}
         </dd>
       </div>
@@ -828,7 +828,7 @@
     <div>
       <p class="eyebrow">訂單附件</p>
       <h2>簽署文件留存</h2>
-      <small>不列入作業階段；取得紙本簽名後可隨時補上。</small>
+      <small>{% site_text 'order_detail.c8ba076ab19d' %}</small>
     </div>
     <span>{% if order.has_signed_contract and order.has_privacy_consent %}2／2 已上傳{% elif order.has_signed_contract or order.has_privacy_consent %}1／2 已上傳{% else %}尚未上傳{% endif %}</span>
   </div>
@@ -838,7 +838,7 @@
         <div><p class="eyebrow">訂購合約</p><h3>客戶與店家留存聯</h3></div>
         {% if order.has_signed_contract %}<span class="archive-status done">✓ 已上傳</span>{% else %}<span class="archive-status">尚未上傳</span>{% endif %}
       </div>
-      <p>上傳已簽署或掃描的訂購合約；未上傳不影響配車與交付。</p>
+      <p>{% site_text 'order_detail.8f7144ef61f6' %}</p>
       <div class="document-archive-card__actions">
         {% if_access 'contract_print' order.pk %}<a class="button ghost" href="{% url 'contract_print' order.pk %}" target="_blank">列印空白合約</a>{% endif_access %}
         {% if order.has_signed_contract %}{% if_access 'protected_media' 'order' order.pk 'signed_contract' %}<a class="button ghost" href="{% url 'protected_media' 'order' order.pk 'signed_contract' %}" target="_blank">查看目前附件</a>{% endif_access %}{% endif %}
@@ -853,7 +853,7 @@
         <div><p class="eyebrow">個資同意書</p><h3>車主簽署文件</h3></div>
         {% if order.has_privacy_consent %}<span class="archive-status done">✓ 已上傳</span>{% else %}<span class="archive-status">尚未上傳</span>{% endif %}
       </div>
-      <p>個資同意書與訂購合約分開保存，方便日後單獨查閱。</p>
+      <p>{% site_text 'order_detail.d97010d7fe91' %}</p>
       <div class="document-archive-card__actions">
         {% if_access 'privacy_consent_print' order.pk %}<a class="button ghost" href="{% url 'privacy_consent_print' order.pk %}" target="_blank">列印空白同意書</a>{% endif_access %}
         {% if order.has_privacy_consent %}{% if_access 'protected_media' 'order' order.pk 'privacy_consent' %}<a class="button ghost" href="{% url 'protected_media' 'order' order.pk 'privacy_consent' %}" target="_blank">查看目前附件</a>{% endif_access %}{% endif %}
@@ -867,7 +867,7 @@
 </section>
 {% if positioned_templates %}
 <section class="section-block positioned-print-panel">
-  <div class="section-title"><div><h2>其他制式套表</h2><small>使用目前啟用的定位範本直接套入本訂單資料。</small></div></div>
+  <div class="section-title"><div><h2>其他制式套表</h2><small>{% site_text 'order_detail.da82613529cc' %}</small></div></div>
   <div class="document-template-actions">
     {% for item in positioned_templates %}{% if_access 'positioned_template_order_print' item.pk order.pk %}<a class="button ghost" target="_blank" href="{% url 'positioned_template_order_print' item.pk order.pk %}">{{ item.get_document_type_display }} · {{ item.name }}</a>{% endif_access %}{% endfor %}
   </div>

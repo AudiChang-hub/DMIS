@@ -1,12 +1,11 @@
-{% extends "base.html" %}{% load screen_access %}
+{% extends "base.html" %}{% load site_copy %}{% load screen_access %}
 {% load pagination_tags sales_format static %}
 {% block title %}全部訂單｜車輛銷售管理{% endblock %}
 {% block page_class %}page-shell--wide{% endblock %}
 {% block content %}
 {% url 'dashboard' as dashboard_url %}
 {% include "sales/_page_back.html" with fallback_url=dashboard_url label="首頁" %}
-{% if_access 'order_recycle_bin' %}<p><a class="button ghost" href="{% url 'order_recycle_bin' %}">已刪除訂單／還原</a></p>{% endif_access %}
-{% if_access 'order_deletion_queue' %}<p><a class="button primary" href="{% url 'order_deletion_queue' %}">刪除審核</a></p>{% endif_access %}
+<div class="form-actions">{% if_access 'order_recycle_bin' %}<a class="button ghost" href="{% url 'order_recycle_bin' %}">已刪除訂單／還原</a>{% endif_access %}{% if_access 'order_deletion_queue' %}<a class="button ghost" href="{% url 'order_deletion_queue' %}">刪除審核</a>{% endif_access %}</div>
 <section class="hero-row compact-hero">
   <div><p class="eyebrow">訂單管理</p><h1>全部訂單</h1></div>
 </section>
@@ -37,10 +36,11 @@
     <label>收款確認<select name="payment_status"><option value="">全部</option><option value="confirmed"{% if request.GET.payment_status == 'confirmed' %} selected{% endif %}>已確認</option><option value="pending"{% if request.GET.payment_status == 'pending' %} selected{% endif %}>待確認</option></select></label>
     <label>作業提醒<select name="attention"><option value="">全部</option><option value="dealer"{% if request.GET.attention == 'dealer' %} selected{% endif %}>合作車行到期提醒</option><option value="fees"{% if request.GET.attention == 'fees' %} selected{% endif %}>牌險金額差異待確認</option></select></label>
     <label>成交範圍<select name="business_only"><option value="0">包含取消／退款</option><option value="1"{% if request.GET.business_only == '1' %} selected{% endif %}>排除取消／退款</option></select></label>
-  </div><p class="muted">日期範圍留白時，保留沒有日期的訂單。取消待退款條件保留退款待辦。</p></details>
+  </div><p class="muted">{% site_text 'order_list.f73efc30a7cd' %}</p></details>
 </form>
 <div class="order-drilldown">{% if has_analysis_filters %}<strong>已套用營運／日期條件（見上方篩選）</strong><a class="button ghost small" href="{% url 'order_list' %}">清除所有篩選</a>{% endif %}{% if_access 'order_create' %}<a href="{% url 'order_list' %}?drafts=1#drafts">未完成草稿</a>{% endif_access %}{% if_access 'operations_report_export' %}<a href="{% url 'operations_report_export' %}?{{ request.GET.urlencode }}&include_cancelled={% if request.GET.business_only == '1' %}0{% else %}1{% endif %}">匯出營運資料（目前篩選）</a>{% endif_access %}</div>
-{% if request.GET.drafts == '1' %}{% if_access 'order_create' %}<section class="section-block" id="drafts"><h2>未完成草稿</h2>{% for draft in drafts %}<a class="draft-row" href="{% url 'order_create' %}?draft={{ draft.pk }}"><span><strong>{{ draft.display_name }}</strong><small>{{ draft.display_vehicle }} · {{ draft.updated_by|default:"未知人員" }}</small></span><time>{{ draft.updated_at|date:"Y/m/d H:i" }}</time></a>{% empty %}<p>目前沒有未完成草稿</p>{% endfor %}{% pagination drafts aria_label="草稿分頁" %}</section>{% endif_access %}{% endif %}
+<aside class="order-draft-summary"><div><strong>未完成草稿 · {{ draft_count }} 筆</strong><p class="muted">尚未送出的下單資料，與已成立訂單分開列出。</p></div><a class="button ghost" href="{% url 'order_list' %}?status=draft#drafts">查看草稿</a></aside>
+{% if show_drafts %}<section class="section-block" id="drafts"><h2>未完成草稿</h2>{% for draft in drafts %}<article class="draft-row"><span><strong>{{ draft.display_name }}</strong><small>{{ draft.display_vehicle }} · {{ draft.updated_by|default:"未知人員" }}</small></span><time>{{ draft.updated_at|date:"Y/m/d H:i" }}</time>{% if draft.is_reception_draft %}{% if draft.owner_account_id == user.pk %}<a class="button ghost" href="{% url 'order_start' %}?draft={{ draft.pk }}">接續填單</a>{% else %}<small>由草稿建立人接續填寫</small>{% endif %}{% else %}{% if_access 'order_create' %}<a class="button ghost" href="{% url 'order_create' %}?draft={{ draft.pk }}">接續填單</a>{% endif_access %}{% endif %}</article>{% empty %}<p>目前沒有符合搜尋條件的草稿。</p>{% endfor %}{% pagination drafts page_param='draft_page' aria_label="草稿分頁" %}</section>{% endif %}
 <div class="section-block">
   <div class="inventory-list-summary order-list-summary">
     <strong>共 {{ page_obj.paginator.count }} 張訂單</strong>
@@ -98,7 +98,7 @@
   {% for order in orders %}
     {% include "sales/_order_row.html" with show_order_details=True %}
   {% empty %}
-    <div class="empty-state"><strong>尚無訂單</strong><p>建立第一張訂單後會顯示在這裡。</p></div>
+    <div class="empty-state"><strong>尚無訂單</strong><p>{% site_text 'order_list.53c85242b009' %}</p></div>
   {% endfor %}
   </div>
 </div>

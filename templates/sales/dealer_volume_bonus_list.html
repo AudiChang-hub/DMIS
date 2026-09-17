@@ -1,4 +1,4 @@
-{% extends "base.html" %}{% load static %}
+{% extends "base.html" %}{% load site_copy %}{% load static %}
 {% block title %}車行台數獎金｜車輛銷售管理{% endblock %}
 {% block head %}<link rel="stylesheet" href="{% static 'css/dealer-volume-bonus.css' %}?v={{ app_version }}">{% endblock %}
 {% block page_class %}page-shell--wide{% endblock %}
@@ -50,8 +50,8 @@
   </section>
 {% empty %}
   <section class="form-section static-section bonus-empty">
-  {% if tab == 'rules' %}<h2>尚未建立獎金規則</h2><p>點選上方「新增規則」，設定適用車行及獎金條件。</p>
-  {% else %}<h2>目前沒有{% if not show_all %}符合條件的{% endif %}試算結果</h2><p>尚無銷售的規則仍會保留，可到「規則管理」查看或編輯。</p><a class="button ghost" href="{{ list_url }}?tab=rules">前往規則管理</a>{% endif %}
+  {% if tab == 'rules' %}<h2>尚未建立獎金規則</h2><p>{% site_text 'dealer_volume_bonus_list.bd098199f5fa' %}</p>
+  {% else %}<h2>目前沒有{% if not show_all %}符合條件的{% endif %}試算結果</h2><p>{% site_text 'dealer_volume_bonus_list.a2a0e29770a6' %}</p><a class="button ghost" href="{{ list_url }}?tab=rules">前往規則管理</a>{% endif %}
   </section>
 {% endfor %}
 </div>{% endblock %}

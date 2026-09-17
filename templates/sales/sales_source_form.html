@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+{% extends "base.html" %}{% load site_copy %}
 {% block title %}{% if source %}編輯{% else %}新增{% endif %}{{ source_context_label }}｜車輛銷售管理{% endblock %}
 {% block page_class %}page-shell--wide{% endblock %}
 {% block content %}
@@ -23,7 +23,7 @@
       <div>
         <p class="eyebrow">人員與傭金設定</p>
         <h2>本店人員資料</h2>
-        <p class="muted">維護人員所屬門市與每筆基礎傭金；訂單選擇此人員後，後續結算可直接引用。</p>
+        <p class="muted">{% site_text 'sales_source_form.a5f48252b9d9' %}</p>
       </div>
     </div>
     {% if form.non_field_errors %}<div class="formset-errors">{{ form.non_field_errors }}</div>{% endif %}
@@ -71,7 +71,7 @@
 
       {% if source_context_kind != 'platform' %}
       <section class="source-basic-card">
-        <header><strong>聯絡方式</strong><small>常用電話優先放在電話一，其餘方式集中記錄。</small></header>
+        <header><strong>聯絡方式</strong><small>{% site_text 'sales_source_form.9aa8365df814' %}</small></header>
         <div class="source-basic-card__grid source-basic-card__grid--contact">
           {% include "sales/_field.html" with field=form.phone %}
           {% include "sales/_field.html" with field=form.phone_secondary %}
@@ -97,7 +97,7 @@
       </section>
 
       <section class="source-basic-card source-basic-card--settings">
-        <header><strong>名單與使用狀態</strong><small>這兩項也能在車行列表快速切換。</small></header>
+        <header><strong>名單與使用狀態</strong><small>{% site_text 'sales_source_form.d58e77149c35' %}</small></header>
         <div class="source-status-options">
           <div class="source-status-option">{% include "sales/_field.html" with field=form.holiday_gift %}</div>
           <div class="source-status-option">{% include "sales/_field.html" with field=form.active %}</div>
@@ -105,7 +105,7 @@
       </section>
 
       <section class="source-basic-card source-basic-card--note">
-        <header><strong>備註</strong><small>只記錄其他欄位無法表達的補充資料。</small></header>
+        <header><strong>備註</strong><small>{% site_text 'sales_source_form.337f70dc1448' %}</small></header>
         <div class="source-note-field">{% include "sales/_field.html" with field=form.note %}</div>
       </section>
     </div>
@@ -118,7 +118,7 @@
       <div>
         <p class="eyebrow">平台聯繫資料</p>
         <h2>聯絡窗口</h2>
-        <p class="muted">每位 PM、客服、帳務或發票窗口各自保存電話、分機、手機與信箱。</p>
+        <p class="muted">{% site_text 'sales_source_form.e8200c13fbb8' %}</p>
       </div>
       <span class="platform-contact-count">{{ platform_contact_formset.initial_form_count }} 位既有窗口</span>
     </div>
@@ -168,7 +168,7 @@
       <div>
         <p class="eyebrow">車行聯絡設定</p>
         <h2>LINE 群組</h2>
-        <p class="muted">只記錄車行是否有 LINE 群組；群組涵蓋內容可由下方合作類別辨認。</p>
+        <p class="muted">{% site_text 'sales_source_form.fc529602225a' %}</p>
       </div>
     </div>
 
@@ -188,7 +188,7 @@
       <div>
         <p class="eyebrow">合作車行設定</p>
         <h2>合作類別</h2>
-        <p class="muted">勾選代表此車行有配合；有合作即代表需要提供該類別的價格表。</p>
+        <p class="muted">{% site_text 'sales_source_form.7debd44d4dbe' %}</p>
       </div>
       <span class="dealer-brand-count" data-cooperating-count>{{ brand_overview.cooperating_count }} 個提供對象</span>
     </div>
@@ -220,7 +220,7 @@
     <div class="dealer-capacity-settings" aria-labelledby="dealer-capacity-title">
       <div class="dealer-capacity-settings__heading">
         <strong id="dealer-capacity-title">排車容量</strong>
-        <small>台鈴油車與電車共用同一個容量，不會重複加總。</small>
+        <small>{% site_text 'sales_source_form.19268cb892b7' %}</small>
       </div>
       <div class="dealer-capacity-settings__fields">
         {% include "sales/_field.html" with field=form.sym_vehicle_capacity %}
@@ -231,7 +231,7 @@
     <div class="dealer-brand-active-summary">
       <strong>目前需提供的價格表</strong>
       <div class="dealer-brand-active-list" data-active-brand-list>
-        {% for item in brand_overview.cooperating %}<span>{{ item.price_list_label }}</span>{% empty %}<small>目前沒有要提供價格表的類別</small>{% endfor %}
+        {% for item in brand_overview.cooperating %}<span>{{ item.price_list_label }}</span>{% empty %}<small>{% site_text 'sales_source_form.dcc454537a08' %}</small>{% endfor %}
       </div>
     </div>
 
@@ -239,7 +239,7 @@
       <summary>
         <span>
           <strong>調整傭金、期間與備註</strong>
-          <small>上方勾選決定合作與價格表名單；此處只設定特定車行的傭金加減額、生效期間及備註。</small>
+          <small>{% site_text 'sales_source_form.795c23dfcd9c' %}</small>
         </span>
         <span class="dealer-brand-details__action">展開設定</span>
       </summary>
@@ -277,7 +277,7 @@
     <div>
       <span>系統資訊</span>
       <strong>唯讀識別資料</strong>
-      <small>這些資料由系統或歷史匯入建立，不在基本資料中修改。</small>
+      <small>{% site_text 'sales_source_form.49b5d7a2c065' %}</small>
     </div>
     {% if source %}
       <dl>
@@ -286,7 +286,7 @@
         <div><dt>最後更新</dt><dd>{{ source.updated_at|date:"Y/m/d H:i" }}</dd></div>
       </dl>
     {% else %}
-      <p>建立後才會顯示資料編號；網路平台的來源代碼會由系統自動配置。</p>
+      <p>{% site_text 'sales_source_form.6db444b56919' %}</p>
     {% endif %}
   </section>
 
@@ -303,7 +303,7 @@
       <p class="eyebrow">資料生命週期</p>
       <h2 id="source-record-management-title">車行資料管理</h2>
     </div>
-    <p>正常結束合作請使用「停用」；只有完全誤建且從未投入營運的資料才可永久刪除。</p>
+    <p>{% site_text 'sales_source_form.9a216cf845d5' %}</p>
   </div>
   <div class="source-record-management__options">
     <article>

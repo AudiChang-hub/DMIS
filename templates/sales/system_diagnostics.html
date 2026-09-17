@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+{% extends "base.html" %}{% load site_copy %}
 {% block title %}系統狀態檢查｜車輛銷售管理{% endblock %}
 {% block page_class %}page-shell--standard{% endblock %}
 {% block content %}
@@ -8,7 +8,7 @@
   <div>
     <p class="eyebrow">內部診斷</p>
     <h1>系統狀態檢查</h1>
-    <p class="muted">若上傳、辨識或搜尋一直沒有完成，可先看這裡；本頁不顯示密碼或連線資訊。</p>
+    <p class="muted">{% site_text 'system_diagnostics.b3ae113de7be' %}</p>
   </div>
   <a class="button ghost" href="{% url 'system_diagnostics' %}">重新檢查</a>
 </section>

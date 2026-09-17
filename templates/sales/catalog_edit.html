@@ -1,17 +1,18 @@
-{% extends "base.html" %}{% load static %}{% block title %}編輯車款展示{% endblock %}{% block content %}
+{% extends "base.html" %}{% load site_copy %}{% load static %}{% block title %}編輯車款展示{% endblock %}{% block content %}
+{% site_navigation %}
 <a class="button" href="{% url 'catalog_manage' %}">← 返回展示管理</a><h1>編輯車款展示</h1><h2>{{ model }}</h2>
-<div class="card"><p>此處只編輯啟用車色的展示圖片。停用車色不顯示，原有圖片仍保留；啟用狀態請至機種資料調整。</p><a href="{% url 'vehicle_model_edit' model.pk %}">修改機種規格、車色、售價與分期</a></div>
+<div class="card"><p>{% site_text 'catalog_edit.c923277f878f' %}</p><a href="{% url 'vehicle_model_edit' model.pk %}">修改機種規格、車色、售價與分期</a></div>
 <form method="post" enctype="multipart/form-data" class="stacked-form">
   {% csrf_token %}{{ form.non_field_errors }}{{ form.expected_revision }}
   <section class="card stacked-form">
-    <h2>展示設定</h2><p>上架後公開圖片、介紹及有效對客售價／分期，不公開成本、佣金與撥款。只上傳你有權使用的圖片。</p>
+    <h2>展示設定</h2><p>{% site_text 'catalog_edit.1f0c5a321ff9' %}</p>
     {% include "sales/_field.html" with field=form.description %}
     {% include "sales/_field.html" with field=form.published %}
     {% include "sales/_field.html" with field=form.position %}
   </section>
   <section class="card stacked-form">
     <h2>啟用車色圖片 <small>共 {{ form.catalog_colors|length }} 色</small></h2>
-    <p>每張最多 8 MB，支援 JPEG、PNG、WebP。不選新檔案就保留原圖；缺圖車色仍會顯示於選車入口。</p>
+    <p>{% site_text 'catalog_edit.c62cb11399a5' %}</p>
     <div class="catalog-color-edit-grid">
       {% for section in form.color_sections %}
       <section class="catalog-color-editor" aria-label="{{ section.color.name }} 車色設定">
@@ -19,12 +20,12 @@
         {% url 'catalog_preview_color_image' model.pk section.color.pk as preview_url %}
         {% include "sales/_catalog_image_preview.html" with photo=section.color.catalog_image upload=section.upload remove=section.remove preview_url=preview_url %}
       </section>
-      {% empty %}<p>目前沒有啟用車色，請先至機種資料啟用需要展示的顏色。</p>{% endfor %}
+      {% empty %}<p>{% site_text 'catalog_edit.1a17c7a726a0' %}</p>{% endfor %}
     </div>
   </section>
   <details class="card stacked-form"{% if form.image.errors or form.main_image_color.errors %} open{% endif %}>
     <summary>車款主圖與既有圖片對應（進階）</summary>
-    <p>選車卡片使用各車色圖片，不會自動共用主圖。若已有主圖，可在此明確對應一個啟用車色。</p>
+    <p>{% site_text 'catalog_edit.4a0c35de26ac' %}</p>
     {% url 'catalog_preview_image' model.pk as main_preview_url %}
     {% include "sales/_catalog_image_preview.html" with photo=entry.image upload=form.image preview_url=main_preview_url preview_class="catalog-main-preview" %}
     {% include "sales/_field.html" with field=form.main_image_color %}

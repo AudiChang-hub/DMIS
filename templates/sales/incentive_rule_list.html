@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+{% extends "base.html" %}{% load site_copy %}
 {% load pagination_tags %}
 {% block title %}原廠獎勵與補助｜車輛銷售管理{% endblock %}
 {% block page_class %}page-shell--wide{% endblock %}
@@ -9,7 +9,7 @@
   <div>
     <p class="eyebrow">依實際領牌日套用</p>
     <h1>原廠獎勵與補助</h1>
-    <p class="muted">維護各車型的實銷獎勵金、促銷補助金及分期補貼息；套用後會保存訂單快照。</p>
+    <p class="muted">{% site_text 'incentive_rule_list.5625a3b6e4f7' %}</p>
   </div>
   <a class="button primary" href="{% url 'incentive_rule_create' %}">＋ 新增獎勵補助版本</a>
 </section>
@@ -46,7 +46,7 @@
         </tr>
         {% endwith %}
         {% empty %}
-        <tr><td colspan="9"><div class="empty-state"><strong>尚未建立獎勵補助版本</strong><p>建立後，訂單會依實際領牌日期自動套用。</p></div></td></tr>
+        <tr><td colspan="9"><div class="empty-state"><strong>尚未建立獎勵補助版本</strong><p>{% site_text 'incentive_rule_list.c43f1dbaa16c' %}</p></div></td></tr>
         {% endfor %}
       </tbody>
     </table>

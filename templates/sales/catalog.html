@@ -1,14 +1,16 @@
-{% extends "base.html" %}{% load pagination_tags sales_format static %}
+{% extends "base.html" %}{% load site_copy %}{% load pagination_tags sales_format static %}
 {% block title %}建立訂單・選擇車款｜馭盛{% endblock %}
 {% block content %}
-<section class="hero-row"><div><p class="eyebrow">馭盛・建立訂單</p><h1>選一台適合的車</h1><p>先選車款與顏色，再填寫本次下訂資料。</p></div></section>
+{% site_navigation %}
+<section class="hero-row"><div><p class="eyebrow">馭盛・建立訂單</p><h1>選一台適合的車</h1><p>{% site_text 'catalog.32d283d85dbf' %}</p></div></section>
 {% if intake_can_submit %}<p class="catalog-direct">已知道車款，或需要未上架的車型？ <a class="button ghost small" href="{% url 'order_start' %}">直接填寫訂單</a></p>{% endif %}
 <form method="get" class="card stacked-form catalog-filter" data-catalog-filters>
 {% include 'sales/_catalog_filters.html' %}
-<p class="help-text">依品牌、車型、型號與能源別縮小範圍，再套用篩選。</p>
+<p class="help-text">{% site_text 'catalog.7159e7097df2' %}</p>
 <div class="catalog-manage-actions"><button class="button primary">套用篩選</button><a class="button" href="{% url 'catalog' %}">清除篩選</a></div></form>
 <p>共 {{ model_count }} 款車型／{{ page_obj.paginator.count }} 個車色選項</p><div class="catalog-grid">
 {% for card in cards %}
+{% ifchanged card.model.brand card.model.name %}<header class="catalog-group-heading"><p class="eyebrow">{{ card.model.brand }}</p><h2>{{ card.model.name }}</h2><p class="muted">{{ card.model.get_energy_type_display }}{% if card.model.displacement_cc %} · {{ card.model.displacement_cc }} CC{% endif %}</p></header>{% endifchanged %}
 <article class="card catalog-card" data-catalog-color="{{ card.color.pk }}">
   <a href="{% url 'catalog_detail' card.model.pk %}?color={{ card.color.pk }}" aria-label="查看 {{ card.model.name }} {{ card.model.model_year|default:'未填年式' }} {{ card.color.name }}">
     {% if card.color.catalog_image %}<img src="{% url 'catalog_color_image' card.model.pk card.color.pk %}" alt="{{ card.model.name }} · {{ card.color.name }}" loading="lazy" class="catalog-image">{% else %}<div class="catalog-placeholder">{{ card.color.name }}<br>此車色圖片待補</div>{% endif %}
@@ -18,7 +20,7 @@
   <p>{% if card.price != None %}{{ card.price_label }} <strong>NT$ {{ card.price|number_with_commas }}</strong>{% else %}售價請洽馭盛{% endif %}</p>
   <a class="button primary" href="{% url 'catalog_detail' card.model.pk %}?color={{ card.color.pk }}">查看車款與分期</a>
 </article>
-{% empty %}<div class="card"><h2>目前沒有符合條件的啟用車色</h2><p>請調整篩選，或洽馭盛確認。尚未上架不代表沒有販售。</p></div>{% endfor %}</div>
+{% empty %}<div class="card"><h2>目前沒有符合條件的啟用車色</h2><p>{% site_text 'catalog.ea9ea39f13c5' %}</p></div>{% endfor %}</div>
 {% pagination page_obj aria_label="車色選項分頁" %}
 {{ filter_options|json_script:"catalog-filter-options" }}
 {% endblock %}

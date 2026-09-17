@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+{% extends "base.html" %}{% load site_copy %}
 {% block title %}帳號與權限｜車輛銷售管理{% endblock %}
 {% block page_class %}page-shell--wide{% endblock %}
 {% block content %}
@@ -7,9 +7,9 @@
 
 <section class="hero-row compact-hero account-hero">
   <div>
-    <p class="eyebrow">依 admin 指定的畫面權限開放</p>
+    <p class="eyebrow">{% site_text 'user_management.68fc7d413c8a' %}</p>
     <h1>帳號與權限</h1>
-    <p class="muted">馭盛內部人員與合作車行帳號集中管理；與合作車行頁面同步，密碼只能重設、不顯示原文。</p>
+    <p class="muted">{% site_text 'user_management.33c628515715' %}</p>
   </div>
   <div class="account-actions">{% if can_manage_screen_access %}<a class="button secondary" href="{% url 'access_overview' %}">權限總覽</a><a class="button" href="{% url 'sales_source_list' %}">到合作車行開通帳號</a>{% endif %}{% if not screen_read_only %}<a class="button primary" href="{% url 'user_account_create' %}">＋ 建立內部帳號</a>{% endif %}</div>
 </section>
@@ -83,7 +83,7 @@
         </div>
       </article>
     {% empty %}
-      <div class="empty-state"><strong>找不到符合的帳號</strong><p>請清除篩選或改用其他姓名、帳號搜尋。</p></div>
+      <div class="empty-state"><strong>找不到符合的帳號</strong><p>{% site_text 'user_management.0e410fb07e15' %}</p></div>
     {% endfor %}
   </div>
 </section>

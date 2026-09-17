@@ -61,6 +61,11 @@ HELP_TOPIC_BY_ROUTE = {
     "sales_source_holiday_gift_manage": "sales-sources",
     "sales_source_create": "sales-sources",
     "sales_source_edit": "sales-sources",
+    "gift_distribution": "gift-distribution-current",
+    "gift_distribution_detail": "gift-distribution-current",
+    "site_copy_manage": "site-copy-current",
+    "release_history": "news-current",
+    "announcement_detail": "news-current",
     "price_list_distribution": "price-list-distribution",
     "price_list_distribution_assignments": "price-list-distribution",
     "installment_company_list": "master-data",
@@ -89,6 +94,7 @@ HELP_TOPIC_BY_ROUTE = {
 
 
 DATA_MAINTENANCE_ROUTES = {
+    "gift_distribution", "gift_distribution_detail", "site_copy_manage", "announcement_action",
     "announcement_manage", "announcement_edit",
     "report_manage", "report_create", "report_edit",
     "data_maintenance",
@@ -192,7 +198,7 @@ def app_version(request):
         "orders_group_url": reverse("order_list"),
         "reception_mode": request.resolver_match and request.resolver_match.url_name in {"catalog", "catalog_detail", "order_start", "order_submitted"},
         "data_vehicle_visible": any(access_policy.route(name) for name in ("vehicle_brand_list", "vehicle_model_list", "inventory_list", "accessory_product_list", "dealer_reward_catalog_list", "catalog_manage")),
-        "data_people_visible": any(access_policy.route(name) for name in ("customer_list", "sales_source_list", "price_list_distribution")),
+        "data_people_visible": any(access_policy.route(name) for name in ("customer_list", "sales_source_list", "price_list_distribution", "gift_distribution")),
         "data_rules_visible": any(access_policy.route(name) for name in ("settlement_cost_rule_list", "incentive_rule_list", "dealer_sales_program_list", "dealer_volume_bonus_list", "installment_company_list", "brand_registration_fee_rule_list", "business_holiday_list")),
         "data_tools_visible": any(access_policy.route(name) for name in ("legacy_import_list", "positioned_template_list", "system_diagnostics")),
         "app_version": get_app_version(),

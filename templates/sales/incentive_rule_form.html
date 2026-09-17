@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+{% extends "base.html" %}{% load site_copy %}
 {% block title %}{% if is_editing %}編輯{% else %}新增{% endif %}獎勵補助版本｜車輛銷售管理{% endblock %}
 {% block page_class %}page-shell--form{% endblock %}
 {% block content %}
@@ -9,7 +9,7 @@
   <div>
     <p class="eyebrow">車型版本維護</p>
     <h1>{% if is_editing %}編輯獎勵補助版本{% else %}新增獎勵補助版本{% endif %}</h1>
-    <p class="muted">版本依實際領牌日期套用；結束日期留空代表持續有效，較新的生效版本會優先。</p>
+    <p class="muted">{% site_text 'incentive_rule_form.a844efbb3476' %}</p>
   </div>
 </section>
 <form method="post" class="master-model-form">
@@ -22,12 +22,12 @@
     </div>
     <div class="note-box">
       <strong>分期資料請至車型的「分期方案」維護</strong>
-      <p>分期公司、期數、每期金額、開辦費及預估撥款皆以訂單日套用分期方案；本頁只維護原廠獎勵與補助。</p>
+      <p>{% site_text 'incentive_rule_form.531c59056fd0' %}</p>
       {% if is_editing %}<a class="button ghost small" href="{% url 'vehicle_installment_plan_list' rule.vehicle_model_id %}">前往此車型的分期方案</a>{% endif %}
     </div>
     <div class="note-box">
       <strong>歷史資料保護</strong>
-      <p>領牌完成時會將金額固定於訂單。之後新增或修改車型版本，不會改動已完成訂單的損益資料。</p>
+      <p>{% site_text 'incentive_rule_form.b3fe47b46d70' %}</p>
     </div>
   </section>
   <div class="form-actions master-model-actions">

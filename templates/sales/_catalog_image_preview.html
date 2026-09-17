@@ -1,9 +1,9 @@
-<div class="catalog-image-preview" data-catalog-image-preview>
+{% load site_copy %}<div class="catalog-image-preview" data-catalog-image-preview>
   <img class="catalog-image {{ preview_class }}" data-preview-image {% if photo %}src="{{ preview_url }}"{% else %}hidden{% endif %} alt="{{ upload.label }}預覽">
   <div class="catalog-placeholder {{ preview_class }}" data-preview-placeholder {% if photo %}hidden{% endif %}>圖片待補</div>
   {% include "sales/_field.html" with field=upload %}
   {% if photo and remove %}{% include "sales/_field.html" with field=remove %}{% endif %}
   <p class="catalog-preview-status" id="{{ upload.id_for_label }}_preview_status" data-preview-status role="status" aria-live="polite"></p>
   <button class="button small" type="button" data-preview-cancel hidden>取消此次圖片變更</button>
-  <small class="help-text">選檔後可先預覽；按「儲存展示設定」才會上傳。</small>
+  <small class="help-text">{% site_text '_catalog_image_preview.44fb38f63c8b' %}</small>
 </div>

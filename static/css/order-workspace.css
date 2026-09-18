@@ -1,0 +1,19 @@
+.workspace-tabs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;padding:7px;background:var(--surface,#fff);border:1px solid var(--border,#c8d4da);border-radius:14px;margin:20px 0}
+.workspace-tabs button{background:transparent;color:var(--text,#17313b);border:0;border-radius:9px;min-height:48px;padding:10px;font:inherit;font-weight:700;cursor:pointer}
+.workspace-tabs button[aria-selected=true]{background:#0d605c;color:#fff}
+.workspace-tabs button:focus-visible{outline:3px solid #c89e42;outline-offset:2px}
+.workspace-tabs [data-dirty-indicator]{margin-left:6px;color:#ba6500}.workspace-tabs button[aria-selected=true] [data-dirty-indicator]{color:#ffe19e}
+[data-workspace-section][hidden],[data-workspace-panel][hidden]{display:none!important}
+.workspace-message{padding:16px 20px;margin:16px 0;border:1px solid var(--border,#bbcbd2);border-radius:12px;background:var(--surface,#fff);color:var(--text,#17313b);white-space:pre-line}
+.workspace-message.is-error{border-color:#b64539}
+.workspace-finance-summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:20px;background:var(--surface,#fff);border:1px solid var(--border,#c8d4da);border-radius:16px;padding:24px;margin:20px 0}
+.workspace-finance-summary small,.workspace-finance-summary strong{display:block}.workspace-finance-summary strong{font-size:1.3rem;margin-top:8px}.workspace-finance-summary p{grid-column:1/-1;margin:0;color:var(--muted,#506776)}
+.workspace-order .mobile-submit{position:static;margin:20px 0}.workspace-order .form-heading{margin-top:12px}.workspace-order .form-progress{display:none}
+.workspace-order .operations-actions{position:static;gap:12px;flex-wrap:wrap}
+.workspace-order .order-work-tabs-shell{display:none}
+.workspace-order [data-workspace-section]{scroll-margin-top:100px}
+.workspace-order .workspace-history{margin:24px 0;padding:20px;border:1px solid var(--border,#c8d4da);border-radius:14px}
+.workspace-history>summary{cursor:pointer;font-weight:700}
+.workspace-order .workspace-save-note{color:var(--muted,#506776);margin:12px 0}
+.workspace-order fieldset.workspace-readonly{border:0;padding:0;margin:0;min-width:0}
+@media(max-width:600px){.workspace-tabs{gap:2px;padding:4px}.workspace-tabs button{font-size:.875rem;padding:10px 3px}.workspace-finance-summary{grid-template-columns:repeat(2,minmax(0,1fr));padding:16px;gap:16px}.workspace-order .form-heading h1{font-size:1.6rem}}

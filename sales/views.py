@@ -21,12 +21,14 @@ from django.db.models import Count, DecimalField, Exists, Max, OuterRef, Prefetc
 from django.core.paginator import Paginator
 from django.http import FileResponse, Http404, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.template.response import TemplateResponse
 from django.urls import reverse
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.utils import timezone
 from django.views.decorators.http import require_http_methods
 from django.views.decorators.cache import never_cache
 import django_rq
+from .services import order_workspace
 from rq import Retry, Worker
 from rq.registry import StartedJobRegistry
 
@@ -5087,7 +5089,7 @@ def draft_presence(request, pk):
 
 
 @login_required
-def order_detail(request, pk, *, commission_form=None):
+def order_detail(request, pk, *, commission_form=None, workspace_context_only=False):
     from sales.services.profit_access import profit_is_unlocked
     from sales.services.order_intake import is_dealer, scoped_orders
     if is_dealer(request.user):
@@ -5210,10 +5212,12 @@ def order_detail(request, pk, *, commission_form=None):
     commission_block_reason = order.commission_attribution_block_reason
     if commission_form is None and not commission_block_reason:
         commission_form = OrderCommissionAttributionForm(order=order, prefix="attribution")
-    return render(
+    response = TemplateResponse(
         request,
         "sales/order_detail.html",
         {
+            **order_workspace.finance_context(request, order),
+            "order_workspace": True,
             "order": order,
             "commission_form": commission_form,
             "commission_block_reason": commission_block_reason,
@@ -5232,7 +5236,7 @@ def order_detail(request, pk, *, commission_form=None):
                 document_type=SubsidyDocument.DocumentType.OTHER
             ),
             "subsidy_missing": subsidy_missing,
-            "subsidy_form": SubsidyDataForm(instance=order),
+            "subsidy_form": SubsidyDataForm(instance=order, auto_id="subsidy_%s"),
             "subsidy_item_formset": SubsidyItemFormSet(instance=order, prefix="subsidy_items"),
             "change_cards": build_order_change_cards(order.changes.all(), profit_unlocked=profit_is_unlocked(request)),
             "operations_profile": operations_profile,
@@ -5255,6 +5259,7 @@ def order_detail(request, pk, *, commission_form=None):
         },
         status=400 if commission_form is not None and commission_form.is_bound and commission_form.errors else 200,
     )
+    return response.context_data if workspace_context_only else response
 
 
 @login_required
@@ -5322,6 +5327,9 @@ def order_operations(request, pk):
         instance=profile,
         prefix="operations",
     )
+    if order_workspace.is_workspace_save(request):
+        for name in ("subsidy_amount", "subsidy_applied_on"):
+            form.fields[name].disabled = True
     payment_formset = PaymentRecordFormSet(
         request.POST or None,
         request.FILES or None,
@@ -5397,11 +5405,15 @@ def order_operations(request, pk):
                 description=f"更新營運與對帳資料（{len(changes)} 個欄位）",
                 actor_name=_editing_name(request.user),
             )
+        if order_workspace.is_workspace_save(request):
+            return order_workspace.saved(request, order, form=form, formsets=(payment_formset,))
         messages.success(request, "營運、收款及損益資料已更新。")
         return redirect("order_operations", pk=order.pk)
     # ModelForm 驗證會改動 instance；未儲存的輸入不得冒充已入帳的摘要。
     if request.method == "POST":
         profile.refresh_from_db()
+        if order_workspace.is_workspace_save(request):
+            return order_workspace.save_error("收支資料未儲存，請修正下列欄位。", forms=(form, *payment_formset.forms))
     return render(
         request,
         "sales/order_operations.html",
@@ -5641,12 +5653,16 @@ def order_edit(request, pk):
         pk=pk,
     )
     if not order.can_edit_content:
+        if order_workspace.is_workspace_save(request):
+            return order_workspace.save_error("此訂單已取消，內容已鎖定。", status=409)
         messages.error(request, "此訂單已取消，內容已鎖定。")
         return redirect("order_detail", pk=pk)
     completed_correction = order.is_delivered
     # 歷史訂單可能缺少交付時間；內容修正不等同重新交車。
     order._preserve_delivery_metadata = completed_correction
     if not _claim_edit_lock(order, request, ORDER_PRESENCE_TIMEOUT):
+        if order_workspace.is_workspace_save(request):
+            return order_workspace.save_error("其他人員正在編輯此訂單；本次未覆寫，您的輸入仍保留。", status=409)
         messages.error(
             request,
             f"此訂單目前由 {order.editing_by or '其他人員'} 編輯，暫時只能查看。",
@@ -5659,6 +5675,8 @@ def order_edit(request, pk):
         except (TypeError, ValueError):
             submitted_revision = 0
         if submitted_revision != order.revision:
+            if order_workspace.is_workspace_save(request):
+                return order_workspace.save_error("此訂單已更新，請先核對最新資料；本次未覆寫，您的輸入仍保留。", status=409)
             messages.error(request, "此訂單已被其他人更新，請重新載入後再修改。")
             return redirect("order_edit", pk=pk)
 
@@ -5675,6 +5693,9 @@ def order_edit(request, pk):
         balance_was_automatic = order.actual_balance == order.calculated_balance
         previous_actual_balance = order.actual_balance
         form = OrderEditForm(request.POST, request.FILES, instance=order)
+        if order_workspace.is_workspace_save(request) or request.POST.get("_workspace") == "1":
+            for field in ("is_trade_in_subsidy", "old_owner_same_as_owner"):
+                form.fields.pop(field, None)
         formset = AccessoryFormSet(request.POST, instance=order, form_kwargs={"allow_manual": True})
         fee_formset = OtherFeeFormSet(
             request.POST, instance=order, prefix="other_fees"
@@ -5744,6 +5765,8 @@ def order_edit(request, pk):
                 description=f"{'完成後修正' if completed_correction else '修改訂單'}：{reason}（{len(changes)} 個項目）",
                 actor_name=_editing_name(request.user),
             )
+            if order_workspace.is_workspace_save(request):
+                return order_workspace.saved(request, order, form=form, formsets=(formset, fee_formset))
             messages.success(request, "訂單內容已更新，變更紀錄已保存。")
             if completed_correction:
                 messages.info(request, "完成後修正已保存，交付狀態不變；如有調整金額，請至訂單作業確認應收差額。")
@@ -5753,10 +5776,16 @@ def order_edit(request, pk):
         formset = AccessoryFormSet(instance=order, form_kwargs={"allow_manual": True})
         fee_formset = OtherFeeFormSet(instance=order, prefix="other_fees")
 
+    if request.method == "POST" and order_workspace.is_workspace_save(request):
+        return order_workspace.save_error("訂單內容未儲存，請修正下列欄位。", forms=(form, *formset.forms, *fee_formset.forms))
+    context = order_detail(request, pk, workspace_context_only=True)
+    for field in ("is_trade_in_subsidy", "old_owner_same_as_owner"):
+        form.fields.pop(field, None)
     return render(
         request,
-        "sales/order_form.html",
+        "sales/order_detail.html",
         {
+            **context,
             "form": form,
             "formset": formset,
             "fee_formset": fee_formset,
@@ -6884,6 +6913,8 @@ def subsidy_data_update(request, pk):
     if request.method != "POST":
         return redirect(detail_url)
     if not order.can_manage_subsidy:
+        if order_workspace.is_workspace_save(request):
+            return order_workspace.save_error("已取消訂單無法修改補助資料。", status=409)
         messages.error(request, "已取消訂單無法修改補助資料。")
         return redirect(detail_url)
     try:
@@ -6891,6 +6922,8 @@ def subsidy_data_update(request, pk):
     except (TypeError, ValueError):
         submitted_revision = 0
     if submitted_revision != order.revision:
+        if order_workspace.is_workspace_save(request):
+            return order_workspace.save_error("訂單已更新，請先核對最新資料；補助輸入仍保留。", status=409)
         messages.error(request, "此訂單已被其他人更新，請重新確認補助資料。")
         return redirect(detail_url)
 
@@ -6905,6 +6938,8 @@ def subsidy_data_update(request, pk):
         prefix="subsidy_items",
     )
     if not form.is_valid() or (items_submitted and not item_formset.is_valid()):
+        if order_workspace.is_workspace_save(request):
+            return order_workspace.save_error("補助資料未儲存，請修正下列欄位。", forms=(form, *item_formset.forms))
         error_messages = [str(error) for errors in form.errors.values() for error in errors]
         if items_submitted:
             error_messages.extend(str(error) for error in item_formset.non_form_errors())
@@ -6954,6 +6989,8 @@ def subsidy_data_update(request, pk):
         description=f"修改補助資料：{reason}（{len(changes)} 個項目）",
         actor_name=_editing_name(request.user),
     )
+    if order_workspace.is_workspace_save(request):
+        return order_workspace.saved(request, order, form=form, formsets=(item_formset,))
     messages.success(request, "補助資料已更新，尾款與變更紀錄已同步。")
     return redirect(detail_url)
 

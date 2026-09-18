@@ -209,7 +209,8 @@ class OrderFlowTests(TestCase):
         css = Path("static/css/app.css").read_text(encoding="utf-8")
         base = Path("templates/base.html").read_text(encoding="utf-8")
         detail = Path("templates/sales/order_detail.html").read_text(encoding="utf-8")
-        form = Path("templates/sales/order_form.html").read_text(encoding="utf-8")
+        form = Path("templates/sales/_order_form_content.html").read_text(encoding="utf-8")
+        form_shell = Path("templates/sales/order_form.html").read_text(encoding="utf-8")
 
         self.assertIn("--shell-wide: 1680px", css)
         self.assertIn(".page-shell--wide { max-width: var(--shell-wide); }", css)
@@ -220,7 +221,7 @@ class OrderFlowTests(TestCase):
         self.assertIn("app.css' %}?v={{ app_version }}", base)
         self.assertIn("app-update.js' %}?v={{ app_version }}", base)
         self.assertIn("page-shell--wide", detail)
-        self.assertIn("page-shell--form", form)
+        self.assertIn("page-shell--form", form_shell)
         self.assertIn(
             "grid-template-columns: repeat(6, minmax(0, 1fr));",
             css,
@@ -2691,7 +2692,7 @@ class OrderFlowTests(TestCase):
 
     def test_payment_type_change_warns_before_clearing_installment_fields(self):
         template = (
-            __import__("pathlib").Path("templates/sales/order_form.html").read_text(
+            __import__("pathlib").Path("templates/sales/_order_form_scripts.html").read_text(
                 encoding="utf-8"
             )
         )
@@ -3007,14 +3008,11 @@ class OrderFlowTests(TestCase):
 
         self.assertContains(response, 'role="tablist"')
         for tab_name in (
-            "訂單資料",
-            "配車",
-            "補助",
-            "領牌",
-            "交付",
-            "處理紀錄",
+            "訂單資訊",
+            "金額收支資訊",
+            "補助申請資訊",
         ):
-            self.assertContains(response, f"<span>{tab_name}</span>", html=True)
+            self.assertContains(response, tab_name)
         self.assertNotContains(response, 'data-tab="documents"')
         self.assertNotContains(response, 'data-tab-panel="documents"')
         self.assertContains(response, 'data-tab-panel="order"')
@@ -3033,10 +3031,10 @@ class OrderFlowTests(TestCase):
         self.assertContains(response, "配車後開放")
         self.assertNotContains(response, "workflow-strip")
 
-        script = Path("static/js/order-detail-tabs.js").read_text(encoding="utf-8")
-        self.assertIn('searchParams.get("tab")', script)
-        self.assertIn("window.localStorage", script)
-        self.assertIn('event.key === "ArrowRight"', script)
+        script = Path("static/js/order-workspace.js").read_text(encoding="utf-8")
+        self.assertIn("searchParams.get('tab')", script)
+        self.assertIn("beforeunload", script)
+        self.assertIn("event.key === 'ArrowRight'", script)
 
     def test_legacy_documents_tab_redirects_to_order_signed_documents(self):
         order = self.make_order()
@@ -4609,7 +4607,7 @@ class OrderFlowTests(TestCase):
             '<input type="date" name="registration_date"',
         )
         order_form_template = (
-            __import__("pathlib").Path("templates/sales/order_form.html").read_text(
+            __import__("pathlib").Path("templates/sales/_order_form_content.html").read_text(
                 encoding="utf-8"
             )
         )

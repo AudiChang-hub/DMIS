@@ -123,6 +123,7 @@ document.addEventListener("DOMContentLoaded", () => {
       subsidyForm.dataset.wasEnabled = payload.enabled ? "true" : "false";
       subsidyForm.classList.remove("has-toggle-error");
       revisionInput.value = String(payload.revision);
+      document.dispatchEvent(new CustomEvent('workspace-subsidy-toggle', {detail: payload}));
       subsidyToggle.checked = payload.enabled;
       setUploadControls(payload.enabled);
       setCompletionState(payload.enabled);
@@ -154,6 +155,14 @@ document.addEventListener("DOMContentLoaded", () => {
         saveButton.disabled = true;
         saveButton.textContent = "正在儲存…";
       }
+    });
+    subsidyForm.addEventListener('workspace-saved', () => {
+      initialFormState = currentFormState();
+      refreshDirtyState();
+    });
+    subsidyForm.addEventListener('workspace-save-finished', () => {
+      formIsSubmitting = false;
+      refreshDirtyState();
     });
     window.addEventListener("beforeunload", event => {
       if (!formIsDirty || formIsSubmitting) return;

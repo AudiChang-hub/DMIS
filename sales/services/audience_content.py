@@ -4,6 +4,8 @@ from config.release_notes import RELEASES, LEGACY_UPDATES
 # (版本, 更新分類) 的順序與已發布內容一一對照；不覆寫歷史發布文字。
 # 每個 tuple 內全部權限皆需成立；空 tuple 表示所有已登入人員。
 RELEASE_RULES = {
+    ("1.11.0", "新增"): [("order_list", "internal"), ("screen:order_finance", "internal")],
+    ("1.11.0", "改善"): [("order_list", "internal"), ("order_list", "internal")],
     ("1.10.0", "新增"): [("root",), ("screen:order_pricing",), ("root",), ("gift_distribution",)],
     ("1.10.0", "改善"): [(), ("order_start",), ("screen:profit",), ("reconciliation_list",), ("root",)],
     ("1.9.0", "新增"): [(), ("root",), ("gift_distribution",), ("root",), ("screen:order_finance",)],
@@ -71,6 +73,14 @@ def release_context(policy):
 
 # 給受限帳號的說明逐項拆開，避免共用長篇章節混入管理或財務內容。
 HELP_ITEMS = (
+    ("order-workspace", "訂單三頁籤工作區", ("order_list", "internal"), (
+        "從全部訂單進入一筆訂單，使用訂單資訊、金額收支資訊、補助申請資訊切換；切換不重整，不會丟失未儲存輸入。",
+        "點編輯訂單可修改車主、車款、需求及成交條件；配車、領牌與交付保留在訂單資訊，處理與修改紀錄在頁尾展開。",
+        "每個表單各自按儲存；頁籤圓點代表尚有修改。若其他區塊或人員變更相同欄位，系統保留輸入並阻止覆寫，請核對最新資料。")),
+    ("order-workspace-finance", "整理一張訂單的收入與支出", ("screen:order_finance", "internal"), (
+        "金額收支資訊集中成交條件、收款紀錄與憑證、成本及各項收入支出。成交條件用儲存修改；實際收支用儲存收支與後續資料。",
+        "應收金額不是已收金額，申請補助也不代表已入帳；補助項目於補助申請資訊填寫並按儲存補助變更。",
+        "修改由 admin 授權，淨利仍須本人密碼解鎖。折扣不改分期撥款、佣金或成本，財務計算與修改紀錄沿用原規則。")),
     ("order-pricing", "下單金額調整與其他分期", ("screen:order_pricing",), (
         "admin 於帳號與權限的建立訂單分類勾選下單金額調整；車行則在合作車行的登入帳號設定同名權限。",
         "車價與配件預帶設定值，調整時請填原因。贈送的配件售價及安裝工資為零；單件合計與含數量總額自動計算。",

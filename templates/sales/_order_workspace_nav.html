@@ -1,0 +1,7 @@
+<nav class="workspace-tabs" role="tablist" aria-label="訂單工作區" data-workspace-tabs data-order-id="{{ order.pk }}">
+  <button type="button" role="tab" data-workspace-tab="order" aria-controls="workspace-order">訂單資訊<span data-dirty-indicator hidden>●</span></button>
+  {% if workspace_finance %}<button type="button" role="tab" data-workspace-tab="finance" aria-controls="workspace-finance">金額收支資訊<span data-dirty-indicator hidden>●</span></button>{% endif %}
+  <button type="button" role="tab" data-workspace-tab="subsidy" aria-controls="workspace-subsidy">補助申請資訊<span data-dirty-indicator hidden>●</span></button>
+</nav>
+<div class="workspace-message" data-workspace-message role="status" aria-live="polite" hidden></div>
+<noscript><p class="note-box">未啟用 JavaScript，以下顯示所有區塊；儲存時會重新載入頁面。</p></noscript>

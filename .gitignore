@@ -1,5 +1,6 @@
 venv/
 .env
+.env.*
 __pycache__/
 *.pyc
 *.pyo
@@ -28,3 +29,21 @@ staticfiles/
 .env.django.*
 secrets/*
 !secrets/.gitkeep
+
+# 可重建的開發／測試產物；不刪除既有檔案
+.venv/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml
+/build/
+/dist/
+
+# 必須保留設定樣板與去識別化測試樣本
+!.env.django.example
+!.env.example
+!tests/fixtures/**/*.xlsx
+!tests/fixtures/**/*.pdf

@@ -1,0 +1,23 @@
+# DMIS 專案層；不改模型、登入、sandbox、hooks 或供應商插件檔案。
+tool_output_token_limit = 4096
+
+[agents]
+max_concurrent_threads_per_session = 2
+
+# 本專案不是 Sites 專案；可視化／模板創作不是日常 Django 依賴。
+[plugins."sites@openai-curated-remote"]
+enabled = false
+[plugins."visualize@openai-bundled"]
+enabled = false
+[plugins."template-creator@openai-primary-runtime"]
+enabled = false
+
+[apps.connector_20205bf7d4e99a89d7154bb849718324]
+enabled = false
+
+# node_repl 白名單位於其全域 transport 設定旁，避免跨層不完整 transport。
+# 保留 browser runtime 所需 lifecycle；不重新宣告 command/env/pipes。
+[plugins."unified-computer-use@openai-bundled".mcp_servers.cua_repl]
+enabled_tools = ["js", "js_reset", "turn_ended"]
+[plugins."unified-computer-use@openai-bundled".mcp_servers.cua_repl.tools.js]
+output_token_limit = 6000

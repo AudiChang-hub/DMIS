@@ -1,0 +1,81 @@
+{
+  "source_commit": "9b83d43",
+  "normalization": "UTF-8; CRLF to LF; strip trailing whitespace at EOF",
+  "files": [
+    {
+      "archive": "docs/archive/2026-09-19/CONSTITUTION.md",
+      "sha256": "d30e888e1481afadf1237c5ae602c0dfb5e9f83091c93af83f6f2f1f59aa8f4c",
+      "source": "docs/CONSTITUTION.md"
+    },
+    {
+      "archive": "docs/archive/2026-09-19/GEMINI.md",
+      "sha256": "12373249f64b3348023ac14faf8a64a67f5bf8762e6a1c98e35eaf3b0681ffc2",
+      "source": "GEMINI.md"
+    },
+    {
+      "archive": "docs/archive/2026-09-19/copilot-instructions.md",
+      "sha256": "9dc39fc990a575be1364f4ef9d7f8c7a03caed00699630a94bd578a329580c1f",
+      "source": ".github/copilot-instructions.md"
+    },
+    {
+      "archive": "docs/archive/2026-09-19/prompts/dms-feature.prompt.md",
+      "sha256": "fdffd5999951f9abbe18b2b9bbd5a5742f3a58d4c4827a1a584d3bc49ab93ae7",
+      "source": ".github/prompts/dms-feature.prompt.md"
+    },
+    {
+      "archive": "docs/archive/2026-09-19/prompts/dms-specify.prompt.md",
+      "sha256": "dc0b0c328678ac7d4a585e75821076c138c9d27f6a34093222b4c1aae1b76067",
+      "source": ".github/prompts/dms-specify.prompt.md"
+    },
+    {
+      "archive": "docs/archive/2026-09-19/prompts/dms-merge.prompt.md",
+      "sha256": "c244ddba2d8d9ff566c8fd61c84b412e7f6496f89836aa679284ce706cfeca08",
+      "source": ".github/prompts/dms-merge.prompt.md"
+    },
+    {
+      "archive": "docs/archive/2026-09-19/erd.md",
+      "sha256": "5e4c37e245b7409b5b030c82b6d2ea0b126c45d927c2ced185fd9032f4b7f0e1",
+      "source": "docs/erd.md"
+    },
+    {
+      "archive": "docs/archive/2026-09-19/CHANGELOG.md",
+      "sha256": "9b445f63cec1a35920aa290366e236cb56a1b481c7b7b3d392fc021fe6eb2871",
+      "source": "docs/CHANGELOG.md"
+    },
+    {
+      "archive": "docs/archive/2026-09-19/validate_views.md",
+      "sha256": "d9c486d81d9b496af9d6c062705d5c5aaae979aec90c941ec807c59e1ed596c1",
+      "source": "docs/validate_views.md"
+    },
+    {
+      "archive": "docs/archive/2026-09-19/PRODUCT_IMPROVEMENT_ROADMAP.md",
+      "sha256": "a32b156bc8232fc5fd4b3973a5d95c506c9b8a752e87c032cd5bfc28d5f338ee",
+      "source": "docs/PRODUCT_IMPROVEMENT_ROADMAP.md"
+    },
+    {
+      "archive": "docs/archive/2026-09-19/PR/dms_core_validation_pr.md",
+      "sha256": "45d75084c25ee38a70b966a60bac6e24642651e66a492a529e5bcca0872bdf05",
+      "source": "PR/dms_core_validation_pr.md"
+    },
+    {
+      "archive": "docs/archive/2026-09-19/PR/metabase_improvements_pr.md",
+      "sha256": "59c17d3a4839ba707edc6adf95578c3da175a40dfcb61bf15ddeaf0701434f13",
+      "source": "PR/metabase_improvements_pr.md"
+    },
+    {
+      "archive": "docs/archive/2026-09-19/PR/pr_dms_visit.md",
+      "sha256": "91c494ada4c8eedd1b2007ec0a55d207b4d4a0e3050299de9e6c0ba284845479",
+      "source": "PR/pr_dms_visit.md"
+    },
+    {
+      "archive": "docs/archive/2026-09-19/PR/pr_p2_model_chart.md",
+      "sha256": "1220cdcd698c0b1bcf402fd3b138e375fd281cd9fc6daf9f9fc25aef7fcd18b7",
+      "source": "PR/pr_p2_model_chart.md"
+    },
+    {
+      "archive": "docs/archive/2026-09-19/README-before-context.md",
+      "sha256": "176db71009fceb365d8df50d666203672ec48b37254d171cf851178469b36ba6",
+      "source": "README.md"
+    }
+  ]
+}

@@ -1,18 +1,11 @@
 ---
 name: dms-merge
-description: "合併前檢查清單產生器：輸入 PR 連結或編號，輸出繁中合併檢查清單與建議（不做實作）"
-argument-hint: "請輸入 PR 編號或完整 URL（例如：#23 或 https://github.com/owner/repo/pull/23）"
+description: "合併前只讀檢查規格、測試與風險"
+argument-hint: "PR 或要檢查的變更範圍"
 agent: copilot
 ---
 
-請以繁體中文輸出下列內容（不執行合併）：
-
-1. 檢查清單：
-   - 是否已更新對應 `specs/**`（若 PR 變更包含 `addons/**`、`docker-compose.yml`、`scripts/**` 或 `Makefile`，則 `specs/**` 必須同步更新）
-   - 是否包含驗證步驟（`make up` / `make smoke` / `docker compose ps`）並且可重現
-   - 是否有清楚的決策紀錄（如需在 `02-clarify.md` 補記）
-   - 風險評估與回滾步驟
-2. 建議的 squash commit message（繁中）範例
-3. 若發現缺項，列出建議補充的項目與優先順序
-
-只輸出檢查清單與建議，勿執行任何變更或合併指令。
+遵守 [AGENTS](../../AGENTS.md)。只讀目前 diff、相關規格與驗證結果，不遍讀歷史。
+依 [DEVELOPMENT](../../docs/reference/DEVELOPMENT.md) 與 [RELEASE_POLICY](../../docs/RELEASE_POLICY.md) 檢查：
+範圍／需求、資料相容、授權、安全、測試證據、升版適用性與回復。
+區分通過／未驗證／阻擋；本命令不代表授權合併、push、部署或修改正式資料。

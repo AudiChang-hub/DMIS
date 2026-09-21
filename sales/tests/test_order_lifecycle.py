@@ -389,8 +389,9 @@ class OrderLifecycleTests(TestCase):
         self.assertContains(response, 'name="vehicle_condition_note"', count=3)
         self.assertContains(response, 'class="delivery-completion-actions"')
         self.assertContains(response, "確認完成交付", count=2)
-        self.assertContains(response, "交車前收尾")
-        self.assertContains(response, "儲存收款資料")
+        self.assertContains(response, "收款統一在「金額收支資訊」管理")
+        self.assertContains(response, 'data-workspace-go="finance"')
+        self.assertNotContains(response, "儲存收款資料")
         self.assertNotContains(response, 'name="payment_checked"')
 
     def test_store_order_must_confirm_balance_before_delivery(self):
@@ -407,7 +408,7 @@ class OrderLifecycleTests(TestCase):
         )
 
         self.assertContains(response, "尾款尚未收清")
-        self.assertContains(response, "請先在交付頁保存並確認收款")
+        self.assertContains(response, "請先在金額收支資訊保存並確認收款")
         self.assertFalse(DeliveryRecord.objects.filter(order=order).exists())
         order.refresh_from_db()
         vehicle.refresh_from_db()
@@ -436,7 +437,7 @@ class OrderLifecycleTests(TestCase):
 
         self.assertRedirects(
             payment_response,
-            f"{reverse('order_detail', args=[order.pk])}?tab=delivery#delivery-payment",
+            f"{reverse('order_detail', args=[order.pk])}?tab=finance",
             fetch_redirect_response=False,
         )
         payment.refresh_from_db()
@@ -516,7 +517,7 @@ class OrderLifecycleTests(TestCase):
             form = DeliveryPaymentForm(instance=payment)
 
         self.assertEqual(form.initial["received_on"], timezone.localdate())
-        self.assertEqual(form.initial["received_amount"], payment.expected_amount)
+        self.assertIsNone(form.initial["received_amount"])
 
     def test_installment_delivery_only_requires_non_financed_balance(self):
         order, _vehicle = self.make_order()

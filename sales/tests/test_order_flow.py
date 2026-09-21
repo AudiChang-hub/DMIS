@@ -3073,8 +3073,8 @@ class OrderFlowTests(TestCase):
         self.assertContains(detail, "可與配車同時進行")
         self.assertContains(detail, "舊車主身分證正面")
         self.assertContains(detail, "2／8 已備妥")
-        self.assertContains(detail, "新車主存摺封面")
-        self.assertNotContains(detail, "舊車主存摺封面")
+        self.assertContains(detail, "舊車主存摺封面")
+        self.assertNotContains(detail, "新車主存摺封面")
 
         response = self.client.post(
             reverse("subsidy_document_upload", args=[order.pk]),
@@ -3417,13 +3417,13 @@ class OrderFlowTests(TestCase):
 
         self.assertIn("新舊車主不同人聲明書", missing)
         self.assertIn("舊車主身分證字號", missing)
-        self.assertIn("新車主存摺封面", missing)
+        self.assertNotIn("新車主存摺封面", missing)
         self.assertIn("舊車主存摺封面", missing)
-        self.assertEqual(order.subsidy_required_count, 12)
+        self.assertEqual(order.subsidy_required_count, 11)
 
         self.client.force_login(self.user)
         detail = self.client.get(reverse("order_detail", args=[order.pk]))
-        self.assertContains(detail, "新車主存摺封面")
+        self.assertNotContains(detail, "新車主存摺封面")
         self.assertContains(detail, "舊車主存摺封面")
         self.assertContains(detail, "舊車主身分證字號")
 
@@ -4335,7 +4335,7 @@ class OrderFlowTests(TestCase):
         self.assertNotIn("現場應收", extracted)
         self.assertNotIn("分期總額", extracted)
         self.assertNotIn("收款說明", extracted)
-        self.assertIn("領牌＋強制險，依單據收款", extracted)
+        self.assertNotIn("領牌＋強制險，依單據收款", extracted)
         self.assertIn("稅金", extracted)
         self.assertIn("測試廠牌 通勤 125／白", extracted)
 
@@ -4368,9 +4368,9 @@ class OrderFlowTests(TestCase):
         self.assertIn("分期總額", extracted)
         self.assertIn("應收", extracted)
         self.assertNotIn("收款說明", extracted)
-        self.assertIn("領牌＋強制險，依單據收款", extracted)
+        self.assertNotIn("領牌＋強制險，依單據收款", extracted)
         self.assertIn("選號費", extracted)
-        self.assertIn("須以現金或匯款支付", extracted)
+        self.assertNotIn("須以現金或匯款支付", extracted)
         self.assertLess(extracted.index("手機架"), extracted.index("分期開辦費"))
         self.assertLess(extracted.index("代辦費"), extracted.index("分期開辦費"))
 
@@ -5793,14 +5793,14 @@ class OrderOperationsTests(TestCase):
             f"{self.model.model_year or '年份待補'}",
         )
 
-    def test_payment_page_starts_with_one_manual_row_and_collapses_system_items(self):
+    def test_payment_page_starts_with_one_manual_row_and_expanded_system_items(self):
         response = self.client.get(
             reverse("order_operations", args=[self.order.pk])
         )
         html = response.content.decode()
 
-        self.assertContains(response, "系統應收摘要")
-        self.assertContains(response, "需要確認收款時再展開")
+        self.assertContains(response, "訂金、客戶收款與分期撥款")
+        self.assertContains(response, 'class="system-payment-records" open')
         # 一筆預設人工列，加上一筆供動態新增使用的 template。
         self.assertEqual(
             html.count(

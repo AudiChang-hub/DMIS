@@ -102,6 +102,18 @@ class PptRefinementTests(TestCase):
         self.assertEqual(self.order.operations.vehicle_cost, 55000)
         self.assertTrue(self.order.operations.vehicle_cost_manual)
 
+    def test_receipt_proof_has_authorized_preview_link(self):
+        payment = self.order.payment_records.get(system_key='balance')
+        payment.proof = picture('receipt.png')
+        payment.save()
+        response = self.client.get(reverse('order_detail', args=[self.order.pk]))
+        url = reverse('protected_media', args=['payment', payment.pk, 'proof'])
+        self.assertContains(response, url)
+        self.assertContains(response, 'data-preview-name="' + payment.proof.name + '"')
+        download = self.client.get(url)
+        self.assertEqual(download.status_code, 200)
+        download.close()
+
     def test_new_installment_receivable_and_manual_override(self):
         self.order.cash_receivable_v2 = True
         self.order.payment_type = "installment"

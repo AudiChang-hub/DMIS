@@ -6430,7 +6430,7 @@ def delivery_complete(request, pk):
 @transaction.atomic
 def delivery_payment_update(request, pk):
     order = get_object_or_404(SalesOrder.objects.select_for_update(), pk=pk)
-    detail_url = f"{reverse('order_detail', args=[pk])}?tab=delivery#delivery-payment"
+    detail_url = f"{reverse('order_detail', args=[pk])}?tab=finance"
     if request.method != "POST":
         return redirect(detail_url)
     if order.status in {

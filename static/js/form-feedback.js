@@ -3,10 +3,11 @@
   const pendingInvalidForms = new WeakSet();
 
   function fieldLabel(input) {
+    const scope = input.form || document;
     const explicit = input.id
-      ? document.querySelector(`label[for="${CSS.escape(input.id)}"]`)
+      ? scope.querySelector(`label[for="${CSS.escape(input.id)}"]`)
       : null;
-    return (explicit?.textContent || input.closest(".field")?.querySelector("label")?.textContent || input.name || "必填資料")
+    return (explicit?.textContent || input.closest("label")?.textContent || input.closest(".field")?.querySelector("label")?.textContent || input.name || "必填資料")
       .replace("必填", "")
       .trim();
   }
@@ -122,9 +123,10 @@
   function connectDescriptions() {
     document.querySelectorAll(controlsSelector).forEach((control) => {
       if (!control.id) return;
+      const scope = control.form || document;
       const ids = new Set((control.getAttribute("aria-describedby") || "").split(/\s+/).filter(Boolean));
-      if (document.getElementById(`${control.id}_help`)) ids.add(`${control.id}_help`);
-      if (document.getElementById(`${control.id}_errors`)) {
+      if (scope.querySelector(`#${CSS.escape(control.id)}_help`)) ids.add(`${control.id}_help`);
+      if (scope.querySelector(`#${CSS.escape(control.id)}_errors`)) {
         ids.add(`${control.id}_errors`);
         control.setAttribute("aria-invalid", "true");
       }

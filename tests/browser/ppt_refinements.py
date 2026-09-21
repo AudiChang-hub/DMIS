@@ -67,6 +67,10 @@ class PptBrowserTests(StaticLiveServerTestCase):
                     finance.locator('button[type="submit"]').click()
                 self.assertTrue(saved.value.json()['ok'], saved.value.json())
                 expect(field).to_have_value('1234.0000')
+                page.evaluate("document.documentElement.dataset.theme = 'night-blue'")
+                section = finance.locator('.operation-section').first
+                self.assertEqual(section.evaluate('(node) => getComputedStyle(node).color'), 'rgb(232, 238, 240)')
+                page.screenshot(path=str(screenshots / 'finance-night-390.png'))
                 page.on('dialog', lambda dialog: dialog.accept())
                 page = context.new_page()
                 page.on('pageerror', lambda error: errors.append(str(error)))

@@ -5306,6 +5306,15 @@ def _operations_snapshot(profile):
             continue
         value = getattr(profile, field.name)
         values[field.name] = "" if value is None else str(value)
+    values["payment_records"] = [
+        {name: "" if value is None else str(value) for name, value in row.items()}
+        for row in profile.order.payment_records.order_by("pk").values(
+            "pk", "item_name", "expected_amount", "expected_amount_override_reason",
+            "received_amount", "received_on", "confirmed", "confirmed_by", "confirmed_at",
+            "payment_method", "receiving_account", "card_principal", "card_fee_charged",
+            "bank_card_fee", "note", "proof",
+        )
+    ]
     return values
 
 
@@ -5391,6 +5400,10 @@ def order_operations(request, pk):
                             "confirmed_at", "confirmed_by", "updated_at"
                         ]
                     )
+                elif not payment.confirmed and (payment.confirmed_at or payment.confirmed_by):
+                    payment.confirmed_at = None
+                    payment.confirmed_by = ""
+                    payment.save(update_fields=["confirmed_at", "confirmed_by", "updated_at"])
             from .services.operations_sync import sync_payment_financials
             adopted = next((payment for payment in payments if payment.confirmed and (
                 payment.system_key == "installment_disbursement" or

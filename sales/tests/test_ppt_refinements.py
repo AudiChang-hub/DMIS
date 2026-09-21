@@ -161,6 +161,9 @@ class PptRefinementTests(TestCase):
         self.assertEqual(self.order.actual_balance, 69000)
         self.assertEqual(deposit.received_amount, 0)
         self.assertEqual(self.order.payment_records.get(system_key='balance').expected_amount, 69000)
+        from sales.models import OrderChange
+        audit = OrderChange.objects.filter(order=self.order).latest('pk')
+        self.assertIn('payment_records', audit.changes)
 
     def test_finance_cannot_delete_system_payment(self):
         data = self.operations_data()

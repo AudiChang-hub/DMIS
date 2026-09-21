@@ -13,7 +13,7 @@
   </div>
 </section>
 
-{% if source and source_context_kind == 'dealer' and can_manage_screen_access %}<nav class="hero-actions" aria-label="車行管理分頁"><a class="button primary" aria-current="page" href="{% url 'sales_source_edit' source.pk %}">基本資料</a><a class="button" href="{% url 'dealer_accounts' source.pk %}">登入帳號</a></nav>{% endif %}
+{% if source and source_context_kind == 'dealer' and can_manage_screen_access %}<nav class="hero-actions" aria-label="車行管理分頁"><a class="button primary" aria-current="page" href="{% url 'sales_source_edit' source.pk %}">基本資料</a><a class="button" href="{% url 'dealer_accounts' source.pk %}">登入帳號</a><a class="button" href="{% url 'dealer_print_company' source.pk %}">訂購單公司資訊</a></nav>{% endif %}
 <form method="post" class="stacked-form" id="source-form">
   {% csrf_token %}
   {% if source_context_kind == 'store' %}

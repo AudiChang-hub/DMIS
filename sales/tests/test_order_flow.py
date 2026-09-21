@@ -118,6 +118,7 @@ class OrderFlowTests(TestCase):
         )
 
     def make_order(self, signed=False):
+        from sales.services.print_company import initialize_company
         order = SalesOrder(
             owner_name="王小明",
             owner_phone="0912345678",
@@ -131,6 +132,7 @@ class OrderFlowTests(TestCase):
             id_verified=True,
             status=SalesOrder.Status.ALLOCATION_PENDING,
         )
+        initialize_company(order, self.user)
         if signed:
             order.signed_contract = SimpleUploadedFile(
                 "signed.pdf", b"signed contract", content_type="application/pdf"
@@ -4953,6 +4955,9 @@ class OrderOperationsTests(TestCase):
             id_verified=True,
             status=SalesOrder.Status.ALLOCATION_PENDING,
         )
+        from sales.services.print_company import initialize_company
+        initialize_company(self.order, self.user)
+        self.order.save(update_fields=["print_company", "print_company_snapshot"])
         self.client.force_login(self.user)
 
     def test_financial_totals_include_all_income_and_expense_fields(self):

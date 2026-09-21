@@ -4709,6 +4709,8 @@ def order_create(request, reception=False):
             order.cash_receivable_v2 = True
             order.submission_key = submission_key
             order.submitted_by = request.user
+            from sales.services.print_company import initialize_company
+            initialize_company(order, request.user)
             order.save()
             apply_order_price_snapshot(order)
             apply_order_installment_snapshot(order)
@@ -5896,7 +5898,11 @@ def contract_print(request, pk):
         ).prefetch_related("accessories", "other_fees"),
         pk=pk,
     )
-    pdf = build_order_contract_pdf(order)
+    try:
+        pdf = build_order_contract_pdf(order)
+    except ValidationError:
+        from sales.print_company_views import print_company_missing
+        return _protect_private_response(print_company_missing(request, order))
     response = FileResponse(
         BytesIO(pdf),
         content_type="application/pdf",
@@ -5912,7 +5918,11 @@ def contract_print(request, pk):
 @login_required
 def privacy_consent_print(request, pk):
     order = get_object_or_404(SalesOrder, pk=pk)
-    pdf = build_privacy_consent_pdf(order)
+    try:
+        pdf = build_privacy_consent_pdf(order)
+    except ValidationError:
+        from sales.print_company_views import print_company_missing
+        return _protect_private_response(print_company_missing(request, order))
     response = FileResponse(
         BytesIO(pdf),
         content_type="application/pdf",
@@ -5934,7 +5944,14 @@ def order_documents_print(request, pk):
         ).prefetch_related("accessories", "other_fees"),
         pk=pk,
     )
+    from sales.services.print_company import validate_header
+    try:
+        validate_header(order.print_company_snapshot)
+    except ValidationError:
+        from sales.print_company_views import print_company_missing
+        return _protect_private_response(print_company_missing(request, order))
     writer = PdfWriter()
+    writer.add_metadata({"/Author": order.print_company_snapshot["legal_name"], "/Title": f"{order.number} 簽署文件"})
     for content in (
         build_order_contract_pdf(order),
         build_privacy_consent_pdf(order),

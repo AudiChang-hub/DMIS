@@ -1,4 +1,4 @@
-{% extends "base.html" %}{% load site_copy %}
+{% extends "base.html" %}{% load site_copy screen_access %}
 {% block title %}訂單已成立｜馭盛{% endblock %}
 {% block content %}
 {% site_navigation %}
@@ -8,6 +8,7 @@
   <dl><dt>訂購車款</dt><dd>{{ order.vehicle_model }}</dd><dt>顏色</dt><dd>{{ order.color.name }}</dd>
   <dt>目前狀態</dt><dd>{{ order.get_status_display }}</dd></dl>
   {% if order.accepted_at %}<p>{% site_text 'order_submitted.f3e4dbab124d' %}</p>{% else %}<p>{% site_text 'order_submitted.47c0a43d4711' %}</p>{% endif %}
-  <div class="hero-actions"><a class="button primary" href="{{ order_entry_url }}">再建立一筆</a><a class="button" href="{% url 'dashboard' %}">回首頁</a></div>
+  <p>開單公司：{{ order.print_company_snapshot.legal_name|default:"待 admin 確認" }}</p>
+  <div class="hero-actions">{% if_access 'contract_print' order.pk %}<a class="button" target="_blank" rel="noopener" href="{% url 'contract_print' order.pk %}">列印本筆訂購單</a>{% endif_access %}<a class="button primary" href="{{ order_entry_url }}">再建立一筆</a><a class="button" href="{% url 'dashboard' %}">回首頁</a></div>
 </section>
 {% endblock %}

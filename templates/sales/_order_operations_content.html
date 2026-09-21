@@ -78,7 +78,7 @@
         {% include "sales/_field.html" with field=payment.receiving_account %}
         {% include "sales/_field.html" with field=payment.confirmed %}
         {% include "sales/_field.html" with field=payment.proof %}
-        {% if payment.instance.proof %}<a href="{% url 'protected_media' payment.instance.proof.name %}" data-preview-name="{{ payment.instance.proof.name }}">查看收款附件</a>{% endif %}
+        {% if payment.instance.proof %}<a href="{% url 'protected_media' 'payment' payment.instance.pk 'proof' %}" data-preview-name="{{ payment.instance.proof.name }}">查看收款附件</a>{% endif %}
         {% include "sales/_field.html" with field=payment.note %}
         <span hidden>{{ payment.DELETE }}</span>
         <small class="muted">系統同步項目</small>
@@ -103,7 +103,7 @@
         {% include "sales/_field.html" with field=payment.receiving_account %}
         {% include "sales/_field.html" with field=payment.confirmed %}
         {% include "sales/_field.html" with field=payment.proof %}
-        {% if payment.instance.proof %}<a href="{% url 'protected_media' payment.instance.proof.name %}" data-preview-name="{{ payment.instance.proof.name }}">查看收款附件</a>{% endif %}
+        {% if payment.instance.proof %}<a href="{% url 'protected_media' 'payment' payment.instance.pk 'proof' %}" data-preview-name="{{ payment.instance.proof.name }}">查看收款附件</a>{% endif %}
         {% include "sales/_field.html" with field=payment.note %}
         <span hidden>{{ payment.DELETE }}</span>
         <button type="button" class="button danger-outline small" data-delete-payment>刪除此筆收款</button>

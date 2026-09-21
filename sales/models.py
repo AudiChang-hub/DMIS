@@ -3244,7 +3244,6 @@ class SalesOrder(TimeStampedModel):
         }
         if not self.old_owner_same_as_owner:
             required.add(SubsidyDocument.DocumentType.OWNER_DECLARATION)
-            required.add(SubsidyDocument.DocumentType.OLD_OWNER_BANKBOOK)
         return required
 
     def required_subsidy_document_types(self):
@@ -3401,7 +3400,7 @@ class SalesOrder(TimeStampedModel):
                 shortage = max(required_balance - received, Decimal("0"))
                 raise ValidationError(
                     f"尾款尚未收清，仍差 {shortage:,.0f} 元；"
-                    "請先在交付頁保存並確認收款。"
+                    "請先在金額收支資訊保存並確認收款。"
                 )
 
         vehicle = VehicleInventory.objects.select_for_update().get(

@@ -79,7 +79,7 @@ DEALER_ROUTES = {
     "login", "logout", "access_home",
 }
 DEALER_ACCOUNT_ROUTES = {"login", "logout", "password_change_required", "password_change"}
-DEALER_ACCOUNT_ROUTES.update({"announcement_detail", "announcement_image", "release_history"})
+DEALER_ACCOUNT_ROUTES.update({"announcement_detail", "announcement_image", "announcement_attachment", "release_history"})
 DEALER_ROUTES.update({"catalog", "catalog_detail", "catalog_image", "catalog_color_image"})
 DEALER_ROUTES.update({"order_start", "intake_draft_save", "order_submitted", "intake_installment_options", "intake_price_options"})
 DEALER_SUBMIT_ROUTES = {"order_create", "draft_save", "draft_presence", "draft_delete", "id_card_ocr", "id_card_ocr_status", "id_card_ocr_invalidate"}
@@ -117,6 +117,8 @@ def prepare_intake_uploads(uploads, *, order=None, draft=None, remove_ids=()):
             seen.add((kind, digest))
     if sum(kind == "installment" for kind, _ in seen) > 1 or sum(kind == "supplement" for kind, _ in seen) > 10:
         raise ValidationError("分期表限 1 個、補充附件最多 10 個；請先勾選移除不需要的已存附件。")
+    if any(sum(kind == wanted for kind, _ in seen) > 1 for wanted in ("owner_bankbook", "old_id_front", "old_id_back", "old_bankbook")):
+        raise ValidationError("同類證件或存摺限一份，請先移除要替換的已存附件。")
     return prepared
 
 

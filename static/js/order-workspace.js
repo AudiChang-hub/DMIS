@@ -12,6 +12,11 @@
   if (!root) return;
   const nav = root.querySelector('[data-workspace-tabs]');
   const tabs = [...nav.querySelectorAll('[data-workspace-tab]')];
+  // 編輯時配件金額仍屬於同一訂單表單，只把顯示區移到收支頁籤。
+  root.querySelectorAll('form[data-workspace-save="order"] .accessory-section').forEach(section => {
+    section.dataset.workspaceSection = 'finance';
+    section.closest('form').append(section);
+  });
   const sections = [...root.querySelectorAll('[data-workspace-section]')];
   const forms = [...root.querySelectorAll('form[data-workspace-save]')];
   const bases = new Map();
@@ -89,8 +94,28 @@
     else field.value = remote == null ? '' : String(remote);
   }
   function merge(payload, savedForm) {
+    if (payload.discount) {
+      root.querySelectorAll('[data-discount-summary]').forEach(node => { node.textContent = Number(payload.discount[node.dataset.discountSummary]).toLocaleString('zh-TW'); });
+      root.querySelectorAll('[data-discount-total]').forEach(node => { node.dataset.discountTotal = payload.discount.before; });
+    }
+    if (typeof payload.delivery_ready === 'boolean') {
+      root.querySelectorAll('.delivery-completion-actions button[type="submit"]').forEach(button => {
+        button.disabled = !payload.delivery_ready; button.setAttribute('aria-disabled', String(!payload.delivery_ready));
+        button.textContent = payload.delivery_ready ? '確認完成交付' : '請先確認尾款收清';
+        if (payload.delivery_ready) { button.removeAttribute('title'); button.dataset.confirm = '確認完成交付嗎？'; }
+      });
+    }
     forms.forEach(form => {
       const updates = payload.sync?.[form.dataset.workspaceSave] || {};
+      if (form.dataset.workspaceSave === 'operations' && payload.payment_values) {
+        form.querySelectorAll('[data-payment-row]').forEach(row => {
+          const id = row.querySelector('[name$="-id"]');
+          const remote = id && payload.payment_values[id.value];
+          if (!remote) return;
+          const prefix = id.name.slice(0, -2);
+          Object.entries(remote).forEach(([name, value]) => { updates[prefix + name] = value; });
+        });
+      }
       const base = bases.get(form);
       let conflict = false;
       for (const [name, remote] of Object.entries(updates)) {

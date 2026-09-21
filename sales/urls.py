@@ -13,6 +13,7 @@ from .access import views as access_views
 
 
 urlpatterns = [
+    path("announcements/attachments/<int:pk>/", announcement_views.attachment_file, name="announcement_attachment"),
     path("announcements/images/<int:pk>/", announcement_views.image_file, name="announcement_image"),
     path("system/text/", site_copy_views.manage, name="site_copy_manage"),
     path("data/gift-distribution/", gift_views.manage, name="gift_distribution"),

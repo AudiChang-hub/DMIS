@@ -1,3 +1,23 @@
+document.querySelectorAll('[data-announcement-edit]').forEach(button => {
+  const article = button.closest('article');
+  const toggle = editing => {
+    article.querySelector('[data-announcement-reading]').hidden = editing;
+    article.querySelector('[data-announcement-editor]').hidden = !editing;
+    if (editing) article.querySelector('[name="title"]').focus();
+  };
+  button.addEventListener('click', () => toggle(true));
+  article.querySelector('[data-announcement-cancel]').addEventListener('click', () => toggle(false));
+});
+document.querySelectorAll('[data-announcement-image-list]').forEach(list => {
+  list.addEventListener('click', event => {
+    const button = event.target.closest('[data-image-move]');
+    if (!button) return;
+    const row = button.closest('[data-announcement-image]');
+    if (button.dataset.imageMove === 'up' && row.previousElementSibling) list.insertBefore(row, row.previousElementSibling);
+    if (button.dataset.imageMove === 'down' && row.nextElementSibling) list.insertBefore(row.nextElementSibling, row);
+    list.closest('form').querySelector('[name="image_order"]').value = [...list.children].map(item => item.dataset.announcementImage).join(',');
+  });
+});
 document.querySelectorAll('[data-announcement-upload]').forEach(input => {
   const form = input.closest('form');
   const container = form.querySelector('[data-announcement-previews]');
@@ -20,6 +40,16 @@ document.querySelectorAll('[data-announcement-upload]').forEach(input => {
       image.alt = file.name; image.src = url; caption.textContent = file.name;
       image.onerror = () => { if (generation === current) { status.textContent = '有圖片無法讀取，請重新選擇。'; input.setCustomValidity(status.textContent); } };
       figure.append(image, caption); container.append(figure);
+      ['up', 'down'].forEach(direction => {
+        const button = document.createElement('button'); button.type = 'button'; button.className = 'button ghost small'; button.textContent = direction === 'up' ? '上移' : '下移';
+        figure.dataset.fileIndex = String(files.indexOf(file));
+        button.addEventListener('click', () => {
+          if (direction === 'up' && figure.previousElementSibling) container.insertBefore(figure, figure.previousElementSibling);
+          if (direction === 'down' && figure.nextElementSibling) container.insertBefore(figure.nextElementSibling, figure);
+          const transfer = new DataTransfer(); [...container.children].forEach(row => transfer.items.add(files[Number(row.dataset.fileIndex)])); input.files = transfer.files;
+        });
+        figure.append(button);
+      });
     });
   });
   window.addEventListener('pagehide', () => { ++generation; clear(); });

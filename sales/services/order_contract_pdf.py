@@ -383,8 +383,8 @@ def draw_order_page(c, order, copy_label, page_number, printed_at):
         )
     y = draw_table(
         c,
-        [price_header] + rows,
-        [18 * mm, 40 * mm, 56 * mm, 14 * mm, 29 * mm, 29 * mm],
+        [[cell for index, cell in enumerate(row) if index != 2] for row in [price_header] + rows],
+        [18 * mm, 96 * mm, 14 * mm, 29 * mm, 29 * mm],
         y,
         row_heights=[7 * mm] + [7 * mm] * len(rows),
         styles=[
@@ -439,7 +439,7 @@ def draw_order_page(c, order, copy_label, page_number, printed_at):
         payment_first_row.extend(
             [
                 p("<b>分期總額</b>"),
-                p(f"${money(order.installment_amount or order.vehicle_price)}"),
+                p(f"${money(order.installment_amount)}"),
                 p("<b>應收</b>"),
                 p(f"${money(order.actual_balance + order.deposit_amount)}"),
             ]
@@ -465,7 +465,7 @@ def draw_order_page(c, order, copy_label, page_number, printed_at):
         ],
         [
             p("<b>預估尾款</b>"),
-            p(f"${money(order.actual_balance)}"),
+            p(f"${money(order.actual_balance + order.deposit_amount - order.installment_amount)}" if is_installment else f"${money(order.actual_balance)}"),
             "",
             "",
             "",

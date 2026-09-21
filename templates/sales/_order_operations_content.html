@@ -33,15 +33,14 @@
 
 <section class="section-block internal-discount-panel">
   <div class="section-title"><div><h2>內部折扣核准</h2><small>{% site_text 'order_operations.fb6f0cbe2651' %}</small></div><span class="status-pill">{{ order.get_discount_status_display|default:"未申請" }}</span></div>
-  <div class="discount-summary"><span>折扣前總價</span><strong>${{ order.pre_discount_total|floatformat:0 }}</strong><span>目前已套用折扣</span><strong>${{ order.approved_discount_amount|floatformat:0 }}</strong><span>折扣後總價</span><strong>${{ order.discounted_total|floatformat:0 }}</strong>{% if order.discount_requested_at %}<small>最近申請：{{ order.discount_requested_amount|floatformat:0 }} 元 · {{ order.discount_requested_by }} · {{ order.discount_requested_at|date:"Y/m/d H:i" }}</small>{% endif %}</div>
+  <div class="discount-summary"><span>折扣前總價</span><strong>$<output data-discount-summary="before">{{ order.pre_discount_total|floatformat:0 }}</output></strong><span>目前已套用折扣</span><strong>$<output data-discount-summary="amount">{{ order.approved_discount_amount|floatformat:0 }}</output></strong><span>折扣後總價</span><strong>$<output data-discount-summary="after">{{ order.discounted_total|floatformat:0 }}</output></strong>{% if order.discount_requested_at %}<small>最近申請：{{ order.discount_requested_amount|floatformat:0 }} 元 · {{ order.discount_requested_by }} · {{ order.discount_requested_at|date:"Y/m/d H:i" }}</small>{% endif %}</div>
   <p class="muted">可自行輸入折數或總價減少金額；核准後取代原優惠，不重複累加。分期公司撥款、佣金與成本不變；訂金與舊車折抵於折扣後另扣。</p>
-  {% if order.is_editable %}
-    {% if order.discount_status == "pending" %}
-    <div class="discount-decision-grid"><div><strong>申請原因</strong><p>{{ order.discount_reason }}</p></div><form method="post" action="{% url 'order_discount_decide' order.pk %}">{% csrf_token %}{{ discount_decision_form.as_p }}<button class="button primary" type="submit">確認處理</button></form></div>
-    {% else %}
-    <form class="form-grid compact-grid" data-discount-total="{{ order.pre_discount_total|stringformat:'f' }}" method="post" action="{% url 'order_discount_request' order.pk %}">{% csrf_token %}{% for field in discount_request_form %}<div data-discount-field><label for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}{% for error in field.errors %}<small class="field-error">{{ error }}</small>{% endfor %}</div>{% endfor %}<output data-discount-preview aria-live="polite"></output><div><button class="button secondary" type="submit">送出折扣申請</button></div></form>
-    {% endif %}
-  {% endif %}
+  {% if order.is_editable and workspace_discount_editable %}
+    <form class="form-grid compact-grid" data-workspace-save="discount" data-discount-total="{{ order.pre_discount_total|stringformat:'f' }}" method="post" action="{% url 'order_discount_request' order.pk %}">{% csrf_token %}<input type="hidden" name="_order_revision" value="{{ order.revision }}">
+      {% for field in discount_request_form %}<div data-discount-field><label for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}{{ field.errors }}</div>{% endfor %}
+      <output data-discount-preview aria-live="polite"></output><button class="button primary" type="submit">儲存並套用折扣</button>
+    </form>
+  {% else %}<p class="muted">由具財務編輯及折扣核定權限的人員調整。</p>{% endif %}
 </section>
 
 </div>
@@ -55,34 +54,21 @@
       {% include "sales/_field.html" with field=form.dealer_name %}
       {% include "sales/_field.html" with field=form.actual_disbursement %}
       {% include "sales/_field.html" with field=form.payment_confirmed %}
-      {% include "sales/_field.html" with field=form.installment_transfer_confirmed %}
+
       {% include "sales/_field.html" with field=form.invoice_date %}
       {% include "sales/_field.html" with field=form.balance_invoice_number %}
       {% include "sales/_field.html" with field=form.installment_info %}
     </div>
-    <div class="note-box">
-      <strong>實際撥款計算</strong>
-      <p>{% site_text 'order_operations.c3a138109390' %}</p>
-      <p>{% site_text 'order_operations.787a0ef7d8ff' %}</p>
-      {% if order.payment_type == "installment" %}
-        {% if order.installment_plan_snapshot.extra_disbursement_bonus %}
-        <p><strong>額外撥款獎金：</strong>${{ order.installment_plan_snapshot.extra_disbursement_bonus|floatformat:0 }}（已包含在預估撥款與實際撥款試算，不會另外重複計入單筆淨利）</p>
-        {% endif %}
-        {% if order.installment_plan_snapshot.expected_disbursement_amount != None %}
-        <p><strong>本單預估撥款：</strong>${{ order.installment_plan_snapshot.expected_disbursement_amount|floatformat:0 }} · {{ order.installment_periods }} 期 · {{ order.installment_plan_snapshot.expected_disbursement_method_label }}</p>
-        {% else %}
-        <p class="field-error">{% site_text 'order_operations.c74319d1693b' %}</p>
-        {% endif %}
-      {% endif %}
-    </div>
-    <details class="system-payment-records">
-      <summary><strong>系統應收摘要</strong><span>訂金、尾款與分期撥款；需要確認收款時再展開</span></summary>
+    <p class="muted">客戶款項與分期公司撥款分開記錄。新訂單實收不預填；應收可調整，但需填寫原因。分期外應收為牌險與配件，扣除已列訂金。</p>
+    <details class="system-payment-records" open>
+      <summary><strong>訂金、客戶收款與分期撥款</strong><span>每筆款項在此登記，不需再到交付頁重複填寫</span></summary>
       {% for payment in payment_formset %}
       {% if payment.instance.system_key %}
       <div class="payment-record-row" data-payment-row>
         {{ payment.id }}
         {% include "sales/_field.html" with field=payment.item_name %}
         {% include "sales/_field.html" with field=payment.expected_amount %}
+        {% include "sales/_field.html" with field=payment.expected_amount_override_reason %}
         {% include "sales/_field.html" with field=payment.received_amount %}
         {% include "sales/_field.html" with field=payment.card_principal %}
         {% include "sales/_field.html" with field=payment.card_fee_charged %}
@@ -92,6 +78,7 @@
         {% include "sales/_field.html" with field=payment.receiving_account %}
         {% include "sales/_field.html" with field=payment.confirmed %}
         {% include "sales/_field.html" with field=payment.proof %}
+        {% if payment.instance.proof %}<a href="{% url 'protected_media' payment.instance.proof.name %}" data-preview-name="{{ payment.instance.proof.name }}">查看收款附件</a>{% endif %}
         {% include "sales/_field.html" with field=payment.note %}
         <span hidden>{{ payment.DELETE }}</span>
         <small class="muted">系統同步項目</small>
@@ -106,6 +93,7 @@
         {{ payment.id }}
         {% include "sales/_field.html" with field=payment.item_name %}
         {% include "sales/_field.html" with field=payment.expected_amount %}
+        {% include "sales/_field.html" with field=payment.expected_amount_override_reason %}
         {% include "sales/_field.html" with field=payment.received_amount %}
         {% include "sales/_field.html" with field=payment.card_principal %}
         {% include "sales/_field.html" with field=payment.card_fee_charged %}
@@ -115,6 +103,7 @@
         {% include "sales/_field.html" with field=payment.receiving_account %}
         {% include "sales/_field.html" with field=payment.confirmed %}
         {% include "sales/_field.html" with field=payment.proof %}
+        {% if payment.instance.proof %}<a href="{% url 'protected_media' payment.instance.proof.name %}" data-preview-name="{{ payment.instance.proof.name }}">查看收款附件</a>{% endif %}
         {% include "sales/_field.html" with field=payment.note %}
         <span hidden>{{ payment.DELETE }}</span>
         <button type="button" class="button danger-outline small" data-delete-payment>刪除此筆收款</button>
@@ -126,6 +115,7 @@
       {{ payment_formset.empty_form.id }}
       {% include "sales/_field.html" with field=payment_formset.empty_form.item_name %}
       {% include "sales/_field.html" with field=payment_formset.empty_form.expected_amount %}
+      {% include "sales/_field.html" with field=payment_formset.empty_form.expected_amount_override_reason %}
       {% include "sales/_field.html" with field=payment_formset.empty_form.received_amount %}
       {% include "sales/_field.html" with field=payment_formset.empty_form.card_principal %}
       {% include "sales/_field.html" with field=payment_formset.empty_form.card_fee_charged %}

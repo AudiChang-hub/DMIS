@@ -1,9 +1,10 @@
-{% extends "base.html" %}{% load site_copy %}
+{% extends "base.html" %}{% load site_copy screen_access %}
 {% block title %}{{ order.number }}｜訂單進度{% endblock %}
 {% block content %}
 {% site_navigation %}
 <a class="button ghost" href="{% url 'order_list' %}">返回訂單</a><section class="hero-row"><div><h1>{{ order.owner_name }}</h1><p>{{ order.number }} · {{ order.established_display }}</p></div><span class="status-pill status-{{ order.display_status_code }}">{{ order.display_status }}</span></section>
 {% include "sales/_order_acceptance.html" %}
+<section class="card"><h2>訂購文件</h2><p>開單公司：{{ order.print_company_snapshot.legal_name|default:"待 admin 確認" }}</p><p>文件使用本單保留的公司資料，不因列印者而改變。</p>{% if_access 'contract_print' order.pk %}<a class="button" target="_blank" rel="noopener" href="{% url 'contract_print' order.pk %}">列印訂購單</a>{% endif_access %} {% if_access 'order_documents_print' order.pk %}<a class="button" target="_blank" rel="noopener" href="{% url 'order_documents_print' order.pk %}">列印簽署文件</a>{% endif_access %}</section>
 <section class="card"><h2>下訂資料</h2><p>{{ order.vehicle_model }}／{{ order.color.name }}</p><p>車行：{{ order.source }} · 電話：{{ order.owner_phone }}</p><p>車價：$ {{ order.vehicle_price|floatformat:0 }} · 付款方式：{{ order.get_payment_type_display }}{% if order.installment_periods %}／{{ order.installment_company }} {{ order.installment_periods }} 期 · 每期 $ {{ order.installment_monthly|floatformat:0 }} · 開辦費 $ {{ order.installment_opening_fee|floatformat:0 }}{% endif %}</p><p>汰舊：{{ order.get_trade_in_intent_display }}</p><p>{{ order.note|linebreaksbr }}</p><p>{% site_text 'dealer_order_detail.cdec17ff2b44' %}</p></section>
 {% include "sales/_intake_attachments.html" with intake_attachments=order.intake_attachments.all %}
 {% endblock %}

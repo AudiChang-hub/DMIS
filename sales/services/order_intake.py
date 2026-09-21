@@ -70,6 +70,7 @@ def receive_order(user, pk):
 
 
 DEALER_ROUTES = {
+    "contract_print", "privacy_consent_print", "order_documents_print",
     "dashboard", "home_favorites", "order_list", "order_detail", "order_create",
     "draft_save", "draft_presence", "draft_delete", "protected_media",
     "id_card_ocr", "id_card_ocr_status", "id_card_ocr_invalidate",
@@ -156,7 +157,7 @@ def guard_dealer_request(request, name, kwargs):
         return
     if not dealer_route_allowed(profile, name):
         raise PermissionDenied("此車行帳號無法使用這項功能。")
-    if name == "order_detail" and not scoped_orders(request.user).filter(pk=kwargs.get("pk")).exists():
+    if name in {"order_detail", "contract_print", "privacy_consent_print", "order_documents_print"} and not scoped_orders(request.user).filter(pk=kwargs.get("pk")).exists():
         raise Http404
     draft_id = request.POST.get("_draft_id") or request.GET.get("draft")
     if name in {"draft_presence", "draft_delete"}:

@@ -45,6 +45,9 @@ class OrderWorkspaceTests(TestCase):
             owner_type='company', owner_name='測試公司', owner_id_number='83739807', owner_phone='0912345678',
             owner_address='測試地址', vehicle_model=model, color=color, vehicle_price=70000,
             actual_balance=70000, calculated_balance=70000, payment_type='cash', delivery_method='store_pickup')
+        from sales.services.print_company import initialize_company
+        initialize_company(cls.order, cls.admin)
+        cls.order.save(update_fields=['print_company', 'print_company_snapshot'])
 
     def setUp(self):
         self.client.force_login(self.admin)

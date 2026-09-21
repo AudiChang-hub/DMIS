@@ -12,6 +12,7 @@ from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.pdfgen import canvas
 from reportlab.platypus import Paragraph
 from sales.services.site_copy import print_copy
+from sales.services.print_company import validate_header
 
 PAGE_W, PAGE_H = A4
 MARGIN_X = 20 * mm
@@ -92,7 +93,8 @@ def build_privacy_consent_pdf(order):
     output = BytesIO()
     c = canvas.Canvas(output, pagesize=A4)
     c.setTitle(f"{order.number} 個人資料使用同意書")
-    c.setAuthor("馭盛國際有限公司")
+    company = validate_header(order.print_company_snapshot)
+    c.setAuthor(company["legal_name"])
 
     y = PAGE_H - 20 * mm
     y = _draw_paragraph(c, "個 人 資 料 使 用 同 意 書", title_style, y, 18 * mm)
@@ -144,7 +146,7 @@ def build_privacy_consent_pdf(order):
     c.drawString(MARGIN_X, y, "台鈴工業股份有限公司")
     c.drawString(MARGIN_X + 80 * mm, y, "敬啟")
     y -= 8 * mm
-    c.drawString(MARGIN_X, y, "馭盛國際有限公司")
+    _draw_paragraph(c, escape(company["legal_name"]), body_style, y + 4 * mm, 0)
 
     signature_y = 53 * mm
     signature_x = PAGE_W - MARGIN_X - 90 * mm

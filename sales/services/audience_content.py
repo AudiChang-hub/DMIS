@@ -4,6 +4,7 @@ from config.release_notes import RELEASES, LEGACY_UPDATES
 # (版本, 更新分類) 的順序與已發布內容一一對照；不覆寫歷史發布文字。
 # 每個 tuple 內全部權限皆需成立；空 tuple 表示所有已登入人員。
 RELEASE_RULES = {
+    ("1.14.0", "新增"): [("root",), ("order_list",), ("root",)],
     ("1.13.0", "新增"): [("screen:order_finance", "internal")] * 3,
     ("1.12.2", "修正"): [("screen:order_finance", "internal")],
     ("1.12.1", "修正"): [("order_start",), ("order_start",), ("order_list", "internal"), ("screen:order_finance", "internal")],
@@ -78,6 +79,11 @@ def release_context(policy):
 
 # 給受限帳號的說明逐項拆開，避免共用長篇章節混入管理或財務內容。
 HELP_ITEMS = (
+    ("print-company-admin", "設定與確認開單公司", ("root",), (
+        "合作車行的訂購單公司資訊頁籤可設定全名、地址、電話及統編；列印範本設定也可進入公司管理，包含馭盛店內預設。",
+        "舊單不依目前帳號或佣金來源猜測公司。在訂單按開單公司，選擇實際銷售方、填原因並確認，才更新之後產生的文件；已簽附件與金額不變。")),
+    ("print-company", "列印正確的公司抬頭", ("order_list",), (
+        "新單依下單帳號所屬車行保留公司資料，admin 協助列印也不會變成馭盛。資料缺漏時請聯絡 admin；不影響原本下單流程。",)),
     ("announcement-inline", "在公告閱讀頁編輯圖文", ("root",), (
         "開啟公告後按時間旁的編輯，直接修改文字與圖片；儲存後回到同一則公告。刪除須確認，其他帳號看不到管理按鈕。",
         "圖片固定排在文字之前。使用上移／下移調整現有與新增圖片順序，再儲存；圖片及附件可下載，仍受公告顯示對象限制。")),

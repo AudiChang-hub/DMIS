@@ -258,6 +258,30 @@ class TaiwanCounty(models.TextChoices):
     LIENCHIANG = "連江縣", "連江縣"
 
 
+class PrintCompany(TimeStampedModel):
+    """開單公司；來源與佣金歸屬不代表文件上的銷售方。"""
+    key = models.CharField(max_length=64, unique=True)
+    source = models.OneToOneField("SalesSource", null=True, blank=True, on_delete=models.PROTECT, related_name="print_company")
+    legal_name = models.CharField("公司／商號全名", max_length=60)
+    tax_id = models.CharField("統一編號", max_length=8, validators=[RegexValidator(r"^[0-9]{8}$", "統一編號須為 8 碼數字。")])
+    address = models.CharField("列印地址", max_length=120)
+    phone = models.CharField("列印電話", max_length=40)
+    revision = models.PositiveIntegerField(default=0)
+
+    def __str__(self):
+        return self.legal_name or "尚未設定公司資料"
+
+
+class PrintCompanyChange(TimeStampedModel):
+    company = models.ForeignKey(PrintCompany, null=True, on_delete=models.PROTECT)
+    order = models.ForeignKey("SalesOrder", null=True, blank=True, on_delete=models.SET_NULL, related_name="print_company_changes")
+    order_number = models.CharField(max_length=24, blank=True)
+    actor = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
+    reason = models.TextField()
+    before = models.JSONField(default=dict)
+    after = models.JSONField(default=dict)
+
+
 class Store(TimeStampedModel):
     name = models.CharField("門市名稱", max_length=100, unique=True)
     code = models.CharField("門市代碼", max_length=20, unique=True)
@@ -2765,6 +2789,8 @@ class SalesOrder(TimeStampedModel):
     number = models.CharField("訂單編號", max_length=24, unique=True, editable=False)
     submission_key = models.UUIDField(null=True, blank=True, unique=True, editable=False)
     submitted_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, blank=True, related_name="submitted_orders", verbose_name="下單帳號")
+    print_company = models.ForeignKey(PrintCompany, on_delete=models.PROTECT, null=True, blank=True, verbose_name="開單公司")
+    print_company_snapshot = models.JSONField(default=dict, blank=True, verbose_name="訂購單公司資料留存")
     accepted_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, blank=True, related_name="accepted_orders", verbose_name="接單人")
     accepted_name = models.CharField("接單人名稱快照", max_length=160, blank=True)
     accepted_at = models.DateTimeField("接單時間", null=True, blank=True)

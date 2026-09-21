@@ -69,7 +69,7 @@ class PptRefinementTests(TestCase):
             response = self.client.get(reverse(route, args=[pk]) + query)
             self.assertEqual(response.status_code, 200)
             self.assertIn("attachment", response["Content-Disposition"])
-            response.close()
+            self.assertTrue(b"".join(response.streaming_content))
             self.client.force_login(self.staff)
             self.assertEqual(self.client.get(reverse(route, args=[pk]) + query).status_code, 404)
 
@@ -112,7 +112,7 @@ class PptRefinementTests(TestCase):
         self.assertContains(response, 'data-preview-name="' + payment.proof.name + '"')
         download = self.client.get(url)
         self.assertEqual(download.status_code, 200)
-        download.close()
+        self.assertTrue(b"".join(download.streaming_content))
 
     def test_new_installment_receivable_and_manual_override(self):
         self.order.cash_receivable_v2 = True
@@ -201,7 +201,7 @@ class PptRefinementTests(TestCase):
         response = self.client.get(reverse("order_intake_attachment", args=[attachment.pk]) + "?preview=1")
         self.assertEqual(response.status_code, 200)
         self.assertIn("inline", response["Content-Disposition"])
-        response.close()
+        self.assertTrue(b"".join(response.streaming_content))
 
     def test_print_uses_financed_principal_and_removes_description_column(self):
         from sales.services.order_contract_pdf import build_order_contract_pdf

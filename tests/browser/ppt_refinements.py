@@ -70,6 +70,7 @@ class PptBrowserTests(StaticLiveServerTestCase):
                 page.evaluate("document.documentElement.dataset.theme = 'night-blue'")
                 section = finance.locator('.operation-section').first
                 self.assertEqual(section.evaluate('(node) => getComputedStyle(node).color'), 'rgb(232, 238, 240)')
+                self.assertEqual(page.locator('.mobile-nav>a.active').evaluate('(node) => getComputedStyle(node).color'), 'rgb(232, 238, 240)')
                 page.screenshot(path=str(screenshots / 'finance-night-390.png'))
                 page.on('dialog', lambda dialog: dialog.accept())
                 page = context.new_page()

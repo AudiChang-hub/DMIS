@@ -74,6 +74,17 @@ class CustomerOrderAccessTests(TestCase):
         self.assertEqual(self.client.get(reverse('customer_list')).context['page_obj'].paginator.count, 1)
         self.assertEqual(self.client.get(reverse('order_list')).context['page_obj'].paginator.count, 1)
 
+    def test_lookup_keeps_format_error_and_rejects_foreign_order(self):
+        other = self.make_order(self.user)
+        self.client.force_login(self.staff)
+        response = self.client.get(reverse('installment_plan_options'), {'order_id': 'bad'})
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json()['error'], '訂單編號格式錯誤。')
+        for route in ('installment_plan_options', 'vehicle_price_options'):
+            self.assertEqual(self.client.get(reverse(route), {'order_id': other.pk}).status_code, 404)
+        UserAccessState.objects.create(user=self.staff, configured=True)
+        self.assertEqual(self.client.get(reverse('installment_plan_options'), {'order_id': 'bad'}).status_code, 403)
+
     def test_print_is_independent_from_query_and_cross_owner_is_denied(self):
         own, peer = self.make_order(self.user), self.make_order(self.peer)
         self.grant('order_documents', 'export')

@@ -92,6 +92,9 @@ def order_intake_attachment(request, pk):
     from pathlib import Path
     preview = request.GET.get("preview") == "1" and Path(attachment.name).suffix.lower() in {".jpg", ".jpeg", ".png", ".webp", ".pdf"}
     response = FileResponse(stream, as_attachment=not preview, filename=attachment.name)
+    if preview and response.get("Content-Type", "").split(";", 1)[0] == "application/pdf":
+        response["X-Frame-Options"] = "SAMEORIGIN"
+        response["Content-Security-Policy"] = "frame-ancestors 'self'"
     response["Cache-Control"] = "private, no-store"
     response["X-Content-Type-Options"] = "nosniff"
     return response

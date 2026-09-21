@@ -29,6 +29,7 @@ def finance_context(request, order):
     return {
         'workspace_finance': True,
         'workspace_finance_editable': can_edit_finance(request.user) and policy_for(request).route('order_operations', 'POST'),
+        'workspace_discount_editable': can_edit_finance(request.user) and policy_for(request).route('order_discount_decide', 'POST'),
         'profile': profile,
         'operations_form': operations_form,
         'payment_formset': PaymentRecordFormSet(instance=order, prefix='payments'),
@@ -37,6 +38,41 @@ def finance_context(request, order):
         'discount_request_form': DiscountRequestForm(initial={'amount': order.discount_requested_amount or None, 'reason': order.discount_reason}),
         'discount_decision_form': DiscountDecisionForm(initial={'decision': 'approve'}),
     }
+
+
+def apply_inline_discount(request, order, form):
+    """已授權人員在同頁直接核定，保留樂觀鎖與前後稽核。"""
+    from django.core.exceptions import PermissionDenied
+    from django.utils import timezone
+    from sales.models import OrderChange, OrderEvent
+    from sales.services.operations_sync import sync_order_operations
+    if not can_edit_finance(request.user) or not policy_for(request).route('order_discount_decide', 'POST'):
+        raise PermissionDenied
+    if str(order.revision) != request.POST.get('_order_revision'):
+        return save_error('訂單已更新，請重新載入再調整折扣。', status=409)
+    if not order.is_editable:
+        return save_error('此訂單狀態不可調整折扣。')
+    if not form.is_valid():
+        return save_error('折扣未儲存，請修正欄位。', forms=(form,))
+    before = order.approved_discount_amount
+    automatic = order.actual_balance in {order.calculated_balance, order.calculate_balance()}
+    order.approved_discount_amount = form.cleaned_data['amount']
+    order.discount_requested_amount = order.approved_discount_amount
+    order.discount_basis_total = order.pre_discount_total
+    order.discount_reason = form.cleaned_data['reason']
+    order.discount_status = SalesOrder.DiscountStatus.APPROVED
+    order.discount_requested_at = order.discount_decided_at = timezone.now()
+    order.discount_requested_by = order.discount_decided_by = request.user.get_username()
+    order.discount_decision_note = '金額收支頁直接核定'
+    order.calculated_balance = order.calculate_balance()
+    if automatic:
+        order.actual_balance = order.calculated_balance
+    order.save()
+    sync_order_operations(order.pk, update_receivables=True)
+    OrderChange.objects.create(order=order, actor_name=request.user.get_username(), reason=order.discount_reason,
+        changes={'approved_discount_amount': {'before': str(before), 'after': str(order.approved_discount_amount)}})
+    OrderEvent.objects.create(order=order, actor_name=request.user.get_username(), event_type='discount_decided', description='在金額收支頁核定折扣，未變更分期撥款、成本與佣金。')
+    return saved(request, order)
 
 
 def save_error(message, *, status=400, forms=()):
@@ -65,10 +101,18 @@ def saved(request, order, *, form=None, formsets=()):
         sync['order'] = field_values(OrderEditForm(instance=order))
     if profile:
         sync['operations'] = field_values(context['operations_form'])
+    payment_values = {}
+    if profile:
+        from sales.forms import PaymentRecordForm
+        for payment in order.payment_records.all():
+            payment_values[str(payment.pk)] = field_values(PaymentRecordForm(instance=payment))
     return JsonResponse({
         'ok': True, 'message': '已儲存，修改紀錄已保留。', 'revision': order.revision,
         'financial_revision': profile.updated_at.isoformat() if profile else None,
         'values': values,
         'sync': sync,
+        'payment_values': payment_values,
+        'discount': {'before': str(order.pre_discount_total), 'amount': str(order.approved_discount_amount), 'after': str(order.discounted_total)},
+        'delivery_ready': bool(order.source_type == SalesOrder.SourceType.DEALER or any(p.system_key == 'balance' and p.is_settled for p in order.payment_records.all())),
         'summary_html': render_to_string('sales/_workspace_finance_summary.html', {**context, 'order': order}, request=request) if profile else '',
     })

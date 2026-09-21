@@ -4694,6 +4694,7 @@ def order_create(request, reception=False):
                     order.id_back = draft.id_back.name
                     draft.id_back = ""
             order.status = SalesOrder.Status.INTAKE_PENDING
+            order.cash_receivable_v2 = True
             order.submission_key = submission_key
             order.submitted_by = request.user
             order.save()
@@ -5147,6 +5148,7 @@ def order_detail(request, pk, *, commission_form=None, workspace_context_only=Fa
         for document in order.subsidy_documents.all()
     }
     subsidy_required_types = order.required_subsidy_document_types()
+    subsidy_evidence = order.subsidy_intake_evidence()
     subsidy_required_types_when_enabled = (
         order.subsidy_document_types_when_enabled()
     )
@@ -5159,9 +5161,11 @@ def order_detail(request, pk, *, commission_form=None, workspace_context_only=Fa
                 document_type in subsidy_required_types_when_enabled
             ),
             "document": subsidy_documents.get(document_type),
+            "existing_evidence": subsidy_evidence.get(document_type),
         }
         for document_type, label in SubsidyDocument.DocumentType.choices
         if document_type != SubsidyDocument.DocumentType.OTHER
+        and (document_type != SubsidyDocument.DocumentType.NEW_OWNER_BANKBOOK or document_type in subsidy_documents)
         and (
             document_type
             not in {
@@ -5349,6 +5353,8 @@ def order_operations(request, pk):
                 if form.cleaned_data.get(field_name) != original_value
             )
             profile.manual_financial_fields = sorted(protected_fields)
+            if form.cleaned_data.get("vehicle_cost") != financial_before.get("vehicle_cost"):
+                profile.vehicle_cost_manual = True
             vehicle_secret = form.cleaned_data.get("vehicle_control_password")
             battery_secret = form.cleaned_data.get("battery_password")
             if vehicle_secret:
@@ -5360,6 +5366,15 @@ def order_operations(request, pk):
             profile.updated_by = _editing_name(request.user)
             profile.save()
             payments = payment_formset.save()
+            deposit = next((payment for payment in payments if payment.system_key == "deposit"), None)
+            if deposit and deposit.expected_amount != order.deposit_amount:
+                order.actual_balance += order.deposit_amount - deposit.expected_amount
+                order.deposit_amount = deposit.expected_amount
+                if deposit.received_on:
+                    order.deposit_date = deposit.received_on
+                order.calculated_balance = order.calculate_balance()
+                order.save(update_fields=["deposit_amount", "deposit_date", "actual_balance", "calculated_balance", "updated_at"])
+                sync_order_operations(order.pk, update_receivables=True)
             for previous_proof in previous_payment_proofs:
                 _schedule_model_file_cleanup(
                     PaymentRecord,
@@ -5377,7 +5392,11 @@ def order_operations(request, pk):
                         ]
                     )
             from .services.operations_sync import sync_payment_financials
-            sync_payment_financials(order.pk)
+            adopted = next((payment for payment in payments if payment.confirmed and (
+                payment.system_key == "installment_disbursement" or
+                (payment.system_key == "balance" and order.source_type == SalesOrder.SourceType.PLATFORM)
+            )), None)
+            sync_payment_financials(order.pk, adopt_payment_id=adopted.pk if adopted else None)
             profile.refresh_from_db()
             if form.cleaned_data.get("confirm_legacy_finance"):
                 profile.legacy_finance_reconciliation = {
@@ -5437,6 +5456,8 @@ def order_operations(request, pk):
 @transaction.atomic
 def order_discount_request(request, pk):
     order = get_object_or_404(SalesOrder.objects.select_for_update(), pk=pk)
+    if request.method == "POST" and order_workspace.is_workspace_save(request):
+        return order_workspace.apply_inline_discount(request, order, DiscountRequestForm(request.POST, total=order.pre_discount_total))
     if request.method != "POST" or not order.is_editable:
         messages.error(request, "已交付、完成或取消的訂單不可再申請折扣。")
         return redirect("order_operations", pk=pk)

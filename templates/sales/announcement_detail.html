@@ -1,4 +1,24 @@
-{% extends 'base.html' %}{% load site_copy %}
+{% extends 'base.html' %}{% load site_copy static %}
 {% block title %}{{ item.title }}｜系統公告{% endblock %}
-{% block content %}
-{% site_navigation %}<article class="section-block reading-panel">{% if item.pinned %}<span class="pin-badge">📌 置頂公告</span>{% endif %}<p class="muted"><time>{{ item.starts_at|date:'Y/m/d H:i' }}</time> 台北時間</p><h1>{{ item.title }}</h1><div class="announcement-body">{{ item.body|urlize|linebreaksbr }}</div><div class="announcement-images">{% for picture in images %}<img src="{% url 'announcement_image' picture.pk %}" alt="{{ item.title }} 圖片 {{ forloop.counter }}" loading="lazy">{% endfor %}</div></article>{% endblock %}
+{% block head %}<script src="{% static 'js/announcement-images.js' %}?v={{ app_version }}" defer></script>{% endblock %}
+{% block content %}{% site_navigation %}
+<article class="section-block reading-panel">
+  {% if item.pinned %}<span class="pin-badge">📌 置頂公告</span>{% endif %}
+  <div class="form-actions"><time>{{ item.starts_at|date:'Y/m/d H:i' }} 台北時間</time>
+  {% if can_manage_announcement %}<button type="button" class="button ghost small" data-announcement-edit>編輯</button>
+  <form method="post" action="{% url 'announcement_action' item.pk %}">{% csrf_token %}<input type="hidden" name="expected_version" value="{{ item.version }}"><input type="hidden" name="confirm" value="yes"><button name="action" value="delete" class="button danger-outline small" data-confirm="確定刪除這則公告？">刪除</button></form>{% endif %}</div>
+  <div data-announcement-reading {% if editing %}hidden{% endif %}>
+    <h1>{{ item.title }}</h1>
+    <div class="announcement-images">{% for picture in images %}<figure><img src="{% url 'announcement_image' picture.pk %}" alt="{{ item.title }} 圖片 {{ forloop.counter }}" loading="lazy"><figcaption><a href="{% url 'announcement_image' picture.pk %}?download=1">下載圖片 {{ forloop.counter }}</a></figcaption></figure>{% endfor %}</div>
+    <div class="announcement-body">{{ item.body|urlize|linebreaksbr }}</div>
+    {% if attachments %}<h2>附件下載</h2><ul>{% for attachment in attachments %}<li><a href="{% url 'announcement_attachment' attachment.pk %}">{{ attachment.name }}</a></li>{% endfor %}</ul>{% endif %}
+  </div>
+  {% if can_manage_announcement %}
+  <form method="post" enctype="multipart/form-data" data-announcement-editor {% if not editing %}hidden{% endif %}>
+    {% csrf_token %}{{ inline_form.expected_version }}{{ inline_form.expected_version.errors }}{{ inline_form.non_field_errors }}
+    <label>標題{{ inline_form.title }}{{ inline_form.title.errors }}</label>
+    {% include 'sales/_announcement_media_editor.html' with form=inline_form %}
+    <label>公告內容{{ inline_form.body }}{{ inline_form.body.errors }}</label>
+    <div class="form-actions"><button type="submit" class="button primary">儲存修改</button><button type="button" class="button ghost" data-announcement-cancel>取消編輯</button></div>
+  </form>{% endif %}
+</article>{% endblock %}

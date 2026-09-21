@@ -21,7 +21,7 @@ def resolve_settlement_cost(vehicle_model_id, registration_date):
 
 def apply_order_settlement_cost(order, actor_name="", *, lock=False):
     profile, _created = OrderOperationsProfile.objects.get_or_create(order=order)
-    if profile.vehicle_cost_locked_at:
+    if profile.vehicle_cost_locked_at or profile.vehicle_cost_manual or "vehicle_cost" in (profile.manual_financial_fields or []):
         return profile
     rule = resolve_settlement_cost(
         order.vehicle_model_id,

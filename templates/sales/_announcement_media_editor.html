@@ -1,0 +1,10 @@
+<section class="announcement-images">
+  <h3>公告圖片</h3><p>圖片顯示於文字上方。用上移／下移調整順序；新增圖片會接在現有圖片之後。</p>
+  {{ form.image_order }}{{ form.image_order.errors }}
+  <div data-announcement-image-list>{% for picture in images %}<figure data-announcement-image="{{ picture.pk }}"><img src="{% url 'announcement_image' picture.pk %}" alt="公告圖片 {{ forloop.counter }}" loading="lazy"><div class="form-actions"><button type="button" class="button ghost small" data-image-move="up">上移</button><button type="button" class="button ghost small" data-image-move="down">下移</button><label><input type="checkbox" name="remove_images" value="{{ picture.pk }}">移除此圖</label></div></figure>{% endfor %}</div>
+  {{ form.remove_images.errors }}<label>{{ form.uploads.label }}{{ form.uploads }}</label>{{ form.uploads.errors }}
+  <p>每張最多 8 MB，支援 JPEG／PNG／WebP；每則最多 8 張，一次合計 24 MB。</p>
+  <p data-announcement-upload-status role="status"></p><div data-announcement-previews class="announcement-preview-grid"></div>
+  <h3>附件</h3>{% for attachment in attachments %}<p><a href="{% url 'announcement_attachment' attachment.pk %}">{{ attachment.name }}</a> <label><input type="checkbox" name="remove_attachments" value="{{ attachment.pk }}">移除附件</label></p>{% endfor %}
+  {{ form.remove_attachments.errors }}<label>{{ form.attachments_upload.label }}{{ form.attachments_upload }}</label>{{ form.attachments_upload.errors }}<p>可下載的文件或圖片，每次新增一份，每份最多 20 MB。</p>
+</section>

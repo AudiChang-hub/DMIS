@@ -699,17 +699,17 @@ class SalesOrderForm(forms.ModelForm):
                 "送至指定地點或委託託運時必須填寫目的地。",
             )
 
-        preserve_completed_identity = bool(self.instance.pk and self.instance.is_delivered and all(
+        preserve_completed_identity = bool(self.instance.pk and all(
             data.get(name) == getattr(self.instance, name) for name in ("owner_type", "owner_name", "owner_id_number")
         ))
-        if data.get("owner_type") == SalesOrder.OwnerType.LOCAL and not preserve_completed_identity:
+        if data.get("owner_type") in {SalesOrder.OwnerType.LOCAL, SalesOrder.OwnerType.FOREIGN} and not preserve_completed_identity:
             for field_name in ("id_front", "id_back"):
                 if (
                     not data.get(field_name)
                     and not getattr(self.instance, field_name)
                     and not self.existing_documents.get(field_name)
                 ):
-                    self.add_error(field_name, "本國自然人需上傳身分證正反面。")
+                    self.add_error(field_name, "自然人需上傳身分證或居留證正反面。")
         if not data.get("id_verified") and not (preserve_completed_identity and not self.instance.id_verified):
             self.add_error("id_verified", "請對照證件並確認資料正確。")
         return data
@@ -1678,6 +1678,7 @@ class OrderEditForm(SalesOrderForm):
 
 
 class AccessoryLineForm(forms.ModelForm):
+    custom_name = forms.CharField(label="臨時配件名稱（清單沒有時填寫）", required=False, max_length=160)
     class Meta:
         model = AccessoryLine
         fields = [
@@ -1695,6 +1696,10 @@ class AccessoryLineForm(forms.ModelForm):
         if purchase_only:
             self.fields["line_type"].choices = [("purchase", "加購")]
         self.original_accessory_product_id = self.instance.accessory_product_id
+        self.initial["custom_name"] = self.instance.name if not self.instance.accessory_product_id else ""
+        if not allow_manual:
+            self.fields["custom_name"].disabled = True
+            self.fields["custom_name"].widget = forms.HiddenInput()
         self.fields["accessory_product"].queryset = AccessoryProduct.objects.filter(
             Q(active=True) | Q(pk=self.instance.accessory_product_id)
         ).order_by("name")
@@ -1721,6 +1726,18 @@ class AccessoryLineForm(forms.ModelForm):
     def clean(self):
         data = super().clean()
         product = data.get("accessory_product")
+        custom_name = (data.get("custom_name") or "").strip()
+        if not product and custom_name and self.allow_manual:
+            for name in ("quantity", "line_type", "amount", "labor_fee"):
+                if data.get(name) in (None, ""):
+                    self.add_error(name, "臨時配件請填寫數量、類型、售價及工資（無費用填 0）。")
+            for name in ("amount", "labor_fee"):
+                if data.get(name) is not None and data[name] < 0:
+                    self.add_error(name, "金額不可小於零。")
+            if data.get("line_type") == "gift":
+                data["amount"] = data["labor_fee"] = Decimal("0")
+            self.instance.name = custom_name
+            return data
         if not product:
             if self.instance.pk and self.instance.name:
                 return data
@@ -2721,7 +2738,6 @@ class OrderOperationsForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         synced_fields = {
             "dealer_name",
-            "vehicle_cost",
             "installment_fee_income",
             "installment_info",
             "payment_confirmed",
@@ -2730,6 +2746,12 @@ class OrderOperationsForm(forms.ModelForm):
             "card_fee_expense",
         }
         self.initial["financial_revision"] = self.instance.updated_at.isoformat() if self.instance.updated_at else ""
+        for name in ("vehicle_control_account", "battery_account"):
+            if name in self.fields:
+                self.fields[name].widget.attrs["autocomplete"] = "off"
+                self.fields[name].widget.attrs["data-no-recent-values"] = ""
+        for name in ("vehicle_control_password", "battery_password"):
+            self.fields[name].widget.attrs["autocomplete"] = "new-password"
         if self.instance.legacy_finance_reconciliation.get("status") not in ("missing", "mismatch", "invalid", "preserved_changes"):
             self.fields.pop("confirm_legacy_finance")
         if self.instance.legacy_finance_reconciliation:
@@ -2780,6 +2802,7 @@ class PaymentRecordForm(forms.ModelForm):
         fields = [
             "item_name",
             "expected_amount",
+            "expected_amount_override_reason",
             "received_amount",
             "card_principal",
             "card_fee_charged",
@@ -2800,6 +2823,7 @@ class PaymentRecordForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.original_expected_amount = self.instance.expected_amount or Decimal("0")
         self.fields["payment_method"].widget = forms.Select(
             choices=[
                 ("", "請選擇"),
@@ -2811,7 +2835,7 @@ class PaymentRecordForm(forms.ModelForm):
             ]
         )
         if self.instance and self.instance.system_key:
-            for name in ("item_name", "expected_amount", "payment_method"):
+            for name in ("item_name", "payment_method"):
                 self.fields[name].disabled = True
                 self.fields[name].help_text = "由訂單自動同步。"
         for name, field in self.fields.items():
@@ -2837,7 +2861,19 @@ class PaymentRecordForm(forms.ModelForm):
                 self.add_error(name, "收款金額不可為負數；退款請使用退款流程。")
         if any(card_values) and cleaned.get("payment_method") != "刷卡":
             self.add_error("payment_method", "填寫刷卡明細時，付款方式必須選擇「刷卡」。")
+        if self.instance.pk and cleaned.get("expected_amount") != self.original_expected_amount and not (cleaned.get("expected_amount_override_reason") or "").strip():
+            self.add_error("expected_amount_override_reason", "調整應收時請填寫原因。")
+        if self.instance.system_key and cleaned.get("DELETE"):
+            self.add_error(None, "系統收款項目不可刪除；請調整金額並說明原因。")
         return cleaned
+
+    def save(self, commit=True):
+        payment = super().save(commit=False)
+        if payment.expected_amount != self.original_expected_amount:
+            payment.expected_amount_overridden = True
+        if commit:
+            payment.save()
+        return payment
 
     def clean_proof(self):
         return validate_document_upload(self.cleaned_data.get("proof"))
@@ -2899,8 +2935,8 @@ class DeliveryPaymentForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         expected = self.instance.expected_amount or Decimal("0")
         if not self.is_bound:
-            if not self.instance.received_amount and expected > 0:
-                self.initial["received_amount"] = expected
+            if not self.instance.received_amount:
+                self.initial["received_amount"] = None
             if not self.instance.received_on:
                 self.initial["received_on"] = timezone.localdate()
             allowed_methods = {value for value, _label in self.PAYMENT_METHOD_CHOICES}
@@ -3322,10 +3358,18 @@ DealerVehicleRewardItemFormSet = inlineformset_factory(
 )
 
 
+class BasePaymentRecordFormSet(forms.BaseInlineFormSet):
+    def clean(self):
+        super().clean()
+        if any(form.instance.system_key and form.cleaned_data.get("DELETE") for form in self.forms):
+            raise forms.ValidationError("系統收款項目不可刪除；請調整金額並說明原因。")
+
+
 PaymentRecordFormSet = inlineformset_factory(
     SalesOrder,
     PaymentRecord,
     form=PaymentRecordForm,
+    formset=BasePaymentRecordFormSet,
     extra=1,
     can_delete=True,
 )
@@ -4095,6 +4139,9 @@ class SubsidyDataForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        if not self.is_bound and self.instance.old_owner_same_as_owner:
+            self.initial["old_owner_name"] = self.instance.owner_name
+            self.initial["old_owner_id_number"] = self.instance.owner_id_number
         for field in self.fields.values():
             field.widget.attrs.setdefault("class", "form-control")
         self.fields["is_trade_in_subsidy"].widget.attrs["class"] = "form-check"
@@ -4117,6 +4164,11 @@ class SubsidyDataForm(forms.ModelForm):
 
     def clean(self):
         data = super().clean()
+        if data.get("old_owner_same_as_owner"):
+            data["old_owner_name"] = self.instance.owner_name
+            data["old_owner_id_number"] = self.instance.owner_id_number
+        if not data.get("is_trade_in_subsidy"):
+            data["old_owner_same_as_owner"] = False
         for field_name in ("old_vehicle_valuation", "old_vehicle_tax"):
             if data.get(field_name) is None:
                 data[field_name] = 0

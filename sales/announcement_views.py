@@ -14,8 +14,8 @@ from django.utils import timezone
 from django.views.decorators.http import require_http_methods
 
 from .access.services import is_root
-from .models import SystemAnnouncement, SystemAnnouncementRevision, SalesSource, AnnouncementImage
-from sales.services.upload_validation import validate_image_upload
+from .models import SystemAnnouncement, SystemAnnouncementRevision, SalesSource, AnnouncementImage, AnnouncementAttachment
+from sales.services.upload_validation import validate_image_upload, validate_subsidy_upload
 import uuid
 from pathlib import Path
 
@@ -35,6 +35,9 @@ class MultipleImagesField(forms.FileField):
 
 
 class AnnouncementForm(forms.ModelForm):
+    attachments_upload = forms.FileField(label="新增附件", required=False)
+    image_order = forms.CharField(required=False, widget=forms.HiddenInput)
+    remove_attachments = forms.ModelMultipleChoiceField(queryset=AnnouncementAttachment.objects.none(), required=False, widget=forms.CheckboxSelectMultiple)
     expected_version = forms.IntegerField(widget=forms.HiddenInput, min_value=0)
     uploads = MultipleImagesField(label="新增公告圖片", required=False, widget=MultipleImagesInput(attrs={"accept":"image/jpeg,image/png,image/webp", "data-announcement-upload":""}))
     remove_images = forms.ModelMultipleChoiceField(queryset=AnnouncementImage.objects.none(), required=False, widget=forms.CheckboxSelectMultiple)
@@ -55,6 +58,8 @@ class AnnouncementForm(forms.ModelForm):
         self.fields["dealers"].queryset = SalesSource.objects.filter(source_type="dealer", active=True).select_related("category").order_by("city", "name")
         self.fields["dealers"].label_from_instance = lambda source: " · ".join(str(value) for value in (source.name, source.code, f"{source.city}{source.district}", source.category) if value)
         self.fields["remove_images"].queryset = self.instance.images.filter(removed=False) if self.instance.pk else AnnouncementImage.objects.none()
+        self.fields["remove_attachments"].queryset = self.instance.attachments.filter(removed=False) if self.instance.pk else AnnouncementAttachment.objects.none()
+        self.initial["image_order"] = ",".join(str(pk) for pk in self.fields["remove_images"].queryset.values_list("pk", flat=True))
         self.fields["recipients"].queryset = get_user_model().objects.filter(is_active=True).order_by("username")
         self.fields["recipients"].label_from_instance = lambda user: f"{user.get_full_name() or user.username}（{user.username}）"
         # 舊版已開啟的表單仍可儲存，未帶新欄位時維持原受眾。
@@ -66,6 +71,14 @@ class AnnouncementForm(forms.ModelForm):
 
     def clean(self):
         data = super().clean()
+        if data.get("attachments_upload"):
+            validate_subsidy_upload(data["attachments_upload"])
+        order = data.get("image_order", "")
+        if order:
+            ids = order.split(",")
+            expected = {str(pk) for pk in self.fields["remove_images"].queryset.values_list("pk", flat=True)}
+            if len(ids) != len(set(ids)) or set(ids) != expected:
+                self.add_error("image_order", "圖片清單已改變，請重新載入後排序。")
         if data.get("audience") == "selected" and not data.get("recipients"):
             self.add_error("recipients", "請至少勾選一位人員，或改選其他顯示對象。")
         if data.get("audience") == "dealers" and not data.get("dealers"):
@@ -78,14 +91,23 @@ class AnnouncementForm(forms.ModelForm):
 
 @login_required
 @require_http_methods(["GET", "POST"])
-def manage(request, pk=None):
+def manage(request, pk=None, *, inline=False):
     if not is_root(request.user):
         raise PermissionDenied
     item = get_object_or_404(SystemAnnouncement, pk=pk, deleted_at__isnull=True) if pk else SystemAnnouncement(starts_at=timezone.localtime().replace(second=0, microsecond=0))
-    form = AnnouncementForm(request.POST or None, request.FILES or None, instance=item, initial={"expected_version": item.version if pk else 0})
+    data = request.POST.copy() if request.method == "POST" else None
+    if inline and data is not None:
+        # 閱讀頁只編輯內容，不把未顯示的受眾／發布時間清空。
+        for name in ("pinned", "starts_at", "ends_at", "audience"):
+            value = getattr(item, name)
+            data[name] = value.isoformat() if name.endswith("_at") and value else value or ""
+        for name in ("recipients", "dealers"):
+            data.setlist(name, list(getattr(item, name).values_list("pk", flat=True)))
+        data["action"] = "save"
+    form = AnnouncementForm(data, request.FILES or None, instance=item, initial={"expected_version": item.version if pk else 0})
     status = 200
     if request.method == "POST" and form.is_valid():
-        action = request.POST.get("action")
+        action = "save" if inline else request.POST.get("action")
         if action not in {"save", "publish", "unpublish"}:
             form.add_error(None, "請選擇儲存、發布或取消發布。")
         else:
@@ -102,9 +124,19 @@ def manage(request, pk=None):
                     saved.save()
                     form.save_m2m()
                     saved.images.filter(pk__in=form.cleaned_data["remove_images"]).update(removed=True)
+                    for position, image_id in enumerate(filter(None, form.cleaned_data["image_order"].split(","))):
+                        saved.images.filter(pk=image_id).update(position=position)
+                    saved.attachments.filter(pk__in=form.cleaned_data["remove_attachments"]).update(removed=True)
+                    attachment = form.cleaned_data.get("attachments_upload")
+                    if attachment:
+                        original_name = Path(attachment.name).name
+                        attachment.name = uuid.uuid4().hex + Path(attachment.name).suffix.lower()
+                        AnnouncementAttachment.objects.create(announcement=saved, file=attachment, name=original_name)
+                    next_position = saved.images.count()
                     for upload in form.cleaned_data["uploads"]:
                         upload.name = uuid.uuid4().hex + Path(upload.name).suffix.lower()
-                        AnnouncementImage.objects.create(announcement=saved, image=upload)
+                        AnnouncementImage.objects.create(announcement=saved, image=upload, position=next_position)
+                        next_position += 1
                     SystemAnnouncementRevision.objects.create(announcement=saved, version=saved.version,
                         actor_name=saved.updated_by, content={
                             "title": saved.title, "body": saved.body, "published": saved.published,
@@ -113,9 +145,16 @@ def manage(request, pk=None):
                             "audience": saved.audience, "recipients": list(saved.recipients.values_list("pk", flat=True)),
                             "dealers": list(saved.dealers.values_list("pk", flat=True)),
                             "images": list(saved.images.filter(removed=False).values_list("pk", flat=True)),
+                            "attachments": list(saved.attachments.filter(removed=False).values_list("pk", flat=True)),
                         })
                     messages.success(request, f"公告已儲存（{saved.display_status}）。")
-                    return redirect("announcement_edit", pk=saved.pk)
+                    return redirect("announcement_detail" if inline else "announcement_edit", pk=saved.pk)
+    if inline:
+        return render(request, "sales/announcement_detail.html", {
+            "item": item, "images": item.images.filter(removed=False),
+            "attachments": item.attachments.filter(removed=False), "inline_form": form,
+            "can_manage_announcement": True, "editing": request.method == "POST",
+        }, status=status)
     history = request.GET.get("history") == "1"
     expired = Q(ends_at__lte=timezone.now()) | Q(archived_at__isnull=False)
     rows = SystemAnnouncement.objects.filter(deleted_at__isnull=True)
@@ -127,6 +166,7 @@ def manage(request, pk=None):
         "page_obj": Paginator(rows, 10).get_page(request.GET.get("page")), "history": history,
         "revisions": item.revisions.all()[:10] if pk else [],
         "images": item.images.filter(removed=False) if pk else [],
+        "attachments": item.attachments.filter(removed=False) if pk else [],
     }, status=status)
 
 
@@ -158,9 +198,14 @@ def lifecycle(request, pk):
 
 
 @login_required
+@require_http_methods(["GET", "POST"])
 def detail(request, pk):
+    if is_root(request.user):
+        return manage(request, pk, inline=True)
+    if request.method == "POST":
+        raise PermissionDenied
     item = get_object_or_404(SystemAnnouncement.visible(user=request.user), pk=pk)
-    return render(request, "sales/announcement_detail.html", {"item": item, "images": item.images.filter(removed=False)})
+    return render(request, "sales/announcement_detail.html", {"item": item, "images": item.images.filter(removed=False), "attachments": item.attachments.filter(removed=False)})
 
 
 @login_required
@@ -172,7 +217,24 @@ def image_file(request, pk):
         rows = rows.filter(announcement__in=SystemAnnouncement.visible(user=request.user))
     picture = get_object_or_404(rows, pk=pk)
     try:
-        response = FileResponse(picture.image.open("rb"))
+        response = FileResponse(picture.image.open("rb"), as_attachment=request.GET.get("download") == "1", filename=Path(picture.image.name).name)
+    except (OSError, ValueError) as exc:
+        raise Http404 from exc
+    response["Cache-Control"] = "private, no-store"
+    response["X-Content-Type-Options"] = "nosniff"
+    return response
+
+
+@login_required
+@never_cache
+@require_http_methods(["GET", "HEAD"])
+def attachment_file(request, pk):
+    rows = AnnouncementAttachment.objects.filter(removed=False, announcement__deleted_at__isnull=True)
+    if not is_root(request.user):
+        rows = rows.filter(announcement__in=SystemAnnouncement.visible(user=request.user))
+    attachment = get_object_or_404(rows, pk=pk)
+    try:
+        response = FileResponse(attachment.file.open("rb"), as_attachment=True, filename=attachment.name)
     except (OSError, ValueError) as exc:
         raise Http404 from exc
     response["Cache-Control"] = "private, no-store"

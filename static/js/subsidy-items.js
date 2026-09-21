@@ -2,6 +2,13 @@ document.addEventListener("DOMContentLoaded", () => {
   const section = document.querySelector("[data-subsidy-items]");
   if (!section) return;
   const subsidyForm = document.querySelector("[data-subsidy-form]");
+  subsidyForm?.querySelector('[name="old_owner_same_as_owner"]')?.addEventListener('change', event => {
+    if (!event.target.checked) return;
+    for (const [name, value] of [['old_owner_name', subsidyForm.dataset.ownerName], ['old_owner_id_number', subsidyForm.dataset.ownerId]]) {
+      const field = subsidyForm.querySelector(`[name="${name}"]`);
+      if (field) { field.value = value || ''; field.dispatchEvent(new Event('input', {bubbles: true})); }
+    }
+  });
   const subsidyToggle = subsidyForm?.querySelector("[name='is_trade_in_subsidy']");
   const toggleMessage = subsidyForm?.querySelector("[data-subsidy-toggle-message]");
   const revisionInput = subsidyForm?.querySelector("[name='_order_revision']");
@@ -174,6 +181,17 @@ document.addEventListener("DOMContentLoaded", () => {
   const list = section.querySelector("[data-form-list]");
   const template = section.querySelector("[data-empty-form]");
   const total = section.querySelector("input[name$='-TOTAL_FORMS']");
+  const refreshTotal = () => {
+    let sum = 0;
+    list.querySelectorAll('[data-form-row]').forEach(row => {
+      if (row.querySelector('[name$="-DELETE"]')?.checked) return;
+      const value = Number((row.querySelector('[name$="-expected_amount"]')?.value || '0').replaceAll(',', ''));
+      if (Number.isFinite(value)) sum += value;
+    });
+    const output = section.querySelector('[data-subsidy-total]');
+    if (output) output.textContent = sum.toLocaleString('zh-TW', {maximumFractionDigits: 2});
+  };
+  section.addEventListener('input', refreshTotal); section.addEventListener('change', refreshTotal); refreshTotal();
   section.querySelector("[data-add-form]")?.addEventListener("click", () => {
     const index = Number(total.value);
     const fragment = template.content.cloneNode(true);
@@ -186,6 +204,7 @@ document.addEventListener("DOMContentLoaded", () => {
     });
     list.append(fragment);
     total.value = index + 1;
+    refreshTotal();
     refreshDirtyState();
   });
   list.addEventListener("change", event => {

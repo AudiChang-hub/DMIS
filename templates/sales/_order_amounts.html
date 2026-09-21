@@ -1,0 +1,77 @@
+{% load sales_format site_copy screen_access %}
+  <section class="card">
+    <div class="section-title"><h2>金額</h2><span>{{ order.get_payment_type_display }}</span></div>
+    <dl class="money-list">
+      <div><dt>車價</dt><dd>${{ order.vehicle_price|number_with_commas }}</dd></div>
+      <div><dt>牌險</dt><dd>${{ order.plate_insurance_fee|number_with_commas }}</dd></div>
+      {% if order.price_snapshot %}
+      <div class="price-snapshot-summary">
+        <dt>車價依據</dt>
+        <dd>
+          {{ order.price_snapshot.effective_from }} 售價版本
+          {% if order.price_snapshot.recommended_price_label and order.price_snapshot.recommended_price %}
+          · {{ order.price_snapshot.recommended_price_label }} ${{ order.price_snapshot.recommended_price|number_with_commas }}
+          {% endif %}
+          {% if order.vehicle_price_adjustment_reason %}
+          <small>人工調整原因：{{ order.vehicle_price_adjustment_reason }}</small>
+          {% else %}
+          <small>{% site_text 'order_detail.e0dfcca76bee' %}</small>
+          {% endif %}
+        </dd>
+      </div>
+      {% elif order.vehicle_price_adjustment_reason %}
+      <div class="price-snapshot-summary"><dt>車價調整原因</dt><dd>{{ order.vehicle_price_adjustment_reason }}</dd></div>
+      {% endif %}
+      {% if order.effective_installment_fee %}<div><dt>分期開辦費</dt><dd>${{ order.effective_installment_fee|number_with_commas }}</dd></div>{% endif %}
+      {% if order.accessory_total %}<div><dt>配件合計</dt><dd>${{ order.accessory_total|number_with_commas }}</dd></div>{% endif %}
+      {% if order.other_fee_total %}<div><dt>其他費用合計</dt><dd>${{ order.other_fee_total|number_with_commas }}</dd></div>{% endif %}
+      {% if order.old_vehicle_tax %}<div><dt>舊車未繳稅金</dt><dd>${{ order.old_vehicle_tax|number_with_commas }}</dd></div>{% endif %}
+      {% if order.deposit_amount %}<div><dt>訂金</dt><dd>− ${{ order.deposit_amount|number_with_commas }}</dd></div>{% endif %}
+      {% if order.old_vehicle_valuation %}<div><dt>舊車估價</dt><dd>− ${{ order.old_vehicle_valuation|number_with_commas }}</dd></div>{% endif %}
+      {% if order.registration_calculated_total %}
+      <div class="registration-breakdown">
+        <div class="registration-breakdown__header">
+          <div>
+            <dt>領牌試算</dt>
+            {% with rate_label=order.registration_rate_class|registration_rate_label:order.vehicle_model.displacement_cc %}
+            <p>{{ order.registration_date|date:"Y/m/d" }}{% if rate_label %} · {{ rate_label }}{% endif %} · 強制險{{ order.get_compulsory_insurance_period_display }}</p>
+            {% endwith %}
+          </div>
+          <div class="registration-breakdown__total">
+            <span>試算合計</span>
+            <strong>${{ order.registration_calculated_total|number_with_commas }}</strong>
+            {% if order.plate_insurance_fee != order.registration_calculated_total %}<em>已人工調整實收</em>{% if not order.is_cancelled_sale %}{% if_access 'registration_fee_variance_confirm' order.pk %}<form method="post" action="{% url 'registration_fee_variance_confirm' order.pk %}">{% csrf_token %}<input type="hidden" name="return_to_order" value="1"><button class="button ghost small" type="submit">確認牌險差異</button></form>{% endif_access %}{% endif %}{% endif %}
+          </div>
+        </div>
+        <div class="registration-breakdown__items">
+          <div><span>{% if order.registration_rate_class|slice:":3" == "EV-" %}領牌規費{% else %}號牌{% endif %}</span><strong>${{ order.registration_plate_fee|number_with_commas }}</strong></div>
+          <div><span>行照</span><strong>${{ order.registration_license_fee|number_with_commas }}</strong></div>
+          <div><span>檢驗</span><strong>${{ order.registration_inspection_fee|number_with_commas }}</strong></div>
+          <div><span>公路養管</span><strong>${{ order.road_maintenance_fee|number_with_commas }}</strong></div>
+          <div><span>牌照稅</span><strong>${{ order.license_tax_fee|number_with_commas }}</strong></div>
+          <div><span>強制險</span><strong>${{ order.compulsory_insurance_fee|number_with_commas }}</strong></div>
+          {% if order.plate_selection_fee %}<div><span>選號</span><strong>${{ order.plate_selection_fee|number_with_commas }}</strong></div>{% endif %}
+          {% if order.lien_registration_fee %}<div><span>動保設定</span><strong>${{ order.lien_registration_fee|number_with_commas }}</strong></div>{% endif %}
+        </div>
+      </div>
+      {% endif %}
+      <div class="balance-equation">
+        <div class="balance-equation__header">
+          <dt>尾款計算</dt>
+          <span>配件與其他費用均已計入</span>
+        </div>
+        <div class="balance-equation__terms">
+          <div><span>＋ 車價</span><strong>${{ order.vehicle_price|number_with_commas }}</strong></div>
+          <div><span>＋ 牌險</span><strong>${{ order.plate_insurance_fee|number_with_commas }}</strong></div>
+          {% if order.effective_installment_fee %}<div><span>＋ 分期開辦費</span><strong>${{ order.effective_installment_fee|number_with_commas }}</strong></div>{% endif %}
+          {% if order.accessory_total %}<div class="included"><span>＋ 配件</span><strong>${{ order.accessory_total|number_with_commas }}</strong></div>{% endif %}
+          {% if order.other_fee_total %}<div class="included"><span>＋ 其他費用</span><strong>${{ order.other_fee_total|number_with_commas }}</strong></div>{% endif %}
+          {% if order.old_vehicle_tax %}<div><span>＋ 舊車稅金</span><strong>${{ order.old_vehicle_tax|number_with_commas }}</strong></div>{% endif %}
+          {% if order.deposit_amount %}<div class="deduction"><span>− 訂金</span><strong>${{ order.deposit_amount|number_with_commas }}</strong></div>{% endif %}
+          {% if order.old_vehicle_valuation %}<div class="deduction"><span>− 舊車估價</span><strong>${{ order.old_vehicle_valuation|number_with_commas }}</strong></div>{% endif %}
+          {% if order.balance_adjustment_amount %}<div class="adjustment"><span>人工調整</span><strong>{{ order.balance_adjustment_amount }}</strong></div>{% endif %}
+        </div>
+        <div class="balance-equation__result"><span>實際尾款</span><strong>${{ order.actual_balance|number_with_commas }}</strong></div>
+      </div>
+    </dl>
+  </section>

@@ -1,0 +1,23 @@
+/* 公告與訂單共用附件、區塊節奏；保持各外觀的文字對比。 */
+.operations-form .operation-section,.operations-form .operation-change-reason{margin-block:24px}
+.operations-form .operation-section{padding:20px;border:1px solid var(--line,#cad5da);border-radius:14px;background:var(--surface,#fff);color:var(--ink,#17313b)}
+.operations-form .operation-section>summary{margin-bottom:16px;cursor:pointer}
+.operations-form .secret-reveal{align-self:end;justify-self:start;min-height:36px;padding:8px 12px;width:auto;font-size:.85rem}
+.operations-form .operation-grid{row-gap:22px}
+.subsidy-edit-form>.subsidy-save-dock,.subsidy-edit-form>.dynamic-detail-section{margin-top:24px}
+#source>.form-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+#source .field,#source select{min-width:0;max-width:100%}
+.announcement-images figure{margin:16px 0}.announcement-images img{display:block;max-width:100%;max-height:560px;object-fit:contain}
+[data-announcement-editor]>label,[data-announcement-editor]>.form-actions{display:block;margin-block:20px}
+.reading-panel .announcement-body{margin-top:24px;line-height:1.8}
+.reading-panel>.form-actions{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.reading-panel>.form-actions form{margin:0}
+.document-thumbnail{display:inline-flex;position:relative;align-items:center;justify-content:center;width:148px;height:108px;margin:8px;padding:4px;border:1px solid var(--line,#cad5da);border-radius:10px;background:var(--surface,#fff);cursor:zoom-in;vertical-align:middle}
+.document-thumbnail img{max-width:100%;max-height:100%;object-fit:contain}.document-thumbnail iframe{width:100%;height:100%;border:0;pointer-events:none}
+.document-thumbnail:focus-visible{outline:3px solid #bd902e;outline-offset:2px}
+.document-preview-dialog{width:min(1000px,94vw);max-height:94dvh;padding:16px;border:1px solid var(--line,#cad5da);border-radius:14px;background:var(--surface,#fff);color:var(--ink,#17313b)}
+.document-preview-dialog::backdrop{background:#000a}.document-preview-dialog>img{display:block;max-width:100%;max-height:78dvh;object-fit:contain;margin:16px auto}.document-preview-dialog>iframe{display:block;width:100%;height:76dvh;border:0;margin-top:16px}
+.document-file-tile{display:inline-block;padding:16px;border:1px solid var(--line,#cad5da);border-radius:10px;overflow-wrap:anywhere}
+[data-trade-in-uploads][hidden],[data-announcement-editor][hidden],[data-announcement-reading][hidden]{display:none!important}
+@media(max-width:600px){.operations-form .operation-section{padding:16px;margin-block:20px}.document-thumbnail{width:124px;height:96px;margin:6px}}
+@media print{.document-thumbnail{display:none}.document-preview-dialog{display:none}}

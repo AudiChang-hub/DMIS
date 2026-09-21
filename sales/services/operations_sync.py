@@ -219,7 +219,7 @@ def sync_order_operations(order_id, *, update_receivables=False):
         {
             "item_name": "訂金",
             "expected_amount": _money(order.deposit_amount),
-            "received_amount": _money(order.deposit_amount),
+            "received_amount": Decimal("0") if order.cash_receivable_v2 else _money(order.deposit_amount),
             "received_on": order.deposit_date,
             "payment_method": order.get_deposit_method_display()
             if order.deposit_method
@@ -239,7 +239,7 @@ def sync_order_operations(order_id, *, update_receivables=False):
                 or 0
             )
         )
-        cash_due = max(_money(order.actual_balance) - financed, Decimal("0"))
+        cash_due = max((_money(order.plate_insurance_fee) + order.accessory_total - _money(order.deposit_amount)) if order.cash_receivable_v2 else (_money(order.actual_balance) - financed), Decimal("0"))
         active_keys.update({"installment_disbursement", "balance"})
         _upsert_system_payment(
             order,

@@ -89,7 +89,9 @@ def order_intake_attachment(request, pk):
         stream = attachment.file.open("rb")
     except FileNotFoundError:
         raise Http404("附件檔案不存在，請聯絡店內人員。") from None
-    response = FileResponse(stream, as_attachment=True, filename=attachment.name)
+    from pathlib import Path
+    preview = request.GET.get("preview") == "1" and Path(attachment.name).suffix.lower() in {".jpg", ".jpeg", ".png", ".webp", ".pdf"}
+    response = FileResponse(stream, as_attachment=not preview, filename=attachment.name)
     response["Cache-Control"] = "private, no-store"
     response["X-Content-Type-Options"] = "nosniff"
     return response

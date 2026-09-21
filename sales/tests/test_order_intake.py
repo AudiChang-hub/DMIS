@@ -60,7 +60,7 @@ class OrderIntakeTests(TestCase):
         self.assertEqual(self.submit(accept_by_me="on").status_code, 302)
         self.assertEqual(SalesOrder.objects.get().accepted_by, self.user)
         self.client.force_login(self.dealer_user)
-        response = self.submit(accept_by_me="on", source_type="store", source="", vehicle_price="1", deposit_amount="99999", commission_recipient=str(self.other_dealer.pk))
+        response = self.submit(accept_by_me="on", source_type="store", source="", vehicle_price="1", deposit_amount="99999", commission_recipient=str(self.other_dealer.pk), print_company='999999', print_company_snapshot='{"legal_name":"偽造公司"}')
         self.assertEqual(response.status_code, 302, getattr(response, "context", None) and response.context["form"].errors)
         order = SalesOrder.objects.latest("pk")
         self.assertEqual(order.print_company, company)

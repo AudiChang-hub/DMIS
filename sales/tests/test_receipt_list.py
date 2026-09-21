@@ -140,6 +140,23 @@ class ReceiptListTests(TestCase):
         self.receipt(70000, confirmed=True)
         self.assertFalse(filter_payment_risk(type(self.order).objects.filter(pk=self.order.pk), "outstanding").exists())
 
+    def test_legacy_named_system_receivable_not_dropped(self):
+        self.receipt(70000, confirmed=True)
+        PaymentRecord.objects.create(order=self.order, system_key="legacy_extra", item_name="歷史額外應收", expected_amount=1500)
+        self.assertEqual(payment_summary(self.order)["customer_due"], 1500)
+        self.assertFalse(payment_summary(self.order)["settled"])
+
+    def test_new_lender_receipt_is_available_for_reconciliation_without_fake_surplus(self):
+        from sales.views import _decorate_reconciliation_record, _reconciliation_queryset
+        from django.test import RequestFactory
+        record = self.receipt(20000, receipt_kind="lender")
+        request = RequestFactory().get("/", {"channel": "installment", "status": "pending"})
+        self.assertIn(record.pk, _reconciliation_queryset(request).values_list("pk", flat=True))
+        decorated = _decorate_reconciliation_record(record)
+        self.assertEqual(decorated.reconciliation_channel, "installment")
+        self.assertTrue(decorated.reconciliation_receipt_only)
+        self.assertEqual(decorated.reconciliation_state, "已登記，待確認")
+
     def test_unauthorized_post_rejected(self):
         payload = self.payload()
         self.client.force_login(self.staff)

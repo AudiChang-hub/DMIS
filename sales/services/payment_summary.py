@@ -2,6 +2,7 @@
 from decimal import Decimal
 
 ZERO = Decimal("0")
+EXPECTED_KEYS = {"deposit", "balance", "installment_disbursement"}
 
 
 def payment_summary(order, records=None):
@@ -21,11 +22,16 @@ def payment_summary(order, records=None):
             totals[record.effective_receipt_kind] += record.received_amount or ZERO
     # 舊有人工新增應收仍是額外義務，不能因介面簡化而消失。
     for record in records:
-        if not record.system_key:
+        if record.system_key not in EXPECTED_KEYS:
             if record.effective_receipt_kind == "lender":
                 lender_expected += record.expected_amount or ZERO
             else:
                 customer_expected += record.expected_amount or ZERO
+    historical = order.status == "completed" and hasattr(order, "legacy_snapshot")
+    if historical:
+        # 已完成 Excel 訂單沒有當時完整價款快照，不憑現在欄位補出未曾存在的應收。
+        customer_expected = sum((p.expected_amount for p in records if p.effective_receipt_kind == "customer"), ZERO)
+        lender_expected = sum((p.expected_amount for p in records if p.effective_receipt_kind == "lender"), ZERO)
     customer_due = max(customer_expected - totals["customer"], ZERO)
     lender_due = max(lender_expected - totals["lender"], ZERO)
     delivery_due = customer_due
@@ -34,7 +40,7 @@ def payment_summary(order, records=None):
         deposit_received = sum((p.received_amount for p in records if p.system_key == "deposit" and p.confirmed), ZERO)
         delivery_due = max(customer_expected - deposit - (totals["customer"] - deposit_received), ZERO)
     # 有既定應收的舊實收列仍須各自收清；新自由收款列的應收為零。
-    legacy_settled = all(p.is_settled for p in records if not p.system_key and p.expected_amount > 0)
+    legacy_settled = all(p.is_settled for p in records if (historical or p.system_key not in EXPECTED_KEYS) and p.expected_amount > 0)
     return dict(customer_expected=customer_expected, lender_expected=lender_expected,
                 customer_received=totals["customer"], lender_received=totals["lender"],
                 customer_due=customer_due, lender_due=lender_due,

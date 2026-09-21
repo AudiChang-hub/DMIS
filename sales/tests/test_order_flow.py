@@ -5793,21 +5793,26 @@ class OrderOperationsTests(TestCase):
             f"{self.model.model_year or '年份待補'}",
         )
 
-    def test_payment_page_starts_with_one_manual_row_and_expanded_system_items(self):
+    def test_payment_page_starts_with_deposit_list_and_preserved_receivables(self):
         response = self.client.get(
             reverse("order_operations", args=[self.order.pk])
         )
         html = response.content.decode()
 
-        self.assertContains(response, "訂金、客戶收款與分期撥款")
-        self.assertContains(response, 'class="system-payment-records" open')
-        # 一筆預設人工列，加上一筆供動態新增使用的 template。
+        self.assertNotContains(response, "訂金、客戶收款與分期撥款")
+        self.assertNotContains(response, 'class="system-payment-records" open')
+        self.assertContains(response, 'aria-label="收款明細"')
+        self.assertContains(response, 'data-payment-expectation')
+        visible_rows = html.split('id="payment-records"', 1)[1].split('<template id="payment-empty-row"', 1)[0]
+        self.assertEqual(visible_rows.count('data-payment-row'), 1)
+        self.assertIn('value="訂金"', visible_rows)
+        # 不額外預填人工列；新增按鈕使用單一空白 template。
         self.assertEqual(
             html.count(
                 '<button type="button" class="button danger-outline small" '
                 "data-delete-payment>"
             ),
-            2,
+            1,
         )
 
     def test_installment_disbursement_can_be_confirmed_from_reconciliation_list(self):

@@ -83,6 +83,9 @@ class PrintCompanyTests(TestCase):
         for route, args in [('print_company_settings', []), ('dealer_print_company', [self.source.pk]), ('order_print_company', [own.pk])]:
             self.assertEqual(self.client.get(reverse(route, args=args)).status_code, 403)
             self.assertEqual(self.client.post(reverse(route, args=args), {}).status_code, 403)
+        self.profile.can_view_orders = False
+        self.profile.save()
+        self.assertEqual(self.client.get(reverse('contract_print', args=[own.pk])).status_code, 403)
 
     def test_non_admin_even_superuser_cannot_manage(self):
         self.staff.is_superuser = True
@@ -147,9 +150,12 @@ class PrintCompanyTests(TestCase):
         response = self.client.get(reverse('order_documents_print', args=[order.pk]))
         reader = PdfReader(BytesIO(b''.join(response.streaming_content)))
         self.assertEqual(len(reader.pages), 3)
+        self.assertEqual(reader.metadata.author, self.company.legal_name)
         for page in reader.pages:
             self.assertIn(self.company.legal_name, page.extract_text())
             self.assertNotIn('馭盛國際有限公司', page.extract_text())
+            for private_field in ('淨利', '佣金', '車輛成本', '分期公司撥款'):
+                self.assertNotIn(private_field, page.extract_text())
 
     def test_long_header_does_not_overlap_title_or_body(self):
         order = self.make_order(self.dealer)

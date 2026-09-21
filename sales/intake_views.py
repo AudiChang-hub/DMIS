@@ -42,7 +42,7 @@ class AccountScopeForm(forms.ModelForm):
 
     class Meta:
         model = OrderAccountProfile
-        fields = ["kind", "source"]
+        fields = ["kind", "source", "order_scope"]
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -56,7 +56,7 @@ class AccountScopeForm(forms.ModelForm):
 @require_http_methods(["GET", "POST"])
 def order_account_scope(request, pk):
     account = get_object_or_404(get_user_model(), pk=pk)
-    profile = OrderAccountProfile.objects.filter(user=account).first() or OrderAccountProfile(user=account)
+    profile = OrderAccountProfile.objects.filter(user=account).first() or OrderAccountProfile(user=account, order_scope="all")
     form = AccountScopeForm(request.POST or None, instance=profile)
     if request.method == "POST" and form.is_valid():
         with transaction.atomic():
@@ -68,7 +68,7 @@ def order_account_scope(request, pk):
                 changed = form.save(commit=False)
                 changed.revision += 1
                 changed.save()
-                UserAccountAuditLog.objects.create(actor=request.user, target=account, target_username=account.username, action="update", description="修改下單身分與所屬通路", metadata={"before": {"kind": current.kind, "source": current.source_id} if current else None, "after": {"kind": changed.kind, "source": changed.source_id}})
+                UserAccountAuditLog.objects.create(actor=request.user, target=account, target_username=account.username, action="update", description="修改下單身分與訂單資料範圍", metadata={"before": {"kind": current.kind, "source": current.source_id, "order_scope": current.order_scope} if current else None, "after": {"kind": changed.kind, "source": changed.source_id, "order_scope": changed.order_scope}})
                 messages.success(request, "下單身分與所屬通路已更新；不改變其他帳號。")
                 return redirect("user_management")
     return render(request, "sales/order_account_scope.html", {"form": form, "account": account})
@@ -78,6 +78,8 @@ def order_account_scope(request, pk):
 @require_http_methods(["GET", "HEAD"])
 def order_intake_attachment(request, pk):
     attachment = get_object_or_404(OrderIntakeAttachment, pk=pk)
+    if is_dealer(request.user) and attachment.kind not in {"installment", "supplement"}:
+        raise PermissionDenied("車行帳號不開放補助附件。")
     if attachment.order_id:
         from sales.access.services import policy_for
         if not policy_for(request).route("order_detail"):

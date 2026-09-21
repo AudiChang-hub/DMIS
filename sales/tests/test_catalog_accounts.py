@@ -86,6 +86,7 @@ class CatalogAccountTests(TestCase):
 
     def create_payload(self, **changes):
         data = {
+            "order_scope": "own", "can_print_documents": "on",
             "display_name": "車行人員",
             "username": "new-dealer",
             "password1": "Strong-test-7302!",
@@ -99,6 +100,7 @@ class CatalogAccountTests(TestCase):
 
     def edit_payload(self, **changes):
         data = {
+            "order_scope": "own", "can_print_documents": "on",
             "display_name": "車行人員",
             "username": self.dealer.username,
             "is_active": "on",

@@ -4,6 +4,7 @@
 {% block content %}
 {% site_navigation %}
 <a href="{% url 'access_overview' %}">← 人員權限總覽</a>
+<p><a class="button ghost" href="{% url 'order_account_scope' account.pk %}">設定身分與訂單資料範圍</a> <span class="muted">先決定可查哪些訂單，再勾選查詢、列印、贈送與金額調整功能。這些權限彼此獨立。</span></p>
 <header class="hero-row"><div><p class="eyebrow">{% site_text 'edit.b951cebb26b0' %}</p><h1>{{ account.get_full_name|default:account.username }} 的畫面權限</h1><p>@{{ account.username }} · {% if account.is_active %}使用中{% else %}已停用，勾選不會啟用帳號{% endif %} · 第 {{ before.version }} 版</p></div></header>
 {% if error %}<p class="access-notice" role="alert">{{ error }}</p>{% endif %}
 {% if not before.configured %}<p class="access-notice">{% site_text 'edit.192102b29e9a' %}</p>{% endif %}

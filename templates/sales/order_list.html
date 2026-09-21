@@ -1,13 +1,13 @@
 {% extends "base.html" %}{% load site_copy %}{% load screen_access %}
 {% load pagination_tags sales_format static %}
-{% block title %}全部訂單｜車輛銷售管理{% endblock %}
+{% block title %}{{ orders_group_label }}｜車輛銷售管理{% endblock %}
 {% block page_class %}page-shell--wide{% endblock %}
 {% block content %}
 {% url 'dashboard' as dashboard_url %}
 {% include "sales/_page_back.html" with fallback_url=dashboard_url label="首頁" %}
 <div class="form-actions">{% if_access 'order_recycle_bin' %}<a class="button ghost" href="{% url 'order_recycle_bin' %}">已刪除訂單／還原</a>{% endif_access %}{% if_access 'order_deletion_queue' %}<a class="button ghost" href="{% url 'order_deletion_queue' %}">刪除審核</a>{% endif_access %}</div>
 <section class="hero-row compact-hero">
-  <div><p class="eyebrow">訂單管理</p><h1>全部訂單</h1></div>
+  <div><p class="eyebrow">訂單管理</p><h1>{{ orders_group_label }}</h1></div>
 </section>
 <form class="filter-bar order-filter-bar" method="get">
   <input type="hidden" name="per_page" value="{{ per_page }}">

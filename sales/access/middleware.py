@@ -18,8 +18,14 @@ class ScreenAccessMiddleware(MiddlewareMixin):
             from sales.models import OrderAccountProfile
             if OrderAccountProfile.objects.filter(user_id=view_kwargs.get("pk"), kind="dealer").exists() and not is_root(request.user):
                 raise PermissionDenied("車行登入帳號及功能只能由 admin 管理。")
-        from sales.services.order_intake import guard_dealer_request
+        from sales.services.order_intake import guard_dealer_request, guard_order_scope, CUSTOMER_DOCUMENT_ROUTES, ORDER_PK_ROUTES
         guard_dealer_request(request, name, view_kwargs)
+        scoped_policy = policy_for(request)
+        if name in ORDER_PK_ROUTES | {"positioned_template_order_print"} and scoped_policy.configured and not scoped_policy.route(name, request.method, view_kwargs):
+            raise PermissionDenied("尚未獲授權使用此功能。")
+        guard_order_scope(request, name, view_kwargs)
+        if name in CUSTOMER_DOCUMENT_ROUTES and not policy_for(request).route(name):
+            raise PermissionDenied("沒有列印客戶簽署文件權限。")
         if name in {"order_edit", "order_operations", "registration_fee_variance_confirm", "order_commission_attribution_update", "delivery_payment_update", "order_discount_decide"} and request.method == "POST":
             from sales.services.order_intake import can_edit_finance
             if not can_edit_finance(request.user):

@@ -784,9 +784,9 @@
     if (row.classList.contains("is-pending-delete")) return;
     const productInput = row.querySelector('[name$="-accessory_product"]');
     const customInput = row.querySelector('[name$="-custom_name"]');
-    if (customInput && customInput.type !== 'hidden') {
+    if (customInput) {
       const customField = customInput.closest('[data-custom-accessory]');
-      const other = productInput?.value === 'other' || (!productInput?.value && Boolean(customInput.value.trim()));
+      const other = customInput.type !== 'hidden' && productInput?.value === 'other';
       if (customField) customField.hidden = !other;
       customInput.required = other;
       if (changed && !other) customInput.value = '';

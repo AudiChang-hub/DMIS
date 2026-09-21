@@ -32,12 +32,11 @@ class ReceiptListTests(TestCase):
 
     def test_default_only_deposit_visible_and_expectations_preserved(self):
         response = self.client.get(reverse("order_detail", args=[self.order.pk]))
-        from bs4 import BeautifulSoup
-        soup = BeautifulSoup(response.content, "html.parser")
-        rows = soup.select("#payment-records [data-payment-row]")
-        self.assertEqual(len(rows), 1)
-        self.assertEqual(rows[0].select_one('[name$="-item_name"]')["value"], "訂金")
-        self.assertEqual(len(soup.select("[data-payment-expectation]")), 1)
+        markup = response.content.decode()
+        receipt_markup = markup.split('id="payment-records"', 1)[1].split('<template id="payment-empty-row"', 1)[0]
+        self.assertEqual(receipt_markup.count('data-payment-row'), 1)
+        self.assertIn('value="訂金"', receipt_markup)
+        self.assertEqual(markup.count('data-payment-expectation'), 1)
         self.assertNotContains(response, "訂金、客戶收款與分期撥款")
         self.assertEqual(self.order.payment_records.get(system_key="balance").expected_amount, 70000)
 

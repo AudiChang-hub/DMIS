@@ -1,0 +1,4 @@
+{% extends "base.html" %}{% load screen_access %}{% block title %}請先確認開單公司{% endblock %}{% block content %}
+<section class="account-panel"><h1>請先確認開單公司</h1><p>訂單 {{ order.number }} 的公司資料尚未確認或不完整，暫時不能產生正式訂購單。</p><p>請聯絡 admin 在本單確認公司全名、地址、電話與統一編號；不會自動套用馭盛。</p>
+{% if_access 'order_print_company' order.pk %}<a class="button primary" href="{% url 'order_print_company' order.pk %}">確認本單開單公司</a>{% endif_access %}
+<button class="button" type="button" onclick="window.close()">關閉列印視窗</button></section>{% endblock %}

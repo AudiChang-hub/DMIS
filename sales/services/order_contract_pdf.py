@@ -16,6 +16,7 @@ from reportlab.platypus import Paragraph, Table, TableStyle
 
 from sales.services.registration_fee import registration_rate_label
 from sales.services.site_copy import print_copy
+from sales.services.print_company import validate_header
 
 
 FONT_CANDIDATES = [
@@ -121,24 +122,42 @@ def money(value):
     return f"{value:,.0f}"
 
 
+def draw_company_header(c, data, y):
+    """固定左側寬度內換行並縮字，避免侵入中央文件標題。"""
+    width = 65 * mm
+    top = y
+    for key, text, size, color, height in (
+        ("name", data["legal_name"], 12.5, GREEN, 11 * mm),
+        ("address", data["address"], 7, MUTED, 8 * mm),
+        ("contact", f"電話：{data['phone']}　｜　統編：{data['tax_id']}", 7, MUTED, 6 * mm),
+    ):
+        while True:
+            style = ParagraphStyle(f"company-{key}", fontName="MSJH-Bold" if key == "name" else "MSJH",
+                                   fontSize=size, leading=size * 1.2, textColor=color, wordWrap="CJK")
+            paragraph = Paragraph(escape(text), style)
+            _, actual_height = paragraph.wrap(width, PAGE_H)
+            if actual_height <= height or size <= 5:
+                break
+            size -= .5
+        paragraph.drawOn(c, MARGIN_X, top - actual_height)
+        top -= actual_height + 1 * mm
+
+
 def draw_order_page(c, order, copy_label, page_number, printed_at):
     y = PAGE_H - 11 * mm
 
     # Header
-    c.setFillColor(GREEN)
-    c.setFont("MSJH-Bold", 12.5)
-    c.drawString(MARGIN_X, y - 5 * mm, "馭盛國際有限公司")
-    c.setFillColor(MUTED)
-    c.setFont("MSJH", 6.5)
-    c.drawString(MARGIN_X, y - 10 * mm, "新北市汐止區康寧街470號、472號")
-    c.drawString(MARGIN_X, y - 14 * mm, "電話：(02)2695-1112　｜　統編：83739807")
+    draw_company_header(c, validate_header(order.print_company_snapshot), y)
 
     c.setFillColor(INK)
     c.setFont("MSJH-Bold", 18)
     c.drawCentredString(PAGE_W / 2, y - 7 * mm, "車 輛 訂 購 單")
     c.setFillColor(RED)
     c.setFont("MSJH", 7)
-    c.drawCentredString(PAGE_W / 2, y - 14 * mm, "本文件含個人資料，請妥善保管並限業務用途使用")
+    notice = Paragraph("本文件含個人資料<br/>請妥善保管並限業務用途使用", ParagraphStyle(
+        "company-privacy-notice", fontName="MSJH", fontSize=7, leading=10, alignment=TA_CENTER, textColor=RED))
+    _, notice_height = notice.wrap(65 * mm, 12 * mm)
+    notice.drawOn(c, 79 * mm, y - 11 * mm - notice_height)
 
     meta_x = PAGE_W - MARGIN_X - 49 * mm
     c.setFillColor(INK)
@@ -560,7 +579,7 @@ def build_order_contract_pdf(order):
     printed_at = timezone.localtime()
     c = canvas.Canvas(output, pagesize=A4)
     c.setTitle(f"{order.number} 車輛訂購單")
-    c.setAuthor("馭盛國際有限公司")
+    c.setAuthor(validate_header(order.print_company_snapshot)["legal_name"])
     draw_order_page(c, order, "店家留存聯", 1, printed_at)
     draw_order_page(c, order, "客戶留存聯", 2, printed_at)
     c.save()

@@ -41,6 +41,7 @@ class OrderIntakeTests(TestCase):
         order = SalesOrder.objects.get()
         self.assertEqual(order.status, "intake_pending")
         self.assertEqual(order.submitted_by, self.user)
+        self.assertEqual(order.print_company_snapshot['legal_name'], '馭盛國際有限公司')
         self.assertEqual(build_order_next_actions(order).primary.key, "receive-order")
         self.assertContains(self.client.get(reverse("dashboard")), "待接單工作：1 筆")
         receive_order(self.user, order.pk)
@@ -53,12 +54,17 @@ class OrderIntakeTests(TestCase):
         self.assertEqual(OrderEvent.objects.filter(event_type="accepted").count(), 1)
 
     def test_internal_explicit_self_accept_and_dealer_cannot(self):
+        from sales.models import PrintCompany
+        company = PrintCompany.objects.create(key=f'dealer:{self.dealer.pk}', source=self.dealer,
+            legal_name='甲車行有限公司', tax_id='12345678', address='測試地址', phone='02-12345678')
         self.assertEqual(self.submit(accept_by_me="on").status_code, 302)
         self.assertEqual(SalesOrder.objects.get().accepted_by, self.user)
         self.client.force_login(self.dealer_user)
         response = self.submit(accept_by_me="on", source_type="store", source="", vehicle_price="1", deposit_amount="99999", commission_recipient=str(self.other_dealer.pk))
         self.assertEqual(response.status_code, 302, getattr(response, "context", None) and response.context["form"].errors)
         order = SalesOrder.objects.latest("pk")
+        self.assertEqual(order.print_company, company)
+        self.assertEqual(order.print_company_snapshot['legal_name'], '甲車行有限公司')
         self.assertEqual((order.status, order.source, order.vehicle_price, order.deposit_amount), ("intake_pending", self.dealer, 79800, 0))
         self.assertFalse(order.accepted_at)
         self.assertFalse(order.commission_recipient_id)

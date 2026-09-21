@@ -4,6 +4,7 @@ from django.views.generic import RedirectView
 from . import views, announcement_views, favorite_views, intake_views, catalog_views, dealer_account_views, profit_views
 from . import order_deletion_views
 from . import gift_views
+from . import print_company_views
 from . import site_copy_views
 from .historical_replacement import historical_buyer_replacement
 from .historical_date_change import historical_date_change
@@ -13,6 +14,9 @@ from .access import views as access_views
 
 
 urlpatterns = [
+    path("data/print-companies/", print_company_views.company_settings, name="print_company_settings"),
+    path("data/channels/<int:source_pk>/print-company/", print_company_views.company_settings, name="dealer_print_company"),
+    path("orders/<int:pk>/print-company/", print_company_views.order_company, name="order_print_company"),
     path("announcements/attachments/<int:pk>/", announcement_views.attachment_file, name="announcement_attachment"),
     path("announcements/images/<int:pk>/", announcement_views.image_file, name="announcement_image"),
     path("system/text/", site_copy_views.manage, name="site_copy_manage"),

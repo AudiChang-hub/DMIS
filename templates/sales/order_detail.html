@@ -32,6 +32,7 @@
   <div class="dialog-actions">
     <button class="button ghost" type="button" id="print-later">稍後列印</button>
     {% if_access 'contract_print' order.pk %}<a class="button ghost" href="{% url 'contract_print' order.pk %}" target="_blank">只印訂購合約</a>{% endif_access %}
+    {% if_access 'order_print_company' order.pk %}<a class="button ghost" href="{% url 'order_print_company' order.pk %}">開單公司{% if not order.print_company_snapshot %} · 待確認{% endif %}</a>{% endif_access %}
     {% if_access 'privacy_consent_print' order.pk %}<a class="button ghost" href="{% url 'privacy_consent_print' order.pk %}" target="_blank">只印個資同意書</a>{% endif_access %}
     {% if_access 'order_documents_print' order.pk %}<a class="button primary" href="{% url 'order_documents_print' order.pk %}" target="_blank">全部一起列印</a>{% endif_access %}
   </div>

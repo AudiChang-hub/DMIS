@@ -140,6 +140,11 @@ class ReceiptListTests(TestCase):
         self.receipt(70000, confirmed=True)
         self.assertFalse(filter_payment_risk(type(self.order).objects.filter(pk=self.order.pk), "outstanding").exists())
 
+    def test_unconfirmed_extra_receipt_remains_in_review_even_when_other_receipts_settled(self):
+        self.receipt(70000, confirmed=True)
+        self.receipt(1000, confirmed=False)
+        self.assertTrue(filter_payment_risk(type(self.order).objects.filter(pk=self.order.pk), "unconfirmed").exists())
+
     def test_legacy_named_system_receivable_not_dropped(self):
         self.receipt(70000, confirmed=True)
         PaymentRecord.objects.create(order=self.order, system_key="legacy_extra", item_name="歷史額外應收", expected_amount=1500)

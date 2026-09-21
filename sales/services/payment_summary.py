@@ -45,6 +45,7 @@ def payment_summary(order, records=None):
                 customer_received=totals["customer"], lender_received=totals["lender"],
                 customer_due=customer_due, lender_due=lender_due,
                 customer_settled=delivery_due <= 0, delivery_due=delivery_due,
+                legacy_settled=legacy_settled,
                 settled=bool(customer_expected + lender_expected > 0 and customer_due <= 0 and lender_due <= 0 and legacy_settled))
 
 

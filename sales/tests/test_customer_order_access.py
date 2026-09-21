@@ -174,3 +174,14 @@ class CustomerOrderAccessTests(TestCase):
         for pattern in urlpatterns:
             if str(pattern.pattern).startswith('orders/<int:pk>/'):
                 self.assertIn(pattern.name, ORDER_PK_ROUTES | separately_guarded)
+
+    def test_migration_preserves_legacy_dealer_print_without_enabling_stale_pricing(self):
+        UserAccessState.objects.filter(user=self.user).delete()
+        self.grant('order_pricing')  # 沒有 configured state 時此舊 grant 原本無效。
+        self.assertFalse(AccessPolicy(self.user).screen('order_pricing', 'operate'))
+        import_module('sales.migrations.0149_order_scope_and_customer_permissions').preserve_permissions(apps, None)
+        self.assertTrue(AccessPolicy(self.user).route('contract_print'))
+        self.assertFalse(AccessPolicy(self.user).screen('order_pricing', 'operate'))
+        self.assertFalse(AccessPolicy(self.user).screen('order_gift', 'operate'))
+        ScreenAccessGrant.objects.filter(user=self.user, screen_key='order_documents').delete()
+        self.assertFalse(AccessPolicy(self.user).route('contract_print'))

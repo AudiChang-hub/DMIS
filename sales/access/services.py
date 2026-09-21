@@ -45,9 +45,13 @@ class AccessPolicy:
                 and (not self.dealer or (self.order_profile.source_id and self.order_profile.source.active
                                          and self.order_profile.can_submit_orders)))
         if key == "order_documents":
+            grant = self.screens.get(key, {})
+            if self.active and self.dealer and not self.configured:
+                # 舊車行尚未有畫面權限 state；只讀新文件授權，不順便啟用舊 pricing grant。
+                grant = ScreenAccessGrant.objects.filter(user=self.user, screen_key=key).values("view", "export").first() or {}
             return bool(self.active and action in {"view", "export"} and
                 (self.root or (not self.configured and not self.dealer) or
-                 (self.screens.get(key, {}).get("view") and self.screens.get(key, {}).get("export"))) and
+                 (grant.get("view") and grant.get("export"))) and
                 (not self.dealer or (self.order_profile.source_id and self.order_profile.source.active)))
         if key in {"profit", "order_delete"}:
             return bool(self.active and not self.dealer and (self.root or

@@ -16,6 +16,7 @@ from sales.services.operations_sync import sync_order_operations
 from sales.services.settlement_cost import apply_order_settlement_cost
 from sales.tests import test_order_workspace as workspace_fixtures
 from sales.tests import test_order_intake as intake_fixtures
+from sales.tests import test_order_lifecycle as lifecycle_fixtures
 
 
 def picture(name="test.png"):
@@ -228,16 +229,95 @@ class PptRefinementTests(TestCase):
         self.assertIn("inline", response["Content-Disposition"])
         self.assertTrue(b"".join(response.streaming_content))
 
-    def test_print_uses_financed_principal_and_removes_description_column(self):
+    def test_print_uses_saved_customer_receivable_and_removes_description_column(self):
         from sales.services.order_contract_pdf import build_order_contract_pdf
         self.order.payment_type = "installment"
         self.order.actual_balance = Decimal("75000")
         self.order.deposit_amount = Decimal("2000")
         self.order.installment_amount = Decimal("70000")
+        self.order.payment_records.filter(system_key="balance").update(expected_amount=5000)
         pdf = build_order_contract_pdf(self.order)
         text = "\n".join(page.extract_text() for page in PdfReader(BytesIO(pdf)).pages)
-        self.assertIn("7,000", text)
+        self.assertIn("5,000", text)
         self.assertNotIn("說明\n數量", text)
+
+
+    def test_saved_balance_is_shared_by_summary_and_pdf_without_mutation(self):
+        from sales.services.order_contract_pdf import build_order_contract_pdf
+        SalesOrder.objects.filter(pk=self.order.pk).update(payment_type='installment', cash_receivable_v2=True, actual_balance=90008, installment_amount=0, installment_periods=24, installment_monthly=3742, deposit_amount=0)
+        self.order.refresh_from_db()
+        self.order.payment_records.filter(system_key='balance').update(expected_amount=208, expected_amount_overridden=True)
+        self.assertEqual(self.order.customer_balance_due, 208)
+        text = '\n'.join(page.extract_text() for page in PdfReader(BytesIO(build_order_contract_pdf(self.order))).pages)
+        self.assertIn('89,808', text)
+        self.assertIn('分期外應收', text)
+        self.assertIn('$208', text)
+        self.assertNotIn('$90,008', text)
+        response = self.client.get(reverse('order_detail', args=[self.order.pk]))
+        self.assertContains(response, '預估尾款</span><strong data-customer-balance>$208')
+        self.order.refresh_from_db()
+        self.assertEqual(self.order.actual_balance, 90008)
+
+    def test_missing_payment_uses_legacy_or_new_default_and_clamps_zero(self):
+        from sales.services.customer_receivable import customer_balance
+        from sales.models import AccessoryLine
+        self.order.payment_records.all().delete()
+        self.order.payment_type = 'installment'
+        self.order.actual_balance = Decimal('75000')
+        self.order.installment_amount = Decimal('70000')
+        self.order.cash_receivable_v2 = False
+        self.assertEqual(customer_balance(self.order), 5000)
+        self.order.cash_receivable_v2 = True
+        self.order.plate_insurance_fee = Decimal('200')
+        self.order.deposit_amount = Decimal('100')
+        AccessoryLine.objects.create(order=self.order, name='測試', quantity=1, amount=208, labor_fee=0)
+        self.assertEqual(customer_balance(self.order), 308)
+        self.order.deposit_amount = Decimal('1000')
+        self.assertEqual(customer_balance(self.order), 0)
+
+    def test_other_accessory_requires_permission_and_name_and_gift_is_zero(self):
+        data = dict(accessory_product='other', custom_name='手機架', quantity=1, line_type='gift', amount=999, labor_fee=50)
+        form = AccessoryLineForm(data=data, allow_manual=True)
+        self.assertTrue(form.is_valid(), form.errors)
+        self.assertEqual(form.cleaned_data['amount'], 0)
+        self.assertEqual(form.cleaned_data['labor_fee'], 0)
+        denied = AccessoryLineForm(data=data, allow_manual=False)
+        self.assertFalse(denied.is_valid())
+        missing = AccessoryLineForm(data={**data, 'custom_name': ''}, allow_manual=True)
+        self.assertFalse(missing.is_valid())
+        self.assertIn('custom_name', missing.errors)
+
+    def test_same_owner_new_form_default_and_existing_value(self):
+        from sales.forms import SalesOrderForm
+        self.assertFalse(SalesOrderForm()['old_owner_same_as_owner'].value())
+        self.order.old_owner_same_as_owner = True
+        self.assertTrue(SalesOrderForm(instance=self.order)['old_owner_same_as_owner'].value())
+
+
+class CustomerBalanceDeliveryTests(TestCase):
+    setUp = lifecycle_fixtures.OrderLifecycleTests.setUp
+    make_order = lifecycle_fixtures.OrderLifecycleTests.make_order
+
+    def test_delivery_uses_adjusted_receivable_and_rejects_short_or_unconfirmed(self):
+        from django.core.exceptions import ValidationError
+        order, vehicle = self.make_order(deposit=0)
+        SalesOrder.objects.filter(pk=order.pk).update(payment_type='installment', cash_receivable_v2=True, actual_balance=90008, balance_adjustment_reason='隔離測試的歷史總額', installment_amount=0, registration_completed_at=timezone.now(), status=SalesOrder.Status.DELIVERY_PENDING)
+        order.refresh_from_db()
+        payment = order.payment_records.get(system_key='balance')
+        payment.expected_amount = 208
+        payment.expected_amount_overridden = True
+        for received, confirmed in [(207, True), (208, False)]:
+            payment.received_amount = received
+            payment.confirmed = confirmed
+            payment.save()
+            with self.assertRaises(ValidationError):
+                order.complete_delivery(timezone.now(), 'admin')
+        payment.received_amount = 208
+        payment.confirmed = True
+        payment.save()
+        order.complete_delivery(timezone.now(), 'admin')
+        order.refresh_from_db()
+        self.assertTrue(order.is_delivered)
 
 
 class IntakeRefinementTests(TestCase):

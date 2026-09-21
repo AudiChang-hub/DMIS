@@ -3359,6 +3359,11 @@ class SalesOrder(TimeStampedModel):
             ]
         )
 
+    @property
+    def customer_balance_due(self):
+        from sales.services.customer_receivable import customer_balance
+        return customer_balance(self)
+
     @transaction.atomic
     def complete_delivery(self, delivered_at, actor_name):
         if self.is_delivered:
@@ -3373,15 +3378,7 @@ class SalesOrder(TimeStampedModel):
         if not self.can_deliver:
             raise ValidationError("一般訂單必須先完成領牌才能交付。")
         if self.source_type != self.SourceType.DEALER:
-            required_balance = (
-                max(
-                    (self.actual_balance or Decimal("0"))
-                    - (self.installment_amount or Decimal("0")),
-                    Decimal("0"),
-                )
-                if self.payment_type == self.PaymentType.INSTALLMENT
-                else (self.actual_balance or Decimal("0"))
-            )
+            required_balance = self.customer_balance_due
             balance_payment = self.payment_records.filter(system_key="balance").first()
             received = (
                 balance_payment.received_amount

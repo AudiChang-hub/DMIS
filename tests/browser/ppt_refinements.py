@@ -17,6 +17,63 @@ from sales.tests.test_ppt_refinements import picture, pdf_document
 
 @override_settings(DEBUG=True, ALLOWED_HOSTS=['localhost', '127.0.0.1', 'testserver'], SECURE_SSL_REDIRECT=False, SESSION_COOKIE_SECURE=False)
 class PptBrowserTests(StaticLiveServerTestCase):
+    def test_intake_previews_other_accessory_and_same_owner(self):
+        if sys.platform == 'win32':
+            previous_policy = asyncio.get_event_loop_policy()
+            asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
+            self.addCleanup(asyncio.set_event_loop_policy, previous_policy)
+        fixtures.OrderWorkspaceTests.setUpTestData.__func__(type(self))
+        self.client.force_login(self.admin)
+        with sync_playwright() as p:
+            browser = p.chromium.launch(channel='chrome', headless=True)
+            try:
+                context = browser.new_context(viewport={'width': 1440, 'height': 900})
+                context.add_cookies([{'name': 'sessionid', 'value': self.client.cookies['sessionid'].value, 'url': self.live_server_url}])
+                page = context.new_page()
+                errors = []
+                page.on('pageerror', lambda error: errors.append(str(error)))
+                page.goto(self.live_server_url + reverse('order_create'))
+                page.locator('#owner').evaluate('(node) => node.open = true')
+                upload = page.locator('[name="owner_bankbook"]')
+                upload.set_input_files({'name': 'bank.png', 'mimeType': 'image/png', 'buffer': picture().read()})
+                expect(page.locator('.upload-previews img')).to_be_visible()
+                page.locator('.upload-previews .document-thumbnail').click()
+                expect(page.locator('.document-preview-dialog')).to_be_visible()
+                page.get_by_role('button', name='關閉預覽').click()
+                page.locator('#extras').evaluate('(node) => node.open = true')
+                same = page.locator('[name="old_owner_same_as_owner"]')
+                expect(same).not_to_be_checked()
+                page.locator('[name="trade_in_intent"]').select_option('yes')
+                expect(page.locator('[data-trade-in-uploads]')).to_be_visible()
+                same.check()
+                expect(page.locator('[data-trade-in-uploads]')).to_be_hidden()
+                expect(page.locator('[name="old_bankbook"]')).to_be_disabled()
+                same.uncheck()
+                expect(page.locator('[name="old_bankbook"]')).to_be_enabled()
+                row = page.locator('[data-accessory-row]').first
+                expect(row.locator('[data-custom-accessory]')).to_be_hidden()
+                row.locator('[name$="-accessory_product"]').select_option('other')
+                expect(row.locator('[data-custom-accessory]')).to_be_visible()
+                row.locator('[name$="-custom_name"]').fill('加裝手機架')
+                row.locator('[name$="-amount"]').fill('1000')
+                row.locator('[name$="-labor_fee"]').fill('200')
+                row.locator('[name$="-line_type"]').select_option('gift')
+                expect(row.locator('[name$="-amount"]')).to_have_value('0')
+                expect(row.locator('[name$="-labor_fee"]')).to_have_value('0')
+                screenshots = Path(tempfile.mkdtemp(prefix='dmis-intake-fixes-'))
+                for width in (1440, 820, 390):
+                    page.set_viewport_size({'width': width, 'height': 1000})
+                    self.assertLessEqual(page.evaluate('document.documentElement.scrollWidth'), width + 1)
+                    page.locator('.upload-previews').first.scroll_into_view_if_needed()
+                    page.screenshot(path=str(screenshots / f'preview-{width}.png'))
+                    row.scroll_into_view_if_needed()
+                    page.screenshot(path=str(screenshots / f'accessory-{width}.png'))
+                page.wait_for_load_state('networkidle')
+                self.assertFalse(errors, errors)
+                print(f'Intake screenshots: {screenshots}', flush=True)
+            finally:
+                browser.close()
+
     def test_tabs_media_and_responsive_layout(self):
         if sys.platform == 'win32':
             previous_policy = asyncio.get_event_loop_policy()
@@ -97,6 +154,8 @@ class PptBrowserTests(StaticLiveServerTestCase):
                 page.screenshot(path=str(screenshots / 'announcement-after.png'))
                 expect(page.get_by_role('heading', name='已編輯公告')).to_be_visible()
                 page.screenshot(path=str(screenshots / 'announcement-390.png'))
+                page.locator('.announcement-images img').evaluate_all('(images) => images.forEach(img => img.loading = "eager")')
+                page.wait_for_function('Array.from(document.querySelectorAll(".announcement-images img")).every(img => img.complete)')
                 page.wait_for_load_state('networkidle')
                 self.assertFalse(errors, errors)
                 print(f'Browser screenshots: {screenshots}')

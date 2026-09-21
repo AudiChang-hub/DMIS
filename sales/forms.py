@@ -2857,6 +2857,10 @@ class PaymentRecordForm(forms.ModelForm):
             ]
         )
         self.fields["payment_method"].label = "收款方式"
+        original_method = self.initial.get("payment_method")
+        widget = self.fields["payment_method"].widget
+        if original_method and original_method not in {key for key, _label in widget.choices}:
+            widget.choices = [*widget.choices, (original_method, f"{original_method}（原資料）")]
         if self.instance and self.instance.system_key:
             for name in ("item_name", "receipt_kind"):
                 self.fields[name].disabled = True

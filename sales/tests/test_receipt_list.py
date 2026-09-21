@@ -99,6 +99,15 @@ class ReceiptListTests(TestCase):
         self.assertEqual(balance.expected_amount, 68000)
         self.assertEqual(balance.proof.name, "orders/payments/test-only.pdf")
 
+    def test_legacy_payment_method_remains_selectable_when_editing(self):
+        from sales.forms import PaymentRecordForm
+        deposit = self.order.payment_records.get(system_key="deposit")
+        deposit.payment_method = "舊通路匯款"
+        deposit.save()
+        form = PaymentRecordForm(instance=deposit)
+        self.assertIn(("舊通路匯款", "舊通路匯款（原資料）"), list(form.fields["payment_method"].widget.choices))
+        self.assertIn('value="舊通路匯款" selected', str(form["payment_method"]))
+
     def test_add_and_edit_again_without_reload_with_audit(self):
         payload = self.payload()
         index = int(payload["payments-TOTAL_FORMS"])

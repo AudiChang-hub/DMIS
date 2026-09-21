@@ -16,7 +16,7 @@ def audit_financial_consistency(sample_limit=30):
             samples.append({"code": code, "order": order.number, "detail": detail})
 
     total = 0
-    orders = SalesOrder.objects.select_related("operations", "vehicle_model", "source").prefetch_related(
+    orders = SalesOrder.objects.select_related("operations", "vehicle_model", "source", "legacy_snapshot").prefetch_related(
         "payment_records", "accessories", "other_fees", "dealer_volume_bonus_allocations",
     ).order_by("pk")
     for order in orders.iterator(chunk_size=200):

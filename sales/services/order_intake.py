@@ -83,10 +83,13 @@ def guard_order_scope(request, name, kwargs):
         if not scoped_orders(request.user).filter(pk=kwargs.get("order_pk")).exists():
             raise Http404
     if name in {"vehicle_price_options", "installment_plan_options"} and request.GET.get("order_id"):
+        from sales.access.services import policy_for
+        if not policy_for(request).screen("orders"):
+            raise PermissionDenied("沒有查詢訂單快照權限。")
         try:
             exists = scoped_orders(request.user).filter(pk=request.GET["order_id"]).exists()
         except (ValueError, ValidationError):
-            exists = False
+            return  # 格式錯誤交回原查詢端點，保留其 JSON 400／公開查價語意。
         if not exists:
             raise Http404
 

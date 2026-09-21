@@ -12,7 +12,7 @@ from playwright.sync_api import sync_playwright, expect
 
 from sales.models import SystemAnnouncement, AnnouncementImage
 from sales.tests import test_order_workspace as fixtures
-from sales.tests.test_ppt_refinements import picture
+from sales.tests.test_ppt_refinements import picture, pdf_document
 
 
 @override_settings(DEBUG=True, ALLOWED_HOSTS=['localhost', '127.0.0.1', 'testserver'], SECURE_SSL_REDIRECT=False, SESSION_COOKIE_SECURE=False)
@@ -25,6 +25,7 @@ class PptBrowserTests(StaticLiveServerTestCase):
         fixtures.OrderWorkspaceTests.setUpTestData.__func__(type(self))
         with tempfile.TemporaryDirectory() as media, override_settings(MEDIA_ROOT=media):
             self.order.id_front = picture('front.png')
+            self.order.signed_contract = pdf_document()
             self.order.save()
             item = SystemAnnouncement.objects.create(title='公告畫面驗收', body='圖片下方內容', published=True)
             first = AnnouncementImage.objects.create(announcement=item, image=picture('first.png'))
@@ -40,6 +41,12 @@ class PptBrowserTests(StaticLiveServerTestCase):
                 page.goto(self.live_server_url + reverse('order_detail', args=[self.order.pk]))
                 page.locator('.document-thumbnail').first.click()
                 expect(page.locator('dialog.document-preview-dialog')).to_be_visible()
+                page.get_by_role('button', name='關閉預覽').click()
+                pdf_button = page.locator('.document-thumbnail:has(iframe)').first
+                for summary in pdf_button.locator('xpath=ancestor::details[not(@open)]/summary').all():
+                    summary.click()
+                pdf_button.click()
+                expect(page.locator('dialog.document-preview-dialog iframe')).to_be_visible()
                 page.get_by_role('button', name='關閉預覽').click()
                 page.locator('[data-workspace-tab="finance"]').click()
                 field = page.locator('[name="operations-shipping_expense"]')
@@ -73,6 +80,8 @@ class PptBrowserTests(StaticLiveServerTestCase):
                 self.assertEqual(page.locator('.mobile-nav>a.active').evaluate('(node) => getComputedStyle(node).color'), 'rgb(232, 238, 240)')
                 page.screenshot(path=str(screenshots / 'finance-night-390.png'))
                 page.on('dialog', lambda dialog: dialog.accept())
+                page.wait_for_load_state('networkidle')
+                page.close()
                 page = context.new_page()
                 page.on('pageerror', lambda error: errors.append(str(error)))
                 page.goto(self.live_server_url + reverse('announcement_detail', args=[item.pk]))
@@ -88,6 +97,7 @@ class PptBrowserTests(StaticLiveServerTestCase):
                 page.screenshot(path=str(screenshots / 'announcement-after.png'))
                 expect(page.get_by_role('heading', name='已編輯公告')).to_be_visible()
                 page.screenshot(path=str(screenshots / 'announcement-390.png'))
+                page.wait_for_load_state('networkidle')
                 self.assertFalse(errors, errors)
                 print(f'Browser screenshots: {screenshots}')
                 browser.close()

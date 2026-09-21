@@ -258,11 +258,14 @@ def _form_error_text(form):
     )
 
 
-def _protect_private_response(response):
+def _protect_private_response(response, *, preview=False):
     """避免含個資的檔案被瀏覽器或中介快取保存。"""
     response["Cache-Control"] = "private, no-store, max-age=0"
     response["Pragma"] = "no-cache"
     response["X-Content-Type-Options"] = "nosniff"
+    if preview and response.get("Content-Type", "").split(";", 1)[0] == "application/pdf":
+        response["X-Frame-Options"] = "SAMEORIGIN"
+        response["Content-Security-Policy"] = "frame-ancestors 'self'"
     return response
 
 
@@ -6641,7 +6644,7 @@ def registration_document_file(request, document_pk):
         as_attachment=False,
         filename=Path(document.file.name).name,
     )
-    return _protect_private_response(response)
+    return _protect_private_response(response, preview=request.GET.get("preview") == "1")
 
 
 def _recognize_old_owner_documents(order, actor_name):
@@ -6936,7 +6939,7 @@ def subsidy_document_file(request, document_pk):
         as_attachment=False,
         filename=Path(document.file.name).name,
     )
-    return _protect_private_response(response)
+    return _protect_private_response(response, preview=request.GET.get("preview") == "1")
 
 
 @login_required
@@ -9093,4 +9096,4 @@ def protected_media(request, model_name, pk, field_name):
         raise Http404
     response = FileResponse(file_field.open("rb"))
     response["Content-Disposition"] = f'inline; filename="{file_field.name.split("/")[-1]}"'
-    return _protect_private_response(response)
+    return _protect_private_response(response, preview=request.GET.get("preview") == "1")

@@ -7,7 +7,7 @@ from django.test import TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
 from PIL import Image
-from pypdf import PdfReader
+from pypdf import PdfReader, PdfWriter
 
 from sales.announcement_views import AnnouncementForm
 from sales.forms import AccessoryLineForm, PaymentRecordForm, SubsidyDataForm
@@ -22,6 +22,14 @@ def picture(name="test.png"):
     content = BytesIO()
     Image.new("RGB", (8, 8), "white").save(content, "PNG")
     return SimpleUploadedFile(name, content.getvalue(), content_type="image/png")
+
+
+def pdf_document(name='document.pdf'):
+    writer = PdfWriter()
+    writer.add_blank_page(width=100, height=100)
+    content = BytesIO()
+    writer.write(content)
+    return SimpleUploadedFile(name, content.getvalue(), content_type='application/pdf')
 
 
 class PptRefinementTests(TestCase):
@@ -113,6 +121,23 @@ class PptRefinementTests(TestCase):
         download = self.client.get(url)
         self.assertEqual(download.status_code, 200)
         self.assertTrue(b"".join(download.streaming_content))
+
+    @override_settings(X_FRAME_OPTIONS='DENY')
+    def test_pdf_preview_allows_only_same_origin_and_keeps_authentication(self):
+        self.order.signed_contract = pdf_document()
+        self.order.save()
+        attachment = OrderIntakeAttachment.objects.create(order=self.order, kind='supplement', file=pdf_document('intake.pdf'), name='intake.pdf', checksum='pdf-test', uploaded_by=self.admin)
+        urls = [reverse('protected_media', args=['order', self.order.pk, 'signed_contract']) + '?preview=1', reverse('order_intake_attachment', args=[attachment.pk]) + '?preview=1']
+        for url in urls:
+            response = self.client.get(url)
+            self.assertEqual(response['X-Frame-Options'], 'SAMEORIGIN')
+            self.assertEqual(response['Content-Security-Policy'], "frame-ancestors 'self'")
+            self.assertIn('no-store', response['Cache-Control'])
+            self.assertTrue(b''.join(response.streaming_content))
+        self.assertEqual(self.client.get(reverse('order_detail', args=[self.order.pk]))['X-Frame-Options'], 'DENY')
+        self.client.logout()
+        for url in urls:
+            self.assertEqual(self.client.get(url).status_code, 302)
 
     def test_new_installment_receivable_and_manual_override(self):
         self.order.cash_receivable_v2 = True

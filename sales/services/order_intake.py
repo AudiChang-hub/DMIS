@@ -33,12 +33,62 @@ def can_edit_finance(user):
 
 def scoped_orders(user, queryset=None):
     queryset = queryset if queryset is not None else SalesOrder.objects.all()
+    if not user.is_authenticated or not user.is_active:
+        return queryset.none()
+    from sales.access.services import is_root
+    if is_root(user):
+        return queryset
     profile = account_profile(user)
     if profile and profile.kind == "dealer":
         if not profile.source_id or not profile.source.active:
             return queryset.none()
+        queryset = queryset.filter(source_id=profile.source_id, source_type=SalesOrder.SourceType.DEALER)
+        # 即使有人繞過表單寫入 all，也不能取得其他車行資料。
+        return queryset if profile.order_scope == "dealer" else queryset.filter(submitted_by=user)
+    if profile and profile.order_scope == "own":
+        return queryset.filter(submitted_by=user)
+    if profile and profile.order_scope == "dealer":
+        if not profile.source_id or not profile.source.active:
+            return queryset.none()
         return queryset.filter(source_id=profile.source_id, source_type=SalesOrder.SourceType.DEALER)
     return queryset
+
+
+def order_scope_label(user):
+    from sales.access.services import is_root
+    profile = account_profile(user)
+    if is_root(user) or not profile or (profile.kind != "dealer" and profile.order_scope == "all"):
+        return "全部訂單"
+    return "本車行訂單" if profile.order_scope == "dealer" else "我的訂單"
+
+
+CUSTOMER_DOCUMENT_ROUTES = {"contract_print", "privacy_consent_print", "order_documents_print"}
+ORDER_PK_ROUTES = CUSTOMER_DOCUMENT_ROUTES | {
+    "order_detail", "order_edit", "order_operations", "order_edit_presence", "order_receive",
+    "order_secret_reveal", "order_commission_attribution_update", "order_discount_request", "order_discount_decide",
+    "contract_upload", "privacy_consent_upload", "allocate_vehicle", "reallocate_vehicle",
+    "registration_save", "registration_document_upload", "registration_document_delete", "registration_complete",
+    "delivery_complete", "delivery_payment_update", "cancellation_request", "refund_complete",
+    "subsidy_toggle", "subsidy_document_upload", "subsidy_document_delete", "subsidy_data_update", "subsidy_ocr_decision",
+    "registration_fee_variance_confirm", "identity_documents_print",
+}
+
+
+def guard_order_scope(request, name, kwargs):
+    """資料範圍先於畫面授權判斷；不靠隱藏按鈕保護單筆資料。"""
+    if name in ORDER_PK_ROUTES:
+        if not scoped_orders(request.user).filter(pk=kwargs.get("pk")).exists():
+            raise Http404
+    if name == "positioned_template_order_print":
+        if not scoped_orders(request.user).filter(pk=kwargs.get("order_pk")).exists():
+            raise Http404
+    if name in {"vehicle_price_options", "installment_plan_options"} and request.GET.get("order_id"):
+        try:
+            exists = scoped_orders(request.user).filter(pk=request.GET["order_id"]).exists()
+        except (ValueError, ValidationError):
+            exists = False
+        if not exists:
+            raise Http404
 
 
 def scoped_drafts(user, queryset=None, *, reception=False):
@@ -47,7 +97,7 @@ def scoped_drafts(user, queryset=None, *, reception=False):
     if profile and profile.kind == "dealer":
         return queryset.filter(owner_account=user) if profile.can_submit_orders else queryset.none()
     from sales.access.services import AccessPolicy
-    if reception or not AccessPolicy(user).screen("orders"):
+    if reception or (profile and profile.order_scope != "all") or not AccessPolicy(user).screen("orders"):
         return queryset.filter(owner_account=user)
     return queryset
 
@@ -56,7 +106,7 @@ def scoped_drafts(user, queryset=None, *, reception=False):
 def receive_order(user, pk):
     if not can_receive(user):
         raise PermissionDenied("沒有接單權限。")
-    order = SalesOrder.objects.select_for_update().get(pk=pk)
+    order = scoped_orders(user, SalesOrder.objects.select_for_update()).get(pk=pk)
     if order.status != SalesOrder.Status.INTAKE_PENDING:
         raise ValidationError("此訂單已由其他人接單或狀態已變更，請重新整理。")
     order.accepted_by = user
@@ -88,6 +138,9 @@ DEALER_SUBMIT_ROUTES.update({"order_start", "intake_draft_save", "order_submitte
 
 
 def dealer_route_allowed(profile, name):
+    if name in CUSTOMER_DOCUMENT_ROUTES:
+        from sales.access.services import AccessPolicy
+        return AccessPolicy(profile.user).screen("order_documents", "export")
     if name in {"catalog", "catalog_detail", "catalog_image", "catalog_color_image"}:
         return bool(profile.source_id and profile.source.active and profile.can_browse_catalog)
     if name in DEALER_SUBMIT_ROUTES:

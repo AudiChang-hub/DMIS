@@ -10,6 +10,7 @@ from django.views.decorators.http import require_http_methods
 from sales.models import SalesOrder
 from sales.services.order_deletion import change_deletion, deletion_blockers, require_access, review_deletion, confirmation_token
 from sales.access.services import is_root
+from sales.services.order_intake import scoped_orders
 from django.core.exceptions import PermissionDenied
 
 
@@ -25,7 +26,7 @@ class DeletionForm(forms.Form):
 @require_http_methods(["GET", "HEAD"])
 def order_recycle_bin(request):
     require_access(request.user, "view")
-    rows = SalesOrder.all_objects.filter(deleted_at__isnull=False).select_related("vehicle_model", "color").order_by("-deleted_at", "-pk")
+    rows = scoped_orders(request.user, SalesOrder.all_objects.filter(deleted_at__isnull=False)).select_related("vehicle_model", "color").order_by("-deleted_at", "-pk")
     query = request.GET.get("q", "").strip()[:160]
     if query:
         rows = rows.filter(Q(number__icontains=query) | Q(owner_name__icontains=query))
@@ -37,7 +38,7 @@ def order_recycle_bin(request):
 @require_http_methods(["GET", "HEAD", "POST"])
 def order_delete(request, pk, *, restore=False):
     require_access(request.user)
-    order = get_object_or_404(SalesOrder.all_objects.filter(deleted_at__isnull=not restore), pk=pk)
+    order = get_object_or_404(scoped_orders(request.user, SalesOrder.all_objects.filter(deleted_at__isnull=not restore)), pk=pk)
     form = DeletionForm(request.POST if request.method == "POST" else None,
         initial={"expected_updated_at": order.updated_at.isoformat(), "impact_confirmation": confirmation_token(order, request.user),
                  "reason": order.deletion_request_reason})

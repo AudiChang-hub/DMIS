@@ -9,6 +9,6 @@
   <dt>目前狀態</dt><dd>{{ order.get_status_display }}</dd></dl>
   {% if order.accepted_at %}<p>{% site_text 'order_submitted.f3e4dbab124d' %}</p>{% else %}<p>{% site_text 'order_submitted.47c0a43d4711' %}</p>{% endif %}
   <p>開單公司：{{ order.print_company_snapshot.legal_name|default:"待 admin 確認" }}</p>
-  <div class="hero-actions">{% if_access 'contract_print' order.pk %}<a class="button" target="_blank" rel="noopener" href="{% url 'contract_print' order.pk %}">列印本筆訂購單</a>{% endif_access %}<a class="button primary" href="{{ order_entry_url }}">再建立一筆</a><a class="button" href="{% url 'dashboard' %}">回首頁</a></div>
+  <div class="hero-actions">{% if_access 'contract_print' order.pk %}<a class="button" target="_blank" rel="noopener" href="{% url 'contract_print' order.pk %}">列印本筆訂購單</a>{% endif_access %}{% if_access 'order_documents_print' order.pk %}<a class="button" target="_blank" rel="noopener" href="{% url 'order_documents_print' order.pk %}">列印全部客戶簽署文件</a>{% endif_access %}<a class="button primary" href="{{ order_entry_url }}">再建立一筆</a><a class="button" href="{% url 'dashboard' %}">回首頁</a></div>
 </section>
 {% endblock %}

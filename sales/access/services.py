@@ -39,11 +39,16 @@ class AccessPolicy:
             self.reports = {row["report_id"]: row for row in ReportAccessGrant.objects.filter(user=user).values("report_id", "view", "operate", "export")}
 
     def screen(self, key, action="view"):
-        if key == "order_pricing":
+        if key in {"order_pricing", "order_gift"}:
             return bool(self.active and action in {"view", "operate"} and (self.root or
                 (self.screens.get(key, {}).get("view") and self.screens.get(key, {}).get(action)))
                 and (not self.dealer or (self.order_profile.source_id and self.order_profile.source.active
                                          and self.order_profile.can_submit_orders)))
+        if key == "order_documents":
+            return bool(self.active and action in {"view", "export"} and
+                (self.root or (not self.configured and not self.dealer) or
+                 (self.screens.get(key, {}).get("view") and self.screens.get(key, {}).get("export"))) and
+                (not self.dealer or (self.order_profile.source_id and self.order_profile.source.active)))
         if key in {"profit", "order_delete"}:
             return bool(self.active and not self.dealer and (self.root or
                 (self.screens.get(key, {}).get("view") and self.screens.get(key, {}).get(action))))
@@ -80,6 +85,9 @@ class AccessPolicy:
 
     def route(self, name, method="GET", kwargs=None):
         kwargs = kwargs or {}
+        from sales.services.order_intake import CUSTOMER_DOCUMENT_ROUTES
+        if name in CUSTOMER_DOCUMENT_ROUTES:
+            return self.screen("order_documents", "export")
         if self.dealer:
             from sales.services.order_intake import dealer_route_allowed, DEALER_ACCOUNT_ROUTES
             if name in DEALER_ACCOUNT_ROUTES:
@@ -152,8 +160,8 @@ def snapshot(user, reports):
     if policy.configured and not policy.root:
         data = {"screens": policy.screens, "reports": {str(key): grant for key, grant in policy.reports.items()}}
     else:
-        data = {"screens": {s.key: {"view": s.key not in {"profit", "order_delete", "order_pricing"} and (s.ceiling != "superuser" or user.is_superuser),
-                    "operate": s.key not in {"order_delete", "order_pricing"} and s.operate and (s.ceiling != "superuser" or user.is_superuser),
+        data = {"screens": {s.key: {"view": s.key not in {"profit", "order_delete", "order_pricing", "order_gift"} and (s.ceiling != "superuser" or user.is_superuser),
+                    "operate": s.key not in {"order_delete", "order_pricing", "order_gift"} and s.operate and (s.ceiling != "superuser" or user.is_superuser),
                     "export": s.export and (s.ceiling != "superuser" or user.is_superuser)} for s in SCREENS},
                 "reports": {str(r.pk): {"view": report_ceiling(user, r, include_inactive=True),
                     "operate": False, "export": report_ceiling(user, r, include_inactive=True)} for r in reports}}

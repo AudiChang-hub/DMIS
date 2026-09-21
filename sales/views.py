@@ -3916,18 +3916,20 @@ def legacy_import_status(request, pk):
 
 @login_required
 def customer_list(request):
+    from sales.services.order_intake import scoped_orders
+    visible_orders = scoped_orders(request.user)
     latest_id = (
-        SalesOrder.objects.filter(owner_id_number=OuterRef("owner_id_number"))
+        visible_orders.filter(owner_id_number=OuterRef("owner_id_number"))
         .order_by("-order_date", "-id")
         .values("id")[:1]
     )
     order_count = (
-        SalesOrder.objects.filter(owner_id_number=OuterRef("owner_id_number"))
+        visible_orders.filter(owner_id_number=OuterRef("owner_id_number"))
         .values("owner_id_number")
         .annotate(total=Count("id"))
         .values("total")[:1]
     )
-    customers = SalesOrder.objects.filter(id=Subquery(latest_id)).annotate(
+    customers = visible_orders.filter(id=Subquery(latest_id)).annotate(
         order_count=Subquery(order_count)
     )
     keyword = request.GET.get("q", "").strip()
@@ -3954,9 +3956,10 @@ def customer_list(request):
 
 @login_required
 def customer_detail(request, pk):
-    customer = get_object_or_404(SalesOrder, pk=pk)
+    from sales.services.order_intake import scoped_orders
+    customer = get_object_or_404(scoped_orders(request.user), pk=pk)
     orders = (
-        SalesOrder.objects.filter(owner_id_number=customer.owner_id_number)
+        scoped_orders(request.user).filter(owner_id_number=customer.owner_id_number)
         .select_related("vehicle_model", "color", "source")
         .order_by("-order_date", "-id")
     )
@@ -4193,7 +4196,7 @@ def order_list(request):
     from sales.access.services import policy_for
     from sales.services.profit_access import profit_is_unlocked
     profit_visible = profit_is_unlocked(request)
-    orders = SalesOrder.objects.select_related(
+    orders = scoped_orders(request.user).select_related(
         "source",
         "vehicle_model",
         "vehicle_model__family",
@@ -4687,7 +4690,7 @@ def order_create(request, reception=False):
         if not form.finance_editable:
             post_data = post_data.copy()
             post_data.update({"other_fees-TOTAL_FORMS": "0", "other_fees-INITIAL_FORMS": "0"})
-        formset = AccessoryFormSet(post_data, form_kwargs={"allow_manual": form.pricing_editable, "purchase_only": not form.pricing_editable})
+        formset = AccessoryFormSet(post_data, form_kwargs={"allow_manual": form.pricing_editable, "purchase_only": not policy_for(request).screen("order_gift", "operate")})
         fee_formset = OtherFeeFormSet(post_data, prefix="other_fees")
         uploads = []
         form.is_valid()
@@ -4773,7 +4776,7 @@ def order_create(request, reception=False):
             )
             if draft
             else None,
-            form_kwargs={"allow_manual": form.pricing_editable, "purchase_only": not form.pricing_editable},
+            form_kwargs={"allow_manual": form.pricing_editable, "purchase_only": not policy_for(request).screen("order_gift", "operate")},
         )
         fee_formset = OtherFeeFormSet(
             initial=_draft_lines(draft.data, "other_fees", ("name", "amount"))
@@ -5109,7 +5112,7 @@ def order_detail(request, pk, *, commission_form=None, workspace_context_only=Fa
     from sales.services.order_intake import is_dealer, scoped_orders
     if is_dealer(request.user):
         order = get_object_or_404(scoped_orders(request.user).select_related("vehicle_model", "color", "source"), pk=pk)
-        return render(request, "sales/dealer_order_detail.html", {"order": order})
+        return render(request, "sales/dealer_order_detail.html", {"order": order, "customer_attachments": order.intake_attachments.filter(kind__in=["installment", "supplement"])})
     order = get_object_or_404(
         SalesOrder.objects.select_related(
             "source",
@@ -5697,6 +5700,7 @@ def _schedule_model_file_cleanup(model, field_name, previous_name):
 @login_required
 @transaction.atomic
 def order_edit(request, pk):
+    from sales.access.services import policy_for
     order = get_object_or_404(
         SalesOrder.objects.select_for_update(),
         pk=pk,
@@ -5745,7 +5749,7 @@ def order_edit(request, pk):
         if order_workspace.is_workspace_save(request) or request.POST.get("_workspace") == "1":
             for field in ("is_trade_in_subsidy", "old_owner_same_as_owner"):
                 form.fields.pop(field, None)
-        formset = AccessoryFormSet(request.POST, instance=order, form_kwargs={"allow_manual": True})
+        formset = AccessoryFormSet(request.POST, instance=order, form_kwargs={"allow_manual": True, "purchase_only": not policy_for(request).screen("order_gift", "operate")})
         fee_formset = OtherFeeFormSet(
             request.POST, instance=order, prefix="other_fees"
         )
@@ -5822,7 +5826,7 @@ def order_edit(request, pk):
             return redirect("order_detail", pk=pk)
     else:
         form = OrderEditForm(instance=order)
-        formset = AccessoryFormSet(instance=order, form_kwargs={"allow_manual": True})
+        formset = AccessoryFormSet(instance=order, form_kwargs={"allow_manual": True, "purchase_only": not policy_for(request).screen("order_gift", "operate")})
         fee_formset = OtherFeeFormSet(instance=order, prefix="other_fees")
 
     if request.method == "POST" and order_workspace.is_workspace_save(request):
@@ -6663,7 +6667,9 @@ def refund_complete(request, pk):
 
 @login_required
 def registration_document_file(request, document_pk):
+    from sales.services.order_intake import scoped_orders
     document = get_object_or_404(RegistrationDocument, pk=document_pk)
+    get_object_or_404(scoped_orders(request.user), pk=document.order_id)
     if not document.file:
         raise Http404
     response = FileResponse(
@@ -6958,7 +6964,9 @@ def subsidy_document_delete(request, pk, document_pk):
 
 @login_required
 def subsidy_document_file(request, document_pk):
+    from sales.services.order_intake import scoped_orders
     document = get_object_or_404(SubsidyDocument, pk=document_pk)
+    get_object_or_404(scoped_orders(request.user), pk=document.order_id)
     if not document.file:
         raise Http404
     response = FileResponse(
@@ -9092,6 +9100,7 @@ def id_card_ocr_invalidate(request, job_id):
 
 @login_required
 def protected_media(request, model_name, pk, field_name):
+    from sales.services.order_intake import scoped_orders, scoped_drafts
     allowed = {
         "order": (
             SalesOrder,
@@ -9115,8 +9124,9 @@ def protected_media(request, model_name, pk, field_name):
     if model_name not in allowed or field_name not in allowed[model_name][1]:
         raise Http404
     model = allowed[model_name][0]
-    instance = get_object_or_404(model, pk=pk)
-    if model_name in {"payment", "delivery"} and not SalesOrder.objects.filter(pk=instance.order_id).exists():
+    queryset = scoped_orders(request.user) if model_name == "order" else scoped_drafts(request.user) if model_name == "draft" else model.objects.all()
+    instance = get_object_or_404(queryset, pk=pk)
+    if model_name in {"payment", "delivery"} and not scoped_orders(request.user).filter(pk=instance.order_id).exists():
         raise Http404
     file_field = getattr(instance, field_name)
     if not file_field:

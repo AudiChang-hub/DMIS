@@ -19,7 +19,16 @@ from sales.models import (
 
 
 class DealerFeatureMixin:
-    def feature_fields(self):
+    def feature_fields(self, profile=None):
+        self.fields["order_scope"] = forms.ChoiceField(label="訂單資料範圍", choices=(("own", "本人建立的訂單"), ("dealer", "所屬車行的訂單")), initial=profile.order_scope if profile else "own", widget=forms.Select(attrs={"class": "form-control"}))
+        self.fields["can_gift_accessories"] = forms.BooleanField(label="可贈送配件（不代表可修改售價）", required=False)
+        self.fields["can_print_documents"] = forms.BooleanField(label="可列印客戶簽署文件（不含內部財務）", required=False, initial=True)
+        if profile:
+            # 編輯停用帳號也顯示已儲存的授權，不把「目前無法登入」誤當撤權。
+            self.fields["can_gift_accessories"].initial = ScreenAccessGrant.objects.filter(user=profile.user, screen_key="order_gift", view=True, operate=True).exists()
+            self.fields["can_print_documents"].initial = ScreenAccessGrant.objects.filter(user=profile.user, screen_key="order_documents", view=True, export=True).exists()
+        self.fields["can_adjust_pricing"].label = "下單金額調整（成交價、配件調價、自訂分期）"
+        self.fields["can_view_orders"].label = "可查詢訂單（依下方資料範圍）"
         for key in ("can_view_orders", "can_browse_catalog", "can_submit_orders"):
             self.fields[key].widget.attrs["class"] = "form-check"
         self.fields["username"].widget.attrs.update({"autocomplete": "section-new-dealer username", "autocapitalize": "none", "spellcheck": "false", "data-dealer-username": ""})
@@ -54,7 +63,7 @@ class DealerEditForm(DealerFeatureMixin, AdminUserEditForm):
 
     def __init__(self, *args, profile, **kwargs):
         super().__init__(*args, **kwargs)
-        self.feature_fields()
+        self.feature_fields(profile)
         self.fields["can_view_orders"].initial = profile.can_view_orders
         self.fields["can_browse_catalog"].initial = profile.can_browse_catalog
         self.fields["is_superuser"].disabled = True
@@ -69,6 +78,17 @@ def dealer_source(pk):
     return get_object_or_404(
         SalesSource, pk=pk, source_type=SalesSource.SourceType.DEALER
     )
+
+
+def save_customer_permissions(user, data):
+    for key, field, action in (("order_gift", "can_gift_accessories", "operate"), ("order_documents", "can_print_documents", "export")):
+        enabled = data[field]
+        ScreenAccessGrant.objects.update_or_create(user=user, screen_key=key,
+            defaults={"view": enabled, "operate": enabled if action == "operate" else False, "export": enabled if action == "export" else False})
+
+
+def customer_permission_snapshot(user, scope):
+    return {"order_scope": scope, "customer_permissions": list(ScreenAccessGrant.objects.filter(user=user, screen_key__in=["order_gift", "order_documents"]).order_by("screen_key").values("screen_key", "view", "operate", "export"))}
 
 
 def suggested_username(source):
@@ -132,12 +152,14 @@ def dealer_account_create(request, source_pk):
                         can_submit_orders=form.cleaned_data["can_submit_orders"],
                         can_view_orders=form.cleaned_data["can_view_orders"],
                         can_browse_catalog=form.cleaned_data["can_browse_catalog"],
+                        order_scope=form.cleaned_data["order_scope"],
                     )
                     UserSecurityProfile.objects.create(
                         user=user, must_change_password=True
                     )
                     UserAccessState.objects.create(user=user, configured=True)
                     ScreenAccessGrant.objects.create(user=user, screen_key="order_pricing", view=form.cleaned_data["can_adjust_pricing"], operate=form.cleaned_data["can_adjust_pricing"])
+                    save_customer_permissions(user, form.cleaned_data)
                     UserAccountAuditLog.objects.create(
                         actor=request.user,
                         target=user,
@@ -145,6 +167,7 @@ def dealer_account_create(request, source_pk):
                         action="create",
                         description=f"開通 {source.name} 車行帳號 {user.username}",
                         metadata={
+                            **customer_permission_snapshot(user, form.cleaned_data["order_scope"]),
                             "can_adjust_pricing": form.cleaned_data["can_adjust_pricing"],
                             "source_id": source.pk,
                             "can_submit_orders": form.cleaned_data["can_submit_orders"],
@@ -192,6 +215,7 @@ def dealer_account_edit(request, pk):
                     form.add_error(None, "所屬車行已停用，不能啟用帳號。")
                 else:
                     before = {
+                        **customer_permission_snapshot(user, current.order_scope),
                         "can_adjust_pricing": ScreenAccessGrant.objects.filter(user=user, screen_key="order_pricing", view=True, operate=True).exists(),
                         "username": user.username,
                         "is_active": user.is_active,
@@ -214,6 +238,8 @@ def dealer_account_edit(request, pk):
                     current.can_submit_orders = form.cleaned_data["can_submit_orders"]
                     current.can_view_orders = form.cleaned_data["can_view_orders"]
                     current.can_browse_catalog = form.cleaned_data["can_browse_catalog"]
+                    current.order_scope = form.cleaned_data["order_scope"]
+                    save_customer_permissions(user, form.cleaned_data)
                     current.revision += 1
                     ScreenAccessGrant.objects.update_or_create(user=user, screen_key="order_pricing", defaults={"view": form.cleaned_data["can_adjust_pricing"], "operate": form.cleaned_data["can_adjust_pricing"], "export": False})
                     access_state, _ = UserAccessState.objects.get_or_create(user=user)
@@ -221,7 +247,7 @@ def dealer_account_edit(request, pk):
                     access_state.version += 1
                     access_state.save(update_fields=["configured", "version", "updated_at"])
                     current.save(
-                        update_fields=["can_submit_orders", "can_view_orders", "can_browse_catalog", "revision", "updated_at"]
+                        update_fields=["can_submit_orders", "can_view_orders", "can_browse_catalog", "order_scope", "revision", "updated_at"]
                     )
                     from sales.views import _invalidate_user_sessions
 
@@ -236,6 +262,7 @@ def dealer_account_edit(request, pk):
                         metadata={
                             "before": before,
                             "after": {
+                                **customer_permission_snapshot(user, current.order_scope),
                                 "can_adjust_pricing": form.cleaned_data["can_adjust_pricing"],
                                 "username": user.username,
                                 "is_active": user.is_active,

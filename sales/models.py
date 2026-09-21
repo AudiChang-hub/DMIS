@@ -4593,8 +4593,10 @@ class OrderAccountProfile(TimeStampedModel):
     source = models.ForeignKey(SalesSource, on_delete=models.PROTECT, null=True, blank=True, verbose_name="預設店別／所屬車行")
     revision = models.PositiveIntegerField(default=0)
     can_submit_orders = models.BooleanField("可建立訂單與使用草稿", default=True)
-    can_view_orders = models.BooleanField("可查看本車行訂單", default=True)
+    can_view_orders = models.BooleanField("可查詢訂單", default=True)
     can_browse_catalog = models.BooleanField("可使用選車入口", default=True)
+    order_scope = models.CharField("訂單資料範圍", max_length=12,
+        choices=(("own", "本人建立的訂單"), ("dealer", "所屬車行的訂單"), ("all", "全公司訂單（僅店內）")), default="own")
 
     def clean(self):
         super().clean()
@@ -4602,6 +4604,10 @@ class OrderAccountProfile(TimeStampedModel):
             raise ValidationError({"source": "合作車行帳號必須綁定合作車行。"})
         if self.kind == "dealer" and self.user.get_username() == "admin":
             raise ValidationError("admin 為馭盛店內管理帳號，不可改為外部車行。")
+        if self.kind == "dealer" and self.order_scope == "all":
+            raise ValidationError({"order_scope": "合作車行最多只能查看所屬車行的訂單。"})
+        if self.order_scope == "dealer" and (not self.source_id or self.source.source_type != SalesSource.SourceType.DEALER):
+            raise ValidationError({"source": "所屬車行範圍必須指定合作車行。"})
 
 
 class OrderIntakeAttachment(TimeStampedModel):

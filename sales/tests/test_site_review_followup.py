@@ -67,7 +67,7 @@ class SiteReviewFollowupTests(TestCase):
         data = {"display_name": "甲車行人員", "username": self.dealer_user.username,
                 "is_active": "on", "can_submit_orders": "on", "can_view_orders": "on",
                 "can_browse_catalog": "on", "expected_revision": self.profile.revision,
-                "can_adjust_pricing": "on"}
+                "can_adjust_pricing": "on", "order_scope": "own"}
         response = self.client.post(url, data)
         self.assertEqual(response.status_code, 302, response.context and response.context['form'].errors)
         self.assertTrue(AccessPolicy(self.dealer_user).screen("order_pricing", "operate"))

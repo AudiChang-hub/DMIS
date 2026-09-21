@@ -280,7 +280,7 @@
     </div>
     <div class="subsection accessory-section">
       <div class="section-title"><h3>配件</h3></div>
-      <p class="muted">{% site_text 'order_form.01b4c1935981' %}</p>
+      <p class="muted">選擇配件與數量，預帶售價與工資。贈送與調價由 admin 分別授權；選「其他」才填寫名稱。配件總額自動計算。</p>
       <div id="accessory-forms">
       {% for accessory_form in formset %}
         <div class="accessory-row dynamic-row{% if accessory_form.DELETE.value %} is-pending-delete{% endif %}" data-accessory-row data-dynamic-row data-row-label="配件">
@@ -288,7 +288,7 @@
           <span hidden>{{ accessory_form.DELETE }}</span>
           <button type="button" class="remove-row-button" data-remove-row aria-label="刪除此筆配件">刪除</button>
           {% include "sales/_field.html" with field=accessory_form.accessory_product %}
-          <div data-custom-accessory>{% include "sales/_field.html" with field=accessory_form.custom_name %}</div>
+          <div data-custom-accessory hidden>{% include "sales/_field.html" with field=accessory_form.custom_name %}</div>
           {% include "sales/_field.html" with field=accessory_form.quantity %}
           {% include "sales/_field.html" with field=accessory_form.line_type %}
           {% include "sales/_field.html" with field=accessory_form.amount %}
@@ -304,7 +304,7 @@
           <span hidden>{{ formset.empty_form.DELETE }}</span>
           <button type="button" class="remove-row-button" data-remove-row aria-label="刪除此筆配件">刪除</button>
           {% include "sales/_field.html" with field=formset.empty_form.accessory_product %}
-          <div data-custom-accessory>{% include "sales/_field.html" with field=formset.empty_form.custom_name %}</div>
+          <div data-custom-accessory hidden>{% include "sales/_field.html" with field=formset.empty_form.custom_name %}</div>
           {% include "sales/_field.html" with field=formset.empty_form.quantity %}
           {% include "sales/_field.html" with field=formset.empty_form.line_type %}
           {% include "sales/_field.html" with field=formset.empty_form.amount %}

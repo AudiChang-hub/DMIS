@@ -17,7 +17,7 @@ FINANCE_FIELDS = (
     "registration_plate_fee", "registration_license_fee", "registration_inspection_fee", "road_maintenance_fee",
     "license_tax_fee", "compulsory_insurance_fee", "plate_selection_fee", "lien_registration_fee",
     "registration_calculated_total", "plate_insurance_fee", "installment_opening_fee", "installment_monthly",
-    "is_trade_in_subsidy", "old_owner_same_as_owner",
+    "is_trade_in_subsidy",
 )
 
 PRICING_FIELDS = {
@@ -69,7 +69,6 @@ class IntakeOrderForm(SalesOrderForm):
                 field.required = False
                 self.initial[name] = 0 if name == "deposit_amount" else None
             self.initial["compulsory_insurance_period"] = 1
-            self.initial["old_owner_same_as_owner"] = True
         self.catalog_summary = None
         token = self.data.get("catalog_selection") if self.is_bound else self.initial.get("catalog_selection")
         if token:
@@ -85,6 +84,12 @@ class IntakeOrderForm(SalesOrderForm):
     def clean(self):
         data = super().clean()
         data["trade_in_intent"] = data.get("trade_in_intent") or "unknown"
+        data["is_trade_in_subsidy"] = data["trade_in_intent"] == "yes"
+        if data["trade_in_intent"] != "yes":
+            data["old_owner_same_as_owner"] = False
+        elif data.get("old_owner_same_as_owner"):
+            data["old_owner_name"] = data.get("owner_name", "")
+            data["old_owner_id_number"] = data.get("owner_id_number", "")
         model = data.get("vehicle_model")
         if model and model.energy_type != "gas" and not data.get("owner_email"):
             self.add_error("owner_email", "電動車需填寫車主 Email。")
@@ -115,6 +120,10 @@ def validated_intake_uploads(files):
     if sum(upload.size for _, values in files.lists() for upload in values) > 35 * 1024 * 1024:
         raise ValidationError("同次上傳含證件合計最多 35 MB；請分批暫存並重新開啟草稿後續傳。")
     uploads = [("installment", f) for f in files.getlist("installment_document")] + [("supplement", f) for f in files.getlist("supplement_documents")]
+    for kind in ("owner_bankbook", "old_id_front", "old_id_back", "old_bankbook"):
+        if len(files.getlist(kind)) > 1:
+            raise ValidationError("同類證件每次限上傳一份。")
+        uploads.extend((kind, f) for f in files.getlist(kind))
     if len(files.getlist("installment_document")) > 1 or len(files.getlist("supplement_documents")) > 10:
         raise ValidationError("分期表限 1 個檔案，補充附件最多 10 個。")
     for _, upload in uploads:

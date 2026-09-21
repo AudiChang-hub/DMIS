@@ -61,8 +61,8 @@
       <div class="wide"><dt>地址</dt><dd>{{ order.owner_address }}</dd></div>
     </dl>
     <div class="document-links">
-      {% if order.id_front %}{% if_access 'protected_media' 'order' order.pk 'id_front' %}<a href="{% url 'protected_media' 'order' order.pk 'id_front' %}" target="_blank">查看證件正面</a>{% endif_access %}{% endif %}
-      {% if order.id_back %}{% if_access 'protected_media' 'order' order.pk 'id_back' %}<a href="{% url 'protected_media' 'order' order.pk 'id_back' %}" target="_blank">查看證件反面</a>{% endif_access %}{% endif %}
+      {% if order.id_front %}{% if_access 'protected_media' 'order' order.pk 'id_front' %}<a href="{% url 'protected_media' 'order' order.pk 'id_front' %}" target="_blank" data-preview-name="{{ order.id_front.name }}">證件正面</a>{% endif_access %}{% endif %}
+      {% if order.id_back %}{% if_access 'protected_media' 'order' order.pk 'id_back' %}<a href="{% url 'protected_media' 'order' order.pk 'id_back' %}" target="_blank" data-preview-name="{{ order.id_back.name }}">證件反面</a>{% endif_access %}{% endif %}
     </div>
     {% if order.id_front or order.id_back %}
     <details class="identity-print-panel">
@@ -105,82 +105,6 @@
     </dl>
   </section>
   <section class="card">
-    <div class="section-title"><h2>金額</h2><span>{{ order.get_payment_type_display }}</span></div>
-    <dl class="money-list">
-      <div><dt>車價</dt><dd>${{ order.vehicle_price|number_with_commas }}</dd></div>
-      <div><dt>牌險</dt><dd>${{ order.plate_insurance_fee|number_with_commas }}</dd></div>
-      {% if order.price_snapshot %}
-      <div class="price-snapshot-summary">
-        <dt>車價依據</dt>
-        <dd>
-          {{ order.price_snapshot.effective_from }} 售價版本
-          {% if order.price_snapshot.recommended_price_label and order.price_snapshot.recommended_price %}
-          · {{ order.price_snapshot.recommended_price_label }} ${{ order.price_snapshot.recommended_price|number_with_commas }}
-          {% endif %}
-          {% if order.vehicle_price_adjustment_reason %}
-          <small>人工調整原因：{{ order.vehicle_price_adjustment_reason }}</small>
-          {% else %}
-          <small>{% site_text 'order_detail.e0dfcca76bee' %}</small>
-          {% endif %}
-        </dd>
-      </div>
-      {% elif order.vehicle_price_adjustment_reason %}
-      <div class="price-snapshot-summary"><dt>車價調整原因</dt><dd>{{ order.vehicle_price_adjustment_reason }}</dd></div>
-      {% endif %}
-      {% if order.effective_installment_fee %}<div><dt>分期開辦費</dt><dd>${{ order.effective_installment_fee|number_with_commas }}</dd></div>{% endif %}
-      {% if order.accessory_total %}<div><dt>配件合計</dt><dd>${{ order.accessory_total|number_with_commas }}</dd></div>{% endif %}
-      {% if order.other_fee_total %}<div><dt>其他費用合計</dt><dd>${{ order.other_fee_total|number_with_commas }}</dd></div>{% endif %}
-      {% if order.old_vehicle_tax %}<div><dt>舊車未繳稅金</dt><dd>${{ order.old_vehicle_tax|number_with_commas }}</dd></div>{% endif %}
-      {% if order.deposit_amount %}<div><dt>訂金</dt><dd>− ${{ order.deposit_amount|number_with_commas }}</dd></div>{% endif %}
-      {% if order.old_vehicle_valuation %}<div><dt>舊車估價</dt><dd>− ${{ order.old_vehicle_valuation|number_with_commas }}</dd></div>{% endif %}
-      {% if order.registration_calculated_total %}
-      <div class="registration-breakdown">
-        <div class="registration-breakdown__header">
-          <div>
-            <dt>領牌試算</dt>
-            {% with rate_label=order.registration_rate_class|registration_rate_label:order.vehicle_model.displacement_cc %}
-            <p>{{ order.registration_date|date:"Y/m/d" }}{% if rate_label %} · {{ rate_label }}{% endif %} · 強制險{{ order.get_compulsory_insurance_period_display }}</p>
-            {% endwith %}
-          </div>
-          <div class="registration-breakdown__total">
-            <span>試算合計</span>
-            <strong>${{ order.registration_calculated_total|number_with_commas }}</strong>
-            {% if order.plate_insurance_fee != order.registration_calculated_total %}<em>已人工調整實收</em>{% if not order.is_cancelled_sale %}{% if_access 'registration_fee_variance_confirm' order.pk %}<form method="post" action="{% url 'registration_fee_variance_confirm' order.pk %}">{% csrf_token %}<input type="hidden" name="return_to_order" value="1"><button class="button ghost small" type="submit">確認牌險差異</button></form>{% endif_access %}{% endif %}{% endif %}
-          </div>
-        </div>
-        <div class="registration-breakdown__items">
-          <div><span>{% if order.registration_rate_class|slice:":3" == "EV-" %}領牌規費{% else %}號牌{% endif %}</span><strong>${{ order.registration_plate_fee|number_with_commas }}</strong></div>
-          <div><span>行照</span><strong>${{ order.registration_license_fee|number_with_commas }}</strong></div>
-          <div><span>檢驗</span><strong>${{ order.registration_inspection_fee|number_with_commas }}</strong></div>
-          <div><span>公路養管</span><strong>${{ order.road_maintenance_fee|number_with_commas }}</strong></div>
-          <div><span>牌照稅</span><strong>${{ order.license_tax_fee|number_with_commas }}</strong></div>
-          <div><span>強制險</span><strong>${{ order.compulsory_insurance_fee|number_with_commas }}</strong></div>
-          {% if order.plate_selection_fee %}<div><span>選號</span><strong>${{ order.plate_selection_fee|number_with_commas }}</strong></div>{% endif %}
-          {% if order.lien_registration_fee %}<div><span>動保設定</span><strong>${{ order.lien_registration_fee|number_with_commas }}</strong></div>{% endif %}
-        </div>
-      </div>
-      {% endif %}
-      <div class="balance-equation">
-        <div class="balance-equation__header">
-          <dt>尾款計算</dt>
-          <span>配件與其他費用均已計入</span>
-        </div>
-        <div class="balance-equation__terms">
-          <div><span>＋ 車價</span><strong>${{ order.vehicle_price|number_with_commas }}</strong></div>
-          <div><span>＋ 牌險</span><strong>${{ order.plate_insurance_fee|number_with_commas }}</strong></div>
-          {% if order.effective_installment_fee %}<div><span>＋ 分期開辦費</span><strong>${{ order.effective_installment_fee|number_with_commas }}</strong></div>{% endif %}
-          {% if order.accessory_total %}<div class="included"><span>＋ 配件</span><strong>${{ order.accessory_total|number_with_commas }}</strong></div>{% endif %}
-          {% if order.other_fee_total %}<div class="included"><span>＋ 其他費用</span><strong>${{ order.other_fee_total|number_with_commas }}</strong></div>{% endif %}
-          {% if order.old_vehicle_tax %}<div><span>＋ 舊車稅金</span><strong>${{ order.old_vehicle_tax|number_with_commas }}</strong></div>{% endif %}
-          {% if order.deposit_amount %}<div class="deduction"><span>− 訂金</span><strong>${{ order.deposit_amount|number_with_commas }}</strong></div>{% endif %}
-          {% if order.old_vehicle_valuation %}<div class="deduction"><span>− 舊車估價</span><strong>${{ order.old_vehicle_valuation|number_with_commas }}</strong></div>{% endif %}
-          {% if order.balance_adjustment_amount %}<div class="adjustment"><span>人工調整</span><strong>{{ order.balance_adjustment_amount }}</strong></div>{% endif %}
-        </div>
-        <div class="balance-equation__result"><span>實際尾款</span><strong>${{ order.actual_balance|number_with_commas }}</strong></div>
-      </div>
-    </dl>
-  </section>
-  <section class="card">
     <div class="section-title"><h2>配件與需求明細</h2>{% if order.accessory_total %}<span>配件合計 ${{ order.accessory_total|number_with_commas }}</span>{% endif %}</div>
     {% for line in order.accessories.all %}
       <div class="line-item"><span>{{ line.name }} × {{ line.quantity }}<small>{{ line.get_line_type_display }} · 售價 ${{ line.amount|number_with_commas }} ＋ 工資 ${{ line.labor_fee|number_with_commas }}{% if line.line_type == 'gift' %} · 不計入訂單總價{% else %} · 已計入尾款{% endif %}</small></span><strong>${{ line.display_total|number_with_commas }}</strong></div>
@@ -207,7 +131,7 @@
       <p>{% site_text 'order_detail.8f7144ef61f6' %}</p>
       <div class="document-archive-card__actions">
         {% if_access 'contract_print' order.pk %}<a class="button ghost" href="{% url 'contract_print' order.pk %}" target="_blank">列印空白合約</a>{% endif_access %}
-        {% if order.has_signed_contract %}{% if_access 'protected_media' 'order' order.pk 'signed_contract' %}<a class="button ghost" href="{% url 'protected_media' 'order' order.pk 'signed_contract' %}" target="_blank">查看目前附件</a>{% endif_access %}{% endif %}
+        {% if order.has_signed_contract %}{% if_access 'protected_media' 'order' order.pk 'signed_contract' %}<a class="button ghost" href="{% url 'protected_media' 'order' order.pk 'signed_contract' %}" data-preview-name="{{ order.signed_contract.name }}" target="_blank">查看目前附件</a>{% endif_access %}{% endif %}
       </div>
       <form class="document-upload-form" data-document-upload data-auto-upload method="post" enctype="multipart/form-data" action="{% url 'contract_upload' order.pk %}">
         {% csrf_token %}{{ contract_form.signed_contract }}
@@ -222,7 +146,7 @@
       <p>{% site_text 'order_detail.d97010d7fe91' %}</p>
       <div class="document-archive-card__actions">
         {% if_access 'privacy_consent_print' order.pk %}<a class="button ghost" href="{% url 'privacy_consent_print' order.pk %}" target="_blank">列印空白同意書</a>{% endif_access %}
-        {% if order.has_privacy_consent %}{% if_access 'protected_media' 'order' order.pk 'privacy_consent' %}<a class="button ghost" href="{% url 'protected_media' 'order' order.pk 'privacy_consent' %}" target="_blank">查看目前附件</a>{% endif_access %}{% endif %}
+        {% if order.has_privacy_consent %}{% if_access 'protected_media' 'order' order.pk 'privacy_consent' %}<a class="button ghost" href="{% url 'protected_media' 'order' order.pk 'privacy_consent' %}" data-preview-name="{{ order.privacy_consent.name }}" target="_blank">查看目前附件</a>{% endif_access %}{% endif %}
       </div>
       <form class="document-upload-form" data-document-upload data-auto-upload method="post" enctype="multipart/form-data" action="{% url 'privacy_consent_upload' order.pk %}">
         {% csrf_token %}{{ privacy_consent_form.privacy_consent }}
@@ -259,7 +183,7 @@
     {% if order.refund_completed_on %}<div><dt>退款日期</dt><dd>{{ order.refund_completed_on|date:"Y/m/d" }}</dd></div>{% endif %}
     {% if order.refund_method %}<div><dt>退款方式</dt><dd>{{ order.get_refund_method_display }}</dd></div>{% endif %}
   </dl>
-  {% if order.refund_proof %}{% if_access 'protected_media' 'order' order.pk 'refund_proof' %}<a class="button ghost" href="{% url 'protected_media' 'order' order.pk 'refund_proof' %}" target="_blank">查看退款證明</a>{% endif_access %}{% endif %}
+  {% if order.refund_proof %}{% if_access 'protected_media' 'order' order.pk 'refund_proof' %}<a class="button ghost" href="{% url 'protected_media' 'order' order.pk 'refund_proof' %}" data-preview-name="{{ order.refund_proof.name }}" target="_blank">查看退款證明</a>{% endif_access %}{% endif %}
 </section>
 {% elif not order.is_delivered and not order.is_registration_complete %}
 <details class="section-block cancellation-panel cancellation-disclosure">
@@ -410,7 +334,7 @@
   </div>
 
   {% if order.can_manage_subsidy %}
-  <form data-workspace-save="subsidy" class="subsidy-edit-form" method="post" action="{% url 'subsidy_data_update' order.pk %}" data-subsidy-form data-subsidy-toggle-url="{% url 'subsidy_toggle' order.pk %}" data-was-enabled="{% if order.is_trade_in_subsidy %}true{% else %}false{% endif %}" data-has-documents="{% if order.subsidy_documents.all|length %}true{% else %}false{% endif %}">
+  <form data-workspace-save="subsidy" class="subsidy-edit-form" method="post" action="{% url 'subsidy_data_update' order.pk %}" data-owner-name="{{ order.owner_name }}" data-owner-id="{{ order.owner_id_number }}" data-subsidy-form data-subsidy-toggle-url="{% url 'subsidy_toggle' order.pk %}" data-was-enabled="{% if order.is_trade_in_subsidy %}true{% else %}false{% endif %}" data-has-documents="{% if order.subsidy_documents.all|length %}true{% else %}false{% endif %}">
     {% csrf_token %}
     <input type="hidden" name="_order_revision" value="{{ order.revision }}">
     <label class="subsidy-toggle">
@@ -431,7 +355,7 @@
       <div class="subsidy-change-reason"><label for="{{ subsidy_form.change_reason.id_for_label }}">變更原因 <span class="required-inline">必填</span></label>{{ subsidy_form.change_reason }}</div>
     </div>
     <section class="dynamic-detail-section" data-subsidy-items>
-      <div class="section-title"><div><h3>補助申請項目</h3><small>各單位金額與送件日期分開記錄；合計 ${{ order.subsidy_total|number_with_commas }}</small></div></div>
+      <div class="section-title"><div><h3>補助申請項目</h3><small>各單位金額與送件日期分開記錄；合計 $<output data-subsidy-total>{{ order.subsidy_total|number_with_commas }}</output></small></div></div>
       {{ subsidy_item_formset.management_form }}
       <div class="dynamic-detail-list" data-form-list>
         {% for item_form in subsidy_item_formset %}
@@ -494,7 +418,7 @@
       <article class="registration-document-row {% if row.document %}is-uploaded{% endif %}" data-subsidy-document-row data-required-when-enabled="{% if row.required_when_enabled %}true{% else %}false{% endif %}">
         <div class="registration-document-row__name">
           <strong>{{ row.label }}</strong>
-          <span class="required-badge" data-subsidy-required-badge {% if not row.required %}hidden{% endif %}>必備</span>
+          <span class="optional-badge" data-subsidy-required-badge {% if not row.required %}hidden{% endif %}>送件前備妥，可先儲存</span>
           <span class="optional-badge" data-subsidy-optional-badge {% if row.required %}hidden{% endif %}>目前不需要</span>
           {% if row.document %}
             <small>由 {{ row.document.uploaded_by|default:"內部人員" }} 於 {{ row.document.created_at|date:"Y/m/d H:i" }} 上傳</small>
@@ -502,7 +426,11 @@
         </div>
         <div class="registration-document-row__actions">
           {% if row.document %}
-            {% if_access 'subsidy_document_file' row.document.pk %}<a class="button ghost compact" href="{% url 'subsidy_document_file' row.document.pk %}" target="_blank">查看</a>{% endif_access %}
+            {% if_access 'subsidy_document_file' row.document.pk %}<a class="button ghost compact" href="{% url 'subsidy_document_file' row.document.pk %}" data-preview-name="{{ row.document.file.name }}" target="_blank">查看</a>{% endif_access %}
+          {% elif row.existing_evidence %}
+            <a href="{{ row.existing_evidence.url }}" data-preview-name="{{ row.existing_evidence.name }}" target="_blank">已沿用下訂附件</a>
+          {% endif %}
+          {% if row.document %}
             {% if order.can_manage_subsidy %}
             <form method="post" action="{% url 'subsidy_document_delete' order.pk row.document.pk %}" data-confirm="確定刪除這份補助文件嗎？刪除後無法復原。">
               {% csrf_token %}<button class="button danger-ghost compact" type="submit">刪除</button>
@@ -539,7 +467,7 @@
           <small>由 {{ document.uploaded_by|default:"內部人員" }} 於 {{ document.created_at|date:"Y/m/d H:i" }} 上傳</small>
         </span>
         <div>
-          {% if_access 'subsidy_document_file' document.pk %}<a class="button ghost compact" href="{% url 'subsidy_document_file' document.pk %}" target="_blank">查看</a>{% endif_access %}
+          {% if_access 'subsidy_document_file' document.pk %}<a class="button ghost compact" href="{% url 'subsidy_document_file' document.pk %}" data-preview-name="{{ document.file.name }}" target="_blank">查看</a>{% endif_access %}
           {% if order.can_manage_subsidy %}
           <form method="post" action="{% url 'subsidy_document_delete' order.pk document.pk %}" data-confirm="確定刪除這份其他補助文件嗎？刪除後無法復原。">
             {% csrf_token %}<button class="button danger-ghost compact" type="submit">刪除</button>
@@ -682,7 +610,7 @@
           </div>
           <div class="registration-document-row__actions">
             {% if row.document %}
-              {% if_access 'registration_document_file' row.document.pk %}<a class="button ghost compact" href="{% url 'registration_document_file' row.document.pk %}" target="_blank">查看</a>{% endif_access %}
+              {% if_access 'registration_document_file' row.document.pk %}<a class="button ghost compact" href="{% url 'registration_document_file' row.document.pk %}" data-preview-name="{{ row.document.file.name }}" target="_blank">查看</a>{% endif_access %}
               {% if not order.is_registration_complete %}
               <form method="post" action="{% url 'registration_document_delete' order.pk row.document.pk %}" data-confirm="確定刪除這份領牌文件嗎？刪除後無法復原。">
                 {% csrf_token %}
@@ -716,7 +644,7 @@
         <div class="other-insurance__item">
           <span><strong>{{ document.display_name }}</strong><small>{{ document.uploaded_by|default:"內部人員" }} · {{ document.created_at|date:"Y/m/d H:i" }}</small></span>
           <div>
-            {% if_access 'registration_document_file' document.pk %}<a class="button ghost compact" href="{% url 'registration_document_file' document.pk %}" target="_blank">查看</a>{% endif_access %}
+            {% if_access 'registration_document_file' document.pk %}<a class="button ghost compact" href="{% url 'registration_document_file' document.pk %}" data-preview-name="{{ document.file.name }}" target="_blank">查看</a>{% endif_access %}
             {% if not order.is_registration_complete %}
             <form method="post" action="{% url 'registration_document_delete' order.pk document.pk %}" data-confirm="確定刪除這份保險單嗎？刪除後無法復原。">
               {% csrf_token %}<button class="button danger-ghost compact" type="submit">刪除</button>
@@ -775,53 +703,7 @@
     <div><p class="eyebrow">交付作業</p><h2>車輛交付</h2></div>
     {% if order.is_delivered %}<span class="archive-status done">✓ 已交付</span>{% elif order.can_deliver %}<span class="archive-status">可進行</span>{% else %}<span class="archive-status">尚未開放</span>{% endif %}
   </div>
-  {% if balance_payment %}
-  <div class="delivery-payment" id="delivery-payment">
-    <div class="delivery-payment__header">
-      <div>
-        <p class="eyebrow">交車前收尾</p>
-        <h3>{{ balance_payment.item_name }}</h3>
-        {% if order.source_type == "dealer" %}
-        <p>{% site_text 'order_detail.c4b8fc8f1bd2' %}</p>
-        {% else %}
-        <p>{% site_text 'order_detail.a0bc4d13a7bb' %}</p>
-        {% endif %}
-      </div>
-      {% if balance_payment.is_settled %}
-      <span class="payment-state is-paid">✓ 已收清</span>
-      {% elif balance_payment.received_amount %}
-      <span class="payment-state is-partial">部分收款</span>
-      {% else %}
-      <span class="payment-state">待收款</span>
-      {% endif %}
-    </div>
-    <div class="delivery-payment__summary">
-      <div><span>應收</span><strong>${{ balance_payment.expected_amount|number_with_commas }}</strong></div>
-      <div><span>已收</span><strong>${{ balance_payment.received_amount|number_with_commas }}</strong></div>
-      <div class="{% if balance_payment.outstanding_amount %}has-balance{% endif %}"><span>尚差</span><strong>${{ balance_payment.outstanding_amount|number_with_commas }}</strong></div>
-    </div>
-    {% if balance_payment.expected_amount <= 0 %}
-    <div class="delivery-payment__settled-note">本單沒有待收尾款，可直接進行交付核對。</div>
-    {% elif not order.is_delivered or order.source_type == "dealer" %}
-    <form class="delivery-payment__form" method="post" enctype="multipart/form-data" action="{% url 'delivery_payment_update' order.pk %}">
-      {% csrf_token %}
-      <div class="form-grid compact-grid">
-        <div><label for="{{ balance_payment_form.received_amount.id_for_label }}">{{ balance_payment_form.received_amount.label }} <span class="required-inline">必填</span></label>{{ balance_payment_form.received_amount }}</div>
-        <div><label for="{{ balance_payment_form.received_on.id_for_label }}">{{ balance_payment_form.received_on.label }}</label>{{ balance_payment_form.received_on }}</div>
-        <div><label for="{{ balance_payment_form.payment_method.id_for_label }}">{{ balance_payment_form.payment_method.label }}</label>{{ balance_payment_form.payment_method }}</div>
-        <div><label for="{{ balance_payment_form.receiving_account.id_for_label }}">{{ balance_payment_form.receiving_account.label }}</label>{{ balance_payment_form.receiving_account }}</div>
-        <div><label for="{{ balance_payment_form.proof.id_for_label }}">{{ balance_payment_form.proof.label }}</label>{{ balance_payment_form.proof }}{% if balance_payment.proof %}{% if_access 'protected_media' 'payment' balance_payment.pk 'proof' %}<a class="field-file-link" href="{% url 'protected_media' 'payment' balance_payment.pk 'proof' %}" target="_blank">查看目前證明</a>{% endif_access %}{% endif %}</div>
-        <div><label for="{{ balance_payment_form.note.id_for_label }}">{{ balance_payment_form.note.label }}</label>{{ balance_payment_form.note }}</div>
-        <div class="wide"><label class="check-card">{{ balance_payment_form.confirmed }} <span>{{ balance_payment_form.confirmed.label }}</span></label><p class="form-hint">{% site_text 'order_detail.987b2e8b79d5' %}</p></div>
-      </div>
-      <div class="delivery-payment__actions">
-        <span>收款資料會同步至營運與對帳，不需重複登記。</span>
-        <button class="button primary" type="submit">儲存收款資料</button>
-      </div>
-    </form>
-    {% endif %}
-  </div>
-  {% endif %}
+  <div class="note-box" id="delivery-payment"><p>收款統一在「金額收支資訊」管理，這裡只處理交付核對。</p>{% if workspace_finance %}<button type="button" class="button ghost" data-workspace-go="finance">前往金額收支資訊</button>{% endif %}</div>
   {% if order.is_delivered %}
     <div class="delivery-complete">
       <div class="delivery-complete__hero">
@@ -830,7 +712,7 @@
           {% if order.delivered_at %}<h3>{{ order.delivered_at|date:"Y/m/d H:i" }} 完成交付</h3>{% else %}<h3>已完成交付（時間未記錄）</h3>{% endif %}
           {% if delivery_record %}<p>{% if delivery_record.completed_by %}由 {{ delivery_record.completed_by }} 登記{% else %}登記人員未記錄{% endif %}，訂單與實體車輛已鎖定。</p>{% else %}<p>基本交付狀態已保存。</p>{% endif %}
         </div>
-        {% if delivery_record.handover_photo %}{% if_access 'protected_media' 'delivery' delivery_record.pk 'handover_photo' %}<a class="button ghost small" href="{% url 'protected_media' 'delivery' delivery_record.pk 'handover_photo' %}" target="_blank">查看交付照片</a>{% endif_access %}{% endif %}
+        {% if delivery_record.handover_photo %}{% if_access 'protected_media' 'delivery' delivery_record.pk 'handover_photo' %}<a class="button ghost small" href="{% url 'protected_media' 'delivery' delivery_record.pk 'handover_photo' %}" data-preview-name="{{ delivery_record.handover_photo.name }}" target="_blank">查看交付照片</a>{% endif_access %}{% endif %}
       </div>
 
       {% if order.status == "delivered_docs_pending" %}
@@ -914,7 +796,7 @@
 </section>
 </div>
 
-{% if workspace_finance %}{% include "sales/_order_operations_content.html" with form=operations_form %}{% endif %}
+{% if workspace_finance %}<div data-workspace-section="finance">{% include "sales/_order_amounts.html" %}</div>{% include "sales/_order_operations_content.html" with form=operations_form %}{% endif %}
 <details class="workspace-history" id="panel-history"><summary>處理與修改紀錄</summary>
 <section class="section-block">
   <div class="section-title"><h2>處理紀錄</h2></div>

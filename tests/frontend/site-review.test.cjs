@@ -34,7 +34,7 @@ test('公告圖片預覽驗證檔案、撤銷舊預覽，忽略過期解碼錯�
   const input = {files:[],closest:()=>form,setCustomValidity(message){this.error=message;},addEventListener:(e,f)=>events[e]=f};
   let sequence=0;
   vm.runInNewContext(fs.readFileSync('static/js/announcement-images.js','utf8'), {
-    document:{querySelectorAll:()=>[input],createElement:tag=>({tag,children:[],append(...children){this.children.push(...children);}})},
+    document:{querySelectorAll:s=>s==='[data-announcement-upload]'?[input]:[],createElement:tag=>({tag,dataset:{},children:[],addEventListener(){},append(...children){this.children.push(...children);}})},
     window:{addEventListener:(e,f)=>windowEvents[e]=f},
     URL:{createObjectURL:()=>`blob:${++sequence}`,revokeObjectURL:u=>revoked.push(u)}
   });

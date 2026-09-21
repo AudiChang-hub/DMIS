@@ -11,6 +11,7 @@
   const ownerType = byId("id_owner_type");
   const paymentType = byId("id_payment_type");
   const isTradeInSubsidy = byId("id_is_trade_in_subsidy");
+  const tradeInIntent = byId("id_trade_in_intent");
   const installmentInputs = [
     byId("id_installment_company"),
     byId("id_installment_periods"),
@@ -449,7 +450,7 @@
     const installmentRequired = paymentType.value === "installment";
     installmentInputs.forEach(input => { input.required = installmentRequired; });
     installmentPicker.syncRequired();
-    showConditional("trade-in-owner", isTradeInSubsidy.checked);
+    showConditional("trade-in-owner", tradeInIntent ? tradeInIntent.value === 'yes' : isTradeInSubsidy.checked);
     showConditional("watch", plateChoice.value === "watch");
     showConditional("preference", plateChoice.value === "preference");
     const needsDestination = ["direct_delivery", "carrier"].includes(deliveryMethod.value);
@@ -481,7 +482,7 @@
     loadVehiclePrice({force: true});
     if (paymentType.value === "installment") loadInstallmentPlanOptions();
   });
-  [sourceType, ownerType, plateChoice, deliveryMethod, isTradeInSubsidy]
+  [sourceType, ownerType, plateChoice, deliveryMethod, isTradeInSubsidy, tradeInIntent].filter(Boolean)
     .forEach(el => el.addEventListener("change", refresh));
   if (!vehicleEnergyType.value && vehicleModel.value) {
     vehicleEnergyType.value = vehicleRateData[vehicleModel.value]?.energy_type || "";
@@ -782,7 +783,7 @@
   function refreshAccessoryRequired(row, changed = false) {
     if (row.classList.contains("is-pending-delete")) return;
     const productInput = row.querySelector('[name$="-accessory_product"]');
-    const hasProduct = Boolean(productInput?.value);
+    const hasProduct = Boolean(productInput?.value || row.querySelector('[name$="-custom_name"]')?.value.trim());
     row.classList.toggle("has-accessory-name", hasProduct);
     row.querySelectorAll('[name$="-quantity"], [name$="-line_type"]')
       .forEach(input => input.required = hasProduct);

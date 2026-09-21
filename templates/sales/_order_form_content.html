@@ -90,7 +90,7 @@
     <summary><span class="step-number">2</span><span><strong>訂單來源</strong><small>哪間店、從哪裡接到訂單</small></span></summary>
     <div class="form-grid">
       {% include "sales/_field.html" with field=form.source_type %}
-      <div class="field span-2" data-conditional="source">
+      <div class="field" data-conditional="source">
         {% include "sales/_field.html" with field=form.source %}
       </div>
     </div>
@@ -115,6 +115,7 @@
     </div>
     <div class="form-grid owner-form-grid">
       {% include "sales/_field.html" with field=form.owner_type %}
+      {% if intake_mode %}<label>車主存摺封面（選填）<input type="file" name="owner_bankbook" accept="image/jpeg,image/png,image/webp,application/pdf"></label>{% endif %}
       <div class="span-2 capture-instruction" data-conditional="identity-upload">
         請先準備證件正反面；點選欄位後可直接拍照，或從手機相簿選擇圖片。
       </div>
@@ -266,6 +267,7 @@
       {% include "sales/_field.html" with field=form.trade_in_intent %}<p class="muted">{% site_text 'order_form.7825ae5a8413' %}</p>
       <div class="span-2 verify-box" {% if intake_mode and not intake_finance_editable %}hidden{% endif %}>{% include "sales/_field.html" with field=form.is_trade_in_subsidy %}</div>
       <div class="span-2 verify-box" data-conditional="trade-in-owner">{% include "sales/_field.html" with field=form.old_owner_same_as_owner %}</div>
+      {% if intake_mode %}<div class="form-grid span-2" data-trade-in-uploads><label>舊車主證件正面（選填）<input type="file" name="old_id_front" accept="image/jpeg,image/png,image/webp,application/pdf"></label><label>舊車主證件反面（選填）<input type="file" name="old_id_back" accept="image/jpeg,image/png,image/webp,application/pdf"></label><label>舊車主存摺封面（選填）<input type="file" name="old_bankbook" accept="image/jpeg,image/png,image/webp,application/pdf"></label></div>{% endif %}
       {% include "sales/_field.html" with field=form.plate_choice %}
       <div data-conditional="watch">{% include "sales/_field.html" with field=form.watched_numbers %}</div>
       <div data-conditional="preference">{% include "sales/_field.html" with field=form.plate_preference_note %}</div>
@@ -285,6 +287,7 @@
           <span hidden>{{ accessory_form.DELETE }}</span>
           <button type="button" class="remove-row-button" data-remove-row aria-label="刪除此筆配件">刪除</button>
           {% include "sales/_field.html" with field=accessory_form.accessory_product %}
+          {% include "sales/_field.html" with field=accessory_form.custom_name %}
           {% include "sales/_field.html" with field=accessory_form.quantity %}
           {% include "sales/_field.html" with field=accessory_form.line_type %}
           {% include "sales/_field.html" with field=accessory_form.amount %}
@@ -300,6 +303,7 @@
           <span hidden>{{ formset.empty_form.DELETE }}</span>
           <button type="button" class="remove-row-button" data-remove-row aria-label="刪除此筆配件">刪除</button>
           {% include "sales/_field.html" with field=formset.empty_form.accessory_product %}
+          {% include "sales/_field.html" with field=formset.empty_form.custom_name %}
           {% include "sales/_field.html" with field=formset.empty_form.quantity %}
           {% include "sales/_field.html" with field=formset.empty_form.line_type %}
           {% include "sales/_field.html" with field=formset.empty_form.amount %}

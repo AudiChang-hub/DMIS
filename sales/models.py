@@ -83,6 +83,17 @@ class AnnouncementImage(models.Model):
     announcement = models.ForeignKey(SystemAnnouncement, on_delete=models.PROTECT, related_name="images")
     image = models.ImageField(upload_to="announcements/%Y/%m/")
     removed = models.BooleanField(default=False)
+    position = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        ordering = ("position", "pk")
+
+
+class AnnouncementAttachment(models.Model):
+    announcement = models.ForeignKey(SystemAnnouncement, on_delete=models.PROTECT, related_name="attachments")
+    file = models.FileField(upload_to="announcements/attachments/%Y/%m/")
+    name = models.CharField(max_length=255)
+    removed = models.BooleanField(default=False)
 
 
 class SystemAnnouncementRevision(models.Model):
@@ -2758,6 +2769,7 @@ class SalesOrder(TimeStampedModel):
     accepted_name = models.CharField("接單人名稱快照", max_length=160, blank=True)
     accepted_at = models.DateTimeField("接單時間", null=True, blank=True)
     trade_in_intent = models.CharField("是否有汰舊", max_length=12, choices=(("unknown", "待確認"), ("yes", "是"), ("no", "否")), default="unknown")
+    cash_receivable_v2 = models.BooleanField(default=False, editable=False)
     order_date = models.DateField("訂單日期", default=timezone.localdate)
     established_on = models.DateField("訂單成立日期", default=timezone.localdate, null=True, blank=True, editable=False, db_index=True)
     source_type = models.CharField(
@@ -3228,7 +3240,7 @@ class SalesOrder(TimeStampedModel):
             SubsidyDocument.DocumentType.OLD_VEHICLE_REGISTRATION,
             SubsidyDocument.DocumentType.SCRAP_CERTIFICATE,
             SubsidyDocument.DocumentType.RECYCLING_RECEIPT,
-            SubsidyDocument.DocumentType.NEW_OWNER_BANKBOOK,
+            SubsidyDocument.DocumentType.OLD_OWNER_BANKBOOK,
         }
         if not self.old_owner_same_as_owner:
             required.add(SubsidyDocument.DocumentType.OWNER_DECLARATION)
@@ -3255,11 +3267,29 @@ class SalesOrder(TimeStampedModel):
         uploaded = set(
             self.subsidy_documents.values_list("document_type", flat=True)
         )
+        uploaded.update(self.subsidy_intake_evidence())
         labels = dict(SubsidyDocument.DocumentType.choices)
         for document_type in self.required_subsidy_document_types():
             if document_type not in uploaded:
                 missing.append(labels[document_type])
         return missing
+
+    def subsidy_intake_evidence(self):
+        """引用已授權的原附件，不複製檔案或改寫附件身分。"""
+        from django.urls import reverse
+        evidence = {}
+        mapping = {"old_id_front": "old_owner_id_front", "old_id_back": "old_owner_id_back", "old_bankbook": "old_owner_bankbook"}
+        if self.old_owner_same_as_owner:
+            mapping["owner_bankbook"] = "old_owner_bankbook"
+        for attachment in self.intake_attachments.order_by("created_at", "pk"):
+            if attachment.kind in mapping:
+                evidence[mapping[attachment.kind]] = {"name": attachment.name, "url": reverse("order_intake_attachment", args=[attachment.pk])}
+        if self.old_owner_same_as_owner:
+            for field, kind in (("id_front", "old_owner_id_front"), ("id_back", "old_owner_id_back")):
+                document = getattr(self, field)
+                if document and kind not in evidence:
+                    evidence[kind] = {"name": document.name, "url": reverse("protected_media", args=["order", self.pk, field])}
+        return evidence
 
     @property
     def subsidy_required_count(self):
@@ -3762,6 +3792,7 @@ class DeliveryRecord(TimeStampedModel):
 
 class OrderOperationsProfile(TimeStampedModel):
     MANUAL_PROTECTABLE_FINANCIAL_FIELDS = (
+        "vehicle_cost",
         "registration_tax_expense",
         "compulsory_insurance_expense",
         "plate_selection_expense",
@@ -4550,7 +4581,7 @@ class OrderIntakeAttachment(TimeStampedModel):
     checksum = models.CharField(max_length=64)
     order = models.ForeignKey(SalesOrder, on_delete=models.CASCADE, null=True, blank=True, related_name="intake_attachments")
     draft = models.ForeignKey(OrderDraft, on_delete=models.CASCADE, null=True, blank=True, related_name="intake_attachments")
-    kind = models.CharField("附件類型", max_length=16, choices=(("installment", "分期表"), ("supplement", "補充檔案")))
+    kind = models.CharField("附件類型", max_length=16, choices=(("installment", "分期表"), ("supplement", "補充檔案"), ("owner_bankbook", "車主存摺封面"), ("old_id_front", "舊車主證件正面"), ("old_id_back", "舊車主證件反面"), ("old_bankbook", "舊車主存摺封面")))
     file = models.FileField("附件", upload_to="orders/intake/%Y/%m/")
     uploaded_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
     name = models.CharField("原始檔名", max_length=200)

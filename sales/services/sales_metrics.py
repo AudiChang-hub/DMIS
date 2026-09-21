@@ -31,7 +31,7 @@ def filter_payment_risk(orders, risk):
         return orders.filter(status=SalesOrder.Status.CANCEL_REFUND_PENDING)
     if risk == 'outstanding':
         from .payment_summary import payment_summary
-        candidates = orders.exclude(status__in=CANCELLED_STATUSES).prefetch_related('payment_records', 'accessories')
+        candidates = orders.exclude(status__in=CANCELLED_STATUSES).select_related('legacy_snapshot').prefetch_related('payment_records', 'accessories')
         ids = []
         for order in candidates:
             summary = payment_summary(order)

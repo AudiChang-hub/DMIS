@@ -57,14 +57,17 @@ def _delivered_on(order):
 
 
 def _pending_reconciliation_action(order, today):
+    from .payment_summary import payment_summary
+    summary = payment_summary(order)
     pending_records = []
     for record in order.payment_records.all():
-        eligible = record.system_key == "installment_disbursement" or (
-            record.system_key == "balance"
+        eligible = record.effective_receipt_kind == "lender" or (
+            record.effective_receipt_kind == "customer"
             and order.source_type
             in {SalesOrder.SourceType.PLATFORM, SalesOrder.SourceType.DEALER}
         )
-        if eligible and not record.confirmed and record.expected_amount > 0:
+        due = summary["lender_due"] if record.effective_receipt_kind == "lender" else summary["customer_due"]
+        if eligible and not record.confirmed and (record.received_amount > 0 or (record.expected_amount > 0 and due > 0)):
             pending_records.append(record)
     if not pending_records:
         return None

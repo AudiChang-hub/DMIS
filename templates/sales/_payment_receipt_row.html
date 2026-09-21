@@ -1,0 +1,30 @@
+<div class="payment-record-row receipt-row" data-payment-row>
+  {{ payment.id }}{{ payment.non_field_errors }}
+  <div class="receipt-confirm">{% include "sales/_field.html" with field=payment.confirmed %}</div>
+  <div class="receipt-name">
+    {% include "sales/_field.html" with field=payment.item_name %}
+    {% include "sales/_field.html" with field=payment.receipt_kind %}
+  </div>
+  <div class="receipt-amount">{% include "sales/_field.html" with field=payment.received_amount %}</div>
+  <div class="receipt-date">{% include "sales/_field.html" with field=payment.received_on %}</div>
+  <div class="receipt-method">{% include "sales/_field.html" with field=payment.payment_method %}</div>
+  <details class="receipt-more">
+    <summary>更多資料</summary>
+    <div class="receipt-more-fields">
+      {% if payment.instance.system_key or payment.instance.expected_amount %}
+        {% include "sales/_field.html" with field=payment.expected_amount %}
+        {% include "sales/_field.html" with field=payment.expected_amount_override_reason %}
+      {% else %}{{ payment.expected_amount.as_hidden }}{{ payment.expected_amount_override_reason.as_hidden }}{% endif %}
+      {% include "sales/_field.html" with field=payment.card_principal %}
+      {% include "sales/_field.html" with field=payment.card_fee_charged %}
+      {% include "sales/_field.html" with field=payment.bank_card_fee %}
+      {% include "sales/_field.html" with field=payment.receiving_account %}
+      {% include "sales/_field.html" with field=payment.proof %}
+      {% if payment.instance.proof %}<a href="{% url 'protected_media' 'payment' payment.instance.pk 'proof' %}" data-preview-name="{{ payment.instance.proof.name }}">查看收款附件</a>{% endif %}
+      {% include "sales/_field.html" with field=payment.note %}
+      {% if payment.instance.confirmed_at %}<small>確認：{{ payment.instance.confirmed_by }} · {{ payment.instance.confirmed_at|date:"Y/m/d H:i" }}</small>{% endif %}
+      <span hidden>{{ payment.DELETE }}</span>
+      {% if not payment.instance.system_key %}<button type="button" class="button danger-outline small" data-delete-payment>移除此筆收款</button>{% endif %}
+    </div>
+  </details>
+</div>

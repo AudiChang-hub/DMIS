@@ -59,77 +59,44 @@
       {% include "sales/_field.html" with field=form.balance_invoice_number %}
       {% include "sales/_field.html" with field=form.installment_info %}
     </div>
-    <p class="muted">客戶款項與分期公司撥款分開記錄。新訂單實收不預填；應收可調整，但需填寫原因。分期外應收為牌險與配件，扣除已列訂金。</p>
-    <details class="system-payment-records" open>
-      <summary><strong>訂金、客戶收款與分期撥款</strong><span>每筆款項在此登記，不需再到交付頁重複填寫</span></summary>
-      {% for payment in payment_formset %}
-      {% if payment.instance.system_key %}
-      <div class="payment-record-row" data-payment-row>
-        {{ payment.id }}
-        {% include "sales/_field.html" with field=payment.item_name %}
-        {% include "sales/_field.html" with field=payment.expected_amount %}
-        {% include "sales/_field.html" with field=payment.expected_amount_override_reason %}
-        {% include "sales/_field.html" with field=payment.received_amount %}
-        {% include "sales/_field.html" with field=payment.card_principal %}
-        {% include "sales/_field.html" with field=payment.card_fee_charged %}
-        {% include "sales/_field.html" with field=payment.bank_card_fee %}
-        {% include "sales/_field.html" with field=payment.received_on %}
-        {% include "sales/_field.html" with field=payment.payment_method %}
-        {% include "sales/_field.html" with field=payment.receiving_account %}
-        {% include "sales/_field.html" with field=payment.confirmed %}
-        {% include "sales/_field.html" with field=payment.proof %}
-        {% if payment.instance.proof %}<a href="{% url 'protected_media' 'payment' payment.instance.pk 'proof' %}" data-preview-name="{{ payment.instance.proof.name }}">查看收款附件</a>{% endif %}
-        {% include "sales/_field.html" with field=payment.note %}
-        <span hidden>{{ payment.DELETE }}</span>
-        <small class="muted">系統同步項目</small>
+    <p class="muted payment-list-help">僅預設訂金，其餘請自行新增。勾選「已確認」才列入實收；客戶款與分期公司撥款分開加總。</p>
+    <div class="receipt-summary" data-receipt-summary>
+      <span>客戶應收 <strong>$<output data-receipt-value="customer_expected">{{ receipt_summary.customer_expected|floatformat:0 }}</output></strong></span>
+      <span>客戶已確認 <strong>$<output data-receipt-value="customer_received">{{ receipt_summary.customer_received|floatformat:0 }}</output></strong></span>
+      <span>客戶尚欠 <strong>$<output data-receipt-value="customer_due">{{ receipt_summary.customer_due|floatformat:0 }}</output></strong></span>
+      <span>分期公司應收 <strong>$<output data-receipt-value="lender_expected">{{ receipt_summary.lender_expected|floatformat:0 }}</output></strong></span>
+      <span>分期公司已確認 <strong>$<output data-receipt-value="lender_received">{{ receipt_summary.lender_received|floatformat:0 }}</output></strong></span>
+    </div>
+    <section class="receipt-list" aria-label="收款明細">
+      <h3>收款明細</h3>
+      <div class="receipt-list-head" aria-hidden="true"><span>已確認</span><span>收款項目</span><span>實收金額</span><span>收款日期</span><span>收款方式</span><span>其他資料</span></div>
+      <div class="payment-records" id="payment-records">
+        {% for payment in payment_formset %}
+          {% if not payment.instance.is_receivable_only %}
+            {% include "sales/_payment_receipt_row.html" %}
+          {% endif %}
+        {% endfor %}
       </div>
-      {% endif %}
+      <template id="payment-empty-row">{% include "sales/_payment_receipt_row.html" with payment=payment_formset.empty_form %}</template>
+      <button type="button" class="button ghost add-operation-row" id="add-payment">＋ 新增收款</button>
+    </section>
+    <details class="receipt-expectations">
+      <summary>應收設定（不是實收紀錄）</summary>
+      <p class="muted">保存訂單原有應收依據；調整須填原因，不會自動新增實收，也不會刪除歷史資料。</p>
+      {% for payment in payment_formset %}
+        {% if payment.instance.is_receivable_only %}
+          <div class="receipt-expectation-row" data-payment-expectation>
+            <strong>{{ payment.instance.item_name }}</strong>
+            {% for field in payment %}
+              {% if field.name == 'expected_amount' or field.name == 'expected_amount_override_reason' %}
+                {% include "sales/_field.html" %}
+              {% else %}{{ field.as_hidden }}{% endif %}
+            {% endfor %}
+            {{ payment.non_field_errors }}
+          </div>
+        {% endif %}
       {% endfor %}
     </details>
-    <div class="payment-records" id="payment-records">
-      {% for payment in payment_formset %}
-      {% if not payment.instance.system_key %}
-      <div class="payment-record-row" data-payment-row>
-        {{ payment.id }}
-        {% include "sales/_field.html" with field=payment.item_name %}
-        {% include "sales/_field.html" with field=payment.expected_amount %}
-        {% include "sales/_field.html" with field=payment.expected_amount_override_reason %}
-        {% include "sales/_field.html" with field=payment.received_amount %}
-        {% include "sales/_field.html" with field=payment.card_principal %}
-        {% include "sales/_field.html" with field=payment.card_fee_charged %}
-        {% include "sales/_field.html" with field=payment.bank_card_fee %}
-        {% include "sales/_field.html" with field=payment.received_on %}
-        {% include "sales/_field.html" with field=payment.payment_method %}
-        {% include "sales/_field.html" with field=payment.receiving_account %}
-        {% include "sales/_field.html" with field=payment.confirmed %}
-        {% include "sales/_field.html" with field=payment.proof %}
-        {% if payment.instance.proof %}<a href="{% url 'protected_media' 'payment' payment.instance.pk 'proof' %}" data-preview-name="{{ payment.instance.proof.name }}">查看收款附件</a>{% endif %}
-        {% include "sales/_field.html" with field=payment.note %}
-        <span hidden>{{ payment.DELETE }}</span>
-        <button type="button" class="button danger-outline small" data-delete-payment>刪除此筆收款</button>
-      </div>
-      {% endif %}
-      {% endfor %}
-    </div>
-    <template id="payment-empty-row"><div class="payment-record-row" data-payment-row>
-      {{ payment_formset.empty_form.id }}
-      {% include "sales/_field.html" with field=payment_formset.empty_form.item_name %}
-      {% include "sales/_field.html" with field=payment_formset.empty_form.expected_amount %}
-      {% include "sales/_field.html" with field=payment_formset.empty_form.expected_amount_override_reason %}
-      {% include "sales/_field.html" with field=payment_formset.empty_form.received_amount %}
-      {% include "sales/_field.html" with field=payment_formset.empty_form.card_principal %}
-      {% include "sales/_field.html" with field=payment_formset.empty_form.card_fee_charged %}
-      {% include "sales/_field.html" with field=payment_formset.empty_form.bank_card_fee %}
-      {% include "sales/_field.html" with field=payment_formset.empty_form.received_on %}
-      {% include "sales/_field.html" with field=payment_formset.empty_form.payment_method %}
-      {% include "sales/_field.html" with field=payment_formset.empty_form.receiving_account %}
-      {% include "sales/_field.html" with field=payment_formset.empty_form.confirmed %}
-      {% include "sales/_field.html" with field=payment_formset.empty_form.proof %}
-      {% include "sales/_field.html" with field=payment_formset.empty_form.note %}
-      <span hidden>{{ payment_formset.empty_form.DELETE }}</span>
-      <button type="button" class="button danger-outline small" data-delete-payment>刪除此筆收款</button>
-    </div></template>
-    <button type="button" class="button ghost add-operation-row" id="add-payment">＋ 新增收款紀錄</button>
   </details>
 
   <details {% if order_workspace %}data-workspace-section="finance"{% endif %} class="operation-section"><summary><strong>成本與支出</strong><span>影響單筆淨利</span></summary><div class="operation-grid">

@@ -286,6 +286,7 @@ class PptRefinementTests(TestCase):
         missing = AccessoryLineForm(data={**data, 'custom_name': ''}, allow_manual=True)
         self.assertFalse(missing.is_valid())
         self.assertIn('custom_name', missing.errors)
+        self.assertFalse(missing.cleaned_data.get('DELETE'))
 
     def test_same_owner_new_form_default_and_existing_value(self):
         from sales.forms import SalesOrderForm

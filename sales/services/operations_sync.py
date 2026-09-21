@@ -3,6 +3,8 @@ from decimal import Decimal
 from django.db import transaction
 from django.db.models import Sum
 
+from sales.services.customer_receivable import default_customer_balance
+
 
 def _money(value):
     return value or Decimal("0")
@@ -238,7 +240,6 @@ def sync_order_operations(order_id, *, update_receivables=False):
                 or 0
             )
         )
-        from sales.services.customer_receivable import default_customer_balance
         cash_due = default_customer_balance(order)
         active_keys.update({"installment_disbursement", "balance"})
         _upsert_system_payment(
@@ -259,7 +260,7 @@ def sync_order_operations(order_id, *, update_receivables=False):
         )
         balance_label = "分期外應收"
     else:
-        cash_due = _money(order.actual_balance)
+        cash_due = default_customer_balance(order)
         active_keys.add("balance")
         balance_label = "尾款"
     _upsert_system_payment(

@@ -1746,6 +1746,7 @@ class AccessoryLineForm(forms.ModelForm):
         custom_name = (data.get("custom_name") or "").strip()
         if self.data.get(self.add_prefix("accessory_product")) == "other" and self.allow_manual and not custom_name:
             self.add_error("custom_name", "請填寫其他配件名稱。")
+            return data
         if not product and custom_name and self.allow_manual:
             for name in ("quantity", "line_type", "amount", "labor_fee"):
                 if data.get(name) in (None, ""):

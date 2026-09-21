@@ -4031,10 +4031,11 @@ class DiscountRequestForm(forms.Form):
     mode = forms.ChoiceField(label="調整方式", choices=[("amount", "總價減少指定金額"), ("rate", "總價乘上自訂折數")], required=False)
     amount = forms.DecimalField(label="總價減少金額（元）", max_digits=12, decimal_places=0, min_value=1, required=False)
     rate = forms.DecimalField(label="折數（9 為九折、9.5 為九五折）", max_digits=5, decimal_places=2, min_value=Decimal("0.01"), max_value=Decimal("9.99"), required=False)
-    reason = forms.CharField(label="申請原因", max_length=250, widget=forms.Textarea(attrs={"rows": 2}))
+    reason = forms.CharField(label="申請原因", max_length=250, widget=forms.Textarea(attrs={"rows": 2}), error_messages={"required": "請填寫「申請原因」。"})
 
     def __init__(self, *args, total=None, **kwargs):
         self.total = total
+        kwargs.setdefault("auto_id", "discount_request_%s")
         super().__init__(*args, **kwargs)
         for field in self.fields.values():
             field.widget.attrs.setdefault("class", "form-control")

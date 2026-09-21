@@ -95,7 +95,7 @@ jobs:
         run: node --test tests/frontend/floating-list.test.cjs tests/frontend/bonus-periods.test.cjs tests/frontend/bonus-model-filter.test.cjs tests/frontend/report-interactions.test.cjs tests/frontend/report-designer.test.cjs tests/frontend/report-chart-picker.test.cjs tests/frontend/import-row-review.test.cjs tests/frontend/order-installment-picker.test.cjs tests/frontend/header-layout.test.cjs
 
       - name: Verify home favorites frontend
-        run: node --test tests/frontend/home-favorites.test.cjs tests/frontend/profit-lock.test.cjs tests/frontend/catalog-manage.test.cjs tests/frontend/catalog-payment.test.cjs tests/frontend/catalog-image-preview.test.cjs tests/frontend/site-review.test.cjs tests/frontend/order-workspace.test.cjs
+        run: node --test tests/frontend/home-favorites.test.cjs tests/frontend/profit-lock.test.cjs tests/frontend/catalog-manage.test.cjs tests/frontend/catalog-payment.test.cjs tests/frontend/catalog-image-preview.test.cjs tests/frontend/site-review.test.cjs tests/frontend/order-workspace.test.cjs tests/frontend/form-feedback.test.cjs
 
       - name: Verify home favorites with PostgreSQL
         env:

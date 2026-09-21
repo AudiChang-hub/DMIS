@@ -303,6 +303,8 @@ class SalesOrderForm(forms.ModelForm):
     def __init__(self, *args, existing_documents=None, **kwargs):
         self.existing_documents = existing_documents or {}
         super().__init__(*args, **kwargs)
+        if not self.instance.pk:
+            self.initial.setdefault("old_owner_same_as_owner", False)
         self._initial_vehicle_price = self.instance.vehicle_price
         self._initial_payment_type = self.instance.payment_type
         self._initial_vehicle_model_id = self.instance.vehicle_model_id
@@ -1677,8 +1679,18 @@ class OrderEditForm(SalesOrderForm):
         return data
 
 
+class AccessoryProductChoiceField(forms.ModelChoiceField):
+    allow_other = False
+
+    def to_python(self, value):
+        if value == "other" and self.allow_other:
+            return None
+        return super().to_python(value)
+
+
 class AccessoryLineForm(forms.ModelForm):
-    custom_name = forms.CharField(label="臨時配件名稱（清單沒有時填寫）", required=False, max_length=160)
+    accessory_product = AccessoryProductChoiceField(queryset=AccessoryProduct.objects.none(), required=False)
+    custom_name = forms.CharField(label="其他配件名稱", required=False, max_length=160)
     class Meta:
         model = AccessoryLine
         fields = [
@@ -1704,6 +1716,11 @@ class AccessoryLineForm(forms.ModelForm):
             Q(active=True) | Q(pk=self.instance.accessory_product_id)
         ).order_by("name")
         self.fields["accessory_product"].label = "配件名稱"
+        self.fields["accessory_product"].allow_other = allow_manual
+        if allow_manual:
+            self.fields["accessory_product"].choices = [*self.fields["accessory_product"].choices, ("other", "其他（自行填寫名稱）")]
+            if self.instance.name and not self.instance.accessory_product_id:
+                self.initial["accessory_product"] = "other"
         for field_name in (
             "accessory_product",
             "quantity",
@@ -1727,6 +1744,8 @@ class AccessoryLineForm(forms.ModelForm):
         data = super().clean()
         product = data.get("accessory_product")
         custom_name = (data.get("custom_name") or "").strip()
+        if self.data.get(self.add_prefix("accessory_product")) == "other" and self.allow_manual and not custom_name:
+            self.add_error("custom_name", "請填寫其他配件名稱。")
         if not product and custom_name and self.allow_manual:
             for name in ("quantity", "line_type", "amount", "labor_fee"):
                 if data.get(name) in (None, ""):

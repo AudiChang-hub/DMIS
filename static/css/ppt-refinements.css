@@ -1,4 +1,10 @@
 /* 公告與訂單共用附件、區塊節奏；保持各外觀的文字對比。 */
+.document-card-list{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:16px;margin-block:16px;align-items:start}
+.document-card{display:flex;flex-direction:column;gap:10px;align-items:stretch;padding:12px;border:1px solid var(--line);border-radius:12px;background:var(--surface);color:var(--ink);min-width:0}
+.document-card-title{font-weight:700;overflow-wrap:anywhere}.document-card .document-thumbnail{width:100%;margin:0;height:128px}
+.document-card .document-download{display:block;padding:8px;text-align:center;border:1px solid var(--line);border-radius:8px;background:var(--surface-tint);color:var(--ink);text-decoration:none}
+.document-card small{color:var(--muted)}.order-attachments{margin-block:24px;padding:16px;border-top:1px solid var(--line)}
+[data-custom-accessory][hidden]{display:none!important}
 .operations-form .operation-section,.operations-form .operation-change-reason{margin-block:24px}
 .operations-form .operation-section{padding:20px;border:1px solid var(--line,#cad5da);border-radius:14px;background:var(--surface,#fff);color:var(--ink,#17313b)}
 .operations-form .operation-section>summary{margin-bottom:16px;cursor:pointer}

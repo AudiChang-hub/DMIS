@@ -1,1 +1,13 @@
-{% load site_copy %}{% if intake_attachments %}<section class="card"><h3>已保存的下訂附件</h3>{% if intake_mode %}<p>{% site_text '_intake_attachments.67b0208ac91e' %}</p>{% endif %}<ul>{% for attachment in intake_attachments %}<li>{{ attachment.get_kind_display }}：<a href="{% url 'order_intake_attachment' attachment.pk %}" data-preview-name="{{ attachment.name }}">{{ attachment.name }}</a>{% if intake_mode %} <label><input type="checkbox" name="_remove_intake_attachments" value="{{ attachment.pk }}">移除 {{ attachment.name }}</label>{% endif %}</li>{% endfor %}</ul></section>{% endif %}
+{% if intake_attachments %}
+<section class="order-attachments" aria-label="訂單附件">
+  <h3>訂單附件</h3><p class="muted">點選縮圖放大，或下載原始檔案。</p>
+  <div class="document-card-list">
+    {% for attachment in intake_attachments %}
+    <div class="attachment-item">
+      <a href="{% url 'order_intake_attachment' attachment.pk %}" data-preview-name="{{ attachment.name }}" data-preview-label="{{ attachment.get_kind_display }}">{{ attachment.get_kind_display }}：{{ attachment.name }}</a>
+      {% if intake_mode %}<label><input type="checkbox" name="_remove_intake_attachments" value="{{ attachment.pk }}">移除此附件</label>{% endif %}
+    </div>
+    {% endfor %}
+  </div>
+</section>
+{% endif %}

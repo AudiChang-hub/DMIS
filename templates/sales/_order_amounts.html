@@ -56,6 +56,10 @@
       </div>
       {% endif %}
       <div class="balance-equation">
+        {% if order.payment_type == 'installment' %}
+        <div class="balance-equation__header"><dt>分期外客戶應收</dt><span>以金額收支資訊保存的應收為準，已扣除訂金。</span></div>
+        <div class="balance-equation__result"><span>預估尾款</span><strong data-customer-balance>${{ order.customer_balance_due|number_with_commas }}</strong></div>
+        {% else %}
         <div class="balance-equation__header">
           <dt>尾款計算</dt>
           <span>配件與其他費用均已計入</span>
@@ -71,7 +75,8 @@
           {% if order.old_vehicle_valuation %}<div class="deduction"><span>− 舊車估價</span><strong>${{ order.old_vehicle_valuation|number_with_commas }}</strong></div>{% endif %}
           {% if order.balance_adjustment_amount %}<div class="adjustment"><span>人工調整</span><strong>{{ order.balance_adjustment_amount }}</strong></div>{% endif %}
         </div>
-        <div class="balance-equation__result"><span>實際尾款</span><strong>${{ order.actual_balance|number_with_commas }}</strong></div>
+        <div class="balance-equation__result"><span>預估尾款</span><strong data-customer-balance>${{ order.customer_balance_due|number_with_commas }}</strong></div>
+        {% endif %}
       </div>
     </dl>
   </section>

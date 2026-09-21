@@ -4381,6 +4381,7 @@ def _reconciliation_queryset(request):
 
 
 def _decorate_reconciliation_record(record):
+    record.reconciliation_receipt_only = not record.system_key and record.expected_amount == 0
     if record.effective_receipt_kind == "lender":
         record.reconciliation_channel = "installment"
         record.reconciliation_channel_label = "分期公司"
@@ -4401,6 +4402,7 @@ def _decorate_reconciliation_record(record):
         record.received_amount - record.expected_amount
     )
     record.reconciliation_state = ("已確認入帳" if record.confirmed else
+        "已登記，待確認" if record.reconciliation_receipt_only else
         "預計金額待核對" if record.expected_amount == 0 else
         "尚未登記入帳" if not record.received_on and record.received_amount == 0 else "已登記，待確認")
     return record

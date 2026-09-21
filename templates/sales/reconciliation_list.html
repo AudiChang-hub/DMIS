@@ -34,6 +34,11 @@
           <td data-label="對帳對象"><strong>{{ record.reconciliation_party }}</strong><span>{{ record.reconciliation_channel_label }}</span></td>
           <td data-label="預計金額" class="number-cell reconciliation-expected">
             <span class="mobile-field-label">預計金額</span>
+            {% if record.reconciliation_receipt_only %}
+            <small>依訂單應收設定<br>本列僅記錄實收</small>
+            <input type="hidden" form="reconciliation-{{ record.pk }}" name="expected_amount" value="0">
+            <input type="hidden" form="reconciliation-{{ record.pk }}" name="expected_amount_override_reason" value="{{ record.expected_amount_override_reason }}">
+            {% else %}
             <strong>${{ record.expected_amount|number_with_commas }}</strong>
             {% if record.expected_amount_overridden %}<small class="manual-value-badge">人工調整</small>{% endif %}
             <details class="reconciliation-expected-adjustment"{% if record.expected_amount_overridden %} open{% endif %}>
@@ -41,9 +46,10 @@
               <label>調整後預計金額<input class="form-control reconciliation-money" form="reconciliation-{{ record.pk }}" type="number" min="0" step="1" name="expected_amount" value="{{ record.expected_amount|floatformat:0 }}"></label>
               <label>調整原因<input class="form-control" form="reconciliation-{{ record.pk }}" type="text" name="expected_amount_override_reason" value="{{ record.expected_amount_override_reason }}" placeholder="例如：本案特殊撥款"></label>
             </details>
+            {% endif %}
           </td>
           <td data-label="實際金額"><input class="form-control reconciliation-money" form="reconciliation-{{ record.pk }}" type="number" min="0" step="1" name="received_amount" value="{{ record.received_amount|floatformat:0 }}" aria-label="{{ record.order.number }} 實際金額"></td>
-          <td data-label="撥款差額" class="number-cell reconciliation-difference {% if record.reconciliation_difference != 0 %}difference-warning{% endif %}"><span class="mobile-field-label">撥款差額</span><strong>${{ record.reconciliation_difference|number_with_commas }}</strong>{% if not record.confirmed %}<small>尚未確認，不代表已收款</small>{% endif %}</td>
+          <td data-label="撥款差額" class="number-cell reconciliation-difference {% if not record.reconciliation_receipt_only and record.reconciliation_difference != 0 %}difference-warning{% endif %}"><span class="mobile-field-label">撥款差額</span>{% if record.reconciliation_receipt_only %}<span>—</span>{% else %}<strong>${{ record.reconciliation_difference|number_with_commas }}</strong>{% endif %}{% if not record.confirmed %}<small>尚未確認，不代表已收款</small>{% endif %}</td>
           <td data-label="入帳日期"><input class="form-control" form="reconciliation-{{ record.pk }}" type="date" name="received_on" value="{{ record.received_on|date:'Y-m-d' }}"></td>
           <td data-label="收款帳戶"><input class="form-control" form="reconciliation-{{ record.pk }}" type="text" name="receiving_account" value="{{ record.receiving_account }}"></td>
           <td data-label="確認"><label class="compact-check"><input form="reconciliation-{{ record.pk }}" type="checkbox" name="confirmed"{% if record.confirmed %} checked{% endif %}><span>{% if record.confirmed %}已確認{% else %}待確認{% endif %}</span></label></td>

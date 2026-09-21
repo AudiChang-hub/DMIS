@@ -3,6 +3,7 @@ from collections import Counter
 from decimal import Decimal
 
 from sales.models import DealerVolumeBonusSettlement, SalesOrder
+from .payment_summary import payment_summary, disbursement_receipts
 
 
 def audit_financial_consistency(sample_limit=30):
@@ -31,18 +32,15 @@ def audit_financial_consistency(sample_limit=30):
             report("balance_formula_mismatch", order, f"保存 {order.calculated_balance}／公式 {calculated}")
         if order.actual_balance != order.calculated_balance and not order.balance_adjustment_reason:
             report("balance_reason_missing", order, "人工尾款與計算值不同但缺原因")
-        confirmed = bool(payments and sum(p.expected_amount for p in payments) > 0
-                         and all(p.is_settled for p in payments))
+        confirmed = payment_summary(order, payments)["settled"]
         if profile.payment_confirmed != confirmed:
             report("payment_confirmation_mismatch", order, "收清狀態不符逐筆收款")
         for field, value in (("card_fee_income", sum(p.card_fee_charged for p in payments)),
                              ("card_fee_expense", sum(p.bank_card_fee for p in payments))):
             if getattr(profile, field) != value:
                 report("card_fee_mismatch", order, f"{field}：保存 {getattr(profile, field)}／收款 {value}")
-        key = ("installment_disbursement" if order.payment_type == "installment"
-               else "balance" if order.source_type == "platform" else None)
-        primary = next((p for p in payments if p.system_key == key and p.confirmed), None) if key else None
-        if primary and profile.actual_disbursement != primary.received_amount:
+        primary = disbursement_receipts(order, payments)
+        if primary and profile.actual_disbursement != sum(p.received_amount for p in primary):
             report("confirmed_disbursement_mismatch", order, "已確認撥款與營運實際撥款不同，需核對人工覆寫")
         if primary and not profile.payment_disbursement_snapshot:
             report("legacy_disbursement_no_snapshot", order, "舊確認資料無撤回快照，不自動推測原值")

@@ -31,7 +31,13 @@ def filter_payment_risk(orders, risk):
     if risk == 'refund':
         return orders.filter(status=SalesOrder.Status.CANCEL_REFUND_PENDING)
     if risk == 'outstanding':
-        ids = PaymentRecord.objects.filter(expected_amount__gt=F('received_amount')).values('order_id')
+        from .payment_summary import payment_summary
+        candidates = orders.exclude(status__in=CANCELLED_STATUSES).prefetch_related('payment_records', 'accessories')
+        ids = []
+        for order in candidates:
+            summary = payment_summary(order)
+            if summary['customer_due'] > 0 or summary['lender_due'] > 0 or any(not p.system_key and not p.is_settled for p in order.payment_records.all()):
+                ids.append(order.pk)
         return orders.exclude(status__in=CANCELLED_STATUSES).filter(pk__in=ids)
     if risk == 'unconfirmed':
         ids = PaymentRecord.objects.filter(received_amount__gt=0).values('order_id')

@@ -2817,10 +2817,12 @@ class OrderOperationsForm(forms.ModelForm):
 
 
 class PaymentRecordForm(forms.ModelForm):
+    receipt_kind = forms.ChoiceField(label="款項分類", choices=PaymentRecord.ReceiptKind.choices, required=False)
     class Meta:
         model = PaymentRecord
         fields = [
             "item_name",
+            "receipt_kind",
             "expected_amount",
             "expected_amount_override_reason",
             "received_amount",
@@ -2854,10 +2856,12 @@ class PaymentRecordForm(forms.ModelForm):
                 ("其他", "其他"),
             ]
         )
+        self.fields["payment_method"].label = "收款方式"
         if self.instance and self.instance.system_key:
-            for name in ("item_name", "payment_method"):
+            for name in ("item_name", "receipt_kind"):
                 self.fields[name].disabled = True
                 self.fields[name].help_text = "由訂單自動同步。"
+            self.initial["receipt_kind"] = self.instance.effective_receipt_kind
         for name, field in self.fields.items():
             field.widget.attrs.setdefault("class", "form-control")
             if isinstance(field, forms.DecimalField):
@@ -2868,6 +2872,7 @@ class PaymentRecordForm(forms.ModelForm):
 
     def clean(self):
         cleaned = super().clean()
+        cleaned["receipt_kind"] = cleaned.get("receipt_kind") or self.instance.effective_receipt_kind
         card_values = (
             cleaned.get("card_principal") or Decimal("0"),
             cleaned.get("card_fee_charged") or Decimal("0"),
@@ -3390,7 +3395,7 @@ PaymentRecordFormSet = inlineformset_factory(
     PaymentRecord,
     form=PaymentRecordForm,
     formset=BasePaymentRecordFormSet,
-    extra=1,
+    extra=0,
     can_delete=True,
 )
 

@@ -6,6 +6,7 @@ from sales.access.services import policy_for
 from sales.forms import OrderOperationsForm, PaymentRecordFormSet, DiscountRequestForm, DiscountDecisionForm, OrderEditForm, SubsidyDataForm
 from sales.models import OrderOperationsProfile, SalesOrder
 from sales.services.order_intake import can_edit_finance
+from sales.services.payment_summary import payment_summary
 
 
 def is_workspace_save(request):
@@ -33,6 +34,7 @@ def finance_context(request, order):
         'profile': profile,
         'operations_form': operations_form,
         'payment_formset': PaymentRecordFormSet(instance=order, prefix='payments'),
+        'receipt_summary': payment_summary(order),
         'manual_financial_fields': profile.manual_financial_fields or [],
         'is_electric': order.vehicle_model.energy_type != 'gas',
         'discount_request_form': DiscountRequestForm(initial={'amount': order.discount_requested_amount or None, 'reason': order.discount_reason}),
@@ -114,6 +116,7 @@ def saved(request, order, *, form=None, formsets=()):
         'payment_values': payment_values,
         'customer_balance_due': str(order.customer_balance_due) if profile else None,
         'discount': {'before': str(order.pre_discount_total), 'amount': str(order.approved_discount_amount), 'after': str(order.discounted_total)},
-        'delivery_ready': bool(order.source_type == SalesOrder.SourceType.DEALER or any(p.system_key == 'balance' and p.is_settled for p in order.payment_records.all())),
+        'delivery_ready': bool(order.source_type == SalesOrder.SourceType.DEALER or payment_summary(order)['customer_settled']),
+        'receipt_summary': {key: str(value) for key, value in payment_summary(order).items()},
         'summary_html': render_to_string('sales/_workspace_finance_summary.html', {**context, 'order': order}, request=request) if profile else '',
     })

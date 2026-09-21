@@ -101,6 +101,11 @@
       root.querySelectorAll('[data-discount-summary]').forEach(node => { node.textContent = Number(payload.discount[node.dataset.discountSummary]).toLocaleString('zh-TW'); });
       root.querySelectorAll('[data-discount-total]').forEach(node => { node.dataset.discountTotal = payload.discount.before; });
     }
+    if (payload.receipt_summary) {
+      root.querySelectorAll('[data-receipt-value]').forEach(node => {
+        node.textContent = Number(payload.receipt_summary[node.dataset.receiptValue]).toLocaleString('zh-TW');
+      });
+    }
     if (typeof payload.delivery_ready === 'boolean') {
       root.querySelectorAll('.delivery-completion-actions button[type="submit"]').forEach(button => {
         button.disabled = !payload.delivery_ready; button.setAttribute('aria-disabled', String(!payload.delivery_ready));
@@ -111,7 +116,7 @@
     forms.forEach(form => {
       const updates = payload.sync?.[form.dataset.workspaceSave] || {};
       if (form.dataset.workspaceSave === 'operations' && payload.payment_values) {
-        form.querySelectorAll('[data-payment-row]').forEach(row => {
+        form.querySelectorAll('[data-payment-row], [data-payment-expectation]').forEach(row => {
           const id = row.querySelector('[name$="-id"]');
           const remote = id && payload.payment_values[id.value];
           if (!remote) return;

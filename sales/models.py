@@ -3378,23 +3378,10 @@ class SalesOrder(TimeStampedModel):
         if not self.can_deliver:
             raise ValidationError("一般訂單必須先完成領牌才能交付。")
         if self.source_type != self.SourceType.DEALER:
-            required_balance = self.customer_balance_due
-            balance_payment = self.payment_records.filter(system_key="balance").first()
-            received = (
-                balance_payment.received_amount
-                if balance_payment is not None
-                else Decimal("0")
-            ) or Decimal("0")
-            settled = bool(
-                required_balance <= 0
-                or (
-                    balance_payment is not None
-                    and balance_payment.confirmed
-                    and received >= required_balance
-                )
-            )
-            if not settled:
-                shortage = max(required_balance - received, Decimal("0"))
+            from sales.services.payment_summary import payment_summary
+            summary = payment_summary(self)
+            if not summary["customer_settled"]:
+                shortage = summary["delivery_due"]
                 raise ValidationError(
                     f"尾款尚未收清，仍差 {shortage:,.0f} 元；"
                     "請先在金額收支資訊保存並確認收款。"
@@ -4045,10 +4032,14 @@ class OrderOperationsProfile(TimeStampedModel):
 
 
 class PaymentRecord(TimeStampedModel):
+    class ReceiptKind(models.TextChoices):
+        CUSTOMER = "customer", "客戶收款"
+        LENDER = "lender", "分期公司撥款"
+
     @transaction.atomic
     def save(self, *args, **kwargs):
         SalesOrder.objects.select_for_update().get(pk=self.order_id)
-        fields = ("received_amount", "confirmed", "system_key")
+        fields = ("received_amount", "confirmed", "system_key", "receipt_kind")
         previous = type(self).objects.filter(pk=self.pk).values(*fields).first() if self.pk else None
         self._disbursement_changed = previous is None or any(
             previous[name] != getattr(self, name) for name in fields
@@ -4073,6 +4064,20 @@ class PaymentRecord(TimeStampedModel):
         help_text="空白代表人工新增的收款紀錄。",
     )
     item_name = models.CharField("收款項目", max_length=160)
+    receipt_kind = models.CharField("款項分類", max_length=20, choices=ReceiptKind.choices, default=ReceiptKind.CUSTOMER)
+
+    @property
+    def effective_receipt_kind(self):
+        return self.ReceiptKind.LENDER if self.system_key == "installment_disbursement" else self.receipt_kind
+
+    @property
+    def is_receivable_only(self):
+        # 保留原應收與人工調整；沒有實際收款資料的同步列不當作收款明細。
+        return bool(self.system_key in {"balance", "installment_disbursement"} and not any((
+            self.received_amount, self.confirmed, self.confirmed_at, self.confirmed_by,
+            self.received_on, self.receiving_account, self.proof, self.note,
+            self.card_principal, self.card_fee_charged, self.bank_card_fee,
+        )))
     expected_amount = models.DecimalField("應收金額", max_digits=12, decimal_places=0, default=0)
     expected_amount_overridden = models.BooleanField(
         "預計金額已人工調整",

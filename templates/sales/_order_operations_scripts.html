@@ -8,13 +8,19 @@
   function bind(row) {
     const button = row.querySelector("[data-delete-payment]");
     if (!button) return;
-    button.addEventListener("click", () => { row.querySelector('[name$="-DELETE"]').checked = true; row.hidden = true; });
+    button.addEventListener("click", () => {
+      row.querySelector('[name$="-DELETE"]').checked = true;
+      row.hidden = true;
+      row.querySelector('[name$="-DELETE"]').dispatchEvent(new Event('change', {bubbles: true}));
+    });
   }
   rows.querySelectorAll("[data-payment-row]").forEach(bind);
   document.getElementById("add-payment").addEventListener("click", () => {
     const i = Number(total.value), box = document.createElement("div");
     box.innerHTML = document.getElementById("payment-empty-row").innerHTML.replaceAll("__prefix__", i).trim();
     rows.appendChild(box.firstElementChild); total.value = i + 1; bind(rows.lastElementChild);
+    rows.lastElementChild.querySelector('[name$="-item_name"]').focus();
+    total.dispatchEvent(new Event('change', {bubbles: true}));
   });
   document.querySelectorAll(".secret-reveal").forEach(button => button.addEventListener("click", async () => {
     const body = new URLSearchParams({field: button.dataset.secret});

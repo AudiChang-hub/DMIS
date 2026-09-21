@@ -201,6 +201,7 @@ from .services.order_search import (
 )
 from .services.operations_sync import sync_order_operations
 from .services.operations_sync import refresh_payment_confirmation
+from .services.payment_summary import payment_summary
 from .services.price_version import (
     apply_order_price_snapshot,
     recommended_price_from_snapshot,
@@ -4324,20 +4325,26 @@ def operations_report(request):
 
 
 def _reconciliation_queryset(request):
-    records = PaymentRecord.objects.filter(order__deleted_at__isnull=True).select_related(
+    records = PaymentRecord.objects.filter(order__deleted_at__isnull=True).exclude(system_key="deposit").select_related(
         "order",
         "order__source",
         "order__vehicle_model",
         "order__color",
     ).filter(
-        Q(system_key="installment_disbursement")
+        Q(receipt_kind="lender") | Q(system_key="installment_disbursement")
         | Q(
-            system_key="balance",
+            receipt_kind="customer",
             order__source_type__in=[
                 SalesOrder.SourceType.PLATFORM,
                 SalesOrder.SourceType.DEALER,
             ],
         )
+    )
+    records = records.exclude(
+        system_key__in=["balance", "installment_disbursement"], order__operations__payment_confirmed=True,
+        received_amount=0, confirmed=False, confirmed_at__isnull=True, confirmed_by="",
+        received_on__isnull=True, receiving_account="", proof="", note="",
+        card_principal=0, card_fee_charged=0, bank_card_fee=0,
     )
     keyword = request.GET.get("q", "").strip()
     if keyword:
@@ -4350,15 +4357,15 @@ def _reconciliation_queryset(request):
         )
     channel = request.GET.get("channel", "")
     if channel == "installment":
-        records = records.filter(system_key="installment_disbursement")
+        records = records.filter(Q(receipt_kind="lender") | Q(system_key="installment_disbursement"))
     elif channel == "platform":
         records = records.filter(
-            system_key="balance",
+            receipt_kind="customer",
             order__source_type=SalesOrder.SourceType.PLATFORM,
         )
     elif channel == "dealer":
         records = records.filter(
-            system_key="balance",
+            receipt_kind="customer",
             order__source_type=SalesOrder.SourceType.DEALER,
         )
     status = request.GET.get("status", "")
@@ -4374,7 +4381,7 @@ def _reconciliation_queryset(request):
 
 
 def _decorate_reconciliation_record(record):
-    if record.system_key == "installment_disbursement":
+    if record.effective_receipt_kind == "lender":
         record.reconciliation_channel = "installment"
         record.reconciliation_channel_label = "分期公司"
         record.reconciliation_party = record.order.installment_company or "未填分期公司"
@@ -4425,8 +4432,8 @@ def reconciliation_update(request, pk):
         PaymentRecord.objects.select_for_update().select_related("order"),
         pk=pk,
     )
-    eligible = record.system_key == "installment_disbursement" or (
-        record.system_key == "balance"
+    eligible = record.effective_receipt_kind == "lender" or (
+        record.effective_receipt_kind == "customer"
         and record.order.source_type
         in {SalesOrder.SourceType.PLATFORM, SalesOrder.SourceType.DEALER}
     )
@@ -5197,7 +5204,7 @@ def order_detail(request, pk, *, commission_form=None, workspace_context_only=Fa
         ).first()
     balance_ready_for_delivery = bool(
         order.source_type == SalesOrder.SourceType.DEALER
-        or (balance_payment is not None and balance_payment.is_settled)
+        or payment_summary(order)["customer_settled"]
     )
     registration_missing = order.missing_registration_requirements()
     subsidy_missing = order.missing_subsidy_requirements()
@@ -5312,7 +5319,7 @@ def _operations_snapshot(profile):
     values["payment_records"] = [
         {name: "" if value is None else str(value) for name, value in row.items()}
         for row in profile.order.payment_records.order_by("pk").values(
-            "pk", "item_name", "expected_amount", "expected_amount_override_reason",
+            "pk", "item_name", "receipt_kind", "expected_amount", "expected_amount_override_reason",
             "received_amount", "received_on", "confirmed", "confirmed_by", "confirmed_at",
             "payment_method", "receiving_account", "card_principal", "card_fee_charged",
             "bank_card_fee", "note", "proof",
@@ -5409,8 +5416,8 @@ def order_operations(request, pk):
                     payment.save(update_fields=["confirmed_at", "confirmed_by", "updated_at"])
             from .services.operations_sync import sync_payment_financials
             adopted = next((payment for payment in payments if payment.confirmed and (
-                payment.system_key == "installment_disbursement" or
-                (payment.system_key == "balance" and order.source_type == SalesOrder.SourceType.PLATFORM)
+                payment.effective_receipt_kind == "lender" or
+                (payment.effective_receipt_kind == "customer" and payment.system_key != "deposit" and order.source_type == SalesOrder.SourceType.PLATFORM)
             )), None)
             sync_payment_financials(order.pk, adopt_payment_id=adopted.pk if adopted else None)
             profile.refresh_from_db()
@@ -5457,6 +5464,7 @@ def order_operations(request, pk):
             "profile": profile,
             "form": form,
             "payment_formset": payment_formset,
+            "receipt_summary": payment_summary(order),
             "manual_financial_fields": profile.manual_financial_fields or [],
             "is_electric": order.vehicle_model.energy_type
             != VehicleModel.EnergyType.GAS,

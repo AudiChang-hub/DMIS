@@ -26,6 +26,7 @@ def _expected_installment_disbursement(order):
 def _upsert_system_payment(order, key, defaults, *, update_receivables=False):
     from sales.models import PaymentRecord
 
+    defaults = {**defaults, "receipt_kind": "lender" if key == "installment_disbursement" else "customer"}
     payment, created = PaymentRecord.objects.get_or_create(
         order=order,
         system_key=key,
@@ -57,17 +58,11 @@ def refresh_payment_confirmation(order_id):
     profile = OrderOperationsProfile.objects.filter(order_id=order_id).first()
     if not profile:
         return
-    records = PaymentRecord.objects.filter(order_id=order_id)
-    expected = records.aggregate(total=Sum("expected_amount"))["total"] or Decimal("0")
-    # 某筆溢收不能抵掉另一筆尚未收清的款項。
-    confirmed = bool(records.exists() and expected > 0 and all(
-        record.is_settled for record in records
-    ))
-    installment_record = records.filter(
-        system_key="installment_disbursement",
-    ).first()
+    from .payment_summary import payment_summary
+    records = list(PaymentRecord.objects.filter(order_id=order_id))
+    confirmed = payment_summary(profile.order, records)["settled"]
     # 匯款已確認不等於所有款項已收清；短款仍由 payment_confirmed／應收差額呈現。
-    installment_confirmed = bool(installment_record and installment_record.confirmed)
+    installment_confirmed = any(p.confirmed and p.effective_receipt_kind == "lender" for p in records)
     updates = []
     if profile.payment_confirmed != confirmed:
         profile.payment_confirmed = confirmed
@@ -96,19 +91,18 @@ def sync_payment_financials(order_id, *, adopt_payment_id=None, touch_revision=F
     totals = order.payment_records.aggregate(income=Sum("card_fee_charged"), expense=Sum("bank_card_fee"))
     profile.card_fee_income = totals["income"] or Decimal("0")
     profile.card_fee_expense = totals["expense"] or Decimal("0")
-    key = ("installment_disbursement" if order.payment_type == order.PaymentType.INSTALLMENT
-           else "balance" if order.source_type == order.SourceType.PLATFORM else None)
-    payment = order.payment_records.filter(system_key=key, confirmed=True).first() if key else None
+    from .payment_summary import disbursement_receipts
+    payments = disbursement_receipts(order)
     snapshot = dict(profile.payment_disbursement_snapshot or {})
     protected = set(profile.manual_financial_fields or [])
-    if payment and (snapshot or payment.pk == adopt_payment_id):
+    if payments and (snapshot or any(p.pk == adopt_payment_id for p in payments)):
         if not snapshot:
             snapshot = {"previous": str(profile.actual_disbursement),
                         "was_manual": "actual_disbursement" in protected}
-        profile.actual_disbursement = payment.received_amount
+        profile.actual_disbursement = sum((p.received_amount for p in payments), Decimal("0"))
         protected.add("actual_disbursement")
-        snapshot.update(payment_id=payment.pk, applied=str(payment.received_amount))
-    elif not payment and snapshot:
+        snapshot.update(payment_id=payments[0].pk, payment_ids=[p.pk for p in payments], applied=str(profile.actual_disbursement))
+    elif not payments and snapshot:
         # 只撤回由收款管理的金額，不覆寫之後另行人工輸入的金額。
         if profile.actual_disbursement == Decimal(snapshot["applied"]):
             if snapshot["was_manual"]:

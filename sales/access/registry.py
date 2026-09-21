@@ -19,6 +19,8 @@ SCREENS = (
     Screen("catalog", "選車下單入口", "catalog", False),
     Screen("order_intake", "建立訂單與本人接待草稿", "order_start"),
     Screen("order_pricing", "下單金額調整（成交價、配件與自訂分期）", "order_start"),
+    Screen("order_gift", "贈送配件（不含售價調整）", "order_start"),
+    Screen("order_documents", "列印客戶簽署文件（不含內部財務）", "order_list", False, True),
     Screen("order_finance", "訂單內部財務編輯", "order_list", True),
     Screen("profit", "查看淨利（另需本人密碼解鎖）", "order_list", False, True),
     Screen("work", "訂單作業、配車、領牌、交付與收退款", "order_list", True, True),
@@ -48,8 +50,8 @@ SCREENS = (
 )
 BY_KEY = {screen.key: screen for screen in SCREENS}
 SCREEN_GROUPS = (
-    ("intake", "建立訂單", (("接待下單", ("catalog", "order_intake", "order_pricing")),)),
-    ("orders", "全部訂單", (("訂單與作業", ("orders", "work", "order_finance", "profit", "order_delete")),)),
+    ("intake", "建立訂單", (("接待下單", ("catalog", "order_intake", "order_pricing", "order_gift")),)),
+    ("orders", "全部訂單", (("訂單與作業", ("orders", "order_documents", "work", "order_finance", "profit", "order_delete")),)),
     ("operations", "營運總表", (("營運與對帳", ("dashboard", "operations", "reconciliation")),)),
     ("reports", "報表中心", ()),
     ("data", "資料維護區", (

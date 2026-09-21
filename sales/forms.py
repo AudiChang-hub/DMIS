@@ -1707,6 +1707,10 @@ class AccessoryLineForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         if purchase_only:
             self.fields["line_type"].choices = [("purchase", "加購")]
+            # 已存贈品可原樣保留，不因撤權轉為收費；不可新增或增加贈品。
+            if self.instance.pk and self.instance.line_type == "gift":
+                self.fields["line_type"].choices.append(("gift", "贈送（保留原項目）"))
+        self.purchase_only = purchase_only
         self.original_accessory_product_id = self.instance.accessory_product_id
         self.initial["custom_name"] = self.instance.name if not self.instance.accessory_product_id else ""
         if not allow_manual:
@@ -1743,6 +1747,13 @@ class AccessoryLineForm(forms.ModelForm):
     def clean(self):
         data = super().clean()
         product = data.get("accessory_product")
+        if self.purchase_only and data.get("line_type") == "gift" and (
+            not self.instance.pk or self.instance.line_type != "gift" or
+            getattr(product, "pk", None) != self.original_accessory_product_id or
+            data.get("quantity") != self.instance.quantity or
+            (self.allow_manual and not product and (data.get("custom_name") or "").strip() != self.instance.name)
+        ):
+            self.add_error("line_type", "沒有新增或變更贈送配件的權限，請洽 admin。")
         custom_name = (data.get("custom_name") or "").strip()
         if self.data.get(self.add_prefix("accessory_product")) == "other" and self.allow_manual and not custom_name:
             self.add_error("custom_name", "請填寫其他配件名稱。")
@@ -1782,7 +1793,7 @@ class AccessoryLineForm(forms.ModelForm):
             if any(data.get(key) != default for key, default in baseline.items()) and not data.get("note", "").strip():
                 self.add_error("note", "配件售價或工資與預設不同，請在備註說明調整原因。")
             self.instance.name = product.name
-        elif not self.instance.pk or product.pk != self.original_accessory_product_id:
+        elif not self.instance.pk or product.pk != self.original_accessory_product_id or data.get("line_type") != self.instance.line_type:
             data["amount"] = product.sale_price
             data["labor_fee"] = product.labor_fee
             self.cleaned_data["amount"] = product.sale_price

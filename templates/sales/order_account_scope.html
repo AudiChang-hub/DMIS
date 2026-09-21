@@ -1,8 +1,8 @@
 {% extends "base.html" %}{% load site_copy %}
-{% block title %}下單身分與所屬通路{% endblock %}
+{% block title %}下單身分與訂單資料範圍{% endblock %}
 {% block content %}
 {% site_navigation %}
-<section class="hero-row"><div><h1>下單身分與所屬通路</h1><p>{{ account.get_full_name|default:account.username }}（@{{ account.username }}）</p></div></section>
+<section class="hero-row"><div><h1>下單身分與訂單資料範圍</h1><p>{{ account.get_full_name|default:account.username }}（@{{ account.username }}）</p></div></section>
 <div class="card"><p>{% site_text 'order_account_scope.25058192b0c5' %}</p><p>{% site_text 'order_account_scope.0a9a4a2ac2cf' %}</p></div>
-<form method="post" class="card">{% csrf_token %}{{ form.non_field_errors }}{{ form.expected_revision }}<div class="form-grid">{% include "sales/_field.html" with field=form.kind %}{% include "sales/_field.html" with field=form.source %}</div><p><a class="button ghost" href="{% url 'user_management' %}">取消</a> <button class="button primary">儲存設定</button></p></form>
+<form method="post" class="card">{% csrf_token %}{{ form.non_field_errors }}{{ form.expected_revision }}<div class="form-grid">{% include "sales/_field.html" with field=form.kind %}{% include "sales/_field.html" with field=form.source %}{% include "sales/_field.html" with field=form.order_scope %}</div><p>本人範圍只包含本人建立的訂單，不推測舊 Excel 的建立者。車行最多只能查看所屬車行；畫面操作、贈送及客戶文件列印另外授權。</p><p><a class="button ghost" href="{% url 'user_management' %}">取消</a> <button class="button primary">儲存設定</button></p></form>
 {% endblock %}

@@ -26,7 +26,7 @@
         <nav class="desktop-nav" aria-label="主要選單">
           {% if_access 'dashboard' %}<a href="{% url 'dashboard' %}" {% if request.resolver_match.url_name == 'dashboard' %}class="active" aria-current="page"{% endif %}>首頁</a>{% endif_access %}
           {% if order_entry_visible %}<a href="{{ order_entry_url }}">建立訂單</a>{% endif %}
-          {% if orders_group_visible %}<a href="{{ orders_group_url }}" {% if request.resolver_match.url_name == 'order_list' or request.resolver_match.url_name == 'order_detail' or request.resolver_match.url_name == 'order_edit' or request.resolver_match.url_name == 'order_create' %}class="active" aria-current="page"{% endif %}>{% if intake_dealer %}訂單{% else %}全部訂單{% endif %}</a>{% endif %}
+          {% if orders_group_visible %}<a href="{{ orders_group_url }}" {% if request.resolver_match.url_name == 'order_list' or request.resolver_match.url_name == 'order_detail' or request.resolver_match.url_name == 'order_edit' or request.resolver_match.url_name == 'order_create' %}class="active" aria-current="page"{% endif %}>{{ orders_group_label }}</a>{% endif %}
           {% if_access 'operations_report' %}<a href="{% url 'operations_report' %}" {% if request.resolver_match.url_name == 'operations_report' or request.resolver_match.url_name == 'order_operations' or request.resolver_match.url_name == 'reconciliation_list' %}class="active" aria-current="page"{% endif %}>營運總表</a>{% endif_access %}
           {% if_access 'report_center' %}<a href="{% url 'report_center' %}" {% if request.resolver_match.url_name == 'report_center' or request.resolver_match.url_name == 'report_display' or request.resolver_match.url_name == 'report_detail' %}class="active" aria-current="page"{% endif %}>報表中心</a>{% endif_access %}
           {% if_access 'data_maintenance' %}<div class="desktop-data-menu{% if is_data_maintenance_section %} active{% endif %}">
@@ -114,7 +114,7 @@
     <nav class="mobile-nav" aria-label="手機主要選單">
       {% if_access 'dashboard' %}<a href="{% url 'dashboard' %}" {% if request.resolver_match.url_name == 'dashboard' %}class="active" aria-current="page"{% endif %}><span>⌂</span>首頁</a>{% endif_access %}
       {% if order_entry_visible %}<a class="mobile-new" href="{{ order_entry_url }}"><span>＋</span>建立訂單</a>{% endif %}
-      {% if orders_group_visible %}<a href="{{ orders_group_url }}" {% if request.resolver_match.url_name == 'order_list' or request.resolver_match.url_name == 'order_detail' or request.resolver_match.url_name == 'order_edit' %}class="active" aria-current="page"{% endif %}><span>▤</span>訂單</a>{% endif %}
+      {% if orders_group_visible %}<a href="{{ orders_group_url }}" {% if request.resolver_match.url_name == 'order_list' or request.resolver_match.url_name == 'order_detail' or request.resolver_match.url_name == 'order_edit' %}class="active" aria-current="page"{% endif %}><span>▤</span>{{ orders_group_label }}</a>{% endif %}
       {% if_access 'operations_report' %}<a href="{% url 'operations_report' %}" {% if request.resolver_match.url_name == 'operations_report' or request.resolver_match.url_name == 'order_operations' or request.resolver_match.url_name == 'reconciliation_list' %}class="active" aria-current="page"{% endif %}><span>＄</span>營運</a>{% endif_access %}
       <details class="mobile-data-menu{% if is_data_maintenance_section %} active{% endif %}">
         <summary><span aria-hidden="true">⚙</span>更多</summary>

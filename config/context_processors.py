@@ -4,6 +4,7 @@ from .app_version import get_app_version
 from .release_notes import CURRENT_VERSION
 from sales.models import UserAppearancePreference
 from sales.services.mobile_quick_links import build_mobile_quick_link_context
+from sales.services.order_intake import order_scope_label
 from sales.themes import DEFAULT_THEME, THEME_DEFINITIONS, THEME_META_COLORS, THEME_VALUES
 
 
@@ -196,6 +197,7 @@ def app_version(request):
         "order_entry_visible": access_policy.route("catalog") or access_policy.route("order_start"),
         "orders_group_visible": access_policy.route("order_list"),
         "orders_group_url": reverse("order_list"),
+        "orders_group_label": order_scope_label(request.user),
         "reception_mode": request.resolver_match and request.resolver_match.url_name in {"catalog", "catalog_detail", "order_start", "order_submitted"},
         "data_vehicle_visible": any(access_policy.route(name) for name in ("vehicle_brand_list", "vehicle_model_list", "inventory_list", "accessory_product_list", "dealer_reward_catalog_list", "catalog_manage")),
         "data_people_visible": any(access_policy.route(name) for name in ("customer_list", "sales_source_list", "price_list_distribution", "gift_distribution")),

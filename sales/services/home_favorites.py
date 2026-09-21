@@ -38,12 +38,19 @@ DEFAULT_KEYS = ("orders", "new-order", "operations", "reports", "help")
 
 def favorite_context(user, preference=None, *, policy=None, selected=None):
     from sales.access.services import AccessPolicy
+    from sales.services.order_intake import order_scope_label
     policy = policy or AccessPolicy(user)
+    orders_label = order_scope_label(user)
     groups, options = [], []
     for key, title, description, keys in GROUPS:
+        if key == "orders":
+            title = orders_label
         items = [{**LINKS[k], "url": reverse("catalog" if k == "new-order" and policy.route("catalog") else LINKS[k]["route"]), "group": title}
                  for k in keys if policy.route(LINKS[k]["route"])]
         if items:
+            for item in items:
+                if item["key"] == "orders":
+                    item["label"] = orders_label
             groups.append({"key": key, "title": title, "description": description, "options": items})
             options.extend(items)
     by_key = {item["key"]: item for item in options}

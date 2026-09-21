@@ -53,6 +53,23 @@ class OrderIntakeTests(TestCase):
             receive_order(self.root, order.pk)
         self.assertEqual(OrderEvent.objects.filter(event_type="accepted").count(), 1)
 
+    def test_dealer_gift_grant_without_pricing_creates_zero_gift(self):
+        from sales.access.models import ScreenAccessGrant, UserAccessState
+        from sales.models import AccessoryProduct
+        UserAccessState.objects.create(user=self.dealer_user, configured=True)
+        grant = ScreenAccessGrant.objects.create(user=self.dealer_user, screen_key="order_gift", view=True, operate=True)
+        product = AccessoryProduct.objects.create(name="贈品測試", sale_price=2100, labor_fee=100)
+        self.client.force_login(self.dealer_user)
+        values = {"accessories-0-accessory_product": product.pk, "accessories-0-line_type": "gift", "accessories-0-amount": 2100, "accessories-0-labor_fee": 100}
+        response = self.submit(**values)
+        self.assertEqual(response.status_code, 302, response.context and response.context['formset'].errors)
+        line = SalesOrder.objects.get().accessories.get()
+        self.assertEqual((line.line_type, line.amount, line.labor_fee), ("gift", 0, 0))
+        grant.delete()
+        response = self.submit(**values)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(SalesOrder.objects.count(), 1)
+
     def test_internal_explicit_self_accept_and_dealer_cannot(self):
         from sales.models import PrintCompany
         company = PrintCompany.objects.create(key=f'dealer:{self.dealer.pk}', source=self.dealer,
@@ -207,12 +224,12 @@ class OrderIntakeTests(TestCase):
         url = reverse("order_account_scope", args=[self.dealer_user.pk])
         self.assertEqual(self.client.post(url, {}).status_code, 403)
         self.client.force_login(self.root)
-        self.assertEqual(self.client.post(url, {"kind": "dealer", "source": self.other_dealer.pk, "expected_revision": 0}).status_code, 302)
-        response = self.client.post(url, {"kind": "dealer", "source": self.dealer.pk, "expected_revision": 0})
+        self.assertEqual(self.client.post(url, {"kind": "dealer", "source": self.other_dealer.pk, "order_scope": "own", "expected_revision": 0}).status_code, 302)
+        response = self.client.post(url, {"kind": "dealer", "source": self.dealer.pk, "order_scope": "own", "expected_revision": 0})
         self.assertContains(response, "已被其他視窗更新")
         self.profile.refresh_from_db()
         self.assertEqual(self.profile.source, self.other_dealer)
-        self.assertEqual(UserAccountAuditLog.objects.filter(description="修改下單身分與所屬通路").count(), 1)
+        self.assertEqual(UserAccountAuditLog.objects.filter(description="修改下單身分與訂單資料範圍").count(), 1)
         draft = OrderDraft.objects.create(owner_account=self.root, data={"source_type": "dealer", "source": str(self.dealer.pk)})
         page = self.client.get(reverse("order_create"), {"draft": str(draft.pk)})
         self.assertEqual(str(page.context["form"].initial["source"]), str(self.dealer.pk))

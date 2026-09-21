@@ -75,6 +75,9 @@ class PrintCompanyTests(TestCase):
             self.assertEqual(order.print_company_snapshot, {})
 
     def test_dealer_can_print_own_but_not_other_order_or_manage_company(self):
+        from sales.access.models import ScreenAccessGrant, UserAccessState
+        UserAccessState.objects.create(user=self.dealer, configured=True)
+        grant = ScreenAccessGrant.objects.create(user=self.dealer, screen_key='order_documents', view=True, export=True)
         own = self.make_order(self.dealer, source=self.source, source_type='dealer')
         other = self.make_order(self.admin)
         self.client.force_login(self.dealer)
@@ -85,6 +88,8 @@ class PrintCompanyTests(TestCase):
             self.assertEqual(self.client.post(reverse(route, args=args), {}).status_code, 403)
         self.profile.can_view_orders = False
         self.profile.save()
+        self.assertEqual(self.client.get(reverse('contract_print', args=[own.pk])).status_code, 200)
+        grant.delete()
         self.assertEqual(self.client.get(reverse('contract_print', args=[own.pk])).status_code, 403)
 
     def test_non_admin_even_superuser_cannot_manage(self):

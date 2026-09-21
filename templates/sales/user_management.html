@@ -76,7 +76,7 @@
         <div class="account-actions">
           {% if account.order_account.kind == 'dealer' %}{% if can_manage_screen_access %}<a class="button primary small" href="{% url 'dealer_account_edit' account.pk %}">車行帳號與功能</a><a class="button small" href="{% url 'dealer_accounts' account.order_account.source_id %}">所屬車行帳號</a><a class="button ghost small" href="{% url 'user_account_reset_password' account.pk %}">重設密碼</a>{% endif %}{% else %}
           {% if can_manage_screen_access %}{% if account.username == 'admin' %}<span class="status-pill neutral">admin 權限固定</span>{% else %}<a class="button primary small" href="{% url 'access_edit' account.pk %}">畫面權限</a>{% endif %}{% endif %}
-          {% if can_manage_screen_access %}<a class="button ghost small" href="{% url 'order_account_scope' account.pk %}">下單身分／所屬通路</a>{% endif %}
+          {% if can_manage_screen_access %}<a class="button ghost small" href="{% url 'order_account_scope' account.pk %}">身分／訂單範圍</a>{% endif %}
           {% if not screen_read_only %}<a class="button ghost small" href="{% url 'user_account_edit' account.pk %}">編輯</a>
           {% if account.pk != user.pk %}<a class="button ghost small" href="{% url 'user_account_reset_password' account.pk %}">重設密碼</a>{% endif %}{% endif %}
           {% endif %}

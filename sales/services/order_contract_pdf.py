@@ -438,17 +438,17 @@ def draw_order_page(c, order, copy_label, page_number, printed_at):
     if is_installment:
         payment_first_row.extend(
             [
-                p("<b>分期總額</b>"),
-                p(f"${money(order.installment_amount)}"),
-                p("<b>應收</b>"),
-                p(f"${money(order.actual_balance + order.deposit_amount)}"),
+                p("<b>分期還款總額</b>"),
+                p(f"${money(order.installment_monthly * order.installment_periods)}"),
+                p("<b>分期外應收</b>"),
+                p(f"${money(order.customer_balance_due)}"),
             ]
         )
     else:
         payment_first_row.extend(
             [
                 p("<b>應收</b>"),
-                p(f"${money(order.actual_balance + order.deposit_amount)}"),
+                p(f"${money(order.customer_balance_due + order.deposit_amount)}"),
                 "",
                 "",
             ]
@@ -465,7 +465,7 @@ def draw_order_page(c, order, copy_label, page_number, printed_at):
         ],
         [
             p("<b>預估尾款</b>"),
-            p(f"${money(order.actual_balance + order.deposit_amount - order.installment_amount)}" if is_installment else f"${money(order.actual_balance)}"),
+            p(f"${money(order.customer_balance_due)}"),
             "",
             "",
             "",

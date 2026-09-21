@@ -229,7 +229,6 @@ def sync_order_operations(order_id, *, update_receivables=False):
     )
 
     if order.payment_type == SalesOrder.PaymentType.INSTALLMENT:
-        financed = _money(order.installment_amount)
         expected_disbursement = _expected_installment_disbursement(order)
         extra_bonus = Decimal(
             str(
@@ -239,7 +238,8 @@ def sync_order_operations(order_id, *, update_receivables=False):
                 or 0
             )
         )
-        cash_due = max((_money(order.plate_insurance_fee) + order.accessory_total - _money(order.deposit_amount)) if order.cash_receivable_v2 else (_money(order.actual_balance) - financed), Decimal("0"))
+        from sales.services.customer_receivable import default_customer_balance
+        cash_due = default_customer_balance(order)
         active_keys.update({"installment_disbursement", "balance"})
         _upsert_system_payment(
             order,

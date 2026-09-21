@@ -112,6 +112,7 @@ def saved(request, order, *, form=None, formsets=()):
         'values': values,
         'sync': sync,
         'payment_values': payment_values,
+        'customer_balance_due': str(order.customer_balance_due) if profile else None,
         'discount': {'before': str(order.pre_discount_total), 'amount': str(order.approved_discount_amount), 'after': str(order.discounted_total)},
         'delivery_ready': bool(order.source_type == SalesOrder.SourceType.DEALER or any(p.system_key == 'balance' and p.is_settled for p in order.payment_records.all())),
         'summary_html': render_to_string('sales/_workspace_finance_summary.html', {**context, 'order': order}, request=request) if profile else '',

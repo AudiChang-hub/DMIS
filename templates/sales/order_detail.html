@@ -24,7 +24,6 @@
 
 <div data-workspace-section="order">{% include "sales/_order_commission_attribution.html" %}</div>
 {% include "sales/_order_acceptance.html" %}
-<div data-workspace-section="order">{% include "sales/_intake_attachments.html" with intake_attachments=order.intake_attachments.all %}</div>
 
 {% if request.GET.created == "1" %}
 <dialog class="print-dialog" id="print-contract-dialog">
@@ -60,7 +59,7 @@
       <div><dt>證件號碼</dt><dd>{{ order.masked_id_number }}</dd></div>
       <div class="wide"><dt>地址</dt><dd>{{ order.owner_address }}</dd></div>
     </dl>
-    <div class="document-links">
+    <div class="document-links document-card-list">
       {% if order.id_front %}{% if_access 'protected_media' 'order' order.pk 'id_front' %}<a href="{% url 'protected_media' 'order' order.pk 'id_front' %}" target="_blank" data-preview-name="{{ order.id_front.name }}">證件正面</a>{% endif_access %}{% endif %}
       {% if order.id_back %}{% if_access 'protected_media' 'order' order.pk 'id_back' %}<a href="{% url 'protected_media' 'order' order.pk 'id_back' %}" target="_blank" data-preview-name="{{ order.id_back.name }}">證件反面</a>{% endif_access %}{% endif %}
     </div>
@@ -85,6 +84,7 @@
       </form>
     </details>
     {% endif %}
+    {% include "sales/_intake_attachments.html" with intake_attachments=order.intake_attachments.all %}
   </section>
   <section class="card">
     <div class="section-title"><h2>車輛與來源</h2><span>{{ order.source_display }}</span></div>

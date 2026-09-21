@@ -4365,7 +4365,7 @@ class OrderFlowTests(TestCase):
             page.extract_text() for page in PdfReader(BytesIO(content)).pages
         )
 
-        self.assertIn("分期總額", extracted)
+        self.assertIn("分期還款總額", extracted)
         self.assertIn("應收", extracted)
         self.assertNotIn("收款說明", extracted)
         self.assertNotIn("領牌＋強制險，依單據收款", extracted)

@@ -15,7 +15,7 @@ from sales.models import (
     DealerVolumeBonusRule, DealerVolumeBonusTier, OrderChange, OrderDraft,
     OrderOperationsProfile, SalesOrder, SalesSource, SalesSourceBrandPolicy,
     VehicleColor, VehicleModel,
-    OrderEvent, PaymentRecord,
+    OrderEvent, PaymentRecord, PrintCompany,
 )
 from sales.services.dealer_commission import (
     apply_order_dealer_commission, create_volume_bonus_settlement,
@@ -263,6 +263,10 @@ class OrderCommissionRecipientTests(TestCase):
         self.assertEqual(later.effective_commission_recipient, self.b)
 
     def test_draft_restores_and_create_saves_attribution(self):
+        company = PrintCompany.objects.create(
+            key=f"dealer:{self.b.pk}", source=self.b, legal_name="B車行有限公司",
+            tax_id="12345678", address="測試地址", phone="02-12345678",
+        )
         self.client.force_login(self.user)
         data = self.post_data(assign_commission_to_other="True", commission_recipient=str(self.a.pk))
         response = self.client.post(reverse("draft_save"), data)
@@ -273,10 +277,17 @@ class OrderCommissionRecipientTests(TestCase):
         self.assertTrue(page.context["form"]["assign_commission_to_other"].value())
         data["_draft_id"] = str(draft.pk)
         response = self.client.post(reverse("order_create"), data)
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("assisted_company_confirmed", response.context["form"].errors)
+        self.assertFalse(SalesOrder.objects.exists())
+        self.assertTrue(OrderDraft.objects.filter(pk=draft.pk).exists())
+        data.update(assisted_company_confirmed="on", assisted_company_revision=str(company.revision))
+        response = self.client.post(reverse("order_create"), data)
         self.assertEqual(response.status_code, 302, getattr(response, "context", None))
         order = SalesOrder.objects.get()
         self.assertEqual(order.source, self.b)
         self.assertEqual(order.commission_recipient, self.a)
+        self.assertEqual(order.print_company_id, company.pk)
         self.assertFalse(OrderDraft.objects.filter(pk=draft.pk).exists())
 
     def test_edit_records_names_and_reason(self):

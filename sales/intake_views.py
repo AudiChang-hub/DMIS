@@ -47,6 +47,10 @@ class AccountScopeForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields["source"].queryset = SalesSource.objects.filter(active=True).order_by("source_type", "name")
+        scope_field = self.fields["order_scope"]
+        # Presentation only: keep stored values and model-level permission validation unchanged.
+        scope_field.choices = [(value, "全公司訂單" if value == "all" else label) for value, label in scope_field.choices]
+        scope_field.help_text = "全公司訂單不限銷售來源或建立人；僅限馭盛內部帳號授權。畫面、財務與操作功能仍依各自權限。"
         self.fields["expected_revision"].initial = self.instance.revision
         for field in self.fields.values():
             field.widget.attrs["class"] = "form-control"

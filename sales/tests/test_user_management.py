@@ -37,6 +37,22 @@ class UserManagementTests(TestCase):
         maintenance = self.client.get(reverse("data_maintenance"))
         self.assertContains(maintenance, reverse("user_management"))
 
+    def test_overview_has_scoped_layout_and_consistent_filter_controls(self):
+        self.admin.username = "admin"
+        self.admin.save(update_fields=["username"])
+        self.client.force_login(self.admin)
+        response = self.client.get(reverse("user_management"))
+        self.assertContains(response, 'class="account-overview"')
+        self.assertContains(response, 'css/account-overview.css')
+        self.assertContains(response, 'js/account-overview.js')
+        for field in ("kind", "source", "search", "status"):
+            self.assertContains(response, f'class="form-control" id="account-{field}"')
+        self.assertContains(response, 'class="account-columns"')
+        self.assertContains(response, 'data-open-dealer')
+        self.assertContains(response, reverse("permission_workspace", args=[self.user.pk]))
+        self.assertContains(response, reverse("user_account_reset_password", args=[self.user.pk]))
+        self.assertNotContains(response, reverse("user_account_reset_password", args=[self.admin.pk]))
+
     def test_admin_account_pages_render_and_help_points_to_account_topic(self):
         self.client.force_login(self.admin)
         pages = (

@@ -95,6 +95,16 @@
       </div>
     </div>
     <div {% if intake_mode and not intake_finance_editable %}hidden{% endif %}>{% include "sales/_order_commission_recipient.html" %}</div>
+    {% if intake_mode and not form.dealer %}
+    <div class="card" data-assisted-company hidden>
+      <h3>代開訂單的公司確認</h3>
+      <p>建立人保留目前操作帳號；銷售來源為所選車行。該車行具「本車行訂單」查詢權限的人員可查閱，另有文件列印權限即可在待接單時列印。</p>
+      <p data-assisted-company-summary aria-live="polite"></p>
+      {{ form.assisted_company_revision }}
+      {% include "sales/_field.html" with field=form.assisted_company_confirmed %}
+      <p class="muted">列印公司會保存在本張訂單，不隨操作人員或登入帳號改變；不會替車行自動開放財務或補助。</p>
+    </div>
+    {% endif %}
   </details>
 
   <details class="form-section" id="owner" {% if order_workspace %}data-workspace-section="order"{% endif %} open>

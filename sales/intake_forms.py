@@ -1,6 +1,7 @@
 """店內與車行共用下單表單；僅依帳號能力限制進階欄位。"""
 from django import forms
 from django.core.exceptions import ValidationError
+from django.db import transaction
 from django.utils import timezone
 
 from sales.forms import SalesOrderForm
@@ -29,6 +30,8 @@ PRICING_FIELDS = {
 class IntakeOrderForm(SalesOrderForm):
     accept_by_me = forms.BooleanField(label="由我接單（建立後直接進入待配車）", required=False)
     catalog_selection = forms.CharField(required=False, widget=forms.HiddenInput, max_length=4096)
+    assisted_company_confirmed = forms.BooleanField(label="我已確認這是實際銷售車行，訂購單及個資同意書使用上述公司資料", required=False)
+    assisted_company_revision = forms.IntegerField(required=False, min_value=0, widget=forms.HiddenInput)
 
     class Meta(SalesOrderForm.Meta):
         fields = [*SalesOrderForm.Meta.fields, "trade_in_intent"]
@@ -42,6 +45,18 @@ class IntakeOrderForm(SalesOrderForm):
         profile = account_profile(user)
         self.dealer = bool(profile and profile.kind == "dealer")
         super().__init__(*args, **kwargs)
+        self.assisted_company = None
+        self.assisted_companies = {}
+        if not self.dealer:
+            from sales.models import PrintCompany
+            from sales.services.print_company import FIELDS
+            self.fields["source_type"].label = "開單方式／銷售來源"
+            self.fields["source_type"].choices = [
+                (key, "代合作車行開單" if key == "dealer" else label)
+                for key, label in self.fields["source_type"].choices
+            ]
+            self.assisted_companies = {str(c.source_id): {**{key: getattr(c, key) for key in FIELDS}, "revision": c.revision}
+                for c in PrintCompany.objects.filter(source__active=True, source__source_type="dealer")}
         self.fields["trade_in_intent"].required = False
         self.fields["installment_custom"].disabled = not self.pricing_editable
         if not self.pricing_editable:
@@ -83,6 +98,25 @@ class IntakeOrderForm(SalesOrderForm):
 
     def clean(self):
         data = super().clean()
+        if not self.dealer and data.get("source_type") == "dealer" and data.get("source"):
+            from sales.models import PrintCompany
+            from sales.services.print_company import validate_header, company_data
+            companies = PrintCompany.objects.filter(source=data["source"])
+            if transaction.get_connection().in_atomic_block:
+                companies = companies.select_for_update()
+            company = companies.first()
+            if not company:
+                self.add_error("assisted_company_confirmed", "此車行尚未設定訂購單公司資料，請 admin 完成設定後再代開。")
+            else:
+                try:
+                    validate_header(company_data(company))
+                except ValidationError:
+                    self.add_error("assisted_company_confirmed", "此車行公司資料不完整，請 admin 完成公司名稱、地址、電話及統編。")
+                if not data.get("assisted_company_confirmed"):
+                    self.add_error("assisted_company_confirmed", "請確認代開車行與訂購文件公司資料。")
+                if data.get("assisted_company_revision") != company.revision:
+                    self.add_error("assisted_company_confirmed", "公司資料已更新或尚未載入，請重新確認畫面上的公司資料後再送出。")
+                self.assisted_company = company
         data["trade_in_intent"] = data.get("trade_in_intent") or "unknown"
         data["is_trade_in_subsidy"] = data["trade_in_intent"] == "yes"
         if data["trade_in_intent"] != "yes":

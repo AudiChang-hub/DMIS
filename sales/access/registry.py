@@ -125,6 +125,8 @@ PERSONAL = set("dashboard home_favorites system_health app_version appearance_th
 ROOT_ONLY = set("announcement_manage announcement_edit access_overview access_edit report_manage report_classification report_create report_edit report_draft_preview report_lifecycle".split())
 ROOT_ONLY.add("order_account_scope")
 ROOT_ONLY.add("order_customer_access")
+ROOT_ONLY.add("permission_workspace")
+ROOT_ONLY.add("create_dealer_entry")
 ROOT_ONLY.update({"print_company_settings", "dealer_print_company", "order_print_company"})
 register("gift_distribution", "gift_distribution gift_distribution_detail")
 register("gift_distribution", "gift_distribution_update", "operate")

@@ -4632,6 +4632,7 @@ class OrderCustomerAccessGrant(TimeStampedModel):
     identity_epoch = models.PositiveIntegerField()
     can_view = models.BooleanField("查看本筆訂單", default=True)
     can_print = models.BooleanField("列印客戶簽署文件", default=False)
+    is_override = models.BooleanField("使用本筆自訂權限", default=False)
     active = models.BooleanField("啟用授權", default=True)
     revision = models.PositiveIntegerField(default=1)
     reason = models.CharField("授權／撤銷原因", max_length=500)

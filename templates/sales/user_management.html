@@ -1,20 +1,31 @@
-{% extends "base.html" %}{% load site_copy %}
+{% extends "base.html" %}{% load site_copy static %}
 {% block title %}帳號與權限｜車輛銷售管理{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'css/account-overview.css' %}?v={{ app_version }}">{% endblock %}
 {% block page_class %}page-shell--wide{% endblock %}
 {% block content %}
 {% url 'data_maintenance' as data_url %}
 {% include "sales/_page_back.html" with fallback_url=data_url label="返回資料維護區" %}
 
+<div class="account-overview">
 <section class="hero-row compact-hero account-hero">
   <div>
     <p class="eyebrow">{% site_text 'user_management.68fc7d413c8a' %}</p>
     <h1>帳號與權限</h1>
     <p class="muted">{% site_text 'user_management.33c628515715' %}</p>
   </div>
-  <div class="account-actions">{% if can_manage_screen_access %}<a class="button" href="#create-dealer-account">＋ 建立車行帳號</a>{% endif %}{% if not screen_read_only %}<a class="button primary" href="{% url 'user_account_create' %}">＋ 建立內部帳號</a>{% endif %}</div>
+  <div class="account-actions">{% if can_manage_screen_access %}<a class="button ghost" href="#create-dealer-account" data-open-dealer>＋ 建立車行帳號</a>{% endif %}{% if not screen_read_only %}<a class="button primary" href="{% url 'user_account_create' %}">＋ 建立內部帳號</a>{% endif %}</div>
 </section>
 
-{% if can_manage_screen_access %}<details class="account-panel" id="create-dealer-account"><summary>建立車行人員帳號</summary><p class="muted">先選所屬合作車行，再建立個別人員帳號；建立後在本中心管理所有權限。</p><form method="get" action="{% url 'create_dealer_entry' %}" class="form-grid"><label for="new-dealer-source">所屬合作車行<select class="form-control" id="new-dealer-source" name="source" required><option value="">請選擇合作車行</option>{% for source in dealer_sources %}{% if source.active %}<option value="{{ source.pk }}">{{ source.name }}</option>{% endif %}{% endfor %}</select></label><div class="hero-actions"><button class="button primary">接續建立帳號</button></div></form></details>{% endif %}
+{% if can_manage_screen_access %}
+<details class="account-panel account-create" id="create-dealer-account">
+  <summary><span><strong>建立車行人員帳號</strong><small>選擇合作車行，為每位人員建立專屬帳號</small></span><span class="ui-chevron" aria-hidden="true"></span></summary>
+  <p class="muted">先選所屬合作車行，再建立個別人員帳號；建立後在本中心管理所有權限。</p>
+  <form method="get" action="{% url 'create_dealer_entry' %}" class="account-create__form">
+    <label for="new-dealer-source">所屬合作車行<select class="form-control" id="new-dealer-source" name="source" required><option value="">請選擇合作車行</option>{% for source in dealer_sources %}{% if source.active %}<option value="{{ source.pk }}">{{ source.name }}</option>{% endif %}{% endfor %}</select></label>
+    <button class="button primary">接續建立帳號</button>
+  </form>
+</details>
+{% endif %}
 
 <section class="account-summary" aria-label="帳號統計">
   <a href="?status=all"><span>全部帳號</span><strong>{{ counts.all }}</strong></a>
@@ -24,8 +35,8 @@
 </section>
 
 <form class="account-filter card" method="get">
-  <div><label for="account-kind">人員身分</label><select id="account-kind" name="kind"><option value="">全部</option><option value="internal" {% if account_kind == 'internal' %}selected{% endif %}>馭盛內部人員</option><option value="dealer" {% if account_kind == 'dealer' %}selected{% endif %}>合作車行帳號</option></select></div>
-  <div><label for="account-source">所屬車行</label><select id="account-source" name="source"><option value="">全部車行</option>{% for source in dealer_sources %}<option value="{{ source.pk }}" {% if account_source == source.pk|stringformat:'s' %}selected{% endif %}>{{ source.name }}</option>{% endfor %}</select></div>
+  <div><label for="account-kind">人員身分</label><select class="form-control" id="account-kind" name="kind"><option value="">全部</option><option value="internal" {% if account_kind == 'internal' %}selected{% endif %}>馭盛內部人員</option><option value="dealer" {% if account_kind == 'dealer' %}selected{% endif %}>合作車行帳號</option></select></div>
+  <div><label for="account-source">所屬車行</label><select class="form-control" id="account-source" name="source"><option value="">全部車行</option>{% for source in dealer_sources %}<option value="{{ source.pk }}" {% if account_source == source.pk|stringformat:'s' %}selected{% endif %}>{{ source.name }}</option>{% endfor %}</select></div>
   <div>
     <label for="account-search">搜尋姓名或帳號</label>
     <input class="form-control" id="account-search" name="q" value="{{ query }}" placeholder="例如 Sylvia、sylvia">
@@ -51,6 +62,7 @@
     <div><p class="eyebrow">內部與車行人員</p><h2>帳號清單</h2></div>
     <span>{{ accounts|length }} 筆結果</span>
   </header>
+  <div class="account-columns" aria-hidden="true"><span>人員／帳號</span><span>帳號狀態與角色</span><span>最近登入</span><span>管理操作</span></div>
   <div class="account-list">
     {% for account in accounts %}
       <article class="account-row{% if not account.is_active %} is-inactive{% endif %}">
@@ -94,4 +106,6 @@
     {% empty %}<p class="muted">目前尚無帳號異動紀錄。</p>{% endfor %}
   </div>
 </details>
+</div>
 {% endblock %}
+{% block scripts %}<script src="{% static 'js/account-overview.js' %}?v={{ app_version }}" defer></script>{% endblock %}

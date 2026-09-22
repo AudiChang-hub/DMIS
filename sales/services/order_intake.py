@@ -77,7 +77,10 @@ ORDER_PK_ROUTES = CUSTOMER_DOCUMENT_ROUTES | {
 def guard_order_scope(request, name, kwargs):
     """資料範圍先於畫面授權判斷；不靠隱藏按鈕保護單筆資料。"""
     if name in ORDER_PK_ROUTES:
-        if not scoped_orders(request.user).filter(pk=kwargs.get("pk")).exists():
+        from sales.services.order_customer_access import customer_orders
+        visible = (customer_orders(request.user, printing=name in CUSTOMER_DOCUMENT_ROUTES)
+                   if name in CUSTOMER_DOCUMENT_ROUTES | {"order_detail"} else scoped_orders(request.user))
+        if not visible.filter(pk=kwargs.get("pk")).exists():
             raise Http404
     if name == "positioned_template_order_print":
         if not scoped_orders(request.user).filter(pk=kwargs.get("order_pk")).exists():
@@ -213,8 +216,10 @@ def guard_dealer_request(request, name, kwargs):
         return
     if not dealer_route_allowed(profile, name):
         raise PermissionDenied("此車行帳號無法使用這項功能。")
-    if name in {"order_detail", "contract_print", "privacy_consent_print", "order_documents_print"} and not scoped_orders(request.user).filter(pk=kwargs.get("pk")).exists():
-        raise Http404
+    if name in {"order_detail"} | CUSTOMER_DOCUMENT_ROUTES:
+        from sales.services.order_customer_access import customer_orders
+        if not customer_orders(request.user, printing=name in CUSTOMER_DOCUMENT_ROUTES).filter(pk=kwargs.get("pk")).exists():
+            raise Http404
     draft_id = request.POST.get("_draft_id") or request.GET.get("draft")
     if name in {"draft_presence", "draft_delete"}:
         draft_id = kwargs.get("pk")

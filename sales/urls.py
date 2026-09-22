@@ -1,4 +1,5 @@
 from django.urls import path
+from .order_customer_access_views import order_customer_access
 from django.views.generic import RedirectView
 
 from . import views, announcement_views, favorite_views, intake_views, catalog_views, dealer_account_views, profit_views
@@ -14,6 +15,7 @@ from .access import views as access_views
 
 
 urlpatterns = [
+    path("orders/<int:pk>/customer-access/", order_customer_access, name="order_customer_access"),
     path("data/print-companies/", print_company_views.company_settings, name="print_company_settings"),
     path("data/channels/<int:source_pk>/print-company/", print_company_views.company_settings, name="dealer_print_company"),
     path("orders/<int:pk>/print-company/", print_company_views.order_company, name="order_print_company"),

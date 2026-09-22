@@ -181,7 +181,7 @@ class CustomerOrderAccessTests(TestCase):
         from sales.urls import urlpatterns
         from sales.services.order_intake import ORDER_PK_ROUTES
         # 刪除/還原使用 all_objects 自行套範圍，開單公司僅 root。
-        separately_guarded = {'order_delete', 'order_restore', 'order_print_company'}
+        separately_guarded = {'order_delete', 'order_restore', 'order_print_company', 'order_customer_access'}
         for pattern in urlpatterns:
             if str(pattern.pattern).startswith('orders/<int:pk>/'):
                 self.assertIn(pattern.name, ORDER_PK_ROUTES | separately_guarded)

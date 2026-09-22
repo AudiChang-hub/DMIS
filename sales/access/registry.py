@@ -124,6 +124,7 @@ register("accounts", "user_account_create user_account_edit user_account_status 
 PERSONAL = set("dashboard home_favorites system_health app_version appearance_theme_update mobile_quick_links_update user_guide password_change_required access_home login logout throttled_admin_login".split())
 ROOT_ONLY = set("announcement_manage announcement_edit access_overview access_edit report_manage report_classification report_create report_edit report_draft_preview report_lifecycle".split())
 ROOT_ONLY.add("order_account_scope")
+ROOT_ONLY.add("order_customer_access")
 ROOT_ONLY.update({"print_company_settings", "dealer_print_company", "order_print_company"})
 register("gift_distribution", "gift_distribution gift_distribution_detail")
 register("gift_distribution", "gift_distribution_update", "operate")

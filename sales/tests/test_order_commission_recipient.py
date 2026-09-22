@@ -390,6 +390,30 @@ class OrderCommissionRecipientTests(TestCase):
                     self.assertContains(page, "調整台數與傭金歸屬")
                     self.assertContains(page, f'href="{reverse("order_edit", args=[order.pk])}"')
 
+    def test_undated_order_can_change_and_restore_recipient_without_financial_changes(self):
+        self.client.force_login(self.user)
+        order = self.make_order(registration_date=None, registration_completed_at=None)
+        url = reverse("order_commission_attribution_update", args=[order.pk])
+        for recipient in (self.a, None):
+            with self.subTest(recipient=recipient.pk if recipient else None):
+                before = SalesOrder.objects.filter(pk=order.pk).values().get()
+                profile_before = OrderOperationsProfile.objects.filter(order=order).values().get()
+                payments_before = list(PaymentRecord.objects.filter(order=order).values())
+                response = self.client.post(url, self.attribution_data(order, recipient))
+                self.assertRedirects(response, reverse("order_detail", args=[order.pk]) + "#commission-attribution")
+                order.refresh_from_db()
+                after = SalesOrder.objects.filter(pk=order.pk).values().get()
+                for field, value in before.items():
+                    if field not in {"commission_recipient_id", "revision", "updated_at"}:
+                        self.assertEqual(after[field], value, field)
+                self.assertEqual(order.commission_recipient_id, self.a.pk if recipient == self.a else None)
+                self.assertEqual(order.revision, before["revision"] + 1)
+                self.assertEqual(OrderOperationsProfile.objects.filter(order=order).values().get(), profile_before)
+                self.assertEqual(list(PaymentRecord.objects.filter(order=order).values()), payments_before)
+                self.assertFalse(order.dealer_volume_bonus_allocations.exists())
+        self.assertEqual(OrderChange.objects.filter(order=order).count(), 2)
+        self.assertEqual(OrderEvent.objects.filter(order=order, event_type="commission_attribution_updated").count(), 2)
+
     def test_dedicated_action_restores_original_and_unchanged_is_noop(self):
         order = self.make_order(recipient=self.a, status=SalesOrder.Status.COMPLETED)
         self.client.force_login(self.user)

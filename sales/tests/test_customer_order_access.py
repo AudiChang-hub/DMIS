@@ -231,6 +231,13 @@ class CustomerOrderAccessTests(TestCase):
         self.profile.refresh_from_db()
         self.assertEqual(self.profile.order_scope, 'dealer')
 
+    def test_scope_wording_release_is_only_visible_to_admin(self):
+        from sales.services.audience_content import release_context
+        admin_history = release_context(AccessPolicy(self.admin))['release_history']
+        dealer_history = release_context(AccessPolicy(self.user))['release_history']
+        self.assertIn('1.16.2', [item['version'] for item in admin_history])
+        self.assertNotIn('1.16.2', [item['version'] for item in dealer_history])
+
     def test_all_order_pk_routes_have_scope_or_admin_guard(self):
         from sales.urls import urlpatterns
         from sales.services.order_intake import ORDER_PK_ROUTES

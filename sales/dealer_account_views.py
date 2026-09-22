@@ -237,29 +237,25 @@ def dealer_account_edit(request, pk):
                         "can_view_orders": current.can_view_orders,
                         "can_browse_catalog": current.can_browse_catalog,
                     }
-                    user.username = form.cleaned_data["username"]
-                    user.first_name = form.cleaned_data["display_name"].strip()
-                    user.last_name = ""
-                    user.is_active = form.cleaned_data["is_active"]
-                    user.save(
-                        update_fields=[
-                            "username",
-                            "first_name",
-                            "last_name",
-                            "is_active",
-                        ]
-                    )
-                    current.can_submit_orders = form.cleaned_data["can_submit_orders"]
-                    current.can_view_orders = form.cleaned_data["can_view_orders"]
-                    current.can_browse_catalog = form.cleaned_data["can_browse_catalog"]
-                    current.order_scope = form.cleaned_data["order_scope"]
-                    save_customer_permissions(user, form.cleaned_data)
+                    section = getattr(request, "permission_tab", None)
+                    if section != "features":
+                        user.username = form.cleaned_data["username"]
+                        user.first_name = form.cleaned_data["display_name"].strip()
+                        user.last_name = ""
+                        user.is_active = form.cleaned_data["is_active"]
+                        user.save(update_fields=["username", "first_name", "last_name", "is_active"])
+                    if section != "account":
+                        current.can_submit_orders = form.cleaned_data["can_submit_orders"]
+                        current.can_view_orders = form.cleaned_data["can_view_orders"]
+                        current.can_browse_catalog = form.cleaned_data["can_browse_catalog"]
+                        current.order_scope = form.cleaned_data["order_scope"]
+                        save_customer_permissions(user, form.cleaned_data)
+                        ScreenAccessGrant.objects.update_or_create(user=user, screen_key="order_pricing", defaults={"view": form.cleaned_data["can_adjust_pricing"], "operate": form.cleaned_data["can_adjust_pricing"], "export": False})
+                        access_state, _ = UserAccessState.objects.get_or_create(user=user)
+                        access_state.configured = True
+                        access_state.version += 1
+                        access_state.save(update_fields=["configured", "version", "updated_at"])
                     current.revision += 1
-                    ScreenAccessGrant.objects.update_or_create(user=user, screen_key="order_pricing", defaults={"view": form.cleaned_data["can_adjust_pricing"], "operate": form.cleaned_data["can_adjust_pricing"], "export": False})
-                    access_state, _ = UserAccessState.objects.get_or_create(user=user)
-                    access_state.configured = True
-                    access_state.version += 1
-                    access_state.save(update_fields=["configured", "version", "updated_at"])
                     current.save(
                         update_fields=["can_submit_orders", "can_view_orders", "can_browse_catalog", "order_scope", "revision", "updated_at"]
                     )

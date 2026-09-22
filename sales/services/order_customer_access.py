@@ -41,7 +41,7 @@ def set_customer_access(*, actor, order_id, account_id, expected_revision, expec
     if is_root(account.user):
         raise ValidationError("admin 為固定最高權限，不設定單筆例外。")
     if active and (not account.user.is_active or (account.kind == "dealer" and (not account.source_id or not account.source.active))):
-        raise ValidationError("只能授權啟用中且有所屬車行的合作車行帳號。")
+        raise ValidationError("只能設定啟用中的帳號；車行帳號亦需有效且啟用中的所屬車行。")
     if active and not is_override and not (can_view or can_print):
         raise ValidationError("請勾選查看或列印；若不再開放，請使用撤銷。")
     if active and is_override:

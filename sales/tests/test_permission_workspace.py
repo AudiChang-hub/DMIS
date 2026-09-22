@@ -123,6 +123,9 @@ class PermissionWorkspaceTests(TestCase):
         self.assertFalse(AccessPolicy(self.user).screen('order_pricing', 'operate'))
 
     def test_dealer_features_tab_preserves_identity_and_scope(self):
+        self.user.first_name = '測試'
+        self.user.last_name = '人員'
+        self.user.save()
         self.profile.order_scope = 'dealer'
         self.profile.save()
         response = self.client.post(workspace_url(self.user.pk, 'features'), {
@@ -133,7 +136,20 @@ class PermissionWorkspaceTests(TestCase):
         self.user.refresh_from_db()
         self.assertEqual(self.profile.order_scope, 'dealer')
         self.assertEqual(self.user.username, 'dealer-a')
+        self.assertEqual((self.user.first_name, self.user.last_name), ('測試', '人員'))
         self.assertTrue(self.user.is_active)
+
+    def test_account_name_change_does_not_activate_legacy_grants(self):
+        from sales.access.models import UserAccessState
+        UserAccessState.objects.filter(user=self.user).update(configured=False)
+        self.grant('order_pricing', 'operate')
+        self.assertFalse(AccessPolicy(self.user).screen('order_pricing', 'operate'))
+        response = self.client.post(workspace_url(self.user.pk, 'account'), {
+            'username': self.user.username, 'display_name': '更名而已', 'is_active': 'on',
+            'expected_revision': self.profile.revision})
+        self.assertEqual(response.status_code, 302)
+        self.assertFalse(AccessPolicy(self.user).screen('order_pricing', 'operate'))
+        self.assertFalse(UserAccessState.objects.get(user=self.user).configured)
 
     def test_search_only_returns_matches(self):
         page = self.client.get(workspace_url(self.user.pk, 'orders', q=self.order.number))

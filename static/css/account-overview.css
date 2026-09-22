@@ -1,0 +1,66 @@
+/* 僅帳號總覽：所有列使用相同欄寬，不受操作按鈕數量影響。 */
+.account-overview { max-width:1600px; margin:0 auto; --account-columns:44px minmax(180px,1fr) 250px 156px 288px; }
+.account-overview .account-hero { gap:24px; margin-bottom:24px; }
+.account-overview .account-hero h1 { font-size:clamp(1.8rem,2.8vw,2.4rem); }
+.account-overview .account-hero .muted { max-width:780px; line-height:1.7; }
+.account-overview .button { box-shadow:none; min-height:44px; }
+.account-overview .account-panel,.account-overview .account-filter { border-radius:14px; box-shadow:none; }
+.account-overview .account-create { background:var(--surface-soft); }
+.account-overview .account-create summary { display:flex; align-items:center; justify-content:space-between; gap:20px; padding:18px 24px; cursor:pointer; list-style:none; }
+.account-overview .account-create summary::-webkit-details-marker { display:none; }
+.account-overview .account-create summary strong,.account-overview .account-create summary small { display:block; }
+.account-overview .account-create summary small { color:var(--muted); margin-top:5px; font-size:.85rem; }
+.account-overview .account-create[open] summary { border-bottom:1px solid var(--line); }
+.account-overview .account-create[open] .ui-chevron { transform:rotate(225deg); }
+.account-overview .account-create { scroll-margin-top:160px; }
+.account-overview .account-create__form { display:grid; grid-template-columns:minmax(0,520px) auto; align-items:end; justify-content:start; gap:16px; padding:0 24px 24px; }
+.account-overview .account-create__form label { display:grid; gap:8px; min-width:0; }
+.account-overview .account-summary { gap:0; border:1px solid var(--line); border-radius:14px; overflow:hidden; background:var(--surface); margin-bottom:20px; }
+.account-overview .account-summary a { border:0; border-right:1px solid var(--line); border-radius:0; min-height:84px; padding:18px 24px; box-shadow:none; }
+.account-overview .account-summary a:last-child { border-right:0; }
+.account-overview .account-summary a:hover { background:var(--surface-tint); }
+.account-overview .account-summary strong { color:var(--ink); font-size:1.7rem; }
+.account-overview .account-filter { grid-template-columns:minmax(0,1fr) minmax(0,1fr) minmax(0,1.35fr) minmax(0,1fr) auto; gap:18px; padding:24px; }
+.account-overview .account-filter>div { min-width:0; grid-column:auto; }
+.account-overview .account-filter .form-control,.account-overview .account-create .form-control { width:100%; min-width:0; height:48px; padding:10px 14px; }
+.account-overview .account-filter label { font-size:.85rem; margin-bottom:9px; }
+.account-overview .account-filter__actions .button { min-height:48px; padding:10px 16px; }
+.account-overview .account-panel__header { padding:22px 24px; }
+.account-overview .account-panel__header .eyebrow { font-size:.75rem; margin:0 0 6px; }
+.account-overview .account-columns,.account-overview .account-row { display:grid; grid-template-columns:var(--account-columns); gap:16px; padding:22px 24px; align-items:center; }
+.account-overview .account-columns { padding-block:12px; background:var(--surface-soft); border-bottom:1px solid var(--line); color:var(--muted); font-size:.8rem; font-weight:700; }
+.account-overview .account-columns>span:first-child { grid-column:1 / 3; }
+.account-overview .account-row>div { min-width:0; grid-column:auto; }
+.account-overview .account-identity p { overflow-wrap:anywhere; line-height:1.6; }
+.account-overview .account-state { justify-content:flex-start; gap:8px; }
+.account-overview .status-pill { color:var(--ink); background:var(--surface-tint); border-color:var(--line); }
+.account-overview .account-login strong { font-variant-numeric:tabular-nums; white-space:nowrap; }
+.account-overview .account-row .account-actions { display:grid; grid-template-columns:174px 106px; gap:8px; justify-content:start; }
+.account-overview .account-row .account-actions .button { padding:10px 8px; font-size:.84rem; text-align:center; white-space:normal; }
+.account-overview .account-row .account-actions .primary { background:var(--surface-tint); color:var(--ink); border:1px solid var(--line); }
+.account-overview .account-row .account-actions .button:hover { border-color:var(--action-text,var(--forest)); background:var(--surface-soft); }
+@media(max-width:1250px) {
+  .account-overview .account-hero { flex-wrap:wrap; align-items:flex-start; }
+  .account-overview .account-filter { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .account-overview .account-filter__actions { grid-column:1 / -1; justify-content:flex-end; }
+  .account-overview .account-columns { display:none; }
+  .account-overview .account-row { grid-template-columns:44px minmax(0,1fr) 288px; gap:14px 20px; }
+  .account-overview .account-row .account-state { grid-column:2; grid-row:2; }
+  .account-overview .account-row .account-login { grid-column:3; grid-row:1; }
+  .account-overview .account-row .account-actions { grid-column:3; grid-row:2; }
+}
+@media(max-width:650px) {
+  .account-overview .account-hero>.account-actions { display:grid; grid-template-columns:1fr 1fr; width:100%; }
+  .account-overview .account-hero>.account-actions .button { padding:10px; font-size:.85rem; }
+  .account-overview .account-summary { grid-template-columns:1fr 1fr; }
+  .account-overview .account-summary a { padding:16px; min-height:72px; }
+  .account-overview .account-summary a:nth-child(2) { border-right:0; }
+  .account-overview .account-summary a:nth-child(-n+2) { border-bottom:1px solid var(--line); }
+  .account-overview .account-filter { grid-template-columns:minmax(0,1fr); padding:18px; }
+  .account-overview .account-filter__actions { display:grid; grid-template-columns:1fr 1fr; }
+  .account-overview .account-create summary,.account-overview .account-panel__header { padding:18px; }
+  .account-overview .account-create__form { grid-template-columns:minmax(0,1fr); padding:0 18px 18px; }
+  .account-overview .account-row { grid-template-columns:40px minmax(0,1fr); padding:20px 18px; gap:12px; }
+  .account-overview .account-row .account-login { grid-column:2; grid-row:3; }
+  .account-overview .account-row .account-actions { grid-column:1 / -1; grid-row:4; grid-template-columns:minmax(0,1.6fr) minmax(0,1fr); padding-top:8px; }
+}

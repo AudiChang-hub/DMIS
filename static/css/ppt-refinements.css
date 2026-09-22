@@ -5,6 +5,17 @@
 .document-card .document-download{display:block;padding:8px;text-align:center;border:1px solid var(--line);border-radius:8px;background:var(--surface-tint);color:var(--ink);text-decoration:none}
 .document-card small{color:var(--muted)}.order-attachments{margin-block:24px;padding:16px;border-top:1px solid var(--line)}
 [data-custom-accessory][hidden]{display:none!important}
+/* 配件獨立成卡；平板名稱欄不再跨滿整列。新增列也沿用相同版面。 */
+.accessory-section #accessory-forms{display:grid;gap:24px;counter-reset:accessory-card}
+.accessory-section .accessory-row{counter-increment:accessory-card;padding:56px 20px 20px;border:1px solid var(--line);border-radius:14px;background:var(--surface-soft);min-width:0}
+.accessory-section .accessory-row::before{content:"配件 " counter(accessory-card);position:absolute;top:18px;left:20px;font-size:.85rem;font-weight:700;color:var(--muted)}
+.accessory-section .accessory-row>.remove-row-button{top:12px;right:16px}
+.accessory-section .accessory-row>.field:first-of-type{grid-column:auto;padding-right:0}
+.accessory-section .accessory-row>.field:last-child{grid-column:1 / -1}
+.accessory-section .accessory-row>.field,.accessory-section [data-custom-accessory]{min-width:0}
+.accessory-section .accessory-row select{width:100%;min-width:0;max-width:100%}
+@media(min-width:601px) and (max-width:1100px){.accessory-section .accessory-row{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:600px){.accessory-section #accessory-forms{gap:20px}.accessory-section .accessory-row{grid-template-columns:minmax(0,1fr);padding:56px 16px 16px}.accessory-section .accessory-row::before{left:16px}}
 .operations-form .operation-section,.operations-form .operation-change-reason{margin-block:24px}
 .operations-form .operation-section{padding:20px;border:1px solid var(--line,#cad5da);border-radius:14px;background:var(--surface,#fff);color:var(--ink,#17313b)}
 .operations-form .operation-section>summary{margin-bottom:16px;cursor:pointer}

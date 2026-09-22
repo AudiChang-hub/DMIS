@@ -100,6 +100,7 @@ class CustomerGrantTests(TestCase):
         self.client.force_login(self.admin)
         url = reverse('order_customer_access', args=[self.order.pk])
         self.assertContains(self.client.get(url + f'?account={self.profile.pk}'), '儲存授權')
+        self.assertContains(self.client.get(url + f'?account={self.profile.pk}'), '本頁不會自動開啟帳號功能')
         self.assertFalse(OrderCustomerAccessGrant.objects.exists())
         data = dict(account=self.profile.pk, expected_revision=0, expected_identity_epoch=0, can_view='on', can_print='on', reason='admin確認交給車行', action='save')
         self.assertEqual(self.client.post(url, data).status_code, 302)
@@ -107,6 +108,19 @@ class CustomerGrantTests(TestCase):
         data.update(expected_revision=1, action='revoke', reason='處理結束')
         self.assertEqual(self.client.post(url, data).status_code, 302)
         self.assertFalse(customer_orders(self.user).filter(pk=self.order.pk).exists())
+
+    def test_disabled_user_or_source_cannot_use_grant(self):
+        self.authorize(can_print=True)
+        self.source.active = False
+        self.source.save(update_fields=['active'])
+        self.assertFalse(customer_orders(self.user).filter(pk=self.order.pk).exists())
+        self.assertFalse(customer_orders(self.user, printing=True).filter(pk=self.order.pk).exists())
+        self.source.active = True
+        self.source.save(update_fields=['active'])
+        self.user.is_active = False
+        self.user.save(update_fields=['is_active'])
+        self.assertFalse(customer_orders(self.user).exists())
+        self.assertFalse(customer_orders(self.user, printing=True).exists())
 
 
 class AssistedIntakeTests(TestCase):

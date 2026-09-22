@@ -11,8 +11,10 @@
     <h1>帳號與權限</h1>
     <p class="muted">{% site_text 'user_management.33c628515715' %}</p>
   </div>
-  <div class="account-actions">{% if can_manage_screen_access %}<a class="button secondary" href="{% url 'access_overview' %}">權限總覽</a><a class="button" href="{% url 'sales_source_list' %}">到合作車行開通帳號</a>{% endif %}{% if not screen_read_only %}<a class="button primary" href="{% url 'user_account_create' %}">＋ 建立內部帳號</a>{% endif %}</div>
+  <div class="account-actions">{% if can_manage_screen_access %}<a class="button" href="#create-dealer-account">＋ 建立車行帳號</a>{% endif %}{% if not screen_read_only %}<a class="button primary" href="{% url 'user_account_create' %}">＋ 建立內部帳號</a>{% endif %}</div>
 </section>
+
+{% if can_manage_screen_access %}<details class="account-panel" id="create-dealer-account"><summary>建立車行人員帳號</summary><p class="muted">先選所屬合作車行，再建立個別人員帳號；建立後在本中心管理所有權限。</p><form method="get" action="{% url 'create_dealer_entry' %}" class="form-grid"><label for="new-dealer-source">所屬合作車行<select class="form-control" id="new-dealer-source" name="source" required><option value="">請選擇合作車行</option>{% for source in dealer_sources %}{% if source.active %}<option value="{{ source.pk }}">{{ source.name }}</option>{% endif %}{% endfor %}</select></label><div class="hero-actions"><button class="button primary">接續建立帳號</button></div></form></details>{% endif %}
 
 <section class="account-summary" aria-label="帳號統計">
   <a href="?status=all"><span>全部帳號</span><strong>{{ counts.all }}</strong></a>
@@ -74,12 +76,8 @@
           <strong>{% if account.last_login %}{{ account.last_login|date:"Y/m/d H:i" }}{% else %}尚未登入{% endif %}</strong>
         </div>
         <div class="account-actions">
-          {% if account.order_account.kind == 'dealer' %}{% if can_manage_screen_access %}<a class="button primary small" href="{% url 'dealer_account_edit' account.pk %}">車行帳號與功能</a><a class="button small" href="{% url 'dealer_accounts' account.order_account.source_id %}">所屬車行帳號</a><a class="button ghost small" href="{% url 'user_account_reset_password' account.pk %}">重設密碼</a>{% endif %}{% else %}
-          {% if can_manage_screen_access %}{% if account.username == 'admin' %}<span class="status-pill neutral">admin 權限固定</span>{% else %}<a class="button primary small" href="{% url 'access_edit' account.pk %}">畫面權限</a>{% endif %}{% endif %}
-          {% if can_manage_screen_access %}<a class="button ghost small" href="{% url 'order_account_scope' account.pk %}">身分／訂單範圍</a>{% endif %}
-          {% if not screen_read_only %}<a class="button ghost small" href="{% url 'user_account_edit' account.pk %}">編輯</a>
-          {% if account.pk != user.pk %}<a class="button ghost small" href="{% url 'user_account_reset_password' account.pk %}">重設密碼</a>{% endif %}{% endif %}
-          {% endif %}
+          {% if can_manage_screen_access %}<a class="button primary small" href="{% url 'permission_workspace' account.pk %}">管理帳號與權限</a>{% elif not screen_read_only and account.order_account.kind != 'dealer' %}<a class="button ghost small" href="{% url 'user_account_edit' account.pk %}">編輯基本資料</a>{% endif %}
+          {% if not screen_read_only and account.pk != user.pk %}<a class="button ghost small" href="{% url 'user_account_reset_password' account.pk %}">重設密碼</a>{% endif %}
         </div>
       </article>
     {% empty %}

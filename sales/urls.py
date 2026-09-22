@@ -1,5 +1,5 @@
 from django.urls import path
-from .order_customer_access_views import order_customer_access
+from .permission_workspace import order_entry as order_customer_access, workspace as permission_workspace, create_dealer_entry
 from django.views.generic import RedirectView
 
 from . import views, announcement_views, favorite_views, intake_views, catalog_views, dealer_account_views, profit_views
@@ -15,6 +15,8 @@ from .access import views as access_views
 
 
 urlpatterns = [
+    path("system/users/new/dealer/", create_dealer_entry, name="create_dealer_entry"),
+    path("system/users/<int:pk>/permissions/", permission_workspace, name="permission_workspace"),
     path("orders/<int:pk>/customer-access/", order_customer_access, name="order_customer_access"),
     path("data/print-companies/", print_company_views.company_settings, name="print_company_settings"),
     path("data/channels/<int:source_pk>/print-company/", print_company_views.company_settings, name="dealer_print_company"),

@@ -31,7 +31,7 @@ def can_edit_finance(user):
     return not is_dealer(user) and AccessPolicy(user).screen("order_finance", "operate")
 
 
-def scoped_orders(user, queryset=None):
+def scoped_orders(user, queryset=None, *, apply_overrides=True):
     queryset = queryset if queryset is not None else SalesOrder.objects.all()
     if not user.is_authenticated or not user.is_active:
         return queryset.none()
@@ -39,6 +39,11 @@ def scoped_orders(user, queryset=None):
     if is_root(user):
         return queryset
     profile = account_profile(user)
+    if apply_overrides and profile:
+        from sales.models import OrderCustomerAccessGrant
+        denied = OrderCustomerAccessGrant.objects.filter(account=profile, active=True,
+            identity_epoch=profile.identity_epoch, is_override=True, can_view=False)
+        queryset = queryset.exclude(pk__in=denied.values("order_id"))
     if profile and profile.kind == "dealer":
         if not profile.source_id or not profile.source.active:
             return queryset.none()

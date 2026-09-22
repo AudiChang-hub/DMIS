@@ -1,17 +1,21 @@
 {% extends "base.html" %}{% load site_copy %}{% load static %}{% block title %}車行帳號設定{% endblock %}{% block content %}
-{% site_navigation %}
+{% if request.permission_account %}{% include 'sales/permissions/_header.html' %}{% else %}{% site_navigation %}{% endif %}
 <div class="account-editor">
+{% if not request.permission_account %}
 <a class="back-link" href="{% url 'dealer_accounts' source.pk %}">← 返回 {{ source.name }} 登入帳號</a>
 <header class="account-heading"><div><p class="eyebrow">合作車行 · {{ source.code }}</p><h1>{% if account %}編輯人員帳號{% else %}開通車行帳號{% endif %}</h1><p>所屬車行 <strong>{{ source.name }}</strong> · 一人一帳號，操作紀錄可追溯</p></div><span class="account-badge">僅 admin 可管理</span></header>
+{% endif %}
 <form class="account-form" method="post" autocomplete="off" data-dealer-account>{% csrf_token %}{{ form.non_field_errors }}{% for field in form.hidden_fields %}{{ field }}{% endfor %}
-<section class="account-panel"><header><span class="account-step">01</span><div><h2>人員與登入資料</h2><p>{% site_text 'dealer_account_form.9cc6fa7e3faa' %}</p></div></header>
+{% if request.permission_tab != 'features' %}<section class="account-panel"><header><span class="account-step">01</span><div><h2>人員與登入資料</h2><p>{% site_text 'dealer_account_form.9cc6fa7e3faa' %}</p></div></header>
 <div class="account-field-grid">{% include "sales/_field.html" with field=form.display_name %}<div>{% include "sales/_field.html" with field=form.username %}{% if not account %}<button class="button ghost small" type="button" data-suggest-username="{{ suggested_username }}">使用建議帳號 {{ suggested_username }}</button><small class="muted">{% site_text 'dealer_account_form.823cd488ec02' %}</small>{% endif %}</div>
 {% if not account %}{% include "sales/_field.html" with field=form.password1 %}{% include "sales/_field.html" with field=form.password2 %}{% endif %}</div>
 <div class="account-security">{% include "sales/_field.html" with field=form.is_active %}{% if form.must_change_password %}{% include "sales/_field.html" with field=form.must_change_password %}{% endif %}</div></section>
-<section class="account-panel" data-feature-group><header><span class="account-step">02</span><div><h2>訂單 · 功能與資料範圍</h2><p>只開放 {{ source.name }} 的資料，不含其他車行、公司財務與報表。</p></div></header>
+{% endif %}
+{% if request.permission_tab != 'account' %}<section class="account-panel" data-feature-group><header><span class="account-step">02</span><div><h2>訂單 · 畫面與操作</h2><p>只開放客戶版功能，不含公司財務與報表。可查看哪些訂單，請至「訂單範圍」設定。</p></div></header>
 <div class="hero-actions"><button type="button" class="button ghost small" data-feature-all="1">本大項全選</button><button type="button" class="button ghost small" data-feature-all="0">全部取消</button></div>
-<div class="account-permissions">{% include "sales/_field.html" with field=form.can_browse_catalog %}{% include "sales/_field.html" with field=form.can_view_orders %}{% include "sales/_field.html" with field=form.can_submit_orders %}{% include "sales/_field.html" with field=form.can_adjust_pricing %}{% include "sales/_field.html" with field=form.can_gift_accessories %}{% include "sales/_field.html" with field=form.can_print_documents %}</div>{% include "sales/_field.html" with field=form.order_scope %}<p class="muted">本人範圍只包含這個帳號建立的訂單。舊 Excel 未記錄建立者的訂單由店內管理；列印可獨立開放，不必先開放查詢。</p><p class="muted">金額調整由 admin 個別授權，不包含成本、佣金、淨利或其他車行資料。</p>
+<div class="account-permissions">{% include "sales/_field.html" with field=form.can_browse_catalog %}{% include "sales/_field.html" with field=form.can_view_orders %}{% include "sales/_field.html" with field=form.can_submit_orders %}{% include "sales/_field.html" with field=form.can_adjust_pricing %}{% include "sales/_field.html" with field=form.can_gift_accessories %}{% include "sales/_field.html" with field=form.can_print_documents %}</div>{% if not request.permission_account %}{% include "sales/_field.html" with field=form.order_scope %}{% endif %}<p class="muted">本人範圍只包含這個帳號建立的訂單。舊 Excel 未記錄建立者的訂單由店內管理；列印可獨立開放，不必先開放查詢。</p><p class="muted">金額調整由 admin 個別授權，不包含成本、佣金、淨利或其他車行資料。</p>
 <p class="muted">{% site_text 'dealer_account_form.ac1dfdd338b8' %}</p></section>
+{% endif %}
 <aside class="account-note"><strong>儲存前確認</strong><p>帳號會綁定 {{ source.name }}。停用會禁止登入，歷史資料仍保留。新密碼不會再次顯示，請安全交付本人；不使用共用 admin 帳密。</p></aside>
 <footer class="account-savebar"><a class="button ghost" href="{% url 'dealer_accounts' source.pk %}">取消</a><button class="button primary">{% if account %}確認儲存帳號與功能{% else %}確認開通並套用以上權限{% endif %}</button></footer></form></div>
 {% endblock %}{% block scripts %}<script src="{% static 'js/dealer-account.js' %}?v={{ app_version }}" defer></script>{% endblock %}

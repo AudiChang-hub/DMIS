@@ -3,11 +3,13 @@
 {% block title %}{% if mode == 'create' %}建立帳號{% else %}編輯帳號{% endif %}｜車輛銷售管理{% endblock %}
 {% block page_class %}page-shell--form{% endblock %}
 {% block content %}
+{% if request.permission_account %}{% include 'sales/permissions/_header.html' %}{% else %}
 {% url 'user_management' as account_url %}
 {% include "sales/_page_back.html" with fallback_url=account_url label="返回帳號與權限" %}
 <section class="hero-row compact-hero">
   <div><p class="eyebrow">系統管理</p><h1>{% if mode == 'create' %}建立內部帳號{% else %}編輯 {{ account.get_full_name|default:account.username }}{% endif %}</h1><p class="muted">{% site_text 'user_account_form.b3057c77f976' %}</p></div>
 </section>
+{% endif %}
 <form method="post" class="account-form card" data-password-generator>
   {% csrf_token %}
   {% if form.non_field_errors %}<div class="message error" role="alert">{{ form.non_field_errors }}</div>{% endif %}

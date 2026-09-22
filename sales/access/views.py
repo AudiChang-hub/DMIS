@@ -44,20 +44,7 @@ def home(request):
 
 @root_required
 def overview(request):
-    accounts = get_user_model().objects.order_by("-is_active", "username")
-    query = request.GET.get("q", "").strip()
-    if query:
-        from django.db.models import Q
-        accounts = accounts.filter(Q(username__icontains=query) | Q(first_name__icontains=query))
-    reports = list(ReportDefinition.objects.filter(published__isnull=False))
-    rows = []
-    for user in accounts:
-        policy = AccessPolicy(user)
-        rows.append({"account": user, "root": policy.root, "configured": policy.configured, "version": policy.version,
-                     "dealer": policy.dealer, "dealer_profile": policy.order_profile,
-                     "screens": sum(policy.screen(s.key) for s in SCREENS),
-                     "reports": sum(policy.report(r) for r in reports)})
-    return render(request, "sales/access/overview.html", {"rows": rows, "query": query})
+    return redirect("user_management")
 
 
 def rows_for(user, data, before, reports):
@@ -98,6 +85,10 @@ def grouped_rows(rows):
 @root_required
 @require_http_methods(["GET", "POST"])
 def edit(request, pk):
+    from sales.permission_workspace import workspace_redirect
+    destination = workspace_redirect(request, pk, "features")
+    if destination:
+        return destination
     from sales.services.order_intake import is_dealer
     if is_dealer(get_object_or_404(get_user_model(), pk=pk)):
         return redirect("dealer_account_edit", pk=pk)

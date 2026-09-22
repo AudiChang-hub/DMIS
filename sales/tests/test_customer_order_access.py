@@ -209,7 +209,7 @@ class CustomerOrderAccessTests(TestCase):
     def test_company_scope_wording_does_not_change_account_settings(self):
         account = get_user_model().objects.create_user('scope-copy-internal')
         self.client.force_login(self.admin)
-        page = self.client.get(reverse('order_account_scope', args=[account.pk]))
+        page = self.client.get(reverse('order_account_scope', args=[account.pk]), follow=True)
         self.assertContains(page, '<option value="all" selected>全公司訂單</option>', html=True)
         self.assertNotContains(page, '全公司訂單（僅店內）')
         self.assertContains(page, '全公司訂單不限銷售來源或建立人；僅限馭盛內部帳號授權。')

@@ -10,6 +10,8 @@
 <section class="card"><form method="get"><label for="grant-account-select">先選擇合作車行人員</label>
 <div class="form-grid"><select class="form-control" id="grant-account-select" name="account" required><option value="">請選擇</option>{% for item in accounts %}<option value="{{ item.pk }}" {% if item.pk == selected_account.pk %}selected{% endif %}>{{ item.source }}／{{ item.user.get_full_name|default:item.user.username }} (@{{ item.user.username }})</option>{% endfor %}</select><button class="button" type="submit">載入授權設定</button></div></form></section>
 {% if selected_account %}<section class="card"><h2>{{ selected_account.source }}／{{ selected_account.user.username }}</h2>
+<p>目前帳號功能：訂單查詢 {{ account_can_view|yesno:"已開啟,未開啟" }} · 客戶文件列印 {{ account_can_print|yesno:"已開啟,未開啟" }}。</p>
+{% if not account_can_view or not account_can_print %}<p class="note-box warning">本頁不會自動開啟帳號功能。未開啟的功能即使勾選單筆授權，仍無法使用。{% if selected_account.kind == 'dealer' %}<a href="{% url 'dealer_account_edit' selected_account.user_id %}">前往調整帳號功能</a>{% endif %}</p>{% endif %}
 <p>帳號訂單範圍：{{ selected_account.get_order_scope_display }}。若要接收馭盛代開的同車行訂單，可由「帳號與權限」調整為所屬車行範圍；本頁只處理額外單筆授權。</p>
 <form method="post">{% csrf_token %}{{ form.non_field_errors }}{{ form.expected_revision }}{{ form.expected_identity_epoch }}<input type="hidden" name="account" value="{{ selected_account.pk }}">{{ form.account.errors }}
 <div class="form-grid">{% include "sales/_field.html" with field=form.can_view %}{% include "sales/_field.html" with field=form.can_print %}</div>

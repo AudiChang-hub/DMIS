@@ -59,6 +59,10 @@ def order_customer_access(request, pk):
             else:
                 messages.success(request, "單筆額外授權已更新；訂單來源、公司抬頭及帳務保持不變。")
                 return redirect(f"{reverse('order_customer_access', args=[pk])}?account={data['account'].pk}")
+    from sales.access.services import AccessPolicy
+    capabilities = AccessPolicy(account.user) if account else None
     return render(request, "sales/order_customer_access.html", {"order": order, "form": form,
         "accounts": accounts, "selected_account": account, "grants": grants,
+        "account_can_view": bool(capabilities and capabilities.screen("orders")),
+        "account_can_print": bool(capabilities and capabilities.screen("order_documents", "export")),
         "audit_events": OrderEvent.objects.filter(order=order, event_type="customer_access_updated").order_by("-pk")[:20]})

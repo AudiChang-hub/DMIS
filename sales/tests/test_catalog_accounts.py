@@ -402,12 +402,13 @@ class CatalogAccountTests(TestCase):
         )
 
     def test_access_editor_redirects_to_effective_dealer_permissions(self):
+        from sales.permission_workspace import workspace_url
         self.client.force_login(self.root)
         self.assertRedirects(
             self.client.get(reverse("access_edit", args=[self.dealer.pk])),
-            reverse("dealer_account_edit", args=[self.dealer.pk]),
+            workspace_url(self.dealer.pk, "features"),
         )
         self.assertRedirects(
             self.client.get(reverse("user_account_edit", args=[self.dealer.pk])),
-            reverse("dealer_account_edit", args=[self.dealer.pk]),
+            workspace_url(self.dealer.pk, "account"),
         )

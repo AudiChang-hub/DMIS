@@ -1238,6 +1238,12 @@ def user_account_create(request):
 @superuser_required
 @require_http_methods(["GET", "POST"])
 def user_account_edit(request, pk):
+    from sales.permission_workspace import workspace_redirect
+    from sales.access.services import is_root
+    if is_root(request.user):
+        destination = workspace_redirect(request, pk, "account")
+        if destination:
+            return destination
     from sales.models import OrderAccountProfile
     if OrderAccountProfile.objects.filter(user_id=pk, kind="dealer").exists():
         return redirect("dealer_account_edit", pk=pk)

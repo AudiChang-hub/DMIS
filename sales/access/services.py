@@ -92,7 +92,7 @@ class AccessPolicy:
         from sales.services.order_intake import CUSTOMER_DOCUMENT_ROUTES
         if name in CUSTOMER_DOCUMENT_ROUTES:
             allowed = self.screen("order_documents", "export")
-            if allowed and self.dealer and kwargs.get("pk"):
+            if allowed and not self.root and kwargs.get("pk"):
                 from sales.services.order_customer_access import customer_orders
                 return customer_orders(self.user, printing=True).filter(pk=kwargs["pk"]).exists()
             return allowed

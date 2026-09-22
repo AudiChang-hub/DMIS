@@ -1,0 +1,16 @@
+{% load static %}
+<link rel="stylesheet" href="{% static 'css/permission-workspace.css' %}?v={{ app_version }}">
+<script src="{% static 'js/permission-workspace.js' %}?v={{ app_version }}" defer></script>
+<header class="permission-heading">
+  <a class="permission-back" href="{% url 'user_management' %}">← 帳號與權限</a>
+  <div class="permission-identity"><span class="permission-avatar" aria-hidden="true">{{ request.permission_account.get_full_name|default:request.permission_account.username|slice:':1' }}</span>
+    <div><p class="eyebrow">人員權限工作區</p><h1>{{ request.permission_account.get_full_name|default:request.permission_account.username }}</h1><p class="muted">@{{ request.permission_account.username }} · {% if request.permission_profile.kind == 'dealer' %}{{ request.permission_profile.source.name }}{% else %}馭盛內部{% endif %}</p></div>
+    <span class="permission-tag">{% if request.permission_account.is_active %}帳號啟用中{% else %}帳號已停用{% endif %}</span>
+  </div>
+  <nav class="permission-tabs" aria-label="帳號權限設定">
+    <a href="?tab=account" {% if request.permission_tab == 'account' %}aria-current="page"{% endif %}><span>01</span>帳號資料</a>
+    <a href="?tab=features" {% if request.permission_tab == 'features' %}aria-current="page"{% endif %}><span>02</span>畫面與操作</a>
+    <a href="?tab=scope" {% if request.permission_tab == 'scope' %}aria-current="page"{% endif %}><span>03</span>訂單範圍</a>
+    <a href="?tab=orders" {% if request.permission_tab == 'orders' %}aria-current="page"{% endif %}><span>04</span>指定訂單</a>
+  </nav>
+</header>

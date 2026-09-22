@@ -1,0 +1,25 @@
+{% extends 'base.html' %}
+{% block title %}指定訂單權限｜{{ request.permission_account.username }}{% endblock %}
+{% block content %}
+{% include 'sales/permissions/_header.html' %}
+<section class="permission-panel">
+  <div class="permission-section-title"><div><p class="eyebrow">訂單例外設定</p><h2>找到訂單，再決定可用功能</h2></div><span class="permission-tag">僅 admin 可修改</span></div>
+  <p class="muted">一般訂單沿用帳號設定；本筆自訂後，勾選允許、未勾選禁止。恢復一般設定可能重新開放原本的權限。</p>
+  <form method="get" class="permission-search"><input type="hidden" name="tab" value="orders"><label for="permission-query">訂單編號／車主姓名<input class="form-control" id="permission-query" name="q" value="{{ query }}" type="search" placeholder="輸入訂單編號或姓名" maxlength="100"></label><button class="button primary">搜尋訂單</button></form>
+  {% if query %}<div class="permission-results">{% for item in page_obj %}<a href="?tab=orders&amp;order={{ item.pk }}"><strong>{{ item.owner_name }}</strong><span>{{ item.number }}</span><span>設定權限 →</span></a>{% empty %}<p class="muted">找不到符合的訂單，請更換搜尋條件。</p>{% endfor %}</div><nav class="permission-pagination" aria-label="搜尋分頁">{% if page_obj.has_previous %}<a href="?tab=orders&amp;q={{ query|urlencode }}&amp;page={{ page_obj.previous_page_number }}">上一頁</a>{% endif %}<span>第 {{ page_obj.number }}／{{ page_obj.paginator.num_pages }} 頁</span>{% if page_obj.has_next %}<a href="?tab=orders&amp;q={{ query|urlencode }}&amp;page={{ page_obj.next_page_number }}">下一頁</a>{% endif %}</nav>{% endif %}
+</section>
+{% if not request.permission_profile %}<section class="permission-panel"><h2>先確認人員身分</h2><p>此帳號尚未設定訂單資料範圍，請先完成設定，再管理指定訂單。</p><a class="button primary" href="?tab=scope">設定訂單範圍</a></section>{% endif %}
+{% if selected_order %}<section class="permission-panel">
+  <div class="permission-section-title"><div><p class="eyebrow">{{ selected_order.number }}</p><h2>{{ selected_order.owner_name }}</h2></div><span class="permission-tag">{% if grant_valid %}{% if grant.is_override %}本筆自訂{% else %}既有額外授權{% endif %}{% else %}沿用一般設定{% endif %}</span></div>
+  <div class="permission-effective" aria-label="目前實際權限"><div><span>目前可以查看</span><strong>{% if effective_view %}✓ 可以{% else %}— 不可以{% endif %}</strong></div><div><span>目前可以列印</span><strong>{% if effective_print %}✓ 可以{% else %}— 不可以{% endif %}</strong></div></div>
+  {% if not feature_view or not feature_print %}<p class="permission-notice">帳號功能：查詢{% if feature_view %}已開放{% else %}未開放{% endif %}、列印{% if feature_print %}已開放{% else %}未開放{% endif %}。要勾選允許，請先到<a href="?tab=features">畫面與操作</a>開放對應功能；不會自動替你擴權。</p>{% endif %}
+  {% if grant_valid and not grant.is_override %}<p class="permission-notice">這筆是更新前的額外授權，目前維持原有效結果。下方勾選已反映實際權限；儲存「本筆自訂」後，未勾選就明確禁止。</p>{% endif %}
+  {% if form %}<form method="post" data-order-permission>{% csrf_token %}{{ form.expected_revision }}{{ form.expected_identity_epoch }}{{ form.non_field_errors }}
+  <fieldset class="permission-mode"><legend>設定方式</legend>{{ form.mode }}{{ form.mode.errors }}</fieldset>
+  <fieldset class="permission-options" data-custom-permissions><legend>本筆自訂權限</legend><p class="muted">這裡代表儲存後允許的功能，不是額外增加的權限。</p>
+    <div class="permission-check-grid"><label>{{ form.can_view }}<span><strong>查看訂單</strong><small>取消後禁止查看本筆訂單</small></span></label><label>{{ form.can_print }}<span><strong>列印客戶文件</strong><small>取消後連直接開啟列印網址也禁止</small></span></label></div></fieldset>
+  {% include 'sales/_field.html' with field=form.reason %}<footer class="permission-save"><span class="muted">保留修改人、時間與原因</span><button class="button primary">儲存本筆權限</button></footer></form>{% endif %}
+</section>{% endif %}
+<section class="permission-panel"><h2>已設定的訂單</h2><div class="permission-results">{% for item in saved_grants %}<a href="?tab=orders&amp;order={{ item.order_id }}"><strong>{{ item.order.owner_name }}</strong><span>{{ item.order.number }}</span><span>{% if not item.active %}沿用一般設定{% elif item.identity_epoch != request.permission_profile.identity_epoch %}身分已異動，設定失效{% elif item.is_override %}本筆自訂{% else %}既有額外授權{% endif %} →</span></a>{% empty %}<p class="muted">尚無指定訂單設定。一般訂單依「畫面與操作」及「訂單範圍」決定權限。</p>{% endfor %}</div></section>
+{% if events %}<details class="permission-panel"><summary>本筆訂單最近權限異動</summary>{% for event in events %}<div class="permission-audit"><strong>{{ event.created_at|date:'Y/m/d H:i' }} · {{ event.actor_name }}</strong><p>{{ event.description }}</p></div>{% endfor %}</details>{% endif %}
+{% endblock %}

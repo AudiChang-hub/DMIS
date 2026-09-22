@@ -14,7 +14,7 @@
     <p class="muted">{{ order.number }} · 訂單成立日期 {{ order.established_display }} · 領牌日期 {{ order.registration_display }}</p>
   </div>
   <div class="hero-actions">
-    {% if_access 'order_customer_access' order.pk %}<a class="button ghost" href="{% url 'order_customer_access' order.pk %}">查閱與列印授權</a>{% endif_access %}
+    {% if_access 'order_customer_access' order.pk %}<a class="button ghost" href="{% url 'order_customer_access' order.pk %}">管理本單權限</a>{% endif_access %}
     {% if_access 'order_delete' order.pk %}<a class="button danger-ghost" href="{% url 'order_delete' order.pk %}">刪除訂單</a>{% endif_access %}
     {% if order.can_edit_content and not editing_order %}{% if_access 'order_edit' order.pk %}<a class="button primary" href="{% url 'order_edit' order.pk %}" data-workspace-edit-link>編輯訂單{% if order.is_delivered %}（完成後修正）{% endif %}</a>{% endif_access %}{% endif %}
     {% if commission_form %}<a class="button primary" href="?attribution=1#commission-attribution" data-open-attribution>調整台數歸屬</a>{% endif %}

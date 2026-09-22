@@ -59,6 +59,10 @@ class AccountScopeForm(forms.ModelForm):
 @root_required
 @require_http_methods(["GET", "POST"])
 def order_account_scope(request, pk):
+    from sales.permission_workspace import workspace_redirect
+    destination = workspace_redirect(request, pk, "scope")
+    if destination:
+        return destination
     account = get_object_or_404(get_user_model(), pk=pk)
     profile = OrderAccountProfile.objects.filter(user=account).first() or OrderAccountProfile(user=account, order_scope="all")
     form = AccountScopeForm(request.POST or None, instance=profile)

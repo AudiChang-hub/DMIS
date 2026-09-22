@@ -98,14 +98,16 @@ class CustomerGrantTests(TestCase):
 
     def test_admin_ui_and_revoke(self):
         self.client.force_login(self.admin)
-        url = reverse('order_customer_access', args=[self.order.pk])
-        self.assertContains(self.client.get(url + f'?account={self.profile.pk}'), '儲存授權')
-        self.assertContains(self.client.get(url + f'?account={self.profile.pk}'), '本頁不會自動開啟帳號功能')
+        from sales.permission_workspace import workspace_url
+        url = workspace_url(self.user.pk, 'orders', order=self.order.pk)
+        self.assertContains(self.client.get(url), '儲存本筆權限')
+        self.assertContains(self.client.get(url), '不會自動替你擴權')
         self.assertFalse(OrderCustomerAccessGrant.objects.exists())
-        data = dict(account=self.profile.pk, expected_revision=0, expected_identity_epoch=0, can_view='on', can_print='on', reason='admin確認交給車行', action='save')
+        self.grant('order_documents', 'export')
+        data = dict(expected_revision=0, expected_identity_epoch=0, can_view='on', can_print='on', reason='admin確認交給車行', mode='custom')
         self.assertEqual(self.client.post(url, data).status_code, 302)
         self.assertTrue(customer_orders(self.user).filter(pk=self.order.pk).exists())
-        data.update(expected_revision=1, action='revoke', reason='處理結束')
+        data.update(expected_revision=1, mode='inherit', reason='處理結束')
         self.assertEqual(self.client.post(url, data).status_code, 302)
         self.assertFalse(customer_orders(self.user).filter(pk=self.order.pk).exists())
 

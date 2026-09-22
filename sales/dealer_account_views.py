@@ -61,7 +61,7 @@ class DealerEditForm(DealerFeatureMixin, AdminUserEditForm):
     )
     expected_revision = forms.IntegerField(widget=forms.HiddenInput, min_value=0)
 
-    def __init__(self, *args, profile, **kwargs):
+    def __init__(self, *args, profile, section=None, **kwargs):
         super().__init__(*args, **kwargs)
         self.feature_fields(profile)
         self.fields["can_view_orders"].initial = profile.can_view_orders
@@ -72,6 +72,15 @@ class DealerEditForm(DealerFeatureMixin, AdminUserEditForm):
         self.fields["can_submit_orders"].initial = profile.can_submit_orders
         self.fields["expected_revision"].initial = profile.revision
         self.fields["can_adjust_pricing"].initial = ScreenAccessGrant.objects.filter(user=profile.user, screen_key="order_pricing", view=True, operate=True).exists()
+        if section:
+            editable = {"username", "display_name", "is_active"} if section == "account" else {
+                "can_submit_orders", "can_view_orders", "can_browse_catalog", "can_adjust_pricing",
+                "can_gift_accessories", "can_print_documents"}
+            for key, field in self.fields.items():
+                if key not in editable and key != "expected_revision":
+                    field.disabled = True
+                    field.required = False
+                    field.widget = forms.HiddenInput()
 
 
 def dealer_source(pk):
@@ -190,12 +199,17 @@ def dealer_account_create(request, source_pk):
 @root_required
 @require_http_methods(["GET", "POST"])
 def dealer_account_edit(request, pk):
+    from sales.permission_workspace import workspace_redirect
+    destination = workspace_redirect(request, pk, "account")
+    if destination:
+        return destination
     profile = get_object_or_404(
         OrderAccountProfile.objects.select_related("user", "source"),
         user_id=pk,
         kind="dealer",
     )
-    form = DealerEditForm(request.POST or None, instance=profile.user, profile=profile)
+    form = DealerEditForm(request.POST or None, instance=profile.user, profile=profile,
+        section=getattr(request, "permission_tab", None))
     if request.method == "POST" and form.is_valid():
         try:
             with transaction.atomic():

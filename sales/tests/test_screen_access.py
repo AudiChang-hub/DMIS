@@ -160,7 +160,7 @@ class ScreenAccessTests(TestCase):
 
     def test_grouped_ui_has_enabled_checkboxes_and_current_login_identity(self):
         self.client.force_login(self.root)
-        response = self.client.get(reverse("access_edit", args=[self.user.pk]))
+        response = self.client.get(reverse("access_edit", args=[self.user.pk]), follow=True)
         self.assertEqual([group["label"] for group in response.context["groups"]], ["建立訂單", "全部訂單", "營運總表", "報表中心", "資料維護區"])
         self.assertNotContains(response, "原有資格不允許")
         self.assertNotContains(response, "不適用")
@@ -188,7 +188,7 @@ class ScreenAccessTests(TestCase):
         self.assertEqual(self.client.post(other_url, {"action": "apply", "preview_token": token}).status_code, 403)
         url = reverse("access_edit", args=[self.user.pk])
         self.assertEqual(self.client.post(url, {"action": "apply", "preview_token": token + "broken"}).status_code, 409)
-        self.assertRedirects(self.client.post(url, {"action": "apply", "preview_token": token}), url)
+        self.assertRedirects(self.client.post(url, {"action": "apply", "preview_token": token}), url, fetch_redirect_response=False)
         self.assertTrue(AccessPolicy(self.user).screen("brands"))
         self.assertFalse(AccessPolicy(self.user).screen("orders"))
         self.assertEqual(self.client.post(url, {"action": "apply", "preview_token": token}).status_code, 409)
@@ -262,7 +262,7 @@ class ScreenAccessTests(TestCase):
         self.assertTrue(saved["reports"][str(self.report.pk)]["view"])
         self.assertFalse(AccessPolicy(self.user).report(self.report))
         self.client.force_login(self.root)
-        response = self.client.get(reverse("access_edit", args=[self.user.pk]))
+        response = self.client.get(reverse("access_edit", args=[self.user.pk]), follow=True)
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "第 3 版")
 

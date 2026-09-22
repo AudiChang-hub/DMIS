@@ -206,6 +206,17 @@ class CustomerOrderAccessTests(TestCase):
         self.assertTrue(form.fields['can_gift_accessories'].initial)
         self.assertEqual(form.fields['order_scope'].initial, 'own')
 
+    def test_company_scope_wording_does_not_change_account_settings(self):
+        account = get_user_model().objects.create_user('scope-copy-internal')
+        self.client.force_login(self.admin)
+        page = self.client.get(reverse('order_account_scope', args=[account.pk]))
+        self.assertContains(page, '<option value="all" selected>全公司訂單</option>', html=True)
+        self.assertNotContains(page, '全公司訂單（僅店內）')
+        self.assertContains(page, '全公司訂單不限銷售來源或建立人；僅限馭盛內部帳號授權。')
+        self.assertEqual([value for value, _ in page.context['form'].fields['order_scope'].choices], ['own', 'dealer', 'all'])
+        self.assertFalse(OrderAccountProfile.objects.filter(user=account).exists())
+        self.assertEqual(page.context['form']['order_scope'].value(), 'all')
+
     def test_scope_form_rejects_cross_dealer_and_stale_revision(self):
         self.client.force_login(self.admin)
         url = reverse('order_account_scope', args=[self.user.pk])

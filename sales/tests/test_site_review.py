@@ -162,6 +162,8 @@ class SiteReviewTests(TestCase):
         call_command("record_release", verbosity=0)
         self.assertEqual(ReleasePublication.objects.count(), 1)
         self.assertEqual(ReleasePublication.objects.get().published_at, original)
+        # A release may contain only admin-visible items; verify its timestamp as admin.
+        self.client.force_login(self.root)
         self.assertContains(self.client.get(reverse('dashboard'), {'news':'releases'}), '（台北）')
 
     def test_reception_cannot_select_gift_or_override_registration(self):

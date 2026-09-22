@@ -4184,8 +4184,9 @@ def registration_fee_variance_confirm(request, pk):
 @login_required
 def order_list(request):
     from sales.services.order_intake import is_dealer, scoped_orders, scoped_drafts
+    from sales.services.order_customer_access import customer_orders
     if is_dealer(request.user):
-        orders = scoped_orders(request.user).select_related("vehicle_model", "color").order_by("-created_at", "-pk")
+        orders = customer_orders(request.user).select_related("vehicle_model", "color").order_by("-created_at", "-pk")
         query = request.GET.get("q", "").strip()
         if query:
             orders = orders.filter(Q(number__icontains=query) | Q(owner_name__icontains=query) | Q(vehicle_model__name__icontains=query))
@@ -4713,7 +4714,7 @@ def order_create(request, reception=False):
             order.submission_key = submission_key
             order.submitted_by = request.user
             from sales.services.print_company import initialize_company
-            initialize_company(order, request.user)
+            initialize_company(order, request.user, assisted_company=form.assisted_company)
             order.save()
             apply_order_price_snapshot(order)
             apply_order_installment_snapshot(order)
@@ -5111,7 +5112,8 @@ def order_detail(request, pk, *, commission_form=None, workspace_context_only=Fa
     from sales.services.profit_access import profit_is_unlocked
     from sales.services.order_intake import is_dealer, scoped_orders
     if is_dealer(request.user):
-        order = get_object_or_404(scoped_orders(request.user).select_related("vehicle_model", "color", "source"), pk=pk)
+        from sales.services.order_customer_access import customer_orders
+        order = get_object_or_404(customer_orders(request.user).select_related("vehicle_model", "color", "source"), pk=pk)
         return render(request, "sales/dealer_order_detail.html", {"order": order, "customer_attachments": order.intake_attachments.filter(kind__in=["installment", "supplement"])})
     order = get_object_or_404(
         SalesOrder.objects.select_related(

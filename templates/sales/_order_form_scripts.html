@@ -2,6 +2,7 @@
 
 <script src="{% static 'js/order-installment-picker.js' %}?v={{ app_version }}"></script>
 <script src="{% static 'js/order-commission-recipient.js' %}?v={{ app_version }}" defer></script>
+{% if intake_mode and not form.dealer %}{{ form.assisted_companies|json_script:"assisted-companies" }}<script src="{% static 'js/assisted-order.js' %}?v={{ app_version }}" defer></script>{% endif %}
 {{ vehicle_rate_data|json_script:"vehicle-rate-data" }}
 {{ accessory_product_data|json_script:"accessory-product-data" }}
 <script>

@@ -4592,11 +4592,26 @@ class OrderAccountProfile(TimeStampedModel):
     kind = models.CharField("下單身分", max_length=12, choices=(("internal", "店內人員"), ("dealer", "合作車行")), default="internal")
     source = models.ForeignKey(SalesSource, on_delete=models.PROTECT, null=True, blank=True, verbose_name="預設店別／所屬車行")
     revision = models.PositiveIntegerField(default=0)
+    identity_epoch = models.PositiveIntegerField(default=0, editable=False)
     can_submit_orders = models.BooleanField("可建立訂單與使用草稿", default=True)
     can_view_orders = models.BooleanField("可查詢訂單", default=True)
     can_browse_catalog = models.BooleanField("可使用選車入口", default=True)
     order_scope = models.CharField("訂單資料範圍", max_length=12,
         choices=(("own", "本人建立的訂單"), ("dealer", "所屬車行的訂單"), ("all", "全公司訂單（僅店內）")), default="own")
+
+    @transaction.atomic
+    def save(self, *args, **kwargs):
+        if kwargs.get("update_fields") is not None and not kwargs["update_fields"]:
+            return
+        if self.pk:
+            previous = type(self).objects.select_for_update().get(pk=self.pk)
+            fields = kwargs.get("update_fields")
+            kind = self.kind if fields is None or "kind" in fields else previous.kind
+            source_id = self.source_id if fields is None or {"source", "source_id"}.intersection(fields) else previous.source_id
+            self.identity_epoch = previous.identity_epoch + int((kind, source_id) != (previous.kind, previous.source_id))
+            if fields is not None:
+                kwargs["update_fields"] = set(fields) | {"identity_epoch"}
+        super().save(*args, **kwargs)
 
     def clean(self):
         super().clean()
@@ -4608,6 +4623,22 @@ class OrderAccountProfile(TimeStampedModel):
             raise ValidationError({"order_scope": "合作車行最多只能查看所屬車行的訂單。"})
         if self.order_scope == "dealer" and (not self.source_id or self.source.source_type != SalesSource.SourceType.DEALER):
             raise ValidationError({"source": "所屬車行範圍必須指定合作車行。"})
+
+
+class OrderCustomerAccessGrant(TimeStampedModel):
+    """只授予客戶視角；不更動銷售來源，也不授予內部業務操作。"""
+    order = models.ForeignKey(SalesOrder, on_delete=models.CASCADE, related_name="customer_access_grants")
+    account = models.ForeignKey(OrderAccountProfile, on_delete=models.CASCADE, related_name="order_grants")
+    identity_epoch = models.PositiveIntegerField()
+    can_view = models.BooleanField("查看本筆訂單", default=True)
+    can_print = models.BooleanField("列印客戶簽署文件", default=False)
+    active = models.BooleanField("啟用授權", default=True)
+    revision = models.PositiveIntegerField(default=1)
+    reason = models.CharField("授權／撤銷原因", max_length=500)
+    changed_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=("order", "account"), name="unique_order_customer_account")]
 
 
 class OrderIntakeAttachment(TimeStampedModel):

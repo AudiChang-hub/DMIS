@@ -91,7 +91,11 @@ class AccessPolicy:
         kwargs = kwargs or {}
         from sales.services.order_intake import CUSTOMER_DOCUMENT_ROUTES
         if name in CUSTOMER_DOCUMENT_ROUTES:
-            return self.screen("order_documents", "export")
+            allowed = self.screen("order_documents", "export")
+            if allowed and self.dealer and kwargs.get("pk"):
+                from sales.services.order_customer_access import customer_orders
+                return customer_orders(self.user, printing=True).filter(pk=kwargs["pk"]).exists()
+            return allowed
         if self.dealer:
             from sales.services.order_intake import dealer_route_allowed, DEALER_ACCOUNT_ROUTES
             if name in DEALER_ACCOUNT_ROUTES:

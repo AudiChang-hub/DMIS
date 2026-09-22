@@ -84,7 +84,8 @@ def order_intake_attachment(request, pk):
         from sales.access.services import policy_for
         if not policy_for(request).route("order_detail"):
             raise PermissionDenied
-        get_object_or_404(scoped_orders(request.user), pk=attachment.order_id)
+        from sales.services.order_customer_access import customer_orders
+        get_object_or_404(customer_orders(request.user), pk=attachment.order_id)
     else:
         get_object_or_404(scoped_drafts(request.user), pk=attachment.draft_id)
     try:

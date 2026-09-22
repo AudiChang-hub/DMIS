@@ -19,12 +19,17 @@ def validate_header(data):
     return data
 
 
-def initialize_company(order, user):
+def initialize_company(order, user, *, assisted_company=None):
     """僅由正式下單入口呼叫，不能用目前帳號回推舊單。"""
     from sales.services.order_intake import account_profile
     profile = account_profile(user)
     if profile and profile.kind == "dealer":
         company = PrintCompany.objects.filter(source_id=profile.source_id).first() if profile.source_id else None
+    elif assisted_company is not None:
+        company = PrintCompany.objects.select_for_update().get(pk=assisted_company.pk)
+        if order.source_type != "dealer" or company.source_id != order.source_id or company.revision != assisted_company.revision:
+            raise ValidationError("代開公司資料已變更，請重新確認後再送出。")
+        validate_header(company_data(company))
     else:
         company = PrintCompany.objects.filter(key="home").first()
     order.print_company = company

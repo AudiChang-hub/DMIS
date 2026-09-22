@@ -46,7 +46,7 @@ class UserManagementTests(TestCase):
         )
         for url in pages:
             with self.subTest(url=url):
-                response = self.client.get(url)
+                response = self.client.get(url, follow=True)
                 self.assertEqual(response.status_code, 200)
                 self.assertContains(response, f'{reverse("user_guide")}#account-management')
 

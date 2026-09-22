@@ -1,10 +1,32 @@
-{% extends "base.html" %}{% load site_copy %}{% load pagination_tags %}
-{% block title %}訂單進度｜車輛銷售管理{% endblock %}
+{% extends "base.html" %}{% load site_copy pagination_tags static %}
+{% block title %}{{ orders_group_label }}｜車輛銷售管理{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'css/dealer-orders.css' %}?v={{ app_version }}">{% endblock %}
 {% block content %}
+<div class="dealer-orders">
 {% site_navigation %}
-<section class="hero-row"><div><h1>{{ orders_group_label }}</h1><p>依 admin 設定的本人／本車行範圍及額外單筆授權查詢；本車行範圍包含馭盛代開的訂單。列印另依授權，不含內部收支及補助。</p></div></section><span id="my-drafts"></span>
-{% if own_drafts %}<details class="card"><summary>我的草稿（{{ own_drafts.paginator.count }} 筆）</summary><ul>{% for draft in own_drafts %}<li><a href="{% url 'order_create' %}?draft={{ draft.pk }}">{{ draft.display_name }} · {{ draft.display_vehicle }}</a> · {{ draft.updated_at|date:"m/d H:i" }}</li>{% endfor %}</ul>{% if own_drafts.has_previous %}<a class="button" href="?draft_page={{ own_drafts.previous_page_number }}">上一頁草稿</a>{% endif %}<span>草稿第 {{ own_drafts.number }}／{{ own_drafts.paginator.num_pages }} 頁</span>{% if own_drafts.has_next %}<a class="button" href="?draft_page={{ own_drafts.next_page_number }}">下一頁草稿</a>{% endif %}</details>{% endif %}
-<form class="card form-grid" method="get"><label>搜尋訂單／車主／車款<input name="q" value="{{ query }}"></label><label>狀態<select name="status"><option value="">全部</option>{% for value,label in statuses %}<option value="{{ value }}" {% if request.GET.status == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></label><button class="button primary">查詢</button></form>
-{% for order in orders %}<article class="card"><div class="hero-row"><div><h2><a href="{% url 'order_detail' order.pk %}">{{ order.owner_name }} · {{ order.number }}</a></h2><p>{{ order.vehicle_model }}／{{ order.color }}</p></div><span class="status-pill status-{{ order.display_status_code }}">{{ order.display_status }}</span></div><p>{% if order.accepted_at %}接單人：{{ order.accepted_name }} · {{ order.accepted_at|date:"Y/m/d H:i" }}{% elif order.status == 'intake_pending' %}等待店內人員接單{% else %}接單機制上線前的訂單{% endif %}</p></article>{% empty %}<p class="card">目前沒有符合的訂單。</p>{% endfor %}
+<header class="dealer-orders-heading">
+  <div><p class="dealer-orders-eyebrow">訂單查詢</p><h1>{{ orders_group_label }}</h1><p class="dealer-orders-subtitle">查看訂單進度，開啟訂單後可依授權列印簽署文件。</p></div>
+  <div class="dealer-orders-count"><strong>{{ page_obj.paginator.count }}</strong><span>{% if query or request.GET.status %}筆符合條件{% else %}筆可查閱訂單{% endif %}</span></div>
+</header>
+<details class="dealer-orders-scope"><summary>查閱與列印範圍</summary><p>依 admin 設定的本人／本車行範圍及額外單筆授權查詢；本車行範圍包含馭盛代開的訂單。列印另依授權，不含內部收支及補助。</p></details>
+{% if own_drafts %}<details class="dealer-orders-drafts" id="my-drafts"><summary>繼續填寫草稿 <span>{{ own_drafts.paginator.count }} 筆</span></summary><ul>{% for draft in own_drafts %}<li><a href="{% url 'order_create' %}?draft={{ draft.pk }}">{{ draft.display_name }} · {{ draft.display_vehicle }}</a><time>{{ draft.updated_at|date:"m/d H:i" }}</time></li>{% endfor %}</ul><div class="dealer-orders-draft-pages">{% if own_drafts.has_previous %}<a class="button" href="{% querystring draft_page=own_drafts.previous_page_number %}#my-drafts">上一頁草稿</a>{% endif %}<span>第 {{ own_drafts.number }}／{{ own_drafts.paginator.num_pages }} 頁</span>{% if own_drafts.has_next %}<a class="button" href="{% querystring draft_page=own_drafts.next_page_number %}#my-drafts">下一頁草稿</a>{% endif %}</div></details>{% endif %}
+<form class="dealer-orders-filters" method="get" role="search" aria-label="訂單搜尋">
+  <div><label for="dealer-order-query">搜尋訂單／車主／車款</label><input class="form-control" id="dealer-order-query" name="q" value="{{ query }}" placeholder="輸入訂單編號、車主姓名或車款" type="search"></div>
+  <div><label for="dealer-order-status">訂單狀態</label><select class="form-control" id="dealer-order-status" name="status"><option value="">全部狀態</option>{% for value,label in statuses %}<option value="{{ value }}" {% if request.GET.status == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
+  <div class="dealer-orders-filter-actions"><button class="button primary" type="submit">查詢</button>{% if query or request.GET.status %}<a class="button" href="{% url 'order_list' %}">清除條件</a>{% endif %}</div>
+</form>
+<section class="dealer-orders-results" aria-label="訂單搜尋結果">
+  <div class="dealer-orders-results-heading"><h2>訂單列表</h2><span>{% if orders %}第 {{ page_obj.start_index }}–{{ page_obj.end_index }} 筆 · {% endif %}最新建立在前</span></div>
+  <div class="dealer-orders-columns" aria-hidden="true"><span>車主與訂單</span><span>訂購車款</span><span>接單資訊</span><span>狀態與操作</span></div>
+  {% for order in orders %}
+  <article class="dealer-order-row" aria-labelledby="dealer-order-{{ order.pk }}">
+    <div class="dealer-order-identity"><h3 id="dealer-order-{{ order.pk }}"><a href="{% url 'order_detail' order.pk %}">{{ order.owner_name }}</a></h3><span class="dealer-order-number">{{ order.number }}</span><span class="dealer-order-date">成立日期 <time>{{ order.order_date|date:"Y/m/d"|default:"未記錄" }}</time></span></div>
+    <div class="dealer-order-vehicle"><span class="dealer-order-brand">{{ order.vehicle_model.brand }}</span><strong>{{ order.vehicle_model.name }}</strong><div class="dealer-order-specs">{% if order.vehicle_model.model_year %}<span>{{ order.vehicle_model.model_year }}</span>{% endif %}{% if order.vehicle_model.model_number %}<span>{{ order.vehicle_model.model_number }}</span>{% endif %}{% if order.vehicle_model.model_code %}<span>{{ order.vehicle_model.get_model_code_display }}</span>{% endif %}</div><span class="dealer-order-color">車色 <b>{{ order.color.name|default:"未指定" }}</b></span></div>
+    <div class="dealer-order-receipt"><span class="dealer-order-mobile-label">接單資訊</span>{% if order.accepted_at %}<strong>{{ order.accepted_name|default:"店內人員" }}</strong><time>{{ order.accepted_at|date:"Y/m/d H:i" }}</time>{% elif order.status == 'intake_pending' %}<strong>等待店內接單</strong><span>接單後會顯示人員與時間</span>{% else %}<span>接單機制上線前的訂單</span>{% endif %}</div>
+    <div class="dealer-order-actions"><span class="status-pill status-{{ order.display_status_code }}">{{ order.display_status }}</span><a class="button dealer-order-open" href="{% url 'order_detail' order.pk %}" aria-label="查看 {{ order.owner_name }} 的訂單 {{ order.number }}">查看訂單 <span aria-hidden="true">→</span></a></div>
+  </article>
+  {% empty %}<div class="dealer-orders-empty"><span class="dealer-orders-empty-mark" aria-hidden="true">⌕</span><h3>{% if query or request.GET.status %}沒有符合條件的訂單{% else %}目前沒有可查閱的訂單{% endif %}</h3><p>{% if query or request.GET.status %}試著更換關鍵字，或清除篩選條件。{% else %}訂單成立並在你的授權範圍內時，便會顯示在這裡。{% endif %}</p>{% if query or request.GET.status %}<a class="button" href="{% url 'order_list' %}">清除條件</a>{% endif %}</div>{% endfor %}
+</section>
 {% pagination page_obj aria_label="訂單分頁" %}
+</div>
 {% endblock %}

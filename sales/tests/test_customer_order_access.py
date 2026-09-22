@@ -51,6 +51,49 @@ class CustomerOrderAccessTests(TestCase):
         self.assertEqual(page.context['page_obj'].paginator.count, 1)
         self.assertEqual(self.client.get(reverse('order_detail', args=[own.pk])).status_code, 200)
 
+    def test_customer_list_separates_vehicle_and_color_without_duplicates(self):
+        self.model.brand = 'SUZUKI'
+        self.model.name = 'SWISH 125'
+        self.model.model_number = 'UG125DA'
+        self.model.model_year = 2026
+        self.model.save()
+        self.color.name = '紳士藍'
+        self.color.save()
+        order = self.make_order(self.user)
+        self.client.force_login(self.user)
+        page = self.client.get(reverse('order_list'))
+        for text in ('SWISH 125', 'UG125DA', '紳士藍'):
+            self.assertContains(page, text, count=1)
+        self.assertNotContains(page, str(self.color))
+        self.assertContains(page, 'dealer-orders.css')
+        self.assertContains(page, 'for="dealer-order-query"')
+        self.assertContains(page, 'for="dealer-order-status"')
+        self.assertContains(page, reverse('order_detail', args=[order.pk]))
+        self.assertNotContains(page, '金額收支資訊')
+
+    def test_customer_list_filters_pagination_and_empty_state(self):
+        for _ in range(26):
+            self.make_order(self.user)
+        self.make_order(self.peer)
+        self.client.force_login(self.user)
+        status = SalesOrder.objects.filter(submitted_by=self.user).first().status
+        page = self.client.get(reverse('order_list'), {'q':'測試車主', 'status':status, 'page':2})
+        self.assertEqual(page.context['page_obj'].paginator.count, 26)
+        self.assertEqual(len(page.context['orders']), 1)
+        self.assertContains(page, 'status=' + status)
+        self.assertContains(page, '清除條件')
+        empty = self.client.get(reverse('order_list'), {'q':'不存在的訂單'})
+        self.assertContains(empty, '沒有符合條件的訂單')
+        self.assertEqual(empty.context['page_obj'].paginator.count, 0)
+
+    def test_customer_draft_pagination_keeps_order_filters(self):
+        from sales.models import OrderDraft
+        for _ in range(11):
+            OrderDraft.objects.create(owner_account=self.user, data={'owner_name':'草稿測試'})
+        self.client.force_login(self.user)
+        page = self.client.get(reverse('order_list'), {'q':'ABC', 'status':'intake_pending'})
+        self.assertContains(page, 'q=ABC&amp;status=intake_pending&amp;draft_page=2#my-drafts')
+
     def test_dealership_scope_is_explicit_and_never_companywide(self):
         own, peer = self.make_order(self.user), self.make_order(self.peer)
         self.make_order(self.user, self.other_source)

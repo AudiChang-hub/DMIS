@@ -241,7 +241,7 @@ class ProfitPrivacyTests(TestCase):
 
     def test_bulk_controls_present_and_new_account_not_prefilled(self):
         self.client.force_login(self.root)
-        response = self.client.get(reverse("access_edit", args=[self.staff.pk]))
+        response = self.client.get(reverse("access_edit", args=[self.staff.pk]), follow=True)
         self.assertContains(response, 'data-access-bulk="1"')
         self.assertContains(response, "選車下單入口")
         self.assertContains(response, "查看淨利")

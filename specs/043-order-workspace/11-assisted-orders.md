@@ -31,7 +31,7 @@
 
 ## 修改與驗證
 
-- 檔案：`sales/intake_forms.py`、`views.py`、`services/print_company.py`、`services/order_customer_access.py`、`models.py`、`order_customer_access_views.py`、共用權限／路由與對應模板、`static/js/assisted-order.js`。
+- 檔案：`sales/intake_forms.py`、`views.py`、`services/print_company.py`、`services/order_customer_access.py`、`models.py`、`permission_workspace.py`、共用權限／路由與對應模板、`static/js/assisted-order.js`。
 - 測試：`test_assisted_orders`、既有訂單權限／接待／公司列印／帳號測試；PostgreSQL 驗證授權、移轉及列鎖；桌機 1440、平板 820、手機 390 檢查代開確認、授權／撤銷及待接單文件入口。
 - 前後比對正式 audi 既有角色、車行、範圍、功能授權；不覆寫管理者設定。針對已確認舊單的例外採專用授權服務與稽核，不改銷售來源。
 

@@ -86,6 +86,8 @@ HELP_TOPIC_BY_ROUTE = {
     "incentive_rule_create": "master-data",
     "incentive_rule_edit": "master-data",
     "user_management": "account-management",
+    "permission_workspace": "account-management",
+    "create_dealer_entry": "account-management",
     "system_integrity_report": "system-integrity",
     "user_account_create": "account-management",
     "user_account_edit": "account-management",
@@ -95,6 +97,7 @@ HELP_TOPIC_BY_ROUTE = {
 
 
 DATA_MAINTENANCE_ROUTES = {
+    "permission_workspace", "create_dealer_entry",
     "gift_distribution", "gift_distribution_detail", "site_copy_manage", "announcement_action",
     "announcement_manage", "announcement_edit",
     "report_manage", "report_create", "report_edit",

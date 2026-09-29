@@ -192,7 +192,7 @@ class OrderFlowTests(TestCase):
             )
         )
         self.assertIn(
-            ".detail-grid { display: grid; grid-template-columns: 1fr 1fr; margin-bottom: 20px; gap: 20px; }",
+            ".detail-grid { display: grid; grid-template-columns: 1fr 1fr; margin-bottom: var(--stack-gap); gap: var(--stack-gap); }",
             css,
         )
 

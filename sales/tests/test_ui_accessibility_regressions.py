@@ -65,7 +65,7 @@ class SharedUiAccessibilitySourceTests(SimpleTestCase):
         self.assertIn(
             ".master-filters.sales-source-filters { "
             "grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); "
-            "padding: 14px; }",
+            "padding: var(--inset-pad); }",
             css,
         )
 

@@ -5,7 +5,7 @@ html,body{margin:0!important;padding:0!important;min-height:0!important;backgrou
 .designer-chart-overlay{position:absolute;inset:0;z-index:15;border:2px solid transparent;pointer-events:auto;border-radius:inherit;background:transparent;cursor:pointer}
 .designer-chart-overlay:hover{border-color:var(--forest-2)}
 .designer-chart-overlay.is-selected{border-color:var(--forest);box-shadow:0 0 0 1px white inset}
-.designer-chart-overlay>button{font:600 16px system-ui;color:white;background:var(--forest);border:0;padding:8px;border-radius:var(--radius-xs);cursor:grab;touch-action:none}
+.designer-chart-overlay>button{font:600 16px system-ui;color:white;background:var(--forest);border:0;padding:var(--space-2);border-radius:var(--radius-xs);cursor:grab;touch-action:none}
 .designer-chart-overlay [data-resize]{position:absolute;bottom:0;right:0;cursor:nwse-resize}
 .designer-chart-overlay:focus-visible{outline:3px solid var(--focus-ring)}
 body[data-designer-mode=edit] .report-chart{position:relative}

@@ -81,6 +81,8 @@ from .forms import (
     OverpaymentRefundForm,
     InstallmentDecisionForm,
     ExceptionCloseForm,
+    InvoiceIssueForm,
+    InvoiceAdjustForm,
     QuickInventoryEntryFormSet,
     ReallocationForm,
     RegistrationDocumentUploadForm,
@@ -4152,6 +4154,7 @@ def dashboard(request):
         "release": RELEASE,
         "intake_pending_count": scoped_orders(request.user).filter(status=SalesOrder.Status.INTAKE_PENDING).count() if policy_for(request).route("order_list") else 0,
         "deletion_pending_count": SalesOrder.objects.filter(deletion_requested_at__isnull=False).count() if policy_for(request).root else 0,
+        "unread_notification_count": request.user.dmis_notifications.filter(channel="in_app", read_at__isnull=True).count(),
         **favorite_context(request.user, UserAppearancePreference.objects.filter(user=request.user).first(), policy=policy_for(request)),
         **home_news_context(request),
     })
@@ -5410,6 +5413,9 @@ def _record_settlement_gap(order, before, user):
         description="交付後金額異動：" + "、".join(parts) + "。",
         actor_name=_editing_name(user),
     )
+    from .services.notifications import notify
+    notify("settlement_gap", order, f"訂單 {order.number} 交付後有帳務差額", "、".join(parts) + "。",
+           dedupe_suffix=f"{after['due']}:{after['overpaid']}")
 
 
 @login_required
@@ -6816,6 +6822,81 @@ def payment_overpayment_refund(request, pk):
 
 @login_required
 @transaction.atomic
+def invoice_issue(request, pk):
+    from .services.invoices import issue_invoice
+
+    order = get_object_or_404(SalesOrder.objects.select_for_update(), pk=pk)
+    if request.method != "POST":
+        return _finance_redirect(request, order)
+    form = InvoiceIssueForm(request.POST)
+    if not form.is_valid():
+        messages.error(request, "發票未登記：" + _form_error_text(form))
+        return _finance_redirect(request, order)
+    try:
+        record = issue_invoice(order_id=order.pk, actor_name=_editing_name(request.user), **form.cleaned_data)
+    except ValidationError as exc:
+        messages.error(request, "發票未登記：" + " ".join(exc.messages))
+        return _finance_redirect(request, order)
+    messages.success(request, f"已登記開立發票 {record.invoice_number}。")
+    return _finance_redirect(request, order)
+
+
+@login_required
+@transaction.atomic
+def invoice_adjust(request, pk):
+    from .services.invoices import allowance_invoice, void_invoice
+
+    order = get_object_or_404(SalesOrder.objects.select_for_update(), pk=pk)
+    if request.method != "POST":
+        return _finance_redirect(request, order)
+    form = InvoiceAdjustForm(order, request.POST)
+    if not form.is_valid():
+        messages.error(request, "發票未更正：" + _form_error_text(form))
+        return _finance_redirect(request, order)
+    data = form.cleaned_data
+    try:
+        if data["action"] == "void":
+            void_invoice(record_id=data["invoice"].pk, actor_name=_editing_name(request.user),
+                         invoice_date=data["invoice_date"], reason=data["reason"])
+        else:
+            allowance_invoice(record_id=data["invoice"].pk, actor_name=_editing_name(request.user),
+                              invoice_date=data["invoice_date"], amount=data["amount"], reason=data["reason"])
+    except ValidationError as exc:
+        messages.error(request, "發票未更正：" + " ".join(exc.messages))
+        return _finance_redirect(request, order)
+    messages.success(request, "發票已" + ("作廢" if data["action"] == "void" else "登記折讓") + "。")
+    return _finance_redirect(request, order)
+
+
+@login_required
+def notification_list(request):
+    from .models import Notification
+
+    inbox = Notification.objects.filter(recipient=request.user, channel=Notification.Channel.IN_APP).select_related("order")
+    if request.method == "POST":
+        if request.POST.get("action") == "resend" and request.user.is_superuser:
+            from .services.notifications import resend_pending
+            count = resend_pending()
+            messages.success(request, f"已重新處理 {count} 筆 Email 通知。")
+        else:
+            inbox.filter(read_at__isnull=True).update(read_at=timezone.now())
+            messages.success(request, "已全部標示為已讀。")
+        return redirect("notification_list")
+    email_issues = (
+        Notification.objects.filter(channel=Notification.Channel.EMAIL, status__in=[
+            Notification.Status.FAILED, Notification.Status.PENDING,
+        ]).select_related("recipient")[:50]
+        if request.user.is_superuser else []
+    )
+    return render(request, "sales/notification_list.html", {
+        "notifications": inbox[:100],
+        "unread_count": inbox.filter(read_at__isnull=True).count(),
+        "email_issues": email_issues,
+    })
+
+
+@login_required
+@transaction.atomic
 def installment_decision_update(request, pk):
     order = get_object_or_404(SalesOrder.objects.select_for_update(), pk=pk)
     detail_url = f"{reverse('order_detail', args=[pk])}?tab=delivery"
@@ -6853,6 +6934,9 @@ def installment_decision_update(request, pk):
         description=f"分期核貸：{order.get_installment_status_display()}" + (f"；{note}" if note else ""),
         actor_name=_editing_name(request.user),
     )
+    from .services.notifications import notify
+    notify("installment_decision", order, f"訂單 {order.number} 分期狀態：{order.get_installment_status_display()}",
+           note or "", dedupe_suffix=f"{order.installment_status}:{order.installment_decided_on}")
     messages.success(request, f"分期狀態已更新為「{order.get_installment_status_display()}」。")
     return redirect(detail_url)
 

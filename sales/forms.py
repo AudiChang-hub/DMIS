@@ -4180,6 +4180,55 @@ class ExceptionCloseForm(forms.Form):
         return validate_document_upload(self.cleaned_data.get("proof"))
 
 
+class InvoiceIssueForm(forms.Form):
+    invoice_number = forms.CharField(label="發票號碼", max_length=20, help_text="例如 AB12345678")
+    invoice_date = forms.DateField(label="開立日期", widget=DateInput())
+    amount = forms.DecimalField(label="金額（含稅）", max_digits=12, decimal_places=0, min_value=1)
+    buyer_tax_id = forms.CharField(label="買受人統一編號", max_length=8, required=False)
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if not self.is_bound:
+            self.initial.setdefault("invoice_date", timezone.localdate())
+        for field in self.fields.values():
+            field.widget.attrs.setdefault("class", "form-control")
+        apply_mobile_keyboard_attrs(self)
+
+
+class InvoiceAdjustForm(forms.Form):
+    ACTIONS = (("void", "整張作廢"), ("allowance", "折讓"))
+    action = forms.ChoiceField(label="處理方式", choices=ACTIONS)
+    invoice = forms.ModelChoiceField(label="發票", queryset=None)
+    invoice_date = forms.DateField(label="日期", widget=DateInput())
+    amount = forms.DecimalField(label="折讓金額", max_digits=12, decimal_places=0, min_value=1, required=False,
+                                help_text="選擇折讓時必填；作廢以整張金額處理。")
+    reason = forms.CharField(label="原因", max_length=250)
+
+    def __init__(self, order, *args, **kwargs):
+        from sales.models import InvoiceRecord
+
+        super().__init__(*args, **kwargs)
+        self.fields["invoice"].queryset = InvoiceRecord.objects.filter(order=order, kind=InvoiceRecord.Kind.ISSUE).exclude(
+            adjustments__kind=InvoiceRecord.Kind.VOID,
+        ).order_by("invoice_date", "pk")
+        self.fields["invoice"].label_from_instance = lambda item: f"{item.invoice_number}｜{item.amount:,.0f} 元｜{item.invoice_date}"
+        if not self.is_bound:
+            self.initial.setdefault("invoice_date", timezone.localdate())
+        for field in self.fields.values():
+            field.widget.attrs.setdefault("class", "form-control")
+        apply_mobile_keyboard_attrs(self)
+
+    @property
+    def has_choices(self):
+        return self.fields["invoice"].queryset.exists()
+
+    def clean(self):
+        cleaned = super().clean()
+        if cleaned.get("action") == "allowance" and not cleaned.get("amount"):
+            self.add_error("amount", "折讓時請填寫金額。")
+        return cleaned
+
+
 class PaymentReversalForm(forms.Form):
     payment = forms.ModelChoiceField(label="要沖銷的收款", queryset=PaymentRecord.objects.none())
     reason = forms.CharField(label="沖銷原因", max_length=250)

@@ -120,6 +120,18 @@ def _stale_allocation_action(order, today):
     )
 
 
+def _invoice_action(order):
+    from .invoices import invoice_attention
+
+    message = invoice_attention(order)
+    if not message:
+        return None
+    return NextAction(
+        key="invoice", title="處理發票紀錄", description=message, action_label="前往金額收支",
+        url=_tab_url(order, "finance"), badge="發票", tone="parallel",
+    )
+
+
 def _settlement_gap_action(order):
     from .payment_ledger import settlement_gap
 
@@ -285,7 +297,9 @@ def build_order_next_actions(
     )
 
     if order.status in {SalesOrder.Status.CANCELLED, SalesOrder.Status.EXCEPTION_CLOSED}:
-        return None
+        # 結案後唯一可能的待辦是發票尚未作廢或折讓。
+        invoice = _invoice_action(order)
+        return OrderNextActions(invoice, (), _state_key(invoice, ())) if invoice else None
     if order.status == SalesOrder.Status.CANCEL_REFUND_PENDING:
         primary = NextAction(
             key="refund",
@@ -396,6 +410,9 @@ def build_order_next_actions(
     stale = _stale_allocation_action(order, today)
     if stale:
         secondary.insert(0, stale)
+    invoice = _invoice_action(order)
+    if invoice:
+        secondary.append(invoice)
     reconciliation = _pending_reconciliation_action(order, today) if order.is_delivered else None
     gap = _settlement_gap_action(order) if order.is_delivered else None
     subsidy = _subsidy_action(order, subsidy_missing)

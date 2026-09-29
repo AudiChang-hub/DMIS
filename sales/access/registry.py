@@ -83,7 +83,7 @@ register("work", "order_receive", "operate")
 register("orders", "order_create order_edit draft_save draft_presence draft_delete order_edit_presence contract_upload privacy_consent_upload id_card_ocr id_card_ocr_status id_card_ocr_invalidate", "operate")
 register("orders", "contract_print privacy_consent_print order_documents_print identity_documents_print", "export")
 register("work", "order_operations registration_document_file subsidy_document_file")
-register("work", "registration_fee_variance_confirm order_commission_attribution_update order_discount_request order_discount_decide order_secret_reveal allocate_vehicle reallocate_vehicle registration_save registration_document_upload registration_document_delete registration_complete delivery_complete delivery_payment_update cancellation_request cancellation_withdraw refund_complete payment_reverse payment_overpayment_refund installment_decision_update order_exception_close subsidy_toggle subsidy_document_upload subsidy_data_update subsidy_ocr_decision subsidy_document_delete", "operate")
+register("work", "registration_fee_variance_confirm order_commission_attribution_update order_discount_request order_discount_decide order_secret_reveal allocate_vehicle reallocate_vehicle registration_save registration_document_upload registration_document_delete registration_complete delivery_complete delivery_payment_update cancellation_request cancellation_withdraw refund_complete payment_reverse payment_overpayment_refund installment_decision_update order_exception_close invoice_issue invoice_adjust subsidy_toggle subsidy_document_upload subsidy_data_update subsidy_ocr_decision subsidy_document_delete", "operate")
 register("work", "positioned_template_order_print", "export")
 register("operations", "operations_report")
 register("operations", "operations_report_export", "export")
@@ -137,6 +137,7 @@ ROOT_ONLY.add("order_deletion_queue")
 ROOT_ONLY.update({"catalog_manage", "catalog_edit", "catalog_preview_image", "catalog_preview_color_image", "dealer_accounts", "dealer_account_create", "dealer_account_edit"})
 PERSONAL.update({"catalog", "catalog_detail", "catalog_image", "catalog_color_image"})
 PERSONAL.update({"profit_unlock", "profit_lock"})
+PERSONAL.add("notification_list")
 REPORT_ROUTES = {"report_display": "view", "report_detail": "view", "report_records_export": "export", "report_export": "export"}
 LOOKUPS = {
     "vehicle_colors": ("order_intake", "orders", "inventory", "models"),

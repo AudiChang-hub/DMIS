@@ -74,7 +74,7 @@ ORDER_PK_ROUTES = CUSTOMER_DOCUMENT_ROUTES | {
     "contract_upload", "privacy_consent_upload", "allocate_vehicle", "reallocate_vehicle",
     "registration_save", "registration_document_upload", "registration_document_delete", "registration_complete",
     "delivery_complete", "delivery_payment_update", "cancellation_request", "cancellation_withdraw", "refund_complete",
-    "payment_reverse", "payment_overpayment_refund", "installment_decision_update", "order_exception_close",
+    "payment_reverse", "payment_overpayment_refund", "installment_decision_update", "order_exception_close", "invoice_issue", "invoice_adjust",
     "subsidy_toggle", "subsidy_document_upload", "subsidy_document_delete", "subsidy_data_update", "subsidy_ocr_decision",
     "registration_fee_variance_confirm", "identity_documents_print",
 }

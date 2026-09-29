@@ -404,6 +404,17 @@ urlpatterns = [
         name="refund_complete",
     ),
     path(
+        "orders/<int:pk>/invoices/issue/",
+        views.invoice_issue,
+        name="invoice_issue",
+    ),
+    path(
+        "orders/<int:pk>/invoices/adjust/",
+        views.invoice_adjust,
+        name="invoice_adjust",
+    ),
+    path("notifications/", views.notification_list, name="notification_list"),
+    path(
         "orders/<int:pk>/cancel/withdraw/",
         views.cancellation_withdraw,
         name="cancellation_withdraw",

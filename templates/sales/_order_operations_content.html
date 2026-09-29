@@ -66,7 +66,10 @@
       <span>客戶尚欠 <strong>$<output data-receipt-value="customer_due">{{ receipt_summary.customer_due|floatformat:0 }}</output></strong></span>
       <span>分期公司應收 <strong>$<output data-receipt-value="lender_expected">{{ receipt_summary.lender_expected|floatformat:0 }}</output></strong></span>
       <span>分期公司已確認 <strong>$<output data-receipt-value="lender_received">{{ receipt_summary.lender_received|floatformat:0 }}</output></strong></span>
+      <span{% if receipt_summary.customer_overpaid %} class="is-overpaid"{% endif %}>客戶溢收 <strong>$<output data-receipt-value="customer_overpaid">{{ receipt_summary.customer_overpaid|floatformat:0 }}</output></strong></span>
+      <span>已登記待確認 <strong>$<output data-receipt-value="unconfirmed_received">{{ receipt_summary.unconfirmed_received|floatformat:0 }}</output></strong></span>
     </div>
+    {% if payments_read_only %}<p class="note-box">訂單已取消，收款已結算，以下明細僅供查閱。</p>{% else %}<p class="muted">已確認的收款即為入帳，不能直接修改或刪除；登記錯誤請到下方「沖銷與退款」處理後重新登記。</p>{% endif %}
     <section class="receipt-list" aria-label="收款明細">
       <h3>收款明細</h3>
       <div class="receipt-list-head" aria-hidden="true"><span>已確認</span><span>收款項目</span><span>實收金額</span><span>收款日期</span><span>收款方式</span><span>其他資料</span></div>
@@ -77,8 +80,10 @@
           {% endif %}
         {% endfor %}
       </div>
+      {% if not payments_read_only %}
       <template id="payment-empty-row">{% include "sales/_payment_receipt_row.html" with payment=payment_formset.empty_form %}</template>
       <button type="button" class="button ghost add-operation-row" id="add-payment">＋ 新增收款</button>
+      {% endif %}
     </section>
     <details class="receipt-expectations">
       <summary>應收設定（不是實收紀錄）</summary>
@@ -213,3 +218,4 @@
   <div class="operations-actions">{% if_access 'order_detail' order.pk %}<a class="button ghost" href="{% url 'order_detail' order.pk %}">取消</a>{% endif_access %}<button class="button primary" type="submit">{% if order_workspace %}儲存收支與後續資料{% else %}儲存營運資料{% endif %}</button></div>
 {% if order_workspace %}</fieldset>{% endif %}
 </form>
+{% include "sales/_payment_ledger.html" %}

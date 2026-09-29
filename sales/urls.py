@@ -404,6 +404,16 @@ urlpatterns = [
         name="refund_complete",
     ),
     path(
+        "orders/<int:pk>/payments/reverse/",
+        views.payment_reverse,
+        name="payment_reverse",
+    ),
+    path(
+        "orders/<int:pk>/payments/overpayment-refund/",
+        views.payment_overpayment_refund,
+        name="payment_overpayment_refund",
+    ),
+    path(
         "files/registration/<int:document_pk>/",
         views.registration_document_file,
         name="registration_document_file",

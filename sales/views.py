@@ -77,6 +77,8 @@ from .forms import (
     PositionedPrintTemplateForm,
     ReconciliationRecordForm,
     RefundCompletionForm,
+    PaymentReversalForm,
+    OverpaymentRefundForm,
     QuickInventoryEntryFormSet,
     ReallocationForm,
     RegistrationDocumentUploadForm,
@@ -202,6 +204,11 @@ from .services.order_search import (
 from .services.operations_sync import sync_order_operations
 from .services.operations_sync import refresh_payment_confirmation
 from .services.payment_summary import payment_summary
+from .services.payment_ledger import (
+    refund_overpayment,
+    reverse_payment,
+    settlement_gap,
+)
 from .services.price_version import (
     apply_order_price_snapshot,
     recommended_price_from_snapshot,
@@ -4452,6 +4459,10 @@ def reconciliation_update(request, pk):
     if request.method != "POST" or not eligible:
         messages.error(request, "此筆資料不屬於統一對帳範圍。")
         return redirect("reconciliation_list")
+    if record.order.status == SalesOrder.Status.CANCELLED or record.is_adjustment:
+        messages.error(request, "已取消訂單的收款與沖銷／退款紀錄已結算，不能修改。")
+        return redirect("reconciliation_list")
+    was_confirmed = record.confirmed
     before = {
         "預計金額": str(record.expected_amount),
         "預計金額調整原因": record.expected_amount_override_reason,
@@ -4463,13 +4474,14 @@ def reconciliation_update(request, pk):
     form = ReconciliationRecordForm(request.POST, instance=record)
     if form.is_valid():
         record = form.save(commit=False)
-        if record.confirmed:
+        if record.confirmed and not was_confirmed:
             record.confirmed_by = _editing_name(request.user)
             record.confirmed_at = timezone.now()
-        else:
+        elif not record.confirmed:
             record.confirmed_by = ""
             record.confirmed_at = None
         record.save()
+        _record_duplicate_acknowledgements(record.order, [form], request.user)
         refresh_payment_confirmation(record.order_id)
         after = {
             "預計金額": str(record.expected_amount),
@@ -5281,7 +5293,7 @@ def order_detail(request, pk, *, commission_form=None, workspace_context_only=Fa
             ),
             "balance_ready_for_delivery": balance_ready_for_delivery,
             "cancellation_form": CancellationRequestForm(),
-            "refund_form": RefundCompletionForm(order),
+            "refund_form": RefundCompletionForm(order) if order.status == SalesOrder.Status.CANCEL_REFUND_PENDING else None,
             "positioned_templates": PositionedPrintTemplate.objects.filter(active=True).order_by(
                 "document_type", "-version"
             ),
@@ -5343,6 +5355,39 @@ def _operations_snapshot(profile):
     return values
 
 
+def _record_duplicate_acknowledgements(order, forms, user):
+    for form in forms:
+        duplicate = getattr(form, "duplicate_of", None)
+        if duplicate is not None and form.cleaned_data.get("duplicate_confirmed"):
+            OrderEvent.objects.create(
+                order=order,
+                event_type="duplicate_payment_confirmed",
+                description=(
+                    f"確認 {form.instance.item_name} 與 {duplicate.item_name} 同日同額"
+                    f"（{duplicate.received_amount:,.0f} 元）為不同筆收款。"
+                ),
+                actor_name=_editing_name(user),
+            )
+
+
+def _record_settlement_gap(order, before, user):
+    """已交付訂單的應收或實收異動後，留下補收／退差待辦的起點紀錄。"""
+    after = settlement_gap(order)
+    if after == before or not after:
+        return
+    parts = []
+    if after["due"]:
+        parts.append(f"待補收 {after['due']:,.0f} 元")
+    if after["overpaid"]:
+        parts.append(f"溢收待退 {after['overpaid']:,.0f} 元")
+    OrderEvent.objects.create(
+        order=order,
+        event_type="settlement_gap",
+        description="交付後金額異動：" + "、".join(parts) + "。",
+        actor_name=_editing_name(user),
+    )
+
+
 @login_required
 @transaction.atomic
 def order_operations(request, pk):
@@ -5368,12 +5413,12 @@ def order_operations(request, pk):
     if order_workspace.is_workspace_save(request):
         for name in ("subsidy_amount", "subsidy_applied_on"):
             form.fields[name].disabled = True
-    payment_formset = PaymentRecordFormSet(
+    payment_formset = order_workspace.payment_formset_for(
+        order,
         request.POST or None,
         request.FILES or None,
-        instance=order,
-        prefix="payments",
     )
+    gap_before = settlement_gap(order)
     previous_payment_proofs = list(
         order.payment_records.exclude(proof="").values_list("proof", flat=True)
     )
@@ -5401,7 +5446,8 @@ def order_operations(request, pk):
             profile.save()
             payments = payment_formset.save()
             deposit = next((payment for payment in payments if payment.system_key == "deposit"), None)
-            if deposit and deposit.expected_amount != order.deposit_amount:
+            # 取消流程中退款依帳本結算，訂金應收不再回寫訂單約定訂金。
+            if deposit and deposit.expected_amount != order.deposit_amount and not order.is_cancelled_sale:
                 order.actual_balance += order.deposit_amount - deposit.expected_amount
                 order.deposit_amount = deposit.expected_amount
                 if deposit.received_on:
@@ -5462,6 +5508,8 @@ def order_operations(request, pk):
                 description=f"更新營運與對帳資料（{len(changes)} 個欄位）",
                 actor_name=_editing_name(request.user),
             )
+            _record_duplicate_acknowledgements(order, payment_formset.forms, request.user)
+            _record_settlement_gap(order, gap_before, request.user)
         if order_workspace.is_workspace_save(request):
             return order_workspace.saved(request, order, form=form, formsets=(payment_formset,))
         messages.success(request, "營運、收款及損益資料已更新。")
@@ -5480,6 +5528,7 @@ def order_operations(request, pk):
             "form": form,
             "payment_formset": payment_formset,
             "receipt_summary": payment_summary(order),
+            **order_workspace.payment_ledger_context(order),
             "manual_financial_fields": profile.manual_financial_fields or [],
             "is_electric": order.vehicle_model.energy_type
             != VehicleModel.EnergyType.GAS,
@@ -5714,11 +5763,16 @@ def order_edit(request, pk):
         pk=pk,
     )
     if not order.can_edit_content:
+        locked_message = (
+            "此訂單已取消，內容已鎖定。" if order.status == SalesOrder.Status.CANCELLED
+            else "此訂單已進入取消流程，內容已鎖定；請完成退款結算。"
+        )
         if order_workspace.is_workspace_save(request):
-            return order_workspace.save_error("此訂單已取消，內容已鎖定。", status=409)
-        messages.error(request, "此訂單已取消，內容已鎖定。")
+            return order_workspace.save_error(locked_message, status=409)
+        messages.error(request, locked_message)
         return redirect("order_detail", pk=pk)
     completed_correction = order.is_delivered
+    gap_before = settlement_gap(order) if completed_correction else None
     # 歷史訂單可能缺少交付時間；內容修正不等同重新交車。
     order._preserve_delivery_metadata = completed_correction
     if not _claim_edit_lock(order, request, ORDER_PRESENCE_TIMEOUT):
@@ -5826,6 +5880,8 @@ def order_edit(request, pk):
                 description=f"{'完成後修正' if completed_correction else '修改訂單'}：{reason}（{len(changes)} 個項目）",
                 actor_name=_editing_name(request.user),
             )
+            if completed_correction:
+                _record_settlement_gap(order, gap_before, request.user)
             if order_workspace.is_workspace_save(request):
                 return order_workspace.saved(request, order, form=form, formsets=(formset, fee_formset))
             messages.success(request, "訂單內容已更新，變更紀錄已保存。")
@@ -6526,6 +6582,7 @@ def delivery_payment_update(request, pk):
         return redirect(detail_url)
 
     payment = form.save(_editing_name(request.user))
+    _record_duplicate_acknowledgements(order, [form], request.user)
     current_proof = getattr(payment.proof, "name", "")
     if previous_proof and previous_proof != current_proof:
         _schedule_model_file_cleanup(PaymentRecord, "proof", previous_proof)
@@ -6615,7 +6672,7 @@ def cancellation_request(request, pk):
     if released_identifier:
         description += f"；已解除配車 {released_identifier}"
     if order.status == SalesOrder.Status.CANCELLED:
-        description += "；本單未收訂金，已完成取消"
+        description += "；本單沒有已確認實收，已完成取消"
     OrderEvent.objects.create(
         order=order,
         event_type="cancellation_requested",
@@ -6623,9 +6680,11 @@ def cancellation_request(request, pk):
         actor_name=_editing_name(request.user),
     )
     if order.status == SalesOrder.Status.CANCEL_REFUND_PENDING:
+        from .services.payment_ledger import ledger_totals
+        received = ledger_totals(order)["customer"]["net"]
         messages.warning(
             request,
-            f"已登記取消，必須全額退還訂金 ${order.deposit_amount:,.0f} 後才會完成取消。",
+            f"已登記取消；已收 ${received:,.0f}，請填寫沒收金額並完成退款結算後才會完成取消。",
         )
     else:
         messages.success(request, "訂單已取消。")
@@ -6651,26 +6710,74 @@ def refund_complete(request, pk):
     try:
         order.complete_refund(
             _editing_name(request.user),
-            form.cleaned_data["amount"],
+            form.cleaned_data["forfeited_amount"],
             form.cleaned_data["completed_on"],
             form.cleaned_data["method"],
             form.cleaned_data["reference"],
             form.cleaned_data.get("proof"),
+            forfeit_reason=form.cleaned_data["forfeit_reason"],
         )
     except ValidationError as exc:
         messages.error(request, "退款未完成：" + " ".join(exc.messages))
         return redirect(detail_url)
-    OrderEvent.objects.create(
-        order=order,
-        event_type="refund_completed",
-        description=(
-            f"訂金已全額退款 ${order.refund_amount:,.0f}／"
-            f"{order.get_refund_method_display()}／{order.refund_completed_on}；訂單完成取消"
-        ),
-        actor_name=_editing_name(request.user),
+    messages.success(
+        request,
+        f"取消結算完成：退款 ${order.refund_amount:,.0f}、沒收 ${order.forfeited_amount:,.0f}，訂單已取消。",
     )
-    messages.success(request, "訂金已全額退款，訂單已取消。")
     return redirect(detail_url)
+
+
+def _finance_redirect(request, order):
+    if request.POST.get("return_to") == "operations":
+        return redirect("order_operations", pk=order.pk)
+    return redirect(f"{reverse('order_detail', args=[order.pk])}?tab=finance")
+
+
+@login_required
+@transaction.atomic
+def payment_reverse(request, pk):
+    order = get_object_or_404(SalesOrder.objects.select_for_update(), pk=pk)
+    if request.method != "POST":
+        return _finance_redirect(request, order)
+    form = PaymentReversalForm(order, request.POST)
+    if not form.is_valid():
+        messages.error(request, "沖銷未完成：" + _form_error_text(form))
+        return _finance_redirect(request, order)
+    try:
+        reverse_payment(
+            order_id=order.pk, payment_id=form.cleaned_data["payment"].pk,
+            actor_name=_editing_name(request.user), reason=form.cleaned_data["reason"],
+        )
+    except ValidationError as exc:
+        messages.error(request, "沖銷未完成：" + " ".join(exc.messages))
+        return _finance_redirect(request, order)
+    messages.success(request, "已沖銷該筆收款；如需更正，請重新登記正確的收款。")
+    return _finance_redirect(request, order)
+
+
+@login_required
+@transaction.atomic
+def payment_overpayment_refund(request, pk):
+    order = get_object_or_404(SalesOrder.objects.select_for_update(), pk=pk)
+    if request.method != "POST":
+        return _finance_redirect(request, order)
+    form = OverpaymentRefundForm(order, payment_summary(order), request.POST)
+    if not form.is_valid():
+        messages.error(request, "退款未完成：" + _form_error_text(form))
+        return _finance_redirect(request, order)
+    data = form.cleaned_data
+    try:
+        refund_overpayment(
+            order_id=order.pk, kind=data["kind"], amount=data["amount"],
+            actor_name=_editing_name(request.user), reason=data["reason"],
+            method_label=dict(SalesOrder.PaymentMethod.choices)[data["method"]],
+            refunded_on=data["refunded_on"], reference=data["reference"],
+        )
+    except ValidationError as exc:
+        messages.error(request, "退款未完成：" + " ".join(exc.messages))
+        return _finance_redirect(request, order)
+    messages.success(request, f"已登記退還溢收 ${data['amount']:,.0f}。")
+    return _finance_redirect(request, order)
 
 
 @login_required

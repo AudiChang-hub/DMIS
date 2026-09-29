@@ -208,8 +208,19 @@ class OrderLifecycleTests(TestCase):
         self.assertEqual(record.vehicle_condition_note, "外觀有舊刮痕，功能正常")
         self.assertTrue(record.damage_found)
 
-    def test_cancellation_releases_vehicle_and_waits_for_full_refund(self):
+    def confirm_deposit(self, order):
+        deposit = order.payment_records.get(system_key="deposit")
+        deposit.received_on = date(2026, 8, 1)
+        deposit.payment_method = "現金"
+        deposit.confirmed = True
+        deposit.save()
+        return deposit
+
+    def test_cancellation_releases_vehicle_and_settles_refund_from_ledger(self):
         order, vehicle = self.make_order()
+        with self.assertRaisesMessage(ValidationError, "未確認的實收"):
+            order.request_cancellation("測試人員", "客戶改變心意")
+        self.confirm_deposit(order)
 
         order.request_cancellation("測試人員", "客戶改變心意", "電話確認")
 
@@ -218,24 +229,58 @@ class OrderLifecycleTests(TestCase):
         self.assertEqual(order.status, SalesOrder.Status.CANCEL_REFUND_PENDING)
         self.assertIsNone(order.allocated_vehicle_id)
         self.assertEqual(vehicle.status, VehicleInventory.Status.AVAILABLE)
-        with self.assertRaisesMessage(ValidationError, "必須全數退還"):
-            order.complete_refund(
-                "測試人員",
-                Decimal("3000"),
-                date(2026, 8, 5),
-                SalesOrder.PaymentMethod.TRANSFER,
-            )
+        with self.assertRaisesMessage(ValidationError, "已登記取消"):
+            order.request_cancellation("測試人員", "重複登記")
+        with self.assertRaisesMessage(ValidationError, "沒收金額須介於"):
+            order.complete_refund("測試人員", Decimal("6000"), date(2026, 8, 5), SalesOrder.PaymentMethod.TRANSFER)
+        with self.assertRaisesMessage(ValidationError, "沒收原因"):
+            order.complete_refund("測試人員", Decimal("1000"), date(2026, 8, 5), SalesOrder.PaymentMethod.TRANSFER)
 
         order.complete_refund(
             "測試人員",
-            Decimal("5000"),
+            Decimal("1000"),
             date(2026, 8, 5),
             SalesOrder.PaymentMethod.TRANSFER,
             "末五碼 12345",
+            forfeit_reason="依約扣除手續費",
         )
         order.refresh_from_db()
         self.assertEqual(order.status, SalesOrder.Status.CANCELLED)
-        self.assertEqual(order.refund_amount, Decimal("5000"))
+        self.assertEqual(order.refund_amount, Decimal("4000"))
+        self.assertEqual(order.forfeited_amount, Decimal("1000"))
+        refund = order.payment_records.get(entry_type=PaymentRecord.EntryType.REFUND)
+        self.assertEqual(refund.received_amount, Decimal("-4000"))
+        self.assertTrue(refund.confirmed)
+        with self.assertRaises(ValidationError):
+            refund.delete()
+        self.assertTrue(OrderEvent.objects.filter(order=order, event_type="refund_completed").exists())
+
+    def test_cancellation_without_confirmed_receipts_completes_immediately(self):
+        order, _vehicle = self.make_order()
+        deposit = order.payment_records.get(system_key="deposit")
+        deposit.received_amount = 0
+        deposit.save()
+        order.request_cancellation("測試人員", "約定訂金尚未實收")
+        order.refresh_from_db()
+        self.assertEqual(order.status, SalesOrder.Status.CANCELLED)
+        self.assertEqual(order.refund_amount, 0)
+
+    def test_full_forfeit_needs_no_refund_method(self):
+        order, _vehicle = self.make_order()
+        self.confirm_deposit(order)
+        order.request_cancellation("測試人員", "客戶違約")
+        order.complete_refund("測試人員", Decimal("5000"), date(2026, 8, 5), "", forfeit_reason="依約沒收訂金")
+        order.refresh_from_db()
+        self.assertEqual(order.status, SalesOrder.Status.CANCELLED)
+        self.assertEqual(order.refund_amount, 0)
+        self.assertFalse(order.payment_records.filter(entry_type=PaymentRecord.EntryType.REFUND).exists())
+
+    def test_lender_disbursement_blocks_cancellation(self):
+        order, _vehicle = self.make_order(deposit=Decimal("0"))
+        PaymentRecord.objects.create(order=order, item_name="分期撥款", receipt_kind="lender",
+                                     received_amount=60000, received_on=date(2026, 8, 3), confirmed=True)
+        with self.assertRaisesMessage(ValidationError, "分期公司已撥款"):
+            order.request_cancellation("測試人員", "客戶反悔")
 
     def test_cancellation_card_is_collapsed_and_keeps_confirmation_form(self):
         order, _vehicle = self.make_order()
@@ -251,7 +296,7 @@ class OrderLifecycleTests(TestCase):
         self.assertNotIn("<button", summary)
         self.assertIn('name="csrfmiddlewaretoken"', card)
         self.assertIn('data-confirm="確定登記取消這張訂單嗎？"', card)
-        self.assertIn("必須全額退款後才算取消完成", card)
+        self.assertIn("須完成退款結算", card)
         order.refresh_from_db()
         self.assertEqual(order.status, SalesOrder.Status.ALLOCATED)
 
@@ -269,9 +314,11 @@ class OrderLifecycleTests(TestCase):
 
     def test_cancellation_states_show_refund_or_history_not_new_request(self):
         self.client.force_login(self.user)
-        for deposit, text in ((Decimal("5000"), "訂金尚待全額退款"), (Decimal("0"), "訂單已取消")):
+        for deposit, text in ((Decimal("5000"), "取消待退款結算"), (Decimal("0"), "訂單已取消")):
             with self.subTest(deposit=deposit):
                 order, _vehicle = self.make_order(deposit=deposit)
+                if deposit:
+                    self.confirm_deposit(order)
                 order.request_cancellation("測試人員", "客戶取消")
                 response = self.client.get(reverse("order_detail", args=[order.pk]))
                 self.assertContains(response, text)
@@ -324,8 +371,21 @@ class OrderLifecycleTests(TestCase):
             {"reason": "客戶取消", "note": ""},
             follow=True,
         )
-        self.assertContains(cancel, "必須全額退還訂金")
-        self.assertContains(cancel, "確認退款並完成取消")
+        self.assertContains(cancel, "尚有已登記但未確認的實收金額")
+        self.confirm_deposit(order)
+        cancel = self.client.post(
+            reverse("cancellation_request", args=[order.pk]),
+            {"reason": "客戶取消", "note": ""},
+            follow=True,
+        )
+        self.assertContains(cancel, "已收 $5,000，請填寫沒收金額")
+        self.assertContains(cancel, "確認結算並完成取消")
+        refund = self.client.post(
+            reverse("refund_complete", args=[order.pk]),
+            {"forfeited_amount": "6000", "completed_on": "2026-08-05", "method": "transfer"},
+            follow=True,
+        )
+        self.assertContains(refund, "沒收金額不可超過已收 5,000 元")
 
     def test_delivery_endpoint_does_not_lock_nullable_outer_join(self):
         order, vehicle = self.make_order(dealer=True)

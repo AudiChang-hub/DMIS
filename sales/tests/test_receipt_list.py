@@ -1,12 +1,14 @@
 from datetime import date
 from decimal import Decimal
 
+from django.core.exceptions import ValidationError
 from django.test import TestCase, TransactionTestCase, skipUnlessDBFeature
 from django.urls import reverse
 
 from sales.forms import OrderOperationsForm, PaymentRecordFormSet
 from sales.models import PaymentRecord, OrderChange, OrderOperationsProfile
 from sales.services.operations_sync import sync_order_operations
+from sales.services.payment_ledger import reverse_payment
 from sales.services.payment_summary import payment_summary
 from sales.services.sales_metrics import filter_payment_risk
 from sales.tests import test_order_workspace as workspace_fixtures
@@ -49,7 +51,9 @@ class ReceiptListTests(TestCase):
         self.assertTrue(payment_summary(self.order)["settled"])
         self.assertTrue(OrderOperationsProfile.objects.get(order=self.order).payment_confirmed)
         last.confirmed = False
-        last.save()
+        with self.assertRaisesMessage(ValidationError, "沖銷"):
+            last.save()
+        reverse_payment(order_id=self.order.pk, payment_id=last.pk, actor_name="測試", reason="金額登記錯誤")
         self.assertFalse(OrderOperationsProfile.objects.get(order=self.order).payment_confirmed)
         self.assertEqual(payment_summary(self.order)["customer_due"], 50000)
 
@@ -80,11 +84,14 @@ class ReceiptListTests(TestCase):
         second = self.receipt(40000, confirmed=True, receipt_kind="lender")
         self.assertEqual(OrderOperationsProfile.objects.get(order=self.order).actual_disbursement, 60000)
         self.assertEqual(payment_summary(self.order)["customer_due"], 2000)
-        second.delete()
+        with self.assertRaises(ValidationError):
+            second.delete()
+        reverse_payment(order_id=self.order.pk, payment_id=second.pk, actor_name="測試", reason="重複入帳")
         self.assertEqual(OrderOperationsProfile.objects.get(order=self.order).actual_disbursement, 20000)
-        first.confirmed = False
-        first.save()
-        self.assertEqual(OrderOperationsProfile.objects.get(order=self.order).payment_disbursement_snapshot, {})
+        reverse_payment(order_id=self.order.pk, payment_id=first.pk, actor_name="測試", reason="撥款退回")
+        profile = OrderOperationsProfile.objects.get(order=self.order)
+        self.assertEqual(profile.payment_disbursement_snapshot, {})
+        self.assertFalse(profile.installment_transfer_confirmed)
 
     def test_old_payment_and_proof_stay_visible(self):
         balance = self.order.payment_records.get(system_key="balance")
@@ -125,22 +132,27 @@ class ReceiptListTests(TestCase):
         self.assertIsNotNone(row.confirmed_at)
         self.assertEqual(row.expected_amount, 0)
         self.assertIn("receipt_kind", str(OrderChange.objects.filter(order=self.order).last().changes))
+        self.assertIn(str(row.pk), response.json()["locked_payments"])
+        # 已確認即入帳：再次送出的金額與取消確認一律忽略，只能以沖銷更正。
         payload = self.payload()
         formset = PaymentRecordFormSet(instance=self.order, prefix="payments")
         row_form = next(f for f in formset if f.instance.pk == row.pk)
         payload[row_form.add_prefix("received_amount")] = "60000"
-        payload.pop(row_form.add_prefix("confirmed"))
+        payload.pop(row_form.add_prefix("confirmed"), None)
         response = self.client.post(url, payload, HTTP_X_ORDER_WORKSPACE="1")
         self.assertEqual(response.status_code, 200, response.content)
         row.refresh_from_db()
-        self.assertFalse(row.confirmed)
-        self.assertIsNone(row.confirmed_at)
-        self.assertEqual(row.confirmed_by, "")
+        self.assertTrue(row.confirmed)
+        self.assertEqual(row.received_amount, 70000)
+        self.assertIsNotNone(row.confirmed_at)
 
     def test_receipt_classification_change_recalculates_both_buckets(self):
         row = self.receipt(70000, confirmed=True)
         row.receipt_kind = "lender"
-        row.save()
+        with self.assertRaises(ValidationError):
+            row.save()
+        reverse_payment(order_id=self.order.pk, payment_id=row.pk, actor_name="測試", reason="分類登記錯誤")
+        self.receipt(70000, confirmed=True, receipt_kind="lender")
         self.assertEqual(payment_summary(self.order)["customer_due"], 70000)
         self.assertFalse(OrderOperationsProfile.objects.get(order=self.order).payment_confirmed)
 

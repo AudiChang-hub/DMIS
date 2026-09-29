@@ -3,7 +3,7 @@ from collections import Counter
 from decimal import Decimal
 
 from sales.models import DealerVolumeBonusSettlement, SalesOrder
-from .payment_summary import payment_summary, disbursement_receipts
+from .payment_summary import payment_summary, disbursement_receipts, effective_records
 
 
 def audit_financial_consistency(sample_limit=30):
@@ -35,8 +35,9 @@ def audit_financial_consistency(sample_limit=30):
         confirmed = payment_summary(order, payments)["settled"]
         if profile.payment_confirmed != confirmed:
             report("payment_confirmation_mismatch", order, "收清狀態不符逐筆收款")
-        for field, value in (("card_fee_income", sum(p.card_fee_charged for p in payments)),
-                             ("card_fee_expense", sum(p.bank_card_fee for p in payments))):
+        effective = effective_records(payments)
+        for field, value in (("card_fee_income", sum(p.card_fee_charged for p in effective)),
+                             ("card_fee_expense", sum(p.bank_card_fee for p in effective))):
             if getattr(profile, field) != value:
                 report("card_fee_mismatch", order, f"{field}：保存 {getattr(profile, field)}／收款 {value}")
         primary = disbursement_receipts(order, payments)

@@ -93,6 +93,18 @@
     if (field.type === 'checkbox') field.checked = canonical(field, remote);
     else field.value = remote == null ? '' : String(remote);
   }
+  // 已確認收款即入帳；同頁儲存後立即鎖定，與伺服器端防改一致。
+  const LOCKED_PAYMENT_FIELDS = ['confirmed', 'receipt_kind', 'received_amount', 'received_on', 'payment_method', 'receiving_account', 'card_principal', 'card_fee_charged', 'bank_card_fee'];
+  function lockPayments(ids) {
+    root.querySelectorAll('[data-payment-row]').forEach(row => {
+      const id = row.querySelector('[name$="-id"]');
+      if (!id || !ids.includes(id.value)) return;
+      const prefix = id.name.slice(0, -2);
+      LOCKED_PAYMENT_FIELDS.forEach(name => { const field = row.querySelector(`[name="${prefix}${name}"]`); if (field) field.disabled = true; });
+      row.classList.add('is-locked'); row.dataset.paymentLocked = '';
+      row.querySelector('[data-delete-payment]')?.remove();
+    });
+  }
   function merge(payload, savedForm) {
     if (payload.customer_balance_due != null) {
       root.querySelectorAll('[data-customer-balance]').forEach(node => { node.textContent = '$' + Number(payload.customer_balance_due).toLocaleString('zh-TW'); });
@@ -106,6 +118,7 @@
         node.textContent = Number(payload.receipt_summary[node.dataset.receiptValue]).toLocaleString('zh-TW');
       });
     }
+    if (Array.isArray(payload.locked_payments)) lockPayments(payload.locked_payments);
     if (typeof payload.delivery_ready === 'boolean') {
       root.querySelectorAll('.delivery-completion-actions button[type="submit"]').forEach(button => {
         button.disabled = !payload.delivery_ready; button.setAttribute('aria-disabled', String(!payload.delivery_ready));

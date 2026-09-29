@@ -2827,8 +2827,61 @@ class OrderOperationsForm(forms.ModelForm):
         return cleaned
 
 
+CONFIRMED_PAYMENT_LOCKED_FIELDS = (
+    "receipt_kind", "received_amount", "received_on", "payment_method", "receiving_account",
+    "card_principal", "card_fee_charged", "bank_card_fee", "confirmed",
+)
+CONFIRMED_PAYMENT_HELP = "已確認入帳；如登記有誤，請以沖銷更正後重新登記。"
+
+
+def lock_confirmed_payment_fields(form, read_only=False):
+    """已確認收款為入帳事實；畫面鎖定欄位，模型另有同樣的防改保護。"""
+    payment = form.instance
+    locked = set(form.fields) if read_only else set()
+    if payment.pk and payment.confirmed:
+        locked |= set(CONFIRMED_PAYMENT_LOCKED_FIELDS) & set(form.fields)
+        if payment.proof and "proof" in form.fields:
+            locked.add("proof")
+    for name in locked:
+        form.fields[name].disabled = True
+    if payment.pk and payment.confirmed and "received_amount" in form.fields:
+        form.fields["received_amount"].help_text = CONFIRMED_PAYMENT_HELP
+    form.payment_locked = bool(payment.pk and payment.confirmed)
+    form.payment_reversed = bool(form.payment_locked and payment.reversal_entries.exists())
+    return locked
+
+
+def check_duplicate_receipt(form, cleaned, *, order, kind):
+    """新確認的收款若與既有已確認收款同日同額，須明確勾選非重複。"""
+    form.duplicate_of = None
+    if form.instance.pk and form.instance.confirmed:
+        return
+    if not cleaned.get("confirmed") or order is None:
+        return
+    from sales.services.payment_ledger import find_duplicate_receipt
+
+    duplicate = find_duplicate_receipt(
+        form.instance, order=order, received_amount=cleaned.get("received_amount"),
+        received_on=cleaned.get("received_on"), kind=kind,
+    )
+    if duplicate is None:
+        return
+    form.duplicate_of = duplicate
+    if not cleaned.get("duplicate_confirmed"):
+        form.add_error(
+            "duplicate_confirmed",
+            f"與「{duplicate.item_name}」同日同額（{duplicate.received_amount:,.0f} 元），"
+            "如確實為另一筆收款請勾選確認。",
+        )
+
+
 class PaymentRecordForm(forms.ModelForm):
     receipt_kind = forms.ChoiceField(label="款項分類", choices=PaymentRecord.ReceiptKind.choices, required=False)
+    duplicate_confirmed = forms.BooleanField(
+        label="確認非重複收款", required=False,
+        help_text="與另一筆已確認收款同日同額時，確認這是另一筆實際收到的款項。",
+    )
+
     class Meta:
         model = PaymentRecord
         fields = [
@@ -2854,8 +2907,9 @@ class PaymentRecordForm(forms.ModelForm):
             ),
         }
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, read_only=False, **kwargs):
         super().__init__(*args, **kwargs)
+        self.read_only = read_only
         self.original_expected_amount = self.instance.expected_amount or Decimal("0")
         self.fields["payment_method"].widget = forms.Select(
             choices=[
@@ -2883,6 +2937,7 @@ class PaymentRecordForm(forms.ModelForm):
                 field.required = False
                 if self.initial.get(name) in (None, 0, Decimal("0")):
                     self.initial[name] = ""
+        lock_confirmed_payment_fields(self, read_only=read_only)
         apply_mobile_keyboard_attrs(self)
 
     def clean(self):
@@ -2905,6 +2960,12 @@ class PaymentRecordForm(forms.ModelForm):
             self.add_error("expected_amount_override_reason", "調整應收時請填寫原因。")
         if self.instance.system_key and cleaned.get("DELETE"):
             self.add_error(None, "系統收款項目不可刪除；請調整金額並說明原因。")
+        if self.instance.pk and self.instance.confirmed and cleaned.get("DELETE"):
+            self.add_error(None, "已確認的收款不可刪除；如登記有誤，請以沖銷更正。")
+        if self.read_only and self.has_changed():
+            self.add_error(None, "已取消訂單的收款已結算，不能修改。")
+        if not cleaned.get("DELETE"):
+            check_duplicate_receipt(self, cleaned, order=self.instance.order if self.instance.order_id else None, kind=cleaned.get("receipt_kind"))
         return cleaned
 
     def save(self, commit=True):
@@ -2948,6 +3009,10 @@ class DeliveryPaymentForm(forms.ModelForm):
         label="確認此筆尾款已收妥",
         required=False,
     )
+    duplicate_confirmed = forms.BooleanField(
+        label="確認非重複收款", required=False,
+        help_text="與另一筆已確認收款同日同額時，確認這是另一筆實際收到的款項。",
+    )
 
     class Meta:
         model = PaymentRecord
@@ -2988,6 +3053,8 @@ class DeliveryPaymentForm(forms.ModelForm):
         self.fields["received_amount"].widget.attrs.update(
             {"inputmode": "numeric", "min": "0"}
         )
+        self.was_confirmed = bool(self.instance.pk and self.instance.confirmed)
+        lock_confirmed_payment_fields(self)
         apply_mobile_keyboard_attrs(self)
 
 
@@ -3000,12 +3067,13 @@ class DeliveryPaymentForm(forms.ModelForm):
                 self.add_error("received_on", "已有實收金額時，請填寫收款日期。")
             if not cleaned.get("payment_method"):
                 self.add_error("payment_method", "已有實收金額時，請選擇收款方式。")
-        if cleaned.get("confirmed") and received < expected:
+        if cleaned.get("confirmed") and not self.was_confirmed and received < expected:
             shortage = expected - received
             self.add_error(
                 "confirmed",
                 f"尚差 {shortage:,.0f} 元，不可標記為已收清。",
             )
+        check_duplicate_receipt(self, cleaned, order=self.instance.order, kind=self.instance.effective_receipt_kind)
         return cleaned
 
     def clean_proof(self):
@@ -3013,10 +3081,10 @@ class DeliveryPaymentForm(forms.ModelForm):
 
     def save(self, actor_name, commit=True):
         payment = super().save(commit=False)
-        if payment.confirmed:
+        if payment.confirmed and not self.was_confirmed:
             payment.confirmed_by = actor_name
             payment.confirmed_at = timezone.now()
-        else:
+        elif not payment.confirmed:
             payment.confirmed_by = ""
             payment.confirmed_at = None
         if commit:
@@ -3043,6 +3111,8 @@ class VehicleModelCommissionForm(forms.Form):
 
 
 class ReconciliationRecordForm(forms.ModelForm):
+    duplicate_confirmed = forms.BooleanField(label="確認非重複收款", required=False)
+
     class Meta:
         model = PaymentRecord
         fields = [
@@ -3072,13 +3142,18 @@ class ReconciliationRecordForm(forms.ModelForm):
         self.fields["expected_amount_override_reason"].widget.attrs.update(
             {"placeholder": "例如：本案特殊撥款、公司通知調整"}
         )
+        self.was_confirmed = bool(self.instance.pk and self.instance.confirmed)
+        lock_confirmed_payment_fields(self, read_only=self.instance.is_adjustment)
         apply_mobile_keyboard_attrs(self)
 
     def clean(self):
         cleaned = super().clean()
+        if self.instance.is_adjustment:
+            raise forms.ValidationError("沖銷與退款紀錄不可修改。")
         for name in ("expected_amount", "received_amount"):
             if cleaned.get(name) is not None and cleaned[name] < 0:
                 self.add_error(name, "收款金額不可為負數；退款請使用退款流程。")
+        check_duplicate_receipt(self, cleaned, order=self.instance.order, kind=self.instance.effective_receipt_kind)
         expected = cleaned.get("expected_amount")
         if expected is None:
             expected = self.original_expected_amount
@@ -3399,10 +3474,31 @@ DealerVehicleRewardItemFormSet = inlineformset_factory(
 
 
 class BasePaymentRecordFormSet(forms.BaseInlineFormSet):
+    def get_queryset(self):
+        # 沖銷／退款為帳本調整紀錄，另以唯讀清單呈現，不進入可編輯明細。
+        return super().get_queryset().filter(entry_type=PaymentRecord.EntryType.RECEIPT)
+
     def clean(self):
         super().clean()
         if any(form.instance.system_key and form.cleaned_data.get("DELETE") for form in self.forms):
             raise forms.ValidationError("系統收款項目不可刪除；請調整金額並說明原因。")
+        # 標記刪除的列不跑單列驗證，須在此攔下已入帳收款。
+        if any(form.instance.pk and form.instance.confirmed and self._should_delete_form(form) for form in self.forms):
+            raise forms.ValidationError("已確認的收款不可刪除；如登記有誤，請以沖銷更正。")
+        seen = {}
+        for form in self.forms:
+            data = getattr(form, "cleaned_data", None) or {}
+            if data.get("DELETE") or not data.get("confirmed") or (form.instance.pk and form.instance.confirmed):
+                continue
+            if not data.get("received_amount") or not data.get("received_on"):
+                continue
+            key = (data.get("receipt_kind"), data["received_amount"], data["received_on"])
+            if key in seen and not (data.get("duplicate_confirmed") or seen[key].cleaned_data.get("duplicate_confirmed")):
+                raise forms.ValidationError(
+                    f"本次新增了兩筆同日同額（{data['received_amount']:,.0f} 元）的收款；"
+                    "如確實是兩筆款項，請在其中一筆勾選「確認非重複收款」。"
+                )
+            seen[key] = form
 
 
 PaymentRecordFormSet = inlineformset_factory(
@@ -3869,37 +3965,105 @@ class CancellationRequestForm(forms.Form):
 
 
 class RefundCompletionForm(forms.Form):
-    amount = forms.DecimalField(
-        label="退款金額", max_digits=12, decimal_places=0, min_value=0
+    """取消結算：填寫沒收金額，應退＝已確認淨實收－沒收，由系統計算。"""
+
+    forfeited_amount = forms.DecimalField(
+        label="沒收金額", max_digits=12, decimal_places=0, min_value=0, required=False,
+        help_text="依約定沒收訂金或扣除手續費；不沒收請填 0。",
     )
+    forfeit_reason = forms.CharField(label="沒收原因", max_length=250, required=False)
     completed_on = forms.DateField(label="退款完成日期", widget=DateInput())
-    method = forms.ChoiceField(label="退款方式", choices=SalesOrder.PaymentMethod.choices)
+    method = forms.ChoiceField(
+        label="退款方式", choices=[("", "請選擇"), *SalesOrder.PaymentMethod.choices], required=False,
+    )
     reference = forms.CharField(
         label="退款帳號／交易資訊", max_length=250, required=False
     )
     proof = forms.FileField(label="退款證明", required=False)
 
     def __init__(self, order, *args, **kwargs):
+        from sales.services.payment_ledger import ledger_totals
+
         self.order = order
         super().__init__(*args, **kwargs)
+        self.ledger = ledger_totals(order)
+        self.received = self.ledger["customer"]["net"]
         if not self.is_bound:
-            self.initial.update(
-                {"amount": order.deposit_amount, "completed_on": timezone.localdate()}
-            )
+            self.initial.update({"forfeited_amount": 0, "completed_on": timezone.localdate()})
         for field in self.fields.values():
             field.widget.attrs.setdefault("class", "form-control")
-        self.fields["amount"].widget.attrs["inputmode"] = "numeric"
+        self.fields["forfeited_amount"].widget.attrs.update(
+            {"inputmode": "numeric", "min": "0", "max": str(self.received), "data-refund-received": str(self.received)}
+        )
+        apply_mobile_keyboard_attrs(self)
 
-    def clean_amount(self):
-        amount = self.cleaned_data["amount"]
-        if amount != self.order.deposit_amount:
-            raise forms.ValidationError(
-                f"訂金必須全數退還，請填寫 {self.order.deposit_amount:,.0f} 元。"
-            )
-        return amount
+    @property
+    def unconfirmed_amount(self):
+        return self.ledger["customer"]["unconfirmed"] + self.ledger["lender"]["unconfirmed"]
+
+    def clean(self):
+        cleaned = super().clean()
+        forfeited = cleaned.get("forfeited_amount") or Decimal("0")
+        cleaned["forfeited_amount"] = forfeited
+        if forfeited > self.received:
+            self.add_error("forfeited_amount", f"沒收金額不可超過已收 {self.received:,.0f} 元。")
+        if forfeited and not (cleaned.get("forfeit_reason") or "").strip():
+            self.add_error("forfeit_reason", "有沒收金額時，請填寫沒收原因。")
+        if self.received - forfeited > 0 and not cleaned.get("method"):
+            self.add_error("method", "有應退金額時，請選擇退款方式。")
+        return cleaned
 
     def clean_proof(self):
         return validate_document_upload(self.cleaned_data.get("proof"))
+
+
+class PaymentReversalForm(forms.Form):
+    payment = forms.ModelChoiceField(label="要沖銷的收款", queryset=PaymentRecord.objects.none())
+    reason = forms.CharField(label="沖銷原因", max_length=250)
+
+    def __init__(self, order, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["payment"].queryset = PaymentRecord.objects.filter(
+            order=order, entry_type=PaymentRecord.EntryType.RECEIPT, confirmed=True,
+            received_amount__gt=0, reversal_entries__isnull=True,
+        ).order_by("received_on", "pk")
+        self.fields["payment"].label_from_instance = lambda item: (
+            f"{item.item_name}｜{item.received_amount:,.0f} 元｜{item.received_on or '未填日期'}"
+        )
+        for field in self.fields.values():
+            field.widget.attrs.setdefault("class", "form-control")
+
+    @property
+    def has_choices(self):
+        return self.fields["payment"].queryset.exists()
+
+
+class OverpaymentRefundForm(forms.Form):
+    KIND_CHOICES = (("customer", "客戶"), ("lender", "分期公司"))
+    kind = forms.ChoiceField(label="退還對象", choices=KIND_CHOICES)
+    amount = forms.DecimalField(label="退款金額", max_digits=12, decimal_places=0, min_value=1)
+    refunded_on = forms.DateField(label="退款日期", widget=DateInput())
+    method = forms.ChoiceField(label="退款方式", choices=SalesOrder.PaymentMethod.choices)
+    reference = forms.CharField(label="退款帳號／交易資訊", max_length=120, required=False)
+    reason = forms.CharField(label="退款原因", max_length=250)
+
+    def __init__(self, order, summary, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.overpaid = {
+            "customer": summary["customer_overpaid"], "lender": summary["lender_overpaid"],
+        }
+        choices = [(key, label) for key, label in self.KIND_CHOICES if self.overpaid[key] > 0]
+        self.fields["kind"].choices = choices or self.KIND_CHOICES[:1]
+        if not self.is_bound:
+            first = choices[0][0] if choices else "customer"
+            self.initial.update({"kind": first, "amount": self.overpaid[first], "refunded_on": timezone.localdate()})
+        for field in self.fields.values():
+            field.widget.attrs.setdefault("class", "form-control")
+        apply_mobile_keyboard_attrs(self)
+
+    @property
+    def has_overpayment(self):
+        return any(value > 0 for value in self.overpaid.values())
 
 
 class BusinessHolidayForm(forms.ModelForm):

@@ -41,4 +41,10 @@ def filter_payment_risk(orders, risk):
     if risk == 'unconfirmed':
         ids = PaymentRecord.objects.filter(received_amount__gt=0, confirmed=False).values('order_id')
         return orders.exclude(status__in=CANCELLED_STATUSES).filter(pk__in=ids)
+    if risk == 'overpaid':
+        from .payment_summary import payment_summary
+        candidates = orders.exclude(status__in=CANCELLED_STATUSES).filter(cash_receivable_v2=True).select_related('legacy_snapshot').prefetch_related('payment_records', 'accessories')
+        ids = [order.pk for order in candidates
+               if (summary := payment_summary(order))['customer_overpaid'] > 0 or summary['lender_overpaid'] > 0]
+        return orders.exclude(status__in=CANCELLED_STATUSES).filter(pk__in=ids)
     return orders

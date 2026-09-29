@@ -41,16 +41,30 @@ def payment_summary(order, records=None):
         delivery_due = max(customer_expected - deposit - (totals["customer"] - deposit_received), ZERO)
     # 有既定應收的舊實收列仍須各自收清；新自由收款列的應收為零。
     legacy_settled = all(p.is_settled for p in records if (historical or p.system_key not in EXPECTED_KEYS) and p.expected_amount > 0)
+    # 溢收只在系統建立的新口徑訂單推算；舊資料應收依據不完整，不自動判定多收。
+    overpay_known = order.cash_receivable_v2 and not historical
+    customer_overpaid = max(totals["customer"] - customer_expected, ZERO) if overpay_known else ZERO
+    lender_overpaid = max(totals["lender"] - lender_expected, ZERO) if overpay_known and order.payment_type == "installment" else ZERO
+    unconfirmed = sum((p.received_amount for p in records if not p.confirmed and p.received_amount > 0), ZERO)
     return dict(customer_expected=customer_expected, lender_expected=lender_expected,
                 customer_received=totals["customer"], lender_received=totals["lender"],
                 customer_due=customer_due, lender_due=lender_due,
+                customer_overpaid=customer_overpaid, lender_overpaid=lender_overpaid,
+                unconfirmed_received=unconfirmed,
                 customer_settled=delivery_due <= 0, delivery_due=delivery_due,
                 legacy_settled=legacy_settled,
                 settled=bool(customer_expected + lender_expected > 0 and customer_due <= 0 and lender_due <= 0 and legacy_settled))
 
 
+def effective_records(records):
+    """排除已被沖銷的收款與其沖銷列（兩者淨額為零）；退款列保留為實際退回。"""
+    records = list(records)
+    reversed_ids = {p.reverses_id for p in records if p.entry_type == "reversal" and p.reverses_id}
+    return [p for p in records if p.entry_type != "reversal" and p.pk not in reversed_ids]
+
+
 def disbursement_receipts(order, records=None):
-    records = list(order.payment_records.all()) if records is None else records
+    records = effective_records(order.payment_records.all() if records is None else records)
     if order.payment_type == "installment":
         return [p for p in records if p.confirmed and p.effective_receipt_kind == "lender"]
     if order.source_type == "platform":

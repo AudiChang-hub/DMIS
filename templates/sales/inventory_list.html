@@ -34,7 +34,6 @@
     <label for="inventory-status">狀態</label>
     <select id="inventory-status" name="status" multiple data-searchable-select="1" data-searchable-multiple="1" data-searchable-include-empty="1" data-searchable-empty-placeholder="1" data-searchable-search-icon="1" data-search-placeholder="搜尋狀態">
       <option value="">{% if selected.scope == 'history' %}全部歷史狀態{% else %}全部現有狀態{% endif %}</option>
-      {% if selected.scope == 'current' %}<option value="transfer" {% if "transfer" in selected.statuses %}selected{% endif %}>調車中（含待調車）</option>{% endif %}
       {% for value, label in statuses %}<option value="{{ value }}" {% if value in selected.statuses %}selected{% endif %}>{{ label }}</option>{% endfor %}
     </select>
   </div>

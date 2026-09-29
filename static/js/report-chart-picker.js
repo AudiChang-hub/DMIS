@@ -60,7 +60,7 @@ if (typeof document !== 'undefined') (() => {
       button.setAttribute('aria-expanded', 'false'); button.setAttribute('aria-controls', dialog.id);
       const update = () => {
         if (!Object.hasOwn(reportChartExamples, select.value)) return;
-        button.innerHTML = `${icon(select.value)}<span></span><span aria-hidden="true">⌄</span>`;
+        button.innerHTML = `${icon(select.value)}<span></span><span class="ui-chevron" aria-hidden="true"></span>`;
         const name = select.selectedOptions[0].text;
         button.querySelector('span').textContent = name;
         button.setAttribute('aria-label', `呈現方式：${name}，開啟圖像選擇器`);

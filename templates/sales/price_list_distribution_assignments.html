@@ -119,7 +119,7 @@
                   <option value="">未分配</option>
                   {% for user in users %}{% if user.is_active or user.pk == item.assigned_to_id %}<option value="{{ user.pk }}"{% if user.pk == item.assigned_to_id %} selected{% endif %}>{{ user.get_full_name|default:user.username }}{% if not user.is_active %}（已停用）{% endif %}</option>{% endif %}{% endfor %}
                 </select>
-                <span class="price-assignment-owner-control__chevron" aria-hidden="true"></span>
+                
               </div>
             </td>
           </tr>

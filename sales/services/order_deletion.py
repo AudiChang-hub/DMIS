@@ -45,10 +45,19 @@ def deletion_blockers(order):
         blockers.append("已交付或完成的交易不可直接刪除，須先處理交付與帳務更正。")
     if order.status == SalesOrder.Status.CANCEL_REFUND_PENDING:
         blockers.append("仍有退款待辦，請先完成退款。")
-    received = sum((p.received_amount or Decimal("0") for p in order.payment_records.all()), Decimal("0"))
-    money = max(received, order.deposit_amount or Decimal("0"))
-    if money and not (order.status == SalesOrder.Status.CANCELLED and order.refund_completed_on and order.refund_amount >= money):
-        blockers.append("有實收或訂金紀錄，請先完成取消及全額退款，不可用刪除代替沖銷。")
+    if order.refund_settled_legacy:
+        # 1.19.0 前完成的退款未記入帳本，沿用舊判斷。
+        received = sum((p.received_amount or Decimal("0") for p in order.payment_records.all()), Decimal("0"))
+        money = max(received, order.deposit_amount or Decimal("0"))
+        if money and not (order.status == SalesOrder.Status.CANCELLED and order.refund_completed_on and order.refund_amount >= money):
+            blockers.append("有實收或訂金紀錄，請先完成取消及全額退款，不可用刪除代替沖銷。")
+    else:
+        from .payment_ledger import ledger_totals
+        ledger = ledger_totals(order)
+        if order.forfeited_amount:
+            blockers.append("已沒收的訂金屬實際收入，不可刪除訂單。")
+        elif any(ledger[kind]["net"] or ledger[kind]["unconfirmed"] for kind in ledger):
+            blockers.append("有實收紀錄，請先完成取消及退款結算，不可用刪除代替沖銷。")
     if order.dealer_volume_bonus_allocations.exists():
         blockers.append("已有台數獎金結算，請先處理結算更正。")
     return blockers

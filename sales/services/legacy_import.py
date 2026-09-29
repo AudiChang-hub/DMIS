@@ -31,6 +31,7 @@ from sales.models import (
     normalize_legacy_master_value,
     normalize_vehicle_model_master_value,
     normalize_vehicle_identifier,
+    payment_ledger_maintenance,
 )
 
 
@@ -1470,11 +1471,14 @@ def _commit_sales_row(row, actor_name, *, pending_order=None):
         payment.payment_method = "現金／刷卡" if cash and card else ("刷卡" if card else "現金")
         payment.confirmed = bool(cash + card) and data["payment_confirmed"]
         payment.note = f"退訂換買家補匯：本次 Excel 現金 {cash}、刷卡 {card}；原買家款項未轉入。"
-        payment.save()
+        # 補匯是以 Excel 原始列重建同一筆尾款，屬受控批次，不走一般收款防改。
+        with payment_ledger_maintenance():
+            payment.save()
     else:
         for key, amount, method in (("legacy_cash", data["cash_received"], "cash"), ("legacy_card", data["card_received"], "card")):
             if _decimal(amount):
-                PaymentRecord.objects.create(order=order, system_key=key, item_name="歷史收款", expected_amount=_decimal(amount), received_amount=_decimal(amount), received_on=order_date, payment_method=method, confirmed=data["payment_confirmed"])
+                with payment_ledger_maintenance():
+                    PaymentRecord.objects.create(order=order, system_key=key, item_name="歷史收款", expected_amount=_decimal(amount), received_amount=_decimal(amount), received_on=order_date, payment_method=method, confirmed=data["payment_confirmed"])
     LegacySalesSnapshot.objects.create(
         order=order, import_row=row,
         historical_received_price=_decimal(data["historical_received_price"]),

@@ -312,18 +312,24 @@ class CustomerBalanceDeliveryTests(TestCase):
         order, vehicle = self.make_order(deposit=0)
         SalesOrder.objects.filter(pk=order.pk).update(payment_type='installment', cash_receivable_v2=True, actual_balance=90008, balance_adjustment_reason='隔離測試的歷史總額', installment_amount=0, registration_completed_at=timezone.now(), status=SalesOrder.Status.DELIVERY_PENDING)
         order.refresh_from_db()
+        from sales.models import PaymentRecord
+        from sales.services.payment_ledger import reverse_payment
         payment = order.payment_records.get(system_key='balance')
         payment.expected_amount = 208
         payment.expected_amount_overridden = True
-        for received, confirmed in [(207, True), (208, False)]:
-            payment.received_amount = received
-            payment.confirmed = confirmed
-            payment.save()
-            with self.assertRaises(ValidationError):
-                order.complete_delivery(timezone.now(), 'admin')
-        payment.received_amount = 208
+        payment.received_amount = 207
         payment.confirmed = True
         payment.save()
+        with self.assertRaises(ValidationError):
+            order.complete_delivery(timezone.now(), 'admin')
+        # 已入帳的短收只能沖銷後重新登記；未確認的更正列仍不能放行交付。
+        reverse_payment(order_id=order.pk, payment_id=payment.pk, actor_name='admin', reason='短收登記錯誤')
+        corrected = PaymentRecord.objects.create(order=order, item_name='尾款更正', received_amount=208,
+                                                 received_on=timezone.localdate(), payment_method='現金')
+        with self.assertRaises(ValidationError):
+            order.complete_delivery(timezone.now(), 'admin')
+        corrected.confirmed = True
+        corrected.save()
         order.complete_delivery(timezone.now(), 'admin')
         order.refresh_from_db()
         self.assertTrue(order.is_delivered)

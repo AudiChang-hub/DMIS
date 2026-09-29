@@ -167,12 +167,13 @@
 {% endif %}
 {% if order.status == "cancel_refund_pending" %}
 <section class="section-block cancellation-panel urgent-panel">
-  <div class="section-title"><div><p class="eyebrow">取消處理</p><h2>訂金尚待全額退款</h2></div><span>${{ order.deposit_amount|number_with_commas }}</span></div>
-  <p>取消原因：{{ order.cancellation_reason }}。退款完成前，訂單仍維持「取消待退款」。</p>
+  <div class="section-title"><div><p class="eyebrow">取消處理</p><h2>取消待退款結算</h2></div><span>已收 ${{ refund_form.received|number_with_commas }}</span></div>
+  <p>取消原因：{{ order.cancellation_reason }}。應退金額＝已確認實收 ${{ refund_form.received|number_with_commas }}－沒收金額；結算完成前，訂單仍維持「取消待退款」。</p>
+  {% if refund_form.unconfirmed_amount %}<p class="note-box">尚有 ${{ refund_form.unconfirmed_amount|number_with_commas }} 已登記但未確認的實收，請先到金額收支確認或清除，才能結算退款。</p>{% endif %}
   <form method="post" enctype="multipart/form-data" action="{% url 'refund_complete' order.pk %}" class="form-grid compact-grid">
     {% csrf_token %}
-    {% for field in refund_form %}<div><label for="{{ field.id_for_label }}">{{ field.label }}{% if field.field.required %} <span class="required-inline">必填</span>{% endif %}</label>{{ field }}</div>{% endfor %}
-    <div class="wide"><button class="button primary" type="submit" data-confirm="確認訂金已全額退還，並完成取消訂單嗎？">確認退款並完成取消</button></div>
+    {% for field in refund_form %}<div><label for="{{ field.id_for_label }}">{{ field.label }}{% if field.field.required %} <span class="required-inline">必填</span>{% endif %}</label>{{ field }}{% if field.help_text %}<small class="muted">{{ field.help_text }}</small>{% endif %}</div>{% endfor %}
+    <div class="wide"><button class="button primary" type="submit" data-confirm="確認已依應退金額完成退款，並完成取消訂單嗎？">確認結算並完成取消</button></div>
   </form>
 </section>
 {% elif order.status == "cancelled" %}
@@ -182,6 +183,7 @@
     <div><dt>取消原因</dt><dd>{{ order.cancellation_reason }}</dd></div>
     <div><dt>登記人員</dt><dd>{{ order.cancellation_requested_by }}</dd></div>
     <div><dt>退款金額</dt><dd>${{ order.refund_amount|number_with_commas }}</dd></div>
+    {% if order.forfeited_amount %}<div><dt>沒收金額</dt><dd>${{ order.forfeited_amount|number_with_commas }}</dd></div><div><dt>沒收原因</dt><dd>{{ order.forfeit_reason }}</dd></div>{% endif %}
     {% if order.refund_completed_on %}<div><dt>退款日期</dt><dd>{{ order.refund_completed_on|date:"Y/m/d" }}</dd></div>{% endif %}
     {% if order.refund_method %}<div><dt>退款方式</dt><dd>{{ order.get_refund_method_display }}</dd></div>{% endif %}
   </dl>
@@ -205,7 +207,7 @@
     {% csrf_token %}
     {% for field in cancellation_form %}<div class="{% if field.name == 'note' %}wide{% endif %}"><label for="{{ field.id_for_label }}">{{ field.label }}{% if field.field.required %} <span class="required-inline">必填</span>{% endif %}</label>{{ field }}</div>{% endfor %}
     <div class="wide cancellation-disclosure__actions">
-      <p class="cancellation-disclosure__notice"><strong>送出前請確認</strong>登記取消後，已配車輛會解除預留；若已收訂金，必須全額退款後才算取消完成。</p>
+      <p class="cancellation-disclosure__notice"><strong>送出前請確認</strong>登記取消後，已配車輛會解除預留；若已有確認實收，須完成退款結算（可依約定沒收部分款項）後才算取消完成。分期公司已撥款的訂單不能取消。</p>
       <button class="button danger" type="submit" data-confirm="確定登記取消這張訂單嗎？">登記取消訂單</button>
     </div>
   </form>

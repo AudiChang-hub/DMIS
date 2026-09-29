@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "permissions": {
+    "deny": [
+      "Read(./.env)",
+      "Read(./.env.django)",
+      "Read(./.env.local)",
+      "Read(./backups/**)",
+      "Bash(git push --force *)",
+      "Bash(git push -f *)",
+      "Bash(git reset --hard *)",
+      "Bash(git clean *)",
+      "Bash(docker compose down *)",
+      "PowerShell(git push --force *)",
+      "PowerShell(git push -f *)",
+      "PowerShell(git reset --hard *)",
+      "PowerShell(git clean *)",
+      "PowerShell(docker compose down *)"
+    ],
+    "ask": [
+      "Bash(git push *)",
+      "Bash(git tag *)",
+      "Bash(ssh *)",
+      "Bash(scp *)",
+      "Bash(docker compose *)",
+      "PowerShell(git push *)",
+      "PowerShell(git tag *)",
+      "PowerShell(ssh *)",
+      "PowerShell(scp *)",
+      "PowerShell(docker compose *)"
+    ]
+  }
+}

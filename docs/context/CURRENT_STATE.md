@@ -1,13 +1,16 @@
 # 目前狀態
 
-核對日期：2026-09-19（本機原始碼；不代表重新驗證正式環境）。
+核對日期：2026-09-29（唯讀核對；未部署、未改正式資料）。
 
-- 應用版本：**1.11.0**，來源 `config/release_notes.py`；發布規範見 [RELEASE_POLICY](../RELEASE_POLICY.md)。
-- 技術棧：Python 3.12、Django 5.2、Templates／HTMX、Channels／Daphne、RQ、PostgreSQL 16、Redis 7；本機可用 SQLite。Docker／Nginx／Cloudflare Tunnel 部署。
-- 主要模組：選車接待、訂單與交付、收支／佣金／補助、庫存與車款、車行帳號與畫面授權、報表、歷史 Excel 匯入。
-- 最近重要功能：訂單資訊、金額收支、補助三頁籤整合工作區；接待下單與內部管理分離；金額編輯授權。
-- 開發環境：AI Context 分層、任務定位器與工具限制已建立；八項檢查及新工作階段定位驗收通過，不更動應用 runtime 或資料庫。
-- 待辦：使用者指定五組重複訂單的合併尚未執行；需要回到該任務時重新核對正式資料、財務衝突、附件與備份，不可當成已完成或自動執行。
-- 已知限制：舊 Odoo 規格只供追溯；歷史「姓名＋車身／引擎號」合併需求不是目前 importer 全域唯一鍵。UI 自動測試不能替代實機驗收。全域 CLI 舊模型被帳號拒絕，永久偏好未改，驗收使用暫時模型。
+- 應用版本：**1.17.3**，來源 `config/release_notes.py`；發布規範見 [RELEASE_POLICY](../RELEASE_POLICY.md)。
+- 版本位置：
+  - 遠端 main 為 `985a071`（含 1.17.3 `d3082a1` 及受眾規則補充）。
+  - 正式站依交接為 1.17.2 `615b1ae`（= 標籤 v1.17.2）；公開健康檢查 200，部署 SHA 因 SSH 無權限未重新核對。
+  - 遠端無 `v1.17.3` 標籤。1.17.3 已進 main、**未發布**；不得自行補標籤、部署或回退，待使用者指定。
+- 分支 `claude/code-setup`（未 push、未合併 main）：風險分級政策與 Claude Code 設定分兩個提交。
+- 正式主機 SSH：Windows 端 `t470p` 無可用金鑰（ssh-agent 停用）；維運前須由使用者補齊，不自行改登入設定。
+- 技術棧：Python 3.12、Django 5.2、Templates／HTMX、Channels／Daphne、RQ、PostgreSQL 16、Redis 7；本機可用 SQLite。
+- 開發工具：Codex 與 Claude Code 並存；Claude 入口 `CLAUDE.md` 匯入 AGENTS，工具狀態見 [AI_TOOL_POLICY](../reference/AI_TOOL_POLICY.md)。
+- 待核對：舊交接提到的五組訂單合併，**狀態待核對**；不可視為未完成或已完成，不可自動執行，等使用者另行指定。
+- 已知限制：舊 Odoo 規格只供追溯；「姓名＋車身／引擎號」合併需求不是 importer 全域唯一鍵。UI 自動測試不能替代實機驗收。
 - 下一步：依新需求從 [AGENTS](../../AGENTS.md) 路由定位；接手未完工作才讀 [HANDOFF](HANDOFF.md)。
-- 特別注意：正式資料修正須明確範圍、可回復備份與連動驗證；本機 Git／測試結果不代表已部署。

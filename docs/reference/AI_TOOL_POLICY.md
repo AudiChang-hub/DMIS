@@ -43,7 +43,19 @@ On Demand 不代表已從平台永久卸載；本輪已注入的歷史、工具�
 5. 要回復全域：先保存回復當下檔案，再將上述備份兩檔 Copy-Item 回原位置；只回復這兩個已確認路徑，不遞迴覆寫整個 .codex。
 6. 專案用本次 commit 的 `git revert`（先確認工作樹），不用 reset --hard。封存原文保留；沒有刪除 backups、log 或輸出。
 
+## Claude Code（2026-09-29 交接）
+
+- 版本 2.1.284，隨 Desktop 安裝於 `%APPDATA%/Claude/claude-code/`；shell PATH 無 `claude`，未重裝。
+- 入口：[CLAUDE.md](../../CLAUDE.md) 以 `@AGENTS.md` 匯入。依官方文件，2.1.277 起無 CLAUDE.md 時才 fallback 讀 AGENTS.md；被匯入的 AGENTS.md 不重複載入。
+- 共享設定 [.claude/settings.json](../../.claude/settings.json) 只含 `permissions`：deny 讀 `.env*` 正式檔／backups 與破壞性 Git、`docker compose down`；ask push、tag、ssh、scp、docker compose。無 hooks、無 MCP、不跳過權限確認。
+- 機器限定：`.claude/settings.local.json`、`CLAUDE.local.md` 已列入 .gitignore；全域 `~/.claude` 未改。
+- 未設定：專案 MCP、專案 Skills。Codex Skills／插件不搬移；有明確需求再按需建立。
+- 驗證：新工作階段以 `/memory` 或 `/context` 查看「Memory files」，應只見 CLAUDE.md 與匯入的 AGENTS.md。
+- 回復：刪除 `CLAUDE.md`、`.claude/settings.json` 並還原 `.gitignore` 兩行即回到交接前狀態（未提交前可用 `git restore .gitignore`）。
+
 ## 官方依據
+
+- [Claude Code memory](https://code.claude.com/docs/en/memory)、[settings](https://code.claude.com/docs/en/settings)、[MCP](https://code.claude.com/docs/en/mcp)
 
 - [AGENTS 載入與專案規則](https://learn.chatgpt.com/docs/agent-configuration/agents-md)
 - [設定範例：工具輸出、子代理、Skills 與 MCP](https://learn.chatgpt.com/es-419/docs/config-file/config-sample)

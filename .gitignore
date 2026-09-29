@@ -22,6 +22,8 @@ tmp/
 output_report/.~lock.*
 .auto-deploy/
 .codex-tmp/
+.claude/settings.local.json
+CLAUDE.local.md
 backups/
 media/
 staticfiles/

@@ -1,41 +1,39 @@
 # Handoff
 
-更新日期：2026-09-19
+更新日期：2026-09-29
 
 ## 本次完成
 
-使用者批准 B：建立全域／repo 規則、Hot／Warm／Cold 分層、精簡 README、歷史原文封存與相容入口、工具分級與限制。
-本次沒有改應用邏輯、正式資料或執行部署。
+開發工具由 Codex 交接到 Claude Code：建立精簡 `CLAUDE.md`（匯入 AGENTS）、共享 `.claude/settings.json`、本機檔忽略規則，並更新 CURRENT_STATE。
+未改業務程式、正式資料、權限、部署流程；在分支 `claude/code-setup` 分兩個提交（未 push、未合併 main）、未發布、未刪除 Codex 設定或 archive。
 
 ## 修改檔案
 
-AGENTS、.codex/config.toml、docs/context、docs/architecture、docs/reference、docs/archive；
-README、CONSTITUTION、Gemini／Copilot／prompts、歷史 PR 導向、.gitignore、specs/055-least-context、tests/context、tools/context_lookup.py 及 CI 的 Context 檢查步驟。
-本機全域兩檔先備份於 %USERPROFILE%/.codex/backups/least-context-20260919/，不納入 repo。
+新增 `CLAUDE.md`、`.claude/settings.json`；修改 `.gitignore`、`docs/context/CURRENT_STATE.md`、本檔、`docs/reference/AI_TOOL_POLICY.md`（Claude 小節）。
+使用者的 `AGENTS.md`、`docs/RELEASE_POLICY.md`、`docs/reference/DEVELOPMENT.md` 原樣獨立提交，未修改內容。
 
 ## 驗證結果
 
-- 八項 unittest 全通過：Hot 大小、路由、bounded lookup、連結、設定、ignore、封存 SHA-256、交接格式。
-- 15 份封存與原提交 9b83d43 原文一致（統一換行與檔尾空白）；沒有刪除備份或歷史。
-- config/read 確認專案層有效，skills/list 列 12 份且零錯誤；exec --strict-config 實際載入通過。
-- 最終新工作階段：一次 shell 操作讀現況／Git 狀態並執行兩個定位器，正確找到 catalog() 與 _sales_transaction_key() 後停止；未開 Browser、DB 或改檔。
-- check_release 通過，應用維持 1.11.0；未執行 Django 全套測試、正式部署與正式資料驗證，因本次沒有相關異動。
-- 變更在 codex/least-context-architecture 獨立分支保存，不合併 main、不發布應用。驗證細節見 [CONTEXT_VALIDATION](../reference/CONTEXT_VALIDATION.md)。
+- Claude Code 2.1.284 位於 Desktop 內建路徑，shell PATH 無 `claude`。
+- 遠端 main 為 `985a071`；遠端標籤最新 v1.17.2 = `615b1ae`。
+- 公開健康檢查 200；SSH `t470p` 以 BatchMode 被拒（publickey），正式部署 SHA 未重新核對。
+- `tests/context` 8 項通過；settings.json 可解析，local 檔確認被忽略；重開後的工作階段已由 CLAUDE.md 載入；是否重複載入 AGENTS 仍以 `/context`「Memory files」確認。
 
 ## 尚未完成
 
-先前使用者指定的五組訂單合併尚未執行；本次 AI 環境工作不包含資料清理。恢復時依使用者已確認範圍重新檢查來源／主單、財務衝突、附件及備份，不依聊天摘要直接寫庫。
+- 1.17.3 已在 main、正式站仍 1.17.2，是否發布待使用者指定。
+- 舊交接的五組訂單合併：狀態待核對，未執行也不得自動執行。
+- `claude/code-setup` 是否 push／合併 main，待使用者指定。
 
 ## 已知風險
 
-全域 CLI 原模型 gpt-5.3-codex-spark 已被帳號拒絕，永久設定未變；最終唯讀驗收暫用帳號 model/list 回報可用的 gpt-5.6-sol，未替使用者永久選新模型。
-本輪已有提示無法移除；新工作階段才是驗證設定的基準。Desktop 平台工具不一定能由 repo 設定移除。
-舊文件封存保留原文及相對路徑語境，不能照歷史指令操作正式服務。
+- `rg` 只存在 Codex 安裝目錄，不在 PATH；Claude 內建 Grep 可用，獨立 rg 未安裝。
+- Docker CLI 存在但 daemon 未執行。SSH `t470p` 在 Windows 端未指定金鑰、`~/.ssh` 無對應預設金鑰、ssh-agent 停用；需使用者補齊，未改登入設定。
+- CI 尚未依風險分流，屬另項待核准工作。
 
 ## 下一步
 
-新工作階段重新載入工具設定；新任務從 CURRENT_STATE 及 AGENTS 路由進入，不自動續跑正式資料合併。
-如要直接用 CLI，先由使用者選擇支援的模型或明確指定臨時 -m；不要悄悄覆寫全域模型偏好。
+新任務從 CURRENT_STATE 及 AGENTS 路由進入；不自動續跑舊聊天任務或正式資料合併。
 
 ## 下一位 Agent 建議先看
 

@@ -7,7 +7,7 @@
   - main：**1.17.3**，遠端 main `985a071`（含 `d3082a1` 頁首日期時間及受眾規則補充）。
   - 正式站：**1.17.2** `615b1ae`（= 標籤 v1.17.2）；2026-09-29 以 SSH 唯讀核對工作樹 main 乾淨、HEAD 與 deployed-sha 一致；健康檢查 200。
   - 遠端無 `v1.17.3` 標籤。1.17.3 已進 main、**未發布**；不得自行補標籤、部署或回退，待使用者指定。
-- 分支 `claude/code-setup`（未 push、未合併 main）：風險分級政策、Claude Code 設定、交接現況共三個提交。
+- 交接分支 `claude/code-setup` 已推送遠端備存，尚未合併 main；是否與遠端同步以當次 Git 查詢為準，正式站版本需獨立核對。
 - 正式主機 SSH 連線方式見 [HANDOFF](HANDOFF.md)「已知風險」；僅授權維運時使用。
 - 技術棧：Python 3.12、Django 5.2、Templates／HTMX、Channels／Daphne、RQ、PostgreSQL 16、Redis 7；本機可用 SQLite。
 - 開發工具：Codex 與 Claude Code 並存；Claude 入口 `CLAUDE.md` 匯入 AGENTS，工具狀態見 [AI_TOOL_POLICY](../reference/AI_TOOL_POLICY.md)。

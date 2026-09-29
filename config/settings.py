@@ -120,7 +120,13 @@ RQ_QUEUES = {
         "URL": REDIS_URL or "redis://localhost:6379/0",
         "DEFAULT_TIMEOUT": 3600,
     },
+    "notifications": {
+        "URL": REDIS_URL or "redis://localhost:6379/0",
+        "DEFAULT_TIMEOUT": 60,
+    },
 }
+# 通知 Email 通道：未設定 SMTP 前一律略過（狀態記為「未設定通道」），系統內通知不受影響。
+DMIS_NOTIFICATION_EMAIL_ENABLED = os.environ.get("DMIS_NOTIFICATION_EMAIL_ENABLED", "").lower() in {"1", "true", "yes"}
 CHANNEL_LAYERS = {
     "default": (
         {

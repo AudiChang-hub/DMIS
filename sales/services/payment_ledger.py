@@ -220,6 +220,11 @@ def complete_cancellation_refund(order, *, actor_name, forfeited_amount, complet
         changes={"取消結算": {"before": f"已收 {received:,.0f}", "after": f"沒收 {forfeited:,.0f}／退款 {refund:,.0f}"}},
         description=description + "；訂單完成取消",
     )
+    from .invoices import invoice_attention
+    from .notifications import notify
+    attention = invoice_attention(locked)
+    notify("cancellation_settled", locked, f"訂單 {locked.number} 取消結算完成",
+           description + (f"。{attention}" if attention else ""))
     for name in ("refund_amount", "forfeited_amount", "forfeit_reason", "refund_completed_on", "refund_method",
                  "refund_reference", "refund_proof", "cancellation_completed_at", "cancellation_completed_by", "status"):
         setattr(order, name, getattr(locked, name))

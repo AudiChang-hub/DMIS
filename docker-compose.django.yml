@@ -76,7 +76,7 @@ services:
       args:
         DJANGO_UID: "${DJANGO_UID:-1000}"
         DJANGO_GID: "${DJANGO_GID:-1000}"
-    command: python manage.py rqworker search --worker-class rq.worker.SimpleWorker
+    command: python manage.py rqworker search notifications --worker-class rq.worker.SimpleWorker
     env_file:
       - path: .env.django
         required: false

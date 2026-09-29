@@ -310,7 +310,7 @@ class CustomerBalanceDeliveryTests(TestCase):
     def test_delivery_uses_adjusted_receivable_and_rejects_short_or_unconfirmed(self):
         from django.core.exceptions import ValidationError
         order, vehicle = self.make_order(deposit=0)
-        SalesOrder.objects.filter(pk=order.pk).update(payment_type='installment', cash_receivable_v2=True, actual_balance=90008, balance_adjustment_reason='隔離測試的歷史總額', installment_amount=0, registration_completed_at=timezone.now(), status=SalesOrder.Status.DELIVERY_PENDING)
+        SalesOrder.objects.filter(pk=order.pk).update(payment_type='installment', installment_status='approved', cash_receivable_v2=True, actual_balance=90008, balance_adjustment_reason='隔離測試的歷史總額', installment_amount=0, registration_completed_at=timezone.now(), status=SalesOrder.Status.DELIVERY_PENDING)
         order.refresh_from_db()
         from sales.models import PaymentRecord
         from sales.services.payment_ledger import reverse_payment

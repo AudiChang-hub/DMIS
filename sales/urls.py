@@ -404,6 +404,16 @@ urlpatterns = [
         name="refund_complete",
     ),
     path(
+        "orders/<int:pk>/installment/decision/",
+        views.installment_decision_update,
+        name="installment_decision_update",
+    ),
+    path(
+        "orders/<int:pk>/exception-close/",
+        views.order_exception_close,
+        name="order_exception_close",
+    ),
+    path(
         "orders/<int:pk>/payments/reverse/",
         views.payment_reverse,
         name="payment_reverse",

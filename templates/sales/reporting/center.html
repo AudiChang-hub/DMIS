@@ -1,6 +1,6 @@
 {% extends 'sales/reporting/layout.html' %}{% load site_copy %}
 {% block title %}報表中心{% endblock %}
 {% block report_content %}
-<header class="report-heading"><div><p class="eyebrow">從數字找到原因</p><h1>報表中心</h1><p>{% site_text 'center.34a045be48f5' %}</p></div></header>
-<section class="report-panel report-empty"><h2>目前沒有可查看的報表</h2><p>{% site_text 'center.d908ac991f81' %}</p></section>
+<header class="report-heading hero-row compact-hero"><div><p class="eyebrow">從數字找到原因</p><h1>報表中心</h1><p class="muted">{% site_text 'center.34a045be48f5' %}</p></div></header>
+<section class="report-panel report-empty empty-state"><h2>目前沒有可查看的報表</h2><p>{% site_text 'center.d908ac991f81' %}</p></section>
 {% endblock %}

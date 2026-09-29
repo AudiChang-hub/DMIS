@@ -2,7 +2,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 
-const css = fs.readFileSync('static/css/ppt-refinements.css', 'utf8');
+const css = fs.readFileSync('static/css/app.css', 'utf8');
 test('配件卡片有明確間距，平板名稱欄不跨滿整列', () => {
   assert.match(css, /\.accessory-section #accessory-forms\{display:grid;gap:24px;/);
   assert.match(css, /\.accessory-section \.accessory-row>\.field:first-of-type\{grid-column:auto;padding-right:0\}/);

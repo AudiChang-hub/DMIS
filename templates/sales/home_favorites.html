@@ -3,7 +3,7 @@
 {% block page_class %}favorites-page{% endblock %}
 {% block content %}
 {% site_navigation %}
-<header class="hero-row"><div><p class="eyebrow">個人首頁設定</p><h1>編輯常用功能</h1><p>{% site_text 'home_favorites.cf96b5fd5dbe' %}</p><p class="muted">設定帳號：{{ user.get_full_name|default:user.username }}（@{{ user.username }}）・只影響你的首頁</p></div></header>
+<header class="hero-row compact-hero"><div><p class="eyebrow">個人首頁設定</p><h1>編輯常用功能</h1><p>{% site_text 'home_favorites.cf96b5fd5dbe' %}</p><p class="muted">設定帳號：{{ user.get_full_name|default:user.username }}（@{{ user.username }}）・只影響你的首頁</p></div></header>
 {% if favorite_error %}<div class="favorite-error" role="alert">{{ favorite_error }}</div>{% endif %}
 <form method="post" action="{% url 'home_favorites' %}" class="favorites-editor" data-favorites-form>
   {% csrf_token %}<input type="hidden" name="expected_version" value="{{ favorite_version }}"><input type="hidden" name="order" value="" data-favorites-order>

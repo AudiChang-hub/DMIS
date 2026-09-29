@@ -83,7 +83,7 @@
       </th>
     {% endif %}{% endfor %}</tr></thead>
     <tbody>{% for order in orders %}<tr>
-      <td>{{ order.established_display }}{% if_access 'order_delete' order.pk %}<small><a class="button danger-ghost small" href="{% url 'order_delete' order.pk %}" aria-label="刪除訂單 {{ order.number }}">刪除訂單</a></small>{% endif_access %}</td>
+      <td>{{ order.established_display }}{% if_access 'order_delete' order.pk %}<small><a class="button danger-outline small" href="{% url 'order_delete' order.pk %}" aria-label="刪除訂單 {{ order.number }}">刪除訂單</a></small>{% endif_access %}</td>
       <td>{{ order.registration_display }}</td>
       <td>{{ order.final_plate_number|default:"—" }}</td>
       <td class="order-table-owner"><a class="order-owner-link" href="{% url 'order_detail' order.pk %}"><strong>{{ order.owner_name }}</strong><small>{{ order.number }}</small></a>{% if order.search_matches %}<small class="search-match-list" data-profit-value>{% for match in order.search_matches|slice:":6" %}<span>{{ match.label }}：<mark>{{ match.value }}</mark></span>{% endfor %}</small>{% endif %}</td>

@@ -30,6 +30,6 @@
   </div>
 </form>
 {% if is_editing %}
-<form id="delete-cost-rule" method="post" action="{% url 'settlement_cost_rule_delete' rule.pk %}" onsubmit="return confirm('確定刪除此成本版本？已被訂單採用的版本不會允許刪除。');">{% csrf_token %}</form>
+<form id="delete-cost-rule" method="post" action="{% url 'settlement_cost_rule_delete' rule.pk %}" data-confirm="確定刪除此成本版本？已被訂單採用的版本不會允許刪除。">{% csrf_token %}</form>
 {% endif %}
 {% endblock %}

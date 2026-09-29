@@ -104,8 +104,8 @@ function initReportOverviewTools(chart) {
     const dialog = document.createElement('dialog'); dialog.className = 'report-image-export'; dialog.setAttribute('aria-label','匯出圖表圖片');
     const heading = document.createElement('h2'); heading.textContent = '圖表圖片已準備好';
     const preview = document.createElement('img'); preview.src = uri; preview.alt = chart.querySelector('h2').textContent + ' PNG 預覽';
-    const link = document.createElement('a'); link.className = 'button'; link.download = `${chart.querySelector('h2').textContent}.png`; link.href = uri; link.textContent = '下載 PNG';
-    const close = document.createElement('button'); close.type='button'; close.className='button secondary'; close.textContent='關閉預覽'; close.addEventListener('click',()=>dialog.close());
+    const link = document.createElement('a'); link.className = 'button primary'; link.download = `${chart.querySelector('h2').textContent}.png`; link.href = uri; link.textContent = '下載 PNG';
+    const close = document.createElement('button'); close.type='button'; close.className='button ghost'; close.textContent='關閉預覽'; close.addEventListener('click',()=>dialog.close());
     dialog.append(heading,preview,link,close); document.body.append(dialog);
     dialog.addEventListener('close',()=>{ URL.revokeObjectURL(uri); dialog.remove(); summary.focus(); },{once:true});
     menu.open = false; dialog.showModal();

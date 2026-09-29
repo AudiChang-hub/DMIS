@@ -47,7 +47,7 @@ On Demand 不代表已從平台永久卸載；本輪已注入的歷史、工具�
 
 - 版本 2.1.284，隨 Desktop 安裝於 `%APPDATA%/Claude/claude-code/`；shell PATH 無 `claude`，未重裝。
 - 入口：[CLAUDE.md](../../CLAUDE.md) 以 `@AGENTS.md` 匯入。依官方文件，2.1.277 起無 CLAUDE.md 時才 fallback 讀 AGENTS.md；被匯入的 AGENTS.md 不重複載入。
-- 共享設定 [.claude/settings.json](../../.claude/settings.json) 只含 `permissions`：deny 讀 `.env*` 正式檔／backups 與破壞性 Git、`docker compose down`；ask push、tag、ssh、scp、docker compose。無 hooks、無 MCP、不跳過權限確認。
+- 共享設定 [.claude/settings.json](../../.claude/settings.json) 只含 `permissions`：deny 讀 `.env*` 正式檔／backups 與破壞性 Git、`docker compose down`。無 ask 規則：push、tag、ssh、scp、docker compose 與依發布規範的部署已常態授權（2026-09-29）；寫正式資料仍須明確要求。無 hooks、無 MCP。
 - 機器限定：`.claude/settings.local.json`、`CLAUDE.local.md` 已列入 .gitignore；全域 `~/.claude` 未改。
 - 未設定：專案 MCP、專案 Skills。Codex Skills／插件不搬移；有明確需求再按需建立。
 - 驗證：新工作階段以 `/memory` 或 `/context` 查看「Memory files」，應只見 CLAUDE.md 與匯入的 AGENTS.md。

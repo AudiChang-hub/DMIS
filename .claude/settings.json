@@ -16,18 +16,6 @@
       "PowerShell(git reset --hard *)",
       "PowerShell(git clean *)",
       "PowerShell(docker compose down *)"
-    ],
-    "ask": [
-      "Bash(git push *)",
-      "Bash(git tag *)",
-      "Bash(ssh *)",
-      "Bash(scp *)",
-      "Bash(docker compose *)",
-      "PowerShell(git push *)",
-      "PowerShell(git tag *)",
-      "PowerShell(ssh *)",
-      "PowerShell(scp *)",
-      "PowerShell(docker compose *)"
     ]
   }
 }

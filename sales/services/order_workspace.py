@@ -18,6 +18,32 @@ def finance_allowed(request):
     return policy.screen('order_finance') and policy.route('order_operations') and not policy.dealer
 
 
+def payment_ledger_context(order, summary=None):
+    """帳本調整紀錄與沖銷／退還溢收入口；已取消訂單只保留唯讀紀錄。"""
+    from sales.forms import OverpaymentRefundForm, PaymentReversalForm
+    from sales.models import PaymentRecord
+    from sales.services.payment_ledger import settlement_gap
+
+    summary = summary or payment_summary(order)
+    active = not order.is_cancelled_sale
+    reversal_form = PaymentReversalForm(order) if order.status != SalesOrder.Status.CANCELLED else None
+    refund_form = OverpaymentRefundForm(order, summary) if active else None
+    return {
+        'ledger_adjustments': list(order.payment_records.exclude(entry_type=PaymentRecord.EntryType.RECEIPT).select_related('reverses').order_by('pk')),
+        'payment_reversal_form': reversal_form if reversal_form and reversal_form.has_choices else None,
+        'overpayment_refund_form': refund_form if refund_form and refund_form.has_overpayment else None,
+        'settlement_gap': settlement_gap(order, summary),
+        'payments_read_only': order.status == SalesOrder.Status.CANCELLED,
+    }
+
+
+def payment_formset_for(order, data=None, files=None):
+    return PaymentRecordFormSet(
+        data, files, instance=order, prefix='payments',
+        form_kwargs={'read_only': order.status == SalesOrder.Status.CANCELLED},
+    )
+
+
 def finance_context(request, order):
     if not finance_allowed(request):
         return {}
@@ -27,14 +53,16 @@ def finance_context(request, order):
     operations_form = OrderOperationsForm(instance=profile, prefix='operations')
     for name in ('subsidy_amount', 'subsidy_applied_on'):
         operations_form.fields[name].disabled = True
+    summary = payment_summary(order)
     return {
+        **payment_ledger_context(order, summary),
         'workspace_finance': True,
         'workspace_finance_editable': can_edit_finance(request.user) and policy_for(request).route('order_operations', 'POST'),
         'workspace_discount_editable': can_edit_finance(request.user) and policy_for(request).route('order_discount_decide', 'POST'),
         'profile': profile,
         'operations_form': operations_form,
-        'payment_formset': PaymentRecordFormSet(instance=order, prefix='payments'),
-        'receipt_summary': payment_summary(order),
+        'payment_formset': payment_formset_for(order),
+        'receipt_summary': summary,
         'manual_financial_fields': profile.manual_financial_fields or [],
         'is_electric': order.vehicle_model.energy_type != 'gas',
         'discount_request_form': DiscountRequestForm(initial={'amount': order.discount_requested_amount or None, 'reason': order.discount_reason}),
@@ -53,7 +81,7 @@ def apply_inline_discount(request, order, form):
     if str(order.revision) != request.POST.get('_order_revision'):
         return save_error('訂單已更新，請重新載入再調整折扣。', status=409)
     if not order.is_editable:
-        return save_error('此訂單狀態不可調整折扣。')
+        return save_error('此訂單狀態不可調整折扣（已交付、完成或進入取消流程）。')
     if not form.is_valid():
         return save_error('折扣未儲存，請修正欄位。', forms=(form,))
     before = order.approved_discount_amount
@@ -106,14 +134,16 @@ def saved(request, order, *, form=None, formsets=()):
     payment_values = {}
     if profile:
         from sales.forms import PaymentRecordForm
-        for payment in order.payment_records.all():
+        for payment in order.payment_records.filter(entry_type='receipt'):
             payment_values[str(payment.pk)] = field_values(PaymentRecordForm(instance=payment))
+    locked_payments = [str(pk) for pk in order.payment_records.filter(entry_type='receipt', confirmed=True).values_list('pk', flat=True)] if profile else []
     return JsonResponse({
         'ok': True, 'message': '已儲存，修改紀錄已保留。', 'revision': order.revision,
         'financial_revision': profile.updated_at.isoformat() if profile else None,
         'values': values,
         'sync': sync,
         'payment_values': payment_values,
+        'locked_payments': locked_payments,
         'customer_balance_due': str(order.customer_balance_due) if profile else None,
         'discount': {'before': str(order.pre_discount_total), 'amount': str(order.approved_discount_amount), 'after': str(order.discounted_total)},
         'delivery_ready': bool(order.source_type == SalesOrder.SourceType.DEALER or payment_summary(order)['customer_settled']),

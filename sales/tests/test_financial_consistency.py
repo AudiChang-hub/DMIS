@@ -22,6 +22,7 @@ from sales.services.dealer_commission import (
 from sales.services.financial_audit import audit_financial_consistency
 from sales.services.financial_refresh import refresh_unlocked_financials
 from sales.services.operations_sync import sync_order_operations
+from sales.services.payment_ledger import reverse_payment
 
 
 class FinancialConsistencyTests(TestCase):
@@ -61,12 +62,15 @@ class FinancialConsistencyTests(TestCase):
         self.assertEqual(self.profile(order).actual_disbursement, 65000)
         self.assertEqual(self.profile(order).net_profit, 65000)
         payment.received_amount = 66000
-        payment.save()
-        self.assertEqual(self.profile(order).net_profit, 66000)
-        payment.confirmed = False
-        payment.save()
+        with self.assertRaises(ValidationError):
+            payment.save()
+        # 已入帳金額只能沖銷後重新登記。
+        reverse_payment(order_id=order.pk, payment_id=payment.pk, actor_name="測試", reason="金額登記錯誤")
         self.assertEqual(self.profile(order).net_profit, 0)
         self.assertEqual(self.profile(order).payment_disbursement_snapshot, {})
+        PaymentRecord.objects.create(order=order, item_name="平台撥款更正", received_amount=66000,
+                                     received_on=date(2026, 9, 3), confirmed=True)
+        self.assertEqual(self.profile(order).net_profit, 66000)
 
     def test_payment_reversal_restores_manual_value(self):
         order = self.order(source_type="platform", source=self.platform)
@@ -78,7 +82,9 @@ class FinancialConsistencyTests(TestCase):
         payment.received_amount = 65000
         payment.confirmed = True
         payment.save()
-        payment.delete()
+        with self.assertRaises(ValidationError):
+            payment.delete()
+        reverse_payment(order_id=order.pk, payment_id=payment.pk, actor_name="測試", reason="撥款退回")
         self.assertEqual(self.profile(order).actual_disbursement, 63000)
         self.assertIn("actual_disbursement", self.profile(order).manual_financial_fields)
 
@@ -219,8 +225,15 @@ class FinancialConsistencyTests(TestCase):
         data = dict(expected_amount="70000", received_amount="68000", received_on="2026-09-03", confirmed="on")
         self.client.post(reverse("reconciliation_update", args=[payment.pk]), data)
         self.assertEqual(self.profile(order).actual_disbursement, 68000)
+        # 已確認入帳後，對帳頁不能取消確認或改金額；撤回需以沖銷處理。
         data.pop("confirmed")
+        data["received_amount"] = "60000"
         self.client.post(reverse("reconciliation_update", args=[payment.pk]), data)
+        payment.refresh_from_db()
+        self.assertTrue(payment.confirmed)
+        self.assertEqual(payment.received_amount, 68000)
+        self.assertEqual(self.profile(order).actual_disbursement, 68000)
+        reverse_payment(order_id=order.pk, payment_id=payment.pk, actor_name="測試", reason="平台撥款退回")
         self.assertEqual(self.profile(order).actual_disbursement, 0)
 
     def test_audit_flags_missing_disbursement_without_inferring_income(self):

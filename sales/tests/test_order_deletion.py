@@ -95,21 +95,42 @@ class OrderDeletionTests(TestCase):
         with self.assertRaises(ValidationError):
             self.order.save()
 
+    def receive(self, amount):
+        return PaymentRecord.objects.create(order=self.order, item_name="訂金實收", received_amount=Decimal(amount),
+                                            received_on=timezone.localdate(), payment_method="現金", confirmed=True)
+
     def test_business_blockers_and_refunded_order(self):
-        self.order.deposit_amount = Decimal("1000")
-        self.order.balance_adjustment_reason = "測試訂金與退款保護"
-        self.order.save()
+        self.receive("1000")
         self.assertTrue(deletion_blockers(self.order))
         with self.assertRaises(ValidationError):
             self.change()
-        self.order.status = SalesOrder.Status.CANCELLED
-        self.order.refund_amount = Decimal("1000")
-        self.order.refund_completed_on = timezone.localdate()
-        self.order.save()
+        self.order.request_cancellation("測試", "客戶取消")
+        self.assertIn("仍有退款待辦，請先完成退款。", deletion_blockers(self.order))
+        self.order.complete_refund("測試", Decimal("0"), timezone.localdate(), SalesOrder.PaymentMethod.CASH)
+        self.order.refresh_from_db()
         self.assertFalse(deletion_blockers(self.order))
         payment_ids = list(self.order.payment_records.values_list("pk", flat=True))
         self.change()
         self.assertEqual(list(PaymentRecord.objects.filter(order_id=self.order.pk).values_list("pk", flat=True)), payment_ids)
+
+    def test_forfeited_deposit_blocks_deletion(self):
+        self.receive("1000")
+        self.order.request_cancellation("測試", "客戶反悔")
+        self.order.complete_refund("測試", Decimal("300"), timezone.localdate(), SalesOrder.PaymentMethod.CASH,
+                                   forfeit_reason="約定手續費")
+        self.order.refresh_from_db()
+        self.assertIn("已沒收的訂金屬實際收入，不可刪除訂單。", deletion_blockers(self.order))
+
+    def test_legacy_refunded_order_keeps_previous_rule(self):
+        self.order.deposit_amount = Decimal("1000")
+        self.order.balance_adjustment_reason = "測試舊制退款"
+        self.order.save()
+        SalesOrder.objects.filter(pk=self.order.pk).update(
+            status=SalesOrder.Status.CANCELLED, refund_amount=Decimal("1000"),
+            refund_completed_on=timezone.localdate(), refund_settled_legacy=True,
+        )
+        self.order.refresh_from_db()
+        self.assertFalse(deletion_blockers(self.order))
 
     def test_registration_delivery_refund_and_editor_blockers(self):
         for fields in [{"registration_date": timezone.localdate()}, {"status": SalesOrder.Status.COMPLETED},

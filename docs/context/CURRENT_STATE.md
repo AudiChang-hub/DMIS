@@ -4,7 +4,7 @@
 
 - 應用版本：**1.17.3**，來源 `config/release_notes.py`；發布規範見 [RELEASE_POLICY](../RELEASE_POLICY.md)。
 - 正式站：**1.17.3** 已於 2026-09-29 發布，提交 `985a071`（附註標籤 v1.17.3，CI 通過）；工作樹 HEAD、deployed-sha、執行版號一致，DB／Redis 未重啟。發布前備份為 `backups/postgres/daily/dmis_20260929_112251.sql.gz`。
-- 1.17.3 登入後畫面與依權限顯示的版本歷程尚未實機驗收（無可用登入）。
+- 1.17.3 已以 admin 實機驗收頁首時鐘（約 500–1490px）與版本歷程；其他角色的版本內容顯示尚未以對應帳號驗證。
 - 交接分支 `claude/code-setup` 已推送遠端備存，尚未合併 main；是否與遠端同步以當次 Git 查詢為準，正式站版本需獨立核對。
 - 正式主機 SSH 連線方式見 [HANDOFF](HANDOFF.md)「已知風險」；僅授權維運時使用。
 - 技術棧：Python 3.12、Django 5.2、Templates／HTMX、Channels／Daphne、RQ、PostgreSQL 16、Redis 7；本機可用 SQLite。

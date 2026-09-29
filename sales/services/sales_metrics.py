@@ -41,6 +41,12 @@ def filter_payment_risk(orders, risk):
     if risk == 'unconfirmed':
         ids = PaymentRecord.objects.filter(received_amount__gt=0, confirmed=False).values('order_id')
         return orders.exclude(status__in=CANCELLED_STATUSES).filter(pk__in=ids)
+    if risk == 'stale_allocation':
+        from .order_next_actions import stale_allocation_since
+        return orders.exclude(status__in=CANCELLED_STATUSES).filter(
+            allocated_at__lt=stale_allocation_since(), allocated_vehicle__isnull=False,
+            registration_completed_at__isnull=True, delivered_at__isnull=True,
+        )
     if risk == 'overpaid':
         from .payment_summary import payment_summary
         candidates = orders.exclude(status__in=CANCELLED_STATUSES).filter(cash_receivable_v2=True).select_related('legacy_snapshot').prefetch_related('payment_records', 'accessories')

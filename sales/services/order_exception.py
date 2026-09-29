@@ -53,6 +53,7 @@ def close_after_registration(order_id, *, actor_name, reason, forfeited_amount, 
         raise ValidationError("有沒收金額時，請填寫沒收原因。")
     if resale_price is None or Decimal(resale_price) <= 0:
         raise ValidationError("請填寫領牌車再售價。")
+    order.ensure_transition(SalesOrder.Status.EXCEPTION_CLOSED)
     refund = received - forfeited
     method_label = dict(SalesOrder.PaymentMethod.choices).get(method, method or "")
     if refund > 0 and not method:

@@ -178,9 +178,9 @@ class OrderNextActionTests(TestCase):
         self.assertEqual(actions.secondary[0].key, "dealer-early-delivery")
         self.assertIn("?tab=delivery", actions.secondary[0].url)
 
-    def test_transfer_and_condition_issues_take_priority(self):
+    def test_condition_issue_takes_priority(self):
+        # 調車只記位置，不再有調車狀態；車況異常仍優先提示。
         for status, expected_key in (
-            (VehicleInventory.Status.IN_TRANSFER, "vehicle-transfer"),
             (VehicleInventory.Status.CONDITION_ISSUE, "vehicle-condition"),
         ):
             with self.subTest(status=status):

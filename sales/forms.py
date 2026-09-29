@@ -731,7 +731,7 @@ class SalesSourceForm(forms.ModelForm):
             "category", "name", "responsible_person", "phone",
             "phone_secondary", "mobile", "other_contact", "address",
             "city", "district", "sym_vehicle_capacity",
-            "suzuki_vehicle_capacity", "holiday_gift", "note", "active",
+            "suzuki_vehicle_capacity", "credit_limit", "holiday_gift", "note", "active",
         ]
         widgets = {
             "other_contact": forms.TextInput(
@@ -789,6 +789,10 @@ class SalesSourceForm(forms.ModelForm):
         )
         self.instance.has_line_group = has_line_group
         address = cleaned_data.get("address", "")
+        if not is_dealer:
+            # 掛帳額度只適用合作車行。
+            cleaned_data["credit_limit"] = None
+            self.instance.credit_limit = None
         if is_dealer:
             city, district = infer_taiwan_region(address)
             cleaned_data["city"] = city
@@ -1897,6 +1901,7 @@ class VehicleInventoryForm(forms.ModelForm):
             "condition_note",
             "condition_photo",
             "condition_resolution",
+            "resale_price",
         ]
         widgets = {
             "received_on": DateInput(),
@@ -1983,6 +1988,13 @@ class VehicleInventoryForm(forms.ModelForm):
                     if self.final_fields_locked
                     else "此車輛已進入配車或交付流程，為避免訂單資料不一致，目前不可修改。"
                 )
+        if self.instance.is_registered_vehicle:
+            self.fields["resale_price"].required = True
+            self.fields["resale_price"].help_text = (
+                f"已領牌車（{self.instance.registered_plate_number}），只能以領牌車交易再售。"
+            )
+        else:
+            self.fields.pop("resale_price")
         for field in self.fields.values():
             field.widget.attrs.setdefault("class", "form-control")
         apply_mobile_keyboard_attrs(self)
@@ -3666,11 +3678,15 @@ class AllocationForm(forms.Form):
 
     def __init__(self, order, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fields["vehicle"].queryset = VehicleInventory.objects.filter(
+        queryset = VehicleInventory.objects.filter(
             vehicle_model=order.vehicle_model,
             color=order.color,
             status=VehicleInventory.Status.AVAILABLE,
-        ).select_related(
+        )
+        if order.transaction_type != SalesOrder.TransactionType.REGISTERED:
+            # 已領牌車不是新車，只列給領牌車交易。
+            queryset = queryset.filter(registered_plate_number="")
+        self.fields["vehicle"].queryset = queryset.select_related(
             "location_store", "current_dealer", "vehicle_model", "color"
         )
         self.fields["vehicle"].widget.attrs["class"] = "form-control"
@@ -3922,7 +3938,14 @@ class DeliveryCompletionForm(forms.Form):
 
     @transaction.atomic
     def save(self, actor_name):
+        from sales.services.payment_summary import payment_summary
+
         order = SalesOrder.objects.select_for_update().get(pk=self.order.pk)
+        # 合作車行可先交車；未收清部分記為掛帳並受車行額度控管。
+        on_account = (
+            payment_summary(order)["customer_due"]
+            if order.source_type == SalesOrder.SourceType.DEALER else Decimal("0")
+        )
         order.delivery_method = self.cleaned_data["delivery_method"]
         order.delivery_destination = self.cleaned_data["delivery_destination"]
         order.save(update_fields=["delivery_method", "delivery_destination", "updated_at"])
@@ -3937,9 +3960,9 @@ class DeliveryCompletionForm(forms.Form):
             documents_checked=self.cleaned_data["documents_checked"],
             keys_checked=self.cleaned_data["keys_checked"],
             accessories_checked=self.cleaned_data["accessories_checked"],
-            # 尾款由交付頁的獨立收款區塊確認；合作車行可先交車，
-            # 因此這裡記錄的是「已核對收款狀態」而非「已全數收清」。
+            # 「已核對收款狀態」表示系統已核對；實際未收清金額另記為掛帳。
             payment_checked=True,
+            on_account_amount=on_account,
             damage_found=self.cleaned_data["damage_found"],
             damage_note=self.cleaned_data["damage_note"],
             handover_photo=self.cleaned_data.get("handover_photo"),
@@ -4000,6 +4023,81 @@ class RefundCompletionForm(forms.Form):
     @property
     def unconfirmed_amount(self):
         return self.ledger["customer"]["unconfirmed"] + self.ledger["lender"]["unconfirmed"]
+
+    def clean(self):
+        cleaned = super().clean()
+        forfeited = cleaned.get("forfeited_amount") or Decimal("0")
+        cleaned["forfeited_amount"] = forfeited
+        if forfeited > self.received:
+            self.add_error("forfeited_amount", f"沒收金額不可超過已收 {self.received:,.0f} 元。")
+        if forfeited and not (cleaned.get("forfeit_reason") or "").strip():
+            self.add_error("forfeit_reason", "有沒收金額時，請填寫沒收原因。")
+        if self.received - forfeited > 0 and not cleaned.get("method"):
+            self.add_error("method", "有應退金額時，請選擇退款方式。")
+        return cleaned
+
+    def clean_proof(self):
+        return validate_document_upload(self.cleaned_data.get("proof"))
+
+
+class InstallmentDecisionForm(forms.ModelForm):
+    note = forms.CharField(label="核貸備註", max_length=250, required=False)
+
+    class Meta:
+        model = SalesOrder
+        fields = ["installment_status", "installment_applied_on", "installment_decided_on"]
+        widgets = {"installment_applied_on": DateInput(), "installment_decided_on": DateInput()}
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["installment_status"].required = False
+        for field in self.fields.values():
+            field.widget.attrs.setdefault("class", "form-control")
+
+    def clean(self):
+        cleaned = super().clean()
+        status = cleaned.get("installment_status") or ""
+        cleaned["installment_status"] = status
+        decided = {SalesOrder.InstallmentStatus.APPROVED, SalesOrder.InstallmentStatus.REJECTED}
+        if status in decided and not cleaned.get("installment_decided_on"):
+            self.add_error("installment_decided_on", "核准或未核准時，請填寫決定日期。")
+        if status and status != SalesOrder.InstallmentStatus.NONE and not cleaned.get("installment_applied_on"):
+            self.add_error("installment_applied_on", "已送件時，請填寫分期申請日期。")
+        if status not in decided:
+            cleaned["installment_decided_on"] = None
+        return cleaned
+
+
+class ExceptionCloseForm(forms.Form):
+    """領牌後棄單：沒收與退款同取消結算，車輛以已領牌車再售價釋回。"""
+
+    reason = forms.CharField(label="結案原因", max_length=250)
+    forfeited_amount = forms.DecimalField(
+        label="沒收金額", max_digits=12, decimal_places=0, min_value=0, required=False,
+        help_text="通常包含已支出的領牌規費與約定違約金；不沒收請填 0。",
+    )
+    forfeit_reason = forms.CharField(label="沒收原因", max_length=250, required=False)
+    resale_price = forms.DecimalField(
+        label="領牌車再售價", max_digits=12, decimal_places=0, min_value=1,
+        help_text="車輛釋回庫存後只能以「領牌車」交易再售。",
+    )
+    completed_on = forms.DateField(label="結案／退款日期", widget=DateInput())
+    method = forms.ChoiceField(
+        label="退款方式", choices=[("", "請選擇"), *SalesOrder.PaymentMethod.choices], required=False,
+    )
+    reference = forms.CharField(label="退款帳號／交易資訊", max_length=250, required=False)
+    proof = forms.FileField(label="退款證明", required=False)
+
+    def __init__(self, order, *args, **kwargs):
+        from sales.services.payment_ledger import ledger_totals
+
+        super().__init__(*args, **kwargs)
+        self.received = ledger_totals(order)["customer"]["net"]
+        if not self.is_bound:
+            self.initial.update({"forfeited_amount": 0, "completed_on": timezone.localdate()})
+        for field in self.fields.values():
+            field.widget.attrs.setdefault("class", "form-control")
+        apply_mobile_keyboard_attrs(self)
 
     def clean(self):
         cleaned = super().clean()

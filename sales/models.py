@@ -468,6 +468,11 @@ class SalesSource(TimeStampedModel):
     suzuki_vehicle_capacity = models.PositiveSmallIntegerField(
         "台鈴油電共用排車容量", blank=True, null=True
     )
+    credit_limit = models.DecimalField(
+        "掛帳額度", max_digits=12, decimal_places=0, blank=True, null=True,
+        validators=[MinValueValidator(0)],
+        help_text="車行未收清先交車的累計上限；空白表示不設上限但仍追蹤掛帳，0 表示必須收清才交車。",
+    )
     holiday_gift = models.BooleanField(
         "列入年節送禮名單",
         default=False,
@@ -2583,6 +2588,16 @@ class VehicleInventory(TimeStampedModel):
         "車況照片", upload_to="inventory/condition/%Y/%m/", blank=True
     )
     condition_resolution = models.TextField("處理結果", blank=True)
+    registered_plate_number = models.CharField(
+        "已領牌車牌", max_length=20, blank=True, editable=False,
+        help_text="領牌後棄單釋回的車輛；不是新車，只能以領牌車交易再售。",
+    )
+    registered_on = models.DateField("原領牌日期", null=True, blank=True, editable=False)
+    resale_price = models.DecimalField(
+        "領牌車再售價", max_digits=12, decimal_places=0, null=True, blank=True,
+        validators=[MinValueValidator(0)],
+    )
+
     class Meta:
         ordering = ["-received_on", "-id"]
         verbose_name = "庫存車輛"
@@ -2595,6 +2610,10 @@ class VehicleInventory(TimeStampedModel):
     @property
     def actual_location_label(self):
         return self.current_dealer.name if self.current_dealer_id else "本店"
+
+    @property
+    def is_registered_vehicle(self):
+        return bool(self.registered_plate_number)
 
     def clean(self):
         errors = {}
@@ -2787,6 +2806,13 @@ class SalesOrder(TimeStampedModel):
         COMPLETED = "completed", "已完成"
         CANCEL_REFUND_PENDING = "cancel_refund_pending", "取消待退款"
         CANCELLED = "cancelled", "已取消／已退款"
+        EXCEPTION_CLOSED = "exception_closed", "例外結案（領牌後棄單）"
+
+    class InstallmentStatus(models.TextChoices):
+        NONE = "", "未送件"
+        SUBMITTED = "submitted", "審核中"
+        APPROVED = "approved", "已核准"
+        REJECTED = "rejected", "未核准"
 
     number = models.CharField("訂單編號", max_length=24, unique=True, editable=False)
     submission_key = models.UUIDField(null=True, blank=True, unique=True, editable=False)
@@ -3043,7 +3069,9 @@ class SalesOrder(TimeStampedModel):
         "每期金額", max_digits=12, decimal_places=0, default=0
     )
     installment_applied_on = models.DateField("分期申請日期", blank=True, null=True)
-    installment_status = models.CharField("分期狀態", max_length=30, blank=True)
+    installment_status = models.CharField(
+        "分期狀態", max_length=30, blank=True, choices=InstallmentStatus.choices, default=InstallmentStatus.NONE,
+    )
     installment_decided_on = models.DateField("核准／拒絕日期", blank=True, null=True)
 
     is_trade_in_subsidy = models.BooleanField("申請汰舊／政府補助", default=False)
@@ -3128,6 +3156,13 @@ class SalesOrder(TimeStampedModel):
         "舊制退款", default=False, editable=False,
         help_text="1.19.0 前已完成取消；退款未記入收款帳本，沿用舊規則顯示與刪除。",
     )
+    exception_reason = models.CharField("例外結案原因", max_length=250, blank=True, editable=False)
+    exception_closed_at = models.DateTimeField("例外結案時間", null=True, blank=True, editable=False)
+    exception_closed_by = models.CharField("例外結案人員", max_length=150, blank=True, editable=False)
+    exception_vehicle = models.ForeignKey(
+        "VehicleInventory", on_delete=models.PROTECT, null=True, blank=True, editable=False,
+        related_name="exception_orders", verbose_name="例外結案釋回車輛",
+    )
     note = models.TextField("備註", blank=True)
     signed_contract = models.FileField(
         "已簽署合約", upload_to="orders/contracts/%Y/%m/", blank=True
@@ -3186,11 +3221,13 @@ class SalesOrder(TimeStampedModel):
             self.Status.COMPLETED,
             self.Status.CANCEL_REFUND_PENDING,
             self.Status.CANCELLED,
+            self.Status.EXCEPTION_CLOSED,
         }
 
     @property
     def is_cancelled_sale(self):
-        return self.status in {self.Status.CANCELLED, self.Status.CANCEL_REFUND_PENDING}
+        """取消、待退款與領牌後例外結案都不是有效售出。"""
+        return self.status in {self.Status.CANCELLED, self.Status.CANCEL_REFUND_PENDING, self.Status.EXCEPTION_CLOSED}
 
     @property
     def source_display(self):
@@ -3208,9 +3245,14 @@ class SalesOrder(TimeStampedModel):
         return self.established_on.strftime('%Y/%m/%d') if self.established_on else ('—' if self.is_cancelled_sale else '待補領牌日')
 
     @property
+    def is_settled_closed(self):
+        """已完成取消或例外結案：帳務已結算，收款唯讀。"""
+        return self.status in {self.Status.CANCELLED, self.Status.EXCEPTION_CLOSED}
+
+    @property
     def can_manage_subsidy(self):
-        """補助可能在交付後才申請或補件，僅正式取消後鎖定。"""
-        return self.status != self.Status.CANCELLED
+        """補助可能在交付後才申請或補件，僅正式取消或例外結案後鎖定。"""
+        return self.status not in {self.Status.CANCELLED, self.Status.EXCEPTION_CLOSED}
 
     @property
     def can_edit_content(self):
@@ -3403,28 +3445,41 @@ class SalesOrder(TimeStampedModel):
         from sales.services.customer_receivable import customer_balance
         return customer_balance(self)
 
+    def delivery_blockers(self, summary=None):
+        """交車前的全部硬性檢查；畫面按鈕與 complete_delivery 共用同一份判斷。"""
+        if self.is_cancelled_sale:
+            return ["已進入取消或例外結案流程，不能交付車輛。"]
+        blockers = []
+        if not self.allocated_vehicle_id:
+            blockers.append("尚未配車，不能完成交付。")
+        if not self.can_deliver:
+            blockers.append("一般訂單必須先完成領牌才能交付。")
+        if self.discount_status == self.DiscountStatus.PENDING:
+            blockers.append("折扣申請尚待確認，確認或退回後才能交車。")
+        if self.payment_type == self.PaymentType.INSTALLMENT and self.installment_status != self.InstallmentStatus.APPROVED:
+            blockers.append(f"分期目前為「{self.get_installment_status_display()}」，須核准後才能交車。")
+        from sales.services.payment_summary import payment_summary
+        summary = summary or payment_summary(self)
+        if self.source_type != self.SourceType.DEALER:
+            if not summary["customer_settled"]:
+                blockers.append(
+                    f"尾款尚未收清，仍差 {summary['delivery_due']:,.0f} 元；"
+                    "請先在金額收支資訊保存並確認收款。"
+                )
+        else:
+            from sales.services.dealer_credit import credit_blocker
+            blocker = credit_blocker(self, summary)
+            if blocker:
+                blockers.append(blocker)
+        return blockers
+
     @transaction.atomic
     def complete_delivery(self, delivered_at, actor_name):
         if self.is_delivered:
             raise ValidationError("此訂單已完成交付。")
-        if self.status in {
-            self.Status.CANCEL_REFUND_PENDING,
-            self.Status.CANCELLED,
-        }:
-            raise ValidationError("已進入取消流程，不能交付車輛。")
-        if not self.allocated_vehicle_id:
-            raise ValidationError("尚未配車，不能完成交付。")
-        if not self.can_deliver:
-            raise ValidationError("一般訂單必須先完成領牌才能交付。")
-        if self.source_type != self.SourceType.DEALER:
-            from sales.services.payment_summary import payment_summary
-            summary = payment_summary(self)
-            if not summary["customer_settled"]:
-                shortage = summary["delivery_due"]
-                raise ValidationError(
-                    f"尾款尚未收清，仍差 {shortage:,.0f} 元；"
-                    "請先在金額收支資訊保存並確認收款。"
-                )
+        blockers = self.delivery_blockers()
+        if blockers:
+            raise ValidationError(blockers[0])
 
         vehicle = VehicleInventory.objects.select_for_update().get(
             pk=self.allocated_vehicle_id
@@ -3685,6 +3740,9 @@ class SalesOrder(TimeStampedModel):
             or locked.color_id != locked_order.color_id
         ):
             raise ValidationError("實體車輛的車型或車色與訂單不一致。")
+        registered_error = locked_order.registered_vehicle_error(locked)
+        if registered_error:
+            raise ValidationError(registered_error)
         locked.status = VehicleInventory.Status.RESERVED
         locked.save(update_fields=["status", "updated_at"])
         locked_order.allocated_vehicle = locked
@@ -3693,6 +3751,12 @@ class SalesOrder(TimeStampedModel):
         self.allocated_vehicle = locked
         self.allocated_vehicle_id = locked.pk
         self.status = self.Status.ALLOCATED
+
+    def registered_vehicle_error(self, vehicle):
+        """例外結案釋回的已領牌車不是新車，只能配給「領牌車」交易。"""
+        if vehicle.is_registered_vehicle and self.transaction_type != self.TransactionType.REGISTERED:
+            return f"此車已領牌（{vehicle.registered_plate_number}），只能配給交易類型為「領牌車」的訂單。"
+        return ""
 
     @property
     def has_registration_started(self):
@@ -3732,6 +3796,9 @@ class SalesOrder(TimeStampedModel):
             or replacement.color_id != self.color_id
         ):
             raise ValidationError("新車輛的車型或車色與訂單不一致。")
+        registered_error = self.registered_vehicle_error(replacement)
+        if registered_error:
+            raise ValidationError(registered_error)
 
         original.status = VehicleInventory.Status.AVAILABLE
         replacement.status = VehicleInventory.Status.RESERVED
@@ -3763,6 +3830,9 @@ class DeliveryRecord(TimeStampedModel):
     keys_checked = models.BooleanField("已核對鑰匙", default=False)
     accessories_checked = models.BooleanField("已核對配件與贈品", default=False)
     payment_checked = models.BooleanField("已核對收款狀態", default=False)
+    on_account_amount = models.DecimalField(
+        "交車時掛帳金額", max_digits=12, decimal_places=0, default=0, editable=False,
+    )
     damage_found = models.BooleanField("發現刮傷或損壞", default=False)
     damage_note = models.TextField("刮傷／損壞說明", blank=True)
     handover_photo = models.ImageField(

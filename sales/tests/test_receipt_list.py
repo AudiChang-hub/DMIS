@@ -126,7 +126,8 @@ class ReceiptListTests(TestCase):
         response = self.client.post(url, payload, HTTP_X_ORDER_WORKSPACE="1")
         self.assertEqual(response.status_code, 200, response.content)
         self.assertEqual(response.json()["receipt_summary"]["customer_due"], "0")
-        self.assertTrue(response.json()["delivery_ready"])
+        # 尾款已收清；其餘交車條件（如配車）另列，不再以尾款阻擋。
+        self.assertNotIn("尾款", response.json()["delivery_blocker"])
         row = self.order.payment_records.get(item_name="配件收款")
         self.assertTrue(row.confirmed_by)
         self.assertIsNotNone(row.confirmed_at)

@@ -79,6 +79,8 @@ from .forms import (
     RefundCompletionForm,
     PaymentReversalForm,
     OverpaymentRefundForm,
+    InstallmentDecisionForm,
+    ExceptionCloseForm,
     QuickInventoryEntryFormSet,
     ReallocationForm,
     RegistrationDocumentUploadForm,
@@ -3998,6 +4000,7 @@ INVENTORY_HISTORY_FIELDS = {
     "condition_note": "車況說明",
     "condition_photo": "車況照片",
     "condition_resolution": "處理結果",
+    "resale_price": "領牌車再售價",
 }
 
 
@@ -4020,6 +4023,10 @@ def _inventory_values(vehicle):
         "condition_resolution": (
             vehicle.condition_resolution,
             vehicle.condition_resolution or "未填寫",
+        ),
+        "resale_price": (
+            str(vehicle.resale_price or ""),
+            f"{vehicle.resale_price:,.0f}" if vehicle.resale_price is not None else "未設定",
         ),
     }
 
@@ -4459,7 +4466,7 @@ def reconciliation_update(request, pk):
     if request.method != "POST" or not eligible:
         messages.error(request, "此筆資料不屬於統一對帳範圍。")
         return redirect("reconciliation_list")
-    if record.order.status == SalesOrder.Status.CANCELLED or record.is_adjustment:
+    if record.order.is_settled_closed or record.is_adjustment:
         messages.error(request, "已取消訂單的收款與沖銷／退款紀錄已結算，不能修改。")
         return redirect("reconciliation_list")
     was_confirmed = record.confirmed
@@ -5233,6 +5240,13 @@ def order_detail(request, pk, *, commission_form=None, workspace_context_only=Fa
         order.source_type == SalesOrder.SourceType.DEALER
         or payment_summary(order)["customer_settled"]
     )
+    from .services.dealer_credit import credit_overview
+    from .services.order_exception import exception_close_blockers
+    detail_summary = payment_summary(order)
+    delivery_blockers = [] if order.is_delivered else order.delivery_blockers(detail_summary)
+    exception_close_ready = (
+        order.is_registration_complete and not order.is_delivered and not order.is_cancelled_sale
+    )
     registration_missing = order.missing_registration_requirements()
     subsidy_missing = order.missing_subsidy_requirements()
     next_actions = build_order_next_actions(
@@ -5292,6 +5306,14 @@ def order_detail(request, pk, *, commission_form=None, workspace_context_only=Fa
                 else None
             ),
             "balance_ready_for_delivery": balance_ready_for_delivery,
+            "delivery_blockers": delivery_blockers,
+            "dealer_credit": credit_overview(order, detail_summary) if not order.is_delivered else None,
+            "installment_form": (
+                InstallmentDecisionForm(instance=order)
+                if order.payment_type == SalesOrder.PaymentType.INSTALLMENT else None
+            ),
+            "exception_close_form": ExceptionCloseForm(order) if exception_close_ready else None,
+            "exception_close_blockers": exception_close_blockers(order) if exception_close_ready else [],
             "cancellation_form": CancellationRequestForm(),
             "refund_form": RefundCompletionForm(order) if order.status == SalesOrder.Status.CANCEL_REFUND_PENDING else None,
             "positioned_templates": PositionedPrintTemplate.objects.filter(active=True).order_by(
@@ -6527,6 +6549,7 @@ def delivery_complete(request, pk):
         description=(
             f"完成交付：{order.get_delivery_method_display()}／"
             f"{record.handover_location}／收車人 {record.recipient_name}"
+            + (f"／車行掛帳 {record.on_account_amount:,.0f} 元" if record.on_account_amount else "")
         ),
         actor_name=_editing_name(request.user),
     )
@@ -6544,11 +6567,8 @@ def delivery_payment_update(request, pk):
     detail_url = f"{reverse('order_detail', args=[pk])}?tab=finance"
     if request.method != "POST":
         return redirect(detail_url)
-    if order.status in {
-        SalesOrder.Status.CANCEL_REFUND_PENDING,
-        SalesOrder.Status.CANCELLED,
-    }:
-        messages.error(request, "此訂單已進入取消流程，不能登記尾款。")
+    if order.is_cancelled_sale:
+        messages.error(request, "此訂單已進入取消或結案流程，不能登記尾款。")
         return redirect(detail_url)
     if order.is_delivered and order.source_type != SalesOrder.SourceType.DEALER:
         messages.error(request, "一般訂單交付後，請至營運與對帳進行收款更正。")
@@ -6778,6 +6798,80 @@ def payment_overpayment_refund(request, pk):
         return _finance_redirect(request, order)
     messages.success(request, f"已登記退還溢收 ${data['amount']:,.0f}。")
     return _finance_redirect(request, order)
+
+
+@login_required
+@transaction.atomic
+def installment_decision_update(request, pk):
+    order = get_object_or_404(SalesOrder.objects.select_for_update(), pk=pk)
+    detail_url = f"{reverse('order_detail', args=[pk])}?tab=delivery"
+    if request.method != "POST":
+        return redirect(detail_url)
+    if order.payment_type != SalesOrder.PaymentType.INSTALLMENT:
+        messages.error(request, "此訂單不是分期付款。")
+        return redirect(detail_url)
+    if not order.is_editable:
+        messages.error(request, "已交付、完成或進入取消流程的訂單不能再變更分期核貸結果。")
+        return redirect(detail_url)
+    before = {
+        "分期狀態": order.get_installment_status_display(),
+        "分期申請日期": str(order.installment_applied_on or ""),
+        "核准／拒絕日期": str(order.installment_decided_on or ""),
+    }
+    form = InstallmentDecisionForm(request.POST, instance=order)
+    if not form.is_valid():
+        messages.error(request, "分期核貸未更新：" + _form_error_text(form))
+        return redirect(detail_url)
+    order = form.save(commit=False)
+    order.save(update_fields=["installment_status", "installment_applied_on", "installment_decided_on", "updated_at"])
+    after = {
+        "分期狀態": order.get_installment_status_display(),
+        "分期申請日期": str(order.installment_applied_on or ""),
+        "核准／拒絕日期": str(order.installment_decided_on or ""),
+    }
+    changes = {key: {"before": before[key], "after": value} for key, value in after.items() if before[key] != value}
+    note = form.cleaned_data["note"].strip()
+    if changes:
+        OrderChange.objects.create(order=order, reason=note or "更新分期核貸結果", changes=changes,
+                                   actor_name=_editing_name(request.user))
+    OrderEvent.objects.create(
+        order=order, event_type="installment_decision",
+        description=f"分期核貸：{order.get_installment_status_display()}" + (f"；{note}" if note else ""),
+        actor_name=_editing_name(request.user),
+    )
+    messages.success(request, f"分期狀態已更新為「{order.get_installment_status_display()}」。")
+    return redirect(detail_url)
+
+
+@login_required
+@transaction.atomic
+def order_exception_close(request, pk):
+    from .services.order_exception import close_after_registration
+
+    order = get_object_or_404(SalesOrder.objects.select_for_update(), pk=pk)
+    detail_url = f"{reverse('order_detail', args=[pk])}?tab=order"
+    if request.method != "POST":
+        return redirect(detail_url)
+    form = ExceptionCloseForm(order, request.POST, request.FILES)
+    if not form.is_valid():
+        messages.error(request, "例外結案未完成：" + _form_error_text(form))
+        return redirect(detail_url)
+    data = form.cleaned_data
+    try:
+        order = close_after_registration(
+            order.pk, actor_name=_editing_name(request.user), reason=data["reason"],
+            forfeited_amount=data["forfeited_amount"], forfeit_reason=data["forfeit_reason"],
+            resale_price=data["resale_price"], completed_on=data["completed_on"], method=data["method"],
+            reference=data["reference"], proof=data.get("proof"),
+        )
+    except ValidationError as exc:
+        messages.error(request, "例外結案未完成：" + " ".join(exc.messages))
+        return redirect(detail_url)
+    messages.success(
+        request,
+        f"已例外結案：退款 ${order.refund_amount:,.0f}、沒收 ${order.forfeited_amount:,.0f}；車輛已以已領牌車釋回庫存。",
+    )
+    return redirect(detail_url)
 
 
 @login_required

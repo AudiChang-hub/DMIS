@@ -26,21 +26,21 @@ def payment_ledger_context(order, summary=None):
 
     summary = summary or payment_summary(order)
     active = not order.is_cancelled_sale
-    reversal_form = PaymentReversalForm(order) if order.status != SalesOrder.Status.CANCELLED else None
+    reversal_form = PaymentReversalForm(order) if not order.is_settled_closed else None
     refund_form = OverpaymentRefundForm(order, summary) if active else None
     return {
         'ledger_adjustments': list(order.payment_records.exclude(entry_type=PaymentRecord.EntryType.RECEIPT).select_related('reverses').order_by('pk')),
         'payment_reversal_form': reversal_form if reversal_form and reversal_form.has_choices else None,
         'overpayment_refund_form': refund_form if refund_form and refund_form.has_overpayment else None,
         'settlement_gap': settlement_gap(order, summary),
-        'payments_read_only': order.status == SalesOrder.Status.CANCELLED,
+        'payments_read_only': order.is_settled_closed,
     }
 
 
 def payment_formset_for(order, data=None, files=None):
     return PaymentRecordFormSet(
         data, files, instance=order, prefix='payments',
-        form_kwargs={'read_only': order.status == SalesOrder.Status.CANCELLED},
+        form_kwargs={'read_only': order.is_settled_closed},
     )
 
 
@@ -136,6 +136,7 @@ def saved(request, order, *, form=None, formsets=()):
         from sales.forms import PaymentRecordForm
         for payment in order.payment_records.filter(entry_type='receipt'):
             payment_values[str(payment.pk)] = field_values(PaymentRecordForm(instance=payment))
+    delivery_blockers = [] if order.is_delivered else order.delivery_blockers()
     locked_payments = [str(pk) for pk in order.payment_records.filter(entry_type='receipt', confirmed=True).values_list('pk', flat=True)] if profile else []
     return JsonResponse({
         'ok': True, 'message': '已儲存，修改紀錄已保留。', 'revision': order.revision,
@@ -146,7 +147,8 @@ def saved(request, order, *, form=None, formsets=()):
         'locked_payments': locked_payments,
         'customer_balance_due': str(order.customer_balance_due) if profile else None,
         'discount': {'before': str(order.pre_discount_total), 'amount': str(order.approved_discount_amount), 'after': str(order.discounted_total)},
-        'delivery_ready': bool(order.source_type == SalesOrder.SourceType.DEALER or payment_summary(order)['customer_settled']),
+        'delivery_ready': not delivery_blockers,
+        'delivery_blocker': delivery_blockers[0] if delivery_blockers else '',
         'receipt_summary': {key: str(value) for key, value in payment_summary(order).items()},
         'summary_html': render_to_string('sales/_workspace_finance_summary.html', {**context, 'order': order}, request=request) if profile else '',
     })

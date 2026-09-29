@@ -3,7 +3,7 @@ from decimal import Decimal
 
 from sales.models import PaymentRecord, SalesOrder
 
-CANCELLED_STATUSES = (SalesOrder.Status.CANCELLED, SalesOrder.Status.CANCEL_REFUND_PENDING)
+CANCELLED_STATUSES = (SalesOrder.Status.CANCELLED, SalesOrder.Status.CANCEL_REFUND_PENDING, SalesOrder.Status.EXCEPTION_CLOSED)
 
 
 def summarize_sales(orders):

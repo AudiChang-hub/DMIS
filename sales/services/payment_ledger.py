@@ -95,8 +95,8 @@ def reverse_payment(*, order_id, payment_id, actor_name, reason):
 
     reason = _require_reason(reason)
     order, payment = _locked(order_id, payment_id)
-    if order.status == SalesOrder.Status.CANCELLED:
-        raise ValidationError("已取消的訂單帳務已結算，不能再沖銷。")
+    if order.status in {SalesOrder.Status.CANCELLED, SalesOrder.Status.EXCEPTION_CLOSED}:
+        raise ValidationError("已取消或結案的訂單帳務已結算，不能再沖銷。")
     if not is_reversible(payment):
         raise ValidationError("只能沖銷已確認且尚未沖銷的收款。")
     reversal = PaymentRecord.objects.create(
@@ -121,7 +121,7 @@ def reverse_payment(*, order_id, payment_id, actor_name, reason):
     return reversal
 
 
-def _refund_record(order, *, kind, amount, actor_name, reason, method_label, refunded_on, reference, item_name):
+def create_refund_entry(order, *, kind, amount, actor_name, reason, method_label, refunded_on, reference, item_name):
     from sales.models import PaymentRecord
 
     return PaymentRecord.objects.create(
@@ -153,7 +153,7 @@ def refund_overpayment(*, order_id, kind, amount, actor_name, reason, method_lab
     limit = refundable_overpayment(order, kind)
     if amount <= 0 or amount > limit:
         raise ValidationError(f"退款金額須大於 0 且不超過溢收 {limit:,.0f} 元。")
-    record = _refund_record(
+    record = create_refund_entry(
         order, kind=kind, amount=amount, actor_name=actor_name, reason=reason, method_label=method_label,
         refunded_on=refunded_on, reference=reference,
         item_name="退還溢收" if kind == "customer" else "退還分期公司溢撥",
@@ -190,7 +190,7 @@ def complete_cancellation_refund(order, *, actor_name, forfeited_amount, complet
     refund = received - forfeited
     method_label = dict(SalesOrder.PaymentMethod.choices).get(method, method or "")
     if refund > 0:
-        _refund_record(
+        create_refund_entry(
             locked, kind="customer", amount=refund, actor_name=actor_name,
             reason=f"訂單取消退款（已收 {received:,.0f}、沒收 {forfeited:,.0f}）",
             method_label=method_label, refunded_on=completed_on, reference=reference, item_name="取消退款",

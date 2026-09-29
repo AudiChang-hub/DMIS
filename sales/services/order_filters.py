@@ -28,7 +28,7 @@ def filter_order_analysis(rows, params, *, business_default=False):
     elif status in groups:
         rows = rows.filter(status__in=groups[status])
     elif status == "in_progress":
-        rows = rows.exclude(status__in=["intake_pending", "allocation_pending", "cancel_refund_pending", "delivered_docs_pending", "completed", "cancelled"])
+        rows = rows.exclude(status__in=["intake_pending", "allocation_pending", "cancel_refund_pending", "delivered_docs_pending", "completed", "cancelled", "exception_closed"])
     elif status:
         rows = rows.filter(status=status)
     rows = filter_payment_risk(rows, params.get("risk", ""))

@@ -42,7 +42,7 @@ def build_dealer_reminders(today=None):
             source_type=SalesOrder.SourceType.DEALER,
             delivered_at__isnull=False,
         )
-        .exclude(status=SalesOrder.Status.CANCELLED)
+        .exclude(status__in=[SalesOrder.Status.CANCELLED, SalesOrder.Status.EXCEPTION_CLOSED])
         .select_related("source", "operations", "vehicle_model")
     )
     for order in orders:

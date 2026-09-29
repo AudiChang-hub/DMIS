@@ -122,7 +122,8 @@
     if (typeof payload.delivery_ready === 'boolean') {
       root.querySelectorAll('.delivery-completion-actions button[type="submit"]').forEach(button => {
         button.disabled = !payload.delivery_ready; button.setAttribute('aria-disabled', String(!payload.delivery_ready));
-        button.textContent = payload.delivery_ready ? '確認完成交付' : '請先確認尾款收清';
+        button.textContent = payload.delivery_ready ? '確認完成交付' : '尚未符合交車條件';
+        if (!payload.delivery_ready && payload.delivery_blocker) button.title = payload.delivery_blocker;
         if (payload.delivery_ready) { button.removeAttribute('title'); button.dataset.confirm = '確認完成交付嗎？'; }
       });
     }

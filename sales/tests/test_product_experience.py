@@ -110,7 +110,7 @@ class ProductExperienceTests(TestCase):
         self.assertIn("overscroll-behavior: contain", css)
         self.assertIn("max-height: min(72vh, 650px)", css)
         self.assertIn(
-            ".hero-row { align-items: stretch; flex-direction: column; gap: 14px; }",
+            ".hero-row { align-items: stretch; flex-direction: column; gap: var(--stack-gap-sm); }",
             css,
         )
         self.assertIn('event.key === "Escape"', navigation)

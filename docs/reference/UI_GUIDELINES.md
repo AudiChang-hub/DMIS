@@ -23,6 +23,8 @@
 | 識別色 | `--identity-sym-*`、`--identity-suzuki*`、`--identity-yellow*`、`--identity-violet*`（品牌與分線群組標籤）、`--chart-1` |
 | 圓角 | `--radius-xs` 6px、`--radius-sm` 8px、`--radius-md` 12px（按鈕、輸入框）、`--radius-lg` 16px、`--radius` 18px（主卡片）、`--radius-pill`；3px 以下的細線與 `50%` 可直接寫 |
 | 字級 | `--text-2xs` 11px、`--text-xs` 12px、`--text-sm` 13px、`--text-sm-plus` 14px、`--text-base` 16px、`--text-md` 18px、`--text-lg` 20px、`--text-xl` 24px、`--text-2xl` 28px、`--text-3xl` 32px；大標題可用 `clamp()` |
+| 間距刻度 | `--space-1`～`--space-8`：4、8、12、16、24、32、48、64px；padding／margin／gap 只用刻度，0–3px 細線例外 |
+| 間距角色 | `--card-pad`（頁面層卡片內距 24px）、`--inset-pad`（內層小框與篩選列 16px）、`--bar-pad`（單行工具列／儲存列 12px 16px）、`--stack-gap`（頁面層區塊間距 24px）、`--stack-gap-sm`（內層小框間距 16px）；700px 以下自動縮為 16／12／8·12／16／12px |
 | 頁寬 | `page_class`：`page-shell--wide`（清單、報表）、`page-shell--form`（表單）、預設 `page-shell--standard`、`page-shell--compact`；寬度由 `--shell-*` 決定，目前表單 1440px、其餘 1560px |
 
 ## 頁面骨架
@@ -46,6 +48,9 @@
 3. **分頁**：同一物件的多個設定頁用 `account-tabs`；車行管理共用 `sales/_dealer_source_tabs.html`。
 4. **內容**：`section-block`／`card` 區塊；清單頁用 `inventory-filters` 篩選列、
    `inventory-list-panel` 與分頁 `{% pagination %}`。
+5. **間距**：頁面層區塊（卡片、篩選列、分頁列、狀態列）之間一律 `--stack-gap`；卡片內距 `--card-pad`，
+   卡片內的小框用 `--inset-pad`、彼此間距 `--stack-gap-sm`。父層是 grid／flex 時只用父層 `gap`，
+   子層不再加 margin，避免疊加。可收合區塊關閉時只顯示標題列，內距放在標題列與內容區，不放在外框。
 
 ## 按鈕
 

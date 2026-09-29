@@ -200,6 +200,27 @@ class UiConsistencyTests(SimpleTestCase):
 
         self.assertEqual(offenders, [])
 
+    def test_spacing_uses_scale_tokens(self):
+        """padding／margin／gap 只能用間距刻度或角色參數；0–3px 細線與 64px 以上版面值除外。"""
+        app = (CSS_DIR / "app.css").read_text(encoding="utf-8")
+        root = app.split("}", 1)[0]
+        for token in ("--space-1", "--space-5", "--card-pad", "--inset-pad", "--bar-pad", "--stack-gap", "--stack-gap-sm"):
+            self.assertIn(f"{token}:", root)
+        prop = re.compile(r"^(padding|margin|gap|row-gap|column-gap)(-[a-z-]+)?$")
+        offenders = []
+        for path in sorted(CSS_DIR.glob("*.css")):
+            if path.name == "contract.css":
+                continue
+            for stack, name, value in css_declarations(path.read_text(encoding="utf-8")):
+                if not prop.match(name) or any("print" in part for part in stack):
+                    continue
+                for size in re.findall(r"(?<![\w.(-])(\d+(?:\.\d+)?)(px|rem)\b", value):
+                    px = float(size[0]) * (16 if size[1] == "rem" else 1)
+                    if 3 < px <= 71 and "calc" not in value and "clamp" not in value and "min(" not in value:
+                        offenders.append(f"{path.name}: {stack[-1][:50]} {{ {name}: {value[:40]} }}")
+
+        self.assertEqual(offenders, [])
+
     def test_dropdowns_share_one_style(self):
         app = (CSS_DIR / "app.css").read_text(encoding="utf-8")
 

@@ -2,11 +2,14 @@
 
 核對日期：2026-09-29（正式站以 SSH 與公開頁面核對）。
 
-- 應用版本：**1.18.1**，來源 `config/release_notes.py`；發布規範見 [RELEASE_POLICY](../RELEASE_POLICY.md)。
-- 正式站：**1.18.1**（下拉選單外觀統一、CSS 色碼全數參數化）已於 2026-09-29 發布，main 提交 `5d7208b`（附註標籤 v1.18.1，CI 通過）；工作樹 HEAD、標籤、執行版號一致，DB／Redis 未重啟。部署前備份為 `/srv/dmis-data/dmis-next/backups/postgres/daily/dmis_20260929_143629.sql.gz`。
-- 1.18.0／1.18.1 已核對公開頁面、health、`app.css` 與容器內版本；**登入後頁面尚未在正式站實機驗收**（本機已以測試資料跨三種主題比對，無對比度回歸）。
+- 應用版本：**1.20.0**，來源 `config/release_notes.py`；發布規範見 [RELEASE_POLICY](../RELEASE_POLICY.md)。
+- 正式站：**1.20.0** 已於 2026-09-29 發布，main `3884202`（附註標籤 v1.20.0，CI 通過）；deployed-sha、工作樹 HEAD、執行版號一致，DB／Redis 未重啟，migration 0152–0155 已套用。部署前備份 `dmis_20260929_163758.sql.gz`。
+- 同日稍早：1.19.0（main `4a55a5a`，備份 `dmis_20260929_160919.sql.gz`）、1.18.2（main `453ad2f`，間距參數化與夜間對比，備份 `dmis_20260929_154035.sql.gz`）。
+- 1.19.0／1.20.0 為訂單流程補強 Phase 1–4：收款帳本與沒收退款、交車閘門、車行掛帳、領牌後例外結案、狀態機清理與配車先進先出、發票紀錄、內部通知。規格 `specs/056`–`059`，規則見 [BUSINESS_RULES](BUSINESS_RULES.md)。
+- 正式站只做 SSH 唯讀核對與公開頁面檢查；**登入後頁面尚未在正式站實機驗收**，新流程以本機合成資料驗證。正式站未設定 Email 通道，Email 通知記為「未設定通道」，系統內通知正常。
+- 部署時正式站唯一一張未交車的分期單須先在交付頁登記「已核准」才能交車；既有已配車訂單沒有配車時間，不列入保留逾期提醒。
 - UI 規則來源為 [UI_GUIDELINES](../reference/UI_GUIDELINES.md)，由 `sales/tests/test_ui_consistency.py` 把關。
-- 交接分支 `claude/code-setup` 已推送；1.18.x 以 cherry-pick 方式從 origin/main 發布，分支上其餘 AI 工具與政策文件提交仍未合併 main。
+- 交接分支 `claude/code-setup` 已推送；應用版本以 cherry-pick 方式發布到 main，分支上其餘 AI 工具與政策文件提交仍未合併 main。
 - 正式主機 SSH 連線方式見 [HANDOFF](HANDOFF.md)「已知風險」；僅授權維運時使用。
 - 技術棧：Python 3.12、Django 5.2、Templates／HTMX、Channels／Daphne、RQ、PostgreSQL 16、Redis 7；本機可用 SQLite。
 - 開發工具：Codex 與 Claude Code 並存；Claude 入口 `CLAUDE.md` 匯入 AGENTS，工具狀態見 [AI_TOOL_POLICY](../reference/AI_TOOL_POLICY.md)。

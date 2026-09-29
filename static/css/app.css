@@ -3687,6 +3687,12 @@ body.screen-locked { overflow: hidden; }
 .receipt-more-fields { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--stack-gap-sm); padding: var(--inset-pad); background: var(--surface-soft); border-radius: var(--radius-md); }
 .receipt-summary { display: flex; flex-wrap: wrap; gap: var(--stack-gap-sm) var(--space-6); margin: var(--stack-gap); padding: var(--inset-pad); background: var(--surface-soft); border: 1px solid var(--line); border-radius: var(--radius-md); }
 .receipt-summary strong { display: block; margin-top: var(--space-2); }
+.receipt-summary .is-overpaid strong { color: var(--amber-ink); }
+.payment-record-row.is-locked { background: var(--surface-soft); }
+.payment-ledger { padding: var(--card-pad); }
+.payment-ledger__table { min-width: 0; }
+.payment-ledger__gap { margin-bottom: var(--stack-gap-sm); }
+.payment-ledger__form { margin-top: var(--stack-gap); padding-top: var(--space-5); border-top: 1px solid var(--line); }
 .payment-list-help, .receipt-expectations { margin: var(--stack-gap); }
 .receipt-expectations summary { cursor: pointer; min-height: 44px; padding: var(--space-3) 0; }
 .receipt-expectation-row { display: grid; grid-template-columns: 1fr 1fr 2fr; gap: var(--stack-gap-sm); padding: var(--space-4) 0; align-items: center; }

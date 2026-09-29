@@ -46,6 +46,36 @@ def line_of(text, index):
     return text.count("\n", 0, index) + 1
 
 
+def css_declarations(text):
+    """逐一產生 (選擇器堆疊, 屬性, 值)；支援 @media 等巢狀區塊。"""
+    text = re.sub(r"/\*.*?\*/", "", text, flags=re.S)
+    stack, selector, index = [], [], 0
+    while index < len(text):
+        char = text[index]
+        if char == "{":
+            stack.append("".join(selector).strip())
+            selector = []
+        elif char == "}":
+            if stack:
+                stack.pop()
+            selector = []
+        elif char == ";":
+            selector = []
+        elif stack and not stack[-1].startswith("@"):
+            end = index
+            while end < len(text) and text[end] not in ";}":
+                end += 1
+            declaration = text[index:end]
+            if ":" in declaration:
+                prop, value = declaration.split(":", 1)
+                yield list(stack), prop.strip().lower(), value.strip()
+            index = end
+            continue
+        else:
+            selector.append(char)
+        index += 1
+
+
 class UiConsistencyTests(SimpleTestCase):
     def test_base_loads_single_global_stylesheet(self):
         base = (TEMPLATES / "base.html").read_text(encoding="utf-8")
@@ -150,6 +180,37 @@ class UiConsistencyTests(SimpleTestCase):
                 if size and 0 < float(size.group(1)) / (16 if size.group(2) == "px" else 1) <= 2.35:
                     offenders.append(f"{path.name}: font-size {value}")
 
+        self.assertEqual(offenders, [])
+
+    def test_css_colors_use_tokens(self):
+        """色碼只能出現在參數定義、主題區塊、主題預覽色塊與列印樣式。"""
+        color = re.compile(r"#[0-9a-fA-F]{3,8}\b|rgba?\(")
+        offenders = []
+        for path in sorted(CSS_DIR.glob("*.css")):
+            if path.name == "contract.css":
+                continue
+            for stack, prop, value in css_declarations(path.read_text(encoding="utf-8")):
+                context = " ".join(stack)
+                if prop.startswith("--") or "url(" in value:
+                    continue
+                if any(key in context for key in (":root", "data-theme", "theme-option__preview", "print")):
+                    continue
+                if color.search(value):
+                    offenders.append(f"{path.name}: {stack[-1][:60]} {{ {prop}: {value[:60]} }}")
+
+        self.assertEqual(offenders, [])
+
+    def test_dropdowns_share_one_style(self):
+        app = (CSS_DIR / "app.css").read_text(encoding="utf-8")
+
+        self.assertIn("select:not([multiple]):not([size]):not(.searchable-select__native) {", app)
+        self.assertIn("--select-chevron: var(--forest);", app)
+        self.assertIn("color: var(--select-chevron); background: transparent;", app)
+        offenders = [
+            f"{path}"
+            for path in [*TEMPLATES.rglob("*.html"), *Path("static/js").glob("*.js")]
+            if "⌄" in path.read_text(encoding="utf-8") or "▾" in path.read_text(encoding="utf-8")
+        ]
         self.assertEqual(offenders, [])
 
     def test_shell_widths_come_from_tokens(self):

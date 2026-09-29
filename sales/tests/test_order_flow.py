@@ -214,7 +214,7 @@ class OrderFlowTests(TestCase):
         form = Path("templates/sales/_order_form_content.html").read_text(encoding="utf-8")
         form_shell = Path("templates/sales/order_form.html").read_text(encoding="utf-8")
 
-        self.assertIn("--shell-wide: 1680px", css)
+        self.assertIn("--shell-wide: 1560px", css)
         self.assertIn(".page-shell--wide { max-width: var(--shell-wide); }", css)
         self.assertIn("width: min(100% - 24px, 700px)", css)
         self.assertIn('class="app-header-inner"', base)

@@ -36,7 +36,7 @@
             <td data-label="操作" class="inventory-row-action">
               <span class="row-action-buttons">
                 <a class="button ghost small" href="?edit={{ item.pk }}">編輯</a>
-                {% if not item.source_count %}<form method="post" onsubmit="return confirm('確定刪除未使用的分類「{{ item.name|escapejs }}」嗎？');">{% csrf_token %}<input type="hidden" name="action" value="delete"><input type="hidden" name="category_id" value="{{ item.pk }}"><button class="button danger small" type="submit">刪除</button></form>{% endif %}
+                {% if not item.source_count %}<form method="post" data-confirm="確定刪除未使用的分類「{{ item.name }}」嗎？">{% csrf_token %}<input type="hidden" name="action" value="delete"><input type="hidden" name="category_id" value="{{ item.pk }}"><button class="button danger small" type="submit">刪除</button></form>{% endif %}
               </span>
             </td>
           </tr>

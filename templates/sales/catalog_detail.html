@@ -2,7 +2,7 @@
 {% block title %}{{ model }}｜馭盛選車{% endblock %}
 {% block content %}
 {% site_navigation %}
-<section class="hero-row"><div><h1>{{ model.name }}</h1><p>{{ model }}</p></div></section>
+<section class="hero-row compact-hero"><div><h1>{{ model.name }}</h1><p>{{ model }}</p></div></section>
 {% if selected_color %}
 <section class="card catalog-selected-color" aria-labelledby="selected-color-title">
   {% if selected_color.catalog_image %}<img class="catalog-image" src="{% url 'catalog_color_image' model.pk selected_color.pk %}" alt="{{ model.name }} · {{ selected_color.name }}">{% else %}<div class="catalog-placeholder">此車色圖片待補</div>{% endif %}

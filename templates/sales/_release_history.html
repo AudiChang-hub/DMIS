@@ -1,7 +1,7 @@
-<section class="section-block release-history" aria-labelledby="release-history-title">
-  <p class="eyebrow">目前執行版本 · {{ release_version }}</p>
+<section class="section-block release-history" {% if standalone %}aria-label="版本歷程"{% else %}aria-labelledby="release-history-title"{% endif %}>
+  {% if not standalone %}<p class="eyebrow">目前執行版本 · {{ release_version }}</p>
   <h2 id="release-history-title">版本歷程</h2>
-  <p class="muted">每次更新，都有跡可循。點選版本可展開或收合內容。</p>
+  <p class="muted">每次更新，都有跡可循。點選版本可展開或收合內容。</p>{% endif %}
   {% for entry in release_history %}
   <details class="release-entry"{% if forloop.first %} open{% endif %}>
     <summary><span class="release-heading"><strong>版本 {{ entry.version }}</strong>{% if entry.version == release_version %}<span class="release-current">目前版本</span>{% endif %}<span class="release-date">{% if entry.published_at %}發布時間 <time datetime="{{ entry.published_at|date:'c' }}">{{ entry.published_at|date:"Y-m-d H:i" }}</time>（台北）{% else %}發布日期 <time datetime="{{ entry.date }}">{{ entry.date }}</time> <small>未記錄時間</small>{% endif %}</span></span></summary>

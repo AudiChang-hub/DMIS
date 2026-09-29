@@ -16,6 +16,7 @@ Context 是索引，不是資料倉庫。這裡只放導航與必要限制。
 | --- | --- | --- |
 | SUI／選車／車色／展示 | `sales/catalog_views.py`、`templates/sales/catalog*.html` | `sales/tests/test_catalog_color_list.py`、`test_catalog_management.py` |
 | importer／Excel 匯入 | `sales/services/legacy_import.py` | `test_legacy_import.py`、BUSINESS_RULES「Excel 匯入」 |
+| 畫面樣式／操作流程 | [UI 規範](docs/reference/UI_GUIDELINES.md)、`static/css/app.css` | `sales/tests/test_ui_consistency.py` |
 | 訂單／財務／權限／其他 | [模組索引](docs/architecture/MODULE_MAP.md) | 精確搜尋相關符號與對應測試 |
 | 測試／安裝 | [開發驗證](docs/reference/DEVELOPMENT.md) | CI 是測試清單的來源 |
 | 部署／備份 | [維運](docs/reference/OPERATIONS.md) | 只在部署任務讀取 |

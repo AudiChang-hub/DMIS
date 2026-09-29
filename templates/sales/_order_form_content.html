@@ -339,7 +339,7 @@
     {% if editing_order %}<a class="button ghost" href="{% url 'order_detail' editing_order.pk %}" data-cancel-edit>取消修改</a>{% endif %}
     {% if not editing_order %}
     <button
-      class="button danger-ghost draft-delete-button"
+      class="button danger-outline draft-delete-button"
       id="draft-delete-button"
       type="submit"
       form="draft-delete-form"

@@ -1,8 +1,8 @@
 {% load static %}
 <link rel="stylesheet" href="{% static 'css/permission-workspace.css' %}?v={{ app_version }}">
 <script src="{% static 'js/permission-workspace.js' %}?v={{ app_version }}" defer></script>
+{% url 'user_management' as users_url %}{% include "sales/_page_back.html" with fallback_url=users_url label="帳號與權限" %}
 <header class="permission-heading">
-  <a class="permission-back" href="{% url 'user_management' %}">← 帳號與權限</a>
   <div class="permission-identity"><span class="permission-avatar" aria-hidden="true">{{ request.permission_account.get_full_name|default:request.permission_account.username|slice:':1' }}</span>
     <div><p class="eyebrow">人員權限工作區</p><h1>{{ request.permission_account.get_full_name|default:request.permission_account.username }}</h1><p class="muted">@{{ request.permission_account.username }} · {% if request.permission_profile.kind == 'dealer' %}{{ request.permission_profile.source.name }}{% else %}馭盛內部{% endif %}</p></div>
     <span class="permission-tag">{% if request.permission_account.is_active %}帳號啟用中{% else %}帳號已停用{% endif %}</span>

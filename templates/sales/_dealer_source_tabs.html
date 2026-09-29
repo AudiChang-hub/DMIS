@@ -1,0 +1,6 @@
+<nav class="account-tabs" aria-label="車行管理分頁">
+  <a href="{% url 'sales_source_edit' source.pk %}"{% if active == 'basic' %} aria-current="page"{% endif %}>基本資料</a>
+  <a href="{% url 'dealer_accounts' source.pk %}"{% if active == 'accounts' %} aria-current="page"{% endif %}>登入帳號{% if account_count is not None %} <span>{{ account_count }}</span>{% endif %}</a>
+  <a href="{% url 'dealer_print_company' source.pk %}"{% if active == 'print' %} aria-current="page"{% endif %}>訂購單公司資訊</a>
+  <a href="{% url 'user_management' %}?kind=dealer&amp;source={{ source.pk }}">帳號總覽 ↗</a>
+</nav>

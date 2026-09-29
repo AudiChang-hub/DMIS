@@ -1,7 +1,7 @@
 {% extends 'sales/reporting/layout.html' %}
 {% block title %}{{ card.title }} · 訂單明細{% endblock %}
+{% block report_nav %}{% url 'report_display' report.pk as report_url %}{% include "sales/_page_back.html" with fallback_url=report_url|add:"?"|add:back_query label=report.published.title %}{% endblock %}
 {% block report_content %}
-<a href="{% url 'report_display' report.pk %}?{{ back_query }}">← 返回報表並保留篩選</a>
-<header class="report-heading"><h1>{{ report.published.title }} · 訂單明細</h1></header>
+<header class="report-heading hero-row compact-hero"><div><p class="eyebrow">{{ report.published.title }}</p><h1>訂單明細</h1><p class="muted">返回時會保留原本的報表篩選。</p></div></header>
 <section class="report-panel">{% include 'sales/reporting/detail_panel.html' %}</section>
 {% endblock %}

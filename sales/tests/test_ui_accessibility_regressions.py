@@ -48,7 +48,7 @@ class SharedUiAccessibilitySourceTests(SimpleTestCase):
             return (lighter + 0.05) / (darker + 0.05)
 
         self.assertGreaterEqual(contrast(amber_match.group(1), "#fff1d6"), 4.5)
-        self.assertIn(".performance-card--primary > span { color: #fff; }", css)
+        self.assertIn(".performance-card--primary > span { color: var(--on-accent); }", css)
         self.assertIn(
             ".holiday-calendar-day.is-outside { color: var(--muted);",
             css,

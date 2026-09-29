@@ -17,12 +17,12 @@
 .commission-attribution__current p { margin: 0; font-size: var(--text-sm); color: var(--muted); }
 .commission-attribution__current p span { margin-left: 12px; }
 .commission-attribution__editor > summary { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 12px 22px; min-height: 68px; color: var(--ink); background: var(--surface-soft); font-weight: 750; cursor: pointer; list-style: none; border-top: 1px solid var(--line); border-radius: 0 0 var(--radius-lg) var(--radius-lg); }
-.commission-attribution__action { display: inline-flex; align-items: center; justify-content: center; gap: 14px; min-height: 44px; padding: 10px 18px; flex: 0 0 auto; border-radius: var(--radius-md); background: var(--forest); color: #fff; box-shadow: var(--shadow-soft); }
+.commission-attribution__action { display: inline-flex; align-items: center; justify-content: center; gap: 14px; min-height: 44px; padding: 10px 18px; flex: 0 0 auto; border-radius: var(--radius-md); background: var(--forest); color: var(--on-accent); box-shadow: var(--shadow-soft); }
 .commission-attribution__editor[open] > summary { border-radius: 0; }
 .commission-attribution__editor > summary:hover .commission-attribution__action { filter: brightness(.92); }
 .commission-attribution__editor > summary::-webkit-details-marker { display: none; }
 .commission-attribution__editor > summary:focus-visible { outline: 2px solid var(--forest); outline-offset: -3px; }
-.commission-attribution__editor[open] .commission-attribution__chevron { transform: rotate(180deg); }
+.commission-attribution__editor[open] .commission-attribution__chevron { margin-top: 4px; transform: rotate(225deg); }
 .commission-attribution__editor form { padding: 6px 22px 20px; }
 .commission-attribution__fields { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
 .commission-attribution__fields .field { min-width: 0; }

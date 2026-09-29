@@ -8,18 +8,18 @@
 {% url 'order_list' as order_list_url %}
 {% url 'dashboard' as dashboard_url %}
 {% include "sales/_page_back.html" with fallback_url=order_list_url label="全部訂單" root_url=dashboard_url root_label="首頁" %}
-<section class="hero-row detail-hero">
+<section class="hero-row compact-hero detail-hero">
   <div>
     <div class="title-with-status"><h1>{{ order.owner_name }}</h1><span class="status-pill large status-{{ order.display_status_code }}">{{ order.display_status }}</span></div>
     <p class="muted">{{ order.number }} · 訂單成立日期 {{ order.established_display }} · 領牌日期 {{ order.registration_display }}</p>
   </div>
   <div class="hero-actions">
+    {% if_access 'order_delete' order.pk %}<a class="button danger-outline" href="{% url 'order_delete' order.pk %}">刪除訂單</a>{% endif_access %}
     {% if_access 'order_customer_access' order.pk %}<a class="button ghost" href="{% url 'order_customer_access' order.pk %}">管理本單權限</a>{% endif_access %}
-    {% if_access 'order_delete' order.pk %}<a class="button danger-ghost" href="{% url 'order_delete' order.pk %}">刪除訂單</a>{% endif_access %}
-    {% if order.can_edit_content and not editing_order %}{% if_access 'order_edit' order.pk %}<a class="button primary" href="{% url 'order_edit' order.pk %}" data-workspace-edit-link>編輯訂單{% if order.is_delivered %}（完成後修正）{% endif %}</a>{% endif_access %}{% endif %}
-    {% if commission_form %}<a class="button primary" href="?attribution=1#commission-attribution" data-open-attribution>調整台數歸屬</a>{% endif %}
     {% if workspace_finance %}<button type="button" class="button ghost" data-workspace-go="finance">金額收支</button>{% endif %}
+    {% if commission_form %}<a class="button secondary" href="?attribution=1#commission-attribution" data-open-attribution>調整台數歸屬</a>{% endif %}
     {% if_access 'order_documents_print' order.pk %}<a class="button secondary" href="{% url 'order_documents_print' order.pk %}" target="_blank">一鍵列印全部文件</a>{% endif_access %}
+    {% if order.can_edit_content and not editing_order %}{% if_access 'order_edit' order.pk %}<a class="button primary" href="{% url 'order_edit' order.pk %}" data-workspace-edit-link>編輯訂單{% if order.is_delivered %}（完成後修正）{% endif %}</a>{% endif_access %}{% endif %}
   </div>
 </section>
 
@@ -435,7 +435,7 @@
           {% if row.document %}
             {% if order.can_manage_subsidy %}
             <form method="post" action="{% url 'subsidy_document_delete' order.pk row.document.pk %}" data-confirm="確定刪除這份補助文件嗎？刪除後無法復原。">
-              {% csrf_token %}<button class="button danger-ghost compact" type="submit">刪除</button>
+              {% csrf_token %}<button class="button danger-outline compact" type="submit">刪除</button>
             </form>
             {% endif %}
           {% endif %}
@@ -472,7 +472,7 @@
           {% if_access 'subsidy_document_file' document.pk %}<a class="button ghost compact" href="{% url 'subsidy_document_file' document.pk %}" data-preview-name="{{ document.file.name }}" target="_blank">查看</a>{% endif_access %}
           {% if order.can_manage_subsidy %}
           <form method="post" action="{% url 'subsidy_document_delete' order.pk document.pk %}" data-confirm="確定刪除這份其他補助文件嗎？刪除後無法復原。">
-            {% csrf_token %}<button class="button danger-ghost compact" type="submit">刪除</button>
+            {% csrf_token %}<button class="button danger-outline compact" type="submit">刪除</button>
           </form>
           {% endif %}
         </div>
@@ -616,7 +616,7 @@
               {% if not order.is_registration_complete %}
               <form method="post" action="{% url 'registration_document_delete' order.pk row.document.pk %}" data-confirm="確定刪除這份領牌文件嗎？刪除後無法復原。">
                 {% csrf_token %}
-                <button class="button danger-ghost compact" type="submit">刪除</button>
+                <button class="button danger-outline compact" type="submit">刪除</button>
               </form>
               {% endif %}
             {% endif %}
@@ -649,7 +649,7 @@
             {% if_access 'registration_document_file' document.pk %}<a class="button ghost compact" href="{% url 'registration_document_file' document.pk %}" data-preview-name="{{ document.file.name }}" target="_blank">查看</a>{% endif_access %}
             {% if not order.is_registration_complete %}
             <form method="post" action="{% url 'registration_document_delete' order.pk document.pk %}" data-confirm="確定刪除這份保險單嗎？刪除後無法復原。">
-              {% csrf_token %}<button class="button danger-ghost compact" type="submit">刪除</button>
+              {% csrf_token %}<button class="button danger-outline compact" type="submit">刪除</button>
             </form>
             {% endif %}
           </div>

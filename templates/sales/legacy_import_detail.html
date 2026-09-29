@@ -16,9 +16,9 @@
       {% if unresolved_count %}
         <a class="button primary" href="?action={% if counts.conflict %}conflict{% else %}error{% endif %}#issue-review">處理 {{ unresolved_count }} 筆問題</a>
       {% elif can_confirm %}
-        <form method="post" action="{% url 'legacy_import_confirm' batch.pk %}" onsubmit="return confirm('確認將目前已檢查的資料寫入正式系統？');">{% csrf_token %}<button class="button primary">確認匯入 {{ counts.create|add:counts.update }} 筆資料</button></form>
+        <form method="post" action="{% url 'legacy_import_confirm' batch.pk %}" data-confirm="確認將目前已檢查的資料寫入正式系統？">{% csrf_token %}<button class="button primary">確認匯入 {{ counts.create|add:counts.update }} 筆資料</button></form>
       {% endif %}
-      <form method="post" action="{% url 'legacy_import_delete' batch.pk %}" onsubmit="return confirm('確定刪除此匯入批次？上傳檔與所有暫存修正會一併刪除。');">{% csrf_token %}<button class="button danger-outline" type="submit">刪除此批次</button></form>
+      <form method="post" action="{% url 'legacy_import_delete' batch.pk %}" data-confirm="確定刪除此匯入批次？上傳檔與所有暫存修正會一併刪除。">{% csrf_token %}<button class="button danger-outline" type="submit">刪除此批次</button></form>
     {% elif batch.status == 'completed' %}
       {% if counts.error %}<a class="button primary" href="?action=error#row-preview">修正 {{ counts.error }} 筆失敗資料</a>{% endif %}
       {% if batch.archived_at %}<form method="post" action="{% url 'legacy_import_restore' batch.pk %}">{% csrf_token %}<button class="button ghost" type="submit">恢復顯示</button></form>{% else %}<form method="post" action="{% url 'legacy_import_archive' batch.pk %}">{% csrf_token %}<button class="button ghost" type="submit">封存此紀錄</button></form>{% endif %}
@@ -26,7 +26,7 @@
       <span class="status-pill">背景匯入中，可先離開此頁</span>
     {% else %}
       {% if can_resume %}<form method="post" action="{% url 'legacy_import_confirm' batch.pk %}">{% csrf_token %}<button class="button primary" type="submit">繼續背景匯入</button></form>{% endif %}
-      <form method="post" action="{% url 'legacy_import_delete' batch.pk %}" onsubmit="return confirm('確定刪除這個處理失敗的匯入批次？');">{% csrf_token %}<button class="button danger-outline" type="submit">刪除此批次</button></form>
+      <form method="post" action="{% url 'legacy_import_delete' batch.pk %}" data-confirm="確定刪除這個處理失敗的匯入批次？">{% csrf_token %}<button class="button danger-outline" type="submit">刪除此批次</button></form>
     {% endif %}
   </div>
 </section>
@@ -120,7 +120,7 @@
         <div class="import-master-item__actions">
           <button class="button ghost small" type="button" data-master-dialog="vehicle-model-link-dialog" data-source-value="{{ item.source_value }}" data-master-preview-id="vehicle-model-preview-{{ forloop.counter }}">對應既有</button>
           <button class="button secondary small" type="button" data-master-dialog="vehicle-model-create-dialog" data-source-value="{{ item.source_value }}" data-colors="{{ item.colors_text }}" data-master-preview-id="vehicle-model-preview-{{ forloop.counter }}">快速新增</button>
-          <form method="post" action="{% url 'legacy_import_master_resolve' batch.pk 'vehicle_model' %}" onsubmit="return confirm('確定保留「{{ item.source_value|escapejs }}」為歷史文字，不建立正式車型主檔？');">{% csrf_token %}<input type="hidden" name="source_value" value="{{ item.source_value }}"><input type="hidden" name="resolution_action" value="ignore"><button class="button text small" type="submit">保留文字</button></form>
+          <form method="post" action="{% url 'legacy_import_master_resolve' batch.pk 'vehicle_model' %}" data-confirm="確定保留「{{ item.source_value }}」為歷史文字，不建立正式車型主檔？">{% csrf_token %}<input type="hidden" name="source_value" value="{{ item.source_value }}"><input type="hidden" name="resolution_action" value="ignore"><button class="button ghost small" type="submit">保留文字</button></form>
         </div>
         <template id="vehicle-model-preview-{{ forloop.counter }}"><section class="import-master-dialog-preview"><strong>Excel 相關資料</strong><p>{% site_text 'legacy_import_detail.6a594c2d6990' %}</p>{% include "sales/_legacy_model_examples.html" with examples=item.examples %}</section></template>
       </article>
@@ -139,7 +139,7 @@
         <div class="import-master-item__actions">
           <button class="button ghost small" type="button" data-master-dialog="sales-source-link-dialog" data-source-value="{{ item.source_value }}">對應既有</button>
           <button class="button secondary small" type="button" data-master-dialog="sales-source-create-dialog" data-source-value="{{ item.source_value }}">快速新增</button>
-          <form method="post" action="{% url 'legacy_import_master_resolve' batch.pk 'sales_source' %}" onsubmit="return confirm('確定保留「{{ item.source_value|escapejs }}」為歷史文字，不建立通路主檔？');">{% csrf_token %}<input type="hidden" name="source_value" value="{{ item.source_value }}"><input type="hidden" name="resolution_action" value="ignore"><button class="button text small" type="submit">保留文字</button></form>
+          <form method="post" action="{% url 'legacy_import_master_resolve' batch.pk 'sales_source' %}" data-confirm="確定保留「{{ item.source_value }}」為歷史文字，不建立通路主檔？">{% csrf_token %}<input type="hidden" name="source_value" value="{{ item.source_value }}"><input type="hidden" name="resolution_action" value="ignore"><button class="button ghost small" type="submit">保留文字</button></form>
         </div>
       </article>
       {% endfor %}
@@ -153,7 +153,7 @@
       <p>{% site_text 'legacy_import_detail.78e7c64a6f08' %}</p>
       <div data-master-preview-target></div>
       {% include "sales/_field.html" with field=vehicle_model_link_form.vehicle_model %}
-      <div class="form-actions"><button class="button primary" type="submit">儲存對應</button><button class="button ghost" type="button" data-close-dialog>取消</button></div>
+      <div class="form-actions"><button class="button ghost" type="button" data-close-dialog>取消</button><button class="button primary" type="submit">儲存對應</button></div>
     </form>
   </dialog>
 
@@ -174,7 +174,7 @@
         {% include "sales/_field.html" with field=vehicle_model_quick_form.horsepower_hp %}
         {% include "sales/_field.html" with field=vehicle_model_quick_form.colors %}
       </div>
-      <div class="form-actions"><button class="button primary" type="submit">建立並完成對應</button><button class="button ghost" type="button" data-close-dialog>取消</button></div>
+      <div class="form-actions"><button class="button ghost" type="button" data-close-dialog>取消</button><button class="button primary" type="submit">建立並完成對應</button></div>
     </form>
   </dialog>
 
@@ -183,7 +183,7 @@
       <header><div><span>對應既有通路</span><h3 data-master-source-label></h3></div><button type="button" aria-label="關閉" data-close-dialog>×</button></header>
       <p>{% site_text 'legacy_import_detail.b1ed877bed51' %}</p>
       {% include "sales/_field.html" with field=sales_source_link_form.sales_source %}
-      <div class="form-actions"><button class="button primary" type="submit">儲存對應</button><button class="button ghost" type="button" data-close-dialog>取消</button></div>
+      <div class="form-actions"><button class="button ghost" type="button" data-close-dialog>取消</button><button class="button primary" type="submit">儲存對應</button></div>
     </form>
   </dialog>
 
@@ -203,7 +203,7 @@
           {% include "sales/_field.html" with field=sales_source_quick_form.new_category_behavior %}
         </div>
       </details>
-      <div class="form-actions"><button class="button primary" type="submit">建立並完成對應</button><button class="button ghost" type="button" data-close-dialog>取消</button></div>
+      <div class="form-actions"><button class="button ghost" type="button" data-close-dialog>取消</button><button class="button primary" type="submit">建立並完成對應</button></div>
     </form>
   </dialog>
 </section>
@@ -294,7 +294,7 @@
       {% for field in correction_form %}{% if field.name != 'decision' and field.name != 'reason' %}{% include "sales/_import_review_field.html" with field=field %}{% endif %}{% endfor %}
     </div>
     {% include "sales/_field.html" with field=correction_form.reason %}
-    <div class="form-actions"><button class="button primary" type="submit">{% if correction_form.review.date_candidates and request.user.is_superuser and request.user.username == 'admin' %}儲存並核對改期{% elif correction_form.review.replacement_candidates and request.user.is_superuser and request.user.username == 'admin' %}儲存並繼續核對{% elif batch.status == 'completed' %}修正並補匯此列{% else %}儲存並重新驗證{% endif %}</button><a class="button ghost" href="?action={{ selected_action }}#issue-review">取消</a></div>
+    <div class="form-actions"><a class="button ghost" href="?action={{ selected_action }}#issue-review">取消</a><button class="button primary" type="submit">{% if correction_form.review.date_candidates and request.user.is_superuser and request.user.username == 'admin' %}儲存並核對改期{% elif correction_form.review.replacement_candidates and request.user.is_superuser and request.user.username == 'admin' %}儲存並繼續核對{% elif batch.status == 'completed' %}修正並補匯此列{% else %}儲存並重新驗證{% endif %}</button></div>
   </form>
   {% if editing_row.corrections.exists %}<details class="import-correction-history"><summary>查看人工處理紀錄（{{ editing_row.corrections.count }} 筆）</summary>{% for correction in editing_row.corrections.all %}<p><strong>{{ correction.get_decision_display }}</strong> · {{ correction.corrected_by }} · {{ correction.created_at|date:'Y/m/d H:i' }}<br>{{ correction.reason }}</p>{% endfor %}</details>{% endif %}
 </section>

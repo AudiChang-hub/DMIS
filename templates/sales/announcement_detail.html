@@ -19,6 +19,6 @@
     <label>標題{{ inline_form.title }}{{ inline_form.title.errors }}</label>
     {% include 'sales/_announcement_media_editor.html' with form=inline_form %}
     <label>公告內容{{ inline_form.body }}{{ inline_form.body.errors }}</label>
-    <div class="form-actions"><button type="submit" class="button primary">儲存修改</button><button type="button" class="button ghost" data-announcement-cancel>取消編輯</button></div>
+    <div class="form-actions"><button type="button" class="button ghost" data-announcement-cancel>取消編輯</button><button type="submit" class="button primary">儲存修改</button></div>
   </form>{% endif %}
 </article>{% endblock %}

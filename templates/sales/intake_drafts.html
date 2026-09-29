@@ -1,5 +1,5 @@
 {% extends 'base.html' %}{% load site_copy %}{% load pagination_tags %}
 {% block title %}我的接待草稿｜車輛銷售管理{% endblock %}
 {% block content %}
-{% site_navigation %}<h1>我的接待草稿</h1><p>{% site_text 'intake_drafts.da8965b63ceb' %}</p>
-{% for draft in page_obj %}<section class="section-block"><strong>{{ draft.display_name }}</strong><p>{{ draft.display_vehicle }} · {{ draft.updated_at|date:'Y/m/d H:i' }}</p><a class="button primary" href="{% url 'order_start' %}?draft={{ draft.pk }}">繼續本筆下單</a></section>{% empty %}<p>{% site_text 'intake_drafts.5f66dbfdf6c9' %}</p>{% endfor %}{% pagination page_obj %}{% endblock %}
+{% site_navigation %}<section class="hero-row compact-hero"><div><p class="eyebrow">建立訂單</p><h1>我的接待草稿</h1><p class="muted">{% site_text 'intake_drafts.da8965b63ceb' %}</p></div></section>
+{% for draft in page_obj %}<section class="section-block"><strong>{{ draft.display_name }}</strong><p>{{ draft.display_vehicle }} · {{ draft.updated_at|date:'Y/m/d H:i' }}</p><a class="button primary" href="{% url 'order_start' %}?draft={{ draft.pk }}">繼續本筆下單</a></section>{% empty %}<div class="section-block empty-state"><p>{% site_text 'intake_drafts.5f66dbfdf6c9' %}</p></div>{% endfor %}{% pagination page_obj %}{% endblock %}

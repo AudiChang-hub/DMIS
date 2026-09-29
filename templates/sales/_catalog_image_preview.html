@@ -4,6 +4,6 @@
   {% include "sales/_field.html" with field=upload %}
   {% if photo and remove %}{% include "sales/_field.html" with field=remove %}{% endif %}
   <p class="catalog-preview-status" id="{{ upload.id_for_label }}_preview_status" data-preview-status role="status" aria-live="polite"></p>
-  <button class="button small" type="button" data-preview-cancel hidden>取消此次圖片變更</button>
+  <button class="button ghost small" type="button" data-preview-cancel hidden>取消此次圖片變更</button>
   <small class="help-text">{% site_text '_catalog_image_preview.44fb38f63c8b' %}</small>
 </div>

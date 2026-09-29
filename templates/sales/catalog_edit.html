@@ -1,6 +1,6 @@
 {% extends "base.html" %}{% load site_copy %}{% load static %}{% block title %}編輯車款展示{% endblock %}{% block content %}
-{% site_navigation %}
-<a class="button" href="{% url 'catalog_manage' %}">← 返回展示管理</a><h1>編輯車款展示</h1><h2>{{ model }}</h2>
+{% url 'catalog_manage' as catalog_manage_url %}{% include "sales/_page_back.html" with fallback_url=catalog_manage_url label="選車展示管理" %}
+<section class="hero-row compact-hero"><div><p class="eyebrow">選車展示管理</p><h1>編輯車款展示</h1><p class="muted">{{ model }}</p></div></section>
 <div class="card"><p>{% site_text 'catalog_edit.c923277f878f' %}</p><a href="{% url 'vehicle_model_edit' model.pk %}">修改機種規格、車色、售價與分期</a></div>
 <form method="post" enctype="multipart/form-data" class="stacked-form">
   {% csrf_token %}{{ form.non_field_errors }}{{ form.expected_revision }}
@@ -30,7 +30,7 @@
     {% include "sales/_catalog_image_preview.html" with photo=entry.image upload=form.image preview_url=main_preview_url preview_class="catalog-main-preview" %}
     {% include "sales/_field.html" with field=form.main_image_color %}
   </details>
-  <div class="catalog-manage-actions"><button class="button primary">儲存展示設定</button><a class="button" href="{% url 'catalog_manage' %}">取消返回</a></div>
+  <div class="form-actions"><a class="button ghost" href="{% url 'catalog_manage' %}">取消</a><button class="button primary">儲存展示設定</button></div>
 </form>
 {% endblock %}
 {% block scripts %}<script src="{% static 'js/catalog-image-preview.js' %}?v={{ app_version }}" defer></script>{% endblock %}

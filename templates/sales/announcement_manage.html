@@ -4,7 +4,7 @@
 {% block page_class %}system-home{% endblock %}
 {% block content %}
 {% site_navigation %}
-<section class="hero-row"><div><p class="eyebrow">{% site_text 'announcement_manage.8763e02b6fcf' %}</p><h1>系統公告管理</h1><p class="muted">{% site_text 'announcement_manage.932bc63d878c' %}</p></div><a class="button ghost" href="{% url 'announcement_manage' %}{% if not history %}?history=1{% endif %}">{% if history %}返回目前公告{% else %}查看歷史公告{% endif %}</a></section>
+<section class="hero-row compact-hero"><div><p class="eyebrow">{% site_text 'announcement_manage.8763e02b6fcf' %}</p><h1>系統公告管理</h1><p class="muted">{% site_text 'announcement_manage.932bc63d878c' %}</p></div><a class="button ghost" href="{% url 'announcement_manage' %}{% if not history %}?history=1{% endif %}">{% if history %}返回目前公告{% else %}查看歷史公告{% endif %}</a></section>
 <div class="system-home-grid">
 <section class="section-block">
   <h2>{% if announcement %}編輯公告{% else %}新增公告{% endif %}</h2>

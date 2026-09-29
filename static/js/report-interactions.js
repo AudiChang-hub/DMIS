@@ -64,7 +64,7 @@ function initReportTablePagination(table) {
   const size = doc.createElement('select'); size.setAttribute('aria-label', '彙總表每頁群組');
   [10,25,50,100].forEach(value => { const option = doc.createElement('option'); option.value = value; option.textContent = value; size.append(option); });
   size.value = '25'; sizeLabel.append(size);
-  const button = text => { const b = doc.createElement('button'); b.type = 'button'; b.className = 'button ghost small secondary site-pagination__link'; b.textContent = text; return b; };
+  const button = text => { const b = doc.createElement('button'); b.type = 'button'; b.className = 'button ghost small site-pagination__link'; b.textContent = text; return b; };
   const first = button('第一頁'), previous = button('上一頁'), next = button('下一頁'), last = button('最後一頁');
   const status = doc.createElement('strong'); status.className = 'site-pagination__status'; status.setAttribute('aria-live', 'polite');
   const jump = doc.createElement('form'); jump.className = 'site-pagination__jump';

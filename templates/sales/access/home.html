@@ -2,7 +2,8 @@
 {% block title %}我的可用功能｜車輛銷售管理{% endblock %}
 {% block content %}
 {% site_navigation %}
-<section class="card"><h1>我的可用功能</h1><p>{% site_text 'home.977b1b7e6a34' %}</p>
-<div class="maintenance-grid">{% for link in access_links %}<a class="button secondary" href="{% url link.route %}">{{ link.label }}</a>{% empty %}<p>{% site_text 'home.d12ccc7e11dc' %}</p>{% endfor %}</div>
+<section class="hero-row compact-hero"><div><p class="eyebrow">帳號</p><h1>我的可用功能</h1><p class="muted">{% site_text 'home.977b1b7e6a34' %}</p></div></section>
+<section class="card">
+<div class="maintenance-grid">{% for link in access_links %}<a class="button secondary" href="{% url link.route %}">{{ link.label }}</a>{% empty %}<div class="empty-state small"><p>{% site_text 'home.d12ccc7e11dc' %}</p></div>{% endfor %}</div>
 <p><a href="{% url 'report_center' %}">查看已授權報表</a></p></section>
 {% endblock %}

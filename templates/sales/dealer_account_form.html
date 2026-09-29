@@ -1,9 +1,8 @@
 {% extends "base.html" %}{% load site_copy %}{% load static %}{% block title %}車行帳號設定{% endblock %}{% block content %}
-{% if request.permission_account %}{% include 'sales/permissions/_header.html' %}{% else %}{% site_navigation %}{% endif %}
+{% if request.permission_account %}{% include 'sales/permissions/_header.html' %}{% else %}{% url 'dealer_accounts' source.pk as dealer_accounts_url %}{% include "sales/_page_back.html" with fallback_url=dealer_accounts_url label=source.name|add:" 登入帳號" %}{% endif %}
 <div class="account-editor">
 {% if not request.permission_account %}
-<a class="back-link" href="{% url 'dealer_accounts' source.pk %}">← 返回 {{ source.name }} 登入帳號</a>
-<header class="account-heading"><div><p class="eyebrow">合作車行 · {{ source.code }}</p><h1>{% if account %}編輯人員帳號{% else %}開通車行帳號{% endif %}</h1><p>所屬車行 <strong>{{ source.name }}</strong> · 一人一帳號，操作紀錄可追溯</p></div><span class="account-badge">僅 admin 可管理</span></header>
+<header class="hero-row compact-hero"><div><p class="eyebrow">合作車行 · {{ source.code }}</p><h1>{% if account %}編輯人員帳號{% else %}開通車行帳號{% endif %}</h1><p class="muted">所屬車行 <strong>{{ source.name }}</strong> · 一人一帳號，操作紀錄可追溯</p></div><div class="hero-actions"><span class="account-badge">僅 admin 可管理</span></div></header>
 {% endif %}
 <form class="account-form" method="post" autocomplete="off" data-dealer-account>{% csrf_token %}{{ form.non_field_errors }}{% for field in form.hidden_fields %}{{ field }}{% endfor %}
 {% if request.permission_tab != 'features' %}<section class="account-panel"><header><span class="account-step">01</span><div><h2>人員與登入資料</h2><p>{% site_text 'dealer_account_form.9cc6fa7e3faa' %}</p></div></header>

@@ -9,11 +9,6 @@
   <title>{% block title %}車輛銷售管理{% endblock %}</title>
   <link rel="stylesheet" href="{% static 'css/app.css' %}?v={{ app_version }}">
   {% block head %}{% endblock %}
-  <link rel="stylesheet" href="{% static 'css/ui-comfort.css' %}?v={{ app_version }}">
-  <link rel="stylesheet" href="{% static 'css/account-workspace.css' %}?v={{ app_version }}">
-  <link rel="stylesheet" href="{% static 'css/catalog-selection.css' %}?v={{ app_version }}">
-  <link rel="stylesheet" href="{% static 'css/site-review.css' %}?v={{ app_version }}">
-  <link rel="stylesheet" href="{% static 'css/ppt-refinements.css' %}?v={{ app_version }}">
 </head>
 <body data-profit-until="{{ profit_unlock_until }}" data-app-version="{{ app_version }}" data-version-endpoint="{% url 'app_version' %}" data-history-user="{% if request.user.is_authenticated %}{{ request.user.pk }}{% else %}anonymous{% endif %}">
   <a class="skip-link" href="#main-content">跳至主要內容</a>

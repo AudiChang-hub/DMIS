@@ -13,12 +13,12 @@
     <p class="muted">{% site_text 'price_list_distribution.dd149bef545f' %}</p>
   </div>
   <div class="hero-actions">
-    {% if assignment_editable %}<a class="button primary" href="{% url 'price_list_distribution_assignments' distribution.pk %}">分配與排序</a>{% endif %}
     {% if can_sync %}
     <form method="post" action="{% url 'price_list_distribution_sync' distribution.pk %}">
       {% csrf_token %}<button class="button ghost" type="submit">重新同步本月名單</button>
     </form>
     {% endif %}
+    {% if assignment_editable %}<a class="button primary" href="{% url 'price_list_distribution_assignments' distribution.pk %}">分配與排序</a>{% endif %}
   </div>
 </section>
 

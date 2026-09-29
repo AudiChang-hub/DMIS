@@ -168,7 +168,7 @@ def eligible_volume_bonus_orders(rule, dealer=None, *, period=None):
     ).filter(
         Q(source_type=SalesOrder.SourceType.DEALER, source__source_type=SalesSource.SourceType.DEALER)
         | Q(source_type=SalesOrder.SourceType.STORE, commission_recipient__source_type=SalesSource.SourceType.DEALER)
-    ).exclude(status=SalesOrder.Status.CANCELLED)
+    ).exclude(status__in=[SalesOrder.Status.CANCELLED, SalesOrder.Status.EXCEPTION_CLOSED])
         .select_related("vehicle_model", "source", "commission_recipient").order_by("registration_date", "number"))
     if dealer:
         orders = orders.filter(Q(commission_recipient=dealer) | Q(commission_recipient__isnull=True, source=dealer))

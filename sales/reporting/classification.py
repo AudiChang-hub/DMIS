@@ -124,7 +124,7 @@ def classification_expression(snapshot=None, *, identifiers=False):
 def inventory():
     from sales.models import SalesOrder
     from .source_compatibility import source_model_query
-    return source_model_query(SalesOrder.objects.exclude(status__in=['draft','cancel_refund_pending','cancelled']))
+    return source_model_query(SalesOrder.objects.exclude(status__in=['draft','cancel_refund_pending','cancelled','exception_closed']))
 
 
 def unclassified(snapshot, search=''):

@@ -258,7 +258,7 @@ def build_order_next_actions(
         else order.missing_subsidy_requirements()
     )
 
-    if order.status == SalesOrder.Status.CANCELLED:
+    if order.status in {SalesOrder.Status.CANCELLED, SalesOrder.Status.EXCEPTION_CLOSED}:
         return None
     if order.status == SalesOrder.Status.CANCEL_REFUND_PENDING:
         primary = NextAction(

@@ -310,7 +310,8 @@ class OrderLifecycleTests(TestCase):
                     updates["status"] = SalesOrder.Status.DELIVERED_DOCS_PENDING
                 SalesOrder.objects.filter(pk=order.pk).update(**updates)
                 response = self.client.get(reverse("order_detail", args=[order.pk]))
-                self.assertNotContains(response, "cancellation-disclosure")
+                # 領牌後改由例外結案處理，不再提供一般取消。
+                self.assertNotContains(response, reverse("cancellation_request", args=[order.pk]))
 
     def test_cancellation_states_show_refund_or_history_not_new_request(self):
         self.client.force_login(self.user)
@@ -606,6 +607,8 @@ class OrderLifecycleTests(TestCase):
         balance.payment_method = "現金"
         balance.confirmed = True
         balance.save()
+        SalesOrder.objects.filter(pk=order.pk).update(installment_status=SalesOrder.InstallmentStatus.APPROVED)
+        order.refresh_from_db()
 
         form = DeliveryCompletionForm(order, self.delivery_payload())
         self.assertTrue(form.is_valid(), form.errors)

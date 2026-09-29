@@ -51,7 +51,7 @@ def sort_orders(orders, tokens):
                       *[amount(f) for f in (*OrderOperationsProfile.INCOME_FIELDS, *OrderOperationsProfile.INCENTIVE_FIELDS)],
                       template='(%(expressions)s)', arg_joiner=' + ', output_field=money)
         annotations['_sort_profit'] = Case(
-            When(status__in=['cancelled', 'cancel_refund_pending'], then=Value(None)),
+            When(status__in=['cancelled', 'cancel_refund_pending', 'exception_closed'], then=Value(None)),
             When(operations__isnull=False, then=profit), output_field=money)
     orders = orders.annotate(**annotations)
     ordering = []

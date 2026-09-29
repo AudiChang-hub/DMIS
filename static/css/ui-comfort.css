@@ -48,7 +48,7 @@
   @media (min-width: 861px) and (max-width: 1400px) {
     .app-header { padding-inline: 12px; }
     .desktop-nav > a, .desktop-data-menu > a { padding-inline: 7px; font-size: .8rem; }
-    .brand small, .theme-toggle-button strong, .header-help-link strong, .update-check-label { display: none; }
+    .brand small, .brand-clock, .theme-toggle-button strong, .header-help-link strong, .update-check-label { display: none; }
     .brand strong { font-size: .85rem; }
     .theme-toggle-button, .header-help-link, .update-check-button { padding-inline: 6px; margin-left: 0; }
     .header-identity { min-width: 60px; max-width: 90px; padding-inline: 6px; margin-left: 2px; }

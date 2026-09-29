@@ -53,7 +53,7 @@
             <div class="inline-actions import-row-actions">
               <a class="button ghost small" href="{% url 'legacy_import_detail' batch.pk %}">{% if batch.status == 'preview' %}繼續檢查{% else %}查看紀錄{% endif %}</a>
               {% if batch.status == 'preview' or batch.status == 'failed' %}
-                <form method="post" action="{% url 'legacy_import_delete' batch.pk %}" onsubmit="return confirm('確定刪除「{{ batch.original_filename|escapejs }}」這個匯入批次？上傳檔與預覽會一併刪除，但正式資料不受影響。');">{% csrf_token %}<button class="button danger-outline small" type="submit">刪除此批次</button></form>
+                <form method="post" action="{% url 'legacy_import_delete' batch.pk %}" data-confirm="確定刪除「{{ batch.original_filename }}」這個匯入批次？上傳檔與預覽會一併刪除，但正式資料不受影響。">{% csrf_token %}<button class="button danger-outline small" type="submit">刪除此批次</button></form>
               {% elif batch.archived_at %}
                 <form method="post" action="{% url 'legacy_import_restore' batch.pk %}">{% csrf_token %}<button class="button ghost small" type="submit">恢復顯示</button></form>
               {% else %}

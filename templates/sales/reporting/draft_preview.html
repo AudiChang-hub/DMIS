@@ -1,9 +1,9 @@
 {% extends 'sales/reporting/layout.html' %}{% load site_copy %}
 {% block title %}{{ config.title }} · 草稿核對{% endblock %}
 {% block report_content %}
-<header class="report-heading"><div><p class="eyebrow">{% site_text 'draft_preview.6d87f693ded9' %}</p><h1>{{ config.title }}</h1><p>{{ config.description }}</p></div><div class="report-actions"><a class="button secondary" href="{% url 'report_manage' %}">返回設計管理</a><a class="button" href="{% url 'report_edit' report.pk %}">編輯設計</a></div></header>
+<header class="report-heading hero-row compact-hero"><div><p class="eyebrow">{% site_text 'draft_preview.6d87f693ded9' %}</p><h1>{{ config.title }}</h1><p>{{ config.description }}</p></div><div class="report-actions hero-actions"><a class="button ghost" href="{% url 'report_manage' %}">返回設計管理</a><a class="button primary" href="{% url 'report_edit' report.pk %}">編輯設計</a></div></header>
 <p class="report-notice">{% site_text 'draft_preview.809b4854fe2b' %}</p>
-<details class="report-panel"><summary>切換核對報表</summary><nav class="report-actions" aria-label="草稿核對報表">{% for draft in draft_reports %}<a class="button secondary" href="{% url 'report_draft_preview' draft.pk %}" {% if draft.pk == report.pk %}aria-current="page"{% endif %}>{{ draft.draft.title }}</a>{% endfor %}</nav></details>
+<details class="report-panel"><summary>切換核對報表</summary><nav class="report-actions" aria-label="草稿核對報表">{% for draft in draft_reports %}<a class="button ghost" href="{% url 'report_draft_preview' draft.pk %}" {% if draft.pk == report.pk %}aria-current="page"{% endif %}>{{ draft.draft.title }}</a>{% endfor %}</nav></details>
 {% if scope_labels %}<div class="report-scope-summary"><strong>固定範圍</strong>{% for label in scope_labels %}<span>{{ label }}</span>{% endfor %}</div>{% endif %}
 {% include 'sales/reporting/reader_filters.html' %}
 {% if error %}<p class="report-notice" role="alert">{{ error }}</p>{% endif %}

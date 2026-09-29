@@ -43,7 +43,7 @@ class ReceptionEntryTests(TestCase):
         receipt = self.client.get(result.url)
         self.assertContains(receipt, order.number)
         self.assertContains(receipt, "再建立一筆")
-        self.assertContains(receipt, f'<a class="button" href="{reverse("dashboard")}">回首頁</a>', html=True)
+        self.assertContains(receipt, f'<a class="button ghost" href="{reverse("dashboard")}">回首頁</a>', html=True)
         self.assertNotContains(receipt, "離開接待")
         self.assertNotContains(receipt, "測試車主")
         self.assertNotContains(receipt, "淨利")

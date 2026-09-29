@@ -2,10 +2,8 @@
 {% block title %}{% if restore %}還原{% else %}刪除{% endif %}訂單｜車輛銷售管理{% endblock %}
 {% block content %}
 {% site_navigation %}
+<section class="hero-row compact-hero"><div><p class="eyebrow">{{ order.number }}</p><h1>{% if restore %}還原訂單{% elif deletion_admin %}確認刪除訂單{% else %}申請刪除訂單{% endif %}</h1><p class="muted">{{ order.owner_name }} · {{ order.vehicle_model }}／{{ order.color.name }} · {{ order.get_status_display }}</p></div></section>
 <section class="section-block order-recycle-panel">
-  <h1>{% if restore %}還原訂單{% elif deletion_admin %}確認刪除訂單{% else %}申請刪除訂單{% endif %}</h1>
-  <h2>{{ order.owner_name }} · {{ order.number }}</h2>
-  <p>{{ order.vehicle_model }}／{{ order.color.name }} · {{ order.get_status_display }}</p>
   <p>{% if restore %}還原後重新出現在一般訂單與統計中，維持原狀態與金額，不重新計算歷史財務。{% else %}訂單將移至「已刪除訂單」，不再顯示於一般查詢與統計；附件、金額及歷史仍保留，可還原。刪除不等於取消交易或完成退款。{% endif %}</p>
   {% if restore %}<p>刪除人員：{{ order.deleted_by }} · {{ order.deleted_at|date:'Y/m/d H:i' }}</p><p>刪除原因：{{ order.deletion_reason }}</p>{% endif %}
   {% if order.deletion_requested_at %}<div class="section-block"><strong class="status-pill status-deletion_pending">刪除確認中</strong><p>申請人：{{ order.deletion_requested_by.get_full_name|default:order.deletion_requested_by.username }} · {{ order.deletion_requested_at|date:'Y/m/d H:i' }}</p><p>申請原因：{{ order.deletion_request_reason }}</p><p>{% site_text 'order_deletion_confirm.3bc70b1b75a9' %}</p></div>{% endif %}
@@ -18,8 +16,8 @@
     {% include 'sales/_field.html' with field=form.reason %}
     <p><label>{{ form.confirmed }} {{ form.confirmed.label }}</label>{{ form.confirmed.errors }}</p>
     {% if deletion_admin and not restore %}<p><label>{{ form.force }} {{ form.force.label }}</label></p>{% endif %}
-    <div class="hero-actions"><a class="button ghost" href="{% url 'order_list' %}">返回訂單</a>
-      {% if deletion_admin or restore %}<button class="button danger-ghost" type="submit" name="action" value="delete">確認{% if restore %}還原{% else %}刪除{% endif %}訂單</button>{% elif not order.deletion_requested_at %}<button class="button primary" type="submit" name="action" value="request">送出刪除申請</button>{% endif %}
+    <div class="form-actions"><a class="button ghost" href="{% url 'order_list' %}">返回訂單</a>
+      {% if restore %}<button class="button primary" type="submit" name="action" value="delete">確認還原訂單</button>{% elif deletion_admin %}<button class="button danger" type="submit" name="action" value="delete">確認刪除訂單</button>{% elif not order.deletion_requested_at %}<button class="button primary" type="submit" name="action" value="request">送出刪除申請</button>{% endif %}
       {% if deletion_admin and order.deletion_requested_at %}<button class="button ghost" type="submit" name="action" value="reject">駁回申請</button>{% endif %}
     </div>
   </form>{% endif %}

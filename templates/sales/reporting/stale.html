@@ -1,2 +1,2 @@
 {% extends 'sales/reporting/layout.html' %}{% load site_copy %}
-{% block report_content %}<section class="report-panel report-empty"><h1>報表設計已更新</h1><p>{% site_text 'stale.0cc69c78af60' %}</p><a class="button" href="{% url 'report_display' report.pk %}">重新開啟報表</a></section>{% endblock %}
+{% block report_content %}<section class="report-heading hero-row compact-hero"><div><p class="eyebrow">報表</p><h1>報表設計已更新</h1><p class="muted">{% site_text 'stale.0cc69c78af60' %}</p></div><div class="hero-actions"><a class="button primary" href="{% url 'report_display' report.pk %}">重新開啟報表</a></div></section>{% endblock %}

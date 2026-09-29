@@ -56,7 +56,7 @@ class ReleaseHistoryTests(SimpleTestCase):
         validate_transition(RELEASES, (), True)
         with self.assertRaisesMessage(ValueError, "必須新增正式版號"):
             validate_transition(RELEASES, RELEASES, True)
-        for path in ("sales/views.py", "templates/base.html", "static/css/ui-comfort.css", "static/images/logo.png", "config/release_notes.py", "scripts/deploy_django.sh", "requirements-django.txt"):
+        for path in ("sales/views.py", "templates/base.html", "static/css/app.css", "static/images/logo.png", "config/release_notes.py", "scripts/deploy_django.sh", "requirements-django.txt"):
             self.assertTrue(is_runtime_path(path))
         for path in ("README.md", "docs/RELEASE_POLICY.md", "sales/tests/test_release_history.py"):
             self.assertFalse(is_runtime_path(path))

@@ -14,7 +14,7 @@
   <div class="hero-actions"><a class="button ghost" href="{% url 'vehicle_brand_list' %}">維護品牌</a></div>
 </section>
 
-{% if is_editing and can_manage_screen_access %}<p><a class="button" href="{% url 'catalog_edit' vehicle_model.pk %}">圖片、介紹與上架設定</a></p>{% endif %}
+{% if is_editing and can_manage_screen_access %}<p><a class="button ghost" href="{% url 'catalog_edit' vehicle_model.pk %}">圖片、介紹與上架設定</a></p>{% endif %}
 <form method="post" class="master-model-form">
   {% csrf_token %}
   <input type="hidden" name="action" value="save_model">
@@ -125,7 +125,7 @@
           <strong>先檢查，再合併</strong>
           <span>若兩筆有相同生效日的售價、分期或成本規則，系統會停止並指出衝突，不會覆蓋資料。</span>
         </div>
-        <form method="post" class="vehicle-model-move-form" data-confirm-form="確定將目前這筆年式併入所選資料嗎？合併後目前這筆會被移除。">
+        <form method="post" class="vehicle-model-move-form" data-confirm="確定將目前這筆年式併入所選資料嗎？合併後目前這筆會被移除。">
           {% csrf_token %}
           <input type="hidden" name="action" value="merge_version">
           {% if merge_form.non_field_errors %}<div class="message error">{{ merge_form.non_field_errors }}</div>{% endif %}
@@ -141,7 +141,7 @@
           <div><h3>移至或合併其他機種</h3><p>{% site_text 'vehicle_model_form.0582758fee11' %}</p></div>
         </div>
       {% if has_move_targets %}
-      <form method="post" class="vehicle-model-move-form" data-confirm-form="確定要將這個年式移至所選機種嗎？若目標已有相同年式，系統會合併並保留兩邊資料。">
+      <form method="post" class="vehicle-model-move-form" data-confirm="確定要將這個年式移至所選機種嗎？若目標已有相同年式，系統會合併並保留兩邊資料。">
         {% csrf_token %}
         <input type="hidden" name="action" value="move_family">
         {% if move_form.non_field_errors %}<div class="message error">{{ move_form.non_field_errors }}</div>{% endif %}
@@ -168,7 +168,7 @@
           {% endif %}
         </div>
         {% if not delete_blockers %}
-        <form method="post" data-confirm-form="確定永久刪除這筆未使用的年式／規格嗎？此操作無法復原。">
+        <form method="post" data-confirm="確定永久刪除這筆未使用的年式／規格嗎？此操作無法復原。">
           {% csrf_token %}
           <input type="hidden" name="action" value="delete_model">
           <button class="button danger-outline" type="submit">永久刪除</button>
@@ -310,11 +310,6 @@
     total.value = index + 1;
     bind(row);
     row.querySelector('input[type="text"]').focus();
-  });
-  document.querySelectorAll("[data-confirm-form]").forEach((form) => {
-    form.addEventListener("submit", (event) => {
-      if (!window.confirm(form.dataset.confirmForm)) event.preventDefault();
-    });
   });
 })();
 </script>

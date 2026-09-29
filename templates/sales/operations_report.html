@@ -5,7 +5,7 @@
 {% include 'sales/_profit_control.html' %}
 {% url 'dashboard' as dashboard_url %}
 {% include "sales/_page_back.html" with fallback_url=dashboard_url label="首頁" %}
-<section class="hero-row"><div><p class="eyebrow">經營分析</p><h1>營運總表</h1><p class="muted">{% site_text 'operations_report.cd4b2671ea91' %}</p></div><div class="hero-actions">{% if_access 'order_list' %}<a class="button primary" href="{% url 'order_list' %}">前往全部訂單</a>{% endif_access %}{% if_access 'operations_report_export' %}<a class="button ghost" href="{% url 'operations_report_export' %}?date_from={{ dashboard.period.start|date:'Y-m-d' }}&date_to={{ dashboard.period.end|date:'Y-m-d' }}">匯出本月營運明細</a>{% endif_access %}{% if_access 'reconciliation_list' %}<a class="button ghost" href="{% url 'reconciliation_list' %}">統一撥款對帳</a>{% endif_access %}</div></section>
+<section class="hero-row compact-hero"><div><p class="eyebrow">經營分析</p><h1>營運總表</h1><p class="muted">{% site_text 'operations_report.cd4b2671ea91' %}</p></div><div class="hero-actions">{% if_access 'operations_report_export' %}<a class="button ghost" href="{% url 'operations_report_export' %}?date_from={{ dashboard.period.start|date:'Y-m-d' }}&date_to={{ dashboard.period.end|date:'Y-m-d' }}">匯出本月營運明細</a>{% endif_access %}{% if_access 'reconciliation_list' %}<a class="button ghost" href="{% url 'reconciliation_list' %}">統一撥款對帳</a>{% endif_access %}{% if_access 'order_list' %}<a class="button primary" href="{% url 'order_list' %}">前往全部訂單</a>{% endif_access %}</div></section>
   <section class="dashboard-section">
     <div class="dashboard-section__heading">
       <div><p class="eyebrow">本月成果</p><h2>{{ dashboard.period.label }}營運數字</h2></div>

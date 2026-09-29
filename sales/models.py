@@ -2507,13 +2507,11 @@ class VehicleColor(TimeStampedModel):
 
 class VehicleInventory(TimeStampedModel):
     class Status(models.TextChoices):
+        # 調車只記錄實際位置（current_dealer），不另設調車狀態。
         AVAILABLE = "available", "可銷售"
         RESERVED = "reserved", "已預留"
-        TRANSFER_PENDING = "transfer_pending", "待調車"
-        IN_TRANSFER = "in_transfer", "調車中"
-        DELIVERY_PENDING = "delivery_pending", "待交車"
         DELIVERED = "delivered", "已交車"
-        CONDITION_ISSUE = "condition_issue", "車況異常"
+        CONDITION_ISSUE = "condition_issue", "車況異常（暫停配車）"
         SOLD = "sold", "已售出"
         INACTIVE = "inactive", "停用"
 
@@ -2716,6 +2714,19 @@ class VehicleInventoryHistory(TimeStampedModel):
         return f"{self.vehicle.identifier}／{self.get_event_type_display()}"
 
 
+def record_vehicle_history(vehicle, *, actor_name, reason, before_status, order_number=""):
+    """庫存狀態異動一律留痕，含配車、改配、交車、取消與結案。"""
+    changes = {"庫存狀態": {"before": before_status, "after": vehicle.status}}
+    if order_number:
+        changes["訂單"] = order_number
+    return VehicleInventoryHistory.objects.create(
+        vehicle=vehicle, event_type=VehicleInventoryHistory.EventType.UPDATED, actor_name=actor_name or "系統",
+        reason=reason, changes=changes, status_snapshot=vehicle.status,
+        location_store_snapshot=vehicle.location_store, location_label_snapshot=vehicle.actual_location_label,
+        condition_note_snapshot=vehicle.condition_note, condition_resolution_snapshot=vehicle.condition_resolution,
+    )
+
+
 class ActiveSalesOrderManager(models.Manager):
     def get_queryset(self):
         return super().get_queryset().filter(deleted_at__isnull=True)
@@ -2799,14 +2810,35 @@ class SalesOrder(TimeStampedModel):
         INTAKE_PENDING = "intake_pending", "待接單"
         ALLOCATION_PENDING = "allocation_pending", "待配車"
         ALLOCATED = "allocated", "已配車"
-        TRANSFER_PENDING = "transfer_pending", "待調車"
-        IN_TRANSFER = "in_transfer", "調車中"
         DELIVERY_PENDING = "delivery_pending", "待交車"
         DELIVERED_DOCS_PENDING = "delivered_docs_pending", "已交車／待補文件"
         COMPLETED = "completed", "已完成"
         CANCEL_REFUND_PENDING = "cancel_refund_pending", "取消待退款"
         CANCELLED = "cancelled", "已取消／已退款"
         EXCEPTION_CLOSED = "exception_closed", "例外結案（領牌後棄單）"
+
+    # 各流程方法（接單、配車、領牌、交車、取消、結案）的合法狀態轉移；集中一處供稽核與測試。
+    STATUS_TRANSITIONS = {
+        Status.DRAFT: {Status.INTAKE_PENDING, Status.ALLOCATION_PENDING, Status.CANCELLED, Status.CANCEL_REFUND_PENDING},
+        Status.INTAKE_PENDING: {Status.ALLOCATION_PENDING, Status.CANCELLED, Status.CANCEL_REFUND_PENDING},
+        Status.ALLOCATION_PENDING: {Status.ALLOCATED, Status.CANCELLED, Status.CANCEL_REFUND_PENDING},
+        Status.ALLOCATED: {
+            Status.ALLOCATED, Status.DELIVERY_PENDING, Status.DELIVERED_DOCS_PENDING, Status.COMPLETED,
+            Status.CANCELLED, Status.CANCEL_REFUND_PENDING, Status.EXCEPTION_CLOSED,
+        },
+        Status.DELIVERY_PENDING: {Status.DELIVERED_DOCS_PENDING, Status.COMPLETED, Status.EXCEPTION_CLOSED},
+        Status.DELIVERED_DOCS_PENDING: {Status.COMPLETED},
+        Status.CANCEL_REFUND_PENDING: {Status.CANCELLED, Status.ALLOCATION_PENDING, Status.INTAKE_PENDING},
+        Status.COMPLETED: set(),
+        Status.CANCELLED: set(),
+        Status.EXCEPTION_CLOSED: set(),
+    }
+
+    def ensure_transition(self, new_status, current=None):
+        current = self.status if current is None else current
+        if current != new_status and new_status not in self.STATUS_TRANSITIONS.get(current, set()):
+            labels = dict(self.Status.choices)
+            raise ValidationError(f"訂單目前為「{labels.get(current, current)}」，不能轉為「{labels.get(new_status, new_status)}」。")
 
     class InstallmentStatus(models.TextChoices):
         NONE = "", "未送件"
@@ -3156,6 +3188,8 @@ class SalesOrder(TimeStampedModel):
         "舊制退款", default=False, editable=False,
         help_text="1.19.0 前已完成取消；退款未記入收款帳本，沿用舊規則顯示與刪除。",
     )
+    allocated_at = models.DateTimeField("配車時間", null=True, blank=True, editable=False)
+    allocation_skip_reason = models.CharField("配車插隊原因", max_length=250, blank=True, editable=False)
     exception_reason = models.CharField("例外結案原因", max_length=250, blank=True, editable=False)
     exception_closed_at = models.DateTimeField("例外結案時間", null=True, blank=True, editable=False)
     exception_closed_by = models.CharField("例外結案人員", max_length=150, blank=True, editable=False)
@@ -3421,16 +3455,29 @@ class SalesOrder(TimeStampedModel):
                 missing.append(labels[document_type])
         return missing
 
+    LIFECYCLE_FIELDS = (
+        "status", "allocated_vehicle", "registration_completed_at", "registration_completed_by",
+        "delivered_at", "delivered_by", "discount_status", "installment_status", "cancellation_requested_at",
+    )
+
+    def lock_for_update(self):
+        """流程方法自行鎖定訂單列並重讀狀態，不依賴呼叫端先鎖。"""
+        type(self).all_objects.select_for_update().filter(pk=self.pk).values_list("pk", flat=True).get()
+        self.refresh_from_db(fields=self.LIFECYCLE_FIELDS)
+
+    @transaction.atomic
     def complete_registration(self, actor_name):
+        self.lock_for_update()
+        if self.is_registration_complete:
+            raise ValidationError("此訂單已完成領牌。")
         missing = self.missing_registration_requirements()
         if missing:
             raise ValidationError("尚缺：" + "、".join(missing))
+        new_status = self.Status.COMPLETED if self.is_delivered else self.Status.DELIVERY_PENDING
+        self.ensure_transition(new_status)
         self.registration_completed_at = timezone.now()
         self.registration_completed_by = actor_name
-        if self.is_delivered:
-            self.status = self.Status.COMPLETED
-        else:
-            self.status = self.Status.DELIVERY_PENDING
+        self.status = new_status
         self.save(
             update_fields=[
                 "registration_completed_at",
@@ -3475,30 +3522,33 @@ class SalesOrder(TimeStampedModel):
 
     @transaction.atomic
     def complete_delivery(self, delivered_at, actor_name):
+        self.lock_for_update()
         if self.is_delivered:
             raise ValidationError("此訂單已完成交付。")
         blockers = self.delivery_blockers()
         if blockers:
             raise ValidationError(blockers[0])
+        new_status = self.Status.COMPLETED if self.is_registration_complete else self.Status.DELIVERED_DOCS_PENDING
+        self.ensure_transition(new_status)
 
         vehicle = VehicleInventory.objects.select_for_update().get(
             pk=self.allocated_vehicle_id
         )
+        before = vehicle.status
         vehicle.status = VehicleInventory.Status.DELIVERED
         vehicle.save(update_fields=["status", "updated_at"])
+        record_vehicle_history(vehicle, actor_name=actor_name, reason=f"訂單 {self.number} 完成交付",
+                               before_status=before, order_number=self.number)
         self.delivered_at = delivered_at
         self.delivered_by = actor_name
-        self.status = (
-            self.Status.COMPLETED
-            if self.is_registration_complete
-            else self.Status.DELIVERED_DOCS_PENDING
-        )
+        self.status = new_status
         self.save(
             update_fields=["delivered_at", "delivered_by", "status", "updated_at"]
         )
 
     @transaction.atomic
     def request_cancellation(self, actor_name, reason, note=""):
+        self.lock_for_update()
         if self.is_delivered or self.status == self.Status.COMPLETED:
             raise ValidationError("車輛已交付，不能取消訂單。")
         if self.is_registration_complete:
@@ -3513,31 +3563,25 @@ class SalesOrder(TimeStampedModel):
             raise ValidationError("分期公司已撥款，不能取消訂單。")
         if ledger["customer"]["unconfirmed"] or ledger["lender"]["unconfirmed"]:
             raise ValidationError("尚有已登記但未確認的實收金額，請先確認或清除後再取消。")
+        # 退款依帳本上已確認的淨實收計算，不再依約定訂金欄位。
+        new_status = self.Status.CANCEL_REFUND_PENDING if ledger["customer"]["net"] > 0 else self.Status.CANCELLED
+        self.ensure_transition(new_status)
         if self.allocated_vehicle_id:
             vehicle = VehicleInventory.objects.select_for_update().get(
                 pk=self.allocated_vehicle_id
             )
+            before = vehicle.status
             vehicle.status = VehicleInventory.Status.AVAILABLE
             vehicle.save(update_fields=["status", "updated_at"])
-            VehicleInventoryHistory.objects.create(
-                vehicle=vehicle,
-                event_type=VehicleInventoryHistory.EventType.UPDATED,
-                actor_name=actor_name,
-                reason=f"訂單 {self.number} 取消，解除配車",
-                changes={"訂單狀態": {"before": "已配車", "after": "取消"}},
-                status_snapshot=vehicle.status,
-                location_store_snapshot=vehicle.location_store,
-                location_label_snapshot=vehicle.actual_location_label,
-                condition_note_snapshot=vehicle.condition_note,
-                condition_resolution_snapshot=vehicle.condition_resolution,
-            )
+            record_vehicle_history(vehicle, actor_name=actor_name, reason=f"訂單 {self.number} 取消，解除配車",
+                                   before_status=before, order_number=self.number)
             self.allocated_vehicle = None
+            self.allocated_at = None
         self.cancellation_requested_at = timezone.now()
         self.cancellation_requested_by = actor_name
         self.cancellation_reason = reason
         self.cancellation_note = note
-        # 退款依帳本上已確認的淨實收計算，不再依約定訂金欄位。
-        if ledger["customer"]["net"] > 0:
+        if new_status == self.Status.CANCEL_REFUND_PENDING:
             self.status = self.Status.CANCEL_REFUND_PENDING
         else:
             self.status = self.Status.CANCELLED
@@ -3547,6 +3591,7 @@ class SalesOrder(TimeStampedModel):
         self.save(
             update_fields=[
                 "allocated_vehicle",
+                "allocated_at",
                 "cancellation_requested_at",
                 "cancellation_requested_by",
                 "cancellation_reason",
@@ -3557,6 +3602,32 @@ class SalesOrder(TimeStampedModel):
                 "cancellation_completed_by",
                 "updated_at",
             ]
+        )
+
+    @transaction.atomic
+    def withdraw_cancellation(self, actor_name, reason):
+        """客戶在退款前改變心意：撤銷取消回到待配車（原配車已釋回，需重新配車）。"""
+        self.lock_for_update()
+        if self.status != self.Status.CANCEL_REFUND_PENDING:
+            raise ValidationError("只有「取消待退款」的訂單可以撤銷取消。")
+        reason = (reason or "").strip()
+        if not reason:
+            raise ValidationError("請填寫撤銷原因。")
+        new_status = self.Status.ALLOCATION_PENDING if self.accepted_at else self.Status.INTAKE_PENDING
+        self.ensure_transition(new_status)
+        previous_reason = self.cancellation_reason
+        self.status = new_status
+        self.cancellation_requested_at = None
+        self.cancellation_requested_by = ""
+        self.cancellation_reason = ""
+        self.cancellation_note = ""
+        self.save(update_fields=[
+            "status", "cancellation_requested_at", "cancellation_requested_by",
+            "cancellation_reason", "cancellation_note", "updated_at",
+        ])
+        OrderEvent.objects.create(
+            order=self, event_type="cancellation_withdrawn", actor_name=actor_name,
+            description=f"撤銷取消（原取消原因：{previous_reason}）；撤銷原因：{reason}。原配車已釋回，需重新配車。",
         )
 
     def complete_refund(
@@ -3696,7 +3767,12 @@ class SalesOrder(TimeStampedModel):
         from .services.financial_refresh import lock_bonus_periods
         lock_bonus_periods(self)
         if not self.number:
-            self.number = f"SO{timezone.localdate():%Y%m%d}-{uuid.uuid4().hex[:6].upper()}"
+            # 6 碼隨機在同日撞號機率極低，仍重取避免唯一鍵錯誤。
+            for _attempt in range(10):
+                candidate = f"SO{timezone.localdate():%Y%m%d}-{uuid.uuid4().hex[:6].upper()}"
+                if not type(self).all_objects.filter(number=candidate).exists():
+                    break
+            self.number = candidate
         if self.pk and self.established_on is None and self.registration_date and hasattr(self, "legacy_snapshot"):
             self.established_on = self.registration_date
             if kwargs.get("update_fields") is not None:
@@ -3724,7 +3800,7 @@ class SalesOrder(TimeStampedModel):
         return super().save(*args, **kwargs)
 
     @transaction.atomic
-    def allocate(self, vehicle):
+    def allocate(self, vehicle, actor_name="", skip_reason=""):
         locked_order = type(self).objects.select_for_update().get(pk=self.pk)
         if locked_order.status == self.Status.INTAKE_PENDING:
             raise ValidationError("請先接單，再進行配車。")
@@ -3743,13 +3819,21 @@ class SalesOrder(TimeStampedModel):
         registered_error = locked_order.registered_vehicle_error(locked)
         if registered_error:
             raise ValidationError(registered_error)
+        locked_order.ensure_transition(self.Status.ALLOCATED)
+        before = locked.status
         locked.status = VehicleInventory.Status.RESERVED
         locked.save(update_fields=["status", "updated_at"])
+        record_vehicle_history(locked, actor_name=actor_name, reason=f"配給訂單 {locked_order.number}",
+                               before_status=before, order_number=locked_order.number)
         locked_order.allocated_vehicle = locked
+        locked_order.allocated_at = timezone.now()
+        locked_order.allocation_skip_reason = (skip_reason or "")[:250]
         locked_order.status = self.Status.ALLOCATED
-        locked_order.save(update_fields=["allocated_vehicle", "status", "updated_at"])
+        locked_order.save(update_fields=["allocated_vehicle", "allocated_at", "allocation_skip_reason", "status", "updated_at"])
         self.allocated_vehicle = locked
         self.allocated_vehicle_id = locked.pk
+        self.allocated_at = locked_order.allocated_at
+        self.allocation_skip_reason = locked_order.allocation_skip_reason
         self.status = self.Status.ALLOCATED
 
     def registered_vehicle_error(self, vehicle):
@@ -3770,7 +3854,8 @@ class SalesOrder(TimeStampedModel):
         )
 
     @transaction.atomic
-    def reallocate(self, vehicle):
+    def reallocate(self, vehicle, actor_name="", reason=""):
+        self.lock_for_update()
         if not self.allocated_vehicle_id:
             raise ValidationError("此訂單尚未配車。")
         if not self.is_editable:
@@ -3800,13 +3885,21 @@ class SalesOrder(TimeStampedModel):
         if registered_error:
             raise ValidationError(registered_error)
 
+        self.ensure_transition(self.Status.ALLOCATED)
+        original_before, replacement_before = original.status, replacement.status
         original.status = VehicleInventory.Status.AVAILABLE
         replacement.status = VehicleInventory.Status.RESERVED
         original.save(update_fields=["status", "updated_at"])
         replacement.save(update_fields=["status", "updated_at"])
+        suffix = f"；原因：{reason}" if reason else ""
+        record_vehicle_history(original, actor_name=actor_name, reason=f"訂單 {self.number} 改配，釋回此車{suffix}",
+                               before_status=original_before, order_number=self.number)
+        record_vehicle_history(replacement, actor_name=actor_name, reason=f"訂單 {self.number} 改配為此車{suffix}",
+                               before_status=replacement_before, order_number=self.number)
         self.allocated_vehicle = replacement
+        self.allocated_at = timezone.now()
         self.status = self.Status.ALLOCATED
-        self.save(update_fields=["allocated_vehicle", "status", "updated_at"])
+        self.save(update_fields=["allocated_vehicle", "allocated_at", "status", "updated_at"])
         return original, replacement
 
     def __str__(self):

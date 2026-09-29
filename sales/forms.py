@@ -1877,9 +1877,6 @@ class VehicleInventoryForm(forms.ModelForm):
     )
     CORE_LOCKED_STATUSES = {
         VehicleInventory.Status.RESERVED,
-        VehicleInventory.Status.TRANSFER_PENDING,
-        VehicleInventory.Status.IN_TRANSFER,
-        VehicleInventory.Status.DELIVERY_PENDING,
         VehicleInventory.Status.DELIVERED,
         VehicleInventory.Status.SOLD,
     }
@@ -1988,6 +1985,13 @@ class VehicleInventoryForm(forms.ModelForm):
                     if self.final_fields_locked
                     else "此車輛已進入配車或交付流程，為避免訂單資料不一致，目前不可修改。"
                 )
+        holdable = {VehicleInventory.Status.AVAILABLE, VehicleInventory.Status.CONDITION_ISSUE}
+        if self.instance.status in holdable:
+            self.fields["condition_hold"] = forms.BooleanField(
+                label="標記車況異常（暫停配車）", required=False,
+                initial=self.instance.status == VehicleInventory.Status.CONDITION_ISSUE,
+                help_text="只適用未配車的車輛；處理完成後取消勾選即恢復可銷售。",
+            )
         if self.instance.is_registered_vehicle:
             self.fields["resale_price"].required = True
             self.fields["resale_price"].help_text = (
@@ -1999,8 +2003,20 @@ class VehicleInventoryForm(forms.ModelForm):
             field.widget.attrs.setdefault("class", "form-control")
         apply_mobile_keyboard_attrs(self)
 
+    def clean(self):
+        cleaned = super().clean()
+        if cleaned.get("condition_hold") and not (cleaned.get("condition_note") or "").strip():
+            self.add_error("condition_note", "標記車況異常時，請填寫車況說明。")
+        return cleaned
+
     def save(self, commit=True):
         vehicle = super().save(commit=False)
+        if "condition_hold" in self.fields:
+            hold = self.cleaned_data.get("condition_hold")
+            if hold and vehicle.status == VehicleInventory.Status.AVAILABLE:
+                vehicle.status = VehicleInventory.Status.CONDITION_ISSUE
+            elif not hold and vehicle.status == VehicleInventory.Status.CONDITION_ISSUE:
+                vehicle.status = VehicleInventory.Status.AVAILABLE
         if not vehicle.location_store_id:
             vehicle.location_store = (
                 Store.objects.filter(active=True, code__iexact="HQ").first()
@@ -3671,13 +3687,33 @@ class PrivacyConsentForm(forms.ModelForm):
         return validate_document_upload(self.cleaned_data.get("privacy_consent"))
 
 
+def allocation_queue(order):
+    """同車型車色的待配車訂單，依接單時間（未接單者依建立時間）先來先配。"""
+    from django.db.models.functions import Coalesce
+
+    pending = SalesOrder.objects.filter(
+        status=SalesOrder.Status.ALLOCATION_PENDING, vehicle_model_id=order.vehicle_model_id, color_id=order.color_id,
+    )
+    if order.transaction_type == SalesOrder.TransactionType.REGISTERED:
+        pending = pending.filter(transaction_type=SalesOrder.TransactionType.REGISTERED)
+    else:
+        pending = pending.exclude(transaction_type=SalesOrder.TransactionType.REGISTERED)
+    return list(pending.annotate(queue_at=Coalesce("accepted_at", "created_at")).order_by("queue_at", "pk").values_list("pk", flat=True))
+
+
 class AllocationForm(forms.Form):
     vehicle = forms.ModelChoiceField(
         label="實體車輛", queryset=VehicleInventory.objects.none()
     )
+    skip_reason = forms.CharField(
+        label="未依順序配車原因", max_length=250, required=False,
+        help_text="本單不是排在最前面，或未選最早出廠／進車的車輛時必填。",
+    )
+    CHECK_QUEUE = True
 
     def __init__(self, order, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.order = order
         queryset = VehicleInventory.objects.filter(
             vehicle_model=order.vehicle_model,
             color=order.color,
@@ -3686,13 +3722,42 @@ class AllocationForm(forms.Form):
         if order.transaction_type != SalesOrder.TransactionType.REGISTERED:
             # 已領牌車不是新車，只列給領牌車交易。
             queryset = queryset.filter(registered_plate_number="")
+        # 先進先出：出廠年月較早者優先（未填排最後），再依進車日期。
+        from django.db.models import F
         self.fields["vehicle"].queryset = queryset.select_related(
             "location_store", "current_dealer", "vehicle_model", "color"
-        )
+        ).order_by(F("manufactured_year_month").asc(nulls_last=True), "received_on", "pk")
         self.fields["vehicle"].widget.attrs["class"] = "form-control"
+        self.fields["skip_reason"].widget.attrs["class"] = "form-control"
+        queue = allocation_queue(order) if self.CHECK_QUEUE else []
+        self.queue_size = len(queue)
+        self.queue_position = queue.index(order.pk) + 1 if order.pk in queue else None
+
+    def clean(self):
+        cleaned = super().clean()
+        vehicle = cleaned.get("vehicle")
+        if vehicle is None:
+            return cleaned
+        reasons = []
+        if self.CHECK_QUEUE and self.queue_position and self.queue_position > 1:
+            reasons.append(f"本單排第 {self.queue_position} 位")
+        first = self.fields["vehicle"].queryset.exclude(manufactured_year_month="").first() or self.fields["vehicle"].queryset.first()
+        if first and first.pk != vehicle.pk and (first.manufactured_year_month or "") < (vehicle.manufactured_year_month or "9999") and first.manufactured_year_month:
+            reasons.append(f"尚有較早出廠的車輛 {first.identifier}")
+        cleaned["skip_notes"] = reasons
+        if reasons and not (cleaned.get("skip_reason") or "").strip() and "reason" not in self.fields:
+            self.add_error("skip_reason", "；".join(reasons) + "，請填寫未依順序配車的原因。")
+        return cleaned
 
 
 class ReallocationForm(AllocationForm):
+    # 改配已有原因欄位，不另要求排隊說明。
+    CHECK_QUEUE = False
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields.pop("skip_reason")
+
     reason = forms.CharField(
         label="改配原因",
         max_length=250,

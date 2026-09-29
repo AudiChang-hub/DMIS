@@ -404,6 +404,11 @@ urlpatterns = [
         name="refund_complete",
     ),
     path(
+        "orders/<int:pk>/cancel/withdraw/",
+        views.cancellation_withdraw,
+        name="cancellation_withdraw",
+    ),
+    path(
         "orders/<int:pk>/installment/decision/",
         views.installment_decision_update,
         name="installment_decision_update",

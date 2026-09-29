@@ -2238,7 +2238,7 @@ class OrderFlowTests(TestCase):
         self.assertEqual(list(response.context["vehicles"]), [sold])
 
     def test_inventory_edit_page_explains_locked_fields(self):
-        self.vehicle.status = VehicleInventory.Status.DELIVERY_PENDING
+        self.vehicle.status = VehicleInventory.Status.RESERVED
         self.vehicle.save(update_fields=["status", "updated_at"])
         self.client.force_login(self.user)
 

@@ -97,7 +97,7 @@ def build_dashboard_metrics(today=None):
     risk = {key: filter_payment_risk(all_orders, key).count() for key in ('outstanding', 'unconfirmed', 'refund', 'overpaid')}
 
     active = SalesOrder.objects.exclude(
-        status__in=[SalesOrder.Status.COMPLETED, SalesOrder.Status.CANCELLED]
+        status__in=[SalesOrder.Status.COMPLETED, SalesOrder.Status.CANCELLED, SalesOrder.Status.EXCEPTION_CLOSED]
     )
     urgent_statuses = [
         SalesOrder.Status.CANCEL_REFUND_PENDING,

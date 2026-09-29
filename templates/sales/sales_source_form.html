@@ -228,6 +228,16 @@
       </div>
     </div>
 
+    <div class="dealer-capacity-settings" aria-labelledby="dealer-credit-title">
+      <div class="dealer-capacity-settings__heading">
+        <strong id="dealer-credit-title">掛帳額度</strong>
+        <small>未收清先交車的累計上限；超過額度的交車會被擋下。</small>
+      </div>
+      <div class="dealer-capacity-settings__fields">
+        {% include "sales/_field.html" with field=form.credit_limit %}
+      </div>
+    </div>
+
     <div class="dealer-brand-active-summary">
       <strong>目前需提供的價格表</strong>
       <div class="dealer-brand-active-list" data-active-brand-list>

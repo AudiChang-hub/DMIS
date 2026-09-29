@@ -36,7 +36,7 @@ CHARTS["stacked"] = "堆疊長條圖"
 DATE_DIMENSIONS = ("year", "month", "day")
 NAVIGATION_GROUPS = {"sales": "銷售統計", "analysis": "大數據分析", "custom": "自訂報表"}
 AGGREGATES = {"count": Count("pk"), "sale_total": Sum("vehicle_price"), "average_price": Avg("vehicle_price")}
-EXCLUDED_STATUSES = ["draft", "cancel_refund_pending", "cancelled"]
+EXCLUDED_STATUSES = ["draft", "cancel_refund_pending", "cancelled", "exception_closed"]
 MAX_GROUPS = 200
 PALETTE = ["#4257a5", "#278168", "#b65b33", "#9269af", "#28789d", "#a86e11", "#b3446c", "#5c6b78"]
 

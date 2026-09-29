@@ -47,7 +47,7 @@ def audit_financial_consistency(sample_limit=30):
             report("legacy_disbursement_no_snapshot", order, "舊確認資料無撤回快照，不自動推測原值")
         if order.registration_completed_at and not profile.vehicle_cost:
             report("registered_cost_missing", order, "已領牌但成本為零，淨利尚待核對")
-        if (order.registration_completed_at and order.status != "cancelled"
+        if (order.registration_completed_at and order.status not in ("cancelled", "exception_closed")
                 and profile.vehicle_cost > 0 and not profile.actual_disbursement):
             report("disbursement_missing", order, "已領牌且有成本，但實際撥款為零；不得直接視為虧損")
         allocations = list(order.dealer_volume_bonus_allocations.all())
@@ -57,8 +57,13 @@ def audit_financial_consistency(sample_limit=30):
                 report("commission_total_mismatch", order, f"保存 {profile.dealer_commission_expense}／快照加獎金 {expected}")
         if allocations and "dealer_commission_expense" in protected:
             report("manual_commission_needs_review", order, "人工總額包含獎金與否不明，需核對")
-        if order.status == "cancelled" and any(p.confirmed and p.received_amount for p in payments):
-            report("cancelled_receipts_need_review", order, "取消／退款與收款分開留存，需以退款紀錄核對淨現金")
+        if order.refund_settled_legacy:
+            if order.status == "cancelled" and any(p.confirmed and p.received_amount for p in payments):
+                report("cancelled_receipts_need_review", order, "取消／退款與收款分開留存，需以退款紀錄核對淨現金")
+        elif order.is_settled_closed:
+            net = sum((p.received_amount for p in payments if p.confirmed), Decimal("0"))
+            if net != order.forfeited_amount:
+                report("cancelled_receipts_need_review", order, f"結案後帳本淨額 {net}／沒收 {order.forfeited_amount} 不一致")
     for settlement in DealerVolumeBonusSettlement.objects.prefetch_related("allocations__order").order_by("pk"):
         allocations = list(settlement.allocations.all())
         if sum((a.amount for a in allocations), Decimal("0")) != settlement.actual_amount or len(allocations) != settlement.qualified_quantity:

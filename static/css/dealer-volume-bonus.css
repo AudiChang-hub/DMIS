@@ -63,7 +63,7 @@
 .bonus-rule-list { display: grid; gap: 24px; }
 .bonus-page-tabs { display: flex; gap: 6px; padding: 6px; margin-bottom: 24px; border: 1px solid var(--line); border-radius: var(--radius-lg); background: var(--surface-soft); max-width: 480px; }
 .bonus-page-tabs a { flex: 1; display: flex; align-items: center; justify-content: center; min-height: 48px; padding: 10px 14px; border-radius: var(--radius-md); color: var(--muted); font-weight: 800; text-decoration: none; }
-.bonus-page-tabs a[aria-current="page"] { color: var(--forest); background: var(--surface); box-shadow: 0 2px 8px rgb(0 0 0 / 8%); }
+.bonus-page-tabs a[aria-current="page"] { color: var(--forest); background: var(--surface); box-shadow: 0 2px 8px color-mix(in srgb, var(--shadow-ink) 8%, transparent); }
 .bonus-page-tabs a:focus-visible, .bonus-rule-footer a:focus-visible { outline: 2px solid var(--forest); outline-offset: 2px; }
 .bonus-list-heading { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 16px; }
 .bonus-list-heading h2 { font-size: var(--text-md); margin: 0; }
@@ -93,7 +93,7 @@
 .bonus-delete-confirm input { width: 20px; height: 20px; min-height: 20px; flex: 0 0 20px; margin: 2px 0 0; accent-color: var(--forest); }
 .bonus-delete-entry { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
 .bonus-delete-entry span { font-size: var(--text-sm-plus); color: var(--muted); }
-.bonus-delete-link { color: #a62e36; }
+.bonus-delete-link { color: var(--red); }
 .bonus-rule-heading { margin: 0; padding: 22px; }
 .bonus-rule-heading p { margin: 8px 0 0; overflow-wrap: anywhere; }
 .bonus-tier-summary { display: flex; flex-wrap: wrap; gap: 8px; padding: 0 22px 18px; }

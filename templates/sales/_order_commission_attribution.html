@@ -8,7 +8,7 @@
     <p class="commission-attribution__locked">{{ commission_block_reason }}</p>
   {% elif commission_form %}
     <details class="commission-attribution__editor"{% if commission_form.is_bound or request.GET.attribution == '1' %} open{% endif %}>
-      <summary><span>調整台數與傭金歸屬</span><span class="commission-attribution__action">變更車行 <span class="commission-attribution__chevron" aria-hidden="true">⌄</span></span></summary>
+      <summary><span>調整台數與傭金歸屬</span><span class="commission-attribution__action">變更車行 <span class="commission-attribution__chevron ui-chevron" aria-hidden="true"></span></span></summary>
       <form method="post" action="{% url 'order_commission_attribution_update' order.pk %}#commission-attribution" data-commission-attribution-form>
         {% csrf_token %}{{ commission_form.order_revision }}
         {% if commission_form.errors %}<div class="note-box warning" role="alert"><strong>尚未儲存，請確認下列提示。</strong>{{ commission_form.non_field_errors }}{{ commission_form.order_revision.errors }}<a href="{% url 'order_detail' order.pk %}#commission-attribution">重新載入最新資料</a></div>{% endif %}

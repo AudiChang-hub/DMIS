@@ -1,6 +1,6 @@
 import hashlib
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, datetime, time, timedelta
 from urllib.parse import urlencode
 
 from django.urls import reverse
@@ -91,6 +91,32 @@ def _pending_reconciliation_action(order, today):
         url=f"{reverse('reconciliation_list')}?{query}",
         badge=badge,
         tone=tone,
+    )
+
+
+STALE_ALLOCATION_DAYS = 30
+
+
+def stale_allocation_since(today=None):
+    """配車超過保留天數仍未領牌的起算時間點。"""
+    today = today or timezone.localdate()
+    return timezone.make_aware(datetime.combine(today, time.min)) - timedelta(days=STALE_ALLOCATION_DAYS)
+
+
+def _stale_allocation_action(order, today):
+    if not order.allocated_at or order.is_registration_complete or order.is_delivered or order.is_cancelled_sale:
+        return None
+    if order.allocated_at >= stale_allocation_since(today):
+        return None
+    days = (today - timezone.localtime(order.allocated_at).date()).days
+    return NextAction(
+        key="stale-allocation",
+        title=f"配車已保留 {days} 天仍未領牌",
+        description="請確認客戶是否仍要購車；若不再進行，登記取消即可釋回車輛給其他訂單。",
+        action_label="查看配車",
+        url=_tab_url(order, "allocation"),
+        badge="保留逾期",
+        tone="urgent",
     )
 
 
@@ -289,11 +315,14 @@ def build_order_next_actions(
         # 歷史匯入資料可能沒有實體配車；結案後不應再倒退提示進車或配車。
         primary = None
     elif not order.allocated_vehicle_id:
-        has_available_vehicle = VehicleInventory.objects.filter(
+        candidates = VehicleInventory.objects.filter(
             vehicle_model_id=order.vehicle_model_id,
             color_id=order.color_id,
             status=VehicleInventory.Status.AVAILABLE,
-        ).exists()
+        )
+        if order.transaction_type != SalesOrder.TransactionType.REGISTERED:
+            candidates = candidates.filter(registered_plate_number="")
+        has_available_vehicle = candidates.exists()
         if has_available_vehicle:
             primary = NextAction(
                 key="allocation",
@@ -325,18 +354,6 @@ def build_order_next_actions(
             url=reverse("inventory_edit", args=[vehicle.pk]),
             badge="需先確認",
             tone="urgent",
-        )
-    elif vehicle.status in {
-        VehicleInventory.Status.TRANSFER_PENDING,
-        VehicleInventory.Status.IN_TRANSFER,
-    }:
-        primary = NextAction(
-            key="vehicle-transfer",
-            title="追蹤調車並確認實際到店",
-            description="車輛仍在調度中；實際送達並核對車況後再繼續作業。",
-            action_label="查看調車資料",
-            url=reverse("inventory_edit", args=[vehicle.pk]),
-            badge="調車進行中",
         )
     elif order.is_delivered and not order.is_registration_complete:
         delivered_on = _delivered_on(order)
@@ -376,6 +393,9 @@ def build_order_next_actions(
             target_tab="delivery",
         )
 
+    stale = _stale_allocation_action(order, today)
+    if stale:
+        secondary.insert(0, stale)
     reconciliation = _pending_reconciliation_action(order, today) if order.is_delivered else None
     gap = _settlement_gap_action(order) if order.is_delivered else None
     subsidy = _subsidy_action(order, subsidy_missing)

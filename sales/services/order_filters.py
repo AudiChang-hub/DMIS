@@ -20,7 +20,7 @@ def fee_variance_orders(rows):
 def filter_order_analysis(rows, params, *, business_default=False):
     status = params.get("status")
     groups = {
-        "registration_pending": ["allocated", "transfer_pending", "in_transfer"],
+        "registration_pending": ["allocated"],
         "urgent": ["cancel_refund_pending", "delivered_docs_pending"],
     }
     if status == "deletion_pending":

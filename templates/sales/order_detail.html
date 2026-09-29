@@ -175,6 +175,13 @@
     {% for field in refund_form %}<div><label for="{{ field.id_for_label }}">{{ field.label }}{% if field.field.required %} <span class="required-inline">必填</span>{% endif %}</label>{{ field }}{% if field.help_text %}<small class="muted">{{ field.help_text }}</small>{% endif %}</div>{% endfor %}
     <div class="wide"><button class="button primary" type="submit" data-confirm="確認已依應退金額完成退款，並完成取消訂單嗎？">確認結算並完成取消</button></div>
   </form>
+  {% if_access 'cancellation_withdraw' order.pk %}
+  <form method="post" action="{% url 'cancellation_withdraw' order.pk %}" class="form-grid compact-grid">
+    {% csrf_token %}
+    <div class="wide"><label for="withdraw-reason">客戶改變心意？撤銷原因 <span class="required-inline">必填</span></label><input id="withdraw-reason" class="form-control" name="reason" maxlength="250" required></div>
+    <div class="wide"><button class="button ghost" type="submit" data-confirm="撤銷取消後訂單回到待處理，原配車已釋回，需要重新配車。確定撤銷嗎？">撤銷取消</button></div>
+  </form>
+  {% endif_access %}
 </section>
 {% elif order.status == "cancelled" %}
 <section class="section-block cancellation-panel">
@@ -279,9 +286,10 @@
 </section>
 {% elif not order.allocated_vehicle and order.is_editable %}
 <section class="action-card info-card">
-  <div><p class="eyebrow">下一步</p><h2>選擇實體車輛</h2><p>只顯示符合 {{ order.vehicle_model }}／{{ order.color.name }} 的可售庫存。</p></div>
+  <div><p class="eyebrow">下一步</p><h2>選擇實體車輛</h2><p>只顯示符合 {{ order.vehicle_model }}／{{ order.color.name }} 的可售庫存，依出廠年月先進先出排列。{% if allocation_form.queue_position %}同車型車色待配車 {{ allocation_form.queue_size }} 張，本單排第 {{ allocation_form.queue_position }} 位。{% endif %}</p></div>
   <form method="post" action="{% url 'allocate_vehicle' order.pk %}">
     {% csrf_token %}{{ allocation_form.vehicle }}
+    <label for="{{ allocation_form.skip_reason.id_for_label }}">{{ allocation_form.skip_reason.label }}</label>{{ allocation_form.skip_reason }}<small class="muted">{{ allocation_form.skip_reason.help_text }}</small>
     {% if allocation_form.vehicle.field.queryset %}
       <button class="button primary block" type="submit">確認配車並鎖定</button>
     {% else %}

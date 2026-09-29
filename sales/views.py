@@ -4001,6 +4001,7 @@ INVENTORY_HISTORY_FIELDS = {
     "condition_photo": "車況照片",
     "condition_resolution": "處理結果",
     "resale_price": "領牌車再售價",
+    "status": "庫存狀態",
 }
 
 
@@ -4024,6 +4025,7 @@ def _inventory_values(vehicle):
             vehicle.condition_resolution,
             vehicle.condition_resolution or "未填寫",
         ),
+        "status": (vehicle.status, vehicle.get_status_display()),
         "resale_price": (
             str(vehicle.resale_price or ""),
             f"{vehicle.resale_price:,.0f}" if vehicle.resale_price is not None else "未設定",
@@ -4340,7 +4342,7 @@ def operations_report(request):
             {"label": label, "count": metrics["inventory"][key], "status": status}
             for key, label, status in [
                 ("total", "庫存總數", ""), ("available", "可售", "available"), ("reserved", "已預留", "reserved"),
-                ("transfer", "調車中", "transfer"), ("issues", "車況異常", "condition_issue"),
+                ("issues", "車況異常", "condition_issue"),
             ]
         ],
         "dealer_due_count": len({item["order"].pk for item in metrics["dealer_reminders"]}),
@@ -6203,20 +6205,27 @@ def allocate_vehicle(request, pk):
         return redirect("order_detail", pk=pk)
     form = AllocationForm(order, request.POST)
     if form.is_valid():
+        skip_reason = (form.cleaned_data.get("skip_reason") or "").strip()
         try:
-            order.allocate(form.cleaned_data["vehicle"])
+            order.allocate(
+                form.cleaned_data["vehicle"], actor_name=_editing_name(request.user),
+                skip_reason=skip_reason if form.cleaned_data.get("skip_notes") else "",
+            )
         except ValidationError as exc:
             messages.error(request, " ".join(exc.messages))
         else:
+            description = f"已配車：{order.allocated_vehicle}"
+            if form.cleaned_data.get("skip_notes"):
+                description += f"（{'；'.join(form.cleaned_data['skip_notes'])}；原因：{skip_reason}）"
             OrderEvent.objects.create(
                 order=order,
                 event_type="allocated",
-                description=f"已配車：{order.allocated_vehicle}",
+                description=description,
                 actor_name=request.user.get_username(),
             )
             messages.success(request, "配車完成，實體車輛已鎖定。")
     else:
-        messages.error(request, "請選擇可用的實體車輛。")
+        messages.error(request, "配車未完成：" + _form_error_text(form))
     return redirect("order_detail", pk=pk)
 
 
@@ -6250,7 +6259,9 @@ def reallocate_vehicle(request, pk):
         return redirect(detail_url)
     try:
         original, replacement = order.reallocate(
-            form.cleaned_data["vehicle"]
+            form.cleaned_data["vehicle"],
+            actor_name=_editing_name(request.user),
+            reason=form.cleaned_data["reason"],
         )
     except ValidationError as exc:
         messages.error(request, " ".join(exc.messages))
@@ -6530,19 +6541,6 @@ def delivery_complete(request, pk):
         messages.error(request, "交付未完成：" + " ".join(exc.messages))
         return redirect(detail_url)
 
-    VehicleInventoryHistory.objects.create(
-        vehicle=order.allocated_vehicle,
-        event_type=VehicleInventoryHistory.EventType.UPDATED,
-        actor_name=_editing_name(request.user),
-        reason=f"訂單 {order.number} 完成交付",
-        changes={"庫存狀態": {"before": "已預留", "after": "已交車"}},
-        status_snapshot=order.allocated_vehicle.status,
-        location_store_snapshot=order.allocated_vehicle.location_store,
-        location_label_snapshot=order.allocated_vehicle.actual_location_label,
-        condition_note_snapshot=record.vehicle_condition_note,
-        condition_resolution_snapshot=record.damage_note,
-        condition_photo_snapshot=record.handover_photo,
-    )
     OrderEvent.objects.create(
         order=order,
         event_type="delivery_completed",
@@ -6744,6 +6742,22 @@ def refund_complete(request, pk):
         request,
         f"取消結算完成：退款 ${order.refund_amount:,.0f}、沒收 ${order.forfeited_amount:,.0f}，訂單已取消。",
     )
+    return redirect(detail_url)
+
+
+@login_required
+@transaction.atomic
+def cancellation_withdraw(request, pk):
+    order = get_object_or_404(SalesOrder.objects.select_for_update(), pk=pk)
+    detail_url = f"{reverse('order_detail', args=[pk])}?tab=order"
+    if request.method != "POST":
+        return redirect(detail_url)
+    try:
+        order.withdraw_cancellation(_editing_name(request.user), request.POST.get("reason", ""))
+    except ValidationError as exc:
+        messages.error(request, "撤銷取消未完成：" + " ".join(exc.messages))
+        return redirect(detail_url)
+    messages.success(request, "已撤銷取消，訂單回到待處理；原配車已釋回，請重新配車。")
     return redirect(detail_url)
 
 
@@ -7338,9 +7352,6 @@ def inventory_list(request):
     current_statuses = (
         VehicleInventory.Status.AVAILABLE,
         VehicleInventory.Status.RESERVED,
-        VehicleInventory.Status.TRANSFER_PENDING,
-        VehicleInventory.Status.IN_TRANSFER,
-        VehicleInventory.Status.DELIVERY_PENDING,
         VehicleInventory.Status.CONDITION_ISSUE,
     )
     historical_statuses = (
@@ -7386,15 +7397,7 @@ def inventory_list(request):
     selected_statuses = []
     status_values = set()
     for requested_status in requested_statuses:
-        if requested_status == "transfer" and scope == "current":
-            selected_statuses.append(requested_status)
-            status_values.update(
-                {
-                    VehicleInventory.Status.TRANSFER_PENDING,
-                    VehicleInventory.Status.IN_TRANSFER,
-                }
-            )
-        elif requested_status in scope_statuses:
+        if requested_status in scope_statuses:
             selected_statuses.append(requested_status)
             status_values.add(requested_status)
     if status_values:

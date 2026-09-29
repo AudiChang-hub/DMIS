@@ -94,7 +94,7 @@ def build_dashboard_metrics(today=None):
         charts.append({'label': label, 'unit': unit, 'segments': segments, 'points': points,
                        'low': low, 'high': high, 'zero_y': f'{zero_y:.2f}'})
     all_orders = SalesOrder.objects.all()
-    risk = {key: filter_payment_risk(all_orders, key).count() for key in ('outstanding', 'unconfirmed', 'refund', 'overpaid')}
+    risk = {key: filter_payment_risk(all_orders, key).count() for key in ('outstanding', 'unconfirmed', 'refund', 'overpaid', 'stale_allocation')}
 
     active = SalesOrder.objects.exclude(
         status__in=[SalesOrder.Status.COMPLETED, SalesOrder.Status.CANCELLED, SalesOrder.Status.EXCEPTION_CLOSED]
@@ -147,8 +147,6 @@ def build_dashboard_metrics(today=None):
             "registration": active.filter(
                 status__in=[
                     SalesOrder.Status.ALLOCATED,
-                    SalesOrder.Status.TRANSFER_PENDING,
-                    SalesOrder.Status.IN_TRANSFER,
                 ]
             ).count(),
             "delivery": active.filter(
@@ -161,10 +159,6 @@ def build_dashboard_metrics(today=None):
             ).count(),
             "available": inventory_counts.get(VehicleInventory.Status.AVAILABLE, 0),
             "reserved": inventory_counts.get(VehicleInventory.Status.RESERVED, 0),
-            "transfer": (
-                inventory_counts.get(VehicleInventory.Status.TRANSFER_PENDING, 0)
-                + inventory_counts.get(VehicleInventory.Status.IN_TRANSFER, 0)
-            ),
             "issues": inventory_counts.get(
                 VehicleInventory.Status.CONDITION_ISSUE, 0
             ),

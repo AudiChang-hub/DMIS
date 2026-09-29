@@ -145,7 +145,7 @@ def _change_effects(order, settlements, user, restore, reason, now):
             physical_evidence = bool(order.delivered_at or order.registration_date or order.registration_completed_at or order.final_plate_number
                 or vehicle.status in {VehicleInventory.Status.DELIVERED, VehicleInventory.Status.SOLD})
             after = (VehicleInventory.Status.INACTIVE if physical_evidence else
-                     VehicleInventory.Status.AVAILABLE if before in {VehicleInventory.Status.RESERVED, VehicleInventory.Status.DELIVERY_PENDING} else before)
+                     VehicleInventory.Status.AVAILABLE if before == VehicleInventory.Status.RESERVED else before)
             effects["vehicle"] = {"id": vehicle.pk, "before": before, "after": after, "updated_at": now.isoformat()}
         VehicleInventory.objects.filter(pk=vehicle.pk).update(status=after, updated_at=now)
         VehicleInventoryHistory.objects.create(vehicle=vehicle, event_type=VehicleInventoryHistory.EventType.UPDATED,

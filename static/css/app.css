@@ -588,6 +588,7 @@ h2 { margin-bottom: 0; font-size: 1.15rem; }
 .brand strong, .brand small { display: block; }
 .brand strong { font-size: .98rem; line-height: 1.2; letter-spacing: .015em; }
 .brand small { color: var(--header-muted); font-size: .7rem; line-height: 1.25; }
+.brand-clock { display: block; color: var(--header-muted); font-size: .7rem; line-height: 1.25; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .update-check-button {
   display: inline-flex; min-height: 42px; margin-left: 8px; padding: 0 10px;
   align-items: center; gap: 7px; flex: 0 0 auto; color: var(--header-text);

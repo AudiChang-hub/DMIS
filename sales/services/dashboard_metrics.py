@@ -94,7 +94,7 @@ def build_dashboard_metrics(today=None):
         charts.append({'label': label, 'unit': unit, 'segments': segments, 'points': points,
                        'low': low, 'high': high, 'zero_y': f'{zero_y:.2f}'})
     all_orders = SalesOrder.objects.all()
-    risk = {key: filter_payment_risk(all_orders, key).count() for key in ('outstanding', 'unconfirmed', 'refund')}
+    risk = {key: filter_payment_risk(all_orders, key).count() for key in ('outstanding', 'unconfirmed', 'refund', 'overpaid')}
 
     active = SalesOrder.objects.exclude(
         status__in=[SalesOrder.Status.COMPLETED, SalesOrder.Status.CANCELLED]

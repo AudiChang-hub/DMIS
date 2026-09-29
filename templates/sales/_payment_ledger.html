@@ -1,0 +1,47 @@
+{% load sales_format screen_access %}
+<section class="section-block payment-ledger" id="payment-ledger" aria-label="沖銷與退款" {% if order_workspace %}data-workspace-section="finance"{% endif %}>
+  <div class="section-title"><div><h2>沖銷與退款</h2><small>更正已入帳的收款、退還溢收；紀錄只能新增，不能修改或刪除。</small></div></div>
+  {% if settlement_gap %}
+  <p class="note-box payment-ledger__gap">交付後金額有差額：{% if settlement_gap.due %}待補收 ${{ settlement_gap.due|number_with_commas }}，請在收款明細新增收款{% endif %}{% if settlement_gap.due and settlement_gap.overpaid %}；{% endif %}{% if settlement_gap.overpaid %}溢收 ${{ settlement_gap.overpaid|number_with_commas }}，請登記退還溢收{% endif %}。</p>
+  {% endif %}
+  {% if ledger_adjustments %}
+  <div class="inventory-table-wrap" tabindex="0" aria-label="沖銷與退款紀錄，可水平捲動">
+    <table class="inventory-table payment-ledger__table">
+      <thead><tr><th>類型</th><th>項目</th><th>對象</th><th>金額</th><th>日期</th><th>原因</th><th>登記</th></tr></thead>
+      <tbody>
+        {% for entry in ledger_adjustments %}
+        <tr>
+          <td>{{ entry.get_entry_type_display }}</td>
+          <td>{{ entry.item_name }}{% if entry.reverses %}<small class="muted">（原收款 ${{ entry.reverses.received_amount|number_with_commas }}）</small>{% endif %}</td>
+          <td>{% if entry.effective_receipt_kind == "lender" %}分期公司{% else %}客戶{% endif %}</td>
+          <td>${{ entry.received_amount|number_with_commas }}</td>
+          <td>{{ entry.received_on|date:"Y/m/d" }}</td>
+          <td>{{ entry.adjustment_reason }}</td>
+          <td>{{ entry.confirmed_by }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <p class="muted">目前沒有沖銷或退款紀錄。</p>
+  {% endif %}
+  {% if workspace_finance_editable or not order_workspace %}
+  {% if payment_reversal_form %}{% if_access 'payment_reverse' order.pk %}
+  <form method="post" action="{% url 'payment_reverse' order.pk %}" class="form-grid payment-ledger__form">
+    {% csrf_token %}{% if not order_workspace %}<input type="hidden" name="return_to" value="operations">{% endif %}
+    <h3 class="span-2">沖銷登記錯誤的收款</h3>
+    {% for field in payment_reversal_form %}{% include "sales/_field.html" %}{% endfor %}
+    <div class="span-2"><button class="button danger-outline" type="submit" data-confirm="沖銷後會新增一筆等額負數紀錄，原收款保留；確定沖銷嗎？">沖銷此筆收款</button></div>
+  </form>
+  {% endif_access %}{% endif %}
+  {% if overpayment_refund_form %}{% if_access 'payment_overpayment_refund' order.pk %}
+  <form method="post" action="{% url 'payment_overpayment_refund' order.pk %}" class="form-grid payment-ledger__form">
+    {% csrf_token %}{% if not order_workspace %}<input type="hidden" name="return_to" value="operations">{% endif %}
+    <h3 class="span-2">退還溢收</h3>
+    {% for field in overpayment_refund_form %}{% include "sales/_field.html" %}{% endfor %}
+    <div class="span-2"><button class="button primary" type="submit" data-confirm="確認已實際退款，並登記這筆負數退款紀錄嗎？">登記退還溢收</button></div>
+  </form>
+  {% endif_access %}{% endif %}
+  {% endif %}
+</section>

@@ -15,7 +15,7 @@
     });
   }
   rows.querySelectorAll("[data-payment-row]").forEach(bind);
-  document.getElementById("add-payment").addEventListener("click", () => {
+  document.getElementById("add-payment")?.addEventListener("click", () => {
     const i = Number(total.value), box = document.createElement("div");
     box.innerHTML = document.getElementById("payment-empty-row").innerHTML.replaceAll("__prefix__", i).trim();
     rows.appendChild(box.firstElementChild); total.value = i + 1; bind(rows.lastElementChild);

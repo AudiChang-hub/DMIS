@@ -1,3 +1,5 @@
+import contextlib
+import contextvars
 import uuid
 import re
 import unicodedata
@@ -3118,6 +3120,14 @@ class SalesOrder(TimeStampedModel):
     cancellation_completed_by = models.CharField(
         "取消完成人員", max_length=150, blank=True
     )
+    forfeited_amount = models.DecimalField(
+        "沒收金額", max_digits=12, decimal_places=0, default=0, editable=False
+    )
+    forfeit_reason = models.CharField("沒收原因", max_length=250, blank=True, editable=False)
+    refund_settled_legacy = models.BooleanField(
+        "舊制退款", default=False, editable=False,
+        help_text="1.19.0 前已完成取消；退款未記入收款帳本，沿用舊規則顯示與刪除。",
+    )
     note = models.TextField("備註", blank=True)
     signed_contract = models.FileField(
         "已簽署合約", upload_to="orders/contracts/%Y/%m/", blank=True
@@ -3174,6 +3184,7 @@ class SalesOrder(TimeStampedModel):
         return self.status not in {
             self.Status.DELIVERED_DOCS_PENDING,
             self.Status.COMPLETED,
+            self.Status.CANCEL_REFUND_PENDING,
             self.Status.CANCELLED,
         }
 
@@ -3203,8 +3214,10 @@ class SalesOrder(TimeStampedModel):
 
     @property
     def can_edit_content(self):
-        """完成後可稽核修正內容，但不放寬改配／交付等 is_editable 流程門檻。"""
-        return self.status != self.Status.CANCELLED
+        """完成後可稽核修正內容，但不放寬改配／交付等 is_editable 流程門檻。
+
+        進入取消流程後鎖定，避免退款結算期間改動價款。"""
+        return not self.is_cancelled_sale
 
     @property
     def accessory_total(self):
@@ -3437,6 +3450,14 @@ class SalesOrder(TimeStampedModel):
             raise ValidationError("車輛已領牌，不再是新車，不能取消訂單。")
         if self.status == self.Status.CANCELLED:
             raise ValidationError("此訂單已取消。")
+        if self.status == self.Status.CANCEL_REFUND_PENDING:
+            raise ValidationError("此訂單已登記取消，請完成退款結算。")
+        from sales.services.payment_ledger import ledger_totals
+        ledger = ledger_totals(self)
+        if ledger["lender"]["net"] > 0:
+            raise ValidationError("分期公司已撥款，不能取消訂單。")
+        if ledger["customer"]["unconfirmed"] or ledger["lender"]["unconfirmed"]:
+            raise ValidationError("尚有已登記但未確認的實收金額，請先確認或清除後再取消。")
         if self.allocated_vehicle_id:
             vehicle = VehicleInventory.objects.select_for_update().get(
                 pk=self.allocated_vehicle_id
@@ -3460,7 +3481,8 @@ class SalesOrder(TimeStampedModel):
         self.cancellation_requested_by = actor_name
         self.cancellation_reason = reason
         self.cancellation_note = note
-        if self.deposit_amount:
+        # 退款依帳本上已確認的淨實收計算，不再依約定訂金欄位。
+        if ledger["customer"]["net"] > 0:
             self.status = self.Status.CANCEL_REFUND_PENDING
         else:
             self.status = self.Status.CANCELLED
@@ -3483,35 +3505,13 @@ class SalesOrder(TimeStampedModel):
         )
 
     def complete_refund(
-        self, actor_name, amount, completed_on, method, reference="", proof=None
+        self, actor_name, forfeited_amount, completed_on, method, reference="", proof=None, forfeit_reason=""
     ):
-        if self.status != self.Status.CANCEL_REFUND_PENDING:
-            raise ValidationError("此訂單目前不在取消待退款狀態。")
-        if amount != self.deposit_amount:
-            raise ValidationError(
-                f"訂金必須全數退還，退款金額應為 {self.deposit_amount:,.0f} 元。"
-            )
-        self.refund_amount = amount
-        self.refund_completed_on = completed_on
-        self.refund_method = method
-        self.refund_reference = reference
-        if proof is not None:
-            self.refund_proof = proof
-        self.cancellation_completed_at = timezone.now()
-        self.cancellation_completed_by = actor_name
-        self.status = self.Status.CANCELLED
-        self.save(
-            update_fields=[
-                "refund_amount",
-                "refund_completed_on",
-                "refund_method",
-                "refund_reference",
-                "refund_proof",
-                "cancellation_completed_at",
-                "cancellation_completed_by",
-                "status",
-                "updated_at",
-            ]
+        """應退＝已確認淨實收－沒收；實際邏輯集中於收款帳本服務。"""
+        from sales.services.payment_ledger import complete_cancellation_refund
+        return complete_cancellation_refund(
+            self, actor_name=actor_name, forfeited_amount=forfeited_amount, completed_on=completed_on,
+            method=method, reference=reference, proof=proof, forfeit_reason=forfeit_reason,
         )
 
     registration_manual = models.BooleanField("自行調整牌險明細", default=False)
@@ -3673,6 +3673,8 @@ class SalesOrder(TimeStampedModel):
         locked_order = type(self).objects.select_for_update().get(pk=self.pk)
         if locked_order.status == self.Status.INTAKE_PENDING:
             raise ValidationError("請先接單，再進行配車。")
+        if not locked_order.is_editable:
+            raise ValidationError("此訂單已交付、完成或進入取消流程，不能配車。")
         locked = VehicleInventory.objects.select_for_update().get(pk=vehicle.pk)
         if locked_order.allocated_vehicle_id:
             raise ValidationError("此訂單已配車，請先解除原配車。")
@@ -4057,16 +4059,89 @@ class OrderOperationsProfile(TimeStampedModel):
         verbose_name_plural = "訂單營運資料"
 
 
+_PAYMENT_LEDGER_MAINTENANCE = contextvars.ContextVar("payment_ledger_maintenance", default=False)
+
+
+@contextlib.contextmanager
+def payment_ledger_maintenance():
+    """僅供歷史匯入等受控批次使用；一般畫面與服務不得繞過收款防改。"""
+    token = _PAYMENT_LEDGER_MAINTENANCE.set(True)
+    try:
+        yield
+    finally:
+        _PAYMENT_LEDGER_MAINTENANCE.reset(token)
+
+
 class PaymentRecord(TimeStampedModel):
     class ReceiptKind(models.TextChoices):
         CUSTOMER = "customer", "客戶收款"
         LENDER = "lender", "分期公司撥款"
 
+    class EntryType(models.TextChoices):
+        RECEIPT = "receipt", "收款"
+        REVERSAL = "reversal", "沖銷"
+        REFUND = "refund", "退款"
+
+    # 已確認的收款即為入帳事實，只能以沖銷／退款列更正，不可直接改寫。
+    LOCKED_FIELDS = (
+        "order_id", "entry_type", "reverses_id", "received_amount", "received_on",
+        "payment_method", "receiving_account", "card_principal", "card_fee_charged", "bank_card_fee",
+    )
+    ADJUSTMENT_LOCKED_FIELDS = LOCKED_FIELDS + (
+        "expected_amount", "item_name", "system_key", "adjustment_reason", "confirmed",
+    )
+
+    def _ledger_violation(self, previous, written_fields):
+        def written(name):
+            return written_fields is None or name in written_fields or name.removesuffix("_id") in written_fields
+
+        if previous["entry_type"] != self.EntryType.RECEIPT:
+            locked = self.ADJUSTMENT_LOCKED_FIELDS
+        elif previous["confirmed"]:
+            locked = self.LOCKED_FIELDS
+        else:
+            return ""
+        changed = [name for name in locked if written(name) and getattr(self, name) != previous[name]]
+        if previous["entry_type"] == self.EntryType.RECEIPT:
+            previous_kind = self.ReceiptKind.LENDER if previous["system_key"] == "installment_disbursement" else previous["receipt_kind"]
+            if (written("receipt_kind") or written("system_key")) and self.effective_receipt_kind != previous_kind:
+                changed.append("receipt_kind")
+            if written("confirmed") and not self.confirmed:
+                changed.append("confirmed")
+        if written("proof") and previous["proof"] and getattr(self.proof, "name", "") != previous["proof"]:
+            changed.append("proof")
+        if not changed:
+            return ""
+        if previous["entry_type"] != self.EntryType.RECEIPT:
+            return "沖銷與退款紀錄不可修改。"
+        return "已確認的收款不可直接修改；如登記有誤，請以沖銷更正後重新登記。"
+
     @transaction.atomic
     def save(self, *args, **kwargs):
         SalesOrder.objects.select_for_update().get(pk=self.order_id)
         fields = ("received_amount", "confirmed", "system_key", "receipt_kind")
-        previous = type(self).objects.filter(pk=self.pk).values(*fields).first() if self.pk else None
+        ledger_fields = tuple(dict.fromkeys((
+            *fields, *self.ADJUSTMENT_LOCKED_FIELDS, "proof",
+        )))
+        previous = type(self).objects.filter(pk=self.pk).values(*ledger_fields).first() if self.pk else None
+        maintenance = _PAYMENT_LEDGER_MAINTENANCE.get()
+        if previous and not maintenance:
+            violation = self._ledger_violation(previous, kwargs.get("update_fields"))
+            if violation:
+                raise ValidationError(violation)
+        if self.entry_type == self.EntryType.RECEIPT:
+            if self.reverses_id:
+                raise ValidationError("只有沖銷紀錄可以指定沖銷對象。")
+            if previous is None and not maintenance and (
+                (self.received_amount or 0) < 0 or (self.expected_amount or 0) < 0
+            ):
+                raise ValidationError("收款金額不可為負數；退款或更正請使用沖銷／退款。")
+        elif previous is None and (
+            (self.received_amount or 0) >= 0 or self.expected_amount or not self.confirmed
+            or not (self.adjustment_reason or "").strip()
+            or (self.entry_type == self.EntryType.REVERSAL) != bool(self.reverses_id)
+        ):
+            raise ValidationError("沖銷／退款紀錄須為已確認的負數金額，並填寫原因。")
         self._disbursement_changed = previous is None or any(
             previous[name] != getattr(self, name) for name in fields
         )
@@ -4075,6 +4150,10 @@ class PaymentRecord(TimeStampedModel):
     @transaction.atomic
     def delete(self, *args, **kwargs):
         SalesOrder.objects.select_for_update().get(pk=self.order_id)
+        if not _PAYMENT_LEDGER_MAINTENANCE.get():
+            current = type(self).objects.filter(pk=self.pk).values("confirmed", "entry_type").first()
+            if current and (current["confirmed"] or current["entry_type"] != self.EntryType.RECEIPT):
+                raise ValidationError("已確認的收款、沖銷與退款紀錄不可刪除；請以沖銷處理。")
         return super().delete(*args, **kwargs)
 
     order = models.ForeignKey(
@@ -4145,6 +4224,18 @@ class PaymentRecord(TimeStampedModel):
     confirmed_at = models.DateTimeField("確認時間", blank=True, null=True)
     proof = models.FileField("匯款／收款證明", upload_to="orders/payments/%Y/%m/", blank=True)
     note = models.CharField("備註", max_length=250, blank=True)
+    entry_type = models.CharField(
+        "款項類型", max_length=20, choices=EntryType.choices, default=EntryType.RECEIPT, editable=False,
+    )
+    reverses = models.ForeignKey(
+        "self", on_delete=models.RESTRICT, null=True, blank=True, editable=False,
+        related_name="reversal_entries", verbose_name="沖銷對象",
+    )
+    adjustment_reason = models.CharField("沖銷／退款原因", max_length=250, blank=True, editable=False)
+
+    @property
+    def is_adjustment(self):
+        return self.entry_type != self.EntryType.RECEIPT
 
     @property
     def card_fee_difference(self):
@@ -4179,7 +4270,22 @@ class PaymentRecord(TimeStampedModel):
                 fields=["order", "system_key"],
                 condition=~models.Q(system_key=""),
                 name="unique_order_system_payment",
-            )
+            ),
+            models.UniqueConstraint(
+                fields=["reverses"],
+                condition=Q(entry_type="reversal"),
+                name="payment_single_reversal",
+            ),
+            models.CheckConstraint(
+                condition=Q(entry_type="receipt") | (
+                    Q(received_amount__lt=0) & Q(expected_amount=0) & Q(confirmed=True)
+                ),
+                name="payment_adjustment_negative",
+            ),
+            models.CheckConstraint(
+                condition=Q(reverses__isnull=True) | Q(entry_type="reversal"),
+                name="payment_reverses_only_reversal",
+            ),
         ]
         verbose_name = "收款紀錄"
         verbose_name_plural = "收款紀錄"

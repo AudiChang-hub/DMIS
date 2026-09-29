@@ -58,11 +58,14 @@ def refresh_payment_confirmation(order_id):
     profile = OrderOperationsProfile.objects.filter(order_id=order_id).first()
     if not profile:
         return
-    from .payment_summary import payment_summary
+    from .payment_summary import effective_records, payment_summary
     records = list(PaymentRecord.objects.filter(order_id=order_id))
     confirmed = payment_summary(profile.order, records)["settled"]
     # 匯款已確認不等於所有款項已收清；短款仍由 payment_confirmed／應收差額呈現。
-    installment_confirmed = any(p.confirmed and p.effective_receipt_kind == "lender" for p in records)
+    installment_confirmed = any(
+        p.confirmed and p.effective_receipt_kind == "lender" and p.entry_type == "receipt"
+        for p in effective_records(records)
+    )
     updates = []
     if profile.payment_confirmed != confirmed:
         profile.payment_confirmed = confirmed
@@ -88,7 +91,10 @@ def sync_payment_financials(order_id, *, adopt_payment_id=None, touch_revision=F
     fields = ("card_fee_income", "card_fee_expense", "actual_disbursement",
               "payment_disbursement_snapshot", "manual_financial_fields")
     before = {name: getattr(profile, name) for name in fields}
-    totals = order.payment_records.aggregate(income=Sum("card_fee_charged"), expense=Sum("bank_card_fee"))
+    # 被沖銷的收款視同未發生，其刷卡手續費不列入收支。
+    totals = order.payment_records.filter(reversal_entries__isnull=True).aggregate(
+        income=Sum("card_fee_charged"), expense=Sum("bank_card_fee"),
+    )
     profile.card_fee_income = totals["income"] or Decimal("0")
     profile.card_fee_expense = totals["expense"] or Decimal("0")
     from .payment_summary import disbursement_receipts
@@ -276,11 +282,13 @@ def sync_order_operations(order_id, *, update_receivables=False):
         if not payment.confirmed and not payment.received_amount and not payment.proof:
             payment.delete()
         else:
+            # 保留原款項分類，避免撥款列轉為人工列後被改算成客戶款。
+            payment.receipt_kind = payment.effective_receipt_kind
             payment.system_key = ""
             payment.note = (
                 f"{payment.note}；" if payment.note else ""
             ) + "付款方式已變更，已保留為人工收款紀錄"
-            payment.save(update_fields=["system_key", "note", "updated_at"])
+            payment.save(update_fields=["receipt_kind", "system_key", "note", "updated_at"])
 
     refresh_payment_confirmation(order.pk)
     return profile

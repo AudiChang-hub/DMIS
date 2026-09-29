@@ -86,7 +86,7 @@ class CommandCenterTests(TestCase):
             for _ in range(2):
                 PaymentRecord.objects.create(order=order, expected_amount=500, received_amount=100, confirmed=False)
         metrics = build_dashboard_metrics(date(2026,9,12))
-        self.assertEqual(metrics['risk'], {'outstanding':1,'unconfirmed':1,'refund':1})
+        self.assertEqual(metrics['risk'], {'outstanding':1,'unconfirmed':1,'refund':1,'overpaid':0})
         for risk, expected in [('outstanding',outstanding), ('unconfirmed',outstanding), ('refund',refund)]:
             query = _operations_report_queryset(RequestFactory().get('/', {'risk':risk}))
             self.assertEqual(list(query.values_list('pk', flat=True)), [expected.pk])

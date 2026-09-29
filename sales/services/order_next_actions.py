@@ -94,6 +94,28 @@ def _pending_reconciliation_action(order, today):
     )
 
 
+def _settlement_gap_action(order):
+    from .payment_ledger import settlement_gap
+
+    gap = settlement_gap(order)
+    if not gap:
+        return None
+    parts = []
+    if gap["due"]:
+        parts.append(f"待補收 {gap['due']:,.0f} 元")
+    if gap["overpaid"]:
+        parts.append(f"溢收待退 {gap['overpaid']:,.0f} 元")
+    return NextAction(
+        key="settlement-gap",
+        title="處理交付後金額差額",
+        description="交付後金額有異動：" + "、".join(parts) + "；補收請新增收款，溢收請登記退還。",
+        action_label="前往金額收支",
+        url=_tab_url(order, "finance"),
+        badge="帳務差額",
+        tone="urgent",
+    )
+
+
 def _subsidy_action(order, subsidy_missing):
     if not order.is_trade_in_subsidy:
         return None
@@ -241,8 +263,8 @@ def build_order_next_actions(
     if order.status == SalesOrder.Status.CANCEL_REFUND_PENDING:
         primary = NextAction(
             key="refund",
-            title="完成訂金全額退款",
-            description="退款完成後，這張訂單才會正式取消。",
+            title="完成取消退款結算",
+            description="填寫沒收金額並退還其餘實收後，這張訂單才會正式取消。",
             action_label="前往處理退款",
             url=_tab_url(order, "order"),
             badge="優先處理",
@@ -355,12 +377,13 @@ def build_order_next_actions(
         )
 
     reconciliation = _pending_reconciliation_action(order, today) if order.is_delivered else None
+    gap = _settlement_gap_action(order) if order.is_delivered else None
     subsidy = _subsidy_action(order, subsidy_missing)
 
     if primary is None:
-        primary = reconciliation or subsidy
+        primary = gap or reconciliation or subsidy
     else:
-        for action in (reconciliation, subsidy):
+        for action in (gap, reconciliation, subsidy):
             if action and action.key != primary.key:
                 secondary.append(action)
 

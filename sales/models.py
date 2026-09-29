@@ -3583,6 +3583,10 @@ class SalesOrder(TimeStampedModel):
         self.cancellation_note = note
         if new_status == self.Status.CANCEL_REFUND_PENDING:
             self.status = self.Status.CANCEL_REFUND_PENDING
+            from sales.services.notifications import notify
+            notify("cancellation_refund_pending", self, f"訂單 {self.number} 已登記取消，待退款結算",
+                   f"取消原因：{reason}。請確認已收款項並完成沒收／退款結算。",
+                   dedupe_suffix=str(int(self.cancellation_requested_at.timestamp())))
         else:
             self.status = self.Status.CANCELLED
             self.refund_amount = 0
@@ -4452,6 +4456,87 @@ class PaymentRecord(TimeStampedModel):
         ]
         verbose_name = "收款紀錄"
         verbose_name_plural = "收款紀錄"
+
+
+class InvoiceRecord(TimeStampedModel):
+    """發票生命週期：開立、作廢、折讓只能新增，不改寫既有紀錄。"""
+
+    class Kind(models.TextChoices):
+        ISSUE = "issue", "開立"
+        VOID = "void", "作廢"
+        ALLOWANCE = "allowance", "折讓"
+
+    order = models.ForeignKey(SalesOrder, on_delete=models.PROTECT, related_name="invoice_records", verbose_name="訂單")
+    kind = models.CharField("類型", max_length=20, choices=Kind.choices)
+    invoice_number = models.CharField("發票號碼", max_length=20)
+    related_invoice = models.ForeignKey(
+        "self", on_delete=models.PROTECT, null=True, blank=True, related_name="adjustments", verbose_name="原發票",
+    )
+    invoice_date = models.DateField("日期")
+    amount = models.DecimalField("金額（含稅）", max_digits=12, decimal_places=0, validators=[MinValueValidator(0)])
+    buyer_tax_id = models.CharField("買受人統一編號", max_length=8, blank=True)
+    reason = models.CharField("原因", max_length=250, blank=True)
+    created_by = models.CharField("登記人員", max_length=150)
+
+    class Meta:
+        ordering = ["invoice_date", "pk"]
+        verbose_name = "發票紀錄"
+        verbose_name_plural = "發票紀錄"
+        constraints = [
+            models.UniqueConstraint(fields=["invoice_number"], condition=Q(kind="issue"), name="invoice_unique_issue_number"),
+            models.UniqueConstraint(fields=["related_invoice"], condition=Q(kind="void"), name="invoice_single_void"),
+            models.CheckConstraint(
+                condition=(Q(kind="issue") & Q(related_invoice__isnull=True)) | (~Q(kind="issue") & Q(related_invoice__isnull=False)),
+                name="invoice_related_matches_kind",
+            ),
+        ]
+
+    def save(self, *args, **kwargs):
+        if self.pk and type(self).objects.filter(pk=self.pk).exists():
+            raise ValidationError("發票紀錄不可修改；更正請作廢或折讓。")
+        return super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        raise ValidationError("發票紀錄不可刪除；更正請作廢或折讓。")
+
+    def __str__(self):
+        return f"{self.get_kind_display()} {self.invoice_number}"
+
+
+class Notification(TimeStampedModel):
+    """通知 outbox：交易提交後才建立，背景發送並記錄失敗與重試。"""
+
+    class Channel(models.TextChoices):
+        IN_APP = "in_app", "系統內"
+        EMAIL = "email", "Email"
+
+    class Status(models.TextChoices):
+        PENDING = "pending", "待發送"
+        SENT = "sent", "已送達"
+        FAILED = "failed", "發送失敗"
+        SKIPPED = "skipped", "未設定通道"
+
+    order = models.ForeignKey(SalesOrder, on_delete=models.CASCADE, null=True, blank=True, related_name="notifications")
+    recipient = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="dmis_notifications")
+    channel = models.CharField("通道", max_length=20, choices=Channel.choices, default=Channel.IN_APP)
+    event_key = models.CharField("事件", max_length=60)
+    dedupe_key = models.CharField("去重代碼", max_length=200, unique=True)
+    title = models.CharField("標題", max_length=160)
+    body = models.TextField("內容", blank=True)
+    status = models.CharField("狀態", max_length=20, choices=Status.choices, default=Status.PENDING)
+    attempts = models.PositiveSmallIntegerField("嘗試次數", default=0)
+    last_error = models.CharField("最後錯誤", max_length=500, blank=True)
+    sent_at = models.DateTimeField("送達時間", null=True, blank=True)
+    read_at = models.DateTimeField("已讀時間", null=True, blank=True)
+
+    class Meta:
+        ordering = ["-created_at", "-pk"]
+        indexes = [models.Index(fields=["recipient", "channel", "read_at"], name="notification_inbox_idx")]
+        verbose_name = "通知"
+        verbose_name_plural = "通知"
+
+    def __str__(self):
+        return f"{self.get_channel_display()}／{self.title}"
 
 
 class RegistrationDocument(TimeStampedModel):

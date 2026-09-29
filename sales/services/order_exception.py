@@ -117,4 +117,9 @@ def close_after_registration(order_id, *, actor_name, reason, forfeited_amount, 
             f"（{vehicle.registered_plate_number}）以已領牌車釋回，再售價 {vehicle.resale_price:,.0f} 元"
         ),
     )
+    from .invoices import invoice_attention
+    from .notifications import notify
+    attention = invoice_attention(order)
+    notify("exception_closed", order, f"訂單 {order.number} 領牌後棄單已例外結案",
+           f"{reason}；{summary}。" + (attention or ""))
     return order

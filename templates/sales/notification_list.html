@@ -1,0 +1,25 @@
+{% extends 'base.html' %}{% load site_copy %}{% block title %}我的通知{% endblock %}{% block content %}
+{% site_navigation %}<section class="hero-row compact-hero"><div><p class="eyebrow">未讀 {{ unread_count }} 則</p><h1>我的通知</h1><p class="muted">取消、退款結算、分期核貸、例外結案與交付後差額等需要你跟進的事件。</p></div>
+{% if unread_count %}<form method="post">{% csrf_token %}<button class="button ghost" type="submit">全部標示為已讀</button></form>{% endif %}</section>
+<section class="section-block notification-inbox">
+  {% for item in notifications %}
+  <article class="notification-item{% if not item.read_at %} is-unread{% endif %}">
+    <div><strong>{{ item.title }}</strong>{% if item.body %}<p class="muted">{{ item.body }}</p>{% endif %}<small class="muted">{{ item.created_at|date:"Y/m/d H:i" }}</small></div>
+    {% if item.order_id %}<a class="button ghost small" href="{% url 'order_detail' item.order_id %}">查看訂單</a>{% endif %}
+  </article>
+  {% empty %}
+  <p class="muted">目前沒有通知。</p>
+  {% endfor %}
+</section>
+{% if user.is_superuser %}
+<section class="section-block notification-inbox">
+  <div class="section-title"><div><h2>Email 發送狀況</h2><small>未設定 Email 通道時，通知只會出現在系統內。</small></div>
+  {% if email_issues %}<form method="post">{% csrf_token %}<input type="hidden" name="action" value="resend"><button class="button ghost" type="submit">重新發送待處理與失敗通知</button></form>{% endif %}</div>
+  {% for item in email_issues %}
+  <article class="notification-item"><div><strong>{{ item.title }}</strong><small class="muted">{{ item.recipient.get_username }}・{{ item.get_status_display }}・已嘗試 {{ item.attempts }} 次{% if item.last_error %}・{{ item.last_error }}{% endif %}</small></div></article>
+  {% empty %}
+  <p class="muted">沒有待發送或失敗的 Email 通知。</p>
+  {% endfor %}
+</section>
+{% endif %}
+{% endblock %}

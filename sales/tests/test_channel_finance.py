@@ -836,6 +836,45 @@ class ChannelFinanceTests(TestCase):
         self.assertContains(response, "合作類別")
         self.assertContains(response, "台鈴油車")
 
+    def test_source_list_scope_filter_accepts_multiple_scopes(self):
+        sym_dealer = SalesSource.objects.create(
+            name="三陽專門車行", source_type=SalesSource.SourceType.DEALER
+        )
+        SalesSourceBrandPolicy.objects.create(
+            source=sym_dealer,
+            cooperation_scope=SalesSourceBrandPolicy.CooperationScope.SYM,
+            effective_from=date(2026, 8, 1),
+        )
+        electric_dealer = SalesSource.objects.create(
+            name="電車專門車行", source_type=SalesSource.SourceType.DEALER
+        )
+        SalesSourceBrandPolicy.objects.create(
+            source=electric_dealer,
+            cooperation_scope=SalesSourceBrandPolicy.CooperationScope.SUZUKI_ELECTRIC,
+            effective_from=date(2026, 8, 1),
+        )
+        self.client.force_login(self.user)
+
+        response = self.client.get(
+            reverse("sales_source_list"),
+            {
+                "cooperation_scope": [
+                    SalesSourceBrandPolicy.CooperationScope.SYM,
+                    SalesSourceBrandPolicy.CooperationScope.SUZUKI_GAS,
+                ]
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, self.dealer.name)
+        self.assertContains(response, sym_dealer.name)
+        self.assertNotContains(response, electric_dealer.name)
+        self.assertContains(response, 'name="cooperation_scope" value="sym" checked')
+        self.assertContains(response, 'name="cooperation_scope" value="suzuki_gas" checked')
+        self.assertNotContains(
+            response, 'name="cooperation_scope" value="suzuki_electric" checked'
+        )
+
     def test_source_list_uses_compact_cooperation_and_holiday_summaries(self):
         self.client.force_login(self.user)
 

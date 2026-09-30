@@ -1714,9 +1714,10 @@ def sales_source_list(request):
     status = request.GET.get("status", "active").strip()
     if status not in {"active", "inactive"}:
         status = "active"
-    cooperation_scope = request.GET.get(
-        "cooperation_scope", request.GET.get("brand", "")
-    ).strip()
+    # 合作類別可複選；同時勾選時列出符合任一類別的車行。
+    requested_scopes = request.GET.getlist("cooperation_scope") or request.GET.getlist(
+        "brand"
+    )
     holiday_gift = request.GET.get("holiday_gift", "")
     line_group = request.GET.get("line_group", "").strip()
     relationship_type = request.GET.get("relationship_type", "").strip()
@@ -1762,34 +1763,45 @@ def sales_source_list(request):
     valid_scopes = {
         value for value, _ in SalesSourceBrandPolicy.CooperationScope.choices
     }
-    if cooperation_scope in valid_scopes:
+    cooperation_scopes = [
+        scope
+        for scope in dict.fromkeys(value.strip() for value in requested_scopes)
+        if scope in valid_scopes
+    ]
+    if cooperation_scopes:
         today = timezone.localdate()
-        selected_profile = SalesSourceCooperationProfile.objects.filter(
-            source_id=OuterRef("pk"), cooperation_scope=cooperation_scope
-        )
-        latest_scope_state = (
-            SalesSourceBrandPolicy.objects.filter(
-                source_id=OuterRef("pk"),
-                cooperation_scope=cooperation_scope,
-                effective_from__lte=today,
+        scope_annotations = {}
+        scope_filter = Q()
+        for scope in cooperation_scopes:
+            selected_profile = SalesSourceCooperationProfile.objects.filter(
+                source_id=OuterRef("pk"), cooperation_scope=scope
             )
-            .filter(Q(effective_to__isnull=True) | Q(effective_to__gte=today))
-            .order_by("-effective_from", "-pk")
-            .values("cooperates")[:1]
-        )
-        sources = sources.annotate(
-            selected_scope_profile_exists=Exists(selected_profile),
-            selected_scope_profile_cooperates=Exists(
-                selected_profile.filter(cooperates=True)
-            ),
-            selected_scope_policy_cooperates=Subquery(latest_scope_state),
-        ).filter(
-            Q(selected_scope_profile_cooperates=True)
-            | Q(
-                selected_scope_profile_exists=False,
-                selected_scope_policy_cooperates=True,
+            latest_scope_state = (
+                SalesSourceBrandPolicy.objects.filter(
+                    source_id=OuterRef("pk"),
+                    cooperation_scope=scope,
+                    effective_from__lte=today,
+                )
+                .filter(Q(effective_to__isnull=True) | Q(effective_to__gte=today))
+                .order_by("-effective_from", "-pk")
+                .values("cooperates")[:1]
             )
-        )
+            scope_annotations.update(
+                {
+                    f"scope_{scope}_profile_exists": Exists(selected_profile),
+                    f"scope_{scope}_profile_cooperates": Exists(
+                        selected_profile.filter(cooperates=True)
+                    ),
+                    f"scope_{scope}_policy_cooperates": Subquery(latest_scope_state),
+                }
+            )
+            scope_filter |= Q(**{f"scope_{scope}_profile_cooperates": True}) | Q(
+                **{
+                    f"scope_{scope}_profile_exists": False,
+                    f"scope_{scope}_policy_cooperates": True,
+                }
+            )
+        sources = sources.annotate(**scope_annotations).filter(scope_filter)
     valid_relationship_types = {
         value for value, _ in SalesSourceCooperationProfile.RelationshipType.choices
     }
@@ -2039,7 +2051,7 @@ def sales_source_list(request):
             "selected": {
                 "q": keyword,
                 "status": status,
-                "cooperation_scope": cooperation_scope,
+                "cooperation_scopes": cooperation_scopes,
                 "holiday_gift": holiday_gift,
                 "line_group": line_group,
                 "relationship_type": relationship_type,
@@ -2049,7 +2061,7 @@ def sales_source_list(request):
             "has_active_filters": any(
                 (
                     keyword,
-                    cooperation_scope,
+                    cooperation_scopes,
                     holiday_gift,
                     line_group,
                     relationship_type,

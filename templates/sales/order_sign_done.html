@@ -5,17 +5,27 @@
 {% url 'order_detail' order.pk as order_detail_url %}
 {% include "sales/_page_back.html" with fallback_url=order_detail_url label="返回訂單" %}
 <section class="hero-row compact-hero">
-  <div><p class="eyebrow">{{ order.number }}</p><h1>簽署完成</h1><p class="muted">請將裝置交還業務人員。簽好的文件已存入訂單，不需要列印。</p></div>
+  <div><p class="eyebrow">{{ order.number }}</p><h1>簽署完成</h1><p class="muted">請將裝置交還業務人員。簽好的文件已存入訂單，可選擇是否列印副本給客人。</p></div>
 </section>
 <section class="section-block"><div class="section-body">
   <ul class="signing-result">
     <li>車輛訂購單：{% if contract_state == "electronic" %}已電子簽署{% elif contract_state == "paper" %}紙本已上傳{% elif contract_state == "stale" %}內容已變更，需要重新簽署{% else %}尚未簽署{% endif %}</li>
     <li>個資同意書：{% if privacy_state == "electronic" %}已電子簽署{% elif privacy_state == "paper" %}紙本已上傳{% elif privacy_state == "stale" %}內容已變更，需要重新簽署{% else %}尚未簽署{% endif %}</li>
   </ul>
-  <details class="sign-choice__print">
-    <summary class="button ghost">客人需要紙本副本時再列印</summary>
-    {% include "sales/_order_print_picker.html" with copy_only=True %}
-  </details>
-  <div class="form-actions"><a class="button primary" href="{{ order_detail_url }}">完成，返回訂單</a></div>
+  <div class="sign-choice">
+    <p class="sign-choice__title">客人需要紙本副本嗎？</p>
+    <div class="sign-choice__options">
+      <article class="sign-choice__option">
+        <h3>不需要副本</h3>
+        <p class="muted">簽好的文件已存入訂單，之後需要時也可以在訂單頁列印。</p>
+        <div class="form-actions"><a class="button secondary" href="{{ order_detail_url }}">完成，返回訂單</a></div>
+      </article>
+      <article class="sign-choice__option">
+        <h3>列印含簽名的副本</h3>
+        <p class="muted">勾選要給客人的聯別；印出的是已簽名的版本。</p>
+        {% include "sales/_order_print_picker.html" with copy_only=True %}
+      </article>
+    </div>
+  </div>
 </div></section>
 {% endblock %}

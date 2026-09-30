@@ -133,6 +133,16 @@ systemctl list-timers dmis-next-price-list-distribution.timer --all
 python manage.py generate_price_list_distribution --month 2026-09
 ```
 
+### 每週原廠官網檢查
+
+`dmis-next-official-catalog-check.timer` 每週一清晨檢查 SYM、SUZUKI 官網，只寫入比對紀錄；有新車款、變動或讀取失敗時通知 admin。
+
+```bash
+sudo bash scripts/install_django_official_catalog_timer.sh
+systemctl list-timers dmis-next-official-catalog-check.timer --all
+journalctl -u dmis-next-official-catalog-check.service -n 50 --no-pager
+```
+
 
 ## 正式備份自動還原演練
 

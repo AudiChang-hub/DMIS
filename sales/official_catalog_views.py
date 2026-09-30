@@ -152,7 +152,7 @@ def official_catalog_check_start(request):
         messages.error(request, "無法啟動背景檢查，請稍後再試。")
     else:
         OfficialCatalogCheck.objects.filter(pk=check.pk).update(job_id=job_id, updated_at=timezone.now())
-        messages.success(request, f"已開始檢查 {service.SOURCES[brand]['label']} 官網，約需 1～2 分鐘。")
+        messages.success(request, f"已開始檢查 {service.SOURCES[brand]['label']} 官網，約需 2～3 分鐘。")
     return redirect(_page_url(brand, "pending"))
 
 

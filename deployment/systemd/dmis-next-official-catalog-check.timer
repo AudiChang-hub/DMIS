@@ -1,0 +1,11 @@
+[Unit]
+Description=Weekly DMIS Next official catalog check
+
+[Timer]
+OnCalendar=Mon *-*-* 05:30:00
+Persistent=true
+RandomizedDelaySec=20m
+Unit=dmis-next-official-catalog-check.service
+
+[Install]
+WantedBy=timers.target

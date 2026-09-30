@@ -46,7 +46,7 @@ class AnnouncementForm(forms.ModelForm):
         model = SystemAnnouncement
         fields = ("title", "body", "pinned", "starts_at", "ends_at", "audience", "recipients", "dealers")
         widgets = {
-            "body": forms.Textarea(attrs={"rows": 8}),
+            "body": forms.Textarea(attrs={"class": "form-control", "rows": 8}),
             "starts_at": forms.DateTimeInput(format="%Y-%m-%dT%H:%M", attrs={"type": "datetime-local"}),
             "ends_at": forms.DateTimeInput(format="%Y-%m-%dT%H:%M", attrs={"type": "datetime-local"}),
             "recipients": forms.CheckboxSelectMultiple,

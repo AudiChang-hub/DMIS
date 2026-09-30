@@ -1218,7 +1218,7 @@ h2 { margin-bottom: 0; font-size: var(--text-md); }
   margin-bottom: var(--stack-gap); background: var(--surface); border: 1px solid var(--line);
   border-radius: var(--radius); box-shadow: 0 5px 20px color-mix(in srgb, var(--shadow-ink) 4%, transparent);
 }
-.section-title { display: flex; min-height: 58px; padding: 0 var(--space-5); align-items: center; justify-content: space-between; gap: var(--stack-gap-sm); border-bottom: 1px solid var(--line); }
+.section-title { display: flex; min-height: 58px; padding: 0 var(--card-pad); align-items: center; justify-content: space-between; gap: var(--stack-gap-sm); border-bottom: 1px solid var(--line); }
 .section-title h2, .section-title h3 { display: flex; align-items: center; gap: var(--space-2); margin: 0; }
 .section-title > span, .section-title > a { color: var(--muted); font-size: var(--text-sm); font-weight: 700; }
 .section-title > a { color: var(--blue); }
@@ -1964,7 +1964,7 @@ body.screen-locked { overflow: hidden; }
 .holiday-calendar-delete .button { width: 100%; }
 .holiday-list-disclosure { overflow: hidden; }
 .holiday-list-disclosure > summary {
-  display: flex; min-height: 66px; padding: var(--space-3) var(--space-5); align-items: center; justify-content: space-between;
+  display: flex; min-height: 66px; padding: var(--space-3) var(--card-pad); align-items: center; justify-content: space-between;
   gap: var(--stack-gap-sm); cursor: pointer; list-style: none;
 }
 .holiday-list-disclosure > summary::-webkit-details-marker { display: none; }
@@ -2018,7 +2018,7 @@ body.screen-locked { overflow: hidden; }
   .holiday-calendar-editor.is-open { display: block; background: var(--surface); }
   .holiday-editor-close { display: inline-flex; align-items: center; }
   .holiday-calendar-editor__actions { position: sticky; bottom: 0; padding-top: var(--space-2); background: var(--surface); }
-  .holiday-list-disclosure > summary { min-height: 62px; padding: var(--space-3) var(--space-4); }
+  .holiday-list-disclosure > summary { min-height: 62px; padding: var(--space-3) var(--card-pad); }
 }
 .holiday-calendar-toolbar { flex-wrap: wrap; }
 .holiday-view-switch { display: flex; padding: var(--space-1); gap: var(--space-1); border: 1px solid var(--line); border-radius: var(--radius-md); background: var(--surface); }
@@ -3722,7 +3722,7 @@ body.screen-locked { overflow: hidden; }
 }
 .operations-filters > .inventory-filter-actions { display: flex; }
 .operations-table-shell { min-width: 0; max-width: 100%; padding: 0; overflow: hidden; }
-.operations-table-shell .section-title { padding: var(--space-4) var(--space-5); }
+.operations-table-shell .section-title { padding: var(--space-4) var(--card-pad); }
 .table-scroll, .responsive-table-wrap { width: 100%; min-width: 0; max-width: 100%; overflow-x: auto; }
 .operations-table td small { display: block; margin-top: var(--space-1); color: var(--muted); }
 .operations-table .number-cell { text-align: right; white-space: nowrap; }
@@ -4160,7 +4160,7 @@ body.screen-locked { overflow: hidden; }
 .account-actions form { margin: 0; }
 .account-audit { margin-top: var(--stack-gap); padding: 0; }
 .account-audit summary {
-  display: flex; min-height: 68px; padding: var(--space-4) var(--space-5); align-items: center; justify-content: space-between;
+  display: flex; min-height: 68px; padding: var(--space-4) var(--card-pad); align-items: center; justify-content: space-between;
   cursor: pointer; list-style: none;
 }
 .account-audit summary::-webkit-details-marker { display: none; }
@@ -4168,7 +4168,7 @@ body.screen-locked { overflow: hidden; }
 .account-audit[open] .account-audit__chevron { margin-top: var(--space-1); transform: rotate(225deg); }
 .account-audit summary span:first-child small, .account-audit summary span:first-child strong { display: block; }
 .account-audit summary small { color: var(--muted); }
-.account-audit__list { display: grid; padding: 0 var(--space-5) var(--space-5); gap: 0; border-top: 1px solid var(--line-soft); }
+.account-audit__list { display: grid; padding: 0 var(--card-pad) var(--card-pad); gap: 0; border-top: 1px solid var(--line-soft); }
 .account-audit__list > div { display: grid; padding: var(--space-4) 0; grid-template-columns: auto 1fr; gap: var(--space-3); border-bottom: 1px solid var(--line-soft); }
 .account-audit__list > div:last-child { border-bottom: 0; }
 .account-audit__dot { width: 9px; height: 9px; margin-top: var(--space-2); background: var(--forest); border-radius: 50%; }
@@ -4463,7 +4463,7 @@ body.screen-locked { overflow: hidden; }
   .search-match mark { max-width: 180px; }
   .order-source { display: none; }
   .status-pill { min-height: 30px; font-size: var(--text-sm); }
-  .form-grid { grid-template-columns: 1fr; padding: var(--inset-pad); }
+  .form-grid { grid-template-columns: 1fr; padding: var(--card-pad); }
   .accessory-row { grid-template-columns: 1fr; }
   .span-2 { grid-column: auto; }
   .form-section summary { padding: var(--space-3) var(--space-4); }
@@ -5358,7 +5358,7 @@ body.screen-locked { overflow: hidden; }
 .discount-decision-grid { display: grid; grid-template-columns: 1fr minmax(320px, .8fr); gap: var(--stack-gap-sm); align-items: start; }
 .discount-decision-grid form p { margin: 0 0 var(--space-3); }
 
-@media (max-width: 1100px) {
+@media (max-width: 1440px) {
   .positioned-field-row { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
 
@@ -5587,7 +5587,7 @@ form[aria-busy="true"] { cursor: progress; }
 .import-steps li.active > span { color: var(--on-accent); background: var(--forest); }
 .import-steps li.complete > span { color: var(--action-text); background: var(--mint); }
 .import-upload-panel { margin-bottom: var(--stack-gap); }
-.import-upload-form { display: grid; padding: var(--space-5) var(--space-5) var(--space-5); grid-template-columns: minmax(0, 1.45fr) minmax(280px, .85fr) auto; gap: var(--stack-gap-sm); align-items: end; }
+.import-upload-form { display: grid; padding: var(--card-pad); grid-template-columns: minmax(0, 1.45fr) minmax(280px, .85fr) auto; gap: var(--stack-gap-sm); align-items: end; }
 .import-upload-fields { display: grid; min-width: 0; grid-template-columns: minmax(180px, .6fr) minmax(260px, 1.4fr); gap: var(--stack-gap-sm); }
 .import-upload-fields .field { margin: 0; }
 .import-upload-guidance { display: grid; min-height: 52px; padding: var(--inset-pad); align-content: center; gap: 2px; background: var(--surface-soft); border-radius: var(--radius-md); }
@@ -5713,7 +5713,7 @@ form[aria-busy="true"] { cursor: progress; }
   .import-steps li strong { font-size: var(--text-sm); }
   .import-steps li small { font-size: var(--text-2xs); }
   .import-upload-form, .import-upload-fields { grid-template-columns: 1fr; }
-  .import-upload-form { padding: var(--inset-pad); }
+  .import-upload-form { padding: var(--card-pad); }
   .import-upload-guidance { grid-column: auto; grid-row: auto; }
   .import-upload-form > .button { width: 100%; }
   .import-list-heading { align-items: stretch; flex-direction: column; }
@@ -6248,7 +6248,7 @@ form[aria-busy="true"] { cursor: progress; }
   .page-shell { padding-top: var(--space-6); }
   .hero-row { gap: var(--stack-gap); margin-bottom: var(--space-6); }
   .card { padding: var(--card-pad); }
-  .form-grid { gap: var(--stack-gap) var(--space-6); padding: var(--space-6); }
+  .form-grid { gap: var(--stack-gap); padding: var(--card-pad); }
   .field > label { margin-bottom: var(--space-3); line-height: 1.6; }
   .field .help-text, .form-hint { line-height: 1.8; margin-top: var(--space-3); }
   .conditional-panel, .subsection { margin: 0 var(--space-6) var(--space-6); padding-top: var(--space-6); }
@@ -6409,7 +6409,7 @@ form[aria-busy="true"] { cursor: progress; }
   .chart-baseline { stroke: var(--muted); stroke-width: 1; stroke-dasharray: 4 4; }
   .command-chart-grid text { fill: var(--muted); font-size: var(--text-sm); }
   .command-trends details { margin-top: var(--stack-gap); }
-  .command-trends > p, .command-trends > details, .command-trends > .command-chart-grid { margin-inline: var(--space-5); }
+  .command-trends > p, .command-trends > details, .command-trends > .command-chart-grid { margin-inline: var(--card-pad); }
   .command-trends summary, .command-history > summary { cursor: pointer; padding: var(--space-3) 0; font-weight: 700; }
   .command-trend-table { width: 100%; border-collapse: collapse; }
   .command-trend-table td, .command-trend-table th { padding: var(--space-3); border-bottom: 1px solid var(--line); text-align: left; white-space: nowrap; }
@@ -6775,3 +6775,80 @@ select:not([multiple]):not([size]):not(.searchable-select__native):disabled { --
 /* 外框無內距（標題列＋內容）的區塊：直接放入的內層小框與外框留同樣的邊距。 */
 :is(.delivery-stage, .registration-stage, .subsidy-stage, .allocation-summary, .signed-documents-panel, .internal-discount-panel) > :is(.note-box, .registration-completion, .registration-data-form, .info-banner, .warning-card, .info-card) { margin: var(--stack-gap-sm) var(--card-pad); }
 :is(.delivery-stage, .registration-stage, .subsidy-stage, .allocation-summary, .signed-documents-panel, .internal-discount-panel) > :is(.note-box, .registration-completion, .registration-data-form, .info-banner, .warning-card, .info-card):last-child { margin-bottom: var(--card-pad); }
+
+/* ===== 版面對齊：同一張卡片內，標題、內容與內層小框共用同一條左緣 ===== */
+/* 無內距面板（section-block）的內容區：標題列下方直接放文字時使用。 */
+.section-body { padding: var(--card-pad); }
+.section-body > :first-child { margin-top: 0; }
+.section-body > :last-child { margin-bottom: 0; }
+/* 卡片最後一個元素不再把下邊距疊在卡片內距上，上下留白一致。 */
+:is(.card, .report-panel, .account-panel, .reading-panel, .note-box, .info-banner, .warning-card, .info-card, .guide-tip, .guide-example, .guide-exception, .empty-state, .message) > :last-child { margin-bottom: 0; }
+:is(.card, .report-panel, .account-panel, .reading-panel, .note-box, .info-banner, .warning-card, .info-card, .guide-tip, .guide-example, .guide-exception, .empty-state, .message) > :first-child { margin-top: 0; }
+/* 已有內距的卡片裡，標題列不再重複縮排。 */
+:is(.card, .static-section, .payment-ledger) > .section-title { padding-inline: 0; }
+.account-audit.card { padding: 0; }
+/* 無內距面板中直接放入的子卡片、表單與提示：左右與標題列同樣退一個卡片內距。 */
+:is(.registration-stage, .subsidy-stage, .internal-discount-panel, .delivery-stage) > :is(.registration-documents, .other-insurance, .subsidy-documents, .other-subsidy-documents, .subsidy-edit-form, .other-insurance__form, .discount-summary, .message) { margin: var(--stack-gap-sm) var(--card-pad); }
+:is(.registration-stage, .subsidy-stage, .internal-discount-panel, .delivery-stage) > :is(.registration-documents, .other-insurance, .subsidy-documents, .other-subsidy-documents, .subsidy-edit-form, .other-insurance__form, .discount-summary, .message):last-child { margin-bottom: var(--card-pad); }
+:is(.internal-discount-panel, .operation-section) > p { margin: var(--stack-gap-sm) var(--card-pad); }
+.form-section > details.card { margin: var(--stack-gap-sm) var(--card-pad); }
+/* 作業表單底部不再保留固定空白，與下方區塊維持一般區塊間距。 */
+.operations-form { padding-bottom: 0; }
+/* 草稿清單：車主與車款／最後編輯時間／操作固定三欄，時間不再漂在中間。 */
+#drafts .draft-row { display: grid; grid-template-columns: minmax(0, 1fr) 11rem 11rem; align-items: center; gap: var(--stack-gap-sm); padding: var(--space-4) var(--card-pad); }
+#drafts .draft-row > time { color: var(--muted); font-size: var(--text-sm); font-variant-numeric: tabular-nums; }
+#drafts .draft-row > :last-child { justify-self: end; text-align: right; }
+@media (max-width: 700px) {
+  #drafts .draft-row { grid-template-columns: minmax(0, 1fr) auto; }
+  #drafts .draft-row > time { grid-column: 1; grid-row: 2; }
+  #drafts .draft-row > :last-child { grid-column: 2; grid-row: 1 / span 2; }
+}
+/* 淨利鎖定：清單標題列上的一般工具項目，不再自成圓角框。 */
+.order-list-summary__controls .profit-control { margin: 0; padding: 0; gap: var(--space-2); background: none; border: 0; border-radius: 0; color: var(--muted); font-size: var(--text-sm); font-weight: 800; }
+/* 收合區塊：未自訂的 summary 一律去掉瀏覽器三角形，改為右側線條箭頭，標題文字對齊內容左緣。 */
+:where(details:not(.form-section, .inventory-history-entry, .platform-contact-summary, .report-multiselect)) > :where(summary:not(:has(.ui-chevron))) { display: flex; min-height: 44px; align-items: center; gap: var(--space-3); cursor: pointer; list-style: none; font-weight: 800; }
+:where(details:not(.form-section, .inventory-history-entry, .platform-contact-summary, .report-multiselect)) > :where(summary:not(:has(.ui-chevron)))::-webkit-details-marker { display: none; }
+:where(details:not(.form-section, .inventory-history-entry, .platform-contact-summary, .report-multiselect)) > :where(summary:not(:has(.ui-chevron)))::after { width: 8px; height: 8px; margin: calc(-1 * var(--space-1)) var(--space-1) 0 auto; flex: 0 0 auto; content: ""; border-right: 2px solid var(--select-chevron); border-bottom: 2px solid var(--select-chevron); transform: rotate(45deg); transition: transform .18s ease; }
+:where(details[open]:not(.form-section, .inventory-history-entry, .platform-contact-summary, .report-multiselect)) > :where(summary:not(:has(.ui-chevron)))::after { margin-top: var(--space-1); transform: rotate(225deg); }
+/* 未指定樣式的文字輸入框與多行文字框：與 form-control 同一外觀。 */
+:where(main) :where(input:not([type=checkbox], [type=radio], [type=hidden], [type=file], [type=range], [type=color], [type=submit], [type=button], [type=image]), textarea) { min-height: 44px; padding: var(--space-2) var(--space-3); color: var(--ink); background-color: var(--surface-subtle); border: 1px solid var(--line); border-radius: var(--radius-md); }
+:where(main) :where(textarea) { min-height: 88px; }
+.section-block > .positioned-field-list { display: grid; gap: var(--stack-gap-sm); padding: var(--card-pad); }
+.subsidy-edit-form > .dynamic-detail-section { padding: var(--space-4) var(--card-pad) var(--card-pad); }
+.subsidy-stage > .content-section-heading { margin: var(--stack-gap-sm) var(--card-pad) 0; }
+.subsidy-stage > .content-section-heading + .registration-document-list { margin: 0 var(--card-pad) var(--stack-gap-sm); }
+/* 已有內距的卡片中，表單格線只保留上方間隔，不再重複左右內距。 */
+:is(.card, .static-section, .payment-ledger) > .form-grid, :is(.card, .static-section, .payment-ledger) > form > .form-grid { padding-inline: 0; padding-bottom: 0; }
+/* 有內距卡片中的資料表：延伸到卡片左右邊緣，首尾欄文字與標題同一條線。 */
+.operations-model-summary > .table-wrap { margin-inline: calc(-1 * var(--card-pad)); }
+.operations-model-summary > .table-wrap :is(th, td):first-child { padding-left: var(--card-pad); }
+.operations-model-summary > .table-wrap :is(th, td):last-child { padding-right: var(--card-pad); }
+/* 完整版本歷程與說明文字管理：內容與卡片內距對齊。 */
+main > .section-block.release-history { padding: 0 var(--card-pad) var(--space-2); }
+.site-management .section-block > .news-row { padding-inline: 0; }
+.edit-reason-section { padding: var(--card-pad); }
+.operations-table-shell .table-scroll :is(th, td):first-child { padding-left: var(--card-pad); }
+.operations-table-shell .table-scroll :is(th, td):last-child { padding-right: var(--card-pad); }
+/* 表格首尾欄：有內距的卡片內歸零對齊標題；無內距面板內等於卡片內距。 */
+:is(.report-panel, .command-trends) table :is(th, td):first-child { padding-left: 0; }
+:is(.report-panel, .command-trends) table :is(th, td):last-child { padding-right: 0; }
+:is(section.section-block > .responsive-table-wrap > .data-table, .import-batch-table) :is(th, td):first-child { padding-left: var(--card-pad); }
+:is(section.section-block > .responsive-table-wrap > .data-table, .import-batch-table) :is(th, td):last-child { padding-right: var(--card-pad); }
+/* 訂單清單卡片：標題列、排序說明、表頭與首尾欄同一條左右緣。 */
+.order-list-summary, .order-sort-controls { padding-inline: var(--card-pad); }
+.order-sort-table :is(th, td):first-child { padding-left: var(--card-pad); }
+.order-sort-table :is(th, td):last-child { padding-right: var(--card-pad); }
+/* 訂單搜尋：進階條件是卡片內的分隔區段，不再是框中框。 */
+.order-filter-bar { padding: var(--inset-pad); }
+.order-filter-bar > details { margin: 0; padding: var(--space-4) 0 0; background: none; border: 0; border-top: 1px solid var(--line); border-radius: 0; box-shadow: none; }
+/* 工作紀錄收合區內的內容不再是第二層圓角框。 */
+.workspace-history > .section-block { margin: 0; border: 0; border-top: 1px solid var(--line); border-radius: 0; box-shadow: none; }
+/* 篩選卡片與其他頁面層卡片同一內距，同頁上下左緣一致。 */
+.master-filters, .inventory-filters, .order-filter-bar { padding: var(--card-pad); }
+/* 工作紀錄：收合標題與內層標題列同一條左緣。 */
+.workspace-history { padding: 0; }
+.workspace-history > summary { padding: var(--space-4) var(--card-pad); }
+@media (max-width: 700px) { .receipt-more-fields { padding: var(--inset-pad); } }
+.holiday-list-disclosure .data-table :is(th, td):first-child { padding-left: var(--card-pad); }
+.holiday-list-disclosure .data-table :is(th, td):last-child { padding-right: var(--card-pad); }
+.holiday-list-disclosure > .responsive-table-wrap { padding-inline: 0; }

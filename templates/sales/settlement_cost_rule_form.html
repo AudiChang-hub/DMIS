@@ -21,7 +21,7 @@
       {% for field in form %}{% include "sales/_field.html" with field=field %}{% endfor %}
     </div>
   </section>
-  <div class="form-actions master-model-actions">
+  <div class="form-savebar master-model-actions">
     {% if is_editing %}
     <button class="button danger-outline" type="submit" form="delete-cost-rule">刪除此版本</button>
     {% endif %}

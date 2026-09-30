@@ -8,15 +8,15 @@
 <form method="post" enctype="multipart/form-data" data-print-template-form>
 {% csrf_token %}
 <section class="section-block"><div class="section-title"><h2>範本設定</h2></div><div class="form-grid compact-grid">
-{% for field in form %}<div{% if field.name == 'note' %} class="field-span-2"{% endif %}><label for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}{% for error in field.errors %}<small class="field-error">{{ error }}</small>{% endfor %}</div>{% endfor %}
+{% for field in form %}<div class="field{% if field.name == 'note' %} field-span-2{% endif %}"><label for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}{% for error in field.errors %}<small class="field-error">{{ error }}</small>{% endfor %}</div>{% endfor %}
 {% for error in form.non_field_errors %}<p class="field-error field-span-2">{{ error }}</p>{% endfor %}
 </div></section>
 <section class="section-block" data-positioned-fields><div class="section-title"><div><h2>動態欄位位置</h2><small>{% site_text 'positioned_template_form.861b8cdaa064' %}</small></div></div>
 {{ field_formset.management_form }}
 <div class="positioned-field-list" data-form-list>
-{% for field_form in field_formset %}<div class="positioned-field-row" data-form-row>{% for hidden in field_form.hidden_fields %}{{ hidden }}{% endfor %}{% for field in field_form.visible_fields %}{% if field.name != 'DELETE' %}<div><label for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}{% for error in field.errors %}<small class="field-error">{{ error }}</small>{% endfor %}</div>{% endif %}{% endfor %}<label class="delete-detail-control">{{ field_form.DELETE }} <span>移除此欄位</span></label></div>{% endfor %}
+{% for field_form in field_formset %}<div class="positioned-field-row" data-form-row>{% for hidden in field_form.hidden_fields %}{{ hidden }}{% endfor %}{% for field in field_form.visible_fields %}{% if field.name != 'DELETE' %}<div class="field"><label for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}{% for error in field.errors %}<small class="field-error">{{ error }}</small>{% endfor %}</div>{% endif %}{% endfor %}<label class="delete-detail-control">{{ field_form.DELETE }} <span>移除此欄位</span></label></div>{% endfor %}
 </div>
-<template data-empty-form><div class="positioned-field-row" data-form-row>{% with field_form=field_formset.empty_form %}{% for hidden in field_form.hidden_fields %}{{ hidden }}{% endfor %}{% for field in field_form.visible_fields %}{% if field.name != 'DELETE' %}<div><label for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}</div>{% endif %}{% endfor %}<label class="delete-detail-control">{{ field_form.DELETE }} <span>移除此欄位</span></label>{% endwith %}</div></template>
+<template data-empty-form><div class="positioned-field-row" data-form-row>{% with field_form=field_formset.empty_form %}{% for hidden in field_form.hidden_fields %}{{ hidden }}{% endfor %}{% for field in field_form.visible_fields %}{% if field.name != 'DELETE' %}<div class="field"><label for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}</div>{% endif %}{% endfor %}<label class="delete-detail-control">{{ field_form.DELETE }} <span>移除此欄位</span></label>{% endwith %}</div></template>
 <button class="button ghost" type="button" data-add-form>＋ 新增定位欄位</button>
 </section>
 <div class="sticky-form-actions"><a class="button ghost" href="{% url 'positioned_template_list' %}">取消修改</a><button class="button primary" type="submit">儲存範本</button></div>

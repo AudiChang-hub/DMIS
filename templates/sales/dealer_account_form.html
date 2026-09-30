@@ -16,5 +16,5 @@
 <p class="muted">{% site_text 'dealer_account_form.ac1dfdd338b8' %}</p></section>
 {% endif %}
 <aside class="account-note"><strong>儲存前確認</strong><p>帳號會綁定 {{ source.name }}。停用會禁止登入，歷史資料仍保留。新密碼不會再次顯示，請安全交付本人；不使用共用 admin 帳密。</p></aside>
-<footer class="account-savebar"><a class="button ghost" href="{% url 'dealer_accounts' source.pk %}">取消</a><button class="button primary">{% if account %}確認儲存帳號與功能{% else %}確認開通並套用以上權限{% endif %}</button></footer></form></div>
+<footer class="form-savebar account-savebar"><a class="button ghost" href="{% url 'dealer_accounts' source.pk %}">取消</a><button class="button primary">{% if account %}確認儲存帳號與功能{% else %}確認開通並套用以上權限{% endif %}</button></footer></form></div>
 {% endblock %}{% block scripts %}<script src="{% static 'js/dealer-account.js' %}?v={{ app_version }}" defer></script>{% endblock %}

@@ -14,7 +14,7 @@
 @media (max-width: 900px) {
   .bonus-settlement-layout { grid-template-columns: 1fr; }
 }
-.bonus-rule-form { max-width: 1180px; margin: 0 auto; }
+.bonus-rule-form { max-width: 1180px; }
 .bonus-model-conflict { margin-top: var(--space-3); padding: var(--inset-pad); border: 1px solid var(--forest); border-radius: var(--radius-md); background: var(--surface-soft); scroll-margin: 90px 0 110px; }
 .bonus-model-conflict[hidden] { display: none; }
 .bonus-model-conflict p { margin: var(--space-2) 0 var(--stack-gap-sm); line-height: 1.6; overflow-wrap: anywhere; color: var(--muted); font-size: var(--text-sm-plus); }
@@ -57,9 +57,6 @@
 .bonus-tier-row > .errorlist { grid-column: 1 / -1; }
 .bonus-tier-remove button { min-height: 48px; }
 .bonus-tier-status { color: var(--muted); font-size: var(--text-sm); margin: var(--space-3) 0 0; }
-.bonus-save-bar { position: sticky; bottom: 12px; z-index: 30; display: flex; align-items: center; justify-content: space-between; gap: var(--stack-gap); padding: var(--bar-pad); background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-lg); box-shadow: var(--shadow); }
-.bonus-save-bar > span { color: var(--muted); font-size: var(--text-sm-plus); }
-.bonus-save-bar > div { display: flex; gap: var(--space-3); flex-shrink: 0; }
 .bonus-rule-list { display: grid; gap: var(--stack-gap); }
 .bonus-page-tabs { display: flex; gap: var(--space-2); padding: var(--space-2); margin-bottom: var(--stack-gap); border: 1px solid var(--line); border-radius: var(--radius-lg); background: var(--surface-soft); max-width: 480px; }
 .bonus-page-tabs a { flex: 1; display: flex; align-items: center; justify-content: center; min-height: 48px; padding: var(--space-3) var(--space-4); border-radius: var(--radius-md); color: var(--muted); font-weight: 800; text-decoration: none; }
@@ -115,10 +112,6 @@
   .bonus-section-heading, .bonus-rule-heading { align-items: flex-start; flex-direction: column; gap: var(--space-3); }
   .bonus-tier-row { grid-template-columns: 1fr 1fr; gap: var(--space-3); padding: var(--inset-pad); }
   .bonus-tier-remove { grid-column: 1 / -1; text-align: right; }
-  .bonus-save-bar { bottom: calc(76px + env(safe-area-inset-bottom)); padding: var(--bar-pad); }
-  .bonus-save-bar > span { display: none; }
-  .bonus-save-bar > div { width: 100%; }
-  .bonus-save-bar .button { flex: 1; }
 }
 @media (max-width: 480px) {
   .bonus-quarter-grid { grid-template-columns: minmax(0, 1fr); }

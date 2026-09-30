@@ -1,0 +1,17 @@
+{% if wizard.current == 'confirm' %}
+<section class="card wizard-summary" data-wizard-panel="confirm">
+  <h2>請核對整張訂單</h2>
+  <p class="muted">確認無誤後按「確認並建立訂單」。需要修改時按該段落的「修改」，改完再依序回到這一步。</p>
+  {% for block in wizard.summary %}
+  <div class="wizard-summary__block">
+    <div class="wizard-summary__head">
+      <h3>{{ block.label }}</h3>
+      <button type="submit" class="button ghost small" name="_wizard_goto" value="{{ block.step }}" formnovalidate>修改</button>
+    </div>
+    <dl>
+      {% for label, value in block.rows %}<div><dt>{{ label }}</dt><dd>{{ value|linebreaksbr }}</dd></div>{% empty %}<div><dt>內容</dt><dd>未填寫</dd></div>{% endfor %}
+    </dl>
+  </div>
+  {% endfor %}
+</section>
+{% endif %}

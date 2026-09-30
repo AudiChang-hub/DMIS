@@ -4569,8 +4569,8 @@ class OrderFlowTests(TestCase):
         inventory_response = self.client.get(reverse("inventory_create"))
 
         self.assertEqual(order_response.status_code, 200)
-        self.assertContains(order_response, "建立新訂單")
-        self.assertContains(order_response, "訂單建檔")
+        self.assertContains(order_response, "訂單精靈")
+        self.assertContains(order_response, "車款與來源")
         self.assertNotContains(order_response, "手機下單")
         self.assertContains(order_response, "editing-presence")
         self.assertContains(order_response, "refreshDraftPresence")

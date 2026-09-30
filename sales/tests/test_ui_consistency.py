@@ -287,6 +287,25 @@ class UiConsistencyTests(SimpleTestCase):
 
         self.assertEqual(sorted(set(offenders)), [])
 
+    def test_confirm_pages_share_confirm_panel(self):
+        """獨立確認頁共用 confirm-panel 結構，提示用 callout，勾選確認用 check-row。"""
+        confirm_pages = [
+            "order_deletion_confirm", "dealer_volume_bonus_confirm_delete", "sales_source_confirm_delete",
+            "announcement_action", "historical_date_change", "historical_buyer_replacement",
+            "order_print_company", "print_company_missing", "profit_unlock",
+        ]
+        offenders = []
+        for name in confirm_pages:
+            text = (TEMPLATES / "sales" / f"{name}.html").read_text(encoding="utf-8")
+            if "section-block confirm-panel" not in text or "confirm-panel__actions" not in text:
+                offenders.append(f"{name}: 缺少 confirm-panel 結構")
+            if re.search(r'type="checkbox"|_field\.html" with field=form\.(?:confirmed|acknowledged|\w+_confirmed)', text) and "check-row" not in text:
+                offenders.append(f"{name}: 勾選確認未用 check-row")
+            if re.search(r'class="[^"]*(?:replacement-panel|source-delete|bonus-delete-notice|import-review-summary)', text):
+                offenders.append(f"{name}: 仍使用舊的專用提示框")
+
+        self.assertEqual(offenders, [])
+
     def test_alignment_rules_exist(self):
         app = (CSS_DIR / "app.css").read_text(encoding="utf-8")
 

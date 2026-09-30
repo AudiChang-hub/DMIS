@@ -2,4 +2,12 @@
 {% block title %}解鎖淨利{% endblock %}
 {% block content %}
 {% site_navigation %}<section class="hero-row compact-hero"><div><p class="eyebrow">敏感資料保護</p><h1>解鎖淨利</h1><p class="muted">正在驗證 {{ user.get_full_name|default:user.username }}（@{{ user.username }}）。請使用自己的登入密碼，不是其他人員或共用帳號的密碼。</p></div></section>
-<section class="account-editor"><form method="post" class="card stacked-form">{% csrf_token %}<input type="hidden" name="next" value="{{ next_url }}">{{ form.non_field_errors }}{% include 'sales/_field.html' with field=form.password %}<p class="muted">{% site_text 'profit_unlock.e09829d88ad7' %}</p><div class="form-actions"><a class="button ghost" href="{{ next_url }}">取消</a><button class="button primary">驗證並解鎖</button></div></form></section>{% endblock %}
+<section class="section-block confirm-panel">
+  <div class="section-title"><h2>輸入自己的登入密碼</h2></div>
+  <form method="post" class="confirm-panel__form">{% csrf_token %}<input type="hidden" name="next" value="{{ next_url }}">
+    {% if form.non_field_errors %}<div class="callout callout--danger" role="alert"><span class="callout__icon" aria-hidden="true">!</span><div>{{ form.non_field_errors }}</div></div>{% endif %}
+    {% include 'sales/_field.html' with field=form.password %}
+    <p class="muted">{% site_text 'profit_unlock.e09829d88ad7' %}</p>
+    <div class="form-actions confirm-panel__actions"><a class="button ghost" href="{{ next_url }}">取消</a><button class="button primary">驗證並解鎖</button></div>
+  </form>
+</section>{% endblock %}

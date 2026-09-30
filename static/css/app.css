@@ -3121,46 +3121,12 @@ body.screen-locked { overflow: hidden; }
   background: color-mix(in srgb, var(--red-soft) 52%, var(--surface)) !important;
   border-color: color-mix(in srgb, var(--red) 30%, var(--line)) !important;
 }
-.source-delete-hero { margin-bottom: var(--stack-gap-sm); }
-.source-delete-card {
-  overflow: hidden; max-width: 920px; margin: 0 auto; background: var(--surface);
-  border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow-soft);
-}
-.source-delete-card__identity {
-  display: grid; padding: var(--space-4) var(--space-5); grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-3);
-  background: var(--surface-soft); border-bottom: 1px solid var(--line);
-}
-.source-delete-card__identity > div { display: grid; gap: 3px; }
-.source-delete-card__identity span { color: var(--muted); font-size: var(--text-xs); font-weight: 750; }
-.source-delete-card__identity strong { color: var(--ink); font-size: var(--text-md); overflow-wrap: anywhere; }
-.source-delete-card__status { margin: var(--stack-gap) var(--stack-gap) 0; padding: var(--space-4) var(--space-4); border: 1px solid; border-radius: var(--radius-md); }
-.source-delete-card__status strong { display: block; margin-bottom: var(--space-1); }
-.source-delete-card__status p { margin: 0; color: var(--muted); line-height: 1.65; }
-.source-delete-card__status.is-available { background: var(--mint); border-color: var(--green-border); }
-.source-delete-card__status.is-blocked { background: var(--amber-soft); border-color: var(--amber-border); }
-.source-delete-confirm-form { display: grid; padding: var(--card-pad); gap: var(--space-2); }
-.source-delete-confirm-form label { color: var(--ink); font-size: var(--text-sm); font-weight: 850; }
-.source-delete-confirm-form input { min-height: 48px; }
-.source-delete-confirm-form .form-actions,
-.source-delete-card > .form-actions { margin: var(--space-2) 0 0; padding: var(--space-4) var(--space-5) var(--space-5); }
-.source-delete-blockers { display: grid; margin: var(--stack-gap-sm) var(--stack-gap) 0; padding: 0; gap: var(--space-2); list-style: none; }
-.source-delete-blockers li {
-  display: flex; min-height: 48px; padding: var(--space-3) var(--space-3); align-items: center; justify-content: space-between;
-  gap: var(--stack-gap-sm); background: var(--surface-soft); border: 1px solid var(--line); border-radius: var(--radius-md);
-}
-.source-delete-blockers strong { color: var(--red); white-space: nowrap; }
 @media (max-width: 640px) {
   .source-record-management { padding: var(--inset-pad); }
   .source-record-management__heading { align-items: flex-start; flex-direction: column; gap: var(--space-2); }
   .source-record-management__heading > p { text-align: left; }
   .source-record-management__options { grid-template-columns: 1fr; }
   .source-record-management__options article { align-items: flex-start; flex-direction: column; }
-  .source-delete-card { margin-bottom: calc(80px + env(safe-area-inset-bottom)); }
-  .source-delete-card__identity { grid-template-columns: 1fr; }
-  .source-delete-confirm-form .form-actions,
-  .source-delete-card > .form-actions { align-items: stretch; flex-direction: column-reverse; }
-  .source-delete-confirm-form .button,
-  .source-delete-card > .form-actions .button { width: 100%; }
 }
 .source-category-layout {
   display: grid; grid-template-columns: minmax(300px, .75fr) minmax(560px, 1.6fr);
@@ -6220,13 +6186,6 @@ form[aria-busy="true"] { cursor: progress; }
   .staff-source-table td:last-child { display: flex; align-items: end; justify-content: flex-end; }
   .staff-source-table td:last-child .button { width: 100%; }
 }
-.replacement-panel { padding: var(--card-pad); margin-block: var(--stack-gap); background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); }
-.replacement-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--stack-gap); margin-block: var(--stack-gap); }
-.replacement-panel .field { margin-block: var(--stack-gap-sm); }
-.replacement-facts .checkbox-label { align-items: flex-start; line-height: 1.7; }
-.replacement-facts input[type="checkbox"] { flex: 0 0 20px; width: 20px; height: 20px; margin-top: var(--space-1); }
-.replacement-panel p, .replacement-panel li, .replacement-panel summary { overflow-wrap: anywhere; }
-@media (max-width: 600px) { .replacement-grid { grid-template-columns: 1fr; } .replacement-panel { padding: var(--inset-pad); } }
 /* 開單公司設定：預覽與表單並排，窄螢幕自然換行。 */
 .company-workspace .account-panel { padding:var(--card-pad); }
 .company-workspace form > p { margin:var(--stack-gap) 0; }
@@ -6879,7 +6838,7 @@ main > .section-block.release-history { padding: 0 var(--card-pad) var(--space-2
 .confirm-panel { max-width: 880px; }
 .confirm-panel__body { display: grid; gap: var(--stack-gap-sm); }
 .confirm-panel__lead { margin: 0; font-size: var(--text-md); line-height: 1.7; }
-.confirm-facts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-3) var(--stack-gap); margin: 0; }
+.confirm-facts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--stack-gap-sm) var(--stack-gap); margin: 0; }
 .confirm-facts > div { min-width: 0; }
 .confirm-facts > .is-wide { grid-column: 1 / -1; }
 .confirm-facts dt { color: var(--muted); font-size: var(--text-sm); font-weight: 800; }
@@ -6887,7 +6846,29 @@ main > .section-block.release-history { padding: 0 var(--card-pad) var(--space-2
 .confirm-panel__form { display: grid; gap: var(--stack-gap-sm); padding: var(--card-pad); border-top: 1px solid var(--line); background: var(--surface-subtle); border-radius: 0 0 var(--radius) var(--radius); }
 .confirm-panel__form .field { margin: 0; }
 .confirm-panel__actions { margin: 0; padding-top: var(--stack-gap-sm); border-top: 1px solid var(--line-soft); }
-@media (max-width: 700px) { .confirm-facts { grid-template-columns: minmax(0, 1fr); } }
+.confirm-facts__list { display: grid; margin: 0; padding: 0; gap: var(--space-1); list-style: none; }
+.confirm-compare { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--stack-gap-sm) var(--stack-gap); }
+.confirm-compare > div { min-width: 0; padding-left: var(--space-4); border-left: 3px solid var(--line); }
+.confirm-compare > .is-changed { border-left-color: var(--amber-strong); }
+.confirm-compare h3 { margin: 0 0 var(--space-2); font-size: var(--text-base); }
+.confirm-compare p { margin: var(--space-1) 0 0; color: var(--ink-soft); line-height: 1.6; overflow-wrap: anywhere; }
+.confirm-compare h3 + p { margin-top: 0; }
+.confirm-panel__body details p { margin: var(--space-2) 0 0; overflow-wrap: anywhere; }
+.confirm-panel__body > p, .confirm-panel__form > p { margin: 0; line-height: 1.7; }
+.confirm-panel__group { display: grid; gap: var(--space-3); }
+.confirm-panel__group > h3, .confirm-panel__group > p { margin: 0; }
+.confirm-panel__group > h3 { font-size: var(--text-base); }
+.confirm-panel__group + .confirm-panel__group { padding-top: var(--stack-gap-sm); border-top: 1px solid var(--line-soft); }
+.confirm-panel__grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--stack-gap-sm) var(--stack-gap); }
+.confirm-panel__grid > .field { margin: 0; }
+.section-title + .confirm-panel__form { border-top: 0; }
+.confirm-panel__hint { margin-right: auto; align-self: center; color: var(--muted); font-size: var(--text-sm); }
+.check-row__errors { display: grid; gap: var(--space-1); }
+.callout > div > p:first-child { margin-top: 0; }
+.callout .errorlist { margin: 0; padding: 0; list-style: none; }
+.callout .errorlist li { padding-left: 0; }
+.callout .errorlist li::before { content: none; }
+@media (max-width: 700px) { .confirm-facts, .confirm-compare, .confirm-panel__grid { grid-template-columns: minmax(0, 1fr); } .confirm-panel__hint { flex-basis: 100%; } }
 /* 欄位內未指定寬度的輸入元件填滿欄位；多行文字框預設全寬。 */
 :where(.field) > :where(input:not([type=checkbox], [type=radio], [type=hidden], [type=submit], [type=button]), select, textarea), :where(main) :where(textarea) { width: 100%; max-width: 100%; }
 

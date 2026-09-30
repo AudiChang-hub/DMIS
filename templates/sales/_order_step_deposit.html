@@ -1,0 +1,18 @@
+{% load screen_access sales_format %}
+<div class="order-step-deposit">
+  <dl class="data-list">
+    <div><dt>約定訂金</dt><dd>${{ order.deposit_amount|number_with_commas }}</dd></div>
+    {% if deposit_payment and order.deposit_amount > 0 %}<div><dt>收款狀態</dt><dd>{% if deposit_payment.confirmed %}已確認收款 ${{ deposit_payment.received_amount|number_with_commas }}（{{ deposit_payment.received_on|date:"Y/m/d" }}）{% else %}尚未確認收款{% endif %}</dd></div>{% endif %}
+  </dl>
+  {% if order.deposit_amount <= 0 %}
+  <p class="muted">本單未約定訂金，可略過此步驟；如需收訂金，請先在「訂車與配件」修改約定訂金。</p>
+  {% elif deposit_payment.confirmed %}
+  <p class="muted">訂金已入帳；如登記有誤，請到「收入與支出」以沖銷更正。</p>
+  {% elif deposit_payment_form and not order.is_cancelled_sale %}{% if_access 'deposit_payment_update' order.pk %}
+  <form method="post" enctype="multipart/form-data" action="{% url 'deposit_payment_update' order.pk %}" class="form-grid">
+    {% csrf_token %}
+    {% for field in deposit_payment_form %}{% include "sales/_field.html" %}{% endfor %}
+    <div class="span-2"><button class="button primary" type="submit">登記訂金收款</button></div>
+  </form>
+  {% endif_access %}{% endif %}
+</div>

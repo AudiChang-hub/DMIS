@@ -405,6 +405,11 @@ urlpatterns = [
     ),
     path("notifications/", views.notification_list, name="notification_list"),
     path(
+        "orders/<int:pk>/deposit/payment/",
+        views.deposit_payment_update,
+        name="deposit_payment_update",
+    ),
+    path(
         "orders/<int:pk>/cancel/withdraw/",
         views.cancellation_withdraw,
         name="cancellation_withdraw",

@@ -1,0 +1,10 @@
+<nav class="order-step-bar" aria-label="訂單步驟" data-order-step-bar data-order-id="{{ order.pk }}">
+  <ol>
+    {% for step in step_list %}
+    <li class="order-step-bar__item is-{{ step.state }}">
+      <a href="#panel-{{ step.key }}" data-step-link="{{ step.key }}"><span class="order-step-bar__number">{% if step.state == "done" %}✓{% else %}{{ step.number }}{% endif %}</span><span class="order-step-bar__label">{{ step.title }}</span><span data-dirty-indicator hidden>●</span></a>
+    </li>
+    {% endfor %}
+  </ol>
+</nav>
+<div class="workspace-message" data-workspace-message role="status" aria-live="polite" hidden></div>

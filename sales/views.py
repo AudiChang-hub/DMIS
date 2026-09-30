@@ -576,7 +576,7 @@ def _document_upload_response(
 
 
 def _order_detail_section_url(order_pk, section):
-    return f"{reverse('order_detail', args=[order_pk])}?tab=order#{section}"
+    return f"{reverse('order_detail', args=[order_pk])}?tab=documents#{section}"
 
 
 @login_required
@@ -5166,13 +5166,6 @@ def order_detail(request, pk, *, commission_form=None, workspace_context_only=Fa
         ),
         pk=pk,
     )
-    if request.GET.get("tab") == "documents":
-        legacy_query = request.GET.copy()
-        legacy_query["tab"] = "order"
-        return redirect(
-            f"{reverse('order_detail', args=[pk])}?{legacy_query.urlencode()}"
-            "#signed-documents"
-        )
     registration_documents = {
         document.document_type: document
         for document in order.registration_documents.all()
@@ -5246,7 +5239,21 @@ def order_detail(request, pk, *, commission_form=None, workspace_context_only=Fa
     from .services.dealer_credit import credit_overview
     from .services.order_exception import exception_close_blockers
     detail_summary = payment_summary(order)
-    delivery_blockers = [] if order.is_delivered else order.delivery_blockers(detail_summary)
+    from .services.order_intake import can_edit_finance
+    # 交車時可在同一表單收尾款；尾款阻擋改在送出時連同收款一起驗證。
+    collect_balance = bool(
+        not order.is_delivered and order.source_type != SalesOrder.SourceType.DEALER
+        and balance_payment is not None and not balance_payment.confirmed
+        and detail_summary["delivery_due"] > 0 and can_edit_finance(request.user)
+    )
+    delivery_blockers = [] if order.is_delivered else order.delivery_blockers(detail_summary, ignore_balance=collect_balance)
+    deposit_payment = next((p for p in order.payment_records.all() if p.system_key == "deposit"), None)
+    deposit_payment_form = None
+    if deposit_payment is not None and not deposit_payment.confirmed and can_edit_finance(request.user):
+        deposit_payment_form = DeliveryPaymentForm(instance=deposit_payment, prefix="deposit")
+        deposit_payment_form.fields["confirmed"].label = "確認此筆訂金已收妥"
+        if not deposit_payment.received_amount:
+            deposit_payment_form.initial["received_amount"] = order.deposit_amount or None
     exception_close_ready = (
         order.is_registration_complete and not order.is_delivered and not order.is_cancelled_sale
     )
@@ -5267,6 +5274,8 @@ def order_detail(request, pk, *, commission_form=None, workspace_context_only=Fa
     }
     requested_tab = request.GET.get("tab", "")
     active_tab = requested_tab if requested_tab in valid_tabs else "order"
+    from .services.order_steps import build_order_steps
+    step_context = build_order_steps(order, next_actions=next_actions, requested=requested_tab, summary=detail_summary)
     commission_block_reason = order.commission_attribution_block_reason
     if commission_form is None and not commission_block_reason:
         commission_form = OrderCommissionAttributionForm(order=order, prefix="attribution")
@@ -5277,6 +5286,10 @@ def order_detail(request, pk, *, commission_form=None, workspace_context_only=Fa
             **order_workspace.finance_context(request, order),
             "order_workspace": True,
             "order": order,
+            **step_context,
+            "deposit_payment": deposit_payment,
+            "deposit_payment_form": deposit_payment_form,
+            "collect_balance": collect_balance,
             "commission_form": commission_form,
             "commission_block_reason": commission_block_reason,
             "contract_form": SignedContractForm(instance=order),
@@ -5304,8 +5317,8 @@ def order_detail(request, pk, *, commission_form=None, workspace_context_only=Fa
             "delivery_form": DeliveryCompletionForm(order),
             "balance_payment": balance_payment,
             "balance_payment_form": (
-                DeliveryPaymentForm(instance=balance_payment)
-                if balance_payment is not None
+                DeliveryPaymentForm(instance=balance_payment, prefix="balance")
+                if collect_balance
                 else None
             ),
             "balance_ready_for_delivery": balance_ready_for_delivery,
@@ -6136,7 +6149,7 @@ def contract_upload(request, pk):
         return _document_upload_response(
             request,
             order_pk=pk,
-            tab="order",
+            tab="documents",
             section="signed-documents",
             ok=True,
             message="訂購合約附件已上傳。",
@@ -6144,7 +6157,7 @@ def contract_upload(request, pk):
     return _document_upload_response(
         request,
         order_pk=pk,
-        tab="order",
+        tab="documents",
         section="signed-documents",
         ok=False,
         message="合約上傳失敗："
@@ -6184,7 +6197,7 @@ def privacy_consent_upload(request, pk):
         return _document_upload_response(
             request,
             order_pk=pk,
-            tab="order",
+            tab="documents",
             section="signed-documents",
             ok=True,
             message="個資同意書附件已上傳。",
@@ -6192,7 +6205,7 @@ def privacy_consent_upload(request, pk):
     return _document_upload_response(
         request,
         order_pk=pk,
-        tab="order",
+        tab="documents",
         section="signed-documents",
         ok=False,
         message="個資同意書上傳失敗："
@@ -6539,8 +6552,30 @@ def delivery_complete(request, pk):
             ),
         )
         return redirect(detail_url)
+    balance_form = None
+    if request.POST.get("balance-received_amount", "").strip():
+        # 交車同時收尾款：尾款與交付在同一交易，任一失敗全部不寫入。
+        from .services.order_intake import can_edit_finance
+        balance = PaymentRecord.objects.select_for_update().filter(order=order, system_key="balance").first()
+        if balance is None or balance.confirmed or not can_edit_finance(request.user):
+            messages.error(request, "交付未完成：尾款已入帳或沒有收款權限，請重新整理後再試。")
+            return redirect(detail_url)
+        data = request.POST.copy()
+        data["balance-confirmed"] = "on"
+        balance_form = DeliveryPaymentForm(data, request.FILES, instance=balance, prefix="balance")
+        if not balance_form.is_valid():
+            messages.error(request, "交付未完成：" + _form_error_text(balance_form))
+            return redirect(detail_url)
     try:
-        order, record = form.save(_editing_name(request.user))
+        with transaction.atomic():
+            if balance_form is not None:
+                payment = balance_form.save(_editing_name(request.user))
+                _record_duplicate_acknowledgements(order, [balance_form], request.user)
+                OrderEvent.objects.create(
+                    order=order, event_type="delivery_payment_updated", actor_name=_editing_name(request.user),
+                    description=f"交車時收尾款 ${payment.received_amount:,.0f}（{payment.payment_method}）",
+                )
+            order, record = form.save(_editing_name(request.user))
     except ValidationError as exc:
         messages.error(request, "交付未完成：" + " ".join(exc.messages))
         return redirect(detail_url)
@@ -6559,6 +6594,36 @@ def delivery_complete(request, pk):
         messages.success(request, "車輛已交付；合作車行領牌文件與尾款將持續提醒。")
     else:
         messages.success(request, "車輛交付完成，訂單已結案。")
+    return redirect(detail_url)
+
+
+@login_required
+@transaction.atomic
+def deposit_payment_update(request, pk):
+    """訂金步驟：登記並確認訂金實收；已確認後只能以沖銷更正。"""
+    order = get_object_or_404(SalesOrder.objects.select_for_update(), pk=pk)
+    detail_url = f"{reverse('order_detail', args=[pk])}?tab=deposit"
+    if request.method != "POST":
+        return redirect(detail_url)
+    if order.is_cancelled_sale:
+        messages.error(request, "此訂單已進入取消或結案流程，不能登記訂金。")
+        return redirect(detail_url)
+    sync_order_operations(order.pk)
+    payment = get_object_or_404(PaymentRecord.objects.select_for_update(), order=order, system_key="deposit")
+    if payment.confirmed:
+        messages.info(request, "訂金已確認入帳。")
+        return redirect(detail_url)
+    form = DeliveryPaymentForm(request.POST, request.FILES, instance=payment, prefix="deposit")
+    if not form.is_valid():
+        messages.error(request, "訂金未登記：" + _form_error_text(form))
+        return redirect(detail_url)
+    payment = form.save(_editing_name(request.user))
+    _record_duplicate_acknowledgements(order, [form], request.user)
+    OrderEvent.objects.create(
+        order=order, event_type="deposit_payment_updated", actor_name=_editing_name(request.user),
+        description=f"登記訂金實收 ${payment.received_amount:,.0f}／{'已確認' if payment.confirmed else '尚未確認'}",
+    )
+    messages.success(request, "訂金已確認收款。" if payment.confirmed else "訂金資料已保存，尚未確認收款。")
     return redirect(detail_url)
 
 
@@ -6666,7 +6731,7 @@ def delivery_payment_update(request, pk):
 @transaction.atomic
 def cancellation_request(request, pk):
     order = get_object_or_404(SalesOrder.objects.select_for_update(), pk=pk)
-    detail_url = f"{reverse('order_detail', args=[pk])}?tab=order"
+    detail_url = f"{reverse('order_detail', args=[pk])}?tab=closing"
     if request.method != "POST":
         return redirect(detail_url)
     form = CancellationRequestForm(request.POST)
@@ -6717,7 +6782,7 @@ def cancellation_request(request, pk):
 @transaction.atomic
 def refund_complete(request, pk):
     order = get_object_or_404(SalesOrder.objects.select_for_update(), pk=pk)
-    detail_url = f"{reverse('order_detail', args=[pk])}?tab=order"
+    detail_url = f"{reverse('order_detail', args=[pk])}?tab=closing"
     if request.method != "POST":
         return redirect(detail_url)
     form = RefundCompletionForm(order, request.POST, request.FILES)
@@ -6753,7 +6818,7 @@ def refund_complete(request, pk):
 @transaction.atomic
 def cancellation_withdraw(request, pk):
     order = get_object_or_404(SalesOrder.objects.select_for_update(), pk=pk)
-    detail_url = f"{reverse('order_detail', args=[pk])}?tab=order"
+    detail_url = f"{reverse('order_detail', args=[pk])}?tab=closing"
     if request.method != "POST":
         return redirect(detail_url)
     try:
@@ -6897,7 +6962,7 @@ def order_exception_close(request, pk):
     from .services.order_exception import close_after_registration
 
     order = get_object_or_404(SalesOrder.objects.select_for_update(), pk=pk)
-    detail_url = f"{reverse('order_detail', args=[pk])}?tab=order"
+    detail_url = f"{reverse('order_detail', args=[pk])}?tab=closing"
     if request.method != "POST":
         return redirect(detail_url)
     form = ExceptionCloseForm(order, request.POST, request.FILES)

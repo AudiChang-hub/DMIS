@@ -1,6 +1,6 @@
 {% extends "base.html" %}{% load site_copy %}{% load screen_access %}
 {% load static sales_format %}
-{% block head %}<link rel="stylesheet" href="{% static 'css/order-commission-recipient.css' %}?v={{ app_version }}"><link rel="stylesheet" href="{% static 'css/order-workspace.css' %}?v={{ app_version }}">{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'css/order-commission-recipient.css' %}?v={{ app_version }}"><link rel="stylesheet" href="{% static 'css/order-workspace.css' %}?v={{ app_version }}"><link rel="stylesheet" href="{% static 'css/order-steps.css' %}?v={{ app_version }}">{% endblock %}
 {% block title %}{{ order.number }}｜車輛銷售管理{% endblock %}
 {% block page_class %}page-shell--wide{% endblock %}
 {% block content %}
@@ -16,7 +16,7 @@
   <div class="hero-actions">
     {% if_access 'order_delete' order.pk %}<a class="button danger-outline" href="{% url 'order_delete' order.pk %}">刪除訂單</a>{% endif_access %}
     {% if_access 'order_customer_access' order.pk %}<a class="button ghost" href="{% url 'order_customer_access' order.pk %}">管理本單權限</a>{% endif_access %}
-    {% if workspace_finance %}<button type="button" class="button ghost" data-workspace-go="finance">金額收支</button>{% endif %}
+    {% if workspace_finance %}<button type="button" class="button ghost" data-workspace-go="finance">收入與支出</button>{% endif %}
     {% if commission_form %}<a class="button secondary" href="?attribution=1#commission-attribution" data-open-attribution>調整台數歸屬</a>{% endif %}
     {% if_access 'order_documents_print' order.pk %}<a class="button secondary" href="{% url 'order_documents_print' order.pk %}" target="_blank">一鍵列印全部文件</a>{% endif_access %}
     {% if order.can_edit_content and not editing_order %}{% if_access 'order_edit' order.pk %}<a class="button primary" href="{% url 'order_edit' order.pk %}" data-workspace-edit-link>編輯訂單{% if order.is_delivered %}（完成後修正）{% endif %}</a>{% endif_access %}{% endif %}
@@ -45,12 +45,14 @@
 </script>
 {% endif %}
 
-{% include "sales/_order_workspace_nav.html" %}
+{% include "sales/_order_step_bar.html" %}
 {% if editing_order %}{% include "sales/_order_form_content.html" %}{% endif %}
 <div data-workspace-section="order">{% include "sales/_next_actions.html" %}</div>
-
+<div class="order-steps">
 {% if not editing_order %}
-<div class="order-tab-panel" id="panel-order" role="tabpanel" data-tab-panel="order" data-workspace-section="order">
+{% with step=steps.order %}<details class="order-step is-{{ step.state }}" id="panel-order" data-step-key="order"{% if open_step == "order" %} open{% endif %}>
+<summary class="order-step__summary">{% include "sales/_order_step_summary.html" %}</summary>
+<div class="order-step__body">
 <div class="detail-grid">
   <section class="card">
     <div class="section-title"><h2>車主資料</h2><span>已人工核對</span></div>
@@ -115,6 +117,17 @@
     {% if order.note %}<div class="note-box"><strong>備註</strong><p>{{ order.note }}</p></div>{% endif %}
   </section>
 </div>
+</div></details>{% endwith %}
+{% endif %}
+{% with step=steps.deposit %}<details class="order-step is-{{ step.state }}" id="panel-deposit" data-step-key="deposit"{% if open_step == "deposit" %} open{% endif %}>
+<summary class="order-step__summary">{% include "sales/_order_step_summary.html" %}</summary>
+<div class="order-step__body">
+{% include "sales/_order_step_deposit.html" %}
+</div></details>{% endwith %}
+{% if not editing_order %}
+{% with step=steps.documents %}<details class="order-step is-{{ step.state }}" id="panel-documents" data-step-key="documents"{% if open_step == "documents" %} open{% endif %}>
+<summary class="order-step__summary">{% include "sales/_order_step_summary.html" %}</summary>
+<div class="order-step__body">
 <section class="section-block signed-documents-panel" id="signed-documents">
   <div class="section-title signed-documents-panel__title">
     <div>
@@ -165,103 +178,11 @@
   </div>
 </section>
 {% endif %}
-{% if order.status == "cancel_refund_pending" %}
-<section class="section-block cancellation-panel urgent-panel">
-  <div class="section-title"><div><p class="eyebrow">取消處理</p><h2>取消待退款結算</h2></div><span>已收 ${{ refund_form.received|number_with_commas }}</span></div>
-  <p>取消原因：{{ order.cancellation_reason }}。應退金額＝已確認實收 ${{ refund_form.received|number_with_commas }}－沒收金額；結算完成前，訂單仍維持「取消待退款」。</p>
-  {% if refund_form.unconfirmed_amount %}<p class="note-box">尚有 ${{ refund_form.unconfirmed_amount|number_with_commas }} 已登記但未確認的實收，請先到金額收支確認或清除，才能結算退款。</p>{% endif %}
-  <form method="post" enctype="multipart/form-data" action="{% url 'refund_complete' order.pk %}" class="form-grid compact-grid">
-    {% csrf_token %}
-    {% for field in refund_form %}<div><label for="{{ field.id_for_label }}">{{ field.label }}{% if field.field.required %} <span class="required-inline">必填</span>{% endif %}</label>{{ field }}{% if field.help_text %}<small class="muted">{{ field.help_text }}</small>{% endif %}</div>{% endfor %}
-    <div class="wide"><button class="button primary" type="submit" data-confirm="確認已依應退金額完成退款，並完成取消訂單嗎？">確認結算並完成取消</button></div>
-  </form>
-  {% if_access 'cancellation_withdraw' order.pk %}
-  <form method="post" action="{% url 'cancellation_withdraw' order.pk %}" class="form-grid compact-grid">
-    {% csrf_token %}
-    <div class="wide"><label for="withdraw-reason">客戶改變心意？撤銷原因 <span class="required-inline">必填</span></label><input id="withdraw-reason" class="form-control" name="reason" maxlength="250" required></div>
-    <div class="wide"><button class="button ghost" type="submit" data-confirm="撤銷取消後訂單回到待處理，原配車已釋回，需要重新配車。確定撤銷嗎？">撤銷取消</button></div>
-  </form>
-  {% endif_access %}
-</section>
-{% elif order.status == "cancelled" %}
-<section class="section-block cancellation-panel">
-  <div class="section-title"><h2>訂單已取消</h2><span>{{ order.cancellation_completed_at|date:"Y/m/d H:i" }}</span></div>
-  <dl class="data-list">
-    <div><dt>取消原因</dt><dd>{{ order.cancellation_reason }}</dd></div>
-    <div><dt>登記人員</dt><dd>{{ order.cancellation_requested_by }}</dd></div>
-    <div><dt>退款金額</dt><dd>${{ order.refund_amount|number_with_commas }}</dd></div>
-    {% if order.forfeited_amount %}<div><dt>沒收金額</dt><dd>${{ order.forfeited_amount|number_with_commas }}</dd></div><div><dt>沒收原因</dt><dd>{{ order.forfeit_reason }}</dd></div>{% endif %}
-    {% if order.refund_completed_on %}<div><dt>退款日期</dt><dd>{{ order.refund_completed_on|date:"Y/m/d" }}</dd></div>{% endif %}
-    {% if order.refund_method %}<div><dt>退款方式</dt><dd>{{ order.get_refund_method_display }}</dd></div>{% endif %}
-  </dl>
-  {% if order.refund_proof %}{% if_access 'protected_media' 'order' order.pk 'refund_proof' %}<a class="button ghost" href="{% url 'protected_media' 'order' order.pk 'refund_proof' %}" data-preview-name="{{ order.refund_proof.name }}" target="_blank">查看退款證明</a>{% endif_access %}{% endif %}
-</section>
-{% elif not order.is_delivered and not order.is_registration_complete %}
-<details class="section-block cancellation-panel cancellation-disclosure">
-  <summary>
-    <span class="cancellation-disclosure__heading">
-      <strong>訂單取消與退款</strong>
-      <span>客戶不再購車時，由此登記取消並處理訂金退款。</span>
-      <span class="cancellation-disclosure__condition">僅限尚未領牌、尚未交付</span>
-    </span>
-    <span class="cancellation-disclosure__toggle">
-      <span class="cancellation-disclosure__expand">展開取消流程</span>
-      <span class="cancellation-disclosure__collapse">收合取消流程</span>
-      <span class="cancellation-disclosure__chevron" aria-hidden="true"></span>
-    </span>
-  </summary>
-  <form method="post" action="{% url 'cancellation_request' order.pk %}" class="form-grid compact-grid cancellation-disclosure__form">
-    {% csrf_token %}
-    {% for field in cancellation_form %}<div class="{% if field.name == 'note' %}wide{% endif %}"><label for="{{ field.id_for_label }}">{{ field.label }}{% if field.field.required %} <span class="required-inline">必填</span>{% endif %}</label>{{ field }}</div>{% endfor %}
-    <div class="wide cancellation-disclosure__actions">
-      <p class="cancellation-disclosure__notice"><strong>送出前請確認</strong>登記取消後，已配車輛會解除預留；若已有確認實收，須完成退款結算（可依約定沒收部分款項）後才算取消完成。分期公司已撥款的訂單不能取消。</p>
-      <button class="button danger" type="submit" data-confirm="確定登記取消這張訂單嗎？">登記取消訂單</button>
-    </div>
-  </form>
-</details>
-{% elif order.status == "exception_closed" %}
-<section class="section-block cancellation-panel">
-  <div class="section-title"><h2>例外結案（領牌後棄單）</h2><span>{{ order.exception_closed_at|date:"Y/m/d H:i" }}</span></div>
-  <dl class="data-list">
-    <div><dt>結案原因</dt><dd>{{ order.exception_reason }}</dd></div>
-    <div><dt>登記人員</dt><dd>{{ order.exception_closed_by }}</dd></div>
-    <div><dt>退款金額</dt><dd>${{ order.refund_amount|number_with_commas }}</dd></div>
-    {% if order.forfeited_amount %}<div><dt>沒收金額</dt><dd>${{ order.forfeited_amount|number_with_commas }}</dd></div><div><dt>沒收原因</dt><dd>{{ order.forfeit_reason }}</dd></div>{% endif %}
-    {% if order.exception_vehicle %}<div class="wide"><dt>釋回車輛</dt><dd>{{ order.exception_vehicle.identifier }}（{{ order.exception_vehicle.registered_plate_number }}），已領牌車再售價 ${{ order.exception_vehicle.resale_price|number_with_commas }}</dd></div>{% endif %}
-  </dl>
-</section>
-{% elif exception_close_form %}
-<details class="section-block cancellation-panel cancellation-disclosure" id="exception-close">
-  <summary>
-    <span class="cancellation-disclosure__heading">
-      <strong>領牌後棄單（例外結案）</strong>
-      <span>已領牌但客戶不再交車時，結算款項並把車輛以「已領牌車」釋回庫存。</span>
-      <span class="cancellation-disclosure__condition">僅限已領牌、尚未交付</span>
-    </span>
-    <span class="cancellation-disclosure__toggle">
-      <span class="cancellation-disclosure__expand">展開結案流程</span>
-      <span class="cancellation-disclosure__collapse">收合結案流程</span>
-      <span class="cancellation-disclosure__chevron" aria-hidden="true"></span>
-    </span>
-  </summary>
-  {% if exception_close_blockers %}
-  <ul class="delivery-blockers">{% for item in exception_close_blockers %}<li>{{ item }}</li>{% endfor %}</ul>
-  {% else %}{% if_access 'order_exception_close' order.pk %}
-  <form method="post" enctype="multipart/form-data" action="{% url 'order_exception_close' order.pk %}" class="form-grid compact-grid cancellation-disclosure__form">
-    {% csrf_token %}
-    <p class="wide">已確認實收 ${{ exception_close_form.received|number_with_commas }}；應退＝已收－沒收。車輛不會回到新車庫存。</p>
-    {% for field in exception_close_form %}<div class="{% if field.name == 'reason' %}wide{% endif %}"><label for="{{ field.id_for_label }}">{{ field.label }}{% if field.field.required %} <span class="required-inline">必填</span>{% endif %}</label>{{ field }}{% if field.help_text %}<small class="muted">{{ field.help_text }}</small>{% endif %}</div>{% endfor %}
-    <div class="wide cancellation-disclosure__actions">
-      <button class="button danger" type="submit" data-confirm="確定以領牌後棄單例外結案嗎？訂單將結案，車輛改為已領牌車。">確認例外結案</button>
-    </div>
-  </form>
-  {% endif_access %}{% endif %}
-</details>
+</div></details>{% endwith %}
 {% endif %}
-</div>
-
-{% endif %}
-<div class="order-tab-panel" id="panel-allocation" role="tabpanel" data-tab-panel="allocation" data-workspace-section="order">
+{% with step=steps.allocation %}<details class="order-step is-{{ step.state }}" id="panel-allocation" data-step-key="allocation"{% if open_step == "allocation" %} open{% endif %}>
+<summary class="order-step__summary">{% include "sales/_order_step_summary.html" %}</summary>
+<div class="order-step__body">
 {% if order.vehicle_category == 'used' and order.legacy_snapshot %}
 <section class="section-block allocation-summary">
   <div class="section-title allocation-summary__title">
@@ -365,9 +286,326 @@
 {% else %}
 <section class="section-block"><div class="stage-empty"><strong>此訂單目前無法配車</strong><p>{% site_text 'order_detail.70cd34ac680c' %}</p></div></section>
 {% endif %}
-</div>
+</div></details>{% endwith %}
+{% with step=steps.registration %}<details class="order-step is-{{ step.state }}" id="panel-registration" data-step-key="registration"{% if open_step == "registration" %} open{% endif %}>
+<summary class="order-step__summary">{% include "sales/_order_step_summary.html" %}</summary>
+<div class="order-step__body">
+<section class="section-block registration-stage">
+  <div class="section-title registration-stage__title">
+    <div>
+      <p class="eyebrow">領牌作業</p>
+      <h2>領牌資料與文件</h2>
+    </div>
+    {% if order.is_registration_complete %}
+      <span class="archive-status done">✓ 已完成</span>
+    {% elif order.allocated_vehicle %}
+      <span class="archive-status">進行中</span>
+    {% else %}
+      <span class="archive-status">配車後開放</span>
+    {% endif %}
+  </div>
 
-<div class="order-tab-panel" id="panel-subsidy" role="tabpanel" data-tab-panel="subsidy" data-workspace-section="subsidy">
+  {% if not order.allocated_vehicle %}
+    <div class="stage-empty">
+      <strong>尚未開放領牌作業</strong>
+      <p>{% site_text 'order_detail.dac67b8f5494' %}</p>
+    </div>
+  {% else %}
+    <form class="registration-data-form" method="post" action="{% url 'registration_save' order.pk %}">
+      {% csrf_token %}
+      <div class="registration-data-form__date">
+        <label for="{{ registration_form.registration_date.id_for_label }}">實際領牌日期 <span class="required-inline">必填</span></label>
+        {{ registration_form.registration_date }}
+      </div>
+      <div class="registration-data-form__county">
+        <label for="{{ registration_form.registration_county.id_for_label }}">領牌縣市 <span class="required-inline">必填</span></label>
+        {{ registration_form.registration_county }}
+      </div>
+      <small class="field-help registration-data-form__help">{% site_text 'order_detail.b03ace01bdda' %}</small>
+      <div class="registration-data-form__plate">
+        <label for="{{ registration_form.final_plate_number.id_for_label }}">車牌號碼 <span class="required-inline">必填</span></label>
+        {{ registration_form.final_plate_number }}
+      </div>
+      {% if not order.is_registration_complete %}
+        <button class="button secondary registration-data-form__submit" type="submit">儲存領牌資料</button>
+      {% endif %}
+    </form>
+    {% if operations_profile.vehicle_cost_rule_id %}
+    <div class="note-box">
+      <strong>{% if operations_profile.vehicle_cost_locked_at %}已確認{% else %}預估{% endif %}車輛結算成本：${{ operations_profile.vehicle_cost|number_with_commas }}</strong>
+      <p>領牌日 {{ operations_profile.vehicle_cost_registration_date|date:"Y/m/d" }}{% if operations_profile.vehicle_cost_locked_at %} · 已於 {{ operations_profile.vehicle_cost_locked_at|date:"Y/m/d H:i" }} 固定{% endif %}</p>
+    </div>
+    {% elif order.registration_date and order.registration_county %}
+    <div class="message warning">目前找不到符合此車型與領牌日期的成本規則，補建前無法完成領牌。</div>
+    {% endif %}
+    {% if operations_profile.incentive_rule_id %}
+    <div class="note-box">
+      <strong>{% if operations_profile.incentive_locked_at %}已確認{% else %}預估{% endif %}車型獎勵與補助</strong>
+      <p>
+        實銷獎勵 ${{ operations_profile.sales_bonus|number_with_commas }} ·
+        促銷補助 ${{ operations_profile.promotion_subsidy|number_with_commas }} ·
+        分期補貼息 ${{ operations_profile.installment_interest_subsidy|number_with_commas }}
+        {% if operations_profile.incentive_locked_at %} · 已固定{% endif %}
+      </p>
+    </div>
+    {% elif order.registration_date %}
+    <div class="message warning">此車型目前沒有符合領牌日期的獎勵補助版本，三項金額將以 0 元認列。</div>
+    {% endif %}
+    {% if order.payment_type == "installment" %}
+      {% if order.installment_plan_snapshot.expected_disbursement_amount != None %}
+      <div class="note-box">
+        <strong>分期方案預估撥款：${{ order.installment_plan_snapshot.expected_disbursement_amount|number_with_commas }}</strong>
+        <p>{{ order.installment_periods }} 期 · {{ order.installment_plan_snapshot.expected_disbursement_method_label }}；依建立訂單時保存的分期方案快照。</p>
+      </div>
+      {% else %}
+      <div class="message warning">本單分期方案未設定預估撥款；請至車型的分期方案補設定，或在營運資料人工輸入實際撥款。</div>
+      {% endif %}
+    {% endif %}
+
+    <div class="registration-documents">
+      <div class="registration-documents__heading content-section-heading">
+        <div>
+          <h3>領牌文件</h3>
+          <p>{% site_text 'order_detail.f76d73826e85' %}</p>
+        </div>
+      </div>
+      <div class="registration-document-list">
+        {% for row in registration_document_rows %}
+        <article class="registration-document-row {% if row.document %}is-uploaded{% endif %}">
+          <div class="registration-document-row__name">
+            <strong>{{ row.label }}</strong>
+            {% if row.required %}<span class="required-badge">必填</span>{% else %}<span class="optional-badge">選填</span>{% endif %}
+            {% if row.document %}
+              <small>由 {{ row.document.uploaded_by|default:"內部人員" }} 於 {{ row.document.created_at|date:"Y/m/d H:i" }} 上傳</small>
+            {% endif %}
+          </div>
+          <div class="registration-document-row__actions">
+            {% if row.document %}
+              {% if_access 'registration_document_file' row.document.pk %}<a class="button ghost compact" href="{% url 'registration_document_file' row.document.pk %}" data-preview-name="{{ row.document.file.name }}" target="_blank">查看</a>{% endif_access %}
+              {% if not order.is_registration_complete %}
+              <form method="post" action="{% url 'registration_document_delete' order.pk row.document.pk %}" data-confirm="確定刪除這份領牌文件嗎？刪除後無法復原。">
+                {% csrf_token %}
+                <button class="button danger-outline compact" type="submit">刪除</button>
+              </form>
+              {% endif %}
+            {% endif %}
+            {% if not order.is_registration_complete %}
+            <form class="document-upload-form" data-document-upload data-auto-upload method="post" enctype="multipart/form-data" action="{% url 'registration_document_upload' order.pk %}">
+              {% csrf_token %}
+              <input type="hidden" name="document_type" value="{{ row.type }}">
+              <label class="button secondary compact file-button">
+                {% if row.document %}替換{% else %}拍照／上傳{% endif %}
+                <input type="file" name="file" accept="image/jpeg,image/png,image/webp,application/pdf" capture="environment" required>
+              </label>
+            </form>
+            {% endif %}
+          </div>
+        </article>
+        {% endfor %}
+      </div>
+
+      <div class="other-insurance">
+        <div class="other-insurance__heading content-section-heading">
+          <div>
+            <h3>其他保險單</h3>
+            <p>{% site_text 'order_detail.694d2fbee690' %}</p>
+          </div>
+        </div>
+        {% for document in other_insurance_documents %}
+        <div class="other-insurance__item">
+          <span><strong>{{ document.display_name }}</strong><small>{{ document.uploaded_by|default:"內部人員" }} · {{ document.created_at|date:"Y/m/d H:i" }}</small></span>
+          <div>
+            {% if_access 'registration_document_file' document.pk %}<a class="button ghost compact" href="{% url 'registration_document_file' document.pk %}" data-preview-name="{{ document.file.name }}" target="_blank">查看</a>{% endif_access %}
+            {% if not order.is_registration_complete %}
+            <form method="post" action="{% url 'registration_document_delete' order.pk document.pk %}" data-confirm="確定刪除這份保險單嗎？刪除後無法復原。">
+              {% csrf_token %}<button class="button danger-outline compact" type="submit">刪除</button>
+            </form>
+            {% endif %}
+          </div>
+        </div>
+        {% empty %}
+          <p class="muted">目前沒有其他保險單。</p>
+        {% endfor %}
+        {% if not order.is_registration_complete %}
+        <form class="other-insurance__form" method="post" enctype="multipart/form-data" action="{% url 'registration_document_upload' order.pk %}">
+          {% csrf_token %}
+          <input type="hidden" name="document_type" value="other_insurance">
+          <div>
+            <label for="other-insurance-name">保險名稱</label>
+            <input id="other-insurance-name" class="form-control" type="text" name="name" lang="zh-Hant" placeholder="例如：第三人責任險" required>
+          </div>
+          <div>
+            <label for="other-insurance-file">保險單檔案</label>
+            <input id="other-insurance-file" class="form-control" type="file" name="file" accept="image/jpeg,image/png,image/webp,application/pdf" capture="environment" required>
+          </div>
+          <button class="button secondary" type="submit">新增其他保險單</button>
+        </form>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="registration-completion {% if registration_missing %}has-missing{% else %}is-ready{% endif %}">
+      <div>
+        {% if order.is_registration_complete %}
+          <strong>領牌已完成</strong>
+          <p>{{ order.registration_completed_at|date:"Y/m/d H:i" }} · {{ order.registration_completed_by }}</p>
+        {% elif registration_missing %}
+          <strong>尚有 {{ registration_missing|length }} 項未完成</strong>
+          <p>{{ registration_missing|join:"、" }}</p>
+        {% else %}
+          <strong>領牌資料與必備文件已齊全</strong>
+          <p>{% site_text 'order_detail.bce60d0f7a34' %}</p>
+        {% endif %}
+      </div>
+      {% if not order.is_registration_complete %}
+      <form method="post" action="{% url 'registration_complete' order.pk %}">
+        {% csrf_token %}
+        <button class="button primary" type="submit" {% if registration_missing %}disabled{% endif %}>確認領牌完成</button>
+      </form>
+      {% endif %}
+    </div>
+  {% endif %}
+</section>
+</div></details>{% endwith %}
+{% if workspace_finance %}
+{% with step=steps.finance %}<details class="order-step is-{{ step.state }}" id="panel-finance" data-step-key="finance"{% if open_step == "finance" %} open{% endif %}>
+<summary class="order-step__summary">{% include "sales/_order_step_summary.html" %}</summary>
+<div class="order-step__body">
+<div data-workspace-section="finance">{% include "sales/_order_amounts.html" %}</div>{% include "sales/_order_operations_content.html" with form=operations_form %}
+</div></details>{% endwith %}
+{% endif %}
+{% with step=steps.delivery %}<details class="order-step is-{{ step.state }}" id="panel-delivery" data-step-key="delivery"{% if open_step == "delivery" %} open{% endif %}>
+<summary class="order-step__summary">{% include "sales/_order_step_summary.html" %}</summary>
+<div class="order-step__body">
+<section class="section-block delivery-stage">
+  <div class="section-title">
+    <div><p class="eyebrow">交付作業</p><h2>車輛交付</h2></div>
+    {% if order.is_delivered %}<span class="archive-status done">✓ 已交付</span>{% elif order.can_deliver %}<span class="archive-status">可進行</span>{% else %}<span class="archive-status">尚未開放</span>{% endif %}
+  </div>
+  <div class="note-box" id="delivery-payment">{% if collect_balance %}<p>尾款在下方與交車一起登記，送出後同時確認收款並完成交車。</p>{% elif order.is_delivered %}<p>交車後的補收或退差請到「收入與支出」處理。</p>{% else %}<p>尾款已收清或由合作車行掛帳；其他收款請到「收入與支出」。</p>{% endif %}{% if workspace_finance %}<button type="button" class="button ghost" data-workspace-go="finance">前往收入與支出</button>{% endif %}</div>
+  {% if installment_form %}
+  <div class="delivery-gate" id="installment-decision">
+    <div class="delivery-gate__heading"><strong>分期核貸</strong><span class="status-pill">{{ order.get_installment_status_display }}</span></div>
+    {% if order.installment_status == "approved" %}<p class="muted">已於 {{ order.installment_decided_on|date:"Y/m/d" }} 核准，可以交車。</p>{% else %}<p class="muted">分期單須核准後才能交車。</p>{% endif %}
+    {% if order.is_editable %}{% if_access 'installment_decision_update' order.pk %}
+    <form method="post" action="{% url 'installment_decision_update' order.pk %}" class="form-grid">
+      {% csrf_token %}
+      {% for field in installment_form %}{% include "sales/_field.html" %}{% endfor %}
+      <div class="span-2"><button class="button ghost" type="submit">更新分期核貸</button></div>
+    </form>
+    {% endif_access %}{% endif %}
+  </div>
+  {% endif %}
+  {% if dealer_credit %}
+  <div class="delivery-gate" id="dealer-credit">
+    <div class="delivery-gate__heading"><strong>車行掛帳</strong></div>
+    <p class="muted">本單尚未收清 ${{ dealer_credit.due|number_with_commas }}；{{ order.source.name }} 其他已交車未收清 ${{ dealer_credit.outstanding|number_with_commas }}；額度 {% if dealer_credit.limit is None %}未設定（只追蹤不阻擋）{% else %}${{ dealer_credit.limit|number_with_commas }}{% endif %}。</p>
+  </div>
+  {% endif %}
+  {% if order.is_delivered %}
+    <div class="delivery-complete">
+      <div class="delivery-complete__hero">
+        <span class="delivery-complete__icon" aria-hidden="true">✓</span>
+        <div class="delivery-complete__heading">
+          {% if order.delivered_at %}<h3>{{ order.delivered_at|date:"Y/m/d H:i" }} 完成交付</h3>{% else %}<h3>已完成交付（時間未記錄）</h3>{% endif %}
+          {% if delivery_record %}<p>{% if delivery_record.completed_by %}由 {{ delivery_record.completed_by }} 登記{% else %}登記人員未記錄{% endif %}，訂單與實體車輛已鎖定。</p>{% else %}<p>基本交付狀態已保存。</p>{% endif %}
+        </div>
+        {% if delivery_record.handover_photo %}{% if_access 'protected_media' 'delivery' delivery_record.pk 'handover_photo' %}<a class="button ghost small" href="{% url 'protected_media' 'delivery' delivery_record.pk 'handover_photo' %}" data-preview-name="{{ delivery_record.handover_photo.name }}" target="_blank">查看交付照片</a>{% endif_access %}{% endif %}
+      </div>
+
+      {% if order.status == "delivered_docs_pending" %}
+      <div class="delivery-complete__notice">
+        <strong>領牌資料仍待補齊</strong>
+        <span>此訂單已先交付合作車行，完成領牌資料後才會正式結案。</span>
+      </div>
+      {% endif %}
+
+      {% if delivery_record %}
+      <div class="delivery-complete__grid">
+        <article class="delivery-complete__item">
+          <span>交付方式與地點</span>
+          <strong>{{ order.get_delivery_method_display }}</strong>
+          <p>{{ delivery_record.handover_location }}</p>
+          {% if delivery_record.carrier_name %}<small>託運公司：{{ delivery_record.carrier_name }}</small>{% endif %}
+        </article>
+        <article class="delivery-complete__item">
+          <span>實際收車人</span>
+          <strong>{{ delivery_record.recipient_name }}</strong>
+          <p>{{ delivery_record.recipient_phone }}</p>
+        </article>
+        <article class="delivery-complete__item{% if delivery_record.damage_found %} has-warning{% endif %}">
+          <span>交付車況</span>
+          <strong>{{ delivery_record.vehicle_condition_note }}</strong>
+          {% if delivery_record.damage_found %}<p>{{ delivery_record.damage_note }}</p>{% elif delivery_record.vehicle_condition_note == "正常" %}<p>交付核對已完成</p>{% else %}<p>詳見下方交付備註</p>{% endif %}
+        </article>
+      </div>
+      {% if delivery_record.note %}
+      <div class="delivery-complete__note">
+        <strong>交付備註</strong>
+        <p>{{ delivery_record.note }}</p>
+      </div>
+      {% endif %}
+      {% else %}
+      <div class="delivery-complete__notice is-neutral">
+        <strong>詳細交付資料未建立</strong>
+        <span>這可能是歷史匯入資料；既有完成狀態不受影響。</span>
+      </div>
+      {% endif %}
+    </div>
+  {% elif order.can_deliver %}
+    {% if order.source_type == "dealer" and not order.is_registration_complete %}
+      <p>{% site_text 'order_detail.3d2efe687324' %}</p>
+    {% else %}
+      <p>{% site_text 'order_detail.63bfa0623e10' %}</p>
+    {% endif %}
+    <form class="stage-form delivery-completion-form" method="post" enctype="multipart/form-data" action="{% url 'delivery_complete' order.pk %}">
+      {% csrf_token %}
+      <div class="form-grid compact-grid">
+        {% for field in delivery_form %}
+        {% if field.name == 'vehicle_condition_note' %}
+        <fieldset class="wide delivery-condition-field">
+          <legend>{{ field.label }} <span class="required-inline">必填</span></legend>
+          {{ field }}
+          <p class="form-hint">{% site_text 'order_detail.888f88e01465' %}</p>
+        </fieldset>
+        {% else %}
+        <div class="{% if field.name == 'damage_note' or field.name == 'note' %}wide{% endif %}"{% if field.name == 'damage_note' %} data-delivery-damage-details{% endif %}>
+          {% if field.field.widget.input_type == 'checkbox' %}
+          <label class="check-card">{{ field }} <span>{{ field.label }}</span></label>
+          {% else %}
+          <label for="{{ field.id_for_label }}">{{ field.label }}{% if field.field.required %} <span class="required-inline">必填</span>{% endif %}</label>{{ field }}
+          {% if field.name == 'damage_note' %}<p class="form-hint">{% site_text 'order_detail.16b976fde2c5' %}</p>{% endif %}
+          {% endif %}
+        </div>
+        {% endif %}
+        {% endfor %}
+      </div>
+      {% if balance_payment_form %}
+      <fieldset class="delivery-balance" id="delivery-balance">
+        <legend>尾款（應收 ${{ balance_payment.expected_amount|number_with_commas }}）</legend>
+        <div class="form-grid compact-grid">
+          {% for field in balance_payment_form %}{% if field.name != "confirmed" %}{% include "sales/_field.html" %}{% endif %}{% endfor %}
+        </div>
+        <p class="form-hint">送出時會同時確認尾款已收妥；金額不足時不會交車，也不會記錄收款。</p>
+      </fieldset>
+      {% endif %}
+      <div class="delivery-completion-actions">
+        <div class="delivery-completion-actions__copy">
+          <strong>完成前請再次確認交付資料</strong>
+          <p>{% site_text 'order_detail.8a1ee2445105' %}</p>
+        </div>
+        <button class="button primary" type="submit"{% if delivery_blockers %} disabled aria-disabled="true" title="{{ delivery_blockers.0 }}"{% else %} data-confirm="確認完成交付嗎？完成後訂單與實體車輛將鎖定。"{% endif %}>{% if delivery_blockers %}尚未符合交車條件{% elif balance_payment_form %}收尾款並完成交車{% else %}確認完成交付{% endif %}</button>
+      </div>
+      {% if delivery_blockers %}<ul class="delivery-blockers">{% for item in delivery_blockers %}<li>{{ item }}</li>{% endfor %}</ul>{% endif %}
+    </form>
+  {% else %}
+    <p>{% site_text 'order_detail.5dd8edcdc2f2' %}</p>
+  {% endif %}
+</section>
+</div></details>{% endwith %}
+{% with step=steps.subsidy %}<details class="order-step is-{{ step.state }}" id="panel-subsidy" data-step-key="subsidy"{% if open_step == "subsidy" %} open{% endif %}>
+<summary class="order-step__summary">{% include "sales/_order_step_summary.html" %}</summary>
+<div class="order-step__body">
 <section class="section-block subsidy-stage">
   <div class="section-title subsidy-stage__title">
     <div>
@@ -566,307 +804,107 @@
       </div>
     </div>
 </section>
-</div>
-
-<div class="order-tab-panel" id="panel-registration" role="tabpanel" data-tab-panel="registration" data-workspace-section="order">
-<section class="section-block registration-stage">
-  <div class="section-title registration-stage__title">
-    <div>
-      <p class="eyebrow">領牌作業</p>
-      <h2>領牌資料與文件</h2>
-    </div>
-    {% if order.is_registration_complete %}
-      <span class="archive-status done">✓ 已完成</span>
-    {% elif order.allocated_vehicle %}
-      <span class="archive-status">進行中</span>
-    {% else %}
-      <span class="archive-status">配車後開放</span>
-    {% endif %}
-  </div>
-
-  {% if not order.allocated_vehicle %}
-    <div class="stage-empty">
-      <strong>尚未開放領牌作業</strong>
-      <p>{% site_text 'order_detail.dac67b8f5494' %}</p>
-    </div>
-  {% else %}
-    <form class="registration-data-form" method="post" action="{% url 'registration_save' order.pk %}">
-      {% csrf_token %}
-      <div class="registration-data-form__date">
-        <label for="{{ registration_form.registration_date.id_for_label }}">實際領牌日期 <span class="required-inline">必填</span></label>
-        {{ registration_form.registration_date }}
-      </div>
-      <div class="registration-data-form__county">
-        <label for="{{ registration_form.registration_county.id_for_label }}">領牌縣市 <span class="required-inline">必填</span></label>
-        {{ registration_form.registration_county }}
-      </div>
-      <small class="field-help registration-data-form__help">{% site_text 'order_detail.b03ace01bdda' %}</small>
-      <div class="registration-data-form__plate">
-        <label for="{{ registration_form.final_plate_number.id_for_label }}">車牌號碼 <span class="required-inline">必填</span></label>
-        {{ registration_form.final_plate_number }}
-      </div>
-      {% if not order.is_registration_complete %}
-        <button class="button secondary registration-data-form__submit" type="submit">儲存領牌資料</button>
-      {% endif %}
-    </form>
-    {% if operations_profile.vehicle_cost_rule_id %}
-    <div class="note-box">
-      <strong>{% if operations_profile.vehicle_cost_locked_at %}已確認{% else %}預估{% endif %}車輛結算成本：${{ operations_profile.vehicle_cost|number_with_commas }}</strong>
-      <p>領牌日 {{ operations_profile.vehicle_cost_registration_date|date:"Y/m/d" }}{% if operations_profile.vehicle_cost_locked_at %} · 已於 {{ operations_profile.vehicle_cost_locked_at|date:"Y/m/d H:i" }} 固定{% endif %}</p>
-    </div>
-    {% elif order.registration_date and order.registration_county %}
-    <div class="message warning">目前找不到符合此車型與領牌日期的成本規則，補建前無法完成領牌。</div>
-    {% endif %}
-    {% if operations_profile.incentive_rule_id %}
-    <div class="note-box">
-      <strong>{% if operations_profile.incentive_locked_at %}已確認{% else %}預估{% endif %}車型獎勵與補助</strong>
-      <p>
-        實銷獎勵 ${{ operations_profile.sales_bonus|number_with_commas }} ·
-        促銷補助 ${{ operations_profile.promotion_subsidy|number_with_commas }} ·
-        分期補貼息 ${{ operations_profile.installment_interest_subsidy|number_with_commas }}
-        {% if operations_profile.incentive_locked_at %} · 已固定{% endif %}
-      </p>
-    </div>
-    {% elif order.registration_date %}
-    <div class="message warning">此車型目前沒有符合領牌日期的獎勵補助版本，三項金額將以 0 元認列。</div>
-    {% endif %}
-    {% if order.payment_type == "installment" %}
-      {% if order.installment_plan_snapshot.expected_disbursement_amount != None %}
-      <div class="note-box">
-        <strong>分期方案預估撥款：${{ order.installment_plan_snapshot.expected_disbursement_amount|number_with_commas }}</strong>
-        <p>{{ order.installment_periods }} 期 · {{ order.installment_plan_snapshot.expected_disbursement_method_label }}；依建立訂單時保存的分期方案快照。</p>
-      </div>
-      {% else %}
-      <div class="message warning">本單分期方案未設定預估撥款；請至車型的分期方案補設定，或在營運資料人工輸入實際撥款。</div>
-      {% endif %}
-    {% endif %}
-
-    <div class="registration-documents">
-      <div class="registration-documents__heading content-section-heading">
-        <div>
-          <h3>領牌文件</h3>
-          <p>{% site_text 'order_detail.f76d73826e85' %}</p>
-        </div>
-      </div>
-      <div class="registration-document-list">
-        {% for row in registration_document_rows %}
-        <article class="registration-document-row {% if row.document %}is-uploaded{% endif %}">
-          <div class="registration-document-row__name">
-            <strong>{{ row.label }}</strong>
-            {% if row.required %}<span class="required-badge">必填</span>{% else %}<span class="optional-badge">選填</span>{% endif %}
-            {% if row.document %}
-              <small>由 {{ row.document.uploaded_by|default:"內部人員" }} 於 {{ row.document.created_at|date:"Y/m/d H:i" }} 上傳</small>
-            {% endif %}
-          </div>
-          <div class="registration-document-row__actions">
-            {% if row.document %}
-              {% if_access 'registration_document_file' row.document.pk %}<a class="button ghost compact" href="{% url 'registration_document_file' row.document.pk %}" data-preview-name="{{ row.document.file.name }}" target="_blank">查看</a>{% endif_access %}
-              {% if not order.is_registration_complete %}
-              <form method="post" action="{% url 'registration_document_delete' order.pk row.document.pk %}" data-confirm="確定刪除這份領牌文件嗎？刪除後無法復原。">
-                {% csrf_token %}
-                <button class="button danger-outline compact" type="submit">刪除</button>
-              </form>
-              {% endif %}
-            {% endif %}
-            {% if not order.is_registration_complete %}
-            <form class="document-upload-form" data-document-upload data-auto-upload method="post" enctype="multipart/form-data" action="{% url 'registration_document_upload' order.pk %}">
-              {% csrf_token %}
-              <input type="hidden" name="document_type" value="{{ row.type }}">
-              <label class="button secondary compact file-button">
-                {% if row.document %}替換{% else %}拍照／上傳{% endif %}
-                <input type="file" name="file" accept="image/jpeg,image/png,image/webp,application/pdf" capture="environment" required>
-              </label>
-            </form>
-            {% endif %}
-          </div>
-        </article>
-        {% endfor %}
-      </div>
-
-      <div class="other-insurance">
-        <div class="other-insurance__heading content-section-heading">
-          <div>
-            <h3>其他保險單</h3>
-            <p>{% site_text 'order_detail.694d2fbee690' %}</p>
-          </div>
-        </div>
-        {% for document in other_insurance_documents %}
-        <div class="other-insurance__item">
-          <span><strong>{{ document.display_name }}</strong><small>{{ document.uploaded_by|default:"內部人員" }} · {{ document.created_at|date:"Y/m/d H:i" }}</small></span>
-          <div>
-            {% if_access 'registration_document_file' document.pk %}<a class="button ghost compact" href="{% url 'registration_document_file' document.pk %}" data-preview-name="{{ document.file.name }}" target="_blank">查看</a>{% endif_access %}
-            {% if not order.is_registration_complete %}
-            <form method="post" action="{% url 'registration_document_delete' order.pk document.pk %}" data-confirm="確定刪除這份保險單嗎？刪除後無法復原。">
-              {% csrf_token %}<button class="button danger-outline compact" type="submit">刪除</button>
-            </form>
-            {% endif %}
-          </div>
-        </div>
-        {% empty %}
-          <p class="muted">目前沒有其他保險單。</p>
-        {% endfor %}
-        {% if not order.is_registration_complete %}
-        <form class="other-insurance__form" method="post" enctype="multipart/form-data" action="{% url 'registration_document_upload' order.pk %}">
-          {% csrf_token %}
-          <input type="hidden" name="document_type" value="other_insurance">
-          <div>
-            <label for="other-insurance-name">保險名稱</label>
-            <input id="other-insurance-name" class="form-control" type="text" name="name" lang="zh-Hant" placeholder="例如：第三人責任險" required>
-          </div>
-          <div>
-            <label for="other-insurance-file">保險單檔案</label>
-            <input id="other-insurance-file" class="form-control" type="file" name="file" accept="image/jpeg,image/png,image/webp,application/pdf" capture="environment" required>
-          </div>
-          <button class="button secondary" type="submit">新增其他保險單</button>
-        </form>
-        {% endif %}
-      </div>
-    </div>
-
-    <div class="registration-completion {% if registration_missing %}has-missing{% else %}is-ready{% endif %}">
-      <div>
-        {% if order.is_registration_complete %}
-          <strong>領牌已完成</strong>
-          <p>{{ order.registration_completed_at|date:"Y/m/d H:i" }} · {{ order.registration_completed_by }}</p>
-        {% elif registration_missing %}
-          <strong>尚有 {{ registration_missing|length }} 項未完成</strong>
-          <p>{{ registration_missing|join:"、" }}</p>
-        {% else %}
-          <strong>領牌資料與必備文件已齊全</strong>
-          <p>{% site_text 'order_detail.bce60d0f7a34' %}</p>
-        {% endif %}
-      </div>
-      {% if not order.is_registration_complete %}
-      <form method="post" action="{% url 'registration_complete' order.pk %}">
-        {% csrf_token %}
-        <button class="button primary" type="submit" {% if registration_missing %}disabled{% endif %}>確認領牌完成</button>
-      </form>
-      {% endif %}
-    </div>
-  {% endif %}
+</div></details>{% endwith %}
+{% if not editing_order %}
+{% with step=steps.closing %}<details class="order-step is-{{ step.state }}" id="panel-closing" data-step-key="closing"{% if open_step == "closing" %} open{% endif %}>
+<summary class="order-step__summary">{% include "sales/_order_step_summary.html" %}</summary>
+<div class="order-step__body">
+{% if order.status == "cancel_refund_pending" %}
+<section class="section-block cancellation-panel urgent-panel">
+  <div class="section-title"><div><p class="eyebrow">取消處理</p><h2>取消待退款結算</h2></div><span>已收 ${{ refund_form.received|number_with_commas }}</span></div>
+  <p>取消原因：{{ order.cancellation_reason }}。應退金額＝已確認實收 ${{ refund_form.received|number_with_commas }}－沒收金額；結算完成前，訂單仍維持「取消待退款」。</p>
+  {% if refund_form.unconfirmed_amount %}<p class="note-box">尚有 ${{ refund_form.unconfirmed_amount|number_with_commas }} 已登記但未確認的實收，請先到金額收支確認或清除，才能結算退款。</p>{% endif %}
+  <form method="post" enctype="multipart/form-data" action="{% url 'refund_complete' order.pk %}" class="form-grid compact-grid">
+    {% csrf_token %}
+    {% for field in refund_form %}<div><label for="{{ field.id_for_label }}">{{ field.label }}{% if field.field.required %} <span class="required-inline">必填</span>{% endif %}</label>{{ field }}{% if field.help_text %}<small class="muted">{{ field.help_text }}</small>{% endif %}</div>{% endfor %}
+    <div class="wide"><button class="button primary" type="submit" data-confirm="確認已依應退金額完成退款，並完成取消訂單嗎？">確認結算並完成取消</button></div>
+  </form>
+  {% if_access 'cancellation_withdraw' order.pk %}
+  <form method="post" action="{% url 'cancellation_withdraw' order.pk %}" class="form-grid compact-grid">
+    {% csrf_token %}
+    <div class="wide"><label for="withdraw-reason">客戶改變心意？撤銷原因 <span class="required-inline">必填</span></label><input id="withdraw-reason" class="form-control" name="reason" maxlength="250" required></div>
+    <div class="wide"><button class="button ghost" type="submit" data-confirm="撤銷取消後訂單回到待處理，原配車已釋回，需要重新配車。確定撤銷嗎？">撤銷取消</button></div>
+  </form>
+  {% endif_access %}
 </section>
-</div>
-
-<div class="order-tab-panel" id="panel-delivery" role="tabpanel" data-tab-panel="delivery" data-workspace-section="order">
-<section class="section-block delivery-stage">
-  <div class="section-title">
-    <div><p class="eyebrow">交付作業</p><h2>車輛交付</h2></div>
-    {% if order.is_delivered %}<span class="archive-status done">✓ 已交付</span>{% elif order.can_deliver %}<span class="archive-status">可進行</span>{% else %}<span class="archive-status">尚未開放</span>{% endif %}
-  </div>
-  <div class="note-box" id="delivery-payment"><p>收款統一在「金額收支資訊」管理，這裡只處理交付核對。</p>{% if workspace_finance %}<button type="button" class="button ghost" data-workspace-go="finance">前往金額收支資訊</button>{% endif %}</div>
-  {% if installment_form %}
-  <div class="delivery-gate" id="installment-decision">
-    <div class="delivery-gate__heading"><strong>分期核貸</strong><span class="status-pill">{{ order.get_installment_status_display }}</span></div>
-    {% if order.installment_status == "approved" %}<p class="muted">已於 {{ order.installment_decided_on|date:"Y/m/d" }} 核准，可以交車。</p>{% else %}<p class="muted">分期單須核准後才能交車。</p>{% endif %}
-    {% if order.is_editable %}{% if_access 'installment_decision_update' order.pk %}
-    <form method="post" action="{% url 'installment_decision_update' order.pk %}" class="form-grid">
-      {% csrf_token %}
-      {% for field in installment_form %}{% include "sales/_field.html" %}{% endfor %}
-      <div class="span-2"><button class="button ghost" type="submit">更新分期核貸</button></div>
-    </form>
-    {% endif_access %}{% endif %}
-  </div>
-  {% endif %}
-  {% if dealer_credit %}
-  <div class="delivery-gate" id="dealer-credit">
-    <div class="delivery-gate__heading"><strong>車行掛帳</strong></div>
-    <p class="muted">本單尚未收清 ${{ dealer_credit.due|number_with_commas }}；{{ order.source.name }} 其他已交車未收清 ${{ dealer_credit.outstanding|number_with_commas }}；額度 {% if dealer_credit.limit is None %}未設定（只追蹤不阻擋）{% else %}${{ dealer_credit.limit|number_with_commas }}{% endif %}。</p>
-  </div>
-  {% endif %}
-  {% if order.is_delivered %}
-    <div class="delivery-complete">
-      <div class="delivery-complete__hero">
-        <span class="delivery-complete__icon" aria-hidden="true">✓</span>
-        <div class="delivery-complete__heading">
-          {% if order.delivered_at %}<h3>{{ order.delivered_at|date:"Y/m/d H:i" }} 完成交付</h3>{% else %}<h3>已完成交付（時間未記錄）</h3>{% endif %}
-          {% if delivery_record %}<p>{% if delivery_record.completed_by %}由 {{ delivery_record.completed_by }} 登記{% else %}登記人員未記錄{% endif %}，訂單與實體車輛已鎖定。</p>{% else %}<p>基本交付狀態已保存。</p>{% endif %}
-        </div>
-        {% if delivery_record.handover_photo %}{% if_access 'protected_media' 'delivery' delivery_record.pk 'handover_photo' %}<a class="button ghost small" href="{% url 'protected_media' 'delivery' delivery_record.pk 'handover_photo' %}" data-preview-name="{{ delivery_record.handover_photo.name }}" target="_blank">查看交付照片</a>{% endif_access %}{% endif %}
-      </div>
-
-      {% if order.status == "delivered_docs_pending" %}
-      <div class="delivery-complete__notice">
-        <strong>領牌資料仍待補齊</strong>
-        <span>此訂單已先交付合作車行，完成領牌資料後才會正式結案。</span>
-      </div>
-      {% endif %}
-
-      {% if delivery_record %}
-      <div class="delivery-complete__grid">
-        <article class="delivery-complete__item">
-          <span>交付方式與地點</span>
-          <strong>{{ order.get_delivery_method_display }}</strong>
-          <p>{{ delivery_record.handover_location }}</p>
-          {% if delivery_record.carrier_name %}<small>託運公司：{{ delivery_record.carrier_name }}</small>{% endif %}
-        </article>
-        <article class="delivery-complete__item">
-          <span>實際收車人</span>
-          <strong>{{ delivery_record.recipient_name }}</strong>
-          <p>{{ delivery_record.recipient_phone }}</p>
-        </article>
-        <article class="delivery-complete__item{% if delivery_record.damage_found %} has-warning{% endif %}">
-          <span>交付車況</span>
-          <strong>{{ delivery_record.vehicle_condition_note }}</strong>
-          {% if delivery_record.damage_found %}<p>{{ delivery_record.damage_note }}</p>{% elif delivery_record.vehicle_condition_note == "正常" %}<p>交付核對已完成</p>{% else %}<p>詳見下方交付備註</p>{% endif %}
-        </article>
-      </div>
-      {% if delivery_record.note %}
-      <div class="delivery-complete__note">
-        <strong>交付備註</strong>
-        <p>{{ delivery_record.note }}</p>
-      </div>
-      {% endif %}
-      {% else %}
-      <div class="delivery-complete__notice is-neutral">
-        <strong>詳細交付資料未建立</strong>
-        <span>這可能是歷史匯入資料；既有完成狀態不受影響。</span>
-      </div>
-      {% endif %}
-    </div>
-  {% elif order.can_deliver %}
-    {% if order.source_type == "dealer" and not order.is_registration_complete %}
-      <p>{% site_text 'order_detail.3d2efe687324' %}</p>
-    {% else %}
-      <p>{% site_text 'order_detail.63bfa0623e10' %}</p>
-    {% endif %}
-    <form class="stage-form delivery-completion-form" method="post" enctype="multipart/form-data" action="{% url 'delivery_complete' order.pk %}">
-      {% csrf_token %}
-      <div class="form-grid compact-grid">
-        {% for field in delivery_form %}
-        {% if field.name == 'vehicle_condition_note' %}
-        <fieldset class="wide delivery-condition-field">
-          <legend>{{ field.label }} <span class="required-inline">必填</span></legend>
-          {{ field }}
-          <p class="form-hint">{% site_text 'order_detail.888f88e01465' %}</p>
-        </fieldset>
-        {% else %}
-        <div class="{% if field.name == 'damage_note' or field.name == 'note' %}wide{% endif %}"{% if field.name == 'damage_note' %} data-delivery-damage-details{% endif %}>
-          {% if field.field.widget.input_type == 'checkbox' %}
-          <label class="check-card">{{ field }} <span>{{ field.label }}</span></label>
-          {% else %}
-          <label for="{{ field.id_for_label }}">{{ field.label }}{% if field.field.required %} <span class="required-inline">必填</span>{% endif %}</label>{{ field }}
-          {% if field.name == 'damage_note' %}<p class="form-hint">{% site_text 'order_detail.16b976fde2c5' %}</p>{% endif %}
-          {% endif %}
-        </div>
-        {% endif %}
-        {% endfor %}
-      </div>
-      <div class="delivery-completion-actions">
-        <div class="delivery-completion-actions__copy">
-          <strong>完成前請再次確認交付資料</strong>
-          <p>{% site_text 'order_detail.8a1ee2445105' %}</p>
-        </div>
-        <button class="button primary" type="submit"{% if delivery_blockers %} disabled aria-disabled="true" title="{{ delivery_blockers.0 }}"{% else %} data-confirm="確認完成交付嗎？完成後訂單與實體車輛將鎖定。"{% endif %}>{% if delivery_blockers %}尚未符合交車條件{% else %}確認完成交付{% endif %}</button>
-      </div>
-      {% if delivery_blockers %}<ul class="delivery-blockers">{% for item in delivery_blockers %}<li>{{ item }}</li>{% endfor %}</ul>{% endif %}
-    </form>
-  {% else %}
-    <p>{% site_text 'order_detail.5dd8edcdc2f2' %}</p>
-  {% endif %}
+{% elif order.status == "cancelled" %}
+<section class="section-block cancellation-panel">
+  <div class="section-title"><h2>訂單已取消</h2><span>{{ order.cancellation_completed_at|date:"Y/m/d H:i" }}</span></div>
+  <dl class="data-list">
+    <div><dt>取消原因</dt><dd>{{ order.cancellation_reason }}</dd></div>
+    <div><dt>登記人員</dt><dd>{{ order.cancellation_requested_by }}</dd></div>
+    <div><dt>退款金額</dt><dd>${{ order.refund_amount|number_with_commas }}</dd></div>
+    {% if order.forfeited_amount %}<div><dt>沒收金額</dt><dd>${{ order.forfeited_amount|number_with_commas }}</dd></div><div><dt>沒收原因</dt><dd>{{ order.forfeit_reason }}</dd></div>{% endif %}
+    {% if order.refund_completed_on %}<div><dt>退款日期</dt><dd>{{ order.refund_completed_on|date:"Y/m/d" }}</dd></div>{% endif %}
+    {% if order.refund_method %}<div><dt>退款方式</dt><dd>{{ order.get_refund_method_display }}</dd></div>{% endif %}
+  </dl>
+  {% if order.refund_proof %}{% if_access 'protected_media' 'order' order.pk 'refund_proof' %}<a class="button ghost" href="{% url 'protected_media' 'order' order.pk 'refund_proof' %}" data-preview-name="{{ order.refund_proof.name }}" target="_blank">查看退款證明</a>{% endif_access %}{% endif %}
 </section>
+{% elif not order.is_delivered and not order.is_registration_complete %}
+<details class="section-block cancellation-panel cancellation-disclosure">
+  <summary>
+    <span class="cancellation-disclosure__heading">
+      <strong>訂單取消與退款</strong>
+      <span>客戶不再購車時，由此登記取消並處理訂金退款。</span>
+      <span class="cancellation-disclosure__condition">僅限尚未領牌、尚未交付</span>
+    </span>
+    <span class="cancellation-disclosure__toggle">
+      <span class="cancellation-disclosure__expand">展開取消流程</span>
+      <span class="cancellation-disclosure__collapse">收合取消流程</span>
+      <span class="cancellation-disclosure__chevron" aria-hidden="true"></span>
+    </span>
+  </summary>
+  <form method="post" action="{% url 'cancellation_request' order.pk %}" class="form-grid compact-grid cancellation-disclosure__form">
+    {% csrf_token %}
+    {% for field in cancellation_form %}<div class="{% if field.name == 'note' %}wide{% endif %}"><label for="{{ field.id_for_label }}">{{ field.label }}{% if field.field.required %} <span class="required-inline">必填</span>{% endif %}</label>{{ field }}</div>{% endfor %}
+    <div class="wide cancellation-disclosure__actions">
+      <p class="cancellation-disclosure__notice"><strong>送出前請確認</strong>登記取消後，已配車輛會解除預留；若已有確認實收，須完成退款結算（可依約定沒收部分款項）後才算取消完成。分期公司已撥款的訂單不能取消。</p>
+      <button class="button danger" type="submit" data-confirm="確定登記取消這張訂單嗎？">登記取消訂單</button>
+    </div>
+  </form>
+</details>
+{% elif order.status == "exception_closed" %}
+<section class="section-block cancellation-panel">
+  <div class="section-title"><h2>例外結案（領牌後棄單）</h2><span>{{ order.exception_closed_at|date:"Y/m/d H:i" }}</span></div>
+  <dl class="data-list">
+    <div><dt>結案原因</dt><dd>{{ order.exception_reason }}</dd></div>
+    <div><dt>登記人員</dt><dd>{{ order.exception_closed_by }}</dd></div>
+    <div><dt>退款金額</dt><dd>${{ order.refund_amount|number_with_commas }}</dd></div>
+    {% if order.forfeited_amount %}<div><dt>沒收金額</dt><dd>${{ order.forfeited_amount|number_with_commas }}</dd></div><div><dt>沒收原因</dt><dd>{{ order.forfeit_reason }}</dd></div>{% endif %}
+    {% if order.exception_vehicle %}<div class="wide"><dt>釋回車輛</dt><dd>{{ order.exception_vehicle.identifier }}（{{ order.exception_vehicle.registered_plate_number }}），已領牌車再售價 ${{ order.exception_vehicle.resale_price|number_with_commas }}</dd></div>{% endif %}
+  </dl>
+</section>
+{% elif exception_close_form %}
+<details class="section-block cancellation-panel cancellation-disclosure" id="exception-close">
+  <summary>
+    <span class="cancellation-disclosure__heading">
+      <strong>領牌後棄單（例外結案）</strong>
+      <span>已領牌但客戶不再交車時，結算款項並把車輛以「已領牌車」釋回庫存。</span>
+      <span class="cancellation-disclosure__condition">僅限已領牌、尚未交付</span>
+    </span>
+    <span class="cancellation-disclosure__toggle">
+      <span class="cancellation-disclosure__expand">展開結案流程</span>
+      <span class="cancellation-disclosure__collapse">收合結案流程</span>
+      <span class="cancellation-disclosure__chevron" aria-hidden="true"></span>
+    </span>
+  </summary>
+  {% if exception_close_blockers %}
+  <ul class="delivery-blockers">{% for item in exception_close_blockers %}<li>{{ item }}</li>{% endfor %}</ul>
+  {% else %}{% if_access 'order_exception_close' order.pk %}
+  <form method="post" enctype="multipart/form-data" action="{% url 'order_exception_close' order.pk %}" class="form-grid compact-grid cancellation-disclosure__form">
+    {% csrf_token %}
+    <p class="wide">已確認實收 ${{ exception_close_form.received|number_with_commas }}；應退＝已收－沒收。車輛不會回到新車庫存。</p>
+    {% for field in exception_close_form %}<div class="{% if field.name == 'reason' %}wide{% endif %}"><label for="{{ field.id_for_label }}">{{ field.label }}{% if field.field.required %} <span class="required-inline">必填</span>{% endif %}</label>{{ field }}{% if field.help_text %}<small class="muted">{{ field.help_text }}</small>{% endif %}</div>{% endfor %}
+    <div class="wide cancellation-disclosure__actions">
+      <button class="button danger" type="submit" data-confirm="確定以領牌後棄單例外結案嗎？訂單將結案，車輛改為已領牌車。">確認例外結案</button>
+    </div>
+  </form>
+  {% endif_access %}{% endif %}
+</details>
+{% endif %}
+</div></details>{% endwith %}
+{% endif %}
 </div>
-
-{% if workspace_finance %}<div data-workspace-section="finance">{% include "sales/_order_amounts.html" %}</div>{% include "sales/_order_operations_content.html" with form=operations_form %}{% endif %}
 <details class="workspace-history" id="panel-history"><summary>處理與修改紀錄</summary>
 <section class="section-block">
   <div class="section-title"><h2>處理紀錄</h2></div>

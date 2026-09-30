@@ -324,6 +324,22 @@ class UiConsistencyTests(SimpleTestCase):
         for retired in (".recycle-table", ".command-trend-table", ".data-table", ".responsive-table-wrap"):
             self.assertNotIn(retired, app)
 
+    def test_forms_share_fields_and_savebar(self):
+        """表單不用 as_p 系列輸出；長表單只用 form-savebar，舊的各式儲存列樣式不得再出現。"""
+        offenders = []
+        for name, text in template_files():
+            for match in re.finditer(r"\.as_(?:p|table|div|ul)\b", text):
+                offenders.append(f"{name}:{line_of(text, match.start())}")
+        css = "\n".join(path.read_text(encoding="utf-8") for path in CSS_DIR.glob("*.css"))
+
+        self.assertEqual(offenders, [])
+        self.assertIn(".form-savebar { position: sticky;", css)
+        for retired in (".master-model-actions {", ".dealer-reward-actions {", ".bonus-save-bar {", ".account-savebar{", ".vehicle-model-save-actions {"):
+            self.assertNotIn(retired, css)
+        self.assertNotIn(".standalone-form { max-width: 860px; margin-inline: auto; }", css)
+        for name in ("dealer_volume_bonus_form", "vehicle_model_form", "incentive_rule_form", "settlement_cost_rule_form", "dealer_reward_catalog_form", "dealer_account_form"):
+            self.assertIn("form-savebar", (TEMPLATES / "sales" / f"{name}.html").read_text(encoding="utf-8"), name)
+
     def test_alignment_rules_exist(self):
         app = (CSS_DIR / "app.css").read_text(encoding="utf-8")
 

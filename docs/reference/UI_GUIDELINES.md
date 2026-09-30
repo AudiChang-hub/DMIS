@@ -107,6 +107,20 @@
 - 多行文字框一律帶 `form-control`：Django 表單在 `attrs` 加 `"class": "form-control"` 或由表單類別統一補上；模板手寫的 `<textarea>` 也要加。
   欄位（`.field`）內的輸入元件填滿欄位寬度。
 
+## 填寫表單
+
+- 欄位一律用 `.field` 外框（`{% include 'sales/_field.html' %}`）：標籤 13px 粗體、`--field-label` 色，必填以 `<em>必填</em>` 標示，
+  錯誤訊息用 `small.field-error`。整張表單直接輸出時用 `{% include 'sales/_form_fields.html' %}`，不使用 `form.as_p`／`as_table`／`as_div`。
+- 欄位排成 `.form-grid`（桌面兩欄、手機一欄）；外層已有內距時加 `form-grid--plain`，單欄加 `form-grid--single`。
+- 表單分段用有內距的卡片（`form-section static-section`）或 `section-block`；分段內的小分組只用標題與分隔線區分，不再畫第二層框。
+- 表單與頁首同一左緣，不置中；可限制最大寬度。
+- 勾選項目用整列可點的樣式（`check-row`，帳號頁的 `account-choice-grid` 外觀相同），勾選後變色。
+- 送出按鈕：
+  - 短表單在最後放 `form-actions`（次要在前、主要最後）。
+  - 長表單用 `form-savebar`：固定在畫面底部，左側可放 `form-savebar__hint` 說明，右側放按鈕；手機版停在底部選單上方。
+    全站只有這一種儲存列，不另做深色浮動按鈕或半透明條。
+- 例外：訂單建立／修改與訂單工作台（`mobile-order-form`、`operations-form`）、報表設計器、登入流程有獨立版面。
+
 ## 確認與送出
 
 - 刪除、作廢、覆寫、正式寫入等不可逆送出，一律在 `<form>` 或送出按鈕加 `data-confirm="…"`；

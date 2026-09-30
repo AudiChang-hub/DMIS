@@ -1,0 +1,75 @@
+{% extends "base.html" %}{% load sales_format %}
+{% block title %}原廠車型比對{% endblock %}
+{% block page_class %}page-shell--wide{% endblock %}
+{% block head %}{% if running %}<meta http-equiv="refresh" content="5">{% endif %}{% endblock %}
+{% block content %}
+{% url 'catalog_manage' as catalog_manage_url %}{% include "sales/_page_back.html" with fallback_url=catalog_manage_url label="選車展示管理" %}
+<section class="hero-row compact-hero">
+  <div><p class="eyebrow">選車展示管理</p><h1>原廠車型比對</h1><p class="muted">讀取原廠官網的車型、車色與圖片，和系統車型比對。只會補上空白的車色圖片，不修改車型資料、售價或既有訂單。</p></div>
+  <div class="hero-actions">
+    {% for value, label in brands %}<a class="button secondary{% if value == brand %} is-active{% endif %}" href="?brand={{ value }}&amp;tab={{ tab }}"{% if value == brand %} aria-current="page"{% endif %}>{{ label }}</a>{% endfor %}
+    <form method="post" action="{% url 'official_catalog_check_start' %}">{% csrf_token %}<input type="hidden" name="brand" value="{{ brand }}"><button class="button primary"{% if running %} disabled{% endif %}>檢查 {{ brand|upper }} 官網</button></form>
+  </div>
+</section>
+
+{% if running %}
+<div class="callout callout--info" role="status"><span class="callout__icon" aria-hidden="true">i</span><div><h3>正在讀取官網</h3><p>已讀取 {{ running.pages_done }}／{{ running.pages_total|default:"—" }} 頁。本頁每 5 秒自動更新，可以先離開，稍後再回來看結果。</p></div></div>
+{% elif latest.status == "failed" %}
+<div class="callout callout--danger" role="alert"><span class="callout__icon" aria-hidden="true">!</span><div><h3>上次檢查失敗（{{ latest.finished_at|date:"Y-m-d H:i" }}）</h3><ul>{% for error in latest.errors %}<li>{{ error }}</li>{% endfor %}</ul><p>資料沒有任何變更。官網可能暫時無法連線或已改版，請稍後再試；持續失敗請通知系統維護人員。</p></div></div>
+{% elif latest %}
+<p class="muted" role="status">上次檢查：{{ latest.finished_at|date:"Y-m-d H:i" }}，讀到 {{ latest.entries_found }} 款{% if latest.error_count %}，{{ latest.error_count }} 頁讀取失敗{% endif %}。</p>
+{% if latest.error_count %}<details class="card"><summary>查看讀取失敗的頁面</summary><ul>{% for error in latest.errors %}<li>{{ error }}</li>{% endfor %}</ul><p class="muted">失敗的頁面沿用上次讀到的內容，不會被標示為下架。</p></details>{% endif %}
+{% endif %}
+
+{% if not has_entries %}
+<div class="empty-state"><span class="empty-state__icon" aria-hidden="true">＋</span><h3>尚未檢查過 {{ brand|upper }} 官網</h3><p>按右上角「檢查 {{ brand|upper }} 官網」，約 1～2 分鐘後這裡會列出官網車型，再逐款確認對應的系統車型。</p></div>
+{% else %}
+<nav class="account-tabs official-tabs" aria-label="比對結果分類">
+  {% for key, label, count in tabs %}<a href="?brand={{ brand }}&amp;tab={{ key }}"{% if key == tab %} aria-current="page"{% endif %}>{{ label }} <span>{{ count }}</span></a>{% endfor %}
+</nav>
+
+{% for row in rows %}{% with link=row.link data=row.link.data %}
+<article class="section-block official-row">
+  <div class="official-row__media">{% if data.main_image_url %}<img src="{{ data.main_image_url }}" alt="" loading="lazy" referrerpolicy="no-referrer">{% endif %}</div>
+  <div class="official-row__body">
+    <h2 class="section-title">{{ link.name }}{% if link.missing %} <span class="account-badge">官網已下架</span>{% endif %}</h2>
+    <div class="section-body">
+      <p class="muted">{% if data.year_hint %}官網年式 {{ data.year_hint }} · {% endif %}{% if data.displacement_cc %}{{ data.displacement_cc }} c.c. · {% endif %}{% if data.power %}{{ data.power }} · {% endif %}{{ data.colors|length }} 色 · <a href="{{ link.source_url }}" target="_blank" rel="noopener noreferrer">官網頁面 ↗</a></p>
+      {% if data.colors %}<p class="official-row__colors">{% for color in data.colors %}<span class="account-badge">{{ color.name }}</span>{% endfor %}</p>{% endif %}
+
+      {% if link.vehicle_model %}
+      <p>對應系統車型：<a href="{% url 'vehicle_model_edit' link.vehicle_model.pk %}">{{ link.vehicle_model }}</a>{% if not link.vehicle_model.active %}（已停用）{% endif %}</p>
+      {% if row.price %}<p>{% if row.price.official %}官網建議售價 NT${{ row.price.official|number_with_commas }}{% if row.price.official_note %}（{{ row.price.official_note }}）{% endif %}{% else %}官網未標示售價{% endif %}；系統目前建議售價 {% if row.price.system %}NT${{ row.price.system|number_with_commas }}{% if row.price.system_includes_registration %}（含牌險）{% else %}（不含牌險）{% endif %}{% else %}未設定{% endif %}{% if row.price.differs %} <span class="account-badge">價格不同，請到機種與售價確認</span>{% endif %}</p>{% endif %}
+      {% endif %}
+
+      {% if tab == "pending" %}
+      <form method="post" action="{% url 'official_catalog_link' link.pk %}" class="official-row__form">{% csrf_token %}<input type="hidden" name="tab" value="{{ tab }}">
+        <label>對應到系統車型<select class="form-control" name="vehicle_model" data-searchable-select required><option value="">請選擇</option>{% for model in candidates %}{% if model.pk not in linked_ids %}<option value="{{ model.pk }}"{% if model.pk == row.suggested %} selected{% endif %}>{{ model }}</option>{% endif %}{% endfor %}</select></label>
+        <div class="form-actions"><button class="button primary">確認對應</button></div>
+      </form>
+      <form method="post" action="{% url 'official_catalog_ignore' link.pk %}">{% csrf_token %}<input type="hidden" name="tab" value="{{ tab }}"><div class="form-actions"><button class="button ghost">忽略這款</button></div></form>
+      <p class="help-text">預設選項只依名稱推測，請確認年式與型號正確。系統還沒有的新車型請先忽略，或到「機種與售價」建立後再對應。</p>
+      {% elif tab == "ignored" %}
+      <form method="post" action="{% url 'official_catalog_ignore' link.pk %}">{% csrf_token %}<input type="hidden" name="tab" value="{{ tab }}"><input type="hidden" name="action" value="restore"><div class="form-actions"><button class="button secondary">恢復到待對應</button></div></form>
+      {% elif tab == "changes" %}
+      <ul>{% for change in row.changes %}<li>{{ change }}</li>{% empty %}<li>官網內容有更新（名稱、規格或車色以外的欄位）。</li>{% endfor %}</ul>
+      <form method="post" action="{% url 'official_catalog_acknowledge' link.pk %}">{% csrf_token %}<input type="hidden" name="tab" value="{{ tab }}"><input type="hidden" name="content_hash" value="{{ link.content_hash }}"><div class="form-actions"><a class="button ghost" href="{% url 'vehicle_model_edit' link.vehicle_model.pk %}">查看系統車型</a><button class="button primary">已確認變動</button></div></form>
+      <p class="help-text">「已確認」只記錄你已看過這些變動，不會修改系統車型、車色或售價。若是改款，請到「機種與售價」建立新年式。</p>
+      {% elif tab == "images" %}
+      <form method="post" action="{% url 'official_catalog_fill_images' link.pk %}" data-confirm="確定要把勾選的官網圖片補到這些車色嗎？只會填入目前沒有圖片的車色。">{% csrf_token %}<input type="hidden" name="tab" value="{{ tab }}">
+        <fieldset class="catalog-color-grid"><legend class="help-text">勾選要補上的圖片；系統車色已有圖片的不會列出，也不會被覆蓋。</legend>
+        {% for color, official in row.fillable %}<label class="catalog-color-card"><input type="checkbox" name="color" value="{{ color.pk }}" checked><span class="catalog-color-visual"><img src="{{ official.image_url }}" alt="{{ official.name }}" loading="lazy" referrerpolicy="no-referrer"></span><strong>{{ color.name }}</strong><small>官網：{{ official.name }}</small></label>{% endfor %}
+        </fieldset>
+        <div class="form-actions"><button class="button primary">補上勾選的圖片</button></div>
+      </form>
+      {% elif tab == "linked" %}
+      <form method="post" action="{% url 'official_catalog_link' link.pk %}" data-confirm="取消對應後，之後的檢查不會再比對這款車型。系統車型與圖片不會變更。">{% csrf_token %}<input type="hidden" name="tab" value="{{ tab }}"><input type="hidden" name="action" value="unlink"><div class="form-actions"><button class="button danger-outline">取消對應</button>{% if row.fillable %}<a class="button secondary" href="?brand={{ brand }}&amp;tab=images">可補 {{ row.fillable|length }} 張圖</a>{% endif %}</div></form>
+      {% endif %}
+    </div>
+  </div>
+</article>
+{% endwith %}{% empty %}
+<div class="empty-state small"><h3>{% if tab == "pending" %}沒有待對應的車型{% elif tab == "changes" %}官網沒有新的變動{% elif tab == "images" %}沒有可補的圖片{% elif tab == "linked" %}還沒有確認任何對應{% else %}沒有忽略的車型{% endif %}</h3><p>{% if tab == "images" %}已對應車型的車色都有圖片，或官網車色名稱／色號無法唯一對應到系統車色。{% elif tab == "pending" %}官網車型都已對應或忽略。{% else %}重新檢查官網後會更新這裡。{% endif %}</p></div>
+{% endfor %}
+{% endif %}
+{% endblock %}

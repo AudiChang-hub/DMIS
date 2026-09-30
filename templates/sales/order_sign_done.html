@@ -1,0 +1,17 @@
+{% extends "base.html" %}{% load static %}
+{% block title %}簽署完成 · {{ order.number }}{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'css/signing.css' %}?v={{ app_version }}">{% endblock %}
+{% block content %}
+{% url 'order_detail' order.pk as order_detail_url %}
+{% include "sales/_page_back.html" with fallback_url=order_detail_url label="返回訂單" %}
+<section class="hero-row compact-hero">
+  <div><p class="eyebrow">{{ order.number }}</p><h1>簽署完成</h1><p class="muted">請將平板交還業務人員。需要紙本時再選擇要列印的聯別。</p></div>
+</section>
+<section class="section-block"><div class="section-body">
+  <ul class="signing-result">
+    <li>車輛訂購單：{% if contract_state == "electronic" %}已電子簽署{% elif contract_state == "paper" %}紙本已上傳{% elif contract_state == "stale" %}內容已變更，需要重新簽署{% else %}尚未簽署{% endif %}</li>
+    <li>個資同意書：{% if privacy_state == "electronic" %}已電子簽署{% elif privacy_state == "paper" %}紙本已上傳{% elif privacy_state == "stale" %}內容已變更，需要重新簽署{% else %}尚未簽署{% endif %}</li>
+  </ul>
+  {% include "sales/_order_print_picker.html" with done_url=order_detail_url %}
+</div></section>
+{% endblock %}

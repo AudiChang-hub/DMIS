@@ -4411,9 +4411,9 @@ class OrderFlowTests(TestCase):
             reverse("order_detail", args=[order.pk]),
             {"created": "1"},
         )
-        self.assertContains(detail, "只印個資同意書")
-        self.assertContains(detail, "全部一起列印")
-        self.assertContains(detail, "一鍵列印全部文件")
+        self.assertContains(detail, "平板簽署（免列印）")
+        self.assertContains(detail, "列印勾選的文件")
+        self.assertContains(detail, "簽署與列印文件")
         self.assertContains(detail, "列印空白合約")
         self.assertContains(detail, "列印空白同意書")
         self.assertContains(detail, "簽署文件留存")

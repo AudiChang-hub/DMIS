@@ -99,6 +99,8 @@ def step_list(draft, current):
             state = "current"
         elif key in done:
             state = "done"
+        elif key == first_open:
+            state = "todo"
         else:
             state = "locked"
         reachable = key != current and (key in done or key == first_open)

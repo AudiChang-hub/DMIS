@@ -2,7 +2,7 @@ from django.urls import path
 from .permission_workspace import order_entry as order_customer_access, workspace as permission_workspace, create_dealer_entry
 from django.views.generic import RedirectView
 
-from . import views, announcement_views, favorite_views, intake_views, catalog_views, dealer_account_views, profit_views
+from . import views, announcement_views, favorite_views, intake_views, catalog_views, official_catalog_views, dealer_account_views, profit_views
 from . import order_deletion_views
 from . import gift_views
 from . import print_company_views
@@ -47,6 +47,12 @@ urlpatterns = [
     path("data/catalog/<int:pk>/", catalog_views.catalog_edit, name="catalog_edit"),
     path("data/catalog/<int:pk>/image/", catalog_views.catalog_preview_image, name="catalog_preview_image"),
     path("data/catalog/<int:pk>/colors/<int:color_pk>/image/", catalog_views.catalog_preview_image, name="catalog_preview_color_image"),
+    path("data/catalog/official/", official_catalog_views.official_catalog, name="official_catalog"),
+    path("data/catalog/official/check/", official_catalog_views.official_catalog_check_start, name="official_catalog_check_start"),
+    path("data/catalog/official/<int:pk>/link/", official_catalog_views.official_catalog_link, name="official_catalog_link"),
+    path("data/catalog/official/<int:pk>/acknowledge/", official_catalog_views.official_catalog_acknowledge, name="official_catalog_acknowledge"),
+    path("data/catalog/official/<int:pk>/ignore/", official_catalog_views.official_catalog_ignore, name="official_catalog_ignore"),
+    path("data/catalog/official/<int:pk>/fill-images/", official_catalog_views.official_catalog_fill_images, name="official_catalog_fill_images"),
     path("data/channels/<int:source_pk>/accounts/", dealer_account_views.dealer_accounts, name="dealer_accounts"),
     path("data/channels/<int:source_pk>/accounts/new/", dealer_account_views.dealer_account_create, name="dealer_account_create"),
     path("system/users/<int:pk>/dealer/", dealer_account_views.dealer_account_edit, name="dealer_account_edit"),

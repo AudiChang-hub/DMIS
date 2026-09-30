@@ -5,6 +5,7 @@
 | 問題 | 程式／畫面定位 | 主要測試 |
 | --- | --- | --- |
 | SUI 顏色、展示與篩選 | `sales/catalog_views.py`、`templates/sales/catalog.html`、`catalog_detail.html`、`catalog_manage.html`、`catalog_edit.html` | `test_catalog_color_list.py`、`test_catalog_management.py` |
+| 原廠車型比對（官網檢查、補圖） | `sales/official_catalog_views.py`、`sales/services/official_catalog.py`、`templates/sales/official_catalog.html` | `test_official_catalog.py` |
 | 車色／分期帶入填單 | `sales/services/catalog_selection.py` | `test_catalog_selection.py`；`tests/frontend/catalog-payment.test.cjs` |
 | Excel 匯入 | `sales/services/legacy_import.py`、`legacy_finance.py` | `test_legacy_import.py`、`test_legacy_finance.py` |
 | 訂單三頁籤／收支 | 在 `sales/`、`templates/sales/` 搜尋 `workspace`；規格 `specs/043-order-workspace/` | `tests/frontend/order-workspace.test.cjs`；以 `rg --files sales/tests -g '*workspace*'` 定位 |

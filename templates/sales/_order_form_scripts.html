@@ -104,6 +104,7 @@
   );
   sessionStorage.setItem("order-collaboration-client-id", collaborationClientId);
   let currentActiveSection = "source";
+  const wizardStep = orderForm.querySelector("[name=_wizard_step]")?.value || "";
 
   function hasSelectedPhoto(input) {
     const clearButton = document.querySelector(`[data-clear-file="${input.id}"]`);
@@ -119,7 +120,37 @@
     ].some(input => input?.value.trim());
   }
 
+  // 訂單精靈：記錄證件自動辨識結果，未通過時須另外勾選人工核對，伺服器會再檢查一次。
+  function refreshIdManualBox() {
+    const box = byId("id-manual-check");
+    if (!box) return;
+    const check = byId("id-check").value;
+    const error = byId("id-check-error").value;
+    box.hidden = !["local", "foreign"].includes(ownerType.value) || check === "passed";
+    byId("id-manual-reason").textContent = check === "failed" && error
+      ? `自動辨識未通過：${error}`
+      : "證件須自動辨識通過；辨識失敗或無法辨識時，請親自核對是車主本人的身分證／居留證正反面後勾選。";
+    if (box.hidden) byId("id-manual-confirmed").checked = false;
+  }
+
+  function recordIdCheck(state, message = "") {
+    const check = byId("id-check");
+    if (!check) return;
+    if (state === "review") {
+      check.value = "passed";
+      byId("id-check-error").value = "";
+    } else if (state === "manual") {
+      check.value = "failed";
+      byId("id-check-error").value = message.replace(/\s*(可重新拍攝|請稍後重新辨識).*$/, "");
+    } else if (["upload", "incomplete", "processing"].includes(state)) {
+      check.value = "";
+      byId("id-check-error").value = "";
+    }
+    refreshIdManualBox();
+  }
+
   function setOcrState(state, options = {}) {
+    recordIdCheck(state, options.message || "");
     const supportsOcr = ["local", "foreign"].includes(ownerType.value);
     const revealFields = !supportsOcr || ["review", "manual", "existing"].includes(state);
     ocrConfirmationFields.forEach(element => { element.hidden = !revealFields; });
@@ -204,7 +235,7 @@
 
   let progressFrame = null;
   function updateActiveSection() {
-    if (orderForm.hasAttribute('data-workspace-save')) return;
+    if (orderForm.hasAttribute('data-workspace-save') || !progressSections.length) return;
     progressFrame = null;
     const marker = Math.min(window.innerHeight * 0.32, 230);
     let activeSection = progressSections[0];
@@ -594,7 +625,7 @@
         headers: {"X-CSRFToken": document.querySelector("[name=csrfmiddlewaretoken]").value},
         body: payload,
       });
-      const data = await response.json();
+      const data = await response.json().catch(() => ({ok: false, error: "辨識服務暫時無法使用。"}));
       if (requestVersion !== ocrRequestVersion) return;
       if (!response.ok || !data.ok) throw new Error(data.error || "無法排入辨識工作");
       currentOcrJobId = data.job_id;
@@ -614,7 +645,7 @@
       const response = await fetch(`/api/id-card-ocr/${jobId}/`, {
         headers: {"X-Requested-With": "XMLHttpRequest"},
       });
-      const data = await response.json();
+      const data = await response.json().catch(() => ({ok: false, error: "辨識服務暫時無法使用。"}));
       if (!response.ok || !data.ok) throw new Error(data.error || "無法取得辨識進度");
       if (data.photo_token !== photoToken) return;
       if (["queued", "running"].includes(data.status)) {
@@ -1418,7 +1449,7 @@
         }
         showSavedPhoto(fieldName, data.photos[fieldName]);
       });
-      history.replaceState(null, "", data.edit_url);
+      history.replaceState(null, "", wizardStep ? `${data.edit_url}&step=${wizardStep}` : data.edit_url);
       setDraftStatus("saved", `草稿已儲存 ${data.updated_at}`);
       refreshDraftPresence();
       connectCollaboration();
@@ -1454,7 +1485,7 @@
   }
   function showValidationSummary(firstInvalid = null) {
     const invalidFields = [...orderForm.querySelectorAll(".has-error, :invalid")]
-      .filter(node => !node.closest(".is-pending-delete"));
+      .filter(node => !node.closest(".is-pending-delete") && !node.closest("[data-wizard-panel][hidden]"));
     const labels = [];
     invalidFields.forEach(node => {
       const field = node.classList.contains("field") ? node : node.closest(".field");
@@ -1465,7 +1496,7 @@
       if (section) section.open = true;
     });
     if (!labels.length) return;
-    const action = editingOrderId ? "儲存修改" : "建立訂單";
+    const action = editingOrderId ? "儲存修改" : wizardStep ? "前往下一步" : "建立訂單";
     validationSummary.hidden = false;
     validationSummary.innerHTML = `
       <strong>目前無法${action}</strong>
@@ -1494,6 +1525,23 @@
   orderForm.addEventListener("input", () => {
     validationSummary.hidden = true;
   });
+  if (wizardStep) {
+    // 只檢查目前這一步看得到的欄位；其他步驟的內容由伺服器在前往下一步與送出時驗證。
+    orderForm.querySelector("[data-wizard-next]")?.addEventListener("click", event => {
+      const panels = [...orderForm.querySelectorAll("[data-wizard-panel]:not([hidden])")];
+      const invalid = panels.flatMap(panel => [...panel.querySelectorAll("input, select, textarea")])
+        .find(node => !node.disabled && !node.closest("[hidden]") && !node.closest(".is-pending-delete") && !node.checkValidity());
+      if (!invalid) return;
+      event.preventDefault();
+      invalid.reportValidity();
+      showValidationSummary(invalid);
+    });
+    orderForm.addEventListener("keydown", event => {
+      if (event.key === "Enter" && event.target.matches("input:not([type=submit]):not([type=button]):not([type=checkbox])")) {
+        event.preventDefault();
+      }
+    });
+  }
   orderForm.addEventListener("submit", () => {
     submittingOrder = true;
     clearTimeout(draftTimer);

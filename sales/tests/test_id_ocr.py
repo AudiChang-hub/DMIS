@@ -70,8 +70,31 @@ class IdFieldExtractionTests(TestCase):
         )
         recognize_side.side_effect = (front_result, front_result)
 
-        with self.assertRaisesRegex(IdOcrError, "都是證件正面"):
+        with self.assertRaisesRegex(IdOcrError, "都是身分證正面"):
             recognize_id_card(b"front", b"back")
+
+    def assert_rejects(self, front_text, back_text, message, document_type="national_id"):
+        target = "recognize_resident_certificate_side" if document_type == "resident_certificate" else "recognize_side"
+        with patch("sales.services.id_ocr._vision_client"), patch(f"sales.services.id_ocr.{target}") as recognize:
+            recognize.side_effect = (SimpleNamespace(text=front_text, angle=0), SimpleNamespace(text=back_text, angle=0))
+            with self.assertRaisesRegex(IdOcrError, message):
+                recognize_id_card(b"front", b"back", document_type=document_type)
+
+    def test_rejects_other_documents_and_wrong_document_type(self):
+        back = "父 林大山\n母 陳小美\n出生地 台北市\n住址 台北市中山區\n0040750525"
+        self.assert_rejects("全民健康保險 林小華 A123456789", back, "正面照片看起來是健保卡")
+        self.assert_rejects("中華民國國民身分證\n姓名 林小華\nA123456789", "普通小型車 駕駛執照", "反面照片看起來是駕照")
+        self.assert_rejects("中華民國居留證 Resident Certificate", back, "改為「外籍／居留者」")
+        self.assert_rejects("中華民國國民身分證 姓名 林小華", "I<TWNX000000000<<<<<<", "改為「本國自然人」",
+                            document_type="resident_certificate")
+
+    def test_rejects_unreadable_or_single_misplaced_side(self):
+        front = "中華民國國民身分證\n姓名 林小華\nA123456789"
+        back = "父 林大山\n母 陳小美\n住址 台北市中山區\n0040750525"
+        self.assert_rejects("風景照片", back, "正面照片看不出是身分證正面")
+        self.assert_rejects(front, "模糊 12", "反面照片看不出是身分證反面")
+        self.assert_rejects(front, "中華民國國民身分證 姓名 王大明", "都是身分證正面")
+        self.assert_rejects("住址 台北市 0040750525", "模糊", "正面欄位放的是身分證反面")
 
     def test_cleans_name_region_with_layout_labels(self):
         self.assertEqual(

@@ -5,7 +5,7 @@
 {% block content %}
 {% url 'catalog_manage' as catalog_manage_url %}{% include "sales/_page_back.html" with fallback_url=catalog_manage_url label="選車展示管理" %}
 <section class="hero-row compact-hero">
-  <div><p class="eyebrow">選車展示管理</p><h1>原廠車型比對</h1><p class="muted">讀取原廠官網的車型、車色與圖片，和系統車型比對。只會補上空白的車色圖片，不修改車型資料、售價或既有訂單。</p></div>
+  <div><p class="eyebrow">選車展示管理</p><h1>原廠車型比對</h1><p class="muted">讀取原廠官網的車型、車色與圖片，和系統車型比對。只補上空白的車色圖片、建立停用的新車型或新年式，不修改既有車型、售價或訂單。</p></div>
   <div class="hero-actions">
     {% for value, label in brands %}<a class="button secondary{% if value == brand %} is-active{% endif %}" href="?brand={{ value }}&amp;tab={{ tab }}"{% if value == brand %} aria-current="page"{% endif %}>{{ label }}</a>{% endfor %}
     <form method="post" action="{% url 'official_catalog_check_start' %}">{% csrf_token %}<input type="hidden" name="brand" value="{{ brand }}"><button class="button primary"{% if running %} disabled{% endif %}>檢查 {{ brand|upper }} 官網</button></form>
@@ -47,14 +47,14 @@
         <label>對應到系統車型<select class="form-control" name="vehicle_model" data-searchable-select required><option value="">請選擇</option>{% for model in candidates %}{% if model.pk not in linked_ids %}<option value="{{ model.pk }}"{% if model.pk == row.suggested %} selected{% endif %}>{{ model }}</option>{% endif %}{% endfor %}</select></label>
         <div class="form-actions"><button class="button primary">確認對應</button></div>
       </form>
-      <form method="post" action="{% url 'official_catalog_ignore' link.pk %}">{% csrf_token %}<input type="hidden" name="tab" value="{{ tab }}"><div class="form-actions"><button class="button ghost">忽略這款</button></div></form>
-      <p class="help-text">預設選項只依名稱推測，請確認年式與型號正確。系統還沒有的新車型請先忽略，或到「機種與售價」建立後再對應。</p>
+      <form method="post" action="{% url 'official_catalog_ignore' link.pk %}">{% csrf_token %}<input type="hidden" name="tab" value="{{ tab }}"><div class="form-actions"><button class="button ghost">忽略這款</button><a class="button secondary" href="{% url 'vehicle_model_create' %}?official={{ link.pk }}">系統沒有，從官網建立車型</a></div></form>
+      <p class="help-text">預設選項只依名稱與排氣量推測，請確認年式與型號正確。系統還沒有這款車時，按「從官網建立車型」帶入官網資料，建立後為停用、未上架。</p>
       {% elif tab == "ignored" %}
       <form method="post" action="{% url 'official_catalog_ignore' link.pk %}">{% csrf_token %}<input type="hidden" name="tab" value="{{ tab }}"><input type="hidden" name="action" value="restore"><div class="form-actions"><button class="button secondary">恢復到待對應</button></div></form>
       {% elif tab == "changes" %}
       <ul>{% for change in row.changes %}<li>{{ change }}</li>{% empty %}<li>官網內容有更新（名稱、規格或車色以外的欄位）。</li>{% endfor %}</ul>
-      <form method="post" action="{% url 'official_catalog_acknowledge' link.pk %}">{% csrf_token %}<input type="hidden" name="tab" value="{{ tab }}"><input type="hidden" name="content_hash" value="{{ link.content_hash }}"><div class="form-actions"><a class="button ghost" href="{% url 'vehicle_model_edit' link.vehicle_model.pk %}">查看系統車型</a><button class="button primary">已確認變動</button></div></form>
-      <p class="help-text">「已確認」只記錄你已看過這些變動，不會修改系統車型、車色或售價。若是改款，請到「機種與售價」建立新年式。</p>
+      <form method="post" action="{% url 'official_catalog_acknowledge' link.pk %}">{% csrf_token %}<input type="hidden" name="tab" value="{{ tab }}"><input type="hidden" name="content_hash" value="{{ link.content_hash }}"><div class="form-actions"><a class="button ghost" href="{% url 'vehicle_model_edit' link.vehicle_model.pk %}">查看系統車型</a><a class="button secondary" href="{% url 'vehicle_model_create' %}?official={{ link.pk }}&amp;base={{ link.vehicle_model.pk }}">改款：建立新年式</a><button class="button primary">已確認變動</button></div></form>
+      <p class="help-text">「已確認」只記錄你已看過這些變動，不會修改系統車型、車色或售價。若是改款，按「建立新年式」帶入官網資料；舊年式與既有訂單不受影響。</p>
       {% elif tab == "images" %}
       <form method="post" action="{% url 'official_catalog_fill_images' link.pk %}" data-confirm="確定要把勾選的官網圖片補到這些車色嗎？只會填入目前沒有圖片的車色。">{% csrf_token %}<input type="hidden" name="tab" value="{{ tab }}">
         <fieldset class="catalog-color-grid"><legend class="help-text">勾選要補上的圖片；系統車色已有圖片的不會列出，也不會被覆蓋。</legend>

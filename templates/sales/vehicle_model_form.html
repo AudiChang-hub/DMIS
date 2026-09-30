@@ -18,7 +18,15 @@
 <form method="post" class="master-model-form">
   {% csrf_token %}
   <input type="hidden" name="action" value="save_model">
+  {% if official %}<input type="hidden" name="official" value="{{ official.pk }}">{% if base_model %}<input type="hidden" name="base" value="{{ base_model.pk }}">{% endif %}{% endif %}
   {{ color_formset.management_form }}
+  {% if official %}
+  <div class="callout callout--info"><span class="callout__icon" aria-hidden="true">i</span><div><h3>{% if base_model %}從官網建立新年式{% else %}從官網建立車型{% endif %}：{{ official.name }}</h3><ul>
+    {% if base_model %}<li>以「{{ base_model }}」為基礎建立新年式；原年式的資料、車色、圖片與訂單都不會變更。</li>{% endif %}
+    <li>已帶入官網的名稱、年份、排氣量與車色，請逐項確認；型號與型式請依原廠資料填寫。</li>
+    <li>儲存後一律為停用、未上架，並自動對應這款官網車型；設定售價、確認無誤後再啟用。</li>
+  </ul></div></div>
+  {% endif %}
   {% if form.non_field_errors or color_formset.non_form_errors %}
   <div class="message error">{{ form.non_field_errors }}{{ color_formset.non_form_errors }}</div>
   {% endif %}

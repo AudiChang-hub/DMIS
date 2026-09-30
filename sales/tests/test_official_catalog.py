@@ -318,3 +318,77 @@ class OfficialCatalogViewTests(TestCase):
             response = self.client.post(reverse("official_catalog_check_start"), {"brand": "suzuki"}, follow=True)
         self.assertEqual(OfficialCatalogCheck.objects.get(brand="suzuki").status, "failed")
         self.assertContains(response, "上次檢查失敗")
+
+
+@override_settings(MEDIA_ROOT=tempfile.mkdtemp())
+class OfficialCatalogCreateModelTests(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        cls.root = get_user_model().objects.create_superuser("admin", password="Official-create-test-61!")
+        cls.old = VehicleModel.objects.create(brand="SUZUKI", name="SUI 125", model_number="UQ125", model_year=2025,
+                                              model_code=VehicleModel.ModelType.FRONT_DISC_REAR_DRUM,
+                                              energy_type="gas", displacement_cc=124)
+        VehicleColor.objects.create(vehicle_model=cls.old, name="蘇打藍")
+        listing = {"slug": "sui_125", "url": "https://www.suzukimotor.com.tw/product/sui_125/style_price.html", "name": "SUI 125"}
+        (entry,) = service.parse_suzuki_model(SUZUKI_MODEL, listing)
+        cls.entry = entry
+
+    def setUp(self):
+        self.client.force_login(self.root)
+        self.link = OfficialCatalogModel.objects.create(brand="suzuki", source_key="sui_125", source_url=self.entry["source_url"],
+                                                        name="SUI 125", data=self.entry, content_hash=service.content_hash(self.entry))
+
+    def payload(self, **overrides):
+        data = {
+            "brand": "SUZUKI", "energy_type": "gas", "name": "SUI 125", "model_number": "UQ125B", "model_year": "2026",
+            "model_code": VehicleModel.ModelType.FRONT_DISC_REAR_DRUM, "displacement_cc": "124", "active": "on",
+            "colors-TOTAL_FORMS": "2", "colors-INITIAL_FORMS": "0", "colors-MIN_NUM_FORMS": "0", "colors-MAX_NUM_FORMS": "1000",
+            "colors-0-name": "蘇打藍", "colors-0-active": "on", "colors-1-name": "白", "colors-1-active": "on",
+            "official": str(self.link.pk),
+        }
+        data.update(overrides)
+        return data
+
+    def test_prefill_from_official_entry(self):
+        response = self.client.get(reverse("vehicle_model_create"), {"official": self.link.pk})
+        form, colors = response.context["form"], response.context["color_formset"]
+        self.assertEqual((form.initial["name"], form.initial["model_year"], form.initial["displacement_cc"], form.initial["active"]),
+                         ("SUI 125", 2026, 124, False))
+        self.assertEqual([f.initial.get("name") for f in colors.forms], ["蘇打藍", "白"])
+        self.assertContains(response, "從官網建立車型")
+
+    def test_new_model_is_inactive_and_linked(self):
+        response = self.client.post(reverse("vehicle_model_create"), self.payload())
+        created = VehicleModel.objects.get(model_number="UQ125B")
+        self.assertRedirects(response, f"{reverse('official_catalog')}?brand=suzuki&tab=images", fetch_redirect_response=False)
+        self.assertFalse(created.active)
+        self.link.refresh_from_db()
+        self.assertEqual((self.link.vehicle_model, self.link.acknowledged_hash), (created, self.link.content_hash))
+        self.assertTrue(UserAccountAuditLog.objects.filter(description__contains="從原廠官網建立車型").exists())
+
+    def test_new_year_keeps_old_year_and_moves_link(self):
+        self.link.vehicle_model = self.old
+        self.link.save()
+        page = self.client.get(reverse("vehicle_model_create"), {"official": self.link.pk, "base": self.old.pk})
+        self.assertEqual(page.context["form"].initial["existing_family"], self.old.family_id)
+        before = VehicleModel.objects.filter(pk=self.old.pk).values().get()
+        self.client.post(reverse("vehicle_model_create"), self.payload(
+            existing_family=str(self.old.family_id), base=str(self.old.pk)))
+        created = VehicleModel.objects.get(model_year=2026)
+        self.assertEqual((created.family_id, created.active), (self.old.family_id, False))
+        self.link.refresh_from_db()
+        self.assertEqual(self.link.vehicle_model, created)
+        self.assertEqual(VehicleModel.objects.filter(pk=self.old.pk).values().get(), before)
+        self.assertEqual(list(self.old.colors.values_list("name", flat=True)), ["蘇打藍"])
+
+    def test_stale_or_unauthorized_official_is_not_used(self):
+        self.link.vehicle_model = self.old
+        self.link.save()
+        response = self.client.post(reverse("vehicle_model_create"), self.payload())
+        self.assertRedirects(response, reverse("official_catalog"), fetch_redirect_response=False)
+        self.assertFalse(VehicleModel.objects.filter(model_number="UQ125B").exists())
+        staff = get_user_model().objects.create_user("clerk", password="Official-create-test-62!", is_staff=True)
+        self.client.force_login(staff)
+        response = self.client.get(reverse("vehicle_model_create"), {"official": self.link.pk})
+        if response.status_code == 200:
+            self.assertIsNone(response.context["official"])

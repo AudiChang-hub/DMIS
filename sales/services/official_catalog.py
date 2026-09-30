@@ -419,6 +419,55 @@ def fillable_colors(link):
             if color.pk in matches and not color.catalog_image and matches[color.pk].get("image_url")]
 
 
+# ---------- 從官網建立車型 ----------
+
+def official_color_names(entry):
+    """車色預填名稱：色名不重複時用簡名（去除色號與配色說明），否則用官網全名。"""
+    colors = entry.get("colors", [])
+    stems = [color.get("stem") or color["name"] for color in colors]
+    if len({_norm(stem) for stem in stems}) == len(stems):
+        return stems
+    return [color["name"] for color in colors]
+
+
+def model_prefill(link, base_model=None):
+    """新增機種／年式表單的預填值；只是起點，儲存前由人確認，型號與型式仍須人工填寫。"""
+    from datetime import date
+
+    entry = link.data
+    initial = {"active": False}
+    if base_model:
+        initial.update({
+            "existing_family": base_model.family_id,
+            "brand": base_model.brand,
+            "energy_type": base_model.energy_type,
+            "name": base_model.family.name if base_model.family_id else base_model.name,
+            "model_code": base_model.model_code,
+            "electric_registration_class": base_model.electric_registration_class,
+            "model_number": "、".join(base_model.factory_model_codes.filter(active=True)
+                                      .order_by("code").values_list("code", flat=True)) or base_model.model_number,
+        })
+    else:
+        brands = list(brand_models(link.brand).values_list("brand", flat=True))
+        name = re.sub(r"^\s*20\d{2}\s*[-－]?\s*", "", entry.get("name", ""))
+        initial.update({
+            "brand": max(set(brands), key=brands.count) if brands else SOURCES[link.brand]["label"],
+            "energy_type": "electric" if entry.get("energy") == "electric" else "gas",
+            "name": re.sub(r"^全新\s*", "", name).strip(),
+        })
+        certified = SUZUKI_CODE.search(entry.get("specs", {}).get("認證車型", ""))
+        if certified:
+            initial["model_number"] = certified.group(1).upper()
+    base_year = base_model.model_year if base_model else None
+    initial["model_year"] = entry.get("year_hint") or (base_year + 1 if base_year else date.today().year)
+    if entry.get("displacement_cc") and initial["energy_type"] == "gas":
+        initial["displacement_cc"] = round(float(entry["displacement_cc"]))
+    power = re.search(r"(\d+(?:\.\d+)?)\s*kw", entry.get("power", ""), flags=re.I)
+    if power and initial["energy_type"] != "gas":
+        initial["motor_power_kw"] = power.group(1)
+    return initial, official_color_names(entry)
+
+
 # ---------- 背景檢查 ----------
 
 def brand_models(brand):

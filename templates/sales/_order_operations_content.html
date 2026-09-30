@@ -55,8 +55,6 @@
       {% include "sales/_field.html" with field=form.actual_disbursement %}
       {% include "sales/_field.html" with field=form.payment_confirmed %}
 
-      {% include "sales/_field.html" with field=form.invoice_date %}
-      {% include "sales/_field.html" with field=form.balance_invoice_number %}
       {% include "sales/_field.html" with field=form.installment_info %}
     </div>
     <p class="muted payment-list-help">僅預設訂金，其餘請自行新增。勾選「已確認」才列入實收；客戶款與分期公司撥款分開加總。</p>
@@ -219,4 +217,3 @@
 {% if order_workspace %}</fieldset>{% endif %}
 </form>
 {% include "sales/_payment_ledger.html" %}
-{% include "sales/_invoice_panel.html" %}

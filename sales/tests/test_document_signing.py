@@ -96,8 +96,10 @@ class DocumentSigningTests(TestCase):
         self.assertIn("SHA-256", events.first().description)
         done = self.client.get(reverse("order_sign_done", args=[order.pk]))
         self.assertContains(done, "車輛訂購單：已電子簽署")
-        self.assertContains(done, "列印勾選的文件")
-        self.assertContains(done, "不列印，返回訂單")
+        self.assertContains(done, "完成，返回訂單")
+        self.assertContains(done, "客人需要紙本副本時再列印")
+        self.assertContains(done, 'value="contract_store">')
+        self.assertContains(done, 'value="contract_customer" checked>')
 
     def test_contract_change_requires_resigning_but_payment_progress_does_not(self):
         order = self.make_order()
@@ -183,10 +185,13 @@ class DocumentSigningTests(TestCase):
         self.assertIn("電子簽署", reader.pages[0].extract_text())
         self.assertNotIn("電子簽署", reader.pages[1].extract_text())
 
-    def test_created_dialog_offers_tablet_signing_and_print_choice(self):
+    def test_created_dialog_lets_staff_choose_device_or_paper_signing(self):
         order = self.make_order()
         self.client.force_login(self.user)
         detail = self.client.get(reverse("order_detail", args=[order.pk]), {"created": "1"})
-        self.assertContains(detail, reverse("order_sign", args=[order.pk]))
-        self.assertContains(detail, "要列印哪幾份？")
-        self.assertContains(detail, 'value="contract_customer"')
+        dialog = detail.content.decode().split('id="print-contract-dialog"', 1)[1].split("</dialog>", 1)[0]
+        self.assertIn("這次要怎麼簽？", dialog)
+        self.assertIn(reverse("order_sign", args=[order.pk]), dialog)
+        self.assertIn("印出紙本給客人簽", dialog)
+        self.assertIn('value="contract_store" checked>', dialog)
+        self.assertIn('value="privacy" checked>', dialog)

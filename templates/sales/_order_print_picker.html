@@ -2,14 +2,13 @@
 <form class="print-picker" method="get" action="{% url 'order_documents_print' order.pk %}" target="_blank">
   <fieldset>
     <legend>要列印哪幾份？</legend>
-    <label><input type="checkbox" name="part" value="contract_store" checked> 訂購單・店家留存聯</label>
+    <label><input type="checkbox" name="part" value="contract_store"{% if not copy_only %} checked{% endif %}> 訂購單・店家留存聯</label>
     <label><input type="checkbox" name="part" value="contract_customer" checked> 訂購單・客戶留存聯</label>
-    <label><input type="checkbox" name="part" value="privacy" checked> 個資同意書</label>
+    <label><input type="checkbox" name="part" value="privacy"{% if not copy_only %} checked{% endif %}> 個資同意書</label>
   </fieldset>
   <p class="muted">已電子簽署的文件會印出含簽名的版本；尚未簽署的文件印空白供紙本簽名。</p>
   <div class="form-actions">
-    {% if done_url %}<a class="button ghost" href="{{ done_url }}">不列印，返回訂單</a>{% endif %}
-    <button type="submit" class="button {{ print_button|default:"primary" }}">列印勾選的文件</button>
+    <button type="submit" class="button primary">列印勾選的文件</button>
   </div>
 </form>
 {% endif_access %}

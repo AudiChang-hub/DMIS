@@ -53,6 +53,11 @@ def finance_context(request, order):
     operations_form = OrderOperationsForm(instance=profile, prefix='operations')
     for name in ('subsidy_amount', 'subsidy_applied_on'):
         operations_form.fields[name].disabled = True
+    # 補助追蹤與車控贈品在各自步驟以獨立表單送出；auto_id 區隔避免同頁欄位 id 重複。
+    subsidy_form = OrderOperationsForm(instance=profile, prefix='operations', section='subsidy', auto_id='ops_subsidy_%s')
+    for name in ('subsidy_amount', 'subsidy_applied_on'):
+        subsidy_form.fields[name].disabled = True
+    fulfillment_form = OrderOperationsForm(instance=profile, prefix='operations', section='fulfillment', auto_id='ops_fulfillment_%s')
     summary = payment_summary(order)
     return {
         **payment_ledger_context(order, summary),
@@ -61,6 +66,8 @@ def finance_context(request, order):
         'workspace_discount_editable': can_edit_finance(request.user) and policy_for(request).route('order_discount_decide', 'POST'),
         'profile': profile,
         'operations_form': operations_form,
+        'operations_subsidy_form': subsidy_form,
+        'operations_fulfillment_form': fulfillment_form,
         'payment_formset': payment_formset_for(order),
         'receipt_summary': summary,
         'manual_financial_fields': profile.manual_financial_fields or [],

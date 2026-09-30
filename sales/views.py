@@ -5325,7 +5325,7 @@ def order_detail(request, pk, *, commission_form=None, workspace_context_only=Fa
             "delivery_blockers": delivery_blockers,
             "dealer_credit": credit_overview(order, detail_summary) if not order.is_delivered else None,
             "installment_form": (
-                InstallmentDecisionForm(instance=order)
+                InstallmentDecisionForm(instance=order, auto_id="installment_%s")
                 if order.payment_type == SalesOrder.PaymentType.INSTALLMENT else None
             ),
             "exception_close_form": ExceptionCloseForm(order) if exception_close_ready else None,
@@ -5446,34 +5446,40 @@ def order_operations(request, pk):
         for field_name in profile.MANUAL_PROTECTABLE_FINANCIAL_FIELDS
     }
     before = _operations_snapshot(profile)
+    # 工作台各步驟只送出自己的區段；未指定時（獨立營運頁）維持整張表單。
+    section = request.POST.get("_section") if request.method == "POST" else None
+    if section not in {"finance", "subsidy", "fulfillment"}:
+        section = None
     form = OrderOperationsForm(
         request.POST or None,
         instance=profile,
         prefix="operations",
+        section=section,
     )
     if order_workspace.is_workspace_save(request):
         for name in ("subsidy_amount", "subsidy_applied_on"):
-            form.fields[name].disabled = True
+            if name in form.fields:
+                form.fields[name].disabled = True
     payment_formset = order_workspace.payment_formset_for(
         order,
         request.POST or None,
         request.FILES or None,
-    )
+    ) if section in {None, "finance"} else None
     gap_before = settlement_gap(order)
     previous_payment_proofs = list(
         order.payment_records.exclude(proof="").values_list("proof", flat=True)
     )
-    if request.method == "POST" and form.is_valid() and payment_formset.is_valid():
+    if request.method == "POST" and form.is_valid() and (payment_formset is None or payment_formset.is_valid()):
         with transaction.atomic():
             profile = form.save(commit=False)
             protected_fields = set(profile.manual_financial_fields or [])
             protected_fields.update(
                 field_name
                 for field_name, original_value in financial_before.items()
-                if form.cleaned_data.get(field_name) != original_value
+                if field_name in form.fields and form.cleaned_data.get(field_name) != original_value
             )
             profile.manual_financial_fields = sorted(protected_fields)
-            if form.cleaned_data.get("vehicle_cost") != financial_before.get("vehicle_cost"):
+            if "vehicle_cost" in form.fields and form.cleaned_data.get("vehicle_cost") != financial_before.get("vehicle_cost"):
                 profile.vehicle_cost_manual = True
             vehicle_secret = form.cleaned_data.get("vehicle_control_password")
             battery_secret = form.cleaned_data.get("battery_password")
@@ -5485,7 +5491,7 @@ def order_operations(request, pk):
                 profile.battery_password_encrypted = encrypt_secret(battery_secret)
             profile.updated_by = _editing_name(request.user)
             profile.save()
-            payments = payment_formset.save()
+            payments = payment_formset.save() if payment_formset is not None else []
             deposit = next((payment for payment in payments if payment.system_key == "deposit"), None)
             # 取消流程中退款依帳本結算，訂金應收不再回寫訂單約定訂金。
             if deposit and deposit.expected_amount != order.deposit_amount and not order.is_cancelled_sale:
@@ -5496,7 +5502,7 @@ def order_operations(request, pk):
                 order.calculated_balance = order.calculate_balance()
                 order.save(update_fields=["deposit_amount", "deposit_date", "actual_balance", "calculated_balance", "updated_at"])
                 sync_order_operations(order.pk, update_receivables=True)
-            for previous_proof in previous_payment_proofs:
+            for previous_proof in (previous_payment_proofs if payment_formset is not None else []):
                 _schedule_model_file_cleanup(
                     PaymentRecord,
                     "proof",
@@ -5549,17 +5555,18 @@ def order_operations(request, pk):
                 description=f"更新營運與對帳資料（{len(changes)} 個欄位）",
                 actor_name=_editing_name(request.user),
             )
-            _record_duplicate_acknowledgements(order, payment_formset.forms, request.user)
+            if payment_formset is not None:
+                _record_duplicate_acknowledgements(order, payment_formset.forms, request.user)
             _record_settlement_gap(order, gap_before, request.user)
         if order_workspace.is_workspace_save(request):
-            return order_workspace.saved(request, order, form=form, formsets=(payment_formset,))
+            return order_workspace.saved(request, order, form=form, formsets=tuple(f for f in (payment_formset,) if f is not None))
         messages.success(request, "營運、收款及損益資料已更新。")
         return redirect("order_operations", pk=order.pk)
     # ModelForm 驗證會改動 instance；未儲存的輸入不得冒充已入帳的摘要。
     if request.method == "POST":
         profile.refresh_from_db()
         if order_workspace.is_workspace_save(request):
-            return order_workspace.save_error("收支資料未儲存，請修正下列欄位。", forms=(form, *payment_formset.forms))
+            return order_workspace.save_error("收支資料未儲存，請修正下列欄位。", forms=(form, *(payment_formset.forms if payment_formset is not None else ())))
     return render(
         request,
         "sales/order_operations.html",

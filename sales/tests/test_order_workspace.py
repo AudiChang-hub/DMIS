@@ -63,7 +63,7 @@ class OrderWorkspaceTests(TestCase):
     def test_detail_has_three_tabs_and_finance_without_unlocked_profit(self):
         response = self.client.get(reverse('order_detail', args=[self.order.pk]))
         self.assertEqual(response.status_code, 200)
-        for name in ('訂單資訊', '金額收支資訊', '補助申請資訊', 'data-workspace-save="operations"'):
+        for name in ('訂車與配件', '收入與支出', '汰舊補助', 'data-order-step-bar', 'data-workspace-save="operations"'):
             self.assertContains(response, name)
         self.assertNotContains(response, 'data-profit-value')
         self.assertNotContains(response, '<iframe')

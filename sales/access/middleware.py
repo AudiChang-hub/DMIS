@@ -26,7 +26,7 @@ class ScreenAccessMiddleware(MiddlewareMixin):
         guard_order_scope(request, name, view_kwargs)
         if name in CUSTOMER_DOCUMENT_ROUTES and not policy_for(request).route(name):
             raise PermissionDenied("沒有列印客戶簽署文件權限。")
-        if name in {"order_edit", "order_operations", "registration_fee_variance_confirm", "order_commission_attribution_update", "delivery_payment_update", "order_discount_decide", "payment_reverse", "payment_overpayment_refund", "installment_decision_update", "order_exception_close"} and request.method == "POST":
+        if name in {"order_edit", "order_operations", "registration_fee_variance_confirm", "order_commission_attribution_update", "delivery_payment_update", "deposit_payment_update", "order_discount_decide", "payment_reverse", "payment_overpayment_refund", "installment_decision_update", "order_exception_close"} and request.method == "POST":
             from sales.services.order_intake import can_edit_finance
             if not can_edit_finance(request.user):
                 raise PermissionDenied("沒有訂單內部財務編輯權限。")

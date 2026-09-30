@@ -3010,17 +3010,12 @@ class OrderFlowTests(TestCase):
 
         response = self.client.get(reverse("order_detail", args=[order.pk]))
 
-        self.assertContains(response, 'role="tablist"')
-        for tab_name in (
-            "訂單資訊",
-            "金額收支資訊",
-            "補助申請資訊",
-        ):
-            self.assertContains(response, tab_name)
-        self.assertNotContains(response, 'data-tab="documents"')
-        self.assertNotContains(response, 'data-tab-panel="documents"')
-        self.assertContains(response, 'data-tab-panel="order"')
-        self.assertContains(response, 'data-tab-panel="registration"')
+        self.assertContains(response, "data-order-step-bar")
+        for step_name in ("訂車與配件", "訂金", "列印與簽署文件", "配車", "領牌", "收入與支出", "交車與收尾款", "汰舊補助"):
+            self.assertContains(response, step_name)
+        self.assertNotContains(response, 'role="tablist"')
+        self.assertContains(response, 'id="panel-order"')
+        self.assertContains(response, 'id="panel-registration"')
         self.assertContains(response, 'id="signed-documents"')
         self.assertContains(response, "簽署文件留存")
         self.assertContains(response, "data-document-upload")
@@ -3038,30 +3033,17 @@ class OrderFlowTests(TestCase):
         script = Path("static/js/order-workspace.js").read_text(encoding="utf-8")
         self.assertIn("searchParams.get('tab')", script)
         self.assertIn("beforeunload", script)
-        self.assertIn("event.key === 'ArrowRight'", script)
+        self.assertIn("details[data-step-key]", script)
 
-    def test_legacy_documents_tab_redirects_to_order_signed_documents(self):
+    def test_documents_tab_opens_documents_step(self):
         order = self.make_order()
         self.client.force_login(self.user)
 
-        response = self.client.get(
-            f"{reverse('order_detail', args=[order.pk])}?tab=documents"
-        )
+        response = self.client.get(f"{reverse('order_detail', args=[order.pk])}?tab=documents&created=1")
 
-        self.assertRedirects(
-            response,
-            f"{reverse('order_detail', args=[order.pk])}?tab=order#signed-documents",
-        )
-
-        response_with_created_dialog = self.client.get(
-            f"{reverse('order_detail', args=[order.pk])}"
-            "?tab=documents&created=1"
-        )
-        self.assertRedirects(
-            response_with_created_dialog,
-            f"{reverse('order_detail', args=[order.pk])}"
-            "?tab=order&created=1#signed-documents",
-        )
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'id="panel-documents" data-step-key="documents" open')
+        self.assertContains(response, 'id="print-contract-dialog"')
 
     def test_subsidy_documents_are_available_before_allocation(self):
         order = self.make_order()
@@ -4486,7 +4468,7 @@ class OrderFlowTests(TestCase):
         )
 
         signed_documents_url = (
-            f"{reverse('order_detail', args=[order.pk])}?tab=order#signed-documents"
+            f"{reverse('order_detail', args=[order.pk])}?tab=documents#signed-documents"
         )
         self.assertRedirects(response, signed_documents_url)
         order.refresh_from_db()
@@ -4516,7 +4498,7 @@ class OrderFlowTests(TestCase):
         )
 
         signed_documents_url = (
-            f"{reverse('order_detail', args=[order.pk])}?tab=order#signed-documents"
+            f"{reverse('order_detail', args=[order.pk])}?tab=documents#signed-documents"
         )
         self.assertRedirects(response, signed_documents_url)
         order.refresh_from_db()
@@ -4530,7 +4512,7 @@ class OrderFlowTests(TestCase):
         order = self.make_order()
         self.client.force_login(self.user)
         signed_documents_url = (
-            f"{reverse('order_detail', args=[order.pk])}?tab=order#signed-documents"
+            f"{reverse('order_detail', args=[order.pk])}?tab=documents#signed-documents"
         )
 
         response = self.client.post(
@@ -4575,7 +4557,7 @@ class OrderFlowTests(TestCase):
         self.assertRedirects(
             response,
             f"{reverse('order_detail', args=[order.pk])}"
-            "?tab=order#signed-documents",
+            "?tab=documents#signed-documents",
         )
         order.refresh_from_db()
         self.assertTrue(order.has_privacy_consent)

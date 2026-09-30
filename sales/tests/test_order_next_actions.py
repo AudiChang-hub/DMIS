@@ -292,9 +292,9 @@ class OrderNextActionTests(TestCase):
 
         actions = self.build(order)
         archive = next(action for action in actions.secondary if action.key == "documents")
-        self.assertEqual(archive.target_tab, "order")
+        self.assertEqual(archive.target_tab, "documents")
         self.assertEqual(archive.target_anchor, "signed-documents")
-        self.assertTrue(archive.url.endswith("?tab=order#signed-documents"))
+        self.assertTrue(archive.url.endswith("?tab=documents#signed-documents"))
 
         self.client.force_login(self.user)
         response = self.client.get(

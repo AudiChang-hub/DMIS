@@ -194,10 +194,10 @@ def _document_archive_action(order):
         title="補上簽署文件",
         description=f"尚未上傳：{'、'.join(missing)}；取得紙本照片後可隨時補上。",
         action_label="查看簽署文件",
-        url=f"{_tab_url(order, 'order')}#signed-documents",
+        url=f"{_tab_url(order, 'documents')}#signed-documents",
         badge="可稍後處理",
         tone="optional",
-        target_tab="order",
+        target_tab="documents",
         target_anchor="signed-documents",
     )
 
@@ -292,10 +292,10 @@ def build_order_next_actions(
             title="完成取消退款結算",
             description="填寫沒收金額並退還其餘實收後，這張訂單才會正式取消。",
             action_label="前往處理退款",
-            url=_tab_url(order, "order"),
+            url=_tab_url(order, "closing"),
             badge="優先處理",
             tone="urgent",
-            target_tab="order",
+            target_tab="closing",
         )
         return OrderNextActions(primary, (), _state_key(primary, ()))
 

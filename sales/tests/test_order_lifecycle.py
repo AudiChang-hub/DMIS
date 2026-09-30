@@ -450,7 +450,7 @@ class OrderLifecycleTests(TestCase):
         self.assertContains(response, 'name="vehicle_condition_note"', count=3)
         self.assertContains(response, 'class="delivery-completion-actions"')
         self.assertContains(response, "確認完成交付", count=2)
-        self.assertContains(response, "收款統一在「金額收支資訊」管理")
+        self.assertContains(response, "尾款已收清或由合作車行掛帳")
         self.assertContains(response, 'data-workspace-go="finance"')
         self.assertNotContains(response, "儲存收款資料")
         self.assertNotContains(response, 'name="payment_checked"')
@@ -469,7 +469,7 @@ class OrderLifecycleTests(TestCase):
         )
 
         self.assertContains(response, "尾款尚未收清")
-        self.assertContains(response, "請先在金額收支資訊保存並確認收款")
+        self.assertContains(response, "請在交車表單一併登記尾款")
         self.assertFalse(DeliveryRecord.objects.filter(order=order).exists())
         order.refresh_from_db()
         vehicle.refresh_from_db()

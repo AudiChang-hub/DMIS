@@ -1,0 +1,9 @@
+<div class="mobile-submit wizard-nav">
+  <button class="button danger-outline draft-delete-button" id="draft-delete-button" type="submit" form="draft-delete-form" {% if not draft %}hidden{% endif %}>刪除草稿</button>
+  {% if wizard.previous %}<button class="button ghost" type="submit" name="_wizard_action" value="back" formnovalidate>上一步</button>{% endif %}
+  {% if wizard.current == 'confirm' %}
+  <button class="button primary" type="submit" name="_wizard_action" value="submit" formnovalidate>確認並建立訂單</button>
+  {% else %}
+  <button class="button primary" type="submit" name="_wizard_action" value="next" formnovalidate data-wizard-next>下一步</button>
+  {% endif %}
+</div>

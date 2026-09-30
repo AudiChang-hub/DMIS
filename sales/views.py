@@ -4728,144 +4728,197 @@ def order_create(request, reception=False):
             f"此草稿目前由 {draft.editing_by or '其他人員'} 編輯，暫時無法進入。",
         )
         return redirect(("catalog" if policy_for(request).route("catalog") else "order_start") if reception else "dashboard")
-    existing_documents = {
-        "id_front": bool(draft and draft.id_front),
-        "id_back": bool(draft and draft.id_back),
-    }
+    wizard_action = _order_wizard_action(request) if request.method == "POST" else None
+    if wizard_action:
+        from sales.order_wizard_views import wizard_post
+        return wizard_post(request, draft, reception, wizard_action, submission_key)
     if request.method == "POST":
-        post_data = request.POST
-        form = IntakeOrderForm(
-            post_data,
-            request.FILES,
-            user=request.user,
-            reception=reception,
-            existing_documents=existing_documents,
+        response, form, formset, fee_formset = _create_intake_order(
+            request, request.POST, request.FILES, draft, reception, submission_key
         )
-        if not form.finance_editable:
-            post_data = post_data.copy()
-            post_data.update({"other_fees-TOTAL_FORMS": "0", "other_fees-INITIAL_FORMS": "0"})
-        formset = AccessoryFormSet(post_data, form_kwargs={"allow_manual": form.pricing_editable, "purchase_only": not policy_for(request).screen("order_gift", "operate")})
-        fee_formset = OtherFeeFormSet(post_data, prefix="other_fees")
-        uploads = []
-        form.is_valid()
-        try:
-            uploads = validated_intake_uploads(request.FILES)
-            prepare_intake_uploads(uploads, draft=draft, remove_ids=request.POST.getlist("_remove_intake_attachments"))
-        except ValidationError as exc:
-            form.add_error(None, exc)
-        if form.is_valid() and formset.is_valid() and fee_formset.is_valid():
-            order = form.save(commit=False)
-            if draft:
-                if not form.cleaned_data.get("id_front") and draft.id_front:
-                    order.id_front = draft.id_front.name
-                    draft.id_front = ""
-                if not form.cleaned_data.get("id_back") and draft.id_back:
-                    order.id_back = draft.id_back.name
-                    draft.id_back = ""
-            order.status = SalesOrder.Status.INTAKE_PENDING
-            order.cash_receivable_v2 = True
-            order.submission_key = submission_key
-            order.submitted_by = request.user
-            from sales.services.print_company import initialize_company
-            initialize_company(order, request.user, assisted_company=form.assisted_company)
-            order.save()
-            apply_order_price_snapshot(order)
-            apply_order_installment_snapshot(order)
-            formset.instance = order
-            formset.save()
-            fee_formset.instance = order
-            fee_formset.save()
-            order.calculated_balance = order.calculate_balance()
-            order.actual_balance = order.calculated_balance
-            order.save(
-                update_fields=["calculated_balance", "actual_balance", "updated_at"]
-            )
-            OrderEvent.objects.create(
-                order=order,
-                event_type="created",
-                description="建立訂單，等待店內人員接單。",
-                actor_name=request.user.get_username(),
-            )
-            if draft:
-                draft.intake_attachments.update(order=order, draft=None)
-            save_intake_uploads(request.user, uploads, order=order, remove_ids=request.POST.getlist("_remove_intake_attachments") if draft else ())
-            if form.cleaned_data.get("accept_by_me"):
-                receive_order(request.user, order.pk)
-            if draft:
-                draft.delete_with_files()
-            messages.success(request, "訂單已建立並由你接單。" if form.cleaned_data.get("accept_by_me") else "訂單已建立，等待店內人員接單。")
-            if reception:
-                return redirect("order_submitted", pk=order.pk)
-            return redirect(f"{reverse('order_detail', kwargs={'pk': order.pk})}?created=1")
+        if response:
+            return response
     else:
-        initial = _draft_form_initial(draft.data) if draft else {}
-        if not draft and request.GET.get("selection"):
-            from sales.services.catalog_selection import selection_initial
-            try:
-                initial.update(selection_initial(request.GET["selection"]))
-                selected_model = VehicleModel.objects.get(pk=initial["vehicle_model"])
-                initial["vehicle_energy_type"] = selected_model.energy_type
-            except ValidationError:
-                messages.error(request, "原選擇已失效，或車色、售價與方案已有異動，請重新選擇車款與付款方案。")
-                return redirect("catalog")
-        if not draft and not request.GET.get("selection") and request.GET.get("model", "").isdigit():
-            selected_model = VehicleModel.objects.filter(pk=request.GET["model"], active=True).first()
-            if selected_model:
-                initial.update(vehicle_model=selected_model.pk, vehicle_energy_type=selected_model.energy_type)
-                if request.GET.get("color", "").isdigit() and VehicleColor.objects.filter(pk=request.GET["color"], vehicle_model=selected_model, active=True).exists():
-                    initial["color"] = request.GET["color"]
-        form = IntakeOrderForm(initial=initial, user=request.user, reception=reception)
-        formset = AccessoryFormSet(
-            initial=_draft_lines(
-                draft.data,
-                "accessories",
-                (
-                    "accessory_product",
-                    "quantity",
-                    "line_type",
-                    "amount",
-                    "labor_fee",
-                    "note",
-                ),
-            )
-            if draft
-            else None,
-            form_kwargs={"allow_manual": form.pricing_editable, "purchase_only": not policy_for(request).screen("order_gift", "operate")},
-        )
-        fee_formset = OtherFeeFormSet(
-            initial=_draft_lines(draft.data, "other_fees", ("name", "amount"))
-            if draft and not reception
-            else None,
-            prefix="other_fees",
-        )
+        if request.GET.get("classic") != "1":
+            from sales.order_wizard_views import wizard_get
+            return wizard_get(request, draft, reception)
+        forms_or_none = _initial_intake_forms(request, draft, reception)
+        if forms_or_none is None:
+            return redirect("catalog")
+        form, formset, fee_formset = forms_or_none
     return render(
         request,
         "sales/order_form.html",
-        {
-            "form": form,
-            "formset": formset,
-            "fee_formset": fee_formset,
-            "draft": draft,
-            "document_source": draft,
-            "document_model": "draft",
-            "intake_mode": True,
-            "submission_key": submission_key or (draft.data.get("_submission_key") if draft else None) or uuid.uuid4(),
-            "intake_attachments": draft.intake_attachments.all() if draft else [],
-            **intake_context(request.user),
-            "reception_mode": reception,
-            "reception_back_url": reverse("catalog" if policy_for(request).route("catalog") else "dashboard"),
-            "reception_back_label": "返回選車" if policy_for(request).route("catalog") else "離開接待",
-            "intake_can_receive": not reception and intake_context(request.user)["intake_can_receive"],
-            "intake_finance_editable": form.finance_editable,
-            "intake_pricing_editable": form.pricing_editable,
-            "draft_save_route": "intake_draft_save" if reception else "draft_save",
-            "installment_options_route": "intake_installment_options" if reception else "installment_plan_options",
-            "price_options_route": "intake_price_options" if reception else "vehicle_price_options",
-            "vehicle_rate_data": _vehicle_rate_data(),
-            "accessory_product_data": _accessory_product_data(),
-        },
+        _intake_form_context(request, form, formset, fee_formset, draft, reception, submission_key),
     )
 
+
+def _order_wizard_action(request):
+    if request.POST.get("_wizard_goto"):
+        return "goto"
+    action = request.POST.get("_wizard_action")
+    return action if action in {"next", "back", "submit"} else None
+
+
+def _draft_existing_documents(draft):
+    return {
+        "id_front": bool(draft and draft.id_front),
+        "id_back": bool(draft and draft.id_back),
+    }
+
+
+def _bound_intake_forms(request, post_data, files, draft, reception):
+    from sales.access.services import policy_for
+    from sales.intake_forms import IntakeOrderForm
+    form = IntakeOrderForm(
+        post_data,
+        files,
+        user=request.user,
+        reception=reception,
+        existing_documents=_draft_existing_documents(draft),
+    )
+    if not form.finance_editable:
+        post_data = post_data.copy()
+        post_data.update({"other_fees-TOTAL_FORMS": "0", "other_fees-INITIAL_FORMS": "0"})
+    formset = AccessoryFormSet(post_data, form_kwargs={"allow_manual": form.pricing_editable, "purchase_only": not policy_for(request).screen("order_gift", "operate")})
+    fee_formset = OtherFeeFormSet(post_data, prefix="other_fees")
+    return form, formset, fee_formset
+
+
+def _create_intake_order(request, post_data, files, draft, reception, submission_key):
+    """驗證並建立訂單；成功回傳導向回應，失敗回傳含錯誤的表單供重新顯示。"""
+    from sales.intake_forms import validated_intake_uploads
+    from sales.services.order_intake import receive_order, save_intake_uploads, prepare_intake_uploads
+    form, formset, fee_formset = _bound_intake_forms(request, post_data, files, draft, reception)
+    uploads = []
+    form.is_valid()
+    remove_ids = post_data.getlist("_remove_intake_attachments")
+    try:
+        uploads = validated_intake_uploads(files)
+        prepare_intake_uploads(uploads, draft=draft, remove_ids=remove_ids)
+    except ValidationError as exc:
+        form.add_error(None, exc)
+    if not (form.is_valid() and formset.is_valid() and fee_formset.is_valid()):
+        return None, form, formset, fee_formset
+    order = form.save(commit=False)
+    if draft:
+        if not form.cleaned_data.get("id_front") and draft.id_front:
+            order.id_front = draft.id_front.name
+            draft.id_front = ""
+        if not form.cleaned_data.get("id_back") and draft.id_back:
+            order.id_back = draft.id_back.name
+            draft.id_back = ""
+    order.status = SalesOrder.Status.INTAKE_PENDING
+    order.cash_receivable_v2 = True
+    order.submission_key = submission_key
+    order.submitted_by = request.user
+    from sales.services.print_company import initialize_company
+    initialize_company(order, request.user, assisted_company=form.assisted_company)
+    order.save()
+    apply_order_price_snapshot(order)
+    apply_order_installment_snapshot(order)
+    formset.instance = order
+    formset.save()
+    fee_formset.instance = order
+    fee_formset.save()
+    order.calculated_balance = order.calculate_balance()
+    order.actual_balance = order.calculated_balance
+    order.save(
+        update_fields=["calculated_balance", "actual_balance", "updated_at"]
+    )
+    OrderEvent.objects.create(
+        order=order,
+        event_type="created",
+        description="建立訂單，等待店內人員接單。",
+        actor_name=request.user.get_username(),
+    )
+    if draft:
+        draft.intake_attachments.update(order=order, draft=None)
+    save_intake_uploads(request.user, uploads, order=order, remove_ids=remove_ids if draft else ())
+    if form.cleaned_data.get("accept_by_me"):
+        receive_order(request.user, order.pk)
+    if draft:
+        draft.delete_with_files()
+    messages.success(request, "訂單已建立並由你接單。" if form.cleaned_data.get("accept_by_me") else "訂單已建立，等待店內人員接單。")
+    if reception:
+        return redirect("order_submitted", pk=order.pk), form, formset, fee_formset
+    return redirect(f"{reverse('order_detail', kwargs={'pk': order.pk})}?created=1"), form, formset, fee_formset
+
+
+def _initial_intake_forms(request, draft, reception):
+    """依草稿、選車結果或網址參數建立空白表單；選車結果失效時回傳 None。"""
+    from sales.access.services import policy_for
+    from sales.intake_forms import IntakeOrderForm
+    initial = _draft_form_initial(draft.data) if draft else {}
+    if not draft and request.GET.get("selection"):
+        from sales.services.catalog_selection import selection_initial
+        try:
+            initial.update(selection_initial(request.GET["selection"]))
+            selected_model = VehicleModel.objects.get(pk=initial["vehicle_model"])
+            initial["vehicle_energy_type"] = selected_model.energy_type
+        except ValidationError:
+            messages.error(request, "原選擇已失效，或車色、售價與方案已有異動，請重新選擇車款與付款方案。")
+            return None
+    if not draft and not request.GET.get("selection") and request.GET.get("model", "").isdigit():
+        selected_model = VehicleModel.objects.filter(pk=request.GET["model"], active=True).first()
+        if selected_model:
+            initial.update(vehicle_model=selected_model.pk, vehicle_energy_type=selected_model.energy_type)
+            if request.GET.get("color", "").isdigit() and VehicleColor.objects.filter(pk=request.GET["color"], vehicle_model=selected_model, active=True).exists():
+                initial["color"] = request.GET["color"]
+    form = IntakeOrderForm(initial=initial, user=request.user, reception=reception)
+    formset = AccessoryFormSet(
+        initial=_draft_lines(
+            draft.data,
+            "accessories",
+            (
+                "accessory_product",
+                "quantity",
+                "line_type",
+                "amount",
+                "labor_fee",
+                "note",
+            ),
+        )
+        if draft
+        else None,
+        form_kwargs={"allow_manual": form.pricing_editable, "purchase_only": not policy_for(request).screen("order_gift", "operate")},
+    )
+    fee_formset = OtherFeeFormSet(
+        initial=_draft_lines(draft.data, "other_fees", ("name", "amount"))
+        if draft and not reception
+        else None,
+        prefix="other_fees",
+    )
+    return form, formset, fee_formset
+
+
+def _intake_form_context(request, form, formset, fee_formset, draft, reception, submission_key):
+    import uuid
+    from sales.access.services import policy_for
+    from sales.services.order_intake import intake_context
+    return {
+        "form": form,
+        "formset": formset,
+        "fee_formset": fee_formset,
+        "draft": draft,
+        "document_source": draft,
+        "document_model": "draft",
+        "intake_mode": True,
+        "submission_key": submission_key or (draft.data.get("_submission_key") if draft else None) or uuid.uuid4(),
+        "intake_attachments": draft.intake_attachments.all() if draft else [],
+        **intake_context(request.user),
+        "reception_mode": reception,
+        "reception_back_url": reverse("catalog" if policy_for(request).route("catalog") else "dashboard"),
+        "reception_back_label": "返回選車" if policy_for(request).route("catalog") else "離開接待",
+        "intake_can_receive": not reception and intake_context(request.user)["intake_can_receive"],
+        "intake_finance_editable": form.finance_editable,
+        "intake_pricing_editable": form.pricing_editable,
+        "draft_save_route": "intake_draft_save" if reception else "draft_save",
+        "installment_options_route": "intake_installment_options" if reception else "installment_plan_options",
+        "price_options_route": "intake_price_options" if reception else "vehicle_price_options",
+        "vehicle_rate_data": _vehicle_rate_data(),
+        "accessory_product_data": _accessory_product_data(),
+    }
 
 def _draft_form_initial(data):
     return {
@@ -4972,18 +5025,51 @@ def draft_save(request, reception=False):
                 status=409,
             )
     else:
-        draft = OrderDraft(
-            owner_account=request.user,
-            created_by=request.user.get_username(),
-            editing_session=_session_key(request),
-            editing_by=_editing_name(request.user),
-            editing_at=timezone.now(),
-        )
+        draft = _new_order_draft(request)
 
     try:
-        prepare_intake_uploads(uploads, draft=draft, remove_ids=request.POST.getlist("_remove_intake_attachments"))
+        reception = _store_order_draft(request, draft, reception, uploads, is_new=is_new)
     except ValidationError as exc:
         return JsonResponse({"ok": False, "error": " ".join(exc.messages)}, status=400)
+    photo_urls = {
+        field_name: (
+            reverse(
+                "protected_media",
+                args=["draft", str(draft.pk), field_name],
+            )
+            if getattr(draft, field_name)
+            else ""
+        )
+        for field_name in ("id_front", "id_back")
+    }
+    return JsonResponse(
+        {
+            "ok": True,
+            "id": str(draft.pk),
+            "revision": draft.revision,
+            "updated_at": timezone.localtime(draft.updated_at).strftime("%H:%M"),
+            "edit_url": f"{reverse('order_start' if reception else 'order_create')}?draft={draft.pk}",
+            "photos": photo_urls,
+        }
+    )
+
+
+def _new_order_draft(request):
+    return OrderDraft(
+        owner_account=request.user,
+        created_by=request.user.get_username(),
+        editing_session=_session_key(request),
+        editing_by=_editing_name(request.user),
+        editing_at=timezone.now(),
+    )
+
+
+def _store_order_draft(request, draft, reception, uploads, *, is_new):
+    """把表單送出的內容存進草稿；自動儲存與訂單精靈共用。錯誤以 ValidationError 回報並回復交易。"""
+    from sales.services.order_intake import save_intake_uploads, prepare_intake_uploads
+    from sales.services.order_wizard import SERVER_KEYS
+    prepare_intake_uploads(uploads, draft=draft, remove_ids=request.POST.getlist("_remove_intake_attachments"))
+    preserved = {key: draft.data[key] for key in SERVER_KEYS if key in (draft.data or {})}
     excluded = {
         "csrfmiddlewaretoken",
         "_draft_id",
@@ -4993,6 +5079,10 @@ def draft_save(request, reception=False):
         "_field_versions",
         "_remove_intake_attachments",
         "_reception",
+        "_wizard_step",
+        "_wizard_action",
+        "_wizard_goto",
+        *SERVER_KEYS,
     }
     draft.data = {
         key: values if len(values) > 1 else values[0]
@@ -5026,46 +5116,22 @@ def draft_save(request, reception=False):
             setattr(draft, field_name, "")
         upload = request.FILES.get(field_name)
         if upload:
-            try:
-                _validate_draft_image(upload)
-            except ValidationError as exc:
-                return JsonResponse(
-                    {"ok": False, "error": " ".join(exc.messages)}, status=400
-                )
+            _validate_draft_image(upload)
             current = getattr(draft, field_name)
             if current:
                 current.delete(save=False)
             setattr(draft, field_name, upload)
+    draft.data.update(preserved)
     if not is_new:
         draft.revision += 1
     draft.updated_by = request.user.get_username()
     draft.save()
     try:
         save_intake_uploads(request.user, uploads, draft=draft, remove_ids=request.POST.getlist("_remove_intake_attachments"))
-    except ValidationError as exc:
+    except ValidationError:
         transaction.set_rollback(True)
-        return JsonResponse({"ok": False, "error": " ".join(exc.messages)}, status=400)
-    photo_urls = {
-        field_name: (
-            reverse(
-                "protected_media",
-                args=["draft", str(draft.pk), field_name],
-            )
-            if getattr(draft, field_name)
-            else ""
-        )
-        for field_name in ("id_front", "id_back")
-    }
-    return JsonResponse(
-        {
-            "ok": True,
-            "id": str(draft.pk),
-            "revision": draft.revision,
-            "updated_at": timezone.localtime(draft.updated_at).strftime("%H:%M"),
-            "edit_url": f"{reverse('order_start' if reception else 'order_create')}?draft={draft.pk}",
-            "photos": photo_urls,
-        }
-    )
+        raise
+    return reception
 
 
 @login_required

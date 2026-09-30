@@ -1,4 +1,4 @@
-/* 平板電子簽署頁：簽署時隱藏主選單，避免客人誤觸其他頁面。 */
+/* 行動裝置電子簽署頁：簽署時隱藏主選單，避免客人誤觸其他頁面。 */
 body:has(.signing-page) :is(.app-header, .mobile-nav) { display: none; }
 
 .signing-form { display: grid; gap: var(--stack-gap); }
@@ -25,20 +25,25 @@ body:has(.signing-page) :is(.app-header, .mobile-nav) { display: none; }
 }
 .signing-result { display: grid; gap: var(--space-2); margin: 0 0 var(--stack-gap-sm); padding-left: var(--space-5); }
 
-/* 訂單頁：簽署入口、失效標示與列印聯別選擇。 */
+/* 訂單頁：簽署方式二選一、失效標示與列印聯別選擇。 */
 .archive-status.stale { color: var(--amber-ink); background: var(--amber-soft); }
 .signing-tools { display: grid; gap: var(--stack-gap-sm); }
-.signing-entry {
-  display: flex; align-items: center; justify-content: space-between; gap: var(--space-4);
-  padding: var(--inset-pad);
+.sign-choice { display: grid; gap: var(--space-3); }
+.sign-choice__title { margin: 0; font-weight: 800; }
+.sign-choice__options { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--stack-gap-sm); }
+.sign-choice__option {
+  display: grid; align-content: start; gap: var(--space-2); padding: var(--inset-pad);
   border: 1px solid var(--line); border-radius: var(--radius-lg); background: var(--surface-soft);
 }
-.signing-entry h3, .signing-entry p { margin: 0; }
-.signing-entry p { margin-top: var(--space-1); }
+.sign-choice__option h3, .sign-choice__option > p { margin: 0; }
+.sign-choice__note { margin: 0; font-size: var(--text-xs); }
+.sign-choice__print > summary { width: fit-content; list-style: none; }
+.sign-choice__print > summary::-webkit-details-marker { display: none; }
+.sign-choice__print[open] > summary { margin-bottom: var(--space-3); }
 .print-picker { display: grid; gap: var(--space-3); }
 .print-picker fieldset { display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-5); margin: 0; padding: 0; border: 0; }
 .print-picker legend { margin-bottom: var(--space-2); font-weight: 800; }
 .print-picker label { display: inline-flex; align-items: center; gap: var(--space-2); }
 .print-picker p { margin: 0; font-size: var(--text-xs); }
-@media (max-width: 700px) { .signing-entry { flex-direction: column; align-items: stretch; } }
-.signing-entry > .button { flex: none; white-space: nowrap; }
+.print-dialog .sign-choice { margin-top: var(--space-4); }
+@media (max-width: 700px) { .sign-choice__options { grid-template-columns: 1fr; } }

@@ -1,4 +1,4 @@
-"""店內平板電子簽署：內容指紋、簽名驗證、簽署存檔與選擇列印。
+"""店內行動裝置電子簽署：內容指紋、簽名驗證、簽署存檔與選擇列印。
 
 指紋只涵蓋客戶同意的合約內容，不含收款進度與領牌結果；
 內容改變後原簽署即失效，必須重新簽署（紙本上傳亦同）。
@@ -185,7 +185,7 @@ def sign_documents(order, *, documents, signature_png, signer_name, staff_name, 
             order=order,
             event_type=f"{document}_esigned",
             description=(
-                f"客戶於店內平板電子簽署{DOCUMENTS[document]['label']}。簽署人：{signer_name}；"
+                f"客戶於店內行動裝置電子簽署{DOCUMENTS[document]['label']}。簽署人：{signer_name}；"
                 f"經手：{staff_name}；IP：{client_ip or '未知'}；裝置：{(user_agent or '未知')[:160]}；"
                 f"內容指紋：{fingerprint}；檔案 SHA-256：{hashlib.sha256(pdf).hexdigest()}"
             ),

@@ -1,0 +1,19 @@
+{% load screen_access %}<div class="sign-choice">
+  <p class="sign-choice__title">這次要怎麼簽？</p>
+  <div class="sign-choice__options">
+    {% if_access 'order_sign' order.pk %}<article class="sign-choice__option">
+      <h3>在行動裝置上簽名</h3>
+      <p class="muted">把平板或手機交給客人，確認內容後直接簽名，不用列印。</p>
+      <div class="form-actions"><a class="button primary" href="{% url 'order_sign' order.pk %}">在行動裝置上簽名</a></div>
+    </article>{% endif_access %}
+    {% if_access 'order_documents_print' order.pk %}<article class="sign-choice__option">
+      <h3>印出紙本給客人簽</h3>
+      <p class="muted">勾選要列印的聯別；客人簽完後，拍照或掃描上傳到簽署文件附件。</p>
+      <details class="sign-choice__print"{% if print_open %} open{% endif %}>
+        <summary class="button secondary">選擇要印的聯別</summary>
+        {% include "sales/_order_print_picker.html" %}
+      </details>
+    </article>{% endif_access %}
+  </div>
+  <p class="sign-choice__note muted">訂購單內容修改後，不論哪種方式，原簽署都會失效，需要重新簽署。</p>
+</div>

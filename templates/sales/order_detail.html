@@ -29,13 +29,12 @@
 {% if request.GET.created == "1" %}
 <dialog class="print-dialog" id="print-contract-dialog">
   <h2>訂單已建立</h2>
-  <p>可以直接把平板交給客人電子簽署，不必列印；需要紙本時再勾選要列印的聯別。</p>
+  <p>請選擇這次的簽署方式；之後也可以在「列印與簽署文件」步驟改用另一種方式。</p>
+  {% include "sales/_order_sign_choice.html" %}
   <div class="dialog-actions">
-    <button class="button ghost" type="button" id="print-later">稍後處理</button>
     {% if_access 'order_print_company' order.pk %}<a class="button ghost" href="{% url 'order_print_company' order.pk %}">開單公司{% if not order.print_company_snapshot %} · 待確認{% endif %}</a>{% endif_access %}
-    {% if_access 'order_sign' order.pk %}<a class="button primary" href="{% url 'order_sign' order.pk %}">平板簽署（免列印）</a>{% endif_access %}
+    <button class="button ghost" type="button" id="print-later">稍後處理</button>
   </div>
-  {% include "sales/_order_print_picker.html" with print_button="secondary" %}
 </dialog>
 <script>
   const printDialog = document.getElementById("print-contract-dialog");
@@ -137,11 +136,7 @@
     <span>{% if order.has_signed_contract and order.has_privacy_consent %}2／2 已簽署{% elif order.has_signed_contract or order.has_privacy_consent %}1／2 已簽署{% else %}尚未簽署{% endif %}</span>
   </div>
   <div class="section-body signing-tools">
-  <div class="signing-entry">
-    <div><h3>平板電子簽署</h3><p class="muted">把平板交給客人，確認內容後直接簽名，不必先印出。訂購單內容修改後，原簽署會失效，需要重新簽署。</p></div>
-    {% if_access 'order_sign' order.pk %}<a class="button primary" href="{% url 'order_sign' order.pk %}">開始平板簽署</a>{% endif_access %}
-  </div>
-  {% include "sales/_order_print_picker.html" %}
+  {% include "sales/_order_sign_choice.html" %}
   </div>
   <div class="document-archive-grid">
     <article class="document-archive-card">

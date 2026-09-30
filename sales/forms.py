@@ -1537,7 +1537,7 @@ class LegacyImportRowCorrectionForm(forms.Form):
     )
     reason = forms.CharField(
         label="修正／排除原因",
-        widget=forms.Textarea(attrs={"rows": 2, "placeholder": "例如：Excel 重複列，保留較完整的一筆"}),
+        widget=forms.Textarea(attrs={"class": "form-control", "rows": 2, "placeholder": "例如：Excel 重複列，保留較完整的一筆"}),
         help_text="此內容會連同處理人員與時間保留在稽核紀錄。",
     )
 
@@ -1588,7 +1588,7 @@ class LegacyImportRowCorrectionForm(forms.Form):
                     error_messages={"invalid": "請使用 YYYY/MM，例如 2026/08。"},
                 )
             elif kind == "textarea":
-                field = forms.CharField(label=display_label, required=False, widget=forms.Textarea(attrs={"rows": 2}))
+                field = forms.CharField(label=display_label, required=False, widget=forms.Textarea(attrs={"class": "form-control", "rows": 2}))
             elif kind == "email":
                 field = forms.CharField(
                     label=display_label,

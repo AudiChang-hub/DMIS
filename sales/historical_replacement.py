@@ -31,7 +31,7 @@ class HistoricalReplacementForm(forms.Form):
     refund_on = forms.DateField(label="實際退款日期", required=False, widget=forms.DateInput(attrs={"type": "date"}))
     refund_method = forms.ChoiceField(label="退款方式", required=False, choices=[("", "請選擇")] + list(SalesOrder.PaymentMethod.choices))
     refund_reference = forms.CharField(label="退款憑據／查核依據", max_length=250, required=False)
-    reason = forms.CharField(label="退訂原因與核對說明", max_length=250, widget=forms.Textarea(attrs={"rows": 3}))
+    reason = forms.CharField(label="退訂原因與核對說明", max_length=250, widget=forms.Textarea(attrs={"class": "form-control", "rows": 3}))
 
     def __init__(self, *args, preview, **kwargs):
         super().__init__(*args, **kwargs)

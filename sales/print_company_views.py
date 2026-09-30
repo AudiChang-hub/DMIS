@@ -14,7 +14,7 @@ from sales.services.print_company import FIELDS, company_data, correct_order_com
 
 class CompanyForm(forms.ModelForm):
     expected_revision = forms.IntegerField(widget=forms.HiddenInput, min_value=0)
-    reason = forms.CharField(label="設定／修改原因", max_length=500, widget=forms.Textarea(attrs={"rows": 2}))
+    reason = forms.CharField(label="設定／修改原因", max_length=500, widget=forms.Textarea(attrs={"class": "form-control", "rows": 2}))
 
     class Meta:
         model = PrintCompany
@@ -71,7 +71,7 @@ def company_settings(request, source_pk=None):
 class OrderCompanyForm(forms.Form):
     company = forms.ModelChoiceField(label="本張訂單的開單公司", queryset=PrintCompany.objects.none())
     expected_revision = forms.IntegerField(widget=forms.HiddenInput, min_value=0)
-    reason = forms.CharField(label="確認／更正原因", max_length=500, widget=forms.Textarea(attrs={"rows": 3}))
+    reason = forms.CharField(label="確認／更正原因", max_length=500, widget=forms.Textarea(attrs={"class": "form-control", "rows": 3}))
     acknowledged = forms.BooleanField(label="我已確認銷售方；此變更只影響之後產生的訂購單，不覆寫已簽文件。")
 
     def __init__(self, *args, **kwargs):

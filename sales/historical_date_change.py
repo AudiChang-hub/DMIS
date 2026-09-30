@@ -20,7 +20,7 @@ class HistoricalDateChangeForm(forms.Form):
     same_buyer_confirmed = forms.BooleanField(label="已核對是同一位買家、同一台車的原訂單，不是退訂換人或另一筆交易")
     facts_confirmed = forms.BooleanField(label="已核對所選進度；若選預計領牌，原領牌及交付完成標記確為歷史匯入誤標")
     impact_confirmed = forms.BooleanField(label="已核對上述跨期與收支影響；本次只改日期及確認的進度，不更新其他 Excel 欄位，也不自動重算金額或發放獎勵")
-    reason = forms.CharField(label="改期原因與核對說明", max_length=250, widget=forms.Textarea(attrs={"rows": 3}))
+    reason = forms.CharField(label="改期原因與核對說明", max_length=250, widget=forms.Textarea(attrs={"class": "form-control", "rows": 3}))
 
     def __init__(self, *args, preview, **kwargs):
         super().__init__(*args, **kwargs)

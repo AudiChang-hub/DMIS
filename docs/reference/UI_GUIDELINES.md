@@ -89,6 +89,17 @@
 - 選項多或需要搜尋時，在 select 加 `data-searchable-select` 使用可搜尋選單。
 - 自訂的下拉觸發按鈕（例如報表圖表類型、展開區塊）用 `<span class="ui-chevron">`，不使用 `⌄`、`▾` 等文字箭頭。
 
+## 提示框與確認頁
+
+- 說明、警示、阻擋事項用 `callout`（`callout--warning`／`--danger`／`--info`／`--success`）：
+  `<div class="callout callout--warning"><span class="callout__icon" aria-hidden="true">!</span><div><h3>標題</h3><ul>…</ul><p>…</p></div></div>`；
+  不在面板裡再放一個 `section-block` 當提示框。
+- 需要使用者勾選確認的項目用 `.check-list` 包 `<label class="check-row"><input type="checkbox"><span>說明</span></label>`，整列可點。
+- 不可逆操作的確認頁結構：`section-block.confirm-panel` → `.section-title` → `.section-body.confirm-panel__body`（說明、`confirm-facts` 資料、callout）
+  → `form.confirm-panel__form`（原因欄、check-list、`form-actions.confirm-panel__actions`）。面板與頁首同一左緣，不置中。
+- 多行文字框一律帶 `form-control`：Django 表單在 `attrs` 加 `"class": "form-control"` 或由表單類別統一補上；模板手寫的 `<textarea>` 也要加。
+  欄位（`.field`）內的輸入元件填滿欄位寬度。
+
 ## 確認與送出
 
 - 刪除、作廢、覆寫、正式寫入等不可逆送出，一律在 `<form>` 或送出按鈕加 `data-confirm="…"`；

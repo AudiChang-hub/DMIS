@@ -182,7 +182,7 @@ class CatalogForm(forms.ModelForm):
     class Meta:
         model = VehicleCatalogEntry
         fields = ["image", "description", "published", "position"]
-        widgets = {"description": forms.Textarea(attrs={"rows": 5})}
+        widgets = {"description": forms.Textarea(attrs={"class": "form-control", "rows": 5})}
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)

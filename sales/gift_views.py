@@ -16,14 +16,14 @@ class DistributionForm(forms.ModelForm):
     class Meta:
         model = GiftDistribution
         fields = ["title", "scheduled_on", "note"]
-        widgets = {"scheduled_on": forms.DateInput(attrs={"type": "date"}), "note": forms.Textarea(attrs={"rows": 3})}
+        widgets = {"scheduled_on": forms.DateInput(attrs={"type": "date"}), "note": forms.Textarea(attrs={"class": "form-control", "rows": 3})}
 
 
 class ItemForm(forms.ModelForm):
     class Meta:
         model = GiftDistributionItem
         fields = ["recipient", "gift", "note"]
-        widgets = {"note": forms.Textarea(attrs={"rows": 2})}
+        widgets = {"note": forms.Textarea(attrs={"class": "form-control", "rows": 2})}
 
 
 @login_required

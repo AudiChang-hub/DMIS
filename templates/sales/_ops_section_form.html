@@ -1,0 +1,10 @@
+{% if section_form %}
+<form method="post" action="{% url 'order_operations' order.pk %}" enctype="multipart/form-data" class="operations-form operations-section-form" data-workspace-save="operations">
+<fieldset class="workspace-readonly" {% if not workspace_finance_editable %}disabled{% endif %}>
+  {% csrf_token %}{{ section_form.financial_revision }}<input type="hidden" name="_section" value="{{ section_key }}">
+  {% include fields_template with form=section_form %}
+  <div class="operation-change-reason">{% include "sales/_field.html" with field=section_form.change_reason %}</div>
+  <div class="operations-actions"><button class="button primary" type="submit">{{ submit_label }}</button></div>
+</fieldset>
+</form>
+{% endif %}

@@ -184,15 +184,15 @@ def _subsidy_action(order, subsidy_missing):
 def _document_archive_action(order):
     missing = []
     if not order.has_signed_contract:
-        missing.append("訂購合約")
+        missing.append("訂購合約" + ("（內容已變更，需重簽）" if order.signed_contract_stale else ""))
     if not order.has_privacy_consent:
-        missing.append("個資同意書")
+        missing.append("個資同意書" + ("（內容已變更，需重簽）" if order.privacy_consent_stale else ""))
     if not missing:
         return None
     return NextAction(
         key="documents",
         title="補上簽署文件",
-        description=f"尚未上傳：{'、'.join(missing)}；取得紙本照片後可隨時補上。",
+        description=f"尚未簽署：{'、'.join(missing)}；可用平板電子簽署，或上傳紙本照片。",
         action_label="查看簽署文件",
         url=f"{_tab_url(order, 'documents')}#signed-documents",
         badge="可稍後處理",

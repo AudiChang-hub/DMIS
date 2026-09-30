@@ -1,0 +1,48 @@
+{% extends "base.html" %}{% load static %}
+{% block title %}客戶簽署 · {{ order.number }}{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'css/signing.css' %}?v={{ app_version }}">{% endblock %}
+{% block content %}
+<div class="signing-page">
+{% url 'order_detail' order.pk as order_detail_url %}
+{% include "sales/_page_back.html" with fallback_url=order_detail_url label="返回訂單" %}
+<section class="hero-row compact-hero">
+  <div><p class="eyebrow">{{ order.number }}</p><h1>客戶電子簽署</h1><p class="muted">請客戶確認下方文件內容，勾選同意後在簽名框內簽名。</p></div>
+</section>
+
+{% if errors %}<div class="card signing-errors" role="alert">{% for error in errors %}<p>{{ error }}</p>{% endfor %}</div>{% endif %}
+
+<form method="post" class="signing-form" data-signing-form>
+  {% csrf_token %}
+  {% for doc in documents %}
+  <section class="section-block signing-document">
+    <div class="section-title">
+      <div><h2>{{ doc.label }}</h2>
+        <small>{% if doc.state == "electronic" %}已電子簽署；勾選即重新簽署{% elif doc.state == "paper" %}已上傳紙本；勾選即改為電子簽署{% elif doc.state == "stale" %}訂單內容已變更，原簽署失效，需要重新簽署{% else %}尚未簽署{% endif %}</small>
+      </div>
+      <label class="signing-document__pick"><input type="checkbox" name="documents" value="{{ doc.key }}"{% if doc.checked %} checked{% endif %}> 簽署這份文件</label>
+    </div>
+    <input type="hidden" name="fingerprint_{{ doc.key }}" value="{{ doc.fingerprint }}">
+    <div class="section-body"><img class="signing-document__preview" src="{{ doc.preview }}" alt="{{ doc.label }} 內容預覽"></div>
+  </section>
+  {% endfor %}
+
+  <section class="section-block signing-pad-panel">
+    <div class="section-title"><div><h2>簽名</h2><small>同一個簽名會蓋到上方勾選的每一份文件。</small></div></div>
+    <div class="section-body signing-pad-panel__body">
+    <label class="field signing-signer">簽署人姓名<input class="form-control" type="text" name="signer_name" value="{{ signer_name }}" maxlength="160" required></label>
+    <label class="signing-agree"><input type="checkbox" name="agree" value="1" required> 本人已閱讀上方勾選的文件內容，同意以電子方式簽署，效力與親筆簽名相同。</label>
+    <div class="signing-pad" data-signature-pad>
+      <canvas aria-label="簽名框，請用手指或觸控筆簽名"></canvas>
+      <span class="signing-pad__hint" data-signature-hint>請在此簽名</span>
+    </div>
+    <input type="hidden" name="signature" data-signature-value>
+    <div class="form-actions">
+      <button type="button" class="button ghost" data-signature-clear>清除重簽</button>
+      <button type="submit" class="button primary" data-signature-submit>確認簽署</button>
+    </div>
+    </div>
+  </section>
+</form>
+</div>
+{% endblock %}
+{% block scripts %}<script src="{% static 'js/signature-pad.js' %}?v={{ app_version }}" defer></script>{% endblock %}

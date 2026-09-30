@@ -11,6 +11,7 @@ from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.pdfgen import canvas
 from reportlab.platypus import Paragraph
+from sales.services.pdf_signature import draw_signature_image, draw_signature_note
 from sales.services.site_copy import print_copy
 from sales.services.print_company import validate_header
 
@@ -89,7 +90,7 @@ def roc_date(value):
     return f"中華民國 {value.year - 1911} 年 {value.month:02d} 月 {value.day:02d} 日"
 
 
-def build_privacy_consent_pdf(order):
+def build_privacy_consent_pdf(order, signature=None):
     output = BytesIO()
     c = canvas.Canvas(output, pagesize=A4)
     c.setTitle(f"{order.number} 個人資料使用同意書")
@@ -155,6 +156,12 @@ def build_privacy_consent_pdf(order):
     c.setFont("PrivacyFormal", 11)
     c.drawString(signature_x, signature_y, "車主簽名：")
     c.line(signature_x + 25 * mm, signature_y - .5 * mm, PAGE_W - MARGIN_X, signature_y - .5 * mm)
+    if signature:
+        draw_signature_image(
+            c, signature, signature_x + 26 * mm, signature_y,
+            PAGE_W - MARGIN_X - (signature_x + 27 * mm), 16 * mm,
+        )
+        draw_signature_note(c, signature, "PrivacyFormal", MARGIN_X, 8 * mm)
 
     c.setFont("PrivacyFormal", 13)
     c.drawString(MARGIN_X, 23 * mm, roc_date(order.order_date))

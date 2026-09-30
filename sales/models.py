@@ -2732,6 +2732,11 @@ class ActiveSalesOrderManager(models.Manager):
         return super().get_queryset().filter(deleted_at__isnull=True)
 
 
+class SignatureMethod(models.TextChoices):
+    PAPER = "paper", "紙本上傳"
+    ELECTRONIC = "electronic", "電子簽署"
+
+
 class SalesOrder(TimeStampedModel):
     objects = ActiveSalesOrderManager()
     all_objects = models.Manager()
@@ -3212,6 +3217,18 @@ class SalesOrder(TimeStampedModel):
     privacy_consent_uploaded_at = models.DateTimeField(
         "個資同意書上傳時間", blank=True, null=True
     )
+    signed_contract_method = models.CharField(
+        "合約簽署方式", max_length=20, choices=SignatureMethod.choices, blank=True
+    )
+    signed_contract_fingerprint = models.CharField(
+        "合約簽署時內容指紋", max_length=64, blank=True, editable=False
+    )
+    privacy_consent_method = models.CharField(
+        "個資同意書簽署方式", max_length=20, choices=SignatureMethod.choices, blank=True
+    )
+    privacy_consent_fingerprint = models.CharField(
+        "個資同意書簽署時內容指紋", max_length=64, blank=True, editable=False
+    )
     revision = models.PositiveIntegerField("資料版本", default=1)
     editing_session = models.CharField("編輯工作階段", max_length=40, blank=True)
     editing_by = models.CharField("目前編輯人員", max_length=150, blank=True)
@@ -3240,13 +3257,50 @@ class SalesOrder(TimeStampedModel):
             return "＊" * len(value)
         return f"{value[:2]}{'＊' * (len(value) - 4)}{value[-2:]}"
 
+    def document_fingerprint(self, document):
+        """目前訂單內容的簽署指紋；同一個實例重複讀取時不重算。"""
+        cache = self.__dict__.setdefault("_document_fingerprint_cache", {})
+        if document not in cache:
+            from .services.document_signing import current_fingerprint
+            cache[document] = current_fingerprint(self, document)
+        return cache[document]
+
+    def refresh_from_db(self, *args, **kwargs):
+        self.__dict__.pop("_document_fingerprint_cache", None)
+        return super().refresh_from_db(*args, **kwargs)
+
+    @property
+    def signed_contract_stale(self):
+        # 沒有指紋的舊附件無法比對，沿用原本「已上傳即有效」。
+        return bool(
+            self.signed_contract
+            and self.signed_contract_fingerprint
+            and self.signed_contract_fingerprint != self.document_fingerprint("contract")
+        )
+
+    @property
+    def privacy_consent_stale(self):
+        return bool(
+            self.privacy_consent
+            and self.privacy_consent_fingerprint
+            and self.privacy_consent_fingerprint != self.document_fingerprint("privacy")
+        )
+
     @property
     def has_signed_contract(self):
-        return bool(self.signed_contract)
+        return bool(self.signed_contract) and not self.signed_contract_stale
 
     @property
     def has_privacy_consent(self):
-        return bool(self.privacy_consent)
+        return bool(self.privacy_consent) and not self.privacy_consent_stale
+
+    @property
+    def signed_contract_is_electronic(self):
+        return self.has_signed_contract and self.signed_contract_method == SignatureMethod.ELECTRONIC
+
+    @property
+    def privacy_consent_is_electronic(self):
+        return self.has_privacy_consent and self.privacy_consent_method == SignatureMethod.ELECTRONIC
 
     @property
     def is_editable(self):
@@ -3760,6 +3814,7 @@ class SalesOrder(TimeStampedModel):
 
     @transaction.atomic
     def save(self, *args, **kwargs):
+        self.__dict__.pop("_document_fingerprint_cache", None)
         if self.pk:
             # 與結算共用訂單列鎖，避免歸屬變更和結算同時通過驗證。
             existing = type(self).all_objects.select_for_update().only("deleted_at").filter(pk=self.pk).first()

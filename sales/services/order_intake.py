@@ -71,7 +71,7 @@ CUSTOMER_DOCUMENT_ROUTES = {"contract_print", "privacy_consent_print", "order_do
 ORDER_PK_ROUTES = CUSTOMER_DOCUMENT_ROUTES | {
     "order_detail", "order_edit", "order_operations", "order_edit_presence", "order_receive",
     "order_secret_reveal", "order_commission_attribution_update", "order_discount_request", "order_discount_decide",
-    "contract_upload", "privacy_consent_upload", "allocate_vehicle", "reallocate_vehicle",
+    "contract_upload", "privacy_consent_upload", "order_sign", "order_sign_done", "allocate_vehicle", "reallocate_vehicle",
     "registration_save", "registration_document_upload", "registration_document_delete", "registration_complete",
     "delivery_complete", "delivery_payment_update", "deposit_payment_update", "cancellation_request", "cancellation_withdraw", "refund_complete",
     "payment_reverse", "payment_overpayment_refund", "installment_decision_update", "order_exception_close",

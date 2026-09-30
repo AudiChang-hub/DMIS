@@ -102,6 +102,21 @@
     </details>
   </details>
 
+  <details {% if order_workspace %}data-workspace-section="finance"{% endif %} class="operation-section" open><summary><strong>領牌相關收支</strong><span>系統先帶入，支出與收入皆可個別人工修改</span></summary>
+    <div class="financial-pair-grid">
+      <div class="financial-pair-head">項目</div><div class="financial-pair-head">支出</div><div class="financial-pair-head">收入</div>
+      <div class="financial-pair-label"><strong>領牌稅金</strong><small>監理站規費與相關稅費</small></div>
+      <div class="financial-pair-field">{% include "sales/_field.html" with field=form.registration_tax_expense %}{% if "registration_tax_expense" in manual_financial_fields %}<small class="manual-adjusted-badge">已人工調整</small>{% endif %}</div>
+      <div class="financial-pair-field">{% include "sales/_field.html" with field=form.registration_tax_income %}{% if "registration_tax_income" in manual_financial_fields %}<small class="manual-adjusted-badge">已人工調整</small>{% endif %}</div>
+      <div class="financial-pair-label"><strong>強制險</strong><small>保險公司支出與客戶實收</small></div>
+      <div class="financial-pair-field">{% include "sales/_field.html" with field=form.compulsory_insurance_expense %}{% if "compulsory_insurance_expense" in manual_financial_fields %}<small class="manual-adjusted-badge">已人工調整</small>{% endif %}</div>
+      <div class="financial-pair-field">{% include "sales/_field.html" with field=form.compulsory_insurance_income %}{% if "compulsory_insurance_income" in manual_financial_fields %}<small class="manual-adjusted-badge">已人工調整</small>{% endif %}</div>
+      <div class="financial-pair-label"><strong>選號費</strong><small>沒有選號時為 0 元</small></div>
+      <div class="financial-pair-field">{% include "sales/_field.html" with field=form.plate_selection_expense %}{% if "plate_selection_expense" in manual_financial_fields %}<small class="manual-adjusted-badge">已人工調整</small>{% endif %}</div>
+      <div class="financial-pair-field">{% include "sales/_field.html" with field=form.plate_selection_income %}{% if "plate_selection_income" in manual_financial_fields %}<small class="manual-adjusted-badge">已人工調整</small>{% endif %}</div>
+    </div>
+  </details>
+{% if order_workspace %}<details class="operation-section operation-advanced"><summary><strong>進階：成本、獎勵與傭金</strong><span>影響淨利的內部欄位</span></summary>{% endif %}
   <details {% if order_workspace %}data-workspace-section="finance"{% endif %} class="operation-section"><summary><strong>成本與支出</strong><span>影響單筆淨利</span></summary><div class="operation-grid">
     {% include "sales/_field.html" with field=form.vehicle_cost %}
     <div class="field settlement-cost-source">
@@ -130,20 +145,6 @@
     {% include "sales/_field.html" with field=form.first_sale_bonus_expense %}
     {% include "sales/_field.html" with field=form.volume_bonus_expense %}
   </div></details>
-  <details {% if order_workspace %}data-workspace-section="finance"{% endif %} class="operation-section" open><summary><strong>領牌相關收支</strong><span>系統先帶入，支出與收入皆可個別人工修改</span></summary>
-    <div class="financial-pair-grid">
-      <div class="financial-pair-head">項目</div><div class="financial-pair-head">支出</div><div class="financial-pair-head">收入</div>
-      <div class="financial-pair-label"><strong>領牌稅金</strong><small>監理站規費與相關稅費</small></div>
-      <div class="financial-pair-field">{% include "sales/_field.html" with field=form.registration_tax_expense %}{% if "registration_tax_expense" in manual_financial_fields %}<small class="manual-adjusted-badge">已人工調整</small>{% endif %}</div>
-      <div class="financial-pair-field">{% include "sales/_field.html" with field=form.registration_tax_income %}{% if "registration_tax_income" in manual_financial_fields %}<small class="manual-adjusted-badge">已人工調整</small>{% endif %}</div>
-      <div class="financial-pair-label"><strong>強制險</strong><small>保險公司支出與客戶實收</small></div>
-      <div class="financial-pair-field">{% include "sales/_field.html" with field=form.compulsory_insurance_expense %}{% if "compulsory_insurance_expense" in manual_financial_fields %}<small class="manual-adjusted-badge">已人工調整</small>{% endif %}</div>
-      <div class="financial-pair-field">{% include "sales/_field.html" with field=form.compulsory_insurance_income %}{% if "compulsory_insurance_income" in manual_financial_fields %}<small class="manual-adjusted-badge">已人工調整</small>{% endif %}</div>
-      <div class="financial-pair-label"><strong>選號費</strong><small>沒有選號時為 0 元</small></div>
-      <div class="financial-pair-field">{% include "sales/_field.html" with field=form.plate_selection_expense %}{% if "plate_selection_expense" in manual_financial_fields %}<small class="manual-adjusted-badge">已人工調整</small>{% endif %}</div>
-      <div class="financial-pair-field">{% include "sales/_field.html" with field=form.plate_selection_income %}{% if "plate_selection_income" in manual_financial_fields %}<small class="manual-adjusted-badge">已人工調整</small>{% endif %}</div>
-    </div>
-  </details>
   <details {% if order_workspace %}data-workspace-section="finance"{% endif %} class="operation-section"><summary><strong>收入、獎勵與傭金</strong><span>車款售價會由訂單自動帶入</span></summary><div class="operation-grid">
     {% include "sales/_field.html" with field=form.agency_fee_income %}
     {% include "sales/_field.html" with field=form.installment_fee_income %}
@@ -178,40 +179,8 @@
       {% include "sales/_field.html" with field=form.installment_interest_subsidy %}
     </div>
   </details>
-  <details {% if order_workspace %}data-workspace-section="subsidy"{% endif %} class="operation-section"><summary><strong>補助撥款追蹤</strong><span>各政府單位可分別追蹤；申請金額由補助項目同步</span></summary><div class="operation-grid">
-    {% include "sales/_field.html" with field=form.subsidy_amount %}
-    {% include "sales/_field.html" with field=form.bank_name %}
-    {% include "sales/_field.html" with field=form.remittance_account %}
-    {% include "sales/_field.html" with field=form.subsidy_applied_on %}
-    {% include "sales/_field.html" with field=form.industry_bureau_status %}
-    {% include "sales/_field.html" with field=form.environment_ministry_status %}
-    {% include "sales/_field.html" with field=form.local_government_status %}
-  </div></details>
-  <details {% if order_workspace %}data-workspace-section="subsidy"{% endif %} class="operation-section"><summary><strong>舊車與報廢資料</strong><span>車主姓名、證號與舊車牌沿用補助頁資料</span></summary><div class="operation-grid">
-    {% include "sales/_field.html" with field=form.old_vehicle_engine_number %}
-    {% include "sales/_field.html" with field=form.old_vehicle_brand %}
-    {% include "sales/_field.html" with field=form.old_vehicle_displacement_cc %}
-    {% include "sales/_field.html" with field=form.old_vehicle_manufactured_on %}
-    {% include "sales/_field.html" with field=form.scrapped_on %}
-    {% include "sales/_field.html" with field=form.recycled_on %}
-  </div></details>
-  <details {% if order_workspace %}data-workspace-section="order"{% endif %} class="operation-section"{% if is_electric %} open{% endif %}><summary><strong>車控與電池合約</strong><span>密碼加密保存，查看會留下紀錄</span></summary><div class="operation-grid">
-    {% include "sales/_field.html" with field=form.vehicle_control_account %}
-    {% include "sales/_field.html" with field=form.vehicle_control_password %}
-    <button type="button" class="button ghost small secret-reveal" data-secret="vehicle_control_password">查看已存車控密碼</button>
-    {% include "sales/_field.html" with field=form.battery_plan %}
-    {% include "sales/_field.html" with field=form.battery_activated_on %}
-    {% include "sales/_field.html" with field=form.battery_account %}
-    {% include "sales/_field.html" with field=form.battery_password %}
-    <button type="button" class="button ghost small secret-reveal" data-secret="battery_password">查看已存電池密碼</button>
-  </div></details>
-  <details {% if order_workspace %}data-workspace-section="order"{% endif %} class="operation-section"><summary><strong>贈品與履約</strong><span>記錄交付內容</span></summary><div class="operation-grid">
-    {% include "sales/_field.html" with field=form.helmet %}
-    {% include "sales/_field.html" with field=form.company_gift_or_remittance %}
-    {% include "sales/_field.html" with field=form.platform_gift %}
-    {% include "sales/_field.html" with field=form.other_fulfillment %}
-    {% include "sales/_field.html" with field=form.customer_service_phone %}
-  </div></details>
+{% if order_workspace %}</details>{% endif %}
+{% if order_workspace %}<input type="hidden" name="_section" value="finance">{% else %}{% include "sales/_ops_subsidy_fields.html" %}{% include "sales/_ops_fulfillment_fields.html" %}{% endif %}
   <div class="operation-change-reason">{% include "sales/_field.html" with field=form.change_reason %}</div>
   <div class="operations-actions">{% if_access 'order_detail' order.pk %}<a class="button ghost" href="{% url 'order_detail' order.pk %}">取消</a>{% endif_access %}<button class="button primary" type="submit">{% if order_workspace %}儲存收支與後續資料{% else %}儲存營運資料{% endif %}</button></div>
 {% if order_workspace %}</fieldset>{% endif %}

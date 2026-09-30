@@ -24,10 +24,57 @@
   name.addEventListener('change', () => {
     replace(number, choices(rows, 'model_number', brand.value, name.value, energy?.value), '全部型號');
   });
-  // 選車頁：下拉選單一變更就套用篩選（連動選項已先在上方更新）。
-  if (form.hasAttribute('data-auto-submit')) {
+  // 選車頁：下拉選單一變更就在背景取得結果，只替換結果區，不重新整理整頁、不跳動。
+  const results = document.querySelector('[data-catalog-results]');
+  if (form.hasAttribute('data-auto-submit') && results) {
+    let pending = null;
+    async function load(url, {scrollToResults = false} = {}) {
+      pending?.abort();
+      const controller = new AbortController();
+      pending = controller;
+      results.setAttribute('aria-busy', 'true');
+      results.style.opacity = '0.6';
+      try {
+        const response = await fetch(url, {headers: {'X-Requested-With': 'XMLHttpRequest'}, signal: controller.signal});
+        if (!response.ok) throw new Error(String(response.status));
+        const page = new DOMParser().parseFromString(await response.text(), 'text/html');
+        const next = page.querySelector('[data-catalog-results]');
+        if (!next) throw new Error('missing results');
+        results.innerHTML = next.innerHTML;
+        history.replaceState(null, '', url);
+        if (scrollToResults) results.scrollIntoView({block: 'start', behavior: 'smooth'});
+      } catch (error) {
+        if (error.name === 'AbortError') return;
+        window.location.assign(url);
+      } finally {
+        if (pending === controller) {
+          pending = null;
+          results.removeAttribute('aria-busy');
+          results.style.opacity = '';
+        }
+      }
+    }
+    const filterUrl = () => {
+      const params = new URLSearchParams(new FormData(form));
+      [...params.keys()].forEach(key => { if (!params.get(key)) params.delete(key); });
+      const query = params.toString();
+      return form.action.split('?')[0] + (query ? `?${query}` : '');
+    };
     form.addEventListener('change', event => {
-      if (event.target.matches('select')) form.requestSubmit();
+      if (event.target.matches('select')) load(filterUrl());
+    });
+    form.addEventListener('submit', event => { event.preventDefault(); load(filterUrl()); });
+    form.querySelector('[data-catalog-clear]')?.addEventListener('click', event => {
+      event.preventDefault();
+      if (energy) energy.value = '';
+      brand.value = '';
+      brand.dispatchEvent(new Event('change', {bubbles: true}));
+    });
+    results.addEventListener('click', event => {
+      const link = event.target.closest('.site-pagination a[href]');
+      if (!link) return;
+      event.preventDefault();
+      load(link.href, {scrollToResults: true});
     });
   }
   energy?.addEventListener('change', () => {

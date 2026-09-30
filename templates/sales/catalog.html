@@ -7,7 +7,8 @@
 <form method="get" class="card stacked-form catalog-filter" data-catalog-filters data-auto-submit>
 {% include 'sales/_catalog_filters.html' %}
 <p class="help-text">{% site_text 'catalog.7159e7097df2' %}</p>
-<div class="catalog-manage-actions"><a class="button ghost" href="{% url 'catalog' %}">清除篩選</a><noscript><button class="button primary">套用篩選</button></noscript></div></form>
+<div class="catalog-manage-actions"><a class="button ghost" href="{% url 'catalog' %}" data-catalog-clear>清除篩選</a><noscript><button class="button primary">套用篩選</button></noscript></div></form>
+<div id="catalog-results" data-catalog-results aria-live="polite">
 <p>共 {{ model_count }} 款車型／{{ page_obj.paginator.count }} 個車色選項</p><div class="catalog-grid">
 {% for card in cards %}
 {% ifchanged card.model.brand card.model.name %}<header class="catalog-group-heading"><p class="eyebrow">{{ card.model.brand }}</p><h2>{{ card.model.name }}</h2><p class="muted">{{ card.model.get_energy_type_display }}{% if card.model.displacement_cc %} · {{ card.model.displacement_cc }} CC{% endif %}</p></header>{% endifchanged %}
@@ -22,6 +23,7 @@
 </article>
 {% empty %}<div class="card"><h2>目前沒有符合條件的啟用車色</h2><p>{% site_text 'catalog.ea9ea39f13c5' %}</p></div>{% endfor %}</div>
 {% pagination page_obj aria_label="車色選項分頁" %}
+</div>
 {{ filter_options|json_script:"catalog-filter-options" }}
 {% endblock %}
 {% block scripts %}<script src="{% static 'js/catalog-manage.js' %}?v={{ app_version }}" defer></script>{% endblock %}

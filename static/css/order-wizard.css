@@ -10,6 +10,9 @@ button.wizard-bar__link:hover { border-color: var(--line-strong); }
 .wizard-bar__step.is-current .wizard-bar__link { border-color: var(--action-text); color: var(--action-text); font-weight: 600; }
 .wizard-bar__step.is-current .wizard-bar__number { background: var(--action-bg); color: var(--action-on); }
 .wizard-bar__step.is-locked .wizard-bar__link { color: var(--muted); background: var(--surface-subtle); }
+.wizard-bar__step.is-todo .wizard-bar__link { border-style: dashed; }
+/* 區塊沿用舊表單的段落編號，精靈模式以步驟列為準，隱藏避免編號不一致。 */
+[data-wizard-panel] > summary .step-number { display: none; }
 
 .wizard-errors { display: block; }
 .wizard-errors strong { display: block; }

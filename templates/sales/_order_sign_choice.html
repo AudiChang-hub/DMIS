@@ -1,5 +1,5 @@
 {% load screen_access %}<div class="sign-choice">
-  <p class="sign-choice__title">這次要怎麼簽？</p>
+  <p class="sign-choice__title">{% if order.signed_contract_is_electronic or order.privacy_consent_is_electronic %}簽署與列印{% else %}這次要怎麼簽？{% endif %}</p>
   <div class="sign-choice__options">
     {% if_access 'order_sign' order.pk %}<article class="sign-choice__option">
       <h3>在行動裝置上簽名</h3>
@@ -9,11 +9,19 @@
     {% if_access 'order_documents_print' order.pk %}<article class="sign-choice__option">
       <h3>印出紙本給客人簽</h3>
       <p class="muted">勾選要列印的聯別；客人簽完後，拍照或掃描上傳到簽署文件附件。</p>
-      <details class="sign-choice__print"{% if print_open %} open{% endif %}>
+      <details class="sign-choice__print">
         <summary class="button secondary">選擇要印的聯別</summary>
         {% include "sales/_order_print_picker.html" %}
       </details>
-    </article>{% endif_access %}
+    </article>
+    {% if order.signed_contract_is_electronic or order.privacy_consent_is_electronic %}<article class="sign-choice__option">
+      <h3>列印含簽名的副本</h3>
+      <p class="muted">已在行動裝置簽好的文件，可印出含簽名的副本給客人。</p>
+      <details class="sign-choice__print">
+        <summary class="button secondary">選擇副本聯別</summary>
+        {% include "sales/_order_print_picker.html" with copy_only=True %}
+      </details>
+    </article>{% endif %}{% endif_access %}
   </div>
   <p class="sign-choice__note muted">訂購單內容修改後，不論哪種方式，原簽署都會失效，需要重新簽署。</p>
 </div>

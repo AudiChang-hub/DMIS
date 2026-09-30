@@ -24,6 +24,12 @@
   name.addEventListener('change', () => {
     replace(number, choices(rows, 'model_number', brand.value, name.value, energy?.value), '全部型號');
   });
+  // 選車頁：下拉選單一變更就套用篩選（連動選項已先在上方更新）。
+  if (form.hasAttribute('data-auto-submit')) {
+    form.addEventListener('change', event => {
+      if (event.target.matches('select')) form.requestSubmit();
+    });
+  }
   energy?.addEventListener('change', () => {
     const previousName = name.value, previousNumber = number.value;
     const names = choices(rows, 'name', brand.value, '', energy.value);

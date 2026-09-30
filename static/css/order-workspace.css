@@ -12,7 +12,7 @@
 .workspace-order .operations-actions{position:static;gap:var(--space-3);flex-wrap:wrap}
 .workspace-order .order-work-tabs-shell{display:none}
 .workspace-order [data-workspace-section]{scroll-margin-top:100px}
-.workspace-order .workspace-history{margin: var(--stack-gap) 0 var(--stack-gap);padding:var(--card-pad);border:1px solid var(--border,var(--line));border-radius:var(--radius-lg)}
+.workspace-order .workspace-history{margin: var(--stack-gap) 0 var(--stack-gap);padding:0;border:1px solid var(--border,var(--line));border-radius:var(--radius-lg)}
 .workspace-history>summary{cursor:pointer;font-weight:700}
 .workspace-order .workspace-save-note{color:var(--muted);margin:var(--space-3) 0}
 .workspace-order fieldset.workspace-readonly{border:0;padding:0;margin:0;min-width:0}

@@ -234,6 +234,28 @@ class UiConsistencyTests(SimpleTestCase):
         ]
         self.assertEqual(offenders, [])
 
+    def test_page_actions_live_in_hero(self):
+        """頁面操作按鈕放在頁首 hero-actions，不放在返回列與頁首之間。"""
+        offenders = []
+        for name, text in template_files():
+            start = re.search(r"{%\s*block (?:content|report_content)\s*%}", text)
+            hero = re.search(r'class="[^"]*\bhero-row\b', text)
+            if not start or not hero or hero.start() < start.end():
+                continue
+            between = re.sub(r'{%\s*include\s+"sales/_page_back.html"[^%]*%}|{%\s*site_navigation\s*%}', "", text[start.end():hero.start()])
+            if re.search(r'class="(?:button|form-actions|hero-actions)\b', between):
+                offenders.append(name)
+
+        self.assertEqual(offenders, [])
+
+    def test_alignment_rules_exist(self):
+        app = (CSS_DIR / "app.css").read_text(encoding="utf-8")
+
+        self.assertIn(".section-title { display: flex; min-height: 58px; padding: 0 var(--card-pad);", app)
+        self.assertIn(".section-body { padding: var(--card-pad); }", app)
+        self.assertIn("summary:not(:has(.ui-chevron)))::-webkit-details-marker { display: none; }", app)
+        self.assertIn("#drafts .draft-row { display: grid;", app)
+
     def test_shell_widths_come_from_tokens(self):
         app = (CSS_DIR / "app.css").read_text(encoding="utf-8")
 

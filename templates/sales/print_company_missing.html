@@ -1,4 +1,8 @@
 {% extends "base.html" %}{% load screen_access %}{% block title %}請先確認開單公司{% endblock %}{% block content %}
 <section class="hero-row compact-hero"><div><p class="eyebrow">{{ order.number }}</p><h1>請先確認開單公司</h1><p class="muted">本單的公司資料尚未確認或不完整，暫時不能產生正式訂購單。</p></div></section>
-<section class="account-panel"><p>請聯絡 admin 在本單確認公司全名、地址、電話與統一編號；不會自動套用馭盛。</p>
-<div class="form-actions"><button class="button ghost" type="button" onclick="window.close()">關閉列印視窗</button>{% if_access 'order_print_company' order.pk %}<a class="button primary" href="{% url 'order_print_company' order.pk %}">確認本單開單公司</a>{% endif_access %}</div></section>{% endblock %}
+<section class="section-block confirm-panel">
+  <div class="section-title"><h2>暫時不能列印</h2></div>
+  <div class="section-body confirm-panel__body"><div class="callout callout--warning" role="alert"><span class="callout__icon" aria-hidden="true">!</span><div><p>請聯絡 admin 在本單確認公司全名、地址、電話與統一編號；不會自動套用馭盛。</p></div></div></div>
+  <div class="confirm-panel__form"><div class="form-actions confirm-panel__actions"><button class="button ghost" type="button" data-close-window>關閉列印視窗</button>{% if_access 'order_print_company' order.pk %}<a class="button primary" href="{% url 'order_print_company' order.pk %}">確認本單開單公司</a>{% endif_access %}</div></div>
+</section>{% endblock %}
+{% block scripts %}<script>document.querySelector("[data-close-window]")?.addEventListener("click", () => window.close());</script>{% endblock %}

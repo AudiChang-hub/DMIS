@@ -4,7 +4,7 @@
 {% url 'sales_source_edit' source.pk as edit_url %}
 {% include "sales/_page_back.html" with fallback_url=edit_url label="返回編輯車行" %}
 
-<section class="hero-row compact-hero source-delete-hero">
+<section class="hero-row compact-hero">
   <div>
     <p class="eyebrow">誤建資料處理</p>
     <h1>永久刪除合作車行</h1>
@@ -12,39 +12,38 @@
   </div>
 </section>
 
-<section class="source-delete-card">
-  <header class="source-delete-card__identity">
-    <div><span>車行名稱</span><strong>{{ source.name }}</strong></div>
-    <div><span>來源代碼</span><strong>{{ source.code|default:"尚未設定" }}</strong></div>
-  </header>
+<section class="section-block confirm-panel">
+  <div class="section-title"><h2>刪除前檢查</h2></div>
+  <div class="section-body confirm-panel__body">
+    <dl class="confirm-facts">
+      <div><dt>車行名稱</dt><dd>{{ source.name }}</dd></div>
+      <div><dt>來源代碼</dt><dd>{{ source.code|default:"尚未設定" }}</dd></div>
+    </dl>
+    {% if can_delete %}
+      <div class="callout callout--success"><span class="callout__icon" aria-hidden="true">✓</span><div><h3>檢查完成，可以永久刪除</h3><p>{% site_text 'sales_source_confirm_delete.a37cb3dc30d1' %}</p></div></div>
+    {% else %}
+      <div class="callout callout--danger" role="alert"><span class="callout__icon" aria-hidden="true">!</span><div><h3>目前不能永久刪除</h3><p>{% site_text 'sales_source_confirm_delete.e73e893f22e3' %}</p><ul class="confirm-count-list">{% for blocker in blockers %}<li><span>{{ blocker.label }}</span><strong>{{ blocker.count }} 筆</strong></li>{% endfor %}</ul></div></div>
+    {% endif %}
+  </div>
 
   {% if can_delete %}
-    <div class="source-delete-card__status is-available">
-      <strong>檢查完成，可以永久刪除</strong>
-      <p>{% site_text 'sales_source_confirm_delete.a37cb3dc30d1' %}</p>
-    </div>
-    <form method="post" class="source-delete-confirm-form" data-delete-confirm-form data-source-name="{{ source.name }}">
+    <form method="post" class="confirm-panel__form" data-delete-confirm-form data-source-name="{{ source.name }}">
       {% csrf_token %}
-      <label for="confirm_name">請輸入完整車行名稱「{{ source.name }}」確認</label>
-      <input id="confirm_name" name="confirm_name" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" required data-delete-confirm-input>
-      <div class="form-actions">
+      <div class="field">
+        <label for="confirm_name">請輸入完整車行名稱「{{ source.name }}」確認</label>
+        <input id="confirm_name" class="form-control" name="confirm_name" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" required data-delete-confirm-input>
+      </div>
+      <div class="form-actions confirm-panel__actions">
         <a class="button ghost" href="{{ edit_url }}">取消</a>
         <button class="button danger" type="submit" disabled data-delete-confirm-submit>永久刪除車行</button>
       </div>
     </form>
   {% else %}
-    <div class="source-delete-card__status is-blocked">
-      <strong>目前不能永久刪除</strong>
-      <p>{% site_text 'sales_source_confirm_delete.e73e893f22e3' %}</p>
-    </div>
-    <ul class="source-delete-blockers">
-      {% for blocker in blockers %}
-        <li><span>{{ blocker.label }}</span><strong>{{ blocker.count }} 筆</strong></li>
-      {% endfor %}
-    </ul>
-    <div class="form-actions">
-      <a class="button ghost" href="{% url 'sales_source_list' %}">返回車行列表</a>
-      <a class="button primary" href="{{ edit_url }}">返回編輯車行</a>
+    <div class="confirm-panel__form">
+      <div class="form-actions confirm-panel__actions">
+        <a class="button ghost" href="{% url 'sales_source_list' %}">返回車行列表</a>
+        <a class="button primary" href="{{ edit_url }}">返回編輯車行</a>
+      </div>
     </div>
   {% endif %}
 </section>

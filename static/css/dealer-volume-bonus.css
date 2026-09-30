@@ -84,13 +84,6 @@
 .bonus-rule-footer p { margin: 0; color: var(--muted); font-size: var(--text-sm-plus); }
 .bonus-rule-footer a { display: inline-flex; align-items: center; min-height: 44px; font-weight: 800; flex-shrink: 0; }
 .bonus-empty p { color: var(--muted); }
-.bonus-delete-page { max-width: 960px; margin: 0 auto; display: grid; gap: var(--stack-gap); }
-.bonus-delete-page .hero-row, .bonus-delete-page .form-section { margin: 0; }
-.bonus-delete-notice h2 { font-size: var(--text-md); margin-top: 0; }
-.bonus-delete-notice p, .bonus-delete-notice li { line-height: 1.75; }
-.bonus-delete-notice ul { padding-left: var(--space-5); }
-.bonus-delete-confirm { display: flex; align-items: flex-start; gap: var(--space-3); padding: var(--inset-pad); border: 1px solid var(--line); border-radius: var(--radius-md); background: var(--surface-soft); line-height: 1.6; }
-.bonus-delete-confirm input { width: 20px; height: 20px; min-height: 20px; flex: 0 0 20px; margin: 2px 0 0; accent-color: var(--forest); }
 .bonus-delete-entry { display: flex; flex-wrap: wrap; gap: var(--space-3); align-items: center; }
 .bonus-delete-entry span { font-size: var(--text-sm-plus); color: var(--muted); }
 .bonus-delete-link { color: var(--red); }

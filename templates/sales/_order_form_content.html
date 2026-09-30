@@ -17,6 +17,7 @@
   {% if order_workspace %}<input type="hidden" name="_workspace" value="1">{% endif %}
   {% if order_workspace %}<div hidden><input type="checkbox" id="id_is_trade_in_subsidy" disabled {% if order.is_trade_in_subsidy %}checked{% endif %}><input type="checkbox" id="id_old_owner_same_as_owner" disabled {% if order.old_owner_same_as_owner %}checked{% endif %}></div>{% endif %}
   {% if intake_mode %}<input type="hidden" name="_submission_key" value="{{ submission_key }}">{% endif %}
+  {% if wizard %}<input type="hidden" name="_wizard_step" value="{{ wizard.current }}">{% endif %}
   <input type="hidden" name="_draft_id" id="draft-id" value="{{ draft.pk|default:'' }}">
   <input type="hidden" name="_order_revision" value="{{ editing_order.revision|default:0 }}">
   <input type="hidden" id="editing-order-id" value="{{ editing_order.pk|default:'' }}">
@@ -29,11 +30,11 @@
   {% if intake_mode %}{{ form.catalog_selection }}{% endif %}
   {% if editing_order.is_delivered %}{% include "sales/_field.html" with field=form.confirm_completed_correction %}{% endif %}
   <section class="hero-row compact-hero form-heading">
-    <div><p class="eyebrow">{% if editing_order %}正式訂單{% else %}訂單建檔{% endif %}</p><h1>{% if editing_order %}編輯訂單{% elif draft %}繼續編輯草稿{% else %}建立新訂單{% endif %}</h1><p class="muted">{% if editing_order %}儲存後會保留修改人、時間、原因及變更前後內容。{% else %}先選車款與顏色，再填寫下訂資料；送出後由店內人員接單，再安排配車。{% endif %}</p></div>
-    <div class="hero-actions">
+    <div><p class="eyebrow">{% if wizard %}訂單精靈・第 {{ wizard.number }}／{{ wizard.total }} 步{% elif editing_order %}正式訂單{% else %}訂單建檔{% endif %}</p><h1>{% if wizard %}{{ wizard.label }}{% elif editing_order %}編輯訂單{% elif draft %}繼續編輯草稿{% else %}建立新訂單{% endif %}</h1><p class="muted">{% if wizard %}每一步都會存成草稿；完成這一步才能前往下一步，送出前會再核對整張訂單。{% elif editing_order %}儲存後會保留修改人、時間、原因及變更前後內容。{% else %}先選車款與顏色，再填寫下訂資料；送出後由店內人員接單，再安排配車。{% endif %}</p></div>
+    {% if not wizard %}<div class="hero-actions">
       {% if editing_order %}<a class="button ghost desktop-save" href="{% url 'order_detail' editing_order.pk %}" data-cancel-edit>取消修改</a>{% endif %}
       <button class="button primary desktop-save" type="submit">{% if editing_order %}儲存修改{% else %}建立訂單{% endif %}</button>
-    </div>
+    </div>{% endif %}
   </section>
 
   <div class="draft-status" id="draft-status" aria-live="polite">
@@ -52,6 +53,10 @@
     </div>
   </div>
 
+  {% if wizard %}
+  {% include "sales/_order_wizard_bar.html" %}
+  {% if wizard.errors %}<div class="message error wizard-errors" role="alert"><strong>這一步還有資料需要處理</strong><ul>{% for message in wizard.errors %}<li>{{ message }}</li>{% endfor %}</ul></div>{% endif %}
+  {% else %}
   {% if form.non_field_errors or formset.non_form_errors or fee_formset.non_form_errors %}
     <div class="message error">{{ form.non_field_errors }}{{ formset.non_form_errors }}{{ fee_formset.non_form_errors }}</div>
   {% endif %}
@@ -60,9 +65,10 @@
     <a href="#vehicle" class="active" aria-current="step">1 車款</a><a href="#source">2 來源</a><a href="#owner">3 車主</a>
     <a href="#payment">4 金額</a><a href="#extras">5 需求</a>
   </div>
+  {% endif %}
 
   {% if form.catalog_selection.value %}
-  <section class="card catalog-intake-summary" data-catalog-intake-summary>
+  <section class="card catalog-intake-summary" data-catalog-intake-summary {% if wizard %}data-wizard-panel="vehicle" {% if wizard.current != 'vehicle' %}hidden{% endif %}{% endif %}>
     <h2>已選車款與付款方案</h2>
     {% with chosen=form.catalog_summary %}{% if chosen %}
     <p>{{ chosen.model_label }}／{{ chosen.color_label }}</p>
@@ -74,7 +80,7 @@
     <noscript><p>{% site_text 'order_form.6be3bc009cdf' %}</p></noscript>
   </section>
   {% endif %}
-  <details class="form-section" id="vehicle" {% if order_workspace %}data-workspace-section="order"{% endif %} {% if not form.catalog_summary or form.errors %}open{% endif %}>
+  <details class="form-section" id="vehicle" {% if order_workspace %}data-workspace-section="order"{% endif %} {% if not form.catalog_summary or form.errors or wizard %}open{% endif %} {% if wizard %}data-wizard-panel="vehicle" {% if wizard.current != 'vehicle' %}hidden{% endif %}{% endif %}>
     <summary><span class="step-number">1</span><span><strong>訂購車輛</strong><small>{% site_text 'order_form.82c91b987da4' %}</small></span></summary>
     <p class="muted intake-vehicle-hint">{% site_text 'order_form.9313f14b5c44' %}</p>
     <div class="form-grid">
@@ -86,7 +92,7 @@
     </div>
   </details>
 
-  <details class="form-section" id="source" {% if order_workspace %}data-workspace-section="order"{% endif %} open>
+  <details class="form-section" id="source" {% if order_workspace %}data-workspace-section="order"{% endif %} open {% if wizard %}data-wizard-panel="vehicle" {% if wizard.current != 'vehicle' %}hidden{% endif %}{% endif %}>
     <summary><span class="step-number">2</span><span><strong>訂單來源</strong><small>哪間店、從哪裡接到訂單</small></span></summary>
     <div class="form-grid">
       {% include "sales/_field.html" with field=form.source_type %}
@@ -107,7 +113,7 @@
     {% endif %}
   </details>
 
-  <details class="form-section" id="owner" {% if order_workspace %}data-workspace-section="order"{% endif %} open>
+  <details class="form-section" id="owner" {% if order_workspace %}data-workspace-section="order"{% endif %} open {% if wizard %}data-wizard-panel="owner" {% if wizard.current != 'owner' %}hidden{% endif %}{% endif %}>
     <summary><span class="step-number">3</span><span><strong>車主與證件</strong><small>{% site_text 'order_form.8a0d36a5de3d' %}</small></span></summary>
     {% if order_workspace %}{% include "sales/_intake_attachments.html" with intake_attachments=order.intake_attachments.all %}{% endif %}
     <div class="info-banner" data-conditional="identity-upload">
@@ -172,12 +178,20 @@
       <div data-conditional="foreign">{% include "sales/_field.html" with field=form.owner_nationality %}</div>
       <div data-conditional="foreign">{% include "sales/_field.html" with field=form.residence_expiry %}</div>
       <div class="span-2 verify-box" data-ocr-confirmation-fields>{% include "sales/_field.html" with field=form.id_verified %}</div>
+      {% if wizard %}
+      <input type="hidden" name="_id_check" id="id-check" value="{{ wizard.id_check }}">
+      <input type="hidden" name="_id_check_error" id="id-check-error" value="{{ wizard.id_check_error }}">
+      <div class="span-2 verify-box id-manual-check" id="id-manual-check" {% if wizard.id_check == 'passed' %}hidden{% endif %}>
+        <label><input type="checkbox" name="_id_manual_confirmed" id="id-manual-confirmed" {% if wizard.id_manual_confirmed %}checked{% endif %}> 我已人工核對證件正反面</label>
+        <p class="muted" id="id-manual-reason">{% if wizard.id_check == 'failed' and wizard.id_check_error %}自動辨識未通過：{{ wizard.id_check_error }}{% else %}證件須自動辨識通過；辨識失敗或無法辨識時，請親自核對是車主本人的身分證／居留證正反面後勾選。{% endif %}</p>
+      </div>
+      {% endif %}
     </div>
   </details>
 
 
 
-  <details class="form-section" id="payment" {% if order_workspace %}data-workspace-section="finance"{% endif %} {% if not form.catalog_summary or form.errors %}open{% endif %}>
+  <details class="form-section" id="payment" {% if order_workspace %}data-workspace-section="finance"{% endif %} {% if not form.catalog_summary or form.errors or wizard %}open{% endif %} {% if wizard %}data-wizard-panel="payment" {% if wizard.current != 'payment' %}hidden{% endif %}{% endif %}>
     <summary><span class="step-number">4</span><span><strong>價格與付款</strong><small>售價與分期預帶車型設定，人工調整依 admin 授權開放</small></span></summary>
     <div class="form-grid">
       {% include "sales/_field.html" with field=form.payment_type %}
@@ -272,7 +286,7 @@
     </div>
   </details>
 
-  <details class="form-section" id="extras" {% if order_workspace %}data-workspace-section="order"{% endif %} {% if intake_mode %}open{% endif %}>
+  <details class="form-section" id="extras" {% if order_workspace %}data-workspace-section="order"{% endif %} {% if intake_mode %}open{% endif %} {% if wizard %}data-wizard-panel="extras" {% if wizard.current != 'extras' %}hidden{% endif %}{% endif %}>
     <summary><span class="step-number">5</span><span><strong>其他需求</strong><small>{% site_text 'order_form.7eacf129bc3f' %}</small></span></summary>
     <div class="form-grid">
       {% include "sales/_field.html" with field=form.trade_in_intent %}<p class="muted">{% site_text 'order_form.7825ae5a8413' %}</p>
@@ -334,7 +348,9 @@
     {% include "sales/_field.html" with field=form.change_reason %}
   </div>
   {% endif %}
-  {% if intake_mode and intake_can_receive %}<div class="card intake-accept-card"><label>{{ form.accept_by_me }} 由我接單</label><p>{% site_text 'order_form.3c48542d2741' %}</p></div>{% endif %}
+  {% if wizard %}{% include "sales/_order_wizard_confirm.html" %}{% endif %}
+  {% if intake_mode and intake_can_receive %}<div class="card intake-accept-card" {% if wizard %}data-wizard-panel="confirm" {% if wizard.current != 'confirm' %}hidden{% endif %}{% endif %}><label>{{ form.accept_by_me }} 由我接單</label><p>{% site_text 'order_form.3c48542d2741' %}</p></div>{% endif %}
+  {% if wizard %}{% include "sales/_order_wizard_nav.html" %}{% else %}
   <div class="mobile-submit">
     {% if editing_order %}<a class="button ghost" href="{% url 'order_detail' editing_order.pk %}" data-cancel-edit>取消修改</a>{% endif %}
     {% if not editing_order %}
@@ -348,6 +364,7 @@
     {% endif %}
     <button class="button primary" type="submit">{% if editing_order %}儲存修改{% else %}建立訂單{% endif %}</button>
   </div>
+  {% endif %}
 </form>
 {% if not editing_order %}
 <form

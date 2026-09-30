@@ -1,0 +1,159 @@
+import tempfile
+import uuid
+
+from django.test import TestCase, override_settings
+from django.urls import reverse
+
+from sales.models import OrderDraft, OrderEvent, SalesOrder
+from sales.tests import test_drafts, test_reception_entry
+
+MEDIA = tempfile.mkdtemp()
+
+
+@override_settings(MEDIA_ROOT=MEDIA)
+class OrderWizardTests(TestCase):
+    setUp = test_drafts.OrderDraftTests.setUp
+    image = test_drafts.OrderDraftTests.image
+    complete_data = test_drafts.OrderDraftTests.complete_data
+
+    def post(self, step, action="next", draft=None, files=True, **extra):
+        data = {**self.complete_data(), "_wizard_step": step, "_submission_key": self.key, **extra}
+        if action == "goto":
+            data["_wizard_goto"] = extra.get("_wizard_goto", "vehicle")
+        else:
+            data["_wizard_action"] = action
+        if draft:
+            data.update({"_draft_id": str(draft.pk), "_draft_revision": str(draft.revision)})
+        if files and step == "owner":
+            data.update({"id_front": self.image("front.png"), "id_back": self.image("back.png")})
+        return self.client.post(reverse("order_create"), data)
+
+    def draft(self):
+        return OrderDraft.objects.get()
+
+    def walk_to(self, last, **owner_extra):
+        self.key = getattr(self, "key", str(uuid.uuid4()))
+        draft = None
+        for step in ("vehicle", "extras", "owner", "payment", "confirm"):
+            if step == last:
+                return draft
+            # 每一步都會送出整張表單，證件檢查結果在車主步驟之後持續帶著。
+            extra = owner_extra if step in {"owner", "payment"} else {}
+            response = self.post(step, draft=draft, **extra)
+            self.assertEqual(response.status_code, 302, response.content.decode()[:300])
+            draft = self.draft()
+        return draft
+
+    def setUpKey(self):
+        self.key = str(uuid.uuid4())
+
+    def test_first_step_and_classic_fallback(self):
+        page = self.client.get(reverse("order_create")).content.decode()
+        self.assertIn("訂單精靈・第 1／5 步", page)
+        self.assertIn('data-wizard-panel="vehicle"', page)
+        self.assertIn('data-wizard-panel="owner" hidden', page)
+        self.assertIn('value="next"', page)
+        self.assertNotIn("確認並建立訂單", page)
+        classic = self.client.get(reverse("order_create"), {"classic": "1"}).content.decode()
+        self.assertIn("建立新訂單", classic)
+        self.assertNotIn("wizard-bar", classic)
+
+    def test_next_saves_draft_and_cannot_skip_ahead(self):
+        self.setUpKey()
+        response = self.post("vehicle", vehicle_model="")
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "這一步還有資料需要處理")
+        draft = self.draft()
+        self.assertEqual(draft.data.get("_wizard_done"), None)
+        # 後面步驟的錯誤（例如車主）不在第一步顯示。
+        self.assertNotContains(response, "請對照證件並確認資料正確")
+
+        response = self.post("vehicle", draft=draft)
+        draft.refresh_from_db()
+        self.assertRedirects(response, f"{reverse('order_create')}?draft={draft.pk}&step=extras", fetch_redirect_response=False)
+        self.assertEqual(draft.data["_wizard_done"], ["vehicle"])
+        skipped = self.client.get(reverse("order_create"), {"draft": draft.pk, "step": "payment"})
+        self.assertRedirects(skipped, f"{reverse('order_create')}?draft={draft.pk}&step=extras", fetch_redirect_response=False)
+        # 自動儲存不能清掉伺服器記錄的進度，也不能由前端偽造。
+        self.client.post(reverse("draft_save"), {**self.complete_data(), "_draft_id": str(draft.pk),
+                                                 "_draft_revision": str(draft.revision), "_wizard_done": "payment"})
+        draft.refresh_from_db()
+        self.assertEqual(draft.data["_wizard_done"], ["vehicle"])
+
+    def test_owner_step_requires_passed_identity_check_or_manual_confirmation(self):
+        draft = self.walk_to("owner")
+        response = self.post("owner", draft=draft)
+        self.assertContains(response, "證件尚未完成自動辨識")
+        response = self.post("owner", draft=draft, _id_check="failed", _id_check_error="正面照片看起來是健保卡，請改拍身分證或居留證。")
+        self.assertContains(response, "證件自動辨識未通過：正面照片看起來是健保卡")
+        draft.refresh_from_db()
+        self.assertTrue(draft.id_front)
+        self.assertNotIn("owner", draft.data["_wizard_done"])
+        response = self.post("owner", draft=draft, files=False, _id_check="passed")
+        self.assertEqual(response.status_code, 302)
+        draft.refresh_from_db()
+        self.assertEqual(draft.data["_wizard_done"], ["vehicle", "extras", "owner"])
+
+    def test_confirm_summary_and_submit_records_manual_identity_check(self):
+        draft = self.walk_to("confirm", _id_check="failed", _id_check_error="反面照片看不出是身分證反面", _id_manual_confirmed="on")
+        page = self.client.get(reverse("order_create"), {"draft": draft.pk, "step": "confirm"}).content.decode()
+        self.assertIn("請核對整張訂單", page)
+        self.assertIn("測試車主", page)
+        self.assertIn("自動辨識未通過，已人工核對證件正反面", page)
+        self.assertIn("確認並建立訂單", page)
+
+        response = self.post("confirm", action="submit", draft=draft, _id_check="failed",
+                             _id_check_error="反面照片看不出是身分證反面", _id_manual_confirmed="on")
+        order = SalesOrder.objects.get(owner_name="測試車主")
+        self.assertRedirects(response, f"{reverse('order_detail', args=[order.pk])}?created=1", fetch_redirect_response=False)
+        self.assertFalse(OrderDraft.objects.exists())
+        self.assertTrue(order.id_front and order.id_back)
+        self.assertEqual(order.other_fees.count(), 2)
+        event = OrderEvent.objects.get(order=order, event_type="identity_manual_check")
+        self.assertIn("反面照片看不出是身分證反面", event.description)
+
+    def test_submit_requires_every_step_and_goto_saves_first(self):
+        draft = self.walk_to("extras")
+        response = self.post("extras", action="submit", draft=draft)
+        self.assertRedirects(response, f"{reverse('order_create')}?draft={draft.pk}&step=extras", fetch_redirect_response=False)
+        self.assertFalse(SalesOrder.objects.exists())
+        response = self.post("extras", action="goto", draft=draft, note="改完再回第一步", _wizard_goto="vehicle")
+        self.assertRedirects(response, f"{reverse('order_create')}?draft={draft.pk}&step=vehicle", fetch_redirect_response=False)
+        draft.refresh_from_db()
+        self.assertEqual(draft.data["note"], "改完再回第一步")
+
+
+@override_settings(MEDIA_ROOT=MEDIA)
+class ReceptionWizardTests(TestCase):
+    setUp = test_reception_entry.ReceptionEntryTests.setUp
+    image = test_reception_entry.ReceptionEntryTests.image
+    complete_data = test_reception_entry.ReceptionEntryTests.complete_data
+    grant_intake_only = test_reception_entry.ReceptionEntryTests.grant_intake_only
+
+    def test_reception_walks_every_step_and_submits_without_finance(self):
+        self.grant_intake_only()
+        key = str(uuid.uuid4())
+        draft = None
+        for step in ("vehicle", "extras", "owner", "payment"):
+            data = {**self.complete_data(), "_wizard_step": step, "_wizard_action": "next", "_submission_key": key,
+                    "_id_check": "passed", "deposit_amount": "99999"}
+            if draft:
+                data["_draft_id"] = str(draft.pk)
+            if step == "owner":
+                data.update(id_front=self.image("front.png"), id_back=self.image("back.png"))
+            response = self.client.post(reverse("order_start"), data)
+            draft = OrderDraft.objects.get()
+            self.assertEqual(response.status_code, 302, response.content.decode()[:300])
+            self.assertTrue(response.url.startswith(reverse("order_start")))
+        self.assertTrue(draft.data["_reception"])
+        self.assertNotIn("deposit_amount", draft.data)
+        page = self.client.get(reverse("order_start"), {"draft": draft.pk, "step": "confirm"})
+        self.assertContains(page, "請核對整張訂單")
+        summary = page.content.decode().split("wizard-summary", 1)[1].split("</section>", 1)[0]
+        self.assertNotIn("<dt>訂金", summary)
+        response = self.client.post(reverse("order_start"), {**self.complete_data(), "_wizard_step": "confirm", "_wizard_action": "submit",
+                                                            "_submission_key": key, "_id_check": "passed", "_draft_id": str(draft.pk)})
+        order = SalesOrder.objects.get()
+        self.assertEqual(response.url, reverse("order_submitted", args=[order.pk]))
+        self.assertEqual(order.deposit_amount, 0)
+        self.assertFalse(OrderEvent.objects.filter(order=order, event_type="identity_manual_check").exists())

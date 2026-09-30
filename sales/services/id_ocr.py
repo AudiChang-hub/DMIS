@@ -160,6 +160,51 @@ def detect_resident_certificate_side(text):
     return "unknown"
 
 
+OTHER_DOCUMENTS = (
+    (("全民健康保險", "健保卡", "NATIONALHEALTHINSURANCE"), "健保卡"),
+    (("駕駛執照", "DRIVERLICENSE", "DRIVINGLICENSE"), "駕照"),
+)
+WRONG_TYPE_MARKERS = {
+    # 選本國自然人卻上傳居留證，或反過來；提示改車主類型，而不是要求重拍。
+    "national_id": (("居留證", "RESIDENTCERTIFICATE", "I<TWN"), "這張看起來是居留證，外籍／居留者請將車主類型改為「外籍／居留者」。"),
+    "resident_certificate": (("國民身分證", "國民身份證"), "這張看起來是國民身分證，本國人請將車主類型改為「本國自然人」。"),
+}
+SIDE_LABELS = {"front": "正面", "back": "反面"}
+
+
+def check_document_photos(front_text, back_text, document_type):
+    """正反面照片各自檢查是否為其他證件或另一種證件，回傳第一個問題的說明。"""
+    for side, text in (("front", front_text), ("back", back_text)):
+        normalized = re.sub(r"\s+", "", text.replace("臺", "台")).upper()
+        for markers, label in OTHER_DOCUMENTS:
+            if any(marker in normalized for marker in markers):
+                return f"{SIDE_LABELS[side]}照片看起來是{label}，請改拍身分證或居留證。"
+        markers, message = WRONG_TYPE_MARKERS[document_type]
+        if any(marker in normalized for marker in markers):
+            return message
+    return ""
+
+
+def check_detected_sides(detected_front, detected_back, scores_front, scores_back, label):
+    """兩張照片須分別像正面與反面；放反、重複或看不出證件時回傳說明。"""
+    if detected_front == "back" and detected_back == "front":
+        return f"{label}正反面似乎放反，請交換照片後重新辨識。"
+    if detected_front == detected_back == "front":
+        return f"兩張照片看起來都是{label}正面，請重新拍攝反面。"
+    if detected_front == detected_back == "back":
+        return f"兩張照片看起來都是{label}反面，請重新拍攝正面。"
+    if detected_front == "back":
+        return f"正面欄位放的是{label}反面，請改拍正面。"
+    if detected_back == "front":
+        return f"反面欄位放的是{label}正面，請改拍反面。"
+    # 分數過低代表照片裡幾乎讀不到證件字樣：拿錯證件、非證件照片或太模糊反光。
+    if scores_front["front"] < 2:
+        return f"正面照片看不出是{label}正面，請確認沒有拿錯證件，或在光線充足處重新拍攝。"
+    if scores_back["back"] < 2:
+        return f"反面照片看不出是{label}反面，請確認沒有拿錯證件，或在光線充足處重新拍攝。"
+    return ""
+
+
 def _recognize_side_with_scorer(
     image_bytes, expected_side, scorer, client=None
 ):
@@ -507,14 +552,12 @@ def recognize_resident_certificate(front_bytes, back_bytes):
     client = _vision_client()
     front = recognize_resident_certificate_side(front_bytes, "front", client)
     back = recognize_resident_certificate_side(back_bytes, "back", client)
-    detected_front = detect_resident_certificate_side(front.text)
-    detected_back = detect_resident_certificate_side(back.text)
-    if detected_front == "back" and detected_back == "front":
-        raise IdOcrError("居留證正反面似乎放反，請交換照片後重新辨識。")
-    if detected_front == detected_back == "front":
-        raise IdOcrError("兩張照片看起來都是居留證正面，請重新拍攝反面。")
-    if detected_front == detected_back == "back":
-        raise IdOcrError("兩張照片看起來都是居留證反面，請重新拍攝正面。")
+    problem = check_document_photos(front.text, back.text, "resident_certificate") or check_detected_sides(
+        detect_resident_certificate_side(front.text), detect_resident_certificate_side(back.text),
+        _resident_side_scores(front.text), _resident_side_scores(back.text), "居留證",
+    )
+    if problem:
+        raise IdOcrError(problem)
     fields = extract_resident_certificate_fields(front.text)
     layout_name = _extract_resident_name_from_layout(front)
     if layout_name:
@@ -544,14 +587,12 @@ def recognize_id_card(front_bytes, back_bytes, document_type="national_id"):
     client = _vision_client()
     front = recognize_side(front_bytes, "front", client)
     back = recognize_side(back_bytes, "back", client)
-    detected_front = detect_id_side(front.text)
-    detected_back = detect_id_side(back.text)
-    if detected_front == "back" and detected_back == "front":
-        raise IdOcrError("證件正反面似乎放反，請交換照片後重新辨識。")
-    if detected_front == detected_back == "front":
-        raise IdOcrError("兩張照片看起來都是證件正面，請重新拍攝反面。")
-    if detected_front == detected_back == "back":
-        raise IdOcrError("兩張照片看起來都是證件反面，請重新拍攝正面。")
+    problem = check_document_photos(front.text, back.text, "national_id") or check_detected_sides(
+        detect_id_side(front.text), detect_id_side(back.text),
+        _side_scores(front.text), _side_scores(back.text), "身分證",
+    )
+    if problem:
+        raise IdOcrError(problem)
     fields = extract_fields(front.text, "front")
     fields.update(extract_fields(back.text, "back"))
     region_name = _recognize_name_region(client, front)

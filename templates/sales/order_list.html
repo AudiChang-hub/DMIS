@@ -74,8 +74,8 @@
       <a href="{{ column.remove_url }}" class="sort-remove" aria-label="移除{{ column.label }}排序">移除</a>
     </li>{% endfor %}</ol>
   </div>
-  <div class="table-wrap order-sort-table" tabindex="0" aria-label="訂單列表，可水平捲動">
-    <table><thead><tr>{% for column in sort_columns %}{% if column.key != 'number' %}
+  <div class="inventory-table-wrap order-sort-table" tabindex="0" aria-label="訂單列表，可水平捲動">
+    <table class="inventory-table inventory-table--fit"><thead><tr>{% for column in sort_columns %}{% if column.key != 'number' %}
       <th scope="col" aria-sort="{% if column.key == 'owner_name' and sort_number_column.rank == 1 %}{{ sort_number_column.aria_sort }}{% else %}{{ column.aria_sort }}{% endif %}">
         {% if column.locked %}<span>{{ column.label }}<small>解鎖後可排序</small></span>{% else %}<a href="{{ column.url }}" data-order-sort-key="{{ column.key }}">{{ column.label }}<small>{% if column.rank %}{{ column.direction_label }} · 第 {{ column.rank }} 順位{% else %}點擊排序{% endif %}</small></a>{% endif %}
         {% if column.key == 'owner_name' %}<a class="order-number-sort" href="{{ sort_number_column.url }}" data-order-sort-key="number">訂單編號{% if sort_number_column.rank %} · {{ sort_number_column.direction_label }} · {{ sort_number_column.rank }}{% else %}排序{% endif %}</a>{% endif %}

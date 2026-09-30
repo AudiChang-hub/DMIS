@@ -120,8 +120,16 @@
 - 沒有資料時用 `empty-state`：
   `<div class="empty-state">[<span class="empty-state__icon" aria-hidden="true">＋</span>]<h3>標題</h3><p>說明與下一步</p>[按鈕]</div>`；
   區塊內較小時加 `small`。
-- 主清單：`inventory-table-wrap` 包 `table.inventory-table`；區塊內小表：`table-wrap` 包 `table`。
+- 所有資料表格一律 `inventory-table-wrap` 包 `table.inventory-table`：表頭淡底、13px 粗體，儲存格 14px、
+  上下 12px 內距、列間細線、滑過淡底。欄位少、放在區塊內的小表加 `inventory-table--fit`（不強制 1080px 寬）。
   可水平捲動的表格外層需有 `tabindex="0"` 與 `aria-label`。
+- 每個 `td` 帶 `data-label`：600px 以下自動變成卡片，欄名顯示在值的左側；操作欄加 `inventory-row-action` 橫跨整列。
+  列標題用 `tbody th`（例：月份、車型），手機版會成為卡片標題。
+- 數字欄在 `th` 與 `td` 加 `is-number`：右對齊、等寬數字。
+- 對齊：表格直接放在無內距面板（`section-block`、`inventory-list-panel`）時，首尾欄內距等於卡片內距；
+  放在有內距卡片（報表面板、營運走勢、已刪除訂單、系統管理頁）時，表格延伸到卡片左右邊緣，首尾欄文字仍與標題對齊。不自行覆寫表頭顏色或內距。
+- 例外：列印文件（`contract_print`）、報表閱讀器的 `report-results`（沿用同一組表頭顏色與線條）、
+  價格表分工的拖曳排序表（`price-assignment-table`，表頭與儲存格數值同資料表）。
 
 ## 例外
 

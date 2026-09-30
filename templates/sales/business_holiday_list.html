@@ -208,17 +208,17 @@
     <span><strong>本月日期清單</strong><small>需要逐筆核對時再展開</small></span>
     <span>{{ holidays|length }} 筆</span>
   </summary>
-  <div class="responsive-table-wrap">
-    <table class="data-table">
+  <div class="inventory-table-wrap" tabindex="0" aria-label="本月日期清單，可水平捲動">
+    <table class="inventory-table inventory-table--fit">
       <thead><tr><th>日期</th><th>名稱</th><th>來源</th><th>是否排除</th><th>操作</th></tr></thead>
       <tbody>
         {% for holiday in holidays %}
           <tr>
-            <td>{{ holiday.date|date:"Y/m/d" }}</td>
-            <td>{{ holiday.name }}</td>
-            <td><span class="status-pill{% if holiday.source == 'dgpa' %} success{% endif %}">{{ holiday.get_source_display }}</span></td>
-            <td>{% include "sales/_active_quick_toggle.html" with resource="business-holiday" pk=holiday.pk is_active=holiday.active item_name=holiday.name enabled_label="排除" disabled_label="不排除" %}</td>
-            <td><a class="button ghost small" href="?view=day&amp;day={{ holiday.date|date:'Y-m-d' }}">開啟設定</a></td>
+            <td data-label="日期">{{ holiday.date|date:"Y/m/d" }}</td>
+            <td data-label="名稱">{{ holiday.name }}</td>
+            <td data-label="來源"><span class="status-pill{% if holiday.source == 'dgpa' %} success{% endif %}">{{ holiday.get_source_display }}</span></td>
+            <td data-label="是否排除">{% include "sales/_active_quick_toggle.html" with resource="business-holiday" pk=holiday.pk is_active=holiday.active item_name=holiday.name enabled_label="排除" disabled_label="不排除" %}</td>
+            <td data-label="操作"><a class="button ghost small" href="?view=day&amp;day={{ holiday.date|date:'Y-m-d' }}">開啟設定</a></td>
           </tr>
         {% empty %}
           <tr><td colspan="5">本月沒有額外設定；週六與週日仍會固定排除。</td></tr>

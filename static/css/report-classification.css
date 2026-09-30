@@ -11,11 +11,11 @@
 .classification-workspace input[type=checkbox]{width:22px;height:22px;accent-color:var(--forest)}
 .classification-workspace button{min-height:44px;padding:var(--space-3) var(--space-4);border:1px solid var(--line);border-radius:var(--radius-sm);font:inherit;cursor:pointer}
 .classification-workspace small,.classification-workspace .helptext{font-size:var(--text-sm-plus);color:var(--muted)}
-.classification-table{overflow:auto;max-width:100%;margin:var(--stack-gap-sm) 0}
-.classification-table table{width:100%;border-collapse:collapse;min-width:560px}
-.classification-table th,.classification-table td{padding:var(--space-3);text-align:left;border-bottom:1px solid var(--line);overflow-wrap:anywhere}
-.classification-table th{background:var(--surface-soft)}
-.classification-color{display:inline-block;width:16px;height:16px;border:1px solid var(--line);border-radius:var(--radius-xs);margin-right:var(--space-2)}
+.classification-table{margin-block:var(--stack-gap-sm)}
+
+.classification-table td{overflow-wrap:anywhere}
+
+.classification-color,.inventory-table td .classification-color{display:inline-block;vertical-align:-2px;width:16px;height:16px;border:1px solid var(--line);border-radius:var(--radius-xs);margin-right:var(--space-2)}
 .classification-search input,.classification-search select{flex:1;min-width:170px;max-width:400px}
 .classification-error,.classification-workspace .errorlist{color:var(--red)}
 .classification-publish{display:grid;gap:var(--stack-gap-sm);padding:var(--inset-pad);border:2px solid var(--forest);border-radius:var(--radius-md)}

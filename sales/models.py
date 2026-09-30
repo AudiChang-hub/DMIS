@@ -4899,6 +4899,79 @@ class VehicleCatalogEntry(TimeStampedModel):
     revision = models.PositiveIntegerField(default=0)
 
 
+class OfficialCatalogBrand(models.TextChoices):
+    SYM = "sym", "SYM"
+    SUZUKI = "suzuki", "SUZUKI"
+
+
+class OfficialCatalogCheck(TimeStampedModel):
+    """一次原廠官網檢查；只記錄讀取結果，不寫入車型主檔。"""
+
+    class Status(models.TextChoices):
+        QUEUED = "queued", "等待中"
+        RUNNING = "running", "讀取中"
+        SUCCEEDED = "succeeded", "已完成"
+        FAILED = "failed", "失敗"
+
+    brand = models.CharField("原廠", max_length=12, choices=OfficialCatalogBrand.choices)
+    status = models.CharField("狀態", max_length=12, choices=Status.choices, default=Status.QUEUED)
+    requested_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True)
+    job_id = models.CharField(max_length=80, blank=True)
+    started_at = models.DateTimeField(null=True, blank=True)
+    finished_at = models.DateTimeField(null=True, blank=True)
+    pages_total = models.PositiveIntegerField(default=0)
+    pages_done = models.PositiveIntegerField(default=0)
+    entries_found = models.PositiveIntegerField(default=0)
+    error_count = models.PositiveIntegerField(default=0)
+    errors = models.JSONField(default=list, blank=True)
+
+    class Meta:
+        ordering = ["-created_at", "-id"]
+
+
+class OfficialCatalogModel(TimeStampedModel):
+    """官網上的一款車（含版本）與系統車型的對應；對應須由人確認。"""
+
+    brand = models.CharField("原廠", max_length=12, choices=OfficialCatalogBrand.choices)
+    source_key = models.CharField("官網識別", max_length=160)
+    source_url = models.URLField("官網網址", max_length=500)
+    name = models.CharField("官網名稱", max_length=200)
+    data = models.JSONField("官網內容", default=dict)
+    content_hash = models.CharField(max_length=64)
+    acknowledged_data = models.JSONField("上次確認的官網內容", default=dict, blank=True)
+    acknowledged_hash = models.CharField(max_length=64, blank=True)
+    vehicle_model = models.ForeignKey(
+        VehicleModel, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="official_catalog_links", verbose_name="對應系統車型",
+    )
+    linked_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name="+",
+    )
+    linked_at = models.DateTimeField(null=True, blank=True)
+    ignored_hash = models.CharField("忽略時的官網內容", max_length=64, blank=True)
+    missing = models.BooleanField("官網已下架", default=False)
+    last_seen_at = models.DateTimeField(null=True, blank=True)
+    last_check = models.ForeignKey(OfficialCatalogCheck, on_delete=models.SET_NULL, null=True, blank=True, related_name="+")
+
+    class Meta:
+        ordering = ["brand", "name", "source_key"]
+        constraints = [
+            models.UniqueConstraint(fields=["brand", "source_key"], name="unique_official_catalog_source"),
+            models.UniqueConstraint(
+                fields=["vehicle_model"], condition=models.Q(vehicle_model__isnull=False),
+                name="unique_official_catalog_vehicle_model",
+            ),
+        ]
+
+    @property
+    def is_ignored(self):
+        return bool(self.ignored_hash) and self.ignored_hash == self.content_hash
+
+    @property
+    def has_changes(self):
+        return bool(self.vehicle_model_id) and self.acknowledged_hash != self.content_hash
+
+
 class OrderAccountProfile(TimeStampedModel):
     """所屬通路與外部資料範圍；不以 is_staff 或車行名稱推測角色。"""
     user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="order_account")

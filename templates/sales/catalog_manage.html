@@ -1,7 +1,7 @@
 {% extends "base.html" %}{% load site_copy %}{% load pagination_tags static %}
 {% block title %}選車展示管理{% endblock %}{% block content %}
 {% site_navigation %}
-<section class="hero-row compact-hero"><div><p class="eyebrow">資料維護區</p><h1>選車展示管理</h1><p class="muted">{% site_text 'catalog_manage.504ae0cdacfd' %}</p></div><div class="hero-actions"><a class="button ghost" href="{% url 'catalog' %}">查看公開入口</a></div></section>
+<section class="hero-row compact-hero"><div><p class="eyebrow">資料維護區</p><h1>選車展示管理</h1><p class="muted">{% site_text 'catalog_manage.504ae0cdacfd' %}</p></div><div class="hero-actions"><a class="button ghost" href="{% url 'catalog' %}">查看公開入口</a><a class="button secondary" href="{% url 'official_catalog' %}">原廠車型比對</a></div></section>
 <form method="get" class="card stacked-form" data-catalog-filters>
   {% include 'sales/_catalog_filters.html' %}
   <label for="catalog-query">關鍵字<input class="form-control" id="catalog-query" name="q" value="{{ query }}" placeholder="搜尋品牌、車型或型號"></label>

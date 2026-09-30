@@ -3,24 +3,29 @@
 {% block content %}
 {% site_navigation %}
 <section class="hero-row compact-hero"><div><p class="eyebrow">{{ order.number }}</p><h1>{% if restore %}還原訂單{% elif deletion_admin %}確認刪除訂單{% else %}申請刪除訂單{% endif %}</h1><p class="muted">{{ order.owner_name }} · {{ order.vehicle_model }}／{{ order.color.name }} · {{ order.get_status_display }}</p></div></section>
-<section class="section-block order-recycle-panel">
-  <p>{% if restore %}還原後重新出現在一般訂單與統計中，維持原狀態與金額，不重新計算歷史財務。{% else %}訂單將移至「已刪除訂單」，不再顯示於一般查詢與統計；附件、金額及歷史仍保留，可還原。刪除不等於取消交易或完成退款。{% endif %}</p>
-  {% if restore %}<p>刪除人員：{{ order.deleted_by }} · {{ order.deleted_at|date:'Y/m/d H:i' }}</p><p>刪除原因：{{ order.deletion_reason }}</p>{% endif %}
-  {% if order.deletion_requested_at %}<div class="section-block"><strong class="status-pill status-deletion_pending">刪除確認中</strong><p>申請人：{{ order.deletion_requested_by.get_full_name|default:order.deletion_requested_by.username }} · {{ order.deletion_requested_at|date:'Y/m/d H:i' }}</p><p>申請原因：{{ order.deletion_request_reason }}</p><p>{% site_text 'order_deletion_confirm.3bc70b1b75a9' %}</p></div>{% endif %}
-  {% if not deletion_admin and not restore %}<p>{% site_text 'order_deletion_confirm.bb5486fef45c' %}</p>{% endif %}
-  {% if impacts and deletion_admin %}<div class="section-block" role="note"><h2>本次刪除須確認的關聯</h2><ul>{% for impact in impacts %}<li>{{ impact }}</li>{% endfor %}</ul><p>{% site_text 'order_deletion_confirm.5d225fb87253' %}</p></div>{% endif %}
-  {% if blockers %}<div role="alert"><h2>請先處理以下事項</h2><ul>{% for blocker in blockers %}<li>{{ blocker }}</li>{% endfor %}</ul></div>{% endif %}
-  {{ form.non_field_errors }}
-  {% if deletion_admin or restore or not order.deletion_requested_at %}<form method="post">{% csrf_token %}
+<section class="section-block confirm-panel">
+  <div class="section-title"><h2>{% if restore %}還原後會怎樣{% else %}刪除後會怎樣{% endif %}</h2>{% if order.deletion_requested_at and not restore %}<span class="status-pill status-deletion_pending">刪除確認中</span>{% endif %}</div>
+  <div class="section-body confirm-panel__body">
+    <p class="confirm-panel__lead">{% if restore %}還原後重新出現在一般訂單與統計中，維持原狀態與金額，不重新計算歷史財務。{% else %}訂單將移至「已刪除訂單」，不再顯示於一般查詢與統計；附件、金額及歷史仍保留，可還原。刪除不等於取消交易或完成退款。{% endif %}</p>
+    {% if restore %}<dl class="confirm-facts"><div><dt>刪除人員</dt><dd>{{ order.deleted_by }}</dd></div><div><dt>刪除時間</dt><dd>{{ order.deleted_at|date:'Y/m/d H:i' }}</dd></div><div class="is-wide"><dt>刪除原因</dt><dd>{{ order.deletion_reason }}</dd></div></dl>{% endif %}
+    {% if order.deletion_requested_at %}<div class="callout callout--info"><span class="callout__icon" aria-hidden="true">i</span><div><h3>已有刪除申請</h3><dl class="confirm-facts"><div><dt>申請人</dt><dd>{{ order.deletion_requested_by.get_full_name|default:order.deletion_requested_by.username }}</dd></div><div><dt>申請時間</dt><dd>{{ order.deletion_requested_at|date:'Y/m/d H:i' }}</dd></div><div class="is-wide"><dt>申請原因</dt><dd>{{ order.deletion_request_reason }}</dd></div></dl><p>{% site_text 'order_deletion_confirm.3bc70b1b75a9' %}</p></div></div>{% endif %}
+    {% if not deletion_admin and not restore %}<p class="muted">{% site_text 'order_deletion_confirm.bb5486fef45c' %}</p>{% endif %}
+    {% if impacts and deletion_admin %}<div class="callout callout--warning" role="note"><span class="callout__icon" aria-hidden="true">!</span><div><h3>本次刪除須確認的關聯</h3><ul>{% for impact in impacts %}<li>{{ impact }}</li>{% endfor %}</ul><p>{% site_text 'order_deletion_confirm.5d225fb87253' %}</p></div></div>{% endif %}
+    {% if blockers %}<div class="callout callout--danger" role="alert"><span class="callout__icon" aria-hidden="true">!</span><div><h3>請先處理以下事項</h3><ul>{% for blocker in blockers %}<li>{{ blocker }}</li>{% endfor %}</ul></div></div>{% endif %}
+    {{ form.non_field_errors }}
+  </div>
+  {% if deletion_admin or restore or not order.deletion_requested_at %}<form method="post" class="confirm-panel__form">{% csrf_token %}
     {{ form.expected_updated_at }}{{ form.expected_updated_at.errors }}{{ form.impact_confirmation }}
     {% include 'sales/_field.html' with field=form.reason %}
-    <p><label>{{ form.confirmed }} {{ form.confirmed.label }}</label>{{ form.confirmed.errors }}</p>
-    {% if deletion_admin and not restore %}<p><label>{{ form.force }} {{ form.force.label }}</label></p>{% endif %}
-    <div class="form-actions"><a class="button ghost" href="{% url 'order_list' %}">返回訂單</a>
+    <div class="check-list">
+      <label class="check-row">{{ form.confirmed }}<span>{{ form.confirmed.label }}</span></label>{{ form.confirmed.errors }}
+      {% if deletion_admin and not restore %}<label class="check-row">{{ form.force }}<span>{{ form.force.label }}</span></label>{% endif %}
+    </div>
+    <div class="form-actions confirm-panel__actions"><a class="button ghost" href="{% url 'order_list' %}">返回訂單</a>
       {% if restore %}<button class="button primary" type="submit" name="action" value="delete">確認還原訂單</button>{% elif deletion_admin %}<button class="button danger" type="submit" name="action" value="delete">確認刪除訂單</button>{% elif not order.deletion_requested_at %}<button class="button primary" type="submit" name="action" value="request">送出刪除申請</button>{% endif %}
       {% if deletion_admin and order.deletion_requested_at %}<button class="button ghost" type="submit" name="action" value="reject">駁回申請</button>{% endif %}
     </div>
   </form>{% endif %}
-  {% if can_cancel_deletion %}<form method="post">{% csrf_token %}<input type="hidden" name="action" value="cancel"><input type="hidden" name="reason" value="申請人自行取消"><input type="hidden" name="confirmed" value="on"><input type="hidden" name="expected_updated_at" value="{{ expected_order_version }}"><button class="button ghost" type="submit">取消刪除申請</button></form>{% endif %}
+  {% if can_cancel_deletion %}<form method="post" class="confirm-panel__form">{% csrf_token %}<input type="hidden" name="action" value="cancel"><input type="hidden" name="reason" value="申請人自行取消"><input type="hidden" name="confirmed" value="on"><input type="hidden" name="expected_updated_at" value="{{ expected_order_version }}"><div class="form-actions confirm-panel__actions"><button class="button ghost" type="submit">取消刪除申請</button></div></form>{% endif %}
 </section>
 {% endblock %}

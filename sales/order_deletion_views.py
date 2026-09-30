@@ -15,7 +15,7 @@ from django.core.exceptions import PermissionDenied
 
 
 class DeletionForm(forms.Form):
-    reason = forms.CharField(label="操作原因", max_length=500, widget=forms.Textarea(attrs={"rows": 3}))
+    reason = forms.CharField(label="操作原因", max_length=500, widget=forms.Textarea(attrs={"class": "form-control", "rows": 3}))
     confirmed = forms.BooleanField(label="我已確認訂單與影響，確定執行此操作")
     expected_updated_at = forms.CharField(widget=forms.HiddenInput)
     force = forms.BooleanField(label="我確認作廢此訂單的影響，不移轉到新單；刪除不代表已退款或已退車。", required=False)

@@ -85,7 +85,7 @@
     </div>
     <form class="price-distribution-note" method="post" action="{% url 'price_list_distribution_item_update' item.pk %}" data-distribution-note>
       {% csrf_token %}<label for="distribution-note-{{ item.pk }}">當月備註</label>
-      <textarea id="distribution-note-{{ item.pk }}" name="note" rows="2" placeholder="記錄本月車行狀況">{{ item.note }}</textarea>
+      <textarea class="form-control" id="distribution-note-{{ item.pk }}" name="note" rows="2" placeholder="記錄本月車行狀況">{{ item.note }}</textarea>
       <small data-note-status>{% if item.note %}已儲存備註{% else %}尚無備註{% endif %}</small>
     </form>
   </article>

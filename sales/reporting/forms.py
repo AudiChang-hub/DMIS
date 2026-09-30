@@ -27,7 +27,7 @@ class ScopeForm(forms.Form):
         for key, label in SCOPE_LABELS.items():
             if key in MODEL_TEXT_SCOPES:
                 self.fields["fixed_" + key] = forms.CharField(label=label, required=False, max_length=20200,
-                    widget=forms.Textarea(attrs={"rows": 2}), help_text=("區分大小寫；任何一項完整符合即排除。" if key == "model_exclude"
+                    widget=forms.Textarea(attrs={"class": "form-control", "rows": 2}), help_text=("區分大小寫；任何一項完整符合即排除。" if key == "model_exclude"
                     else "區分大小寫；同欄任一項符合即可，不同欄取交集。"))
                 self.initial["fixed_" + key] = "\n".join(scope.get(key, []))
                 continue
@@ -73,7 +73,7 @@ class ReportForm(ScopeForm):
         return self.cleaned_data["reader_layout"] or "standard"
 
     title = forms.CharField(label="報表名稱", max_length=100)
-    description = forms.CharField(label="報表說明", required=False, max_length=1000, widget=forms.Textarea(attrs={"rows": 2}))
+    description = forms.CharField(label="報表說明", required=False, max_length=1000, widget=forms.Textarea(attrs={"class": "form-control", "rows": 2}))
     audience = forms.ChoiceField(label="發布後可查看的人", choices=[("admin", "只有我（admin）"), ("team", "所有已登入的內部帳號")])
     date_basis = forms.ChoiceField(label="統計日期依據", choices=[("registration_date", "領牌日期"), ("established_on", "訂單成立日期"), ("order_date", "訂單版本日期")])
     include_undated = forms.BooleanField(label="未選期間時包含尚未領牌訂單", required=False,

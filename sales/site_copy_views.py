@@ -11,7 +11,7 @@ from .services.site_copy import catalog
 
 
 class TextForm(forms.Form):
-    text = forms.CharField(label="顯示文字", max_length=10000, widget=forms.Textarea(attrs={"rows": 7}))
+    text = forms.CharField(label="顯示文字", max_length=10000, widget=forms.Textarea(attrs={"class": "form-control", "rows": 7}))
     version = forms.IntegerField(min_value=0, widget=forms.HiddenInput)
 
 

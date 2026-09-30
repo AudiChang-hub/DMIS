@@ -1,0 +1,42 @@
+/* 訂單步驟式工作台：依作業順序排列，完成的步驟收合成摘要。 */
+.order-step-bar { margin-block: var(--stack-gap-sm); }
+.order-step-bar ol { display: flex; flex-wrap: wrap; gap: var(--space-2); margin: 0; padding: 0; list-style: none; }
+.order-step-bar a { display: inline-flex; align-items: center; gap: var(--space-2); min-height: 44px; padding: var(--space-2) var(--space-4); color: var(--ink); text-decoration: none; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-pill); }
+.order-step-bar a:hover { border-color: var(--line-strong); }
+.order-step-bar__number { display: inline-grid; place-items: center; width: 1.6em; height: 1.6em; font-size: var(--text-sm); border-radius: 50%; background: var(--surface-soft); }
+.order-step-bar__item.is-done .order-step-bar__number { background: var(--green-border); color: var(--green-ink); }
+.order-step-bar__item.is-current a { border-color: var(--action-text); color: var(--action-text); }
+.order-step-bar__item.is-current .order-step-bar__number { background: var(--action-bg); color: var(--action-on); }
+.order-step-bar__item.is-locked a { color: var(--muted); }
+
+.order-steps { display: grid; gap: var(--stack-gap-sm); margin-block: var(--stack-gap); }
+.order-step { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); }
+.order-step.is-current { border-color: var(--action-text); }
+.order-step > summary { display: flex; align-items: center; gap: var(--space-4); min-height: 56px; padding: var(--space-4) var(--card-pad); cursor: pointer; list-style: none; }
+.order-step > summary::-webkit-details-marker { display: none; }
+.order-step__marker { display: inline-grid; flex: none; place-items: center; width: 2em; height: 2em; font-weight: 600; border-radius: 50%; background: var(--surface-soft); color: var(--ink); }
+.order-step.is-done .order-step__marker { background: var(--green-border); color: var(--green-ink); }
+.order-step.is-current .order-step__marker { background: var(--action-bg); color: var(--action-on); }
+.order-step.is-locked { background: var(--surface-subtle); }
+.order-step__heading { display: grid; flex: 1; min-width: 0; gap: var(--space-1); }
+.order-step__heading small { color: var(--muted); overflow-wrap: anywhere; }
+.order-step__state { flex: none; padding: var(--space-1) var(--space-3); font-size: var(--text-sm); border-radius: var(--radius-pill); background: var(--surface-soft); color: var(--muted); }
+.order-step__state.is-done { background: var(--green-border); color: var(--green-ink); }
+.order-step__state.is-current { background: var(--action-bg); color: var(--action-on); }
+.order-step__state.is-todo { background: var(--amber-soft); color: var(--amber-ink); }
+.order-step[open] > summary { border-bottom: 1px solid var(--line); }
+.order-step__body { display: grid; gap: var(--stack-gap-sm); padding: var(--card-pad); }
+.order-step__body > .order-tab-panel, .order-step__body > .section-block { margin: 0; }
+/* 步驟本身已是卡片：內層沿用的區塊去掉外框與內距，避免雙層卡片。 */
+.order-step__body > .section-block, .order-step__body > .action-card { padding: 0; background: none; border: 0; box-shadow: none; }
+.order-step__body > .section-block > .section-title .eyebrow { display: none; }
+.delivery-balance { margin: var(--stack-gap-sm) 0 0; padding: var(--inset-pad); border: 1px solid var(--line); border-radius: var(--radius-md); }
+.delivery-balance legend { padding-inline: var(--space-2); font-weight: 600; }
+
+@media (max-width: 600px) {
+  .order-step-bar ol { flex-wrap: nowrap; overflow-x: auto; padding-bottom: var(--space-2); }
+  .order-step-bar a { white-space: nowrap; }
+  .order-step > summary { flex-wrap: wrap; padding: var(--space-4); }
+  .order-step__state { order: 3; }
+  .order-step__body { padding: var(--space-4); }
+}

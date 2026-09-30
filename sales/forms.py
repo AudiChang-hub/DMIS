@@ -2795,8 +2795,33 @@ class OrderOperationsForm(forms.ModelForm):
             "installment_info": forms.Textarea(attrs={"rows": 2}),
         }
 
-    def __init__(self, *args, **kwargs):
+    # 訂單工作台把營運資料拆到各步驟：補助追蹤在補助步驟、車控與贈品在交車步驟，其餘在收支步驟。
+    SUBSIDY_SECTION_FIELDS = {
+        "subsidy_amount", "bank_name", "remittance_account", "subsidy_applied_on", "industry_bureau_status",
+        "environment_ministry_status", "local_government_status", "old_vehicle_engine_number", "old_vehicle_brand",
+        "old_vehicle_displacement_cc", "old_vehicle_manufactured_on", "scrapped_on", "recycled_on",
+    }
+    FULFILLMENT_SECTION_FIELDS = {
+        "vehicle_control_account", "vehicle_control_password", "battery_plan", "battery_activated_on",
+        "battery_account", "battery_password", "helmet", "company_gift_or_remittance", "platform_gift",
+        "other_fulfillment", "customer_service_phone",
+    }
+    SECTION_COMMON_FIELDS = {"financial_revision", "change_reason"}
+
+    def __init__(self, *args, section=None, **kwargs):
         super().__init__(*args, **kwargs)
+        self.section = section
+        if section == "subsidy":
+            keep = self.SUBSIDY_SECTION_FIELDS | self.SECTION_COMMON_FIELDS
+        elif section == "fulfillment":
+            keep = self.FULFILLMENT_SECTION_FIELDS | self.SECTION_COMMON_FIELDS
+        elif section == "finance":
+            keep = set(self.fields) - self.SUBSIDY_SECTION_FIELDS - self.FULFILLMENT_SECTION_FIELDS
+        else:
+            keep = set(self.fields)
+        for name in list(self.fields):
+            if name not in keep:
+                self.fields.pop(name)
         synced_fields = {
             "dealer_name",
             "installment_fee_income",
@@ -2812,8 +2837,9 @@ class OrderOperationsForm(forms.ModelForm):
                 self.fields[name].widget.attrs["autocomplete"] = "off"
                 self.fields[name].widget.attrs["data-no-recent-values"] = ""
         for name in ("vehicle_control_password", "battery_password"):
-            self.fields[name].widget.attrs["autocomplete"] = "new-password"
-        if self.instance.legacy_finance_reconciliation.get("status") not in ("missing", "mismatch", "invalid", "preserved_changes"):
+            if name in self.fields:
+                self.fields[name].widget.attrs["autocomplete"] = "new-password"
+        if "confirm_legacy_finance" in self.fields and self.instance.legacy_finance_reconciliation.get("status") not in ("missing", "mismatch", "invalid", "preserved_changes"):
             self.fields.pop("confirm_legacy_finance")
         if self.instance.legacy_finance_reconciliation:
             synced_fields.discard("vehicle_cost")

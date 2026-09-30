@@ -602,6 +602,7 @@
     <p>{% site_text 'order_detail.5dd8edcdc2f2' %}</p>
   {% endif %}
 </section>
+{% if workspace_finance %}{% include "sales/_ops_section_form.html" with section_form=operations_fulfillment_form section_key="fulfillment" fields_template="sales/_ops_fulfillment_fields.html" submit_label="儲存車控、贈品與履約" %}{% endif %}
 </div></details>{% endwith %}
 {% with step=steps.subsidy %}<details class="order-step is-{{ step.state }}" id="panel-subsidy" data-step-key="subsidy"{% if open_step == "subsidy" %} open{% endif %}>
 <summary class="order-step__summary">{% include "sales/_order_step_summary.html" %}</summary>
@@ -804,6 +805,7 @@
       </div>
     </div>
 </section>
+{% if workspace_finance %}{% include "sales/_ops_section_form.html" with section_form=operations_subsidy_form section_key="subsidy" fields_template="sales/_ops_subsidy_fields.html" submit_label="儲存補助撥款與舊車資料" %}{% endif %}
 </div></details>{% endwith %}
 {% if not editing_order %}
 {% with step=steps.closing %}<details class="order-step is-{{ step.state }}" id="panel-closing" data-step-key="closing"{% if open_step == "closing" %} open{% endif %}>

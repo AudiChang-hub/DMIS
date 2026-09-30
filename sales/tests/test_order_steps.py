@@ -62,6 +62,45 @@ class OrderStepTests(TestCase):
         order.refresh_from_db()
         self.assertEqual(build_order_steps(order)["steps"]["deposit"]["state"], "done")
 
+    def section_payload(self, order, section, **values):
+        from sales.forms import OrderOperationsForm
+        from sales.models import OrderOperationsProfile
+        from sales.tests.test_order_workspace import form_data
+
+        profile = OrderOperationsProfile.objects.get(order=order)
+        data = form_data(OrderOperationsForm(instance=profile, prefix="operations", section=section))
+        data.update({"_section": section, **{f"operations-{k}": v for k, v in values.items()}})
+        return data
+
+    def test_step_sections_save_only_their_own_fields(self):
+        from sales.models import OrderOperationsProfile
+        order, _vehicle = self.make_order()
+        OrderOperationsProfile.objects.filter(order=order).update(vehicle_cost=Decimal("50000"), helmet="舊安全帽")
+        self.client.force_login(self.user)
+        url = reverse("order_operations", args=[order.pk])
+        response = self.client.post(url, self.section_payload(order, "fulfillment", helmet="新安全帽"),
+                                    HTTP_X_ORDER_WORKSPACE="1")
+        self.assertEqual(response.status_code, 200, response.content)
+        profile = OrderOperationsProfile.objects.get(order=order)
+        self.assertEqual(profile.helmet, "新安全帽")
+        self.assertEqual(profile.vehicle_cost, Decimal("50000"))
+        self.assertEqual(profile.manual_financial_fields, [])
+        response = self.client.post(url, self.section_payload(order, "subsidy", bank_name="測試銀行"),
+                                    HTTP_X_ORDER_WORKSPACE="1")
+        self.assertEqual(response.status_code, 200, response.content)
+        profile.refresh_from_db()
+        self.assertEqual((profile.bank_name, profile.helmet), ("測試銀行", "新安全帽"))
+
+    def test_finance_step_groups_internal_fields_under_advanced(self):
+        order, _vehicle = self.make_order()
+        self.client.force_login(self.user)
+        page = self.client.get(reverse("order_detail", args=[order.pk])).content.decode()
+        finance = page.split('id="panel-finance"', 1)[1].split('id="panel-delivery"', 1)[0]
+        self.assertIn("進階：成本、獎勵與傭金", finance)
+        self.assertIn('name="_section" value="finance"', finance)
+        self.assertNotIn("車控與電池合約", finance)
+        self.assertIn("車控與電池合約", page.split('id="panel-delivery"', 1)[1].split('id="panel-subsidy"', 1)[0])
+
     def test_delivery_collects_balance_in_one_submission(self):
         order, vehicle = self.registered_v2()
         self.client.force_login(self.user)

@@ -192,7 +192,7 @@ def _document_archive_action(order):
     return NextAction(
         key="documents",
         title="補上簽署文件",
-        description=f"尚未簽署：{'、'.join(missing)}；可用平板電子簽署，或上傳紙本照片。",
+        description=f"尚未簽署：{'、'.join(missing)}；可在行動裝置上簽名，或印出紙本簽完後上傳。",
         action_label="查看簽署文件",
         url=f"{_tab_url(order, 'documents')}#signed-documents",
         badge="可稍後處理",

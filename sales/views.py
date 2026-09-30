@@ -28,7 +28,7 @@ from django.utils import timezone
 from django.views.decorators.http import require_http_methods
 from django.views.decorators.cache import never_cache
 import django_rq
-from .services import order_workspace
+from .services import official_catalog, order_workspace
 from rq import Retry, Worker
 from rq.registry import StartedJobRegistry
 
@@ -156,6 +156,7 @@ from .models import (
     VehicleModelFamily,
     VehiclePriceVersion,
     VehicleSettlementCostRule,
+    OfficialCatalogModel,
     UserAccountAuditLog,
     UserAppearancePreference,
     UserSecurityProfile,
@@ -8303,7 +8304,7 @@ def _coalesce_vehicle_color_post(post_data, instance):
     )
 
 
-def _vehicle_model_form_view(request, instance=None):
+def _vehicle_model_form_view(request, instance=None, official=None, base_model=None):
     is_editing = instance is not None
     today = timezone.localdate()
     installment_plan_versions = []
@@ -8453,16 +8454,22 @@ def _vehicle_model_form_view(request, instance=None):
     model_post, merged_color_names, preserved_history_color_names = (
         _coalesce_vehicle_color_post(model_post, instance)
     )
-    form = VehicleModelMasterForm(model_post, instance=instance)
+    official_initial, official_colors = (
+        official_catalog.model_prefill(official, base_model) if official else (None, [])
+    )
+    form = VehicleModelMasterForm(model_post, instance=instance, initial=official_initial)
     color_formset = VehicleColorMasterFormSet(
         model_post,
         instance=instance,
         prefix="colors",
+        initial=[{"name": name} for name in official_colors] or None,
     )
     # 新增車型時預設提供一個顏色欄位；編輯時只顯示既有顏色，
     # 需要更多顏色再由使用者按「新增顏色」。
     if is_editing:
         color_formset.extra = 0
+    elif official_colors:
+        color_formset.extra = len(official_colors)
     used_color_ids = set()
     if is_editing:
         used_color_ids = set(
@@ -8497,9 +8504,18 @@ def _vehicle_model_form_view(request, instance=None):
                 vehicle_model = form.save()
                 color_formset.instance = vehicle_model
                 color_formset.save()
+                if official:
+                    _link_official_catalog_model(request, official, vehicle_model, base_model)
         except ValidationError as exc:
             form.add_error("name", exc)
         else:
+            if official:
+                messages.success(
+                    request,
+                    f"已從官網建立「{vehicle_model}」（停用、未上架）並完成對應。可先補上車色圖片，"
+                    "再到機種與售價設定售價、確認後啟用。",
+                )
+                return redirect(f"{reverse('official_catalog')}?brand={official.brand}&tab=images")
             if merged_color_names:
                 merged = "、".join(merged_color_names)
                 preserved = "、".join(preserved_history_color_names)
@@ -8576,6 +8592,8 @@ def _vehicle_model_form_view(request, instance=None):
                 if upcoming_installment_plan
                 else []
             ),
+            "official": official,
+            "base_model": base_model,
             "move_form": move_form,
             "merge_form": merge_form,
             "year_correction_form": year_correction_form,
@@ -8599,9 +8617,54 @@ def _vehicle_model_form_view(request, instance=None):
     )
 
 
+def _link_official_catalog_model(request, official, vehicle_model, base_model):
+    """官網建立的車型一律停用；對應移到新車型，舊年式保留原資料。"""
+    if vehicle_model.active:
+        vehicle_model.active = False
+        vehicle_model.save(update_fields=["active", "updated_at"])
+    link = OfficialCatalogModel.objects.select_for_update().get(pk=official.pk)
+    expected = base_model.pk if base_model else None
+    if link.vehicle_model_id != expected:
+        raise ValidationError("官網車型的對應剛被其他人變更，請回到原廠車型比對重新操作。")
+    link.vehicle_model, link.linked_by, link.linked_at = vehicle_model, request.user, timezone.now()
+    link.acknowledged_data, link.acknowledged_hash, link.ignored_hash = link.data, link.content_hash, ""
+    link.save(update_fields=["vehicle_model", "linked_by", "linked_at", "acknowledged_data",
+                             "acknowledged_hash", "ignored_hash", "updated_at"])
+    UserAccountAuditLog.objects.create(
+        actor=request.user, target=request.user, target_username=request.user.username, action="create",
+        description=f"從原廠官網建立車型：{link.name} → {vehicle_model}",
+        metadata={"official_id": link.pk, "vehicle_model_id": vehicle_model.pk,
+                  "base_model_id": base_model.pk if base_model else None},
+    )
+
+
+def _official_catalog_source(request):
+    """只有 admin 可從官網帶入；新年式必須以目前對應的年式為基礎。"""
+    from sales.access.services import is_root
+
+    raw = request.POST.get("official") or request.GET.get("official") or ""
+    if not raw.isdigit() or not is_root(request.user):
+        return None, None
+    official = OfficialCatalogModel.objects.filter(pk=int(raw)).select_related("vehicle_model__family").first()
+    if not official:
+        return None, None
+    base_raw = request.POST.get("base") or request.GET.get("base") or ""
+    if base_raw:
+        if not official.vehicle_model_id or base_raw != str(official.vehicle_model_id):
+            return None, None
+        return official, official.vehicle_model
+    if official.vehicle_model_id:
+        return None, None
+    return official, None
+
+
 @login_required
 def vehicle_model_create(request):
-    return _vehicle_model_form_view(request)
+    official, base_model = _official_catalog_source(request)
+    if request.method == "POST" and request.POST.get("official") and not official:
+        messages.error(request, "官網車型的對應剛被變更或已不存在，資料尚未儲存，請回到原廠車型比對重新操作。")
+        return redirect("official_catalog")
+    return _vehicle_model_form_view(request, official=official, base_model=base_model)
 
 
 @login_required

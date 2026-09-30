@@ -9,7 +9,10 @@ from django.test import TestCase, SimpleTestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
 
+from django.core.management import call_command
+
 from sales.models import (
+    Notification,
     OfficialCatalogCheck,
     OfficialCatalogModel,
     UserAccountAuditLog,
@@ -22,7 +25,7 @@ from sales.services import official_catalog as service
 # 測試網頁依官網版型自行撰寫，只保留解析會用到的結構。
 SYM_LIST = """
 <h3>125cc~150cc以下</h3>
-<div class="product__thumb"><a class="first__img" href="https://tw.sym-global.com/jetsl125"><img data-src="/storage/jetsl/AM526.webp" alt="類別"></a>
+<div class="box"><div class="new__box"><span class="new-label "> hot </span></div><div class="product__thumb"><a class="first__img" href="https://tw.sym-global.com/jetsl125"><img data-src="/storage/jetsl/AM526.webp" alt="類別"></a>
 <div class="product__content"><h4><a> JET SL </a></h4></div></div>
 <div class="product__thumb"><a class="first__img" href="https://tw.sym-global.com/4mica125"><img data-src="/storage/4mica/AM855.webp" alt="類別"></a>
 <div class="product__content"><h4><a> 4MICA 125 </a></h4></div></div>
@@ -51,7 +54,8 @@ SYM_TWO_VARIANTS = """
 
 SUZUKI_LIST = """
 <li><div><figure><img src="images/product/sui_125/b61_angle_01.jpg"></figure>
-<h5 style="padding-bottom:10px;">SUI 125</h5><a href="product/sui_125/intro.html" class="btn">了解</a></div></li>
+<h5 style="padding-bottom:10px;">SUI 125</h5><a href="product/sui_125/intro.html" class="btn">了解</a></div>
+<div class="product-ribbon"><span>NEW</span></div></li>
 <!-- <li><div><figure><img src="images/product/address-110/a.jpg"></figure>
 <h5>Address 110</h5><a href="product/address-110/intro.html">了解</a></div></li> -->
 <li><div><figure><img src="images/product/gsx-8r/ysf_angle_01.jpg"></figure>
@@ -91,6 +95,7 @@ class OfficialCatalogParserTests(SimpleTestCase):
         self.assertEqual([entry["slug"] for entry in entries], ["jetsl125", "4mica125", "e-woo"])
         self.assertEqual(entries[2]["category"], "電動車")
         self.assertEqual(entries[0]["image_url"], "https://tw.sym-global.com/storage/jetsl/AM526.webp")
+        self.assertEqual([entry["official_label"] for entry in entries], ["HOT", "", ""])
 
     def test_sym_model_splits_variants_and_pairs_colors_with_images(self):
         listing = {"slug": "4mica125", "url": "https://tw.sym-global.com/4mica125", "name": "4MICA 125", "category": "125cc"}
@@ -112,6 +117,7 @@ class OfficialCatalogParserTests(SimpleTestCase):
         entries = service.parse_suzuki_list(SUZUKI_LIST, "https://www.suzukimotor.com.tw/products.html")
         self.assertEqual([(e["slug"], e["name"]) for e in entries], [("sui_125", "SUI 125"), ("gsx-8r", "GSX-8R")])
         self.assertEqual(entries[0]["url"], "https://www.suzukimotor.com.tw/product/sui_125/style_price.html")
+        self.assertEqual([entry["official_label"] for entry in entries], ["NEW", ""])
 
     def test_suzuki_model_skips_commented_colors_and_reads_price(self):
         listing = {"slug": "sui_125", "url": "https://www.suzukimotor.com.tw/product/sui_125/style_price.html", "name": "SUI 125"}
@@ -166,9 +172,10 @@ class OfficialCatalogCheckJobTests(TestCase):
             return value
         return patch.object(service, "fetch_page", side_effect=fake)
 
-    def run_check(self, brand, pages):
+    def run_check(self, brand, pages, fingerprint="etag-1"):
         check = OfficialCatalogCheck.objects.create(brand=brand)
-        with self.pages(pages), patch.object(service, "REQUEST_DELAY", 0):
+        with self.pages(pages), patch.object(service, "REQUEST_DELAY", 0), patch.object(service, "FINGERPRINT_DELAY", 0), \
+                patch.object(service, "fetch_image_fingerprint", return_value=fingerprint):
             service.run_official_catalog_check(check.pk)
         check.refresh_from_db()
         return check
@@ -190,6 +197,58 @@ class OfficialCatalogCheckJobTests(TestCase):
         old.refresh_from_db(), failed_before.refresh_from_db()
         self.assertTrue(old.missing)
         self.assertFalse(failed_before.missing)  # 讀取失敗的頁面不判定下架
+
+    def test_failed_page_only_protects_itself_from_missing(self):
+        retired = OfficialCatalogModel.objects.create(brand="sym", source_key="retired", source_url="https://tw.sym-global.com/retired",
+                                                      name="舊車", data={}, content_hash="x")
+        self.run_check("sym", {
+            "https://tw.sym-global.com/product": SYM_LIST,
+            "https://tw.sym-global.com/jetsl125": service.OfficialCatalogError("官網回應 500。"),
+            "https://tw.sym-global.com/4mica125": SYM_TWO_VARIANTS,
+            "https://tw.sym-global.com/e-woo": SYM_TWO_VARIANTS,
+        })
+        retired.refresh_from_db()
+        self.assertTrue(retired.missing)
+
+    def scheduled_pages(self):
+        return {"https://www.suzukimotor.com.tw/products.html": SUZUKI_LIST,
+                "https://www.suzukimotor.com.tw/product/sui_125/style_price.html": SUZUKI_MODEL,
+                "https://www.suzukimotor.com.tw/product/gsx-8r/style_price.html": SUZUKI_MODEL.replace("sui_125", "gsx-8r")}
+
+    def call_scheduled(self, pages, fingerprint="etag-1"):
+        with self.pages(pages), patch.object(service, "REQUEST_DELAY", 0), patch.object(service, "FINGERPRINT_DELAY", 0), \
+                patch.object(service, "fetch_image_fingerprint", return_value=fingerprint), \
+                self.captureOnCommitCallbacks(execute=True):
+            call_command("check_official_catalog", "--brand", "suzuki", stdout=io.StringIO())
+
+    def test_scheduled_check_notifies_admin_only_for_news_and_changes(self):
+        admin = get_user_model().objects.create_superuser("admin", password="Official-weekly-test-71!")
+        pages = self.scheduled_pages()
+        self.call_scheduled(pages)
+        (notice,) = Notification.objects.filter(recipient=admin, event_key="official_catalog_check")
+        self.assertIn("2 款新出現", notice.title)
+        self.assertIn("SUI 125", notice.body)
+        check = OfficialCatalogCheck.objects.get()
+        self.assertIsNone(check.requested_by)
+        self.call_scheduled(pages)  # 沒有變化不通知
+        self.assertEqual(Notification.objects.filter(event_key="official_catalog_check").count(), 1)
+        link = OfficialCatalogModel.objects.get(source_key="sui_125")
+        link.vehicle_model = VehicleModel.objects.create(brand="SUZUKI", name="SUI 125", energy_type="gas", displacement_cc=124)
+        link.acknowledged_data, link.acknowledged_hash = link.data, link.content_hash
+        link.save()
+        self.call_scheduled(pages, fingerprint="etag-2")  # 同檔名換照片
+        latest = Notification.objects.filter(event_key="official_catalog_check").first()
+        self.assertIn("1 款有變動", latest.title)
+        self.assertIn("有變動：SUI 125", latest.body)
+
+    def test_scheduled_check_skips_running_and_reports_failure(self):
+        OfficialCatalogCheck.objects.create(brand="suzuki", status="running")
+        with patch.object(service, "run_official_catalog_check") as run:
+            call_command("check_official_catalog", "--brand", "suzuki", stdout=io.StringIO())
+        run.assert_not_called()
+        OfficialCatalogCheck.objects.update(status="failed")
+        with self.assertRaises(Exception):
+            self.call_scheduled({"https://www.suzukimotor.com.tw/products.html": "<html>改版</html>"})
 
     def test_list_failure_writes_nothing(self):
         check = self.run_check("suzuki", {"https://www.suzukimotor.com.tw/products.html": "<html>改版</html>"})
@@ -213,6 +272,37 @@ class OfficialCatalogCheckJobTests(TestCase):
         link.refresh_from_db()
         self.assertTrue(link.has_changes)
         self.assertIn("建議售價：163000 → 165000", service.describe_changes(link.acknowledged_data, link.data))
+
+    def test_same_image_url_with_new_file_counts_as_change(self):
+        """長年車款改外觀時官網常沿用同名同網址，只能靠圖片版本標記判斷。"""
+        pages = {"https://www.suzukimotor.com.tw/products.html": SUZUKI_LIST,
+                 "https://www.suzukimotor.com.tw/product/sui_125/style_price.html": SUZUKI_MODEL,
+                 "https://www.suzukimotor.com.tw/product/gsx-8r/style_price.html": SUZUKI_MODEL.replace("sui_125", "gsx-8r")}
+        self.run_check("suzuki", pages)
+        link = OfficialCatalogModel.objects.get(source_key="sui_125")
+        link.vehicle_model = VehicleModel.objects.create(brand="SUZUKI", name="SUI 125", energy_type="gas", displacement_cc=124)
+        link.acknowledged_data, link.acknowledged_hash = link.data, link.content_hash
+        link.save()
+        self.run_check("suzuki", pages, fingerprint="")  # 取不到標記時不下結論
+        link.refresh_from_db()
+        self.assertTrue(link.has_changes)  # 雜湊不同，但差異說明不誤報換圖
+        self.assertFalse(any("圖片更換" in change for change in service.describe_changes(link.acknowledged_data, link.data)))
+        link.acknowledged_data, link.acknowledged_hash = link.data, link.content_hash
+        link.save()
+        self.run_check("suzuki", pages, fingerprint="etag-1")
+        link.refresh_from_db()
+        OfficialCatalogModel.objects.filter(pk=link.pk).update(acknowledged_data=link.data, acknowledged_hash=link.content_hash)
+        self.run_check("suzuki", pages, fingerprint="etag-2")
+        link.refresh_from_db()
+        self.assertTrue(link.has_changes)
+        changes = service.describe_changes(link.acknowledged_data, link.data)
+        self.assertIn("車色圖片更換（可能改款或改外觀）：蘇打藍 (B61)、白 (W17) 26年式", changes)
+        self.assertIn("官網主圖更換", changes)
+
+    def test_spec_change_is_described(self):
+        before = {"specs": {"煞車形式": "鼓煞", "排氣量": "124 C.C."}, "colors": []}
+        after = {"specs": {"煞車形式": "碟煞", "排氣量": "124 C.C.", "油箱容量": "5.5L"}, "colors": []}
+        self.assertEqual(service.describe_changes(before, after), ["規格變更：煞車形式：鼓煞 → 碟煞；油箱容量：— → 5.5L"])
 
 
 @override_settings(MEDIA_ROOT=tempfile.mkdtemp())
@@ -318,3 +408,77 @@ class OfficialCatalogViewTests(TestCase):
             response = self.client.post(reverse("official_catalog_check_start"), {"brand": "suzuki"}, follow=True)
         self.assertEqual(OfficialCatalogCheck.objects.get(brand="suzuki").status, "failed")
         self.assertContains(response, "上次檢查失敗")
+
+
+@override_settings(MEDIA_ROOT=tempfile.mkdtemp())
+class OfficialCatalogCreateModelTests(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        cls.root = get_user_model().objects.create_superuser("admin", password="Official-create-test-61!")
+        cls.old = VehicleModel.objects.create(brand="SUZUKI", name="SUI 125", model_number="UQ125", model_year=2025,
+                                              model_code=VehicleModel.ModelType.FRONT_DISC_REAR_DRUM,
+                                              energy_type="gas", displacement_cc=124)
+        VehicleColor.objects.create(vehicle_model=cls.old, name="蘇打藍")
+        listing = {"slug": "sui_125", "url": "https://www.suzukimotor.com.tw/product/sui_125/style_price.html", "name": "SUI 125"}
+        (entry,) = service.parse_suzuki_model(SUZUKI_MODEL, listing)
+        cls.entry = entry
+
+    def setUp(self):
+        self.client.force_login(self.root)
+        self.link = OfficialCatalogModel.objects.create(brand="suzuki", source_key="sui_125", source_url=self.entry["source_url"],
+                                                        name="SUI 125", data=self.entry, content_hash=service.content_hash(self.entry))
+
+    def payload(self, **overrides):
+        data = {
+            "brand": "SUZUKI", "energy_type": "gas", "name": "SUI 125", "model_number": "UQ125B", "model_year": "2026",
+            "model_code": VehicleModel.ModelType.FRONT_DISC_REAR_DRUM, "displacement_cc": "124", "active": "on",
+            "colors-TOTAL_FORMS": "2", "colors-INITIAL_FORMS": "0", "colors-MIN_NUM_FORMS": "0", "colors-MAX_NUM_FORMS": "1000",
+            "colors-0-name": "蘇打藍", "colors-0-active": "on", "colors-1-name": "白", "colors-1-active": "on",
+            "official": str(self.link.pk),
+        }
+        data.update(overrides)
+        return data
+
+    def test_prefill_from_official_entry(self):
+        response = self.client.get(reverse("vehicle_model_create"), {"official": self.link.pk})
+        form, colors = response.context["form"], response.context["color_formset"]
+        self.assertEqual((form.initial["name"], form.initial["model_year"], form.initial["displacement_cc"], form.initial["active"]),
+                         ("SUI 125", 2026, 124, False))
+        self.assertEqual([f.initial.get("name") for f in colors.forms], ["蘇打藍", "白"])
+        self.assertContains(response, "從官網建立車型")
+
+    def test_new_model_is_inactive_and_linked(self):
+        response = self.client.post(reverse("vehicle_model_create"), self.payload())
+        created = VehicleModel.objects.get(model_number="UQ125B")
+        self.assertRedirects(response, f"{reverse('official_catalog')}?brand=suzuki&tab=images", fetch_redirect_response=False)
+        self.assertFalse(created.active)
+        self.link.refresh_from_db()
+        self.assertEqual((self.link.vehicle_model, self.link.acknowledged_hash), (created, self.link.content_hash))
+        self.assertTrue(UserAccountAuditLog.objects.filter(description__contains="從原廠官網建立車型").exists())
+
+    def test_new_year_keeps_old_year_and_moves_link(self):
+        self.link.vehicle_model = self.old
+        self.link.save()
+        page = self.client.get(reverse("vehicle_model_create"), {"official": self.link.pk, "base": self.old.pk})
+        self.assertEqual(page.context["form"].initial["existing_family"], self.old.family_id)
+        before = VehicleModel.objects.filter(pk=self.old.pk).values().get()
+        self.client.post(reverse("vehicle_model_create"), self.payload(
+            existing_family=str(self.old.family_id), base=str(self.old.pk)))
+        created = VehicleModel.objects.get(model_year=2026)
+        self.assertEqual((created.family_id, created.active), (self.old.family_id, False))
+        self.link.refresh_from_db()
+        self.assertEqual(self.link.vehicle_model, created)
+        self.assertEqual(VehicleModel.objects.filter(pk=self.old.pk).values().get(), before)
+        self.assertEqual(list(self.old.colors.values_list("name", flat=True)), ["蘇打藍"])
+
+    def test_stale_or_unauthorized_official_is_not_used(self):
+        self.link.vehicle_model = self.old
+        self.link.save()
+        response = self.client.post(reverse("vehicle_model_create"), self.payload())
+        self.assertRedirects(response, reverse("official_catalog"), fetch_redirect_response=False)
+        self.assertFalse(VehicleModel.objects.filter(model_number="UQ125B").exists())
+        staff = get_user_model().objects.create_user("clerk", password="Official-create-test-62!", is_staff=True)
+        self.client.force_login(staff)
+        response = self.client.get(reverse("vehicle_model_create"), {"official": self.link.pk})
+        if response.status_code == 200:
+            self.assertIsNone(response.context["official"])

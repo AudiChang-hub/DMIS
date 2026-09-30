@@ -3344,6 +3344,8 @@ class SalesOrder(TimeStampedModel):
     def required_registration_document_types(self):
         required = set(RegistrationDocument.active_fixed_document_types())
         required.discard(RegistrationDocument.DocumentType.PLATE_SELECTION)
+        # 發票照片改為選填：有再上傳，不再是完成領牌的條件。
+        required.discard(RegistrationDocument.DocumentType.INVOICE)
         if self.plate_choice != self.PlateChoice.NONE:
             required.add(RegistrationDocument.DocumentType.PLATE_SELECTION)
         return required
@@ -4456,51 +4458,6 @@ class PaymentRecord(TimeStampedModel):
         ]
         verbose_name = "收款紀錄"
         verbose_name_plural = "收款紀錄"
-
-
-class InvoiceRecord(TimeStampedModel):
-    """發票生命週期：開立、作廢、折讓只能新增，不改寫既有紀錄。"""
-
-    class Kind(models.TextChoices):
-        ISSUE = "issue", "開立"
-        VOID = "void", "作廢"
-        ALLOWANCE = "allowance", "折讓"
-
-    order = models.ForeignKey(SalesOrder, on_delete=models.PROTECT, related_name="invoice_records", verbose_name="訂單")
-    kind = models.CharField("類型", max_length=20, choices=Kind.choices)
-    invoice_number = models.CharField("發票號碼", max_length=20)
-    related_invoice = models.ForeignKey(
-        "self", on_delete=models.PROTECT, null=True, blank=True, related_name="adjustments", verbose_name="原發票",
-    )
-    invoice_date = models.DateField("日期")
-    amount = models.DecimalField("金額（含稅）", max_digits=12, decimal_places=0, validators=[MinValueValidator(0)])
-    buyer_tax_id = models.CharField("買受人統一編號", max_length=8, blank=True)
-    reason = models.CharField("原因", max_length=250, blank=True)
-    created_by = models.CharField("登記人員", max_length=150)
-
-    class Meta:
-        ordering = ["invoice_date", "pk"]
-        verbose_name = "發票紀錄"
-        verbose_name_plural = "發票紀錄"
-        constraints = [
-            models.UniqueConstraint(fields=["invoice_number"], condition=Q(kind="issue"), name="invoice_unique_issue_number"),
-            models.UniqueConstraint(fields=["related_invoice"], condition=Q(kind="void"), name="invoice_single_void"),
-            models.CheckConstraint(
-                condition=(Q(kind="issue") & Q(related_invoice__isnull=True)) | (~Q(kind="issue") & Q(related_invoice__isnull=False)),
-                name="invoice_related_matches_kind",
-            ),
-        ]
-
-    def save(self, *args, **kwargs):
-        if self.pk and type(self).objects.filter(pk=self.pk).exists():
-            raise ValidationError("發票紀錄不可修改；更正請作廢或折讓。")
-        return super().save(*args, **kwargs)
-
-    def delete(self, *args, **kwargs):
-        raise ValidationError("發票紀錄不可刪除；更正請作廢或折讓。")
-
-    def __str__(self):
-        return f"{self.get_kind_display()} {self.invoice_number}"
 
 
 class Notification(TimeStampedModel):

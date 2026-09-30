@@ -81,8 +81,6 @@ from .forms import (
     OverpaymentRefundForm,
     InstallmentDecisionForm,
     ExceptionCloseForm,
-    InvoiceIssueForm,
-    InvoiceAdjustForm,
     QuickInventoryEntryFormSet,
     ReallocationForm,
     RegistrationDocumentUploadForm,
@@ -6817,54 +6815,6 @@ def payment_overpayment_refund(request, pk):
         messages.error(request, "退款未完成：" + " ".join(exc.messages))
         return _finance_redirect(request, order)
     messages.success(request, f"已登記退還溢收 ${data['amount']:,.0f}。")
-    return _finance_redirect(request, order)
-
-
-@login_required
-@transaction.atomic
-def invoice_issue(request, pk):
-    from .services.invoices import issue_invoice
-
-    order = get_object_or_404(SalesOrder.objects.select_for_update(), pk=pk)
-    if request.method != "POST":
-        return _finance_redirect(request, order)
-    form = InvoiceIssueForm(request.POST)
-    if not form.is_valid():
-        messages.error(request, "發票未登記：" + _form_error_text(form))
-        return _finance_redirect(request, order)
-    try:
-        record = issue_invoice(order_id=order.pk, actor_name=_editing_name(request.user), **form.cleaned_data)
-    except ValidationError as exc:
-        messages.error(request, "發票未登記：" + " ".join(exc.messages))
-        return _finance_redirect(request, order)
-    messages.success(request, f"已登記開立發票 {record.invoice_number}。")
-    return _finance_redirect(request, order)
-
-
-@login_required
-@transaction.atomic
-def invoice_adjust(request, pk):
-    from .services.invoices import allowance_invoice, void_invoice
-
-    order = get_object_or_404(SalesOrder.objects.select_for_update(), pk=pk)
-    if request.method != "POST":
-        return _finance_redirect(request, order)
-    form = InvoiceAdjustForm(order, request.POST)
-    if not form.is_valid():
-        messages.error(request, "發票未更正：" + _form_error_text(form))
-        return _finance_redirect(request, order)
-    data = form.cleaned_data
-    try:
-        if data["action"] == "void":
-            void_invoice(record_id=data["invoice"].pk, actor_name=_editing_name(request.user),
-                         invoice_date=data["invoice_date"], reason=data["reason"])
-        else:
-            allowance_invoice(record_id=data["invoice"].pk, actor_name=_editing_name(request.user),
-                              invoice_date=data["invoice_date"], amount=data["amount"], reason=data["reason"])
-    except ValidationError as exc:
-        messages.error(request, "發票未更正：" + " ".join(exc.messages))
-        return _finance_redirect(request, order)
-    messages.success(request, "發票已" + ("作廢" if data["action"] == "void" else "登記折讓") + "。")
     return _finance_redirect(request, order)
 
 

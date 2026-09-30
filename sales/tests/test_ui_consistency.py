@@ -306,6 +306,24 @@ class UiConsistencyTests(SimpleTestCase):
 
         self.assertEqual(offenders, [])
 
+    def test_data_tables_share_inventory_table(self):
+        """資料表格一律用 inventory-table；列印文件、報表閱讀器與拖曳排序表為例外。"""
+        exempt = {"sales/contract_print.html", "sales/price_list_distribution_assignments.html"}
+        offenders = []
+        for name, text in template_files():
+            if name in exempt:
+                continue
+            for match in re.finditer(r"<table\b[^>]*>", text):
+                tag = match.group(0)
+                if "report-results" in tag or "inventory-table" in tag:
+                    continue
+                offenders.append(f"{name}:{line_of(text, match.start())}")
+        app = (CSS_DIR / "app.css").read_text(encoding="utf-8")
+
+        self.assertEqual(offenders, [])
+        for retired in (".recycle-table", ".command-trend-table", ".data-table", ".responsive-table-wrap"):
+            self.assertNotIn(retired, app)
+
     def test_alignment_rules_exist(self):
         app = (CSS_DIR / "app.css").read_text(encoding="utf-8")
 

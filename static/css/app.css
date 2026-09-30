@@ -595,8 +595,9 @@ input::placeholder, textarea::placeholder { color: var(--muted); opacity: .86; }
 .price-assignment-table th:nth-child(2) { width: 18%; }
 .price-assignment-table th:nth-child(3) { width: 42%; }
 .price-assignment-table th:nth-child(4) { width: 18%; }
-.price-assignment-table th { padding: var(--space-3) var(--space-3); color: var(--muted); font-size: var(--text-sm); text-align: left; background: var(--surface-soft); border-bottom: 1px solid var(--line); }
-.price-assignment-table td { padding: var(--space-3) var(--space-3); vertical-align: middle; border-bottom: 1px solid var(--line-soft); }
+.price-assignment-table th { padding: var(--space-3) var(--space-4); color: var(--field-label); font-size: var(--text-sm); text-align: left; white-space: nowrap; background: var(--surface-soft); border-bottom: 1px solid var(--line); }
+.price-assignment-table td { padding: var(--space-3) var(--space-4); vertical-align: middle; font-size: var(--text-sm-plus); border-bottom: 1px solid var(--line); }
+.price-assignment-table tbody tr:hover { background: var(--surface-subtle); }
 .price-assignment-table tbody tr { transition: opacity .14s ease, background .14s ease, box-shadow .14s ease; }
 .price-assignment-table tbody tr.is-selected { background: var(--blue-soft); box-shadow: inset 4px 0 var(--blue); }
 .price-assignment-table tbody tr.has-unsaved-change:not(.is-selected) { background: var(--amber-soft); box-shadow: inset 4px 0 var(--focus-ring); }
@@ -2654,6 +2655,10 @@ body.screen-locked { overflow: hidden; }
 .inventory-table td { padding: var(--space-3) var(--space-4); border-bottom: 1px solid var(--line); vertical-align: middle; font-size: var(--text-sm-plus); }
 .inventory-table tbody tr:last-child td { border-bottom: 0; }
 .inventory-table tbody tr:hover { background: var(--surface-subtle); }
+/* 區塊內的小表不強制 1080px 寬；列標題（tbody th）是資料不是表頭。 */
+.inventory-table--fit { min-width: 0; }
+.inventory-table tbody th { color: var(--ink); background: transparent; font-size: var(--text-sm-plus); font-weight: 800; white-space: normal; }
+.inventory-table .is-number { text-align: right; font-variant-numeric: tabular-nums; }
 .inventory-table tbody tr.inventory-row--condition-issue {
   background: color-mix(in srgb, var(--red-soft) 58%, var(--surface));
   box-shadow: inset 4px 0 0 var(--red);
@@ -3689,7 +3694,7 @@ body.screen-locked { overflow: hidden; }
 .operations-filters > .inventory-filter-actions { display: flex; }
 .operations-table-shell { min-width: 0; max-width: 100%; padding: 0; overflow: hidden; }
 .operations-table-shell .section-title { padding: var(--space-4) var(--card-pad); }
-.table-scroll, .responsive-table-wrap { width: 100%; min-width: 0; max-width: 100%; overflow-x: auto; }
+.table-scroll { width: 100%; min-width: 0; max-width: 100%; overflow-x: auto; }
 .operations-table td small { display: block; margin-top: var(--space-1); color: var(--muted); }
 .operations-table .number-cell { text-align: right; white-space: nowrap; }
 .analysis-breakdown { min-width: 0; overflow: hidden; }
@@ -4574,6 +4579,11 @@ body.screen-locked { overflow: hidden; }
   .sales-source-table .source-status-cell { align-items: flex-start; }
   .source-active-toggle { min-height: 40px; }
   .inventory-table td[colspan] { display: block; grid-column: 1 / -1; }
+  .inventory-table tbody th { display: block; grid-column: 1 / -1; padding: var(--space-2) 0; border: 0; }
+  .inventory-table tbody th::before { display: none; }
+  .inventory-table .is-number { text-align: left; }
+  .vehicle-model-overview-table > .master-model-table { min-width: 0; }
+  :is(.report-panel, .command-trends, .order-recycle-panel, .site-management .section-block) .inventory-table tr { padding-inline: 0; }
   .inventory-table td[colspan]::before { display: none; }
   .reconciliation-shell { overflow: visible; background: transparent; border: 0; box-shadow: none; }
   .reconciliation-shell > .section-title {
@@ -6217,7 +6227,6 @@ form[aria-busy="true"] { cursor: progress; }
   .registration-fee-subsection .form-grid { padding: var(--space-5) 0 var(--space-3); }
   .detail-grid { gap: var(--stack-gap); }
   .section-title { gap: var(--stack-gap-sm); padding-block: var(--space-5); }
-  .table-wrap th, .table-wrap td { padding-block: var(--space-4); line-height: 1.65; }
   .maintenance-grid { gap: var(--stack-gap); }
   .maintenance-section { margin-block: var(--space-6); }
   .filter-grid { gap: var(--stack-gap); }
@@ -6266,11 +6275,7 @@ form[aria-busy="true"] { cursor: progress; }
   .order-sort-controls a, .order-sort-table th a { color: var(--action-text); text-decoration: underline; text-underline-offset: 4px; }
   .order-sort-table th { white-space: nowrap; }
   .order-sort-table th a { display: block; padding-block: var(--space-2); }
-  .order-sort-table { width: 100%; max-width: 100%; overflow-x: auto; }
-  .order-sort-table table { width: 100%; border-collapse: collapse; }
-  .order-sort-table td, .order-sort-table th { padding-inline: var(--space-4); border-bottom: 1px solid var(--line); text-align: left; }
   .order-sort-table td { min-width: 90px; white-space: nowrap; }
-  .order-sort-table tbody tr:hover { background: var(--surface-tint); }
   .order-sort-table td a { color: var(--action-text); text-decoration: underline; text-underline-offset: 3px; }
   .order-sort-table .order-table-owner { min-width: 145px; max-width: 190px; white-space: normal; }
   .order-owner-link { display: grid; gap: var(--space-2); overflow-wrap: anywhere; }
@@ -6370,8 +6375,6 @@ form[aria-busy="true"] { cursor: progress; }
   .command-trends details { margin-top: var(--stack-gap); }
   .command-trends > p, .command-trends > details, .command-trends > .command-chart-grid { margin-inline: var(--card-pad); }
   .command-trends summary, .command-history > summary { cursor: pointer; padding: var(--space-3) 0; font-weight: 700; }
-  .command-trend-table { width: 100%; border-collapse: collapse; }
-  .command-trend-table td, .command-trend-table th { padding: var(--space-3); border-bottom: 1px solid var(--line); text-align: left; white-space: nowrap; }
   .command-data-quality { padding: var(--card-pad); margin-top: var(--stack-gap); color: var(--ink); background: var(--surface-tint); border-left: 4px solid var(--action-text); }
   .command-history .command-grid { margin-top: var(--stack-gap-sm); }
   @media (max-width: 1000px) { .command-chart-grid { grid-template-columns: 1fr; } }
@@ -6435,7 +6438,6 @@ form[aria-busy="true"] { cursor: progress; }
 }
 .announcement-form textarea { resize: vertical; }
 .order-filter-bar > details summary { margin-bottom: var(--stack-gap-sm); }
-.operations-model-summary { padding: var(--card-pad); }
 .announcement-card h3 { margin: var(--space-3) 0; }
 .announcement-body { white-space: pre-wrap; line-height: 1.8; }
 .announcement-form { display: grid; gap: var(--stack-gap); }
@@ -6633,24 +6635,12 @@ form[aria-busy="true"] { cursor: progress; }
   .order-draft-summary p { margin: var(--space-1) 0 0; }
   .draft-row { display: flex; align-items: center; justify-content: space-between; gap: var(--stack-gap-sm); padding: var(--card-pad); border-bottom: 1px solid var(--line); }
   .draft-row small { display: block; color: var(--muted); margin-top: var(--space-2); }
-  .operations-model-summary table { width: 100%; border-collapse: collapse; }
-  .operations-model-summary th, .operations-model-summary td { text-align: right; font-variant-numeric: tabular-nums; padding: var(--inset-pad); border-bottom: 1px solid var(--line); }
-  .operations-model-summary th:first-child { text-align: left; }
-  .operations-model-summary thead { background: var(--surface-tint); }
-  .operations-model-summary tbody tr:hover { background: var(--surface-tint); }
-  .recycle-table { width: 100%; border-collapse: collapse; }
-  .recycle-table td, .recycle-table th { text-align: left; padding: var(--inset-pad); border-bottom: 1px solid var(--line); overflow-wrap: anywhere; }
-  .recycle-table small { display: block; color: var(--muted); margin-top: var(--space-2); }
   @media (max-width: 760px) {
     .page-shell { width: calc(100% - 24px); padding-inline: 0; }
     .page-context-nav { gap: var(--space-1) var(--stack-gap-sm); }
     .news-row { padding: var(--space-4) var(--space-3); flex-wrap: wrap; gap: var(--space-3); }
     .news-tabs a { padding: var(--space-3); }
     .order-draft-summary, .draft-row { flex-wrap: wrap; }
-    .recycle-table thead { display: none; }
-    .recycle-table tr { display: grid; padding-block: var(--space-3); border-bottom: 1px solid var(--line); }
-    .recycle-table td { border: 0; padding: var(--space-2) var(--space-3); }
-    .recycle-table td::before { content: attr(data-label); display: block; color: var(--muted); font-size: var(--text-sm); }
   }
 }
 /* 公告圖片與補件區沿用主題色，不讓大圖片撐破手機版面。 */
@@ -6784,9 +6774,6 @@ select:not([multiple]):not([size]):not(.searchable-select__native):disabled { --
 /* 已有內距的卡片中，表單格線只保留上方間隔，不再重複左右內距。 */
 :is(.card, .static-section, .payment-ledger) > .form-grid, :is(.card, .static-section, .payment-ledger) > form > .form-grid { padding-inline: 0; padding-bottom: 0; }
 /* 有內距卡片中的資料表：延伸到卡片左右邊緣，首尾欄文字與標題同一條線。 */
-.operations-model-summary > .table-wrap { margin-inline: calc(-1 * var(--card-pad)); }
-.operations-model-summary > .table-wrap :is(th, td):first-child { padding-left: var(--card-pad); }
-.operations-model-summary > .table-wrap :is(th, td):last-child { padding-right: var(--card-pad); }
 /* 完整版本歷程與說明文字管理：內容與卡片內距對齊。 */
 main > .section-block.release-history { padding: 0 var(--card-pad) var(--space-2); }
 .site-management .section-block > .news-row { padding-inline: 0; }
@@ -6794,10 +6781,16 @@ main > .section-block.release-history { padding: 0 var(--card-pad) var(--space-2
 .operations-table-shell .table-scroll :is(th, td):first-child { padding-left: var(--card-pad); }
 .operations-table-shell .table-scroll :is(th, td):last-child { padding-right: var(--card-pad); }
 /* 表格首尾欄：有內距的卡片內歸零對齊標題；無內距面板內等於卡片內距。 */
-:is(.report-panel, .command-trends) table :is(th, td):first-child { padding-left: 0; }
-:is(.report-panel, .command-trends) table :is(th, td):last-child { padding-right: 0; }
-:is(section.section-block > .responsive-table-wrap > .data-table, .import-batch-table) :is(th, td):first-child { padding-left: var(--card-pad); }
-:is(section.section-block > .responsive-table-wrap > .data-table, .import-batch-table) :is(th, td):last-child { padding-right: var(--card-pad); }
+/* 資料表：無內距面板內首尾欄等於卡片內距；有內距卡片內延伸到卡片邊緣，首尾欄文字仍與標題同一條線。 */
+@media (min-width: 601px) {
+  :is(.section-block, .inventory-list-panel) > .inventory-table-wrap > .inventory-table :is(th, td):first-child,
+  :is(.report-panel, .command-trends, .order-recycle-panel, .site-management .section-block) .inventory-table :is(th, td):first-child, .import-batch-table :is(th, td):first-child { padding-left: var(--card-pad); }
+  :is(.section-block, .inventory-list-panel) > .inventory-table-wrap > .inventory-table :is(th, td):last-child,
+  :is(.report-panel, .command-trends, .order-recycle-panel, .site-management .section-block) .inventory-table :is(th, td):last-child, .import-batch-table :is(th, td):last-child { padding-right: var(--card-pad); }
+  :is(.report-panel, .command-trends, .order-recycle-panel, .site-management .section-block) .inventory-table-wrap { width: auto; max-width: none; margin-inline: calc(-1 * var(--card-pad)); }
+}
+:is(.report-panel, .command-trends) table:not(.inventory-table) :is(th, td):first-child { padding-left: 0; }
+:is(.report-panel, .command-trends) table:not(.inventory-table) :is(th, td):last-child { padding-right: 0; }
 /* 訂單清單卡片：標題列、排序說明、表頭與首尾欄同一條左右緣。 */
 .order-list-summary, .order-sort-controls { padding-inline: var(--card-pad); }
 .order-sort-table :is(th, td):first-child { padding-left: var(--card-pad); }
@@ -6813,9 +6806,6 @@ main > .section-block.release-history { padding: 0 var(--card-pad) var(--space-2
 .workspace-history { padding: 0; }
 .workspace-history > summary { padding: var(--space-4) var(--card-pad); }
 @media (max-width: 700px) { .receipt-more-fields { padding: var(--inset-pad); } }
-.holiday-list-disclosure .data-table :is(th, td):first-child { padding-left: var(--card-pad); }
-.holiday-list-disclosure .data-table :is(th, td):last-child { padding-right: var(--card-pad); }
-.holiday-list-disclosure > .responsive-table-wrap { padding-inline: 0; }
 
 /* ===== 提示框 callout：警示／危險／資訊／成功，取代面板裡再塞面板 ===== */
 .callout { --callout-accent: var(--muted); display: grid; grid-template-columns: auto minmax(0, 1fr); gap: var(--space-3); padding: var(--inset-pad); color: var(--ink); background: var(--surface-soft); border: 1px solid var(--line); border-radius: var(--radius-md); }

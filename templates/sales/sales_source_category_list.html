@@ -24,7 +24,7 @@
   <section class="inventory-list-panel">
     <div class="inventory-list-summary"><div><strong>既有類別</strong><span>共 {{ categories|length }} 個</span></div></div>
     <div class="inventory-table-wrap">
-      <table class="inventory-table">
+      <table class="inventory-table inventory-table--fit">
         <thead><tr><th>類別名稱</th><th>系統處理方式</th><th>使用數</th><th>狀態</th><th></th></tr></thead>
         <tbody>
           {% for item in categories %}

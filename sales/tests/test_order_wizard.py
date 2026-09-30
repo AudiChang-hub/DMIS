@@ -54,6 +54,11 @@ class OrderWizardTests(TestCase):
         self.assertIn('data-wizard-panel="owner" hidden', page)
         self.assertIn('value="next"', page)
         self.assertNotIn("確認並建立訂單", page)
+        # 證件辨識有結果前，人工核對與車主步驟的下一步都鎖住；人工確認框只在辨識未通過時出現。
+        self.assertIn('id="id-verify-hint" hidden', page)
+        self.assertIn('id="id-manual-check" hidden', page)
+        self.assertIn("function updateVerifyLock", page)
+        self.assertIn('next.disabled = !ready', page)
         classic = self.client.get(reverse("order_create"), {"classic": "1"}).content.decode()
         self.assertIn("建立新訂單", classic)
         self.assertNotIn("wizard-bar", classic)

@@ -177,11 +177,11 @@
       {% include "sales/_field.html" with field=form.owner_email %}
       <div data-conditional="foreign">{% include "sales/_field.html" with field=form.owner_nationality %}</div>
       <div data-conditional="foreign">{% include "sales/_field.html" with field=form.residence_expiry %}</div>
-      <div class="span-2 verify-box" data-ocr-confirmation-fields>{% include "sales/_field.html" with field=form.id_verified %}</div>
+      <div class="span-2 verify-box" id="id-verify-box">{% include "sales/_field.html" with field=form.id_verified %}<small class="verify-lock-hint" id="id-verify-hint" hidden>請先上傳證件正反面，辨識完成後才能勾選。</small></div>
       {% if wizard %}
       <input type="hidden" name="_id_check" id="id-check" value="{{ wizard.id_check }}">
       <input type="hidden" name="_id_check_error" id="id-check-error" value="{{ wizard.id_check_error }}">
-      <div class="span-2 verify-box id-manual-check" id="id-manual-check" {% if wizard.id_check == 'passed' %}hidden{% endif %}>
+      <div class="span-2 verify-box id-manual-check" id="id-manual-check" hidden>
         <label><input type="checkbox" name="_id_manual_confirmed" id="id-manual-confirmed" {% if wizard.id_manual_confirmed %}checked{% endif %}> 我已人工核對證件正反面</label>
         <p class="muted" id="id-manual-reason">{% if wizard.id_check == 'failed' and wizard.id_check_error %}自動辨識未通過：{{ wizard.id_check_error }}{% else %}證件須自動辨識通過；辨識失敗或無法辨識時，請親自核對是車主本人的身分證／居留證正反面後勾選。{% endif %}</p>
       </div>

@@ -4,10 +4,10 @@
 {% site_navigation %}
 <section class="hero-row compact-hero"><div><p class="eyebrow">馭盛・建立訂單</p><h1>選一台適合的車</h1><p class="muted">{% site_text 'catalog.32d283d85dbf' %}</p></div></section>
 {% if intake_can_submit %}<p class="catalog-direct">已知道車款，或需要未上架的車型？ <a class="button ghost small" href="{% url 'order_start' %}">直接填寫訂單</a></p>{% endif %}
-<form method="get" class="card stacked-form catalog-filter" data-catalog-filters>
+<form method="get" class="card stacked-form catalog-filter" data-catalog-filters data-auto-submit>
 {% include 'sales/_catalog_filters.html' %}
 <p class="help-text">{% site_text 'catalog.7159e7097df2' %}</p>
-<div class="catalog-manage-actions"><a class="button ghost" href="{% url 'catalog' %}">清除篩選</a><button class="button primary">套用篩選</button></div></form>
+<div class="catalog-manage-actions"><a class="button ghost" href="{% url 'catalog' %}">清除篩選</a><noscript><button class="button primary">套用篩選</button></noscript></div></form>
 <p>共 {{ model_count }} 款車型／{{ page_obj.paginator.count }} 個車色選項</p><div class="catalog-grid">
 {% for card in cards %}
 {% ifchanged card.model.brand card.model.name %}<header class="catalog-group-heading"><p class="eyebrow">{{ card.model.brand }}</p><h2>{{ card.model.name }}</h2><p class="muted">{{ card.model.get_energy_type_display }}{% if card.model.displacement_cc %} · {{ card.model.displacement_cc }} CC{% endif %}</p></header>{% endifchanged %}

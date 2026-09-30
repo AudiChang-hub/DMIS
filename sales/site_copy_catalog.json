@@ -183,7 +183,7 @@
   },
   "catalog.7159e7097df2": {
     "page": "選一台適合的車",
-    "default": "依品牌、車型、型號與能源別縮小範圍，再套用篩選。",
+    "default": "依品牌、車型、型號與能源別縮小範圍，選擇後會自動更新結果。",
     "template": "templates/sales/catalog.html"
   },
   "catalog.ea9ea39f13c5": {

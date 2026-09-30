@@ -26,6 +26,13 @@ TAB_STEP = {
 STATE_LABELS = {"done": "已完成", "current": "目前步驟", "todo": "待處理", "optional": "隨時可填", "locked": "尚未開放"}
 
 
+def _document_summary(order, document):
+    from sales.services.document_signing import document_state
+    return {"electronic": "已電子簽署", "paper": "已上傳", "stale": "需重簽", "missing": "未簽署"}[
+        document_state(order, document)
+    ]
+
+
 def _money(value):
     return f"{(value or ZERO):,.0f}"
 
@@ -58,8 +65,8 @@ def build_order_steps(order, *, next_actions=None, requested=None, summary=None)
         "documents": dict(
             number=3, title="列印與簽署文件",
             state="done" if order.has_signed_contract and order.has_privacy_consent else "todo",
-            summary="訂購單" + ("已上傳" if order.has_signed_contract else "未上傳")
-                    + "・個資同意書" + ("已上傳" if order.has_privacy_consent else "未上傳"),
+            summary="訂購單" + _document_summary(order, "contract")
+                    + "・個資同意書" + _document_summary(order, "privacy"),
         ),
         "allocation": dict(
             number=4, title="配車",

@@ -14,6 +14,7 @@ from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.pdfgen import canvas
 from reportlab.platypus import Paragraph, Table, TableStyle
 
+from sales.services.pdf_signature import draw_signature_image, draw_signature_note
 from sales.services.registration_fee import registration_rate_label
 from sales.services.site_copy import print_copy
 from sales.services.print_company import validate_header
@@ -143,7 +144,7 @@ def draw_company_header(c, data, y):
         top -= actual_height + 1 * mm
 
 
-def draw_order_page(c, order, copy_label, page_number, printed_at):
+def draw_order_page(c, order, copy_label, page_number, printed_at, signature=None):
     y = PAGE_H - 11 * mm
 
     # Header
@@ -567,6 +568,14 @@ def draw_order_page(c, order, copy_label, page_number, printed_at):
     c.line(MARGIN_X + 21 * mm, signature_y + 4.5 * mm, MARGIN_X + 67 * mm, signature_y + 4.5 * mm)
     c.drawString(MARGIN_X + 90 * mm, signature_y + 5 * mm, "客戶簽名：")
     c.line(MARGIN_X + 108 * mm, signature_y + 4.5 * mm, PAGE_W - MARGIN_X, signature_y + 4.5 * mm)
+    if signature:
+        c.setFont("MSJH", 8)
+        c.drawString(MARGIN_X + 23 * mm, signature_y + 5.3 * mm, signature.staff_name)
+        draw_signature_image(
+            c, signature, MARGIN_X + 109 * mm, signature_y + 5 * mm,
+            PAGE_W - MARGIN_X - (MARGIN_X + 110 * mm), 12 * mm,
+        )
+        draw_signature_note(c, signature, "MSJH", MARGIN_X, 8 * mm)
     c.setFont("MSJH", 6.5)
     c.setFillColor(MUTED)
     c.drawRightString(PAGE_W - MARGIN_X, 8 * mm, copy_label)
@@ -574,13 +583,13 @@ def draw_order_page(c, order, copy_label, page_number, printed_at):
     c.showPage()
 
 
-def build_order_contract_pdf(order):
+def build_order_contract_pdf(order, signature=None):
     output = BytesIO()
-    printed_at = timezone.localtime()
+    printed_at = timezone.localtime(signature.signed_at) if signature else timezone.localtime()
     c = canvas.Canvas(output, pagesize=A4)
     c.setTitle(f"{order.number} 車輛訂購單")
     c.setAuthor(validate_header(order.print_company_snapshot)["legal_name"])
-    draw_order_page(c, order, "店家留存聯", 1, printed_at)
-    draw_order_page(c, order, "客戶留存聯", 2, printed_at)
+    draw_order_page(c, order, "店家留存聯", 1, printed_at, signature)
+    draw_order_page(c, order, "客戶留存聯", 2, printed_at, signature)
     c.save()
     return output.getvalue()

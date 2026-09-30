@@ -1,3 +1,4 @@
+import base64
 import calendar
 import json
 import logging
@@ -34,6 +35,17 @@ from rq.registry import StartedJobRegistry
 
 from .services.order_contract_pdf import build_order_contract_pdf
 from .services.privacy_consent_pdf import build_privacy_consent_pdf
+from .services.document_signing import (
+    DOCUMENTS as SIGNING_DOCUMENTS,
+    PRINT_PARTS,
+    build_document_pdf,
+    build_selected_pdf,
+    decode_signature,
+    document_state,
+    record_paper_upload,
+    render_preview_png,
+    sign_documents,
+)
 from .services.dealer_workbook_sync import next_dealer_code
 from .services.excel_export import sanitize_excel_row
 from .forms import (
@@ -6053,8 +6065,6 @@ def privacy_consent_print(request, pk):
 
 @login_required
 def order_documents_print(request, pk):
-    from pypdf import PdfReader, PdfWriter
-
     order = get_object_or_404(
         SalesOrder.objects.select_related(
             "source", "vehicle_model", "color"
@@ -6067,24 +6077,121 @@ def order_documents_print(request, pk):
     except ValidationError:
         from sales.print_company_views import print_company_missing
         return _protect_private_response(print_company_missing(request, order))
-    writer = PdfWriter()
-    writer.add_metadata({"/Author": order.print_company_snapshot["legal_name"], "/Title": f"{order.number} 簽署文件"})
-    for content in (
-        build_order_contract_pdf(order),
-        build_privacy_consent_pdf(order),
-    ):
-        reader = PdfReader(BytesIO(content))
-        for page in reader.pages:
-            writer.add_page(page)
-    output = BytesIO()
-    writer.write(output)
-    output.seek(0)
-    response = FileResponse(output, content_type="application/pdf")
+    requested = request.GET.getlist("part")
+    parts = [part for part in PRINT_PARTS if part in requested] if requested else list(PRINT_PARTS)
+    if not parts:
+        messages.error(request, "請至少勾選一份要列印的文件。")
+        return redirect(_order_detail_section_url(pk, "signed-documents"))
+    response = FileResponse(BytesIO(build_selected_pdf(order, parts)), content_type="application/pdf")
     response["Content-Disposition"] = (
         f'inline; filename="{order.number}-documents.pdf"; '
         f"filename*=UTF-8''{order.number}%E7%B0%BD%E7%BD%B2%E6%96%87%E4%BB%B6.pdf"
     )
     return _protect_private_response(response)
+
+
+def _signing_client_ip(request):
+    # 僅供稽核參考；經反向代理時以代理轉送的來源為準。
+    return (
+        request.META.get("HTTP_CF_CONNECTING_IP")
+        or request.META.get("HTTP_X_REAL_IP")
+        or request.META.get("REMOTE_ADDR", "")
+    )[:64]
+
+
+def _signing_documents_context(order):
+    documents = []
+    for key, meta in SIGNING_DOCUMENTS.items():
+        state = document_state(order, key)
+        pdf = build_document_pdf(order, key)
+        documents.append({
+            "key": key,
+            "label": meta["label"],
+            "state": state,
+            "fingerprint": order.document_fingerprint(key),
+            "checked": state in {"missing", "stale"},
+            "preview": "data:image/png;base64," + base64.b64encode(render_preview_png(pdf)).decode("ascii"),
+        })
+    if not any(item["checked"] for item in documents):
+        for item in documents:
+            item["checked"] = True
+    return documents
+
+
+@login_required
+def order_sign(request, pk):
+    order = get_object_or_404(
+        SalesOrder.objects.select_related(
+            "source", "vehicle_model", "color"
+        ).prefetch_related("accessories", "other_fees"),
+        pk=pk,
+    )
+    from sales.services.print_company import validate_header
+    try:
+        validate_header(order.print_company_snapshot)
+    except ValidationError:
+        from sales.print_company_views import print_company_missing
+        return _protect_private_response(print_company_missing(request, order))
+    errors = []
+    signer_name = order.owner_name
+    selected = None
+    if request.method == "POST":
+        signer_name = request.POST.get("signer_name", "").strip()[:160]
+        selected = [key for key in SIGNING_DOCUMENTS if key in request.POST.getlist("documents")]
+        if not selected:
+            errors.append("請至少勾選一份要簽署的文件。")
+        if not signer_name:
+            errors.append("請填寫簽署人姓名。")
+        if request.POST.get("agree") != "1":
+            errors.append("請先勾選同意以電子方式簽署。")
+        changed = [
+            SIGNING_DOCUMENTS[key]["label"] for key in selected
+            if request.POST.get(f"fingerprint_{key}") != order.document_fingerprint(key)
+        ]
+        if changed:
+            errors.append("、".join(changed) + " 內容剛被修改，請重新確認內容後再簽署。")
+        signature_png = None
+        if not errors:
+            try:
+                signature_png = decode_signature(request.POST.get("signature", ""))
+            except ValidationError as exc:
+                errors.extend(exc.messages)
+        if not errors:
+            user = request.user
+            order, replaced = sign_documents(
+                order,
+                documents=selected,
+                signature_png=signature_png,
+                signer_name=signer_name,
+                staff_name=(user.get_full_name() or user.get_username())[:60],
+                actor=user.get_username(),
+                client_ip=_signing_client_ip(request),
+                user_agent=request.META.get("HTTP_USER_AGENT", ""),
+            )
+            for field, previous in replaced.items():
+                _schedule_model_file_cleanup(SalesOrder, field, previous)
+            return redirect("order_sign_done", pk=pk)
+    documents = _signing_documents_context(order)
+    if selected is not None:
+        for item in documents:
+            item["checked"] = item["key"] in selected
+    response = render(
+        request,
+        "sales/order_sign.html",
+        {"order": order, "documents": documents, "signer_name": signer_name, "errors": errors},
+        status=400 if errors else 200,
+    )
+    return _protect_private_response(response)
+
+
+@login_required
+def order_sign_done(request, pk):
+    order = get_object_or_404(SalesOrder, pk=pk)
+    return render(request, "sales/order_sign_done.html", {
+        "order": order,
+        "contract_state": document_state(order, "contract"),
+        "privacy_state": document_state(order, "privacy"),
+    })
 
 
 @login_required
@@ -6142,6 +6249,7 @@ def contract_upload(request, pk):
     if form_is_valid:
         order = form.save(commit=False)
         order.signed_contract_uploaded_at = timezone.now()
+        record_paper_upload(order, "contract")
         order.save()
         _schedule_model_file_cleanup(
             SalesOrder,
@@ -6190,6 +6298,7 @@ def privacy_consent_upload(request, pk):
     if form_is_valid:
         order = form.save(commit=False)
         order.privacy_consent_uploaded_at = timezone.now()
+        record_paper_upload(order, "privacy")
         order.save()
         _schedule_model_file_cleanup(
             SalesOrder,

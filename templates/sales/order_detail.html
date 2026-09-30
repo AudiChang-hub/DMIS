@@ -1,6 +1,6 @@
 {% extends "base.html" %}{% load site_copy %}{% load screen_access %}
 {% load static sales_format %}
-{% block head %}<link rel="stylesheet" href="{% static 'css/order-commission-recipient.css' %}?v={{ app_version }}"><link rel="stylesheet" href="{% static 'css/order-workspace.css' %}?v={{ app_version }}"><link rel="stylesheet" href="{% static 'css/order-steps.css' %}?v={{ app_version }}">{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'css/order-commission-recipient.css' %}?v={{ app_version }}"><link rel="stylesheet" href="{% static 'css/order-workspace.css' %}?v={{ app_version }}"><link rel="stylesheet" href="{% static 'css/order-steps.css' %}?v={{ app_version }}"><link rel="stylesheet" href="{% static 'css/signing.css' %}?v={{ app_version }}">{% endblock %}
 {% block title %}{{ order.number }}｜車輛銷售管理{% endblock %}
 {% block page_class %}page-shell--wide{% endblock %}
 {% block content %}
@@ -18,7 +18,7 @@
     {% if_access 'order_customer_access' order.pk %}<a class="button ghost" href="{% url 'order_customer_access' order.pk %}">管理本單權限</a>{% endif_access %}
     {% if workspace_finance %}<button type="button" class="button ghost" data-workspace-go="finance">收入與支出</button>{% endif %}
     {% if commission_form %}<a class="button secondary" href="?attribution=1#commission-attribution" data-open-attribution>調整台數歸屬</a>{% endif %}
-    {% if_access 'order_documents_print' order.pk %}<a class="button secondary" href="{% url 'order_documents_print' order.pk %}" target="_blank">一鍵列印全部文件</a>{% endif_access %}
+    {% if not editing_order %}{% if_access 'order_documents_print' order.pk %}<a class="button secondary" href="?tab=documents#signed-documents">簽署與列印文件</a>{% endif_access %}{% endif %}
     {% if order.can_edit_content and not editing_order %}{% if_access 'order_edit' order.pk %}<a class="button primary" href="{% url 'order_edit' order.pk %}" data-workspace-edit-link>編輯訂單{% if order.is_delivered %}（完成後修正）{% endif %}</a>{% endif_access %}{% endif %}
   </div>
 </section>
@@ -29,14 +29,13 @@
 {% if request.GET.created == "1" %}
 <dialog class="print-dialog" id="print-contract-dialog">
   <h2>訂單已建立</h2>
-  <p>{% site_text 'order_detail.b4ee54c429c4' %}</p>
+  <p>可以直接把平板交給客人電子簽署，不必列印；需要紙本時再勾選要列印的聯別。</p>
   <div class="dialog-actions">
-    <button class="button ghost" type="button" id="print-later">稍後列印</button>
-    {% if_access 'contract_print' order.pk %}<a class="button ghost" href="{% url 'contract_print' order.pk %}" target="_blank">只印訂購合約</a>{% endif_access %}
+    <button class="button ghost" type="button" id="print-later">稍後處理</button>
     {% if_access 'order_print_company' order.pk %}<a class="button ghost" href="{% url 'order_print_company' order.pk %}">開單公司{% if not order.print_company_snapshot %} · 待確認{% endif %}</a>{% endif_access %}
-    {% if_access 'privacy_consent_print' order.pk %}<a class="button ghost" href="{% url 'privacy_consent_print' order.pk %}" target="_blank">只印個資同意書</a>{% endif_access %}
-    {% if_access 'order_documents_print' order.pk %}<a class="button primary" href="{% url 'order_documents_print' order.pk %}" target="_blank">全部一起列印</a>{% endif_access %}
+    {% if_access 'order_sign' order.pk %}<a class="button primary" href="{% url 'order_sign' order.pk %}">平板簽署（免列印）</a>{% endif_access %}
   </div>
+  {% include "sales/_order_print_picker.html" with print_button="secondary" %}
 </dialog>
 <script>
   const printDialog = document.getElementById("print-contract-dialog");
@@ -135,18 +134,25 @@
       <h2>簽署文件留存</h2>
       <small>{% site_text 'order_detail.c8ba076ab19d' %}</small>
     </div>
-    <span>{% if order.has_signed_contract and order.has_privacy_consent %}2／2 已上傳{% elif order.has_signed_contract or order.has_privacy_consent %}1／2 已上傳{% else %}尚未上傳{% endif %}</span>
+    <span>{% if order.has_signed_contract and order.has_privacy_consent %}2／2 已簽署{% elif order.has_signed_contract or order.has_privacy_consent %}1／2 已簽署{% else %}尚未簽署{% endif %}</span>
+  </div>
+  <div class="section-body signing-tools">
+  <div class="signing-entry">
+    <div><h3>平板電子簽署</h3><p class="muted">把平板交給客人，確認內容後直接簽名，不必先印出。訂購單內容修改後，原簽署會失效，需要重新簽署。</p></div>
+    {% if_access 'order_sign' order.pk %}<a class="button primary" href="{% url 'order_sign' order.pk %}">開始平板簽署</a>{% endif_access %}
+  </div>
+  {% include "sales/_order_print_picker.html" %}
   </div>
   <div class="document-archive-grid">
     <article class="document-archive-card">
       <div class="document-archive-card__heading">
         <div><p class="eyebrow">訂購合約</p><h3>客戶與店家留存聯</h3></div>
-        {% if order.has_signed_contract %}<span class="archive-status done">✓ 已上傳</span>{% else %}<span class="archive-status">尚未上傳</span>{% endif %}
+        {% if order.signed_contract_is_electronic %}<span class="archive-status done">✓ 已電子簽署</span>{% elif order.has_signed_contract %}<span class="archive-status done">✓ 已上傳</span>{% elif order.signed_contract_stale %}<span class="archive-status stale">內容已變更，需重簽</span>{% else %}<span class="archive-status">尚未上傳</span>{% endif %}
       </div>
       <p>{% site_text 'order_detail.8f7144ef61f6' %}</p>
       <div class="document-archive-card__actions">
         {% if_access 'contract_print' order.pk %}<a class="button ghost" href="{% url 'contract_print' order.pk %}" target="_blank">列印空白合約</a>{% endif_access %}
-        {% if order.has_signed_contract %}{% if_access 'protected_media' 'order' order.pk 'signed_contract' %}<a class="button ghost" href="{% url 'protected_media' 'order' order.pk 'signed_contract' %}" data-preview-name="{{ order.signed_contract.name }}" target="_blank">查看目前附件</a>{% endif_access %}{% endif %}
+        {% if order.signed_contract %}{% if_access 'protected_media' 'order' order.pk 'signed_contract' %}<a class="button ghost" href="{% url 'protected_media' 'order' order.pk 'signed_contract' %}" data-preview-name="{{ order.signed_contract.name }}" target="_blank">查看目前附件</a>{% endif_access %}{% endif %}
       </div>
       <form class="document-upload-form" data-document-upload data-auto-upload method="post" enctype="multipart/form-data" action="{% url 'contract_upload' order.pk %}">
         {% csrf_token %}{{ contract_form.signed_contract }}
@@ -156,12 +162,12 @@
     <article class="document-archive-card">
       <div class="document-archive-card__heading">
         <div><p class="eyebrow">個資同意書</p><h3>車主簽署文件</h3></div>
-        {% if order.has_privacy_consent %}<span class="archive-status done">✓ 已上傳</span>{% else %}<span class="archive-status">尚未上傳</span>{% endif %}
+        {% if order.privacy_consent_is_electronic %}<span class="archive-status done">✓ 已電子簽署</span>{% elif order.has_privacy_consent %}<span class="archive-status done">✓ 已上傳</span>{% elif order.privacy_consent_stale %}<span class="archive-status stale">內容已變更，需重簽</span>{% else %}<span class="archive-status">尚未上傳</span>{% endif %}
       </div>
       <p>{% site_text 'order_detail.d97010d7fe91' %}</p>
       <div class="document-archive-card__actions">
         {% if_access 'privacy_consent_print' order.pk %}<a class="button ghost" href="{% url 'privacy_consent_print' order.pk %}" target="_blank">列印空白同意書</a>{% endif_access %}
-        {% if order.has_privacy_consent %}{% if_access 'protected_media' 'order' order.pk 'privacy_consent' %}<a class="button ghost" href="{% url 'protected_media' 'order' order.pk 'privacy_consent' %}" data-preview-name="{{ order.privacy_consent.name }}" target="_blank">查看目前附件</a>{% endif_access %}{% endif %}
+        {% if order.privacy_consent %}{% if_access 'protected_media' 'order' order.pk 'privacy_consent' %}<a class="button ghost" href="{% url 'protected_media' 'order' order.pk 'privacy_consent' %}" data-preview-name="{{ order.privacy_consent.name }}" target="_blank">查看目前附件</a>{% endif_access %}{% endif %}
       </div>
       <form class="document-upload-form" data-document-upload data-auto-upload method="post" enctype="multipart/form-data" action="{% url 'privacy_consent_upload' order.pk %}">
         {% csrf_token %}{{ privacy_consent_form.privacy_consent }}

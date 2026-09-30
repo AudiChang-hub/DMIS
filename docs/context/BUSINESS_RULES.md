@@ -26,7 +26,7 @@
 - 選車展示列出啟用車型的啟用車色；沒照片不等於停用，應顯示待補圖卡。
 - 車色必須屬於所選車型且仍啟用；選定車色與付款方案進入填單時保留選擇並重新驗證，不能信任前端價格。
 - 來源：`sales/catalog_views.py`、`sales/services/catalog_selection.py`；測試 `test_catalog_selection.py`、`test_catalog_color_list.py`、`test_catalog_management.py`。
-- 原廠車型比對只讀官網並記錄差異；寫入僅限補上空白的車色圖片，不改車型主檔、車色名稱、上架狀態或售價版本。官網車型對應須由人確認。來源：`sales/services/official_catalog.py`、`sales/official_catalog_views.py`；規格 `specs/061-official-catalog-check`；測試 `test_official_catalog.py`。
+- 原廠車型比對只讀官網並記錄差異；寫入僅限補上空白的車色圖片，以及經現有表單建立停用的新車型／新年式；不改既有車型主檔、車色名稱、上架狀態或售價版本。官網車型對應須由人確認。來源：`sales/services/official_catalog.py`、`sales/official_catalog_views.py`；規格 `specs/061-official-catalog-check`；測試 `test_official_catalog.py`。
 
 ## 財務與權限
 

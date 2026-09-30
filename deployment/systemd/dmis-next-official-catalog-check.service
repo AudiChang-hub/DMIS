@@ -1,0 +1,12 @@
+[Unit]
+Description=DMIS Next weekly SYM/SUZUKI official catalog check
+After=docker.service network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=/home/audi/project/DMIS-next
+ExecStart=/usr/bin/flock -n /tmp/dmis-next-official-catalog-check.lock /usr/bin/docker compose -f docker-compose.django.yml -f docker-compose.django.prod.yml exec -T web python manage.py check_official_catalog
+TimeoutStartSec=1200
+Nice=10
+IOSchedulingClass=idle

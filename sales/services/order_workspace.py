@@ -28,15 +28,7 @@ def payment_ledger_context(order, summary=None):
     active = not order.is_cancelled_sale
     reversal_form = PaymentReversalForm(order) if not order.is_settled_closed else None
     refund_form = OverpaymentRefundForm(order, summary) if active else None
-    from sales.forms import InvoiceAdjustForm, InvoiceIssueForm
-    from sales.services.invoices import invoice_attention, invoice_summary
-    invoice = invoice_summary(order)
-    adjust_form = InvoiceAdjustForm(order)
     return {
-        'invoice': invoice,
-        'invoice_attention': invoice_attention(order, invoice),
-        'invoice_issue_form': InvoiceIssueForm() if not order.is_cancelled_sale else None,
-        'invoice_adjust_form': adjust_form if adjust_form.has_choices else None,
         'ledger_adjustments': list(order.payment_records.exclude(entry_type=PaymentRecord.EntryType.RECEIPT).select_related('reverses').order_by('pk')),
         'payment_reversal_form': reversal_form if reversal_form and reversal_form.has_choices else None,
         'overpayment_refund_form': refund_form if refund_form and refund_form.has_overpayment else None,

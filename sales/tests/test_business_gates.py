@@ -62,6 +62,12 @@ class BusinessGateTests(TestCase):
         self.assertFalse(any("須核准" in item for item in order.delivery_blockers()))
         self.assertTrue(OrderEvent.objects.filter(order=order, event_type="installment_decision").exists())
 
+    def test_invoice_photo_is_optional_for_registration(self):
+        from sales.models import RegistrationDocument
+        order, _vehicle = self.make_order()
+        self.assertNotIn(RegistrationDocument.DocumentType.INVOICE, order.required_registration_document_types())
+        self.assertNotIn("發票", order.missing_registration_requirements())
+
     # M3：折扣待確認不可交車
     def test_pending_discount_blocks_delivery(self):
         order, _vehicle = self.make_order(dealer=True)

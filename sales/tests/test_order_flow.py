@@ -3693,7 +3693,8 @@ class OrderFlowTests(TestCase):
         missing = order.missing_registration_requirements()
         self.assertIn("新行照照片", missing)
         self.assertIn("新車領牌登記書", missing)
-        self.assertIn("發票", missing)
+        # 1.21.0 起發票照片為選填。
+        self.assertNotIn("發票", missing)
         self.assertNotIn("監理站單據", missing)
         self.assertNotIn("強制險單", missing)
 

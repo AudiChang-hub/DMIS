@@ -75,6 +75,7 @@
   const progressLinks = [...document.querySelectorAll("#form-progress a")];
   const progressSections = progressLinks.map(link => byId(link.hash.slice(1)));
   let ocrRunning = false;
+  let ocrReady = false;
   let ocrRequestVersion = 0;
   let currentOcrJobId = null;
   let ocrPollTimer = null;
@@ -126,7 +127,8 @@
     if (!box) return;
     const check = byId("id-check").value;
     const error = byId("id-check-error").value;
-    box.hidden = !["local", "foreign"].includes(ownerType.value) || check === "passed";
+    // 辨識有結果前不顯示；有結果但未通過時才需要另外人工確認。
+    box.hidden = !["local", "foreign"].includes(ownerType.value) || check === "passed" || !ocrReady;
     byId("id-manual-reason").textContent = check === "failed" && error
       ? `自動辨識未通過：${error}`
       : "證件須自動辨識通過；辨識失敗或無法辨識時，請親自核對是車主本人的身分證／居留證正反面後勾選。";
@@ -149,8 +151,37 @@
     refreshIdManualBox();
   }
 
+  // 證件辨識有結果（通過、失敗或已載入資料）之前，人工核對不能勾選，精靈的車主步驟也不能前往下一步。
+  function updateVerifyLock(state) {
+    const ready = !["local", "foreign"].includes(ownerType.value) || ["review", "manual", "existing"].includes(state);
+    ocrReady = ready;
+    const verify = byId("id_id_verified");
+    if (verify) {
+      verify.disabled = !ready;
+      if (!ready) verify.checked = false;
+    }
+    byId("id-verify-box")?.classList.toggle("is-locked", !ready);
+    const hint = byId("id-verify-hint");
+    if (hint) {
+      hint.hidden = ready;
+      hint.textContent = state === "processing" ? "證件辨識中，完成後才能勾選。" : "請先上傳證件正反面，辨識完成後才能勾選。";
+    }
+    const manual = byId("id-manual-confirmed");
+    if (manual) {
+      manual.disabled = !ready;
+      if (!ready) manual.checked = false;
+    }
+    const next = orderForm.querySelector("[data-wizard-next]");
+    if (next && wizardStep === "owner") {
+      next.disabled = !ready;
+      next.title = ready ? "" : "證件辨識完成後才能前往下一步";
+    }
+    refreshIdManualBox();
+  }
+
   function setOcrState(state, options = {}) {
     recordIdCheck(state, options.message || "");
+    updateVerifyLock(state);
     const supportsOcr = ["local", "foreign"].includes(ownerType.value);
     const revealFields = !supportsOcr || ["review", "manual", "existing"].includes(state);
     ocrConfirmationFields.forEach(element => { element.hidden = !revealFields; });
@@ -209,12 +240,25 @@
   }
 
   function refreshOcrEntryState() {
-    if (!["local", "foreign"].includes(ownerType.value) || ocrRunning || pendingOcrResult) return;
+    if (!["local", "foreign"].includes(ownerType.value)) {
+      updateVerifyLock("existing");
+      return;
+    }
+    if (ocrRunning || pendingOcrResult) return;
     if (hasIdentityValues()) {
       setOcrState("existing");
       return;
     }
+    if (idFront.files.length && idBack.files.length) {
+      runIdOcr();
+      return;
+    }
     const photoCount = Number(hasSelectedPhoto(idFront)) + Number(hasSelectedPhoto(idBack));
+    if (photoCount === 2) {
+      // 只剩草稿保存的照片時無法重新送辨識，避免卡住：說明後改由人工核對。
+      setOcrState("manual", {message: "已保存的證件照片需重新選擇才能自動辨識；也可直接人工填寫下方欄位。"});
+      return;
+    }
     setOcrState(photoCount === 0 ? "upload" : "incomplete");
   }
 

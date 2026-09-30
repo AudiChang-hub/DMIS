@@ -9,7 +9,10 @@ from django.test import TestCase, SimpleTestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
 
+from django.core.management import call_command
+
 from sales.models import (
+    Notification,
     OfficialCatalogCheck,
     OfficialCatalogModel,
     UserAccountAuditLog,
@@ -194,6 +197,58 @@ class OfficialCatalogCheckJobTests(TestCase):
         old.refresh_from_db(), failed_before.refresh_from_db()
         self.assertTrue(old.missing)
         self.assertFalse(failed_before.missing)  # 讀取失敗的頁面不判定下架
+
+    def test_failed_page_only_protects_itself_from_missing(self):
+        retired = OfficialCatalogModel.objects.create(brand="sym", source_key="retired", source_url="https://tw.sym-global.com/retired",
+                                                      name="舊車", data={}, content_hash="x")
+        self.run_check("sym", {
+            "https://tw.sym-global.com/product": SYM_LIST,
+            "https://tw.sym-global.com/jetsl125": service.OfficialCatalogError("官網回應 500。"),
+            "https://tw.sym-global.com/4mica125": SYM_TWO_VARIANTS,
+            "https://tw.sym-global.com/e-woo": SYM_TWO_VARIANTS,
+        })
+        retired.refresh_from_db()
+        self.assertTrue(retired.missing)
+
+    def scheduled_pages(self):
+        return {"https://www.suzukimotor.com.tw/products.html": SUZUKI_LIST,
+                "https://www.suzukimotor.com.tw/product/sui_125/style_price.html": SUZUKI_MODEL,
+                "https://www.suzukimotor.com.tw/product/gsx-8r/style_price.html": SUZUKI_MODEL.replace("sui_125", "gsx-8r")}
+
+    def call_scheduled(self, pages, fingerprint="etag-1"):
+        with self.pages(pages), patch.object(service, "REQUEST_DELAY", 0), patch.object(service, "FINGERPRINT_DELAY", 0), \
+                patch.object(service, "fetch_image_fingerprint", return_value=fingerprint), \
+                self.captureOnCommitCallbacks(execute=True):
+            call_command("check_official_catalog", "--brand", "suzuki", stdout=io.StringIO())
+
+    def test_scheduled_check_notifies_admin_only_for_news_and_changes(self):
+        admin = get_user_model().objects.create_superuser("admin", password="Official-weekly-test-71!")
+        pages = self.scheduled_pages()
+        self.call_scheduled(pages)
+        (notice,) = Notification.objects.filter(recipient=admin, event_key="official_catalog_check")
+        self.assertIn("2 款新出現", notice.title)
+        self.assertIn("SUI 125", notice.body)
+        check = OfficialCatalogCheck.objects.get()
+        self.assertIsNone(check.requested_by)
+        self.call_scheduled(pages)  # 沒有變化不通知
+        self.assertEqual(Notification.objects.filter(event_key="official_catalog_check").count(), 1)
+        link = OfficialCatalogModel.objects.get(source_key="sui_125")
+        link.vehicle_model = VehicleModel.objects.create(brand="SUZUKI", name="SUI 125", energy_type="gas", displacement_cc=124)
+        link.acknowledged_data, link.acknowledged_hash = link.data, link.content_hash
+        link.save()
+        self.call_scheduled(pages, fingerprint="etag-2")  # 同檔名換照片
+        latest = Notification.objects.filter(event_key="official_catalog_check").first()
+        self.assertIn("1 款有變動", latest.title)
+        self.assertIn("有變動：SUI 125", latest.body)
+
+    def test_scheduled_check_skips_running_and_reports_failure(self):
+        OfficialCatalogCheck.objects.create(brand="suzuki", status="running")
+        with patch.object(service, "run_official_catalog_check") as run:
+            call_command("check_official_catalog", "--brand", "suzuki", stdout=io.StringIO())
+        run.assert_not_called()
+        OfficialCatalogCheck.objects.update(status="failed")
+        with self.assertRaises(Exception):
+            self.call_scheduled({"https://www.suzukimotor.com.tw/products.html": "<html>改版</html>"})
 
     def test_list_failure_writes_nothing(self):
         check = self.run_check("suzuki", {"https://www.suzukimotor.com.tw/products.html": "<html>改版</html>"})

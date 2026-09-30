@@ -562,34 +562,42 @@ def run_official_catalog_check(check_id):
             raise OfficialCatalogError("官網產品列表沒有讀到任何車型，可能已改版。")
     except OfficialCatalogError as exc:
         _finish(check, "failed", [f"產品列表：{exc}"], 0)
+        _notify_automatic(check, {}, [f"產品列表：{exc}"], failed=True)
         return
     except Exception:
         logger.exception("official_catalog_list_failed check=%s", check.pk)
         _finish(check, "failed", ["產品列表：解析失敗，官網可能已改版。"], 0)
+        _notify_automatic(check, {}, ["產品列表：解析失敗，官網可能已改版。"], failed=True)
         return
     OfficialCatalogCheck.objects.filter(pk=check.pk).update(pages_total=len(listings), updated_at=timezone.now())
-    seen, found = set(), 0
+    seen, found, failed_slugs, summary = set(), 0, set(), {}
     for number, listing in enumerate(listings, start=1):
         try:
             time.sleep(REQUEST_DELAY)
             entries = model_parser(fetch_page(listing["url"], source["hosts"]), listing)
             for entry in entries:
                 add_image_fingerprints(entry, source["hosts"])
-                _upsert_entry(check, entry)
+                outcome = _upsert_entry(check, entry)
+                if outcome:
+                    summary.setdefault(outcome, []).append(entry["name"])
                 seen.add(entry["source_key"])
                 found += 1
         except OfficialCatalogError as exc:
+            failed_slugs.add(listing["slug"])
             errors.append(f"{listing['name']}：{exc}")
         except Exception:
             logger.exception("official_catalog_page_failed check=%s url=%s", check.pk, listing["url"])
+            failed_slugs.add(listing["slug"])
             errors.append(f"{listing['name']}：解析失敗，官網可能已改版。")
         OfficialCatalogCheck.objects.filter(pk=check.pk).update(pages_done=number, updated_at=timezone.now())
-    failed_keys = {listing["slug"] for listing in listings}
-    _mark_missing(check.brand, seen, failed_keys if errors else set())
+    _mark_missing(check.brand, seen, failed_slugs)
     _finish(check, "succeeded", errors, found)
+    _notify_automatic(check, summary, errors)
+    return summary
 
 
 def _upsert_entry(check, entry):
+    """回傳 "new"（首次出現或忽略後又變動）、"changed"（已對應車型內容變動）或 None。"""
     from sales.models import OfficialCatalogModel
 
     now = timezone.now()
@@ -600,11 +608,63 @@ def _upsert_entry(check, entry):
             defaults={"source_url": entry["source_url"], "name": entry["name"], "data": entry,
                       "content_hash": digest, "last_seen_at": now, "last_check": check},
         )
-        if not created:
-            link.source_url, link.name, link.data = entry["source_url"], entry["name"], entry
-            link.content_hash, link.last_seen_at, link.last_check, link.missing = digest, now, check, False
-            link.save(update_fields=["source_url", "name", "data", "content_hash", "last_seen_at",
-                                     "last_check", "missing", "updated_at"])
+        if created:
+            return "new"
+        previous = link.content_hash
+        link.source_url, link.name, link.data = entry["source_url"], entry["name"], entry
+        link.content_hash, link.last_seen_at, link.last_check, link.missing = digest, now, check, False
+        link.save(update_fields=["source_url", "name", "data", "content_hash", "last_seen_at",
+                                 "last_check", "missing", "updated_at"])
+    if previous == digest:
+        return None
+    if link.vehicle_model_id:
+        return "changed" if digest != link.acknowledged_hash else None
+    return "new" if link.ignored_hash else None
+
+
+def _notify_automatic(check, summary, errors, failed=False):
+    """只有排程自動檢查才通知 admin；手動檢查的人就在畫面上。"""
+    from django.contrib.auth import get_user_model
+    from sales.services.notifications import notify
+
+    if check.requested_by_id:
+        return
+    new, changed = summary.get("new", []), summary.get("changed", [])
+    if not (new or changed or errors):
+        return
+    admin = get_user_model().objects.filter(username="admin", is_superuser=True, is_active=True).first()
+    if not admin:
+        return
+    label = SOURCES[check.brand]["label"]
+    if failed:
+        title = f"{label} 官網每週檢查失敗"
+    else:
+        title = f"{label} 官網有 {len(new)} 款新出現、{len(changed)} 款有變動"
+    lines = []
+    if new:
+        lines.append("新出現：" + "、".join(new[:10]) + ("…" if len(new) > 10 else ""))
+    if changed:
+        lines.append("有變動：" + "、".join(changed[:10]) + ("…" if len(changed) > 10 else ""))
+    if errors:
+        lines.append(f"讀取失敗 {len(errors)} 頁：" + "；".join(errors[:3]))
+    lines.append("請到 選車展示管理 → 原廠車型比對 查看並確認。")
+    notify("official_catalog_check", None, title, "\n".join(lines), recipients=[admin], dedupe_suffix=str(check.pk))
+
+
+def run_scheduled_checks(brands=None):
+    """排程入口：逐一建立自動檢查並同步執行；已有進行中的檢查則略過。"""
+    from sales.models import OfficialCatalogCheck
+
+    results = {}
+    for brand in brands or SOURCES:
+        if active_check(brand):
+            results[brand] = "skipped"
+            continue
+        check = OfficialCatalogCheck.objects.create(brand=brand)
+        run_official_catalog_check(check.pk)
+        check.refresh_from_db()
+        results[brand] = check
+    return results
 
 
 def _mark_missing(brand, seen, uncertain_slugs):

@@ -15,9 +15,9 @@
 {% if running %}
 <div class="callout callout--info" role="status"><span class="callout__icon" aria-hidden="true">i</span><div><h3>正在讀取官網</h3><p>已讀取 {{ running.pages_done }}／{{ running.pages_total|default:"—" }} 頁。本頁每 5 秒自動更新，可以先離開，稍後再回來看結果。</p></div></div>
 {% elif latest.status == "failed" %}
-<div class="callout callout--danger" role="alert"><span class="callout__icon" aria-hidden="true">!</span><div><h3>上次檢查失敗（{{ latest.finished_at|date:"Y-m-d H:i" }}）</h3><ul>{% for error in latest.errors %}<li>{{ error }}</li>{% endfor %}</ul><p>資料沒有任何變更。官網可能暫時無法連線或已改版，請稍後再試；持續失敗請通知系統維護人員。</p></div></div>
+<div class="callout callout--danger" role="alert"><span class="callout__icon" aria-hidden="true">!</span><div><h3>上次{% if not latest.requested_by_id %}每週自動{% endif %}檢查失敗（{{ latest.finished_at|date:"Y-m-d H:i" }}）</h3><ul>{% for error in latest.errors %}<li>{{ error }}</li>{% endfor %}</ul><p>資料沒有任何變更。官網可能暫時無法連線或已改版，請稍後再試；持續失敗請通知系統維護人員。</p></div></div>
 {% elif latest %}
-<p class="muted" role="status">上次檢查：{{ latest.finished_at|date:"Y-m-d H:i" }}，讀到 {{ latest.entries_found }} 款{% if latest.error_count %}，{{ latest.error_count }} 頁讀取失敗{% endif %}。</p>
+<p class="muted" role="status">上次檢查：{{ latest.finished_at|date:"Y-m-d H:i" }}（{% if latest.requested_by_id %}手動{% else %}每週自動{% endif %}），讀到 {{ latest.entries_found }} 款{% if latest.error_count %}，{{ latest.error_count }} 頁讀取失敗{% endif %}。系統每週一清晨自動檢查，發現新車款或變動會通知 admin。</p>
 {% if latest.error_count %}<details class="card"><summary>查看讀取失敗的頁面</summary><ul>{% for error in latest.errors %}<li>{{ error }}</li>{% endfor %}</ul><p class="muted">失敗的頁面沿用上次讀到的內容，不會被標示為下架。</p></details>{% endif %}
 {% endif %}
 

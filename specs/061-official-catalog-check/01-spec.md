@@ -33,6 +33,10 @@
 - 只有 admin 可使用官網帶入；新年式的 base 必須是該官網車型目前對應的年式，未對應的官網車型不能帶 base。
 - 改款偵測：檢查時對每張官網圖片送 HEAD 取 ETag／Last-Modified／Content-Length 作為版本標記，同網址但標記不同即列為換圖；
   取不到標記時不判定換圖。內容雜湊納入完整規格表、主圖與官網標籤（SYM 的 HOT、SUZUKI 的 NEW，照原文記錄，不代表新車）。
+- 每週自動檢查：`python manage.py check_official_catalog`（`dmis-next-official-catalog-check.timer`，每週一 05:30 起隨機延遲 20 分鐘，
+  安裝腳本 `scripts/install_django_official_catalog_timer.sh`）。自動檢查的 `requested_by` 為空；新出現（含忽略後又變動）、
+  已對應車型變動或讀取失敗時，以 `notify("official_catalog_check")` 通知 admin，同一檢查只通知一次。手動檢查不通知。
+- 讀取失敗只讓失敗那幾頁不判定下架，其餘不再出現在列表的車型照常標示「官網已下架」。
 - 儲存時強制停用（不建立展示上架），同一交易內把對應移到新車型並記錄稽核；舊年式資料、車色、圖片與訂單不變。
   送出時若官網車型的對應已被他人變更，整筆不儲存並提示重新操作。
 

@@ -248,6 +248,45 @@ class UiConsistencyTests(SimpleTestCase):
 
         self.assertEqual(offenders, [])
 
+    def test_textareas_use_form_control(self):
+        """表單的 Textarea 一律帶 form-control（或由表單類別統一補上），模板手寫的 textarea 也要有 class。"""
+        import ast
+
+        offenders = []
+        for path in sorted(Path("sales").rglob("*.py")):
+            if "tests" in path.parts or "migrations" in path.parts:
+                continue
+            source = path.read_text(encoding="utf-8")
+            if "Textarea" not in source:
+                continue
+            tree = ast.parse(source)
+            classes = {node.name: node for node in ast.walk(tree) if isinstance(node, ast.ClassDef)}
+
+            def applies_form_control(node, seen=()):
+                body = ast.get_source_segment(source, node) or ""
+                if 'setdefault("class", "form-control")' in body:
+                    return True
+                for base in node.bases:
+                    name = getattr(base, "id", None)
+                    if name in classes and name not in seen:
+                        if applies_form_control(classes[name], (*seen, name)):
+                            return True
+                return False
+
+            for node in classes.values():
+                if node.name == "Meta":
+                    continue
+                for call in ast.walk(node):
+                    if isinstance(call, ast.Call) and getattr(call.func, "attr", None) == "Textarea":
+                        text = ast.get_source_segment(source, call) or ""
+                        if "form-control" not in text and not applies_form_control(node):
+                            offenders.append(f"{path}:{call.lineno} {node.name}")
+        for name, text in template_files():
+            for match in re.finditer(r"<textarea(?![^>]*\bclass=)[^>]*>", text):
+                offenders.append(f"{name}:{line_of(text, match.start())}")
+
+        self.assertEqual(sorted(set(offenders)), [])
+
     def test_alignment_rules_exist(self):
         app = (CSS_DIR / "app.css").read_text(encoding="utf-8")
 

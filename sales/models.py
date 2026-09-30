@@ -3494,8 +3494,10 @@ class SalesOrder(TimeStampedModel):
         from sales.services.customer_receivable import customer_balance
         return customer_balance(self)
 
-    def delivery_blockers(self, summary=None):
-        """交車前的全部硬性檢查；畫面按鈕與 complete_delivery 共用同一份判斷。"""
+    def delivery_blockers(self, summary=None, ignore_balance=False):
+        """交車前的全部硬性檢查；畫面按鈕與 complete_delivery 共用同一份判斷。
+
+        ignore_balance 只供畫面判斷：交車表單同時收尾款時，尾款於送出時再驗證。"""
         if self.is_cancelled_sale:
             return ["已進入取消或例外結案流程，不能交付車輛。"]
         blockers = []
@@ -3510,10 +3512,10 @@ class SalesOrder(TimeStampedModel):
         from sales.services.payment_summary import payment_summary
         summary = summary or payment_summary(self)
         if self.source_type != self.SourceType.DEALER:
-            if not summary["customer_settled"]:
+            if not summary["customer_settled"] and not ignore_balance:
                 blockers.append(
                     f"尾款尚未收清，仍差 {summary['delivery_due']:,.0f} 元；"
-                    "請先在金額收支資訊保存並確認收款。"
+                    "請在交車表單一併登記尾款，或到「收入與支出」確認收款。"
                 )
         else:
             from sales.services.dealer_credit import credit_blocker

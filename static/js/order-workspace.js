@@ -10,14 +10,9 @@
   if (typeof document === 'undefined') return;
   const root = document.querySelector('[data-order-workspace]');
   if (!root) return;
-  const nav = root.querySelector('[data-workspace-tabs]');
-  const tabs = [...nav.querySelectorAll('[data-workspace-tab]')];
-  // 編輯時配件金額仍屬於同一訂單表單，只把顯示區移到收支頁籤。
-  root.querySelectorAll('form[data-workspace-save="order"] .accessory-section').forEach(section => {
-    section.dataset.workspaceSection = 'finance';
-    section.closest('form').append(section);
-  });
-  const sections = [...root.querySelectorAll('[data-workspace-section]')];
+  // 步驟式工作台：每個步驟是一個 <details data-step-key>，同頁儲存沿用既有機制。
+  const steps = [...root.querySelectorAll('details[data-step-key]')];
+  const stepLinks = [...root.querySelectorAll('[data-step-link]')];
   const forms = [...root.querySelectorAll('form[data-workspace-save]')];
   const bases = new Map();
   const conflicts = new Set();
@@ -29,61 +24,47 @@
   const capture = form => new Map(fields(form).map(f => [f.name, value(f)]));
   const dirty = form => fields(form).some(f => !['csrfmiddlewaretoken', '_order_revision', 'operations-financial_revision'].includes(f.name) && value(f) !== bases.get(form)?.get(f.name));
   const notify = (text, error = false) => { message.hidden = false; message.textContent = text; message.classList.toggle('is-error', error); };
+  const stepOf = field => field.closest('[data-step-key]')?.dataset.stepKey || 'order';
   function indicators() {
-    tabs.forEach(tab => {
-      const key = tab.dataset.workspaceTab;
-      const changed = forms.some(form => fields(form).some(f => {
-        const group = f.closest('[data-workspace-section]')?.dataset.workspaceSection || (form.dataset.workspaceSave === 'subsidy' ? 'subsidy' : form.dataset.workspaceSave === 'operations' ? 'finance' : 'order');
-        return group === key && !f.name.endsWith('revision') && value(f) !== bases.get(form)?.get(f.name);
-      }));
-      tab.querySelector('[data-dirty-indicator]').hidden = !changed;
-      tab.title = changed ? '有未儲存修改' : '';
+    const changed = new Set();
+    forms.forEach(form => fields(form).forEach(f => {
+      if (!f.name.endsWith('revision') && value(f) !== bases.get(form)?.get(f.name)) changed.add(stepOf(f));
+    }));
+    steps.forEach(step => {
+      const marker = step.querySelector(':scope > summary [data-dirty-indicator]');
+      if (marker) marker.hidden = !changed.has(step.dataset.stepKey);
+    });
+    stepLinks.forEach(link => {
+      const marker = link.querySelector('[data-dirty-indicator]');
+      if (marker) marker.hidden = !changed.has(link.dataset.stepLink);
+      link.title = changed.has(link.dataset.stepLink) ? '有未儲存修改' : '';
     });
   }
   function activate(key, update = true) {
-    if (!tabs.some(t => t.dataset.workspaceTab === key)) key = 'order';
-    tabs.forEach(tab => {
-      const active = key === tab.dataset.workspaceTab;
-      tab.setAttribute('aria-selected', String(active)); tab.tabIndex = active ? 0 : -1;
-    });
-    sections.forEach(section => { section.hidden = section.dataset.workspaceSection !== key; });
+    const step = steps.find(item => item.dataset.stepKey === key);
+    if (!step) return;
+    step.open = true;
+    step.scrollIntoView({block: 'start', behavior: 'smooth'});
     if (update) { const url = new URL(location.href); url.searchParams.set('tab', key); history.replaceState(null, '', url); }
-    root.dataset.activeTab = key;
     root.querySelectorAll('[data-workspace-edit-link]').forEach(a => { const url = new URL(a.href); url.searchParams.set('tab', key); a.href = url.href; });
     window.dispatchEvent(new CustomEvent('order-tab-change', {detail: {tab: key}}));
   }
   function reveal(field) {
-    const group = field.closest('[data-workspace-section]')?.dataset.workspaceSection;
-    if (group) activate(group);
     for (let parent = field.parentElement; parent && parent !== root; parent = parent.parentElement) if (parent.tagName === 'DETAILS') parent.open = true;
     field.scrollIntoView({block: 'center', behavior: 'smooth'});
     field.focus({preventScroll: true});
   }
-  nav.setAttribute('role', 'tablist');
-  tabs.forEach((tab, index) => {
-    tab.id = `workspace-tab-${tab.dataset.workspaceTab}`;
-    tab.setAttribute('role', 'tab');
-    const controlled = sections.filter(section => section.dataset.workspaceSection === tab.dataset.workspaceTab);
-    controlled.forEach((section, n) => {
-      if (!section.id) section.id = `workspace-${tab.dataset.workspaceTab}-${n}`;
-      section.setAttribute('aria-labelledby', tab.id);
-    });
-    tab.setAttribute('aria-controls', controlled.map(s => s.id).join(' '));
-    tab.addEventListener('click', () => activate(tab.dataset.workspaceTab));
-    tab.addEventListener('keydown', event => {
-      const next = event.key === 'Home' ? 0 : event.key === 'End' ? tabs.length - 1 : event.key === 'ArrowRight' ? (index + 1) % tabs.length : event.key === 'ArrowLeft' ? (index + tabs.length - 1) % tabs.length : -1;
-      if (next >= 0) { event.preventDefault(); tabs[next].click(); tabs[next].focus(); }
-    });
-  });
   root.addEventListener('click', event => {
     const go = event.target.closest('[data-workspace-go]');
-    if (go) activate(go.dataset.workspaceGo);
+    if (go) { event.preventDefault(); activate(go.dataset.workspaceGo); }
+    const stepLink = event.target.closest('[data-step-link]');
+    if (stepLink) { event.preventDefault(); activate(stepLink.dataset.stepLink); }
     const link = event.target.closest('a[data-target-tab]');
     if (link) {
       event.preventDefault();
       const key = link.dataset.targetTab;
-      activate(key === 'subsidy' ? 'subsidy' : 'order');
-      const section = document.getElementById(link.dataset.targetAnchor || `panel-${key}`);
+      activate(key);
+      const section = link.dataset.targetAnchor && document.getElementById(link.dataset.targetAnchor);
       if (section) { if (section.tagName === 'DETAILS') section.open = true; section.scrollIntoView({block: 'start', behavior: 'smooth'}); }
     }
   });
@@ -220,7 +201,7 @@
         bases.set(form, capture(form));
         form.dispatchEvent(new CustomEvent('workspace-saved'));
         indicators();
-        notify(payload.message + (conflicts.size ? ' 其他區塊有重疊修改，輸入已保留，請核對後再儲存。' : ' 其他頁籤的未儲存輸入仍保留。'), conflicts.size > 0);
+        notify(payload.message + (conflicts.size ? ' 其他區塊有重疊修改，輸入已保留，請核對後再儲存。' : ' 其他步驟的未儲存輸入仍保留。'), conflicts.size > 0);
       } catch (error) {
         notify(error.name === 'AbortError' ? '儲存回應逾時，結果尚未確認。請先另開此訂單確認是否已儲存，勿重複送出。' : error.message, true);
       } finally {
@@ -238,13 +219,12 @@
   window.addEventListener('beforeunload', event => {
     if (!allowLeave && (busy || forms.some(dirty))) { event.preventDefault(); event.returnValue = ''; }
   });
-  const requested = new URL(location.href).searchParams.get('tab') || 'order';
-  activate(requested, false);
-  if (['allocation', 'registration', 'delivery', 'history'].includes(requested)) {
+  // 由功能導回（?tab=）時捲到對應步驟；一般開啟則停在伺服器判定的目前步驟。
+  const requested = new URL(location.href).searchParams.get('tab');
+  if (requested) {
     const target = document.getElementById(`panel-${requested}`);
     if (target) { if (target.tagName === 'DETAILS') target.open = true; target.scrollIntoView({block: 'start'}); }
   }
-  window.addEventListener('popstate', () => activate(new URL(location.href).searchParams.get('tab'), false));
   document.addEventListener('workspace-subsidy-toggle', event => {
     const orderForm = forms.find(form => form.dataset.workspaceSave === 'order');
     if (orderForm) { const field = orderForm.elements.namedItem('_order_revision'); field.value = event.detail.revision; bases.get(orderForm).set(field.name, value(field)); }

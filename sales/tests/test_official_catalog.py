@@ -22,7 +22,7 @@ from sales.services import official_catalog as service
 # 測試網頁依官網版型自行撰寫，只保留解析會用到的結構。
 SYM_LIST = """
 <h3>125cc~150cc以下</h3>
-<div class="product__thumb"><a class="first__img" href="https://tw.sym-global.com/jetsl125"><img data-src="/storage/jetsl/AM526.webp" alt="類別"></a>
+<div class="box"><div class="new__box"><span class="new-label "> hot </span></div><div class="product__thumb"><a class="first__img" href="https://tw.sym-global.com/jetsl125"><img data-src="/storage/jetsl/AM526.webp" alt="類別"></a>
 <div class="product__content"><h4><a> JET SL </a></h4></div></div>
 <div class="product__thumb"><a class="first__img" href="https://tw.sym-global.com/4mica125"><img data-src="/storage/4mica/AM855.webp" alt="類別"></a>
 <div class="product__content"><h4><a> 4MICA 125 </a></h4></div></div>
@@ -51,7 +51,8 @@ SYM_TWO_VARIANTS = """
 
 SUZUKI_LIST = """
 <li><div><figure><img src="images/product/sui_125/b61_angle_01.jpg"></figure>
-<h5 style="padding-bottom:10px;">SUI 125</h5><a href="product/sui_125/intro.html" class="btn">了解</a></div></li>
+<h5 style="padding-bottom:10px;">SUI 125</h5><a href="product/sui_125/intro.html" class="btn">了解</a></div>
+<div class="product-ribbon"><span>NEW</span></div></li>
 <!-- <li><div><figure><img src="images/product/address-110/a.jpg"></figure>
 <h5>Address 110</h5><a href="product/address-110/intro.html">了解</a></div></li> -->
 <li><div><figure><img src="images/product/gsx-8r/ysf_angle_01.jpg"></figure>
@@ -91,6 +92,7 @@ class OfficialCatalogParserTests(SimpleTestCase):
         self.assertEqual([entry["slug"] for entry in entries], ["jetsl125", "4mica125", "e-woo"])
         self.assertEqual(entries[2]["category"], "電動車")
         self.assertEqual(entries[0]["image_url"], "https://tw.sym-global.com/storage/jetsl/AM526.webp")
+        self.assertEqual([entry["official_label"] for entry in entries], ["HOT", "", ""])
 
     def test_sym_model_splits_variants_and_pairs_colors_with_images(self):
         listing = {"slug": "4mica125", "url": "https://tw.sym-global.com/4mica125", "name": "4MICA 125", "category": "125cc"}
@@ -112,6 +114,7 @@ class OfficialCatalogParserTests(SimpleTestCase):
         entries = service.parse_suzuki_list(SUZUKI_LIST, "https://www.suzukimotor.com.tw/products.html")
         self.assertEqual([(e["slug"], e["name"]) for e in entries], [("sui_125", "SUI 125"), ("gsx-8r", "GSX-8R")])
         self.assertEqual(entries[0]["url"], "https://www.suzukimotor.com.tw/product/sui_125/style_price.html")
+        self.assertEqual([entry["official_label"] for entry in entries], ["NEW", ""])
 
     def test_suzuki_model_skips_commented_colors_and_reads_price(self):
         listing = {"slug": "sui_125", "url": "https://www.suzukimotor.com.tw/product/sui_125/style_price.html", "name": "SUI 125"}
@@ -166,9 +169,10 @@ class OfficialCatalogCheckJobTests(TestCase):
             return value
         return patch.object(service, "fetch_page", side_effect=fake)
 
-    def run_check(self, brand, pages):
+    def run_check(self, brand, pages, fingerprint="etag-1"):
         check = OfficialCatalogCheck.objects.create(brand=brand)
-        with self.pages(pages), patch.object(service, "REQUEST_DELAY", 0):
+        with self.pages(pages), patch.object(service, "REQUEST_DELAY", 0), patch.object(service, "FINGERPRINT_DELAY", 0), \
+                patch.object(service, "fetch_image_fingerprint", return_value=fingerprint):
             service.run_official_catalog_check(check.pk)
         check.refresh_from_db()
         return check
@@ -213,6 +217,37 @@ class OfficialCatalogCheckJobTests(TestCase):
         link.refresh_from_db()
         self.assertTrue(link.has_changes)
         self.assertIn("建議售價：163000 → 165000", service.describe_changes(link.acknowledged_data, link.data))
+
+    def test_same_image_url_with_new_file_counts_as_change(self):
+        """長年車款改外觀時官網常沿用同名同網址，只能靠圖片版本標記判斷。"""
+        pages = {"https://www.suzukimotor.com.tw/products.html": SUZUKI_LIST,
+                 "https://www.suzukimotor.com.tw/product/sui_125/style_price.html": SUZUKI_MODEL,
+                 "https://www.suzukimotor.com.tw/product/gsx-8r/style_price.html": SUZUKI_MODEL.replace("sui_125", "gsx-8r")}
+        self.run_check("suzuki", pages)
+        link = OfficialCatalogModel.objects.get(source_key="sui_125")
+        link.vehicle_model = VehicleModel.objects.create(brand="SUZUKI", name="SUI 125", energy_type="gas", displacement_cc=124)
+        link.acknowledged_data, link.acknowledged_hash = link.data, link.content_hash
+        link.save()
+        self.run_check("suzuki", pages, fingerprint="")  # 取不到標記時不下結論
+        link.refresh_from_db()
+        self.assertTrue(link.has_changes)  # 雜湊不同，但差異說明不誤報換圖
+        self.assertFalse(any("圖片更換" in change for change in service.describe_changes(link.acknowledged_data, link.data)))
+        link.acknowledged_data, link.acknowledged_hash = link.data, link.content_hash
+        link.save()
+        self.run_check("suzuki", pages, fingerprint="etag-1")
+        link.refresh_from_db()
+        OfficialCatalogModel.objects.filter(pk=link.pk).update(acknowledged_data=link.data, acknowledged_hash=link.content_hash)
+        self.run_check("suzuki", pages, fingerprint="etag-2")
+        link.refresh_from_db()
+        self.assertTrue(link.has_changes)
+        changes = service.describe_changes(link.acknowledged_data, link.data)
+        self.assertIn("車色圖片更換（可能改款或改外觀）：蘇打藍 (B61)、白 (W17) 26年式", changes)
+        self.assertIn("官網主圖更換", changes)
+
+    def test_spec_change_is_described(self):
+        before = {"specs": {"煞車形式": "鼓煞", "排氣量": "124 C.C."}, "colors": []}
+        after = {"specs": {"煞車形式": "碟煞", "排氣量": "124 C.C.", "油箱容量": "5.5L"}, "colors": []}
+        self.assertEqual(service.describe_changes(before, after), ["規格變更：煞車形式：鼓煞 → 碟煞；油箱容量：— → 5.5L"])
 
 
 @override_settings(MEDIA_ROOT=tempfile.mkdtemp())

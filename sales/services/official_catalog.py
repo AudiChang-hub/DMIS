@@ -26,6 +26,7 @@ logger = logging.getLogger(__name__)
 USER_AGENT = "Mozilla/5.0 (compatible; DMIS-catalog-check/1.0)"
 REQUEST_TIMEOUT = 20
 REQUEST_DELAY = 0.5
+FINGERPRINT_DELAY = 0.2
 MAX_PAGE_BYTES = 3 * 1024 * 1024
 MAX_IMAGE_BYTES = 8 * 1024 * 1024
 MAX_ERRORS = 50
@@ -91,6 +92,31 @@ def _fetch(url, hosts, limit):
 def fetch_page(url, hosts):
     body, _ = _fetch(url, hosts, MAX_PAGE_BYTES)
     return body.decode("utf-8", errors="replace")
+
+
+def fetch_image_fingerprint(url, hosts):
+    """以 HEAD 取得圖片版本標記；檔名不變但原廠換了照片時，ETag／修改時間／大小會不同。"""
+    if not _allowed_url(url, hosts):
+        return ""
+    opener = urllib.request.build_opener(_SameHostRedirect(hosts))
+    request = urllib.request.Request(url, headers={"User-Agent": USER_AGENT}, method="HEAD")
+    try:
+        with opener.open(request, timeout=REQUEST_TIMEOUT) as response:
+            headers = response.headers
+    except (OfficialCatalogError, urllib.error.URLError, TimeoutError, OSError):
+        return ""
+    return "|".join(headers.get(name, "") for name in ("ETag", "Last-Modified", "Content-Length"))
+
+
+def add_image_fingerprints(entry, hosts):
+    """單張失敗只留空白，不影響整頁；空白不列為變動。"""
+    for color in entry.get("colors", []):
+        if color.get("image_url"):
+            time.sleep(FINGERPRINT_DELAY)
+            color["image_fingerprint"] = fetch_image_fingerprint(color["image_url"], hosts)
+    if entry.get("main_image_url"):
+        entry["main_image_fingerprint"] = fetch_image_fingerprint(entry["main_image_url"], hosts)
+    return entry
 
 
 def fetch_image(url, hosts):
@@ -175,19 +201,20 @@ def parse_sym_list(text, base_url):
     text = _strip_comments(text)
     entries, seen = [], set()
     category = ""
-    for match in re.finditer(r'<h3[^>]*>(.*?)</h3>|<a class="first__img" href="([^"]+)"[^>]*>(.*?)</a>\s*<div class="product__content">\s*<h4>(.*?)</h4>', text, flags=re.S):
+    for match in re.finditer(r'<h3[^>]*>(.*?)</h3>|(<span class="new-label[^"]*">[^<]*</span>\s*</div>\s*<div class="product__thumb">\s*)?<a class="first__img" href="([^"]+)"[^>]*>(.*?)</a>\s*<div class="product__content">\s*<h4>(.*?)</h4>', text, flags=re.S):
         if match.group(1) is not None:
             category = _text(match.group(1))
             continue
-        url = urljoin(base_url, html.unescape(match.group(2)))
+        url = urljoin(base_url, html.unescape(match.group(3)))
         slug = urlsplit(url).path.strip("/")
         if not slug or slug in seen:
             continue
         seen.add(slug)
-        image = re.search(r"<img[^>]*>", match.group(3))
+        image = re.search(r"<img[^>]*>", match.group(4))
         entries.append({
-            "slug": slug, "url": url, "name": _text(match.group(4)), "category": category,
+            "slug": slug, "url": url, "name": _text(match.group(5)), "category": category,
             "image_url": urljoin(base_url, _img_src(image.group(0))) if image else "",
+            "official_label": _text(match.group(2) or "").upper(),
         })
     return entries
 
@@ -241,6 +268,7 @@ def parse_sym_model(text, listing):
             "variant": tabs[index] if index < len(tabs) else "",
             "category": listing.get("category", ""),
             "energy": "electric" if "電" in listing.get("category", "") or "電動馬達" in specs.get("引擎形式", "") else "gas",
+            "official_label": listing.get("official_label", ""),
             "year_hint": _year_hint(name, *images),
             "displacement_cc": _number(specs.get("排氣量", "")),
             "power": specs.get("最大馬力", ""),
@@ -256,12 +284,15 @@ def parse_sym_model(text, listing):
 def parse_suzuki_list(text, base_url):
     text = _strip_comments(text)
     entries, seen = [], set()
-    for match in re.finditer(r'<figure>\s*(<img[^>]*>)\s*</figure>\s*<h5[^>]*>((?:[^<]|<br\s*/?>)*)</h5>\s*<a href="([^"]*product/([^"/]+)/intro\.html)"', text):
+    cards = list(re.finditer(r'<figure>\s*(<img[^>]*>)\s*</figure>\s*<h5[^>]*>((?:[^<]|<br\s*/?>)*)</h5>\s*<a href="([^"]*product/([^"/]+)/intro\.html)"', text))
+    for index, match in enumerate(cards):
         slug = match.group(4)
         if slug in seen:
             continue
         seen.add(slug)
+        card_end = cards[index + 1].start() if index + 1 < len(cards) else len(text)
         entries.append({
+            "official_label": _ribbon(text[match.end():card_end]),
             "slug": slug,
             "url": urljoin(base_url, f"product/{slug}/style_price.html"),
             "name": _text(match.group(2)),
@@ -269,6 +300,11 @@ def parse_suzuki_list(text, base_url):
             "image_url": urljoin(base_url, _img_src(match.group(1))),
         })
     return entries
+
+
+def _ribbon(fragment):
+    match = re.search(r'class="product-ribbon"><span>(.*?)</span>', fragment, flags=re.S)
+    return _text(match.group(1)).upper() if match else ""
 
 
 SUZUKI_CODE = re.compile(r"[（(]\s*([A-Za-z0-9]{2,4})\s*[)）]")
@@ -305,6 +341,7 @@ def parse_suzuki_model(text, listing):
         "variant": "",
         "category": "",
         "energy": "electric" if "電動" in specs.get("引擎形式", "") else "gas",
+        "official_label": listing.get("official_label", ""),
         "year_hint": _year_hint(*(color["name"] for color in colors)),
         "displacement_cc": _number(specs.get("排氣量", "")),
         "power": specs.get("最大馬力") or specs.get("馬力", ""),
@@ -329,7 +366,11 @@ def content_hash(entry):
         "displacement_cc": entry.get("displacement_cc"),
         "power": entry.get("power"),
         "price": entry.get("price"),
-        "colors": sorted((color["code"] or color["name"], color["image_url"]) for color in entry.get("colors", [])),
+        "official_label": entry.get("official_label", ""),
+        "specs": entry.get("specs", {}),
+        "main_image": (entry.get("main_image_url"), entry.get("main_image_fingerprint", "")),
+        "colors": sorted((color["code"] or color["name"], color["image_url"], color.get("image_fingerprint", ""))
+                         for color in entry.get("colors", [])),
     }
     return hashlib.sha256(json.dumps(relevant, ensure_ascii=False, sort_keys=True).encode()).hexdigest()
 
@@ -348,13 +389,30 @@ def describe_changes(before, after):
     if removed:
         changes.append("官網已移除車色：" + "、".join(removed))
     replaced = [new_colors[key]["name"] for key in new_colors
-                if key in old_colors and old_colors[key]["image_url"] != new_colors[key]["image_url"]]
+                if key in old_colors and _image_changed(old_colors[key], new_colors[key])]
     if replaced:
-        changes.append("車色圖片更換：" + "、".join(replaced))
-    for field, label in (("name", "官網名稱"), ("displacement_cc", "排氣量"), ("power", "馬力"), ("price", "建議售價")):
+        changes.append("車色圖片更換（可能改款或改外觀）：" + "、".join(replaced))
+    if _image_changed({"image_url": before.get("main_image_url"), "image_fingerprint": before.get("main_image_fingerprint")},
+                      {"image_url": after.get("main_image_url"), "image_fingerprint": after.get("main_image_fingerprint")}):
+        changes.append("官網主圖更換")
+    for field, label in (("official_label", "官網標籤"), ("name", "官網名稱"), ("displacement_cc", "排氣量"), ("power", "馬力"), ("price", "建議售價")):
         if (before.get(field) or "") != (after.get(field) or ""):
             changes.append(f"{label}：{before.get(field) or '—'} → {after.get(field) or '—'}")
+    old_specs, new_specs = before.get("specs", {}), after.get("specs", {})
+    spec_changes = [f"{label}：{old_specs.get(label) or '—'} → {new_specs.get(label) or '—'}"
+                    for label in dict.fromkeys([*old_specs, *new_specs])
+                    if label not in {"排氣量", "最大馬力", "馬力"} and old_specs.get(label) != new_specs.get(label)]
+    if spec_changes:
+        changes.append("規格變更：" + "；".join(spec_changes[:8]) + ("…" if len(spec_changes) > 8 else ""))
     return changes
+
+
+def _image_changed(old, new):
+    """網址不同，或同網址但版本標記不同才算更換；任一邊沒取得標記時不下結論。"""
+    if (old.get("image_url") or "") != (new.get("image_url") or ""):
+        return True
+    old_mark, new_mark = old.get("image_fingerprint") or "", new.get("image_fingerprint") or ""
+    return bool(old_mark and new_mark and old_mark != new_mark)
 
 
 # ---------- 車型與車色對應 ----------
@@ -516,6 +574,7 @@ def run_official_catalog_check(check_id):
             time.sleep(REQUEST_DELAY)
             entries = model_parser(fetch_page(listing["url"], source["hosts"]), listing)
             for entry in entries:
+                add_image_fingerprints(entry, source["hosts"])
                 _upsert_entry(check, entry)
                 seen.add(entry["source_key"])
                 found += 1

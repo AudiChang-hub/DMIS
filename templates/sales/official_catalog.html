@@ -22,7 +22,7 @@
 {% endif %}
 
 {% if not has_entries %}
-<div class="empty-state"><span class="empty-state__icon" aria-hidden="true">＋</span><h3>尚未檢查過 {{ brand|upper }} 官網</h3><p>按右上角「檢查 {{ brand|upper }} 官網」，約 1～2 分鐘後這裡會列出官網車型，再逐款確認對應的系統車型。</p></div>
+<div class="empty-state"><span class="empty-state__icon" aria-hidden="true">＋</span><h3>尚未檢查過 {{ brand|upper }} 官網</h3><p>按右上角「檢查 {{ brand|upper }} 官網」，約 2～3 分鐘後這裡會列出官網車型，再逐款確認對應的系統車型。</p></div>
 {% else %}
 <nav class="account-tabs official-tabs" aria-label="比對結果分類">
   {% for key, label, count in tabs %}<a href="?brand={{ brand }}&amp;tab={{ key }}"{% if key == tab %} aria-current="page"{% endif %}>{{ label }} <span>{{ count }}</span></a>{% endfor %}
@@ -32,7 +32,7 @@
 <article class="section-block official-row">
   <div class="official-row__media">{% if data.main_image_url %}<img src="{{ data.main_image_url }}" alt="" loading="lazy" referrerpolicy="no-referrer">{% endif %}</div>
   <div class="official-row__body">
-    <h2 class="section-title">{{ link.name }}{% if link.missing %} <span class="account-badge">官網已下架</span>{% endif %}</h2>
+    <h2 class="section-title">{{ link.name }}{% if data.official_label %} <span class="account-badge">官網標示 {{ data.official_label }}</span>{% endif %}{% if link.missing %} <span class="account-badge">官網已下架</span>{% endif %}</h2>
     <div class="section-body">
       <p class="muted">{% if data.year_hint %}官網年式 {{ data.year_hint }} · {% endif %}{% if data.displacement_cc %}{{ data.displacement_cc }} c.c. · {% endif %}{% if data.power %}{{ data.power }} · {% endif %}{{ data.colors|length }} 色 · <a href="{{ link.source_url }}" target="_blank" rel="noopener noreferrer">官網頁面 ↗</a></p>
       {% if data.colors %}<p class="official-row__colors">{% for color in data.colors %}<span class="account-badge">{{ color.name }}</span>{% endfor %}</p>{% endif %}

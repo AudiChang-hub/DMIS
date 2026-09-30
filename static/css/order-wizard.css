@@ -17,6 +17,11 @@ button.wizard-bar__link:hover { border-color: var(--line-strong); }
 .wizard-errors { display: block; }
 .wizard-errors strong { display: block; }
 .wizard-errors ul { margin: var(--space-2) 0 0; padding-left: 1.2em; }
+/* 證件辨識完成前，人工核對呈灰色不可勾選。 */
+.verify-box.is-locked label { color: var(--muted); cursor: not-allowed; }
+.verify-box.is-locked input[type="checkbox"] { cursor: not-allowed; opacity: 0.5; }
+.verify-lock-hint { display: block; margin-top: var(--space-1); color: var(--muted); }
+.wizard-nav [data-wizard-next]:disabled { cursor: not-allowed; opacity: 0.5; }
 .id-manual-check label { display: flex; gap: var(--space-2); align-items: center; font-weight: 600; }
 .id-manual-check p { margin: var(--space-1) 0 0; }
 

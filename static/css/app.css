@@ -2626,6 +2626,12 @@ body.screen-locked { overflow: hidden; }
 }
 .inventory-filter select { padding-right: var(--space-6); }
 .inventory-filter-actions { display: flex; gap: var(--space-2); }
+/* 中等寬度（筆電、平板橫向）：篩選列改為四欄，搜尋佔兩欄，操作按鈕靠右，不超出卡片。 */
+@media (min-width: 861px) and (max-width: 1360px) {
+  .inventory-filters:not(.customer-filters) { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .inventory-filters:not(.customer-filters) > :is(.inventory-filter--search, .master-search) { grid-column: span 2; }
+  .inventory-filters:not(.customer-filters) > .inventory-filter-actions { grid-column: -2 / -1; justify-self: end; flex-wrap: wrap; }
+}
 .inventory-list-panel { width: 100%; min-width: 0; max-width: 100%; overflow: hidden; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); }
 .inventory-list-summary {
   display: flex; min-height: 48px; padding: 0 var(--space-4); align-items: center;

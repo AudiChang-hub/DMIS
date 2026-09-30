@@ -340,6 +340,12 @@ class UiConsistencyTests(SimpleTestCase):
         for name in ("dealer_volume_bonus_form", "vehicle_model_form", "incentive_rule_form", "settlement_cost_rule_form", "dealer_reward_catalog_form", "dealer_account_form"):
             self.assertIn("form-savebar", (TEMPLATES / "sales" / f"{name}.html").read_text(encoding="utf-8"), name)
 
+    def test_filter_bar_fits_medium_screens(self):
+        """中等寬度下篩選列改為四欄，避免 7 欄最小寬度撐出卡片（1024px 筆電）。"""
+        app = (CSS_DIR / "app.css").read_text(encoding="utf-8")
+
+        self.assertIn("@media (min-width: 861px) and (max-width: 1360px) {\n  .inventory-filters:not(.customer-filters) { grid-template-columns: repeat(4, minmax(0, 1fr)); }", app.replace("\r\n", "\n"))
+
     def test_alignment_rules_exist(self):
         app = (CSS_DIR / "app.css").read_text(encoding="utf-8")
 

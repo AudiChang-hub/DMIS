@@ -1,0 +1,1 @@
+<label class="check-row">{{ field }}<span>{{ field.label }}</span></label>{% if field.errors %}<span class="check-row__errors" id="{{ field.id_for_label }}_errors">{% for error in field.errors %}<small class="field-error">{{ error }}</small>{% endfor %}</span>{% endif %}

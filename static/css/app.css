@@ -6539,6 +6539,11 @@ form[aria-busy="true"] { cursor: progress; }
 .order-recycle-panel{max-width:900px;margin: 0 0 var(--stack-gap);padding:var(--card-pad);overflow-wrap:anywhere;line-height:1.7}
 .order-recycle-panel h1{margin:0 0 var(--stack-gap)}.order-recycle-panel h2{font-size:var(--text-lg);margin:var(--stack-gap) 0 var(--space-3)}.order-recycle-panel form{margin-top:var(--space-6)}.order-recycle-panel textarea{width:100%;min-height:120px;padding:var(--space-3);border:1px solid var(--line);border-radius:var(--radius-md);background:var(--surface);color:var(--ink)}
 .order-recycle-panel input[type=checkbox]{width:20px;height:20px;vertical-align:middle;accent-color:var(--action-text,var(--forest))}.order-recycle-panel .hero-actions{margin-top:var(--stack-gap);flex-wrap:wrap;gap:var(--space-3)}.order-recycle-panel article{padding-block:var(--space-4);border-bottom:1px solid var(--line)}
+.official-row{display:grid;grid-template-columns:200px minmax(0,1fr);gap:var(--stack-gap);align-items:start;margin-bottom:var(--stack-gap)}
+.official-row__media{padding:var(--card-pad) 0 var(--card-pad) var(--card-pad)}.official-row__media img{display:block;width:100%;aspect-ratio:4/3;object-fit:contain;background:white;border-radius:var(--radius-sm)}
+.official-row__body{min-width:0}.official-row__body .section-body>*+*{margin-top:var(--stack-gap-sm)}.official-row__colors{display:flex;flex-wrap:wrap;gap:var(--space-2)}
+.official-tabs a:last-child{margin-left:0}.official-row__form label{display:grid;gap:var(--space-2);max-width:640px}
+@media(max-width:700px){.official-row{grid-template-columns:1fr}.official-row__media{padding:var(--card-pad) var(--card-pad) 0}.official-row__media img{max-width:240px}}
 .catalog-manage-filters{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:var(--stack-gap)}
 .catalog-manage-filters label{min-width:0;display:grid;gap:var(--space-3)}.catalog-manage-actions{display:flex;flex-wrap:wrap;gap:var(--stack-gap-sm);margin:var(--stack-gap-sm) 0}
 .catalog-color-edit-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:var(--stack-gap)}

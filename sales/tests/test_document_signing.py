@@ -96,8 +96,9 @@ class DocumentSigningTests(TestCase):
         self.assertIn("SHA-256", events.first().description)
         done = self.client.get(reverse("order_sign_done", args=[order.pk]))
         self.assertContains(done, "車輛訂購單：已電子簽署")
+        self.assertContains(done, "客人需要紙本副本嗎？")
         self.assertContains(done, "完成，返回訂單")
-        self.assertContains(done, "客人需要紙本副本時再列印")
+        self.assertContains(done, "列印含簽名的副本")
         self.assertContains(done, 'value="contract_store">')
         self.assertContains(done, 'value="contract_customer" checked>')
 
@@ -118,6 +119,8 @@ class DocumentSigningTests(TestCase):
         self.assertTrue(order.has_privacy_consent)
         detail = self.client.get(reverse("order_detail", args=[order.pk]), {"tab": "documents"})
         self.assertContains(detail, "內容已變更，需重簽")
+        # 個資同意書仍有效電子簽署，訂單頁照樣可以印含簽名的副本。
+        self.assertContains(detail, "選擇副本聯別")
 
     def test_accessory_and_owner_changes_invalidate_documents(self):
         order = self.make_order()
@@ -195,3 +198,4 @@ class DocumentSigningTests(TestCase):
         self.assertIn("印出紙本給客人簽", dialog)
         self.assertIn('value="contract_store" checked>', dialog)
         self.assertIn('value="privacy" checked>', dialog)
+        self.assertNotIn("選擇副本聯別", dialog)

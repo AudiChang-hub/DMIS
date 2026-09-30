@@ -4,7 +4,7 @@
 
 - 應用版本：**1.24.0**，來源 `config/release_notes.py`；發布規範見 [RELEASE_POLICY](../RELEASE_POLICY.md)。
 - 正式站：**1.24.0**（原廠車型比對第二階段：從官網建立車型／新年式、圖片版本標記偵測改款、每週自動檢查並通知 admin）已於 2026-09-30 發布，main `32ee571`（附註標籤 v1.24.0，CI 通過）；deployed-sha 一致，DB／Redis 未重啟，無 migration。部署前備份 `dmis_20260930_162244.sql.gz`。已在使用者 Chrome 以 admin 開啟原廠車型比對頁與新增機種頁（只讀取）。
-- **每週檢查排程尚未安裝**：需使用者在 T470P 執行 `sudo bash scripts/install_django_official_catalog_timer.sh`（sudo 需密碼，AI 不代輸）。正式站尚未執行任何官網檢查、對應或補圖，留給使用者首次操作。
+- 每週官網檢查排程 `dmis-next-official-catalog-check.timer` 已由使用者於 2026-09-30 安裝並啟用，首次執行 2026-10-05 05:47。正式站尚未執行任何官網檢查、對應或補圖，留給使用者首次操作。
 - 1.23.0（main `de7ef26`，原廠車型比對第一階段，migration 0157 新增兩張表）與另一工作階段的 1.23.1（`6a49548`，表格外觀）、1.23.2（`da3bd64`，表單外觀）同批部署，備份 `dmis_20260930_155446.sql.gz`；規格 `specs/061-official-catalog-check`。
 - 同日稍早：1.22.4（main `8ce83b3`，確認頁版面）、1.22.3（main `616c482`，選車篩選原地更新，備份 `dmis_20260930_131640.sql.gz`）、1.22.2（main `6ea6af5`，確認頁與多行文字框外觀，備份 `dmis_20260930_124623.sql.gz`）、1.22.1（main `9e5ad16`，下拉選單自動套用篩選，備份 `dmis_20260930_121606.sql.gz`）、1.22.0（main `1b57af3`，訂單步驟式工作台，備份 `dmis_20260930_113951.sql.gz`）、1.21.1（main `469d4da`，全站版面對齊，備份 `dmis_20260930_110911.sql.gz`）、1.21.0（main `df4022e`，移除發票紀錄、領牌發票照片改選填，migration 0156 刪除 0 筆空表，備份 `dmis_20260930_104055.sql.gz`）。
 - 2026-09-29：1.20.0（main `3884202`，migration 0153–0155）、1.19.0（main `4a55a5a`，migration 0152）、1.18.2（main `453ad2f`）。

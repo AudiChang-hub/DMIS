@@ -59,6 +59,10 @@ class OrderWizardTests(TestCase):
         self.assertIn('id="id-manual-check" hidden', page)
         self.assertIn("function updateVerifyLock", page)
         self.assertIn('next.disabled = !ready', page)
+        # 訂金獨立成段；分期預設以配件金額當訂金。
+        self.assertIn('id="deposit-subsection"', page)
+        self.assertIn('name="_deposit_auto"', page)
+        self.assertIn("function accessoryPurchaseTotal", page)
         classic = self.client.get(reverse("order_create"), {"classic": "1"}).content.decode()
         self.assertIn("建立新訂單", classic)
         self.assertNotIn("wizard-bar", classic)
@@ -103,6 +107,12 @@ class OrderWizardTests(TestCase):
         draft = self.walk_to("confirm", _id_check="failed", _id_check_error="反面照片看不出是身分證反面", _id_manual_confirmed="on")
         page = self.client.get(reverse("order_create"), {"draft": draft.pk, "step": "confirm"}).content.decode()
         self.assertIn("請核對整張訂單", page)
+        summary = page.split("wizard-summary", 1)[1].split("</section>", 1)[0]
+        # 車型只列品牌／車種／型號／年份，車色只列顏色；訂金一律列出，並提示建立後簽署。
+        self.assertIn("<dt>車型</dt><dd>測試／125</dd>", summary)
+        self.assertIn("<dt>車色</dt><dd>白</dd>", summary)
+        self.assertIn("<dt>訂金</dt><dd>無</dd>", summary)
+        self.assertIn("線上簽「車輛訂購單」與「個資同意書」", summary)
         self.assertIn("測試車主", page)
         self.assertIn("自動辨識未通過，已人工核對證件正反面", page)
         self.assertIn("確認並建立訂單", page)
@@ -127,6 +137,17 @@ class OrderWizardTests(TestCase):
         draft.refresh_from_db()
         self.assertEqual(draft.data["note"], "改完再回第一步")
 
+    def test_custom_accessory_name_survives_later_steps(self):
+        self.setUpKey()
+        custom = {"accessories-0-accessory_product": "other", "accessories-0-custom_name": "測試安全帽",
+                  "accessories-0-amount": "1500", "accessories-0-labor_fee": "0", "accessories-0-quantity": "2"}
+        self.post("vehicle", **custom)
+        draft = self.draft()
+        response = self.post("extras", draft=draft, **custom)
+        self.assertEqual(response.status_code, 302)
+        # 每一步都由草稿重新載入，自訂配件名稱不能遺失，否則後面步驟會被配件錯誤擋下。
+        page = self.client.get(reverse("order_create"), {"draft": draft.pk, "step": "owner"}).content.decode()
+        self.assertIn('value="測試安全帽"', page)
 
 @override_settings(MEDIA_ROOT=MEDIA)
 class ReceptionWizardTests(TestCase):
@@ -161,4 +182,6 @@ class ReceptionWizardTests(TestCase):
         order = SalesOrder.objects.get()
         self.assertEqual(response.url, reverse("order_submitted", args=[order.pk]))
         self.assertEqual(order.deposit_amount, 0)
+        # 沒有簽署或列印權限時，成立頁不顯示空白的簽署區塊。
+        self.assertNotContains(self.client.get(response.url), "sign-choice")
         self.assertFalse(OrderEvent.objects.filter(order=order, event_type="identity_manual_check").exists())

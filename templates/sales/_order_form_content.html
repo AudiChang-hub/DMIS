@@ -203,9 +203,6 @@
       <div class="span-2 vehicle-price-adjustment" id="vehicle-price-adjustment" hidden>
         {% include "sales/_field.html" with field=form.vehicle_price_adjustment_reason %}
       </div>
-      <div {% if intake_mode and not intake_finance_editable %}hidden{% endif %}>{% include "sales/_field.html" with field=form.deposit_amount %}</div>
-      <div {% if intake_mode and not intake_finance_editable %}hidden{% endif %}>{% include "sales/_field.html" with field=form.deposit_date %}</div>
-      <div {% if intake_mode and not intake_finance_editable %}hidden{% endif %}>{% include "sales/_field.html" with field=form.deposit_method %}</div>
     </div>
     <details class="card" {% if intake_mode and not intake_finance_editable %}hidden{% endif %}><summary>店內財務・領牌規費與強制險</summary><div class="subsection registration-fee-subsection">
       <div class="section-title">
@@ -259,6 +256,14 @@
         {% include "sales/_field.html" with field=form.installment_monthly %}
       </div>
       <p class="form-hint" id="installment-plan-hint" aria-live="polite">{% site_text 'order_form.e4b6f41700b0' %}</p>
+    </div>
+    <div class="subsection deposit-subsection" id="deposit-subsection" {% if intake_mode and not intake_finance_editable %}hidden{% endif %}>
+      {% if wizard %}<input type="hidden" name="_deposit_auto" id="deposit-auto" value="{{ wizard.deposit_auto }}">{% endif %}<div class="section-title"><div><h3>訂金</h3><p class="muted" id="deposit-hint">現金：依客人這次實際要付的金額填寫。分期：預設以配件金額當訂金，可修改。</p></div></div>
+      <div class="form-grid">
+        {% include "sales/_field.html" with field=form.deposit_amount %}
+        {% include "sales/_field.html" with field=form.deposit_date %}
+        {% include "sales/_field.html" with field=form.deposit_method %}
+      </div>
     </div>
     <div class="subsection fee-subsection" {% if intake_mode and not intake_finance_editable %}hidden{% endif %}>
       <div class="section-title"><h3>其他費用</h3></div>

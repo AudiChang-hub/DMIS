@@ -2,8 +2,9 @@
 
 核對日期：2026-09-30（正式站以 SSH 與公開頁面核對）。
 
-- 應用版本：**1.28.0**，來源 `config/release_notes.py`；發布規範見 [RELEASE_POLICY](../RELEASE_POLICY.md)。
-- 正式站：**1.28.0**（SUZUKI 零件不再嵌入：`/parts/suzuki/` 轉址到 `SUZUKI_PARTS_MANUAL_URL`，主選單／手機捷徑另開分頁；SUZUKI 主品牌與別名車款在庫存清單與訂單配車區顯示「查零件」，複製引擎／車身號碼後另開官方網站，樣板標籤 `suzuki_parts_lookup`。官方網站不支援網址帶號碼，若台鈴日後支援可改為直接開到該車目錄）已於 2026-10-01 15:31 發布，main `c121c58`（附註標籤 v1.28.0，CI 通過），DB／Redis 未重啟，無 migration，部署前備份 `dmis_20261001_153045.sql.gz`。正式站核對服務、健康檢查、轉址與品牌別名；剪貼簿複製未在正式站實測。
+- 應用版本：**1.28.1**，來源 `config/release_notes.py`；發布規範見 [RELEASE_POLICY](../RELEASE_POLICY.md)。
+- 正式站：**1.28.1**（PWA：`static/manifest.webmanifest` 設 `display: fullscreen`、start_url／scope 為 `/`，圖示在 `static/icons/`，base.html 加 manifest 與 iOS apple meta；WhiteNoise 補 `.webmanifest` MIME；頁首預留 `safe-area-inset-top`。無 service worker、無離線快取。舊主畫面捷徑須刪除後重新加入才生效）已於 2026-10-01 17:58 發布，main `837d9a6`（附註標籤 v1.28.1，CI 通過），DB／Redis 未重啟，無 migration，部署前備份 `dmis_20261001_175719.sql.gz`。正式站核對健康檢查、manifest（application/manifest+json）、圖示與登入頁 head；Android／iPhone 實機安裝與全螢幕頁首未實測。
+- **1.28.0**（SUZUKI 零件不再嵌入：`/parts/suzuki/` 轉址到 `SUZUKI_PARTS_MANUAL_URL`，主選單／手機捷徑另開分頁；SUZUKI 主品牌與別名車款在庫存清單與訂單配車區顯示「查零件」，複製引擎／車身號碼後另開官方網站，樣板標籤 `suzuki_parts_lookup`。官方網站不支援網址帶號碼，若台鈴日後支援可改為直接開到該車目錄）已於 2026-10-01 15:31 發布，main `c121c58`（附註標籤 v1.28.0），備份 `dmis_20261001_153045.sql.gz`；剪貼簿複製未在正式站實測。
 - **1.27.1**（頁首右側外觀、使用說明、檢查更新、我的密碼、登出收進右上角帳號選單 `data-account-menu`；1.27.x 的零件嵌入頁已由 1.28.0 移除）已於 2026-10-01 14:22 發布，main `b67106b`（附註標籤 v1.27.1，CI 通過），DB／Redis 未重啟，無 migration，部署前備份 `dmis_20261001_142202.sql.gz`。正式站核對服務、健康檢查與新靜態檔；帳號選單與零件頁版面以本機 1600／1280／375px 驗證，登入後未在正式站實機操作。
 - **1.27.0**（主選單「SUZUKI 零件」以 iframe 嵌入台鈴官方零件圖冊；網址由環境變數 `SUZUKI_PARTS_MANUAL_URL` 設定，預設為官方測試網址 manus.space，官方換正式網域時改變數後重新部署；內部帳號可見、車行帳號不可見；本系統不複製官方資料）已於 2026-10-01 13:27 發布，main `85b6c1d`（附註標籤 v1.27.0，CI 通過），DB／Redis 未重啟，無 migration，部署前備份 `dmis_20261001_132707.sql.gz`（新版備份腳本已生效，部署未中止）。正式站已核對路由、設定、健康檢查與未登入導向登入頁；登入後畫面以本機驗證。
 - **1.26.5**（備份腳本週／月封存已存在就保留，修正月初與週日部署中止）已於 2026-10-01 12:57 發布，main `dfcadfe`（附註標籤 v1.26.5，CI 通過），deployed-sha 一致，DB／Redis 未重啟。部署前以新版腳本備份 `dmis_20261001_125705.sql.gz`，實際略過 root 建立的 10 月封存。注意：部署腳本以「部署前的舊版」備份腳本執行，備份腳本本身的修正從下一次部署起才會自動生效。

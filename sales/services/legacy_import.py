@@ -38,6 +38,7 @@ from sales.models import (
 DUPLICATE_IDENTIFIER_MESSAGE = "同一工作表存在重複的標準化車輛識別號碼"
 MULTIPLE_NEW_SALES_MESSAGE = "同一識別號碼存在多筆新車銷售；請確認後續交易是否為中古車"
 DUPLICATE_SALES_TRANSACTION_MESSAGE = "同一筆銷售交易在工作表重複出現"
+POSSIBLY_IMPORTED_SALES_MESSAGE = "疑似已匯入：無引擎／車身號碼，型號、日期與車主相同但車牌欄不同；請排除或補上號碼"
 MISSING_IDENTIFIER_MESSAGE = "缺少引擎／車身號碼"
 EMPTY_SALES_PLACEHOLDER_MESSAGE = "Excel 空白公式列，系統自動略過"
 NON_VEHICLE_SALES_NOISE_MESSAGE = "缺少有效車輛序號且無交易資料，系統自動略過"
@@ -58,6 +59,7 @@ SYSTEM_VALIDATION_MESSAGES = {
     DUPLICATE_IDENTIFIER_MESSAGE,
     MULTIPLE_NEW_SALES_MESSAGE,
     DUPLICATE_SALES_TRANSACTION_MESSAGE,
+    POSSIBLY_IMPORTED_SALES_MESSAGE,
     MISSING_IDENTIFIER_MESSAGE,
     EMPTY_SALES_PLACEHOLDER_MESSAGE,
     NON_VEHICLE_SALES_NOISE_MESSAGE,
@@ -461,6 +463,13 @@ def _sales_transaction_key(data):
     owner_identity = data.get("owner_id_number") or data.get("owner_name") or "unknown-owner"
     owner_digest = hashlib.sha256(str(owner_identity).strip().upper().encode("utf-8")).hexdigest()[:12]
     return f"sales:{vehicle_key}:{category}:{transaction_date}:{owner_digest}"
+
+
+def _sales_plateless_key(data):
+    """無車輛號碼時的輔助比對鍵；車牌欄常混入備註，不納入。不取代交易鍵。"""
+    if data.get("identifier") or not data.get("model_number"):
+        return None
+    return _sales_transaction_key({**data, "plate_number": ""})
 
 
 def _is_empty_sales_placeholder(data):
@@ -891,6 +900,7 @@ def revalidate_import_batch(batch):
     inventory_identifier_counts = {}
     sales_new_identifier_counts = {}
     sales_transaction_counts = {}
+    sales_plateless_counts = {}
     for row in active_rows:
         identifier = row.mapped_data.get("identifier", "")
         if row.sheet_name == "進貨" and identifier:
@@ -906,6 +916,11 @@ def revalidate_import_batch(batch):
             sales_transaction_counts[transaction_key] = (
                 sales_transaction_counts.get(transaction_key, 0) + 1
             )
+            plateless_key = _sales_plateless_key(row.mapped_data)
+            if plateless_key:
+                sales_plateless_counts[plateless_key] = (
+                    sales_plateless_counts.get(plateless_key, 0) + 1
+                )
             if (
                 identifier
                 and row.mapped_data.get("vehicle_category", SalesOrder.VehicleCategory.NEW)
@@ -923,9 +938,8 @@ def revalidate_import_batch(batch):
         .values_list("normalized_frame_number", flat=True)
     )
     inventory_identifiers.discard("")
-    completed_sales_keys = {
-        _sales_transaction_key(mapped_data)
-        for mapped_data in LegacyImportRow.objects.filter(
+    completed_sales_data = list(
+        LegacyImportRow.objects.filter(
             sheet_name="銷貨",
             batch__status=LegacyImportBatch.Status.COMPLETED,
             action__in=[
@@ -934,7 +948,14 @@ def revalidate_import_batch(batch):
                 LegacyImportRow.Action.SKIP,
             ],
         ).values_list("mapped_data", flat=True)
+    )
+    completed_sales_keys = {
+        _sales_transaction_key(mapped_data) for mapped_data in completed_sales_data
     }
+    completed_plateless_keys = {
+        _sales_plateless_key(mapped_data) for mapped_data in completed_sales_data
+    }
+    completed_plateless_keys.discard(None)
     existing_sources = set(
         SalesSource.objects.values_list("source_type", "name")
     )
@@ -974,7 +995,10 @@ def revalidate_import_batch(batch):
                 )
             else:
                 row.natural_key = _sales_transaction_key(row.mapped_data)
-                if sales_transaction_counts.get(row.natural_key, 0) > 1:
+                plateless_key = _sales_plateless_key(row.mapped_data)
+                if sales_transaction_counts.get(row.natural_key, 0) > 1 or (
+                    plateless_key and sales_plateless_counts.get(plateless_key, 0) > 1
+                ):
                     row.action = LegacyImportRow.Action.CONFLICT
                     messages.append(DUPLICATE_SALES_TRANSACTION_MESSAGE)
                 elif (
@@ -986,6 +1010,9 @@ def revalidate_import_batch(batch):
                     messages.append(MULTIPLE_NEW_SALES_MESSAGE)
                 elif row.natural_key in completed_sales_keys:
                     row.action = LegacyImportRow.Action.SKIP
+                elif plateless_key in completed_plateless_keys:
+                    row.action = LegacyImportRow.Action.CONFLICT
+                    messages.append(POSSIBLY_IMPORTED_SALES_MESSAGE)
                 elif _has_invalid_email(row.mapped_data.get("owner_email", "")):
                     row.action = LegacyImportRow.Action.ERROR
                     messages.append(INVALID_EMAIL_MESSAGE)
@@ -1387,7 +1414,10 @@ def _commit_sales_row(row, actor_name, *, pending_order=None):
     vehicle = None
     if vehicle_category == SalesOrder.VehicleCategory.NEW and data["identifier"]:
         vehicle = VehicleInventory.objects.filter(normalized_engine_number=data["identifier"]).first() or VehicleInventory.objects.filter(normalized_frame_number=data["identifier"]).first()
-    order_date = _date(data["order_date"]) or (timezone.localdate() if pending_order else _date(data["registration_date"])) or timezone.localdate()
+    order_date = _date(data["order_date"]) or (
+        timezone.localdate() if pending_order
+        else _date(data["registration_date"]) or _date(data.get("invoice_date"))
+    ) or timezone.localdate()
     owner_id = data["owner_id_number"] or f"HIST-{str(row.batch_id)[:8]}-{row.source_row}"
     source = _source_for_name(data.get("dealer_name", ""))
     source_type = SalesOrder.SourceType.STORE

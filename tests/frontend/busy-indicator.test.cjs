@@ -1,6 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const {isTrackedLink, isTrackedForm, messageFor} = require('../../static/js/busy-indicator.js');
+const fs = require('node:fs');
+const {isTrackedLink, isTrackedForm, isActivationKey, messageFor} = require('../../static/js/busy-indicator.js');
 
 const page = 'https://dmis.example/orders/?page=2';
 
@@ -46,4 +47,24 @@ test('提示文字依操作類型，等候過久改為請勿關閉頁面', () =>
   assert.equal(messageFor('submit', false), '正在送出，請稍候…');
   assert.equal(messageFor('request', false), '處理中，請稍候…');
   assert.match(messageFor('submit', true), /不要關閉/);
+});
+
+test('打字不算按下功能，只有在按鈕、連結、開關上按 Enter／空白鍵才算', () => {
+  const at = selector => ({closest: s => (s.split(',').some(part => part.trim() === selector) ? {} : null)});
+  assert.equal(isActivationKey({key: 'a', target: at('input')}), false);
+  assert.equal(isActivationKey({key: ' ', target: at('input')}), false);
+  assert.equal(isActivationKey({key: 'Enter', target: at('textarea')}), false);
+  assert.equal(isActivationKey({key: 'Enter', target: at('input')}), true);
+  assert.equal(isActivationKey({key: ' ', target: at('button')}), true);
+});
+
+test('定時輪詢、上線狀態與自動儲存不顯示操作中提示', () => {
+  const order = fs.readFileSync('templates/sales/_order_form_scripts.html', 'utf8');
+  for (const endpoint of ['/api/id-card-ocr/${jobId}/`', '/edit/presence/`', '/presence/`', "draft_save' %}\""]) {
+    const at = order.indexOf(endpoint);
+    assert.ok(at > 0, endpoint);
+    assert.match(order.slice(at, at + 120), /busy: false/, endpoint);
+  }
+  assert.match(fs.readFileSync('static/js/app-update.js', 'utf8'), /busy: false/);
+  assert.match(fs.readFileSync('static/js/legacy-import-master-workspace.js', 'utf8'), /busy: false/);
 });

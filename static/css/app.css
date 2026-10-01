@@ -701,7 +701,8 @@ h2 { margin-bottom: 0; font-size: var(--text-md); }
   z-index: 30;
   top: 0;
   min-height: 72px;
-  padding: 0 var(--desktop-gutter);
+  /* 主畫面全螢幕 App 的狀態列／瀏海區；一般瀏覽器為 0。 */
+  padding: env(safe-area-inset-top) var(--desktop-gutter) 0;
   color: var(--on-accent);
   background: var(--header-surface);
   border-bottom: 1px solid var(--header-border);
@@ -4269,7 +4270,7 @@ body.screen-locked { overflow: hidden; }
   .operations-filters { grid-template-columns: 1fr 1fr; }
   .operations-filters .master-search, .operations-filters .inventory-filter-actions { grid-column: 1 / -1; }
   .desktop-nav { display: none; }
-  .app-header { min-height: 62px; padding: 0 var(--space-4); }
+  .app-header { min-height: 62px; padding: env(safe-area-inset-top) var(--space-4) 0; }
   .app-header-inner { min-height: 62px; }
   .brand { padding-right: var(--space-2); }
   .brand strong { font-size: var(--text-base); }

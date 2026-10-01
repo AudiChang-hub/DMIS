@@ -43,6 +43,7 @@ urlpatterns = [
     path("catalog/<int:pk>/", catalog_views.catalog_detail, name="catalog_detail"),
     path("catalog/<int:pk>/image/", catalog_views.catalog_image, name="catalog_image"),
     path("catalog/<int:pk>/colors/<int:color_pk>/image/", catalog_views.catalog_image, name="catalog_color_image"),
+    path("parts/suzuki/", catalog_views.suzuki_parts_manual, name="suzuki_parts_manual"),
     path("data/catalog/", catalog_views.catalog_manage, name="catalog_manage"),
     path("data/catalog/<int:pk>/", catalog_views.catalog_edit, name="catalog_edit"),
     path("data/catalog/<int:pk>/image/", catalog_views.catalog_preview_image, name="catalog_preview_image"),

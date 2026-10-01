@@ -1,0 +1,27 @@
+/* SUZUKI 零件圖冊：嵌入官方網站的外框 */
+.parts-manual-frame {
+  border: 1px solid var(--line-mid);
+  border-radius: var(--radius);
+  overflow: hidden;
+  background: var(--paper);
+}
+
+.parts-manual-frame iframe {
+  display: block;
+  width: 100%;
+  height: calc(100vh - 220px);
+  min-height: 560px;
+  border: 0;
+}
+
+.parts-manual-note {
+  margin: var(--space-3) 0 0;
+  font-size: var(--text-sm);
+}
+
+@media (max-width: 700px) {
+  .parts-manual-frame iframe {
+    height: calc(100vh - 180px);
+    min-height: 480px;
+  }
+}

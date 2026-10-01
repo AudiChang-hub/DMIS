@@ -2,7 +2,9 @@
 
 import uuid
 from django import forms
+from django.conf import settings
 from django.contrib import messages
+from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
 from django.db import transaction
 from django.db.models import Q, Case, When, Value, IntegerField
@@ -338,3 +340,10 @@ def catalog_edit(request, pk):
         "sales/catalog_edit.html",
         {"form": form, "model": model, "entry": entry},
     )
+
+
+@login_required
+@require_safe
+def suzuki_parts_manual(request):
+    """嵌入台鈴官方零件圖冊；資料以官方為準，本系統不複製、不儲存。"""
+    return render(request, "sales/suzuki_parts_manual.html", {"manual_url": settings.SUZUKI_PARTS_MANUAL_URL})

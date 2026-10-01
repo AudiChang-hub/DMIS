@@ -127,6 +127,8 @@ RQ_QUEUES = {
 }
 # 通知 Email 通道：未設定 SMTP 前一律略過（狀態記為「未設定通道」），系統內通知不受影響。
 DMIS_NOTIFICATION_EMAIL_ENABLED = os.environ.get("DMIS_NOTIFICATION_EMAIL_ENABLED", "").lower() in {"1", "true", "yes"}
+# 台鈴官方零件圖冊（目前為測試網址）；官方換網域時只改環境變數。
+SUZUKI_PARTS_MANUAL_URL = os.environ.get("SUZUKI_PARTS_MANUAL_URL", "https://suzukimanual-rko4frxn.manus.space/")
 CHANNEL_LAYERS = {
     "default": (
         {

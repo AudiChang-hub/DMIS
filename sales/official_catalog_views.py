@@ -112,9 +112,14 @@ def official_catalog(request):
             row["suggested"] = suggested[0].pk if suggested else None
     latest = OfficialCatalogCheck.objects.filter(brand=brand).first()
     running = service.active_check(brand)
+    brand_status = [
+        {"value": value, "label": label,
+         "latest": latest if value == brand else OfficialCatalogCheck.objects.filter(brand=value).first(),
+         "running": running if value == brand else service.active_check(value)}
+        for value, label in OfficialCatalogBrand.choices
+    ]
     return render(request, "sales/official_catalog.html", {
         "brand": brand,
-        "brands": OfficialCatalogBrand.choices,
         "tab": tab,
         "tabs": [(key, label, len(buckets[key])) for key, label in TABS],
         "rows": rows,
@@ -122,6 +127,8 @@ def official_catalog(request):
         "linked_ids": linked_ids,
         "latest": latest,
         "running": running,
+        "brand_status": brand_status,
+        "any_running": any(item["running"] for item in brand_status),
         "has_entries": bool(links),
     })
 
@@ -129,11 +136,21 @@ def official_catalog(request):
 @root_required
 @require_POST
 def official_catalog_check_start(request):
-    brand = _brand(request.POST.get("brand"))
+    """brand=all 時兩家各排一個檢查；已在進行中的那家略過。"""
+    requested = request.POST.get("brand")
+    brands = list(OfficialCatalogBrand.values) if requested == "all" else [_brand(requested)]
+    for brand in brands:
+        _start_check(request, brand)
+    return_brand = _brand(request.POST.get("return_brand") or brands[0])
+    return redirect(_page_url(return_brand, "pending"))
+
+
+def _start_check(request, brand):
+    label = service.SOURCES[brand]["label"]
     with transaction.atomic():
         if service.active_check(brand):
-            messages.info(request, "官網檢查正在進行中，完成後頁面會顯示結果。")
-            return redirect(_page_url(brand, "pending"))
+            messages.info(request, f"{label} 官網檢查正在進行中，完成後頁面會顯示結果。")
+            return
         OfficialCatalogCheck.objects.filter(brand=brand, status__in=("queued", "running")).update(
             status=OfficialCatalogCheck.Status.FAILED, finished_at=timezone.now(),
             errors=["上次檢查逾時未完成，已停止。"], error_count=1, updated_at=timezone.now(),
@@ -149,11 +166,10 @@ def official_catalog_check_start(request):
             status=OfficialCatalogCheck.Status.FAILED, finished_at=timezone.now(),
             errors=["無法啟動背景檢查，請稍後再試。"], error_count=1, updated_at=timezone.now(),
         )
-        messages.error(request, "無法啟動背景檢查，請稍後再試。")
+        messages.error(request, f"無法啟動 {label} 背景檢查，請稍後再試。")
     else:
         OfficialCatalogCheck.objects.filter(pk=check.pk).update(job_id=job_id, updated_at=timezone.now())
-        messages.success(request, f"已開始檢查 {service.SOURCES[brand]['label']} 官網，約需 2～3 分鐘。")
-    return redirect(_page_url(brand, "pending"))
+        messages.success(request, f"已開始檢查 {label} 官網，約需 2～3 分鐘。")
 
 
 @root_required

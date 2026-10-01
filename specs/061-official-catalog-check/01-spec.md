@@ -40,6 +40,12 @@
 - 儲存時強制停用（不建立展示上架），同一交易內把對應移到新車型並記錄稽核；舊年式資料、車色、圖片與訂單不變。
   送出時若官網車型的對應已被他人變更，整筆不儲存並提示重新操作。
 
+## 入口與分頁（1.29.0）
+
+- 資料維護區卡片與頂端資料維護區選單各有入口（`can_manage_screen_access`，即 admin）。
+- 頁面上方 SYM／SUZUKI 分頁顯示各自上次檢查時間、讀取中或尚未檢查；任一家讀取中時頁面每 5 秒更新。
+- `official_catalog_check_start` 接受 `brand=all`，兩家各排一個檢查，已在進行中的原廠略過；`return_brand` 決定導回的分頁。
+
 ## 回復
 
 migration 0157 只新增 `OfficialCatalogCheck`、`OfficialCatalogModel` 兩張表，不改既有表。回復程式到 1.22.3 後可保留兩張表或 migrate 回 0156；

@@ -85,6 +85,19 @@ class UiConsistencyTests(SimpleTestCase):
         for retired in ("ui-comfort", "site-review", "ppt-refinements", "account-workspace", "catalog-selection"):
             self.assertFalse((CSS_DIR / f"{retired}.css").exists(), retired)
 
+    def test_home_screen_app_opens_fullscreen(self):
+        import json
+
+        head = (TEMPLATES / "base.html").read_text(encoding="utf-8").split("</head>", 1)[0]
+        manifest = json.loads(Path("static/manifest.webmanifest").read_text(encoding="utf-8"))
+
+        self.assertIn("rel=\"manifest\" href=\"{% static 'manifest.webmanifest' %}\"", head)
+        self.assertIn('name="apple-mobile-web-app-capable" content="yes"', head)
+        self.assertEqual((manifest["display"], manifest["start_url"], manifest["scope"]), ("fullscreen", "/", "/"))
+        for icon in manifest["icons"]:
+            self.assertTrue(Path(icon["src"].lstrip("/")).exists(), icon["src"])
+        self.assertTrue({"192x192", "512x512"} <= {icon["sizes"] for icon in manifest["icons"]})
+
     def test_confirmations_use_shared_data_confirm(self):
         offenders = [
             f"{name}:{line_of(text, match.start())}"

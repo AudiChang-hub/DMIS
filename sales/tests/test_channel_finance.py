@@ -472,7 +472,9 @@ class ChannelFinanceTests(TestCase):
         response = self.client.get(
             reverse("dealer_volume_bonus_list") + "?show=all"
         )
-        self.assertNotContains(response, "永湛")
+        self.assertEqual(response.status_code, 200)
+        # head 內的主畫面 App 名稱含店名，只檢查頁面內容。
+        self.assertNotIn("永湛", response.content.decode().split("</head>", 1)[1])
 
     def test_adjusted_settlement_requires_reason(self):
         settlement = DealerVolumeBonusSettlement(

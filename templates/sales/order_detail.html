@@ -1,5 +1,5 @@
 {% extends "base.html" %}{% load site_copy %}{% load screen_access %}
-{% load static sales_format %}
+{% load static sales_format suzuki_parts %}
 {% block head %}<link rel="stylesheet" href="{% static 'css/order-commission-recipient.css' %}?v={{ app_version }}"><link rel="stylesheet" href="{% static 'css/order-workspace.css' %}?v={{ app_version }}"><link rel="stylesheet" href="{% static 'css/order-steps.css' %}?v={{ app_version }}">{% endblock %}
 {% block title %}{{ order.number }}｜車輛銷售管理{% endblock %}
 {% block page_class %}page-shell--wide{% endblock %}
@@ -232,6 +232,7 @@
       <span class="allocation-overview__label">{% if order.vehicle_model.energy_type == "gas" %}引擎號碼{% else %}車身號碼{% endif %}</span>
       <strong>{{ order.allocated_vehicle.identifier }}</strong>
       <small>此車已保留給本訂單</small>
+      {% suzuki_parts_lookup order.vehicle_model order.allocated_vehicle.engine_number|default:order.allocated_vehicle.frame_number %}
     </div>
     <div class="allocation-overview__vehicle">
       <span class="allocation-overview__label">車款規格</span>

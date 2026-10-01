@@ -51,6 +51,7 @@ def _render_step(request, draft, reception, step, forms, *, errors=(), submissio
         "id_check": data.get(wizard.ID_CHECK_KEY, ""),
         "id_check_error": data.get(wizard.ID_CHECK_ERROR_KEY, ""),
         "id_manual_confirmed": data.get(wizard.ID_MANUAL_KEY) in {"on", "1", "true", True},
+        "deposit_auto": "1" if data.get("_deposit_auto") == "1" else "",
     }
     return render(request, "sales/order_form.html", context)
 
@@ -208,10 +209,21 @@ def build_summary(form, formset, fee_formset, draft):
     payment_rows = _rows(form, ("payment_type", "vehicle_price", "vehicle_price_adjustment_reason", "installment_company",
                                 "installment_periods", "installment_monthly", "installment_opening_fee"))
     if form.finance_editable:
-        payment_rows += _rows(form, ("deposit_amount", "deposit_date", "deposit_method", "plate_insurance_fee"))
+        deposit = form.cleaned_data.get("deposit_amount") or Decimal("0")
+        payment_rows.append((form.fields["deposit_amount"].label, f"{deposit:,.0f} 元" if deposit else "無"))
+        payment_rows += _rows(form, ("deposit_date", "deposit_method", "plate_insurance_fee"))
+    vehicle_rows = []
+    model = form.cleaned_data.get("vehicle_model")
+    if model:
+        # 摘要只列品牌、車種名稱、型號、年份；車色只列顏色名稱。
+        parts = (model.brand, model.name, model.model_number, str(model.model_year) if model.model_year else "")
+        vehicle_rows.append((form.fields["vehicle_model"].label, "／".join(part for part in parts if part)))
+    color = form.cleaned_data.get("color")
+    if color:
+        vehicle_rows.append((form.fields["color"].label, color.name))
     return [
         {"step": "vehicle", "label": wizard.STEP_LABELS["vehicle"],
-         "rows": _rows(form, ("vehicle_model", "color", "vehicle_category", "transaction_type", "source_type", "source"))},
+         "rows": vehicle_rows + _rows(form, ("vehicle_category", "transaction_type", "source_type", "source"))},
         {"step": "extras", "label": wizard.STEP_LABELS["extras"],
          "rows": [("配件", "、".join(accessories) or "無")] + _rows(form, (
              "trade_in_intent", "plate_choice", "watched_numbers", "plate_preference_note", "delivery_method",

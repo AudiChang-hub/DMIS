@@ -1716,7 +1716,8 @@ class AccessoryLineForm(forms.ModelForm):
                 self.fields["line_type"].choices.append(("gift", "贈送（保留原項目）"))
         self.purchase_only = purchase_only
         self.original_accessory_product_id = self.instance.accessory_product_id
-        self.initial["custom_name"] = self.instance.name if not self.instance.accessory_product_id else ""
+        # 草稿重新載入時會帶入自訂名稱；只有沒有帶入時才用已存明細的名稱。
+        self.initial.setdefault("custom_name", self.instance.name if not self.instance.accessory_product_id else "")
         if not allow_manual:
             self.fields["custom_name"].disabled = True
             self.fields["custom_name"].widget = forms.HiddenInput()

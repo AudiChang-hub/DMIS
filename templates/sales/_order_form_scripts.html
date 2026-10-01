@@ -132,7 +132,8 @@
     byId("id-manual-reason").textContent = check === "failed" && error
       ? `自動辨識未通過：${error}`
       : "證件須自動辨識通過；辨識失敗或無法辨識時，請親自核對是車主本人的身分證／居留證正反面後勾選。";
-    if (box.hidden) byId("id-manual-confirmed").checked = false;
+    // 不在這裡清除勾選：頁面載入時辨識狀態尚未就緒也會暫時隱藏，清掉會讓後面步驟被擋。
+    // 換照片重新辨識時，由 updateVerifyLock 清除。
   }
 
   function recordIdCheck(state, message = "") {
@@ -1569,6 +1570,43 @@
   orderForm.addEventListener("input", () => {
     validationSummary.hidden = true;
   });
+  // 訂金：分期預設以配件（加購）金額當訂金；現金依客人實際要付的金額填寫。人工改過就不再自動帶入。
+  const depositAmount = byId("id_deposit_amount");
+  const depositHint = byId("deposit-hint");
+  const depositAuto = byId("deposit-auto");
+  let depositTouched = Number(depositAmount?.value || 0) > 0 && depositAuto?.value !== "1";
+  function accessoryPurchaseTotal() {
+    return [...document.querySelectorAll("[data-accessory-row]")].reduce((sum, row) => {
+      if (row.classList.contains("is-pending-delete")) return sum;
+      if (row.querySelector('[name$="-line_type"]')?.value === "gift") return sum;
+      const named = row.querySelector('[name$="-accessory_product"]')?.value || row.querySelector('[name$="-custom_name"]')?.value.trim();
+      if (!named) return sum;
+      const unit = Number(row.querySelector('[name$="-amount"]')?.value || 0) + Number(row.querySelector('[name$="-labor_fee"]')?.value || 0);
+      return sum + unit * Number(row.querySelector('[name$="-quantity"]')?.value || 0);
+    }, 0);
+  }
+  function suggestDeposit() {
+    if (!depositAmount || depositAmount.disabled || editingOrderId) return;
+    const installment = paymentType.value === "installment";
+    const total = accessoryPurchaseTotal();
+    if (installment && !depositTouched) {
+      depositAmount.value = total;
+      if (depositAuto) depositAuto.value = "1";
+      const depositDate = byId("id_deposit_date");
+      if (total > 0 && depositDate && !depositDate.value) depositDate.value = new Date().toLocaleDateString("sv-SE");
+    }
+    if (depositHint) {
+      depositHint.textContent = installment
+        ? `分期：預設以配件金額 ${total.toLocaleString("zh-TW")} 元當訂金，可依實際收款修改。`
+        : "現金：請依客人這次實際要付的金額填寫。";
+    }
+  }
+  depositAmount?.addEventListener("input", () => {
+    depositTouched = true;
+    if (depositAuto) depositAuto.value = "";
+  });
+  paymentType.addEventListener("change", suggestDeposit);
+  suggestDeposit();
   if (wizardStep) {
     // 只檢查目前這一步看得到的欄位；其他步驟的內容由伺服器在前往下一步與送出時驗證。
     orderForm.querySelector("[data-wizard-next]")?.addEventListener("click", event => {

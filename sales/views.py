@@ -4872,6 +4872,7 @@ def _initial_intake_forms(request, draft, reception):
             "accessories",
             (
                 "accessory_product",
+                "custom_name",
                 "quantity",
                 "line_type",
                 "amount",

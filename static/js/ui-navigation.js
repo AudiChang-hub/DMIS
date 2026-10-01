@@ -62,6 +62,22 @@
     });
   }
 
+  const accountMenu = document.querySelector("[data-account-menu]");
+  if (accountMenu) {
+    document.addEventListener("click", event => {
+      if (accountMenu.open && !accountMenu.contains(event.target)) accountMenu.open = false;
+    });
+    accountMenu.addEventListener("keydown", event => {
+      if (event.key === "Escape" && accountMenu.open) {
+        accountMenu.open = false;
+        accountMenu.querySelector("summary")?.focus();
+      }
+    });
+    accountMenu.querySelectorAll("[data-theme-open], [data-check-update]").forEach(item => {
+      item.addEventListener("click", () => { accountMenu.open = false; });
+    });
+  }
+
   const shortcutDialog = document.querySelector("[data-mobile-shortcuts-dialog]");
   if (shortcutDialog) {
     const shortcutForm = shortcutDialog.querySelector("form");

@@ -1,4 +1,10 @@
-/* SUZUKI 零件圖冊：嵌入官方網站的外框 */
+/* SUZUKI 零件圖冊：官方畫面填滿剩餘視窗，外層頁面不捲動 */
+.page-shell.parts-manual-page { padding-bottom: 0; }
+.parts-manual-hero h1 { font-size: var(--text-2xl); }
+@media (max-width: 860px) {
+  .parts-manual-hero .muted { display: none; }
+}
+
 .parts-manual-frame {
   border: 1px solid var(--line-mid);
   border-radius: var(--radius);
@@ -9,19 +15,7 @@
 .parts-manual-frame iframe {
   display: block;
   width: 100%;
-  height: calc(100vh - 220px);
-  min-height: 560px;
+  height: calc(100dvh - 260px);
+  min-height: 420px;
   border: 0;
-}
-
-.parts-manual-note {
-  margin: var(--space-3) 0 0;
-  font-size: var(--text-sm);
-}
-
-@media (max-width: 700px) {
-  .parts-manual-frame iframe {
-    height: calc(100vh - 180px);
-    min-height: 480px;
-  }
 }

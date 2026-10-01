@@ -482,3 +482,40 @@ class OfficialCatalogCreateModelTests(TestCase):
         response = self.client.get(reverse("vehicle_model_create"), {"official": self.link.pk})
         if response.status_code == 200:
             self.assertIsNone(response.context["official"])
+
+
+class OfficialCatalogEntryTests(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        cls.root = get_user_model().objects.create_superuser("admin", password="Official-entry-test-81!")
+        cls.staff = get_user_model().objects.create_user("clerk", password="Official-entry-test-82!", is_staff=True)
+
+    def test_check_both_brands_skips_running_one(self):
+        self.client.force_login(self.root)
+        OfficialCatalogCheck.objects.create(brand="suzuki", status="running")
+        with patch("sales.official_catalog_views.django_rq.get_queue") as get_queue:
+            response = self.client.post(reverse("official_catalog_check_start"), {"brand": "all", "return_brand": "suzuki"})
+        self.assertRedirects(response, f"{reverse('official_catalog')}?brand=suzuki&tab=pending", fetch_redirect_response=False)
+        self.assertEqual(get_queue.return_value.enqueue.call_count, 1)
+        self.assertEqual(OfficialCatalogCheck.objects.filter(brand="sym", status="queued").count(), 1)
+        with patch("sales.official_catalog_views.django_rq.get_queue") as get_queue:
+            self.client.post(reverse("official_catalog_check_start"), {"brand": "all"})
+        self.assertEqual(get_queue.return_value.enqueue.call_count, 0)
+
+    def test_brand_tabs_show_each_brand_status(self):
+        self.client.force_login(self.root)
+        OfficialCatalogCheck.objects.create(brand="suzuki", status="running")
+        response = self.client.get(reverse("official_catalog"), {"brand": "sym"})
+        self.assertEqual([(item["value"], bool(item["running"])) for item in response.context["brand_status"]],
+                         [("sym", False), ("suzuki", True)])
+        self.assertContains(response, "尚未檢查")
+        self.assertContains(response, "讀取中")
+        self.assertContains(response, "兩家一起檢查")
+        self.assertContains(response, '<meta http-equiv="refresh" content="5">')
+
+    def test_entry_links_only_for_admin(self):
+        url = reverse("official_catalog")
+        self.client.force_login(self.root)
+        self.assertContains(self.client.get(reverse("data_maintenance")), f'href="{url}"', count=2)
+        self.client.force_login(self.staff)
+        self.assertNotContains(self.client.get(reverse("dashboard")), f'href="{url}"')

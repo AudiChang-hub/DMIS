@@ -1,14 +1,14 @@
 {
   "id": "/",
-  "name": "車輛銷售管理",
-  "short_name": "車輛銷售",
+  "name": "永湛・馭盛 車輛銷售管理",
+  "short_name": "永馭車務",
   "description": "訂單、配車、交付都在同一處",
   "lang": "zh-Hant",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
   "orientation": "any",
-  "background_color": "#18323b",
+  "background_color": "#ffffff",
   "theme_color": "#18323b",
   "icons": [
     {"src": "/static/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any"},

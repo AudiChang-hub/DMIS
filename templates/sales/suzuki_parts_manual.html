@@ -1,0 +1,11 @@
+{% extends 'base.html' %}{% load static %}{% load site_copy %}{% block title %}SUZUKI 零件圖冊{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'css/parts-manual.css' %}?v={{ app_version }}">{% endblock %}
+{% block page_class %}page-shell--wide{% endblock %}
+{% block content %}
+{% site_navigation %}<section class="hero-row compact-hero"><div><p class="eyebrow">台鈴官方資料 · 僅 SUZUKI</p><h1>SUZUKI 零件圖冊</h1><p class="muted">直接顯示台鈴官方零件圖冊，料號、停產與替代料號以官方即時資料為準；需登入看價格時請另開新視窗。</p></div><div class="hero-actions"><a class="button primary" href="{{ manual_url }}" target="_blank" rel="noopener noreferrer">在新視窗開啟</a></div></section>
+<section class="parts-manual-frame">
+  <iframe src="{{ manual_url }}" title="台鈴官方 SUZUKI 零件圖冊" loading="lazy" referrerpolicy="no-referrer"
+    sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-downloads allow-modals"></iframe>
+</section>
+<p class="muted parts-manual-note">畫面空白或無法載入時，可能是官方網站暫停服務或不允許嵌入，請改按「在新視窗開啟」。</p>
+{% endblock %}

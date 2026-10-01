@@ -139,6 +139,7 @@ ROOT_ONLY.update({"official_catalog", "official_catalog_check_start", "official_
 PERSONAL.update({"catalog", "catalog_detail", "catalog_image", "catalog_color_image"})
 PERSONAL.update({"profit_unlock", "profit_lock"})
 PERSONAL.add("notification_list")
+PERSONAL.add("suzuki_parts_manual")  # 嵌入台鈴官方公開零件圖冊；車行帳號依 DEALER_ACCOUNT_ROUTES 不開放
 REPORT_ROUTES = {"report_display": "view", "report_detail": "view", "report_records_export": "export", "report_export": "export"}
 LOOKUPS = {
     "vehicle_colors": ("order_intake", "orders", "inventory", "models"),

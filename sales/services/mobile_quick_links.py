@@ -6,6 +6,7 @@ MAX_MOBILE_QUICK_LINKS = 6
 MOBILE_QUICK_LINK_DEFINITIONS = (
     {"key": "gift-distribution", "label": "年節送禮", "icon": "禮", "route": "gift_distribution"},
     {"key": "reports", "label": "報表中心", "icon": "圖", "route": "report_center"},
+    {"key": "suzuki-parts", "label": "SUZUKI 零件", "icon": "零", "route": "suzuki_parts_manual"},
     {
         "key": "price-list-distribution",
         "label": "價格表分發",

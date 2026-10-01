@@ -27,6 +27,7 @@ GROUPS = (
     ("orders", "全部訂單", "查詢及處理既有訂單", ("orders",)),
     ("operations", "營運總表", "公司走勢與對帳", ("operations", "reconciliation")),
     ("reports", "報表中心", "分析、設計及分類", ("reports", "report-design", "report-categories")),
+    ("parts", "SUZUKI 零件圖冊", "台鈴官方零件圖與料號", ("suzuki-parts",)),
     ("vehicles", "資料維護・車輛與商品", "品牌、售價、庫存及配件", ("vehicle-brands", "vehicle-models", "catalog-manage", "inventory", "accessories", "dealer-reward-items")),
     ("people", "資料維護・通路與人員", "客戶、車行及工作分發", ("customers", "sales-sources", "network-platforms", "staff", "source-categories", "price-list-distribution", "gift-distribution")),
     ("rules", "資料維護・費率與規則", "成本、獎勵、分期與日曆", ("settlement-costs", "incentives", "dealer-sales-programs", "dealer-bonuses", "installment-companies", "registration-fees", "business-holidays")),

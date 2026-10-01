@@ -56,6 +56,7 @@
     try {
       const separator = endpoint.includes("?") ? "&" : "?";
       const response = await fetch(`${endpoint}${separator}t=${Date.now()}`, {
+        busy: false,
         cache: "no-store",
         headers: {"Accept": "application/json"},
       });

@@ -30,6 +30,15 @@
     return form.dataset.download !== "true";
   }
 
+  // 打字輸入不算「按下功能」，避免定時輪詢剛好碰上而閃爍。
+  function isActivationKey(event) {
+    if (event.key !== "Enter" && event.key !== " ") return false;
+    const target = event.target;
+    if (!target || typeof target.closest !== "function") return event.key === "Enter";
+    if (target.closest("textarea")) return false;
+    return event.key === "Enter" || Boolean(target.closest("button, a, [role=button], [role=switch], input[type=checkbox], input[type=radio], summary"));
+  }
+
   function messageFor(kind, slow) {
     if (slow) return "仍在處理，請稍候，不要關閉或重新整理頁面…";
     if (kind === "navigate") return "正在開啟頁面…";
@@ -38,7 +47,7 @@
   }
 
   if (typeof window === "undefined" || typeof document === "undefined") {
-    module.exports = {isTrackedLink, isTrackedForm, messageFor};
+    module.exports = {isTrackedLink, isTrackedForm, isActivationKey, messageFor};
     return;
   }
 
@@ -92,7 +101,10 @@
     document.documentElement.removeAttribute("aria-busy");
   }
 
-  function markInteraction() { lastInteraction = Date.now(); }
+  function markInteraction(event) {
+    if (event.type === "keydown" && !isActivationKey(event)) return;
+    lastInteraction = Date.now();
+  }
   ["pointerdown", "keydown", "change", "submit"].forEach((type) => document.addEventListener(type, markInteraction, true));
 
   document.addEventListener("click", (event) => {

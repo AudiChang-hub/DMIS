@@ -2,8 +2,9 @@
 
 核對日期：2026-09-30（正式站以 SSH 與公開頁面核對）。
 
-- 應用版本：**1.28.3**，來源 `config/release_notes.py`；發布規範見 [RELEASE_POLICY](../RELEASE_POLICY.md)。
-- 正式站：**1.28.3**（Excel 匯入：無車輛號碼的銷貨列以 `_sales_plateless_key` 忽略車牌欄比對，同檔重複或與已完成批次相同列為衝突；訂單日缺值改用發票日）已於 2026-10-01 19:49 發布，main `1b57ced`（附註標籤 v1.28.3，CI 通過），DB／Redis 未重啟，無 migration，部署前備份 `dmis_20261001_194827.sql.gz`。起因：鄭芮安一列無序號、10/01 批次車牌欄填入備註，交易鍵改變而重複建單；依使用者指示以 admin 強制軟刪除重複訂單 21802（可還原，保留 21777），操作前備份 `dmis_20261001_185935.sql.gz`。全部已完成批次掃描只有這一組跨批次重複。
+- 應用版本：**1.29.0**，來源 `config/release_notes.py`；發布規範見 [RELEASE_POLICY](../RELEASE_POLICY.md)。
+- 正式站：**1.29.0**（原廠車型比對入口：資料維護區卡片與頂端選單；SYM／SUZUKI 分頁顯示各自檢查狀態；「兩家一起檢查」）已於 2026-10-01 20:20 發布，main `edb0b04`（附註標籤 v1.29.0，CI 通過），deployed-sha 一致，DB／Redis 未重啟，無 migration。部署前備份 `dmis_20261001_202007.sql.gz`。已在使用者 Chrome 以 admin 開啟資料維護區與原廠車型比對頁（只讀取）。
+- **1.28.3**（Excel 匯入：無車輛號碼的銷貨列以 `_sales_plateless_key` 忽略車牌欄比對，同檔重複或與已完成批次相同列為衝突；訂單日缺值改用發票日）已於 2026-10-01 19:49 發布，main `1b57ced`（附註標籤 v1.28.3，CI 通過），DB／Redis 未重啟，無 migration，部署前備份 `dmis_20261001_194827.sql.gz`。起因：鄭芮安一列無序號、10/01 批次車牌欄填入備註，交易鍵改變而重複建單；依使用者指示以 admin 強制軟刪除重複訂單 21802（可還原，保留 21777），操作前備份 `dmis_20261001_185935.sql.gz`。全部已完成批次掃描只有這一組跨批次重複。
 - **1.28.2**（PWA 改 `display: standalone`；主畫面圖示改用永湛網站 favicon 的機車騎士標誌（白底，`static/icons/`），short_name「永湛馭盛車務」、name「永湛．馭盛車務」；`test_volume_bonus_never_counts_in_house_sources` 改只檢查 `</head>` 後內容，因 head 含店名）已於 2026-10-01 19:25 發布，main `132d2a1`（附註標籤 v1.28.2，CI 通過），DB／Redis 未重啟，無 migration，部署前備份 `dmis_20261001_192423.sql.gz`。正式站核對健康檢查、manifest 與圖示；手機實機安裝未實測。
 - **1.28.1**（PWA：`static/manifest.webmanifest` 設 `display: fullscreen`、start_url／scope 為 `/`，圖示在 `static/icons/`，base.html 加 manifest 與 iOS apple meta；WhiteNoise 補 `.webmanifest` MIME；頁首預留 `safe-area-inset-top`。無 service worker、無離線快取。舊主畫面捷徑須刪除後重新加入才生效）已於 2026-10-01 17:58 發布，main `837d9a6`（附註標籤 v1.28.1，CI 通過），DB／Redis 未重啟，無 migration，部署前備份 `dmis_20261001_175719.sql.gz`。正式站核對健康檢查、manifest（application/manifest+json）、圖示與登入頁 head；Android／iPhone 實機安裝與全螢幕頁首未實測。
 - **1.28.0**（SUZUKI 零件不再嵌入：`/parts/suzuki/` 轉址到 `SUZUKI_PARTS_MANUAL_URL`，主選單／手機捷徑另開分頁；SUZUKI 主品牌與別名車款在庫存清單與訂單配車區顯示「查零件」，複製引擎／車身號碼後另開官方網站，樣板標籤 `suzuki_parts_lookup`。官方網站不支援網址帶號碼，若台鈴日後支援可改為直接開到該車目錄）已於 2026-10-01 15:31 發布，main `c121c58`（附註標籤 v1.28.0），備份 `dmis_20261001_153045.sql.gz`；剪貼簿複製未在正式站實測。

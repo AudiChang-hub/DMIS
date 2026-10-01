@@ -38,6 +38,15 @@ def canonical_vehicle_brand_name(value, *, create_missing=False):
     return brand.name
 
 
+def suzuki_brand_keys():
+    """台鈴官方零件圖冊只涵蓋 SUZUKI 主品牌（含別名），不含其他子品牌。"""
+    keys = {"suzuki"}
+    brand = VehicleBrand.objects.filter(name__iexact="SUZUKI").first()
+    if brand:
+        keys.update(alias.casefold() for alias in split_brand_aliases(brand.aliases))
+    return keys
+
+
 def vehicle_brand_search_names(value):
     """主品牌搜尋會涵蓋子品牌；子品牌搜尋仍只找該子品牌。"""
     raw = (value or "").strip()

@@ -24,7 +24,7 @@
           {% if orders_group_visible %}<a href="{{ orders_group_url }}" {% if request.resolver_match.url_name == 'order_list' or request.resolver_match.url_name == 'order_detail' or request.resolver_match.url_name == 'order_edit' or request.resolver_match.url_name == 'order_create' %}class="active" aria-current="page"{% endif %}>{{ orders_group_label }}</a>{% endif %}
           {% if_access 'operations_report' %}<a href="{% url 'operations_report' %}" {% if request.resolver_match.url_name == 'operations_report' or request.resolver_match.url_name == 'order_operations' or request.resolver_match.url_name == 'reconciliation_list' %}class="active" aria-current="page"{% endif %}>營運總表</a>{% endif_access %}
           {% if_access 'report_center' %}<a href="{% url 'report_center' %}" {% if request.resolver_match.url_name == 'report_center' or request.resolver_match.url_name == 'report_display' or request.resolver_match.url_name == 'report_detail' %}class="active" aria-current="page"{% endif %}>報表中心</a>{% endif_access %}
-          {% if_access 'suzuki_parts_manual' %}<a href="{% url 'suzuki_parts_manual' %}" {% if request.resolver_match.url_name == 'suzuki_parts_manual' %}class="active" aria-current="page"{% endif %}>SUZUKI 零件</a>{% endif_access %}
+          {% if_access 'suzuki_parts_manual' %}<a href="{% url 'suzuki_parts_manual' %}" target="_blank" rel="noopener" title="另開台鈴官方零件圖冊" class="desktop-nav__external">SUZUKI 零件</a>{% endif_access %}
           {% if_access 'data_maintenance' %}<div class="desktop-data-menu{% if is_data_maintenance_section %} active{% endif %}">
             {% if_access 'data_maintenance' %}<a href="{% url 'data_maintenance' %}">資料維護區 <span class="ui-chevron desktop-data-menu__chevron" aria-hidden="true"></span></a>{% endif_access %}
             <div class="data-menu-popover" aria-label="資料維護選單">
@@ -111,11 +111,11 @@
           </div>
           <div class="mobile-data-popover__grid">
             {% for shortcut in mobile_quick_links %}
-              <a href="{{ shortcut.url }}" data-mobile-quick-link="{{ shortcut.key }}"><span>{{ shortcut.icon }}</span><strong>{{ shortcut.label }}</strong></a>
+              <a href="{{ shortcut.url }}" data-mobile-quick-link="{{ shortcut.key }}"{% if shortcut.new_tab %} target="_blank" rel="noopener"{% endif %}><span>{{ shortcut.icon }}</span><strong>{{ shortcut.label }}</strong></a>
             {% endfor %}
           </div>
           {% if_access 'report_center' %}<a class="mobile-data-popover__all" href="{% url 'report_center' %}">報表中心 →</a>{% endif_access %}
-          {% if_access 'suzuki_parts_manual' %}<a class="mobile-data-popover__all" href="{% url 'suzuki_parts_manual' %}">SUZUKI 零件圖冊 →</a>{% endif_access %}
+          {% if_access 'suzuki_parts_manual' %}<a class="mobile-data-popover__all" href="{% url 'suzuki_parts_manual' %}" target="_blank" rel="noopener">SUZUKI 零件圖冊 ↗</a>{% endif_access %}
           {% if_access 'data_maintenance' %}<a class="mobile-data-popover__all" href="{% url 'data_maintenance' %}">查看全部功能 →</a>{% endif_access %}
           <div class="mobile-data-popover__footer">
             <button type="button" data-theme-open><span aria-hidden="true">◐</span><strong>外觀配色</strong></button>

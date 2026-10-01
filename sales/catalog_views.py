@@ -345,5 +345,5 @@ def catalog_edit(request, pk):
 @login_required
 @require_safe
 def suzuki_parts_manual(request):
-    """嵌入台鈴官方零件圖冊；資料以官方為準，本系統不複製、不儲存。"""
-    return render(request, "sales/suzuki_parts_manual.html", {"manual_url": settings.SUZUKI_PARTS_MANUAL_URL})
+    """轉往台鈴官方零件圖冊（另開分頁）；資料以官方為準，本系統不複製、不儲存。"""
+    return redirect(settings.SUZUKI_PARTS_MANUAL_URL)

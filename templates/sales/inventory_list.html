@@ -1,5 +1,5 @@
 {% extends "base.html" %}{% load site_copy %}
-{% load pagination_tags %}
+{% load pagination_tags suzuki_parts %}
 {% block title %}車輛庫存｜車輛銷售管理{% endblock %}
 {% block page_class %}page-shell--wide{% endblock %}
 {% block content %}
@@ -112,7 +112,7 @@
               <span class="inventory-condition has-note">有備註</span><small class="inventory-condition-note">{{ vehicle.condition_note|truncatechars:32 }}</small>
             {% else %}<span class="inventory-condition is-normal">正常</span>{% endif %}
           </td>
-          <td class="inventory-row-action"><a class="button ghost small" href="{% url 'inventory_edit' vehicle.pk %}">查看／編輯</a></td>
+          <td class="inventory-row-action">{% suzuki_parts_lookup vehicle.vehicle_model vehicle.engine_number|default:vehicle.frame_number %}<a class="button ghost small" href="{% url 'inventory_edit' vehicle.pk %}">查看／編輯</a></td>
         </tr>
         {% empty %}
         <tr><td colspan="8"><div class="empty-state"><strong>{% if selected.scope == 'history' %}目前沒有符合條件的歷史資料{% else %}目前沒有符合條件的現有庫存{% endif %}</strong><p>{% if selected.scope == 'history' %}請調整搜尋或篩選條件。{% else %}請調整篩選條件，或建立第一台進車資料。{% endif %}</p></div></td></tr>

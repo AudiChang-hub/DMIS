@@ -688,6 +688,7 @@
     if (requestVersion !== ocrRequestVersion || jobId !== currentOcrJobId) return;
     try {
       const response = await fetch(`/api/id-card-ocr/${jobId}/`, {
+        busy: false,
         headers: {"X-Requested-With": "XMLHttpRequest"},
       });
       const data = await response.json().catch(() => ({ok: false, error: "辨識服務暫時無法使用。"}));
@@ -1366,6 +1367,7 @@
     if (editingOrderId) {
       try {
         const response = await fetch(`/orders/${editingOrderId}/edit/presence/`, {
+        busy: false,
           method: "POST",
           headers: {"X-CSRFToken": document.querySelector("[name=csrfmiddlewaretoken]").value},
         });
@@ -1390,6 +1392,7 @@
     }
     try {
       const response = await fetch(`/orders/drafts/${draftId.value}/presence/`, {
+        busy: false,
         method: "POST",
         headers: {"X-CSRFToken": document.querySelector("[name=csrfmiddlewaretoken]").value},
       });
@@ -1477,6 +1480,7 @@
     if (!requestPhotoDirty.id_back) payload.delete("id_back");
     try {
       const response = await fetch("{% url draft_save_route|default:'draft_save' %}", {
+        busy: false,
         method: "POST",
         headers: {"X-CSRFToken": document.querySelector("[name=csrfmiddlewaretoken]").value},
         body: payload,

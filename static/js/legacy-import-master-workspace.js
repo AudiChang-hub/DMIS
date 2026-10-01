@@ -9,6 +9,7 @@
     const poll = async () => {
       try {
         const response = await fetch(progressCard.dataset.importProgressUrl, {
+        busy: false,
           headers: { Accept: "application/json" },
           cache: "no-store",
         });

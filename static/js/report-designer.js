@@ -75,7 +75,7 @@ if (typeof document !== 'undefined') (() => {
     send('state', {mode, selected: panels().indexOf(selected)});
   }
   async function requestPreview(body, signal) {
-    const response = await fetch(editor.getAttribute('action') || location.href, {method:'POST', body, credentials:'same-origin', signal});
+    const response = await fetch(editor.getAttribute('action') || location.href, {method:'POST', body, credentials:'same-origin', signal, busy:false});
     if (!response.headers.get('content-type')?.includes('application/json')) throw new Error('登入逾時或伺服器暫時無法回應；輸入仍保留，請確認登入後重試。');
     const payload = await response.json();
     if (!response.ok) {

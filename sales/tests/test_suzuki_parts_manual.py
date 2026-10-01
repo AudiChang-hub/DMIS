@@ -24,6 +24,8 @@ class SuzukiPartsManualTests(TestCase):
         self.assertContains(page, '<iframe src="https://parts.example.test/"')
         self.assertContains(page, 'href="https://parts.example.test/" target="_blank" rel="noopener noreferrer"')
         self.assertContains(page, f'href="{reverse("suzuki_parts_manual")}"', count=2)
+        self.assertContains(page, "data-parts-fullscreen>全螢幕</button>")
+        self.assertContains(page, "js/parts-manual.js")
 
     def test_anonymous_and_dealer_cannot_open_manual(self):
         page = self.client.get(reverse("suzuki_parts_manual"))

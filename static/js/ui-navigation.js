@@ -62,6 +62,19 @@
     });
   }
 
+  // SUZUKI 查零件：連結照常另開官方網站，同時把號碼放進剪貼簿，到官方搜尋列直接貼上。
+  document.querySelectorAll("[data-parts-lookup]").forEach(link => {
+    link.addEventListener("click", () => {
+      const number = link.dataset.partsLookup;
+      if (!number || !navigator.clipboard) return;
+      navigator.clipboard.writeText(number).then(() => {
+        const original = link.innerHTML;
+        link.textContent = `已複製 ${number}`;
+        window.setTimeout(() => { link.innerHTML = original; }, 4000);
+      }).catch(() => {});
+    });
+  });
+
   const accountMenu = document.querySelector("[data-account-menu]");
   if (accountMenu) {
     document.addEventListener("click", event => {

@@ -307,6 +307,8 @@ class UiConsistencyTests(SimpleTestCase):
         self.assertIn(".section-body { padding: var(--card-pad); }", app)
         self.assertIn("summary:not(:has(.ui-chevron)))::-webkit-details-marker { display: none; }", app)
         self.assertIn("#drafts .draft-row { display: grid;", app)
+        # 手機底部「更多」不套全站展開箭頭，避免多出 V 與錯位。
+        self.assertEqual(app.count("report-multiselect, .mobile-data-menu)) > :where(summary"), 4)
 
     def test_shell_widths_come_from_tokens(self):
         app = (CSS_DIR / "app.css").read_text(encoding="utf-8")

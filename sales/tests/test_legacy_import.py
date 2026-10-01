@@ -915,6 +915,55 @@ class LegacyImportTests(TestCase):
         self.assertTrue(row.manually_corrected)
         self.assertEqual(row.corrections.get().reason, "第二筆識別號碼輸入錯誤")
 
+    def make_identifierless_batch(self, plates):
+        workbook = load_workbook(BytesIO(workbook_bytes()))
+        sales = workbook["銷貨"]
+        sales["B4"] = sales["CH4"] = sales["D4"] = None
+        sales["BB4"] = "2026/09/18"
+        for offset, plate in enumerate(plates):
+            row = 4 + offset
+            for column in ("C", "E", "AT", "F", "G", "J", "AW", "AX", "AY", "BB"):
+                sales[f"{column}{row}"] = sales[f"{column}4"].value
+            sales[f"AS{row}"] = plate
+        stream = BytesIO()
+        workbook.save(stream)
+        upload = SimpleUploadedFile("identifierless.xlsx", stream.getvalue())
+        return LegacyImportBatch.objects.create(
+            import_type=LegacyImportBatch.ImportType.OPERATIONS,
+            source_file=upload,
+            original_filename="identifierless.xlsx",
+            file_sha256=file_sha256(upload),
+            file_size=len(stream.getvalue()),
+            uploaded_by="tester",
+        )
+
+    def test_identifierless_reimport_with_changed_plate_column_is_flagged(self):
+        from datetime import date
+        from sales.services.legacy_import import POSSIBLY_IMPORTED_SALES_MESSAGE
+        first = self.make_identifierless_batch([None])
+        build_import_preview(first)
+        confirm_import(first, "tester")
+        self.assertEqual(SalesOrder.objects.get().order_date, date(2026, 9, 18))
+        # 車牌欄被填入備註，交易鍵改變，仍須視為疑似已匯入。
+        repeated = self.make_identifierless_batch(["保險要富邦"])
+        build_import_preview(repeated)
+        row = repeated.rows.get(sheet_name="銷貨")
+        self.assertEqual(row.action, LegacyImportRow.Action.CONFLICT)
+        self.assertIn(POSSIBLY_IMPORTED_SALES_MESSAGE, row.messages)
+        with self.assertRaises(ValueError):
+            confirm_import(repeated, "tester")
+        self.assertEqual(SalesOrder.objects.count(), 1)
+
+    def test_identifierless_rows_differing_only_by_plate_in_same_sheet_conflict(self):
+        from sales.services.legacy_import import DUPLICATE_SALES_TRANSACTION_MESSAGE
+        batch = self.make_identifierless_batch([None, "保險要富邦"])
+        build_import_preview(batch)
+        rows = list(batch.rows.filter(sheet_name="銷貨"))
+        self.assertEqual(len(rows), 2)
+        for row in rows:
+            self.assertEqual(row.action, LegacyImportRow.Action.CONFLICT)
+            self.assertIn(DUPLICATE_SALES_TRANSACTION_MESSAGE, row.messages)
+
     def test_excluding_duplicate_resolves_conflict_without_changing_source(self):
         batch = self.make_conflict_batch()
         build_import_preview(batch)

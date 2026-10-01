@@ -4,6 +4,7 @@ from config.release_notes import RELEASES, LEGACY_UPDATES
 # (版本, 更新分類) 的順序與已發布內容一一對照；不覆寫歷史發布文字。
 # 每個 tuple 內全部權限皆需成立；空 tuple 表示所有已登入人員。
 RELEASE_RULES = {
+    ("1.28.3", "修正"): [("legacy_import_list",), ("legacy_import_list",)],
     ("1.28.2", "改善"): [(), ()],
     ("1.28.1", "修正"): [(), ()],
     ("1.28.0", "新增"): [("suzuki_parts_manual",)],

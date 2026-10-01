@@ -1,19 +1,23 @@
 {% extends "base.html" %}{% load sales_format %}
 {% block title %}原廠車型比對{% endblock %}
 {% block page_class %}page-shell--wide{% endblock %}
-{% block head %}{% if running %}<meta http-equiv="refresh" content="5">{% endif %}{% endblock %}
+{% block head %}{% if any_running %}<meta http-equiv="refresh" content="5">{% endif %}{% endblock %}
 {% block content %}
 {% url 'catalog_manage' as catalog_manage_url %}{% include "sales/_page_back.html" with fallback_url=catalog_manage_url label="選車展示管理" %}
 <section class="hero-row compact-hero">
   <div><p class="eyebrow">選車展示管理</p><h1>原廠車型比對</h1><p class="muted">讀取原廠官網的車型、車色與圖片，和系統車型比對。只補上空白的車色圖片、建立停用的新車型或新年式，不修改既有車型、售價或訂單。</p></div>
   <div class="hero-actions">
-    {% for value, label in brands %}<a class="button secondary{% if value == brand %} is-active{% endif %}" href="?brand={{ value }}&amp;tab={{ tab }}"{% if value == brand %} aria-current="page"{% endif %}>{{ label }}</a>{% endfor %}
-    <form method="post" action="{% url 'official_catalog_check_start' %}">{% csrf_token %}<input type="hidden" name="brand" value="{{ brand }}"><button class="button primary"{% if running %} disabled{% endif %}>檢查 {{ brand|upper }} 官網</button></form>
+    <form method="post" action="{% url 'official_catalog_check_start' %}">{% csrf_token %}<input type="hidden" name="brand" value="{{ brand }}"><button class="button secondary"{% if running %} disabled{% endif %}>只檢查 {{ brand|upper }}</button></form>
+    <form method="post" action="{% url 'official_catalog_check_start' %}">{% csrf_token %}<input type="hidden" name="brand" value="all"><input type="hidden" name="return_brand" value="{{ brand }}"><button class="button primary"{% if any_running %} disabled{% endif %}>兩家一起檢查</button></form>
   </div>
 </section>
 
+<nav class="account-tabs official-brand-tabs" aria-label="原廠">
+  {% for item in brand_status %}<a href="?brand={{ item.value }}&amp;tab={{ tab }}"{% if item.value == brand %} aria-current="page"{% endif %}><strong>{{ item.label }}</strong> <small>{% if item.running %}讀取中…{% elif item.latest.status == "failed" %}上次檢查失敗{% elif item.latest %}上次檢查 {{ item.latest.finished_at|date:"m/d H:i" }}{% else %}尚未檢查{% endif %}</small></a>{% endfor %}
+</nav>
+
 {% if running %}
-<div class="callout callout--info" role="status"><span class="callout__icon" aria-hidden="true">i</span><div><h3>正在讀取官網</h3><p>已讀取 {{ running.pages_done }}／{{ running.pages_total|default:"—" }} 頁。本頁每 5 秒自動更新，可以先離開，稍後再回來看結果。</p></div></div>
+<div class="callout callout--info" role="status"><span class="callout__icon" aria-hidden="true">i</span><div><h3>正在讀取 {{ brand|upper }} 官網</h3><p>已讀取 {{ running.pages_done }}／{{ running.pages_total|default:"—" }} 頁。本頁每 5 秒自動更新，可以先離開，稍後再回來看結果。</p></div></div>
 {% elif latest.status == "failed" %}
 <div class="callout callout--danger" role="alert"><span class="callout__icon" aria-hidden="true">!</span><div><h3>上次{% if not latest.requested_by_id %}每週自動{% endif %}檢查失敗（{{ latest.finished_at|date:"Y-m-d H:i" }}）</h3><ul>{% for error in latest.errors %}<li>{{ error }}</li>{% endfor %}</ul><p>資料沒有任何變更。官網可能暫時無法連線或已改版，請稍後再試；持續失敗請通知系統維護人員。</p></div></div>
 {% elif latest %}
@@ -22,7 +26,7 @@
 {% endif %}
 
 {% if not has_entries %}
-<div class="empty-state"><span class="empty-state__icon" aria-hidden="true">＋</span><h3>尚未檢查過 {{ brand|upper }} 官網</h3><p>按右上角「檢查 {{ brand|upper }} 官網」，約 2～3 分鐘後這裡會列出官網車型，再逐款確認對應的系統車型。</p></div>
+<div class="empty-state"><span class="empty-state__icon" aria-hidden="true">＋</span><h3>尚未檢查過 {{ brand|upper }} 官網</h3><p>按右上角「兩家一起檢查」或「只檢查 {{ brand|upper }}」，約 2～3 分鐘後這裡會列出官網車型，再逐款確認對應的系統車型。</p></div>
 {% else %}
 <nav class="account-tabs official-tabs" aria-label="比對結果分類">
   {% for key, label, count in tabs %}<a href="?brand={{ brand }}&amp;tab={{ key }}"{% if key == tab %} aria-current="page"{% endif %}>{{ label }} <span>{{ count }}</span></a>{% endfor %}

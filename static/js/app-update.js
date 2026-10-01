@@ -15,7 +15,7 @@
 
   if (!banner || !endpoint || !loadedVersion) return;
 
-  document.querySelectorAll('form[method="post"]:not(.logout-form)').forEach(form => {
+  document.querySelectorAll('form[method="post"]:not(.account-menu__logout)').forEach(form => {
     form.addEventListener("input", () => { formDirty = true; });
     form.addEventListener("change", () => { formDirty = true; });
     form.addEventListener("submit", () => { formDirty = false; });

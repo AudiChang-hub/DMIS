@@ -123,6 +123,11 @@
 
 ## 確認與送出
 
+- 操作回饋由 `static/js/busy-indicator.js` 統一處理：站內換頁、送出表單、使用者操作後 1.5 秒內發出的 `fetch`，
+  超過 0.12 秒顯示頂端進度條（`.busy-bar`），超過 0.6 秒顯示下方提示（`.busy-status`），8 秒後提醒不要關閉頁面。
+  定時輪詢不顯示。另開分頁、下載與錨點連結不顯示；個別連結或表單可加 `data-no-busy` 排除，`fetch` 可傳 `{busy: false}`。
+  送出中的按鈕由 `form-feedback.js` 加上 `is-submitting`（轉圈＋「處理中…」），各頁不另做讀取動畫。
+
 - 刪除、作廢、覆寫、正式寫入等不可逆送出，一律在 `<form>` 或送出按鈕加 `data-confirm="…"`；
   `static/js/form-feedback.js` 統一處理確認、防重複送出與錯誤摘要。
 - 不在模板寫 `onsubmit`／`onclick` 呼叫 `confirm()`。

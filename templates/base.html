@@ -111,7 +111,7 @@
       {% if orders_group_visible %}<a href="{{ orders_group_url }}" {% if request.resolver_match.url_name == 'order_list' or request.resolver_match.url_name == 'order_detail' or request.resolver_match.url_name == 'order_edit' %}class="active" aria-current="page"{% endif %}><span>▤</span>{{ orders_group_label }}</a>{% endif %}
       {% if_access 'operations_report' %}<a href="{% url 'operations_report' %}" {% if request.resolver_match.url_name == 'operations_report' or request.resolver_match.url_name == 'order_operations' or request.resolver_match.url_name == 'reconciliation_list' %}class="active" aria-current="page"{% endif %}><span>＄</span>營運</a>{% endif_access %}
       <details class="mobile-data-menu{% if is_data_maintenance_section %} active{% endif %}">
-        <summary><span aria-hidden="true">⚙</span>更多</summary>
+        <summary><span aria-hidden="true">⚙&#xFE0E;</span>更多</summary>
         <div class="mobile-data-popover">
           <div class="mobile-data-popover__header">
             <div><strong>快速前往</strong><small>此帳號的常用功能</small></div>

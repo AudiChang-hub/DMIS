@@ -54,22 +54,39 @@ mv "${daily_db}.partial" "$daily_db"
 log "同步目前媒體鏡像"
 rsync -a --delete "$MEDIA_DIR/" "$BACKUP_ROOT/media-current/"
 
+# 週／月封存每期只建立一次：已存在（例如凌晨排程以 root 建立）就保留原檔，
+# 避免同一天部署時覆寫被拒而中止部署。
+archive_db() {
+    local target=$1
+    if [[ -e "$target" ]]; then
+        log "封存已存在，保留原檔：$target"
+        return 0
+    fi
+    cp "$daily_db" "${target}.partial"
+    mv "${target}.partial" "$target"
+}
+
+archive_media() {
+    local target=$1
+    if [[ -e "$target" ]]; then
+        log "封存已存在，保留原檔：$target"
+        return 0
+    fi
+    tar -C "$MEDIA_DIR" -czf "${target}.partial" .
+    mv "${target}.partial" "$target"
+}
+
 if [[ "$(date +%u)" == "7" ]]; then
-    cp -f "$daily_db" \
-        "$BACKUP_ROOT/postgres/weekly/dmis_$(date +%G-W%V).sql.gz"
+    archive_db "$BACKUP_ROOT/postgres/weekly/dmis_$(date +%G-W%V).sql.gz"
     log "建立每週媒體封存"
-    tar -C "$MEDIA_DIR" -czf \
-        "$BACKUP_ROOT/media/weekly/media_$(date +%G-W%V).tar.gz" .
+    archive_media "$BACKUP_ROOT/media/weekly/media_$(date +%G-W%V).tar.gz"
 fi
 
 if [[ "$(date +%d)" == "01" ]]; then
-    cp -f "$daily_db" \
-        "$BACKUP_ROOT/postgres/monthly/dmis_$(date +%Y-%m).sql.gz"
+    archive_db "$BACKUP_ROOT/postgres/monthly/dmis_$(date +%Y-%m).sql.gz"
     log "建立每月媒體封存"
-    tar -C "$MEDIA_DIR" -czf \
-        "$BACKUP_ROOT/media/monthly/media_$(date +%Y-%m).tar.gz" .
+    archive_media "$BACKUP_ROOT/media/monthly/media_$(date +%Y-%m).tar.gz"
 fi
-
 find "$BACKUP_ROOT/postgres/daily" -type f -name '*.sql.gz' -mtime +14 -delete
 find "$BACKUP_ROOT/postgres/weekly" -type f -name '*.sql.gz' -mtime +56 -delete
 find "$BACKUP_ROOT/postgres/monthly" -type f -name '*.sql.gz' -mtime +370 -delete

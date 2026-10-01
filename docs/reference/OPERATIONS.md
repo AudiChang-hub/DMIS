@@ -100,6 +100,7 @@ web／OCR／搜尋／匯入服務、重建 tunnel proxy、驗證 HTTP/2 connecto
 
 - PostgreSQL 每日備份保留 14 天、每週 8 週、每月約 12 個月。
 - 媒體每日同步目前鏡像，另建立每週與每月封存。
+- 每週與每月封存每期只建立一次；已存在（例如凌晨 root 排程已建立）就保留原檔，部署當天再跑備份不會因覆寫被拒而中止。
 
 ```bash
 findmnt /srv/dmis-data

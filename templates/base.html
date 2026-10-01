@@ -74,34 +74,24 @@
             </div>
           </div>{% endif_access %}
         </nav>
-        <button
-          type="button"
-          class="theme-toggle-button"
-          data-theme-open
-          aria-haspopup="dialog"
-          aria-controls="theme-dialog"
-          title="調整介面配色"
-        ><span class="theme-toggle-icon" aria-hidden="true">◐</span><strong>外觀</strong></button>
-        <a
-          class="header-help-link{% if request.resolver_match.url_name == 'user_guide' %} active{% endif %}"
-          href="{{ context_help_url }}"
-          target="_blank"
-          rel="noopener"
-          aria-label="另開目前頁面的使用說明"
-          title="另開使用說明，不會離開目前資料"
-        ><span aria-hidden="true">?</span><strong>使用說明</strong></a>
-        <button type="button" class="update-check-button" data-check-update aria-label="檢查系統更新" title="檢查系統更新">
-          <svg class="update-check-icon" viewBox="0 0 24 24" aria-hidden="true">
-            <path d="M20 6v5h-5M4 18v-5h5M18.2 9A7 7 0 0 0 6.7 6.7L4 9m16 6-2.7 2.3A7 7 0 0 1 5.8 15"/>
-          </svg>
-          <span class="update-check-label">檢查更新</span>
-        </button>
-        {% if_access 'password_change_required' %}<a class="header-account-link" href="{% url 'password_change_required' %}" title="變更我的密碼">我的密碼</a>{% endif_access %}
-        <div class="header-identity" aria-label="目前登入帳號" title="目前登入：{{ request.user.get_full_name|default:request.user.username }}（{{ request.user.username }}）"><span>目前登入</span><strong>{{ request.user.get_full_name|default:request.user.username }}</strong><small>@{{ request.user.username }}</small></div>
-        <form action="{% url 'logout' %}" method="post" class="logout-form">
-          {% csrf_token %}
-          <button type="submit" class="logout-button"><span aria-hidden="true">↪</span> 登出系統</button>
-        </form>
+        <details class="account-menu" data-account-menu>
+          <summary class="account-menu__summary" aria-label="帳號選單：目前登入 {{ request.user.get_full_name|default:request.user.username }}（{{ request.user.username }}）">
+            <span class="account-menu__identity"><span>目前登入</span><strong>{{ request.user.get_full_name|default:request.user.username }}</strong><small>@{{ request.user.username }}</small></span>
+            <span class="ui-chevron account-menu__chevron" aria-hidden="true"></span>
+          </summary>
+          <div class="account-menu__popover">
+            <button type="button" class="account-menu__item" data-theme-open aria-haspopup="dialog" aria-controls="theme-dialog"><span class="account-menu__icon" aria-hidden="true">◐</span>外觀配色</button>
+            <a class="account-menu__item" href="{{ context_help_url }}" target="_blank" rel="noopener" title="另開使用說明，不會離開目前資料"><span class="account-menu__icon" aria-hidden="true">?</span>使用說明</a>
+            <button type="button" class="account-menu__item" data-check-update aria-label="檢查系統更新">
+              <span class="account-menu__icon" aria-hidden="true"><svg class="update-check-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6v5h-5M4 18v-5h5M18.2 9A7 7 0 0 0 6.7 6.7L4 9m16 6-2.7 2.3A7 7 0 0 1 5.8 15"/></svg></span>檢查更新
+            </button>
+            {% if_access 'password_change_required' %}<a class="account-menu__item" href="{% url 'password_change_required' %}"><span class="account-menu__icon" aria-hidden="true">鎖</span>我的密碼</a>{% endif_access %}
+            <form action="{% url 'logout' %}" method="post" class="account-menu__logout">
+              {% csrf_token %}
+              <button type="submit" class="account-menu__item"><span class="account-menu__icon" aria-hidden="true">↪</span>登出系統</button>
+            </form>
+          </div>
+        </details>
       {% endif %}
     </div>
   </header>

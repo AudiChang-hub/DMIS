@@ -203,6 +203,8 @@ USE_TZ = True
 STATIC_URL = "static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 STATICFILES_DIRS = [BASE_DIR / "static"]
+# WhiteNoise 預設未登錄 PWA manifest 的 MIME。
+WHITENOISE_MIMETYPES = {".webmanifest": "application/manifest+json"}
 STORAGES = {
     "staticfiles": {
         "BACKEND": (

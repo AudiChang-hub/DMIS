@@ -7,6 +7,14 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="{{ ui_theme_meta_color|default:'#18323b' }}">
   <title>{% block title %}車輛銷售管理{% endblock %}</title>
+  {# 加入主畫面後以全螢幕 App 開啟，不再每次新增瀏覽器分頁；iOS 需另外的 apple meta。 #}
+  <link rel="manifest" href="{% static 'manifest.webmanifest' %}">
+  <link rel="icon" type="image/png" sizes="192x192" href="{% static 'icons/icon-192.png' %}">
+  <link rel="apple-touch-icon" href="{% static 'icons/apple-touch-icon.png' %}">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="車輛銷售">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <link rel="stylesheet" href="{% static 'css/app.css' %}?v={{ app_version }}">
   {% block head %}{% endblock %}
 </head>

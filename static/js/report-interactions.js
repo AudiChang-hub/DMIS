@@ -1,3 +1,10 @@
+// 甜甜圈百分比：依扇形顏色深淺選黑字或白字，淺色扇形上不再是白字。
+function donutLabelFill(color) {
+  const hex = /^#([0-9a-f]{6})$/i.exec(String(color).trim());
+  if (!hex) return '#ffffff';
+  const [r, g, b] = [0, 2, 4].map(i => parseInt(hex[1].slice(i, i + 2), 16) / 255).map(v => (v <= .03928 ? v / 12.92 : ((v + .055) / 1.055) ** 2.4));
+  return .2126 * r + .7152 * g + .0722 * b > .3 ? '#11151a' : '#ffffff';
+}
 /* 圖表互動只讀取伺服器已授權資料；不修改報表或訂單。 */
 function reportPointText(data, metric) {
   if (data.pointSummary) return data.pointSummary;
@@ -384,7 +391,7 @@ function initReportVisuals(root) {
           if (overview && fraction >= 2) {
             const angle = (offset + fraction / 2) * Math.PI / 50 - Math.PI / 2;
             const label = document.createElementNS(ns, 'text');
-            for (const [key,value] of Object.entries({x:150+100*Math.cos(angle),y:155+100*Math.sin(angle),'text-anchor':'middle',fill:'#fff','font-size':14,'pointer-events':'none'})) label.setAttribute(key,String(value));
+            for (const [key,value] of Object.entries({x:150+100*Math.cos(angle),y:155+100*Math.sin(angle),'text-anchor':'middle',fill:donutLabelFill(color),'font-size':14,'font-weight':700,'pointer-events':'none',class:'report-donut-label'})) label.setAttribute(key,String(value));
             label.textContent = `${fraction.toFixed(1)}%`; svg.append(label);
           }
           offset += fraction;

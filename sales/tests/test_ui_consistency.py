@@ -359,6 +359,12 @@ class UiConsistencyTests(SimpleTestCase):
 
         self.assertIn("@media (min-width: 861px) and (max-width: 1360px) {\n  .inventory-filters:not(.customer-filters) { grid-template-columns: repeat(4, minmax(0, 1fr)); }", app.replace("\r\n", "\n"))
 
+    def test_data_menu_keeps_hover_bridge(self):
+        """資料維護選單的按鈕與展開選單之間有空隙，必須有懸停橋，否則滑鼠移過去選單就收起、點不到。"""
+        app = (CSS_DIR / "app.css").read_text(encoding="utf-8")
+
+        self.assertIn(".desktop-data-menu:hover > a::after { position: absolute; top: 100%;", app)
+
     def test_alignment_rules_exist(self):
         app = (CSS_DIR / "app.css").read_text(encoding="utf-8")
 

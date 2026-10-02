@@ -170,5 +170,5 @@ if (typeof document !== 'undefined') (() => {
     if (invalidField) setTab(propertyGroup(invalidField.name.split('-').slice(2).join('-')));
     select(invalidPanel);
   }
-  if (window.innerWidth > 1100 && !editor.querySelector('.errorlist')) editor.querySelector('[data-focus-workbench]').click();
+  if (!matchMedia('(max-width:1100px)').matches && !editor.querySelector('.errorlist')) editor.querySelector('[data-focus-workbench]').click();
 })();

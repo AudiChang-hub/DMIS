@@ -605,7 +605,7 @@ if (typeof document !== "undefined") initReportVisuals(document);
       if (ticket !== sequence) return;
       body.replaceChildren(document.importNode(content, true)); status.textContent = "明細已更新，圖表與篩選條件保留。";
       selection.focus({preventScroll:true});
-      if (window.innerWidth <= 1100) panel.scrollIntoView({block:"start", behavior:"smooth"});
+      if (matchMedia("(max-width:1100px)").matches) panel.scrollIntoView({block:"start", behavior:"smooth"});
     } catch (error) {
       if (ticket !== sequence) return;
       status.textContent = error.name === "AbortError" ? "讀取逾時，請重新點選分類再試。" : error.message;

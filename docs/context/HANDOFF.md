@@ -1,42 +1,44 @@
 # Handoff
 
-更新日期：2026-09-19
+更新日期：2026-10-02
 
 ## 本次完成
 
-使用者批准 B：建立全域／repo 規則、Hot／Warm／Cold 分層、精簡 README、歷史原文封存與相容入口、工具分級與限制。
-本次沒有改應用邏輯、正式資料或執行部署。
+1.30.0（全站操作中提示，一併升 pypdf 6.19.0）已發布：main `247cc92`、附註標籤 v1.30.0、正式站 deployed-sha 一致。
+CURRENT_STATE 精簡回熱脈絡預算內，1.23–1.30 的版本、備份與部署細節移至 [發布歷史](../archive/2026-10-02/CURRENT_STATE-release-history.md)。
+訂單流程補強（1.19–1.20）、電子簽署（1.25）、訂單精靈（1.26）等有效規則見 [BUSINESS_RULES](BUSINESS_RULES.md) 與對應 specs。
 
 ## 修改檔案
 
-AGENTS、.codex/config.toml、docs/context、docs/architecture、docs/reference、docs/archive；
-README、CONSTITUTION、Gemini／Copilot／prompts、歷史 PR 導向、.gitignore、specs/055-least-context、tests/context、tools/context_lookup.py 及 CI 的 Context 檢查步驟。
-本機全域兩檔先備份於 %USERPROFILE%/.codex/backups/least-context-20260919/，不納入 repo。
+docs/context/CURRENT_STATE.md、docs/context/HANDOFF.md、docs/archive/2026-10-02/CURRENT_STATE-release-history.md；未改應用程式碼、正式資料或部署。
 
 ## 驗證結果
 
-- 八項 unittest 全通過：Hot 大小、路由、bounded lookup、連結、設定、ignore、封存 SHA-256、交接格式。
-- 15 份封存與原提交 9b83d43 原文一致（統一換行與檔尾空白）；沒有刪除備份或歷史。
-- config/read 確認專案層有效，skills/list 列 12 份且零錯誤；exec --strict-config 實際載入通過。
-- 最終新工作階段：一次 shell 操作讀現況／Git 狀態並執行兩個定位器，正確找到 catalog() 與 _sales_transaction_key() 後停止；未開 Browser、DB 或改檔。
-- check_release 通過，應用維持 1.11.0；未執行 Django 全套測試、正式部署與正式資料驗證，因本次沒有相關異動。
-- 變更在 codex/least-context-architecture 獨立分支保存，不合併 main、不發布應用。驗證細節見 [CONTEXT_VALIDATION](../reference/CONTEXT_VALIDATION.md)。
+- `python -m unittest discover -s tests/context`：8 項通過（含熱脈絡預算與本檔格式）。
+- 正式站以 SSH 唯讀核對：HEAD、deployed-sha、v1.30.0 標籤均為 `247cc92`，web healthy，`/health/` 回 ok；DB／Redis 未重啟。
+- 文件提交在 main 之後，正式站 HEAD 落後 main 純文件提交屬正常，不需部署。
 
 ## 尚未完成
 
-先前使用者指定的五組訂單合併尚未執行；本次 AI 環境工作不包含資料清理。恢復時依使用者已確認範圍重新檢查來源／主單、財務衝突、附件及備份，不依聊天摘要直接寫庫。
+- 正式站登入後畫面未實機驗收：1.30.0 操作中提示、含簽名 PDF 列印（pypdf 升版）、1.25 電子簽署、1.26 訂單精靈。
+- 官網檢查排程首次執行 2026-10-05 05:47；正式站尚未執行官網檢查、對應或補圖。
+- Email 通道未設定：需要時設定 SMTP 與 `DMIS_NOTIFICATION_EMAIL_ENABLED=true`，再用 `send_pending_notifications` 補發。
+- 客戶端簡訊／LINE 通知需使用者提供服務商帳號。
+- 舊交接的五組訂單合併：狀態待核對，未執行也不得自動執行。
+- 交接分支上的 AI 工具／政策文件是否合併 main，待使用者指定。
 
 ## 已知風險
 
-全域 CLI 原模型 gpt-5.3-codex-spark 已被帳號拒絕，永久設定未變；最終唯讀驗收暫用帳號 model/list 回報可用的 gpt-5.6-sol，未替使用者永久選新模型。
-本輪已有提示無法移除；新工作階段才是驗證設定的基準。Desktop 平台工具不一定能由 repo 設定移除。
-舊文件封存保留原文及相對路徑語境，不能照歷史指令操作正式服務。
+- 唯一一張未交車的分期單須先在交付頁登記「已核准」才能交車。
+- 多個工作階段可能同時發布；發布前先查 `gh run list` 與正式站 deployed-sha，避免重複打標籤或部署。
+- CURRENT_STATE 不得超過 5000 位元組（與 AGENTS 合計 8000），新增發布紀錄時舊版移至 archive。
+- `rg` 不在 PATH；Claude 內建 Grep 可用。CI 尚未依風險分流，單次約 25 分鐘。
+- 正式主機 SSH：`ssh -i "C:/Users/user/.ssh/line_monitor_ubuntu_ed25519" -o IdentitiesOnly=yes -o BatchMode=yes t470p "<指令>"`；僅限已授權維運。
 
 ## 下一步
 
-新工作階段重新載入工具設定；新任務從 CURRENT_STATE 及 AGENTS 路由進入，不自動續跑正式資料合併。
-如要直接用 CLI，先由使用者選擇支援的模型或明確指定臨時 -m；不要悄悄覆寫全域模型偏好。
+等使用者實機驗收回饋；新需求從 [AGENTS](../../AGENTS.md) 路由定位，不自動執行訂單合併或寫入正式資料。
 
 ## 下一位 Agent 建議先看
 
-[CURRENT_STATE](CURRENT_STATE.md)；只有工具維護讀 [AI_TOOL_POLICY](../reference/AI_TOOL_POLICY.md)。
+[CURRENT_STATE](CURRENT_STATE.md)、[BUSINESS_RULES](BUSINESS_RULES.md) 財務與訂單小節、對應 specs。

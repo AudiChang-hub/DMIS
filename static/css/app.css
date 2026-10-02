@@ -7076,3 +7076,17 @@ main { animation: page-fade var(--dur-3) var(--ease-out); }
   .order-draft-summary { display: grid; grid-template-columns: 44px minmax(0, 1fr); align-items: start; }
   .order-draft-summary > .button { grid-column: 1 / -1; }
 }
+
+/* ===== 設計系統 2.0：選車展示（攝影棚底、無框佔位、車款標題） ===== */
+.catalog-group-heading { padding: var(--space-6) 0 var(--space-3); border-bottom: 0; }
+.catalog-group-heading h2 { font-size: clamp(1.6rem, 1.2rem + 1vw, 2.1rem); letter-spacing: -.03em; }
+.catalog-card { padding: var(--space-3); border-color: var(--line-soft); transition: transform var(--dur-2) var(--ease-out), box-shadow var(--dur-2) var(--ease-out), border-color var(--dur-2) var(--ease-out); }
+.catalog-card:hover { border-color: var(--line); box-shadow: var(--shadow); transform: translateY(-3px); }
+:is(.catalog-image, .catalog-color-visual) { background: radial-gradient(60% 34% at 50% 88%, color-mix(in srgb, var(--shadow-ink) 9%, transparent), transparent 70%), linear-gradient(180deg, var(--surface-subtle), var(--surface-soft)); border-radius: var(--radius-lg); }
+.catalog-color-visual img { background: transparent; }
+.catalog-placeholder, .catalog-color-placeholder { color: var(--muted); background: radial-gradient(60% 34% at 50% 88%, color-mix(in srgb, var(--shadow-ink) 7%, transparent), transparent 70%), linear-gradient(180deg, var(--surface-subtle), var(--surface-soft)); border: 0; border-radius: var(--radius-lg); font-size: var(--text-sm); }
+.catalog-card .catalog-variant-label, .catalog-color-card strong { font-family: var(--font-display); font-weight: 750; }
+.catalog-color-card { padding: var(--space-3); border: 1px solid var(--line-soft); border-radius: var(--radius-lg); box-shadow: var(--shadow-soft); transition: border-color var(--dur-2) var(--ease-out), box-shadow var(--dur-2) var(--ease-out), transform var(--dur-2) var(--ease-out); }
+.catalog-color-card:hover { border-color: var(--line); transform: translateY(-2px); }
+.catalog-color-card:has(input:checked) { border-color: var(--forest); box-shadow: 0 0 0 3px color-mix(in srgb, var(--forest) 22%, transparent), var(--shadow); }
+@media (prefers-reduced-motion: reduce) { .catalog-card, .catalog-color-card { transition: none; } .catalog-card:hover, .catalog-color-card:hover { transform: none; } }

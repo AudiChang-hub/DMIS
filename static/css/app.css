@@ -2560,7 +2560,8 @@ input[type="file"].form-control { padding: var(--space-3); }
 .inventory-table tbody tr.inventory-row--condition-issue:hover {
   background: color-mix(in srgb, var(--red-soft) 78%, var(--surface));
 }
-.inventory-table td strong, .inventory-table td span { display: block; }
+/* 寬版／窄版文字由 compact-text 規則切換，不可被表格的區塊顯示覆蓋，否則同一內容會出現兩次。 */
+.inventory-table td strong, .inventory-table td span:not(.compact-text-wide, .compact-text-narrow) { display: block; }
 .inventory-table td strong + span { margin-top: 2px; color: var(--muted); font-size: var(--text-sm); }
 .inventory-table .status-pill { display: inline-flex; }
 .inventory-table .status-pill.status-available { color: var(--green); background: var(--mint); border-color: var(--green-border); }

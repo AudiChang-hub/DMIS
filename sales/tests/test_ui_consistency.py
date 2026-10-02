@@ -377,6 +377,13 @@ class UiConsistencyTests(SimpleTestCase):
         self.assertIn("@media (min-width: 860.02px) and (max-width: 900px) {\n    .app-header { padding-inline: var(--space-2); }\n    .brand { padding-right: 0; }", app)
         self.assertEqual(app.count(".desktop-nav > a, .desktop-data-menu > a {"), 2)
 
+    def test_table_spans_do_not_reveal_both_compact_texts(self):
+        """表格內 span 的區塊顯示不可套到寬版／窄版文字，否則機種、備註會同時顯示兩次。"""
+        app = (CSS_DIR / "app.css").read_text(encoding="utf-8")
+
+        self.assertIn(".inventory-table td span:not(.compact-text-wide, .compact-text-narrow) { display: block; }", app)
+        self.assertNotIn(".inventory-table td span { display: block; }", app)
+
     def test_breakpoints_have_no_gap(self):
         """max-width: N 與 min-width: N+1 之間會漏掉 Windows 縮放產生的小數寬度（例如 860.5px），兩邊規則都不套用。"""
         for path in CSS_DIR.glob("*.css"):

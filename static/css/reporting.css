@@ -129,3 +129,15 @@
 @media(max-width:1100px){.report-filter-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:600px){.report-filter-grid{grid-template-columns:1fr}.report-filter-actions{display:grid;grid-template-columns:1fr 1fr}}
 .report-pagination.site-pagination .site-pagination__link{box-sizing:border-box;min-height:44px}
 @media(max-width:640px){.report-pagination.site-pagination .site-pagination__link{flex-basis:calc(50% - 8px);padding-inline:var(--space-2)}}
+
+/* ===== 設計系統 2.0：報表閱讀（大標題、膠囊選單、髮絲邊卡片、大字彙總） ===== */
+.report-reader-shell .report-heading h1, .report-workspace .report-heading h1 { font-family: var(--font-display); font-size: clamp(1.9rem, 1.3rem + 1.4vw, 2.6rem); font-weight: 800; letter-spacing: -.035em; }
+.report-page-nav { border-color: var(--line-soft); box-shadow: var(--shadow-soft); padding: var(--space-3); }
+.report-page-nav a { padding: var(--space-2) var(--space-3); border-radius: var(--radius-pill); color: var(--muted); font-weight: 650; transition: background-color var(--dur-2) var(--ease-out), color var(--dur-2) var(--ease-out); }
+.report-page-nav a:hover { color: var(--ink); background: var(--surface-soft); }
+.report-page-nav a[aria-current], .report-workspace .report-page-nav a[aria-current] { color: var(--paper); background: var(--ink); border-inline-start: 0; font-weight: 750; }
+.report-workspace .report-panel, .report-grid > .report-panel { border-color: var(--line-soft); border-radius: var(--radius); box-shadow: var(--shadow-soft); }
+.report-card-toolbar { border-bottom-color: var(--line-soft); }
+.report-card-toolbar h2 { font-family: var(--font-display); letter-spacing: -.015em; }
+.report-score strong { font-family: var(--font-display); font-weight: 800; letter-spacing: -.035em; line-height: 1.1; }
+.report-donut-label { paint-order: stroke; stroke: color-mix(in srgb, var(--shadow-ink) 18%, transparent); stroke-width: 2px; }

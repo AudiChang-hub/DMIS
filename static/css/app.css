@@ -6626,6 +6626,9 @@ h3 { font-weight: 750; letter-spacing: -.01em; }
 .desktop-nav > a:hover, .desktop-data-menu:hover > a { color: var(--header-text); background: var(--header-interactive); }
 .desktop-nav > a.active, .desktop-data-menu.active > a { color: var(--paper); background: var(--ink); box-shadow: none; }
 .desktop-data-menu { align-self: center; }
+/* 資料維護選單：膠囊按鈕與展開選單之間有空隙，懸停時補一段看不見的橋，滑鼠往下移時選單不會收起。 */
+.desktop-data-menu > a { position: relative; }
+.desktop-data-menu:hover > a::after { position: absolute; top: 100%; right: calc(-1 * var(--space-6)); left: calc(-1 * var(--space-6)); height: var(--space-6); content: ""; }
 .account-menu { align-self: center; }
 .account-menu__summary { min-height: 44px; color: var(--header-text); border-left: 0; border-radius: var(--radius-pill); transition: background-color var(--dur-2) var(--ease-out); }
 .account-menu__summary:hover, .account-menu[open] > .account-menu__summary { color: var(--header-text); background: var(--header-interactive); }

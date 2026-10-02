@@ -3,37 +3,13 @@
 核對日期：2026-10-02（正式站以 SSH 與公開頁面核對）。
 
 - 應用版本：**1.30.0**，來源 `config/release_notes.py`；發布規範見 [RELEASE_POLICY](../RELEASE_POLICY.md)。
-- 正式站：**1.30.0**（全站操作中提示：`static/js/busy-indicator.js`，排除輪詢與自動儲存，打字不視為按下功能）已於 2026-10-02 約 11:10 發布，main `247cc92`（附註標籤 v1.30.0），HEAD、deployed-sha、標籤一致，DB／Redis 未重啟，無 migration，部署前備份 `dmis_20261002_110939.sql.gz`。版本日期已改為實際發布日；因 CI 依賴檢查擋下 pypdf 6.16.1 新公布弱點，一併升至 6.19.0（發布 Session 回報 PDF 相關測試 262 項通過；`04966c9` 的 CI 失敗即此原因，`247cc92` 通過）。正式站核對標籤、健康檢查與容器；登入後畫面與含簽名 PDF 列印未實機驗收。
-- 前一版 **1.29.1**（手機底部「更多」：`app.css` 全站 details／summary 展開箭頭規則的 `:not` 清單排除 `.mobile-data-menu`，修正多出 V 與 12px 間距錯位；⚙ 加 U+FE0E 避免 iOS 彩色 emoji）已於 2026-10-01 20:45 發布，main `165f48e`（附註標籤 v1.29.1，CI 通過），DB／Redis 未重啟，無 migration，部署前備份 `dmis_20261001_204514.sql.gz`。正式站核對健康檢查與新 CSS；iPhone 實機點按未實測。
-- **1.29.0**（原廠車型比對入口：資料維護區卡片與頂端選單；SYM／SUZUKI 分頁顯示各自檢查狀態；「兩家一起檢查」）已於 2026-10-01 20:20 發布，main `edb0b04`（附註標籤 v1.29.0，CI 通過），deployed-sha 一致，DB／Redis 未重啟，無 migration。部署前備份 `dmis_20261001_202007.sql.gz`。已在使用者 Chrome 以 admin 開啟資料維護區與原廠車型比對頁（只讀取）。
-- **1.28.3**（Excel 匯入：無車輛號碼的銷貨列以 `_sales_plateless_key` 忽略車牌欄比對，同檔重複或與已完成批次相同列為衝突；訂單日缺值改用發票日）已於 2026-10-01 19:49 發布，main `1b57ced`（附註標籤 v1.28.3，CI 通過），DB／Redis 未重啟，無 migration，部署前備份 `dmis_20261001_194827.sql.gz`。起因：鄭芮安一列無序號、10/01 批次車牌欄填入備註，交易鍵改變而重複建單；依使用者指示以 admin 強制軟刪除重複訂單 21802（可還原，保留 21777），操作前備份 `dmis_20261001_185935.sql.gz`。全部已完成批次掃描只有這一組跨批次重複。
-- **1.28.2**（PWA 改 `display: standalone`；主畫面圖示改用永湛網站 favicon 的機車騎士標誌（白底，`static/icons/`），short_name「永湛馭盛車務」、name「永湛．馭盛車務」；`test_volume_bonus_never_counts_in_house_sources` 改只檢查 `</head>` 後內容，因 head 含店名）已於 2026-10-01 19:25 發布，main `132d2a1`（附註標籤 v1.28.2，CI 通過），DB／Redis 未重啟，無 migration，部署前備份 `dmis_20261001_192423.sql.gz`。正式站核對健康檢查、manifest 與圖示；手機實機安裝未實測。
-- **1.28.1**（PWA：`static/manifest.webmanifest` 設 `display: fullscreen`、start_url／scope 為 `/`，圖示在 `static/icons/`，base.html 加 manifest 與 iOS apple meta；WhiteNoise 補 `.webmanifest` MIME；頁首預留 `safe-area-inset-top`。無 service worker、無離線快取。舊主畫面捷徑須刪除後重新加入才生效）已於 2026-10-01 17:58 發布，main `837d9a6`（附註標籤 v1.28.1，CI 通過），DB／Redis 未重啟，無 migration，部署前備份 `dmis_20261001_175719.sql.gz`。正式站核對健康檢查、manifest（application/manifest+json）、圖示與登入頁 head；Android／iPhone 實機安裝與全螢幕頁首未實測。
-- **1.28.0**（SUZUKI 零件不再嵌入：`/parts/suzuki/` 轉址到 `SUZUKI_PARTS_MANUAL_URL`，主選單／手機捷徑另開分頁；SUZUKI 主品牌與別名車款在庫存清單與訂單配車區顯示「查零件」，複製引擎／車身號碼後另開官方網站，樣板標籤 `suzuki_parts_lookup`。官方網站不支援網址帶號碼，若台鈴日後支援可改為直接開到該車目錄）已於 2026-10-01 15:31 發布，main `c121c58`（附註標籤 v1.28.0），備份 `dmis_20261001_153045.sql.gz`；剪貼簿複製未在正式站實測。
-- **1.27.1**（頁首右側外觀、使用說明、檢查更新、我的密碼、登出收進右上角帳號選單 `data-account-menu`；1.27.x 的零件嵌入頁已由 1.28.0 移除）已於 2026-10-01 14:22 發布，main `b67106b`（附註標籤 v1.27.1，CI 通過），DB／Redis 未重啟，無 migration，部署前備份 `dmis_20261001_142202.sql.gz`。正式站核對服務、健康檢查與新靜態檔；帳號選單與零件頁版面以本機 1600／1280／375px 驗證，登入後未在正式站實機操作。
-- **1.27.0**（主選單「SUZUKI 零件」以 iframe 嵌入台鈴官方零件圖冊；網址由環境變數 `SUZUKI_PARTS_MANUAL_URL` 設定，預設為官方測試網址 manus.space，官方換正式網域時改變數後重新部署；內部帳號可見、車行帳號不可見；本系統不複製官方資料）已於 2026-10-01 13:27 發布，main `85b6c1d`（附註標籤 v1.27.0，CI 通過），DB／Redis 未重啟，無 migration，部署前備份 `dmis_20261001_132707.sql.gz`（新版備份腳本已生效，部署未中止）。正式站已核對路由、設定、健康檢查與未登入導向登入頁；登入後畫面以本機驗證。
-- **1.26.5**（備份腳本週／月封存已存在就保留，修正月初與週日部署中止）已於 2026-10-01 12:57 發布，main `dfcadfe`（附註標籤 v1.26.5，CI 通過），deployed-sha 一致，DB／Redis 未重啟。部署前以新版腳本備份 `dmis_20261001_125705.sql.gz`，實際略過 root 建立的 10 月封存。注意：部署腳本以「部署前的舊版」備份腳本執行，備份腳本本身的修正從下一次部署起才會自動生效。
-- **1.26.4**（訂金獨立成段、分期預設帶入配件金額；確認頁車型／車色精簡並提示建立後簽署；修正人工核對被清除與自訂配件名稱遺失）已於 2026-10-01 10:50 發布，main `1ddcc4f`（附註標籤 v1.26.4，CI 通過），deployed-sha 一致，DB／Redis 未重啟，無 migration，部署前每日備份 `dmis_20261001_104917.sql.gz`（當天月初封存權限問題已由 1.26.5 修正）。
-- **1.26.3**（證件辨識完成前「已人工核對證件」與車主步驟的「下一步」鎖住；人工確認框只在辨識未通過時出現）已於 2026-09-30 21:23 發布，main `36f9e74`（附註標籤 v1.26.3，CI 通過），deployed-sha 一致，DB／Redis 未重啟，無 migration，部署前備份 `dmis_20260930_212304.sql.gz`；正式站以未存檔的建單頁核對鎖定狀態。
-- **1.26.2**（訂單精靈步驟標示）main `4d9f62c`，備份 `dmis_20260930_195803.sql.gz`。
-- **1.26.0**（建立訂單五步精靈＋證件拍錯判斷，規格 `specs/063-order-wizard`）main `38719e3`，備份 `dmis_20260930_185920.sql.gz`，無 migration。已在使用者 Chrome 以 admin 實測：必填阻擋、網址跳步被導回、正式辨識認出健保卡、未勾人工核對被擋、確認頁摘要與「修改」；未按建立訂單。測試草稿已依使用者要求於 2026-09-30 刪除（含暫存照片）。真實身分證辨識成功路徑尚未在正式站驗證。舊整頁表單以 `?classic=1` 保留為過渡備援。
-- **1.26.1**（另一工作階段，中等寬度篩選列）main `a569e3e`，備份 `dmis_20260930_192952.sql.gz`。
-- 前一版 **1.25.1**（合作車行清單「合作類別」篩選可複選，無 migration）已於 2026-09-30 18:29 發布，main `aedb50d`（附註標籤 v1.25.1，CI 通過），deployed-sha 一致，DB／Redis 未重啟，部署前備份 `dmis_20260930_182859.sql.gz`；僅核對版本標籤、健康檢查與 worker，登入後畫面未實機驗收。
-- 前一版 **1.25.0**（行動裝置電子簽署：訂購單／個資同意書每單二選一在行動裝置簽或印紙本，簽完可選列印含簽名副本，改合約內容需重簽；規格 `specs/062-electronic-signature`）已於 2026-09-30 發布，main `ac31b32`（附註標籤 v1.25.0，CI 通過），deployed-sha 一致，migration 0158 新增四個空白欄位，新套件 pypdfium2；DB／Redis 未重啟。部署前備份 `dmis_20260930_175207.sql.gz`。正式容器內已以最新訂單驗證文件預覽渲染；**未在正式站實際簽署**（會寫入正式資料），登入後簽署流程以本機合成資料驗證。
-- 同日稍早：**1.24.0**（原廠車型比對第二階段：從官網建立車型／新年式、圖片版本標記偵測改款、每週自動檢查並通知 admin）已於 2026-09-30 發布，main `32ee571`（附註標籤 v1.24.0，CI 通過）；deployed-sha 一致，DB／Redis 未重啟，無 migration。部署前備份 `dmis_20260930_162244.sql.gz`。已在使用者 Chrome 以 admin 開啟原廠車型比對頁與新增機種頁（只讀取）。
-- 每週官網檢查排程 `dmis-next-official-catalog-check.timer` 已由使用者於 2026-09-30 安裝並啟用，首次執行 2026-10-05 05:47。正式站尚未執行任何官網檢查、對應或補圖，留給使用者首次操作。
-- 1.23.0（main `de7ef26`，原廠車型比對第一階段，migration 0157 新增兩張表）與另一工作階段的 1.23.1（`6a49548`，表格外觀）、1.23.2（`da3bd64`，表單外觀）同批部署，備份 `dmis_20260930_155446.sql.gz`；規格 `specs/061-official-catalog-check`。
-- 同日稍早：1.22.4（main `8ce83b3`，確認頁版面）、1.22.3（main `616c482`，選車篩選原地更新，備份 `dmis_20260930_131640.sql.gz`）、1.22.2（main `6ea6af5`，確認頁與多行文字框外觀，備份 `dmis_20260930_124623.sql.gz`）、1.22.1（main `9e5ad16`，下拉選單自動套用篩選，備份 `dmis_20260930_121606.sql.gz`）、1.22.0（main `1b57af3`，訂單步驟式工作台，備份 `dmis_20260930_113951.sql.gz`）、1.21.1（main `469d4da`，全站版面對齊，備份 `dmis_20260930_110911.sql.gz`）、1.21.0（main `df4022e`，移除發票紀錄、領牌發票照片改選填，migration 0156 刪除 0 筆空表，備份 `dmis_20260930_104055.sql.gz`）。
-- 2026-09-29：1.20.0（main `3884202`，migration 0153–0155）、1.19.0（main `4a55a5a`，migration 0152）、1.18.2（main `453ad2f`）。
-- 1.19.0–1.20.0 為訂單流程補強 Phase 1–4（收款帳本與沒收退款、交車閘門、車行掛帳、領牌後例外結案、狀態機清理與配車先進先出、內部通知），規格 `specs/056`–`059`；發票紀錄已於 1.21.0 依使用者要求移除。
-- 1.22.0 訂單頁改為 7 步驟工作台（規格 `specs/060-order-step-workspace`）：只展開目前步驟、交車同表單收尾款、訂金步驟直接登記收款；收支進階欄位收合，補助追蹤與車控贈品移到對應步驟。規則見 [BUSINESS_RULES](BUSINESS_RULES.md)。
-- 正式站只做 SSH 唯讀核對與公開頁面檢查；**登入後頁面尚未在正式站實機驗收**，新流程以本機合成資料驗證。正式站未設定 Email 通道，Email 通知記為「未設定通道」，系統內通知正常。
-- 部署時正式站唯一一張未交車的分期單須先在交付頁登記「已核准」才能交車；既有已配車訂單沒有配車時間，不列入保留逾期提醒。
-- UI 規則來源為 [UI_GUIDELINES](../reference/UI_GUIDELINES.md)，由 `sales/tests/test_ui_consistency.py` 把關。
-- 應用版本與本文件同步於 main 與交接分支；AI 工具與政策文件只在交接分支，是否合併 main 待使用者指定。
-- 正式主機 SSH 連線方式見 [HANDOFF](HANDOFF.md)「已知風險」；僅授權維運時使用。
-- 技術棧：Python 3.12、Django 5.2、Templates／HTMX、Channels／Daphne、RQ、PostgreSQL 16、Redis 7；本機可用 SQLite。
-- 開發工具：Codex 與 Claude Code 並存；工具狀態見 [AI_TOOL_POLICY](../reference/AI_TOOL_POLICY.md)。
-- 待核對：舊交接提到的五組訂單合併，**狀態待核對**；不可視為未完成或已完成，不可自動執行，等使用者另行指定。
-- 已知限制：舊 Odoo 規格只供追溯；「姓名＋車身／引擎號」合併需求不是 importer 全域唯一鍵。UI 自動測試不能替代實機驗收。
-- 下一步：依新需求從 [AGENTS](../../AGENTS.md) 路由定位；接手未完工作才讀 [HANDOFF](HANDOFF.md)。
+- 正式站：**1.30.0**（全站操作中提示）2026-10-02 發布，main `247cc92`（標籤 v1.30.0），deployed-sha 一致，無 migration，DB／Redis 未重啟，備份 `dmis_20261002_110939.sql.gz`；一併升 pypdf 6.19.0。
+- 1.23–1.30 的版本、備份與部署細節見[發布歷史](../archive/2026-10-02/CURRENT_STATE-release-history.md)。
+- 官網檢查排程 `dmis-next-official-catalog-check.timer` 已啟用，首次執行 2026-10-05 05:47；正式站尚未執行官網檢查、對應或補圖。
+- 登入後畫面與含簽名 PDF 列印未在正式站實機驗收；未設定 Email 通道，系統內通知正常。
+- 唯一一張未交車的分期單須先在交付頁登記「已核准」才能交車。
+- 規則：[UI](../reference/UI_GUIDELINES.md)、[商業規則](BUSINESS_RULES.md)；SSH 見 [HANDOFF](HANDOFF.md)。
+- AI 工具與政策文件只在交接分支，是否合併 main 待使用者指定；工具見 [AI_TOOL_POLICY](../reference/AI_TOOL_POLICY.md)。
+- 待核對：舊交接的五組訂單合併，不可視為已完成或自動執行。
+- 技術棧：Python 3.12、Django 5.2、HTMX、Channels、RQ、PostgreSQL 16、Redis 7。
+- 下一步：依新需求從 [AGENTS](../../AGENTS.md) 路由定位。

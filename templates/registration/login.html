@@ -2,10 +2,16 @@
 {% block title %}登入｜車輛銷售管理{% endblock %}
 {% block content %}
 <section class="login-panel">
-  <div>
+  <div class="login-intro">
     <p class="eyebrow">馭盛・店內與合作車行登入</p>
-    <h1>從客人下訂，到實際交車。</h1>
+    <h1>從客人下訂，<span class="login-accent">到實際交車。</span></h1>
     <p class="muted">店內與合作車行使用同一套下單流程，手機也能選車、填單與上傳文件。帳號請洽馭盛開通。</p>
+    <ol class="login-flow" aria-label="一張訂單的流程">
+      <li><span>01</span>選車下訂</li>
+      <li><span>02</span>配車</li>
+      <li><span>03</span>領牌</li>
+      <li><span>04</span>交車</li>
+    </ol>
     <a class="button ghost" href="{% url 'catalog' %}">先看看車款</a>
   </div>
   <form method="post" class="card login-card">
@@ -26,4 +32,3 @@
   </form>
 </section>
 {% endblock %}
-

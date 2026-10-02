@@ -365,6 +365,18 @@ class UiConsistencyTests(SimpleTestCase):
 
         self.assertIn(".desktop-data-menu:hover > a::after { position: absolute; top: 100%;", app)
 
+    def test_header_nav_fits_medium_screens(self):
+        """861–1100px 導覽膠囊要收窄，且基礎內距規則必須在它之前，否則頁首會超出畫面。"""
+        app = (CSS_DIR / "app.css").read_text(encoding="utf-8").replace("\r\n", "\n")
+        base = ".desktop-nav > a, .desktop-data-menu > a { display: grid; place-items: center; min-height: 36px; padding: 0 var(--space-4);"
+        narrow = "@media (min-width: 861px) and (max-width: 1100px) {\n    .desktop-nav > a, .desktop-data-menu > a { padding-inline: var(--space-2); }"
+
+        self.assertIn(base, app)
+        self.assertIn(narrow, app)
+        self.assertLess(app.index(base), app.index(narrow))
+        self.assertIn("@media (min-width: 861px) and (max-width: 900px) {\n    .app-header { padding-inline: var(--space-2); }\n    .brand { padding-right: 0; }", app)
+        self.assertEqual(app.count(".desktop-nav > a, .desktop-data-menu > a {"), 2)
+
     def test_alignment_rules_exist(self):
         app = (CSS_DIR / "app.css").read_text(encoding="utf-8")
 
@@ -380,4 +392,4 @@ class UiConsistencyTests(SimpleTestCase):
 
         self.assertFalse(".page-shell { width: min(100% - 48px, 1560px)" in app)
         self.assertIn("--shell-wide: 1560px;", app)
-        self.assertIn(".page-shell { width: min(100% - var(--shell-gutter), var(--shell-wide)); }", app)
+        self.assertRegex(app, r"\.page-shell \{[^}]*width: min\(100% - var\(--shell-gutter\), var\(--shell-wide\)\);")

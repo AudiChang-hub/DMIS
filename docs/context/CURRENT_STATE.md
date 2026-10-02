@@ -2,8 +2,8 @@
 
 核對日期：2026-10-02（正式站以 SSH 與公開頁面核對）。
 
-- 應用版本：**1.34.0**，來源 `config/release_notes.py`；發布規範見 [RELEASE_POLICY](../RELEASE_POLICY.md)。
-- 正式站：**1.34.0**（全新介面設計第四階段，主題改名）2026-10-02 發布，main `1fbe82a`（標籤 v1.34.0），deployed-sha 一致，migration 0159 只改主題選項名稱，DB／Redis 未重啟，備份 `dmis_20261002_165749.sql.gz`。
+- 應用版本：**1.34.1**，來源 `config/release_notes.py`；發布規範見 [RELEASE_POLICY](../RELEASE_POLICY.md)。
+- 正式站：**1.34.1**（介面細節與移除未用樣式）2026-10-02 發布，main `6683aeb`（標籤 v1.34.1），deployed-sha 一致，無 migration，DB／Redis 未重啟，備份 `dmis_20261002_174226.sql.gz`。
 - 1.23–1.34 的版本、備份與部署細節見[發布歷史](../archive/2026-10-02/CURRENT_STATE-release-history.md)。
 - 官網檢查排程 `dmis-next-official-catalog-check.timer` 已啟用，首次執行 2026-10-05 05:47；正式站尚未執行官網檢查、對應或補圖。
 - 登入後畫面與含簽名 PDF 列印未在正式站實機驗收；未設定 Email 通道，系統內通知正常。

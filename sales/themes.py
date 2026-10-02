@@ -2,20 +2,20 @@ THEME_DEFINITIONS = (
     {
         "value": "professional",
         "label": "專業藍綠",
-        "description": "沉穩、清晰，適合日常長時間使用。",
-        "meta_color": "#18323b",
+        "description": "暖白底、墨黑文字與群青操作色，清晰、適合日常長時間使用。",
+        "meta_color": "#f4f4f0",
     },
     {
         "value": "night-blue",
         "label": "夜間深藍",
-        "description": "降低夜間亮度，保留清楚的文字、表格與操作層級。",
-        "meta_color": "#0a151b",
+        "description": "深墨底與柔和群青，降低夜間亮度，保留清楚的文字、表格與操作層級。",
+        "meta_color": "#0c0f13",
     },
     {
         "value": "system",
         "label": "跟隨裝置",
         "description": "依手機或電腦的亮色／深色設定即時切換。",
-        "meta_color": "#18323b",
+        "meta_color": "#f4f4f0",
     },
     {
         "value": "deep-blue",

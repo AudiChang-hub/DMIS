@@ -238,7 +238,7 @@ class UiConsistencyTests(SimpleTestCase):
         app = (CSS_DIR / "app.css").read_text(encoding="utf-8")
 
         self.assertIn("select:not([multiple]):not([size]):not(.searchable-select__native) {", app)
-        self.assertIn("--select-chevron: var(--forest);", app)
+        self.assertIn("--select-chevron: var(--ink-soft);", app)
         self.assertIn("color: var(--select-chevron); background: transparent;", app)
         offenders = [
             f"{path}"

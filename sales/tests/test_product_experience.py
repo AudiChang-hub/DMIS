@@ -353,17 +353,17 @@ class ProductExperienceTests(TestCase):
         css = Path("static/css/app.css").read_text(encoding="utf-8")
 
         for token in (
-            "--navy: #18323b",
-            "--forest: #0e5d57",
-            "--gold: #c99735",
-            "--ink: #17252b",
-            "--muted: #526168",
+            "--navy: #11151a",
+            "--forest: #3446f0",
+            "--gold: #c8f135",
+            "--ink: #11151a",
+            "--muted: #5b6470",
             "--field-label: var(--ink)",
             "--field-hint: var(--muted)",
-            "--line: #c9d2d5",
-            "--focus-ring: #d6a63c",
+            "--line: #dcdfd8",
+            "--focus-ring: #3446f0",
             "--surface-raised: #ffffff",
-            "--header-surface: var(--navy)",
+            "--header-surface: rgba(244, 244, 240, .82)",
         ):
             with self.subTest(token=token):
                 self.assertIn(token, css)
@@ -388,20 +388,21 @@ class ProductExperienceTests(TestCase):
             return (values[1] + 0.05) / (values[0] + 0.05)
 
         for foreground, background in (
-            ("#17252b", "#f3f5f6"),
-            ("#526168", "#ffffff"),
-            ("#ffffff", "#0e5d57"),
-            ("#ffffff", "#18323b"),
+            ("#11151a", "#f4f4f0"),
+            ("#5b6470", "#ffffff"),
+            ("#5b6470", "#f4f4f0"),
+            ("#ffffff", "#3446f0"),
+            ("#f4f4f0", "#11151a"),
         ):
             with self.subTest(foreground=foreground, background=background):
                 self.assertGreaterEqual(contrast_ratio(foreground, background), 4.5)
 
         theme_contrast_pairs = {
             "professional": (
-                ("#17252b", "#f3f5f6"),
-                ("#526168", "#ffffff"),
-                ("#ffffff", "#0e5d57"),
-                ("#ffffff", "#18323b"),
+                ("#11151a", "#f4f4f0"),
+                ("#5b6470", "#ffffff"),
+                ("#ffffff", "#3446f0"),
+                ("#f4f4f0", "#11151a"),
             ),
             "deep-blue": (
                 ("#18283b", "#f2f5f9"),
@@ -549,8 +550,8 @@ class ProductExperienceTests(TestCase):
         self.assertIn('html[data-theme="system"]', css)
         self.assertIn("prefers-color-scheme: dark", css)
         self.assertIn("color-scheme: dark", css)
-        self.assertEqual(css.count("--header-surface: #172f3a"), 2)
-        self.assertEqual(css.count("--surface-raised: #1c3039"), 2)
+        self.assertEqual(css.count("--header-surface: rgba(12, 15, 19, .8)"), 2)
+        self.assertEqual(css.count("--surface-raised: #1d232b"), 2)
         self.assertIn("background: var(--header-surface)", css)
         self.assertIn("background: var(--header-interactive)", css)
         self.assertIn("background: var(--surface-raised)", css)

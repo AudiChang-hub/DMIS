@@ -357,7 +357,7 @@ class UiConsistencyTests(SimpleTestCase):
         """中等寬度下篩選列改為四欄，避免 7 欄最小寬度撐出卡片（1024px 筆電）。"""
         app = (CSS_DIR / "app.css").read_text(encoding="utf-8")
 
-        self.assertIn("@media (min-width: 861px) and (max-width: 1360px) {\n  .inventory-filters:not(.customer-filters) { grid-template-columns: repeat(4, minmax(0, 1fr)); }", app.replace("\r\n", "\n"))
+        self.assertIn("@media (min-width: 860.02px) and (max-width: 1360px) {\n  .inventory-filters:not(.customer-filters) { grid-template-columns: repeat(4, minmax(0, 1fr)); }", app.replace("\r\n", "\n"))
 
     def test_data_menu_keeps_hover_bridge(self):
         """資料維護選單的按鈕與展開選單之間有空隙，必須有懸停橋，否則滑鼠移過去選單就收起、點不到。"""
@@ -369,13 +369,21 @@ class UiConsistencyTests(SimpleTestCase):
         """861–1100px 導覽膠囊要收窄，且基礎內距規則必須在它之前，否則頁首會超出畫面。"""
         app = (CSS_DIR / "app.css").read_text(encoding="utf-8").replace("\r\n", "\n")
         base = ".desktop-nav > a, .desktop-data-menu > a { display: grid; place-items: center; min-height: 36px; padding: 0 var(--space-4);"
-        narrow = "@media (min-width: 861px) and (max-width: 1100px) {\n    .desktop-nav > a, .desktop-data-menu > a { padding-inline: var(--space-2); }"
+        narrow = "@media (min-width: 860.02px) and (max-width: 1100px) {\n    .desktop-nav > a, .desktop-data-menu > a { padding-inline: var(--space-2); }"
 
         self.assertIn(base, app)
         self.assertIn(narrow, app)
         self.assertLess(app.index(base), app.index(narrow))
-        self.assertIn("@media (min-width: 861px) and (max-width: 900px) {\n    .app-header { padding-inline: var(--space-2); }\n    .brand { padding-right: 0; }", app)
+        self.assertIn("@media (min-width: 860.02px) and (max-width: 900px) {\n    .app-header { padding-inline: var(--space-2); }\n    .brand { padding-right: 0; }", app)
         self.assertEqual(app.count(".desktop-nav > a, .desktop-data-menu > a {"), 2)
+
+    def test_breakpoints_have_no_gap(self):
+        """max-width: N 與 min-width: N+1 之間會漏掉 Windows 縮放產生的小數寬度（例如 860.5px），兩邊規則都不套用。"""
+        for path in CSS_DIR.glob("*.css"):
+            css = path.read_text(encoding="utf-8")
+            max_widths = {int(n) for n in re.findall(r"max-width: ?(\d+)px", css)}
+            gaps = sorted(n - 1 for n in map(int, re.findall(r"min-width: ?(\d+)px", css)) if n - 1 in max_widths)
+            self.assertEqual(gaps, [], f"{path.name} 斷點 {gaps} 請改用 min-width: N.02px")
 
     def test_alignment_rules_exist(self):
         app = (CSS_DIR / "app.css").read_text(encoding="utf-8")

@@ -1,9 +1,10 @@
 # 目前狀態
 
-核對日期：2026-09-30（正式站以 SSH 與公開頁面核對）。
+核對日期：2026-10-02（正式站以 SSH 與公開頁面核對）。
 
-- 應用版本：**1.29.1**，來源 `config/release_notes.py`；發布規範見 [RELEASE_POLICY](../RELEASE_POLICY.md)。
-- 正式站：**1.29.1**（手機底部「更多」：`app.css` 全站 details／summary 展開箭頭規則的 `:not` 清單排除 `.mobile-data-menu`，修正多出 V 與 12px 間距錯位；⚙ 加 U+FE0E 避免 iOS 彩色 emoji）已於 2026-10-01 20:45 發布，main `165f48e`（附註標籤 v1.29.1，CI 通過），DB／Redis 未重啟，無 migration，部署前備份 `dmis_20261001_204514.sql.gz`。正式站核對健康檢查與新 CSS；iPhone 實機點按未實測。
+- 應用版本：**1.30.0**，來源 `config/release_notes.py`；發布規範見 [RELEASE_POLICY](../RELEASE_POLICY.md)。
+- 正式站：**1.30.0**（全站操作中提示：`static/js/busy-indicator.js`，排除輪詢與自動儲存，打字不視為按下功能）已於 2026-10-02 約 11:10 發布，main `247cc92`（附註標籤 v1.30.0），HEAD、deployed-sha、標籤一致，DB／Redis 未重啟，無 migration，部署前備份 `dmis_20261002_110939.sql.gz`。版本日期已改為實際發布日；因 CI 依賴檢查擋下 pypdf 6.16.1 新公布弱點，一併升至 6.19.0（發布 Session 回報 PDF 相關測試 262 項通過；`04966c9` 的 CI 失敗即此原因，`247cc92` 通過）。正式站核對標籤、健康檢查與容器；登入後畫面與含簽名 PDF 列印未實機驗收。
+- 前一版 **1.29.1**（手機底部「更多」：`app.css` 全站 details／summary 展開箭頭規則的 `:not` 清單排除 `.mobile-data-menu`，修正多出 V 與 12px 間距錯位；⚙ 加 U+FE0E 避免 iOS 彩色 emoji）已於 2026-10-01 20:45 發布，main `165f48e`（附註標籤 v1.29.1，CI 通過），DB／Redis 未重啟，無 migration，部署前備份 `dmis_20261001_204514.sql.gz`。正式站核對健康檢查與新 CSS；iPhone 實機點按未實測。
 - **1.29.0**（原廠車型比對入口：資料維護區卡片與頂端選單；SYM／SUZUKI 分頁顯示各自檢查狀態；「兩家一起檢查」）已於 2026-10-01 20:20 發布，main `edb0b04`（附註標籤 v1.29.0，CI 通過），deployed-sha 一致，DB／Redis 未重啟，無 migration。部署前備份 `dmis_20261001_202007.sql.gz`。已在使用者 Chrome 以 admin 開啟資料維護區與原廠車型比對頁（只讀取）。
 - **1.28.3**（Excel 匯入：無車輛號碼的銷貨列以 `_sales_plateless_key` 忽略車牌欄比對，同檔重複或與已完成批次相同列為衝突；訂單日缺值改用發票日）已於 2026-10-01 19:49 發布，main `1b57ced`（附註標籤 v1.28.3，CI 通過），DB／Redis 未重啟，無 migration，部署前備份 `dmis_20261001_194827.sql.gz`。起因：鄭芮安一列無序號、10/01 批次車牌欄填入備註，交易鍵改變而重複建單；依使用者指示以 admin 強制軟刪除重複訂單 21802（可還原，保留 21777），操作前備份 `dmis_20261001_185935.sql.gz`。全部已完成批次掃描只有這一組跨批次重複。
 - **1.28.2**（PWA 改 `display: standalone`；主畫面圖示改用永湛網站 favicon 的機車騎士標誌（白底，`static/icons/`），short_name「永湛馭盛車務」、name「永湛．馭盛車務」；`test_volume_bonus_never_counts_in_house_sources` 改只檢查 `</head>` 後內容，因 head 含店名）已於 2026-10-01 19:25 發布，main `132d2a1`（附註標籤 v1.28.2，CI 通過），DB／Redis 未重啟，無 migration，部署前備份 `dmis_20261001_192423.sql.gz`。正式站核對健康檢查、manifest 與圖示；手機實機安裝未實測。

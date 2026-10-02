@@ -488,10 +488,10 @@ class ProductExperienceTests(TestCase):
 
         response = self.client.get(reverse("dashboard"))
         self.assertContains(response, 'data-theme="deep-blue"')
-        self.assertContains(response, '<meta name="theme-color" content="#162c4a">')
+        self.assertContains(response, '<meta name="theme-color" content="#f2f5f9">')
         self.assertContains(response, 'data-theme-dialog')
-        self.assertContains(response, "專業藍綠")
-        self.assertContains(response, "夜間深藍")
+        self.assertContains(response, "墨黑群青")
+        self.assertContains(response, "夜間深墨")
         self.assertContains(response, "跟隨裝置")
         self.assertContains(response, "沉穩深藍")
         self.assertContains(response, "石墨灰金")

@@ -699,16 +699,17 @@ body.is-reordering-price-assignments { cursor: grabbing; user-select: none; }
   }
   .price-distribution-card__identity { display: contents; }
   .price-distribution-card__identity h2 { grid-area: name; display: flex; min-width: 0; align-items: baseline; gap: var(--space-2); margin: 0; font-size: var(--text-base); line-height: 1.35; }
-  .price-distribution-card__identity h2 small { flex: 0 1 auto; max-width: 40%; margin: 0; overflow: hidden; font-size: var(--text-xs); text-overflow: ellipsis; white-space: nowrap; }
+  .price-distribution-card__identity h2 small { flex: 0 1 auto; max-width: 55%; margin: 0; overflow: hidden; font-size: var(--text-xs); text-overflow: ellipsis; white-space: nowrap; }
   .price-distribution-card__identity h2 span { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .price-distribution-card__identity p { grid-area: addr; overflow: hidden; font-size: var(--text-sm); text-overflow: ellipsis; white-space: nowrap; }
-  .price-distribution-card__meta { grid-area: meta; display: flex; min-width: 0; align-items: center; gap: var(--space-2); overflow: hidden; }
+  .price-distribution-card__meta { grid-area: meta; display: flex; min-width: 0; align-items: center; gap: var(--space-1); overflow: hidden; }
   .price-distribution-card__brands { flex: none; flex-wrap: nowrap; gap: var(--space-1); }
-  .price-brand { padding: 1px var(--space-2); font-size: var(--text-xs); line-height: 1.5; }
-  .price-distribution-card__assignment { display: flex; min-width: 0; align-items: center; gap: var(--space-1); padding: 0; overflow: hidden; font-size: var(--text-xs); border: 0; }
-  .price-distribution-card__assignment b { margin: 0; padding: 1px var(--space-2); white-space: nowrap; }
+  .price-brand { padding: 1px var(--space-1); font-size: var(--text-xs); line-height: 1.5; }
+  /* 站序是跑訪順序，排第一且不截斷；負責人排最後，空間不足時才省略。 */
+  .price-distribution-card__assignment { display: contents; font-size: var(--text-xs); }
+  .price-distribution-card__assignment b { flex: none; order: -1; margin: 0; padding: 1px var(--space-1); font-size: var(--text-xs); white-space: nowrap; }
   .price-distribution-card__assignment span { display: none; }
-  .price-distribution-card__assignment strong { color: var(--muted); font-weight: 750; }
+  .price-distribution-card__assignment strong { flex: 0 1 auto; order: 1; min-width: 0; overflow: hidden; color: var(--muted); font-size: var(--text-xs); font-weight: 750; text-overflow: ellipsis; white-space: nowrap; }
   .price-distribution-card__assignment.is-unassigned strong { color: var(--amber); }
   .price-distribution-note-toggle {
     display: inline-flex; grid-area: note; justify-self: end; min-height: 26px; padding: 0 var(--space-2); align-items: center; gap: 3px; white-space: nowrap;

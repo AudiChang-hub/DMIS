@@ -1,9 +1,10 @@
 # 目前狀態
 
-核對日期：2026-10-02（正式站以 SSH 與公開頁面核對）。
+核對日期：2026-10-05（正式站以 SSH 與登入後頁面核對）。
 
-- 應用版本：**1.34.6**，來源 `config/release_notes.py`；發布規範見 [RELEASE_POLICY](../RELEASE_POLICY.md)。
-- 正式站：**1.34.6**（訂單列表重複文字修正）2026-10-02 發布，main `12c90b5`（標籤 v1.34.6），deployed-sha 一致，無 migration，DB／Redis 未重啟，備份 `dmis_20261002_213947.sql.gz`。
+- 應用版本：**1.34.8**，來源 `config/release_notes.py`；發布規範見 [RELEASE_POLICY](../RELEASE_POLICY.md)。
+- 正式站：**1.34.8**（價格表分發手機版站序修正、部署前備份不清理過期檔）2026-10-05 發布，main `82f9d38`（標籤 v1.34.8），deployed-sha 一致，無 migration，DB／Redis 未重啟，備份 `dmis_20261005_115024.sql.gz`；1.34.7 同日發布（價格表分發手機版精簡、頁首圖示統一）。
+- 部署前備份只新增不清理；過期清理只由 root 的 `dmis-next-backup.timer` 執行（1.34.8 起，下一次部署才首次套用新腳本）。
 - 1.23–1.34 的版本、備份與部署細節見[發布歷史](../archive/2026-10-02/CURRENT_STATE-release-history.md)。
 - 官網檢查排程 `dmis-next-official-catalog-check.timer` 已啟用，首次執行 2026-10-05 05:47；正式站尚未執行官網檢查、對應或補圖。
 - 登入後畫面與含簽名 PDF 列印未在正式站實機驗收；未設定 Email 通道，系統內通知正常。

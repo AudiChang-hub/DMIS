@@ -29,3 +29,15 @@ class CloudflareTunnelDeploymentTests(SimpleTestCase):
         self.assertIn("TUNNEL_TOKEN_FILE=", script)
         self.assertIn("up -d --no-deps cloudflared", script)
         self.assertIn("protocol=http2", script)
+
+    def test_deploy_backup_never_prunes_root_owned_backups(self):
+        deploy = (PROJECT_ROOT / "scripts" / "deploy_django.sh").read_text(encoding="utf-8")
+        backup = (PROJECT_ROOT / "scripts" / "backup_django_data.sh").read_text(encoding="utf-8")
+
+        self.assertIn("DMIS_BACKUP_SKIP_PRUNE=1 ./scripts/backup_django_data.sh", deploy)
+        guard = backup.index('if [[ "$SKIP_PRUNE" == "1" ]]; then')
+        prune_lines = [line for line in backup.splitlines() if line.strip().startswith("find ") and line.endswith("-delete")]
+        self.assertEqual(len(prune_lines), 5)
+        for line in prune_lines:
+            self.assertGreater(backup.index(line), guard)
+            self.assertTrue(line.startswith("    find "))

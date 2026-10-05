@@ -54,8 +54,8 @@ else
     git merge-base --is-ancestor "$local_sha" "$remote_sha" ||
         fail "遠端更新不是 fast-forward，需人工確認"
 
-    log "先備份 PostgreSQL 與媒體檔"
-    ./scripts/backup_django_data.sh
+    log "先備份 PostgreSQL 與媒體檔（不清理過期備份）"
+    DMIS_BACKUP_SKIP_PRUNE=1 ./scripts/backup_django_data.sh
 
     log "更新程式：${local_sha:0:12} -> ${remote_sha:0:12}"
     git merge --ff-only "origin/$DEPLOY_BRANCH"

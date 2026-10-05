@@ -7652,11 +7652,9 @@ def inventory_list(request):
         VehicleInventory.Status.RESERVED,
         VehicleInventory.Status.CONDITION_ISSUE,
     )
-    historical_statuses = (
-        VehicleInventory.Status.DELIVERED,
-        VehicleInventory.Status.SOLD,
-        VehicleInventory.Status.INACTIVE,
-    )
+    # 已交車、已售出的車不再列入庫存列表（資料保留供訂單與報表追溯）；
+    # 分頁參數沿用 history，只收停用車輛。
+    historical_statuses = (VehicleInventory.Status.INACTIVE,)
     requested_statuses = list(
         dict.fromkeys(value for value in request.GET.getlist("status") if value)
     )

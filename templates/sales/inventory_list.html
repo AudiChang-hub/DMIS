@@ -6,7 +6,7 @@
 {% url 'data_maintenance' as data_url %}
 {% include "sales/_page_back.html" with fallback_url=data_url label="返回資料維護區" %}
 <section class="hero-row compact-hero">
-  <div><p class="eyebrow">資料維護區</p><h1>車輛庫存</h1><p class="muted">{% site_text 'inventory_list.7640890eb318' %}</p></div>
+  <div><p class="eyebrow">資料維護區</p><h1>車輛庫存</h1><p class="muted">{% site_text 'inventory_list.2da29b285942' %}</p></div>
   <div class="hero-actions">
     <a class="button ghost" href="{% url 'inventory_create' %}">新增單台</a>
     <a class="button primary" href="{% url 'inventory_quick_create' %}">＋ 快速進車</a>
@@ -19,7 +19,7 @@
     <b>{{ inventory_counts.current }}</b>
   </a>
   <a class="inventory-scope-tab{% if selected.scope == 'history' %} is-active{% endif %}" href="{% url 'inventory_list' %}?scope=history" {% if selected.scope == 'history' %}aria-current="page"{% endif %}>
-    <span><strong>歷史資料</strong><small>{% site_text 'inventory_list.2ee8b3ef4bbe' %}</small></span>
+    <span><strong>停用車輛</strong><small>{% site_text 'inventory_list.23556f469f81' %}</small></span>
     <b>{{ inventory_counts.history }}</b>
   </a>
 </nav>
@@ -33,7 +33,7 @@
   <div class="inventory-filter">
     <label for="inventory-status">狀態</label>
     <select id="inventory-status" name="status" multiple data-searchable-select="1" data-searchable-multiple="1" data-searchable-include-empty="1" data-searchable-empty-placeholder="1" data-searchable-search-icon="1" data-search-placeholder="搜尋狀態">
-      <option value="">{% if selected.scope == 'history' %}全部歷史狀態{% else %}全部現有狀態{% endif %}</option>
+      <option value="">{% if selected.scope == 'history' %}全部停用車輛{% else %}全部現有狀態{% endif %}</option>
       {% for value, label in statuses %}<option value="{{ value }}" {% if value in selected.statuses %}selected{% endif %}>{{ label }}</option>{% endfor %}
     </select>
   </div>
@@ -80,7 +80,7 @@
 
 <section class="inventory-list-panel" aria-label="車輛庫存列表">
   <div class="inventory-list-summary">
-    <strong>{% if selected.scope == 'history' %}歷史資料{% else %}現有庫存{% endif %}共 {{ page_obj.paginator.count }} 台</strong>
+    <strong>{% if selected.scope == 'history' %}停用車輛{% else %}現有庫存{% endif %}共 {{ page_obj.paginator.count }} 台</strong>
     {% if page_obj.paginator.num_pages > 1 %}<span>第 {{ page_obj.number }}／{{ page_obj.paginator.num_pages }} 頁</span>{% endif %}
   </div>
   {% if selected.scope == 'current' %}
@@ -137,7 +137,7 @@
           <td class="inventory-row-action">{% suzuki_parts_lookup vehicle.vehicle_model vehicle.engine_number|default:vehicle.frame_number %}<a class="button ghost small" href="{% url 'inventory_edit' vehicle.pk %}">查看／編輯</a></td>
         </tr>
         {% empty %}
-        <tr><td colspan="{% if selected.scope == 'current' %}9{% else %}8{% endif %}"><div class="empty-state"><strong>{% if selected.scope == 'history' %}目前沒有符合條件的歷史資料{% else %}目前沒有符合條件的現有庫存{% endif %}</strong><p>{% if selected.scope == 'history' %}請調整搜尋或篩選條件。{% else %}請調整篩選條件，或建立第一台進車資料。{% endif %}</p></div></td></tr>
+        <tr><td colspan="{% if selected.scope == 'current' %}9{% else %}8{% endif %}"><div class="empty-state"><strong>{% if selected.scope == 'history' %}目前沒有符合條件的停用車輛{% else %}目前沒有符合條件的現有庫存{% endif %}</strong><p>{% if selected.scope == 'history' %}請調整搜尋或篩選條件。{% else %}請調整篩選條件，或建立第一台進車資料。{% endif %}</p></div></td></tr>
         {% endfor %}
       </tbody>
     </table>

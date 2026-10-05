@@ -2,9 +2,9 @@
 
 核對日期：2026-10-05（正式站以 SSH 與登入後頁面核對）。
 
-- 應用版本：**1.34.8**，來源 `config/release_notes.py`；發布規範見 [RELEASE_POLICY](../RELEASE_POLICY.md)。
-- 正式站：**1.34.8**（價格表分發手機版站序修正、部署前備份不清理過期檔）2026-10-05 發布，main `82f9d38`（標籤 v1.34.8），deployed-sha 一致，無 migration，DB／Redis 未重啟，備份 `dmis_20261005_115024.sql.gz`；1.34.7 同日發布（價格表分發手機版精簡、頁首圖示統一）。
-- 部署前備份只新增不清理；過期清理只由 root 的 `dmis-next-backup.timer` 執行（1.34.8 起，下一次部署才首次套用新腳本）。
+- 應用版本：**1.35.0**，來源 `config/release_notes.py`；發布規範見 [RELEASE_POLICY](../RELEASE_POLICY.md)。
+- 正式站：**1.35.0**（優先配車；已售出／已交車不列入庫存列表）2026-10-05 發布，main `111dc4f`（標籤 v1.35.0），deployed-sha 一致，migration `0160`（庫存新增可空欄位 `allocation_priority_override`，使用者已同意），DB／Redis 未重啟，備份 `dmis_20261005_133123.sql.gz`。上線時現有庫存 32 台、自動優先 2 台；正式站目前無待配車訂單，配車選單未以真實訂單實機操作。1.34.7–1.34.8 同日稍早發布。
+- 部署前備份只新增不清理；過期清理只由 root 的 `dmis-next-backup.timer` 執行（1.35.0 部署已套用）。
 - 1.23–1.34 的版本、備份與部署細節見[發布歷史](../archive/2026-10-02/CURRENT_STATE-release-history.md)。
 - 官網檢查排程 `dmis-next-official-catalog-check.timer` 已啟用，首次執行 2026-10-05 05:47；正式站尚未執行官網檢查、對應或補圖。
 - 登入後畫面與含簽名 PDF 列印未在正式站實機驗收；未設定 Email 通道，系統內通知正常。

@@ -152,7 +152,7 @@ def sign_documents(order, *, documents, signature_png, signer_name, staff_name, 
     from sales.models import OrderEvent, SalesOrder, SignatureMethod
 
     order = (
-        SalesOrder.objects.select_for_update()
+        SalesOrder.objects.select_for_update(of=("self",))
         .select_related("source", "vehicle_model", "color")
         .prefetch_related("accessories", "other_fees")
         .get(pk=order.pk)

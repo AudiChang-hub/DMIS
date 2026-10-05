@@ -9354,8 +9354,9 @@ def _allocation_priority_label(vehicle):
 @require_http_methods(["POST"])
 @transaction.atomic
 def inventory_allocation_priority(request, pk):
+    # 實際位置可為空（LEFT JOIN），PostgreSQL 不允許鎖外部連接的一側，只鎖車輛本身。
     vehicle = get_object_or_404(
-        VehicleInventory.objects.select_for_update().select_related(
+        VehicleInventory.objects.select_for_update(of=("self",)).select_related(
             "location_store", "current_dealer"
         ),
         pk=pk,
@@ -9435,7 +9436,7 @@ def inventory_edit(request, pk):
     )
     if request.method == "POST":
         with transaction.atomic():
-            vehicle = VehicleInventory.objects.select_for_update().select_related(
+            vehicle = VehicleInventory.objects.select_for_update(of=("self",)).select_related(
                 "vehicle_model", "color", "location_store", "current_dealer"
             ).get(pk=pk)
             before = _inventory_values(vehicle)

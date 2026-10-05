@@ -125,6 +125,21 @@ class AllocationPriorityTests(TestCase):
         self.assertTrue(old.allocation_priority)
         self.assertEqual(VehicleInventoryHistory.objects.filter(vehicle=old, reason="切換優先配車").count(), 2)
 
+    def test_toggle_manually_enables_vehicle_younger_than_threshold(self):
+        # 正式站 1.35.0 曾因鎖定含 LEFT JOIN 的查詢在 PostgreSQL 回 500；CI 以 PostgreSQL 執行本檔。
+        fresh = self.vehicle("FRESH-ON", months_ago(1))
+        self.client.force_login(self.user)
+        response = self.client.post(
+            reverse("inventory_allocation_priority", args=[fresh.pk]),
+            {"priority": "1"},
+            HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["priority"], True)
+        self.assertEqual(response.json()["source"], "人工")
+        fresh.refresh_from_db()
+        self.assertIs(fresh.allocation_priority_override, True)
+
     def test_toggle_rejects_historical_vehicle(self):
         vehicle = self.vehicle("DONE", months_ago(6))
         VehicleInventory.objects.filter(pk=vehicle.pk).update(status=VehicleInventory.Status.DELIVERED)
@@ -148,5 +163,10 @@ class AllocationPriorityTests(TestCase):
         self.assertContains(response, reverse("inventory_allocation_priority", args=[priority.pk]))
         vehicles = list(response.context["vehicles"])
         self.assertEqual(vehicles[0].pk, priority.pk)
+        # 「自動」只標在因車齡自動開啟的車；一般車不顯示來源標籤。
+        html = response.content.decode()
+        self.assertEqual(html.count("data-priority-source"), 2)
+        self.assertEqual(html.count("hidden>自動</small>"), 1)
+        self.assertEqual(html.count('系統自動開啟">自動</small>'), 1)
         history = self.client.get(reverse("inventory_list"), {"scope": "history"})
         self.assertNotContains(history, "優先配車規則")

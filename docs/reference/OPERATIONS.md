@@ -158,3 +158,18 @@ python3 scripts/restore_drill.py
 
 此演練不覆寫正式庫，也不代表已完成異地整機切換。歷史 JSON 主檔匯入指令保留相容性，
 但不連線舊 Odoo；未來報表須重新規劃，不沿用已刪除的 Metabase 資料源。
+
+## 清除全部業務資料
+
+只在使用者明確要求重新開始時執行，且必須先完成可還原的 DB＋媒體備份
+（`scripts/backup_django_data.sh`）。指令預設只預覽各表筆數：
+
+```bash
+docker compose -f docker-compose.django.yml -f docker-compose.django.prod.yml \
+  exec -T web python manage.py reset_business_data
+```
+
+加上 `--confirm 清除全部業務資料` 才會在單一交易內清除訂單、庫存、匯入、主檔與規則，
+並刪除這些資料引用的附件檔。保留帳號與權限、門市、馭盛開單公司（無來源的開單公司）、
+通路類別、工作日與假日、報表定義與版本歷程；合作車行帳號因所屬車行被清除而自動停用，
+須重建車行後重新綁定再啟用。重建順序見使用者手冊「首次建立基本資料」。

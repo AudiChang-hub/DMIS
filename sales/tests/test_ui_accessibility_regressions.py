@@ -82,13 +82,13 @@ class SharedUiAccessibilitySourceTests(SimpleTestCase):
         template = Path("templates/help/user_guide.html").read_text(encoding="utf-8")
 
         self.assertIn(
-            'class="guide-flow" role="region" aria-label="建立訂單五個區塊" tabindex="0"',
+            'class="guide-flow" role="region" aria-label="建立訂單五個步驟" tabindex="0"',
             template,
         )
         self.assertIn('id="system-integrity"', template)
-        self.assertIn("/system-status/", template)
-        self.assertIn("/system/integrity-report/", template)
-        self.assertIn("一般使用者不顯示入口", template)
+        self.assertIn("「系統狀態檢查」", template)
+        self.assertIn("「系統完整性報告」", template)
+        self.assertIn("只有管理者與 admin 指定的人員可以查看", template)
         self.assertIn("報告不代表「全部安全」", template)
         self.assertIn("{% if request.user.is_superuser %}", template)
 

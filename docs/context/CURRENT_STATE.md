@@ -2,8 +2,8 @@
 
 核對日期：2026-10-05（正式站以 SSH 與登入後頁面核對）。
 
-- 應用版本：**1.35.2**，來源 `config/release_notes.py`；發布規範見 [RELEASE_POLICY](../RELEASE_POLICY.md)。
-- 正式站：**1.35.2**（超過 3 個月的車優先配車鎖定不能關閉；人工開啟到期仍為人工；標籤只在開啟時顯示）2026-10-05 發布，main `543db11`（標籤 v1.35.2），無 migration，備份 `dmis_20261005_151213.sql.gz`，deployed-sha 一致。1.35.1（開關 500 修正、四處鎖定查詢改 `of=self`）同日稍早發布。1.35.0（優先配車；已售出／已交車不列入庫存列表）同日稍早發布，main `111dc4f`，migration `0160`（庫存新增可空欄位 `allocation_priority_override`，使用者已同意），DB／Redis 未重啟，備份 `dmis_20261005_133123.sql.gz`。上線時現有庫存 32 台、自動優先 2 台；正式站目前無待配車訂單，配車選單未以真實訂單實機操作。1.34.7–1.34.8 同日稍早發布。
+- 應用版本：**1.36.0**，來源 `config/release_notes.py`；發布規範見 [RELEASE_POLICY](../RELEASE_POLICY.md)。
+- 正式站：**1.36.0**（庫存車輛來源：公司進車／經銷商調車）2026-10-05 發布，main `0f2092f`（標籤 v1.36.0），migration `0161`（新增 `acquisition_type`、`transfer_source_name`，使用者已同意），備份 `dmis_20261005_155701.sql.gz`，deployed-sha 一致；既有 1,499 台皆為公司進車。1.35.2（超過 3 個月優先配車鎖定、人工開啟到期仍為人工）同日稍早發布。1.35.1（開關 500 修正、四處鎖定查詢改 `of=self`）同日稍早發布。1.35.0（優先配車；已售出／已交車不列入庫存列表）同日稍早發布，main `111dc4f`，migration `0160`（庫存新增可空欄位 `allocation_priority_override`，使用者已同意），DB／Redis 未重啟，備份 `dmis_20261005_133123.sql.gz`。上線時現有庫存 32 台、自動優先 2 台；正式站目前無待配車訂單，配車選單未以真實訂單實機操作。1.34.7–1.34.8 同日稍早發布。
 - 本機測試用 SQLite，不會檢出 PostgreSQL 鎖定錯誤；CI「Verify order sorting with PostgreSQL」已加跑 `test_allocation_priority`、`test_document_signing`。
 - 部署前備份只新增不清理；過期清理只由 root 的 `dmis-next-backup.timer` 執行（1.35.0 部署已套用）。
 - 1.23–1.34 的版本、備份與部署細節見[發布歷史](../archive/2026-10-02/CURRENT_STATE-release-history.md)。

@@ -13,9 +13,12 @@
     button.setAttribute("aria-checked", enabled ? "true" : "false");
     if (label) label.textContent = enabled ? "優先" : "一般";
     if (sourceTag && source) {
+      const manual = source === "人工";
       sourceTag.textContent = source;
-      sourceTag.classList.toggle("is-manual", source === "人工");
-      sourceTag.title = source === "人工" ? "人員手動設定" : "依出廠年月自動判斷";
+      sourceTag.classList.toggle("is-manual", manual);
+      sourceTag.title = manual ? "人員手動設定" : "出廠超過門檻月數，系統自動開啟";
+      // 「自動」只在因車齡自動開啟時顯示。
+      sourceTag.hidden = !manual && !enabled;
     }
   };
 

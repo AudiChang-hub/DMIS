@@ -3283,6 +3283,7 @@ input[type="file"].form-control { padding: var(--space-3); }
   font-size: var(--text-xs); font-weight: 800; white-space: nowrap;
 }
 .inventory-table .inventory-priority-source.is-manual { color: var(--ink); border-style: solid; border-color: var(--muted); }
+.inventory-table .inventory-priority-source[hidden] { display: none !important; }
 .inventory-priority-rule {
   display: flex; gap: var(--space-3); align-items: flex-start;
   padding: var(--space-3) var(--space-4); color: var(--ink);

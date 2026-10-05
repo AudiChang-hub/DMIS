@@ -9346,8 +9346,9 @@ def inventory_quick_create(request):
 
 
 def _allocation_priority_label(vehicle):
-    state = "開啟" if vehicle.allocation_priority else "關閉"
-    return f"{state}（{vehicle.allocation_priority_source_label}）"
+    if not vehicle.allocation_priority:
+        return "關閉"
+    return f"開啟（{vehicle.allocation_priority_source_label}）"
 
 
 @login_required
@@ -9368,20 +9369,25 @@ def inventory_allocation_priority(request, pk):
         VehicleInventory.Status.RESERVED,
         VehicleInventory.Status.CONDITION_ISSUE,
     )
-    if requested not in {"0", "1"} or not toggleable:
-        message = (
-            "只有現有庫存可以切換優先配車。"
-            if requested in {"0", "1"}
-            else "無法更新優先配車，請重新操作。"
-        )
+    error = ""
+    if requested not in {"0", "1"}:
+        error = "無法更新優先配車，請重新操作。"
+    elif not toggleable:
+        error = "只有現有庫存可以切換優先配車。"
+    elif requested == "0" and vehicle.allocation_priority_auto:
+        error = f"出廠超過 {ALLOCATION_PRIORITY_AGE_MONTHS} 個月的車一律優先配車，不能關閉。"
+    if error:
         if is_ajax:
-            return JsonResponse({"ok": False, "message": message}, status=400)
-        messages.error(request, message)
+            return JsonResponse({"ok": False, "message": error}, status=400)
+        messages.error(request, error)
     else:
-        desired = requested == "1"
         before_label = _allocation_priority_label(vehicle)
-        # 與自動判斷相同時清除人工設定，之後恢復依出廠年月自動判斷。
-        override = None if desired == vehicle.allocation_priority_auto else desired
+        # 開啟：未滿門檻記為人工（到期後仍為人工）；已滿門檻本來就是優先，不改來源。
+        # 關閉（僅未滿門檻）：清除人工設定，到期後由系統自動開啟。
+        if requested == "1":
+            override = True if not vehicle.allocation_priority_auto else vehicle.allocation_priority_override
+        else:
+            override = None
         if override != vehicle.allocation_priority_override:
             vehicle.allocation_priority_override = override
             VehicleInventory.objects.filter(pk=vehicle.pk).update(
@@ -9402,8 +9408,9 @@ def inventory_allocation_priority(request, pk):
                 },
             )
         message = (
-            f"{vehicle.identifier} 已{'開啟' if vehicle.allocation_priority else '關閉'}優先配車"
-            f"（{vehicle.allocation_priority_source_label}）。"
+            f"{vehicle.identifier} 已開啟優先配車（{vehicle.allocation_priority_source_label}）。"
+            if vehicle.allocation_priority
+            else f"{vehicle.identifier} 已關閉優先配車。"
         )
         if is_ajax:
             return JsonResponse(
@@ -9412,6 +9419,7 @@ def inventory_allocation_priority(request, pk):
                     "pk": vehicle.pk,
                     "priority": vehicle.allocation_priority,
                     "source": vehicle.allocation_priority_source_label,
+                    "locked": vehicle.allocation_priority_auto,
                     "message": message,
                 }
             )

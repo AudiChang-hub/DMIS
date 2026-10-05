@@ -2,7 +2,7 @@
   "use strict";
 
   // 車輛庫存列表：優先配車開關以背景送出，失敗時保留原狀態。
-  const updateToggle = (form, enabled, source) => {
+  const updateToggle = (form, enabled, source, locked) => {
     const button = form.querySelector("button[role='switch']");
     const stateInput = form.querySelector("input[name='priority']");
     const label = form.querySelector("[data-priority-label]");
@@ -16,9 +16,14 @@
       const manual = source === "人工";
       sourceTag.textContent = source;
       sourceTag.classList.toggle("is-manual", manual);
-      sourceTag.title = manual ? "人員手動設定" : "出廠超過門檻月數，系統自動開啟";
-      // 「自動」只在因車齡自動開啟時顯示。
-      sourceTag.hidden = !manual && !enabled;
+      sourceTag.title = manual ? "人員手動開啟" : "出廠超過門檻月數，系統自動開啟";
+      // 標籤只在開啟時顯示。
+      sourceTag.hidden = !enabled;
+    }
+    if (locked) {
+      button.disabled = true;
+      button.setAttribute("aria-disabled", "true");
+      button.dataset.priorityLocked = "";
     }
   };
 
@@ -42,14 +47,14 @@
       if (!response.ok || !payload.ok) {
         throw new Error(payload.message || "無法更新優先配車，請稍後再試。");
       }
-      updateToggle(form, Boolean(payload.priority), payload.source);
+      updateToggle(form, Boolean(payload.priority), payload.source, Boolean(payload.locked));
     } catch (error) {
       window.alert(error.name === "AbortError"
         ? "更新等候逾時，已保留原本狀態，請再試一次。"
         : (error.message || "無法更新優先配車，請稍後再試。"));
     } finally {
       window.clearTimeout(timeoutId);
-      button.disabled = false;
+      button.disabled = button.hasAttribute("data-priority-locked");
       button.removeAttribute("aria-busy");
       form.classList.remove("is-updating");
     }

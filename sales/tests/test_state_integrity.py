@@ -63,10 +63,11 @@ class StateIntegrityTests(TestCase):
         second_order = self.pending_order()
         SalesOrder.objects.filter(pk=second_order.pk).update(accepted_at=timezone.now() + timedelta(minutes=5))
         second_order.refresh_from_db()
-        old = self.vehicle("OLD", "2025/01")
-        new = self.vehicle("NEW", "2026/08")
-        # 固定為一般車，驗證同級先進先出仍強制填原因；跳過優先配車見 test_allocation_priority。
-        VehicleInventory.objects.filter(pk__in=[old.pk, new.pk]).update(allocation_priority_override=False)
+        # 兩台都未滿優先配車門檻（相對今天），驗證同級先進先出仍強制填原因；跳過優先配車見 test_allocation_priority。
+        today = timezone.localdate()
+        older_index, newer_index = today.year * 12 + today.month - 3, today.year * 12 + today.month - 2
+        old = self.vehicle("OLD", f"{older_index // 12:04d}/{older_index % 12 + 1:02d}")
+        new = self.vehicle("NEW", f"{newer_index // 12:04d}/{newer_index % 12 + 1:02d}")
         form = AllocationForm(second_order, {"vehicle": old.pk})
         self.assertEqual(form.queue_position, 2)
         self.assertFalse(form.is_valid())

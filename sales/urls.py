@@ -591,6 +591,11 @@ urlpatterns = [
         name="inventory_edit",
     ),
     path(
+        "data/inventory/<int:pk>/allocation-priority/",
+        views.inventory_allocation_priority,
+        name="inventory_allocation_priority",
+    ),
+    path(
         "inventory/",
         RedirectView.as_view(pattern_name="inventory_list", permanent=False),
     ),

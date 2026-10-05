@@ -12,6 +12,7 @@
 - 交車閘門（`SalesOrder.delivery_blockers`）：已配車、一般單已領牌、折扣非待確認、分期已核准；本店／平台單尾款收清；車行單不超過掛帳額度（未設額度只追蹤）。
 - 領牌後棄單走「例外結案」：沒收／退款同取消結算；車輛以已領牌車（保留車牌、必填再售價）釋回，只能配給「領牌車」交易；不列有效售出、台數與佣金。分期已撥款不能退車。
 - 簽署文件（訂購單、個資同意書）每單自選：店內行動裝置電子簽署，或印出紙本簽完上傳；兩者都記錄簽署當下的內容指紋。訂購單的車主資料、車型車色、價款、配件、費用、優惠、付款方式、補助與開單公司變更後原簽署失效，須重簽；收款進度與領牌結果不影響。個資同意書只隨車主姓名、證件號碼與開單公司失效。無指紋的舊附件視為有效。規格 `specs/062-electronic-signature`，入口 `sales/services/document_signing.py`、`test_document_signing.py`。
+- 配車順序：優先配車排最前，同級再依出廠年月舊到新（未填排最後）、進車日。出廠年月超過 3 個月（月份精度，2026/10 時為 2026/06 以前）自動優先；人員可在庫存列表手動開關（`allocation_priority_override`，切回與自動相同即清除），切換寫入庫存異動。同級未選最早出廠或本單非排第一須填原因；有優先配車卻選一般車只提醒、不強制，仍記入配車事件。入口 `AllocationForm`、`annotate_allocation_priority`、`test_allocation_priority.py`。
 - 入口：`sales/tests/test_order_intake.py`、`test_reception_entry.py`、`test_completed_order_corrections.py`、`test_order_deletion.py`。
 
 ## Excel 匯入與識別

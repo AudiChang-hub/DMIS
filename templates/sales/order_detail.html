@@ -208,9 +208,10 @@
 </section>
 {% elif not order.allocated_vehicle and order.is_editable %}
 <section class="action-card info-card">
-  <div><p class="eyebrow">下一步</p><h2>選擇實體車輛</h2><p>只顯示符合 {{ order.vehicle_model }}／{{ order.color.name }} 的可售庫存，依出廠年月先進先出排列。{% if allocation_form.queue_position %}同車型車色待配車 {{ allocation_form.queue_size }} 張，本單排第 {{ allocation_form.queue_position }} 位。{% endif %}</p></div>
-  <form method="post" action="{% url 'allocate_vehicle' order.pk %}">
+  <div><p class="eyebrow">下一步</p><h2>選擇實體車輛</h2><p>只顯示符合 {{ order.vehicle_model }}／{{ order.color.name }} 的可售庫存。★ 優先配車排最上面，同級再依出廠年月由舊到新排列。{% if allocation_form.queue_position %}同車型車色待配車 {{ allocation_form.queue_size }} 張，本單排第 {{ allocation_form.queue_position }} 位。{% endif %}</p><p class="allocation-priority-rule"><strong>優先配車</strong>出廠超過 {{ allocation_form.priority_age_months }} 個月（{{ allocation_form.priority_cutoff }} 以前出廠）自動開啟，人員也可在車輛庫存頁手動開關。{% if allocation_form.priority_vehicle_count %}目前有 {{ allocation_form.priority_vehicle_count }} 台優先配車。{% endif %}</p></div>
+  <form method="post" action="{% url 'allocate_vehicle' order.pk %}" data-allocation-priority-form data-priority-count="{{ allocation_form.priority_vehicle_count }}">
     {% csrf_token %}{{ allocation_form.vehicle }}
+    {% if allocation_form.priority_vehicle_count %}<p class="allocation-priority-hint" data-allocation-priority-hint role="status" hidden>這台不是優先配車；仍有 {{ allocation_form.priority_vehicle_count }} 台優先配車可選。建議在下方填寫原因，不填也可以配車。</p>{% endif %}
     <label for="{{ allocation_form.skip_reason.id_for_label }}">{{ allocation_form.skip_reason.label }}</label>{{ allocation_form.skip_reason }}<small class="muted">{{ allocation_form.skip_reason.help_text }}</small>
     {% if allocation_form.vehicle.field.queryset %}
       <button class="button primary block" type="submit">確認配車並鎖定</button>
@@ -970,4 +971,5 @@
 <script src="{% static 'js/subsidy-items.js' %}?v={{ app_version }}" defer></script>
 <script src="{% static 'js/document-upload-progress.js' %}?v={{ app_version }}" defer></script>
 <script src="{% static 'js/delivery-form.js' %}?v={{ app_version }}" defer></script>
+<script src="{% static 'js/allocation-priority.js' %}?v={{ app_version }}" defer></script>
 {% endblock %}

@@ -28,62 +28,68 @@
   <b data-progress-percent>{{ progress_percent }}%</b>
 </section>
 
-<form class="master-filters price-distribution-filters" method="get">
-  <div class="inventory-filter"><label for="distribution-month">月份</label><select id="distribution-month" name="month" onchange="this.form.submit()">
-    {% for option in month_options %}<option value="{{ option.month|date:'Y-m' }}" {% if option.pk == distribution.pk %}selected{% endif %}>{{ option.month|date:"Y 年 n 月" }}</option>{% endfor %}
-  </select></div>
-  <div class="inventory-filter master-search"><label for="distribution-search">搜尋車行</label><input id="distribution-search" type="search" name="q" value="{{ query }}" placeholder="輸入車行名稱、代碼、地址或備註"></div>
-  <div class="inventory-filter"><label for="distribution-status">完成進度</label><select id="distribution-status" name="status">
-    <option value="all" {% if status == 'all' %}selected{% endif %}>全部狀態</option>
-    <option value="pending" {% if status == 'pending' %}selected{% endif %}>尚未完成</option>
-    <option value="completed" {% if status == 'completed' %}selected{% endif %}>已完成</option>
-  </select></div>
-  <div class="inventory-filter"><label for="distribution-owner">負責人</label><select id="distribution-owner" name="owner">
-    <option value="me" {% if selected_owner == 'me' %}selected{% endif %}>我的車行</option>
-    {% for owner_user in owner_users %}{% if owner_user.pk != request.user.pk %}<option value="{{ owner_user.pk }}" {% if selected_owner == owner_user.pk|stringformat:'s' %}selected{% endif %}>{{ owner_user.get_full_name|default:owner_user.username }}</option>{% endif %}{% endfor %}
-    <option value="unassigned" {% if selected_owner == 'unassigned' %}selected{% endif %}>未分配</option>
-    <option value="all" {% if selected_owner == 'all' %}selected{% endif %}>全部車行</option>
-  </select></div>
-  <div class="inventory-filter"><label for="distribution-city">縣市</label><select id="distribution-city" name="city" onchange="this.form.submit()">
-    <option value="">全部縣市</option>{% for option in cities %}<option value="{{ option }}" {% if option == selected_city %}selected{% endif %}>{{ option }}</option>{% endfor %}
-  </select></div>
-  <div class="inventory-filter"><label for="distribution-district">行政區</label><select id="distribution-district" name="district" {% if not selected_city %}disabled{% endif %}>
-    <option value="">全部行政區</option>{% for option in districts %}<option value="{{ option }}" {% if option == selected_district %}selected{% endif %}>{{ option }}</option>{% endfor %}
-  </select></div>
-  <div class="inventory-filter-actions"><a class="button ghost" href="{% url 'price_list_distribution' %}?month={{ distribution.month|date:'Y-m' }}&amp;owner={{ selected_owner }}">清除條件</a><button class="button primary" type="submit">套用篩選</button></div>
+<form class="master-filters price-distribution-filters" method="get" id="distribution-filters" data-distribution-filters>
+  <div class="inventory-filter master-search"><label for="distribution-search">搜尋車行</label><div class="price-distribution-search-field"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4 4"/></svg><input id="distribution-search" type="search" name="q" value="{{ query }}" placeholder="車行名稱、代碼、地址、備註" autocomplete="off" enterkeyhint="search" data-distribution-quick-search></div></div>
+  <button class="price-distribution-filter-toggle" type="button" aria-expanded="false" aria-controls="distribution-filter-fields" data-distribution-filter-toggle><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M7 12h10M10 17h4"/></svg><span>篩選</span><b data-distribution-filter-count hidden></b></button>
+  <p class="price-distribution-search-status" data-distribution-search-status aria-live="polite" hidden></p>
+  <div class="price-distribution-filter-fields" id="distribution-filter-fields">
+    <div class="inventory-filter"><label for="distribution-month">月份</label><select id="distribution-month" name="month" onchange="this.form.submit()">
+      {% for option in month_options %}<option value="{{ option.month|date:'Y-m' }}" {% if option.pk == distribution.pk %}selected{% endif %}>{{ option.month|date:"Y 年 n 月" }}</option>{% endfor %}
+    </select></div>
+    <div class="inventory-filter"><label for="distribution-status">完成進度</label><select id="distribution-status" name="status" data-filter-default="all">
+      <option value="all" {% if status == 'all' %}selected{% endif %}>全部狀態</option>
+      <option value="pending" {% if status == 'pending' %}selected{% endif %}>尚未完成</option>
+      <option value="completed" {% if status == 'completed' %}selected{% endif %}>已完成</option>
+    </select></div>
+    <div class="inventory-filter"><label for="distribution-owner">負責人</label><select id="distribution-owner" name="owner" data-filter-default="me">
+      <option value="me" {% if selected_owner == 'me' %}selected{% endif %}>我的車行</option>
+      {% for owner_user in owner_users %}{% if owner_user.pk != request.user.pk %}<option value="{{ owner_user.pk }}" {% if selected_owner == owner_user.pk|stringformat:'s' %}selected{% endif %}>{{ owner_user.get_full_name|default:owner_user.username }}</option>{% endif %}{% endfor %}
+      <option value="unassigned" {% if selected_owner == 'unassigned' %}selected{% endif %}>未分配</option>
+      <option value="all" {% if selected_owner == 'all' %}selected{% endif %}>全部車行</option>
+    </select></div>
+    <div class="inventory-filter"><label for="distribution-city">縣市</label><select id="distribution-city" name="city" onchange="this.form.submit()" data-filter-default="">
+      <option value="">全部縣市</option>{% for option in cities %}<option value="{{ option }}" {% if option == selected_city %}selected{% endif %}>{{ option }}</option>{% endfor %}
+    </select></div>
+    <div class="inventory-filter"><label for="distribution-district">行政區</label><select id="distribution-district" name="district" {% if not selected_city %}disabled{% endif %} data-filter-default="">
+      <option value="">全部行政區</option>{% for option in districts %}<option value="{{ option }}" {% if option == selected_district %}selected{% endif %}>{{ option }}</option>{% endfor %}
+    </select></div>
+    <div class="inventory-filter-actions"><a class="button ghost" href="{% url 'price_list_distribution' %}?month={{ distribution.month|date:'Y-m' }}&amp;owner={{ selected_owner }}">清除條件</a><button class="button primary" type="submit">套用篩選</button></div>
+  </div>
 </form>
 
 <section class="price-distribution-list" aria-label="價格表分發車行">
   {% for item in items %}
-  <article class="price-distribution-card{% if item.completed %} is-completed{% endif %}" data-distribution-item="{{ item.pk }}">
+  <article class="price-distribution-card{% if item.completed %} is-completed{% endif %}" data-distribution-item="{{ item.pk }}" data-search="{{ item.dealer_code }} {{ item.dealer_name }} {{ item.contact_phone }} {{ item.assigned_to_name }}">
     <div class="price-distribution-card__main">
       <div class="price-distribution-card__identity">
-        {% if item.dealer_code %}<small>{{ item.dealer_code }}</small>{% endif %}
-        <h2>{{ item.dealer_name }}</h2>
+        <h2>{% if item.dealer_code %}<small>{{ item.dealer_code }}</small>{% endif %}<span>{{ item.dealer_name }}</span></h2>
         {% if item.display_address %}<p>{{ item.display_address }}</p>{% endif %}
         {% if item.contact_phone or item.google_maps_url %}
         <div class="price-distribution-card__actions" aria-label="{{ item.dealer_name }}的聯絡與導航">
-          {% if item.contact_phone %}<a class="price-distribution-phone" href="tel:{{ item.contact_phone }}"><span>電話</span><strong>{{ item.contact_phone }}</strong></a>{% endif %}
-          {% if item.google_maps_url %}<a class="price-distribution-map" href="{{ item.google_maps_url }}" target="_blank" rel="noopener" aria-label="使用 Google Maps 導航至{{ item.dealer_name }}"><span>Google Maps</span><strong>導航</strong></a>{% endif %}
+          {% if item.contact_phone %}<a class="price-distribution-phone" href="tel:{{ item.contact_phone }}" aria-label="撥打電話給{{ item.dealer_name }}（{{ item.contact_phone }}）"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8.6 3.8 6.4 3.5a2 2 0 0 0-2.1 1.4c-.9 3.2.4 7.1 3.6 10.4 3.2 3.2 7.1 4.6 10.3 3.6a2 2 0 0 0 1.4-2.1l-.3-2.2a1.6 1.6 0 0 0-1.3-1.4l-2.6-.5a1.6 1.6 0 0 0-1.5.5l-.9 1a11 11 0 0 1-4.9-4.9l1-.9a1.6 1.6 0 0 0 .5-1.5L9.1 5a1.6 1.6 0 0 0-.5-1.2Z"/></svg><span>電話</span><strong>{{ item.contact_phone }}</strong></a>{% endif %}
+          {% if item.google_maps_url %}<a class="price-distribution-map" href="{{ item.google_maps_url }}" target="_blank" rel="noopener" aria-label="使用 Google Maps 導航至{{ item.dealer_name }}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m4 11 16-7-7 16-2-7-7-2Z"/></svg><span>Google Maps</span><strong>導航</strong></a>{% endif %}
         </div>
         {% endif %}
       </div>
-      <div class="price-distribution-card__brands" aria-label="應提供價格表">
-        {% if item.requires_sym %}<span class="price-brand price-brand--sym">三陽{% if item.sym_exclusive %}專銷{% endif %}</span>{% endif %}
-        {% if item.requires_suzuki %}<span class="price-brand price-brand--suzuki">台鈴</span>{% endif %}
+      <div class="price-distribution-card__meta">
+        <div class="price-distribution-card__brands" aria-label="應提供價格表">
+          {% if item.requires_sym %}<span class="price-brand price-brand--sym">三陽{% if item.sym_exclusive %}專銷{% endif %}</span>{% endif %}
+          {% if item.requires_suzuki %}<span class="price-brand price-brand--suzuki">台鈴</span>{% endif %}
+        </div>
+        <div class="price-distribution-card__assignment{% if not item.assigned_to_id %} is-unassigned{% endif %}">
+          {% if item.visit_order %}<b>第 {{ item.visit_order }} 站</b>{% endif %}
+          <span>負責人</span><strong>{{ item.assigned_to_name|default:"未分配" }}</strong>
+        </div>
       </div>
-      <div class="price-distribution-card__assignment{% if not item.assigned_to_id %} is-unassigned{% endif %}">
-        {% if item.visit_order %}<b>第 {{ item.visit_order }} 站</b>{% endif %}
-        <span>負責人</span><strong>{{ item.assigned_to_name|default:"未分配" }}</strong>
-      </div>
+      <button class="price-distribution-note-toggle{% if item.note %} has-note{% endif %}" type="button" aria-expanded="false" aria-controls="distribution-note-form-{{ item.pk }}" data-note-toggle><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5h14v10l-4 4H5Z"/><path d="M15 19v-4h4"/></svg><span>{% if item.note %}有備註{% else %}備註{% endif %}</span></button>
       <form class="price-distribution-complete" method="post" action="{% url 'price_list_distribution_item_update' item.pk %}" data-distribution-complete>
         {% csrf_token %}<input type="hidden" name="completed" value="{% if item.completed %}0{% else %}1{% endif %}">
-        <button type="submit" role="switch" aria-checked="{% if item.completed %}true{% else %}false{% endif %}" class="price-distribution-check{% if item.completed %} is-completed{% endif %}">
+        <button type="submit" role="switch" aria-checked="{% if item.completed %}true{% else %}false{% endif %}" aria-label="{{ item.dealer_name }}價格表已送達" class="price-distribution-check{% if item.completed %} is-completed{% endif %}">
           <span aria-hidden="true">✓</span><strong>{% if item.completed %}已完成{% else %}標記完成{% endif %}</strong>
         </button>
       </form>
     </div>
-    <form class="price-distribution-note" method="post" action="{% url 'price_list_distribution_item_update' item.pk %}" data-distribution-note>
+    <form class="price-distribution-note" id="distribution-note-form-{{ item.pk }}" method="post" action="{% url 'price_list_distribution_item_update' item.pk %}" data-distribution-note>
       {% csrf_token %}<label for="distribution-note-{{ item.pk }}">當月備註</label>
       <textarea class="form-control" id="distribution-note-{{ item.pk }}" name="note" rows="2" placeholder="記錄本月車行狀況">{{ item.note }}</textarea>
       <small data-note-status>{% if item.note %}已儲存備註{% else %}尚無備註{% endif %}</small>
@@ -92,6 +98,7 @@
   {% empty %}
   <div class="empty-state"><strong>目前沒有符合條件的車行</strong><p>{% site_text 'price_list_distribution.ff13cbbbca46' %}</p></div>
   {% endfor %}
+  {% if items %}<div class="empty-state price-distribution-no-match" data-distribution-no-match hidden><strong>找不到符合的車行</strong><p>換個關鍵字，或按「篩選」調整負責人、縣市與完成進度。</p></div>{% endif %}
 </section>
 {% endblock %}
 {% block scripts %}<script src="{% static 'js/price-list-distribution.js' %}?v={{ app_version }}" defer></script>{% endblock %}

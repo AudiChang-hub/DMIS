@@ -61,4 +61,56 @@
     const note = event.target.closest("[data-distribution-note] textarea");
     if (note) note.form.requestSubmit();
   });
+
+  document.addEventListener("click", event => {
+    const toggle = event.target.closest("[data-note-toggle]");
+    if (!toggle) return;
+    const card = toggle.closest("[data-distribution-item]");
+    const open = !card.classList.contains("is-note-open");
+    card.classList.toggle("is-note-open", open);
+    toggle.setAttribute("aria-expanded", open ? "true" : "false");
+    if (open) card.querySelector("[data-distribution-note] textarea").focus({preventScroll: true});
+  });
+
+  const filters = document.querySelector("[data-distribution-filters]");
+  if (!filters) return;
+  const filterToggle = filters.querySelector("[data-distribution-filter-toggle]");
+  const filterCount = filters.querySelector("[data-distribution-filter-count]");
+  const activeFilters = [...filters.querySelectorAll("select[data-filter-default]")]
+    .filter(select => !select.disabled && select.value !== select.dataset.filterDefault).length;
+  if (activeFilters) {
+    filterCount.textContent = activeFilters;
+    filterCount.hidden = false;
+    filterToggle.setAttribute("aria-label", `篩選，已套用 ${activeFilters} 項條件`);
+  }
+  filterToggle.addEventListener("click", () => {
+    const open = !filters.classList.contains("is-expanded");
+    filters.classList.toggle("is-expanded", open);
+    filterToggle.setAttribute("aria-expanded", open ? "true" : "false");
+  });
+
+  const search = filters.querySelector("[data-distribution-quick-search]");
+  const status = filters.querySelector("[data-distribution-search-status]");
+  const noMatch = document.querySelector("[data-distribution-no-match]");
+  const cards = [...document.querySelectorAll("[data-distribution-item]")];
+  const normalize = value => value.toLowerCase().replace(/\s+/g, "").replace(/台/g, "臺");
+
+  function applyQuickSearch() {
+    const terms = search.value.trim().split(/\s+/).map(normalize).filter(Boolean);
+    let visible = 0;
+    cards.forEach(card => {
+      const note = card.querySelector("[data-distribution-note] textarea")?.value || "";
+      const address = card.querySelector(".price-distribution-card__identity p")?.textContent || "";
+      const haystack = normalize(`${card.dataset.search} ${address} ${note}`);
+      const match = terms.every(term => haystack.includes(term));
+      card.hidden = !match;
+      if (match) visible += 1;
+    });
+    status.hidden = !terms.length;
+    status.textContent = terms.length ? `符合 ${visible}／${cards.length} 家` : "";
+    if (noMatch) noMatch.hidden = visible > 0;
+  }
+
+  search.addEventListener("input", applyQuickSearch);
+  search.addEventListener("search", applyQuickSearch);
 })();

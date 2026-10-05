@@ -2545,7 +2545,7 @@ class VehicleInventory(TimeStampedModel):
     class AcquisitionType(models.TextChoices):
         # 車輛取得來源；與 current_dealer（目前放在哪個車行）無關。
         COMPANY = "company", "公司進車"
-        DEALER_TRANSFER = "dealer_transfer", "經銷商調車"
+        DEALER_TRANSFER = "dealer_transfer", "車行調車"
 
     vehicle_model = models.ForeignKey(
         VehicleModel, on_delete=models.PROTECT, verbose_name="車型"
@@ -2638,7 +2638,7 @@ class VehicleInventory(TimeStampedModel):
     )
     transfer_source_name = models.CharField(
         "調車來源", max_length=120, blank=True,
-        help_text="經銷商調車時填寫跟哪一家經銷商調車。",
+        help_text="車行調車時填寫跟哪一家車行調車。",
     )
 
     class Meta:
@@ -2696,7 +2696,7 @@ class VehicleInventory(TimeStampedModel):
         self.transfer_source_name = (self.transfer_source_name or "").strip()
         if self.acquisition_type == self.AcquisitionType.DEALER_TRANSFER:
             if not self.transfer_source_name:
-                errors["transfer_source_name"] = "經銷商調車請填寫跟哪一家經銷商調車。"
+                errors["transfer_source_name"] = "車行調車請填寫跟哪一家車行調車。"
         else:
             self.transfer_source_name = ""
         if errors:

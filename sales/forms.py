@@ -3647,7 +3647,7 @@ class QuickInventoryEntryForm(forms.Form):
             attrs={
                 "list": "transfer-source-options",
                 "autocomplete": "off",
-                "placeholder": "跟哪一家經銷商調車",
+                "placeholder": "跟哪一家車行調車",
                 "data-transfer-source": "1",
             }
         ),
@@ -3690,7 +3690,7 @@ class QuickInventoryEntryForm(forms.Form):
         source = (cleaned.get("transfer_source_name") or "").strip()
         if cleaned["acquisition_type"] == VehicleInventory.AcquisitionType.DEALER_TRANSFER:
             if not source:
-                self.add_error("transfer_source_name", "經銷商調車請填寫跟哪一家經銷商調車。")
+                self.add_error("transfer_source_name", "車行調車請填寫跟哪一家車行調車。")
         else:
             source = ""
         cleaned["transfer_source_name"] = source

@@ -3267,6 +3267,42 @@ input[type="file"].form-control { padding: var(--space-3); }
   border-color: color-mix(in srgb, var(--amber) 46%, var(--line));
 }
 .source-gift-toggle.is-active .source-active-toggle__track { background: var(--amber); }
+/* 優先配車：琥珀色代表需要先處理；來源標籤區分自動判斷與人工設定。 */
+.inventory-priority-cell { min-width: 132px; }
+.inventory-priority-form { align-items: center; gap: var(--space-2); }
+.inventory-priority-toggle.is-active {
+  color: var(--amber);
+  background: var(--amber-soft);
+  border-color: var(--amber-border-strong);
+}
+.inventory-priority-toggle.is-active .source-active-toggle__track { background: var(--amber); }
+.inventory-priority-toggle:disabled { cursor: not-allowed; opacity: .58; transform: none; }
+.inventory-table .inventory-priority-source {
+  display: inline-flex; padding: 1px var(--space-2); color: var(--muted);
+  border: 1px dashed var(--line); border-radius: var(--radius-pill);
+  font-size: var(--text-xs); font-weight: 800; white-space: nowrap;
+}
+.inventory-table .inventory-priority-source.is-manual { color: var(--ink); border-style: solid; border-color: var(--muted); }
+.inventory-priority-rule {
+  display: flex; gap: var(--space-3); align-items: flex-start;
+  padding: var(--space-3) var(--space-4); color: var(--ink);
+  background: color-mix(in srgb, var(--amber-soft) 55%, var(--surface));
+  border-bottom: 1px solid var(--line); font-size: var(--text-sm);
+}
+.inventory-priority-rule p { margin: 0; line-height: 1.6; }
+.inventory-priority-rule strong { margin-right: var(--space-2); color: var(--amber); }
+.inventory-priority-rule__mark {
+  display: inline-grid; flex: 0 0 24px; width: 24px; height: 24px; place-items: center;
+  color: var(--surface); background: var(--amber); border-radius: 50%; font-size: var(--text-xs);
+}
+.allocation-priority-rule { margin-top: var(--space-2); color: var(--muted); font-size: var(--text-sm); }
+.allocation-priority-rule strong { margin-right: var(--space-2); color: var(--amber); }
+.allocation-priority-hint {
+  margin: var(--space-2) 0; padding: var(--space-2) var(--space-3); color: var(--ink);
+  background: var(--amber-soft); border: 1px solid var(--amber-border-strong);
+  border-radius: var(--radius-sm); font-size: var(--text-sm);
+}
+.allocation-priority-hint[hidden] { display: none; }
 .quick-active-toggle-stack {
   display: inline-flex;
   align-items: center;
@@ -4358,6 +4394,8 @@ input[type="file"].form-control { padding: var(--space-3); }
   .inventory-table td { display: grid; min-width: 0; padding: var(--space-2) 0; grid-template-columns: 92px minmax(0, 1fr); gap: var(--space-2); border: 0; }
   .inventory-table td::before { content: attr(data-label); color: var(--muted); font-size: var(--text-xs); font-weight: 800; }
   .inventory-table td:nth-child(2), .inventory-table td:nth-child(3), .inventory-row-action { grid-column: 1 / -1; }
+  /* 現有庫存多一欄優先配車，改以欄位名稱維持整列；識別號碼不換行，半欄會與狀態重疊。 */
+  .inventory-table td:is([data-label="車型／車色"], [data-label="識別號碼"]) { grid-column: 1 / -1; }
   .sales-source-table tr[data-source-row] { grid-template-columns: 1fr; }
   .sales-source-table tr[data-source-row] > td { grid-column: 1 / -1; }
   .sales-source-table .source-identity__label, .sales-source-table .source-identity > span { grid-column: 2; }

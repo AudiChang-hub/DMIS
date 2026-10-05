@@ -2505,7 +2505,7 @@ class VehicleColor(TimeStampedModel):
         return f"{self.vehicle_model}／{self.name}"
 
 
-# 出廠年月距今超過此月數的車輛自動列為優先配車；人員仍可手動開關。
+# 出廠年月距今超過此月數的車輛自動列為優先配車且不能關閉；未滿者可人工開啟（標示「人工」，到期後仍為人工）。
 ALLOCATION_PRIORITY_AGE_MONTHS = 3
 
 
@@ -2520,10 +2520,7 @@ def annotate_allocation_priority(queryset, today=None):
     cutoff = allocation_priority_cutoff(today)
     return queryset.annotate(
         effective_allocation_priority=models.Case(
-            models.When(
-                allocation_priority_override__isnull=False,
-                then=models.F("allocation_priority_override"),
-            ),
+            models.When(allocation_priority_override=True, then=models.Value(True)),
             models.When(
                 manufactured_year_month__gt="",
                 manufactured_year_month__lte=cutoff,
@@ -2627,6 +2624,7 @@ class VehicleInventory(TimeStampedModel):
     )
     allocation_priority_override = models.BooleanField(
         "優先配車人工設定", null=True, blank=True, editable=False,
+        # 1.35.2 起只寫入 True（人工開啟）或 None；help_text 保留原文以免產生空 migration。
         help_text="未設定時依出廠年月自動判斷；有值代表人員手動開啟或關閉。",
     )
 
@@ -2654,13 +2652,12 @@ class VehicleInventory(TimeStampedModel):
 
     @property
     def allocation_priority(self):
-        if self.allocation_priority_override is not None:
-            return self.allocation_priority_override
-        return self.allocation_priority_auto
+        # 只有「人工開啟」有效；超過門檻月數一律優先、不能關閉（舊的人工關閉值不再生效）。
+        return self.allocation_priority_override is True or self.allocation_priority_auto
 
     @property
     def allocation_priority_source_label(self):
-        return "自動" if self.allocation_priority_override is None else "人工"
+        return "人工" if self.allocation_priority_override is True else "自動"
 
     def clean(self):
         errors = {}

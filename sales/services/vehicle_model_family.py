@@ -80,7 +80,7 @@ def rename_vehicle_model_family(*, family_id, new_name):
         )
 
     if (
-        VehicleModel.objects.select_for_update()
+        VehicleModel.objects.select_for_update(of=("self",))
         .filter(brand__iexact=family.brand, name__iexact=normalized_name)
         .exclude(family_id=family.pk)
         .exists()
@@ -240,7 +240,7 @@ def merge_vehicle_model_versions(*, source_model_id, target_model_id):
         raise ValidationError("不能將年式資料合併到自己。")
     locked = {
         item.pk: item
-        for item in VehicleModel.objects.select_for_update()
+        for item in VehicleModel.objects.select_for_update(of=("self",))
         .select_related("family")
         .filter(pk__in=[source_model_id, target_model_id])
     }
@@ -366,7 +366,7 @@ def move_vehicle_model_to_family(*, vehicle_model_id, target_family_id):
 @transaction.atomic
 def delete_unused_vehicle_model(*, vehicle_model_id):
     vehicle_model = (
-        VehicleModel.objects.select_for_update()
+        VehicleModel.objects.select_for_update(of=("self",))
         .select_related("family")
         .get(pk=vehicle_model_id)
     )

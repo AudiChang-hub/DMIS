@@ -8,6 +8,8 @@ COMPOSE_FILE=${DMIS_COMPOSE_FILE:-${PROJECT_DIR}/docker-compose.django.yml}
 MEDIA_DIR=${DJANGO_MEDIA_PATH:-${DATA_ROOT}/media}
 BACKUP_ROOT=${DMIS_BACKUP_ROOT:-${DATA_ROOT}/backups}
 LOCK_FILE=${DMIS_BACKUP_LOCK_FILE:-${DATA_ROOT}/.backup.lock}
+# 部署前備份只建立新備份；過期清理只由每日排程（root）執行，避免部署帳號刪不掉 root 檔案而中止部署。
+SKIP_PRUNE=${DMIS_BACKUP_SKIP_PRUNE:-0}
 
 log() {
     printf '%s %s\n' "$(date --iso-8601=seconds)" "$*"
@@ -87,10 +89,14 @@ if [[ "$(date +%d)" == "01" ]]; then
     log "建立每月媒體封存"
     archive_media "$BACKUP_ROOT/media/monthly/media_$(date +%Y-%m).tar.gz"
 fi
-find "$BACKUP_ROOT/postgres/daily" -type f -name '*.sql.gz' -mtime +14 -delete
-find "$BACKUP_ROOT/postgres/weekly" -type f -name '*.sql.gz' -mtime +56 -delete
-find "$BACKUP_ROOT/postgres/monthly" -type f -name '*.sql.gz' -mtime +370 -delete
-find "$BACKUP_ROOT/media/weekly" -type f -name '*.tar.gz' -mtime +56 -delete
-find "$BACKUP_ROOT/media/monthly" -type f -name '*.tar.gz' -mtime +370 -delete
+if [[ "$SKIP_PRUNE" == "1" ]]; then
+    log "略過過期備份清理，交由每日備份排程執行"
+else
+    find "$BACKUP_ROOT/postgres/daily" -type f -name '*.sql.gz' -mtime +14 -delete
+    find "$BACKUP_ROOT/postgres/weekly" -type f -name '*.sql.gz' -mtime +56 -delete
+    find "$BACKUP_ROOT/postgres/monthly" -type f -name '*.sql.gz' -mtime +370 -delete
+    find "$BACKUP_ROOT/media/weekly" -type f -name '*.tar.gz' -mtime +56 -delete
+    find "$BACKUP_ROOT/media/monthly" -type f -name '*.tar.gz' -mtime +370 -delete
+fi
 
 log "備份完成：$daily_db"

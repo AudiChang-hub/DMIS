@@ -88,7 +88,8 @@ chmod +x scripts/deploy_django.sh scripts/backup_django_data.sh
 ./scripts/deploy_django.sh
 ```
 
-腳本會確認 branch、乾淨工作樹與 fast-forward，先備份 PostgreSQL 和媒體，再重建
+腳本會確認 branch、乾淨工作樹與 fast-forward，先備份 PostgreSQL 和媒體（部署前備份
+只新增、不清理過期檔，以免部署帳號刪不掉 root 擁有的備份而中止），再重建
 web／OCR／搜尋／匯入服務、重建 tunnel proxy、驗證 HTTP/2 connector 與正式網域。
 資料庫與 Redis 不會因應用更新而重啟。任一檢查失敗時不得用 `docker compose down`
 繞過保護，應依 log 修正或回復前一個已驗證版本。
@@ -98,7 +99,7 @@ web／OCR／搜尋／匯入服務、重建 tunnel proxy、驗證 HTTP/2 connecto
 正式 PostgreSQL 保留於 SSD，媒體與本機備份位於 `/srv/dmis-data/dmis-next`。
 `dmis-next-backup.timer` 每日執行：
 
-- PostgreSQL 每日備份保留 14 天、每週 8 週、每月約 12 個月。
+- PostgreSQL 每日備份保留 14 天、每週 8 週、每月約 12 個月；過期清理只由此排程執行。
 - 媒體每日同步目前鏡像，另建立每週與每月封存。
 - 每週與每月封存每期只建立一次；已存在（例如凌晨 root 排程已建立）就保留原檔，部署當天再跑備份不會因覆寫被拒而中止。
 

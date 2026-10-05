@@ -66,11 +66,11 @@ class InventoryAcquisitionTests(TestCase):
         page = self.client.get(url)
         self.assertContains(page, 'id="transfer-source-options"')
         self.assertContains(page, '<option value="合作車行甲">')
-        self.assertContains(page, "經銷商調車")
+        self.assertContains(page, "車行調車")
 
         response = self.client.post(url, self.single_payload(acquisition_type=TRANSFER))
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "經銷商調車請填寫跟哪一家經銷商調車。")
+        self.assertContains(response, "車行調車請填寫跟哪一家車行調車。")
         self.assertFalse(VehicleInventory.objects.filter(engine_number="ACQ-SINGLE").exists())
 
         response = self.client.post(url, self.single_payload(acquisition_type=TRANSFER, transfer_source_name="大發機車"))
@@ -84,7 +84,7 @@ class InventoryAcquisitionTests(TestCase):
         missing = self.client.post(reverse("inventory_quick_create"), self.quick_payload([
             {**base, "identifier": "ACQ-Q1", "acquisition_type": TRANSFER},
         ]))
-        self.assertContains(missing, "經銷商調車請填寫跟哪一家經銷商調車。")
+        self.assertContains(missing, "車行調車請填寫跟哪一家車行調車。")
         self.assertFalse(VehicleInventory.objects.filter(engine_number="ACQ-Q1").exists())
 
         response = self.client.post(reverse("inventory_quick_create"), self.quick_payload([
@@ -120,7 +120,7 @@ class InventoryAcquisitionTests(TestCase):
         company = self.vehicle("LIST-C")
         self.client.force_login(self.user)
         response = self.client.get(reverse("inventory_list"))
-        self.assertContains(response, '<small class="inventory-acquisition" title="經銷商調車">調車｜大發機車</small>', html=True)
+        self.assertContains(response, '<small class="inventory-acquisition" title="車行調車">調車｜大發機車</small>', html=True)
         self.assertEqual({v.pk for v in response.context["vehicles"]}, {transfer.pk, company.pk})
         filtered = self.client.get(reverse("inventory_list"), {"acquisition": TRANSFER})
         self.assertEqual([v.pk for v in filtered.context["vehicles"]], [transfer.pk])

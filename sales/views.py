@@ -9297,7 +9297,7 @@ def inventory_create(request):
 
 
 def _transfer_source_suggestions():
-    """調車來源輸入提示：先前填過的經銷商名稱與啟用中的車行，去重後排序。"""
+    """調車來源輸入提示：先前填過的車行名稱與啟用中的車行，去重後排序。"""
     names = set(
         VehicleInventory.objects.exclude(transfer_source_name="")
         .values_list("transfer_source_name", flat=True)

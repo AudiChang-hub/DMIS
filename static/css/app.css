@@ -2639,7 +2639,7 @@ input[type="file"].form-control { padding: var(--space-3); }
 .inventory-table .status-pill.status-sold,
 .inventory-table .status-pill.status-inactive { color: var(--muted); background: var(--surface-soft); border-color: var(--line); }
 .inventory-identifier { color: var(--forest-2); font-family: ui-monospace, monospace; font-weight: 900; white-space: nowrap; }
-/* 經銷商調車：在識別號碼下標示來源，與公司進車區分。 */
+/* 車行調車：在識別號碼下標示來源，與公司進車區分。 */
 .inventory-table .inventory-acquisition {
   display: inline-flex; width: fit-content; margin-top: var(--space-1); padding: 1px var(--space-2);
   color: var(--blue); background: var(--blue-soft); border: 1px solid var(--blue-border);

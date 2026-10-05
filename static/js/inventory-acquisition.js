@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  // 車輛來源：只有「經銷商調車」才顯示並要求填寫調車來源。
+  // 車輛來源：只有「車行調車」才顯示並要求填寫調車來源。
   const TRANSFER = "dealer_transfer";
 
   const groupOf = (element) =>

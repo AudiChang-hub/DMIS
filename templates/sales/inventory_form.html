@@ -1,4 +1,4 @@
-{% extends "base.html" %}{% load site_copy %}
+{% extends "base.html" %}{% load site_copy static %}
 {% block title %}{% if is_editing %}編輯庫存{% else %}新增進車{% endif %}｜車輛銷售管理{% endblock %}
 {% block page_class %}{% if is_editing %}page-shell--wide{% else %}page-shell--compact{% endif %}{% endblock %}
 {% block content %}
@@ -28,8 +28,9 @@
   </div>
   {% endif %}
   <div class="form-grid">
-    {% for field in form %}{% include "sales/_field.html" with field=field %}{% endfor %}
+    {% for field in form %}{% if field.name != "transfer_source_name" %}{% include "sales/_field.html" with field=field %}{% endif %}{% if field.name == "acquisition_type" %}{% include "sales/_field.html" with field=form.transfer_source_name required_label="經銷商調車必填" %}{% endif %}{% endfor %}
   </div>
+  {% include "sales/_transfer_source_datalist.html" %}
   <div class="form-actions"><a class="button ghost" href="{% url 'inventory_list' %}">取消</a><button class="button primary" type="submit">{% if is_editing %}儲存修改{% else %}建立庫存{% endif %}</button></div>
 </form>
 {% if is_editing %}
@@ -93,6 +94,7 @@
 {% endif %}
 {% endblock %}
 {% block scripts %}
+<script src="{% static 'js/inventory-acquisition.js' %}?v={{ app_version }}" defer></script>
 <script>
 document.getElementById("id_vehicle_model").addEventListener("change", async function() {
   const response = await fetch(`{% url 'vehicle_colors' %}?model=${this.value}`);

@@ -1896,6 +1896,8 @@ class VehicleInventoryForm(forms.ModelForm):
             "color",
             "engine_number",
             "frame_number",
+            "acquisition_type",
+            "transfer_source_name",
             "current_dealer",
             "received_on",
             "manufactured_year_month",
@@ -1905,6 +1907,17 @@ class VehicleInventoryForm(forms.ModelForm):
             "resale_price",
         ]
         widgets = {
+            "acquisition_type": forms.RadioSelect(
+                attrs={"data-acquisition-type": "1", "class": "acquisition-choice"}
+            ),
+            "transfer_source_name": forms.TextInput(
+                attrs={
+                    "list": "transfer-source-options",
+                    "autocomplete": "off",
+                    "placeholder": "例如：○○機車行",
+                    "data-transfer-source": "1",
+                }
+            ),
             "received_on": DateInput(),
             "manufactured_year_month": forms.TextInput(
                 attrs={"placeholder": "YYYY/MM", "inputmode": "numeric"}
@@ -1920,6 +1933,8 @@ class VehicleInventoryForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         if not self.instance.pk:
             self.fields.pop("change_reason", None)
+        # 舊頁面或未送出來源時沿用目前值（新增時為公司進車）。
+        self.fields["acquisition_type"].required = False
         core_fields_locked = bool(
             self.instance.pk
             and self.instance.status in self.CORE_LOCKED_STATUSES
@@ -2007,10 +2022,20 @@ class VehicleInventoryForm(forms.ModelForm):
             field.widget.attrs.setdefault("class", "form-control")
         apply_mobile_keyboard_attrs(self)
 
+    def clean_acquisition_type(self):
+        return (
+            self.cleaned_data.get("acquisition_type")
+            or self.instance.acquisition_type
+            or VehicleInventory.AcquisitionType.COMPANY
+        )
+
     def clean(self):
         cleaned = super().clean()
         if cleaned.get("condition_hold") and not (cleaned.get("condition_note") or "").strip():
             self.add_error("condition_note", "標記車況異常時，請填寫車況說明。")
+        if "acquisition_type" not in self.data and "transfer_source_name" not in self.data:
+            # 舊頁面沒有來源欄位：保留原本的調車來源，不因空值被清掉。
+            cleaned["transfer_source_name"] = self.instance.transfer_source_name
         return cleaned
 
     def save(self, commit=True):
@@ -3606,6 +3631,27 @@ class QuickInventoryEntryForm(forms.Form):
         required=False,
         widget=forms.Textarea(attrs={"rows": 2, "placeholder": "選填"}),
     )
+    acquisition_type = forms.ChoiceField(
+        label="車輛來源",
+        choices=VehicleInventory.AcquisitionType.choices,
+        initial=VehicleInventory.AcquisitionType.COMPANY,
+        # 未送出（舊頁面）時視為公司進車。
+        required=False,
+        widget=forms.Select(attrs={"data-acquisition-type": "1"}),
+    )
+    transfer_source_name = forms.CharField(
+        label="調車來源",
+        max_length=120,
+        required=False,
+        widget=forms.TextInput(
+            attrs={
+                "list": "transfer-source-options",
+                "autocomplete": "off",
+                "placeholder": "跟哪一家經銷商調車",
+                "data-transfer-source": "1",
+            }
+        ),
+    )
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -3628,7 +3674,8 @@ class QuickInventoryEntryForm(forms.Form):
 
     def has_changed(self):
         changed = set(self.changed_data)
-        changed.discard("received_on")
+        # 只改進車日期或來源的空白列不算一台車。
+        changed -= {"received_on", "acquisition_type", "transfer_source_name"}
         return bool(changed)
 
     def clean(self):
@@ -3637,6 +3684,16 @@ class QuickInventoryEntryForm(forms.Form):
         color = cleaned.get("color")
         if model and color and color.vehicle_model_id != model.pk:
             self.add_error("color", "此車色不屬於選定車型。")
+        cleaned["acquisition_type"] = (
+            cleaned.get("acquisition_type") or VehicleInventory.AcquisitionType.COMPANY
+        )
+        source = (cleaned.get("transfer_source_name") or "").strip()
+        if cleaned["acquisition_type"] == VehicleInventory.AcquisitionType.DEALER_TRANSFER:
+            if not source:
+                self.add_error("transfer_source_name", "經銷商調車請填寫跟哪一家經銷商調車。")
+        else:
+            source = ""
+        cleaned["transfer_source_name"] = source
         return cleaned
 
 

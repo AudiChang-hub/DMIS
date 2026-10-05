@@ -2187,13 +2187,14 @@ class OrderFlowTests(TestCase):
         self.assertEqual(response.context["selected"]["scope"], "current")
         self.assertEqual(list(response.context["vehicles"]), [self.vehicle])
         self.assertEqual(response.context["inventory_counts"]["current"], 1)
-        self.assertEqual(response.context["inventory_counts"]["history"], 2)
+        # 已交車不列入庫存列表，停用車輛分頁只算停用。
+        self.assertEqual(response.context["inventory_counts"]["history"], 1)
         self.assertContains(response, "現有庫存共 1 台")
         self.assertNotContains(response, delivered.identifier)
         self.assertNotContains(response, inactive.identifier)
         self.assertContains(response, 'name="scope" value="current"')
 
-    def test_inventory_history_scope_only_shows_completed_records(self):
+    def test_inventory_history_scope_only_shows_inactive_vehicles(self):
         sold = VehicleInventory.objects.create(
             vehicle_model=self.model,
             color=self.color,
@@ -2202,21 +2203,39 @@ class OrderFlowTests(TestCase):
             location_store=self.store_a,
             status=VehicleInventory.Status.SOLD,
         )
+        delivered = VehicleInventory.objects.create(
+            vehicle_model=self.model,
+            color=self.color,
+            engine_number="ENG-DELIVERED",
+            ownership_store=self.store_a,
+            location_store=self.store_a,
+            status=VehicleInventory.Status.DELIVERED,
+        )
+        inactive = VehicleInventory.objects.create(
+            vehicle_model=self.model,
+            color=self.color,
+            engine_number="ENG-INACTIVE",
+            ownership_store=self.store_a,
+            location_store=self.store_a,
+            status=VehicleInventory.Status.INACTIVE,
+        )
         self.client.force_login(self.user)
 
         response = self.client.get(reverse("inventory_list"), {"scope": "history"})
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.context["selected"]["scope"], "history")
-        self.assertEqual(list(response.context["vehicles"]), [sold])
-        self.assertContains(response, "歷史資料共 1 台")
-        self.assertContains(response, sold.identifier)
+        self.assertEqual(list(response.context["vehicles"]), [inactive])
+        self.assertContains(response, "停用車輛共 1 台")
+        self.assertContains(response, inactive.identifier)
+        self.assertNotContains(response, sold.identifier)
+        self.assertNotContains(response, delivered.identifier)
         self.assertNotContains(response, self.vehicle.identifier)
         self.assertContains(response, 'name="scope" value="history"')
-        self.assertContains(response, "全部歷史狀態")
+        self.assertContains(response, "全部停用車輛")
         self.assertNotContains(response, "調車中（含待調車）")
 
-    def test_inventory_legacy_historical_status_link_selects_history_scope(self):
+    def test_inventory_list_never_shows_sold_vehicles(self):
         sold = VehicleInventory.objects.create(
             vehicle_model=self.model,
             color=self.color,
@@ -2227,15 +2246,14 @@ class OrderFlowTests(TestCase):
         )
         self.client.force_login(self.user)
 
-        response = self.client.get(
-            reverse("inventory_list"),
-            {"status": VehicleInventory.Status.SOLD},
+        for params in ({"status": VehicleInventory.Status.SOLD}, {"q": "ENG-OLD-LINK"}):
+            response = self.client.get(reverse("inventory_list"), params)
+            self.assertEqual(response.status_code, 200)
+            self.assertNotIn(sold, list(response.context["vehicles"]))
+        # 資料保留：從訂單等處直接開啟車輛頁仍可查看。
+        self.assertEqual(
+            self.client.get(reverse("inventory_edit", args=[sold.pk])).status_code, 200
         )
-
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.context["selected"]["scope"], "history")
-        self.assertEqual(response.context["selected"]["status"], "sold")
-        self.assertEqual(list(response.context["vehicles"]), [sold])
 
     def test_inventory_edit_page_explains_locked_fields(self):
         self.vehicle.status = VehicleInventory.Status.RESERVED

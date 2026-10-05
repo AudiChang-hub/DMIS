@@ -806,9 +806,9 @@
     "default": "變更實際位置後，系統會自動留下調度時間、來源與目的地。",
     "template": "templates/sales/inventory_form.html"
   },
-  "inventory_list.7640890eb318": {
+  "inventory_list.2da29b285942": {
     "page": "車輛庫存",
-    "default": "預設顯示仍需管理的車輛；已交付、已售出與停用資料保留於歷史資料。",
+    "default": "預設顯示仍需管理的車輛；已交車、已售出的車不列入庫存，停用車輛另列分頁。",
     "template": "templates/sales/inventory_list.html"
   },
   "inventory_list.8b43447f5743": {
@@ -816,9 +816,9 @@
     "default": "可銷售與仍在處理中的車輛",
     "template": "templates/sales/inventory_list.html"
   },
-  "inventory_list.2ee8b3ef4bbe": {
+  "inventory_list.23556f469f81": {
     "page": "車輛庫存",
-    "default": "已交付、已售出與停用車輛",
+    "default": "暫停使用、可重新啟用的車輛",
     "template": "templates/sales/inventory_list.html"
   },
   "inventory_quick_form.010933ad9a73": {

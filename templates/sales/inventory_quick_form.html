@@ -1,4 +1,4 @@
-{% extends "base.html" %}{% load site_copy %}
+{% extends "base.html" %}{% load site_copy static %}
 {% block title %}快速進車｜車輛銷售管理{% endblock %}
 {% block page_class %}page-shell--wide{% endblock %}
 {% block content %}
@@ -19,7 +19,7 @@
   {% if formset.non_form_errors %}<div class="message error">{{ formset.non_form_errors }}</div>{% endif %}
   <div class="quick-entry-panel">
     <div class="quick-entry-head" aria-hidden="true">
-      <span>車型</span><span>車色</span><span>引擎／車身號碼</span><span>進車日期</span><span>出廠年月</span><span>車況說明（選填）</span><span></span>
+      <span>車型</span><span>車色</span><span>引擎／車身號碼</span><span>進車日期</span><span>出廠年月</span><span>車輛來源</span><span>車況說明（選填）</span><span></span>
     </div>
     <div id="quick-entry-rows">
       {% for form in formset %}
@@ -29,6 +29,7 @@
         <div class="quick-entry-field" data-label="識別號碼"><label class="visually-hidden identifier-label" for="{{ form.identifier.id_for_label }}">引擎／車身號碼</label>{{ form.identifier }}{% for error in form.identifier.errors %}<small class="field-error">{{ error }}</small>{% endfor %}</div>
         <div class="quick-entry-field" data-label="進車日期"><label class="visually-hidden" for="{{ form.received_on.id_for_label }}">進車日期</label>{{ form.received_on }}{% for error in form.received_on.errors %}<small class="field-error">{{ error }}</small>{% endfor %}</div>
         <div class="quick-entry-field" data-label="出廠年月"><label class="visually-hidden" for="{{ form.manufactured_year_month.id_for_label }}">出廠年月</label>{{ form.manufactured_year_month }}{% for error in form.manufactured_year_month.errors %}<small class="field-error">{{ error }}</small>{% endfor %}</div>
+        <div class="quick-entry-field quick-entry-source" data-label="車輛來源" data-acquisition-group><label class="visually-hidden" for="{{ form.acquisition_type.id_for_label }}">車輛來源</label>{{ form.acquisition_type }}<label class="visually-hidden" for="{{ form.transfer_source_name.id_for_label }}">調車來源</label>{{ form.transfer_source_name }}{% for error in form.acquisition_type.errors %}<small class="field-error">{{ error }}</small>{% endfor %}{% for error in form.transfer_source_name.errors %}<small class="field-error">{{ error }}</small>{% endfor %}</div>
         <div class="quick-entry-field" data-label="車況說明（選填）"><label class="visually-hidden" for="{{ form.condition_note.id_for_label }}">車況說明（選填）</label>{{ form.condition_note }}{% for error in form.condition_note.errors %}<small class="field-error">{{ error }}</small>{% endfor %}</div>
         <div class="quick-entry-delete"><span hidden>{{ form.DELETE }}</span><button type="button" class="button danger-outline small" data-delete-row>刪除此列</button></div>
         {% for error in form.non_field_errors %}<small class="field-error quick-entry-row-error">{{ error }}</small>{% endfor %}
@@ -42,6 +43,7 @@
         <div class="quick-entry-field" data-label="識別號碼"><label class="visually-hidden identifier-label" for="{{ formset.empty_form.identifier.id_for_label }}">引擎／車身號碼</label>{{ formset.empty_form.identifier }}</div>
         <div class="quick-entry-field" data-label="進車日期"><label class="visually-hidden" for="{{ formset.empty_form.received_on.id_for_label }}">進車日期</label>{{ formset.empty_form.received_on }}</div>
         <div class="quick-entry-field" data-label="出廠年月"><label class="visually-hidden" for="{{ formset.empty_form.manufactured_year_month.id_for_label }}">出廠年月</label>{{ formset.empty_form.manufactured_year_month }}</div>
+        <div class="quick-entry-field quick-entry-source" data-label="車輛來源" data-acquisition-group><label class="visually-hidden" for="{{ formset.empty_form.acquisition_type.id_for_label }}">車輛來源</label>{{ formset.empty_form.acquisition_type }}<label class="visually-hidden" for="{{ formset.empty_form.transfer_source_name.id_for_label }}">調車來源</label>{{ formset.empty_form.transfer_source_name }}</div>
         <div class="quick-entry-field" data-label="車況說明（選填）"><label class="visually-hidden" for="{{ formset.empty_form.condition_note.id_for_label }}">車況說明（選填）</label>{{ formset.empty_form.condition_note }}</div>
         <div class="quick-entry-delete"><span hidden>{{ formset.empty_form.DELETE }}</span><button type="button" class="button danger-outline small" data-delete-row>刪除此列</button></div>
       </div>
@@ -53,9 +55,11 @@
     <button class="button primary" type="submit">建立全部車輛</button>
   </div>
 </form>
+{% include "sales/_transfer_source_datalist.html" %}
 {{ energy_types|json_script:"vehicle-energy-types" }}
 {% endblock %}
 {% block scripts %}
+<script src="{% static 'js/inventory-acquisition.js' %}?v={{ app_version }}" defer></script>
 <script>
 (() => {
   const rows = document.getElementById("quick-entry-rows");

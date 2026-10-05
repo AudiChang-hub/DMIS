@@ -2310,6 +2310,7 @@ class OrderFlowTests(TestCase):
             "inventory-model": "搜尋品牌或機種",
             "inventory-color": "搜尋車色",
             "inventory-location": "搜尋本店或車行",
+            "inventory-acquisition": "搜尋車輛來源",
             "inventory-sort": "搜尋排序方式",
         }
         for element_id, placeholder in searchable_filters.items():
@@ -2322,10 +2323,10 @@ class OrderFlowTests(TestCase):
                     response,
                     f'data-search-placeholder="{placeholder}"',
                 )
-        self.assertContains(response, 'data-searchable-select="1"', count=5)
+        self.assertContains(response, 'data-searchable-select="1"', count=6)
         self.assertContains(response, 'data-searchable-multiple="1"', count=4)
         self.assertContains(response, ' multiple data-searchable-select="1"', count=4)
-        self.assertContains(response, 'data-searchable-search-icon="1"', count=5)
+        self.assertContains(response, 'data-searchable-search-icon="1"', count=6)
         self.assertNotContains(response, "並複選")
         self.assertNotContains(response, "可搜尋複選")
         self.assertNotContains(response, "實際位置／合作車行")

@@ -18,7 +18,7 @@ from django.conf import settings
 from django.core.files.base import ContentFile
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import IntegrityError, connection, transaction
-from django.db.models import Count, DecimalField, Exists, Max, OuterRef, Prefetch, Q, Subquery, Sum
+from django.db.models import Case, Count, DecimalField, Exists, IntegerField, Max, OuterRef, Prefetch, Q, Subquery, Sum, Value, When
 from django.core.paginator import Paginator
 from django.http import FileResponse, Http404, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
@@ -123,6 +123,9 @@ from .forms import (
     VehicleSettlementCostRuleForm,
 )
 from .models import (
+    ALLOCATION_PRIORITY_AGE_MONTHS,
+    allocation_priority_cutoff,
+    annotate_allocation_priority,
     AccessoryProduct,
     BusinessHoliday,
     BrandRegistrationFeeRule,
@@ -6429,7 +6432,7 @@ def allocate_vehicle(request, pk):
         else:
             description = f"已配車：{order.allocated_vehicle}"
             if form.cleaned_data.get("skip_notes"):
-                description += f"（{'；'.join(form.cleaned_data['skip_notes'])}；原因：{skip_reason}）"
+                description += f"（{'；'.join(form.cleaned_data['skip_notes'])}；原因：{skip_reason or '未填寫'}）"
             OrderEvent.objects.create(
                 order=order,
                 event_type="allocated",
@@ -7667,9 +7670,11 @@ def inventory_list(request):
         )
     scope_statuses = historical_statuses if scope == "history" else current_statuses
 
-    vehicles = VehicleInventory.objects.select_related(
-        "vehicle_model", "vehicle_model__family", "color", "current_dealer"
-    ).filter(status__in=scope_statuses)
+    vehicles = annotate_allocation_priority(
+        VehicleInventory.objects.select_related(
+            "vehicle_model", "vehicle_model__family", "color", "current_dealer"
+        ).filter(status__in=scope_statuses)
+    )
     keyword = request.GET.get("q", "").strip()
     requested_family_ids = list(
         dict.fromkeys(
@@ -7804,9 +7809,21 @@ def inventory_list(request):
         "identifier": ("engine_number", "frame_number", "-received_on"),
         "status": ("status", "-received_on"),
         "location": ("current_dealer__name", "vehicle_model__name"),
+        "priority": (
+            "-effective_allocation_priority", "missing_manufactured",
+            "manufactured_year_month", "received_on", "id",
+        ),
     }
     if sort not in sort_options:
         sort = "received_desc"
+    if sort == "priority":
+        vehicles = vehicles.annotate(
+            missing_manufactured=Case(
+                When(manufactured_year_month="", then=Value(1)),
+                default=Value(0),
+                output_field=IntegerField(),
+            )
+        )
     vehicles = vehicles.order_by(*sort_options[sort])
     paginator = Paginator(vehicles, 100)
     page = paginator.get_page(request.GET.get("page"))
@@ -7842,6 +7859,8 @@ def inventory_list(request):
                 if value in scope_statuses
             ],
             "inventory_counts": inventory_counts,
+            "priority_age_months": ALLOCATION_PRIORITY_AGE_MONTHS,
+            "priority_cutoff": allocation_priority_cutoff(),
             "vehicle_families": vehicle_family_choices,
             "colors": color_choices,
             "dealers": SalesSource.objects.filter(
@@ -9326,6 +9345,86 @@ def inventory_quick_create(request):
             },
         },
     )
+
+
+def _allocation_priority_label(vehicle):
+    state = "開啟" if vehicle.allocation_priority else "關閉"
+    return f"{state}（{vehicle.allocation_priority_source_label}）"
+
+
+@login_required
+@require_http_methods(["POST"])
+@transaction.atomic
+def inventory_allocation_priority(request, pk):
+    vehicle = get_object_or_404(
+        VehicleInventory.objects.select_for_update().select_related(
+            "location_store", "current_dealer"
+        ),
+        pk=pk,
+    )
+    is_ajax = request.headers.get("x-requested-with") == "XMLHttpRequest"
+    requested = request.POST.get("priority", "")
+    toggleable = vehicle.status in (
+        VehicleInventory.Status.AVAILABLE,
+        VehicleInventory.Status.RESERVED,
+        VehicleInventory.Status.CONDITION_ISSUE,
+    )
+    if requested not in {"0", "1"} or not toggleable:
+        message = (
+            "只有現有庫存可以切換優先配車。"
+            if requested in {"0", "1"}
+            else "無法更新優先配車，請重新操作。"
+        )
+        if is_ajax:
+            return JsonResponse({"ok": False, "message": message}, status=400)
+        messages.error(request, message)
+    else:
+        desired = requested == "1"
+        before_label = _allocation_priority_label(vehicle)
+        # 與自動判斷相同時清除人工設定，之後恢復依出廠年月自動判斷。
+        override = None if desired == vehicle.allocation_priority_auto else desired
+        if override != vehicle.allocation_priority_override:
+            vehicle.allocation_priority_override = override
+            VehicleInventory.objects.filter(pk=vehicle.pk).update(
+                allocation_priority_override=override, updated_at=timezone.now()
+            )
+            after_label = _allocation_priority_label(vehicle)
+            _create_inventory_history(
+                vehicle,
+                actor_name=_editing_name(request.user),
+                event_type=VehicleInventoryHistory.EventType.UPDATED,
+                reason="切換優先配車",
+                changes={
+                    "allocation_priority": {
+                        "label": "優先配車",
+                        "before": before_label,
+                        "after": after_label,
+                    }
+                },
+            )
+        message = (
+            f"{vehicle.identifier} 已{'開啟' if vehicle.allocation_priority else '關閉'}優先配車"
+            f"（{vehicle.allocation_priority_source_label}）。"
+        )
+        if is_ajax:
+            return JsonResponse(
+                {
+                    "ok": True,
+                    "pk": vehicle.pk,
+                    "priority": vehicle.allocation_priority,
+                    "source": vehicle.allocation_priority_source_label,
+                    "message": message,
+                }
+            )
+        messages.success(request, message)
+    next_url = request.POST.get("next", "")
+    if not url_has_allowed_host_and_scheme(
+        next_url,
+        allowed_hosts={request.get_host()},
+        require_https=request.is_secure(),
+    ):
+        next_url = reverse("inventory_list")
+    return redirect(next_url)
 
 
 @login_required

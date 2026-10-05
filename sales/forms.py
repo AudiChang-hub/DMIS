@@ -14,6 +14,9 @@ from django.forms.models import BaseInlineFormSet
 from django.utils import timezone
 
 from .models import (
+    ALLOCATION_PRIORITY_AGE_MONTHS,
+    allocation_priority_cutoff,
+    annotate_allocation_priority,
     AccessoryProduct,
     AccessoryLine,
     BusinessHoliday,
@@ -3730,13 +3733,35 @@ def allocation_queue(order):
     return list(pending.annotate(queue_at=Coalesce("accepted_at", "created_at")).order_by("queue_at", "pk").values_list("pk", flat=True))
 
 
+class AllocationVehicleSelect(forms.Select):
+    def create_option(self, name, value, label, selected, index, subindex=None, attrs=None):
+        option = super().create_option(name, value, label, selected, index, subindex, attrs)
+        vehicle = getattr(value, "instance", None)
+        if vehicle is not None and getattr(vehicle, "effective_allocation_priority", False):
+            option["attrs"]["data-allocation-priority"] = "true"
+        return option
+
+
+class AllocationVehicleChoiceField(forms.ModelChoiceField):
+    widget = AllocationVehicleSelect
+
+    def label_from_instance(self, vehicle):
+        parts = [vehicle.identifier, f"出廠 {vehicle.manufactured_year_month or '未填寫'}"]
+        if vehicle.registered_plate_number:
+            parts.append(f"車牌 {vehicle.registered_plate_number}")
+        parts.append(vehicle.actual_location_label)
+        if getattr(vehicle, "effective_allocation_priority", False):
+            parts.insert(0, "★ 優先配車")
+        return "｜".join(parts)
+
+
 class AllocationForm(forms.Form):
-    vehicle = forms.ModelChoiceField(
+    vehicle = AllocationVehicleChoiceField(
         label="實體車輛", queryset=VehicleInventory.objects.none()
     )
     skip_reason = forms.CharField(
         label="未依順序配車原因", max_length=250, required=False,
-        help_text="本單不是排在最前面，或未選最早出廠／進車的車輛時必填。",
+        help_text="本單不是排在最前面，或未選同級中最早出廠的車輛時必填；仍有優先配車車輛卻選其他車時建議填寫。",
     )
     CHECK_QUEUE = True
 
@@ -3751,11 +3776,25 @@ class AllocationForm(forms.Form):
         if order.transaction_type != SalesOrder.TransactionType.REGISTERED:
             # 已領牌車不是新車，只列給領牌車交易。
             queryset = queryset.filter(registered_plate_number="")
-        # 先進先出：出廠年月較早者優先（未填排最後），再依進車日期。
-        from django.db.models import F
-        self.fields["vehicle"].queryset = queryset.select_related(
-            "location_store", "current_dealer", "vehicle_model", "color"
-        ).order_by(F("manufactured_year_month").asc(nulls_last=True), "received_on", "pk")
+        # 優先配車排最前；同級再依出廠年月先進先出（未填排最後），最後看進車日期。
+        from django.db.models import Case, IntegerField, Value, When
+        self.fields["vehicle"].queryset = annotate_allocation_priority(
+            queryset.select_related("location_store", "current_dealer", "vehicle_model", "color")
+        ).annotate(
+            missing_manufactured=Case(
+                When(manufactured_year_month="", then=Value(1)),
+                default=Value(0),
+                output_field=IntegerField(),
+            )
+        ).order_by(
+            "-effective_allocation_priority", "missing_manufactured",
+            "manufactured_year_month", "received_on", "pk",
+        )
+        self.priority_vehicle_count = self.fields["vehicle"].queryset.filter(
+            effective_allocation_priority=True
+        ).count()
+        self.priority_cutoff = allocation_priority_cutoff()
+        self.priority_age_months = ALLOCATION_PRIORITY_AGE_MONTHS
         self.fields["vehicle"].widget.attrs["class"] = "form-control"
         self.fields["skip_reason"].widget.attrs["class"] = "form-control"
         queue = allocation_queue(order) if self.CHECK_QUEUE else []
@@ -3770,10 +3809,18 @@ class AllocationForm(forms.Form):
         reasons = []
         if self.CHECK_QUEUE and self.queue_position and self.queue_position > 1:
             reasons.append(f"本單排第 {self.queue_position} 位")
-        first = self.fields["vehicle"].queryset.exclude(manufactured_year_month="").first() or self.fields["vehicle"].queryset.first()
-        if first and first.pk != vehicle.pk and (first.manufactured_year_month or "") < (vehicle.manufactured_year_month or "9999") and first.manufactured_year_month:
+        candidates = self.fields["vehicle"].queryset
+        is_priority = vehicle.effective_allocation_priority
+        # 先進先出只比較同一級（優先／一般）；跳過優先配車改為提醒，不強制填原因。
+        first = candidates.filter(effective_allocation_priority=is_priority).exclude(manufactured_year_month="").first()
+        if first and first.pk != vehicle.pk and first.manufactured_year_month < (vehicle.manufactured_year_month or "9999"):
             reasons.append(f"尚有較早出廠的車輛 {first.identifier}")
-        cleaned["skip_notes"] = reasons
+        advisories = []
+        if not is_priority:
+            priority_first = candidates.filter(effective_allocation_priority=True).first()
+            if priority_first:
+                advisories.append(f"尚有優先配車車輛 {priority_first.identifier}")
+        cleaned["skip_notes"] = reasons + advisories
         if reasons and not (cleaned.get("skip_reason") or "").strip() and "reason" not in self.fields:
             self.add_error("skip_reason", "；".join(reasons) + "，請填寫未依順序配車的原因。")
         return cleaned

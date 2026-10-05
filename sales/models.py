@@ -2505,6 +2505,36 @@ class VehicleColor(TimeStampedModel):
         return f"{self.vehicle_model}／{self.name}"
 
 
+# 出廠年月距今超過此月數的車輛自動列為優先配車；人員仍可手動開關。
+ALLOCATION_PRIORITY_AGE_MONTHS = 3
+
+
+def allocation_priority_cutoff(today=None):
+    """回傳自動優先配車的出廠年月上限（YYYY/MM，含）；月份精度下確保已超過門檻月數。"""
+    today = today or timezone.localdate()
+    index = today.year * 12 + today.month - 1 - (ALLOCATION_PRIORITY_AGE_MONTHS + 1)
+    return f"{index // 12:04d}/{index % 12 + 1:02d}"
+
+
+def annotate_allocation_priority(queryset, today=None):
+    cutoff = allocation_priority_cutoff(today)
+    return queryset.annotate(
+        effective_allocation_priority=models.Case(
+            models.When(
+                allocation_priority_override__isnull=False,
+                then=models.F("allocation_priority_override"),
+            ),
+            models.When(
+                manufactured_year_month__gt="",
+                manufactured_year_month__lte=cutoff,
+                then=models.Value(True),
+            ),
+            default=models.Value(False),
+            output_field=models.BooleanField(),
+        )
+    )
+
+
 class VehicleInventory(TimeStampedModel):
     class Status(models.TextChoices):
         # 調車只記錄實際位置（current_dealer），不另設調車狀態。
@@ -2595,6 +2625,10 @@ class VehicleInventory(TimeStampedModel):
         "領牌車再售價", max_digits=12, decimal_places=0, null=True, blank=True,
         validators=[MinValueValidator(0)],
     )
+    allocation_priority_override = models.BooleanField(
+        "優先配車人工設定", null=True, blank=True, editable=False,
+        help_text="未設定時依出廠年月自動判斷；有值代表人員手動開啟或關閉。",
+    )
 
     class Meta:
         ordering = ["-received_on", "-id"]
@@ -2612,6 +2646,21 @@ class VehicleInventory(TimeStampedModel):
     @property
     def is_registered_vehicle(self):
         return bool(self.registered_plate_number)
+
+    @property
+    def allocation_priority_auto(self):
+        made = self.manufactured_year_month
+        return bool(made) and made <= allocation_priority_cutoff()
+
+    @property
+    def allocation_priority(self):
+        if self.allocation_priority_override is not None:
+            return self.allocation_priority_override
+        return self.allocation_priority_auto
+
+    @property
+    def allocation_priority_source_label(self):
+        return "自動" if self.allocation_priority_override is None else "人工"
 
     def clean(self):
         errors = {}

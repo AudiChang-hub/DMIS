@@ -24,7 +24,7 @@
   </a>
 </nav>
 
-<form method="get" class="inventory-filters" aria-label="庫存篩選與排序">
+<form method="get" class="inventory-filters inventory-filters--stock" aria-label="庫存篩選與排序">
   <input type="hidden" name="scope" value="{{ selected.scope }}">
   <div class="inventory-filter inventory-filter--search">
     <label for="inventory-q">搜尋</label>
@@ -57,6 +57,13 @@
       <option value="">全部位置</option>
       <option value="store" {% if selected.store_selected %}selected{% endif %}>本店</option>
       {% for dealer in dealers %}<option value="dealer-{{ dealer.pk }}" {% if dealer.pk in selected.dealer_ids %}selected{% endif %}>{{ dealer.name }}</option>{% endfor %}
+    </select>
+  </div>
+  <div class="inventory-filter">
+    <label for="inventory-acquisition">車輛來源</label>
+    <select id="inventory-acquisition" name="acquisition" data-searchable-select="1" data-searchable-search-icon="1" data-search-placeholder="搜尋車輛來源">
+      <option value="">全部來源</option>
+      {% for value, label in acquisition_choices %}<option value="{{ value }}" {% if selected.acquisition == value %}selected{% endif %}>{{ label }}</option>{% endfor %}
     </select>
   </div>
   <div class="inventory-filter">
@@ -127,7 +134,7 @@
           </td>
           {% endif %}
           <td data-label="車型／車色"><strong>{{ vehicle.vehicle_model.name }}</strong><span>{{ vehicle.color.name }}</span></td>
-          <td data-label="識別號碼"><span class="inventory-identifier">{{ vehicle.identifier }}</span></td>
+          <td data-label="識別號碼"><span class="inventory-identifier">{{ vehicle.identifier }}</span>{% if vehicle.acquisition_type == 'dealer_transfer' %}<small class="inventory-acquisition" title="經銷商調車">{{ vehicle.acquisition_label }}</small>{% endif %}</td>
           <td data-label="狀態"><span class="status-pill status-{{ vehicle.status }}">{{ vehicle.get_status_display }}</span></td>
           <td data-label="實際位置"><strong>{{ vehicle.actual_location_label }}</strong></td>
           <td data-label="車況">

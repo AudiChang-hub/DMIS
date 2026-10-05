@@ -2542,6 +2542,11 @@ class VehicleInventory(TimeStampedModel):
         SOLD = "sold", "已售出"
         INACTIVE = "inactive", "停用"
 
+    class AcquisitionType(models.TextChoices):
+        # 車輛取得來源；與 current_dealer（目前放在哪個車行）無關。
+        COMPANY = "company", "公司進車"
+        DEALER_TRANSFER = "dealer_transfer", "經銷商調車"
+
     vehicle_model = models.ForeignKey(
         VehicleModel, on_delete=models.PROTECT, verbose_name="車型"
     )
@@ -2627,6 +2632,14 @@ class VehicleInventory(TimeStampedModel):
         # 1.35.2 起只寫入 True（人工開啟）或 None；help_text 保留原文以免產生空 migration。
         help_text="未設定時依出廠年月自動判斷；有值代表人員手動開啟或關閉。",
     )
+    acquisition_type = models.CharField(
+        "車輛來源", max_length=20, choices=AcquisitionType.choices,
+        default=AcquisitionType.COMPANY,
+    )
+    transfer_source_name = models.CharField(
+        "調車來源", max_length=120, blank=True,
+        help_text="經銷商調車時填寫跟哪一家經銷商調車。",
+    )
 
     class Meta:
         ordering = ["-received_on", "-id"]
@@ -2680,8 +2693,20 @@ class VehicleInventory(TimeStampedModel):
             and self.current_dealer.source_type != SalesSource.SourceType.DEALER
         ):
             errors["current_dealer"] = "實際位置只能選擇車行。"
+        self.transfer_source_name = (self.transfer_source_name or "").strip()
+        if self.acquisition_type == self.AcquisitionType.DEALER_TRANSFER:
+            if not self.transfer_source_name:
+                errors["transfer_source_name"] = "經銷商調車請填寫跟哪一家經銷商調車。"
+        else:
+            self.transfer_source_name = ""
         if errors:
             raise ValidationError(errors)
+
+    @property
+    def acquisition_label(self):
+        if self.acquisition_type == self.AcquisitionType.DEALER_TRANSFER:
+            return f"調車｜{self.transfer_source_name}"
+        return "公司進車"
 
     def save(self, *args, **kwargs):
         self.engine_number = self.engine_number.strip().upper() if self.engine_number else None

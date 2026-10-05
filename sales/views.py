@@ -4030,11 +4030,16 @@ INVENTORY_HISTORY_FIELDS = {
     "condition_resolution": "處理結果",
     "resale_price": "領牌車再售價",
     "status": "庫存狀態",
+    "acquisition": "車輛來源",
 }
 
 
 def _inventory_values(vehicle):
     return {
+        "acquisition": (
+            (vehicle.acquisition_type, vehicle.transfer_source_name),
+            vehicle.acquisition_label,
+        ),
         "vehicle_model": (vehicle.vehicle_model_id, str(vehicle.vehicle_model)),
         "color": (vehicle.color_id, vehicle.color.name),
         "engine_number": (vehicle.engine_number or "", vehicle.engine_number or "未填寫"),
@@ -7692,6 +7697,11 @@ def inventory_list(request):
         dict.fromkeys(value for value in request.GET.getlist("location") if value)
     )
     sort = request.GET.get("sort", "received_desc")
+    acquisition = request.GET.get("acquisition", "")
+    if acquisition in VehicleInventory.AcquisitionType.values:
+        vehicles = vehicles.filter(acquisition_type=acquisition)
+    else:
+        acquisition = ""
     selected_statuses = []
     status_values = set()
     for requested_status in requested_statuses:
@@ -7793,6 +7803,7 @@ def inventory_list(request):
             | Q(color__name__icontains=keyword)
             | Q(current_dealer__name__icontains=keyword)
             | Q(condition_note__icontains=keyword)
+            | Q(transfer_source_name__icontains=keyword)
         )
         if matching_statuses:
             query |= Q(status__in=matching_statuses)
@@ -7885,7 +7896,9 @@ def inventory_list(request):
                 "current_dealer": selected_dealer_id,
                 "sort": sort,
                 "scope": scope,
+                "acquisition": acquisition,
             },
+            "acquisition_choices": VehicleInventory.AcquisitionType.choices,
         },
     )
 
@@ -9275,8 +9288,27 @@ def inventory_create(request):
     return render(
         request,
         "sales/inventory_form.html",
-        {"form": form, "is_editing": False},
+        {
+            "form": form,
+            "is_editing": False,
+            "transfer_source_suggestions": _transfer_source_suggestions(),
+        },
     )
+
+
+def _transfer_source_suggestions():
+    """調車來源輸入提示：先前填過的經銷商名稱與啟用中的車行，去重後排序。"""
+    names = set(
+        VehicleInventory.objects.exclude(transfer_source_name="")
+        .values_list("transfer_source_name", flat=True)
+        .distinct()
+    )
+    names.update(
+        SalesSource.objects.filter(
+            source_type=SalesSource.SourceType.DEALER, active=True
+        ).values_list("name", flat=True)
+    )
+    return sorted(name.strip() for name in names if name and name.strip())
 
 
 @login_required
@@ -9313,6 +9345,8 @@ def inventory_quick_create(request):
                                 "manufactured_year_month", ""
                             ),
                             condition_note=form.cleaned_data.get("condition_note", ""),
+                            acquisition_type=form.cleaned_data["acquisition_type"],
+                            transfer_source_name=form.cleaned_data.get("transfer_source_name", ""),
                         )
                         if model.energy_type == VehicleModel.EnergyType.GAS:
                             vehicle.engine_number = identifier
@@ -9337,6 +9371,7 @@ def inventory_quick_create(request):
         "sales/inventory_quick_form.html",
         {
             "formset": formset,
+            "transfer_source_suggestions": _transfer_source_suggestions(),
             "energy_types": {
                 str(model.pk): model.energy_type
                 for model in VehicleModel.objects.filter(active=True)
@@ -9497,6 +9532,7 @@ def inventory_edit(request, pk):
             "form": form,
             "vehicle": vehicle,
             "is_editing": True,
+            "transfer_source_suggestions": _transfer_source_suggestions(),
             "core_fields_locked": form.core_fields_locked,
             "final_fields_locked": form.final_fields_locked,
             "inventory_history": inventory_history,

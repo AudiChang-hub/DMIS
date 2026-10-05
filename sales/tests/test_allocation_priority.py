@@ -43,15 +43,20 @@ class AllocationPriorityTests(TestCase):
         self.assertFalse(self.vehicle("AGE3", months_ago(3)).allocation_priority)
         self.assertFalse(self.vehicle("BLANK").allocation_priority)
 
-    def test_manual_override_wins_over_age(self):
-        old = self.vehicle("OLD", months_ago(8))
-        self.set_override(old, False)
-        self.assertFalse(old.allocation_priority)
-        self.assertEqual(old.allocation_priority_source_label, "人工")
+    def test_manual_on_stays_manual_after_aging_and_legacy_off_is_ignored(self):
         fresh = self.vehicle("FRESH", months_ago(0))
         self.set_override(fresh, True)
         self.assertTrue(fresh.allocation_priority)
-
+        self.assertEqual(fresh.allocation_priority_source_label, "人工")
+        # 人工開啟起頭的車到期後仍為人工。
+        aged_manual = self.vehicle("AGED-MANUAL", months_ago(8))
+        self.set_override(aged_manual, True)
+        self.assertEqual(aged_manual.allocation_priority_source_label, "人工")
+        # 超過門檻一律優先：舊版留下的人工關閉值不再生效。
+        legacy_off = self.vehicle("LEGACY-OFF", months_ago(8))
+        self.set_override(legacy_off, False)
+        self.assertTrue(legacy_off.allocation_priority)
+        self.assertEqual(legacy_off.allocation_priority_source_label, "自動")
     def test_dropdown_lists_priority_first_then_oldest_with_blank_last(self):
         order = self.clean_pending_order()
         blank = self.vehicle("BLANK")
@@ -97,34 +102,64 @@ class AllocationPriorityTests(TestCase):
 
     def test_choosing_manual_priority_over_older_normal_vehicle_needs_no_reason(self):
         order = self.clean_pending_order()
-        old_normal = self.vehicle("OLD", months_ago(7))
-        self.set_override(old_normal, False)
+        self.vehicle("OLDER-NORMAL", months_ago(2))
         manual = self.vehicle("MANUAL", months_ago(0))
         self.set_override(manual, True)
         form = AllocationForm(order, {"vehicle": manual.pk})
         self.assertTrue(form.is_valid(), form.errors)
         self.assertEqual(form.cleaned_data["skip_notes"], [])
 
-    def test_toggle_records_manual_override_and_returns_to_auto(self):
-        old = self.vehicle("TOGGLE", months_ago(6))
-        self.client.force_login(self.user)
-        url = reverse("inventory_allocation_priority", args=[old.pk])
-        response = self.client.post(url, {"priority": "0"}, HTTP_X_REQUESTED_WITH="XMLHttpRequest")
-        self.assertEqual(response.json()["priority"], False)
-        self.assertEqual(response.json()["source"], "人工")
-        old.refresh_from_db()
-        self.assertIs(old.allocation_priority_override, False)
-        history = VehicleInventoryHistory.objects.get(vehicle=old, reason="切換優先配車")
-        self.assertEqual(history.changes["allocation_priority"]["before"], "開啟（自動）")
-        self.assertEqual(history.changes["allocation_priority"]["after"], "關閉（人工）")
+    def toggle(self, vehicle, value):
+        return self.client.post(
+            reverse("inventory_allocation_priority", args=[vehicle.pk]),
+            {"priority": value},
+            HTTP_X_REQUESTED_WITH="XMLHttpRequest",
+        )
 
-        response = self.client.post(url, {"priority": "1", "next": reverse("inventory_list")})
-        self.assertRedirects(response, reverse("inventory_list"), fetch_redirect_response=False)
+    def test_aged_vehicle_cannot_be_turned_off(self):
+        old = self.vehicle("AGED", months_ago(6))
+        self.client.force_login(self.user)
+        response = self.toggle(old, "0")
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("不能關閉", response.json()["message"])
+        self.assertEqual(self.toggle(old, "1").json()["source"], "自動")
         old.refresh_from_db()
         self.assertIsNone(old.allocation_priority_override)
-        self.assertTrue(old.allocation_priority)
-        self.assertEqual(VehicleInventoryHistory.objects.filter(vehicle=old, reason="切換優先配車").count(), 2)
+        self.assertFalse(VehicleInventoryHistory.objects.filter(vehicle=old, reason="切換優先配車").exists())
 
+    def test_manual_on_then_off_returns_to_auto_when_aged(self):
+        # 規則一：人工開啟後又關閉，到期自動開啟並標示「自動」。
+        car = self.vehicle("RULE1", months_ago(1))
+        self.client.force_login(self.user)
+        self.assertEqual(self.toggle(car, "1").json()["source"], "人工")
+        response = self.toggle(car, "0")
+        self.assertEqual(response.json()["priority"], False)
+        car.refresh_from_db()
+        self.assertIsNone(car.allocation_priority_override)
+        entries = VehicleInventoryHistory.objects.filter(vehicle=car, reason="切換優先配車").order_by("pk")
+        self.assertEqual(
+            [(h.changes["allocation_priority"]["before"], h.changes["allocation_priority"]["after"]) for h in entries],
+            [("關閉", "開啟（人工）"), ("開啟（人工）", "關閉")],
+        )
+        VehicleInventory.objects.filter(pk=car.pk).update(manufactured_year_month=months_ago(6))
+        car.refresh_from_db()
+        self.assertTrue(car.allocation_priority)
+        self.assertEqual(car.allocation_priority_source_label, "自動")
+
+    def test_manual_on_off_on_stays_manual_and_locks_when_aged(self):
+        # 規則二、三：人工開啟（含關掉再開）到期後仍為人工，且不能再關閉。
+        car = self.vehicle("RULE2", months_ago(1))
+        self.client.force_login(self.user)
+        self.toggle(car, "1")
+        self.toggle(car, "0")
+        self.toggle(car, "1")
+        VehicleInventory.objects.filter(pk=car.pk).update(manufactured_year_month=months_ago(6))
+        car.refresh_from_db()
+        self.assertTrue(car.allocation_priority)
+        self.assertEqual(car.allocation_priority_source_label, "人工")
+        self.assertEqual(self.toggle(car, "0").status_code, 400)
+        car.refresh_from_db()
+        self.assertIs(car.allocation_priority_override, True)
     def test_toggle_manually_enables_vehicle_younger_than_threshold(self):
         # 正式站 1.35.0 曾因鎖定含 LEFT JOIN 的查詢在 PostgreSQL 回 500；CI 以 PostgreSQL 執行本檔。
         fresh = self.vehicle("FRESH-ON", months_ago(1))
@@ -168,5 +203,7 @@ class AllocationPriorityTests(TestCase):
         self.assertEqual(html.count("data-priority-source"), 2)
         self.assertEqual(html.count("hidden>自動</small>"), 1)
         self.assertEqual(html.count('系統自動開啟">自動</small>'), 1)
+        # 超過門檻的開關鎖定不能關閉。
+        self.assertEqual(html.count("data-priority-locked"), 1)
         history = self.client.get(reverse("inventory_list"), {"scope": "history"})
         self.assertNotContains(history, "優先配車規則")

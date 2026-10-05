@@ -86,7 +86,7 @@
   {% if selected.scope == 'current' %}
   <aside class="inventory-priority-rule" aria-label="優先配車規則">
     <span class="inventory-priority-rule__mark" aria-hidden="true">★</span>
-    <p><strong>優先配車規則</strong>出廠年月超過 {{ priority_age_months }} 個月（目前為 {{ priority_cutoff }} 以前出廠）系統自動開啟並標示「自動」；人員可隨時手動開關，手動設定會標示「人工」，切回與車齡判斷相同的狀態即恢復自動判斷。訂單配車時，優先配車的車輛排在選單最上面。</p>
+    <p><strong>優先配車規則</strong>出廠年月超過 {{ priority_age_months }} 個月（目前為 {{ priority_cutoff }} 以前出廠）系統自動開啟並標示「自動」，且不能關閉。未滿 {{ priority_age_months }} 個月的車可由人員手動開啟並標示「人工」，到期後仍為「人工」；手動關閉後改回依車齡判斷，到期自動開啟。訂單配車時，優先配車的車輛排在選單最上面。</p>
   </aside>
   {% endif %}
   <div class="inventory-table-wrap" tabindex="0" aria-label="車輛庫存清單，可左右捲動查看完整欄位">
@@ -111,17 +111,19 @@
           <td data-label="出廠年月">{{ vehicle.manufactured_year_month|default:"未填寫" }}</td>
           {% if selected.scope == 'current' %}
           <td data-label="優先配車" class="inventory-priority-cell">
+            {% with locked=vehicle.allocation_priority_auto manual=vehicle.allocation_priority_override %}
             <form class="source-active-toggle-form inventory-priority-form" method="post" action="{% url 'inventory_allocation_priority' vehicle.pk %}" data-inventory-priority-toggle data-allow-multiple-submit="true">
               {% csrf_token %}
               <input type="hidden" name="priority" value="{{ vehicle.effective_allocation_priority|yesno:'0,1' }}">
               <input type="hidden" name="next" value="{{ request.get_full_path }}">
-              <button class="source-active-toggle inventory-priority-toggle{% if vehicle.effective_allocation_priority %} is-active{% endif %}" type="submit" role="switch" aria-checked="{{ vehicle.effective_allocation_priority|yesno:'true,false' }}" aria-label="優先配車 {{ vehicle.identifier }}" {% if screen_read_only %}disabled aria-disabled="true"{% endif %}>
+              <button class="source-active-toggle inventory-priority-toggle{% if vehicle.effective_allocation_priority %} is-active{% endif %}" type="submit" role="switch" aria-checked="{{ vehicle.effective_allocation_priority|yesno:'true,false' }}" aria-label="優先配車 {{ vehicle.identifier }}{% if locked %}（出廠超過 {{ priority_age_months }} 個月，不能關閉）{% endif %}"{% if locked %} title="出廠超過 {{ priority_age_months }} 個月，一律優先配車，不能關閉" data-priority-locked{% endif %} {% if screen_read_only or locked %}disabled aria-disabled="true"{% endif %}>
                 <span class="source-active-toggle__track" aria-hidden="true"><span></span></span>
                 <span class="source-active-toggle__label" data-priority-label>{% if vehicle.effective_allocation_priority %}優先{% else %}一般{% endif %}</span>
               </button>
-              {# 「自動」只在因車齡自動開啟時出現；人工設定不論開關都標示，說明為何與車齡判斷不同。 #}
-              <small class="inventory-priority-source{% if vehicle.allocation_priority_override is not None %} is-manual{% endif %}" data-priority-source title="{% if vehicle.allocation_priority_override is None %}出廠超過 {{ priority_age_months }} 個月，系統自動開啟{% else %}人員手動設定{% endif %}"{% if vehicle.allocation_priority_override is None and not vehicle.effective_allocation_priority %} hidden{% endif %}>{{ vehicle.allocation_priority_source_label }}</small>
+              {# 標籤只在開啟時出現：人工開啟起頭為「人工」，因車齡自動開啟為「自動」。 #}
+              <small class="inventory-priority-source{% if manual %} is-manual{% endif %}" data-priority-source title="{% if manual %}人員手動開啟{% else %}出廠超過 {{ priority_age_months }} 個月，系統自動開啟{% endif %}"{% if not vehicle.effective_allocation_priority %} hidden{% endif %}>{{ vehicle.allocation_priority_source_label }}</small>
             </form>
+            {% endwith %}
           </td>
           {% endif %}
           <td data-label="車型／車色"><strong>{{ vehicle.vehicle_model.name }}</strong><span>{{ vehicle.color.name }}</span></td>

@@ -3277,6 +3277,8 @@ input[type="file"].form-control { padding: var(--space-3); }
 }
 .inventory-priority-toggle.is-active .source-active-toggle__track { background: var(--amber); }
 .inventory-priority-toggle:disabled { cursor: not-allowed; opacity: .58; transform: none; }
+/* 超過門檻月數鎖定為優先：保持完整顏色，只是不能點。 */
+.inventory-priority-toggle[data-priority-locked]:disabled { opacity: 1; }
 .inventory-table .inventory-priority-source {
   display: inline-flex; padding: 1px var(--space-2); color: var(--muted);
   border: 1px dashed var(--line); border-radius: var(--radius-pill);

@@ -1,0 +1,1 @@
+<label class="delivery-confirm-check{% if confirmed_at %} is-confirmed{% endif %}">{{ field }}<span><strong>{{ field.label }}</strong>{% if confirmed_at %}<small>{{ confirmed_by|default:"—" }} 於 {{ confirmed_at|date:"Y/m/d H:i" }} 確認</small>{% else %}<small>交車前必須勾選</small>{% endif %}</span></label>

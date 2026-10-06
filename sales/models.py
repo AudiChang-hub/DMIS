@@ -3633,6 +3633,10 @@ class SalesOrder(TimeStampedModel):
         from sales.services.customer_receivable import customer_balance
         return customer_balance(self)
 
+    @property
+    def is_electric_vehicle(self):
+        return bool(self.vehicle_model_id and self.vehicle_model.energy_type != VehicleModel.EnergyType.GAS)
+
     def delivery_blockers(self, summary=None, ignore_balance=False):
         """交車前的全部硬性檢查；畫面按鈕與 complete_delivery 共用同一份判斷。
 
@@ -3648,6 +3652,11 @@ class SalesOrder(TimeStampedModel):
             blockers.append("折扣申請尚待確認，確認或退回後才能交車。")
         if self.payment_type == self.PaymentType.INSTALLMENT and self.installment_status != self.InstallmentStatus.APPROVED:
             blockers.append(f"分期目前為「{self.get_installment_status_display()}」，須核准後才能交車。")
+        profile = getattr(self, "operations", None)
+        if self.is_electric_vehicle and not (profile and profile.vehicle_control_confirmed_at):
+            blockers.append("電動車須先在「交車前確認」勾選「車控與電池合約已確認」。")
+        if not (profile and profile.fulfillment_confirmed_at):
+            blockers.append("請先在「交車前確認」勾選「贈品與履約已確認」。")
         from sales.services.payment_summary import payment_summary
         summary = summary or payment_summary(self)
         if self.source_type != self.SourceType.DEALER:
@@ -4272,6 +4281,10 @@ class OrderOperationsProfile(TimeStampedModel):
     other_fulfillment = models.TextField("其他", blank=True)
     platform_gift = models.CharField("平台贈品", max_length=250, blank=True)
     customer_service_phone = models.CharField("客服電話", max_length=50, blank=True)
+    vehicle_control_confirmed_at = models.DateTimeField("車控與電池合約確認時間", blank=True, null=True, editable=False)
+    vehicle_control_confirmed_by = models.CharField("車控與電池合約確認人", max_length=150, blank=True, editable=False)
+    fulfillment_confirmed_at = models.DateTimeField("贈品與履約確認時間", blank=True, null=True, editable=False)
+    fulfillment_confirmed_by = models.CharField("贈品與履約確認人", max_length=150, blank=True, editable=False)
     installment_info = models.TextField("分期資訊", blank=True)
     updated_by = models.CharField("最後更新人員", max_length=150, blank=True)
 

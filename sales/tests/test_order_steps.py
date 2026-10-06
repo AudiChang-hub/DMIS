@@ -101,7 +101,12 @@ class OrderStepTests(TestCase):
         self.assertIn("進階：成本、獎勵與傭金", finance)
         self.assertIn('name="_section" value="finance"', finance)
         self.assertNotIn("車控與電池合約", finance)
-        self.assertIn("車控與電池合約", page.split('id="panel-delivery"', 1)[1].split('id="panel-subsidy"', 1)[0])
+        delivery = page.split('id="panel-delivery"', 1)[1].split('id="panel-subsidy"', 1)[0]
+        # 交車前確認放在交車表單上方；油車不顯示車控與電池合約。
+        self.assertIn("交車前確認", delivery)
+        self.assertIn("贈品與履約", delivery)
+        self.assertNotIn("車控與電池合約", delivery)
+        self.assertLess(delivery.index("交車前確認"), delivery.index("車輛交付"))
 
     def test_delivery_collects_balance_in_one_submission(self):
         order, vehicle = self.registered_v2()

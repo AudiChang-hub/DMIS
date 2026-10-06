@@ -25,6 +25,19 @@ from sales.models import (
 from sales.services.business_days import add_business_days, build_dealer_reminders
 
 
+
+def confirm_delivery_prep(order):
+    """交車前確認（車控與電池合約、贈品與履約）已勾選，讓交車流程測試聚焦其他條件。"""
+    from django.utils import timezone
+    from sales.models import OrderOperationsProfile
+
+    OrderOperationsProfile.objects.update_or_create(order=order, defaults={
+        "vehicle_control_confirmed_at": timezone.now(), "vehicle_control_confirmed_by": "測試",
+        "fulfillment_confirmed_at": timezone.now(), "fulfillment_confirmed_by": "測試",
+    })
+    if hasattr(order, "_state") and "operations" in order._state.fields_cache:
+        del order._state.fields_cache["operations"]
+
 class BusinessDayTests(TestCase):
     def test_weekend_and_holiday_are_excluded(self):
         BusinessHoliday.objects.create(
@@ -92,6 +105,7 @@ class OrderLifecycleTests(TestCase):
             location_store=self.store,
         )
         order.allocate(vehicle)
+        confirm_delivery_prep(order)
         return order, vehicle
 
     def delivery_payload(self, method=SalesOrder.DeliveryMethod.STORE_PICKUP):

@@ -5621,6 +5621,16 @@ def order_operations(request, pk):
                 )
             if battery_secret:
                 profile.battery_password_encrypted = encrypt_secret(battery_secret)
+            for flag, prefix in (("vehicle_control_confirmed", "vehicle_control"), ("fulfillment_confirmed", "fulfillment")):
+                if flag not in form.fields or form.fields[flag].disabled:
+                    continue
+                checked = bool(form.cleaned_data.get(flag))
+                if checked and not getattr(profile, f"{prefix}_confirmed_at"):
+                    setattr(profile, f"{prefix}_confirmed_at", timezone.now())
+                    setattr(profile, f"{prefix}_confirmed_by", _editing_name(request.user))
+                elif not checked:
+                    setattr(profile, f"{prefix}_confirmed_at", None)
+                    setattr(profile, f"{prefix}_confirmed_by", "")
             profile.updated_by = _editing_name(request.user)
             profile.save()
             payments = payment_formset.save() if payment_formset is not None else []

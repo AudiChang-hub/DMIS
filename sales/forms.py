@@ -2842,13 +2842,18 @@ class OrderOperationsForm(forms.ModelForm):
     FULFILLMENT_SECTION_FIELDS = {
         "vehicle_control_account", "vehicle_control_password", "battery_plan", "battery_activated_on",
         "battery_account", "battery_password", "helmet", "company_gift_or_remittance", "platform_gift",
-        "other_fulfillment", "customer_service_phone",
+        "other_fulfillment", "customer_service_phone", "vehicle_control_confirmed", "fulfillment_confirmed",
     }
     SECTION_COMMON_FIELDS = {"financial_revision", "change_reason"}
 
     def __init__(self, *args, section=None, **kwargs):
         super().__init__(*args, **kwargs)
         self.section = section
+        # 交車前確認：承辦人勾選即完成，確認人與時間由畫面送出時記錄。
+        self.fields["vehicle_control_confirmed"] = forms.BooleanField(
+            label="車控與電池合約已確認", required=False, initial=bool(self.instance.vehicle_control_confirmed_at))
+        self.fields["fulfillment_confirmed"] = forms.BooleanField(
+            label="贈品與履約已確認（沒有贈品也請勾選）", required=False, initial=bool(self.instance.fulfillment_confirmed_at))
         if section == "subsidy":
             keep = self.SUBSIDY_SECTION_FIELDS | self.SECTION_COMMON_FIELDS
         elif section == "fulfillment":

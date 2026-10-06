@@ -6813,3 +6813,16 @@ main { animation: page-fade var(--dur-3) var(--ease-out); }
   .deletion-review-card__actions .button { flex: 1; }
 }
 @media (prefers-reduced-motion: reduce) { .deletion-review-card { transition: none; } .deletion-review-card:hover { transform: none; } }
+
+/* 交車前確認：車控與電池合約（電動車）、贈品與履約，勾選即完成並記錄確認人。 */
+.delivery-prep { margin-bottom: var(--stack-gap); }
+.delivery-prep .operation-section + .operation-section { margin-top: var(--space-3); }
+.delivery-confirm-check {
+  display: flex; margin: var(--space-3) var(--space-4) var(--space-4); padding: var(--space-3) var(--space-4); align-items: center; gap: var(--space-3);
+  background: var(--surface-soft); border: 1px solid var(--line); border-radius: var(--radius-md); cursor: pointer;
+}
+.delivery-confirm-check input { width: 20px; height: 20px; margin: 0; flex: none; }
+.delivery-confirm-check span { display: grid; gap: var(--space-1); }
+.delivery-confirm-check small { color: var(--muted); font-size: var(--text-xs); }
+.delivery-confirm-check.is-confirmed { background: color-mix(in srgb, var(--green) 9%, var(--surface)); border-color: var(--green-border); }
+.delivery-confirm-check.is-confirmed small { color: var(--green-ink); }

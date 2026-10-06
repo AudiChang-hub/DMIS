@@ -55,6 +55,26 @@ def _back_target(context, policy):
     return reverse("data_maintenance"), "資料維護區"
 
 
+STATUS_UNITS = {
+    "prices": "售價版本", "installments": "分期方案版本", "costs": "成本版本", "incentives": "獎勵版本",
+}
+
+
+def _apply_status(tab, vehicle_model, price_missing):
+    """分頁只標示已設定／未設定，細節放在提示文字，避免把版本數誤認為金額或筆數。"""
+    count = tab["count"]
+    if tab["key"] == "commission":
+        base = vehicle_model.base_dealer_commission or 0
+        configured = base > 0 or count > 0
+        tab["detail"] = f"基礎傭金 {base:,.0f} 元；附加獎勵 {count} 個版本"
+    else:
+        configured = count > 0
+        tab["detail"] = f"{count} 個{STATUS_UNITS.get(tab['key'], '版本')}"
+        if tab["key"] == "prices" and price_missing:
+            tab["detail"] += "；今天沒有有效售價"
+    tab["status"] = "set" if configured else "unset"
+
+
 @register.simple_tag(takes_context=True)
 def vehicle_model_workspace(context, vehicle_model, active):
     request = context["request"]
@@ -64,7 +84,8 @@ def vehicle_model_workspace(context, vehicle_model, active):
     for key, label, route, kwarg, related in TABS:
         if key != active and not policy.route(route):
             continue
-        tab = {"key": key, "label": label, "current": key == active, "url": "", "hint": "", "count": None}
+        tab = {"key": key, "label": label, "current": key == active, "url": "", "hint": "", "count": None,
+               "status": "", "detail": ""}
         if not saved:
             tab["hint"] = "" if key == "spec" else UNSAVED_HINT
         elif key == "catalog" and not vehicle_model.active:
@@ -81,6 +102,8 @@ def vehicle_model_workspace(context, vehicle_model, active):
         price_missing = resolve_vehicle_price_version(vehicle_model.pk, timezone.localdate()) is None
     for tab in tabs:
         tab["attention"] = tab["key"] == "prices" and price_missing
+        if tab["count"] is not None:
+            _apply_status(tab, vehicle_model, price_missing)
     back_url, back_label = _back_target(context, policy)
     current = next((tab for tab in tabs if tab["current"]), None)
     return {

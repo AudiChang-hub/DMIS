@@ -369,7 +369,7 @@ class OrderFlowTests(TestCase):
         self.assertEqual(response.status_code, 200)
         installment_url = reverse("vehicle_installment_plan_list", args=[self.model.pk])
         self.assertContains(response, f'href="{installment_url}"')
-        self.assertContains(response, "（2 筆版本）")
+        self.assertContains(response, "（已設定：2 個分期方案版本）")
         response = self.client.get(installment_url)
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "和潤")

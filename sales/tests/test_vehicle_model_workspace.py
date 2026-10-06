@@ -274,3 +274,12 @@ class VehicleModelWorkspaceTests(TestCase):
         self.assertRedirects(response, reverse("settlement_cost_rule_list"), fetch_redirect_response=False)
         self.assertFalse(VehicleSettlementCostRule.objects.exists())
         self.assertEqual(self.client.get(reverse("incentive_rule_create")).status_code, 200)
+
+    def test_tab_status_shows_set_or_unset_instead_of_counts(self):
+        VehicleModel.objects.filter(pk=self.model.pk).update(base_dealer_commission=2000)
+        page = self.client.get(reverse("vehicle_model_commission", args=[self.model.pk])).content.decode()
+        # 基礎傭金有值、沒有附加獎勵時，傭金分頁仍算已設定。
+        self.assertIn("基礎傭金 2,000 元；附加獎勵 0 個版本", page)
+        self.assertIn("（已設定：基礎傭金 2,000 元；附加獎勵 0 個版本）", page)
+        self.assertIn("（未設定：0 個獎勵版本）", page)
+        self.assertNotIn("筆版本）", page)

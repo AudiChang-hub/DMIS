@@ -3,9 +3,9 @@
 {% block page_class %}page-shell--wide{% endblock %}
 {% block head %}{% if any_running %}<meta http-equiv="refresh" content="5">{% endif %}{% endblock %}
 {% block content %}
-{% url 'catalog_manage' as catalog_manage_url %}{% include "sales/_page_back.html" with fallback_url=catalog_manage_url label="選車展示管理" %}
+{% url 'vehicle_model_list' as vehicle_model_list_url %}{% include "sales/_page_back.html" with fallback_url=vehicle_model_list_url label="機種與售價" %}
 <section class="hero-row compact-hero">
-  <div><p class="eyebrow">選車展示管理</p><h1>原廠車型比對</h1><p class="muted">讀取原廠官網的車型、車色與圖片，和系統車型比對。只補上空白的車色圖片、建立停用的新車型或新年式，不修改既有車型、售價或訂單。</p></div>
+  <div><p class="eyebrow">機種與售價</p><h1>原廠車型比對</h1><p class="muted">讀取原廠官網的車型、車色與圖片，和系統車型比對。只補上空白的車色圖片、建立停用的新車型或新年式，不修改既有車型、售價或訂單。</p></div>
   <div class="hero-actions">
     <form method="post" action="{% url 'official_catalog_check_start' %}">{% csrf_token %}<input type="hidden" name="brand" value="{{ brand }}"><button class="button secondary"{% if running %} disabled{% endif %}>只檢查 {{ brand|upper }}</button></form>
     <form method="post" action="{% url 'official_catalog_check_start' %}">{% csrf_token %}<input type="hidden" name="brand" value="all"><input type="hidden" name="return_brand" value="{{ brand }}"><button class="button primary"{% if any_running %} disabled{% endif %}>兩家一起檢查</button></form>

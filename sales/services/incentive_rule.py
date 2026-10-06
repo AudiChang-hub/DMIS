@@ -55,7 +55,11 @@ def apply_order_incentive_rule(order, actor_name="", *, lock=False):
     protected_fields = set(profile.manual_financial_fields or [])
     for field_name in INCENTIVE_FIELDS:
         if field_name not in protected_fields:
-            setattr(profile, field_name, getattr(rule, field_name) if rule else 0)
+            value = getattr(rule, field_name) if rule else 0
+            # 促銷補助金只有網路平台訂單才有；其他來源帶 0，仍可人工更正。
+            if field_name == "promotion_subsidy" and order.source_type != order.SourceType.PLATFORM:
+                value = 0
+            setattr(profile, field_name, value)
     calculated_disbursement = _calculated_disbursement(order)
     if (
         calculated_disbursement is not None

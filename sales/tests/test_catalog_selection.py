@@ -131,10 +131,8 @@ class CatalogSelectionTests(TestCase):
         VehicleColor.objects.create(vehicle_model=other, name="黑")
         VehicleCatalogEntry.objects.update_or_create(vehicle_model=other, defaults=dict(published=False))[0]
         public = self.client.get(reverse("catalog"))
-        manage = self.client.get(reverse("catalog_manage"), {"energy": "electric"})
         self.assertNotIn("另一品牌", public.context["brands"])
-        self.assertEqual(list(manage.context["page_obj"]), [other])
-        for route in ("catalog", "catalog_manage"):
+        for route in ("catalog",):
             page = self.client.get(reverse(route))
             body = page.content.decode()
             indexes = [body.index(f'name="{field}"') for field in ("brand", "model_name", "model_number", "energy")]

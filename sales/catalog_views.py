@@ -255,18 +255,8 @@ class CatalogForm(forms.ModelForm):
 @root_required
 @require_safe
 def catalog_manage(request):
-    active_models = VehicleModel.objects.filter(active=True)
-    models, filters = catalog_filters(active_models.select_related("catalog_entry"), request)
-    return render(
-        request,
-        "sales/catalog_manage.html",
-        {
-            **filters,
-            "page_obj": Paginator(models.order_by("brand", "name", "pk"), 20).get_page(
-                request.GET.get("page")
-            ),
-        },
-    )
+    """舊入口：上架改跟著機種啟用，圖片與介紹改由機種編輯頁進入。"""
+    return redirect("vehicle_model_list")
 
 
 @root_required
@@ -333,7 +323,7 @@ def catalog_edit(request, pk):
                     },
                 )
                 messages.success(request, "車款展示已儲存；上架且啟用的車款才會公開。")
-                return redirect("catalog_manage")
+                return redirect("vehicle_model_edit", pk=pk)
     return render(
         request,
         "sales/catalog_edit.html",

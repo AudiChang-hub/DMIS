@@ -510,6 +510,21 @@ urlpatterns = [
         name="vehicle_model_commission",
     ),
     path(
+        "data/vehicle-models/<int:model_pk>/settlement-costs/",
+        views.vehicle_model_settlement_costs,
+        name="vehicle_model_settlement_costs",
+    ),
+    path(
+        "data/vehicle-models/<int:model_pk>/incentives/",
+        views.vehicle_model_incentives,
+        name="vehicle_model_incentives",
+    ),
+    path(
+        "data/vehicle-models/<int:model_pk>/rules/",
+        views.vehicle_model_rules,
+        name="vehicle_model_rules",
+    ),
+    path(
         "data/accessories/",
         views.accessory_product_list,
         name="accessory_product_list",

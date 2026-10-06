@@ -145,29 +145,16 @@ def calculate_registration_fee(displacement_cc, registration_date, period_years)
     )
 
 
-def resolve_brand_registration_rule(vehicle_model, registration_date, period_years):
+def brand_registration_rule_candidates(vehicle_model):
+    """品牌、能源別、排氣量／領牌級別符合此車型的規則；不限日期、年期與啟用。"""
     energy_types = [vehicle_model.energy_type]
     if vehicle_model.energy_type == VehicleModel.EnergyType.LIGHT_ELECTRIC:
         # 相容既有以「電動車＋輕型級別」建立的規則；若另有輕型電動車
         # 專屬規則，仍優先採用專屬版本。
         energy_types.append(VehicleModel.EnergyType.ELECTRIC)
-    rules = (
-        BrandRegistrationFeeRule.objects.filter(
-            brand__iexact=vehicle_model.brand,
-            energy_type__in=energy_types,
-            active=True,
-            effective_from__lte=registration_date,
-        )
-        .filter(Q(effective_to__isnull=True) | Q(effective_to__gte=registration_date))
-        .filter(
-            Q(
-                calculation_type__in=(
-                    BrandRegistrationFeeRule.CalculationType.FORMULA,
-                    BrandRegistrationFeeRule.CalculationType.MANUAL,
-                )
-            )
-            | Q(insurance_period_years=period_years)
-        )
+    rules = BrandRegistrationFeeRule.objects.filter(
+        brand__iexact=vehicle_model.brand,
+        energy_type__in=energy_types,
     )
     if vehicle_model.energy_type == VehicleModel.EnergyType.GAS:
         rules = rules.filter(
@@ -182,6 +169,24 @@ def resolve_brand_registration_rule(vehicle_model, registration_date, period_yea
         rules = rules.filter(
             electric_registration_class=vehicle_model.electric_registration_class
         )
+    return rules
+
+
+def resolve_brand_registration_rule(vehicle_model, registration_date, period_years):
+    rules = (
+        brand_registration_rule_candidates(vehicle_model)
+        .filter(active=True, effective_from__lte=registration_date)
+        .filter(Q(effective_to__isnull=True) | Q(effective_to__gte=registration_date))
+        .filter(
+            Q(
+                calculation_type__in=(
+                    BrandRegistrationFeeRule.CalculationType.FORMULA,
+                    BrandRegistrationFeeRule.CalculationType.MANUAL,
+                )
+            )
+            | Q(insurance_period_years=period_years)
+        )
+    )
     if vehicle_model.energy_type == VehicleModel.EnergyType.LIGHT_ELECTRIC:
         rules = rules.annotate(
             energy_priority=Case(

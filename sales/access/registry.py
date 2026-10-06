@@ -93,6 +93,8 @@ register("inventory", "inventory_create inventory_quick_create inventory_edit in
 register("brands", "vehicle_brand_list")
 register("models", "vehicle_model_list vehicle_model_price_versions vehicle_installment_plan_list vehicle_model_rules")
 register("models", "vehicle_model_create vehicle_model_edit", "operate")
+# 沿用建立與批次調整：查看需機種畫面、送出需機種操作；各項資料另依其畫面的操作權限把關。
+register("models", "vehicle_model_copy vehicle_model_batch")
 register("commissions", "dealer_sales_program_list vehicle_model_commission")
 register("accessories", "accessory_product_list")
 register("accessories", "accessory_product_create accessory_product_edit", "operate")

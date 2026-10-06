@@ -1,0 +1,20 @@
+{% load sales_format %}
+<section class="dealer-settlement is-{{ settlement.direction }}{% if compact %} dealer-settlement--compact{% endif %}" aria-label="車行結算" data-dealer-settlement data-settlement-base="{{ settlement.base_without_commission|stringformat:'d' }}">
+  <header class="dealer-settlement__head">
+    <div>
+      <p class="dealer-settlement__eyebrow">車行結算 · {{ settlement.mode_label }}</p>
+      <h3>{{ settlement.dealer.name }}</h3>
+    </div>
+    <p class="dealer-settlement__result" aria-live="polite"><span data-settlement-label>{{ settlement.label }}</span><strong data-settlement-amount{% if settlement.direction == 'none' %} hidden{% endif %}>${{ settlement.amount|number_with_commas }}</strong></p>
+  </header>
+  <ol class="dealer-settlement__formula">
+    {% for term in settlement.terms %}
+    <li class="{% if term.sign < 0 %}is-minus{% else %}is-plus{% endif %}"{% if term.key == 'commission' %} data-settlement-commission{% endif %}>
+      <span class="dealer-settlement__op" aria-hidden="true">{% if forloop.first %}{% elif term.sign < 0 %}−{% else %}＋{% endif %}</span>
+      <span class="dealer-settlement__term">{{ term.label }}</span>
+      <strong>{% if forloop.first and term.sign < 0 %}−{% endif %}$<output data-settlement-term="{{ term.key }}">{{ term.amount|number_with_commas }}</output></strong>
+    </li>
+    {% endfor %}
+  </ol>
+  <p class="dealer-settlement__note">{% if settlement.installment %}分期單車款由分期公司撥款，只結算配件與傭金。{% else %}原現金價不扣已核准優惠。{% endif %}正數向車行收、負數付給車行；只供對帳參考，不會自動登記收款或掛帳。</p>
+</section>

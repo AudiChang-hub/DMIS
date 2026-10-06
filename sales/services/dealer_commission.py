@@ -94,19 +94,65 @@ def _apply_bonus_expense(order):
     return profile
 
 
+COMMISSION_SNAPSHOT_FIELDS = (
+    "dealer_commission_base",
+    "dealer_commission_adjustment",
+    "dealer_commission_policy",
+    "dealer_commission_registration_date",
+    "dealer_commission_expense",
+    "dealer_commission_locked_at",
+)
+
+
+def _commission_state(profile):
+    return {
+        name: getattr(profile, "dealer_commission_policy_id" if name == "dealer_commission_policy" else name)
+        for name in COMMISSION_SNAPSHOT_FIELDS
+    }
+
+
+def _save_commission(profile, before, created):
+    """只在傭金快照實際變動時儲存，避免無變更的同步改到營運表單的版本戳。"""
+    after = _commission_state(profile)
+    changed = [name for name in COMMISSION_SNAPSHOT_FIELDS if after[name] != before[name]]
+    if created:
+        profile.save()
+    elif changed:
+        profile.save(update_fields=[*changed, "updated_at"])
+    return profile
+
+
+def store_staff_commission(order):
+    """本店人員傭金：本店訂單、來源為本店人員且未指定歸屬車行時，帶入該人員設定的傭金。
+
+    指定給其他車行的本店單沿用既有規則：台數與台數獎金歸該車行，不新增基礎傭金，
+    也不再付本店人員傭金。
+    """
+    if order.source_type != SalesOrder.SourceType.STORE or not order.source_id or order.commission_recipient_id:
+        return Decimal("0")
+    source = order.source
+    if source.source_type != SalesSource.SourceType.STORE:
+        return Decimal("0")
+    return source.staff_commission or Decimal("0")
+
+
 def apply_order_dealer_commission(order, *, lock=False):
-    profile, _ = OrderOperationsProfile.objects.get_or_create(order=order)
+    profile, created = OrderOperationsProfile.objects.get_or_create(order=order)
     if profile.dealer_commission_locked_at:
         return _apply_bonus_expense(order)
+    before = _commission_state(profile)
     if order.source_type != SalesOrder.SourceType.DEALER or not order.source_id:
         if "dealer_commission_expense" not in profile.manual_financial_fields:
-            profile.dealer_commission_base = 0
+            base = store_staff_commission(order)
+            profile.dealer_commission_base = base
             profile.dealer_commission_adjustment = 0
             profile.dealer_commission_policy = None
             profile.dealer_commission_registration_date = order.registration_date
-            profile.dealer_commission_expense = dealer_volume_bonus_total(order)
-        profile.save()
-        return profile
+            profile.dealer_commission_expense = base + dealer_volume_bonus_total(order)
+        if lock and order.source_type == SalesOrder.SourceType.STORE:
+            # 領牌完成後固定本店人員傭金，之後調整人員傭金設定不回頭改歷史訂單。
+            profile.dealer_commission_locked_at = timezone.now()
+        return _save_commission(profile, before, created)
 
     effective_date = order.registration_date or order.order_date
     policy = resolve_dealer_brand_policy(
@@ -124,8 +170,7 @@ def apply_order_dealer_commission(order, *, lock=False):
         )
     if lock:
         profile.dealer_commission_locked_at = timezone.now()
-    profile.save()
-    return profile
+    return _save_commission(profile, before, created)
 
 
 def _filter_bonus_rules_for_vehicle(rules, vehicle_model):

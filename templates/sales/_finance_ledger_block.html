@@ -1,0 +1,37 @@
+{% load sales_format site_copy %}
+<section class="ledger-block ledger-block--{{ kind }}" data-ledger-block="{{ kind }}" aria-labelledby="ledger-{{ kind }}-title">
+  <header class="ledger-block__head">
+    <div>
+      <p class="ledger-block__eyebrow"><i aria-hidden="true"></i>{% if kind == 'income' %}進帳{% else %}出帳{% endif %}</p>
+      <h2 id="ledger-{{ kind }}-title">{{ title }}</h2>
+      <small>{{ caption }}</small>
+    </div>
+    <p class="ledger-block__total"><span>{{ title }}小計</span><strong>$<output data-ledger-total="{{ kind }}" aria-live="polite">{{ block.total|number_with_commas }}</output></strong></p>
+  </header>
+  {% for group in block.groups %}
+  {% if group.legacy %}<details class="ledger-group ledger-group--legacy" data-ledger-group{% if group.has_value %} open{% endif %}>
+    <summary class="ledger-group__head"><span class="ledger-group__title">{{ group.title }}<small>{{ group.hint }}</small></span><span class="ledger-group__subtotal">$<output data-ledger-group-total>{{ group.subtotal|number_with_commas }}</output></span></summary>
+  {% else %}<div class="ledger-group{% if group.incentive %} ledger-group--incentive{% endif %}" data-ledger-group>
+    <div class="ledger-group__head"><h3 class="ledger-group__title">{{ group.title }}{% if group.hint %}<small>{{ group.hint }}</small>{% endif %}</h3><span class="ledger-group__subtotal">$<output data-ledger-group-total>{{ group.subtotal|number_with_commas }}</output></span></div>
+  {% endif %}
+    {% if group.title == '車輛成本' %}
+      <p class="ledger-group__note">{% if profile.vehicle_cost_rule_id %}依領牌日 {{ profile.vehicle_cost_registration_date|date:"Y/m/d" }} 的成本版本 · {% if profile.vehicle_cost_locked_at %}已固定，不受後續成本版本異動影響{% else %}領牌完成後固定{% endif %}{% elif profile.legacy_finance_reconciliation %}Excel 匯入成本 · {% site_text 'order_operations.96a10ddcad5b' %}{% else %}尚未認列 · {% site_text 'order_operations.9078ddafbd24' %}{% endif %}</p>
+    {% elif group.title == '傭金' %}
+      <p class="ledger-group__note">{% if order.source_type == 'dealer' %}{% if order.effective_commission_recipient %}傭金收款車行：{{ order.effective_commission_recipient }}{% if order.commission_recipient_id %}（台數與傭金歸屬；原銷售車行 {{ order.source }}）{% endif %} · {% endif %}機種基礎傭金＋車行品牌加減＋已結算台數獎金{% elif order.source_type == 'store' and order.commission_recipient_id %}傭金收款車行：{{ order.commission_recipient }}（指定台數）；原來源保留本店，不新增基礎傭金，只計已結算台數獎金{% elif order.source_type == 'store' and order.source_id %}本店人員 {{ order.source.name }} · 人員傭金 ${{ order.source.staff_commission|number_with_commas }}{% else %}此來源不計傭金；如有支出可人工填寫{% endif %}{% if profile.dealer_commission_locked_at %} · 領牌完成已固定{% endif %}</p>
+    {% elif group.incentive %}
+      <p class="ledger-group__note">{% if profile.incentive_rule %}{{ profile.incentive_registration_date|date:"Y/m/d" }} · {{ profile.incentive_rule.vehicle_model.brand }} {{ profile.incentive_rule.vehicle_model.name }} · {% if profile.incentive_locked_at %}已固定，不受後續版本異動影響{% else %}領牌完成後固定{% endif %}{% elif order.registration_date %}沒有符合領牌日期的版本 · {% site_text 'order_operations.3eb12d00a468' %}{% else %}等待實際領牌日期，填寫後自動帶入{% endif %}</p>
+    {% endif %}
+    <div class="ledger-rows">
+    {% for row in group.rows %}
+      <div class="ledger-row{% if row.field.errors %} has-error{% endif %}" data-ledger-row{% if row.tag %} data-ledger-source="{{ row.tag }}"{% endif %} data-field-container>
+        <label class="ledger-row__label" for="{{ row.field.id_for_label }}"><span>{{ row.label }}</span>{% if row.hint %}<small>{{ row.hint }}</small>{% endif %}</label>
+        {% if row.tag %}<span class="ledger-tag ledger-tag--{{ row.tag }}" data-ledger-tag>{{ row.tag_label }}</span>{% endif %}
+        <div class="ledger-row__input"><span class="ledger-row__currency" aria-hidden="true">$</span>{{ row.field }}</div>
+        {% if row.field.errors %}<span class="ledger-row__errors" id="{{ row.field.id_for_label }}_errors">{% for error in row.field.errors %}<small class="field-error">{{ error }}</small>{% endfor %}</span>{% endif %}
+      </div>
+    {% endfor %}
+    </div>
+  {% if group.legacy %}</details>{% else %}</div>{% endif %}
+  {% endfor %}
+  <footer class="ledger-block__foot"><span>{{ title }}合計</span><strong>$<output data-ledger-total="{{ kind }}">{{ block.total|number_with_commas }}</output></strong></footer>
+</section>

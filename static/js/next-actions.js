@@ -115,9 +115,9 @@
     });
 
     const selectedTab = document.querySelector(
-      "[data-order-tabs] [data-tab][aria-selected='true']"
+      "[data-order-step-bar] [role='tab'][aria-selected='true']"
     );
-    syncCurrentTab(selectedTab?.dataset.tab || root.dataset.currentTab || "order");
+    syncCurrentTab(selectedTab?.dataset.stepLink || root.dataset.currentTab || "order");
 
     setCollapsed(readDismissedState());
   });

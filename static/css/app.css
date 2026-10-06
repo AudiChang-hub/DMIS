@@ -6494,13 +6494,8 @@ main > .section-block.release-history { padding: 0 var(--card-pad) var(--space-2
 .order-list-summary, .order-sort-controls { padding-inline: var(--card-pad); }
 .order-sort-table :is(th, td):first-child { padding-left: var(--card-pad); }
 .order-sort-table :is(th, td):last-child { padding-right: var(--card-pad); }
-/* 工作紀錄收合區內的內容不再是第二層圓角框。 */
-.workspace-history > .section-block { margin: 0; border: 0; border-top: 1px solid var(--line); border-radius: 0; box-shadow: none; }
 /* 篩選卡片與其他頁面層卡片同一內距，同頁上下左緣一致。 */
 .master-filters, .inventory-filters, .order-filter-bar { padding: var(--card-pad); }
-/* 工作紀錄：收合標題與內層標題列同一條左緣。 */
-.workspace-history { padding: 0; }
-.workspace-history > summary { padding: var(--space-4) var(--card-pad); }
 @media (max-width: 700px) { .receipt-more-fields { padding: var(--inset-pad); } }
 
 /* ===== 提示框 callout：警示／危險／資訊／成功，取代面板裡再塞面板 ===== */

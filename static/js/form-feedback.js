@@ -80,6 +80,9 @@
 
   function focusControl(target) {
     if (!target) return;
+    // 欄位在未顯示的分頁內（例如訂單步驟分頁）時，請分頁先切換過去。
+    const hiddenPanel = target.closest("[role='tabpanel'][hidden]");
+    if (hiddenPanel) hiddenPanel.dispatchEvent(new CustomEvent("order-tabpanel-reveal", {bubbles: true}));
     const closedDetails = target.closest("details:not([open])");
     if (closedDetails) closedDetails.open = true;
     target.scrollIntoView({behavior: "smooth", block: "center"});

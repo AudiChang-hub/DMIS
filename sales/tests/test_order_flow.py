@@ -18,6 +18,7 @@ from openpyxl import Workbook
 from PIL import Image
 from pypdf import PdfReader, PdfWriter
 
+from sales.services.order_steps import order_step_url
 from sales.forms import (
     AccessoryFormSet,
     AccessoryLineForm,
@@ -2896,7 +2897,7 @@ class OrderFlowTests(TestCase):
 
         self.assertRedirects(
             response,
-            f"{reverse('order_detail', args=[order.pk])}?tab=allocation",
+            order_step_url(order.pk, "allocation"),
         )
         order.refresh_from_db()
         self.vehicle.refresh_from_db()
@@ -2977,7 +2978,7 @@ class OrderFlowTests(TestCase):
 
         self.assertRedirects(
             response,
-            f"{reverse('order_detail', args=[order.pk])}?tab=allocation",
+            order_step_url(order.pk, "allocation"),
         )
         order.refresh_from_db()
         self.vehicle.refresh_from_db()
@@ -3014,7 +3015,7 @@ class OrderFlowTests(TestCase):
 
         self.assertRedirects(
             response,
-            f"{reverse('order_detail', args=[order.pk])}?tab=allocation",
+            order_step_url(order.pk, "allocation"),
         )
         order.refresh_from_db()
         self.assertEqual(order.allocated_vehicle, replacement)
@@ -3030,7 +3031,8 @@ class OrderFlowTests(TestCase):
         self.assertContains(response, "data-order-step-bar")
         for step_name in ("訂車與配件", "訂金", "列印與簽署文件", "配車", "領牌", "收入與支出", "交車與收尾款", "汰舊補助"):
             self.assertContains(response, step_name)
-        self.assertNotContains(response, 'role="tablist"')
+        self.assertContains(response, 'role="tablist"', count=1)
+        self.assertContains(response, 'role="tabpanel"', count=10)
         self.assertContains(response, 'id="panel-order"')
         self.assertContains(response, 'id="panel-registration"')
         self.assertContains(response, 'id="signed-documents"')
@@ -3050,7 +3052,8 @@ class OrderFlowTests(TestCase):
         script = Path("static/js/order-workspace.js").read_text(encoding="utf-8")
         self.assertIn("searchParams.get('tab')", script)
         self.assertIn("beforeunload", script)
-        self.assertIn("details[data-step-key]", script)
+        self.assertIn('[role="tabpanel"][data-step-key]', script)
+        self.assertIn("ArrowRight", script)
 
     def test_documents_tab_opens_documents_step(self):
         order = self.make_order()
@@ -3059,7 +3062,8 @@ class OrderFlowTests(TestCase):
         response = self.client.get(f"{reverse('order_detail', args=[order.pk])}?tab=documents&created=1")
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, 'id="panel-documents" data-step-key="documents" open')
+        self.assertContains(response, 'is-active" id="panel-documents" data-step-key="documents" role="tabpanel"')
+        self.assertContains(response, 'id="tab-documents" role="tab" aria-controls="panel-documents" aria-selected="true"')
         self.assertContains(response, 'id="print-contract-dialog"')
 
     def test_subsidy_documents_are_available_before_allocation(self):
@@ -3086,7 +3090,7 @@ class OrderFlowTests(TestCase):
                 "file": uploaded_test_jpeg("old-owner-front.jpg"),
             },
         )
-        self.assertRedirects(response, reverse("order_detail", args=[order.pk]))
+        self.assertRedirects(response, order_step_url(order.pk, "subsidy"))
         self.assertIsNone(order.allocated_vehicle)
         self.assertTrue(
             order.subsidy_documents.filter(
@@ -3122,7 +3126,7 @@ class OrderFlowTests(TestCase):
 
         self.assertRedirects(
             response,
-            f"{reverse('order_detail', args=[order.pk])}?tab=subsidy",
+            order_step_url(order.pk, "subsidy"),
         )
         order.refresh_from_db()
         self.assertTrue(order.is_trade_in_subsidy)
@@ -3171,7 +3175,7 @@ class OrderFlowTests(TestCase):
         )
         self.assertRedirects(
             response,
-            f"{reverse('order_detail', args=[order.pk])}?tab=subsidy",
+            order_step_url(order.pk, "subsidy"),
         )
         order.refresh_from_db()
         self.assertTrue(order.is_trade_in_subsidy)
@@ -3185,7 +3189,7 @@ class OrderFlowTests(TestCase):
                 "file": uploaded_test_pdf("recycling-receipt.pdf"),
             },
         )
-        self.assertRedirects(response, reverse("order_detail", args=[order.pk]))
+        self.assertRedirects(response, order_step_url(order.pk, "subsidy"))
         self.assertTrue(
             order.subsidy_documents.filter(
                 document_type=SubsidyDocument.DocumentType.RECYCLING_RECEIPT
@@ -3448,7 +3452,7 @@ class OrderFlowTests(TestCase):
                 "file": uploaded_test_pdf("first.pdf"),
             },
         )
-        self.assertRedirects(response, reverse("order_detail", args=[order.pk]))
+        self.assertRedirects(response, order_step_url(order.pk, "subsidy"))
         first_document = order.subsidy_documents.get(
             document_type=SubsidyDocument.DocumentType.SCRAP_CERTIFICATE
         )
@@ -3463,7 +3467,7 @@ class OrderFlowTests(TestCase):
                     "file": uploaded_test_pdf("replacement.pdf"),
                 },
             )
-        self.assertRedirects(response, reverse("order_detail", args=[order.pk]))
+        self.assertRedirects(response, order_step_url(order.pk, "subsidy"))
         self.assertFalse(first_path.exists())
 
         documents = order.subsidy_documents.filter(
@@ -3532,7 +3536,7 @@ class OrderFlowTests(TestCase):
                 },
             )
             self.assertRedirects(
-                response, reverse("order_detail", args=[order.pk])
+                response, order_step_url(order.pk, "subsidy")
             )
 
         documents = order.subsidy_documents.filter(
@@ -3570,7 +3574,7 @@ class OrderFlowTests(TestCase):
                 },
             )
             self.assertRedirects(
-                response, reverse("order_detail", args=[order.pk])
+                response, order_step_url(order.pk, "subsidy")
             )
 
         self.assertFalse(
@@ -3609,7 +3613,7 @@ class OrderFlowTests(TestCase):
                 },
             )
             self.assertRedirects(
-                response, reverse("order_detail", args=[order.pk])
+                response, order_step_url(order.pk, "subsidy")
             )
 
         order.refresh_from_db()
@@ -3662,7 +3666,7 @@ class OrderFlowTests(TestCase):
         )
         self.assertRedirects(
             response,
-            f"{reverse('order_detail', args=[order.pk])}?tab=subsidy",
+            order_step_url(order.pk, "subsidy"),
         )
         order.refresh_from_db()
         self.assertEqual(order.old_owner_name, "OCR 姓名")
@@ -3681,7 +3685,7 @@ class OrderFlowTests(TestCase):
             },
         )
 
-        self.assertRedirects(response, reverse("order_detail", args=[order.pk]))
+        self.assertRedirects(response, order_step_url(order.pk, "subsidy"))
         self.assertFalse(order.subsidy_documents.exists())
 
     def test_registration_requires_data_and_all_fixed_documents(self):
@@ -3786,7 +3790,7 @@ class OrderFlowTests(TestCase):
         self.assertTrue(response.json()["ok"])
         self.assertEqual(
             response.json()["redirect_url"],
-            f"{reverse('order_detail', args=[order.pk])}?tab=registration",
+            order_step_url(order.pk, "registration"),
         )
         self.assertTrue(
             order.registration_documents.filter(
@@ -3831,7 +3835,7 @@ class OrderFlowTests(TestCase):
                 },
             )
             self.assertRedirects(
-                response, reverse("order_detail", args=[order.pk])
+                response, order_step_url(order.pk, "registration")
             )
 
         response = self.client.post(
@@ -3929,7 +3933,7 @@ class OrderFlowTests(TestCase):
                 },
             )
             self.assertRedirects(
-                response, reverse("order_detail", args=[order.pk])
+                response, order_step_url(order.pk, "registration")
             )
 
         self.assertEqual(
@@ -3953,7 +3957,7 @@ class OrderFlowTests(TestCase):
                 "file": uploaded_test_pdf("first.pdf"),
             },
         )
-        self.assertRedirects(response, reverse("order_detail", args=[order.pk]))
+        self.assertRedirects(response, order_step_url(order.pk, "registration"))
         first_document = order.registration_documents.get(
             document_type=RegistrationDocument.DocumentType.INVOICE
         )
@@ -3969,7 +3973,7 @@ class OrderFlowTests(TestCase):
                     "file": uploaded_test_pdf("replacement.pdf"),
                 },
             )
-        self.assertRedirects(response, reverse("order_detail", args=[order.pk]))
+        self.assertRedirects(response, order_step_url(order.pk, "registration"))
         self.assertFalse(first_path.exists())
 
         documents = order.registration_documents.filter(

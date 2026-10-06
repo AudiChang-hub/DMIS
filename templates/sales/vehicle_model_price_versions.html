@@ -1,17 +1,12 @@
 {% extends "base.html" %}{% load site_copy %}
-{% block title %}售價版本｜車輛銷售管理{% endblock %}
-{% block page_class %}page-shell--wide{% endblock %}
+{% block title %}售價｜{{ vehicle_model.name }}｜車輛銷售管理{% endblock %}
+{% block page_class %}page-shell--wide model-workspace-page{% endblock %}
+{% block head %}{% include "sales/_vehicle_model_workspace_head.html" %}{% endblock %}
 {% block content %}
-{% url 'vehicle_model_edit' vehicle_model.pk as model_edit_url %}
-{% url 'vehicle_model_list' as model_list_url %}
-{% include "sales/_page_back.html" with fallback_url=model_edit_url label="車型設定" root_url=model_list_url root_label="車型資料" %}
-<section class="hero-row compact-hero">
-  <div>
-    <p class="eyebrow">{{ vehicle_model.brand }} {{ vehicle_model.name }}／{{ vehicle_model.model_number }}</p>
-    <h1>售價版本</h1>
-    <p class="muted">{% site_text 'vehicle_model_price_versions.a344abcfe368' %}</p>
-  </div>
-</section>
+{% include "sales/_vehicle_model_workspace.html" with workspace_tab="prices" %}
+<header class="model-workspace-intro">
+  <div><h2>售價版本</h2><p class="muted">{% site_text 'vehicle_model_price_versions.a344abcfe368' %}</p></div>
+</header>
 
 <section class="price-version-guidance">
   <div><strong>什麼時候要新增版本？</strong><span>原廠公告新價格、現金價調整或活動條件變更時。</span></div>

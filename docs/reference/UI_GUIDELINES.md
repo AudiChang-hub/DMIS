@@ -64,6 +64,9 @@
    模組需要不同排版時，在 `hero-row` 上加修飾 class（例如 `report-heading`），不另建頁首元件。
    確認頁與單卡片頁也一樣：標題放在卡片上方的頁首，卡片只放說明與表單。
 3. **分頁**：同一物件的多個設定頁用 `account-tabs`；車行管理共用 `sales/_dealer_source_tabs.html`。
+   機種的各項設定共用 `sales/_vehicle_model_workspace.html`（頁首＋分頁列取代標準頁首與返回列，
+   樣式在 `static/css/vehicle-model-workspace.css`，頁面以 `_vehicle_model_workspace_head.html` 載入）；
+   新增機種相關設定頁時加入此工作區，送出後導回同一分頁。
 4. **內容**：`section-block`／`card` 區塊；清單頁用 `inventory-filters` 篩選列、
    `inventory-list-panel` 與分頁 `{% pagination %}`。
 5. **間距**：頁面層區塊（卡片、篩選列、分頁列、狀態列）之間一律 `--stack-gap`；卡片內距 `--card-pad`，

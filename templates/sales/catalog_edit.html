@@ -1,7 +1,11 @@
-{% extends "base.html" %}{% load site_copy %}{% load static %}{% block title %}選車圖片與介紹{% endblock %}{% block content %}
-{% url 'vehicle_model_edit' model.pk as model_edit_url %}{% include "sales/_page_back.html" with fallback_url=model_edit_url label="機種編輯" %}
-<section class="hero-row compact-hero"><div><p class="eyebrow">機種與售價</p><h1>選車圖片與介紹</h1><p class="muted">{{ model }}</p></div></section>
-<div class="card"><p>{% site_text 'catalog_edit.c923277f878f' %}</p><a href="{% url 'vehicle_model_edit' model.pk %}">修改機種規格、車色、售價與分期</a></div>
+{% extends "base.html" %}{% load site_copy %}{% load static %}{% block title %}選車圖片與介紹｜{{ model.name }}｜車輛銷售管理{% endblock %}
+{% block page_class %}page-shell--wide model-workspace-page{% endblock %}
+{% block head %}{% include "sales/_vehicle_model_workspace_head.html" %}{% endblock %}
+{% block content %}
+{% include "sales/_vehicle_model_workspace.html" with workspace_tab="catalog" vehicle_model=model %}
+<header class="model-workspace-intro">
+  <div><h2>選車圖片與介紹</h2><p class="muted">{% site_text 'catalog_edit.c923277f878f' %}</p></div>
+</header>
 <form method="post" enctype="multipart/form-data" class="stacked-form">
   {% csrf_token %}{{ form.non_field_errors }}{{ form.expected_revision }}
   <section class="card stacked-form">
@@ -29,7 +33,7 @@
     {% include "sales/_catalog_image_preview.html" with photo=entry.image upload=form.image preview_url=main_preview_url preview_class="catalog-main-preview" %}
     {% include "sales/_field.html" with field=form.main_image_color %}
   </details>
-  <div class="form-actions"><a class="button ghost" href="{% url 'catalog_manage' %}">取消</a><button class="button primary">儲存展示設定</button></div>
+  <div class="form-actions"><a class="button ghost" href="{% url 'catalog_edit' model.pk %}">放棄變更</a><button class="button primary">儲存展示設定</button></div>
 </form>
 {% endblock %}
 {% block scripts %}<script src="{% static 'js/catalog-image-preview.js' %}?v={{ app_version }}" defer></script>{% endblock %}

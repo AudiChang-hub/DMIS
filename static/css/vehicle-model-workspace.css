@@ -1,0 +1,175 @@
+/* 機種工作區：同一年式的規格、售價、分期、傭金、成本、獎勵與選車展示共用頁首與分頁。
+   只加工作區修飾；按鈕、卡片、表格與提示框沿用 app.css 共用元件。 */
+
+/* 分頁切換是同一個工作區：頁首與分頁列保持不動，只讓下方內容淡入。 */
+main.model-workspace-page { animation: none; }
+.model-workspace-hero { view-transition-name: model-workspace-hero; }
+.model-workspace-tabs { view-transition-name: model-workspace-tabs; }
+.model-workspace-tab__indicator { view-transition-name: model-workspace-indicator; }
+::view-transition-group(model-workspace-indicator) { animation-duration: var(--dur-3); animation-timing-function: var(--ease-out); }
+.model-workspace-tabs ~ * { animation: page-rise var(--dur-3) var(--ease-out) both; }
+
+/* ---- 頁首 ---- */
+.model-workspace-hero {
+  position: relative; margin: 0; padding-bottom: var(--space-5);
+  align-items: flex-end; animation: none;
+}
+.model-workspace-hero__main { min-width: 0; }
+.model-workspace-hero .eyebrow { display: flex; flex-wrap: wrap; margin-bottom: var(--space-3); align-items: center; gap: var(--space-3); }
+.model-workspace-hero h1 { margin-bottom: 0; font-family: var(--font-display); overflow-wrap: anywhere; }
+.model-workspace-eyebrow-text { color: var(--muted); }
+.model-workspace-brand {
+  display: inline-flex; min-height: 26px; padding: 0 var(--space-3); align-items: center;
+  color: var(--ink); background: var(--surface); border: 1px solid var(--line);
+  border-radius: var(--radius-pill); font-size: var(--text-2xs); font-weight: 850; letter-spacing: .12em;
+}
+.model-workspace-brand--sym { color: var(--identity-sym-ink); background: var(--identity-sym-soft); border-color: var(--red-border-strong); }
+.model-workspace-brand--suzuki { color: var(--identity-suzuki-ink); background: var(--identity-suzuki-soft); border-color: var(--blue-border); }
+
+.model-workspace-facts {
+  display: flex; flex-wrap: wrap; margin: var(--space-4) 0 0; padding: 0; gap: var(--space-2) 0;
+}
+.model-workspace-facts > div {
+  display: grid; min-width: 0; padding: 0 var(--space-5); gap: 2px;
+  border-left: 1px solid var(--line);
+}
+.model-workspace-facts > div:first-child { padding-left: 0; border-left: 0; }
+.model-workspace-facts dt { color: var(--muted); font-size: var(--text-2xs); font-weight: 750; letter-spacing: .08em; }
+.model-workspace-facts dd { margin: 0; color: var(--ink); font-size: var(--text-sm-plus); font-weight: 800; font-variant-numeric: tabular-nums; }
+
+.model-workspace-status {
+  display: inline-flex; flex: 0 0 auto; padding: var(--space-3) var(--space-4); align-items: center; gap: var(--space-3);
+  background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-lg); box-shadow: var(--shadow-soft);
+}
+.model-workspace-status__text { display: grid; gap: 1px; }
+.model-workspace-status__text strong { font-size: var(--text-sm-plus); }
+.model-workspace-status__text small { color: var(--muted); font-size: var(--text-xs); }
+.model-workspace-status__dot {
+  position: relative; width: 10px; height: 10px; flex: 0 0 auto;
+  background: var(--line-strong); border-radius: 50%;
+}
+.model-workspace-status.is-active .model-workspace-status__dot { background: var(--green); }
+.model-workspace-status.is-active .model-workspace-status__dot::after {
+  content: ""; position: absolute; inset: -4px; border: 2px solid var(--green); border-radius: 50%;
+  opacity: 0; animation: model-workspace-pulse 2.4s var(--ease-out) infinite;
+}
+@keyframes model-workspace-pulse { 0% { opacity: .45; transform: scale(.6); } 70%, 100% { opacity: 0; transform: scale(1.35); } }
+
+/* ---- 分頁列 ---- */
+.model-workspace-tabs {
+  position: relative; z-index: 20; display: flex; margin: 0 0 var(--stack-gap); align-items: stretch; gap: var(--space-4);
+  border-bottom: 1px solid var(--line);
+}
+.model-workspace-tabs__context {
+  display: none; flex: 0 0 auto; max-width: 240px; padding-right: var(--space-4); align-items: center; gap: var(--space-2);
+  overflow: hidden; color: var(--ink); font-family: var(--font-display); font-size: var(--text-sm-plus); font-weight: 800;
+  white-space: nowrap; text-overflow: ellipsis; border-right: 1px solid var(--line);
+}
+.model-workspace-tabs__context small { color: var(--muted); font-family: var(--font-sans); font-size: var(--text-xs); font-variant-numeric: tabular-nums; }
+.model-workspace-tabs__list {
+  display: flex; flex: 1 1 auto; min-width: 0; margin: 0 0 0 calc(-1 * var(--space-3)); padding: 0; gap: var(--space-1);
+  overflow-x: auto; list-style: none; scroll-snap-type: x proximity; scrollbar-width: none; overscroll-behavior-x: contain;
+}
+.model-workspace-tabs__list::-webkit-scrollbar { display: none; }
+.model-workspace-tabs__list > li { display: flex; flex: 0 0 auto; scroll-snap-align: start; }
+.model-workspace-tab {
+  position: relative; display: inline-flex; min-height: 50px; padding: 0 var(--space-3); align-items: center; gap: var(--space-2);
+  color: var(--muted); font-size: var(--text-sm-plus); font-weight: 750; white-space: nowrap; text-decoration: none;
+  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+  transition: color var(--dur-1) var(--ease-out), background-color var(--dur-1) var(--ease-out);
+}
+.model-workspace-tab__indicator {
+  position: absolute; right: var(--space-3); bottom: 0; left: var(--space-3); height: 2px;
+  background: var(--action-text); border-radius: 2px 2px 0 0;
+}
+a.model-workspace-tab:hover { color: var(--ink); background: color-mix(in srgb, var(--surface-tint) 60%, transparent); }
+a.model-workspace-tab:focus-visible { outline: 3px solid var(--focus-ring); outline-offset: -3px; }
+.model-workspace-tab.is-current { color: var(--ink); font-weight: 850; }
+.model-workspace-tab.is-disabled { color: color-mix(in srgb, var(--muted) 60%, transparent); cursor: not-allowed; }
+.model-workspace-tab__count {
+  display: inline-grid; min-width: 22px; height: 20px; padding: 0 var(--space-2); place-items: center;
+  color: var(--muted); background: var(--surface-soft); border: 1px solid var(--line-soft); border-radius: var(--radius-pill);
+  font-size: var(--text-2xs); font-weight: 800; font-variant-numeric: tabular-nums;
+}
+.model-workspace-tab.is-current .model-workspace-tab__count { color: var(--action-text); background: var(--surface-tint); border-color: transparent; }
+.model-workspace-tab__flag { width: 8px; height: 8px; background: var(--amber-strong); border-radius: 50%; box-shadow: 0 0 0 3px var(--amber-soft); }
+
+.model-workspace-hint {
+  display: flex; margin: calc(-1 * var(--space-3)) 0 var(--stack-gap); align-items: center; gap: var(--space-2);
+  color: var(--muted); font-size: var(--text-sm);
+}
+.model-workspace-hint__icon {
+  display: inline-grid; width: 20px; height: 20px; flex: 0 0 auto; place-items: center;
+  color: var(--action-text); background: var(--surface-tint); border-radius: 50%; font-size: var(--text-2xs); font-weight: 900;
+}
+
+/* ---- 分頁內容 ---- */
+.model-workspace-intro { display: flex; margin-bottom: var(--stack-gap); align-items: flex-end; justify-content: space-between; gap: var(--stack-gap); }
+.model-workspace-intro h2 { font-family: var(--font-display); font-size: var(--text-xl); letter-spacing: -.02em; }
+.model-workspace-intro p { max-width: 76ch; margin: var(--space-1) 0 0; }
+.model-workspace-intro .hero-actions { flex: 0 0 auto; }
+
+/* 傭金分頁原本置中於 1180px；放進工作區後與頁首同一左緣。 */
+.model-workspace-page .dealer-program-section,
+.model-workspace-page .dealer-reward-panel { max-width: none; margin-inline: 0; }
+
+/* 結算成本與原廠獎勵分頁沿用售價版本的左右版面。 */
+.model-rule-bound {
+  display: flex; flex-wrap: wrap; margin: 0 0 var(--stack-gap-sm); padding: var(--space-3) var(--space-4); align-items: baseline; gap: var(--space-1) var(--space-3);
+  background: var(--surface-soft); border-left: 3px solid var(--action-text); border-radius: 0 var(--radius-md) var(--radius-md) 0;
+}
+.model-rule-bound span { color: var(--muted); font-size: var(--text-xs); font-weight: 800; }
+.model-rule-bound strong { font-size: var(--text-sm-plus); }
+.model-rule-bound small { color: var(--muted); font-size: var(--text-xs); }
+.model-rule-note { margin: var(--stack-gap-sm) 0 0; color: var(--muted); font-size: var(--text-sm); }
+.model-rule-values--three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.model-rule-aside { display: grid; margin: 0; padding: var(--space-4) var(--space-5); gap: var(--space-1); border-top: 1px solid var(--line); }
+.model-rule-aside p { margin: 0; color: var(--muted); font-size: var(--text-sm); }
+.cost-rule-superseded { color: var(--amber-ink); background: var(--amber-soft); }
+
+/* 適用規則（唯讀） */
+.model-rules-stack { display: grid; gap: var(--stack-gap); }
+.model-rules-panel__title { min-height: 72px; }
+.model-rules-panel__title .eyebrow { margin-bottom: 2px; }
+.model-rules-applied { display: flex; flex-wrap: wrap; margin: 0; padding: 0; gap: var(--space-3); list-style: none; }
+.model-rules-applied li {
+  display: grid; min-width: 180px; padding: var(--space-3) var(--space-4); gap: 2px;
+  background: var(--surface-soft); border: 1px solid var(--line-soft); border-radius: var(--radius-md);
+}
+.model-rules-applied__key { color: var(--action-text); font-size: var(--text-xs); font-weight: 850; }
+.model-rules-applied small { color: var(--muted); font-size: var(--text-xs); font-variant-numeric: tabular-nums; }
+.model-rules-fallback { margin: 0; color: var(--muted); }
+.model-rules-fallback strong { color: var(--ink); }
+.model-rules-table th span, .model-rules-table td span { display: block; color: var(--muted); font-size: var(--text-sm); font-weight: 600; }
+.model-rules-table tr.is-applied > * { background: color-mix(in srgb, var(--surface-tint) 55%, transparent); }
+
+@media (min-width: 860.02px) {
+  /* 桌面版分頁列固定在頁首下方，長表單捲動時仍可切換；離開頁首後帶出機種名稱。 */
+  .model-workspace-tabs {
+    position: sticky; top: var(--app-header-height, 72px);
+    background: color-mix(in srgb, var(--paper) 90%, transparent);
+    -webkit-backdrop-filter: saturate(1.6) blur(14px); backdrop-filter: saturate(1.6) blur(14px);
+  }
+  .model-workspace-tabs.is-stuck .model-workspace-tabs__context { display: inline-flex; animation: page-fade var(--dur-2) var(--ease-out); }
+}
+
+@media (max-width: 860px) {
+  .model-workspace-hero { flex-direction: column; align-items: stretch; gap: var(--space-4); margin: 0; padding-bottom: var(--space-4); }
+  .model-workspace-status { align-self: flex-start; padding: var(--space-2) var(--space-3); box-shadow: none; }
+  .model-workspace-facts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-3); }
+  .model-workspace-facts > div, .model-workspace-facts > div:first-child { padding: 0; border-left: 0; }
+  .model-workspace-tabs__list { margin-inline: calc(-1 * var(--space-3)); scroll-padding-inline: var(--space-3); }
+  .model-workspace-tabs[data-overflow-end] .model-workspace-tabs__list { -webkit-mask-image: linear-gradient(90deg, black 85%, transparent); mask-image: linear-gradient(90deg, black 85%, transparent); }
+  .model-workspace-tabs[data-overflow-start] .model-workspace-tabs__list { -webkit-mask-image: linear-gradient(90deg, transparent, black 15%); mask-image: linear-gradient(90deg, transparent, black 15%); }
+  .model-workspace-tabs[data-overflow-start][data-overflow-end] .model-workspace-tabs__list { -webkit-mask-image: linear-gradient(90deg, transparent, black 12%, black 88%, transparent); mask-image: linear-gradient(90deg, transparent, black 12%, black 88%, transparent); }
+  .model-workspace-tab { min-height: 48px; }
+  .model-workspace-intro { flex-direction: column; align-items: stretch; gap: var(--space-3); }
+  .model-workspace-intro .hero-actions { justify-content: flex-start; flex-wrap: wrap; }
+  .model-rule-values--three { grid-template-columns: 1fr; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .model-workspace-tabs ~ *, .model-workspace-tabs.is-stuck .model-workspace-tabs__context { animation: none; }
+  .model-workspace-status.is-active .model-workspace-status__dot::after { animation: none; opacity: 0; }
+  ::view-transition-group(model-workspace-indicator) { animation: none; }
+}

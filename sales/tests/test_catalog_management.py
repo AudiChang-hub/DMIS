@@ -35,9 +35,9 @@ class CatalogManagementTests(TestCase):
             self.assertEqual(method(reverse("catalog_edit", args=[self.disabled.pk]), self.payload).status_code, 404)
         self.assertFalse(VehicleCatalogEntry.objects.filter(vehicle_model=self.disabled).exists())
 
-    def test_save_returns_to_model_edit_page(self):
+    def test_save_returns_to_workspace_catalog_tab(self):
         response = self.client.post(self.url, self.payload)
-        self.assertRedirects(response, reverse("vehicle_model_edit", args=[self.model.pk]), fetch_redirect_response=False)
+        self.assertRedirects(response, self.url, fetch_redirect_response=False)
 
     def test_only_active_color_fields_and_preserve_disabled_photo(self):
         self.inactive.catalog_image = "catalog/keep-original.png"

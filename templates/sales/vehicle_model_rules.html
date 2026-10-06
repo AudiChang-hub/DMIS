@@ -1,0 +1,85 @@
+{% extends "base.html" %}{% load site_copy screen_access sales_format %}
+{% block title %}適用規則｜{{ vehicle_model.name }}｜車輛銷售管理{% endblock %}
+{% block page_class %}page-shell--wide model-workspace-page{% endblock %}
+{% block head %}{% include "sales/_vehicle_model_workspace_head.html" %}{% endblock %}
+{% block content %}
+{% include "sales/_vehicle_model_workspace.html" with workspace_tab="rules" %}
+<header class="model-workspace-intro">
+  <div><h2>適用規則</h2><p class="muted">這些規則依品牌、能源別或多個車型共用，不屬於單一機種；此處只列出會套用到本機種的規則，修改請到各規則頁。</p></div>
+</header>
+
+<div class="model-rules-stack">
+  <section class="section-block model-rules-panel" aria-labelledby="fee-rules-title">
+    <div class="section-title model-rules-panel__title">
+      <div><p class="eyebrow">依品牌・{{ vehicle_model.get_energy_type_display }}{% if vehicle_model.energy_type == 'gas' %}{% if vehicle_model.displacement_cc %}・{{ vehicle_model.displacement_cc }} c.c.{% endif %}{% elif vehicle_model.electric_registration_class %}・{{ vehicle_model.get_electric_registration_class_display }}{% endif %}</p><h3 id="fee-rules-title">領牌與強制險</h3></div>
+      {% if can_fees %}<a class="button ghost small" href="{% url 'brand_registration_fee_rule_list' %}">管理領牌與強制險規則</a>{% endif %}
+    </div>
+    {% if not can_fees %}
+    <div class="section-body"><div class="callout callout--info"><span class="callout__icon" aria-hidden="true">i</span><div><h3>需要「領牌與強制險規則」權限</h3><p>目前帳號無法查看品牌牌險規則；需要時請 admin 開放。</p></div></div></div>
+    {% else %}
+    <div class="section-body model-rules-summary">
+      {% if missing_displacement %}
+      <div class="callout callout--warning"><span class="callout__icon" aria-hidden="true">!</span><div><h3>請先補上排氣量</h3><p>油車依排氣量級距比對領牌與強制險規則；請到「規格與車色」分頁填寫排氣量後再查看。</p></div></div>
+      {% elif fee_rules_applied %}
+      <ul class="model-rules-applied" aria-label="今天建立訂單會套用的規則">
+        {% for rule in fee_rules %}{% if rule.applied_years %}
+        <li><span class="model-rules-applied__key">強制險 {% for years in rule.applied_years %}{{ years }}{% if not forloop.last %}／{% endif %}{% endfor %} 年</span><strong>{{ rule.get_calculation_type_display }}</strong><small>{{ rule.effective_from|date:"Y/m/d" }} 起</small></li>
+        {% endif %}{% endfor %}
+      </ul>
+      {% elif vehicle_model.energy_type == 'gas' %}
+      <p class="model-rules-fallback"><strong>目前沒有品牌專屬規則。</strong>油車會依排氣量以系統公式試算領牌規費與強制險。</p>
+      {% else %}
+      <div class="callout callout--warning"><span class="callout__icon" aria-hidden="true">!</span><div><h3>目前沒有可套用的規則</h3><p>電動車需要品牌、能源別與領牌級別都符合的規則，否則無法自動試算牌險；請到「領牌與強制險」新增。</p></div></div>
+      {% endif %}
+    </div>
+    {% if fee_rules %}
+    <div class="inventory-table-wrap" tabindex="0" aria-label="符合本機種的領牌與強制險規則">
+      <table class="inventory-table inventory-table--fit model-rules-table">
+        <thead><tr><th scope="col">計算方式</th><th scope="col">適用範圍</th><th scope="col">金額</th><th scope="col">生效期間</th><th scope="col">狀態</th></tr></thead>
+        <tbody>
+          {% for rule in fee_rules %}
+          <tr{% if rule.applied_years %} class="is-applied"{% endif %}>
+            <th scope="row">{{ rule.get_calculation_type_display }}{% if rule.calculation_type != 'formula' and rule.calculation_type != 'manual' %}<span>強制險 {{ rule.insurance_period_years }} 年</span>{% endif %}</th>
+            <td data-label="適用範圍">{{ rule.brand }}・{{ rule.get_energy_type_display }}{% if rule.energy_type == 'gas' %}<span>{{ rule.min_cc|default:"不限" }}～{{ rule.max_cc|default:"不限" }} c.c.</span>{% elif rule.electric_registration_class %}<span>{{ rule.get_electric_registration_class_display }}</span>{% endif %}</td>
+            <td data-label="金額">{% if rule.calculation_type == 'fixed_bundle' %}${{ rule.fixed_total|number_with_commas }}{% elif rule.calculation_type == 'fixed_components' %}規費 ${{ rule.fixed_registration_fee|number_with_commas }}<span>強制險 ${{ rule.fixed_compulsory_insurance_fee|number_with_commas }}</span>{% elif rule.calculation_type == 'formula' %}依排氣量公式{% else %}依單據人工輸入{% endif %}</td>
+            <td data-label="生效期間">{{ rule.effective_from|date:"Y/m/d" }} 起<span>{% if rule.effective_to %}至 {{ rule.effective_to|date:"Y/m/d" }}{% else %}未設定結束日{% endif %}</span></td>
+            <td data-label="狀態"><span class="status-pill cost-rule-{{ rule.display_status }}">{{ rule.display_status_label }}</span></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% endif %}
+    {% endif %}
+  </section>
+
+  <section class="section-block model-rules-panel" aria-labelledby="bonus-rules-title">
+    <div class="section-title model-rules-panel__title">
+      <div><p class="eyebrow">依品牌、能源別或指定車型</p><h3 id="bonus-rules-title">車行台數獎金</h3></div>
+      {% if can_bonuses %}<a class="button ghost small" href="{% url 'dealer_volume_bonus_list' %}">管理車行台數獎金</a>{% endif %}
+    </div>
+    {% if not can_bonuses %}
+    <div class="section-body"><div class="callout callout--info"><span class="callout__icon" aria-hidden="true">i</span><div><h3>需要「車行台數獎金與結算」權限</h3><p>目前帳號無法查看台數獎金規則；需要時請 admin 開放。</p></div></div></div>
+    {% elif bonus_rules %}
+    <div class="inventory-table-wrap" tabindex="0" aria-label="會計入本機種的車行台數獎金規則">
+      <table class="inventory-table inventory-table--fit model-rules-table">
+        <thead><tr><th scope="col">規則</th><th scope="col">合作車行</th><th scope="col">條件</th><th scope="col">統計期間</th><th scope="col">狀態</th></tr></thead>
+        <tbody>
+          {% for rule in bonus_rules %}
+          <tr>
+            <th scope="row">{% can_access 'dealer_volume_bonus_edit' rule.pk as can_edit_bonus %}{% if can_edit_bonus %}<a href="{% url 'dealer_volume_bonus_edit' rule.pk %}">{{ rule.display_name }}</a>{% else %}{{ rule.display_name }}{% endif %}<span>{% for tier in rule.tiers.all %}滿 {{ tier.minimum_quantity }} 台 ${{ tier.bonus_per_vehicle|floatformat:0 }}／台{% if not forloop.last %}、{% endif %}{% empty %}尚未設定門檻{% endfor %}</span></th>
+            <td data-label="合作車行">{{ rule.dealer.name|default:"全部合作車行" }}</td>
+            <td data-label="條件">{{ rule.conditions_label }}</td>
+            <td data-label="統計期間">{% if rule.current_period %}{{ rule.current_period.starts_on|date:"Y/m/d" }}～{{ rule.current_period.ends_on|date:"Y/m/d" }}<span>本期統計中</span>{% else %}{{ rule.starts_on|date:"Y/m/d" }}～{{ rule.ends_on|date:"Y/m/d" }}<span>{{ rule.period_label }}</span>{% endif %}</td>
+            <td data-label="狀態"><span class="status-pill cost-rule-{{ rule.display_status }}">{{ rule.display_status_label }}</span></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="section-body"><div class="empty-state small"><h3>沒有會計入本機種的台數獎金</h3><p>台數獎金依品牌、能源別或指定車型累計；新增規則請到「車行台數獎金」。</p></div></div>
+    {% endif %}
+  </section>
+</div>
+{% endblock %}

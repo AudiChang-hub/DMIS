@@ -322,12 +322,12 @@ def catalog_edit(request, pk):
                         "main_image_color_id": target_color.pk if target_color else None,
                     },
                 )
-                messages.success(request, "車款展示已儲存；上架且啟用的車款才會公開。")
-                return redirect("vehicle_model_edit", pk=pk)
+                messages.success(request, "車款展示已儲存；機種啟用中即會公開。")
+                return redirect("catalog_edit", pk=pk)
     return render(
         request,
         "sales/catalog_edit.html",
-        {"form": form, "model": model, "entry": entry},
+        {"form": form, "model": model, "vehicle_model": model, "entry": entry},
     )
 
 

@@ -99,7 +99,7 @@
               <span>可依生效期間建立多個版本</span>
             {% endif %}
           </td>
-          <td class="inventory-row-action"><a class="button primary small" href="{% url 'vehicle_model_commission' item.pk %}">設定傭金與獎勵</a></td>
+          <td class="inventory-row-action"><a class="button primary small" href="{% url 'vehicle_model_commission' item.pk %}?from=programs">設定傭金與獎勵</a></td>
         </tr>
         {% empty %}
         <tr><td colspan="5"><div class="empty-state"><strong>沒有符合條件的車型</strong><span>請調整搜尋或篩選條件後再試一次。</span></div></td></tr>

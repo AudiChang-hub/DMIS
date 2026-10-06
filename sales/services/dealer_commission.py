@@ -128,20 +128,31 @@ def apply_order_dealer_commission(order, *, lock=False):
     return profile
 
 
-def matching_bonus_rules(order, dealer_id):
-    """共用試算與期間鎖的條件；Exists 避免多選車型重複列及 PG DISTINCT 列鎖限制。"""
-    if not dealer_id or not order.registration_date or not order.vehicle_model_id:
-        return DealerVolumeBonusRule.objects.none()
+def _filter_bonus_rules_for_vehicle(rules, vehicle_model):
+    """品牌、能源別與指定車型條件；Exists 避免多選車型重複列及 PG DISTINCT 列鎖限制。"""
     links = DealerVolumeBonusRule.vehicle_models.through.objects.filter(dealervolumebonusrule_id=OuterRef("pk"))
     brands = DealerVolumeBonusBrand.objects.filter(rule_id=OuterRef("pk"))
-    periods = DealerVolumeBonusPeriod.objects.filter(rule_id=OuterRef('pk'), starts_on__lte=order.registration_date, ends_on__gte=order.registration_date)
-    return (DealerVolumeBonusRule.objects.annotate(matches_period=Exists(periods)).filter(matches_period=True)
-        .filter(Q(dealer_id=dealer_id) | Q(dealer__isnull=True))
-        .annotate(has_brands=Exists(brands), matches_brand=Exists(brands.filter(brand__iexact=order.vehicle_model.brand)))
-        .filter(Q(matches_brand=True) | (Q(has_brands=False) & (Q(brand="") | Q(brand__iexact=order.vehicle_model.brand))))
-        .filter(Q(energy_type="") | Q(energy_type=order.vehicle_model.energy_type))
-        .annotate(has_models=Exists(links), matches_model=Exists(links.filter(vehiclemodel_id=order.vehicle_model_id)))
+    return (rules
+        .annotate(has_brands=Exists(brands), matches_brand=Exists(brands.filter(brand__iexact=vehicle_model.brand)))
+        .filter(Q(matches_brand=True) | (Q(has_brands=False) & (Q(brand="") | Q(brand__iexact=vehicle_model.brand))))
+        .filter(Q(energy_type="") | Q(energy_type=vehicle_model.energy_type))
+        .annotate(has_models=Exists(links), matches_model=Exists(links.filter(vehiclemodel_id=vehicle_model.pk)))
         .filter(Q(has_models=False) | Q(matches_model=True)))
+
+
+def matching_bonus_rules(order, dealer_id):
+    """共用試算與期間鎖的條件。"""
+    if not dealer_id or not order.registration_date or not order.vehicle_model_id:
+        return DealerVolumeBonusRule.objects.none()
+    periods = DealerVolumeBonusPeriod.objects.filter(rule_id=OuterRef('pk'), starts_on__lte=order.registration_date, ends_on__gte=order.registration_date)
+    rules = (DealerVolumeBonusRule.objects.annotate(matches_period=Exists(periods)).filter(matches_period=True)
+        .filter(Q(dealer_id=dealer_id) | Q(dealer__isnull=True)))
+    return _filter_bonus_rules_for_vehicle(rules, order.vehicle_model)
+
+
+def bonus_rules_for_vehicle_model(vehicle_model):
+    """車型本身符合條件的台數獎金規則（不限車行與統計期間），供機種工作區唯讀查看。"""
+    return _filter_bonus_rules_for_vehicle(DealerVolumeBonusRule.objects.all(), vehicle_model)
 
 
 def resolve_bonus_period(rule, period=None):

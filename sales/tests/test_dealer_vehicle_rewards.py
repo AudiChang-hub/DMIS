@@ -224,7 +224,10 @@ class DealerVehicleRewardTests(TestCase):
         DealerVehicleRewardItem.objects.create(
             plan=plan, reward_type="cash_gift", name="紅包", quantity=1000
         )
+        # 摘要卡已改為機種工作區分頁：規格頁提供分頁入口，獎勵摘要在「傭金與獎勵」分頁。
         response = self.client.get(reverse("vehicle_model_edit", args=[self.model.pk]))
+        self.assertContains(response, reverse("vehicle_model_commission", args=[self.model.pk]))
+        response = self.client.get(reverse("vehicle_model_commission", args=[self.model.pk]))
         self.assertContains(response, "車行傭金與銷售獎勵")
         self.assertContains(response, "紅包 1000 元")
         listing = self.client.get(reverse("vehicle_model_list"))

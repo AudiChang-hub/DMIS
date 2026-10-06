@@ -67,16 +67,17 @@ class OrderSortingTests(TestCase):
             self.assertEqual(len(set(seen)), 27)
             self.assertEqual(set(seen), set(SalesOrder.objects.values_list('pk', flat=True)))
 
-    def test_profit_sort_matches_model_with_fractional_values(self):
+    def test_profit_sort_matches_model_net_profit(self):
+        # 金額一律存整數；排序用的資料庫淨利須與模型計算一致。
         for index, order in enumerate(self.orders):
             p = order.operations
             p.actual_disbursement = Decimal('100') + index
-            p.legacy_card_fee_expense = Decimal('0.064')
+            p.legacy_card_fee_expense = Decimal('7')
             p.save()
         sorted_rows = list(sort_orders(SalesOrder.objects.select_related('operations'), ['-profit']))
         self.assertEqual([o.pk for o in sorted_rows], [o.pk for o in reversed(self.orders)])
         for order in sorted_rows:
-            self.assertAlmostEqual(order._sort_profit, order.operations.net_profit, places=4)
+            self.assertEqual(order._sort_profit, order.operations.net_profit)
 
     def test_view_preserves_sort_and_resets_page_links(self):
         self.client.force_login(self.user)

@@ -15,7 +15,7 @@
 
   function money(value) {
     return `$${new Intl.NumberFormat("zh-TW", {
-      maximumFractionDigits: 2,
+      maximumFractionDigits: 0,
     }).format(value)}`;
   }
 

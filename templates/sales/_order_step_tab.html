@@ -1,0 +1,5 @@
+<a class="order-step-tab is-{{ step.state }}{% if step.number %} is-main{% else %} is-extra{% endif %}{% if as_tab and step.key == open_step %} is-active{% endif %}" href="{{ order_detail_url }}?tab={{ step.key }}#step-{{ step.key }}" data-step-link="{{ step.key }}"{% if as_tab %} id="tab-{{ step.key }}" role="tab" aria-controls="panel-{{ step.key }}" aria-selected="{% if step.key == open_step %}true{% else %}false{% endif %}" tabindex="{% if step.key == open_step %}0{% else %}-1{% endif %}"{% endif %}>
+  <span class="order-step-tab__marker" aria-hidden="true">{% include "sales/_order_step_marker.html" %}</span>
+  <span class="order-step-tab__text"><span class="order-step-tab__label">{{ step.title }}</span><span class="order-step-tab__state">{{ step.state_label }}</span></span>
+  <span class="order-step-tab__dirty" data-dirty-indicator hidden title="有未儲存修改"><span class="visually-hidden">（有未儲存修改）</span></span>
+</a>

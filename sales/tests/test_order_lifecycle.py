@@ -7,6 +7,7 @@ from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
 
+from sales.services.order_steps import order_step_url
 from sales.forms import DeliveryCompletionForm, DeliveryPaymentForm
 from sales.models import (
     BusinessHoliday,
@@ -401,7 +402,7 @@ class OrderLifecycleTests(TestCase):
 
         self.assertRedirects(
             response,
-            f"{reverse('order_detail', args=[order.pk])}?tab=delivery",
+            order_step_url(order.pk, "delivery"),
         )
         order.refresh_from_db()
         vehicle.refresh_from_db()
@@ -498,7 +499,7 @@ class OrderLifecycleTests(TestCase):
 
         self.assertRedirects(
             payment_response,
-            f"{reverse('order_detail', args=[order.pk])}?tab=finance",
+            order_step_url(order.pk, "finance"),
             fetch_redirect_response=False,
         )
         payment.refresh_from_db()
@@ -519,7 +520,7 @@ class OrderLifecycleTests(TestCase):
         )
         self.assertRedirects(
             delivery_response,
-            f"{reverse('order_detail', args=[order.pk])}?tab=delivery",
+            order_step_url(order.pk, "delivery"),
             fetch_redirect_response=False,
         )
         order.refresh_from_db()

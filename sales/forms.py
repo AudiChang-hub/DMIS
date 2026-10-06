@@ -2686,6 +2686,9 @@ class VehicleIncentiveRuleForm(forms.ModelForm):
             "effective_to": DateInput(),
             "note": forms.Textarea(attrs={"rows": 3}),
         }
+        help_texts = {
+            "promotion_subsidy": "僅網路平台來源的訂單會自動帶入；其他來源帶 0，必要時由財務人工更正。",
+        }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)

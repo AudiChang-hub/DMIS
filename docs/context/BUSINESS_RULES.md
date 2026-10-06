@@ -32,7 +32,8 @@
 - 車色必須屬於所選車型且仍啟用；選定車色與付款方案進入填單時保留選擇並重新驗證，不能信任前端價格。
 - 來源：`sales/catalog_views.py`、`sales/services/catalog_selection.py`；測試 `test_catalog_selection.py`、`test_catalog_color_list.py`、`test_catalog_management.py`。
 - 原廠車型比對只讀官網並記錄差異；寫入僅限補上空白的車色圖片，以及經現有表單建立停用的新車型／新年式；不改既有車型主檔、車色名稱、上架狀態或售價版本。
-- 選車上架完全跟著機種啟用狀態：啟用即上架、停用即下架；選車展示管理不另設上架開關，只維護圖片、介紹與排序。官網車型對應須由人確認。來源：`sales/services/official_catalog.py`、`sales/official_catalog_views.py`；規格 `specs/061-official-catalog-check`；測試 `test_official_catalog.py`。
+- 原廠促銷補助金只在網路平台來源訂單領牌時自動帶入；店內與合作車行訂單帶 0。所有來源皆可由財務人工更正（附原因、保護不被重算覆寫）。來源：`sales/services/incentive_rule.py`。
+- 選車上架完全跟著機種啟用狀態：啟用即上架、停用即下架；不另設上架開關；圖片、介紹與排序由機種編輯頁的「選車圖片與介紹」維護。官網車型對應須由人確認。來源：`sales/services/official_catalog.py`、`sales/official_catalog_views.py`；規格 `specs/061-official-catalog-check`；測試 `test_official_catalog.py`。
 
 ## 財務與權限
 

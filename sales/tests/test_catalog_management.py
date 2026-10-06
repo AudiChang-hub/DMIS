@@ -24,30 +24,20 @@ class CatalogManagementTests(TestCase):
         self.url = reverse("catalog_edit", args=[self.model.pk])
         self.payload = {"expected_revision": 0, "description": "更新介紹", "position": 0}
 
-    def test_manage_hides_disabled_and_active_models_are_published(self):
-        response = self.client.get(reverse("catalog_manage"))
-        self.assertEqual(response.context["page_obj"].paginator.count, 2)
-        self.assertContains(response, "另一車型")
-        # 上架跟著機種啟用狀態，列表中的啟用車款一律已上架。
-        self.assertNotContains(response, "未上架")
-        self.assertNotContains(response, "停用品牌")
-        self.assertNotContains(response, "STOP125")
+    def test_old_manage_entry_redirects_and_disabled_models_cannot_edit(self):
+        # 選車展示管理入口已移除：上架跟著機種啟用，圖片與介紹改由機種編輯頁進入。
+        self.assertRedirects(self.client.get(reverse("catalog_manage")), reverse("vehicle_model_list"),
+                             fetch_redirect_response=False)
+        edit_page = self.client.get(reverse("vehicle_model_edit", args=[self.model.pk]))
+        self.assertContains(edit_page, "選車圖片與介紹")
+        self.assertNotContains(self.client.get(reverse("data_maintenance")), "選車展示管理")
         for method in (self.client.get, self.client.post):
             self.assertEqual(method(reverse("catalog_edit", args=[self.disabled.pk]), self.payload).status_code, 404)
         self.assertFalse(VehicleCatalogEntry.objects.filter(vehicle_model=self.disabled).exists())
 
-    def test_filters_intersect_options_and_keep_pagination(self):
-        for year in range(2000, 2022):
-            VehicleModel.objects.create(brand="SUZUKI", name="SUI 125", model_number="UQ125DA", model_year=year, energy_type="gas")
-        filters = {"brand": "SUZUKI", "model_name": "SUI 125", "model_number": "UQ125DA", "q": "SUI", "page": 2}
-        response = self.client.get(reverse("catalog_manage"), filters)
-        self.assertEqual(response.context["page_obj"].paginator.count, 23)
-        self.assertEqual(len(response.context["page_obj"]), 3)
-        self.assertEqual(response.context["model_names"], ["SUI 125"])
-        self.assertEqual(response.context["model_numbers"], ["UQ125DA"])
-        self.assertContains(response, "brand=SUZUKI&amp;model_name=SUI+125&amp;model_number=UQ125DA&amp;q=SUI&amp;page=1")
-        for key, value in (("brand", "OTHER"), ("model_name", "另一車型"), ("model_number", "OTHER125"), ("q", "不匹配")):
-            self.assertEqual(self.client.get(reverse("catalog_manage"), {**filters, key: value}).context["page_obj"].paginator.count, 0)
+    def test_save_returns_to_model_edit_page(self):
+        response = self.client.post(self.url, self.payload)
+        self.assertRedirects(response, reverse("vehicle_model_edit", args=[self.model.pk]), fetch_redirect_response=False)
 
     def test_only_active_color_fields_and_preserve_disabled_photo(self):
         self.inactive.catalog_image = "catalog/keep-original.png"

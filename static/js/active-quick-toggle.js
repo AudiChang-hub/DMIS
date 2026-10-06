@@ -24,6 +24,27 @@
     form.closest("tr, article")?.classList.toggle("is-inactive", !enabled);
   };
 
+  // 依狀態分頁的列表：切換後先留在原位，提示重新整理後會移到另一個分頁。
+  const markMovedTab = (form, enabled) => {
+    const scope = form.closest("[data-status-tab]");
+    if (!scope) return;
+    const [activeLabel, inactiveLabel] = (scope.dataset.statusTabLabels || "啟用中,已停用").split(",");
+    const moved = (scope.dataset.statusTab === "active") !== enabled;
+    let note = form.parentElement.querySelector("[data-moved-tab-note]");
+    if (!moved) {
+      note?.remove();
+      return;
+    }
+    if (!note) {
+      note = document.createElement("small");
+      note.className = "quick-toggle-moved-note";
+      note.dataset.movedTabNote = "";
+      note.setAttribute("role", "status");
+      form.after(note);
+    }
+    note.textContent = `重新整理後移到「${enabled ? activeLabel : inactiveLabel}」`;
+  };
+
   const submitToggle = async (form) => {
     const button = form.querySelector("button[role='switch']");
     const stateInput = form.querySelector("input[name='active']");
@@ -51,7 +72,17 @@
         throw new Error(payload.message || "無法更新使用狀態，請稍後再試。");
       }
       toggleForms(payload.resource || form.dataset.activeResource, payload.pk || form.dataset.activePk)
-        .forEach((relatedForm) => updateControl(relatedForm, Boolean(payload.active)));
+        .forEach((relatedForm) => {
+          updateControl(relatedForm, Boolean(payload.active));
+          markMovedTab(relatedForm, Boolean(payload.active));
+        });
+      if (payload.status_counts) {
+        Object.entries(payload.status_counts).forEach(([key, value]) => {
+          document.querySelectorAll(`[data-status-count="${key}"]`).forEach((node) => {
+            node.textContent = value;
+          });
+        });
+      }
       window.dispatchEvent(new CustomEvent("activequicktoggle:changed", { detail: payload }));
     } catch (error) {
       updateControl(form, previousEnabled);

@@ -695,19 +695,27 @@ def _operations_inventory_rows(batch, workbook):
     return rows, {}
 
 
+def _is_struck(cell):
+    font = getattr(cell, "font", None)
+    return bool(font is not None and font.strike)
+
+
 def _channel_rows(batch, workbook):
+    """通路匯入只讀「車行」工作表；店名有刪除線的列視為已不合作，不匯入。"""
     rows = []
     errors = {}
+    notices = {}
+    struck_rows = []
     for sheet_name, source_type, header_row in (
         ("車行", SalesSource.SourceType.DEALER, 2),
-        ("網路平台", SalesSource.SourceType.PLATFORM, 1),
     ):
         if sheet_name not in workbook.sheetnames:
             errors[sheet_name] = f"找不到{sheet_name}工作表"
             continue
         sheet = workbook[sheet_name]
         headers = next(sheet.iter_rows(min_row=header_row, max_row=header_row, values_only=True))
-        for row_number, row_values in enumerate(sheet.iter_rows(min_row=header_row + 1, values_only=True), header_row + 1):
+        for row_number, row_cells in enumerate(sheet.iter_rows(min_row=header_row + 1), header_row + 1):
+            row_values = tuple(cell.value for cell in row_cells)
             current_dealer_layout = (
                 source_type == SalesSource.SourceType.DEALER
                 and len(headers) >= 11
@@ -715,8 +723,12 @@ def _channel_rows(batch, workbook):
                 and _text(headers[9]) == "三陽"
                 and _text(headers[10]) == "台鈴"
             )
-            name = _text(row_values[2]) if current_dealer_layout else _text(_value(row_values, "A"))
+            name_index = 2 if current_dealer_layout else 0
+            name = _text(row_values[name_index]) if len(row_values) > name_index else ""
             if not name:
+                continue
+            if _is_struck(row_cells[name_index]):
+                struck_rows.append(f"第 {row_number} 列 {name}")
                 continue
             raw = _row_dict_values(headers, row_values)
             if source_type == SalesSource.SourceType.DEALER:
@@ -790,15 +802,6 @@ def _channel_rows(batch, workbook):
                         "has_line_group": False,
                         "note": _text(_value(row_values, "K")),
                     }
-            else:
-                mapped = {
-                    "name": name, "source_type": source_type,
-                    "contact_name": _text(_value(row_values, "B")),
-                    "phone": _text(_value(row_values, "C")),
-                    "extension": _text(_value(row_values, "D")),
-                    "mobile": _text(_value(row_values, "E")),
-                    "email": _text(_value(row_values, "F")),
-                }
             existing = SalesSource.objects.filter(source_type=source_type, name=name).exists()
             rows.append(LegacyImportRow(
                 batch=batch, sheet_name=sheet_name, source_row=row_number,
@@ -806,7 +809,9 @@ def _channel_rows(batch, workbook):
                 action=LegacyImportRow.Action.UPDATE if existing else LegacyImportRow.Action.CREATE,
                 raw_data=raw, mapped_data=mapped, messages=[],
             ))
-    return rows, errors
+    if struck_rows:
+        notices["車行"] = f"已略過 {len(struck_rows)} 列有刪除線的車行：" + "、".join(struck_rows[:20]) + ("…" if len(struck_rows) > 20 else "")
+    return rows, errors, notices
 
 
 @transaction.atomic
@@ -816,15 +821,16 @@ def build_import_preview(batch):
     workbook = load_workbook(batch.source_file, read_only=True, data_only=True)
     try:
         if batch.import_type == LegacyImportBatch.ImportType.CHANNELS:
-            rows, errors = _channel_rows(batch, workbook)
+            rows, errors, notices = _channel_rows(batch, workbook)
         else:
+            notices = {}
             inventory_rows, inventory_errors = _operations_inventory_rows(batch, workbook)
             sales_rows, sales_errors = _operations_sales_rows(batch, workbook)
             rows = inventory_rows + sales_rows
             errors = {**inventory_errors, **sales_errors}
         LegacyImportRow.objects.bulk_create(rows, batch_size=500)
         batch.source_sheets = list(workbook.sheetnames)
-        batch.preview_summary = {"errors": errors, "sheets": list(workbook.sheetnames)}
+        batch.preview_summary = {"errors": errors, "notices": notices, "sheets": list(workbook.sheetnames)}
         batch.status = LegacyImportBatch.Status.PREVIEW
         batch.save(update_fields=["source_sheets", "preview_summary", "status", "updated_at"])
         return revalidate_import_batch(batch)
@@ -1122,7 +1128,7 @@ def revalidate_import_batch(batch):
             LegacyImportRow.objects.filter(
                 batch__import_type=LegacyImportBatch.ImportType.CHANNELS,
                 batch__status=LegacyImportBatch.Status.COMPLETED,
-                sheet_name__in=["車行", "網路平台"],
+                sheet_name="車行",
                 action__in=[
                     LegacyImportRow.Action.CREATE,
                     LegacyImportRow.Action.UPDATE,
@@ -1137,6 +1143,7 @@ def revalidate_import_batch(batch):
         "source_rows": len(rows),
         "counts": counts,
         "errors": previous.get("errors", {}),
+        "notices": previous.get("notices", {}),
         "sheets": batch.source_sheets,
         "validation": validation,
     }

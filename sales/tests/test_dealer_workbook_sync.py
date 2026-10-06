@@ -102,3 +102,17 @@ class DealerWorkbookSyncTests(TestCase):
         self.assertEqual(alias_target.responsible_person, "陳先生")
         self.assertEqual(alias_target.note, "別名備註")
         self.assertFalse(SalesSource.objects.filter(name="東湖上慶").exists())
+
+    def test_struck_dealer_rows_are_not_read(self):
+        from openpyxl.styles import Font
+
+        from sales.services.dealer_workbook_sync import read_dealer_workbook
+
+        self.write_workbook()
+        from openpyxl import load_workbook
+
+        workbook = load_workbook(self.workbook_path)
+        workbook["車行"].cell(5, 3).font = Font(strike=True)
+        workbook.save(self.workbook_path)
+        names = [row.name for row in read_dealer_workbook(self.workbook_path)]
+        self.assertEqual(names, ["油電車行", "電車車行"])

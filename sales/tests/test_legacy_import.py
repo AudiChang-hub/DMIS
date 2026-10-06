@@ -7,6 +7,7 @@ from django.contrib.auth import get_user_model
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase, override_settings
 from django.urls import reverse
+from openpyxl.styles import Font
 from openpyxl import Workbook, load_workbook
 
 from sales.models import (
@@ -806,20 +807,18 @@ class LegacyImportTests(TestCase):
     def test_channel_preview_groups_source_and_contact(self):
         batch = self.make_batch(LegacyImportBatch.ImportType.CHANNELS)
         summary = build_import_preview(batch)
-        self.assertEqual(summary["source_rows"], 2)
+        # 只讀「車行」工作表，「網路平台」工作表不匯入。
+        self.assertEqual(summary["source_rows"], 1)
         result = confirm_import(batch, "tester")
-        self.assertEqual(result["created"], 2)
-        self.assertEqual(batch.rows.filter(committed_model="SalesSource").count(), 2)
+        self.assertEqual(result["created"], 1)
+        self.assertEqual(batch.rows.filter(committed_model="SalesSource").count(), 1)
         dealer = SalesSource.objects.get(name="測試車行")
-        platform = SalesSource.objects.get(name="測試平台")
+        self.assertFalse(SalesSource.objects.filter(name="測試平台").exists())
         self.assertEqual(dealer.responsible_person, "王先生")
         self.assertEqual(dealer.phone, "02-1234")
         self.assertEqual(dealer.mobile, "0912")
         self.assertEqual(dealer.address, "新北市")
         self.assertEqual(dealer.note, "合作中")
-        self.assertIn("歷史聯絡資料：李小姐", platform.note)
-        self.assertIn("分機：123", platform.note)
-        self.assertIn("Email：test@example.com", platform.note)
         profiles = {
             profile.cooperation_scope: profile
             for profile in dealer.cooperation_profiles.all()
@@ -845,6 +844,8 @@ class LegacyImportTests(TestCase):
         dealer.append(["", "", "店名", "負責人", "電話一", "電話二", "手機", "手機/傳真", "地址", "三陽", "台鈴", "三陽", "台鈴", "備註"])
         dealer.append(["", "E", "電動車行", "王先生", "02-1234", "", "0912", "", "基隆市仁愛區", "", "電動車", "", 3, "Excel 備註"])
         dealer.append(["", "", "油電車行", "李小姐", "02-5678", "", "0922", "", "新北市汐止區", "", "V", "", 5, "油電備註"])
+        dealer.append(["", "", "已結束車行", "陳先生", "02-9999", "", "0933", "", "台北市", "", "V", "", 2, ""])
+        dealer.cell(dealer.max_row, 3).font = Font(strike=True)
         workbook.create_sheet("網路平台").append(["平台", "聯絡人", "電話", "分機", "手機", "信箱"])
         stream = BytesIO()
         workbook.save(stream)
@@ -858,8 +859,11 @@ class LegacyImportTests(TestCase):
             uploaded_by="tester",
         )
 
-        build_import_preview(batch)
+        summary = build_import_preview(batch)
+        self.assertIn("已結束車行", summary["notices"]["車行"])
         confirm_import(batch, "tester")
+        # 店名有刪除線的列不匯入。
+        self.assertFalse(SalesSource.objects.filter(name="已結束車行").exists())
 
         source = SalesSource.objects.get(name="電動車行")
         profiles = {

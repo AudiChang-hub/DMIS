@@ -102,7 +102,7 @@ def _capacity(value):
 
 
 def read_dealer_workbook(path):
-    """讀取現行聯絡簿的車行頁，第三列起為資料。"""
+    """讀取現行聯絡簿的車行頁，第三列起為資料；店名有刪除線的列不讀取。"""
     workbook = load_workbook(Path(path), read_only=True, data_only=True)
     try:
         if "車行" not in workbook.sheetnames:
@@ -112,10 +112,13 @@ def read_dealer_workbook(path):
         if len(headers) < 14 or headers[2] != "店名" or headers[9] != "三陽" or headers[10] != "台鈴":
             raise ValueError("車行工作表欄位格式不符，請確認第二列仍為聯絡簿欄位列。")
         rows = []
-        for row_number, values in enumerate(sheet.iter_rows(min_row=3, values_only=True), 3):
-            values = tuple(values) + (None,) * max(0, 14 - len(values))
+        for row_number, cells in enumerate(sheet.iter_rows(min_row=3), 3):
+            values = tuple(cell.value for cell in cells) + (None,) * max(0, 14 - len(cells))
             name = _text(values[2])
             if not name:
+                continue
+            font = getattr(cells[2], "font", None) if len(cells) > 2 else None
+            if font is not None and font.strike:
                 continue
             rows.append(
                 DealerWorkbookRow(

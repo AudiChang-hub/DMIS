@@ -17,6 +17,7 @@
 - 入口：`sales/tests/test_order_intake.py`、`test_reception_entry.py`、`test_completed_order_corrections.py`、`test_order_deletion.py`。
 
 ## Excel 匯入與識別
+- 通路名冊匯入只讀「車行」工作表（網路平台不經 Excel 匯入）；店名儲存格有刪除線的列略過並列於預覽「已略過的資料」。指令 `sync_dealer_workbook` 採相同規則。
 
 - 現行入口是 `sales/services/legacy_import.py`；財務還原見 `legacy_finance.py`。Odoo 的 excel_sync_id 規格不是目前實作。
 - `_sales_transaction_key(data)` 使用車輛識別（缺值退回型號／車牌）、類別、領牌／發票／訂單日期順序擇一，以及車主身分證號或姓名的正規化雜湊組成；以函式為精確來源。

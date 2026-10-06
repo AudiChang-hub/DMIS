@@ -8,12 +8,12 @@
   {% else %}
     <a
       class="back-link"
-      href="{{ fallback_url }}"
+      href="{{ fallback_url }}"{% if not direct_back %}
       data-smart-back
-      data-fallback-url="{{ fallback_url }}"
+      data-fallback-url="{{ fallback_url }}"{% endif %}
     >
       <span aria-hidden="true">←</span>
-      <span>回到上一畫面</span>
+      <span>{% if direct_back %}回到{{ label }}{% else %}回到上一畫面{% endif %}</span>
     </a>
     <ol class="page-breadcrumbs" aria-label="目前位置">
       {% if root_url and root_label %}

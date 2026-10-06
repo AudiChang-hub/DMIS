@@ -160,13 +160,14 @@ class ReceptionWizardTests(TestCase):
     complete_data = test_reception_entry.ReceptionEntryTests.complete_data
     grant_intake_only = test_reception_entry.ReceptionEntryTests.grant_intake_only
 
-    def test_reception_walks_every_step_and_submits_without_finance(self):
+    def test_reception_walks_every_step_and_submits_deposit_without_other_finance(self):
         self.grant_intake_only()
         key = str(uuid.uuid4())
         draft = None
         for step in ("vehicle", "extras", "owner", "payment"):
             data = {**self.complete_data(), "_wizard_step": step, "_wizard_action": "next", "_submission_key": key,
-                    "_id_check": "passed", "deposit_amount": "99999"}
+                    "_id_check": "passed", "deposit_amount": "3000", "deposit_method": "cash",
+                    "registration_plate_fee": "999"}
             if draft:
                 data["_draft_id"] = str(draft.pk)
             if step == "owner":
@@ -176,16 +177,22 @@ class ReceptionWizardTests(TestCase):
             self.assertEqual(response.status_code, 302, response.content.decode()[:300])
             self.assertTrue(response.url.startswith(reverse("order_start")))
         self.assertTrue(draft.data["_reception"])
-        self.assertNotIn("deposit_amount", draft.data)
+        # 訂金所有建單帳號都可填並存進草稿；其他財務欄位仍不保存。
+        self.assertEqual(draft.data["deposit_amount"], "3000")
+        self.assertNotIn("registration_plate_fee", draft.data)
         page = self.client.get(reverse("order_start"), {"draft": draft.pk, "step": "confirm"})
         self.assertContains(page, "請核對整張訂單")
         summary = page.content.decode().split("wizard-summary", 1)[1].split("</section>", 1)[0]
-        self.assertNotIn("<dt>訂金", summary)
+        self.assertIn("<dt>訂金</dt><dd>3,000 元</dd>", summary)
+        self.assertNotIn("實際牌險合計", summary)
         response = self.client.post(reverse("order_start"), {**self.complete_data(), "_wizard_step": "confirm", "_wizard_action": "submit",
-                                                            "_submission_key": key, "_id_check": "passed", "_draft_id": str(draft.pk)})
+                                                            "_submission_key": key, "_id_check": "passed", "_draft_id": str(draft.pk),
+                                                            "deposit_amount": "3000", "deposit_method": "cash"})
         order = SalesOrder.objects.get()
         self.assertEqual(response.url, reverse("order_submitted", args=[order.pk]))
-        self.assertEqual(order.deposit_amount, 0)
+        self.assertEqual((order.deposit_amount, order.deposit_method), (3000, "cash"))
+        deposit = order.payment_records.get(system_key="deposit")
+        self.assertEqual((deposit.expected_amount, deposit.received_amount, deposit.confirmed), (3000, 0, False))
         # 沒有簽署或列印權限時，成立頁不顯示空白的簽署區塊。
         self.assertNotContains(self.client.get(response.url), "sign-choice")
         self.assertFalse(OrderEvent.objects.filter(order=order, event_type="identity_manual_check").exists())

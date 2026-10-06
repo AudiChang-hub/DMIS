@@ -122,6 +122,8 @@ def identity_check_error(data):
     if data.get("owner_type") not in {"local", "foreign"}:
         return ""
     if data.get(ID_CHECK_KEY) == "passed" or data.get(ID_MANUAL_KEY) in {"on", "1", "true", True}:
+        if data.get("id_verified") not in {"on", "1", "true", True}:
+            return "請逐項對照證件照片，勾選「已人工核對證件」後才能前往下一步。"
         return ""
     reason = (data.get(ID_CHECK_ERROR_KEY) or "").strip()
     if data.get(ID_CHECK_KEY) == "failed" and reason:

@@ -24,11 +24,12 @@ class CatalogManagementTests(TestCase):
         self.url = reverse("catalog_edit", args=[self.model.pk])
         self.payload = {"expected_revision": 0, "description": "更新介紹", "position": 0}
 
-    def test_manage_hides_disabled_but_retains_unpublished(self):
+    def test_manage_hides_disabled_and_active_models_are_published(self):
         response = self.client.get(reverse("catalog_manage"))
         self.assertEqual(response.context["page_obj"].paginator.count, 2)
         self.assertContains(response, "另一車型")
-        self.assertContains(response, "未上架")
+        # 上架跟著機種啟用狀態，列表中的啟用車款一律已上架。
+        self.assertNotContains(response, "未上架")
         self.assertNotContains(response, "停用品牌")
         self.assertNotContains(response, "STOP125")
         for method in (self.client.get, self.client.post):

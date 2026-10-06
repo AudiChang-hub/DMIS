@@ -228,7 +228,7 @@
   },
   "catalog_edit.1f0c5a321ff9": {
     "page": "編輯車款展示",
-    "default": "上架後公開圖片、介紹及有效對客售價／分期，不公開成本、佣金與撥款。只上傳你有權使用的圖片。",
+    "default": "機種啟用後公開圖片、介紹及有效對客售價／分期，不公開成本、佣金與撥款。只上傳你有權使用的圖片。",
     "template": "templates/sales/catalog_edit.html"
   },
   "catalog_edit.c62cb11399a5": {
@@ -248,7 +248,7 @@
   },
   "catalog_manage.504ae0cdacfd": {
     "page": "選車展示管理",
-    "default": "只列出啟用車款，包含已上架與未上架。規格、售價與分期共用機種主檔，這裡維護展示圖片與介紹。",
+    "default": "只列出啟用車款；機種啟用即自動上架、停用即下架。規格、售價與分期共用機種主檔，這裡只維護展示圖片、介紹與排序。",
     "template": "templates/sales/catalog_manage.html"
   },
   "catalog_manage.fc99099c0daa": {
@@ -318,7 +318,7 @@
   },
   "data_maintenance.9f148548722c": {
     "page": "資料維護區",
-    "default": "上傳車款圖片、介紹與設定公開上架；售價與分期共用機種資料。",
+    "default": "上傳車款圖片與介紹；機種啟用即自動上架，售價與分期共用機種資料。",
     "template": "templates/sales/data_maintenance.html"
   },
   "data_maintenance.b57566e37b63": {

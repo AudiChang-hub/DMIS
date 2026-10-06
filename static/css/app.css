@@ -2046,13 +2046,13 @@ input[type="file"].form-control { padding: var(--space-3); }
 }
 .next-actions {
   --next-accent: var(--forest-2);
-  --next-soft: #f1f7f3;
+  --next-soft: color-mix(in srgb, var(--next-accent) 7%, var(--surface));
   margin: calc(-1 * var(--space-1)) 0 var(--stack-gap); overflow: hidden; background: var(--surface);
   border: 1px solid var(--line); border-left: 3px solid var(--next-accent); border-radius: var(--radius-lg);
   box-shadow: 0 6px 20px color-mix(in srgb, var(--shadow-ink) 6%, transparent);
 }
-.next-actions--urgent { --next-accent: var(--red); --next-soft: #fff4f1; }
-.next-actions--parallel { --next-accent: var(--blue); --next-soft: #f2f6fc; }
+.next-actions--urgent { --next-accent: var(--red); --next-soft: color-mix(in srgb, var(--red) 7%, var(--surface)); }
+.next-actions--parallel { --next-accent: var(--blue); --next-soft: color-mix(in srgb, var(--blue) 7%, var(--surface)); }
 .next-actions__main {
   display: grid; min-height: 0; padding: var(--space-4) var(--space-4); align-items: center;
   grid-template-columns: 32px minmax(0, 680px) 172px; justify-content: start; gap: var(--space-3);

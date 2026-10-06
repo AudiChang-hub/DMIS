@@ -3105,6 +3105,19 @@ class SalesOrder(TimeStampedModel):
         null=True,
         editable=False,
     )
+    dealer_reward_snapshot = models.JSONField(
+        "車行附加獎勵快照",
+        default=dict,
+        blank=True,
+        editable=False,
+        help_text="建立訂單時適用的車行附加獎勵方案；空白表示舊訂單，顯示時依日期查詢主檔。",
+    )
+    dealer_reward_snapshot_locked_at = models.DateTimeField(
+        "附加獎勵快照保存時間",
+        blank=True,
+        null=True,
+        editable=False,
+    )
     plate_insurance_fee = models.DecimalField(
         "實際牌險合計", max_digits=12, decimal_places=0, default=0
     )

@@ -82,7 +82,8 @@ class OrderIntakeTests(TestCase):
         order = SalesOrder.objects.latest("pk")
         self.assertEqual(order.print_company, company)
         self.assertEqual(order.print_company_snapshot['legal_name'], '甲車行有限公司')
-        self.assertEqual((order.status, order.source, order.vehicle_price, order.deposit_amount), ("intake_pending", self.dealer, 79800, 0))
+        # 車行可填訂金（客人當場付款），但不能改售價、歸屬或其他財務欄位。
+        self.assertEqual((order.status, order.source, order.vehicle_price, order.deposit_amount), ("intake_pending", self.dealer, 79800, 99999))
         self.assertFalse(order.accepted_at)
         self.assertFalse(order.commission_recipient_id)
         self.assertEqual(order.other_fees.count(), 0)

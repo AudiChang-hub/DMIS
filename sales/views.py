@@ -33,6 +33,7 @@ from .services import official_catalog, order_workspace
 from rq import Retry, Worker
 from rq.registry import StartedJobRegistry
 
+from .services.order_steps import order_step_url
 from .services.order_contract_pdf import build_order_contract_pdf
 from .services.privacy_consent_pdf import build_privacy_consent_pdf
 from .services.document_signing import (
@@ -568,10 +569,7 @@ def _document_upload_response(
     section="",
 ):
     """同時支援一般表單與可顯示上傳進度的非同步表單。"""
-    detail_url = reverse("order_detail", args=[order_pk])
-    target_url = f"{detail_url}?tab={tab}"
-    if section:
-        target_url = f"{target_url}#{section}"
+    target_url = order_step_url(order_pk, tab, section)
     accepts_json = (
         request.headers.get("X-Requested-With") == "XMLHttpRequest"
         or "application/json" in request.headers.get("Accept", "")
@@ -589,11 +587,11 @@ def _document_upload_response(
         messages.success(request, message)
     else:
         messages.error(request, message)
-    return redirect(target_url if section else detail_url)
+    return redirect(target_url)
 
 
 def _order_detail_section_url(order_pk, section):
-    return f"{reverse('order_detail', args=[order_pk])}?tab=documents#{section}"
+    return order_step_url(order_pk, "documents", section)
 
 
 @login_required
@@ -5372,18 +5370,12 @@ def order_detail(request, pk, *, commission_form=None, workspace_context_only=Fa
         registration_missing=registration_missing,
         subsidy_missing=subsidy_missing,
     )
-    valid_tabs = {
-        "order",
-        "allocation",
-        "subsidy",
-        "registration",
-        "delivery",
-        "history",
-    }
-    requested_tab = request.GET.get("tab", "")
-    active_tab = requested_tab if requested_tab in valid_tabs else "order"
     from .services.order_steps import build_order_steps
-    step_context = build_order_steps(order, next_actions=next_actions, requested=requested_tab, summary=detail_summary)
+    step_context = build_order_steps(
+        order, next_actions=next_actions, requested=request.GET.get("tab", ""), summary=detail_summary
+    )
+    # 預設分頁＝目前步驟；下一步建議據此判斷「目前作業」。
+    active_tab = step_context["open_step"]
     commission_block_reason = order.commission_attribution_block_reason
     if commission_form is None and not commission_block_reason:
         commission_form = OrderCommissionAttributionForm(order=order, prefix="attribution")
@@ -6293,7 +6285,7 @@ def order_sign_done(request, pk):
 def identity_documents_print(request, pk):
     order = get_object_or_404(SalesOrder, pk=pk)
     if request.method != "POST":
-        return redirect(f"{reverse('order_detail', args=[pk])}?tab=order")
+        return redirect(order_step_url(pk, "order"))
     purpose = request.POST.get("purpose", "")
     requested_sides = set(request.POST.getlist("sides"))
     side_fields = [
@@ -6310,7 +6302,7 @@ def identity_documents_print(request, pk):
         )
     except (OSError, ValueError) as exc:
         messages.error(request, f"證件文件未產生：{exc}")
-        return redirect(f"{reverse('order_detail', args=[pk])}?tab=order")
+        return redirect(order_step_url(pk, "order"))
 
     purpose_label = IDENTITY_DOCUMENT_PURPOSES[purpose]
     side_labels = ["正面" if value == "id_front" else "反面" for value in side_fields]
@@ -6465,7 +6457,7 @@ def reallocate_vehicle(request, pk):
         SalesOrder.objects.select_for_update(),
         pk=pk,
     )
-    detail_url = f"{reverse('order_detail', args=[pk])}?tab=allocation"
+    detail_url = order_step_url(pk, "allocation")
     if request.method != "POST":
         return redirect(detail_url)
     if order.has_registration_started:
@@ -6747,7 +6739,7 @@ def delivery_complete(request, pk):
     # PostgreSQL 不允許 FOR UPDATE 套在 nullable OUTER JOIN；只鎖訂單本身，
     # 實體車輛會在 SalesOrder.complete_delivery() 內另行鎖定。
     order = get_object_or_404(SalesOrder.objects.select_for_update(), pk=pk)
-    detail_url = f"{reverse('order_detail', args=[pk])}?tab=delivery"
+    detail_url = order_step_url(pk, "delivery")
     if request.method != "POST":
         return redirect(detail_url)
     if order.is_delivered or DeliveryRecord.objects.filter(order=order).exists():
@@ -6814,7 +6806,7 @@ def delivery_complete(request, pk):
 def deposit_payment_update(request, pk):
     """訂金步驟：登記並確認訂金實收；已確認後只能以沖銷更正。"""
     order = get_object_or_404(SalesOrder.objects.select_for_update(), pk=pk)
-    detail_url = f"{reverse('order_detail', args=[pk])}?tab=deposit"
+    detail_url = order_step_url(pk, "deposit")
     if request.method != "POST":
         return redirect(detail_url)
     if order.is_cancelled_sale:
@@ -6843,7 +6835,7 @@ def deposit_payment_update(request, pk):
 @transaction.atomic
 def delivery_payment_update(request, pk):
     order = get_object_or_404(SalesOrder.objects.select_for_update(), pk=pk)
-    detail_url = f"{reverse('order_detail', args=[pk])}?tab=finance"
+    detail_url = order_step_url(pk, "finance")
     if request.method != "POST":
         return redirect(detail_url)
     if order.is_cancelled_sale:
@@ -6943,7 +6935,7 @@ def delivery_payment_update(request, pk):
 @transaction.atomic
 def cancellation_request(request, pk):
     order = get_object_or_404(SalesOrder.objects.select_for_update(), pk=pk)
-    detail_url = f"{reverse('order_detail', args=[pk])}?tab=closing"
+    detail_url = order_step_url(pk, "closing")
     if request.method != "POST":
         return redirect(detail_url)
     form = CancellationRequestForm(request.POST)
@@ -6994,7 +6986,7 @@ def cancellation_request(request, pk):
 @transaction.atomic
 def refund_complete(request, pk):
     order = get_object_or_404(SalesOrder.objects.select_for_update(), pk=pk)
-    detail_url = f"{reverse('order_detail', args=[pk])}?tab=closing"
+    detail_url = order_step_url(pk, "closing")
     if request.method != "POST":
         return redirect(detail_url)
     form = RefundCompletionForm(order, request.POST, request.FILES)
@@ -7030,7 +7022,7 @@ def refund_complete(request, pk):
 @transaction.atomic
 def cancellation_withdraw(request, pk):
     order = get_object_or_404(SalesOrder.objects.select_for_update(), pk=pk)
-    detail_url = f"{reverse('order_detail', args=[pk])}?tab=closing"
+    detail_url = order_step_url(pk, "closing")
     if request.method != "POST":
         return redirect(detail_url)
     try:
@@ -7045,7 +7037,7 @@ def cancellation_withdraw(request, pk):
 def _finance_redirect(request, order):
     if request.POST.get("return_to") == "operations":
         return redirect("order_operations", pk=order.pk)
-    return redirect(f"{reverse('order_detail', args=[order.pk])}?tab=finance")
+    return redirect(order_step_url(order.pk, "finance"))
 
 
 @login_required
@@ -7126,7 +7118,7 @@ def notification_list(request):
 @transaction.atomic
 def installment_decision_update(request, pk):
     order = get_object_or_404(SalesOrder.objects.select_for_update(), pk=pk)
-    detail_url = f"{reverse('order_detail', args=[pk])}?tab=delivery"
+    detail_url = order_step_url(pk, "delivery")
     if request.method != "POST":
         return redirect(detail_url)
     if order.payment_type != SalesOrder.PaymentType.INSTALLMENT:
@@ -7174,7 +7166,7 @@ def order_exception_close(request, pk):
     from .services.order_exception import close_after_registration
 
     order = get_object_or_404(SalesOrder.objects.select_for_update(), pk=pk)
-    detail_url = f"{reverse('order_detail', args=[pk])}?tab=closing"
+    detail_url = order_step_url(pk, "closing")
     if request.method != "POST":
         return redirect(detail_url)
     form = ExceptionCloseForm(order, request.POST, request.FILES)
@@ -7515,7 +7507,7 @@ def subsidy_document_file(request, document_pk):
 @transaction.atomic
 def subsidy_data_update(request, pk):
     order = get_object_or_404(SalesOrder.objects.select_for_update(), pk=pk)
-    detail_url = f"{reverse('order_detail', args=[pk])}?tab=subsidy"
+    detail_url = order_step_url(pk, "subsidy")
     if request.method != "POST":
         return redirect(detail_url)
     if not order.can_manage_subsidy:
@@ -7605,7 +7597,7 @@ def subsidy_data_update(request, pk):
 @transaction.atomic
 def subsidy_ocr_decision(request, pk):
     order = get_object_or_404(SalesOrder.objects.select_for_update(), pk=pk)
-    detail_url = f"{reverse('order_detail', args=[pk])}?tab=subsidy"
+    detail_url = order_step_url(pk, "subsidy")
     if request.method != "POST" or not order.can_manage_subsidy:
         return redirect(detail_url)
     decision = request.POST.get("decision")

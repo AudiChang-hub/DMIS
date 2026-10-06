@@ -35,8 +35,10 @@ class OrderNextActions:
         return (self.primary, *self.secondary)
 
 
-def _tab_url(order, tab):
-    return f"{reverse('order_detail', args=[order.pk])}?{urlencode({'tab': tab})}"
+def _tab_url(order, tab, anchor=""):
+    from .order_steps import order_step_url
+
+    return order_step_url(order.pk, tab, anchor)
 
 
 def _deadline_description(prefix, due_date, today):
@@ -194,7 +196,7 @@ def _document_archive_action(order):
         title="補上簽署文件",
         description=f"尚未簽署：{'、'.join(missing)}；可在行動裝置上簽名，或印出紙本簽完後上傳。",
         action_label="查看簽署文件",
-        url=f"{_tab_url(order, 'documents')}#signed-documents",
+        url=_tab_url(order, "documents", "signed-documents"),
         badge="可稍後處理",
         tone="optional",
         target_tab="documents",

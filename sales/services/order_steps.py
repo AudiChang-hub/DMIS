@@ -1,10 +1,15 @@
-"""訂單工作台步驟：依作業順序整理狀態與摘要，目前步驟由既有下一步建議決定。"""
+"""訂單工作台步驟：依作業順序整理狀態與摘要，目前步驟由既有下一步建議決定。
+
+每個步驟在訂單頁是一個分頁（tab）；網址以 `?tab=<步驟>#step-<步驟>` 指定開啟的分頁。
+"""
 from decimal import Decimal
+
+from django.urls import reverse
 
 ZERO = Decimal("0")
 
 STEP_ORDER = ("order", "deposit", "documents", "allocation", "registration", "finance", "delivery")
-EXTRA_STEPS = ("subsidy", "closing")
+EXTRA_STEPS = ("subsidy", "closing", "history")
 
 # 下一步建議（order_next_actions）對應到工作台步驟。
 ACTION_STEP = {
@@ -23,7 +28,17 @@ TAB_STEP = {
     "closing": "closing", "history": "history",
 }
 
-STATE_LABELS = {"done": "已完成", "current": "目前步驟", "todo": "待處理", "optional": "隨時可填", "locked": "尚未開放"}
+STATE_LABELS = {
+    "done": "已完成", "current": "目前步驟", "todo": "待處理", "optional": "隨時可填", "locked": "尚未開放",
+    "reference": "查閱",
+}
+
+
+def order_step_url(order_pk, step, anchor=""):
+    """訂單頁指定分頁的網址；anchor 為分頁內的區塊 id，未指定時以 #step-<步驟> 標示分頁。"""
+    if step not in TAB_STEP:
+        raise ValueError(f"未知的訂單分頁：{step}")
+    return f"{reverse('order_detail', args=[order_pk])}?tab={step}#{anchor or f'step-{step}'}"
 
 
 def _document_summary(order, document):
@@ -103,6 +118,9 @@ def build_order_steps(order, *, next_actions=None, requested=None, summary=None)
             number=None, title="取消與結案", state="optional",
             summary=order.get_status_display() if order.is_cancelled_sale else "客戶不再購車時由此處理",
         ),
+        "history": dict(
+            number=None, title="處理紀錄", state="reference", summary="處理經過與訂單變更紀錄",
+        ),
     }
     current = None
     if next_actions and next_actions.primary:
@@ -114,10 +132,16 @@ def build_order_steps(order, *, next_actions=None, requested=None, summary=None)
     for key, step in steps.items():
         step["key"] = key
         step["state_label"] = STATE_LABELS[step["state"]]
-    open_step = TAB_STEP.get(requested or "") or current
+    # 預設開啟目前步驟；沒有建議時開第一個待處理步驟，全部完成則回到訂單內容。
+    open_step = (
+        TAB_STEP.get(requested or "") or current
+        or next((key for key in STEP_ORDER if steps[key]["state"] == "todo"), None)
+        or "order"
+    )
     return {
         "steps": steps,
         "step_list": [steps[key] for key in STEP_ORDER],
+        "extra_step_list": [steps[key] for key in EXTRA_STEPS],
         "current_step": current,
         "open_step": open_step,
     }

@@ -67,6 +67,12 @@
   </nav>
 </section>
 
+{% if batch.preview_summary.notices %}
+<section class="note-box import-file-notices">
+  <strong>已略過的資料</strong>
+  {% for sheet, notice in batch.preview_summary.notices.items %}<p>{{ sheet }}：{{ notice }}</p>{% endfor %}
+</section>
+{% endif %}
 {% if batch.preview_summary.errors %}
 <section class="note-box warning import-file-errors">
   <strong>檔案結構需要修正</strong>

@@ -17,7 +17,7 @@ class CatalogSelectionTests(TestCase):
     def setUp(self):
         reception_fixture.ReceptionEntryTests.setUp(self)
         self.client.force_login(self.root)
-        self.entry = VehicleCatalogEntry.objects.create(vehicle_model=self.model, published=True)
+        self.entry = VehicleCatalogEntry.objects.update_or_create(vehicle_model=self.model, defaults=dict(published=True))[0]
         self.company = InstallmentCompany.objects.create(name="有效分期公司")
         self.plan = InstallmentPlanVersion.objects.create(vehicle_model=self.model, effective_from=timezone.localdate() - timedelta(days=30))
         self.option = InstallmentPlanOption.objects.create(version=self.plan, company=self.company, periods=24, monthly_amount=3500, opening_fee=500)
@@ -129,7 +129,7 @@ class CatalogSelectionTests(TestCase):
     def test_shared_filters_intersection_scope_order_and_old_model_link(self):
         other = VehicleModel.objects.create(brand="另一品牌", name="另一車型", model_number="E-100", energy_type="electric")
         VehicleColor.objects.create(vehicle_model=other, name="黑")
-        VehicleCatalogEntry.objects.create(vehicle_model=other, published=False)
+        VehicleCatalogEntry.objects.update_or_create(vehicle_model=other, defaults=dict(published=False))[0]
         public = self.client.get(reverse("catalog"))
         manage = self.client.get(reverse("catalog_manage"), {"energy": "electric"})
         self.assertNotIn("另一品牌", public.context["brands"])

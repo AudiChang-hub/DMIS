@@ -452,6 +452,8 @@ class OfficialCatalogCreateModelTests(TestCase):
         created = VehicleModel.objects.get(model_number="UQ125B")
         self.assertRedirects(response, f"{reverse('official_catalog')}?brand=suzuki&tab=images", fetch_redirect_response=False)
         self.assertFalse(created.active)
+        # 官網預填色名未修改也要建立車色。
+        self.assertEqual(sorted(created.colors.filter(active=True).values_list("name", flat=True)), ["白", "蘇打藍"])
         self.link.refresh_from_db()
         self.assertEqual((self.link.vehicle_model, self.link.acknowledged_hash), (created, self.link.content_hash))
         self.assertTrue(UserAccountAuditLog.objects.filter(description__contains="從原廠官網建立車型").exists())
@@ -519,3 +521,28 @@ class OfficialCatalogEntryTests(TestCase):
         self.assertContains(self.client.get(reverse("data_maintenance")), f'href="{url}"', count=2)
         self.client.force_login(self.staff)
         self.assertNotContains(self.client.get(reverse("dashboard")), f'href="{url}"')
+
+
+class CatalogAutoPublishTests(TestCase):
+    def test_activation_publishes_but_manual_unpublish_is_kept(self):
+        from sales.models import VehicleCatalogEntry
+
+        model = VehicleModel.objects.create(brand="SUZUKI", name="Swish 125", model_number="UG125DA", model_year=2026,
+                                            model_code=VehicleModel.ModelType.FRONT_DISC_REAR_DRUM,
+                                            energy_type="gas", displacement_cc=124, active=False)
+        self.assertFalse(VehicleCatalogEntry.objects.filter(vehicle_model=model).exists())
+        model.active = True
+        model.save()
+        entry = VehicleCatalogEntry.objects.get(vehicle_model=model)
+        self.assertTrue(entry.published)
+        # 人員手動下架後，再存檔機種不會自動重新上架。
+        VehicleCatalogEntry.objects.filter(pk=entry.pk).update(published=False)
+        model.name = "Swish 125"
+        model.save()
+        self.assertFalse(VehicleCatalogEntry.objects.get(pk=entry.pk).published)
+        # 停用後再啟用，視為重新上市，自動上架。
+        model.active = False
+        model.save()
+        model.active = True
+        model.save()
+        self.assertTrue(VehicleCatalogEntry.objects.get(pk=entry.pk).published)

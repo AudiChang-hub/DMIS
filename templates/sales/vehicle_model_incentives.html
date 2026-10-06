@@ -1,0 +1,69 @@
+{% extends "base.html" %}{% load site_copy screen_access %}
+{% block title %}原廠獎勵與補助｜{{ vehicle_model.name }}｜車輛銷售管理{% endblock %}
+{% block page_class %}page-shell--wide model-workspace-page{% endblock %}
+{% block head %}{% include "sales/_vehicle_model_workspace_head.html" %}{% endblock %}
+{% block content %}
+{% include "sales/_vehicle_model_workspace.html" with workspace_tab="incentives" %}
+<header class="model-workspace-intro">
+  <div><h2>原廠獎勵與補助</h2><p class="muted">{% site_text 'incentive_rule_list.5625a3b6e4f7' %}</p></div>
+  {% if_access 'incentive_rule_list' %}<div class="hero-actions"><a class="button ghost" href="{% url 'incentive_rule_list' %}">查看全部機種的獎勵</a></div>{% endif_access %}
+</header>
+
+<div class="price-version-layout model-rule-layout">
+  <section class="card master-model-section price-version-editor" id="rule-editor" aria-labelledby="rule-editor-title">
+    <div class="section-heading">
+      <div><p class="eyebrow">{% if editing %}修改既有版本{% else %}新增版本{% endif %}</p><h2 id="rule-editor-title">{% if editing %}編輯 {{ editing.effective_from|date:"Y/m/d" }} 版本{% else %}建立獎勵補助版本{% endif %}</h2></div>
+      {% if editing %}<a class="button ghost small" href="{{ tab_url }}">取消編輯</a>{% endif %}
+    </div>
+    <form method="post" action="{{ tab_url }}" class="price-version-form">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="save">
+      {% if editing %}<input type="hidden" name="rule_id" value="{{ editing.pk }}">{% endif %}
+      {% if form.non_field_errors or form.vehicle_model.errors %}<div class="message error">{{ form.non_field_errors }}{{ form.vehicle_model.errors }}</div>{% endif %}
+      <p class="model-rule-bound"><span>適用車型</span><strong>{{ vehicle_model }}</strong><small>固定為本機種，不需選擇</small></p>
+      <div class="form-grid price-version-form__grid">
+        {% for field in form %}{% if field.name != "vehicle_model" %}{% include "sales/_field.html" with field=field %}{% endif %}{% endfor %}
+      </div>
+      <p class="model-rule-note">{% site_text 'incentive_rule_form.a844efbb3476' %} {% site_text 'incentive_rule_form.b3fe47b46d70' %}</p>
+      <div class="form-actions price-version-form__actions">
+        {% if editing %}<button class="button danger-outline" type="submit" form="delete-rule">刪除此版本</button>{% endif %}
+        <button class="button primary" type="submit">{% if editing %}儲存版本修改{% else %}新增獎勵補助版本{% endif %}</button>
+      </div>
+    </form>
+    {% if editing %}<form id="delete-rule" method="post" action="{{ tab_url }}" data-confirm="確定刪除此版本？已被訂單採用的版本不會允許刪除。">{% csrf_token %}<input type="hidden" name="action" value="delete"><input type="hidden" name="rule_id" value="{{ editing.pk }}"></form>{% endif %}
+  </section>
+
+  <section class="card master-model-section price-version-history" aria-labelledby="rule-history-title">
+    <div class="section-heading">
+      <div><p class="eyebrow">歷史與目前金額</p><h2 id="rule-history-title">全部版本</h2></div>
+      <span class="muted">共 {{ rules|length }} 筆</span>
+    </div>
+    <div class="price-version-list">
+      {% for rule in rules %}
+      <article class="price-version-item{% if editing.pk == rule.pk %} is-editing{% endif %}">
+        <div class="price-version-item__head">
+          <div><strong>{{ rule.effective_from|date:"Y/m/d" }} 起</strong><span>{% if rule.effective_to %}至 {{ rule.effective_to|date:"Y/m/d" }}{% else %}未設定結束日{% endif %}・公告 {{ rule.announced_on|date:"Y/m/d" }}</span></div>
+          <div class="quick-active-toggle-stack">
+            {% include "sales/_active_quick_toggle.html" with resource="incentive-rule" pk=rule.pk is_active=rule.active item_name=rule %}
+            {% if rule.active %}<span class="status-pill cost-rule-{{ rule.display_status }}">{{ rule.display_status_label }}</span>{% endif %}
+          </div>
+        </div>
+        <dl class="price-version-values model-rule-values--three">
+          <div><dt>實銷獎勵金</dt><dd>${{ rule.sales_bonus|floatformat:0 }}</dd></div>
+          <div><dt>促銷補助金</dt><dd>${{ rule.promotion_subsidy|floatformat:0 }}</dd></div>
+          <div><dt>分期補貼息</dt><dd>${{ rule.installment_interest_subsidy|floatformat:0 }}</dd></div>
+        </dl>
+        {% if rule.note %}<p class="price-version-item__note">{{ rule.note }}</p>{% endif %}
+        <a class="button ghost small" href="{{ tab_url }}?edit={{ rule.pk }}#rule-editor">編輯此版本</a>
+      </article>
+      {% empty %}
+      <div class="empty-state small"><span class="empty-state__icon" aria-hidden="true">＋</span><h3>尚未建立獎勵補助版本</h3><p>{% site_text 'incentive_rule_list.c43f1dbaa16c' %}</p></div>
+      {% endfor %}
+    </div>
+    <div class="model-rule-aside">
+      <strong>分期額外撥款不在這裡</strong>
+      <p>{% site_text 'incentive_rule_form.531c59056fd0' %}</p>
+    </div>
+  </section>
+</div>
+{% endblock %}

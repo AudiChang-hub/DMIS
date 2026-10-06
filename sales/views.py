@@ -8532,43 +8532,6 @@ def _coalesce_vehicle_color_post(post_data, instance):
 
 def _vehicle_model_form_view(request, instance=None, official=None, base_model=None):
     is_editing = instance is not None
-    today = timezone.localdate()
-    installment_plan_versions = []
-    current_installment_plan = None
-    upcoming_installment_plan = None
-    installment_option_count = 0
-    if is_editing:
-        installment_plan_versions = list(
-            instance.installment_plan_versions.prefetch_related(
-                "options__company"
-            ).all()
-        )
-        installment_option_count = sum(
-            len(version.options.all()) for version in installment_plan_versions
-        )
-        current_installment_plan = next(
-            (
-                version
-                for version in installment_plan_versions
-                if version.active
-                and version.effective_from <= today
-                and (version.effective_to is None or version.effective_to >= today)
-            ),
-            None,
-        )
-        upcoming_installment_plan = next(
-            iter(
-                sorted(
-                    (
-                        version
-                        for version in installment_plan_versions
-                        if version.active and version.effective_from > today
-                    ),
-                    key=lambda version: (version.effective_from, version.pk),
-                )
-            ),
-            None,
-        )
     action = request.POST.get("action", "save_model")
     move_form = (
         VehicleModelFamilyMoveForm(
@@ -8664,18 +8627,6 @@ def _vehicle_model_form_view(request, instance=None, official=None, base_model=N
         else:
             messages.success(request, "未使用的年式／規格已永久刪除。")
             return redirect("vehicle_model_list")
-    current_dealer_reward_plan = None
-    if is_editing:
-        current_dealer_reward_plan = (
-            instance.dealer_reward_plans.filter(
-                active=True,
-                effective_from__lte=today,
-            )
-            .filter(Q(effective_to__isnull=True) | Q(effective_to__gte=today))
-            .prefetch_related("items")
-            .order_by("-effective_from", "-id")
-            .first()
-        )
     model_post = request.POST if request.method == "POST" and action == "save_model" else None
     model_post, merged_color_names, preserved_history_color_names = (
         _coalesce_vehicle_color_post(model_post, instance)
@@ -8759,11 +8710,9 @@ def _vehicle_model_form_view(request, instance=None, official=None, base_model=N
             else:
                 messages.success(
                     request,
-                    "年式／規格已儲存，可以繼續維護售價、傭金或分期方案。",
+                    "年式／規格已儲存，可以在上方分頁繼續設定售價、分期、傭金與成本。",
                 )
-            return redirect(
-                f"{reverse('vehicle_model_edit', args=[vehicle_model.pk])}#business-settings"
-            )
+            return redirect("vehicle_model_edit", pk=vehicle_model.pk)
     return render(
         request,
         "sales/vehicle_model_form.html",
@@ -8776,47 +8725,6 @@ def _vehicle_model_form_view(request, instance=None, official=None, base_model=N
                 instance.family.versions.count()
                 if is_editing and instance.family_id
                 else 0
-            ),
-            "price_version_count": (
-                instance.price_versions.count() if is_editing else 0
-            ),
-            "current_price_version": (
-                instance.price_versions.filter(
-                    active=True,
-                    effective_from__lte=today,
-                )
-                .filter(
-                    Q(effective_to__isnull=True)
-                    | Q(effective_to__gte=today)
-                )
-                .order_by("-effective_from", "-id")
-                .first()
-                if is_editing
-                else None
-            ),
-            "settlement_rule_count": (
-                instance.settlement_cost_rules.count() if is_editing else 0
-            ),
-            "incentive_rule_count": (
-                instance.incentive_rules.count() if is_editing else 0
-            ),
-            "dealer_reward_plan_count": (
-                instance.dealer_reward_plans.count() if is_editing else 0
-            ),
-            "current_dealer_reward_plan": current_dealer_reward_plan,
-            "installment_plan_version_count": len(installment_plan_versions),
-            "installment_option_count": installment_option_count,
-            "current_installment_plan": current_installment_plan,
-            "current_installment_options": (
-                list(current_installment_plan.options.all())
-                if current_installment_plan
-                else []
-            ),
-            "upcoming_installment_plan": upcoming_installment_plan,
-            "upcoming_installment_options": (
-                list(upcoming_installment_plan.options.all())
-                if upcoming_installment_plan
-                else []
             ),
             "official": official,
             "base_model": base_model,
@@ -8971,10 +8879,13 @@ def settlement_cost_rule_edit(request, pk):
 def settlement_cost_rule_delete(request, pk):
     if request.method != "POST":
         return redirect("settlement_cost_rule_list")
-    rule = get_object_or_404(
-        VehicleSettlementCostRule.objects.select_for_update(),
-        pk=pk,
-    )
+    _delete_settlement_cost_rule(request, VehicleSettlementCostRule.objects.all(), pk)
+    return redirect("settlement_cost_rule_list")
+
+
+def _delete_settlement_cost_rule(request, rules, pk):
+    """在呼叫端的交易內鎖定並刪除；已被訂單採用的版本只提示停用。"""
+    rule = get_object_or_404(rules.select_for_update(), pk=pk)
     if rule.order_snapshots.exists():
         messages.error(
             request,
@@ -8985,7 +8896,6 @@ def settlement_cost_rule_delete(request, pk):
         label = str(rule)
         rule.delete()
         messages.success(request, f"已刪除未使用的成本規則：{label}")
-    return redirect("settlement_cost_rule_list")
 
 
 @login_required
@@ -9058,16 +8968,186 @@ def incentive_rule_edit(request, pk):
 def incentive_rule_delete(request, pk):
     if request.method != "POST":
         return redirect("incentive_rule_list")
-    rule = get_object_or_404(
-        VehicleIncentiveRule.objects.select_for_update(),
-        pk=pk,
-    )
+    _delete_incentive_rule(request, VehicleIncentiveRule.objects.all(), pk)
+    return redirect("incentive_rule_list")
+
+
+def _delete_incentive_rule(request, rules, pk):
+    """在呼叫端的交易內鎖定並刪除；已被訂單採用的版本只提示停用。"""
+    rule = get_object_or_404(rules.select_for_update(), pk=pk)
     if rule.order_snapshots.exists():
         messages.error(request, "此版本已被訂單採用，為保留歷史快照不能刪除；請改為停用。")
     else:
         rule.delete()
         messages.success(request, "獎勵補助版本已刪除。")
-    return redirect("incentive_rule_list")
+
+
+def _lock_rule_form_to_model(form, vehicle_model):
+    """機種工作區的版本一律屬於目前機種：欄位停用後忽略送出的值，停用機種也能設定。"""
+    field = form.fields["vehicle_model"]
+    field.queryset = VehicleModel.objects.filter(pk=vehicle_model.pk)
+    field.disabled = True
+    form.initial["vehicle_model"] = vehicle_model.pk
+    return form
+
+
+def _requested_pk(value):
+    if not value:
+        return None
+    if not str(value).isdigit():
+        raise Http404
+    return int(value)
+
+
+def _vehicle_model_rule_tab(request, model_pk, *, related_name, form_class, delete_rule, url_name,
+                            template, noun):
+    """結算成本與原廠獎勵分頁：只列本機種的版本，建立、修改、刪除後回到同一分頁。"""
+    vehicle_model = get_object_or_404(VehicleModel, pk=model_pk)
+    rules = getattr(vehicle_model, related_name).order_by("-effective_from", "-id")
+    tab_url = reverse(url_name, args=[vehicle_model.pk])
+    requested = _requested_pk(
+        request.POST.get("rule_id") if request.method == "POST" else request.GET.get("edit")
+    )
+    if request.method == "POST" and request.POST.get("action") == "delete":
+        if requested is None:
+            raise Http404
+        with transaction.atomic():
+            delete_rule(request, rules, requested)
+        return redirect(tab_url)
+    editing = get_object_or_404(rules, pk=requested) if requested else None
+    form = form_class(
+        request.POST if request.method == "POST" else None,
+        instance=editing or rules.model(vehicle_model=vehicle_model),
+    )
+    _lock_rule_form_to_model(form, vehicle_model)
+    if request.method == "POST" and form.is_valid():
+        with transaction.atomic():
+            rule = form.save()
+        messages.success(
+            request,
+            f"已{'更新' if editing else '建立'}{noun}：{rule.effective_from:%Y/%m/%d} 起",
+        )
+        return redirect(tab_url)
+    rule_rows = list(rules)
+    for rule in rule_rows:
+        rule.display_status, rule.display_status_label = rule.lifecycle_status
+    return render(request, template, {
+        "vehicle_model": vehicle_model,
+        "rules": rule_rows,
+        "form": form,
+        "editing": editing,
+        "tab_url": tab_url,
+    })
+
+
+@login_required
+def vehicle_model_settlement_costs(request, model_pk):
+    return _vehicle_model_rule_tab(
+        request, model_pk,
+        related_name="settlement_cost_rules",
+        form_class=VehicleSettlementCostRuleForm,
+        delete_rule=_delete_settlement_cost_rule,
+        url_name="vehicle_model_settlement_costs",
+        template="sales/vehicle_model_settlement_costs.html",
+        noun="成本版本",
+    )
+
+
+@login_required
+def vehicle_model_incentives(request, model_pk):
+    return _vehicle_model_rule_tab(
+        request, model_pk,
+        related_name="incentive_rules",
+        form_class=VehicleIncentiveRuleForm,
+        delete_rule=_delete_incentive_rule,
+        url_name="vehicle_model_incentives",
+        template="sales/vehicle_model_incentives.html",
+        noun="獎勵補助版本",
+    )
+
+
+def _registration_rule_status(rule, today):
+    if not rule.active:
+        return "inactive", "已停用"
+    if rule.effective_from > today:
+        return "scheduled", "預定生效"
+    if rule.effective_to and rule.effective_to < today:
+        return "expired", "已失效"
+    if rule.applied_years:
+        return "active", "今天套用"
+    return "superseded", "未被採用"
+
+
+def _bonus_rule_status(rule, periods, today):
+    if not rule.active:
+        return "inactive", "已停用"
+    if rule.current_period:
+        return "active", "統計中"
+    if periods and all(period.starts_on > today for period in periods):
+        return "scheduled", "尚未開始"
+    return "expired", "已結束"
+
+
+@login_required
+@require_http_methods(["GET", "HEAD"])
+def vehicle_model_rules(request, model_pk):
+    """唯讀：不屬於單一機種、但會套用到本機種的領牌與強制險及車行台數獎金規則。"""
+    from sales.access.services import policy_for
+    from sales.services.dealer_commission import bonus_rules_for_vehicle_model
+    from sales.services.registration_fee import (
+        brand_registration_rule_candidates,
+        resolve_brand_registration_rule,
+    )
+
+    vehicle_model = get_object_or_404(VehicleModel, pk=model_pk)
+    policy = policy_for(request)
+    today = timezone.localdate()
+    can_fees = policy.route("brand_registration_fee_rule_list")
+    can_bonuses = policy.route("dealer_volume_bonus_list")
+    fee_rules = []
+    # 油車未填排氣量時無法比對級距；提示先補規格，不猜測適用規則。
+    missing_displacement = (
+        vehicle_model.energy_type == VehicleModel.EnergyType.GAS and not vehicle_model.displacement_cc
+    )
+    if can_fees and not missing_displacement:
+        applied = {}
+        for years in (1, 2):
+            rule = resolve_brand_registration_rule(vehicle_model, today, years)
+            if rule:
+                applied.setdefault(rule.pk, []).append(years)
+        fee_rules = list(
+            brand_registration_rule_candidates(vehicle_model).order_by(
+                "-active", "-effective_from", "-id"
+            )
+        )
+        for rule in fee_rules:
+            rule.applied_years = applied.get(rule.pk, [])
+            rule.display_status, rule.display_status_label = _registration_rule_status(rule, today)
+    bonus_rules = []
+    if can_bonuses:
+        bonus_rules = list(
+            bonus_rules_for_vehicle_model(vehicle_model)
+            .select_related("dealer")
+            .prefetch_related("brands", "vehicle_models", "periods", "tiers")
+            .order_by("-active", "-starts_on", "-id")
+        )
+        for rule in bonus_rules:
+            periods = list(rule.periods.all())
+            rule.current_period = next(
+                (period for period in periods if period.starts_on <= today <= period.ends_on),
+                None,
+            )
+            rule.display_status, rule.display_status_label = _bonus_rule_status(rule, periods, today)
+    return render(request, "sales/vehicle_model_rules.html", {
+        "vehicle_model": vehicle_model,
+        "today": today,
+        "can_fees": can_fees,
+        "can_bonuses": can_bonuses,
+        "missing_displacement": missing_displacement,
+        "fee_rules": fee_rules,
+        "fee_rules_applied": any(rule.applied_years for rule in fee_rules),
+        "bonus_rules": bonus_rules,
+    })
 
 
 def bad_request(request, exception=None):
@@ -9207,13 +9287,16 @@ def vehicle_model_commission(request, model_pk):
         instance=reward_instance,
         prefix="reward_items",
     )
+    from_programs = (request.POST if request.method == "POST" else request.GET).get("from") == "programs"
+    tab_url = reverse("vehicle_model_commission", args=[vehicle_model.pk])
+    entry_query = "from=programs" if from_programs else ""
     if request.method == "POST" and action == "save_commission" and form.is_valid():
         vehicle_model.base_dealer_commission = form.cleaned_data[
             "base_dealer_commission"
         ]
         vehicle_model.save(update_fields=["base_dealer_commission", "updated_at"])
         messages.success(request, "車行基礎傭金已更新。")
-        return redirect(f"{reverse('vehicle_model_commission', args=[vehicle_model.pk])}#cash-commission")
+        return redirect(f"{tab_url}{'?' + entry_query if entry_query else ''}#cash-commission")
     if (
         request.method == "POST"
         and action == "save_rewards"
@@ -9230,7 +9313,7 @@ def vehicle_model_commission(request, model_pk):
         else:
             messages.success(request, "車行附加獎勵方案已儲存。")
             return redirect(
-                f"{reverse('vehicle_model_commission', args=[vehicle_model.pk])}?reward={saved_plan.pk}#dealer-rewards"
+                f"{tab_url}?reward={saved_plan.pk}{'&' + entry_query if entry_query else ''}#dealer-rewards"
             )
     plan_rows = list(reward_plans)
     for plan in plan_rows:
@@ -9273,6 +9356,12 @@ def vehicle_model_commission(request, model_pk):
             "reward_plans": plan_rows,
             "creating_reward": reward_plan is None,
             "reward_catalog_metadata": reward_catalog_metadata,
+            "entry_query": entry_query,
+            "workspace_back": (
+                (reverse("dealer_sales_program_list"), "車行傭金與銷售獎勵")
+                if from_programs
+                else None
+            ),
         },
     )
 

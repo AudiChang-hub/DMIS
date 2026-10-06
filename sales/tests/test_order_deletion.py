@@ -120,6 +120,12 @@ class OrderDeletionTests(TestCase):
                                    forfeit_reason="約定手續費")
         self.order.refresh_from_db()
         self.assertIn("已沒收的訂金屬實際收入，不可刪除訂單。", deletion_blockers(self.order))
+        SalesOrder.objects.filter(pk=self.order.pk).update(
+            deletion_requested_at=timezone.now(), deletion_requested_by=self.root, deletion_request_reason="測試")
+        # 審核列表直接標示沒收訂金不可刪除。
+        self.assertContains(self.client.get(reverse("order_deletion_queue")), "沒收訂金・不可刪除")
+        SalesOrder.objects.filter(pk=self.order.pk).update(deletion_requested_at=None, deletion_requested_by=None)
+        self.order.refresh_from_db()
         # admin 勾選「確認作廢」也不能略過，店內人員也不能提出申請。
         with self.assertRaisesMessage(ValidationError, "已沒收的訂金"):
             self.force_delete()
@@ -184,7 +190,11 @@ class OrderDeletionTests(TestCase):
         self.order.refresh_from_db()
         self.review(self.staff, "request")
         self.assertEqual((self.order.status, self.order.display_status), ("completed", "刪除確認中"))
-        self.assertContains(self.client.get(reverse("order_deletion_queue")), "匯入錯誤")
+        queue = self.client.get(reverse("order_deletion_queue"))
+        self.assertContains(queue, "匯入錯誤")
+        self.assertContains(queue, "deletion-review-card")
+        self.assertContains(queue, "最久已等待")
+        self.assertContains(queue, f'href="{reverse("order_delete", args=[self.order.pk])}"')
         self.assertContains(self.client.get(reverse("order_list"), {"status": "deletion_pending"}), self.order.number)
         with self.assertRaises(ValidationError):
             self.review(self.staff, "request")

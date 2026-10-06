@@ -1,5 +1,40 @@
 {% extends 'base.html' %}{% load site_copy %}{% load pagination_tags %}
 {% block title %}刪除審核｜車輛銷售管理{% endblock %}
 {% block content %}
-{% site_navigation %}<section class="hero-row compact-hero"><div><p class="eyebrow">訂單</p><h1>刪除審核</h1><p class="muted">只有 admin 可確認刪除；請核對申請原因與關聯影響。共 {{ page_obj.paginator.count }} 筆待確認。</p></div></section>
-{% for order in page_obj %}<section class="section-block"><strong>{{ order.number }} · {{ order.owner_name }}</strong><p>{{ order.deletion_requested_by }} · {{ order.deletion_requested_at|date:'Y/m/d H:i' }}</p><p>{{ order.deletion_request_reason }}</p><a class="button primary" href="{% url 'order_delete' order.pk %}">檢查與審核</a></section>{% empty %}<div class="section-block empty-state"><p>{% site_text 'order_deletion_queue.86210f7abc8b' %}</p></div>{% endfor %}{% pagination page_obj %}{% endblock %}
+{% site_navigation %}
+<section class="hero-row compact-hero deletion-review-hero">
+  <div><p class="eyebrow">訂單</p><h1>刪除審核</h1><p class="muted">只有 admin 可確認刪除。請核對申請原因與關聯影響，再進入審核頁確認或駁回。</p></div>
+  <dl class="deletion-review-stats" aria-label="審核概況">
+    <div><dt>待審核</dt><dd>{{ page_obj.paginator.count }}<small>筆</small></dd></div>
+    {% if oldest_waited %}<div><dt>最久已等待</dt><dd class="deletion-review-stats__wait">{{ oldest_waited }}</dd></div>{% endif %}
+  </dl>
+</section>
+{% if page_obj %}
+<ol class="deletion-review-list" aria-label="待審核的刪除申請">
+  {% for order in page_obj %}
+  <li class="deletion-review-card">
+    <div class="deletion-review-card__order">
+      <p class="deletion-review-card__number">{{ order.number }}</p>
+      <h2>{{ order.owner_name|default:"未填車主" }}</h2>
+      <p class="deletion-review-card__vehicle">{{ order.vehicle_model|default:"未選車型" }}{% if order.color %}<span aria-hidden="true">・</span>{{ order.color.name }}{% endif %}</p>
+      <span class="status-pill status-{{ order.status }}">{{ order.get_status_display }}</span>
+    </div>
+    <figure class="deletion-review-card__reason">
+      <blockquote>{{ order.deletion_request_reason|default:"未填寫原因" }}</blockquote>
+      <figcaption><strong>{{ order.deletion_requested_by.get_full_name|default:order.deletion_requested_by }}</strong> 申請<span aria-hidden="true">・</span><time datetime="{{ order.deletion_requested_at|date:'c' }}" title="{{ order.deletion_requested_at|date:'Y/m/d H:i' }}">{{ order.review_waited }}前</time></figcaption>
+    </figure>
+    <div class="deletion-review-card__side">
+      <ul class="deletion-review-impacts" aria-label="關聯影響">{% for tone, label in order.review_impacts %}<li class="is-{{ tone }}">{{ label }}</li>{% endfor %}</ul>
+      <div class="deletion-review-card__actions">
+        <a class="button ghost small" href="{% url 'order_detail' order.pk %}">查看訂單</a>
+        <a class="button primary small" href="{% url 'order_delete' order.pk %}">檢查與審核</a>
+      </div>
+    </div>
+  </li>
+  {% endfor %}
+</ol>
+{% pagination page_obj %}
+{% else %}
+<div class="deletion-review-empty"><span aria-hidden="true">✓</span><h2>目前沒有待審核的刪除申請</h2><p>{% site_text 'order_deletion_queue.86210f7abc8b' %}</p></div>
+{% endif %}
+{% endblock %}

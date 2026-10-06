@@ -88,8 +88,35 @@ def order_delete(request, pk, *, restore=False):
 def order_deletion_queue(request):
     if not is_root(request.user):
         raise PermissionDenied("只有 admin 可以審核刪除。")
-    rows = SalesOrder.objects.filter(deletion_requested_at__isnull=False).select_related("deletion_requested_by").order_by("deletion_requested_at", "pk")
-    return render(request, "sales/order_deletion_queue.html", {"page_obj": Paginator(rows, 25).get_page(request.GET.get("page"))})
+    rows = (SalesOrder.objects.filter(deletion_requested_at__isnull=False)
+            .select_related("deletion_requested_by", "vehicle_model", "color")
+            .prefetch_related("payment_records").order_by("deletion_requested_at", "pk"))
+    page_obj = Paginator(rows, 25).get_page(request.GET.get("page"))
+    from django.utils.timesince import timesince
+
+    for order in page_obj:
+        order.review_impacts = _review_impacts(order)
+        order.review_waited = timesince(order.deletion_requested_at, depth=1)
+    oldest = rows.first()
+    return render(request, "sales/order_deletion_queue.html", {
+        "page_obj": page_obj, "oldest_waited": timesince(oldest.deletion_requested_at, depth=1) if oldest else "",
+    })
+
+
+def _review_impacts(order):
+    """審核列表的關聯影響摘要；完整限制仍在審核頁逐項確認。"""
+    impacts = []
+    if permanent_deletion_blockers(order):
+        impacts.append(("danger", "沒收訂金・不可刪除"))
+    if order.allocated_vehicle_id:
+        impacts.append(("warn", "已配車"))
+    if order.registration_completed_at or order.registration_date or order.final_plate_number:
+        impacts.append(("warn", "已有領牌資料"))
+    if order.delivered_at:
+        impacts.append(("warn", "已交車"))
+    if order.payment_records.all():
+        impacts.append(("warn", "有收款紀錄"))
+    return impacts or [("ok", "無關聯影響")]
 
 
 def order_restore(request, pk):

@@ -21,7 +21,7 @@ class CatalogColorListTests(TestCase):
         cls.gray = VehicleColor.objects.create(vehicle_model=cls.model, name="灰")
         cls.white = VehicleColor.objects.create(vehicle_model=cls.model, name="白")
         cls.inactive = VehicleColor.objects.create(vehicle_model=cls.model, name="停用黃", active=False)
-        cls.entry = VehicleCatalogEntry.objects.create(vehicle_model=cls.model, published=True)
+        cls.entry = VehicleCatalogEntry.objects.update_or_create(vehicle_model=cls.model, defaults=dict(published=True))[0]
 
     def image(self):
         data = io.BytesIO()

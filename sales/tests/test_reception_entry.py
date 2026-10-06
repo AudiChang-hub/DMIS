@@ -139,7 +139,7 @@ class ReceptionEntryTests(TestCase):
 
     def test_reception_home_navigation_is_consistent_for_staff_and_dealers(self):
         from sales.models import VehicleCatalogEntry
-        VehicleCatalogEntry.objects.create(vehicle_model=self.model, published=True)
+        VehicleCatalogEntry.objects.update_or_create(vehicle_model=self.model, defaults=dict(published=True))[0]
         for user in (self.root, self.dealer_user):
             self.client.force_login(user)
             for url in (reverse("catalog"), reverse("catalog_detail", args=[self.model.pk]), reverse("order_start")):

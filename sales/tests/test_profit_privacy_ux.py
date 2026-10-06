@@ -74,7 +74,7 @@ class ProfitPrivacyTests(TestCase):
         from django.core.files.uploadedfile import SimpleUploadedFile
         from django.test import override_settings
         with tempfile.TemporaryDirectory() as media, override_settings(MEDIA_ROOT=media):
-            VehicleCatalogEntry.objects.create(vehicle_model=self.model, published=True)
+            VehicleCatalogEntry.objects.update_or_create(vehicle_model=self.model, defaults=dict(published=True))[0]
             buffer = io.BytesIO(); Image.new("RGB", (20, 20), "blue").save(buffer, "PNG")
             self.client.force_login(self.root)
             response = self.client.post(reverse("catalog_edit", args=[self.model.pk]), {
@@ -89,7 +89,7 @@ class ProfitPrivacyTests(TestCase):
             self.assertTrue(b"".join(response.streaming_content).startswith(b"\x89PNG"))
             self.assertEqual(response["Cache-Control"], "no-store")
             other = VehicleModel.objects.create(brand="TEST", name="其他型號")
-            VehicleCatalogEntry.objects.create(vehicle_model=other, published=True)
+            VehicleCatalogEntry.objects.update_or_create(vehicle_model=other, defaults=dict(published=True))[0]
             self.assertEqual(self.client.get(reverse("catalog_color_image", args=[other.pk, self.color.pk])).status_code, 404)
             detail = self.client.get(reverse("catalog_detail", args=[self.model.pk]))
             self.assertContains(detail, "請先選擇車色")
@@ -229,8 +229,10 @@ class ProfitPrivacyTests(TestCase):
         self.assertContains(self.client.get(reverse("dashboard")), 'href="/catalog/"')
 
     def test_catalog_dropdown_does_not_include_unpublished(self):
-        VehicleCatalogEntry.objects.create(vehicle_model=self.model, published=True)
+        VehicleCatalogEntry.objects.update_or_create(vehicle_model=self.model, defaults=dict(published=True))[0]
         hidden = VehicleModel.objects.create(brand="TEST", name="不公開的車款")
+        # 啟用時自動上架；人員手動下架後不出現在選車。
+        VehicleCatalogEntry.objects.filter(vehicle_model=hidden).update(published=False)
         response = self.client.get(reverse("catalog"), {"model": self.model.pk})
         for field in ("brand", "model_name", "model_number", "energy"):
             self.assertContains(response, f'name="{field}"')

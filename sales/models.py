@@ -9,7 +9,7 @@ from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.core.validators import MaxValueValidator, MinValueValidator, RegexValidator
 from django.db import models, transaction
-from django.db.models import Q
+from django.db.models import F, Q
 from django.db.models.functions import Lower
 from django.utils import timezone
 
@@ -776,7 +776,10 @@ class VehicleModel(TimeStampedModel):
                     active=self.active,
                 )
             self.family = family
+        was_active = bool(self.pk and type(self).objects.filter(pk=self.pk, active=True).exists())
         super().save(*args, **kwargs)
+        if self.active and not was_active:
+            publish_catalog_entry(self.pk)
         if self.family_id and self.model_number:
             normalized_code = normalize_legacy_master_value(self.model_number)
             factory_code, created = VehicleFactoryModelCode.objects.get_or_create(
@@ -5014,6 +5017,17 @@ class UserAppearancePreference(TimeStampedModel):
 
     def __str__(self):
         return f"{self.user.get_username()}－{self.get_theme_display()}"
+
+
+def publish_catalog_entry(vehicle_model_id):
+    """機種轉為啟用時自動上架選車展示；之後人工下架則保留。"""
+    entry, created = VehicleCatalogEntry.objects.get_or_create(
+        vehicle_model_id=vehicle_model_id, defaults={"published": True}
+    )
+    if not created and not entry.published:
+        VehicleCatalogEntry.objects.filter(pk=entry.pk).update(
+            published=True, revision=F("revision") + 1, updated_at=timezone.now()
+        )
 
 
 class VehicleCatalogEntry(TimeStampedModel):

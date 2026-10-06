@@ -73,9 +73,7 @@ class CatalogAccountTests(TestCase):
             brand="TEST", name="展示用車款", energy_type="gas", displacement_cc=125
         )
         self.color = VehicleColor.objects.create(vehicle_model=self.model, name="白色")
-        self.entry = VehicleCatalogEntry.objects.create(
-            vehicle_model=self.model, published=True, description="測試車款介紹"
-        )
+        self.entry = VehicleCatalogEntry.objects.update_or_create(vehicle_model=self.model, defaults=dict(published=True, description="測試車款介紹"))[0]
 
     def image(self):
         data = io.BytesIO()

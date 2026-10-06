@@ -19,6 +19,7 @@
   <form method="post" class="dealer-reward-form">{% csrf_token %}<input type="hidden" name="action" value="save_rewards">{% if entry_query %}<input type="hidden" name="from" value="programs">{% endif %}<input type="hidden" name="reward_id" value="{{ reward_plan.pk|default:'' }}">{% if creating_reward %}<input type="hidden" name="new_reward" value="1">{% endif %}{{ reward_formset.management_form }}
     {% if reward_form.non_field_errors or reward_formset.non_form_errors %}<div class="message error">{{ reward_form.non_field_errors }}{{ reward_formset.non_form_errors }}</div>{% endif %}
     <div class="dealer-reward-editor-title"><div><span>{{ creating_reward|yesno:'建立新版本,編輯版本' }}</span><strong>{{ vehicle_model.name }} {{ vehicle_model.model_year|default:'' }} {{ vehicle_model.get_model_code_display }}</strong></div><small>{% site_text 'vehicle_model_commission.3d544bae8236' %}</small></div>
+    {% if creating_reward %}{% include "sales/_vehicle_model_prefill_note.html" with source=reward_prefill_version start=reward_form.initial.effective_from noun="獎勵項目與數量" %}{% endif %}
     <section class="dealer-reward-settings" aria-labelledby="dealer-reward-period-title">
       <div class="dealer-reward-settings__heading"><h3 id="dealer-reward-period-title">適用期間</h3><p>{% site_text 'vehicle_model_commission.cfe514de4232' %}</p></div>
       <div class="dealer-reward-period-grid">

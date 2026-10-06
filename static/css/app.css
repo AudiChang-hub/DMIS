@@ -3536,6 +3536,8 @@ input.acquisition-choice { position: absolute; width: 1px; height: 1px; margin: 
 .vehicle-year-card dt { color: var(--muted); font-size: var(--text-2xs); font-weight: 800; }
 .vehicle-year-card dd { margin: 0; overflow-wrap: anywhere; font-size: var(--text-sm); font-weight: 800; }
 .vehicle-year-card > footer { padding-top: var(--space-3); border-top: 1px solid var(--line); }
+.vehicle-year-card__actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: var(--space-2); }
+.vehicle-model-copy-link { margin-right: var(--space-2); }
 .master-model-table { min-width: 1080px; }
 .vehicle-model-brand-badge {
   display: inline-flex !important; width: fit-content; margin-top: var(--space-1) !important;

@@ -52,7 +52,10 @@
         </dl>
         <footer>
           {% include "sales/_active_quick_toggle.html" with resource="vehicle-model" pk=year_item.pk is_active=year_item.active item_name=year_item.name %}
-          <a class="button ghost small" href="{% url 'vehicle_model_edit' year_item.pk %}">編輯此年式</a>
+          <span class="vehicle-year-card__actions">
+            {% if can_model_tools %}<a class="button secondary small" href="{% url 'vehicle_model_copy' %}?mode=year&amp;ids={{ year_item.pk }}">沿用新年式</a>{% endif %}
+            <a class="button ghost small" href="{% url 'vehicle_model_edit' year_item.pk %}">編輯此年式</a>
+          </span>
         </footer>
       </article>
       {% endfor %}

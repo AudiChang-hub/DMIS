@@ -1,0 +1,56 @@
+<form method="get" class="inventory-filters model-tool-filters{% if show_date %} model-tool-filters--dated{% endif %}" aria-label="篩選年式" data-model-tool-filters>
+  {% if mode %}<input type="hidden" name="mode" value="{{ mode }}">{% endif %}
+  {% if dataset %}<input type="hidden" name="dataset" value="{{ dataset }}">{% endif %}
+  <div class="inventory-filter">
+    <label for="tool-brand">品牌</label>
+    <select id="tool-brand" name="brand" data-tool-brand>
+      <option value="">全部品牌</option>
+      {% for brand in filter_options.brands %}<option value="{{ brand }}"{% if filters.brand|lower == brand|lower %} selected{% endif %}>{{ brand }}</option>{% endfor %}
+    </select>
+  </div>
+  <div class="inventory-filter model-tool-filters__family">
+    <label for="tool-family">機種</label>
+    <select id="tool-family" name="family" data-tool-family>
+      <option value="">全部機種</option>
+      {% for family in filter_options.families %}<option value="{{ family.id }}" data-brand="{{ family.brand|lower }}"{% if filters.family == family.id %} selected{% endif %}>{{ family.name }}（{{ family.brand }}）</option>{% endfor %}
+    </select>
+  </div>
+  <div class="inventory-filter">
+    <label for="tool-year">年式</label>
+    <select id="tool-year" name="year">
+      <option value="">全部年式</option>
+      {% for year in filter_options.years %}<option value="{{ year }}"{% if filters.year == year %} selected{% endif %}>{{ year }}</option>{% endfor %}
+    </select>
+  </div>
+  <div class="inventory-filter">
+    <label for="tool-energy">能源別</label>
+    <select id="tool-energy" name="energy_type">
+      <option value="">全部能源別</option>
+      {% for value, label in filter_options.energy_types %}<option value="{{ value }}"{% if filters.energy_type == value %} selected{% endif %}>{{ label }}</option>{% endfor %}
+    </select>
+  </div>
+  <div class="inventory-filter">
+    <label for="tool-status">狀態</label>
+    <select id="tool-status" name="status">
+      <option value="active"{% if filters.status == 'active' %} selected{% endif %}>啟用中</option>
+      <option value="inactive"{% if filters.status == 'inactive' %} selected{% endif %}>已停用</option>
+      <option value="all"{% if filters.status == 'all' %} selected{% endif %}>全部</option>
+    </select>
+  </div>
+  {% if show_date %}
+  <div class="inventory-filter model-tool-filters__date">
+    <label for="tool-effective">{% if immediate %}生效方式{% else %}新版本生效日{% endif %}</label>
+    {% if immediate %}
+    <input type="hidden" name="effective_from" value="{{ effective_from|date:'Y-m-d' }}">
+    <span class="model-tool-immediate"><span aria-hidden="true"></span>儲存後立即生效</span>
+    {% else %}
+    <input id="tool-effective" type="date" name="effective_from" value="{{ effective_from|date:'Y-m-d' }}" min="{{ today|date:'Y-m-d' }}"{% if date_error %} aria-invalid="true" aria-describedby="tool-effective-error"{% endif %}>
+    {% if date_error %}<small class="field-error" id="tool-effective-error">{{ date_error }}</small>{% endif %}
+    {% endif %}
+  </div>
+  {% endif %}
+  <div class="inventory-filter-actions">
+    <a class="button ghost" href="{{ clear_url }}">清除</a>
+    <button class="button primary" type="submit">套用</button>
+  </div>
+</form>

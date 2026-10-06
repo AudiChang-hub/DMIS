@@ -203,6 +203,7 @@ from .services.vehicle_brands import (
     vehicle_brand_search_q,
     vehicle_brand_is_used,
 )
+from .services import vehicle_model_copy
 from .services.vehicle_model_family import (
     correct_vehicle_model_year,
     delete_unused_vehicle_model,
@@ -3112,11 +3113,19 @@ def vehicle_installment_plan_list(request, model_pk):
         )
     plan = editing or InstallmentPlanVersion(vehicle_model=vehicle_model)
     post_data = request.POST or None
-    form = InstallmentPlanVersionForm(post_data, instance=plan, prefix="plan")
+    prefill_initial, prefill_version = (None, None)
+    option_initial = []
+    if request.method == "GET" and not editing:
+        # 新增版本預填目前有效方案的各期數，生效日預設下個月 1 日。
+        prefill_initial, prefill_version = vehicle_model_copy.prefill_initial("installment", vehicle_model.pk)
+        option_initial = vehicle_model_copy.installment_option_initial(prefill_version)
+    form = InstallmentPlanVersionForm(post_data, instance=plan, prefix="plan", initial=prefill_initial)
     option_formset = InstallmentPlanOptionFormSet(
-        post_data, instance=plan, prefix="options"
+        post_data, instance=plan, prefix="options", initial=option_initial or None
     )
-    if request.method == "GET" and not (plan.pk and plan.options.exists()):
+    if option_initial:
+        option_formset.extra = len(option_initial)
+    elif request.method == "GET" and not (plan.pk and plan.options.exists()):
         # 新版本或尚未設定期數的版本，提供第一列方便開始填寫；
         # 已有期數時只呈現實際資料，避免讓使用者誤以為尚有一筆未完成。
         option_formset.extra = 1
@@ -3184,6 +3193,7 @@ def vehicle_installment_plan_list(request, model_pk):
             "saved_confirmation": bool(editing and request.GET.get("saved") == "1"),
             "current_plan": current_plan,
             "today": today,
+            "prefill_version": prefill_version,
         },
     )
 
@@ -7913,6 +7923,8 @@ def inventory_list(request):
 
 @login_required
 def vehicle_model_list(request):
+    from sales.access.services import policy_for
+
     keyword = request.GET.get("q", "").strip()
     energy_type = request.GET.get("energy_type", "")
     status = request.GET.get("status", "").strip()
@@ -8184,6 +8196,8 @@ def vehicle_model_list(request):
                 "inactive": VehicleModel.objects.filter(active=False).count(),
             },
             "filters_applied": filters_applied,
+            # 沿用建立與批次調整都會寫入，只有機種操作權限才顯示入口。
+            "can_model_tools": policy_for(request).route("vehicle_model_copy", "POST"),
             "selected": {
                 "q": keyword,
                 "energy_type": energy_type,
@@ -9000,7 +9014,7 @@ def _requested_pk(value):
 
 
 def _vehicle_model_rule_tab(request, model_pk, *, related_name, form_class, delete_rule, url_name,
-                            template, noun):
+                            template, noun, dataset):
     """結算成本與原廠獎勵分頁：只列本機種的版本，建立、修改、刪除後回到同一分頁。"""
     vehicle_model = get_object_or_404(VehicleModel, pk=model_pk)
     rules = getattr(vehicle_model, related_name).order_by("-effective_from", "-id")
@@ -9015,9 +9029,14 @@ def _vehicle_model_rule_tab(request, model_pk, *, related_name, form_class, dele
             delete_rule(request, rules, requested)
         return redirect(tab_url)
     editing = get_object_or_404(rules, pk=requested) if requested else None
+    prefill_initial, prefill_version = (None, None)
+    if request.method != "POST" and not editing:
+        # 新增版本預填目前有效版本的金額，生效日預設下個月 1 日，只需修改差異。
+        prefill_initial, prefill_version = vehicle_model_copy.prefill_initial(dataset, vehicle_model.pk)
     form = form_class(
         request.POST if request.method == "POST" else None,
         instance=editing or rules.model(vehicle_model=vehicle_model),
+        initial=prefill_initial,
     )
     _lock_rule_form_to_model(form, vehicle_model)
     if request.method == "POST" and form.is_valid():
@@ -9037,6 +9056,7 @@ def _vehicle_model_rule_tab(request, model_pk, *, related_name, form_class, dele
         "form": form,
         "editing": editing,
         "tab_url": tab_url,
+        "prefill_version": prefill_version,
     })
 
 
@@ -9050,6 +9070,7 @@ def vehicle_model_settlement_costs(request, model_pk):
         url_name="vehicle_model_settlement_costs",
         template="sales/vehicle_model_settlement_costs.html",
         noun="成本版本",
+        dataset="cost",
     )
 
 
@@ -9063,6 +9084,7 @@ def vehicle_model_incentives(request, model_pk):
         url_name="vehicle_model_incentives",
         template="sales/vehicle_model_incentives.html",
         noun="獎勵補助版本",
+        dataset="incentive",
     )
 
 
@@ -9189,9 +9211,13 @@ def vehicle_model_price_versions(request, model_pk):
             editing.delete()
             messages.success(request, "售價版本已刪除。")
         return redirect("vehicle_model_price_versions", model_pk=vehicle_model.pk)
+    prefill_initial, prefill_version = (None, None)
+    if request.method != "POST" and not editing:
+        prefill_initial, prefill_version = vehicle_model_copy.prefill_initial("price", vehicle_model.pk)
     form = VehiclePriceVersionForm(
         request.POST or None,
         instance=editing or VehiclePriceVersion(vehicle_model=vehicle_model),
+        initial=prefill_initial,
     )
     if request.method == "POST" and request.POST.get("action") != "delete" and form.is_valid():
         version = form.save(commit=False)
@@ -9240,6 +9266,7 @@ def vehicle_model_price_versions(request, model_pk):
             "editing_is_current": editing_is_current,
             "fallback_version": fallback_version,
             "today": today,
+            "prefill_version": prefill_version,
         },
     )
 
@@ -9274,6 +9301,11 @@ def vehicle_model_commission(request, model_pk):
         )
     reward_instance = reward_plan or DealerVehicleRewardPlan(vehicle_model=vehicle_model)
     action = request.POST.get("action", "save_commission")
+    reward_prefill, reward_prefill_version, reward_item_initial = (None, None, [])
+    if request.method != "POST" and creating_reward:
+        # 新增附加獎勵版本預填目前方案的項目與數量，生效日預設下個月 1 日。
+        reward_prefill, reward_prefill_version = vehicle_model_copy.prefill_initial("reward", vehicle_model.pk)
+        reward_item_initial = vehicle_model_copy.reward_item_initial(reward_prefill_version)
     form = VehicleModelCommissionForm(
         request.POST if request.method == "POST" and action == "save_commission" else None,
         initial={"base_dealer_commission": vehicle_model.base_dealer_commission},
@@ -9281,12 +9313,17 @@ def vehicle_model_commission(request, model_pk):
     reward_form = DealerVehicleRewardPlanForm(
         request.POST if request.method == "POST" and action == "save_rewards" else None,
         instance=reward_instance,
+        initial=reward_prefill,
     )
     reward_formset = DealerVehicleRewardItemFormSet(
         request.POST if request.method == "POST" and action == "save_rewards" else None,
         instance=reward_instance,
         prefix="reward_items",
+        initial=reward_item_initial or None,
     )
+    if reward_item_initial:
+        # min_num 已提供一列，其餘補足到與來源方案相同的項目數。
+        reward_formset.extra = max(len(reward_item_initial) - reward_formset.min_num, 0)
     from_programs = (request.POST if request.method == "POST" else request.GET).get("from") == "programs"
     tab_url = reverse("vehicle_model_commission", args=[vehicle_model.pk])
     entry_query = "from=programs" if from_programs else ""
@@ -9355,6 +9392,7 @@ def vehicle_model_commission(request, model_pk):
             "reward_plan": reward_plan,
             "reward_plans": plan_rows,
             "creating_reward": reward_plan is None,
+            "reward_prefill_version": reward_prefill_version,
             "reward_catalog_metadata": reward_catalog_metadata,
             "entry_query": entry_query,
             "workspace_back": (

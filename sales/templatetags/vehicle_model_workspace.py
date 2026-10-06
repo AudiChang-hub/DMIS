@@ -116,4 +116,6 @@ def vehicle_model_workspace(context, vehicle_model, active):
         "has_disabled": any(tab["hint"] for tab in tabs),
         "brand_tone": _brand_tone(vehicle_model.brand) if saved else "neutral",
         "power_label": _power_label(vehicle_model) if saved else "",
+        # 沿用建立需要機種操作權限（送出時另依各資料的畫面權限把關）。
+        "can_copy": saved and policy.route("vehicle_model_copy", "POST"),
     }

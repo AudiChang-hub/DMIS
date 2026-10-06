@@ -1,0 +1,177 @@
+{% extends "base.html" %}{% load static sales_format %}
+{% block title %}批次調整｜機種與售價｜車輛銷售管理{% endblock %}
+{% block page_class %}page-shell--wide model-tool-page{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'css/vehicle-model-tools.css' %}?v={{ app_version }}">{% endblock %}
+{% block content %}
+{% url 'vehicle_model_list' as list_url %}{% url 'data_maintenance' as data_url %}
+{% include "sales/_page_back.html" with fallback_url=list_url label="機種與售價" direct_back=True root_url=data_url root_label="資料維護區" current_label="批次調整" %}
+<section class="hero-row compact-hero model-tool-hero">
+  <div>
+    <p class="eyebrow">機種與售價</p>
+    <h1>{% if stage == "preview" %}確認批次調整{% else %}批次調整{% endif %}</h1>
+    <p class="muted">{% if stage == "preview" %}核對每個年式的原值與新值；確認後一次建立，任何一列失敗都不會寫入。{% else %}像試算表一樣一次調整多個年式；只建立新版本，舊版本與已成立的訂單不受影響。{% endif %}</p>
+  </div>
+  {% if stage != "preview" %}<div class="hero-actions"><a class="button ghost" href="{% url 'vehicle_model_copy' %}">沿用建立</a></div>{% endif %}
+</section>
+
+{% if stage == "preview" %}
+<section class="section-block confirm-panel model-tool-confirm" aria-labelledby="batch-preview-title">
+  <div class="section-title"><h2 id="batch-preview-title">{{ dataset_label }}：{{ change_count }} 個年式將變更</h2></div>
+  <div class="section-body confirm-panel__body">
+    <dl class="confirm-facts">
+      <div><dt>調整資料</dt><dd>{{ dataset_label }}</dd></div>
+      <div><dt>生效</dt><dd>{% if immediate %}確認後立即生效（無版本）{% else %}{{ effective_from|date:"Y/m/d" }} 起，建立新版本{% endif %}</dd></div>
+      <div><dt>年式數</dt><dd>{{ change_count }} 個</dd></div>
+      <div><dt>變更欄位</dt><dd>{{ field_count }} 項</dd></div>
+    </dl>
+    <div class="callout callout--info"><span class="callout__icon" aria-hidden="true">i</span><div><p>{{ dataset_note }}{% if not immediate %}未變更的欄位沿用目前版本的數值；既有版本一律保留，不會被修改。{% endif %}</p></div></div>
+    <div class="inventory-table-wrap model-tool-table-wrap" tabindex="0" aria-label="批次調整預覽">
+      <table class="inventory-table inventory-table--fit model-batch-preview">
+        <thead><tr><th>年式</th><th>欄位</th><th class="is-number">原值</th><th class="is-number">新值</th><th class="is-number">差額</th></tr></thead>
+        <tbody>
+          {% for line in lines %}{% for field in line.fields %}
+          <tr{% if forloop.first %} class="is-group-start"{% endif %}>
+            {% if forloop.first %}<th scope="rowgroup" rowspan="{{ line.fields|length }}">{{ line.label }}</th>{% endif %}
+            <td data-label="欄位">{{ field.label }}</td>
+            <td data-label="原值" class="is-number">{% if field.old is None %}<span class="muted">未設定</span>{% else %}${{ field.old|number_with_commas }}{% endif %}</td>
+            <td data-label="新值" class="is-number"><strong>${{ field.new|number_with_commas }}</strong></td>
+            <td data-label="差額" class="is-number">{% if field.diff is None %}<span class="model-delta is-new">新設定</span>{% else %}<span class="model-delta {% if field.diff > 0 %}is-up{% elif field.diff < 0 %}is-down{% endif %}">{% if field.diff > 0 %}+{% endif %}{{ field.diff|number_with_commas }}{% if field.percent is not None %}<small>（{% if field.percent > 0 %}+{% endif %}{{ field.percent }}%）</small>{% endif %}</span>{% endif %}</td>
+          </tr>
+          {% endfor %}{% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  <form id="batch-back" method="post">{% csrf_token %}<input type="hidden" name="action" value="back"><input type="hidden" name="token" value="{{ token }}">{% for pk in listed_ids %}<input type="hidden" name="row" value="{{ pk }}">{% endfor %}{% for key, value in filters.items %}{% if value %}<input type="hidden" name="{{ key }}" value="{{ value }}">{% endif %}{% endfor %}</form>
+  <form method="post" class="confirm-panel__form" data-confirm="確定{% if immediate %}立即更新{% else %}建立{% endif %} {{ change_count }} 個年式的{{ dataset_label }}？">
+    {% csrf_token %}<input type="hidden" name="action" value="commit"><input type="hidden" name="token" value="{{ token }}">
+    <div class="form-actions confirm-panel__actions">
+      <button class="button ghost" type="submit" form="batch-back">返回修改</button>
+      <button class="button primary" type="submit">{% if immediate %}確認更新 {{ change_count }} 個年式{% else %}確認建立 {{ change_count }} 筆新版本{% endif %}</button>
+    </div>
+  </form>
+</section>
+{% else %}
+
+{% if result %}
+<section class="section-block model-tool-result" aria-labelledby="batch-result-title">
+  <div class="section-title"><h2 id="batch-result-title"><span class="model-tool-result__mark" aria-hidden="true"><svg viewBox="0 0 16 16" width="14" height="14"><path d="M3.5 8.4 6.6 11.3 12.5 4.9" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>已完成：{{ result.dataset_label }}</h2><span>{% if result.immediate %}已立即生效{% else %}{{ result.date }} 起生效{% endif %}・{{ result.rows|length }} 個年式</span></div>
+  <ul class="model-tool-result__list">
+    {% for row in result.rows %}
+    <li><a href="{{ row.url }}">{{ row.label }}</a><span>{% for field in row.fields %}{{ field.label }} {% if field.old %}${{ field.old }} → {% endif %}<strong>${{ field.new }}</strong>{% if not forloop.last %}・{% endif %}{% endfor %}</span></li>
+    {% endfor %}
+  </ul>
+</section>
+{% endif %}
+
+{% if dataset_tabs %}
+<nav class="model-tool-switch" aria-label="選擇要調整的資料">
+  {% for tab in dataset_tabs %}
+  <a href="?{{ tab.query }}" class="model-tool-switch__item{% if tab.key == dataset %} is-active{% endif %}"{% if tab.key == dataset %} aria-current="page"{% endif %}>
+    <strong>{{ tab.label }}</strong><span>{{ tab.fields }}</span>
+  </a>
+  {% endfor %}
+</nav>
+
+{% url 'vehicle_model_batch' as batch_url %}
+{% include "sales/_vehicle_model_tool_filters.html" with show_date=True clear_url=batch_url|add:"?dataset="|add:dataset %}
+
+<form method="post" class="model-batch" data-batch-editor data-immediate="{{ immediate|yesno:'true,false' }}">
+  {% csrf_token %}
+  <input type="hidden" name="dataset" value="{{ dataset }}">
+  <input type="hidden" name="effective_from" value="{{ effective_from|date:'Y-m-d' }}">
+  {% for key, value in filters.items %}{% if value %}<input type="hidden" name="{{ key }}" value="{{ value }}">{% endif %}{% endfor %}
+  {% for row in rows %}<input type="hidden" name="row" value="{{ row.model.pk }}">{% endfor %}
+
+  {% if errors %}<div class="callout callout--danger" role="alert"><span class="callout__icon" aria-hidden="true">!</span><div><h3>無法繼續</h3><ul>{% for error in errors %}<li>{{ error }}</li>{% endfor %}</ul></div></div>{% endif %}
+  {% if notice %}<div class="callout callout--success" role="status"><span class="callout__icon" aria-hidden="true">✓</span><div><p>{{ notice }}</p></div></div>{% endif %}
+  {% if not can_operate %}<div class="callout callout--warning"><span class="callout__icon" aria-hidden="true">!</span><div><p>你只有查看{{ dataset_label }}的權限，可以試算與比對，但不能送出調整。</p></div></div>{% endif %}
+
+  <section class="section-block model-batch-sheet" aria-labelledby="batch-sheet-title">
+    <header class="model-batch-sheet__head">
+      <div>
+        <h2 id="batch-sheet-title">{{ dataset_label }}</h2>
+        <p>{{ dataset_note }}{% if not immediate %}目前值以 <strong>{{ effective_from|date:"Y/m/d" }}</strong> 前有效的版本計算。{% endif %}</p>
+      </div>
+      <span class="model-batch-sheet__count"><strong>{{ rows|length }}</strong> 個年式{% if truncated %}<small>（只顯示前 {{ max_rows }} 個，請縮小篩選）</small>{% endif %}</span>
+    </header>
+
+    {% if rows %}
+    <div class="model-batch-toolbar" role="group" aria-label="套用到勾選列">
+      <span class="model-batch-toolbar__label">快速套用</span>
+      {% if fields|length > 1 %}
+      <label class="model-batch-toolbar__field"><span>欄位</span>
+        <select name="op_field" data-batch-op-field>{% for name, label in fields %}<option value="{{ name }}"{% if op.field == name %} selected{% endif %}>{{ label }}</option>{% endfor %}</select>
+      </label>
+      {% else %}<input type="hidden" name="op_field" value="{{ fields.0.0 }}" data-batch-op-field>{% endif %}
+      <label class="model-batch-toolbar__field"><span>方式</span>
+        <select name="op" data-batch-op>{% for value, label in operations %}<option value="{{ value }}"{% if op.op == value %} selected{% endif %}>{{ label }}</option>{% endfor %}</select>
+      </label>
+      <label class="model-batch-toolbar__field model-batch-toolbar__value"><span>數值</span>
+        <span class="model-batch-toolbar__input"><input name="op_value" value="{{ op.value }}" inputmode="decimal" autocomplete="off" placeholder="例如 1000 或 -500" data-batch-op-value data-no-recent-values><em data-batch-op-unit aria-hidden="true">元</em></span>
+      </label>
+      <label class="model-batch-toolbar__field"><span>進位</span>
+        <select name="op_round" data-batch-op-round>{% for value, label in rounding %}<option value="{{ value }}"{% if op.round == value|stringformat:'s' %} selected{% endif %}>{{ label }}</option>{% endfor %}</select>
+      </label>
+      <button class="button secondary" type="submit" name="action" value="apply" data-batch-apply>套用到勾選列</button>
+      <p class="model-batch-toolbar__hint" data-batch-op-hint aria-live="polite">未勾選時套用到全部可調整的列。</p>
+    </div>
+
+    <div class="inventory-table-wrap model-tool-table-wrap" tabindex="0" aria-label="{{ dataset_label }}批次調整表">
+      <table class="inventory-table model-batch-table model-batch-table--{{ fields|length }}" data-batch-table>
+        <thead>
+          <tr>
+            <th class="model-tool-check-col"><label class="model-tool-check"><input type="checkbox" data-select-all aria-label="全選可調整的年式"><span class="visually-hidden">全選</span></label></th>
+            <th>年式</th>
+            {% for name, label in fields %}<th class="is-number" scope="col">{{ label }}<small>目前 → 新值</small></th>{% endfor %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in rows %}
+          <tr class="model-batch-row{% if row.locked %} is-locked{% endif %}{% if row.selected %} is-selected{% endif %}" data-batch-row>
+            <td class="model-tool-check-col" data-label="選取">
+              <label class="model-tool-check"><input type="checkbox" name="sel_{{ row.model.pk }}" value="1" data-row-check{% if row.selected %} checked{% endif %}{% if row.locked %} disabled{% endif %} aria-label="選取 {{ row.label }}"></label>
+            </td>
+            <th scope="row" class="model-tool-identity">
+              <a href="{% url 'vehicle_model_edit' row.model.pk %}">{{ row.model.name }}</a>
+              <span>{{ row.model.model_year|default:"年式待補" }}・{{ row.model.get_model_code_display|default:"型式待補" }}・{{ row.model.brand }}{% if not row.model.active %}・<em>已停用</em>{% endif %}</span>
+              {% if row.locked %}<small class="model-tool-locked">{{ row.locked }}</small>{% endif %}
+            </th>
+            {% for cell in row.cells %}
+            <td data-label="{{ cell.label }}" class="is-number model-batch-cell-td">
+              <div class="model-batch-cell{% if cell.error %} has-error{% endif %}" data-batch-cell data-current="{{ cell.current|default_if_none:'' }}" data-field="{{ cell.field }}">
+                <span class="model-batch-cell__current">{% if cell.current is None %}未設定{% else %}${{ cell.current|number_with_commas }}{% endif %}</span>
+                <span class="model-batch-cell__arrow" aria-hidden="true">→</span>
+                <input class="model-batch-cell__input" type="text" inputmode="numeric" autocomplete="off" name="new_{{ cell.field }}_{{ row.model.pk }}" value="{{ cell.new }}" placeholder="{% if cell.current is None %}輸入金額{% else %}不變{% endif %}" aria-label="{{ row.label }} 新{{ cell.label }}"{% if row.locked or not can_operate %} disabled{% endif %} data-batch-input data-no-recent-values>
+                <small class="model-delta" data-batch-delta aria-live="off"></small>
+                {% if cell.error %}<small class="field-error">{{ cell.error }}</small>{% endif %}
+              </div>
+            </td>
+            {% endfor %}
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="empty-state small"><span class="empty-state__icon" aria-hidden="true">⌕</span><h3>沒有符合條件的年式</h3><p>調整上方的品牌、機種、年式或狀態後再試一次。</p></div>
+    {% endif %}
+  </section>
+
+  {% if rows and can_operate %}
+  <div class="form-savebar model-batch-savebar">
+    <span class="form-savebar__hint" data-batch-summary aria-live="polite">已勾選 <strong data-selected-count>{{ selected_count }}</strong> 列・<strong data-changed-count>0</strong> 列有變更{% if not immediate %}・{{ effective_from|date:"Y/m/d" }} 起生效{% else %}・立即生效{% endif %}</span>
+    <div>
+      <button class="button ghost" type="button" data-batch-clear>清除輸入</button>
+      <button class="button primary" type="submit" name="action" value="preview" data-batch-preview>預覽變更</button>
+    </div>
+  </div>
+  {% endif %}
+</form>
+<p class="model-tool-keys" aria-hidden="true"><kbd>Enter</kbd>／<kbd>↓</kbd> 移到下一列・<kbd>↑</kbd> 上一列・<kbd>Tab</kbd> 下一格・每格空白代表不變</p>
+{% else %}
+<div class="empty-state"><span class="empty-state__icon" aria-hidden="true">!</span><h3>沒有可調整的資料</h3><p>你的帳號沒有售價、傭金、成本或原廠獎勵的查看權限，請洽 admin 開放。</p></div>
+{% endif %}
+{% endif %}
+{% endblock %}
+{% block scripts %}<script src="{% static 'js/vehicle-model-tools.js' %}?v={{ app_version }}" defer></script>{% endblock %}

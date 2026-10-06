@@ -96,7 +96,14 @@
       if (request.status >= 200 && request.status < 300 && payload.ok) {
         updateProgress(panel, 100, payload.message || "上傳完成", "complete");
         window.setTimeout(() => {
-          window.location.assign(payload.redirect_url || window.location.href);
+          // 導回網址與目前頁面只差錨點時，瀏覽器只會捲動不會重新載入；此時改為更新網址後重新整理。
+          const next = new URL(payload.redirect_url || window.location.href, window.location.href);
+          if (next.href.split("#")[0] === window.location.href.split("#")[0]) {
+            window.history.replaceState(window.history.state, "", next.href);
+            window.location.reload();
+          } else {
+            window.location.assign(next.href);
+          }
         }, 250);
         return;
       }

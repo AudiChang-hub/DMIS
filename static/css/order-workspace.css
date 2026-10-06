@@ -12,8 +12,6 @@
 .workspace-order .operations-actions{position:static;gap:var(--space-3);flex-wrap:wrap}
 .workspace-order .order-work-tabs-shell{display:none}
 .workspace-order [data-workspace-section]{scroll-margin-top:100px}
-.workspace-order .workspace-history{margin: var(--stack-gap) 0 var(--stack-gap);padding:0;border:1px solid var(--border,var(--line));border-radius:var(--radius-lg)}
-.workspace-history>summary{cursor:pointer;font-weight:700}
 .workspace-order .workspace-save-note{color:var(--muted);margin:var(--space-3) 0}
 .workspace-order fieldset.workspace-readonly{border:0;padding:0;margin:0;min-width:0}
 @media(max-width:600px){.workspace-tabs{gap:2px;padding:var(--space-1)}.workspace-tabs button{font-size:var(--text-sm-plus);padding:var(--space-3) 3px}.workspace-finance-summary{grid-template-columns:repeat(2,minmax(0,1fr));padding:var(--card-pad);gap:var(--stack-gap-sm)}.workspace-order .form-heading h1{font-size:var(--text-xl)}}

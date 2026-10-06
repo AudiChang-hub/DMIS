@@ -10,9 +10,16 @@
   if (typeof document === 'undefined') return;
   const root = document.querySelector('[data-order-workspace]');
   if (!root) return;
-  // 步驟式工作台：每個步驟是一個 <details data-step-key>，同頁儲存沿用既有機制。
-  const steps = [...root.querySelectorAll('details[data-step-key]')];
+  // 步驟分頁：每個步驟是一個 role="tabpanel" 的區塊，一次只顯示一個；同頁儲存沿用既有機制。
+  const steps = [...root.querySelectorAll('[role="tabpanel"][data-step-key]')];
+  const tabs = [...root.querySelectorAll('[role="tab"][data-step-link]')];
   const stepLinks = [...root.querySelectorAll('[data-step-link]')];
+  const bar = root.querySelector('[data-order-step-bar]');
+  const scroller = root.querySelector('[data-step-scroller]');
+  const tablist = root.querySelector('[data-step-tablist]');
+  const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+  const tabbed = tabs.length > 0 && steps.length > 0;
+  let activeKey = tabs.find(tab => tab.getAttribute('aria-selected') === 'true')?.dataset.stepLink || steps[0]?.dataset.stepKey;
   const forms = [...root.querySelectorAll('form[data-workspace-save]')];
   const bases = new Map();
   const conflicts = new Set();
@@ -25,13 +32,14 @@
   const dirty = form => fields(form).some(f => !['csrfmiddlewaretoken', '_order_revision', 'operations-financial_revision'].includes(f.name) && value(f) !== bases.get(form)?.get(f.name));
   const notify = (text, error = false) => { message.hidden = false; message.textContent = text; message.classList.toggle('is-error', error); };
   const stepOf = field => field.closest('[data-step-key]')?.dataset.stepKey || 'order';
+  const behavior = () => reduceMotion.matches ? 'auto' : 'smooth';
   function indicators() {
     const changed = new Set();
     forms.forEach(form => fields(form).forEach(f => {
       if (!f.name.endsWith('revision') && value(f) !== bases.get(form)?.get(f.name)) changed.add(stepOf(f));
     }));
-    steps.forEach(step => {
-      const marker = step.querySelector(':scope > summary [data-dirty-indicator]');
+    root.querySelectorAll('[data-step-key]').forEach(step => {
+      const marker = step.querySelector(':scope > .order-step__header [data-dirty-indicator]');
       if (marker) marker.hidden = !changed.has(step.dataset.stepKey);
     });
     stepLinks.forEach(link => {
@@ -40,35 +48,135 @@
       link.title = changed.has(link.dataset.stepLink) ? '有未儲存修改' : '';
     });
   }
-  function activate(key, update = true) {
-    const step = steps.find(item => item.dataset.stepKey === key);
-    if (!step) return;
-    step.open = true;
-    step.scrollIntoView({block: 'start', behavior: 'smooth'});
-    if (update) { const url = new URL(location.href); url.searchParams.set('tab', key); history.replaceState(null, '', url); }
+  const panelOf = key => steps.find(step => step.dataset.stepKey === key);
+  // 分頁列可橫向捲動時，兩側淡出提示還有其他分頁。
+  function updateOverflow() {
+    if (!bar || !scroller) return;
+    const max = scroller.scrollWidth - scroller.clientWidth;
+    bar.classList.toggle('is-overflow-start', max > 1 && scroller.scrollLeft > 2);
+    bar.classList.toggle('is-overflow-end', max > 1 && scroller.scrollLeft < max - 2);
+  }
+  // 只捲動分頁列本身，把目前分頁置中；不移動整頁。
+  function centerTab(tab, smooth) {
+    if (!scroller || scroller.scrollWidth <= scroller.clientWidth + 1) return;
+    const box = scroller.getBoundingClientRect();
+    const rect = tab.getBoundingClientRect();
+    const left = scroller.scrollLeft + rect.left - box.left - (box.width - rect.width) / 2;
+    scroller.scrollTo({left: Math.max(0, left), behavior: smooth ? behavior() : 'auto'});
+  }
+  // 分頁列不在畫面上半部時捲到分頁列，讓使用者看到切換結果。
+  function showBar() {
+    if (!bar) return;
+    const top = bar.getBoundingClientRect().top;
+    if (top < 0 || top > window.innerHeight * 0.6) bar.scrollIntoView({block: 'start', behavior: behavior()});
+  }
+  function activate(key, options = {}) {
+    const panel = panelOf(key);
+    if (!tabbed || !panel) return false;
+    const changed = key !== activeKey;
+    activeKey = key;
+    tabs.forEach(tab => {
+      const selected = tab.dataset.stepLink === key;
+      tab.setAttribute('aria-selected', String(selected));
+      tab.tabIndex = selected ? 0 : -1;
+      tab.classList.toggle('is-active', selected);
+    });
+    steps.forEach(step => {
+      const selected = step === panel;
+      step.hidden = !selected;
+      step.classList.toggle('is-active', selected);
+      if (!selected) step.classList.remove('is-entering');
+    });
+    if (changed && options.animate !== false && !reduceMotion.matches) {
+      panel.classList.remove('is-entering');
+      void panel.offsetWidth;
+      panel.classList.add('is-entering');
+    }
+    const tab = tabs.find(item => item.dataset.stepLink === key);
+    if (tab) {
+      centerTab(tab, options.animate !== false);
+      if (options.focusTab) tab.focus({preventScroll: true});
+    }
+    if (options.url !== false) {
+      const url = new URL(location.href);
+      url.searchParams.set('tab', key);
+      url.hash = options.anchor || `step-${key}`;
+      history.replaceState(history.state, '', url);
+    }
     root.querySelectorAll('[data-workspace-edit-link]').forEach(a => { const url = new URL(a.href); url.searchParams.set('tab', key); a.href = url.href; });
-    window.dispatchEvent(new CustomEvent('order-tab-change', {detail: {tab: key}}));
+    if (changed || options.announce) window.dispatchEvent(new CustomEvent('order-tab-change', {detail: {tab: key}}));
+    return true;
+  }
+  // 由其他位置（下一步建議、頁首按鈕、錨點）前往某步驟：切換分頁後捲到分頁列或指定區塊。
+  function goTo(key, anchor, options = {}) {
+    if (!activate(key, {...options, anchor: anchor?.id})) return false;
+    if (anchor && anchor !== panelOf(key)) {
+      for (let node = anchor; node && node !== root; node = node.parentElement) if (node.tagName === 'DETAILS') node.open = true;
+      anchor.scrollIntoView({block: 'start', behavior: options.instant ? 'auto' : behavior()});
+    } else {
+      showBar();
+      panelOf(key).focus({preventScroll: true});
+    }
+    return true;
+  }
+  // #step-<步驟>、舊的 #panel-<步驟>，或分頁內任何區塊的 id。
+  function resolveHash(hash) {
+    let id = (hash || '').replace(/^#/, '');
+    try { id = decodeURIComponent(id); } catch (_error) { return null; }
+    if (!id) return null;
+    const named = id.match(/^(?:step|panel|tab)-([a-z]+)$/);
+    if (named && panelOf(named[1])) return {key: named[1]};
+    const target = document.getElementById(id);
+    const panel = target?.closest('[role="tabpanel"][data-step-key]');
+    return panel ? {key: panel.dataset.stepKey, anchor: target} : null;
   }
   function reveal(field) {
+    const panel = field.closest('[role="tabpanel"][data-step-key]');
+    if (panel && panel.hidden) activate(panel.dataset.stepKey, {animate: false});
     for (let parent = field.parentElement; parent && parent !== root; parent = parent.parentElement) if (parent.tagName === 'DETAILS') parent.open = true;
-    field.scrollIntoView({block: 'center', behavior: 'smooth'});
+    field.scrollIntoView({block: 'center', behavior: behavior()});
     field.focus({preventScroll: true});
   }
+  const plainClick = event => event.button === 0 && !event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey;
   root.addEventListener('click', event => {
+    if (!tabbed || !plainClick(event)) return;
     const go = event.target.closest('[data-workspace-go]');
-    if (go) { event.preventDefault(); activate(go.dataset.workspaceGo); }
-    const stepLink = event.target.closest('[data-step-link]');
-    if (stepLink) { event.preventDefault(); activate(stepLink.dataset.stepLink); }
+    if (go && panelOf(go.dataset.workspaceGo)) { event.preventDefault(); goTo(go.dataset.workspaceGo); return; }
+    const tab = event.target.closest('[role="tab"][data-step-link]');
+    if (tab) { event.preventDefault(); activate(tab.dataset.stepLink, {focusTab: true}); return; }
     const link = event.target.closest('a[data-target-tab]');
-    if (link) {
+    if (link && link.hasAttribute('href') && panelOf(link.dataset.targetTab)) {
       event.preventDefault();
-      const key = link.dataset.targetTab;
-      activate(key);
-      const section = link.dataset.targetAnchor && document.getElementById(link.dataset.targetAnchor);
-      if (section) { if (section.tagName === 'DETAILS') section.open = true; section.scrollIntoView({block: 'start', behavior: 'smooth'}); }
+      const anchor = link.dataset.targetAnchor && document.getElementById(link.dataset.targetAnchor);
+      goTo(link.dataset.targetTab, anchor || null);
     }
   });
+  // 鍵盤：左右鍵切換相鄰分頁、Home／End 到頭尾（切換即顯示）；空白鍵等同點擊。
+  tablist?.addEventListener('keydown', event => {
+    const index = tabs.indexOf(event.target.closest('[role="tab"]'));
+    if (index < 0) return;
+    if (event.key === ' ' || event.key === 'Spacebar') { event.preventDefault(); activate(tabs[index].dataset.stepLink, {focusTab: true}); return; }
+    const keys = {ArrowRight: index + 1, ArrowLeft: index - 1, Home: 0, End: tabs.length - 1};
+    if (!(event.key in keys)) return;
+    event.preventDefault();
+    activate(tabs[(keys[event.key] + tabs.length) % tabs.length].dataset.stepLink, {focusTab: true});
+  });
   root.addEventListener('invalid', event => reveal(event.target), true);
+  // form-feedback.js 要聚焦隱藏分頁內的欄位時，先切到該分頁。
+  root.addEventListener('order-tabpanel-reveal', event => {
+    const panel = event.target.closest('[role="tabpanel"][data-step-key]');
+    if (panel) activate(panel.dataset.stepKey, {animate: false});
+  });
+  window.addEventListener('hashchange', () => {
+    const target = resolveHash(location.hash);
+    if (target) goTo(target.key, target.anchor || null);
+  });
+  scroller?.addEventListener('scroll', updateOverflow, {passive: true});
+  window.addEventListener('resize', () => {
+    updateOverflow();
+    const tab = tabs.find(item => item.dataset.stepLink === activeKey);
+    if (tab) centerTab(tab, false);
+  });
 
   function updateField(field, remote) {
     if (field.type === 'checkbox') field.checked = canonical(field, remote);
@@ -219,11 +327,19 @@
   window.addEventListener('beforeunload', event => {
     if (!allowLeave && (busy || forms.some(dirty))) { event.preventDefault(); event.returnValue = ''; }
   });
-  // 由功能導回（?tab=）時捲到對應步驟；一般開啟則停在伺服器判定的目前步驟。
-  const requested = new URL(location.href).searchParams.get('tab');
-  if (requested) {
-    const target = document.getElementById(`panel-${requested}`);
-    if (target) { if (target.tagName === 'DETAILS') target.open = true; target.scrollIntoView({block: 'start'}); }
+  // 初始分頁：網址錨點（#step-<步驟> 或分頁內區塊）優先，其次是含欄位錯誤的分頁，
+  // 否則沿用伺服器依 ?tab= 或目前步驟選定的分頁（由功能導回時 ?tab= 與錨點一致）。
+  if (tabbed) {
+    const requested = new URL(location.href).searchParams.get('tab');
+    let target = resolveHash(location.hash);
+    if (!target) {
+      const invalid = steps.map(step => step.querySelector('.errorlist, .field-error, [aria-invalid="true"]')).find(Boolean);
+      if (invalid) target = {key: invalid.closest('[role="tabpanel"]').dataset.stepKey, anchor: invalid};
+    }
+    activate(target?.key || activeKey, {animate: false, url: false, announce: true});
+    if (target?.anchor) goTo(target.key, target.anchor, {animate: false, url: false, instant: true});
+    else if (target || requested) showBar();
+    updateOverflow();
   }
   document.addEventListener('workspace-subsidy-toggle', event => {
     const orderForm = forms.find(form => form.dataset.workspaceSave === 'order');

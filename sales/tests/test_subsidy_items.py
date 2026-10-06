@@ -5,6 +5,7 @@ from django.contrib.auth import get_user_model
 from django.test import TestCase
 from django.urls import reverse
 
+from sales.services.order_steps import order_step_url
 from sales.models import (
     OrderOperationsProfile,
     SalesOrder,
@@ -68,7 +69,7 @@ class SubsidyItemTests(TestCase):
 
         self.assertRedirects(
             response,
-            f"{reverse('order_detail', args=[self.order.pk])}?tab=subsidy",
+            order_step_url(self.order.pk, "subsidy"),
         )
         item = self.order.subsidy_items.get()
         self.assertEqual(item.expected_amount, Decimal("5000"))

@@ -1,4 +1,4 @@
-<span class="order-step__marker" aria-hidden="true">{% if step.state == "done" %}✓{% elif step.number %}{{ step.number }}{% else %}＋{% endif %}</span>
-<span class="order-step__heading"><strong>{{ step.title }}</strong><small>{{ step.summary }}</small></span>
+<span class="order-step__marker" aria-hidden="true">{% include "sales/_order_step_marker.html" %}</span>
+<div class="order-step__heading"><h2>{% if step.number %}<span class="visually-hidden">步驟 {{ step.number }}：</span>{% endif %}{{ step.title }}</h2><p>{{ step.summary }}</p></div>
 <span class="order-step__state is-{{ step.state }}">{{ step.state_label }}</span>
 <span data-dirty-indicator hidden title="有未儲存修改">●</span>

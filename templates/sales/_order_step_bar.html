@@ -1,10 +1,23 @@
-<nav class="order-step-bar" aria-label="訂單步驟" data-order-step-bar data-order-id="{{ order.pk }}">
-  <ol>
-    {% for step in step_list %}
-    <li class="order-step-bar__item is-{{ step.state }}">
-      <a href="#panel-{{ step.key }}" data-step-link="{{ step.key }}"><span class="order-step-bar__number">{% if step.state == "done" %}✓{% else %}{{ step.number }}{% endif %}</span><span class="order-step-bar__label">{{ step.title }}</span><span data-dirty-indicator hidden>●</span></a>
-    </li>
-    {% endfor %}
-  </ol>
+{% comment %}訂單步驟分頁：主要七步＋「其他」分組。編輯訂單時沒有分頁內容，改為回到訂單頁對應分頁的連結。{% endcomment %}{% url 'order_detail' order.pk as order_detail_url %}
+{% if editing_order %}
+<nav class="order-step-bar order-step-bar--links" aria-label="訂單步驟" data-order-step-bar data-order-id="{{ order.pk }}">
+  <div class="order-step-bar__scroller" data-step-scroller>
+    <div class="order-step-bar__tabs">
+      <div class="order-step-bar__group">{% for step in step_list %}{% include "sales/_order_step_tab.html" with as_tab=False %}{% endfor %}</div>
+      <div class="order-step-bar__group order-step-bar__group--extra"><span class="order-step-bar__group-label" aria-hidden="true">其他</span>{% for step in extra_step_list %}{% include "sales/_order_step_tab.html" with as_tab=False %}{% endfor %}</div>
+    </div>
+  </div>
 </nav>
+{% else %}
+<div class="order-step-bar" data-order-step-bar data-order-id="{{ order.pk }}">
+  <div class="order-step-bar__scroller" data-step-scroller>
+    <div class="order-step-bar__tabs" role="tablist" aria-label="訂單步驟" aria-orientation="horizontal" data-step-tablist>
+      <div class="order-step-bar__group" role="presentation">{% for step in step_list %}{% include "sales/_order_step_tab.html" with as_tab=True %}{% endfor %}</div>
+      <div class="order-step-bar__group order-step-bar__group--extra" role="presentation"><span class="order-step-bar__group-label" aria-hidden="true">其他</span>{% for step in extra_step_list %}{% include "sales/_order_step_tab.html" with as_tab=True %}{% endfor %}</div>
+    </div>
+  </div>
+</div>
+{# 有分頁時先隱藏其他步驟，避免載入腳本前整頁展開再收起；瀏覽器未執行腳本時全部步驟照常顯示。 #}
+<script>document.documentElement.classList.add("has-order-tabs");</script>
+{% endif %}
 <div class="workspace-message" data-workspace-message role="status" aria-live="polite" hidden></div>

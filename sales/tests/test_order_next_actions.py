@@ -9,6 +9,7 @@ from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
 
+from sales.services.order_steps import order_step_url
 from sales.models import (
     PaymentRecord,
     SalesOrder,
@@ -122,7 +123,7 @@ class OrderNextActionTests(TestCase):
         self.assertEqual(available.primary.key, "allocation")
         self.assertEqual(
             available.primary.url,
-            f"{reverse('order_detail', args=[order.pk])}?tab=allocation",
+            order_step_url(order.pk, "allocation"),
         )
 
     def test_state_key_without_anchor_keeps_legacy_hash(self):
@@ -308,7 +309,7 @@ class OrderNextActionTests(TestCase):
         self.assertIn('data-target-anchor="signed-documents"', action_markup)
         self.assertNotIn('aria-current="location"', action_markup)
 
-    def test_invalid_tab_falls_back_without_hiding_delivery_navigation(self):
+    def test_invalid_tab_falls_back_to_current_step_tab(self):
         order = self.make_order()
         order.allocate(self.make_vehicle())
         SalesOrder.objects.filter(pk=order.pk).update(
@@ -321,9 +322,11 @@ class OrderNextActionTests(TestCase):
             f"{reverse('order_detail', args=[order.pk])}?tab=not-a-real-tab"
         )
 
-        self.assertEqual(response.context["active_tab"], "order")
-        self.assertNotContains(response, "data-next-actions-controls hidden")
-        self.assertContains(response, "前往交付")
+        # 無效分頁改開目前步驟（交車）；交車分頁就在下方，建議卡標示「目前作業」。
+        self.assertEqual(response.context["active_tab"], "delivery")
+        self.assertContains(response, 'id="tab-delivery" role="tab" aria-controls="panel-delivery" aria-selected="true"')
+        self.assertContains(response, "data-next-actions-controls hidden")
+        self.assertContains(response, ">目前作業<")
 
     def test_dealer_delivered_before_registration_has_both_deadlines(self):
         order = self.make_order(source_type=SalesOrder.SourceType.DEALER)

@@ -58,7 +58,8 @@ class OrderWizardTests(TestCase):
         self.assertIn('id="id-verify-hint" hidden', page)
         self.assertIn('id="id-manual-check" hidden', page)
         self.assertIn("function updateVerifyLock", page)
-        self.assertIn('next.disabled = !ready', page)
+        # 自然人未勾「已人工核對證件」也不能前往下一步。
+        self.assertIn('next.disabled = needsId && (!ocrReady || !verified)', page)
         # 訂金獨立成段；分期預設以配件金額當訂金。
         self.assertIn('id="deposit-subsection"', page)
         self.assertIn('name="_deposit_auto"', page)
@@ -98,6 +99,9 @@ class OrderWizardTests(TestCase):
         draft.refresh_from_db()
         self.assertTrue(draft.id_front)
         self.assertNotIn("owner", draft.data["_wizard_done"])
+        # 辨識通過但未勾「已人工核對證件」仍不能前往下一步。
+        response = self.post("owner", draft=draft, files=False, _id_check="passed", id_verified="")
+        self.assertContains(response, "勾選「已人工核對證件」後才能前往下一步")
         response = self.post("owner", draft=draft, files=False, _id_check="passed")
         self.assertEqual(response.status_code, 302)
         draft.refresh_from_db()

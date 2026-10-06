@@ -172,13 +172,21 @@
       manual.disabled = !ready;
       if (!ready) manual.checked = false;
     }
-    const next = orderForm.querySelector("[data-wizard-next]");
-    if (next && wizardStep === "owner") {
-      next.disabled = !ready;
-      next.title = ready ? "" : "證件辨識完成後才能前往下一步";
-    }
+    refreshOwnerNextLock();
     refreshIdManualBox();
   }
+
+  // 自然人須勾選「已人工核對證件」才能前往下一步；法人不需證件辨識。
+  function refreshOwnerNextLock() {
+    const next = orderForm.querySelector("[data-wizard-next]");
+    if (!next || wizardStep !== "owner") return;
+    const needsId = ["local", "foreign"].includes(ownerType.value);
+    const verified = byId("id_id_verified")?.checked;
+    next.disabled = needsId && (!ocrReady || !verified);
+    next.title = !needsId ? "" : !ocrReady ? "證件辨識完成後才能前往下一步" : verified ? "" : "請先勾選「已人工核對證件」";
+  }
+  byId("id_id_verified")?.addEventListener("change", refreshOwnerNextLock);
+  ownerType?.addEventListener("change", refreshOwnerNextLock);
 
   function setOcrState(state, options = {}) {
     recordIdCheck(state, options.message || "");

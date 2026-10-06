@@ -5719,6 +5719,7 @@ def order_operations(request, pk):
             "payment_formset": payment_formset,
             "receipt_summary": payment_summary(order),
             **order_workspace.payment_ledger_context(order),
+            **order_workspace.finance_overview_context(form, profile, order),
             "manual_financial_fields": profile.manual_financial_fields or [],
             "is_electric": order.vehicle_model.energy_type
             != VehicleModel.EnergyType.GAS,

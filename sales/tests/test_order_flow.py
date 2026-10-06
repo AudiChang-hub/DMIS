@@ -5139,7 +5139,8 @@ class OrderOperationsTests(TestCase):
         )
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "領牌相關收支")
+        # 領牌相關的收入與支出分列在收入／支出兩欄的「領牌相關」分組。
+        self.assertContains(response, "領牌相關", count=2)
         for field_name in (
             "registration_tax_expense",
             "compulsory_insurance_expense",

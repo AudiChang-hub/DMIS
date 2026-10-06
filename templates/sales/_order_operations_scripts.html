@@ -1,6 +1,7 @@
 {% load static %}
 
 <script src="{% static 'js/discount-preview.js' %}" defer></script>
+<script src="{% static 'js/order-finance.js' %}?v={{ app_version }}" defer></script>
 <script>
 (() => {
   const rows = document.getElementById("payment-records");

@@ -1,5 +1,6 @@
 {% extends "base.html" %}{% load site_copy static %}{% load screen_access %}
 {% block title %}營運資料｜{{ order.number }}{% endblock %}
 {% block page_class %}page-shell--wide{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'css/order-finance.css' %}?v={{ app_version }}">{% endblock %}
 {% block content %}{% include "sales/_order_operations_content.html" %}{% endblock %}
 {% block scripts %}{% include "sales/_order_operations_scripts.html" %}{% endblock %}

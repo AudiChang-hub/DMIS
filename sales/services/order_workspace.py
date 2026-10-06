@@ -61,6 +61,7 @@ def finance_context(request, order):
     summary = payment_summary(order)
     return {
         **payment_ledger_context(order, summary),
+        **finance_overview_context(operations_form, profile, order),
         'workspace_finance': True,
         'workspace_finance_editable': can_edit_finance(request.user) and policy_for(request).route('order_operations', 'POST'),
         'workspace_discount_editable': can_edit_finance(request.user) and policy_for(request).route('order_discount_decide', 'POST'),
@@ -74,6 +75,33 @@ def finance_context(request, order):
         'is_electric': order.vehicle_model.energy_type != 'gas',
         'discount_request_form': DiscountRequestForm(initial={'amount': order.discount_requested_amount or None, 'reason': order.discount_reason}),
         'discount_decision_form': DiscountDecisionForm(initial={'decision': 'approve'}),
+    }
+
+
+def finance_overview_context(form, profile, order):
+    """收入／支出兩欄的分組、合計與車行結算；只呈現，不寫入。"""
+    from sales.services.dealer_settlement import dealer_settlement
+    from sales.services.finance_ledger import finance_ledger, finance_totals
+
+    plate_variance = None
+    calculated = order.registration_calculated_total
+    if calculated and order.plate_insurance_fee != calculated:
+        plate_variance = {
+            'calculated': calculated,
+            'actual': order.plate_insurance_fee,
+            'difference': order.plate_insurance_fee - calculated,
+            'difference_abs': abs(order.plate_insurance_fee - calculated),
+            'confirmed': bool(
+                order.registration_fee_variance_confirmed_at
+                and order.registration_fee_variance_confirmed_calculated_total == calculated
+                and order.registration_fee_variance_confirmed_actual_total == order.plate_insurance_fee
+            ),
+        }
+    return {
+        'finance_ledger': finance_ledger(form, profile),
+        'finance_totals': finance_totals(profile),
+        'dealer_settlement': dealer_settlement(order, profile),
+        'plate_variance': plate_variance,
     }
 
 

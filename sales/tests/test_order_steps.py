@@ -93,12 +93,14 @@ class OrderStepTests(TestCase):
         profile.refresh_from_db()
         self.assertEqual((profile.bank_name, profile.helmet), ("測試銀行", "新安全帽"))
 
-    def test_finance_step_groups_internal_fields_under_advanced(self):
+    def test_finance_step_splits_income_and_expense_blocks(self):
         order, _vehicle = self.make_order()
         self.client.force_login(self.user)
         page = self.client.get(reverse("order_detail", args=[order.pk])).content.decode()
         finance = page.split('id="panel-finance"', 1)[1].split('id="panel-delivery"', 1)[0]
-        self.assertIn("進階：成本、獎勵與傭金", finance)
+        self.assertNotIn("進階：成本、獎勵與傭金", finance)
+        self.assertIn('data-ledger-block="income"', finance)
+        self.assertIn('data-ledger-block="expense"', finance)
         self.assertIn('name="_section" value="finance"', finance)
         self.assertNotIn("車控與電池合約", finance)
         delivery = page.split('id="panel-delivery"', 1)[1].split('id="panel-subsidy"', 1)[0]

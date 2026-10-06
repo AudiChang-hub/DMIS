@@ -7,7 +7,7 @@ from django.utils import timezone
 
 from sales.models import DeliveryRecord, PaymentRecord, SalesOrder
 from sales.services.order_next_actions import build_order_next_actions
-from sales.services.order_steps import build_order_steps
+from sales.services.order_steps import build_order_steps, order_step_url
 from sales.tests import test_order_lifecycle as lifecycle
 
 
@@ -42,8 +42,10 @@ class OrderStepTests(TestCase):
         order, _vehicle = self.registered_v2()
         self.client.force_login(self.user)
         page = self.client.get(reverse("order_detail", args=[order.pk])).content.decode()
-        self.assertIn('id="panel-delivery" data-step-key="delivery" open', page)
-        self.assertNotIn('data-step-key="registration" open', page)
+        self.assertIn('class="order-step is-current is-active" id="panel-delivery"', page)
+        self.assertIn('id="tab-delivery" role="tab" aria-controls="panel-delivery" aria-selected="true" tabindex="0"', page)
+        self.assertIn('id="tab-registration" role="tab" aria-controls="panel-registration" aria-selected="false" tabindex="-1"', page)
+        self.assertNotIn('is-active" id="panel-registration"', page)
         self.assertIn('id="delivery-balance"', page)
         self.assertIn("收尾款並完成交車", page)
 
@@ -55,7 +57,7 @@ class OrderStepTests(TestCase):
             "deposit-received_amount": "5000", "deposit-received_on": "2026-08-01",
             "deposit-payment_method": "現金", "deposit-confirmed": "on",
         })
-        self.assertRedirects(response, f"{reverse('order_detail', args=[order.pk])}?tab=deposit")
+        self.assertRedirects(response, order_step_url(order.pk, "deposit"))
         deposit = order.payment_records.get(system_key="deposit")
         self.assertTrue(deposit.confirmed)
         self.assertEqual(deposit.received_amount, Decimal("5000"))

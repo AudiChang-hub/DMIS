@@ -1,42 +1,149 @@
-/* 訂單步驟式工作台：依作業順序排列，完成的步驟收合成摘要。 */
-.order-step-bar { margin-block: var(--stack-gap-sm); }
-.order-step-bar ol { display: flex; flex-wrap: wrap; gap: var(--space-2); margin: 0; padding: 0; list-style: none; }
-.order-step-bar a { display: inline-flex; align-items: center; gap: var(--space-2); min-height: 44px; padding: var(--space-2) var(--space-4); color: var(--ink); text-decoration: none; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-pill); }
-.order-step-bar a:hover { border-color: var(--line-strong); }
-.order-step-bar__number { display: inline-grid; place-items: center; width: 1.6em; height: 1.6em; font-size: var(--text-sm); border-radius: 50%; background: var(--surface-soft); }
-.order-step-bar__item.is-done .order-step-bar__number { background: var(--green-border); color: var(--green-ink); }
-.order-step-bar__item.is-current a { border-color: var(--action-text); color: var(--action-text); }
-.order-step-bar__item.is-current .order-step-bar__number { background: var(--action-bg); color: var(--action-on); }
-.order-step-bar__item.is-locked a { color: var(--muted); }
+/* 訂單步驟分頁：主要七步＋「其他」分組；一次只顯示一個步驟。
+   未執行腳本時（沒有 html.has-order-tabs）所有步驟依序展開，內容不缺漏。 */
 
-.order-steps { display: grid; gap: var(--stack-gap-sm); margin-block: var(--stack-gap); }
-.order-step { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); }
-.order-step.is-current { border-color: var(--action-text); }
-.order-step > summary { display: flex; align-items: center; gap: var(--space-4); min-height: 56px; padding: var(--space-4) var(--card-pad); cursor: pointer; list-style: none; }
-.order-step > summary::-webkit-details-marker { display: none; }
-.order-step__marker { display: inline-grid; flex: none; place-items: center; width: 2em; height: 2em; font-weight: 600; border-radius: 50%; background: var(--surface-soft); color: var(--ink); }
-.order-step.is-done .order-step__marker { background: var(--green-border); color: var(--green-ink); }
-.order-step.is-current .order-step__marker { background: var(--action-bg); color: var(--action-on); }
-.order-step.is-locked { background: var(--surface-subtle); }
+/* ---- 分頁列 ---- */
+.order-step-bar {
+  position: relative; min-width: 0; max-width: 100%; margin-block: var(--stack-gap) var(--stack-gap-sm);
+  padding: var(--space-1); background: var(--surface-soft); border: 1px solid var(--line-soft);
+  border-radius: var(--radius-lg); scroll-margin-top: 96px;
+}
+.order-step-bar__scroller {
+  overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: none;
+  border-radius: var(--radius-md); scroll-padding-inline: var(--space-6);
+}
+.order-step-bar__scroller::-webkit-scrollbar { display: none; }
+.order-step-bar.is-overflow-end .order-step-bar__scroller { -webkit-mask-image: linear-gradient(90deg, black calc(100% - 48px), transparent); mask-image: linear-gradient(90deg, black calc(100% - 48px), transparent); }
+.order-step-bar.is-overflow-start .order-step-bar__scroller { -webkit-mask-image: linear-gradient(90deg, transparent, black 48px); mask-image: linear-gradient(90deg, transparent, black 48px); }
+.order-step-bar.is-overflow-start.is-overflow-end .order-step-bar__scroller { -webkit-mask-image: linear-gradient(90deg, transparent, black 48px, black calc(100% - 48px), transparent); mask-image: linear-gradient(90deg, transparent, black 48px, black calc(100% - 48px), transparent); }
+.order-step-bar__tabs { display: flex; align-items: stretch; gap: var(--space-1); min-width: max-content; }
+.order-step-bar__group { display: flex; flex: 1 0 auto; align-items: stretch; gap: var(--space-1); }
+.order-step-bar__group--extra {
+  flex: 0 0 auto; margin-left: var(--space-2); padding-left: var(--space-3);
+  border-left: 1px solid var(--line);
+}
+.order-step-bar__group-label {
+  align-self: center; padding-right: var(--space-1); color: var(--muted); font-size: var(--text-2xs);
+  font-weight: 600; letter-spacing: .04em;
+}
+
+/* ---- 單一分頁 ---- */
+.order-step-tab {
+  position: relative; display: grid; flex: 1 0 auto; grid-template-columns: auto minmax(0, 1fr); align-items: center;
+  column-gap: var(--space-2); min-height: 60px; padding: var(--space-2) var(--space-3);
+  color: var(--muted); text-decoration: none; white-space: nowrap; background: transparent;
+  border: 1px solid transparent; border-radius: var(--radius-md); cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: color var(--dur-2) var(--ease-out), background-color var(--dur-2) var(--ease-out),
+    border-color var(--dur-2) var(--ease-out), box-shadow var(--dur-2) var(--ease-out);
+}
+.order-step-tab.is-extra { flex-grow: 0; }
+.order-step-tab:hover { color: var(--ink); background: color-mix(in srgb, var(--surface) 64%, transparent); }
+.order-step-tab:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -2px; }
+.order-step-tab__marker {
+  display: inline-grid; place-items: center; width: 28px; height: 28px; color: var(--ink-soft);
+  font-family: var(--font-display, inherit); font-size: var(--text-sm); font-weight: 700; font-variant-numeric: tabular-nums;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 50%;
+  transition: background-color var(--dur-2) var(--ease-out), color var(--dur-2) var(--ease-out), box-shadow var(--dur-2) var(--ease-out);
+}
+.order-step-tab__marker svg { width: 14px; height: 14px; }
+.order-step-tab__text { display: grid; gap: 2px; text-align: left; }
+.order-step-tab__label { color: var(--ink-soft); font-size: var(--text-sm-plus); font-weight: 600; line-height: 1.3; }
+.order-step-tab__state { font-size: var(--text-xs); line-height: 1.3; }
+.order-step-tab__dirty {
+  position: absolute; top: var(--space-2); right: var(--space-2); width: 8px; height: 8px;
+  background: var(--amber-strong); border-radius: 50%; box-shadow: 0 0 0 2px var(--surface-soft);
+}
+
+.order-step-tab.is-done .order-step-tab__marker { color: var(--green-ink); background: var(--green-border); border-color: transparent; }
+.order-step-tab.is-done .order-step-tab__state { color: var(--green-ink); }
+.order-step-tab.is-todo .order-step-tab__state { color: var(--amber-ink); }
+.order-step-tab.is-current .order-step-tab__marker {
+  color: var(--action-on); background: var(--action-bg); border-color: transparent;
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--action-bg) 18%, transparent);
+}
+.order-step-tab.is-current .order-step-tab__state { color: var(--action-text); font-weight: 600; }
+.order-step-tab.is-locked .order-step-tab__marker { color: var(--muted); background: transparent; border-style: dashed; }
+.order-step-tab.is-locked .order-step-tab__label { color: var(--muted); }
+
+/* 目前開啟的分頁：浮起的白卡＋底部操作色細線 */
+.order-step-tab[aria-selected="true"], .order-step-tab.is-active {
+  color: var(--ink); background: var(--surface-raised); border-color: var(--line);
+  box-shadow: 0 1px 2px color-mix(in srgb, var(--shadow-ink) 6%, transparent), 0 6px 16px color-mix(in srgb, var(--shadow-ink) 7%, transparent);
+}
+.order-step-tab[aria-selected="true"] .order-step-tab__label, .order-step-tab.is-active .order-step-tab__label { color: var(--ink); }
+.order-step-tab::after {
+  position: absolute; right: var(--space-4); bottom: -1px; left: var(--space-4); height: 3px; content: "";
+  background: var(--action-bg); border-radius: var(--radius-pill) var(--radius-pill) 0 0;
+  transform: scaleX(0); transform-origin: center; transition: transform var(--dur-3) var(--ease-out);
+}
+.order-step-tab[aria-selected="true"]::after, .order-step-tab.is-active::after { transform: scaleX(1); }
+.order-step-bar--links .order-step-tab::after { display: none; }
+
+/* ---- 步驟內容 ---- */
+.order-steps { display: grid; gap: var(--stack-gap-sm); margin-block: var(--stack-gap-sm) var(--stack-gap); }
+.order-step { min-width: 0; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow-soft); scroll-margin-top: 96px; }
+.order-step[hidden], .has-order-tabs .order-step[role="tabpanel"]:not(.is-active) { display: none; }
+.order-step:focus { outline: none; }
+.order-step:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+.order-step.is-entering { animation: order-step-enter var(--dur-3) var(--ease-out) both; }
+@keyframes order-step-enter {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: none; }
+}
+.order-step__header {
+  display: flex; align-items: center; gap: var(--space-4); min-height: 56px;
+  padding: var(--space-4) var(--card-pad); border-bottom: 1px solid var(--line-soft);
+}
+.order-step__marker {
+  display: inline-grid; flex: none; place-items: center; width: 2em; height: 2em; color: var(--ink);
+  font-weight: 600; background: var(--surface-soft); border-radius: 50%;
+}
+.order-step__marker svg { width: 14px; height: 14px; }
+.order-step.is-done .order-step__marker { color: var(--green-ink); background: var(--green-border); }
+.order-step.is-current .order-step__marker { color: var(--action-on); background: var(--action-bg); }
 .order-step__heading { display: grid; flex: 1; min-width: 0; gap: var(--space-1); }
-.order-step__heading small { color: var(--muted); overflow-wrap: anywhere; }
-.order-step__state { flex: none; padding: var(--space-1) var(--space-3); font-size: var(--text-sm); border-radius: var(--radius-pill); background: var(--surface-soft); color: var(--muted); }
-.order-step__state.is-done { background: var(--green-border); color: var(--green-ink); }
-.order-step__state.is-current { background: var(--action-bg); color: var(--action-on); }
-.order-step__state.is-todo { background: var(--amber-soft); color: var(--amber-ink); }
-.order-step[open] > summary { border-bottom: 1px solid var(--line); }
-.order-step__body { display: grid; gap: var(--stack-gap-sm); padding: var(--card-pad); }
+.order-step__heading h2 { margin: 0; font-family: var(--font-display, inherit); font-size: var(--text-md); line-height: 1.3; }
+.order-step__heading p { margin: 0; color: var(--muted); font-size: var(--text-sm); overflow-wrap: anywhere; }
+.order-step__state {
+  flex: none; padding: var(--space-1) var(--space-3); color: var(--muted); font-size: var(--text-sm);
+  background: var(--surface-soft); border-radius: var(--radius-pill);
+}
+.order-step__state.is-done { color: var(--green-ink); background: var(--green-border); }
+.order-step__state.is-current { color: var(--action-on); background: var(--action-bg); }
+.order-step__state.is-todo { color: var(--amber-ink); background: var(--amber-soft); }
+.order-step__header [data-dirty-indicator] { color: var(--amber-strong); }
+.order-step__body { display: grid; gap: var(--stack-gap-sm); min-width: 0; padding: var(--card-pad); }
 .order-step__body > .order-tab-panel, .order-step__body > .section-block { margin: 0; }
 /* 步驟本身已是卡片：內層沿用的區塊去掉外框與內距，避免雙層卡片。 */
 .order-step__body > .section-block, .order-step__body > .action-card { padding: 0; background: none; border: 0; box-shadow: none; }
+.order-step__body > .action-card { align-items: start; margin: 0; }
 .order-step__body > .section-block > .section-title .eyebrow { display: none; }
 .delivery-balance { margin: var(--stack-gap-sm) 0 0; padding: var(--inset-pad); border: 1px solid var(--line); border-radius: var(--radius-md); }
 .delivery-balance legend { padding-inline: var(--space-2); font-weight: 600; }
 
+@media (max-width: 860px) {
+  .order-step-bar { margin-block: var(--stack-gap-sm) var(--space-3); }
+  .order-step-tab { min-height: 54px; padding: var(--space-2) var(--space-3); column-gap: var(--space-2); }
+  .order-step-tab__marker { width: 26px; height: 26px; }
+  .order-step-bar__scroller { scroll-snap-type: x proximity; }
+  .order-step-tab { scroll-snap-align: center; }
+}
+
 @media (max-width: 600px) {
-  .order-step-bar ol { flex-wrap: nowrap; overflow-x: auto; padding-bottom: var(--space-2); }
-  .order-step-bar a { white-space: nowrap; }
-  .order-step > summary { flex-wrap: wrap; padding: var(--space-4); }
+  .order-step__header { flex-wrap: wrap; padding: var(--space-4); }
   .order-step__state { order: 3; }
   .order-step__body { padding: var(--space-4); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .order-step-tab, .order-step-tab__marker, .order-step-tab::after { transition: none; }
+  .order-step.is-entering { animation: none; }
+}
+
+/* 列印：保留所有步驟的標題與狀態，只展開目前分頁的內容。 */
+@media print {
+  .order-step-bar { display: none; }
+  .order-step[hidden], .has-order-tabs .order-step[role="tabpanel"]:not(.is-active) { display: block !important; }
+  .has-order-tabs .order-step[role="tabpanel"]:not(.is-active) > .order-step__body { display: none; }
+  .order-step { box-shadow: none; break-inside: avoid-page; }
 }

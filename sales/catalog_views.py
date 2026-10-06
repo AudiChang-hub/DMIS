@@ -183,7 +183,7 @@ class CatalogForm(forms.ModelForm):
 
     class Meta:
         model = VehicleCatalogEntry
-        fields = ["image", "description", "published", "position"]
+        fields = ["image", "description", "position"]
         widgets = {"description": forms.Textarea(attrs={"class": "form-control", "rows": 5})}
 
     def __init__(self, *args, **kwargs):
@@ -249,8 +249,6 @@ class CatalogForm(forms.ModelForm):
                     self.add_error(key, "請使用 8 MB 以內 JPEG、PNG 或 WebP 圖片。")
                 else:
                     upload.name = f"{uuid.uuid4().hex}.{ {'JPEG':'jpg','PNG':'png','WEBP':'webp'}[fmt]}"
-        if data.get("published") and not self.instance.vehicle_model.active:
-            self.add_error("published", "停用車款不能上架，請先確認機種狀態。")
         return data
 
 
@@ -310,6 +308,7 @@ def catalog_edit(request, pk):
                 form.add_error(None, "車色或圖片已被修改，請重新整理後再確認。")
             else:
                 changed = form.save(commit=False)
+                changed.published = True  # 上架跟著機種啟用狀態，此頁只編輯展示內容。
                 changed.revision += 1
                 changed.save()
                 if target_color:

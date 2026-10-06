@@ -524,25 +524,36 @@ class OfficialCatalogEntryTests(TestCase):
 
 
 class CatalogAutoPublishTests(TestCase):
-    def test_activation_publishes_but_manual_unpublish_is_kept(self):
+    def test_published_follows_model_active(self):
         from sales.models import VehicleCatalogEntry
 
         model = VehicleModel.objects.create(brand="SUZUKI", name="Swish 125", model_number="UG125DA", model_year=2026,
                                             model_code=VehicleModel.ModelType.FRONT_DISC_REAR_DRUM,
                                             energy_type="gas", displacement_cc=124, active=False)
-        self.assertFalse(VehicleCatalogEntry.objects.filter(vehicle_model=model).exists())
+        self.assertFalse(VehicleCatalogEntry.objects.filter(vehicle_model=model, published=True).exists())
         model.active = True
         model.save()
         entry = VehicleCatalogEntry.objects.get(vehicle_model=model)
         self.assertTrue(entry.published)
-        # 人員手動下架後，再存檔機種不會自動重新上架。
-        VehicleCatalogEntry.objects.filter(pk=entry.pk).update(published=False)
-        model.name = "Swish 125"
-        model.save()
-        self.assertFalse(VehicleCatalogEntry.objects.get(pk=entry.pk).published)
-        # 停用後再啟用，視為重新上市，自動上架。
         model.active = False
         model.save()
+        entry.refresh_from_db()
+        self.assertFalse(entry.published)
+        self.assertEqual(entry.revision, 1)
         model.active = True
         model.save()
         self.assertTrue(VehicleCatalogEntry.objects.get(pk=entry.pk).published)
+
+    def test_catalog_edit_no_longer_offers_publish_toggle(self):
+        from sales.models import VehicleCatalogEntry
+
+        root = get_user_model().objects.create_superuser("admin", password="Catalog-sync-test-61!")
+        model = VehicleModel.objects.create(brand="SUZUKI", name="Saluto 125", model_number="UC125DA", model_year=2026,
+                                            model_code=VehicleModel.ModelType.FRONT_DISC_REAR_DRUM,
+                                            energy_type="gas", displacement_cc=124)
+        self.client.force_login(root)
+        page = self.client.get(reverse("catalog_edit", args=[model.pk]))
+        self.assertNotContains(page, 'name="published"')
+        self.client.post(reverse("catalog_edit", args=[model.pk]),
+                         {"expected_revision": 0, "position": 0, "description": "介紹", "published": ""})
+        self.assertTrue(VehicleCatalogEntry.objects.get(vehicle_model=model).published)

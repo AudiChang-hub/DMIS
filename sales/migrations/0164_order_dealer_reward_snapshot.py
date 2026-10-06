@@ -6,7 +6,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("sales", "0162_rename_dealer_transfer_label"),
+        ("sales", "0163_money_fields_whole_numbers"),
     ]
 
     operations = [

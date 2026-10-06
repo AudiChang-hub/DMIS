@@ -1,20 +1,9 @@
-{% extends "base.html" %}{% load site_copy %}
-{% block title %}{% if is_editing %}編輯年式／規格{% else %}新增機種／年式{% endif %}｜車輛銷售管理{% endblock %}
-{% block page_class %}page-shell--form{% endblock %}
+{% extends "base.html" %}{% load site_copy screen_access %}
+{% block title %}{% if is_editing %}規格與車色｜{{ vehicle_model.name }}{% else %}新增機種／年式{% endif %}｜車輛銷售管理{% endblock %}
+{% block page_class %}page-shell--wide model-workspace-page{% endblock %}
+{% block head %}{% include "sales/_vehicle_model_workspace_head.html" %}{% endblock %}
 {% block content %}
-{% url 'vehicle_model_list' as model_list_url %}
-{% url 'data_maintenance' as data_url %}
-{% include "sales/_page_back.html" with fallback_url=model_list_url label="車型資料" root_url=data_url root_label="資料維護區" %}
-<section class="hero-row compact-hero">
-  <div>
-    <p class="eyebrow">資料維護區</p>
-    <h1>{% if is_editing %}編輯年式／規格{% else %}新增機種／年式{% endif %}</h1>
-    {% if is_editing %}<p class="muted">{{ vehicle_model.family|default:vehicle_model }}；原廠型號可有多筆，本頁維護這個年式的規格與顏色。</p>{% endif %}
-  </div>
-  <div class="hero-actions"><a class="button ghost" href="{% url 'vehicle_brand_list' %}">維護品牌</a></div>
-</section>
-
-{% if is_editing and can_manage_screen_access %}<p><a class="button ghost" href="{% url 'catalog_edit' vehicle_model.pk %}">選車圖片與介紹</a></p>{% endif %}
+{% include "sales/_vehicle_model_workspace.html" with workspace_tab="spec" %}
 <form method="post" class="master-model-form">
   {% csrf_token %}
   <input type="hidden" name="action" value="save_model">
@@ -33,7 +22,7 @@
   <section class="card master-model-section">
     <div class="section-heading">
       <div><p class="eyebrow">基本資料</p><h2>機種與年式規格</h2></div>
-      <span class="muted">可套用既有機種；同一規格允許多個原廠型號</span>
+      <span class="muted">可套用既有機種；同一規格允許多個原廠型號{% if_access 'vehicle_brand_list' %}。品牌清單在<a href="{% url 'vehicle_brand_list' %}">車輛品牌</a>維護{% endif_access %}</span>
     </div>
     {% if is_editing and family_version_count %}
     <div class="master-family-rename-note">
@@ -78,7 +67,8 @@
     <button type="button" class="button ghost master-color-add" id="add-master-color">＋ 新增顏色</button>
   </section>
   <div class="form-savebar master-model-actions">
-    <a class="button ghost" href="{% url 'vehicle_model_list' %}">取消</a>
+    <span class="form-savebar__hint">{% if is_editing %}修改規格與顏色後記得儲存；售價、分期等在上方分頁設定。{% else %}儲存後即可在上方分頁設定售價、分期、傭金與成本。{% endif %}</span>
+    <a class="button ghost" href="{% if is_editing %}{% url 'vehicle_model_edit' vehicle_model.pk %}{% else %}{% url 'vehicle_model_list' %}{% endif %}">{% if is_editing %}放棄變更{% else %}取消{% endif %}</a>
     <button class="button primary" type="submit">儲存年式／規格</button>
   </div>
 </form>
@@ -186,101 +176,6 @@
       </div>
     </div>
   </details>
-</section>
-
-<section id="business-settings" class="card vehicle-business-settings">
-  <div class="vehicle-business-settings__heading">
-    <div>
-      <p class="eyebrow">商務設定</p>
-      <h2>售價、車行傭金與結算規則</h2>
-      <p class="muted">{% site_text 'vehicle_model_form.7df257ecf95b' %}</p>
-    </div>
-    <span class="status-pill">車型：{{ vehicle_model.brand }} {{ vehicle_model.name }} {{ vehicle_model.model_number }}</span>
-  </div>
-
-  <div class="vehicle-business-grid">
-    <article class="vehicle-business-card vehicle-business-card--primary">
-      <div class="vehicle-business-card__top"><span class="vehicle-business-card__icon">價</span><span class="status-pill">{{ price_version_count }} 筆版本</span></div>
-      <h3>售價版本</h3>
-      {% if current_price_version and current_price_version.suggested_price %}
-      <strong class="vehicle-business-card__value">${{ current_price_version.suggested_price|floatformat:0 }}</strong>
-      <p>目前有效的建議售價・{% if current_price_version.suggested_price_includes_registration %}含牌險{% else %}不含牌險{% endif %}</p>
-      {% else %}
-      <strong class="vehicle-business-card__value vehicle-business-card__value--missing">尚未設定</strong>
-      <p>{% site_text 'vehicle_model_form.792c8fe86011' %}</p>
-      {% endif %}
-      <a class="button primary" href="{% url 'vehicle_model_price_versions' vehicle_model.pk %}">維護售價版本</a>
-    </article>
-
-    <article class="vehicle-business-card">
-      <div class="vehicle-business-card__top"><span class="vehicle-business-card__icon">行</span><span class="status-pill">{{ dealer_reward_plan_count }} 筆獎勵版本</span></div>
-      <h3>車行傭金與銷售獎勵</h3>
-      <strong class="vehicle-business-card__value">${{ vehicle_model.base_dealer_commission|floatformat:0 }}</strong>
-      <p>基礎傭金{% if current_dealer_reward_plan %} · {{ current_dealer_reward_plan.reward_summary }}{% else %} · 尚未設定附加獎勵{% endif %}</p>
-      <a class="button ghost" href="{% url 'vehicle_model_commission' vehicle_model.pk %}">設定傭金與獎勵</a>
-    </article>
-
-    <article class="vehicle-business-card">
-      <div class="vehicle-business-card__top"><span class="vehicle-business-card__icon">期</span><span class="status-pill">{{ installment_plan_version_count }} 個版本</span></div>
-      <h3>分期方案</h3>
-      {% if current_installment_plan %}
-      <div class="installment-card-status">
-        <strong>{{ current_installment_options|length }} 種期數</strong>
-        <span>目前有效 · {{ current_installment_plan.effective_from|date:'Y/m/d' }} 起{% if current_installment_plan.effective_to %}至 {{ current_installment_plan.effective_to|date:'Y/m/d' }}{% endif %}</span>
-      </div>
-      <div class="installment-card-options">
-        {% for option in current_installment_options %}
-        <div class="installment-card-option">
-          <div><strong>{{ option.periods }} 期</strong><span>{{ option.company.name }}</span></div>
-          <div><span>每期 ${{ option.monthly_amount|floatformat:0 }}</span><small>開辦費 ${{ option.opening_fee|floatformat:0 }}{% if option.extra_disbursement_bonus %} · 額外撥款獎金 ${{ option.extra_disbursement_bonus|floatformat:0 }}{% endif %}</small></div>
-        </div>
-        {% empty %}
-        <div class="installment-card-empty">此版本尚未設定期數與金額</div>
-        {% endfor %}
-      </div>
-      {% elif upcoming_installment_plan %}
-      <div class="installment-card-status installment-card-status--future">
-        <strong>尚未生效</strong>
-        <span>下一版本將於 {{ upcoming_installment_plan.effective_from|date:'Y/m/d' }} 生效</span>
-      </div>
-      <div class="installment-card-options">
-        {% for option in upcoming_installment_options %}
-        <div class="installment-card-option installment-card-option--future">
-          <div><strong>{{ option.periods }} 期</strong><span>{{ option.company.name }}</span></div>
-          <div><span>每期 ${{ option.monthly_amount|floatformat:0 }}</span><small>開辦費 ${{ option.opening_fee|floatformat:0 }}{% if option.extra_disbursement_bonus %} · 額外撥款獎金 ${{ option.extra_disbursement_bonus|floatformat:0 }}{% endif %}</small></div>
-        </div>
-        {% empty %}
-        <div class="installment-card-empty">預計版本尚未設定期數與金額</div>
-        {% endfor %}
-      </div>
-      {% else %}
-      <strong class="vehicle-business-card__value vehicle-business-card__value--missing">尚未設定</strong>
-      <p>{% if installment_plan_version_count %}目前沒有有效的分期方案，共 {{ installment_option_count }} 筆歷史期數。{% else %}尚未建立分期方案版本。{% endif %}</p>
-      {% endif %}
-      <a class="button ghost" href="{% url 'vehicle_installment_plan_list' vehicle_model.pk %}">維護分期方案</a>
-    </article>
-
-    <article class="vehicle-business-card">
-      <div class="vehicle-business-card__top"><span class="vehicle-business-card__icon">本</span><span class="status-pill">{{ settlement_rule_count }} 筆版本</span></div>
-      <h3>車輛結算成本</h3>
-      <strong class="vehicle-business-card__value">{{ settlement_rule_count }} 筆</strong>
-      <p>{% site_text 'vehicle_model_form.df64954cc870' %}</p>
-      <a class="button ghost" href="{% url 'settlement_cost_rule_list' %}?q={{ vehicle_model.model_number|urlencode }}">維護結算成本</a>
-    </article>
-
-    <article class="vehicle-business-card">
-      <div class="vehicle-business-card__top"><span class="vehicle-business-card__icon">獎</span><span class="status-pill">{{ incentive_rule_count }} 筆版本</span></div>
-      <h3>原廠獎勵與補助</h3>
-      <strong class="vehicle-business-card__value">{{ incentive_rule_count }} 筆</strong>
-      <p>{% site_text 'vehicle_model_form.319a23535750' %}</p>
-      <a class="button ghost" href="{% url 'incentive_rule_list' %}?q={{ vehicle_model.model_number|urlencode }}">維護原廠獎勵</a>
-    </article>
-  </div>
-
-  <div class="vehicle-business-note">
-    <strong>使用原則</strong>
-    <span>調價時請新增有效版本，不要覆蓋舊資料；訂單會依日期帶入並保存快照。</span>
-  </div>
 </section>
 {% endif %}
 {% endblock %}

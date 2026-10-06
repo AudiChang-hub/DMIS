@@ -144,10 +144,8 @@ class OrderFlowTests(TestCase):
         return order
 
     def assert_vehicle_model_business_redirect(self, response, vehicle_model):
-        expected = (
-            f'{reverse("vehicle_model_edit", args=[vehicle_model.pk])}'
-            "#business-settings"
-        )
+        # 儲存後留在機種工作區的「規格與車色」分頁；售價等設定在上方分頁。
+        expected = reverse("vehicle_model_edit", args=[vehicle_model.pk])
         if getattr(response, "redirect_chain", None):
             self.assertEqual(response.redirect_chain[-1][0], expected)
             return
@@ -327,9 +325,10 @@ class OrderFlowTests(TestCase):
         response = self.client.get(reverse("vehicle_model_edit", args=[self.model.pk]))
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "售價版本")
-        self.assertContains(response, "車行傭金與銷售獎勵")
-        self.assertContains(response, "原廠獎勵與補助")
+        # 商務設定改為機種工作區的分頁，不在規格頁混入表單。
+        self.assertContains(response, ">售價<")
+        self.assertContains(response, ">傭金與獎勵<")
+        self.assertContains(response, ">原廠獎勵與補助<")
         self.assertContains(response, 'name="motor_power_kw"')
         self.assertContains(response, 'name="horsepower_hp"')
         self.assertNotContains(response, 'name="suggested_price"')
@@ -339,7 +338,7 @@ class OrderFlowTests(TestCase):
             reverse("vehicle_model_price_versions", args=[self.model.pk]),
         )
 
-    def test_vehicle_model_edit_shows_current_installment_summary(self):
+    def test_vehicle_model_edit_links_installment_tab_with_version_count(self):
         company = InstallmentCompany.objects.create(name="和潤")
         current = InstallmentPlanVersion.objects.create(
             vehicle_model=self.model,
@@ -366,14 +365,15 @@ class OrderFlowTests(TestCase):
 
         response = self.client.get(reverse("vehicle_model_edit", args=[self.model.pk]))
 
+        # 規格頁的分期分頁標示版本數；方案內容在「分期」分頁查看。
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "2 個版本")
-        self.assertContains(response, "1 種期數")
-        self.assertContains(response, "24 期")
-        self.assertContains(response, "每期 $1537")
-        self.assertContains(response, "開辦費 $2000")
+        installment_url = reverse("vehicle_installment_plan_list", args=[self.model.pk])
+        self.assertContains(response, f'href="{installment_url}"')
+        self.assertContains(response, "（2 筆版本）")
+        response = self.client.get(installment_url)
+        self.assertEqual(response.status_code, 200)
         self.assertContains(response, "和潤")
-        self.assertNotContains(response, "36 期")
+        self.assertEqual(response.context["current_plan"], current)
 
     def test_vehicle_model_edit_exposes_safe_family_correction(self):
         target = VehicleModelFamily.objects.create(
@@ -724,41 +724,39 @@ class OrderFlowTests(TestCase):
         self.assertContains(response, "庫存 1 筆")
         self.assertTrue(VehicleModel.objects.filter(pk=self.model.pk).exists())
 
-    def test_vehicle_model_business_pages_offer_previous_screen_and_fixed_hierarchy(self):
+    def test_vehicle_model_workspace_tabs_share_direct_back_and_fixed_hierarchy(self):
         self.client.force_login(self.user)
+        # 機種工作區的分頁共用固定返回：直接回機種清單，不以瀏覽器上一頁在分頁間來回。
         model_url = reverse("vehicle_model_edit", args=[self.model.pk])
-        for route_name in ("vehicle_model_price_versions", "vehicle_installment_plan_list"):
+        list_url = reverse("vehicle_model_list")
+        for route_name in ("vehicle_model_price_versions", "vehicle_installment_plan_list", "vehicle_model_commission"):
             with self.subTest(route_name=route_name):
                 response = self.client.get(reverse(route_name, args=[self.model.pk]))
 
                 self.assertEqual(response.status_code, 200)
                 self.assertContains(response, f'href="{model_url}"')
-                self.assertContains(response, "data-smart-back")
-                self.assertContains(response, f'data-fallback-url="{model_url}"')
-                self.assertContains(response, "車型資料")
-                self.assertContains(response, "車型設定")
+                self.assertContains(response, f'href="{list_url}"')
+                self.assertContains(response, "回到機種與售價")
+                self.assertNotContains(response, "data-smart-back")
+                self.assertContains(response, "資料維護區")
 
         program_list_url = reverse("dealer_sales_program_list")
         response = self.client.get(
-            reverse("vehicle_model_commission", args=[self.model.pk])
+            reverse("vehicle_model_commission", args=[self.model.pk]), {"from": "programs"}
         )
         self.assertContains(response, f'href="{program_list_url}"')
-        self.assertContains(response, "data-smart-back")
-        self.assertContains(response, f'data-fallback-url="{program_list_url}"')
-        self.assertContains(response, "資料維護區")
-        self.assertContains(response, "車行傭金與銷售獎勵")
+        self.assertContains(response, "回到車行傭金與銷售獎勵")
 
-    def test_vehicle_model_edit_has_fixed_model_parent_and_smart_previous_screen(self):
+    def test_vehicle_model_edit_has_fixed_model_parent_and_direct_back(self):
         self.client.force_login(self.user)
         list_url = reverse("vehicle_model_list")
 
         response = self.client.get(reverse("vehicle_model_edit", args=[self.model.pk]))
 
         self.assertContains(response, f'href="{list_url}"')
-        self.assertContains(response, "回到上一畫面")
-        self.assertContains(response, "車型資料")
-        self.assertContains(response, "data-smart-back")
-        self.assertContains(response, f'data-fallback-url="{list_url}"')
+        self.assertContains(response, "回到機種與售價")
+        self.assertContains(response, "機種與售價")
+        self.assertNotContains(response, "data-smart-back")
 
     def test_maintenance_pages_separate_previous_screen_from_fixed_parent(self):
         self.client.force_login(self.user)
@@ -1170,10 +1168,10 @@ class OrderFlowTests(TestCase):
         self.assertEqual(response.status_code, 302)
         self.assertEqual(
             response["Location"],
-            f'{reverse("vehicle_model_edit", args=[model.pk])}#business-settings',
+            reverse("vehicle_model_edit", args=[model.pk]),
         )
         edit_response = self.client.get(reverse("vehicle_model_edit", args=[model.pk]))
-        self.assertContains(edit_response, 'id="business-settings"')
+        self.assertContains(edit_response, reverse("vehicle_model_price_versions", args=[model.pk]))
         self.assertContains(edit_response, "年式／規格已儲存")
         self.assertEqual(model.model_number, "SUI125-ABS")
         self.assertFalse(model.price_versions.exists())
@@ -1234,11 +1232,11 @@ class OrderFlowTests(TestCase):
         self.assertEqual(response.status_code, 302)
         self.assertEqual(
             response["Location"],
-            f'{reverse("vehicle_model_edit", args=[model.pk])}#business-settings',
+            reverse("vehicle_model_edit", args=[model.pk]),
         )
         follow_response = self.client.get(reverse("vehicle_model_edit", args=[model.pk]))
         self.assertContains(follow_response, "年式／規格已儲存")
-        self.assertContains(follow_response, 'id="business-settings"')
+        self.assertContains(follow_response, 'aria-current="page"')
 
     def test_vehicle_model_edit_renames_family_and_all_linked_years(self):
         self.model.model_number = "COMMUTE-2025"

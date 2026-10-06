@@ -1,0 +1,64 @@
+{% extends "base.html" %}{% load site_copy screen_access %}
+{% block title %}結算成本｜{{ vehicle_model.name }}｜車輛銷售管理{% endblock %}
+{% block page_class %}page-shell--wide model-workspace-page{% endblock %}
+{% block head %}{% include "sales/_vehicle_model_workspace_head.html" %}{% endblock %}
+{% block content %}
+{% include "sales/_vehicle_model_workspace.html" with workspace_tab="costs" %}
+<header class="model-workspace-intro">
+  <div><h2>車輛結算成本</h2><p class="muted">{% site_text 'settlement_cost_rule_list.7a65e761c113' %}</p></div>
+  {% if_access 'settlement_cost_rule_list' %}<div class="hero-actions"><a class="button ghost" href="{% url 'settlement_cost_rule_list' %}">查看全部機種的成本</a></div>{% endif_access %}
+</header>
+
+<div class="price-version-layout model-rule-layout">
+  <section class="card master-model-section price-version-editor" id="rule-editor" aria-labelledby="rule-editor-title">
+    <div class="section-heading">
+      <div><p class="eyebrow">{% if editing %}修改既有版本{% else %}新增版本{% endif %}</p><h2 id="rule-editor-title">{% if editing %}編輯 {{ editing.effective_from|date:"Y/m/d" }} 版本{% else %}建立成本版本{% endif %}</h2></div>
+      {% if editing %}<a class="button ghost small" href="{{ tab_url }}">取消編輯</a>{% endif %}
+    </div>
+    <form method="post" action="{{ tab_url }}" class="price-version-form">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="save">
+      {% if editing %}<input type="hidden" name="rule_id" value="{{ editing.pk }}">{% endif %}
+      {% if form.non_field_errors or form.vehicle_model.errors %}<div class="message error">{{ form.non_field_errors }}{{ form.vehicle_model.errors }}</div>{% endif %}
+      <p class="model-rule-bound"><span>適用車型</span><strong>{{ vehicle_model }}</strong><small>固定為本機種，不需選擇</small></p>
+      <div class="form-grid price-version-form__grid">
+        {% for field in form %}{% if field.name != "vehicle_model" %}{% include "sales/_field.html" with field=field %}{% endif %}{% endfor %}
+      </div>
+      <p class="model-rule-note">{% site_text 'settlement_cost_rule_form.daaa2f542288' %}</p>
+      <div class="form-actions price-version-form__actions">
+        {% if editing %}<button class="button danger-outline" type="submit" form="delete-rule">刪除此版本</button>{% endif %}
+        <button class="button primary" type="submit">{% if editing %}儲存版本修改{% else %}新增成本版本{% endif %}</button>
+      </div>
+    </form>
+    {% if editing %}<form id="delete-rule" method="post" action="{{ tab_url }}" data-confirm="確定刪除此成本版本？已被訂單採用的版本不會允許刪除。">{% csrf_token %}<input type="hidden" name="action" value="delete"><input type="hidden" name="rule_id" value="{{ editing.pk }}"></form>{% endif %}
+  </section>
+
+  <section class="card master-model-section price-version-history" aria-labelledby="rule-history-title">
+    <div class="section-heading">
+      <div><p class="eyebrow">歷史與目前成本</p><h2 id="rule-history-title">全部版本</h2></div>
+      <span class="muted">共 {{ rules|length }} 筆</span>
+    </div>
+    <div class="price-version-list">
+      {% for rule in rules %}
+      <article class="price-version-item{% if editing.pk == rule.pk %} is-editing{% endif %}">
+        <div class="price-version-item__head">
+          <div><strong>{{ rule.effective_from|date:"Y/m/d" }} 起</strong><span>{% if rule.effective_to %}至 {{ rule.effective_to|date:"Y/m/d" }}{% else %}未設定結束日{% endif %}</span></div>
+          <div class="quick-active-toggle-stack">
+            {% include "sales/_active_quick_toggle.html" with resource="settlement-cost-rule" pk=rule.pk is_active=rule.active item_name=rule %}
+            {% if rule.active %}<span class="status-pill cost-rule-{{ rule.display_status }}">{{ rule.display_status_label }}</span>{% endif %}
+          </div>
+        </div>
+        <dl class="price-version-values">
+          <div><dt>代銷結算成本</dt><dd>${{ rule.amount|floatformat:0 }}</dd></div>
+          <div><dt>公告日期</dt><dd>{{ rule.announced_on|date:"Y/m/d" }}</dd></div>
+        </dl>
+        {% if rule.note %}<p class="price-version-item__note">{{ rule.note }}</p>{% endif %}
+        <a class="button ghost small" href="{{ tab_url }}?edit={{ rule.pk }}#rule-editor">編輯此版本</a>
+      </article>
+      {% empty %}
+      <div class="empty-state small"><span class="empty-state__icon" aria-hidden="true">＋</span><h3>尚未建立結算成本</h3><p>{% site_text 'settlement_cost_rule_list.d2d540a3a87d' %}</p></div>
+      {% endfor %}
+    </div>
+  </section>
+</div>
+{% endblock %}

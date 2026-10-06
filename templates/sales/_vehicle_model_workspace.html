@@ -1,0 +1,44 @@
+{% load vehicle_model_workspace %}{% vehicle_model_workspace vehicle_model workspace_tab as ws %}{% url 'data_maintenance' as ws_data_url %}
+{% if ws.saved %}{% include "sales/_page_back.html" with fallback_url=ws.back_url label=ws.back_label direct_back=True root_url=ws_data_url root_label="資料維護區" current_label=vehicle_model.name %}{% else %}{% include "sales/_page_back.html" with fallback_url=ws.back_url label=ws.back_label direct_back=True root_url=ws_data_url root_label="資料維護區" current_label="新增機種／年式" %}{% endif %}
+<section class="hero-row compact-hero model-workspace-hero{% if ws.saved and not vehicle_model.active %} is-inactive{% endif %}" data-model-workspace-hero>
+  <div class="model-workspace-hero__main">
+    <p class="eyebrow">{% if ws.saved %}<span class="model-workspace-brand model-workspace-brand--{{ ws.brand_tone }}">{{ vehicle_model.brand }}</span><span class="model-workspace-eyebrow-text">機種工作區</span>{% else %}<span class="model-workspace-eyebrow-text">機種工作區</span>{% endif %}</p>
+    <h1>{% if ws.saved %}{{ vehicle_model.name }}{% else %}新增機種／年式{% endif %}</h1>
+    {% if ws.saved %}
+    <dl class="model-workspace-facts">
+      <div><dt>原廠型號</dt><dd>{{ vehicle_model.model_number|default:"待補" }}</dd></div>
+      <div><dt>年式</dt><dd>{{ vehicle_model.model_year|default:"待補" }}</dd></div>
+      <div><dt>型式</dt><dd>{{ vehicle_model.get_model_code_display|default:"未設定" }}</dd></div>
+      <div><dt>{{ vehicle_model.get_energy_type_display }}</dt><dd>{{ ws.power_label }}</dd></div>
+    </dl>
+    {% else %}
+    <p class="muted">先填規格與顏色並儲存；售價、分期、傭金與成本會在同一個工作區接著設定。</p>
+    {% endif %}
+  </div>
+  {% if ws.saved %}
+  <div class="model-workspace-status{% if vehicle_model.active %} is-active{% endif %}">
+    <span class="model-workspace-status__dot" aria-hidden="true"></span>
+    <span class="model-workspace-status__text"><strong>{% if vehicle_model.active %}啟用中{% else %}已停用{% endif %}</strong><small>{% if vehicle_model.active %}選車入口已上架{% else %}選車入口未上架{% endif %}</small></span>
+  </div>
+  {% endif %}
+</section>
+<nav class="model-workspace-tabs" aria-label="機種設定分頁" data-model-workspace-tabs>
+  <span class="model-workspace-tabs__context" aria-hidden="true">{% if ws.saved %}{{ vehicle_model.name }}<small>{{ vehicle_model.model_year|default:"" }}</small>{% else %}新增機種{% endif %}</span>
+  <ul class="model-workspace-tabs__list">
+    {% for tab in ws.tabs %}
+    <li>
+      {% if tab.url %}
+      <a class="model-workspace-tab{% if tab.current %} is-current{% endif %}" href="{{ tab.url }}"{% if tab.current %} aria-current="page"{% endif %}>
+        <span class="model-workspace-tab__label">{{ tab.label }}</span>{% if tab.current %}<span class="model-workspace-tab__indicator" aria-hidden="true"></span>{% endif %}
+        {% if tab.attention %}<span class="model-workspace-tab__flag" title="尚無有效售價" aria-hidden="true"></span><span class="visually-hidden">（尚無有效售價）</span>{% elif tab.count is not None %}<span class="model-workspace-tab__count" aria-hidden="true">{{ tab.count }}</span><span class="visually-hidden">（{{ tab.count }} 筆版本）</span>{% endif %}
+      </a>
+      {% elif tab.current %}
+      <span class="model-workspace-tab is-current" aria-current="page"><span class="model-workspace-tab__label">{{ tab.label }}</span><span class="model-workspace-tab__indicator" aria-hidden="true"></span></span>
+      {% else %}
+      <span class="model-workspace-tab is-disabled" aria-disabled="true" title="{{ tab.hint }}"><span class="model-workspace-tab__label">{{ tab.label }}</span><span class="visually-hidden">（{{ tab.hint }}）</span></span>
+      {% endif %}
+    </li>
+    {% endfor %}
+  </ul>
+</nav>
+{% if not ws.saved and ws.has_disabled %}<p class="model-workspace-hint"><span class="model-workspace-hint__icon" aria-hidden="true">i</span>售價、分期、傭金等其他分頁儲存後即可設定；請先完成規格與顏色。</p>{% endif %}

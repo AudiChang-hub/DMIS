@@ -48,8 +48,8 @@
           </div>
           <div class="dealer-reward-item__cost-summary" data-reward-cost-summary data-unit-cost-snapshot="{{ item_form.instance.unit_cost_snapshot|default_if_none:'' }}">
             <span><small>類型／單位</small><strong data-reward-catalog-unit>{% if item_form.instance.catalog_item %}{{ item_form.instance.catalog_item.get_reward_type_display }}／{{ item_form.instance.unit }}{% else %}選擇品項後顯示{% endif %}</strong></span>
-            <span><small>單位成本快照</small><strong data-reward-unit-cost>{% if item_form.instance.unit_cost_snapshot is not None %}${{ item_form.instance.unit_cost_snapshot|floatformat:2 }}{% else %}尚未維護{% endif %}</strong></span>
-            <span><small>本項預估成本</small><strong data-reward-total-cost>{% if item_form.instance.total_cost_snapshot is not None %}${{ item_form.instance.total_cost_snapshot|floatformat:2 }}{% else %}—{% endif %}</strong></span>
+            <span><small>單位成本快照</small><strong data-reward-unit-cost>{% if item_form.instance.unit_cost_snapshot is not None %}${{ item_form.instance.unit_cost_snapshot|floatformat:0 }}{% else %}尚未維護{% endif %}</strong></span>
+            <span><small>本項預估成本</small><strong data-reward-total-cost>{% if item_form.instance.total_cost_snapshot is not None %}${{ item_form.instance.total_cost_snapshot|floatformat:0 }}{% else %}—{% endif %}</strong></span>
           </div>
           <div class="dealer-reward-item__note">{% include "sales/_field.html" with field=item_form.note %}</div>
           <span hidden>{{ item_form.DELETE }}</span>

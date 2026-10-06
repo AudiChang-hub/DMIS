@@ -53,7 +53,7 @@
           <td data-label="品項"><strong>{{ item.name }}</strong>{% if item.note %}<span>{{ item.note }}</span>{% endif %}</td>
           <td data-label="類型">{{ item.get_reward_type_display }}</td>
           <td data-label="單位">{{ item.unit }}</td>
-          <td data-label="目前單位成本">{% if item.current_cost_version %}<strong>${{ item.current_cost_version.unit_cost|floatformat:2 }}</strong>{% else %}<span class="muted">尚未生效</span>{% endif %}</td>
+          <td data-label="目前單位成本">{% if item.current_cost_version %}<strong>${{ item.current_cost_version.unit_cost|floatformat:0 }}</strong>{% else %}<span class="muted">尚未生效</span>{% endif %}</td>
           <td data-label="成本期間">{% if item.current_cost_version %}{{ item.current_cost_version.effective_from|date:'Y/m/d' }}{% if item.current_cost_version.effective_to %}－{{ item.current_cost_version.effective_to|date:'Y/m/d' }}{% else %}起{% endif %}{% else %}—{% endif %}</td>
           <td data-label="使用方案">{{ item.plan_usage_count }} 筆</td>
           <td data-label="狀態">{% include "sales/_active_quick_toggle.html" with resource="dealer-reward-catalog-item" pk=item.pk is_active=item.active item_name=item.name %}</td>

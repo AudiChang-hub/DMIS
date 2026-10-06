@@ -160,7 +160,7 @@ class LegacyImportTests(TestCase):
         from decimal import Decimal
         self.assertEqual(order.established_on, date(2026, 8, 1))
         self.assertEqual(order.order_date, date(2026, 7, 30))
-        self.assertEqual(order.operations.net_profit, Decimal("9573.936"))
+        self.assertEqual(order.operations.net_profit, Decimal("9574"))  # 金額一律存整數
         self.assertEqual(order.operations.legacy_finance_reconciliation["status"], "matched")
 
     def setUp(self):

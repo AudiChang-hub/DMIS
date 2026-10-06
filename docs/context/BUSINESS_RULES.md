@@ -34,6 +34,7 @@
 - 來源：`sales/catalog_views.py`、`sales/services/catalog_selection.py`；測試 `test_catalog_selection.py`、`test_catalog_color_list.py`、`test_catalog_management.py`。
 - 原廠車型比對只讀官網並記錄差異；寫入僅限補上空白的車色圖片，以及經現有表單建立停用的新車型／新年式；不改既有車型主檔、車色名稱、上架狀態或售價版本。
 - 原廠促銷補助金只在網路平台來源訂單領牌時自動帶入；店內與合作車行訂單帶 0。所有來源皆可由財務人工更正（附原因、保護不被重算覆寫）。來源：`sales/services/incentive_rule.py`。
+- 機種的沿用建立（新生效日／新年式）與批次調整只**新增**版本（生效日不可早於今天、同一車型同一生效日已有版本即略過或鎖定），不修改、不刪除既有售價／分期／附加獎勵／成本／原廠獎勵版本；附加獎勵期間不可重疊，原方案仍有效時不沿用。車行基礎傭金無版本，批次調整立即生效並記錄原值／新值。新年式預設停用，同機種同年份同型式不可重複。來源：`sales/services/vehicle_model_copy.py`、`vehicle_model_batch.py`；測試 `test_vehicle_model_copy.py`、`test_vehicle_model_batch.py`。
 - 選車上架完全跟著機種啟用狀態：啟用即上架、停用即下架；不另設上架開關；圖片、介紹與排序由機種編輯頁的「選車圖片與介紹」維護。官網車型對應須由人確認。來源：`sales/services/official_catalog.py`、`sales/official_catalog_views.py`；規格 `specs/061-official-catalog-check`；測試 `test_official_catalog.py`。
 
 ## 財務與權限

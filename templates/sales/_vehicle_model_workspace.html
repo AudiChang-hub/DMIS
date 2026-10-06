@@ -16,9 +16,17 @@
     {% endif %}
   </div>
   {% if ws.saved %}
-  <div class="model-workspace-status{% if vehicle_model.active %} is-active{% endif %}">
-    <span class="model-workspace-status__dot" aria-hidden="true"></span>
-    <span class="model-workspace-status__text"><strong>{% if vehicle_model.active %}啟用中{% else %}已停用{% endif %}</strong><small>{% if vehicle_model.active %}選車入口已上架{% else %}選車入口未上架{% endif %}</small></span>
+  <div class="model-workspace-hero__side">
+    <div class="model-workspace-status{% if vehicle_model.active %} is-active{% endif %}">
+      <span class="model-workspace-status__dot" aria-hidden="true"></span>
+      <span class="model-workspace-status__text"><strong>{% if vehicle_model.active %}啟用中{% else %}已停用{% endif %}</strong><small>{% if vehicle_model.active %}選車入口已上架{% else %}選車入口未上架{% endif %}</small></span>
+    </div>
+    {% if ws.can_copy %}
+    <div class="hero-actions model-workspace-actions">
+      <a class="button ghost small" href="{% url 'vehicle_model_copy' %}?mode=date&amp;ids={{ vehicle_model.pk }}">沿用到新生效日</a>
+      <a class="button ghost small" href="{% url 'vehicle_model_copy' %}?mode=year&amp;ids={{ vehicle_model.pk }}">沿用到新年式</a>
+    </div>
+    {% endif %}
   </div>
   {% endif %}
 </section>

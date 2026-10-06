@@ -24,6 +24,7 @@
       <input type="hidden" name="action" value="save">
       {% if editing %}<input type="hidden" name="version_id" value="{{ editing.pk }}">{% endif %}
       {% if form.non_field_errors %}<div class="message error">{{ form.non_field_errors }}</div>{% endif %}
+      {% include "sales/_vehicle_model_prefill_note.html" with source=prefill_version start=form.initial.effective_from noun="售價" %}
       <div class="form-grid price-version-form__grid">
         {% for field in form %}{% include "sales/_field.html" with field=field %}{% endfor %}
       </div>

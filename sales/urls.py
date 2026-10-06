@@ -4,6 +4,7 @@ from django.views.generic import RedirectView
 
 from . import views, announcement_views, favorite_views, intake_views, catalog_views, official_catalog_views, dealer_account_views, profit_views
 from . import order_deletion_views
+from . import vehicle_model_tool_views
 from . import gift_views
 from . import print_company_views
 from . import site_copy_views
@@ -494,6 +495,8 @@ urlpatterns = [
         views.vehicle_model_create,
         name="vehicle_model_create",
     ),
+    path("data/vehicle-models/copy/", vehicle_model_tool_views.vehicle_model_copy, name="vehicle_model_copy"),
+    path("data/vehicle-models/batch/", vehicle_model_tool_views.vehicle_model_batch, name="vehicle_model_batch"),
     path(
         "data/vehicle-models/<int:pk>/edit/",
         views.vehicle_model_edit,

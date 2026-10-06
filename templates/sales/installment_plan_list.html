@@ -45,6 +45,7 @@
   <form method="post" class="stacked-form" id="plan-form">
     {% csrf_token %}
     <input type="hidden" name="plan_id" value="{{ editing.pk|default:'' }}">
+    {% include "sales/_vehicle_model_prefill_note.html" with source=prefill_version start=form.initial.effective_from noun="期數與金額" %}
     <div class="form-grid">{% for field in form %}{% include "sales/_field.html" with field=field %}{% endfor %}</div>
     <div class="subsection">
       <div class="section-title">

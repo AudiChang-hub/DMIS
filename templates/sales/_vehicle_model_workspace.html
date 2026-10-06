@@ -30,7 +30,7 @@
       {% if tab.url %}
       <a class="model-workspace-tab{% if tab.current %} is-current{% endif %}" href="{{ tab.url }}"{% if tab.current %} aria-current="page"{% endif %}>
         <span class="model-workspace-tab__label">{{ tab.label }}</span>{% if tab.current %}<span class="model-workspace-tab__indicator" aria-hidden="true"></span>{% endif %}
-        {% if tab.attention %}<span class="model-workspace-tab__flag" title="尚無有效售價" aria-hidden="true"></span><span class="visually-hidden">（尚無有效售價）</span>{% elif tab.count is not None %}<span class="model-workspace-tab__count" aria-hidden="true">{{ tab.count }}</span><span class="visually-hidden">（{{ tab.count }} 筆版本）</span>{% endif %}
+        {% if tab.attention %}<span class="model-workspace-tab__status is-attention" title="{{ tab.detail }}" aria-hidden="true"><span class="model-workspace-tab__flag"></span>{% if tab.status == 'set' %}今日無有效售價{% else %}未設定{% endif %}</span><span class="visually-hidden">（{{ tab.detail }}）</span>{% elif tab.status %}<span class="model-workspace-tab__status is-{{ tab.status }}" title="{{ tab.detail }}" aria-hidden="true">{% if tab.status == 'set' %}<svg viewBox="0 0 12 12" width="10" height="10" aria-hidden="true"><path d="M2.5 6.3 5 8.7 9.5 3.6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>已設定{% else %}未設定{% endif %}</span><span class="visually-hidden">（{% if tab.status == 'set' %}已設定{% else %}未設定{% endif %}：{{ tab.detail }}）</span>{% endif %}
       </a>
       {% elif tab.current %}
       <span class="model-workspace-tab is-current" aria-current="page"><span class="model-workspace-tab__label">{{ tab.label }}</span><span class="model-workspace-tab__indicator" aria-hidden="true"></span></span>

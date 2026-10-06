@@ -87,7 +87,7 @@ class LegacyFinanceRepairTests(TestCase):
         self.preview(apply=True, expected_digest=preview["digest"])
         self.profile.refresh_from_db()
         self.order.refresh_from_db()
-        self.assertEqual(self.profile.net_profit, Decimal("9573.936"))
+        self.assertEqual(self.profile.net_profit, Decimal("9574"))  # 金額一律存整數
         self.assertEqual(list(self.order.payment_records.values()), payments)
         self.assertEqual(self.order.installment_plan_snapshot, price_snapshot)
         self.assertEqual(self.order.order_date, date(2020, 1, 1))
@@ -95,7 +95,7 @@ class LegacyFinanceRepairTests(TestCase):
         self.assertEqual(self.preview()["counts"], {"already_reconciled": 1})
         sync_order_operations(self.order.pk)
         self.profile.refresh_from_db()
-        self.assertEqual(self.profile.net_profit, Decimal("9573.936"))
+        self.assertEqual(self.profile.net_profit, Decimal("9574"))  # 金額一律存整數
 
     def test_manual_zero_and_changed_fields_preserved(self):
         self.profile.manual_financial_fields = ["actual_disbursement"]

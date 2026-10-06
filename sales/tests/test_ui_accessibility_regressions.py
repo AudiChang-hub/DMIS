@@ -90,7 +90,7 @@ class SharedUiAccessibilitySourceTests(SimpleTestCase):
         self.assertIn("「系統完整性報告」", template)
         self.assertIn("只有管理者與 admin 指定的人員可以查看", template)
         self.assertIn("報告不代表「全部安全」", template)
-        self.assertIn("{% if request.user.is_superuser %}", template)
+        self.assertIn("{% if access_routes.system_integrity_report %}", template)
 
 
 class UiAccessibilityRenderedPageTests(TestCase):

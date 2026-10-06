@@ -5171,6 +5171,8 @@ html[aria-busy="true"], html[aria-busy="true"] body { cursor: progress; }
 }
 .guide-search-row:focus-within { border-color: var(--blue); box-shadow: 0 0 0 3px color-mix(in srgb, var(--blue) 14%, transparent); }
 .guide-search-panel > small { display: block; margin-top: var(--space-2); color: var(--muted); }
+.guide-context { margin: var(--space-3) 0 0; color: var(--muted); font-weight: 700; }
+.guide-context a { margin-left: var(--space-1); color: var(--action-text); font-weight: 900; text-decoration: underline; text-underline-offset: 3px; }
 .guide-layout { display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: var(--stack-gap); align-items: start; }
 .guide-toc {
   position: sticky; top: 92px; display: grid; max-height: calc(100vh - 112px); padding: var(--inset-pad);

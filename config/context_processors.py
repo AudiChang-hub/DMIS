@@ -218,7 +218,7 @@ def app_version(request):
         "show_management_tools": bool(is_root(request.user) or access_policy.screen("accounts") or access_policy.screen("integrity")),
         "access_routes": {name: access_policy.route(name) for name in ROUTES},
         "screen_read_only": bool(screen_key and access_policy.configured and not access_policy.root and (not access_policy.screen(screen_key, "operate") or (route_name in {"order_edit", "order_operations"} and not access_policy.screen("order_finance", "operate")))),
-        "context_help_url": f"{reverse('user_guide')}#{topic}",
+        "context_help_url": f"{reverse('user_guide')}?topic={topic}",
         "is_data_maintenance_section": route_name in DATA_MAINTENANCE_ROUTES,
         "request_id": getattr(request, "request_id", ""),
         "ui_theme": ui_theme,

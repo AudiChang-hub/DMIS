@@ -138,7 +138,7 @@ class BonusRuleDeletionTests(TestCase):
         self.client.force_login(self.user)
         response = self.client.get(url)
         self.assertContains(response, '>確認刪除</button>')
-        self.assertContains(response, 'href="/help/#dealer-volume-bonus"')
+        self.assertContains(response, 'href="/help/?topic=dealer-volume-bonus"')
         self.assertContains(response, '全部' if rule.dealer_id is None else self.a.name)
         self.assertTrue(DealerVolumeBonusRule.objects.filter(pk=rule.pk).exists())
         self.assertFalse(DealerVolumeBonusDeletion.objects.exists())

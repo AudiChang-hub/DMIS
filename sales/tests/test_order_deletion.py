@@ -120,6 +120,15 @@ class OrderDeletionTests(TestCase):
                                    forfeit_reason="約定手續費")
         self.order.refresh_from_db()
         self.assertIn("已沒收的訂金屬實際收入，不可刪除訂單。", deletion_blockers(self.order))
+        # admin 勾選「確認作廢」也不能略過，店內人員也不能提出申請。
+        with self.assertRaisesMessage(ValidationError, "已沒收的訂金"):
+            self.force_delete()
+        self.assertIsNone(SalesOrder.all_objects.get(pk=self.order.pk).deleted_at)
+        with self.assertRaisesMessage(ValidationError, "已沒收的訂金"):
+            self.review(self.root, "request")
+        page = self.client.get(reverse("order_delete", args=[self.order.pk]))
+        self.assertContains(page, "此訂單不能刪除")
+        self.assertNotContains(page, 'value="delete"')
 
     def test_legacy_refunded_order_keeps_previous_rule(self):
         self.order.deposit_amount = Decimal("1000")

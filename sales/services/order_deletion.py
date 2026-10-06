@@ -35,8 +35,16 @@ def require_access(user, action="operate"):
         raise PermissionDenied("沒有刪除與還原訂單權限，請洽 admin 授權。")
 
 
+FORFEIT_BLOCKER = "已沒收的訂金屬實際收入，不可刪除訂單。"
+
+
+def permanent_deletion_blockers(order):
+    """admin 確認作廢也不能略過的限制。"""
+    return [FORFEIT_BLOCKER] if order.forfeited_amount else []
+
+
 def deletion_blockers(order):
-    blockers = []
+    blockers = permanent_deletion_blockers(order)
     if order.allocated_vehicle_id:
         blockers.append("仍綁定庫存車輛，請先完成取消／解除配車流程。")
     if order.registration_completed_at or order.registration_date or order.final_plate_number:
@@ -54,9 +62,7 @@ def deletion_blockers(order):
     else:
         from .payment_ledger import ledger_totals
         ledger = ledger_totals(order)
-        if order.forfeited_amount:
-            blockers.append("已沒收的訂金屬實際收入，不可刪除訂單。")
-        elif any(ledger[kind]["net"] or ledger[kind]["unconfirmed"] for kind in ledger):
+        if not order.forfeited_amount and any(ledger[kind]["net"] or ledger[kind]["unconfirmed"] for kind in ledger):
             blockers.append("有實收紀錄，請先完成取消及退款結算，不可用刪除代替沖銷。")
     if order.dealer_volume_bonus_allocations.exists():
         blockers.append("已有台數獎金結算，請先處理結算更正。")
@@ -78,6 +84,8 @@ def review_deletion(*, user, order_id, action, reason, expected_updated_at):
             raise ValidationError("此訂單已在刪除確認中，請勿重複申請。")
         if not reason or len(reason) > 500:
             raise ValidationError("請說明刪除原因，最多 500 字。")
+        if permanent_deletion_blockers(order):
+            raise ValidationError(permanent_deletion_blockers(order))
         changes = dict(deletion_requested_at=timezone.now(), deletion_requested_by=user,
                        deletion_request_reason=reason)
         label = "申請刪除，等待 admin 確認"
@@ -192,6 +200,8 @@ def change_deletion(*, user, order_id, restore, reason, expected_updated_at, edi
         blockers = deletion_blockers(order)
         if blockers and not force:
             raise ValidationError(blockers)
+        if permanent_deletion_blockers(order):
+            raise ValidationError(permanent_deletion_blockers(order))
     effects = order.deletion_effects
     allocated_vehicle_id = order.allocated_vehicle_id
     if force or (restore and effects):

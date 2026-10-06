@@ -25,6 +25,7 @@
     <input id="guide-search" type="search" data-guide-search placeholder="例如：身分證、配車、退款、找不到車、Excel 匯入…" autocomplete="off">
   </div>
   <small data-guide-count>共 26 個操作主題</small>
+  <p class="guide-context" data-guide-context hidden>與目前畫面相關：<a href="#" data-guide-context-link></a></p>
 </section>
 
 <div class="guide-layout">
@@ -193,7 +194,7 @@
     {% help_visible 'cancel-refund' as topic_visible %}{% if topic_visible %}<article class="guide-topic" id="cancel-refund" data-guide-topic>
       <div class="guide-topic-heading"><span>11</span><div><p class="eyebrow">尚未領牌／交付</p><h2>取消訂單、退款與沒收</h2></div></div>
       <ol class="guide-steps"><li><strong>展開取消流程。</strong><span>在訂單最下方「取消與結案」的「訂單取消與退款」按「展開取消流程」，填取消原因與說明，按「登記取消訂單」；展開本身不會取消訂單。</span></li><li><strong>系統解除配車。</strong><span>車輛恢復可售。</span></li><li><strong>有已確認收款時進入「取消待退款」。</strong><span>填沒收金額（不沒收填 0，有沒收須填原因），系統算出應退＝已確認實收－沒收；填退款日期、方式與證明，按「確認結算並完成取消」。沒有收款則直接完成取消。</span></li><li><strong>客人改變心意。</strong><span>取消待退款期間可填原因按「撤銷取消」，訂單回到待配車，需重新配車。</span></li></ol>
-      <div class="guide-exception"><strong>系統拒絕取消</strong><p>已交付、分期公司已撥款，或仍有未確認收款時不能取消。已領牌但客人不交車，請改用「領牌後棄單（例外結案）」：結算沒收與退款，車輛以已領牌車（填再售價）釋回，只能配給領牌車交易。沒收過訂金的訂單不能刪除。</p></div>
+      <div class="guide-exception"><strong>系統拒絕取消</strong><p>已交付、分期公司已撥款，或仍有未確認收款時不能取消。已領牌但客人不交車，請改用「領牌後棄單（例外結案）」：結算沒收與退款，車輛以已領牌車（填再售價）釋回，只能配給領牌車交易。沒收過訂金的訂單一律不能刪除，admin 也不能略過。</p></div>
     </article>{% endif %}
 
     {% help_visible 'first-setup' as topic_visible %}{% if topic_visible %}<article class="guide-topic" id="first-setup" data-guide-topic>
@@ -361,8 +362,8 @@
         </section>
       </div>
       <div class="guide-exception"><strong>報告不代表「全部安全」</strong><p>完整性報告只反映報告列出的範圍與執行時間；未涵蓋的操作情境、第三方服務及報告完成後的變更仍可能產生風險，應持續依測試、監控與人工查核結果處理。</p></div>
-      {% if request.user.is_superuser %}
-      <div class="guide-print-actions"><a class="button ghost" href="{% url 'system_diagnostics' %}">查看即時狀態</a><a class="button primary" href="{% url 'system_integrity_report' %}">查看完整性報告</a></div>
+      {% if access_routes.system_diagnostics or access_routes.system_integrity_report %}
+      <div class="guide-print-actions">{% if access_routes.system_diagnostics %}<a class="button ghost" href="{% url 'system_diagnostics' %}">查看即時狀態</a>{% endif %}{% if access_routes.system_integrity_report %}<a class="button primary" href="{% url 'system_integrity_report' %}">查看完整性報告</a>{% endif %}</div>
       {% endif %}
     </article>{% endif %}
 

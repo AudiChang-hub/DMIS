@@ -64,7 +64,7 @@ class UserManagementTests(TestCase):
             with self.subTest(url=url):
                 response = self.client.get(url, follow=True)
                 self.assertEqual(response.status_code, 200)
-                self.assertContains(response, f'{reverse("user_guide")}#account-management')
+                self.assertContains(response, f'{reverse("user_guide")}?topic=account-management')
 
         guide = self.client.get(reverse("user_guide"))
         self.assertContains(guide, 'id="account-management"')

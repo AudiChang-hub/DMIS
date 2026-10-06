@@ -408,7 +408,7 @@ class PriceListDistributionTests(TestCase):
         self.assertNotContains(response, "⠿")
         self.assertNotContains(response, 'type="number"')
         self.assertContains(response, "price-list-distribution-assignments.js")
-        self.assertContains(response, f'{reverse("user_guide")}#price-list-distribution')
+        self.assertContains(response, f'{reverse("user_guide")}?topic=price-list-distribution')
 
     @patch("sales.views.timezone.localdate", return_value=date(2026, 9, 2))
     def test_row_adjustment_normalizes_each_assignee_order_and_clears_confirmation(self, _mock_localdate):

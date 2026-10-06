@@ -24,6 +24,22 @@
   search?.addEventListener("input", filterTopics);
   printButton?.addEventListener("click", () => window.print());
 
+  // 從各畫面開啟時停在頁首，只提供目前畫面相關主題的捷徑，不自動捲動。
+  const contextTopic = new URLSearchParams(window.location.search).get("topic");
+  const contextTarget = contextTopic && /^[a-z0-9-]+$/.test(contextTopic) ? document.getElementById(contextTopic) : null;
+  const contextBox = document.querySelector("[data-guide-context]");
+  const contextLink = document.querySelector("[data-guide-context-link]");
+  if (contextTarget && contextBox && contextLink) {
+    contextLink.href = `#${contextTopic}`;
+    contextLink.textContent = contextTarget.querySelector("h2")?.textContent.trim() || "查看說明";
+    contextLink.addEventListener("click", () => {
+      if (search && search.value) {
+        search.value = "";
+        filterTopics();
+      }
+    });
+    contextBox.hidden = false;
+  }
   if (window.location.hash) {
     window.setTimeout(() => document.querySelector(window.location.hash)?.scrollIntoView(), 80);
   }

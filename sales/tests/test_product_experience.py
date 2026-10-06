@@ -58,23 +58,23 @@ class ProductExperienceTests(TestCase):
         self.client.force_login(self.user)
 
         dashboard = self.client.get(reverse("dashboard"))
-        self.assertContains(dashboard, f'{reverse("user_guide")}#personal-current')
+        self.assertContains(dashboard, f'{reverse("user_guide")}?topic=personal-current')
         self.assertContains(dashboard, 'target="_blank"')
         self.assertContains(dashboard, "不會離開目前資料")
 
         inventory = self.client.get(reverse("inventory_list"))
-        self.assertContains(inventory, f'{reverse("user_guide")}#inventory')
+        self.assertContains(inventory, f'{reverse("user_guide")}?topic=inventory')
 
         dealers = self.client.get(reverse("sales_source_list"))
-        self.assertContains(dealers, f'{reverse("user_guide")}#sales-sources')
+        self.assertContains(dealers, f'{reverse("user_guide")}?topic=sales-sources')
 
         platforms = self.client.get(reverse("sales_source_platform_list"))
-        self.assertContains(platforms, f'{reverse("user_guide")}#sales-sources')
+        self.assertContains(platforms, f'{reverse("user_guide")}?topic=sales-sources')
 
         distribution = self.client.get(reverse("price_list_distribution"))
         self.assertContains(
             distribution,
-            f'{reverse("user_guide")}#price-list-distribution',
+            f'{reverse("user_guide")}?topic=price-list-distribution',
         )
 
     def test_data_navigation_exposes_common_maintenance_without_extra_detour(self):
@@ -581,7 +581,7 @@ class ProductExperienceTests(TestCase):
             with self.subTest(route=route):
                 response = self.client.get(route)
                 self.assertEqual(response.status_code, 200)
-                self.assertContains(response, f'{reverse("user_guide")}#{topic}')
+                self.assertContains(response, f'{reverse("user_guide")}?topic={topic}')
 
     def test_every_maintenance_landing_page_has_a_clear_return_path(self):
         self.client.force_login(self.user)

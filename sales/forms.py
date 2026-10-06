@@ -2708,6 +2708,12 @@ class VehicleColorMasterForm(forms.ModelForm):
         for field in self.fields.values():
             field.widget.attrs.setdefault("class", "form-control")
 
+    def has_changed(self):
+        # 官網預填色名未修改時，表單值與預填相同；新列有色名仍須建立。
+        if not self.instance.pk and self.is_bound and (self.data.get(self.add_prefix("name")) or "").strip():
+            return True
+        return super().has_changed()
+
 
 class BaseVehicleColorFormSet(BaseInlineFormSet):
     def get_queryset(self):

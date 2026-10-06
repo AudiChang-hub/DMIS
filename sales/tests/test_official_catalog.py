@@ -557,3 +557,20 @@ class CatalogAutoPublishTests(TestCase):
         self.client.post(reverse("catalog_edit", args=[model.pk]),
                          {"expected_revision": 0, "position": 0, "description": "介紹", "published": ""})
         self.assertTrue(VehicleCatalogEntry.objects.get(vehicle_model=model).published)
+
+    def test_list_quick_toggle_syncs_catalog_and_counts(self):
+        from sales.models import VehicleCatalogEntry
+
+        root = get_user_model().objects.create_superuser("admin", password="Catalog-sync-test-62!")
+        model = VehicleModel.objects.create(brand="SUZUKI", name="New NEX 125", model_number="UT125XDA", model_year=2026,
+                                            model_code=VehicleModel.ModelType.FRONT_DISC_REAR_DRUM,
+                                            energy_type="gas", displacement_cc=124, active=False)
+        VehicleColor.objects.create(vehicle_model=model, name="白銀")
+        self.client.force_login(root)
+        url = reverse("master_record_set_active", args=["vehicle-model", model.pk])
+        response = self.client.post(url, {"active": "1"}, HTTP_X_REQUESTED_WITH="XMLHttpRequest")
+        self.assertEqual(response.json()["status_counts"], {"active": 1, "inactive": 0})
+        self.assertTrue(VehicleCatalogEntry.objects.get(vehicle_model=model).published)
+        self.assertEqual(self.client.get(reverse("catalog")).context["page_obj"].paginator.count, 1)
+        self.client.post(url, {"active": "0"}, HTTP_X_REQUESTED_WITH="XMLHttpRequest")
+        self.assertFalse(VehicleCatalogEntry.objects.get(vehicle_model=model).published)

@@ -1,9 +1,27 @@
 {% load sales_format %}
-<div id="workspace-finance-summary" class="workspace-finance-summary">
-  <div><small>折扣後成交總額</small><strong>${{ order.discounted_total|number_with_commas }}</strong></div>
-  <div><small>總收款金額</small><strong>${{ profile.total_received|number_with_commas }}</strong></div>
-  <div><small>總收入</small><strong>${{ profile.total_income|number_with_commas }}</strong></div>
-  <div><small>總支出</small><strong>${{ profile.total_expense|number_with_commas }}</strong></div>
-  <div><small>單筆淨利</small>{% include 'sales/_order_profit.html' %}</div>
-  <p>成交條件不等於實際收款；補助申請金額也不代表已入帳。收入、支出與淨利沿用原有計算。</p>
-</div>
+<section id="workspace-finance-summary" class="finance-overview" aria-label="收支總覽" data-finance-overview>
+  <div class="finance-overview__kpis">
+    <div class="finance-kpi finance-kpi--income">
+      <span class="finance-kpi__label"><i aria-hidden="true"></i>收入合計</span>
+      <strong class="finance-kpi__value">$<output data-ledger-summary="income">{{ finance_totals.income|number_with_commas }}</output></strong>
+      <small>撥款＋收入＋獎勵與補助</small>
+    </div>
+    <div class="finance-kpi finance-kpi--expense">
+      <span class="finance-kpi__label"><i aria-hidden="true"></i>支出合計</span>
+      <strong class="finance-kpi__value">$<output data-ledger-summary="expense">{{ finance_totals.expense|number_with_commas }}</output></strong>
+      <small>車輛成本＋各項支出</small>
+    </div>
+    <div class="finance-kpi finance-kpi--net{% if profit_unlocked and not order.is_cancelled_sale %} is-unlocked{% endif %}"{% if profit_unlocked and not order.is_cancelled_sale and profile %} data-ledger-net-card{% endif %}>
+      <span class="finance-kpi__label"><i aria-hidden="true"></i>淨利</span>
+      <div class="finance-kpi__value finance-kpi__value--net">{% include 'sales/_order_profit.html' %}</div>
+      <small>收入合計－支出合計</small>
+    </div>
+  </div>
+  <div class="finance-overview__meta">
+    <span>折扣後成交總額<strong>${{ order.discounted_total|number_with_commas }}</strong></span>
+    <span>總收款金額<strong>${{ profile.total_received|number_with_commas }}</strong></span>
+    <span class="finance-overview__dirty" data-ledger-dirty hidden>試算中：含未儲存的修改</span>
+  </div>
+  {% if dealer_settlement %}{% include "sales/_dealer_settlement_card.html" with settlement=dealer_settlement %}{% endif %}
+  <p class="finance-overview__note">成交條件不等於實際收款；補助申請金額也不代表已入帳。</p>
+</section>

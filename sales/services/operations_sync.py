@@ -291,4 +291,15 @@ def sync_order_operations(order_id, *, update_receivables=False):
             payment.save(update_fields=["receipt_kind", "system_key", "note", "updated_at"])
 
     refresh_payment_confirmation(order.pk)
+    if _commission_follows_master(order, profile):
+        from .dealer_commission import apply_order_dealer_commission
+        # 建立訂單即帶入已設定的車行／本店人員傭金；人工覆寫與領牌後鎖定由服務本身保護。
+        profile = apply_order_dealer_commission(order)
     return profile
+
+
+def _commission_follows_master(order, profile):
+    """只有尚未領牌、未取消、未鎖定的系統訂單隨主檔帶入傭金；匯入訂單保留原始值。"""
+    if order.registration_completed_at or order.is_cancelled_sale or profile.dealer_commission_locked_at:
+        return False
+    return not hasattr(order, "legacy_snapshot")

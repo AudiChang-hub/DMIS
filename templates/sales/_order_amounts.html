@@ -40,7 +40,7 @@
           <div class="registration-breakdown__total">
             <span>試算合計</span>
             <strong>${{ order.registration_calculated_total|number_with_commas }}</strong>
-            {% if order.plate_insurance_fee != order.registration_calculated_total %}<em>已人工調整實收</em>{% if not order.is_cancelled_sale %}{% if_access 'registration_fee_variance_confirm' order.pk %}<form method="post" action="{% url 'registration_fee_variance_confirm' order.pk %}">{% csrf_token %}<input type="hidden" name="return_to_order" value="1"><button class="button ghost small" type="submit">確認牌險差異</button></form>{% endif_access %}{% endif %}{% endif %}
+            {% if order.plate_insurance_fee != order.registration_calculated_total %}<em>已人工調整實收</em>{% if not order.is_cancelled_sale and not hide_variance_action %}{% if_access 'registration_fee_variance_confirm' order.pk %}<form method="post" action="{% url 'registration_fee_variance_confirm' order.pk %}">{% csrf_token %}<input type="hidden" name="return_to_order" value="1"><button class="button ghost small" type="submit">確認牌險差異</button></form>{% endif_access %}{% endif %}{% endif %}
           </div>
         </div>
         <div class="registration-breakdown__items">

@@ -1,0 +1,223 @@
+/* 訂單「收入與支出」：總覽、收入／支出兩欄、車行結算。只用 app.css 設計參數，六種主題共用。 */
+.finance-step { display: grid; gap: var(--stack-gap); min-width: 0; }
+.finance-step__intro { display: grid; gap: var(--stack-gap-sm); min-width: 0; }
+.finance-step__intro > .hero-row { margin: 0; }
+.finance-step__toolbar { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); flex-wrap: wrap; }
+.finance-step__formula { max-width: 72ch; margin: 0; color: var(--muted); font-size: var(--text-sm); }
+.finance-step__toolbar .profit-control { margin: 0; }
+.finance-step__legacy { margin: 0; }
+
+/* 總覽 */
+.finance-overview {
+  display: grid; gap: var(--stack-gap-sm); min-width: 0; padding: var(--card-pad);
+  border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); box-shadow: var(--shadow-soft);
+}
+.finance-overview__kpis { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--stack-gap-sm); }
+.finance-kpi {
+  position: relative; display: grid; align-content: start; gap: var(--space-1); min-width: 0; padding: var(--inset-pad) var(--card-pad);
+  border: 1px solid var(--line-soft); border-radius: var(--radius-lg); background: var(--surface-soft);
+}
+.finance-kpi__label { display: inline-flex; align-items: center; gap: var(--space-2); color: var(--muted); font-size: var(--text-sm); font-weight: 800; letter-spacing: .02em; }
+.finance-kpi__label i, .ledger-block__eyebrow i { width: 8px; height: 8px; flex: 0 0 auto; border-radius: 50%; background: var(--line-strong); }
+.finance-kpi--income .finance-kpi__label i, .ledger-block--income .ledger-block__eyebrow i { background: var(--green); }
+.finance-kpi--expense .finance-kpi__label i, .ledger-block--expense .ledger-block__eyebrow i { background: var(--red); }
+.finance-kpi__value {
+  margin: 0; color: var(--ink); font-family: var(--font-display); font-size: clamp(1.5rem, 1.05rem + 1.1vw, 2.25rem);
+  font-weight: 800; line-height: 1.1; letter-spacing: -.02em; font-variant-numeric: tabular-nums; overflow-wrap: anywhere;
+}
+.finance-kpi small { color: var(--muted); font-size: var(--text-xs); }
+.finance-kpi--net {
+  color: var(--on-spotlight); border-color: var(--spotlight);
+  background: radial-gradient(420px 200px at 100% 0%, color-mix(in srgb, var(--forest) 55%, transparent), transparent 70%), var(--spotlight);
+}
+.finance-kpi--net .finance-kpi__label, .finance-kpi--net small { color: var(--on-spotlight-muted); }
+.finance-kpi--net .finance-kpi__label i { background: var(--gold); box-shadow: 0 0 0 3px color-mix(in srgb, var(--gold) 25%, transparent); }
+.finance-kpi__value--net { display: flex; align-items: baseline; gap: var(--space-2); flex-wrap: wrap; color: var(--on-spotlight); }
+.finance-kpi__value--net [data-profit-value] { color: var(--on-spotlight); }
+.finance-kpi__value--net [data-profit-value].is-negative { color: var(--red-ink); }
+.finance-kpi__value--net small { font-family: var(--font-sans); font-size: var(--text-xs); font-weight: 700; letter-spacing: 0; }
+.finance-kpi__value--net .profit-locked {
+  display: inline-flex; align-items: center; min-height: 32px; padding: var(--space-1) var(--space-3);
+  color: var(--on-spotlight-muted); border: 1px solid color-mix(in srgb, var(--on-spotlight) 24%, transparent);
+  border-radius: var(--radius-pill); font-family: var(--font-sans); font-size: var(--text-sm); font-weight: 800; letter-spacing: 0;
+}
+.finance-overview__meta { display: flex; align-items: center; gap: var(--space-2) var(--space-5); flex-wrap: wrap; color: var(--muted); font-size: var(--text-sm); }
+.finance-overview__meta strong { margin-left: var(--space-2); color: var(--ink); font-variant-numeric: tabular-nums; }
+.finance-overview__dirty {
+  margin-left: auto; padding: var(--space-1) var(--space-3); color: var(--amber-ink); background: var(--amber-soft);
+  border: 1px solid var(--amber-border); border-radius: var(--radius-pill); font-size: var(--text-xs); font-weight: 800;
+}
+.finance-overview__dirty[hidden] { display: none; }
+.finance-overview__note { margin: 0; color: var(--muted); font-size: var(--text-xs); }
+
+/* 車行結算 */
+.dealer-settlement {
+  --settlement-accent: var(--line-strong);
+  position: relative; display: grid; gap: var(--space-3); min-width: 0; padding: var(--inset-pad) var(--card-pad);
+  border: 1px solid var(--line); border-radius: var(--radius-lg); background: var(--surface);
+  box-shadow: inset 3px 0 0 var(--settlement-accent);
+}
+.dealer-settlement.is-collect { --settlement-accent: var(--green); }
+.dealer-settlement.is-pay { --settlement-accent: var(--amber-strong); }
+.dealer-settlement__head { display: flex; align-items: flex-end; justify-content: space-between; gap: var(--space-3) var(--space-5); flex-wrap: wrap; }
+.dealer-settlement__eyebrow { margin: 0 0 var(--space-1); color: var(--muted); font-size: var(--text-xs); font-weight: 800; letter-spacing: .04em; }
+.dealer-settlement h3 { margin: 0; font-size: var(--text-md); }
+.dealer-settlement__result { display: flex; align-items: baseline; gap: var(--space-3); margin: 0; }
+.dealer-settlement__result span { color: var(--muted); font-size: var(--text-sm); font-weight: 800; }
+.dealer-settlement.is-collect .dealer-settlement__result span { color: var(--green-ink); }
+.dealer-settlement.is-pay .dealer-settlement__result span { color: var(--amber-ink); }
+.dealer-settlement__result strong {
+  color: var(--ink); font-family: var(--font-display); font-size: clamp(1.375rem, 1.05rem + .8vw, 1.875rem);
+  font-weight: 800; letter-spacing: -.02em; font-variant-numeric: tabular-nums;
+}
+.dealer-settlement__formula { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; margin: 0; padding: 0; list-style: none; }
+.dealer-settlement__formula li {
+  display: inline-flex; align-items: baseline; gap: var(--space-2); padding: var(--space-1) var(--space-3);
+  border: 1px solid var(--line-soft); border-radius: var(--radius-pill); background: var(--surface-soft); font-size: var(--text-sm);
+}
+.dealer-settlement__formula li.is-minus { background: color-mix(in srgb, var(--red-soft) 70%, var(--surface)); border-color: var(--red-border); }
+.dealer-settlement__op { color: var(--muted); font-weight: 900; }
+.dealer-settlement__op:empty { display: none; }
+.dealer-settlement__term { color: var(--muted); font-weight: 700; }
+.dealer-settlement__formula strong { color: var(--ink); font-variant-numeric: tabular-nums; }
+.dealer-settlement__note { margin: 0; color: var(--muted); font-size: var(--text-xs); }
+.delivery-gate--settlement { padding: 0; border: 0; background: none; }
+
+/* 折扣與牌險差異 */
+.finance-strip { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--stack-gap-sm); }
+.finance-strip__card {
+  display: grid; align-content: start; gap: var(--space-3); min-width: 0; padding: var(--inset-pad) var(--card-pad);
+  border: 1px solid var(--line); border-radius: var(--radius-lg); background: var(--surface);
+}
+.finance-strip__head { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-3); }
+.finance-strip__head h2 { margin: 0; font-size: var(--text-base); }
+.finance-strip__head small { display: block; margin-top: var(--space-1); color: var(--muted); font-size: var(--text-xs); }
+.finance-strip__head .status-pill { flex: 0 0 auto; white-space: nowrap; }
+.finance-strip__figures { display: grid; grid-template-columns: repeat(3, minmax(0, 220px)); gap: var(--space-3) var(--space-6); margin: 0; }
+.finance-strip__figures div { display: grid; gap: var(--space-1); min-width: 0; }
+.finance-strip__figures dt { color: var(--muted); font-size: var(--text-xs); font-weight: 800; }
+.finance-strip__figures dd { margin: 0; color: var(--ink); font-family: var(--font-display); font-size: var(--text-lg); font-weight: 800; font-variant-numeric: tabular-nums; }
+.finance-strip__figures dd.is-discount, .finance-strip__figures dd.is-positive { color: var(--green-ink); }
+.finance-strip__figures dd.is-negative { color: var(--red-ink); }
+.finance-strip__meta { margin: 0; color: var(--muted); font-size: var(--text-xs); }
+.finance-strip__action { margin: 0; }
+.finance-strip__disclosure { border-top: 1px solid var(--line-soft); }
+.finance-strip__disclosure > summary { color: var(--action-text); font-size: var(--text-sm); }
+.finance-strip__disclosure > p { margin: 0 0 var(--space-3); font-size: var(--text-sm); }
+.finance-strip__disclosure form { margin: 0; }
+.plate-variance { box-shadow: inset 3px 0 0 var(--amber-strong); }
+.plate-variance.is-confirmed { box-shadow: inset 3px 0 0 var(--green); }
+
+/* 收入／支出兩欄 */
+.finance-ledger { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--stack-gap); align-items: start; min-width: 0; }
+.ledger-block {
+  position: relative; display: grid; min-width: 0; border: 1px solid var(--line); border-radius: var(--radius);
+  background: var(--surface); box-shadow: var(--shadow-soft);
+}
+.ledger-block::before {
+  position: absolute; inset: 0 var(--card-pad) auto; height: 3px; content: ""; border-radius: 0 0 3px 3px; background: var(--green);
+}
+.ledger-block--expense::before { background: var(--red); }
+.ledger-block__head {
+  display: flex; align-items: flex-end; justify-content: space-between; gap: var(--space-3); flex-wrap: wrap;
+  padding: var(--card-pad) var(--card-pad) var(--inset-pad); border-bottom: 1px solid var(--line);
+}
+.ledger-block__eyebrow { display: inline-flex; align-items: center; gap: var(--space-2); margin: 0 0 var(--space-1); color: var(--muted); font-size: var(--text-xs); font-weight: 800; letter-spacing: .08em; }
+.ledger-block__head h2 { margin: 0; font-size: var(--text-xl); }
+.ledger-block__head small { display: block; margin-top: var(--space-1); color: var(--muted); font-size: var(--text-xs); }
+.ledger-block__total { display: grid; justify-items: end; gap: 2px; margin: 0; }
+.ledger-block__total span { color: var(--muted); font-size: var(--text-xs); font-weight: 800; }
+.ledger-block__total strong, .ledger-block__foot strong {
+  color: var(--ink); font-family: var(--font-display); font-size: var(--text-2xl); font-weight: 800; letter-spacing: -.02em; font-variant-numeric: tabular-nums;
+}
+.ledger-block--income .ledger-block__total strong { color: var(--green-ink); }
+.ledger-block--expense .ledger-block__total strong { color: var(--red-ink); }
+.ledger-block__foot {
+  display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-3); padding: var(--inset-pad) var(--card-pad);
+  border-top: 1px solid var(--line); border-radius: 0 0 var(--radius) var(--radius); background: var(--surface-soft); font-weight: 800;
+}
+.ledger-block__foot strong { font-size: var(--text-lg); }
+.ledger-group { display: grid; gap: var(--space-2); min-width: 0; padding: var(--inset-pad) var(--card-pad); }
+.ledger-group + .ledger-group { border-top: 1px solid var(--line-soft); }
+.ledger-group__head { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-3); margin: 0; }
+.ledger-group__title { display: flex; align-items: baseline; gap: var(--space-2); flex-wrap: wrap; margin: 0; color: var(--ink); font-size: var(--text-sm-plus); font-weight: 800; }
+.ledger-group__title small { color: var(--muted); font-size: var(--text-xs); font-weight: 600; }
+.ledger-group__subtotal { color: var(--muted); font-size: var(--text-sm); font-weight: 800; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.ledger-group__note { margin: 0; color: var(--muted); font-size: var(--text-xs); line-height: 1.5; }
+.ledger-group--incentive {
+  margin: var(--space-2) var(--space-4) var(--space-4); padding: var(--inset-pad); border: 1px solid var(--line-soft);
+  border-radius: var(--radius-md); background: color-mix(in srgb, var(--surface-tint) 55%, var(--surface));
+}
+.ledger-group + .ledger-group--incentive { border-top: 1px solid var(--line-soft); }
+.ledger-group--legacy > summary.ledger-group__head { min-height: 32px; font-weight: 800; }
+.ledger-group--legacy > summary .ledger-group__title { color: var(--muted); }
+.ledger-group--legacy > summary .ledger-group__subtotal { margin-left: auto; }
+.ledger-rows { display: grid; min-width: 0; }
+.ledger-row {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(132px, 176px); grid-template-areas: "label tag input";
+  align-items: center; gap: var(--space-1) var(--space-3); min-width: 0; padding: var(--space-2) 0; border-bottom: 1px solid var(--line-soft);
+}
+.ledger-row:last-child { border-bottom: 0; }
+.ledger-row__label { grid-area: label; display: grid; gap: 2px; min-width: 0; margin: 0; color: var(--ink); font-size: var(--text-sm-plus); font-weight: 600; cursor: pointer; }
+.ledger-row__label small { color: var(--muted); font-size: var(--text-xs); font-weight: 500; }
+.ledger-row__input { grid-area: input; position: relative; min-width: 0; }
+.ledger-row__currency { position: absolute; top: 50%; left: var(--space-3); color: var(--muted); font-size: var(--text-sm); font-weight: 700; transform: translateY(-50%); pointer-events: none; }
+.ledger-row__input input.form-control {
+  width: 100%; min-height: 40px; padding-left: var(--space-6); text-align: right; font-weight: 700;
+  font-variant-numeric: tabular-nums; appearance: textfield; -moz-appearance: textfield;
+}
+.ledger-row__input input::-webkit-outer-spin-button, .ledger-row__input input::-webkit-inner-spin-button { margin: 0; appearance: none; -webkit-appearance: none; }
+.ledger-row__input input:disabled { color: var(--muted); background: var(--surface-soft); }
+.ledger-row.is-changed .ledger-row__input input { border-color: var(--amber-border-strong); background: color-mix(in srgb, var(--amber-soft) 45%, var(--surface)); }
+.ledger-row.has-error .ledger-row__input input { border-color: var(--red); }
+.ledger-row__errors { grid-column: 1 / -1; }
+.ledger-tag {
+  grid-area: tag; display: inline-flex; align-items: center; justify-self: end; padding: 2px var(--space-2); white-space: nowrap;
+  color: var(--muted); background: var(--surface-soft); border: 1px solid var(--line-soft); border-radius: var(--radius-pill);
+  font-size: var(--text-2xs); font-weight: 800; line-height: 1.5;
+}
+.ledger-tag--system { color: var(--blue-ink); background: var(--blue-soft); border-color: var(--blue-border); }
+.ledger-tag--manual { color: var(--amber-ink); background: var(--amber-soft); border-color: var(--amber-border); }
+.ledger-row.is-changed .ledger-tag--system { color: var(--amber-ink); background: var(--amber-soft); border-color: var(--amber-border); }
+.finance-ledger__legend { margin: 0; color: var(--muted); font-size: var(--text-xs); line-height: 2; }
+.finance-ledger__legend .ledger-tag { margin: 0 var(--space-1); vertical-align: 1px; }
+
+/* 收款、說明、儲存與金額明細 */
+.finance-submit { display: grid; gap: var(--stack-gap-sm); }
+.finance-amounts { min-width: 0; border: 1px solid var(--line); border-radius: var(--radius-lg); background: var(--surface); box-shadow: var(--shadow-soft); }
+.finance-amounts > summary { padding: var(--space-4) var(--card-pad); }
+.finance-amounts > summary > span { display: grid; gap: 2px; }
+.finance-amounts > summary small { color: var(--muted); font-size: var(--text-xs); font-weight: 600; }
+.finance-amounts[open] > summary { border-bottom: 1px solid var(--line); }
+.finance-amounts > .card { margin: 0; border: 0; border-radius: 0 0 var(--radius-lg) var(--radius-lg); box-shadow: none; }
+.finance-amounts > .card > .section-title { display: none; }
+
+@media (min-width: 860.02px) {
+  .finance-ledger { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .finance-ledger__legend { grid-column: 1 / -1; }
+  .finance-strip.has-variance { grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); }
+}
+@media (max-width: 860px) {
+  .finance-overview__kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .finance-kpi--net { grid-column: 1 / -1; }
+}
+@media (max-width: 600px) {
+  .finance-overview { padding: var(--inset-pad); }
+  .finance-overview__kpis { gap: var(--space-3); }
+  .finance-kpi { padding: var(--space-3) var(--inset-pad); }
+  .finance-kpi small { display: none; }
+  .finance-overview__dirty { margin-left: 0; }
+  .finance-strip__card, .dealer-settlement { padding: var(--inset-pad); }
+  .finance-strip__figures { grid-template-columns: repeat(3, minmax(0, 1fr)); column-gap: var(--space-3); }
+  .finance-strip__figures dd { font-size: var(--text-md); }
+  .ledger-block__total { justify-items: start; }
+  .ledger-block__head, .ledger-group, .ledger-block__foot { padding-inline: var(--inset-pad); }
+  .ledger-block::before { inset-inline: var(--inset-pad); }
+  .ledger-group--incentive { margin-inline: var(--space-2); padding: var(--space-3); }
+  .ledger-row { grid-template-columns: minmax(0, 1fr) minmax(116px, 44%); grid-template-areas: "label input" "tag input"; }
+  .ledger-tag { justify-self: start; }
+  .finance-amounts > summary { padding-inline: var(--inset-pad); }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .ledger-row__input input { transition: border-color var(--dur-2) var(--ease-out), background-color var(--dur-2) var(--ease-out); }
+}

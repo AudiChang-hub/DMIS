@@ -13,7 +13,8 @@ jobs:
   django-quality:
     name: Django 品質檢查
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    # 完整測試加多組 PostgreSQL 驗證約需 28 分鐘，保留餘裕避免逾時取消。
+    timeout-minutes: 45
     services:
       postgres:
         image: postgres:16

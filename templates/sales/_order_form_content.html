@@ -257,7 +257,7 @@
       </div>
       <p class="form-hint" id="installment-plan-hint" aria-live="polite">{% site_text 'order_form.e4b6f41700b0' %}</p>
     </div>
-    <div class="subsection deposit-subsection" id="deposit-subsection" {% if intake_mode and not intake_finance_editable %}hidden{% endif %}>
+    <div class="subsection deposit-subsection" id="deposit-subsection">
       {% if wizard %}<input type="hidden" name="_deposit_auto" id="deposit-auto" value="{{ wizard.deposit_auto }}">{% endif %}<div class="section-title"><div><h3>訂金</h3><p class="muted" id="deposit-hint">現金：依客人這次實際要付的金額填寫。分期：預設以配件金額當訂金，可修改。</p></div></div>
       <div class="form-grid">
         {% include "sales/_field.html" with field=form.deposit_amount %}
@@ -265,6 +265,35 @@
         {% include "sales/_field.html" with field=form.deposit_method %}
       </div>
     </div>
+    {% if intake_mode and form.intake_discount_mode %}
+    <div class="subsection discount-subsection" id="intake-discount" data-intake-discount>
+      <div class="section-title"><div><h3>總價優惠</h3><p class="muted">在這裡談定的優惠送出後立即生效，並列在客人簽署的車輛訂購單上；沒有優惠請留白。</p></div></div>
+      <fieldset class="discount-mode">
+        <legend class="discount-mode__legend">{{ form.intake_discount_mode.label }}</legend>
+        <div class="discount-mode__track">
+          {% for radio in form.intake_discount_mode %}<label class="discount-mode__option" for="{{ radio.id_for_label }}">{{ radio.tag }}<span>{{ radio.choice_label }}</span></label>{% endfor %}
+        </div>
+      </fieldset>
+      <div class="form-grid discount-fields">
+        <div data-discount-panel="amount">{% include "sales/_field.html" with field=form.intake_discount_amount %}</div>
+        <div data-discount-panel="rate">{% include "sales/_field.html" with field=form.intake_discount_rate %}</div>
+        <div class="span-2">{% include "sales/_field.html" with field=form.intake_discount_reason required_label="有優惠時必填" %}</div>
+      </div>
+      <div class="discount-preview" data-discount-preview aria-live="polite">
+        <div class="discount-preview__cell">
+          <span class="discount-preview__label">優惠前總價</span>
+          <strong class="discount-preview__value" data-discount-before>—</strong>
+        </div>
+        <span class="discount-preview__arrow" aria-hidden="true"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
+        <div class="discount-preview__cell discount-preview__cell--final">
+          <span class="discount-preview__label">優惠後總價</span>
+          <strong class="discount-preview__value" data-discount-after>—</strong>
+          <small class="discount-preview__delta" data-discount-delta>尚未填寫優惠</small>
+        </div>
+      </div>
+      <p class="form-hint">總價含車價、牌險、分期開辦費、配件與其他費用，尚未扣除訂金；畫面數字為試算，送出時依實際明細重新計算。</p>
+    </div>
+    {% endif %}
     <div class="subsection fee-subsection" {% if intake_mode and not intake_finance_editable %}hidden{% endif %}>
       <div class="section-title"><h3>其他費用</h3></div>
       <div id="other-fee-forms">

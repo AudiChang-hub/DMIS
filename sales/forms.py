@@ -4531,18 +4531,18 @@ class DiscountRequestForm(forms.Form):
         self.fields["amount"].widget.attrs["inputmode"] = "numeric"
 
     def clean(self):
-        from decimal import ROUND_HALF_UP
+        from sales.services.order_discount import discount_from_rate, discount_error
         data = super().clean()
         if data.get("mode") == "rate":
             if data.get("rate") is None or self.total is None:
                 self.add_error("rate", "請輸入折數，並重新確認訂單總價。")
             else:
-                final = (self.total * data["rate"] / Decimal("10")).quantize(Decimal("1"), rounding=ROUND_HALF_UP)
-                data["amount"] = self.total - final
+                data["amount"] = discount_from_rate(self.total, data["rate"])
         elif not data.get("amount"):
             self.add_error("amount", "請輸入要減少的金額。")
-        if data.get("amount") is not None and self.total is not None and not (0 < data["amount"] <= self.total):
-            self.add_error("amount", "優惠須大於零，且不可超過折扣前總價。")
+        message = discount_error(data.get("amount"), self.total)
+        if message:
+            self.add_error("amount", message)
         return data
 
 

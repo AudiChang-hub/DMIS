@@ -1,6 +1,6 @@
 {% extends "base.html" %}{% load site_copy %}
 {% load static sales_format %}
-{% block head %}<link rel="stylesheet" href="{% static 'css/order-commission-recipient.css' %}?v={{ app_version }}"><link rel="stylesheet" href="{% static 'css/order-wizard.css' %}?v={{ app_version }}">{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'css/order-commission-recipient.css' %}?v={{ app_version }}"><link rel="stylesheet" href="{% static 'css/order-wizard.css' %}?v={{ app_version }}"><link rel="stylesheet" href="{% static 'css/order-intake-discount.css' %}?v={{ app_version }}">{% endblock %}
 {% block title %}{% if editing_order %}編輯 {{ editing_order.number }}{% else %}建立訂單{% endif %}｜車輛銷售管理{% endblock %}
 {% block page_class %}page-shell--form{% endblock %}
 {% block content %}{% include "sales/_order_form_content.html" %}{% endblock %}

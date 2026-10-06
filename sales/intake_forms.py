@@ -1,4 +1,6 @@
 """店內與車行共用下單表單；僅依帳號能力限制進階欄位。"""
+from decimal import Decimal
+
 from django import forms
 from django.core.exceptions import ValidationError
 from django.db import transaction
@@ -11,10 +13,14 @@ from sales.services.order_intake import account_profile, can_edit_finance, can_r
 from sales.services.upload_validation import validate_document_upload
 
 
+# 訂金是客人當場付的款項，所有可建立訂單的帳號（含接待模式與合作車行）都要能填寫，
+# 因此不列入財務欄位；其他財務欄位仍依原權限。
+DEPOSIT_FIELDS = ("deposit_amount", "deposit_date", "deposit_method")
+
 FINANCE_FIELDS = (
     "registration_manual", "registration_adjustment_reason",
     "commission_recipient", "assign_commission_to_other", "vehicle_price", "vehicle_price_adjustment_reason",
-    "deposit_amount", "deposit_date", "deposit_method", "registration_date", "compulsory_insurance_period",
+    "registration_date", "compulsory_insurance_period",
     "registration_plate_fee", "registration_license_fee", "registration_inspection_fee", "road_maintenance_fee",
     "license_tax_fee", "compulsory_insurance_fee", "plate_selection_fee", "lien_registration_fee",
     "registration_calculated_total", "plate_insurance_fee", "installment_opening_fee", "installment_monthly",
@@ -32,6 +38,21 @@ class IntakeOrderForm(SalesOrderForm):
     catalog_selection = forms.CharField(required=False, widget=forms.HiddenInput, max_length=4096)
     assisted_company_confirmed = forms.BooleanField(label="我已確認這是實際銷售車行，訂購單及個資同意書使用上述公司資料", required=False)
     assisted_company_revision = forms.IntegerField(required=False, min_value=0, widget=forms.HiddenInput)
+    # 總價優惠：下單時填寫即直接核定（電子簽署的訂購單須為最終內容），規則同金額收支頁的折扣。
+    intake_discount_mode = forms.ChoiceField(
+        label="優惠方式", choices=[("amount", "減少金額"), ("rate", "折數")], required=False, initial="amount",
+        widget=forms.RadioSelect,
+    )
+    intake_discount_amount = forms.DecimalField(
+        label="總價減少金額（元）", max_digits=12, decimal_places=0, min_value=1, required=False,
+    )
+    intake_discount_rate = forms.DecimalField(
+        label="折數（9 為九折、9.5 為九五折）", max_digits=5, decimal_places=2,
+        min_value=Decimal("0.01"), max_value=Decimal("9.99"), required=False,
+    )
+    intake_discount_reason = forms.CharField(
+        label="優惠原因", max_length=250, required=False, widget=forms.Textarea(attrs={"rows": 2, "class": "form-control"}),
+    )
 
     class Meta(SalesOrderForm.Meta):
         fields = [*SalesOrderForm.Meta.fields, "trade_in_intent"]
@@ -82,8 +103,14 @@ class IntakeOrderForm(SalesOrderForm):
                 field = self.fields[name]
                 field.disabled = True
                 field.required = False
-                self.initial[name] = 0 if name == "deposit_amount" else None
+                self.initial[name] = None
             self.initial["compulsory_insurance_period"] = 1
+        self.fields["deposit_amount"].required = False
+        self.fields["deposit_amount"].widget.attrs.update(min="0", placeholder="無訂金填 0")
+        self.fields["intake_discount_mode"].widget.attrs = {"class": "discount-mode__input"}
+        self.fields["intake_discount_amount"].widget.attrs.update(inputmode="numeric", min="1", placeholder="例如 2000")
+        self.fields["intake_discount_rate"].widget.attrs.update(inputmode="decimal", step="0.01", placeholder="例如 9.5")
+        self.fields["intake_discount_reason"].widget.attrs.update(placeholder="例如：老客戶回購、展示車")
         self.catalog_summary = None
         token = self.data.get("catalog_selection") if self.is_bound else self.initial.get("catalog_selection")
         if token:
@@ -98,6 +125,15 @@ class IntakeOrderForm(SalesOrderForm):
 
     def clean(self):
         data = super().clean()
+        if data.get("deposit_amount") is None and "deposit_amount" not in self.errors:
+            data["deposit_amount"] = Decimal("0")
+        elif data.get("deposit_amount") is not None and data["deposit_amount"] < 0:
+            self.add_error("deposit_amount", "訂金不可小於零。")
+        self._clean_intake_discount(data)
+        # 鎖住的財務欄位即使被偽造送出也一律不採用：空值交回模型預設，避免寫入 null。
+        for name in FINANCE_FIELDS:
+            if name in self.fields and self.fields[name].disabled and data.get(name) is None:
+                data.pop(name, None)
         if not self.dealer and data.get("source_type") == "dealer" and data.get("source"):
             from sales.models import PrintCompany
             from sales.services.print_company import validate_header, company_data
@@ -148,6 +184,19 @@ class IntakeOrderForm(SalesOrderForm):
             except ValidationError as exc:
                 self.add_error("catalog_selection", exc)
         return data
+
+
+    def _clean_intake_discount(self, data):
+        mode = data.get("intake_discount_mode") or "amount"
+        data["intake_discount_mode"] = mode
+        # 只保留所選方式的數值，避免切換方式後殘留的另一欄被當成優惠。
+        if mode == "rate":
+            data["intake_discount_amount"] = None
+        else:
+            data["intake_discount_rate"] = None
+        data["intake_discount_reason"] = (data.get("intake_discount_reason") or "").strip()
+        if (data.get("intake_discount_amount") or data.get("intake_discount_rate")) and not data["intake_discount_reason"]:
+            self.add_error("intake_discount_reason", "有總價優惠時，請填寫優惠原因。")
 
 
 def validated_intake_uploads(files):

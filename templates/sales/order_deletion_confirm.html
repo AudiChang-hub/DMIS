@@ -14,7 +14,9 @@
     {% if blockers %}<div class="callout callout--danger" role="alert"><span class="callout__icon" aria-hidden="true">!</span><div><h3>請先處理以下事項</h3><ul>{% for blocker in blockers %}<li>{{ blocker }}</li>{% endfor %}</ul></div></div>{% endif %}
     {{ form.non_field_errors }}
   </div>
-  {% if deletion_admin or restore or not order.deletion_requested_at %}<form method="post" class="confirm-panel__form">{% csrf_token %}
+  {% if permanent_blockers %}<div class="callout callout--danger" role="alert"><span class="callout__icon" aria-hidden="true">!</span><div><h3>此訂單不能刪除</h3><ul>{% for blocker in permanent_blockers %}<li>{{ blocker }}</li>{% endfor %}<li>如需更正，請改用訂單的帳務更正流程。</li></ul></div></div>
+  <div class="form-actions confirm-panel__actions"><a class="button ghost" href="{% url 'order_list' %}">返回訂單</a>{% if deletion_admin and order.deletion_requested_at %}<form method="post">{% csrf_token %}<input type="hidden" name="action" value="reject"><input type="hidden" name="reason" value="沒收訂金的訂單不可刪除"><input type="hidden" name="confirmed" value="on"><input type="hidden" name="expected_updated_at" value="{{ expected_order_version }}"><button class="button ghost" type="submit">駁回申請</button></form>{% endif %}</div>
+  {% elif deletion_admin or restore or not order.deletion_requested_at %}<form method="post" class="confirm-panel__form">{% csrf_token %}
     {{ form.expected_updated_at }}{{ form.expected_updated_at.errors }}{{ form.impact_confirmation }}
     {% include 'sales/_field.html' with field=form.reason %}
     <div class="check-list">

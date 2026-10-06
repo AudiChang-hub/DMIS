@@ -175,7 +175,7 @@ class VolumeBonusConditionsTests(TestCase):
         response = self.client.get(create)
         self.assertContains(response, 'data-add-bonus-tier')
         self.assertContains(response, 'bonus-save-bar')
-        self.assertContains(response, 'href="/help/#dealer-volume-bonus"')
+        self.assertContains(response, 'href="/help/?topic=dealer-volume-bonus"')
         response = self.client.post(create, self.payload(**{'tiers-TOTAL_FORMS': '2', 'tiers-1-minimum_quantity': '3', 'tiers-1-bonus_per_vehicle': '500'}))
         self.assertEqual(response.status_code, 302)
         rule = DealerVolumeBonusRule.objects.get(name='9 月油車加碼')

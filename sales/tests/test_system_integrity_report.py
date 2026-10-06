@@ -61,7 +61,7 @@ class SystemIntegrityReportTests(TestCase):
         response = self.client.get(reverse("system_integrity_report"))
         self.assertContains(
             response,
-            f'{reverse("user_guide")}#system-integrity',
+            f'{reverse("user_guide")}?topic=system-integrity',
         )
 
         guide = self.client.get(reverse("user_guide"))
@@ -80,3 +80,16 @@ class SystemIntegrityReportTests(TestCase):
         ):
             with self.subTest(forbidden=forbidden):
                 self.assertNotIn(forbidden, content)
+
+
+class IntegrityHelpButtonsTests(TestCase):
+    def test_granted_staff_sees_integrity_buttons_in_help(self):
+        from sales.access.models import ScreenAccessGrant, UserAccessState
+
+        user = get_user_model().objects.create_user(username="integrity-granted", password="UserPass!56789")
+        UserAccessState.objects.create(user=user, configured=True)
+        ScreenAccessGrant.objects.create(user=user, screen_key="integrity", view=True)
+        self.client.force_login(user)
+        self.assertEqual(self.client.get(reverse("system_integrity_report")).status_code, 200)
+        guide = self.client.get(reverse("user_guide"))
+        self.assertContains(guide, f'href="{reverse("system_integrity_report")}"')

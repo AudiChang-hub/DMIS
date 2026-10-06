@@ -8,7 +8,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_http_methods
 
 from sales.models import SalesOrder
-from sales.services.order_deletion import change_deletion, deletion_blockers, require_access, review_deletion, confirmation_token
+from sales.services.order_deletion import change_deletion, deletion_blockers, permanent_deletion_blockers, require_access, review_deletion, confirmation_token
 from sales.access.services import is_root
 from sales.services.order_intake import scoped_orders
 from django.core.exceptions import PermissionDenied
@@ -43,7 +43,8 @@ def order_delete(request, pk, *, restore=False):
         initial={"expected_updated_at": order.updated_at.isoformat(), "impact_confirmation": confirmation_token(order, request.user),
                  "reason": order.deletion_request_reason})
     root = is_root(request.user)
-    form.fields["force"].required = bool(root and not restore and deletion_blockers(order) and request.POST.get("action", "delete") == "delete")
+    permanent_blockers = [] if restore else permanent_deletion_blockers(order)
+    form.fields["force"].required = bool(root and not restore and not permanent_blockers and deletion_blockers(order) and request.POST.get("action", "delete") == "delete")
     impacts = []
     if not restore:
         if order.allocated_vehicle_id:
@@ -77,7 +78,7 @@ def order_delete(request, pk, *, restore=False):
             messages.success(request, f"訂單 {order.number} 已{label}。")
             return redirect("order_recycle_bin" if restore else "order_list")
     return render(request, "sales/order_deletion_confirm.html", {"order": order, "form": form, "restore": restore,
-        "blockers": blockers, "impacts": impacts, "deletion_admin": root,
+        "blockers": blockers, "impacts": impacts, "deletion_admin": root, "permanent_blockers": permanent_blockers,
         "expected_order_version": order.updated_at.isoformat(),
         "can_cancel_deletion": order.deletion_requested_by_id == request.user.pk})
 

@@ -6732,3 +6732,5 @@ main { animation: page-fade var(--dur-3) var(--ease-out); }
 .inventory-scope-tab.is-active { color: var(--on-spotlight); background: radial-gradient(360px 160px at 100% 0%, color-mix(in srgb, var(--forest) 55%, transparent), transparent 70%), var(--spotlight); border-color: var(--spotlight); box-shadow: var(--shadow); }
 .inventory-scope-tab.is-active small { color: var(--on-spotlight-muted); }
 .inventory-scope-tab.is-active b { color: var(--on-gold); background: var(--gold); }
+
+.quick-toggle-moved-note { display: block; margin-top: var(--space-1); color: var(--muted); font-size: var(--text-xs); font-weight: 700; }

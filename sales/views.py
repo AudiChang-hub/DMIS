@@ -123,6 +123,7 @@ from .forms import (
     VehicleSettlementCostRuleForm,
 )
 from .models import (
+    sync_catalog_entry,
     ALLOCATION_PRIORITY_AGE_MONTHS,
     allocation_priority_cutoff,
     annotate_allocation_priority,
@@ -2242,6 +2243,8 @@ def master_record_set_active(request, resource, pk):
             if any(field.name == "updated_at" for field in model._meta.fields):
                 update_values["updated_at"] = timezone.now()
             model.objects.filter(pk=record.pk).update(**update_values)
+            if model is VehicleModel:
+                sync_catalog_entry(record.pk, active)
         item_name = str(record)
         message = f"{resource_label}「{item_name}」已{'啟用' if active else '停用'}。"
         if is_ajax:
@@ -2262,6 +2265,11 @@ def master_record_set_active(request, resource, pk):
                 payload["status_counts"] = {
                     "active": status_totals["active_count"],
                     "inactive": status_totals["inactive_count"],
+                }
+            if model is VehicleModel:
+                payload["status_counts"] = {
+                    "active": VehicleModel.objects.filter(active=True).count(),
+                    "inactive": VehicleModel.objects.filter(active=False).count(),
                 }
             return JsonResponse(payload)
         messages.success(request, message)

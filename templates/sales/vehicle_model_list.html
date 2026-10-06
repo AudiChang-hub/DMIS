@@ -20,12 +20,12 @@
   <a href="{{ status_urls.active }}" class="{% if selected.status == 'active' %}is-active{% endif %}" {% if selected.status == 'active' %}aria-current="page"{% endif %}>
     <span>目前使用</span>
     <strong>啟用中機種</strong>
-    <b>{{ vehicle_model_status_counts.active }}</b>
+    <b data-status-count="active">{{ vehicle_model_status_counts.active }}</b>
   </a>
   <a href="{{ status_urls.inactive }}" class="{% if selected.status == 'inactive' %}is-active is-inactive{% endif %}" {% if selected.status == 'inactive' %}aria-current="page"{% endif %}>
     <span>歷史收納</span>
     <strong>已停用機種</strong>
-    <b>{{ vehicle_model_status_counts.inactive }}</b>
+    <b data-status-count="inactive">{{ vehicle_model_status_counts.inactive }}</b>
   </a>
 </nav>
 
@@ -48,7 +48,7 @@
   </div>
 </form>
 
-<section class="vehicle-model-catalog" data-vehicle-model-catalog data-filtered="{{ filters_applied|yesno:'true,false' }}">
+<section class="vehicle-model-catalog" data-vehicle-model-catalog data-status-tab="{{ selected.status }}" data-status-tab-labels="啟用中機種,已停用機種" data-filtered="{{ filters_applied|yesno:'true,false' }}">
   <div class="vehicle-model-catalog__toolbar">
     <div>
       <strong>共 {{ vehicle_model_count }} 個機種</strong>

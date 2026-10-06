@@ -3852,7 +3852,7 @@ class OrderFlowTests(TestCase):
         self.assertIsNotNone(profile.vehicle_cost_locked_at)
         self.assertEqual(profile.incentive_rule, incentive_rule)
         self.assertEqual(profile.sales_bonus, Decimal("1500"))
-        self.assertEqual(profile.promotion_subsidy, Decimal("2000"))
+        self.assertEqual(profile.promotion_subsidy, Decimal("0"))  # 促銷補助金只有網路平台訂單才自動帶入
         self.assertEqual(profile.installment_interest_subsidy, Decimal("800"))
         self.assertIsNotNone(profile.incentive_locked_at)
 
@@ -5354,7 +5354,7 @@ class OrderOperationsTests(TestCase):
         profile = apply_order_incentive_rule(self.order, "tester")
         self.assertEqual(profile.incentive_rule, current)
         self.assertEqual(profile.sales_bonus, Decimal("1500"))
-        self.assertEqual(profile.promotion_subsidy, Decimal("2000"))
+        self.assertEqual(profile.promotion_subsidy, Decimal("0"))  # 促銷補助金只有網路平台訂單才自動帶入
         self.assertEqual(profile.installment_interest_subsidy, Decimal("800"))
         self.assertEqual(profile.actual_disbursement, Decimal("74000"))
 
@@ -5404,8 +5404,36 @@ class OrderOperationsTests(TestCase):
         self.order.save(update_fields=["registration_date", "updated_at"])
         profile = apply_order_incentive_rule(self.order)
         self.assertEqual(profile.sales_bonus, Decimal("1200"))
-        self.assertEqual(profile.promotion_subsidy, Decimal("2500"))
+        self.assertEqual(profile.promotion_subsidy, Decimal("0"))  # 促銷補助金只有網路平台訂單才自動帶入
         self.assertEqual(profile.installment_interest_subsidy, Decimal("900"))
+
+    def test_promotion_subsidy_only_for_platform_and_manual_override_kept(self):
+        from sales.services.incentive_rule import apply_order_incentive_rule
+
+        VehicleIncentiveRule.objects.create(
+            vehicle_model=self.model, sales_bonus=Decimal("1000"), promotion_subsidy=Decimal("2000"),
+            installment_interest_subsidy=Decimal("0"), effective_from=date(2026, 7, 1),
+        )
+        self.order.registration_date = date(2026, 7, 20)
+        self.order.save(update_fields=["registration_date", "updated_at"])
+        profile = apply_order_incentive_rule(self.order)
+        self.assertEqual((profile.sales_bonus, profile.promotion_subsidy), (Decimal("1000"), Decimal("0")))
+        # 非平台訂單也可人工更正，重算時不覆寫。
+        profile.promotion_subsidy = Decimal("800")
+        profile.manual_financial_fields = ["promotion_subsidy"]
+        profile.save()
+        self.assertEqual(apply_order_incentive_rule(self.order).promotion_subsidy, Decimal("800"))
+        # 網路平台訂單自動帶入；人工更正後同樣保留。
+        profile.manual_financial_fields = []
+        profile.save()
+        SalesOrder.objects.filter(pk=self.order.pk).update(source_type=SalesOrder.SourceType.PLATFORM)
+        self.order.refresh_from_db()
+        profile = apply_order_incentive_rule(self.order)
+        self.assertEqual(profile.promotion_subsidy, Decimal("2000"))
+        profile.promotion_subsidy = Decimal("1500")
+        profile.manual_financial_fields = ["promotion_subsidy"]
+        profile.save()
+        self.assertEqual(apply_order_incentive_rule(self.order).promotion_subsidy, Decimal("1500"))
 
     def test_installment_disbursement_uses_order_installment_plan_snapshot(self):
         VehicleIncentiveRule.objects.create(

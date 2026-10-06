@@ -5,7 +5,7 @@ from django.utils import timezone
 from sales.models import (
     VehicleFactoryModelCode,
     VehicleModel,
-    publish_catalog_entry,
+    sync_catalog_entry,
     VehicleModelFamily,
     canonical_vehicle_model_name,
     normalize_vehicle_model_master_value,
@@ -200,7 +200,7 @@ def _merge_locked_vehicle_model_versions(*, source, target, allow_cross_family=F
         scalar_updates["updated_at"] = timezone.now()
         VehicleModel.objects.filter(pk=target.pk).update(**scalar_updates)
         if scalar_updates.get("active"):
-            publish_catalog_entry(target.pk)
+            sync_catalog_entry(target.pk, True)
 
     target_colors = {
         color.name.strip().casefold(): color

@@ -776,10 +776,8 @@ class VehicleModel(TimeStampedModel):
                     active=self.active,
                 )
             self.family = family
-        was_active = bool(self.pk and type(self).objects.filter(pk=self.pk, active=True).exists())
         super().save(*args, **kwargs)
-        if self.active and not was_active:
-            publish_catalog_entry(self.pk)
+        sync_catalog_entry(self.pk, self.active)
         if self.family_id and self.model_number:
             normalized_code = normalize_legacy_master_value(self.model_number)
             factory_code, created = VehicleFactoryModelCode.objects.get_or_create(
@@ -5019,15 +5017,13 @@ class UserAppearancePreference(TimeStampedModel):
         return f"{self.user.get_username()}－{self.get_theme_display()}"
 
 
-def publish_catalog_entry(vehicle_model_id):
-    """機種轉為啟用時自動上架選車展示；之後人工下架則保留。"""
-    entry, created = VehicleCatalogEntry.objects.get_or_create(
-        vehicle_model_id=vehicle_model_id, defaults={"published": True}
+def sync_catalog_entry(vehicle_model_id, active):
+    """選車上架只跟著機種啟用狀態：啟用即上架、停用即下架，不另外維護。"""
+    if active:
+        VehicleCatalogEntry.objects.get_or_create(vehicle_model_id=vehicle_model_id, defaults={"published": True})
+    VehicleCatalogEntry.objects.filter(vehicle_model_id=vehicle_model_id).exclude(published=active).update(
+        published=active, revision=F("revision") + 1, updated_at=timezone.now()
     )
-    if not created and not entry.published:
-        VehicleCatalogEntry.objects.filter(pk=entry.pk).update(
-            published=True, revision=F("revision") + 1, updated_at=timezone.now()
-        )
 
 
 class VehicleCatalogEntry(TimeStampedModel):

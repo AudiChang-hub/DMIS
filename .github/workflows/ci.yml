@@ -60,7 +60,8 @@ jobs:
       - name: Install Django dependencies
         run: |
           python -m pip install --disable-pip-version-check -r requirements-django.txt
-          python -m pip install --disable-pip-version-check pip-audit bandit
+          # tblib：平行測試失敗時保留完整錯誤原因。
+          python -m pip install --disable-pip-version-check pip-audit bandit tblib
 
       - name: Audit Python dependencies
         run: python -m pip_audit -r requirements-django.txt
@@ -133,7 +134,8 @@ jobs:
       - name: Run Django tests with SQLite
         run: |
           python -m unittest discover -s tests/ops
-          python manage.py test sales --noinput
+          # 以 runner 的全部核心平行執行（本機 4 核約 5～6 分鐘，依序執行約 16 分鐘）。
+          python manage.py test sales --noinput --parallel auto
 
       - name: Verify financial transactions with PostgreSQL
         env:

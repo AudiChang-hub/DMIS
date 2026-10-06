@@ -91,13 +91,16 @@ class SiteReviewFollowupTests(TestCase):
         data.update(vehicle_price="76000", vehicle_price_adjustment_reason="核准調價", installment_custom="on",
                     payment_type="installment", installment_company="其他融資", installment_periods="17",
                     installment_monthly="5100", installment_opening_fee="350", deposit_amount="9999",
+                    compulsory_insurance_fee="777",
                     **{"accessories-0-amount":"900", "accessories-0-labor_fee":"50"})
         response = self.client.post(reverse("intake_draft_save"), data)
         self.assertEqual(response.status_code, 200)
         draft = OrderDraft.objects.get()
         for key in ("vehicle_price", "installment_monthly", "installment_opening_fee", "installment_custom", "accessories-0-amount", "accessories-0-labor_fee"):
             self.assertEqual(draft.data[key], data[key])
-        self.assertNotIn("deposit_amount", draft.data)
+        # 訂金所有建單帳號都可填；調價授權不連帶開放其他財務欄位。
+        self.assertEqual(draft.data["deposit_amount"], "9999")
+        self.assertNotIn("compulsory_insurance_fee", draft.data)
         page = self.client.get(reverse("order_start"), {"draft":draft.pk})
         self.assertEqual(page.context['form']['installment_monthly'].value(), "5100")
         self.assertEqual(page.context['form']['installment_opening_fee'].value(), "350")

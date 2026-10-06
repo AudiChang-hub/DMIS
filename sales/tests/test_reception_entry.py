@@ -52,11 +52,14 @@ class ReceptionEntryTests(TestCase):
     def test_reception_allows_admin_pricing_but_hides_finance_and_is_idempotent(self):
         self.client.force_login(self.root)
         key = str(uuid.uuid4())
-        result = self.submit(_submission_key=key, vehicle_price="76000", vehicle_price_adjustment_reason="管理員核准成交價", deposit_amount="99999", accept_by_me="on",
+        result = self.submit(_submission_key=key, vehicle_price="76000", vehicle_price_adjustment_reason="管理員核准成交價", deposit_amount="5000", accept_by_me="on",
+                             registration_plate_fee="999",
                              **{"other_fees-0-name": "FORGED-INTERNAL", "other_fees-0-amount": "999"})
         self.assertEqual(result.status_code, 302, result.context and result.context["form"].errors)
         order = SalesOrder.objects.get()
-        self.assertEqual((order.vehicle_price, order.deposit_amount, order.status), (76000, 0, "intake_pending"))
+        # 訂金所有建單帳號都可填；其他財務欄位在接待模式仍不採用。
+        self.assertEqual((order.vehicle_price, order.deposit_amount, order.status), (76000, 5000, "intake_pending"))
+        self.assertNotEqual(order.registration_plate_fee, 999)
         self.assertFalse(order.other_fees.exists())
         repeated = self.submit(_submission_key=key)
         self.assertEqual(repeated.url, result.url)
@@ -75,11 +78,12 @@ class ReceptionEntryTests(TestCase):
             self.assertEqual(self.client.post(reverse(name, args=[other.pk])).status_code, 404)
         legacy = OrderDraft.objects.create(owner_account=self.user, data={"deposit_amount": "9988"})
         self.assertEqual(self.client.get(reverse("order_start"), {"draft": legacy.pk}).status_code, 409)
-        result = self.client.post(reverse("intake_draft_save"), {"owner_name": "本人客戶", "deposit_amount": "8888", "accept_by_me": "on"})
+        result = self.client.post(reverse("intake_draft_save"), {"owner_name": "本人客戶", "deposit_amount": "8888", "registration_plate_fee": "777", "accept_by_me": "on"})
         self.assertEqual(result.status_code, 200)
         draft = OrderDraft.objects.get(pk=result.json()["id"])
         self.assertTrue(draft.data["_reception"])
-        self.assertNotIn("deposit_amount", draft.data)
+        self.assertEqual(draft.data["deposit_amount"], "8888")
+        self.assertNotIn("registration_plate_fee", draft.data)
         self.assertNotIn("accept_by_me", draft.data)
         self.assertIn(reverse("order_start"), result.json()["edit_url"])
         self.assertEqual(self.client.get(result.json()["edit_url"]).status_code, 200)
@@ -183,11 +187,12 @@ class ReceptionEntryTests(TestCase):
         page = self.client.get(reverse("order_create"), {"draft": own.pk})
         self.assertTrue(page.context["reception_mode"])
         self.assertFalse(page.context["intake_finance_editable"])
-        saved = self.client.post(reverse("draft_save"), {"_draft_id": own.pk, "_draft_revision": own.revision, "deposit_amount": "777"})
+        saved = self.client.post(reverse("draft_save"), {"_draft_id": own.pk, "_draft_revision": own.revision, "deposit_amount": "777", "compulsory_insurance_fee": "555"})
         self.assertEqual(saved.status_code, 200)
         own.refresh_from_db()
         self.assertTrue(own.is_reception_draft)
-        self.assertNotIn("deposit_amount", own.data)
+        self.assertEqual(own.data["deposit_amount"], "777")
+        self.assertNotIn("compulsory_insurance_fee", own.data)
 
     def test_reception_draft_delete_returns_to_entry_not_internal_home(self):
         self.grant_intake_only()

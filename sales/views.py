@@ -228,6 +228,7 @@ from .services.payment_ledger import (
     reverse_payment,
     settlement_gap,
 )
+from .services.dealer_reward_snapshot import apply_order_dealer_reward_snapshot
 from .services.price_version import (
     apply_order_price_snapshot,
     recommended_price_from_snapshot,
@@ -4816,6 +4817,11 @@ def _create_intake_order(request, post_data, files, draft, reception, submission
         form.add_error(None, exc)
     if not (form.is_valid() and formset.is_valid() and fee_formset.is_valid()):
         return None, form, formset, fee_formset
+    from sales.services.order_discount import apply_intake_discount, intake_discount_detail, validate_intake_discount
+    validate_intake_discount(form, formset, fee_formset)
+    if not form.is_valid():
+        return None, form, formset, fee_formset
+    savepoint = transaction.savepoint()
     order = form.save(commit=False)
     if draft:
         if not form.cleaned_data.get("id_front") and draft.id_front:
@@ -4833,14 +4839,23 @@ def _create_intake_order(request, post_data, files, draft, reception, submission
     order.save()
     apply_order_price_snapshot(order)
     apply_order_installment_snapshot(order)
+    apply_order_dealer_reward_snapshot(order)
     formset.instance = order
     formset.save()
     fee_formset.instance = order
     fee_formset.save()
+    # 下單時填寫的總價優惠以實際明細重新換算後直接核定，訂購單簽署時即為最終金額。
+    discount_message = apply_intake_discount(order, form, request.user.get_username())
+    if discount_message:
+        transaction.savepoint_rollback(savepoint)
+        form.add_error("intake_discount_rate" if form.cleaned_data.get("intake_discount_mode") == "rate" else "intake_discount_amount", discount_message)
+        return None, form, formset, fee_formset
+    transaction.savepoint_commit(savepoint)
     order.calculated_balance = order.calculate_balance()
     order.actual_balance = order.calculated_balance
+    from sales.services.order_discount import DISCOUNT_FIELDS
     order.save(
-        update_fields=["calculated_balance", "actual_balance", "updated_at"]
+        update_fields=[*DISCOUNT_FIELDS, "updated_at"] if order.discount_status else ["calculated_balance", "actual_balance", "updated_at"]
     )
     OrderEvent.objects.create(
         order=order,
@@ -4848,6 +4863,13 @@ def _create_intake_order(request, post_data, files, draft, reception, submission
         description="建立訂單，等待店內人員接單。",
         actor_name=request.user.get_username(),
     )
+    if order.discount_status:
+        OrderEvent.objects.create(
+            order=order,
+            event_type="discount_decided",
+            description=f"下單時填寫總價優惠並直接生效：{intake_discount_detail(order, form)}；原因：{order.discount_reason}。未變更分期撥款、成本與佣金。",
+            actor_name=request.user.get_username(),
+        )
     if draft:
         draft.intake_attachments.update(order=order, draft=None)
     save_intake_uploads(request.user, uploads, order=order, remove_ids=remove_ids if draft else ())
@@ -5957,6 +5979,7 @@ def order_edit(request, pk):
             for field_name in ("id_front", "id_back")
         }
         previous_vehicle_model_id = order.vehicle_model_id
+        previous_source_type = order.source_type
         installment_before = tuple(getattr(order, name) for name in (
             "vehicle_model_id", "order_date", "payment_type", "vehicle_price",
             "installment_company", "installment_periods", "installment_monthly", "installment_opening_fee", "installment_custom",
@@ -5992,6 +6015,11 @@ def order_edit(request, pk):
                     order,
                     force=(previous_vehicle_model_id != order.vehicle_model_id or not order.price_snapshot),
                 )
+            # 附加獎勵快照比照售價：未完成前改車型或來源才重新保存；舊訂單沒有快照時維持依日期查詢。
+            if order.dealer_reward_snapshot and not completed_correction and (
+                previous_vehicle_model_id != order.vehicle_model_id or previous_source_type != order.source_type
+            ):
+                apply_order_dealer_reward_snapshot(order, force=True)
             installment_after = tuple(getattr(order, name) for name in (
                 "vehicle_model_id", "order_date", "payment_type", "vehicle_price",
                 "installment_company", "installment_periods", "installment_monthly", "installment_opening_fee", "installment_custom",

@@ -1,0 +1,208 @@
+{% extends "base.html" %}{% load static %}
+{% block title %}沿用建立｜機種與售價｜車輛銷售管理{% endblock %}
+{% block page_class %}page-shell--wide model-tool-page{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'css/vehicle-model-tools.css' %}?v={{ app_version }}">{% endblock %}
+{% block content %}
+{% url 'vehicle_model_list' as list_url %}{% url 'data_maintenance' as data_url %}
+{% include "sales/_page_back.html" with fallback_url=list_url label="機種與售價" direct_back=True root_url=data_url root_label="資料維護區" current_label="沿用建立" %}
+<section class="hero-row compact-hero model-tool-hero">
+  <div>
+    <p class="eyebrow">機種與售價</p>
+    <h1>{% if stage == "preview" %}確認沿用內容{% elif mode == "year" %}沿用到新年式{% else %}沿用到新生效日{% endif %}</h1>
+    <p class="muted">{% if stage == "preview" %}逐列核對要建立與略過的資料；確認後一次寫入，任何一列失敗都不會寫入。{% elif mode == "year" %}以現有年式為底建立下一個年式，帶入規格、車色與目前有效的售價、分期、獎勵與成本。{% else %}把目前有效的版本複製成新月份的版本，只需在新版本上修改差異；舊版本與既有訂單不受影響。{% endif %}</p>
+  </div>
+  {% if stage != "preview" %}<div class="hero-actions"><a class="button ghost" href="{% url 'vehicle_model_batch' %}">批次調整</a></div>{% endif %}
+</section>
+
+{% if stage == "preview" %}
+<section class="section-block confirm-panel model-tool-confirm" aria-labelledby="copy-preview-title">
+  <div class="section-title"><h2 id="copy-preview-title">{% if blocked %}有 {{ blocked|length }} 個年式無法建立，請返回修改{% elif mode == "year" %}將建立 {{ create_total }} 個新年式{% else %}將建立 {{ create_total }} 筆新版本{% endif %}</h2>{% if skipped_total %}<span>略過 {{ skipped_total }} 項</span>{% endif %}</div>
+  <div class="section-body confirm-panel__body">
+    <dl class="confirm-facts">
+      <div><dt>方式</dt><dd>{% if mode == "year" %}沿用到新年式{% else %}沿用到新生效日{% endif %}</dd></div>
+      <div><dt>新版本生效日</dt><dd>{{ state.effective_from|date:"Y/m/d" }} 起</dd></div>
+      <div class="is-wide"><dt>沿用資料</dt><dd>{{ dataset_labels|join:"、"|default:"不沿用版本資料" }}{% if mode == "year" and extra_labels %}；另帶入{{ extra_labels|join:"、" }}{% endif %}</dd></div>
+      {% if mode == "year" %}<div><dt>建立後狀態</dt><dd>{% if state.activate %}立即啟用並上架選車{% else %}先停用、未上架（確認後再到規格分頁啟用）{% endif %}</dd></div>{% endif %}
+    </dl>
+    {% if blocked %}
+    <div class="callout callout--danger" role="alert"><span class="callout__icon" aria-hidden="true">!</span><div><h3>{{ blocked|length }} 個年式無法建立</h3><ul>{% for row in blocked %}<li>{{ row.label }}：{{ row.conflict }}</li>{% endfor %}</ul><p>請返回修改新年式或取消勾選這些列；有任何一列無法建立時整批不會寫入。</p></div></div>
+    {% else %}
+    <div class="callout callout--info"><span class="callout__icon" aria-hidden="true">i</span><div><p>新版本一律啟用、不設結束日，原版本保留不變。{% if mode == "date" %}來源是生效日前一天有效的版本；該日已有版本或沒有版本可沿用的項目會略過。{% else %}來源是基準年式在生效日有效的版本；車色圖片與選車主圖沿用同一個檔案。{% endif %}</p></div></div>
+    {% endif %}
+    <div class="inventory-table-wrap model-tool-table-wrap" tabindex="0" aria-label="沿用內容預覽">
+      <table class="inventory-table inventory-table--fit model-copy-preview">
+        <thead><tr><th>{% if mode == "year" %}基準年式 → 新年式{% else %}年式{% endif %}</th>{% for label in dataset_labels %}<th>{{ label }}</th>{% endfor %}{% if mode == "year" and extra_labels %}<th>其他資料</th>{% endif %}</tr></thead>
+        <tbody>
+          {% for row in plan %}
+          <tr{% if row.conflict %} class="is-blocked"{% endif %}>
+            <th scope="row" class="model-tool-identity">
+              {{ row.label }}
+              {% if mode == "year" %}<span class="model-copy-target"><span aria-hidden="true">→</span> {{ row.target_year }} 年式</span>{% endif %}
+              {% if row.conflict %}<small class="model-tool-locked">{{ row.conflict }}</small>{% endif %}
+            </th>
+            {% for item in row.items %}
+            <td data-label="{{ item.label }}">
+              {% if row.conflict %}<span class="model-chip is-off">不建立</span>
+              {% elif item.status == "create" %}<span class="model-chip is-create">將建立</span><small class="model-chip__detail">{{ item.summary }}</small>
+              {% else %}<span class="model-chip is-skip">略過</span><small class="model-chip__detail">{{ item.reason }}</small>{% endif %}
+            </td>
+            {% endfor %}
+            {% if mode == "year" and extra_labels %}
+            <td data-label="其他資料">
+              <ul class="model-copy-extras">{% for extra in row.extras %}<li class="{% if extra.status == 'create' and not row.conflict %}is-create{% else %}is-skip{% endif %}"><strong>{{ extra.label }}</strong><span>{{ extra.summary }}</span></li>{% endfor %}</ul>
+            </td>
+            {% endif %}
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  <form id="copy-back" method="post">{% csrf_token %}<input type="hidden" name="action" value="back"><input type="hidden" name="mode" value="{{ mode }}"><input type="hidden" name="token" value="{{ token }}">{% for pk in listed_ids %}<input type="hidden" name="row" value="{{ pk }}">{% endfor %}{% for pk in fixed_ids %}<input type="hidden" name="ids" value="{{ pk }}">{% endfor %}{% for key, value in filters.items %}{% if value %}<input type="hidden" name="{{ key }}" value="{{ value }}">{% endif %}{% endfor %}</form>
+  <form method="post" class="confirm-panel__form"{% if not blocked %} data-confirm="{% if mode == 'year' %}確定建立 {{ create_total }} 個新年式？{% else %}確定建立 {{ create_total }} 筆新版本？{% endif %}"{% endif %}>
+    {% csrf_token %}<input type="hidden" name="action" value="commit"><input type="hidden" name="token" value="{{ token }}">
+    <div class="form-actions confirm-panel__actions">
+      <button class="button ghost" type="submit" form="copy-back">返回修改</button>
+      {% if not blocked and create_total %}<button class="button primary" type="submit">{% if mode == "year" %}確認建立 {{ create_total }} 個年式{% else %}確認建立 {{ create_total }} 筆版本{% endif %}</button>{% endif %}
+    </div>
+  </form>
+</section>
+{% else %}
+
+{% if result %}
+<section class="section-block model-tool-result" aria-labelledby="copy-result-title">
+  <div class="section-title"><h2 id="copy-result-title"><span class="model-tool-result__mark" aria-hidden="true"><svg viewBox="0 0 16 16" width="14" height="14"><path d="M3.5 8.4 6.6 11.3 12.5 4.9" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>{% if result.mode == "year" %}已建立 {{ result.rows|length }} 個新年式{% else %}已建立 {{ result.created_total }} 筆新版本{% endif %}</h2><span>{{ result.date }} 起生效{% if result.skipped_total %}・略過 {{ result.skipped_total }} 項{% endif %}</span></div>
+  <ul class="model-tool-result__list">
+    {% for row in result.rows %}
+    <li>
+      <a href="{{ row.url }}">{{ row.label }}</a>
+      <span>{% for item in row.items %}{% if item.created %}<a href="{{ item.url }}">{{ item.label }}</a>{% else %}<span class="muted" title="{{ item.reason }}">{{ item.label }}（略過）</span>{% endif %}{% if not forloop.last %}・{% endif %}{% empty %}未沿用版本資料{% endfor %}{% if row.extras %}；另帶入{{ row.extras|join:"、" }}{% endif %}</span>
+    </li>
+    {% endfor %}
+  </ul>
+  {% if result.mode == "year" and not result.activate %}<p class="model-tool-result__note">新年式目前停用、未上架；確認售價與車色後，到該年式的「規格與車色」分頁勾選「啟用中」。</p>{% endif %}
+</section>
+{% endif %}
+
+<nav class="model-tool-switch model-tool-switch--modes" aria-label="沿用方式">
+  <a href="?mode=date{% if fixed_ids %}&amp;ids={{ fixed_ids|join:',' }}{% elif filter_query %}&amp;{{ filter_query }}{% endif %}" class="model-tool-switch__item{% if mode == 'date' %} is-active{% endif %}"{% if mode == 'date' %} aria-current="page"{% endif %}>
+    <strong>沿用到新生效日</strong><span>新月份價格、成本或獎勵沿用目前版本，再改差異</span>
+  </a>
+  <a href="?mode=year{% if fixed_ids %}&amp;ids={{ fixed_ids|join:',' }}{% elif filter_query %}&amp;{{ filter_query }}{% endif %}" class="model-tool-switch__item{% if mode == 'year' %} is-active{% endif %}"{% if mode == 'year' %} aria-current="page"{% endif %}>
+    <strong>沿用到新年式</strong><span>建立下一年式，帶入規格、車色與目前設定</span>
+  </a>
+</nav>
+
+{% if fixed_ids %}
+<div class="model-tool-fixed">
+  <span class="model-tool-fixed__icon" aria-hidden="true">✓</span>
+  <p>{% if rows|length == 1 %}以 <strong>{{ rows.0.label }}</strong> 為基準{% else %}已指定 <strong>{{ rows|length }}</strong> 個年式{% endif %}</p>
+  <a class="button ghost small" href="?mode={{ mode }}">改選其他機種</a>
+</div>
+{% else %}
+{% url 'vehicle_model_copy' as copy_url %}
+{% include "sales/_vehicle_model_tool_filters.html" with clear_url=copy_url|add:"?mode="|add:mode %}
+{% endif %}
+
+<form method="post" class="model-copy" data-copy-form>
+  {% csrf_token %}
+  <input type="hidden" name="mode" value="{{ mode }}">
+  {% for pk in fixed_ids %}<input type="hidden" name="ids" value="{{ pk }}">{% endfor %}
+  {% for key, value in filters.items %}{% if value %}<input type="hidden" name="{{ key }}" value="{{ value }}">{% endif %}{% endfor %}
+  {% for row in rows %}<input type="hidden" name="row" value="{{ row.model.pk }}">{% endfor %}
+
+  {% if errors %}<div class="callout callout--danger" role="alert"><span class="callout__icon" aria-hidden="true">!</span><div><h3>無法預覽</h3><ul>{% for error in errors %}<li>{{ error }}</li>{% endfor %}</ul></div></div>{% endif %}
+
+  <section class="section-block model-tool-step" aria-labelledby="copy-step-1">
+    <div class="section-title"><h2 id="copy-step-1"><span class="model-tool-step__no" aria-hidden="true">1</span>沿用設定</h2></div>
+    <div class="section-body model-tool-step__body">
+      <div class="field model-tool-date">
+        <label for="copy-effective">新版本生效日<em>必填</em></label>
+        <input class="form-control" id="copy-effective" type="date" name="effective_from" value="{{ state.effective_from|date:'Y-m-d' }}" min="{{ today|date:'Y-m-d' }}" required>
+        <small class="help-text">預設為下個月 1 日；不可早於今天。{% if mode == "date" %}來源為前一天有效的版本。{% else %}來源為基準年式在這天有效的版本。{% endif %}</small>
+      </div>
+      <fieldset class="model-tool-options">
+        <legend>沿用的版本資料<small>未勾選的資料不會建立</small></legend>
+        <div class="model-tool-options__grid">
+          {% for choice in datasets %}
+          <label class="check-row model-tool-option{% if not choice.allowed %} is-disabled{% endif %}">
+            <input type="checkbox" name="datasets" value="{{ choice.key }}"{% if choice.key in state.datasets and choice.allowed %} checked{% endif %}{% if not choice.allowed %} disabled{% endif %}>
+            <span><strong>{{ choice.label }}</strong><small>{% if choice.allowed %}{{ choice.hint }}{% else %}沒有操作權限{% endif %}</small></span>
+          </label>
+          {% endfor %}
+        </div>
+      </fieldset>
+      {% if mode == "year" %}
+      <fieldset class="model-tool-options">
+        <legend>新年式一併帶入<small>原廠型號與規格一律沿用</small></legend>
+        <div class="model-tool-options__grid">
+          {% for choice in extras %}
+          <label class="check-row model-tool-option{% if not choice.allowed %} is-disabled{% endif %}">
+            <input type="checkbox" name="extras" value="{{ choice.key }}"{% if choice.key in state.extras and choice.allowed %} checked{% endif %}{% if not choice.allowed %} disabled{% endif %}>
+            <span><strong>{{ choice.label }}</strong><small>{% if choice.allowed %}{{ choice.hint }}{% elif choice.key == 'catalog' %}僅 admin 可複製選車展示{% else %}沒有操作權限{% endif %}</small></span>
+          </label>
+          {% endfor %}
+        </div>
+      </fieldset>
+      <label class="check-row model-tool-activate">
+        <input type="checkbox" name="activate" value="1"{% if state.activate %} checked{% endif %}>
+        <span><strong>建立後立即啟用</strong><small>啟用即自動上架選車；預設先停用，等售價與車色確認後再啟用。</small></span>
+      </label>
+      {% endif %}
+    </div>
+  </section>
+
+  <section class="section-block model-tool-step" aria-labelledby="copy-step-2">
+    <div class="section-title">
+      <h2 id="copy-step-2"><span class="model-tool-step__no" aria-hidden="true">2</span>選擇{% if mode == "year" %}基準{% endif %}年式</h2>
+      <span>{{ rows|length }} 個年式{% if truncated %}（只顯示前 {{ max_rows }} 個，請縮小篩選）{% endif %}</span>
+    </div>
+    {% if rows %}
+    <div class="inventory-table-wrap model-tool-table-wrap" tabindex="0" aria-label="可沿用的年式">
+      <table class="inventory-table model-copy-table{% if mode == 'year' %} model-copy-table--year{% endif %}" data-copy-table>
+        <thead>
+          <tr>
+            <th class="model-tool-check-col"><label class="model-tool-check"><input type="checkbox" data-select-all aria-label="全選年式"><span class="visually-hidden">全選</span></label></th>
+            <th>年式</th>
+            <th>{{ presence_day|date:"Y/m/d" }} 有效的版本</th>
+            {% if mode == "year" %}<th class="is-number">新年式</th>{% endif %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in rows %}
+          <tr class="model-batch-row{% if row.selected %} is-selected{% endif %}" data-batch-row>
+            <td class="model-tool-check-col" data-label="選取"><label class="model-tool-check"><input type="checkbox" name="selected" value="{{ row.model.pk }}" data-row-check{% if row.selected %} checked{% endif %} aria-label="選取 {{ row.label }}"></label></td>
+            <th scope="row" class="model-tool-identity">
+              <a href="{% url 'vehicle_model_edit' row.model.pk %}">{{ row.model.name }}</a>
+              <span>{{ row.model.model_year|default:"年式待補" }}・{{ row.model.get_model_code_display|default:"型式待補" }}・{{ row.model.brand }}{% if not row.model.active %}・<em>已停用</em>{% endif %}</span>
+            </th>
+            <td data-label="有效版本">
+              <ul class="model-presence" aria-label="{{ presence_day|date:'Y/m/d' }} 有效的版本">
+                {% for item in row.presence %}<li class="{% if item.present %}is-present{% endif %}"><span aria-hidden="true"></span>{{ item.label }}<span class="visually-hidden">{% if item.present %}：有{% else %}：無{% endif %}</span></li>{% endfor %}
+              </ul>
+            </td>
+            {% if mode == "year" %}
+            <td data-label="新年式" class="is-number">
+              <input class="model-copy-year" type="text" inputmode="numeric" maxlength="4" name="year_{{ row.model.pk }}" value="{{ row.target_year|default_if_none:'' }}" aria-label="{{ row.label }} 的新年式" data-batch-input data-no-recent-values>
+            </td>
+            {% endif %}
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="empty-state small"><span class="empty-state__icon" aria-hidden="true">⌕</span><h3>沒有符合條件的年式</h3><p>調整上方的品牌、機種、年式或狀態後再試一次。</p></div>
+    {% endif %}
+  </section>
+
+  {% if rows %}
+  <div class="form-savebar">
+    <span class="form-savebar__hint" aria-live="polite">已勾選 <strong data-selected-count>{{ state.selected|length }}</strong> 個年式・確認前會先列出要建立與略過的項目</span>
+    <div><button class="button primary" type="submit" name="action" value="preview">預覽沿用內容</button></div>
+  </div>
+  {% endif %}
+</form>
+{% endif %}
+{% endblock %}
+{% block scripts %}<script src="{% static 'js/vehicle-model-tools.js' %}?v={{ app_version }}" defer></script>{% endblock %}

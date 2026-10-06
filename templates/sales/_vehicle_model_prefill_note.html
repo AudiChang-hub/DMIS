@@ -1,0 +1,1 @@
+{% if source %}<p class="model-prefill-note" role="note"><span class="model-prefill-note__icon" aria-hidden="true">↺</span><span>已帶入 <strong>{{ source.effective_from|date:"Y/m/d" }} 起</strong>版本的{{ noun }}{% if start %}，生效日預設 <strong>{{ start|date:"Y/m/d" }}</strong>{% endif %}；只需修改不同之處，原版本不會被改動。</span></p>{% endif %}

@@ -12,6 +12,10 @@
     <p class="muted">{% site_text 'vehicle_model_list.7d03bbe9000b' %}</p>
   </div>
   <div class="hero-actions">
+    {% if can_model_tools %}
+    <a class="button ghost" href="{% url 'vehicle_model_copy' %}">沿用建立</a>
+    <a class="button ghost" href="{% url 'vehicle_model_batch' %}">批次調整</a>
+    {% endif %}
     <a class="button primary" href="{% url 'vehicle_model_create' %}">＋ 新增機種／年式</a>
   </div>
 </section>

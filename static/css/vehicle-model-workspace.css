@@ -134,6 +134,22 @@ a.model-workspace-tab:focus-visible { outline: 3px solid var(--focus-ring); outl
 .model-rule-aside p { margin: 0; color: var(--muted); font-size: var(--text-sm); }
 .cost-rule-superseded { color: var(--amber-ink); background: var(--amber-soft); }
 
+/* 新增版本已預填目前有效版本的數值。 */
+.model-prefill-note {
+  display: flex; margin: 0 0 var(--stack-gap-sm); padding: var(--space-3) var(--space-4); align-items: flex-start; gap: var(--space-3);
+  color: var(--ink-soft); background: color-mix(in srgb, var(--surface-tint) 70%, transparent); border-radius: var(--radius-md);
+  font-size: var(--text-sm); line-height: 1.6;
+}
+.model-prefill-note strong { color: var(--ink); font-variant-numeric: tabular-nums; }
+.model-prefill-note__icon {
+  display: inline-grid; width: 22px; height: 22px; flex: 0 0 auto; place-items: center;
+  color: var(--on-accent); background: var(--action-text); border-radius: 50%; font-size: var(--text-xs); font-weight: 900;
+}
+
+/* 頁首的沿用動作：與啟用狀態並排，手機改為整列。 */
+.model-workspace-hero__side { display: flex; flex: 0 0 auto; flex-direction: column; align-items: flex-end; gap: var(--space-3); }
+.model-workspace-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: var(--space-2); }
+
 /* 適用規則（唯讀） */
 .model-rules-stack { display: grid; gap: var(--stack-gap); }
 .model-rules-panel__title { min-height: 72px; }
@@ -163,6 +179,8 @@ a.model-workspace-tab:focus-visible { outline: 3px solid var(--focus-ring); outl
 @media (max-width: 860px) {
   .model-workspace-hero { flex-direction: column; align-items: stretch; gap: var(--space-4); margin: 0; padding-bottom: var(--space-4); }
   .model-workspace-status { align-self: flex-start; padding: var(--space-2) var(--space-3); box-shadow: none; }
+  .model-workspace-hero__side { align-items: flex-start; }
+  .model-workspace-actions { justify-content: flex-start; }
   .model-workspace-facts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-3); }
   .model-workspace-facts > div, .model-workspace-facts > div:first-child { padding: 0; border-left: 0; }
   .model-workspace-tabs__list { margin-inline: calc(-1 * var(--space-3)); scroll-padding-inline: var(--space-3); }

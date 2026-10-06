@@ -45,4 +45,4 @@
 <td data-label="狀態">
   {% include "sales/_active_quick_toggle.html" with resource="vehicle-model" pk=item.pk is_active=item.active item_name=item.name %}
 </td>
-<td class="inventory-row-action"><a class="button ghost small" href="{% url 'vehicle_model_edit' item.pk %}">編輯</a></td>
+<td class="inventory-row-action">{% if can_model_tools %}<a class="button secondary small vehicle-model-copy-link" href="{% url 'vehicle_model_copy' %}?mode=year&amp;ids={{ item.pk }}" title="以 {{ item.model_year|default:'此' }} 年式為底建立下一年式" aria-label="以 {{ family.name }} {{ item.model_year|default:'' }} 年式沿用到新年式">沿用</a>{% endif %}<a class="button ghost small" href="{% url 'vehicle_model_edit' item.pk %}">編輯</a></td>

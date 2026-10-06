@@ -1,7 +1,6 @@
 {% load static sales_format site_copy screen_access %}
-
-<div {% if order_workspace %}data-workspace-section="finance"{% endif %}>
-{% include 'sales/_profit_control.html' %}
+<div class="finance-step" data-finance-step>
+<div {% if order_workspace %}data-workspace-section="finance"{% endif %} class="finance-step__intro">
 {% if not order_workspace %}
 {% url 'order_detail' order.pk as order_url %}
 {% url 'order_list' as order_list_url %}
@@ -11,17 +10,13 @@
   {% if_access 'operations_report' %}<a class="button ghost" href="{% url 'operations_report' %}">營運總表</a>{% endif_access %}
 </section>
 {% endif %}
-{% if order_workspace %}{% include "sales/_workspace_finance_summary.html" %}{% else %}
-<section class="operations-summary">
-  <div><small>總收款金額</small><strong>${{ profile.total_received|floatformat:0 }}</strong></div>
-  <div><small>總收入</small><strong>${{ profile.total_income|floatformat:0 }}</strong></div>
-  <div><small>總支出</small><strong>${{ profile.total_expense|floatformat:0 }}</strong></div>
-  <div class="profit"><small>單筆淨利</small>{% include 'sales/_order_profit.html' %}</div>
-</section>
-{% endif %}
-<p class="muted operations-profit-formula">{% site_text 'order_operations.5581c6988866' %}</p>
+<div class="finance-step__toolbar">
+  <p class="finance-step__formula">{% site_text 'order_operations.5581c6988866' %}</p>
+  {% include 'sales/_profit_control.html' %}
+</div>
+{% include "sales/_workspace_finance_summary.html" %}
 {% if profile.legacy_finance_reconciliation and profit_unlocked %}
-<details class="note-box"><summary>Excel 匯入財務核對</summary>
+<details class="note-box finance-step__legacy"><summary>Excel 匯入財務核對</summary>
   {% if profile.legacy_finance_reconciliation.status == 'matched' %}
   <p data-profit-value>匯入時已核對原淨利 {{ profile.legacy_finance_reconciliation.source_profit }} 元，差額 {{ profile.legacy_finance_reconciliation.difference }} 元。收款價為歷史計算基礎，不代表已收款；後續人工修改會反映於目前淨利。</p>
   {% if profile.legacy_finance_reconciliation.expense_scope == 'L:S' %}<p>{% site_text 'order_operations.715d63971b11' %}</p>{% endif %}
@@ -31,33 +26,60 @@
 </details>
 {% endif %}
 
-<section class="section-block internal-discount-panel">
-  <div class="section-title"><div><h2>內部折扣核准</h2><small>{% site_text 'order_operations.fb6f0cbe2651' %}</small></div><span class="status-pill">{{ order.get_discount_status_display|default:"未申請" }}</span></div>
-  <div class="discount-summary"><span>折扣前總價</span><strong>$<output data-discount-summary="before">{{ order.pre_discount_total|floatformat:0 }}</output></strong><span>目前已套用折扣</span><strong>$<output data-discount-summary="amount">{{ order.approved_discount_amount|floatformat:0 }}</output></strong><span>折扣後總價</span><strong>$<output data-discount-summary="after">{{ order.discounted_total|floatformat:0 }}</output></strong>{% if order.discount_requested_at %}<small>最近申請：{{ order.discount_requested_amount|floatformat:0 }} 元 · {{ order.discount_requested_by }} · {{ order.discount_requested_at|date:"Y/m/d H:i" }}</small>{% endif %}</div>
-  <p class="muted">可自行輸入折數或總價減少金額；核准後取代原優惠，不重複累加。分期公司撥款、佣金與成本不變；訂金與舊車折抵於折扣後另扣。</p>
-  {% if order.is_editable and workspace_discount_editable %}
-    <form class="form-grid compact-grid" data-workspace-save="discount" data-discount-total="{{ order.pre_discount_total|stringformat:'f' }}" method="post" action="{% url 'order_discount_request' order.pk %}">{% csrf_token %}<input type="hidden" name="_order_revision" value="{{ order.revision }}">
-      {% for field in discount_request_form %}<div data-discount-field><label for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}{{ field.errors }}</div>{% endfor %}
-      <output data-discount-preview aria-live="polite"></output><button class="button primary" type="submit">儲存並套用折扣</button>
-    </form>
-  {% else %}<p class="muted">由具財務編輯及折扣核定權限的人員調整。</p>{% endif %}
-</section>
-
+<div class="finance-strip{% if plate_variance %} has-variance{% endif %}">
+  <section class="finance-strip__card finance-discount" aria-labelledby="internal-discount-title">
+    <header class="finance-strip__head"><div><h2 id="internal-discount-title">內部折扣核准</h2><small>{% site_text 'order_operations.fb6f0cbe2651' %}</small></div><span class="status-pill">{{ order.get_discount_status_display|default:"未申請" }}</span></header>
+    <dl class="finance-strip__figures">
+      <div><dt>折扣前總價</dt><dd>$<output data-discount-summary="before">{{ order.pre_discount_total|number_with_commas }}</output></dd></div>
+      <div><dt>已套用折扣</dt><dd class="is-discount">$<output data-discount-summary="amount">{{ order.approved_discount_amount|number_with_commas }}</output></dd></div>
+      <div><dt>折扣後總價</dt><dd>$<output data-discount-summary="after">{{ order.discounted_total|number_with_commas }}</output></dd></div>
+    </dl>
+    {% if order.discount_requested_at %}<p class="finance-strip__meta">最近申請：{{ order.discount_requested_amount|floatformat:0 }} 元 · {{ order.discount_requested_by }} · {{ order.discount_requested_at|date:"Y/m/d H:i" }}</p>{% endif %}
+    {% if order.is_editable and workspace_discount_editable %}
+    <details class="finance-strip__disclosure">
+      <summary>調整折扣</summary>
+      <p class="muted">可自行輸入折數或總價減少金額；核准後取代原優惠，不重複累加。分期公司撥款、佣金與成本不變；訂金與舊車折抵於折扣後另扣。</p>
+      <form class="form-grid compact-grid" data-workspace-save="discount" data-discount-total="{{ order.pre_discount_total|stringformat:'f' }}" method="post" action="{% url 'order_discount_request' order.pk %}">{% csrf_token %}<input type="hidden" name="_order_revision" value="{{ order.revision }}">
+        {% for field in discount_request_form %}<div data-discount-field><label for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}{{ field.errors }}</div>{% endfor %}
+        <output data-discount-preview aria-live="polite"></output><button class="button primary" type="submit">儲存並套用折扣</button>
+      </form>
+    </details>
+    {% else %}<p class="finance-strip__meta">由具財務編輯及折扣核定權限的人員調整。</p>{% endif %}
+  </section>
+  {% if plate_variance %}
+  <section class="finance-strip__card plate-variance{% if plate_variance.confirmed %} is-confirmed{% endif %}" aria-labelledby="plate-variance-title">
+    <header class="finance-strip__head"><div><h2 id="plate-variance-title">牌險差異</h2><small>實收牌險與系統領牌試算不同</small></div><span class="status-pill">{% if plate_variance.confirmed %}已確認{% else %}待確認{% endif %}</span></header>
+    <dl class="finance-strip__figures">
+      <div><dt>系統試算</dt><dd>${{ plate_variance.calculated|number_with_commas }}</dd></div>
+      <div><dt>實際牌險</dt><dd>${{ plate_variance.actual|number_with_commas }}</dd></div>
+      <div><dt>差額</dt><dd class="{% if plate_variance.difference < 0 %}is-negative{% else %}is-positive{% endif %}">{% if plate_variance.difference > 0 %}＋{% else %}−{% endif %}${{ plate_variance.difference_abs|number_with_commas }}</dd></div>
+    </dl>
+    {% if plate_variance.confirmed %}<p class="finance-strip__meta">{{ order.registration_fee_variance_confirmed_by }} 於 {{ order.registration_fee_variance_confirmed_at|date:"Y/m/d H:i" }} 確認。</p>
+    {% elif not order.is_cancelled_sale %}{% if_access 'registration_fee_variance_confirm' order.pk %}<form class="finance-strip__action" method="post" action="{% url 'registration_fee_variance_confirm' order.pk %}">{% csrf_token %}<input type="hidden" name="return_to_order" value="1"><button class="button ghost small" type="submit">確認牌險差異</button></form>{% endif_access %}{% endif %}
+  </section>
+  {% endif %}
 </div>
-<form method="post" action="{% url 'order_operations' order.pk %}" enctype="multipart/form-data" class="operations-form" {% if order_workspace %}data-workspace-save="operations"{% endif %}>
+</div>
+
+<form method="post" action="{% url 'order_operations' order.pk %}" enctype="multipart/form-data" class="operations-form finance-form" {% if order_workspace %}data-workspace-save="operations"{% endif %}>
 {% if order_workspace %}<fieldset class="workspace-readonly" {% if not workspace_finance_editable %}disabled{% endif %}>{% endif %}
   {% csrf_token %}{{ payment_formset.management_form }}{{ form.financial_revision }}
   {% if form.confirm_legacy_finance %}<div class="note-box">{% include "sales/_field.html" with field=form.confirm_legacy_finance %}</div>{% endif %}
   {% if form.non_field_errors or payment_formset.non_form_errors %}<div class="message error">{{ form.non_field_errors }}{{ payment_formset.non_form_errors }}</div>{% endif %}
-  <details {% if order_workspace %}data-workspace-section="finance"{% endif %} class="operation-section" open><summary><strong>收款與分期對帳</strong><span>多筆收款、撥款與發票</span></summary>
+
+  <div class="finance-ledger" {% if order_workspace %}data-workspace-section="finance"{% endif %} data-finance-ledger>
+    {% include "sales/_finance_ledger_block.html" with block=finance_ledger.income kind="income" title="收入" caption="撥款、領牌與手續費收入，以及原廠獎勵與補助" %}
+    {% include "sales/_finance_ledger_block.html" with block=finance_ledger.expense kind="expense" title="支出" caption="車輛成本、領牌規費、傭金與其他支出" %}
+    <p class="finance-ledger__legend"><span class="ledger-tag ledger-tag--system">系統帶入</span>由訂單、主檔或領牌資料自動計算；修改並儲存後改為<span class="ledger-tag ledger-tag--manual">已人工調整</span>，不再被同步覆蓋。<span class="ledger-tag ledger-tag--synced">自動同步</span>由收款紀錄或訂單同步，不能在此修改。</p>
+  </div>
+
+  <details {% if order_workspace %}data-workspace-section="finance"{% endif %} class="operation-section finance-receipts" id="finance-receipts" open><summary><strong>收款與分期對帳</strong><span>多筆收款、撥款與應收設定</span></summary>
     <div class="operation-grid">
       {% include "sales/_field.html" with field=form.dealer_name %}
-      {% include "sales/_field.html" with field=form.actual_disbursement %}
       {% include "sales/_field.html" with field=form.payment_confirmed %}
-
       {% include "sales/_field.html" with field=form.installment_info %}
     </div>
-    <p class="muted payment-list-help">僅預設訂金，其餘請自行新增。勾選「已確認」才列入實收；客戶款與分期公司撥款分開加總。</p>
+    <p class="muted payment-list-help">僅預設訂金，其餘請自行新增。勾選「已確認」才列入實收；客戶款與分期公司撥款分開加總。實際撥款金額列在上方「收入」。</p>
     <div class="receipt-summary" data-receipt-summary>
       <span>客戶應收 <strong>$<output data-receipt-value="customer_expected">{{ receipt_summary.customer_expected|floatformat:0 }}</output></strong></span>
       <span>客戶已確認 <strong>$<output data-receipt-value="customer_received">{{ receipt_summary.customer_received|floatformat:0 }}</output></strong></span>
@@ -101,88 +123,18 @@
       {% endfor %}
     </details>
   </details>
-
-  <details {% if order_workspace %}data-workspace-section="finance"{% endif %} class="operation-section" open><summary><strong>領牌相關收支</strong><span>系統先帶入，支出與收入皆可個別人工修改</span></summary>
-    <div class="financial-pair-grid">
-      <div class="financial-pair-head">項目</div><div class="financial-pair-head">支出</div><div class="financial-pair-head">收入</div>
-      <div class="financial-pair-label"><strong>領牌稅金</strong><small>監理站規費與相關稅費</small></div>
-      <div class="financial-pair-field">{% include "sales/_field.html" with field=form.registration_tax_expense %}{% if "registration_tax_expense" in manual_financial_fields %}<small class="manual-adjusted-badge">已人工調整</small>{% endif %}</div>
-      <div class="financial-pair-field">{% include "sales/_field.html" with field=form.registration_tax_income %}{% if "registration_tax_income" in manual_financial_fields %}<small class="manual-adjusted-badge">已人工調整</small>{% endif %}</div>
-      <div class="financial-pair-label"><strong>強制險</strong><small>保險公司支出與客戶實收</small></div>
-      <div class="financial-pair-field">{% include "sales/_field.html" with field=form.compulsory_insurance_expense %}{% if "compulsory_insurance_expense" in manual_financial_fields %}<small class="manual-adjusted-badge">已人工調整</small>{% endif %}</div>
-      <div class="financial-pair-field">{% include "sales/_field.html" with field=form.compulsory_insurance_income %}{% if "compulsory_insurance_income" in manual_financial_fields %}<small class="manual-adjusted-badge">已人工調整</small>{% endif %}</div>
-      <div class="financial-pair-label"><strong>選號費</strong><small>沒有選號時為 0 元</small></div>
-      <div class="financial-pair-field">{% include "sales/_field.html" with field=form.plate_selection_expense %}{% if "plate_selection_expense" in manual_financial_fields %}<small class="manual-adjusted-badge">已人工調整</small>{% endif %}</div>
-      <div class="financial-pair-field">{% include "sales/_field.html" with field=form.plate_selection_income %}{% if "plate_selection_income" in manual_financial_fields %}<small class="manual-adjusted-badge">已人工調整</small>{% endif %}</div>
-    </div>
-  </details>
-{% if order_workspace %}<details class="operation-section operation-advanced"><summary><strong>進階：成本、獎勵與傭金</strong><span>影響淨利的內部欄位</span></summary>{% endif %}
-  <details {% if order_workspace %}data-workspace-section="finance"{% endif %} class="operation-section"><summary><strong>成本與支出</strong><span>影響單筆淨利</span></summary><div class="operation-grid">
-    {% include "sales/_field.html" with field=form.vehicle_cost %}
-    <div class="field settlement-cost-source">
-      <label>成本認列依據</label>
-      {% if profile.vehicle_cost_rule_id %}
-      <div class="read-only-value">
-        <strong>領牌日 {{ profile.vehicle_cost_registration_date|date:"Y/m/d" }}</strong>
-        <small>{% if profile.vehicle_cost_locked_at %}已固定，不受後續成本版本異動影響{% else %}領牌完成後固定{% endif %}</small>
-      </div>
-      {% elif profile.legacy_finance_reconciliation %}
-      <div class="read-only-value"><strong>Excel 匯入成本</strong><small>{% site_text 'order_operations.96a10ddcad5b' %}</small></div>
-      {% else %}
-      <div class="read-only-value"><strong>尚未認列</strong><small>{% site_text 'order_operations.9078ddafbd24' %}</small></div>
-      {% endif %}
-    </div>
-    {% include "sales/_field.html" with field=form.gift_expense %}
-    {% include "sales/_field.html" with field=form.shipping_expense %}
-    {% include "sales/_field.html" with field=form.dealer_commission_expense %}
-    {% if order.effective_commission_recipient %}<div class="field"><label>傭金收款車行</label><div class="read-only-value"><strong>{{ order.effective_commission_recipient }}</strong><small>{% if order.source_type == 'store' %}原來源保留本店；指定台數不新增基礎傭金。{% else %}台數與傭金歸屬；原銷售車行為 {{ order.source }}。{% endif %}</small></div></div>{% endif %}
-    {% include "sales/_field.html" with field=form.card_fee_expense %}
-    {% include "sales/_field.html" with field=form.legacy_card_fee_expense %}
-    {% include "sales/_field.html" with field=form.installment_fee_expense %}
-    {% include "sales/_field.html" with field=form.used_vehicle_expense %}
-    {% include "sales/_field.html" with field=form.gift_shipping_expense %}
-    {% include "sales/_field.html" with field=form.friendly_dealer_bonus_expense %}
-    {% include "sales/_field.html" with field=form.first_sale_bonus_expense %}
-    {% include "sales/_field.html" with field=form.volume_bonus_expense %}
-  </div></details>
-  <details {% if order_workspace %}data-workspace-section="finance"{% endif %} class="operation-section"><summary><strong>收入、獎勵與傭金</strong><span>車款售價會由訂單自動帶入</span></summary><div class="operation-grid">
-    {% include "sales/_field.html" with field=form.agency_fee_income %}
-    {% include "sales/_field.html" with field=form.installment_fee_income %}
-    {% include "sales/_field.html" with field=form.card_fee_income %}
-    {% include "sales/_field.html" with field=form.other_income %}
-    {% include "sales/_field.html" with field=form.used_vehicle_income %}
-    {% include "sales/_field.html" with field=form.card_installment_fee_income %}
-    {% include "sales/_field.html" with field=form.yamaha_bonus_income %}
-    {% include "sales/_field.html" with field=form.friendly_dealer_bonus_income %}
-    {% include "sales/_field.html" with field=form.scrap_agency_income %}
-    {% include "sales/_field.html" with field=form.scrap_vehicle_income %}
-    {% include "sales/_field.html" with field=form.insurance_commission %}
-    {% include "sales/_field.html" with field=form.credit_card_commission %}
-  </div></details>
-  <details {% if order_workspace %}data-workspace-section="finance"{% endif %} class="operation-section" open><summary><strong>車型獎勵與補助</strong><span>依實際領牌日期套用車型版本</span></summary>
-    <div class="operation-grid">
-      <div class="field settlement-cost-source">
-        <label>套用依據</label>
-        {% if profile.incentive_rule %}
-        <div class="read-only-value">
-          <strong>{{ profile.incentive_registration_date|date:"Y/m/d" }} · {{ profile.incentive_rule.vehicle_model.brand }} {{ profile.incentive_rule.vehicle_model.name }}</strong>
-          <small>{% if profile.incentive_locked_at %}已固定，不受後續版本異動影響{% else %}領牌完成後固定{% endif %}</small>
-        </div>
-        {% elif order.registration_date %}
-        <div class="read-only-value"><strong>沒有符合領牌日期的版本</strong><small>{% site_text 'order_operations.3eb12d00a468' %}</small></div>
-        {% else %}
-        <div class="read-only-value"><strong>等待實際領牌日期</strong><small>填寫領牌日期後自動帶入</small></div>
-        {% endif %}
-      </div>
-      {% include "sales/_field.html" with field=form.sales_bonus %}
-      {% include "sales/_field.html" with field=form.promotion_subsidy %}
-      {% include "sales/_field.html" with field=form.installment_interest_subsidy %}
-    </div>
-  </details>
-{% if order_workspace %}</details>{% endif %}
 {% if order_workspace %}<input type="hidden" name="_section" value="finance">{% else %}{% include "sales/_ops_subsidy_fields.html" %}{% include "sales/_ops_fulfillment_fields.html" %}{% endif %}
-  <div class="operation-change-reason">{% include "sales/_field.html" with field=form.change_reason %}</div>
-  <div class="operations-actions">{% if_access 'order_detail' order.pk %}<a class="button ghost" href="{% url 'order_detail' order.pk %}">取消</a>{% endif_access %}<button class="button primary" type="submit">{% if order_workspace %}儲存收支與後續資料{% else %}儲存營運資料{% endif %}</button></div>
+  <div class="finance-submit">
+    <div class="operation-change-reason">{% include "sales/_field.html" with field=form.change_reason %}</div>
+    <div class="operations-actions">{% if_access 'order_detail' order.pk %}<a class="button ghost" href="{% url 'order_detail' order.pk %}">取消</a>{% endif_access %}<button class="button primary" type="submit">{% if order_workspace %}儲存收支與後續資料{% else %}儲存營運資料{% endif %}</button></div>
+  </div>
 {% if order_workspace %}</fieldset>{% endif %}
 </form>
 {% include "sales/_payment_ledger.html" %}
+{% if order_workspace %}
+<details class="finance-amounts" data-workspace-section="finance">
+  <summary><span><strong>成交金額與尾款試算</strong><small>車價、牌險、配件、領牌試算與預估尾款</small></span></summary>
+  {% include "sales/_order_amounts.html" with hide_variance_action=True %}
+</details>
+{% endif %}
+</div>

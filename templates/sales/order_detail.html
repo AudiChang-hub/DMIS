@@ -1,6 +1,6 @@
 {% extends "base.html" %}{% load site_copy %}{% load screen_access %}
 {% load static sales_format suzuki_parts %}
-{% block head %}<link rel="stylesheet" href="{% static 'css/order-commission-recipient.css' %}?v={{ app_version }}"><link rel="stylesheet" href="{% static 'css/order-workspace.css' %}?v={{ app_version }}"><link rel="stylesheet" href="{% static 'css/order-steps.css' %}?v={{ app_version }}"><link rel="stylesheet" href="{% static 'css/signing.css' %}?v={{ app_version }}">{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'css/order-commission-recipient.css' %}?v={{ app_version }}"><link rel="stylesheet" href="{% static 'css/order-workspace.css' %}?v={{ app_version }}"><link rel="stylesheet" href="{% static 'css/order-steps.css' %}?v={{ app_version }}"><link rel="stylesheet" href="{% static 'css/order-finance.css' %}?v={{ app_version }}"><link rel="stylesheet" href="{% static 'css/signing.css' %}?v={{ app_version }}">{% endblock %}
 {% block title %}{{ order.number }}｜車輛銷售管理{% endblock %}
 {% block page_class %}page-shell--wide{% endblock %}
 {% block content %}
@@ -474,7 +474,7 @@
 {% with step=steps.finance %}<section class="order-step is-{{ step.state }}{% if open_step == step.key %} is-active{% endif %}" id="panel-finance" data-step-key="finance" role="tabpanel" aria-labelledby="tab-finance" tabindex="-1">
 <header class="order-step__header">{% include "sales/_order_step_summary.html" %}</header>
 <div class="order-step__body">
-<div data-workspace-section="finance">{% include "sales/_order_amounts.html" %}</div>{% include "sales/_order_operations_content.html" with form=operations_form %}
+{% include "sales/_order_operations_content.html" with form=operations_form %}
 </div></section>{% endwith %}
 {% endif %}
 {% with step=steps.delivery %}<section class="order-step is-{{ step.state }}{% if open_step == step.key %} is-active{% endif %}" id="panel-delivery" data-step-key="delivery" role="tabpanel" aria-labelledby="tab-delivery" tabindex="-1">
@@ -498,6 +498,9 @@
     </form>
     {% endif_access %}{% endif %}
   </div>
+  {% endif %}
+  {% if dealer_settlement %}
+  <div class="delivery-gate delivery-gate--settlement" id="dealer-settlement">{% include "sales/_dealer_settlement_card.html" with settlement=dealer_settlement compact=True %}</div>
   {% endif %}
   {% if dealer_credit %}
   <div class="delivery-gate" id="dealer-credit">

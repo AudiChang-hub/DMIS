@@ -42,7 +42,8 @@ STEP_FIELDS = {
         "registration_inspection_fee", "road_maintenance_fee", "license_tax_fee", "compulsory_insurance_fee",
         "plate_selection_fee", "lien_registration_fee", "registration_calculated_total", "plate_insurance_fee",
         "installment_company", "installment_custom", "installment_periods", "installment_monthly",
-        "installment_opening_fee",
+        "installment_opening_fee", "intake_discount_mode", "intake_discount_amount", "intake_discount_rate",
+        "intake_discount_reason",
     },
 }
 FORMSET_STEPS = {"accessories": "extras", "other_fees": "payment"}

@@ -1,0 +1,68 @@
+/* 建立訂單・付款與訂金：總價優惠。只加模組修飾，顏色、圓角、間距一律引用 app.css 參數。 */
+.discount-subsection .section-title p { margin: var(--space-1) 0 0; }
+
+/* 與同段的欄位格線共用卡片內距，標題、切換鈕、欄位與試算框同一左緣。 */
+.discount-mode { margin: var(--card-pad) var(--card-pad) 0; padding: 0; border: 0; min-width: 0; }
+.discount-mode__legend {
+  margin-bottom: var(--space-2); padding: 0;
+  color: var(--field-label); font-size: var(--text-sm); font-weight: 700;
+}
+.discount-mode__track {
+  display: inline-grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr);
+  gap: var(--space-1); padding: var(--space-1);
+  background: var(--surface-soft); border: 1px solid var(--line); border-radius: var(--radius-pill);
+}
+.discount-mode__option {
+  position: relative; display: grid; place-items: center; min-height: 40px; min-width: 7.5em;
+  padding: 0 var(--space-4); border-radius: var(--radius-pill); cursor: pointer;
+  color: var(--muted); font-size: var(--text-sm-plus); font-weight: 600;
+  transition: background var(--dur-2) var(--ease-out), color var(--dur-2) var(--ease-out), box-shadow var(--dur-2) var(--ease-out);
+}
+.discount-mode__option input { position: absolute; inset: 0; margin: 0; opacity: 0; cursor: pointer; }
+.discount-mode__option:hover { color: var(--ink); }
+.discount-mode__option:has(input:checked) { color: var(--action-on); background: var(--action-bg); box-shadow: var(--shadow-soft); }
+.discount-mode__option:has(input:focus-visible) { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+
+.discount-fields { padding-top: var(--stack-gap-sm); }
+.discount-fields [data-discount-panel][hidden] { display: none; }
+
+.discount-preview {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center;
+  gap: var(--space-4); margin: 0 var(--card-pad); padding: var(--inset-pad) var(--space-5);
+  background: var(--surface-soft); border: 1px solid var(--line); border-radius: var(--radius-lg);
+  transition: background var(--dur-2) var(--ease-out), border-color var(--dur-2) var(--ease-out);
+}
+.discount-preview__cell { display: grid; gap: var(--space-1); min-width: 0; }
+.discount-preview__label { color: var(--muted); font-size: var(--text-sm); font-weight: 600; }
+.discount-preview__value {
+  font-family: var(--font-display); font-size: var(--text-xl); font-weight: 700; line-height: 1.15;
+  font-variant-numeric: tabular-nums; letter-spacing: -.01em; overflow-wrap: anywhere;
+}
+.discount-preview__arrow { display: grid; place-items: center; color: var(--muted); }
+.discount-preview__delta { color: var(--muted); font-size: var(--text-sm); font-variant-numeric: tabular-nums; }
+.discount-subsection > .form-hint { margin: var(--space-3) var(--card-pad) 0; }
+.discount-preview.is-active { background: var(--mint); border-color: color-mix(in srgb, var(--action-bg) 35%, transparent); }
+.discount-preview.is-active .discount-preview__cell:first-child .discount-preview__value {
+  color: var(--muted); text-decoration: line-through; text-decoration-thickness: 1px;
+}
+.discount-preview.is-active .discount-preview__cell--final .discount-preview__value,
+.discount-preview.is-active .discount-preview__delta,
+.discount-preview.is-active .discount-preview__arrow { color: var(--action-text); }
+.discount-preview.is-active .discount-preview__delta { font-weight: 700; }
+.discount-preview.is-invalid { background: var(--red-soft); border-color: var(--red-border); }
+.discount-preview.is-invalid .discount-preview__delta { color: var(--red-ink); font-weight: 700; }
+
+@media (max-width: 860px) {
+  .discount-mode__track { display: grid; width: 100%; }
+  .discount-mode__option { min-width: 0; }
+  .discount-preview { grid-template-columns: minmax(0, 1fr); gap: var(--space-2); padding: var(--inset-pad); }
+  /* 手機改上下排列：以細線分隔優惠前後，不放旋轉箭頭。 */
+  .discount-preview__arrow { display: none; }
+  .discount-preview__cell--final { padding-top: var(--space-2); border-top: 1px solid var(--line); }
+  .discount-preview.is-active .discount-preview__cell--final { border-top-color: color-mix(in srgb, var(--action-bg) 25%, transparent); }
+  .discount-preview__value { font-size: var(--text-lg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .discount-mode__option, .discount-preview { transition: none; }
+}

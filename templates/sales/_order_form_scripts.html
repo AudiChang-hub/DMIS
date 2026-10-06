@@ -1611,6 +1611,70 @@
   });
   paymentType.addEventListener("change", suggestDeposit);
   suggestDeposit();
+  // 總價優惠：即時試算優惠前／後總價（與後端 pre_discount_total 同一組項目），送出時由伺服器依實際明細重算。
+  const discountBox = orderForm.querySelector("[data-intake-discount]");
+  if (discountBox) {
+    const money = value => `${Math.round(value).toLocaleString("zh-TW")} 元`;
+    const numberOf = id => Number(byId(id)?.value || 0) || 0;
+    const discountModes = [...discountBox.querySelectorAll('[name="intake_discount_mode"]')];
+    const discountAmount = byId("id_intake_discount_amount");
+    const discountRate = byId("id_intake_discount_rate");
+    const discountReason = byId("id_intake_discount_reason");
+    const preview = discountBox.querySelector("[data-discount-preview]");
+    const beforeOutput = discountBox.querySelector("[data-discount-before]");
+    const afterOutput = discountBox.querySelector("[data-discount-after]");
+    const deltaOutput = discountBox.querySelector("[data-discount-delta]");
+    const currentMode = () => discountModes.find(input => input.checked)?.value || "amount";
+    function otherFeeTotal() {
+      return [...document.querySelectorAll("#other-fee-forms [data-dynamic-row]")].reduce((sum, row) => {
+        if (row.classList.contains("is-pending-delete") || !row.querySelector('[name$="-name"]')?.value.trim()) return sum;
+        return sum + (Number(row.querySelector('[name$="-amount"]')?.value || 0) || 0);
+      }, 0);
+    }
+    function preDiscountTotal() {
+      const installment = paymentType.value === "installment";
+      return numberOf("id_vehicle_price") + numberOf("id_plate_insurance_fee")
+        + (installment ? numberOf("id_installment_opening_fee") : 0)
+        + accessoryPurchaseTotal() + otherFeeTotal();
+    }
+    function rateLabel(rate) {
+      return `${String(rate).replace(/\.?0+$/, "")} 折`;
+    }
+    function updateDiscountPreview() {
+      const mode = currentMode();
+      discountBox.querySelectorAll("[data-discount-panel]").forEach(panel => {
+        const active = panel.dataset.discountPanel === mode;
+        panel.hidden = !active;
+        panel.querySelectorAll("input").forEach(input => { input.disabled = !active; });
+      });
+      const before = preDiscountTotal();
+      const rate = Number(discountRate?.value || 0);
+      const discount = mode === "rate"
+        ? (rate > 0 && rate < 10 ? before - Math.round(before * rate / 10) : 0)
+        : Number(discountAmount?.value || 0) || 0;
+      const entered = mode === "rate" ? rate > 0 : discount > 0;
+      const invalid = entered && (discount <= 0 || discount > before);
+      if (discountReason) discountReason.required = entered;
+      beforeOutput.textContent = before > 0 ? money(before) : "—";
+      afterOutput.textContent = before > 0 ? money(entered && !invalid ? before - discount : before) : "—";
+      preview.classList.toggle("is-active", entered && !invalid);
+      preview.classList.toggle("is-invalid", invalid);
+      if (!entered) {
+        deltaOutput.textContent = "尚未填寫優惠";
+      } else if (invalid) {
+        deltaOutput.textContent = "優惠須大於零，且不可超過優惠前總價";
+      } else {
+        deltaOutput.textContent = `優惠 −${money(discount)}${mode === "rate" ? `（${rateLabel(discountRate.value)}）` : ""}`;
+      }
+    }
+    discountModes.forEach(input => input.addEventListener("change", () => {
+      updateDiscountPreview();
+      (input.value === "rate" ? discountRate : discountAmount)?.focus({preventScroll: true});
+    }));
+    orderForm.addEventListener("input", updateDiscountPreview);
+    orderForm.addEventListener("change", updateDiscountPreview);
+    updateDiscountPreview();
+  }
   if (wizardStep) {
     // 只檢查目前這一步看得到的欄位；其他步驟的內容由伺服器在前往下一步與送出時驗證。
     orderForm.querySelector("[data-wizard-next]")?.addEventListener("click", event => {

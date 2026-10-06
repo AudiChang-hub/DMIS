@@ -4,7 +4,7 @@ from django.template.loader import render_to_string
 
 from sales.access.services import policy_for
 from sales.forms import OrderOperationsForm, PaymentRecordFormSet, DiscountRequestForm, DiscountDecisionForm, OrderEditForm, SubsidyDataForm
-from sales.models import OrderOperationsProfile, SalesOrder
+from sales.models import OrderOperationsProfile
 from sales.services.order_intake import can_edit_finance
 from sales.services.payment_summary import payment_summary
 
@@ -80,7 +80,6 @@ def finance_context(request, order):
 def apply_inline_discount(request, order, form):
     """已授權人員在同頁直接核定，保留樂觀鎖與前後稽核。"""
     from django.core.exceptions import PermissionDenied
-    from django.utils import timezone
     from sales.models import OrderChange, OrderEvent
     from sales.services.operations_sync import sync_order_operations
     if not can_edit_finance(request.user) or not policy_for(request).route('order_discount_decide', 'POST'):
@@ -91,19 +90,10 @@ def apply_inline_discount(request, order, form):
         return save_error('此訂單狀態不可調整折扣（已交付、完成或進入取消流程）。')
     if not form.is_valid():
         return save_error('折扣未儲存，請修正欄位。', forms=(form,))
+    from sales.services.order_discount import approve_discount_now
     before = order.approved_discount_amount
-    automatic = order.actual_balance in {order.calculated_balance, order.calculate_balance()}
-    order.approved_discount_amount = form.cleaned_data['amount']
-    order.discount_requested_amount = order.approved_discount_amount
-    order.discount_basis_total = order.pre_discount_total
-    order.discount_reason = form.cleaned_data['reason']
-    order.discount_status = SalesOrder.DiscountStatus.APPROVED
-    order.discount_requested_at = order.discount_decided_at = timezone.now()
-    order.discount_requested_by = order.discount_decided_by = request.user.get_username()
-    order.discount_decision_note = '金額收支頁直接核定'
-    order.calculated_balance = order.calculate_balance()
-    if automatic:
-        order.actual_balance = order.calculated_balance
+    approve_discount_now(order, amount=form.cleaned_data['amount'], reason=form.cleaned_data['reason'],
+                         actor_name=request.user.get_username(), note='金額收支頁直接核定')
     order.save()
     sync_order_operations(order.pk, update_receivables=True)
     OrderChange.objects.create(order=order, actor_name=request.user.get_username(), reason=order.discount_reason,

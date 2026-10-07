@@ -31,7 +31,11 @@ def listed_models():
 def model_card(model):
     version = resolve_vehicle_price_version(model.pk, timezone.localdate())
     price, label = recommended_vehicle_price(version, "cash")
-    return {"model": model, "price": price, "price_label": label}
+    return {
+        "model": model, "price": price, "price_label": label,
+        "cash_price": getattr(version, "cash_price", None),
+        "suggested_price": getattr(version, "suggested_price", None),
+    }
 
 
 def catalog_filters(models, request):
@@ -94,8 +98,10 @@ def catalog(request):
     )
 
 
+@login_required
 @require_safe
 def catalog_detail(request, pk):
+    """車款明細（分期方案與下單）需登入；未登入只能瀏覽車款列表。"""
     model = get_object_or_404(listed_models(), pk=pk)
     colors = list(model.colors.filter(active=True))
     selected_color = request.GET.get("color", "")[:20]

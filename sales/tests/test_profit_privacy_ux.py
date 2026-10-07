@@ -91,6 +91,7 @@ class ProfitPrivacyTests(TestCase):
             other = VehicleModel.objects.create(brand="TEST", name="其他型號")
             VehicleCatalogEntry.objects.update_or_create(vehicle_model=other, defaults=dict(published=True))[0]
             self.assertEqual(self.client.get(reverse("catalog_color_image", args=[other.pk, self.color.pk])).status_code, 404)
+            self.client.force_login(self.root)
             detail = self.client.get(reverse("catalog_detail", args=[self.model.pk]))
             self.assertContains(detail, "請先選擇車色")
             self.assertContains(detail, f'href="{reverse("catalog_detail", args=[self.model.pk])}?color={self.color.pk}"')

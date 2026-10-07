@@ -38,7 +38,7 @@
   <div class="official-row__body">
     <h2 class="section-title">{{ link.name }}{% if data.official_label %} <span class="account-badge">官網標示 {{ data.official_label }}</span>{% endif %}{% if link.missing %} <span class="account-badge">官網已下架</span>{% endif %}</h2>
     <div class="section-body">
-      <p class="muted">{% if data.year_hint %}官網年式 {{ data.year_hint }} · {% endif %}{% if data.displacement_cc %}{{ data.displacement_cc }} c.c. · {% endif %}{% if data.power %}{{ data.power }} · {% endif %}{{ data.colors|length }} 色 · <a href="{{ link.source_url }}" target="_blank" rel="noopener noreferrer">官網頁面 ↗</a></p>
+      <p class="muted">{% if data.year_hint %}官網年式 {{ data.year_hint }} · {% endif %}{% if data.displacement_cc %}{{ data.displacement_cc }} c.c. · {% endif %}{% if data.power %}{{ data.power }} · {% endif %}{% if data.model_number %}型號 {{ data.model_number }} · {% endif %}{% if data.colors %}{{ data.colors|length }} 色{% else %}官網未列車色{% endif %} ·<a href="{{ link.source_url }}" target="_blank" rel="noopener noreferrer">官網頁面 ↗</a></p>
       {% if data.colors %}<p class="official-row__colors">{% for color in data.colors %}<span class="account-badge">{{ color.name }}</span>{% endfor %}</p>{% endif %}
 
       {% if link.vehicle_model %}

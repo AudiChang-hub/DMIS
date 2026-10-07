@@ -10,7 +10,7 @@ class LoginPageTests(TestCase):
 
     def test_login_page_speaks_to_dealers_and_has_helpers(self):
         page = self.client.get(reverse("login")).content.decode()
-        self.assertIn("合作車行", page)
+        self.assertIn("車輛銷售管理平台</h1>", page)
         for point in ("選車看價", "線上下單", "查詢進度"):
             self.assertIn(f"<strong>{point}</strong>", page)
         self.assertNotIn("店內人員", page)

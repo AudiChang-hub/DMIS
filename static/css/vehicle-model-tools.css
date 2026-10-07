@@ -53,7 +53,8 @@
 /* ---- 步驟區塊 ---- */
 .model-tool-step__no {
   display: inline-grid; width: 26px; height: 26px; flex: 0 0 auto; place-items: center;
-  color: var(--on-accent); background: var(--ink); border-radius: 50%;
+  /* 墨色圓底配頁面底色字：夜間主題墨色轉淺時數字仍清楚。 */
+  color: var(--paper); background: var(--ink); border-radius: 50%;
   font-family: var(--font-display); font-size: var(--text-xs); font-weight: 900; font-variant-numeric: tabular-nums;
 }
 .model-tool-step__body { display: grid; gap: var(--stack-gap); }
@@ -233,6 +234,91 @@
 .model-tool-result__list li > span { color: var(--ink-soft); font-variant-numeric: tabular-nums; }
 .model-tool-result__note { margin: 0; padding: var(--space-3) var(--card-pad) var(--card-pad); color: var(--muted); font-size: var(--text-sm); }
 
+/* ---- 批次套用附加獎勵：左側方案、右側年式 ---- */
+.model-reward-layout { display: grid; min-width: 0; align-items: start; gap: var(--stack-gap); }
+.model-reward-layout > .section-block { min-width: 0; margin: 0; }
+.model-reward-composer__body { display: grid; gap: var(--stack-gap); }
+.model-reward-period { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--stack-gap-sm); }
+.model-reward-optional { color: var(--muted); font-size: var(--text-2xs); font-weight: 700; }
+.model-reward-items { display: grid; gap: var(--space-3); }
+.model-reward-items__head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); }
+.model-reward-items__head h3 { margin: 0; color: var(--field-label); font-size: var(--text-sm); font-weight: 800; }
+.model-reward-item-list {
+  display: grid; margin: 0; padding: 0; list-style: none;
+  background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-md);
+}
+.model-reward-item {
+  display: grid; padding: var(--space-4) var(--space-4) var(--space-4) var(--space-3); grid-template-columns: 28px minmax(0, 1fr); gap: var(--space-3);
+  border-top: 1px solid var(--line-soft); transition: background-color var(--dur-1) var(--ease-out);
+}
+.model-reward-item:first-child { border-top: 0; border-radius: var(--radius-md) var(--radius-md) 0 0; }
+.model-reward-item:last-child { border-radius: 0 0 var(--radius-md) var(--radius-md); }
+.model-reward-item:only-child { border-radius: var(--radius-md); }
+.model-reward-item:focus-within { background: color-mix(in srgb, var(--surface-tint) 45%, transparent); }
+.model-reward-item__index {
+  display: inline-grid; width: 24px; height: 24px; margin-top: var(--space-2); place-items: center;
+  color: var(--ink-soft); background: var(--surface-soft); border: 1px solid var(--line); border-radius: 50%;
+  font-family: var(--font-display); font-size: var(--text-2xs); font-weight: 900; font-variant-numeric: tabular-nums;
+}
+.model-reward-item:focus-within .model-reward-item__index { color: var(--paper); background: var(--action-text); border-color: var(--action-text); }
+.model-reward-item__fields {
+  display: grid; min-width: 0; grid-template-columns: minmax(0, 1fr) 128px auto; align-items: center; gap: var(--space-2);
+}
+.model-reward-item__fields label { display: block; min-width: 0; margin: 0; }
+.model-reward-item__fields .form-control { min-height: 44px; padding-top: var(--space-2); padding-bottom: var(--space-2); background: var(--surface); }
+.model-reward-item__note { grid-column: 1 / -1; }
+.model-reward-item__note .form-control { min-height: 40px; font-size: var(--text-sm); }
+.model-reward-qty { position: relative; display: block; }
+.model-reward-qty .form-control { padding-right: var(--space-7); font-weight: 800; text-align: right; font-variant-numeric: tabular-nums; }
+.model-reward-qty em {
+  position: absolute; top: 50%; right: var(--space-3); color: var(--muted); font-size: var(--text-xs); font-style: normal; font-weight: 800;
+  transform: translateY(-50%); pointer-events: none;
+}
+.button.model-reward-item__remove { min-height: 44px; }
+.model-reward-item__cost {
+  grid-column: 1 / -1; margin: 0; color: var(--muted); font-size: var(--text-xs); font-weight: 650; font-variant-numeric: tabular-nums;
+}
+.model-reward-item__cost strong { color: var(--ink); font-weight: 850; }
+.model-reward-item__cost.is-error { color: var(--red-ink); font-weight: 800; }
+.model-reward-item .field-error { grid-column: 1 / -1; margin: 0; }
+.model-reward-item.has-error, .model-reward-item.is-invalid { box-shadow: inset 3px 0 0 var(--red); }
+.model-reward-item.is-invalid [aria-invalid="true"] { border-color: var(--red); background: var(--red-soft); }
+.model-reward-total {
+  display: grid; padding: var(--inset-pad); grid-template-columns: minmax(0, 1fr) auto; align-items: baseline; gap: var(--space-1) var(--space-3);
+  color: var(--ink); background: color-mix(in srgb, var(--surface-tint) 80%, var(--surface));
+  border: 1px solid color-mix(in srgb, var(--action-text) 22%, transparent); border-radius: var(--radius-md);
+}
+.model-reward-total > span { color: var(--ink-soft); font-size: var(--text-xs); font-weight: 800; letter-spacing: .06em; }
+.model-reward-total > strong { color: var(--ink); font-family: var(--font-display); font-size: var(--text-2xl); font-weight: 800; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+.model-reward-total > small { grid-column: 1 / -1; color: var(--muted); font-size: var(--text-2xs); font-weight: 650; }
+.model-reward-option span { display: grid; min-width: 0; gap: 2px; }
+.model-reward-option strong { font-size: var(--text-sm-plus); }
+.model-reward-option small { color: var(--muted); font-size: var(--text-xs); line-height: 1.55; }
+
+.inventory-table.model-reward-table { min-width: 760px; }
+.model-reward-table .model-tool-identity { width: 30%; }
+.model-reward-table td[data-reward-outcome] { width: 30%; }
+.inventory-table tbody tr.model-batch-row.is-skipped:not(.is-selected) { color: var(--ink-soft); }
+.inventory-table tbody tr.model-batch-row.is-skipped.is-selected { box-shadow: inset 3px 0 0 var(--amber-strong); }
+.model-reward-current { display: grid; gap: 2px; }
+.model-reward-current strong { color: var(--ink); font-size: var(--text-sm); font-weight: 750; line-height: 1.5; }
+.model-reward-current small { color: var(--muted); font-size: var(--text-2xs); font-weight: 700; font-variant-numeric: tabular-nums; }
+.model-reward-muted { color: var(--muted); }
+.model-chip.is-close { color: var(--blue-ink); background: var(--blue-soft); }
+
+.model-reward-lines tbody th { font-weight: 800; }
+.model-reward-lines__name { display: block; }
+.model-reward-lines tbody th small { display: block; color: var(--muted); font-size: var(--text-xs); font-weight: 650; }
+.model-reward-lines tfoot th, .model-reward-lines tfoot td { color: var(--ink); background: var(--surface-soft); border-top: 1px solid var(--line); font-weight: 850; }
+.model-reward-lines tfoot td strong { font-family: var(--font-display); font-size: var(--text-md); }
+.model-reward-preview tr.is-skipped { background: color-mix(in srgb, var(--amber-soft) 45%, transparent); }
+.model-tool-confirm .confirm-facts dd small { display: block; font-size: var(--text-xs); }
+.model-reward-result-note { display: block; color: var(--blue-ink); font-size: var(--text-xs); font-weight: 750; }
+
+@media (min-width: 1180.02px) {
+  .model-reward-layout { grid-template-columns: minmax(400px, 5fr) minmax(0, 8fr); }
+}
+
 @media (max-width: 860px) {
   .model-tool-confirm .confirm-facts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .model-batch-sheet__head { flex-direction: column; align-items: flex-start; }
@@ -266,8 +352,13 @@
   .model-copy-preview td, .model-batch-preview td { grid-column: 1 / -1; align-items: start; }
   .model-copy-preview td > :is(.model-chip, .model-chip__detail, .model-copy-extras) { grid-column: 2; justify-self: start; align-self: start; margin-top: 0; }
   .model-batch-preview tbody th[rowspan] { border-top: 0; }
+  .model-reward-period { grid-template-columns: minmax(0, 1fr); }
+  .model-reward-item__fields { grid-template-columns: minmax(0, 1fr) auto; }
+  .model-reward-item__catalog { grid-column: 1 / -1; }
+  .model-reward-table td[data-reward-outcome] { width: auto; }
+  .model-reward-table td > :is(.model-chip, .model-chip__detail, .model-reward-current) { grid-column: 2; justify-self: start; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .model-tool-switch__item, .model-batch-row, .model-batch-cell__input { transition: none; }
+  .model-tool-switch__item, .model-batch-row, .model-batch-cell__input, .model-reward-item { transition: none; }
 }

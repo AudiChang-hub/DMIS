@@ -1,8 +1,9 @@
-"""機種與售價的批次工具：沿用建立（新生效日／新年式）與批次調整。
+"""機種與售價的批次工具：沿用建立（新生效日／新年式）、批次調整與批次套用附加獎勵。
 
 所有寫入都先預覽、再以簽章後的預覽內容送出；只建立新版本，不修改既有版本。
+唯一例外：批次套用附加獎勵可把「沒有結束日的原方案」設為新方案前一天結束（使用者勾選才會做）。
 """
-from datetime import date
+from datetime import date, timedelta
 from urllib.parse import urlencode
 
 from django.contrib import messages
@@ -20,9 +21,11 @@ from sales.access.services import policy_for
 from sales.models import VehicleModel
 from sales.services import vehicle_model_batch as batch
 from sales.services import vehicle_model_copy as copy_service
+from sales.services import vehicle_model_reward_batch as reward_batch
 
 COPY_SALT = "vehicle-model-copy"
 BATCH_SALT = "vehicle-model-batch"
+REWARD_SALT = "vehicle-model-reward-batch"
 TOKEN_MAX_AGE = 6 * 60 * 60
 
 
@@ -385,11 +388,7 @@ def vehicle_model_batch(request):
         "dataset_note": batch.DATASETS[dataset][4] if dataset else "",
         "immediate": bool(dataset and batch.is_immediate(dataset)),
         "can_operate": dataset in operable,
-        "dataset_tabs": [
-            {"key": key, "label": batch.DATASETS[key][0], "fields": "、".join(label for _name, label in batch.dataset_fields(key)),
-             "query": urlencode({**_filter_query(filters), "dataset": key, "effective_from": effective_from.isoformat()})}
-            for key in visible
-        ],
+        "dataset_tabs": _tool_tabs(policy, filters, effective_from),
         "fields": fields,
         "rows": rows,
         "truncated": truncated,
@@ -410,6 +409,28 @@ def vehicle_model_batch(request):
         "today": today,
         "max_rows": batch.MAX_ROWS,
     })
+
+
+def _tool_tabs(policy, filters, effective_from):
+    """批次調整與批次套用附加獎勵共用的資料分頁；各分頁依自己的畫面權限顯示。"""
+    query = _filter_query(filters)
+    day = effective_from.isoformat() if effective_from else ""
+    tabs = []
+    if policy.route("vehicle_model_batch"):
+        base = reverse("vehicle_model_batch")
+        for key in batch.DATASET_KEYS:
+            if policy.screen(batch.DATASETS[key][1]):
+                tabs.append({
+                    "key": key, "label": batch.DATASETS[key][0],
+                    "fields": "、".join(label for _name, label in batch.dataset_fields(key)),
+                    "href": f"{base}?{urlencode({**query, 'dataset': key, 'effective_from': day})}",
+                })
+    if policy.route("vehicle_model_reward_batch"):
+        tabs.append({
+            "key": "reward", "label": "附加獎勵", "fields": "實物、紅包、禮券與點數",
+            "href": f"{reverse('vehicle_model_reward_batch')}?{urlencode({**query, 'effective_from': day})}",
+        })
+    return tabs
 
 
 def _signed_amount(raw, operation):
@@ -492,3 +513,210 @@ def _batch_commit(request, operable):
     when = "已立即生效" if immediate else f"將於 {day:%Y/%m/%d} 起生效"
     messages.success(request, f"已調整 {len(results)} 個年式的{batch.DATASETS[dataset][0]}，{when}。")
     return redirect(f"{back_url}?{urlencode({'dataset': dataset, 'result': 1})}")
+
+
+# ---------------------------------------------------------------------------
+# 批次套用附加獎勵
+# ---------------------------------------------------------------------------
+
+def _reward_state(source, today, catalog_by_id):
+    """從表單（或篩選時帶在網址上的編輯內容）讀取方案設定與品項列。"""
+    raw_start = (source.get("effective_from") or "").strip()
+    raw_end = (source.get("effective_to") or "").strip()
+    state = {
+        "start": _parse_day(raw_start) if raw_start else copy_service.default_effective_from(today),
+        "end": _parse_day(raw_end) if raw_end else None,
+        "end_invalid": bool(raw_end) and _parse_day(raw_end) is None,
+        # 勾選框沒勾時不會送出；editor=1 代表編輯表單送出過，才採用實際勾選狀態，否則預設勾選。
+        "close_open": source.get("close_open") == "1" if source.get("editor") == "1" else True,
+        "note": (source.get("plan_note") or "").strip(),
+        "selected": set(_ids(source.getlist("selected"))),
+    }
+    items, item_errors = reward_batch.read_items(source, catalog_by_id)
+    return state, items, item_errors
+
+
+def _reward_state_from_payload(payload, catalog_by_id):
+    state = {
+        "start": date.fromisoformat(payload["start"]),
+        "end": date.fromisoformat(payload["end"]) if payload.get("end") else None,
+        "end_invalid": False,
+        "close_open": bool(payload.get("close_open")),
+        "note": payload.get("note", ""),
+        "selected": {int(pk) for pk in payload["models"]} | {pk for pk, _reason in payload.get("skipped", [])},
+    }
+    items = [
+        {"catalog_id": str(catalog_id), "quantity_raw": str(quantity), "note": note,
+         "catalog": catalog_by_id.get(catalog_id), "quantity": quantity, "error": ""}
+        for catalog_id, quantity, note in payload["items"]
+    ]
+    return state, items
+
+
+@login_required
+@require_http_methods(["GET", "HEAD", "POST"])
+def vehicle_model_reward_batch(request):
+    policy = policy_for(request)
+    today = timezone.localdate()
+    source = request.POST if request.method == "POST" else request.GET
+    action = request.POST.get("action", "") if request.method == "POST" else ""
+    can_operate = policy.screen("commissions", "operate")
+
+    if action == "commit":
+        return _reward_commit(request, can_operate)
+
+    filters = copy_service.read_filters(source)
+    catalog = reward_batch.catalog_items()
+    catalog_by_id = {item.pk: item for item in catalog}
+    payload = _load_token(request.POST.get("token"), REWARD_SALT) if action == "back" else None
+    if payload:
+        state, items = _reward_state_from_payload(payload, catalog_by_id)
+        item_errors = []
+    else:
+        state, items, item_errors = _reward_state(source, today, catalog_by_id)
+    models, truncated, fixed_ids = _listed_models(request, filters)
+    errors = []
+
+    if action == "preview":
+        if not can_operate:
+            errors.append("你沒有車行附加獎勵的操作權限。")
+        if state["start"] is None:
+            errors.append("請選擇生效日期。")
+        elif state["end_invalid"]:
+            errors.append("結束日格式不正確。")
+        else:
+            errors.extend(reward_batch.validate_period(state["start"], state["end"], today))
+        errors.extend(item_errors)
+        if len(state["note"]) > reward_batch.PLAN_NOTE_MAX:
+            errors.append(f"方案備註最多 {reward_batch.PLAN_NOTE_MAX} 字。")
+        if not state["selected"] & {model.pk for model in models}:
+            errors.append("請至少勾選一個年式。")
+        if not errors:
+            return _reward_preview(request, state, items, models, filters, fixed_ids)
+
+    start_error = end_error = ""
+    if state["start"] is None:
+        start_error = "請選擇生效日期。"
+    elif state["start"] < today:
+        start_error = f"生效日期不可早於今天（{today:%Y/%m/%d}）。"
+    if state["end_invalid"]:
+        end_error = "結束日格式不正確。"
+    elif state["start"] and state["end"] and state["end"] < state["start"]:
+        end_error = "結束日不可早於生效日。"
+    day = state["start"] if state["start"] and state["start"] >= today else today
+    rows = reward_batch.build_rows(models, day, state["end"], state["close_open"], state["selected"])
+    valid = [(row["catalog"], row["quantity"], row["note"]) for row in items if row["catalog"] and row["quantity"]]
+    lines, per_unit, missing = reward_batch.cost_lines(valid, day)
+    for row in items:
+        # 無 JavaScript 時也顯示每列的單位成本與小計（與預覽同一算法）。
+        if row.get("catalog"):
+            version = row["catalog"].cost_version_on(day)
+            row["unit_cost"] = int(version.unit_cost) if version else None
+            row["line_total"] = (row["unit_cost"] * row["quantity"]
+                                 if row["unit_cost"] is not None and row.get("quantity") else None)
+    result = request.session.pop("vehicle_model_reward_batch_result", None) if request.GET.get("result") else None
+    return render(request, "sales/vehicle_model_reward_batch.html", {
+        "stage": "result" if result else "edit",
+        "result": result,
+        "dataset_tabs": _tool_tabs(policy, filters, state["start"] or today),
+        "can_operate": can_operate,
+        "can_batch": policy.route("vehicle_model_batch"),
+        "rows": rows,
+        "truncated": truncated,
+        "fixed_ids": fixed_ids,
+        "filters": filters,
+        "filter_options": copy_service.filter_options(),
+        "state": state,
+        "items": items or [{"catalog_id": "", "quantity_raw": "", "note": "", "error": ""}],
+        "catalog": catalog,
+        "catalog_groups": reward_batch.catalog_groups(catalog),
+        "catalog_metadata": reward_batch.catalog_metadata(catalog),
+        "plans_metadata": reward_batch.plans_metadata(models, today),
+        "per_unit": per_unit,
+        "cost_missing": missing,
+        "has_lines": bool(lines),
+        "errors": errors,
+        "start_error": start_error,
+        "end_error": end_error,
+        "rows_day": day,
+        "today": today,
+        "max_rows": batch.MAX_ROWS,
+        "max_items": reward_batch.MAX_ITEMS,
+        "selected_count": sum(1 for row in rows if row["selected"]),
+    })
+
+
+def _reward_preview(request, state, items, models, filters, fixed_ids):
+    start, end, close_open = state["start"], state["end"], state["close_open"]
+    chosen = [model for model in models if model.pk in state["selected"]]
+    rows = reward_batch.build_rows(chosen, start, end, close_open)
+    valid = [(row["catalog"], row["quantity"], row["note"]) for row in items]
+    lines, per_unit, missing = reward_batch.cost_lines(valid, start)
+    applied = [row for row in rows if row["status"] != reward_batch.SKIP]
+    skipped = [row for row in rows if row["status"] == reward_batch.SKIP]
+    payload = {
+        "start": start.isoformat(), "end": end.isoformat() if end else None, "close_open": close_open,
+        "note": state["note"],
+        "items": [[catalog.pk, quantity, note] for catalog, quantity, note in valid],
+        "unit_costs": [line["unit_cost"] for line in lines],
+        "models": {str(row["model"].pk): {"status": row["status"],
+                                          "close_id": row["close_plan"].pk if row["close_plan"] else None}
+                   for row in applied},
+        "skipped": [[row["model"].pk, row["reason"]] for row in skipped],
+    }
+    return render(request, "sales/vehicle_model_reward_batch.html", {
+        "stage": "preview",
+        "state": state,
+        "rows": rows,
+        "applied_count": len(applied),
+        "skipped_count": len(skipped),
+        "closing_count": sum(1 for row in applied if row["status"] == reward_batch.CLOSE),
+        "close_to": start - timedelta(days=1),
+        "lines": lines,
+        "per_unit": per_unit,
+        "cost_missing": missing,
+        "token": signing.dumps(payload, salt=REWARD_SALT),
+        "listed_ids": [model.pk for model in models],
+        "fixed_ids": fixed_ids,
+        "filters": filters,
+    })
+
+
+def _reward_commit(request, can_operate):
+    payload = _load_token(request.POST.get("token"), REWARD_SALT)
+    back_url = reverse("vehicle_model_reward_batch")
+    if not payload:
+        messages.error(request, "預覽已過期或內容不完整，資料尚未寫入；請重新預覽。")
+        return redirect(back_url)
+    if not can_operate:
+        messages.error(request, "你沒有車行附加獎勵的操作權限，資料尚未寫入。")
+        return redirect(back_url)
+    if not payload.get("models"):
+        messages.error(request, "沒有可套用的年式，資料尚未寫入。")
+        return redirect(back_url)
+    try:
+        results, lines = reward_batch.commit(payload=payload, actor=request.user)
+    except (ValidationError, IntegrityError) as exc:
+        detail = "；".join(exc.messages) if isinstance(exc, ValidationError) else "資料剛被其他人變更"
+        messages.error(request, f"批次套用未完成，未寫入任何資料：{detail}")
+        return redirect(f"{back_url}?{urlencode({'effective_from': payload['start']})}")
+    start = date.fromisoformat(payload["start"])
+    end = date.fromisoformat(payload["end"]) if payload.get("end") else None
+    request.session["vehicle_model_reward_batch_result"] = {
+        "period": f"{start:%Y/%m/%d} 起" + (f"至 {end:%Y/%m/%d}" if end else "・未設結束日"),
+        "items_text": reward_batch.items_text(lines),
+        "rows": [
+            {"label": row["label"],
+             "url": f"{reverse('vehicle_model_commission', args=[row['model_id']])}?reward={row['plan_id']}#dealer-rewards",
+             "closed_to": date.fromisoformat(row["closed_to"]).strftime("%Y/%m/%d") if row["closed_to"] else ""}
+            for row in results
+        ],
+        "skipped": len(payload.get("skipped", [])),
+    }
+    closed = sum(1 for row in results if row["closed_id"])
+    messages.success(
+        request,
+        f"已為 {len(results)} 個年式建立 {start:%Y/%m/%d} 起的附加獎勵方案"
+        + (f"，並結束 {closed} 個原方案" if closed else "") + "。",
+    )
+    return redirect(f"{back_url}?{urlencode({'result': 1, 'effective_from': payload['start']})}")

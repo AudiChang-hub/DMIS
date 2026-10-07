@@ -2830,6 +2830,10 @@ class OrderOperationsForm(forms.ModelForm):
             # 本店不記錄發票；舊資料保留於資料庫與匯出，不再於畫面編輯。
             "invoice_date",
             "balance_invoice_number",
+            # 各單位補助進度改由補助申請項目彙整；舊欄位保留在資料庫，不再編輯或顯示。
+            "industry_bureau_status",
+            "environment_ministry_status",
+            "local_government_status",
         ]
         widgets = {
             "subsidy_applied_on": DateInput(),
@@ -2843,8 +2847,8 @@ class OrderOperationsForm(forms.ModelForm):
 
     # 訂單工作台把營運資料拆到各步驟：補助追蹤在補助步驟、車控與贈品在交車步驟，其餘在收支步驟。
     SUBSIDY_SECTION_FIELDS = {
-        "subsidy_amount", "bank_name", "remittance_account", "subsidy_applied_on", "industry_bureau_status",
-        "environment_ministry_status", "local_government_status", "old_vehicle_engine_number", "old_vehicle_brand",
+        "subsidy_amount", "bank_name", "remittance_account", "subsidy_applied_on",
+        "old_vehicle_engine_number", "old_vehicle_brand",
         "old_vehicle_displacement_cc", "old_vehicle_manufactured_on", "scrapped_on", "recycled_on",
     }
     FULFILLMENT_SECTION_FIELDS = {

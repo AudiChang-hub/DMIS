@@ -22,6 +22,8 @@
 
 - 現行入口是 `sales/services/legacy_import.py`；財務還原見 `legacy_finance.py`。Odoo 的 excel_sync_id 規格不是目前實作。
 - 營運 Excel（銷貨表頭在第 3 列、進貨在第 1 列）**依表頭名稱取值，不依欄位字母**；對照表是 `SALES_HEADER_ALIASES`／`INVENTORY_HEADER_ALIASES`，Excel 改欄名時在那裡補別名。缺必要表頭（車種型號、引擎／車身號碼、車主名稱）會寫入 `preview_summary.blocking`，`confirm_import` 拒絕匯入；其餘缺少的表頭只進 `warnings`。財務欄位仍依 `legacy_finance.MAPPING` 的表頭名，改名時補 `LABEL_ALIASES`。
+- 各政府單位（工業局／環境部／地方政府）的補助進度只由「補助申請項目」彙整（`sales/services/subsidy_summary.py`）：「有送出申請」＝項目狀態為已送出申請或已申請完成；`OrderOperationsProfile` 的三個舊狀態欄位保留在資料庫但不再編輯、顯示或匯出，待新畫面穩定後再另案移除。
+- Email 格式不正確的歷史列：略過 Email 欄並在預覽提示，不列為錯誤。
 - 補助相關欄位**不從 Excel 匯入**：補助方案、補助金額、申請日與工業局／環境部／縣市政府三欄一律略過（原文仍在匯入快照的原始列裡）；訂單是否為汰舊補助只看是否有舊車牌。補助由使用者在訂單「汰舊補助」分頁逐筆登錄名稱與金額；補助名稱輸入時提示過去用過的名稱。唯一例外：車輛類別判斷會讀「補助方案」是否寫「中古車過戶」，不寫入補助資料。
 - 「銀行」「匯款帳戶」逐列依內容歸位（純數字≥5 位為帳號），不信任表頭順序；兩欄都是文字或都是數字時依表頭放入並標示人工確認。車控與電池密碼不從 Excel 匯入；Excel 公式留下的 0 視為空白；公司贈品併入「其他」。
 - 補助撥款的銀行與匯款帳戶：財務可編輯；有 `work` 操作授權但無財務授權者在「汰舊補助」分頁唯讀，帳號遮罩只露末四碼，顯示完整帳號走 `order_payout_reveal` 並寫入 `payout_account_viewed` 訂單紀錄；車行帳號一律不可見。

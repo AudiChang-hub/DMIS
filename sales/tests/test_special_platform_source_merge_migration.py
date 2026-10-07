@@ -32,15 +32,16 @@ class SpecialPlatformSourceMergeMigrationTests(TransactionTestCase):
             ("小樹購", "小樹購員購"),
             ("Yahoo", "Yahoo+假展場"),
         )
+        # 新建測試資料庫已含資料遷移匯入的平台；沿用既有同名來源，避免依執行順序撞名。
         canonical_sources = {
-            name: SalesSource.objects.create(
-                name=name, source_type="platform", active=True
-            )
+            name: SalesSource.objects.update_or_create(
+                name=name, source_type="platform", defaults={"active": True}
+            )[0]
             for name, _legacy_name in rules
         }
-        unrelated = SalesSource.objects.create(
-            name="上海商銀員購", source_type="platform", active=True
-        )
+        unrelated = SalesSource.objects.update_or_create(
+            name="上海商銀員購", source_type="platform", defaults={"active": True}
+        )[0]
         model = VehicleModel.objects.create(
             brand="SUZUKI",
             name="平台遷移測試車",

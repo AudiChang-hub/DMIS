@@ -65,6 +65,11 @@ YEAR_EXTRA_HINTS = {
 MODEL_ORDER = ("brand", "family__name", "name", "-model_year", "model_code", "pk")
 
 
+def default_effective_from(today=None):
+    """沿用、批次與新增版本的預設生效日：今天（立即生效）；要預先排定再自行改日期。"""
+    return today or timezone.localdate()
+
+
 def first_of_next_month(today=None):
     today = today or timezone.localdate()
     return (today.replace(day=1) + timedelta(days=32)).replace(day=1)
@@ -538,19 +543,19 @@ PREFILL_FIELDS = {
 
 def prefill_source(dataset, model_id, default_from=None):
     """新增版本表單預填：取預設生效日前一天有效的版本，使用者只需修改差異。"""
-    default_from = default_from or first_of_next_month()
+    default_from = default_from or default_effective_from()
     latest = (
         VERSION_MODELS[dataset].objects.filter(vehicle_model_id=model_id, active=True, effective_from__gte=default_from)
         .order_by("-effective_from", "-id").first()
     )
     if latest is not None:
-        # 下個月 1 日之後已排定版本時，改以最後一個排定版本為底，生效日順延到它的下個月 1 日，避免撞到同一天。
-        default_from = first_of_next_month(latest.effective_from)
+        # 今天之後已排定版本時，改以最後一個排定版本為底，生效日順延到它的隔天，避免撞到同一天。
+        default_from = latest.effective_from + timedelta(days=1)
     return current_version(dataset, model_id, default_from - timedelta(days=1)), default_from
 
 
 def prefill_initial(dataset, model_id):
-    """回傳 (表單 initial, 來源版本)；生效日預設下個月 1 日，公告日為今天，備註留白讓使用者寫新原因。"""
+    """回傳 (表單 initial, 來源版本)；生效日預設今天，公告日為今天，備註留白讓使用者寫新原因。"""
     source, default_from = prefill_source(dataset, model_id)
     initial = {"effective_from": default_from}
     if source is not None:

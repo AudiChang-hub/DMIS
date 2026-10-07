@@ -124,6 +124,7 @@ from .forms import (
     VehicleSettlementCostRuleForm,
 )
 from .services.reveal_password import reveal_password_denied
+from .services.subsidy_names import subsidy_name_suggestions
 from .models import (
     sync_catalog_entry,
     ALLOCATION_PRIORITY_AGE_MONTHS,
@@ -5444,6 +5445,7 @@ def order_detail(request, pk, *, commission_form=None, workspace_context_only=Fa
             "subsidy_missing": subsidy_missing,
             "subsidy_form": SubsidyDataForm(instance=order, auto_id="subsidy_%s"),
             "subsidy_item_formset": SubsidyItemFormSet(instance=order, prefix="subsidy_items"),
+            "subsidy_name_suggestions": subsidy_name_suggestions(),
             "change_cards": build_order_change_cards(order.changes.all(), profit_unlocked=profit_is_unlocked(request)),
             "operations_profile": operations_profile,
             "next_actions": next_actions,

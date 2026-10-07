@@ -2253,6 +2253,9 @@ input[type="file"].form-control { padding: var(--space-3); }
 .dynamic-detail-list { display: grid; gap: var(--space-3); margin-bottom: var(--space-3); }
 .dynamic-detail-row { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: var(--space-3); padding: var(--inset-pad); background: var(--surface-soft); border: 1px solid var(--line); border-radius: var(--radius-lg); }
 .dynamic-detail-row.is-deleted { opacity: .48; }
+@media (min-width: 900px) {
+  [data-subsidy-items] .dynamic-detail-row { grid-template-columns: minmax(0, 2.4fr) repeat(2, minmax(0, 1fr)) minmax(0, 1.2fr) minmax(0, 1fr) minmax(0, 1.4fr); }
+}
 .dynamic-detail-row label { display: block; margin-bottom: var(--space-1); color: var(--muted); font-size: var(--text-sm); font-weight: 800; }
 .dynamic-detail-row input, .dynamic-detail-row select { width: 100%; }
 .delete-detail-control { align-self: end; display: flex !important; align-items: center; min-height: 44px; gap: var(--space-2); color: var(--danger) !important; }

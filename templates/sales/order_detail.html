@@ -656,6 +656,7 @@
     <section class="dynamic-detail-section" data-subsidy-items>
       <div class="section-title"><div><h3>補助申請項目</h3><small>各單位金額與送件日期分開記錄；合計 $<output data-subsidy-total>{{ order.subsidy_total|number_with_commas }}</output></small></div></div>
       {{ subsidy_item_formset.management_form }}
+      <datalist id="subsidy-name-suggestions">{% for name in subsidy_name_suggestions %}<option value="{{ name }}"></option>{% endfor %}</datalist>
       <div class="dynamic-detail-list" data-form-list>
         {% for item_form in subsidy_item_formset %}
         <div class="dynamic-detail-row" data-form-row>

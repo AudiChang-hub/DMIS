@@ -1501,11 +1501,8 @@ class LegacyImportRowCorrectionForm(forms.Form):
         ("owner_email", "Email", "email", False),
         ("invoice_date", "發票日期", "date", False),
         ("balance_invoice_number", "尾款發票號碼", "text", False),
-        ("subsidy_type", "補助方案", "text", False),
-        ("subsidy_amount", "補助金額", "decimal", False),
         ("bank_name", "銀行名稱／分行", "text", False),
         ("remittance_account", "匯款帳戶", "text", False),
-        ("subsidy_applied_on", "補助申請日", "date", False),
         ("trade_in_plate", "舊車牌照號碼", "text", False),
         ("old_owner_same_as_owner", "新舊車主為同一人", "boolean", False),
         ("old_owner_name", "舊車車主", "text", False),
@@ -4705,8 +4702,20 @@ class SubsidyDataForm(forms.ModelForm):
 class SubsidyItemForm(forms.ModelForm):
     class Meta:
         model = SubsidyItem
-        fields = ["category", "item_name", "expected_amount", "applied_on", "status", "note"]
+        fields = ["item_name", "expected_amount", "category", "applied_on", "status", "note"]
+        labels = {"item_name": "補助名稱", "expected_amount": "補助金額", "category": "類別（選填）"}
         widgets = {"applied_on": DateInput()}
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["category"].required = False
+        self.fields["item_name"].widget.attrs.update(
+            {"list": "subsidy-name-suggestions", "autocomplete": "off", "placeholder": "例如：工業局購車補助"}
+        )
+
+    def clean_category(self):
+        # 只填名稱與金額就能儲存；沒選類別視為「其他」。
+        return self.cleaned_data.get("category") or SubsidyItem.Category.OTHER
 
 
 SubsidyItemFormSet = inlineformset_factory(

@@ -1,6 +1,7 @@
 import hashlib
 import json
 import re
+import unicodedata
 from datetime import date, datetime, time
 from decimal import Decimal, InvalidOperation
 
@@ -43,7 +44,8 @@ MISSING_IDENTIFIER_MESSAGE = "缺少引擎／車身號碼"
 EMPTY_SALES_PLACEHOLDER_MESSAGE = "Excel 空白公式列，系統自動略過"
 NON_VEHICLE_SALES_NOISE_MESSAGE = "缺少有效車輛序號且無交易資料，系統自動略過"
 INVALID_EMAIL_MESSAGE = "Email 格式不正確，請修正或清空後再匯入"
-PREVIEW_SCHEMA_VERSION = 8
+BANK_ACCOUNT_UNCLEAR_MESSAGE = "銀行與匯款帳戶內容無法判斷（兩欄都是文字或都是數字），暫依表頭放入，請人工確認"
+PREVIEW_SCHEMA_VERSION = 9
 SPECIAL_PLATFORM_SOURCE_RULES = {
     "momo員購": ("momo", "momo員購"),
     "小樹購員購": ("小樹購", "小樹購員購"),
@@ -297,6 +299,189 @@ def _value(row_values, column_letter):
     return row_values[index] if index < len(row_values) else None
 
 
+def _normalize_header(value):
+    """表頭比對前去除空白與換行並統一全形半形，避免欄位名稱因排版不同而對不上。"""
+    if value in (None, ""):
+        return ""
+    return re.sub(r"\s+", "", unicodedata.normalize("NFKC", str(value)))
+
+
+# 欄位 → 可接受的表頭名稱（依優先順序；含舊版 Excel 用過的名稱）。
+# 匯入依表頭名稱取值，Excel 增減或搬動欄位不影響結果。
+SALES_HEADER_ALIASES = {
+    "model_number": ("車種型號",),
+    "identifier_raw": ("油：引擎號碼、電：車身號碼", "識別號碼", "引擎號碼／車身號碼"),
+    "owner_name_primary": ("車主名稱",),
+    "owner_name_detail": ("車主名稱2",),
+    "color": ("顏色",),
+    "registration_date": ("領牌日期",),
+    "registration_date_detail": ("領牌日期2",),
+    "order_date": ("訂單日期",),
+    "plate_number": ("車牌號碼",),
+    "historical_received_price": ("收款價",),
+    "cash_received": ("現金",),
+    "card_received": ("信用卡",),
+    "payment_confirmed": ("車行收款",),
+    "dealer_name": ("車行",),
+    "installment_company": ("分期公司",),
+    "installment_periods": ("期數",),
+    "owner_birth_date": ("生日",),
+    "owner_id_number": ("身分證字號",),
+    "owner_address": ("戶籍地址",),
+    "owner_phone": ("手機",),
+    "owner_email": ("Email",),
+    "invoice_date": ("發票日期", "銷貨日期"),
+    "balance_invoice_number": ("尾款發票號碼",),
+    "subsidy_type": ("補助方案",),
+    "subsidy_amount": ("補助金額",),
+    "bank_header_value": ("銀行",),
+    "account_header_value": ("匯款帳戶",),
+    "subsidy_applied_on": ("申請日",),
+    "old_owner_name": ("舊車車主",),
+    "old_owner_id_number": ("舊車車主身分證",),
+    "trade_in_plate": ("舊車牌照號碼",),
+    "old_vehicle_engine_number": ("舊車引擎號碼",),
+    "old_vehicle_brand": ("舊車廠牌",),
+    "old_vehicle_displacement_cc": ("排氣量",),
+    "old_vehicle_manufactured": ("出廠日期",),
+    "scrapped_on": ("報廢日期",),
+    "recycled_on": ("回收日期",),
+    "vehicle_control_account": ("車控帳號",),
+    "battery_plan": ("電池合約方案",),
+    "battery_activated_on": ("電池合約啟用日期",),
+    "battery_account": ("電池合約帳號",),
+    "standard_gift": ("安全帽",),
+    "company_voucher": ("公司禮卷、匯款", "公司禮卷/匯款", "公司禮券、匯款", "公司禮券/匯款"),
+    "other_fulfillment": ("其他",),
+    "platform_gift": ("平台贈品",),
+    "company_gift": ("公司贈品",),
+    "customer_service_phone": ("客服電話",),
+    "installment_info": ("分期資訊",),
+    "sales_category": ("特殊方案", "銷售方案分類"),
+}
+SALES_REQUIRED_FIELDS = (("model_number",), ("identifier_raw",), ("owner_name_primary", "owner_name_detail"))
+INVENTORY_HEADER_ALIASES = {
+    "received_on": ("進貨日期",),
+    "model_number": ("車種型號",),
+    "identifier_raw": ("車身號碼", "引擎號碼", "引擎／車身號碼"),
+    "color": ("顏色",),
+    "quantity": ("數量",),
+    "manufactured_year_month": ("出廠日期",),
+}
+INVENTORY_REQUIRED_FIELDS = (("model_number",), ("identifier_raw",))
+
+
+class _HeaderLookup:
+    """依表頭名稱找欄位；同名表頭取第一個，並記下重複與缺少的欄位供預覽提示。"""
+
+    def __init__(self, headers, aliases, required):
+        self.aliases = aliases
+        self.index = {}
+        self.duplicates = set()
+        for position, header in enumerate(headers):
+            key = _normalize_header(header)
+            if not key:
+                continue
+            if key in self.index:
+                self.duplicates.add(str(header).strip())
+            else:
+                self.index[key] = position
+        self.missing_required = [
+            "／".join(self.aliases[field][0] for field in group)
+            for group in required
+            if not any(self.position(field) is not None for field in group)
+        ]
+        self.missing_optional = [
+            self.aliases[field][0]
+            for field in self.aliases
+            if self.position(field) is None
+            and not any(field in group for group in required)
+        ]
+
+    def position(self, field):
+        for alias in self.aliases[field]:
+            position = self.index.get(_normalize_header(alias))
+            if position is not None:
+                return position
+        return None
+
+    def get(self, row_values, field):
+        position = self.position(field)
+        if position is None or position >= len(row_values):
+            return None
+        return row_values[position]
+
+
+def _header_notices(sheet_name, lookup):
+    """整理表頭檢查結果：缺少必要表頭會擋下匯入，其餘只提醒。"""
+    blocking = {}
+    warnings = []
+    if lookup.missing_required:
+        blocking[sheet_name] = (
+            f"找不到必要表頭：{'、'.join(lookup.missing_required)}。"
+            "請確認表頭名稱，系統依表頭名稱取值，不依欄位位置。"
+        )
+    if lookup.missing_optional and not lookup.missing_required:
+        warnings.append(f"{sheet_name}找不到表頭：{'、'.join(lookup.missing_optional)}；這些欄位會留空。")
+    if lookup.duplicates:
+        warnings.append(
+            f"{sheet_name}有重複的表頭：{'、'.join(sorted(lookup.duplicates))}；只採用第一個。"
+        )
+    return blocking, warnings
+
+
+def _is_account_number(text):
+    """純數字（可含連字號、空白）且至少 5 位，視為帳號。"""
+    compact = re.sub(r"[\s\-]", "", text)
+    return len(compact) >= 5 and compact.isdigit()
+
+
+def _split_bank_and_account(header_bank_value, header_account_value):
+    """依內容判斷銀行與匯款帳戶，表頭放反或逐列混用都能正確歸位。
+
+    回傳 (銀行, 匯款帳戶, 是否無法判斷)。兩個值一個是純數字帳號、另一個不是，
+    就以內容為準；兩者都是文字或都是數字時才依表頭放入並標示需人工確認。
+    """
+    first, second = _text(header_bank_value), _text(header_account_value)
+    first_is_account, second_is_account = _is_account_number(first), _is_account_number(second)
+    if not first and not second:
+        return "", "", False
+    if first_is_account and not second_is_account:
+        return second, first, False
+    if second_is_account and not first_is_account:
+        return first, second, False
+    if bool(first) != bool(second):
+        return (first or second), "", False
+    return first, second, True
+
+
+def _year_month_to_date(text):
+    """「2005/09」轉成當月 1 日；系統的舊車出廠日期是日期欄位，來源只有年月。"""
+    parsed = _date(f"{text}/01") if text else None
+    return parsed
+
+
+def _blank_zero_text(value):
+    if isinstance(value, (int, float)) and not isinstance(value, bool) and value == 0:
+        return ""
+    text = _text(value)
+    return "" if text == "0" else text
+
+
+def _clip(model, field, value):
+    limit = model._meta.get_field(field).max_length
+    text = _text(value)
+    return text[:limit] if limit else text
+
+
+def _displacement_cc(value):
+    match = re.search(r"\d+", _text(value))
+    if not match:
+        return None
+    cc = int(match.group())
+    return cc if 0 < cc <= 32767 else None
+
+
 def _cell(sheet, row_number, column_letter):
     return sheet[f"{column_letter}{row_number}"].value
 
@@ -546,27 +731,39 @@ def _fingerprint(payload):
 
 
 def _operations_sales_rows(batch, workbook):
+    """回傳 (列, 檔案錯誤, 表頭提醒, 擋下匯入的錯誤)；欄位一律依表頭名稱取值。"""
     if "銷貨" not in workbook.sheetnames:
-        return [], {"銷貨": "找不到銷貨工作表"}
+        return [], {"銷貨": "找不到銷貨工作表"}, [], {}
     sheet = workbook["銷貨"]
     headers = next(sheet.iter_rows(min_row=3, max_row=3, values_only=True))
+    lookup = _HeaderLookup(headers, SALES_HEADER_ALIASES, SALES_REQUIRED_FIELDS)
+    blocking, warnings = _header_notices("銷貨", lookup)
+    if blocking:
+        return [], dict(blocking), warnings, blocking
     rows = []
     for row_number, row_values in enumerate(sheet.iter_rows(min_row=4, values_only=True), 4):
-        model_number = _text(_value(row_values, "C"))
-        identifier_raw = _text(_value(row_values, "D"))
-        owner = _text(_value(row_values, "AT")) or _text(_value(row_values, "E"))
+        def cell(field):
+            return lookup.get(row_values, field)
+
+        def text_cell(field):
+            # Excel 公式留下的 0 不是資料，視為空白。
+            return _blank_zero_text(cell(field))
+
+        model_number = _text(cell("model_number"))
+        identifier_raw = _text(cell("identifier_raw"))
+        owner = _text(cell("owner_name_detail")) or _text(cell("owner_name_primary"))
         if not any((model_number, identifier_raw, owner)) or (
             not model_number and not identifier_raw and owner == "0"
         ):
             continue
         identifier = normalize_vehicle_identifier(identifier_raw) or ""
         raw = _row_dict_values(headers, row_values)
-        dealer_name_raw = _text(_value(row_values, "AN"))
+        dealer_name_raw = _text(cell("dealer_name"))
         vehicle_category, vehicle_category_reason = _infer_sales_vehicle_category(
             raw,
             dealer_name_raw,
         )
-        sales_category = _text(_value(row_values, "CL"))
+        sales_category = text_cell("sales_category")
         transaction_type, transaction_type_reason = _infer_sales_transaction_type(
             raw,
             dealer_name_raw,
@@ -575,6 +772,17 @@ def _operations_sales_rows(batch, workbook):
         )
         dealer_name = _clean_sales_source_name(dealer_name_raw)
         order_note = _sales_order_note(raw, dealer_name_raw, transaction_type)
+        bank_name, remittance_account, bank_unclear = _split_bank_and_account(
+            cell("bank_header_value"), cell("account_header_value")
+        )
+        old_owner_name = text_cell("old_owner_name")
+        old_owner_id_number = text_cell("old_owner_id_number")
+        owner_id_number = text_cell("owner_id_number")
+        old_owner_same = bool(
+            old_owner_name
+            and old_owner_name == owner
+            and (not old_owner_id_number or old_owner_id_number == owner_id_number)
+        )
         mapped = {
             "vehicle_category": vehicle_category,
             "vehicle_category_reason": vehicle_category_reason,
@@ -584,48 +792,61 @@ def _operations_sales_rows(batch, workbook):
             "identifier_raw": identifier_raw,
             "identifier": identifier,
             "owner_name": owner,
-            "owner_name_primary": _text(_value(row_values, "E")),
-            "owner_name_detail": _text(_value(row_values, "AT")),
-            "color": _text(_value(row_values, "F")) or "未記錄",
-            "registration_date": _json_value(_date(_value(row_values, "B")) or _date(_value(row_values, "AR"))),
-            "order_date": _json_value(_date(_value(row_values, "CH"))),
-            "plate_number": _text(_value(row_values, "AS")),
-            "historical_received_price": str(_decimal(_value(row_values, "G"))),
-            "cash_received": str(_decimal(_value(row_values, "J"))),
-            "card_received": str(_decimal(_value(row_values, "K"))),
-            "payment_confirmed": _text(_value(row_values, "AO")).upper() == "V",
+            "owner_name_primary": _text(cell("owner_name_primary")),
+            "owner_name_detail": _text(cell("owner_name_detail")),
+            "color": _text(cell("color")) or "未記錄",
+            "registration_date": _json_value(_date(cell("registration_date")) or _date(cell("registration_date_detail"))),
+            "order_date": _json_value(_date(cell("order_date"))),
+            "plate_number": text_cell("plate_number"),
+            "historical_received_price": str(_decimal(cell("historical_received_price"))),
+            "cash_received": str(_decimal(cell("cash_received"))),
+            "card_received": str(_decimal(cell("card_received"))),
+            "payment_confirmed": _text(cell("payment_confirmed")).upper() == "V",
             "dealer_name": dealer_name,
             "dealer_name_raw": dealer_name_raw,
-            "installment_company": _text(_value(row_values, "AP")),
-            "installment_periods": int(_decimal(_value(row_values, "AQ"))),
-            "owner_birth_date": _json_value(_date(_value(row_values, "AU"))),
-            "owner_id_number": _text(_value(row_values, "AW")),
-            "owner_address": _text(_value(row_values, "AX")),
-            "owner_phone": _text(_value(row_values, "AY")),
-            "owner_email": _text(_value(row_values, "AZ")),
-            "invoice_date": _json_value(_date(_value(row_values, "BB"))),
-            "balance_invoice_number": _text(_value(row_values, "BC")),
-            "subsidy_type": _text(_value(row_values, "BD")),
-            "subsidy_amount": str(_decimal(_value(row_values, "BE"))),
-            "remittance_account": _text(_value(row_values, "BF")),
-            "bank_name": _text(_value(row_values, "BG")),
-            "trade_in_plate": _text(_value(row_values, "BM")),
-            "old_owner_name": _text(_value(row_values, "BK")),
-            "old_owner_id_number": _text(_value(row_values, "BL")),
-            "old_vehicle_engine_number": _text(_value(row_values, "BN")),
-            "old_vehicle_brand": _text(_value(row_values, "BO")),
-            "old_vehicle_manufactured_year_month": _year_month(_value(row_values, "BR")),
-            "vehicle_control_account": _text(_value(row_values, "BU")),
-            "battery_plan": _text(_value(row_values, "BW")),
-            "battery_account": _text(_value(row_values, "BY")),
-            "standard_gift": _text(_value(row_values, "CC")),
-            "company_gift": _text(_value(row_values, "CI")),
+            "installment_company": text_cell("installment_company"),
+            "installment_periods": int(_decimal(cell("installment_periods"))),
+            "owner_birth_date": _json_value(_date(cell("owner_birth_date"))),
+            "owner_id_number": owner_id_number,
+            "owner_address": text_cell("owner_address"),
+            "owner_phone": text_cell("owner_phone"),
+            "owner_email": text_cell("owner_email"),
+            "invoice_date": _json_value(_date(cell("invoice_date"))),
+            "balance_invoice_number": text_cell("balance_invoice_number"),
+            "subsidy_type": text_cell("subsidy_type"),
+            "subsidy_amount": str(_decimal(cell("subsidy_amount"))),
+            "subsidy_applied_on": _json_value(_date(cell("subsidy_applied_on"))),
+            "remittance_account": remittance_account,
+            "bank_name": bank_name,
+            "trade_in_plate": text_cell("trade_in_plate"),
+            "old_owner_name": old_owner_name,
+            "old_owner_id_number": old_owner_id_number,
+            "old_owner_same_as_owner": old_owner_same,
+            "old_vehicle_engine_number": text_cell("old_vehicle_engine_number"),
+            "old_vehicle_brand": text_cell("old_vehicle_brand"),
+            "old_vehicle_displacement_cc": _displacement_cc(cell("old_vehicle_displacement_cc")),
+            "old_vehicle_manufactured_year_month": _year_month(cell("old_vehicle_manufactured")),
+            "scrapped_on": _json_value(_date(cell("scrapped_on"))),
+            "recycled_on": _json_value(_date(cell("recycled_on"))),
+            "vehicle_control_account": text_cell("vehicle_control_account"),
+            "battery_plan": text_cell("battery_plan"),
+            "battery_activated_on": _json_value(_date(cell("battery_activated_on"))),
+            "battery_account": text_cell("battery_account"),
+            "standard_gift": text_cell("standard_gift"),
+            "company_voucher": text_cell("company_voucher"),
+            "company_gift": text_cell("company_gift"),
+            "other_fulfillment": text_cell("other_fulfillment"),
+            "platform_gift": text_cell("platform_gift"),
+            "customer_service_phone": text_cell("customer_service_phone"),
+            "installment_info": text_cell("installment_info"),
             "sales_category": sales_category,
             "note": order_note,
         }
         natural_key = _sales_transaction_key(mapped)
         name_mismatch = bool(mapped["owner_name_primary"] and mapped["owner_name_detail"] and mapped["owner_name_primary"] != mapped["owner_name_detail"])
         messages = ["銷貨與車主資料區姓名不同，採車主資料區"] if name_mismatch else []
+        if bank_unclear:
+            messages.append(BANK_ACCOUNT_UNCLEAR_MESSAGE)
         from .legacy_finance import reconcile_source
         finance_check, _ = reconcile_source(raw)
         mapped["finance_reconciliation"] = finance_check
@@ -644,20 +865,24 @@ def _operations_sales_rows(batch, workbook):
                 messages=messages,
             )
         )
-    return rows, {}
+    return rows, {}, warnings, {}
 
 
 def _operations_inventory_rows(batch, workbook):
     if "進貨" not in workbook.sheetnames:
-        return [], {"進貨": "找不到進貨工作表"}
+        return [], {"進貨": "找不到進貨工作表"}, [], {}
     sheet = workbook["進貨"]
     headers = next(sheet.iter_rows(min_row=1, max_row=1, values_only=True))
+    lookup = _HeaderLookup(headers, INVENTORY_HEADER_ALIASES, INVENTORY_REQUIRED_FIELDS)
+    blocking, warnings = _header_notices("進貨", lookup)
+    if blocking:
+        return [], dict(blocking), warnings, blocking
     rows = []
     seen = set()
     duplicates = set()
     for row_number, row_values in enumerate(sheet.iter_rows(min_row=2, values_only=True), 2):
-        model_number = _text(_value(row_values, "B"))
-        identifier_raw = _text(_value(row_values, "C"))
+        model_number = _text(lookup.get(row_values, "model_number"))
+        identifier_raw = _text(lookup.get(row_values, "identifier_raw"))
         if not model_number and not identifier_raw:
             continue
         identifier = normalize_vehicle_identifier(identifier_raw) or ""
@@ -666,13 +891,13 @@ def _operations_inventory_rows(batch, workbook):
         seen.add(identifier)
         raw = _row_dict_values(headers, row_values)
         mapped = {
-            "received_on": _json_value(_date(_value(row_values, "A"))),
+            "received_on": _json_value(_date(lookup.get(row_values, "received_on"))),
             "model_number": model_number,
             "identifier_raw": identifier_raw,
             "identifier": identifier,
-            "color": _text(_value(row_values, "D")) or "未記錄",
-            "quantity": int(_decimal(_value(row_values, "F"))),
-            "manufactured_year_month": _year_month(_value(row_values, "J")),
+            "color": _text(lookup.get(row_values, "color")) or "未記錄",
+            "quantity": int(_decimal(lookup.get(row_values, "quantity"))),
+            "manufactured_year_month": _year_month(lookup.get(row_values, "manufactured_year_month")),
         }
         existing = VehicleInventory.objects.filter(
             normalized_engine_number=identifier
@@ -692,7 +917,7 @@ def _operations_inventory_rows(batch, workbook):
         elif not row.mapped_data["identifier"]:
             row.action = LegacyImportRow.Action.ERROR
             row.messages.append(MISSING_IDENTIFIER_MESSAGE)
-    return rows, {}
+    return rows, {}, warnings, {}
 
 
 def _is_struck(cell):
@@ -820,17 +1045,23 @@ def build_import_preview(batch):
     batch.source_file.open("rb")
     workbook = load_workbook(batch.source_file, read_only=True, data_only=True)
     try:
+        warnings, blocking = [], {}
         if batch.import_type == LegacyImportBatch.ImportType.CHANNELS:
             rows, errors, notices = _channel_rows(batch, workbook)
         else:
             notices = {}
-            inventory_rows, inventory_errors = _operations_inventory_rows(batch, workbook)
-            sales_rows, sales_errors = _operations_sales_rows(batch, workbook)
+            inventory_rows, inventory_errors, inventory_warnings, inventory_blocking = _operations_inventory_rows(batch, workbook)
+            sales_rows, sales_errors, sales_warnings, sales_blocking = _operations_sales_rows(batch, workbook)
             rows = inventory_rows + sales_rows
             errors = {**inventory_errors, **sales_errors}
+            warnings = inventory_warnings + sales_warnings
+            blocking = {**inventory_blocking, **sales_blocking}
         LegacyImportRow.objects.bulk_create(rows, batch_size=500)
         batch.source_sheets = list(workbook.sheetnames)
-        batch.preview_summary = {"errors": errors, "notices": notices, "sheets": list(workbook.sheetnames)}
+        batch.preview_summary = {
+            "errors": errors, "notices": notices, "warnings": warnings, "blocking": blocking,
+            "sheets": list(workbook.sheetnames),
+        }
         batch.status = LegacyImportBatch.Status.PREVIEW
         batch.save(update_fields=["source_sheets", "preview_summary", "status", "updated_at"])
         return revalidate_import_batch(batch)
@@ -1144,6 +1375,8 @@ def revalidate_import_batch(batch):
         "counts": counts,
         "errors": previous.get("errors", {}),
         "notices": previous.get("notices", {}),
+        "warnings": previous.get("warnings", []),
+        "blocking": previous.get("blocking", {}),
         "sheets": batch.source_sheets,
         "validation": validation,
     }
@@ -1426,6 +1659,11 @@ def _commit_sales_row(row, actor_name, *, pending_order=None):
         else _date(data["registration_date"]) or _date(data.get("invoice_date"))
     ) or timezone.localdate()
     owner_id = data["owner_id_number"] or f"HIST-{str(row.batch_id)[:8]}-{row.source_row}"
+    old_owner_same = bool(data.get("old_owner_same_as_owner"))
+    old_owner_name = (data["owner_name"] or "歷史資料未填") if old_owner_same else data["old_owner_name"]
+    old_owner_id_number = owner_id if old_owner_same and data["owner_id_number"] else (
+        "" if old_owner_same else data["old_owner_id_number"]
+    )
     source = _source_for_name(data.get("dealer_name", ""))
     source_type = SalesOrder.SourceType.STORE
     if source:
@@ -1444,7 +1682,9 @@ def _commit_sales_row(row, actor_name, *, pending_order=None):
         registration_date=_date(data["registration_date"]), final_plate_number=data["plate_number"],
         payment_type=SalesOrder.PaymentType.INSTALLMENT if data["installment_periods"] else (SalesOrder.PaymentType.CARD if _decimal(data["card_received"]) else SalesOrder.PaymentType.CASH),
         installment_company=data["installment_company"], installment_periods=data["installment_periods"],
-        trade_in_plate=data["trade_in_plate"], old_owner_name=data["old_owner_name"], old_owner_id_number=data["old_owner_id_number"],
+        trade_in_plate=data["trade_in_plate"],
+        old_owner_same_as_owner=old_owner_same,
+        old_owner_name=old_owner_name, old_owner_id_number=old_owner_id_number,
         subsidy_type=data["subsidy_type"],
         note=data.get("note", ""),
         is_trade_in_subsidy=(
@@ -1486,17 +1726,34 @@ def _commit_sales_row(row, actor_name, *, pending_order=None):
         import_financials(profile, row.raw_data)
     profile.payment_confirmed = data["payment_confirmed"]
     profile.invoice_date = _date(data["invoice_date"])
-    profile.balance_invoice_number = data["balance_invoice_number"]
     profile.subsidy_amount = _decimal(data["subsidy_amount"])
-    profile.bank_name = data["bank_name"]
-    profile.remittance_account = data["remittance_account"]
-    profile.old_vehicle_engine_number = data["old_vehicle_engine_number"]
-    profile.old_vehicle_brand = data["old_vehicle_brand"]
-    profile.vehicle_control_account = data["vehicle_control_account"]
-    profile.battery_plan = data["battery_plan"]
-    profile.battery_account = data["battery_account"]
-    profile.helmet = data["standard_gift"]
-    profile.company_gift_or_remittance = data["company_gift"]
+    profile.subsidy_applied_on = _date(data.get("subsidy_applied_on"))
+    profile.old_vehicle_displacement_cc = data.get("old_vehicle_displacement_cc")
+    profile.old_vehicle_manufactured_on = _year_month_to_date(data.get("old_vehicle_manufactured_year_month"))
+    profile.scrapped_on = _date(data.get("scrapped_on"))
+    profile.recycled_on = _date(data.get("recycled_on"))
+    profile.battery_activated_on = _date(data.get("battery_activated_on"))
+    # 文字欄位依資料庫長度截斷，避免單筆過長的歷史備註讓整批匯入失敗。
+    for field, value in (
+        ("balance_invoice_number", data["balance_invoice_number"]),
+        ("bank_name", data["bank_name"]),
+        ("remittance_account", data["remittance_account"]),
+        ("old_vehicle_engine_number", data["old_vehicle_engine_number"]),
+        ("old_vehicle_brand", data["old_vehicle_brand"]),
+        ("vehicle_control_account", data["vehicle_control_account"]),
+        ("battery_plan", data["battery_plan"]),
+        ("battery_account", data["battery_account"]),
+        ("helmet", data["standard_gift"]),
+        ("company_gift_or_remittance", data.get("company_voucher", "")),
+        ("platform_gift", data.get("platform_gift", "")),
+        ("customer_service_phone", data.get("customer_service_phone", "")),
+    ):
+        setattr(profile, field, _clip(OrderOperationsProfile, field, value))
+    profile.other_fulfillment = _join_unique_note_lines(
+        data.get("other_fulfillment", ""),
+        f"公司贈品：{data['company_gift']}" if data.get("company_gift") else "",
+    )
+    profile.installment_info = data.get("installment_info", "")
     profile.updated_by = actor_name
     profile.save()
     if pending_order:
@@ -1545,6 +1802,9 @@ def confirm_import(batch, actor_name):
         LegacyImportBatch.Status.FAILED,
     }:
         raise ValueError("此批次已確認或已失敗，不能重複匯入。")
+    blocking = (batch.preview_summary or {}).get("blocking") or {}
+    if blocking:
+        raise ValueError("檔案表頭有問題，不能匯入：" + "；".join(blocking.values()))
     unresolved = batch.rows.filter(
         action__in=[LegacyImportRow.Action.CONFLICT, LegacyImportRow.Action.ERROR]
     ).count()

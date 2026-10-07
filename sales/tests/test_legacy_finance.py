@@ -28,6 +28,13 @@ class LegacyFinanceMappingTests(SimpleTestCase):
         self.assertEqual(audit["status"], "matched")
         self.assertEqual(OrderOperationsProfile(**values).net_profit, Decimal("7310.936"))
 
+    def test_renamed_fee_income_header_is_still_reconciled(self):
+        for label in ("刷卡、分期手續費收入", "刷卡/分期手續費收入", "手續費收入"):
+            with self.subTest(label):
+                audit, values = reconcile_source({"收款價": 70000, "成本": 69000, label: 1500, "單筆淨利": 2500})
+                self.assertEqual(audit["status"], "matched")
+                self.assertEqual(values["card_installment_fee_income"], Decimal("1500"))
+
     def test_original_formula_variants(self):
         for reference, expected, bonus in (("900", "L:V", "100"), ("1000", "L:S", "0")):
             with self.subTest(expected):

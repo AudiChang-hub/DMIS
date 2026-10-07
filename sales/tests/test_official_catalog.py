@@ -1,5 +1,6 @@
 import io
 import tempfile
+from pathlib import Path
 from unittest.mock import patch
 
 from PIL import Image
@@ -16,6 +17,7 @@ from sales.models import (
     OfficialCatalogCheck,
     OfficialCatalogModel,
     UserAccountAuditLog,
+    VehicleBrand,
     VehicleColor,
     VehicleModel,
     VehiclePriceVersion,
@@ -574,3 +576,187 @@ class CatalogAutoPublishTests(TestCase):
         self.assertEqual(self.client.get(reverse("catalog")).context["page_obj"].paginator.count, 1)
         self.client.post(url, {"active": "0"}, HTTP_X_REQUESTED_WITH="XMLHttpRequest")
         self.assertFalse(VehicleCatalogEntry.objects.get(vehicle_model=model).published)
+
+
+FIXTURES = Path(__file__).resolve().parent / "fixtures" / "official_catalog"
+SUZUKI_PRODUCTS_URL = "https://www.suzukimotor.com.tw/products.html"
+EREADY_EXPECTED = {
+    # slug: (名稱, 型號, 最大功率, 卡片圖)
+    "eready:eready-run-76": ("eReady Run 76 Belt", "EV076SZV A1", "7.6 kW @ 3000 rpm", "eReady-Run_76.jpg"),
+    "eready:eready-run-mini-70": ("eReady Run mini 70 Belt", "EV070V A1", "7.0 kW @ 3000 rpm", "eReady-Run_70.jpg"),
+    "eready:eready-run-new": ("eReady Run", "EV076S A1", "7.6 kW @ 3000 rpm", "eReady-Run_02.jpg"),
+    "eready:eready-fun": ("eReady Fun", "EV060L A1", "6.0 kw @ 3000 rpm", "eReady-Fun_01.jpg"),
+}
+
+
+def fixture(name):
+    """官網頁面於 2026-10-07 存下（已移除 script／style 與頁首頁尾）；測試不連網。"""
+    return (FIXTURES / name).read_text(encoding="utf-8")
+
+
+def eready_listings():
+    products = fixture("suzuki_products.html")
+    return [item for item in service.parse_suzuki_list(products, SUZUKI_PRODUCTS_URL) if item.get("parser") == "eready"]
+
+
+def eready_entry(slug="eready:eready-run-new"):
+    listing = next(item for item in eready_listings() if item["slug"] == slug)
+    (entry,) = service.parse_eready_model(fixture(slug.split(":", 1)[1] + ".html"), listing)
+    return entry
+
+
+class OfficialCatalogEreadyParserTests(SimpleTestCase):
+    def test_products_page_lists_only_eready_model_pages(self):
+        listings = service.parse_suzuki_list(fixture("suzuki_products.html"), SUZUKI_PRODUCTS_URL)
+        eready = [item for item in listings if item.get("parser") == "eready"]
+        # eready-run-mini 卡片在官網已註解掉；首頁、精品配件連結不是車型。
+        self.assertEqual([item["slug"] for item in eready], list(EREADY_EXPECTED))
+        self.assertEqual(eready[0]["url"], "https://www.eready.com.tw/eready-run-76.php")
+        self.assertTrue(all(item["hosts"] == service.EREADY_HOSTS for item in eready))
+        gas = [item for item in listings if not item.get("parser")]
+        self.assertEqual(len(gas), 18)
+        self.assertIn("sui_125", [item["slug"] for item in gas])
+        self.assertTrue(all("eready" not in item["url"] for item in gas))
+
+    def test_eready_model_slug_rejects_non_model_pages_and_other_hosts(self):
+        self.assertEqual(service.eready_model_slug("https://www.eready.com.tw/eready-run-new.php"), "eready-run-new")
+        self.assertEqual(service.eready_model_slug("https://eready.com.tw/eReady-Fun.php?utm=x"), "eready-fun")
+        for url in ("https://www.eready.com.tw/index.php", "https://www.eready.com.tw/accessories/2/",
+                    "https://www.eready.com.tw/eready-accessories.php", "https://www.eready.com.tw/eready-news.php",
+                    "https://www.eready.com.tw/file.php?mid=4&type=catalog", "http://www.eready.com.tw/eready-fun.php",
+                    "https://www.eready.com.tw.evil.example/eready-fun.php", "https://www.eready.com.tw/eready-fun.html"):
+            self.assertEqual(service.eready_model_slug(url), "", url)
+
+    def test_nav_link_without_card_falls_back_to_page_title(self):
+        text = '<ul><li><a href="https://www.eready.com.tw/eready-fun.php">電車</a></li></ul>'
+        (listing,) = service.parse_suzuki_list(text, SUZUKI_PRODUCTS_URL)
+        self.assertEqual((listing["slug"], listing["name"], listing["name_from_card"]), ("eready:eready-fun", "eready-fun", False))
+        (entry,) = service.parse_eready_model(fixture("eready-fun.html"), listing)
+        self.assertEqual(entry["name"], "eReady Fun")
+
+    def test_each_model_page_reads_name_model_number_and_power(self):
+        for slug, (name, number, power, image) in EREADY_EXPECTED.items():
+            with self.subTest(slug=slug):
+                entry = eready_entry(slug)
+                self.assertEqual((entry["source_key"], entry["name"], entry["model_number"], entry["power"]), (slug, name, number, power))
+                self.assertEqual((entry["energy"], entry["colors"], entry["price"], entry["displacement_cc"]), ("electric", [], None, ""))
+                self.assertEqual(entry["main_image_url"], f"https://www.suzukimotor.com.tw/images/product/eReady/{image}")
+                self.assertTrue(entry["specs"]["認證車型"].startswith("台鈴 eReady"))
+                self.assertIn("純電行程(公里)", entry["specs"])
+
+    def test_rowspan_rows_and_duplicate_labels_are_kept(self):
+        specs = eready_entry("eready:eready-fun")["specs"]
+        self.assertEqual(specs["卡鉗型式"], "前：雙活塞 後：單活塞")
+        self.assertEqual((specs["置物空間"], specs["貼心便利／置物空間"]), ("26.5 L", "內嵌式雙前置物空間"))
+
+    def test_page_without_spec_table_is_an_error(self):
+        listing = eready_listings()[0]
+        with self.assertRaises(service.OfficialCatalogError):
+            service.parse_eready_model("<html><title>eReady 官方網站 - 改版</title><body>敬請期待</body></html>", listing)
+
+    def test_power_change_is_reported_once(self):
+        before = eready_entry()
+        after = {**before, "power": "8.0 kW @ 3000 rpm", "specs": {**before["specs"], "最大功率": "8.0 kW @ 3000 rpm"}}
+        self.assertEqual(service.describe_changes(before, after), ["馬力：7.6 kW @ 3000 rpm → 8.0 kW @ 3000 rpm"])
+
+
+class OfficialCatalogEreadyCheckTests(TestCase):
+    def run_check(self, pages):
+        calls = []
+
+        def fake(url, hosts):
+            calls.append((url, hosts))
+            value = pages[url]
+            if isinstance(value, Exception):
+                raise value
+            return value
+
+        check = OfficialCatalogCheck.objects.create(brand="suzuki")
+        with patch.object(service, "fetch_page", side_effect=fake), patch.object(service, "REQUEST_DELAY", 0), \
+                patch.object(service, "FINGERPRINT_DELAY", 0), patch.object(service, "fetch_image_fingerprint", return_value="etag-1"):
+            service.run_official_catalog_check(check.pk)
+        check.refresh_from_db()
+        return check, calls
+
+    def pages(self, **overrides):
+        products = fixture("suzuki_products.html")
+        pages = {SUZUKI_PRODUCTS_URL: products}
+        for listing in service.parse_suzuki_list(products, SUZUKI_PRODUCTS_URL):
+            if listing.get("parser") == "eready":
+                pages[listing["url"]] = fixture(listing["slug"].split(":", 1)[1] + ".html")
+            else:
+                pages[listing["url"]] = SUZUKI_MODEL
+        pages.update(overrides)
+        return pages
+
+    def test_failed_eready_page_does_not_break_suzuki_check(self):
+        retired = OfficialCatalogModel.objects.create(brand="suzuki", source_key="eready:eready-run-mini", name="eReady Run mini",
+                                                      source_url="https://www.eready.com.tw/eready-run-mini.php", data={}, content_hash="x")
+        failed_before = OfficialCatalogModel.objects.create(brand="suzuki", source_key="eready:eready-run-76", name="eReady Run 76 Belt",
+                                                            source_url="https://www.eready.com.tw/eready-run-76.php", data={}, content_hash="y")
+        check, calls = self.run_check(self.pages(**{
+            "https://www.eready.com.tw/eready-run-76.php": service.OfficialCatalogError("官網回應 404。"),
+            "https://www.eready.com.tw/eready-fun.php": "<html><body>改版中</body></html>",
+        }))
+        self.assertEqual((check.status, check.pages_total, check.entries_found, check.error_count), ("succeeded", 22, 20, 2))
+        self.assertIn("eReady Run 76 Belt：官網回應 404。", check.errors)
+        self.assertTrue(any(error.startswith("eReady Fun：找不到規格表") for error in check.errors))
+        link = OfficialCatalogModel.objects.get(brand="suzuki", source_key="eready:eready-run-new")
+        self.assertEqual((link.name, link.data["model_number"], link.data["energy"]), ("eReady Run", "EV076S A1", "electric"))
+        self.assertTrue(OfficialCatalogModel.objects.filter(brand="suzuki", source_key="sui_125").exists())
+        retired.refresh_from_db(), failed_before.refresh_from_db()
+        self.assertTrue(retired.missing)
+        self.assertFalse(failed_before.missing)  # 讀取失敗的頁面不判定下架
+        # eReady 車型頁只用 eReady 網域讀取；SUZUKI 頁面不放寬。
+        hosts = dict(calls)
+        self.assertEqual(hosts["https://www.eready.com.tw/eready-run-new.php"], service.EREADY_HOSTS)
+        self.assertEqual(hosts[SUZUKI_PRODUCTS_URL], service.SOURCES["suzuki"]["hosts"])
+        self.assertFalse(service._allowed_url("https://www.eready.com.tw/eready-run-new.php", service.SOURCES["suzuki"]["hosts"]))
+
+    def test_spec_change_on_linked_eready_model_is_flagged(self):
+        self.run_check(self.pages())
+        link = OfficialCatalogModel.objects.get(source_key="eready:eready-run-new")
+        model = VehicleModel.objects.create(brand="SUZUKI", name="eReady Run", energy_type="electric")
+        link.vehicle_model, link.acknowledged_data, link.acknowledged_hash = model, link.data, link.content_hash
+        link.save()
+        changed = fixture("eready-run-new.html").replace("7.6 kW @ 3000 rpm", "8.0 kW @ 3000 rpm")
+        self.run_check(self.pages(**{"https://www.eready.com.tw/eready-run-new.php": changed}))
+        link.refresh_from_db()
+        self.assertNotEqual(link.content_hash, link.acknowledged_hash)
+        self.assertIn("馬力：7.6 kW @ 3000 rpm → 8.0 kW @ 3000 rpm", service.describe_changes(link.acknowledged_data, link.data))
+        # 官網沒有車色，補圖不會列出。
+        VehicleColor.objects.create(vehicle_model=model, name="魔綠")
+        self.assertEqual(service.fillable_colors(link), [])
+
+
+class OfficialCatalogEreadyCreateTests(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        cls.root = get_user_model().objects.create_superuser("admin", password="Official-eready-test-91!")
+        cls.entry = eready_entry()
+
+    def setUp(self):
+        self.link = OfficialCatalogModel.objects.create(brand="suzuki", source_key=self.entry["source_key"], source_url=self.entry["source_url"],
+                                                        name=self.entry["name"], data=self.entry, content_hash=service.content_hash(self.entry))
+
+    def test_prefill_sets_electric_fields_and_no_colors(self):
+        self.client.force_login(self.root)
+        response = self.client.get(reverse("vehicle_model_create"), {"official": self.link.pk})
+        form, colors = response.context["form"], response.context["color_formset"]
+        self.assertEqual(
+            {key: form.initial.get(key) for key in ("name", "energy_type", "model_number", "motor_power_kw", "active")},
+            {"name": "eReady Run", "energy_type": "electric", "model_number": "EV076S A1", "motor_power_kw": "7.6", "active": False},
+        )
+        self.assertNotIn("displacement_cc", form.initial)
+        self.assertEqual([f.initial.get("name") for f in colors.forms if f.initial.get("name")], [])
+        self.assertContains(response, "從官網建立車型")
+
+    def test_prefill_brand_prefers_eready_sub_brand(self):
+        VehicleBrand.objects.filter(name__iexact="eReady").delete()
+        initial, colors = service.model_prefill(self.link)
+        self.assertEqual((initial["brand"], colors), ("SUZUKI", []))
+        suzuki, _ = VehicleBrand.objects.get_or_create(name="SUZUKI")
+        VehicleBrand.objects.create(name="eReady", parent=suzuki, aliases="台鈴 eReady")
+        self.assertEqual(service.model_prefill(self.link)[0]["brand"], "eReady")
+        ready = VehicleModel.objects.create(brand="eReady", name="eReady Run", energy_type="electric")
+        self.assertIn(ready, service.brand_models("suzuki"))

@@ -212,6 +212,7 @@ from .services.vehicle_model_family import (
     move_vehicle_model_to_family,
     rename_vehicle_model_family,
     vehicle_model_delete_blockers,
+    vehicle_model_delete_cascades,
     vehicle_model_relation_summary,
 )
 from .jobs import delete_id_ocr_job_files, run_id_ocr_job, run_legacy_import_job
@@ -8791,6 +8792,9 @@ def _vehicle_model_form_view(request, instance=None, official=None, base_model=N
             ),
             "delete_blockers": (
                 vehicle_model_delete_blockers(instance) if is_editing else []
+            ),
+            "delete_cascades": (
+                vehicle_model_delete_cascades(instance) if is_editing else []
             ),
         },
     )

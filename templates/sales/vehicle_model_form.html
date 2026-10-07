@@ -162,7 +162,7 @@
           {% if delete_blockers %}
           <p>目前不能刪除，因為仍有：{% for blocker in delete_blockers %}{{ blocker.label }} {{ blocker.count }} 筆{% if not forloop.last %}、{% endif %}{% endfor %}。</p>
           {% else %}
-          <p>{% site_text 'vehicle_model_form.6ab816a5bba4' %}</p>
+          <p>{% if delete_cascades %}沒有訂單、庫存或歷史匯入使用，可以刪除；將一併刪除本年式的：{% for item in delete_cascades %}{{ item.label }} {{ item.count }} 筆{% if not forloop.last %}、{% endif %}{% endfor %}。{% else %}{% site_text 'vehicle_model_form.6ab816a5bba4' %}{% endif %}</p>
           {% endif %}
         </div>
         {% if not delete_blockers %}

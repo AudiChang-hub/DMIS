@@ -12,15 +12,19 @@ from sales.models import (
 )
 
 
+# 有交易或歷史匯入使用才不能刪；本年式自己的設定（售價、分期等）會隨年式一併刪除。
 DELETE_BLOCKING_RELATIONS = (
     ("vehicleinventory_set", "庫存"),
     ("salesorder_set", "訂單"),
+    ("legacy_import_mappings", "歷史匯入對應"),
+)
+DELETE_CASCADE_RELATIONS = (
     ("price_versions", "售價版本"),
     ("installment_plan_versions", "分期方案"),
     ("settlement_cost_rules", "車輛結算成本"),
     ("incentive_rules", "原廠獎勵與補助"),
     ("dealer_reward_plans", "車行附加獎勵"),
-    ("legacy_import_mappings", "歷史匯入對應"),
+    ("colors", "車色"),
 )
 
 MERGE_VERSIONED_RELATIONS = (
@@ -47,6 +51,16 @@ def vehicle_model_relation_summary(vehicle_model):
         "incentives": vehicle_model.incentive_rules.count(),
         "dealer_rewards": vehicle_model.dealer_reward_plans.count(),
     }
+
+
+def vehicle_model_delete_cascades(vehicle_model):
+    """刪除年式時會一併刪除的本年式設定。"""
+    items = []
+    for accessor, label in DELETE_CASCADE_RELATIONS:
+        count = getattr(vehicle_model, accessor).count()
+        if count:
+            items.append({"label": label, "count": count})
+    return items
 
 
 def vehicle_model_delete_blockers(vehicle_model):
@@ -380,6 +394,15 @@ def delete_unused_vehicle_model(*, vehicle_model_id):
         )
         raise ValidationError(f"此年式仍有關聯資料，不能永久刪除：{details}。")
     source_family = vehicle_model.family
+    for plan in vehicle_model.dealer_reward_plans.all():
+        plan.items.all().delete()
+    vehicle_model.dealer_reward_plans.all().delete()
+    for plan in vehicle_model.installment_plan_versions.all():
+        plan.options.all().delete()
+    vehicle_model.installment_plan_versions.all().delete()
+    vehicle_model.price_versions.all().delete()
+    vehicle_model.settlement_cost_rules.all().delete()
+    vehicle_model.incentive_rules.all().delete()
     vehicle_model.colors.all().delete()
     vehicle_model.delete()
     source_removed = _remove_empty_family(source_family)

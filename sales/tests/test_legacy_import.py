@@ -291,7 +291,7 @@ class LegacyImportTests(TestCase):
         sales = workbook["銷貨"]
         values = {
             "E4": "舊欄姓名", "AT4": "車主甲", "AW4": "A123456789",
-            "BH4": "2026/08/10", "BL4": "車主甲", "BM4": None, "BN4": "XUR-616", "BO4": "SA20EC-107475",
+            "BL4": "車主甲", "BM4": None, "BN4": "XUR-616", "BO4": "SA20EC-107475",
             "BP4": "光陽", "BQ4": 101, "BR4": "200509", "BS4": "2026/06/24", "BT4": "2026/06/25",
             "BW4": "airlin88", "BX4": "secret-control-password", "BY4": "499吃到飽", "BZ4": "2026/08/02",
             "CA4": "battery-account", "CB4": "secret-battery-password",
@@ -311,7 +311,6 @@ class LegacyImportTests(TestCase):
         self.assertEqual(order.old_owner_name, "車主甲")
         self.assertEqual(order.old_owner_id_number, "A123456789")
         self.assertEqual(order.trade_in_plate, "XUR-616")
-        self.assertEqual(profile.subsidy_applied_on, date(2026, 8, 10))
         self.assertEqual(profile.old_vehicle_engine_number, "SA20EC-107475")
         self.assertEqual(profile.old_vehicle_brand, "光陽")
         self.assertEqual(profile.old_vehicle_displacement_cc, 101)

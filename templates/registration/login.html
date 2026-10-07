@@ -1,34 +1,54 @@
-{% extends "base.html" %}
+{% extends "base.html" %}{% load static %}
 {% block title %}登入｜車輛銷售管理{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'css/login.css' %}?v={{ app_version }}">{% endblock %}
 {% block content %}
-<section class="login-panel">
-  <div class="login-intro">
-    <p class="eyebrow">馭盛・店內與合作車行登入</p>
-    <h1>從客人下訂，<span class="login-accent">到實際交車。</span></h1>
-    <p class="muted">店內與合作車行使用同一套下單流程，手機也能選車、填單與上傳文件。帳號請洽馭盛開通。</p>
-    <ol class="login-flow" aria-label="一張訂單的流程">
-      <li><span>01</span>選車下訂</li>
-      <li><span>02</span>配車</li>
-      <li><span>03</span>領牌</li>
-      <li><span>04</span>交車</li>
-    </ol>
-    <a class="button ghost" href="{% url 'catalog' %}">先看看車款</a>
-  </div>
-  <form method="post" class="card login-card">
-    {% csrf_token %}
-    <h2>登入系統</h2>
-    {% if form.non_field_errors %}
-      <div class="message error" role="alert">
-        {% for error in form.non_field_errors %}<span>{{ error }}</span>{% endfor %}
+<section class="login-shell">
+  <aside class="login-showcase" aria-labelledby="login-showcase-title">
+    <div class="login-showcase__intro">
+      <p class="login-showcase__eyebrow">永湛・馭盛車務</p>
+      <h1 id="login-showcase-title">合作車行<br>線上下單平台</h1>
+      <p class="login-showcase__lead">手機就能選車看價、下單，訂單進度隨時查得到。</p>
+    </div>
+
+    <ul class="login-points" aria-label="平台功能">
+      <li><span aria-hidden="true">01</span><strong>選車看價</strong></li>
+      <li><span aria-hidden="true">02</span><strong>線上下單</strong></li>
+      <li><span aria-hidden="true">03</span><strong>查詢進度</strong></li>
+    </ul>
+
+    <a class="login-showcase__link" href="{% url 'catalog' %}">先瀏覽車款<span aria-hidden="true">→</span></a>
+  </aside>
+
+  <div class="login-form-wrap">
+    <form method="post" class="login-card" data-login-form>
+      {% csrf_token %}
+      <div class="login-card__head">
+        <h2>登入</h2>
+        <p>帳號請洽馭盛開通。</p>
       </div>
-    {% elif form.errors %}
-      <p class="field-error" role="alert">帳號或密碼不正確，請重新確認。</p>
-    {% endif %}
-    <label for="{{ form.username.id_for_label }}">帳號</label>
-    {{ form.username }}
-    <label for="{{ form.password.id_for_label }}">密碼</label>
-    {{ form.password }}
-    <button class="button primary block" type="submit">登入</button>
-  </form>
+      {% if form.non_field_errors %}
+        <div class="login-alert" role="alert">{% for error in form.non_field_errors %}<span>{{ error }}</span>{% endfor %}</div>
+      {% elif form.errors %}
+        <div class="login-alert" role="alert"><span>帳號或密碼不正確，請重新確認。</span></div>
+      {% endif %}
+      <div class="login-field">
+        <label for="{{ form.username.id_for_label }}">帳號</label>
+        {{ form.username }}
+      </div>
+      <div class="login-field">
+        <label for="{{ form.password.id_for_label }}">密碼</label>
+        <div class="login-password">
+          {{ form.password }}
+          <button class="button ghost small login-password__toggle" type="button" data-password-toggle aria-controls="{{ form.password.id_for_label }}" aria-pressed="false">顯示</button>
+        </div>
+        <p class="login-caps" data-caps-warning hidden role="status">大寫鎖定已開啟</p>
+      </div>
+      <button class="button primary block login-submit" type="submit" data-login-submit>登入</button>
+      <p class="login-help">忘記密碼請洽馭盛。連續輸入錯誤 5 次會暫停登入 15 分鐘。</p>
+    </form>
+  </div>
 </section>
+{% endblock %}
+{% block scripts %}
+<script src="{% static 'js/login.js' %}?v={{ app_version }}" defer></script>
 {% endblock %}

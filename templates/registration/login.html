@@ -24,7 +24,7 @@
       {% csrf_token %}
       <div class="login-card__head">
         <h2>登入</h2>
-        <p>帳號請洽馭盛開通。</p>
+        <p>帳號請洽馭盛（<a href="tel:0226951112">02-26951112</a>）開通。</p>
       </div>
       {% if form.non_field_errors %}
         <div class="login-alert" role="alert">{% for error in form.non_field_errors %}<span>{{ error }}</span>{% endfor %}</div>

@@ -3115,7 +3115,7 @@ def vehicle_installment_plan_list(request, model_pk):
     prefill_initial, prefill_version = (None, None)
     option_initial = []
     if request.method == "GET" and not editing:
-        # 新增版本預填目前有效方案的各期數，生效日預設下個月 1 日。
+        # 新增版本預填目前有效方案的各期數，生效日預設今天。
         prefill_initial, prefill_version = vehicle_model_copy.prefill_initial("installment", vehicle_model.pk)
         option_initial = vehicle_model_copy.installment_option_initial(prefill_version)
     form = InstallmentPlanVersionForm(post_data, instance=plan, prefix="plan", initial=prefill_initial)
@@ -9062,7 +9062,7 @@ def _vehicle_model_rule_tab(request, model_pk, *, related_name, form_class, dele
     editing = get_object_or_404(rules, pk=requested) if requested else None
     prefill_initial, prefill_version = (None, None)
     if request.method != "POST" and not editing:
-        # 新增版本預填目前有效版本的金額，生效日預設下個月 1 日，只需修改差異。
+        # 新增版本預填目前有效版本的金額，生效日預設今天，只需修改差異。
         prefill_initial, prefill_version = vehicle_model_copy.prefill_initial(dataset, vehicle_model.pk)
     form = form_class(
         request.POST if request.method == "POST" else None,
@@ -9334,7 +9334,7 @@ def vehicle_model_commission(request, model_pk):
     action = request.POST.get("action", "save_commission")
     reward_prefill, reward_prefill_version, reward_item_initial = (None, None, [])
     if request.method != "POST" and creating_reward:
-        # 新增附加獎勵版本預填目前方案的項目與數量，生效日預設下個月 1 日。
+        # 新增附加獎勵版本預填目前方案的項目與數量，生效日預設今天。
         reward_prefill, reward_prefill_version = vehicle_model_copy.prefill_initial("reward", vehicle_model.pk)
         reward_item_initial = vehicle_model_copy.reward_item_initial(reward_prefill_version)
     form = VehicleModelCommissionForm(

@@ -88,7 +88,7 @@ def vehicle_model_copy(request):
     filters = copy_service.read_filters(source)
     allowed = copy_service.allowed_datasets(policy, include_extras=True)
     state = {
-        "effective_from": copy_service.first_of_next_month(today),
+        "effective_from": copy_service.default_effective_from(today),
         "datasets": [key for key in copy_service.VERSIONED_KEYS if allowed[key]],
         "extras": [key for key in copy_service.YEAR_EXTRA_KEYS if allowed[key]],
         "activate": False,
@@ -139,7 +139,7 @@ def vehicle_model_copy(request):
          "target_year": state["years"].get(model.pk)}
         for model in models
     ]
-    presence_day = _annotate_presence(rows, state["effective_from"] or copy_service.first_of_next_month(today), mode)
+    presence_day = _annotate_presence(rows, state["effective_from"] or copy_service.default_effective_from(today), mode)
     return render(request, "sales/vehicle_model_copy.html", {
         "stage": "result" if result else "select",
         "result": result,
@@ -323,7 +323,7 @@ def vehicle_model_batch(request):
     filters = copy_service.read_filters(source)
     effective_from = (
         date.fromisoformat(payload["date"]) if payload and payload.get("date")
-        else _parse_day(source.get("effective_from")) or copy_service.first_of_next_month(today)
+        else _parse_day(source.get("effective_from")) or copy_service.default_effective_from(today)
     )
     date_error = ""
     if dataset and not batch.is_immediate(dataset):

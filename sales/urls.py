@@ -497,6 +497,8 @@ urlpatterns = [
     ),
     path("data/vehicle-models/copy/", vehicle_model_tool_views.vehicle_model_copy, name="vehicle_model_copy"),
     path("data/vehicle-models/batch/", vehicle_model_tool_views.vehicle_model_batch, name="vehicle_model_batch"),
+    path("data/vehicle-models/batch/rewards/", vehicle_model_tool_views.vehicle_model_reward_batch,
+         name="vehicle_model_reward_batch"),
     path(
         "data/vehicle-models/<int:pk>/edit/",
         views.vehicle_model_edit,

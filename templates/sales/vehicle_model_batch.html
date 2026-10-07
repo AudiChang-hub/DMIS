@@ -67,7 +67,7 @@
 {% if dataset_tabs %}
 <nav class="model-tool-switch" aria-label="選擇要調整的資料">
   {% for tab in dataset_tabs %}
-  <a href="?{{ tab.query }}" class="model-tool-switch__item{% if tab.key == dataset %} is-active{% endif %}"{% if tab.key == dataset %} aria-current="page"{% endif %}>
+  <a href="{{ tab.href }}" class="model-tool-switch__item{% if tab.key == dataset %} is-active{% endif %}"{% if tab.key == dataset %} aria-current="page"{% endif %}>
     <strong>{{ tab.label }}</strong><span>{{ tab.fields }}</span>
   </a>
   {% endfor %}

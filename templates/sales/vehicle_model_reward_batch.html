@@ -1,0 +1,270 @@
+{% extends "base.html" %}{% load static sales_format %}
+{% block title %}批次套用附加獎勵｜機種與售價｜車輛銷售管理{% endblock %}
+{% block page_class %}page-shell--wide model-tool-page{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'css/vehicle-model-tools.css' %}?v={{ app_version }}">{% endblock %}
+{% block content %}
+{% url 'data_maintenance' as data_url %}
+{% if can_batch or stage == "preview" %}{% url 'vehicle_model_batch' as back_url %}{% include "sales/_page_back.html" with fallback_url=back_url label="批次調整" direct_back=True root_url=data_url root_label="資料維護區" current_label="附加獎勵" %}
+{% else %}{% url 'dealer_sales_program_list' as back_url %}{% include "sales/_page_back.html" with fallback_url=back_url label="車行傭金與銷售獎勵" direct_back=True root_url=data_url root_label="資料維護區" current_label="批次套用附加獎勵" %}{% endif %}
+<section class="hero-row compact-hero model-tool-hero">
+  <div>
+    <p class="eyebrow">機種與售價・車行附加獎勵</p>
+    <h1>{% if stage == "preview" %}確認套用附加獎勵{% else %}批次套用附加獎勵{% endif %}</h1>
+    <p class="muted">{% if stage == "preview" %}逐列核對每個年式的原方案與處理方式；確認後一次寫入，任何一列失敗都不會寫入。{% else %}同一組實物、紅包、禮券或點數，一次套用到多個年式；已成立的訂單保存了下單當時的獎勵，不受影響。{% endif %}</p>
+  </div>
+  {% if stage != "preview" and can_batch %}<div class="hero-actions"><a class="button ghost" href="{% url 'vehicle_model_copy' %}">沿用建立</a></div>{% endif %}
+</section>
+
+{% if stage == "preview" %}
+<section class="section-block confirm-panel model-tool-confirm" aria-labelledby="reward-preview-title">
+  <div class="section-title"><h2 id="reward-preview-title">{% if applied_count %}附加獎勵：將套用到 {{ applied_count }} 個年式{% else %}勾選的年式都無法套用{% endif %}</h2>{% if skipped_count %}<span>略過 {{ skipped_count }} 個</span>{% endif %}</div>
+  <div class="section-body confirm-panel__body">
+    <dl class="confirm-facts">
+      <div><dt>適用期間</dt><dd>{{ state.start|date:"Y/m/d" }} 起{% if state.end %}至 {{ state.end|date:"Y/m/d" }}{% else %}・未設結束日{% endif %}</dd></div>
+      <div><dt>套用年式</dt><dd>{{ applied_count }} 個{% if skipped_count %}（略過 {{ skipped_count }} 個）{% endif %}</dd></div>
+      <div><dt>結束原方案</dt><dd>{% if closing_count %}{{ closing_count }} 個，設為 {{ close_to|date:"Y/m/d" }} 結束{% elif state.close_open %}無{% else %}不自動結束{% endif %}</dd></div>
+      <div><dt>每台預估成本</dt><dd>${{ per_unit|number_with_commas }}{% if cost_missing %}<small class="model-reward-muted">（部分品項未維護成本）</small>{% endif %}</dd></div>
+    </dl>
+    {% if closing_count %}
+    <div class="callout callout--warning"><span class="callout__icon" aria-hidden="true">!</span><div><h3>將修改 {{ closing_count }} 個原方案的結束日</h3><p>這些原方案沒有結束日，確認後會設為新方案前一天結束；其餘方案（已設定結束日、之後才開始或已停用）一律不會修改。</p></div></div>
+    {% endif %}
+    <div class="callout callout--info"><span class="callout__icon" aria-hidden="true">i</span><div><p>新方案一律啟用；品項成本依 {{ state.start|date:"Y/m/d" }} 的成本版本存成快照。訂單建立時已保存附加獎勵快照，結束原方案不影響已成立的訂單。</p></div></div>
+    {% if not applied_count %}
+    <div class="callout callout--danger" role="alert"><span class="callout__icon" aria-hidden="true">!</span><div><h3>沒有可套用的年式</h3><p>請返回修改生效日、結束日或「自動結束原方案」設定，或到各年式的「傭金與獎勵」分頁處理原方案。</p></div></div>
+    {% endif %}
+
+    <div class="inventory-table-wrap model-tool-table-wrap" tabindex="0" aria-label="新方案的獎勵項目">
+      <table class="inventory-table inventory-table--fit model-reward-lines">
+        <thead><tr><th>新方案的獎勵</th><th class="is-number">數量</th><th class="is-number">單位成本</th><th class="is-number">每台成本</th></tr></thead>
+        <tbody>
+          {% for line in lines %}
+          <tr>
+            <th scope="row"><span class="model-reward-lines__name">{{ line.catalog.name }}</span><small>{{ line.catalog.get_reward_type_display }}{% if line.note %}・{{ line.note }}{% endif %}</small></th>
+            <td data-label="數量" class="is-number">{{ line.quantity|number_with_commas }} {{ line.catalog.unit }}</td>
+            <td data-label="單位成本" class="is-number">{% if line.unit_cost is None %}<span class="model-reward-muted">未維護</span>{% else %}${{ line.unit_cost|number_with_commas }}{% endif %}</td>
+            <td data-label="每台成本" class="is-number">{% if line.total is None %}<span class="model-reward-muted">—</span>{% else %}<strong>${{ line.total|number_with_commas }}</strong>{% endif %}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+        <tfoot><tr><th scope="row" colspan="3">每台預估成本</th><td data-label="每台預估成本" class="is-number"><strong>${{ per_unit|number_with_commas }}</strong></td></tr></tfoot>
+      </table>
+    </div>
+
+    <div class="inventory-table-wrap model-tool-table-wrap" tabindex="0" aria-label="各年式的套用結果">
+      <table class="inventory-table inventory-table--fit model-copy-preview model-reward-preview">
+        <thead><tr><th>年式</th><th>{{ state.start|date:"Y/m/d" }} 的原方案</th><th>處理方式</th></tr></thead>
+        <tbody>
+          {% for row in rows %}
+          <tr class="{% if row.status == 'skip' %}is-skipped{% endif %}">
+            <th scope="row" class="model-tool-identity">{{ row.label }}<span>{{ row.model.brand }}{% if not row.model.active %}・<em>已停用</em>{% endif %}</span></th>
+            <td data-label="原方案">{% if row.current %}<span class="model-reward-current"><strong>{{ row.current_summary }}</strong><small>{{ row.current_period }}</small></span>{% else %}<span class="model-reward-muted">無</span>{% endif %}</td>
+            <td data-label="處理方式">
+              {% if row.status == "close" %}<span class="model-chip is-close">結束原方案並新增</span><small class="model-chip__detail">將結束原方案（設為 {{ row.close_to|date:"Y/m/d" }} 結束）</small>
+              {% elif row.status == "create" %}<span class="model-chip is-create">新增方案</span>
+              {% else %}<span class="model-chip is-skip">略過</span><small class="model-chip__detail">{{ row.reason }}</small>{% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  <form id="reward-back" method="post">{% csrf_token %}<input type="hidden" name="action" value="back"><input type="hidden" name="token" value="{{ token }}">{% for pk in listed_ids %}<input type="hidden" name="row" value="{{ pk }}">{% endfor %}{% for pk in fixed_ids %}<input type="hidden" name="ids" value="{{ pk }}">{% endfor %}{% for key, value in filters.items %}{% if value %}<input type="hidden" name="{{ key }}" value="{{ value }}">{% endif %}{% endfor %}</form>
+  <form method="post" class="confirm-panel__form"{% if applied_count %} data-confirm="確定為 {{ applied_count }} 個年式建立附加獎勵方案{% if closing_count %}，並結束 {{ closing_count }} 個原方案{% endif %}？"{% endif %}>
+    {% csrf_token %}<input type="hidden" name="action" value="commit"><input type="hidden" name="token" value="{{ token }}">
+    <div class="form-actions confirm-panel__actions">
+      <button class="button ghost" type="submit" form="reward-back">返回修改</button>
+      {% if applied_count %}<button class="button primary" type="submit">確認套用到 {{ applied_count }} 個年式</button>{% endif %}
+    </div>
+  </form>
+</section>
+{% else %}
+
+{% if result %}
+<section class="section-block model-tool-result" aria-labelledby="reward-result-title">
+  <div class="section-title"><h2 id="reward-result-title"><span class="model-tool-result__mark" aria-hidden="true"><svg viewBox="0 0 16 16" width="14" height="14"><path d="M3.5 8.4 6.6 11.3 12.5 4.9" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>已套用附加獎勵：{{ result.rows|length }} 個年式</h2><span>{{ result.period }}{% if result.skipped %}・略過 {{ result.skipped }} 個{% endif %}</span></div>
+  <ul class="model-tool-result__list">
+    {% for row in result.rows %}
+    <li><a href="{{ row.url }}">{{ row.label }}</a><span>{{ result.items_text }}{% if row.closed_to %}<small class="model-reward-result-note">原方案已設為 {{ row.closed_to }} 結束</small>{% endif %}</span></li>
+    {% endfor %}
+  </ul>
+</section>
+{% endif %}
+
+{% if dataset_tabs|length > 1 %}
+<nav class="model-tool-switch" aria-label="選擇要調整的資料">
+  {% for tab in dataset_tabs %}
+  <a href="{{ tab.href }}" class="model-tool-switch__item{% if tab.key == 'reward' %} is-active{% endif %}"{% if tab.key == 'reward' %} aria-current="page"{% endif %}>
+    <strong>{{ tab.label }}</strong><span>{{ tab.fields }}</span>
+  </a>
+  {% endfor %}
+</nav>
+{% endif %}
+
+{% if fixed_ids %}
+<div class="model-tool-fixed">
+  <span class="model-tool-fixed__icon" aria-hidden="true">✓</span>
+  <p>已指定 <strong>{{ rows|length }}</strong> 個年式</p>
+  <a class="button ghost small" href="{% url 'vehicle_model_reward_batch' %}">改選其他機種</a>
+</div>
+{% else %}
+{% url 'vehicle_model_reward_batch' as reward_url %}
+{% include "sales/_vehicle_model_tool_filters.html" with clear_url=reward_url %}
+{% endif %}
+
+<form method="post" class="model-batch model-reward-batch" data-reward-batch novalidate>
+  {% csrf_token %}
+  <input type="hidden" name="editor" value="1">
+  {% for key, value in filters.items %}{% if value %}<input type="hidden" name="{{ key }}" value="{{ value }}">{% endif %}{% endfor %}
+  {% for pk in fixed_ids %}<input type="hidden" name="ids" value="{{ pk }}">{% endfor %}
+  {% for row in rows %}<input type="hidden" name="row" value="{{ row.model.pk }}">{% endfor %}
+
+  {% if errors %}<div class="callout callout--danger" role="alert"><span class="callout__icon" aria-hidden="true">!</span><div><h3>無法預覽</h3><ul>{% for error in errors %}<li>{{ error }}</li>{% endfor %}</ul></div></div>{% endif %}
+  {% if not can_operate %}<div class="callout callout--warning"><span class="callout__icon" aria-hidden="true">!</span><div><p>你只有查看車行附加獎勵的權限，可以試算與比對，但不能送出套用。</p></div></div>{% endif %}
+
+  <div class="model-reward-layout">
+    <section class="section-block model-tool-step model-reward-composer" aria-labelledby="reward-step-1">
+      <div class="section-title"><h2 id="reward-step-1"><span class="model-tool-step__no" aria-hidden="true">1</span>新方案內容</h2><span>每售出一台適用</span></div>
+      <div class="section-body model-reward-composer__body">
+        <div class="model-reward-period">
+          <div class="field{% if start_error %} has-error{% endif %}">
+            <label for="reward-start">生效日<em>必填</em></label>
+            <input class="form-control" id="reward-start" type="date" name="effective_from" value="{{ state.start|date:'Y-m-d' }}" min="{{ today|date:'Y-m-d' }}" required data-reward-start{% if start_error %} aria-invalid="true" aria-describedby="reward-start-error"{% endif %}>
+            {% if start_error %}<small class="field-error" id="reward-start-error">{{ start_error }}</small>{% else %}<small class="help-text" data-reward-start-hint>預設今天，不可早於今天</small>{% endif %}
+          </div>
+          <div class="field{% if end_error %} has-error{% endif %}">
+            <label for="reward-end">結束日<small class="model-reward-optional">選填</small></label>
+            <input class="form-control" id="reward-end" type="date" name="effective_to" value="{{ state.end|date:'Y-m-d' }}" min="{{ rows_day|date:'Y-m-d' }}" data-reward-end{% if end_error %} aria-invalid="true" aria-describedby="reward-end-error"{% endif %}>
+            {% if end_error %}<small class="field-error" id="reward-end-error">{{ end_error }}</small>{% else %}<small class="help-text">空白代表持續有效</small>{% endif %}
+          </div>
+        </div>
+
+        <div class="model-reward-items" aria-labelledby="reward-items-title">
+          <div class="model-reward-items__head">
+            <h3 id="reward-items-title">獎勵項目</h3>
+            {% if catalog %}<button type="button" class="button secondary small" data-reward-add>＋ 新增獎勵</button>{% endif %}
+          </div>
+          {% if catalog %}
+          <ol class="model-reward-item-list" data-reward-items data-max="{{ max_items }}">
+            {% for item in items %}
+            <li class="model-reward-item{% if item.error %} has-error{% endif %}" data-reward-item>
+              <span class="model-reward-item__index" aria-hidden="true" data-reward-index>{{ forloop.counter }}</span>
+              <div class="model-reward-item__fields">
+                <label class="model-reward-item__catalog"><span class="visually-hidden">獎勵品項</span>
+                  <select class="form-control" name="item_catalog" data-reward-catalog aria-label="獎勵品項">
+                    <option value="">選擇品項</option>
+                    {% for group in catalog_groups %}<optgroup label="{{ group.label }}">{% for option in group.items %}<option value="{{ option.pk }}"{% if item.catalog_id == option.pk|stringformat:'s' %} selected{% endif %}>{{ option.name }}（{{ option.unit }}）</option>{% endfor %}</optgroup>{% endfor %}
+                  </select>
+                </label>
+                <label class="model-reward-item__qty"><span class="visually-hidden">數量</span>
+                  <span class="model-reward-qty"><input class="form-control" type="text" name="item_quantity" value="{{ item.quantity_raw }}" inputmode="numeric" autocomplete="off" placeholder="數量" aria-label="數量" data-reward-quantity data-no-recent-values><em data-reward-unit aria-hidden="true">{{ item.catalog.unit|default:"" }}</em></span>
+                </label>
+                <button type="button" class="button ghost small model-reward-item__remove" data-reward-remove aria-label="移除這項獎勵">移除</button>
+                <label class="model-reward-item__note"><span class="visually-hidden">說明（選填）</span>
+                  <input class="form-control" type="text" name="item_note" value="{{ item.note }}" maxlength="250" autocomplete="off" placeholder="說明（選填），例如兌換方式" aria-label="說明（選填）" data-no-recent-values>
+                </label>
+                <p class="model-reward-item__cost" data-reward-cost aria-live="off">{% if item.catalog %}{% if item.unit_cost is None %}此日期尚未維護成本{% else %}單位成本 ${{ item.unit_cost|number_with_commas }}{% if item.line_total is not None %} × {{ item.quantity|number_with_commas }} = <strong>${{ item.line_total|number_with_commas }}</strong>{% endif %}{% endif %}{% else %}選擇品項後顯示成本{% endif %}</p>
+                {% if item.error %}<small class="field-error">{{ item.error }}</small>{% endif %}
+              </div>
+            </li>
+            {% endfor %}
+          </ol>
+          <div class="model-reward-total" aria-live="polite">
+            <span>每台預估成本</span>
+            <strong data-reward-total>${{ per_unit|number_with_commas }}</strong>
+            <small data-reward-total-note>{% if cost_missing %}部分品項此日期尚未維護成本，未計入{% else %}依生效日的品項成本版本估算{% endif %}</small>
+          </div>
+          {% else %}
+          <div class="empty-state small"><span class="empty-state__icon" aria-hidden="true">＋</span><h3>還沒有啟用中的獎勵品項</h3><p>先到「車行獎勵品項」建立品項、單位與成本，再回來套用。</p><a class="button ghost small" href="{% url 'dealer_reward_catalog_list' %}">前往車行獎勵品項</a></div>
+          {% endif %}
+        </div>
+
+        <label class="check-row model-reward-option">
+          <input type="checkbox" name="close_open" value="1"{% if state.close_open %} checked{% endif %} data-reward-close>
+          <span><strong>原方案沒有結束日時，自動設為新方案前一天結束</strong><small>只會結束沒有結束日的原方案；已設定結束日或之後才開始的方案不修改，該年式會略過。取消勾選時，有原方案的年式一律略過。</small></span>
+        </label>
+
+        <div class="field">
+          <label for="reward-note">方案備註<small class="model-reward-optional">選填</small></label>
+          <textarea class="form-control" id="reward-note" name="plan_note" rows="2" maxlength="500" placeholder="例如：10 月促銷活動">{{ state.note }}</textarea>
+        </div>
+      </div>
+    </section>
+
+    <section class="section-block model-tool-step model-reward-targets" aria-labelledby="reward-step-2">
+      <div class="section-title">
+        <h2 id="reward-step-2"><span class="model-tool-step__no" aria-hidden="true">2</span>選擇年式</h2>
+        <span>{{ rows|length }} 個年式{% if truncated %}（只顯示前 {{ max_rows }} 個，請縮小篩選）{% endif %}</span>
+      </div>
+      {% if rows %}
+      <div class="inventory-table-wrap model-tool-table-wrap" tabindex="0" aria-label="要套用附加獎勵的年式">
+        <table class="inventory-table model-copy-table model-reward-table" data-copy-table>
+          <thead>
+            <tr>
+              <th class="model-tool-check-col"><label class="model-tool-check"><input type="checkbox" data-select-all aria-label="全選年式"><span class="visually-hidden">全選</span></label></th>
+              <th>年式</th>
+              <th><span data-reward-day-label>{{ rows_day|date:"Y/m/d" }}</span> 的方案</th>
+              <th>套用後</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in rows %}
+            <tr class="model-batch-row{% if row.selected %} is-selected{% endif %}" data-batch-row data-model="{{ row.model.pk }}">
+              <td class="model-tool-check-col" data-label="選取"><label class="model-tool-check"><input type="checkbox" name="selected" value="{{ row.model.pk }}" data-row-check{% if row.selected %} checked{% endif %} aria-label="選取 {{ row.label }}"></label></td>
+              <th scope="row" class="model-tool-identity">
+                <a href="{% url 'vehicle_model_commission' row.model.pk %}#dealer-rewards">{{ row.model.name }}</a>
+                <span>{{ row.model.model_year|default:"年式待補" }}・{{ row.model.get_model_code_display|default:"型式待補" }}・{{ row.model.brand }}{% if not row.model.active %}・<em>已停用</em>{% endif %}</span>
+              </th>
+              <td data-label="目前方案" data-reward-current>{% if row.current %}<span class="model-reward-current"><strong>{{ row.current_summary }}</strong><small>{{ row.current_period }}</small></span>{% else %}<span class="model-reward-muted">無</span>{% endif %}</td>
+              <td data-label="套用後" data-reward-outcome>
+                {% if row.status == "close" %}<span class="model-chip is-close">結束原方案並新增</span><small class="model-chip__detail">原方案設為 {{ row.close_to|date:"Y/m/d" }} 結束</small>
+                {% elif row.status == "create" %}<span class="model-chip is-create">新增方案</span>
+                {% else %}<span class="model-chip is-skip">略過</span><small class="model-chip__detail">{{ row.reason }}</small>{% endif %}
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <div class="empty-state small"><span class="empty-state__icon" aria-hidden="true">⌕</span><h3>沒有符合條件的年式</h3><p>調整上方的品牌、機種、年式或狀態後再試一次。</p></div>
+      {% endif %}
+    </section>
+  </div>
+
+  {% if rows and catalog and can_operate %}
+  <div class="form-savebar model-batch-savebar">
+    <span class="form-savebar__hint" data-reward-summary aria-live="polite">已勾選 <strong data-selected-count>{{ selected_count }}</strong> 個年式・確認前會先列出每個年式的處理方式</span>
+    <div><button class="button primary" type="submit" name="action" value="preview">預覽套用內容</button></div>
+  </div>
+  {% endif %}
+</form>
+
+{% if catalog %}
+<template data-reward-item-template>
+  <li class="model-reward-item" data-reward-item>
+    <span class="model-reward-item__index" aria-hidden="true" data-reward-index></span>
+    <div class="model-reward-item__fields">
+      <label class="model-reward-item__catalog"><span class="visually-hidden">獎勵品項</span>
+        <select class="form-control" name="item_catalog" data-reward-catalog aria-label="獎勵品項">
+          <option value="">選擇品項</option>
+          {% for group in catalog_groups %}<optgroup label="{{ group.label }}">{% for option in group.items %}<option value="{{ option.pk }}">{{ option.name }}（{{ option.unit }}）</option>{% endfor %}</optgroup>{% endfor %}
+        </select>
+      </label>
+      <label class="model-reward-item__qty"><span class="visually-hidden">數量</span>
+        <span class="model-reward-qty"><input class="form-control" type="text" name="item_quantity" value="" inputmode="numeric" autocomplete="off" placeholder="數量" aria-label="數量" data-reward-quantity data-no-recent-values><em data-reward-unit aria-hidden="true"></em></span>
+      </label>
+      <button type="button" class="button ghost small model-reward-item__remove" data-reward-remove aria-label="移除這項獎勵">移除</button>
+      <label class="model-reward-item__note"><span class="visually-hidden">說明（選填）</span>
+        <input class="form-control" type="text" name="item_note" value="" maxlength="250" autocomplete="off" placeholder="說明（選填），例如兌換方式" aria-label="說明（選填）" data-no-recent-values>
+      </label>
+      <p class="model-reward-item__cost" data-reward-cost aria-live="off">選擇品項後顯示成本</p>
+    </div>
+  </li>
+</template>
+{{ catalog_metadata|json_script:"reward-batch-catalog" }}
+{{ plans_metadata|json_script:"reward-batch-plans" }}
+{% endif %}
+{% endif %}
+{% endblock %}
+{% block scripts %}<script src="{% static 'js/vehicle-model-tools.js' %}?v={{ app_version }}" defer></script><script src="{% static 'js/vehicle-model-reward-batch.js' %}?v={{ app_version }}" defer></script>{% endblock %}

@@ -81,6 +81,14 @@
 </section>
 {% endif %}
 
+{% if batch.preview_summary.warnings %}
+<section class="note-box import-header-warnings">
+  <strong>表頭提醒</strong>
+  {% for warning in batch.preview_summary.warnings %}<p>{{ warning }}</p>{% endfor %}
+  <small>系統依表頭名稱取值，不依欄位位置；缺少的欄位會留空，不影響其他欄位。</small>
+</section>
+{% endif %}
+
 {% with validation=batch.preview_summary.validation %}
 {% if validation %}
 <section class="form-section static-section import-validation-panel">

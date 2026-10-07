@@ -18,6 +18,28 @@ def finance_allowed(request):
     return policy.screen('order_finance') and policy.route('order_operations') and not policy.dealer
 
 
+def mask_account(account):
+    """帳號只露出末四碼；前面固定四個圓點，不洩漏帳號長度。"""
+    digits = str(account or "").strip()
+    if not digits:
+        return ""
+    return "●●●●" + digits[-4:] if len(digits) > 4 else "●●●●"
+
+
+def payout_summary_context(request, order):
+    """沒有財務授權、但可操作訂單作業的人員，在補助步驟唯讀查看撥款銀行與遮罩後的匯款帳戶。"""
+    policy = policy_for(request)
+    if finance_allowed(request) or policy.dealer or not policy.screen('work', 'operate'):
+        return {}
+    profile = OrderOperationsProfile.objects.filter(order=order).first()
+    account = profile.remittance_account if profile else ''
+    return {'payout_summary': {
+        'bank_name': profile.bank_name if profile else '',
+        'account_masked': mask_account(account),
+        'has_account': bool(account),
+    }}
+
+
 def payment_ledger_context(order, summary=None):
     """帳本調整紀錄與沖銷／退還溢收入口；已取消訂單只保留唯讀紀錄。"""
     from sales.forms import OverpaymentRefundForm, PaymentReversalForm

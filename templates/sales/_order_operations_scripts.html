@@ -1,5 +1,6 @@
 {% load static %}
 
+<script src="{% static 'js/masked-reveal.js' %}?v={{ app_version }}" defer></script>
 <script src="{% static 'js/discount-preview.js' %}" defer></script>
 <script src="{% static 'js/order-finance.js' %}?v={{ app_version }}" defer></script>
 <script>
@@ -24,9 +25,11 @@
     total.dispatchEvent(new Event('change', {bubbles: true}));
   });
   document.querySelectorAll(".secret-reveal").forEach(button => button.addEventListener("click", async () => {
-    const body = new URLSearchParams({field: button.dataset.secret});
-    const response = await fetch("{% url 'order_secret_reveal' order.pk %}", {method:"POST", headers:{"X-CSRFToken":"{{ csrf_token }}","Content-Type":"application/x-www-form-urlencoded"}, body});
-    const data = await response.json(); alert(data.ok ? (data.value || "尚未設定") : data.error);
+    const value = await window.dmisRevealMasked({
+      url: "{% url 'order_secret_reveal' order.pk %}", csrf: "{{ csrf_token }}", params: {field: button.dataset.secret},
+      hint: "輸入你自己的登入密碼，才會顯示已存的密碼；查看會留下紀錄。",
+    });
+    if (value !== null) alert(value || "尚未設定");
   }));
 })();
 </script>

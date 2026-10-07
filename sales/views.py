@@ -123,6 +123,7 @@ from .forms import (
     VehiclePriceVersionForm,
     VehicleSettlementCostRuleForm,
 )
+from .services.reveal_password import reveal_password_denied
 from .models import (
     sync_catalog_entry,
     ALLOCATION_PRIORITY_AGE_MONTHS,
@@ -5417,6 +5418,7 @@ def order_detail(request, pk, *, commission_form=None, workspace_context_only=Fa
         "sales/order_detail.html",
         {
             **order_workspace.finance_context(request, order),
+            **order_workspace.payout_summary_context(request, order),
             "order_workspace": True,
             "order": order,
             **step_context,
@@ -5849,6 +5851,9 @@ def order_secret_reveal(request, pk):
     }
     if field not in encrypted_fields:
         return JsonResponse({"ok": False, "error": "不支援的欄位。"}, status=400)
+    denied = reveal_password_denied(request, "車控與電池合約密碼")
+    if denied:
+        return denied
     value = decrypt_secret(encrypted_fields[field])
     OrderEvent.objects.create(
         order=order,
@@ -5857,6 +5862,26 @@ def order_secret_reveal(request, pk):
         actor_name=_editing_name(request.user),
     )
     return JsonResponse({"ok": True, "value": value})
+
+
+@login_required
+def order_payout_reveal(request, pk):
+    """顯示完整匯款帳戶；只接受 POST，每次查看都寫入訂單紀錄。"""
+    from sales.services.order_intake import scoped_orders
+    if request.method != "POST":
+        return JsonResponse({"ok": False, "error": "僅接受 POST。"}, status=405)
+    order = get_object_or_404(scoped_orders(request.user), pk=pk)
+    profile = get_object_or_404(OrderOperationsProfile, order=order)
+    denied = reveal_password_denied(request, "補助撥款匯款帳戶")
+    if denied:
+        return denied
+    OrderEvent.objects.create(
+        order=order,
+        event_type="payout_account_viewed",
+        description="查看補助撥款匯款帳戶",
+        actor_name=_editing_name(request.user),
+    )
+    return JsonResponse({"ok": True, "value": profile.remittance_account})
 
 
 def _order_snapshot(order):

@@ -307,7 +307,7 @@ class NewVersionPrefillTests(VehicleModelCopyBase):
         self.assertEqual(form.initial["cash_price"], 68000)
         self.assertEqual(form.initial["suggested_price"], 72000)
         self.assertFalse(form.initial["suggested_price_includes_registration"])
-        self.assertEqual(form.initial["effective_from"], self.day)
+        self.assertEqual(form.initial["effective_from"], self.today)  # 預設今天立即生效
         self.assertContains(response, "已帶入")
         # 編輯既有版本時不預填。
         editing = self.client.get(reverse("vehicle_model_price_versions", args=[self.model.pk]), {"edit": self.price.pk})
@@ -317,11 +317,11 @@ class NewVersionPrefillTests(VehicleModelCopyBase):
         VehiclePriceVersion.objects.create(vehicle_model=self.model, cash_price=70000, effective_from=self.day)
         form = self.client.get(reverse("vehicle_model_price_versions", args=[self.model.pk])).context["form"]
         self.assertEqual(form.initial["cash_price"], 70000)
-        self.assertEqual(form.initial["effective_from"], service.first_of_next_month(self.day))
+        self.assertEqual(form.initial["effective_from"], self.day + timedelta(days=1))  # 已排定版本的隔天
 
     def test_cost_and_incentive_forms_prefill(self):
         cost = self.client.get(reverse("vehicle_model_settlement_costs", args=[self.model.pk])).context["form"]
-        self.assertEqual((cost.initial["amount"], cost.initial["effective_from"]), (56000, self.day))
+        self.assertEqual((cost.initial["amount"], cost.initial["effective_from"]), (56000, self.today))
         incentive = self.client.get(reverse("vehicle_model_incentives", args=[self.model.pk])).context["form"]
         self.assertEqual((incentive.initial["sales_bonus"], incentive.initial["promotion_subsidy"],
                           incentive.initial["installment_interest_subsidy"]), (1000, 2000, 500))
@@ -330,7 +330,7 @@ class NewVersionPrefillTests(VehicleModelCopyBase):
         response = self.client.get(reverse("vehicle_installment_plan_list", args=[self.model.pk]))
         formset = response.context["option_formset"]
         self.assertEqual([form.initial.get("periods") for form in formset.forms], [12, 24])
-        self.assertEqual(response.context["form"].initial["effective_from"], self.day)
+        self.assertEqual(response.context["form"].initial["effective_from"], self.today)
         data = {
             "plan-effective_from": self.day.isoformat(), "plan-announced_on": self.today.isoformat(), "plan-active": "on",
             "options-TOTAL_FORMS": "2", "options-INITIAL_FORMS": "0", "options-MIN_NUM_FORMS": "0", "options-MAX_NUM_FORMS": "1000",
@@ -347,4 +347,4 @@ class NewVersionPrefillTests(VehicleModelCopyBase):
         formset = response.context["reward_formset"]
         self.assertEqual([form.initial.get("catalog_item") for form in formset.forms], [self.catalog_item.pk])
         self.assertEqual(formset.forms[0].initial["quantity"], 600)
-        self.assertEqual(response.context["reward_form"].initial["effective_from"], self.day)
+        self.assertEqual(response.context["reward_form"].initial["effective_from"], self.today)

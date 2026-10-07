@@ -119,7 +119,7 @@
       <div class="field model-tool-date">
         <label for="copy-effective">新版本生效日<em>必填</em></label>
         <input class="form-control" id="copy-effective" type="date" name="effective_from" value="{{ state.effective_from|date:'Y-m-d' }}" min="{{ today|date:'Y-m-d' }}" required>
-        <small class="help-text">預設為下個月 1 日；不可早於今天。{% if mode == "date" %}來源為前一天有效的版本。{% else %}來源為基準年式在這天有效的版本。{% endif %}</small>
+        <small class="help-text">預設今天、立即生效；要預先排定之後的價格請改日期，不可早於今天。{% if mode == "date" %}來源為前一天有效的版本。{% else %}來源為基準年式在這天有效的版本。{% endif %}</small>
       </div>
       <fieldset class="model-tool-options">
         <legend>沿用的版本資料<small>未勾選的資料不會建立</small></legend>

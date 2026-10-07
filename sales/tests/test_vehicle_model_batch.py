@@ -90,6 +90,16 @@ class BatchAdjustTests(TestCase):
             data[f"new_{field}_{pk}"] = value
         return self.client.post(BATCH_URL, data)
 
+    def test_default_effective_date_is_today_and_future_date_is_flagged(self):
+        from django.utils import timezone
+
+        today = timezone.localdate()
+        page = self.client.get(BATCH_URL, {"dataset": "price"})
+        self.assertContains(page, f'value="{today.isoformat()}"')
+        self.assertContains(page, "預設今天、立即生效")
+        future = self.client.get(BATCH_URL, {"dataset": "price", "effective_from": self.day.isoformat()})
+        self.assertContains(future, "起才生效，在此之前仍用目前價格")
+
     def test_page_lists_current_values(self):
         response = self.client.get(BATCH_URL, {"dataset": "price", "effective_from": self.day.isoformat()})
         rows = {row["model"].pk: row for row in response.context["rows"]}

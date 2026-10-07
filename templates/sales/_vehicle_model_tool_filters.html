@@ -45,7 +45,7 @@
     <span class="model-tool-immediate"><span aria-hidden="true"></span>儲存後立即生效</span>
     {% else %}
     <input id="tool-effective" type="date" name="effective_from" value="{{ effective_from|date:'Y-m-d' }}" min="{{ today|date:'Y-m-d' }}"{% if date_error %} aria-invalid="true" aria-describedby="tool-effective-error"{% endif %}>
-    {% if date_error %}<small class="field-error" id="tool-effective-error">{{ date_error }}</small>{% endif %}
+    {% if date_error %}<small class="field-error" id="tool-effective-error">{{ date_error }}</small>{% elif effective_from and effective_from != today %}<small class="model-tool-future-date" role="status">{{ effective_from|date:"Y/m/d" }} 起才生效，在此之前仍用目前價格</small>{% else %}<small class="help-text">預設今天、立即生效</small>{% endif %}
     {% endif %}
   </div>
   {% endif %}

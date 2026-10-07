@@ -699,7 +699,14 @@ class OrderFlowTests(TestCase):
         )
         source_family_id = unused.family_id
         VehicleColor.objects.create(vehicle_model=unused, name="白")
+        # 沿用建立帶來的本年式設定不擋刪除，會一併刪除。
+        from sales.models import VehicleIncentiveRule, VehiclePriceVersion, VehicleSettlementCostRule
+        VehiclePriceVersion.objects.create(vehicle_model=unused, cash_price=Decimal("60000"), effective_from=date(2026, 10, 1))
+        VehicleSettlementCostRule.objects.create(vehicle_model=unused, amount=Decimal("50000"), effective_from=date(2026, 10, 1))
+        VehicleIncentiveRule.objects.create(vehicle_model=unused, sales_bonus=Decimal("1000"), effective_from=date(2026, 10, 1))
         self.client.force_login(self.user)
+        page = self.client.get(reverse("vehicle_model_edit", args=[unused.pk]))
+        self.assertContains(page, "將一併刪除本年式的：售價版本 1 筆")
 
         response = self.client.post(
             reverse("vehicle_model_edit", args=[unused.pk]),
@@ -708,6 +715,7 @@ class OrderFlowTests(TestCase):
 
         self.assertRedirects(response, reverse("vehicle_model_list"))
         self.assertFalse(VehicleModel.objects.filter(pk=unused.pk).exists())
+        self.assertFalse(VehiclePriceVersion.objects.filter(vehicle_model_id=unused.pk).exists())
         self.assertFalse(
             VehicleModelFamily.objects.filter(pk=source_family_id).exists()
         )

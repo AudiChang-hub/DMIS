@@ -2,7 +2,7 @@
 {% block title %}建立訂單・選擇車款｜馭盛{% endblock %}
 {% block content %}
 {% site_navigation %}
-<section class="hero-row compact-hero"><div><p class="eyebrow">馭盛・建立訂單</p><h1>選一台適合的車</h1><p class="muted">{% site_text 'catalog.32d283d85dbf' %}</p></div></section>
+<section class="hero-row compact-hero"><div><p class="eyebrow">{% if user.is_authenticated %}馭盛・建立訂單{% else %}馭盛・車款{% endif %}</p><h1>選一台適合的車</h1><p class="muted">{% site_text 'catalog.32d283d85dbf' %}</p></div></section>
 {% if intake_can_submit %}<p class="catalog-direct">已知道車款，或需要未上架的車型？ <a class="button ghost small" href="{% url 'order_start' %}">直接填寫訂單</a></p>{% endif %}
 <form method="get" class="card stacked-form catalog-filter" data-catalog-filters data-auto-submit>
 {% include 'sales/_catalog_filters.html' %}
@@ -18,8 +18,11 @@
     <h2>{{ card.model.name }}</h2>
   </a>
   <p class="catalog-variant-label">{{ card.model.model_year|default:"待補年式" }}/{{ card.model.model_number|default:"待補型號" }}/{% if card.model.model_code %}{{ card.model.get_model_code_display }}{% else %}待補型式{% endif %}/{{ card.color.name }}</p>
-  <p>{% if card.price != None %}{{ card.price_label }} <strong>NT$ {{ card.price|number_with_commas }}</strong>{% else %}售價請洽馭盛{% endif %}</p>
-  <a class="button primary" href="{% url 'catalog_detail' card.model.pk %}?color={{ card.color.pk }}">查看車款與分期</a>
+  {% if card.cash_price != None or card.suggested_price != None %}<dl class="catalog-prices">
+    {% if card.cash_price != None %}<div><dt>現金價</dt><dd>NT$ {{ card.cash_price|number_with_commas }}</dd></div>{% endif %}
+    {% if card.suggested_price != None %}<div><dt>建議售價</dt><dd>NT$ {{ card.suggested_price|number_with_commas }}</dd></div>{% endif %}
+  </dl>{% else %}<p class="catalog-prices catalog-prices--empty">售價請洽馭盛</p>{% endif %}
+  {% if user.is_authenticated %}<a class="button primary" href="{% url 'catalog_detail' card.model.pk %}?color={{ card.color.pk }}">查看車款與分期</a>{% else %}<a class="button primary" href="{% url 'login' %}?next={% url 'catalog_detail' card.model.pk %}%3Fcolor%3D{{ card.color.pk }}">登入查看分期與下單</a>{% endif %}
 </article>
 {% empty %}<div class="card"><h2>目前沒有符合條件的啟用車色</h2><p>{% site_text 'catalog.ea9ea39f13c5' %}</p></div>{% endfor %}</div>
 {% pagination page_obj aria_label="車色選項分頁" %}

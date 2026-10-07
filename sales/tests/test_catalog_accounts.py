@@ -111,6 +111,12 @@ class CatalogAccountTests(TestCase):
 
     def test_public_listing_hides_unpublished_and_inactive(self):
         self.assertContains(self.client.get(reverse("catalog")), self.model.name)
+        # 未登入只能瀏覽列表；點進車款明細須先登入。
+        detail_url = reverse("catalog_detail", args=[self.model.pk])
+        self.assertRedirects(self.client.get(detail_url), f"{reverse('login')}?next={detail_url}", fetch_redirect_response=False)
+        listing = self.client.get(reverse("catalog")).content.decode()
+        self.assertIn("登入查看分期與下單", listing)
+        self.client.force_login(self.internal)
         self.entry.published = False
         self.entry.save()
         self.assertNotContains(self.client.get(reverse("catalog")), self.model.name)
@@ -140,7 +146,15 @@ class CatalogAccountTests(TestCase):
             self.client.get(reverse("catalog"), {"page": "bad"}).status_code, 200
         )
 
+    def test_public_cards_show_cash_and_suggested_price(self):
+        VehiclePriceVersion.objects.create(vehicle_model=self.model, cash_price=72000, suggested_price=75000,
+                                           effective_from=timezone.localdate())
+        listing = self.client.get(reverse("catalog")).content.decode()
+        self.assertIn("<dt>現金價</dt><dd>NT$ 72,000</dd>", listing)
+        self.assertIn("<dt>建議售價</dt><dd>NT$ 75,000</dd>", listing)
+
     def test_prices_and_plans_exclude_internal_fields_and_expired(self):
+        self.client.force_login(self.internal)
         today = timezone.localdate()
         VehiclePriceVersion.objects.create(
             vehicle_model=self.model,

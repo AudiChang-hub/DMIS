@@ -59,6 +59,7 @@ class CatalogColorListTests(TestCase):
     def test_selected_color_is_validated_against_active_model_colors(self):
         other = VehicleModel.objects.create(brand="TEST", name="另一款", energy_type="gas")
         foreign = VehicleColor.objects.create(vehicle_model=other, name="外款藍")
+        self.client.force_login(self.root)
         url = reverse("catalog_detail", args=[self.model.pk])
         for invalid in [self.inactive.pk, foreign.pk, "bad", "9" * 100, ""]:
             self.assertIsNone(self.client.get(url, {"color": invalid}).context["selected_color_id"])

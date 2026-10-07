@@ -294,5 +294,7 @@
 
   document.querySelectorAll("[data-batch-editor]").forEach(setupBatch);
   document.querySelectorAll("[data-copy-form]").forEach(setupCopy);
+  // 批次套用附加獎勵：只共用勾選與計數，方案編輯由 vehicle-model-reward-batch.js 處理。
+  document.querySelectorAll("[data-reward-batch]").forEach((form) => setupSelection(form));
   document.querySelectorAll("[data-model-tool-filters]").forEach(setupFilters);
 })();

@@ -1,0 +1,18 @@
+{% load sales_format %}
+<div id="subsidy-agency-summary" class="subsidy-agency-summary" role="group" aria-label="各單位補助申請進度">
+  <strong class="subsidy-agency-summary__title">各單位申請進度</strong>
+  <ul>
+    {% for row in order.subsidy_agency_summary %}
+    <li>
+      <span class="subsidy-agency-summary__name">{{ row.label }}</span>
+      {% if row.count %}
+      <span class="subsidy-agency-summary__detail">{{ row.count }} 筆・合計 ${{ row.total|number_with_commas }}</span>
+      <span class="status-pill">{{ row.progress }}</span>
+      {% else %}
+      <span class="subsidy-agency-summary__detail is-empty">尚未登錄補助項目</span>
+      {% endif %}
+    </li>
+    {% endfor %}
+  </ul>
+  <small>依「汰舊補助」分頁的補助申請項目自動彙整；要新增或修改請到該處。</small>
+</div>

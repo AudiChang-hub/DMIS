@@ -4330,7 +4330,7 @@ def _operations_report_queryset(request):
     from sales.services.order_filters import filter_order_analysis
     rows = SalesOrder.objects.select_related(
         "vehicle_model", "color", "allocated_vehicle", "operations", "source"
-    ).prefetch_related("payment_records")
+    ).prefetch_related("payment_records", "subsidy_items")
     keyword = request.GET.get("q", "").strip()
     if keyword:
         from sales.services.profit_access import profit_is_unlocked
@@ -4612,7 +4612,7 @@ def operations_report_export(request):
         "分期公司確認匯款", "身分證字號", "西元生日", "民國生日",
         "戶籍地址", "手機", "Email", "自送托運地點", "發票日期",
         "尾款發票號碼", "補助方案", "補助金額", "銀行", "匯款帳戶",
-        "申請日", "工業局", "環境部", "縣市政府", "舊車車主",
+        "申請日", "工業局補助進度", "環境部補助進度", "地方政府補助進度", "舊車車主",
         "舊車車主身分證", "舊車牌照號碼", "舊車引擎號碼", "舊車廠牌",
         "排氣量", "出廠日期", "報廢日期", "回收日期",
         "領牌稅金支出", "強制險支出", "選號支出", "贈品支出", "運費支出",
@@ -4661,9 +4661,7 @@ def operations_report_export(request):
             op("balance_invoice_number"), order.subsidy_type,
             op("subsidy_amount", 0), op("bank_name"), op("remittance_account"),
             op("subsidy_applied_on"),
-            profile.get_industry_bureau_status_display() if profile else "",
-            profile.get_environment_ministry_status_display() if profile else "",
-            profile.get_local_government_status_display() if profile else "",
+            *[row["text"] for row in order.subsidy_agency_summary[:3]],
             order.old_owner_name, order.old_owner_id_number, order.trade_in_plate,
             op("old_vehicle_engine_number"), op("old_vehicle_brand"),
             op("old_vehicle_displacement_cc"), op("old_vehicle_manufactured_on"),

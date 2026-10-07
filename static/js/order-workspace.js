@@ -306,6 +306,10 @@
           const summary = document.getElementById('workspace-finance-summary');
           if (summary) summary.outerHTML = payload.summary_html;
         }
+        if (payload.subsidy_summary_html) {
+          const agencies = document.getElementById('subsidy-agency-summary');
+          if (agencies) agencies.outerHTML = payload.subsidy_summary_html;
+        }
         bases.set(form, capture(form));
         form.dispatchEvent(new CustomEvent('workspace-saved'));
         indicators();

@@ -33,15 +33,16 @@ class EmployeePurchasePlatformToStoreMigrationTests(TransactionTestCase):
             "台新銀行員購",
             "華新麗華員購",
         )
+        # 新建測試資料庫已含資料遷移匯入的平台；沿用既有同名來源，避免依執行順序撞名。
         target_sources = {
-            name: SalesSource.objects.create(
-                name=name, source_type="platform", active=True
-            )
+            name: SalesSource.objects.update_or_create(
+                name=name, source_type="platform", defaults={"active": True}
+            )[0]
             for name in source_names
         }
-        unrelated = SalesSource.objects.create(
-            name="博客來", source_type="platform", active=True
-        )
+        unrelated = SalesSource.objects.update_or_create(
+            name="博客來", source_type="platform", defaults={"active": True}
+        )[0]
         model = VehicleModel.objects.create(
             brand="SUZUKI",
             name="員購遷移測試車",

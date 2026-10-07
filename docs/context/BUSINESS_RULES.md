@@ -21,6 +21,10 @@
 - 通路名冊匯入只讀「車行」工作表（網路平台不經 Excel 匯入）；店名儲存格有刪除線的列略過並列於預覽「已略過的資料」。指令 `sync_dealer_workbook` 採相同規則。
 
 - 現行入口是 `sales/services/legacy_import.py`；財務還原見 `legacy_finance.py`。Odoo 的 excel_sync_id 規格不是目前實作。
+- 營運 Excel（銷貨表頭在第 3 列、進貨在第 1 列）**依表頭名稱取值，不依欄位字母**；對照表是 `SALES_HEADER_ALIASES`／`INVENTORY_HEADER_ALIASES`，Excel 改欄名時在那裡補別名。缺必要表頭（車種型號、引擎／車身號碼、車主名稱）會寫入 `preview_summary.blocking`，`confirm_import` 拒絕匯入；其餘缺少的表頭只進 `warnings`。財務欄位仍依 `legacy_finance.MAPPING` 的表頭名，改名時補 `LABEL_ALIASES`。
+- 「銀行」「匯款帳戶」逐列依內容歸位（純數字≥5 位為帳號），不信任表頭順序；兩欄都是文字或都是數字時依表頭放入並標示人工確認。車控與電池密碼不從 Excel 匯入；Excel 公式留下的 0 視為空白；公司贈品併入「其他」。
+- 補助撥款的銀行與匯款帳戶：財務可編輯；有 `work` 操作授權但無財務授權者在「汰舊補助」分頁唯讀，帳號遮罩只露末四碼，顯示完整帳號走 `order_payout_reveal` 並寫入 `payout_account_viewed` 訂單紀錄；車行帳號一律不可見。
+- 被遮罩的資料（匯款帳戶、車控與電池密碼）每次顯示都要輸入本人登入密碼（`sales/services/reveal_password.py`，不建立解鎖 session）；錯誤寫入稽核紀錄，5 分鐘內連續錯 5 次回 429。
 - `_sales_transaction_key(data)` 使用車輛識別（缺值退回型號／車牌）、類別、領牌／發票／訂單日期順序擇一，以及車主身分證號或姓名的正規化雜湊組成；以函式為精確來源。
 - 無車輛識別的銷貨列另以 `_sales_plateless_key`（交易鍵去掉車牌欄）比對：同檔多列相同列為衝突；與已完成批次相同但交易鍵不同（車牌欄常混入備註）列為「疑似已匯入」衝突，須排除或補號碼。只作預覽檢查，不取代交易鍵。
 - 歷史銷貨訂單日缺值時依序取訂單日、領牌日、發票日，最後才用匯入當天。

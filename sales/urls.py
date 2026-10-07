@@ -331,6 +331,11 @@ urlpatterns = [
     path("orders/<int:pk>/operations/discount/request/", views.order_discount_request, name="order_discount_request"),
     path("orders/<int:pk>/operations/discount/decide/", views.order_discount_decide, name="order_discount_decide"),
     path(
+        "orders/<int:pk>/operations/reveal-payout-account/",
+        views.order_payout_reveal,
+        name="order_payout_reveal",
+    ),
+    path(
         "orders/<int:pk>/operations/reveal-secret/",
         views.order_secret_reveal,
         name="order_secret_reveal",

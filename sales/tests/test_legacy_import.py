@@ -46,17 +46,41 @@ from sales.services.legacy_import import (
 )
 
 
+# 與目前實際使用的 Excel 銷貨頁籤第 3 列表頭一致（只有欄位名稱，沒有任何客戶資料）。
+SALES_SHEET_HEADERS = (
+    "序號", "領牌日期", "車種型號", "油：引擎號碼、電：車身號碼",
+    "車主名稱", "顏色", "收款價", "成本",
+    "月份", "現金", "信用卡", "信用卡手續費支出",
+    "分期手續費支出", "領牌稅金支出", "強制險支出", "選號支出",
+    "中古車支出", "贈品、運費支出", "車行傭金支出", "友善車行獎金支出",
+    "首賣獎金支出", "台數獎金支出", "領牌稅金收入", "強制險收入",
+    "代辦費收入", "報廢代辦收入", "選號收入", "中古車收入",
+    "報廢車收入", "手續費收入", "山葉獎金收入", "友善車行獎金收入",
+    "其他收入", "實銷獎勵金", "促銷補助金", "分期補貼息",
+    "強制險傭金", "信用卡傭金", "單筆淨利", "車行",
+    "車行收款", "分期公司", "期數", "領牌日期2",
+    "車牌號碼", "車主名稱2", "生日", "民國生日",
+    "身分證字號", "戶籍地址", "手機", "Email",
+    "工業局發票號碼", "發票日期", "尾款發票號碼", "補助方案",
+    "補助金額", "銀行", "匯款帳戶", "申請日",
+    "工業局", "環境部", "縣市政府", "舊車車主",
+    "舊車車主身分證", "舊車牌照號碼", "舊車引擎號碼", "舊車廠牌",
+    "排氣量", "出廠日期", "報廢日期", "回收日期",
+    "舊車戶籍", "舊車車主電話", "車控帳號", "車控密碼",
+    "電池合約方案", "電池合約啟用日期", "電池合約帳號", "電池合約密碼",
+    "安全帽", "公司禮卷、匯款", "其他", "平台贈品",
+    "欄1", "備註", "訂單日期", "公司贈品",
+    "客服電話", "分期資訊", "特殊方案", "領牌年月",
+)
+
+
 def workbook_bytes(kind="operations"):
     workbook = Workbook()
     if kind == "operations":
         sales = workbook.active
         sales.title = "銷貨"
-        sales["C3"] = "車種型號"
-        sales["D3"] = "識別號碼"
-        sales["E3"] = "車主名稱"
-        sales["G3"] = "收款價"
-        sales["H3"] = "成本"
-        sales["J3"] = "現金"
+        for column, label in enumerate(SALES_SHEET_HEADERS, 1):
+            sales.cell(3, column, label)
         sales["B4"] = "2026/08/01"
         sales["C4"] = "TEST125"
         sales["D4"] = " ab-123 "
@@ -70,7 +94,7 @@ def workbook_bytes(kind="operations"):
         sales["AW4"] = "A123456789"
         sales["AX4"] = "新北市測試路1號"
         sales["AY4"] = "0912345678"
-        sales["CH4"] = "2026/07/30"
+        sales["CI4"] = "2026/07/30"
         inventory = workbook.create_sheet("進貨")
         for column, label in enumerate(("進貨日期", "車種型號", "車身號碼", "顏色", "尺碼", "數量", "單價", "總額", "月份", "出廠日期"), 1):
             inventory.cell(1, column, label)
@@ -162,6 +186,168 @@ class LegacyImportTests(TestCase):
         self.assertEqual(order.order_date, date(2026, 7, 30))
         self.assertEqual(order.operations.net_profit, Decimal("9574"))  # 金額一律存整數
         self.assertEqual(order.operations.legacy_finance_reconciliation["status"], "matched")
+
+    def batch_from_workbook(self, workbook, name="header-mapping.xlsx"):
+        stream = BytesIO()
+        workbook.save(stream)
+        upload = SimpleUploadedFile(name, stream.getvalue())
+        return LegacyImportBatch.objects.create(
+            import_type=LegacyImportBatch.ImportType.OPERATIONS,
+            source_file=upload,
+            original_filename=name,
+            file_sha256=file_sha256(upload),
+            file_size=len(stream.getvalue()),
+            uploaded_by="tester",
+        )
+
+    def test_columns_are_read_by_header_name_not_position(self):
+        workbook = load_workbook(BytesIO(workbook_bytes()))
+        sales = workbook["銷貨"]
+        sales["AY4"] = "0912345678"
+        # 在最前面與中間各插入新欄：所有欄位位置都往右移，結果必須和原本完全相同。
+        sales.insert_cols(1)
+        sales["A3"] = "新增欄"
+        sales.insert_cols(30)
+        sales.cell(3, 30, "另一個新增欄")
+        batch = self.batch_from_workbook(workbook)
+        build_import_preview(batch)
+        confirm_import(batch, "tester")
+        order = SalesOrder.objects.get()
+        self.assertEqual(order.owner_name, "正式車主")
+        self.assertEqual(order.owner_phone, "0912345678")
+        self.assertEqual(order.owner_id_number, "A123456789")
+        self.assertEqual(order.final_plate_number, "ABC-1234")
+        self.assertEqual(order.order_date.isoformat(), "2026-07-30")
+        self.assertEqual(batch.preview_summary["blocking"], {})
+
+    def test_missing_required_header_blocks_confirmation(self):
+        workbook = load_workbook(BytesIO(workbook_bytes()))
+        workbook["銷貨"]["C3"] = None
+        batch = self.batch_from_workbook(workbook)
+        build_import_preview(batch)
+        batch.refresh_from_db()
+        self.assertIn("車種型號", batch.preview_summary["blocking"]["銷貨"])
+        self.assertEqual(batch.rows.filter(sheet_name="銷貨").count(), 0)
+        with self.assertRaisesMessage(ValueError, "表頭"):
+            confirm_import(batch, "tester")
+        page = self.client.get(reverse("legacy_import_detail", args=[batch.pk]))
+        self.assertContains(page, "找不到必要表頭：車種型號")
+        self.assertEqual(SalesOrder.objects.count(), 0)
+
+    def test_older_header_names_are_accepted_and_missing_optional_headers_warn(self):
+        workbook = load_workbook(BytesIO(workbook_bytes()))
+        sales = workbook["銷貨"]
+        sales["CM3"] = "銷售方案分類"  # 舊版 Excel 的欄名
+        sales["CM4"] = "試乘車"
+        sales["CJ3"] = None
+        batch = self.batch_from_workbook(workbook)
+        build_import_preview(batch)
+        batch.refresh_from_db()
+        row = batch.rows.get(sheet_name="銷貨")
+        self.assertEqual(row.mapped_data["sales_category"], "試乘車")
+        self.assertEqual(row.mapped_data["transaction_type"], SalesOrder.TransactionType.TEST_RIDE)
+        self.assertTrue(any("公司贈品" in warning for warning in batch.preview_summary["warnings"]))
+        page = self.client.get(reverse("legacy_import_detail", args=[batch.pk]))
+        self.assertContains(page, "表頭提醒")
+        self.assertContains(page, "找不到表頭：公司贈品")
+
+    def test_bank_and_account_are_placed_by_content_even_when_headers_are_swapped(self):
+        from sales.services.legacy_import import _split_bank_and_account
+        for first, second, expected in (
+            ("299540972331", "中國信託", ("中國信託", "299540972331", False)),  # 目前 Excel 的常見放法
+            ("0131092國泰世華銀行汐止分行", "12345678901", ("0131092國泰世華銀行汐止分行", "12345678901", False)),
+            ("00113990812591", "700汐止社后郵局", ("700汐止社后郵局", "00113990812591", False)),
+            ("", "", ("", "", False)),
+            ("中國信託", "", ("中國信託", "", False)),
+            ("", "123-456-789", ("", "123-456-789", False)),
+            ("中國信託", "玉山銀行", ("中國信託", "玉山銀行", True)),
+            ("123456789", "987654321", ("123456789", "987654321", True)),
+        ):
+            with self.subTest(first=first, second=second):
+                self.assertEqual(_split_bank_and_account(first, second), expected)
+        workbook = load_workbook(BytesIO(workbook_bytes()))
+        sales = workbook["銷貨"]
+        sales["BF4"], sales["BG4"] = "299540972331", "中國信託基隆分行"
+        batch = self.batch_from_workbook(workbook)
+        build_import_preview(batch)
+        confirm_import(batch, "tester")
+        profile = SalesOrder.objects.get().operations
+        self.assertEqual(profile.bank_name, "中國信託基隆分行")
+        self.assertEqual(profile.remittance_account, "299540972331")
+
+    def test_unclear_bank_account_row_is_flagged_for_review(self):
+        from sales.services.legacy_import import BANK_ACCOUNT_UNCLEAR_MESSAGE
+        workbook = load_workbook(BytesIO(workbook_bytes()))
+        sales = workbook["銷貨"]
+        sales["BF4"], sales["BG4"] = "中國信託", "玉山銀行"
+        batch = self.batch_from_workbook(workbook)
+        build_import_preview(batch)
+        row = batch.rows.get(sheet_name="銷貨")
+        self.assertIn(BANK_ACCOUNT_UNCLEAR_MESSAGE, row.messages)
+
+    def test_subsidy_old_vehicle_and_fulfillment_columns_are_imported_but_passwords_are_not(self):
+        from datetime import date
+        workbook = load_workbook(BytesIO(workbook_bytes()))
+        sales = workbook["銷貨"]
+        values = {
+            "E4": "舊欄姓名", "AT4": "車主甲", "AW4": "A123456789",
+            "BH4": "2026/08/10", "BL4": "車主甲", "BM4": None, "BN4": "XUR-616", "BO4": "SA20EC-107475",
+            "BP4": "光陽", "BQ4": 101, "BR4": "200509", "BS4": "2026/06/24", "BT4": "2026/06/25",
+            "BW4": "airlin88", "BX4": "secret-control-password", "BY4": "499吃到飽", "BZ4": "2026/08/02",
+            "CA4": "battery-account", "CB4": "secret-battery-password",
+            "CD4": "郵政禮卷5000元", "CE4": "行車紀錄器", "CF4": "3000統一禮券", "CJ4": "座墊",
+            "CK4": "客服電話：02-8953-8686", "CL4": "分期和潤 18期，每期 3000",
+            "BI4": "V", "BJ4": "已寄出", "BK4": "12/29=53000",
+        }
+        for cell, value in values.items():
+            sales[cell] = value
+        sales["BL4"] = "車主甲"
+        batch = self.batch_from_workbook(workbook)
+        build_import_preview(batch)
+        confirm_import(batch, "tester")
+        order = SalesOrder.objects.get()
+        profile = order.operations
+        self.assertTrue(order.old_owner_same_as_owner)
+        self.assertEqual(order.old_owner_name, "車主甲")
+        self.assertEqual(order.old_owner_id_number, "A123456789")
+        self.assertEqual(order.trade_in_plate, "XUR-616")
+        self.assertEqual(profile.subsidy_applied_on, date(2026, 8, 10))
+        self.assertEqual(profile.old_vehicle_engine_number, "SA20EC-107475")
+        self.assertEqual(profile.old_vehicle_brand, "光陽")
+        self.assertEqual(profile.old_vehicle_displacement_cc, 101)
+        self.assertEqual(profile.old_vehicle_manufactured_on, date(2005, 9, 1))
+        self.assertEqual(profile.scrapped_on, date(2026, 6, 24))
+        self.assertEqual(profile.recycled_on, date(2026, 6, 25))
+        self.assertEqual(profile.vehicle_control_account, "airlin88")
+        self.assertEqual(profile.battery_plan, "499吃到飽")
+        self.assertEqual(profile.battery_activated_on, date(2026, 8, 2))
+        self.assertEqual(profile.battery_account, "battery-account")
+        self.assertEqual(profile.company_gift_or_remittance, "郵政禮卷5000元")
+        self.assertEqual(profile.platform_gift, "3000統一禮券")
+        self.assertIn("行車紀錄器", profile.other_fulfillment)
+        self.assertIn("公司贈品：座墊", profile.other_fulfillment)
+        self.assertEqual(profile.customer_service_phone, "客服電話：02-8953-8686")
+        self.assertEqual(profile.installment_info, "分期和潤 18期，每期 3000")
+        # 密碼不從 Excel 匯入，原始值也不得出現在任何已存欄位。
+        self.assertEqual(profile.vehicle_control_password_encrypted, "")
+        self.assertEqual(profile.battery_password_encrypted, "")
+        stored = " ".join(str(value) for value in profile.__dict__.values())
+        self.assertNotIn("secret-control-password", stored)
+        self.assertNotIn("secret-battery-password", stored)
+
+    def test_zero_left_by_excel_formulas_is_not_imported_as_text(self):
+        workbook = load_workbook(BytesIO(workbook_bytes()))
+        sales = workbook["銷貨"]
+        for cell in ("BL4", "BM4", "BN4", "BP4", "CE4", "CK4"):
+            sales[cell] = 0
+        batch = self.batch_from_workbook(workbook)
+        build_import_preview(batch)
+        confirm_import(batch, "tester")
+        order = SalesOrder.objects.get()
+        self.assertEqual((order.old_owner_name, order.trade_in_plate), ("", ""))
+        self.assertEqual(order.operations.old_vehicle_brand, "")
+        self.assertEqual(order.operations.other_fulfillment, "")
+        self.assertEqual(order.operations.customer_service_phone, "")
 
     def setUp(self):
         Store.objects.create(name="總店", code="MAIN")
@@ -922,7 +1108,7 @@ class LegacyImportTests(TestCase):
     def make_identifierless_batch(self, plates):
         workbook = load_workbook(BytesIO(workbook_bytes()))
         sales = workbook["銷貨"]
-        sales["B4"] = sales["CH4"] = sales["D4"] = None
+        sales["B4"] = sales["CI4"] = sales["D4"] = None
         sales["BB4"] = "2026/09/18"
         for offset, plate in enumerate(plates):
             row = 4 + offset

@@ -37,11 +37,24 @@ MAPPING = {
     "friendly_dealer_bonus_income": "友善車行獎金收入",
     "other_income": "其他收入",
 }
+# Excel 表頭改過名稱時沿用同一欄：依序嘗試，取第一個有出現的表頭。
+LABEL_ALIASES = {
+    "刷卡、分期手續費收入": ("刷卡/分期手續費收入", "手續費收入"),
+}
 BONUS_EXPENSES = ("friendly_dealer_bonus_expense", "first_sale_bonus_expense", "volume_bonus_expense")
 FINANCIAL_FIELDS = tuple(dict.fromkeys((
     "actual_disbursement", "vehicle_cost", *OrderOperationsProfile.EXPENSE_FIELDS,
     *OrderOperationsProfile.INCOME_FIELDS, *OrderOperationsProfile.INCENTIVE_FIELDS,
 )))
+
+
+def source_value(raw, label):
+    if label in raw:
+        return raw.get(label)
+    for alias in LABEL_ALIASES.get(label, ()):
+        if alias in raw:
+            return raw.get(alias)
+    return None
 
 
 def source_decimal(value):
@@ -59,7 +72,7 @@ def source_decimal(value):
 def reconcile_source(raw):
     """只接受已核對的兩種來源公式；不使用淨利倒推任何收支。"""
     try:
-        values = {field: source_decimal(raw.get(label)) for field, label in MAPPING.items()}
+        values = {field: source_decimal(source_value(raw, label)) for field, label in MAPPING.items()}
         if raw.get("收款價") in (None, "") or raw.get("成本") in (None, ""):
             return {"status": "missing", "reason": "缺少收款價或成本"}, {}
         reference = raw.get("單筆淨利")
@@ -100,7 +113,7 @@ def repair_plan(snapshot):
               "batch_id": str(snapshot.import_row.batch_id), "before": before,
               "reconciliation": reconciliation, "after": {k: str(v) for k, v in values.items()},
               "revision": snapshot.order.revision, "profile_updated_at": profile.updated_at.isoformat(),
-              "source": {label: snapshot.raw_financials.get(label) for label in (*MAPPING.values(), "單筆淨利")}}
+              "source": {label: source_value(snapshot.raw_financials, label) for label in (*MAPPING.values(), "單筆淨利")}}
     if profile.legacy_finance_reconciliation.get("status") in ("matched", "reviewed"):
         result["status"] = "already_reconciled"
     elif reconciliation["status"] != "matched":

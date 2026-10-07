@@ -332,11 +332,8 @@ SALES_HEADER_ALIASES = {
     "owner_email": ("Email",),
     "invoice_date": ("發票日期", "銷貨日期"),
     "balance_invoice_number": ("尾款發票號碼",),
-    "subsidy_type": ("補助方案",),
-    "subsidy_amount": ("補助金額",),
     "bank_header_value": ("銀行",),
     "account_header_value": ("匯款帳戶",),
-    "subsidy_applied_on": ("申請日",),
     "old_owner_name": ("舊車車主",),
     "old_owner_id_number": ("舊車車主身分證",),
     "trade_in_plate": ("舊車牌照號碼",),
@@ -813,9 +810,6 @@ def _operations_sales_rows(batch, workbook):
             "owner_email": text_cell("owner_email"),
             "invoice_date": _json_value(_date(cell("invoice_date"))),
             "balance_invoice_number": text_cell("balance_invoice_number"),
-            "subsidy_type": text_cell("subsidy_type"),
-            "subsidy_amount": str(_decimal(cell("subsidy_amount"))),
-            "subsidy_applied_on": _json_value(_date(cell("subsidy_applied_on"))),
             "remittance_account": remittance_account,
             "bank_name": bank_name,
             "trade_in_plate": text_cell("trade_in_plate"),
@@ -1685,11 +1679,10 @@ def _commit_sales_row(row, actor_name, *, pending_order=None):
         trade_in_plate=data["trade_in_plate"],
         old_owner_same_as_owner=old_owner_same,
         old_owner_name=old_owner_name, old_owner_id_number=old_owner_id_number,
-        subsidy_type=data["subsidy_type"],
         note=data.get("note", ""),
         is_trade_in_subsidy=(
             vehicle_category == SalesOrder.VehicleCategory.NEW
-            and bool(data["subsidy_type"] or data["trade_in_plate"])
+            and bool(data["trade_in_plate"])
         ),
         allocated_vehicle=vehicle,
     )
@@ -1726,8 +1719,6 @@ def _commit_sales_row(row, actor_name, *, pending_order=None):
         import_financials(profile, row.raw_data)
     profile.payment_confirmed = data["payment_confirmed"]
     profile.invoice_date = _date(data["invoice_date"])
-    profile.subsidy_amount = _decimal(data["subsidy_amount"])
-    profile.subsidy_applied_on = _date(data.get("subsidy_applied_on"))
     profile.old_vehicle_displacement_cc = data.get("old_vehicle_displacement_cc")
     profile.old_vehicle_manufactured_on = _year_month_to_date(data.get("old_vehicle_manufactured_year_month"))
     profile.scrapped_on = _date(data.get("scrapped_on"))

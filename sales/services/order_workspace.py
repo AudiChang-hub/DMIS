@@ -198,4 +198,5 @@ def saved(request, order, *, form=None, formsets=()):
         'delivery_blocker': delivery_blockers[0] if delivery_blockers else '',
         'receipt_summary': {key: str(value) for key, value in payment_summary(order).items()},
         'summary_html': render_to_string('sales/_workspace_finance_summary.html', {**context, 'order': order}, request=request) if profile else '',
+        'subsidy_summary_html': render_to_string('sales/_subsidy_agency_summary.html', {'order': order}, request=request) if profile else '',
     })

@@ -44,6 +44,7 @@ MISSING_IDENTIFIER_MESSAGE = "缺少引擎／車身號碼"
 EMPTY_SALES_PLACEHOLDER_MESSAGE = "Excel 空白公式列，系統自動略過"
 NON_VEHICLE_SALES_NOISE_MESSAGE = "缺少有效車輛序號且無交易資料，系統自動略過"
 INVALID_EMAIL_MESSAGE = "Email 格式不正確，請修正或清空後再匯入"
+EMAIL_DROPPED_MESSAGE = "Email 格式不正確，已略過 Email 欄（其他資料照常匯入）"
 BANK_ACCOUNT_UNCLEAR_MESSAGE = "銀行與匯款帳戶內容無法判斷（兩欄都是文字或都是數字），暫依表頭放入，請人工確認"
 PREVIEW_SCHEMA_VERSION = 9
 SPECIAL_PLATFORM_SOURCE_RULES = {
@@ -775,6 +776,10 @@ def _operations_sales_rows(batch, workbook):
         old_owner_name = text_cell("old_owner_name")
         old_owner_id_number = text_cell("old_owner_id_number")
         owner_id_number = text_cell("owner_id_number")
+        owner_email = text_cell("owner_email")
+        email_dropped = _has_invalid_email(owner_email)
+        if email_dropped:
+            owner_email = ""
         old_owner_same = bool(
             old_owner_name
             and old_owner_name == owner
@@ -807,7 +812,7 @@ def _operations_sales_rows(batch, workbook):
             "owner_id_number": owner_id_number,
             "owner_address": text_cell("owner_address"),
             "owner_phone": text_cell("owner_phone"),
-            "owner_email": text_cell("owner_email"),
+            "owner_email": owner_email,
             "invoice_date": _json_value(_date(cell("invoice_date"))),
             "balance_invoice_number": text_cell("balance_invoice_number"),
             "remittance_account": remittance_account,
@@ -839,6 +844,8 @@ def _operations_sales_rows(batch, workbook):
         natural_key = _sales_transaction_key(mapped)
         name_mismatch = bool(mapped["owner_name_primary"] and mapped["owner_name_detail"] and mapped["owner_name_primary"] != mapped["owner_name_detail"])
         messages = ["銷貨與車主資料區姓名不同，採車主資料區"] if name_mismatch else []
+        if email_dropped:
+            messages.append(EMAIL_DROPPED_MESSAGE)
         if bank_unclear:
             messages.append(BANK_ACCOUNT_UNCLEAR_MESSAGE)
         from .legacy_finance import reconcile_source

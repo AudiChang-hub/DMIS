@@ -29,6 +29,7 @@ from sales.models import (
 from sales.forms import LegacyImportRowCorrectionForm, LegacyImportUploadForm
 from sales.jobs import run_legacy_import_job
 from sales.services.legacy_import import (
+    EMAIL_DROPPED_MESSAGE,
     INVALID_EMAIL_MESSAGE,
     PREVIEW_SCHEMA_VERSION,
     _clean_sales_source_name,
@@ -611,7 +612,7 @@ class LegacyImportTests(TestCase):
         self.assertEqual(order.note, "代申請補助")
         self.assertEqual(order.operations.dealer_name, "")
 
-    def test_invalid_email_is_reported_during_preview(self):
+    def test_invalid_email_is_dropped_but_row_still_imports(self):
         workbook = load_workbook(BytesIO(workbook_bytes()))
         workbook["銷貨"]["AZ4"] = "新北市測試路1號"
         stream = BytesIO()
@@ -629,9 +630,15 @@ class LegacyImportTests(TestCase):
         summary = build_import_preview(batch)
 
         sales_row = batch.rows.get(sheet_name="銷貨")
-        self.assertEqual(sales_row.action, LegacyImportRow.Action.ERROR)
-        self.assertIn(INVALID_EMAIL_MESSAGE, sales_row.messages)
-        self.assertEqual(summary["counts"]["error"], 1)
+        self.assertEqual(sales_row.action, LegacyImportRow.Action.CREATE)
+        self.assertIn(EMAIL_DROPPED_MESSAGE, sales_row.messages)
+        self.assertEqual(sales_row.mapped_data["owner_email"], "")
+        self.assertEqual(summary["counts"]["error"], 0)
+        confirm_import(batch, "tester")
+        order = SalesOrder.objects.get()
+        self.assertEqual(order.owner_email, "")
+        self.assertEqual(order.owner_phone, "0912345678")  # 其他資料照常匯入
+        self.assertEqual(order.owner_name, "正式車主")
 
     @patch("sales.views.django_rq.get_queue")
     def test_confirm_starts_background_import_and_status_endpoint_reports_progress(self, get_queue):

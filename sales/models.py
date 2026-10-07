@@ -3574,6 +3574,13 @@ class SalesOrder(TimeStampedModel):
         return self.subsidy_items.aggregate(total=models.Sum("expected_amount"))["total"] or Decimal("0")
 
     @property
+    def subsidy_agency_summary(self):
+        from sales.services.subsidy_summary import agency_summary
+        if not self.pk:
+            return agency_summary([])
+        return agency_summary(self.subsidy_items.all())
+
+    @property
     def subsidy_last_applied_on(self):
         if not self.pk:
             return None

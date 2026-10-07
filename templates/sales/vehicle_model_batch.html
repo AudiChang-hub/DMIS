@@ -92,6 +92,7 @@
       <div>
         <h2 id="batch-sheet-title">{{ dataset_label }}</h2>
         <p>{{ dataset_note }}{% if not immediate %}目前值以 <strong>{{ effective_from|date:"Y/m/d" }}</strong> 前有效的版本計算。{% endif %}</p>
+        <p class="model-tool-keys" aria-hidden="true"><kbd>Enter</kbd>／<kbd>↓</kbd> 移到下一列・<kbd>↑</kbd> 上一列・<kbd>Tab</kbd> 下一格・每格空白代表不變</p>
       </div>
       <span class="model-batch-sheet__count"><strong>{{ rows|length }}</strong> 個年式{% if truncated %}<small>（只顯示前 {{ max_rows }} 個，請縮小篩選）</small>{% endif %}</span>
     </header>
@@ -168,7 +169,6 @@
   </div>
   {% endif %}
 </form>
-<p class="model-tool-keys" aria-hidden="true"><kbd>Enter</kbd>／<kbd>↓</kbd> 移到下一列・<kbd>↑</kbd> 上一列・<kbd>Tab</kbd> 下一格・每格空白代表不變</p>
 {% else %}
 <div class="empty-state"><span class="empty-state__icon" aria-hidden="true">!</span><h3>沒有可調整的資料</h3><p>你的帳號沒有售價、傭金、成本或原廠獎勵的查看權限，請洽 admin 開放。</p></div>
 {% endif %}

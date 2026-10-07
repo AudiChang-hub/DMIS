@@ -185,7 +185,7 @@
 .model-delta.is-new { color: var(--green-ink); }
 .model-delta.is-error { color: var(--red-ink); }
 
-.model-tool-keys { margin: calc(-1 * var(--space-3)) 0 var(--stack-gap); color: var(--muted); font-size: var(--text-xs); }
+.model-tool-keys { margin: var(--space-2) 0 0; color: var(--muted); font-size: var(--text-xs); }
 .model-tool-keys kbd {
   display: inline-block; min-width: 22px; padding: 0 var(--space-1); color: var(--ink); text-align: center;
   background: var(--surface); border: 1px solid var(--line); border-bottom-width: 2px; border-radius: var(--radius-xs);

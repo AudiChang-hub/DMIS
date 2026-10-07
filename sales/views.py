@@ -7953,6 +7953,28 @@ def inventory_list(request):
     )
 
 
+def _attach_current_reward_summaries(models, day):
+    """列表顯示各年式今天有效的車行附加獎勵（品項與數量）。"""
+    from sales.models import DealerVehicleRewardPlan
+
+    plans = (
+        DealerVehicleRewardPlan.objects.filter(
+            vehicle_model_id__in=[model.pk for model in models], active=True, effective_from__lte=day,
+        )
+        .filter(Q(effective_to__isnull=True) | Q(effective_to__gte=day))
+        .prefetch_related("items").order_by("vehicle_model_id", "-effective_from", "-pk")
+    )
+    current = {}
+    for plan in plans:
+        current.setdefault(plan.vehicle_model_id, plan)
+    for model in models:
+        plan = current.get(model.pk)
+        model.current_reward_items = [
+            f"{item.name} {item.quantity:,.0f}{item.unit}" for item in plan.items.all()
+        ] if plan else []
+        model.current_reward_until = plan.effective_to if plan else None
+
+
 @login_required
 def vehicle_model_list(request):
     from sales.access.services import policy_for
@@ -8026,6 +8048,7 @@ def vehicle_model_list(request):
         ))
         .order_by("brand", "family__name", "name", "-model_year", "model_code")
     )
+    _attach_current_reward_summaries(models, today)
 
     brand_records = {
         brand.name.casefold(): brand

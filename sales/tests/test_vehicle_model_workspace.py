@@ -283,3 +283,22 @@ class VehicleModelWorkspaceTests(TestCase):
         self.assertIn("（已設定：基礎傭金 2,000 元；附加獎勵 0 個版本）", page)
         self.assertIn("（未設定：0 個獎勵版本）", page)
         self.assertNotIn("筆版本）", page)
+
+    def test_model_list_shows_commission_and_current_rewards(self):
+        from datetime import timedelta
+
+        from django.utils import timezone
+
+        from sales.models import DealerRewardCatalogItem, DealerVehicleRewardItem, DealerVehicleRewardPlan
+
+        VehicleModel.objects.filter(pk=self.model.pk).update(base_dealer_commission=2000)
+        voucher = DealerRewardCatalogItem.objects.create(reward_type="voucher", name="郵政禮券", unit="元")
+        today = timezone.localdate()
+        plan = DealerVehicleRewardPlan.objects.create(vehicle_model=self.model, effective_from=today,
+                                                      effective_to=today + timedelta(days=30), active=True)
+        DealerVehicleRewardItem.objects.create(plan=plan, catalog_item=voucher, reward_type="voucher",
+                                               name="郵政禮券", quantity=10000, unit="元")
+        page = self.client.get(reverse("vehicle_model_list")).content.decode()
+        self.assertIn("傭金與附加獎勵", page)
+        self.assertIn("傭金 $2,000", page)
+        self.assertIn("郵政禮券 10,000元", page)

@@ -1,4 +1,4 @@
-<td data-label="型號">{{ item.model_number|default:"待補" }}</td>
+{% load sales_format %}<td data-label="型號">{{ item.model_number|default:"待補" }}</td>
 <td data-label="年份／型式">
   <strong>{{ item.model_year|default:"待補" }}</strong>
   <span>{% if item.model_code %}{{ item.get_model_code_display }}{% else %}待補{% endif %}</span>
@@ -30,7 +30,10 @@
   {% endif %}
 </td>
 <td data-label="目前建議售價">{% if item.current_suggested_price %}${{ item.current_suggested_price|floatformat:0 }}{% else %}尚未設定{% endif %}</td>
-<td data-label="車行基礎傭金"><strong>${{ item.base_dealer_commission|floatformat:0 }}</strong><span>特定車行加減另於車行資料設定</span></td>
+<td data-label="傭金與附加獎勵">
+  <strong>傭金 ${{ item.base_dealer_commission|number_with_commas }}</strong>
+  {% if item.current_reward_items %}<span class="vehicle-model-rewards">{{ item.current_reward_items|join:"、" }}{% if item.current_reward_until %}（至 {{ item.current_reward_until|date:"m/d" }}）{% endif %}</span>{% else %}<span>無附加獎勵</span>{% endif %}
+</td>
 <td data-label="啟用顏色">{% include 'sales/_enabled_colors.html' with item=item %}</td>
 <td data-label="庫存">
   <a

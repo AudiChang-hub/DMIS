@@ -157,7 +157,8 @@ class ReceptionEntryTests(TestCase):
                 self.assertNotContains(page, "離開接待")
             self.assertEqual(self.client.get(reverse("dashboard")).status_code, 200)
         self.client.logout()
-        self.assertContains(self.client.get(reverse("catalog")), f'<a class="brand" href="{reverse("catalog")}">')
+        # 未登入時品牌標誌回到登入頁；已登入回到首頁。
+        self.assertContains(self.client.get(reverse("catalog")), f'<a class="brand" href="{reverse("login")}">')
 
     def test_grant_migration_is_audited_idempotent_and_does_not_expand_viewers(self):
         UserAccessState.objects.create(user=self.user, configured=True, version=0)

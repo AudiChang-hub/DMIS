@@ -96,6 +96,8 @@ register("models", "vehicle_model_create vehicle_model_edit", "operate")
 # 沿用建立與批次調整：查看需機種畫面、送出需機種操作；各項資料另依其畫面的操作權限把關。
 register("models", "vehicle_model_copy vehicle_model_batch")
 register("commissions", "dealer_sales_program_list vehicle_model_commission")
+# 批次套用附加獎勵：權限同機種工作區的「傭金與獎勵」分頁（查看可試算，預覽與送出需操作）。
+register("commissions", "vehicle_model_reward_batch")
 register("accessories", "accessory_product_list")
 register("accessories", "accessory_product_create accessory_product_edit", "operate")
 register("rewards", "dealer_reward_catalog_list")

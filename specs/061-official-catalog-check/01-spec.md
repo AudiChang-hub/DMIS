@@ -46,6 +46,15 @@
 - 頁面上方 SYM／SUZUKI 分頁顯示各自上次檢查時間、讀取中或尚未檢查；任一家讀取中時頁面每 5 秒更新。
 - `official_catalog_check_start` 接受 `brand=all`，兩家各排一個檢查，已在進行中的原廠略過；`return_brand` 決定導回的分頁。
 
+## eReady 電動車
+
+- SUZUKI 產品頁（去除 HTML 註解後）連到 `https://(www.)eready.com.tw/eready-*.php` 的連結視為 eReady 車型頁；首頁、配件、新聞、型錄等不列入。
+  識別碼 `eready:<頁名>`，名稱與圖片取自 SUZUKI 卡片（沒有卡片時用頁面標題）；車型頁讀取與轉址只允許 eReady 網域，圖片版本標記允許兩邊原廠網域。
+- `parse_eready_model` 只讀規格表：認證車型取型號（`EV076S A1`）、「最大功率」為馬力欄位；能源固定電動、無排氣量、無售價、無車色（不補圖）。
+  找不到規格表即該頁失敗並記錄錯誤，其他車型照常比對，該頁不判定下架。
+- 從官網建立車型：帶入名稱、型號、電動與馬達功率；品牌主檔有啟用的 eReady 才帶 eReady，否則帶 SUZUKI。SUZUKI 的候選車型也包含 eReady 品牌。
+- 無 migration；回復程式即可，已建立的 `eready:*` 比對紀錄可保留或忽略。
+
 ## 回復
 
 migration 0157 只新增 `OfficialCatalogCheck`、`OfficialCatalogModel` 兩張表，不改既有表。回復程式到 1.22.3 後可保留兩張表或 migrate 回 0156；

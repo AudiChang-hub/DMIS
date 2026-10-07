@@ -44,8 +44,15 @@ SOURCES = {
         "brand_query": "SUZUKI",
         "list_url": "https://www.suzukimotor.com.tw/products.html",
         "hosts": {"www.suzukimotor.com.tw", "suzukimotor.com.tw"},
+        # 台鈴 eReady 電動車列在 SUZUKI 產品頁，但車型頁在 eReady 官網；車型歸 eReady 品牌（若主檔有）。
+        "extra_brand_queries": ("eReady",),
     },
 }
+
+# eReady 車型頁只允許這兩個網域；轉址同樣不得離開。
+EREADY_HOSTS = {"www.eready.com.tw", "eready.com.tw"}
+EREADY_MODEL_PATH = re.compile(r"^/(eready-[a-z0-9][a-z0-9-]*)\.php$", re.I)
+EREADY_NON_MODEL = re.compile(r"accessor|index|news|about|contact|dealer|store|faq|service|event|file|privacy", re.I)
 
 
 class OfficialCatalogError(Exception):
@@ -299,7 +306,47 @@ def parse_suzuki_list(text, base_url):
             "category": "",
             "image_url": urljoin(base_url, _img_src(match.group(1))),
         })
-    return entries
+    return entries + parse_eready_list(text, base_url)
+
+
+def eready_model_slug(url):
+    """eReady 官網的車型頁（例如 eready-run-new.php）回傳 slug；首頁、配件、新聞等非車型頁回傳空字串。"""
+    parts = urlsplit(url)
+    if parts.scheme != "https" or (parts.hostname or "").lower() not in EREADY_HOSTS:
+        return ""
+    match = EREADY_MODEL_PATH.match(parts.path)
+    if not match or EREADY_NON_MODEL.search(match.group(1)):
+        return ""
+    return match.group(1).lower()
+
+
+def parse_eready_list(text, base_url):
+    """SUZUKI 產品頁上連到 eReady 官網的電動車卡片；同一車型多個連結只取一筆，名稱與圖片以卡片為準。"""
+    text = _strip_comments(text)
+    found = {}
+    for match in re.finditer(r'<a\b[^>]*?\bhref\s*=\s*(["\'])(.*?)\1', text, flags=re.S):
+        slug = eready_model_slug(urljoin(base_url, html.unescape(match.group(2)).strip()))
+        if not slug:
+            continue
+        card_start = text.rfind("<li", 0, match.start())
+        card = text[card_start if card_start >= 0 else max(0, match.start() - 2000):match.start()]
+        card_end = text.find("</li>", match.end())
+        headings = [_text(value) for value in re.findall(r"<h5[^>]*>(.*?)</h5>", card, flags=re.S)]
+        images = re.findall(r"<img[^>]*>", card)
+        item = found.setdefault(slug, {
+            "slug": f"eready:{slug}",
+            "url": f"https://www.eready.com.tw/{slug}.php",
+            "name": "", "category": "", "image_url": "", "official_label": "",
+            "parser": "eready", "hosts": EREADY_HOSTS,
+        })
+        if not item["name"] and headings and headings[-1]:
+            item["name"] = headings[-1]
+            item["image_url"] = urljoin(base_url, _img_src(images[-1])) if images else ""
+            item["official_label"] = _ribbon(text[match.end():card_end if card_end >= 0 else len(text)])
+    for slug, item in found.items():
+        item["name_from_card"] = bool(item["name"])
+        item["name"] = item["name"] or slug
+    return list(found.values())
 
 
 def _ribbon(fragment):
@@ -353,6 +400,75 @@ def parse_suzuki_model(text, listing):
     }]
 
 
+EREADY_CODE = re.compile(r"\b([A-Z]{1,3}\d{2,4}[A-Z]{0,4})(?:\s+([A-Z]\d{1,2}))?\s*$")
+
+
+def eready_model_number(certified):
+    """認證車型「台鈴 eReady Run EV076S A1」取出型號「EV076S A1」；讀不到回傳空字串。"""
+    match = EREADY_CODE.search(certified or "")
+    return " ".join(part for part in match.groups() if part) if match else ""
+
+
+def _eready_specs(text):
+    """eReady 規格表：<th colspan> 為分組，兩欄為項目；rowspan 的後續列併入同一項目，重複項目名稱加上分組。"""
+    specs = {}
+    for table in re.findall(r"<table\b[^>]*>(.*?)</table>", text, flags=re.S):
+        group, last = "", None
+        for row in re.findall(r"<tr[^>]*>(.*?)</tr>", table, flags=re.S):
+            cells = re.findall(r"<t([dh])([^>]*)>(.*?)</t[dh]>", row, flags=re.S)
+            values = [_text(cell[2]) for cell in cells]
+            if len(cells) == 1 and (cells[0][0] == "h" or "colspan" in cells[0][1]):
+                group, last = values[0], None
+            elif len(cells) == 2 and values[0]:
+                key = values[0] if values[0] not in specs else f"{group}／{values[0]}"
+                specs[key] = values[1]
+                last = key if "rowspan" in cells[0][1] else None
+            elif len(cells) == 1 and last and values[0]:
+                specs[last] = f"{specs[last]} {values[0]}".strip()
+    return specs
+
+
+def parse_eready_model(text, listing):
+    """eReady 車型頁是各款不同的行銷版型；只讀規格表與頁面標題。車色只在圖片中、沒有售價，因此不列車色與價格。"""
+    text = _strip_comments(text)
+    text = re.sub(r"<(script|style)\b[^>]*>.*?</\1>", "", text, flags=re.S | re.I)
+    specs = _eready_specs(text)
+    if not (specs.get("認證車型") or specs.get("最大功率")):
+        raise OfficialCatalogError("找不到規格表（認證車型、最大功率），官網可能已改版。")
+    title = re.search(r"<title[^>]*>(.*?)</title>", text, flags=re.S)
+    title = _text(title.group(1)) if title else ""
+    title_name = title.rsplit(" - ", 1)[-1].strip() if " - " in title else ""
+    name = listing["name"] if listing.get("name_from_card") else (title_name or listing["name"])
+    return [{
+        "source_key": listing["slug"],
+        "source_url": listing["url"],
+        "site": "eready",
+        "name": name,
+        "variant": "",
+        "category": listing.get("category", ""),
+        "energy": "electric",
+        "official_label": listing.get("official_label", ""),
+        "year_hint": _year_hint(name),
+        "displacement_cc": "",
+        "power": specs.get("最大功率", ""),
+        "power_label": "最大功率",
+        "model_number": eready_model_number(specs.get("認證車型", "")),
+        "price": None,
+        "price_note": "",
+        "main_image_url": listing.get("image_url", ""),
+        "colors": [],
+        "specs": specs,
+    }]
+
+
+MODEL_PARSERS = {"eready": parse_eready_model}
+
+
+def listing_hosts(source, listing):
+    """讀取車型頁用的網域；eReady 車型頁只允許 eReady 官網。"""
+    return listing.get("hosts") or source["hosts"]
+
+
 PARSERS = {
     "sym": (parse_sym_list, parse_sym_model),
     "suzuki": (parse_suzuki_list, parse_suzuki_model),
@@ -399,9 +515,11 @@ def describe_changes(before, after):
         if (before.get(field) or "") != (after.get(field) or ""):
             changes.append(f"{label}：{before.get(field) or '—'} → {after.get(field) or '—'}")
     old_specs, new_specs = before.get("specs", {}), after.get("specs", {})
+    # 已在上方欄位列出的規格不重複；eReady 的「馬力」欄位取自「最大功率」。
+    shown = {"排氣量", after.get("power_label")} if after.get("power_label") else {"排氣量", "最大馬力", "馬力"}
     spec_changes = [f"{label}：{old_specs.get(label) or '—'} → {new_specs.get(label) or '—'}"
                     for label in dict.fromkeys([*old_specs, *new_specs])
-                    if label not in {"排氣量", "最大馬力", "馬力"} and old_specs.get(label) != new_specs.get(label)]
+                    if label not in shown and old_specs.get(label) != new_specs.get(label)]
     if spec_changes:
         changes.append("規格變更：" + "；".join(spec_changes[:8]) + ("…" if len(spec_changes) > 8 else ""))
     return changes
@@ -509,12 +627,15 @@ def model_prefill(link, base_model=None):
         brands = list(brand_models(link.brand).values_list("brand", flat=True))
         name = re.sub(r"^\s*20\d{2}\s*[-－]?\s*", "", entry.get("name", ""))
         initial.update({
-            "brand": max(set(brands), key=brands.count) if brands else SOURCES[link.brand]["label"],
+            "brand": (_eready_brand() if entry.get("site") == "eready" else "")
+            or (max(set(brands), key=brands.count) if brands else SOURCES[link.brand]["label"]),
             "energy_type": "electric" if entry.get("energy") == "electric" else "gas",
             "name": re.sub(r"^全新\s*", "", name).strip(),
         })
         certified = SUZUKI_CODE.search(entry.get("specs", {}).get("認證車型", ""))
-        if certified:
+        if entry.get("model_number"):
+            initial["model_number"] = entry["model_number"]
+        elif certified:
             initial["model_number"] = certified.group(1).upper()
     base_year = base_model.model_year if base_model else None
     initial["model_year"] = entry.get("year_hint") or (base_year + 1 if base_year else date.today().year)
@@ -526,13 +647,25 @@ def model_prefill(link, base_model=None):
     return initial, official_color_names(entry)
 
 
+def _eready_brand():
+    """品牌主檔有 eReady（名稱或別名、啟用中）才用；否則沿用 SUZUKI 的預設品牌。"""
+    from sales.models import VehicleBrand
+    from sales.services.vehicle_brands import canonical_vehicle_brand_name
+
+    brand = VehicleBrand.objects.filter(name__iexact=canonical_vehicle_brand_name("eReady"), active=True).first()
+    return brand.name if brand else ""
+
+
 # ---------- 背景檢查 ----------
 
 def brand_models(brand):
     from sales.models import VehicleModel
     from sales.services.vehicle_brands import vehicle_brand_search_q
 
-    return VehicleModel.objects.filter(vehicle_brand_search_q(SOURCES[brand]["brand_query"])).order_by("name", "-model_year", "pk")
+    query = vehicle_brand_search_q(SOURCES[brand]["brand_query"])
+    for extra in SOURCES[brand].get("extra_brand_queries", ()):
+        query |= vehicle_brand_search_q(extra)
+    return VehicleModel.objects.filter(query).order_by("name", "-model_year", "pk")
 
 
 def active_check(brand):
@@ -574,9 +707,12 @@ def run_official_catalog_check(check_id):
     for number, listing in enumerate(listings, start=1):
         try:
             time.sleep(REQUEST_DELAY)
-            entries = model_parser(fetch_page(listing["url"], source["hosts"]), listing)
+            parser = MODEL_PARSERS.get(listing.get("parser"), model_parser)
+            page_hosts = listing_hosts(source, listing)
+            entries = parser(fetch_page(listing["url"], page_hosts), listing)
             for entry in entries:
-                add_image_fingerprints(entry, source["hosts"])
+                # 圖片可能在 SUZUKI 官網（eReady 卡片圖），兩邊原廠網域都允許。
+                add_image_fingerprints(entry, source["hosts"] | page_hosts)
                 outcome = _upsert_entry(check, entry)
                 if outcome:
                     summary.setdefault(outcome, []).append(entry["name"])

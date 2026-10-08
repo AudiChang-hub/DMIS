@@ -160,11 +160,96 @@ def save_import_master_mapping(
     return mapping
 
 
+MASTER_BULK_KEEP_NOTE = "整批保留歷史文字"
+MASTER_VALIDATION_KEYS = {
+    LegacyImportMasterMapping.MappingType.VEHICLE_MODEL: "unmapped_models",
+    LegacyImportMasterMapping.MappingType.SALES_SOURCE: "unmapped_sources",
+}
+
+
+def _unresolved_master_values(batch, mapping_type):
+    """目前待處理的值；寫法只差大小寫、空白的視為同一個，與工作台顯示的個數一致。"""
+    values = (batch.preview_summary or {}).get("validation", {}).get(
+        MASTER_VALIDATION_KEYS[mapping_type], []
+    )
+    by_key = {_normalize_master_mapping_value(mapping_type, value): value for value in values}
+    by_key.pop("", None)
+    return sorted(by_key.values(), key=str.casefold)
+
+
+def unresolved_master_count(batch):
+    """還沒處理的車型與通路個數；營運 Excel 預覽才有，其他情況為 0。"""
+    if batch.import_type != LegacyImportBatch.ImportType.OPERATIONS:
+        return 0
+    return sum(len(_unresolved_master_values(batch, kind)) for kind in MASTER_VALIDATION_KEYS)
+
+
+@transaction.atomic
+def ignore_all_unmapped(batch, mapping_type, actor_name, expected_count):
+    """把某一群目前所有待處理的值一次標為「保留歷史文字」。
+
+    expected_count 是使用者按下時看到的個數；清單在這之間被改過就整批不執行。
+    """
+    if batch.status != LegacyImportBatch.Status.PREVIEW:
+        raise ValueError("只有待確認的批次可以處理主檔。")
+    if mapping_type not in MASTER_VALIDATION_KEYS:
+        raise ValueError("不支援的主檔類型。")
+    values = _unresolved_master_values(batch, mapping_type)
+    if not values:
+        raise ValueError("目前沒有待處理的項目。")
+    if expected_count != len(values):
+        raise ValueError(
+            f"待處理清單已經變動（現在是 {len(values)} 個，您確認的是 {expected_count} 個），"
+            "沒有保留任何項目；請確認目前清單後再按一次。"
+        )
+    for value in values:
+        save_import_master_mapping(
+            mapping_type=mapping_type,
+            source_value=value,
+            actor_name=actor_name,
+            ignored=True,
+            note=MASTER_BULK_KEEP_NOTE,
+        )
+    revalidate_import_batch(batch)
+    return len(values)
+
+
+@transaction.atomic
+def restore_ignored_mapping(batch, mapping_type, source_value):
+    """把「保留歷史文字」改回待處理（刪除該筆保留對應），之後可再對應或新增。"""
+    if batch.status != LegacyImportBatch.Status.PREVIEW:
+        raise ValueError("只有待確認的批次可以處理主檔。")
+    normalized = _normalize_master_mapping_value(mapping_type, source_value)
+    mapping = (
+        LegacyImportMasterMapping.objects.select_for_update()
+        .filter(mapping_type=mapping_type, normalized_source_value=normalized, ignored=True)
+        .first()
+        if normalized
+        else None
+    )
+    if mapping is None:
+        raise ValueError("找不到這個已保留的項目，可能已經改回或改成對應。")
+    mapping.delete()
+    return revalidate_import_batch(batch)
+
+
 def build_import_master_workspace(batch):
     """建立同頁補主檔清單，不改寫 Excel 原始列。"""
     validation = (batch.preview_summary or {}).get("validation", {})
     unmapped_models = validation.get("unmapped_models", [])
     unmapped_sources = validation.get("unmapped_sources", [])
+    ignored_models = {
+        mapping.normalized_source_value: {"source_value": mapping.source_value, "row_count": 0}
+        for mapping in LegacyImportMasterMapping.objects.filter(
+            mapping_type=LegacyImportMasterMapping.MappingType.VEHICLE_MODEL, ignored=True
+        )
+    }
+    ignored_sources = {
+        mapping.normalized_source_value: {"source_value": mapping.source_value, "row_count": 0}
+        for mapping in LegacyImportMasterMapping.objects.filter(
+            mapping_type=LegacyImportMasterMapping.MappingType.SALES_SOURCE, ignored=True
+        )
+    }
     wanted_model_keys = {
         normalize_vehicle_model_master_value(value): value for value in unmapped_models
     }
@@ -190,6 +275,8 @@ def build_import_master_workspace(batch):
     )
     for sheet_name, source_row, data in rows.iterator(chunk_size=500):
         model_key = normalize_vehicle_model_master_value(data.get("model_number"))
+        if model_key in ignored_models:
+            ignored_models[model_key]["row_count"] += 1
         if model_key in model_stats:
             model_stat = model_stats[model_key]
             model_stat["row_count"] += 1
@@ -230,6 +317,8 @@ def build_import_master_workspace(batch):
                 )
         if sheet_name == "銷貨":
             source_key = normalize_legacy_master_value(data.get("dealer_name"))
+            if source_key in ignored_sources:
+                ignored_sources[source_key]["row_count"] += 1
             if source_key in source_stats:
                 source_stats[source_key]["row_count"] += 1
     model_items = []
@@ -246,10 +335,24 @@ def build_import_master_workspace(batch):
     source_items = sorted(
         source_stats.values(), key=lambda item: item["source_value"].casefold()
     )
+    def names_text(items, limit=12):
+        names = [item["source_value"] for item in items]
+        return "、".join(names[:limit]) + ("…" if len(names) > limit else "")
+
     return {
         "models": model_items,
         "sources": source_items,
         "total": len(model_items) + len(source_items),
+        "models_names": names_text(model_items),
+        "sources_names": names_text(source_items),
+        "ignored_models": sorted(
+            (item for item in ignored_models.values() if item["row_count"]),
+            key=lambda item: item["source_value"].casefold(),
+        ),
+        "ignored_sources": sorted(
+            (item for item in ignored_sources.values() if item["row_count"]),
+            key=lambda item: item["source_value"].casefold(),
+        ),
     }
 
 

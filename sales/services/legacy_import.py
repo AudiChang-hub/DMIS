@@ -160,6 +160,7 @@ def save_import_master_mapping(
     return mapping
 
 
+OPERATIONS_SHEETS = ("進貨", "銷貨")  # 營運 Excel 可選擇匯入的頁籤；進貨先建立，銷貨才能連到實體車輛
 MASTER_BULK_KEEP_NOTE = "整批保留歷史文字"
 MASTER_VALIDATION_KEYS = {
     LegacyImportMasterMapping.MappingType.VEHICLE_MODEL: "unmapped_models",
@@ -1143,8 +1144,18 @@ def _channel_rows(batch, workbook):
     return rows, errors, notices
 
 
+def selected_operations_sheets(batch):
+    """這個批次要匯入的營運頁籤；舊批次沒有記錄，視為兩個都匯入。"""
+    saved = (batch.preview_summary or {}).get("selected_sheets")
+    return [sheet for sheet in OPERATIONS_SHEETS if sheet in saved] if saved else list(OPERATIONS_SHEETS)
+
+
 @transaction.atomic
-def build_import_preview(batch):
+def build_import_preview(batch, sheets=None):
+    """sheets：營運 Excel 要匯入的頁籤（預設兩個都匯入）；不選的頁籤完全不讀取。"""
+    selected = [sheet for sheet in OPERATIONS_SHEETS if sheets is None or sheet in sheets]
+    if batch.import_type == LegacyImportBatch.ImportType.OPERATIONS and not selected:
+        raise ValueError("請至少選一個要匯入的頁籤。")
     batch.rows.all().delete()
     batch.source_file.open("rb")
     workbook = load_workbook(batch.source_file, read_only=True, data_only=True)
@@ -1154,8 +1165,12 @@ def build_import_preview(batch):
             rows, errors, notices = _channel_rows(batch, workbook)
         else:
             notices = {}
-            inventory_rows, inventory_errors, inventory_warnings, inventory_blocking = _operations_inventory_rows(batch, workbook)
-            sales_rows, sales_errors, sales_warnings, sales_blocking = _operations_sales_rows(batch, workbook)
+            inventory_rows, inventory_errors, inventory_warnings, inventory_blocking = (
+                _operations_inventory_rows(batch, workbook) if "進貨" in selected else ([], {}, [], {})
+            )
+            sales_rows, sales_errors, sales_warnings, sales_blocking = (
+                _operations_sales_rows(batch, workbook) if "銷貨" in selected else ([], {}, [], {})
+            )
             rows = inventory_rows + sales_rows
             errors = {**inventory_errors, **sales_errors}
             warnings = inventory_warnings + sales_warnings
@@ -1165,6 +1180,7 @@ def build_import_preview(batch):
         batch.preview_summary = {
             "errors": errors, "notices": notices, "warnings": warnings, "blocking": blocking,
             "sheets": list(workbook.sheetnames),
+            "selected_sheets": selected if batch.import_type == LegacyImportBatch.ImportType.OPERATIONS else [],
         }
         batch.status = LegacyImportBatch.Status.PREVIEW
         batch.save(update_fields=["source_sheets", "preview_summary", "status", "updated_at"])
@@ -1384,6 +1400,7 @@ def revalidate_import_batch(batch):
     if batch.import_type == LegacyImportBatch.ImportType.OPERATIONS:
         sales_rows = [row for row in active_rows if row.sheet_name == "銷貨"]
         inventory_rows = [row for row in active_rows if row.sheet_name == "進貨"]
+        inventory_included = "進貨" in selected_operations_sheets(batch)
         known_models = {
             normalize_vehicle_model_master_value(value)
             for pair in VehicleModel.objects.values_list("model_number", "name")
@@ -1409,13 +1426,15 @@ def revalidate_import_batch(batch):
             for row in inventory_rows
             if row.mapped_data.get("quantity") == 1 and row.mapped_data.get("identifier")
         }
-        system_available = set(
-            VehicleInventory.objects.filter(status=VehicleInventory.Status.AVAILABLE)
-            .values_list("normalized_engine_number", flat=True)
-        ) | set(
-            VehicleInventory.objects.filter(status=VehicleInventory.Status.AVAILABLE)
-            .values_list("normalized_frame_number", flat=True)
-        )
+        system_available = set()
+        if inventory_included:
+            system_available = set(
+                VehicleInventory.objects.filter(status=VehicleInventory.Status.AVAILABLE)
+                .values_list("normalized_engine_number", flat=True)
+            ) | set(
+                VehicleInventory.objects.filter(status=VehicleInventory.Status.AVAILABLE)
+                .values_list("normalized_frame_number", flat=True)
+            )
         system_available.discard(None)
         system_available.discard("")
         validation = {
@@ -1450,6 +1469,7 @@ def revalidate_import_batch(batch):
                 for row in sales_rows
             ),
             "source_available_count": len(source_available),
+            "inventory_skipped": not inventory_included,
             "system_available_count": len(system_available),
             "source_only_inventory": sorted(source_available - system_available)[:100],
             "system_only_inventory": sorted(system_available - source_available)[:100],
@@ -1481,6 +1501,7 @@ def revalidate_import_batch(batch):
         "notices": previous.get("notices", {}),
         "warnings": previous.get("warnings", []),
         "blocking": previous.get("blocking", {}),
+        "selected_sheets": previous.get("selected_sheets", []),
         "sheets": batch.source_sheets,
         "validation": validation,
     }

@@ -5,6 +5,23 @@ from django.db.models import Q
 from sales.models import VehicleBrand
 
 
+def brand_tree_sort_key(brand):
+    """主品牌依排序值與名稱排列，子品牌一律緊跟在所屬主品牌底下。
+
+    先以「所屬主品牌」分組再排序；只比主品牌的排序值會讓排序值相同的主品牌
+    把子品牌擠到所有主品牌之後。
+    """
+    root = brand.parent if brand.parent_id else brand
+    return (
+        root.display_order,
+        root.name.casefold(),
+        root.pk or 0,
+        1 if brand.parent_id else 0,
+        brand.display_order,
+        brand.name.casefold(),
+    )
+
+
 def split_brand_aliases(value):
     return [
         item.strip()

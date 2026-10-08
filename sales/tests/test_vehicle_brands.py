@@ -259,6 +259,21 @@ class VehicleBrandMasterTests(TestCase):
             html=False,
         )
 
+    def test_sub_brand_stays_right_under_its_parent_even_when_parents_share_the_same_order(self):
+        from sales.forms import _brand_choices
+        first = VehicleBrand.objects.create(name="排序測試A", display_order=777)
+        second = VehicleBrand.objects.create(name="排序測試B", display_order=777)
+        child = VehicleBrand.objects.create(name="排序測試A子", parent=first, display_order=777)
+
+        response = self.client.get(reverse("vehicle_brand_list"))
+        names = [brand.name for brand in response.context["brands"] if brand.name.startswith("排序測試")]
+        self.assertEqual(names, ["排序測試A", "排序測試A子", "排序測試B"])
+
+        labels = [label for value, label in _brand_choices() if value.startswith("排序測試")]
+        self.assertEqual(labels, ["排序測試A", "排序測試A｜排序測試A子", "排序測試B"])
+        self.assertEqual(child.parent_id, first.pk)
+        self.assertEqual(second.parent_id, None)
+
     def test_brand_page_shows_parent_brand_and_keeps_child_record(self):
         response = self.client.get(reverse("vehicle_brand_list"))
 

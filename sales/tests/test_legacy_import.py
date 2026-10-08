@@ -294,6 +294,72 @@ class LegacyImportTests(TestCase):
         with self.assertRaises(ValueError):
             restore_ignored_mapping(batch, "sales_source", "新合作車行")
 
+    def upload_through_page(self, sheets, kind="operations"):
+        data = {"import_type": kind, "source_file": SimpleUploadedFile(
+            "sheets.xlsx", workbook_bytes(kind),
+            content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")}
+        if sheets is not None:
+            data["sheets"] = sheets
+        response = self.client.post(reverse("legacy_import_list"), data)
+        return response, LegacyImportBatch.objects.order_by("-created_at").first()
+
+    def test_upload_can_pick_sales_sheet_only_and_inventory_is_not_read(self):
+        response, batch = self.upload_through_page(["銷貨"])
+        self.assertRedirects(response, reverse("legacy_import_detail", args=[batch.pk]))
+        sheets = set(batch.rows.values_list("sheet_name", flat=True))
+        self.assertEqual(sheets, {"銷貨"})
+        self.assertEqual(batch.preview_summary["selected_sheets"], ["銷貨"])
+        self.assertEqual(batch.preview_summary["errors"], {})  # 沒選進貨就不會提示「找不到進貨工作表」
+        self.assertTrue(batch.preview_summary["validation"]["inventory_skipped"])
+        page = self.client.get(reverse("legacy_import_detail", args=[batch.pk]))
+        self.assertContains(page, "本批次只匯入：銷貨")
+        self.assertContains(page, "本批次不匯入進貨")
+        self.assertNotContains(page, "系統有、Excel 無")
+        self.keep_unmapped_masters(batch)
+        confirm_import(batch, "tester")
+        order = SalesOrder.objects.get()
+        self.assertIsNone(order.allocated_vehicle_id)
+        self.assertEqual(VehicleInventory.objects.count(), 0)
+        self.assertEqual(order.legacy_snapshot.vehicle_identifier.strip().upper(), "AB-123")
+
+    def test_upload_default_imports_both_sheets_like_before(self):
+        response, batch = self.upload_through_page(["銷貨", "進貨"])
+        self.assertEqual(set(batch.rows.values_list("sheet_name", flat=True)), {"銷貨", "進貨"})
+        self.assertEqual(batch.preview_summary["selected_sheets"], ["進貨", "銷貨"])
+        self.assertFalse(batch.preview_summary["validation"]["inventory_skipped"])
+        page = self.client.get(reverse("legacy_import_detail", args=[batch.pk]))
+        self.assertNotContains(page, "本批次只匯入")
+        self.assertContains(page, "系統有、Excel 無")
+        form_page = self.client.get(reverse("legacy_import_list"))
+        self.assertContains(form_page, 'name="sheets"')
+        self.assertContains(form_page, "checked")
+
+    def test_upload_requires_at_least_one_sheet_for_operations_but_not_for_channels(self):
+        before = LegacyImportBatch.objects.count()
+        response, _ = self.upload_through_page(None)
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "請至少選一個要匯入的頁籤")
+        self.assertEqual(LegacyImportBatch.objects.count(), before)
+        response, batch = self.upload_through_page(None, kind="channels")
+        self.assertEqual(LegacyImportBatch.objects.count(), before + 1)
+        self.assertEqual(batch.preview_summary["selected_sheets"], [])
+
+    def test_sheet_choice_survives_revalidation_and_old_batches_mean_both(self):
+        from sales.services.legacy_import import selected_operations_sheets
+        _, batch = self.upload_through_page(["銷貨"])
+        batch.refresh_from_db()
+        revalidate_import_batch(batch)
+        batch.refresh_from_db()
+        self.assertEqual(selected_operations_sheets(batch), ["銷貨"])
+        self.assertTrue(batch.preview_summary["validation"]["inventory_skipped"])
+        batch.preview_summary = {}
+        self.assertEqual(selected_operations_sheets(batch), ["進貨", "銷貨"])
+
+    def test_inventory_only_selection_is_allowed(self):
+        _, batch = self.upload_through_page(["進貨"])
+        self.assertEqual(set(batch.rows.values_list("sheet_name", flat=True)), {"進貨"})
+        self.assertEqual(batch.preview_summary["errors"], {})
+
     def batch_from_workbook(self, workbook, name="header-mapping.xlsx"):
         stream = BytesIO()
         workbook.save(stream)
@@ -509,7 +575,7 @@ class LegacyImportTests(TestCase):
         )
 
     def test_upload_form_only_contains_type_and_file(self):
-        self.assertEqual(list(LegacyImportUploadForm().fields), ["import_type", "source_file"])
+        self.assertEqual(list(LegacyImportUploadForm().fields), ["import_type", "source_file", "sheets"])
 
     def make_review_row(self, changes=None):
         batch = self.make_batch(LegacyImportBatch.ImportType.OPERATIONS)

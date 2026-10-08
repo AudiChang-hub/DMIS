@@ -1450,6 +1450,15 @@ class DealerVolumeBonusAdjustmentForm(forms.Form):
 
 
 class LegacyImportUploadForm(forms.ModelForm):
+    sheets = forms.MultipleChoiceField(
+        label="要匯入的頁籤（營運 Excel）",
+        choices=(("銷貨", "銷貨"), ("進貨", "進貨")),
+        initial=["銷貨", "進貨"],
+        required=False,
+        widget=forms.CheckboxSelectMultiple,
+        help_text="不勾的頁籤完全不讀取。進貨會建立車輛庫存，銷貨訂單才能連到實體車輛；只勾銷貨時，訂單不連車輛。通路名冊匯入不適用。",
+    )
+
     class Meta:
         model = LegacyImportBatch
         fields = ["import_type", "source_file"]
@@ -1461,6 +1470,12 @@ class LegacyImportUploadForm(forms.ModelForm):
 
     def clean_source_file(self):
         return validate_excel_upload(self.cleaned_data.get("source_file"))
+
+    def clean(self):
+        cleaned = super().clean()
+        if cleaned.get("import_type") == LegacyImportBatch.ImportType.OPERATIONS and not cleaned.get("sheets"):
+            self.add_error("sheets", "請至少選一個要匯入的頁籤。")
+        return cleaned
 
 
 class LegacyImportRowCorrectionForm(forms.Form):

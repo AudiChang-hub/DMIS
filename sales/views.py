@@ -3399,7 +3399,8 @@ def legacy_import_list(request):
         batch.uploaded_by = _editing_name(request.user)
         batch.save()
         try:
-            build_import_preview(batch)
+            is_operations = batch.import_type == LegacyImportBatch.ImportType.OPERATIONS
+            build_import_preview(batch, sheets=form.cleaned_data["sheets"] if is_operations else None)
         except Exception as exc:
             logger.exception("建立歷史資料匯入預覽失敗")
             batch.status = LegacyImportBatch.Status.FAILED

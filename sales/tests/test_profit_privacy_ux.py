@@ -146,7 +146,7 @@ class ProfitPrivacyTests(TestCase):
         self.unlock(self.staff)
         other = Client(); other.force_login(self.staff)
         self.assertNotContains(other.get(reverse("order_list")), "987,333")
-        with patch("sales.services.profit_access.timezone.now", return_value=timezone.now() + timedelta(seconds=301)):
+        with patch("sales.services.profit_access.timezone.now", return_value=timezone.now() + timedelta(seconds=601)):
             self.assertNotContains(self.client.get(reverse("order_list")), "987,333")
         grant.delete()
         self.assertNotContains(self.client.get(reverse("order_list")), "987,333")

@@ -20,7 +20,7 @@
   <link rel="stylesheet" href="{% static 'css/app.css' %}?v={{ app_version }}">
   {% block head %}{% endblock %}
 </head>
-<body data-profit-until="{{ profit_unlock_until }}" data-app-version="{{ app_version }}" data-version-endpoint="{% url 'app_version' %}" data-history-user="{% if request.user.is_authenticated %}{{ request.user.pk }}{% else %}anonymous{% endif %}">
+<body data-profit-until="{{ profit_unlock_until }}"{% if unlock_until %} data-unlock-until="{{ unlock_until }}" data-unlock-touch-url="{{ unlock_touch_url }}" data-unlock-csrf="{{ csrf_token }}"{% endif %} data-app-version="{{ app_version }}" data-version-endpoint="{% url 'app_version' %}" data-history-user="{% if request.user.is_authenticated %}{{ request.user.pk }}{% else %}anonymous{% endif %}">
   <a class="skip-link" href="#main-content">跳至主要內容</a>
   <header class="app-header">
     <div class="app-header-inner">

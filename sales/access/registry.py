@@ -142,7 +142,7 @@ ROOT_ONLY.add("order_deletion_queue")
 ROOT_ONLY.update({"catalog_manage", "catalog_edit", "catalog_preview_image", "catalog_preview_color_image", "dealer_accounts", "dealer_account_create", "dealer_account_edit"})
 ROOT_ONLY.update({"official_catalog", "official_catalog_check_start", "official_catalog_link", "official_catalog_acknowledge", "official_catalog_ignore", "official_catalog_fill_images"})
 PERSONAL.update({"catalog", "catalog_detail", "catalog_image", "catalog_color_image"})
-PERSONAL.update({"profit_unlock", "profit_lock"})
+PERSONAL.update({"profit_unlock", "profit_lock", "unlock_touch"})
 PERSONAL.add("notification_list")
 PERSONAL.add("suzuki_parts_manual")  # 轉往台鈴官方公開零件圖冊；車行帳號依 DEALER_ACCOUNT_ROUTES 不開放
 REPORT_ROUTES = {"report_display": "view", "report_detail": "view", "report_records_export": "export", "report_export": "export"}

@@ -5,13 +5,13 @@
   const output = panel.querySelector("[data-payout-account]");
   if (!button || !output) return;
   const masked = output.dataset.masked || "";
+  const hide = () => {
+    output.textContent = masked;
+    button.textContent = "顯示完整帳號";
+    button.setAttribute("aria-pressed", "false");
+  };
   button.addEventListener("click", async () => {
-    if (button.getAttribute("aria-pressed") === "true") {
-      output.textContent = masked;
-      button.textContent = "顯示完整帳號";
-      button.setAttribute("aria-pressed", "false");
-      return;
-    }
+    if (button.getAttribute("aria-pressed") === "true") { hide(); return; }
     const value = await window.dmisRevealMasked({
       url: panel.dataset.revealUrl,
       csrf: panel.dataset.csrf,
@@ -22,4 +22,6 @@
     button.textContent = "隱藏帳號";
     button.setAttribute("aria-pressed", "true");
   });
+  // 解鎖閒置到期（或按了立即鎖定）時，已顯示的完整帳號自動遮回去。
+  document.addEventListener("dmis:unlock-expired", hide);
 })();

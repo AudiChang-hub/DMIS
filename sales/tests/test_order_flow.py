@@ -5979,10 +5979,10 @@ class OrderOperationsTests(TestCase):
         self.assertNotIn("safe-password", profile.vehicle_control_password_encrypted)
         self.assertEqual(decrypt_secret(encrypted), "safe-password")
         url = reverse("order_secret_reveal", args=[self.order.pk])
-        for payload in ({"field": "vehicle_control_password"},
-                        {"field": "vehicle_control_password", "password": "wrong-pass"}):
+        for payload, status in (({"field": "vehicle_control_password"}, 401),
+                                ({"field": "vehicle_control_password", "password": "wrong-pass"}, 400)):
             denied = self.client.post(url, payload)
-            self.assertEqual(denied.status_code, 400)
+            self.assertEqual(denied.status_code, status)
             self.assertNotIn("safe-password", denied.content.decode())
         self.assertFalse(OrderEvent.objects.filter(order=self.order, event_type="secret_viewed").exists())
         response = self.client.post(url, {"field": "vehicle_control_password", "password": "test-pass-123"})

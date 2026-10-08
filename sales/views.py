@@ -124,6 +124,7 @@ from .forms import (
     VehicleSettlementCostRuleForm,
 )
 from .services.reveal_password import reveal_password_denied
+from .services.vehicle_brands import brand_tree_sort_key
 from .services.subsidy_names import subsidy_name_suggestions
 from .models import (
     sync_catalog_entry,
@@ -2315,14 +2316,7 @@ def vehicle_brand_list(request):
             messages.success(request, f"已儲存品牌：{brand.name}。")
             return redirect("vehicle_brand_list")
     brands = list(VehicleBrand.objects.select_related("parent").all())
-    brands.sort(
-        key=lambda brand: (
-            brand.parent.display_order if brand.parent_id else brand.display_order,
-            1 if brand.parent_id else 0,
-            brand.display_order,
-            brand.name.casefold(),
-        )
-    )
+    brands.sort(key=brand_tree_sort_key)
     for brand in brands:
         brand.is_used = vehicle_brand_is_used(brand.name)
     return render(

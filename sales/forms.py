@@ -79,6 +79,7 @@ from .services.price_version import (
     resolve_vehicle_price_version,
 )
 from .services.positioned_template_pdf import PRINT_FIELD_CHOICES
+from .services.vehicle_brands import brand_tree_sort_key
 from .services.upload_validation import (
     validate_document_upload,
     validate_excel_upload,
@@ -997,14 +998,7 @@ def _brand_choices(current_value=""):
     brand_rows = list(
         VehicleBrand.objects.filter(active=True).select_related("parent")
     )
-    brand_rows.sort(
-        key=lambda brand: (
-            brand.parent.display_order if brand.parent_id else brand.display_order,
-            1 if brand.parent_id else 0,
-            brand.display_order,
-            brand.name.casefold(),
-        )
-    )
+    brand_rows.sort(key=brand_tree_sort_key)
     brands = [(brand.name, brand.hierarchy_label) for brand in brand_rows]
     current = (current_value or "").strip()
     if current and current.casefold() not in {name.casefold() for name, _ in brands}:

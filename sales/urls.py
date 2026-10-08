@@ -40,6 +40,7 @@ urlpatterns = [
     path("orders/<int:pk>/restore/", order_deletion_views.order_restore, name="order_restore"),
     path("account/profit/unlock/", profit_views.profit_unlock, name="profit_unlock"),
     path("account/profit/lock/", profit_views.profit_lock, name="profit_lock"),
+    path("account/unlock/touch/", profit_views.unlock_touch, name="unlock_touch"),
     path("catalog/", catalog_views.catalog, name="catalog"),
     path("catalog/<int:pk>/", catalog_views.catalog_detail, name="catalog_detail"),
     path("catalog/<int:pk>/image/", catalog_views.catalog_image, name="catalog_image"),

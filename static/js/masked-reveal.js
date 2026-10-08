@@ -1,7 +1,16 @@
 (() => {
-  // 顯示被遮罩的資料前，先在對話框輸入本人登入密碼；通過後以 Promise 回傳伺服器給的值，取消則回傳 null。
+  // 顯示被遮罩的資料：本人驗證有效（閒置 10 分鐘內）就直接顯示；否則在對話框輸入本人登入密碼。
+  // 以 Promise 回傳伺服器給的值，取消則回傳 null。
   let dialog = null;
   let pending = null;
+
+  function post(url, csrf, params) {
+    return fetch(url, {
+      method: "POST",
+      headers: {"X-CSRFToken": csrf, "Content-Type": "application/x-www-form-urlencoded", Accept: "application/json"},
+      body: new URLSearchParams(params),
+    }).then(async response => ({status: response.status, data: await response.json().catch(() => ({}))}));
+  }
 
   function build() {
     const element = document.createElement("dialog");
@@ -20,7 +29,7 @@
           <p class="field-error" role="alert" data-reveal-error hidden></p>
         </div>
         <footer class="theme-dialog__footer">
-          <small>密碼只用來確認是你本人，不會被儲存。</small>
+          <small>密碼只用來確認是你本人，不會被儲存。通過後持續操作不必再輸入，閒置 10 分鐘才會再問。</small>
           <div>
             <button type="button" class="button ghost" data-reveal-cancel>取消</button>
             <button type="submit" class="button primary" data-reveal-submit>顯示</button>
@@ -41,13 +50,7 @@
       if (!input.value) { error.textContent = "請輸入你的登入密碼。"; error.hidden = false; input.focus(); return; }
       submit.disabled = true;
       try {
-        const body = new URLSearchParams({...pending.params, password: input.value});
-        const response = await fetch(pending.url, {
-          method: "POST",
-          headers: {"X-CSRFToken": pending.csrf, "Content-Type": "application/x-www-form-urlencoded"},
-          body,
-        });
-        const data = await response.json();
+        const {data} = await post(pending.url, pending.csrf, {...pending.params, password: input.value});
         if (!data.ok) {
           error.textContent = data.error || "無法顯示資料。";
           error.hidden = false;
@@ -70,16 +73,30 @@
     return element;
   }
 
-  window.dmisRevealMasked = ({url, csrf, params = {}, hint = ""}) => new Promise(resolve => {
-    dialog = dialog || build();
-    if (pending) pending.resolve(null);
-    pending = {url, csrf, params, resolve};
-    dialog.querySelector("[data-reveal-hint]").textContent = hint;
-    const error = dialog.querySelector("[data-reveal-error]");
-    error.hidden = true;
-    error.textContent = "";
-    dialog.querySelector("input[name=password]").value = "";
-    dialog.showModal();
-    dialog.querySelector("input[name=password]").focus();
-  });
+  window.dmisRevealMasked = async ({url, csrf, params = {}, hint = ""}) => {
+    // 先不帶密碼試一次：驗證仍有效就直接拿到值。
+    try {
+      const {status, data} = await post(url, csrf, params);
+      if (data.ok) return data.value || "";
+      if (!(status === 401 && data.need_password)) {
+        window.alert(data.error || "無法顯示資料。");
+        return null;
+      }
+    } catch (failure) {
+      window.alert("連線失敗，請稍後再試。");
+      return null;
+    }
+    return new Promise(resolve => {
+      dialog = dialog || build();
+      if (pending) pending.resolve(null);
+      pending = {url, csrf, params, resolve};
+      dialog.querySelector("[data-reveal-hint]").textContent = hint;
+      const error = dialog.querySelector("[data-reveal-error]");
+      error.hidden = true;
+      error.textContent = "";
+      dialog.querySelector("input[name=password]").value = "";
+      dialog.showModal();
+      dialog.querySelector("input[name=password]").focus();
+    });
+  };
 })();

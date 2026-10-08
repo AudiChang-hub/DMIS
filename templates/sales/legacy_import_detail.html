@@ -83,6 +83,12 @@
 </section>
 {% endif %}
 
+{% if batch.import_type == 'operations' and batch.preview_summary.selected_sheets and batch.preview_summary.selected_sheets|length < 2 %}
+<section class="note-box import-selected-sheets">
+  <strong>本批次只匯入：{{ batch.preview_summary.selected_sheets|join:"、" }}</strong>
+  <p>其他頁籤完全沒有讀取。{% if batch.preview_summary.selected_sheets.0 == '銷貨' %}沒有匯入進貨，所以銷貨訂單不會連到實體車輛，車輛庫存也不會建立。{% endif %}</p>
+</section>
+{% endif %}
 {% if batch.preview_summary.warnings %}
 <section class="note-box import-header-warnings">
   <strong>表頭提醒</strong>
@@ -103,11 +109,15 @@
     <article><span>建議確認</span><strong>車主姓名雙欄差異 {{ validation.owner_name_differences }} 筆</strong><p>{% site_text 'legacy_import_detail.672487fd1cd5' %}</p></article>
     <article><span>建議確認</span><strong>刷卡／分期合併收入 {{ validation.combined_fee_income_rows }} 筆</strong><p>{% site_text 'legacy_import_detail.08efada5364b' %}</p></article>
     <article><span>交易辨識</span><strong>中古車交易 {{ validation.used_vehicle_sales }} 筆</strong><p>{% site_text 'legacy_import_detail.f826876776a5' %}</p></article>
+    {% if validation.inventory_skipped %}<article><span>庫存核對</span><strong>本批次不匯入進貨</strong><p>不比對庫存，也不會建立車輛庫存。</p></article>{% else %}
     <article><span>庫存核對</span><strong>Excel 可售 {{ validation.source_available_count }} 台／系統可售 {{ validation.system_available_count }} 台</strong><p>{% site_text 'legacy_import_detail.a9a82a0a2298' %}</p></article>
+    {% endif %}
     <article class="{% if validation.unmapped_models %}attention{% endif %}"><span>待補主檔</span><strong>未對應車型 {{ validation.unmapped_models|length }} 個</strong>{% if validation.unmapped_models %}<a class="import-validation-action" href="#master-data-workspace">立即補齊</a><details><summary>先查看清單</summary><p>{{ validation.unmapped_models|join:'、' }}</p></details>{% else %}<p>車型皆已能正確對應。</p>{% endif %}</article>
     <article class="{% if validation.unmapped_sources %}attention{% endif %}"><span>待補主檔</span><strong>未對應通路 {{ validation.unmapped_sources|length }} 個</strong>{% if validation.unmapped_sources %}<a class="import-validation-action" href="#master-data-workspace">立即補齊</a><details><summary>先查看清單</summary><p>{{ validation.unmapped_sources|join:'、' }}</p></details>{% else %}<p>通路皆已能正確對應。</p>{% endif %}</article>
+    {% if not validation.inventory_skipped %}
     <article><span>庫存差異</span><strong>Excel 有、系統無 {{ validation.source_only_inventory|length }} 台</strong><details><summary>查看識別號碼</summary><p>{{ validation.source_only_inventory|join:'、'|default:'無' }}</p></details></article>
     <article><span>庫存差異</span><strong>系統有、Excel 無 {{ validation.system_only_inventory|length }} 台</strong><details><summary>查看識別號碼</summary><p>{{ validation.system_only_inventory|join:'、'|default:'無' }}</p></details></article>
+    {% endif %}
   </div>
   {% else %}
     <article class="import-validation-single {% if validation.removed_source_keys %}attention{% endif %}"><span>來源已移除、系統仍保留</span><strong>{{ validation.removed_source_keys|length }} 筆</strong><details><summary>查看清單</summary><p>{{ validation.removed_source_keys|join:'、'|default:'無' }}</p></details></article>

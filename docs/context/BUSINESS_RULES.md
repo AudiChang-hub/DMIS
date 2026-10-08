@@ -23,6 +23,7 @@
 - 現行入口是 `sales/services/legacy_import.py`；財務還原見 `legacy_finance.py`。Odoo 的 excel_sync_id 規格不是目前實作。
 - 營運 Excel（銷貨表頭在第 3 列、進貨在第 1 列）**依表頭名稱取值，不依欄位字母**；對照表是 `SALES_HEADER_ALIASES`／`INVENTORY_HEADER_ALIASES`，Excel 改欄名時在那裡補別名。缺必要表頭（車種型號、引擎／車身號碼、車主名稱）會寫入 `preview_summary.blocking`，`confirm_import` 拒絕匯入；其餘缺少的表頭只進 `warnings`。財務欄位仍依 `legacy_finance.MAPPING` 的表頭名，改名時補 `LABEL_ALIASES`。
 - 各政府單位（工業局／環境部／地方政府）的補助進度只由「補助申請項目」彙整（`sales/services/subsidy_summary.py`）：「有送出申請」＝項目狀態為已送出申請或已申請完成；`OrderOperationsProfile` 的三個舊狀態欄位保留在資料庫但不再編輯、顯示或匯出，待新畫面穩定後再另案移除。
+- 營運 Excel 上傳時可選要匯入的頁籤（`build_import_preview(batch, sheets=...)`，預設進貨、銷貨都匯入）；沒選的頁籤完全不讀取，選擇存在 `preview_summary.selected_sheets`（舊批次沒有此鍵視為兩者）。只匯銷貨時 `inventory_skipped`：不做庫存比對，銷貨訂單不連實體車輛，之後另匯進貨也不會回頭補連結。
 - 匯入預覽的「待補主檔」（未對應的車型與通路）**沒處理完不能確認匯入**：`legacy_import_confirm` 在第一次確認時以 `unresolved_master_count` 擋下；已開始匯入後的續跑（失敗重試）不檢查。處理方式有三種：對應既有、快速新增、保留歷史文字；「其餘全部保留」由 `ignore_all_unmapped` 一次寫入（附當時待處理個數，清單被改過就拒絕），可用 `restore_ignored_mapping` 改回（僅限預覽階段）。保留歷史文字的車型匯入時用停用的「歷史資料」佔位車型，來源則為空。
 - Email 格式不正確的歷史列：略過 Email 欄並在預覽提示，不列為錯誤。
 - 補助相關欄位**不從 Excel 匯入**：補助方案、補助金額、申請日與工業局／環境部／縣市政府三欄一律略過（原文仍在匯入快照的原始列裡）；訂單是否為汰舊補助只看是否有舊車牌。補助由使用者在訂單「汰舊補助」分頁逐筆登錄名稱與金額；補助名稱輸入時提示過去用過的名稱。唯一例外：車輛類別判斷會讀「補助方案」是否寫「中古車過戶」，不寫入補助資料。

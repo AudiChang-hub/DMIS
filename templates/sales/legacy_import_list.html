@@ -1,4 +1,4 @@
-{% extends "base.html" %}{% load site_copy %}
+{% extends "base.html" %}{% load site_copy %}{% load static %}
 {% block title %}舊資料 Excel 匯入｜車輛銷售管理{% endblock %}
 {% block page_class %}page-shell--wide{% endblock %}
 {% block content %}
@@ -25,7 +25,14 @@
   </div>
   <form method="post" enctype="multipart/form-data" class="import-upload-form">
     {% csrf_token %}
-    <div class="import-upload-fields">{% for field in form %}{% include "sales/_field.html" with field=field %}{% endfor %}</div>
+    <div class="import-upload-fields">{% for field in form %}{% if field.name == "sheets" %}
+      <fieldset class="import-sheet-choice" data-import-sheets>
+        <legend>{{ field.label }}</legend>
+        <div class="import-sheet-choice__options">{% for choice in field %}<label class="checkbox-label">{{ choice.tag }}<span>{{ choice.choice_label }}</span></label>{% endfor %}</div>
+        <small class="help-text">{{ field.help_text }}</small>
+        {% for error in field.errors %}<small class="field-error">{{ error }}</small>{% endfor %}
+      </fieldset>
+    {% else %}{% include "sales/_field.html" with field=field %}{% endif %}{% endfor %}</div>
     <div class="import-upload-guidance">
       <strong>系統會先建立預覽，不會立即匯入</strong>
       <span>進銷貨表採既定欄名解析；來源列消失不會刪除系統既有資料。</span>
@@ -33,6 +40,7 @@
     <button class="button primary" type="submit">上傳並開始檢查</button>
   </form>
 </section>
+<script src="{% static 'js/legacy-import-upload.js' %}?v={{ app_version }}" defer></script>
 
 <section class="inventory-list-panel import-batch-panel">
   <div class="inventory-list-summary import-list-heading">

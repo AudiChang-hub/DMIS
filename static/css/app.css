@@ -2258,6 +2258,10 @@ input[type="file"].form-control { padding: var(--space-3); }
   .subsidy-agency-summary li { grid-template-columns: 1fr auto; }
   .subsidy-agency-summary__detail { grid-column: 1 / -1; order: 3; }
 }
+.import-sheet-choice { grid-column: 1 / -1; margin: 0; padding: var(--space-3) var(--space-4); border: 1px solid var(--line); border-radius: var(--radius-lg); }
+.import-sheet-choice legend { padding: 0 var(--space-2); font-weight: 800; }
+.import-sheet-choice__options { display: flex; flex-wrap: wrap; gap: var(--space-5); margin-bottom: var(--space-2); }
+.import-selected-sheets { margin-bottom: var(--stack-gap-sm); }
 .import-master-group__bulk { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: var(--space-3); }
 .import-master-ignored { margin-top: var(--stack-gap-sm); padding: var(--space-4); background: var(--surface-soft); border: 1px solid var(--line); border-radius: var(--radius-lg); }
 .import-master-ignored summary { cursor: pointer; font-weight: 800; }

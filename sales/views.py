@@ -269,9 +269,12 @@ from .services.legacy_import import (
     build_import_preview,
     file_sha256,
     friendly_import_message,
+    ignore_all_unmapped,
+    restore_ignored_mapping,
     revalidate_import_batch,
     retry_completed_import_row,
     save_import_master_mapping,
+    unresolved_master_count,
 )
 from .services.positioned_template_pdf import build_positioned_template_pdf
 from .services.identity_document_pdf import (
@@ -3573,11 +3576,13 @@ def legacy_import_detail(request, pk):
     unresolved_count = counts.get("conflict", 0) + counts.get("error", 0)
     action_labels = dict(LegacyImportRow.Action.choices)
     master_workspace = {"models": [], "sources": [], "total": 0}
+    master_unresolved_count = 0
     if (
         batch.status == LegacyImportBatch.Status.PREVIEW
         and batch.import_type == LegacyImportBatch.ImportType.OPERATIONS
     ):
         master_workspace = build_import_master_workspace(batch)
+        master_unresolved_count = master_workspace["total"]
     return render(
         request,
         "sales/legacy_import_detail.html",
@@ -3590,7 +3595,12 @@ def legacy_import_detail(request, pk):
             "search_query": search_query,
             "counts": counts,
             "unresolved_count": unresolved_count,
-            "can_confirm": batch.status == LegacyImportBatch.Status.PREVIEW and unresolved_count == 0,
+            "master_unresolved_count": master_unresolved_count,
+            "can_confirm": (
+                batch.status == LegacyImportBatch.Status.PREVIEW
+                and unresolved_count == 0
+                and master_unresolved_count == 0
+            ),
             "can_resume": (
                 batch.status == LegacyImportBatch.Status.FAILED
                 and batch.processing_started_at is not None
@@ -3636,6 +3646,18 @@ def legacy_import_master_resolve(request, pk, mapping_type):
     if mapping_type not in type_config:
         raise Http404("不支援的主檔類型")
     validation_key, type_label = type_config[mapping_type]
+    if request.POST.get("resolution_action") == "ignore_all":
+        try:
+            expected = int(request.POST.get("expected_count", ""))
+        except ValueError:
+            expected = -1
+        try:
+            kept = ignore_all_unmapped(batch, mapping_type, _editing_name(request.user), expected)
+        except ValueError as exc:
+            messages.error(request, str(exc))
+        else:
+            messages.success(request, f"已將其餘 {kept} 個{type_label}全部保留為歷史文字，不建立主檔；需要時可從「已保留的項目」改回。")
+        return redirect(f"{reverse('legacy_import_detail', args=[batch.pk])}#master-data-workspace")
     source_value = request.POST.get("source_value", "").strip()
     unresolved_values = (
         (batch.preview_summary or {}).get("validation", {}).get(validation_key, [])
@@ -3725,6 +3747,31 @@ def legacy_import_master_resolve(request, pk, mapping_type):
     return redirect(
         f"{reverse('legacy_import_detail', args=[batch.pk])}#master-data-workspace"
     )
+
+
+@login_required
+@require_http_methods(["POST"])
+@transaction.atomic
+def legacy_import_master_restore(request, pk, mapping_type):
+    batch = get_object_or_404(
+        LegacyImportBatch.objects.select_for_update(),
+        pk=pk,
+        status=LegacyImportBatch.Status.PREVIEW,
+        import_type=LegacyImportBatch.ImportType.OPERATIONS,
+    )
+    if mapping_type not in (
+        LegacyImportMasterMapping.MappingType.VEHICLE_MODEL,
+        LegacyImportMasterMapping.MappingType.SALES_SOURCE,
+    ):
+        raise Http404("不支援的主檔類型")
+    source_value = request.POST.get("source_value", "").strip()
+    try:
+        restore_ignored_mapping(batch, mapping_type, source_value)
+    except ValueError as exc:
+        messages.error(request, str(exc))
+    else:
+        messages.success(request, f"已將「{source_value}」改回待處理，可以重新對應、新增或再次保留。")
+    return redirect(f"{reverse('legacy_import_detail', args=[batch.pk])}#master-data-workspace")
 
 
 @login_required
@@ -3902,6 +3949,14 @@ def legacy_import_confirm(request, pk):
         if unresolved:
             messages.error(request, f"尚有 {unresolved} 筆衝突或錯誤資料，請先修正或排除。")
             return redirect("legacy_import_detail", pk=pk)
+        # 已開始匯入後的續跑不再檢查；只擋第一次確認，避免誤產生佔位車型與空白來源。
+        pending_masters = unresolved_master_count(batch) if batch.status == LegacyImportBatch.Status.PREVIEW else 0
+        if pending_masters:
+            messages.error(
+                request,
+                f"還有 {pending_masters} 個車型或通路沒有處理，請在「待補主檔工作台」逐筆對應、新增或保留歷史文字後再匯入。",
+            )
+            return redirect(f"{reverse('legacy_import_detail', args=[pk])}#master-data-workspace")
         previous_status = batch.status
         total = batch.rows.count()
         batch.status = LegacyImportBatch.Status.PROCESSING

@@ -15,6 +15,8 @@
     {% if batch.status == 'preview' %}
       {% if unresolved_count %}
         <a class="button primary" href="?action={% if counts.conflict %}conflict{% else %}error{% endif %}#issue-review">處理 {{ unresolved_count }} 筆問題</a>
+      {% elif master_unresolved_count %}
+        <a class="button primary" href="#master-data-workspace">處理 {{ master_unresolved_count }} 個待補主檔</a>
       {% elif can_confirm %}
         <form method="post" action="{% url 'legacy_import_confirm' batch.pk %}" data-confirm="確認將目前已檢查的資料寫入正式系統？">{% csrf_token %}<button class="button primary">確認匯入 {{ counts.create|add:counts.update }} 筆資料</button></form>
       {% endif %}
@@ -114,16 +116,17 @@
 {% endif %}
 {% endwith %}
 
-{% if master_workspace.models or master_workspace.sources %}
+{% if master_workspace.models or master_workspace.sources or master_workspace.ignored_models or master_workspace.ignored_sources %}
 <section class="import-master-workspace" id="master-data-workspace" tabindex="-1">
   <header class="import-master-workspace__header">
     <div><p class="eyebrow">不必離開匯入畫面</p><h2>待補主檔工作台</h2><p>{% site_text 'legacy_import_detail.9ed91a0f9ebc' %}</p></div>
-    <span class="status-pill warning">尚有 {{ master_workspace.total }} 個</span>
+    {% if master_workspace.total %}<span class="status-pill warning">尚有 {{ master_workspace.total }} 個，處理完才能確認匯入</span>{% else %}<span class="status-pill">待補主檔都處理完了</span>{% endif %}
   </header>
 
   {% if master_workspace.models %}
   <div class="import-master-group">
-    <div class="import-master-group__heading"><div><span>車型主檔</span><h3>未對應車型</h3></div><strong>{{ master_workspace.models|length }} 個</strong></div>
+    <div class="import-master-group__heading"><div><span>車型主檔</span><h3>未對應車型</h3></div><div class="import-master-group__bulk"><strong>{{ master_workspace.models|length }} 個</strong>
+      <form method="post" action="{% url 'legacy_import_master_resolve' batch.pk 'vehicle_model' %}" data-confirm="確定將其餘 {{ master_workspace.models|length }} 個車型全部保留為歷史文字？&#10;&#10;{{ master_workspace.models_names }}&#10;&#10;匯入時這些車型會用停用的「歷史資料」佔位車型，訂單仍可查；之後可從「已保留的項目」改回。">{% csrf_token %}<input type="hidden" name="resolution_action" value="ignore_all"><input type="hidden" name="expected_count" value="{{ master_workspace.models|length }}"><button class="button ghost small" type="submit">其餘 {{ master_workspace.models|length }} 個全部保留歷史文字</button></form></div></div>
     <div class="import-master-items">
       {% for item in master_workspace.models %}
       <article class="import-master-item">
@@ -145,7 +148,8 @@
 
   {% if master_workspace.sources %}
   <div class="import-master-group">
-    <div class="import-master-group__heading"><div><span>通路主檔</span><h3>未對應來源</h3></div><strong>{{ master_workspace.sources|length }} 個</strong></div>
+    <div class="import-master-group__heading"><div><span>通路主檔</span><h3>未對應來源</h3></div><div class="import-master-group__bulk"><strong>{{ master_workspace.sources|length }} 個</strong>
+      <form method="post" action="{% url 'legacy_import_master_resolve' batch.pk 'sales_source' %}" data-confirm="確定將其餘 {{ master_workspace.sources|length }} 個來源全部保留為歷史文字？&#10;&#10;{{ master_workspace.sources_names }}&#10;&#10;這些訂單的來源會是空的（只在營運資料保留 Excel 文字）；之後可從「已保留的項目」改回。">{% csrf_token %}<input type="hidden" name="resolution_action" value="ignore_all"><input type="hidden" name="expected_count" value="{{ master_workspace.sources|length }}"><button class="button ghost small" type="submit">其餘 {{ master_workspace.sources|length }} 個全部保留歷史文字</button></form></div></div>
     <div class="import-master-items">
       {% for item in master_workspace.sources %}
       <article class="import-master-item">
@@ -159,6 +163,30 @@
       {% endfor %}
     </div>
   </div>
+  {% endif %}
+
+  {% if master_workspace.ignored_models or master_workspace.ignored_sources %}
+  <details class="import-master-ignored">
+    <summary>已保留歷史文字的項目（車型 {{ master_workspace.ignored_models|length }}、來源 {{ master_workspace.ignored_sources|length }}）；按錯了可以改回</summary>
+    {% if master_workspace.ignored_models %}
+    <h4>車型</h4>
+    <ul>
+      {% for item in master_workspace.ignored_models %}
+      <li><span><strong>{{ item.source_value }}</strong> · Excel {{ item.row_count }} 筆</span>
+        <form method="post" action="{% url 'legacy_import_master_restore' batch.pk 'vehicle_model' %}">{% csrf_token %}<input type="hidden" name="source_value" value="{{ item.source_value }}"><button class="button ghost small" type="submit">改回待處理</button></form></li>
+      {% endfor %}
+    </ul>
+    {% endif %}
+    {% if master_workspace.ignored_sources %}
+    <h4>來源</h4>
+    <ul>
+      {% for item in master_workspace.ignored_sources %}
+      <li><span><strong>{{ item.source_value }}</strong> · Excel {{ item.row_count }} 筆</span>
+        <form method="post" action="{% url 'legacy_import_master_restore' batch.pk 'sales_source' %}">{% csrf_token %}<input type="hidden" name="source_value" value="{{ item.source_value }}"><button class="button ghost small" type="submit">改回待處理</button></form></li>
+      {% endfor %}
+    </ul>
+    {% endif %}
+  </details>
   {% endif %}
 
   <dialog class="import-master-dialog" id="vehicle-model-link-dialog">

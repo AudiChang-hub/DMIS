@@ -117,7 +117,7 @@ register("installments", "installment_company_list installment_company_quick_cre
 register("fees", "brand_registration_fee_rule_list brand_registration_fee_rule_delete")
 register("holidays", "business_holiday_list business_holiday_delete")
 register("imports", "legacy_import_list legacy_import_detail legacy_import_status")
-register("imports", "legacy_import_confirm legacy_import_delete legacy_import_archive legacy_import_restore legacy_import_row_decide legacy_import_master_resolve historical_buyer_replacement historical_date_change", "operate")
+register("imports", "legacy_import_confirm legacy_import_delete legacy_import_archive legacy_import_restore legacy_import_row_decide legacy_import_master_resolve legacy_import_master_restore historical_buyer_replacement historical_date_change", "operate")
 register("templates", "positioned_template_list")
 register("templates", "positioned_template_create positioned_template_edit positioned_template_delete", "operate")
 register("templates", "positioned_template_preview", "export")

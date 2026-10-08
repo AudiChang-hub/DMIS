@@ -39,6 +39,9 @@ from sales.services.legacy_import import (
     apply_import_row_decision,
     build_import_master_workspace,
     build_import_preview,
+    ignore_all_unmapped,
+    restore_ignored_mapping,
+    unresolved_master_count,
     confirm_import,
     file_sha256,
     revalidate_import_batch,
@@ -187,6 +190,109 @@ class LegacyImportTests(TestCase):
         self.assertEqual(order.order_date, date(2026, 7, 30))
         self.assertEqual(order.operations.net_profit, Decimal("9574"))  # 金額一律存整數
         self.assertEqual(order.operations.legacy_finance_reconciliation["status"], "matched")
+
+    def keep_unmapped_masters(self, batch):
+        """測試用：把預覽裡待補的車型與通路都標為保留歷史文字，模擬使用者已處理主檔。"""
+        from sales.models import LegacyImportMasterMapping
+        for kind in (LegacyImportMasterMapping.MappingType.VEHICLE_MODEL, LegacyImportMasterMapping.MappingType.SALES_SOURCE):
+            from sales.services.legacy_import import _unresolved_master_values
+            values = _unresolved_master_values(batch, kind)
+            if values:
+                ignore_all_unmapped(batch, kind, "tester", len(values))
+        batch.refresh_from_db()
+
+    def source_workbook(self, *names):
+        workbook = load_workbook(BytesIO(workbook_bytes()))
+        workbook["銷貨"]["AN4"] = names[0] if names else ""
+        return workbook
+
+    def test_confirm_is_blocked_until_masters_are_resolved(self):
+        from sales.models import LegacyImportMasterMapping
+        batch = self.batch_from_workbook(self.source_workbook("新合作車行"))
+        build_import_preview(batch)
+        batch.refresh_from_db()
+        self.assertEqual(unresolved_master_count(batch), 2)  # 車型 TEST125、來源 新合作車行
+        page = self.client.get(reverse("legacy_import_detail", args=[batch.pk]))
+        self.assertContains(page, "處理 2 個待補主檔")
+        self.assertNotContains(page, "確認匯入 ")
+        with patch("sales.views.django_rq.get_queue") as get_queue:
+            response = self.client.post(reverse("legacy_import_confirm", args=[batch.pk]))
+            self.assertRedirects(response, reverse("legacy_import_detail", args=[batch.pk]) + "#master-data-workspace")
+            get_queue.return_value.enqueue.assert_not_called()
+        batch.refresh_from_db()
+        self.assertEqual(batch.status, LegacyImportBatch.Status.PREVIEW)
+        self.assertFalse(SalesOrder.objects.exists())
+        self.keep_unmapped_masters(batch)
+        self.assertEqual(unresolved_master_count(batch), 0)
+        page = self.client.get(reverse("legacy_import_detail", args=[batch.pk]))
+        self.assertContains(page, "確認匯入 ")
+        self.assertContains(page, "待補主檔都處理完了")
+        self.assertEqual(
+            LegacyImportMasterMapping.objects.filter(ignored=True, note="整批保留歷史文字").count(), 2
+        )
+
+    def test_bulk_keep_only_touches_unresolved_values_and_checks_the_count(self):
+        from sales.models import LegacyImportMasterMapping
+        batch = self.batch_from_workbook(self.source_workbook("新合作車行"))
+        build_import_preview(batch)
+        batch.refresh_from_db()
+        kind = LegacyImportMasterMapping.MappingType.SALES_SOURCE
+        with self.assertRaisesMessage(ValueError, "沒有保留任何項目"):
+            ignore_all_unmapped(batch, kind, "tester", 5)  # 使用者確認的個數與目前不同
+        self.assertFalse(LegacyImportMasterMapping.objects.exists())
+        self.assertEqual(ignore_all_unmapped(batch, kind, "tester", 1), 1)
+        mapping = LegacyImportMasterMapping.objects.get()
+        self.assertTrue(mapping.ignored)
+        self.assertEqual((mapping.mapping_type, mapping.source_value, mapping.updated_by), (kind, "新合作車行", "tester"))
+        batch.refresh_from_db()
+        self.assertEqual(unresolved_master_count(batch), 1)  # 車型沒被動到
+        with self.assertRaisesMessage(ValueError, "目前沒有待處理"):
+            ignore_all_unmapped(batch, kind, "tester", 0)
+
+    def test_values_differing_only_in_case_count_once(self):
+        from sales.models import LegacyImportMasterMapping
+        from sales.services.legacy_import import _unresolved_master_values
+        batch = self.batch_from_workbook(self.source_workbook())
+        build_import_preview(batch)
+        batch.preview_summary = {**batch.preview_summary, "validation": {
+            **batch.preview_summary["validation"], "unmapped_sources": ["Yahoo", "yahoo", "momo"]}}
+        batch.save(update_fields=["preview_summary"])
+        kind = LegacyImportMasterMapping.MappingType.SALES_SOURCE
+        self.assertEqual(len(_unresolved_master_values(batch, kind)), 2)
+
+    def test_bulk_keep_through_the_page_and_restore_a_mistake(self):
+        batch = self.batch_from_workbook(self.source_workbook("新合作車行"))
+        build_import_preview(batch)
+        url = reverse("legacy_import_master_resolve", args=[batch.pk, "sales_source"])
+        stale = self.client.post(url, {"resolution_action": "ignore_all", "expected_count": "9"})
+        self.assertRedirects(stale, reverse("legacy_import_detail", args=[batch.pk]) + "#master-data-workspace")
+        batch.refresh_from_db()
+        self.assertEqual(unresolved_master_count(batch), 2)
+        ok = self.client.post(url, {"resolution_action": "ignore_all", "expected_count": "1"}, follow=True)
+        self.assertContains(ok, "已將其餘 1 個通路全部保留為歷史文字")
+        self.assertContains(ok, "已保留歷史文字的項目")
+        self.assertContains(ok, "新合作車行")
+        batch.refresh_from_db()
+        self.assertEqual(unresolved_master_count(batch), 1)
+        restored = self.client.post(
+            reverse("legacy_import_master_restore", args=[batch.pk, "sales_source"]),
+            {"source_value": "新合作車行"}, follow=True)
+        self.assertContains(restored, "已將「新合作車行」改回待處理")
+        batch.refresh_from_db()
+        self.assertEqual(unresolved_master_count(batch), 2)
+        again = self.client.post(
+            reverse("legacy_import_master_restore", args=[batch.pk, "sales_source"]),
+            {"source_value": "新合作車行"}, follow=True)
+        self.assertContains(again, "找不到這個已保留的項目")
+
+    def test_restore_is_refused_after_the_import_has_started(self):
+        batch = self.batch_from_workbook(self.source_workbook("新合作車行"))
+        build_import_preview(batch)
+        self.keep_unmapped_masters(batch)
+        LegacyImportBatch.objects.filter(pk=batch.pk).update(status=LegacyImportBatch.Status.COMPLETED)
+        batch.refresh_from_db()
+        with self.assertRaises(ValueError):
+            restore_ignored_mapping(batch, "sales_source", "新合作車行")
 
     def batch_from_workbook(self, workbook, name="header-mapping.xlsx"):
         stream = BytesIO()
@@ -644,6 +750,7 @@ class LegacyImportTests(TestCase):
     def test_confirm_starts_background_import_and_status_endpoint_reports_progress(self, get_queue):
         batch = self.make_batch(LegacyImportBatch.ImportType.OPERATIONS)
         build_import_preview(batch)
+        self.keep_unmapped_masters(batch)
         get_queue.return_value.enqueue.return_value.id = "job-123"
 
         response = self.client.post(reverse("legacy_import_confirm", args=[batch.pk]))
@@ -671,6 +778,7 @@ class LegacyImportTests(TestCase):
     def test_duplicate_confirm_does_not_enqueue_second_job(self, get_queue):
         batch = self.make_batch(LegacyImportBatch.ImportType.OPERATIONS)
         build_import_preview(batch)
+        self.keep_unmapped_masters(batch)
         get_queue.return_value.enqueue.return_value.id = "job-123"
 
         self.client.post(reverse("legacy_import_confirm", args=[batch.pk]))
@@ -682,6 +790,7 @@ class LegacyImportTests(TestCase):
     def test_enqueue_failure_returns_batch_to_preview(self, get_queue):
         batch = self.make_batch(LegacyImportBatch.ImportType.OPERATIONS)
         build_import_preview(batch)
+        self.keep_unmapped_masters(batch)
         get_queue.return_value.enqueue.side_effect = RuntimeError("redis unavailable")
 
         self.client.post(reverse("legacy_import_confirm", args=[batch.pk]))

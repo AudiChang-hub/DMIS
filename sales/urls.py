@@ -200,6 +200,11 @@ urlpatterns = [
         views.legacy_import_master_resolve,
         name="legacy_import_master_resolve",
     ),
+    path(
+        "data/imports/<uuid:pk>/master-data/<str:mapping_type>/restore/",
+        views.legacy_import_master_restore,
+        name="legacy_import_master_restore",
+    ),
     path("data/channels/", views.sales_source_list, name="sales_source_list"),
     path(
         "data/staff/",

@@ -3,6 +3,7 @@ from django import forms
 from django.contrib.auth.decorators import login_required
 from django.core.cache import cache
 from django.core.exceptions import PermissionDenied
+from django.http import JsonResponse
 from django.shortcuts import redirect, render
 from django.urls import reverse, resolve, Resolver404
 from urllib.parse import urlsplit
@@ -12,7 +13,9 @@ from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_http_methods, require_POST
 from sales.access.services import policy_for
 from sales.models import UserAccountAuditLog
-from sales.services.profit_access import SESSION_KEY, UNLOCK_SECONDS, can_view_profit
+from sales.services.profit_access import (
+    IDLE_SECONDS, SESSION_KEY, can_view_profit, current_until, extend_unlock, start_unlock,
+)
 
 
 class ProfitUnlockForm(forms.Form):
@@ -51,11 +54,10 @@ def profit_unlock(request):
             status = 400
         else:
             cache.delete(key)
-            request.session[SESSION_KEY] = {"user": request.user.pk,
-                "version": policy_for(request).version, "auth": request.user.get_session_auth_hash(),
-                "until": timezone.now().timestamp() + UNLOCK_SECONDS}
+            start_unlock(request)
             UserAccountAuditLog.objects.create(actor=request.user, target=request.user,
-                target_username=request.user.username, action="update", description="本人密碼驗證成功，淨利解鎖 5 分鐘")
+                target_username=request.user.username, action="update",
+                description=f"本人密碼驗證成功，淨利解鎖（閒置 {IDLE_SECONDS // 60} 分鐘才鎖）")
             target = return_url(request)
             try:
                 route = resolve(urlsplit(target).path).url_name
@@ -66,6 +68,20 @@ def profit_unlock(request):
                 return render(request, "sales/profit_download.html", {"download_url": target})
             return redirect(target)
     return render(request, "sales/profit_unlock.html", {"form": form, "next_url": return_url(request)}, status=status)
+
+
+@login_required
+@never_cache
+@require_http_methods(["GET", "POST"])
+def unlock_touch(request):
+    """POST：畫面偵測到真人操作時延長閒置期限；GET：只查目前期限（供多分頁到期前確認），不延長。
+
+    已過期的驗證不能被延長復活，回 409 並由畫面重新要求輸入密碼。
+    """
+    until = extend_unlock(request) if request.method == "POST" else current_until(request)
+    if until is None:
+        return JsonResponse({"ok": False, "locked": True}, status=409)
+    return JsonResponse({"ok": True, "until": int(until * 1000)})
 
 
 @login_required

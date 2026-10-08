@@ -1368,7 +1368,7 @@
   },
   "profit_unlock.e09829d88ad7": {
     "page": "解鎖淨利",
-    "default": "此裝置目前登入階段可查看 5 分鐘，到期自動鎖定；不會延長，也不會改變財務編輯權限。",
+    "default": "解鎖後只要持續操作就不必再輸入；閒置 10 分鐘自動鎖定，從解鎖起最長 8 小時。不會改變財務編輯權限。",
     "template": "templates/sales/profit_unlock.html"
   },
   "reconciliation_list.699f0b9879fe": {

@@ -7,8 +7,8 @@
 <header class="model-workspace-intro">
   <div><h2>分期方案</h2><p class="muted">{% site_text 'installment_plan_list.65c84ecf7f02' %}</p></div>
   <div class="hero-actions">
-    {% if editing %}<a class="button ghost" href="{% url 'vehicle_installment_plan_list' vehicle_model.pk %}">＋ 新增下一版本</a>{% endif %}
     {% if_access 'installment_company_list' %}<a class="button ghost" href="{% url 'installment_company_list' %}">分期公司與方案</a>{% endif_access %}
+    {% if plans %}{% if editing or not request.GET.new %}<a class="button primary" href="{% url 'vehicle_installment_plan_list' vehicle_model.pk %}?new=1#plan-form">＋ 新增版本</a>{% endif %}{% endif %}
   </div>
 </header>
 
@@ -29,11 +29,12 @@
   </div>
   <div class="installment-save-confirmation__actions">
     <a class="button primary" href="#plan-form">繼續修改此版本</a>
-    <a class="button ghost" href="{% url 'vehicle_installment_plan_list' vehicle_model.pk %}">新增下一版本</a>
+    <a class="button ghost" href="{% url 'vehicle_installment_plan_list' vehicle_model.pk %}?new=1#plan-form">新增下一版本</a>
   </div>
 </section>
 {% endif %}
 
+{% if editing or not plans or request.GET.new or request.method == 'POST' %}
 <section class="form-section static-section">
   <div class="section-title installment-editor-title">
     <div>
@@ -81,7 +82,7 @@
       <button type="button" class="button ghost add-row-button" id="add-option">＋ 新增期數</button>
     </div>
     <div class="form-actions">
-      {% if editing %}<a class="button ghost" href="{% url 'vehicle_installment_plan_list' vehicle_model.pk %}">取消</a>{% endif %}
+      {% if editing or plans %}<a class="button ghost" href="{% url 'vehicle_installment_plan_list' vehicle_model.pk %}">取消</a>{% endif %}
       <button class="button primary">{% if editing %}儲存變更{% else %}儲存方案{% endif %}</button>
     </div>
   </form>
@@ -100,6 +101,7 @@
     <div class="form-actions"><button class="button ghost" type="button" data-close-company-dialog>取消</button><button class="button primary" type="submit" data-company-submit>建立並套用</button></div>
   </form>
 </dialog>
+{% endif %}
 
 <section class="inventory-list-panel">
   <div class="inventory-list-summary"><strong>歷史版本</strong><span>共 {{ plans|length }} 個版本</span></div>
@@ -134,6 +136,7 @@
 {% endblock %}
 
 {% block scripts %}
+{% if editing or not plans or request.GET.new or request.method == 'POST' %}
 <script>
 (() => {
   const total = document.getElementById("id_options-TOTAL_FORMS");
@@ -285,4 +288,5 @@
   bind();
 })();
 </script>
+{% endif %}
 {% endblock %}

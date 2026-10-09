@@ -296,5 +296,10 @@
   document.querySelectorAll("[data-copy-form]").forEach(setupCopy);
   // 批次套用附加獎勵：只共用勾選與計數，方案編輯由 vehicle-model-reward-batch.js 處理。
   document.querySelectorAll("[data-reward-batch]").forEach((form) => setupSelection(form));
+  // 批次調整分期方案：共用勾選與鍵盤移動，差額與快速套用由 vehicle-model-installment-batch.js 處理。
+  document.querySelectorAll("[data-installment-batch]").forEach((form) => {
+    const selection = setupSelection(form);
+    if (selection) setupKeyboard(selection.table);
+  });
   document.querySelectorAll("[data-model-tool-filters]").forEach(setupFilters);
 })();

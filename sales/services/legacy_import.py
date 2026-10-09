@@ -1869,6 +1869,9 @@ def _commit_sales_row(row, actor_name, *, pending_order=None):
     if pending_order:
         SalesOrder.objects.filter(pk=order.pk).update(status=SalesOrder.Status.ALLOCATED if vehicle else SalesOrder.Status.ALLOCATION_PENDING,
             calculated_balance=order.calculate_balance())
+    elif not data.get("plate_number"):
+        # Excel 沒有車牌＝尚未領牌交車：建立為待交車，保留預計領牌日期；補上車牌時才完成（historical_delivery）。
+        SalesOrder.objects.filter(pk=order.pk).update(status=SalesOrder.Status.DELIVERY_PENDING)
     else:
         delivered_at = timezone.make_aware(datetime.combine(_date(data["registration_date"]) or order_date, time(hour=12)))
         SalesOrder.objects.filter(pk=order.pk).update(
@@ -1877,7 +1880,7 @@ def _commit_sales_row(row, actor_name, *, pending_order=None):
             registration_completed_by="歷史資料匯入" if data["registration_date"] else "",
         )
     if vehicle:
-        VehicleInventory.objects.filter(pk=vehicle.pk).update(status=VehicleInventory.Status.RESERVED if pending_order else VehicleInventory.Status.SOLD)
+        VehicleInventory.objects.filter(pk=vehicle.pk).update(status=VehicleInventory.Status.RESERVED if pending_order or not data.get("plate_number") else VehicleInventory.Status.SOLD)
     profile, _ = OrderOperationsProfile.objects.get_or_create(order=order)
     profile.dealer_name = data.get("dealer_name", "")
     profile.vehicle_cost = _decimal(row.raw_data.get("成本"))

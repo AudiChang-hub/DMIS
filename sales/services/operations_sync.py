@@ -142,8 +142,11 @@ def sync_order_operations(order_id, *, update_receivables=False):
     if not order:
         return None
     profile, _created = OrderOperationsProfile.objects.get_or_create(order=order)
-    if order.status == order.Status.COMPLETED and hasattr(order, "legacy_snapshot"):
+    if hasattr(order, "legacy_snapshot") and (
+        order.status == order.Status.COMPLETED or profile.legacy_finance_reconciliation
+    ):
         # 歷史訂單並無當時完整價格／領牌費快照；一般編輯不得以現行空值覆寫財務。
+        # 財務來自 Excel 的歷史匯入單（尚無車牌、待交車者亦同）不論狀態都保護。
         return profile
     profile_before = {field.attname: field.value_from_object(profile) for field in profile._meta.concrete_fields}
     profile.dealer_name = order.source.name if order.source_id else ""

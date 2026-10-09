@@ -5342,6 +5342,7 @@ def draft_presence(request, pk):
 
 @login_required
 def order_detail(request, pk, *, commission_form=None, workspace_context_only=False):
+    from sales.services import historical_delivery
     from sales.services.profit_access import profit_is_unlocked
     from sales.services.order_intake import is_dealer, scoped_orders
     if is_dealer(request.user):
@@ -5486,6 +5487,7 @@ def order_detail(request, pk, *, commission_form=None, workspace_context_only=Fa
             **order_workspace.payout_summary_context(request, order),
             "order_workspace": True,
             "order": order,
+            "historical_delivery_pending": historical_delivery.can_complete(order),
             **step_context,
             "deposit_payment": deposit_payment,
             "deposit_payment_form": deposit_payment_form,

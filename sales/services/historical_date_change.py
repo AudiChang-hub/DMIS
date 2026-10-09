@@ -83,7 +83,9 @@ def date_change_preview(row, order):
         blockers.append("車主姓名或證號不同，不能當成同買家改期。")
     historical_complete = order.status == SalesOrder.Status.COMPLETED and order.delivered_by == "歷史資料匯入"
     corrected_pending = order.status == SalesOrder.Status.ALLOCATED and not order.delivered_at and not order.registration_completed_at and OrderEvent.objects.filter(order=order, event_type=EVENT).exists()
-    if not snapshot or not (historical_complete or corrected_pending) or (order.registration_completed_at and order.registration_completed_by != "歷史資料匯入"):
+    # 1.60.0 起沒有車牌的歷史匯入單建立為待交車（未領牌、未交車），同樣可核對改期。
+    imported_pending = order.status == SalesOrder.Status.DELIVERY_PENDING and not order.delivered_at and not order.registration_completed_at
+    if not snapshot or not (historical_complete or corrected_pending or imported_pending) or (order.registration_completed_at and order.registration_completed_by != "歷史資料匯入"):
         blockers.append("只可更正歷史匯入完成標記或本流程的待辦訂單，正式訂單須走原領牌流程。")
     if vehicle and vehicle.status != (VehicleInventory.Status.SOLD if historical_complete else VehicleInventory.Status.RESERVED):
         blockers.append("庫存車況與原單進度不符，請先核對，不會覆蓋庫存狀態。")

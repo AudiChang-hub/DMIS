@@ -23,6 +23,7 @@
   </div>
 </section>
 
+{% if historical_delivery_pending %}{% if_access 'historical_delivery_complete' %}{% include "sales/_historical_delivery_complete.html" %}{% endif_access %}{% endif %}
 <div data-workspace-section="order">{% include "sales/_order_commission_attribution.html" %}</div>
 {% include "sales/_order_acceptance.html" %}
 

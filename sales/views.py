@@ -3553,7 +3553,9 @@ def legacy_import_detail(request, pk):
     conflict_groups = []
     if action == LegacyImportRow.Action.CONFLICT:
         grouped = {}
+        from sales.services.import_order_review import REVIEW_MESSAGES
         for conflict_row in filtered_rows:
+            conflict_row.needs_order_review = bool(REVIEW_MESSAGES.intersection(conflict_row.messages or []))
             comparison_key = (
                 conflict_row.mapped_data.get("identifier")
                 if conflict_row.sheet_name == "銷貨"
@@ -3570,6 +3572,17 @@ def legacy_import_detail(request, pk):
         counts[item["action"]] = item["total"]
     unresolved_count = counts.get("conflict", 0) + counts.get("error", 0)
     action_labels = dict(LegacyImportRow.Action.choices)
+    # 與既有訂單比對（疑似重複、號碼已屬他人、匯入後 Excel 改動）。
+    from sales.services import import_order_review
+    review_ids = [
+        item.pk for item in batch.rows.filter(sheet_name="銷貨").only("pk", "messages")
+        if import_order_review.REVIEW_MESSAGES.intersection(item.messages or [])
+    ]
+    order_reviews = []
+    if request.GET.get("review") == "orders" and review_ids:
+        order_reviews = import_order_review.row_reviews(
+            list(batch.rows.filter(pk__in=review_ids).order_by("source_row"))
+        )
     master_workspace = {"models": [], "sources": [], "total": 0}
     master_unresolved_count = 0
     if (
@@ -3607,6 +3620,9 @@ def legacy_import_detail(request, pk):
                 else 0
             ),
             "conflict_groups": conflict_groups,
+            "order_review_count": len(review_ids),
+            "order_reviews": order_reviews,
+            "show_order_review": request.GET.get("review") == "orders",
             "editing_row": editing_row,
             "correction_form": correction_form,
             "master_workspace": master_workspace,

@@ -2240,6 +2240,11 @@ input[type="file"].form-control { padding: var(--space-3); }
   align-items: end; gap: var(--stack-gap-sm); background: var(--surface-soft); border: 1px solid var(--line); border-radius: var(--radius-lg);
 }
 .subsidy-summary div { display: grid; min-width: 0; gap: var(--space-1); }
+.old-vehicle-summary { display: grid; margin: var(--space-4) var(--space-5) 0; padding-top: var(--space-4); gap: var(--space-3); border-top: 1px dashed var(--line); }
+.old-vehicle-summary__head { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-2) var(--space-3); }
+.old-vehicle-summary__head h3 { margin: 0; font-size: var(--text-base); }
+.old-vehicle-summary__head small { color: var(--muted); font-size: var(--text-xs); }
+.old-vehicle-summary__empty { margin: 0; }
 .subsidy-summary span { color: var(--muted); font-size: var(--text-xs); font-weight: 800; }
 .subsidy-summary strong { overflow-wrap: anywhere; }
 .subsidy-agency-summary {

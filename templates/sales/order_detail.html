@@ -648,6 +648,8 @@
       <div><label for="{{ subsidy_form.trade_in_plate.id_for_label }}">舊車車牌</label>{{ subsidy_form.trade_in_plate }}</div>
       <div><label for="{{ subsidy_form.old_owner_name.id_for_label }}">舊車主姓名</label>{{ subsidy_form.old_owner_name }}</div>
       <div><label for="{{ subsidy_form.old_owner_id_number.id_for_label }}">舊車主身分證字號</label>{{ subsidy_form.old_owner_id_number }}</div>
+      <div><label for="{{ subsidy_form.old_owner_phone.id_for_label }}">舊車主電話</label>{{ subsidy_form.old_owner_phone }}</div>
+      <div><label for="{{ subsidy_form.old_owner_household_address.id_for_label }}">舊車主戶籍</label>{{ subsidy_form.old_owner_household_address }}</div>
       <div><label for="{{ subsidy_form.subsidy_type.id_for_label }}">補助類型</label>{{ subsidy_form.subsidy_type }}</div>
       <div><label for="{{ subsidy_form.old_vehicle_valuation.id_for_label }}">舊車估價</label>{{ subsidy_form.old_vehicle_valuation }}</div>
       <div><label for="{{ subsidy_form.old_vehicle_tax.id_for_label }}">舊車未繳稅金</label>{{ subsidy_form.old_vehicle_tax }}</div>
@@ -703,9 +705,12 @@
     <div><span>舊車車牌</span><strong>{{ order.trade_in_plate|default:"尚未填寫" }}</strong></div>
     <div><span>舊車主</span><strong>{{ order.old_owner_name|default:order.owner_name }}</strong></div>
     <div><span>舊車主身分證字號</span><strong>{{ order.old_owner_id_number|default:"尚未填寫" }}</strong></div>
+    <div><span>舊車主電話</span><strong>{{ order.old_owner_phone|default:"尚未填寫" }}</strong></div>
+    <div><span>舊車主戶籍</span><strong>{{ order.old_owner_household_address|default:"尚未填寫" }}</strong></div>
     <div><span>補助類型</span><strong>{{ order.subsidy_type|default:"尚未填寫" }}</strong></div>
   </div>
   {% endif %}
+  {% include "sales/_old_vehicle_summary.html" with profile=order.operations %}
 
   {% if payout_summary %}
   <section class="payout-summary" aria-labelledby="payout-summary-title" data-payout-summary data-reveal-url="{% url 'order_payout_reveal' order.pk %}" data-csrf="{{ csrf_token }}">

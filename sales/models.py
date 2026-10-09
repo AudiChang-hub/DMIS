@@ -3205,6 +3205,8 @@ class SalesOrder(TimeStampedModel):
     old_owner_id_number = models.CharField(
         "舊車主身分證字號", max_length=40, blank=True
     )
+    old_owner_phone = models.CharField("舊車主電話", max_length=50, blank=True)
+    old_owner_household_address = models.CharField("舊車主戶籍", max_length=255, blank=True)
     old_owner_ocr_name = models.CharField(
         "OCR 辨識舊車主姓名", max_length=160, blank=True
     )

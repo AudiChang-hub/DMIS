@@ -1,4 +1,4 @@
-/* 批次調整分期方案：每期金額與各期條件（分期公司、撥款比例、開辦費）的變更標示、自動勾選與快速套用。
+/* 批次調整分期方案：每期金額、各期條件（分期公司、撥款比例）與整台開辦費的變更標示、自動勾選與快速套用。
    送出後以伺服器預覽頁的內容為準；勾選與鍵盤移動由 vehicle-model-tools.js 處理。 */
 (function () {
   "use strict";
@@ -25,10 +25,6 @@
     return Math.sign(scaled) * Math.floor(Math.abs(scaled) + 0.5 + 1e-9) * step;
   }
 
-  function sameAmount(a, b) {
-    return parseAmount(a) === parseAmount(b);
-  }
-
   function setup(form) {
     const table = form.querySelector("[data-batch-table]");
     if (!table) return;
@@ -51,10 +47,10 @@
     function condText(field) {
       const company = cond(field, "company");
       const rate = cond(field, "rate");
-      const fee = parseAmount(cond(field, "fee").value);
       const name = company.value ? company.selectedOptions[0].textContent : "";
       const rateText = rate.value.trim() ? `${rate.value.trim().replace(/%$/, "")}%` : (rate.placeholder.startsWith("例如") ? "" : rate.placeholder);
-      const feeText = fee ? `開辦 $${number.format(fee)}` : "免開辦";
+      const fee = parseAmount(cond(field, "fee").value);
+      const feeText = fee === null || Number.isNaN(fee) ? "" : (fee ? `開辦 $${number.format(fee)}` : "免開辦");
       return { name, rateText, feeText };
     }
 
@@ -72,14 +68,14 @@
       const rate = parseRate(cond(field, "rate").value);
       const condChanged = company !== field.dataset.currentCompany
         || cond(field, "rate").value.trim().replace(/%$/, "") !== field.dataset.currentRate
-        || !sameAmount(cond(field, "fee").value || "0", field.dataset.currentFee || "0");
+        || parseAmount(cond(field, "fee").value) !== parseAmount(field.dataset.currentFee);
       const offered = value !== null && !Number.isNaN(value) && value > 0;
 
       // 條件摘要：有提供的期數才顯示；缺公司或比例時提醒。
       const text = condText(field);
       const missing = offered && (!company || (rate === null && !cond(field, "rate").placeholder.match(/固定|另填/)));
       details.hidden = !offered && !condChanged;
-      summary.textContent = missing ? "請設定條件" : [text.name, text.rateText].filter(Boolean).join(" ") + `・${text.feeText}`;
+      summary.textContent = missing ? "請設定條件" : [[text.name, text.rateText].filter(Boolean).join(" "), text.feeText].filter(Boolean).join("・");
       field.classList.toggle("needs-terms", missing);
       if (Number.isNaN(rate) || Number.isNaN(parseAmount(cond(field, "fee").value))) field.classList.add("needs-terms");
 
@@ -117,10 +113,37 @@
       return changed;
     }
 
+    // 整台開辦費：空白視為 0；個別期數的例外在各期條件另填。
+    function refreshFee(field) {
+      const input = field.querySelector("[data-inst-fee]");
+      const delta = field.querySelector("[data-inst-delta]");
+      field.classList.remove("is-changed", "is-invalid");
+      delta.textContent = "";
+      delta.className = "model-delta";
+      const value = parseAmount(input.value);
+      if (Number.isNaN(value)) {
+        field.classList.add("is-invalid");
+        delta.textContent = "請輸入整數";
+        delta.classList.add("is-error");
+        return false;
+      }
+      const current = field.dataset.current === "" ? 0 : parseAmount(field.dataset.current);
+      if ((value || 0) === current) return false;
+      field.classList.add("is-changed");
+      const diff = (value || 0) - current;
+      delta.textContent = `${diff > 0 ? "+" : ""}${number.format(diff)}`;
+      delta.classList.add(diff > 0 ? "is-up" : "is-down");
+      // 這台沒有任何期數時，開辦費不會寫入，只標示不算變更。
+      const row = field.closest("[data-inst-row]");
+      return Array.from(row.querySelectorAll("[data-inst-input]")).some((element) => element.value.trim() !== "");
+    }
+
     function refreshAll() {
       let changedRows = 0;
       rows().forEach((row) => {
         let changed = false;
+        const feeField = row.querySelector("[data-inst-fee-field]");
+        if (feeField) changed = refreshFee(feeField);
         row.querySelectorAll("[data-inst-field]").forEach((field) => { changed = refreshField(field) || changed; });
         row.classList.toggle("has-changes", changed);
         const box = check(row);
@@ -130,23 +153,22 @@
     }
 
     function onEdit(event) {
-      const target = event.target.closest("[data-inst-input], [data-inst-cond]");
+      const target = event.target.closest("[data-inst-input], [data-inst-cond], [data-inst-fee]");
       if (!target) return;
       select(target.closest("[data-inst-row]"));
-      refreshField(target.closest("[data-inst-field]"));
       refreshAll();
     }
     table.addEventListener("input", onEdit);
     table.addEventListener("change", (event) => { if (event.target.matches("select[data-inst-cond]")) onEdit(event); });
     table.addEventListener("focusin", (event) => {
-      const input = event.target.closest("input[data-inst-input='period'], input[data-inst-cond='fee']");
+      const input = event.target.closest("input[data-inst-input='period'], input[data-inst-fee], input[data-inst-cond='fee']");
       if (!input) return;
       const value = parseAmount(input.value);
       if (value !== null && !Number.isNaN(value)) input.value = String(value);
       requestAnimationFrame(() => input.select());
     });
     table.addEventListener("focusout", (event) => {
-      const input = event.target.closest("input[data-inst-input='period'], input[data-inst-cond='fee']");
+      const input = event.target.closest("input[data-inst-input='period'], input[data-inst-fee], input[data-inst-cond='fee']");
       if (!input) return;
       const value = parseAmount(input.value);
       if (value !== null && !Number.isNaN(value)) input.value = number.format(value);
@@ -183,15 +205,18 @@
         form.querySelectorAll("[data-term-company]").forEach((select) => {
           const periods = select.dataset.termCompany;
           const rate = form.querySelector(`[data-term-rate="${periods}"]`).value.trim();
-          const fee = form.querySelector(`[data-term-fee="${periods}"]`).value.trim();
+          const periodFee = form.querySelector(`[data-term-fee-period="${periods}"]`).value.trim();
           if (rate && Number.isNaN(parseRate(rate))) invalid = `${periods} 期撥款比例需為 0–100`;
-          if (fee && Number.isNaN(parseAmount(fee))) invalid = `${periods} 期開辦費需為整數`;
-          if (select.value || rate || fee) terms[periods] = { company: select.value, rate, fee };
+          if (periodFee && Number.isNaN(parseAmount(periodFee))) invalid = `${periods} 期開辦費例外需為整數`;
+          if (select.value || rate || periodFee) terms[periods] = { company: select.value, rate, fee: periodFee };
         });
+        const fee = parseAmount(form.querySelector("[data-term-fee]").value);
+        if (Number.isNaN(fee)) invalid = "開辦費需為整數";
         if (invalid) return say(invalid + "。", true);
-        if (!Object.keys(terms).length) return say("請先在期數條件填寫要套用的分期公司、撥款比例或開辦費。", true);
+        if (!Object.keys(terms).length && fee === null) return say("請先在期數條件填寫要套用的分期公司、撥款比例或開辦費。", true);
         const chosen = targets();
         chosen.forEach((row) => {
+          if (fee !== null) row.querySelector("[data-inst-fee]").value = number.format(fee);
           row.querySelectorAll("[data-inst-field]").forEach((field) => {
             const term = terms[field.dataset.periods];
             if (!term) return;
@@ -200,7 +225,10 @@
             if (term.fee) cond(field, "fee").value = number.format(parseAmount(term.fee));
           });
         });
-        return say(`已把 ${Object.keys(terms).length} 個期數的條件套用到 ${chosen.length} 列。`);
+        const parts = [];
+        if (Object.keys(terms).length) parts.push(`${Object.keys(terms).length} 個期數的條件`);
+        if (fee !== null) parts.push(`開辦費 $${number.format(fee)}`);
+        return say(`已把 ${parts.join("、")} 套用到 ${chosen.length} 列。`);
       },
       max() {
         const max = Number(form.querySelector("[data-inst-max]").value);
@@ -267,6 +295,9 @@
             cond(field, "fee").value = field.dataset.currentFee;
             field.querySelector(".model-installment-cond").open = false;
           });
+          const feeField = row.querySelector("[data-inst-fee-field]");
+          const feeInput = feeField && feeField.querySelector("[data-inst-fee]");
+          if (feeInput && !feeInput.disabled) feeInput.value = feeField.dataset.current;
           const box = check(row);
           if (box && !box.disabled) box.checked = false;
         });
@@ -287,7 +318,7 @@
         const box = check(row);
         if (!box || box.disabled || !box.checked) return;
         values[box.name] = "1";
-        row.querySelectorAll("[data-inst-field] [name]").forEach((element) => { values[element.name] = element.value; });
+        row.querySelectorAll("td:not(.model-tool-check-col) [name]").forEach((element) => { values[element.name] = element.value; });
       });
       grid.value = JSON.stringify(values);
       table.querySelectorAll("tbody [name]:not(:disabled)").forEach((element) => {

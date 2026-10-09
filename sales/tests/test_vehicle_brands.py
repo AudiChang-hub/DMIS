@@ -1,3 +1,5 @@
+from decimal import Decimal
+
 from django.contrib.auth import get_user_model
 from django.test import TestCase
 from django.urls import reverse
@@ -150,7 +152,7 @@ class VehicleBrandMasterTests(TestCase):
         )
         self.assertEqual(
             [model.pk for model in suzuki_group["models"]],
-            [child_model.pk, root_model.pk],
+            [root_model.pk, child_model.pk],  # 主品牌自己的機種在上，子品牌往下
         )
 
     def test_vehicle_models_sort_electric_by_power_then_gas_by_displacement(self):
@@ -258,6 +260,31 @@ class VehicleBrandMasterTests(TestCase):
             '<details class="vehicle-brand-group" data-brand-group="SUZUKI" open>',
             html=False,
         )
+
+    def test_model_list_puts_parent_brand_models_first_then_sub_brands_by_name(self):
+        parent = VehicleBrand.objects.create(name="排序主牌", display_order=880)
+        for name in ("排序子牌B", "排序子牌A"):
+            VehicleBrand.objects.create(name=name, parent=parent, display_order=880)
+
+        def make(brand, name, number, energy, **extra):
+            return VehicleModel.objects.create(
+                brand=brand, name=name, model_number=number, model_year=2026,
+                model_code=VehicleModel.ModelType.DRUM, energy_type=energy, **extra)
+
+        # 故意讓排序會被「能源別／動力大小」打亂：主品牌是大排氣量油車，子品牌有電動車與小排氣量
+        make("排序子牌B", "子B油車", "SB125", VehicleModel.EnergyType.GAS, displacement_cc=125)
+        make("排序子牌A", "子A電動", "SA-EV", VehicleModel.EnergyType.ELECTRIC, motor_power_kw=Decimal("2.5"))
+        make("排序主牌", "主牌大油車", "MAIN400", VehicleModel.EnergyType.GAS, displacement_cc=400)
+        make("排序主牌", "主牌小油車", "MAIN125", VehicleModel.EnergyType.GAS, displacement_cc=125)
+
+        response = self.client.get(reverse("vehicle_model_list"))
+        group = next(g for g in response.context["vehicle_model_groups"] if g["name"] == "排序主牌")
+        order = [(family["name"], family["child_brand_label"]) for family in group["families"]]
+        self.assertEqual(order, [
+            ("主牌小油車", ""), ("主牌大油車", ""),   # 主品牌自己的機種在最上方
+            ("子A電動", "排序子牌A"),                 # 子品牌依名稱往下
+            ("子B油車", "排序子牌B"),
+        ])
 
     def test_sub_brand_stays_right_under_its_parent_even_when_parents_share_the_same_order(self):
         from sales.forms import _brand_choices

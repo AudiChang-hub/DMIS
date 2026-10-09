@@ -8211,13 +8211,15 @@ def vehicle_model_list(request):
             else:
                 energy_rank = 2
                 power_value = None
+            # 同一主品牌底下：先排主品牌自己的機種，再依子品牌名稱往下排；
+            # 每一段內才依能源別與動力大小排列。停用的機種仍排在最後。
             return (
                 not any(model.active for model in family["models"]),
+                bool(family["child_brand_label"]),
+                family["child_brand_label"].casefold(),
                 energy_rank,
                 power_value is None,
                 power_value or 0,
-                bool(family["child_brand_label"]),
-                family["brand_display_order"],
                 family["name"].casefold(),
             )
 

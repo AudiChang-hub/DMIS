@@ -44,6 +44,7 @@ from sales.services.import_order_review import (
 )
 
 
+OLD_OWNER_MARKERS = {"有", "無"}
 DUPLICATE_IDENTIFIER_MESSAGE = "同一工作表存在重複的標準化車輛識別號碼"
 MULTIPLE_NEW_SALES_MESSAGE = "同一識別號碼存在多筆新車銷售；請確認後續交易是否為中古車"
 DUPLICATE_SALES_TRANSACTION_MESSAGE = "同一筆銷售交易在工作表重複出現"
@@ -450,6 +451,8 @@ SALES_HEADER_ALIASES = {
     "account_header_value": ("匯款帳戶",),
     "old_owner_name": ("舊車車主",),
     "old_owner_id_number": ("舊車車主身分證",),
+    "old_owner_phone": ("舊車車主電話",),
+    "old_owner_household": ("舊車戶籍",),
     "trade_in_plate": ("舊車牌照號碼",),
     "old_vehicle_engine_number": ("舊車引擎號碼",),
     "old_vehicle_brand": ("舊車廠牌",),
@@ -888,6 +891,12 @@ def _operations_sales_rows(batch, workbook):
         )
         old_owner_name = text_cell("old_owner_name")
         old_owner_id_number = text_cell("old_owner_id_number")
+        # Excel「舊車車主」填「有」代表有舊車要汰舊、「無」代表沒有，不是姓名。
+        trade_in_marked = "有" in {old_owner_name, old_owner_id_number}
+        if old_owner_name in OLD_OWNER_MARKERS:
+            old_owner_name = ""
+        if old_owner_id_number in OLD_OWNER_MARKERS:
+            old_owner_id_number = ""
         owner_id_number = text_cell("owner_id_number")
         owner_email = text_cell("owner_email")
         email_dropped = _has_invalid_email(owner_email)
@@ -934,6 +943,9 @@ def _operations_sales_rows(batch, workbook):
             "old_owner_name": old_owner_name,
             "old_owner_id_number": old_owner_id_number,
             "old_owner_same_as_owner": old_owner_same,
+            "old_owner_phone": text_cell("old_owner_phone"),
+            "old_owner_household": text_cell("old_owner_household"),
+            "trade_in_marked": trade_in_marked,
             "old_vehicle_engine_number": text_cell("old_vehicle_engine_number"),
             "old_vehicle_brand": text_cell("old_vehicle_brand"),
             "old_vehicle_displacement_cc": _displacement_cc(cell("old_vehicle_displacement_cc")),
@@ -1845,10 +1857,12 @@ def _commit_sales_row(row, actor_name, *, pending_order=None):
         trade_in_plate=data["trade_in_plate"],
         old_owner_same_as_owner=old_owner_same,
         old_owner_name=old_owner_name, old_owner_id_number=old_owner_id_number,
+        old_owner_phone=_clip(SalesOrder, "old_owner_phone", data.get("old_owner_phone", "")),
+        old_owner_household_address=_clip(SalesOrder, "old_owner_household_address", data.get("old_owner_household", "")),
         note=data.get("note", ""),
         is_trade_in_subsidy=(
             vehicle_category == SalesOrder.VehicleCategory.NEW
-            and bool(data["trade_in_plate"])
+            and (bool(data["trade_in_plate"]) or bool(data.get("trade_in_marked")))
         ),
         allocated_vehicle=vehicle,
     )

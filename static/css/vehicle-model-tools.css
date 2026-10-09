@@ -326,6 +326,19 @@
 
 /* ---- 批次調整分期方案：年式固定在左側，期數欄橫向捲動 ---- */
 .model-installment-toolbar { row-gap: var(--space-4); }
+/* 較少用的批次工具預設收合，避免和「期數條件」搶注意力。 */
+.model-installment-more { border-top: 1px solid var(--line); }
+.model-installment-more > summary {
+  display: flex; min-height: 44px; padding: var(--space-2) var(--card-pad); align-items: baseline; gap: var(--space-3);
+  color: var(--ink-soft); font-size: var(--text-sm); font-weight: 850; cursor: pointer; list-style: none;
+}
+.model-installment-more > summary::-webkit-details-marker, .model-installment-more > summary::after { display: none; }
+.model-installment-more > summary::before { content: "＋"; color: var(--muted); }
+.model-installment-more[open] > summary::before { content: "－"; }
+.model-installment-more > summary small { color: var(--muted); font-size: var(--text-xs); font-weight: 650; }
+.model-installment-more > summary:hover { color: var(--action-text); }
+.model-installment-more .model-batch-toolbar { border-bottom: 0; }
+.model-installment-hint { margin: 0; padding: var(--space-2) var(--card-pad); border-top: 1px solid var(--line); }
 .model-installment-toolbar__group { display: flex; align-items: flex-end; gap: var(--space-2); }
 .model-installment-toolbar .model-batch-toolbar__input input { width: 128px; }
 .model-installment-toolbar__amount { padding-left: var(--space-4); border-left: 1px solid var(--line); }

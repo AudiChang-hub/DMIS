@@ -126,8 +126,9 @@
       <p class="model-installment-terms__hint">空白的欄位不會改動；只設定條件、不會新增期數，要提供的期數請在下方填每期金額。</p>
     </div>
 
+    <details class="model-installment-more">
+      <summary>更多批次工具<small>清空某期數以上、每期金額一起加減或依百分比調整</small></summary>
     <div class="model-batch-toolbar model-installment-toolbar" role="group" aria-label="套用到勾選列">
-      <span class="model-batch-toolbar__label">快速套用</span>
       <div class="model-installment-toolbar__group">
         <label class="model-batch-toolbar__field"><span>最高期數</span>
           <select data-inst-max>{% for value in periods %}<option value="{{ value }}"{% if forloop.last %} selected{% endif %}>{{ value }} 期</option>{% endfor %}</select>
@@ -149,8 +150,9 @@
         </label>
         <button class="button secondary" type="button" data-inst-apply="amount">套用</button>
       </div>
-      <p class="model-batch-toolbar__hint" data-inst-hint aria-live="polite">未勾選時套用到全部可調整的列。</p>
     </div>
+    </details>
+    <p class="model-batch-toolbar__hint model-installment-hint" data-inst-hint aria-live="polite">期數條件與批次工具：未勾選時套用到全部可調整的列。</p>
     {% endif %}
 
     <div class="inventory-table-wrap model-tool-table-wrap model-installment-wrap" tabindex="0" aria-label="分期方案批次調整表，可上下左右捲動">

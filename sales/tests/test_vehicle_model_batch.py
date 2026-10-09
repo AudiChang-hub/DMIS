@@ -236,7 +236,7 @@ class BatchPermissionTests(TestCase):
     def test_datasets_follow_screen_permissions(self):
         self.make_user("models-costs-view", {"models": True, "costs": False})
         response = self.client.get(BATCH_URL, {"dataset": "cost"})
-        self.assertEqual([tab["key"] for tab in response.context["dataset_tabs"]], ["price", "cost"])
+        self.assertEqual([tab["key"] for tab in response.context["dataset_tabs"]], ["price", "cost", "installment"])
         self.assertFalse(response.context["can_operate"])
         day = first_of_next_month()
         response = self.client.post(BATCH_URL, {"action": "preview", "dataset": "cost", "effective_from": day.isoformat(),

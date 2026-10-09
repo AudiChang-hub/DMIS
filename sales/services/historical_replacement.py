@@ -1,6 +1,7 @@
 """有限範圍的歷史匯入更正；不解鎖真實已領牌／交付訂單。"""
 import hashlib
 import json
+from datetime import datetime, time
 from decimal import Decimal
 
 from django.core import signing
@@ -71,9 +72,13 @@ def replacement_preview(row, order):
         blockers.append("來源列與原訂單配車不相符，不能解除其他車輛。")
     if row.mapped_data.get("identifier") != identifier:
         blockers.append("暫存識別號碼與原始輸入不同，請先重新核對並儲存本列。")
-    if vehicle and vehicle.status != VehicleInventory.Status.SOLD:
+    # 1.60.0 起沒有車牌的歷史匯入單建立為待交車（車輛保留中），同樣可核對換買家。
+    imported_pending = (order.status == SalesOrder.Status.DELIVERY_PENDING and not order.delivered_at
+                        and not order.registration_completed_at)
+    if vehicle and vehicle.status != (VehicleInventory.Status.RESERVED if imported_pending else VehicleInventory.Status.SOLD):
         blockers.append("車輛不是歷史已售狀態，請先核對庫存，不可覆蓋其他車況。")
-    if not snapshot or order.status != SalesOrder.Status.COMPLETED or order.delivered_by != "歷史資料匯入" or (order.registration_completed_at and order.registration_completed_by != "歷史資料匯入"):
+    historical_complete = order.status == SalesOrder.Status.COMPLETED and order.delivered_by == "歷史資料匯入"
+    if not snapshot or not (historical_complete or imported_pending) or (order.registration_completed_at and order.registration_completed_by != "歷史資料匯入"):
         blockers.append("只可更正由歷史匯入標記完成的訂單，不可解鎖正式交付訂單。")
     if DeliveryRecord.objects.filter(order=order).exists() or RegistrationDocument.objects.filter(order=order).exists() or order.final_plate_number:
         blockers.append("原訂單已有交付紀錄、領牌文件或車牌，請先由管理者釐清真實交付／領牌證據；此處不能直接取消。")
@@ -170,6 +175,16 @@ def replace_historical_buyer(*, row_id, order_id, user, data):
         raise ValidationError(f"新買家補匯失敗，原單、配車及所有異動均已回復：{result['error']}")
     row.refresh_from_db()
     new_order = SalesOrder.objects.get(pk=row.committed_pk)
+    if facts["incoming_status"] == "completed" and new_order.status == SalesOrder.Status.DELIVERY_PENDING:
+        # 1.60.0 起沒有車牌的匯入列預設待交車；此處已由使用者確認新買家完成領牌交車，依確認標記完成。
+        day = new_order.registration_date or new_order.order_date
+        moment = timezone.make_aware(datetime.combine(day, time(hour=12)))
+        SalesOrder.objects.filter(pk=new_order.pk).update(
+            status=SalesOrder.Status.COMPLETED, delivered_at=moment, delivered_by="歷史資料匯入",
+            registration_completed_at=moment, registration_completed_by="歷史資料匯入")
+        if new_order.allocated_vehicle_id:
+            VehicleInventory.objects.filter(pk=new_order.allocated_vehicle_id).update(status=VehicleInventory.Status.SOLD, updated_at=now)
+        new_order.refresh_from_db()
     if new_order.allocated_vehicle_id != vehicle.pk:
         raise ValidationError("同號碼對應到不同庫存車輛，已回復所有異動。請核對完整重複清單，不可自動改配其他車輛。")
     OrderChange.objects.create(order=order, reason=f"歷史退訂換買家；補匯新單 {new_order.number}；{facts['reason']}", changes=audit, actor_name=actor)

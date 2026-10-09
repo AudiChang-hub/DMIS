@@ -221,10 +221,31 @@ class InstallmentBatchTests(TestCase):
         self.assertEqual(version.effective_from, self.day)
         self.assertEqual(options, {})
 
-    def test_model_with_version_on_same_day_is_locked(self):
-        InstallmentPlanVersion.objects.create(vehicle_model=self.a, effective_from=self.day)
+    def test_same_day_active_version_is_updated_in_place(self):
+        """生效日當天已有啟用中的版本：直接更新它（同期數保留原紀錄），不另建版本。"""
+        first = self.post((self.a, self.grid(self.a, p24="3,250")))
+        self.client.post(URL, {"action": "commit", "token": first.context["token"]})
+        same_day, options = self.options(self.a)
+        option_24 = options[24].pk
         row = installment_batch.build_rows([self.a], self.day)[0]
-        self.assertIn("已有版本", row["locked"])
+        self.assertTrue(row["same_day"])
+        self.assertEqual(row["locked"], "")
+        response = self.post((self.a, self.grid(self.a, p24="3,200", p48="")))
+        self.assertContains(response, "的既有版本")
+        result = self.client.post(URL, {"action": "commit", "token": response.context["token"]}, follow=True)
+        self.assertContains(result, "更新既有版本")
+        self.assertEqual(InstallmentPlanVersion.objects.filter(vehicle_model=self.a, effective_from=self.day).count(), 1)
+        version, options = self.options(self.a)
+        self.assertEqual(version.pk, same_day.pk)
+        self.assertEqual(sorted(options), [12, 24])
+        self.assertEqual(options[24].pk, option_24)
+        self.assertEqual(options[24].monthly_amount, 3200)
+        self.assertIn("批次調整更新", version.note)
+
+    def test_same_day_inactive_version_is_locked(self):
+        InstallmentPlanVersion.objects.create(vehicle_model=self.a, effective_from=self.day, active=False)
+        row = installment_batch.build_rows([self.a], self.day)[0]
+        self.assertIn("已有停用的版本", row["locked"])
         response = self.post((self.a, self.grid(self.a, p24="3,000")))
         self.assertContains(response, "沒有任何變更")
 

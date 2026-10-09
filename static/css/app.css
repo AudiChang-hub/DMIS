@@ -1399,7 +1399,9 @@ h2 { margin-bottom: 0; font-size: var(--text-md); font-weight: 750; letter-spaci
 .status-pill.status-allocated,
 .status-pill.status-in_transfer,
 .status-pill.status-delivery_pending { color: var(--blue); background: var(--blue-soft); border-color: var(--blue-border); }
-.status-pill.status-completed { color: var(--green); background: var(--mint); border-color: var(--green-border); }
+/* 已完成用實心綠＋勾號，與進行中的淺色標籤（待交車、已配車…）一眼可分。 */
+.status-pill.status-completed { color: var(--on-status); background: var(--green); border-color: var(--green); }
+.status-pill.status-completed::before { content: "✓ "; }
 .status-pill.status-cancel_refund_pending,
 .status-pill.status-delivered_docs_pending { color: var(--red); background: var(--red-soft); border-color: var(--red-border); }
 .status-pill.status-cancelled { color: var(--on-accent); background: var(--neutral-solid); border: 2px solid var(--line-strong); }
@@ -6183,7 +6185,7 @@ html[aria-busy="true"], html[aria-busy="true"] body { cursor: progress; }
   .status-pill.status-draft { color: var(--ink-soft); background: var(--line-soft); border-color: var(--line-strong); }
   .status-pill.status-allocation_pending, .status-pill.status-transfer_pending { color: var(--amber-ink); background: var(--amber-soft); border-color: var(--amber-strong); }
   .status-pill.status-allocated, .status-pill.status-in_transfer, .status-pill.status-delivery_pending { color: var(--blue-ink); background: var(--blue-soft); border-color: var(--blue-border-strong); }
-  .status-pill.status-completed { color: var(--green-ink); background: var(--mint); border-color: var(--green); }
+  .status-pill.status-completed { color: var(--on-status); background: var(--green); border-color: var(--green); }
   .status-pill.status-cancel_refund_pending, .status-pill.status-delivered_docs_pending { color: var(--red-ink); background: var(--red-soft); border-color: var(--red-border-strong); }
   .is-negative { color: var(--red); }
   .order-sort-table th a small { display: block; color: var(--muted); font-size: var(--text-2xs); font-weight: 500; }

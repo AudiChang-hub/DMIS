@@ -2268,6 +2268,13 @@ input[type="file"].form-control { padding: var(--space-3); }
 .import-master-ignored h4 { margin: var(--space-4) 0 var(--space-2); }
 .import-master-ignored ul { display: grid; margin: 0; padding: 0; gap: var(--space-2); list-style: none; }
 .import-master-ignored li { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-3); }
+.price-scope {
+  display: inline-block; margin-top: var(--space-1); padding: 1px var(--space-2); border: 1px solid var(--line);
+  border-radius: var(--radius-pill, 999px); font-size: var(--text-xs); font-weight: 800; line-height: 1.5; white-space: nowrap;
+}
+/* 表格儲存格內的 span 有通用樣式，所以用雙 class 提高優先權，確保「不含牌險」維持琥珀色提醒。 */
+.price-scope.price-scope--included { color: var(--muted); background: var(--surface-soft); font-size: var(--text-xs); }
+.price-scope.price-scope--excluded { color: var(--amber); background: var(--amber-soft); border-color: var(--amber-border-strong); font-size: var(--text-xs); }
 .payout-summary { margin-bottom: var(--stack-gap-sm); }
 .payout-summary__head { display: grid; gap: var(--space-1); margin-bottom: var(--space-2); }
 .payout-summary__head h3 { margin: 0; }

@@ -72,6 +72,29 @@ class VehicleModelWorkspaceTests(TestCase):
                 self.assertContains(response, f'href="{reverse("vehicle_model_list")}"')
                 self.assertNotContains(response, 'id="business-settings"')
 
+    def test_list_marks_whether_the_current_suggested_price_includes_registration(self):
+        VehiclePriceVersion.objects.create(
+            vehicle_model=self.model, suggested_price=Decimal("65980"),
+            suggested_price_includes_registration=True, effective_from=date(2026, 1, 1))
+        VehiclePriceVersion.objects.create(
+            vehicle_model=self.other, suggested_price=Decimal("59980"),
+            suggested_price_includes_registration=False, effective_from=date(2026, 1, 1))
+        self.client.force_login(self.root)
+        html = self.client.get(reverse("vehicle_model_list")).content.decode()
+        for model, price, label in ((self.model, "65,980", "含牌險"), (self.other, "59,980", "不含牌險")):
+            row = re.search(rf'<tr[^>]*>(?:(?!</tr>).)*?{model.model_number}(?:(?!</tr>).)*?</tr>', html, re.S)
+            self.assertIsNotNone(row, model.model_number)
+            cell = re.search(r'data-label="目前建議售價">(.*?)</td>', row.group(0), re.S).group(1)
+            self.assertIn(price.replace(",", ""), cell.replace(",", ""))
+            self.assertIn(f'>{label}</span>', cell)
+            self.assertNotIn("不含牌險" if label == "含牌險" else ">含牌險<", cell)
+
+    def test_price_without_a_current_version_shows_not_set_and_no_scope_label(self):
+        self.client.force_login(self.root)
+        html = self.client.get(reverse("vehicle_model_list")).content.decode()
+        self.assertIn("尚未設定", html)
+        self.assertNotIn("price-scope--included", html)
+
     def test_tabs_follow_screen_permissions(self):
         catalog_url = self.tab_url("選車圖片與介紹")
         self.client.force_login(self.manager)

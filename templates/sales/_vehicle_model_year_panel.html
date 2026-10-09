@@ -38,7 +38,7 @@
           {% else %}
           <div><dt>馬達功率</dt><dd>{% if year_item.motor_power_kw is not None %}{{ year_item.motor_power_kw|floatformat:2 }} kW{% else %}待補{% endif %}</dd></div>
           {% endif %}
-          <div><dt>建議售價</dt><dd>{% if year_item.current_suggested_price %}${{ year_item.current_suggested_price|floatformat:0 }}{% else %}尚未設定{% endif %}</dd></div>
+          <div><dt>建議售價</dt><dd>{% if year_item.current_suggested_price %}<strong>${{ year_item.current_suggested_price|floatformat:0 }}</strong><span class="price-scope {% if year_item.current_suggested_includes_registration %}price-scope--included{% else %}price-scope--excluded{% endif %}">{% if year_item.current_suggested_includes_registration %}含牌險{% else %}不含牌險{% endif %}</span>{% else %}尚未設定{% endif %}</dd></div>
           <div><dt>車行基礎傭金</dt><dd>${{ year_item.base_dealer_commission|floatformat:0 }}</dd></div>
           <div>
             <dt>庫存</dt>

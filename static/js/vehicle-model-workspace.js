@@ -46,6 +46,104 @@
       observer.observe(hero);
     }
   };
-  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init);
-  else init();
+  // 左側機種清單：預設收起，需要時從左邊滑出蓋在內容上；可釘選常駐（記住選擇）。
+  const initNavigator = () => {
+    const root = document.querySelector("[data-model-nav]");
+    if (!root) return;
+    const toggle = root.querySelector("[data-model-nav-toggle]");
+    const panel = root.querySelector("[data-model-nav-panel]");
+    const backdrop = root.querySelector("[data-model-nav-backdrop]");
+    const search = root.querySelector("[data-model-nav-search]");
+    const pin = root.querySelector("[data-model-nav-pin]");
+    const empty = root.querySelector("[data-model-nav-empty]");
+    const PIN_KEY = "dmis:model-nav-pinned";
+    const canPin = () => window.matchMedia("(min-width: 1100px)").matches;
+    const readPinned = () => { try { return localStorage.getItem(PIN_KEY) === "1"; } catch (error) { return false; } };
+    const writePinned = value => { try { localStorage.setItem(PIN_KEY, value ? "1" : "0"); } catch (error) { /* 無痕模式等：不記住即可 */ } };
+    let pinned = false;
+    document.body.classList.add("has-model-nav");
+
+    const setOpen = (open, { focus = true } = {}) => {
+      root.classList.toggle("is-open", open);
+      toggle.setAttribute("aria-expanded", String(open));
+      if (open) panel.removeAttribute("inert"); else panel.setAttribute("inert", "");
+      if (open) {
+        const current = panel.querySelector(".model-nav__year.is-current");
+        if (current) current.scrollIntoView({ block: "center" });
+        if (focus) search.focus({ preventScroll: true });
+      } else if (focus && panel.contains(document.activeElement)) {
+        toggle.focus({ preventScroll: true });
+      }
+    };
+    const applyPinned = value => {
+      pinned = value && canPin();
+      document.body.classList.toggle("is-model-nav-pinned", pinned);
+      root.classList.toggle("is-pinned", pinned);
+      pin.setAttribute("aria-pressed", String(pinned));
+      pin.textContent = pinned ? "取消釘選" : "釘選";
+      if (pinned) setOpen(true, { focus: false });
+    };
+
+    toggle.addEventListener("click", () => setOpen(!root.classList.contains("is-open")));
+    root.querySelector("[data-model-nav-close]").addEventListener("click", () => {
+      if (pinned) { applyPinned(false); writePinned(false); }
+      setOpen(false);
+    });
+    backdrop.addEventListener("click", () => setOpen(false));
+    pin.addEventListener("click", () => {
+      const next = !pinned;
+      applyPinned(next);
+      writePinned(next);
+      if (!next) setOpen(false, { focus: false });
+    });
+    document.addEventListener("keydown", event => {
+      if (event.key === "Escape" && root.classList.contains("is-open") && !pinned) {
+        setOpen(false);
+        return;
+      }
+      // 快捷鍵 [ ：不在輸入框裡時開關清單。
+      const target = event.target;
+      const typing = target.closest && target.closest("input, textarea, select, [contenteditable='true']");
+      if (event.key === "[" && !typing && !event.ctrlKey && !event.metaKey && !event.altKey) {
+        event.preventDefault();
+        if (pinned) search.focus(); else setOpen(!root.classList.contains("is-open"));
+      }
+    });
+
+    // 搜尋：比對品牌、機種、型號與年式；空白與大小寫不影響。
+    const normalize = value => value.toLowerCase().replace(/\s+/g, "");
+    search.addEventListener("input", () => {
+      const query = normalize(search.value);
+      let shown = 0;
+      root.querySelectorAll("[data-model-nav-brand]").forEach(brand => {
+        let brandShown = 0;
+        brand.querySelectorAll("[data-model-nav-family]").forEach(family => {
+          const match = !query || normalize(family.dataset.search || "").includes(query);
+          family.hidden = !match;
+          if (match) brandShown += 1;
+        });
+        brand.querySelectorAll("ul").forEach(list => {
+          list.hidden = !Array.from(list.children).some(item => !item.hidden);
+          const label = list.previousElementSibling;
+          if (label && label.matches("[data-model-nav-sub]")) label.hidden = list.hidden;
+        });
+        brand.hidden = brandShown === 0;
+        if (query && brandShown) brand.open = true;
+        shown += brandShown;
+      });
+      empty.hidden = shown > 0;
+    });
+    search.addEventListener("keydown", event => {
+      if (event.key !== "Enter") return;
+      const first = root.querySelector("[data-model-nav-family]:not([hidden]) .model-nav__year");
+      if (first) { event.preventDefault(); first.click(); }
+    });
+
+    applyPinned(readPinned());
+    window.matchMedia("(min-width: 1100px)").addEventListener("change", () => applyPinned(readPinned()));
+  };
+
+  const start = () => { init(); initNavigator(); };
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", start);
+  else start();
 })();

@@ -106,6 +106,11 @@ def vehicle_model_workspace(context, vehicle_model, active):
             _apply_status(tab, vehicle_model, price_missing)
     back_url, back_label = _back_target(context, policy)
     current = next((tab for tab in tabs if tab["current"]), None)
+    navigator = []
+    if saved:
+        from sales.services.vehicle_model_nav import build_model_navigator
+
+        navigator = build_model_navigator(vehicle_model, active, TABS, policy)
     return {
         "saved": saved,
         "tabs": tabs,
@@ -118,4 +123,6 @@ def vehicle_model_workspace(context, vehicle_model, active):
         "power_label": _power_label(vehicle_model) if saved else "",
         # 沿用建立需要機種操作權限（送出時另依各資料的畫面權限把關）。
         "can_copy": saved and policy.route("vehicle_model_copy", "POST"),
+        # 左側機種清單：點年式停在同一分頁。
+        "navigator": navigator,
     }

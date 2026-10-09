@@ -95,6 +95,70 @@ class VehicleModelWorkspaceTests(TestCase):
         self.assertIn("尚未設定", html)
         self.assertNotIn("price-scope--included", html)
 
+    def navigator(self, response):
+        return response.context["ws"]["navigator"] if "ws" in response.context else None
+
+    def test_model_list_drawer_jumps_to_the_same_tab_of_another_model(self):
+        response = self.client.get(self.tab_url("售價"))
+        self.assertContains(response, "data-model-nav")
+        html = response.content.decode()
+        # 目前這台在清單裡被標示；另一台的連結指向它的「售價」分頁
+        self.assertIn(f'href="{self.tab_url("售價")}" aria-current="page"', html)
+        self.assertIn(f'href="{self.tab_url("售價", self.other)}"', html)
+        self.assertNotIn(f'href="{self.tab_url("規格與車色", self.other)}"', html)
+        self.assertContains(response, "點年式會停在「售價」分頁")
+
+    def test_drawer_orders_parent_brand_first_then_sub_brands_by_name_and_inactive_last(self):
+        from sales.models import VehicleBrand
+        parent = VehicleBrand.objects.create(name="清單主牌", display_order=1)
+        VehicleBrand.objects.create(name="清單子牌B", parent=parent, display_order=1)
+        VehicleBrand.objects.create(name="清單子牌A", parent=parent, display_order=1)
+
+        def make(brand, name, number, active=True, cc=125):
+            return VehicleModel.objects.create(
+                brand=brand, name=name, model_number=number, model_year=2026, active=active,
+                model_code=VehicleModel.ModelType.DRUM, energy_type=VehicleModel.EnergyType.GAS, displacement_cc=cc)
+
+        make("清單子牌B", "子B車", "LB1")
+        make("清單子牌A", "子A車", "LA1")
+        make("清單主牌", "主牌停用車", "LM0", active=False, cc=50)
+        make("清單主牌", "主牌車", "LM1", cc=400)
+        response = self.client.get(self.tab_url("售價"))
+        group = next(g for g in self.navigator(response) if g["name"] == "清單主牌")
+        order = [(section["label"], [family["name"] for family in section["families"]]) for section in group["sections"]]
+        self.assertEqual(order, [("", ["主牌車"]), ("清單子牌A", ["子A車"]), ("清單子牌B", ["子B車"]),
+                                 ("已停用", ["主牌停用車"])])  # 停用的統一放最後，與列表頁一致
+        self.assertContains(response, "已停用")
+
+    def test_tab_falls_back_when_target_cannot_use_it(self):
+        inactive = VehicleModel.objects.create(
+            brand="SUZUKI", name="停用測試車", model_number="IN125", model_year=2025, active=False,
+            model_code=VehicleModel.ModelType.DRUM, energy_type=VehicleModel.EnergyType.GAS, displacement_cc=125)
+        response = self.client.get(self.tab_url("選車圖片與介紹"))
+        html = response.content.decode()
+        # 停用機種不能編輯選車展示：改連到它的「規格與車色」
+        self.assertIn(f'href="{self.tab_url("規格與車色", inactive)}"', html)
+        self.assertIn(f'href="{self.tab_url("選車圖片與介紹", self.other)}"', html)
+
+    def test_same_year_variants_show_their_type(self):
+        twin = VehicleModel.objects.create(
+            brand=self.model.brand, family=self.model.family, name=self.model.name, model_number="WS125B",
+            model_year=self.model.model_year, model_code=VehicleModel.ModelType.DRUM,
+            energy_type=VehicleModel.EnergyType.GAS, displacement_cc=125)
+        response = self.client.get(self.tab_url("售價"))
+        labels = [year["label"] for group in self.navigator(response) for section in group["sections"]
+                  for family in section["families"] for year in family["years"]
+                  if year["pk"] in (self.model.pk, twin.pk)]
+        self.assertEqual(len(labels), 2)
+        self.assertTrue(all(label.startswith("2026 ") for label in labels), labels)
+
+    def test_limited_user_only_gets_links_to_tabs_they_can_open(self):
+        self.client.force_login(self.limited)
+        response = self.client.get(self.tab_url("售價"))
+        self.assertEqual(response.status_code, 200)
+        html = response.content.decode()
+        self.assertIn(f'href="{self.tab_url("售價", self.other)}"', html)
+
     def test_tabs_follow_screen_permissions(self):
         catalog_url = self.tab_url("選車圖片與介紹")
         self.client.force_login(self.manager)

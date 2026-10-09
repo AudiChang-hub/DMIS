@@ -302,7 +302,11 @@ class CopyPermissionTests(VehicleModelCopyBase):
 
 class NewVersionPrefillTests(VehicleModelCopyBase):
     def test_price_form_prefills_current_version(self):
-        response = self.client.get(reverse("vehicle_model_price_versions", args=[self.model.pk]))
+        # 已有版本時表單預設收起，按「＋ 新增版本」（?new=1）才顯示並帶入目前版本。
+        collapsed = self.client.get(reverse("vehicle_model_price_versions", args=[self.model.pk]))
+        self.assertNotContains(collapsed, 'class="price-version-form"')
+        self.assertContains(collapsed, "＋ 新增版本")
+        response = self.client.get(reverse("vehicle_model_price_versions", args=[self.model.pk]), {"new": 1})
         form = response.context["form"]
         self.assertEqual(form.initial["cash_price"], 68000)
         self.assertEqual(form.initial["suggested_price"], 72000)

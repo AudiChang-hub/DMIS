@@ -13,11 +13,12 @@
   <div><strong>不要直接覆蓋舊價格</strong><span>舊版本是過去訂單的價格依據；請設定新生效日期。</span></div>
 </section>
 
+{% if editing or not versions or request.GET.new or request.method == 'POST' %}
 <div class="price-version-layout">
-  <section class="card master-model-section price-version-editor">
+  <section class="card master-model-section price-version-editor" id="version-editor">
     <div class="section-heading">
       <div><p class="eyebrow">{% if editing %}修改既有版本{% else %}新增版本{% endif %}</p><h2>{% if editing %}編輯 {{ editing.effective_from|date:"Y/m/d" }} 版本{% else %}建立售價版本{% endif %}</h2></div>
-      {% if editing %}<a class="button ghost small" href="{% url 'vehicle_model_price_versions' vehicle_model.pk %}">取消編輯</a>{% endif %}
+      {% if editing %}<a class="button ghost small" href="{% url 'vehicle_model_price_versions' vehicle_model.pk %}">取消編輯</a>{% elif versions %}<a class="button ghost small" href="{% url 'vehicle_model_price_versions' vehicle_model.pk %}">取消</a>{% endif %}
     </div>
     <form method="post" class="price-version-form">
       {% csrf_token %}
@@ -44,11 +45,14 @@
       </div>
     </form>
   </section>
+{% else %}
+<div class="price-version-layout price-version-layout--history-only">
+{% endif %}
 
   <section class="card master-model-section price-version-history">
     <div class="section-heading">
       <div><p class="eyebrow">歷史與目前價格</p><h2>全部版本</h2></div>
-      <span class="muted">共 {{ versions|length }} 筆</span>
+      <div class="price-version-history__actions"><span class="muted">共 {{ versions|length }} 筆</span>{% if versions and not request.GET.new %}<a class="button primary small" href="{% url 'vehicle_model_price_versions' vehicle_model.pk %}?new=1#version-editor">＋ 新增版本</a>{% endif %}</div>
     </div>
     <div class="price-version-list">
       {% for version in versions %}

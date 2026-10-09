@@ -9,11 +9,12 @@
   {% if_access 'settlement_cost_rule_list' %}<div class="hero-actions"><a class="button ghost" href="{% url 'settlement_cost_rule_list' %}">查看全部機種的成本</a></div>{% endif_access %}
 </header>
 
+{% if editing or not rules or request.GET.new or request.method == 'POST' %}
 <div class="price-version-layout model-rule-layout">
   <section class="card master-model-section price-version-editor" id="rule-editor" aria-labelledby="rule-editor-title">
     <div class="section-heading">
       <div><p class="eyebrow">{% if editing %}修改既有版本{% else %}新增版本{% endif %}</p><h2 id="rule-editor-title">{% if editing %}編輯 {{ editing.effective_from|date:"Y/m/d" }} 版本{% else %}建立成本版本{% endif %}</h2></div>
-      {% if editing %}<a class="button ghost small" href="{{ tab_url }}">取消編輯</a>{% endif %}
+      {% if editing %}<a class="button ghost small" href="{{ tab_url }}">取消編輯</a>{% elif rules %}<a class="button ghost small" href="{{ tab_url }}">取消</a>{% endif %}
     </div>
     <form method="post" action="{{ tab_url }}" class="price-version-form">
       {% csrf_token %}
@@ -34,10 +35,13 @@
     {% if editing %}<form id="delete-rule" method="post" action="{{ tab_url }}" data-confirm="確定刪除此成本版本？已被訂單採用的版本不會允許刪除。">{% csrf_token %}<input type="hidden" name="action" value="delete"><input type="hidden" name="rule_id" value="{{ editing.pk }}"></form>{% endif %}
   </section>
 
+{% else %}
+<div class="price-version-layout price-version-layout--history-only model-rule-layout">
+{% endif %}
   <section class="card master-model-section price-version-history" aria-labelledby="rule-history-title">
     <div class="section-heading">
       <div><p class="eyebrow">歷史與目前成本</p><h2 id="rule-history-title">全部版本</h2></div>
-      <span class="muted">共 {{ rules|length }} 筆</span>
+      <div class="price-version-history__actions"><span class="muted">共 {{ rules|length }} 筆</span>{% if rules and not request.GET.new %}<a class="button primary small" href="{{ tab_url }}?new=1#rule-editor">＋ 新增版本</a>{% endif %}</div>
     </div>
     <div class="price-version-list">
       {% for rule in rules %}

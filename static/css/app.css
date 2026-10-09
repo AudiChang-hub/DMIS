@@ -3862,6 +3862,9 @@ input.acquisition-choice { position: absolute; width: 1px; height: 1px; margin: 
 .price-version-guidance div { display: grid; gap: 3px; }
 .price-version-guidance span { color: var(--muted); font-size: var(--text-sm-plus); }
 .price-version-layout { display: grid; grid-template-columns: minmax(0, .95fr) minmax(420px, 1.05fr); gap: var(--stack-gap-sm); align-items: start; }
+/* 已有版本時新增表單收起，版本清單佔滿整列；「＋ 新增版本」放在清單標題旁。 */
+.price-version-layout--history-only { grid-template-columns: minmax(0, 1fr); }
+.price-version-history__actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: var(--space-3); }
 .price-version-form__grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .price-version-form__actions { padding: 0 var(--space-5) var(--space-5); }
 .price-version-list { display: grid; max-height: 800px; overflow-y: auto; }

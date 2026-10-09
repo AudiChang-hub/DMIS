@@ -34,6 +34,14 @@ from sales.models import (
     normalize_vehicle_identifier,
     payment_ledger_maintenance,
 )
+from sales.services.import_order_review import (
+    KIND_MESSAGES as REVIEW_KIND_MESSAGES,
+    REVIEW_MESSAGES,
+    ImportedOrders,
+    classify as classify_existing_order,
+    commit_update as commit_existing_order_update,
+    valid_update as valid_existing_update,
+)
 
 
 DUPLICATE_IDENTIFIER_MESSAGE = "同一工作表存在重複的標準化車輛識別號碼"
@@ -59,6 +67,7 @@ STORE_ORDER_NOTE_SOURCE_NAMES = {
     "華新麗華員購",
 }
 SYSTEM_VALIDATION_MESSAGES = {
+    *REVIEW_MESSAGES,
     DUPLICATE_IDENTIFIER_MESSAGE,
     MULTIPLE_NEW_SALES_MESSAGE,
     DUPLICATE_SALES_TRANSACTION_MESSAGE,
@@ -1316,6 +1325,12 @@ def revalidate_import_batch(batch):
     existing_sources = set(
         SalesSource.objects.values_list("source_type", "name")
     )
+    # 與既有訂單比對（疑似重複、號碼已屬他人、匯入後 Excel 改動）；只在有銷貨列時載入。
+    review_index = (
+        ImportedOrders()
+        if any(row.sheet_name == "銷貨" and not row.excluded for row in rows)
+        else None
+    )
     now = timezone.now()
     for row in rows:
         messages = _base_messages(row)
@@ -1365,6 +1380,21 @@ def revalidate_import_batch(batch):
                 ):
                     row.action = LegacyImportRow.Action.CONFLICT
                     messages.append(MULTIPLE_NEW_SALES_MESSAGE)
+                elif (
+                    match := classify_existing_order(row, review_index, completed_sales_keys)
+                    if review_index
+                    else None
+                ) and (
+                    row.natural_key in completed_sales_keys
+                    or (row.mapped_data.get("_review") or {}).get("decision") != "create"
+                ):
+                    messages.append(REVIEW_KIND_MESSAGES[match[0]])
+                    if valid_existing_update(row, review_index, match):
+                        row.action = LegacyImportRow.Action.UPDATE
+                    elif row.natural_key in completed_sales_keys:
+                        row.action = LegacyImportRow.Action.SKIP
+                    else:
+                        row.action = LegacyImportRow.Action.CONFLICT
                 elif row.natural_key in completed_sales_keys:
                     row.action = LegacyImportRow.Action.SKIP
                 elif plateless_key in completed_plateless_keys:
@@ -1375,6 +1405,9 @@ def revalidate_import_batch(batch):
                     messages.append(INVALID_EMAIL_MESSAGE)
                 else:
                     row.action = LegacyImportRow.Action.CREATE
+                    if match:
+                        # 使用者已確認是不同交易：仍新增，但保留比對訊息供核對。
+                        messages.append(REVIEW_KIND_MESSAGES[match[0]])
         else:
             source_type = row.mapped_data.get("source_type", "")
             name = row.mapped_data.get("name", "")
@@ -1521,6 +1554,8 @@ def apply_import_row_decision(row, mapping, decision, reason, actor_name):
         correction_decision = LegacyImportCorrection.Decision.EXCLUDE
     else:
         updated = dict(row.mapped_data)
+        # 內容被人工修正後，先前的既有訂單比對決定不再適用。
+        updated.pop("_review", None)
         updated.update({key: _json_clean_value(value) for key, value in mapping.items()})
         if "identifier_raw" in mapping:
             updated["identifier"] = normalize_vehicle_identifier(mapping.get("identifier_raw")) or ""
@@ -1984,6 +2019,8 @@ def confirm_import(batch, actor_name):
                         _commit_channel_row(row)
                     elif row.sheet_name == "進貨":
                         _commit_inventory_row(row)
+                    elif row.sheet_name == "銷貨" and row.action == LegacyImportRow.Action.UPDATE:
+                        commit_existing_order_update(row, actor_name)
                     elif row.sheet_name == "銷貨":
                         _commit_sales_row(row, actor_name)
                     row.save(update_fields=["action", "committed_model", "committed_pk", "updated_at"])

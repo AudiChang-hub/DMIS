@@ -5,6 +5,7 @@ from django.views.generic import RedirectView
 from . import views, announcement_views, favorite_views, intake_views, catalog_views, official_catalog_views, dealer_account_views, profit_views
 from . import order_deletion_views
 from . import draft_cleanup_views
+from . import import_review_views
 from . import vehicle_model_tool_views
 from . import gift_views
 from . import print_company_views
@@ -198,6 +199,11 @@ urlpatterns = [
         "data/imports/<uuid:pk>/rows/<int:row_pk>/decide/",
         views.legacy_import_row_decide,
         name="legacy_import_row_decide",
+    ),
+    path(
+        "data/imports/<uuid:pk>/rows/<int:row_pk>/order-review/",
+        import_review_views.legacy_import_order_review,
+        name="legacy_import_order_review",
     ),
     path(
         "data/imports/<uuid:pk>/master-data/<str:mapping_type>/resolve/",

@@ -360,7 +360,7 @@ class ChannelFinanceTests(TestCase):
         self.client.force_login(self.user)
 
         response = self.client.get(
-            reverse("vehicle_installment_plan_list", args=[self.model.pk])
+            reverse("vehicle_installment_plan_list", args=[self.model.pk]), {"new": 1}
         )
 
         formset = response.context["option_formset"]
@@ -370,7 +370,7 @@ class ChannelFinanceTests(TestCase):
     def test_installment_page_keeps_quick_created_companies_for_future_rows(self):
         self.client.force_login(self.user)
         response = self.client.get(
-            reverse("vehicle_installment_plan_list", args=[self.model.pk])
+            reverse("vehicle_installment_plan_list", args=[self.model.pk]), {"new": 1}
         )
 
         self.assertContains(response, "hydrateCompanySelects(emptyTemplate.content)")
@@ -555,7 +555,7 @@ class ChannelFinanceTests(TestCase):
         self.client.force_login(self.user)
 
         response = self.client.get(
-            reverse("vehicle_installment_plan_list", args=[self.model.pk])
+            reverse("vehicle_installment_plan_list", args=[self.model.pk]), {"new": 1}
         )
 
         self.assertEqual(response.status_code, 200)

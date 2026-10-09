@@ -4664,6 +4664,8 @@ class SubsidyDataForm(forms.ModelForm):
             "trade_in_plate",
             "old_owner_name",
             "old_owner_id_number",
+            "old_owner_phone",
+            "old_owner_household_address",
             "subsidy_type",
             "old_vehicle_valuation",
             "old_vehicle_tax",

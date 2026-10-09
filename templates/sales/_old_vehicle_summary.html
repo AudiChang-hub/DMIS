@@ -1,0 +1,14 @@
+{% comment %}汰舊／補助作業：舊車與報廢資料（唯讀；由財務在「舊車與報廢資料」維護）。{% endcomment %}
+<section class="old-vehicle-summary" aria-labelledby="old-vehicle-summary-title">
+  <div class="old-vehicle-summary__head"><h3 id="old-vehicle-summary-title">舊車與報廢資料</h3><small>由財務維護，這裡僅供查看</small></div>
+  {% if profile.old_vehicle_engine_number or profile.old_vehicle_brand or profile.old_vehicle_displacement_cc or profile.old_vehicle_manufactured_on or profile.scrapped_on or profile.recycled_on %}
+  <div class="subsidy-summary">
+    <div><span>舊車引擎號碼</span><strong>{{ profile.old_vehicle_engine_number|default:"尚未填寫" }}</strong></div>
+    <div><span>舊車廠牌</span><strong>{{ profile.old_vehicle_brand|default:"尚未填寫" }}</strong></div>
+    <div><span>排氣量</span><strong>{% if profile.old_vehicle_displacement_cc %}{{ profile.old_vehicle_displacement_cc }} c.c.{% else %}尚未填寫{% endif %}</strong></div>
+    <div><span>出廠年月</span><strong>{{ profile.old_vehicle_manufactured_on|date:"Y/m"|default:"尚未填寫" }}</strong></div>
+    <div><span>報廢日期</span><strong>{{ profile.scrapped_on|date:"Y/m/d"|default:"尚未填寫" }}</strong></div>
+    <div><span>回收日期</span><strong>{{ profile.recycled_on|date:"Y/m/d"|default:"尚未填寫" }}</strong></div>
+  </div>
+  {% else %}<p class="muted old-vehicle-summary__empty">尚無舊車與報廢資料。</p>{% endif %}
+</section>

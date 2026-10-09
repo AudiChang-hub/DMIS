@@ -89,6 +89,7 @@
   <input type="hidden" name="effective_from" value="{{ effective_from|date:'Y-m-d' }}">
   {% for key, value in filters.items %}{% if value %}<input type="hidden" name="{{ key }}" value="{{ value }}">{% endif %}{% endfor %}
   {% for row in rows %}<input type="hidden" name="row" value="{{ row.model.pk }}">{% endfor %}
+  <input type="hidden" name="grid" value="" data-inst-grid>
 
   {% if errors %}<div class="callout callout--danger" role="alert"><span class="callout__icon" aria-hidden="true">!</span><div><h3>無法繼續</h3><ul>{% for error in errors %}<li>{{ error }}</li>{% endfor %}</ul></div></div>{% endif %}
   {% if not can_operate %}<div class="callout callout--warning"><span class="callout__icon" aria-hidden="true">!</span><div><p>你只有查看分期方案的權限，可以比對，但不能送出調整。</p></div></div>{% endif %}
@@ -97,7 +98,7 @@
     <header class="model-batch-sheet__head">
       <div>
         <h2 id="installment-sheet-title">分期方案</h2>
-        <p>每列帶入 <strong>{{ effective_from|date:"Y/m/d" }}</strong> 前有效的方案。<strong>期數格空白代表不提供</strong>；分期公司、開辦費、撥款比例套用到這台的所有期數，顯示「各期不同」時留空即維持各期原值。</p>
+        <p>每列帶入 <strong>{{ effective_from|date:"Y/m/d" }}</strong> 前有效的方案。<strong>每期金額空白代表不提供該期數</strong>；每一期各自有分期公司、撥款比例與開辦費，點格子下方的條件可以單獨修改。</p>
         <p class="model-tool-keys" aria-hidden="true"><kbd>Enter</kbd>／<kbd>↓</kbd> 移到下一列・<kbd>↑</kbd> 上一列・<kbd>Tab</kbd> 下一格・修改後自動勾選該列</p>
       </div>
       <span class="model-batch-sheet__count"><strong>{{ rows|length }}</strong> 個年式{% if truncated %}<small>（只顯示前 {{ max_rows }} 個，請縮小篩選）</small>{% endif %}</span>
@@ -105,26 +106,28 @@
 
     {% if rows %}
     {% if can_operate %}
+    <div class="model-installment-terms" role="group" aria-labelledby="installment-terms-title">
+      <div class="model-installment-terms__head">
+        <h3 id="installment-terms-title">期數條件<small>先勾選車款，再把各期的分期公司、撥款比例、開辦費一次套用上去</small></h3>
+        <button class="button secondary" type="button" data-inst-apply="terms">套用條件到勾選列</button>
+      </div>
+      <div class="model-installment-terms__scroll">
+        <div class="model-installment-terms__grid">
+          <span class="model-installment-terms__corner" aria-hidden="true"></span>
+          {% for value in periods %}<span class="model-installment-terms__period" aria-hidden="true">{{ value }} 期</span>{% endfor %}
+          <span class="model-installment-terms__label">分期公司</span>
+          {% for value in periods %}<select data-term-company="{{ value }}" aria-label="{{ value }} 期分期公司"><option value="">不變</option>{% for company in companies %}<option value="{{ company.pk }}">{{ company.name }}</option>{% endfor %}</select>{% endfor %}
+          <span class="model-installment-terms__label">撥款比例 %</span>
+          {% for value in periods %}<input inputmode="decimal" autocomplete="off" placeholder="不變" data-term-rate="{{ value }}" aria-label="{{ value }} 期撥款比例" data-no-recent-values>{% endfor %}
+          <span class="model-installment-terms__label">開辦費</span>
+          {% for value in periods %}<input inputmode="numeric" autocomplete="off" placeholder="不變" data-term-fee="{{ value }}" aria-label="{{ value }} 期開辦費" data-no-recent-values>{% endfor %}
+        </div>
+      </div>
+      <p class="model-installment-terms__hint">空白的欄位不會改動；只設定條件、不會新增期數，要提供的期數請在下方填每期金額。</p>
+    </div>
+
     <div class="model-batch-toolbar model-installment-toolbar" role="group" aria-label="套用到勾選列">
       <span class="model-batch-toolbar__label">快速套用</span>
-      <div class="model-installment-toolbar__group">
-        <label class="model-batch-toolbar__field"><span>分期公司</span>
-          <select data-inst-company><option value="">選擇公司</option>{% for company in companies %}<option value="{{ company.pk }}">{{ company.name }}{% if not company.active %}（停用）{% endif %}</option>{% endfor %}</select>
-        </label>
-        <button class="button secondary" type="button" data-inst-apply="company">套用</button>
-      </div>
-      <div class="model-installment-toolbar__group">
-        <label class="model-batch-toolbar__field model-batch-toolbar__value"><span>開辦費</span>
-          <span class="model-batch-toolbar__input"><input inputmode="numeric" autocomplete="off" placeholder="0 代表不收" data-inst-fee data-no-recent-values><em aria-hidden="true">元</em></span>
-        </label>
-        <button class="button secondary" type="button" data-inst-apply="fee">套用</button>
-      </div>
-      <div class="model-installment-toolbar__group">
-        <label class="model-batch-toolbar__field model-batch-toolbar__value"><span>撥款比例</span>
-          <span class="model-batch-toolbar__input"><input inputmode="decimal" autocomplete="off" placeholder="例如 92" data-inst-rate data-no-recent-values><em aria-hidden="true">%</em></span>
-        </label>
-        <button class="button secondary" type="button" data-inst-apply="rate">套用</button>
-      </div>
       <div class="model-installment-toolbar__group">
         <label class="model-batch-toolbar__field"><span>最高期數</span>
           <select data-inst-max>{% for value in periods %}<option value="{{ value }}"{% if forloop.last %} selected{% endif %}>{{ value }} 期</option>{% endfor %}</select>
@@ -150,53 +153,40 @@
     </div>
     {% endif %}
 
-    <div class="inventory-table-wrap model-tool-table-wrap" tabindex="0" aria-label="分期方案批次調整表">
+    <div class="inventory-table-wrap model-tool-table-wrap model-installment-wrap" tabindex="0" aria-label="分期方案批次調整表，可上下左右捲動">
       <table class="inventory-table model-batch-table model-installment-table" data-batch-table>
         <thead>
           <tr>
             <th class="model-tool-check-col"><label class="model-tool-check"><input type="checkbox" data-select-all aria-label="全選可調整的年式"><span class="visually-hidden">全選</span></label></th>
             <th>年式</th>
-            <th scope="col">分期公司</th>
-            <th scope="col" class="is-number">開辦費</th>
-            <th scope="col" class="is-number">撥款比例</th>
-            {% for value in periods %}<th scope="col" class="is-number model-installment-period-head">{{ value }} 期<small>每期金額</small></th>{% endfor %}
+            {% for value in periods %}<th scope="col" class="is-number model-installment-period-head">{{ value }} 期<small>每期金額・條件</small></th>{% endfor %}
           </tr>
         </thead>
         <tbody>
           {% for row in rows %}
-          <tr class="model-batch-row{% if row.locked %} is-locked{% endif %}{% if row.selected %} is-selected{% endif %}{% if row.errors %} has-row-error{% endif %}" data-batch-row data-inst-row>
+          <tr class="model-batch-row{% if row.locked %} is-locked{% endif %}{% if row.selected %} is-selected{% endif %}" data-batch-row data-inst-row>
             <td class="model-tool-check-col" data-label="選取">
               <label class="model-tool-check"><input type="checkbox" name="sel_{{ row.model.pk }}" value="1" data-row-check{% if row.selected %} checked{% endif %}{% if row.locked %} disabled{% endif %} aria-label="選取 {{ row.label }}"></label>
             </td>
             <th scope="row" class="model-tool-identity">
               <a href="{% url 'vehicle_installment_plan_list' row.model.pk %}">{{ row.model.name }}</a>
-              <span>{{ row.model.model_year|default:"年式待補" }}・{{ row.model.get_model_code_display|default:"型式待補" }}・{{ row.model.brand }}{% if not row.model.active %}・<em>已停用</em>{% endif %}</span>
-              <span class="model-installment-source">{% if row.version %}目前方案 {{ row.version.effective_from|date:"Y/m/d" }} 起{% else %}尚未設定分期{% endif %}{% if row.summary.extra %}・另有 {% for value in row.summary.extra %}{{ value }}{% if not forloop.last %}、{% endif %}{% endfor %} 期（沿用）{% endif %}</span>
+              <span>{{ row.model.brand }}・{{ row.model.model_year|default:"年式待補" }}・{% if row.model.displacement_cc %}{{ row.model.displacement_cc }}cc{% elif row.model.motor_power_kw %}{{ row.model.motor_power_kw }}kW{% else %}{{ row.model.get_energy_type_display }}{% endif %}{% if not row.model.active %}・<em>已停用</em>{% endif %}</span>
+              <span class="model-installment-source">{% if row.version %}目前方案 {{ row.version.effective_from|date:"Y/m/d" }} 起{% else %}尚未設定分期{% endif %}{% if row.extra %}・另有 {% for value in row.extra %}{{ value }}{% if not forloop.last %}、{% endif %}{% endfor %} 期（沿用）{% endif %}</span>
               {% if row.locked %}<small class="model-tool-locked">{{ row.locked }}</small>{% endif %}
               {% for error in row.errors %}<small class="field-error">{{ error }}</small>{% endfor %}
             </th>
-            <td data-label="分期公司">
-              <div class="model-installment-field" data-inst-field data-current="{% if row.summary.company is not None %}{{ row.summary.company }}{% endif %}">
-                <select class="model-installment-select" name="company_{{ row.model.pk }}" aria-label="{{ row.label }} 分期公司"{% if row.locked or not can_operate %} disabled{% endif %} data-inst-input="company">
-                  <option value="">{% if row.summary.company_mixed %}各期不同（維持）{% else %}請選擇{% endif %}</option>
-                  {% for company in companies %}<option value="{{ company.pk }}"{% if row.inputs.company == company.pk|stringformat:'s' %} selected{% endif %}>{{ company.name }}</option>{% endfor %}
-                </select>
-              </div>
-            </td>
-            <td data-label="開辦費" class="is-number">
-              <div class="model-installment-field" data-inst-field data-current="{{ row.summary.fee|default_if_none:'' }}">
-                <input class="model-batch-cell__input model-installment-input" type="text" inputmode="numeric" autocomplete="off" name="fee_{{ row.model.pk }}" value="{{ row.inputs.fee }}" placeholder="{% if row.summary.fee_mixed %}各期不同{% else %}0{% endif %}" aria-label="{{ row.label }} 開辦費"{% if row.locked or not can_operate %} disabled{% endif %} data-batch-input data-inst-input="fee" data-no-recent-values>
-              </div>
-            </td>
-            <td data-label="撥款比例" class="is-number">
-              <div class="model-installment-field model-installment-field--rate" data-inst-field data-current="{{ row.summary.rate|default_if_none:'' }}">
-                <input class="model-batch-cell__input model-installment-input" type="text" inputmode="decimal" autocomplete="off" name="rate_{{ row.model.pk }}" value="{{ row.inputs.rate }}" placeholder="{% if row.summary.rate_mixed %}各期不同{% else %}例如 92{% endif %}" aria-label="{{ row.label }} 撥款比例（%）"{% if row.locked or not can_operate %} disabled{% endif %} data-batch-input data-inst-input="rate" data-no-recent-values><em aria-hidden="true">%</em>
-              </div>
-            </td>
             {% for cell in row.cells %}
-            <td data-label="{{ cell.periods }} 期" class="is-number">
-              <div class="model-installment-field{% if cell.error %} has-error{% endif %}" data-inst-field data-current="{{ cell.current|default_if_none:'' }}" data-periods="{{ cell.periods }}">
+            <td data-label="{{ cell.periods }} 期" class="model-installment-td">
+              <div class="model-installment-field{% if cell.error %} has-error{% endif %}" data-inst-field data-periods="{{ cell.periods }}" data-current="{{ cell.current|default_if_none:'' }}" data-current-company="{{ cell.current_company }}" data-current-rate="{{ cell.current_rate }}" data-current-fee="{{ cell.current_fee }}">
                 <input class="model-batch-cell__input model-installment-input" type="text" inputmode="numeric" autocomplete="off" name="p{{ cell.periods }}_{{ row.model.pk }}" value="{{ cell.value }}" placeholder="不提供" aria-label="{{ row.label }} {{ cell.periods }} 期每期金額"{% if row.locked or not can_operate %} disabled{% endif %} data-batch-input data-inst-input="period" data-no-recent-values>
+                <details class="model-installment-cond"{% if cell.error %} open{% endif %}>
+                  <summary aria-label="{{ cell.periods }} 期條件"><span data-inst-cond-text></span></summary>
+                  <div class="model-installment-cond__body">
+                    <label><span>分期公司</span><select name="c{{ cell.periods }}_{{ row.model.pk }}"{% if row.locked or not can_operate %} disabled{% endif %} data-inst-cond="company"><option value="">未設定</option>{% for company in companies %}<option value="{{ company.pk }}"{% if cell.company == company.pk|stringformat:'s' %} selected{% endif %}>{{ company.name }}</option>{% endfor %}</select></label>
+                    <label><span>撥款比例 %</span><input name="r{{ cell.periods }}_{{ row.model.pk }}" value="{{ cell.rate }}" inputmode="decimal" autocomplete="off" placeholder="{% if cell.note %}{{ cell.note }}{% else %}例如 92{% endif %}"{% if row.locked or not can_operate %} disabled{% endif %} data-inst-cond="rate" data-no-recent-values></label>
+                    <label><span>開辦費</span><input name="f{{ cell.periods }}_{{ row.model.pk }}" value="{{ cell.fee }}" inputmode="numeric" autocomplete="off" placeholder="0"{% if row.locked or not can_operate %} disabled{% endif %} data-inst-cond="fee" data-no-recent-values></label>
+                  </div>
+                </details>
                 <small class="model-delta" data-inst-delta aria-live="off"></small>
                 {% if cell.error %}<small class="field-error">{{ cell.error }}</small>{% endif %}
               </div>

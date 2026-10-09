@@ -69,9 +69,9 @@ class InstallmentBatchTests(TestCase):
         self.client.force_login(self.root)
 
     def grid(self, model, **values):
-        """模擬畫面：先帶入目前方案，再套用指定欄位（p=每期金額、c=公司、r=撥款比例、f=開辦費；p60="" 代表清空）。"""
+        """模擬畫面：先帶入目前方案，再套用指定欄位（fee=整台開辦費；p=每期金額、c=公司、r=撥款比例、f=開辦費例外；p60="" 代表清空）。"""
         row = installment_batch.build_rows([model], self.day)[0]
-        data = {f"sel_{model.pk}": "1"}
+        data = {f"sel_{model.pk}": "1", f"fee_{model.pk}": row["fee"]}
         for cell in row["cells"]:
             periods = cell["periods"]
             data[f"p{periods}_{model.pk}"] = cell["value"]
@@ -100,12 +100,14 @@ class InstallmentBatchTests(TestCase):
         a, b, c = rows[self.a.pk], rows[self.b.pk], rows[self.c.pk]
         self.assertEqual({cell["periods"]: cell["value"] for cell in a["cells"] if cell["value"]},
                          {12: "6,200", 24: "3,300", 48: "1,800"})
-        self.assertEqual([cell["periods"] for cell in a["cells"]], [6, 12, 18, 24, 30, 36, 48, 60])
+        self.assertEqual([cell["periods"] for cell in a["cells"]], [12, 18, 24, 30, 36, 48, 60])
         cells_b = {cell["periods"]: cell for cell in b["cells"]}
         self.assertEqual((cells_b[12]["company"], cells_b[12]["rate"], cells_b[12]["fee"]), (str(self.hotai.pk), "90.5", "1,500"))
         self.assertEqual((cells_b[24]["company"], cells_b[24]["rate"]), (str(self.yuanxin.pk), ""))
         self.assertEqual(cells_b[24]["note"], "固定撥款 $61,000")
         self.assertEqual(b["extra"], [42])
+        self.assertEqual(b["fee"], "0", "整台開辦費取最多期數使用的金額，12 期的 1,500 列為例外")
+        self.assertEqual(cells_b[24]["fee"], "")
         self.assertIsNone(c["version"])
         self.assertTrue(all(cell["company"] == "" and cell["value"] == "" for cell in c["cells"]))
 
@@ -123,7 +125,7 @@ class InstallmentBatchTests(TestCase):
         response = self.post(
             (self.a, self.grid(self.a, p24="3,250", p48="", p60="1,500", c60=str(self.yuanxin.pk), r60="88",
                                f60="1,500", f12="1,000", f24="1,000")),
-            (self.c, self.grid(self.c, p6="12,000", c6=str(self.yuanxin.pk), r6="88",
+            (self.c, self.grid(self.c, p18="4,300", c18=str(self.yuanxin.pk), r18="88",
                                p12="6,100", c12=str(self.yuanxin.pk), r12="88")),
         )
         self.assertContains(response, "分期方案：2 個年式將變更")
@@ -144,9 +146,9 @@ class InstallmentBatchTests(TestCase):
                          [Decimal("92"), Decimal("92"), Decimal("88")])
         self.assertEqual([options[p].opening_fee for p in (12, 24, 60)], [1000, 1000, 1500])
         _version, options_c = self.options(self.c)
-        self.assertEqual(sorted(options_c), [6, 12])
-        self.assertEqual(options_c[6].company, self.yuanxin)
-        self.assertEqual(options_c[6].opening_fee, 0)
+        self.assertEqual(sorted(options_c), [12, 18])
+        self.assertEqual(options_c[18].company, self.yuanxin)
+        self.assertEqual(options_c[18].opening_fee, 0)
         # 舊版本保留，今天下單仍用舊方案。
         self.assertEqual(resolve_installment_plan_version(self.a.pk, self.today), self.version_a)
         self.assertEqual(self.version_a.options.count(), 3)
@@ -178,10 +180,30 @@ class InstallmentBatchTests(TestCase):
         self.assertEqual(options[24].extra_disbursement_bonus, 300, "改撥款比例時保留額外撥款獎金")
         self.assertEqual(options[12].expected_disbursement_rate, Decimal("90.5"), "其他期數不受影響")
 
+    def test_car_fee_applies_to_all_periods_and_exceptions_override(self):
+        """200cc 以上 SUZUKI：24–36 期和潤免開辦費，48 期以上遠信開辦費 3,500。"""
+        hotai, yx = str(self.hotai.pk), str(self.yuanxin.pk)
+        values = self.grid(self.c, fee="0",
+                           p24="5,200", c24=hotai, r24="92", p36="3,700", c36=hotai, r36="92",
+                           p48="2,900", c48=yx, r48="90", f48="3,500", p60="2,400", c60=yx, r60="90", f60="3,500")
+        response = self.post((self.c, values))
+        self.client.post(URL, {"action": "commit", "token": response.context["token"]})
+        _version, options = self.options(self.c)
+        self.assertEqual({p: (o.company, o.opening_fee) for p, o in options.items()}, {
+            24: (self.hotai, 0), 36: (self.hotai, 0), 48: (self.yuanxin, 3500), 60: (self.yuanxin, 3500)})
+        row = installment_batch.build_rows([self.c], self.day + timedelta(days=1))[0]
+        self.assertEqual(row["fee"], "0")
+        self.assertEqual([cell["fee"] for cell in row["cells"] if cell["periods"] in (48, 60)], ["3,500", "3,500"])
+
+        response = self.post((self.a, self.grid(self.a, fee="1,200")))
+        self.client.post(URL, {"action": "commit", "token": response.context["token"]})
+        _version, options = self.options(self.a)
+        self.assertEqual({o.opening_fee for o in options.values()}, {1200})
+
     def test_new_periods_need_company_and_rate(self):
         response = self.post((self.c, self.grid(self.c, p12="6,000")))
         self.assertContains(response, "12 期：請選擇分期公司、請填撥款比例")
-        response = self.post((self.a, self.grid(self.a, p6="0", p18="abc")))
+        response = self.post((self.a, self.grid(self.a, p18="0", p30="abc")))
         self.assertContains(response, "每期金額需大於 0")
         self.assertContains(response, "請輸入數字")
         self.assertFalse(InstallmentPlanVersion.objects.filter(effective_from=self.day).exists())
@@ -232,7 +254,7 @@ class InstallmentBatchTests(TestCase):
         response = self.client.post(URL, data)
         self.assertContains(response, "12 期：請選擇分期公司、請填撥款比例")
         row_a = next(row for row in response.context["rows"] if row["model"] == self.a)
-        self.assertEqual(row_a["cells"][1]["value"], "6,200")
+        self.assertEqual(next(cell["value"] for cell in row_a["cells"] if cell["periods"] == 12), "6,200")
         values = self.grid(self.c, p12="6,000", c12=str(self.hotai.pk), r12="92")
         data["grid"] = json.dumps({**values, "evil": "x"})
         self.assertContains(self.client.post(URL, data), "分期方案：1 個年式將變更")

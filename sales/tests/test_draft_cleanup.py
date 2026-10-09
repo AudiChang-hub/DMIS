@@ -77,6 +77,8 @@ class DraftCleanupTests(TestCase):
         self.assertFalse(OrderDraft.objects.filter(pk=self.draft.pk).exists())
         self.assertFalse(Path(self.photo_path).exists())
         log = UserAccountAuditLog.objects.get(actor=self.root, target=self.staff)
+        self.assertEqual(log.action, UserAccountAuditLog.Action.DELETE_DRAFT)
+        self.assertEqual(log.get_action_display(), "刪除草稿")
         self.assertIn("刪除接待草稿", log.description)
         self.assertIn("建立人確認不再使用", log.description)
         self.assertIn("有暫存證件照片", log.description)

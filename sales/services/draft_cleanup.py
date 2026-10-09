@@ -64,7 +64,7 @@ def delete_draft_as_admin(*, draft_id, actor, reason, session_key):
         actor=actor,
         target=owner,
         target_username=owner.username if owner else (draft.created_by or "（沒有下單帳號）"),
-        action=UserAccountAuditLog.Action.UPDATE,
+        action=UserAccountAuditLog.Action.DELETE_DRAFT,
         description=description,
     )
     return description

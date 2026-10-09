@@ -5240,6 +5240,7 @@ class UserAccountAuditLog(TimeStampedModel):
         CHANGE_PASSWORD = "change_password", "使用者變更密碼"
         GRANT_ADMIN = "grant_admin", "授予管理者"
         REVOKE_ADMIN = "revoke_admin", "移除管理者"
+        DELETE_DRAFT = "delete_draft", "刪除草稿"
 
     actor = models.ForeignKey(
         settings.AUTH_USER_MODEL,

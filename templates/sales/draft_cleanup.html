@@ -1,0 +1,51 @@
+{% extends 'base.html' %}{% load screen_access %}
+{% block title %}草稿清理｜車輛銷售管理{% endblock %}
+{% block content %}
+{% url 'order_list' as orders_url %}{% url 'dashboard' as home_url %}{% include 'sales/_page_back.html' with fallback_url=orders_url label='全部訂單' root_url=home_url root_label='首頁' %}
+<section class="hero-row compact-hero">
+  <div>
+    <p class="eyebrow">admin 專用</p>
+    <h1>草稿清理</h1>
+    <p class="muted">列出所有人的草稿（含接待草稿），只顯示建立人、時間與車型，不顯示客戶資料。刪除會一併移除暫存證件照片並留下稽核紀錄，無法復原。</p>
+  </div>
+</section>
+<section class="section-block draft-cleanup-panel">
+  <p>共 {{ drafts|length }} 份草稿</p>
+  {% if drafts %}
+  <div class="inventory-table-wrap" tabindex="0" aria-label="所有草稿，可水平捲動">
+    <table class="inventory-table inventory-table--fit">
+      <thead><tr><th>建立人／類型</th><th>車型</th><th>暫存證件照</th><th>建立時間</th><th>最後更新</th><th>處理</th></tr></thead>
+      <tbody>
+        {% for draft in drafts %}
+        <tr>
+          <td data-label="建立人／類型"><strong>{{ draft.owner_label }}</strong><small>{% if draft.is_reception_draft %}接待草稿{% else %}一般草稿{% endif %} · {{ draft.pk|stringformat:"s"|slice:":8" }}</small></td>
+          <td data-label="車型">{{ draft.display_vehicle }}</td>
+          <td data-label="暫存證件照">{% if draft.id_front or draft.id_back %}有{% else %}無{% endif %}</td>
+          <td data-label="建立時間">{{ draft.created_at|date:"Y/m/d H:i" }}</td>
+          <td data-label="最後更新">{{ draft.updated_at|date:"Y/m/d H:i" }}{% if draft.updated_by %}<small class="draft-cleanup-by">由 {{ draft.updated_by }}</small>{% endif %}</td>
+          <td data-label="處理">
+            {% if draft.locked_by %}
+            <span class="status-pill">{{ draft.locked_by }} 編輯中，暫時不能刪除</span>
+            {% else %}
+            <details class="draft-cleanup-delete">
+              <summary class="button ghost small">刪除…</summary>
+              <form method="post" action="{% url 'draft_cleanup_delete' draft.pk %}" data-confirm="確定永久刪除這份草稿與暫存證件照片？此動作無法復原。">
+                {% csrf_token %}
+                <label for="reason-{{ draft.pk }}">刪除原因</label>
+                <textarea class="form-control" id="reason-{{ draft.pk }}" name="reason" rows="2" required minlength="2" maxlength="300" placeholder="例如：建立人已離職、測試資料"></textarea>
+                <label class="checkbox-label"><input type="checkbox" name="confirmed" value="1" required><span>我確認要永久刪除這份草稿</span></label>
+                <button type="submit" class="button danger-outline small">永久刪除</button>
+              </form>
+            </details>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <p class="muted">目前沒有任何草稿。</p>
+  {% endif %}
+</section>
+{% endblock %}

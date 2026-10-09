@@ -3,7 +3,8 @@
 畫面帶入每個年式目前有效的方案；期數欄空白代表不提供該期數。每個期數各自有分期公司與撥款比例
 （同一台車不同期數可能走不同分期公司）；開辦費以整台金額為準，個別期數可另填例外（例如只有遠信的期數收開辦費），
 可用「期數條件」一次套用到多台。確認後依生效日建立新版本，
-舊版本與已成立的訂單不受影響；同一天已有版本的年式不能批次調整，請到機種工作區處理。
+舊版本與已成立的訂單不受影響（訂單另存分期快照）。生效日當天已有啟用中的版本時，直接更新該版本、不另建新版本；
+當天的版本已停用時鎖定，請到機種工作區處理。
 """
 import json
 import re
@@ -29,7 +30,7 @@ from sales.services.vehicle_model_copy import (
 PERIODS = (12, 18, 24, 30, 36, 48, 60)  # 沒有 6 期；舊資料若有其他期數會原樣沿用
 RATE = InstallmentPlanOption.ExpectedDisbursementMethod.RATE
 FIXED = InstallmentPlanOption.ExpectedDisbursementMethod.FIXED
-LOCKED_NOTE = "已有版本，請到機種工作區的「分期」分頁修改"
+LOCKED_NOTE = "已有停用的版本，請到機種工作區的「分期」分頁處理"
 
 
 def _int(value):
@@ -139,7 +140,9 @@ def build_rows(models, effective_from):
         specs = grouped.get(version.pk, []) if version else []
         by_periods = {spec["periods"]: spec for spec in specs}
         base = row_fee(specs)
-        locked = f"{effective_from:%Y/%m/%d} {LOCKED_NOTE}" if model.pk in taken else ""
+        # 當天已有啟用中的版本：直接更新它；當天只有停用版本：鎖定。
+        same_day = bool(version and version.effective_from == effective_from)
+        locked = f"{effective_from:%Y/%m/%d} {LOCKED_NOTE}" if model.pk in taken and not same_day else ""
         rows.append({
             "model": model,
             "label": model_label(model),
@@ -147,6 +150,7 @@ def build_rows(models, effective_from):
             "specs": specs,
             "extra": extra_periods(specs),
             "locked": locked,
+            "same_day": same_day,
             "selected": False,
             "errors": [],
             "fee": _amount_text(base),
@@ -302,6 +306,7 @@ def collect_changes(rows):
         changes.append({
             "id": row["model"].pk,
             "label": row["label"],
+            "replace": row["version"].pk if row["same_day"] else None,
             "source": fingerprint(row["specs"]),
             "old": row["specs"],
             "new": row["desired"],
@@ -356,8 +361,29 @@ def describe_changes(changes):
             "label": change["label"],
             "periods": periods_rows,
             "stops": bool(change["old"]) and not change["new"],
+            "replace": bool(change.get("replace")),
         })
     return lines
+
+
+def _write_options(version, specs):
+    """依期數更新版本內容：同期數就地更新（保留訂單關聯），移除的刪除，新的建立。訂單另有分期快照。"""
+    wanted = {spec["periods"]: spec for spec in specs}
+    existing = {option.periods: option for option in version.options.all()}
+    for periods, option in existing.items():
+        if periods not in wanted:
+            option.delete()
+    for periods, spec in wanted.items():
+        option = existing.get(periods) or InstallmentPlanOption(version=version, periods=periods)
+        option.company_id = spec["company"]
+        option.monthly_amount = spec["monthly"]
+        option.opening_fee = spec["fee"]
+        option.expected_disbursement_method = spec["method"]
+        option.expected_disbursement_rate = None if spec["rate"] is None else Decimal(spec["rate"])
+        option.expected_disbursement_fixed_amount = spec["fixed"]
+        option.extra_disbursement_bonus = spec["bonus"]
+        option.full_clean()
+        option.save()
 
 
 @transaction.atomic
@@ -369,10 +395,14 @@ def commit_changes(*, changes, effective_from, actor):
         raise ValidationError("部分年式已不存在，請重新預覽。")
     stale = []
     for change in changes:
-        if version_exists_on("installment", change["id"], effective_from):
-            stale.append(f"{change['label']}：{effective_from:%Y/%m/%d} {LOCKED_NOTE}")
-            continue
         version = current_version("installment", change["id"], effective_from)
+        if change.get("replace"):
+            if not version or version.pk != change["replace"]:
+                stale.append(f"{change['label']}：{effective_from:%Y/%m/%d} 的版本已變更")
+                continue
+        elif version_exists_on("installment", change["id"], effective_from):
+            stale.append(f"{change['label']}：{effective_from:%Y/%m/%d} 已有版本")
+            continue
         specs = [option_spec(option) for option in version.options.all()] if version else []
         if fingerprint(specs) != change["source"]:
             stale.append(f"{change['label']}：目前方案已變更")
@@ -385,22 +415,20 @@ def commit_changes(*, changes, effective_from, actor):
     today = timezone.localdate()
     results = []
     for change in changes:
-        version = InstallmentPlanVersion.objects.create(
-            vehicle_model=models[change["id"]], announced_on=today, effective_from=effective_from,
-            note=f"批次調整（{today:%Y/%m/%d}）", active=True,
-        )
-        for spec in change["new"]:
-            option = InstallmentPlanOption(
-                version=version, periods=spec["periods"], company_id=spec["company"],
-                monthly_amount=spec["monthly"], opening_fee=spec["fee"],
-                expected_disbursement_method=spec["method"],
-                expected_disbursement_rate=None if spec["rate"] is None else Decimal(spec["rate"]),
-                expected_disbursement_fixed_amount=spec["fixed"],
-                extra_disbursement_bonus=spec["bonus"],
+        if change.get("replace"):
+            version = InstallmentPlanVersion.objects.select_for_update().get(pk=change["replace"])
+            note = f"批次調整更新（{today:%Y/%m/%d}）"
+            if note not in version.note:
+                version.note = f"{version.note}\n{note}".strip()
+                version.save(update_fields=["note", "updated_at"])
+        else:
+            version = InstallmentPlanVersion.objects.create(
+                vehicle_model=models[change["id"]], announced_on=today, effective_from=effective_from,
+                note=f"批次調整（{today:%Y/%m/%d}）", active=True,
             )
-            option.full_clean()
-            option.save()
+        _write_options(version, change["new"])
         results.append({"model_id": change["id"], "label": change["label"], "version_id": version.pk,
+                        "updated": bool(change.get("replace")),
                         "periods": [spec["periods"] for spec in change["new"]]})
     _audit(
         actor, "update",

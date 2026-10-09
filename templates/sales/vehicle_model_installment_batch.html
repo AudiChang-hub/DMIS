@@ -9,7 +9,7 @@
   <div>
     <p class="eyebrow">機種與售價</p>
     <h1>{% if stage == "preview" %}確認分期方案調整{% else %}批次調整{% endif %}</h1>
-    <p class="muted">{% if stage == "preview" %}核對每個年式新增、移除與調整的期數；確認後一次建立新版本，任何一列失敗都不會寫入。{% else %}像試算表一樣一次設定多個年式的分期方案；只建立新版本，舊版本與已成立的訂單不受影響。{% endif %}</p>
+    <p class="muted">{% if stage == "preview" %}核對每個年式新增、移除與調整的期數；確認後一次寫入（生效日當天已有版本的直接更新），任何一列失敗都不會寫入。{% else %}像試算表一樣一次設定多個年式的分期方案；只建立新版本，舊版本與已成立的訂單不受影響。{% endif %}</p>
   </div>
   {% if stage != "preview" %}<div class="hero-actions"><a class="button ghost" href="{% url 'vehicle_model_copy' %}">沿用建立</a></div>{% endif %}
 </section>
@@ -32,7 +32,7 @@
         <tbody>
           {% for line in lines %}{% for row in line.periods %}
           <tr{% if forloop.first %} class="is-group-start"{% endif %}>
-            {% if forloop.first %}<th scope="rowgroup" rowspan="{{ line.periods|length }}">{{ line.label }}{% if line.stops %}<small class="model-installment-stop">不再提供分期</small>{% endif %}</th>{% endif %}
+            {% if forloop.first %}<th scope="rowgroup" rowspan="{{ line.periods|length }}">{{ line.label }}{% if line.replace %}<small class="model-installment-same-day">更新 {{ effective_from|date:"Y/m/d" }} 的既有版本</small>{% endif %}{% if line.stops %}<small class="model-installment-stop">不再提供分期</small>{% endif %}</th>{% endif %}
             <td data-label="期數" class="is-number"><strong>{{ row.periods }} 期</strong></td>
             <td data-label="變化">{% if row.status == "add" %}<span class="model-chip is-create">新增</span>{% elif row.status == "remove" %}<span class="model-chip is-off">移除</span>{% else %}<span class="model-chip is-close">調整</span>{% endif %}</td>
             <td data-label="每期金額" class="is-number">
@@ -66,7 +66,7 @@
 <section class="section-block model-tool-result" aria-labelledby="installment-result-title">
   <div class="section-title"><h2 id="installment-result-title"><span class="model-tool-result__mark" aria-hidden="true"><svg viewBox="0 0 16 16" width="14" height="14"><path d="M3.5 8.4 6.6 11.3 12.5 4.9" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>已完成：分期方案</h2><span>{{ result.date }} 起生效・{{ result.rows|length }} 個年式</span></div>
   <ul class="model-tool-result__list">
-    {% for row in result.rows %}<li><a href="{{ row.url }}">{{ row.label }}</a><span>{{ row.periods }}</span></li>{% endfor %}
+    {% for row in result.rows %}<li><a href="{{ row.url }}">{{ row.label }}</a><span>{% if row.updated %}更新既有版本・{% endif %}{{ row.periods }}</span></li>{% endfor %}
   </ul>
 </section>
 {% endif %}
@@ -178,7 +178,7 @@
               <a href="{% url 'vehicle_installment_plan_list' row.model.pk %}">{{ row.model.name }}</a>
               <span>{{ row.model.brand }}・{{ row.model.model_year|default:"年式待補" }}・{% if row.model.displacement_cc %}{{ row.model.displacement_cc }}cc{% elif row.model.motor_power_kw %}{{ row.model.motor_power_kw }}kW{% else %}{{ row.model.get_energy_type_display }}{% endif %}{% if not row.model.active %}・<em>已停用</em>{% endif %}</span>
               <span class="model-installment-source">{% if row.version %}目前方案 {{ row.version.effective_from|date:"Y/m/d" }} 起{% else %}尚未設定分期{% endif %}{% if row.extra %}・另有 {% for value in row.extra %}{{ value }}{% if not forloop.last %}、{% endif %}{% endfor %} 期（沿用）{% endif %}</span>
-              {% if row.locked %}<small class="model-tool-locked">{{ row.locked }}</small>{% endif %}
+              {% if row.locked %}<small class="model-tool-locked">{{ row.locked }}</small>{% elif row.same_day %}<small class="model-installment-same-day">{{ effective_from|date:"Y/m/d" }} 已有版本，送出會直接更新它</small>{% endif %}
               {% for error in row.errors %}<small class="field-error">{{ error }}</small>{% endfor %}
             </th>
             <td data-label="開辦費" class="model-installment-td model-installment-fee-td">

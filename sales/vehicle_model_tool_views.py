@@ -633,7 +633,8 @@ def _installment_commit(request, can_operate):
         "rows": [
             {"label": result["label"],
              "url": f"{reverse('vehicle_installment_plan_list', args=[result['model_id']])}?edit={result['version_id']}",
-             "periods": "、".join(f"{periods} 期" for periods in result["periods"]) or "不提供分期"}
+             "periods": "、".join(f"{periods} 期" for periods in result["periods"]) or "不提供分期",
+             "updated": result["updated"]}
             for result in results
         ],
     }

@@ -559,7 +559,7 @@ def vehicle_model_installment_batch(request):
             if row["model"].pk in restored and not row["locked"]:
                 installment_batch.restore_inputs(row, restored[row["model"].pk])
     elif action == "preview":
-        has_error = installment_batch.read_inputs(rows, request.POST, companies)
+        has_error = installment_batch.read_inputs(rows, installment_batch.grid_data(request.POST), companies)
         if not can_operate:
             errors.append("你沒有機種與售價的操作權限。")
         if date_error:

@@ -320,34 +320,65 @@
 .model-installment-toolbar__group { display: flex; align-items: flex-end; gap: var(--space-2); }
 .model-installment-toolbar .model-batch-toolbar__input input { width: 128px; }
 .model-installment-toolbar__amount { padding-left: var(--space-4); border-left: 1px solid var(--line); }
-.inventory-table.model-installment-table { min-width: 1480px; }
-.model-installment-table .model-tool-check-col { position: sticky; left: 0; z-index: 1; background: var(--surface); }
-.model-installment-table .model-tool-identity { position: sticky; left: 52px; z-index: 1; min-width: 230px; background: var(--surface); box-shadow: 1px 0 0 var(--line); }
-.model-installment-table thead :is(.model-tool-check-col, th:nth-child(2)) { background: var(--surface-soft); }
-.model-installment-table thead th:nth-child(2) { position: sticky; left: 52px; z-index: 1; }
+/* 表格自成捲動區：高度不超過畫面，橫向捲軸永遠在可視範圍內（不會被底部儲存列蓋住）；
+   表頭固定在上、勾選與年式固定在左。欄寬壓到約 1220px，常見桌面寬度不需橫向捲動。 */
+.model-installment-wrap { max-height: max(360px, calc(100dvh - 240px)); overflow: auto; overscroll-behavior: contain; }
+.inventory-table.model-installment-table { min-width: 1220px; }
+.model-installment-table :is(th, td) { padding: var(--space-2); }
+.model-installment-table thead th {
+  position: sticky; top: 0; z-index: 2; background: var(--surface-soft); box-shadow: inset 0 -1px 0 var(--line);
+}
+.model-installment-table .model-tool-check-col { position: sticky; left: 0; z-index: 1; width: 48px; background: var(--surface); }
+.model-installment-table .model-tool-identity { position: sticky; left: 48px; z-index: 1; min-width: 200px; padding-right: var(--space-3); background: var(--surface); box-shadow: 1px 0 0 var(--line); }
+.model-installment-table thead :is(.model-tool-check-col, th:nth-child(2)) { z-index: 3; background: var(--surface-soft); }
+.model-installment-table thead th:nth-child(2) { position: sticky; left: 48px; box-shadow: inset 0 -1px 0 var(--line), 1px 0 0 var(--line); }
 .model-installment-table tr.is-selected :is(.model-tool-check-col, .model-tool-identity) { background: color-mix(in srgb, var(--surface-tint) 55%, var(--surface)); }
 .model-installment-table tr.is-locked :is(.model-tool-check-col, .model-tool-identity) { background: var(--surface-subtle); }
-.model-installment-table td { vertical-align: top; }
+.model-installment-table :is(td, tbody th) { vertical-align: top; }
 .model-installment-table .model-tool-identity .field-error { display: block; margin-top: var(--space-1); }
 .model-installment-source { color: var(--ink-soft) !important; }
-.model-installment-field { position: relative; display: grid; justify-items: end; gap: 2px; }
-.model-installment-field .model-delta, .model-installment-field .field-error { min-height: 16px; margin: 0; }
-.model-installment-input { width: 104px; }
-.model-installment-field--rate .model-installment-input { width: 88px; padding-right: var(--space-6); }
-.model-installment-field--rate em {
-  position: absolute; top: 20px; right: var(--space-3); color: var(--muted); font-size: var(--text-xs); font-style: normal; font-weight: 800;
-  transform: translateY(-50%); pointer-events: none;
-}
-.model-installment-select {
-  width: 136px; min-height: 40px; padding: 0 var(--space-6) 0 var(--space-3); color: var(--ink);
-  background-color: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-md); font-size: var(--text-sm); font-weight: 750;
-}
-.model-installment-select:focus { border-color: var(--forest); outline: 0; box-shadow: 0 0 0 3px var(--focus-ring); }
-.model-installment-select:disabled { color: var(--muted); background-color: var(--surface-subtle); cursor: not-allowed; }
-.model-installment-field.is-changed :is(.model-installment-input, .model-installment-select) { background-color: color-mix(in srgb, var(--surface-tint) 70%, var(--surface)); border-color: var(--action-text); }
+.model-installment-td { min-width: 120px; }
+.model-installment-field { position: relative; display: grid; width: 104px; gap: var(--space-1); }
+.model-installment-field .model-delta, .model-installment-field .field-error { min-height: 14px; margin: 0; white-space: normal; }
+.model-installment-input { width: 100%; padding: 0 var(--space-2); }
+.model-installment-field.is-changed .model-installment-input { background-color: color-mix(in srgb, var(--surface-tint) 70%, var(--surface)); border-color: var(--action-text); }
 .model-installment-field.is-removed .model-installment-input { background: var(--red-soft); border-color: var(--red); border-style: dashed; }
 .model-installment-field.is-invalid .model-installment-input, .model-installment-field.has-error .model-installment-input { border-color: var(--red); background: var(--red-soft); }
 .model-installment-input:placeholder-shown { color: var(--muted); }
+/* 每格下方的期數條件：平常是一行摘要，點開才編輯，不撐開表格。 */
+.model-installment-cond > summary {
+  display: block; overflow: hidden; padding: 2px var(--space-1); color: var(--ink-soft); font-size: var(--text-2xs); font-weight: 750;
+  white-space: nowrap; text-overflow: ellipsis; border-radius: var(--radius-xs); cursor: pointer; list-style: none;
+}
+.model-installment-cond > summary::-webkit-details-marker { display: none; }
+.model-installment-cond > summary::after { display: none; }
+.model-installment-table .model-installment-cond > summary { min-height: 24px; line-height: 20px; }
+.model-installment-cond > summary:hover { color: var(--action-text); background: var(--surface-soft); }
+.model-installment-cond > summary:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
+.model-installment-field.has-cond-change .model-installment-cond > summary { color: var(--action-text); background: color-mix(in srgb, var(--surface-tint) 70%, transparent); }
+.model-installment-field.needs-terms .model-installment-cond > summary { color: var(--amber-ink); background: var(--amber-soft); }
+.model-installment-cond__body { display: grid; margin-top: var(--space-1); padding: var(--space-2); gap: var(--space-2); background: var(--surface-soft); border: 1px solid var(--line); border-radius: var(--radius-sm); }
+.model-installment-cond__body label { display: grid; margin: 0; gap: 2px; color: var(--muted); font-size: var(--text-2xs); font-weight: 800; }
+.model-installment-cond__body :is(select, input) {
+  width: 100%; min-height: 32px; padding: 0 var(--space-2); color: var(--ink); background: var(--surface);
+  border: 1px solid var(--line); border-radius: var(--radius-xs); font-size: var(--text-xs); font-weight: 750; font-variant-numeric: tabular-nums;
+}
+.model-installment-cond__body :is(select, input):focus { border-color: var(--forest); outline: 0; box-shadow: 0 0 0 2px var(--focus-ring); }
+/* 期數條件表：一列一個項目、一欄一個期數，與下方表格的期數欄對齊閱讀。 */
+.model-installment-terms { display: grid; padding: var(--inset-pad) var(--card-pad); gap: var(--space-3); background: var(--surface-soft); border-top: 1px solid var(--line); }
+.model-installment-terms__head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-3); }
+.model-installment-terms__head h3 { margin: 0; color: var(--ink); font-size: var(--text-sm-plus); font-weight: 850; }
+.model-installment-terms__head h3 small { display: block; margin-top: 2px; color: var(--muted); font-size: var(--text-xs); font-weight: 650; }
+.model-installment-terms__scroll { overflow-x: auto; }
+.model-installment-terms__grid { display: grid; min-width: 900px; grid-template-columns: 88px repeat(8, minmax(88px, 1fr)); align-items: center; gap: var(--space-1) var(--space-2); }
+.model-installment-terms__period { color: var(--muted); font-size: var(--text-2xs); font-weight: 850; text-align: center; }
+.model-installment-terms__label { color: var(--field-label); font-size: var(--text-xs); font-weight: 850; white-space: nowrap; }
+.model-installment-terms__grid :is(select, input) {
+  width: 100%; min-height: 36px; padding: 0 var(--space-2); color: var(--ink); background: var(--surface);
+  border: 1px solid var(--line); border-radius: var(--radius-sm); font-size: var(--text-sm); font-weight: 750; font-variant-numeric: tabular-nums;
+}
+.model-installment-terms__grid :is(select, input):focus { border-color: var(--forest); outline: 0; box-shadow: 0 0 0 3px var(--focus-ring); }
+.model-installment-terms__hint { margin: 0; color: var(--muted); font-size: var(--text-xs); }
 .model-installment-preview td.is-number { white-space: nowrap; }
 .model-installment-summary { display: block; color: var(--ink); font-size: var(--text-sm); font-weight: 700; }
 .model-installment-stop { display: block; margin-top: var(--space-1); color: var(--red-ink); font-size: var(--text-xs); font-weight: 800; }
@@ -390,12 +421,13 @@
   .model-copy-preview td > :is(.model-chip, .model-chip__detail, .model-copy-extras) { grid-column: 2; justify-self: start; align-self: start; margin-top: 0; }
   .model-batch-preview tbody th[rowspan] { border-top: 0; }
   .inventory-table.model-installment-table { min-width: 0; }
-  .model-installment-table :is(.model-tool-check-col, .model-tool-identity) { position: static; box-shadow: none; }
+  .model-installment-wrap { max-height: none; overflow: visible; }
+  .model-installment-table :is(.model-tool-check-col, .model-tool-identity), .model-installment-table thead th { position: static; box-shadow: none; }
   .model-installment-toolbar__group { flex: 1 1 100%; }
   .model-installment-toolbar__group .model-batch-toolbar__field { flex: 1 1 auto; }
   .model-installment-toolbar__amount { flex-wrap: wrap; padding-left: 0; border-left: 0; }
-  .model-installment-field { justify-items: stretch; }
-  .model-installment-input, .model-installment-select, .model-installment-field--rate .model-installment-input { width: 100%; }
+  .model-installment-field { width: 100%; }
+  .model-installment-td { min-width: 0; }
   .model-reward-period { grid-template-columns: minmax(0, 1fr); }
   .model-reward-item__fields { grid-template-columns: minmax(0, 1fr) auto; }
   .model-reward-item__catalog { grid-column: 1 / -1; }

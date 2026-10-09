@@ -19,6 +19,7 @@ from django.views.decorators.http import require_http_methods
 
 from sales.access.services import policy_for
 from sales.models import VehicleModel
+from sales.services import installment_batch
 from sales.services import vehicle_model_batch as batch
 from sales.services import vehicle_model_copy as copy_service
 from sales.services import vehicle_model_reward_batch as reward_batch
@@ -26,6 +27,7 @@ from sales.services import vehicle_model_reward_batch as reward_batch
 COPY_SALT = "vehicle-model-copy"
 BATCH_SALT = "vehicle-model-batch"
 REWARD_SALT = "vehicle-model-reward-batch"
+INSTALLMENT_SALT = "vehicle-model-installment-batch"
 TOKEN_MAX_AGE = 6 * 60 * 60
 
 
@@ -425,6 +427,11 @@ def _tool_tabs(policy, filters, effective_from):
                     "fields": "、".join(label for _name, label in batch.dataset_fields(key)),
                     "href": f"{base}?{urlencode({**query, 'dataset': key, 'effective_from': day})}",
                 })
+    if policy.route("vehicle_model_installment_batch"):
+        tabs.append({
+            "key": "installment", "label": "分期方案", "fields": "分期公司、開辦費、撥款比例與各期數",
+            "href": f"{reverse('vehicle_model_installment_batch')}?{urlencode({**query, 'effective_from': day})}",
+        })
     if policy.route("vehicle_model_reward_batch"):
         tabs.append({
             "key": "reward", "label": "附加獎勵", "fields": "實物、紅包、禮券與點數",
@@ -513,6 +520,125 @@ def _batch_commit(request, operable):
     when = "已立即生效" if immediate else f"將於 {day:%Y/%m/%d} 起生效"
     messages.success(request, f"已調整 {len(results)} 個年式的{batch.DATASETS[dataset][0]}，{when}。")
     return redirect(f"{back_url}?{urlencode({'dataset': dataset, 'result': 1})}")
+
+
+# ---------------------------------------------------------------------------
+# 批次調整分期方案
+# ---------------------------------------------------------------------------
+
+@login_required
+@require_http_methods(["GET", "HEAD", "POST"])
+def vehicle_model_installment_batch(request):
+    policy = policy_for(request)
+    today = timezone.localdate()
+    source = request.POST if request.method == "POST" else request.GET
+    action = request.POST.get("action", "") if request.method == "POST" else ""
+    can_operate = policy.screen("models", "operate")
+    if action == "commit":
+        return _installment_commit(request, can_operate)
+
+    payload = _load_token(request.POST.get("token"), INSTALLMENT_SALT) if action == "back" else None
+    filters = copy_service.read_filters(source)
+    effective_from = (
+        date.fromisoformat(payload["date"]) if payload
+        else _parse_day(source.get("effective_from")) or copy_service.default_effective_from(today)
+    )
+    date_error = ""
+    try:
+        copy_service.validate_effective_from(effective_from, today)
+    except ValidationError as exc:
+        date_error = exc.messages[0]
+    models, truncated, _fixed = _listed_models(request, filters)
+    rows = installment_batch.build_rows(models, effective_from)
+    companies = installment_batch.company_choices(rows)
+    errors = []
+
+    if payload:
+        restored = {change["id"]: change["new"] for change in payload["changes"]}
+        for row in rows:
+            if row["model"].pk in restored and not row["locked"]:
+                installment_batch.restore_inputs(row, restored[row["model"].pk])
+    elif action == "preview":
+        has_error = installment_batch.read_inputs(rows, request.POST, companies)
+        if not can_operate:
+            errors.append("你沒有機種與售價的操作權限。")
+        if date_error:
+            errors.append(date_error)
+        if has_error:
+            errors.append("部分欄位需要修正，請看標示的年式。")
+        if not errors:
+            changes = installment_batch.collect_changes(rows)
+            if not changes:
+                errors.append("沒有任何變更：請勾選年式並修改分期內容。")
+            else:
+                return _installment_preview(request, effective_from, changes, models, filters)
+
+    result = request.session.pop("vehicle_model_installment_batch_result", None) if request.GET.get("result") else None
+    return render(request, "sales/vehicle_model_installment_batch.html", {
+        "stage": "result" if result else "edit",
+        "result": result,
+        "dataset": "installment",
+        "can_operate": can_operate,
+        "dataset_tabs": _tool_tabs(policy, filters, effective_from),
+        "rows": rows,
+        "companies": companies,
+        "periods": installment_batch.PERIODS,
+        "truncated": truncated,
+        "filters": filters,
+        "filter_options": copy_service.filter_options(),
+        "effective_from": effective_from,
+        "date_error": date_error,
+        "errors": errors,
+        "selected_count": sum(1 for row in rows if row["selected"]),
+        "today": today,
+        "max_rows": batch.MAX_ROWS,
+    })
+
+
+def _installment_preview(request, effective_from, changes, models, filters):
+    payload = {"date": effective_from.isoformat(), "changes": changes}
+    lines = installment_batch.describe_changes(changes)
+    return render(request, "sales/vehicle_model_installment_batch.html", {
+        "stage": "preview",
+        "dataset": "installment",
+        "effective_from": effective_from,
+        "lines": lines,
+        "change_count": len(lines),
+        "period_count": sum(len(line["periods"]) for line in lines),
+        "stop_count": sum(1 for line in lines if line["stops"]),
+        "token": signing.dumps(payload, salt=INSTALLMENT_SALT, compress=True),
+        "listed_ids": [model.pk for model in models],
+        "filters": filters,
+    })
+
+
+def _installment_commit(request, can_operate):
+    payload = _load_token(request.POST.get("token"), INSTALLMENT_SALT)
+    back_url = reverse("vehicle_model_installment_batch")
+    if not payload:
+        messages.error(request, "預覽已過期或內容不完整，資料尚未寫入；請重新預覽。")
+        return redirect(back_url)
+    if not can_operate:
+        messages.error(request, "你沒有機種與售價的操作權限，資料尚未寫入。")
+        return redirect(back_url)
+    day = date.fromisoformat(payload["date"])
+    try:
+        results = installment_batch.commit_changes(changes=payload["changes"], effective_from=day, actor=request.user)
+    except (ValidationError, IntegrityError) as exc:
+        detail = "；".join(exc.messages) if isinstance(exc, ValidationError) else "資料剛被其他人變更"
+        messages.error(request, f"分期方案批次調整未完成，未寫入任何資料：{detail}")
+        return redirect(f"{back_url}?{urlencode({'effective_from': day.isoformat()})}")
+    request.session["vehicle_model_installment_batch_result"] = {
+        "date": day.strftime("%Y/%m/%d"),
+        "rows": [
+            {"label": result["label"],
+             "url": f"{reverse('vehicle_installment_plan_list', args=[result['model_id']])}?edit={result['version_id']}",
+             "periods": "、".join(f"{periods} 期" for periods in result["periods"]) or "不提供分期"}
+            for result in results
+        ],
+    }
+    messages.success(request, f"已調整 {len(results)} 個年式的分期方案，將於 {day:%Y/%m/%d} 起生效。")
+    return redirect(f"{back_url}?{urlencode({'result': 1})}")
 
 
 # ---------------------------------------------------------------------------

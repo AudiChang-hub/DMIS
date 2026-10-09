@@ -1,9 +1,11 @@
-"""批次調整分期方案：像試算表一樣一次設定多個年式的分期公司、開辦費、撥款比例與各期數每期金額。
+"""批次調整分期方案：像試算表一樣一次設定多個年式各期數的每期金額、分期公司、撥款比例與開辦費。
 
-畫面帶入每個年式目前有效的方案；期數欄空白代表不提供該期數。分期公司、開辦費、撥款比例
-是整台套用的值：各期原本不同時顯示「各期不同」，留空即維持各期原值。確認後依生效日建立新版本，
+畫面帶入每個年式目前有效的方案；期數欄空白代表不提供該期數。每個期數各自有分期公司、撥款比例
+與開辦費（同一台車不同期數可能走不同分期公司），可用「期數條件」一次套用到多台。確認後依生效日建立新版本，
 舊版本與已成立的訂單不受影響；同一天已有版本的年式不能批次調整，請到機種工作區處理。
 """
+import json
+import re
 from decimal import Decimal, InvalidOperation
 
 from django.core.exceptions import ValidationError
@@ -62,26 +64,9 @@ def fingerprint(specs):
     )
 
 
-def _uniform(values):
-    values = set(values)
-    return (values.pop(), False) if len(values) == 1 else (None, len(values) > 1)
-
-
-def summarize(specs):
-    """整台的分期公司／開辦費／撥款比例：全部期數一致才有值，否則標示各期不同。"""
-    company, company_mixed = _uniform(spec["company"] for spec in specs)
-    fee, fee_mixed = _uniform(spec["fee"] for spec in specs)
-    if all(spec["method"] == RATE for spec in specs):
-        rate, rate_mixed = _uniform(spec["rate"] for spec in specs)
-    else:
-        rate, rate_mixed = None, bool(specs)
-    return {
-        "company": company, "company_mixed": company_mixed,
-        "fee": fee, "fee_mixed": fee_mixed,
-        "rate": rate, "rate_mixed": rate_mixed,
-        "periods": {spec["periods"]: spec["monthly"] for spec in specs},
-        "extra": sorted(spec["periods"] for spec in specs if spec["periods"] not in PERIODS),
-    }
+def extra_periods(specs):
+    """表格欄位以外的期數（例如 42 期）：批次調整不顯示也不修改，原樣沿用。"""
+    return sorted(spec["periods"] for spec in specs if spec["periods"] not in PERIODS)
 
 
 def company_choices(rows=()):
@@ -102,6 +87,31 @@ def _amount_text(value):
     return "" if value is None else f"{value:,}"
 
 
+def _disbursement_note(spec):
+    """非按比例試算的期數，撥款比例格留空並說明原本的撥款方式。"""
+    if spec is None or spec["method"] == RATE:
+        return ""
+    if spec["method"] == FIXED:
+        return f"固定撥款 ${spec['fixed']:,}"
+    return "本單另填"
+
+
+def _cell(periods, spec):
+    return {
+        "periods": periods,
+        "current": spec["monthly"] if spec else None,
+        "current_company": str(spec["company"]) if spec else "",
+        "current_rate": (spec["rate"] or "") if spec else "",
+        "current_fee": _amount_text(spec["fee"]) if spec else "",
+        "note": _disbursement_note(spec),
+        "value": _amount_text(spec["monthly"]) if spec else "",
+        "company": str(spec["company"]) if spec else "",
+        "rate": (spec["rate"] or "") if spec else "",
+        "fee": _amount_text(spec["fee"]) if spec else "",
+        "error": "",
+    }
+
+
 def build_rows(models, effective_from):
     ids = [model.pk for model in models]
     versions = current_versions_bulk("installment", ids, effective_from)
@@ -111,44 +121,33 @@ def build_rows(models, effective_from):
     for model in models:
         version = versions.get(model.pk)
         specs = grouped.get(version.pk, []) if version else []
-        summary = summarize(specs)
+        by_periods = {spec["periods"]: spec for spec in specs}
         locked = f"{effective_from:%Y/%m/%d} {LOCKED_NOTE}" if model.pk in taken else ""
         rows.append({
             "model": model,
             "label": model_label(model),
             "version": version,
             "specs": specs,
-            "summary": summary,
+            "extra": extra_periods(specs),
             "locked": locked,
             "selected": False,
             "errors": [],
-            "inputs": {
-                "company": "" if summary["company"] is None else str(summary["company"]),
-                "fee": _amount_text(summary["fee"]),
-                "rate": summary["rate"] or "",
-            },
-            "cells": [
-                {"periods": periods, "current": summary["periods"].get(periods),
-                 "value": _amount_text(summary["periods"].get(periods)), "error": ""}
-                for periods in PERIODS
-            ],
+            "cells": [_cell(periods, by_periods.get(periods)) for periods in PERIODS],
         })
     return rows
 
 
 def restore_inputs(row, specs):
-    """預覽頁「返回修改」：把預覽時的調整內容放回輸入框。"""
-    summary = summarize(specs)
+    """預覽頁「返回修改」：把預覽時的調整內容放回輸入框（原值欄位保持目前方案）。"""
     by_periods = {spec["periods"]: spec for spec in specs}
     row["selected"] = True
-    row["inputs"] = {
-        "company": "" if summary["company"] is None else str(summary["company"]),
-        "fee": _amount_text(summary["fee"]),
-        "rate": summary["rate"] or "",
-    }
     for cell in row["cells"]:
         spec = by_periods.get(cell["periods"])
-        cell["value"] = _amount_text(spec["monthly"] if spec else None)
+        cell["value"] = _amount_text(spec["monthly"]) if spec else ""
+        if spec:
+            cell["company"] = str(spec["company"])
+            cell["rate"] = spec["rate"] or ""
+            cell["fee"] = _amount_text(spec["fee"])
 
 
 def parse_rate(raw):
@@ -166,6 +165,24 @@ def parse_rate(raw):
     return _rate_text(value)
 
 
+GRID_FIELD = re.compile(r"^(?:sel|[pcrf]\d{1,2})_\d+$")
+
+
+def grid_data(post):
+    """畫面送出時把勾選列打包成一個 JSON 欄位（避免 32 列以上超過 Django 欄位數上限）；
+    沒有打包欄位時（無 JavaScript）直接使用個別欄位。"""
+    raw = post.get("grid")
+    if not raw:
+        return post
+    try:
+        values = json.loads(raw)
+    except ValueError:
+        return {}
+    if not isinstance(values, dict):
+        return {}
+    return {key: str(value) for key, value in values.items() if isinstance(key, str) and GRID_FIELD.match(key)}
+
+
 def read_inputs(rows, data, companies):
     """把畫面輸入套回列上，計算每個勾選列調整後的期數內容；回傳是否有錯誤。"""
     company_ids = {company.pk for company in companies}
@@ -173,86 +190,77 @@ def read_inputs(rows, data, companies):
     for row in rows:
         pk = row["model"].pk
         row["selected"] = data.get(f"sel_{pk}") == "1" and not row["locked"]
-        row["inputs"] = {
-            "company": (data.get(f"company_{pk}") or "").strip(),
-            "fee": (data.get(f"fee_{pk}") or "").strip(),
-            "rate": (data.get(f"rate_{pk}") or "").strip(),
-        }
-        for cell in row["cells"]:
-            cell["value"] = (data.get(f"p{cell['periods']}_{pk}") or "").strip()
-            cell["error"] = ""
         row["errors"] = []
         row["desired"] = None
         if not row["selected"]:
-            continue
+            continue  # 未勾選的列不送出內容，保留帶入的目前方案
+        for cell in row["cells"]:
+            periods = cell["periods"]
+            cell["value"] = (data.get(f"p{periods}_{pk}") or "").strip()
+            cell["company"] = (data.get(f"c{periods}_{pk}") or "").strip()
+            cell["rate"] = (data.get(f"r{periods}_{pk}") or "").strip()
+            cell["fee"] = (data.get(f"f{periods}_{pk}") or "").strip()
+            cell["error"] = ""
         row["desired"] = _desired_specs(row, company_ids)
-        if row["errors"] or any(cell["error"] for cell in row["cells"]):
+        if any(cell["error"] for cell in row["cells"]):
             has_error = True
+            row["errors"] = [f"{cell['periods']} 期：{cell['error']}" for cell in row["cells"] if cell["error"]]
     return has_error
 
 
-def _desired_specs(row, company_ids):
-    errors = row["errors"]
-    company = row["inputs"]["company"]
-    if company:
-        if not company.isdigit() or int(company) not in company_ids:
-            errors.append("請重新選擇分期公司")
-        company = int(company) if company.isdigit() else None
-    else:
-        company = None
+def _cell_spec(cell, old, company_ids):
+    """單一期數格的調整後內容；有錯誤時寫入 cell["error"] 並回傳 None。"""
+    problems = []
     try:
-        fee = parse_amount(row["inputs"]["fee"])
+        monthly = parse_amount(cell["value"])
     except ValueError as exc:
-        errors.append(f"開辦費：{exc}")
+        cell["error"] = f"每期金額{exc}"
+        return None
+    if monthly <= 0:
+        cell["error"] = "每期金額需大於 0"
+        return None
+    company = cell["company"]
+    if not company:
+        problems.append("請選擇分期公司")
+    elif not company.isdigit() or int(company) not in company_ids:
+        problems.append("請重新選擇分期公司")
+    try:
+        fee = parse_amount(cell["fee"])
+    except ValueError as exc:
+        problems.append(f"開辦費{exc}")
         fee = None
     try:
-        rate = parse_rate(row["inputs"]["rate"])
+        rate = parse_rate(cell["rate"])
     except ValueError as exc:
-        errors.append(str(exc))
+        problems.append(str(exc))
         rate = None
+    else:
+        if rate is None and old is None:
+            problems.append("請填撥款比例")
+    if problems:
+        cell["error"] = "、".join(problems)
+        return None
+    spec = {"periods": cell["periods"], "company": int(company), "monthly": int(monthly),
+            "fee": int(fee) if fee is not None else 0}
+    if rate is None or (old and old["method"] == RATE and old["rate"] == rate):
+        # 撥款比例留空（原本是固定金額或本單另填）或未改：沿用原撥款設定。
+        spec.update({key: old[key] for key in ("method", "rate", "fixed", "bonus")})
+    else:
+        spec.update({"method": RATE, "rate": rate, "fixed": None, "bonus": old["bonus"] if old else 0})
+    return spec
 
-    monthly = {}
+
+def _desired_specs(row, company_ids):
+    existing = {spec["periods"]: spec for spec in row["specs"]}
+    specs = []
     for cell in row["cells"]:
         if not cell["value"]:
             continue
-        try:
-            value = parse_amount(cell["value"])
-        except ValueError as exc:
-            cell["error"] = str(exc)
-            continue
-        if value <= 0:
-            cell["error"] = "每期金額需大於 0"
-            continue
-        monthly[cell["periods"]] = int(value)
-    existing = {spec["periods"]: spec for spec in row["specs"]}
-    for periods in row["summary"]["extra"]:
-        monthly[periods] = existing[periods]["monthly"]  # 表格以外的期數沿用原值
-
-    specs = []
-    for periods in sorted(monthly):
-        old = existing.get(periods)
-        spec = {
-            "periods": periods,
-            "company": company if company is not None else (old["company"] if old else None),
-            "monthly": monthly[periods],
-            "fee": int(fee) if fee is not None else (old["fee"] if old else 0),
-        }
-        missing = []
-        if spec["company"] is None:
-            missing.append("請選擇分期公司")
-        if rate is None and old is None:
-            missing.append("新增期數請填撥款比例")
-        if missing:
-            errors.extend(message for message in missing if message not in errors)
-            continue
-        if rate is None:
-            spec.update({key: old[key] for key in ("method", "rate", "fixed", "bonus")})
-        elif old and old["method"] == RATE and old["rate"] == rate:
-            spec.update({key: old[key] for key in ("method", "rate", "fixed", "bonus")})
-        else:
-            spec.update({"method": RATE, "rate": rate, "fixed": None, "bonus": old["bonus"] if old else 0})
-        specs.append(spec)
-    return specs
+        spec = _cell_spec(cell, existing.get(cell["periods"]), company_ids)
+        if spec:
+            specs.append(spec)
+    specs.extend(existing[periods] for periods in row["extra"])  # 表格以外的期數沿用原值
+    return sorted(specs, key=lambda spec: spec["periods"])
 
 
 def collect_changes(rows):

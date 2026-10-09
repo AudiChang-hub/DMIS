@@ -4,6 +4,7 @@ from django.views.generic import RedirectView
 
 from . import views, announcement_views, favorite_views, intake_views, catalog_views, official_catalog_views, dealer_account_views, profit_views
 from . import order_deletion_views
+from . import draft_cleanup_views
 from . import vehicle_model_tool_views
 from . import gift_views
 from . import print_company_views
@@ -35,6 +36,8 @@ urlpatterns = [
     path("intake/options/installments/", views.installment_plan_options, {"reception": True}, name="intake_installment_options"),
     path("intake/options/prices/", views.vehicle_price_options, {"reception": True}, name="intake_price_options"),
     path("orders/deleted/", order_deletion_views.order_recycle_bin, name="order_recycle_bin"),
+    path("orders/drafts/cleanup/", draft_cleanup_views.draft_cleanup_list, name="draft_cleanup_list"),
+    path("orders/drafts/cleanup/<uuid:pk>/delete/", draft_cleanup_views.draft_cleanup_delete, name="draft_cleanup_delete"),
     path("orders/deletion-review/", order_deletion_views.order_deletion_queue, name="order_deletion_queue"),
     path("orders/<int:pk>/delete/", order_deletion_views.order_delete, name="order_delete"),
     path("orders/<int:pk>/restore/", order_deletion_views.order_restore, name="order_restore"),

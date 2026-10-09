@@ -34,6 +34,15 @@
 }
 .model-tool-immediate > span { width: 8px; height: 8px; background: var(--amber-strong); border-radius: 50%; }
 .model-tool-filters__date .field-error { margin: 0; }
+/* 生效日下方的說明掛在輸入框下緣、不佔版面，讓整列的標籤與輸入框對齊；篩選卡片下緣預留一行空間。 */
+@media (min-width: 860.02px) {
+  .model-tool-filters--dated { padding-bottom: calc(var(--inset-pad) + var(--space-5)); }
+  .model-tool-filters__date { position: relative; }
+  .model-tool-filters__date > :is(small, .help-text, .field-error, .model-tool-future-date) {
+    position: absolute; top: calc(100% + var(--space-1)); left: 0; margin: 0; white-space: nowrap;
+  }
+  .model-tool-filters__date > .model-tool-future-date { top: calc(100% + 2px); }
+}
 @media (min-width: 1360.02px) {
   .model-tool-filters { grid-template-columns: minmax(0, .9fr) minmax(0, 1.5fr) repeat(3, minmax(0, .8fr)) auto; }
   .model-tool-filters--dated { grid-template-columns: minmax(0, .9fr) minmax(0, 1.4fr) repeat(3, minmax(0, .75fr)) minmax(0, 1fr) auto; }

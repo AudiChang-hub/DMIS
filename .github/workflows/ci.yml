@@ -129,7 +129,7 @@ jobs:
           POSTGRES_DB: finance_ci
           POSTGRES_USER: finance_ci
           POSTGRES_PASSWORD: ci-isolated-only
-        run: python manage.py test sales.tests.test_old_owner_markers sales.tests.test_import_order_review sales.tests.test_installment_batch sales.tests.test_draft_cleanup sales.tests.test_audit_log_draft_deletion_migration sales.tests.test_order_sorting sales.tests.test_command_center sales.tests.test_system_home sales.tests.test_allocation_priority sales.tests.test_document_signing --noinput
+        run: python manage.py test sales.tests.test_historical_delivery sales.tests.test_old_owner_markers sales.tests.test_import_order_review sales.tests.test_installment_batch sales.tests.test_draft_cleanup sales.tests.test_audit_log_draft_deletion_migration sales.tests.test_order_sorting sales.tests.test_command_center sales.tests.test_system_home sales.tests.test_allocation_priority sales.tests.test_document_signing --noinput
 
       - name: Run Django tests with SQLite
         run: |

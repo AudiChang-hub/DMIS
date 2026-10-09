@@ -1,0 +1,17 @@
+{% comment %}admin：歷史匯入的待交車訂單（Excel 沒有車牌）補登車牌並完成交車。{% endcomment %}
+<section class="section-block historical-delivery" aria-labelledby="historical-delivery-title">
+  <div class="historical-delivery__intro">
+    <p class="eyebrow">歷史匯入單・admin</p>
+    <h2 id="historical-delivery-title">尚未交車：補登車牌並完成</h2>
+    <p class="muted">這張訂單從 Excel 匯入時沒有車牌，所以是待交車。補上車牌後即視為已領牌交車，訂單改為已完成；歷史匯入單沒有配車，不需先配車。也可以在 Excel 補上車牌後重新匯入，選「用 Excel 更新」自動完成。</p>
+  </div>
+  <form method="post" action="{% url 'historical_delivery_complete' order.pk %}" class="historical-delivery__form" data-confirm="確定補登車牌並將訂單改為已完成？">
+    {% csrf_token %}
+    <div class="historical-delivery__fields">
+      <label class="field"><span>車牌號碼</span><input class="form-control" name="plate" required maxlength="20" autocapitalize="characters" spellcheck="false" placeholder="例如 ABC-1234"></label>
+      <label class="field"><span>交車日期</span><input class="form-control" type="date" name="delivered_on" required value="{{ order.registration_date|date:'Y-m-d'|default:'' }}"></label>
+      <label class="field historical-delivery__reason"><span>原因</span><textarea class="form-control" name="reason" rows="2" required minlength="2" maxlength="300" placeholder="例如：已領牌交車，車牌下來"></textarea></label>
+    </div>
+    <div class="form-actions"><button class="button primary" type="submit">補登車牌並完成交車</button></div>
+  </form>
+</section>

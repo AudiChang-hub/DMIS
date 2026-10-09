@@ -1,4 +1,5 @@
 from concurrent.futures import ThreadPoolExecutor
+from datetime import datetime, time
 from copy import deepcopy
 from io import BytesIO
 from tempfile import TemporaryDirectory
@@ -12,6 +13,7 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django.db import close_old_connections, connection
 from django.test import Client, TestCase, TransactionTestCase, override_settings
 from django.urls import reverse
+from django.utils import timezone
 from openpyxl import load_workbook
 
 from sales.models import LegacyImportBatch, LegacyImportRow, SalesOrder, Store, PaymentRecord, OrderOperationsProfile, OrderChange, VehicleInventory, LegacyImportCorrection
@@ -42,6 +44,15 @@ class ReplacementFixture:
         build_import_preview(self.batch)
         confirm_import(self.batch, "tester")
         original = self.batch.rows.get(sheet_name="銷貨")
+        if getattr(self, "simulate_legacy_completion", True):
+            # 模擬 1.60.0 前匯入的歷史單：沒有車牌也被標為已完成、車輛已售（1.60.0 起改為待交車，另有測試）。
+            order = SalesOrder.objects.get(pk=original.committed_pk)
+            moment = timezone.make_aware(datetime.combine(order.registration_date or order.order_date, time(hour=12)))
+            SalesOrder.objects.filter(pk=order.pk).update(
+                status=SalesOrder.Status.COMPLETED, delivered_at=moment, delivered_by="歷史資料匯入",
+                registration_completed_at=moment if order.registration_date else None,
+                registration_completed_by="歷史資料匯入" if order.registration_date else "")
+            VehicleInventory.objects.filter(pk=order.allocated_vehicle_id).update(status=VehicleInventory.Status.SOLD)
         self.order = SalesOrder.objects.get(pk=original.committed_pk)
         self.vehicle_id = self.order.allocated_vehicle_id
         self.row = LegacyImportRow.objects.create(batch=self.batch, sheet_name="銷貨", source_row=1752,
@@ -442,3 +453,18 @@ class HistoricalReplacementConcurrencyTests(ReplacementFixture, TransactionTestC
             results = list(pool.map(lambda _: submit(), range(2)))
         self.assertCountEqual(results, ["created", "blocked"])
         self.assertEqual(SalesOrder.objects.count(), 2)
+
+
+class PendingImportHistoricalFlowTests(ReplacementFixture, TestCase):
+    """1.60.0 起沒有車牌的歷史匯入單建立為待交車（車輛保留中）：換買家與領牌改期仍可使用。"""
+    simulate_legacy_completion = False
+
+    def test_pending_import_is_accepted_by_replacement_and_date_change(self):
+        from sales.services.historical_date_change import date_change_preview
+        self.assertEqual(self.order.status, SalesOrder.Status.DELIVERY_PENDING)
+        self.assertEqual(VehicleInventory.objects.get(pk=self.vehicle_id).status, VehicleInventory.Status.RESERVED)
+        blockers = replacement_preview(self.row, self.order)["blockers"]
+        self.assertFalse([b for b in blockers if "歷史匯入標記完成" in b or "歷史已售" in b], blockers)
+        self.row.mapped_data.update(owner_name=self.order.owner_name, owner_id_number=self.order.owner_id_number)
+        blockers = date_change_preview(self.row, self.order)["blockers"]
+        self.assertFalse([b for b in blockers if "只可更正歷史匯入完成標記" in b or "庫存車況" in b], blockers)

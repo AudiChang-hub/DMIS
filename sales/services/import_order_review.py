@@ -414,4 +414,15 @@ def commit_update(row, actor_name):
     )
     from sales.services.order_search import rebuild_order_search_index
     rebuild_order_search_index(order.pk)
+    if "plate_number" in review.get("fields", []) and order.final_plate_number:
+        # Excel 補上車牌＝已領牌交車：待交車的歷史匯入單一併完成，交車日期取 Excel 領牌日期。
+        from sales.services import historical_delivery
+        from sales.services.legacy_import import _date
+        order.refresh_from_db()
+        if historical_delivery.can_complete(order):
+            historical_delivery.complete_imported_order(
+                order.pk, plate=order.final_plate_number,
+                delivered_on=_date(row.mapped_data.get("registration_date")) or order.registration_date or timezone.localdate(),
+                actor=actor_name, reason=f"Excel 第 {row.source_row} 列補上車牌",
+            )
     row.committed_model, row.committed_pk = "SalesOrder", str(order.pk)

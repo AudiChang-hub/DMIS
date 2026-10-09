@@ -59,12 +59,13 @@
     {% if batch.status == 'completed' and unresolved_count %}<p class="import-overview__warning">其餘資料已完成；尚有 {{ unresolved_count }} 筆可修正後補匯</p>{% elif unresolved_count %}<p class="import-overview__warning">{{ unresolved_count }} 筆必須修正或排除後才能匯入</p>{% elif batch.status == 'completed' %}<p class="import-overview__ready">正式資料已完成匯入</p>{% else %}<p class="import-overview__ready">資料已可進行匯入</p>{% endif %}
   </div>
   <nav class="import-status-tabs" aria-label="依處理狀態篩選">
-    <a href="?q={{ search_query|urlencode }}#row-preview" class="{% if not selected_action %}active{% endif %}"><span>全部</span><strong>{{ batch.preview_summary.source_rows|default:0 }}</strong></a>
+    <a href="?q={{ search_query|urlencode }}#row-preview" class="{% if not selected_action and not show_order_review %}active{% endif %}"><span>全部</span><strong>{{ batch.preview_summary.source_rows|default:0 }}</strong></a>
     <a href="?action=create&q={{ search_query|urlencode }}#row-preview" class="{% if selected_action == 'create' %}active{% endif %}"><span>{% if batch.status == 'completed' %}已新增{% else %}可新增{% endif %}</span><strong>{{ counts.create|default:0 }}</strong></a>
     <a href="?action=update&q={{ search_query|urlencode }}#row-preview" class="{% if selected_action == 'update' %}active{% endif %}"><span>{% if batch.status == 'completed' %}已更新{% else %}可更新{% endif %}</span><strong>{{ counts.update|default:0 }}</strong></a>
     <a href="?action=skip&q={{ search_query|urlencode }}#row-preview" class="{% if selected_action == 'skip' %}active{% endif %}"><span>已存在</span><strong>{{ counts.skip|default:0 }}</strong></a>
     <a href="?action=exclude&q={{ search_query|urlencode }}#row-preview" class="{% if selected_action == 'exclude' %}active{% endif %}"><span>人工排除</span><strong>{{ counts.exclude|default:0 }}</strong></a>
     <a href="?action=conflict&q={{ search_query|urlencode }}#issue-review" class="issue {% if selected_action == 'conflict' %}active{% endif %}"><span>待處理衝突</span><strong>{{ counts.conflict|default:0 }}</strong></a>
+    {% if order_review_count or show_order_review %}<a href="?review=orders#order-review" class="issue {% if show_order_review %}active{% endif %}"><span>既有訂單比對</span><strong>{{ order_review_count|default:0 }}</strong></a>{% endif %}
     <a href="?action=error&q={{ search_query|urlencode }}#row-preview" class="issue {% if selected_action == 'error' %}active{% endif %}"><span>{% if batch.status == 'completed' %}待補匯{% else %}資料錯誤{% endif %}</span><strong>{{ counts.error|default:0 }}</strong></a>
   </nav>
 </section>
@@ -279,12 +280,89 @@
           <div><dt>識別號碼</dt><dd>{{ row.mapped_data.identifier_raw|default:'未填' }}</dd></div>
           {% if row.sheet_name == '銷貨' %}<div><dt>車輛類別</dt><dd>{% if row.mapped_data.vehicle_category == 'used' %}中古車{% else %}新車{% endif %}</dd></div><div><dt>交易類型</dt><dd>{% if row.mapped_data.transaction_type == 'test_ride' %}試乘車{% elif row.mapped_data.transaction_type == 'prize' %}中獎車{% elif row.mapped_data.transaction_type == 'registered' %}領牌車{% elif row.mapped_data.transaction_type == 'used' %}中古車交易{% elif row.mapped_data.transaction_type == 'other' %}其他{% else %}一般新車{% endif %}</dd></div><div><dt>車主</dt><dd>{{ row.mapped_data.owner_name|default:'未填' }}</dd></div><div><dt>領牌日期</dt><dd>{{ row.mapped_data.registration_date|default:'未填' }}</dd></div>{% else %}<div><dt>顏色</dt><dd>{{ row.mapped_data.color|default:'未填' }}</dd></div><div><dt>進貨日期</dt><dd>{{ row.mapped_data.received_on|default:'未填' }}</dd></div>{% endif %}
         </dl>
-        {% if batch.status == 'preview' %}<a class="button ghost" href="?action=conflict&edit={{ row.pk }}#row-editor">檢查並處理這一列</a>{% endif %}
+        {% if batch.status == 'preview' %}{% if row.needs_order_review %}<a class="button primary" href="?review=orders#review-row-{{ row.pk }}">與既有訂單比對</a>{% else %}<a class="button ghost" href="?action=conflict&edit={{ row.pk }}#row-editor">檢查並處理這一列</a>{% endif %}{% endif %}
       </div>
       {% endfor %}
     </div>
   </article>
   {% empty %}<div class="empty-state"><strong>衝突已全部處理完成</strong><a href="{% url 'legacy_import_detail' batch.pk %}">返回完整預覽</a></div>{% endfor %}
+</section>
+{% endif %}
+
+{% if show_order_review %}
+<section class="import-issue-workspace import-order-review" id="order-review" tabindex="-1">
+  <div class="section-title">
+    <div><p class="eyebrow">匯入前核對</p><h2>既有訂單比對</h2></div>
+    <span>共 {{ order_reviews|length }} 列；疑似重複與號碼已屬他人須處理才能匯入，已匯入但 Excel 有改動的列可選擇是否更新</span>
+  </div>
+  <p class="import-order-review__intro">「用 Excel 更新」只會寫入勾選的欄位，且只限匯入後沒在系統改過的欄位；領牌日期、型號、來源與金額只顯示差異，請在訂單或「核對領牌改期」處理。按「確認匯入」時才會真正寫入。</p>
+  {% for review in order_reviews %}
+  <article class="import-order-review-card import-order-review-card--{{ review.kind }}" id="review-row-{{ review.row.pk }}">
+    <header class="import-order-review-card__head">
+      <div>
+        <strong>Excel 第 {{ review.row.source_row }} 列</strong>
+        <span class="import-order-review-kind">{{ review.title }}</span>
+      </div>
+      {% if review.decision.decision == 'update' %}<span class="status-pill import-order-review-decision">已決定：用 Excel 更新訂單（{{ review.decision.fields|length }} 個欄位）</span>
+      {% elif review.decision.decision == 'create' %}<span class="status-pill import-order-review-decision">已確認不同交易：仍新增</span>
+      {% elif review.row.action == 'conflict' %}<span class="status-pill import-order-review-pending">待處理</span>{% endif %}
+    </header>
+    <dl class="import-order-review-card__row">
+      <div><dt>Excel 車主</dt><dd>{{ review.row.mapped_data.owner_name|default:'未填' }}</dd></div>
+      <div><dt>型號</dt><dd>{{ review.row.mapped_data.model_number|default:'未填' }}</dd></div>
+      <div><dt>車輛識別</dt><dd>{{ review.row.mapped_data.identifier_raw|default:'未填' }}</dd></div>
+      <div><dt>領牌日期</dt><dd>{{ review.row.mapped_data.registration_date|default:'未填' }}</dd></div>
+    </dl>
+    {% for item in review.orders %}
+    <form method="post" action="{% url 'legacy_import_order_review' batch.pk review.row.pk %}" class="import-order-review-order">
+      {% csrf_token %}
+      <input type="hidden" name="order" value="{{ item.order.pk }}">
+      <p class="import-order-review-order__title">既有訂單 <a href="{% url 'order_detail' item.order.pk %}" target="_blank" rel="noopener">{{ item.order.number }}</a> · {{ item.order.owner_name }} · {{ item.order.vehicle_model }}{% if item.order.registration_date %} · 領牌 {{ item.order.registration_date|date:'Y/m/d' }}{% endif %}</p>
+      {% if item.fields %}
+      <div class="inventory-table-wrap" tabindex="0" aria-label="訂單 {{ item.order.number }} 欄位比對">
+        <table class="inventory-table inventory-table--fit import-order-review-table">
+          <thead><tr><th>欄位</th><th>系統目前</th><th>Excel</th><th>第一次匯入</th><th>處理</th></tr></thead>
+          <tbody>
+            {% for field in item.fields %}
+            <tr class="is-{{ field.state }}">
+              <th scope="row">{{ field.label }}</th>
+              <td data-label="系統目前">{{ field.system|default:'—' }}</td>
+              <td data-label="Excel"><strong>{{ field.excel|default:'—' }}</strong></td>
+              <td data-label="第一次匯入">{{ field.previous|default:'—' }}</td>
+              <td data-label="處理">
+                {% if field.state == 'update' and review.can_update %}<label class="checkbox-label"><input type="checkbox" name="fields" value="{{ field.key }}"{% if review.decision.decision != 'update' or field.key in review.decision.fields %} checked{% endif %}><span>用 Excel 更新</span></label>
+                {% elif field.state == 'clear' and review.can_update %}<label class="checkbox-label"><input type="checkbox" name="fields" value="{{ field.key }}"{% if review.decision.decision == 'update' and field.key in review.decision.fields %} checked{% endif %}><span>Excel 已清空，一併清除</span></label>
+                {% elif not review.can_update %}<span class="import-order-review-note">僅供核對</span>
+                {% elif field.state == 'system' %}<span class="import-order-review-note">匯入後系統已修改，請人工判斷</span>
+                {% elif field.state == 'excel_blank' %}<span class="import-order-review-note">Excel 空白，不清除系統值</span>
+                {% elif field.state == 'locked' %}<span class="import-order-review-note">請在訂單處理</span>
+                {% else %}<span class="import-order-review-note">僅顯示差異，請在訂單處理</span>{% endif %}
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}<p class="muted">主要欄位與這張訂單相同。</p>{% endif %}
+      {% if batch.status == 'preview' and review.can_update %}
+      <label class="import-order-review-reason"><span>處理原因</span><textarea class="form-control" name="reason" rows="2" required minlength="2" maxlength="300" placeholder="例如：Excel 更正了車架號碼，是同一筆交易">{{ review.decision.reason|default:'' }}</textarea></label>
+      <div class="form-actions"><button class="button primary" type="submit" name="decision" value="update">用 Excel 更新這張訂單</button></div>
+      {% endif %}
+    </form>
+    {% endfor %}
+    {% if batch.status == 'preview' %}
+    <form method="post" action="{% url 'legacy_import_order_review' batch.pk review.row.pk %}" class="import-order-review-other">
+      {% csrf_token %}
+      <label class="import-order-review-reason"><span>{% if review.kind == 'changed' %}不更新的原因{% else %}其他處理方式的原因{% endif %}</span><textarea class="form-control" name="reason" rows="2" minlength="2" maxlength="300" placeholder="{% if review.kind == 'changed' %}例如：系統資料較新，不用 Excel 覆蓋{% else %}例如：同一人買了兩台車，是不同交易{% endif %}"></textarea></label>
+      <div class="form-actions">
+        {% if review.decision %}<button class="button ghost" type="submit" name="decision" value="clear">取消決定</button>{% endif %}
+        {% if review.kind == 'changed' %}<button class="button secondary" type="submit" name="decision" value="keep">維持略過、不更新</button>
+        {% else %}<button class="button danger-outline" type="submit" name="decision" value="exclude">排除此列</button><button class="button secondary" type="submit" name="decision" value="create">確認是不同交易，仍新增</button>{% endif %}
+      </div>
+    </form>
+    {% endif %}
+  </article>
+  {% empty %}<div class="empty-state"><strong>目前沒有需要與既有訂單比對的列</strong><a href="{% url 'legacy_import_detail' batch.pk %}">返回完整預覽</a></div>{% endfor %}
 </section>
 {% endif %}
 

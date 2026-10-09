@@ -79,6 +79,14 @@
   --blue-border: #bdd3ee;
   --blue-border-strong: #7ea7d2;
   --blue-ink: #164774;
+  --teal: #0f766e;
+  --teal-soft: #e1f3f0;
+  --teal-ink: #0b5650;
+  --teal-border: #9fd3cb;
+  --violet: #6b4bb3;
+  --violet-soft: #efe9fa;
+  --violet-ink: #4c318c;
+  --violet-border: #c9b8ec;
   --amber-border: #e8cf8f;
   --amber-border-strong: #dcae4f;
   --amber-strong: #9a6700;
@@ -158,6 +166,14 @@ html[data-theme="night-blue"] {
   --blue-border: #2c4a6b;
   --blue-border-strong: #4f7fb0;
   --blue-ink: #9cc8f5;
+  --teal: #4fd1c1;
+  --teal-soft: #12302d;
+  --teal-ink: #8ce6da;
+  --teal-border: #23564f;
+  --violet: #b9a0f0;
+  --violet-soft: #251d3d;
+  --violet-ink: #d2c2f7;
+  --violet-border: #45366e;
   --amber-border: #5c4a22;
   --amber-border-strong: #9a7a30;
   --amber-strong: #e0a640;
@@ -246,6 +262,14 @@ html[data-theme="night-blue"] {
     --blue-border: #2c4a6b;
     --blue-border-strong: #4f7fb0;
     --blue-ink: #9cc8f5;
+    --teal: #4fd1c1;
+    --teal-soft: #12302d;
+    --teal-ink: #8ce6da;
+    --teal-border: #23564f;
+    --violet: #b9a0f0;
+    --violet-soft: #251d3d;
+    --violet-ink: #d2c2f7;
+    --violet-border: #45366e;
     --amber-border: #5c4a22;
     --amber-border-strong: #9a7a30;
     --amber-strong: #e0a640;
@@ -1393,17 +1417,19 @@ h2 { margin-bottom: 0; font-size: var(--text-md); font-weight: 750; letter-spaci
   border-radius: var(--radius-pill); font-weight: 700; letter-spacing: .01em;
 }
 .status-pill.large { padding: var(--space-2) var(--space-3); font-size: var(--text-sm); }
-.status-pill.status-draft,
-.status-pill.status-allocation_pending,
-.status-pill.status-transfer_pending { color: var(--amber); background: var(--amber-soft); border-color: var(--amber-border-strong); }
-.status-pill.status-allocated,
+/* 訂單狀態：每個階段一種色相（草稿灰→待配車紫→已配車青→待交車藍→已交車待補文件綠虛線→已完成實心綠＋勾）；
+   待接單（琥珀粗框）、取消待退款（紅）、已取消（實心灰）、例外結案（灰虛線）另行區分。 */
+.status-pill.status-draft { color: var(--ink-soft); background: var(--line-soft); border-color: var(--line-strong); }
+.status-pill.status-allocation_pending { color: var(--violet-ink); background: var(--violet-soft); border-color: var(--violet-border); }
+.status-pill.status-transfer_pending { color: var(--amber-ink); background: var(--amber-soft); border-color: var(--amber-border-strong); }
+.status-pill.status-allocated { color: var(--teal-ink); background: var(--teal-soft); border-color: var(--teal-border); }
 .status-pill.status-in_transfer,
-.status-pill.status-delivery_pending { color: var(--blue); background: var(--blue-soft); border-color: var(--blue-border); }
-/* 已完成用實心綠＋勾號，與進行中的淺色標籤（待交車、已配車…）一眼可分。 */
+.status-pill.status-delivery_pending { color: var(--blue-ink); background: var(--blue-soft); border-color: var(--blue-border-strong); }
+.status-pill.status-delivered_docs_pending { color: var(--green-ink); background: color-mix(in srgb, var(--green) 12%, var(--surface)); border: 1px dashed var(--green); }
 .status-pill.status-completed { color: var(--on-status); background: var(--green); border-color: var(--green); }
 .status-pill.status-completed::before { content: "✓ "; }
-.status-pill.status-cancel_refund_pending,
-.status-pill.status-delivered_docs_pending { color: var(--red); background: var(--red-soft); border-color: var(--red-border); }
+.status-pill.status-cancel_refund_pending { color: var(--red-ink); background: var(--red-soft); border-color: var(--red-border-strong); }
+.status-pill.status-exception_closed { color: var(--ink-soft); background: var(--surface-soft); border: 1px dashed var(--line-strong); }
 .status-pill.status-cancelled { color: var(--on-accent); background: var(--neutral-solid); border: 2px solid var(--line-strong); }
 .chevron { color: var(--muted); font-size: var(--text-xl); }
 .empty-state strong { color: var(--ink); }
@@ -6182,11 +6208,6 @@ html[aria-busy="true"], html[aria-busy="true"] body { cursor: progress; }
   .button:disabled, button:disabled { opacity: .7; cursor: not-allowed; }
   a:focus-visible, button:focus-visible, summary:focus-visible { outline: 3px solid var(--focus-ring); outline-offset: 3px; }
   .status-pill { border: 1px solid currentColor; padding: var(--space-2) var(--space-3); white-space: normal; line-height: 1.5; }
-  .status-pill.status-draft { color: var(--ink-soft); background: var(--line-soft); border-color: var(--line-strong); }
-  .status-pill.status-allocation_pending, .status-pill.status-transfer_pending { color: var(--amber-ink); background: var(--amber-soft); border-color: var(--amber-strong); }
-  .status-pill.status-allocated, .status-pill.status-in_transfer, .status-pill.status-delivery_pending { color: var(--blue-ink); background: var(--blue-soft); border-color: var(--blue-border-strong); }
-  .status-pill.status-completed { color: var(--on-status); background: var(--green); border-color: var(--green); }
-  .status-pill.status-cancel_refund_pending, .status-pill.status-delivered_docs_pending { color: var(--red-ink); background: var(--red-soft); border-color: var(--red-border-strong); }
   .is-negative { color: var(--red); }
   .order-sort-table th a small { display: block; color: var(--muted); font-size: var(--text-2xs); font-weight: 500; }
   .sort-chip-list { display: flex; flex-wrap: wrap; gap: var(--space-3); margin: var(--space-3) 0 var(--stack-gap-sm); padding: 0; list-style: none; }

@@ -24,7 +24,7 @@ DIMENSIONS = {
     "legacy_motor_type": "舊報表車種分類（比對用）",
     "legacy_sales_source": "舊報表銷售來源（比對用）",
     "legacy_model": "原型號文字（比對用）",
-    "legacy_energy": "原報表能源分類（比對用）",
+    "legacy_energy": "油車／電車分類",
     "legacy_dealer": "原報表車行／平台名稱（比對用）",
 }
 DIMENSIONS.update(DEMOGRAPHIC_DIMENSIONS)
@@ -57,7 +57,7 @@ SCOPE_LABELS = {"brand": "品牌", "energy": "能源別", "source_type": "來源
 SCOPE_LOOKUPS["model_presence"] = "report_model_presence"
 SCOPE_LABELS["model_presence"] = "原型號完整性（比對用）"
 SCOPE_LOOKUPS["legacy_energy"] = "report_legacy_energy"
-SCOPE_LABELS["legacy_energy"] = "原報表能源分類（比對用）"
+SCOPE_LABELS["legacy_energy"] = "油車／電車分類"
 MODEL_TEXT_SCOPES = {
     "model_exact": "原型號完整符合（每行一項）",
     "model_prefix": "原型號開頭符合（每行一項）",
@@ -89,7 +89,7 @@ def validate_scope(scope):
             if key == "model_presence" and value not in MODEL_PRESENCE:
                 raise ValidationError("原型號完整性條件不正確。")
             if key == "legacy_energy" and value not in SOURCE_ENERGIES:
-                raise ValidationError("原報表能源分類不正確。")
+                raise ValidationError("油車／電車分類不正確。")
             if key == "age_scope" and value != "adult_or_unknown":
                 raise ValidationError("年齡範圍不正確。")
 
@@ -569,7 +569,7 @@ def card_result(config, card, filters):
         if missing:
             financial_note += f" 其中 {missing} 張訂單缺少收支資料，合計暫不顯示，請由來源訂單補齊。"
     return {"card": card, "rows": values, "total": display_value(total), "count": totals["count"],
-            "compatibility_note": ("比對用分類：依已核對的原型號、車種／能源／來源公式；歷史訂單使用匯入型號／原車行文字，新訂單使用 DMIS 主檔。各公式的整段匹配、字首、大小寫與加號規則不同。不影響車型、傭金或獎金規則，亦不代表兩套來源資料已逐筆核對。"
+            "compatibility_note": ("比對用分類：依已核對的原型號、車種／來源公式（油車／電車依車型主檔能源別）；歷史訂單使用匯入型號／原車行文字，新訂單使用 DMIS 主檔。各公式的整段匹配、字首、大小寫與加號規則不同。不影響車型、傭金或獎金規則，亦不代表兩套來源資料已逐筆核對。"
                                    if {"legacy_motor_type", "legacy_sales_source", "legacy_model", "legacy_energy", "legacy_dealer"}.intersection((dimension, card.get("series"))) else ""),
             "scope_labels": scope_labels(card.get("fixed_filters", {})),
             "financial_note": financial_note,

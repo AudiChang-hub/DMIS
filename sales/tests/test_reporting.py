@@ -135,6 +135,7 @@ class ReportingTests(TestCase):
         from sales.reporting.records import record_queryset, record_cells, RECORD_SORTS
         from sales.reporting.source_templates import electric_vehicle_sales
         config = electric_vehicle_sales()
+        VehicleModel.objects.filter(pk=self.model.pk).update(energy_type="electric")  # 油車／電車依主檔能源別
         batch = LegacyImportBatch.objects.create(import_type='operations', source_file='qa.xlsx', original_filename='qa.xlsx', file_sha256='c'*64, file_size=0, uploaded_by='tester')
         raw_rows = [{'公司禮卷、匯款':' A ', '平台贈品':'機油', '其他':' 安全帽 ', '公司贈品':'不可取用'},
                     {'公司禮卷、匯款':None, '平台贈品':'', '其他':None}, {}]
@@ -162,7 +163,8 @@ class ReportingTests(TestCase):
         self.assertEqual(SOURCE_TEMPLATES['gasoline']()['cards'][1]['dimension'], 'month')
         self.assertEqual(FilterForm(reader_layout='electric_overview').COMMON_FIELDS, ('legacy_source','months'))
         self.model.model_number = 'EV060L'
-        self.model.save(update_fields=['model_number'])
+        self.model.energy_type = 'electric'
+        self.model.save(update_fields=['model_number', 'energy_type'])
         order = SalesOrder.objects.first()
         order.registration_date = date(2026,8,1)
         order.save(update_fields=['registration_date'])
@@ -1021,7 +1023,8 @@ class ReportingTests(TestCase):
         from sales.reporting.records import record_context
         config = validate_config(electric_platform_sales())
         self.model.model_number = "EV060L"
-        self.model.save(update_fields=["model_number"])
+        self.model.energy_type = "electric"
+        self.model.save(update_fields=["model_number", "energy_type"])
         SalesSource.objects.filter(pk=self.a.pk).update(name="PC")
         SalesSource.objects.filter(pk=self.b.pk).update(name="momo")
         result = card_result(config, config["cards"][0], {})
@@ -1146,18 +1149,36 @@ class ReportingTests(TestCase):
         from sales.reporting.records import record_context
         records_config = {**self.config, "records_columns": ["legacy_sales_source", "legacy_energy", "energy"]}
         record = next(r for r in record_context(records_config, {})["records_rows"] if r["pk"] == order.pk)
-        self.assertEqual([c["value"] for c in record["cells"]], ["車行", "電車", "油車"])
+        # 油車／電車依車型主檔能源別（主檔為油車），不看匯入的型號文字 M02。
+        self.assertEqual([c["value"] for c in record["cells"]], ["車行", "油車", "油車"])
         energy_card = {**card, "dimension": "legacy_energy"}
-        for model_number, expected in (("EV060L", "電車"), ("EV_any", "電車"), ("ev060l", "油車"),
-                                       ("GOGORO Pulse", "電車"), ("Pulse", "電車"), ("Pulse Ultra", "油車"),
-                                       ("M02", "電車"), ("M02\n", "油車"), ("JDL-B1", "油車")):
-            with self.subTest(source_energy_model=model_number):
+
+        def assert_energy(expected):
+            matching = drill_query(self.config, energy_card, {}, "v:" + expected)
+            self.assertTrue(matching.filter(pk=order.pk).exists())
+            scoped_energy = {**self.config, "fixed_filters": {"legacy_energy": [expected]}}
+            self.assertEqual(card_result(scoped_energy, energy_card, {})["count"], matching.count())
+
+        # 油車／電車依車型主檔能源別：油車為油車，其他（含微型電動二輪）一律為電車，不看型號文字。
+        energy = order.vehicle_model.energy_type
+        for master_energy, model_number, expected in (
+            ("gas", "EV060L", "油車"), ("micro_electric", "JDL-B1", "電車"),
+            ("electric", "Pulse Ultra", "電車"), ("electric", "EZZY 500", "電車"), ("light_electric", "UQ125", "電車"),
+        ):
+            with self.subTest(master_energy=master_energy, model_number=model_number):
+                VehicleModel.objects.filter(pk=order.vehicle_model_id).update(energy_type=master_energy)
                 row.mapped_data = {"model_number": model_number}
                 row.save(update_fields=["mapped_data"])
-                matching = drill_query(self.config, energy_card, {}, "v:" + expected)
-                self.assertTrue(matching.filter(pk=order.pk).exists())
-                scoped_energy = {**self.config, "fixed_filters": {"legacy_energy": [expected]}}
-                self.assertEqual(card_result(scoped_energy, energy_card, {})["count"], matching.count())
+                assert_energy(expected)
+        # 主檔未填能源別時才退回原報表公式（EV 大小寫敏感、gogoro 忽略大小寫、其餘整段匹配）。
+        VehicleModel.objects.filter(pk=order.vehicle_model_id).update(energy_type="")
+        for model_number, expected in (("EV060L", "電車"), ("ev060l", "油車"), ("GOGORO Pulse", "電車"),
+                                       ("Pulse", "電車"), ("Pulse Ultra", "油車"), ("M02\n", "油車")):
+            with self.subTest(fallback_model=model_number):
+                row.mapped_data = {"model_number": model_number}
+                row.save(update_fields=["mapped_data"])
+                assert_energy(expected)
+        VehicleModel.objects.filter(pk=order.vehicle_model_id).update(energy_type=energy)
         order.vehicle_model.refresh_from_db()
         self.assertEqual(order.vehicle_model.model_number, original_number)
         present_config = {**self.config, "fixed_filters": {"model_presence": ["present"]}}

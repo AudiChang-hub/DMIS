@@ -61,9 +61,22 @@ ELECTRIC_MODELS = ("BOBE", "VIVAMIX", "VIVABASIC", "TSV57", "SHINE", "S2ABS", "P
 
 
 def source_energy_expression():
-    """calc_y9ocl9j2wd 實際公式；EV 大小寫敏感、gogoro 忽略大小寫、其餘整段匹配。"""
-    electric = Q(report_source_model__regex=r"^EV") | Q(report_source_model__icontains="gogoro") | Q(report_source_model__in=ELECTRIC_MODELS)
-    return Case(When(electric, then=Value("電車")), default=Value("油車"), output_field=CharField())
+    """油車／電車分類：依訂單車型主檔的能源別，油車為「油車」，其他（電動、輕型電動、微型電動二輪）一律為「電車」。
+
+    只有沒連到車型主檔（或主檔未填能源別）的訂單，才退回原報表 calc_y9ocl9j2wd 公式：
+    EV 大小寫敏感、gogoro 忽略大小寫、其餘整段匹配清單。
+    """
+    from sales.models import VehicleModel
+
+    master_gas = Q(vehicle_model__energy_type=VehicleModel.EnergyType.GAS)
+    master_other = Q(vehicle_model__isnull=False) & ~Q(vehicle_model__energy_type="") & ~master_gas
+    legacy_electric = Q(report_source_model__regex=r"^EV") | Q(report_source_model__icontains="gogoro") | Q(report_source_model__in=ELECTRIC_MODELS)
+    return Case(
+        When(master_gas, then=Value("油車")),
+        When(master_other, then=Value("電車")),
+        When(legacy_electric, then=Value("電車")),
+        default=Value("油車"), output_field=CharField(),
+    )
 
 
 MODEL_PRESENCE = {"present": "有原型號值（包含空字串）", "missing": "原型號為空值或未提供"}

@@ -25,14 +25,14 @@ def total_vehicle_sales():
 
 
 def electric_vehicle_sales():
-    """p_v7fndtm3wd：使用原能源公式核對，不改寫 DMIS 能源與獎勵。"""
+    """p_v7fndtm3wd：油車／電車依車型主檔能源別分類，不改寫 DMIS 能源與獎勵。"""
     def card(title, chart, dimension, limit, sort="value", **extra):
         return {"title": title, "chart": chart, "dimension": dimension, "metric": "count", "formula": "",
                 "limit": limit, "sort": sort, **extra}
 
     return {
         "title": "電動車銷售統計", "audience": "admin", "date_basis": "registration_date",
-        "description": "依原頁三圖與明細建立，能源採原報表公式作比對，不修改 DMIS 主檔。原 CSV 的 Pulse Ultra、EZZY 500 與可見能源公式有矛盾，另有來源未匹配資料，尚未通過跨來源驗收。歷史贈品不代表已發放，新單獎勵仍以 DMIS 為準。",
+        "description": "依原頁三圖與明細建立；油車／電車依車型主檔能源別分類（電動、輕型電動、微型電動二輪車皆為電車），不修改 DMIS 主檔。另有來源未匹配資料，尚未通過跨來源驗收。歷史贈品不代表已發放，新單獎勵仍以 DMIS 為準。",
         "include_undated": True, "navigation_group": "sales", "page_order": 20, "reader_layout": "electric_overview",
         "fixed_filters": {"model_presence": ["present"], "legacy_energy": ["電車"]},
         "include_records": True, "records_page_size": 10,
@@ -68,7 +68,7 @@ def gasoline_vehicle_sales():
     config['reader_layout'] = 'gasoline_overview'
     config["cards"][1].update(dimension="month", title="電動車每月銷售型號")
     config.update(title="油車銷售統計", page_order=60,
-                  description="依原油車頁三圖與明細建立；以原報表能源分類核對，不改動 DMIS 車型、訂單或財務。原分類公式與來源資料仍有待釐清差異，本頁尚未通過完整跨來源驗收。歷史禮券與贈品不代表目前已發放。")
+                  description="依原油車頁三圖與明細建立；油車／電車依車型主檔能源別分類，不改動 DMIS 車型、訂單或財務。原分類公式與來源資料仍有待釐清差異，本頁尚未通過完整跨來源驗收。歷史禮券與贈品不代表目前已發放。")
     config["fixed_filters"]["legacy_energy"] = ["油車"]
     for card in config["cards"]:
         card["title"] = card["title"].replace("電動車", "油車")

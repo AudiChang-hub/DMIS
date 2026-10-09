@@ -204,7 +204,7 @@ class FilterForm(forms.Form):
     source = forms.MultipleChoiceField(label="車行／平台", required=False)
     legacy_source = forms.MultipleChoiceField(label="原報表銷售來源（五分類）", required=False, choices=[(label, label) for label in SOURCE_CLASSIFICATIONS])
     legacy_dealer = forms.MultipleChoiceField(label="原報表車行／平台名稱", required=False)
-    legacy_energy = forms.MultipleChoiceField(label="原報表能源（比對用）", required=False, choices=[(label, label) for label in SOURCE_ENERGIES])
+    legacy_energy = forms.MultipleChoiceField(label="油車／電車", required=False, choices=[(label, label) for label in SOURCE_ENERGIES])
 
     def __init__(self, *args, **kwargs):
         self.date_basis = kwargs.pop("date_basis", "registration_date")

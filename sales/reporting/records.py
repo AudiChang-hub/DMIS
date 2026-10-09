@@ -40,7 +40,7 @@ RECORD_COLUMNS = {
     "legacy_platform_gift": "歷史平台贈品",
     "legacy_premium": "歷史公司贈品",
     "legacy_notes": "歷史訂單備註（admin）",
-    "legacy_sales_source": "原報表來源類型", "legacy_energy": "原報表能源分類",
+    "legacy_sales_source": "原報表來源類型", "legacy_energy": "油車／電車分類",
     "legacy_dealer": "售出車行",
     "commission_recipient": "台數與傭金歸屬車行", "plate_number": "車牌號碼",
     "dealer_commission": "DMIS 車行傭金支出",

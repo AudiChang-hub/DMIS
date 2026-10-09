@@ -1,4 +1,44 @@
 {% load vehicle_model_workspace %}{% vehicle_model_workspace vehicle_model workspace_tab as ws %}{% url 'data_maintenance' as ws_data_url %}
+{% if ws.navigator %}
+<div class="model-nav" data-model-nav>
+  <button type="button" class="model-nav__handle" data-model-nav-toggle aria-expanded="false" aria-controls="model-nav-panel" title="機種清單（快捷鍵 [ ）">
+    <span class="model-nav__handle-icon" aria-hidden="true">›</span><span class="model-nav__handle-text">機種清單</span>
+  </button>
+  <div class="model-nav__backdrop" data-model-nav-backdrop></div>
+  <aside class="model-nav__panel" id="model-nav-panel" aria-label="機種清單" data-model-nav-panel inert>
+    <header class="model-nav__header">
+      <div><strong>機種清單</strong><small>點年式會停在「{{ ws.current_label|default:"規格與車色" }}」分頁</small></div>
+      <div class="model-nav__header-actions">
+        <button type="button" class="model-nav__pin" data-model-nav-pin aria-pressed="false" title="釘選後清單固定在左側">釘選</button>
+        <button type="button" class="model-nav__close" data-model-nav-close aria-label="收合機種清單">×</button>
+      </div>
+    </header>
+    <label class="model-nav__search">
+      <span class="visually-hidden">搜尋機種</span>
+      <input type="search" placeholder="搜尋品牌、機種、型號或年式" autocomplete="off" data-model-nav-search>
+    </label>
+    <nav class="model-nav__list" aria-label="切換機種">
+      {% for group in ws.navigator %}
+      <details class="model-nav__brand" data-model-nav-brand open>
+        <summary><span>{{ group.name }}</span><small>{{ group.count }}</small></summary>
+        {% for section in group.sections %}
+        {% if section.inactive %}<p class="model-nav__sub is-inactive" data-model-nav-sub>已停用</p>{% elif section.label %}<p class="model-nav__sub" data-model-nav-sub>{{ section.label }}<small>子品牌</small></p>{% endif %}
+        <ul>
+          {% for family in section.families %}
+          <li class="model-nav__family{% if not family.active %} is-inactive{% endif %}{% if family.current %} is-current{% endif %}" data-model-nav-family data-search="{{ family.search }}">
+            <span class="model-nav__family-name">{{ family.name }}{% if not family.active %}<small>已停用</small>{% endif %}</span>
+            <span class="model-nav__years">{% for year in family.years %}<a class="model-nav__year{% if year.current %} is-current{% endif %}{% if not year.active %} is-inactive{% endif %}" href="{{ year.url }}"{% if year.current %} aria-current="page"{% endif %}>{{ year.label }}</a>{% endfor %}</span>
+          </li>
+          {% endfor %}
+        </ul>
+        {% endfor %}
+      </details>
+      {% endfor %}
+      <p class="model-nav__empty" data-model-nav-empty hidden>找不到符合的機種</p>
+    </nav>
+  </aside>
+</div>
+{% endif %}
 {% if ws.saved %}{% include "sales/_page_back.html" with fallback_url=ws.back_url label=ws.back_label direct_back=True root_url=ws_data_url root_label="資料維護區" current_label=vehicle_model.name %}{% else %}{% include "sales/_page_back.html" with fallback_url=ws.back_url label=ws.back_label direct_back=True root_url=ws_data_url root_label="資料維護區" current_label="新增機種／年式" %}{% endif %}
 <section class="hero-row compact-hero model-workspace-hero{% if ws.saved and not vehicle_model.active %} is-inactive{% endif %}" data-model-workspace-hero>
   <div class="model-workspace-hero__main">

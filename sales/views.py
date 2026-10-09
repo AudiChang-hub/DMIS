@@ -18,7 +18,7 @@ from django.conf import settings
 from django.core.files.base import ContentFile
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import IntegrityError, connection, transaction
-from django.db.models import Case, Count, DecimalField, Exists, IntegerField, Max, OuterRef, Prefetch, Q, Subquery, Sum, Value, When
+from django.db.models import BooleanField, Case, Count, DecimalField, Exists, IntegerField, Max, OuterRef, Prefetch, Q, Subquery, Sum, Value, When
 from django.core.paginator import Paginator
 from django.http import FileResponse, Http404, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
@@ -8081,6 +8081,12 @@ def vehicle_model_list(request):
                 "suggested_price"
             )[:1],
             output_field=DecimalField(max_digits=12, decimal_places=0),
+        ),
+        current_suggested_includes_registration=Subquery(
+            current_prices.order_by("-effective_from", "-id").values(
+                "suggested_price_includes_registration"
+            )[:1],
+            output_field=BooleanField(),
         ),
     )
     matched_model_ids = set()

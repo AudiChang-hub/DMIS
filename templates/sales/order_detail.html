@@ -654,7 +654,7 @@
       <div><label for="{{ subsidy_form.subsidy_type.id_for_label }}">補助類型</label>{{ subsidy_form.subsidy_type }}</div>
       <div><label for="{{ subsidy_form.old_vehicle_valuation.id_for_label }}">舊車估價</label>{{ subsidy_form.old_vehicle_valuation }}</div>
       <div><label for="{{ subsidy_form.old_vehicle_tax.id_for_label }}">舊車未繳稅金</label>{{ subsidy_form.old_vehicle_tax }}</div>
-      <div class="subsidy-change-reason"><label for="{{ subsidy_form.change_reason.id_for_label }}">變更原因 <span class="required-inline">必填</span></label>{{ subsidy_form.change_reason }}</div>
+      <div class="subsidy-change-reason"><label for="{{ subsidy_form.change_reason.id_for_label }}">變更說明（選填）</label>{{ subsidy_form.change_reason }}</div>
     </div>
     <section class="dynamic-detail-section" data-subsidy-items>
       <div class="section-title"><div><h3>補助申請項目</h3><small>各單位金額與送件日期分開記錄；合計 $<output data-subsidy-total>{{ order.subsidy_total|number_with_commas }}</output></small></div></div>

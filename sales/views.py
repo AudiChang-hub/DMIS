@@ -6122,7 +6122,7 @@ def order_edit(request, pk):
                 order.actual_balance != order.calculate_balance()
                 and not order.balance_adjustment_reason
             ):
-                order.balance_adjustment_reason = form.cleaned_data["change_reason"]
+                order.balance_adjustment_reason = form.cleaned_data.get("change_reason") or "未填寫說明"
             order.revision += 1
             order.editing_session = ""
             order.editing_by = ""
@@ -7717,7 +7717,7 @@ def subsidy_data_update(request, pk):
     else:
         order.actual_balance = previous_actual_balance
         if order.actual_balance != order.calculated_balance:
-            order.balance_adjustment_reason = form.cleaned_data["change_reason"]
+            order.balance_adjustment_reason = form.cleaned_data.get("change_reason") or "未填寫說明"
     order.save()
     if items_submitted:
         item_formset.instance = order

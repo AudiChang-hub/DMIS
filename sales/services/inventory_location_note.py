@@ -22,8 +22,10 @@ IDENTIFIER = re.compile(r"^[A-Z0-9][A-Z0-9-]{7,}$")
 EMPTY_MARKS = {"0", "-", "－"}
 
 
-def _infer_date(month, day, received_on):
-    year = received_on.year if received_on else date.today().year
+def _infer_date(month, day, received_on, today=None):
+    """月／日推年份：早於進貨日視為隔年，但不能晚於今天（Excel 沒填進貨日期時，進貨日是匯入當天）。"""
+    today = today or date.today()
+    year = received_on.year if received_on else today.year
     try:
         result = date(year, month, day)
     except ValueError:
@@ -32,6 +34,11 @@ def _infer_date(month, day, received_on):
         try:
             result = date(year + 1, month, day)
         except ValueError:
+            return None
+    while result > today:
+        try:
+            result = result.replace(year=result.year - 1)
+        except ValueError:  # 2/29
             return None
     return result
 

@@ -2825,6 +2825,72 @@ def record_vehicle_history(vehicle, *, actor_name, reason, before_status, order_
     )
 
 
+class VehicleTransferSignoff(TimeStampedModel):
+    """調車簽收：同一車行一次調走多台時，領車人在店內裝置簽名一次。
+
+    只能在登入後的店內平板／手機簽署，不產生對外簽署連結（使用者 2026-10-10 決定）。
+    簽署後車輛改為已調出；作廢只保留紀錄並把仍為已調出的車改回可銷售。
+    """
+
+    dealer = models.ForeignKey(
+        SalesSource,
+        on_delete=models.PROTECT,
+        related_name="transfer_signoffs",
+        verbose_name="調往車行",
+        blank=True,
+        null=True,
+        limit_choices_to={"source_type": SalesSource.SourceType.DEALER},
+    )
+    dealer_name = models.CharField("調往對象", max_length=120)
+    vehicles = models.ManyToManyField(
+        VehicleInventory, related_name="transfer_signoffs", verbose_name="調出車輛"
+    )
+    vehicles_snapshot = models.JSONField("簽署當下車輛", default=list, editable=False)
+    company_snapshot = models.JSONField("簽收單公司抬頭", default=dict, editable=False)
+    signer_name = models.CharField("領車人", max_length=60)
+    signer_phone = models.CharField("領車人電話", max_length=30, blank=True)
+    note = models.CharField("備註", max_length=200, blank=True)
+    signature_image = models.FileField(
+        "簽名", upload_to="inventory/transfer-signoffs/%Y/%m/", editable=False
+    )
+    signed_pdf = models.FileField(
+        "簽收單", upload_to="inventory/transfer-signoffs/%Y/%m/", editable=False
+    )
+    fingerprint = models.CharField("內容指紋", max_length=64, editable=False)
+    pdf_sha256 = models.CharField("簽收單 SHA-256", max_length=64, editable=False)
+    signed_at = models.DateTimeField("簽署時間", editable=False)
+    staff = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="+",
+        verbose_name="經手帳號",
+        null=True,
+        editable=False,
+    )
+    staff_name = models.CharField("經手人", max_length=60, editable=False)
+    client_ip = models.CharField("簽署 IP", max_length=64, blank=True, editable=False)
+    user_agent = models.CharField("簽署裝置", max_length=300, blank=True, editable=False)
+    voided_at = models.DateTimeField("作廢時間", blank=True, null=True, editable=False)
+    voided_by = models.CharField("作廢人員", max_length=150, blank=True, editable=False)
+    void_reason = models.CharField("作廢原因", max_length=300, blank=True, editable=False)
+
+    class Meta:
+        ordering = ["-signed_at", "-id"]
+        verbose_name = "調車簽收"
+        verbose_name_plural = "調車簽收"
+
+    def __str__(self):
+        return f"{self.number}／{self.dealer_name}"
+
+    @property
+    def number(self):
+        return f"TS{timezone.localtime(self.signed_at):%Y%m%d}-{self.pk:04d}" if self.pk else "TS（未簽署）"
+
+    @property
+    def is_voided(self):
+        return self.voided_at is not None
+
+
 class ActiveSalesOrderManager(models.Manager):
     def get_queryset(self):
         return super().get_queryset().filter(deleted_at__isnull=True)

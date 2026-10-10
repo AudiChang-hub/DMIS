@@ -1,0 +1,81 @@
+{% extends "base.html" %}{% load static %}
+{% block title %}調車簽收｜車輛銷售管理{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'css/signing.css' %}?v={{ app_version }}"><link rel="stylesheet" href="{% static 'css/transfer-signoff.css' %}?v={{ app_version }}">{% endblock %}
+{% block content %}
+{% url 'transfer_signoff_list' as list_url %}
+{% include "sales/_page_back.html" with fallback_url=list_url label="返回調車簽收紀錄" %}
+<section class="hero-row compact-hero">
+  <div><p class="eyebrow">車輛庫存</p><h1>調車簽收</h1><p class="muted">同一車行一次調走多台時，選好車行與車輛，交給領車人在本店平板或手機上確認並簽名一次。簽收後車輛改為「已調出」：不算庫存，但保留進車紀錄。只能在店內簽署，不提供對外連結。</p></div>
+</section>
+
+{% if errors %}<div class="callout callout--danger" role="alert"><span class="callout__icon" aria-hidden="true">!</span><div>{% for error in errors %}<p>{{ error }}</p>{% endfor %}</div></div>{% endif %}
+
+<form method="post" class="transfer-select" data-transfer-select>
+  {% csrf_token %}
+  <section class="section-block">
+    <div class="section-title"><div><h2><span class="transfer-step">1</span>調往哪裡</h2><small>車行調走選車行；原廠或總公司把車調回去選「原廠／總公司」。放到合作車行展示的車仍是本店庫存，請改用車輛的「實際位置」，不要在這裡簽收。</small></div></div>
+    <div class="section-body form-grid">
+      <div class="field">
+        <label for="transfer-dealer">車行或原廠</label>
+        <select id="transfer-dealer" name="dealer" class="form-control" data-searchable-select="1" data-search-placeholder="輸入車行名稱">
+          <option value="">— 請選擇 —</option>
+          <option value="factory"{% if data.factory %} selected{% endif %}>原廠／總公司（調回）</option>
+          {% for dealer in dealers %}<option value="{{ dealer.pk }}"{% if data.dealer and data.dealer.pk == dealer.pk %} selected{% endif %}>{{ dealer.name }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="field">
+        <label for="transfer-dealer-name">主檔沒有的車行</label>
+        <input id="transfer-dealer-name" class="form-control" type="text" name="dealer_name" maxlength="120" value="{% if not data.dealer and not data.factory %}{{ data.dealer_name }}{% endif %}" placeholder="例如：榮擎（有選主檔時可留空）">
+      </div>
+    </div>
+  </section>
+
+  <section class="section-block">
+    <div class="section-title">
+      <div><h2><span class="transfer-step">2</span>選擇車輛</h2><small>只列出可銷售或車況異常的車；已配給訂單的車不能調出。</small></div>
+      <span class="transfer-picked" aria-live="polite">已選 <b data-transfer-count>{{ selected_ids|length }}</b> 台</span>
+    </div>
+    <div class="section-body transfer-pick">
+      <label class="visually-hidden" for="transfer-search">搜尋車輛</label>
+      <input id="transfer-search" class="form-control transfer-pick__search" type="search" placeholder="搜尋車型、車色、引擎或車身號碼、位置" data-transfer-search autocomplete="off">
+      {% if candidates %}
+      <ul class="transfer-pick__list" data-transfer-list>
+        {% for vehicle in candidates %}
+        <li data-transfer-item data-search="{{ vehicle.vehicle_model.name|lower }} {{ vehicle.vehicle_model.model_number|default:''|lower }} {{ vehicle.color.name|lower }} {{ vehicle.engine_number|default:''|lower }} {{ vehicle.frame_number|default:''|lower }} {{ vehicle.actual_location_label|lower }}">
+          <label class="transfer-pick__card">
+            <input type="checkbox" name="vehicles" value="{{ vehicle.pk }}"{% if vehicle.pk in selected_ids %} checked{% endif %}>
+            <span class="transfer-pick__check" aria-hidden="true"></span>
+            <span class="transfer-pick__body">
+              <strong>{{ vehicle.vehicle_model.name }}</strong>
+              <small>{{ vehicle.color.name }}・進車 {{ vehicle.received_on|date:"Y/m/d" }}</small>
+              <span class="inventory-identifier">{{ vehicle.identifier }}</span>
+              <span class="transfer-pick__tags"><span>{{ vehicle.actual_location_label }}</span>{% if vehicle.status == 'condition_issue' %}<span class="is-warning">車況異常</span>{% endif %}</span>
+            </span>
+          </label>
+        </li>
+        {% endfor %}
+      </ul>
+      <p class="muted" data-transfer-empty hidden>沒有符合搜尋的車輛。</p>
+      {% else %}
+      <p class="muted">目前沒有可調出的車輛。</p>
+      {% endif %}
+    </div>
+  </section>
+
+  <section class="section-block">
+    <div class="section-title"><div><h2><span class="transfer-step">3</span>領車人</h2><small>簽名時會再請領車人確認。</small></div></div>
+    <div class="section-body form-grid">
+      <div class="field"><label for="transfer-signer">領車人姓名 <em>必填</em></label><input id="transfer-signer" class="form-control" type="text" name="signer_name" maxlength="60" value="{{ data.signer_name }}" required autocomplete="off"></div>
+      <div class="field"><label for="transfer-phone">領車人電話</label><input id="transfer-phone" class="form-control" type="tel" name="signer_phone" maxlength="30" value="{{ data.signer_phone }}" inputmode="tel" autocomplete="off"></div>
+      <div class="field field-span-2"><label for="transfer-note">備註</label><input id="transfer-note" class="form-control" type="text" name="note" maxlength="200" value="{{ data.note }}" placeholder="例如：含鑰匙兩副、附發票"></div>
+    </div>
+  </section>
+
+  <div class="form-savebar transfer-select__bar">
+    <span>已選 <b data-transfer-count>{{ selected_ids|length }}</b> 台</span>
+    <a class="button ghost" href="{% url 'transfer_signoff_list' %}">取消</a>
+    <button class="button primary" type="submit" name="step" value="review">下一步：交給領車人簽名</button>
+  </div>
+</form>
+{% endblock %}
+{% block scripts %}<script src="{% static 'js/transfer-signoff.js' %}?v={{ app_version }}" defer></script>{% endblock %}

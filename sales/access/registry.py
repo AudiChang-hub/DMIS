@@ -91,6 +91,10 @@ register("operations", "operations_report_export", "export")
 register("reconciliation", "reconciliation_list reconciliation_update")
 register("inventory", "inventory_list")
 register("inventory", "inventory_create inventory_quick_create inventory_edit inventory_allocation_priority", "operate")
+# 調車簽收：查看需庫存畫面；建立（店內簽名）需庫存操作；簽收單 PDF 屬匯出；作廢只限 admin。
+register("inventory", "transfer_signoff_list transfer_signoff_detail")
+register("inventory", "transfer_signoff_create", "operate")
+register("inventory", "transfer_signoff_pdf", "export")
 register("brands", "vehicle_brand_list")
 register("models", "vehicle_model_list vehicle_model_price_versions vehicle_installment_plan_list vehicle_model_rules")
 register("models", "vehicle_model_create vehicle_model_edit", "operate")
@@ -129,6 +133,7 @@ register("accounts", "user_account_create user_account_edit user_account_status 
 PERSONAL = set("dashboard home_favorites system_health app_version appearance_theme_update mobile_quick_links_update user_guide password_change_required access_home login logout throttled_admin_login".split())
 ROOT_ONLY = set("historical_delivery_complete announcement_manage announcement_edit access_overview access_edit report_manage report_classification report_create report_edit report_draft_preview report_lifecycle".split())
 ROOT_ONLY.add("order_account_scope")
+ROOT_ONLY.add("transfer_signoff_void")  # 作廢調車簽收會把車改回庫存
 ROOT_ONLY.add("order_customer_access")
 ROOT_ONLY.add("permission_workspace")
 ROOT_ONLY.add("create_dealer_entry")
@@ -162,5 +167,5 @@ TOGGLE_RESOURCES = {
     "sales-source-category": "sources", "settlement-cost-rule": "costs",
     "vehicle-brand": "brands", "vehicle-model": "models", "vehicle-price-version": "models",
 }
-MEDIA_SCREENS = {"order": "orders", "draft": "orders", "vehicle": "inventory", "vehicle_history": "inventory", "payment": "work", "delivery": "work"}
+MEDIA_SCREENS = {"order": "orders", "draft": "orders", "vehicle": "inventory", "vehicle_history": "inventory", "transfer_signoff": "inventory", "payment": "work", "delivery": "work"}
 SPECIAL = {"report_center", "data_maintenance", "master_record_set_active", "protected_media"}

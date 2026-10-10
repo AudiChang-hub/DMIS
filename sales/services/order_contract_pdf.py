@@ -423,10 +423,11 @@ def draw_order_page(c, order, copy_label, page_number, printed_at, signature=Non
             p("<b>補助類型</b>"),
             p(safe(order.subsidy_type if order.is_trade_in_subsidy else "無")),
             p("<b>新舊車主</b>"),
-            p("同一人" if order.old_owner_same_as_owner else "不同人"),
+            # 沒有申請補助就沒有新舊車主，不預設為「不同人」。
+            p(("同一人" if order.old_owner_same_as_owner else "不同人") if order.is_trade_in_subsidy else "—"),
         ]
     ]
-    if not order.old_owner_same_as_owner:
+    if order.is_trade_in_subsidy and not order.old_owner_same_as_owner:
         subsidy_data.append(
             [
                 p("<b>舊車主姓名</b>"),
@@ -478,10 +479,10 @@ def draw_order_page(c, order, copy_label, page_number, printed_at, signature=Non
         [
             p("<b>已收訂金</b>"),
             p(f"${money(order.deposit_amount)}"),
-            p("<b>收款日期</b>"),
-            p(order.deposit_date.strftime("%Y-%m-%d") if order.deposit_date else "—"),
+            p("<b>訂金收款日</b>"),
+            p(order.deposit_date.strftime("%Y-%m-%d") if order.deposit_date and order.deposit_amount else "—"),
             p("<b>收款方式</b>"),
-            p(order.get_deposit_method_display() if order.deposit_method else "—"),
+            p(order.get_deposit_method_display() if order.deposit_method and order.deposit_amount else "—"),
         ],
         [
             p("<b>預估尾款</b>"),

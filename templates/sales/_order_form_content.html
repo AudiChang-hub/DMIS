@@ -337,7 +337,7 @@
   <details class="form-section" id="deposit" {% if order_workspace %}data-workspace-section="finance"{% endif %} open {% if wizard %}data-wizard-panel="deposit" {% if wizard.current != 'deposit' %}hidden{% endif %}{% endif %}>
     <summary><span class="step-number">8</span><span><strong>訂金與費用</strong><small>這次收的訂金、其他費用與附件</small></span></summary>
     <div class="subsection deposit-subsection" id="deposit-subsection">
-      {% if wizard %}<input type="hidden" name="_deposit_auto" id="deposit-auto" value="{{ wizard.deposit_auto }}">{% endif %}<div class="section-title"><div><h3>訂金</h3><p class="muted" id="deposit-hint">現金：依客人這次實際要付的金額填寫。分期：預設以配件金額當訂金，可修改。</p></div></div>
+      <div class="section-title"><div><h3>訂金</h3><p class="muted" id="deposit-hint">依客人這次實際要付的金額填寫；沒有收訂金請留空。</p></div></div>
       <div class="form-grid">
         {% include "sales/_field.html" with field=form.deposit_amount %}
         {% include "sales/_field.html" with field=form.deposit_date %}

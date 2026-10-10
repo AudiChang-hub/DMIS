@@ -324,8 +324,10 @@
     <summary><span class="step-number">5</span><span><strong>其他需求</strong><small>{% site_text 'order_form.7eacf129bc3f' %}</small></span></summary>
     <div class="form-grid">
       {% include "sales/_field.html" with field=form.trade_in_intent %}<p class="muted">{% site_text 'order_form.7825ae5a8413' %}</p>
-      <div class="span-2 verify-box" {% if intake_mode and not intake_finance_editable %}hidden{% endif %}>{% include "sales/_field.html" with field=form.is_trade_in_subsidy %}</div>
-      <div class="span-2 verify-box" data-conditional="trade-in-owner">{% include "sales/_field.html" with field=form.old_owner_same_as_owner %}</div>
+      {# 訂單頁編輯不含這兩欄（改在「汰舊補助」分頁處理），不能留下空白框。 #}
+      {% if form.is_trade_in_subsidy %}<div class="span-2 verify-box" {% if intake_mode and not intake_finance_editable %}hidden{% endif %}>{% include "sales/_field.html" with field=form.is_trade_in_subsidy %}</div>{% endif %}
+      {% if form.old_owner_same_as_owner %}<div class="span-2 verify-box" data-conditional="trade-in-owner">{% include "sales/_field.html" with field=form.old_owner_same_as_owner %}</div>
+      {% else %}<p class="span-2 muted" data-conditional="trade-in-owner">舊車主資料與補助申請請到訂單的「汰舊補助」分頁填寫。</p>{% endif %}
       {% if intake_mode %}<div class="form-grid span-2" data-trade-in-uploads><label>舊車主證件正面（選填）<input type="file" name="old_id_front" accept="image/jpeg,image/png,image/webp,application/pdf"></label><label>舊車主證件反面（選填）<input type="file" name="old_id_back" accept="image/jpeg,image/png,image/webp,application/pdf"></label><label>舊車主存摺封面（選填）<input type="file" name="old_bankbook" accept="image/jpeg,image/png,image/webp,application/pdf"></label></div>{% endif %}
       {% include "sales/_field.html" with field=form.plate_choice %}
       <div data-conditional="watch">{% include "sales/_field.html" with field=form.watched_numbers %}</div>

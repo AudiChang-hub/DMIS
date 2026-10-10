@@ -49,3 +49,15 @@ class StoreHandlesOrdersTests(TestCase):
         response = self.submit()
         self.assertEqual(response.status_code, 302, getattr(response, "context", None) and response.context["form"].errors)
         self.assertEqual(SalesOrder.objects.get().status, SalesOrder.Status.INTAKE_PENDING)
+
+    def test_catalog_entry_offers_other_accessory_to_everyone(self):
+        # 1.70.1：清單找不到的配件（例如手機架），從選車頁進來也一律可選「其他」自行填名稱與售價。
+        page = self.client.get(reverse("order_start")).content.decode()
+        self.assertIn('<option value="other">其他（自行填寫名稱）</option>', page)
+        custom = {"accessories-TOTAL_FORMS": "1", "accessories-0-accessory_product": "other",
+                  "accessories-0-custom_name": "行車紀錄器", "accessories-0-quantity": "1",
+                  "accessories-0-line_type": "purchase", "accessories-0-amount": "2500", "accessories-0-labor_fee": "300"}
+        response = self.submit("order_start", **custom)
+        self.assertEqual(response.status_code, 302, getattr(response, "context", None) and response.context["form"].errors)
+        line = SalesOrder.objects.get().accessories.get()
+        self.assertEqual((line.name, line.amount, line.labor_fee), ("行車紀錄器", 2500, 300))

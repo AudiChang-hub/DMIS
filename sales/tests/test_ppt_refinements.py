@@ -95,17 +95,18 @@ class PptRefinementTests(TestCase):
         form = AnnouncementForm(data, {"attachments_upload": SimpleUploadedFile("bad.html", b"<script>x</script>", content_type="text/html")})
         self.assertFalse(form.is_valid())
 
-    def test_custom_accessory_requires_price_authority_and_keeps_fee(self):
+    def test_custom_accessory_open_to_everyone_and_keeps_fee(self):
         data = {"custom_name": "臨時手機架", "quantity": 2, "line_type": "purchase", "amount": 900, "labor_fee": 100}
         form = AccessoryLineForm(data, allow_manual=True)
         self.assertTrue(form.is_valid(), form.errors)
         line = form.save(commit=False)
         self.assertEqual(line.name, "臨時手機架")
         self.assertEqual(line.line_total, 2000)
-        denied = AccessoryLineForm(data, allow_manual=False)
-        self.assertTrue(denied.is_valid(), denied.errors)
-        self.assertTrue(denied.cleaned_data["DELETE"])
-        self.assertFalse(denied.instance.name)
+        # 1.70.1：清單找不到的配件所有人都可自行填寫名稱與售價。
+        everyone = AccessoryLineForm(data, allow_manual=False)
+        self.assertTrue(everyone.is_valid(), everyone.errors)
+        self.assertFalse(everyone.cleaned_data.get("DELETE"))
+        self.assertEqual(everyone.save(commit=False).line_total, 2000)
 
     def test_manual_cost_survives_sync(self):
         data = self.operations_data()
@@ -283,14 +284,16 @@ class PptRefinementTests(TestCase):
         self.order.deposit_amount = Decimal('1000')
         self.assertEqual(customer_balance(self.order), 0)
 
-    def test_other_accessory_requires_permission_and_name_and_gift_is_zero(self):
+    def test_other_accessory_requires_name_and_gift_is_zero(self):
         data = dict(accessory_product='other', custom_name='手機架', quantity=1, line_type='gift', amount=999, labor_fee=50)
         form = AccessoryLineForm(data=data, allow_manual=True)
         self.assertTrue(form.is_valid(), form.errors)
         self.assertEqual(form.cleaned_data['amount'], 0)
         self.assertEqual(form.cleaned_data['labor_fee'], 0)
-        denied = AccessoryLineForm(data=data, allow_manual=False)
-        self.assertFalse(denied.is_valid())
+        everyone = AccessoryLineForm(data=data, allow_manual=False)
+        self.assertTrue(everyone.is_valid(), everyone.errors)
+        self.assertEqual(everyone.cleaned_data['amount'], 0)
+        self.assertIn('其他（自行填寫名稱）', str(everyone['accessory_product']))
         missing = AccessoryLineForm(data={**data, 'custom_name': ''}, allow_manual=True)
         self.assertFalse(missing.is_valid())
         self.assertIn('custom_name', missing.errors)

@@ -262,6 +262,7 @@ class OrderCommissionRecipientTests(TestCase):
         later = self.make_order(self.b, registration_date=date(2026, 10, 2))
         self.assertEqual(later.effective_commission_recipient, self.b)
 
+    @patch("sales.intake_forms.ASSISTED_COMPANY_CONFIRMATION", True)  # 驗證停用前的代開公司確認（開關改回時沿用）
     def test_draft_restores_and_create_saves_attribution(self):
         company = PrintCompany.objects.create(
             key=f"dealer:{self.b.pk}", source=self.b, legal_name="B車行有限公司",

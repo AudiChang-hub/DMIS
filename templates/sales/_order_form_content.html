@@ -104,7 +104,7 @@
       </div>
     </div>
     <div {% if intake_mode and not intake_finance_editable %}hidden{% endif %}>{% include "sales/_order_commission_recipient.html" %}</div>
-    {% if intake_mode and not form.dealer %}
+    {% if intake_mode and form.assisted_confirmation %}
     <div class="card" data-assisted-company hidden>
       <h3>代開訂單的公司確認</h3>
       <p>建立人保留目前操作帳號；銷售來源為所選車行。該車行具「本車行訂單」查詢權限的人員可查閱，另有文件列印權限即可在待接單時列印。</p>
@@ -407,7 +407,7 @@
   </div>
   {% endif %}
   {% if wizard %}{% include "sales/_order_wizard_confirm.html" %}{% endif %}
-  {% if intake_mode and intake_can_receive %}<div class="card intake-accept-card" {% if wizard %}data-wizard-panel="confirm" {% if wizard.current != 'confirm' %}hidden{% endif %}{% endif %}><label>{{ form.accept_by_me }} 由我接單</label><p>{% site_text 'order_form.3c48542d2741' %}</p></div>{% endif %}
+  {% if intake_mode and intake_can_receive and not intake_auto_accept %}<div class="card intake-accept-card" {% if wizard %}data-wizard-panel="confirm" {% if wizard.current != 'confirm' %}hidden{% endif %}{% endif %}><label>{{ form.accept_by_me }} 由我接單</label><p>{% site_text 'order_form.3c48542d2741' %}</p></div>{% endif %}
   {% if wizard %}{% include "sales/_order_wizard_nav.html" %}{% else %}
   <div class="mobile-submit">
     {% if editing_order %}<a class="button ghost" href="{% url 'order_detail' editing_order.pk %}" data-cancel-edit>取消修改</a>{% endif %}

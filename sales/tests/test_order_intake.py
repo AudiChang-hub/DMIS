@@ -1,4 +1,5 @@
 import tempfile
+from unittest.mock import patch
 from django.contrib.auth import get_user_model
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.test import TestCase, Client, TransactionTestCase, override_settings, skipUnlessDBFeature
@@ -11,6 +12,7 @@ from sales.services.order_next_actions import build_order_next_actions
 from . import test_drafts as fixtures
 
 
+@patch("sales.services.order_intake.AUTO_ACCEPT_ON_CREATE", False)  # 驗證停用前的待接單流程（開關改回時沿用）
 class OrderIntakeTests(TestCase):
     image = fixtures.OrderDraftTests.image
     complete_data = fixtures.OrderDraftTests.complete_data

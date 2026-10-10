@@ -125,6 +125,8 @@ class CustomerGrantTests(TestCase):
         self.assertFalse(customer_orders(self.user, printing=True).exists())
 
 
+@patch("sales.services.order_intake.AUTO_ACCEPT_ON_CREATE", False)
+@patch("sales.intake_forms.ASSISTED_COMPANY_CONFIRMATION", True)  # 驗證停用前的代開公司確認（開關改回時沿用）
 class AssistedIntakeTests(TestCase):
     image = intake_fixtures.OrderIntakeTests.image
     complete_data = intake_fixtures.OrderIntakeTests.complete_data

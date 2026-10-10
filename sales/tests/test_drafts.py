@@ -1,6 +1,7 @@
 import io
 import json
 import tempfile
+from unittest.mock import patch
 from pathlib import Path
 
 from django.contrib.auth import get_user_model
@@ -157,6 +158,7 @@ class OrderDraftTests(TestCase):
         self.assertTrue(draft.id_front)
         self.assertTrue(draft.id_back)
 
+    @patch("sales.services.order_intake.AUTO_ACCEPT_ON_CREATE", False)  # 驗證停用前的待接單流程（開關改回時沿用）
     def test_draft_can_resume_and_convert_to_formal_order(self):
         draft = OrderDraft.objects.create(
             data=self.complete_data(),

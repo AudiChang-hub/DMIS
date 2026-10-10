@@ -16,6 +16,9 @@ from sales.services.upload_validation import validate_document_upload
 # 訂金是客人當場付的款項，所有可建立訂單的帳號（含接待模式與合作車行）都要能填寫，
 # 因此不列入財務欄位；其他財務欄位仍依原權限。
 DEPOSIT_FIELDS = ("deposit_amount", "deposit_date", "deposit_method")
+# 代合作車行開單時的「代開公司確認」：現階段一律由本店代開、文件使用本店公司資料，先停用（使用者 2026-10-10）。
+# 改回 True 即恢復：須選定車行已設定的公司資料並勾選確認，訂購文件改用該車行公司。
+ASSISTED_COMPANY_CONFIRMATION = False
 
 FINANCE_FIELDS = (
     "registration_manual", "registration_adjustment_reason",
@@ -68,14 +71,16 @@ class IntakeOrderForm(SalesOrderForm):
         super().__init__(*args, **kwargs)
         self.assisted_company = None
         self.assisted_companies = {}
+        self.assisted_confirmation = ASSISTED_COMPANY_CONFIRMATION and not self.dealer
         if not self.dealer:
-            from sales.models import PrintCompany
-            from sales.services.print_company import FIELDS
             self.fields["source_type"].label = "開單方式／銷售來源"
             self.fields["source_type"].choices = [
                 (key, "代合作車行開單" if key == "dealer" else label)
                 for key, label in self.fields["source_type"].choices
             ]
+        if self.assisted_confirmation:
+            from sales.models import PrintCompany
+            from sales.services.print_company import FIELDS
             self.assisted_companies = {str(c.source_id): {**{key: getattr(c, key) for key in FIELDS}, "revision": c.revision}
                 for c in PrintCompany.objects.filter(source__active=True, source__source_type="dealer")}
         self.fields["trade_in_intent"].required = False
@@ -134,7 +139,7 @@ class IntakeOrderForm(SalesOrderForm):
         for name in FINANCE_FIELDS:
             if name in self.fields and self.fields[name].disabled and data.get(name) is None:
                 data.pop(name, None)
-        if not self.dealer and data.get("source_type") == "dealer" and data.get("source"):
+        if self.assisted_confirmation and data.get("source_type") == "dealer" and data.get("source"):
             from sales.models import PrintCompany
             from sales.services.print_company import validate_header, company_data
             companies = PrintCompany.objects.filter(source=data["source"])

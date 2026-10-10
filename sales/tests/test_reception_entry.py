@@ -57,8 +57,9 @@ class ReceptionEntryTests(TestCase):
                              **{"other_fees-0-name": "FORGED-INTERNAL", "other_fees-0-amount": "999"})
         self.assertEqual(result.status_code, 302, result.context and result.context["form"].errors)
         order = SalesOrder.objects.get()
-        # 訂金所有建單帳號都可填；其他財務欄位在接待模式仍不採用。
-        self.assertEqual((order.vehicle_price, order.deposit_amount, order.status), (76000, 5000, "intake_pending"))
+        # 訂金所有建單帳號都可填；其他財務欄位在接待模式仍不採用。有接單權限的建立人直接接單（1.69.0）。
+        self.assertEqual((order.vehicle_price, order.deposit_amount, order.status), (76000, 5000, "allocation_pending"))
+        self.assertEqual(order.accepted_by, self.root)
         self.assertNotEqual(order.registration_plate_fee, 999)
         self.assertFalse(order.other_fees.exists())
         repeated = self.submit(_submission_key=key)

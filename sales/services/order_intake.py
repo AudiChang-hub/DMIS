@@ -21,6 +21,16 @@ def is_dealer(user):
     return bool(profile and profile.kind == "dealer")
 
 
+# 現階段訂單都由本店自己處理：有接單權限的人建立訂單時（含選車後的接待入口）直接由建立人接單，不另走「由我接單」（使用者 2026-10-10）。
+# 沒有接單權限的帳號（純接待、合作車行）建立的訂單仍進入待接單。
+# 改回 False 即恢復：建立後進入待接單，由店內人員按「由我接單」。
+AUTO_ACCEPT_ON_CREATE = True
+
+
+def auto_accepts(user):
+    return AUTO_ACCEPT_ON_CREATE and can_receive(user)
+
+
 def can_receive(user):
     from sales.access.services import AccessPolicy
     return not is_dealer(user) and AccessPolicy(user).screen("work", "operate")

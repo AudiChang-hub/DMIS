@@ -170,7 +170,7 @@ class OrderFlowTests(TestCase):
         response = self.client.get(reverse("order_edit", args=[order.pk]))
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "編輯訂單")
-        self.assertContains(response, "變更原因")
+        self.assertContains(response, "變更說明（選填）")
         self.assertContains(response, "取消修改")
         self.assertContains(response, "data-cancel-edit")
         self.assertContains(response, "beforeunload")

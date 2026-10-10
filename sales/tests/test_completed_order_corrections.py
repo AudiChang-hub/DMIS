@@ -88,12 +88,12 @@ class CompletedOrderCorrectionTests(TestCase):
                 self.assertIn("完成後修正", event.description)
                 self.assertTrue(event.actor_name)
 
-    def test_confirmation_and_reason_are_required_server_side(self):
+    def test_confirmation_is_required_server_side(self):
+        # 變更說明自 1.62.2 起為選填（使用者 2026-10-10）；完成後修正仍須勾選確認。
         order = self.order()
-        for field in ("confirm_completed_correction", "change_reason"):
-            response = self.post(order, **{field: ""})
-            self.assertEqual(response.status_code, 200)
-            self.assertIn(field, response.context["form"].errors)
+        response = self.post(order, confirm_completed_correction="")
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("confirm_completed_correction", response.context["form"].errors)
         order.refresh_from_db()
         self.assertEqual(order.revision, 1)
         self.assertFalse(OrderChange.objects.filter(order=order).exists())

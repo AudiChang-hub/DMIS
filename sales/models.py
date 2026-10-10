@@ -4056,6 +4056,11 @@ class SalesOrder(TimeStampedModel):
             self.privacy_consent_uploaded_at = timezone.now()
         if self.pk:
             self.calculated_balance = self.calculate_balance()
+        if not self.deposit_amount and self.deposit_date:
+            # 訂金日期欄位預設今天；沒收訂金時不留日期，避免合約與收款明細出現假的收款日。
+            self.deposit_date = None
+            if kwargs.get("update_fields") is not None:
+                kwargs["update_fields"] = set(kwargs["update_fields"]) | {"deposit_date"}
         if self.status == self.Status.DRAFT:
             self.status = self.Status.ALLOCATION_PENDING
         if self.is_delivered and not self.delivered_at and not getattr(self, "_preserve_delivery_metadata", False):

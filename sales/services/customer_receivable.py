@@ -6,7 +6,12 @@ def default_customer_balance(order):
     zero = Decimal("0")
     if order.payment_type == "installment":
         if order.cash_receivable_v2:
-            return max((order.plate_insurance_fee or zero) + order.accessory_total - (order.deposit_amount or zero), zero)
+            # 分期公司只分車款（開辦費由撥款處理）；牌險、其他費用（例如選號）、舊車稅與配件由客人付（使用者 2026-10-10）。
+            customer_part = (
+                (order.plate_insurance_fee or zero) + order.other_fee_total
+                + (order.old_vehicle_tax or zero) + order.accessory_total
+            )
+            return max(customer_part - (order.deposit_amount or zero), zero)
         return max((order.actual_balance or zero) - (order.installment_amount or zero), zero)
     return order.actual_balance or zero
 

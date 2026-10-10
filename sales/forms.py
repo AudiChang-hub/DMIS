@@ -1668,8 +1668,8 @@ class OrderEditForm(SalesOrderForm):
         required=False,
     )
     change_reason = forms.CharField(
-        label="變更原因",
-        required=True,
+        label="變更說明（選填）",
+        required=False,
         widget=forms.Textarea(
             attrs={"rows": 2, "placeholder": "請說明本次修改原因"}
         ),
@@ -1691,7 +1691,7 @@ class OrderEditForm(SalesOrderForm):
             and not self.instance.balance_adjustment_reason
             and data.get("change_reason")
         ):
-            self.instance.balance_adjustment_reason = data["change_reason"]
+            self.instance.balance_adjustment_reason = data.get("change_reason") or "未填寫說明"
         if self.instance.allocated_vehicle_id:
             if (
                 data.get("vehicle_model")
@@ -4671,8 +4671,9 @@ class SubsidyDocumentUploadForm(forms.ModelForm):
 
 class SubsidyDataForm(forms.ModelForm):
     change_reason = forms.CharField(
-        label="變更原因",
+        label="變更說明（選填）",
         max_length=250,
+        required=False,
         widget=forms.Textarea(
             attrs={
                 "rows": 2,

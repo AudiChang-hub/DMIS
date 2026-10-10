@@ -2242,7 +2242,7 @@ class OrderFlowTests(TestCase):
         self.assertContains(response, "全部停用車輛")
         self.assertNotContains(response, "調車中（含待調車）")
 
-    def test_inventory_list_never_shows_sold_vehicles(self):
+    def test_sold_vehicles_only_listed_in_sold_scope(self):
         sold = VehicleInventory.objects.create(
             vehicle_model=self.model,
             color=self.color,
@@ -2253,10 +2253,15 @@ class OrderFlowTests(TestCase):
         )
         self.client.force_login(self.user)
 
-        for params in ({"status": VehicleInventory.Status.SOLD}, {"q": "ENG-OLD-LINK"}):
+        for params in ({"q": "ENG-OLD-LINK"}, {"scope": "history", "q": "ENG-OLD-LINK"}):
             response = self.client.get(reverse("inventory_list"), params)
             self.assertEqual(response.status_code, 200)
             self.assertNotIn(sold, list(response.context["vehicles"]))
+        # 已售出另列「已售出／調出」分頁；只篩已售出狀態時自動切到該分頁。
+        for params in ({"scope": "sold"}, {"status": VehicleInventory.Status.SOLD}):
+            response = self.client.get(reverse("inventory_list"), params)
+            self.assertEqual(response.context["selected"]["scope"], "sold")
+            self.assertIn(sold, list(response.context["vehicles"]))
         # 資料保留：從訂單等處直接開啟車輛頁仍可查看。
         self.assertEqual(
             self.client.get(reverse("inventory_edit", args=[sold.pk])).status_code, 200

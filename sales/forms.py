@@ -1900,10 +1900,12 @@ class VehicleInventoryForm(forms.ModelForm):
         VehicleInventory.Status.RESERVED,
         VehicleInventory.Status.DELIVERED,
         VehicleInventory.Status.SOLD,
+        VehicleInventory.Status.TRANSFERRED_OUT,
     }
     FINAL_STATUSES = {
         VehicleInventory.Status.DELIVERED,
         VehicleInventory.Status.SOLD,
+        VehicleInventory.Status.TRANSFERRED_OUT,
     }
 
     class Meta:
@@ -1922,8 +1924,15 @@ class VehicleInventoryForm(forms.ModelForm):
             "condition_photo",
             "condition_resolution",
             "resale_price",
+            "disposition",
+            "disposition_dealer",
+            "disposition_dealer_name",
+            "disposition_on",
+            "note",
         ]
         widgets = {
+            "disposition_on": DateInput(),
+            "note": forms.Textarea(attrs={"rows": 2, "placeholder": "例如：員購車、無電瓶、已配電"}),
             "acquisition_type": forms.RadioSelect(
                 attrs={"data-acquisition-type": "1", "class": "acquisition-choice"}
             ),
@@ -1996,6 +2005,16 @@ class VehicleInventoryForm(forms.ModelForm):
             ).order_by("name")
         self.fields["current_dealer"].queryset = dealer_queryset
         self.fields["current_dealer"].empty_label = "本店"
+        disposition_dealer_queryset = SalesSource.objects.filter(
+            Q(active=True, source_type=SalesSource.SourceType.DEALER)
+            | Q(pk=self.instance.disposition_dealer_id or 0)
+        ).order_by("name")
+        self.fields["disposition_dealer"].queryset = disposition_dealer_queryset
+        self.fields["disposition_dealer"].empty_label = "未指定車行"
+        self.fields["disposition_dealer"].widget.attrs.update(
+            {"data-searchable-select": "1", "data-search-placeholder": "輸入車行名稱"}
+        )
+        self.fields["disposition"].help_text = "車已調給其他車行或被車行領走時填寫；一般在庫車輛留空。"
         self.fields["current_dealer"].widget.attrs.update(
             {
                 "data-searchable-select": "1",
@@ -2050,6 +2069,12 @@ class VehicleInventoryForm(forms.ModelForm):
         cleaned = super().clean()
         if cleaned.get("condition_hold") and not (cleaned.get("condition_note") or "").strip():
             self.add_error("condition_note", "標記車況異常時，請填寫車況說明。")
+        if cleaned.get("disposition_dealer") and not (cleaned.get("disposition_dealer_name") or "").strip():
+            cleaned["disposition_dealer_name"] = cleaned["disposition_dealer"].name
+        if not cleaned.get("disposition") and (
+            cleaned.get("disposition_dealer") or cleaned.get("disposition_on")
+        ):
+            self.add_error("disposition", "已填去向車行或日期時，請選擇去向。")
         if "acquisition_type" not in self.data and "transfer_source_name" not in self.data:
             # 舊頁面沒有來源欄位：保留原本的調車來源，不因空值被清掉。
             cleaned["transfer_source_name"] = self.instance.transfer_source_name

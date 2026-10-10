@@ -808,7 +808,7 @@
   },
   "inventory_list.2da29b285942": {
     "page": "車輛庫存",
-    "default": "預設顯示仍需管理的車輛；已交車、已售出的車不列入庫存，停用車輛另列分頁。",
+    "default": "預設顯示仍需管理的車輛；已交車的車不列入庫存，停用車輛與已售出／調出的車另列分頁。",
     "template": "templates/sales/inventory_list.html"
   },
   "inventory_list.8b43447f5743": {
@@ -819,6 +819,11 @@
   "inventory_list.23556f469f81": {
     "page": "車輛庫存",
     "default": "暫停使用、可重新啟用的車輛",
+    "template": "templates/sales/inventory_list.html"
+  },
+  "inventory_list.5b1f0c7e2a94": {
+    "page": "車輛庫存",
+    "default": "已售出與已調出的車，保留進車紀錄",
     "template": "templates/sales/inventory_list.html"
   },
   "inventory_quick_form.010933ad9a73": {

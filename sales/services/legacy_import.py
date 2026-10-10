@@ -483,6 +483,21 @@ INVENTORY_HEADER_ALIASES = {
     "manufactured_year_month": ("出廠日期",),
 }
 INVENTORY_REQUIRED_FIELDS = (("model_number",), ("identifier_raw",))
+# 進貨 M 欄（存放／調車）沒有表頭；有人補上下列表頭時依表頭，否則表頭空白的 M 欄即為此欄。
+INVENTORY_LOCATION_HEADERS = ("存放／調車", "存放/調車", "存放調車", "備註")
+INVENTORY_LOCATION_FALLBACK_COLUMN = 12  # M 欄（0 起算）
+
+
+def _inventory_location_position(headers):
+    normalized = [_normalize_header(header) if header not in (None, "") else "" for header in headers]
+    for alias in INVENTORY_LOCATION_HEADERS:
+        key = _normalize_header(alias)
+        if key in normalized:
+            return normalized.index(key)
+    position = INVENTORY_LOCATION_FALLBACK_COLUMN
+    if len(headers) <= position or headers[position] in (None, ""):
+        return position
+    return None
 
 
 class _HeaderLookup:
@@ -1003,6 +1018,7 @@ def _operations_inventory_rows(batch, workbook):
     blocking, warnings = _header_notices("進貨", lookup)
     if blocking:
         return [], dict(blocking), warnings, blocking
+    location_position = _inventory_location_position(headers)
     rows = []
     seen = set()
     duplicates = set()
@@ -1024,6 +1040,10 @@ def _operations_inventory_rows(batch, workbook):
             "color": _text(lookup.get(row_values, "color")) or "未記錄",
             "quantity": int(_decimal(lookup.get(row_values, "quantity"))),
             "manufactured_year_month": _year_month(lookup.get(row_values, "manufactured_year_month")),
+            "location_note": (
+                _text(row_values[location_position])
+                if location_position is not None and len(row_values) > location_position else ""
+            ),
         }
         existing = VehicleInventory.objects.filter(
             normalized_engine_number=identifier
@@ -1778,6 +1798,39 @@ def _commit_channel_row(row):
     row.committed_pk = str(source.pk)
 
 
+def _apply_inventory_location_note(vehicle, text, received_on, in_stock):
+    """依 M 欄設定實際位置、去向與備註；對不到車行主檔的名稱保留原文。
+
+    數量 0 且寫「XX調走／XX調」改為已調出（不是售出）；數量 1 卻寫調出或領車時以數量為準，原文只存備註。"""
+    from sales.services.inventory_location_note import DEALER_PICKUP, LOCATION, TRANSFER_OUT, parse
+
+    parsed = parse(text, received_on)
+    if not parsed["raw"]:
+        return
+    source = _source_for_name(parsed["name"]) if parsed["name"] and not parsed["store"] else None
+    dealer = source if source and source.source_type == SalesSource.SourceType.DEALER else None
+    notes = []
+    if parsed["kind"] in {TRANSFER_OUT, DEALER_PICKUP} and not in_stock:
+        if parsed["kind"] == TRANSFER_OUT:
+            vehicle.status = VehicleInventory.Status.TRANSFERRED_OUT
+        vehicle.disposition = parsed["kind"]
+        vehicle.disposition_dealer = dealer
+        vehicle.disposition_dealer_name = _clip(VehicleInventory, "disposition_dealer_name", parsed["name"])
+        vehicle.disposition_on = parsed["on"]
+        notes.append(parsed["note"])
+    elif parsed["kind"] == LOCATION and parsed["store"]:
+        notes.append(parsed["note"] if parsed["note"] != parsed["raw"] else parsed["raw"])
+    elif parsed["kind"] == LOCATION and dealer:
+        if in_stock:
+            vehicle.current_dealer = dealer
+        else:
+            notes.append(f"曾放在 {dealer.name}")
+        notes.append(parsed["note"])
+    else:
+        notes.append(parsed["raw"])
+    vehicle.note = "\n".join(dict.fromkeys(note for note in notes if note))
+
+
 def _commit_inventory_row(row):
     data = row.mapped_data
     identifier = data["identifier"]
@@ -1789,12 +1842,15 @@ def _commit_inventory_row(row):
     model = _model_for_number(data["model_number"])
     color = _color_for_model(model, data["color"])
     store = _default_store()
-    status = VehicleInventory.Status.AVAILABLE if data["quantity"] == 1 else VehicleInventory.Status.INACTIVE
+    # 數量 1＝還有車（可銷售）；0＝已售出（使用者 2026-10-10 確認，原本誤設為停用）；M 欄寫調出時改為已調出。
+    status = VehicleInventory.Status.AVAILABLE if data["quantity"] == 1 else VehicleInventory.Status.SOLD
+    received_on = _date(data["received_on"]) or timezone.localdate()
     vehicle = VehicleInventory(
         vehicle_model=model, color=color, ownership_store=store, location_store=store,
-        received_on=_date(data["received_on"]) or timezone.localdate(), manufactured_year_month=data["manufactured_year_month"],
+        received_on=received_on, manufactured_year_month=data["manufactured_year_month"],
         status=status,
     )
+    _apply_inventory_location_note(vehicle, data.get("location_note", ""), received_on, data["quantity"] == 1)
     if model.energy_type == VehicleModel.EnergyType.GAS:
         vehicle.engine_number = data["identifier_raw"]
     else:

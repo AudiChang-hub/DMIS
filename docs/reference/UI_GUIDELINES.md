@@ -171,6 +171,12 @@
 - 例外：列印文件（`contract_print`）、報表閱讀器的 `report-results`（沿用同一組表頭顏色與線條）、
   價格表分工的拖曳排序表（`price-assignment-table`，表頭與儲存格數值同資料表）。
 
+## 側邊把手導覽
+
+有階段或需要大量捲動的頁面，使用共用側邊把手 `sales/_side_nav.html`（`side-nav.js`）：各段加 `data-side-nav-section="名稱"` 即自動產生目錄與捲動標示；
+流程頁以 `nav_include` 放入既有步驟元件。行為比照機種清單：左側滑出、寬螢幕可釘選（依 `nav_key` 記住，首次預設釘選）、手機收在左下角、快捷鍵 `[`。
+訂單頁步驟（`_order_step_nav.html`）與機種清單為同類元件。
+
 ## 例外
 
 錯誤頁、登入／強制改密碼、使用說明、公告閱讀頁、帳號權限工作區（`permissions/_header.html`）、

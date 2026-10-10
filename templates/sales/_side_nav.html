@@ -1,0 +1,25 @@
+{% load static %}{% comment %}共用側邊把手導覽（比照機種清單與訂單步驟）：左側滑出、寬螢幕可釘選常駐（依 nav_key 記住）、手機收在左下角。
+用法：
+  長頁目錄：{% include "sales/_side_nav.html" with nav_key="operations" nav_title="營運總表" %}，並在各段加 data-side-nav-section="段落名稱"，
+           side-nav.js 會自動產生目錄、捲動時標示目前段落。
+  流程步驟：再傳 nav_include="sales/_order_wizard_bar.html"，把既有的步驟元件放進面板。{% endcomment %}
+<div class="side-nav" data-side-nav data-side-nav-key="{{ nav_key }}">
+  <button type="button" class="side-nav__handle" data-side-nav-toggle aria-expanded="false" aria-controls="side-nav-panel-{{ nav_key }}" title="{{ nav_title }}目錄（快捷鍵 [ ）">
+    <span class="side-nav__handle-icon" aria-hidden="true">›</span><span class="side-nav__handle-text">{{ nav_handle|default:"本頁目錄" }}</span>
+  </button>
+  <div class="side-nav__backdrop" data-side-nav-backdrop></div>
+  <aside class="side-nav__panel" id="side-nav-panel-{{ nav_key }}" aria-label="{{ nav_title }}目錄" data-side-nav-panel inert>
+    <header class="side-nav__header">
+      <div><strong>{{ nav_title }}</strong>{% if nav_subtitle %}<small>{{ nav_subtitle }}</small>{% endif %}</div>
+      <div class="side-nav__header-actions">
+        <button type="button" class="side-nav__pin" data-side-nav-pin aria-pressed="false" title="釘選後固定在左側">釘選</button>
+        <button type="button" class="side-nav__close" data-side-nav-close aria-label="收合目錄">×</button>
+      </div>
+    </header>
+    <div class="side-nav__body">
+      {% if nav_include %}{% include nav_include %}{% endif %}
+      <nav class="side-nav__list" data-side-nav-list aria-label="{{ nav_title }}段落"></nav>
+    </div>
+  </aside>
+</div>
+<script src="{% static 'js/side-nav.js' %}?v={{ app_version }}" defer></script>

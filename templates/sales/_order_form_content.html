@@ -56,7 +56,7 @@
   </div>
 
   {% if wizard %}
-  {% include "sales/_order_wizard_bar.html" %}
+  {% include "sales/_side_nav.html" with nav_key="order-wizard" nav_title="建立訂單" nav_subtitle="完成每一步才能前往下一步" nav_handle="填單步驟" nav_include="sales/_order_wizard_bar.html" %}
   {% if wizard.errors %}<div class="message error wizard-errors" role="alert"><strong>這一步還有資料需要處理</strong><ul>{% for message in wizard.errors %}<li>{{ message }}</li>{% endfor %}</ul></div>{% endif %}
   {% else %}
   {% if form.non_field_errors or formset.non_form_errors or fee_formset.non_form_errors %}

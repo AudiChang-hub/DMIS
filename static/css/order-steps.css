@@ -81,7 +81,7 @@
 
 /* ---- 步驟內容 ---- */
 .order-steps { display: grid; gap: var(--stack-gap-sm); margin-block: var(--stack-gap-sm) var(--stack-gap); }
-.order-step { min-width: 0; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow-soft); scroll-margin-top: 96px; }
+.order-step { min-width: 0; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow-soft); scroll-margin-top: calc(var(--app-header-height, 72px) + 84px); }
 .order-step[hidden], .has-order-tabs .order-step[role="tabpanel"]:not(.is-active) { display: none; }
 .order-step:focus { outline: none; }
 .order-step:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
@@ -146,4 +146,80 @@
   .order-step[hidden], .has-order-tabs .order-step[role="tabpanel"]:not(.is-active) { display: block !important; }
   .has-order-tabs .order-step[role="tabpanel"]:not(.is-active) > .order-step__body { display: none; }
   .order-step { box-shadow: none; break-inside: avoid-page; }
+}
+
+/* ---- 訂單步驟側邊列（比照機種清單）：左側滑出、寬螢幕可釘選常駐 ---- */
+.order-nav { --order-nav-width: 280px; --order-nav-top: var(--app-header-height, 72px); }
+.order-nav__handle {
+  position: fixed; z-index: 41; top: calc(var(--order-nav-top) + 120px); left: 0;
+  display: grid; padding: var(--space-3) var(--space-1); justify-items: center; gap: var(--space-2);
+  color: var(--ink); background: var(--surface-raised); border: 1px solid var(--line); border-left: 0;
+  border-radius: 0 var(--radius-md) var(--radius-md) 0; box-shadow: 0 6px 18px color-mix(in srgb, var(--shadow-ink) 12%, transparent);
+  font: inherit; font-size: var(--text-xs); font-weight: 850; cursor: pointer;
+  transition: transform var(--dur-2) var(--ease-out), background var(--dur-2);
+}
+.order-nav__handle:hover { background: var(--surface-soft); }
+.order-nav__handle:focus-visible { outline: 3px solid var(--focus-ring); outline-offset: 2px; }
+.order-nav__handle-text { writing-mode: vertical-rl; letter-spacing: .18em; }
+.order-nav__handle-icon { font-size: var(--text-md, 1rem); line-height: 1; transition: transform var(--dur-2) var(--ease-out); }
+.order-nav.is-open .order-nav__handle { transform: translateX(var(--order-nav-width)); }
+.order-nav.is-open .order-nav__handle-icon { transform: rotate(180deg); }
+.order-nav.is-pinned .order-nav__handle { display: none; }
+.order-nav__backdrop {
+  position: fixed; z-index: 39; inset: var(--order-nav-top) 0 0 0;
+  background: color-mix(in srgb, var(--shadow-ink) 22%, transparent);
+  opacity: 0; pointer-events: none; transition: opacity var(--dur-2) var(--ease-out);
+}
+.order-nav.is-open:not(.is-pinned) .order-nav__backdrop { opacity: 1; pointer-events: auto; }
+.order-nav__panel {
+  position: fixed; z-index: 40; top: var(--order-nav-top); bottom: 0; left: 0;
+  display: grid; width: var(--order-nav-width); grid-template-rows: auto minmax(0, 1fr);
+  background: var(--surface-raised); border-right: 1px solid var(--line);
+  box-shadow: 12px 0 32px color-mix(in srgb, var(--shadow-ink) 16%, transparent);
+  transform: translateX(-102%); visibility: hidden;
+  transition: transform var(--dur-3) var(--ease-out), visibility 0s linear var(--dur-3);
+}
+.order-nav.is-open .order-nav__panel { transform: none; visibility: visible; transition: transform var(--dur-3) var(--ease-out), visibility 0s; }
+.order-nav.is-pinned .order-nav__panel { box-shadow: none; }
+.order-nav__header {
+  display: flex; padding: var(--space-4); align-items: flex-start; justify-content: space-between; gap: var(--space-3);
+  border-bottom: 1px solid var(--line-soft);
+}
+.order-nav__header strong { display: block; font-size: var(--text-md, 1rem); }
+.order-nav__header small { display: block; margin-top: 2px; color: var(--muted); font-size: var(--text-2xs); overflow-wrap: anywhere; }
+.order-nav__header-actions { display: flex; flex: none; gap: var(--space-2); }
+.order-nav__pin, .order-nav__close {
+  min-height: 32px; padding: 0 var(--space-3); color: var(--ink-soft); background: var(--surface); border: 1px solid var(--line);
+  border-radius: var(--radius-pill); font: inherit; font-size: var(--text-xs); font-weight: 800; cursor: pointer;
+}
+.order-nav__close { width: 32px; padding: 0; font-size: var(--text-md, 1rem); }
+.order-nav__pin[aria-pressed="true"] { color: var(--on-accent); background: var(--forest); border-color: var(--forest); }
+.order-nav__pin:focus-visible, .order-nav__close:focus-visible { outline: 3px solid var(--focus-ring); outline-offset: 2px; }
+.order-nav__body { overflow-y: auto; padding: var(--space-3); overscroll-behavior: contain; }
+
+/* 側邊列裡的步驟改為直向清單。 */
+.order-nav .order-step-bar { margin: 0; padding: 0; background: transparent; border: 0; }
+.order-nav .order-step-bar__scroller { overflow: visible; -webkit-mask-image: none; mask-image: none; }
+.order-nav .order-step-bar__tabs { display: grid; min-width: 0; gap: var(--space-3); }
+.order-nav .order-step-bar__group { display: grid; gap: 2px; }
+.order-nav .order-step-bar__group--extra { margin: 0; padding: var(--space-3) 0 0; border-left: 0; border-top: 1px solid var(--line); }
+.order-nav .order-step-bar__group-label { padding: 0 var(--space-3) var(--space-1); }
+.order-nav .order-step-tab { min-height: 52px; white-space: normal; }
+/* 直向清單：目前步驟的指示改成左側直條。 */
+.order-nav .order-step-tab::after { top: var(--space-2); right: auto; bottom: var(--space-2); left: -1px; width: 3px; height: auto; border-radius: 0 var(--radius-pill) var(--radius-pill) 0; transform: scaleY(0); }
+.order-nav .order-step-tab[aria-selected="true"]::after, .order-nav .order-step-tab.is-active::after { transform: scaleY(1); }
+.order-nav .order-step-tab.is-active { background: var(--surface); border-color: var(--line); box-shadow: 0 2px 8px color-mix(in srgb, var(--shadow-ink) 8%, transparent); }
+
+/* 釘選時內容讓出左側空間。 */
+@media (min-width: 1100px) {
+  body.is-order-nav-pinned .page-shell { padding-left: calc(var(--order-nav-width, 280px) + var(--space-5)); }
+}
+@media (max-width: 860px) {
+  .order-nav__panel { bottom: calc(var(--mobile-nav-height, 72px) + env(safe-area-inset-bottom)); width: min(86vw, var(--order-nav-width)); }
+  .order-nav.is-open .order-nav__handle { transform: translateX(min(86vw, var(--order-nav-width))); }
+  /* 手機：把手放在左下角、底部導覽列上方，不壓到頁首姓名與按鈕。 */
+  .order-nav__handle { top: auto; bottom: calc(var(--mobile-nav-height, 72px) + env(safe-area-inset-bottom) + var(--space-5)); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .order-nav__panel, .order-nav__handle, .order-nav__backdrop { transition: none; }
 }

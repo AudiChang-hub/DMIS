@@ -11,7 +11,7 @@
 {% else %}
 <div class="order-step-bar" data-order-step-bar data-order-id="{{ order.pk }}">
   <div class="order-step-bar__scroller" data-step-scroller>
-    <div class="order-step-bar__tabs" role="tablist" aria-label="訂單步驟" aria-orientation="horizontal" data-step-tablist>
+    <div class="order-step-bar__tabs" role="tablist" aria-label="訂單步驟" aria-orientation="vertical" data-step-tablist>
       <div class="order-step-bar__group" role="presentation">{% for step in step_list %}{% include "sales/_order_step_tab.html" with as_tab=True %}{% endfor %}</div>
       <div class="order-step-bar__group order-step-bar__group--extra" role="presentation"><span class="order-step-bar__group-label" aria-hidden="true">其他</span>{% for step in extra_step_list %}{% include "sales/_order_step_tab.html" with as_tab=True %}{% endfor %}</div>
     </div>

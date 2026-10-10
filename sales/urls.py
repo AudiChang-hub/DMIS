@@ -511,6 +511,8 @@ urlpatterns = [
     path("data/inventory/transfer-signoffs/<int:pk>/", transfer_signoff_views.transfer_signoff_detail, name="transfer_signoff_detail"),
     path("data/inventory/transfer-signoffs/<int:pk>/pdf/", transfer_signoff_views.transfer_signoff_pdf, name="transfer_signoff_pdf"),
     path("data/inventory/transfer-signoffs/<int:pk>/void/", transfer_signoff_views.transfer_signoff_void, name="transfer_signoff_void"),
+    path("data/inventory/transfer-signoffs/<int:pk>/cancel/", transfer_signoff_views.transfer_signoff_cancel, name="transfer_signoff_cancel"),
+    path("data/inventory/receipts/", transfer_signoff_views.inventory_receipt_list, name="inventory_receipt_list"),
     path(
         "data/vehicle-models/",
         views.vehicle_model_list,

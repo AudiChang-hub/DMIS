@@ -72,13 +72,11 @@ def vehicle_snapshot(vehicles):
     ]
 
 
-def content_fingerprint(*, dealer, dealer_name, signer_name, signer_phone, note, vehicles):
-    """領車人看到並簽署的內容；送出前內容被改過（例如車被配走）就要重新確認。"""
+def content_fingerprint(*, dealer, dealer_name, note, vehicles):
+    """簽收時確認的內容；送出前內容被改過（例如車被配走）就要重新確認。不記錄領車人姓名電話（使用者 2026-10-10）。"""
     payload = {
         "dealer": dealer.pk if dealer else None,
         "dealer_name": dealer_name,
-        "signer_name": signer_name,
-        "signer_phone": signer_phone,
         "note": note,
         "vehicles": [
             [item["id"], item["model"], item["color"], item["engine_number"], item["frame_number"]]
@@ -130,7 +128,6 @@ def build_signoff_pdf(signoff, signature=None):
         [
             row("簽收單號", signoff.number) + row("簽收日期", f"{signed_at:%Y/%m/%d %H:%M}"),
             row("調往車行", signoff.dealer_name) + row("車輛台數", f"{len(signoff.vehicles_snapshot)} 台"),
-            row("領車人", signoff.signer_name) + row("領車人電話", signoff.signer_phone),
             row("經手人", signoff.staff_name) + row("備註", signoff.note),
         ],
         colWidths=[24 * mm, 61 * mm, 24 * mm, 61 * mm],
@@ -180,7 +177,7 @@ def build_signoff_pdf(signoff, signature=None):
     story.append(sign_table)
     if signature:
         story += [Spacer(1, 3 * mm), Paragraph(escape(
-            f"電子簽署 {signed_at:%Y-%m-%d %H:%M}・簽署人 {signature.signer_name}・經手 {signature.staff_name}"
+            f"電子簽署 {signed_at:%Y-%m-%d %H:%M}・經手 {signature.staff_name}"
             f"・內容指紋 {signature.fingerprint[:12].upper()}・本簽收單僅於店內裝置簽署"
         ), muted)]
 
@@ -194,25 +191,61 @@ def build_signoff_pdf(signoff, signature=None):
 
 
 @transaction.atomic
-def sign_transfer(*, dealer, dealer_name, vehicle_ids, signer_name, signer_phone, note,
-                  expected_fingerprint, signature_png, user, client_ip, user_agent):
+def prepare_transfer(*, dealer, dealer_name, vehicle_ids, note, user, pending=None):
+    """預備調車：先存成「待簽收」，等人來再簽名。車輛暫不改狀態，簽收時再檢查一次是否仍可調出。"""
+    vehicles = selected_vehicles(vehicle_ids)
+    actor = (user.get_full_name() or user.get_username())[:150]
+    if pending is not None:
+        signoff = VehicleTransferSignoff.objects.select_for_update().get(pk=pending.pk)
+        if not signoff.is_pending:
+            raise ValidationError("這筆預備調車已經簽收，不能再修改。")
+    else:
+        signoff = VehicleTransferSignoff(status=VehicleTransferSignoff.Status.PENDING)
+    signoff.dealer = dealer
+    signoff.dealer_name = dealer_name
+    signoff.note = note
+    signoff.vehicles_snapshot = vehicle_snapshot(vehicles)
+    signoff.prepared_by = actor
+    signoff.save()
+    signoff.vehicles.set(vehicles)
+    return signoff
+
+
+@transaction.atomic
+def cancel_pending(signoff):
+    """取消預備調車：還沒簽收、車輛也沒異動，直接移除這筆預備。"""
+    signoff = VehicleTransferSignoff.objects.select_for_update().get(pk=signoff.pk)
+    if not signoff.is_pending:
+        raise ValidationError("這筆調車已經簽收，請改用作廢。")
+    signoff.delete()
+
+
+@transaction.atomic
+def sign_transfer(*, dealer, dealer_name, vehicle_ids, note, expected_fingerprint, signature_png,
+                  user, client_ip, user_agent, pending=None):
     vehicles = selected_vehicles(vehicle_ids, lock=True)
-    fingerprint = content_fingerprint(
-        dealer=dealer, dealer_name=dealer_name, signer_name=signer_name,
-        signer_phone=signer_phone, note=note, vehicles=vehicles,
-    )
+    fingerprint = content_fingerprint(dealer=dealer, dealer_name=dealer_name, note=note, vehicles=vehicles)
     if fingerprint != expected_fingerprint:
         raise ValidationError("車輛或簽收內容剛被修改，請返回重新確認後再簽名。")
     staff_name = (user.get_full_name() or user.get_username())[:60]
     signed_at = timezone.now()
-    signoff = VehicleTransferSignoff.objects.create(
-        dealer=dealer, dealer_name=dealer_name, vehicles_snapshot=vehicle_snapshot(vehicles),
-        company_snapshot=home_company(), signer_name=signer_name, signer_phone=signer_phone, note=note,
+    fields = dict(
+        status=VehicleTransferSignoff.Status.SIGNED, dealer=dealer, dealer_name=dealer_name,
+        vehicles_snapshot=vehicle_snapshot(vehicles), company_snapshot=home_company(), note=note,
         fingerprint=fingerprint, signed_at=signed_at, staff=user, staff_name=staff_name,
         client_ip=client_ip or "", user_agent=(user_agent or "")[:300],
     )
+    if pending is not None:
+        signoff = VehicleTransferSignoff.objects.select_for_update().get(pk=pending.pk)
+        if not signoff.is_pending:
+            raise ValidationError("這筆預備調車已經簽收過了。")
+        for name, value in fields.items():
+            setattr(signoff, name, value)
+        signoff.save()
+    else:
+        signoff = VehicleTransferSignoff.objects.create(**fields)
     signature = DocumentSignature(
-        image=signature_png, signer_name=signer_name, signed_at=timezone.localtime(signed_at),
+        image=signature_png, signer_name="", signed_at=timezone.localtime(signed_at),
         fingerprint=fingerprint, staff_name=staff_name,
     )
     pdf = build_signoff_pdf(signoff, signature)
@@ -224,7 +257,7 @@ def sign_transfer(*, dealer, dealer_name, vehicle_ids, signer_name, signer_phone
     signoff.vehicles.set(vehicles)
 
     today = timezone.localdate()
-    reason = f"調車簽收 {signoff.number}：調往 {dealer_name}，領車人 {signer_name}"
+    reason = f"調車簽收 {signoff.number}：調往 {dealer_name}"
     for vehicle in vehicles:
         before_status = vehicle.status
         vehicle.status = VehicleInventory.Status.TRANSFERRED_OUT
@@ -249,13 +282,17 @@ def void_signoff(signoff, *, actor_name, reason):
     signoff = VehicleTransferSignoff.objects.select_for_update().get(pk=signoff.pk)
     if signoff.is_voided:
         raise ValidationError("這張簽收單已經作廢。")
+    if signoff.is_pending:
+        raise ValidationError("預備調車尚未簽收，請改用取消預備。")
     previous = {item["id"]: item.get("status") for item in signoff.vehicles_snapshot}
     restored, kept = [], []
     vehicles = VehicleInventory.objects.select_for_update(of=("self",)).filter(
         pk__in=signoff.vehicles.values("pk")
     ).order_by("id")
     for vehicle in vehicles:
-        latest = vehicle.transfer_signoffs.filter(voided_at__isnull=True).order_by("-signed_at", "-id").first()
+        latest = vehicle.transfer_signoffs.filter(
+            voided_at__isnull=True, status=VehicleTransferSignoff.Status.SIGNED,
+        ).order_by("-signed_at", "-id").first()
         if vehicle.status != VehicleInventory.Status.TRANSFERRED_OUT or latest != signoff:
             kept.append(vehicle.identifier)
             continue

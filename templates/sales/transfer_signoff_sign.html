@@ -24,11 +24,7 @@
     {% endfor %}
   </ol>
 
-  <dl class="transfer-sign__people">
-    <div><dt>領車人</dt><dd>{{ data.signer_name }}</dd></div>
-    <div><dt>電話</dt><dd>{{ data.signer_phone|default:"—" }}</dd></div>
-    {% if data.note %}<div><dt>備註</dt><dd>{{ data.note }}</dd></div>{% endif %}
-  </dl>
+  {% if data.note %}<dl class="transfer-sign__people"><div><dt>備註</dt><dd>{{ data.note }}</dd></div></dl>{% endif %}
 
   <form method="post" class="signing-form" data-signing-form>
     {% csrf_token %}
@@ -41,7 +37,7 @@
         <label class="signing-agree"><input type="checkbox" name="agree" value="1" required> {{ statement }}</label>
         <div class="signing-pad" data-signature-pad>
           <canvas aria-label="簽名框，請用手指或觸控筆簽名"></canvas>
-          <span class="signing-pad__hint" data-signature-hint>領車人 {{ data.signer_name }} 請在此簽名</span>
+          <span class="signing-pad__hint" data-signature-hint>請領車人在此簽名</span>
         </div>
         <input type="hidden" name="signature" data-signature-value>
         <div class="form-actions transfer-sign__actions">

@@ -66,6 +66,8 @@
   });
 
   form.addEventListener("submit", (event) => {
+    // 「返回修改」等不需要簽名的按鈕直接送出。
+    if (event.submitter && event.submitter.hasAttribute("data-signature-skip")) return;
     if (!inked) {
       event.preventDefault();
       hint.textContent = "請先在此簽名";

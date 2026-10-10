@@ -488,6 +488,19 @@ INVENTORY_LOCATION_HEADERS = ("存放／調車", "存放/調車", "存放調車"
 INVENTORY_LOCATION_FALLBACK_COLUMN = 12  # M 欄（0 起算）
 
 
+def _inventory_location_columns(headers, position, extra=3):
+    """M 欄與緊接其後、沒有表頭的欄位（最多 N～P 三欄）。"""
+    if position is None:
+        return []
+    columns = [position]
+    for offset in range(1, extra + 1):
+        index = position + offset
+        if index < len(headers) and headers[index] not in (None, ""):
+            break
+        columns.append(index)
+    return columns
+
+
 def _inventory_location_position(headers):
     normalized = [_normalize_header(header) if header not in (None, "") else "" for header in headers]
     for alias in INVENTORY_LOCATION_HEADERS:
@@ -1040,10 +1053,12 @@ def _operations_inventory_rows(batch, workbook):
             "color": _text(lookup.get(row_values, "color")) or "未記錄",
             "quantity": int(_decimal(lookup.get(row_values, "quantity"))),
             "manufactured_year_month": _year_month(lookup.get(row_values, "manufactured_year_month")),
-            "location_note": (
-                _text(row_values[location_position])
-                if location_position is not None and len(row_values) > location_position else ""
-            ),
+            # M 欄（存放／調車）與其後無表頭的 N～P 欄，依序合併判讀。
+            "location_notes": [
+                _text(row_values[position])
+                for position in _inventory_location_columns(headers, location_position)
+                if len(row_values) > position and _text(row_values[position])
+            ],
         }
         existing = VehicleInventory.objects.filter(
             normalized_engine_number=identifier
@@ -1798,37 +1813,24 @@ def _commit_channel_row(row):
     row.committed_pk = str(source.pk)
 
 
-def _apply_inventory_location_note(vehicle, text, received_on, in_stock):
-    """依 M 欄設定實際位置、去向與備註；對不到車行主檔的名稱保留原文。
+def _dealer_for_name(name):
+    source = _source_for_name(name)
+    return source if source and source.source_type == SalesSource.SourceType.DEALER else None
 
-    數量 0 且寫「XX調走／XX調」改為已調出（不是售出）；數量 1 卻寫調出或領車時以數量為準，原文只存備註。"""
-    from sales.services.inventory_location_note import DEALER_PICKUP, LOCATION, TRANSFER_OUT, parse
 
-    parsed = parse(text, received_on)
-    if not parsed["raw"]:
-        return
-    source = _source_for_name(parsed["name"]) if parsed["name"] and not parsed["store"] else None
-    dealer = source if source and source.source_type == SalesSource.SourceType.DEALER else None
-    notes = []
-    if parsed["kind"] in {TRANSFER_OUT, DEALER_PICKUP} and not in_stock:
-        if parsed["kind"] == TRANSFER_OUT:
-            vehicle.status = VehicleInventory.Status.TRANSFERRED_OUT
-        vehicle.disposition = parsed["kind"]
-        vehicle.disposition_dealer = dealer
-        vehicle.disposition_dealer_name = _clip(VehicleInventory, "disposition_dealer_name", parsed["name"])
-        vehicle.disposition_on = parsed["on"]
-        notes.append(parsed["note"])
-    elif parsed["kind"] == LOCATION and parsed["store"]:
-        notes.append(parsed["note"] if parsed["note"] != parsed["raw"] else parsed["raw"])
-    elif parsed["kind"] == LOCATION and dealer:
-        if in_stock:
-            vehicle.current_dealer = dealer
-        else:
-            notes.append(f"曾放在 {dealer.name}")
-        notes.append(parsed["note"])
-    else:
-        notes.append(parsed["raw"])
-    vehicle.note = "\n".join(dict.fromkeys(note for note in notes if note))
+def _apply_inventory_location_note(vehicle, texts, received_on, in_stock):
+    """依 M～P 欄設定實際位置、去向與備註；對不到車行主檔的名稱保留原文（規則見 inventory_location_note.resolve）。"""
+    from sales.services.inventory_location_note import resolve
+
+    if isinstance(texts, str):
+        texts = [texts]
+    result = resolve(texts, received_on, in_stock, _dealer_for_name)
+    if result["status"]:
+        vehicle.status = result["status"]
+    for field in ("disposition", "disposition_dealer", "disposition_dealer_name", "disposition_on", "note"):
+        setattr(vehicle, field, result[field])
+    if result["current_dealer"]:
+        vehicle.current_dealer = result["current_dealer"]
 
 
 def _commit_inventory_row(row):
@@ -1850,7 +1852,9 @@ def _commit_inventory_row(row):
         received_on=received_on, manufactured_year_month=data["manufactured_year_month"],
         status=status,
     )
-    _apply_inventory_location_note(vehicle, data.get("location_note", ""), received_on, data["quantity"] == 1)
+    _apply_inventory_location_note(
+        vehicle, data.get("location_notes") or [data.get("location_note", "")], received_on, data["quantity"] == 1,
+    )
     if model.energy_type == VehicleModel.EnergyType.GAS:
         vehicle.engine_number = data["identifier_raw"]
     else:

@@ -8,6 +8,7 @@
 <section class="hero-row compact-hero">
   <div><p class="eyebrow">資料維護區</p><h1>車輛庫存</h1><p class="muted">{% site_text 'inventory_list.2da29b285942' %}</p></div>
   <div class="hero-actions">
+    <a class="button ghost" href="{% url 'transfer_signoff_list' %}">調車簽收</a>
     <a class="button ghost" href="{% url 'inventory_create' %}">新增單台</a>
     <a class="button primary" href="{% url 'inventory_quick_create' %}">＋ 快速進車</a>
   </div>

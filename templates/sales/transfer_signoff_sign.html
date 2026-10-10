@@ -1,0 +1,57 @@
+{% extends "base.html" %}{% load static %}
+{% block title %}調車簽收確認｜車輛銷售管理{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'css/signing.css' %}?v={{ app_version }}"><link rel="stylesheet" href="{% static 'css/transfer-signoff.css' %}?v={{ app_version }}">{% endblock %}
+{% block content %}
+{# 領車人簽名步驟：隱藏主選單（signing-page），只顯示要確認的內容與簽名框。 #}
+<div class="signing-page transfer-sign">
+  <section class="hero-row compact-hero transfer-sign__head">
+    <div>
+      <p class="eyebrow">調車簽收・請領車人確認</p>
+      <h1>{% if data.factory %}調回{% else %}調往{% endif %} <span>{{ data.dealer_name }}</span></h1>
+      <p class="transfer-sign__count"><b>{{ vehicles|length }}</b> 台車，請逐台核對車型、車色與號碼</p>
+    </div>
+  </section>
+
+  {% if errors %}<div class="card signing-errors" role="alert">{% for error in errors %}<p>{{ error }}</p>{% endfor %}</div>{% endif %}
+
+  <ol class="transfer-sign__vehicles" aria-label="本次調出的車輛">
+    {% for vehicle in vehicles %}
+    <li>
+      <span class="transfer-sign__index" aria-hidden="true">{{ forloop.counter }}</span>
+      <span class="transfer-sign__model"><strong>{{ vehicle.vehicle_model.name }}</strong><small>{{ vehicle.color.name }}</small></span>
+      <span class="transfer-sign__ids">{% if vehicle.engine_number %}<span><small>引擎</small>{{ vehicle.engine_number }}</span>{% endif %}{% if vehicle.frame_number %}<span><small>車身</small>{{ vehicle.frame_number }}</span>{% endif %}</span>
+    </li>
+    {% endfor %}
+  </ol>
+
+  <dl class="transfer-sign__people">
+    <div><dt>領車人</dt><dd>{{ data.signer_name }}</dd></div>
+    <div><dt>電話</dt><dd>{{ data.signer_phone|default:"—" }}</dd></div>
+    {% if data.note %}<div><dt>備註</dt><dd>{{ data.note }}</dd></div>{% endif %}
+  </dl>
+
+  <form method="post" class="signing-form" data-signing-form>
+    {% csrf_token %}
+    {% include "sales/_transfer_signoff_hidden.html" %}
+    <input type="hidden" name="fingerprint" value="{{ fingerprint }}">
+    {# 送出時簽名腳本會停用「確認簽收」按鈕，按鈕的值不會送出，所以步驟放隱藏欄位；「返回修改」的值排在後面會覆蓋。 #}
+    <input type="hidden" name="step" value="sign">
+    <section class="section-block signing-pad-panel">
+      <div class="section-body signing-pad-panel__body">
+        <label class="signing-agree"><input type="checkbox" name="agree" value="1" required> {{ statement }}</label>
+        <div class="signing-pad" data-signature-pad>
+          <canvas aria-label="簽名框，請用手指或觸控筆簽名"></canvas>
+          <span class="signing-pad__hint" data-signature-hint>領車人 {{ data.signer_name }} 請在此簽名</span>
+        </div>
+        <input type="hidden" name="signature" data-signature-value>
+        <div class="form-actions transfer-sign__actions">
+          <button type="submit" class="button ghost" name="step" value="edit" formnovalidate data-signature-skip>返回修改</button>
+          <button type="button" class="button ghost" data-signature-clear>清除重簽</button>
+          <button type="submit" class="button primary" data-signature-submit>確認簽收</button>
+        </div>
+      </div>
+    </section>
+  </form>
+</div>
+{% endblock %}
+{% block scripts %}<script src="{% static 'js/signature-pad.js' %}?v={{ app_version }}" defer></script>{% endblock %}

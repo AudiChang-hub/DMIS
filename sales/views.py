@@ -171,6 +171,7 @@ from .models import (
     VehicleBrand,
     VehicleInventory,
     VehicleInventoryHistory,
+    VehicleTransferSignoff,
     VehicleIncentiveRule,
     VehicleModel,
     VehicleModelFamily,
@@ -10160,6 +10161,7 @@ def protected_media(request, model_name, pk, field_name):
         ),
         "draft": (OrderDraft, {"id_front", "id_back"}),
         "vehicle": (VehicleInventory, {"condition_photo"}),
+        "transfer_signoff": (VehicleTransferSignoff, {"signature_image"}),
         "vehicle_history": (
             VehicleInventoryHistory,
             {"condition_photo_snapshot"},

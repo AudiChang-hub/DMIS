@@ -7,6 +7,7 @@ from . import order_deletion_views
 from . import draft_cleanup_views
 from . import import_review_views
 from . import historical_delivery_views
+from . import transfer_signoff_views
 from . import vehicle_model_tool_views
 from . import gift_views
 from . import print_company_views
@@ -503,6 +504,11 @@ urlpatterns = [
         name="subsidy_document_file",
     ),
     path("data/inventory/", views.inventory_list, name="inventory_list"),
+    path("data/inventory/transfer-signoffs/", transfer_signoff_views.transfer_signoff_list, name="transfer_signoff_list"),
+    path("data/inventory/transfer-signoffs/new/", transfer_signoff_views.transfer_signoff_create, name="transfer_signoff_create"),
+    path("data/inventory/transfer-signoffs/<int:pk>/", transfer_signoff_views.transfer_signoff_detail, name="transfer_signoff_detail"),
+    path("data/inventory/transfer-signoffs/<int:pk>/pdf/", transfer_signoff_views.transfer_signoff_pdf, name="transfer_signoff_pdf"),
+    path("data/inventory/transfer-signoffs/<int:pk>/void/", transfer_signoff_views.transfer_signoff_void, name="transfer_signoff_void"),
     path(
         "data/vehicle-models/",
         views.vehicle_model_list,

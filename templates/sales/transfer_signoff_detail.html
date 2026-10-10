@@ -1,0 +1,75 @@
+{% extends "base.html" %}{% load static %}
+{% block title %}{{ signoff.number }} 調車簽收｜車輛銷售管理{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'css/transfer-signoff.css' %}?v={{ app_version }}">{% endblock %}
+{% block content %}
+{% url 'transfer_signoff_list' as list_url %}
+{% include "sales/_page_back.html" with fallback_url=list_url label="返回調車簽收紀錄" %}
+<section class="hero-row compact-hero">
+  <div>
+    <p class="eyebrow">調車簽收・{{ signoff.number }}</p>
+    <h1>調往 {{ signoff.dealer_name }}</h1>
+    <p class="muted">{{ signoff.signed_at|date:"Y/m/d H:i" }} 由 {{ signoff.signer_name }} 在店內簽收 {{ signoff.vehicles_snapshot|length }} 台，經手 {{ signoff.staff_name }}。</p>
+  </div>
+  <div class="hero-actions"><a class="button primary" href="{% url 'transfer_signoff_pdf' signoff.pk %}" target="_blank" rel="noopener">開啟簽收單 PDF</a></div>
+</section>
+
+{% if signoff.is_voided %}
+<div class="callout callout--danger" role="status"><span class="callout__icon" aria-hidden="true">!</span><div><p><strong>此簽收單已作廢</strong>（{{ signoff.voided_at|date:"Y/m/d H:i" }}，{{ signoff.voided_by }}）：{{ signoff.void_reason }}</p></div></div>
+{% endif %}
+
+<div class="transfer-detail">
+  <section class="section-block">
+    <div class="section-title"><div><h2>簽收內容</h2><small>{{ statement }}</small></div></div>
+    <div class="section-body">
+      <dl class="transfer-detail__facts">
+        <div><dt>調往車行</dt><dd>{{ signoff.dealer_name }}{% if not signoff.dealer_id %}<small>主檔無此車行</small>{% endif %}</dd></div>
+        <div><dt>領車人</dt><dd>{{ signoff.signer_name }}</dd></div>
+        <div><dt>領車人電話</dt><dd>{{ signoff.signer_phone|default:"—" }}</dd></div>
+        <div><dt>備註</dt><dd>{{ signoff.note|default:"—" }}</dd></div>
+      </dl>
+      <div class="inventory-table-wrap" tabindex="0" aria-label="調出車輛，可左右捲動">
+        <table class="inventory-table">
+          <thead><tr><th>#</th><th>車型／車色</th><th>引擎／車身號碼</th><th>簽收時位置</th><th>目前狀態</th><th><span class="visually-hidden">操作</span></th></tr></thead>
+          <tbody>
+            {% for row in rows %}
+            <tr>
+              <td data-label="#">{{ forloop.counter }}</td>
+              <td data-label="車型／車色"><strong>{{ row.model }}</strong><span>{{ row.color }}</span></td>
+              <td data-label="引擎／車身號碼"><span class="inventory-identifier">{{ row.engine_number|default:row.frame_number }}</span>{% if row.engine_number and row.frame_number %}<small class="muted">車身 {{ row.frame_number }}</small>{% endif %}</td>
+              <td data-label="簽收時位置">{{ row.location }}</td>
+              <td data-label="目前狀態">{% if row.vehicle %}<span class="status-pill status-{{ row.vehicle.status }}">{{ row.vehicle.get_status_display }}</span>{% else %}—{% endif %}</td>
+              <td class="inventory-row-action">{% if row.vehicle %}<a class="button ghost small" href="{% url 'inventory_edit' row.vehicle.pk %}">查看車輛</a>{% endif %}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <section class="section-block transfer-detail__signature">
+    <div class="section-title"><div><h2>領車人簽名</h2><small>內容指紋 {{ signoff.fingerprint|slice:":12"|upper }}</small></div></div>
+    <div class="section-body">
+      <figure><img src="{{ signature_url }}" alt="{{ signoff.signer_name }} 的簽名"><figcaption>{{ signoff.signer_name }}・{{ signoff.signed_at|date:"Y/m/d H:i" }}</figcaption></figure>
+      <p class="muted transfer-detail__audit">簽署裝置：{{ signoff.user_agent|truncatechars:80|default:"未知" }}<br>IP：{{ signoff.client_ip|default:"未知" }}・簽收單 SHA-256 {{ signoff.pdf_sha256|slice:":16" }}…</p>
+    </div>
+  </section>
+
+  {% if can_void %}
+  <section class="section-block">
+    <div class="section-title"><div><h2>作廢簽收單</h2><small>admin 專用。仍為「已調出」的車會改回簽收前狀態；之後已有其他異動的車維持不變。簽收紀錄與簽名會保留。</small></div></div>
+    <div class="section-body">
+      <details class="draft-cleanup-delete">
+        <summary class="button ghost small">作廢…</summary>
+        <form method="post" action="{% url 'transfer_signoff_void' signoff.pk %}" data-confirm="確定作廢這張調車簽收單？車輛會改回庫存。">
+          {% csrf_token %}
+          <label for="void-reason">作廢原因</label>
+          <textarea class="form-control" id="void-reason" name="reason" rows="2" required minlength="2" maxlength="300" placeholder="例如：選錯車、車行取消調車"></textarea>
+          <button type="submit" class="button danger-outline small">作廢簽收單</button>
+        </form>
+      </details>
+    </div>
+  </section>
+  {% endif %}
+</div>
+{% endblock %}

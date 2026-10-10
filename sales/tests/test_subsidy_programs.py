@@ -75,3 +75,15 @@ class SubsidyProgramTests(TestCase):
         self.assertContains(page, "申請補助（可多選）")
         self.assertContains(page, 'name="subsidy_programs_present"')
         self.assertContains(page, "貨物稅補助")
+
+    def test_other_subsidy_names_create_items_once(self):
+        # 1.70.0：政府清單外的補助勾「其他」自填名稱，可用「、」填多個；重複儲存不重複建立。
+        page = self.client.get(reverse("order_edit", args=[self.pending.pk]))
+        self.assertContains(page, "data-subsidy-other-toggle")
+        self.assertContains(page, 'name="subsidy_other"')
+        self.assert_saved(self.edit([self.new_purchase], subsidy_other="縣市加碼補助、 節能補助"), self.pending)
+        self.assert_saved(self.edit([self.new_purchase], subsidy_other="縣市加碼補助"), self.pending)
+        others = self.pending.subsidy_items.filter(program__isnull=True)
+        self.assertEqual(sorted(others.values_list("item_name", flat=True)), ["節能補助", "縣市加碼補助"])
+        self.assertTrue(all(item.category == SubsidyItem.Category.OTHER for item in others))
+        self.assertIn("縣市加碼補助", self.pending.subsidy_type)

@@ -27,7 +27,7 @@ def mask_account(account):
 
 
 def payout_summary_context(request, order):
-    """沒有財務授權、但可操作訂單作業的人員，在補助步驟唯讀查看撥款銀行與遮罩後的匯款帳戶。"""
+    """沒有財務授權、但可操作訂單作業的人員，在補助步驟唯讀查看撥款銀行與匯款帳戶（1.62.4 起完整顯示，使用者 2026-10-10）。"""
     policy = policy_for(request)
     if finance_allowed(request) or policy.dealer or not policy.screen('work', 'operate'):
         return {}
@@ -35,6 +35,7 @@ def payout_summary_context(request, order):
     account = profile.remittance_account if profile else ''
     return {'payout_summary': {
         'bank_name': profile.bank_name if profile else '',
+        'account': account,
         'account_masked': mask_account(account),
         'has_account': bool(account),
     }}

@@ -719,11 +719,10 @@
 
   {% if payout_summary %}
   <section class="payout-summary" aria-labelledby="payout-summary-title" data-payout-summary data-reveal-url="{% url 'order_payout_reveal' order.pk %}" data-csrf="{{ csrf_token }}">
-    <div class="payout-summary__head"><h3 id="payout-summary-title">撥款銀行與匯款帳戶</h3><small>由財務登記，這裡只能查看；帳號預設遮住，顯示完整帳號會留下查看紀錄。</small></div>
+    <div class="payout-summary__head"><h3 id="payout-summary-title">撥款銀行與匯款帳戶</h3><small>由財務登記，這裡只能查看。</small></div>
     <div class="subsidy-summary">
       <div><span>銀行</span><strong>{{ payout_summary.bank_name|default:"尚未登記" }}</strong></div>
-      <div><span>匯款帳戶</span><strong data-payout-account data-masked="{{ payout_summary.account_masked }}">{{ payout_summary.account_masked|default:"尚未登記" }}</strong></div>
-      {% if payout_summary.has_account %}<div class="payout-summary__action"><button class="button ghost small" type="button" data-payout-reveal aria-pressed="false">顯示完整帳號</button></div>{% endif %}
+      <div><span>匯款帳戶</span><strong data-payout-account>{{ payout_summary.account|default:"尚未登記" }}</strong></div>
     </div>
   </section>
   {% endif %}
@@ -1001,8 +1000,7 @@
 {% if workspace_finance %}{% include "sales/_order_operations_scripts.html" %}{% endif %}
 <script src="{% static 'js/next-actions.js' %}?v={{ app_version }}" defer></script>
 <script src="{% static 'js/subsidy-items.js' %}?v={{ app_version }}" defer></script>
-{% if payout_summary %}<script src="{% static 'js/masked-reveal.js' %}?v={{ app_version }}" defer></script>
-<script src="{% static 'js/payout-reveal.js' %}?v={{ app_version }}" defer></script>{% endif %}
+{% if payout_summary %}<script src="{% static 'js/masked-reveal.js' %}?v={{ app_version }}" defer></script>{% endif %}
 <script src="{% static 'js/document-upload-progress.js' %}?v={{ app_version }}" defer></script>
 <script src="{% static 'js/delivery-form.js' %}?v={{ app_version }}" defer></script>
 <script src="{% static 'js/allocation-priority.js' %}?v={{ app_version }}" defer></script>

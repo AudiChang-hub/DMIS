@@ -111,7 +111,7 @@ class IntakeOrderForm(SalesOrderForm):
                 self.initial[name] = None
             self.initial["compulsory_insurance_period"] = 1
         self.fields["deposit_amount"].required = False
-        self.fields["deposit_amount"].widget.attrs.update(min="0", placeholder="無訂金填 0")
+        self.fields["deposit_amount"].widget.attrs.update(min="0", placeholder="沒有收訂金請留空")
         self.fields["intake_discount_mode"].widget.attrs = {"class": "discount-mode__input"}
         self.fields["intake_discount_amount"].widget.attrs.update(inputmode="numeric", min="1", placeholder="例如 2000")
         self.fields["intake_discount_rate"].widget.attrs.update(inputmode="decimal", step="0.01", placeholder="例如 9.5")

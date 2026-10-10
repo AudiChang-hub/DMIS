@@ -204,3 +204,14 @@
   window.addEventListener("pageshow", unlockSubmittingForms);
   connectDescriptions();
 })();
+
+// 數字欄位不跟著滑鼠滾輪改值（使用者 2026-10-10）：游標停在已聚焦的數字欄上捲動時先移開焦點，
+// 頁面照常捲動、欄位數字不變。
+(() => {
+  document.addEventListener("wheel", event => {
+    const input = event.target;
+    if (input instanceof HTMLInputElement && input.type === "number" && input === document.activeElement) {
+      input.blur();
+    }
+  }, {capture: true, passive: true});
+})();

@@ -1600,11 +1600,9 @@
   orderForm.addEventListener("input", () => {
     validationSummary.hidden = true;
   });
-  // 訂金：分期預設以配件（加購）金額當訂金；現金依客人實際要付的金額填寫。人工改過就不再自動帶入。
+  // 訂金一律留空由人員填寫，不自動帶入（使用者 2026-10-10）；分期時提示配件加購金額供參考。
   const depositAmount = byId("id_deposit_amount");
   const depositHint = byId("deposit-hint");
-  const depositAuto = byId("deposit-auto");
-  let depositTouched = Number(depositAmount?.value || 0) > 0 && depositAuto?.value !== "1";
   function accessoryPurchaseTotal() {
     return [...document.querySelectorAll("[data-accessory-row]")].reduce((sum, row) => {
       if (row.classList.contains("is-pending-delete")) return sum;
@@ -1615,28 +1613,15 @@
       return sum + unit * Number(row.querySelector('[name$="-quantity"]')?.value || 0);
     }, 0);
   }
-  function suggestDeposit() {
-    if (!depositAmount || depositAmount.disabled || editingOrderId) return;
-    const installment = paymentType.value === "installment";
+  function depositGuidance() {
+    if (!depositHint || !depositAmount || depositAmount.disabled || editingOrderId) return;
     const total = accessoryPurchaseTotal();
-    if (installment && !depositTouched) {
-      depositAmount.value = total;
-      if (depositAuto) depositAuto.value = "1";
-      const depositDate = byId("id_deposit_date");
-      if (total > 0 && depositDate && !depositDate.value) depositDate.value = new Date().toLocaleDateString("sv-SE");
-    }
-    if (depositHint) {
-      depositHint.textContent = installment
-        ? `分期：預設以配件金額 ${total.toLocaleString("zh-TW")} 元當訂金，可依實際收款修改。`
-        : "現金：請依客人這次實際要付的金額填寫。";
-    }
+    depositHint.textContent = paymentType.value === "installment"
+      ? `分期：依實際收款填寫；配件加購金額 ${total.toLocaleString("zh-TW")} 元可供參考。沒有收訂金請留空。`
+      : "現金：請依客人這次實際要付的金額填寫；沒有收訂金請留空。";
   }
-  depositAmount?.addEventListener("input", () => {
-    depositTouched = true;
-    if (depositAuto) depositAuto.value = "";
-  });
-  paymentType.addEventListener("change", suggestDeposit);
-  suggestDeposit();
+  paymentType.addEventListener("change", depositGuidance);
+  depositGuidance();
   // 總價優惠：即時試算優惠前／後總價（與後端 pre_discount_total 同一組項目），送出時由伺服器依實際明細重算。
   const discountBox = orderForm.querySelector("[data-intake-discount]");
   if (discountBox) {

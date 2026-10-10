@@ -201,19 +201,19 @@ class WizardDiscountTests(IntakeFixtures):
             data.update(id_front=self.image("front.png"), id_back=self.image("back.png"))
         return self.client.post(reverse("order_create"), data)
 
-    def test_payment_step_validates_discount_and_summary_previews_totals(self):
+    def test_deposit_step_validates_discount_and_summary_previews_totals(self):
         self.key = str(uuid.uuid4())
         draft = None
-        for step in ("vehicle", "extras", "owner"):
+        for step in ("vehicle", "accessories", "tradein", "delivery", "owner", "payment"):
             self.assertEqual(self.wizard_post(step, draft).status_code, 302)
             draft = OrderDraft.objects.get()
-        too_much = self.wizard_post("payment", draft, intake_discount_amount="90000", intake_discount_reason="太多")
+        too_much = self.wizard_post("deposit", draft, intake_discount_amount="90000", intake_discount_reason="太多")
         self.assertEqual(too_much.status_code, 200)
         self.assertContains(too_much, "優惠須大於零，且不可超過折扣前總價。")
         draft.refresh_from_db()
-        self.assertNotIn("payment", draft.data["_wizard_done"])
+        self.assertNotIn("deposit", draft.data["_wizard_done"])
         good = {"intake_discount_amount": "2800", "intake_discount_reason": "老客戶", "deposit_amount": "1000"}
-        self.assertEqual(self.wizard_post("payment", draft, **good).status_code, 302)
+        self.assertEqual(self.wizard_post("deposit", draft, **good).status_code, 302)
         draft.refresh_from_db()
         self.assertEqual(draft.data["intake_discount_amount"], "2800")
         page = self.client.get(reverse("order_create"), {"draft": draft.pk, "step": "confirm"}).content.decode()

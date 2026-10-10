@@ -6,13 +6,19 @@
 from django.forms.utils import ErrorDict
 from django.http import QueryDict
 
+# 一步只處理一件事，依現場詢問客人的順序排列（使用者 2026-10-10：避免填完配件又回頭往上找汰舊與補助）。
 STEPS = (
     ("vehicle", "車款與來源", "選擇車型、顏色與訂單來源"),
-    ("extras", "配件與需求", "配件、選號、交車方式與汰舊"),
+    ("accessories", "配件", "加購配件、數量與安裝工資"),
+    ("tradein", "汰舊與補助", "是否汰舊、申請補助與舊車主"),
+    ("delivery", "選號與交車", "選號方式、交車方式與備註"),
     ("owner", "車主與證件", "上傳證件正反面並核對車主資料"),
-    ("payment", "付款與訂金", "付款方式、車價、分期與訂金"),
+    ("payment", "付款與車價", "付款方式、車價、分期與領牌規費"),
+    ("deposit", "訂金與費用", "訂金、其他費用與附件"),
     ("confirm", "確認送出", "核對整張訂單後建立"),
 )
+# 舊版草稿的步驟代號（拆步驟前）：完成「extras」等於完成配件、汰舊與補助、選號與交車；舊的「payment」含訂金。
+LEGACY_DONE = {"extras": ("accessories", "tradein", "delivery"), "payment": ("payment", "deposit")}
 STEP_KEYS = tuple(key for key, _label, _hint in STEPS)
 STEP_LABELS = {key: label for key, label, _hint in STEPS}
 DONE_KEY = "_wizard_done"
@@ -26,9 +32,11 @@ STEP_FIELDS = {
         "source_type", "source", "commission_recipient", "assign_commission_to_other",
         "assisted_company_confirmed", "assisted_company_revision",
     },
-    "extras": {
-        "trade_in_intent", "subsidy_programs", "is_trade_in_subsidy", "old_owner_same_as_owner", "plate_choice", "plate_selection_fee", "watched_numbers",
-        "plate_preference_note", "delivery_method", "delivery_destination", "note",
+    "accessories": set(),
+    "tradein": {"trade_in_intent", "subsidy_programs", "is_trade_in_subsidy", "old_owner_same_as_owner"},
+    "delivery": {
+        "plate_choice", "plate_selection_fee", "watched_numbers", "plate_preference_note",
+        "delivery_method", "delivery_destination", "note",
     },
     "owner": {
         "owner_type", "owner_name", "owner_name_en", "owner_phone", "owner_email", "owner_birth_date",
@@ -36,17 +44,19 @@ STEP_FIELDS = {
         "id_verified", ID_MANUAL_KEY,
     },
     "payment": {
-        "payment_type", "vehicle_price", "vehicle_price_adjustment_reason", "deposit_amount", "deposit_date",
-        "deposit_method", "registration_manual", "registration_adjustment_reason", "registration_date",
+        "payment_type", "vehicle_price", "vehicle_price_adjustment_reason", "registration_manual", "registration_adjustment_reason", "registration_date",
         "compulsory_insurance_period", "registration_plate_fee", "registration_license_fee",
         "registration_inspection_fee", "road_maintenance_fee", "license_tax_fee", "compulsory_insurance_fee",
         "lien_registration_fee", "registration_calculated_total", "plate_insurance_fee",
         "installment_company", "installment_custom", "installment_periods", "installment_monthly",
-        "installment_opening_fee", "intake_discount_mode", "intake_discount_amount", "intake_discount_rate",
-        "intake_discount_reason",
+        "installment_opening_fee",
+    },
+    "deposit": {
+        "deposit_amount", "deposit_date", "deposit_method", "intake_discount_mode", "intake_discount_amount",
+        "intake_discount_rate", "intake_discount_reason",
     },
 }
-FORMSET_STEPS = {"accessories": "extras", "other_fees": "payment"}
+FORMSET_STEPS = {"accessories": "accessories", "other_fees": "deposit"}
 SERVER_KEYS = (DONE_KEY,)
 
 
@@ -62,7 +72,11 @@ def step_index(key):
 
 
 def done_steps(draft):
-    done = (draft.data.get(DONE_KEY) if draft else None) or []
+    done = set((draft.data.get(DONE_KEY) if draft else None) or [])
+    if "extras" in done:  # 拆步驟前的草稿
+        for legacy, keys in LEGACY_DONE.items():
+            if legacy in done:
+                done.update(keys)
     return [key for key in STEP_KEYS if key in done]
 
 

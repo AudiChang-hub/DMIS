@@ -1,6 +1,12 @@
 /* 建立訂單・付款與訂金：總價優惠。只加模組修飾，顏色、圓角、間距一律引用 app.css 參數。 */
 .discount-subsection .section-title p { margin: var(--space-1) 0 0; }
 
+/* 預設收合的「店內調整」：只露出一行低調的開關，展開才看到優惠欄位。 */
+.discount-subsection__toggle { display: flex; align-items: center; gap: var(--space-2); min-height: 44px; padding: 0 var(--card-pad); color: var(--muted); font-size: var(--text-sm); font-weight: 600; list-style: none; cursor: pointer; }
+.discount-subsection__toggle::-webkit-details-marker { display: none; }
+.discount-subsection__toggle:hover { color: var(--ink); }
+.discount-subsection__toggle:focus-visible { outline: 2px solid var(--action-text); outline-offset: 2px; border-radius: var(--radius-md); }
+
 /* 與同段的欄位格線共用卡片內距，標題、切換鈕、欄位與試算框同一左緣。 */
 .discount-mode { margin: var(--card-pad) var(--card-pad) 0; padding: 0; border: 0; min-width: 0; }
 .discount-mode__legend {

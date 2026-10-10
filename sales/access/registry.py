@@ -40,6 +40,7 @@ SCREENS = (
     Screen("commissions", "車行傭金與銷售獎勵", "dealer_sales_program_list"),
     Screen("bonuses", "車行台數獎金與結算", "dealer_volume_bonus_list"),
     Screen("installments", "分期公司", "installment_company_list"),
+    Screen("subsidy_programs", "補助方案", "subsidy_program_list"),
     Screen("fees", "領牌與強制險規則", "brand_registration_fee_rule_list"),
     Screen("holidays", "工作日與假日設定", "business_holiday_list"),
     Screen("imports", "舊資料匯入與歷史修正", "legacy_import_list"),
@@ -57,7 +58,7 @@ SCREEN_GROUPS = (
     ("data", "資料維護區", (
         ("車輛與商品", ("brands", "models", "inventory", "accessories", "rewards")),
         ("通路、客戶與人員", ("customers", "sources", "distribution", "gift_distribution")),
-        ("費率與規則", ("costs", "incentives", "commissions", "bonuses", "installments", "fees", "holidays")),
+        ("費率與規則", ("costs", "incentives", "commissions", "bonuses", "installments", "subsidy_programs", "fees", "holidays")),
         ("工具與管理", ("imports", "templates", "diagnostics", "integrity", "accounts")),
     )),
 )
@@ -118,6 +119,7 @@ register("incentives", "incentive_rule_create incentive_rule_edit incentive_rule
 register("bonuses", "dealer_volume_bonus_list")
 register("bonuses", "dealer_volume_bonus_create dealer_volume_bonus_edit dealer_volume_bonus_delete dealer_volume_bonus_settle dealer_volume_bonus_revise", "operate")
 register("installments", "installment_company_list installment_company_quick_create")
+register("subsidy_programs", "subsidy_program_list")
 register("fees", "brand_registration_fee_rule_list brand_registration_fee_rule_delete")
 register("holidays", "business_holiday_list business_holiday_delete")
 register("imports", "legacy_import_list legacy_import_detail legacy_import_status")
@@ -162,7 +164,7 @@ TOGGLE_RESOURCES = {
     "accessory-product": "accessories", "dealer-reward-catalog-item": "rewards",
     "brand-registration-fee-rule": "fees", "business-holiday": "holidays",
     "dealer-volume-bonus": "bonuses", "incentive-rule": "incentives",
-    "installment-company": "installments", "installment-plan": "models",
+    "installment-company": "installments", "installment-plan": "models", "subsidy-program": "subsidy_programs",
     "positioned-print-template": "templates", "sales-source": "sources",
     "sales-source-category": "sources", "settlement-cost-rule": "costs",
     "vehicle-brand": "brands", "vehicle-model": "models", "vehicle-price-version": "models",

@@ -1687,6 +1687,18 @@ input[type="file"].form-control { padding: var(--space-3); }
 .checkbox-label { display: flex; align-items: center; gap: var(--space-3); font-weight: 800; }
 .checkbox-label input { width: 21px; height: 21px; accent-color: var(--forest); }
 .verify-box { padding: var(--inset-pad); background: var(--mint); border-radius: var(--radius-md); }
+/* 訂車選補助方案：多選做成可點的膠囊，選中時以強調色標示。 */
+.subsidy-program-picker { margin: 0; padding: 0; border: 0; min-width: 0; }
+.subsidy-program-picker legend { margin-bottom: var(--space-2); font-weight: 800; }
+.subsidy-program-picker small { display: block; margin-top: var(--space-2); color: var(--muted); }
+.subsidy-program-picker__options { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.subsidy-program-picker label:has(> input[type="checkbox"]) {
+  display: inline-flex; min-height: 44px; padding: var(--space-2) var(--space-4); align-items: center; gap: var(--space-2);
+  background: var(--surface); border: 1.5px solid var(--line); border-radius: var(--radius-pill); font-weight: 700; cursor: pointer;
+  transition: border-color .16s ease, background .16s ease;
+}
+.subsidy-program-picker label:has(> input:checked) { color: var(--action-text); background: color-mix(in srgb, var(--action-bg) 8%, var(--surface)); border-color: var(--action-bg); }
+.subsidy-program-picker label:has(> input:focus-visible) { outline: 3px solid var(--focus-ring); outline-offset: 2px; }
 .capture-card { padding: var(--inset-pad); background: var(--surface-soft); border: 1px dashed var(--green-border); border-radius: var(--radius-md); }
 .identity-compare {
   display: grid; grid-template-columns: minmax(280px, .9fr) minmax(320px, 1.1fr);

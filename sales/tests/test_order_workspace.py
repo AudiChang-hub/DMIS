@@ -19,6 +19,8 @@ def form_data(form):
         if isinstance(field.field, BooleanField):
             if value:
                 data[field.html_name] = 'on'
+        elif isinstance(value, (list, tuple)):  # 多選欄位（例如補助方案）
+            data[field.html_name] = [str(item) for item in value]
         else:
             data[field.html_name] = '' if value is None else str(value)
     return data

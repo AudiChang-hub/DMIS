@@ -325,6 +325,13 @@
     <summary><span class="step-number">5</span><span><strong>其他需求</strong><small>{% site_text 'order_form.7eacf129bc3f' %}</small></span></summary>
     <div class="form-grid">
       {% include "sales/_field.html" with field=form.trade_in_intent %}<p class="muted">{% site_text 'order_form.7825ae5a8413' %}</p>
+      {% if form.subsidy_programs.field.queryset.exists %}<fieldset class="span-2 subsidy-program-picker field">
+        <legend>{{ form.subsidy_programs.label }}</legend>
+        <input type="hidden" name="subsidy_programs_present" value="1">
+        <div class="subsidy-program-picker__options">{% for choice in form.subsidy_programs %}<label for="{{ choice.id_for_label }}">{{ choice.tag }}<span>{{ choice.choice_label }}</span></label>{% endfor %}</div>
+        <small>{{ form.subsidy_programs.help_text }}</small>
+        {% for error in form.subsidy_programs.errors %}<small class="field-error">{{ error }}</small>{% endfor %}
+      </fieldset>{% endif %}
       {# 訂單頁編輯不含這兩欄（改在「汰舊補助」分頁處理），不能留下空白框。 #}
       {% if form.is_trade_in_subsidy %}<div class="span-2 verify-box" {% if intake_mode and not intake_finance_editable %}hidden{% endif %}>{% include "sales/_field.html" with field=form.is_trade_in_subsidy %}</div>{% endif %}
       {% if form.old_owner_same_as_owner %}<div class="span-2 verify-box" data-conditional="trade-in-owner">{% include "sales/_field.html" with field=form.old_owner_same_as_owner %}</div>

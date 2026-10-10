@@ -27,7 +27,7 @@ STEP_FIELDS = {
         "assisted_company_confirmed", "assisted_company_revision",
     },
     "extras": {
-        "trade_in_intent", "is_trade_in_subsidy", "old_owner_same_as_owner", "plate_choice", "plate_selection_fee", "watched_numbers",
+        "trade_in_intent", "subsidy_programs", "is_trade_in_subsidy", "old_owner_same_as_owner", "plate_choice", "plate_selection_fee", "watched_numbers",
         "plate_preference_note", "delivery_method", "delivery_destination", "note",
     },
     "owner": {

@@ -51,6 +51,7 @@ from .models import (
     Store,
     SubsidyDocument,
     SubsidyItem,
+    SubsidyProgram,
     VehicleColor,
     VehicleInventory,
     VehicleIncentiveRule,
@@ -418,6 +419,19 @@ class SalesOrderForm(forms.ModelForm):
         self.fields["id_verified"].widget.attrs["class"] = "form-check"
         self.fields["is_trade_in_subsidy"].widget.attrs["class"] = "form-check"
         self.fields["old_owner_same_as_owner"].widget.attrs["class"] = "form-check"
+        # 補助方案多選（主檔設定）；選了就帶入訂單的補助項目，金額可在汰舊補助分頁修改。
+        linked_program_ids = (
+            list(self.instance.subsidy_items.filter(program__isnull=False).values_list("program_id", flat=True))
+            if self.instance.pk else []
+        )
+        self.fields["subsidy_programs"] = forms.ModelMultipleChoiceField(
+            label="申請補助（可多選）",
+            queryset=SubsidyProgram.objects.filter(Q(active=True) | Q(pk__in=linked_program_ids)),
+            required=False,
+            widget=forms.CheckboxSelectMultiple(attrs={"class": "subsidy-program-choice"}),
+            initial=linked_program_ids,
+            help_text="在「資料維護區 › 補助方案」新增或停用方案；預設金額可留空。",
+        )
         self.fields["delivery_method"].required = True
         self.fields["vehicle_category"].required = False
         self.fields["vehicle_category"].initial = SalesOrder.VehicleCategory.NEW
@@ -4673,9 +4687,11 @@ class SubsidyDocumentUploadForm(forms.ModelForm):
         data = super().clean()
         if (
             data.get("document_type") == SubsidyDocument.DocumentType.OTHER
-            and not data.get("name")
+            and not (data.get("name") or "").strip()
         ):
-            self.add_error("name", "其他補助文件必須填寫文件名稱。")
+            # 補助文字欄位一律選填（使用者 2026-10-10）；沒填名稱就以「其他補助文件」記錄。
+            data["name"] = "其他補助文件"
+            self.instance.name = data["name"]
         return data
 
     def clean_file(self):
@@ -4763,6 +4779,7 @@ class SubsidyItemForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields["category"].required = False
+        self.fields["item_name"].required = False  # 補助文字欄位一律選填
         self.fields["item_name"].widget.attrs.update(
             {"list": "subsidy-name-suggestions", "autocomplete": "off", "placeholder": "例如：工業局購車補助"}
         )
@@ -4770,6 +4787,23 @@ class SubsidyItemForm(forms.ModelForm):
     def clean_category(self):
         # 只填名稱與金額就能儲存；沒選類別視為「其他」。
         return self.cleaned_data.get("category") or SubsidyItem.Category.OTHER
+
+    def clean_item_name(self):
+        return (self.cleaned_data.get("item_name") or "").strip() or "補助"
+
+
+class SubsidyProgramForm(forms.ModelForm):
+    class Meta:
+        model = SubsidyProgram
+        fields = ["name", "category", "default_amount", "requires_old_vehicle", "active", "sort_order"]
+        labels = {"category": "補助單位"}
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["name"].widget.attrs["placeholder"] = "例如：新購補助、貨物稅補助"
+        self.fields["default_amount"].widget.attrs["placeholder"] = "可留空"
+        for name in ("requires_old_vehicle", "active"):
+            self.fields[name].widget.attrs["class"] = "form-check"
 
 
 SubsidyItemFormSet = inlineformset_factory(

@@ -421,7 +421,9 @@ def draw_order_page(c, order, copy_label, page_number, printed_at, signature=Non
     subsidy_data = [
         [
             p("<b>補助類型</b>"),
-            p(safe(order.subsidy_type if order.is_trade_in_subsidy else "無")),
+            # 補助類型：列出訂單的補助項目（訂車時選的補助方案）；沒有項目時沿用汰舊補助類型。
+            p(safe("、".join(item.item_name for item in order.subsidy_items.all())
+                   or (order.subsidy_type if order.is_trade_in_subsidy else "") or "無")),
             p("<b>新舊車主</b>"),
             # 沒有申請補助就沒有新舊車主，不預設為「不同人」。
             p(("同一人" if order.old_owner_same_as_owner else "不同人") if order.is_trade_in_subsidy else "—"),

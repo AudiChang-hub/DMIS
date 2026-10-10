@@ -64,8 +64,9 @@
   {% endif %}
 
   <div class="form-progress" id="form-progress" aria-label="填單段落">
-    <a href="#vehicle" class="active" aria-current="step">1 車款</a><a href="#source">2 來源</a><a href="#owner">3 車主</a>
-    <a href="#payment">4 金額</a><a href="#extras">5 需求</a>
+    <a href="#vehicle" class="active" aria-current="step">1 車款</a><a href="#source">2 來源</a><a href="#accessories">3 配件</a>
+    <a href="#tradein">4 汰舊補助</a><a href="#delivery">5 選號交車</a><a href="#owner">6 車主</a>
+    <a href="#payment">7 付款</a><a href="#deposit">8 訂金</a>
   </div>
   {% endif %}
 
@@ -115,8 +116,82 @@
     {% endif %}
   </details>
 
+  <details class="form-section" id="accessories" {% if order_workspace %}data-workspace-section="order"{% endif %} open {% if wizard %}data-wizard-panel="accessories" {% if wizard.current != 'accessories' %}hidden{% endif %}{% endif %}>
+    <summary><span class="step-number">3</span><span><strong>配件</strong><small>加購配件、數量與安裝工資；沒有配件可直接下一步</small></span></summary>
+    <div class="subsection accessory-section">
+      <p class="muted">選擇配件與數量，預帶售價與工資。贈送與調價由 admin 分別授權；選「其他」才填寫名稱。配件總額自動計算。</p>
+      <div id="accessory-forms">
+      {% for accessory_form in formset %}
+        <div class="accessory-row dynamic-row{% if accessory_form.DELETE.value %} is-pending-delete{% endif %}" data-accessory-row data-dynamic-row data-row-label="配件">
+          {{ accessory_form.id }}
+          <span hidden>{{ accessory_form.DELETE }}</span>
+          <button type="button" class="remove-row-button" data-remove-row aria-label="刪除此筆配件">刪除</button>
+          {% include "sales/_field.html" with field=accessory_form.accessory_product %}
+          <div data-custom-accessory hidden>{% include "sales/_field.html" with field=accessory_form.custom_name %}</div>
+          {% include "sales/_field.html" with field=accessory_form.quantity %}
+          {% include "sales/_field.html" with field=accessory_form.line_type %}
+          {% include "sales/_field.html" with field=accessory_form.amount %}
+          {% include "sales/_field.html" with field=accessory_form.labor_fee %}
+          <div class="field"><label>配件總額（單件售價＋工資）</label><output class="form-control" data-accessory-total>0</output><small data-accessory-quantity-total></small></div>
+          {% include "sales/_field.html" with field=accessory_form.note %}
+        </div>
+      {% endfor %}
+      </div>
+      <template id="empty-accessory">
+        <div class="accessory-row dynamic-row" data-accessory-row data-dynamic-row data-row-label="配件">
+          {{ formset.empty_form.id }}
+          <span hidden>{{ formset.empty_form.DELETE }}</span>
+          <button type="button" class="remove-row-button" data-remove-row aria-label="刪除此筆配件">刪除</button>
+          {% include "sales/_field.html" with field=formset.empty_form.accessory_product %}
+          <div data-custom-accessory hidden>{% include "sales/_field.html" with field=formset.empty_form.custom_name %}</div>
+          {% include "sales/_field.html" with field=formset.empty_form.quantity %}
+          {% include "sales/_field.html" with field=formset.empty_form.line_type %}
+          {% include "sales/_field.html" with field=formset.empty_form.amount %}
+          {% include "sales/_field.html" with field=formset.empty_form.labor_fee %}
+          <div class="field"><label>配件總額（單件售價＋工資）</label><output class="form-control" data-accessory-total>0</output><small data-accessory-quantity-total></small></div>
+          {% include "sales/_field.html" with field=formset.empty_form.note %}
+        </div>
+      </template>
+      <button type="button" class="button ghost add-row-button" id="add-accessory">＋ 新增配件</button>
+    </div>
+  </details>
+
+  <details class="form-section" id="tradein" {% if order_workspace %}data-workspace-section="order"{% endif %} open {% if wizard %}data-wizard-panel="tradein" {% if wizard.current != 'tradein' %}hidden{% endif %}{% endif %}>
+    <summary><span class="step-number">4</span><span><strong>汰舊與補助</strong><small>是否汰舊、申請哪些補助，以及舊車主是否為新車主本人</small></span></summary>
+    <div class="form-grid">
+      {% include "sales/_field.html" with field=form.trade_in_intent %}<p class="muted">{% site_text 'order_form.7825ae5a8413' %}</p>
+      {% if form.subsidy_programs.field.queryset.exists %}<fieldset class="span-2 subsidy-program-picker field">
+        <legend>{{ form.subsidy_programs.label }}</legend>
+        <input type="hidden" name="subsidy_programs_present" value="1">
+        <div class="subsidy-program-picker__options">{% for choice in form.subsidy_programs %}<label for="{{ choice.id_for_label }}">{{ choice.tag }}<span>{{ choice.choice_label }}</span></label>{% endfor %}</div>
+        <small>{{ form.subsidy_programs.help_text }}</small>
+        {% for error in form.subsidy_programs.errors %}<small class="field-error">{{ error }}</small>{% endfor %}
+      </fieldset>{% endif %}
+      {# 訂單頁編輯不含這兩欄（改在「汰舊補助」分頁處理），不能留下空白框。 #}
+      {% if form.is_trade_in_subsidy %}<div class="span-2 verify-box" {% if intake_mode and not intake_finance_editable %}hidden{% endif %}>{% include "sales/_field.html" with field=form.is_trade_in_subsidy %}</div>{% endif %}
+      {% if form.old_owner_same_as_owner %}<div class="span-2 verify-box" data-conditional="trade-in-owner">{% include "sales/_field.html" with field=form.old_owner_same_as_owner %}</div>
+      {% else %}<p class="span-2 muted" data-conditional="trade-in-owner">舊車主資料與補助申請請到訂單的「汰舊補助」分頁填寫。</p>{% endif %}
+      {% if intake_mode %}<div class="form-grid span-2" data-trade-in-uploads><label>舊車主證件正面（選填）<input type="file" name="old_id_front" accept="image/jpeg,image/png,image/webp,application/pdf"></label><label>舊車主證件反面（選填）<input type="file" name="old_id_back" accept="image/jpeg,image/png,image/webp,application/pdf"></label><label>舊車主存摺封面（選填）<input type="file" name="old_bankbook" accept="image/jpeg,image/png,image/webp,application/pdf"></label></div>{% endif %}
+    </div>
+  </details>
+
+  <details class="form-section" id="delivery" {% if order_workspace %}data-workspace-section="order"{% endif %} open {% if wizard %}data-wizard-panel="delivery" {% if wizard.current != 'delivery' %}hidden{% endif %}{% endif %}>
+    <summary><span class="step-number">5</span><span><strong>選號與交車</strong><small>車牌號碼的選法、交車方式與其他備註</small></span></summary>
+    <div class="form-grid">
+      {% include "sales/_field.html" with field=form.plate_choice %}
+      <div data-conditional="plate-selection">{% include "sales/_field.html" with field=form.plate_selection_fee %}</div>
+      <div data-conditional="watch">{% include "sales/_field.html" with field=form.watched_numbers %}</div>
+      <div data-conditional="preference">{% include "sales/_field.html" with field=form.plate_preference_note %}</div>
+      {% include "sales/_field.html" with field=form.delivery_method %}
+      <div class="conditional-required" data-conditional="delivery-destination">
+        {% include "sales/_field.html" with field=form.delivery_destination %}
+      </div>
+      <div class="span-2">{% include "sales/_field.html" with field=form.note %}</div>
+    </div>
+  </details>
+
   <details class="form-section" id="owner" {% if order_workspace %}data-workspace-section="order"{% endif %} open {% if wizard %}data-wizard-panel="owner" {% if wizard.current != 'owner' %}hidden{% endif %}{% endif %}>
-    <summary><span class="step-number">3</span><span><strong>車主與證件</strong><small>{% site_text 'order_form.8a0d36a5de3d' %}</small></span></summary>
+    <summary><span class="step-number">6</span><span><strong>車主與證件</strong><small>{% site_text 'order_form.8a0d36a5de3d' %}</small></span></summary>
     {% if order_workspace %}{% include "sales/_intake_attachments.html" with intake_attachments=order.intake_attachments.all %}{% endif %}
     <div class="info-banner" data-conditional="identity-upload">
       本國自然人上傳身分證、外籍／居留者上傳居留證正反面後，會自動辨識姓名、生日、證號與地址。辨識結果仍須對照照片核對。
@@ -191,10 +266,8 @@
     </div>
   </details>
 
-
-
   <details class="form-section" id="payment" {% if order_workspace %}data-workspace-section="finance"{% endif %} open {% if wizard %}data-wizard-panel="payment" {% if wizard.current != 'payment' %}hidden{% endif %}{% endif %}>
-    <summary><span class="step-number">4</span><span><strong>價格與付款</strong><small>售價與分期預帶車型設定，人工調整依 admin 授權開放</small></span></summary>
+    <summary><span class="step-number">7</span><span><strong>付款與車價</strong><small>售價與分期預帶車型設定，人工調整依 admin 授權開放</small></span></summary>
     <div class="form-grid">
       {% include "sales/_field.html" with field=form.payment_type %}
       {% include "sales/_field.html" with field=form.vehicle_price %}
@@ -258,6 +331,10 @@
       </div>
       <p class="form-hint" id="installment-plan-hint" aria-live="polite">{% site_text 'order_form.e4b6f41700b0' %}</p>
     </div>
+  </details>
+
+  <details class="form-section" id="deposit" {% if order_workspace %}data-workspace-section="finance"{% endif %} open {% if wizard %}data-wizard-panel="deposit" {% if wizard.current != 'deposit' %}hidden{% endif %}{% endif %}>
+    <summary><span class="step-number">8</span><span><strong>訂金與費用</strong><small>這次收的訂金、其他費用與附件</small></span></summary>
     <div class="subsection deposit-subsection" id="deposit-subsection">
       {% if wizard %}<input type="hidden" name="_deposit_auto" id="deposit-auto" value="{{ wizard.deposit_auto }}">{% endif %}<div class="section-title"><div><h3>訂金</h3><p class="muted" id="deposit-hint">現金：依客人這次實際要付的金額填寫。分期：預設以配件金額當訂金，可修改。</p></div></div>
       <div class="form-grid">
@@ -267,7 +344,9 @@
       </div>
     </div>
     {% if intake_mode and form.intake_discount_mode %}
-    <div class="subsection discount-subsection" id="intake-discount" data-intake-discount>
+    {# 平板會拿給客人看：預設收合、標題不寫「優惠」，有填寫或有錯誤時才展開（使用者 2026-10-10）。 #}
+    <details class="subsection discount-subsection" id="intake-discount" data-intake-discount {% if form.intake_discount_amount.value or form.intake_discount_rate.value or form.intake_discount_amount.errors or form.intake_discount_rate.errors or form.intake_discount_reason.errors %}open{% endif %}>
+      <summary class="discount-subsection__toggle">店內調整（選填）</summary>
       <div class="section-title"><div><h3>總價優惠</h3><p class="muted">在這裡談定的優惠送出後立即生效，並列在客人簽署的車輛訂購單上；沒有優惠請留白。</p></div></div>
       <fieldset class="discount-mode">
         <legend class="discount-mode__legend">{{ form.intake_discount_mode.label }}</legend>
@@ -293,7 +372,7 @@
         </div>
       </div>
       <p class="form-hint">總價含車價、牌險、分期開辦費、配件與其他費用，尚未扣除訂金；畫面數字為試算，送出時依實際明細重新計算。</p>
-    </div>
+    </details>
     {% endif %}
     <div class="subsection fee-subsection" {% if intake_mode and not intake_finance_editable %}hidden{% endif %}>
       <div class="section-title"><h3>其他費用</h3></div>
@@ -319,73 +398,7 @@
       </template>
       <button type="button" class="button ghost add-row-button" id="add-other-fee">＋ 新增費用</button>
     </div>
-  </details>
-
-  <details class="form-section" id="extras" {% if order_workspace %}data-workspace-section="order"{% endif %} open {% if wizard %}data-wizard-panel="extras" {% if wizard.current != 'extras' %}hidden{% endif %}{% endif %}>
-    <summary><span class="step-number">5</span><span><strong>其他需求</strong><small>{% site_text 'order_form.7eacf129bc3f' %}</small></span></summary>
-    <div class="form-grid">
-      {% include "sales/_field.html" with field=form.trade_in_intent %}<p class="muted">{% site_text 'order_form.7825ae5a8413' %}</p>
-      {% if form.subsidy_programs.field.queryset.exists %}<fieldset class="span-2 subsidy-program-picker field">
-        <legend>{{ form.subsidy_programs.label }}</legend>
-        <input type="hidden" name="subsidy_programs_present" value="1">
-        <div class="subsidy-program-picker__options">{% for choice in form.subsidy_programs %}<label for="{{ choice.id_for_label }}">{{ choice.tag }}<span>{{ choice.choice_label }}</span></label>{% endfor %}</div>
-        <small>{{ form.subsidy_programs.help_text }}</small>
-        {% for error in form.subsidy_programs.errors %}<small class="field-error">{{ error }}</small>{% endfor %}
-      </fieldset>{% endif %}
-      {# 訂單頁編輯不含這兩欄（改在「汰舊補助」分頁處理），不能留下空白框。 #}
-      {% if form.is_trade_in_subsidy %}<div class="span-2 verify-box" {% if intake_mode and not intake_finance_editable %}hidden{% endif %}>{% include "sales/_field.html" with field=form.is_trade_in_subsidy %}</div>{% endif %}
-      {% if form.old_owner_same_as_owner %}<div class="span-2 verify-box" data-conditional="trade-in-owner">{% include "sales/_field.html" with field=form.old_owner_same_as_owner %}</div>
-      {% else %}<p class="span-2 muted" data-conditional="trade-in-owner">舊車主資料與補助申請請到訂單的「汰舊補助」分頁填寫。</p>{% endif %}
-      {% if intake_mode %}<div class="form-grid span-2" data-trade-in-uploads><label>舊車主證件正面（選填）<input type="file" name="old_id_front" accept="image/jpeg,image/png,image/webp,application/pdf"></label><label>舊車主證件反面（選填）<input type="file" name="old_id_back" accept="image/jpeg,image/png,image/webp,application/pdf"></label><label>舊車主存摺封面（選填）<input type="file" name="old_bankbook" accept="image/jpeg,image/png,image/webp,application/pdf"></label></div>{% endif %}
-      {% include "sales/_field.html" with field=form.plate_choice %}
-      <div data-conditional="plate-selection">{% include "sales/_field.html" with field=form.plate_selection_fee %}</div>
-      <div data-conditional="watch">{% include "sales/_field.html" with field=form.watched_numbers %}</div>
-      <div data-conditional="preference">{% include "sales/_field.html" with field=form.plate_preference_note %}</div>
-      {% include "sales/_field.html" with field=form.delivery_method %}
-      <div class="conditional-required" data-conditional="delivery-destination">
-        {% include "sales/_field.html" with field=form.delivery_destination %}
-      </div>
-      <div class="span-2">{% include "sales/_field.html" with field=form.note %}</div>
-    </div>
-    <div class="subsection accessory-section">
-      <div class="section-title"><h3>配件</h3></div>
-      <p class="muted">選擇配件與數量，預帶售價與工資。贈送與調價由 admin 分別授權；選「其他」才填寫名稱。配件總額自動計算。</p>
-      <div id="accessory-forms">
-      {% for accessory_form in formset %}
-        <div class="accessory-row dynamic-row{% if accessory_form.DELETE.value %} is-pending-delete{% endif %}" data-accessory-row data-dynamic-row data-row-label="配件">
-          {{ accessory_form.id }}
-          <span hidden>{{ accessory_form.DELETE }}</span>
-          <button type="button" class="remove-row-button" data-remove-row aria-label="刪除此筆配件">刪除</button>
-          {% include "sales/_field.html" with field=accessory_form.accessory_product %}
-          <div data-custom-accessory hidden>{% include "sales/_field.html" with field=accessory_form.custom_name %}</div>
-          {% include "sales/_field.html" with field=accessory_form.quantity %}
-          {% include "sales/_field.html" with field=accessory_form.line_type %}
-          {% include "sales/_field.html" with field=accessory_form.amount %}
-          {% include "sales/_field.html" with field=accessory_form.labor_fee %}
-          <div class="field"><label>配件總額（單件售價＋工資）</label><output class="form-control" data-accessory-total>0</output><small data-accessory-quantity-total></small></div>
-          {% include "sales/_field.html" with field=accessory_form.note %}
-        </div>
-      {% endfor %}
-      </div>
-      <template id="empty-accessory">
-        <div class="accessory-row dynamic-row" data-accessory-row data-dynamic-row data-row-label="配件">
-          {{ formset.empty_form.id }}
-          <span hidden>{{ formset.empty_form.DELETE }}</span>
-          <button type="button" class="remove-row-button" data-remove-row aria-label="刪除此筆配件">刪除</button>
-          {% include "sales/_field.html" with field=formset.empty_form.accessory_product %}
-          <div data-custom-accessory hidden>{% include "sales/_field.html" with field=formset.empty_form.custom_name %}</div>
-          {% include "sales/_field.html" with field=formset.empty_form.quantity %}
-          {% include "sales/_field.html" with field=formset.empty_form.line_type %}
-          {% include "sales/_field.html" with field=formset.empty_form.amount %}
-          {% include "sales/_field.html" with field=formset.empty_form.labor_fee %}
-          <div class="field"><label>配件總額（單件售價＋工資）</label><output class="form-control" data-accessory-total>0</output><small data-accessory-quantity-total></small></div>
-          {% include "sales/_field.html" with field=formset.empty_form.note %}
-        </div>
-      </template>
-      <button type="button" class="button ghost add-row-button" id="add-accessory">＋ 新增配件</button>
-    </div>
-    {% if intake_mode %}<div class="subsection attachment-section"><h3>下訂附件</h3><p>{% site_text 'order_form.06e865b632d7' %}</p><div class="form-grid"><label>分期表<input type="file" name="installment_document" accept="image/*,application/pdf"></label><label>補充檔案<input type="file" name="supplement_documents" accept="image/*,application/pdf" multiple></label></div>{% include "sales/_intake_attachments.html" %}</div>{% endif %}
-  </details>
+    {% if intake_mode %}<div class="subsection attachment-section"><h3>下訂附件</h3><p>{% site_text 'order_form.06e865b632d7' %}</p><div class="form-grid"><label>分期表<input type="file" name="installment_document" accept="image/*,application/pdf"></label><label>補充檔案<input type="file" name="supplement_documents" accept="image/*,application/pdf" multiple></label></div>{% include "sales/_intake_attachments.html" %}</div>{% endif %}  </details>
 
   {% if editing_order %}
   <p class="workspace-save-note">此處儲存訂單資訊及成交條件；實際收支與補助各有獨立儲存按鈕。</p>

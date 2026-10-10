@@ -190,7 +190,7 @@ def _discount_rows(form, formset, fee_formset):
     from sales.services.order_discount import intake_discount_preview
     preview = intake_discount_preview(form, formset, fee_formset)
     if not preview:
-        return [("總價優惠", "無")]
+        return []  # 沒有優惠就不列，確認頁會給客人看
     rate = f"（{preview['rate'].normalize():f} 折）" if preview["mode"] == "rate" else ""
     return [
         ("優惠前總價", f"{preview['before']:,.0f} 元"),
@@ -224,12 +224,16 @@ def build_summary(form, formset, fee_formset, draft):
         owner_rows.append(("證件檢查", "自動辨識通過，已人工核對" if passed else "自動辨識未通過，已人工核對證件正反面"))
     payment_rows = _rows(form, ("payment_type", "vehicle_price", "vehicle_price_adjustment_reason", "installment_company",
                                 "installment_periods", "installment_monthly", "installment_opening_fee"))
-    deposit = form.cleaned_data.get("deposit_amount") or Decimal("0")
-    payment_rows.append((form.fields["deposit_amount"].label, f"{deposit:,.0f} 元" if deposit else "無"))
-    payment_rows += _rows(form, ("deposit_date", "deposit_method") if deposit else ())
     if form.finance_editable:
         payment_rows += _rows(form, ("plate_insurance_fee",))
-    payment_rows += _discount_rows(form, formset, fee_formset)
+    deposit = form.cleaned_data.get("deposit_amount") or Decimal("0")
+    deposit_rows = [(form.fields["deposit_amount"].label, f"{deposit:,.0f} 元" if deposit else "無")]
+    deposit_rows += _rows(form, ("deposit_date", "deposit_method") if deposit else ())
+    deposit_rows += _discount_rows(form, formset, fee_formset)
+    tradein_rows = _rows(form, ("trade_in_intent",))
+    if "subsidy_programs" in form.fields:
+        programs = form.cleaned_data.get("subsidy_programs") or []
+        tradein_rows.append((form.fields["subsidy_programs"].label, "、".join(str(item) for item in programs) or "無"))
     vehicle_rows = []
     model = form.cleaned_data.get("vehicle_model")
     if model:
@@ -242,11 +246,13 @@ def build_summary(form, formset, fee_formset, draft):
     return [
         {"step": "vehicle", "label": wizard.STEP_LABELS["vehicle"],
          "rows": vehicle_rows + _rows(form, ("vehicle_category", "transaction_type", "source_type", "source"))},
-        {"step": "extras", "label": wizard.STEP_LABELS["extras"],
-         "rows": [("配件", "、".join(accessories) or "無")] + _rows(form, (
-             "trade_in_intent", "plate_choice", "watched_numbers", "plate_preference_note", "delivery_method",
-             "delivery_destination", "note"))},
+        {"step": "accessories", "label": wizard.STEP_LABELS["accessories"], "rows": [("配件", "、".join(accessories) or "無")]},
+        {"step": "tradein", "label": wizard.STEP_LABELS["tradein"], "rows": tradein_rows},
+        {"step": "delivery", "label": wizard.STEP_LABELS["delivery"], "rows": _rows(form, (
+            "plate_choice", "plate_selection_fee", "watched_numbers", "plate_preference_note", "delivery_method",
+            "delivery_destination", "note"))},
         {"step": "owner", "label": wizard.STEP_LABELS["owner"], "rows": owner_rows},
-        {"step": "payment", "label": wizard.STEP_LABELS["payment"],
-         "rows": payment_rows + ([("其他費用", "、".join(fees))] if fees else [])},
+        {"step": "payment", "label": wizard.STEP_LABELS["payment"], "rows": payment_rows},
+        {"step": "deposit", "label": wizard.STEP_LABELS["deposit"],
+         "rows": deposit_rows + ([("其他費用", "、".join(fees))] if fees else [])},
     ]

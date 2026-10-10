@@ -1,6 +1,6 @@
 /* 建立訂單精靈：一次只顯示一步，完成的步驟可回頭修改，後面的步驟鎖住。 */
 .wizard-bar { margin-block: var(--stack-gap-sm); }
-.wizard-bar ol { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: var(--space-2); margin: 0; padding: 0; list-style: none; }
+.wizard-bar ol { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--space-2); margin: 0; padding: 0; list-style: none; }
 .wizard-bar__link { display: flex; align-items: center; gap: var(--space-2); width: 100%; min-height: 44px; padding: var(--space-2) var(--space-3); font: inherit; color: var(--ink); text-align: left; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-md); }
 button.wizard-bar__link { cursor: pointer; }
 button.wizard-bar__link:hover { border-color: var(--line-strong); }

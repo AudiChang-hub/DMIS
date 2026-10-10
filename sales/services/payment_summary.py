@@ -28,6 +28,19 @@ def payment_summary(order, records=None):
             else:
                 customer_expected += record.expected_amount or ZERO
     historical = order.status == "completed" and hasattr(order, "legacy_snapshot")
+    # 未完成的 Excel 匯入訂單：沒打「車行收款」V 時，以 Excel 收款價＋強制險收入作為客戶應收（方案 C）。
+    from .imported_balance import imported_due
+    imported = imported_due(order)
+    imported_open = bool(imported and not imported["paid_in_excel"])
+    if imported and imported["paid_in_excel"]:
+        # 「車行收款」打 V＝已收清：應收以已收為準（尾款 0），不補收款紀錄。
+        customer_expected = totals["customer"]
+    if imported_open:
+        # 匯入時建立的「歷史收款」列（legacy_cash／legacy_card）是實收，不是額外應收。
+        extra = sum((p.expected_amount or ZERO for p in records
+                     if p.system_key not in EXPECTED_KEYS and not p.system_key.startswith("legacy_")
+                     and p.effective_receipt_kind == "customer"), ZERO)
+        customer_expected = imported["total"] + extra
     if historical:
         # 已完成 Excel 訂單沒有當時完整價款快照，不憑現在欄位補出未曾存在的應收。
         customer_expected = sum((p.expected_amount for p in records if p.effective_receipt_kind == "customer"), ZERO)
@@ -35,7 +48,7 @@ def payment_summary(order, records=None):
     customer_due = max(customer_expected - totals["customer"], ZERO)
     lender_due = max(lender_expected - totals["lender"], ZERO)
     delivery_due = customer_due
-    if not order.cash_receivable_v2:
+    if not order.cash_receivable_v2 and not imported:
         # 舊流程的訂金欄已扣在尾款內，交付原本只核對尾款；不追加歷史阻擋條件。
         deposit_received = sum((p.received_amount for p in records if p.system_key == "deposit" and p.confirmed), ZERO)
         delivery_due = max(customer_expected - deposit - (totals["customer"] - deposit_received), ZERO)

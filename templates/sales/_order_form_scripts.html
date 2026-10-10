@@ -6,6 +6,18 @@
 {{ vehicle_rate_data|json_script:"vehicle-rate-data" }}
 {{ accessory_product_data|json_script:"accessory-product-data" }}
 <script>
+// 補助「其他」：勾選才顯示名稱欄位；取消勾選清空，避免送出看不見的名稱。
+(() => {
+  const toggle = document.querySelector("[data-subsidy-other-toggle]");
+  const box = document.querySelector("[data-subsidy-other]");
+  if (!toggle || !box) return;
+  const input = box.querySelector("input");
+  toggle.addEventListener("change", () => {
+    box.hidden = !toggle.checked;
+    if (toggle.checked) input?.focus();
+    else if (input) { input.value = ""; input.dispatchEvent(new Event("input", { bubbles: true })); }
+  });
+})();
 (() => {
   const byId = id => document.getElementById(id);
   const sourceType = byId("id_source_type");

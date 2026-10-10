@@ -160,10 +160,11 @@
     <summary><span class="step-number">4</span><span><strong>汰舊與補助</strong><small>是否汰舊、申請哪些補助，以及舊車主是否為新車主本人</small></span></summary>
     <div class="form-grid">
       {% include "sales/_field.html" with field=form.trade_in_intent %}<p class="muted">{% site_text 'order_form.7825ae5a8413' %}</p>
-      {% if form.subsidy_programs.field.queryset.exists %}<fieldset class="span-2 subsidy-program-picker field">
+      {% if "subsidy_programs" in form.fields %}<fieldset class="span-2 subsidy-program-picker field" data-subsidy-picker>
         <legend>{{ form.subsidy_programs.label }}</legend>
         <input type="hidden" name="subsidy_programs_present" value="1">
-        <div class="subsidy-program-picker__options">{% for choice in form.subsidy_programs %}<label for="{{ choice.id_for_label }}">{{ choice.tag }}<span>{{ choice.choice_label }}</span></label>{% endfor %}</div>
+        <div class="subsidy-program-picker__options">{% for choice in form.subsidy_programs %}<label for="{{ choice.id_for_label }}">{{ choice.tag }}<span>{{ choice.choice_label }}</span></label>{% endfor %}<label for="subsidy-other-toggle"><input type="checkbox" id="subsidy-other-toggle" data-subsidy-other-toggle aria-controls="subsidy-other-field"{% if form.subsidy_other.value %} checked{% endif %}><span>其他</span></label></div>
+        <div class="subsidy-program-picker__other" id="subsidy-other-field" data-subsidy-other{% if not form.subsidy_other.value %} hidden{% endif %}>{% include "sales/_field.html" with field=form.subsidy_other %}</div>
         <small>{{ form.subsidy_programs.help_text }}</small>
         {% for error in form.subsidy_programs.errors %}<small class="field-error">{{ error }}</small>{% endfor %}
       </fieldset>{% endif %}

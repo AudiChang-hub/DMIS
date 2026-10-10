@@ -3761,6 +3761,18 @@ input.acquisition-choice { position: absolute; width: 1px; height: 1px; margin: 
 .receipt-summary { display: flex; flex-wrap: wrap; gap: var(--stack-gap-sm) var(--space-6); margin: var(--stack-gap); padding: var(--inset-pad); background: var(--surface-soft); border: 1px solid var(--line); border-radius: var(--radius-md); }
 .receipt-summary strong { display: block; margin-top: var(--space-2); }
 .receipt-summary .is-overpaid strong { color: var(--amber-ink); }
+/* Excel 匯入、未完成訂單的尾款：未收清琥珀、已收清綠。 */
+.imported-balance {
+  display: grid; margin: 0 var(--stack-gap) var(--stack-gap); padding: var(--inset-pad); gap: var(--space-2);
+  background: var(--amber-soft); border: 1px solid var(--amber-border-strong); border-radius: var(--radius-md);
+}
+.imported-balance.is-settled { background: color-mix(in srgb, var(--green) 9%, var(--surface)); border-color: color-mix(in srgb, var(--green) 35%, var(--line)); }
+.imported-balance__main { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-2) var(--space-4); }
+.imported-balance__main span { font-weight: 800; }
+.imported-balance__main strong { color: var(--amber-ink); font-size: var(--text-xl); font-variant-numeric: tabular-nums; }
+.imported-balance.is-settled .imported-balance__main strong { color: var(--green-ink); }
+.imported-balance__main em { color: var(--ink-soft); font-size: var(--text-sm); font-style: normal; font-weight: 700; }
+.imported-balance p { margin: 0; color: var(--ink-soft); font-size: var(--text-sm); }
 .payment-record-row.is-locked { background: var(--surface-soft); }
 .payment-ledger { padding: var(--card-pad); }
 .payment-ledger__table { min-width: 0; }

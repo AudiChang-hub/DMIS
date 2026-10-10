@@ -24,7 +24,7 @@
       {% for customer in customers %}
         <tr>
           <td data-label="姓名／類型"><strong>{{ customer.owner_name }}</strong><span>{{ customer.get_owner_type_display }}</span></td>
-          <td data-label="證件號碼">{{ customer.masked_id_number }}</td>
+          <td data-label="證件號碼">{{ customer.owner_id_number }}</td>
           <td data-label="電話">{{ customer.owner_phone }}</td>
           <td data-label="Email">{{ customer.owner_email|default:"—" }}</td>
           <td data-label="地址">{{ customer.owner_address }}</td>

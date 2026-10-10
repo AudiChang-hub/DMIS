@@ -29,11 +29,13 @@
   {{ fee_formset.management_form }}
   {% if intake_mode %}{{ form.catalog_selection }}{% endif %}
   {% if editing_order.is_delivered %}{% include "sales/_field.html" with field=form.confirm_completed_correction %}{% endif %}
-  <section class="hero-row compact-hero form-heading">
+  <section class="hero-row compact-hero form-heading{% if editing_order %} order-sticky-hero{% endif %}"{% if editing_order %} data-sticky-hero{% endif %}>
     <div><p class="eyebrow">{% if wizard %}訂單精靈・第 {{ wizard.number }}／{{ wizard.total }} 步{% elif editing_order %}正式訂單{% else %}訂單建檔{% endif %}</p><h1>{% if wizard %}{{ wizard.label }}{% elif editing_order %}編輯訂單{% elif draft %}繼續編輯草稿{% else %}建立新訂單{% endif %}</h1><p class="muted">{% if wizard %}每一步都會存成草稿；完成這一步才能前往下一步，送出前會再核對整張訂單。{% elif editing_order %}儲存後會保留修改人、時間、原因及變更前後內容。{% else %}先選車款與顏色，再填寫下訂資料；送出後由店內人員接單，再安排配車。{% endif %}</p></div>
     {% if not wizard %}<div class="hero-actions">
       {% if editing_order %}<a class="button ghost desktop-save" href="{% url 'order_detail' editing_order.pk %}" data-cancel-edit>取消修改</a>{% endif %}
-      <button class="button primary desktop-save" type="submit">{% if editing_order %}儲存修改{% else %}建立訂單{% endif %}</button>
+      <button class="button {% if editing_order %}secondary{% else %}primary{% endif %} desktop-save" type="submit">{% if editing_order %}儲存修改{% else %}建立訂單{% endif %}</button>
+      {# 完成編輯：先儲存，成功後回到訂單檢視；沒有修改就直接回去。 #}
+      {% if editing_order %}<button class="button primary desktop-save" type="submit" name="_finish_edit" value="1" data-workspace-finish data-finish-url="{% url 'order_detail' editing_order.pk %}">完成編輯</button>{% endif %}
     </div>{% endif %}
   </section>
 

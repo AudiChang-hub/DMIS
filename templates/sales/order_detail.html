@@ -8,10 +8,12 @@
 {% url 'order_list' as order_list_url %}
 {% url 'dashboard' as dashboard_url %}
 {% include "sales/_page_back.html" with fallback_url=order_list_url label="全部訂單" root_url=dashboard_url root_label="首頁" %}
-<section class="hero-row compact-hero detail-hero">
+{# 檢視時固定訂單頁首；編輯時改由表單頁首（取消／儲存／完成編輯）固定，避免兩列重疊。 #}
+<section class="hero-row compact-hero detail-hero{% if not editing_order %} order-sticky-hero{% endif %}"{% if not editing_order %} data-sticky-hero{% endif %}>
   <div>
     <div class="title-with-status"><h1>{{ order.owner_name }}</h1><span class="status-pill large status-{{ order.display_status_code }}">{{ order.display_status }}</span></div>
     <p class="muted">{{ order.number }} · 訂單成立日期 {{ order.established_display }} · 領牌日期 {{ order.registration_display }}</p>
+    <p class="order-owner-facts">{% if order.owner_phone %}<span>電話 <strong>{{ order.owner_phone }}</strong></span>{% endif %}{% if order.owner_birth_date %}<span>生日 <strong>{{ order.owner_birth_date|roc_date }}</strong>（西元 {{ order.owner_birth_date|date:"Y/m/d" }}）</span>{% endif %}</p>
   </div>
   <div class="hero-actions">
     {% if_access 'order_delete' order.pk %}<a class="button danger-outline" href="{% url 'order_delete' order.pk %}">刪除訂單</a>{% endif_access %}
@@ -59,7 +61,9 @@
       <div><dt>車主類型</dt><dd>{{ order.get_owner_type_display }}</dd></div>
       <div><dt>姓名／公司</dt><dd>{{ order.owner_name }}</dd></div>
       <div><dt>電話</dt><dd>{{ order.owner_phone }}</dd></div>
-      <div><dt>證件號碼</dt><dd>{{ order.masked_id_number }}</dd></div>
+      <div><dt>證件號碼</dt><dd>{{ order.owner_id_number }}</dd></div>
+      <div><dt>生日（民國）</dt><dd>{% if order.owner_birth_date %}{{ order.owner_birth_date|roc_date }}{% else %}未填寫{% endif %}</dd></div>
+      <div><dt>生日（西元）</dt><dd>{% if order.owner_birth_date %}{{ order.owner_birth_date|date:"Y/m/d" }}{% else %}未填寫{% endif %}</dd></div>
       <div class="wide"><dt>地址</dt><dd>{{ order.owner_address }}</dd></div>
     </dl>
     <div class="document-links document-card-list">
@@ -992,6 +996,7 @@
 {% block scripts %}
 <script src="{% static 'js/order-commission-attribution.js' %}?v={{ app_version }}" defer></script>
 <script src="{% static 'js/order-workspace.js' %}?v={{ app_version }}" defer></script>
+<script src="{% static 'js/sticky-hero.js' %}?v={{ app_version }}" defer></script>
 {% if editing_order %}{% include "sales/_order_form_scripts.html" %}{% endif %}
 {% if workspace_finance %}{% include "sales/_order_operations_scripts.html" %}{% endif %}
 <script src="{% static 'js/next-actions.js' %}?v={{ app_version }}" defer></script>

@@ -281,8 +281,13 @@
         notify(busy ? '正在儲存，請稍候。' : '此區有與剛才更新重疊的欄位，未覆寫您的輸入。請記下修改後重新載入核對最新資料。', true);
         form.dispatchEvent(new CustomEvent('workspace-save-finished')); return;
       }
-      busy = true;
       const button = event.submitter;
+      const finishing = button?.hasAttribute('data-workspace-finish');
+      if (finishing && !dirty(form)) {
+        if (forms.some(dirty) && !confirm('其他區塊尚未儲存，確定放棄這些修改並完成編輯嗎？')) return;
+        allowLeave = true; location.href = button.dataset.finishUrl; return;
+      }
+      busy = true;
       const text = button?.textContent;
       if (button) { button.disabled = true; button.textContent = '正在儲存…'; }
       notify('正在儲存，請勿關閉頁面。');
@@ -314,6 +319,7 @@
         form.dispatchEvent(new CustomEvent('workspace-saved'));
         indicators();
         notify(payload.message + (conflicts.size ? ' 其他區塊有重疊修改，輸入已保留，請核對後再儲存。' : ' 其他步驟的未儲存輸入仍保留。'), conflicts.size > 0);
+        if (finishing && !conflicts.size && !forms.some(dirty)) { allowLeave = true; location.href = button.dataset.finishUrl; return; }
       } catch (error) {
         notify(error.name === 'AbortError' ? '儲存回應逾時，結果尚未確認。請先另開此訂單確認是否已儲存，勿重複送出。' : error.message, true);
       } finally {

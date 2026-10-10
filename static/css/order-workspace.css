@@ -15,3 +15,28 @@
 .workspace-order .workspace-save-note{color:var(--muted);margin:var(--space-3) 0}
 .workspace-order fieldset.workspace-readonly{border:0;padding:0;margin:0;min-width:0}
 @media(max-width:600px){.workspace-tabs{gap:2px;padding:var(--space-1)}.workspace-tabs button{font-size:var(--text-sm-plus);padding:var(--space-3) 3px}.workspace-finance-summary{grid-template-columns:repeat(2,minmax(0,1fr));padding:var(--card-pad);gap:var(--stack-gap-sm)}.workspace-order .form-heading h1{font-size:var(--text-xl)}}
+
+/* 訂單頁首（姓名、狀態、編輯／儲存／完成編輯）捲動時固定在頂端，不必捲回最上方操作；捲動後縮成精簡列。 */
+.order-sticky-hero {
+  position: sticky; z-index: 25; top: var(--app-header-height, 72px);
+  margin-inline: calc(-1 * var(--space-3)); padding: var(--space-3);
+  background: color-mix(in srgb, var(--paper) 92%, transparent);
+  -webkit-backdrop-filter: saturate(1.6) blur(14px); backdrop-filter: saturate(1.6) blur(14px);
+  border-bottom: 1px solid transparent; border-radius: 0 0 var(--radius-md) var(--radius-md);
+  transition: padding .18s ease, border-color .18s ease, box-shadow .18s ease;
+}
+.order-sticky-hero.is-stuck {
+  padding-block: var(--space-2); border-bottom-color: var(--line);
+  box-shadow: 0 10px 24px color-mix(in srgb, var(--shadow-ink) 10%, transparent);
+}
+.order-sticky-hero.is-stuck h1 { font-size: var(--text-xl); margin-bottom: 0; }
+.order-sticky-hero.is-stuck .muted,
+.order-sticky-hero.is-stuck .eyebrow,
+.order-sticky-hero.is-stuck .order-owner-facts { display: none; }
+.order-sticky-hero.is-stuck .hero-actions .button { min-height: 40px; }
+.order-owner-facts { display: flex; flex-wrap: wrap; margin: var(--space-1) 0 0; gap: var(--space-1) var(--space-5); color: var(--ink-soft); font-size: var(--text-sm); }
+.order-owner-facts strong { color: var(--ink); font-variant-numeric: tabular-nums; }
+@media (max-width: 860px) {
+  .order-sticky-hero { margin-inline: calc(-1 * var(--space-2)); padding: var(--space-2); }
+  .order-sticky-hero.is-stuck .hero-actions { flex-wrap: nowrap; overflow-x: auto; }
+}

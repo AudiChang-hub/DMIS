@@ -5232,7 +5232,8 @@ class OrderOperationsTests(TestCase):
         self.assertEqual(customers.status_code, 200)
         self.assertContains(customers, self.order.owner_name)
         self.assertContains(customers, "1 張")
-        self.assertNotContains(customers, self.order.owner_id_number)
+        # 1.62.3 起證件號碼不遮罩（使用者 2026-10-10）。
+        self.assertContains(customers, self.order.owner_id_number)
 
     def test_customer_detail_shows_every_order_for_same_customer(self):
         second = SalesOrder.objects.create(

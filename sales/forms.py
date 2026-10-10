@@ -659,8 +659,21 @@ class SalesOrderForm(forms.ModelForm):
                         data["plate_insurance_fee"] = calculated_total
                         self.cleaned_data["plate_insurance_fee"] = calculated_total
             else:
+                # 尚未排領牌日：先把選號費與動保設定費計入牌險合計（使用者 2026-10-10），領牌試算後由正式規費取代。
+                pending_total = data["plate_selection_fee"] + data["lien_registration_fee"]
                 self.instance.registration_rate_class = ""
-                self.instance.registration_calculated_total = 0
+                self.instance.registration_calculated_total = pending_total
+                data["registration_calculated_total"] = pending_total
+                self.cleaned_data["registration_calculated_total"] = pending_total
+                if (
+                    data.get("plate_insurance_fee") in (None, Decimal("0"))
+                    or (
+                        self._plate_fee_was_automatic
+                        and data.get("plate_insurance_fee") == self._previous_plate_insurance_fee
+                    )
+                ):
+                    data["plate_insurance_fee"] = pending_total
+                    self.cleaned_data["plate_insurance_fee"] = pending_total
         elif model:
             self.instance.registration_rate_class = ""
             self.instance.registration_calculated_total = 0

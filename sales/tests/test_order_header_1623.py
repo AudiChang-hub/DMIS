@@ -4,7 +4,7 @@ from datetime import date
 from django.urls import reverse
 
 from sales.templatetags.sales_format import roc_date
-from sales.tests.test_completed_order_corrections import CompletedOrderCorrectionTests
+from sales.tests import test_completed_order_corrections as correction_tests
 from django.test import TestCase, SimpleTestCase
 
 
@@ -15,9 +15,9 @@ class RocDateTests(SimpleTestCase):
 
 
 class OrderHeaderTests(TestCase):
-    setUpTestData = classmethod(CompletedOrderCorrectionTests.setUpTestData.__func__)
-    setUp = CompletedOrderCorrectionTests.setUp
-    order = CompletedOrderCorrectionTests.order
+    setUpTestData = classmethod(correction_tests.CompletedOrderCorrectionTests.setUpTestData.__func__)
+    setUp = correction_tests.CompletedOrderCorrectionTests.setUp
+    order = correction_tests.CompletedOrderCorrectionTests.order
 
     def test_detail_shows_phone_birthdays_and_full_id(self):
         order = self.order(owner_birth_date=date(1992, 1, 21))

@@ -23,10 +23,9 @@ def apply_order_settlement_cost(order, actor_name="", *, lock=False):
     profile, _created = OrderOperationsProfile.objects.get_or_create(order=order)
     if profile.vehicle_cost_locked_at or profile.vehicle_cost_manual or "vehicle_cost" in (profile.manual_financial_fields or []):
         return profile
-    rule = resolve_settlement_cost(
-        order.vehicle_model_id,
-        order.registration_date,
-    )
+    # 尚未領牌：先以訂單日期查成本版本作為「預估」；領牌後依領牌日重新帶入，領牌完成時鎖定。
+    basis_date = order.registration_date or order.order_date
+    rule = resolve_settlement_cost(order.vehicle_model_id, basis_date)
     if not rule:
         profile.vehicle_cost = 0
         profile.vehicle_cost_rule = None
@@ -45,7 +44,7 @@ def apply_order_settlement_cost(order, actor_name="", *, lock=False):
 
     profile.vehicle_cost = rule.amount
     profile.vehicle_cost_rule = rule
-    profile.vehicle_cost_registration_date = order.registration_date
+    profile.vehicle_cost_registration_date = basis_date
     profile.vehicle_cost_manual = False
     update_fields = [
         "vehicle_cost",
@@ -60,3 +59,15 @@ def apply_order_settlement_cost(order, actor_name="", *, lock=False):
         update_fields.extend(["vehicle_cost_locked_at", "vehicle_cost_locked_by"])
     profile.save(update_fields=update_fields)
     return profile
+
+
+def apply_estimated_settlement_cost(order):
+    """尚未領牌的訂單：以訂單日期帶入預估車輛成本；找不到成本版本時不動既有值（不歸零）。"""
+    if order.registration_date or not order.vehicle_model_id:
+        return None
+    profile = OrderOperationsProfile.objects.filter(order=order).first()
+    if not profile or profile.vehicle_cost_locked_at or profile.vehicle_cost_manual or "vehicle_cost" in (profile.manual_financial_fields or []):
+        return profile
+    if not resolve_settlement_cost(order.vehicle_model_id, order.order_date):
+        return profile
+    return apply_order_settlement_cost(order)

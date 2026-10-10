@@ -889,6 +889,11 @@
       if (customField) customField.hidden = !other;
       customInput.required = other;
       if (changed && !other) customInput.value = '';
+      // 「其他」配件沒有主檔售價：解除鎖定讓人填寫售價與工資；改回主檔配件時恢復鎖定。
+      row.querySelectorAll('[data-price-locked]').forEach(input => {
+        input.readOnly = !other;
+        input.tabIndex = other ? 0 : -1;
+      });
     }
     const hasProduct = Boolean(productInput?.value || row.querySelector('[name$="-custom_name"]')?.value.trim());
     row.classList.toggle("has-accessory-name", hasProduct);

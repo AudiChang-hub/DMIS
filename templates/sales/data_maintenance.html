@@ -11,7 +11,8 @@
     <p class="muted">{% site_text 'data_maintenance.df8d4de7e06b' %}</p>
   </div>
 </section>
-<section class="maintenance-section" aria-labelledby="maintenance-daily">
+{% include "sales/_side_nav.html" with nav_key="data" nav_title="資料維護區" nav_handle="資料目錄" %}
+<section class="maintenance-section" aria-labelledby="maintenance-daily" data-side-nav-section="日常資料">
   <div class="maintenance-section__heading"><div><p class="eyebrow">平常最常使用</p><h2 id="maintenance-daily">日常資料</h2></div><p>{% site_text 'data_maintenance.82dc6cd5dbcb' %}</p></div>
   <div class="maintenance-grid">
   {% if can_manage_screen_access %}<a class="maintenance-card" href="{% url 'official_catalog' %}"><span class="maintenance-card__icon">廠</span><div><h2>原廠車型比對</h2><p>檢查 SYM、SUZUKI 官網的新車款、改款與車色圖片，確認後補圖或建立停用車型。</p><strong>每週一自動檢查</strong></div><span aria-hidden="true">›</span></a>{% endif %}
@@ -74,7 +75,7 @@
   </div>
 </section>
 
-<section class="maintenance-section" aria-labelledby="maintenance-rules">
+<section class="maintenance-section" aria-labelledby="maintenance-rules" data-side-nav-section="費率與規則">
   <div class="maintenance-section__heading"><div><p class="eyebrow">系統自動帶入</p><h2 id="maintenance-rules">費率與規則</h2></div><p>{% site_text 'data_maintenance.966d4a0e8e2f' %}</p></div>
   <div class="maintenance-grid">
   {% if_access 'settlement_cost_rule_list' %}<a class="maintenance-card" href="{% url 'settlement_cost_rule_list' %}">
@@ -120,7 +121,7 @@
   </div>
 </section>
 
-<section class="maintenance-section" aria-labelledby="maintenance-tools">
+<section class="maintenance-section" aria-labelledby="maintenance-tools" data-side-nav-section="工具與管理">
   <div class="maintenance-section__heading"><div><p class="eyebrow">需要時再使用</p><h2 id="maintenance-tools">匯入與列印工具</h2></div><p>{% site_text 'data_maintenance.d685f822b3a5' %}</p></div>
   <div class="maintenance-grid maintenance-grid--tools">
   {% if_access 'legacy_import_list' %}<a class="maintenance-card" href="{% url 'legacy_import_list' %}">

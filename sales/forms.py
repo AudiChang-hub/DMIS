@@ -1737,7 +1737,7 @@ class OrderEditForm(SalesOrderForm):
 
 
 class AccessoryProductChoiceField(forms.ModelChoiceField):
-    allow_other = False
+    allow_other = True
 
     def to_python(self, value):
         if value == "other" and self.allow_other:
@@ -1771,18 +1771,15 @@ class AccessoryLineForm(forms.ModelForm):
         self.original_accessory_product_id = self.instance.accessory_product_id
         # 草稿重新載入時會帶入自訂名稱；只有沒有帶入時才用已存明細的名稱。
         self.initial.setdefault("custom_name", self.instance.name if not self.instance.accessory_product_id else "")
-        if not allow_manual:
-            self.fields["custom_name"].disabled = True
-            self.fields["custom_name"].widget = forms.HiddenInput()
+        # 清單找不到的配件（例如手機架）所有人都可選「其他」自行填名稱與售價（使用者 2026-10-10）；
+        # 主檔配件的售價與工資仍只有調價權限可改。
         self.fields["accessory_product"].queryset = AccessoryProduct.objects.filter(
             Q(active=True) | Q(pk=self.instance.accessory_product_id)
         ).order_by("name")
         self.fields["accessory_product"].label = "配件名稱"
-        self.fields["accessory_product"].allow_other = allow_manual
-        if allow_manual:
-            self.fields["accessory_product"].choices = [*self.fields["accessory_product"].choices, ("other", "其他（自行填寫名稱）")]
-            if self.instance.name and not self.instance.accessory_product_id:
-                self.initial["accessory_product"] = "other"
+        self.fields["accessory_product"].choices = [*self.fields["accessory_product"].choices, ("other", "其他（自行填寫名稱）")]
+        if self.instance.name and not self.instance.accessory_product_id:
+            self.initial["accessory_product"] = "other"
         for field_name in (
             "accessory_product",
             "quantity",
@@ -1793,8 +1790,10 @@ class AccessoryLineForm(forms.ModelForm):
             self.fields[field_name].required = False
         for field_name in ("amount", "labor_fee"):
             if not allow_manual:
+                # 主檔配件鎖定售價；選「其他」時由畫面解除鎖定讓人填寫（伺服器對主檔配件一律改回主檔售價）。
                 self.fields[field_name].widget.attrs["readonly"] = True
                 self.fields[field_name].widget.attrs["tabindex"] = "-1"
+                self.fields[field_name].widget.attrs["data-price-locked"] = "1"
         for field in self.fields.values():
             field.widget.attrs.setdefault("class", "form-control")
         apply_mobile_keyboard_attrs(self)
@@ -1809,14 +1808,14 @@ class AccessoryLineForm(forms.ModelForm):
             not self.instance.pk or self.instance.line_type != "gift" or
             getattr(product, "pk", None) != self.original_accessory_product_id or
             data.get("quantity") != self.instance.quantity or
-            (self.allow_manual and not product and (data.get("custom_name") or "").strip() != self.instance.name)
+            (not product and (data.get("custom_name") or "").strip() != self.instance.name)
         ):
             self.add_error("line_type", "沒有新增或變更贈送配件的權限，請洽 admin。")
         custom_name = (data.get("custom_name") or "").strip()
-        if self.data.get(self.add_prefix("accessory_product")) == "other" and self.allow_manual and not custom_name:
+        if self.data.get(self.add_prefix("accessory_product")) == "other" and not custom_name:
             self.add_error("custom_name", "請填寫其他配件名稱。")
             return data
-        if not product and custom_name and self.allow_manual:
+        if not product and custom_name:
             for name in ("quantity", "line_type", "amount", "labor_fee"):
                 if data.get(name) in (None, ""):
                     self.add_error(name, "臨時配件請填寫數量、類型、售價及工資（無費用填 0）。")

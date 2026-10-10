@@ -4,6 +4,8 @@ from io import BytesIO
 from tempfile import TemporaryDirectory
 
 from django.contrib.auth import get_user_model
+from django.core.signals import request_finished
+from django.db import close_old_connections
 from django.test import TestCase, override_settings
 from django.urls import reverse
 from PIL import Image, ImageDraw
@@ -96,11 +98,15 @@ class TransferSignoffTests(TestCase):
         pdf = self.client.get(reverse("transfer_signoff_pdf", args=[signoff.pk]))
         self.assertEqual(pdf["Content-Type"], "application/pdf")
         self.assertTrue(b"".join(pdf.streaming_content).startswith(b"%PDF"))
-        pdf.close()
         self.assertIn("no-store", pdf["Cache-Control"])
         image = self.client.get(reverse("protected_media", args=["transfer_signoff", signoff.pk, "signature_image"]))
         self.assertEqual(image.status_code, 200)
-        image.close()
+        # 關檔避免 Windows 檔案鎖；response.close() 會觸發 request_finished 關掉資料庫連線（PostgreSQL 上後續查詢失敗），所以暫時解除。
+        request_finished.disconnect(close_old_connections)
+        try:
+            image.close()
+        finally:
+            request_finished.connect(close_old_connections)
         # 已調出的車不在現有庫存，列在「已售出／調出」。
         self.assertNotIn(cars[0], list(self.client.get(reverse("inventory_list")).context["vehicles"]))
         self.assertIn(cars[0], list(self.client.get(reverse("inventory_list"), {"scope": "sold"}).context["vehicles"]))

@@ -4906,7 +4906,7 @@ def _apply_submitted_subsidy_programs(order, form, post_data):
 def _create_intake_order(request, post_data, files, draft, reception, submission_key):
     """驗證並建立訂單；成功回傳導向回應，失敗回傳含錯誤的表單供重新顯示。"""
     from sales.intake_forms import validated_intake_uploads
-    from sales.services.order_intake import receive_order, save_intake_uploads, prepare_intake_uploads
+    from sales.services.order_intake import auto_accepts, receive_order, save_intake_uploads, prepare_intake_uploads
     form, formset, fee_formset = _bound_intake_forms(request, post_data, files, draft, reception)
     uploads = []
     form.is_valid()
@@ -4975,11 +4975,12 @@ def _create_intake_order(request, post_data, files, draft, reception, submission
     if draft:
         draft.intake_attachments.update(order=order, draft=None)
     save_intake_uploads(request.user, uploads, order=order, remove_ids=remove_ids if draft else ())
-    if form.cleaned_data.get("accept_by_me"):
+    accepted = auto_accepts(request.user) or (not reception and form.cleaned_data.get("accept_by_me"))
+    if accepted:
         receive_order(request.user, order.pk)
     if draft:
         draft.delete_with_files()
-    messages.success(request, "訂單已建立並由你接單。" if form.cleaned_data.get("accept_by_me") else "訂單已建立，等待店內人員接單。")
+    messages.success(request, "訂單已建立並由你接單。" if accepted else "訂單已建立，等待店內人員接單。")
     if reception:
         return redirect("order_submitted", pk=order.pk), form, formset, fee_formset
     return redirect(f"{reverse('order_detail', kwargs={'pk': order.pk})}?created=1"), form, formset, fee_formset
@@ -5036,7 +5037,7 @@ def _initial_intake_forms(request, draft, reception):
 def _intake_form_context(request, form, formset, fee_formset, draft, reception, submission_key):
     import uuid
     from sales.access.services import policy_for
-    from sales.services.order_intake import intake_context
+    from sales.services.order_intake import auto_accepts, intake_context
     return {
         "form": form,
         "formset": formset,
@@ -5052,6 +5053,7 @@ def _intake_form_context(request, form, formset, fee_formset, draft, reception, 
         "reception_back_url": reverse("catalog" if policy_for(request).route("catalog") else "dashboard"),
         "reception_back_label": "返回選車" if policy_for(request).route("catalog") else "離開接待",
         "intake_can_receive": not reception and intake_context(request.user)["intake_can_receive"],
+        "intake_auto_accept": auto_accepts(request.user),
         "intake_finance_editable": form.finance_editable,
         "intake_pricing_editable": form.pricing_editable,
         "draft_save_route": "intake_draft_save" if reception else "draft_save",

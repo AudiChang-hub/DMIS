@@ -138,7 +138,7 @@ class OrderWizardTests(TestCase):
         order = [page.index(f'data-wizard-panel="{key}"') for key in
                  ("accessories", "tradein", "delivery", "owner", "payment", "deposit")]
         self.assertEqual(order, sorted(order))
-        deposit_panel = page.split('data-wizard-panel="deposit"', 1)[1].split('data-wizard-panel="confirm"', 1)[0]
+        deposit_panel = page.split('data-wizard-panel="deposit"', 1)[1].split("</form>", 1)[0]
         self.assertIn('id="deposit-subsection"', deposit_panel)
         self.assertNotIn("installment-picker", deposit_panel)
 

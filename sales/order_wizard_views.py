@@ -53,7 +53,6 @@ def _render_step(request, draft, reception, step, forms, *, errors=(), submissio
         "id_check": data.get(wizard.ID_CHECK_KEY, ""),
         "id_check_error": data.get(wizard.ID_CHECK_ERROR_KEY, ""),
         "id_manual_confirmed": data.get(wizard.ID_MANUAL_KEY) in {"on", "1", "true", True},
-        "deposit_auto": "1" if data.get("_deposit_auto") == "1" else "",
     }
     return render(request, "sales/order_form.html", context)
 

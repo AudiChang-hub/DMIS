@@ -61,3 +61,12 @@ class StoreHandlesOrdersTests(TestCase):
         self.assertEqual(response.status_code, 302, getattr(response, "context", None) and response.context["form"].errors)
         line = SalesOrder.objects.get().accessories.get()
         self.assertEqual((line.name, line.amount, line.labor_fee), ("行車紀錄器", 2500, 300))
+
+    def test_deposit_field_starts_empty(self):
+        # 1.70.2：建立訂單時訂金欄位保持清空，不帶預設值，也不自動帶入配件金額。
+        import re
+        for name in ("order_start", "order_create"):
+            page = self.client.get(reverse(name)).content.decode()
+            field = re.search(r'<input[^>]*id="id_deposit_amount"[^>]*>', page).group(0)
+            self.assertNotIn("value=", field)
+            self.assertIn('placeholder="沒有收訂金請留空"', field)

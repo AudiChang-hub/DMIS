@@ -61,10 +61,11 @@ class OrderWizardTests(TestCase):
         self.assertIn("function updateVerifyLock", page)
         # 自然人未勾「已人工核對證件」也不能前往下一步。
         self.assertIn('next.disabled = needsId && (!ocrReady || !verified)', page)
-        # 訂金獨立成段；分期預設以配件金額當訂金。
+        # 訂金獨立成段且一律留空，不自動帶入配件金額（1.70.2）。
         self.assertIn('id="deposit-subsection"', page)
-        self.assertIn('name="_deposit_auto"', page)
-        self.assertIn("function accessoryPurchaseTotal", page)
+        self.assertNotIn('name="_deposit_auto"', page)
+        self.assertNotIn("depositAmount.value =", page)
+        self.assertIn("function depositGuidance", page)
         classic = self.client.get(reverse("order_create"), {"classic": "1"}).content.decode()
         self.assertIn("建立新訂單", classic)
         self.assertNotIn("wizard-bar", classic)

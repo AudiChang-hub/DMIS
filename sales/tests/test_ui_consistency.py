@@ -408,3 +408,12 @@ class UiConsistencyTests(SimpleTestCase):
         self.assertFalse(".page-shell { width: min(100% - 48px, 1560px)" in app)
         self.assertIn("--shell-wide: 1560px;", app)
         self.assertRegex(app, r"\.page-shell \{[^}]*width: min\(100% - var\(--shell-gutter\), var\(--shell-wide\)\);")
+
+
+class NumberWheelGuardTests(SimpleTestCase):
+    def test_number_inputs_ignore_mouse_wheel(self):
+        # 1.70.2：數字欄位不跟著滑鼠滾輪改值；全站共用 form-feedback.js（base.html 載入）。
+        script = Path("static/js/form-feedback.js").read_text(encoding="utf-8")
+        self.assertIn('document.addEventListener("wheel"', script)
+        self.assertIn('input.type === "number"', script)
+        self.assertIn("form-feedback.js", (TEMPLATES / "base.html").read_text(encoding="utf-8"))

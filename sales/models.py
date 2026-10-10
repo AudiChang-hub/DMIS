@@ -2535,18 +2535,26 @@ def annotate_allocation_priority(queryset, today=None):
 
 class VehicleInventory(TimeStampedModel):
     class Status(models.TextChoices):
-        # 調車只記錄實際位置（current_dealer），不另設調車狀態。
+        # 放到合作車行仍是本店庫存，只改實際位置（current_dealer）；
+        # 調給其他車行（調出）不算庫存也不算售出，記為「已調出」並保留進車紀錄（使用者 2026-10-10 確認）。
         AVAILABLE = "available", "可銷售"
         RESERVED = "reserved", "已預留"
         DELIVERED = "delivered", "已交車"
         CONDITION_ISSUE = "condition_issue", "車況異常（暫停配車）"
         SOLD = "sold", "已售出"
+        TRANSFERRED_OUT = "transferred_out", "已調出"
         INACTIVE = "inactive", "停用"
 
     class AcquisitionType(models.TextChoices):
         # 車輛取得來源；與 current_dealer（目前放在哪個車行）無關。
         COMPANY = "company", "公司進車"
         DEALER_TRANSFER = "dealer_transfer", "車行調車"
+
+    class Disposition(models.TextChoices):
+        # 車輛離開本店的去向；Excel 進貨 M 欄「XX調走／XX調」「XX領」匯入，也可人工登錄。
+        TRANSFER_OUT = "transfer_out", "調出"
+        DEALER_PICKUP = "dealer_pickup", "車行領車"
+        SOLD = "sold", "一般售出"
 
     vehicle_model = models.ForeignKey(
         VehicleModel, on_delete=models.PROTECT, verbose_name="車型"
@@ -2641,6 +2649,17 @@ class VehicleInventory(TimeStampedModel):
         "調車來源", max_length=120, blank=True,
         help_text="車行調車時填寫跟哪一家車行調車。",
     )
+    disposition = models.CharField("去向", max_length=20, choices=Disposition.choices, blank=True)
+    disposition_dealer = models.ForeignKey(
+        SalesSource, on_delete=models.PROTECT, related_name="disposed_vehicles", verbose_name="去向車行",
+        blank=True, null=True, limit_choices_to={"source_type": SalesSource.SourceType.DEALER},
+    )
+    disposition_dealer_name = models.CharField(
+        "去向對象（原文）", max_length=120, blank=True,
+        help_text="對不到車行主檔時保留原文，例如「工廠」或尚未建檔的車行。",
+    )
+    disposition_on = models.DateField("去向日期", blank=True, null=True)
+    note = models.TextField("備註", blank=True)
 
     class Meta:
         ordering = ["-received_on", "-id"]
@@ -2654,6 +2673,13 @@ class VehicleInventory(TimeStampedModel):
     @property
     def actual_location_label(self):
         return self.current_dealer.name if self.current_dealer_id else "本店"
+
+    @property
+    def disposition_target_label(self):
+        """去向對象：對到車行主檔顯示車行名稱，否則顯示匯入原文（例如「工廠」）。"""
+        if self.disposition_dealer_id:
+            return self.disposition_dealer.name
+        return self.disposition_dealer_name
 
     @property
     def is_registered_vehicle(self):

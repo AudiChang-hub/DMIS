@@ -4117,6 +4117,8 @@ INVENTORY_HISTORY_FIELDS = {
     "resale_price": "領牌車再售價",
     "status": "庫存狀態",
     "acquisition": "車輛來源",
+    "disposition": "去向",
+    "note": "備註",
 }
 
 
@@ -4145,6 +4147,18 @@ def _inventory_values(vehicle):
             vehicle.condition_resolution or "未填寫",
         ),
         "status": (vehicle.status, vehicle.get_status_display()),
+        "disposition": (
+            (vehicle.disposition, vehicle.disposition_dealer_id, vehicle.disposition_dealer_name,
+             str(vehicle.disposition_on or "")),
+            " ".join(
+                part for part in (
+                    vehicle.get_disposition_display() if vehicle.disposition else "未記錄",
+                    vehicle.disposition_target_label,
+                    str(vehicle.disposition_on or ""),
+                ) if part
+            ),
+        ),
+        "note": (vehicle.note, vehicle.note or "未填寫"),
         "resale_price": (
             str(vehicle.resale_price or ""),
             f"{vehicle.resale_price:,.0f}" if vehicle.resale_price is not None else "未設定",
@@ -7800,27 +7814,47 @@ def inventory_list(request):
         VehicleInventory.Status.RESERVED,
         VehicleInventory.Status.CONDITION_ISSUE,
     )
-    # 已交車、已售出的車不再列入庫存列表（資料保留供訂單與報表追溯）；
-    # 分頁參數沿用 history，只收停用車輛。
+    # 已交車的車不列入庫存列表（資料保留供訂單與報表追溯）；分頁參數沿用 history，只收停用車輛。
+    # 已售出與已調出（不算庫存但保留進車紀錄）另列「已售出／調出」分頁，可依去向與去向車行查詢。
     historical_statuses = (VehicleInventory.Status.INACTIVE,)
+    sold_statuses = (VehicleInventory.Status.SOLD, VehicleInventory.Status.TRANSFERRED_OUT)
     requested_statuses = list(
         dict.fromkeys(value for value in request.GET.getlist("status") if value)
     )
     scope = request.GET.get("scope", "")
-    if scope not in {"current", "history"}:
-        scope = (
-            "history"
-            if requested_statuses
-            and all(value in historical_statuses for value in requested_statuses)
-            else "current"
-        )
-    scope_statuses = historical_statuses if scope == "history" else current_statuses
+    if scope not in {"current", "history", "sold"}:
+        scope = "current"
+        for candidate, candidate_statuses in (
+            ("history", historical_statuses),
+            ("sold", sold_statuses),
+        ):
+            if requested_statuses and all(
+                value in candidate_statuses for value in requested_statuses
+            ):
+                scope = candidate
+    scope_statuses = {
+        "history": historical_statuses,
+        "sold": sold_statuses,
+    }.get(scope, current_statuses)
 
     vehicles = annotate_allocation_priority(
         VehicleInventory.objects.select_related(
-            "vehicle_model", "vehicle_model__family", "color", "current_dealer"
+            "vehicle_model", "vehicle_model__family", "color", "current_dealer",
+            "disposition_dealer",
         ).filter(status__in=scope_statuses)
     )
+    disposition = request.GET.get("disposition", "")
+    if disposition in VehicleInventory.Disposition.values:
+        vehicles = vehicles.filter(disposition=disposition)
+    elif disposition == "none":
+        vehicles = vehicles.filter(disposition="")
+    else:
+        disposition = ""
+    disposition_dealer = request.GET.get("disposition_dealer", "")
+    if disposition_dealer.isdigit():
+        vehicles = vehicles.filter(disposition_dealer_id=int(disposition_dealer))
+    else:
+        disposition_dealer = ""
     keyword = request.GET.get("q", "").strip()
     requested_family_ids = list(
         dict.fromkeys(
@@ -7947,6 +7981,9 @@ def inventory_list(request):
             | Q(current_dealer__name__icontains=keyword)
             | Q(condition_note__icontains=keyword)
             | Q(transfer_source_name__icontains=keyword)
+            | Q(disposition_dealer__name__icontains=keyword)
+            | Q(disposition_dealer_name__icontains=keyword)
+            | Q(note__icontains=keyword)
         )
         if matching_statuses:
             query |= Q(status__in=matching_statuses)
@@ -7984,6 +8021,7 @@ def inventory_list(request):
     inventory_counts = VehicleInventory.objects.aggregate(
         current=Count("id", filter=Q(status__in=current_statuses)),
         history=Count("id", filter=Q(status__in=historical_statuses)),
+        sold=Count("id", filter=Q(status__in=sold_statuses)),
     )
     family_rows = VehicleModelFamily.objects.filter(
         active=True,
@@ -8040,8 +8078,11 @@ def inventory_list(request):
                 "sort": sort,
                 "scope": scope,
                 "acquisition": acquisition,
+                "disposition": disposition,
+                "disposition_dealer": disposition_dealer,
             },
             "acquisition_choices": VehicleInventory.AcquisitionType.choices,
+            "disposition_choices": VehicleInventory.Disposition.choices,
         },
     )
 

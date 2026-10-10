@@ -72,8 +72,9 @@ class PayoutAccountVisibilityTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "撥款銀行與匯款帳戶")
         self.assertContains(response, BANK)
-        self.assertContains(response, "●●●●2331")
-        self.assertNotContains(response, FULL_ACCOUNT)
+        # 1.62.4 起有訂單作業權限者直接看到完整帳號（使用者 2026-10-10）。
+        self.assertContains(response, FULL_ACCOUNT)
+        self.assertNotContains(response, "●●●●2331")
         self.assertNotContains(response, 'name="operations-remittance_account"')
 
     def test_reveal_requires_own_password_then_returns_full_account_and_audits(self):

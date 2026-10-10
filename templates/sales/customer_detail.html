@@ -10,7 +10,7 @@
   <div>
     <p class="eyebrow">客戶查詢</p>
     <h1>{{ customer.owner_name }}</h1>
-    <p class="muted">{{ customer.get_owner_type_display }} · {{ customer.masked_id_number }} · {{ customer.owner_phone }}</p>
+    <p class="muted">{{ customer.get_owner_type_display }} · {{ customer.owner_id_number }} · {{ customer.owner_phone }}</p>
   </div>
   <span class="customer-order-count">{{ page_obj.paginator.count }} 張歷史訂單</span>
 </section>

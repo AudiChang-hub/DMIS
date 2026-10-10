@@ -1815,6 +1815,10 @@ class SubsidyItem(TimeStampedModel):
     order = models.ForeignKey(
         "SalesOrder", on_delete=models.CASCADE, related_name="subsidy_items", verbose_name="訂單"
     )
+    program = models.ForeignKey(
+        "SubsidyProgram", on_delete=models.SET_NULL, related_name="items", verbose_name="補助方案",
+        blank=True, null=True,
+    )
     category = models.CharField("類別", max_length=20, choices=Category.choices)
     item_name = models.CharField("補助項目", max_length=160)
     expected_amount = models.DecimalField("預計金額", max_digits=12, decimal_places=0, default=0)
@@ -1826,6 +1830,33 @@ class SubsidyItem(TimeStampedModel):
         ordering = ["category", "id"]
         verbose_name = "補助項目"
         verbose_name_plural = "補助項目"
+
+
+class SubsidyProgram(TimeStampedModel):
+    """可申請的補助方案主檔（汰舊換新、新購補助、貨物稅補助…）；訂車時多選帶入訂單的補助項目。"""
+
+    name = models.CharField("方案名稱", max_length=160, unique=True)
+    category = models.CharField(
+        "單位", max_length=20, choices=SubsidyItem.Category.choices, default=SubsidyItem.Category.OTHER
+    )
+    default_amount = models.DecimalField(
+        "預設金額", max_digits=12, decimal_places=0, blank=True, null=True,
+        help_text="可留空；帶入訂單後仍可逐筆修改金額。",
+    )
+    requires_old_vehicle = models.BooleanField(
+        "汰舊類（需要舊車與舊車主資料）", default=False,
+        help_text="勾選後，訂車選了此方案會開啟汰舊補助流程（舊車牌、舊車主與文件）。",
+    )
+    active = models.BooleanField("啟用中", default=True)
+    sort_order = models.PositiveSmallIntegerField("排序", default=0)
+
+    class Meta:
+        ordering = ["sort_order", "name"]
+        verbose_name = "補助方案"
+        verbose_name_plural = "補助方案"
+
+    def __str__(self):
+        return self.name
 
 
 class BusinessHoliday(TimeStampedModel):
@@ -3607,7 +3638,7 @@ class SalesOrder(TimeStampedModel):
         missing = []
         if not self.trade_in_plate:
             missing.append("舊車車牌")
-        if not self.subsidy_type:
+        if not self.subsidy_type and not self.subsidy_items.exists():
             missing.append("補助類型")
         if not self.old_owner_same_as_owner and not self.old_owner_name:
             missing.append("舊車主姓名")

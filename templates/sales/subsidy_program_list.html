@@ -1,0 +1,57 @@
+{% extends "base.html" %}{% load sales_format %}
+{% block title %}補助方案｜車輛銷售管理{% endblock %}
+{% block page_class %}page-shell--wide{% endblock %}
+{% block content %}
+{% url 'data_maintenance' as data_url %}{% include "sales/_page_back.html" with fallback_url=data_url label="返回資料維護區" %}
+<section class="hero-row compact-hero">
+  <div>
+    <p class="eyebrow">費率與規則</p>
+    <h1>補助方案</h1>
+    <p class="muted">汰舊換新、新購補助、貨物稅補助等可申請的補助。訂車時可多選，選了就帶入該訂單的補助項目；預設金額可留空，帶入後仍可逐筆修改。</p>
+  </div>
+  {% if not show_editor %}<div class="hero-actions"><a class="button primary" href="?new=1#program-form">＋ 新增補助方案</a></div>{% endif %}
+</section>
+
+{% if show_editor %}
+<section class="form-section static-section installment-company-editor" id="program-form">
+  <div class="section-title installment-company-editor__title">
+    <div>
+      <p class="eyebrow">{% if editing %}方案修改{% else %}建立新方案{% endif %}</p>
+      <h2>{% if editing %}編輯 {{ editing.name }}{% else %}新增補助方案{% endif %}</h2>
+      <p>{% if editing %}修改後，之後訂車選擇此方案會帶入新的名稱與預設金額；已帶入訂單的補助項目不變。{% else %}填寫名稱即可建立；勾選「汰舊類」時，訂車選了會開啟舊車與舊車主資料流程。{% endif %}</p>
+    </div>
+  </div>
+  <form method="post" class="stacked-form">{% csrf_token %}
+    <div class="form-grid installment-company-form-grid">{% for field in form %}{% include "sales/_field.html" with field=field %}{% endfor %}</div>
+    <div class="form-actions">
+      <a class="button ghost" href="{% url 'subsidy_program_list' %}">取消</a>
+      <button class="button primary" type="submit">{% if editing %}儲存修改{% else %}新增方案{% endif %}</button>
+    </div>
+  </form>
+</section>
+{% endif %}
+
+<section class="inventory-list-panel installment-company-list">
+  <div class="inventory-list-summary">
+    <div><strong>補助方案</strong><span>共 {{ programs|length }} 個</span></div>
+    {% if show_editor %}<a class="button ghost small" href="{% url 'subsidy_program_list' %}">收起表單</a>{% endif %}
+  </div>
+  <div class="inventory-table-wrap">
+    <table class="inventory-table installment-company-table">
+      <thead><tr><th>方案</th><th>補助單位</th><th>預設金額</th><th>使用訂單</th><th>狀態</th><th></th></tr></thead>
+      <tbody>
+        {% for item in programs %}
+        <tr>
+          <td data-label="方案"><strong>{{ item.name }}</strong>{% if item.requires_old_vehicle %}<span>汰舊類：需要舊車與舊車主資料</span>{% endif %}</td>
+          <td data-label="補助單位">{{ item.get_category_display }}</td>
+          <td data-label="預設金額">{% if item.default_amount is not None %}${{ item.default_amount|number_with_commas }}{% else %}<span class="muted">未設定</span>{% endif %}</td>
+          <td data-label="使用訂單">{{ item.order_count }} 張</td>
+          <td data-label="狀態">{% include "sales/_active_quick_toggle.html" with resource="subsidy-program" pk=item.pk is_active=item.active item_name=item.name %}</td>
+          <td data-label="操作" class="inventory-row-action"><a class="button ghost small" href="?edit={{ item.pk }}#program-form">編輯</a></td>
+        </tr>
+        {% empty %}<tr><td colspan="6"><div class="empty-state small"><strong>尚未建立補助方案</strong><p>按「＋ 新增補助方案」建立，例如新購補助、貨物稅補助。</p></div></td></tr>{% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endblock %}

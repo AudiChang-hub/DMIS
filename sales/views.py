@@ -167,6 +167,7 @@ from .models import (
     Store,
     TaiwanCounty,
     SubsidyDocument,
+    SubsidyProgram,
     VehicleColor,
     VehicleBrand,
     VehicleInventory,
@@ -626,6 +627,7 @@ def data_maintenance(request):
         "sales_source_category_count": SalesSourceCategory.objects.count(),
         "price_list_distribution_count": PriceListDistributionMonth.objects.count(),
         "installment_company_count": InstallmentCompany.objects.count(),
+        "subsidy_program_count": SubsidyProgram.objects.filter(active=True).count(),
         "settlement_cost_rule_count": VehicleSettlementCostRule.objects.count(),
         "incentive_rule_count": VehicleIncentiveRule.objects.count(),
         "dealer_sales_program_count": DealerVehicleRewardPlan.objects.values(
@@ -2211,6 +2213,7 @@ ACTIVE_TOGGLE_RESOURCES = {
     "dealer-volume-bonus": (DealerVolumeBonusRule, "台數獎金規則"),
     "incentive-rule": (VehicleIncentiveRule, "獎勵補助版本"),
     "installment-company": (InstallmentCompany, "分期公司"),
+    "subsidy-program": (SubsidyProgram, "補助方案"),
     "installment-plan": (InstallmentPlanVersion, "分期方案版本"),
     "positioned-print-template": (PositionedPrintTemplate, "列印範本"),
     "sales-source": (SalesSource, "通路"),
@@ -4892,6 +4895,14 @@ def _bound_intake_forms(request, post_data, files, draft, reception):
     return form, formset, fee_formset
 
 
+def _apply_submitted_subsidy_programs(order, form, post_data):
+    """表單有顯示「申請補助」才套用（隱藏標記 subsidy_programs_present），避免沒有此欄位的儲存誤刪補助項目。"""
+    if post_data.get("subsidy_programs_present") != "1" or "subsidy_programs" not in form.cleaned_data:
+        return
+    from sales.services.subsidy_programs import apply_subsidy_programs
+    apply_subsidy_programs(order, form.cleaned_data["subsidy_programs"])
+
+
 def _create_intake_order(request, post_data, files, draft, reception, submission_key):
     """驗證並建立訂單；成功回傳導向回應，失敗回傳含錯誤的表單供重新顯示。"""
     from sales.intake_forms import validated_intake_uploads
@@ -4934,6 +4945,7 @@ def _create_intake_order(request, post_data, files, draft, reception, submission
     formset.save()
     fee_formset.instance = order
     fee_formset.save()
+    _apply_submitted_subsidy_programs(order, form, post_data)
     # 下單時填寫的總價優惠以實際明細重新換算後直接核定，訂購單簽署時即為最終金額。
     discount_message = apply_intake_discount(order, form, request.user.get_username())
     if discount_message:
@@ -6128,6 +6140,7 @@ def order_edit(request, pk):
             order.editing_by = ""
             order.editing_at = None
             order.save()
+            _apply_submitted_subsidy_programs(order, form, request.POST)
             _schedule_replaced_identity_file_cleanup(
                 order,
                 previous_identity_names,

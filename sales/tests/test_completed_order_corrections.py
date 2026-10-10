@@ -49,6 +49,8 @@ class CompletedOrderCorrectionTests(TestCase):
             if isinstance(bound.field, forms.BooleanField):
                 if value:
                     data[bound.name] = "on"
+            elif isinstance(value, (list, tuple)):  # 多選欄位（例如補助方案）
+                data[bound.name] = [str(item) for item in value]
             else:
                 data[bound.name] = "" if value is None else str(value)
         for prefix in (AccessoryFormSet.get_default_prefix(), "other_fees"):

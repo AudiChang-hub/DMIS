@@ -49,8 +49,15 @@ class LocationNoteParseTests(SimpleTestCase):
 
     def test_transfer_with_month_day_infers_year_from_received_date(self):
         self.assertEqual(parse("4/12 昌勝調走", RECEIVED)["on"], date(2026, 4, 12))
-        # 早於進貨日的月／日視為隔年。
-        self.assertEqual(parse("1/5 昌勝調", RECEIVED)["on"], date(2027, 1, 5))
+        # 早於進貨日的月／日視為隔年，但不能晚於今天。
+        from sales.services.inventory_location_note import _infer_date
+        self.assertEqual(_infer_date(1, 5, RECEIVED, today=date(2027, 6, 1)), date(2027, 1, 5))
+        self.assertEqual(_infer_date(1, 5, RECEIVED, today=date(2026, 10, 10)), date(2026, 1, 5))
+        # Excel 沒填進貨日期（進貨日＝匯入當天）：「10/28」是去年、「10/5」是今年。
+        imported_today = date(2026, 10, 10)
+        self.assertEqual(_infer_date(10, 28, imported_today, today=imported_today), date(2025, 10, 28))
+        self.assertEqual(_infer_date(10, 5, imported_today, today=imported_today), date(2026, 10, 5))
+
 
     def test_merged_columns_and_factory_label(self):
         from sales.services.inventory_location_note import resolve
@@ -303,3 +310,25 @@ class InventoryDispositionListTests(TestCase):
         })
         self.assertEqual(response.status_code, 200)
         self.assertIn("disposition", response.context["form"].errors)
+
+
+class FutureDispositionDateMigrationTests(TestCase):
+    def test_future_disposition_dates_are_fixed_by_migration(self):
+        from importlib import import_module
+        from django.apps import apps as django_apps
+        from django.utils import timezone
+        from sales.models import SalesSource, Store, VehicleColor, VehicleInventoryHistory, VehicleModel
+        store = Store.objects.create(name="總店", code="MAIN")
+        model = VehicleModel.objects.create(brand="SYM", name="測試車", model_number="TEST125")
+        color = VehicleColor.objects.create(vehicle_model=model, name="白")
+        today = timezone.localdate()
+        future = today.replace(year=today.year + 1)
+        vehicle = VehicleInventory.objects.create(
+            vehicle_model=model, color=color, frame_number="FUT0001", ownership_store=store, location_store=store,
+            status=VehicleInventory.Status.TRANSFERRED_OUT, disposition="transfer_out",
+            disposition_dealer_name="季志", disposition_on=future,
+        )
+        import_module("sales.migrations.0173_fix_future_disposition_dates").fix(django_apps, None)
+        vehicle.refresh_from_db()
+        self.assertEqual(vehicle.disposition_on, today)
+        self.assertTrue(VehicleInventoryHistory.objects.filter(vehicle=vehicle, actor_name__contains="去向日期修正").exists())

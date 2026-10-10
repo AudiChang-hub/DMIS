@@ -1,0 +1,18 @@
+{% comment %}訂單步驟側邊列（比照機種清單）：左側滑出、寬螢幕可釘選常駐，手機收在左側把手。
+內容就是原本的步驟分頁（role="tab"），切換邏輯不變；第一次在寬螢幕開啟預設釘選。{% endcomment %}
+<div class="order-nav" data-order-nav>
+  <button type="button" class="order-nav__handle" data-order-nav-toggle aria-expanded="false" aria-controls="order-nav-panel" title="訂單步驟（快捷鍵 [ ）">
+    <span class="order-nav__handle-icon" aria-hidden="true">›</span><span class="order-nav__handle-text">訂單步驟</span>
+  </button>
+  <div class="order-nav__backdrop" data-order-nav-backdrop></div>
+  <aside class="order-nav__panel" id="order-nav-panel" aria-label="訂單步驟" data-order-nav-panel inert>
+    <header class="order-nav__header">
+      <div><strong>訂單步驟</strong><small>{{ order.owner_name }}・{{ order.number }}</small></div>
+      <div class="order-nav__header-actions">
+        <button type="button" class="order-nav__pin" data-order-nav-pin aria-pressed="false" title="釘選後步驟固定在左側">釘選</button>
+        <button type="button" class="order-nav__close" data-order-nav-close aria-label="收合訂單步驟">×</button>
+      </div>
+    </header>
+    <div class="order-nav__body">{% include "sales/_order_step_bar.html" %}</div>
+  </aside>
+</div>

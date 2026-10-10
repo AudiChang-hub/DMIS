@@ -47,7 +47,7 @@
 {% endif %}
 
 <div data-workspace-section="order">{% include "sales/_next_actions.html" %}</div>
-{% include "sales/_order_step_bar.html" %}
+{% include "sales/_order_step_nav.html" %}
 {% if editing_order %}{% include "sales/_order_form_content.html" %}{% endif %}
 <div class="order-steps">
 {% if not editing_order %}
@@ -996,6 +996,7 @@
 <script src="{% static 'js/order-commission-attribution.js' %}?v={{ app_version }}" defer></script>
 <script src="{% static 'js/order-workspace.js' %}?v={{ app_version }}" defer></script>
 <script src="{% static 'js/sticky-hero.js' %}?v={{ app_version }}" defer></script>
+<script src="{% static 'js/order-step-nav.js' %}?v={{ app_version }}" defer></script>
 {% if editing_order %}{% include "sales/_order_form_scripts.html" %}{% endif %}
 {% if workspace_finance %}{% include "sales/_order_operations_scripts.html" %}{% endif %}
 <script src="{% static 'js/next-actions.js' %}?v={{ app_version }}" defer></script>

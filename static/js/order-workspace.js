@@ -64,11 +64,15 @@
     const left = scroller.scrollLeft + rect.left - box.left - (box.width - rect.width) / 2;
     scroller.scrollTo({left: Math.max(0, left), behavior: smooth ? behavior() : 'auto'});
   }
-  // 分頁列不在畫面上半部時捲到分頁列，讓使用者看到切換結果。
+  // 步驟在左側側邊列：切換後把該步驟內容捲到頁首下方；舊的上方分頁列則捲到分頁列。
   function showBar() {
     if (!bar) return;
-    const top = bar.getBoundingClientRect().top;
-    if (top < 0 || top > window.innerHeight * 0.6) bar.scrollIntoView({block: 'start', behavior: behavior()});
+    const inSidebar = bar.closest('[data-order-nav]');
+    const target = inSidebar ? panelOf(activeKey) : bar;
+    if (!target) return;
+    const top = target.getBoundingClientRect().top;
+    const header = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--app-header-height')) || 72;
+    if (top < header || top > window.innerHeight * 0.6) target.scrollIntoView({block: 'start', behavior: behavior()});
   }
   function activate(key, options = {}) {
     const panel = panelOf(key);
@@ -143,7 +147,7 @@
     const go = event.target.closest('[data-workspace-go]');
     if (go && panelOf(go.dataset.workspaceGo)) { event.preventDefault(); goTo(go.dataset.workspaceGo); return; }
     const tab = event.target.closest('[role="tab"][data-step-link]');
-    if (tab) { event.preventDefault(); activate(tab.dataset.stepLink, {focusTab: true}); return; }
+    if (tab) { event.preventDefault(); activate(tab.dataset.stepLink, {focusTab: true}); if (tab.closest('[data-order-nav]')) showBar(); return; }
     const link = event.target.closest('a[data-target-tab]');
     if (link && link.hasAttribute('href') && panelOf(link.dataset.targetTab)) {
       event.preventDefault();
@@ -156,7 +160,7 @@
     const index = tabs.indexOf(event.target.closest('[role="tab"]'));
     if (index < 0) return;
     if (event.key === ' ' || event.key === 'Spacebar') { event.preventDefault(); activate(tabs[index].dataset.stepLink, {focusTab: true}); return; }
-    const keys = {ArrowRight: index + 1, ArrowLeft: index - 1, Home: 0, End: tabs.length - 1};
+    const keys = {ArrowRight: index + 1, ArrowLeft: index - 1, ArrowDown: index + 1, ArrowUp: index - 1, Home: 0, End: tabs.length - 1};
     if (!(event.key in keys)) return;
     event.preventDefault();
     activate(tabs[(keys[event.key] + tabs.length) % tabs.length].dataset.stepLink, {focusTab: true});

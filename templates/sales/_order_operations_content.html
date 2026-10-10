@@ -16,7 +16,7 @@
 </div>
 {% include "sales/_workspace_finance_summary.html" %}
 {% if profile.legacy_finance_reconciliation and profit_unlocked %}
-<details class="note-box finance-step__legacy"><summary>Excel 匯入財務核對</summary>
+<details class="note-box finance-step__legacy" open><summary>Excel 匯入財務核對</summary>
   {% if profile.legacy_finance_reconciliation.status == 'matched' %}
   <p data-profit-value>匯入時已核對原淨利 {{ profile.legacy_finance_reconciliation.source_profit }} 元，差額 {{ profile.legacy_finance_reconciliation.difference }} 元。收款價為歷史計算基礎，不代表已收款；後續人工修改會反映於目前淨利。</p>
   {% if profile.legacy_finance_reconciliation.expense_scope == 'L:S' %}<p>{% site_text 'order_operations.715d63971b11' %}</p>{% endif %}
@@ -36,7 +36,7 @@
     </dl>
     {% if order.discount_requested_at %}<p class="finance-strip__meta">最近申請：{{ order.discount_requested_amount|floatformat:0 }} 元 · {{ order.discount_requested_by }} · {{ order.discount_requested_at|date:"Y/m/d H:i" }}</p>{% endif %}
     {% if order.is_editable and workspace_discount_editable %}
-    <details class="finance-strip__disclosure">
+    <details class="finance-strip__disclosure" open>
       <summary>調整折扣</summary>
       <p class="muted">可自行輸入折數或總價減少金額；核准後取代原優惠，不重複累加。分期公司撥款、佣金與成本不變；訂金與舊車折抵於折扣後另扣。</p>
       <form class="form-grid compact-grid" data-workspace-save="discount" data-discount-total="{{ order.pre_discount_total|stringformat:'f' }}" method="post" action="{% url 'order_discount_request' order.pk %}">{% csrf_token %}<input type="hidden" name="_order_revision" value="{{ order.revision }}">
@@ -115,7 +115,7 @@
       <button type="button" class="button ghost add-operation-row" id="add-payment">＋ 新增收款</button>
       {% endif %}
     </section>
-    <details class="receipt-expectations">
+    <details class="receipt-expectations" open>
       <summary>應收設定（不是實收紀錄）</summary>
       <p class="muted">保存訂單原有應收依據；調整須填原因，不會自動新增實收，也不會刪除歷史資料。</p>
       {% for payment in payment_formset %}
@@ -142,7 +142,7 @@
 </form>
 {% include "sales/_payment_ledger.html" %}
 {% if order_workspace %}
-<details class="finance-amounts" data-workspace-section="finance">
+<details class="finance-amounts" data-workspace-section="finance" open>
   <summary><span><strong>成交金額與尾款試算</strong><small>車價、牌險、配件、領牌試算與預估尾款</small></span></summary>
   {% include "sales/_order_amounts.html" with hide_variance_action=True %}
 </details>

@@ -22,18 +22,22 @@
     <span><strong>停用車輛</strong><small>{% site_text 'inventory_list.23556f469f81' %}</small></span>
     <b>{{ inventory_counts.history }}</b>
   </a>
+  <a class="inventory-scope-tab{% if selected.scope == 'sold' %} is-active{% endif %}" href="{% url 'inventory_list' %}?scope=sold" {% if selected.scope == 'sold' %}aria-current="page"{% endif %}>
+    <span><strong>已售出／調出</strong><small>{% site_text 'inventory_list.5b1f0c7e2a94' %}</small></span>
+    <b>{{ inventory_counts.sold }}</b>
+  </a>
 </nav>
 
-<form method="get" class="inventory-filters inventory-filters--stock" aria-label="庫存篩選與排序">
+<form method="get" class="inventory-filters inventory-filters--stock{% if selected.scope == 'sold' %} inventory-filters--sold{% endif %}"aria-label="庫存篩選與排序">
   <input type="hidden" name="scope" value="{{ selected.scope }}">
   <div class="inventory-filter inventory-filter--search">
     <label for="inventory-q">搜尋</label>
-    <input id="inventory-q" type="search" name="q" value="{{ selected.q }}" placeholder="識別號碼、機種、車色、車行或車況">
+    <input id="inventory-q" type="search" name="q" value="{{ selected.q }}" placeholder="識別號碼、機種、車色、車行、車況或備註">
   </div>
   <div class="inventory-filter">
     <label for="inventory-status">狀態</label>
     <select id="inventory-status" name="status" multiple data-searchable-select="1" data-searchable-multiple="1" data-searchable-include-empty="1" data-searchable-empty-placeholder="1" data-searchable-search-icon="1" data-search-placeholder="搜尋狀態">
-      <option value="">{% if selected.scope == 'history' %}全部停用車輛{% else %}全部現有狀態{% endif %}</option>
+      <option value="">{% if selected.scope == 'history' %}全部停用車輛{% elif selected.scope == 'sold' %}全部已售出／已調出{% else %}全部現有狀態{% endif %}</option>
       {% for value, label in statuses %}<option value="{{ value }}" {% if value in selected.statuses %}selected{% endif %}>{{ label }}</option>{% endfor %}
     </select>
   </div>
@@ -59,6 +63,23 @@
       {% for dealer in dealers %}<option value="dealer-{{ dealer.pk }}" {% if dealer.pk in selected.dealer_ids %}selected{% endif %}>{{ dealer.name }}</option>{% endfor %}
     </select>
   </div>
+  {% if selected.scope == 'sold' %}
+  <div class="inventory-filter">
+    <label for="inventory-disposition">去向</label>
+    <select id="inventory-disposition" name="disposition" data-searchable-select="1" data-searchable-search-icon="1" data-search-placeholder="搜尋去向">
+      <option value="">全部去向</option>
+      {% for value, label in disposition_choices %}<option value="{{ value }}" {% if selected.disposition == value %}selected{% endif %}>{{ label }}</option>{% endfor %}
+      <option value="none" {% if selected.disposition == 'none' %}selected{% endif %}>未記錄去向</option>
+    </select>
+  </div>
+  <div class="inventory-filter">
+    <label for="inventory-disposition-dealer">去向車行</label>
+    <select id="inventory-disposition-dealer" name="disposition_dealer" data-searchable-select="1" data-searchable-search-icon="1" data-search-placeholder="搜尋車行">
+      <option value="">全部車行</option>
+      {% for dealer in dealers %}<option value="{{ dealer.pk }}" {% if selected.disposition_dealer == dealer.pk|stringformat:'s' %}selected{% endif %}>{{ dealer.name }}</option>{% endfor %}
+    </select>
+  </div>
+  {% endif %}
   <div class="inventory-filter">
     <label for="inventory-acquisition">車輛來源</label>
     <select id="inventory-acquisition" name="acquisition" data-searchable-select="1" data-searchable-search-icon="1" data-search-placeholder="搜尋車輛來源">
@@ -87,7 +108,7 @@
 
 <section class="inventory-list-panel" aria-label="車輛庫存列表">
   <div class="inventory-list-summary">
-    <strong>{% if selected.scope == 'history' %}停用車輛{% else %}現有庫存{% endif %}共 {{ page_obj.paginator.count }} 台</strong>
+    <strong>{% if selected.scope == 'history' %}停用車輛{% elif selected.scope == 'sold' %}已售出／調出{% else %}現有庫存{% endif %}共 {{ page_obj.paginator.count }} 台</strong>
     {% if page_obj.paginator.num_pages > 1 %}<span>第 {{ page_obj.number }}／{{ page_obj.paginator.num_pages }} 頁</span>{% endif %}
   </div>
   {% if selected.scope == 'current' %}
@@ -106,7 +127,7 @@
           <th>車型／車色</th>
           <th>引擎／車身號碼</th>
           <th>狀態</th>
-          <th>實際位置</th>
+          <th>{% if selected.scope == 'sold' %}去向{% else %}實際位置{% endif %}</th>
           <th>車況</th>
           <th><span class="visually-hidden">操作</span></th>
         </tr>
@@ -136,7 +157,15 @@
           <td data-label="車型／車色"><strong>{{ vehicle.vehicle_model.name }}</strong><span>{{ vehicle.color.name }}</span></td>
           <td data-label="識別號碼"><span class="inventory-identifier">{{ vehicle.identifier }}</span>{% if vehicle.acquisition_type == 'dealer_transfer' %}<small class="inventory-acquisition" title="車行調車">{{ vehicle.acquisition_label }}</small>{% endif %}</td>
           <td data-label="狀態"><span class="status-pill status-{{ vehicle.status }}">{{ vehicle.get_status_display }}</span></td>
-          <td data-label="實際位置"><strong>{{ vehicle.actual_location_label }}</strong></td>
+          {% if selected.scope == 'sold' %}
+          <td data-label="去向" class="inventory-disposition-cell">
+            {% if vehicle.disposition %}<span class="inventory-disposition inventory-disposition--{{ vehicle.disposition }}">{{ vehicle.get_disposition_display }}</span>{% if vehicle.disposition_target_label %}<strong>{{ vehicle.disposition_target_label }}</strong>{% endif %}{% if vehicle.disposition_on %}<small>{{ vehicle.disposition_on|date:"Y/m/d" }}</small>{% endif %}
+            {% else %}<span class="muted">未記錄</span>{% endif %}
+            {% if vehicle.note %}<small class="inventory-note" title="{{ vehicle.note }}">備註：{{ vehicle.note|truncatechars:32 }}</small>{% endif %}
+          </td>
+          {% else %}
+          <td data-label="實際位置"><strong>{{ vehicle.actual_location_label }}</strong>{% if vehicle.note %}<small class="inventory-note" title="{{ vehicle.note }}">備註：{{ vehicle.note|truncatechars:32 }}</small>{% endif %}</td>
+          {% endif %}
           <td data-label="車況">
             {% if vehicle.status == 'condition_issue' %}
               <span class="inventory-condition has-issue">車況異常</span>{% if vehicle.condition_note %}<small class="inventory-condition-note">{{ vehicle.condition_note|truncatechars:32 }}</small>{% endif %}
@@ -147,7 +176,7 @@
           <td class="inventory-row-action">{% suzuki_parts_lookup vehicle.vehicle_model vehicle.engine_number|default:vehicle.frame_number %}<a class="button ghost small" href="{% url 'inventory_edit' vehicle.pk %}">查看／編輯</a></td>
         </tr>
         {% empty %}
-        <tr><td colspan="{% if selected.scope == 'current' %}9{% else %}8{% endif %}"><div class="empty-state"><strong>{% if selected.scope == 'history' %}目前沒有符合條件的停用車輛{% else %}目前沒有符合條件的現有庫存{% endif %}</strong><p>{% if selected.scope == 'history' %}請調整搜尋或篩選條件。{% else %}請調整篩選條件，或建立第一台進車資料。{% endif %}</p></div></td></tr>
+        <tr><td colspan="{% if selected.scope == 'current' %}9{% else %}8{% endif %}"><div class="empty-state"><strong>{% if selected.scope == 'history' %}目前沒有符合條件的停用車輛{% elif selected.scope == 'sold' %}目前沒有符合條件的已售出或已調出車輛{% else %}目前沒有符合條件的現有庫存{% endif %}</strong><p>{% if selected.scope != 'current' %}請調整搜尋或篩選條件。{% else %}請調整篩選條件，或建立第一台進車資料。{% endif %}</p></div></td></tr>
         {% endfor %}
       </tbody>
     </table>

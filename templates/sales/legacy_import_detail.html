@@ -53,7 +53,8 @@
 {% elif batch.status == 'failed' %}
   <section class="note-box warning"><strong>{% if can_resume %}背景匯入暫時中止{% else %}檔案解析失敗{% endif %}</strong><p>{{ batch.processing_error|default:batch.result_summary.error }}</p><p>{% if can_resume %}已成功寫入的資料會保留；按「繼續背景匯入」只會接續尚未完成的資料。{% else %}請修正 Excel 後重新上傳，或刪除此批次。{% endif %}</p></section>
 {% else %}
-<section class="import-overview" aria-label="資料處理摘要">
+{% include "sales/_side_nav.html" with nav_key="import" nav_title="匯入批次" nav_subtitle=batch.original_filename nav_handle="匯入步驟" %}
+<section class="import-overview" aria-label="資料處理摘要" data-side-nav-section="處理摘要">
   <div class="import-overview__heading">
     <div><p class="eyebrow">處理摘要</p><h2>共 {{ batch.preview_summary.source_rows|default:0 }} 筆來源資料</h2></div>
     {% if batch.status == 'completed' and unresolved_count %}<p class="import-overview__warning">其餘資料已完成；尚有 {{ unresolved_count }} 筆可修正後補匯</p>{% elif unresolved_count %}<p class="import-overview__warning">{{ unresolved_count }} 筆必須修正或排除後才能匯入</p>{% elif batch.status == 'completed' %}<p class="import-overview__ready">正式資料已完成匯入</p>{% else %}<p class="import-overview__ready">資料已可進行匯入</p>{% endif %}
@@ -100,7 +101,7 @@
 
 {% with validation=batch.preview_summary.validation %}
 {% if validation %}
-<section class="form-section static-section import-validation-panel">
+<section class="form-section static-section import-validation-panel" data-side-nav-section="驗證報告">
   <div class="section-title">
     <div><p class="eyebrow">匯入前檢核</p><h2>驗證報告</h2></div>
     <span>用於發現來源資料與現況差異，不會自行刪除資料</span>
@@ -128,7 +129,7 @@
 {% endwith %}
 
 {% if master_workspace.models or master_workspace.sources or master_workspace.ignored_models or master_workspace.ignored_sources %}
-<section class="import-master-workspace" id="master-data-workspace" tabindex="-1">
+<section class="import-master-workspace" id="master-data-workspace" tabindex="-1" data-side-nav-section="待補主檔">
   <header class="import-master-workspace__header">
     <div><p class="eyebrow">不必離開匯入畫面</p><h2>待補主檔工作台</h2><p>{% site_text 'legacy_import_detail.9ed91a0f9ebc' %}</p></div>
     {% if master_workspace.total %}<span class="status-pill warning">尚有 {{ master_workspace.total }} 個，處理完才能確認匯入</span>{% else %}<span class="status-pill">待補主檔都處理完了</span>{% endif %}
@@ -263,7 +264,7 @@
 {% endif %}
 
 {% if selected_action == 'conflict' %}
-<section class="import-issue-workspace" id="issue-review" tabindex="-1">
+<section class="import-issue-workspace" id="issue-review" tabindex="-1" data-side-nav-section="重複資料比較">
   <div class="section-title">
     <div><p class="eyebrow">必須處理</p><h2>重複資料比較</h2></div>
     <span>共 {{ conflict_groups|length }} 組；請修正識別號碼或排除不應匯入的列</span>
@@ -290,7 +291,7 @@
 {% endif %}
 
 {% if show_order_review %}
-<section class="import-issue-workspace import-order-review" id="order-review" tabindex="-1">
+<section class="import-issue-workspace import-order-review" id="order-review" tabindex="-1" data-side-nav-section="既有訂單比對">
   <div class="section-title">
     <div><p class="eyebrow">匯入前核對</p><h2>既有訂單比對</h2></div>
     <span>共 {{ order_reviews|length }} 列；疑似重複與號碼已屬他人須處理才能匯入，已匯入但 Excel 有改動的列可選擇是否更新</span>
@@ -367,7 +368,7 @@
 {% endif %}
 
 {% if editing_row and correction_form %}
-<section class="form-section import-row-editor" id="row-editor" tabindex="-1">
+<section class="form-section import-row-editor" id="row-editor" tabindex="-1" data-side-nav-section="修正或排除此列">
   <div class="section-title">
     <div><p class="eyebrow">{{ editing_row.sheet_name }}第 {{ editing_row.source_row }} 列</p><h2>修正或排除此列</h2></div>
     <a href="?action={{ selected_action }}#issue-review">取消修改</a>
@@ -431,7 +432,7 @@
 {% endif %}
 
 {% if selected_action != 'conflict' %}
-<section class="inventory-list-panel import-preview-panel" id="row-preview">
+<section class="inventory-list-panel import-preview-panel" id="row-preview" data-side-nav-section="資料預覽">
   <div class="inventory-list-summary import-list-heading import-preview-heading">
     <div><p class="eyebrow">逐列預覽</p><strong>{{ selected_action_label|default:'全部資料' }} · {{ page_obj.paginator.count }} 筆</strong></div>
     <form method="get" class="import-preview-search" role="search">

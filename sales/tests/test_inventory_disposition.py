@@ -52,6 +52,19 @@ class LocationNoteParseTests(SimpleTestCase):
         # 早於進貨日的月／日視為隔年。
         self.assertEqual(parse("1/5 昌勝調", RECEIVED)["on"], date(2027, 1, 5))
 
+    def test_merged_columns_and_factory_label(self):
+        from sales.services.inventory_location_note import resolve
+        found = {"旭昶": "DEALER-旭昶"}
+        result = resolve(["旭昶", "6/23榮擎調走", None, "0"], RECEIVED, False, lambda name: None)
+        self.assertEqual((result["status"], result["disposition_dealer_name"]), ("transferred_out", "榮擎"))
+        self.assertEqual(result["disposition_on"], date(2026, 6, 23))
+        self.assertIn("旭昶", result["note"])
+        result = resolve(["調回工廠"], RECEIVED, False, lambda name: None)
+        self.assertEqual(result["disposition_dealer_name"], "原廠／總公司")
+        result = resolve(["TWC10C306054"], RECEIVED, False, lambda name: None)
+        self.assertEqual(result["note"], "其他號碼：TWC10C306054")
+        self.assertEqual(found["旭昶"], "DEALER-旭昶")
+
     def test_transfer_back_to_factory(self):
         result = parse("調回工廠", RECEIVED)
         self.assertEqual((result["kind"], result["name"]), (TRANSFER_OUT, "工廠"))
@@ -159,6 +172,45 @@ class InventoryImportDispositionTests(TestCase):
         self.assertEqual(vehicles["FR008"].status, VehicleInventory.Status.AVAILABLE)
         self.assertEqual(vehicles["FR008"].disposition, "")
         self.assertEqual(vehicles["FR008"].note, "昌勝調走")
+
+    def test_n_column_follow_up_is_merged(self):
+        workbook_rows = [("FR030", 0, "旭昶")]
+        content = inventory_workbook(workbook_rows)
+        from openpyxl import load_workbook
+        book = load_workbook(BytesIO(content))
+        book["進貨"]["N2"] = "6/23榮擎調走"
+        stream = BytesIO()
+        book.save(stream)
+        vehicle = self.run_import(stream.getvalue())["FR030"]
+        self.assertEqual(vehicle.status, VehicleInventory.Status.TRANSFERRED_OUT)
+        self.assertEqual(vehicle.disposition_dealer_name, "榮擎")
+        self.assertEqual(vehicle.note, "旭昶")
+
+    def test_backfill_migration_repairs_rows_imported_by_old_version(self):
+        from importlib import import_module
+        from django.apps import apps as django_apps
+        from sales.models import LegacyImportRow, VehicleInventoryHistory
+        vehicles = self.run_import(inventory_workbook([("FR040", 0, "旭昶"), ("FR041", 1, "昌勝"), ("FR042", 0, "")]))
+        # 模擬 1.61.0 前的匯入結果：數量 0 停用、沒讀 M 欄、都在本店。
+        VehicleInventory.objects.filter(pk__in=[v.pk for v in vehicles.values()]).update(
+            status=VehicleInventory.Status.INACTIVE, current_dealer=None, note="",
+            disposition="", disposition_dealer=None, disposition_dealer_name="", disposition_on=None,
+        )
+        VehicleInventory.objects.filter(pk=vehicles["FR041"].pk).update(status=VehicleInventory.Status.AVAILABLE)
+        for row in LegacyImportRow.objects.filter(sheet_name="進貨"):
+            if row.mapped_data["identifier"] == "FR040":
+                row.raw_data = {**row.raw_data, "M": "旭昶", "N": "6/23榮擎調走"}
+                row.save(update_fields=["raw_data"])
+        import_module("sales.migrations.0172_backfill_imported_inventory_location").backfill(django_apps, None)
+        first, second, third = (VehicleInventory.objects.get(pk=vehicles[key].pk) for key in ("FR040", "FR041", "FR042"))
+        self.assertEqual(first.status, VehicleInventory.Status.TRANSFERRED_OUT)
+        self.assertEqual(first.disposition_dealer_name, "榮擎")
+        self.assertEqual(second.current_dealer, self.changsheng)
+        self.assertEqual(third.status, VehicleInventory.Status.SOLD)
+        self.assertEqual(VehicleInventoryHistory.objects.filter(actor_name__contains="進貨資料補正").count(), 3)
+        # 再跑一次不重複異動（人工改過或已補正的欄位不動）。
+        import_module("sales.migrations.0172_backfill_imported_inventory_location").backfill(django_apps, None)
+        self.assertEqual(VehicleInventoryHistory.objects.filter(actor_name__contains="進貨資料補正").count(), 3)
 
     def test_m_column_with_named_header_is_read(self):
         vehicles = self.run_import(inventory_workbook([("FR010", 0, "昌勝調")], location_header="存放／調車"))

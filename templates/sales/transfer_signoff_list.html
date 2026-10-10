@@ -1,0 +1,36 @@
+{% extends "base.html" %}{% load static pagination_tags %}
+{% block title %}調車簽收紀錄｜車輛銷售管理{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'css/transfer-signoff.css' %}?v={{ app_version }}">{% endblock %}
+{% block content %}
+{% url 'inventory_list' as inventory_url %}
+{% include "sales/_page_back.html" with fallback_url=inventory_url label="返回車輛庫存" %}
+<section class="hero-row compact-hero">
+  <div><p class="eyebrow">車輛庫存</p><h1>調車簽收紀錄</h1><p class="muted">每次調車由領車人在店內簽名一次，系統保留簽名與簽收單；作廢的簽收單仍保留紀錄。</p></div>
+  <div class="hero-actions"><a class="button primary" href="{% url 'transfer_signoff_create' %}">＋ 調車簽收</a></div>
+</section>
+<section class="inventory-list-panel" aria-label="調車簽收紀錄">
+  <div class="inventory-list-summary"><strong>共 {{ page_obj.paginator.count }} 張簽收單</strong>{% if page_obj.paginator.num_pages > 1 %}<span>第 {{ page_obj.number }}／{{ page_obj.paginator.num_pages }} 頁</span>{% endif %}</div>
+  <div class="inventory-table-wrap" tabindex="0" aria-label="調車簽收紀錄，可左右捲動">
+    <table class="inventory-table">
+      <thead><tr><th>簽收單號</th><th>簽署時間</th><th>調往</th><th>台數</th><th>領車人</th><th>經手人</th><th>狀態</th><th><span class="visually-hidden">操作</span></th></tr></thead>
+      <tbody>
+        {% for signoff in signoffs %}
+        <tr>
+          <td data-label="簽收單號"><span class="inventory-identifier">{{ signoff.number }}</span></td>
+          <td data-label="簽署時間">{{ signoff.signed_at|date:"Y/m/d H:i" }}</td>
+          <td data-label="調往"><strong>{{ signoff.dealer_name }}</strong>{% if not signoff.dealer_id %}<small class="muted">主檔無此車行</small>{% endif %}</td>
+          <td data-label="台數">{{ signoff.vehicle_count }} 台</td>
+          <td data-label="領車人">{{ signoff.signer_name }}</td>
+          <td data-label="經手人">{{ signoff.staff_name }}</td>
+          <td data-label="狀態">{% if signoff.is_voided %}<span class="status-pill status-cancelled">已作廢</span>{% else %}<span class="status-pill status-transferred_out transfer-pill">已簽收</span>{% endif %}</td>
+          <td class="inventory-row-action"><a class="button ghost small" href="{% url 'transfer_signoff_detail' signoff.pk %}">查看</a></td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="8"><div class="empty-state"><strong>還沒有調車簽收紀錄</strong><p>有人來調車時，按「＋ 調車簽收」選車並請領車人簽名。</p></div></td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% pagination page_obj aria_label="調車簽收分頁" %}
+</section>
+{% endblock %}

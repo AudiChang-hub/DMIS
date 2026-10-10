@@ -233,7 +233,9 @@ def build_summary(form, formset, fee_formset, draft):
     tradein_rows = _rows(form, ("trade_in_intent",))
     if "subsidy_programs" in form.fields:
         programs = form.cleaned_data.get("subsidy_programs") or []
-        tradein_rows.append((form.fields["subsidy_programs"].label, "、".join(str(item) for item in programs) or "無"))
+        from sales.services.subsidy_programs import other_subsidy_names
+        names = [str(item) for item in programs] + other_subsidy_names(form.cleaned_data.get("subsidy_other"))
+        tradein_rows.append((form.fields["subsidy_programs"].label, "、".join(names) or "無"))
     vehicle_rows = []
     model = form.cleaned_data.get("vehicle_model")
     if model:

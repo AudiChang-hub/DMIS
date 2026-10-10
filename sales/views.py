@@ -4899,8 +4899,8 @@ def _apply_submitted_subsidy_programs(order, form, post_data):
     """表單有顯示「申請補助」才套用（隱藏標記 subsidy_programs_present），避免沒有此欄位的儲存誤刪補助項目。"""
     if post_data.get("subsidy_programs_present") != "1" or "subsidy_programs" not in form.cleaned_data:
         return
-    from sales.services.subsidy_programs import apply_subsidy_programs
-    apply_subsidy_programs(order, form.cleaned_data["subsidy_programs"])
+    from sales.services.subsidy_programs import apply_subsidy_programs, other_subsidy_names
+    apply_subsidy_programs(order, form.cleaned_data["subsidy_programs"], other_subsidy_names(form.cleaned_data.get("subsidy_other")))
 
 
 def _create_intake_order(request, post_data, files, draft, reception, submission_key):

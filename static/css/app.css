@@ -1692,6 +1692,7 @@ input[type="file"].form-control { padding: var(--space-3); }
 .subsidy-program-picker legend { margin-bottom: var(--space-2); font-weight: 800; }
 .subsidy-program-picker small { display: block; margin-top: var(--space-2); color: var(--muted); }
 .subsidy-program-picker__options { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.subsidy-program-picker__other { max-width: 32rem; margin-top: var(--space-3); }
 .subsidy-program-picker label:has(> input[type="checkbox"]) {
   display: inline-flex; min-height: 44px; padding: var(--space-2) var(--space-4); align-items: center; gap: var(--space-2);
   background: var(--surface); border: 1.5px solid var(--line); border-radius: var(--radius-pill); font-weight: 700; cursor: pointer;

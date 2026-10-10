@@ -39,6 +39,10 @@ class StoreHandlesOrdersTests(TestCase):
         self.assertEqual(order.source_id, self.dealer.pk)
         self.assertEqual(order.print_company_snapshot["legal_name"], "馭盛國際有限公司")
         self.assertEqual(order.status, SalesOrder.Status.ALLOCATION_PENDING)
+        # 送出後的「訂單已成立」頁不再有接單步驟：可直接簽署，或前往這筆訂單／全部訂單。
+        done = self.client.get(response.url).content.decode()
+        self.assertIn(reverse("order_list"), done)
+        self.assertIn(reverse("order_detail", args=[order.pk]), done)
 
     def test_dealer_account_orders_still_wait_for_store(self):
         self.client.force_login(self.dealer_user)

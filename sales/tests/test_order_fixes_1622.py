@@ -9,7 +9,7 @@ from django.urls import reverse
 from sales.models import OtherFeeLine, SalesOrder
 from sales.services.customer_receivable import default_customer_balance
 from sales.services.order_contract_pdf import build_order_contract_pdf
-from sales.tests.test_completed_order_corrections import CompletedOrderCorrectionTests
+from sales.tests import test_completed_order_corrections as correction_tests
 
 
 def pdf_text(pdf_bytes):
@@ -22,12 +22,12 @@ def pdf_text(pdf_bytes):
 
 class OrderFixes1622Tests(TestCase):
     # 借用完成後修正測試的建立訂單與送出表單工具，但不繼承它的測試。
-    setUpTestData = classmethod(CompletedOrderCorrectionTests.setUpTestData.__func__)
-    setUp = CompletedOrderCorrectionTests.setUp
-    order = CompletedOrderCorrectionTests.order
-    payload = CompletedOrderCorrectionTests.payload
-    post = CompletedOrderCorrectionTests.post
-    assert_saved = CompletedOrderCorrectionTests.assert_saved
+    setUpTestData = classmethod(correction_tests.CompletedOrderCorrectionTests.setUpTestData.__func__)
+    setUp = correction_tests.CompletedOrderCorrectionTests.setUp
+    order = correction_tests.CompletedOrderCorrectionTests.order
+    payload = correction_tests.CompletedOrderCorrectionTests.payload
+    post = correction_tests.CompletedOrderCorrectionTests.post
+    assert_saved = correction_tests.CompletedOrderCorrectionTests.assert_saved
 
     def installment_order(self, **overrides):
         data = dict(

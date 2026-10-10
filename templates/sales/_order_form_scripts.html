@@ -537,6 +537,7 @@
     installmentPicker.syncRequired();
     showConditional("trade-in-owner", tradeInIntent ? tradeInIntent.value === 'yes' : isTradeInSubsidy.checked);
     showConditional("watch", plateChoice.value === "watch");
+    showConditional("plate-selection", plateChoice.value !== "none");
     showConditional("preference", plateChoice.value === "preference");
     const needsDestination = ["direct_delivery", "carrier"].includes(deliveryMethod.value);
     showConditional("delivery-destination", needsDestination);

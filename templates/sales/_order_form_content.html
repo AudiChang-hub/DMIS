@@ -228,7 +228,6 @@
           {% include "sales/_field.html" with field=form.road_maintenance_fee %}
           {% include "sales/_field.html" with field=form.license_tax_fee %}
           {% include "sales/_field.html" with field=form.compulsory_insurance_fee %}
-          {% include "sales/_field.html" with field=form.plate_selection_fee %}
           {% include "sales/_field.html" with field=form.lien_registration_fee %}
           {% include "sales/_field.html" with field=form.registration_calculated_total %}
           {% include "sales/_field.html" with field=form.plate_insurance_fee %}
@@ -332,6 +331,7 @@
       {% else %}<p class="span-2 muted" data-conditional="trade-in-owner">舊車主資料與補助申請請到訂單的「汰舊補助」分頁填寫。</p>{% endif %}
       {% if intake_mode %}<div class="form-grid span-2" data-trade-in-uploads><label>舊車主證件正面（選填）<input type="file" name="old_id_front" accept="image/jpeg,image/png,image/webp,application/pdf"></label><label>舊車主證件反面（選填）<input type="file" name="old_id_back" accept="image/jpeg,image/png,image/webp,application/pdf"></label><label>舊車主存摺封面（選填）<input type="file" name="old_bankbook" accept="image/jpeg,image/png,image/webp,application/pdf"></label></div>{% endif %}
       {% include "sales/_field.html" with field=form.plate_choice %}
+      <div data-conditional="plate-selection">{% include "sales/_field.html" with field=form.plate_selection_fee %}</div>
       <div data-conditional="watch">{% include "sales/_field.html" with field=form.watched_numbers %}</div>
       <div data-conditional="preference">{% include "sales/_field.html" with field=form.plate_preference_note %}</div>
       {% include "sales/_field.html" with field=form.delivery_method %}

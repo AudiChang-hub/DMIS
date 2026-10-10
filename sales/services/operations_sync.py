@@ -296,7 +296,9 @@ def sync_order_operations(order_id, *, update_receivables=False):
     refresh_payment_confirmation(order.pk)
     if _commission_follows_master(order, profile):
         from .dealer_commission import apply_order_dealer_commission
-        # 建立訂單即帶入已設定的車行／本店人員傭金；人工覆寫與領牌後鎖定由服務本身保護。
+        from .settlement_cost import apply_estimated_settlement_cost
+        # 建立訂單即帶入已設定的車行／本店人員傭金與預估車輛成本；人工覆寫與領牌後鎖定由服務本身保護。
+        apply_estimated_settlement_cost(order)
         profile = apply_order_dealer_commission(order)
     return profile
 

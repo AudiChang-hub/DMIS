@@ -178,6 +178,7 @@
 }
 .ledger-tag--system { color: var(--blue-ink); background: var(--blue-soft); border-color: var(--blue-border); }
 .ledger-tag--manual { color: var(--amber-ink); background: var(--amber-soft); border-color: var(--amber-border); }
+.ledger-tag--estimate { margin-right: var(--space-1); color: var(--violet-ink); background: var(--violet-soft); border-color: var(--violet-border); }
 .ledger-row.is-changed .ledger-tag--system { color: var(--amber-ink); background: var(--amber-soft); border-color: var(--amber-border); }
 .finance-ledger__legend { margin: 0; color: var(--muted); font-size: var(--text-xs); line-height: 2; }
 .finance-ledger__legend .ledger-tag { margin: 0 var(--space-1); vertical-align: 1px; }

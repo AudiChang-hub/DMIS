@@ -27,7 +27,7 @@ STEP_FIELDS = {
         "assisted_company_confirmed", "assisted_company_revision",
     },
     "extras": {
-        "trade_in_intent", "is_trade_in_subsidy", "old_owner_same_as_owner", "plate_choice", "watched_numbers",
+        "trade_in_intent", "is_trade_in_subsidy", "old_owner_same_as_owner", "plate_choice", "plate_selection_fee", "watched_numbers",
         "plate_preference_note", "delivery_method", "delivery_destination", "note",
     },
     "owner": {
@@ -40,7 +40,7 @@ STEP_FIELDS = {
         "deposit_method", "registration_manual", "registration_adjustment_reason", "registration_date",
         "compulsory_insurance_period", "registration_plate_fee", "registration_license_fee",
         "registration_inspection_fee", "road_maintenance_fee", "license_tax_fee", "compulsory_insurance_fee",
-        "plate_selection_fee", "lien_registration_fee", "registration_calculated_total", "plate_insurance_fee",
+        "lien_registration_fee", "registration_calculated_total", "plate_insurance_fee",
         "installment_company", "installment_custom", "installment_periods", "installment_monthly",
         "installment_opening_fee", "intake_discount_mode", "intake_discount_amount", "intake_discount_rate",
         "intake_discount_reason",

@@ -2860,8 +2860,15 @@ class VehicleTransferSignoff(TimeStampedModel):
     """調車簽收：同一車行一次調走多台時，領車人在店內裝置簽名一次。
 
     只能在登入後的店內平板／手機簽署，不產生對外簽署連結（使用者 2026-10-10 決定）。
+    可先「預備調車」存成待簽收，等人來再簽；不記錄領車人姓名電話，直接簽名。
     簽署後車輛改為已調出；作廢只保留紀錄並把仍為已調出的車改回可銷售。
     """
+
+    class Status(models.TextChoices):
+        PENDING = "pending", "待簽收"
+        SIGNED = "signed", "已簽收"
+
+    status = models.CharField("狀態", max_length=10, choices=Status.choices, default=Status.SIGNED, db_index=True)
 
     dealer = models.ForeignKey(
         SalesSource,
@@ -2878,18 +2885,19 @@ class VehicleTransferSignoff(TimeStampedModel):
     )
     vehicles_snapshot = models.JSONField("簽署當下車輛", default=list, editable=False)
     company_snapshot = models.JSONField("簽收單公司抬頭", default=dict, editable=False)
-    signer_name = models.CharField("領車人", max_length=60)
+    signer_name = models.CharField("領車人", max_length=60, blank=True)
     signer_phone = models.CharField("領車人電話", max_length=30, blank=True)
     note = models.CharField("備註", max_length=200, blank=True)
     signature_image = models.FileField(
-        "簽名", upload_to="inventory/transfer-signoffs/%Y/%m/", editable=False
+        "簽名", upload_to="inventory/transfer-signoffs/%Y/%m/", blank=True, editable=False
     )
     signed_pdf = models.FileField(
-        "簽收單", upload_to="inventory/transfer-signoffs/%Y/%m/", editable=False
+        "簽收單", upload_to="inventory/transfer-signoffs/%Y/%m/", blank=True, editable=False
     )
-    fingerprint = models.CharField("內容指紋", max_length=64, editable=False)
-    pdf_sha256 = models.CharField("簽收單 SHA-256", max_length=64, editable=False)
-    signed_at = models.DateTimeField("簽署時間", editable=False)
+    fingerprint = models.CharField("內容指紋", max_length=64, blank=True, editable=False)
+    pdf_sha256 = models.CharField("簽收單 SHA-256", max_length=64, blank=True, editable=False)
+    signed_at = models.DateTimeField("簽署時間", blank=True, null=True, editable=False)
+    prepared_by = models.CharField("預備人員", max_length=150, blank=True, editable=False)
     staff = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.PROTECT,
@@ -2906,7 +2914,7 @@ class VehicleTransferSignoff(TimeStampedModel):
     void_reason = models.CharField("作廢原因", max_length=300, blank=True, editable=False)
 
     class Meta:
-        ordering = ["-signed_at", "-id"]
+        ordering = ["-created_at", "-id"]
         verbose_name = "調車簽收"
         verbose_name_plural = "調車簽收"
 
@@ -2915,7 +2923,13 @@ class VehicleTransferSignoff(TimeStampedModel):
 
     @property
     def number(self):
-        return f"TS{timezone.localtime(self.signed_at):%Y%m%d}-{self.pk:04d}" if self.pk else "TS（未簽署）"
+        if not self.pk:
+            return "TS（未建立）"
+        return f"TS{timezone.localtime(self.signed_at or self.created_at):%Y%m%d}-{self.pk:04d}"
+
+    @property
+    def is_pending(self):
+        return self.status == self.Status.PENDING
 
     @property
     def is_voided(self):

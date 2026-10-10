@@ -55,8 +55,7 @@ class TransferSignoffTests(TestCase):
 
     def form(self, cars, **extra):
         data = {
-            "dealer": self.dealer.pk, "dealer_name": "", "signer_name": "王小明",
-            "signer_phone": "0912000111", "note": "含鑰匙", "vehicles": [car.pk for car in cars],
+            "dealer": self.dealer.pk, "dealer_name": "", "note": "含鑰匙", "vehicles": [car.pk for car in cars],
         }
         data.update(extra)
         return data
@@ -94,7 +93,7 @@ class TransferSignoffTests(TestCase):
 
         detail = self.client.get(reverse("transfer_signoff_detail", args=[signoff.pk]))
         self.assertContains(detail, "調往 昌勝")
-        self.assertContains(detail, "王小明")
+        self.assertContains(detail, "含鑰匙")
         pdf = self.client.get(reverse("transfer_signoff_pdf", args=[signoff.pk]))
         self.assertEqual(pdf["Content-Type"], "application/pdf")
         self.assertTrue(b"".join(pdf.streaming_content).startswith(b"%PDF"))
@@ -211,3 +210,66 @@ class TransferSignoffTests(TestCase):
         response = self.client.post(reverse("transfer_signoff_create") , {**payload, "step": ["sign", "edit"]})
         self.assertEqual(response.context["step"], "select")
         self.assertFalse(VehicleTransferSignoff.objects.exists())
+
+
+class TransferPendingAndRecordsTests(TransferSignoffTests):
+    """1.66.0：預備調車（先存、等人來再簽）、調車紀錄篩選、進車紀錄。"""
+
+    def test_prepare_then_sign_later(self):
+        cars = self.cars[:2]
+        response = self.client.post(reverse("transfer_signoff_create"), {**self.form(cars), "step": "save"})
+        self.assertRedirects(response, reverse("transfer_signoff_create"))
+        pending = VehicleTransferSignoff.objects.get()
+        self.assertEqual(pending.status, VehicleTransferSignoff.Status.PENDING)
+        self.assertEqual(VehicleInventory.objects.get(pk=cars[0].pk).status, "available", "預備時車輛不異動")
+        page = self.client.get(reverse("transfer_signoff_create"))
+        self.assertContains(page, "預備調車・待簽收")
+        self.assertContains(page, "開始簽收")
+        start = self.client.get(reverse("transfer_signoff_create"), {"pending": pending.pk, "sign": "1"})
+        self.assertEqual(start.context["step"], "sign")
+        fingerprint = start.context["fingerprint"]
+        response = self.sign(cars, fingerprint, pending=pending.pk)
+        self.assertRedirects(response, reverse("transfer_signoff_detail", args=[pending.pk]))
+        pending.refresh_from_db()
+        self.assertEqual(pending.status, VehicleTransferSignoff.Status.SIGNED)
+        self.assertEqual(VehicleTransferSignoff.objects.count(), 1, "簽收沿用同一筆預備，不另建")
+        self.assertEqual(VehicleInventory.objects.get(pk=cars[0].pk).status, "transferred_out")
+
+    def test_prepared_car_allocated_meanwhile_cannot_be_signed(self):
+        cars = self.cars[:2]
+        self.client.post(reverse("transfer_signoff_create"), {**self.form(cars), "step": "save"})
+        pending = VehicleTransferSignoff.objects.get()
+        VehicleInventory.objects.filter(pk=cars[0].pk).update(status="reserved")
+        start = self.client.get(reverse("transfer_signoff_create"), {"pending": pending.pk, "sign": "1"})
+        self.assertEqual(start.context["step"], "select")
+        self.assertIn("不能調出", "".join(start.context["errors"]))
+
+    def test_cancel_pending_removes_it(self):
+        self.client.post(reverse("transfer_signoff_create"), {**self.form(self.cars[:1]), "step": "save"})
+        pending = VehicleTransferSignoff.objects.get()
+        self.client.post(reverse("transfer_signoff_cancel", args=[pending.pk]))
+        self.assertFalse(VehicleTransferSignoff.objects.exists())
+
+    def test_records_list_only_signed_and_filters_by_date(self):
+        self.client.post(reverse("transfer_signoff_create"), {**self.form(self.cars[1:2]), "step": "save"})
+        self.sign(self.cars[:1], self.review(self.cars[:1]))
+        records = self.client.get(reverse("transfer_signoff_list"))
+        self.assertEqual(len(records.context["signoffs"]), 1, "預備調車不列在調車紀錄")
+        empty = self.client.get(reverse("transfer_signoff_list"), {"from": "2000-01-01", "to": "2000-01-02"})
+        self.assertEqual(len(empty.context["signoffs"]), 0)
+
+    def test_receipt_records_filter_by_date(self):
+        from datetime import date
+        VehicleInventory.objects.filter(pk=self.cars[0].pk).update(received_on=date(2026, 9, 1))
+        VehicleInventory.objects.filter(pk__in=[c.pk for c in self.cars[1:]]).update(received_on=date(2026, 9, 5))
+        response = self.client.get(reverse("inventory_receipt_list"), {"from": "2026-09-05", "to": "2026-09-05"})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["page_obj"].paginator.count, 3)
+        self.assertContains(response, "09/05")
+
+    def test_vehicle_cards_show_factory_month_and_filters(self):
+        VehicleInventory.objects.filter(pk=self.cars[0].pk).update(manufactured_year_month="2026/06")
+        page = self.client.get(reverse("transfer_signoff_create"))
+        self.assertContains(page, "出廠 2026/06")
+        self.assertContains(page, 'data-transfer-filter="model"')
+        self.assertNotContains(page, "領車人姓名")

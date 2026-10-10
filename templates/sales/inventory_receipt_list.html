@@ -1,0 +1,50 @@
+{% extends "base.html" %}{% load static pagination_tags %}
+{% block title %}進車紀錄｜車輛銷售管理{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'css/transfer-signoff.css' %}?v={{ app_version }}">{% endblock %}
+{% block page_class %}page-shell--wide{% endblock %}
+{% block content %}
+{% url 'inventory_list' as inventory_url %}
+{% include "sales/_page_back.html" with fallback_url=inventory_url label="返回車輛庫存" %}
+<section class="hero-row compact-hero">
+  <div><p class="eyebrow">車輛庫存</p><h1>進車紀錄</h1><p class="muted">依進車日期查詢某段時間進了哪幾台車；也可依車型、車色與來源（公司進車／車行調車）篩選。列出所有車輛，包含之後已售出或已調出的。</p></div>
+  <div class="hero-actions"><a class="button ghost" href="{% url 'transfer_signoff_list' %}">調車紀錄</a></div>
+</section>
+<form method="get" class="inventory-filters transfer-record-filters" aria-label="進車紀錄篩選">
+  <div class="inventory-filter"><label for="receipt-from">進車日期（起）</label><input id="receipt-from" type="date" name="from" value="{{ selected.from }}"></div>
+  <div class="inventory-filter"><label for="receipt-to">進車日期（迄）</label><input id="receipt-to" type="date" name="to" value="{{ selected.to }}"></div>
+  <div class="inventory-filter"><label for="receipt-model">車型</label><select id="receipt-model" name="model" data-searchable-select="1" data-search-placeholder="搜尋車型"><option value="">全部車型</option>{% for name in models %}<option value="{{ name }}"{% if selected.model == name %} selected{% endif %}>{{ name }}</option>{% endfor %}</select></div>
+  <div class="inventory-filter"><label for="receipt-color">車色</label><select id="receipt-color" name="color" data-searchable-select="1" data-search-placeholder="搜尋車色"><option value="">全部車色</option>{% for name in colors %}<option value="{{ name }}"{% if selected.color == name %} selected{% endif %}>{{ name }}</option>{% endfor %}</select></div>
+  <div class="inventory-filter"><label for="receipt-acquisition">來源</label><select id="receipt-acquisition" name="acquisition"><option value="">全部來源</option>{% for value, label in acquisition_choices %}<option value="{{ value }}"{% if selected.acquisition == value %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
+  <div class="inventory-filter-actions"><a class="button ghost" href="{% url 'inventory_receipt_list' %}">清除</a><button class="button primary" type="submit">套用</button></div>
+</form>
+{% if daily_counts %}
+<section class="receipt-days" aria-label="每日進車台數">
+  {% for day in daily_counts %}<a class="receipt-day" href="?{% if selected.model %}model={{ selected.model|urlencode }}&amp;{% endif %}{% if selected.color %}color={{ selected.color|urlencode }}&amp;{% endif %}{% if selected.acquisition %}acquisition={{ selected.acquisition }}&amp;{% endif %}from={{ day.received_on|date:'Y-m-d' }}&amp;to={{ day.received_on|date:'Y-m-d' }}"><span>{{ day.received_on|date:"m/d" }}</span><b>{{ day.count }}</b><small>台</small></a>{% endfor %}
+</section>
+{% endif %}
+<section class="inventory-list-panel" aria-label="進車紀錄">
+  <div class="inventory-list-summary"><strong>共 {{ page_obj.paginator.count }} 台</strong>{% if page_obj.paginator.num_pages > 1 %}<span>第 {{ page_obj.number }}／{{ page_obj.paginator.num_pages }} 頁</span>{% endif %}</div>
+  <div class="inventory-table-wrap" tabindex="0" aria-label="進車紀錄，可左右捲動">
+    <table class="inventory-table">
+      <thead><tr><th>進車日期</th><th>車型／車色</th><th>引擎／車身號碼</th><th>出廠年月</th><th>來源</th><th>目前狀態</th><th>實際位置</th><th><span class="visually-hidden">操作</span></th></tr></thead>
+      <tbody>
+        {% for vehicle in vehicles %}
+        <tr>
+          <td data-label="進車日期">{{ vehicle.received_on|date:"Y/m/d" }}</td>
+          <td data-label="車型／車色"><strong>{{ vehicle.vehicle_model.name }}</strong><span>{{ vehicle.color.name }}</span></td>
+          <td data-label="引擎／車身號碼"><span class="inventory-identifier">{{ vehicle.identifier }}</span></td>
+          <td data-label="出廠年月">{{ vehicle.manufactured_year_month|default:"未填寫" }}</td>
+          <td data-label="來源">{{ vehicle.acquisition_label }}</td>
+          <td data-label="目前狀態"><span class="status-pill status-{{ vehicle.status }}">{{ vehicle.get_status_display }}</span></td>
+          <td data-label="實際位置">{{ vehicle.actual_location_label }}</td>
+          <td class="inventory-row-action"><a class="button ghost small" href="{% url 'inventory_edit' vehicle.pk %}">查看</a></td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="8"><div class="empty-state"><strong>沒有符合條件的進車紀錄</strong><p>請調整日期或篩選條件。</p></div></td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% pagination page_obj aria_label="進車紀錄分頁" %}
+</section>
+{% endblock %}

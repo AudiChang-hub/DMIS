@@ -3646,6 +3646,19 @@ class SalesOrder(TimeStampedModel):
     def is_electric_vehicle(self):
         return bool(self.vehicle_model_id and self.vehicle_model.energy_type != VehicleModel.EnergyType.GAS)
 
+    @property
+    def imported_balance(self):
+        """Excel 匯入、尚未完成的訂單：總應付、已收與尾款剩餘（畫面顯示用）。"""
+        from sales.services.imported_balance import imported_due
+        from sales.services.payment_summary import payment_summary
+
+        due = imported_due(self)
+        if not due:
+            return None
+        summary = payment_summary(self)
+        remaining = Decimal("0") if due["paid_in_excel"] else summary["customer_due"]
+        return {**due, "received": summary["customer_received"], "remaining": remaining}
+
     def delivery_blockers(self, summary=None, ignore_balance=False):
         """交車前的全部硬性檢查；畫面按鈕與 complete_delivery 共用同一份判斷。
 

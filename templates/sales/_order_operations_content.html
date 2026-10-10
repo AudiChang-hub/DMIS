@@ -89,6 +89,16 @@
       <span{% if receipt_summary.customer_overpaid %} class="is-overpaid"{% endif %}>客戶溢收 <strong>$<output data-receipt-value="customer_overpaid">{{ receipt_summary.customer_overpaid|floatformat:0 }}</output></strong></span>
       <span>已登記待確認 <strong>$<output data-receipt-value="unconfirmed_received">{{ receipt_summary.unconfirmed_received|floatformat:0 }}</output></strong></span>
     </div>
+    {% with imported=order.imported_balance %}{% if imported %}
+    <aside class="imported-balance{% if imported.paid_in_excel or not imported.remaining %} is-settled{% endif %}" aria-label="匯入訂單尾款">
+      <div class="imported-balance__main">
+        <span>尾款剩餘</span>
+        <strong>${{ imported.remaining|floatformat:0 }}</strong>
+        {% if imported.paid_in_excel %}<em>Excel「車行收款」已打 V，視為已收清</em>{% elif imported.remaining %}<em>交車前需收清</em>{% else %}<em>已收清</em>{% endif %}
+      </div>
+      <p>總應付 ${{ imported.total|floatformat:0 }}（Excel 收款價 ${{ imported.price|floatformat:0 }} ＋ 強制險 ${{ imported.insurance|floatformat:0 }}）{% if not imported.paid_in_excel %}－ 已確認客戶收款 ${{ imported.received|floatformat:0 }}{% endif %}。匯入訂單的尾款依 Excel 計算，下方「應收設定」的尾款不影響。</p>
+    </aside>
+    {% endif %}{% endwith %}
     {% if payments_read_only %}<p class="note-box">訂單已取消，收款已結算，以下明細僅供查閱。</p>{% else %}<p class="muted">已確認的收款即為入帳，不能直接修改或刪除；登記錯誤請到下方「沖銷與退款」處理後重新登記。</p>{% endif %}
     <section class="receipt-list" aria-label="收款明細">
       <h3>收款明細</h3>

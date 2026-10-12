@@ -6,6 +6,15 @@ from sales.models import PaymentRecord, SalesOrder
 CANCELLED_STATUSES = (SalesOrder.Status.CANCELLED, SalesOrder.Status.CANCEL_REFUND_PENDING, SalesOrder.Status.EXCEPTION_CLOSED)
 
 
+def vehicle_sale_amount(order):
+    """車款成交額口徑：訂單車價；Excel 匯入的歷史訂單車價為 0 時，改用匯入時保存的收款價（不含強制險）。
+    只用於報表彙總，不回寫訂單（使用者 2026-10-12 選定）。"""
+    if order.vehicle_price:
+        return order.vehicle_price
+    snapshot = getattr(order, "legacy_snapshot", None)
+    return snapshot.historical_received_price if snapshot and snapshot.historical_received_price else Decimal("0")
+
+
 def summarize_sales(orders):
     summary = dict(count=0, vehicle_sales=Decimal('0'), actual_received=Decimal('0'),
                    net_profit=Decimal('0'), profit_ready=0)
@@ -14,7 +23,7 @@ def summarize_sales(orders):
             continue
         profile = getattr(order, 'operations', None)
         summary['count'] += 1
-        summary['vehicle_sales'] += order.vehicle_price
+        summary['vehicle_sales'] += vehicle_sale_amount(order)
         if profile:
             summary['actual_received'] += profile.total_received
             if profile.profit_is_ready:

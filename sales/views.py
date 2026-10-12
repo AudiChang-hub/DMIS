@@ -561,6 +561,11 @@ logger = logging.getLogger(__name__)
 
 ORDER_LIST_PAGE_SIZE_OPTIONS = (25, 50, 75, 100)
 ORDER_LIST_DEFAULT_PAGE_SIZE = 50
+ORDER_LIST_TABS = {
+    "open": ("open", "進行中", "已完成以外的訂單"),
+    "completed": ("completed", "已完成", "交車並結案的訂單"),
+}
+ORDER_LIST_FILTER_KEYS = ("risk", "date_from", "date_to", "energy_type", "payment_status", "attention", "business_only")
 DRAFT_PRESENCE_TIMEOUT = timedelta(seconds=90)
 ORDER_PRESENCE_TIMEOUT = timedelta(seconds=90)
 
@@ -4370,6 +4375,29 @@ def order_list(request):
         orders = orders.filter(build_order_search_query(query, profit_unlocked=profit_visible)).distinct()
     from sales.services.order_filters import filter_order_analysis, analysis_filter_context
     orders = filter_order_analysis(orders, request.GET)
+    # 兩個頁籤：已完成以外（預設）／已完成；兩邊筆數都依目前搜尋與篩選計算（使用者 2026-10-12）。
+    # 有搜尋、狀態或營運條件（例如從營運總表點進來的明細）且沒指定頁籤時列出全部符合的訂單，數字才對得上。
+    completed = SalesOrder.Status.COMPLETED
+    status_param = request.GET.get("status", "")
+    order_tab = request.GET.get("tab")
+    if order_tab not in ORDER_LIST_TABS:
+        filtered = query or status_param or any(request.GET.get(key) for key in ORDER_LIST_FILTER_KEYS)
+        order_tab = "completed" if status_param == completed else ("all" if filtered else "open")
+    tab_counts = {"open": orders.exclude(status=completed).count(), "completed": orders.filter(status=completed).count()}
+    if order_tab == "completed":
+        orders = orders.filter(status=completed)
+    elif order_tab == "open":
+        orders = orders.exclude(status=completed)
+    order_tabs = []
+    for key, label, hint in ORDER_LIST_TABS.values():
+        params = request.GET.copy()
+        params.pop("page", None)
+        params["tab"] = key
+        # 狀態篩選與目標頁籤不相容時一併移除，避免切過去是空的。
+        if status_param and (status_param == completed) != (key == "completed"):
+            params.pop("status", None)
+        order_tabs.append({"key": key, "label": label, "hint": hint, "count": tab_counts[key],
+                           "url": f"{reverse('order_list')}?{params.urlencode()}", "active": key == order_tab})
     from sales.services.order_sorting import parse_sort, sort_context, sort_orders
     sort_tokens = parse_sort(request.GET.get("sort", ""))
     if not profit_visible:
@@ -4405,6 +4433,7 @@ def order_list(request):
             **analysis_filter_context(request.GET),
             "drafts": Paginator(draft_rows, 25).get_page(request.GET.get("draft_page")) if show_drafts else [],
             "draft_count": draft_rows.count(), "show_drafts": show_drafts,
+            "order_tabs": order_tabs, "order_tab": order_tab,
             **sort_context(request.GET, sort_tokens, profit_unlocked=profit_visible),
         },
     )

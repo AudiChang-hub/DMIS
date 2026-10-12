@@ -186,3 +186,19 @@ class CommandCenterTests(TestCase):
         self.assertNotContains(response, '累計實際收款額')
         self.assertEqual(self.client.get(reverse('operations_report'), {'risk':'refund'}).status_code, 403)
         self.assertEqual(self.client.get(reverse('operations_report_export')).status_code, 403)
+
+
+class VehicleSaleAmountTests(TestCase):
+    def test_imported_orders_without_price_use_received_price(self):
+        # 1.72.0：匯入單車價為 0 時，車款成交額改用 Excel 收款價；有車價的訂單照用車價。
+        from types import SimpleNamespace
+        from sales.services.sales_metrics import vehicle_sale_amount
+        imported = SimpleNamespace(vehicle_price=Decimal("0"), legacy_snapshot=SimpleNamespace(historical_received_price=Decimal("87406")),
+                                   is_cancelled_sale=False, operations=None)
+        priced = SimpleNamespace(vehicle_price=Decimal("79800"), legacy_snapshot=SimpleNamespace(historical_received_price=Decimal("1")),
+                                 is_cancelled_sale=False, operations=None)
+        missing = SimpleNamespace(vehicle_price=Decimal("0"), is_cancelled_sale=False, operations=None)
+        self.assertEqual(vehicle_sale_amount(imported), Decimal("87406"))
+        self.assertEqual(vehicle_sale_amount(priced), Decimal("79800"))
+        self.assertEqual(vehicle_sale_amount(missing), Decimal("0"))
+        self.assertEqual(summarize_sales([imported, priced, missing])["vehicle_sales"], Decimal("167206"))

@@ -4159,7 +4159,14 @@ class SalesOrder(TimeStampedModel):
         registered_error = locked_order.registered_vehicle_error(locked)
         if registered_error:
             raise ValidationError(registered_error)
-        locked_order.ensure_transition(self.Status.ALLOCATED)
+        # Excel 匯入、因無車牌改回「待交車」的舊單從未配車也未領牌，允許直接配車回到一般流程
+        # （配車 → 領牌 → 交車；SO20261009-78AE3D 改車種後需重新配車）。已配過車或已領牌的不適用。
+        unallocated_reopened = (
+            locked_order.status == self.Status.DELIVERY_PENDING
+            and not locked_order.registration_completed_at
+        )
+        if not unallocated_reopened:
+            locked_order.ensure_transition(self.Status.ALLOCATED)
         before = locked.status
         locked.status = VehicleInventory.Status.RESERVED
         locked.save(update_fields=["status", "updated_at"])

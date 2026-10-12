@@ -140,6 +140,11 @@ class OrderSortingTests(TestCase):
         delivered = self.client.get(tabs['delivered']['url'])
         self.assertEqual({o.pk for o in delivered.context['orders']}, {b.pk, c.pk})
         self.assertContains(delivered, '補助待完成 1 項')
+        # 1.72.2：補助未完成的已完成訂單，狀態標籤顯示「已交車／補助處理中」；訂單狀態本身不變。
+        self.assertContains(delivered, 'status-pill status-subsidy_pending">已交車／補助處理中</span>', count=2)
+        self.assertEqual(SalesOrder.objects.get(pk=b.pk).display_status, '已交車／補助處理中')
+        self.assertEqual(SalesOrder.objects.get(pk=b.pk).status, SalesOrder.Status.COMPLETED)
+        self.assertEqual(SalesOrder.objects.get(pk=a.pk).display_status, '已完成')
         closed = self.client.get(tabs['closed']['url'])
         self.assertEqual({o.pk for o in closed.context['orders']}, {a.pk})
         # 補助全部完成後就結案。

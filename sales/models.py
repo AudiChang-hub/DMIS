@@ -2959,11 +2959,30 @@ class SalesOrder(TimeStampedModel):
 
     @property
     def display_status(self):
-        return "刪除確認中" if self.deletion_requested_at else self.get_status_display()
+        if self.deletion_requested_at:
+            return "刪除確認中"
+        if self.subsidy_in_progress:
+            return "已交車／補助處理中"
+        return self.get_status_display()
 
     @property
     def display_status_code(self):
-        return "deletion_pending" if self.deletion_requested_at else self.status
+        if self.deletion_requested_at:
+            return "deletion_pending"
+        return "subsidy_pending" if self.subsidy_in_progress else self.status
+
+    @property
+    def subsidy_in_progress(self):
+        """已完成（交車＋領牌）但還有補助項目未「已申請完成」：列表顯示為已交車／補助處理中，不改訂單狀態。
+        列表會先註記 pending_subsidy_count（services/order_tabs.py），其他頁面才查補助項目。"""
+        if self.status != self.Status.COMPLETED or not self.pk:
+            return False
+        pending = getattr(self, "pending_subsidy_count", None)
+        if pending is not None:
+            return pending > 0
+        if not hasattr(self, "_subsidy_in_progress"):
+            self._subsidy_in_progress = self.subsidy_items.exclude(status=SubsidyItem.Status.COMPLETED).exists()
+        return self._subsidy_in_progress
 
     class VehicleCategory(models.TextChoices):
         NEW = "new", "新車"

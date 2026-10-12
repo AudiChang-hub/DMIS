@@ -121,23 +121,34 @@ class OrderSortingTests(TestCase):
         self.assertEqual(page.count('payment-chip--card'), 2)
         self.assertEqual(page.count('payment-chip--cash'), 4)
 
-    def test_order_list_splits_open_and_completed_tabs(self):
-        # 1.72.0：全部訂單分「進行中」（已完成以外）與「已完成」兩個頁籤，筆數依目前條件計算。
+    def test_order_list_splits_open_delivered_and_closed_tabs(self):
+        # 1.72.1：進行中／已交車／已結案；沒申請補助交車領牌完即結案，補助未完成停在已交車。
+        from sales.models import SubsidyItem
         a, b, c, d = self.orders
         SalesOrder.objects.filter(pk__in=[a.pk, b.pk]).update(status=SalesOrder.Status.COMPLETED)
-        SalesOrder.objects.filter(pk=c.pk).update(status=SalesOrder.Status.CANCELLED)
+        SalesOrder.objects.filter(pk=c.pk).update(status=SalesOrder.Status.DELIVERED_DOCS_PENDING)
+        SubsidyItem.objects.create(order=b, category=SubsidyItem.Category.OTHER, item_name="汰舊換新")
+        SubsidyItem.objects.create(order=a, category=SubsidyItem.Category.OTHER, item_name="新購補助",
+                                   status=SubsidyItem.Status.COMPLETED)
         self.client.force_login(self.user)
         response = self.client.get(reverse('order_list'))
         self.assertEqual(response.context['order_tab'], 'open')
-        self.assertEqual({o.pk for o in response.context['orders']}, {c.pk, d.pk}, '已完成以外（含取消）')
+        self.assertEqual({o.pk for o in response.context['orders']}, {d.pk})
         tabs = {tab['key']: tab for tab in response.context['order_tabs']}
-        self.assertEqual((tabs['open']['count'], tabs['completed']['count']), (2, 2))
+        self.assertEqual([tabs[k]['count'] for k in ('open', 'delivered', 'closed')], [1, 2, 1])
         self.assertContains(response, 'aria-label="訂單分類"')
-        done = self.client.get(tabs['completed']['url'])
-        self.assertEqual({o.pk for o in done.context['orders']}, {a.pk, b.pk})
-        # 從其他頁帶「已完成」狀態進來時自動切到已完成頁籤；切回進行中會移除不相容的狀態篩選。
+        delivered = self.client.get(tabs['delivered']['url'])
+        self.assertEqual({o.pk for o in delivered.context['orders']}, {b.pk, c.pk})
+        self.assertContains(delivered, '補助待完成 1 項')
+        closed = self.client.get(tabs['closed']['url'])
+        self.assertEqual({o.pk for o in closed.context['orders']}, {a.pk})
+        # 補助全部完成後就結案。
+        SubsidyItem.objects.filter(order=b).update(status=SubsidyItem.Status.COMPLETED)
+        closed = self.client.get(tabs['closed']['url'])
+        self.assertEqual({o.pk for o in closed.context['orders']}, {a.pk, b.pk})
+        # 搜尋或狀態篩選時列出全部符合；切頁籤時移除狀態篩選、保留搜尋。
         linked = self.client.get(reverse('order_list'), {'status': 'completed', 'q': 'Sort'})
-        self.assertEqual(linked.context['order_tab'], 'completed')
+        self.assertEqual(linked.context['order_tab'], 'all')
         back = {tab['key']: tab for tab in linked.context['order_tabs']}['open']['url']
         self.assertNotIn('status=', back)
         self.assertIn('q=Sort', back)

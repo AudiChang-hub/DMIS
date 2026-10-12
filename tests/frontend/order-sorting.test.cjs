@@ -35,3 +35,15 @@ test('點到排序連結以外的地方不處理',()=>{
   callback({button:0,preventDefault(){throw new Error('不應攔截');},target:{closest:()=>null}});
   assert.equal(target,undefined);
 });
+test('全部訂單有局部載入時交給 DMISOrderResults，不整頁跳轉',()=>{
+  let callback, target, loaded;
+  vm.runInNewContext(source, {document:{querySelector:()=>({dataset:{orderSort:'established_on'}}),addEventListener:(_,fn)=>{callback=fn;}},URL,
+    DMISOrderResults:{load:url=>{loaded=url;}},
+    location:{href:'https://example.test/orders/?tab=closed&page=2',assign:url=>{target=url;}}});
+  callback({button:0,preventDefault(){},target:{closest:()=>({dataset:{orderSortKey:'owner_name'}})}});
+  assert.equal(target,undefined);
+  const url=new URL(loaded);
+  assert.equal(url.searchParams.get('sort'),'established_on,owner_name');
+  assert.equal(url.searchParams.get('tab'),'closed');
+  assert.equal(url.searchParams.get('page'),null);
+});

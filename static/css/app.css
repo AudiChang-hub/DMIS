@@ -1428,6 +1428,7 @@ h2 { margin-bottom: 0; font-size: var(--text-md); font-weight: 750; letter-spaci
 .status-pill.status-delivered_docs_pending { color: var(--green-ink); background: color-mix(in srgb, var(--green) 12%, var(--surface)); border: 1px dashed var(--green); }
 .status-pill.status-completed { color: var(--on-status); background: var(--green); border-color: var(--green); }
 .status-pill.status-completed::before { content: "✓ "; }
+.status-pill.status-subsidy_pending { color: var(--amber-ink); background: var(--amber-soft); border: 1px dashed var(--amber-border-strong); }
 .status-pill.status-cancel_refund_pending { color: var(--red-ink); background: var(--red-soft); border-color: var(--red-border-strong); }
 .status-pill.status-exception_closed { color: var(--ink-soft); background: var(--surface-soft); border: 1px dashed var(--line-strong); }
 .status-pill.status-cancelled { color: var(--on-accent); background: var(--neutral-solid); border: 2px solid var(--line-strong); }

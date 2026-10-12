@@ -16,6 +16,8 @@
 - 配車順序：優先配車排最前，同級再依出廠年月舊到新（未填排最後）、進車日。出廠年月超過 3 個月（月份精度，2026/10 時為 2026/06 以前）自動優先、標「自動」且不能關閉；未滿者人員可在庫存列表手動開啟（`allocation_priority_override=True`，標「人工」，到期後仍為人工），手動關閉即清除、回到依車齡判斷（到期自動開啟）。舊的人工關閉值（False）不再生效。切換寫入庫存異動。同級未選最早出廠或本單非排第一須填原因；有優先配車卻選一般車只提醒、不強制，仍記入配車事件。入口 `AllocationForm`、`annotate_allocation_priority`、`test_allocation_priority.py`。
 - 車輛來源：庫存分「公司進車」（預設，既有資料皆是）與「車行調車」（`acquisition_type`），調車必填來源車行名稱（`transfer_source_name`，自由輸入，提示既有名稱與啟用車行）。兩者同列現有庫存、配車與優先配車；只作區分與顯示，不影響成本、佣金或報表。與 `current_dealer`（車放在哪個車行）無關。入口 `VehicleInventory.clean`、`test_inventory_acquisition.py`。
 - 草稿（含接待草稿）一般只有建立人看得到；admin 可在「全部訂單 → 草稿清理」看所有人的草稿（不顯示客戶資料），填原因並確認後刪除，連同暫存證件照，寫入帳號稽核紀錄（動作「刪除草稿」）；90 秒內有他人編輯心跳時不能刪。入口 `sales/services/draft_cleanup.py`、`test_draft_cleanup.py`。
+- 配車：一般從「待配車」配車；Excel 匯入後因無車牌改回「待交車」、從未配車且未完成領牌的訂單也可直接配車，配車後回到「已配車 → 領牌 → 交車」一般流程（2026-10-12）。
+- 全部訂單頁籤（`services/order_tabs.py`，2026-10-12）：進行中＝未交車且未取消；已取消＝已取消／取消待退款／例外結案；已交車＝已交車但領牌文件未完成或有補助項目未「已申請完成」；已結案＝已完成且無待處理補助。只分類列表，不改訂單狀態與報表口徑。
 - 入口：`sales/tests/test_order_intake.py`、`test_reception_entry.py`、`test_completed_order_corrections.py`、`test_order_deletion.py`。
 
 ## Excel 匯入與識別
@@ -24,8 +26,6 @@
 - 現行入口是 `sales/services/legacy_import.py`；財務還原見 `legacy_finance.py`。Odoo 的 excel_sync_id 規格不是目前實作。
 - 營運 Excel（銷貨表頭在第 3 列、進貨在第 1 列）**依表頭名稱取值，不依欄位字母**；對照表是 `SALES_HEADER_ALIASES`／`INVENTORY_HEADER_ALIASES`，Excel 改欄名時在那裡補別名。缺必要表頭（車種型號、引擎／車身號碼、車主名稱）會寫入 `preview_summary.blocking`，`confirm_import` 拒絕匯入；其餘缺少的表頭只進 `warnings`。財務欄位仍依 `legacy_finance.MAPPING` 的表頭名，改名時補 `LABEL_ALIASES`。
 - 各政府單位（工業局／環境部／地方政府）的補助進度只由「補助申請項目」彙整（`sales/services/subsidy_summary.py`）：「有送出申請」＝項目狀態為已送出申請或已申請完成；`OrderOperationsProfile` 的三個舊狀態欄位保留在資料庫但不再編輯、顯示或匯出，待新畫面穩定後再另案移除。
-- 全部訂單頁籤（`services/order_tabs.py`，2026-10-12）：進行中＝未交車且未取消；已取消＝已取消／取消待退款／例外結案；已交車＝已交車但領牌文件未完成或有補助項目未「已申請完成」；已結案＝已完成且無待處理補助。只分類列表，不改訂單狀態與報表口徑。
-- 營運總表「車款成交額」（`services/sales_metrics.vehicle_sale_amount`）：訂單車價合計；匯入單車價為 0 時改用匯入快照的收款價（不含強制險），只用於報表、不回寫訂單（2026-10-12）。
 - 匯入的未完成現金訂單（`services/imported_balance.py`，接在 `payment_summary`）：總應付＝Excel 收款價（不含強制險）＋強制險收入；「車行收款」打 V＝已收清（尾款 0、不補收款紀錄）；沒打 V 以總應付為客戶應收，交車前收清、車行單計入掛帳。已完成歷史訂單與分期單不套用。
 - 營運 Excel 上傳時可選要匯入的頁籤（`build_import_preview(batch, sheets=...)`，預設進貨、銷貨都匯入）；沒選的頁籤完全不讀取，選擇存在 `preview_summary.selected_sheets`（舊批次沒有此鍵視為兩者）。只匯銷貨時 `inventory_skipped`：不做庫存比對，銷貨訂單不連實體車輛，之後另匯進貨也不會回頭補連結。
 - 庫存狀態：放到合作車行仍是庫存（只改 `current_dealer`）；調給其他車行＝`TRANSFERRED_OUT`（已調出，不算庫存也不算售出，保留進車紀錄）。
@@ -62,6 +62,7 @@
 - 選車上架完全跟著機種啟用狀態：啟用即上架、停用即下架；不另設上架開關；圖片、介紹與排序由機種編輯頁的「選車圖片與介紹」維護。官網車型對應須由人確認。來源：`sales/services/official_catalog.py`、`sales/official_catalog_views.py`；規格 `specs/061-official-catalog-check`；測試 `test_official_catalog.py`。
 
 ## 財務與權限
+- 營運總表「車款成交額」（`services/sales_metrics.vehicle_sale_amount`）：訂單車價合計；匯入單車價為 0 時改用匯入快照的收款價（不含強制險），只用於報表、不回寫訂單（2026-10-12）。
 
 - 財務、成本、佣金、補助、淨利依既有營運欄位與快照計算；有效版本依領牌日等既定生效條件，不以目前價表覆蓋歷史交易。
 - 最終總價折扣可輸入折數或折讓金額；**分期公司撥款、佣金與成本不跟著折扣**。建立訂單時填寫的優惠立即核定（見「訂單與接待」）；建立後的申請／核准與金額收支頁直接核定流程與稽核仍有效，直接核定共用 `approve_discount_now`。

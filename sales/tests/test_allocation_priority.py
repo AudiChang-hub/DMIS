@@ -1,5 +1,6 @@
 from datetime import date
 
+from django.core.exceptions import ValidationError
 from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
@@ -7,6 +8,7 @@ from django.utils import timezone
 from sales.forms import AllocationForm
 from sales.models import (
     OrderEvent,
+    SalesOrder,
     VehicleInventory,
     VehicleInventoryHistory,
     allocation_priority_cutoff,
@@ -70,7 +72,9 @@ class AllocationPriorityTests(TestCase):
         self.assertEqual(ids, [auto_priority.pk, manual_priority.pk, older.pk, newer.pk, blank.pk])
         self.assertEqual(form.priority_vehicle_count, 2)
         html = str(form["vehicle"])
-        self.assertIn(f"★ 優先配車｜SI-AUTO｜出廠 {months_ago(6)}", html)
+        # 1.72.6：下拉列出車種名稱與車色。
+        label = f"{order.vehicle_model.name}｜{order.color.name}"
+        self.assertIn(f"★ 優先配車｜{label}｜SI-AUTO｜出廠 {months_ago(6)}", html)
         self.assertIn(f"SI-OLDER｜出廠 {months_ago(2)}", html)
         self.assertIn("SI-BLANK｜出廠 未填寫", html)
         self.assertEqual(html.count('data-allocation-priority="true"'), 2)
@@ -207,3 +211,20 @@ class AllocationPriorityTests(TestCase):
         self.assertEqual(html.count("data-priority-locked"), 1)
         history = self.client.get(reverse("inventory_list"), {"scope": "history"})
         self.assertNotContains(history, "優先配車規則")
+
+    def test_reopened_delivery_pending_order_without_vehicle_can_allocate(self):
+        # 1.72.6：匯入後改回「待交車」、從未配車也未領牌的舊單可直接配車（SO20261009-78AE3D 改車種後需重新配車）。
+        order = self.clean_pending_order()
+        SalesOrder.objects.filter(pk=order.pk).update(status=SalesOrder.Status.DELIVERY_PENDING)
+        order.refresh_from_db()
+        car = self.vehicle("REOPEN", months_ago(1))
+        order.allocate(car, actor_name="測試")
+        order.refresh_from_db()
+        self.assertEqual((order.status, order.allocated_vehicle_id), (SalesOrder.Status.ALLOCATED, car.pk))
+        # 已領牌的待交車訂單仍不能配車。
+        other = self.clean_pending_order()
+        SalesOrder.objects.filter(pk=other.pk).update(status=SalesOrder.Status.DELIVERY_PENDING, registration_completed_at=timezone.now())
+        other.refresh_from_db()
+        spare = self.vehicle("SPARE", months_ago(1))
+        with self.assertRaisesMessage(ValidationError, "不能轉為「已配車」"):
+            other.allocate(spare, actor_name="測試")

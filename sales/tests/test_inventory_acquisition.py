@@ -126,3 +126,28 @@ class InventoryAcquisitionTests(TestCase):
         self.assertEqual([v.pk for v in filtered.context["vehicles"]], [transfer.pk])
         searched = self.client.get(reverse("inventory_list"), {"q": "大發"})
         self.assertEqual([v.pk for v in searched.context["vehicles"]], [transfer.pk])
+
+
+class ManufacturedYearMonthSelectTests(TestCase):
+    """1.72.6：進車與快速進車的出廠年月改為下拉選單（YYYY/MM，新到舊），不必手打。"""
+    setUp = lifecycle.OrderLifecycleTests.setUp
+
+    def test_create_and_quick_create_use_year_month_select(self):
+        from django.utils import timezone
+        today = timezone.localdate()
+        current = f"{today.year:04d}/{today.month:02d}"
+        self.client.force_login(self.user)
+        for name in ("inventory_create", "inventory_quick_create"):
+            with self.subTest(page=name):
+                page = self.client.get(reverse(name)).content.decode()
+                self.assertRegex(page, r'<select name="[^"]*manufactured_year_month"')
+                self.assertIn(f'<option value="{current}">{current}</option>', page)
+                self.assertIn('<option value="" selected>請選擇出廠年月</option>', page)
+
+    def test_existing_value_outside_range_is_kept(self):
+        from sales.forms import YearMonthSelect
+        html = YearMonthSelect().render("manufactured_year_month", "2015/03")
+        self.assertIn('<option value="2015/03" selected>2015/03</option>', html)
+        newest_first = YearMonthSelect().year_month_choices()
+        self.assertGreater(newest_first[1][0], newest_first[2][0])
+        self.assertEqual(len(newest_first), 1 + 5 * 12 + 2)

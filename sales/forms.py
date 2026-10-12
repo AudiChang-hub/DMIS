@@ -167,6 +167,31 @@ class DateInput(forms.DateInput):
         super().__init__(*args, **kwargs)
 
 
+class YearMonthSelect(forms.Select):
+    """出廠年月下拉（YYYY/MM）：由下個月往回 5 年、新到舊，免手打打錯（使用者 2026-10-12）。
+    選項於顯示時才產生，跨月不需重啟；既有值不在範圍內時仍保留為選項，不會被清掉。"""
+
+    def __init__(self, attrs=None, years_back=5):
+        super().__init__(attrs)
+        self.years_back = years_back
+
+    def year_month_choices(self, current=""):
+        today = timezone.localdate()
+        year, month = (today.year + 1, 1) if today.month == 12 else (today.year, today.month + 1)
+        values = []
+        for _ in range(self.years_back * 12 + 2):
+            values.append(f"{year:04d}/{month:02d}")
+            year, month = (year - 1, 12) if month == 1 else (year, month - 1)
+        if current and current not in values:
+            values.insert(0, current)
+        return [("", "請選擇出廠年月")] + [(value, value) for value in values]
+
+    def get_context(self, name, value, attrs):
+        current = value[0] if isinstance(value, (list, tuple)) and value else (value or "")
+        self.choices = self.year_month_choices(str(current))
+        return super().get_context(name, value, attrs)
+
+
 class OrderCommissionAttributionForm(forms.Form):
     commission_recipient = forms.ModelChoiceField(
         label="這台算給哪間車行", queryset=SalesSource.objects.none(), required=False,
@@ -1977,9 +2002,7 @@ class VehicleInventoryForm(forms.ModelForm):
                 }
             ),
             "received_on": DateInput(),
-            "manufactured_year_month": forms.TextInput(
-                attrs={"placeholder": "YYYY/MM", "inputmode": "numeric"}
-            ),
+            "manufactured_year_month": YearMonthSelect(),
             "condition_note": forms.Textarea(attrs={"rows": 3}),
             "condition_resolution": forms.Textarea(attrs={"rows": 3}),
             "condition_photo": forms.ClearableFileInput(
@@ -3714,9 +3737,7 @@ class QuickInventoryEntryForm(forms.Form):
         regex=r"^\d{4}/(0[1-9]|1[0-2])$",
         required=False,
         error_messages={"invalid": "請使用 YYYY/MM，例如 2026/08。"},
-        widget=forms.TextInput(
-            attrs={"placeholder": "YYYY/MM", "inputmode": "numeric"}
-        ),
+        widget=YearMonthSelect(),
     )
     condition_note = forms.CharField(
         label="車況說明",
@@ -3895,7 +3916,9 @@ class AllocationVehicleChoiceField(forms.ModelChoiceField):
     widget = AllocationVehicleSelect
 
     def label_from_instance(self, vehicle):
-        parts = [vehicle.identifier, f"出廠 {vehicle.manufactured_year_month or '未填寫'}"]
+        # 下拉同時列出車種名稱與車色，選車時不必另外對照（使用者 2026-10-12）。
+        parts = [vehicle.vehicle_model.name, vehicle.color.name, vehicle.identifier,
+                 f"出廠 {vehicle.manufactured_year_month or '未填寫'}"]
         if vehicle.registered_plate_number:
             parts.append(f"車牌 {vehicle.registered_plate_number}")
         parts.append(vehicle.actual_location_label)

@@ -160,6 +160,27 @@ class OrderWizardTests(TestCase):
         draft.refresh_from_db()
         self.assertEqual(draft.data["note"], "改完再回第一步")
 
+    def test_three_accessories_and_two_fees_survive_reload(self):
+        # 1.72.5：草稿有多筆配件／其他費用時，換步驟重新載入不能只剩第一筆（SO20261010-2AE018 三筆配件只存一筆）。
+        self.setUpKey()
+        lines = {"accessories-TOTAL_FORMS": "3", "accessories-INITIAL_FORMS": "0",
+                 "other_fees-TOTAL_FORMS": "2", "other_fees-INITIAL_FORMS": "0",
+                 "other_fees-0-name": "保險升級", "other_fees-0-amount": "500",
+                 "other_fees-1-name": "代辦費", "other_fees-1-amount": "300"}
+        for index, (name, amount) in enumerate((("前側保桿", "1300"), ("手機架", "800"), ("後照鏡", "600"))):
+            lines.update({f"accessories-{index}-accessory_product": "other", f"accessories-{index}-custom_name": name,
+                          f"accessories-{index}-quantity": "1", f"accessories-{index}-line_type": "purchase",
+                          f"accessories-{index}-amount": amount, f"accessories-{index}-labor_fee": "0"})
+        self.post("vehicle", **lines)
+        draft = self.draft()
+        self.assertEqual(self.post("accessories", draft=draft, **lines).status_code, 302)
+        page = self.client.get(reverse("order_create"), {"draft": draft.pk, "step": "tradein"}).content.decode()
+        for name in ("前側保桿", "手機架", "後照鏡", "保險升級", "代辦費"):
+            self.assertIn(f'value="{name}"', page)
+        self.assertIn('name="accessories-TOTAL_FORMS" value="3"', page)
+        self.assertIn('name="other_fees-TOTAL_FORMS" value="2"', page)
+
+
     def test_custom_accessory_name_survives_later_steps(self):
         self.setUpKey()
         custom = {"accessories-0-accessory_product": "other", "accessories-0-custom_name": "測試安全帽",

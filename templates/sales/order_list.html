@@ -62,7 +62,7 @@
         {% if request.GET.status %}<input type="hidden" name="status" value="{{ request.GET.status }}">{% endif %}
         {% if order_tab != 'all' %}<input type="hidden" name="tab" value="{{ order_tab }}">{% endif %}
         <label for="order-page-size">每頁顯示
-          <select id="order-page-size" name="per_page" onchange="this.form.submit()">
+          <select id="order-page-size" name="per_page" onchange="this.form.requestSubmit ? this.form.requestSubmit() : this.form.submit()">
             {% for option in per_page_options %}
               <option value="{{ option }}" {% if per_page == option %}selected{% endif %}>{{ option }} 筆</option>
             {% endfor %}

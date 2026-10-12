@@ -44,7 +44,7 @@ def _sales_snapshot(start, end, source=None):
             registration_date__lte=end,
         )
         .exclude(status__in=CANCELLED_STATUSES)
-        .select_related("operations")
+        .select_related("operations", "legacy_snapshot")
         .prefetch_related("payment_records")
     ) if source is None else [order for order in source if start <= order.registration_date <= end]
     summary = summarize_sales(orders)
@@ -65,7 +65,7 @@ def build_dashboard_metrics(today=None):
     for _ in range(11):
         starts.insert(0, _previous_month(starts[0]))
     source = list(SalesOrder.objects.filter(registration_date__range=(starts[0], today))
-                  .exclude(status__in=CANCELLED_STATUSES).select_related('operations', 'vehicle_model').prefetch_related('payment_records'))
+                  .exclude(status__in=CANCELLED_STATUSES).select_related('operations', 'vehicle_model', 'legacy_snapshot').prefetch_related('payment_records'))
     current = _sales_snapshot(month_start, today, source)
     previous = _sales_snapshot(previous_start, comparison_end, source)
     trend = []

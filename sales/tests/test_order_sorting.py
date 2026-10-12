@@ -120,3 +120,24 @@ class OrderSortingTests(TestCase):
         self.assertIn('分期<small>裕融</small><small>36期</small>', page)
         self.assertEqual(page.count('payment-chip--card'), 2)
         self.assertEqual(page.count('payment-chip--cash'), 4)
+
+    def test_order_list_splits_open_and_completed_tabs(self):
+        # 1.72.0：全部訂單分「進行中」（已完成以外）與「已完成」兩個頁籤，筆數依目前條件計算。
+        a, b, c, d = self.orders
+        SalesOrder.objects.filter(pk__in=[a.pk, b.pk]).update(status=SalesOrder.Status.COMPLETED)
+        SalesOrder.objects.filter(pk=c.pk).update(status=SalesOrder.Status.CANCELLED)
+        self.client.force_login(self.user)
+        response = self.client.get(reverse('order_list'))
+        self.assertEqual(response.context['order_tab'], 'open')
+        self.assertEqual({o.pk for o in response.context['orders']}, {c.pk, d.pk}, '已完成以外（含取消）')
+        tabs = {tab['key']: tab for tab in response.context['order_tabs']}
+        self.assertEqual((tabs['open']['count'], tabs['completed']['count']), (2, 2))
+        self.assertContains(response, 'aria-label="訂單分類"')
+        done = self.client.get(tabs['completed']['url'])
+        self.assertEqual({o.pk for o in done.context['orders']}, {a.pk, b.pk})
+        # 從其他頁帶「已完成」狀態進來時自動切到已完成頁籤；切回進行中會移除不相容的狀態篩選。
+        linked = self.client.get(reverse('order_list'), {'status': 'completed', 'q': 'Sort'})
+        self.assertEqual(linked.context['order_tab'], 'completed')
+        back = {tab['key']: tab for tab in linked.context['order_tabs']}['open']['url']
+        self.assertNotIn('status=', back)
+        self.assertIn('q=Sort', back)

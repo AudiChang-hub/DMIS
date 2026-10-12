@@ -2,7 +2,7 @@
 {% if show_order_details %}<div class="order-row order-row--detailed">{% else %}<a class="order-row" href="{% url 'order_detail' order.pk %}">{% endif %}
   <span class="status-dot status-{{ order.status }}"></span>
   <div class="order-main">
-    <strong>{% if show_order_details %}<a href="{% url 'order_detail' order.pk %}">{{ order.owner_name }}</a>{% else %}{{ order.owner_name }}{% endif %}</strong>
+    <span class="order-owner-line"><strong>{% if show_order_details %}<a href="{% url 'order_detail' order.pk %}">{{ order.owner_name }}</a>{% else %}{{ order.owner_name }}{% endif %}</strong>{% include "sales/_payment_chip.html" %}</span>
     <small>{{ order.number }}{% if not show_order_details %} · {{ order.vehicle_model.name }}／{{ order.color.name }}{% endif %}</small>
     {% if show_order_details %}
     {% if_access 'order_delete' order.pk %}<a class="button danger-outline small" href="{% url 'order_delete' order.pk %}" aria-label="刪除訂單 {{ order.number }}">刪除訂單</a>{% endif_access %}

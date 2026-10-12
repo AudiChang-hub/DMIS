@@ -24,7 +24,7 @@
 - 現行入口是 `sales/services/legacy_import.py`；財務還原見 `legacy_finance.py`。Odoo 的 excel_sync_id 規格不是目前實作。
 - 營運 Excel（銷貨表頭在第 3 列、進貨在第 1 列）**依表頭名稱取值，不依欄位字母**；對照表是 `SALES_HEADER_ALIASES`／`INVENTORY_HEADER_ALIASES`，Excel 改欄名時在那裡補別名。缺必要表頭（車種型號、引擎／車身號碼、車主名稱）會寫入 `preview_summary.blocking`，`confirm_import` 拒絕匯入；其餘缺少的表頭只進 `warnings`。財務欄位仍依 `legacy_finance.MAPPING` 的表頭名，改名時補 `LABEL_ALIASES`。
 - 各政府單位（工業局／環境部／地方政府）的補助進度只由「補助申請項目」彙整（`sales/services/subsidy_summary.py`）：「有送出申請」＝項目狀態為已送出申請或已申請完成；`OrderOperationsProfile` 的三個舊狀態欄位保留在資料庫但不再編輯、顯示或匯出，待新畫面穩定後再另案移除。
-- 全部訂單頁籤（`services/order_tabs.py`，2026-10-12）：進行中＝未交車；已交車＝已交車但領牌文件未完成或有補助項目未「已申請完成」；已結案＝已完成且無待處理補助。只分類列表，不改訂單狀態與報表口徑。
+- 全部訂單頁籤（`services/order_tabs.py`，2026-10-12）：進行中＝未交車且未取消；已取消＝已取消／取消待退款／例外結案；已交車＝已交車但領牌文件未完成或有補助項目未「已申請完成」；已結案＝已完成且無待處理補助。只分類列表，不改訂單狀態與報表口徑。
 - 營運總表「車款成交額」（`services/sales_metrics.vehicle_sale_amount`）：訂單車價合計；匯入單車價為 0 時改用匯入快照的收款價（不含強制險），只用於報表、不回寫訂單（2026-10-12）。
 - 匯入的未完成現金訂單（`services/imported_balance.py`，接在 `payment_summary`）：總應付＝Excel 收款價（不含強制險）＋強制險收入；「車行收款」打 V＝已收清（尾款 0、不補收款紀錄）；沒打 V 以總應付為客戶應收，交車前收清、車行單計入掛帳。已完成歷史訂單與分期單不套用。
 - 營運 Excel 上傳時可選要匯入的頁籤（`build_import_preview(batch, sheets=...)`，預設進貨、銷貨都匯入）；沒選的頁籤完全不讀取，選擇存在 `preview_summary.selected_sheets`（舊批次沒有此鍵視為兩者）。只匯銷貨時 `inventory_skipped`：不做庫存比對，銷貨訂單不連實體車輛，之後另匯進貨也不會回頭補連結。

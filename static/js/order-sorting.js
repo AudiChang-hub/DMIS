@@ -18,6 +18,8 @@
     url.searchParams.delete('page');
     if (tokens.length) url.searchParams.set('sort', tokens.join(','));
     else url.searchParams.delete('sort');
-    location.assign(url.toString());
+    // 全部訂單有局部載入（order-tabs.js）時不整頁重新載入、不跳回頁首。
+    if (globalThis.DMISOrderResults) globalThis.DMISOrderResults.load(url.toString());
+    else location.assign(url.toString());
   });
 })();

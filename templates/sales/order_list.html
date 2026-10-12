@@ -42,13 +42,15 @@
 <div class="order-drilldown">{% if has_analysis_filters %}<strong>已套用營運／日期條件（見上方篩選）</strong><a class="button ghost small" href="{% url 'order_list' %}">清除所有篩選</a>{% endif %}{% if_access 'order_create' %}<a href="{% url 'order_list' %}?drafts=1#drafts">未完成草稿</a>{% endif_access %}{% if_access 'operations_report_export' %}<a href="{% url 'operations_report_export' %}?{{ request.GET.urlencode }}&include_cancelled={% if request.GET.business_only == '1' %}0{% else %}1{% endif %}">匯出營運資料（目前篩選）</a>{% endif_access %}</div>
 <aside class="order-draft-summary"><div><strong>未完成草稿 · {{ draft_count }} 筆</strong><p class="muted">尚未送出的下單資料，與已成立訂單分開列出。</p></div><a class="button ghost" href="{% url 'order_list' %}?status=draft#drafts">查看草稿</a></aside>
 {% if show_drafts %}<section class="section-block" id="drafts"><div class="section-title"><h2>未完成草稿</h2><span>{{ drafts.paginator.count }} 筆</span></div>{% for draft in drafts %}<article class="draft-row"><span><strong>{{ draft.display_name }}</strong><small>{{ draft.display_vehicle }} · {{ draft.updated_by|default:"未知人員" }}</small></span><time>{{ draft.updated_at|date:"Y/m/d H:i" }}</time>{% if draft.is_reception_draft %}{% if draft.owner_account_id == user.pk %}<a class="button ghost" href="{% url 'order_start' %}?draft={{ draft.pk }}">接續填單</a>{% else %}<small class="draft-row__note">由草稿建立人接續填寫</small>{% endif %}{% else %}{% if_access 'order_create' %}<a class="button ghost" href="{% url 'order_create' %}?draft={{ draft.pk }}">接續填單</a>{% endif_access %}{% endif %}</article>{% empty %}<div class="empty-state small"><p>目前沒有符合搜尋條件的草稿。</p></div>{% endfor %}{% pagination drafts page_param='draft_page' aria_label="草稿分頁" %}</section>{% endif %}
+{# 頁籤切換只換這一區（static/js/order-tabs.js），不整頁重新載入、不跳回頁首。 #}
+<div class="order-results" data-order-results>
 <nav class="inventory-scope-tabs order-scope-tabs" aria-label="訂單分類">{% for tab in order_tabs %}
   <a class="inventory-scope-tab{% if tab.active %} is-active{% endif %}" href="{{ tab.url }}"{% if tab.active %} aria-current="page"{% endif %}>
     <span><strong>{{ tab.label }}</strong><small>{{ tab.hint }}</small></span>
     <b>{{ tab.count }}</b>
   </a>{% endfor %}
 </nav>
-{% if order_tab == 'all' %}<p class="muted order-scope-note">依目前搜尋與篩選列出全部符合的訂單；點上方頁籤可只看進行中、已交車或已結案。</p>{% endif %}
+{% if order_tab == 'all' %}<p class="muted order-scope-note">依目前搜尋與篩選列出全部符合的訂單；點上方頁籤可只看進行中、已交車、已結案或已取消。</p>{% endif %}
 <div class="section-block">
   <div class="inventory-list-summary order-list-summary">
     <strong>共 {{ page_obj.paginator.count }} 張訂單</strong>
@@ -111,5 +113,6 @@
   </div>
 </div>
 {% pagination page_obj aria_label="訂單分頁" %}
+</div>
 {% endblock %}
-{% block scripts %}<script src="{% static 'js/order-sorting.js' %}?v={{ app_version }}" defer></script>{% endblock %}
+{% block scripts %}<script src="{% static 'js/order-sorting.js' %}?v={{ app_version }}" defer></script><script src="{% static 'js/order-tabs.js' %}?v={{ app_version }}" defer></script>{% endblock %}

@@ -1444,6 +1444,10 @@ h2 { margin-bottom: 0; font-size: var(--text-md); font-weight: 750; letter-spaci
 /* 已交車但補助未完成：狀態下方的琥珀提示（訂單仍在「已交車」頁籤，補助完成才結案）。 */
 .order-subsidy-pending { display: block; width: fit-content; margin-top: var(--space-1); padding: 0 var(--space-2); color: var(--amber-ink); background: var(--amber-soft); border-radius: var(--radius-sm); font-size: var(--text-xs); font-weight: 700; }
 .order-row-status { display: grid; justify-items: end; gap: var(--space-1); }
+/* 頁籤局部載入中：列表淡出，頁籤列保持可見，不跳動。 */
+.order-results > :not(.order-scope-tabs) { transition: opacity .18s ease; }
+.order-results[aria-busy="true"] > :not(.order-scope-tabs) { opacity: .45; pointer-events: none; }
+.order-results[aria-busy="true"] { cursor: progress; }
 .empty-state strong { color: var(--ink); }
 .empty-state p { margin: var(--space-1) 0 0; line-height: 1.8; max-width: 52ch; }
 .empty-state.small { padding: var(--space-6) var(--space-5); --empty-pad: var(--space-6); }

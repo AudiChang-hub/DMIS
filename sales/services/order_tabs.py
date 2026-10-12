@@ -1,8 +1,9 @@
-"""全部訂單的三個頁籤（使用者 2026-10-12）：進行中／已交車／已結案。
+"""全部訂單的四個頁籤（使用者 2026-10-12）：進行中／已交車／已結案／已取消。
 
-- 進行中：還沒交車（含待接單、配車、領牌、取消等）。
+- 進行中：還沒交車也沒取消（待接單、配車、領牌、待交車等）。
 - 已交車：已交車，但領牌文件未完成，或還有補助項目未到「已申請完成」。
 - 已結案：已交車且領牌完成，沒有待處理的補助；沒申請補助的訂單交車後直接結案。
+- 已取消：已取消、取消待退款（退款仍在此處理）與例外結案。
 
 只是列表分類，不改訂單狀態，營運報表的成交與完成數字不受影響。補助只看訂單上的補助項目；
 Excel 匯入的歷史訂單沒有補助項目，交車領牌完成即為已結案。
@@ -16,9 +17,11 @@ TABS = (
     ("open", "進行中", "還沒交車的訂單"),
     ("delivered", "已交車", "待補領牌文件或補助未完成"),
     ("closed", "已結案", "交車完成且沒有待處理補助"),
+    ("cancelled", "已取消", "含取消待退款與例外結案"),
 )
 TAB_KEYS = tuple(key for key, _label, _hint in TABS)
 DELIVERED = (SalesOrder.Status.DELIVERED_DOCS_PENDING, SalesOrder.Status.COMPLETED)
+CANCELLED = (SalesOrder.Status.CANCELLED, SalesOrder.Status.CANCEL_REFUND_PENDING, SalesOrder.Status.EXCEPTION_CLOSED)
 
 
 def with_subsidy_progress(orders):
@@ -34,7 +37,8 @@ def with_subsidy_progress(orders):
 def tab_filter(key):
     closed = Q(status=SalesOrder.Status.COMPLETED, has_pending_subsidy=False)
     return {
-        "open": ~Q(status__in=DELIVERED),
+        "open": ~Q(status__in=DELIVERED + CANCELLED),
         "delivered": Q(status__in=DELIVERED) & ~closed,
         "closed": closed,
+        "cancelled": Q(status__in=CANCELLED),
     }[key]

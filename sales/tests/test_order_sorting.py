@@ -136,7 +136,20 @@ class OrderSortingTests(TestCase):
         self.assertEqual({o.pk for o in response.context['orders']}, {d.pk})
         tabs = {tab['key']: tab for tab in response.context['order_tabs']}
         self.assertEqual([tabs[k]['count'] for k in ('open', 'delivered', 'closed')], [1, 2, 1])
+        # 1.72.3：已取消（含取消待退款、例外結案）另成一個頁籤，不再混在進行中。
+        self.assertEqual(tabs['cancelled']['count'], 0)
+        SalesOrder.objects.filter(pk=d.pk).update(status=SalesOrder.Status.CANCEL_REFUND_PENDING)
+        again = {tab['key']: tab for tab in self.client.get(reverse('order_list')).context['order_tabs']}
+        self.assertEqual([again[k]['count'] for k in ('open', 'delivered', 'closed', 'cancelled')], [0, 2, 1, 1])
+        cancelled = self.client.get(again['cancelled']['url'])
+        self.assertEqual({o.pk for o in cancelled.context['orders']}, {d.pk})
+        SalesOrder.objects.filter(pk=d.pk).update(status=SalesOrder.Status.ALLOCATION_PENDING)
         self.assertContains(response, 'aria-label="訂單分類"')
+        # 1.72.3：頁籤切換只替換列表區（order-tabs.js），排序連結以事件委派處理，替換後仍可用。
+        self.assertContains(response, 'data-order-results')
+        self.assertContains(response, 'js/order-tabs.js')
+        from pathlib import Path
+        self.assertIn("document.addEventListener('click'", Path('static/js/order-sorting.js').read_text(encoding='utf-8'))
         delivered = self.client.get(tabs['delivered']['url'])
         self.assertEqual({o.pk for o in delivered.context['orders']}, {b.pk, c.pk})
         self.assertContains(delivered, '補助待完成 1 項')

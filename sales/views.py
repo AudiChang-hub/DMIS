@@ -5051,6 +5051,10 @@ def _initial_intake_forms(request, draft, reception):
         else None,
         prefix="other_fees",
     )
+    # 新訂單的明細列全是「額外列」，inline formset 預設只開 1 列；草稿有幾筆就開幾列，
+    # 否則換步驟重新載入只剩第一筆，下一步送出後其餘明細就被覆蓋（SO20261010-2AE018）。
+    for lines in (formset, fee_formset):
+        lines.extra = max(lines.extra, len(lines.initial_extra or ()))
     return form, formset, fee_formset
 
 

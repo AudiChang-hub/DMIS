@@ -110,13 +110,13 @@ class OrderSortingTests(TestCase):
         self.assertContains(empty, 'colspan="10"')
 
     def test_order_list_shows_payment_type_chip(self):
-        # 1.71.0：全部訂單一眼分出現金／分期（附期數）／刷卡，表格與手機卡片都有。
+        # 1.71.0：全部訂單一眼分出現金／分期（附分期公司與期數，1.71.1）／刷卡，表格與手機卡片都有。
         a, b, c, d = self.orders
-        SalesOrder.objects.filter(pk=a.pk).update(payment_type='installment', installment_periods=36)
+        SalesOrder.objects.filter(pk=a.pk).update(payment_type='installment', installment_periods=36, installment_company='裕融')
         SalesOrder.objects.filter(pk=b.pk).update(payment_type='card')
         self.client.force_login(self.user)
         page = self.client.get(reverse('order_list')).content.decode()
         self.assertEqual(page.count('payment-chip--installment'), 2, '表格與手機卡片各一次')
-        self.assertIn('分期<small>36期</small>', page)
+        self.assertIn('分期<small>裕融</small><small>36期</small>', page)
         self.assertEqual(page.count('payment-chip--card'), 2)
         self.assertEqual(page.count('payment-chip--cash'), 4)

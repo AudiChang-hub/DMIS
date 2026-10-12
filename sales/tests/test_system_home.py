@@ -190,8 +190,8 @@ class OperationsNavigationTests(TestCase):
         unlock_profit(self, self.user)
         self.make_order()
         self.make_order(timezone.localdate())
-        # 空白日期等於沒有篩選；兩張都是已完成訂單，位於「已完成」頁籤（1.72.0）。
-        page = self.client.get(reverse("order_list"), {"date_from": "", "date_to": "", "sort": "-registration_date", "tab": "completed"})
+        # 空白日期等於沒有篩選；兩張都是已完成且沒有補助的訂單，位於「已結案」頁籤（1.72.1）。
+        page = self.client.get(reverse("order_list"), {"date_from": "", "date_to": "", "sort": "-registration_date", "tab": "closed"})
         self.assertEqual(page.context["page_obj"].paginator.count, 2)
         self.assertIsNone(page.context["orders"][0].registration_date)
         for params in ({"date_from": "not-a-date"}, {"date_from": "2026-02-30"},

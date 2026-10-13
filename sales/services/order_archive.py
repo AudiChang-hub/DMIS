@@ -187,6 +187,24 @@ def _prune_empty_parents(folder, root):
         current = current.parent
 
 
+def prune_empty_folders(root=None):
+    """清掉 DMIS訂單 底下空的車型／年／月資料夾（搬移時網路磁碟快取可能讓當下 rmdir 失敗）；不動訂單資料夾本身。"""
+    root = root or archive_root()
+    base = root / ARCHIVE_FOLDER if root else None
+    if base is None or not base.is_dir():
+        return 0
+    removed = 0
+    for depth in (3, 2, 1):  # 月 → 年 → 車型，由深到淺
+        for folder in sorted(base.glob("/".join(["*"] * depth))):
+            if folder.is_dir() and folder.name != DELETED_FOLDER and not any(folder.iterdir()):
+                try:
+                    folder.rmdir()
+                    removed += 1
+                except OSError:
+                    pass
+    return removed
+
+
 def schedule_order_archive(order_id):
     """交易提交後排入背景同步；沒有 Redis（開發測試）時直接同步。"""
     if archive_root() is None or not order_id:

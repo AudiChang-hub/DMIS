@@ -77,3 +77,15 @@ class OrderArchiveTests(TestCase):
         order = self.create_order()
         folder = self.root / order_folder(order)
         self.assertTrue((folder / "車主證件正面.png").exists(), "建立訂單後自動同步（無 Redis 時直接同步）")
+
+    def test_archive_worker_can_read_media_and_write_nas(self):
+        # 1.74.1：處理 archive 佇列的 search-worker 必須掛載系統檔案區（唯讀）與 NAS，否則讀不到原檔。
+        import re
+        base = Path("docker-compose.django.yml").read_text(encoding="utf-8")
+        prod = Path("docker-compose.django.prod.yml").read_text(encoding="utf-8")
+        pattern = re.compile(r"^  search-worker:\n(.*?)^  [a-z-]+:", re.S | re.M)
+        worker = pattern.search(base).group(1)
+        self.assertIn("archive", worker)
+        self.assertIn(":/app/media:ro", worker)
+        prod_worker = pattern.search(prod).group(1)
+        self.assertIn(":/app/order-archive", prod_worker)

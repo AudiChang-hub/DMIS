@@ -77,6 +77,9 @@ services:
         DJANGO_UID: "${DJANGO_UID:-1000}"
         DJANGO_GID: "${DJANGO_GID:-1000}"
     command: python manage.py rqworker search notifications archive --worker-class rq.worker.SimpleWorker
+    # 訂單檔案同步到 NAS 需要讀取系統檔案區（唯讀）。
+    volumes:
+      - "${DJANGO_MEDIA_PATH:-django_media}:/app/media:ro"
     env_file:
       - path: .env.django
         required: false

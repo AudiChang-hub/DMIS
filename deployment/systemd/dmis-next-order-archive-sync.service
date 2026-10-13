@@ -1,0 +1,12 @@
+[Unit]
+Description=DMIS Next nightly order files sync to NAS
+After=docker.service network-online.target remote-fs.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=/home/audi/project/DMIS-next
+ExecStart=/usr/bin/flock -n /tmp/dmis-next-order-archive-sync.lock /usr/bin/docker compose -f docker-compose.django.yml -f docker-compose.django.prod.yml exec -T search-worker python manage.py sync_order_archive
+TimeoutStartSec=3600
+Nice=10
+IOSchedulingClass=idle

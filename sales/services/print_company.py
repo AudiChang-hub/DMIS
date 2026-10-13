@@ -36,6 +36,28 @@ def initialize_company(order, user, *, assisted_company=None):
     order.print_company_snapshot = company_data(company) if company else {}
 
 
+def ensure_order_company(order):
+    """沒有開單公司的訂單（多為 Excel 匯入）一律用馭盛（本店公司），不再等 admin 逐筆確認（使用者 2026-10-13）。
+
+    第一次列印或簽署時保存當下的馭盛資料，之後不隨公司資料變動；已保留其他公司的訂單不受影響，admin 仍可在「開單公司」更正。
+    """
+    if order.print_company_snapshot:
+        return order
+    company = PrintCompany.objects.filter(key="home").first()
+    if company is None:
+        return order
+    data = company_data(company)
+    try:
+        validate_header(data)
+    except ValidationError:
+        return order
+    if SalesOrder.objects.filter(pk=order.pk, print_company_snapshot={}).update(print_company=company, print_company_snapshot=data):
+        order.print_company, order.print_company_snapshot = company, data
+    else:
+        order.refresh_from_db(fields=["print_company", "print_company_snapshot"])
+    return order
+
+
 @transaction.atomic
 def correct_order_company(*, user, pk, company_id, revision, reason, acknowledged):
     from sales.access.services import is_root

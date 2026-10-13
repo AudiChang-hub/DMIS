@@ -156,7 +156,7 @@
     {% help_visible 'order-work' as topic_visible %}{% if topic_visible %}<article class="guide-topic" id="order-work" data-guide-topic>
       <div class="guide-topic-heading"><span>06</span><div><p class="eyebrow">訂單建立後</p><h2>訂單步驟不是關卡</h2></div></div>
       <div class="guide-parallel-flow" role="img" aria-label="訂單工作可平行進行圖解"><b>訂單建立</b><div><span>配車 → 領牌 → 交付</span><span>補助資料與文件（可同步）</span><span>簽署文件在「列印與簽署文件」步驟隨時補上</span></div></div>
-      <p>訂單頁上方是步驟列：訂車與配件、訂金、列印與簽署文件、配車、領牌、收入與支出、交車與收尾款；下方另有汰舊補助、取消與結案。打開訂單只展開目前該做的步驟，其他收合成摘要。補助與簽署文件可隨時處理；一般客戶仍須先配車、完成領牌，才可交付。</p>
+      <p>訂單頁上方是步驟列：訂車與配件、訂金、列印與簽署文件、配車、領牌、收入與支出、交車與收尾款；下方另有補助、取消與結案。打開訂單只展開目前該做的步驟，其他收合成摘要。補助與簽署文件可隨時處理；一般客戶仍須先配車、完成領牌，才可交付。</p>
       <div class="guide-tip"><strong>看「建議下一步」</strong><span>系統會依目前資料提出一項主要建議，並在「另外可處理」列出最多兩項可同步工作。人在其他步驟時可點按前往；已位於建議步驟時會標示「目前作業」，不再顯示重複的前往按鈕。這是操作指引，不會自動替你配車或送出資料。</span></div>
       <div class="guide-two-column"><section><h3>不想現在處理</h3><ul><li>按「收合」會縮成一列，不會消失。</li><li>按縮小列的「查看」可立即展開。</li><li>完成一個階段後，系統會依新狀態顯示新的建議。</li></ul></section><section><h3>例外情況</h3><ul><li>沒有可售車：引導到快速進車。</li><li>合作車行先領車：持續提醒三個工作日內補領牌文件。</li><li>取消待退款、逾期文件與收款會優先顯示。</li></ul></section></div>
       <div class="guide-example"><strong>角色交接</strong><p>業務完成訂單與證件核對 → 行政／庫存完成配車，補助可同步收件 → 行政完成領牌 → 交付人員核對車況與收款 → 財務確認撥款與單筆淨利。每次接手都先看建議下一步與處理紀錄，不用 LINE 訊息代替系統紀錄。</p></div>
@@ -172,8 +172,8 @@
 
     {% help_visible 'subsidy' as topic_visible %}{% if topic_visible %}<article class="guide-topic" id="subsidy" data-guide-topic>
       <div class="guide-topic-heading"><span>08</span><div><p class="eyebrow">可與配車平行</p><h2>汰舊、補助與文件</h2></div></div>
-      <ol class="guide-steps"><li><strong>勾選汰舊／政府補助。</strong><span>勾選後系統會立即啟用補助並開放文件上傳，不必先按儲存；新舊車主是否同人可依實況調整。</span></li><li><strong>在「汰舊補助」填舊車資料。</strong><span>舊車車牌、舊車主資料與補助類型在這裡維護；內容異動後，畫面底部會出現儲存提示。</span></li><li><strong>逐筆新增補助項目。</strong><span>保留類別、項目、預計金額、申請日期與狀態，系統加總補助總額；填寫「變更原因」後，按底部的「儲存補助變更」。</span></li><li><strong>上傳固定文件與其他文件。</strong><span>其他補助文件可多筆新增、替換或刪除。</span></li></ol>
-      <div class="guide-example"><strong>新舊車主不同</strong><p>固定文件為舊車主身分證正反面、舊車行照、報廢證明、回收管制聯、舊車主存摺封面；新舊車主不同人時另填舊車主姓名與證號，並上傳新舊車主不同人聲明書。同一人時沿用下訂附件。銀行與匯款帳戶由財務在補助撥款追蹤登記；有訂單作業授權的人員可在汰舊補助分頁唯讀查看完整帳號；車控與電池密碼同樣需要輸入密碼。</p></div>
+      <ol class="guide-steps"><li><strong>勾選汰舊／政府補助。</strong><span>勾選後系統會立即啟用補助並開放文件上傳，不必先按儲存；新舊車主是否同人可依實況調整。</span></li><li><strong>在「補助」填舊車資料。</strong><span>舊車車牌、舊車主資料與補助類型在這裡維護；內容異動後，畫面底部會出現儲存提示。</span></li><li><strong>逐筆新增補助項目。</strong><span>保留類別、項目、預計金額、申請日期與狀態，系統加總補助總額；填寫「變更原因」後，按底部的「儲存補助變更」。</span></li><li><strong>上傳固定文件與其他文件。</strong><span>其他補助文件可多筆新增、替換或刪除。</span></li></ol>
+      <div class="guide-example"><strong>新舊車主不同</strong><p>固定文件為舊車主身分證正反面、舊車行照、報廢證明、回收管制聯、舊車主存摺封面，另可上傳新車主存摺封面（選填）；新舊車主不同人時另填舊車主姓名與證號，並上傳新舊車主不同人聲明書。同一人時沿用下訂附件。銀行與匯款帳戶由財務在補助撥款追蹤登記；有訂單作業授權的人員可在補助分頁唯讀查看完整帳號；車控與電池密碼同樣需要輸入密碼。</p></div>
       <div class="guide-exception"><strong>注意</strong><p>汰舊與中古車回收估價不是同一件事，也不強制二選一；其他文件不列入固定文件齊全條件。交付完成後仍可繼續申請補助與補件，只有已取消訂單不能再修改補助。</p></div>
     </article>{% endif %}
 

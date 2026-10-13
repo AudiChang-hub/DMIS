@@ -55,7 +55,7 @@ class OrderDetailTabTests(TestCase):
         page = self.detail(order)
         extra = page.split("order-step-bar__group--extra", 1)[1].split("</div>", 1)[0]
         self.assertIn(">其他<", extra)
-        for key, title in (("subsidy", "汰舊補助"), ("closing", "取消與結案"), ("history", "處理紀錄")):
+        for key, title in (("subsidy", "補助"), ("closing", "取消與結案"), ("history", "處理紀錄")):
             self.assertIn(f'id="tab-{key}"', extra)
             self.assertIn(title, extra)
         self.assertNotIn('id="tab-order"', extra)

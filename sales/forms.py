@@ -444,7 +444,7 @@ class SalesOrderForm(forms.ModelForm):
         self.fields["id_verified"].widget.attrs["class"] = "form-check"
         self.fields["is_trade_in_subsidy"].widget.attrs["class"] = "form-check"
         self.fields["old_owner_same_as_owner"].widget.attrs["class"] = "form-check"
-        # 補助方案多選（主檔設定）；選了就帶入訂單的補助項目，金額可在汰舊補助分頁修改。
+        # 補助方案多選（主檔設定）；選了就帶入訂單的補助項目，金額可在補助分頁修改。
         linked_program_ids = (
             list(self.instance.subsidy_items.filter(program__isnull=False).values_list("program_id", flat=True))
             if self.instance.pk else []
@@ -465,7 +465,7 @@ class SalesOrderForm(forms.ModelForm):
         # 政府偶有清單外的補助名稱：勾「其他」自行填寫，送出後建立同名補助項目（類別「其他」）。
         self.fields["subsidy_other"] = forms.CharField(
             label="其他補助名稱", max_length=160, required=False,
-            help_text="多個補助以「、」分開；金額之後在訂單的汰舊補助分頁填寫。",
+            help_text="多個補助以「、」分開；金額之後在訂單的補助分頁填寫。",
             widget=forms.TextInput(attrs={"placeholder": "例如：縣市加碼補助"}),
         )
         self.fields["delivery_method"].required = True

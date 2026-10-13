@@ -6,6 +6,33 @@
 {{ vehicle_rate_data|json_script:"vehicle-rate-data" }}
 {{ accessory_product_data|json_script:"accessory-product-data" }}
 <script>
+// 補助方案：同一互斥群組（例如環保局的新購／汰舊）只能勾一個；換油車／電動車時只顯示適用的方案。
+(() => {
+  const picker = document.querySelector("[data-subsidy-picker]");
+  if (!picker) return;
+  const labels = [...picker.querySelectorAll("label[data-subsidy-kind]")];
+  picker.addEventListener("change", event => {
+    const box = event.target;
+    const group = box.closest("label")?.dataset.subsidyGroup;
+    if (!box.checked || !group) return;
+    labels.forEach(label => {
+      const other = label.querySelector("input");
+      if (other !== box && label.dataset.subsidyGroup === group) other.checked = false;
+    });
+  });
+  const energy = document.getElementById("id_vehicle_energy_type");
+  const applyKind = () => {
+    if (!energy || !energy.value) return;
+    const kind = energy.value === "gas" ? "gas" : "electric";
+    labels.forEach(label => {
+      const fits = !label.dataset.subsidyKind || label.dataset.subsidyKind === kind;
+      label.hidden = !fits;
+      if (!fits) label.querySelector("input").checked = false;
+    });
+  };
+  energy?.addEventListener("change", applyKind);
+  applyKind();
+})();
 // 補助「其他」：勾選才顯示名稱欄位；取消勾選清空，避免送出看不見的名稱。
 (() => {
   const toggle = document.querySelector("[data-subsidy-other-toggle]");

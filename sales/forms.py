@@ -449,9 +449,14 @@ class SalesOrderForm(forms.ModelForm):
             list(self.instance.subsidy_items.filter(program__isnull=False).values_list("program_id", flat=True))
             if self.instance.pk else []
         )
+        # 只列出符合車種的方案（油車／電動車），已帶入本單的方案一律保留。
+        program_kind = self.subsidy_vehicle_kind()
+        program_filter = Q(active=True)
+        if program_kind:
+            program_filter &= Q(vehicle_kind__in=["", program_kind])
         self.fields["subsidy_programs"] = forms.ModelMultipleChoiceField(
             label="申請補助（可多選）",
-            queryset=SubsidyProgram.objects.filter(Q(active=True) | Q(pk__in=linked_program_ids)),
+            queryset=SubsidyProgram.objects.filter(program_filter | Q(pk__in=linked_program_ids)),
             required=False,
             widget=forms.CheckboxSelectMultiple(attrs={"class": "subsidy-program-choice"}),
             initial=linked_program_ids,
@@ -475,6 +480,33 @@ class SalesOrderForm(forms.ModelForm):
 
     def clean_id_back(self):
         return validate_image_upload(self.cleaned_data.get("id_back"))
+
+
+    def subsidy_vehicle_kind(self):
+        """補助方案的車種：油車為 gas，其他能源都算電動車；還沒選車時回傳空字串（列出全部）。"""
+        energy = ""
+        model_id = self.data.get(self.add_prefix("vehicle_model")) if self.is_bound else self.initial.get("vehicle_model")
+        if model_id and str(model_id).isdigit():
+            energy = VehicleModel.objects.filter(pk=model_id).values_list("energy_type", flat=True).first() or ""
+        if not energy:
+            energy = (self.data.get(self.add_prefix("vehicle_energy_type")) if self.is_bound else "") or self.initial.get("vehicle_energy_type", "")
+        if not energy and self.instance.pk and self.instance.vehicle_model_id:
+            energy = self.instance.vehicle_model.energy_type
+        if not energy:
+            return ""
+        return SubsidyProgram.VehicleKind.GAS if energy == VehicleModel.EnergyType.GAS else SubsidyProgram.VehicleKind.ELECTRIC
+
+    def clean_subsidy_programs(self):
+        programs = list(self.cleaned_data.get("subsidy_programs") or [])
+        seen = {}
+        for program in programs:
+            if program.exclusive_group:
+                if program.exclusive_group in seen:
+                    raise forms.ValidationError(
+                        f"「{seen[program.exclusive_group]}」與「{program.name}」只能擇一。"
+                    )
+                seen[program.exclusive_group] = program.name
+        return self.cleaned_data.get("subsidy_programs")
 
     def clean(self):
         data = super().clean()
@@ -4823,12 +4855,12 @@ class SubsidyItemForm(forms.ModelForm):
 class SubsidyProgramForm(forms.ModelForm):
     class Meta:
         model = SubsidyProgram
-        fields = ["name", "category", "default_amount", "requires_old_vehicle", "active", "sort_order"]
+        fields = ["name", "vehicle_kind", "category", "default_amount", "requires_old_vehicle", "exclusive_group", "active", "sort_order"]
         labels = {"category": "補助單位"}
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fields["name"].widget.attrs["placeholder"] = "例如：新購補助、貨物稅補助"
+        self.fields["name"].widget.attrs["placeholder"] = "例如：貨物稅補助、各縣市環保局 新購"
         self.fields["default_amount"].widget.attrs["placeholder"] = "可留空"
         for name in ("requires_old_vehicle", "active"):
             self.fields[name].widget.attrs["class"] = "form-check"

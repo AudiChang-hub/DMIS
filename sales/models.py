@@ -1851,7 +1851,7 @@ class SubsidyItem(TimeStampedModel):
 
 
 class SubsidyProgram(TimeStampedModel):
-    """可申請的補助方案主檔（汰舊換新、新購補助、貨物稅補助…）；訂車時多選帶入訂單的補助項目。"""
+    """可申請的補助方案主檔（油車：貨物稅補助、汰舊換新；電動車：環保局、環境部、產業發展署…）；訂車時多選帶入訂單的補助項目。"""
 
     name = models.CharField("方案名稱", max_length=160, unique=True)
     category = models.CharField(
@@ -1864,6 +1864,18 @@ class SubsidyProgram(TimeStampedModel):
     requires_old_vehicle = models.BooleanField(
         "汰舊類（需要舊車與舊車主資料）", default=False,
         help_text="勾選後，訂車選了此方案會開啟汰舊補助流程（舊車牌、舊車主與文件）。",
+    )
+    class VehicleKind(models.TextChoices):
+        ALL = "", "油車與電動車"
+        GAS = "gas", "油車"
+        ELECTRIC = "electric", "電動車"
+
+    # 訂車時只列出符合車種的方案（使用者 2026-10-13：油車與電動車的補助不同）。
+    vehicle_kind = models.CharField("適用車種", max_length=10, choices=VehicleKind.choices, default="", blank=True)
+    # 同一群組只能選一個，例如「各縣市環保局 新購／汰舊」。
+    exclusive_group = models.CharField(
+        "互斥群組", max_length=40, blank=True,
+        help_text="填相同名稱的方案只能擇一，例如環保局的新購與汰舊都填「各縣市環保局」。",
     )
     active = models.BooleanField("啟用中", default=True)
     sort_order = models.PositiveSmallIntegerField("排序", default=0)

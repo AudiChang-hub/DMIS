@@ -13,6 +13,7 @@ from . import vehicle_model_tool_views
 from . import gift_views
 from . import print_company_views
 from . import site_copy_views
+from . import system_settings_views
 from .historical_replacement import historical_buyer_replacement
 from .historical_date_change import historical_date_change
 from .reporting import views as report_views
@@ -30,6 +31,7 @@ urlpatterns = [
     path("announcements/attachments/<int:pk>/", announcement_views.attachment_file, name="announcement_attachment"),
     path("announcements/images/<int:pk>/", announcement_views.image_file, name="announcement_image"),
     path("system/text/", site_copy_views.manage, name="site_copy_manage"),
+    path("system/allocation-rules/", system_settings_views.allocation_rules, name="allocation_rule_settings"),
     path("data/gift-distribution/", gift_views.manage, name="gift_distribution"),
     path("data/gift-distribution/<int:pk>/", gift_views.manage, name="gift_distribution_detail"),
     path("data/gift-distribution/items/<int:pk>/", gift_views.update_item, name="gift_distribution_update"),

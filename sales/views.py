@@ -128,7 +128,7 @@ from .services.vehicle_brands import brand_tree_sort_key
 from .services.subsidy_names import subsidy_name_suggestions
 from .models import (
     sync_catalog_entry,
-    ALLOCATION_PRIORITY_AGE_MONTHS,
+    allocation_priority_age_months,
     allocation_priority_cutoff,
     annotate_allocation_priority,
     AccessoryProduct,
@@ -641,6 +641,7 @@ def data_maintenance(request):
     from .access.services import policy_for
     if policy_for(request).screen("accounts"):
         context["system_user_count"] = get_user_model().objects.count()
+    context["allocation_priority_age_months"] = allocation_priority_age_months()
     return render(
         request,
         "sales/data_maintenance.html",
@@ -8160,7 +8161,7 @@ def inventory_list(request):
             "statuses": status_choices,
             "brands": brand_choices,
             "inventory_counts": inventory_counts,
-            "priority_age_months": ALLOCATION_PRIORITY_AGE_MONTHS,
+            "priority_age_months": allocation_priority_age_months(),
             "priority_cutoff": allocation_priority_cutoff(),
             "vehicle_families": vehicle_family_choices,
             "colors": color_choices,
@@ -9857,7 +9858,7 @@ def inventory_allocation_priority(request, pk):
     elif not toggleable:
         error = "只有現有庫存可以切換優先配車。"
     elif requested == "0" and vehicle.allocation_priority_auto:
-        error = f"出廠超過 {ALLOCATION_PRIORITY_AGE_MONTHS} 個月的車一律優先配車，不能關閉。"
+        error = f"出廠超過 {allocation_priority_age_months()} 個月的車一律優先配車，不能關閉。"
     if error:
         if is_ajax:
             return JsonResponse({"ok": False, "message": error}, status=400)

@@ -15,7 +15,6 @@
 <section class="maintenance-section" aria-labelledby="maintenance-daily" data-side-nav-section="日常資料">
   <div class="maintenance-section__heading"><div><p class="eyebrow">平常最常使用</p><h2 id="maintenance-daily">日常資料</h2></div><p>{% site_text 'data_maintenance.82dc6cd5dbcb' %}</p></div>
   <div class="maintenance-grid">
-  {% if can_manage_screen_access %}<a class="maintenance-card" href="{% url 'official_catalog' %}"><span class="maintenance-card__icon">廠</span><div><h2>原廠車型比對</h2><p>檢查 SYM、SUZUKI 官網的新車款、改款與車色圖片，確認後補圖或建立停用車型。</p><strong>每週一自動檢查</strong></div><span aria-hidden="true">›</span></a>{% endif %}
   {% if_access 'vehicle_brand_list' %}<a class="maintenance-card" href="{% url 'vehicle_brand_list' %}">
     <span class="maintenance-card__icon">牌</span>
     <div><h2>車輛品牌</h2><p>{% site_text 'data_maintenance.b57566e37b63' %}</p><strong>{{ vehicle_brand_count }} 個品牌</strong></div>
@@ -122,49 +121,72 @@
 </section>
 
 <section class="maintenance-section" aria-labelledby="maintenance-tools" data-side-nav-section="工具與管理">
-  <div class="maintenance-section__heading"><div><p class="eyebrow">需要時再使用</p><h2 id="maintenance-tools">匯入與列印工具</h2></div><p>{% site_text 'data_maintenance.d685f822b3a5' %}</p></div>
-  <div class="maintenance-grid maintenance-grid--tools">
-  {% if_access 'legacy_import_list' %}<a class="maintenance-card" href="{% url 'legacy_import_list' %}">
-    <span class="maintenance-card__icon">匯</span>
-    <div><h2>舊資料 Excel 匯入</h2><p>{% site_text 'data_maintenance.b3b6ca05df7a' %}</p><strong>保留來源檔與逐列結果</strong></div>
-    <span aria-hidden="true">›</span>
-  </a>{% endif_access %}
-  {% if_access 'positioned_template_list' %}<a class="maintenance-card" href="{% url 'positioned_template_list' %}">
-    <span class="maintenance-card__icon">印</span>
-    <div><h2>列印範本設定</h2><p>{% site_text 'data_maintenance.1b821101b3e3' %}</p><strong>可預覽實際訂單 PDF</strong></div>
-    <span aria-hidden="true">›</span>
-  </a>{% endif_access %}
-  {% if_access 'system_diagnostics' %}<a class="maintenance-card" href="{% url 'system_diagnostics' %}">
-    <span class="maintenance-card__icon">診</span>
-    <div><h2>系統狀態檢查</h2><p>{% site_text 'data_maintenance.66830ead94ed' %}</p><strong>遇到處理卡住時先查看</strong></div>
-    <span aria-hidden="true">›</span>
-  </a>{% endif_access %}
-  {% if_access 'announcement_manage' %}<a class="maintenance-card" href="{% url 'announcement_manage' %}"><span class="maintenance-card__icon">訊</span><div><h2>系統公告管理</h2><p>{% site_text 'data_maintenance.17fcbc3514ac' %}</p><strong>僅 admin 可管理；保留修訂紀錄</strong></div><span aria-hidden="true">›</span></a>{% endif_access %}
-  {% if_access 'site_copy_manage' %}<a class="maintenance-card" href="{% url 'site_copy_manage' %}"><span class="maintenance-card__icon">文</span><div><h2>畫面與列印說明文字</h2><p>搜尋、修改說明與恢復預設，保留修改紀錄。</p></div><span aria-hidden="true">›</span></a>{% endif_access %}
-  {% if show_management_tools %}
-  {% if user.username == 'admin' %}
-  {% if_access 'report_manage' %}<a class="maintenance-card" href="{% url 'report_manage' %}">
-    <span class="maintenance-card__icon">圖</span>
-    <div><h2>報表設計管理</h2><p>{% site_text 'data_maintenance.53a143d6b2a0' %}</p><strong>僅 admin 可編輯與發布</strong></div>
-    <span aria-hidden="true">›</span>
-  </a>{% endif_access %}
-  {% if_access 'report_classification' %}<a class="maintenance-card" href="{% url 'report_classification' %}">
-    <span class="maintenance-card__icon">類</span>
-    <div><h2>報表分類設定</h2><p>{% site_text 'data_maintenance.7365034c0b5e' %}</p><strong>先試算再發布；不改訂單或財務</strong></div>
-    <span aria-hidden="true">›</span>
-  </a>{% endif_access %}
+  <div class="maintenance-section__heading"><div><p class="eyebrow">需要時再使用</p><h2 id="maintenance-tools">工具與管理</h2></div><p>{% site_text 'data_maintenance.d685f822b3a5' %}</p></div>
+  {# 依用途分四組（使用者 2026-10-13：管理者工具太雜亂）；整組都沒有權限時以 CSS 隱藏，不留空標題。 #}
+  <div class="maintenance-subgroup">
+    <h3 class="maintenance-subgroup__title">帳號與系統規則</h3>
+    <div class="maintenance-grid maintenance-grid--tools">
+    {% if show_management_tools %}{% if_access 'user_management' %}<a class="maintenance-card" href="{% url 'user_management' %}">
+      <span class="maintenance-card__icon">員</span>
+      <div><h2>帳號與權限</h2><p>{% site_text 'data_maintenance.5ecd54819548' %}</p><strong>{{ system_user_count }} 個系統帳號</strong></div>
+      <span aria-hidden="true">›</span>
+    </a>{% endif_access %}{% endif %}
+    {% if_access 'allocation_rule_settings' %}<a class="maintenance-card" href="{% url 'allocation_rule_settings' %}">
+      <span class="maintenance-card__icon">★</span>
+      <div><h2>配車規則</h2><p>設定出廠超過幾個月的車自動列為優先配車，修改後立即生效。</p><strong>目前 {{ allocation_priority_age_months }} 個月</strong></div>
+      <span aria-hidden="true">›</span>
+    </a>{% endif_access %}
+    </div>
+  </div>
+  <div class="maintenance-subgroup">
+    <h3 class="maintenance-subgroup__title">公告、說明文字與列印</h3>
+    <div class="maintenance-grid maintenance-grid--tools">
+    {% if_access 'announcement_manage' %}<a class="maintenance-card" href="{% url 'announcement_manage' %}"><span class="maintenance-card__icon">訊</span><div><h2>系統公告管理</h2><p>{% site_text 'data_maintenance.17fcbc3514ac' %}</p><strong>僅 admin 可管理；保留修訂紀錄</strong></div><span aria-hidden="true">›</span></a>{% endif_access %}
+    {% if_access 'site_copy_manage' %}<a class="maintenance-card" href="{% url 'site_copy_manage' %}"><span class="maintenance-card__icon">文</span><div><h2>畫面與列印說明文字</h2><p>搜尋、修改說明與恢復預設，保留修改紀錄。</p></div><span aria-hidden="true">›</span></a>{% endif_access %}
+    {% if_access 'positioned_template_list' %}<a class="maintenance-card" href="{% url 'positioned_template_list' %}">
+      <span class="maintenance-card__icon">印</span>
+      <div><h2>列印範本設定</h2><p>{% site_text 'data_maintenance.1b821101b3e3' %}</p><strong>可預覽實際訂單 PDF</strong></div>
+      <span aria-hidden="true">›</span>
+    </a>{% endif_access %}
+    </div>
+  </div>
+  {% if show_management_tools and user.username == 'admin' %}
+  <div class="maintenance-subgroup">
+    <h3 class="maintenance-subgroup__title">報表設計</h3>
+    <div class="maintenance-grid maintenance-grid--tools">
+    {% if_access 'report_manage' %}<a class="maintenance-card" href="{% url 'report_manage' %}">
+      <span class="maintenance-card__icon">圖</span>
+      <div><h2>報表設計管理</h2><p>{% site_text 'data_maintenance.53a143d6b2a0' %}</p><strong>僅 admin 可編輯與發布</strong></div>
+      <span aria-hidden="true">›</span>
+    </a>{% endif_access %}
+    {% if_access 'report_classification' %}<a class="maintenance-card" href="{% url 'report_classification' %}">
+      <span class="maintenance-card__icon">類</span>
+      <div><h2>報表分類設定</h2><p>{% site_text 'data_maintenance.7365034c0b5e' %}</p><strong>先試算再發布；不改訂單或財務</strong></div>
+      <span aria-hidden="true">›</span>
+    </a>{% endif_access %}
+    </div>
+  </div>
   {% endif %}
-  {% if_access 'user_management' %}<a class="maintenance-card" href="{% url 'user_management' %}">
-    <span class="maintenance-card__icon">員</span>
-    <div><h2>帳號與權限</h2><p>{% site_text 'data_maintenance.5ecd54819548' %}</p><strong>{{ system_user_count }} 個系統帳號</strong></div>
-    <span aria-hidden="true">›</span>
-  </a>{% endif_access %}
-  {% if_access 'system_integrity_report' %}<a class="maintenance-card" href="{% url 'system_integrity_report' %}">
-    <span class="maintenance-card__icon">稽</span>
-    <div><h2>系統完整性報告</h2><p>{% site_text 'data_maintenance.170703f6fd49' %}</p><strong>由 admin 指定可查看人員</strong></div>
-    <span aria-hidden="true">›</span>
-  </a>{% endif_access %}
-  {% endif %}
+  <div class="maintenance-subgroup">
+    <h3 class="maintenance-subgroup__title">資料匯入與系統檢查</h3>
+    <div class="maintenance-grid maintenance-grid--tools">
+    {% if_access 'legacy_import_list' %}<a class="maintenance-card" href="{% url 'legacy_import_list' %}">
+      <span class="maintenance-card__icon">匯</span>
+      <div><h2>舊資料 Excel 匯入</h2><p>{% site_text 'data_maintenance.b3b6ca05df7a' %}</p><strong>保留來源檔與逐列結果</strong></div>
+      <span aria-hidden="true">›</span>
+    </a>{% endif_access %}
+    {% if can_manage_screen_access %}<a class="maintenance-card" href="{% url 'official_catalog' %}"><span class="maintenance-card__icon">廠</span><div><h2>原廠車型比對</h2><p>檢查 SYM、SUZUKI 官網的新車款、改款與車色圖片，確認後補圖或建立停用車型。</p><strong>每週一自動檢查</strong></div><span aria-hidden="true">›</span></a>{% endif %}
+    {% if_access 'system_diagnostics' %}<a class="maintenance-card" href="{% url 'system_diagnostics' %}">
+      <span class="maintenance-card__icon">診</span>
+      <div><h2>系統狀態檢查</h2><p>{% site_text 'data_maintenance.66830ead94ed' %}</p><strong>遇到處理卡住時先查看</strong></div>
+      <span aria-hidden="true">›</span>
+    </a>{% endif_access %}
+    {% if show_management_tools %}{% if_access 'system_integrity_report' %}<a class="maintenance-card" href="{% url 'system_integrity_report' %}">
+      <span class="maintenance-card__icon">稽</span>
+      <div><h2>系統完整性報告</h2><p>{% site_text 'data_maintenance.170703f6fd49' %}</p><strong>由 admin 指定可查看人員</strong></div>
+      <span aria-hidden="true">›</span>
+    </a>{% endif_access %}{% endif %}
+    </div>
   </div>
 </section>
 {% endblock %}

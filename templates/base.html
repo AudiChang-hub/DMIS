@@ -67,19 +67,27 @@
                 {% if_access 'brand_registration_fee_rule_list' %}<a href="{% url 'brand_registration_fee_rule_list' %}"><strong>領牌與強制險</strong><small>依品牌及生效日設定金額</small></a>{% endif_access %}
                 {% if_access 'business_holiday_list' %}<a href="{% url 'business_holiday_list' %}"><strong>工作日與假日設定</strong><small>設定期限計算要排除的日期</small></a>{% endif_access %}
               </section>{% endif %}
-              {% if data_tools_visible %}<div class="data-menu-tools">
-                {% if_access 'legacy_import_list' %}<a href="{% url 'legacy_import_list' %}"><strong>舊資料 Excel 匯入</strong></a>{% endif_access %}
-                {% if_access 'positioned_template_list' %}<a href="{% url 'positioned_template_list' %}"><strong>列印範本設定</strong></a>{% endif_access %}
-                {% if_access 'system_diagnostics' %}<a href="{% url 'system_diagnostics' %}"><strong>系統狀態檢查</strong></a>{% endif_access %}
-              </div>{% endif %}
-              {% if show_management_tools %}<section class="data-menu-tools data-menu-admin" aria-label="管理者工具">
-                <h2>管理者工具</h2>
-                {% if_access 'announcement_manage' %}<a href="{% url 'announcement_manage' %}"><strong>系統公告管理</strong></a>{% endif_access %}
-                {% if_access 'site_copy_manage' %}<a href="{% url 'site_copy_manage' %}"><strong>畫面與列印說明文字</strong></a>{% endif_access %}
-                {% if user.username == 'admin' %}{% if_access 'report_manage' %}<a href="{% url 'report_manage' %}"><strong>報表設計管理</strong></a>{% endif_access %}{% endif %}
-                {% if user.username == 'admin' %}{% if_access 'report_classification' %}<a href="{% url 'report_classification' %}"><strong>報表分類設定</strong></a>{% endif_access %}{% endif %}
-                {% if_access 'user_management' %}<a href="{% url 'user_management' %}"><strong>帳號與權限</strong></a>{% endif_access %}
-                {% if_access 'system_integrity_report' %}<a href="{% url 'system_integrity_report' %}"><strong>系統完整性報告</strong></a>{% endif_access %}
+              {# 工具與管理依用途分四組（使用者 2026-10-13）；整組沒有權限時以 CSS 隱藏。 #}
+              {% if data_tools_visible or show_management_tools %}<section class="data-menu-tools data-menu-admin" aria-label="工具與管理">
+                <h2>工具與管理</h2>
+                <div class="data-menu-tool-group"><h3>帳號與系統規則</h3>
+                  {% if show_management_tools %}{% if_access 'user_management' %}<a href="{% url 'user_management' %}"><strong>帳號與權限</strong></a>{% endif_access %}{% endif %}
+                  {% if_access 'allocation_rule_settings' %}<a href="{% url 'allocation_rule_settings' %}"><strong>配車規則</strong></a>{% endif_access %}
+                </div>
+                <div class="data-menu-tool-group"><h3>公告、說明文字與列印</h3>
+                  {% if show_management_tools %}{% if_access 'announcement_manage' %}<a href="{% url 'announcement_manage' %}"><strong>系統公告管理</strong></a>{% endif_access %}
+                  {% if_access 'site_copy_manage' %}<a href="{% url 'site_copy_manage' %}"><strong>畫面與列印說明文字</strong></a>{% endif_access %}{% endif %}
+                  {% if_access 'positioned_template_list' %}<a href="{% url 'positioned_template_list' %}"><strong>列印範本設定</strong></a>{% endif_access %}
+                </div>
+                <div class="data-menu-tool-group"><h3>報表設計</h3>
+                  {% if show_management_tools and user.username == 'admin' %}{% if_access 'report_manage' %}<a href="{% url 'report_manage' %}"><strong>報表設計管理</strong></a>{% endif_access %}
+                  {% if_access 'report_classification' %}<a href="{% url 'report_classification' %}"><strong>報表分類設定</strong></a>{% endif_access %}{% endif %}
+                </div>
+                <div class="data-menu-tool-group"><h3>資料匯入與系統檢查</h3>
+                  {% if_access 'legacy_import_list' %}<a href="{% url 'legacy_import_list' %}"><strong>舊資料 Excel 匯入</strong></a>{% endif_access %}
+                  {% if_access 'system_diagnostics' %}<a href="{% url 'system_diagnostics' %}"><strong>系統狀態檢查</strong></a>{% endif_access %}
+                  {% if show_management_tools %}{% if_access 'system_integrity_report' %}<a href="{% url 'system_integrity_report' %}"><strong>系統完整性報告</strong></a>{% endif_access %}{% endif %}
+                </div>
               </section>{% endif %}
             </div>
           </div>{% endif_access %}

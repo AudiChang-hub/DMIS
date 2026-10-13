@@ -145,6 +145,7 @@ register("gift_distribution", "gift_distribution gift_distribution_detail")
 register("gift_distribution", "gift_distribution_update", "operate")
 ROOT_ONLY.add("announcement_action")
 ROOT_ONLY.add("site_copy_manage")
+ROOT_ONLY.add("allocation_rule_settings")  # 優先配車月數（admin 隨時調整）
 PERSONAL.update({"announcement_detail", "announcement_image", "announcement_attachment", "release_history"})
 ROOT_ONLY.add("order_deletion_queue")
 ROOT_ONLY.update({"catalog_manage", "catalog_edit", "catalog_preview_image", "catalog_preview_color_image", "dealer_accounts", "dealer_account_create", "dealer_account_edit"})

@@ -122,6 +122,24 @@ class SiteTextOverride(TimeStampedModel):
     updated_by = models.CharField(max_length=150)
 
 
+class SystemSetting(TimeStampedModel):
+    """admin 可隨時調整的系統規則（例如優先配車月數）；讀取走 services/system_settings.py。"""
+    key = models.CharField(max_length=80, unique=True)
+    value = models.CharField(max_length=255)
+    updated_by = models.CharField(max_length=150, blank=True)
+
+
+class SystemSettingChange(models.Model):
+    key = models.CharField(max_length=80, db_index=True)
+    before = models.CharField(max_length=255, blank=True)
+    after = models.CharField(max_length=255)
+    actor = models.CharField(max_length=150)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at", "-pk"]
+
+
 class SiteTextRevision(models.Model):
     key = models.CharField(max_length=180, db_index=True)
     before = models.TextField(blank=True)
@@ -2538,13 +2556,20 @@ class VehicleColor(TimeStampedModel):
 
 
 # 出廠年月距今超過此月數的車輛自動列為優先配車且不能關閉；未滿者可人工開啟（標示「人工」，到期後仍為人工）。
+# 預設 3 個月；admin 可在「管理者工具 › 配車規則」隨時調整（services/system_settings.py）。
 ALLOCATION_PRIORITY_AGE_MONTHS = 3
 
 
-def allocation_priority_cutoff(today=None):
+def allocation_priority_age_months():
+    from sales.services.system_settings import allocation_priority_age_months as current
+    return current()
+
+
+def allocation_priority_cutoff(today=None, months=None):
     """回傳自動優先配車的出廠年月上限（YYYY/MM，含）；月份精度下確保已超過門檻月數。"""
     today = today or timezone.localdate()
-    index = today.year * 12 + today.month - 1 - (ALLOCATION_PRIORITY_AGE_MONTHS + 1)
+    months = allocation_priority_age_months() if months is None else months
+    index = today.year * 12 + today.month - 1 - (months + 1)
     return f"{index // 12:04d}/{index % 12 + 1:02d}"
 
 

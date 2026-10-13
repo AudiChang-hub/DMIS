@@ -14,7 +14,7 @@ from django.forms.models import BaseInlineFormSet
 from django.utils import timezone
 
 from .models import (
-    ALLOCATION_PRIORITY_AGE_MONTHS,
+    allocation_priority_age_months,
     allocation_priority_cutoff,
     annotate_allocation_priority,
     AccessoryProduct,
@@ -3966,7 +3966,7 @@ class AllocationForm(forms.Form):
             effective_allocation_priority=True
         ).count()
         self.priority_cutoff = allocation_priority_cutoff()
-        self.priority_age_months = ALLOCATION_PRIORITY_AGE_MONTHS
+        self.priority_age_months = allocation_priority_age_months()
         self.fields["vehicle"].widget.attrs["class"] = "form-control"
         self.fields["skip_reason"].widget.attrs["class"] = "form-control"
         queue = allocation_queue(order) if self.CHECK_QUEUE else []

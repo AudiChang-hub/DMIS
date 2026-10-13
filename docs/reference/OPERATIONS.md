@@ -154,7 +154,7 @@ journalctl -u dmis-next-official-catalog-check.service -n 50 --no-pager
 
 - `.env`：`DJANGO_ORDER_ARCHIVE_PATH=/mnt/od`（主機路徑，掛進 search-worker 的 `/app/order-archive`）。
 - `.env.django`：`DMIS_ORDER_ARCHIVE_DIR=/app/order-archive`（留空即停用）。
-- 首次啟用或要全部重做：`docker compose ... exec -T search-worker python manage.py sync_order_archive [訂單編號…]`。
+- 首次啟用或要全部重做：`docker compose ... exec -T search-worker python manage.py sync_order_archive [訂單編號…]`；加 `--verify` 只核對 NAS 與系統是否一致。
 - 每日 03:40 補同步（需 sudo 安裝一次）：
 
 ```bash

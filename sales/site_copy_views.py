@@ -7,7 +7,7 @@ from django.shortcuts import redirect, render
 from django.views.decorators.http import require_http_methods
 from .access.views import root_required
 from .models import SiteTextOverride, SiteTextRevision
-from .services.site_copy import catalog
+from .services.site_copy import COPY_AREAS, catalog, copy_area
 
 
 class TextForm(forms.Form):
@@ -54,11 +54,33 @@ def manage(request):
     page_filter = request.GET.get("section", "")
     scope = request.GET.get("scope", "")
     words = query.split()
-    rows = [{"key": code, **entry, "current": overrides[code].text if code in overrides else entry["default"], "customized": code in overrides} for code, entry in entries.items()
+    rows = [{"key": code, **entry, "area": copy_area(code, entry["page"]),
+             "current": overrides[code].text if code in overrides else entry["default"], "customized": code in overrides}
+            for code, entry in entries.items()
             if (scope != "print" or code.startswith("print.")) and (scope != "screen" or not code.startswith("print."))
             and (request.GET.get("customized") != "1" or code in overrides)
             and (not page_filter or entry["page"] == page_filter)
             and all(word in (code + entry["default"] + entry["page"] + (overrides[code].text if code in overrides else "")).casefold() for word in words)]
+    # 依文字實際所在頁面分成頁籤（使用者 2026-10-13）；頁籤台數跟著搜尋條件變，沒指定或該頁籤沒有結果時跳到第一個有結果的頁籤。
+    counts = {area: 0 for area, _label, _words in COPY_AREAS}
+    for row in rows:
+        counts[row["area"]] += 1
+    area = request.GET.get("area", "")
+    if area not in counts or (not counts[area] and any(counts.values())):
+        area = next((code for code, _label, _words in COPY_AREAS if counts[code]), COPY_AREAS[0][0])
+    tab_params = request.GET.copy()
+    for name in ("page", "key", "area", "section"):
+        tab_params.pop(name, None)
+    tabs = [{"key": code, "label": label, "count": counts[code], "active": code == area,
+             "url": f"?{tab_params.urlencode()}{'&' if tab_params else ''}area={code}"}
+            for code, label, _words in COPY_AREAS]
+    area_rows = sorted((row for row in rows if row["area"] == area), key=lambda row: (row["page"], row["key"]))
+    area_pages = []
+    for row in area_rows:
+        if not area_pages or area_pages[-1]["page"] != row["page"]:
+            area_pages.append({"page": row["page"], "count": 0})
+        area_pages[-1]["count"] += 1
     return render(request, "sales/site_copy_manage.html", {"entry": entries.get(key), "key": key, "form": form,
-        "sections": sorted({e["page"] for e in entries.values()}), "page_obj": Paginator(rows, 20).get_page(request.GET.get("page")),
+        "tabs": tabs, "area": area, "area_pages": area_pages,
+        "page_obj": Paginator(area_rows, 60).get_page(request.GET.get("page")),
         "revisions": SiteTextRevision.objects.filter(key=key)[:10] if key else []}, status=status)

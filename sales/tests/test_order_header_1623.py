@@ -14,6 +14,16 @@ class RocDateTests(SimpleTestCase):
         self.assertEqual(roc_date(None), "")
 
 
+class StickyHeroScriptTests(SimpleTestCase):
+    def test_collapsed_height_is_reserved_to_avoid_scroll_anchoring_loop(self):
+        # 1.74.4：頁首縮小若改變頁面高度，瀏覽器捲動錨定會把位置拉回門檻內，形成無限切換。
+        from pathlib import Path
+        from django.conf import settings
+        script = (Path(settings.BASE_DIR) / "static/js/sticky-hero.js").read_text(encoding="utf-8")
+        self.assertIn("sticky-hero-spacer", script)
+        self.assertIn("fullHeight - height", script)
+
+
 class OrderHeaderTests(TestCase):
     setUpTestData = classmethod(correction_tests.CompletedOrderCorrectionTests.setUpTestData.__func__)
     setUp = correction_tests.CompletedOrderCorrectionTests.setUp

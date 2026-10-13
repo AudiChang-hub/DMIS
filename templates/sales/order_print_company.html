@@ -5,7 +5,7 @@
   <div class="section-title"><h2>本單保留的抬頭</h2>{% if not order.print_company_snapshot %}<span>尚未確認</span>{% endif %}</div>
   <div class="section-body confirm-panel__body">
     {% if order.print_company_snapshot %}<dl class="confirm-facts"><div class="is-wide"><dt>公司全名</dt><dd>{{ order.print_company_snapshot.legal_name }}</dd></div><div><dt>統一編號</dt><dd>{{ order.print_company_snapshot.tax_id }}</dd></div><div><dt>電話</dt><dd>{{ order.print_company_snapshot.phone }}</dd></div><div class="is-wide"><dt>地址</dt><dd>{{ order.print_company_snapshot.address }}</dd></div></dl>
-    {% else %}<div class="callout callout--info" role="status"><span class="callout__icon" aria-hidden="true">i</span><div><p>尚未確認。不會自動套用馭盛或目前帳號的公司。</p></div></div>{% endif %}
+    {% else %}<div class="callout callout--info" role="status"><span class="callout__icon" aria-hidden="true">i</span><div><p>本單尚未保留開單公司；列印或簽署時會自動使用馭盛國際有限公司（本店）。要改成其他公司再在下方更正。</p></div></div>{% endif %}
     {% if order.signed_contract %}<div class="callout callout--warning" role="note"><span class="callout__icon" aria-hidden="true">!</span><div><p>本單已有簽署文件。更正抬頭不會改寫原附件；若需要重新簽署，請先確認客戶與文件內容。</p></div></div>{% endif %}
   </div>
   <form method="post" class="confirm-panel__form">{% csrf_token %}{{ form.expected_revision }}

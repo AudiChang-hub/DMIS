@@ -6312,6 +6312,8 @@ def contract_print(request, pk):
         ).prefetch_related("accessories", "other_fees"),
         pk=pk,
     )
+    from sales.services.print_company import ensure_order_company
+    ensure_order_company(order)
     try:
         pdf = build_order_contract_pdf(order)
     except ValidationError:
@@ -6332,6 +6334,8 @@ def contract_print(request, pk):
 @login_required
 def privacy_consent_print(request, pk):
     order = get_object_or_404(SalesOrder, pk=pk)
+    from sales.services.print_company import ensure_order_company
+    ensure_order_company(order)
     try:
         pdf = build_privacy_consent_pdf(order)
     except ValidationError:
@@ -6356,7 +6360,8 @@ def order_documents_print(request, pk):
         ).prefetch_related("accessories", "other_fees"),
         pk=pk,
     )
-    from sales.services.print_company import validate_header
+    from sales.services.print_company import ensure_order_company, validate_header
+    ensure_order_company(order)
     try:
         validate_header(order.print_company_snapshot)
     except ValidationError:
@@ -6411,7 +6416,8 @@ def order_sign(request, pk):
         ).prefetch_related("accessories", "other_fees"),
         pk=pk,
     )
-    from sales.services.print_company import validate_header
+    from sales.services.print_company import ensure_order_company, validate_header
+    ensure_order_company(order)
     try:
         validate_header(order.print_company_snapshot)
     except ValidationError:

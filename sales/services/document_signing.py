@@ -39,7 +39,8 @@ def _plain(value):
 
 
 def _company_name(order):
-    return (order.print_company_snapshot or {}).get("legal_name", "")
+    from sales.services.print_company import ensure_order_company
+    return (ensure_order_company(order).print_company_snapshot or {}).get("legal_name", "")
 
 
 def contract_terms(order):

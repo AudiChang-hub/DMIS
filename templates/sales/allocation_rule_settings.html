@@ -1,0 +1,37 @@
+{% extends 'base.html' %}{% block title %}配車規則｜車輛銷售管理{% endblock %}
+{% block content %}{% url 'data_maintenance' as data_url %}{% include 'sales/_page_back.html' with fallback_url=data_url label='資料維護區' %}
+<section class="hero-row compact-hero"><div><p class="eyebrow">管理者工具・系統設定</p><h1>配車規則</h1><p class="muted">設定出廠超過幾個月的車自動列為優先配車。修改後立即生效，訂單配車與車輛庫存都會照新規則排序與標示。</p></div></section>
+<section class="section-block reading-panel allocation-rule" aria-labelledby="allocation-rule-current">
+  <div class="allocation-rule__current">
+    <span class="allocation-rule__mark" aria-hidden="true">★</span>
+    <div>
+      <h2 id="allocation-rule-current">目前規則</h2>
+      <p>出廠超過 <strong>{{ current }} 個月</strong>（{{ cutoff }} 以前出廠）的車自動優先配車，且不能關閉；未滿 {{ current }} 個月的車可由人員手動開啟。</p>
+    </div>
+  </div>
+  <form method="post" class="stacked-form allocation-rule__form">{% csrf_token %}
+    {% include "sales/_form_fields.html" with single_column=True %}
+    <p class="muted" data-allocation-rule-preview aria-live="polite"></p>
+    <div class="form-actions"><button class="button primary" type="submit">儲存規則</button></div>
+  </form>
+  {{ previews|json_script:"allocation-rule-previews" }}
+  <details class="allocation-rule__history"><summary>修改紀錄（最近 20 筆）</summary>
+    {% for change in changes %}<p><small>{{ change.created_at|date:'Y/m/d H:i' }} · {{ change.actor }}</small> {{ change.before }} 個月 → <strong>{{ change.after }} 個月</strong></p>{% empty %}<p class="muted">尚未修改過，使用系統預設 3 個月。</p>{% endfor %}
+  </details>
+</section>
+<script>
+// 選擇月數時即時預覽會套用到哪個出廠年月以前的車。
+(() => {
+  const select = document.getElementById("id_months");
+  const preview = document.querySelector("[data-allocation-rule-preview]");
+  const data = JSON.parse(document.getElementById("allocation-rule-previews").textContent);
+  if (!select || !preview) return;
+  const render = () => {
+    const row = data.find(item => String(item.months) === select.value);
+    preview.textContent = row ? `儲存後：${row.cutoff} 以前出廠的車自動優先配車。` : "";
+  };
+  select.addEventListener("change", render);
+  render();
+})();
+</script>
+{% endblock %}

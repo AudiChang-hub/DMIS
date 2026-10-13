@@ -41,29 +41,36 @@
     <label for="inventory-status">狀態</label>
     <select id="inventory-status" name="status" multiple data-searchable-select="1" data-searchable-multiple="1" data-searchable-include-empty="1" data-searchable-empty-placeholder="1" data-searchable-search-icon="1" data-search-placeholder="搜尋狀態">
       <option value="">{% if selected.scope == 'history' %}全部停用車輛{% elif selected.scope == 'sold' %}全部已售出／已調出{% else %}全部現有狀態{% endif %}</option>
-      {% for value, label in statuses %}<option value="{{ value }}" {% if value in selected.statuses %}selected{% endif %}>{{ label }}</option>{% endfor %}
+      {% for value, label, count in statuses %}<option value="{{ value }}" {% if value in selected.statuses %}selected{% endif %}>{{ label }}（{{ count }}）</option>{% endfor %}
+    </select>
+  </div>
+  <div class="inventory-filter">
+    <label for="inventory-brand">品牌</label>
+    <select id="inventory-brand" name="brand" multiple data-searchable-select="1" data-searchable-multiple="1" data-searchable-include-empty="1" data-searchable-empty-placeholder="1" data-searchable-search-icon="1" data-search-placeholder="搜尋品牌">
+      <option value="">全部品牌</option>
+      {% for item in brands %}<option value="{{ item.value }}" {% if item.value|lower in selected.brands %}selected{% endif %}>{{ item.label }}（{{ item.count }}）</option>{% endfor %}
     </select>
   </div>
   <div class="inventory-filter">
     <label for="inventory-model">機種</label>
     <select id="inventory-model" name="vehicle_family" multiple data-searchable-select="1" data-searchable-multiple="1" data-searchable-include-empty="1" data-searchable-empty-placeholder="1" data-searchable-search-icon="1" data-search-placeholder="搜尋品牌或機種">
       <option value="">全部機種</option>
-      {% for item in vehicle_families %}<option value="{{ item.pk }}" {% if item.pk in selected.vehicle_family_ids %}selected{% endif %}>{{ item.brand }} {{ item.name }}</option>{% endfor %}
+      {% for item in vehicle_families %}<option value="{{ item.pk }}" {% if item.pk in selected.vehicle_family_ids %}selected{% endif %}>{{ item.brand }} {{ item.name }}（{{ item.filter_count }}）</option>{% endfor %}
     </select>
   </div>
   <div class="inventory-filter">
     <label for="inventory-color">車色</label>
     <select id="inventory-color" name="color" multiple data-searchable-select="1" data-searchable-multiple="1" data-searchable-include-empty="1" data-searchable-empty-placeholder="1" data-searchable-search-icon="1" data-search-placeholder="搜尋車色">
       <option value="">全部車色</option>
-      {% for item in colors %}<option value="{{ item.value }}" {% if item.value in selected.colors %}selected{% endif %}>{{ item.label }}</option>{% endfor %}
+      {% for item in colors %}<option value="{{ item.value }}" {% if item.value in selected.colors %}selected{% endif %}>{{ item.label }}（{{ item.count }}）</option>{% endfor %}
     </select>
   </div>
   <div class="inventory-filter">
     <label for="inventory-location">實際位置</label>
     <select id="inventory-location" name="location" multiple data-searchable-select="1" data-searchable-multiple="1" data-searchable-include-empty="1" data-searchable-empty-placeholder="1" data-searchable-search-icon="1" data-search-placeholder="搜尋本店或車行">
       <option value="">全部位置</option>
-      <option value="store" {% if selected.store_selected %}selected{% endif %}>本店</option>
-      {% for dealer in dealers %}<option value="dealer-{{ dealer.pk }}" {% if dealer.pk in selected.dealer_ids %}selected{% endif %}>{{ dealer.name }}</option>{% endfor %}
+      {% if store_count or selected.store_selected %}<option value="store" {% if selected.store_selected %}selected{% endif %}>本店（{{ store_count }}）</option>{% endif %}
+      {% for dealer in dealers %}<option value="dealer-{{ dealer.pk }}" {% if dealer.pk in selected.dealer_ids %}selected{% endif %}>{{ dealer.name }}（{{ dealer.filter_count }}）</option>{% endfor %}
     </select>
   </div>
   {% if selected.scope == 'sold' %}
@@ -71,15 +78,15 @@
     <label for="inventory-disposition">去向</label>
     <select id="inventory-disposition" name="disposition" data-searchable-select="1" data-searchable-search-icon="1" data-search-placeholder="搜尋去向">
       <option value="">全部去向</option>
-      {% for value, label in disposition_choices %}<option value="{{ value }}" {% if selected.disposition == value %}selected{% endif %}>{{ label }}</option>{% endfor %}
-      <option value="none" {% if selected.disposition == 'none' %}selected{% endif %}>未記錄去向</option>
+      {% for value, label, count in disposition_choices %}<option value="{{ value }}" {% if selected.disposition == value %}selected{% endif %}>{{ label }}（{{ count }}）</option>{% endfor %}
+      {% if disposition_none_count or selected.disposition == 'none' %}<option value="none" {% if selected.disposition == 'none' %}selected{% endif %}>未記錄去向（{{ disposition_none_count }}）</option>{% endif %}
     </select>
   </div>
   <div class="inventory-filter">
     <label for="inventory-disposition-dealer">去向車行</label>
     <select id="inventory-disposition-dealer" name="disposition_dealer" data-searchable-select="1" data-searchable-search-icon="1" data-search-placeholder="搜尋車行">
       <option value="">全部車行</option>
-      {% for dealer in dealers %}<option value="{{ dealer.pk }}" {% if selected.disposition_dealer == dealer.pk|stringformat:'s' %}selected{% endif %}>{{ dealer.name }}</option>{% endfor %}
+      {% for dealer in disposition_dealers %}<option value="{{ dealer.pk }}" {% if selected.disposition_dealer == dealer.pk|stringformat:'s' %}selected{% endif %}>{{ dealer.name }}（{{ dealer.filter_count }}）</option>{% endfor %}
     </select>
   </div>
   {% endif %}
@@ -87,7 +94,7 @@
     <label for="inventory-acquisition">車輛來源</label>
     <select id="inventory-acquisition" name="acquisition" data-searchable-select="1" data-searchable-search-icon="1" data-search-placeholder="搜尋車輛來源">
       <option value="">全部來源</option>
-      {% for value, label in acquisition_choices %}<option value="{{ value }}" {% if selected.acquisition == value %}selected{% endif %}>{{ label }}</option>{% endfor %}
+      {% for value, label, count in acquisition_choices %}<option value="{{ value }}" {% if selected.acquisition == value %}selected{% endif %}>{{ label }}（{{ count }}）</option>{% endfor %}
     </select>
   </div>
   <div class="inventory-filter">
@@ -96,6 +103,7 @@
       <option value="received_desc" {% if selected.sort == "received_desc" %}selected{% endif %}>進車日期：新到舊</option>
       <option value="received_asc" {% if selected.sort == "received_asc" %}selected{% endif %}>進車日期：舊到新</option>
       <option value="priority" {% if selected.sort == "priority" %}selected{% endif %}>優先配車在前</option>
+      <option value="brand" {% if selected.sort == "brand" %}selected{% endif %}>品牌</option>
       <option value="model" {% if selected.sort == "model" %}selected{% endif %}>車型</option>
       <option value="color" {% if selected.sort == "color" %}selected{% endif %}>車色</option>
       <option value="identifier" {% if selected.sort == "identifier" %}selected{% endif %}>識別號碼</option>
@@ -127,6 +135,7 @@
           <th>進車日期</th>
           <th>出廠年月</th>
           {% if selected.scope == 'current' %}<th>優先配車</th>{% endif %}
+          <th>品牌</th>
           <th>車型／車色</th>
           <th>引擎／車身號碼</th>
           <th>狀態</th>
@@ -157,6 +166,7 @@
             {% endwith %}
           </td>
           {% endif %}
+          <td data-label="品牌">{{ vehicle.vehicle_model.brand|default:"—" }}</td>
           <td data-label="車型／車色"><strong>{{ vehicle.vehicle_model.name }}</strong><span>{{ vehicle.color.name }}</span></td>
           <td data-label="識別號碼"><span class="inventory-identifier">{{ vehicle.identifier }}</span>{% if vehicle.acquisition_type == 'dealer_transfer' %}<small class="inventory-acquisition" title="車行調車">{{ vehicle.acquisition_label }}</small>{% endif %}</td>
           <td data-label="狀態"><span class="status-pill status-{{ vehicle.status }}">{{ vehicle.get_status_display }}</span></td>
@@ -179,7 +189,7 @@
           <td class="inventory-row-action">{% suzuki_parts_lookup vehicle.vehicle_model vehicle.engine_number|default:vehicle.frame_number %}<a class="button ghost small" href="{% url 'inventory_edit' vehicle.pk %}">查看／編輯</a></td>
         </tr>
         {% empty %}
-        <tr><td colspan="{% if selected.scope == 'current' %}9{% else %}8{% endif %}"><div class="empty-state"><strong>{% if selected.scope == 'history' %}目前沒有符合條件的停用車輛{% elif selected.scope == 'sold' %}目前沒有符合條件的已售出或已調出車輛{% else %}目前沒有符合條件的現有庫存{% endif %}</strong><p>{% if selected.scope != 'current' %}請調整搜尋或篩選條件。{% else %}請調整篩選條件，或建立第一台進車資料。{% endif %}</p></div></td></tr>
+        <tr><td colspan="{% if selected.scope == 'current' %}10{% else %}9{% endif %}"><div class="empty-state"><strong>{% if selected.scope == 'history' %}目前沒有符合條件的停用車輛{% elif selected.scope == 'sold' %}目前沒有符合條件的已售出或已調出車輛{% else %}目前沒有符合條件的現有庫存{% endif %}</strong><p>{% if selected.scope != 'current' %}請調整搜尋或篩選條件。{% else %}請調整篩選條件，或建立第一台進車資料。{% endif %}</p></div></td></tr>
         {% endfor %}
       </tbody>
     </table>

@@ -20,7 +20,7 @@
     {% if_access 'order_customer_access' order.pk %}<a class="button ghost" href="{% url 'order_customer_access' order.pk %}">管理本單權限</a>{% endif_access %}
     {% if workspace_finance %}<button type="button" class="button ghost" data-workspace-go="finance">收入與支出</button>{% endif %}
     {% if commission_form %}<a class="button secondary" href="?attribution=1#commission-attribution" data-open-attribution>調整台數歸屬</a>{% endif %}
-    {% if not editing_order %}{% if_access 'order_documents_print' order.pk %}<a class="button secondary" href="?tab=documents#signed-documents" data-target-tab="documents" data-target-anchor="signed-documents">簽署與列印文件</a>{% endif_access %}{% endif %}
+    {% if not editing_order and order.needs_customer_signatures %}{% if_access 'order_documents_print' order.pk %}<a class="button secondary" href="?tab=documents#signed-documents" data-target-tab="documents" data-target-anchor="signed-documents">簽署與列印文件</a>{% endif_access %}{% endif %}
     {% if order.can_edit_content and not editing_order %}{% if_access 'order_edit' order.pk %}<a class="button primary" href="{% url 'order_edit' order.pk %}" data-workspace-edit-link>編輯訂單{% if order.is_delivered %}（完成後修正）{% endif %}</a>{% endif_access %}{% endif %}
   </div>
 </section>
@@ -29,7 +29,7 @@
 <div data-workspace-section="order">{% include "sales/_order_commission_attribution.html" %}</div>
 {% include "sales/_order_acceptance.html" %}
 
-{% if request.GET.created == "1" %}
+{% if request.GET.created == "1" and order.needs_customer_signatures %}
 <dialog class="print-dialog" id="print-contract-dialog">
   <h2>訂單已建立</h2>
   <p>請選擇這次的簽署方式；之後也可以在「列印與簽署文件」步驟改用另一種方式。</p>
@@ -127,7 +127,7 @@
 <div class="order-step__body">
 {% include "sales/_order_step_deposit.html" %}
 </div></section>{% endwith %}
-{% if not editing_order %}
+{% if not editing_order and order.needs_customer_signatures %}
 {% with step=steps.documents %}<section class="order-step is-{{ step.state }}{% if open_step == step.key %} is-active{% endif %}" id="panel-documents" data-step-key="documents" role="tabpanel" aria-labelledby="tab-documents" tabindex="-1">
 <header class="order-step__header">{% include "sales/_order_step_summary.html" %}</header>
 <div class="order-step__body">

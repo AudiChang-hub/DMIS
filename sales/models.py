@@ -3555,6 +3555,11 @@ class SalesOrder(TimeStampedModel):
         )
 
     @property
+    def needs_customer_signatures(self):
+        """只有本店來源的訂單需要客人簽車輛訂購單與個資同意書；合作車行、網路平台略過這一步（使用者 2026-10-13）。"""
+        return self.source_type == self.SourceType.STORE
+
+    @property
     def has_signed_contract(self):
         return bool(self.signed_contract) and not self.signed_contract_stale
 

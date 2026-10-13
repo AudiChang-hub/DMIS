@@ -70,3 +70,30 @@ class StoreHandlesOrdersTests(TestCase):
             field = re.search(r'<input[^>]*id="id_deposit_amount"[^>]*>', page).group(0)
             self.assertNotIn("value=", field)
             self.assertIn('placeholder="沒有收訂金請留空"', field)
+
+    def test_only_store_orders_show_signing_step(self):
+        # 1.73.2：只有本店訂單需要客人簽訂購單與個資同意書；合作車行、網路平台略過且不顯示。
+        from sales.services.order_next_actions import build_order_next_actions
+        from sales.services.order_steps import build_order_steps
+        self.client.force_login(self.root)
+        self.assertEqual(self.submit("order_start").status_code, 302)
+        self.assertEqual(self.submit("order_start", source_type="dealer", source=str(self.dealer.pk), _submission_key="").status_code, 302)
+        store, dealer = SalesOrder.objects.order_by("pk")
+        self.assertTrue(store.needs_customer_signatures)
+        self.assertFalse(dealer.needs_customer_signatures)
+        store_steps = [step["key"] for step in build_order_steps(store)["step_list"]]
+        dealer_steps = build_order_steps(dealer)["step_list"]
+        self.assertIn("documents", store_steps)
+        self.assertNotIn("documents", [step["key"] for step in dealer_steps])
+        self.assertEqual([step["number"] for step in dealer_steps], list(range(1, len(dealer_steps) + 1)))
+        actions = build_order_next_actions(dealer)
+        self.assertNotIn("documents", [action.key for action in [actions.primary, *actions.secondary] if action])
+        page = self.client.get(reverse("order_detail", args=[dealer.pk]), {"created": "1"}).content.decode()
+        self.assertNotIn('id="panel-documents"', page)
+        self.assertNotIn("簽署與列印文件", page)
+        self.assertNotIn('id="print-contract-dialog"', page)
+        store_page = self.client.get(reverse("order_detail", args=[store.pk]), {"created": "1"}).content.decode()
+        self.assertIn('id="panel-documents"', store_page)
+        self.assertIn('id="print-contract-dialog"', store_page)
+        done = self.client.get(reverse("order_submitted", args=[dealer.pk])).content.decode()
+        self.assertNotIn("這次要怎麼簽", done)

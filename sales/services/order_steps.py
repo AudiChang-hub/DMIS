@@ -122,6 +122,12 @@ def build_order_steps(order, *, next_actions=None, requested=None, summary=None)
             number=None, title="處理紀錄", state="reference", summary="處理經過與訂單變更紀錄",
         ),
     }
+    # 合作車行、網路平台的訂單不需要客人簽署文件：拿掉這一步，後面的步驟往前遞補編號。
+    step_order = tuple(key for key in STEP_ORDER if key != "documents" or order.needs_customer_signatures)
+    for number, key in enumerate(step_order, 1):
+        steps[key]["number"] = number
+    if requested == "documents" and not order.needs_customer_signatures:
+        requested = None
     current = None
     if next_actions and next_actions.primary:
         current = ACTION_STEP.get(next_actions.primary.key)
@@ -135,12 +141,12 @@ def build_order_steps(order, *, next_actions=None, requested=None, summary=None)
     # 預設開啟目前步驟；沒有建議時開第一個待處理步驟，全部完成則回到訂單內容。
     open_step = (
         TAB_STEP.get(requested or "") or current
-        or next((key for key in STEP_ORDER if steps[key]["state"] == "todo"), None)
+        or next((key for key in step_order if steps[key]["state"] == "todo"), None)
         or "order"
     )
     return {
         "steps": steps,
-        "step_list": [steps[key] for key in STEP_ORDER],
+        "step_list": [steps[key] for key in step_order],
         "extra_step_list": [steps[key] for key in EXTRA_STEPS],
         "current_step": current,
         "open_step": open_step,

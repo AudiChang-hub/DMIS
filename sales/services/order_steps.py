@@ -9,7 +9,7 @@ from django.urls import reverse
 ZERO = Decimal("0")
 
 STEP_ORDER = ("order", "deposit", "documents", "allocation", "registration", "finance", "delivery")
-EXTRA_STEPS = ("subsidy", "closing", "history")
+EXTRA_STEPS = ("attachments", "subsidy", "closing", "history")
 
 # 下一步建議（order_next_actions）對應到工作台步驟。
 ACTION_STEP = {
@@ -25,7 +25,7 @@ ACTION_STEP = {
 TAB_STEP = {
     "order": "order", "deposit": "deposit", "documents": "documents", "allocation": "allocation",
     "registration": "registration", "finance": "finance", "delivery": "delivery", "subsidy": "subsidy",
-    "closing": "closing", "history": "history",
+    "closing": "closing", "history": "history", "attachments": "attachments",
 }
 
 STATE_LABELS = {
@@ -117,6 +117,9 @@ def build_order_steps(order, *, next_actions=None, requested=None, summary=None)
         "closing": dict(
             number=None, title="取消與結案", state="optional",
             summary=order.get_status_display() if order.is_cancelled_sale else "客戶不再購車時由此處理",
+        ),
+        "attachments": dict(
+            number=None, title="附件", state="reference", summary="這張訂單的所有檔案，集中預覽與下載",
         ),
         "history": dict(
             number=None, title="處理紀錄", state="reference", summary="處理經過與訂單變更紀錄",

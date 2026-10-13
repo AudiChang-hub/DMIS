@@ -4959,6 +4959,44 @@ class RegistrationDocument(TimeStampedModel):
         return f"{self.order.number}／{self.display_name}"
 
 
+class OrderAttachment(TimeStampedModel):
+    """訂單的其他附件：任何檔案，只給店內人員（使用者 2026-10-13 選 A）。"""
+
+    MAX_PER_ORDER = 50
+
+    order = models.ForeignKey(
+        SalesOrder,
+        on_delete=models.CASCADE,
+        related_name="other_attachments",
+        verbose_name="訂單",
+    )
+    name = models.CharField("原始檔名", max_length=200)
+    note = models.CharField("說明", max_length=250, blank=True)
+    file = models.FileField("檔案", upload_to="orders/attachments/%Y/%m/")
+    uploaded_by = models.CharField("上傳人員", max_length=150, blank=True)
+
+    class Meta:
+        ordering = ["created_at", "pk"]
+        verbose_name = "訂單其他附件"
+        verbose_name_plural = "訂單其他附件"
+
+    @property
+    def suffix(self):
+        stem, dot, suffix = self.name.rpartition(".")
+        return f".{suffix.lower()}" if dot and stem else ""
+
+    @property
+    def extension(self):
+        return self.suffix.removeprefix(".").upper() or "檔案"
+
+    @property
+    def is_preview_type(self):
+        return self.suffix in {".jpg", ".jpeg", ".png", ".webp", ".pdf"}
+
+    def __str__(self):
+        return f"{self.order.number}／{self.name}"
+
+
 class SubsidyDocument(TimeStampedModel):
     class DocumentType(models.TextChoices):
         OLD_OWNER_ID_FRONT = "old_owner_id_front", "舊車主身分證正面"

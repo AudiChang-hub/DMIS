@@ -89,6 +89,8 @@ def order_files(order):
         add(f"領牌文件_{document.get_document_type_display()}", document.file)
     for document in order.subsidy_documents.all():
         add(f"補助文件_{document.get_document_type_display()}", document.file)
+    for attachment in order.other_attachments.all():
+        add(f"其他附件_{attachment.name.rpartition('.')[0] or attachment.name}", attachment.file)
     named, used = [], {}
     for label, field_file in entries:
         base = _clean(label, 80)

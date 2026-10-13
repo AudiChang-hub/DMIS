@@ -1,0 +1,91 @@
+{% load screen_access %}
+<section class="section-block order-files" id="other-attachments">
+  <div class="section-title order-files__title">
+    <div>
+      <p class="eyebrow">其他附件</p>
+      <h2>這張訂單的任何檔案</h2>
+      <small>每張訂單最多 {{ order_attachment_limit }} 個、單檔 20 MB；圖片與 PDF 可預覽，其他檔案直接下載。</small>
+    </div>
+    <span class="order-files__count">{{ other_attachments|length }}／{{ order_attachment_limit }}</span>
+  </div>
+  {% if_access 'order_attachment_upload' order.pk %}
+  {% if other_attachments|length < order_attachment_limit %}
+  <form class="order-files__upload" data-document-upload data-upload-each method="post" enctype="multipart/form-data" action="{% url 'order_attachment_upload' order.pk %}">
+    {% csrf_token %}
+    <label class="order-files__drop">
+      <span class="order-files__drop-icon" aria-hidden="true">＋</span>
+      <strong>選擇或拖曳檔案到這裡</strong>
+      <span data-file-summary>可一次選多個，任何格式皆可</span>
+      <input type="file" name="files" multiple required>
+    </label>
+    <div class="order-files__note">
+      <label for="order-attachment-note">說明（選填，套用到這次上傳的檔案）</label>
+      <input id="order-attachment-note" class="form-control" type="text" name="note" maxlength="250" lang="zh-Hant" placeholder="例如：客戶補傳的保單照片">
+    </div>
+    <button class="button primary" type="submit">上傳附件</button>
+  </form>
+  {% else %}
+  <p class="message warning">已達 {{ order_attachment_limit }} 個上限，請先刪除不需要的附件再上傳。</p>
+  {% endif %}
+  {% endif_access %}
+  {% if other_attachments %}
+  <div class="document-card-list order-files__grid">
+    {% for attachment in other_attachments %}
+    <div class="order-file">
+      {% if_access 'order_attachment_file' attachment.pk %}
+      {% if attachment.is_preview_type %}
+      <a href="{% url 'order_attachment_file' attachment.pk %}" data-preview-name="{{ attachment.name }}" data-preview-label="{{ attachment.name }}">{{ attachment.name }}</a>
+      {% else %}
+      <div class="document-card">
+        <span class="document-card-title">{{ attachment.name }}</span>
+        <span class="document-thumbnail is-file" aria-hidden="true">{{ attachment.extension }}</span>
+        <a class="document-download" href="{% url 'order_attachment_file' attachment.pk %}" download="{{ attachment.name }}">下載檔案</a>
+      </div>
+      {% endif %}
+      {% endif_access %}
+      <small class="order-file__meta">{% if attachment.note %}{{ attachment.note }}<br>{% endif %}{{ attachment.uploaded_by|default:"內部人員" }} · {{ attachment.created_at|date:"Y/m/d H:i" }}</small>
+      {% if_access 'order_attachment_delete' order.pk attachment.pk %}
+      <form method="post" action="{% url 'order_attachment_delete' order.pk attachment.pk %}" data-confirm="確定刪除「{{ attachment.name }}」嗎？刪除後無法復原。">
+        {% csrf_token %}<button class="button danger-outline compact block" type="submit">刪除</button>
+      </form>
+      {% endif_access %}
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <p class="muted order-files__empty">尚無其他附件。</p>
+  {% endif %}
+</section>
+
+<section class="section-block order-files" id="all-order-files">
+  <div class="section-title order-files__title">
+    <div>
+      <p class="eyebrow">全部檔案</p>
+      <h2>各步驟已上傳的檔案</h2>
+      <small>簽署文件、證件、收款證明、領牌與補助文件都集中在這裡；要替換或刪除請到原本的步驟。</small>
+    </div>
+  </div>
+  {% for group in order_file_groups %}
+  <div class="order-files__group">
+    <h3>{{ group.title }} <span class="muted">{{ group.files|length }} 個</span></h3>
+    <div class="document-card-list order-files__grid">
+      {% for file in group.files %}
+      <div class="order-file">
+        {% if file.is_preview_type %}
+        <a href="{{ file.url }}" data-preview-name="{{ file.name }}" data-preview-label="{{ file.label }}">{{ file.label }}</a>
+        {% else %}
+        <div class="document-card">
+          <span class="document-card-title">{{ file.label }}</span>
+          <span class="document-thumbnail is-file" aria-hidden="true">{{ file.extension }}</span>
+          <a class="document-download" href="{{ file.url }}" download="{{ file.name }}">下載檔案</a>
+        </div>
+        {% endif %}
+        {% if file.uploaded_at %}<small class="order-file__meta">{% if file.uploaded_by %}{{ file.uploaded_by }} · {% endif %}{{ file.uploaded_at|date:"Y/m/d H:i" }}</small>{% endif %}
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% empty %}
+  <p class="muted order-files__empty">各步驟目前還沒有上傳任何檔案。</p>
+  {% endfor %}
+</section>

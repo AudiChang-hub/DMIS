@@ -477,6 +477,21 @@ urlpatterns = [
         name="registration_document_file",
     ),
     path(
+        "orders/<int:pk>/attachments/upload/",
+        views.order_attachment_upload,
+        name="order_attachment_upload",
+    ),
+    path(
+        "orders/<int:pk>/attachments/<int:attachment_pk>/delete/",
+        views.order_attachment_delete,
+        name="order_attachment_delete",
+    ),
+    path(
+        "files/attachments/<int:attachment_pk>/",
+        views.order_attachment_file,
+        name="order_attachment_file",
+    ),
+    path(
         "orders/<int:pk>/subsidy/toggle/",
         views.subsidy_toggle,
         name="subsidy_toggle",

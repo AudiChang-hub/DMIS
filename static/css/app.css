@@ -6603,6 +6603,30 @@ html[aria-busy="true"], html[aria-busy="true"] body { cursor: progress; }
 .document-thumbnail{display:inline-flex;position:relative;align-items:center;justify-content:center;width:148px;height:108px;margin:var(--space-2);padding:var(--space-1);border:1px solid var(--line);border-radius:var(--radius-md);background:var(--surface);cursor:zoom-in;vertical-align:middle}
 .document-thumbnail img{max-width:100%;max-height:100%;object-fit:contain}.document-thumbnail iframe{width:100%;height:100%;border:0;pointer-events:none}
 .document-thumbnail:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+/* 訂單「附件」分頁：其他附件上傳與全部檔案集中預覽 */
+.order-files__title{align-items:flex-start;gap:var(--space-3)}
+.order-files__count{flex:none;padding:var(--space-1) var(--space-3);border-radius:var(--radius-pill);background:var(--surface-tint);color:var(--ink);font-weight:700;font-variant-numeric:tabular-nums}
+.order-files__upload{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(0,1fr) auto;gap:var(--space-3);align-items:end;margin-block:var(--stack-gap-sm)}
+.order-files__drop{position:relative;display:grid;justify-items:center;gap:var(--space-1);padding:var(--space-4) var(--space-3);border:1.5px dashed var(--line-strong);border-radius:var(--radius-md);background:var(--surface-soft);color:var(--ink);text-align:center;cursor:pointer;transition:border-color .18s ease,background-color .18s ease}
+.order-files__drop:hover,.order-files__drop:focus-within,.order-files__drop.is-dragging{border-color:var(--gold);background:var(--gold-soft)}
+.order-files__drop:focus-within{box-shadow:0 0 0 3px var(--focus-ring)}
+.order-files__drop input{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer}
+.order-files__drop-icon{display:grid;place-items:center;width:2rem;height:2rem;border-radius:var(--radius-pill);background:var(--surface);color:var(--gold);font-weight:700;box-shadow:var(--shadow-soft)}
+.order-files__drop [data-file-summary]{color:var(--muted);font-size:var(--text-sm);overflow-wrap:anywhere}
+.order-files__note{display:grid;gap:var(--space-1)}
+.order-files__group+.order-files__group{margin-top:var(--stack-gap-sm)}
+.order-files__group h3{margin:0 0 var(--space-2)}
+.order-files__grid{grid-template-columns:repeat(auto-fill,minmax(168px,1fr))}
+.order-file{display:flex;flex-direction:column;gap:var(--space-2);padding:var(--space-3);border:1px solid var(--line);border-radius:var(--radius-md);background:var(--surface);min-width:0;transition:border-color .18s ease,box-shadow .18s ease}
+.order-file:hover{border-color:var(--line-strong);box-shadow:var(--shadow-soft)}
+.order-file .document-card{padding:0;border:0;background:none}
+.order-file>a[data-preview-name]{overflow-wrap:anywhere}
+.order-file__meta{color:var(--muted);font-size:var(--text-xs);line-height:1.5;overflow-wrap:anywhere}
+.document-thumbnail.is-file{cursor:default;font-weight:800;letter-spacing:.06em;color:var(--ink-soft);background:var(--surface-tint);font-size:var(--text-lg)}
+.order-files__empty{margin:var(--space-2) 0 0}
+.order-files__upload .document-upload-progress{grid-column:1/-1}
+@media(max-width:760px){.order-files__upload{grid-template-columns:1fr}.order-files__upload .button{width:100%}}
+@media(prefers-reduced-motion:reduce){.order-files__drop,.order-file{transition:none}}
 .document-thumbnail.is-unavailable{cursor:default;padding:var(--space-3);color:var(--muted);font-size:var(--text-sm);line-height:1.5;text-align:center;background:var(--surface-tint);border-style:dashed}
 .document-preview-dialog{width:min(1000px,94vw);max-height:94dvh;padding:var(--inset-pad);border:1px solid var(--line);border-radius:var(--radius-lg);background:var(--surface);color:var(--ink,var(--navy))}
 .document-preview-dialog::backdrop{background:color-mix(in srgb, var(--shadow-ink) 67%, transparent)}.document-preview-dialog>img{display:block;max-width:100%;max-height:78dvh;object-fit:contain;margin:var(--stack-gap-sm) auto}.document-preview-dialog>iframe{display:block;width:100%;height:76dvh;border:0;margin-top:var(--stack-gap-sm)}

@@ -130,3 +130,16 @@ class OrderArchiveTests(TestCase):
         out = StringIO()
         call_command("sync_order_archive", "--verify", stdout=out)
         self.assertIn("缺檔案 車主證件正面.png", out.getvalue())
+
+    def test_full_sync_prunes_leftover_empty_folders_only(self):
+        from io import StringIO
+        from django.core.management import call_command
+        order = self.create_order()
+        sync_order(order.pk)
+        leftover = self.root / "DMIS訂單" / "舊車型" / "2026" / "09"
+        leftover.mkdir(parents=True)
+        out = StringIO()
+        call_command("sync_order_archive", stdout=out)
+        self.assertFalse((self.root / "DMIS訂單" / "舊車型").exists())
+        self.assertTrue((self.root / order_folder(order)).is_dir(), "有效訂單資料夾不受影響")
+        self.assertIn("清除 3 個空資料夾", out.getvalue())

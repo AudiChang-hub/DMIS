@@ -3,7 +3,7 @@ from django.core.management.base import BaseCommand, CommandError
 
 from sales.models import OrderArchiveRecord, SalesOrder
 from sales.services.order_archive import (
-    ARCHIVE_FOLDER, archive_root, keeps_empty_folder, order_files, order_folder, sync_order,
+    ARCHIVE_FOLDER, archive_root, keeps_empty_folder, order_files, order_folder, prune_empty_folders, sync_order,
 )
 
 
@@ -29,7 +29,8 @@ class Command(BaseCommand):
                 synced += 1
             else:
                 skipped += 1
-        self.stdout.write(f"同步 {synced} 張訂單；{skipped} 張沒有檔案或同步失敗（失敗原因記在訂單同步紀錄）。")
+        pruned = 0 if numbers else prune_empty_folders(root)
+        self.stdout.write(f"同步 {synced} 張訂單；{skipped} 張沒有檔案或同步失敗（失敗原因記在訂單同步紀錄）；清除 {pruned} 個空資料夾。")
 
     def verify(self, root, orders):
         problems, checked, expected_folders = [], 0, set()

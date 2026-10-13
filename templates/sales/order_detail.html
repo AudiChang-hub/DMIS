@@ -942,6 +942,13 @@
 {% endif %}
 </div></section>{% endwith %}
 {% endif %}
+{% if not editing_order %}
+{% with step=steps.attachments %}<section class="order-step order-step--attachments is-{{ step.state }}{% if open_step == step.key %} is-active{% endif %}" id="panel-attachments" data-step-key="attachments" role="tabpanel" aria-labelledby="tab-attachments" tabindex="-1">
+<header class="order-step__header">{% include "sales/_order_step_summary.html" %}</header>
+<div class="order-step__body">
+{% include "sales/_order_step_attachments.html" %}
+</div></section>{% endwith %}
+{% endif %}
 {% with step=steps.history %}<section class="order-step order-step--history is-{{ step.state }}{% if open_step == step.key and not editing_order %} is-active{% endif %}" id="panel-history" data-step-key="history"{% if not editing_order %} role="tabpanel" aria-labelledby="tab-history" tabindex="-1"{% endif %}>
 <header class="order-step__header">{% include "sales/_order_step_summary.html" %}</header>
 <div class="order-step__body">

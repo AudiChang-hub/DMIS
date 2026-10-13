@@ -3047,7 +3047,8 @@ class OrderFlowTests(TestCase):
         for step_name in ("訂車與配件", "訂金", "列印與簽署文件", "配車", "領牌", "收入與支出", "交車與收尾款", "補助"):
             self.assertContains(response, step_name)
         self.assertContains(response, 'role="tablist"', count=1)
-        self.assertContains(response, 'role="tabpanel"', count=10)
+        self.assertContains(response, 'role="tabpanel"', count=11)
+        self.assertContains(response, 'id="panel-attachments"')
         self.assertContains(response, 'id="panel-order"')
         self.assertContains(response, 'id="panel-registration"')
         self.assertContains(response, 'id="signed-documents"')

@@ -217,6 +217,9 @@ def change_deletion(*, user, order_id, restore, reason, expected_updated_at, edi
         deletion_effects={} if restore else effects,
         deletion_requested_at=None, deletion_requested_by=None, deletion_request_reason="",
     )
+    # 白名單更新不會觸發 post_save，網路硬碟的資料夾在這裡主動排入同步（移到／移出「_已刪除訂單」）。
+    from sales.services.order_archive import schedule_order_archive
+    schedule_order_archive(order.pk)
     OrderEvent.objects.create(order=order, event_type="restored" if restore else "soft_deleted",
         actor_name=user.get_username(), description=f"{'還原訂單' if restore else '刪除訂單（可還原）'}：{reason}" +
             (f"\n申請原因：{order.deletion_request_reason}" if order.deletion_requested_at else "") +

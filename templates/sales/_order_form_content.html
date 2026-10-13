@@ -163,7 +163,7 @@
       {% if "subsidy_programs" in form.fields %}<fieldset class="span-2 subsidy-program-picker field" data-subsidy-picker>
         <legend>{{ form.subsidy_programs.label }}</legend>
         <input type="hidden" name="subsidy_programs_present" value="1">
-        <div class="subsidy-program-picker__options">{% for choice in form.subsidy_programs %}<label for="{{ choice.id_for_label }}">{{ choice.tag }}<span>{{ choice.choice_label }}</span></label>{% endfor %}<label for="subsidy-other-toggle"><input type="checkbox" id="subsidy-other-toggle" data-subsidy-other-toggle aria-controls="subsidy-other-field"{% if form.subsidy_other.value %} checked{% endif %}><span>其他</span></label></div>
+        <div class="subsidy-program-picker__options">{% for choice in form.subsidy_programs %}<label for="{{ choice.id_for_label }}" data-subsidy-kind="{{ choice.data.value.instance.vehicle_kind }}" data-subsidy-group="{{ choice.data.value.instance.exclusive_group }}">{{ choice.tag }}<span>{{ choice.choice_label }}</span></label>{% endfor %}<label for="subsidy-other-toggle"><input type="checkbox" id="subsidy-other-toggle" data-subsidy-other-toggle aria-controls="subsidy-other-field"{% if form.subsidy_other.value %} checked{% endif %}><span>其他</span></label></div>
         <div class="subsidy-program-picker__other" id="subsidy-other-field" data-subsidy-other{% if not form.subsidy_other.value %} hidden{% endif %}>{% include "sales/_field.html" with field=form.subsidy_other %}</div>
         <small>{{ form.subsidy_programs.help_text }}</small>
         {% for error in form.subsidy_programs.errors %}<small class="field-error">{{ error }}</small>{% endfor %}

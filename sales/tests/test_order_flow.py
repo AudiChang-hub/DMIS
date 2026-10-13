@@ -3814,6 +3814,31 @@ class OrderFlowTests(TestCase):
             ).exists()
         )
 
+    def test_manual_vehicle_cost_with_matching_rule_is_not_reported_missing(self):
+        """1.63.0 前人工輸入成本的訂單不會連結規則；有適用規則時不得誤報「找不到成本規則」。"""
+        missing = "目前找不到符合此車型與領牌日期的成本規則"
+        order = self.make_order()
+        order.allocate(self.vehicle)
+        profile, _ = OrderOperationsProfile.objects.get_or_create(order=order)
+        OrderOperationsProfile.objects.filter(pk=profile.pk).update(
+            vehicle_cost=Decimal("60000"), vehicle_cost_rule=None, vehicle_cost_manual=True,
+            manual_financial_fields=["vehicle_cost"],
+        )
+        self.client.force_login(self.user)
+        response = self.client.post(
+            reverse("registration_save", args=[order.pk]),
+            {"registration_date": "2026-07-29", "registration_county": "新北市", "final_plate_number": "abc-1234"},
+            follow=True,
+        )
+        self.assertNotContains(response, missing)
+        self.assertNotContains(response, "找不到適用的車輛結算成本規則")
+        self.assertContains(response, "人工輸入車輛結算成本：$60,000")
+        self.assertIsNone(OrderOperationsProfile.objects.get(pk=profile.pk).vehicle_cost_rule_id)
+
+        self.settlement_rule.delete()
+        response = self.client.get(reverse("order_detail", args=[order.pk]))
+        self.assertContains(response, missing)
+
     def test_registration_can_be_completed_after_required_uploads(self):
         order = self.make_order()
         order.allocate(self.vehicle)

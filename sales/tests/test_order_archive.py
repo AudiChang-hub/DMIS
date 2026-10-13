@@ -89,3 +89,44 @@ class OrderArchiveTests(TestCase):
         self.assertIn(":/app/media:ro", worker)
         prod_worker = pattern.search(prod).group(1)
         self.assertIn(":/app/order-archive", prod_worker)
+
+    def test_deleted_orders_move_out_of_model_tree_and_back_on_restore(self):
+        # 1.74.2：回收區的訂單移到「_已刪除訂單」，不留在車型／年月目錄；還原後搬回原位。
+        from django.utils import timezone
+        order = self.create_order()
+        active = sync_order(order.pk)
+        SalesOrder.all_objects.filter(pk=order.pk).update(deleted_at=timezone.now())
+        moved = sync_order(order.pk)
+        self.assertEqual(moved.parent, self.root / "DMIS訂單" / "_已刪除訂單")
+        self.assertFalse(active.exists())
+        self.assertFalse(active.parent.exists(), "空的年月資料夾一併清掉")
+        self.assertTrue((moved / "車主證件正面.png").exists())
+        SalesOrder.all_objects.filter(pk=order.pk).update(deleted_at=None)
+        self.assertEqual(sync_order(order.pk), active)
+        self.assertFalse(moved.exists())
+
+    def test_open_orders_get_folder_even_without_files(self):
+        # 1.74.2：未結案訂單沒有檔案也建資料夾（黃康洺這類匯入舊單）；已結案或已取消且沒檔案的不建。
+        order = self.create_order()
+        SalesOrder.objects.filter(pk=order.pk).update(id_front="", id_back="")
+        OrderArchiveRecord.objects.filter(order=order).delete()
+        folder = sync_order(order.pk)
+        self.assertTrue(folder.is_dir(), "沒有檔案的未結案訂單也有資料夾")
+        for status in (SalesOrder.Status.COMPLETED, SalesOrder.Status.CANCELLED):
+            closed = self.create_order()
+            SalesOrder.objects.filter(pk=closed.pk).update(id_front="", id_back="", status=status)
+            OrderArchiveRecord.objects.filter(order=closed).delete()
+            self.assertIsNone(sync_order(closed.pk), status)
+
+    def test_verify_command_reports_consistency(self):
+        from io import StringIO
+        from django.core.management import call_command
+        order = self.create_order()
+        sync_order(order.pk)
+        out = StringIO()
+        call_command("sync_order_archive", "--verify", stdout=out)
+        self.assertIn("全部一致", out.getvalue())
+        (self.root / order_folder(order) / "車主證件正面.png").unlink()
+        out = StringIO()
+        call_command("sync_order_archive", "--verify", stdout=out)
+        self.assertIn("缺檔案 車主證件正面.png", out.getvalue())

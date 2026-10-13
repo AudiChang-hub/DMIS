@@ -21,6 +21,8 @@ from django.utils import timezone
 logger = logging.getLogger(__name__)
 
 ARCHIVE_FOLDER = "DMIS訂單"
+# 已刪除（回收區）的訂單移到這裡，不留在車型／年月目錄；還原後自動搬回（使用者 2026-10-13 發現刪除單也在目錄中）。
+DELETED_FOLDER = "_已刪除訂單"
 STORE_LABEL = "馭盛"
 _INVALID = re.compile(r'[\\/:*?"<>|\x00-\x1f]+')
 
@@ -53,6 +55,8 @@ def order_folder(order):
     day = order.established_on or order.order_date or timezone.localdate(order.created_at)
     model = _model_label(order)
     leaf = "_".join([_dealer_label(order), _clean(order.owner_name, 40), model, order.number])
+    if order.deleted_at:
+        return str(PurePosixPath(ARCHIVE_FOLDER, DELETED_FOLDER, leaf))
     return str(PurePosixPath(ARCHIVE_FOLDER, model, f"{day:%Y}", f"{day:%m}", leaf))
 
 
@@ -94,6 +98,19 @@ def order_files(order):
     return named
 
 
+def keeps_empty_folder(order):
+    """沒有檔案時是否仍建資料夾：未結案（進行中、已交車待補文件或補助）的訂單一律建，方便人員先放紙本掃描；
+    已結案、已取消或已刪除的不建（使用者 2026-10-13 選定）。"""
+    from sales.models import SubsidyItem
+    from sales.services.order_tabs import CANCELLED
+
+    if order.deleted_at or order.status in CANCELLED:
+        return False
+    if order.status == order.Status.COMPLETED:
+        return order.subsidy_items.exclude(status=SubsidyItem.Status.COMPLETED).exists()
+    return True
+
+
 def _same(target, field_file):
     try:
         return target.exists() and target.stat().st_size == field_file.size
@@ -114,7 +131,7 @@ def sync_order(order_id):
         return None
     record, _ = OrderArchiveRecord.objects.get_or_create(order=order)
     files = order_files(order)
-    if not files and not record.folder:
+    if not files and not record.folder and not keeps_empty_folder(order):
         return None
     relative = order_folder(order)
     target = root / relative

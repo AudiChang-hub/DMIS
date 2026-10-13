@@ -38,18 +38,19 @@
   </div>
   <div class="inventory-table-wrap">
     <table class="inventory-table installment-company-table">
-      <thead><tr><th>方案</th><th>補助單位</th><th>預設金額</th><th>使用訂單</th><th>狀態</th><th></th></tr></thead>
+      <thead><tr><th>方案</th><th>適用車種</th><th>補助單位</th><th>預設金額</th><th>使用訂單</th><th>狀態</th><th></th></tr></thead>
       <tbody>
         {% for item in programs %}
         <tr>
           <td data-label="方案"><strong>{{ item.name }}</strong>{% if item.requires_old_vehicle %}<span>汰舊類：需要舊車與舊車主資料</span>{% endif %}</td>
+          <td data-label="適用車種">{{ item.get_vehicle_kind_display }}{% if item.exclusive_group %}<span>與同組「{{ item.exclusive_group }}」擇一</span>{% endif %}</td>
           <td data-label="補助單位">{{ item.get_category_display }}</td>
           <td data-label="預設金額">{% if item.default_amount is not None %}${{ item.default_amount|number_with_commas }}{% else %}<span class="muted">未設定</span>{% endif %}</td>
           <td data-label="使用訂單">{{ item.order_count }} 張</td>
           <td data-label="狀態">{% include "sales/_active_quick_toggle.html" with resource="subsidy-program" pk=item.pk is_active=item.active item_name=item.name %}</td>
           <td data-label="操作" class="inventory-row-action"><a class="button ghost small" href="?edit={{ item.pk }}#program-form">編輯</a></td>
         </tr>
-        {% empty %}<tr><td colspan="6"><div class="empty-state small"><strong>尚未建立補助方案</strong><p>按「＋ 新增補助方案」建立，例如新購補助、貨物稅補助。</p></div></td></tr>{% endfor %}
+        {% empty %}<tr><td colspan="7"><div class="empty-state small"><strong>尚未建立補助方案</strong><p>按「＋ 新增補助方案」建立，例如貨物稅補助、各縣市環保局 新購。</p></div></td></tr>{% endfor %}
       </tbody>
     </table>
   </div>

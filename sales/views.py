@@ -37,6 +37,7 @@ from .services.order_steps import order_step_url
 from .services.order_contract_pdf import build_order_contract_pdf
 from .services.privacy_consent_pdf import build_privacy_consent_pdf
 from .services.document_preview import is_unpreviewable_pdf, preview_unavailable_response
+from .services.order_attachments import collect_order_file_groups
 from .services.document_signing import (
     DOCUMENTS as SIGNING_DOCUMENTS,
     PRINT_PARTS,
@@ -148,6 +149,7 @@ from .models import (
     LegacyImportBatch,
     LegacyImportMasterMapping,
     LegacyImportRow,
+    OrderAttachment,
     OrderEvent,
     OrderOperationsProfile,
     PaymentRecord,
@@ -285,7 +287,7 @@ from .services.identity_document_pdf import (
     PURPOSE_LABELS as IDENTITY_DOCUMENT_PURPOSES,
     build_identity_document_pdf,
 )
-from .services.upload_validation import validate_image_upload
+from .services.upload_validation import validate_image_upload, validate_order_attachment
 from .services.system_integrity import build_system_integrity_report
 
 
@@ -5576,6 +5578,9 @@ def order_detail(request, pk, *, commission_form=None, workspace_context_only=Fa
             "reallocation_form": ReallocationForm(order),
             "registration_form": RegistrationStageForm(instance=order),
             "registration_document_rows": registration_document_rows,
+            "order_file_groups": collect_order_file_groups(order, request),
+            "other_attachments": order.other_attachments.all(),
+            "order_attachment_limit": OrderAttachment.MAX_PER_ORDER,
             "other_insurance_documents": order.registration_documents.filter(
                 document_type=RegistrationDocument.DocumentType.OTHER_INSURANCE
             ),
@@ -7423,6 +7428,108 @@ def order_exception_close(request, pk):
         f"已例外結案：退款 ${order.refund_amount:,.0f}、沒收 ${order.forfeited_amount:,.0f}；車輛已以已領牌車釋回庫存。",
     )
     return redirect(detail_url)
+
+
+def _attachment_original_name(upload):
+    name = Path(upload.name or "").name.strip() or "附件"
+    if len(name) > 200:
+        suffix = Path(name).suffix[:20]
+        name = Path(name).stem[: 200 - len(suffix)] + suffix
+    return name
+
+
+def _attachment_storage_name(original):
+    # 儲存檔名用亂數，避免特殊字元與過長檔名；原始檔名另存於 name 供下載使用。
+    suffix = Path(original).suffix.lower()
+    safe = 2 <= len(suffix) <= 11 and suffix[1:].isascii() and suffix[1:].isalnum()
+    return uuid.uuid4().hex + (suffix if safe else "")
+
+
+@login_required
+@transaction.atomic
+def order_attachment_upload(request, pk):
+    order = get_object_or_404(SalesOrder.objects.select_for_update(), pk=pk)
+    if request.method != "POST":
+        return redirect(order_step_url(pk, "attachments"))
+    uploads = request.FILES.getlist("files")
+
+    def fail(message, status=400):
+        return _document_upload_response(
+            request, order_pk=pk, tab="attachments", ok=False, message=message, status=status,
+        )
+
+    if not uploads:
+        return fail("請選擇要上傳的檔案。")
+    existing = order.other_attachments.count()
+    if existing + len(uploads) > OrderAttachment.MAX_PER_ORDER:
+        remaining = max(OrderAttachment.MAX_PER_ORDER - existing, 0)
+        return fail(
+            f"每張訂單最多 {OrderAttachment.MAX_PER_ORDER} 個其他附件，目前已有 {existing} 個，"
+            f"這次最多還能上傳 {remaining} 個。",
+        )
+    note = (request.POST.get("note") or "").strip()[:250]
+    for upload in uploads:
+        try:
+            validate_order_attachment(upload)
+        except ValidationError as exc:
+            return fail(f"「{_attachment_original_name(upload)}」上傳失敗：" + " ".join(exc.messages))
+    actor = _editing_name(request.user)
+    names = []
+    for upload in uploads:
+        original = _attachment_original_name(upload)
+        upload.name = _attachment_storage_name(original)
+        OrderAttachment.objects.create(
+            order=order, name=original, note=note, file=upload, uploaded_by=actor,
+        )
+        names.append(original)
+    OrderEvent.objects.create(
+        order=order,
+        event_type="order_attachment_uploaded",
+        description="已上傳其他附件：" + "、".join(names),
+        actor_name=actor,
+    )
+    return _document_upload_response(
+        request, order_pk=pk, tab="attachments", ok=True,
+        message=f"已上傳 {len(names)} 個附件。",
+    )
+
+
+@login_required
+@transaction.atomic
+def order_attachment_delete(request, pk, attachment_pk):
+    order = get_object_or_404(SalesOrder.objects.select_for_update(), pk=pk)
+    if request.method != "POST":
+        return redirect(order_step_url(pk, "attachments"))
+    attachment = get_object_or_404(OrderAttachment, pk=attachment_pk, order=order)
+    name = attachment.name
+    attachment.delete()
+    OrderEvent.objects.create(
+        order=order,
+        event_type="order_attachment_deleted",
+        description=f"已刪除其他附件：{name}",
+        actor_name=_editing_name(request.user),
+    )
+    messages.success(request, f"{name}已刪除。")
+    return redirect(order_step_url(pk, "attachments"))
+
+
+@login_required
+def order_attachment_file(request, attachment_pk):
+    from sales.services.order_intake import scoped_orders
+    attachment = get_object_or_404(OrderAttachment, pk=attachment_pk)
+    get_object_or_404(scoped_orders(request.user), pk=attachment.order_id)
+    if not attachment.file:
+        raise Http404
+    # 只有圖片與 PDF 可在網頁內開啟；其他任何檔案一律下載，避免瀏覽器直接執行。
+    if Path(attachment.name).suffix.lower() not in {".jpg", ".jpeg", ".png", ".webp", ".pdf"}:
+        try:
+            stream = attachment.file.open("rb")
+        except FileNotFoundError:
+            raise Http404 from None
+        return _protect_private_response(
+            FileResponse(stream, as_attachment=True, filename=attachment.name)
+        )
+    return _private_file_response(request, attachment.file, attachment.name)
 
 
 @login_required

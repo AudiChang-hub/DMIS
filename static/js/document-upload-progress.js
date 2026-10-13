@@ -138,15 +138,102 @@
     request.send(formData);
   }
 
+  function sendOne(form, file, onProgress) {
+    // 逐檔上傳：代理伺服器限制單次請求大小，多個附件分開送才不會整批失敗。
+    return new Promise((resolve) => {
+      const formData = new FormData();
+      form.querySelectorAll("input:not([type=file]), textarea, select").forEach((field) => {
+        if (field.name) formData.append(field.name, field.value);
+      });
+      formData.append(form.querySelector('input[type="file"]').name, file);
+      const request = new XMLHttpRequest();
+      request.open("POST", form.action, true);
+      request.responseType = "json";
+      request.timeout = 120000;
+      request.setRequestHeader("Accept", "application/json");
+      request.setRequestHeader("X-Requested-With", "XMLHttpRequest");
+      const csrfToken = form.querySelector('[name="csrfmiddlewaretoken"]');
+      if (csrfToken) request.setRequestHeader("X-CSRFToken", csrfToken.value);
+      request.upload.addEventListener("progress", (event) => {
+        if (event.lengthComputable) onProgress(event.loaded / event.total);
+      });
+      request.addEventListener("load", () => {
+        const payload = request.response || {};
+        let message = payload.message;
+        if (!message && request.status === 413) message = "檔案太大，請縮小檔案後再試。";
+        if (!message && request.status === 403) message = "登入或安全憑證已失效，請重新整理頁面後再試。";
+        resolve({ ok: request.status >= 200 && request.status < 300 && payload.ok, message, redirect: payload.redirect_url });
+      });
+      request.addEventListener("timeout", () => resolve({ ok: false, message: "上傳逾時，請確認網路後再試一次。" }));
+      request.addEventListener("error", () => resolve({ ok: false, message: "網路中斷，檔案尚未上傳，請再試一次。" }));
+      request.send(formData);
+    });
+  }
+
+  async function uploadEach(form) {
+    if (form.dataset.uploading === "true" || !form.reportValidity()) return;
+    const fileInput = form.querySelector('input[type="file"]');
+    const files = Array.from(fileInput?.files || []);
+    if (!files.length) return;
+    form.dataset.uploading = "true";
+    form.classList.add("is-uploading");
+    form.setAttribute("aria-busy", "true");
+    const panel = createProgress(form);
+    let redirect = null;
+    for (let index = 0; index < files.length; index += 1) {
+      const prefix = files.length > 1 ? `第 ${index + 1}／${files.length} 個：` : "";
+      updateProgress(panel, (index / files.length) * 100, `${prefix}${files[index].name}`);
+      form.querySelectorAll("input, button").forEach((control) => { control.disabled = true; });
+      const result = await sendOne(form, files[index], (ratio) => {
+        updateProgress(panel, ((index + ratio) / files.length) * 100, `${prefix}${files[index].name}`);
+      });
+      if (!result.ok) {
+        restoreForm(form);
+        fileInput.value = "";
+        fileInput.dispatchEvent(new Event("change"));
+        const done = index ? `前 ${index} 個已上傳；` : "";
+        updateProgress(panel, 0, `${done}${result.message || "上傳失敗，請確認檔案後再試一次。"}`, "error");
+        if (index) window.setTimeout(() => window.location.reload(), 2500);
+        return;
+      }
+      redirect = result.redirect || redirect;
+    }
+    updateProgress(panel, 100, `已上傳 ${files.length} 個附件`, "complete");
+    window.setTimeout(() => {
+      const next = new URL(redirect || window.location.href, window.location.href);
+      if (next.href.split("#")[0] === window.location.href.split("#")[0]) {
+        window.history.replaceState(window.history.state, "", next.href);
+        window.location.reload();
+      } else {
+        window.location.assign(next.href);
+      }
+    }, 250);
+  }
+
   document.querySelectorAll("form[data-document-upload]").forEach((form) => {
     const input = form.querySelector('input[type="file"]');
     if (!input) return;
     if (form.hasAttribute("data-auto-upload")) {
       input.addEventListener("change", () => upload(form));
     }
+    // 多檔上傳區：顯示已選的檔案，拖曳進來時加上提示樣式。
+    const summary = form.querySelector("[data-file-summary]");
+    if (summary) {
+      const initial = summary.textContent;
+      const drop = input.closest("label");
+      input.addEventListener("change", () => {
+        const names = Array.from(input.files || []).map((file) => file.name);
+        summary.textContent = names.length
+          ? `已選 ${names.length} 個：${names.slice(0, 3).join("、")}${names.length > 3 ? "…" : ""}`
+          : initial;
+      });
+      ["dragenter", "dragover"].forEach((type) => input.addEventListener(type, () => drop?.classList.add("is-dragging")));
+      ["dragleave", "drop"].forEach((type) => input.addEventListener(type, () => drop?.classList.remove("is-dragging")));
+    }
     form.addEventListener("submit", (event) => {
       event.preventDefault();
-      upload(form);
+      if (form.hasAttribute("data-upload-each")) uploadEach(form);
+      else upload(form);
     });
   });
 })();

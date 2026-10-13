@@ -1,9 +1,10 @@
 from django.db.models.signals import m2m_changed, pre_delete, post_delete, post_save
 from django.dispatch import receiver
 from django.db import transaction
-from .models import OrderIntakeAttachment
+from .models import OrderAttachment, OrderIntakeAttachment
 
 
+@receiver(post_delete, sender=OrderAttachment)
 @receiver(post_delete, sender=OrderIntakeAttachment)
 def remove_intake_attachment_file(sender, instance, **kwargs):
     if instance.file:
@@ -208,6 +209,8 @@ def archive_order_on_save(sender, instance, raw=False, **kwargs):
 @receiver(post_delete, sender=SubsidyDocument)
 @receiver(post_save, sender=OrderIntakeAttachment)
 @receiver(post_delete, sender=OrderIntakeAttachment)
+@receiver(post_save, sender=OrderAttachment)
+@receiver(post_delete, sender=OrderAttachment)
 def archive_order_files(sender, instance, raw=False, **kwargs):
     if not raw and getattr(instance, "order_id", None):
         schedule_order_archive(instance.order_id)

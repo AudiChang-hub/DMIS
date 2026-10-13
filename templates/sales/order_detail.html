@@ -35,7 +35,7 @@
   <p>請選擇這次的簽署方式；之後也可以在「列印與簽署文件」步驟改用另一種方式。</p>
   {% include "sales/_order_sign_choice.html" %}
   <div class="dialog-actions">
-    {% if_access 'order_print_company' order.pk %}<a class="button ghost" href="{% url 'order_print_company' order.pk %}">開單公司{% if not order.print_company_snapshot %} · 待確認{% endif %}</a>{% endif_access %}
+    {% if_access 'order_print_company' order.pk %}<a class="button ghost" href="{% url 'order_print_company' order.pk %}">開單公司</a>{% endif_access %}
     <button class="button ghost" type="button" id="print-later">稍後處理</button>
   </div>
 </dialog>

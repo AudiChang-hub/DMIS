@@ -63,16 +63,22 @@ class PrintCompanyTests(TestCase):
         order.refresh_from_db()
         self.assertEqual(order.print_company_snapshot, before)
 
-    def test_old_order_and_missing_dealer_configuration_never_fallback(self):
+    def test_order_without_company_prints_with_home_company(self):
+        # 1.73.1（使用者 2026-10-13）：沒有開單公司的訂單一律用馭盛，第一次列印時保存，不再要求 admin 逐筆確認。
         self.profile.source = self.other
         self.profile.save()
         for order in [self.make_order(), self.make_order(self.dealer, source=self.other, source_type='dealer')]:
             for route in ['contract_print', 'privacy_consent_print', 'order_documents_print']:
-                response = self.client.get(reverse(route, args=[order.pk]))
-                self.assertEqual(response.status_code, 409)
-                self.assertContains(response, '請先確認開單公司', status_code=409)
+                self.assertEqual(self.client.get(reverse(route, args=[order.pk])).status_code, 200)
             order.refresh_from_db()
-            self.assertEqual(order.print_company_snapshot, {})
+            self.assertEqual(order.print_company_id, self.home.pk)
+            self.assertEqual(order.print_company_snapshot['legal_name'], self.home.legal_name)
+        # 本店公司資料不完整時才擋下，提示 admin 補齊。
+        order = self.make_order()
+        PrintCompany.objects.filter(pk=self.home.pk).update(tax_id='')
+        response = self.client.get(reverse('contract_print', args=[order.pk]))
+        self.assertEqual(response.status_code, 409)
+        self.assertContains(response, '本店（馭盛）的公司全名', status_code=409)
 
     def test_dealer_can_print_own_but_not_other_order_or_manage_company(self):
         from sales.access.models import ScreenAccessGrant, UserAccessState

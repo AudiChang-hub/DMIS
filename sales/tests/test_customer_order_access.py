@@ -138,7 +138,7 @@ class CustomerOrderAccessTests(TestCase):
         for route in ('contract_print', 'privacy_consent_print', 'order_documents_print'):
             with self.subTest(route=route):
                 # Missing company header is handled only AFTER successful scope/print checks.
-                self.assertEqual(self.client.get(reverse(route, args=[own.pk])).status_code, 409)
+                self.assertEqual(self.client.get(reverse(route, args=[own.pk])).status_code, 200)  # 1.73.1：沒有開單公司時用馭盛
                 self.assertEqual(self.client.get(reverse(route, args=[peer.pk])).status_code, 404)
         self.assertContains(self.client.get(reverse('order_submitted', args=[own.pk])), '列印全部客戶簽署文件')
         self.grant('order_documents', 'export', False)

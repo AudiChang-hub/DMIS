@@ -49,7 +49,7 @@ class CustomerGrantTests(TestCase):
         self.authorize(expected_revision=grant.revision, can_view=False, can_print=True)
         self.assertEqual(self.client.get(reverse('order_list')).context['page_obj'].paginator.count, 0)
         self.assertEqual(self.client.get(reverse('order_detail', args=[self.order.pk])).status_code, 404)
-        self.assertEqual(self.client.get(url).status_code, 409)  # 已過授權；此試作單未設定公司。
+        self.assertEqual(self.client.get(url).status_code, 200)  # 已過授權；未設定公司時用馭盛（1.73.1）。
         self.grant('order_documents', 'export', False)
         self.assertEqual(self.client.get(url).status_code, 403)
 

@@ -5492,6 +5492,14 @@ def order_detail(request, pk, *, commission_form=None, workspace_context_only=Fa
         )
     ]
     operations_profile = getattr(order, "operations", None)
+    # 與「確認領牌完成」同一判斷：人工輸入的成本不會連結規則，不能因此誤報找不到規則。
+    vehicle_cost_is_manual = bool(operations_profile) and (
+        operations_profile.vehicle_cost_manual
+        or "vehicle_cost" in (operations_profile.manual_financial_fields or [])
+    )
+    settlement_cost_rule_missing = bool(order.registration_date) and not resolve_settlement_cost(
+        order.vehicle_model_id, order.registration_date
+    )
     balance_payment = next(
         (
             payment
@@ -5582,6 +5590,8 @@ def order_detail(request, pk, *, commission_form=None, workspace_context_only=Fa
             "subsidy_name_suggestions": subsidy_name_suggestions(),
             "change_cards": build_order_change_cards(order.changes.all(), profit_unlocked=profit_is_unlocked(request)),
             "operations_profile": operations_profile,
+            "vehicle_cost_is_manual": vehicle_cost_is_manual,
+            "settlement_cost_rule_missing": settlement_cost_rule_missing,
             "next_actions": next_actions,
             "active_tab": active_tab,
             "delivery_record": getattr(order, "delivery_record", None),
@@ -6764,8 +6774,14 @@ def registration_save(request, pk):
         if cost_profile.vehicle_cost_rule_id:
             messages.success(
                 request,
-                "領牌資料已保存，已依領牌日期與縣市帶入"
+                "領牌資料已保存，已依領牌日期帶入"
                 f"代銷結算成本 ${cost_profile.vehicle_cost:,.0f}。",
+            )
+        elif resolve_settlement_cost(order.vehicle_model_id, order.registration_date):
+            messages.success(
+                request,
+                "領牌資料已保存；車輛成本為人工輸入的"
+                f" ${cost_profile.vehicle_cost:,.0f}，不依成本規則覆蓋。",
             )
         else:
             messages.warning(

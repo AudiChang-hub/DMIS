@@ -184,6 +184,8 @@ def _subsidy_action(order, subsidy_missing):
 
 
 def _document_archive_action(order):
+    if not order.needs_customer_signatures:
+        return None
     missing = []
     if not order.has_signed_contract:
         missing.append("訂購合約" + ("（內容已變更，需重簽）" if order.signed_contract_stale else ""))

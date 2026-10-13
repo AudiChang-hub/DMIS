@@ -3908,7 +3908,7 @@ class OrderFlowTests(TestCase):
         messages = [str(message) for message in response.wsgi_request._messages]
         self.assertTrue(any("車輛結算成本規則" in message for message in messages))
 
-    def test_plate_selection_document_is_conditionally_required(self):
+    def test_plate_selection_document_is_optional_even_when_choosing_plate(self):
         order = self.make_order()
         order.allocate(self.vehicle)
         SalesOrder.objects.filter(pk=order.pk).update(
@@ -3931,7 +3931,8 @@ class OrderFlowTests(TestCase):
                 ),
             )
 
-        self.assertIn("選號單", order.missing_registration_requirements())
+        self.assertNotIn("選號單", order.missing_registration_requirements())
+        self.assertEqual(order.missing_registration_requirements(), [])
 
     def test_other_insurance_accepts_multiple_named_documents(self):
         order = self.make_order()
@@ -3957,6 +3958,32 @@ class OrderFlowTests(TestCase):
             ).count(),
             2,
         )
+
+    def test_unreadable_pdf_uploads_and_is_offered_as_download_only(self):
+        order = self.make_order()
+        order.allocate(self.vehicle)
+        self.client.force_login(self.user)
+
+        response = self.client.post(
+            reverse("registration_document_upload", args=[order.pk]),
+            {
+                "document_type": RegistrationDocument.DocumentType.PLATE_SELECTION,
+                "name": "",
+                "file": SimpleUploadedFile(
+                    "plate.pdf", b"%PDF-1.7 damaged body", content_type="application/pdf"
+                ),
+            },
+        )
+        self.assertRedirects(response, order_step_url(order.pk, "registration"))
+        document = order.registration_documents.get()
+        file_url = reverse("registration_document_file", args=[document.pk])
+
+        preview = self.client.get(file_url, {"preview": "1"})
+        self.assertEqual(preview["X-Document-Preview"], "unavailable")
+        self.assertContains(preview, "無法在網頁預覽")
+        download = self.client.get(file_url)
+        self.assertTrue(download["Content-Disposition"].startswith("attachment"))
+        self.assertEqual(b"".join(download.streaming_content), b"%PDF-1.7 damaged body")
 
     def test_fixed_registration_document_can_be_replaced_and_downloaded(self):
         order = self.make_order()

@@ -5480,7 +5480,6 @@ def order_detail(request, pk, *, commission_form=None, workspace_context_only=Fa
         }
         for document_type, label in SubsidyDocument.DocumentType.choices
         if document_type != SubsidyDocument.DocumentType.OTHER
-        and (document_type != SubsidyDocument.DocumentType.NEW_OWNER_BANKBOOK or document_type in subsidy_documents)
         and (
             document_type
             not in {

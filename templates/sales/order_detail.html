@@ -91,7 +91,7 @@
       </form>
     </details>
     {% endif %}
-    {% include "sales/_intake_attachments.html" with intake_attachments=order.intake_attachments.all %}
+    {% include "sales/_intake_attachments.html" with intake_attachments=order.owner_area_intake_attachments %}
   </section>
   <section class="card">
     <div class="section-title"><h2>車輛與來源</h2><span>{{ order.source_display }}</span></div>
@@ -739,7 +739,7 @@
         <div class="registration-document-row__name">
           <strong>{{ row.label }}</strong>
           <span class="optional-badge" data-subsidy-required-badge {% if not row.required %}hidden{% endif %}>送件前備妥，可先儲存</span>
-          <span class="optional-badge" data-subsidy-optional-badge {% if row.required %}hidden{% endif %}>目前不需要</span>
+          <span class="optional-badge" data-subsidy-optional-badge {% if row.required %}hidden{% endif %}>{% if row.type == "new_owner_bankbook" %}選填{% else %}目前不需要{% endif %}</span>
           {% if row.document %}
             <small>由 {{ row.document.uploaded_by|default:"內部人員" }} 於 {{ row.document.created_at|date:"Y/m/d H:i" }} 上傳</small>
           {% endif %}

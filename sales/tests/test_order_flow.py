@@ -3044,7 +3044,7 @@ class OrderFlowTests(TestCase):
         response = self.client.get(reverse("order_detail", args=[order.pk]))
 
         self.assertContains(response, "data-order-step-bar")
-        for step_name in ("訂車與配件", "訂金", "列印與簽署文件", "配車", "領牌", "收入與支出", "交車與收尾款", "汰舊補助"):
+        for step_name in ("訂車與配件", "訂金", "列印與簽署文件", "配車", "領牌", "收入與支出", "交車與收尾款", "補助"):
             self.assertContains(response, step_name)
         self.assertContains(response, 'role="tablist"', count=1)
         self.assertContains(response, 'role="tabpanel"', count=10)
@@ -3096,7 +3096,8 @@ class OrderFlowTests(TestCase):
         self.assertContains(detail, "舊車主身分證正面")
         self.assertContains(detail, "2／8 已備妥")
         self.assertContains(detail, "舊車主存摺封面")
-        self.assertNotContains(detail, "新車主存摺封面")
+        # 新車主存摺封面改在補助分頁上傳（選填），不列入必備文件。
+        self.assertContains(detail, "新車主存摺封面")
 
         response = self.client.post(
             reverse("subsidy_document_upload", args=[order.pk]),
@@ -3445,7 +3446,7 @@ class OrderFlowTests(TestCase):
 
         self.client.force_login(self.user)
         detail = self.client.get(reverse("order_detail", args=[order.pk]))
-        self.assertNotContains(detail, "新車主存摺封面")
+        self.assertContains(detail, "新車主存摺封面")
         self.assertContains(detail, "舊車主存摺封面")
         self.assertContains(detail, "舊車主身分證字號")
 

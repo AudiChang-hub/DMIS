@@ -3727,16 +3727,21 @@ class SalesOrder(TimeStampedModel):
                 missing.append(labels[document_type])
         return missing
 
+    @property
+    def owner_area_intake_attachments(self):
+        """車主區的附件清單；新車主存摺封面改在補助分頁顯示。"""
+        return self.intake_attachments.exclude(kind="owner_bankbook")
+
     def subsidy_intake_evidence(self):
         """引用已授權的原附件，不複製檔案或改寫附件身分。"""
         from django.urls import reverse
         evidence = {}
-        mapping = {"old_id_front": "old_owner_id_front", "old_id_back": "old_owner_id_back", "old_bankbook": "old_owner_bankbook"}
+        mapping = {"old_id_front": ("old_owner_id_front",), "old_id_back": ("old_owner_id_back",), "old_bankbook": ("old_owner_bankbook",), "owner_bankbook": ("new_owner_bankbook",)}
         if self.old_owner_same_as_owner:
-            mapping["owner_bankbook"] = "old_owner_bankbook"
+            mapping["owner_bankbook"] = ("new_owner_bankbook", "old_owner_bankbook")
         for attachment in self.intake_attachments.order_by("created_at", "pk"):
-            if attachment.kind in mapping:
-                evidence[mapping[attachment.kind]] = {"name": attachment.name, "url": reverse("order_intake_attachment", args=[attachment.pk])}
+            for kind in mapping.get(attachment.kind, ()):
+                evidence[kind] = {"name": attachment.name, "url": reverse("order_intake_attachment", args=[attachment.pk])}
         if self.old_owner_same_as_owner:
             for field, kind in (("id_front", "old_owner_id_front"), ("id_back", "old_owner_id_back")):
                 document = getattr(self, field)

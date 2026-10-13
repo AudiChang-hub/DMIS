@@ -26,6 +26,9 @@ services:
     env_file:
       - path: .env.django
         required: true
+    # 訂單檔案同步到 NAS（archive 佇列由本 worker 處理）；rslave 讓 autofs 掛上的網路磁碟在容器內可見。
+    volumes:
+      - "${DJANGO_ORDER_ARCHIVE_PATH:-/srv/dmis-data/dmis-next/order-archive}:/app/order-archive:rslave"
     logging: *production_logging
 
   import-worker:

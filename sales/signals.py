@@ -186,3 +186,28 @@ def refresh_confirmation_after_payment_change(sender, instance, **kwargs):
             adopt_payment_id=instance.pk if getattr(instance, "_disbursement_changed", False) else None,
             touch_revision=True,
         )
+
+
+# ---- 訂單檔案同步到 NAS：訂單或其檔案有異動就排入背景同步（未設定 NAS 時不動作）----
+from .models import DeliveryRecord  # noqa: E402
+from .services.order_archive import schedule_order_archive  # noqa: E402
+
+
+@receiver(post_save, sender=SalesOrder)
+def archive_order_on_save(sender, instance, raw=False, **kwargs):
+    if not raw:
+        schedule_order_archive(instance.pk)
+
+
+@receiver(post_save, sender=PaymentRecord)
+@receiver(post_delete, sender=PaymentRecord)
+@receiver(post_save, sender=DeliveryRecord)
+@receiver(post_save, sender=RegistrationDocument)
+@receiver(post_delete, sender=RegistrationDocument)
+@receiver(post_save, sender=SubsidyDocument)
+@receiver(post_delete, sender=SubsidyDocument)
+@receiver(post_save, sender=OrderIntakeAttachment)
+@receiver(post_delete, sender=OrderIntakeAttachment)
+def archive_order_files(sender, instance, raw=False, **kwargs):
+    if not raw and getattr(instance, "order_id", None):
+        schedule_order_archive(instance.order_id)

@@ -1,0 +1,11 @@
+[Unit]
+Description=Nightly DMIS Next order files sync to NAS (safety net for missed background jobs)
+
+[Timer]
+OnCalendar=*-*-* 03:40:00
+Persistent=true
+RandomizedDelaySec=10m
+Unit=dmis-next-order-archive-sync.service
+
+[Install]
+WantedBy=timers.target

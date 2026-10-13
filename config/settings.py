@@ -124,7 +124,13 @@ RQ_QUEUES = {
         "URL": REDIS_URL or "redis://localhost:6379/0",
         "DEFAULT_TIMEOUT": 60,
     },
+    "archive": {
+        "URL": REDIS_URL or "redis://localhost:6379/0",
+        "DEFAULT_TIMEOUT": 600,
+    },
 }
+# 訂單檔案同步到 NAS 的根目錄（容器內路徑）；留空則不同步（services/order_archive.py）。
+ORDER_ARCHIVE_DIR = os.environ.get("DMIS_ORDER_ARCHIVE_DIR", "")
 # 通知 Email 通道：未設定 SMTP 前一律略過（狀態記為「未設定通道」），系統內通知不受影響。
 DMIS_NOTIFICATION_EMAIL_ENABLED = os.environ.get("DMIS_NOTIFICATION_EMAIL_ENABLED", "").lower() in {"1", "true", "yes"}
 # 台鈴官方零件圖冊（目前為測試網址）；官方換網域時只改環境變數。

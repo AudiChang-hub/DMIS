@@ -145,6 +145,23 @@ systemctl list-timers dmis-next-official-catalog-check.timer --all
 journalctl -u dmis-next-official-catalog-check.service -n 50 --no-pager
 ```
 
+### 訂單檔案同步到 NAS
+
+系統內的檔案仍是正本；`search-worker` 處理 `archive` 佇列，把每張訂單的檔案複製到
+`/mnt/od/DMIS訂單/<車型>/<年>/<月>/<車行>_<車主>_<車型>_<訂單編號>/`（2026-10-13 使用者選定）。
+訂單或其檔案一有異動就排入同步；車主、車型、日期改了資料夾跟著搬。NAS 斷線不影響訂單操作，
+錯誤記在 `OrderArchiveRecord.last_error`，恢復後由下次異動或每日補同步補上。
+
+- `.env`：`DJANGO_ORDER_ARCHIVE_PATH=/mnt/od`（主機路徑，掛進 search-worker 的 `/app/order-archive`）。
+- `.env.django`：`DMIS_ORDER_ARCHIVE_DIR=/app/order-archive`（留空即停用）。
+- 首次啟用或要全部重做：`docker compose ... exec -T search-worker python manage.py sync_order_archive [訂單編號…]`。
+- 每日 03:40 補同步（需 sudo 安裝一次）：
+
+```bash
+sudo bash scripts/install_django_order_archive_timer.sh
+systemctl list-timers dmis-next-order-archive-sync.timer --all
+```
+
 
 ## 正式備份自動還原演練
 

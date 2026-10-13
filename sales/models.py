@@ -5505,3 +5505,12 @@ class UserAccountAuditLog(TimeStampedModel):
 from .reporting.models import ReportDefinition, ReportRevision  # noqa: E402,F401
 from .reporting.models import ReportClassification, ReportClassificationRevision  # noqa: E402,F401
 from .access.models import UserAccessState, ScreenAccessGrant, ReportAccessGrant, UserAccessRevision  # noqa: E402,F401
+
+
+class OrderArchiveRecord(models.Model):
+    """訂單檔案同步到 NAS 的狀態（使用者 2026-10-13：系統為正本，NAS 為依車型／年／月整理的副本）。"""
+    order = models.OneToOneField(SalesOrder, on_delete=models.CASCADE, related_name="archive_record")
+    folder = models.CharField("NAS 資料夾（相對路徑）", max_length=500, blank=True)
+    files = models.JSONField("系統放入的檔名", default=list, blank=True)
+    synced_at = models.DateTimeField("最近同步", null=True, blank=True)
+    last_error = models.CharField("最近錯誤", max_length=500, blank=True)

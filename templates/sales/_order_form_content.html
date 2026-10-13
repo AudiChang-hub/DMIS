@@ -65,7 +65,7 @@
 
   <div class="form-progress" id="form-progress" aria-label="填單段落">
     <a href="#vehicle" class="active" aria-current="step">1 車款</a><a href="#source">2 來源</a><a href="#accessories">3 配件</a>
-    <a href="#tradein">4 汰舊補助</a><a href="#delivery">5 選號交車</a><a href="#owner">6 車主</a>
+    <a href="#tradein">4 汰舊與補助</a><a href="#delivery">5 選號交車</a><a href="#owner">6 車主</a>
     <a href="#payment">7 付款</a><a href="#deposit">8 訂金</a>
   </div>
   {% endif %}
@@ -168,10 +168,11 @@
         <small>{{ form.subsidy_programs.help_text }}</small>
         {% for error in form.subsidy_programs.errors %}<small class="field-error">{{ error }}</small>{% endfor %}
       </fieldset>{% endif %}
-      {# 訂單頁編輯不含這兩欄（改在「汰舊補助」分頁處理），不能留下空白框。 #}
+      {# 訂單頁編輯不含這兩欄（改在「補助」分頁處理），不能留下空白框。 #}
       {% if form.is_trade_in_subsidy %}<div class="span-2 verify-box" {% if intake_mode and not intake_finance_editable %}hidden{% endif %}>{% include "sales/_field.html" with field=form.is_trade_in_subsidy %}</div>{% endif %}
       {% if form.old_owner_same_as_owner %}<div class="span-2 verify-box" data-conditional="trade-in-owner">{% include "sales/_field.html" with field=form.old_owner_same_as_owner %}</div>
-      {% else %}<p class="span-2 muted" data-conditional="trade-in-owner">舊車主資料與補助申請請到訂單的「汰舊補助」分頁填寫。</p>{% endif %}
+      {% else %}<p class="span-2 muted" data-conditional="trade-in-owner">舊車主資料與補助申請請到訂單的「補助」分頁填寫。</p>{% endif %}
+      {% if intake_mode %}<label>新車主存摺封面（選填）<input type="file" name="owner_bankbook" accept="image/jpeg,image/png,image/webp,application/pdf"></label>{% endif %}
       {% if intake_mode %}<div class="form-grid span-2" data-trade-in-uploads><label>舊車主證件正面（選填）<input type="file" name="old_id_front" accept="image/jpeg,image/png,image/webp,application/pdf"></label><label>舊車主證件反面（選填）<input type="file" name="old_id_back" accept="image/jpeg,image/png,image/webp,application/pdf"></label><label>舊車主存摺封面（選填）<input type="file" name="old_bankbook" accept="image/jpeg,image/png,image/webp,application/pdf"></label></div>{% endif %}
     </div>
   </details>
@@ -193,7 +194,7 @@
 
   <details class="form-section" id="owner" {% if order_workspace %}data-workspace-section="order"{% endif %} open {% if wizard %}data-wizard-panel="owner" {% if wizard.current != 'owner' %}hidden{% endif %}{% endif %}>
     <summary><span class="step-number">6</span><span><strong>車主與證件</strong><small>{% site_text 'order_form.8a0d36a5de3d' %}</small></span></summary>
-    {% if order_workspace %}{% include "sales/_intake_attachments.html" with intake_attachments=order.intake_attachments.all %}{% endif %}
+    {% if order_workspace %}{% include "sales/_intake_attachments.html" with intake_attachments=order.owner_area_intake_attachments %}{% endif %}
     <div class="info-banner" data-conditional="identity-upload">
       本國自然人上傳身分證、外籍／居留者上傳居留證正反面後，會自動辨識姓名、生日、證號與地址。辨識結果仍須對照照片核對。
     </div>
@@ -210,7 +211,6 @@
     </div>
     <div class="form-grid owner-form-grid">
       {% include "sales/_field.html" with field=form.owner_type %}
-      {% if intake_mode %}<label>車主存摺封面（選填）<input type="file" name="owner_bankbook" accept="image/jpeg,image/png,image/webp,application/pdf"></label>{% endif %}
       <div class="span-2 capture-instruction" data-conditional="identity-upload">
         請先準備證件正反面；點選欄位後可直接拍照，或從手機相簿選擇圖片。
       </div>

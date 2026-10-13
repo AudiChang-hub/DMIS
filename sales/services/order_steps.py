@@ -109,7 +109,7 @@ def build_order_steps(order, *, next_actions=None, requested=None, summary=None)
                      "已交付" if order.is_delivered else "收尾款並完成交車"),
         ),
         "subsidy": dict(
-            number=None, title="汰舊補助",
+            number=None, title="補助",
             state=("optional" if not order.is_trade_in_subsidy else "done" if order.is_subsidy_ready else "todo"),
             summary="未申請（需要時可開啟）" if not order.is_trade_in_subsidy else
                     "資料已齊" if order.is_subsidy_ready else "補助資料待補",

@@ -25,6 +25,7 @@ DOCUMENT_MAX_BYTES = 20 * MIB
 TEMPLATE_MAX_BYTES = 20 * MIB
 SUBSIDY_MAX_BYTES = 20 * MIB
 IMAGE_MAX_BYTES = 12 * MIB
+ATTACHMENT_MAX_BYTES = 20 * MIB
 ZIP_MAX_UNCOMPRESSED_BYTES = 100 * MIB
 ZIP_MAX_ENTRIES = 10_000
 
@@ -168,7 +169,36 @@ def _pdf_has_active_content(reader: PdfReader) -> bool:
     return False
 
 
-def _validate_pdf(data: bytes):
+def _open_pdf(data: bytes) -> PdfReader:
+    """解析 PDF；只設擁有者密碼（監理服務網等下載檔常見）的檔案以空白密碼開啟。"""
+    reader = PdfReader(BytesIO(data), strict=False)
+    if reader.is_encrypted and not reader.decrypt(""):
+        raise ValueError("password protected PDF")
+    if len(reader.pages) < 1:
+        raise ValueError("empty PDF")
+    # Accessing the first page forces pypdf to resolve the page tree.
+    reader.pages[0].mediabox
+    return reader
+
+
+def pdf_is_previewable(data: bytes) -> bool:
+    """能完整解析、且沒有腳本或嵌入檔案的 PDF 才在網頁內預覽；其餘只提供下載。"""
+    if not data[:1024].lstrip().startswith(b"%PDF-"):
+        return False
+    lowered = data.lower()
+    if any(marker in lowered for marker in (b"/javascript", b"/embeddedfiles", b"/openaction", b"/launch")):
+        return False
+    try:
+        return not _pdf_has_active_content(_open_pdf(data))
+    except Exception:  # pypdf raises several malformed-object exception types
+        return False
+
+
+def _validate_pdf(data: bytes, *, require_parse: bool = True):
+    """``require_parse=False`` 時，無法解析的 PDF 仍收下、只是不預覽（使用者 2026-10-13）。
+
+    檔頭與危險標記仍一律檢查；系統要讀取內容的用途（例如列印底圖）必須能解析。
+    """
     if not data[:1024].lstrip().startswith(b"%PDF-"):
         raise forms.ValidationError("這不是有效的 PDF 檔案。")
     lowered = data.lower()
@@ -176,19 +206,19 @@ def _validate_pdf(data: bytes):
     if any(marker in lowered for marker in dangerous_markers):
         raise forms.ValidationError("PDF 含有系統不允許的腳本或嵌入檔案。")
     try:
-        reader = PdfReader(BytesIO(data), strict=False)
-        if reader.is_encrypted or len(reader.pages) < 1:
-            raise ValueError("encrypted or empty PDF")
-        # Accessing the first page forces pypdf to resolve the page tree.
-        reader.pages[0].mediabox
-        if _pdf_has_active_content(reader):
-            raise forms.ValidationError(
-                "PDF 含有系統不允許的腳本、動作或嵌入檔案。"
-            )
-    except forms.ValidationError:
-        raise
+        reader = _open_pdf(data)
     except Exception as exc:  # pypdf raises several malformed-object exception types
-        raise forms.ValidationError("無法解析這個 PDF，檔案可能已損壞或加密。") from exc
+        if require_parse:
+            raise forms.ValidationError("無法解析這個 PDF，檔案可能已損壞或加密。") from exc
+        return
+    try:
+        active = _pdf_has_active_content(reader)
+    except Exception as exc:
+        if require_parse:
+            raise forms.ValidationError("無法解析這個 PDF，檔案可能已損壞或加密。") from exc
+        return
+    if active:
+        raise forms.ValidationError("PDF 含有系統不允許的腳本、動作或嵌入檔案。")
 
 
 def _safe_zip(data: bytes) -> ZipFile:
@@ -284,7 +314,7 @@ def validate_document_upload(upload, *, max_bytes: int = DOCUMENT_MAX_BYTES):
     _validate_declared_mime(upload, extension, mime_map)
     data = _read_upload(upload, max_bytes)
     if extension == ".pdf":
-        _validate_pdf(data)
+        _validate_pdf(data, require_parse=False)
     else:
         _validate_image(data, extension)
     return upload
@@ -350,7 +380,7 @@ def validate_subsidy_upload(upload):
     elif extension in {".heic", ".heif"}:
         _validate_heif(data)
     elif extension == ".pdf":
-        _validate_pdf(data)
+        _validate_pdf(data, require_parse=False)
     elif extension == ".docx":
         _validate_ooxml(data, extension)
     elif extension == ".xlsx":
@@ -364,4 +394,15 @@ def validate_subsidy_upload(upload):
             raise forms.ValidationError("這不是有效的舊版 Office 檔案。")
     else:
         _validate_text(data)
+    return upload
+
+
+def validate_order_attachment(upload, *, max_bytes: int = ATTACHMENT_MAX_BYTES):
+    """訂單其他附件接受任何檔案，只檢查大小與內容非空。
+
+    這類檔案一律以下載提供；只有真的圖片與可安全解析的 PDF 才在網頁內預覽。
+    """
+    if not isinstance(upload, UploadedFile):
+        return upload
+    _read_upload(upload, max_bytes)
     return upload

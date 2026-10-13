@@ -15,7 +15,16 @@
     url.searchParams.set('preview', '1');
     const button = document.createElement('button'); button.type = 'button'; button.className = 'document-thumbnail'; button.setAttribute('aria-label', `放大 ${name}`);
     if (image) { const img = document.createElement('img'); img.src = url.href; img.alt = name; img.loading = 'lazy'; button.append(img); }
-    else { const frame = document.createElement('iframe'); frame.src = `${url.href}#toolbar=0&navpanes=0`; frame.title = `${name} 第一頁`; frame.loading = 'lazy'; frame.tabIndex = -1; button.append(frame); }
+    else {
+      // 可解析的 PDF 才預覽；伺服器標示無法預覽時改成說明，只留下載。
+      const frame = document.createElement('iframe'); frame.title = `${name} 第一頁`; frame.loading = 'lazy'; frame.tabIndex = -1; button.append(frame);
+      const load = () => { frame.src = `${url.href}#toolbar=0&navpanes=0`; };
+      fetch(url.href, {method: 'HEAD', credentials: 'same-origin'}).then(response => {
+        if (response.headers.get('X-Document-Preview') !== 'unavailable') { load(); return; }
+        const note = document.createElement('span'); note.className = 'document-thumbnail is-unavailable'; note.textContent = '此 PDF 無法預覽，請下載開啟';
+        button.replaceWith(note);
+      }).catch(load);
+    }
     button.addEventListener('click', () => show(url.href, name, pdf));
     const card = document.createElement('div'); card.className = 'document-card';
     const title = document.createElement('span'); title.className = 'document-card-title'; title.textContent = link.dataset.previewLabel || link.textContent;

@@ -18,6 +18,7 @@ from sales.models import RegistrationDocument, SalesOrder
 from sales.services.upload_validation import (
     DOCUMENT_MAX_BYTES,
     IMAGE_MAX_BYTES,
+    pdf_is_previewable,
     validate_document_upload,
     validate_excel_upload,
     validate_image_upload,
@@ -80,6 +81,39 @@ class UploadValidationTests(SimpleTestCase):
         writer.write(stream)
         upload = SimpleUploadedFile(
             "active.pdf", stream.getvalue(), content_type="application/pdf"
+        )
+
+        with self.assertRaisesMessage(Exception, "腳本"):
+            validate_document_upload(upload)
+
+    def _encrypted_pdf(self, user_password):
+        stream = BytesIO()
+        writer = PdfWriter()
+        writer.add_blank_page(width=300, height=200)
+        writer.encrypt(user_password=user_password, owner_password="owner-secret", algorithm="AES-128")
+        writer.write(stream)
+        return stream.getvalue()
+
+    def test_owner_password_pdf_is_accepted_and_previewable(self):
+        data = self._encrypted_pdf("")
+        upload = SimpleUploadedFile("plate.pdf", data, content_type="application/pdf")
+
+        self.assertIsNotNone(validate_document_upload(upload))
+        self.assertTrue(pdf_is_previewable(data))
+
+    def test_unreadable_pdf_is_accepted_without_preview(self):
+        for data in (self._encrypted_pdf("open-me"), b"%PDF-1.7 \x00 broken body"):
+            with self.subTest(data=data[:20]):
+                upload = SimpleUploadedFile("plate.pdf", data, content_type="application/pdf")
+                self.assertIsNotNone(validate_document_upload(upload))
+                self.assertIsNotNone(validate_subsidy_upload(SimpleUploadedFile("plate.pdf", data, content_type="application/pdf")))
+                self.assertFalse(pdf_is_previewable(data))
+                with self.assertRaisesMessage(Exception, "無法解析"):
+                    validate_template_background(SimpleUploadedFile("bg.pdf", data, content_type="application/pdf"))
+
+    def test_unreadable_pdf_still_rejects_script_markers(self):
+        upload = SimpleUploadedFile(
+            "plate.pdf", b"%PDF-1.7 /OpenAction broken", content_type="application/pdf"
         )
 
         with self.assertRaisesMessage(Exception, "腳本"):

@@ -3682,11 +3682,9 @@ class SalesOrder(TimeStampedModel):
 
     def required_registration_document_types(self):
         required = set(RegistrationDocument.active_fixed_document_types())
-        required.discard(RegistrationDocument.DocumentType.PLATE_SELECTION)
-        # 發票照片改為選填：有再上傳，不再是完成領牌的條件。
+        # 發票照片與選號單皆為選填（選號單：使用者 2026-10-13）；有再上傳，不是完成領牌的條件。
         required.discard(RegistrationDocument.DocumentType.INVOICE)
-        if self.plate_choice != self.PlateChoice.NONE:
-            required.add(RegistrationDocument.DocumentType.PLATE_SELECTION)
+        required.discard(RegistrationDocument.DocumentType.PLATE_SELECTION)
         return required
 
     def subsidy_document_types_when_enabled(self):

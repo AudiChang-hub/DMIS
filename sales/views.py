@@ -36,6 +36,7 @@ from rq.registry import StartedJobRegistry
 from .services.order_steps import order_step_url
 from .services.order_contract_pdf import build_order_contract_pdf
 from .services.privacy_consent_pdf import build_privacy_consent_pdf
+from .services.document_preview import is_unpreviewable_pdf, preview_unavailable_response
 from .services.document_signing import (
     DOCUMENTS as SIGNING_DOCUMENTS,
     PRINT_PARTS,
@@ -306,6 +307,20 @@ def _protect_private_response(response, *, preview=False):
         response["X-Frame-Options"] = "SAMEORIGIN"
         response["Content-Security-Policy"] = "frame-ancestors 'self'"
     return response
+
+
+def _private_file_response(request, field_file, filename=None):
+    """可預覽的檔案照舊內嵌；無法解析的 PDF 只提供下載、縮圖改顯示說明。"""
+    filename = filename or Path(field_file.name).name
+    preview = request.GET.get("preview") == "1"
+    if is_unpreviewable_pdf(field_file, filename):
+        if preview:
+            return preview_unavailable_response()
+        return _protect_private_response(
+            FileResponse(field_file.open("rb"), as_attachment=True, filename=filename)
+        )
+    response = FileResponse(field_file.open("rb"), as_attachment=False, filename=filename)
+    return _protect_private_response(response, preview=preview)
 
 
 def system_health(request):
@@ -7402,12 +7417,7 @@ def registration_document_file(request, document_pk):
     get_object_or_404(scoped_orders(request.user), pk=document.order_id)
     if not document.file:
         raise Http404
-    response = FileResponse(
-        document.file.open("rb"),
-        as_attachment=False,
-        filename=Path(document.file.name).name,
-    )
-    return _protect_private_response(response, preview=request.GET.get("preview") == "1")
+    return _private_file_response(request, document.file)
 
 
 def _recognize_old_owner_documents(order, actor_name):
@@ -7699,12 +7709,7 @@ def subsidy_document_file(request, document_pk):
     get_object_or_404(scoped_orders(request.user), pk=document.order_id)
     if not document.file:
         raise Http404
-    response = FileResponse(
-        document.file.open("rb"),
-        as_attachment=False,
-        filename=Path(document.file.name).name,
-    )
-    return _protect_private_response(response, preview=request.GET.get("preview") == "1")
+    return _private_file_response(request, document.file)
 
 
 @login_required
@@ -10297,6 +10302,4 @@ def protected_media(request, model_name, pk, field_name):
     file_field = getattr(instance, field_name)
     if not file_field:
         raise Http404
-    response = FileResponse(file_field.open("rb"))
-    response["Content-Disposition"] = f'inline; filename="{file_field.name.split("/")[-1]}"'
-    return _protect_private_response(response, preview=request.GET.get("preview") == "1")
+    return _private_file_response(request, file_field)

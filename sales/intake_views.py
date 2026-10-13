@@ -101,7 +101,11 @@ def order_intake_attachment(request, pk):
     except FileNotFoundError:
         raise Http404("附件檔案不存在，請聯絡店內人員。") from None
     from pathlib import Path
+    from sales.services.document_preview import is_unpreviewable_pdf, preview_unavailable_response
     preview = request.GET.get("preview") == "1" and Path(attachment.name).suffix.lower() in {".jpg", ".jpeg", ".png", ".webp", ".pdf"}
+    if preview and is_unpreviewable_pdf(attachment.file, attachment.name):
+        stream.close()
+        return preview_unavailable_response()
     response = FileResponse(stream, as_attachment=not preview, filename=attachment.name)
     if preview and response.get("Content-Type", "").split(";", 1)[0] == "application/pdf":
         response["X-Frame-Options"] = "SAMEORIGIN"

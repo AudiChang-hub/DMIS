@@ -7877,22 +7877,19 @@ def inventory_list(request):
         "sold": sold_statuses,
     }.get(scope, current_statuses)
 
-    vehicles = annotate_allocation_priority(
-        VehicleInventory.objects.select_related(
-            "vehicle_model", "vehicle_model__family", "color", "current_dealer",
-            "disposition_dealer",
-        ).filter(status__in=scope_statuses)
-    )
+    # 篩選互相連動（使用者 2026-10-13）：每個下拉只列出「其他條件都套用後」還有車的選項並附台數；
+    # 已選的選項一律保留，方便取消。所有條件先收集成 Q，最後一次套用。
+    filters = {}
     disposition = request.GET.get("disposition", "")
     if disposition in VehicleInventory.Disposition.values:
-        vehicles = vehicles.filter(disposition=disposition)
+        filters["disposition"] = Q(disposition=disposition)
     elif disposition == "none":
-        vehicles = vehicles.filter(disposition="")
+        filters["disposition"] = Q(disposition="")
     else:
         disposition = ""
     disposition_dealer = request.GET.get("disposition_dealer", "")
     if disposition_dealer.isdigit():
-        vehicles = vehicles.filter(disposition_dealer_id=int(disposition_dealer))
+        filters["disposition_dealer"] = Q(disposition_dealer_id=int(disposition_dealer))
     else:
         disposition_dealer = ""
     keyword = request.GET.get("q", "").strip()
@@ -7913,10 +7910,13 @@ def inventory_list(request):
     requested_locations = list(
         dict.fromkeys(value for value in request.GET.getlist("location") if value)
     )
+    requested_brands = list(
+        dict.fromkeys(value.strip() for value in request.GET.getlist("brand") if value.strip())
+    )
     sort = request.GET.get("sort", "received_desc")
     acquisition = request.GET.get("acquisition", "")
     if acquisition in VehicleInventory.AcquisitionType.values:
-        vehicles = vehicles.filter(acquisition_type=acquisition)
+        filters["acquisition"] = Q(acquisition_type=acquisition)
     else:
         acquisition = ""
     selected_statuses = []
@@ -7926,14 +7926,17 @@ def inventory_list(request):
             selected_statuses.append(requested_status)
             status_values.add(requested_status)
     if status_values:
-        vehicles = vehicles.filter(status__in=status_values)
+        filters["status"] = Q(status__in=status_values)
 
-    selected_families = list(
-        VehicleModelFamily.objects.filter(
-            pk__in=requested_family_ids,
-            active=True,
-        )
-    )
+    selected_brands = []
+    if requested_brands:
+        brand_query = Q()
+        for brand in requested_brands:
+            brand_query |= Q(vehicle_model__brand__iexact=brand)
+            selected_brands.append(brand.casefold())
+        filters["brand"] = brand_query
+
+    selected_families = list(VehicleModelFamily.objects.filter(pk__in=requested_family_ids))
     selected_family_keys = {
         (family.brand.strip().casefold(), family.name.strip().casefold())
         for family in selected_families
@@ -7945,26 +7948,16 @@ def inventory_list(request):
                 vehicle_model__family__brand__iexact=brand_key,
                 vehicle_model__family__name__iexact=family_name_key,
             )
-        vehicles = vehicles.filter(family_query)
-    color_rows = list(
-        VehicleColor.objects.filter(active=True)
-        .values("id", "name")
-        .order_by("name", "id")
-    )
+        filters["vehicle_family"] = family_query
+    color_rows = list(VehicleColor.objects.values("id", "name").order_by("name", "id"))
     color_groups = {}
-    color_choices = []
     for color_row in color_rows:
         color_name = color_row["name"].strip()
         color_key = color_name.casefold()
         if not color_key:
             continue
         if color_key not in color_groups:
-            color_groups[color_key] = {
-                "value": color_name,
-                "label": color_name,
-                "ids": [],
-            }
-            color_choices.append(color_groups[color_key])
+            color_groups[color_key] = {"value": color_name, "label": color_name, "ids": []}
         color_groups[color_key]["ids"].append(color_row["id"])
     selected_colors = []
     selected_color_ids = set()
@@ -7983,7 +7976,7 @@ def inventory_list(request):
             selected_color_ids.update(selected_color_group["ids"])
     selected_colors = list(dict.fromkeys(selected_colors))
     if selected_color_ids:
-        vehicles = vehicles.filter(color_id__in=selected_color_ids)
+        filters["color"] = Q(color_id__in=selected_color_ids)
 
     selected_locations = []
     selected_dealer_ids = []
@@ -8000,7 +7993,7 @@ def inventory_list(request):
         location_query = Q(current_dealer__isnull=True) if store_selected else Q()
         if selected_dealer_ids:
             location_query |= Q(current_dealer_id__in=selected_dealer_ids)
-        vehicles = vehicles.filter(location_query)
+        filters["location"] = location_query
     selected_dealer_id = (
         str(selected_dealer_ids[0]) if selected_dealer_ids else ""
     )
@@ -8029,10 +8022,31 @@ def inventory_list(request):
             query |= Q(status__in=matching_statuses)
         if "本店" in keyword:
             query |= Q(current_dealer__isnull=True)
-        vehicles = vehicles.filter(query).distinct()
+        # 子查詢避免多對多搜尋產生重複列，也讓各篩選的台數計算不受影響。
+        filters["q"] = Q(pk__in=VehicleInventory.objects.filter(query).values("pk"))
+
+    scoped = VehicleInventory.objects.filter(status__in=scope_statuses)
+
+    def narrowed(skip=None):
+        rows = scoped
+        for key, condition in filters.items():
+            if key != skip:
+                rows = rows.filter(condition)
+        return rows
+
+    def facet(skip, *fields):
+        return list(narrowed(skip).order_by().values(*fields).annotate(total=Count("id")))
+
+    vehicles = annotate_allocation_priority(
+        narrowed().select_related(
+            "vehicle_model", "vehicle_model__family", "color", "current_dealer",
+            "disposition_dealer",
+        )
+    )
     sort_options = {
         "received_desc": ("-received_on", "-id"),
         "received_asc": ("received_on", "id"),
+        "brand": ("vehicle_model__brand", "vehicle_model__name", "color__name", "-received_on"),
         "model": ("vehicle_model__name", "color__name", "-received_on"),
         "color": ("color__name", "vehicle_model__name", "-received_on"),
         "identifier": ("engine_number", "frame_number", "-received_on"),
@@ -8063,40 +8077,97 @@ def inventory_list(request):
         history=Count("id", filter=Q(status__in=historical_statuses)),
         sold=Count("id", filter=Q(status__in=sold_statuses)),
     )
-    family_rows = VehicleModelFamily.objects.filter(
-        active=True,
-        versions__active=True,
-    ).distinct().order_by("brand", "name", "id")
+
+    # ---- 各篩選的選項：只列其他條件下仍有車的值（附台數），已選的保留 ----
+    status_counts = {row["status"]: row["total"] for row in facet("status", "status")}
+    status_choices = [
+        (value, label, status_counts.get(value, 0))
+        for value, label in VehicleInventory.Status.choices
+        if value in scope_statuses and (status_counts.get(value) or value in selected_statuses)
+    ]
+    brand_choices = {}
+    for row in facet("brand", "vehicle_model__brand"):
+        name = (row["vehicle_model__brand"] or "").strip()
+        if name:
+            item = brand_choices.setdefault(name.casefold(), {"value": name, "label": name, "count": 0})
+            item["count"] += row["total"]
+    for brand in requested_brands:
+        brand_choices.setdefault(brand.casefold(), {"value": brand, "label": brand, "count": 0})
+    brand_choices = sorted(brand_choices.values(), key=lambda item: item["label"].casefold())
+    family_counts = {}
+    for row in facet("vehicle_family", "vehicle_model__family__brand", "vehicle_model__family__name"):
+        key = ((row["vehicle_model__family__brand"] or "").strip().casefold(),
+               (row["vehicle_model__family__name"] or "").strip().casefold())
+        family_counts[key] = family_counts.get(key, 0) + row["total"]
     vehicle_family_choices = []
     family_choice_keys = set()
     selected_family_choice_ids = []
-    for family in family_rows:
+    for family in VehicleModelFamily.objects.order_by("-active", "brand", "name", "id"):
         choice_key = (family.brand.strip().casefold(), family.name.strip().casefold())
-        if choice_key not in family_choice_keys:
-            family_choice_keys.add(choice_key)
-            vehicle_family_choices.append(family)
-            if choice_key in selected_family_keys:
-                selected_family_choice_ids.append(family.pk)
+        if choice_key in family_choice_keys or not (family_counts.get(choice_key) or choice_key in selected_family_keys):
+            continue
+        family_choice_keys.add(choice_key)
+        family.filter_count = family_counts.get(choice_key, 0)
+        vehicle_family_choices.append(family)
+        if choice_key in selected_family_keys:
+            selected_family_choice_ids.append(family.pk)
+    vehicle_family_choices.sort(key=lambda family: (family.brand.casefold(), family.name.casefold()))
+    color_counts = {}
+    for row in facet("color", "color__name"):
+        key = (row["color__name"] or "").strip().casefold()
+        color_counts[key] = color_counts.get(key, 0) + row["total"]
+    selected_color_keys = {value.casefold() for value in selected_colors}
+    color_choices = [
+        {**group, "count": color_counts.get(key, 0)}
+        for key, group in sorted(color_groups.items(), key=lambda item: item[1]["label"])
+        if color_counts.get(key) or key in selected_color_keys
+    ]
+    location_rows = facet("location", "current_dealer_id")
+    store_count = sum(row["total"] for row in location_rows if row["current_dealer_id"] is None)
+    location_counts = {row["current_dealer_id"]: row["total"] for row in location_rows if row["current_dealer_id"]}
+    location_dealers = list(
+        SalesSource.objects.filter(Q(pk__in=list(location_counts)) | Q(pk__in=selected_dealer_ids)).order_by("name")
+    )
+    for dealer in location_dealers:
+        dealer.filter_count = location_counts.get(dealer.pk, 0)
+    disposition_counts = {row["disposition"]: row["total"] for row in facet("disposition", "disposition")}
+    disposition_choices = [
+        (value, label, disposition_counts.get(value, 0))
+        for value, label in VehicleInventory.Disposition.choices
+        if disposition_counts.get(value) or value == disposition
+    ]
+    disposition_none_count = disposition_counts.get("", 0)
+    disposition_dealer_counts = {
+        row["disposition_dealer_id"]: row["total"]
+        for row in facet("disposition_dealer", "disposition_dealer_id") if row["disposition_dealer_id"]
+    }
+    disposition_dealer_ids = list(disposition_dealer_counts) + ([int(disposition_dealer)] if disposition_dealer else [])
+    disposition_dealers = list(SalesSource.objects.filter(pk__in=disposition_dealer_ids).order_by("name"))
+    for dealer in disposition_dealers:
+        dealer.filter_count = disposition_dealer_counts.get(dealer.pk, 0)
+    acquisition_counts = {row["acquisition_type"]: row["total"] for row in facet("acquisition", "acquisition_type")}
+    acquisition_choices = [
+        (value, label, acquisition_counts.get(value, 0))
+        for value, label in VehicleInventory.AcquisitionType.choices
+        if acquisition_counts.get(value) or value == acquisition
+    ]
     return render(
         request,
         "sales/inventory_list.html",
         {
             "vehicles": page.object_list,
             "page_obj": page,
-            "statuses": [
-                (value, label)
-                for value, label in VehicleInventory.Status.choices
-                if value in scope_statuses
-            ],
+            "statuses": status_choices,
+            "brands": brand_choices,
             "inventory_counts": inventory_counts,
             "priority_age_months": ALLOCATION_PRIORITY_AGE_MONTHS,
             "priority_cutoff": allocation_priority_cutoff(),
             "vehicle_families": vehicle_family_choices,
             "colors": color_choices,
-            "dealers": SalesSource.objects.filter(
-                active=True,
-                source_type=SalesSource.SourceType.DEALER,
-            ).order_by("name"),
+            "dealers": location_dealers,
+            "store_count": store_count,
+            "disposition_dealers": disposition_dealers,
+            "disposition_none_count": disposition_none_count,
             "filter_query": filter_params.urlencode(),
             "selected": {
                 "q": keyword,
@@ -8108,6 +8179,7 @@ def inventory_list(request):
                     else ""
                 ),
                 "vehicle_family_ids": selected_family_choice_ids,
+                "brands": selected_brands,
                 "color": selected_colors[0] if selected_colors else "",
                 "colors": selected_colors,
                 "location": selected_locations[0] if selected_locations else "",
@@ -8121,8 +8193,8 @@ def inventory_list(request):
                 "disposition": disposition,
                 "disposition_dealer": disposition_dealer,
             },
-            "acquisition_choices": VehicleInventory.AcquisitionType.choices,
-            "disposition_choices": VehicleInventory.Disposition.choices,
+            "acquisition_choices": acquisition_choices,
+            "disposition_choices": disposition_choices,
         },
     )
 

@@ -2319,6 +2319,7 @@ class OrderFlowTests(TestCase):
         self.assertEqual(response.status_code, 200)
         searchable_filters = {
             "inventory-status": "搜尋狀態",
+            "inventory-brand": "搜尋品牌",
             "inventory-model": "搜尋品牌或機種",
             "inventory-color": "搜尋車色",
             "inventory-location": "搜尋本店或車行",
@@ -2335,10 +2336,11 @@ class OrderFlowTests(TestCase):
                     response,
                     f'data-search-placeholder="{placeholder}"',
                 )
-        self.assertContains(response, 'data-searchable-select="1"', count=6)
-        self.assertContains(response, 'data-searchable-multiple="1"', count=4)
-        self.assertContains(response, ' multiple data-searchable-select="1"', count=4)
-        self.assertContains(response, 'data-searchable-search-icon="1"', count=6)
+        # 1.72.7：新增品牌篩選（可複選）。
+        self.assertContains(response, 'data-searchable-select="1"', count=7)
+        self.assertContains(response, 'data-searchable-multiple="1"', count=5)
+        self.assertContains(response, ' multiple data-searchable-select="1"', count=5)
+        self.assertContains(response, 'data-searchable-search-icon="1"', count=7)
         self.assertNotContains(response, "並複選")
         self.assertNotContains(response, "可搜尋複選")
         self.assertNotContains(response, "實際位置／合作車行")
@@ -2367,7 +2369,7 @@ class OrderFlowTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(
             response.context["colors"],
-            [{"value": "白", "label": "白", "ids": [self.color.pk, same_color.pk]}],
+            [{"value": "白", "label": "白", "ids": [self.color.pk, same_color.pk], "count": 2}],
         )
         self.assertEqual(response.context["selected"]["color"], "白")
         self.assertEqual(response.context["selected"]["colors"], ["白"])
@@ -2375,7 +2377,7 @@ class OrderFlowTests(TestCase):
             set(response.context["vehicles"]),
             {self.vehicle, other_vehicle},
         )
-        self.assertContains(response, '<option value="白" selected>白</option>', count=1)
+        self.assertContains(response, '<option value="白" selected>白（2）</option>', count=1)
         self.assertNotContains(response, "通勤 125／白")
 
     def test_inventory_color_filter_accepts_legacy_numeric_links(self):

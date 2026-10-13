@@ -2798,9 +2798,9 @@ div.acquisition-choice label:has(input:checked) {
 }
 div.acquisition-choice label:has(input:focus-visible) { outline: 3px solid var(--focus-ring); outline-offset: 1px; }
 input.acquisition-choice { position: absolute; width: 1px; height: 1px; margin: 0; opacity: 0; pointer-events: none; }
-.inventory-filters--stock { grid-template-columns: minmax(220px, 1.4fr) repeat(6, minmax(120px, 1fr)) auto; }
-/* 已售出／調出多兩個去向篩選：排成兩列各五格，避免擠成一列。 */
-.inventory-filters--sold { grid-template-columns: minmax(220px, 1.6fr) repeat(4, minmax(150px, 1fr)); }
+.inventory-filters--stock { grid-template-columns: minmax(220px, 1.4fr) repeat(7, minmax(112px, 1fr)) auto; }
+/* 已售出／調出多兩個去向篩選：排成兩列各六格，避免擠成一列。 */
+.inventory-filters--sold { grid-template-columns: minmax(220px, 1.6fr) repeat(5, minmax(140px, 1fr)); }
 .inventory-filters--sold .inventory-filter-actions { justify-content: flex-end; }
 /* 已售出／調出：去向用色相區分（調出紫、車行領車青、一般售出灰），下方接對象與日期。 */
 .inventory-table .inventory-disposition {

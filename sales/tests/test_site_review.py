@@ -239,7 +239,10 @@ class DiscountInvariantTests(TestCase):
         self.assertEqual(self.order.discounted_total, 78766)
 
     def test_changed_total_requires_new_discount_request(self):
-        self.client.post(reverse('order_discount_request', args=[self.order.pk]), {'mode':'rate','rate':'9','reason':'測試'})
+        # 有核定權限者送出即生效（1.78.2），待確認申請只會由無核定權限者送出；這裡直接建立待確認狀態。
+        SalesOrder.objects.filter(pk=self.order.pk).update(
+            discount_status='pending', discount_requested_amount=Decimal('8000'),
+            discount_basis_total=self.order.pre_discount_total, discount_reason='測試')
         self.order.refresh_from_db()
         self.order.vehicle_price = 81000
         self.order.actual_balance = 76000

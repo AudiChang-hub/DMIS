@@ -26,6 +26,7 @@
       state[pk] = {
         number: row.dataset.number, name: row.dataset.name, vehicle: row.dataset.vehicle,
         forms: {}, note: row.dataset.note || "", address: row.dataset.address || "", seq: ++seq,
+        secret: row.hasAttribute("data-secret"),
       };
     }
     return state[pk];
@@ -94,6 +95,11 @@
       paper.classList.toggle("is-active", counts[key] > 0);
     });
     root.querySelector("[data-empty]").hidden = total > 0;
+    // 電車信封會印出已存的車控密碼：未驗證本人時要求輸入登入密碼。
+    const secretPanel = root.querySelector("[data-secret-panel]");
+    const needsSecret = entries.some(([, entry]) => entry.secret && entry.forms.envelope);
+    secretPanel.hidden = !needsSecret || secretPanel.hasAttribute("data-unlocked");
+    secretPanel.querySelector("[data-secret-password]").required = !secretPanel.hidden;
     trayForm.querySelector("[data-submit]").disabled = total === 0;
     trayForm.querySelector("[data-submit]").textContent = total ? `產生 PDF（${total} 頁）` : "產生 PDF";
     trayForm.querySelector("[data-clear]").disabled = total === 0;
@@ -149,6 +155,12 @@
       state = {};
       render();
     }
+  });
+
+  trayForm.addEventListener("submit", () => {
+    // 新分頁送出後清掉密碼；驗證成功後 10 分鐘內不必再輸入。
+    const password = trayForm.querySelector("[data-secret-password]");
+    window.setTimeout(() => { password.value = ""; }, 0);
   });
 
   list.addEventListener("input", (event) => {

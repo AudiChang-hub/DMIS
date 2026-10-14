@@ -131,6 +131,13 @@
 .form-print__receipt label { display: grid; gap: var(--space-1); font-size: var(--text-xs); font-weight: 800; }
 .form-print__receipt input, .form-print__receipt textarea { width: 100%; font-weight: 500; }
 
+.form-print__secret {
+  display: grid; padding: var(--inset-pad); gap: var(--space-2);
+  background: color-mix(in srgb, var(--amber) 8%, var(--surface)); border: 1px solid var(--amber-border); border-radius: var(--radius-md);
+}
+.form-print__secret[hidden] { display: none; }
+.form-print__secret label { display: grid; gap: var(--space-1); font-size: var(--text-sm); font-weight: 800; }
+.form-print__secret small { color: var(--amber-ink); font-size: var(--text-xs); line-height: 1.6; }
 .form-print__order-by { display: grid; margin: 0; padding: 0; gap: var(--space-2); border: 0; }
 .form-print__order-by legend { margin-bottom: var(--space-2); font-size: var(--text-sm); font-weight: 800; }
 .form-print__order-by label {

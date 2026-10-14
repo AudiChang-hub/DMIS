@@ -57,15 +57,18 @@ FORM_FIELD_SOURCES = {
     "油：引擎號碼_電：車身號碼": "配車的引擎號碼（油車）或車身號碼（電車）；匯入舊單用歷史號碼",
     "車牌號碼": "最終車牌號碼",
     "車控帳號": "營運資料的車控帳號",
-    "手機": "車主電話；電車信封的車控密碼沿用原套表印車主電話",
+    "手機": "車主電話",
+    "車控密碼": "營運資料的車控密碼（列印需本人密碼驗證並記入處理紀錄）；沒存密碼時印車主電話",
     "分期資訊": "營運資料的分期資訊；空白時由分期公司、期數、月付自動組成",
     "客服電話": "營運資料的客服電話；空白時用分期公司主檔的客服電話",
     "身分證字號": "車主證件號碼／統一編號",
     "戶籍地址": "車主戶籍／公司地址",
-    "舊車車主": "舊車主姓名（新舊車主同一人時用車主）",
-    "舊車車主身分證": "舊車主身分證字號（同一人時用車主）",
+    "舊車車主": "舊車主姓名；同一人或沒填時用新車主",
+    "舊車車主身分證": "舊車主身分證字號；同一人或沒填時用新車主",
+    "舊車主聯絡地址、電話": "舊車主戶籍與電話；同一人或沒填時用新車主的戶籍地址與電話",
     "舊車牌照號碼": "舊車車牌",
     "舊車引擎號碼": "營運資料的舊車引擎號碼",
+    "強制險年期（簽收單）": "訂單的強制險期間（一年／兩年）",
 }
 
 MAKER_NAMES = {
@@ -77,7 +80,7 @@ MAKER_NAMES = {
     "AEON": "宏佳騰",
     "GOGORO": "睿能",
 }
-RECEIPT_INSURANCE = "富邦產物險 1 年"
+RECEIPT_INSURER = "富邦產物險"
 RECEIPT_DOCUMENTS = ("行照", "新領牌照登記書", "機車出廠與貨物稅完稅照證")
 NOTE_MAX_CHARS = 300
 ADDRESS_MAX_CHARS = 120
@@ -128,15 +131,30 @@ def _company_name(order):
     return _text(getattr(company, "legal_name", ""))
 
 
-def form_values(order):
-    """一張訂單在套表上會用到的所有值（皆為字串）。"""
+def has_control_password(order):
+    """電車且已存車控密碼：列印信封時要先通過本人密碼驗證。"""
+    profile = getattr(order, "operations", None)
+    return bool(order.is_electric_vehicle and getattr(profile, "vehicle_control_password_encrypted", ""))
+
+
+def _old_owner(order, field, old_value):
+    """舊車主資料：同一人或該欄沒填時，改用新車主的同一欄（使用者 2026-10-14）。"""
+    if order.old_owner_same_as_owner or not _text(old_value):
+        return _text(getattr(order, field))
+    return _text(old_value)
+
+
+def form_values(order, *, reveal_secrets=False):
+    """一張訂單在套表上會用到的所有值（皆為字串）。
+
+    reveal_secrets：呼叫端已確認本人驗證，才解密車控密碼。
+    """
     profile = getattr(order, "operations", None)
     model = order.vehicle_model
     source = order.source if order.source_id else None
     dealer = ""
     if source and source.source_type == source.SourceType.DEALER:
         dealer = _text(source.code) or _text(source.name)
-    same_owner = order.old_owner_same_as_owner
     installment_info, service_phone = _installment_lines(order, profile)
     brand = _text(model.brand)
     return {
@@ -155,15 +173,28 @@ def form_values(order):
         "vehicle_control_account": _text(getattr(profile, "vehicle_control_account", "")),
         "installment_info": installment_info,
         "customer_service_phone": service_phone,
-        "old_owner_name": _text(order.owner_name if same_owner else order.old_owner_name),
-        "old_owner_id_number": _text(order.owner_id_number if same_owner else order.old_owner_id_number),
-        "old_owner_phone": _text(order.owner_phone if same_owner else order.old_owner_phone),
-        "old_owner_address": _text(order.owner_address if same_owner else order.old_owner_household_address),
+        "vehicle_control_password": _control_password(order, profile, reveal_secrets),
+        "insurance": f"{RECEIPT_INSURER} {order.compulsory_insurance_period or 1} 年",
+        "old_owner_name": _old_owner(order, "owner_name", order.old_owner_name),
+        "old_owner_id_number": _old_owner(order, "owner_id_number", order.old_owner_id_number),
+        "old_owner_phone": _old_owner(order, "owner_phone", order.old_owner_phone),
+        "old_owner_address": _old_owner(order, "owner_address", order.old_owner_household_address),
         "old_plate": _text(order.trade_in_plate),
         "old_engine": _text(getattr(profile, "old_vehicle_engine_number", "")),
         "company": _company_name(order),
         "delivery_address": _text(order.delivery_destination),
     }
+
+
+def _control_password(order, profile, reveal):
+    """沒存密碼時沿用原套表印車主電話；有存但未驗證時不解密（呼叫端會先擋下）。"""
+    encrypted = getattr(profile, "vehicle_control_password_encrypted", "")
+    if not encrypted:
+        return _text(order.owner_phone)
+    if not reveal:
+        return ""
+    from sales.services.secret_fields import decrypt_secret
+    return _text(decrypt_secret(encrypted))
 
 
 def default_receipt_note(values):
@@ -181,10 +212,15 @@ def form_warnings(order, values):
     if not values["plate"]:
         warnings["envelope"].append("車牌")
         warnings["receipt"].append("車牌")
+    if order.is_electric_vehicle:
+        if not values["vehicle_control_account"]:
+            warnings["envelope"].append("車控帳號")
+        if not has_control_password(order):
+            warnings["envelope"].append("車控密碼（改印車主電話）")
     if not order.is_trade_in_subsidy and not values["old_plate"]:
         warnings["tax_declaration"].append("此單沒有汰舊資料")
     else:
-        for field, label in (("old_owner_name", "舊車主"), ("old_owner_id_number", "舊車主證號"), ("old_plate", "舊車牌"), ("old_engine", "舊車引擎號碼")):
+        for field, label in (("old_plate", "舊車牌"), ("old_engine", "舊車引擎號碼")):
             if not values[field]:
                 warnings["tax_declaration"].append(label)
     return warnings
@@ -334,7 +370,7 @@ def _draw_envelope(pdf, order, values):
             ("車身號碼", values["identifier"]),
             ("大牌號碼", values["plate"]),
             ("車控帳號", values["vehicle_control_account"]),
-            ("車控密碼", values["owner_phone"]),
+            ("車控密碼", values["vehicle_control_password"]),
         )
         size, first, step, notes_y = 14, 57.6, 12.7, 136.0
     else:
@@ -465,7 +501,7 @@ def _draw_receipt(pdf, order, values, today, note, address):
         ("身份證字號", values["owner_id_number"], 6.5, False),
         ("電話", values["owner_phone"], 6.6, False),
         ("機車證件", "", 19.2, False),
-        ("強制險", RECEIPT_INSURANCE, 6.5, False),
+        ("強制險", values["insurance"], 6.5, False),
     )
     top = 65.9
     page.line(left, top, right, top)
@@ -515,7 +551,7 @@ class PrintJob:
     address: str = ""
 
 
-def build_forms_pdf(jobs, *, group_by_form=True, today=None):
+def build_forms_pdf(jobs, *, group_by_form=True, today=None, reveal_secrets=False):
     """依序輸出多張訂單的多份套表為單一 PDF。
 
     group_by_form：同一種套表排在一起（信封一批、A4 一批），換紙最方便；否則依訂單順序。
@@ -528,7 +564,7 @@ def build_forms_pdf(jobs, *, group_by_form=True, today=None):
     pdf.setTitle("套表列印")
     pdf.setCreator("DMIS")
     for job in jobs:
-        values = form_values(job.order)
+        values = form_values(job.order, reveal_secrets=reveal_secrets and job.form == "envelope")
         if job.form == "envelope":
             pdf.setPageSize(ENVELOPE_SIZE)
             _draw_envelope(pdf, job.order, values)

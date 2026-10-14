@@ -4839,6 +4839,15 @@ input.acquisition-choice { position: absolute; width: 1px; height: 1px; margin: 
 .notification-item:last-child { border-bottom: 0; }
 .notification-item.is-unread strong { color: var(--action-text); }
 .delivery-completion-form .form-grid > .wide { grid-column: 1 / -1; }
+.delivery-checklist-head {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--space-3);
+  padding-top: var(--space-3); border-top: 1px dashed var(--line);
+}
+.delivery-checklist-head span { display: grid; gap: 2px; }
+.delivery-checklist-head strong { color: var(--action-text); font-size: var(--text-base); }
+.delivery-checklist-head small { color: var(--muted); font-size: var(--text-sm); font-variant-numeric: tabular-nums; }
+.delivery-checklist-head .button { flex: 0 0 auto; }
+.delivery-checklist-head .button[aria-pressed="true"] { color: var(--ink-soft); }
 .delivery-condition-field {
   min-width: 0; margin: 0; padding: var(--inset-pad); background: var(--surface-soft); border: 1px solid var(--line); border-radius: var(--radius-lg);
 }

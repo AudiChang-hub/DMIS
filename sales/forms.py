@@ -1863,9 +1863,14 @@ class AccessoryLineForm(forms.ModelForm):
             self.add_error("custom_name", "請填寫其他配件名稱。")
             return data
         if not product and custom_name:
-            for name in ("quantity", "line_type", "amount", "labor_fee"):
+            # 數量空白視為 1、工資空白視為 0；類型與售價影響收費，仍須填寫。
+            if data.get("quantity") in (None, ""):
+                data["quantity"] = 1
+            if data.get("labor_fee") is None:
+                data["labor_fee"] = Decimal("0")
+            for name in ("line_type", "amount"):
                 if data.get(name) in (None, ""):
-                    self.add_error(name, "臨時配件請填寫數量、類型、售價及工資（無費用填 0）。")
+                    self.add_error(name, "臨時配件請填寫類型與售價（無費用填 0）。")
             for name in ("amount", "labor_fee"):
                 if data.get(name) is not None and data[name] < 0:
                     self.add_error(name, "金額不可小於零。")
@@ -1880,9 +1885,10 @@ class AccessoryLineForm(forms.ModelForm):
             self.cleaned_data["DELETE"] = True
             return data
 
-        for field_name in ("quantity", "line_type"):
-            if data.get(field_name) in (None, ""):
-                self.add_error(field_name, "填寫配件名稱後，此欄位為必填。")
+        if data.get("quantity") in (None, ""):
+            data["quantity"] = 1
+        if data.get("line_type") in (None, ""):
+            self.add_error("line_type", "填寫配件名稱後，此欄位為必填。")
         if data.get("line_type") == "gift":
             data["amount"] = data["labor_fee"] = Decimal("0")
             self.instance.name = product.name
@@ -4178,7 +4184,7 @@ class DeliveryCompletionForm(forms.Form):
         widget=forms.DateTimeInput(attrs={"type": "datetime-local"}),
     )
     recipient_name = forms.CharField(label="實際收車人", max_length=160)
-    recipient_phone = forms.CharField(label="收車人電話", max_length=30)
+    recipient_phone = forms.CharField(label="收車人電話", max_length=30, required=False)
     carrier_name = forms.CharField(label="託運公司", max_length=160, required=False)
     handover_location = forms.CharField(label="實際交付地點", max_length=250)
     # 使用 CharField 搭配 RadioSelect，而不是嚴格 ChoiceField：新版畫面只會
@@ -4789,6 +4795,9 @@ class SubsidyDataForm(forms.ModelForm):
             field.widget.attrs.setdefault("class", "form-control")
         self.fields["is_trade_in_subsidy"].widget.attrs["class"] = "form-check"
         self.fields["old_owner_same_as_owner"].widget.attrs["class"] = "form-check"
+        # 舊車估價與未繳稅金選填，空白視為 0（clean 補值）。
+        for field_name in ("old_vehicle_valuation", "old_vehicle_tax"):
+            self.fields[field_name].required = False
         self.fields["trade_in_plate"].widget.attrs.update(
             {
                 "lang": "en",
@@ -4830,6 +4839,7 @@ class SubsidyItemForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         self.fields["category"].required = False
         self.fields["item_name"].required = False  # 補助文字欄位一律選填
+        self.fields["expected_amount"].required = False  # 金額未定可先存，空白視為 0
         self.fields["item_name"].widget.attrs.update(
             {"list": "subsidy-name-suggestions", "autocomplete": "off", "placeholder": "例如：工業局購車補助"}
         )
@@ -4840,6 +4850,10 @@ class SubsidyItemForm(forms.ModelForm):
 
     def clean_item_name(self):
         return (self.cleaned_data.get("item_name") or "").strip() or "補助"
+
+    def clean_expected_amount(self):
+        amount = self.cleaned_data.get("expected_amount")
+        return Decimal("0") if amount is None else amount
 
 
 class SubsidyProgramForm(forms.ModelForm):

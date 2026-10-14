@@ -147,6 +147,14 @@ class OrderLifecycleTests(TestCase):
         )
         self.assertFalse(record.damage_found)
 
+    def test_recipient_phone_is_optional(self):
+        # 開單電話已選填（1.75.2），交車時收車人電話也不再卡住（2026-10-14）。
+        order, _vehicle = self.make_order(dealer=True)
+        form = DeliveryCompletionForm(order, {**self.delivery_payload(), "recipient_phone": ""})
+        self.assertTrue(form.is_valid(), form.errors)
+        _delivered, record = form.save("測試人員")
+        self.assertEqual(record.recipient_phone, "")
+
     def test_store_order_cannot_deliver_before_registration(self):
         order, _vehicle = self.make_order()
         form = DeliveryCompletionForm(order, self.delivery_payload())

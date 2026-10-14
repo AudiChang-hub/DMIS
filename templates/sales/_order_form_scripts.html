@@ -888,7 +888,8 @@
     }
     const hasProduct = Boolean(productInput?.value || row.querySelector('[name$="-custom_name"]')?.value.trim());
     row.classList.toggle("has-accessory-name", hasProduct);
-    row.querySelectorAll('[name$="-quantity"], [name$="-line_type"]')
+    // 數量空白視為 1，只有類型必填。
+    row.querySelectorAll('[name$="-line_type"]')
       .forEach(input => input.required = hasProduct);
     const product = accessoryProductData[productInput?.value];
     if (row.querySelector('[name$="-line_type"]').value === 'gift') {

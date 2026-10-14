@@ -48,7 +48,7 @@
           {% for row in rows %}
           <tr data-order="{{ row.order.pk }}" data-number="{{ row.order.number }}" data-name="{{ row.values.owner_name }}"
               data-vehicle="{{ row.values.model_number }}{% if row.values.color %}・{{ row.values.color }}{% endif %}"
-              data-note="{{ row.receipt_note }}" data-address="{{ row.values.delivery_address }}">
+              data-note="{{ row.receipt_note }}" data-address="{{ row.values.delivery_address }}"{% if row.has_secret %} data-secret{% endif %}>
             <td class="form-print__pick-col" data-label="勾選">
               <label class="form-print__row-pick"><input type="checkbox" data-row-pick aria-label="勾選 {{ row.order.number }} 建議的套表"><span aria-hidden="true"></span></label>
             </td>
@@ -107,6 +107,12 @@
         <p>在左邊表格勾選要印的套表。簽收單的備註與交車住址可以在這裡逐張修改。</p>
       </div>
       <ol class="form-print__list" data-list></ol>
+      <div class="form-print__secret" data-secret-panel{% if secrets_unlocked %} data-unlocked{% endif %} hidden>
+        <label>你的登入密碼
+          <input type="password" name="password" autocomplete="current-password" data-secret-password>
+        </label>
+        <small>勾選的電車信封會印出車控密碼，需先驗證本人；驗證後 10 分鐘內不必再輸入，列印會記在該訂單的處理紀錄。</small>
+      </div>
       <fieldset class="form-print__order-by">
         <legend>排列方式</legend>
         <label><input type="radio" name="group" value="form" checked><span><strong>依套表分組</strong><small>信封一批、A4 一批，換紙最方便</small></span></label>

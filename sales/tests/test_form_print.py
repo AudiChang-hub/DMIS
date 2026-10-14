@@ -7,8 +7,9 @@ from django.test import TestCase
 from django.urls import reverse
 from pypdf import PdfReader
 
-from sales.models import OrderOperationsProfile, SalesOrder
+from sales.models import OrderEvent, OrderOperationsProfile, SalesOrder, VehicleModel
 from sales.services import form_print
+from sales.services.secret_fields import encrypt_secret
 from sales.tests import test_order_lifecycle as lifecycle
 
 
@@ -67,6 +68,25 @@ class FormPrintServiceTests(TestCase):
 
         self.assertEqual(values["old_owner_name"], "王小明")
         self.assertEqual(values["old_owner_id_number"], "A123456789")
+
+    def test_blank_old_owner_fields_fall_back_to_buyer(self):
+        self.order.old_owner_same_as_owner = False
+        self.order.old_owner_name = "蔡艷媚"
+        self.order.old_owner_id_number = ""
+        self.order.old_owner_phone = ""
+        self.order.old_owner_household_address = "台北市"
+
+        values = form_print.form_values(self.order)
+
+        self.assertEqual(values["old_owner_name"], "蔡艷媚")
+        self.assertEqual(values["old_owner_id_number"], "A123456789")
+        self.assertEqual(values["old_owner_phone"], "0912345678")
+        self.assertEqual(values["old_owner_address"], "台北市")
+
+    def test_receipt_insurance_follows_order_period(self):
+        self.order.compulsory_insurance_period = SalesOrder.CompulsoryInsurancePeriod.TWO_YEARS
+
+        self.assertEqual(form_print.form_values(self.order)["insurance"], "富邦產物險 2 年")
 
     def test_roc_date_matches_word_time_field(self):
         self.assertEqual(form_print.roc_chinese_date(date(2026, 10, 14)), "中華民國一一五年十月十四日")
@@ -135,6 +155,38 @@ class FormPrintViewTests(TestCase):
         response = self.client.post(reverse("form_print_pdf"), {"job": [f"{self.other.pk}:envelope"]})
 
         self.assertRedirects(response, reverse("form_print"), fetch_redirect_response=False)
+
+    def make_electric_with_password(self):
+        VehicleModel.objects.filter(pk=self.model.pk).update(energy_type=VehicleModel.EnergyType.ELECTRIC)
+        OrderOperationsProfile.objects.update_or_create(order=self.order, defaults={
+            "vehicle_control_account": "bed768", "vehicle_control_password_encrypted": encrypt_secret("Pw-9527"),
+        })
+        return [f"{self.order.pk}:envelope"]
+
+    def test_electric_envelope_password_requires_own_login_password(self):
+        jobs = self.make_electric_with_password()
+        page = self.client.get(reverse("form_print"))
+        self.assertContains(page, "data-secret")
+
+        denied = self.client.post(reverse("form_print_pdf"), {"job": jobs})
+        self.assertRedirects(denied, reverse("form_print"), fetch_redirect_response=False)
+        wrong = self.client.post(reverse("form_print_pdf"), {"job": jobs, "password": "nope"})
+        self.assertRedirects(wrong, reverse("form_print"), fetch_redirect_response=False)
+        self.assertFalse(OrderEvent.objects.filter(order=self.order, event_type="secret_viewed").exists())
+
+        response = self.client.post(reverse("form_print_pdf"), {"job": jobs, "password": "test-pass-123"})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("Pw-9527", pdf_pages(response)[0].extract_text())
+        self.assertTrue(OrderEvent.objects.filter(order=self.order, event_type="secret_viewed", description__contains="套表列印").exists())
+
+    def test_electric_envelope_without_saved_password_prints_phone(self):
+        VehicleModel.objects.filter(pk=self.model.pk).update(energy_type=VehicleModel.EnergyType.ELECTRIC)
+
+        response = self.client.post(reverse("form_print_pdf"), {"job": [f"{self.order.pk}:envelope"]})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("車控密碼：0912345678", pdf_pages(response)[0].extract_text().replace(" ", ""))
 
     def test_get_is_not_allowed_for_pdf(self):
         self.assertEqual(self.client.get(reverse("form_print_pdf")).status_code, 405)

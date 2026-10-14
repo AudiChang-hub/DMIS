@@ -95,6 +95,17 @@ class AllocationPriorityTests(TestCase):
         self.assertIn("原因：未填寫", description)
         self.assertEqual(priority.pk, AllocationForm(order).fields["vehicle"].queryset.first().pk)
 
+    def test_allocation_preselects_suggested_vehicle(self):
+        # 預選排第一的建議車輛，按確認即可配車；改配是刻意換車，不預選（2026-10-14）。
+        order = self.clean_pending_order()
+        newer = self.vehicle("PRE-NEW", months_ago(2))
+        oldest = self.vehicle("PRE-OLD", months_ago(4))
+        form = AllocationForm(order)
+        self.assertEqual(form.initial["vehicle"], oldest.pk)
+        self.assertEqual(form.suggested_vehicle, oldest)
+        self.assertNotEqual(form.initial["vehicle"], newer.pk)
+        self.assertTrue(AllocationForm(order, {"vehicle": form.initial["vehicle"]}).is_valid())
+
     def test_fifo_within_priority_tier_still_requires_reason(self):
         order = self.clean_pending_order()
         oldest = self.vehicle("P-OLD", months_ago(9))

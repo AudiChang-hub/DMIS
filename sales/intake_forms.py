@@ -38,6 +38,8 @@ PRICING_FIELDS = {
 
 class IntakeOrderForm(SalesOrderForm):
     accept_by_me = forms.BooleanField(label="由我接單（建立後直接進入待配車）", required=False)
+    # 店內人員當場收到訂金可直接入帳，不必建立後再到訂單頁確認一次（使用者 2026-10-14）。
+    deposit_received = forms.BooleanField(label="已收到這筆訂金（建立訂單時直接確認入帳）", required=False)
     catalog_selection = forms.CharField(required=False, widget=forms.HiddenInput, max_length=4096)
     assisted_company_confirmed = forms.BooleanField(label="我已確認這是實際銷售車行，訂購單及個資同意書使用上述公司資料", required=False)
     assisted_company_revision = forms.IntegerField(required=False, min_value=0, widget=forms.HiddenInput)
@@ -110,6 +112,12 @@ class IntakeOrderForm(SalesOrderForm):
                 field.required = False
                 self.initial[name] = None
             self.initial["compulsory_insurance_period"] = 1
+        from sales.access.services import AccessPolicy as _Policy
+        if not (self.finance_editable and _Policy(user).route("deposit_payment_update", "POST")):
+            # 沒有收款確認權限（含接待模式與合作車行）：訂金仍為未確認，由店內確認。
+            self.fields.pop("deposit_received")
+        else:
+            self.fields["deposit_received"].widget.attrs["class"] = "form-check"
         self.fields["deposit_amount"].required = False
         self.fields["deposit_amount"].widget.attrs.update(min="0", placeholder="沒有收訂金請留空")
         self.fields["intake_discount_mode"].widget.attrs = {"class": "discount-mode__input"}
@@ -134,6 +142,13 @@ class IntakeOrderForm(SalesOrderForm):
             data["deposit_amount"] = Decimal("0")
         elif data.get("deposit_amount") is not None and data["deposit_amount"] < 0:
             self.add_error("deposit_amount", "訂金不可小於零。")
+        if data.get("deposit_received"):
+            if not data.get("deposit_amount"):
+                data["deposit_received"] = False  # 沒有訂金就沒有要入帳的款項，直接忽略勾選。
+            else:
+                data["deposit_date"] = data.get("deposit_date") or timezone.localdate()
+                if not data.get("deposit_method"):
+                    self.add_error("deposit_method", "勾選已收到訂金時，請選擇付款方式。")
         self._clean_intake_discount(data)
         # 鎖住的財務欄位即使被偽造送出也一律不採用：空值交回模型預設，避免寫入 null。
         for name in FINANCE_FIELDS:

@@ -3,7 +3,7 @@ document.addEventListener("DOMContentLoaded", () => {
   document.querySelectorAll(".delivery-completion-form").forEach((form) => {
     const button = form.querySelector("[data-delivery-check-all]");
     const count = form.querySelector("[data-delivery-checklist-count]");
-    const checks = ["condition_checked", "documents_checked", "keys_checked", "accessories_checked"]
+    const checks = ["condition_checked", "documents_checked", "keys_checked", "accessories_checked", "vehicle_control_checked"]
       .map((name) => form.querySelector(`[name="${name}"]`))
       .filter(Boolean);
     if (!button || !checks.length) return;

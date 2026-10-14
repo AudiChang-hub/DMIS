@@ -3860,10 +3860,11 @@ class SalesOrder(TimeStampedModel):
         remaining = Decimal("0") if due["paid_in_excel"] else summary["customer_due"]
         return {**due, "received": summary["customer_received"], "remaining": remaining}
 
-    def delivery_blockers(self, summary=None, ignore_balance=False):
+    def delivery_blockers(self, summary=None, ignore_balance=False, include_prep=True):
         """交車前的全部硬性檢查；畫面按鈕與 complete_delivery 共用同一份判斷。
 
-        ignore_balance 只供畫面判斷：交車表單同時收尾款時，尾款於送出時再驗證。"""
+        ignore_balance 只供畫面判斷：交車表單同時收尾款時，尾款於送出時再驗證。
+        include_prep=False 只供畫面判斷：交車前確認可在交車表單一併勾選，送出時才寫入並再驗證。"""
         if self.is_cancelled_sale:
             return ["已進入取消或例外結案流程，不能交付車輛。"]
         blockers = []
@@ -3873,10 +3874,10 @@ class SalesOrder(TimeStampedModel):
             blockers.append("一般訂單必須先完成領牌才能交付。")
         if self.discount_status == self.DiscountStatus.PENDING:
             blockers.append("折扣申請尚待確認，確認或退回後才能交車。")
-        profile = getattr(self, "operations", None)
-        if self.is_electric_vehicle and not (profile and profile.vehicle_control_confirmed_at):
+        profile = getattr(self, "operations", None) if include_prep else None
+        if include_prep and self.is_electric_vehicle and not (profile and profile.vehicle_control_confirmed_at):
             blockers.append("電動車須先在「交車前確認」勾選「車控與電池合約已確認」。")
-        if not (profile and profile.fulfillment_confirmed_at):
+        if include_prep and not (profile and profile.fulfillment_confirmed_at):
             blockers.append("請先在「交車前確認」勾選「贈品與履約已確認」。")
         from sales.services.payment_summary import payment_summary
         summary = summary or payment_summary(self)

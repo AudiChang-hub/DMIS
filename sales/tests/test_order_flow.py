@@ -3840,6 +3840,31 @@ class OrderFlowTests(TestCase):
         response = self.client.get(reverse("order_detail", args=[order.pk]))
         self.assertContains(response, missing)
 
+    def test_registration_save_completes_when_documents_already_uploaded(self):
+        # 先傳文件、後填資料：儲存時資料齊全就直接完成領牌，按鈕改名並先確認（2026-10-14）。
+        order = self.make_order()
+        order.allocate(self.vehicle)
+        self.client.force_login(self.user)
+        for index, document_type in enumerate((
+            RegistrationDocument.DocumentType.NEW_LICENSE,
+            RegistrationDocument.DocumentType.REGISTRATION_APPLICATION,
+        )):
+            self.client.post(reverse("registration_document_upload", args=[order.pk]), {
+                "document_type": document_type, "name": "", "file": uploaded_test_pdf(f"early-{index}.pdf"),
+            })
+        order.refresh_from_db()
+        self.assertFalse(order.is_registration_complete)
+        page = self.client.get(order_step_url(order.pk, "registration")).content.decode()
+        self.assertIn("儲存並完成領牌", page)
+        response = self.client.post(reverse("registration_save", args=[order.pk]), {
+            "registration_date": "2026-07-29", "registration_county": "新北市", "final_plate_number": "abc-1234",
+        }, follow=True)
+        order.refresh_from_db()
+        self.assertTrue(order.is_registration_complete)
+        self.assertEqual(order.status, SalesOrder.Status.DELIVERY_PENDING)
+        self.assertContains(response, "已自動完成領牌（ABC-1234／2026/07/29）")
+        self.assertTrue(OrderEvent.objects.filter(order=order, event_type="registration_completed").exists())
+
     def test_registration_can_be_completed_after_required_uploads(self):
         order = self.make_order()
         order.allocate(self.vehicle)
@@ -3862,10 +3887,11 @@ class OrderFlowTests(TestCase):
         )
         self.assertRedirects(response, reverse("order_detail", args=[order.pk]))
 
+        # 發票為選填；最後一份必備文件上傳後自動完成領牌並轉到交車（2026-10-14）。
         required_types = [
+            RegistrationDocument.DocumentType.INVOICE,
             RegistrationDocument.DocumentType.NEW_LICENSE,
             RegistrationDocument.DocumentType.REGISTRATION_APPLICATION,
-            RegistrationDocument.DocumentType.INVOICE,
         ]
         for index, document_type in enumerate(required_types):
             response = self.client.post(
@@ -3876,8 +3902,9 @@ class OrderFlowTests(TestCase):
                     "file": uploaded_test_pdf(f"document-{index}.pdf"),
                 },
             )
+            last = index == len(required_types) - 1
             self.assertRedirects(
-                response, order_step_url(order.pk, "registration")
+                response, order_step_url(order.pk, "delivery" if last else "registration")
             )
 
         response = self.client.post(

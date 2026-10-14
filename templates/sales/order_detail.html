@@ -216,6 +216,7 @@
   <div><p class="eyebrow">下一步</p><h2>選擇實體車輛</h2><p>只顯示符合 {{ order.vehicle_model }}／{{ order.color.name }} 的可售庫存。★ 優先配車排最上面，同級再依出廠年月由舊到新排列。{% if allocation_form.queue_position %}同車型車色待配車 {{ allocation_form.queue_size }} 張，本單排第 {{ allocation_form.queue_position }} 位。{% endif %}</p><p class="allocation-priority-rule"><strong>優先配車</strong>出廠超過 {{ allocation_form.priority_age_months }} 個月（{{ allocation_form.priority_cutoff }} 以前出廠）自動開啟，人員也可在車輛庫存頁手動開關。{% if allocation_form.priority_vehicle_count %}目前有 {{ allocation_form.priority_vehicle_count }} 台優先配車。{% endif %}</p></div>
   <form method="post" action="{% url 'allocate_vehicle' order.pk %}" data-allocation-priority-form data-priority-count="{{ allocation_form.priority_vehicle_count }}">
     {% csrf_token %}{{ allocation_form.vehicle }}
+    {% if allocation_form.suggested_vehicle %}<p class="muted allocation-suggested">已預選建議車輛 {{ allocation_form.suggested_vehicle.identifier }}；確認無誤直接按「確認配車並鎖定」，要換車再從清單另選。</p>{% endif %}
     {% if allocation_form.priority_vehicle_count %}<p class="allocation-priority-hint" data-allocation-priority-hint role="status" hidden>這台不是優先配車；仍有 {{ allocation_form.priority_vehicle_count }} 台優先配車可選。建議在下方填寫原因，不填也可以配車。</p>{% endif %}
     <label for="{{ allocation_form.skip_reason.id_for_label }}">{{ allocation_form.skip_reason.label }}</label>{{ allocation_form.skip_reason }}<small class="muted">{{ allocation_form.skip_reason.help_text }}</small>
     {% if allocation_form.vehicle.field.queryset %}
@@ -335,7 +336,11 @@
         {{ registration_form.final_plate_number }}
       </div>
       {% if not order.is_registration_complete %}
+        {% if registration_docs_ready %}
+        <button class="button primary registration-data-form__submit" type="submit" data-confirm="必備文件已齊全，儲存後會直接完成領牌，領牌日期與車牌號碼將鎖定。請確認車牌與日期正確。">儲存並完成領牌</button>
+        {% else %}
         <button class="button secondary registration-data-form__submit" type="submit">儲存領牌資料</button>
+        {% endif %}
       {% endif %}
     </form>
     {% if operations_profile.vehicle_cost_rule_id %}
@@ -491,8 +496,8 @@
 <header class="order-step__header">{% include "sales/_order_step_summary.html" %}</header>
 <div class="order-step__body">
 {% if workspace_finance %}<section class="section-block delivery-prep" aria-labelledby="delivery-prep-title">
-  <div class="section-title"><div><p class="eyebrow">交車前必須完成</p><h2 id="delivery-prep-title">交車前確認</h2></div>{% if order.operations.fulfillment_confirmed_at and not order.is_electric_vehicle or order.operations.fulfillment_confirmed_at and order.operations.vehicle_control_confirmed_at %}<span class="archive-status done">✓ 已確認</span>{% else %}<span class="archive-status">待確認</span>{% endif %}</div>
-  <p class="muted">{% if order.is_electric_vehicle %}電動車需確認車控與電池合約；{% endif %}贈品與履約即使沒有贈品也要勾選確認。可在領牌前先完成，未確認不能交車。</p>
+  <div class="section-title"><div><p class="eyebrow">交車資料</p><h2 id="delivery-prep-title">交車前確認</h2></div>{% if order.operations.fulfillment_confirmed_at and not order.is_electric_vehicle or order.operations.fulfillment_confirmed_at and order.operations.vehicle_control_confirmed_at %}<span class="archive-status done">✓ 已確認</span>{% else %}<span class="archive-status">交車時確認</span>{% endif %}</div>
+  <p class="muted">在這裡記錄{% if order.is_electric_vehicle %}車控、電池與{% endif %}贈品內容。確認不必先存：完成交車時在下方「交付核對」一起勾選即可{% if order.is_electric_vehicle %}（含車控與電池合約）{% endif %}。</p>
   {% include "sales/_ops_section_form.html" with section_form=operations_fulfillment_form section_key="fulfillment" fields_template="sales/_ops_fulfillment_fields.html" submit_label="儲存交車前確認" %}
 </section>{% endif %}
 <section class="section-block delivery-stage">

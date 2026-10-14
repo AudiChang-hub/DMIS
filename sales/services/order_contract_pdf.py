@@ -380,7 +380,8 @@ def draw_order_page(c, order, copy_label, page_number, printed_at, signature=Non
         rows.append(
             [
                 p("其他"),
-                p("已核准優惠"),
+                # 項目欄顯示折扣原因（申請或下單時填的備註）；沒填才退回「已核准優惠」。
+                p(safe(order.discount_reason, "已核准優惠")),
                 p("依最終成交內容調整"),
                 p("1", center_style),
                 p(f"-{money(order.approved_discount_amount)}", right_style),

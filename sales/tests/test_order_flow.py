@@ -5151,7 +5151,8 @@ class OrderOperationsTests(TestCase):
         from pypdf import PdfReader
         pdf_bytes = b"".join(contract.streaming_content)
         text = "".join(page.extract_text() or "" for page in PdfReader(BytesIO(pdf_bytes)).pages)
-        self.assertIn("已核准優惠", text)
+        self.assertIn("最終成交抹零", text)
+        self.assertNotIn("已核准優惠", text)
 
     def test_financial_totals_include_split_expenses_and_scrap_income(self):
         profile = self.order.operations

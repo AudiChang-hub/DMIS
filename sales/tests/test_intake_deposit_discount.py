@@ -82,6 +82,34 @@ class IntakeDepositDiscountTests(IntakeFixtures):
         self.assertFalse(order.other_fees.exists())
         self.assertTrue(PaymentRecord.objects.filter(order=order, system_key="deposit", expected_amount=3000, confirmed=False).exists())
 
+    def test_staff_can_confirm_deposit_when_creating_order(self):
+        # 店內有收款確認權限：開單勾「已收到這筆訂金」直接入帳，不必再到訂單頁確認（2026-10-14）。
+        self.client.force_login(self.root)
+        page = self.client.get(reverse("order_create"), {"classic": "1"}).content.decode()
+        self.assertIn('name="deposit_received"', page)
+        # 勾了已收到就必須選付款方式。
+        response = self.submit_to("order_create", deposit_amount="3000", deposit_method="", deposit_received="on")
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("deposit_method", response.context["form"].errors)
+        order = self.assert_created(self.submit_to(
+            "order_create", deposit_amount="3000", deposit_date="", deposit_method="cash", deposit_received="on",
+        ))
+        deposit = PaymentRecord.objects.get(order=order, system_key="deposit")
+        self.assertEqual((deposit.received_amount, deposit.confirmed, deposit.payment_method), (3000, True, "現金"))
+        self.assertEqual(deposit.received_on, timezone.localdate())
+        self.assertEqual(deposit.confirmed_by, "admin")
+        self.assertTrue(OrderEvent.objects.filter(order=order, description__contains="建立訂單時登記訂金實收").exists())
+
+    def test_deposit_received_needs_payment_confirmation_access(self):
+        # 接待模式與合作車行沒有收款確認權限：看不到勾選，偽造送出也仍是未確認。
+        self.grant_intake_only()
+        page = self.client.get(reverse("order_start"), {"classic": "1"}).content.decode()
+        self.assertNotIn('name="deposit_received"', page)
+        order = self.assert_created(self.submit_to(
+            "order_start", deposit_amount="3000", deposit_method="cash", deposit_received="on",
+        ))
+        self.assertFalse(PaymentRecord.objects.get(order=order, system_key="deposit").confirmed)
+
     def test_blank_deposit_is_zero_and_negative_is_rejected(self):
         self.grant_intake_only()
         order = self.assert_created(self.submit_to("order_start", deposit_amount=""))

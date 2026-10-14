@@ -51,7 +51,7 @@ STEP_FIELDS = {
         "installment_opening_fee",
     },
     "deposit": {
-        "deposit_amount", "deposit_date", "deposit_method", "intake_discount_mode", "intake_discount_amount",
+        "deposit_amount", "deposit_date", "deposit_method", "deposit_received", "intake_discount_mode", "intake_discount_amount",
         "intake_discount_rate", "intake_discount_reason",
     },
 }

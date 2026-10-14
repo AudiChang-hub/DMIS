@@ -3066,7 +3066,7 @@ class OrderFlowTests(TestCase):
         self.assertNotContains(response, "workflow-strip")
 
         script = Path("static/js/order-workspace.js").read_text(encoding="utf-8")
-        self.assertIn("searchParams.get('tab')", script)
+        self.assertIn("searchParams.set('tab', key)", script)
         self.assertIn("beforeunload", script)
         self.assertIn('[role="tabpanel"][data-step-key]', script)
         self.assertIn("ArrowRight", script)

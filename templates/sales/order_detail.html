@@ -27,6 +27,8 @@
 
 {% if historical_delivery_pending %}{% if_access 'historical_delivery_complete' %}{% include "sales/_historical_delivery_complete.html" %}{% endif_access %}{% endif %}
 <div data-workspace-section="order">{% include "sales/_order_commission_attribution.html" %}</div>
+{# 進頁與切換步驟的固定停點：頁首縮成精簡列後，從接單紀錄／建議下一步開始顯示（static/js/order-workspace.js）。 #}
+<div class="order-stage-start" data-order-stage-start aria-hidden="true"></div>
 {% include "sales/_order_acceptance.html" %}
 
 {% if request.GET.created == "1" and order.needs_customer_signatures %}

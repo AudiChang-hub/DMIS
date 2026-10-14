@@ -87,7 +87,7 @@ ORDER_PK_ROUTES = CUSTOMER_DOCUMENT_ROUTES | {
     "payment_reverse", "payment_overpayment_refund", "installment_decision_update", "order_exception_close",
     "subsidy_toggle", "subsidy_document_upload", "subsidy_document_delete", "subsidy_data_update", "subsidy_ocr_decision",
     "registration_fee_variance_confirm", "identity_documents_print",
-    "order_attachment_upload", "order_attachment_delete",
+    "order_attachment_upload", "order_attachment_delete", "order_attachments_zip",
 }
 
 

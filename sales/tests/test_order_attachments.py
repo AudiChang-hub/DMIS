@@ -1,5 +1,6 @@
 """訂單「附件」分頁：其他附件（任何檔案、每單 50 個）與全部檔案集中預覽。"""
 import tempfile
+import zipfile
 from decimal import Decimal
 from io import BytesIO
 
@@ -134,5 +135,58 @@ class OrderAttachmentTests(TestCase):
         self.assertIn("1／50", panel)
 
     def test_dealer_accounts_cannot_reach_attachment_routes(self):
-        for name in ("order_attachment_upload", "order_attachment_delete", "order_attachment_file"):
+        for name in ("order_attachment_upload", "order_attachment_delete", "order_attachment_file", "order_attachments_zip"):
             self.assertNotIn(name, DEALER_ROUTES)
+
+    def download_zip(self):
+        response = self.client.get(reverse("order_attachments_zip", args=[self.order.pk]))
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response["Content-Type"], "application/zip")
+        self.assertIn(".zip", response["Content-Disposition"])
+        self.assertTrue(response["Content-Disposition"].startswith("attachment"))
+        data = b"".join(response.streaming_content)
+        response.close()
+        return zipfile.ZipFile(BytesIO(data))
+
+    def test_download_all_packs_every_file_into_category_folders(self):
+        RegistrationDocument.objects.create(
+            order=self.order,
+            document_type=RegistrationDocument.DocumentType.NEW_LICENSE,
+            file=SimpleUploadedFile("license.png", png_bytes(), content_type="image/png"),
+        )
+        self.upload(
+            SimpleUploadedFile("報價單.xlsx", b"PK\x03\x04 sheet"),
+            SimpleUploadedFile("報價單.xlsx", b"second copy"),
+            SimpleUploadedFile("備註.txt", b"hello"),
+        )
+
+        archive = self.download_zip()
+
+        names = archive.namelist()
+        self.assertIn("其他附件/報價單.xlsx", names)
+        self.assertIn("其他附件/報價單_2.xlsx", names)
+        self.assertIn("領牌文件/新行照照片.png", names)
+        self.assertEqual(archive.read("其他附件/備註.txt"), b"hello")
+        self.assertEqual(archive.read("其他附件/報價單_2.xlsx"), b"second copy")
+        self.assertEqual(archive.getinfo("領牌文件/新行照照片.png").compress_type, zipfile.ZIP_STORED)
+        self.assertNotIn("缺少的檔案.txt", names)
+        page = self.client.get(reverse("order_detail", args=[self.order.pk])).content.decode()
+        self.assertIn(reverse("order_attachments_zip", args=[self.order.pk]), page)
+
+    def test_download_all_lists_files_missing_from_storage(self):
+        self.upload(SimpleUploadedFile("在.txt", b"ok"), SimpleUploadedFile("不見了.txt", b"gone"))
+        lost = self.order.other_attachments.get(name="不見了.txt")
+        lost.file.storage.delete(lost.file.name)
+
+        archive = self.download_zip()
+
+        self.assertIn("其他附件/在.txt", archive.namelist())
+        self.assertNotIn("其他附件/不見了.txt", archive.namelist())
+        self.assertIn("不見了.txt", archive.read("缺少的檔案.txt").decode())
+
+    def test_download_all_without_files_returns_to_tab(self):
+        response = self.client.get(reverse("order_attachments_zip", args=[self.order.pk]))
+
+        self.assertRedirects(response, order_step_url(self.order.pk, "attachments"), fetch_redirect_response=False)
+        page = self.client.get(reverse("order_detail", args=[self.order.pk])).content.decode()
+        self.assertNotIn(reverse("order_attachments_zip", args=[self.order.pk]), page)

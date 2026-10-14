@@ -123,11 +123,25 @@ class OrderDetailTabTests(TestCase):
     def test_script_switches_tabs_by_keyboard_hash_and_errors(self):
         script = Path("static/js/order-workspace.js").read_text(encoding="utf-8")
         for needle in ("ArrowRight", "ArrowLeft", "Home: 0", "End:", "aria-selected", "tab.tabIndex",
-                       "hashchange", "step|panel|tab", "url.hash", "'.errorlist, .field-error, [aria-invalid=\"true\"]'",
+                       "hashchange", "step|panel|tab", "url.hash", "'.errorlist, small.field-error, [aria-invalid=\"true\"]'",
                        "order-tabpanel-reveal", "prefers-reduced-motion"):
             self.assertIn(needle, script)
         feedback = Path("static/js/form-feedback.js").read_text(encoding="utf-8")
         self.assertIn("order-tabpanel-reveal", feedback)
+
+    def test_entry_and_step_switch_land_on_same_stage(self):
+        # 進頁、重新整理、點步驟都停在同一個停點（精簡頁首下方，從接單紀錄／建議下一步開始），使用者 2026-10-14。
+        order, _vehicle = self.make_order()
+        self.client.force_login(self.user)
+        page = self.client.get(reverse("order_detail", args=[order.pk])).content.decode()
+        self.assertLess(page.index("data-order-stage-start"), page.index('id="order-acceptance"'))
+        self.assertLess(page.index('id="commission-attribution"'), page.index("data-order-stage-start"))
+        script = Path("static/js/order-workspace.js").read_text(encoding="utf-8")
+        # html 設了 scroll-behavior: smooth，'auto' 仍會平滑捲動；進頁定位必須用 'instant'，否則載入中被打斷而停在半路。
+        self.assertIn("behavior: smooth ? behavior() : 'instant'", script)
+        self.assertIn("history.scrollRestoration = 'manual'", script)
+        self.assertIn("[data-order-stage-start]", script)
+        self.assertNotIn("'.errorlist, .field-error,", script)
 
     def test_edit_page_links_back_to_tabs(self):
         order, _vehicle = self.make_order()

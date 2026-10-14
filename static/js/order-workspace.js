@@ -32,7 +32,7 @@
   const dirty = form => fields(form).some(f => !['csrfmiddlewaretoken', '_order_revision', 'operations-financial_revision'].includes(f.name) && value(f) !== bases.get(form)?.get(f.name));
   const notify = (text, error = false) => { message.hidden = false; message.textContent = text; message.classList.toggle('is-error', error); };
   const stepOf = field => field.closest('[data-step-key]')?.dataset.stepKey || 'order';
-  const behavior = () => reduceMotion.matches ? 'auto' : 'smooth';
+  const behavior = () => reduceMotion.matches ? 'instant' : 'smooth';
   function indicators() {
     const changed = new Set();
     forms.forEach(form => fields(form).forEach(f => {
@@ -64,15 +64,49 @@
     const left = scroller.scrollLeft + rect.left - box.left - (box.width - rect.width) / 2;
     scroller.scrollTo({left: Math.max(0, left), behavior: smooth ? behavior() : 'auto'});
   }
-  // 步驟在左側側邊列：切換後把該步驟內容捲到頁首下方；舊的上方分頁列則捲到分頁列。
-  function showBar() {
+  const headerHeight = () => parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--app-header-height')) || 72;
+  // 固定頁首縮成精簡列後的高度；尚未縮起時暫時套用精簡樣式量測（同步還原，不觸發 sticky-hero 的觀察器）。
+  function compactHeroHeight() {
+    const hero = root.querySelector('[data-sticky-hero]');
+    if (!hero) return 0;
+    if (hero.classList.contains('is-stuck')) return hero.offsetHeight;
+    const transition = hero.style.transition;
+    hero.style.transition = 'none';
+    hero.classList.add('is-stuck');
+    const height = hero.offsetHeight;
+    hero.classList.remove('is-stuck');
+    hero.style.transition = transition;
+    return height;
+  }
+  // 固定停點：頁首縮成精簡列，下方從接單紀錄／建議下一步開始，接著是步驟內容；進頁與切換步驟都停在同一處（使用者 2026-10-14）。
+  function stageTop() {
+    const marker = root.querySelector('[data-order-stage-start]');
+    if (!marker || !root.querySelector('[data-sticky-hero]')) return null;
+    let node = marker.nextElementSibling;
+    while (node && !node.getBoundingClientRect().height) node = node.nextElementSibling;
+    if (!node) return null;
+    return Math.max(0, Math.round(window.scrollY + node.getBoundingClientRect().top - headerHeight() - compactHeroHeight() - 24));
+  }
+  function land(smooth) {
+    const room = root.querySelector('.order-steps');
+    if (room) room.style.paddingBottom = '';
+    const top = stageTop();
+    if (top === null) return false;
+    // 內容較短的步驟（如訂金）在下方補足空白，才捲得到同一個停點。
+    const short = top - (document.documentElement.scrollHeight - window.innerHeight);
+    if (room && short > 0) room.style.paddingBottom = `${Math.ceil(short)}px`;
+    window.scrollTo({top, behavior: smooth ? behavior() : 'instant'});
+    return true;
+  }
+  // 步驟在左側側邊列：切換後回到固定停點；舊的上方分頁列則捲到分頁列。
+  function showBar(smooth = true) {
     if (!bar) return;
     const inSidebar = bar.closest('[data-order-nav]');
+    if (inSidebar && land(smooth)) return;
     const target = inSidebar ? panelOf(activeKey) : bar;
     if (!target) return;
     const top = target.getBoundingClientRect().top;
-    const header = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--app-header-height')) || 72;
-    if (top < header || top > window.innerHeight * 0.6) target.scrollIntoView({block: 'start', behavior: behavior()});
+    if (top < headerHeight() || top > window.innerHeight * 0.6) target.scrollIntoView({block: 'start', behavior: smooth ? behavior() : 'instant'});
   }
   function activate(key, options = {}) {
     const panel = panelOf(key);
@@ -116,7 +150,7 @@
     if (!activate(key, {...options, anchor: anchor?.id})) return false;
     if (anchor && anchor !== panelOf(key)) {
       for (let node = anchor; node && node !== root; node = node.parentElement) if (node.tagName === 'DETAILS') node.open = true;
-      anchor.scrollIntoView({block: 'start', behavior: options.instant ? 'auto' : behavior()});
+      anchor.scrollIntoView({block: 'start', behavior: options.instant ? 'instant' : behavior()});
     } else {
       showBar();
       panelOf(key).focus({preventScroll: true});
@@ -341,18 +375,34 @@
   window.addEventListener('beforeunload', event => {
     if (!allowLeave && (busy || forms.some(dirty))) { event.preventDefault(); event.returnValue = ''; }
   });
-  // 初始分頁：網址錨點（#step-<步驟> 或分頁內區塊）優先，其次是含欄位錯誤的分頁，
+  // 初始分頁：網址錨點（#step-<步驟> 或分頁內區塊）優先，其次是含表單錯誤的分頁，
   // 否則沿用伺服器依 ?tab= 或目前步驟選定的分頁（由功能導回時 ?tab= 與錨點一致）。
+  // 靜態提示（如 <p class="field-error">沒有可配車輛</p>）不算表單錯誤，不可搶走進頁分頁。
   if (tabbed) {
-    const requested = new URL(location.href).searchParams.get('tab');
     let target = resolveHash(location.hash);
     if (!target) {
-      const invalid = steps.map(step => step.querySelector('.errorlist, .field-error, [aria-invalid="true"]')).find(Boolean);
+      const invalid = steps.map(step => step.querySelector('.errorlist, small.field-error, [aria-invalid="true"]')).find(Boolean);
       if (invalid) target = {key: invalid.closest('[role="tabpanel"]').dataset.stepKey, anchor: invalid};
     }
     activate(target?.key || activeKey, {animate: false, url: false, announce: true});
+    // 分頁外的錨點（如 #commission-attribution）交給瀏覽器原生定位。
+    let outsideAnchor = null;
+    try { outsideAnchor = !target && location.hash.length > 1 && document.getElementById(decodeURIComponent(location.hash.slice(1))); } catch (_error) { /* 格式錯誤的錨點視同沒有 */ }
     if (target?.anchor) goTo(target.key, target.anchor, {animate: false, url: false, instant: true});
-    else if (target || requested) showBar();
+    else if (!outsideAnchor) {
+      // 進頁直接定位到固定停點（不用平滑捲動：載入中的版面變動會讓動畫停在半路）；
+      // 圖片、字型載入後版面若再變動，使用者還沒自行捲動就再對齊一次。
+      if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
+      showBar(false);
+      let touched = false;
+      const settle = () => { if (!touched) showBar(false); };
+      const resized = 'ResizeObserver' in window ? new ResizeObserver(settle) : null;
+      const stop = () => { touched = true; resized?.disconnect(); };
+      ['wheel', 'touchstart', 'keydown', 'pointerdown'].forEach(type => window.addEventListener(type, stop, {once: true, passive: true}));
+      resized?.observe(root);
+      window.addEventListener('load', () => { settle(); setTimeout(stop, 1500); }, {once: true});
+      document.fonts?.ready.then(settle);
+    }
     updateOverflow();
   }
   document.addEventListener('workspace-subsidy-toggle', event => {

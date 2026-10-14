@@ -24,7 +24,6 @@ STEP_LABELS = {key: label for key, label, _hint in STEPS}
 DONE_KEY = "_wizard_done"
 ID_CHECK_KEY = "_id_check"
 ID_CHECK_ERROR_KEY = "_id_check_error"
-ID_MANUAL_KEY = "_id_manual_confirmed"
 
 STEP_FIELDS = {
     "vehicle": {
@@ -41,7 +40,7 @@ STEP_FIELDS = {
     "owner": {
         "owner_type", "owner_name", "owner_name_en", "owner_phone", "owner_email", "owner_birth_date",
         "owner_nationality", "owner_address", "owner_id_number", "residence_expiry", "id_front", "id_back",
-        "id_verified", ID_MANUAL_KEY,
+        "id_verified",
     },
     "payment": {
         "payment_type", "vehicle_price", "vehicle_price_adjustment_reason", "registration_manual", "registration_adjustment_reason", "registration_date",
@@ -130,20 +129,6 @@ def draft_query_dict(data):
             continue
         query.setlist(key, [str(item) for item in value] if isinstance(value, list) else [str(value)])
     return query
-
-
-def identity_check_error(data):
-    """自然人的證件須自動辨識通過；未通過或無法辨識時須人工確認，並回傳提示。"""
-    if data.get("owner_type") not in {"local", "foreign"}:
-        return ""
-    if data.get(ID_CHECK_KEY) == "passed" or data.get(ID_MANUAL_KEY) in {"on", "1", "true", True}:
-        if data.get("id_verified") not in {"on", "1", "true", True}:
-            return "請逐項對照證件照片，勾選「已人工核對證件」後才能前往下一步。"
-        return ""
-    reason = (data.get(ID_CHECK_ERROR_KEY) or "").strip()
-    if data.get(ID_CHECK_KEY) == "failed" and reason:
-        return f"證件自動辨識未通過：{reason} 請重新拍攝，或親自核對證件後勾選「我已人工核對證件正反面」。"
-    return "證件尚未完成自動辨識，請等待辨識完成；無法辨識時，請親自核對證件後勾選「我已人工核對證件正反面」。"
 
 
 def collect_step_errors(form, formsets, extra=None):

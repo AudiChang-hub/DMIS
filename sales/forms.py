@@ -330,8 +330,7 @@ class SalesOrderForm(forms.ModelForm):
             ),
         }
 
-    def __init__(self, *args, existing_documents=None, **kwargs):
-        self.existing_documents = existing_documents or {}
+    def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         if not self.instance.pk:
             self.initial.setdefault("old_owner_same_as_owner", False)
@@ -468,7 +467,10 @@ class SalesOrderForm(forms.ModelForm):
             help_text="多個補助以「、」分開；金額之後在訂單的補助分頁填寫。",
             widget=forms.TextInput(attrs={"placeholder": "例如：縣市加碼補助"}),
         )
-        self.fields["delivery_method"].required = True
+        # 開單只卡後續流程真正用到的欄位（使用者 2026-10-14）：電話、地址可之後補；
+        # 交車方式在交車完成時會再選一次。證件號碼仍必填（客戶依證件號碼歸戶）。
+        for field_name in ("owner_phone", "owner_address", "delivery_method"):
+            self.fields[field_name].required = False
         self.fields["vehicle_category"].required = False
         self.fields["vehicle_category"].initial = SalesOrder.VehicleCategory.NEW
         # 相容功能上線前建立的草稿與舊版表單送出；新畫面仍會顯示選項。
@@ -795,19 +797,7 @@ class SalesOrderForm(forms.ModelForm):
                 "送至指定地點或委託託運時必須填寫目的地。",
             )
 
-        preserve_completed_identity = bool(self.instance.pk and all(
-            data.get(name) == getattr(self.instance, name) for name in ("owner_type", "owner_name", "owner_id_number")
-        ))
-        if data.get("owner_type") in {SalesOrder.OwnerType.LOCAL, SalesOrder.OwnerType.FOREIGN} and not preserve_completed_identity:
-            for field_name in ("id_front", "id_back"):
-                if (
-                    not data.get(field_name)
-                    and not getattr(self.instance, field_name)
-                    and not self.existing_documents.get(field_name)
-                ):
-                    self.add_error(field_name, "自然人需上傳身分證或居留證正反面。")
-        if not data.get("id_verified") and not (preserve_completed_identity and not self.instance.id_verified):
-            self.add_error("id_verified", "請對照證件並確認資料正確。")
+        # 證件照片與人工核對改為選填（使用者 2026-10-14）：後續流程沒有任何步驟依賴，簽署前也不必補齊。
         return data
 
 

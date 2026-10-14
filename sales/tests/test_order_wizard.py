@@ -32,7 +32,7 @@ class OrderWizardTests(TestCase):
     def draft(self):
         return OrderDraft.objects.get()
 
-    def walk_to(self, last, **owner_extra):
+    def walk_to(self, last, files=True, **owner_extra):
         self.key = getattr(self, "key", str(uuid.uuid4()))
         draft = None
         for step in ("vehicle", "accessories", "tradein", "delivery", "owner", "payment", "deposit", "confirm"):
@@ -40,7 +40,7 @@ class OrderWizardTests(TestCase):
                 return draft
             # 每一步都會送出整張表單，證件檢查結果在車主步驟之後持續帶著。
             extra = owner_extra if step in {"owner", "payment", "deposit"} else {}
-            response = self.post(step, draft=draft, **extra)
+            response = self.post(step, draft=draft, files=files, **extra)
             self.assertEqual(response.status_code, 302, response.content.decode()[:300])
             draft = self.draft()
         return draft
@@ -55,12 +55,11 @@ class OrderWizardTests(TestCase):
         self.assertIn('data-wizard-panel="owner" hidden', page)
         self.assertIn('value="next"', page)
         self.assertNotIn("確認並建立訂單", page)
-        # 證件辨識有結果前，人工核對與車主步驟的下一步都鎖住；人工確認框只在辨識未通過時出現。
+        # 證件為選填（2026-10-14）：辨識有結果前只鎖「已人工核對」勾選，不鎖車主步驟的下一步。
         self.assertIn('id="id-verify-hint" hidden', page)
-        self.assertIn('id="id-manual-check" hidden', page)
         self.assertIn("function updateVerifyLock", page)
-        # 自然人未勾「已人工核對證件」也不能前往下一步。
-        self.assertIn('next.disabled = needsId && (!ocrReady || !verified)', page)
+        self.assertNotIn('id="id-manual-check"', page)
+        self.assertNotIn("next.disabled = needsId", page)
         # 訂金獨立成段且一律留空，不自動帶入配件金額（1.70.2）。
         self.assertIn('id="deposit-subsection"', page)
         self.assertNotIn('name="_deposit_auto"', page)
@@ -92,25 +91,32 @@ class OrderWizardTests(TestCase):
         draft.refresh_from_db()
         self.assertEqual(draft.data["_wizard_done"], ["vehicle"])
 
-    def test_owner_step_requires_passed_identity_check_or_manual_confirmation(self):
+    def test_owner_step_does_not_require_identity_documents(self):
+        # 證件照片、自動辨識與人工核對都是選填（2026-10-14），沒有任何一項會擋下一步。
         draft = self.walk_to("owner")
-        response = self.post("owner", draft=draft)
-        self.assertContains(response, "證件尚未完成自動辨識")
-        response = self.post("owner", draft=draft, _id_check="failed", _id_check_error="正面照片看起來是健保卡，請改拍身分證或居留證。")
-        self.assertContains(response, "證件自動辨識未通過：正面照片看起來是健保卡")
-        draft.refresh_from_db()
-        self.assertTrue(draft.id_front)
-        self.assertNotIn("owner", draft.data["_wizard_done"])
-        # 辨識通過但未勾「已人工核對證件」仍不能前往下一步。
-        response = self.post("owner", draft=draft, files=False, _id_check="passed", id_verified="")
-        self.assertContains(response, "勾選「已人工核對證件」後才能前往下一步")
-        response = self.post("owner", draft=draft, files=False, _id_check="passed")
+        response = self.post("owner", draft=draft, files=False, id_verified="")
         self.assertEqual(response.status_code, 302)
         draft.refresh_from_db()
         self.assertEqual(draft.data["_wizard_done"], ["vehicle", "accessories", "tradein", "delivery", "owner"])
+        self.assertFalse(draft.id_front)
+        summary = self.client.get(reverse("order_create"), {"draft": draft.pk, "step": "payment"})
+        self.assertEqual(summary.status_code, 200)
+
+    def test_submit_without_identity_documents_records_status(self):
+        draft = self.walk_to("confirm", files=False, id_verified="", owner_phone="", owner_address="", delivery_method="")
+        page = self.client.get(reverse("order_create"), {"draft": draft.pk, "step": "confirm"}).content.decode()
+        self.assertIn("<dt>證件檢查</dt><dd>尚未上傳證件正反面</dd>", page)
+        response = self.post("confirm", action="submit", draft=draft, files=False, id_verified="",
+                             owner_phone="", owner_address="", delivery_method="")
+        order = SalesOrder.objects.get(owner_name="測試車主")
+        self.assertRedirects(response, f"{reverse('order_detail', args=[order.pk])}?created=1", fetch_redirect_response=False)
+        self.assertFalse(order.id_front or order.id_verified)
+        self.assertEqual((order.owner_phone, order.owner_address, order.delivery_method), ("", "", ""))
+        event = OrderEvent.objects.get(order=order, event_type="identity_manual_check")
+        self.assertIn("尚未上傳證件正反面", event.description)
 
     def test_confirm_summary_and_submit_records_manual_identity_check(self):
-        draft = self.walk_to("confirm", _id_check="failed", _id_check_error="反面照片看不出是身分證反面", _id_manual_confirmed="on")
+        draft = self.walk_to("confirm", _id_check="failed", _id_check_error="反面照片看不出是身分證反面")
         page = self.client.get(reverse("order_create"), {"draft": draft.pk, "step": "confirm"}).content.decode()
         self.assertIn("請核對整張訂單", page)
         summary = page.split("wizard-summary", 1)[1].split("</section>", 1)[0]
@@ -120,11 +126,11 @@ class OrderWizardTests(TestCase):
         self.assertIn("<dt>訂金</dt><dd>無</dd>", summary)
         self.assertIn("線上簽「車輛訂購單」與「個資同意書」", summary)
         self.assertIn("測試車主", page)
-        self.assertIn("自動辨識未通過，已人工核對證件正反面", page)
+        self.assertIn("自動辨識未通過（反面照片看不出是身分證反面），已人工核對", page)
         self.assertIn("確認並建立訂單", page)
 
         response = self.post("confirm", action="submit", draft=draft, _id_check="failed",
-                             _id_check_error="反面照片看不出是身分證反面", _id_manual_confirmed="on")
+                             _id_check_error="反面照片看不出是身分證反面")
         order = SalesOrder.objects.get(owner_name="測試車主")
         self.assertRedirects(response, f"{reverse('order_detail', args=[order.pk])}?created=1", fetch_redirect_response=False)
         self.assertFalse(OrderDraft.objects.exists())

@@ -2,7 +2,7 @@
   "use strict";
 
   function createProgress(form) {
-    const row = form.closest(".registration-document-row") || form;
+    const row = form.closest(".registration-document-row, [data-upload-row]") || form;
     let panel = row.querySelector("[data-document-upload-progress]");
     if (panel) return panel;
 
@@ -209,6 +209,17 @@
       }
     }, 250);
   }
+
+  // 歸類到已有檔案的文件格時先確認，避免不小心替換掉原檔。
+  document.querySelectorAll("[data-classify-form]").forEach((form) => {
+    form.addEventListener("submit", (event) => {
+      const option = form.querySelector("select")?.selectedOptions[0];
+      if (!option?.dataset.replace) return;
+      const name = form.dataset.fileName || "這個檔案";
+      const target = option.textContent.replace("（已有，將替換）", "");
+      if (!window.confirm(`「${target}」已經有檔案，歸類「${name}」後會替換原檔案，確定嗎？`)) event.preventDefault();
+    });
+  });
 
   // 全部下載：伺服器打包需要幾秒，期間顯示提示並避免重複點擊。
   document.querySelectorAll("[data-zip-download]").forEach((link) => {

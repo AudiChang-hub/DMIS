@@ -495,6 +495,11 @@ urlpatterns = [
         name="order_attachment_file",
     ),
     path(
+        "orders/<int:pk>/attachments/<int:attachment_pk>/classify/",
+        views.order_attachment_classify,
+        name="order_attachment_classify",
+    ),
+    path(
         "orders/<int:pk>/attachments/download/",
         views.order_attachments_zip,
         name="order_attachments_zip",

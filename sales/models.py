@@ -4306,7 +4306,7 @@ class DeliveryRecord(TimeStampedModel):
         verbose_name="訂單",
     )
     recipient_name = models.CharField("實際收車人", max_length=160)
-    recipient_phone = models.CharField("收車人電話", max_length=30)
+    recipient_phone = models.CharField("收車人電話", max_length=30, blank=True)
     carrier_name = models.CharField("託運公司", max_length=160, blank=True)
     handover_location = models.CharField("實際交付地點", max_length=250)
     vehicle_condition_note = models.TextField("交付車況")

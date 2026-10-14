@@ -590,6 +590,12 @@
           <p class="form-hint">{% site_text 'order_detail.888f88e01465' %}</p>
         </fieldset>
         {% else %}
+        {% if field.name == 'condition_checked' %}
+        <div class="wide delivery-checklist-head" data-delivery-checklist>
+          <span><strong>交付核對</strong><small data-delivery-checklist-count aria-live="polite">逐項確認，或一次全部勾選</small></span>
+          <button type="button" class="button secondary small" data-delivery-check-all aria-pressed="false">全部已核對</button>
+        </div>
+        {% endif %}
         <div class="{% if field.name == 'damage_note' or field.name == 'note' %}wide{% endif %}"{% if field.name == 'damage_note' %} data-delivery-damage-details{% endif %}>
           {% if field.field.widget.input_type == 'checkbox' %}
           <label class="check-card">{{ field }} <span>{{ field.label }}</span></label>

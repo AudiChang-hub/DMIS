@@ -4842,7 +4842,8 @@ class OrderFlowTests(TestCase):
             }
         )
         self.assertFalse(selected_form.is_valid())
-        self.assertIn("quantity", selected_form.errors)
+        # 數量空白視為 1（2026-10-14），只有類型必填。
+        self.assertNotIn("quantity", selected_form.errors)
         self.assertIn("line_type", selected_form.errors)
         self.assertNotIn("amount", selected_form.errors)
 
